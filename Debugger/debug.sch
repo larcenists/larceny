@@ -2,17 +2,17 @@
 ;
 ; $Id$
 ;
-; Debugger/debug.sch -- bare-bones *prototype* debugger.
+; Bare-bones debugger (very experimental).
 ;
 ; Usage: when an error has occurred in the program, type (backtrace)
 ; or (debug) at the prompt.
 
-; Requires
-;  Auxlib/pp.sch                  [ for pretty-print ]
-;  Debugger/inspect-cont.sch      [ for inspector ]
+'(require 'pretty-print)
+'(require 'inspect-cont)
 
 (define *debug-exit* #f)
 (define *debug-print-length* 10)
+(define *debug-level* 0)
 
 (define (debug)
   (format #t "Entering debugger; ? for help.~%")
@@ -20,20 +20,24 @@
     (if (not e)
 	(begin (display "No error continuation!")
 	       (newline))
-	(debug-continuation-structure e))))
+	(debug-continuation-structure #f e))))
 
-(define (debug/enter-debugger)
-  (debug-continuation-structure (current-continuation-structure)))
+(define (debug/enter-debugger continuable?)
+  (display "Entering debugger; type \"?\" for help.")
+  (newline)
+  (debug-continuation-structure continuable? (current-continuation-structure)))
 
 (define (backtrace)
   (debug/backtrace 0 (make-continuation-inspector (error-continuation))))
 
-(define (debug-continuation-structure c . rest)
+(define (debug-continuation-structure continuable? c . rest)
   (let ((c (make-continuation-inspector c))
 	(display? (and (not (null? rest)) (car rest))))
 
     (define (user-input)
-      (display "Debug> ")
+      (display "debug")
+      (display (make-string *debug-level* #\>))
+      (display " ")
       (flush-output-port)
       (let* ((x     (debug/get-token))
 	     (count (if (number? x) x 1))
@@ -72,14 +76,22 @@
                   ((eq? res 'reset)
                    (display "Reset")
                    (newline)
-                   (reset)))))))
+                   (reset))
+                  ((not continuable?)
+                   (display "Computation is not continuable.")
+                   (newline)
+                   (outer #f)))))))
 
-    (call-with-current-continuation
-     (lambda (k)
-       (set! *debug-exit* k)
-       (inspect-continuation c)))
-    (set! *debug-exit* #f)
-    (unspecified)))
+    (dynamic-wind
+     (lambda () (set! *debug-level* (+ *debug-level* 1)))
+     (lambda ()
+       (call-with-current-continuation
+        (lambda (k)
+          (set! *debug-exit* k)
+          (inspect-continuation c)))
+       (set! *debug-exit* #f)
+       (unspecified))
+     (lambda () (set! *debug-level* (- *debug-level* 1))))))
 
 
 ; Safe evaluation
@@ -280,8 +292,7 @@
 
 ; This parameter is set to #f whenever the debugger recursively calls
 ; EVAL and can be used by other code (see e.g. trace.sch) to determine
-; whether breakpoints should be honored or not.  It makes debugging
-; EVAL easier.
+; whether breakpoints should be honored or not.
 
 (define debug/breakpoints-enable 
   (let ((enable #t))
@@ -347,8 +358,8 @@
     (d . ,debug/down)
     (e . ,debug/evaluate)
     (i . ,debug/inspect)
-    (q . done)
-    (r . reset)
+    (q . reset)
+    (r . done)
     (s . ,debug/summarize-frame)
     (u . ,debug/up)
     (x . ,debug/examine-frame)
@@ -369,8 +380,8 @@
               the result, if not unspecified, is printed.
   I n         Inspect the procedure in slot n of the current activation record.
   I @         Inspect the active procedure.
-  Q           Quit the debugger.
-  R           Reset: abort the computation, return to the top level.
+  Q           Quit the debugger and abort the computation.
+  R           Return from the debugger and continue the computation.
   S           Summarize the contents of the current activation record.
   U           Up to the next activation record.
   X           Examine the contents of the current activation record.
