@@ -72,7 +72,7 @@
 ;    arity
 ;    procedure name to be used by the disassembler
 ;    predicate for immediate operands (or #f)
-;    primop code in the MacScheme machine
+;    primop code in the MacScheme machine (not used by Larceny, may be absent)
 
 (define (prim-entry name)
   (assq name $usual-integrable-procedures$))
@@ -84,7 +84,7 @@
   (car (cddddr entry)))
 
 ; This predicate returns #t iff its argument will be represented
-; as an immediate fixnum on the target machine.
+; as a fixnum on the target machine.
 
 (define smallint?
   (let* ((least (- (expt 2 28)))
@@ -113,6 +113,12 @@
       (eq? x #f)
       (eq? x '())))
 
+(define (valid-typetag? x)
+  (and (fixnum? x)
+       (<= 0 x 7)))
+
+(define (fixnum-primitives) #t)
+
 (define $usual-integrable-procedures$
   `((break 0 break #f 3)
     (creg 0 creg #f 7)
@@ -121,7 +127,6 @@
     (eof-object 0 eof-object #f -1)
     (enable-interrupts 1 enable-interrupts #f -1)
     (disable-interrupts 0 disable-interrupts #f -1)
-
     (typetag 1 typetag #f #x11)
     (not 1 not #f #x18)
     (null? 1 null? #f #x19)
@@ -169,32 +174,7 @@
     (,name:MAKE-CELL 1 make-cell #f #x7e)
     (,name:CELL-REF 1 cell-ref #f #x7f)
     (,name:CELL-SET! 2 cell-set! #f #xdf)
-    
-    ; These next few entries are for the disassembler only.
-    ; [Not used by the Larceny disassembler.]
-
-    (#f 2 typetag-set! #f #x80)
-    (#f 2 eq? #f #x81)
-    (#f 2 + #f #x82)
-    (#f 2 - #f #x83)
-    (#f 2 < #f #x84)
-    (#f 2 <= #f #x85)
-    (#f 2 = #f #x86)
-    (#f 2 > #f #x87)
-    (#f 2 >= #f #x88)
-    (#f 2 char<? #f #x89)
-    (#f 2 char<=? #f #x8a)
-    (#f 2 char=? #f #x8b)
-    (#f 2 char>? #f #x8c)
-    (#f 2 char>=? #f #x8d)
-    (#f 2 string-ref #f #x90)
-    (#f 2 vector-ref #f #x91)
-    (#f 2 bytevector-ref #f #x92)
-    
-    (typetag-set! 2 typetag-set! ,(lambda (x)
-                                          (and (fixnum? x)
-                                               (<= 0 x 7)))   ; used to be 31
-                                 #xa0)
+    (typetag-set! 2 typetag-set! ,valid-typetag? #xa0)
     (eq? 2 eq? ,sparc-eq-imm? #xa1)
     (eqv? 2 eqv? #f #xa2)
     (cons 2 cons #f #xa8)
@@ -230,7 +210,6 @@
     (char=? 2 char=? ,char? #xe2)
     (char>? 2 char>? ,char? #xe3)
     (char>=? 2 char>=? ,char? #xe4)
-    
     (sys$partial-list->vector 2 sys$partial-list->vector #f -1)
     (vector-set! 3 vector-set! #f #xf1)
     (bytevector-set! 3 bytevector-set! #f #xf2)
@@ -246,8 +225,25 @@
     (bytevector-like-length 1 bytevector-like-length #f -1)
     (remainder 2 remainder #f -1)
     (sys$read-char 1 sys$read-char #f -1)
-    (gc-counter 0 gc-counter #f -1)
+    (gc-counter  0 gc-counter  #f)
+    ,@(if (fixnum-primitives)
+	  `((most-positive-fixnum 0 most-positive-fixnum #f)
+	    (most-negative-fixnum 0 most-negative-fixnum #f)
+	    (fx+                  2 fx+                  ,sparc-imm?)
+	    (fx-                  2 fx-                  ,sparc-imm?)
+	    (fx--                 1 fx--                 #f)
+	    (fx=                  2 fx=                  ,sparc-imm?)
+	    (fx<                  2 fx<                  ,sparc-imm?)
+	    (fx<=                 2 fx<=                 ,sparc-imm?)
+	    (fx>                  2 fx>                  ,sparc-imm?)
+	    (fx>=                 2 fx>=                 ,sparc-imm?)
+	    (fxzero?              1 fxzero?              #f)
+	    (fxpositive?          1 fxpositive?          #f)
+	    (fxnegative?          1 fxnegative?          #f))
+	  '())
     ))
+
+; Not used by the Sparc assembler; for information only.
 
 (define $immediate-primops$
   '((typetag-set! #x80)
@@ -268,7 +264,15 @@
     (vector-ref #x91)
     (bytevector-ref #x92)
     (bytevector-like-ref -1)
-    (vector-like-ref -1)))
+    (vector-like-ref -1)
+    (fx+ -1)
+    (fx- -1)
+    (fx-- -1)
+    (fx= -1)
+    (fx< -1)
+    (fx<= -1)
+    (fx> -1)
+    (fx>= -1)))
 
 ; END code snarfed from Larceny/Compiler/pass1.imp.sch.
 
@@ -770,7 +774,6 @@
 (define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
 (define $branch (make-mnemonic 'branch))         ; branch  L
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
-
 
 ; Operations introduced by peephole optimizer.
 
