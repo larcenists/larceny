@@ -1193,7 +1193,8 @@ void gclib_check_memory_validity( word *p, int n )
                         x, i, (word)p );
         conditional_abort();
       }
-      else if (sizefield( x ) > 1000000) {
+      else if (sizefield( x ) > 4*1024*1024) {
+        /* Bigger than the big array in gcbench! */
         hardconsolemsg( "Implausible but valid size %u in header "
                         "0x%08x in  object 0x%08x.", sizefield(x), x, (word)p);
       }
