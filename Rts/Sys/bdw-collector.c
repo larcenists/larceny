@@ -79,6 +79,10 @@ static word *bdw_globals = 0;
 
 void bdw_before_gc( void );
 void bdw_after_gc( void );
+void bdw_before_gc_slowpath( void );
+void bdw_after_gc_slowpath( void );
+
+static GC_PTR bdw_out_of_memory_handler( size_t bytes_requested );
 
 gc_t *
 create_bdw_gc( gc_param_t *params, int *generations )
@@ -89,13 +93,12 @@ create_bdw_gc( gc_param_t *params, int *generations )
 
   gc = allocate_area( params->globals );
   GC_INIT();
-#if 0
   GC_register_displacement( 0 );
   GC_register_displacement( 1 );
   GC_register_displacement( 3 );
   GC_register_displacement( 5 );
   GC_register_displacement( 7 );
-#endif
+  GC_oom_fn = bdw_out_of_memory_handler;
   if (params->use_incremental_bdw_collector)
     GC_enable_incremental();
   init_stack( gc );
@@ -118,6 +121,58 @@ void gc_parameters( gc_t *gc, int op, int *ans )
 }
 
 /* Hook run before gc (if gc has been set up to do it). */
+
+/* Fast hooks to run before/after lazy sweep */
+
+#define USE_HR_TIMER 1		/* Nanosecond timer; SunOS 5.6 (at least) */
+				/* Experimental */
+
+#if USE_HR_TIMER
+static hrtime_t slowpath_timeval;
+static hrtime_t slowpath_nsec = 0;
+#else
+static struct timeval slowpath_timeval;
+static long slowpath_usec = 0;
+static long slowpath_sec = 0;
+#endif
+static int slowpath_cancel = 0;
+
+void bdw_before_gc_slowpath( void )
+{
+#if USE_HR_TIMER
+  slowpath_timeval = gethrtime();
+#else
+  gettimeofday( &slowpath_timeval, 0 );
+#endif
+}
+
+void bdw_after_gc_slowpath( void )
+{
+#if USE_HR_TIMER
+  hrtime_t t;
+
+  if (slowpath_cancel) { slowpath_cancel=0; return; }
+  t = gethrtime();
+  slowpath_nsec += (t - slowpath_timeval);
+#else
+  struct timeval t;
+  long s, us;
+
+  if (slowpath_cancel) { slowpath_cancel=0; return; }
+  gettimeofday( &t, 0 );
+  s = 0;
+  us = t.tv_usec - slowpath_timeval.tv_usec;
+  if (us < 0) {
+    s--;
+    us += 1000000;
+  }
+  s += t.tv_sec - slowpath_timeval.tv_sec;
+  slowpath_usec += us;
+  slowpath_sec += s;
+#endif
+}
+
+/* Slow hooks to run before/after actual GC */
 
 void bdw_before_gc( void )
 {
@@ -156,6 +211,17 @@ void bdw_before_gc( void )
 
 # endif
 #endif
+#if USE_HR_TIMER
+  stats_add_gctime( (long)(slowpath_nsec / 1000000000),
+		    (long)((slowpath_nsec / 1000000) % 1000) );
+  slowpath_nsec = 0;
+#else
+  stats_add_gctime( slowpath_sec + slowpath_usec / 1000000, 
+		    slowpath_usec / 1000 );
+  slowpath_sec = 0;
+  slowpath_usec = 0;
+#endif
+  slowpath_cancel = 1;
   stats_before_gc();
   stats_gc_type( 0, 0 );
 }
@@ -193,6 +259,8 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
 {
   void *p;
 
+  /* This can be removed if the check remains on the slow path
+     in bdw-gc/malloc.c. */
   if (nbytes > LARGEST_OBJECT) {
     panic( "\nSorry, an object of size %d bytes is too much for me; max is %d."
 	   "\nSee you in 64-bit-land...\n",
@@ -285,6 +353,15 @@ static void creg_set( gc_t *gc, word k )
 }
 
 /* Internal */
+
+static GC_PTR bdw_out_of_memory_handler( size_t bytes_requested )
+{
+  static char message[] = "Out of memory.\n";
+
+  write( 2, message, sizeof( message )-1 );
+  exit( 1 );
+  return (GC_PTR)0;
+}
 
 static void init_stack( gc_t *gc )
 {
