@@ -162,10 +162,12 @@ static void inthandler( int sig )
     return;
   }
 
+#if ALLOW_SYNCHRONOUS_SIGNALS
   /* Interruptible syscall.  Interrupt it by longjumping back to the
      callout point, where cleanup will take place. 
      */
   longjmp( syscall_interrupt_buf, ASYNCHRONOUS_ERROR );
+#endif
 }
 
 
