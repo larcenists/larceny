@@ -22,6 +22,11 @@
  *   (expand-file \"arithmetic.mac\" \"arithmetic.c\")
  */
 
+#define NOGLOBALS
+
+#include \"larceny.h\"			/* includes config.h also */
+#include \"millicode.h\"
+
 #include <math.h>
 #if defined( SUNOS4 ) || defined( SUNOS5 )
 # include <sys/ieeefp.h>
@@ -30,38 +35,26 @@
 # include <floatingpoint.h>
 #endif
 
-#define NOGLOBALS
-
-#include \"larceny.h\"
-#include \"millicode.h\"
-
 #define header_byte( obj, tag )  (*ptrof(obj)&255)  /* can do better */
 
 #define setcc( c )  globals[ G_RESULT ] = ((c) ? TRUE_CONST : FALSE_CONST)
 
 /* FIXME: these macros are not valid in a 64-bit setting! */
 /* FIXME: these should be in macros.h, probably */
+#if defined(BITS_64)
+#  error \"Must fix some macros in arithmetic.mac for 64-bit compilation.\"
+#endif
+
 #define compnum_real( x )  (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
 #define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
 #define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
 
-/* rint() is also in XPG4-UNIX (X/Open 1994) */
-#if defined( SUNOS4 ) || defined( SUNOS5 )
-# define round_to_even( x )    rint( x )
-# define round_any( x )        rint( x )
-#elif defined(STDC_SOURCE)
-/* There are no standard functions for this (sigh).  FIXME. */
-# define round_to_even( x )    rint( x )
-# define round_any( x )        rint( x )
-#else
-# error \"round_to_even not implemented.\"
-#endif
+extern double rint( double x );
+extern double aint( double x );
 
-#if defined( SUNOS4 )
-# define round_to_zero( x )     aint( x )
-#else
-# define round_to_zero( x )     (x < 0.0 ? ceil( x ) : floor( x ))
-#endif
+#define round_to_even( x )    rint( x )
+#define round_any( x )        rint( x )
+#define round_to_zero( x )    aint( x )
 
 #define both_fixnums( x, y )  (((x | y) & 3) == 0)
 #define positive_fixnum( x )  (((x) & 3) == 0 && (s_word)(x) >= 0)
@@ -78,14 +71,6 @@ static void ga_box_compnum( word *globals, double r, double i );
 
 void initialize_generic_arithmetic( void )
 {
-  char *out;
-
-#if 0
-  /* SunOS 4 */
-  /* FIXME: Doesn't support round to even. */
-  ieee_flags( \"set\", \"direction\", \"nearest\", &out );
-  ieee_flags( \"set\", \"precision\", \"double\", &out );
-#endif
 }
 
 #define G_SECOND G_ARGREG2
@@ -302,6 +287,7 @@ void @name@( word *globals @extra@ )
 
 (standard-arithmetic "mc_mul" "MUL"
 "
+/* DEC C compiler may have problems with the #if not at SOL? */
 #if defined( __GNUC__ ) && 0
   long long int res = (long long)nativeint( x ) * (long long)nativeint( y );
   ga_box_longint( globals, (int)(res >> 32), (int)res );
@@ -330,6 +316,9 @@ ga_box_compnum( globals, (xr * yr)-(xi * yi), (xi * yr)+(xr * yi) );
 ; as expected; otherwise, the operation will generate a ratnum and
 ; the whole thing is pushed into Scheme.
 "
+#if defined(EXPLICIT_DIVZ_CHECK)
+if (y == 0) mc_exception( globals, EX_DIV );
+#endif
 if ((int)x % (int)y == 0)
   globals[ G_RESULT ] = fixnum( (int)x / (int)y );
 else
@@ -382,7 +371,7 @@ else {
 /* These operate on the bignum metaword (sign/length) */
 
 #define bigmeta_length( x ) (x & 0xFFFF)
-#define bigmeta_sign( x ) (x >> 16)
+#define bigmeta_sign( x ) ((x >> 16) & 1)
 
 void mc_quo( word *globals, cont_t k )
 {
@@ -390,6 +379,9 @@ void mc_quo( word *globals, cont_t k )
   word y = globals[ G_SECOND ];
 
   if (both_fixnums( x, y )) {
+#if defined(EXPLICIT_DIVZ_CHECK)
+    if (y == 0) mc_exception( globals, EX_DIV );
+#endif
     globals[ G_RESULT ] = fixnum((s_word)x / (s_word)y);
     return;
   }
@@ -398,6 +390,9 @@ void mc_quo( word *globals, cont_t k )
            positive_fixnum( y )) {
     word z = *(ptrof( x )+1);
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
+#if defined(EXPLICIT_DIVZ_CHECK)
+      if (y == 0) mc_exception( globals, EX_DIV );
+#endif
       ga_box_int( globals, *(ptrof( x )+2) / (y >> 2) );
       return;
     }
@@ -411,14 +406,20 @@ void mc_rem( word *globals, cont_t k )
   word y = globals[ G_SECOND ];
 
   if (both_fixnums( x, y )) {
+#if defined(EXPLICIT_DIVZ_CHECK)
+    if (y == 0) mc_exception( globals, EX_DIV );
+#endif
     globals[ G_RESULT ] = fixnum((s_word)nativeint(x) % (s_word)nativeint(y));
     return;
   }
   else if (tagof( x ) == BVEC_TAG && 
-	   header_byte(x, BVEC_TAG) == BIGNUM_HDR &&
+           header_byte(x, BVEC_TAG) == BIGNUM_HDR &&
            positive_fixnum( y )) {
     word z = *(ptrof( x )+1);
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
+#if defined(EXPLICIT_DIVZ_CHECK)
+      if (y == 0) mc_exception( globals, EX_DIV );
+#endif
       ga_box_int( globals, *(ptrof( x )+2) % (y >> 2) );
       return;
     }
