@@ -208,11 +208,16 @@ word w_bv;
 /* Copy a file name from a Scheme string to a C string. */
 static char *getstring( word w_str )
 {
-  static char fnbuf[ 1024 ];
+  static char *fnbuf = 0;
+  static int fnbuf_length = 0;
   size_t l;
 
   l = string_length( w_str );
-  if (l >= sizeof( fnbuf )) return 0;
+  if (l >= fnbuf_length) {
+    if (fnbuf != 0) free( fnbuf );
+    fnbuf = malloc( l+1 );
+    fnbuf_length = l+1;
+  }
   strncpy( fnbuf, string_data( w_str ), l );
   fnbuf[ l ] = 0;
   return fnbuf;
