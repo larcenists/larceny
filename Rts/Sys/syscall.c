@@ -75,6 +75,8 @@ void larceny_syscall( int nargs, int nproc, word *args )
 
   if (syscall_table[ nproc ].interruptible)
     BEGIN_INTERRUPTIBLE_SYSCALL();
+  else
+    in_noninterruptible_syscall = 1;
 
   switch (nargs) {
     case 0 : proc(); break;
@@ -87,6 +89,8 @@ void larceny_syscall( int nargs, int nproc, word *args )
 
   if (syscall_table[ nproc ].interruptible)
     END_INTERRUPTIBLE_SYSCALL();
+  else
+    in_noninterruptible_syscall = 0;
 }
 
 /* eof */
