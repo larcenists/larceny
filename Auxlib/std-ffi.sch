@@ -16,6 +16,11 @@
 ;   param-types    a list of symbols: the formal parameter types
 ;   ret-type       a symbol: the return type
 ;
+; (foreign-procedure-pointer addr params type)  =>  procedure
+;   addr           a number: the foreign procedure's address
+;   param-types    a list of symbols: the formal parameter types
+;   ret-type       a symbol: the return type
+;
 ; (foreign-null-pointer)  =>  integer
 ;   Returns a foreign null pointer.
 ;
@@ -142,7 +147,8 @@
     `((int      signed32   ,integer-check           ,id)
       (short    signed32   ,integer-check           ,id)
       (char     signed32   ,character->char         ,char->character)
-      (unsigned unsigned32 ,unsigned-integer-check  ,id)
+      (unsigned unsigned32 ,unsigned-integer-check  ,id) ; avoid
+      (uint     unsigned32 ,unsigned-integer-check  ,id)
       (ushort   unsigned32 ,unsigned-integer-check  ,id)
       (uchar    unsigned32 ,character->uchar        ,uchar->character)
       (long     signed32   ,integer-check           ,id)
@@ -177,6 +183,16 @@
   (ffi/libraries (cons x (ffi/libraries))))
 
 (define (foreign-procedure name param-types ret-type)
+  (stdffi/make-foreign-procedure name param-types ret-type 
+                                 ffi/foreign-procedure))
+
+(define (foreign-procedure-pointer addr param-types ret-type)
+  (stdffi/make-foreign-procedure addr param-types ret-type
+                                 ffi/foreign-procedure-pointer))
+
+; Name can be a string or an address.
+
+(define (stdffi/make-foreign-procedure name param-types ret-type maker)
 
   (define (call0 p r)
     (lambda ()
@@ -228,9 +244,10 @@
 	 (error "FFI: \"boxed\" is not a valid return type."))
 	(else
 	 (param-conversion 
-	  (ffi/foreign-procedure *ffi-callout-abi* name
-				 (map ffi/rename-arg-type param-types)
-				 (ffi/rename-ret-type ret-type))))))
+	  (maker *ffi-callout-abi* 
+                 name
+                 (map ffi/rename-arg-type param-types)
+                 (ffi/rename-ret-type ret-type))))))
 
 (define (foreign-null-pointer? x)
   (eq? x 0))
@@ -315,7 +332,8 @@
 
 (define %peek-int %peek32)
 (define %peek-long %peek32)
-(define %peek-unsigned %peek32u)
+(define %peek-unsigned %peek32u)        ; avoid using
+(define %peek-uint %peek32u)
 (define %peek-ulong %peek32u)
 (define %peek-short %peek16)
 (define %peek-ushort %peek16u)
@@ -323,7 +341,8 @@
 
 (define %poke-int %poke32)
 (define %poke-long %poke32)
-(define %poke-unsigned %poke32u)
+(define %poke-unsigned %poke32u)        ; avoid using
+(define %poke-uint %poke32u)
 (define %poke-ulong %poke32u)
 (define %poke-short %poke16)
 (define %poke-ushort %poke16u)
@@ -388,7 +407,7 @@
 ; Given the address of a C string, get the string.
 
 (define %peek-string 
-  (let ((_strlen (foreign-procedure "strlen" '(unsigned) 'int)))
+  (let ((_strlen (foreign-procedure "strlen" '(uint) 'int)))
     (lambda (ptr)
       (let* ((l (_strlen ptr))
 	     (s (make-bytevector l)))
