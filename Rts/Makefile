@@ -17,6 +17,9 @@
 CC=gcc
 CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit
+#CC=lcc
+#CCFLAGS=-DSTDC_SOURCE
+
 AS=as
 
 
