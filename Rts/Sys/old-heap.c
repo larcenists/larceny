@@ -11,6 +11,13 @@
 
 #define GC_INTERNAL
 
+#define FLOAT_REDUCTION  0
+  /* Define this to 1 to do a mark-and-remset-sweep before every ROF 
+     collection and 2 to do ditto before every collection.
+
+     Normally this should be 0!
+     */
+
 #include "larceny.h"
 #include "memmgr.h"
 #include "gc.h"
@@ -49,7 +56,9 @@ struct old_data {
   int         promoted_last_gc;	  /* For policy use */
   gen_stats_t gen_stats;	  /* accumulates collections and time */
   gc_stats_t  gc_stats;		  /* accumulates words copied/moved */
+  gc_event_stats_t event_stats;	  /* Instrumentation data */
 };
+
 
 #define DATA(x)  ((old_data_t*)((x)->data))
 
@@ -61,6 +70,9 @@ static void perform_promote( old_heap_t *heap );
 static void perform_promote_then_promote( old_heap_t *heap );
 static int  compute_dynamic_size( old_heap_t *heap, int live, int los );
 static int  used_space( old_heap_t *heap );
+#if FLOAT_REDUCTION
+static void full_collection( old_heap_t *heap );
+#endif
 
 
 old_heap_t *
@@ -235,6 +247,10 @@ static void perform_collect( old_heap_t *heap )
 
   annoyingmsg( "  Collecting generation %d.", data->gen_no );
 
+#if FLOAT_REDUCTION
+  full_collection( heap );
+#endif
+
   timer1 = stats_start_timer( TIMER_ELAPSED );
   timer2 = stats_start_timer( TIMER_CPU );
 
@@ -247,12 +263,19 @@ static void perform_collect( old_heap_t *heap )
   ss_free( from );
   ss_sync( to );
 
+  /* Why isn't this `+=' ?  I think it is benign in this collector. */
   data->gc_stats.words_copied = bytes2words( to->used );
   data->gc_stats.words_moved = 
     bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
+
   data->gen_stats.ms_collection += stats_stop_timer( timer1 );
   data->gen_stats.ms_collection_cpu += stats_stop_timer( timer2 );
   data->gen_stats.collections++;
+#if GC_EVENT_COUNTERS
+  data->event_stats.copied_by_gc += bytes2words( to->used );
+  data->event_stats.moved_by_gc += 
+    bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
+#endif
 }
 
 static void perform_promote( old_heap_t *heap )
@@ -262,6 +285,10 @@ static void perform_promote( old_heap_t *heap )
   stats_id_t timer1, timer2;
 
   annoyingmsg( "  Promoting into generation %d.", data->gen_no );
+
+#if FLOAT_REDUCTION
+  full_collection( heap );
+#endif
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
   timer2 = stats_start_timer( TIMER_CPU );
@@ -275,6 +302,7 @@ static void perform_promote( old_heap_t *heap )
 
   data->promoted_last_gc = used_space( heap ) - used_before;
 
+  /* Why isn't this `+=' ?  I think it is benign in this collector. */
   data->gc_stats.words_copied = 
     bytes2words(data->current_space->used - tospace_before);
   data->gc_stats.words_moved =
@@ -283,6 +311,12 @@ static void perform_promote( old_heap_t *heap )
   data->gen_stats.ms_promotion += stats_stop_timer( timer1 );
   data->gen_stats.ms_promotion_cpu += stats_stop_timer( timer2 );
   data->gen_stats.promotions++;
+#if GC_EVENT_COUNTERS
+  data->event_stats.copied_by_prom += 
+    bytes2words(data->current_space->used - tospace_before);
+  data->event_stats.moved_by_prom += 
+    bytes2words(los_bytes_used(heap->collector->los, data->gen_no)-los_before);
+#endif
 }
 
 static void perform_promote_then_promote( old_heap_t *heap )
@@ -334,6 +368,7 @@ static void stats( old_heap_t *heap )
 
   stats_add_gen_stats( data->self, &data->gen_stats );
   stats_add_gc_stats( &data->gc_stats );
+  stats_set_gc_event_stats( &data->event_stats );
   rs_stats( heap->collector->remset[ data->gen_no ] );
 
   memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
@@ -406,5 +441,59 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
 
   return heap;
 }
+
+#if FLOAT_REDUCTION
+/* Pilfered from the DOF collector.  Mark all objects reachable from
+   the roots and then sweep all the remembered sets, removing any
+   unmarked objects.
+   */
+#include "msgc-core.h"
+
+typedef struct {
+  msgc_context_t *context;
+  int removed;
+} scan_datum_t;
+
+static bool
+fullgc_should_keep_p( word loc, void *data, unsigned *stats )
+{
+  if (msgc_object_marked_p( ((scan_datum_t*)data)->context, loc ))
+    return TRUE;
+  else {
+    ((scan_datum_t*)data)->removed++;
+    return FALSE;
+  }
+}
+
+static int 
+sweep_remembered_sets( remset_t **remsets, int first, int last, 
+		       msgc_context_t *context )
+{
+  int i;
+  scan_datum_t d;
+
+  d.context = context;
+  d.removed = 0;
+  for ( i=first ; i <= last ; i++ )
+    rs_enumerate( remsets[i], fullgc_should_keep_p, &d );
+  return d.removed;
+}
+
+static
+void full_collection( old_heap_t *heap )
+{
+  msgc_context_t *context;
+  int marked=0, traced=0, removed=0, words_marked=0;
+  
+  context = msgc_begin( heap->collector );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+
+  removed += sweep_remembered_sets( heap->collector->remset,
+                                    1,
+                                    heap->collector->remset_count-1,
+                                    context );
+  msgc_end( context );
+}
+#endif
 
 /* eof */
