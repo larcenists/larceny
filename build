@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# This directory starts up the development environment with correct paths set.
+
+rm -f tmp.build
+DIR="/research/owyhee/`whoami`/scheme313"
+echo "(define sourcedir \"$DIR/Lib/\")" >> tmp.build
+echo "(define targetdir \"$DIR/Lib/\")" >> tmp.build
+echo "(define configdir \"$DIR/\")" >> tmp.build
+echo "(define chezdir \"$DIR/Chez/\")" >> tmp.build
+echo "(define sparcdir \"$DIR/Sparc/\")" >> tmp.build
+echo "(define compilerdir \"$DIR/Compiler/\")" >> tmp.build
+echo "(load (string-append compilerdir \"build.sch\"))" >> tmp.build
+scheme tmp.build
+rm tmp.build
