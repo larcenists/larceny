@@ -527,8 +527,12 @@
     (environment-set! larc 'memstats-gc-copied memstats-gc-copied)
     (environment-set! larc 'memstats-gc-total-elapsed-time 
                       memstats-gc-total-elapsed-time)
+    (environment-set! larc 'memstats-gc-total-cpu-time
+                      memstats-gc-total-cpu-time)
     (environment-set! larc 'memstats-gc-promotion-elapsed-time 
                       memstats-gc-promotion-elapsed-time)
+    (environment-set! larc 'memstats-gc-promotion-cpu-time
+                      memstats-gc-promotion-cpu-time)
     (environment-set! larc 'memstats-heap-allocated-now 
                       memstats-heap-allocated-now)
     (environment-set! larc 'memstats-heap-allocated-max 
@@ -577,18 +581,79 @@
                       memstats-fullgc-collections)
     (environment-set! larc 'memstats-fullgc-elapsed-time 
                       memstats-fullgc-elapsed-time)
+    (environment-set! larc 'memstats-fullgc-cpu-time memstats-fullgc-cpu-time)
     (environment-set! larc 'memstats-fullgc-copied memstats-fullgc-copied)
     (environment-set! larc 'memstats-fullgc-moved memstats-fullgc-moved)
     (environment-set! larc 'memstats-fullgc-marked memstats-fullgc-marked)
     (environment-set! larc 'memstats-fullgc-traced memstats-fullgc-traced)
+    (environment-set! larc 'memstats-dofgc-resets memstats-dofgc-resets)
+    (environment-set! larc 'memstats-dofgc-repeats memstats-dofgc-repeats)
+    (environment-set! larc 'memstats-gc-accounting memstats-gc-accounting)
+    (environment-set! larc 'memstats-acc-gc memstats-acc-gc)
+    (environment-set! larc 'memstats-acc-promotion memstats-acc-promotion)
+    (environment-set! larc 'memstats-acc-free-unused memstats-acc-free-unused)
+    (environment-set! larc 'memstats-acc-root-scan-gc
+                      memstats-acc-root-scan-gc)
+    (environment-set! larc 'memstats-acc-root-scan-promotion
+                      memstats-acc-root-scan-promotion)
+    (environment-set! larc 'memstats-acc-los-sweep-gc
+                      memstats-acc-los-sweep-gc)
+    (environment-set! larc 'memstats-acc-los-sweep-promotion
+                      memstats-acc-los-sweep-promotion)
+    (environment-set! larc 'memstats-acc-remset-scan-gc
+                      memstats-acc-remset-scan-gc)
+    (environment-set! larc 'memstats-acc-remset-scan-promotion
+                      memstats-acc-remset-scan-promotion)
+    (environment-set! larc 'memstats-acc-tospace-scan-gc
+                      memstats-acc-tospace-scan-gc)
+    (environment-set! larc 'memstats-acc-tospace-scan-promotion
+                      memstats-acc-tospace-scan-promotion)
+    (environment-set! larc 'memstats-acc-reset-after-gc
+                      memstats-acc-reset-after-gc)
+    (environment-set! larc 'memstats-acc-decrement-after-gc
+                      memstats-acc-decrement-after-gc)
+    (environment-set! larc 'memstats-acc-dof-remset-scan
+                      memstats-acc-dof-remset-scan)
+    (environment-set! larc 'memstats-acc-sweep-shadow
+                      memstats-acc-sweep-shadow)
+    (environment-set! larc 'memstats-acc-msgc-mark
+                      memstats-acc-msgc-mark)
+    (environment-set! larc 'memstats-acc-sweep-dof-sets
+                      memstats-acc-sweep-dof-sets)
+    (environment-set! larc 'memstats-acc-sweep-remset
+                      memstats-acc-sweep-remset)
+    (environment-set! larc 'memstats-acc-sweep-los
+                      memstats-acc-sweep-los)
+    (environment-set! larc 'memstats-acc-assimilate-promotion
+                      memstats-acc-assimilate-promotion)
+    (environment-set! larc 'memstats-acc-assimilate-gc
+                      memstats-acc-assimilate-gc)
+    (environment-set! larc 'memstats-acc-words-copied-by-gc
+                      memstats-acc-words-copied-by-gc)
+    (environment-set! larc 'memstats-acc-words-copied-by-promotion
+                      memstats-acc-words-copied-by-promotion)
+    (environment-set! larc 'memstats-acc-words-forwarded
+                      memstats-acc-words-forwarded)
+    (environment-set! larc 'memstats-acc-pointers-forwarded
+                      memstats-acc-pointers-forwarded)
+    (environment-set! larc 'memstats-acc-gc-barrier-hits
+                      memstats-acc-gc-barrier-hits)
+    (environment-set! larc 'memstats-acc-remset-large-objects-scanned
+                      memstats-acc-remset-large-objects-scanned)
+    (environment-set! larc 'memstats-acc-remset-large-object-words-scanned
+                      memstats-acc-remset-large-object-words-scanned)
     (environment-set! larc 'memstats-gen-major-id memstats-gen-major-id)
     (environment-set! larc 'memstats-gen-minor-id memstats-gen-minor-id)
     (environment-set! larc 'memstats-gen-collections memstats-gen-collections)
     (environment-set! larc 'memstats-gen-promotions memstats-gen-promotions)
     (environment-set! larc 'memstats-gen-total-elapsed-time 
                       memstats-gen-total-elapsed-time)
+    (environment-set! larc 'memstats-gen-total-cpu-time
+                      memstats-gen-total-cpu-time)
     (environment-set! larc 'memstats-gen-promotion-elapsed-time 
                       memstats-gen-promotion-elapsed-time)
+    (environment-set! larc 'memstats-gen-promotion-cpu-time
+                      memstats-gen-promotion-cpu-time)
     (environment-set! larc 'memstats-gen-target-size-now 
                       memstats-gen-target-size-now)
     (environment-set! larc 'memstats-gen-allocated-now 
