@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 6 November 1998
+; 20 November 1998
 ;
 ; Compiler switches needed by Twobit.
 
