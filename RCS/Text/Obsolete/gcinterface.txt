@@ -1,4 +1,4 @@
-; $Id$
+; $Id: gcinterface.txt,v 1.2 91/06/20 19:15:20 lth Exp Locker: lth $
 
                   Garbage Collector Interface Definition 
 
@@ -77,7 +77,7 @@ uninitialized; the collector will take the size of the vector into account
 and skip the padding. If the word is initialized, it may or may not be
 copied along with the structure during a collection.
 
-The structure layout is this.
+The structure layouts are these:
 
   - Pairs: A pair has two words, the car (low word) and the cdr (high word).
     The pair pointer points to the car of the pair.
@@ -138,33 +138,36 @@ The collector defines the following variables in the "globals" table
 (the names used are the symbolic names of the offsets into the table,
 as defined in the file "offsets.h"):
 
-E_BASE_OFFSET	A pointer pointing to the first word of the current
-		Ephemeral space.
-E_TOP_OFFSET	A pointer pointing to the first unallocated word of the
-		current Ephemeral space.
-E_MARK_OFFSET	A pointer into the current Ephemeral area. If, after a
-		collection of the ephemeral area, the data in the Ephemeral
-		area goes past this mark, then the next collection
-		will be a tenuring collection.
-E_MAX_OFFSET	A pointer to the last word of the current Ephemeral 
-		space.
-		
-T_BASE_OFFSET	A pointer to the first word of the current Tenured
-		space.
-T_TOP_OFFSET	A pointer to the first unallocated word of the current
-		Tenured space.
-T_TRANS_OFFSET	A pointer to the last word of the current Tenured space
-		before the transaction area; the transactions are allocated
-		towards low memory.
-T_MAX_OFFSET	A pointer to the last word of the current Tenured area.
-		The words between T_MAX_OFFSET (inclusive) and 
-		T_TRANS_OFFSET (exclusive) make up the transaction list.
+E_BASE_OFFSET   A pointer pointing to the first word of the current
+                Ephemeral space.
+E_TOP_OFFSET    A pointer pointing to the first unallocated word of the
+                current Ephemeral space.
+E_MARK_OFFSET   A pointer into the current Ephemeral area. If, after a
+                collection of the ephemeral area, the data in the Ephemeral
+                area goes past this mark, then the next collection
+                will be a tenuring collection.
+E_MAX_OFFSET    A pointer to the last word of the current Ephemeral 
+                space.
 
-S_BASE_OFFSET	A pointer to the first word of the Static space.
-S_MAX_OFFSET	A pointer to the last word of the Static space.
+T_BASE_OFFSET   A pointer to the first word of the current Tenured
+                space.
+T_TOP_OFFSET    A pointer to the first unallocated word of the current
+                Tenured space.
+T_TRANS_OFFSET  A pointer to the last word of the current Tenured space
+                before the transaction area; the transactions are allocated
+                towards low memory.
+T_MAX_OFFSET    A pointer to the last word of the current Tenured area.
+                The words between T_MAX_OFFSET (inclusive) and 
+                T_TRANS_OFFSET (exclusive) make up the transaction list.
 
-STK_BASE_OFFSET	A pointer to the first word of the Stack space.
-STK_MAX_OFFSET	A pointer to the last word of the Stack space.
+S_BASE_OFFSET   A pointer to the first word of the Static space.
+S_MAX_OFFSET    A pointer to the last word of the Static space.
+
+STK_BASE_OFFSET A pointer to the first word of the Stack space.
+STK_MAX_OFFSET  A pointer to the last word of the Stack space.
+
+LOMEM_OFFSET    A pointer to the first word used by the collector.
+HIMEM_OFFSET    A pointer to the last word used by the collector.
 
 The mutator may only change T_TRANS_OFFSET; all other values are to be
 considered read-only to the mutator. All Tenured and Ephemeral pointers
@@ -174,6 +177,17 @@ All pointers into all spaces are comparable. The Ephemeral area pointers
 always compare less than the Static area pointers, which in turn compare
 less than the Tenured area pointers.  Stack area pointers compare less than
 Ephemeral area pointers.
+
+The LOMEM and HIMEM values are made available for use by a system-dependent
+initialization procedure which needs to give advise to the virtual memory
+system about the usage patterns of the newly-allocated memory; if this is
+not done, there will be some initial thrashing until the system stabilizes.
+However, the use of LOMEM and HIMEM implicitly assumes that all memory
+allocated is in one chunk, which, while true at the moment, may not be the
+case in the future. Hence a better solution should be looked for. (Since
+the spaces are each in one chunk, we could use the space limits as
+indicators, but this does not deal with the "new" spaces, since they are
+internal to the collector module.)
 
 
 4. Initializing the collector
@@ -223,7 +237,7 @@ To allocate 'n' words from the ephemeral area, the procedure would be this:
 
      return p;
    }
-	
+
 where the 'gc()' procedure performs a collection, allocates 'n' words, and
 returns a pointer to the newly-allocated space; an possible implementation
 is shown below.
@@ -273,7 +287,7 @@ We provide some example code for 'set-car!':
      /* Check if we're storing into a Tenured object */
      if (ptrof( objp ) >= globals[ T_BASE_OFFSET ]) {
        if (globals[ T_TRANS_OFFSET ] < globals[ T_TOP_OFFSET ]) {
-	 /* at this point do a tenuring collection */
+         /* at this point do a tenuring collection */
        }
        *globals[ T_TRANS_OFFSET ]-- = objp;
      }
@@ -291,34 +305,34 @@ objects in the 'globals' table before the collector is invoked. In the case
 of 'alloc()' it calls the procedure 'gc()', which could look something like
 this:
 
-	gc( int n )
-	{
-	  word *p;
+   gc( int n )
+   {
+     word *p;
 
-	  globals[ RO_OFFSET ] = R0;
-	  globals[ R1_OFFSET ] = R1;
-	    :
-	  globals[ Rn_OFFSET ] = Rn;
+     globals[ RO_OFFSET ] = R0;
+     globals[ R1_OFFSET ] = R1;
+       :
+     globals[ Rn_OFFSET ] = Rn;
 
-	  flush_stack_cache();
-	  flush_instruction_cache();
+     flush_stack_cache();
+     flush_instruction_cache();
 
-	  collect( 1 );
+     collect( 1 );
 
-	  R0 = globals[ R0_OFFSET ];
-	  R1 = globals[ R1_OFFSET ];
-	    :
-	  Rn = globals[ Rn_OFFSET ];
+     R0 = globals[ R0_OFFSET ];
+     R1 = globals[ R1_OFFSET ];
+       :
+     Rn = globals[ Rn_OFFSET ];
 
-	  calculate_e_limit();
+     calculate_e_limit();
 
-	  p = globals[ E_TOP_OFFSET ];
-	  globals[ E_TOP_OFFSET ] += n + (n & 0x01);
-	  if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ]) {
-	    /* at this point either do major GC or just give up. */
-          }
-	  return p;
-	}
+     p = globals[ E_TOP_OFFSET ];
+     globals[ E_TOP_OFFSET ] += n + (n & 0x01);
+     if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ]) {
+       /* at this point either do major GC or just give up. */
+     }
+     return p;
+   }
 
 [This code assumes that we have two stacks: one for Scheme, and one for C.
  If that is not the case, we will need to implement stack switching here
@@ -355,10 +369,10 @@ The garbage collector keeps track of how much space is allocated and
 collected from the heap. These statistics are available in variables
 in the 'globals' array with the following names/offsets:
 
-ECOLLECTIONS_OFFSET	The number of ephemeral garbage collections.
-TCOLLECTIONS_OFFSET	The number of tenuring garbage collections.
-WCOLLECTED_OFFSET	The number of words collected (total).
-WALLOCATED_OFFSET	The number of words allocated (total).
+ECOLLECTIONS_OFFSET     The number of ephemeral garbage collections.
+TCOLLECTIONS_OFFSET     The number of tenuring garbage collections.
+WCOLLECTED_OFFSET       The number of words collected (total).
+WALLOCATED_OFFSET       The number of words allocated (total).
 
 The number of words allocated is derived from the difference in the
 values of E_TOP_OFFSET just after a collection and just before the next
@@ -373,17 +387,17 @@ a quick fix is for 'gc()' to subtract its argument from E_TOP_OFFSET.)
 The garbage collector requires the availability of the following 
 procedures:
 
-	malloc()	Standard C library memory allocation procedure
-	memcpy()	Standard C library memory copying procedure
-	panic()		Must be provided by the mutator. It takes one
-			argument (a string), and displays this string
-			before terminating the program. Panic() will
-			be called in the case of an unrecoverable error,
-			and should not return to its caller.
+   malloc()  Standard C library memory allocation procedure
+   memcpy()  Standard C library memory copying procedure
+   panic()   Must be provided by the mutator. It takes one
+             argument (a string), and displays this string
+             before terminating the program. Panic() will
+             be called in the case of an unrecoverable error,
+             and should not return to its caller.
 
 It also requires the following variable:
 
-	extern word globals[]
+   extern word globals[]
 
 which is the 'globals' table that has been mentioned above.
 The procedures and the variable should all be declared in "gc.h".
@@ -403,8 +417,8 @@ adequately explain the restrictions.
 
 11. Interface
 -------------
-The collector module exports only two names: 'collect' and 'init_collector',
-both of which are procedures. 
+The collector module exports three names: 'collect', 'init_collector',
+and 'gc_trap', all of which are procedures. 
 
 'collect()' takes a single argument, which must be an integer. The value
 '1' means "do an ephemeral collection", the value '2' means "do a tenuring
@@ -412,3 +426,22 @@ collection". Other values cause undefined behavior.
 
 'init_collector()' takes five arguments, all unsigned integers, as outlined
 above.
+
+'gc_trap()' takes one argument, an integer. 
+
+- If the argument is 0, it means that the ephemeral area overflowed.
+  Typically this happens if one tries to allocate a data structure 
+  larger than the ephemeral area. 
+
+- If the argument is 1, it means that the tenured area overflowed.
+  This could happen if there are too many tenured objects (i.e.
+  during a collection).
+
+If 'gc_trap()' returns to its caller, the caller is to repeat the failed
+operation, hoping that 'gc_trap()' solved the problem by allocating more
+memory.
+
+It should be noted that 'gc_trap()' currently calls 'panic()' with some
+appropriate error message, and that its interface to the surrounding
+world may be too simple for realistic cases. It may therefore be considered
+"experimental".
