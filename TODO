@@ -17,7 +17,19 @@ large projects (see the file TODO-RAINYDAY).
 
 ----------------------------------------------------------------------
 
+For compatibility with the conservative collector and no-interior-pointers:
+must fix all code that allocates a single block of memory and parititons
+it up into multiple objects.  So far found four places:
+
+  - argv.c          args vector-of-strings -- not fixed
+  - ffi.c           ffi callback arguments -- not fixed
+  - stats.c         stats vector -- not fixed; hacked around
+  - cglue.c         rest args -- fixed
+
+----------------------------------------------------------------------
+
 Misc (not just related to Petit Larceny)
+ - must write a HOWTO-CVS note to go into this directory.
  - Need a better configuration mechanism -- possibly, something based
    on autoconf.  As it is, features are chosen on the basis of dubious
    information.  Fundamentally, though, it may be better to specialize
