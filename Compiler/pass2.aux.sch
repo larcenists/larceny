@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 12 April 1999.
+; 14 September 2000.
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
@@ -142,8 +142,8 @@
   (apply cerror (cons (vector-ref pass2-error-messages i) etc)))
 
 (define pass2-error-messages
-  '#("System error: violation of an invariant in pass 2"
-     "Wrong number of arguments to known procedure"))
+  '#("System error: violation of an invariant in pass 2 "
+     "Wrong number of arguments to known procedure "))
 
 (define p2error:violation-of-invariant 0)
 (define p2error:wna 1)
