@@ -1,40 +1,193 @@
-/* This is a modification of config.h from the Boehm-Weiser collector. */
-/* 
- * Copyright 1988, 1989 Hans-J. Boehm, Alan J. Demers
- * Copyright (c) 1991-1994 by Xerox Corporation.  All rights reserved.
- * Copyright (c) 1996 by Silicon Graphics.  All rights reserved.
+/* Copyright 1999 Lars T Hansen
  *
- * THIS MATERIAL IS PROVIDED AS IS, WITH ABSOLUTELY NO WARRANTY EXPRESSED
- * OR IMPLIED.  ANY USE IS AT YOUR OWN RISK.
+ * $Id$
  *
- * Permission is hereby granted to use or copy this program
- * for any purpose,  provided the above notices are retained on all copies.
- * Permission to modify the code and to distribute modified code is granted,
- * provided the above notices are retained, and a notice that the code was
- * modified is included with the above copyright notice.
+ * You must define the attributes for the system you're compiling in 
+ * the section for user definitions, below.  Refer to the installation 
+ * notes for more elaborate instructions.
+ *
+ * ---
+ *
+ * References (for signal handling specifications):
+ *  Leffler, McKusick, Karels, Quarterman: The Design and Implementation
+ *    of the 4.3 BSD UNIX Operating System.  Addison Wesley, 1989.
+ *
+ *  ANSI/ISO C Standard (FIXME)
+ *
+ *  Donald Lewine, POSIX programmer's guide.  O'Reilly.
  */
 
-/* This trick is brittle and depends on the contents of system-supplied
-   header files.  In particular, it does not work with LCC, because LCC 
-   cannot be relied on to parse system header files (in particular,
-   SunOS 5.6 /usr/include/stdio.h is not standard-conforming in any real 
-   sense); thus, using only system header files rather than LCC header
-   files is not a useful alternative.
+#if !defined(INCLUDED_CONFIG_H)
+#define INCLUDED_CONFIG_H
+
+/* Undef all the preprocessor symbols that Larceny reserves */
+
+/* Architectures -- we could destinguish on models, but don't need to yet.
+   Select PETIT_LARCENY if that's what you're building.
+   */
+#undef SPARC			/* Native: SPARC v8 or later */
+#undef PETIT_LARCENY		/* Portable: Hardware is irrelevant */
+
+/* Architecture attributes. */
+#undef BITS_32			/* 32-bit words */
+#undef BITS_64			/* 64-bit words */
+#undef ENDIAN_LITTLE		/* least significant byte at lowest address */
+#undef BIG_ENDIAN		/* most significant byte at lowest address */
+#undef EXPLICIT_DIVZ_CHECK      /* Explicit check for integer division by zero.
+				   Some systems, like the PPC, do not trap
+				   integer division by zero.
+				   */
+
+/* Operating systems. */
+#undef SUNOS4			/* SunOS 4.x */
+#undef SUNOS5			/* SunOS 5.x */
+#undef LINUX			/* Generic GNU/Linux */
+#undef BSD_UNIX			/* Generic BSD (4.3ish) Unix */
+#undef POSIX_UNIX		/* Generic POSIX-standard Unix */
+#undef XOPEN_UNIX		/* Generic XOPEN-standard Unix */
+#undef WIN32			/* Generic Windows 32-bit */
+#undef MACOS			/* Generic Macintosh OS */
+#undef GENERIC_OS		/* Anything else */
+
+#undef SUNOS			/* Synthesized */
+#undef UNIX			/* Synthesized */
+
+/* Operating system attributes */
+#undef BSD_SIGNALS		/* sigvec, as described by Leffler et al */
+#undef STDC_SIGNALS		/* signal, as in ANSI/ISO C (weak) */
+#undef POSIX_SIGNALS		/* sigaction + sa_handler, as described 
+				   by Lewine */
+#undef XOPEN_SIGNALS		/* sigaction + sa_sigaction */
+
+/* Special system attributes -- for use of non-portable extensions or 
+   bug workarounds, or other weirdness.
+   */
+#undef CODEWARRIOR              /* Metrowerks Codewarrior extensions */
+#undef DEC_ALPHA_32BIT		/* DEC Alpha, in 32-bit mode.  Needed to
+				   cope with some mixed-word-length weirdness.
+				*/
+
+/* Library attributes.  These macros declare the existence of particular
+   functions in the run-time library or as compiler intrinsics.
+   It's always OK to leave these macros undefined, as Larceny will
+   supply portable definitions.  It may be desirable for performance
+   reasons to define these macros below, if your library or compiler
+   supplies any of the functions.
+   */
+#undef HAVE_RINT		/* library has rint() -- round to even */
+#undef HAVE_AINT		/* library has aint() -- round to zero */
+#undef HAVE_STRNCASECMP		/* library has strncasecmp() */
+#undef HAVE_STRDUP		/* library has strdup() */
+
+
+/* ------ USER DEFINITION SECTION ------- */
+/* Define those symbols from the above set that correspond to the 
+   system you're building.  You can define the type of signal handling 
+   facilities here, but if you don't, then the condition nest below will
+   guess based on the operating system you've selected.  
+
+   For Petit Larceny, selecting the precise operating system is not
+   crucial; for example, POSIX_UNIX or BSD_UNIX will work OK on
+   platforms that conform.  For native systems, you need to be 
+   more specific, so define SUNOS4/SUNOS5 as appropriate for the SPARC
+   native version.
    */
 
-#if !defined(STDC_SOURCE)
-#  if !defined(INCLUDED_CONFIG_H)
-#    define INCLUDED_CONFIG_H
-#    if defined(sun) &&(defined(sparc) || defined(__sparc))
-#      define SPARC
-       /* Test for SunOS 5.x */
-#      include <errno.h>
-#      ifdef ECHRNG
-#        define SUNOS5
-#      else
-#        define SUNOS4
-#      endif
-#    endif
+/* Here are some sets of settings that work for me. */
+
+/* Sparc Solaris (2.5 and better, at least); native */
+#define SPARC                1
+#define SUNOS5               1
+#define BITS_32              1
+#define BIG_ENDIAN           1
+#define HAVE_RINT            1
+#define HAVE_STRDUP          1
+#define HAVE_STRNCASECMP     1
+
+/* MacOS; Metrowerks codewarrior (Petit Larceny)
+#define PETIT_LARCENY        1
+#define MACOS                1
+#define BITS_32              1
+#define BIG_ENDIAN           1
+#define EXPLICIT_DIVZ_CHECK  1
+#define STDC_SIGNALS         1
+#define CODEWARRIOR          1
+#define HAVE_RINT            1
+*/
+
+/* Dec OSF/1 4.0 on DEC Alpha, at least (Petit Larceny)
+   Running in 32-bit mode on 64-bit platform.
+#define PETIT_LARCENY        1
+#define BITS_32              1
+#define ENDIAN_LITTLE        1
+#define XOPEN_UNIX           1
+#define DEC_ALPHA_32BIT      1
+*/
+
+/* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny)
+#define PETIT_LARCENY        1
+#define BITS_32              1
+#define ENDIAN_LITTLE        1
+#define LINUX                1
+#define HAVE_RINT            1
+#define HAVE_STRNCASECMP     1
+#define HAVE_STRDUP          1
+*/
+
+
+/* ------ END USER DEFINITION SECTION ------ */
+
+/* Synthesize some attributes */
+
+#if defined(SUNOS4) || defined(SUNOS5)
+#  define SUNOS
+#endif
+
+#if defined(SUNOS) || defined(LINUX) || defined(BSD_UNIX) || \
+    defined(POSIX_UNIX) || defined(XOPEN_UNIX)
+#  define UNIX
+#endif
+
+/* Guess signal handling facilities if none specified.  Some systems
+   support several (indeed, all!) interfaces; pick the best one.
+   */
+
+#if !defined(BSD_SIGNALS) && !defined(POSIX_SIGNALS) && \
+    !defined(STDC_SIGNALS) &&!defined(XOPEN_SIGNALS)
+#  if defined(SUNOS4) || defined(BSD_UNIX)
+#    define BSD_SIGNALS
+#  elif defined(LINUX) || defined(POSIX_UNIX)
+#    define POSIX_SIGNALS
+#  elif defined(XOPEN_UNIX) || defined(SUNOS5)
+#    define XOPEN_SIGNALS
+#  else
+#    define STDC_SIGNALS
 #  endif
 #endif
 
+
+/* Sanity checks */
+
+#if defined(BITS_64)
+#  error "Larceny cannot yet handle 64-bit systems."
+#endif
+
+#if !defined(BITS_32) && !defined(BITS_64)
+#  error "You need to select a word size"
+#endif
+
+#if !defined(ENDIAN_LITTLE) && !defined(BIG_ENDIAN)
+#  error "You need to select an endian-ness"
+#endif
+
+#if !defined(DATE)
+#  define DATE "now"
+#endif
+
+#if !defined(USER)
+#  define USER "superuser"
+#endif
+
+#endif  /* INCLUDED_CONFIG_H */
+
+/* eof */
