@@ -23,6 +23,8 @@ namespace Scheme.RT {
     // This code aims to replicate that behavior.
     class Unix {
         private static int descriptor;
+        
+        // open_files : hashtable[int => Stream]
         private static Hashtable open_files;
                 
         // Reserve 0,1,2 for standard streams
