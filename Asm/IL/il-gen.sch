@@ -474,6 +474,11 @@
       (il:set-register 'real-result (il:load-register 'result))
       '()))
 
+(define (il:with-saved-result . il)
+  (list (il:flush-result-cache)
+        il
+        (il:recache-result)))
+
 ;; il:recache-constant-vector : -> ilpackage
 (define (il:recache-constant-vector)
   (if (codegen-option 'cache-constant-vector)

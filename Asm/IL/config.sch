@@ -46,6 +46,11 @@
 ;;   IL, but slower code
 (set-codegen-option! 'ilasm-debug)
 
+;; 'new-operations
+;;   if set, uses visitor-like operations built into 
+;;   SObject. Otherwise, uses ops implemented in Ops, OpsSpecial.
+(set-codegen-option! 'new-operations)
+
 ;; 'insert-use-fuel
 ;;   if set, decrements and checks the timer on every backwards branch 
 ;;   and procedure invocation
