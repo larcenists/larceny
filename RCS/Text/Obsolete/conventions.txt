@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: conventions.txt,v 1.6 91/06/26 12:20:20 lth Exp Locker: lth $
+; $Id: conventions.txt,v 1.7 91/06/27 14:44:23 lth Exp Locker: lth $
 
 		Calling Conventions and Register Usage
 				   
@@ -13,7 +13,8 @@ on the Sparc, the use of non-mapped Sparc registers, the use of stacks
 for Scheme and C, the calling conventions for Scheme and C procedures
 on the Sparc, the layout of continuation (both in the stack and on the
 heap), and the layout of procedures (closures). Finally, we discuss the
-calling conventions for millicode procedures.
+calling conventions for millicode procedures and the calling conventions
+for inter-language (C to Scheme and Scheme to C) calls.
 
 
 1. Register usage and mapping
@@ -461,7 +462,7 @@ to be stored in the continuation, because the continuation may not
 exist.]
 
 To call a millicode procedure, then, we have the following code
-snippets. First, assumeing we're returning the the instruction
+snippets. First, assuming we're returning the the instruction
 following the call:
 
     ld      [ %MILLICODE + M_<something> ], %TMP0
@@ -481,8 +482,173 @@ The unfilled delay slots can usually be used for setting up a millicode
 argument.
 
 
-9. Calling C procedures (preliminary)
--------------------------------------
+9. Calling Scheme procedures from C (preliminary)
+-------------------------------------------------
+
+[There is code in memtest2.s which does more or less this.]
+
+Inter-language calls are relatively "heavy", as there is a significant
+amount of protocol that has to be taken care of in the call. The steps can
+be summarized thusly:
+
+        1) saving the current C context
+        2) setting up a Scheme context
+        3) setting up arguments for the Scheme code
+        4) calling the Scheme code
+        5) saving the new Scheme context
+        6) setting up the C return value
+        7) restoring the C context
+        8) returning to the C code
+
+Calling an assembly language millicode procedure from C is typically
+equivalent to calling a Scheme procedure, as the millicode procedures
+assume that the machine is in a Scheme state.
+
+The mechanism described in the following is believed to be general enough
+to support C calling Scheme calling C calling Scheme, and so on. It has
+not been shown rigorously, however, that the generality really exists.
+
+Typically, the eight steps are carried out by some conversion routine
+written in assembly language. Examples are given below.
+
+
+1) Saving the current C context
+
+The C calling conventions and the SunOS window trap handlers require a
+specific stack layout on the C stack (pointed to by %o6, also known as
+%sp, in every window). The layout consists of two general areas: one
+area for spilling register windows into (64 bytes), and one area for
+spilling and passing arguments in (typically 32 bytes). The stack
+pointer of the previous window (%i6, also known as %fp) always points
+to end of the highest- addressed word in this frame, and is used by
+the trap handler to locate the memory in which to spill the previous
+window, if necessary. Hence:
+
+  %fp  -->    +--------------------+     (high address)
+              |      Argument      |
+              |        area        |
+              |     (32 bytes)     |
+              +--------------------+
+              |                    |
+              |       Window       |
+              |      overflow      |
+              |        area        |
+              |     (64 bytes)     |
+              |                    |
+  %sp  -->    +--------------------+     (low address)
+
+If more (or less!) space is needed on the stack, the callee can simply 
+adjust the allocated amount accordingly; in fact, the conversion routine
+typically does not need to allocate more than a couple of words of argument
+save area on the stack.
+
+To save the current C context and allocate space, one must allocate a
+new window and stack space, and save whatever critical values that are
+in the %i (and %g, if any) registers after the allocation. If there
+was one argument passed, then the code may look like this:
+
+        save    %sp, -72, %sp                   ! allocate 18 words
+        st      %i0, [ %fp-8 ]                  ! save the argument
+        st      %i7, [ %fp-4 ]                  ! save the return address
+
+Saving the return address is vital, as the Scheme code uses register %i7.
+Note that at the time of the "save", %sp must point to an even-addressed
+word, otherwise an alignment error will occur.
+
+
+2) Setting up the Scheme context
+
+Before the Scheme procedure can be called, the virtual machine must be
+initialized. The values that need to be restored to virtual machine
+registers are all in the "globals" array. Of course, the registers
+%GLOBALS and %MILLICODE also need to be set up.  The procedure
+"_restore_scheme_context", defined in "memory.s", does exactly these
+tasks. It should simply be called, either directly (from non-relocated
+code) or indirectly, through the millicode table. In the former case
+it is simple:
+
+        call    _restore_scheme_context
+        nop
+
+If we need to jump though the millicode table, remember that the %MILLICODE
+register is not yet set up! Therefore, we need to use the global variable
+directly:
+
+        set     _millicode, %g1
+        ld      [ %g1 + M_RESTORE_CONTEXT ], %g1
+        jmpl    %g1, %o7
+        nop
+
+When that procedure returns, the virtual machine has been initialized, and
+the CPU registers are in "Scheme mode".
+
+
+3) Setting up arguments for the Scheme code
+
+Typically, this involves copying arguments from the argument save area which
+was set up in part (1), above, to the Scheme argument registers. In the case
+of our 1-argument procedure, we have something like
+
+        ld      [ %fp-8 ], %REG1
+
+
+4) Calling the Scheme code
+
+This has been covered in the preceding sections; since the machine is
+now in Scheme mode, we simply use the standard Scheme calling
+conventions: set up a continuation (with the calling procedure being
+set to 0 if it is non-relocatable), set up the argument count, save the
+return address in the continuation, and jump to the callee.
+
+
+5) Saving the new Scheme context
+
+When the Scheme procedure returns, the virtual machine state must be saved
+again in the "globals" array. The procedure "_save_scheme_context" in
+"memory.s" does this; it is called just like "_restore_scheme_context" was
+called (above).
+
+
+6) Setting up the C return value
+
+The C return value goes into register %i0 (before a "restore" is
+performed, or into register %o0 after the "restore"). In the case of a
+single return value from the Scheme program, we can either move it
+from the %RESULT register to the C return register (since %RESULT is
+still available, this being before the "restore), or we can move it
+from the "globals" table. The latter technique is more general, since
+it allows us to use the machine registers without having to know the
+Scheme register mappings. In the latter case, we will have something
+like:
+
+        set     _globals, %g1
+        ld      [ %g1 + RESULT_OFFSET ], %i0
+
+
+7) Restoring the C context
+
+We usually do not want to restore the saved arguments from the argument
+save area. We will need to restore the return address, however, and whatever
+global registers were used for global register variables. So typically,
+we'll have this:
+
+        ld      [ %fp-4 ], %i7
+
+
+8) Returning to the C code
+
+Since we're now back in C mode, returning to the C caller is like returning
+from a C procedure:
+
+        jmp     %i7+8                ! This is the 'ret' pseudo-instruction
+        restore
+
+
+10. Calling C procedures from Scheme (preliminary)
+--------------------------------------------------
+This is mostly the reverse of the previous section. Details are currently
+sketchy.
+
 The procedures in "memory.s" show some examples of inter-language
 calling, both in limited cases (like '_stkuflow' calling
 '_restore_frame') and in the most general case ('gcstart' calling
