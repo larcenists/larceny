@@ -67,7 +67,7 @@
   ; but they can't be read, so it doesn't matter.
 
   (define (preprocess x)
-    (if (or (pair? x) (vector? x) (string? obj))
+    (if (or (pair? x) (vector? x) (string? x))
 	(let ((r (find-reference x)))
 	  (if (not r)
 	      (begin (add-reference x)
@@ -99,6 +99,7 @@
 		     (else
 		      (out " " #f)
 		      (print-pair2 x)))))
+	    ((null? x))
 	    (else
 	     (out " . " #f)
 	     (print x)))))
@@ -138,7 +139,7 @@
 	  ((vector? obj)
 	   (print-obj-with-identity obj print-vector))
 	  ((string? obj)
-	   (print-obj-with-identity obj primitive-printer))
+	   (print-obj-with-identity obj (lambda (x) (out x quote?))))
 	  (else
 	   (out obj quote?))))
   
