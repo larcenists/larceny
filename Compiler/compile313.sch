@@ -258,32 +258,45 @@
   (unspecified))
 
 
-; Quick ways of setting compiler and assembler switches.
+; Display and manipulate the compiler switches.
 
-(define (slow-code)
-  (set-compiler-flags! 'no-optimization)
-  (set-assembler-flags! 'no-optimization))
+(define (compiler-switches . rest)
 
-(define (standard-code)
-  (set-compiler-flags! 'default)
-  (set-assembler-flags! 'default))
+  (define (slow-code)
+    (set-compiler-flags! 'no-optimization)
+    (set-assembler-flags! 'no-optimization))
 
-(define (fast-safe-code)
-  (set-compiler-flags! 'fast-safe)
-  (set-assembler-flags! 'fast-safe))
+  (define (standard-code)
+    (set-compiler-flags! 'default)
+    (set-assembler-flags! 'default))
 
-(define (fast-unsafe-code)
-  (set-compiler-flags! 'fast-unsafe)
-  (set-assembler-flags! 'fast-unsafe))
+  (define (fast-safe-code)
+    (set-compiler-flags! 'fast-safe)
+    (set-assembler-flags! 'fast-safe))
 
+  (define (fast-unsafe-code)
+    (set-compiler-flags! 'fast-unsafe)
+    (set-assembler-flags! 'fast-unsafe))
 
-; Display all flags
-
-(define (compiler-switches)
-  (display-twobit-flags)
-  (newline)
-  (display-assembler-flags)
-  (unspecified))
+  (cond ((null? rest)
+         (display-twobit-flags)
+         (newline)
+         (display-assembler-flags)
+         (unspecified))
+        ((null? (cdr rest))
+         (case (car rest)
+           ((slow)             (slow-code))
+           ((standard)         (standard-code))
+           ((fast-safe)        (fast-safe-code))
+           ((fast-unsafe)      (fast-unsafe-code))
+           ((factory-settings) (fast-safe-code)
+                               (include-source-code #t)
+                               (benchmark-mode #f))
+           (else 
+            (error "Unrecognized flag " (car rest) " to compiler-switches.")))
+         (unspecified))
+        (else
+         (error "Too many arguments to compiler-switches."))))
 
 
 ; Read and process one file, producing another.
