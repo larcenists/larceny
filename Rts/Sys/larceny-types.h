@@ -27,6 +27,9 @@ typedef enum { GCTYPE_COLLECT,
                     global marking collections in the DOF collector.  
 		    */
               }  gc_type_t;
+typedef enum { TIMER_ELAPSED, /* Measure elapsed time */
+	       TIMER_CPU,     /* Measure process time (eg user+system) */
+             } stats_timer_t;
 
 /* gc_t is elaborated in gc_t.h */
 typedef struct gc gc_t;
@@ -60,6 +63,7 @@ typedef struct stack_stats stack_stats_t;
 #if defined(SIMULATE_NEW_BARRIER)
 typedef struct swb_stats swb_stats_t;
 #endif
+typedef struct gc_event_stats gc_event_stats_t;
 
 /* Currently these are in gc.h but should perhaps move? */
 typedef struct np_info np_info_t;
@@ -72,5 +76,10 @@ typedef struct old_param old_param_t;
 
 /* los_t.h */
 typedef struct los los_t;
+
+/* Types for compatibility functions defined in util.c */
+#if !defined(HAVE_HRTIME_T)
+typedef int hrtime_t;
+#endif
 
 #endif /* INCLUDED_LARCENY_TYPES */
