@@ -342,6 +342,7 @@
     (environment-set! larc 'open-input-string open-input-string)
     (environment-set! larc 'open-output-string open-output-string)
     (environment-set! larc 'get-output-string get-output-string)
+    (environment-set! larc 'reset-output-string reset-output-string)
     (environment-set! larc 'format format)
     (environment-set! larc 'port? port?)
     (environment-set! larc 'port-name port-name)
@@ -357,6 +358,8 @@
     (environment-set! larc 'write-bytevector-like write-bytevector-like)
     (environment-set! larc 'lowlevel-write lowlevel-write)
     (environment-set! larc 'port-position port-position)
+    (environment-set! larc 'readtable-ref readtable-ref)
+    (environment-set! larc 'readtable-set! readtable-set!)
 
     ;; general
 
