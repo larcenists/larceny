@@ -2,6 +2,38 @@ $Id$
 
 SPARC Larceny version 1.0a2, tentative release date 1 June 1999.
 
+
+Immediate to-do list:
+  - make Petit Larceny work again (fix compiler interface...)
+  - rebuild and rerelease.
+  - call the remaining system 0.45, and _tag_ it as such.
+  - bug to fix: new debugger code should save error continuation
+    so (debug) can work too.
+
+Have done, not checked in:
+ - Fix make setup_X so that it configures the default build host as X also.
+ - Created some makefiles in subdirectories and started to migrate
+   code there from the toplevel makefile, notably, actions for config,
+   clean, and realclean targets
+
+General tasks from PETIT-STATUS (merge into TODO):
+ - Debug printer must support records (too many printers...)
+ - Heap images are dumped in native byte order, but the
+   first word should always be big-endian and should
+   encode the endianness and architecture of the heap.
+ - Document new quirks in build/setup process:
+   - must hack Rts/Sys/config.h
+   - must hack makefile to setup osdep (though the system could be
+     compiled with _all_ osdeps and the right code included or excluded
+     by preprocessor wrappers; this seems like the right idea).
+ - Bignums: abandon the bogus bignum-truncate-length!; see comments in
+   bignum code.
+ - Flonums: names like flonum:infinity are being defined and used all
+   over the place.  Better to have one copy of these that everyone can
+   reference?
+ - Flonums: it's called make-flonum but float-sign, etc: this inconsistency
+   is common.  Better to fix it once and for all?
+
 -------------------------------
 
 Major features at a glance:
@@ -22,7 +54,8 @@ Remaining to-do items:
      (list to be determined)
 
 [Twobit]
-  * Macro expander performance.
+  * Macro expander performance?
+  * Compiler performance?
 
 [Run-time system]
   * Must deal with more signals on Unix systems.  See TODO for details.
@@ -39,8 +72,6 @@ Remaining to-do items:
 [Debugging]
   See TODO for details.  The following are important for 1.0a2:
   * Document the debugger.
-  * Make error handler invoke debugger.
-  * Trace/break procedures rather than names.               [done]
   * Print variable names where convenient.
   * Reasonable support for debugging interpreted code.
 
