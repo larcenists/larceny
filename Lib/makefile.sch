@@ -323,7 +323,7 @@
 (define compat-project (make:new-project "Compat"))
 
 (make:rule compat-project ".fasl" ".sch" make-compile-file)
-(make:deps compat-project '("compat.date") '("Larceny/compat2.fasl"))
+(make:deps compat-project '("compat.date") '("Compat/Larceny/compat2.fasl"))
 (make:targets compat-project '("compat.date") (lambda args #t))
 
 (define (make-compat . rest)
