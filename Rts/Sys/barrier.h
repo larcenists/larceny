@@ -10,11 +10,12 @@
 #define INCLUDED_BARRIER_H
 
 #include "larceny-types.h"
+#include "gclib.h"
 
 /* Initialize the write barrier for a generational system. */
 
-void wb_setup( unsigned *genv,      /* map from page to generation */
-	       unsigned *pagebase,  /* fixed: address of lowest page */
+void wb_setup( gclib_desc_t *genv,  /* map from page to generation */
+	       byte *pagebase,      /* fixed: address of lowest page */
 	       int generations,     /* fixed: number of generations */
 	       word *globals,       /* fixed: globals vector */
 	       word **ssbtopv,      /* fixed: SSB top pointers */
@@ -27,7 +28,7 @@ void wb_setup( unsigned *genv,      /* map from page to generation */
 void wb_disable_barrier( word *globals );
 
 /* If the descriptor tables change, notify the barrier */
-void wb_re_setup( void *pagebase, unsigned *genv );
+void wb_re_setup( byte *pagebase, unsigned *genv );
 
 /* Lowlevel support for barrier setup and shutdown. */
 

@@ -36,8 +36,8 @@ static word **wb_ssblimv;      /* ditto */
 static int wb_generations;     /* the value 'n' */
 static word *wb_globals;       /* the globals array */
 
-void wb_setup( unsigned *genv,     /* maps page number to generation number */
-	       unsigned *pagebase, /* address of lowest page in arena: fixed */
+void wb_setup( gclib_desc_t *genv, /* maps page number to generation number */
+	       byte *pagebase,     /* address of lowest page in arena: fixed */
 	       int generations,    /* the value 'n': fixed */
                word *globals,      /* the globals vector */
 	       word **ssbtopv,
@@ -68,7 +68,7 @@ void wb_disable_barrier( word *globals )
   wb_lowlevel_disable_barrier( globals );
 }
 
-void wb_re_setup( void *pagebase, unsigned *genv )
+void wb_re_setup( byte *pagebase, unsigned *genv )
 {
   if (wb_generations > 0) {
     wb_globals[ G_GENV ] = (word)genv;
