@@ -479,14 +479,69 @@ set_policy( gc_t *gc, int heap, int op, unsigned value )
     data->old_heaps[heap]->set_policy( data->old_heaps[heap], op, value );
 }
 
-/* Allocate a chunk of ephemeral memory. `n' is a number of bytes. */
+/* Allocate a chunk of ephemeral memory. `n' is a number of bytes.
+ *
+ * NOTE: a raw pointer is stored in the SSB.  This is kosher; see the
+ * comments preceding compact_ssb() in remset.c.
+ */
 
 static word *
-alloc_from_heap( gc_t *gc, unsigned n )
+alloc_from_heap( gc_t *gc, unsigned nbytes )
 {
-  young_heap_t *young_heap = DATA(gc)->young_heap;
-  
-  return young_heap->allocate( young_heap, n );
+  gc_data_t *data = DATA(gc);
+  young_heap_t *young_heap = data->young_heap;
+  word *p;
+  int i, g;
+  remset_t *r;
+
+  nbytes = roundup8( nbytes );
+  if (nbytes > LARGEST_OBJECT) {
+    /* FIXME: should really raise an exception */
+    panic( "\nSorry, an object of size %d bytes is too much for me; max is %d."
+	   "\nSee you in 64-bit-land...\n",
+	   nbytes, LARGEST_OBJECT );
+  }
+  p = young_heap->allocate( young_heap, nbytes );
+  if (p == 0) {
+    /* object too large -- allocate from older heaps */
+    /* Algorithm: we attempt to allocate the object in each old heap
+       starting with the youngest.  The second parameter to the 
+       allocator tells the heap whether it can refuse or not.  The
+       oldest heap can't refuse.
+     */
+    for ( i = 1 ; i <= data->number_of_old_heaps && p == 0; i++ )
+      p = data->old_heaps[i]->
+	allocate( data->old_heaps[i], nbytes, i == data->number_of_old_heaps );
+
+    assert( p != 0 );
+
+    /* The object must now be added to the remembered set of the
+     * appropriate generation.  Since we don't have the tag bits,
+     * we must store the raw pointer.  That means that there must be
+     * no chance for compaction to run (and try to fix up the pointer)
+     * before the mutator has had a chance to initialize the object.
+     * So we check for an overflow early and preemptively compact,
+     * later storing the pointer, rather than (as is customary)
+     * the other way around.
+     *
+     * Also, if the object is allocated in the non-predictive 'young'
+     * generation, then the pointer must be remembered in the 
+     * extra remembered set.
+     */
+    g = gclib_desc_g[pageof(p)];        /* Generation object was alloc'd in */
+    r = data->remsets[g];
+    if (data->ssb_top[g]+1 == data->ssb_lim[g])
+      r->compact( r );
+    if (data->np_remset && g == data->np_gen_no+1) {
+      if ((*data->np_remset->ssb_top)+1 == *data->np_remset->ssb_lim)
+	data->np_remset->compact( data->np_remset );
+      **data->np_remset->ssb_top = (word)p; /* See NOTE */
+      *data->np_remset->ssb_top += 1;
+    }
+    *(data->ssb_top[g]) = (word)p;	  /* See NOTE */
+    data->ssb_top[g] += 1;
+  }
+  return p;
 }
 
 

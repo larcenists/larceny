@@ -4,6 +4,16 @@
 
 
 ----------------------------------------------------------------------
+v0.29d 
+
+[Rts/*/*]
+  Now supports large-object allocation; this fixes (for this version)
+  a long-standing bug.
+
+[Lib/number.sch]
+  Fixed bugs in odd? and even? resulting in "undefined global variable x".
+
+----------------------------------------------------------------------
 v0.29c released 971006 by lth
 
 [Lib/vector.sch]

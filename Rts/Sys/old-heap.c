@@ -124,6 +124,7 @@ create_old_heap( int *gen_no,             /* add at least 1 to this */
 static int initialize( old_heap_t *h );
 static void promote( old_heap_t *h );
 static void collect( old_heap_t *h );
+static void *allocate( old_heap_t *h, unsigned n, int must );
 static void stats( old_heap_t *h, int generation, heap_stats_t *s );
 static void before_promotion( old_heap_t *h );
 static void after_promotion( old_heap_t *h );
@@ -154,6 +155,7 @@ allocate_old_sc_heap( int gen_no, int heap_no )
   heap->before_promotion = before_promotion;
   heap->after_promotion = after_promotion;
   heap->collect = collect;
+  heap->allocate = allocate;
   heap->promote_from_younger = promote;
   heap->stats = stats;
   heap->data_load_area = data_load_area;
@@ -252,6 +254,29 @@ static void promote( old_heap_t *heap )
   post_promote_policy( heap );
 }
 
+
+static void *allocate( old_heap_t *heap, unsigned nbytes, int must )
+{
+  old_data_t *data = DATA(heap);
+  semispace_t *ss = data->current_space;
+  unsigned nwords = nbytes/sizeof(word);
+  word *p;
+
+  if (nbytes > data->size_bytes && !must)
+    return 0;
+  ss_sync( ss );
+  if (ss->used > data->size_bytes) {
+    heap->collector->collect( heap->collector, data->gen_no, GC_COLLECT, 0 );
+    ss = data->current_space;
+  }
+
+  if (ss->chunks[ss->current].lim - ss->chunks[ss->current].top < nwords)
+    ss_expand( ss, nbytes );
+
+  p = ss->chunks[ss->current].top;
+  ss->chunks[ss->current].top += nwords;
+  return p;
+}
 
 /*
  * Collect this and all younger heaps.

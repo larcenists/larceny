@@ -213,6 +213,7 @@ set_policy( young_heap_t *heap, int op, unsigned value )
   }
 }
 
+/* Returns 0 if the object is too large to be allocated. */
 static word *
 allocate( young_heap_t *heap, unsigned nbytes )
 {
@@ -220,6 +221,9 @@ allocate( young_heap_t *heap, unsigned nbytes )
   word *globals = DATA(heap)->globals;
 
   nbytes = roundup8( nbytes );
+
+  if (nbytes > DATA(heap)->heapsize / 2) return 0;   /* not in my back yard */
+
   if (globals[ G_ETOP ] + nbytes > globals[ G_STKP ]) {
     supremely_annoyingmsg( "Allocation exception in youngest heap: %u > %u.",
                            nbytes, globals[ G_ETOP ] - globals [ G_STKP ]);
@@ -298,9 +302,11 @@ assert_free_space( young_heap_t *heap, unsigned request_bytes )
       heap->collector->promote_out_of( heap->collector, 0 );
     }
 
-    if (request_bytes > free_space( heap ))
-      panic( "Cannot allocate object of size %u bytes "
-	    "(object is too large for heap).", request_bytes );
+    if (request_bytes > free_space( heap )) {
+      /* This should *NEVER* happen */
+      panic_abort( "Cannot allocate object of size %u bytes "
+		  "(object is too large for heap).", request_bytes );
+    }
   }
 }
 

@@ -71,10 +71,11 @@ Lalloc0:
 	! Heap overflow. %RESULT still has the number of words to alloc.
 
 	st	%o7, [ %GLOBALS + G_RETADDR ]	! save scheme return address
-	call	heap_overflow			! deal with overflow
+	call	heap_overflow
 	sub	%E_TOP, %RESULT, %E_TOP		! recover
-	b	Lalloc0				! redo operation
 	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore return address
+	jmp	%o7+8
+	nop
 
 Lalloc1:
 	jmp	%o7+8
@@ -107,7 +108,7 @@ EXTNAME(mem_alloci):
 
 	! %RESULT now has ptr, %ARGREG3 has count, %ARGREG2 has obj
 
-	sub	%RESULT, 0x04, %TMP1		! dest = RESULT - 4
+	sub	%RESULT, 4, %TMP1		! dest = RESULT - 4
 	b	Lalloci2
 	tst	%ARGREG3
 Lalloci3:
@@ -115,7 +116,7 @@ Lalloci3:
 	deccc	4, %ARGREG3			! n -= 4, test n
 Lalloci2:
 	bne	Lalloci3
-	add	%TMP1, 0x04, %TMP1		! dest += 4
+	add	%TMP1, 4, %TMP1			! dest += 4
 	jmp	%o7+8
 	ld	[ %GLOBALS + G_ALLOCI_TMP ], %ARGREG3
 
@@ -125,6 +126,7 @@ Lalloci2:
 ! Call from: Millicode
 ! Input    : RESULT = fixnum: size of structure in words
 !            o7 = millicode return address
+!            globals[ G_RETADDR ] = scheme return address
 ! Output   : RESULT = untagged ptr to uninitialized memory
 ! Destroys : RESULT, Temporaries
 
@@ -138,17 +140,8 @@ EXTNAME(mem_internal_alloc):
 
 	! Heap overflow.
 
-	mov	%o7, %TMP0			! save
-	call	internal_push			!   retaddr
-	nop
-
-	call	heap_overflow			! deal with overflow
+	b	heap_overflow			! returns to caller
 	sub	%E_TOP, %RESULT, %E_TOP		! restore heap ptr
-
-	call	internal_pop			! restore retaddr
-	nop
-	b	EXTNAME(mem_internal_alloc)	! do it again
-	mov	%TMP0, %o7
 
 Lialloc1:
 	jmp	%o7+8
@@ -165,15 +158,15 @@ Lialloc1:
 !
 ! Call from: allocation millicode procedures only
 ! Input    : RESULT = fixnum: size of structure to allocate, in words
-! Output   : Nothing
+!            globals[ G_RETADDR ] = scheme return address
+!            %o7 = millicode return address
+! Output   : pointer to allocated structure
 ! Destroys : Temporaries
 
 heap_overflow:
-	set	EPHEMERAL_COLLECTION, %TMP1	! type of collection (ignored)
-	mov	%RESULT, %TMP2			! words requested
-	set	EXTNAME(C_garbage_collect), %TMP0
+	set	EXTNAME(C_allocate), %TMP0
 	b	internal_callout_to_C
-	nop
+	mov	%RESULT, %TMP1
 
 
 ! OBSOLETE -- retained for backwards compatibility (globals[] table)

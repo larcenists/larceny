@@ -66,7 +66,7 @@ extern word *alloc_from_heap( unsigned );
 extern void garbage_collect( int, unsigned );
 #endif
 extern void garbage_collect3( unsigned, unsigned, unsigned );
-extern int  compact_ssb( void );
+extern void compact_ssb( void );
 extern void load_heap( void );
 extern int  reorganize_and_dump_static_heap( char *filename );
 extern int  dump_heap( char *filename );
@@ -81,6 +81,7 @@ extern void stack_underflow( void );
 /* In "Rts/Sys/cglue.c", called only from millicode */
 
 #ifndef GC_INTERNAL
+extern void C_allocate( word request );
 extern void C_garbage_collect( word type, word request );
 extern void C_compact_ssb( void );
 extern void C_stack_overflow( void );
@@ -277,6 +278,15 @@ extern int memfail( int code, char *fmt, ... );
 
 /* System-wide maximum number of non-static heaps */
 #define MAX_HEAPS  16
+
+/* There are some limits even in Larceny :-) 
+ *
+ * The size of the largest object is determined by the size field in
+ * a vector, bytevector, or procedure header.  In the 32-bit implementation,
+ * this field is 24 bits, so the largest object can be 2^24-1 bytes long.
+ */
+
+#define LARGEST_OBJECT    16777215
 
 /* debugmsg( char *fmt, ... ); */
 

@@ -229,15 +229,15 @@
 ; Odd and even, optimized for the fixnum case.
 ; FIXME.  Should optimize for bignums, too.
 
-(define (even? n)
+(define (even? x)
   (if (fixnum? x)
       (= (logand x 1) 0)
-      (zero? (remainder n 2))))
+      (zero? (remainder x 2))))
 
 (define (odd? x)
   (if (fixnum? x) 
       (= (logand x 1) 1)
-      (not (zero? (remainder n 2)))))
+      (not (zero? (remainder x 2)))))
 
 
 ; Polar numbers

@@ -17,9 +17,20 @@
 #include "signals.h"
 
 
+/* C_allocate: allocate heap memory */
+void C_allocate( word request_words )
+{
+  supremely_annoyingmsg( "Allocation call-out from millicode." );
+  /* The assignment violates the VM invariants -- that's OK */
+  globals[ G_RESULT ] =
+    (word)alloc_from_heap( nativeint( request_words )*sizeof(word) );
+}
+
 /* C_garbage_collect: perform a garbage collection */
+/* FIXME: SHOULD BE OBSOLETE */
 void C_garbage_collect( word type, word request_words )
 {
+  hardconsolemsg( "Call to obsolete C_garbage_collect." );
   supremely_annoyingmsg( "Allocation exception in millicode." );
   garbage_collect3( 0, 0, nativeint( request_words )*sizeof( word ) );
 }
@@ -57,19 +68,12 @@ void C_restore_frame( void )
 }
 
 /* C_wb_compact: some SSB filled up, and must be compacted. */
-/* FIXME: this is a stopgap implementation */
-/* FIXME: when the generation is no longer ignored, watch out for the
-   magic generation resulting from the magic barrier */
 
 void C_wb_compact( int generation )
 { 
   debugmsg( "[debug] wb_compact." );
   supremely_annoyingmsg( "SSB exception in millicode." );
-  if (compact_ssb()) {
-    /* at least one remembered set overflowed */
-    supremely_annoyingmsg( "Remembered-set overflow." );
-    garbage_collect3( 1, 1, 0 );
-  }
+  compact_ssb();
 }
 
 /* C_panic: print a message and die. */

@@ -301,6 +301,7 @@ struct old_heap {
   int  oldest;
   int  (*initialize)( old_heap_t *heap );
   void (*collect)( old_heap_t *heap );
+  void *(*allocate)( old_heap_t *heap, unsigned nbytes, int must );
   void (*before_promotion)( old_heap_t *heap );
   void (*after_promotion)( old_heap_t *heap );
   void (*promote_from_younger)( old_heap_t *heap );

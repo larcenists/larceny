@@ -92,7 +92,16 @@ word creg_get( void )        { return gc->creg_get( gc ); }
 void creg_set( word c )      { gc->creg_set( gc, c ); }
 void stack_underflow( void ) { gc->stack_underflow( gc ); }
 void stack_overflow( void )  { gc->stack_overflow( gc ); }
-int  compact_ssb( void )     { return gc->compact_all_ssbs( gc ); }
+
+void compact_ssb( void )     
+{ 
+  if (gc->compact_all_ssbs( gc )) {
+    /* At least one remembered set overflowed. */
+    /* FIXME: this probably should be under direct memmgr control */
+    supremely_annoyingmsg( "Remembered-set overflow." );
+    garbage_collect3( 1, 1, 0 );
+  }
+}
 
 /* New heapio */
 static heapio_t *heap;

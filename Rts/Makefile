@@ -233,7 +233,8 @@ $(SYS)/hsplit.o: $(SYS)/hsplit.c
 	$(CC) -g -o $(SYS)/hsplit.o -I$(BUILD) -I$(SYS) -c $(SYS)/hsplit.c
 
 clean:
-	rm -f larceny hsplit core $(SYS)/*.o $(MACH)/*.o $(BUILD)/*.o
+	rm -f larceny hsplit bdwlarceny core \
+		$(SYS)/*.o $(MACH)/*.o $(BUILD)/*.o
 
 rtsclean: clean
 	rm -f $(BUILD)/*.s $(BUILD)/*.*h

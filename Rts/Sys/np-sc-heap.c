@@ -8,13 +8,8 @@
  * and one for the young.  From the point of view of the gc, the 'young'
  * generation is older (it has the higher generation number).
  *
- * Allocation in the heap happens exclusively by promotion into the 'young'
- * generation, and collection in the 'old' generation is triggered if the
- * promotion overflows the 'young' generation.
- *
  * The heap creation procedure takes the size of the heap and the size of
- * a step as its parameters.  The initial number of steps is the heap-size
- * divided by the step-size, suitably fudged.
+ * a step as its parameters.
  *
  * Steps are added as the heap becomes fuller; see the "Policy" section
  * in internal_collect(), below.
@@ -36,12 +31,6 @@
 #include "assert.h"
 
 typedef struct npsc_data npsc_data_t;
-typedef struct gen gen_t;
-
-struct gen {
-  unsigned    steps;          /* number of steps in this generation */
-  semispace_t *ss;            /* generation's data, or 0 */
-};
 
 struct npsc_data {
   int heap_no;                /* heap number of this heap */
@@ -185,6 +174,7 @@ create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
 static int initialize( old_heap_t *h );
 static void promote( old_heap_t *h );
 static void collect( old_heap_t *h );
+static void *allocate( old_heap_t *h, unsigned nbytes, int must );
 static void stats( old_heap_t *h, int generation, heap_stats_t *s );
 static void before_promotion( old_heap_t *h );
 static void after_promotion( old_heap_t *h );
@@ -216,6 +206,7 @@ allocate_heap( unsigned gen_no, unsigned heap_no )
   heap->before_promotion = before_promotion;
   heap->after_promotion = after_promotion;
   heap->collect = collect;
+  heap->allocate = allocate;
   heap->promote_from_younger = promote;
   heap->stats = stats;
   heap->data_load_area = data_load_area;
@@ -273,6 +264,82 @@ promote( old_heap_t *heap )
   internal_promote( heap, 0 );
 }
 
+
+/* Large-object allocation: 
+ * if the object fits in the old area, then
+ *   place it there
+ * else if it fits in the young area, then
+ *   place it there
+ * else 
+ *   collect
+ *   place it in the old area, expanding if necessary
+ * fi
+ *
+ * The code is annoyingly complicated because the semispaces may
+ * not yet be allocated, and it seems like a waste to allocate them
+ * and just throw away some memory that's not big enough.  The right
+ * thing here is for the semispace structures to be allocatable empty,
+ * so that we avoid special cases _and_ space waste.  FIXME.
+ */
+static void *allocate( old_heap_t *heap, unsigned nbytes, int must )
+{
+  unsigned old_limit, young_limit, size, nwords;
+  semispace_t *ss;
+  word *p;
+  npsc_data_t *data;
+
+  nwords = nbytes/sizeof(word);
+  data = DATA(heap);
+  old_limit = (data->k - data->j)*data->stepsize;
+  young_limit = data->j * data->stepsize;
+  size = roundup( nbytes, data->stepsize );
+
+  /* Weasel out if possible */
+  if (nbytes > data->stepsize * data->k && !must)
+    return 0;
+
+  /* Try old first */
+  ss = data->old;
+  if (ss == 0 && nbytes <= old_limit) {
+    ss = data->old = create_semispace( size, data->heap_no, data->gen_no );
+    goto allocate;
+  }
+  else if (ss != 0) {
+    ss_sync( ss );
+    if (ss->used+nbytes <= old_limit) 
+      goto allocate;
+  }
+
+  /* Try young */
+  ss = data->young;
+  if (ss == 0 && nbytes <= young_limit) {
+    ss = data->young = create_semispace( size, data->heap_no, data->gen_no+1 );
+    goto allocate;
+  }
+  else if (ss != 0) {
+    ss_sync( ss );
+    if (ss->used+nbytes <= young_limit) 
+      goto allocate;
+  }
+
+  /* Room in neither, so collect and just allocate in the old space,
+   * expanding it after allocation if necessary.
+   */
+  heap->collector->collect( heap->collector, data->gen_no+1, GC_COLLECT, 0 );
+  ss = data->old;
+  assert( ss != 0 );
+
+ allocate:
+  /* ss points to the semispace to allocate from */
+  if (ss->chunks[ss->current].lim - ss->chunks[ss->current].top < nwords) {
+    /* Just add steps to old if necessary */
+    data->k = max( data->k, (ss->allocated + size) / data->stepsize );
+    ss_expand( ss, size );
+  }
+  p = ss->chunks[ss->current].top;
+  ss->chunks[ss->current].top += nwords;
+  return p;
+}
 
 /*
  * Collect this and all younger heaps.

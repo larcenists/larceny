@@ -270,6 +270,14 @@ static void clear_remset( remset_t *rs )
  *
  * Expands the remembered-set pool if the current pool overflows;
  * the SSB will be empty when this procedure returns.
+ *
+ * NOTE:  The SSB may contain raw pointers (pointers where the tag is 000).
+ * These pointers are placed in the SSB by the large-object allocator in
+ * the generational collector (it was either that or requiring every 
+ * allocation call to pass a type descriptor).  When compacting the SSB,
+ * we follow the pointer and tag it with a tag that corresponds to the
+ * object header (always bytevector, vector, or procedure) before placing 
+ * it in the remembered set.
  */
 static int compact_ssb( remset_t *rs )
 {
@@ -292,7 +300,23 @@ static int compact_ssb( remset_t *rs )
   /* (The scan is down for historical reasons that no longer apply.) */
 
   while (q > p) {
-    w = *(q-1);
+    q--;
+    w = *q;
+    if (tagof( w ) == 0) {
+      /* See NOTE above. */
+      switch (header(*(word*)w)) {
+      case VEC_HDR :
+	w = (word)tagptr( w, VEC_TAG );
+	break;
+      case BV_HDR :
+	continue;		/* Remove the entry! */
+      case PROC_HDR :
+	w = (word)tagptr( w, PROC_TAG );
+	break;
+      default :
+	panic_abort( "compact_ssb" );
+      }
+    }
     h = (w >> 4) & mask;    /* experimental */
     b = (word*)tbl[ h ];
     while (b != 0 && *b != w) 
@@ -333,7 +357,6 @@ static int compact_ssb( remset_t *rs )
       pooltop += 2;
       recorded++;
     }
-    q--;
   }
 
   data->hash_recorded += recorded;
