@@ -97,6 +97,11 @@ void rs_enumerate( remset_t *remset,
      retained in the set, otherwise it is removed.
      */
 
+int  rs_size( remset_t *remset );
+  /* Returns the amount of memory occupied by the remembered set's data
+     structures, including its SSB, in bytes.
+     */
+
 void rs_stats( remset_t *remset );
   /* Add current counters to the global accumulators.
      */
