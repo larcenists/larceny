@@ -260,9 +260,9 @@ Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm larceny.bin hsplit bdwlarceny.bin petit-larceny core \
+	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 	   Sys/*.$(O) Sparc/*.$(O) Build/*.$(O) Standard-C/*.$(O) Util/*.$(O) \
-	   petit-rts.lib petit-lib.lib libpetit.so Standard-C/arithmetic.c
+	   petit-rts.lib petit-lib.lib libpetit.so libpetit.a Standard-C/arithmetic.c
 
 rtsclean: clean
 	rm -f Build/*.s Build/*.*h
