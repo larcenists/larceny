@@ -16,20 +16,6 @@
 		   "."
 		   (number->string (cdr (assq 'larceny-minor-version inf))))))
 
-; Compatible with Chez Scheme.
-
-(define most-positive-fixnum
-  (let ((mpf (- (expt 2 29) 1)))
-    (lambda ()
-      mpf)))
-
-; Compatible with Chez Scheme.
-
-(define most-negative-fixnum
-  (let ((mnf (expt -2 29)))
-    (lambda ()
-      mnf)))
-
 ;;; Constants
 
 (define *pi* 3.14159265358979323846)
