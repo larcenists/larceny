@@ -306,7 +306,7 @@
              (il:load-register 'result)
              (il:check-type
               iltype-procedure
-              (il:fault-apply-nonproc
+              (il:fault/apply-nonproc
                (operand1 instruction)
                (operand2 instruction)))
              (il 'stloc procedure-local)

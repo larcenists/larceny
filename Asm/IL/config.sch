@@ -29,13 +29,13 @@
                 $global $setglbl
                 $args=
                 $trap
-                ; $save $pop
+                ; $save $pop ;; These should be inlined once continuations fixed.
                 $stack $setstk
                 $load $store
                 $setrtn
                 $return
+                $apply
 
-                ;; $apply ; Maybe buggy, no real point in inlining
                 ;; $args>= ; INCOMPLETE
                 ))
 
