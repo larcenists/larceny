@@ -5,7 +5,8 @@
 ; Host-independent loader for the development system.
 ;
 ; The only parameter to this module is a procedure "nbuild-parameter"
-; that accepts a key and returns a value for the key.
+; that accepts a key and returns a value for the key, or #f if the key
+; is not known.
 ;
 ; The keys used by nbuild directly are
 ;   source          the directory that contains makefile.sch
@@ -28,116 +29,42 @@
 ;
 ; There might be other keys used by the compatibility packages.
 
+(load "Util/nbuild-files.sch")		; File lists and procedures
+
 (define (writeln . x)
   (for-each display x) (newline))
 
-; Compatibility library has been loaded and initialized.
-
-(define (nbuild-load path-ident file)
-  (let* ((path (nbuild-parameter path-ident))
-	 (fn   (string-append path file)))
-    (compat:load fn)))
-
-(writeln "Loading the make utility.")
-(nbuild-load 'util "make.sch")
+(define (nbuild-load-files files)
+  (for-each compat:load files))
 
 (writeln "Loading Twobit.")
-(nbuild-load 'compiler "sets.sch")
-(nbuild-load 'compiler "switches.sch")
-(nbuild-load 'compiler "pass1.aux.sch")
-(case (nbuild-parameter 'target-machine)
-  ((SPARC)      (nbuild-load 'compiler "sparc.imp.sch"))
-  ((Standard-C) (nbuild-load 'compiler "standard-C.imp.sch"))
-  (else ???))
-
-(nbuild-load 'compiler "copy.sch")
-(nbuild-load 'compiler "pass1.sch")
-(nbuild-load 'compiler "pass2.aux.sch")
-(nbuild-load 'compiler "pass2p1.sch")
-(nbuild-load 'compiler "pass2p2.sch")
-(nbuild-load 'compiler "pass4.aux.sch")
-(nbuild-load 'compiler "pass4p1.sch")
-(nbuild-load 'compiler "pass4p2.sch")
-(nbuild-load 'compiler "pass4p3.sch")
+(nbuild-load-files (nbuild:twobit-files))
 
 (writeln "Loading the common assembler.")
-(nbuild-load 'common-asm "pass5p1.sch")
-(nbuild-load 'common-asm "asmutil.sch")
-(case (nbuild-parameter 'endianness)
-  ((big)    (nbuild-load 'common-asm "asmutil32be.sch"))
-  ((little) (nbuild-load 'common-asm "asmutil32el.sch"))
-  (else ???))
-(nbuild-load 'common-asm "asmutil32.sch")
+(nbuild-load-files (nbuild:common-asm-files))
 
-(writeln "Loading the back-end header files.")
-(case (nbuild-parameter 'target-machine)
-  ((SPARC)      (nbuild-load 'build "schdefs.h"))
-  ((standard-C) (nbuild-load 'build "schdefs.h"))
-  (else ???))
-
-(case (nbuild-parameter 'target-machine)
-  ((SPARC)
-   (writeln "Loading the SPARC assembler and code generator.")
-   (nbuild-load 'sparc-asm "pass5p2.sch")
-   (nbuild-load 'sparc-asm "peepopt.sch")
-   (nbuild-load 'sparc-asm "sparcutil.sch")
-   (nbuild-load 'sparc-asm "sparcasm.sch")
-   (nbuild-load 'sparc-asm "gen-msi.sch")
-   (nbuild-load 'sparc-asm "sparcprim-part1.sch")
-   (nbuild-load 'sparc-asm "sparcprim-part2.sch")
-   (nbuild-load 'sparc-asm "sparcprim-part3.sch")
-   (nbuild-load 'sparc-asm "sparcprim-part4.sch")
-   (nbuild-load 'sparc-asm "switches.sch"))
-  ((Standard-C)
-   (writeln "Loading the standard-C assembler.")
-   (nbuild-load 'standard-C-asm "pass5p2.sch")
-   (nbuild-load 'standard-C-asm "switches.sch"))
-  (else ???))
-
-(nbuild-load 'compiler "patch0.sch")
-
-(case (nbuild-parameter 'target-machine)
-  ((SPARC)
-   (writeln "Loading SPARC disassembler.")
-   (nbuild-load 'sparc-asm "sparcdis.sch"))
-  ((standard-C)
-   (writeln "(No disassembler for standard-C)"))
-  (else ???))
+(writeln "Loading " (nbuild-parameter 'target-machine) " machine assembler.")
+(nbuild-load-files (nbuild:machine-asm-files))
 
 (writeln "Loading bootstrap heap dumper.")
-(with-optimization 3
-  (lambda ()
-    (nbuild-load 'common-asm "dumpheap.sch")
-    (case (nbuild-parameter 'target-machine)
-      ((SPARC)      #t)
-      ((standard-C) (nbuild-load 'standard-C-asm "dumpheap-extra.sch"))
-      (else ???))))
+(nbuild-load-files (nbuild:heap-dumper-files))
 
-(writeln "Loading drivers and utilities.")
-(nbuild-load 'compiler "compile313.sch")
-(nbuild-load 'compiler "printlap.sch")
-(nbuild-load 'common-asm "makefasl.sch")
+(writeln "Loading make utility, makefile, and help.")
+(nbuild-load-files (nbuild:utility-files))
 
-(writeln "Loading makefile.")
-(nbuild-load 'source "makefile.sch")
 
-(writeln "Loading help.")
-(nbuild-load 'compiler "help.sch")
-(initialize-help (nbuild-parameter 'compiler))
-
-;;; Initialize Twobit
+; Initialize Twobit and help system.
 
 (fast-safe-code)
+(initialize-help (nbuild-parameter 'compiler))
 
-;;; Initialize assembler
+; Initialize assembler (Nothing yet -- must eventually adjust endianness.)
 
-; Nothing yet -- must eventually adjust endianness!
-
-;;; Initialize heap dumper
+; Initialize heap dumper.
 
 (dumpheap.set-endianness! (nbuild-parameter 'endianness))
 
-;;; And they're off!
+; And they're off!
 
 (writeln "Welcome. Type (help) for help.")
 
