@@ -50,10 +50,6 @@
 ;     but payoff is smaller because an intermediate structure must be built
 ;     to avoid problems with call/cc.
 ;
-;   * `Eval:benchmark-mode' switch that makes the interpreter skip the
-;     global cache check for primitive names.  It's a bit of a joke, but
-;     it might improve performance some.
-;
 ;   * We could unroll several cases for interpret/setlex just as for 
 ;     interpret/lexical.
 ;
@@ -77,158 +73,61 @@
 
 ($$trace "interpret")
 
-; Macro expander parameterization
+(define (interpret expr env)
+  ((interpret/preprocess (interpreter-macro-expand expr env)
+			 '()
+			 (lambda (sym)
+			   (environment-get-cell env sym))
+			 #f)
+   '()))
 
-(define kwd:define 'define)
-(define kwd:lambda 'lambda)
-(define kwd:named-lambda '.named-lambda) ; Introduced by the interpreter
-(define kwd:if 'if)
-(define kwd:set! 'set!)
-(define kwd:quote 'quote)
-(define kwd:begin 'begin)
-
-; End macro expander parameterization
-
-(define interpret
-  (let ()
-
-    (define (definition? x)
-      (and (pair? x) (eq? (car x) kwd:define)))
-
-    (define (begin? x)
-      (and (pair? x) (eq? (car x) kwd:begin)))
-
-    (define (all-definitions? elist)
-      (if (null? elist)
-	  #t
-	  (let ((expr (car elist)))
-	    (or (and (definition? expr)
-		     (all-definitions? (cdr elist)))
-		(and (begin? expr)
-		     (all-definitions? (cdr expr))
-		     (all-definitions? (cdr elist)))))))
-
-    (define (rewrite-begin-nest elist)
-      (if (null? elist)
-	  (list (unspecified))
-	  (let ((expr (car elist)))
-	    (cond ((definition? expr)
-		   (cons `(,kwd:set! ,(cadr expr) ,(caddr expr))
-			 (rewrite-begin-nest (cdr elist))))
-		  ((begin? expr)
-		   (append (rewrite-begin-nest (cdr expr))
-			   (rewrite-begin-nest (cdr elist))))
-		  (else
-		   ???)))))
-
-    (define (lambda->named-lambda name x)
-      `(,kwd:named-lambda ,name ,@(cdr x)))
-
-    (define (toplevel-preprocess expr env)
-      (cond ((definition? expr)
-	     (let ((lhs (cadr expr))
-		   (rhs (caddr expr)))
-	       (if (and (pair? rhs) (eq? kwd:lambda (car rhs)))
-		   (really-preprocess
-		    `(,kwd:begin
-		      (,kwd:set! ,lhs ,(lambda->named-lambda lhs rhs))
-		      ,(unspecified))
-		    env)
-		   (really-preprocess
-		    `(,kwd:begin
-		      (,kwd:set! ,lhs ,rhs)
-		      ,(unspecified))
-		    env))))
-	    ((begin? expr)
-	     (if (all-definitions? (cdr expr))
-		 (really-preprocess (cons kwd:begin
-					  (rewrite-begin-nest (cdr expr)))
-				    env)
-		 (really-preprocess expr env)))
-	    (else
-	     (really-preprocess expr env))))
-
-    (define (really-preprocess expr env)
-      (interpret/preprocess expr 
-			    '() 
-			    (lambda (sym)
-			      (environment-lookup-binding env sym))))
-
-    (define (interpret expr env)
-      (let ((expr (interpreter-macro-expand expr env)))
-	((toplevel-preprocess expr env) '())))
-
-    interpret))
-
-(define (interpret/preprocess expr env find-global)
-  (cond ((symbol? expr)
-	 (let ((address (interpret/var-address expr env)))
+(define (interpret/preprocess expr env find-global proc-doc)
+  (cond ((variable? expr)
+	 (let ((address (interpret/var-address (variable.name expr) env)))
 	   (if address
-	       (interpret/lexical (car address) (cdr address) expr)
-	       (interpret/global expr find-global expr))))
-	((pair? expr)
-	 (let ((kwd (car expr)))
-	   (cond ((eq? kwd:quote kwd)
-		  (interpret/const (cadr expr)))
-		 ((eq? kwd:set! kwd)
-		  (let ((address (interpret/var-address (cadr expr) env))
-			(rhs
-			 (interpret/preprocess (caddr expr) env find-global)))
-		    (if address
-			(interpret/setlex (car address) (cdr address) rhs expr)
-			(interpret/setglbl (cadr expr) rhs find-global expr))))
-		 ((eq? kwd:lambda kwd)
-		  (interpret/make-proc expr env find-global expr))
-		 ((eq? kwd:named-lambda kwd)
-		  (interpret/make-proc expr env find-global expr))
-		 ((eq? kwd:begin kwd)
-		  (if (null? (cdr expr))
-		      (begin (error "EVAL: empty BEGIN")
-			     #t)
-		      (interpret/sequence
-		       (map (lambda (x)
-			      (interpret/preprocess x env find-global))
-			    (cdr expr))
-		       expr)))
-		 ((eq? kwd:if kwd)
-		  (let ((test
-			 (interpret/preprocess (cadr expr) env find-global))
-			(*then
-			 (interpret/preprocess (caddr expr) env find-global))
-			(*else
-			 (if (null? (cdddr expr))
-			     (interpret/const (unspecified))
-			     (interpret/preprocess (cadddr expr) env
-						   find-global))))
-		    (interpret/if test *then *else expr)))
-		 (else
-		  (interpret/make-call expr env find-global expr)))))
-	((interpret/self-evaluating? expr)
-	 (interpret/const expr))
+	       (interpret/lexical (car address) (cdr address))
+	       (interpret/global (variable.name expr) find-global 
+				 expr proc-doc))))
+	((constant? expr)
+	 (interpret/const (constant.value expr)))
+	((assignment? expr)
+	 (let* ((lhs (assignment.lhs expr))
+		(address (interpret/var-address lhs env))
+		(rhs (interpret/preprocess (assignment.rhs expr) env
+					   find-global
+					   proc-doc)))
+	   (if address
+	       (interpret/setlex (car address) (cdr address) rhs)
+	       (interpret/setglbl lhs rhs find-global))))
+	((lambda? expr)
+	 (interpret/make-proc expr env find-global expr))
+	((begin? expr)
+	 (interpret/sequence
+	  (map (lambda (x)
+		 (interpret/preprocess x env find-global proc-doc))
+	       (begin.exprs expr))
+	  expr
+	  proc-doc))
+	((conditional? expr)
+	 (let ((test (interpret/preprocess (if.test expr) env
+					   find-global proc-doc))
+	       (*then (interpret/preprocess (if.then expr) env
+					    find-global proc-doc))
+	       (*else (interpret/preprocess (if.else expr) env
+					    find-global proc-doc)))
+	   (interpret/if test *then *else expr proc-doc)))
+	((call? expr)
+	 (interpret/make-call expr env find-global expr proc-doc))
 	(else
 	 (error "EVAL: preprocess: unknown expression: " expr)
 	 #t)))
 
-(define (interpret/self-evaluating? expr)
-  (or (procedure? expr) 
-      (bytevector-like? expr)
-      (vector-like? expr)
-      (boolean? expr)
-      (number? expr)
-      (char? expr)
-      (null? expr)
-      (eq? expr (unspecified))
-      (eq? expr (undefined))
-      (eof-object? expr)))
 
 ; Closure creation.  Special cases handled: 
 ;  - procedures of 0..4 arguments.
 ;  - varargs procedures.
 
 (define (interpret/make-proc expr env find-global src)
-
-  (define (named-lambda? x)
-    (eq? (car x) kwd:named-lambda))
 
   (define (listify x)
     (cond ((null? x) x)
@@ -240,58 +139,38 @@
 	(fixed-args (cdr x) (+ n 1))
 	n))
 
-  (let* ((args  (if (named-lambda? expr) (caddr expr) (cadr expr)))
-	 (body  (if (named-lambda? expr) (cdddr expr) (cddr expr)))
-	 (name  (if (named-lambda? expr) (cadr expr) #f))
+  (let* ((args  (lambda.args expr))
+	 (body  (lambda.body expr))
+	 (doc   (lambda.doc expr))
+	 (src   (if doc (doc.code doc) #f))
 	 (nenv  (interpret/extend-env env (listify args)))
-	 (exprs (interpret/preprocess (cons kwd:begin body) nenv find-global)))
+	 (exprs (interpret/preprocess body nenv find-global doc)))
     (if (list? args)
 	(case (length args)
-	  ((0) (interpret/lambda0 exprs src name))
-	  ((1) (interpret/lambda1 exprs src name))
-	  ((2) (interpret/lambda2 exprs src name))
-	  ((3) (interpret/lambda3 exprs src name))
-	  ((4) (interpret/lambda4 exprs src name))
-	  (else (interpret/lambda-n (length args) exprs src name)))
-	(interpret/lambda-dot (fixed-args args 0) exprs src name))))
+	  ((0) (interpret/lambda0 exprs doc src))
+	  ((1) (interpret/lambda1 exprs doc src))
+	  ((2) (interpret/lambda2 exprs doc src))
+	  ((3) (interpret/lambda3 exprs doc src))
+	  ((4) (interpret/lambda4 exprs doc src))
+	  (else (interpret/lambda-n (length args) exprs doc src)))
+	(interpret/lambda-dot (fixed-args args 0) exprs doc src))))
 
 ; Procedure call.  Special cases handled:
-;  - letrec:  ((lambda (a b ...) ...) #!unspecified ...)
 ;  - primitive: (op a b ...)
 ;  - short: 0..4 arguments
 
-(define (interpret/make-call expr env find-global src)
-
-  (define (lambda? op)
-    (and (pair? op) (kwd:lambda? (car op))))
-
-  (define (let? op n)
-    (and (lambda? op)
-	 (list? (cadr op))
-	 (= (length (cadr op)) n)))
-
-  (define unspecd `',(unspecified))
-
-  (define (letrec? op n args)
-    (and (let? op n)
-	 (not (null? (cadr op)))
-	 (every? (lambda (v) (equal? v unspecd))
-		 args)))
-
+(define (interpret/make-call expr env find-global src doc)
   (let* ((pexps (map (lambda (x)
-		       (interpret/preprocess x env find-global))
+		       (interpret/preprocess x env find-global doc))
 		     expr))
 	 (proc  (car pexps))
 	 (args  (cdr pexps))
 	 (n     (length args)))
-    (cond ;((letrec? (car expr) n (cdr expr))
-	  ; (interpret/invoke-letrec 
-	  ; (interpret/preprocess (cons kwd:begin (cddar expr)) env find-global)
-	  ; (length args)))
-	  ((<= n 4)
-	   (interpret/invoke-short proc args (car expr) n env find-global src))
+    (cond ((<= n 4)
+	   (interpret/invoke-short proc args 
+				   (call.proc expr) n env find-global src doc))
 	  (else
-	   (interpret/invoke-n proc args src)))))
+	   (interpret/invoke-n proc args src doc)))))
 
 (define (interpret/extend-env env names)
   (cons names env))
@@ -308,7 +187,7 @@
 		(else
 		 (a-loop (cdr rib) (+ j 1))))))))
 
-(define (interpret/global name find-global src)
+(define (interpret/global name find-global src proc-doc)
   (let ((cell (find-global name)))
     (interpreted-expression
      (lambda (env)
@@ -318,51 +197,47 @@
 	       (error "Reference to undefined global variable `" name "'.")
 	       #t)
 	     v)))
-     src)))
+     (cons src proc-doc))))
 
-; This never fails, so the source code is not recorded.
-
-(define (interpret/setglbl name expr find-global src)
+(define (interpret/setglbl name expr find-global)
   (let ((cell (find-global name)))
     (lambda (env)
       (set-car! cell (expr env)))))
 
 ; Unroll loop for the closest ribs.
-; We don't record the source because these are primitive expressions that
-; never fail.
 
-(define (interpret/lexical rib offset src)
+(define (interpret/lexical rib offset)
   (case rib
-    ((0) (interpret/lexical0 offset src))
-    ((1) (interpret/lexical1 offset src))
-    ((2) (interpret/lexical2 offset src))
-    ((3) (interpret/lexical3 offset src))
-    (else (interpret/lexical-n rib offset src))))
+    ((0) (interpret/lexical0 offset))
+    ((1) (interpret/lexical1 offset))
+    ((2) (interpret/lexical2 offset))
+    ((3) (interpret/lexical3 offset))
+    (else (interpret/lexical-n rib offset))))
 
-(define (interpret/lexical0 offset src)
+(define (interpret/lexical0 offset)
   (lambda (env)
     (vector-ref (car env) offset)))
 
-(define (interpret/lexical1 offset src)
+(define (interpret/lexical1 offset)
   (lambda (env)
     (vector-ref (cadr env) offset)))
 
-(define (interpret/lexical2 offset src)
+(define (interpret/lexical2 offset)
   (lambda (env)
     (vector-ref (caddr env) offset)))
 
-(define (interpret/lexical3 offset src)
+(define (interpret/lexical3 offset)
   (lambda (env)
     (vector-ref (cadddr env) offset)))
 
-(define (interpret/lexical-n rib offset src)
+(define (interpret/lexical-n rib offset)
   (lambda (env0)
     (let loop ((rib rib) (env env0))
       (if (= rib 0)
 	  (vector-ref (car env) offset)
 	  (loop (- rib 1) (cdr env))))))
 
-(define (interpret/setlex rib offset expr src)
+(define (interpret/setlex rib offset expr)
   (lambda (env0)
     (let loop ((rib rib) (env env0))
       (if (= rib 0)
@@ -373,42 +248,43 @@
   (lambda (env)
     c))
 
-(define (interpret/if test consequent alternate src)
+(define (interpret/if test consequent alternate src proc-doc)
   (interpreted-expression
    (lambda (env)
      (if (test env) (consequent env) (alternate env)))
-   src))
+   (cons src proc-doc)))
 
 ; Special cases: 1..4 expressions.
 
-(define (interpret/sequence exprs src)
-  (case (length exprs)
-    ((1) (car exprs))
-    ((2) (interpret/sequence2 (car exprs) (cadr exprs) src))
-    ((3) (interpret/sequence3 (car exprs) (cadr exprs) (caddr exprs) src))
-    ((4) (interpret/sequence4 (car exprs) (cadr exprs) (caddr exprs)
-			      (cadddr exprs) src))
-    (else (interpret/sequence-n exprs src))))
+(define (interpret/sequence exprs src proc-doc)
+  (let ((doc (cons src proc-doc)))
+    (case (length exprs)
+      ((1) (car exprs))
+      ((2) (interpret/sequence2 (car exprs) (cadr exprs) doc))
+      ((3) (interpret/sequence3 (car exprs) (cadr exprs) (caddr exprs) doc))
+      ((4) (interpret/sequence4 (car exprs) (cadr exprs) (caddr exprs)
+				(cadddr exprs) doc))
+      (else (interpret/sequence-n exprs doc)))))
 
-(define (interpret/sequence2 a b src)
+(define (interpret/sequence2 a b doc)
   (interpreted-expression
    (lambda (env)
      (a env) (b env))
-   src))
+   doc))
 
-(define (interpret/sequence3 a b c src)
+(define (interpret/sequence3 a b c doc)
   (interpreted-expression
    (lambda (env)
      (a env) (b env) (c env))
-   src))
+   doc))
 
-(define (interpret/sequence4 a b c d src)
+(define (interpret/sequence4 a b c d doc)
   (interpreted-expression
    (lambda (env)
      (a env) (b env) (c env) (d env))
-   src))
+   doc))
 
-(define (interpret/sequence-n exprs src)
+(define (interpret/sequence-n exprs doc)
   (interpreted-expression
    (lambda (env)
      (let loop ((exprs exprs))
@@ -417,13 +293,13 @@
 	     (else
 	      ((car exprs) env)
 	      (loop (cdr exprs))))))
-   src))
+   doc))
 
-(define (interpret/invoke-prim1 name a find-global src)
+(define (interpret/invoke-prim1 name a find-global)
   ((interpret/primitive name 1) a (interpret/prim-orig name)
 				(find-global name)))
 
-(define (interpret/invoke-prim2 name a b find-global src)
+(define (interpret/invoke-prim2 name a b find-global)
   ((interpret/primitive name 2) a b (interpret/prim-orig name)
 				(find-global name)))
 
@@ -438,159 +314,157 @@
 
 ; Calls that take 0..4 arguments.
 
-(define (interpret/invoke-short proc args op n env find-global src)
+(define (interpret/invoke-short proc args op n env find-global src proc-doc)
 
-  (define (prim?)
+  (define (prim? op)
     (and (symbol? op)
-	 (not (interpret/var-address op env))
+	 (not (interpret/var-address op env)) ; No longer necessary, I think
 	 (interpret/primitive? op n)))
 
-  (case n
-    ((0) (interpret/invoke0 proc src))
-    ((1) (if (prim?)
-	     (interpret/invoke-prim1 op (car args) find-global src)
-	     (interpret/invoke1 proc (car args) src)))
-    ((2) (if (prim?)
-	     (interpret/invoke-prim2 op (car args) (cadr args) find-global src)
-	     (interpret/invoke2 proc (car args) (cadr args) src)))
-    ((3) (interpret/invoke3 proc (car args) (cadr args) (caddr args) src))
-    ((4) (interpret/invoke4 proc (car args) (cadr args) (caddr args)
-		       (cadddr args) src))
-    (else ???)))
+  (let ((op (if (variable? op)
+		(variable.name op)
+		op))
+	(doc (cons src proc-doc)))
+    (case n
+      ((0) (interpret/invoke0 proc doc))
+      ((1) (if (prim? op)
+	       (interpret/invoke-prim1 op (car args) find-global)
+	       (interpret/invoke1 proc (car args) doc)))
+      ((2) (if (prim? op)
+	       (interpret/invoke-prim2 op (car args) (cadr args) find-global)
+	       (interpret/invoke2 proc (car args) (cadr args) doc)))
+      ((3) (interpret/invoke3 proc (car args) (cadr args) (caddr args) doc))
+      ((4) (interpret/invoke4 proc (car args) (cadr args) (caddr args)
+			      (cadddr args) doc))
+      (else
+       (error "impossible case in interpret/invoke-short: " n op)))))
 
-(define (interpret/invoke0 proc src)
+(define (interpret/invoke0 proc doc)
   (interpreted-expression
    (lambda (env)
      ((proc env)))
-   src))
+   doc))
 
-(define (interpret/invoke1 proc a src)
+(define (interpret/invoke1 proc a doc)
   (interpreted-expression
    (lambda (env)
      ((proc env) (a env)))
-   src))
+   doc))
 
-(define (interpret/invoke2 proc a b src)
+(define (interpret/invoke2 proc a b doc)
   (interpreted-expression
    (lambda (env)
      ((proc env) (a env) (b env)))
-   src))
+   doc))
 
-(define (interpret/invoke3 proc a b c src)
+(define (interpret/invoke3 proc a b c doc)
   (interpreted-expression
    (lambda (env)
      ((proc env) (a env) (b env) (c env)))
-   src))
+   doc))
 
-(define (interpret/invoke4 proc a b c d src)
+(define (interpret/invoke4 proc a b c d doc)
   (interpreted-expression
    (lambda (env)
      ((proc env) (a env) (b env) (c env) (d env)))
-   src))
+   doc))
 
-(define (interpret/invoke-n proc args src)
+(define (interpret/invoke-n proc args src doc)
   (interpreted-expression
    (lambda (env)
      (let ((proc (proc env))
 	   (args (map (lambda (p) (p env)) args)))
        (apply proc args)))
-   src))
+   (cons src doc)))
 
 ; Closure creation.
 ;
 ; If 'vector' were faster, it would be a better choice for constructing 
 ; ribs than make-vector + vector-set!.
 
-(define (interpret/lambda0 body src name)
-  (let ((doc (vector name src 0 #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda ()
-	  (body (cons '#() env)))))
-     src)))
+(define (interpret/lambda0 body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda ()
+	(body (cons '#() env)))))
+   src))
 
-(define (interpret/lambda1 body src name)
-  (let ((doc (vector name src 1 #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda (a)
-	  (let ((v (make-vector 1 a)))
-	    (body (cons v env))))))
-     src)))
+(define (interpret/lambda1 body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda (a)
+	(let ((v (make-vector 1 a)))
+	  (body (cons v env))))))
+   src))
 
-(define (interpret/lambda2 body src name)
-  (let ((doc (vector name src 2 #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda (a b)
-	  (let ((v (make-vector 2 a)))
-	    (vector-set! v 1 b)
-	    (body (cons v env))))))
-     src)))
+(define (interpret/lambda2 body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda (a b)
+	(let ((v (make-vector 2 a)))
+	  (vector-set! v 1 b)
+	  (body (cons v env))))))
+   src))
 
-(define (interpret/lambda3 body src name)
-  (let ((doc (vector name src 3 #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda (a b c)
-	  (let ((v (make-vector 3 a)))
-	    (vector-set! v 1 b)
-	    (vector-set! v 2 c)
-	    (body (cons v env))))))
-     src)))
+(define (interpret/lambda3 body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda (a b c)
+	(let ((v (make-vector 3 a)))
+	  (vector-set! v 1 b)
+	  (vector-set! v 2 c)
+	  (body (cons v env))))))
+   src))
 
-(define (interpret/lambda4 body src name)
-  (let ((doc (vector name src 4 #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda (a b c d)
-	  (let ((v (make-vector 4 a)))
-	    (vector-set! v 1 b)
-	    (vector-set! v 2 c)
-	    (vector-set! v 3 d)
-	    (body (cons v env))))))
-     src)))
+(define (interpret/lambda4 body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda (a b c d)
+	(let ((v (make-vector 4 a)))
+	  (vector-set! v 1 b)
+	  (vector-set! v 2 c)
+	  (vector-set! v 3 d)
+	  (body (cons v env))))))
+   src))
 
-(define (interpret/lambda-n n body src name)
-  (let ((doc (vector name src n #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda args
-	  (body (cons (list->vector args) env)))))
-     src)))
+(define (interpret/lambda-n n body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda args
+	(body (cons (list->vector args) env)))))
+   src))
 
 ; `n' is the number of fixed arguments.
 
-(define (interpret/lambda-dot n body src name)
-  (let ((doc (vector name src (exact->inexact n) #f #f)))
-    (interpreted-expression
-     (lambda (env)
-       (interpreted-procedure
-	doc
-	(lambda args
-	  (let ((l (length args))
-		(v (make-vector (+ n 1) (unspecified))))
-	    (if (< l n)
-		(error "Too few arguments to procedure."))
-	    (do ((args args (cdr args))
-		 (i 0 (+ i 1)))
-		((= i n)
-		 (vector-set! v i args)
-		 (body (cons v env)))
-	      (vector-set! v i (car args)))))))
-     src)))
+(define (interpret/lambda-dot n body doc src)
+  (interpreted-expression
+   (lambda (env)
+     (interpreted-procedure
+      doc
+      (lambda args
+	(let ((l (length args))
+	      (v (make-vector (+ n 1) (unspecified))))
+	  (if (< l n)
+	      (error "Too few arguments to procedure."))
+	  (do ((args args (cdr args))
+	       (i 0 (+ i 1)))
+	      ((= i n)
+	       (vector-set! v i args)
+	       (body (cons v env)))
+	    (vector-set! v i (car args)))))))
+   src))
 
 
 ; Debugger support
@@ -628,12 +502,13 @@
   (cdr (procedure-ref proc (- (procedure-length proc) 1))))
 
 
-; Interpreted-expression takes any procedure and the source code
-; and returns a new procedure that is identical to the old except 
-; that the it is one element longer and has typetag 0.  
+; Interpreted-expression takes any procedure and a pair consisting of
+; the source code for the expression and the enclosing procedure's
+; documentation slot and returns a new procedure that is identical to 
+; the old except that the it is one element longer and has typetag 0.  
 ;
 ; The new, last element contains the pair ($evalproc . <doc>) where <doc>
-; is the source code.
+; is (<source> <documentation>)
 
 (define (interpreted-expression proc doc)
   (let* ((l (procedure-length proc))
@@ -686,11 +561,17 @@
       (cond ((interpreted-procedure? proc)
 	     (interpreted-procedure-documentation proc))
 	    ((interpreted-expression? proc)
-	     (vector #f (interpreted-procedure-documentation proc)))
+	     (cdr (interpreted-procedure-documentation proc)))
 	    ((interpreted-primitive? proc)
 	     (let ((x (interpreted-procedure-documentation proc)))
 	       (vector (car x) #f (cadr x))))
 	    (else
 	     (apply procedure-documentation proc rest))))))
+
+(define (interpreted-expression-source proc)
+  (if (interpreted-expression? proc)
+      (make-readable (car (interpreted-procedure-documentation proc)))
+      (begin (error "Not an expression: " proc)
+	     #t)))
 
 ; eof
