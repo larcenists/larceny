@@ -1,0 +1,263 @@
+Copyright 1991 Lightship Software, Incorporated.
+
+MacScheme machine instructions.
+
+In the descriptions of these instructions, the following ranges
+and uses are implied.
+
+    doc is any Scheme object used as documentation.
+    x is any Scheme object.
+    z is an immediate operand, 0 <= z < 256.
+    m is a rib number, 0 <= m < 256.
+    n is a an argument count, rib slot, or stack frame slot,
+        0 <= n < 256.
+    k is a register, 0 <= k < R.
+    o is an offset from the beginning of a code segment,
+        -32768 <= o < 32768.
+    L is an offset from the beginning of the next instruction,
+        -32768 <= L < 32768.
+
+
+Data operations.
+
+op      prim         
+op      prim,k       
+op      prim,k2,k3   
+opx     prim,z
+
+Constants.
+
+const   x            
+
+Variable references.
+
+global  x            
+setglbl x            
+lexical m,n          
+setlex  m,n          
+stack   n            
+setstk  n            
+load    n,k
+store   k,n
+reg     k            
+setreg  k            
+movereg k1,k2        
+
+Lambda expressions.
+
+lambda  x,n,doc
+lexes   n,doc
+
+Procedure calls.
+
+args=   k            
+args>=  k            
+invoke  k            
+save    L,k          
+setrtn  L            
+restore k            
+pop     k            
+return               
+mvrtn                
+apply        
+nop
+jump    m,o
+
+Branches.
+
+branch  L            
+branchf L            
+
+
+
+op      prim
+op      prim,k1
+op      prim,k1,k2
+
+        Loads RESULT with the result of the given primitive operation
+        with arguments taken from RESULT, REGk1, and REGk2.  May fault, in
+        which case the special registers SECOND and THIRD are loaded
+        with the values of REGk1 and REGk2 before the fault is taken.
+
+opx     prim,z
+
+        Loads RESULT with the result of the given primitive operation
+        with the first argument taken from RESULT and a second argument
+        z (which is always an immediate value).  May fault, in which
+        case the special register SECOND is loaded with x before the
+        fault is taken.
+
+lambda  x,n,doc
+
+        If n < r, loads RESULT with the procedure formed from the
+        code x and the values of registers REG0-REGn.  If n >= r,
+        loads RESULT with the procedure formed from the values of
+        registers REG0-REG{r-1} and the first n-r+1 values taken
+        from the list in REGr.  The code x consists of a bytevector
+        of pure code and a vector of constants.  The documentation
+        is used only for debugging.
+
+lexes   n,doc
+
+        If n < r, loads RESULT with the procedure formed from the
+        currently executing code and the values of registers REG0-REGn.
+        If n >= r, loads RESULT with the procedure formed from the
+        values of registers REG0-REG{r-1} and the first n-r+1 values
+        taken from the list in REGr.  The documentation is used only
+        for debugging.
+
+const   x
+
+        Loads RESULT with x.  Unless x is an immediate, it is fetched
+        from the current procedure's constant vector.
+
+global  x
+
+        Loads RESULT with the value contained in the value cell for the
+        global variable x.  May fault if the value is undefined.  The
+        value cell is fetched from the current procedure's constant vector.
+
+setglbl x
+
+        Stores RESULT in the value cell for the global variable x.
+        The value cell is fetched from the current procedure's constant
+        vector.  Destroys RESULT.
+
+lexical m,n
+
+        Loads RESULT with the value of slot n of rib m in the current
+        environment (i.e. current procedure).  May fault if the value is
+        undefined.
+
+setlex  m,n
+
+        Stores RESULT in slot n of rib m in the current environment
+        (i.e. current procedure).  Destroys RESULT.
+
+stack   n
+
+        Loads RESULT with the value of slot n in the topmost frame of
+        the stack cache.  (Slot n is the saved value of REGn.)
+
+setstk  n
+
+        Stores RESULT in slot n in the topmost frame of the stack cache.
+        Destroys RESULT.
+
+load    n,k
+
+        Loads REGk with the value of slot n in the topmost frame of the
+        stack cache.
+
+store   k,n
+
+        Stores REGk in slot n of the topmost frame of the stack cache.
+
+reg     k
+
+        Loads RESULT with the value of REGk.
+
+setreg  k
+
+        Stores RESULT in REGk.  Destroys RESULT.
+
+movereg k1,k2
+
+        Stores REGk1 in REGk2.
+
+args=   n
+
+        Faults if the value of RESULT is not n.
+
+args>=  n
+
+        Assumes that the value of RESULT is a fixnum j.  Faults unless
+        j >= n.
+
+        Case 0: n < R-2, j < r.  Loads REGn+1 with a newly allocated list
+            formed from REGn+1 through REGj.
+        Case 1: n < R-2, j >= r.  Loads REGn+1 with
+            (APPEND (LIST REGn+1 ... REG{r-1})
+                    (APPEND REGr '()))
+        Case 2: n = R-2.  Loads REGr with (LIST (APPEND REGr '())).
+        Case 3: r <= n <= j.  Loads REGr with
+            (LET ((REGr (APPEND REGr '())))
+              (SET-CDR! (LIST-TAIL REGr (- n r))
+                        (LIST (LIST-TAIL REGr (- n (- r 1)))))
+              REGr)
+
+        Cases 1 through 3 must copy the list in REGr to avoid some
+        extremely obscure bugs with call-with-current-continuation.
+
+invoke  n
+
+        Faults if the value of TIMER is zero.  Faults if the value of
+        RESULT is not a procedure.  Decrements TIMER, loads SECOND with
+        the value of REG0, loads REG0 with the value of RESULT, stores n in
+        RESULT, and jumps to the entry point for the procedure in REG0.
+
+save    L,k
+
+        Pushes a new continuation frame onto the stack cache containing
+        return address L and the values of registers REG0-REGk.  Faults
+        on stack cache overflow.
+
+setrtn  L
+
+        Stores the return address L in the return address slot in the
+        topmost frame of the stack cache.
+
+restore k
+
+        Restores registers REG0-REGk from the topmost frame of the stack
+        cache.  This frame is known to have been created by "save L,n",
+        where k <= n.
+
+pop     n
+
+        Pops the topmost frame from the stack cache.  This frame is known
+        to have been created by "save L,n".
+
+return
+
+        Jumps to the return address contained in the topmost frame of
+        the stack cache.
+
+mvrtn
+
+        Let n be the value in RESULT.  Returns n values.  If n < r, then
+        the return values are in REG1 through REGn.  If n >= r, then the
+        first R-2 return values are in REG1 through REG{R-2}, and REGr holds
+        a list of the remaining return values.
+
+apply
+
+        Faults if the value of TIMER is zero.  Faults if RESULT does not
+        contain a procedure.  Faults if REG1 does not contain a proper
+        list.  Let n be the length of the list in REG1.  If n < r,
+        loads registers REG1-REGn with the elements of the list in REG1.
+        If n >= r, loads registers REG1-REG{R-2} with the first R-2 elements
+        of REG1, and stores the tail of that list in REGr.  Decrements
+        TIMER, loads SECOND with the value of REG0, loads REG0 with the
+        value of RESULT, stores n in RESULT, and jumps to the entry point
+        for the procedure in REG0.
+
+nop
+
+        Does nothing whatsoever.
+
+jump    m,o
+
+        Faults if the value of TIMER is zero.  Decrements TIMER, loads
+        REG0 with the procedure obtained by following m links of the
+        static chain, and jumps to the code of that procedure at offset o.
+
+branch  L
+
+        If this is a backward branch, decrements TIMER and faults if
+        the new value is negative.  Jumps to L.  Destroys RESULT.
+
+branchf L
+
+        If RESULT contains a false value, then behaves as "branch L".
+        Destroys RESULT in any case.
