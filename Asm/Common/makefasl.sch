@@ -1,13 +1,11 @@
-; Asm/Common/makefasl.sch
-; Larceny -- procedure to create fastload segments.
+; Asm/Common/makefasl2.sch
+; Larceny -- procedure that writes fastload segment
 ;
 ; $Id$
 ;
 ; The procedure 'dump-fasl-segment-to-port' takes a segment and an output
 ; port as arguments and dumps the segment in fastload format on that port.
-;
-; The global variable host-system must be set to the name of the host
-; system for the compilation, 'chez or 'larceny.
+; The port must be a binary (untranslated) port.
 ;
 ; A fastload segment looks like a Scheme expression, and in fact, 
 ; fastload files can mix compiled and uncompiled expressions.  A compiled
@@ -19,17 +17,15 @@
 ; R0/static link slot (always #f).  
 ;
 ; A bytevector is a string prefixed by #^B. The string may contain 
-; control characters; \ and " must be quoted as usual. There are some
-; subtle dependencies here on Unix I/O semantics: no control characters
-; are translated on output or input.
+; control characters; \ and " must be quoted as usual.
 ;
 ; A global variable reference in the constant vector is a symbol prefixed
 ; by #^G.  On reading, the reference is replaced by (a pointer to) the 
 ; actual cell.
 ;
-; BUGS
-;  - Probably quite slow, but serious improvement requires cooperation
-;    of the I/O system for block transfers.
+; This code is highly bummed.  The procedure write-bytevector-like has the
+; same meaning as display, but in Larceny, the former is currently much
+; faster than the latter.
 
 (define (dump-fasl-segment-to-port segment outp)
   (let* ((controllify
@@ -39,48 +35,44 @@
 	 (CTRLB       (controllify #\B))
 	 (CTRLG       (controllify #\G))
 	 (DOUBLEQUOTE (char->integer #\"))
-	 (BACKSLASH   (char->integer #\\)))
+	 (BACKSLASH   (char->integer #\\))
+	 (len         1024))
 
-    ; Everyone calls putc/puts/putd/putb; these can then be optimized.
+    (define buffer (make-string len #\&))
+    (define ptr 0)
+
+    (define (flush)
+      (if (< ptr len)
+	  (write-bytevector-like (substring buffer 0 ptr) outp)
+	  (write-bytevector-like buffer outp))
+      (set! ptr 0))
 
     (define (putc c)
-      (write-char c outp))
+      (if (= ptr len) (flush))
+      (string-set! buffer ptr c)
+      (set! ptr (+ ptr 1)))
 
     (define (putb b)
-      (write-char (integer->char b) outp))
+      (if (= ptr len) (flush))
+      (string-set! buffer ptr (integer->char b))
+      (set! ptr (+ ptr 1)))
 
     (define (puts s)
-      (for-each (lambda (c)
-		  (write-char c outp))
-		(string->list s)))
+      (let ((ls (string-length s)))
+	(if (>= (+ ptr ls) len)
+	    (begin (flush)
+		   (write-bytevector-like s outp))
+	    (do ((i (- ls 1) (- i 1))
+		 (p (+ ptr ls -1) (- p 1)))
+		((< i 0)
+		 (set! ptr (+ ptr ls)))
+	      (string-set! buffer p (string-ref s i))))))
 
     (define (putd d)
-      (write d outp))
+      (flush)
+      (write-fasl-datum d outp))
 
     (define (dump-codevec bv)
-      (cond ((eq? host-system 'chez)
-	     (dump-codevec-chez bv))
-	    ((eq? host-system 'larceny)
-	     (dump-codevec-larceny bv))
-	    (else (error "makefasl: unknown host: " host-system))))
-
-    ; Under Chez Scheme, byte vectors are really vectors of integers.
-
-    (define (dump-codevec-chez bv)
-      (putc #\#)
-      (putc CTRLB)
-      (putc #\")
-      (let loop ((i 0) (m (vector-length bv)))
-	(if (< i m)
-	    (let ((c (integer->char (vector-ref bv i))))
-	      (if (or (char=? c #\") (char=? c #\\))
-		  (putc #\\))
-	      (putc c)
-	      (loop (+ i 1) m))))
-      (putc #\")
-      (putc #\newline))
-
-    (define (dump-codevec-larceny bv)
       (putc #\#)
       (putc CTRLB)
       (putc #\")
@@ -126,6 +118,7 @@
       (puts " #f))")
       (putc #\newline))
 
-    (dump-fasl-segment segment)))
+    (dump-fasl-segment segment)
+    (flush)))
 
 ; eof
