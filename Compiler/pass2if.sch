@@ -10,8 +10,21 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 11 April 1999.
+; 13 September 2000.
 ;
+
+; Thresholds that determine how CASE expressions are compiled.
+;
+; On the SPARC, sequential search is faster than binary search
+; if there are fewer than 8 constants, and sequential search uses
+; less than half the space if there are fewer than 10 constants.
+; Most target machines should similar.
+
+(define *sequential-threshold* 12)
+;(define *memq-threshold* 20)
+;(define *memv-threshold* 4)
+
+
 ; Some source transformations on IF expressions:
 ;
 ; (if '#f E1 E2)                      E2
@@ -171,7 +184,7 @@
              (= (length (call.args E0)) 2)
              (variable? (car (call.args E0)))
              (constant? (cadr (call.args E0))))
-        (simplify-case-clauses (variable.name (car (call.args E0)))
+        (simplify-case-clauses (car (call.args E0))
                                exp
                                notepad)
         (begin (if.then-set! exp (simplify (if.then exp) notepad))
@@ -200,13 +213,18 @@
 ; After duplicated constants have been removed, the predicates
 ; for these clauses can be tested in any order.
 
-; Given the name of an arbitrary variable, an expression that
+; Given an arbitrary variable reference, an expression that
 ; has not yet been simplified or can safely be simplified again,
 ; and a notepad, returns the expression after simplification.
 ; If the expression is equivalent to a case expression that dispatches
 ; on the given variable, then case-optimization will be applied.
+;
+; These optimizations could generate many new references to the variable,
+; which would violate the referencing invariants for Twobit pass 2.
+; In particular, assignment elimination would no longer work correctly.
+; To avoid this, the original reference is inserted instead of a copy.
 
-(define (simplify-case-clauses var0 E notepad)
+(define (simplify-case-clauses ref0 E notepad)
   
   (define notepad2 (make-notepad (notepad.parent notepad)))
   
@@ -231,7 +249,8 @@
                                     (eq? name name:MEMV)))
                               (= (length args) 2)
                               (variable? (car args))
-                              (eq? (variable.name (car args)) var0)
+                              (eq? (variable.name (car args))
+                                   (variable.name ref0))
                               (constant? (cadr args))))
                     (finish E fix chr sym other constants)
                     (let ((pred (variable.name proc))
@@ -303,7 +322,7 @@
     (analyze E fix chr sym other constants))
   
   (define (analyze default fix chr sym other constants)
-    (notepad-var-add! notepad2 var0)
+    (notepad-var-add! notepad2 (variable.name ref0))
     (for-each (lambda (L)
                 (notepad-lambda-add! notepad L))
               (notepad.lambdas notepad2))
@@ -321,7 +340,7 @@
                             name:VECTOR-REF)
                       (notepad.vars notepad2)))
     (analyze-clauses (notepad.vars notepad2)
-                     var0
+                     ref0
                      default
                      (reverse fix)
                      (reverse chr)
@@ -360,26 +379,20 @@
 ;
 ; where the <dispatch-on-case-number> uses binary search within
 ; the interval [0, p+1), where p is the number of non-default cases.
-;
-; On the SPARC, sequential search is faster if there are fewer than
-; 8 constants, and sequential search uses less than half the space
-; if there are fewer than 10 constants.  Most target machines should
-; similar, so I'm hard-wiring this constant.
-; FIXME:  The hardwired constant is annoying.
 
-(define (analyze-clauses F var0 default fix chr sym other constants)
+(define (analyze-clauses F ref0 default fix chr sym other constants)
   (cond ((or (and (null? fix)
                   (null? chr))
-             (< (length constants) 12))
-         (implement-clauses-by-sequential-search var0
+             (< (length constants) *sequential-threshold*))
+         (implement-clauses-by-sequential-search ref0
                                                  default
                                                  (append fix chr sym other)))
         (else
-         (implement-clauses F var0 default fix chr sym other constants))))
+         (implement-clauses F ref0 default fix chr sym other constants))))
 
 ; Implements the general technique described above.
 
-(define (implement-clauses F var0 default fix chr sym other constants)
+(define (implement-clauses F ref0 default fix chr sym other constants)
   (let* ((name:n ((make-rename-procedure) 'n))
          ; Referencing information is destroyed by pass 2.
          (entry (make-R-entry name:n '() '() '()))
@@ -401,14 +414,14 @@
                          (append other fix chr sym)))))))
     (make-call L
                (list (implement-dispatch 0
-                                         var0
+                                         ref0
                                          (map car other)
                                          (map car fix)
                                          (map car chr)
                                          (map car sym))))))
 
-(define (implement-case-dispatch var0 exprs)
-  (implement-intervals var0
+(define (implement-case-dispatch ref0 exprs)
+  (implement-intervals ref0
                        (map (lambda (n code)
                               (list n (+ n 1) code))
                             (iota (length exprs))
@@ -426,39 +439,39 @@
 ; on the target machine, which means that Twobit might classify
 ; some fixnums as miscellaneous.
 
-(define (implement-dispatch prior var0 other fix chr sym)
+(define (implement-dispatch prior ref0 other fix chr sym)
   (cond ((not (null? other))
          (implement-dispatch-other
           (implement-dispatch (+ prior (length other))
-                              var0 fix chr sym '())
+                              ref0 fix chr sym '())
           prior var other))
         ((not (null? fix))
          (make-conditional (make-call (make-variable name:FIXNUM?)
-                                      (list (make-variable var0)))
-                           (implement-dispatch-fixnum prior var0 fix)
+                                      (list ref0))
+                           (implement-dispatch-fixnum prior ref0 fix)
                            (implement-dispatch (+ prior (length fix))
-                                               var0 '() chr sym other)))
+                                               ref0 '() chr sym other)))
         ((not (null? chr))
          (make-conditional (make-call (make-variable name:CHAR?)
-                                      (list (make-variable var0)))
-                           (implement-dispatch-char prior var0 chr)
+                                      (list ref0))
+                           (implement-dispatch-char prior ref0 chr)
                            (implement-dispatch (+ prior (length chr))
-                                               var0 fix '() sym other)))
+                                               ref0 fix '() sym other)))
         ((not (null? sym))
          (make-conditional (make-call (make-variable name:SYMBOL?)
-                                      (list (make-variable var0)))
-                           (implement-dispatch-symbol prior var0 sym)
+                                      (list ref0))
+                           (implement-dispatch-symbol prior ref0 sym)
                            (implement-dispatch (+ prior (length sym))
-                                               var0 fix chr '() other)))
+                                               ref0 fix chr '() other)))
         (else
          (make-constant 0))))
 
-; The value of var0 will be known to be a fixnum.
+; The value of ref0 will be known to be a fixnum.
 ; Can use table lookup, binary search, or sequential search.
 ; FIXME: Never uses sequential search, which is best when
 ; there are only a few constants, with gaps between them.
 
-(define (implement-dispatch-fixnum prior var0 lists)
+(define (implement-dispatch-fixnum prior ref0 lists)
   
   (define (calculate-intervals n lists)
     (define (loop n lists intervals)
@@ -508,22 +521,22 @@
          (p (length intervals)))
     (make-conditional
      (make-call (make-variable name:FX<)
-                (list (make-variable var0)
+                (list ref0
                       (make-constant lo)))
      (make-constant 0)
      (make-conditional
       (make-call (make-variable name:FX<)
-                 (list (make-variable var0)
+                 (list ref0
                        (make-constant (+ hi 1))))
       ; The static cost of table lookup is about hi - lo words.
       ; The static cost of binary search is about 5 SPARC instructions
       ; per interval.
       (if (< (- hi lo) (* 5 p))
-          (implement-table-lookup var0 (+ prior 1) lists lo hi)
-          (implement-intervals var0 intervals))
+          (implement-table-lookup ref0 (+ prior 1) lists lo hi)
+          (implement-intervals ref0 intervals))
       (make-constant 0)))))
 
-(define (implement-dispatch-char prior var0 lists)
+(define (implement-dispatch-char prior ref0 lists)
   (let* ((lists (map (lambda (constants)
                        (map compat:char->integer constants))
                      lists))
@@ -542,37 +555,37 @@
              (implement-dispatch-fixnum prior name:n lists))))
     (make-call L
                (make-call (make-variable name:CHAR->INTEGER)
-                          (list (make-variable var0))))))
+                          (list ref0)))))
 
-(define (implement-dispatch-symbol prior var0 lists)
-  (implement-dispatch-other (make-constant 0) prior var0 lists))
+(define (implement-dispatch-symbol prior ref0 lists)
+  (implement-dispatch-other (make-constant 0) prior ref0 lists))
 
-(define (implement-dispatch-other default prior var0 lists)
+(define (implement-dispatch-other default prior ref0 lists)
   (if (null? lists)
       default
       (let* ((constants (car lists))
              (lists (cdr lists))
              (n (+ prior 1)))
-      (make-conditional (make-call-to-memv var0 constants)
+      (make-conditional (make-call-to-memv ref0 constants)
                         (make-constant n)
-                        (implement-dispatch-other default n var0 lists)))))
+                        (implement-dispatch-other default n ref0 lists)))))
 
-(define (make-call-to-memv var0 constants)
+(define (make-call-to-memv ref0 constants)
   (cond ((null? constants)
          (make-constant #f))
         ((null? (cdr constants))
-         (make-call-to-eqv var0 (car constants)))
+         (make-call-to-eqv ref0 (car constants)))
         (else
-         (make-conditional (make-call-to-eqv var0 (car constants))
+         (make-conditional (make-call-to-eqv ref0 (car constants))
                            (make-constant #t)
-                           (make-call-to-memv var0 (cdr constants))))))
+                           (make-call-to-memv ref0 (cdr constants))))))
 
-(define (make-call-to-eqv var0 constant)
+(define (make-call-to-eqv ref0 constant)
   (make-call (make-variable
               (if (eq-is-ok? constant)
                   name:EQ?
                   name:EQV?))
-             (list (make-variable var0)
+             (list ref0
                    (make-constant constant))))
 
 ; Given a variable whose value is known to be a fixnum,
@@ -581,7 +594,7 @@
 ; and the least and greatest constants in those lists,
 ; returns code for a table lookup.
 
-(define (implement-table-lookup var0 index lists lo hi)
+(define (implement-table-lookup ref0 index lists lo hi)
   (let ((v (make-vector (+ 1 (- hi lo)) 0)))
     (do ((index index (+ index 1))
          (lists lists (cdr lists)))
@@ -592,7 +605,7 @@
     (make-call (make-variable name:VECTOR-REF)
                (list (make-constant v)
                      (make-call (make-variable name:FX-)
-                                (list (make-variable var0)
+                                (list ref0
                                       (make-constant lo)))))))
 
 ; Given a variable whose value is known to lie within the
@@ -606,9 +619,9 @@
 ;     )
 ;
 ; returns an expression that finds the unique i such that
-; var0 lies within [mi, m{i+1}), and then executes code{i}.
+; ref0 lies within [mi, m{i+1}), and then executes code{i}.
 
-(define (implement-intervals var0 intervals)
+(define (implement-intervals ref0 intervals)
   (if (null? (cdr intervals))
       (caddr (car intervals))
       (let ((n (quotient (length intervals) 2)))
@@ -619,11 +632,10 @@
              (let ((intervals1 (reverse intervals1))
                    (m (car (car intervals2))))
                (make-conditional (make-call (make-variable name:FX<)
-                                            (list
-                                             (make-variable var0)
-                                             (make-constant m)))
-                                 (implement-intervals var0 intervals1)
-                                 (implement-intervals var0 intervals2))))))))
+                                            (list ref0
+                                                  (make-constant m)))
+                                 (implement-intervals ref0 intervals1)
+                                 (implement-intervals ref0 intervals2))))))))
 
 ; The brute force approach.
 ; Given the variable on which the dispatch is being performed, and
@@ -631,17 +643,14 @@
 ; for all other clauses,
 ; returns code to perform the dispatch by sequential search.
 
-(define *memq-threshold* 20)
-(define *memv-threshold* 4)
-
-(define (implement-clauses-by-sequential-search var0 default clauses)
+(define (implement-clauses-by-sequential-search ref0 default clauses)
   (if (null? clauses)
       default
       (let* ((case1 (car clauses))
              (clauses (cdr clauses))
              (constants1 (car case1))
              (code1 (cadr case1)))
-        (make-conditional (make-call-to-memv var0 constants1)
+        (make-conditional (make-call-to-memv ref0 constants1)
                           code1
                           (implement-clauses-by-sequential-search
-                           var0 default clauses)))))
+                           ref0 default clauses)))))
