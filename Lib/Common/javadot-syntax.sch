@@ -2,6 +2,9 @@
 
 ($$trace "javadot-syntax")
 
+(define javadot-type-suffix (make-parameter "javadot-type-suffix" "class" string?))
+(define javadot-generic-suffix (make-parameter "javadot-generic-suffix" "..no such suffix.." string?))
+
 (define (javadot-syntax? symbol)
 ;; The reader calls javadot-syntax? when deciding to create symbols or
 ;; javadot symbols.
@@ -97,14 +100,24 @@
                 (char=? (string-ref string (- length 2)) #\#)
                 (char=? (string-ref string (- length 1)) #\!)))
 
-         (define (trailing-dot-class?)
-           (and (> length 6)
-                (char=? (string-ref string (- length 6)) #\.)
-                (char=? (string-ref string (- length 5)) #\c)
-                (char=? (string-ref string (- length 4)) #\l)
-                (char=? (string-ref string (- length 3)) #\a)
-                (char=? (string-ref string (- length 2)) #\s)
-                (char=? (string-ref string (- length 1)) #\s)))
+         (define (trailing-suffix? suffix other)
+           (let ((suffix-length (string-length suffix))
+                 (other-length (string-length other)))
+             (and (> other-length suffix-length)
+                  (char=? (string-ref other (- other-length suffix-length 1)) #\.)
+                  (let loop ((suffix-scan 0)
+                             (other-scan (- other-length suffix-length)))
+                    (cond ((= suffix-scan suffix-length) #t)
+                          ((char=? (char-downcase (string-ref suffix suffix-scan))
+                                   (char-downcase (string-ref other other-scan)))
+                           (loop (1+ suffix-scan) (1+ other-scan)))
+                          (else #f))))))
+
+        (define (trailing-dot-class? string)
+          (trailing-suffix? (javadot-type-suffix) string))
+
+        (define (trailing-dot-generic? string)
+          (trailing-suffix? (javadot-generic-suffix) string))
 
          (define (embedded-dot?)
            ;; return #T if the `symbol' has embedded dots
