@@ -31,7 +31,30 @@
 ;     when a reference to the cell (as opposed to its value) escapes, not on
 ;     a reference that only gets the value.  I don't like this model, since it
 ;     makes it possible to observe when the shadow copy is made.
-
+;
+; BUGS
+;  - Logically, environments contain many more things than just global
+;    variable bindings.  At least, there are:
+;      - a syntax environment
+;      - compiler-primitive and compiler-macro tables
+;    It seems reasonable to be able to find out what a name denotes and
+;    to get, set, add and remove denoted values, within certain limits.
+;
+;  - There are perhaps groups of parameters, like compiler switches,
+;    that use and change information in the environment and that might
+;    be per-environment, though I don't know...  It may be that _all_
+;    parameters should be relative to the environment and that switching
+;    environments automatically switches all parameter values to the
+;    ones stored in the new environment.  That is, parameter lookup
+;    actually looks up parameter values in the current environment.
+;    Doing so is fairly clean, and corresponds to the use of environments
+;    as per-user namespaces, but prohibits communicating among users
+;    by setting and getting parameters.  If we do this, then the syntax
+;    environment and compiler tables could just be parameters too,
+;    and everything would work OK.
+;
+;  - Implementation should use record package and hash table package and
+;    not duplicate the functionality here.
 
 ($$trace "env")
 
