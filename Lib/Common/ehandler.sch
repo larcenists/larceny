@@ -255,7 +255,7 @@
 	  ((fltinv) (error "Invalid floating point operation."))
 	  ((fltsub) (error "Floating point subscript out of range."))
 	  ((fltopr) (error "Floating point operand error."))
-	  (else (error "Unknown SIGFPE code: " arg3))))
+	  (else (error "Arithmetic exception (code " arg3 ")."))))
 	      
        ;; Vectors
 
