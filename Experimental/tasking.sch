@@ -4,8 +4,6 @@
 ;
 ; Non-I/O-aware multitasking for Larceny.
 
-'(require 'define-record)               ; DEFINE-RECORD syntax
-
 ; Interface
 
 (define-syntax without-interrupts       ; Critical section
@@ -37,26 +35,32 @@
          r)))))
 
 (define *tasking-on* #f)
-(define *saved-interrupt-handler* #f)
+(define *saved-interrupt-handler*)
+(define *saved-timeslice*)
 
 (define (begin-tasking)
   (if *tasking-on* (error "Tasking is already on."))
   (disable-interrupts)
   (set! *tasking-on* #t)
   (set! *saved-interrupt-handler* (timer-interrupt-handler))
+  (set! *saved-timeslice* (standard-timeslice))
+  (standard-timeslice *timeslice*)
   (timer-interrupt-handler 
    (lambda ()
      (tasks/switch #t #f)))
   (tasks/initialize-scheduler)
-  (enable-interrupts *timeslice*))
+  (enable-interrupts (standard-timeslice))
+  (unspecified))
 
 (define (end-tasking)
   (if (not *tasking-on*) (error "Tasking is not on."))
   (disable-interrupts)
   (set! *tasking-on* #f)
   (timer-interrupt-handler *saved-interrupt-handler*)
+  (standard-timeslice *saved-timeslice*)
   (enable-interrupts (standard-timeslice))
   ; Kill whatever thread we're running and reenter the REPL.
+  (display "About to reset\n")
   (reset))
 
 (define (spawn thunk)
@@ -176,9 +180,9 @@
     (set! *current* t)
     (if (task-critical t)
         (begin (task-critical-set! t #f)
-               (enable-interrupts *timeslice*) ; Set time slice.
+               (enable-interrupts (standard-timeslice)) ; Set time slice.
                (disable-interrupts))           ; Re-enter critical section.
-        (enable-interrupts *timeslice*))
+        (enable-interrupts (standard-timeslice)))
     ((task-k t))))
 
 (define (tasks/in-critical-section?)
