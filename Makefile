@@ -37,8 +37,7 @@ compilerclean:
 	( cd Twobit ; $(MAKE) clean )
 
 realclean: tildeclean rejclean tcovclean
-	rm -f core
-	rm -f *.heap 
+	rm -f core *.heap petit petit.c petit.o twobit twobit.c twobit.o HEAPDATA.* *.fasl libheap.a
 	( cd Lib ; $(MAKE) realclean )
 	( cd Interpreter ; $(MAKE) realclean )
 	( cd Repl ; $(MAKE) realclean )
