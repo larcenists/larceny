@@ -30,6 +30,8 @@
 	   l)
 	  ((string=? (car l) "")
 	   (construct (cdr l)))
+          ((char=? #\/ (string-ref (car l) (- (string-length (car l)) 1)))
+           (cons (car l) (construct (cdr l))))
 	  (else
 	   (cons (car l)
 		 (cons "/" (construct (cdr l)))))))
