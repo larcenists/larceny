@@ -19,7 +19,7 @@ extern void osdep_init( void );
      other function in the package.
      */
 
-extern unsigned stats_rtclock( void );
+extern unsigned osdep_realclock( void );
   /* Return the elapsed time in milliseconds since initialization.  
   
      FIXME: On 32-bit machines the result will overflow after 49.7 days;
@@ -28,12 +28,21 @@ extern unsigned stats_rtclock( void );
      legacy thing.
      */
 
-extern void stats_time_used( stat_time_t *r, stat_time_t *u, stat_time_t *s );
+extern unsigned osdep_cpuclock( void );
+  /* Return the cpu time in milliseconds since initialization.  
+  
+     FIXME: On 32-bit machines the result will overflow after 49.7 days;
+     in this sense it is compatible with Windows 95 (sigh).  Should return
+     a stat_time_t instead, or take one as a parameter; the UNSIGNED is a
+     legacy thing.
+     */
+
+extern void osdep_time_used( stat_time_t *r, stat_time_t *u, stat_time_t *s );
   /* Fill in the structures with real (elapsed time), user (cpu) time, and
      system time, respectively.  Either of the pointers may be NULL.
      */
 
-extern void stats_pagefaults( unsigned *major, unsigned *minor );
+extern void osdep_pagefaults( unsigned *major, unsigned *minor );
   /* Fill in the integers with a count of major and minor page faults since 
      startup, if these numbers are available and meaningful for the platform.
 
@@ -60,6 +69,31 @@ extern void osdep_os_version( int *major, int *minor );
   /* Return the major and minor version numbers of the operating system.
      */
 
+void *osdep_alloc_aligned( int bytes );
+  /* Takes a request for a number of bytes, which must be a nonzero
+     multiple of 4KB, and returns a pointer to a block of memory of the
+     requested size aligned on a 4KB boundary.
+
+     The allocator should attempt to cluster allocations in the address 
+     space.  
+     */
+
+void osdep_free_aligned( void *block, int bytes );
+  /* Takes a pointer returned from osdep_alloc_aligned() as well as
+     the size of the pointed-to block and returns the block to
+     the free memory pool.
+     */
+
+int osdep_fragmentation( void );
+  /* Return the number of bytes of internal fragmentation in blocks
+     managed the osdep allocator.  Internal fragmentation arises when
+     the underlying operating system cannot be relied on to align
+     blocks on a 4KB boundary and the osdep allocator must allocate larger
+     blocks to ensure alignment.
+     
+     (As a rule of thumb, fragmentation is either 0 or 4KB per live block.)
+     */
+     
 
 /* File system and I/O interface 
  *
@@ -68,7 +102,7 @@ extern void osdep_os_version( int *major, int *minor );
  * The file system and I/O interface has a Unix heritage and may not port well
  * to all platforms.  For example, osdep_readfile() specifies poll + read 
  * semantics that may not be implementable everywhere: MacOS uses an async-read
- * + completion-handler model, and Plan 9 uses a threads + blocking I/O model.  
+ * + completion-handler model, and Plan 9 uses a threads + blocking I/O model. 
  * Those models don't fit into this interface at all unless a serious amount of
  * work is done on the C level.
  *
