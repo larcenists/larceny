@@ -1,0 +1,245 @@
+
+         Some random thoughts on Calling Conventions and Register Usage 
+                An uneven mixture of high and low level details
+
+                                (draft May 22)
+
+                                --------------
+
+
+Register usage and mapping
+--------------------------
+We should have two stacks, the C stack and the Scheme stack. The C stack uses
+standard Sparc calling conventions and is located wherever the OS places it,
+typically at the very top of the virtual address space. This stack is accessed
+through register %o6 (== %r14). The C stack is used for traps, and all C code 
+in the system, including the collector and any library procedures, will use it.
+
+The Sparc manual is unclear about which of the global registers %g1-%g7 we can
+use; it seems clear that an application is free to use %g1-%g4; %g5-%g7 may
+or may not be reserved by the Sparc ABI for its use. We should hence avoid the
+latter if we can (or until we can prove that they are in fact available).
+
+The "call" instruction uses %o7 (== %r15) to store the return address; since
+we will likely wish to use the call instruction for calling out-of-line
+library procedures whose position is fixed (the garbage collector is one
+example), we should reserve %o7 for this use.
+
+Convenient global variables to keep in registers include:
+
+        globals     --  pointer to the global variable structure.
+	e_top	    --  ephemeral space allocation pointer
+	e_max	    --  ephemeral space allocation limit
+	t_entries   --  entry list allocation pointer
+	t_top       --  tenured space allocation pointer
+	stack_mark  --  watermark for stack flush
+
+Recall that the ephemeral space is in the low part of the heap; hence to
+determine whether a pointer points into the ephemeral space, we must compare
+it to 'e_top' or 'e_max'; both are needed for allocation purposes.
+Both 't_top' and 't_entries' are needed for entry list allocation, as
+we must detect collisions. The use of 'stack_mark' is discussed later.
+
+A number of other values are usefully kept in global registers as well; see
+the following table.
+
+Assuming for the sake of argument that we will map 8 virtual machine registers
+to machine registers, we have the following setup:
+
+	%g0	--> #0
+	%g1	--> e_top
+	%g2	--> e_max
+	%g3	--> t_entries
+	%g4	--> t_top
+	%g5-%g7	--> unused (reserved?)
+	%o0	--> globals
+	%o1	--> Scheme stack pointer
+	%o2	--> Current closure (also static link)
+	%o3	--> argument count and return value
+	%o4	--> stack_mark
+	%o5     --> timer register
+	%o6	--> C stack pointer
+	%o7	--> return address
+	%l0-%l8	--> vm registers (8)
+	%i0-%i8	--> temporaries  (8)
+
+The current procedure must be kept in a register for the sake of access to
+constants and environments; the procedure doubles as a static link at the
+cost of an extra memory access for uplevel references (compared to keeping
+the uplevel link in a separate register). Details on closure layout below.
+
+
+Calling conventions
+-------------------
+A closure is a vector structure with the following layout:
+
+	Word 0: Static link (or #f if enclosing environment is the global one)
+	Word 1: Code pointer (bytevector pointer)
+	Word 2: Constants (vector pointer or #f)
+	Word 3: Data slot
+	...
+
+Obvious advantages here are that code and constants can be shared between
+closures. However, there seems to be no nice way to add multiple entry
+points to the procedure this way, and we probably want that for the cases
+where the number of arguments is known, for example.
+
+Another organization is to put separate constants into the global environment
+(at known offsets), but it's unclear what kinds of consequences this might
+have on the size of the global environment, and whether this matters. Getting
+a constant thru the global environment can be done in one instruction:
+
+	ld	n[%o0], %i0
+
+whereas it takes two (with a load dependency) if the constant is gotten
+through the current closure:
+
+	ld	5[%o2], %i0
+	ld	n[%i0], %i0
+
+Anyway, given a pointer to a closure in %l0, to call it (ignoring the saving
+of the continuation for now, but including tag checking), we must
+
+	and	%l0, #0x7, %i0		! get tag
+	cmp	%i0, #0x7		! procedure?
+	bne	Ltrap			! applying non-procedure
+	ld	1[%l0], %i0		! get codevector pointer (offset 8)
+	mov	%l0, %o2		! The procedure *is* the environment
+	jmpl	-1[%i0], %o7		! get code, jump to it (offset 4)
+	nop
+
+The odd offsets used compensate for the tags in the pointers, avoiding 
+stripping these off. (Procedure tags are 0x7, bytevector tags are 0x5).
+
+The last nop can be used for setting up the argument count register.
+
+The above code does not consider the software timer.
+
+In general, %o7 can be used as a cache for the return address (which is also
+saved in the continuation on the stack). For a non-tail-recursive call, as
+the one showed here, %o7 is given the return address by the "jmpl"
+instruction. In a tail-recursive call, we'd specify %g0 rather than %o7,
+thereby preserving the return address. The above code would need to restore
+the old return address from the continuation on the stack upon return from
+the callee. Whether the caching is actually worth the bother remains to be
+seen. If we don't use it, we gain a temporary register.
+
+[The given code takes 10 cycles on a Sparcstation 1 because an untaken branch 
+ takes 2 cycles plus the branch delay slot (whereas a taken branch takes 1
+ cycle plus the slot). Jumps take 2 cycles plus the slot. Loads take 2 cycles
+ plus a 1-cycle stall if the next instruction uses the loaded value. 
+ Therefore, note that if the argument count is set up early, one shouldn't 
+ (necessarily) simply move the "mov" to %o2 into the delay slot, as we'll
+ get a load dependency that will stall the CPU for a cycle. Gains a word of
+ memory, though.]
+
+Assume that we pass the argument count in the return value register.
+
+It is reasonable (and the collector currently assumes this) to have a
+maximum size for a continuation. If so, we can determine on procedure entry
+whether the stack might overflow inside the current procedure. If it might,
+then we can flush the stack cache. If not, we ignore the problem of overflow
+inside the procedure. The register %o4 holds this overflow threshold.
+
+Assume Scheme stack grows up. Then the procedure prologue for a procedure
+with a fixed number of arguments becomes
+
+	cmp	%o3, #ARGS	! check arg count
+	bne	Ltrap
+	cmp	%o1, %o4	! check stack limit
+	blt	L0
+	nop
+	call	stk_flush	! flush cache
+	nop
+    L0:
+
+[6 cycles in the common case; could possibly fill the first nop with the
+ instruction at L0 and annulling the fall-through case.]
+
+Returning from a procedure is straightforward: Assuming the return address is
+cached in %o7, do
+
+	jmpl	8[%o7], %g0
+	nop
+
+[3 cycles, possibly the slot can be filled usefully] or, if no caching is done,
+
+	ld	0[%o3], %o7
+	jmpl	8[%o7], %g0
+	nop
+
+[6 cycles due to the load and a load dependency]. Note that we don *not*
+check for stack underflow; it is reasonable to have a peculiar return
+address at the bottom of the stack which will put us in a procedure which
+restores a continuation frame, should it be necessary.
+
+
+Continuation structure
+----------------------
+There are two kinds of continuations: those on the heap, and those in
+the stack cache. Although they could look the same, they probably will
+not.
+
+A continuation consists of the saved registers. The registers we save are
+
+	PC (return address, or, on a Sparc, address of the calling instruction)
+	Current closure
+	Virtual machine registers (including return register?)
+	Temporary registers ?
+	
+We also need to save the size of the continuation, since this will have to
+be explicitly recorded somewhere in the event that we must flush the stack
+cache. There can be an explicit size field somewhere in the continuation,
+or we can save the old stack pointer. The former is probably superior,
+since we don't have to save the old stack pointer in a temporary while
+the continuation is being set up (the size field must bein a known offset
+from the top of the continuation).
+
+For a continuation on the heap, the header word of the continuation records
+the size, so no explicit size field is needed.
+
+One possible continuation layout (in the heap) is this: Continuations are
+vector-like structures, with the following contents:
+
+	Word 0: Dynamic link to next continuation frame, or #f
+	Word 1: Return offset. Looks like a fixnum.
+	Word 2: The saved closure
+	Word 3: Saved value of register
+	...
+
+The corresponding structure in the stack is
+
+ SP -->	pppp pppp pppp pppp pppp pppp pppp pp00	  return address
+	ssss ssss ssss ssss ssss ssss ssss ssss   continuation size
+	pppp pppp pppp pppp pppp pppp pppp p111   closure
+	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx	  (register) value
+	....
+
+The code to flush the stack cache is fairly straighforward (see GC paper).
+
+To save the current continuation, and assuming that stack overflow checking is
+done in the procedure prologue, takes litte. Assuming we wish to save virtual
+machine registers R0 through R4 on the stack, and again assuming the stack
+grows up in memory (toward higher addresses)
+
+	st	%l4,  4[%o1]		! Push R5
+	st	%l3,  8[%o1]		! Push R4
+	st	%l2, 12[%o1]
+	st	%l1, 16[%o1]
+	st	%l0, 20[%o1]		! Push R0
+	st	%o2, 24[%o2]		! Push closure
+	set	#8,  %i0		! size
+	st	%i0, 28[%o2]
+	set	#Lx,  %i0		! return address (think this is right)
+	st	%i0, 32[%o2]
+	add	#32, %o2
+
+The "return address" is really the address of the "jmpl" instruction; this
+lets us use a cached value for the return address as outlined above.
+
+It is not clear that "std" will save us anything on a Sparcstation 1 class
+machine over "st". Should check.
+
+If we have to save virtual registers that are not mapped to machine registers,
+it becomes somewhat more expensive, as we must load the VM registers before
+saving.
