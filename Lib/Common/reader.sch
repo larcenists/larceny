@@ -27,6 +27,9 @@
 
 ($$trace "reader")
 
+(define recognize-javadot-symbols? (make-parameter "recognize-javadot-symbols?" #f boolean?))
+(define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
+
 (define install-reader
   (lambda ()
     (letrec
@@ -190,25 +193,31 @@
        ; that does not copy its argument.
 
        (read-symbol
-	(lambda (c p l)
-	  (let ((s (make-string 16)))   ; seems like a good length.
-	    ; Initial hackery to be compatible with read-symbol consumers.
-	    (if (null? l)
-		(read-symbol2 c p s 0 (string-length s))
-		(begin (string-set! s 0 (char-downcase (car l)))
-		       (read-symbol2 c p s 1 (string-length s)))))))
+        (lambda (c p l)
+          (let ((char-downcase (if (case-sensitive?)
+                                   (lambda (x) x)
+                                   char-downcase))
+                (s (make-string 16)))   ; seems like a good length.
+            ; Initial hackery to be compatible with read-symbol consumers.
+            (if (null? l)
+                (read-symbol2 c p s 0 (string-length s))
+                (begin (string-set! s 0 (char-downcase (car l)))
+                       (read-symbol2 c p s 1 (string-length s)))))))
 
        (read-symbol2
-	(lambda (c p s n k)
-	  (cond ((not (char? c)) (string->symbol (substring s 0 n)))
-		((separator? c)  (string->symbol (substring s 0 n)))
-		((< n k)
-		 (string-set! s n (char-downcase c))
-		 (read-symbol2 (tyinext p) p s (+ n 1) k))
-		(else
-		 (let ((s (string-append s s)))
-		   (string-set! s n (char-downcase c))
-		   (read-symbol2 (tyinext p) p s (+ n 1) (+ k k)))))))
+        (lambda (c p s n k)
+          (let ((char-downcase (if (case-sensitive?)
+                                 (lambda (x) x)
+                                 char-downcase)))
+            (cond ((not (char? c)) (string->symbol (substring s 0 n)))
+                  ((separator? c)  (string->symbol (substring s 0 n)))
+                  ((< n k)
+                   (string-set! s n (char-downcase c))
+                   (read-symbol2 (tyinext p) p s (+ n 1) k))
+                  (else
+                   (let ((s (string-append s s)))
+                     (string-set! s n (char-downcase c))
+                     (read-symbol2 (tyinext p) p s (+ n 1) (+ k k))))))))
 
        ; Similar to read-symbol, but reads a number or symbol.
        ; If it parses as a number, it's a number.  Otherwise it's a symbol.
@@ -218,17 +227,20 @@
 
        (read-atom
         (lambda (c p l)
-          (if (or (not (char? c)) (separator? c))
-              (let* ((r (reverse l))
-		     (x (parse-number r)))
-                (if x
-                    x
-                    (let ((x (string->symbol
-			      (string-downcase! (list->string r)))))
-                      (if (not (peculiar-identifier? x))
-                          (warn peculiar-id-message x))
-                      x)))
-	      (read-atom (tyinext p) p (cons c l)))))
+          (let ((string-downcase! (if (case-sensitive?)
+                                    (lambda (x) x)
+                                    string-downcase!)))
+            (if (or (not (char? c)) (separator? c))
+                (let* ((r (reverse l))
+                       (x (parse-number r)))
+                  (if x
+                      x
+                      (let ((x (string->symbol
+                                (string-downcase! (list->string r)))))
+                        (if (not (peculiar-identifier? x))
+                            (warn peculiar-id-message x))
+                        x)))
+                (read-atom (tyinext p) p (cons c l))))))
        
        (parse-prefixed-number
         (lambda (p prefix)
@@ -559,12 +571,12 @@
 		(list #\( #\) #\[ #\] #\{ #\} #\; #\\))
 
       (for-each (lambda (c)
-              (bytevector-set!
-                character-syntax-table
-                (char->integer c)
-                (logior 4 (bytevector-ref character-syntax-table
-					  (char->integer c)))))
-            (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
+                  (bytevector-set!
+                   character-syntax-table
+                   (char->integer c)
+                   (logior 4 (bytevector-ref character-syntax-table
+                                             (char->integer c)))))
+                (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
 
       ;****************************************************************
  
@@ -814,14 +826,14 @@
  
  
       ; Assign variables.
-
+      
       (set! read
 	    (lambda p
 	      (let ((p (if (not (null? p))
 			   (car p)
 			   (current-input-port))))
 		(read-dispatch (tyi p) p))))
-    
+
       (set! readtable-ref
             (lambda (char)
               (let ((char (char->integer char)))
