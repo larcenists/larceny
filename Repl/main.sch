@@ -46,7 +46,7 @@
 ; Error/reset/interrupt handling.
 
 (define (setup-interrupt-and-error-handlers)
-  (error-handler 
+  (error-handler
    (let ((old-handler (error-handler)))
      (lambda error
        (parameterize ((error-handler
