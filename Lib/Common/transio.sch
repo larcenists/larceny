@@ -3,6 +3,10 @@
 ; $Id$
 ;
 ; Transcript I/O ports.
+;
+; **** NOTE:  This code is old, and not in use.  The new console code
+;      needs to manage transcripts more closely, and that hasn't been
+;      implemented yet.
 
 (define *transcript-stack* '())		; Stack of (echo in out)
 
