@@ -5,9 +5,11 @@
 ; A smart-but-not-intelligent 'load' procedure.
 ;
 ; Exported procedures:
-;   (load filename)
-;   (load-noisily filename)
-;   (load-quietly filename)
+;   (load-noisily)            Display results of loaded expressions.
+;   (load-quietly)            Do not display results.
+;   (load-noisily filename)   Load file, display results.
+;   (load-quietly filename)   Load file, do not display results.
+;   (load filename)           Load file with default display setting.
 ;
 ; This version of 'load' extends the normal 'load' in several ways.
 ;
