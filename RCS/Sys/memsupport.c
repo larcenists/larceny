@@ -2,7 +2,7 @@
  * Scheme Run-Time System.
  * Memory management system workhorses.
  *
- * $Id: memsupport.c,v 1.2 91/06/25 15:34:56 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.3 91/06/26 16:43:45 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -20,6 +20,7 @@
 #include "offsets.h"
 #include "macros.h"
 #include "main.h"
+#include "millicode.h"
 
 #define NULL       0
 
@@ -36,6 +37,7 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
   if (init_collector( s_size, t_size, e_size, e_lim, stk_size ) == 0)
     return 0;
 
+  globals[ CONTINUATION_OFFSET ] = FALSE_CONST;
   setup_memory_limits();
   setup_stack();
 }
@@ -51,8 +53,8 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
  * there is room to allocate nativeint( n ) words on the heap, we return.
  * Otherwise, we perform a tenuring collection. If, after the collection,
  * we cannot allocate the memory, then the user is requesting a chunk of
- * memory which is bigger than the ephemeral space, and we call gctrap().
- * in the hope that it will figure out what to do. When gctrap() returns,
+ * memory which is bigger than the ephemeral space, and we call gc_trap().
+ * in the hope that it will figure out what to do. When gc_trap() returns,
  * we repeat the process. Otherwise, we return.
  */
 gcstart2( n )
@@ -69,13 +71,12 @@ word n;
   else {
     collect( EPHEMERAL_COLLECTION );
     setup_memory_limits();
-
-    if (n_bytes * 4 > free_ephem_space()) {
+    if (n_bytes > free_ephem_space()) {
       collect( TENURING_COLLECTION );
       setup_memory_limits();
 
-      while (n_bytes * 4 > free_ephem_space()) {
-	gctrap( EPHEMERAL_TRAP );
+      while (n_bytes > free_ephem_space()) {
+	gc_trap( EPHEMERAL_TRAP );
 	setup_memory_limits();
       }
     }
@@ -99,6 +100,7 @@ setup_memory_limits()
 
   globals[ E_LIMIT_OFFSET ] = globals[ E_MAX_OFFSET ] - 
              (globals[ STK_MAX_OFFSET ] - globals[ STK_BASE_OFFSET ] + 1)*4;
+  globals[ T_TRANS_OFFSET ] = globals[ T_MAX_OFFSET ];
 }
 
 
@@ -113,10 +115,10 @@ setup_stack()
 
 #if SPARC1 || SPARC2
   stktop = (word *) globals[ STK_MAX_OFFSET ];
-  *stktop = 0;                                         /* dummy */
+  *stktop = 0x81726354;                                /* dummy magic # */
   *(stktop-1) = 0;                                     /* saved proc */
   *(stktop-2) = 16;                                    /* continuation size */
-  *(stktop-3) = (word) stkuflow;                       /* underflow handler */
+  *(stktop-3) = (word) millicode[ M_STKUFLOW ];        /* underflow handler */
   globals[ STK_START_OFFSET ] = (word) (stktop-4);
   globals[ SP_OFFSET ] = (word) (stktop-3);
 
@@ -163,6 +165,9 @@ void restore_frame()
   word *sframe, *hframe;
   unsigned sframesize, hframesize;
 
+  if (globals[ SP_OFFSET ] % 8 != 0)
+    panic( "restore_frame: botched stack pointer!" );
+
   if (globals[ CONTINUATION_OFFSET ] == FALSE_CONST)
     panic( "restore_frame: no more continuation frames!" );
   else {
@@ -174,7 +179,7 @@ void restore_frame()
     /* Allocate stack frame and bump saved stack pointer */
 
     sframesize = hframesize - HC_OVERHEAD*4 + STK_OVERHEAD*4;
-    if (sframesize % 4 != 0) sframesize += 4;
+    if (sframesize % 8 != 0) sframesize += 4;
     sframe = (word *) globals[ SP_OFFSET ] - sframesize / 4;
     globals[ SP_OFFSET ] = (word) sframe;
 
@@ -208,6 +213,8 @@ void restore_frame()
 	*dest++ = *src++;
     }
   }
+  if (globals[ SP_OFFSET ] % 8 != 0)
+    panic( "restore_frame(2): botched stack pointer!" );
 }
 
   
@@ -221,6 +228,9 @@ flush_stack_cache()
 {
   word *sp, *first_cont, *e_top, *prev_cont, *stk_start;
 
+#ifdef DEBUG
+  printf( "flushing\n" );
+#endif
   sp = (word *) globals[ SP_OFFSET ];
   stk_start = (word *) globals[ STK_START_OFFSET ];
   e_top = (word *) globals[ E_TOP_OFFSET ];
@@ -239,8 +249,8 @@ flush_stack_cache()
 
     /* Move stack pointer */
 
-    sp += sframesize;
-    if (sframesize %4 != 0) sp++;
+    sp += sframesize / 4;
+    if (sframesize % 8 != 0) sp++;
 
     /* Calculate heap frame size */
 
@@ -249,19 +259,19 @@ flush_stack_cache()
     /* Allocate memory on heap */
 
     hframe = e_top;
-    e_top += hframesize;
-    if (hframesize % 4 != 0) e_top++;
+    e_top += hframesize / 4;
+    if (hframesize % 8 != 0) e_top++;
 
     /* Setup heap continuation header */
 
-    *hframe = mkheader( hframesize, CONT_SUBTAG );
+    *hframe = mkheader( hframesize, VEC_HDR | CONT_SUBTAG );
     *(hframe + HC_DYNLINK) = FALSE_CONST;
     if ((word) procptr != 0) {
       codeptr = *(procptr + PROC_CODEPTR);            /* raw word value */
       *(hframe + HC_RETOFFSET) = retaddr - codeptr;   /* offset */
     }
     else
-      *(hframe + HC_RETOFFSET) = 0;
+      *(hframe + HC_RETOFFSET) = retaddr;
 
     /* Copy saved values */
 
@@ -278,7 +288,7 @@ flush_stack_cache()
     /* Link continuation frame into chain */
 
     if (prev_cont != NULL)
-      *(prev_cont + HC_DYNLINK) = (word) hframe;
+      *(prev_cont + HC_DYNLINK) = (word) tagptr( hframe, VEC_TAG );
     else
       first_cont = hframe;
     prev_cont = hframe;
@@ -295,5 +305,11 @@ flush_stack_cache()
   globals[ E_TOP_OFFSET ] = (word) e_top;
   if (first_cont != NULL)
     globals[ CONTINUATION_OFFSET ] = 
-          (word) tagptr( first_cont, VEC_TAG | CONT_SUBTAG );
+          (word) tagptr( first_cont, VEC_TAG );
+#ifdef DEBUG
+  printf( "done flushing.\n" );
+#endif
 }
+
+
+
