@@ -7,13 +7,13 @@
 
 ;; IL Abstract Representation
 
-;; An ilpackage is 
+;; An ilpackage is
 ;; - (il code arg ...)
 ;; - (il:delay ilpackage ...)
 ;; - (list ilpackage ...)
 ;; - procedure : assembler -> ilpackage
 ;; - string
-;; 
+;;
 ;; An IL consumer is either
 ;; - an assembler structure (as)
 ;; - procedure : ilpackage -> void
@@ -28,7 +28,7 @@
 (define (il code . args)
   (cond ((symbol? code)
          (raw:make-il code args))
-        (else 
+        (else
          (error "procedure IL expects symbol as first arg, got " code
                 "; other arguments were: " args))))
 
@@ -72,7 +72,7 @@
 ;; Emit a single IL representation to the consumer. Only IL structures and
 ;; IL-delay structures.
 (define (emit/il consumer il)
-  (cond ((procedure? consumer) 
+  (cond ((procedure? consumer)
          (consumer (pickle-il il)))
         (else
          (as-code! consumer (cons (pickle-il il) (as-code consumer))))))
@@ -84,7 +84,7 @@
 ;; il:load-constant : datum -> ilpackage
 ;; IL to load the SchemeObject representation of a constant onto the stack.
 (define (il:load-constant datum)
-  (cond ((immediate-fixnum? datum) 
+  (cond ((immediate-fixnum? datum)
          ;; Fixnum in preallocated fixnum pool
          (rep:fixnum-from-pool datum))
         ((fixnum? datum)
@@ -96,11 +96,11 @@
                (2^16 #x10000))
            (let loop ((datum (abs datum)) (bigits '()))
              (if (zero? datum)
-                 (list (il:load-int16-array 
+                 (list (il:load-int16-array
                         (reverse bigits))
                        (il 'ldc.i4 (if pos? 1 0))
                        (rep:make-bignum/data))
-                 (loop (quotient datum 2^16)        ;; (rsha datum 16) 
+                 (loop (quotient datum 2^16)        ;; (rsha datum 16)
                        (cons (remainder datum 2^16) ;; (logand datum #xFFFF)
                              bigits))))))
         ((and (rational? datum) (exact? datum))
@@ -138,13 +138,13 @@
          (list (il 'ldc.i4 (char->integer datum))
                (rep:make-char)))
         ((pair? datum)
-         (list 
+         (list
           ;; Builds CDR first so that long lists still take small space
           (il:load-constant (cdr datum))
           (il:load-constant (car datum))
           (rep:make-pair-reversed)))
         ((symbol? datum)
-         (list 
+         (list
           (il:ldstr (symbol->string datum))
           (rep:make-interned-symbol)))
         ((string? datum)
@@ -242,7 +242,7 @@
                     (loop (cdr data) (+ 1 i)))))))
 
 ;; il:call : (listof sym) iltype ilclass string (listof iltype) -> ilpackage
-;; IL to call method; opts may include '(virtual instance tail). If 'tail 
+;; IL to call method; opts may include '(virtual instance tail). If 'tail
 ;; option is given, generates 'ret automatically
 (define (il:call opts type class method argtypes)
   (let ((method-name (if (memq 'instance opts) il-instance-method il-method)))
@@ -259,13 +259,13 @@
                        (list (if (codegen-option 'direct-tail-calls)
                                  (il 'tail.)
                                  '())
-                             (il call-code call-name) 
+                             (il call-code call-name)
                              (il 'ret)))
                      il)))
     (combine call-code method-name)))
 
 ;; il:call-scheme : -> ilpackage
-;; Code for a scheme-to-scheme call. A codevector and jump index 
+;; Code for a scheme-to-scheme call. A codevector and jump index
 ;; should be the only things on the stack. Doesn't return.
 (define (il:call-scheme)
   (list (il:flush-result-cache)
@@ -291,7 +291,7 @@
   (il 'comment (string-append "//* " key (twobit-format #f " ~s" arg))))
 
 (define (il:comment/wrap key . wrapped-il)
-  (list 
+  (list
    (il 'comment (string-append "//( " key))
    wrapped-il
    (il 'comment "//)")))
@@ -314,7 +314,7 @@
 ;; il:check-type : iltype ilpackage -> ilpackage
 ;; Generates IL to test the top stack element as a given type.
 ;; If it is, then control transfers after the check with the top of the stack
-;; having been cast to the given type. If the test fails, then the failure 
+;; having been cast to the given type. If the test fails, then the failure
 ;; code is executed with the stack having been popped.
 ;; NOTE: If code-if-fail does not escape (return/tail call...), then it must push
 ;; one item onto the stack (of the appropriate type).
@@ -332,7 +332,7 @@
 ;; il:check-bool : iltype ilpackage -> ilpackage
 ;; Generates IL which pops a bool off the stack, branches to failure
 ;; code if false, otherwise continues executing with next item in stack cast to
-;; supplied iltype. Like above, failure code must either push appropriate type 
+;; supplied iltype. Like above, failure code must either push appropriate type
 ;; onto stack or escape.
 (define (il:check-bool iltype code-if-fail)
   (lambda (as)
@@ -358,10 +358,10 @@
 ;; il-keywords-must-quote : (listof symbol)
 ;; If used as names, these must be quoted. (May be incomplete)
 (define il-keywords-must-quote
-  '(private public static instance 
+  '(private public static instance
     extends call class virtual cil managed fault value nested
-    auto ansi beforefieldinit hidebysig specialname rtspecialname 
-    pop 
+    auto ansi beforefieldinit hidebysig specialname rtspecialname
+    pop sealed
     ))
 
 ;; il-field : string(type) string(class) string(fieldname) -> string
@@ -373,7 +373,7 @@
   (let ((arglist
          (apply string-append
                 (map/separated (lambda (x) x) (lambda () ",") argtypes))))
-    (string-append type " " class "::" (il-quote-name methodname) 
+    (string-append type " " class "::" (il-quote-name methodname)
                    "(" arglist ")")))
 
 ;; il-instance-method : string string string (listof string) ->  string
@@ -383,7 +383,9 @@
 ;; il-class : string|#f string|#f|(listof string) string -> string
 (define (il-class assembly namespaces classname)
   (apply string-append
-         (append (if assembly `("[" ,assembly "]") '())
+         (append (if assembly
+                     `("[" ,assembly "]")
+                     '())
                  (map/separated il-quote-name
                                 (lambda () ".")
                                 (if (string? namespaces)
@@ -411,7 +413,7 @@
 (define (il:load-register register)
   (cond ((and (codegen-option 'cache-result) (eq? register 'result))
          (il 'ldloc LOCAL-RESULT))
-        ((assq register '((result "Result") 
+        ((assq register '((result "Result")
                           (real-result "Result")
                           (second "Second")
                           (third "Third")))
@@ -422,7 +424,7 @@
          (il:ldsfld iltype-schemeobject
                     il-reg
                     (twobit-format #f "register~a" register)))
-        (error "il:load-register: cannot emit IL to load register: " 
+        (error "il:load-register: cannot emit IL to load register: "
                register)))
 
 ;; il:set-register : int|symbol ilpackage -> ilpackage
@@ -432,7 +434,7 @@
   (cond ((and (codegen-option 'cache-result) (eq? register 'result))
          (list ilpackage
                (il 'stloc LOCAL-RESULT)))
-        ((assq register '((result "Result") 
+        ((assq register '((result "Result")
                           (real-result "Result")
                           (second "Second")
                           (third "Third")))
@@ -440,13 +442,13 @@
          (lambda (regpair)
            (list ilpackage
                  (il:stsfld iltype-schemeobject il-reg (cadr regpair)))))
-        ((number? register) 
+        ((number? register)
          (list ilpackage
-               (il:stsfld 
+               (il:stsfld
                 iltype-schemeobject
                 il-reg
                 (twobit-format #f "register~a" register))))
-        (else 
+        (else
          (error 'unimplemented " cannot emit IL to set register: "
                 register))))
 
@@ -456,7 +458,7 @@
 (define (il:set-register/pop register)
   (il:set-register register '()))
 
-;; If option 'cache-result is set, then we sometimes need to 
+;; If option 'cache-result is set, then we sometimes need to
 ;; sync the local variable with the Reg field
 ;; The following do syncing automatically:
 ;;   il:call-scheme
@@ -503,19 +505,19 @@
 
 (define (il:fault-abort/message excode message)
   (if (codegen-option 'fault-error-messages)
-      (list 
+      (list
        (il:flush-result-cache)
        (il 'ldc.i4 excode)
        (il:ldstr message)
-       ;; We don't want to make this a tail call; we 
+       ;; We don't want to make this a tail call; we
        ;; want to keep it on the stack.
-       (il:call '() iltype-void il-exn "fault" 
+       (il:call '() iltype-void il-exn "fault"
                 (list iltype-int32 iltype-string))
        (il 'ret))
       (il:fault excode)))
 
 (define (il:fault excode)
-  (list 
+  (list
    (il:flush-result-cache)
    (il 'ldc.i4 excode)
    ;; No tail call! See above.
@@ -525,7 +527,7 @@
 ;; Specific Faults
 
 (define (il:fault/timer jump-index)
-  (list 
+  (list
    (il:flush-result-cache)
    (il 'ldc.i4 jump-index)
    ;; No tail call! See above.
@@ -540,7 +542,7 @@
 (define (il:fault/apply-nonproc k1 k2)
   (list (il 'ldc.i4 k1)
         (il 'ldc.i4 k2)
-        (il:call '() iltype-void il-exn "faultApplyNonProc" 
+        (il:call '() iltype-void il-exn "faultApplyNonProc"
                  (list iltype-int32 iltype-int32))
         (il 'ret)))
 
@@ -638,7 +640,7 @@
           (else
            (let ((jump-index (as:next-jump-index as)))
              (as:next-jump-index! as (+ 1 jump-index))
-             (gvector-set! 
+             (gvector-set!
               (user-data.label-map user)
               (car id)
               (cons (cons label (cons jump-index (as:current-codevector as)))
@@ -714,7 +716,7 @@
      (il:load-constant (cadr constant)))
     ((global)
      (list (il:ldstr (symbol->string (cadr constant)))
-           (il:call '() iltype-schemepair il-reg "globalCell" 
+           (il:call '() iltype-schemepair il-reg "globalCell"
                     (list iltype-string))))
     ((constantvector)
      (il:constant-vector (vector->list (cadr constant))))
@@ -725,7 +727,7 @@
 (define (il:fill-X-array store-command)
   (lambda (items f)
     (let loop ((index 0) (items items))
-      (cond 
+      (cond
         ((null? items) '())
         ((pair? items)
          (list (il 'dup)
