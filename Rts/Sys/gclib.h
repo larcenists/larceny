@@ -67,6 +67,7 @@
 
 #if GCLIB_LARGE_TABLE
 # define MB_LARGE_OBJECT   128    /* Memory is allocated to a large object */
+# define MB_REMSET         0      /* Not arbitrary */
 #else
 # define MB_ALLOCATED      1      /* Page is allocated: 1=yes, 0=don't know */
 # define MB_HEAP_MEMORY    2      /* Memory belongs to Scheme heap */
