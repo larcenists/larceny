@@ -166,9 +166,9 @@ seedclean:
 	rm -f `find . -name '*\.seed' -print`
 
 lapclean:
-	rm -f `find . -name '*\.lap -print`
+	rm -f `find . -name '*\.lap' -print`
 
 lopclean: 
-	rm -f `find . -name '*\.lop -print`
+	rm -f `find . -name '*\.lop' -print`
 
 # eof
