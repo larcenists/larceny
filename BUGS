@@ -700,6 +700,8 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     outside the procedure is visible inside the procedure after the jump
     back in.  Ditto for output-ports.  Easy to fix with dynamic-wind.
 
+    [Fixed in LTHs sources; changed not yet tested or checked in.]
+
 125 v1.0a1 (990429 / lth)
     Priority: low
     Category: FFI / correctness
@@ -721,6 +723,10 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 	#8  0x1b380 in callout_to_C ()
 	#9  0x3d298 in globals ()
 	#10 0x15768 in main (argc=2, argv=0xeffff104) at Sys/larceny.c:159
+
+    This could have happened because the shared library was recompiled
+    and the operating system pages in the library directly from the
+    file.
 
 NEXT ENTRY: 126
 
