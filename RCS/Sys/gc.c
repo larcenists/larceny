@@ -2,7 +2,7 @@
  * Ephemeral garbage collector (for Scheme).
  * Documentation is in the files "gc.c" and "gcinterface.c".
  *
- * $Id$
+ * $Id: gc.c,v 1.2 91/06/20 21:30:54 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -133,7 +133,7 @@ static ephemeral_collection(),
  * If the initialization succeeded, a nonzero value is returned. Otherwise,
  * 0 is returned.
  */
-unsigned int init_collector( s_size, t_size, e_size, e_lim, stack_size )
+init_collector( s_size, t_size, e_size, e_lim, stack_size )
 unsigned int s_size, t_size, e_size, e_lim, stack_size;
 {
   word *p;
@@ -159,7 +159,7 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
    * machines that do not have alignment restrictions. 
    * (For example, malloc() under Utek will align on a word boundary.)
    */
-  p = (word *) malloc( s_size + t_size*2 + e_size*2 + stk_size + 7 );
+  p = (word *) malloc( s_size + t_size*2 + e_size*2 + stack_size + 7 );
 
   if (p == NULL)
     return 0;
@@ -168,8 +168,8 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
 
   /* The stack cache goes at the bottom of memory. */
   stk_base = p;                                 /* lowest word */
-  stk_max = p + stk_size / 4 - 1;               /* highest word */
-  p += stk_size / 4;
+  stk_max = p + stack_size / 4 - 1;               /* highest word */
+  p += stack_size / 4;
 
   /* The epehemral areas are the lowest of the heap spaces */
   e_base = e_top = p;
@@ -183,7 +183,7 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
   p += e_size / 4;
 
   /* The static area goes in the middle */
-  s_base = s_top = p;
+  s_base = p;
   s_max = p + s_size / 4 - 1;
   p += s_size / 4;
 
@@ -196,21 +196,21 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
   t_new_base = p;
   t_new_max = p + t_size / 4 - 1;
 
-  globals[ E_BASE_OFFSET ] = e_base;
-  globals[ E_TOP_OFFSET ] = e_top;
-  globals[ E_MARK_OFFSET ] = e_mark;
-  globals[ E_MAX_OFFSET ] = e_max;
+  globals[ E_BASE_OFFSET ] = (word) e_base;
+  globals[ E_TOP_OFFSET ] = (word) e_top;
+  globals[ E_MARK_OFFSET ] = (word) e_mark;
+  globals[ E_MAX_OFFSET ] = (word) e_max;
 
-  globals[ T_BASE_OFFSET ] = t_base;
-  globals[ T_TOP_OFFSET ] = t_top;
-  globals[ T_MAX_OFFSET ] = t_max;
-  globals[ T_TRANS_OFFSET ] = t_trans;
+  globals[ T_BASE_OFFSET ] = (word) t_base;
+  globals[ T_TOP_OFFSET ] = (word) t_top;
+  globals[ T_MAX_OFFSET ] = (word) t_max;
+  globals[ T_TRANS_OFFSET ] = (word) t_trans;
 
-  globals[ S_BASE_OFFSET ] = s_base;
-  globals[ S_MAX_OFFSET ] = s_max;
+  globals[ S_BASE_OFFSET ] = (word) s_base;
+  globals[ S_MAX_OFFSET ] = (word) s_max;
 
-  globals[ STK_BASE_OFFSET ] = stk_base;
-  globals[ STK_MAX_OFFSET ] = stk_max;
+  globals[ STK_BASE_OFFSET ] = (word) stk_base;
+  globals[ STK_MAX_OFFSET ] = (word) stk_max;
 
   return 1;
 }
@@ -220,7 +220,7 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
  * Garbage collector trap entry point. In later versions, when we trap on
  * a memory overflow, we will attempt to allocate more space.
  */
-void gc_trap( type )
+gc_trap( type )
 unsigned int type;
 {
   if (type == 0)
@@ -244,8 +244,8 @@ unsigned int type;
   static unsigned words2;                  /* # words in use after last gc */
   unsigned words1;                         /* # words in use before this gc */
 
-  e_top = globals[ E_TOP_OFFSET ];
-  t_trans = globals[ T_TRANS_OFFSET ];
+  e_top = (word *) globals[ E_TOP_OFFSET ];
+  t_trans = (word *) globals[ T_TRANS_OFFSET ];
 
   if (type == 1) 
     ecollections++;
@@ -267,15 +267,15 @@ unsigned int type;
   words2 = words_used();
   words_collected += words1 - words2;
 
-  globals[ E_BASE_OFFSET ] = e_base;
-  globals[ E_TOP_OFFSET ] = e_top;
-  globals[ E_MARK_OFFSET ] = e_mark;
-  globals[ E_MAX_OFFSET ] = e_max;
+  globals[ E_BASE_OFFSET ] = (word) e_base;
+  globals[ E_TOP_OFFSET ] = (word) e_top;
+  globals[ E_MARK_OFFSET ] = (word) e_mark;
+  globals[ E_MAX_OFFSET ] = (word) e_max;
 
-  globals[ T_BASE_OFFSET ] = t_base;
-  globals[ T_TOP_OFFSET ] = t_top;
-  globals[ T_MAX_OFFSET ] = t_max;
-  globals[ T_TRANS_OFFSET ] = t_trans;
+  globals[ T_BASE_OFFSET ] = (word) t_base;
+  globals[ T_TOP_OFFSET ] = (word) t_top;
+  globals[ T_MAX_OFFSET ] = (word) t_max;
+  globals[ T_TRANS_OFFSET ] = (word) t_trans;
 }
 
 
@@ -298,7 +298,7 @@ static unsigned words_used()
  */
 static ephemeral_collection()
 {
-  word *p, *dest, *tmp, *ptr, *head, *tail;
+  word *dest, *tmp, *ptr, *head, *tail;
   unsigned int i, tag, size;
 
   /* 
@@ -333,8 +333,8 @@ static ephemeral_collection()
     }
     else if (tag == PAIR_TAG) {
       /* have done pair if either word is pointer into neswpace! */
-      if (pointsinto( *ptr, e_new_base, e_new_limit )
-       || pointsinto( *(ptr+1), e_new_base, e_new_limit ))
+      if (pointsto( *ptr, e_new_base, e_new_max )
+       || pointsto( *(ptr+1), e_new_base, e_new_max ))
 	;
       else {
 	*ptr = forward( *ptr, e_base, e_max, &dest );
