@@ -1,3 +1,5 @@
+$Id$
+
 We will release the SPARC back-end only for the first release.
 The version of the first release will be 1.0-alpha1.
 
@@ -23,8 +25,12 @@ release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
   * 'Case' really ought to do better when the constants are fixnums,
     currently it just expands to a call to memv.
   * Some sort of help facility (esp. for compiler switches and compilation
-    commands) would be useful in std-heap.sch.
-  * FFI procedures are not hidden in larceny.heap.
+    commands) would be useful in larceny.heap.  The standard help file
+    is not appropriate because many of the procedures it mentions are not
+    available in larceny.heap.
+  * FFI procedures are not hidden in larceny.heap.  (Moot point since
+    FFI will not be included in 1.0a1.)
+  * (Issue-warnings #t) should be the default.
 
 [FFI]
   * Sundry bugs must be fixed (see the TODO file).
@@ -64,40 +70,3 @@ release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
     - make sure to do ( cd Rts; BUILD_HOST=chez make config ) before making 
       the archive.
 
-[Bugs fixed]
-  * Hierarchical environments cause a storage leak -- the interpreter is
-    not garbage collected when the compiler is installed.  The reason is
-    that initially, (larceny-environment) is installed as the interaction
-    environment, but (larceny-environment) returns a child environment --
-    so the leak has already happened, and it's hard for code outside 
-    the innermost namespace to fix this.  Also, larceny-environment
-    references the parent environment's cell.
-
-  * I don't understand why load-environment complains about every1? 
-    being unavailable -- it's available in COMPILER and should not be
-    needed anywhere else.  Why does the name appear in the interaction
-    environment?  Who places it there?  It appears as soon as sparc.imp.fasl
-    has been loaded, and it's used there, but it is defined in pass1.aux
-    and used several times in the macro expander, which is loaded before
-    sparc.imp.sch.
-
-    The problem seems to be with the use of TRANSFORMER.  When TRANSFORMER
-    is used, the macro expander (in expand.sch) calls EVAL on the
-    transformer expression.  EVAL is only passed one argument (this is a 
-    buglet) and the environment then defaults to the interaction environment.
-
-    The bug is really in LOAD: it should set the interaction environment
-    to the environment it is given so that any use of EVAL in a loaded file
-    uses the correct environment.
-
-  * Fixed bug in compile313 procedure where names 'infilename' and 
-    'outfilename' were free (block compilation case).
-
-  * Fixed bug in compile313 procedure where it tried to write fasl code
-    rather than LAP (block compilation case).
-
-  * Fixed all other undefined-variable errors from std-heap.sch, except
-    for one use of ??? in the compiler.
-
-  * I have also moved a number of minor bugs to the general TODO or BUGS 
-    files, to be fixed at a later date.
