@@ -34,8 +34,8 @@
  * Select PETIT_LARCENY if that's what you're building.
  */
 #undef SPARC			/* Native: SPARC v8 or later */
+#undef X86_NASM                 /* Native: Intel 386 using NASM assembler */
 #undef PETIT_LARCENY		/* Portable: Hardware is irrelevant */
-
 
 /* 
  * Architecture attributes. 
@@ -61,11 +61,11 @@
 #undef SUNOS4			/* SunOS 4.x */
 #undef SUNOS5			/* SunOS 5.x */
 #undef LINUX			/* Generic GNU/Linux */
-#undef BSD_UNIX			/* Generic BSD (4.3ish) Unix */
+#undef BSD_UNIX			/* Generic BSD (4.3ish) Unix, also MacOS X */
 #undef POSIX_UNIX		/* Generic POSIX-standard Unix */
 #undef XOPEN_UNIX		/* Generic XOPEN-standard Unix */
 #undef WIN32			/* Generic Windows 32-bit */
-#undef MACOS			/* Generic Macintosh OS */
+#undef MACOS			/* Generic Macintosh OS 9.x or earlier */
 #undef GENERIC_OS		/* Anything else */
 
 #undef SUNOS			/* Synthesized */
@@ -317,8 +317,7 @@
 #endif
 
 /* Debian Linux 3.0; gcc; GNU libc (Petit Larceny). */
-#if 1
-# define DEBIAN_STRDUP_WEIRDNESS   1
+#if 0
 # define PETIT_LARCENY             1
 # define BITS_32                   1
 # define ENDIAN_LITTLE             1
@@ -328,6 +327,21 @@
 # define HAVE_STRDUP               1
 # define HAVE_POLL                 1
 # define STACK_UNDERFLOW_COUNTING  1
+# define DEBIAN_STRDUP_WEIRDNESS   1
+#endif
+
+/* Debian Linux 3.0; gcc+nasm; GNU libc (x86-nasm native). */
+#if 1
+# define X86_NASM                  1
+# define BITS_32                   1
+# define ENDIAN_LITTLE             1
+# define LINUX                     1
+# define HAVE_RINT                 1
+# define HAVE_STRNCASECMP          1
+# define HAVE_STRDUP               1
+# define HAVE_POLL                 1
+# define STACK_UNDERFLOW_COUNTING  1
+# define DEBIAN_STRDUP_WEIRDNESS   1
 #endif
 
 /* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny). */
