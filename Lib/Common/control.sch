@@ -90,36 +90,23 @@
 
 
 ; Garbage collection.
-; Arguments are from the following groups:
-;   {'ephemeral 'tenuring 'full} are largely compatible with pre-v0.26
-;   a generation number by itself means collect in that generation
-;   a generation number followed by 'collect or 'promote means either
-;   collect in that generation or promote into that generation.
 
 (define (collect . args)
-
-  (define (err)
-    (error "collect: bad arguments "
-           args
-           #\newline
-           "Use: (collect [generation [{promote,collect}]])")
-    #t)
-
-  (if (null? args)
-      (sys$gc 0 0)
-      (let ((a (car args)))
-        (cond ((eq? a 'ephemeral) (sys$gc 0 0))
-              ((eq? a 'tenuring)  (sys$gc 1 1))
-              ((eq? a 'full)      (sys$gc 1 0))
-              ((and (fixnum? a) (positive? a))
-               (if (null? (cdr args))
-                   (sys$gc a 0)
-                   (let ((b (cadr args)))
-                     (cond ((eq? b 'collect) (sys$gc a 0))
-                           ((eq? b 'promote) (sys$gc a 1))
-                           (else (err))))))
-              (else (err)))))
-  (unspecified))
+  (cond ((null? args)
+         (sys$gc 0 1))
+        ((null? (cdr args))
+         (sys$gc (car args) 1))
+        ((null? (cddr args))
+         (let ((x (cadr args)))
+           (cond ((eq? x 'collect)
+                  (sys$gc (car args) 1))
+                 ((eq? x 'promote)
+                  (sys$gc (car args) 0))
+                 (else
+                  (error "Second argument to COLLECT must be \"promote\""
+                         " or \"collect\", not " x)))))
+        (else
+         (error "Too many arguments to COLLECT."))))
 
 
 ; Returns the current continuation structure (as chain of vectors).
