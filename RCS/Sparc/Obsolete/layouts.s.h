@@ -1,6 +1,6 @@
 ! -*-Fundamental -*-
 !
-! $Id$
+! $Id: layouts.s.h,v 1.1 91/07/02 12:27:50 lth Exp Locker: lth $
 
 #define TAGMASK			0x07
 
@@ -53,3 +53,15 @@
 #define A_CAR_OFFSET	-1
 #define A_CDR_OFFSET	3
 #define A_VEC_OFFSET	1
+
+! Procedure layout stuff
+
+! codevector offset in procedure struct
+
+#define CODEVECTOR	4
+#define A_CODEVECTOR	-3
+
+! Offset from start of bytevector header to first instruction
+
+#define CODEOFFSET	4
+#define A_CODEOFFSET	-1
