@@ -81,9 +81,9 @@
 					;WITH-OUTPUT-FROM-FILE
 	string-port			;has CALL-WITH-INPUT-STRING and
 					;CALL-WITH-OUTPUT-STRING
-;	transcript			;TRANSCRIPT-ON and TRANSCRIPT-OFF
+	transcript			;TRANSCRIPT-ON and TRANSCRIPT-OFF
 	char-ready?
-;	macro				;has R4RS high level macros (not yet)
+	macro				;has R4RS high level macros
 ;	defmacro			;has Common Lisp DEFMACRO
 	eval				;R5RS two-argument eval
 ;	record				;has user defined data structures
