@@ -305,7 +305,8 @@
                     "std-heap" "twobit-heap" "r5rs-heap"))))
     (make:project "compiler.date"
       `(rules
-        (".lop" ".sch" ,make-compile-and-assemble)
+        (".lop" ".sch"  ,make-compile-and-assemble)
+	(".fasl" ".h"   ,make-compile-file)  ; wdc
 	(".fasl" ".sch" ,make-compile-file))
       `(targets
 	("compiler.date" ,(lambda args #t)))

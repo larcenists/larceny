@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 22 April 1999 / wdc
+;
 ; The interpreter's top-level environment.
 
 ($$trace "toplevel")
@@ -86,6 +88,8 @@
     (environment-set! larc 'reverse! reverse!)
     (environment-set! larc 'some? some?)
     (environment-set! larc 'every? every?)
+    (environment-set! null 'car:pair car:pair)
+    (environment-set! null 'cdr:pair cdr:pair)
 
     ;; hash functions and hashtables
     ;; not in R4RS:
@@ -220,6 +224,11 @@
     (environment-set! larc 'fx<= fx<=)
     (environment-set! larc 'fx> fx>)
     (environment-set! larc 'fx>= fx>=)
+    (environment-set! null '=:fix:fix  =:fix:fix)
+    (environment-set! null '<:fix:fix  <:fix:fix)
+    (environment-set! null '<=:fix:fix <=:fix:fix)
+    (environment-set! null '>:fix:fix  >:fix:fix)
+    (environment-set! null '>=:fix:fix >=:fix:fix)
 
     ;; Characters
 
@@ -287,6 +296,10 @@
     (environment-set! r4rs 'vector->list vector->list)
     (environment-set! r4rs 'list->vector list->vector)
     (environment-set! r4rs 'vector-fill! vector-fill!)
+    ;; not in R4RS:
+    (environment-set! null 'vector-length:vec vector-length:vec)
+    (environment-set! null 'vector-ref:trusted vector-ref:trusted)
+    (environment-set! null 'vector-set!:trusted vector-set!:trusted)
 
     ;; control features
 
@@ -455,6 +468,7 @@
     (environment-set! null '.make-cell .make-cell)
     (environment-set! null '.cell-ref .cell-ref)
     (environment-set! null '.cell-set! .cell-set!)
+    (environment-set! null '.check! .check!)
 
     ;; system performance and interface
 
