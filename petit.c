@@ -1,4 +1,4 @@
-#include "twobit.h"
+#include "petit-instr.h"
 
 int main( int argc, char **argv )
 { return larceny_main( argc, argv ); }

@@ -174,7 +174,7 @@
     (delete-file *shared-object-so-name*)
     (let ((c-file (open-output-file *shared-object-c-name*)))
       (set! *c-output* c-file)
-      (emit-c-code "#include \"twobit.h\"~%~%")
+      (emit-c-code "#include \"petit-instr.h\"~%~%")
       #t)))
 
 (define (add-to-shared-object fasl-name segments)
@@ -271,7 +271,7 @@
 	  (emit-c-code "/* Generated from ~a */~%" filename)
 	  (for-each (lambda (d) (emit-c-code "~a~%" d))
 		    decls)
-	  (emit-c-code "#include \"twobit.h\"~%~%")))))
+	  (emit-c-code "#include \"petit-instr.h\"~%~%")))))
 
 (define (after-dump-file h filename)
   (if *c-output*
@@ -360,7 +360,7 @@
       (lambda (out)
         (set! *c-output* out)
         (emit-c-code "/* Generated heap bootstrap code */~%")
-        (emit-c-code "#include \"twobit.h\"~%~%")
+        (emit-c-code "#include \"petit-instr.h\"~%~%")
         (let ((thunks  (dump-list-spine! h (heap.thunks h)))
               (symbols (dump-list-spine! h (symbol-locations h))))
           (set! r (dump-segment! h
@@ -379,7 +379,7 @@
   (call-with-output-file filename
     (lambda (f)
       (set! *c-output* f)
-      (emit-c-code "#include \"twobit.h\"~%~%")
+      (emit-c-code "#include \"petit-instr.h\"~%~%")
       (emit-c-code "int main( int argc, char **argv )~%")
       (emit-c-code "{ return larceny_main( argc, argv ); }~%~%")
       (emit-c-code "~%/* Loadable segments' code */~%~%")

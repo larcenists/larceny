@@ -62,11 +62,6 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Perhaps twobit.h should be renamed petit-instr.h, to conform to
    what is going on in Intel/ and PowerPC/.
 
- * Quality: petit-hacks.h should be renamed eg petit-machine.h,
-   since this file serves the same purpose as i386-machine.h.  These
-   files are abstraction layers for the instruction macros to build on,
-   sort of a VM substrate.
-
  * Quality: dumpheap-extra.sch is a silly name, perhaps better
    would be dumpheap-overrides.sch or dumpheap-target.sch
 
