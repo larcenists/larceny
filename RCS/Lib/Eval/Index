@@ -1,0 +1,20 @@
+The index for ~larceny/Lib/Eval
+$Id$
+
+This directory contains the code for the read/eval/print loop.
+
+chez-makefasl.sch
+  Given the name of a .lop file, creates a .fasl file.
+  This program to run under systems which do not have bytevectors, like Chez.
+
+eval.sch
+  Small Scheme evaluator which provides a minimal interface to Larceny.
+  'Eval' accepts full R4RS Scheme, but requires a procedure "rewrite" which
+  converts full Scheme to its core form.
+
+reploop.sch
+  Read-eval-print loop based on simple evaluator.
+  Defines "main".
+
+rewrite.sch
+  (rewrite)
