@@ -22,6 +22,9 @@
 	       (newline))
 	(debug-continuation-structure e))))
 
+(define (debug/enter-debugger)
+  (debug-continuation-structure (current-continuation-structure)))
+
 (define (backtrace)
   (debug/backtrace 0 (make-continuation-inspector (error-continuation))))
 
