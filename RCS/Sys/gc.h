@@ -1,7 +1,7 @@
 /*
  * User-defined parameters for garbage collector.
  *
- * $Header$
+ * $Id$
  * 
  * Whoever writes the program that interfaces to the collector must define
  * the desired defaults in this file for the garbage collector to use.
@@ -13,6 +13,8 @@
  * Assumptions: 1 word = 4 bytes.
  */
 
+#include "offsets.h"
+#include "gcinterface.h"
 
 /* 
  * The following limits are all in bytes and should be evenly 
@@ -27,25 +29,4 @@
 #define MIN_E_SIZE          (128*1024)    /* Minimum size of ephemeral area */
 #define MIN_STK_SIZE        (8*1024)         /* Minimum size of stack cahce */
 
-
-/*
- * Size, in words, of the largest continuation frame that can possibly be
- * created. If your application can create an arbitrarily large continuation
- * frame, you're up a creek.
- */
-#define MAX_CONT_SIZE       258             /* Size of largest continuation */
-
-
-/*
- * oflosize() is used to compute the size of the stack overflow area
- * (in the ephemeral area), as a function of the stack size.
- * The overflow area must be big enough to hold as many continuations as 
- * can fit on the stack in the worst case. (Don't forget that space is 
- * allocated in 8-byte chunks!)
- *
- * 'stksize' is given in bytes; 'oflosize()' must return a result in words.
- */
-
-/* (This definition is almost certainly wrong) */
-
-#define oflosize( stksize )  ((stksize) + ((stksize)/16))
+extern word globals[];
