@@ -1,3 +1,7 @@
+; Compiler/assembler drivers for Scheme 313 under Chez Scheme
+;
+; $Id$
+
 (define (compile313 file)
   (let* ((n (string-length file))
          (outputfile
@@ -40,20 +44,22 @@
 	(assemble-file (lambda (x) x) file outputfile))))
 
 (define (assemble-file filter infile outfile)
+
+  (define (file-for-each proc filename)
+    (call-with-input-file filename
+      (lambda (p)
+	(let loop ((x (read p)))
+	  (if (eof-object? x)
+	      #t
+	      (begin (proc x)
+		     (loop (read p))))))))
+
   (delete-file outfile)
   (let ((p (open-output-file outfile)))
     (file-for-each (lambda (x) (write (assemble (filter x)) p)) infile)
     (close-output-port p)
     #t))
 
-(define (file-for-each proc filename)
-  (call-with-input-file filename
-    (lambda (p)
-      (let loop ((x (read p)))
-	(if (eof-object? x)
-	    #t
-	    (begin (proc x)
-		   (loop (read p))))))))
 
 (define (disassemble-file infile)
 
@@ -94,90 +100,8 @@
        (newline q)
        (issue-warnings #f)
        (do ((x (read p) (read p)))
-           ((eof-object? x)
-            (issue-warnings #t))
-           (disassemble (assemble x) q)
-           (newline q)
-           (newline q)))))
-  (if (null? rest)
-      (dis313 (current-output-port))
-      (call-with-output-file (car rest) dis313)))
 
-; Patches to record definitions and uses of global variables.
-
-; (define (begin-link)
-;   (set! @globals@ '()))
-; 
-; (define (end-link)
-;   (define (report defined used)
-;     (let ((undefined (difference used defined))
-;           (unused (difference defined used))
-;           (msg1 "Global variables that were used but not defined:")
-;           (msg2 "Global variables that were defined but not used:")
-;           (show (lambda (name)
-;                   (write name)
-;                   (newline))))
-;       (if (not (null? undefined))
-;           (begin (display msg1)
-;                  (newline)
-;                  (for-each show undefined)
-;                  (newline)))
-;       (if (not (null? unused))
-;           (begin (display msg2)
-;                  (newline)
-;                  (for-each show unused)))))
-;   (set! @globals@
-;         (sort @globals@
-;               (lambda (x y)
-;                 (or (string<? (symbol->string (car x))
-;                               (symbol->string (car y)))
-;                     (and (eq? (car x) (car y))
-;                          (eq? (cadr x) 'defined))))))
-;   (do ((globals @globals@ (cdr globals))
-;        (defined '() (if (and (eq? (cadr (car globals)) 'defined)
-;                              (or (null? defined)
-;                                  (not (eq? (car (car globals))
-;                                            (car defined)))))
-;                         (cons (car (car globals)) defined)
-;                         defined))
-;        (used '() (if (and (eq? (cadr (car globals)) 'used)
-;                           (or (null? used)
-;                               (not (eq? (car (car globals))
-;                                         (car used)))))
-;                      (cons (car (car globals)) used)
-;                      used)))
-;       ((null? globals)
-;        (report (reverse defined) (reverse used)))))
-
-; (define @globals@ '())
-; 
-; (define (get-value-cell-for-reference symbol)
-;   (set! @globals@ (cons (list symbol 'used) @globals@))
-;   ; This is the wrong thing.
-;   symbol)
-; 
-; (define (get-value-cell-for-definition symbol)
-;   (set! @globals@ (cons (list symbol 'defined) @globals@))
-;   ; This is the wrong thing.
-;   symbol)
-; 
-; (define-instruction $global
-;   (let ((bits (define-code #x5a 0 0)))
-;     (lambda (instruction as)
-;       (list-instruction "global" instruction)
-;       (let ((vcell (get-value-cell-for-reference (operand1 instruction))))
-;         (emit-fixup! as 1 2 (emit-constant as vcell)))
-;       (emit! as bits))))
-
-; (define-instruction $setglbl
-;   (let ((bits (define-code #x5b 0 0)))
-;     (lambda (instruction as)
-;       (list-instruction "setglbl" instruction)
-;       (let ((vcell (get-value-cell-for-definition (operand1 instruction))))
-;         (emit-fixup! as 1 2 (emit-constant as vcell)))
-;       (emit! as bits))))
-
-; Macros used in the MacScheme to reduce the size of the heap image.
+; Macros used in the MacScheme version to reduce the size of the heap image.
 
 (define-macro optimize
   (lambda (l)
