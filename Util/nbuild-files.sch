@@ -34,7 +34,7 @@
   (append 
    (nbuild-files 'compiler
                  '("common.imp.sch"))
-   (nbuild-files 'il-asm
+   (nbuild-files 'dotnet-asm
                  '("il.imp.sch" "il.imp2.sch"))))
 
 (define *nbuild:twobit-files-2*
@@ -101,8 +101,22 @@
 		   "md5.sch"))))
 
 ;; FIXME:  This needs to be a list of the Asm/IL files
-(define *nbuild:dotnetasm-files* '())
-
+(define *nbuild:dotnetasm-files* 
+  (nbuild-files 'dotnet-asm
+                '("asm-switches.sch"
+                  "config.sch"
+                  "util.sch"
+                  "il-gen.sch"
+                  "il-rtif.sch"
+                  "pass5p2.sch"
+                  "pass5p2-instructions.sch"
+                  "pass5p2-ops.sch"
+                  "pass5p2-listify.sch"
+                  "peepopt.sch"
+                  "il-src2string.sch"
+                  "il-sourcefile.sch"
+                  "dumpheap-il.sch"
+                  "dumpheap-extra.sch")))
   
 (define *nbuild:make-files*
   `(,@(nbuild-files 'util '("make.sch"))
@@ -118,6 +132,9 @@
 
 (define *nbuild:petit-heap-dumper-files*
   (nbuild-files 'standard-C-asm '()))
+
+(define *nbuild:dotnet-heap-dumper-files*
+  (nbuild-files 'dotnet-asm '()))
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*

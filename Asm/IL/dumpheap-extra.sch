@@ -364,12 +364,11 @@
 
 (define (create-application app src-manifests)
   (let* ((app-exe (string-append app ".exe"))
-         (app-il (string-append app ".il"))
+         (assembly-il 
+          (create-assembly app-exe src-manifests))
          (ordered-il-files
           (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
-               src-manifests))
-         (assembly-il 
-          (create-assembly app-exe src-manifests)))
+               src-manifests)))
     (ilasm app-exe (cons assembly-il ordered-il-files))
     app-exe))
 

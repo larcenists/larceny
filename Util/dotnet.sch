@@ -69,9 +69,9 @@
                 (common-source  . ,(pathname-append dir "Lib" "Common"))
                 (repl-source    . ,(pathname-append dir "Repl"))
                 (interp-source  . ,(pathname-append dir "Interpreter"))
-                (machine-source . ,(pathname-append dir "Lib" "Standard-C"))
+                (machine-source . ,(pathname-append dir "Lib" "IL"))
                 (common-asm     . ,(pathname-append dir "Asm" "Common"))
-                (standard-C-asm . ,(pathname-append dir "Asm" "Standard-C"))
+                (dotnet-asm     . ,(pathname-append dir "Asm" "IL"))
                 (always-source? . ,option:source?)
                 (verbose-load?  . ,option:verbose?)
                 (development?   . ,option:development?)
@@ -79,7 +79,7 @@
                 (auxiliary      . ,(pathname-append dir "Auxlib"))
                 (root           . ,dir)
                 (host-system    . ,hostname)
-                (target-machine . Standard-C)
+                (target-machine . dotnet)
                 (target-os      . ,option:os)
                 (host-os        . ,option:os)
                 (endianness     . ,option:endian)
@@ -190,8 +190,7 @@
 
 ;; Load the compiler
 (define (load-compiler)
-  (load (make-filename *larceny-root* "Util" "nbuild.sch"))
-  (load (make-filename *larceny-root* "Util" "il.scm")))
+  (load (make-filename *larceny-root* "Util" "nbuild.sch")))
 
 (define (build-runtime-system)
   (case (nbuild-parameter 'host-os)
