@@ -219,7 +219,8 @@
 (define mzscheme-files
   (nbuild-files 'mzscheme-source
                 '("init" "wcm0" "wcm"
-                  "macros" "inspector" "record" "struct")))
+                  "macros" "inspector" "record"
+                  "struct-proc0" "struct-proc" "struct")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
