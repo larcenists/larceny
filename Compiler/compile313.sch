@@ -64,8 +64,63 @@
 
 ; Compile and assemble a single expression; return the LOP segment.
 
-(define (compile-and-assemble-expression expr)
-  (assemble (compile expr)))
+(define compile-expression
+  (let ()
+
+    (define *usual-macros*
+      (syntactic-copy global-syntactic-environment))
+
+    (define *all-macros*
+      global-syntactic-environment)
+
+    (define (compile-expression expr env)
+      (let ((syntax-env
+	     (case (environment-tag env)
+	       ((0 1) (syntactic-copy *usual-macros*))
+	       ((2)   *all-macros*)
+	       (else  
+		(error "Invalid environment for compile-expression: " env)
+		#t))))
+	(let ((current-env global-syntactic-environment))
+	  (dynamic-wind
+	   (lambda ()
+	     (set! global-syntactic-environment syntax-env))
+	   (lambda ()
+	     (assemble (compile expr)))
+	   (lambda ()
+	     (set! global-syntactic-environment current-env))))))
+    
+    compile-expression))
+
+
+(define macro-expand-expression
+  (let ()
+
+    (define *usual-macros*
+      (syntactic-copy global-syntactic-environment))
+
+    (define *all-macros*
+      global-syntactic-environment)
+
+    (define (macro-expand-expression expr env)
+      (let ((syntax-env
+	     (case (environment-tag env)
+	       ((0 1) (syntactic-copy *usual-macros*))
+	       ((2)   *all-macros*)
+	       (else  
+		(error "Invalid environment for compile-expression: " env)
+		#t))))
+	(let ((current-env global-syntactic-environment))
+	  (dynamic-wind
+	   (lambda ()
+	     (set! global-syntactic-environment syntax-env))
+	   (lambda ()
+	     (make-readable
+	      (macro-expand expr)))
+	   (lambda ()
+	     (set! global-syntactic-environment current-env))))))
+    
+    macro-expand-expression))
 
 
 ; Compile a scheme source file to a LAP file.
