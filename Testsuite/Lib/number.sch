@@ -785,6 +785,14 @@
      (test "Error case #13"		; Bug 059
 	   (* z 1)
 	   z))
+   (test "Error case #14"		; Bug 079
+	 (modulo 33333333333333333333 -3) 0)
+   (test "Error case #15"		; Bug 079
+	 (modulo 2177452800 -86400) 0)
+   (test "Error case #16"		; Bug 079
+	 (moduly -2177452800 -86400) 0)
+   (test "Error case #17"		; Bug 080
+	 (modulo 33333333333333333333.0 -3.0) 0.0)
    ))
 
 ; eof
