@@ -42,6 +42,13 @@
 
 #include "larceny.h"
 #include "stack.h"
+#include "stats.h"
+
+static struct {
+  int stacks_created;
+  int frames_flushed;
+  int words_flushed;
+} stack_state;			/* FIXME: hang off GC or globals */
 
 #define STACK_BASE_SIZE    16   /* bytes */
 
@@ -68,6 +75,7 @@ int stk_create( word *globals )
   globals[ G_STKP ] = (word)stktop;
   globals[ G_STKBOT ] = (word)stktop;
 
+  stack_state.stacks_created += 1;
   return 1;
 }
 
@@ -76,8 +84,7 @@ void stk_clear( word *globals )
   globals[ G_STKP ] = globals[ G_STKBOT ];
 }
 
-void
-stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
+void stk_flush( word *globals )
 {
   word *stktop, *stkbot, *first, *prev;
   word retaddr, codeaddr, codeptr, proc, size;
@@ -86,18 +93,14 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
   stktop = (word*)globals[ G_STKP ];
   stkbot = (word*)globals[ G_STKBOT ];
 
-  *bytes_flushed = (stkbot-stktop)*sizeof(word);
+  stack_state.words_flushed += (stkbot-stktop);
   first = prev = 0;  
   framecount = 0;
   while (stktop < stkbot) {
     /* convert header to vector header */
     size = *stktop;
-    assert( size % 4 == 0 );	  /* size must be words, a fixnum */
-    assert( (s_word)size >= 12 ); /* 3-word minimum, and nonnegative */
-#if 0
-    debug2msg( "[debug] frame = %08lx words, retaddr = %08lx\n", size / 4,
-	       *(stktop+1) );
-#endif
+    assert2( size % 4 == 0 );	  /* size must be words, a fixnum */
+    assert2( (s_word)size >= 12 ); /* 3-word minimum, and nonnegative */
     *stktop = mkheader( size, VEC_HDR );
 
     /* convert return address */
@@ -130,7 +133,7 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
 
   globals[ G_STKBOT ] = globals[ G_STKP ];
 
-  *frames_flushed = framecount;
+  stack_state.frames_flushed += framecount;
 }
 
 /* NOTE:  A copy of this code exists in Sparc/memory.s; if you change 
@@ -142,7 +145,7 @@ int stk_restore_frame( word *globals )
   word retoffs, proc, codeaddr, codeptr;
   unsigned size;
 
-  assert(globals[ G_STKP ] == globals[ G_STKBOT ]);
+  assert2(globals[ G_STKP ] == globals[ G_STKBOT ]);
 
   hframe = ptrof( globals[ G_CONT ] );
   size = roundup8( sizefield( *hframe ) + 4 );   /* bytes to copy */
@@ -154,10 +157,7 @@ int stk_restore_frame( word *globals )
     return 0;
   }
   globals[ G_STKP ] = (word)stktop;
-
-#if STACK_UNDERFLOW_COUNTING
   globals[ G_STKUFLOW ] += 1;
-#endif
 
   /* copy the frame onto the stack */
   p = stktop;
@@ -201,6 +201,19 @@ int stk_size_for_top_stack_frame( word *globals )
   return roundup8( frame_size + 4 ) + STACK_BASE_SIZE;
 #endif
 
+}
+
+void stk_stats( word *globals, stack_stats_t *stats )
+{
+  stats->stacks_created = stack_state.stacks_created;
+  stats->frames_flushed = stack_state.frames_flushed;
+  stats->words_flushed = stack_state.words_flushed;
+  stats->frames_restored = globals[ G_STKUFLOW ];
+
+  stack_state.stacks_created = 0;
+  stack_state.frames_flushed = 0;
+  stack_state.words_flushed = 0;
+  globals[ G_STKUFLOW ] = 0;
 }
 
 /* eof */
