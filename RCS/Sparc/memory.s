@@ -25,10 +25,17 @@
 !   _stkoflow()		  Procedure to be called on a stack cache overflow.
 !			  It will flush the stack cache to memory and setup
 !			  the continuation pointer, and return to its caller.
+!   _save_scheme_context  Saves all machine-mapped virtual machine registers
+!			  in the "globals" table.
+!   _restore_scheme_context  Restores all machine-mapped virtual machine
+!			  registers from the "globals" table.
 !
 ! '_gcstart' is made public for use by open-coded 'cons' calls and can also
 ! be used to implement a user-level procedure which invokes the collector;
 ! to do an ephemeral collection, simply request to allocate 0 bytes.
+!
+! '_save_scheme_context' and '_restore_scheme_context' are useful in
+! inter-language calls.
 !
 ! Arguments are always passed in registers RESULT, ARGREG2, and ARGREG3, all
 ! of which are rootable. The result, if any, is returned in register RESULT.
@@ -36,7 +43,7 @@
 ! never destroyed by the call. '_stkoflow' and '_stkuflow' never alter RESULT.
 !
 ! On entry to a millicode procedure, %o7 must contain the return address,
-! and %R0 must contain the pointer to the calling procedure. See the
+! and %REG0 must contain the pointer to the calling procedure. See the
 ! file "conventions.txt" for calling convention details.
 !
 ! Internal calling conventions are somewhat odd: before a call to 'addtrans'
@@ -66,6 +73,7 @@
 
 	.global _alloc, _alloci, _setcar, _setcdr, _vectorset, _gcstart
 	.global _stkoflow, _stkuflow
+	.global _save_scheme_context, _restore_scheme_context
 
 	.seg "text"
 
@@ -323,6 +331,34 @@ Lstkoflow1:
 
 
 !-----------------------------------------------------------------------------
+! '_restore_scheme_context' is a null wrapper which simply calls 
+! 'restore_scheme_context' before returning.
+!
+! Use in inter-language calls.
+
+_restore_scheme_context:
+	mov	%o7, %TMP0
+	call	restore_scheme_context
+	nop
+	jmp	%TMP0
+	nop
+
+
+!-----------------------------------------------------------------------------
+! '_save_scheme_context' is a null wrapper which simply calls 
+! 'save_scheme_context' before returning.
+!
+! Use in inter-language calls.
+
+_save_scheme_context:
+	mov	%o7, %TMP0
+	call	save_scheme_context
+	nop
+	jmp	%TMP0
+	nop
+
+
+!-----------------------------------------------------------------------------
 ! 'gcstart'
 !
 ! On entry, %TMP0 has return address pointing to Scheme code, and %REG0 is
@@ -353,50 +389,24 @@ gcstart:
  	st	%R0, [ %STKP+8 ]	! procedure
 	st	%g0, [ %STKP+12 ]	! dummy
 	
-	! Save context
+	mov	%o7, %TMP0
+	call	save_scheme_context
+	nop
+	mov	%TMP0, %o7
 
-	st	%REG0, [ %GLOBALS+REG0_OFFSET ]
-	st	%REG1, [ %GLOBALS+REG1_OFFSET ]
-	st	%REG2, [ %GLOBALS+REG2_OFFSET ]
-	st	%REG3, [ %GLOBALS+REG3_OFFSET ]
-	st	%REG4, [ %GLOBALS+REG4_OFFSET ]
-	st	%REG5, [ %GLOBALS+REG5_OFFSET ]
-	st	%REG6, [ %GLOBALS+REG6_OFFSET ]
-	st	%REG7, [ %GLOBALS+REG7_OFFSET ]
-
-	st	%ARGREG2, [ %GLOBALS+ARGREG2_OFFSET ]
-	st	%ARGREG3, [ %GLOBALS+ARGREG3_OFFSET ]
-	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
-	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
-	st	%STKP, [ %GLOBALS+SP_OFFSET ]
-
+	!-----------
 	! C-language call
 
 	save	%sp, -96, %sp
 	call	_gcstart2
 	mov	%RESULT, %o0
 	restore
+	!-----------
 
-	! Restore context
-
-	set	_globals, %GLOBALS			! this is fundamental
-	set	_millicode, %MILLICODE
-	
-	ld	[ %GLOBALS+REG0_OFFSET ], %REG0
-	ld	[ %GLOBALS+REG1_OFFSET ], %REG1
-	ld	[ %GLOBALS+REG2_OFFSET ], %REG2
-	ld	[ %GLOBALS+REG3_OFFSET ], %REG3
-	ld	[ %GLOBALS+REG4_OFFSET ], %REG4
-	ld	[ %GLOBALS+REG5_OFFSET ], %REG5
-	ld	[ %GLOBALS+REG6_OFFSET ], %REG6
-	ld	[ %GLOBALS+REG7_OFFSET ], %REG7
-
-	ld	[ %GLOBALS+ARGREG2_OFFSET ], %ARGREG2
-	ld	[ %GLOBALS+ARGREG3_OFFSET ], %ARGREG3
-	ld	[ %GLOBALS+RESULT_OFFSET ], %RESULT
-	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
-	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
-	ld	[ %GLOBALS+SP_OFFSET ], %STKP
+	mov	%o7, %TMP0
+	call	restore_scheme_context
+	nop
+	mov	%TMP0, %o7
 
 	! Must now allocate memory!
 
@@ -455,3 +465,56 @@ Laddtrans1:
 	st	%TMP2, [ %GLOBALS+T_TRANS_OFFSET ]
 
 	! end of file
+
+
+!-----------------------------------------------------------------------------
+! 'restore_scheme_context' restores the Scheme context from the saved state
+! in the "globals" table.
+!
+! It is intended for use in inter-language calls.
+
+restore_scheme_context:
+	set	_globals, %GLOBALS
+	set	_millicode, %MILLICODE
+	
+	ld	[ %GLOBALS+REG0_OFFSET ], %REG0
+	ld	[ %GLOBALS+REG1_OFFSET ], %REG1
+	ld	[ %GLOBALS+REG2_OFFSET ], %REG2
+	ld	[ %GLOBALS+REG3_OFFSET ], %REG3
+	ld	[ %GLOBALS+REG4_OFFSET ], %REG4
+	ld	[ %GLOBALS+REG5_OFFSET ], %REG5
+	ld	[ %GLOBALS+REG6_OFFSET ], %REG6
+	ld	[ %GLOBALS+REG7_OFFSET ], %REG7
+
+	ld	[ %GLOBALS+ARGREG2_OFFSET ], %ARGREG2
+	ld	[ %GLOBALS+ARGREG3_OFFSET ], %ARGREG3
+	ld	[ %GLOBALS+RESULT_OFFSET ], %RESULT
+	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
+	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
+	jmp	%o7
+	ld	[ %GLOBALS+SP_OFFSET ], %STKP
+
+
+!-----------------------------------------------------------------------------
+! 'save_scheme_context' saves the Scheme context in the "globals" table.
+!
+! It is intended for use in inter-language calls.
+
+save_scheme_context:	
+	st	%REG0, [ %GLOBALS+REG0_OFFSET ]
+	st	%REG1, [ %GLOBALS+REG1_OFFSET ]
+	st	%REG2, [ %GLOBALS+REG2_OFFSET ]
+	st	%REG3, [ %GLOBALS+REG3_OFFSET ]
+	st	%REG4, [ %GLOBALS+REG4_OFFSET ]
+	st	%REG5, [ %GLOBALS+REG5_OFFSET ]
+	st	%REG6, [ %GLOBALS+REG6_OFFSET ]
+	st	%REG7, [ %GLOBALS+REG7_OFFSET ]
+
+	st	%ARGREG2, [ %GLOBALS+ARGREG2_OFFSET ]
+	st	%ARGREG3, [ %GLOBALS+ARGREG3_OFFSET ]
+	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
+	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
+	st	%STKP, [ %GLOBALS+SP_OFFSET ]
+	jmp	%o7
+	nop
+
