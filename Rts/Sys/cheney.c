@@ -2,11 +2,13 @@
  * 
  * $Id$
  *
- * Larceny -- copying garbage collector library, for all the GCs.
+ * Larceny -- copying garbage collector library, for all the GCs except
+ * the DOF and conservative GCs.
  */
 
 #define GC_INTERNAL
 
+#include <sys/time.h>
 #include <string.h>
 #include "larceny.h"
 #include "memmgr.h"
@@ -16,6 +18,7 @@
 #include "static_heap_t.h"
 #include "gclib.h"
 #include "barrier.h"
+#include "stats.h"
 
 /* Forwarding header (should be defined elsewhere?).
 
@@ -199,6 +202,7 @@
   }                                                     \
   else {                                                \
     word words = sizefield( *p ) / 4;                   \
+    COUNT_REMSET_LARGE_OBJ( words );                    \
     count += words;                                     \
     while (words--) {                                   \
       ++p;                                              \
@@ -549,32 +553,78 @@ static word forward( word, word **, cheney_env_t *e );
 #define ENUMERATE_NP_REMSET 4
 #define SPLITTING_GC        8
 
+/* Ad-hoc instrumentation */
+static gc_event_stats_t cheney;
+
+#if GC_HIRES_TIMERS
+static struct {
+  int      type;
+  hrtime_t now;
+  hrtime_t *ptr;
+} cheney_event;
+
+# define CHENEY_TYPE( t )    cheney_event.type = (t)
+
+static void start( hrtime_t *type0, hrtime_t *type1 ) 
+{
+  cheney_event.now = gethrtime();
+  cheney_event.ptr = (cheney_event.type ? type1 : type0);
+}
+
+static void stop( void )
+{
+  *cheney_event.ptr += gethrtime() - cheney_event.now;
+  cheney_event.ptr = 0;
+}
+#else
+# define CHENEY_TYPE(x)  (void)0
+# define start( a, b )   (void)0
+# define stop()          (void)0
+#endif
+
+#if GC_EVENT_COUNTERS
+# define COUNT_REMSET_LARGE_OBJ(x)                      \
+  do { if (x > GC_LARGE_OBJECT_LIMIT) {                 \
+         cheney.remset_large_objs_scanned++;            \
+         cheney.remset_large_obj_words_scanned += x;    \
+       }                                                \
+  } while(0) 
+#else
+# define COUNT_REMSET_LARGE_OBJ(x) (void)0
+#endif
+
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
 
+  CHENEY_TYPE( 0 );
   init_env( &e, gc, tospace, 0, tospace->gen_no, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
+  stats_add_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
 
+  CHENEY_TYPE( 1 );
   init_env( &e, gc, tospace, 0, tospace->gen_no+1, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
+  stats_add_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
 
+  CHENEY_TYPE( 1 );
   init_env( &e, gc, tospace, 0, tospace->gen_no+1, SCAN_STATIC, 
             scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
+  stats_add_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_promote_into_np( gc_t *gc,
@@ -583,6 +633,7 @@ void gclib_stopcopy_promote_into_np( gc_t *gc,
 {
   cheney_env_t e;
 
+  CHENEY_TYPE( 0 );
   init_env( &e, gc, old, young, old->gen_no, NP_PROMOTION, 
             scan_oflo_np_promote);
   e.np.old_steps_remaining = old_remaining / GC_CHUNK_SIZE;
@@ -592,16 +643,19 @@ void gclib_stopcopy_promote_into_np( gc_t *gc,
   oldspace_copy( &e );
   gc_compact_np_ssb( gc );
   sweep_large_objects( gc, old->gen_no-1, old->gen_no, young->gen_no );
+  stats_add_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
 
+  CHENEY_TYPE( 1 );
   init_env( &e, gc, tospace, 0, tospace->gen_no, ENUMERATE_NP_REMSET, 
             scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
+  stats_add_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
@@ -672,6 +726,7 @@ static void oldspace_copy( cheney_env_t *e )
   e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
 
   /* Collect */
+  start( &cheney.root_scan_prom, &cheney.root_scan_gc );
   gc_enumerate_roots( e->gc, e->scan_from_globals, (void*)e );
   gc_enumerate_remsets_older_than( e->gc,
                                    e->effective_generation-1,
@@ -680,7 +735,11 @@ static void oldspace_copy( cheney_env_t *e )
                                    e->enumerate_np_remset );
   if (e->scan_static && e->gc->static_area)
     scan_static_area( e );
+  stop();
+
+  start( &cheney.tospace_scan_prom, &cheney.tospace_scan_gc );
   e->scan_from_tospace( e );
+  stop();
 
   /* Shutdown */
   e->tospace->chunks[e->tospace->current].top = e->dest;
