@@ -6,16 +6,11 @@
 
 ($$trace "toplevel")
 
-(define *null-environment*)
-(define *r4rs-environment*)
-(define *r5rs-environment*)
-(define *larceny-environment*)
-
 (define (init-toplevel-environment)
-  (let* ((null (make-environment "<null-basis>" #f))
-	 (r4rs (make-environment "<r4rs-basis>" null))
-	 (r5rs (make-environment "<r5rs-basis>" r4rs))
-	 (larc (make-environment "<larceny-basis>" r5rs)))
+  (let* ((null (make-environment "null-environment" #f))
+	 (r4rs (make-environment "report-environment-4" null))
+	 (r5rs (make-environment "report-environment-5" r4rs))
+	 (larc (make-environment "interaction-environment" r5rs)))
 
     ;; booleans
 
@@ -120,7 +115,6 @@
     (environment-set! larc 'environment-get-cell environment-get-cell)
     (environment-set! larc 'environment-set! environment-set!)
     (environment-set! larc 'environment-reify environment-reify)
-    (environment-set! larc 'larceny-environment larceny-environment)
     (environment-set! larc 'environment-tag environment-tag)
 
     ;; numbers
@@ -429,16 +423,16 @@
     (environment-set! larc 'structure-printer structure-printer)
     (environment-set! larc 'structure-comparator structure-comparator)
 
-    ;; Support for rewriter and for macro expansion.
+    ;; Support for or hooks into the interpreter.
 
     (environment-set! larc 'macro-expand toplevel-macro-expand)
     (environment-set! null '.list .list)
     (environment-set! null '.list->vector .list->vector)
     (environment-set! null '.cons .cons)
-    (environment-set! null '.append .append)
-    (environment-set! null '.make-promise .make-promise)
     (environment-set! null '.car .car)
     (environment-set! null '.cdr .cdr)
+    (environment-set! null '.append .append)
+    (environment-set! null '.make-promise .make-promise)
 
     ;; system performance and interface
 
@@ -484,10 +478,7 @@
 
     (environment-set! larc 'bignum->flonum bignum->flonum)
 
-    (set! *null-environment* null)
-    (set! *r4rs-environment* r4rs)
-    (set! *r5rs-environment* r5rs)
-    (set! *larceny-environment* larc)
+    (initialize-environments null r4rs r5rs larc)
     #t))
 
 ; eof
