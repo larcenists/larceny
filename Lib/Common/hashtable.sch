@@ -1,3 +1,7 @@
+; Copyright 1999 William Clinger
+;
+; $Id$
+;
 ; Hash tables.
 ; Requires CALL-WITHOUT-INTERRUPTS.
 ; This code should be thread-safe provided VECTOR-REF is atomic.
@@ -186,7 +190,7 @@
       (if (hashtable? ht)
           (let* ((v (buckets ht))
                  (n (vector-length v))
-                 (h (modulo ((hasher ht) key) n))
+                 (h (remainder ((hasher ht) key) n))
                  (b (vector-ref v h)))
             (if ((searcher ht) key b)
                 #t
@@ -197,7 +201,7 @@
       (if (hashtable? ht)
           (let* ((v (buckets ht))
                  (n (vector-length v))
-                 (h (modulo ((hasher ht) key) n))
+                 (h (remainder ((hasher ht) key) n))
                  (b (vector-ref v h))
                  (probe ((searcher ht) key b)))
             (if probe
@@ -211,7 +215,7 @@
            (lambda ()
              (let* ((v (buckets ht))
                     (n (vector-length v))
-                    (h (modulo ((hasher ht) key) n))
+                    (h (remainder ((hasher ht) key) n))
                     (b (vector-ref v h))
                     (probe ((searcher ht) key b)))
                (if probe
@@ -231,7 +235,7 @@
            (lambda ()
              (let* ((v (buckets ht))
                     (n (vector-length v))
-                    (h (modulo ((hasher ht) key) n))
+                    (h (remainder ((hasher ht) key) n))
                     (b (vector-ref v h))
                     (probe ((searcher ht) key b)))
                (if probe
@@ -319,3 +323,5 @@
     (set! hashtable-map       (lambda (ht proc)     (ht-map ht proc)))
     (set! hashtable-copy      (lambda (ht)          (ht-copy ht)))
     #f))
+
+; eof
