@@ -1,0 +1,32 @@
+Information about how to use SCREEN.
+$Id$
+
+
+"screen" is a useful program for managing one or more long-running
+computations when being logged in from start to end is not an option.
+
+'man screen' produces a pretty much incomprehensible manual page.
+
+To run screen, just type 'screen'.  This starts a shell.  Use the new
+shell as you would any other shell, _except_ note that C-a is the screen
+escape character.  (Thus navigation in Emacs is somewhat unpleasant.)
+The command "C-a ?" produces some unhelpful help text.
+
+In your new shell, start your program, whatever it is.
+
+Now type C-a d ("detatch") to detach the screen session; this also
+terminates your screen process and returns you to your login shell.
+Your program continues to run in the background, and unlike other forms
+of background execution, will not be stopped when it produces output.
+You can now log out, start another program, or whatever.
+
+When you have logged back in, type 'screen -r' at your shell to "resume"
+the detached session.  Buffered output, if any, is spewed at you, and
+you observe that the program has finished running (or not).  You are now
+interacting with the program, and when that's finished, with the shell
+you got when you started screen the first time.  You terminate that
+shell by exiting from it, in normal fashion.
+
+If you have several screen sessions, you can use 'screen -ls' to list
+them, and you can use the IDs thus listed as an extra argument to
+'screen -r' to attach to any particular one.
