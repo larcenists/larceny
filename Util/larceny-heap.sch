@@ -1,15 +1,14 @@
-; Copyright 1998, 2000 Lars T Hansen.    -*- mode: scheme; mode: font-lock -*-
+; Copyright 1998-2004 Lars T Hansen.    -*- mode: scheme; mode: font-lock -*-
 ;
 ; $Id$
 ;
-; Load script for building the full heap image.
-; SPARC Larceny only.
+; SPARC Larceny:
+; Script for building the full heap image "larceny.heap"
 ;
-; Before you use this script, you must compile the development environment
-; and the debugger.  The easiest way to do that is to load the development
-; as usual and evaluate
-;
-;   (build-twobit)
+; 1  Evaluate (BUILD-LARCENY-FILES) in the development environment
+; 2  From the command line run
+;        larceny.bin -stopcopy sparc.heap
+; 3  Load this script.  It will create larceny.heap.
 ;
 ; BUGS:
 ; - The FFI and record package internals are not hidden.
