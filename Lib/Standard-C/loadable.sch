@@ -46,7 +46,10 @@
 			   (bytevector-ref bv 0)))
 		       (else
 			(error "No DLL lookup procedure for this word size and endianness.")))))
-	  (quotient x 4))))))
+	  (let ((p (quotient x 4)))
+            (if (fixnum? p)
+                p
+                (- p 1073741824))))))))  ; 2^30
 
 
 ; Given the name of a shared object file that contains compiled code for
