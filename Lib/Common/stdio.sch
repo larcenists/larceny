@@ -54,8 +54,8 @@
   (io/initialize)
   (file-io/initialize)
   (console-io/initialize)
-  (current-input-port (open-input-console))
-  (current-output-port (open-output-console))
+  (current-input-port (console-io/current-console-input))
+  (current-output-port (console-io/current-console-output))
   (unspecified))
 
 (define (shutdown-io-system)
@@ -132,11 +132,11 @@
 (define (open-binary-output-file filename)
   (file-io/open-file filename 'output 'binary))
 
-(define (open-input-console)
-  (console-io/open-input-console))
+(define (console-input-port)
+  (console-io/current-console-input))
 
-(define (open-output-console)
-  (console-io/open-output-console))
+(define (console-output-port)
+  (console-io/current-console-output))
 
 (define (open-input-string s)
   (string-io/open-input-string s))
@@ -243,19 +243,13 @@
     (lambda (p)
       (with-output-to-port p thunk))))
 
+; Transcript I/O is now an add-on.
+
 (define (transcript-on filename)
-  (transcript-io/push filename)
-  ((transcript-event-notifier))
-  (unspecified))
+  (error "Transcripts currently disabled."))
 
 (define (transcript-off)
-  (transcript-io/pop)
-  ((transcript-event-notifier))
-  (unspecified))
-
-(define transcript-event-notifier
-  (system-parameter 'transcript-event-notifier (lambda () #t)))
-
+  (error "Transcripts currently disabled."))
 
 ; Close-open-files is useful for (interactive) error recovery.
 
