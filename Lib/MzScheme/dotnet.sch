@@ -879,7 +879,6 @@
            :direct-slots  (list (list 'max-arity :initarg :max-arity :reader 'max-arity))
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle))
-
         )
 
     (slot-set! methodbase-class 'return-marshaler (lambda (object)
@@ -945,17 +944,21 @@
 
 (define (marshal-array->vector array-class)
   (dotnet-message 4 "Marshal-array->vector" array-class)
-  (let ((element-marshaler (return-marshaler
-                            (clr/find-class
-                             (string->symbol
-                             (clr/%to-string
-                              (clr-type/%get-element-type
-                               (clr-object/clr-handle array-class))))))))
-    (define (clr-array->vector array)
-      (if (clr/%null? array)
-          '()
-          (list->vector (map-clr-array element-marshaler array))))
-    clr-array->vector))
+  (if (clr-type/contains-generic-parameters? (clr-object/clr-handle array-class))
+      (lambda (array)
+        (error "Cannot marshal unbound generic types."))
+
+      (let ((element-marshaler (return-marshaler
+                                (clr/find-class
+                                 (string->symbol
+                                  (clr/%to-string
+                                   (clr-type/%get-element-type
+                                    (clr-object/clr-handle array-class))))))))
+        (define (clr-array->vector array)
+          (if (clr/%null? array)
+              '()
+              (list->vector (map-clr-array element-marshaler array))))
+        clr-array->vector)))
 
 (define (initialize-array-class array-class)
   ;; (dotnet-message "Initialize array class" array-class)
@@ -1045,8 +1048,11 @@
           :specializers (list (singleton enum-class))
           :procedure (let ((marshaler (return-marshaler enum-class)))
                        (lambda (call-next-method class object)
+                         ;; (dotnet-message 5 "WRAP-CLR-OBJECT" class object)
                          (marshaler
-                          (clr-convert/%change-type object clr-type-handle/system-int32))))))
+                          (if (clr/%null? object)
+                              (clr/%number->foreign-int32 0)
+                              (clr-convert/%change-type object clr-type-handle/system-int32)))))))
       )))
 
 (define (bootstrap-clr-classes! bootstrap-clr-object)
@@ -1193,6 +1199,7 @@
              (default-values '())
              (specializers '())
              (parameter-marshalers '()))
+    ;; (dotnet-message 5 "Parsing parameter" i "of" limit)
     (if (>= i limit)
         (values required-parameter-count
                 optional-parameter-count
@@ -1202,21 +1209,27 @@
         (let* ((raw-parameter  (clr/%foreign-aref raw-parameters i))
                (parameter-type (clr-object->class (clr-parameterinfo/%parameter-type raw-parameter))))
           (if (clr-parameterinfo/is-optional? raw-parameter)
-              (loop (+ i 1)
-                    limit
-                    required-parameter-count
-                    (+ optional-parameter-count 1)
-                    (cons (wrap-clr-object parameter-type (clr-parameterinfo/%default-value raw-parameter))
-                          default-values)
-                    specializers
-                    (cons (argument-marshaler parameter-type) parameter-marshalers))
-              (loop (+ i 1)
-                    limit
-                    (+ required-parameter-count 1)
-                    optional-parameter-count
-                    default-values
-                    (cons (argument-specializer parameter-type) specializers)
-                    (cons (argument-marshaler parameter-type) parameter-marshalers)))))))
+              (begin
+                ;; (dotnet-message 5 "Parameter is optional.")
+                (loop (+ i 1)
+                      limit
+                      required-parameter-count
+                      (+ optional-parameter-count 1)
+                      (let ((default (clr-parameterinfo/%default-value raw-parameter)))
+                        ;; (dotnet-message 5 "Default value is" default)
+                        (cons (wrap-clr-object parameter-type default)
+                              default-values))
+                      specializers
+                      (cons (argument-marshaler parameter-type) parameter-marshalers)))
+              (begin
+                ;; (dotnet-message 5 "Parameter is required.")
+                (loop (+ i 1)
+                      limit
+                      (+ required-parameter-count 1)
+                      optional-parameter-count
+                      default-values
+                      (cons (argument-specializer parameter-type) specializers)
+                      (cons (argument-marshaler parameter-type) parameter-marshalers))))))))
 
 (define (clr-fieldinfo/field-type info)
   (clr-object->class (clr-fieldinfo/%field-type info)))
@@ -1491,12 +1504,15 @@
 
 (define (clr-property-info->getter-method info)
   (call-with-values
-   (lambda () (clr-propertyinfo/get-index-parameters info))
+   (lambda ()
+     ;; (dotnet-message 5 "Parsing property index parameters.")
+     (clr-propertyinfo/get-index-parameters info))
    (lambda (required-parameter-count
             optional-parameter-count
             default-values
             specializers
             out-marshalers)
+     ;; (dotnet-message 5 "Creating property getter method.")
      (let* ((name (clr-memberinfo/name info))
             (declaring-type (clr-memberinfo/declaring-type info))
             (instance-marshaler (argument-marshaler declaring-type))
@@ -2133,7 +2149,6 @@
        (make-static-name handle)
        (clr-property-info->static-setter-method handle)
        public?)))
-
 
 (define (process-method-or-constructor clr-info public?)
   (let* ((handle      (clr-object/clr-handle clr-info))
