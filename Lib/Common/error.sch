@@ -1,26 +1,25 @@
-; Copyright 1998 Lars T Hansen.
+; Copyright 1998 Lars T Hansen.               -*- indent-tabs-mode: nil -*-
 ;
 ; $Id$
 ;
-; Larceny library -- error system
-;
-; Documented behavior:
-;  The default error handler prints all its arguments and then calls reset.
-;  The default reset handler exits to the operating system.
-;
-;  An installed error handler should take a code and additional 
-;  data elements. The code is either numeric (system exception: there will
-;  be three additional arguments), null (ignore), or something else 
-;  (user specific). The numeric codes are defined in Lib/ecodes.sch. 
-;  An installed error handler may not return. 
-;
-;  An installed reset handler takes no arguments. It may not return.
+; Larceny library -- higher-level error system.
 
 ($$trace "error")
 
 (define (error . args)
   (apply (error-handler) '() args))
 
+(define (reset)
+  ((reset-handler)))
+
+; To be replaced by exception system.
+(define (call-without-errors thunk . rest)
+  (let ((fail (if (null? rest) #f (car rest))))
+    (call-with-current-continuation
+     (lambda (k)
+       (call-with-error-handler (lambda (who . args) (k fail)) thunk)))))
+
+; Old code: clients should use PARAMETERIZE instead.
 (define (call-with-error-handler handler thunk)
   (let ((old-handler (error-handler)))
     (dynamic-wind 
@@ -28,15 +27,7 @@
      thunk
      (lambda () (error-handler old-handler)))))
 
-(define (call-without-errors thunk . rest)
-  (let ((fail (if (null? rest) #f (car rest))))
-    (call-with-current-continuation
-     (lambda (k)
-       (call-with-error-handler (lambda (who . args) (k fail)) thunk)))))
-
-(define (reset)
-  ((reset-handler)))
-
+; Old code: clients should use PARAMETERIZE instead.
 (define (call-with-reset-handler handler thunk)
   (let ((old-handler (reset-handler)))
     (dynamic-wind 
@@ -44,10 +35,20 @@
      thunk
      (lambda () (reset-handler old-handler)))))
 
-; This takes an argument list as presented to ERROR-HANDLER (below)
-; and optionally a port to print on (defaults to current output) and
-; prints a human-readable error message based on the information in 
-; the argument list.
+; DECODE-ERROR takes an error and optionally a port to print on (defaults
+; to the current output port) and prints a human-readable error message 
+; to the port based on the information in the error.
+;
+; The error is a list.  The first element is a key, the rest depend on the
+; key.  There are three cases, depending on the key:
+;  - a number:  The error is a primitive error.  There will be three
+;               additional values, the contents of RESULT, SECOND, and
+;               THIRD.
+;  - null:      The key is to be ignored, and the following arguments are
+;               to be interpreted as a user-level error: objects to be
+;               printed.
+;  - otherwise: The arguments are to be interpreted as a user-level error:
+;               objects to be printed.
 
 (define (decode-error the-error . rest)
   (let ((who (car the-error))
@@ -65,26 +66,5 @@
                      (display ": " port)))
           (for-each (lambda (x) (display x port)) (cdr the-error))
           (newline port)))))
-
-; The error handler is a procedure that takes a keyword as the first
-; argument and then some additional arguments.  If the keyword is a number,
-; then the error occured in compiled code or in a system subroutine.
-; If the keyword is null, it is ignored.  Otherwise it is printed with the
-; rest of the arguments.  Installed error handlers should obey this logic
-; as far as reasonable.
-;
-; The error handler is called with interrupts in the state they were
-; when the error was encountered.
-
-(define error-handler
-  (system-parameter "error-handler" 
-		    (lambda args
-                      (decode-error args)
-                      (reset))))
-
-(define reset-handler
-  (system-parameter "reset-handler" 
-		    (lambda ignored
-		      (exit))))
 
 ; eof
