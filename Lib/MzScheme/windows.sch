@@ -16,6 +16,15 @@
 ;;; time for this file to load, and several seconds for the window to
 ;;; appear when you first call (window-demo).
 
+;;; WARNING WARNING WARNING
+
+;;; The bulk of the code in this file is not an example of how to
+;;; interface to windows via JavaDot notation.  The bulk of this code
+;;; bypasses the JavaDot layer in order to hook into the Windows
+;;; message pump at the lowest possible level.  Since every windows
+;;; message will be passed through this code, an effort is made to do
+;;; as little work as necessary to decode and dispatch on the windows
+;;; message.
 
 ;;; The code between here and `SAMPLE CODE' below implement a generic
 ;;; function API to the windows message loop.  When a windows message
@@ -321,6 +330,24 @@
                           (else ':unrecognized))
                         (lparam/xpos lparam)
                         (lparam/ypos lparam)))))
+
+(define (decode-windows-message/device-change generic-receiver)
+  (lambda (message)
+    (generic-receiver (%message/handle message)
+                      (case (logand #xFFFF (%message/wparam-int message))
+                        ((#x0007) ':devnodes-changed)
+                        ((#x0017) ':query-change-config)
+                        ((#x0018) ':config-changed)
+                        ((#x0019) ':config-change-cancelled)
+                        ((#x8000) ':device-arrival)
+                        ((#x8001) ':device-query-remove)
+                        ((#x8002) ':device-query-remove-failed)
+                        ((#x8003) ':device-remove-pending)
+                        ((#x8004) ':device-remove-complete)
+                        ((#x8005) ':device-type-specific)
+                        ((#x8006) ':custom-event)
+                        ((#xFFFF) ':user-defined)
+                        (else ':unrecognized)))))
 
 ;;; This table contains the handlers for the #x400 system defined
 ;;; windows messages.  The handlers will destructure the message and
@@ -754,7 +781,8 @@
 ;
 ; ;; Hardware oriented
 ; (define-windows-message WM_POWERBROADCAST         #x0218 (hwnd ) )
-; (define-windows-message WM_DEVICECHANGE           #x0219 (hwnd ) )
+(define-windows-message WM_DEVICECHANGE           #x0219 (hwnd devmsg) decode-windows-message/device-change)
+
 ;
 ; ;; MDI
 ; (define-windows-message WM_MDICREATE              #x0220 (hwnd ) )
@@ -862,11 +890,14 @@
 
 ;;; Low-Level message pump code ends here
 
+;;; WARNING WARNING WARNING
+;;; The code above this line is very magic.  See the top of the file for details.
+;;; The sample code below is an example of using JavaDot notation to
+;;; talk to Windows forms.
 
 ;;; SAMPLE CODE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sample code.  Creates a window and hooks the mouse-leave events.
-
 
 (define (window-demo)
   (let* ((form (System.Windows.Forms.form.))
