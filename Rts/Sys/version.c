@@ -12,7 +12,7 @@
  *  'Buck' Turgidson            0.49
  *  The Coca-Cola Company       0.51
  *  CRM-114                     0.52
- *  Dear John
+ *  Dear John                   0.53
  *  Doomsday Device
  *  Fluoridation
  *  General Ripper 
@@ -33,8 +33,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 52;
-char *larceny_version_qualifier = " \"CRM-114\"";
+int  larceny_minor_version = 53;
+char *larceny_version_qualifier = " \"Dear John\"";
 
 char *date = DATE;
 char *user = USER;
