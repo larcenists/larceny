@@ -1,0 +1,127 @@
+% -*- TeX -*-
+%
+% $Id$
+
+\input{larceny.sty}
+\title{Larceny Note \#16: Extensions to Scheme \\
+	{\tenrm (Full of holes\ldots)}}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document attempts to catalogue some of the low-level extensions to Scheme
+which we use in order to write as much of the system as possible in Scheme
+itself. The fact that these extensions is documented is not a license to use
+them in user code; in fact, they may not even be available on the user level.
+\end{abstract}
+
+\section{Particular Data Types}
+
+\begin{description}
+
+\item[Bytevector] objects are string-like objects which hold byte quantities.
+
+\item[Bytevector-like] objects are generic string-like objects which hold
+byte quantities; in fact, bytevectors, strings, bignums, flonums, and
+compnums are all specific kinds of bytevector-like objects.
+
+\item[Vector-like] objects are generic vector objects; other vector types
+(proper vectors, symbols, ports, rectnums, and ratnums) are specific kinds of
+vector-like objects.
+
+\item[Procedures] look like vectors but smell differently; they have
+differently-named operations defined on them. The reason is that procedure
+pointers do not look like vector-like pointers.
+
+\end{description}
+
+
+\section{Typetags}
+
+In objects which have a header (bytevector-like, vector-like, and procedures),
+the header holds a type tag for the procedure. This header tag is gettable
+and settable by using typetag operations; hence, one type can be efficiently
+and violently coerced to another by Scheme code.
+
+For example, one can make a vector object from a vector-like object by 
+changing the typetag of the vector-like object.
+
+Changing the typetag of a procedure is allowed but potentially disastrous.
+
+\section{Operations}
+
+The following procedures are implemented on above-mentioned types; some other
+extensions to Scheme are also listed here. Most are completely obvious.
+
+\begin{description}
+
+\item {\verb+(bytevector? obj)+}
+
+\item {\verb+(bytevector-ref bv i)+}
+
+\item {\verb+(bytevector-set! bv i v)+}
+
+\item {\verb+(bytevector-length bv)+}
+
+\item {\verb+(bytevector-like? obj)+}
+
+\item {\verb+(bytevector-like-ref bvl i)+}
+
+\item {\verb+(bytevector-like-set! bvl i v)+}
+
+\item {\verb+(bytevector-like-length bvl)+}
+
+\item {\verb+(procedure? obj)+}
+
+\item {\verb+(procedure-ref proc i)+}
+
+\item {\verb+(procedure-set! proc i v)+}
+
+This is an extremely dangerous operation to use if care is not taken, as
+changing a procedure can upset the system in very peculiar ways. In particular,
+changing a procedure which lives in the static area is very bad, as is changing
+a procedure's code vector if the procedure can be returned through in some
+live continuation.
+
+\item {\verb+(procedure-length proc)+}
+
+\item {\verb+(vector-like? obj)+}
+
+\item {\verb+(vector-like-ref vl i)+}
+
+\item {\verb+(vector-like-set! vl i v)+}
+
+\item {\verb+(vector-like-length vl)+}
+
+\item {\verb+(typetag obj)+}
+
+The object must be a procedure, a vector-like structure of some sort, or a
+bytevector-like structure of some sort, or this operation signals an error.
+
+\item {\verb+(typetag-set! obj t)+}
+
+The object must be as for {\tt typetag}; the tag ``t'' must be a small
+positive fixnum in the range 0\ldots 7. The typetag of the object is changed
+to the given tag; the old tag is lost. If the object is know to other
+code which depends on its former status (i.e., typetag), then that other
+code is likely to crash (with an error due to a type violation) later.
+
+\item {\verb+(fixnum? obj)+}
+
+\item {\verb+(bignum? obj)+}
+
+\item {\verb+(ratnum? obj)+}
+
+\item {\verb+(flonum? obj)+}
+
+\item {\verb+(compnum? obj)+}
+
+\item {\verb+(rectnum? obj)+}
+
+\item {\verb+(port? obj)+}
+
+\end{description}
+
+\end{document}
