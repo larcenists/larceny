@@ -17,7 +17,9 @@
 	 "Auxlib/string.fasl"
 	 "Auxlib/vector.fasl"
 	 "Auxlib/pp.fasl"
-	 "Auxlib/io.fasl"))
+	 "Auxlib/io.fasl"
+	 "Auxlib/osdep-unix.fasl"
+	 "Auxlib/load.fasl"))
 
 '((environment experimental)
   (parent auxiliary)
@@ -68,6 +70,9 @@
 	   (auxiliary pretty-line-length)
 	   (auxiliary file-newer?)
 	   (auxiliary read-line)
+	   (auxiliary load)
+	   (auxiliary load-noisily)
+	   (auxiliary load-quietly)
 	   ; System-level things
 	   (experimental apropos)
 	   (experimental object-representation)
@@ -135,10 +140,5 @@
 	   (compiler make:pretend)
 	   (compiler make:debug)
 	   (compiler make:make)))
-
-; Remember the find-env procedure.
-
-(lambda (find-env)
-  (environment-set! (find-env '@interaction-environment@) 'find-env find-env))
 
 ; eof 
