@@ -71,6 +71,7 @@
 #include <stdlib.h>
 
 #include "larceny.h"
+#include "macros.h"
 #include "memmgr.h"
 #include "remset_t.h"
 #include "gclib.h"
@@ -109,6 +110,7 @@ struct remset_data {
 static int    log2( unsigned n );
 static pool_t *allocate_pool_segment( unsigned entries );
 static void   free_pool_segments( pool_t *first, unsigned entries );
+static void ssb_consistency_check( remset_t *rs );
 
 
 remset_t *
@@ -255,7 +257,7 @@ bool rs_compact( remset_t *rs )
 	recorded = 0;
 	data->curr_pool->top = pooltop;
 
-	annoyingmsg( "Remset @0x%p overflow, entries=%d", (void*)rs, rs->live );
+	annoyingmsg( "Remset @0x%p overflow, entries=%d", (void*)rs, rs->live);
 
 	rs->has_overflowed = TRUE;
 	if (data->curr_pool->next == 0) {
@@ -437,7 +439,6 @@ void rs_stats( remset_t *rs, remset_stats_t *stats )
   memset( &DATA(rs)->stats, 0, sizeof( DATA(rs)->stats ) );
 }
 
-#if defined(SIMULATE_NEW_BARRIER)
 bool rs_isremembered( remset_t *rs, word w )
 {
   word mask, *tbl, *b, tblsize, h;
@@ -446,7 +447,7 @@ bool rs_isremembered( remset_t *rs, word w )
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
   /* Clear SSB first */
-  compact_ssb( rs );
+  rs_compact( rs );
 
   /* Search hash table */
   tbl = data->tbl_bot;
@@ -460,15 +461,16 @@ bool rs_isremembered( remset_t *rs, word w )
 
   return b != 0;
 }
-#endif
 
-void rs_consistency_check( remset_t *rs )
+void rs_consistency_check( remset_t *rs, int gen_no )
 {
-  word *p, *q, *t;
+  word *p, *q, *t, obj;
   int i, pi, qi;
   int removed_nodes = 0, empty_buckets = 0, actual_nodes = 0;
 
   assert( WORDS_PER_POOL_ENTRY == 2 );
+
+  ssb_consistency_check( rs );
 
   for ( t=DATA(rs)->tbl_bot, i=0 ; t < DATA(rs)->tbl_lim ; t++, i++ ) {
     p = (word*)*t;
@@ -483,20 +485,51 @@ void rs_consistency_check( remset_t *rs )
 	qi = pi+1;
 	while (q != 0) {
 	  if (*p == *q) 
-	    consolemsg( "Chain %d: duplicate value (%d,%d): %lx\n", 
+	    consolemsg( "Chain %d: duplicate value (%d,%d): %lx", 
 		       i, pi, qi, *p );
 	  qi++;
 	  q = (word*)*(q+1);
 	}
+	obj = *p;
+	if (gen_no >= 0) {
+	  if (gclib_desc_g[ pageof(obj) ] != gen_no) {
+	    consolemsg( "Remset contains ptr to wrong gen: "
+			"0x%08x, gen=%d, want=%d",
+			obj, gclib_desc_g[ pageof( obj ) ], gen_no );
+	    conditional_abort();
+	  }
+	  if ((gclib_desc_b[ pageof(obj) ] & 3) != 3) {
+	    consolemsg( "Remset entry points to page with bogus attributes: "
+			"0x%08x, 0x%08x",
+			obj, gclib_desc_b[ pageof(obj) ] );
+	    conditional_abort();
+	  }
+	}
+	gclib_check_object( obj );
       }
       pi++;
       p = (word*)*(p+1);
     }
   }
+#if 0
   consolemsg( "Total buckets: %d", DATA(rs)->tbl_lim - DATA(rs)->tbl_bot );
   consolemsg( "Empty buckets: %d", empty_buckets );
   consolemsg( "Non-null entries: %d", actual_nodes );
   consolemsg( "Null entries: %d", removed_nodes );
+#endif
+}
+
+static void ssb_consistency_check( remset_t *rs )
+{
+  word *p, *q;
+
+  p = *rs->ssb_bot;
+  q = *rs->ssb_top;
+
+  while (p < q) {
+    gclib_check_object( *p );
+    p++;
+  }
 }
 
 static pool_t *allocate_pool_segment( unsigned pool_entries )
