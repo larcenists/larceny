@@ -1710,3 +1710,23 @@ $Id$
     Fixed 990??? / lth: wrapped the procedures with dynamic-wind.
 
 
+127 v0.43 (990629 / lth)
+    Priority: high
+    Category: TWOBIT
+
+    Incorrect or incomplete error codes and values are being passed 
+    to the error handler with the new compiler:
+
+	Larceny 0.43, larceny.heap:
+
+	> (define (foo x) (vector-ref x 10))
+	foo
+	> (foo #t)
+	Error: +: #t is not a number.
+	> (foo (make-vector 10))
+	Error: +: #(() () () () () () () () () ()) is not a number.
+
+    This error is also a suspect in crashes (core dumps) I've observed.
+
+    Fixed 990706 / lth: The problem was that emit-trap!, in sparcutil.sch,
+    did not convert its exception code to a fixnum.
