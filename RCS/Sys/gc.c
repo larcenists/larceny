@@ -2,9 +2,10 @@
  * Scheme 313 Runtime System.
  * Garbage collector.
  *
- * Full internals documentation is in the files "gc.txt" and "gcinterface.txt".
+ * Full internals documentation is in the files "gc.txt" and 
+ * "gcinterface.txt".
  *
- * $Id: gc.c,v 2.6 91/07/11 19:11:07 lth Exp Locker: lth $
+ * $Id: gc.c,v 2.7 91/07/12 03:16:19 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  *   We use "old" C; this has the virtue of letting us use 'lint' on the code
@@ -33,6 +34,9 @@
  * - Some of the diagnostic messages should be controlled by some value in the
  *   globals[] table, not by the DEBUG switch, since they can be generally
  *   useful.
+ * - In fact, the diagnostic messages should not be printed by colect(),
+ *   but by collect()'s caller, depending on the return value from collect()
+ *   and the statistics variables.
  * - collect() should return a value indicating the kind of collection that
  *   was performed, for diagnostic purposes.
  * - init_collector() should take an additional argument specifying alignment
@@ -49,9 +53,9 @@
  * - Detecting transactions with no pointers into the ephemeral area can be
  *   done by returning (or passing a pointer to) a flag which indicates
  *   whether something was indeed forwarded, during traversal of the 
- *   transaction list. Possibly, we should have a separate version of forward()
- *   for this if keeping track of the flag makes a lot of difference. 
- *   (It shouldn't.)
+ *   transaction list. Possibly, we should have a separate version of
+ *   forward() for this if keeping track of the flag makes a lot of 
+ *   difference. (It shouldn't.)
  * - Separate version of forward() for ephemeral space use which does not
  *   worry about the tenured-space overflow?
  * - We could malloc() the tenured areas separately. This gives considerable
@@ -241,12 +245,13 @@ unsigned int type;
  * and depending on the parameter given.
  * The internal state overrides the parameter.
  */
-collect( type )
+int collect( type )
 unsigned int type;
 {
   static unsigned must_tenure = 0;         /* 1 if we need to do a major gc */
   static unsigned words2 = 0;              /* # words in use after last gc */
   unsigned words1;                         /* # words in use before this gc */
+  unsigned words_copied, collection_type;
 
   e_top = (word *) globals[ E_TOP_OFFSET ];
   t_top = (word *) globals[ T_TOP_OFFSET ];     /* enables heap loading */
@@ -260,32 +265,19 @@ unsigned int type;
 #endif
 
   if (must_tenure || type != EPHEMERAL_COLLECTION) {
-#ifdef DEBUG
-    printf( "Tenuring collection commences...\n" );
-#endif
     tenuring_collection();
     tcollections++;
     must_tenure = 0;
-#ifdef DEBUG
-    printf( "Copied %d bytes\n", (word) t_top - (word) t_base );
-#endif
+    words_copied = (word) t_top - (word) t_base;
+    collection_type = TENURED_COLLECTION;
   }
   else {
-#ifdef DEBUG
-    printf( "Ephemeral collection commences...\n" );
-#endif
     ephemeral_collection();
     ecollections++;
     must_tenure = e_top > e_mark;
-#ifdef DEBUG
-    printf( "Copied %d bytes\n", (word) e_top - (word) e_base );
-#endif
+    words_copied = (word) e_top - (word) e_base;
+    collection_type = EPHEMERAL_COLLECTION;
   }
-
-#ifdef DEBUG
-  printf( "Done collecting.\n" );
-  printf( "pairs: %d   vectors: %d\n", pairs_copied, vectors_copied );
-#endif
 
   words2 = words_used();
   words_collected += words1 - words2;
@@ -304,6 +296,8 @@ unsigned int type;
   globals[ WALLOCATED_OFFSET ] = words_allocated;
   globals[ TCOLLECTIONS_OFFSET ] = tcollections;
   globals[ ECOLLECTIONS_OFFSET ] = ecollections;
+
+  return collection_type;
 }
 
 
