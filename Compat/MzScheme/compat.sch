@@ -29,7 +29,7 @@
     (load fn))
   (loadit filename))
 
-(define (call-with-error-control thunk1 thunk2) 
+(define (call-with-error-control thunk1 thunk2)
   (with-handlers [(values (lambda _ (thunk2)))]
     (thunk1)))
 
@@ -53,7 +53,7 @@
 (define (eof-object) *eof-object*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 
+;
 ; Common non-standard operations
 
 (define some? ormap)
@@ -134,7 +134,7 @@
   (newline p)
   (newline p))
 
-; Does not use magic syntax for flonums and compnums, but produces 
+; Does not use magic syntax for flonums and compnums, but produces
 ; valid data anyway.
 
 (define write-fasl-datum write)
@@ -191,6 +191,7 @@
 ; about these too for them to be useful).
 
 (define recognize-javadot-symbols? (make-parameter #f boolean?))
+(define recognize-keywords? (make-parameter #t boolean?))
 (define case-sensitive? (make-parameter #f boolean?))
 (define javadot-symbol? (lambda (x) #f))
 (define (javadot-symbol->symbol x) x)

@@ -53,7 +53,7 @@
 
 ; Calls thunk1, and if thunk1 causes an error to be signalled, calls thunk2.
 
-(define (call-with-error-control thunk1 thunk2) 
+(define (call-with-error-control thunk1 thunk2)
   (let ((eh (error-handler)))
     (error-handler (lambda args
 		     (error-handler eh)
@@ -90,7 +90,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 
+;
 ; Common non-standard operations
 
 (define some? ormap)
@@ -195,7 +195,7 @@
   (newline p)
   (newline p))
 
-; Does not use magic syntax for flonums and compnums, but produces 
+; Does not use magic syntax for flonums and compnums, but produces
 ; valid data anyway.
 
 (define write-fasl-datum write)
@@ -257,7 +257,7 @@
 
 (define (chez-compile-files)
   (for-each (lambda (fn)
-	      (with-optimization 
+	      (with-optimization
 	       (cdr fn)
 	       (lambda ()
 		 (chez-compile-file (car fn)
@@ -272,6 +272,7 @@
 ; about these too for them to be useful).
 
 (define recognize-javadot-symbols? (make-parameter #f boolean?))
+(define recognize-keywords? (make-parameter #t boolean?))
 (define case-sensitive? (make-parameter #f boolean?))
 (define javadot-symbol? (lambda (x) #f))
 (define (javadot-symbol->symbol x) x)
