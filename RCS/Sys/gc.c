@@ -2,7 +2,7 @@
  * Ephemeral garbage collector (for Scheme).
  * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 1.5 91/06/25 13:37:19 lth Exp Locker: lth $
+ * $Id: gc.c,v 1.6 91/07/03 20:49:57 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -31,9 +31,11 @@
   extern char *malloc();
   extern char *memcpy();
 #endif
-#include "gc.h"
+#include "offsets.h"
 #include "gcinterface.h"
+#include "gc.h"
 #include "macros.h"
+#include "main.h"
 
 /* this is the usual one */
 #define NULL                0
