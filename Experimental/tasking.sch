@@ -116,6 +116,7 @@
 
 (define (unblock t)
   (if (not *tasking-on*) (error "Tasking is not on."))
+  (if (not (task? t)) (error "UNBLOCK: " t " is not a task."))
   (tasks/without-interrupts
    (if (not (tasks/runnable? t))
        (tasks/schedule t))))
