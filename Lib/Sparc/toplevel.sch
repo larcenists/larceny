@@ -324,6 +324,7 @@
     (environment-set! r5rs 'values values)
     (environment-set! r5rs 'call-with-values call-with-values)
     ;; not in R4RS:
+    (environment-set! larc 'syscall syscall)
     (environment-set! larc 'make-trampoline make-trampoline)
     (environment-set! larc 'procedure-copy procedure-copy)
     (environment-set! larc 'evaluator evaluator)
@@ -441,6 +442,7 @@
     (environment-set! larc 'quit-handler quit-handler)
     (environment-set! larc 'sort sort)
     (environment-set! larc 'sort! sort!)
+    (environment-set! larc 'make-parameter system-parameter)
 
     ;; debugging.
 
@@ -624,13 +626,14 @@
     (environment-set! larc 'repl-printer repl-printer)
     (environment-set! larc 'repl-evaluator repl-evaluator)
     (environment-set! larc 'repl-prompt repl-prompt)
+    (environment-set! larc 'repl-level repl-level)
     (environment-set! larc 'herald herald)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
     (environment-set! larc 'typetag-set! typetag-set!)
-    (environment-set! larc '**newline** **newline**) ; Who uses this???
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
+    (environment-set! larc 'sys$codevector-iflush sys$codevector-iflush)
 
     (initialize-environments null r4rs r5rs larc)
     #t))
