@@ -4,6 +4,12 @@
 
 ;; FIXME:
 ;;  - immutable-k-list is ignored.
+;;  - auto-fields are broken
+;;  - struct? isn't quite right.
+;;  - make-struct-type should use struct-type-property guard proc
+;;  - inherit things like inspectors, prop-value-lists, struct-procedures
+;;  - make-struct-type should return constructors/accessors/mutators
+;;    built by (make-struct-constructor...) etc.
 
 
 ;; These procedures are provided.
@@ -29,60 +35,63 @@
 (define struct-predicate-procedure?)
 (define struct-constructor-procedure?)
 
-;; This shouldn't be visible to MzScheme programs, but the apply
-;; code for structure-procedures needs it.
-;; Consumes either a struct instance or a struct-type.
-;; Produces a procedure if there is one, or (undefined)
+;; Consumes a struct instance and produces the proc-spec value
+;; that was provided to make-struct-type when this instance's type
+;; was created.
 (define $sys.struct-proc-spec)
+
+;; Given a structure instance s and a number i,
+;; yield the value in the i-th field of s
+;; : struct number -> value
 (define $sys.struct-ref)
 
 ;; define-record is nowhere to be found.
 (let* ((*rtd-type* (record-type-descriptor (make-record-type "" '())))
-       (get-slots (record-accessor *rtd-type* 'slot-offsets))
-       (get-printer (record-accessor *rtd-type* 'printer))
-       (get-hier-vector (record-accessor *rtd-type* 'hierarchy-vector))
-       (get-hier-depth (record-accessor *rtd-type* 'hierarchy-depth))
-       (get-record-size (record-accessor *rtd-type* 'record-size))
-       
+      
        ;; The struct-type-descriptor type is a subtype of the
        ;; record-type-descriptor type.  (Say that five times fast!)
-       (*std-type*
-        (make-record-type
-         'struct-type-descriptor
-         '(auto-v prop-values inspector proc immutable-k-list)
-         *rtd-type*))
-       (*struct-field-offset* 1)
-       
-       (make-stype (record-constructor *std-type*))
-        
-       (stype-auto-v (record-accessor *std-type* 'auto-v))
-       (stype-prop-values (record-accessor *std-type* 'prop-values))
-       (stype-inspector (record-accessor *std-type* 'inspector))
-       (stype-proc (record-accessor *std-type* 'proc))
-       (stype-immutable-k-list (record-accessor *std-type* 'immutable-k-list))
-       (stype? (record-predicate *std-type*)))
-  
-  ;; drop the first n elements of lst
-  (define (drop n lst)
-    (if (zero? n)
-        lst
-        (drop (- n 1) (cdr lst))))
+       (*std-type* (make-record-type
+                    "struct-type-descriptor"
+                    '(auto-v prop-values inspector proc immutable-k-list)
+                    *rtd-type*))
+       (*stype-prop-type* (make-record-type
+                           "struct-type-property-descriptor"
+                           '(name guard-proc))))
 
-  ;; generate (list 0 1 ... n-1)
-  (define (nats-to n)
-    (let loop ((c (- n 1))
-               (l '()))
-      (if (< c 0)
-          l
-          (loop (- c 1)
-                (cons c l)))))
+  ;; Accessors for record type descriptors
+  (define get-slots (record-accessor *rtd-type* 'slot-offsets))
+  (define get-printer (record-accessor *rtd-type* 'printer))
+  (define get-hier-vector (record-accessor *rtd-type* 'hierarchy-vector))
+  (define get-hier-depth (record-accessor *rtd-type* 'hierarchy-depth))
+  (define get-record-size (record-accessor *rtd-type* 'record-size))
+
+  ;; Constructors / Accessors / Predicate for struct type descriptors
+  (define make-stype (record-constructor *std-type*)) 
+  (define stype-auto-v (record-accessor *std-type* 'auto-v))
+  (define stype-prop-values (record-accessor *std-type* 'prop-values))
+  (define stype-inspector (record-accessor *std-type* 'inspector))
+  (define stype-proc (record-accessor *std-type* 'proc))
+  (define stype-immutable-k-list
+    (record-accessor *std-type* 'immutable-k-list))
+  (define stype? (record-predicate *std-type*))
+
+  ;; Constructors / Accessors / Predicate for struct-type-property
+  ;; descriptors
+  (define make-stype-prop (record-constructor *stype-prop-type*))
+  (define stype-prop-name (record-accessor *stype-prop-type*
+                                    'name))
+  (define stype-prop-guard-proc (record-accessor *stype-prop-type*
+                                          'guard-proc))
+  (define stype-prop? (record-predicate *stype-prop-type*))
   
-  ;; A structure type is a record consisting of
-  ;; - a record type descriptor
-  ;; - a list of (struct-type-property-descriptor . any)
-  ;; - an inspector
-  ;; - proc-spec
-  ;; - immutable-k-list
+
+  ;; These four bindings are temporary.  They'll be set to procedures
+  ;; that produce structure-procedures below.
+  (define struct-constructor record-constructor)
+  (define struct-predicate record-predicate)
+  (define struct-indexer record-indexer)
+  (define struct-mutator record-mutator)
+
   (define make-struct-type*
     (let ((offset->name
            (lambda (n) (string->symbol
@@ -136,10 +145,14 @@
                   ;; shiny new struct-type-descriptor there instead.
                   (vector-set! hierarchy-vec hierarchy-depth st)
 
-                  (let ((constructor (record-constructor st))
-                        (predicate (record-predicate st))
-                        (accessor (record-indexer st))
-                        (mutator (record-mutator st)))
+                  (let ((constructor
+                         (struct-constructor st))
+                        (predicate
+                         (struct-predicate st))
+                        (accessor
+                         (struct-indexer st))
+                        (mutator
+                         (struct-mutator st)))
                 
                     (values st
                             constructor
@@ -151,17 +164,28 @@
     (case-lambda
       ((name) (make-struct-type-property* name #f))
       ((name guard-proc)
-       (let ((prop:p (make-record-type name '())))
-         
+       (let ((prop:p (make-record-type (symbol->string name)
+                                       '()
+                                       *stype-prop-type*)))
          (define (p? x)
-           (cond ((struct?* x) '...)
-                 ((struct-type?* x) '...)
-                 (else '...)))
+           (cond ((struct-instance? x)
+                  (p? (record-type-descriptor x)))
+                 ((struct-type? x)
+                  (let ((prop-vals (stype-prop-values x)))
+                    (if (assq prop:p prop-vals)
+                        #t
+                        #f)))
+                 (else #f)))
 
          (define (p-ref x)
-           (cond ((struct?* x) '...)
-                 ((struct-type?* x) '...)
-                 (else '...)))
+           (cond ((struct-instance? x)
+                  (p-ref (record-type-descriptor x)))
+                 ((struct-type? x)
+                  (let ((prop-vals (stype-prop-values x)))
+                    (cond ((assq prop:p prop-vals) => cdr)
+                          (else (p-ref 0))))) ;; trigger the error case
+                 (else
+                  (error "make-struct-type-property: exn:application:type"))))
            
          (values prop:p p? p-ref)
          ))))
@@ -176,32 +200,73 @@
   ;; FIXME:  This isn't right.  struct? only yields true when
   ;; struct->vector would produce a vector with some field values exposed.
   ;; Weird.  See MzScheme manual 4.8.
-  (define struct?*
+  (define struct?* struct-instance?)
+
+  ;; this is internal
+  (define struct-instance?
     (lambda (obj) (and (record? obj)
                   (struct-type? (record-type-descriptor obj)))))
+  
   (define struct-type?*
     (lambda (t) (stype? t)))
   
-  (define struct-type-property?* (undefined))
+  (define struct-type-property?* stype-prop?)
   
   (define struct-info* (undefined))
   (define struct-type-info* (undefined))
   (define struct->vector* (undefined))
   
   (define struct-mutator-procedure?* (undefined))
-  (define struct-accessor-procedure?* (undefined))
+  (define struct-accessor-procedure?*
+    (lambda (obj) (acc-proc? obj)))
   (define struct-predicate-procedure?* (undefined))
   (define struct-constructor-procedure?* (undefined))
 
-   ;; given an instance, return its type's proc-spec
+  ;; Random utilities that don't belong above.
+  ;; drop the first n elements of lst
+  (define (drop n lst)
+    (if (zero? n)
+        lst
+        (drop (- n 1) (cdr lst))))
+  
+  ;; generate (list 0 1 ... n-1)
+  (define (nats-to n)
+    (let loop ((c (- n 1))
+               (l '()))
+      (if (< c 0)
+          l
+          (loop (- c 1)
+                (cons c l)))))
+
+  ;; given an instance, return its type's proc-spec
   (define sys:struct-proc-spec
     (lambda (instance)
       (let ((type (record-type-descriptor instance)))
         (stype-proc type))))
 
+  ;; index into an arbitrary structure instance.
   (define sys:struct-ref
-    (lambda (instance index)
-      (vector-like-ref instance (+ index *struct-field-offset*))))
+    ;; the magic number couples this code with the record
+    ;; implementation.
+    (let ((struct-field-offset 1))
+      (lambda (instance index)
+        (vector-like-ref instance (+ index struct-field-offset)))))
+
+  ;;; Begin voodoo to get the procedures returned by
+  ;;; make-struct-type to be structure procedures
+  (define-values (struct:acc-proc make-acc-proc acc-proc? acc-proc-ref _)
+    (make-struct-type* 'struct-accessor-procedure
+                      #f  ;no super
+                      2   ;2 init fields
+                      0   ;0 auto fields
+                      #f  ;auto-value
+                      '() ; prop values
+                      (make-inspector)
+                      0   ; proc-spec
+                      '()))
+  (set! struct-indexer
+        (lambda (stype) (make-acc-proc (record-indexer stype) 'indexer))) 
+  
   
   ;; Hook up the implementation with the interface.
   (set! make-struct-type make-struct-type*)
@@ -228,32 +293,29 @@
 
   (set! $sys.struct-proc-spec sys:struct-proc-spec)
   (set! $sys.struct-ref sys:struct-ref)
+
   )
   
 ;; Quick and dirty test case
-;; Larceny doesn't seem to have define-values
-; (define tup)
-; (define mk-tup)
-; (define tup?)
-; (define tup-ref)
-; (define tup-set!)
-; (let-values ((type cons pred ref set)
-;               (make-struct-type 'tup #f 2 0))
-;   (set! tup type)
-;   (set! mk-tup cons)
-;   (set! tup? pred)
-;   (set! tup-ref ref)
-;   (set! tup-set! set))
+;; define-values is in Lib/MzScheme/macros.sch
 
-; (define triple)
-; (define mk-triple)
-; (define triple?)
-; (define triple-ref)
-; (define triple-set!)
-; (let-values (((type cons pred ref set)
-;               (make-struct-type 'triple tup 1 0)))
-;   (set! triple type)
-;   (set! mk-triple cons)
-;   (set! triple? pred)
-;   (set! triple-ref ref)
-;   (set! triple-set set))
+(define-values (struct:tup make-tup tup? tup-ref tup-set!)
+  (make-struct-type 'tup #f 2 0))
+
+(define-values (struct:triple make-triple triple? triple-ref triple-set!)
+  (make-struct-type 'triple struct:tup 1 0))
+
+(define-values (prop:p p? p-ref) (make-struct-type-property 'p))
+
+(define-values (struct:a make-a a? a-ref a-set!) 
+  (make-struct-type 'a #f 2 1 'uninitialized (list (cons prop:p 8))))
+
+;(p? struct:a) ; => #t 
+;(p? 13) ; => #f 
+;(define an-a (make-a 'x 'y)) 
+;(p? an-a) ; => #t
+;(p-ref an-a) ; => 8
+
+(define-values (struct:b make-b b? b-ref b-set!) 
+  (make-struct-type 'b #f 0 0 #f)) 
+;(p? struct:b) ; => #f

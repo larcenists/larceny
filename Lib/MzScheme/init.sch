@@ -20,6 +20,13 @@
         continuation-marks/structure
         continuation-mark-set->list)
 
+;; inspectors
+(export make-inspector
+        inspector?
+        current-inspector)
+
 ;; structs
-(export)
+(export make-struct-type
+        
+        )
 
