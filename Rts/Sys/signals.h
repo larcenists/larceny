@@ -10,9 +10,11 @@
  * when it is convenient to do so.
  *
  * A signal can occur when the virtual machine is in one of three modes:
- *  - in compiled code or millicode
- *  - in a non-interruptible syscall or in system code (eg, GC)
- *  - in an interruptible syscall, including user-written foreign functions
+ *  - In compiled code or millicode.
+ *  - In a non-interruptible syscall or in system code (eg, GC).  For
+ *    the benefit of signal handling, system code callouts are flagged
+ *    as noninterruptible syscalls.
+ *  - In an interruptible syscall, including user-written foreign functions.
  *
  * Thus we have six cases to deal with.
  *
@@ -26,10 +28,10 @@
  *     name should change).
  *
  * (2) Synchronous signals in non-interruptible syscall or in system code:
- *     these do not occur -- or are errors when they do occur -- since the
- *     only non-interruptible syscalls that exist are under our control
- *     and can be known not to create conditions that result in synchronous
- *     signals.  Ditto system code.
+ *     these are errors when they occur since the only non-interruptible
+ *     syscalls that exist are under our control and can be known not to
+ *     create conditions that result in synchronous signals.  Ditto system
+ *     code.
  *
  * (3) Synchronous signals in interruptible syscalls or foreign functions: 
  *     SIGBUS and SIGSEGV are errors and can be handled as such by aborting
@@ -73,15 +75,14 @@
 
 #include "config.h"
 
-#if !defined(STDC_SOURCE) && (defined(SUNOS4) || defined(BSD_SOURCE))
+#if defined(BSD_SIGNALS)
 # define signal_set_t int
-# define BSD_SIGNALS
-#elif defined(STDC_SOURCE)
+#elif defined(STDC_SIGNALS)
 # define signal_set_t int
-# define STDC_SIGNALS
-#else
+#elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
 # define signal_set_t sigset_t
-# define POSIX_SIGNALS
+#else
+# error "Unknown signal type in signals.h"
 #endif
 
 /* These are values returned to the setjmp() below */

@@ -2,8 +2,7 @@
  *
  * $Id$
  *
- * Larceny Run-time system -- Unix signal handling.
- *
+ * Larceny Run-time system -- signal handling.
  */
 
 #include <signal.h>
@@ -73,25 +72,24 @@
    registers at the time of an exception 
    */
 
-#if !defined(BSD_SIGNALS) && !defined(POSIX_SIGNALS) && !defined(STDC_SIGNALS)
-# error "Appropriate signal handling facilities are not available."
-#endif
-
 #if defined(SUNOS4)
 int sigsetmask( int );		/* Should be in <signal.h> but isn't */
 #endif
 
 #if defined(BSD_SIGNALS)
-static void inthandler( int, int, struct sigcontext *, char * );
-static void fpehandler( int, int, struct sigcontext *, char * );
+  static void inthandler( int, int, struct sigcontext *, char * );
+  static void fpehandler( int, int, struct sigcontext *, char * );
+#elif defined(XOPEN_SIGNALS)
+  static void inthandler( int, siginfo_t *, void * );
+  static void fpehandler( int, siginfo_t *, void * );
 #elif defined(POSIX_SIGNALS)
-static void inthandler( int, siginfo_t *, void * );
-static void fpehandler( int, siginfo_t *, void * );
+  static void inthandler( int );
+  static void fpehandler( int );
 #elif defined(STDC_SIGNALS)
-static void inthandler( int );
-static void fpehandler( int );
+  static void inthandler( int );
+  static void fpehandler( int );
 #else
-# error "No signal handler prototypes."
+# error "No signal handler could be selected for chosen feature set."
 #endif
 
 signal_set_t syscall_blocked_signals;
@@ -105,7 +103,7 @@ void setup_signal_handlers( void )
 #if defined(BSD_SIGNALS)
   signal( SIGINT, inthandler );	/* FIXME: Should use sigvec */
   signal( SIGFPE, fpehandler );	/* FIXME: Should use sigvec */
-#elif defined(POSIX_SIGNALS)
+#elif defined(XOPEN_SIGNALS)
   struct sigaction act;
 
   act.sa_handler = 0;
@@ -116,6 +114,18 @@ void setup_signal_handlers( void )
   sigaction( SIGINT, &act, (struct sigaction*)0 );
 
   act.sa_sigaction = fpehandler;
+  sigaction( SIGFPE, &act, (struct sigaction*)0 );
+#elif defined(POSIX_SIGNALS)
+  struct sigaction act;
+
+  act.sa_handler = 0;
+  act.sa_flags = SA_RESTART;
+  sigfillset( &act.sa_mask );
+
+  act.sa_handler = inthandler;
+  sigaction( SIGINT, &act, (struct sigaction*)0 );
+
+  act.sa_handler = fpehandler;
   sigaction( SIGFPE, &act, (struct sigaction*)0 );
 #elif defined(STDC_SIGNALS)
   signal( SIGINT, inthandler );
@@ -128,15 +138,17 @@ void setup_signal_handlers( void )
 /* Asynchronous signal -- only SIGINT for now. */
 #if defined(BSD_SIGNALS)
 static void inthandler( int sig, int code, struct sigcontext *c, char *a )
-#elif defined(POSIX_SIGNALS)
+#elif defined(XOPEN_SIGNALS)
 static void inthandler( int sig, siginfo_t *siginfo, void *context )
+#elif defined(POSIX_SIGNALS)
+static void inthandler( int sig )
 #elif defined(STDC_SIGNALS)
 static void inthandler( int sig )
 #else
 # error "No definition of inthandler."
 #endif
 {
-#if defined(STDC_SOURCE)
+#if defined(STDC_SIGNALS)
   signal( sig, inthandler );
 #endif
   /* Record the event */
@@ -160,8 +172,10 @@ static void inthandler( int sig )
 /* Synchronous signal -- only SIGFPE for now. */
 #if defined(BSD_SIGNALS)
 static void fpehandler( int sig, int code, struct sigcontext *scp, char *addr )
-#elif defined(POSIX_SIGNALS)
+#elif defined(XOPEN_SIGNALS)
 static void fpehandler( int sig, siginfo_t *siginfo, void *context )
+#elif defined(POSIX_SIGNALS)
+static void fpehandler( int sig )
 #elif defined(STDC_SIGNALS)
 static void fpehandler( int sig )
 #else
@@ -170,17 +184,17 @@ static void fpehandler( int sig )
 {
 #if defined(BSD_SIGNALS)
   void *ctx = (void*)scp;
-#elif defined(POSIX_SIGNALS)
+#elif defined(XOPEN_SIGNALS)
   void *ctx = context;
   int code = siginfo->si_code;
-#elif defined(STDC_SIGNALS)
+#elif defined(PETIT_LARCENY)
   void *ctx = (void*)0;
   int code = 0;
 #else
 # error "No context/code variables."
 #endif
 
-#if defined(STDC_SOURCE)
+#if defined(STDC_SIGNALS)
   signal( sig, fpehandler );
 #endif
 
@@ -193,6 +207,7 @@ static void fpehandler( int sig )
     longjmp( syscall_interrupt_buf, SYNCHRONOUS_ERROR );
   }
   else if (in_noninterruptible_syscall) {
+    /* This is really an error */
     /* Install a null signal handler, then retry, and handle the error
      * in the callout.  This is not ideal -- when we return, other code
      * may be executed that depends on the problem.  That is not much
@@ -207,10 +222,6 @@ static void fpehandler( int sig )
     /* Error happened in compiled code or millicode.  The call to
        execute_sigfpe_magic may or may not return, so never place
        code that must be executed following the call.
-
-       Observe that this case never occurs while in system code unless
-       there is a system error, as system code does not normally trigger
-       synchronous exceptions.
        */
     execute_sigfpe_magic( ctx );
     return;
@@ -224,7 +235,7 @@ void block_all_signals( signal_set_t *s )  /* s may be NULL */
     *s = sigsetmask( -1 );
   else
     sigsetmask( -1 );
-#elif defined(POSIX_SIGNALS)
+#elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
   sigset_t t;
 
   sigfillset( &t );
@@ -240,7 +251,7 @@ void unblock_signals( signal_set_t *s )
 {
 #if defined(BSD_SIGNALS)
   sigsetmask( *s );
-#elif defined(POSIX_SIGNALS)
+#elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
   sigprocmask( SIG_SETMASK, s, (sigset_t*)0 );
 #elif defined(STDC_SIGNALS)
   /* Can't unblock anything! */
@@ -256,7 +267,7 @@ void unblock_all_signals( void )
 {
 #if defined(BSD_SIGNALS)
   sigsetmask( 0 );
-#elif defined(POSIX_SIGNALS)
+#elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
   sigset_t s;
 
   sigemptyset( &s );
