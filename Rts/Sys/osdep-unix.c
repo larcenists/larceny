@@ -48,6 +48,11 @@ void osdep_poll_events( word *globals )
      */
 }
 
+void osdep_poll_startup_events( void )
+{
+  /* Nothing now, and probably nothing ever. */
+}
+
 void osdep_openfile( w_fn, w_flags, w_mode )
 word w_fn, w_flags, w_mode;
 {
