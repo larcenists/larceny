@@ -40,26 +40,27 @@
 
 (define (list . x) x)
 
-(define (list* . elements)
-  (define (loop more)
-    (cond ((pair? (cdr more)) (cons (car more) (loop (cdr more))))
-          ((null? (cdr more)) (car more))
-          (else (error "list*:  Improper list" more))))
-
-  (cond ((pair? elements) (cond ((pair? (cdr elements)) (loop elements))
-                                ((null? (cdr elements)) (car elements))
-                                (else (error "list*:  Improper list" elements))))
-        ((null? elements) '())
-        (else (error "list*:  Improper list" elements))))
+;; (list* a b c tail) => (cons a (cons b (cons c tail)))
+;; Note that (list* x) = x
+(define (list* first-element . rest-elements)
+  (define (loop this-element rest-elements)
+    (if (pair? rest-elements)
+        (cons this-element
+              (loop (car rest-elements)
+                    (cdr rest-elements)))
+        this-element))
+  (loop first-element rest-elements))
 
 (define (length l)
 
   (define (loop l len)
-    (if (pair? l)
-	(loop (cdr l) (+ len 1))
-	len))
+    (cond ((pair? l) (loop (cdr l) (+ len 1)))
+          ((null? l) len)
+          (else (error "length: Improper list" l))))
 
-  (loop l 0))
+  (cond ((pair? l) (loop (cdr l) 1))
+        ((null? l) 0)
+        (else (error "length: not a list" l))))
 
 ;; #t if L is a proper list of the correct length
 (define (length=? l n)
@@ -156,8 +157,84 @@
 
   (define (mapn f lists)
     (if (pair? (car lists))
-	(cons (apply f (map1 car lists))
+	(cons (apply f (map car lists))
 	      (mapn f (map1 cdr lists)))
+	'()))
+
+  (case (length rest)
+    ((0)  (map1 f x))
+    ((1)  (map2 f x (car rest)))
+    ((2)  (map3 f x (car rest) (cadr rest)))
+    ((3)  (map4 f x (car rest) (cadr rest) (caddr rest)))
+    (else (mapn f (cons x rest)))))
+
+(define (append-map f x . rest)
+
+  (define (map1 f x)
+    (if (pair? x)
+	(append (f (car x)) (map1 f (cdr x)))
+	'()))
+
+  (define (map2 f x y)
+    (if (pair? x)
+	(append (f (car x) (car y))
+                (map2 f (cdr x) (cdr y)))
+	'()))
+
+  (define (map3 f x y z)
+    (if (pair? x)
+	(append (f (car x) (car y) (car z))
+                (map3 f (cdr x) (cdr y) (cdr z)))
+	'()))
+
+  (define (map4 f x y z w)
+    (if (pair? x)
+	(append (f (car x) (car y) (car z) (car w))
+                (map4 f (cdr x) (cdr y) (cdr z) (cdr w)))
+	'()))
+
+  (define (mapn f lists)
+    (if (pair? (car lists))
+	(append (apply f (map car lists))
+                (mapn f (map1 cdr lists)))
+	'()))
+
+  (case (length rest)
+    ((0)  (map1 f x))
+    ((1)  (map2 f x (car rest)))
+    ((2)  (map3 f x (car rest) (cadr rest)))
+    ((3)  (map4 f x (car rest) (cadr rest) (caddr rest)))
+    (else (mapn f (cons x rest)))))
+
+(define (append-map! f x . rest)
+
+  (define (map1 f x)
+    (if (pair? x)
+	(append! (f (car x)) (map1 f (cdr x)))
+	'()))
+
+  (define (map2 f x y)
+    (if (pair? x)
+	(append! (f (car x) (car y))
+                (map2 f (cdr x) (cdr y)))
+	'()))
+
+  (define (map3 f x y z)
+    (if (pair? x)
+	(append! (f (car x) (car y) (car z))
+                (map3 f (cdr x) (cdr y) (cdr z)))
+	'()))
+
+  (define (map4 f x y z w)
+    (if (pair? x)
+	(append! (f (car x) (car y) (car z) (car w))
+                (map4 f (cdr x) (cdr y) (cdr z) (cdr w)))
+	'()))
+
+  (define (mapn f lists)
+    (if (pair? (car lists))
+	(append! (apply f (map car lists))
+                 (mapn f (map1 cdr lists)))
 	'()))
 
   (case (length rest)
@@ -201,7 +278,7 @@
 
   (define (for-each-n f lists)
     (if (pair? (car lists))
-	(begin (apply f (map1 car lists))
+	(begin (apply f (map car lists))
 	       (for-each-n f (map1 cdr lists)))
 	(unspecified)))
 
@@ -212,19 +289,17 @@
     ((3)  (for-each4 f x (car rest) (cadr rest) (caddr rest)))
     (else (for-each-n f (cons x rest)))))
 
-(define reverse
-  (letrec ((reverse-loop
-	    (lambda (l1 l2)
-	      (if (pair? l1)
-		  (reverse-loop (cdr l1) (cons (car l1) l2))
-		  l2))))
-    (lambda (l)
-      (reverse-loop l '()))))
-
-
 ;; Reverse L while appending to R.  Although this looks like an
 ;; unusual thing to want to do, it comes in quite handy in a lot of
 ;; code.
+
+(define (revappend left right)          ; non-destructive version
+  (cond ((pair? left) (revappend (cdr left) (cons (car left) right)))
+        ((null? left) right)
+        (else (error "revappend: improper list" left))))
+
+(define (reverse list)
+  (revappend list '()))
 
 ; Probably due to JonL White.
 (define (revappend! l r)
@@ -259,13 +334,6 @@
           ((null? scan) (reverse! accepted))
           (else (error "filter: Improper list" list))))
   (loop list '()))
-
-(define (find-if pred list)
-  (cond ((pair? list) (if (pred (car list))
-                          (car list)
-                          (find-if pred (cdr list))))
-        ((null? list) #f)
-        (else (error "find-if: Improper list" list))))
 
 (define (foldl f init l)
   (define (fold-one accum tail)
@@ -398,90 +466,116 @@
 
 (define member
   (letrec ((member
-	    (lambda (x l)
-              (cond ((pair? l) (if (equal? x (car l))
-                                   l
-                                   (member x (cdr l))))
-                    ((null? l) #f)
-                    (else (error "member: Improper list" l))))))
-    (lambda (x l)
-      (cond ((symbol? x) (memq x l))
-            ((number? x) (memv x l))
-            (else (member x l))))))
+	    (lambda (item list)
+              (cond ((pair? list) (if (equal? item (car list))
+                                      list
+                                      (member item (cdr list))))
+                    ((null? list) #f)
+                    (else (error "member: Improper list" list))))))
+    (lambda (item list)
+      (cond ((symbol? item) (memq item list))
+            ((number? item) (memv item list))
+            (else (member item list))))))
 
-(define (memv x l)
-  (define (memv x l)
-    (cond ((pair? l) (if (eqv? x (car l))
-                         l
-                         (memv x (cdr l))))
-          ((null? l) #f)
-          (else (error "memv: Improper list" l))))
-  (if (symbol? x)
-      (memq x l)
-      (memv x l)))
+(define (memv item list)
+  (define (memv item list)
+    (cond ((pair? list) (if (eqv? item (car list))
+                            list
+                            (memv item (cdr list))))
+          ((null? list) #f)
+          (else (error "memv: Improper list" list))))
+  (if (symbol? item)
+      (memq item list)
+      (memv item list)))
 
-(define (memq x l)
-  (cond ((pair? l) (if (eq? x (car l))
-                       l
-                       (memq x (cdr l))))
-        ((null? l) #f)
-        (else (error "memq: Improper list" l))))
+(define (memq item list)
+  (cond ((pair? list) (if (eq? item (car list))
+                          list
+                          (memq item (cdr list))))
+        ((null? list) #f)
+        (else (error "memq: Improper list" list))))
+
+(define (memf pred list)
+  (cond ((pair? list) (if (pred (car list))
+                          list
+                          (memf pred (cdr list))))
+        ((null? list) #f)
+        (else (error "memf: Improper list" list))))
+
+(define (memf-not pred list)
+  (cond ((pair? list) (if (pred (car list))
+                          (memf pred (cdr list))
+                          list))
+        ((null? list) #f)
+        (else (error "memf-not: Improper list" list))))
+
+(define (find-if pred list)
+  (let ((tail (memf pred list)))
+    (if (pair? tail)
+        (car tail)
+        #f)))
+
+(define (find-if-not pred list)
+  (let ((tail (memf-not pred list)))
+    (if (pair? tail)
+        (car tail)
+        #f)))
 
 (define assoc-string
   (letrec ((assoc
-            (lambda (x l)
-              (cond ((pair? l) (if (string-=? x (caar l))
-                                   (car l)
-                                   (assoc x (cdr l))))
-                    ((null? l) #f)
+            (lambda (key list)
+              (cond ((pair? list) (if (string-=? key (caar list))
+                                      (car list)
+                                      (assoc key (cdr list))))
+                    ((null? list) #f)
                     (else (error "assoc-string: Improper alist"))))))
-    (lambda (x l)
-      (if (string? x)
-          (assoc x l)
-          (error "assoc-string: not a string" x)))))
+    (lambda (key list)
+      (if (string? key)
+          (assoc key list)
+          (error "assoc-string: not a string" key)))))
 
 (define assoc-string-ci
   (letrec ((assoc
-            (lambda (x l)
-              (cond ((pair? l) (if (string-ci=? x (caar l))
-                                   (car l)
-                                   (assoc x (cdr l))))
-                    ((null? l) #f)
+            (lambda (key list)
+              (cond ((pair? list) (if (string-ci=? key (caar list))
+                                      (car list)
+                                      (assoc key (cdr list))))
+                    ((null? list) #f)
                     (else (error "assoc-string-ci: Improper alist"))))))
-    (lambda (x l)
-      (if (string? x)
-          (assoc x l)
-          (error "assoc-string-ci: not a string" x)))))
+    (lambda (key list)
+      (if (string? key)
+          (assoc key list)
+          (error "assoc-string-ci: not a string" key)))))
 
 (define assoc
   (letrec ((assoc
-	    (lambda (x l)
-              (cond ((pair? l) (if (equal? x (caar l))
-                                   (car l)
-                                   (assoc x (cdr l))))
-                    ((null? l) #f)
-                    (else (error "assoc: Improper alist" l))))))
-    (lambda (x l)
-      (cond ((symbol? x) (assq x l))
-            ((number? x) (assv x l))
-            (else (assoc x l))))))
+	    (lambda (key list)
+              (cond ((pair? list) (if (equal? key (caar list))
+                                      (car list)
+                                      (assoc key (cdr list))))
+                    ((null? list) #f)
+                    (else (error "assoc: Improper alist" list))))))
+    (lambda (key list)
+      (cond ((symbol? key) (assq key list))
+            ((number? key) (assv key list))
+            (else (assoc key list))))))
 
-(define (assv x l)
-  (define (assv x l)
-    (if (pair? l)
-        (if (eqv? (caar l) x)
-            (car l)
-            (assv x (cdr l)))
+(define (assv key list)
+  (define (assv key list)
+    (if (pair? list)
+        (if (eqv? (caar list) key)
+            (car list)
+            (assv key (cdr list)))
         #f))
-  (if (symbol? x)
-      (assq x l)
-      (assv x l)))
+  (if (symbol? key)
+      (assq key list)
+      (assv key list)))
 
-(define (assq x l)
-  (if (pair? l)
-      (if (eq? (caar l) x)
-          (car l)
-          (assq x (cdr l)))
+(define (assq key list)
+  (if (pair? list)
+      (if (eq? (caar list) key)
+          (car list)
+          (assq key (cdr list)))
       #f))
 
 (define (remove x l)
