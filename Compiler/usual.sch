@@ -296,6 +296,48 @@
      (let-syntax ((?name1 ?val1)) (let*-syntax ((?name ?val) ...) ?body)))))
 
 
+; Some new syntax
+
+; (parameterize ((p1 e1) ...) b1 b2 ...)
+; where each p1 is the name of a parameter (a procedure of 0 or 1 args).
+
+(define-syntax parameterize
+  (syntax-rules ()
+    ((parameterize ((p1 e1) ...) b1 b2 ...)
+     (letrec-syntax 
+         ((parameterize-aux
+           (... (syntax-rules ()
+                  ((parameterize-aux (t ...) ((p0 e0) x ...) body1 body2 ...)
+                   (let ((temp e0))
+                     (parameterize-aux ((temp e0 p0) t ...) 
+                                       (x ...) 
+                                       body1 body2 ...)))
+                  ((parameterize-aux ((t e p) ...) () body1 body2 ...)
+                   (let-syntax ((swap!
+                                 (syntax-rules ()
+                                   ((swap! var param)
+                                    (let ((tmp var))
+                                      (set! var (param))
+                                      (param tmp))))))
+                     (dynamic-wind
+                      (lambda ()
+                        (swap! t p) ...)
+                      (lambda ()
+                        body1 body2 ...)
+                      (lambda ()
+                        (swap! t p) ...))))))))
+       (parameterize-aux () ((p1 e1) ...) b1 b2 ...)))))
+
+; The controversial SRFI-11 LET-VALUES.
+
+(define-syntax let-values
+  (syntax-rules ()
+    ((let-values (formals e0) e1 e2 ...)
+     (call-with-values
+      (lambda ()
+	e0)
+      (lambda formals e1 e2 ...)))))
+
             ))
 
 (define-syntax-scope 'letrec)
