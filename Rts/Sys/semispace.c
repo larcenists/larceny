@@ -199,8 +199,7 @@ void ss_free( semispace_t *ss )
   ss->n = -1;
   ss->chunks = 0;
   free( ss );
-
-  ss_invariants( ss );
+  /* *ss is dead */
 }
 
 
