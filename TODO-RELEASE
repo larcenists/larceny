@@ -40,18 +40,33 @@ Remaining to-do items:
      - depends on syntax environment bug fix
   * Better debug information
      - lth must write spec first [done, see Debugger/debug-info.txt]
+  * The flonum primitives fl+, fl-, fl--, fl*, fl=, fl<=, fl>, fl>= should
+    check that their arguments are flonums and signal an error if not; at
+    present they are mapped to the generic operations in the primitive
+    table.
+  * Misc that I've discovered and not decided whether should be fixed or
+    not:
+    - Some primitives are obsolete in sparc.imp.sch (only available to MAL):
+      - creg, creg-set!
+    - The parameters FIXNUM-PRIMITIVES, FLONUM-PRIMITIVES (used in sparc.imp)
+      are not exported to the std environment, should be removed when
+      primitive handling is cleaned up
 
 [Run-time system]
-  * Provide more accurate data to memstats: it is possible to provide
+  * [lth] Provide more accurate data to memstats: it is possible to provide
     up-to-date data for allocation volume and currently allocated heap,
-    not just data accurate to the last GC.
-  * Must deal with more signals on Unix systems (important for buggy 
+    not just data accurate to the last GC.  
+  * [lth] memstats: must compute words reclaimed.
+  * [lth] Must deal with more signals on Unix systems (important for buggy 
     foreign code)
+  * [lth] Would be nice if NP remset could be flagged as such with (x,1)
+    identity.
+  * [lth] Must fix simulated barrier stats (in memmgr.c)
 
 [Library]
-  * Top-level environments must hold syntax definitions, and the hacks
-    used to work around it (in compile-expression, macro-expand-expression)
-    must be removed.
+  * [lth/wdc] Top-level environments must hold syntax definitions, and 
+    the hacks used to work around it (in compile-expression, 
+    macro-expand-expression) must be removed.
      - lth must propose spec
   * The following magic/compiler-internal names in the toplevel 
     environment must be given new names (e.g., starting with `.'),
@@ -64,6 +79,13 @@ Remaining to-do items:
 	vector-length:vec
 	vector-ref:trusted
 	vector-set!:trusted
+  * Remove these from the toplevel env and the library after checking
+    that they're not used by compiler or assembler
+	call-with-error-handler	[ use parameterize or exception system ]
+	call-without-errors	[ use parameterize or exception system ]
+	call-with-reset-handler	[ use parameterize ]
+	system-function		[ obsolete ]
+	with-*-*-binary-file    [ not useful ]
 
 [SRFI]
   * Definite: SRFI 0  (basic)          [ done, modulo adding SRFIs ]
@@ -79,6 +101,10 @@ Remaining to-do items:
      - must have info from compiler first.
   * Revise the command set, and update the documentation to reflect
     the revisions.
+
+[Util and other benchmarking code]
+  * Must fix Util/process-stats.sch
+  * Must fix/convert crunch, process-output to use new format?
 
 [General clean-up]
   * Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
@@ -127,75 +153,52 @@ Remaining to-do items:
     procedure index, at least.  Must add them and create documentation
     for the ones that have none.
 
-	syscall
+    I/O:
+	readtable-ref
+	readtable-set!
+	open-binary-*-file
+	call-with-binary-*-file
+	print-length
+	print-level
+	write-bytevector-like
+	lowlevel-write
+	format			[ Park it or move it ]
+
+	interpreted-*?, interpreted-expression-source
+
 	make-environment
 	environment*
 	fl+, fl-, fl--, fl*, fl=, fl<, fl<=, fl>, fl>=
-	make-trampoline
-	evaluator		[ a parameter ]
-	procedure-arity, other procedure doc fns
-	interpreted-*?, interpreted-expression-source
-	open-binary-*-file
-	call-with-binary-*-file
-	with-*-*-binary-file    [ These are silly -- nuke them ]
-	format			[ Park it or move it ]
-	port-name
-	write-bytevector-like   [ Who uses this and not lowlevel-write?]
-	lowlevel-write	        [ Who uses this and not write-bytevector-like?]
-	readtable-ref
-	readtable-set!
-	console-input-port, console-output-port, *-factory
-	print-length, print-level
-	call-with-error-handler	[ Obsolete -- use parameterize ]
-	call-without-errors	[ Obsolete -- use parameterize ]
-	call-with-reset-handler	[ Obsolete -- use parameterize ]
-	quit
-	quit-handler		[ A parameter ]
 	make-parameter
-	current-continuation-structure
-	make-bytevector is misspelled make-bytevector?
-	bytevector-like? is misplaced
 	macro-expand
-	system-function		[ Largely obsolete? ]
 	sys$C-ffi-*		[ Should probably be .c-ffi-* ]
-	peek-bytes, poke-bytes
-	delete-file is misplaced
+        sys$codevector-iflush	[ Should probably be .c-ffi-codevector-iflush ]
 	memstats-*
-	command-line-arguments
-	system
 	repl
-	repl-level		[ A parameter ]
 	unspecified, undefined
-        sys$codevector-iflush	[ Used by FFI ]
 
   * Fix reported documentation bugs (to be determined)
-     - bugs: remove claim that all optional functionality is supported,
+     - BUG: remove claim that all optional functionality is supported,
        because transcript ports are currently not supported (they are
-       in Experimental and depend on the experimental user-level I/O system)
-     - new stuff
-         QUIT, QUIT-HANDLER
+       in Experimental and depend on the experimental user-level I/O 
+       system).
+     - BUG: some bugs were reported on the mailing list but are not recorded
+       anywhere.
+     - BUG: CHECK, POPSTK, TRAP are not documented in the instruction set manual.
+     - Language: the low-level macro system and the extensions to the 
+       high-level system are not documented.
+     - New stuff
          PARAMETERIZE, MAKE-PARAMETER
          LET-VALUES
-         CONSOLE-INPUT-PORT-FACTORY, CONSOLE-OUTPUT-PORT-FACTORY
-	 REPL-LEVEL
-     - some were reported on the mailing list
-        - ...
      - manual/intro.html: 
         - debugging info
         - compiler switches
         - "make setup" will no longer work.
-     - manual/fixnums.html:
-        - flesh out, or cross-link to general definitions?
      - manual/ffi.html:
         - add -uint versions (and perhaps deprecate -unsigned versions)
         - ditto uint type name
         - document FOREIGN-FUNCTION-POINTER
-     - manual/parameters.html
-        - add CURRENT-INPUT-PORT, CURRENT-OUTPUT-PORT
      - manual/io.html:
-       - changed meaning of CURRENT-INPUT-PORT, CURRENT-OUTPUT-PORT:
-         they now return the new value (like all parameters)
-       - introduced CONSOLE-INPUT-PORT, CONSOLE-OUTPUT-PORT
        - introduced PRINT-LENGTH, PRINT-LEVEL  [ Also parameters! ]
        - introduced binary i/o procedures
      - manual/syscontrol.html:
@@ -215,8 +218,7 @@ Remaining to-do items:
        - note change in 'make setup'
      - manual/starting.html -- many more switches now
      - manual/repl.hmtl
-       - the repl's use of the console, and how it controls timer 
-         interrupts and resets.
+       - clean up according to comments in file
      - manual/developing.html:
        - build probably has more switches now?
      - manual/bdw.html:
