@@ -1,14 +1,16 @@
 ! Symbolic register definitions.
+! Sparc version.
 !
-! $Id$
+! $Id: registers.s.h,v 1.1 91/06/20 15:49:02 lth Exp Locker: lth $
 
 #define E_TOP		o0
 #define E_LIMIT		o1
-#define SP		o2
+#define STKP		o2
 #define RESULT		o3
 #define ARGREG2		o4
 #define ARGREG3		o5
 
+! g1 *must* be a temp register
 #define TMP0		g1
 
 #define TIMER		l0
@@ -17,7 +19,7 @@
 #define TMP3		l3
 #define TMP4		l4
 #define TMP5		l5
-#define TMP6		l6
+#define MILLICODE	l6
 #define GLOBALS		l7
 
 #define REG0		i0
