@@ -4,6 +4,11 @@
 ;
 ; Load script for building the full heap image on SPARC.
 ;
+; Before you use this script, you must compile the development environment
+; and the debugger.  The easiest way to do that is to run 'build' and then
+; evaluate
+;   (make-development-environment)
+;
 ; BUGS:
 ; - The FFI internals are not hidden.
 
@@ -19,6 +24,11 @@
 
 ; Everything will be compiled from now on.
 
+(repl-printer
+ (lambda (x)
+   (if (not (eq? x (unspecified)))
+       (pretty-print x))))
+
 (load "Auxlib/std-ffi.sch")
 (load "Auxlib/unix-functions.sch")
 
@@ -29,16 +39,8 @@
 	    (lambda (a b)
 	      (string<? (symbol->string a) (symbol->string b)))))))
 
-(herald (string-append "\nStandard heap image dumped on "
-		       (unix:current-timestamp)
-		       ".\nUsing compiler for evaluation."))
-(repl-display-procedure 
- (lambda (x)
-   (if (not (eq? x (unspecified)))
-       (pretty-print x))))
-
-(dump-interactive-heap "std.heap")
-(system "larceny -reorganize-and-dump std.heap")
-(system "mv std.heap.split std.heap")
+(dump-interactive-heap "larceny.heap")
+(system "./larceny.bin -reorganize-and-dump larceny.heap")
+(system "/bin/mv larceny.heap.split larceny.heap")
 
 ; eof
