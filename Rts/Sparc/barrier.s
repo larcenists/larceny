@@ -1,7 +1,7 @@
 ! Rts/Sparc/barrier.s
 ! Write barrier code to support new GC with the old remembered sets.
 !
-! $Id: barrier.s,v 1.7 1997/05/15 00:58:05 lth Exp lth $
+! $Id: barrier.s,v 1.7 1997/05/15 00:58:05 lth Exp $
 !
 ! Write barrier.
 !

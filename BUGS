@@ -1,6 +1,6 @@
 ; -*- text -*-
 ; ./BUGS
-; $Id: BUGS,v 1.4 1997/05/15 00:40:15 lth Exp lth $
+; $Id: BUGS,v 1.5 1997/05/31 01:54:38 lth Exp lth $
 
 
 			 KNOWN BUGS IN LARCENY
@@ -161,7 +161,33 @@ information, test cases, and so on.
      to deal with this.
 
 
-NEXT ENTRY: 019
+020  (v0.28b) 970527
+
+     Transcript:
+
+	everest(8) % larceny ../larceny.heap
+	Larceny v0.28b/precise (SunOS;split) (lth/Tue May 27 20:03:53 EDT 1997)
+
+	> (load "dynamic.sch")
+	> (dynamic-benchmark 10)
+
+	--------------------------------------------------------
+	dynamic
+	Error: dynamic-parse-expressionsIllegal expression list: ~srest
+
+     Apparently a bug in the interpreter.
+
+021  (v0.28b) 970528
+
+     Free list coalescing is not done properly in unix-alloc.c.  This is 
+     a benign problem with the current GC structure, but should be fixed.
+     - free list should be address ordered (for coalescing, and also so
+       that we can return memory to the OS).
+     - a new free block can merge two previously separated blocks so that
+       all three blocks become one.
+
+
+NEXT ENTRY: 022
 
 
 ; eof

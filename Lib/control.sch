@@ -1,7 +1,7 @@
 ; Lib/control.sch
 ; Larceny library -- various control procedures
 ;
-; $Id: control.sch,v 1.4 1997/05/15 00:42:10 lth Exp lth $
+; $Id: control.sch,v 1.4 1997/05/15 00:42:10 lth Exp $
 ;
 ; Copyright 1991 Lightship Software
 ;

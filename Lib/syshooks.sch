@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: syshooks.sch,v 1.1 1997/05/15 00:42:10 lth Exp lth $
+; $Id: syshooks.sch,v 1.2 1997/05/31 01:50:28 lth Exp lth $
 ;
 ; Larceny run-time system -- interface to system functions
 ;
@@ -22,6 +22,7 @@
     ((sys$codevector-iflush) sys$codevector-iflush)
     ((sys$tracectl) sys$tracectl)
     ((sys$trace) sys$trace)
+    ((sys$gcctl) sys$gcctl)
     (else ???)))
 
 ; eof

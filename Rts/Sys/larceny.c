@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.12 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: larceny.c,v 1.14 1997/05/31 01:38:14 lth Exp lth $
  *
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <memory.h>
+#include <malloc.h>
 #include "larceny.h"
 #include "macros.h"
 #include "cdefs.h"
@@ -18,7 +19,7 @@ typedef struct opt opt_t;
 
 /* Argument parsing structure */
 struct opt {
-  unsigned   maxheaps;
+  int        maxheaps;
   gc_param_t gc_info;
   int        size_explicit[ MAX_HEAPS ];
   int        himark_explicit[ MAX_HEAPS ];
@@ -35,6 +36,7 @@ struct opt {
   int        supremely_annoying;
   int        flush;
   int        noflush;
+  int        reorganize_and_dump;
   int        restc;
   char       **restv;
   char       *gc_debug_file;
@@ -76,8 +78,9 @@ char **argv;
   o.gc_info.globals = globals;
 
   cache_setup();
-  consolemsg( "Larceny v%s (%s;%s) (%s/%s)",
+  consolemsg( "Larceny v%s/%s (%s;%s) (%s/%s)",
 	      version, 
+	      gc_technology,
 	      osname, 
 	      (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
 	      user, date );
@@ -121,6 +124,17 @@ char **argv;
   load_heap();
   closeheap();
 
+  if (o.reorganize_and_dump) {
+    char buf[ PATH_MAX ];
+
+    if (!o.gc_info.use_static_heap)
+      panic( "No static heap to reorganize!" );
+    sprintf( buf, "%s.split", o.heapfile );
+    if (!reorganize_and_dump_static_heap( buf ))
+      panic( "Failed heap reorganization." );
+    goto end;
+  }
+
   if (o.show_heapstats)
     consolemsg( "GC type: %s\n", gctype() );
 
@@ -147,7 +161,9 @@ char **argv;
   /* control does not usually reach this point */
 
   consolemsg( "Scheme_start() returned with value %08lx", globals[ G_RESULT ]);
-  return 0;
+
+ end:
+  exit( 0 );
 }
 
 
@@ -382,6 +398,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->noflush = 1;
     else if (strcmp( *argv, "-nostatic" ) == 0)
       o->gc_info.use_static_heap = 0;
+    else if (strcmp( *argv, "-reorganize-and-dump" ) == 0)
+      o->reorganize_and_dump = 1;
     else if (strcmp( *argv, "-args" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
@@ -449,7 +467,7 @@ hnumbarg( char *str, int *argc, char ***argv, unsigned *var, int *loc )
   int l = strlen(str);
 
   if (strncmp( **argv, str, l ) == 0) {
-    if (**argv+l != 0) {
+    if (*(**argv+l) != 0) {
       if (sscanf( **argv+strlen(str), "%d", loc ) != 1) invalid( str );
     }
     else
@@ -502,6 +520,7 @@ static void help( void )
   consolemsg("Usage: larceny [ options ][ heapfile ][-args arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
+#ifndef BDW_GC
   consolemsg("\t-heaps    n     Number of non-static heaps." );
   consolemsg("\t-size     nnnn  Per-heap size in bytes." );
   consolemsg("\t-size#    nnnn  Heap number '#' size." );
@@ -515,16 +534,20 @@ static void help( void )
   consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
   consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
   consolemsg("\t-nostatic       Don't use the static area." );
+  consolemsg("\t-reorganize-and-dump  Split static heap." );
+#endif
   consolemsg("\t-stats          Print startup memory statistics." );
   consolemsg("\t-quiet          Suppress nonessential messages." );
   consolemsg("\t-annoy-user     Print annoying messages." );
   consolemsg("\t-annoy-user-greatly  Print very annoying messages." );
   consolemsg("\t-help           Print this message." );
   consolemsg("");
+#ifndef BDW_GC
   consolemsg("\t-rhash    nnnn  Remembered-set hash table size, in elements");
   consolemsg("\t                 (The size must be a power of 2)");
   consolemsg("\t-ssb      nnnn  Remembered-set Sequential Store Buffer (SSB)");
   consolemsg("\t                 size in elements" );
+#endif
   consolemsg("\t-ticks    nnnn  Initial timer interval value" );
   consolemsg("\t-break          Enable breakpoints" );
   consolemsg("\t-step           Enable single-stepping" );

@@ -1,7 +1,7 @@
 /* Rts/Sys/np-sc-heap.c
  * Larceny run-time system -- non-predictive copying collector.
  *
- * $Id: np-sc-heap.c,v 1.9 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: np-sc-heap.c,v 1.10 1997/05/31 01:38:14 lth Exp lth $
  *
  * The collector divides the heap into two generations.  Each generation
  * is represented by one semispace_t data type: one for the old generation,
@@ -52,14 +52,26 @@ struct npsc_data {
   int new_k;                  /* desired number of steps when new */
 
   unsigned stepsize;          /* size of a step in bytes */
+
+  /* Policy */
+
   unsigned hi_mark;           /* expansion watermark in percent */
   unsigned lo_mark;           /* contraction watermark */
   unsigned oflo_mark;         /* promotion watermark (unused) */
 
-  int must_collect;
+  int must_collect;           /* 1 if we must collect */
+  int j_percent;              /* percent: for calculating j */
+  int pin_j;                  /* 1 if j should be pinned (modulo impossible) */
+  int pin_value;              /* value to pin at */
+  int expansion_fixed;        /* 1 if expansion amount is fixed; 0 if not */
+  int expand_fixed;           /* # of steps to expand by */
+  int expand_percent;         /* percentage to expand by */
 
   semispace_t *young;         /* young generation */
   semispace_t *old;           /* old generation */
+
+  unsigned copied_last_gc_old;  /* bytes */
+  unsigned copied_last_gc_young;  /* bytes */
 };
 
 #define DATA(x)         ((npsc_data_t*)((x)->data))
@@ -75,8 +87,9 @@ static void np_expansion_policy( old_heap_t *heap );
 old_heap_t *
 create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
 		       int heap_no,          /* this is given */
-		       unsigned size_bytes,  /* initial heap size (total) */
 		       unsigned step_size,   /* size of a step (bytes) */
+		       unsigned steps,       /* number of steps */
+		       unsigned size_bytes,  /* initial heap size (total) */
 		       unsigned hi_mark,     /* expansion watermark (%) */
 		       unsigned lo_mark,     /* contraction watermark (%) */
 		       unsigned oflo_mark    /* promotion watermark (%) */
@@ -84,7 +97,6 @@ create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
 {
   old_heap_t *heap;
   npsc_data_t *data;
-  int k;
 
 
   /* Parameter validation */
@@ -98,11 +110,6 @@ create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
   if (oflo_mark == 0 || oflo_mark > 100)
     oflo_mark = DEFAULT_NP_OFLOWATERMARK;
 
-  if (size_bytes == 0)
-    size_bytes = DEFAULT_NP_SIZE;
-  size_bytes = roundup_page( size_bytes );
-
-
   /* Allocation */
 
   heap = allocate_heap( *gen_no, heap_no );
@@ -110,28 +117,59 @@ create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
 
   *gen_no = *gen_no + 2;
 
-  if (step_size == 0) {
-    k = DEFAULT_STEPS;
-    step_size = roundup_page( size_bytes / DEFAULT_STEPS );
+  if (steps == 0 && step_size == 0) {
+    if (size_bytes == 0) {
+      steps = DEFAULT_STEPS;
+      step_size = DEFAULT_STEPSIZE;
+      size_bytes = step_size * steps;
+    }
+    else {
+      step_size = DEFAULT_STEPSIZE;
+      steps = ceildiv( size_bytes, step_size );
+    }
+  }
+  else if (steps != 0 && step_size == 0) {
+    if (size_bytes == 0) {
+      step_size = DEFAULT_STEPSIZE;
+      size_bytes = step_size * steps;
+    }
+    else
+      step_size = size_bytes / steps;
+  }
+  else if (steps == 0 && step_size != 0) {
+    if (size_bytes == 0) {
+      steps = DEFAULT_STEPS;
+      size_bytes = step_size * steps;
+    }
+    else
+      steps = size_bytes / step_size;
   }
   else {
-    k = ceildiv(size_bytes,step_size);
-    step_size = roundup_page( step_size );
+    size_bytes = step_size * steps;
   }
-  size_bytes = step_size * k;
+
+  size_bytes = roundup_page( size_bytes );
 
   data->stepsize = step_size;
-  data->new_k = k;
-  data->k = k;
+  data->new_k = steps;
+  data->k = steps;
+
   /* This is an OK initial 'j' if the heap is empty.  If the heap
    * is used to load the heap image into, then data_load_area(), below,
    * computes a more appropriate 'j'.
    */
-  data->j = ceildiv( k, 3 );
+  data->j = ceildiv( steps, 3 );
+
+  /* Defaults */
+  data->pin_j = 0;
+  data->pin_value = 1;
+  data->j_percent = 50;
+  data->expansion_fixed = 0;
+  data->expand_fixed = 1;
+  data->expand_percent = 20;
 
   data->old = create_semispace( size_bytes, data->heap_no, data->gen_no);
   data->young = 0;
-  data->must_collect = 0;
   data->hi_mark = hi_mark;
   data->lo_mark = lo_mark;
   data->oflo_mark = oflo_mark;
@@ -148,6 +186,7 @@ static void stats( old_heap_t *h, int generation, heap_stats_t *s );
 static void before_promotion( old_heap_t *h );
 static void after_promotion( old_heap_t *h );
 static word *data_load_area( old_heap_t *, unsigned );
+static void set_policy( old_heap_t *heap, int op, unsigned value );
 
 static old_heap_t *
 allocate_heap( unsigned gen_no, unsigned heap_no )
@@ -160,6 +199,9 @@ allocate_heap( unsigned gen_no, unsigned heap_no )
 
   data->gen_no = gen_no;
   data->heap_no = heap_no;
+  data->copied_last_gc_old = 0;
+  data->copied_last_gc_young = 0;
+  data->must_collect = 0;
 
   heap->oldest = 0;
   heap->id = "npsc/2/variable";
@@ -172,6 +214,7 @@ allocate_heap( unsigned gen_no, unsigned heap_no )
   heap->promote_from_younger = promote;
   heap->stats = stats;
   heap->data_load_area = data_load_area;
+  heap->set_policy = set_policy;
 
   return heap;
 }
@@ -184,6 +227,32 @@ initialize( old_heap_t *heap )
   return 1;
 }
 
+
+static void
+set_policy( old_heap_t *heap, int op, unsigned value )
+{
+  npsc_data_t *data = DATA(heap);
+
+  switch (op) {
+  case 0 : /* j-fixed */
+    data->pin_j = 1;
+    data->pin_value = value;
+    if (data->j > value) data->j = value;  /* Hack. */
+    break;
+  case 1 : /* j-percent */
+    data->pin_j = 0;
+    data->j_percent = value;
+    break;
+  case 2 : /* incr-fixed */
+    data->expansion_fixed = 1;
+    data->expand_fixed = value;
+    break;
+  case 3 : /* incr-percent */
+    data->expansion_fixed = 0;
+    data->expand_percent = value;
+    break;
+  }
+}
 
 /* 
  * Promote all younger objects into this heap.
@@ -237,6 +306,7 @@ static void
 internal_promote( old_heap_t *heap, int force_collection )
 {
   npsc_data_t *data = DATA(heap);
+  unsigned used_before;
 
   if (data->old == 0)
     data->old =
@@ -251,12 +321,16 @@ internal_promote( old_heap_t *heap, int force_collection )
     return;
   }
 
+  ss_sync( data->old );
   if (data->old->used < (data->k - data->j)*data->stepsize) {
     debugmsg( "[debug] NPSC: promoting into 'old'." );
     stats_gc_type( data->gen_no, STATS_PROMOTE );
 
+    used_before = data->old->used;
     gclib_copy_younger_into( heap->collector, data->old );
     ss_sync( data->old );
+    data->copied_last_gc_old = data->old->used - used_before;
+
     if (data->old->used > (data->k - data->j)*data->stepsize)
       annoyingmsg( "Non-predictive 'old' area overflowed by %u bytes.",
 		  data->old->used - (data->k - data->j)*data->stepsize );
@@ -267,12 +341,17 @@ internal_promote( old_heap_t *heap, int force_collection )
 					        data->gen_no+1 );
 #endif
   }
-  else {
+  else if (data->j > 0) {
     debugmsg( "[debug] NPSC: promoting into 'young'." );
     stats_gc_type( data->gen_no+1, STATS_PROMOTE );
 
+    ss_sync( data->young );
+    used_before = data->young->used;
+
     gclib_np_copy_younger_into( heap->collector, data->young, ROOTS_AND_SCAN );
     ss_sync( data->young );
+    data->copied_last_gc_young = data->old->used - used_before;
+
     if (data->young->used > data->j*data->stepsize)
       annoyingmsg( "Non-predictive 'young' area overflowed by %u bytes.",
 		  data->young->used - data->j*data->stepsize );
@@ -286,6 +365,8 @@ internal_promote( old_heap_t *heap, int force_collection )
     if (data->young->used >= data->j*data->stepsize)
       data->must_collect = 1;
   }
+  else 
+    internal_collect( heap );
 }
 
 
@@ -304,6 +385,7 @@ static void
 internal_collect( old_heap_t *heap )
 {
   npsc_data_t *d = DATA(heap);
+  unsigned old_before, young_before, young_after;
 
   annoyingmsg( "GC in the non-predictive heap: k=%d, j=%d.", d->k, d->j );
   debugmsg( "[debug] NPSC: collecting. k=%d, j=%d", d->k, d->j );
@@ -313,15 +395,26 @@ internal_collect( old_heap_t *heap )
   /* Setting this flag causes the np_remset to be scanned. */
   heap->collector->set_np_collection_flag( heap->collector );
 
+  ss_sync( d->young );
+  ss_sync( d->old );
+  young_before = d->young->used;
+  old_before = d->old->used;
   gclib_copy_younger_into( heap->collector, d->young );
 
   /* Manipulate the semispaces: young becomes old, old is deallocated */
   gclib_set_gen_no( d->young, d->gen_no );
   ss_sync( d->young );
+  young_after = d->young->used;
   ss_free( d->old );
   d->old = d->young;
   d->young = 0;
+  d->copied_last_gc_old = young_after - young_before;
 
+  supremely_annoyingmsg( "  old before: %u, young before: %u, young after: %d"
+			 "\n  copied: %u",
+			 old_before, young_before, young_after,
+			 d->copied_last_gc_old );
+			 
   /* Clear remembered sets not cleared by the collector infrastructure. */
   heap->collector->clear_remset( heap->collector, d->gen_no+1 );
 #if NP_EXTRA_REMSET
@@ -345,7 +438,7 @@ internal_collect( old_heap_t *heap )
  * Ditto, if, after a collection, the heap memory in use for the NP
  * heap is below the low watermark, then the heap is contracted.  The
  * contraction is by up to 20% of the current size of the heap; however,
- * a contraction may not reduce the ration of used space to free space
+ * a contraction may not reduce the ratio of used space to free space
  * below the high watermark.
  *
  * Observe that expansion is more aggressive than contraction.  
@@ -359,9 +452,7 @@ static void np_expansion_policy( old_heap_t *heap )
   int live_steps;
   int expanded = 0;
 
-#if 1
   live_steps = ceildiv( d->old->used, d->stepsize );
-  expanded;
 
   /* Expansion code */
   while (1) {
@@ -369,13 +460,28 @@ static void np_expansion_policy( old_heap_t *heap )
     int must_expand = 0;
     unsigned hi_target = (d->k * d->stepsize)/100*d->hi_mark;
 
-    if (d->old->used > hi_target) must_expand = 1;
-    if (d->k - live_steps < 1) must_expand = 1;
+    if (d->old->used > hi_target) {
+      supremely_annoyingmsg( "Expanding NP heap because it's over watermark:\n"
+			     "  used=%u, target=%u",
+			     d->old->used, hi_target );
+      must_expand = 1;
+    }
+    if (d->k - live_steps < 1) {
+      supremely_annoyingmsg( "Expanding NP heap because it's full:\n"
+			     "  k=%d, live_steps=%d",
+			     d->k, live_steps );
+      must_expand = 1;
+    }
 
     if (!must_expand) break;
 
     expanded = 1;
-    newsteps = ceildiv( d->k, 5 );
+    if (d->expansion_fixed)
+      newsteps = d->expand_fixed;
+    else {
+      newsteps = max( 1, ceildiv( d->k*d->expand_percent, 100 ) );
+      /* newsteps = ceildiv( d->k, 5 ); */
+    }
     d->k += newsteps;
     annoyingmsg( "Expanding NP heap by %d steps; k=%d.", newsteps, d->k );
   }
@@ -402,29 +508,14 @@ static void np_expansion_policy( old_heap_t *heap )
     }
   }
 
-  /* This is a heuristic -- we don't know how well/poorly it does,
-   * compared to other approaches.
-   */
-  d->j = ceildiv( d->k - live_steps, 2 );
+  assert( d->k >= live_steps );
 
-#else
-  /* --- Old policy code ---
-   *
-   * Policy: if, after gc, the heap is nearly full, then add k/5 steps
-   * to the heap to avoid thrashing.
-   *
-   * Then pick j as the midpoint in the free area.
-   */
-
-  live_steps = ceildiv( d->old->used, d->stepsize );
-  while (d->k - live_steps < 1) {
-    int newsteps = ceildiv( d->k, 5 );
-    d->k += newsteps;
-    annoyingmsg( "Expanding the heap by %d steps; k=%d.", newsteps, d->k );
+  if (d->pin_j)
+    d->j = min( d->k - live_steps, d->pin_value );
+  else {
+    /* OLD: d->j = ceildiv( d->k - live_steps, 2 ); */
+    d->j = ceildiv( (d->k - live_steps)*d->j_percent, 100 );
   }
-
-  d->j = ceildiv( d->k - live_steps, 2 );
-#endif
 
   d->must_collect = 0;
 }
@@ -439,10 +530,16 @@ stats( old_heap_t *heap, int generation, heap_stats_t *stats )
   if (generation == data->gen_no) {
     space = data->old;
     stats->np_old = 1;
+    stats->copied_last_gc = data->copied_last_gc_old;
+    data->copied_last_gc_old = 0;
+    stats->target = data->stepsize * (data->k-data->j);
   }
   else {
     space = data->young;
     stats->np_young = 1;
+    stats->copied_last_gc = data->copied_last_gc_young;
+    data->copied_last_gc_young = 0;
+    stats->target = data->stepsize * data->j;
   }
 
   if (space != 0) {
@@ -488,6 +585,8 @@ after_promotion( old_heap_t *heap )
   d->k = d->new_k;
   d->j = 0;
   d->must_collect = 0;
+  d->copied_last_gc_old = 0;
+  d->copied_last_gc_young = 0;
 }
 
 

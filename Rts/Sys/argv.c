@@ -1,7 +1,11 @@
 /* Rts/Sys/argv.c
  * Larceny run-time system (Unix) -- argument vector handling.
  *
- * $Id: argv.c,v 1.2 1997/02/06 20:01:41 lth Exp $
+ * $Id: argv.c,v 1.3 1997/05/23 13:42:46 lth Exp $
+ *
+ * The code in this file is reentrant.
+ * The code in this file does not depend on word size.
+ * The code in this file does not depend on header size.
  */
 
 #include <stdlib.h>
@@ -11,32 +15,34 @@
 
 /* Return a vector of length argc containing strings which represent
  * the command line arguments passed after the -args argument.
- *
- * I belive this procedure does not depend on the word size of the
- * architecture on which Larceny is running.
  */
 word allocate_argument_vector( int argc, char **argv )
 {
-  int n, i, l;
+  int bytes, i, l;
   word *w, *p;
 
-  n = roundup_balign( (argc+1)*sizeof(word) );
+  bytes = roundup_balign( (argc+VEC_HEADER_WORDS)*sizeof(word) );
   for ( i = 0 ; i < argc ; i++ )
-    n += roundup_balign( strlen( argv[i] ) + sizeof( word ) );
-  w = alloc_from_heap( n );
+    bytes += roundup_balign(  strlen( argv[i] ) + BVEC_HEADER_BYTES );
+  w = alloc_from_heap( bytes );
 
-  *w = mkheader( argc*sizeof( word ), VECTOR_HDR );
-  p = w + roundup_walign( argc + 1 );
-  for ( i = 0 ; i < argc ; i++ ) {
+  *w = mkheader( argc*sizeof(word), VECTOR_HDR );
+  p = w + roundup_walign( argc + VEC_HEADER_WORDS );
+  for ( i=0 ; i < argc ; i++ ) {
     l = strlen( argv[i] );
     *p = mkheader( l, STR_HDR );
-    memcpy( p+1, argv[i], l );
-    w[i+1] = (word)tagptr( p, BVEC_TAG );
-    p = (word*)roundup_balign( (word)p+l+sizeof(word) );
+    memcpy( p + BVEC_HEADER_WORDS, argv[i], l );
+    w[ i+VEC_HEADER_WORDS ] = (word)tagptr( p, BVEC_TAG );
+    p = (word*)roundup_balign( (word)p + BVEC_HEADER_BYTES + l );
   }
-  /* Get any pad words */
-  for ( ; i < roundup_walign( argc+1 )-1 ; i++ )
-    w[i+1] = 0;
+
+  /* Clear any pad words (shouldn't have to do this...) */
+  i=argc+VEC_HEADER_WORDS;
+  while ( i < roundup_walign( argc+VEC_HEADER_WORDS ) ) {
+    w[i] = 0;
+    i++;
+  }
+
   return (word)tagptr( w, VEC_TAG );
 }
 

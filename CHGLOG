@@ -1,10 +1,63 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.6 1997/05/15 00:40:15 lth Exp lth $
+; $Id: CHGLOG,v 1.7 1997/05/31 01:54:38 lth Exp lth $
 
 
 ----------------------------------------------------------------------
-v0.28 not yet released
+v0.28b released 970530 by lth
+
+MAJOR FEATURES
+* Supports Boehm's conservative garbage collector.
+* New command line switch ``-reorganize-and-dump'' and new static-heap 
+  architecture allow creation of (primitive) split heaps.  (More to
+  come here when new heap dumper has been implemented.)
+* Added library procedure ``gcctl'' to control garbage collector
+  policy (currently only for NP collector); see manual for details.
+
+
+MINOR FEATURES
+* Added a number of statistics fields to the statistics structure.
+  These fields are reflected in the memstats vector and are also printed 
+  by display-memstats.  They are:
+   - overall GC time is split into total time and promotion time
+   - overall heap allocation is reported as three numbers:
+     - maximum heap allocation ever
+     - current heap memory allocated to all spaces in all heaps.
+     - current heap memory in use by Scheme objects.
+   - per-generation GC time is also split into total time and promotion time
+   - per-generation heap allocation is also reported as three numbers:
+     - generation size, which is the _desired_ maximum size.  This is policy.
+     - current heap memory allocated to the generation (both semispaces!)
+     - current heap memory in use by Scheme objects.
+  See the manual section for memstats for more information.
+  NOTE: that these new fields are _not yet_ dumped as part of the stats-dump.
+
+
+BUGS FIXED
+* [larceny.c] Did not accept -lomark (without heap number argument).
+* [old-heap.c] Fixed bug in old-heap promotion policy (introduced in 0.28, 
+  not-quite-fixed in 0.28a).
+* [unix-alloc.c] Fixed bug in heap allocation stats that incorrectly
+  calculated heap usage stats when pages were freed.
+* [np-sc-heap.c] Fixed probable bug in internal_promote where the old
+  semispace was not synced before a decision was made about which
+  semispace to promote into.
+* [np-sc-heap.c] Fixed bug that caused initial settings of the
+  non-predictive heap size to be calculated incorrectly, because -steps
+  and -stepsize were ignored unless both were specified, and there might
+  have been other strange interactions too.  One can now use -steps,
+  -stepsize, and -size_ independently, and things work pretty much as
+  expected.  See the manual section on heap allocation options for the NP
+  collector for more details.
+* [sc-heap.c] Fixed bug in overflow calculation that would expand the heap
+  much more aggressively (and silently!) than what was desired.
+* [sc-heap.c] Fixed bug in expansion policy that caused "can't allocate"
+  panic under some circumstances where the heap was overfull after GC.
+* [many places] Should now calculate words copied correctly.
+
+
+----------------------------------------------------------------------
+v0.28a Released May 15 by lth
 
 MAJOR CHANGES
 * [Rts/Sys/sc-heap.c] Stop-and-copy garbage collector (w/o static area).

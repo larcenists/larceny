@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.h
  * Larceny run-time system -- write barrier interface.
  *
- * $Id: barrier.h,v 1.5 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: barrier.h,v 1.5 1997/05/15 00:58:49 lth Exp $
  *
  * See Rts/Sys/barrier.c and Rts/Sparc/barrier.s for more information.
  */

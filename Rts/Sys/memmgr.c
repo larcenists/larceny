@@ -1,12 +1,18 @@
 /* Rts/Sys/new-policy.c.
  * Larceny run-time system -- memory manager.
  *
- * $Id: memmgr.c,v 1.20 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: memmgr.c,v 1.22 1997/05/31 01:38:14 lth Exp lth $
  *
  * This file contains procedures for memory allocatation and garbage 
  * collection policy.
  *
  * The algorithm for how policy decisions are made is described in memmgr.h.
+ *
+ * Musings:
+ *
+ * I think it would be reasonable to export all the heaps in the interface,
+ * so that we can get rid of some of the obvious trampolinish methods on
+ * the collector.
  *
  * Dept. of Magic:
  *
@@ -19,6 +25,8 @@
  * memory.  The write barrier can therefore use a fast check to see
  * whether more tests are necessary.
  */
+
+const char *gc_technology = "precise";
 
 #define GC_INTERNAL        /* certain globals and functions are not visible */
 
@@ -95,6 +103,7 @@ static void allocate_remembered_sets(gc_param_t *params, gc_t *gc, int gen_no);
 static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals );
 static void collect_in( gc_t *gc, int generation );
 static char *compute_gc_ID( int number_of_old_heaps, gc_data_t *data );
+static word *load_text_or_data( gc_t *gc, unsigned size_bytes, int load_text );
 
 
 /* Intialize the garbage collector.
@@ -222,8 +231,9 @@ allocate_old_heaps( int number_of_old_heaps, gc_param_t *params, gc_t *gc,
       data->np_gen_no = *gen_no;
       data->old_heaps[h] = 
 	create_old_np_sc_heap( gen_no, h,
-			       params->np_stepsize*params->np_steps,
 			       params->np_stepsize,
+			       params->np_steps,
+			       params->heap_info[h].size_bytes,
 			       params->heap_info[h].hi_mark,
 			       params->heap_info[h].lo_mark,
 			       params->heap_info[h].oflo_mark );
@@ -249,6 +259,7 @@ allocate_static_heap( gc_param_t *params, gc_t *gc, int *gen_no, int *heap_no )
       create_static_heap( *heap_no, *gen_no, params->static_size );
     *heap_no = *heap_no + 1;
     *gen_no = *gen_no + 1;
+    data->static_heap->collector = gc;
   }
   else
     data->static_heap = 0;
@@ -307,6 +318,7 @@ static void enumerate_remsets_older_than( gc_t *gc, int generation,
 					  int (*f)( word, void*, unsigned * ),
 					  void *data );
 static word *data_load_area( gc_t *gc, unsigned size_bytes );
+static word *text_load_area( gc_t *gc, unsigned size_bytes );
 static int  iflush( gc_t *gc, int gen );
 static void stats( gc_t *gc, int generation, heap_stats_t *stats );
 static word creg_get( gc_t *gc );
@@ -321,6 +333,8 @@ static void clear_np_remset( gc_t *gc );
 static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim );
 static void set_np_collection_flag( gc_t *gc );
 static void np_merge_and_clear_remset( gc_t *gc, int gen );
+static void reorganize_static( gc_t *, semispace_t **, semispace_t ** );
+static void set_policy( gc_t *, int, int, unsigned );
 
 static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
 {
@@ -359,13 +373,14 @@ static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
   gc->allocate = alloc_from_heap;
   gc->collect = collect;
   gc->data_load_area = data_load_area;
-  gc->text_load_area = data_load_area;    /* [sic] */
+  gc->text_load_area = text_load_area;
   gc->promote_out_of = promote_out_of;
   gc->enumerate_roots = enumerate_roots;
   gc->enumerate_remsets_older_than = enumerate_remsets_older_than;
   gc->compact_all_ssbs = compact_all_ssbs;
   gc->clear_remset = clear_remset;
   gc->isremembered = isremembered;
+  gc->set_policy = set_policy;
 
   gc->creg_set = creg_set;
   gc->creg_get = creg_get;
@@ -377,6 +392,8 @@ static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
   gc->np_remset_ptrs = np_remset_ptrs;
   gc->set_np_collection_flag = set_np_collection_flag;
   gc->np_merge_and_clear_remset = np_merge_and_clear_remset;
+
+  gc->reorganize_static = reorganize_static;
 
   gc->iflush = iflush;
   gc->stats = stats;
@@ -442,6 +459,18 @@ static int initialize( gc_t *gc )
   return 1;
 }
   
+static void
+set_policy( gc_t *gc, int heap, int op, unsigned value )
+{
+  gc_data_t *data = DATA(gc);
+
+  if (heap < 0 || heap > data->oldest_collectable_generation) return;
+
+  if (heap == 0)
+    data->young_heap->set_policy( data->young_heap, op, value );
+  else 
+    data->old_heaps[heap]->set_policy( data->old_heaps[heap], op, value );
+}
 
 /* Allocate a chunk of ephemeral memory. `n' is a number of bytes. */
 
@@ -671,8 +700,9 @@ enumerate_remsets_older_than( gc_t *gc,
  * Implementation: if the gc has only a young generation, then the
  * area is allocated there.  If the gc has any older generations, then the
  * area is allocated in the oldest generation (intermediate generations
- * are not considered).  If the generation cannot accomodate the data
- * area, 0 is returned.
+ * are not considered).  The static generation is older than any other
+ * generation.  If the generation cannot accomodate the data area, 0 is
+ * returned.
  *
  * Rationale: this function returns space for bootstrap heap loading _only_.
  * It can afford to be primitive.
@@ -681,12 +711,30 @@ enumerate_remsets_older_than( gc_t *gc,
 static word *
 data_load_area( gc_t *gc, unsigned size_bytes )
 {
+  return load_text_or_data( gc, size_bytes, 0 );
+}
+
+static word *
+text_load_area( gc_t *gc, unsigned size_bytes )
+{
+  return load_text_or_data( gc, size_bytes, 1 );
+}
+
+static word *
+load_text_or_data( gc_t *gc, unsigned size_bytes, int load_text )
+{
   gc_data_t *data = DATA(gc);
 
   assert( size_bytes % 8 == 0 );
   
-  if (data->static_heap)
-    return data->static_heap->data_load_area( data->static_heap, size_bytes );
+  if (data->static_heap) {
+    if (load_text)
+      return data->static_heap
+	->text_load_area( data->static_heap, size_bytes );
+    else
+      return data->static_heap
+	->data_load_area( data->static_heap, size_bytes );
+  }
   else if (data->number_of_old_heaps)
     return data->old_heaps[data->number_of_old_heaps]
       ->data_load_area( data->old_heaps[data->number_of_old_heaps],
@@ -858,6 +906,15 @@ static int isremembered( gc_t *gc, word w )
     return DATA(gc)->remsets[g]->isremembered( DATA(gc)->remsets[g], w );
   else
     return 0;
+}
+
+static void
+reorganize_static( gc_t *gc, semispace_t **data, semispace_t **text )
+{
+  if (!DATA(gc)->static_heap)
+    panic( "gc::get_static_data_areas: no static heap." );
+  DATA(gc)->static_heap->reorganize( DATA(gc)->static_heap );
+  DATA(gc)->static_heap->get_data_areas( DATA(gc)->static_heap, data, text );
 }
   
 /* eof */

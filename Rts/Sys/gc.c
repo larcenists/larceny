@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.c
  * Larceny run-time system -- RTS/GC glue code for 0.26.alpha
  * 
- * $Id: gc.c,v 1.15 1997/04/30 16:01:41 lth Exp $
+ * $Id: gc.c,v 1.17 1997/05/31 01:38:14 lth Exp lth $
  *
  * The code in this file presents an interface to the new GC that looks
  * mostly like the interface to the old GC.  The purpose of the deception
@@ -20,7 +20,11 @@ static int  generations;
 
 int allocate_heap( gc_param_t *params )
 {
+#ifndef BDW_GC
   gc = create_gc( params, &generations );
+#else
+  gc = create_bdw_gc( params, &generations );
+#endif /* BDW_GC */
   gc->initialize( gc );
   return 1;
 }
@@ -28,6 +32,11 @@ int allocate_heap( gc_param_t *params )
 char *gctype( void )
 {
   return gc->id;
+}
+
+void gc_policy_control( int heap, int op, unsigned arg )
+{
+  gc->set_policy( gc, heap, op, arg );
 }
 
 void init_stats( int show_stats )
@@ -88,7 +97,7 @@ void load_heap( void )
   word *tbase = 0;
 
   if (heap_ssize() > 0) {
-    sbase = gc->data_load_area( gc, heap_ssize() );
+    sbase = gc->text_load_area( gc, heap_ssize() );
     if (sbase == 0)
       panic( "Static heap too small to load image." );
   }
@@ -109,6 +118,14 @@ int dump_heap( char *filename )
 
   hardconsolemsg("Heap dumping not currently supported (out of chocolate).");
   return -1;
+}
+
+int reorganize_and_dump_static_heap( char *filename )
+{
+  semispace_t *data, *text;
+
+  gc->reorganize_static( gc, &data, &text );
+  return dump_heap_image( filename, data, text, globals ) != -1;
 }
 
 /* This is useful mainly for the simulated barrier. */

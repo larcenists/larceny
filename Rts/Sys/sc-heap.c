@@ -1,7 +1,7 @@
 /* Rts/Sys/sc-heap.c
  * Larceny run-time system -- varsized stop-and-copy young heap.
  *
- * $Id: sc-heap.c,v 1.2 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: sc-heap.c,v 1.3 1997/05/31 01:38:14 lth Exp lth $
  *
  * Contract:
  *  - The stack cache lives in the heap; the stack pointer is the
@@ -46,8 +46,8 @@ typedef struct {
   int gen_no;
 
   int size_bytes;              /* target data size */
-  unsigned hiwatermark;        /* Percent */
-  unsigned lowatermark;        /* Percent */
+  unsigned himark;             /* Percent */
+  unsigned lomark;             /* Percent */
 
   semispace_t *current_space;
   word *globals;
@@ -55,6 +55,7 @@ typedef struct {
   unsigned stacks_created;
   unsigned frames_flushed;
   unsigned bytes_flushed;
+  unsigned copied_last_gc;
 } sc_data_t;
 
 #define DATA(heap)  ((sc_data_t*)((heap)->data))
@@ -111,8 +112,8 @@ create_sc_heap( int *gen_no,
   data->current_space =
     create_semispace( size_bytes, data->heap_no, data->gen_no );
 
-  data->hiwatermark = hiwatermark;
-  data->lowatermark = lowatermark;
+  data->himark = hiwatermark;
+  data->lomark = lowatermark;
   data->size_bytes = size_bytes;
   data->globals = globals;
 
@@ -140,6 +141,7 @@ static word creg_get( young_heap_t *heap );
 static void creg_set( young_heap_t *heap, word k );
 static void stack_underflow( young_heap_t *heap );
 static void stack_overflow( young_heap_t *heap );
+static void set_policy( young_heap_t *heap, int rator, unsigned rand );
 
 
 static young_heap_t *
@@ -162,6 +164,7 @@ allocate_sc_heap( int gen_no, int heap_no )
 
   heap->free_space = free_space;
   heap->stats = stats;
+  heap->set_policy = set_policy;
 
   heap->data_load_area = data_load_area;
 
@@ -175,6 +178,7 @@ allocate_sc_heap( int gen_no, int heap_no )
   data->frames_flushed = 0;
   data->bytes_flushed = 0;
   data->stacks_created = 0;
+  data->copied_last_gc = 0;
 
   return heap;
 }
@@ -184,6 +188,13 @@ static int
 initialize( young_heap_t *heap )
 {
   return 1;
+}
+
+
+static void
+set_policy( young_heap_t *heap, int rator, unsigned rand )
+{
+  /* Nothing yet */
 }
 
 
@@ -197,7 +208,8 @@ allocate( young_heap_t *heap, unsigned nbytes )
   if (globals[ G_ETOP ] + nbytes > globals[ G_STKP ]) {
     unsigned bytes = nbytes + STACK_ROOM;
     if (!move_to_next_chunk( heap, bytes )) {
-      debugmsg( "sc-heap: failed allocation of %u/%u bytes", nbytes, bytes );
+      supremely_annoyingmsg( "sc-heap: failed allocation of %u/%u bytes",
+			     nbytes, bytes );
       heap->collector->collect( heap->collector, 0, GC_COLLECT, bytes );
     }
   }
@@ -216,9 +228,12 @@ collect( young_heap_t *heap, unsigned request_bytes )
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
 
+  /* I don't think this belongs here any longer. */
+#if 0
   /* This is imperfect; see comments in memmgr.c:collect() */
 
   if (move_to_next_chunk( heap, STACK_ROOM )) return;
+#endif
 
   debugmsg( "sc-heap: collecting; free space is %u", free_space( heap ) );
   mode_globals_to_ss( heap );
@@ -243,6 +258,8 @@ collect( young_heap_t *heap, unsigned request_bytes )
   data->current_space = other_space;
 
   mode_ss_to_globals( heap );
+  ss_sync( data->current_space );
+  data->copied_last_gc = data->current_space->used;
 
   post_gc_policy( heap, request_bytes );
   new_stack( heap );
@@ -270,11 +287,12 @@ assert_free_space( young_heap_t *heap, unsigned nbytes )
   /* FIXME: this is too simple, but works for now. */
 
   if (nbytes > free_current_chunk( heap )) {
+    supremely_annoyingmsg( "Failed free space assertion." );
     if (!move_to_next_chunk( heap, nbytes+STACK_ROOM )) {
       expand_heap( heap, nbytes+STACK_ROOM );
       if (!move_to_next_chunk( heap, nbytes+STACK_ROOM ))
-	panic( "Cannot allocate object of size %u bytes "
-	      "(object is too large for heap).", nbytes );
+	panic( "Cannot allocate %u bytes "
+	      "(object is too large for heap?).", nbytes+STACK_ROOM );
     }
   }
 }
@@ -315,16 +333,19 @@ stats( young_heap_t *heap, heap_stats_t *stats )
   word *globals = DATA(heap)->globals;
 
   stats->live = used_space( heap );
+  stats->copied_last_gc = DATA(heap)->copied_last_gc;
   stats->stack = globals[ G_STKBOT ] - globals[ G_STKP ];
   stats->frames_flushed = DATA(heap)->frames_flushed;
   stats->frames_restored = globals[G_STKUFLOW];
   stats->bytes_flushed = DATA(heap)->bytes_flushed;
   stats->semispace1 = DATA(heap)->current_space->allocated;
   stats->semispace2 = 0;
+  stats->target = DATA(heap)->size_bytes;
   stats->stacks_created = DATA(heap)->stacks_created;
   DATA(heap)->frames_flushed = 0;
   DATA(heap)->bytes_flushed = 0;
   DATA(heap)->stacks_created = 0;
+  DATA(heap)->copied_last_gc = 0;
   globals[G_STKUFLOW] = 0;
 }
 
@@ -383,7 +404,7 @@ static void
 stack_overflow( young_heap_t *heap )
 {
   if (!move_to_next_chunk( heap, STACK_ROOM )) {
-    debugmsg( "sc-heap: failed next-chunk in stack_overflow" );
+    supremely_annoyingmsg( "sc-heap: failed next-chunk in stack_overflow" );
     heap->collector->collect( heap->collector, 0, GC_COLLECT, STACK_ROOM );
   }
 }
@@ -399,13 +420,13 @@ static void new_stack( young_heap_t *heap )
  again:
   if (!create_stack( heap )) {
     debugmsg( "[debug] young heap: Failed create-stack." );
-    expand_heap( heap, data->size_bytes/5 );
+    expand_heap( heap, STACK_ROOM );
     goto again;
   }
 
   if (!restore_frame( heap )) {
     debugmsg( "[debug] young heap: Failed restore-frame." );
-    expand_heap( heap, data->size_bytes/5 );
+    expand_heap( heap, STACK_ROOM );
     goto again;
   }
 }
@@ -448,7 +469,7 @@ move_to_next_chunk( young_heap_t *heap, unsigned nbytes )
   semispace_t *s = data->current_space;
   unsigned free;
 
-  free = free_space( heap ) - free_current_chunk( heap );
+  free = max( 0, (long)free_space( heap ) - (long)free_current_chunk( heap ) );
 
   if (free > 0) {
     flush_stack( heap );
@@ -519,21 +540,34 @@ post_gc_policy( young_heap_t *heap, unsigned nbytes )
   unsigned used;
 
   used = data->size_bytes-free_space( heap );
-  if (used > data->size_bytes/100*data->hiwatermark)
-    expand_heap( heap, data->size_bytes/5 );
-  else if (used < data->size_bytes/100*data->lowatermark)
-    contract_heap( heap, data->size_bytes/5 );
+  if (used > data->size_bytes/100*data->himark)
+    expand_heap( heap, nbytes+STACK_ROOM );
+  else if (used < data->size_bytes/100*data->lomark)
+    contract_heap( heap, nbytes+STACK_ROOM );
 }
 
+/* Expand the heap so that after expansion, there is room for the desired
+ * number of bytes.  Assumes there's not enough room in the current chunk.
+ * There is a minimum expansion, however (that's policy).
+ */
 static void
 expand_heap( young_heap_t *heap, unsigned bytes )
 {
-  unsigned incr = roundup_page( bytes );
+  unsigned incr, used, size, expand_min;
+
+  used = used_space( heap )+free_current_chunk( heap );
+  size = DATA(heap)->size_bytes;
+  expand_min = size/5;
+  if (used > size)
+    incr = roundup_page( max( used-size+bytes, expand_min ) );
+  else
+    incr = roundup_page( max( bytes, expand_min ) );
   DATA(heap)->size_bytes += incr;
   annoyingmsg( "sc-heap: Expanding heap by %u bytes, new size %u.", 
 	       incr, DATA(heap)->size_bytes );
 }
 
+/* FIXME: this is bogus */
 static void
 contract_heap( young_heap_t *heap, unsigned bytes )
 {

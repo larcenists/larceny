@@ -1,7 +1,7 @@
 /* Rts/Sys/old-heap.c
  * Larceny run-time system -- stop-and-copy varsized old heap.
  *
- * $Id: old-heap.c,v 1.9 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: old-heap.c,v 1.11 1997/05/31 01:38:14 lth Exp lth $
  *
  * An old heap is a heap that receives new objects by promotion from
  * younger heaps, not by direct allocation.  Promotion from younger heaps
@@ -9,9 +9,11 @@
  * itself and all remembered sets of older heaps and copies younger 
  * objects into the heap in the process.
  * 
- * Allocation.  Only one semispace is allocated initially, the other being
- * allocated only when a collection takes place, and then on-demand in
- * smallish chunks.  After a collection, the inactive space is released.
+ * Allocation.  
+ *
+ * Only one semispace is allocated initially, the other being allocated
+ * only when a collection takes place, and then on-demand in smallish chunks.
+ * After a collection, the inactive space is released.
  * There are two benefits to this:
  * - First, it commonly uses less (virtual) memory than what would have
  *   been used with two permanently allocated spaces (although the worst
@@ -36,6 +38,10 @@
 #include "assert.h"
 
 
+/* Don't change this :-) */
+
+#define PROMOTE_PREMATURELY     0
+
 typedef struct old_data old_data_t;
 
 struct old_data {
@@ -46,11 +52,17 @@ struct old_data {
   int  must_collect;           /* 1 if heap overflowed after last promote */
   int  size_bytes;             /* our notion of target data size */
 
+  int  expansion_fixed;        /* 1 if expansion is fixed-size */
+  unsigned expand_fixed;       /* amount to expand by (bytes) */
+  unsigned expand_percent;     /* amount to expand by */
+
   semispace_t *current_space;  /* Space to promote into */
 
   unsigned hiwatermark;        /* Percent */
   unsigned lowatermark;        /* Percent */
   unsigned oflowatermark;      /* Percent */
+
+  unsigned copied_last_gc;     /* bytes */
 };
 
 #define DATA(x)  ((old_data_t*)((x)->data))
@@ -96,6 +108,9 @@ create_old_heap( int *gen_no,             /* add at least 1 to this */
   data->hiwatermark = thiwatermark;
   data->lowatermark = tlowatermark;
   data->oflowatermark = toflowatermark;
+  data->expansion_fixed = 0;
+  data->expand_fixed = OLDSPACE_EXPAND_BYTES/1024;
+  data->expand_percent = 20;
 
   data->size_bytes = size_bytes;
 
@@ -110,6 +125,7 @@ static void stats( old_heap_t *h, int generation, heap_stats_t *s );
 static void before_promotion( old_heap_t *h );
 static void after_promotion( old_heap_t *h );
 static word *data_load_area( old_heap_t *, unsigned );
+static void set_policy( old_heap_t *heap, int op, unsigned value );
 
 static old_heap_t *
 allocate_old_sc_heap( int gen_no, int heap_no )
@@ -128,6 +144,7 @@ allocate_old_sc_heap( int gen_no, int heap_no )
   data->must_promote = 0;
   data->must_promote_immediately = 0;
   data->must_collect = 0;
+  data->copied_last_gc = 0;
 
   heap->initialize = initialize;
   heap->before_promotion = before_promotion;
@@ -136,6 +153,7 @@ allocate_old_sc_heap( int gen_no, int heap_no )
   heap->promote_from_younger = promote;
   heap->stats = stats;
   heap->data_load_area = data_load_area;
+  heap->set_policy = set_policy;
 
   return heap;
 }
@@ -149,6 +167,24 @@ initialize( old_heap_t *heap )
 }
 
 
+static void
+set_policy( old_heap_t *heap, int op, unsigned value )
+{
+  old_data_t *data = DATA(heap);
+
+  switch (op) {
+  case 2 : /* incr-fixed.  Value is kilobytes. */
+    data->expansion_fixed = 1;
+    data->expand_fixed = value*1024;
+    break;
+  case 3 : /* incr-percent */
+    data->expansion_fixed = 0;
+    data->expand_percent = value;
+    break;
+  }
+}
+
+
 /* 
  * Promote all younger objects into this heap.
  * Precondition: before_promote() has been called for all younger heaps.
@@ -157,6 +193,7 @@ static void promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   semispace_t *s;
+  unsigned used_before;
 
   if (data->must_collect) {
     heap->collect( heap );
@@ -170,7 +207,7 @@ static void promote( old_heap_t *heap )
    * Known so far:
    *   Makes GC time for 50dynamic grow by 50%.
    */
-#if 0
+#if PROMOTE_PREMATURELY
   if (data->must_promote_immediately && !heap->oldest) {
     heap->collector->promote_out_of( heap->collector, data->heap_no );
     return;
@@ -183,7 +220,12 @@ static void promote( old_heap_t *heap )
   stats_gc_type( data->gen_no, STATS_PROMOTE );
 
   s = data->current_space;
+  ss_sync( s );
+  used_before = s->used;
   gclib_copy_younger_into( heap->collector, s );
+  ss_sync( s );
+
+  data->copied_last_gc = s->used - used_before;
 
   post_promote_policy( heap );
 }
@@ -198,6 +240,9 @@ static void collect( old_heap_t *heap )
   semispace_t *from, *to;
   old_data_t *data = DATA(heap);
 
+#if !PROMOTE_PREMATURELY
+  data->must_promote = data->must_promote || data->must_promote_immediately;
+#endif
   if (data->must_promote && !heap->oldest) {
     heap->collector->promote_out_of( heap->collector, data->heap_no );
     return;
@@ -215,6 +260,10 @@ static void collect( old_heap_t *heap )
 
   data->current_space = to;
   ss_free( from );
+  ss_sync( to );
+
+  data->copied_last_gc = to->used;
+  supremely_annoyingmsg( "  live after gc: %u", to->used );
 
   post_gc_policy( heap );
 }
@@ -253,6 +302,7 @@ post_gc_policy( old_heap_t *heap )
   ss_sync( to );
 
   /* Expand/contract/promote checking */
+
   if (!heap->oldest) {
     /* In non-oldest heaps, promote if overflowed */
     if (to->used > data->size_bytes) {
@@ -267,16 +317,30 @@ post_gc_policy( old_heap_t *heap )
     }
   }
   else {
-    /* In oldest heaps, expand by 20% if overflowed. */
-    if (to->used > data->size_bytes/100*data->hiwatermark) {
-      unsigned n = roundup_page(data->size_bytes/5);
-      data->size_bytes += n;
-      annoyingmsg( "Expanding generation %d by %u bytes; size=%u.", 
-		   data->gen_no, n, data->size_bytes );
+    unsigned expanded = 0;
+
+    /* In oldest heaps, expand if overflowed. */
+
+    while (to->used > data->size_bytes/100*data->hiwatermark) {
+      if (data->expansion_fixed) {
+	data->size_bytes += data->expand_fixed;
+	expanded += data->expand_fixed;
+      }
+      else {
+	unsigned n = roundup_page(data->size_bytes/100*data->expand_percent);
+	data->size_bytes += n;
+	expanded += n;
+      }
     }
 
+    if (expanded)
+      annoyingmsg( "Expanding generation %d by %u bytes; size=%u.", 
+		   data->gen_no, expanded, data->size_bytes );
+
     /* If live is gc is under low watermark, contract by 20%.  */
-    if (to->used < data->size_bytes/100*data->lowatermark) {
+    /* FIXME: should be under user control too. */
+
+    if (!expanded && to->used < data->size_bytes/100*data->lowatermark) {
       if (heap->oldest) {
 	unsigned n = roundup_page( data->size_bytes/5 );
 	data->size_bytes -= n;
@@ -293,8 +357,11 @@ static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
   old_data_t *data = DATA(heap);
 
   ss_sync( data->current_space );
+  stats->copied_last_gc = data->copied_last_gc;
+  data->copied_last_gc = 0;
   stats->live = data->current_space->used;
   stats->semispace1 = data->current_space->allocated;
+  stats->target = data->size_bytes;
 }
 
 
@@ -314,6 +381,7 @@ static void after_promotion( old_heap_t *heap )
   DATA(heap)->must_promote = 0;
   DATA(heap)->must_promote_immediately = 0;
   DATA(heap)->must_collect = 0;
+  DATA(heap)->copied_last_gc = 0;
   ss_prune( DATA(heap)->current_space );
 }
 

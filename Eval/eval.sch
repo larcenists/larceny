@@ -1,7 +1,7 @@
 ; Eval/eval.sch
 ; Larceny -- fast interpreter.
 ;
-; $Id: eval.sch,v 1.3 1997/05/15 00:50:19 lth Exp lth $
+; $Id: eval.sch,v 1.3 1997/05/15 00:50:19 lth Exp $
 ;
 ; Description
 ;   `Eval' takes an expression and optionally an R5RS environment and

@@ -1,7 +1,7 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.6 1997/02/11 19:48:21 lth Exp $
+ * $Id: unix.c,v 1.7 1997/05/31 01:38:14 lth Exp lth $
  *
  * RTS call-outs, for Unix.
  */
@@ -192,7 +192,7 @@ static char *getfilename( w_str )
 word w_str;
 {
   static char fnbuf[ 1024 ];
-  int l;
+  size_t l;
 
   l = string_length( w_str );
   if (l >= sizeof( fnbuf )) return 0;
@@ -245,6 +245,14 @@ word w_fn;
 void UNIX_stats_dump_off()
 {
   stats_closedump();
+}
+
+void UNIX_gcctl_np( word heap, word rator, word rand )
+{
+  /* Heap# comes in as 1..n, but RTS uses 0..n-1 */
+  gc_policy_control( nativeint( heap )-1,
+		     nativeint( rator ), 
+		     (unsigned)nativeint( rand ) );
 }
 
 /* eof */

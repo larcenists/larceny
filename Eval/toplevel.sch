@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.2 1997/05/15 00:50:19 lth Exp lth $
+; $Id: toplevel.sch,v 1.3 1997/05/31 01:51:48 lth Exp lth $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -398,6 +398,7 @@
   (extend-toplevel-env! 'run-benchmark run-benchmark)
   (extend-toplevel-env! 'display-memstats display-memstats) ; mostly obsolete
   (extend-toplevel-env! 'collect collect)
+  (extend-toplevel-env! 'gcctl gcctl)
   (extend-toplevel-env! 'memstats memstats)
   (extend-toplevel-env! 'stats-dump-on stats-dump-on)
   (extend-toplevel-env! 'stats-dump-off stats-dump-off)

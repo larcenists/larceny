@@ -1,7 +1,7 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.6 1997/05/15 00:42:10 lth Exp lth $
+; $Id: makefile.sch,v 1.7 1997/05/31 01:50:28 lth Exp lth $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
@@ -122,6 +122,7 @@
     "env"               ; R5RS environments
     "load"              ; Loader
     "syshooks"          ; System functions
+    "gcctl"             ; Garbage collector policy control
     "go"                ; Driver
 
     ))

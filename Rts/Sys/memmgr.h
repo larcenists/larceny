@@ -1,7 +1,7 @@
 /* Rts/Sys/gc-interface.h
  * Larceny run-time system -- garbage collector interface (internal).
  * 
- * $Id: memmgr.h,v 1.8 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: memmgr.h,v 1.10 1997/05/31 01:38:14 lth Exp lth $
  *
  * A garbage collector is an ADT of type gc_t; see the file Rts/Sys/gc.h.
  * 
@@ -111,6 +111,7 @@
 #define INCLUDED_GC_INTERFACE_H
 
 #include "gc.h"
+#include "semispace.h"         /* Sigh.  Static-heap interface exports them. */
 
 typedef struct young_heap young_heap_t;
 typedef struct old_heap old_heap_t;
@@ -188,6 +189,9 @@ struct young_heap {
   void     (*before_promotion)( young_heap_t *heap );
   void     (*after_promotion)( young_heap_t *heap );
 
+  /* Policy */
+  void     (*set_policy)( young_heap_t *heap, int rator, unsigned rand );
+
   /* Statistics */
   unsigned (*free_space)( young_heap_t *heap );
   void     (*stats)( young_heap_t *heap, heap_stats_t *stats );
@@ -259,7 +263,8 @@ create_old_heap( int *gen_no, int heap_no,
 
 old_heap_t *
 create_old_np_sc_heap( int *gen_no, int heap_no, 
-		       unsigned size_bytes, unsigned chunksize_bytes,
+		       unsigned step_size, unsigned steps,
+		       unsigned size_bytes,
 		       unsigned hi_mark, unsigned lo_mark, unsigned oflo_mark
 		      );
 
@@ -275,6 +280,7 @@ struct old_heap {
   void (*promote_from_younger)( old_heap_t *heap );
   void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats );
   word *(*data_load_area)( old_heap_t *heap, unsigned nbytes );
+  void (*set_policy)( old_heap_t *heap, int op, unsigned value );
 
   /* Private */
   void *data;
@@ -290,11 +296,15 @@ static_heap_t *
 create_static_heap( int heap_no, int gen_no, unsigned size_bytes );
 
 struct static_heap {
+  gc_t *collector;
   char *id;
 
   int  (*initialize)( static_heap_t * );
+  void (*reorganize)( static_heap_t * );
   void (*stats)( static_heap_t *, heap_stats_t * );
   word *(*data_load_area)( static_heap_t *, unsigned );
+  word *(*text_load_area)( static_heap_t *, unsigned );
+  void (*get_data_areas)( static_heap_t *, semispace_t **, semispace_t ** );
 
   void *data;
 };

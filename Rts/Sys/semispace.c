@@ -1,7 +1,7 @@
 /* Rts/Sys/semispace.c
  * Larceny run-time system -- semispace ADT.
  *
- * $Id: semispace.c,v 1.4 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: semispace.c,v 1.5 1997/05/23 13:50:06 lth Exp $
  *
  * The semispace_t ADT maintains a growable/shrinkable set of heap chunks
  * for a semispace; all chunks have the same generation number.
@@ -49,7 +49,8 @@ create_semispace( unsigned bytes, int heap_no, int gen_no )
  * request.  A chunk larger than the request will be used if it exists;
  * otherwise, one will be allocated that's large enough to hold the
  * request but not bigger (rounded up to pagesize).  When the procedure 
- * returns, s->current has been incremented.
+ * returns, s->current has been incremented, and 
+ * s->current.top = s->current.bot.
  *
  * There are three cases:
  *  - found a chunk
@@ -159,6 +160,27 @@ void ss_prune( semispace_t *s )
   ss_reset( s );
 }
 
+/* Deallocate all unused chunks (except the first), set the lim pointer
+ * of the last used chunk to equal the top pointer (modulo roundup), and 
+ * free any excess memory from the last used chunk.
+ */
+void ss_shrinkwrap( semispace_t *s )
+{
+  int i;
+  word *newlim;
+  unsigned newbytes;
+
+  for ( i = s->current+1 ; i < s->n ; i++ )
+    if (s->chunks[i].bytes > 0) {
+      gclib_free( s->chunks[i].bot, s->chunks[i].bytes );
+      s->chunks[i].bytes = 0;
+    }
+  newlim = (word*)roundup_page( (unsigned)s->chunks[s->current].top );
+  newbytes = (unsigned)newlim-(unsigned)s->chunks[s->current].bot;
+  gclib_free( newlim, s->chunks[s->current].bytes - newbytes );
+  s->chunks[s->current].lim = newlim;
+  s->chunks[s->current].bytes = newbytes;
+}
 
 /* Make a pass over all the chunks and compute the number of bytes in
  * use in the semispace.

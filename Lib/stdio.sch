@@ -1,7 +1,7 @@
 ; Lib/stdio.sch
 ; Larceny -- standard Scheme I/O library
 ;
-; $Id: stdio.sch,v 1.3 1997/05/15 00:42:10 lth Exp lth $
+; $Id: stdio.sch,v 1.3 1997/05/15 00:42:10 lth Exp $
 ;
 ; Procedures we could add:
 ;   file-port?

@@ -1,7 +1,7 @@
 ; Lib/iosys.sch
 ; Larceny -- New I/O system
 ;
-; *$Id: iosys.sch,v 1.3 1997/05/15 00:42:10 lth Exp lth $
+; *$Id: iosys.sch,v 1.3 1997/05/15 00:42:10 lth Exp $
 ;
 ; Design: the system is designed so that in the common case, very few
 ; procedure calls are executed.

@@ -1,7 +1,7 @@
 /* Rts/Sys/heapio.c
  * Larceny run-time system (Unix) -- heap I/O procedures
  *
- * January 13, 1997
+ * $Id: heapio.c,v 1.3 1997/05/23 13:50:06 lth Exp $
  *
  * There are two major kinds of heaps: bootstrap heaps and dumped heaps.
  *
@@ -56,18 +56,20 @@
 #include "macros.h"
 #include "cdefs.h"
 
-static FILE *fp = 0;
-static word magic;            /* Header word */
-static int split_heap = 0;    /* 1 if the loaded heap had a static area */
-static unsigned ssize = 0;    /* Size (words) of static data */
-static unsigned tsize = 0;    /* Size (words) of tenured data */
-static word roots[ LAST_ROOT-FIRST_ROOT+1 ];  /* Root load area */
+static struct {
+  FILE *fp;
+  word magic;                            /* Header word */
+  int split_heap;                        /* 1 if the heap has a static area */
+  unsigned ssize;                        /* Size (words) of static data */
+  unsigned tsize;                        /* Size (words) of tenured data */
+  word roots[ LAST_ROOT-FIRST_ROOT+1 ];  /* Root load area */
+} h;
 
 static void load_static( word *, word );
 static word *load_dynamic( word*, word*, unsigned );
-static word getword( void );
+static word getword( FILE *fp );
 static word putword( word, FILE* );
-static int putheader( FILE*, word, word, word );
+static int putheader( FILE*, word, word, word, word*, word );
 static int put_tagged_word( word, FILE*, word, word, word );
 static dump_static( word, word, FILE* );
 static dump_tenured( word, word, word, word, FILE* );
@@ -77,46 +79,46 @@ void openheap( char *filename )
   unsigned vno;
   int i, j;
 
-  fp = fopen( filename, "r" );
-  if (fp == 0)
+  h.fp = fopen( filename, "r" );
+  if (h.fp == 0)
     panic( "Unable to open heap file %s.", filename );
 
-  magic = getword();
+  h.magic = getword( h.fp );
 
-  vno = magic & 0xFFFF;
+  vno = h.magic & 0xFFFF;
   if (vno != HEAP_VERSION)
     panic( "Wrong version heap image; got %d, want %d\n.", vno, HEAP_VERSION );
   
   for (i = FIRST_ROOT, j=0 ; i <= LAST_ROOT ; i++,j++ ) 
-    roots[j] = getword();
+    h.roots[j] = getword( h.fp );
 
-  if ((magic & 0xFFFF0000) == 0x00010000) {
-    ssize = getword();
-    split_heap = 1;
+  if ((h.magic & 0xFFFF0000) == 0x00010000) {
+    h.ssize = getword( h.fp );
+    h.split_heap = 1;
   }
   else
-    split_heap = 0;
-  tsize = getword();
+    h.split_heap = 0;
+  h.tsize = getword( h.fp );
 }
 
 void closeheap( void )
 {
-  if (fp != 0) {
-    fclose( fp );
-    fp = 0;
+  if (h.fp != 0) {
+    fclose( h.fp );
+    h.fp = 0;
   }
 }
 
 /* Return the size in bytes of the static area in the opened heap */
 unsigned heap_ssize( void )
 {
-  return ssize*sizeof(word);
+  return h.ssize*sizeof(word);
 }
 
 /* Return the size in bytes of the tenured area in the opened heap */
 unsigned heap_tsize( void )
 {
-  return tsize*sizeof(word);
+  return h.tsize*sizeof(word);
 }
 
 /* Load the heap into the tenured area. */
@@ -124,32 +126,32 @@ void load_heap_image( word *sbase, word *tbase, word *globals )
 {
   unsigned i, j;
 
-  if (fp == 0)
+  if (h.fp == 0)
     panic( "load_heap(): No heap has been opened!" );
 
   for (i = FIRST_ROOT, j =0 ; i <= LAST_ROOT ; i++, j++ ) {
-    if (isptr( roots[j] )) {
-      if (roots[j] & 0x80000000)
-	globals[i] = (roots[j] & ~0x80000000) + (word)sbase;
+    if (isptr( h.roots[j] )) {
+      if (h.roots[j] & 0x80000000)
+	globals[i] = (h.roots[j] & ~0x80000000) + (word)sbase;
       else
-	globals[i] = roots[j] + (word)tbase;
+	globals[i] = h.roots[j] + (word)tbase;
     }
     else
-      globals[ i ] = roots[j];
+      globals[ i ] = h.roots[j];
   }
 
-  if (split_heap) load_static( sbase, ssize );
-  load_dynamic( sbase, tbase, tsize );
+  if (h.split_heap) load_static( sbase, h.ssize );
+  load_dynamic( sbase, tbase, h.tsize );
 }
 
 static void load_static( word *sbase, unsigned count )
 {
   word n;
 
-  if ((n = fread( (char*)sbase, sizeof( word ), count, fp )) < count)
+  if ((n = fread( (char*)sbase, sizeof( word ), count, h.fp )) < count)
     panic( "Can't load static data -- corrupt heap file?\n"
 	   "Stats: ssize=%08x tsize=%08x wanted=%08x got=%08x", 
-	  ssize, tsize, count, n );
+	  h.ssize, h.tsize, count, n );
 }
 
 static word *load_dynamic( word *sbase, word *tbase, unsigned count )
@@ -157,7 +159,7 @@ static word *load_dynamic( word *sbase, word *tbase, unsigned count )
   word *p, w;
   unsigned i;
 
-  if (fread( (char*)tbase, sizeof( word ), count, fp ) < count)
+  if (fread( (char*)tbase, sizeof( word ), count, h.fp ) < count)
     panic( "Can't load dynamic data -- corrupt heap file?" );
 
   p = tbase;
@@ -185,58 +187,61 @@ static word *load_dynamic( word *sbase, word *tbase, unsigned count )
 }
 
 
-/* Dumps the heap.
- *
- * The tenured heap is dumped "as is"; pointers into other areas are
- * dumped literally and should not exist. A major GC takes care of this,
- * in the absence of a static area.
- *
- * Knows too much about the globals[] table and the layout of tspace.
- */
-int dump_heap_image( char *filename )
+/* Dumps the heap. */
+
+int
+dump_heap_image( char *filename, semispace_t *data, semispace_t *text, 
+		 word *globals )
 {
-#if 0
-  word tbase, ttop, tcount, scount, sbase, stop;
+  word tbase = 0, ttop = 0, tcount = 0, scount = 0, sbase = 0, stop = 0;
+  unsigned magic;
   FILE *fp;
 
   if ((fp = fopen( filename, "w")) == 0) return -1;
 
-  tbase = (word)getheaplimit( HL_TBOT );
-  ttop  = (word)getheaplimit( HL_TTOP );
-  sbase = (word)getheaplimit( HL_SBOT );
-  stop = (word)getheaplimit( HL_STOP );
+  /* FIXME: For now, only one chunk. */
+  if (data && data->current != 0) panic( "dump_heap_image#1" );
+  if (text && text->current != 0) panic( "dump_heap_image#2" );
 
-  putheader( fp, tbase, sbase, stop );
+  if (!data) 
+    panic( "dump_heap_image#3" );
+
+  tbase = (word)data->chunks[data->current].bot;
+  ttop  = (word)data->chunks[data->current].top;
+  if (text) {
+    sbase = (word)text->chunks[text->current].bot;
+    stop  = (word)text->chunks[text->current].top;
+  }
+  magic = HEAP_VERSION | (( text != 0 ) << 16);
+
+  putheader( fp, tbase, sbase, stop, globals, magic );
 
   tcount = (ttop - tbase) / sizeof( word );
   scount = (stop - sbase) / sizeof( word );
 
-  if (split_heap && putword( scount, fp ) == EOF) goto end;
+  if (scount > 0 && putword( scount, fp ) == EOF) goto end;
   if (putword( tcount, fp ) == EOF) goto end;
 
-  if (split_heap && dump_static( sbase, stop, fp ) == -1) goto end;
+  if (scount > 0 && dump_static( sbase, stop, fp ) == -1) goto end;
   if (dump_tenured( tbase, ttop, sbase, stop, fp ) == -1) goto end;
 
   fclose(fp);
   return 0;
  end:
   fclose(fp);
-#endif
   return -1;
 }
 
 static int dump_static( word sbase, word stop, FILE *fp )
 {
-#if 0
   if (fwrite( (char*)sbase, 1, stop-sbase, fp ) != stop-sbase) 
     return -1;
-#endif
   return 0;
 }
 
-static dump_tenured( word tbase, word ttop, word sbase, word stop, FILE *fp )
+static int
+dump_tenured( word tbase, word ttop, word sbase, word stop, FILE *fp )
 {
-#if 0
   word w, *p, woids, tcount;
   int i;
 
@@ -259,13 +264,13 @@ static dump_tenured( word tbase, word ttop, word sbase, word stop, FILE *fp )
       }
     }
   }
-#endif
   return 0;
 }
 
-static int putheader( FILE *fp, word tbase, word sbase, word stop )
+static int
+putheader( FILE *fp, 
+	   word tbase, word sbase, word stop, word *globals, word magic)
 {
-#if 0
   int i;
 
   if (putword( magic, fp ) == EOF)
@@ -273,14 +278,12 @@ static int putheader( FILE *fp, word tbase, word sbase, word stop )
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     if (put_tagged_word( globals[i], fp, tbase, sbase, stop ) == -1) return -1;
-#endif
   return 0;
 }
 
 static int
 put_tagged_word( word w, FILE *fp, word tbase, word sbase, word stop )
 {
-#if 0
   if (isptr( w )) {
     if (w >= sbase && w < stop) {
       if (putword( (w-sbase) | 0x80000000, fp ) == EOF) return -1;
@@ -292,14 +295,12 @@ put_tagged_word( word w, FILE *fp, word tbase, word sbase, word stop )
   else {
     if (putword( w, fp ) == EOF) return -1;
   }
-#endif
   return 0;
 }
 
-/* ********** NOTE: NOT PORTABLE **********  */
-/* The following two procedures know that the heap is 32-bit and big-endian.
- * The obvious #ifdefs can be wrapped to make it more portable.
- */
+
+#if defined( ENDIAN_BIG ) && defined( BITS_32 )
+
 static word putword( word w, FILE *fp )
 {
   if (putc( (w >> 24) & 0xFF, fp ) == EOF) return EOF;
@@ -309,9 +310,9 @@ static word putword( word w, FILE *fp )
   return 0;
 }
 
-/* This procedure knows that the world is 32-bit and big-endian. */
 /* FIXME: does not check EOF */
-static word getword( void )
+
+static word getword( FILE *fp )
 {
   word a = getc( fp );
   word b = getc( fp );
@@ -321,5 +322,8 @@ static word getword( void )
   return (a << 24) | (b << 16) | (c << 8) | d;
 }
 
+#else
+  #error "Must write new putword() and getword()."
+#endif  /* defined( ENDIAN_BIG ) && defined( BITS_32 ) */
 
 /* eof */

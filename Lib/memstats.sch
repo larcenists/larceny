@@ -1,7 +1,7 @@
 ; Lib/memstats.sch
 ; Larceny runtime library -- system statistics
 ;
-; $Id: memstats.sch,v 1.5 1997/05/15 00:42:10 lth Exp lth $
+; $Id: memstats.sch,v 1.6 1997/05/31 01:50:28 lth Exp lth $
 ;
 ; System statistics is maintained by the parts of the system written in C
 ; and are obtained by a call on the primitive sys$get-resource-usage (which
@@ -73,6 +73,8 @@
 		(vector-ref v $mstat.minfaults)
 		(vector-ref v $mstat.majfaults)
 		#f			; non-predictive remembered sets
+		(vector-ref v $mstat.max-heap)
+		(vector-ref v $mstat.promtime)
 		))
 
       (define (count-remsets rv)
@@ -99,10 +101,10 @@
 	(do ((i 0 (+ i 1)))
 	    ((= i (vector-length gen-stats)))
 	  (let ((g (vector-ref gen-stats i)))
-	    (vector-set! g $mstat.g.np-youngp
-			 (= 1 (vector-ref g $mstat.g.np-youngp)))
-	    (vector-set! g $mstat.g.np-oldp
-			 (= 1 (vector-ref g $mstat.g.np-oldp))))))
+	    (vector-set! g $mstat.g-np-youngp
+			 (= 1 (vector-ref g $mstat.g-np-youngp)))
+	    (vector-set! g $mstat.g-np-oldp
+			 (= 1 (vector-ref g $mstat.g-np-oldp))))))
 
       (let* ((raw-stats      (sys$get-resource-usage))
 	     (remset-stats   (vector-ref raw-stats $mstat.remsets))
@@ -122,7 +124,7 @@
 	stats-vec))))
 
 
-; I moved this out of display-memstats because I encountered some strange
+; I moved this out of display-memstats because I encountered an
 ; apparent compiler bug when having it inside.  --lars
 
 (define (mprint . rest)
@@ -152,8 +154,12 @@
 		     (mprint "    (Non-predictive old generation)"))))
       (mprint "    Collections....: " (vector-ref g 0))
       (mprint "    Promotions.....: " (vector-ref g 1))
-      (mprint "    GC time........: " (vector-ref g 2))
-      (mprint "    Words live.....: " (vector-ref g 3)))
+      (mprint "    GC time (ms)...: " (vector-ref g 2))
+      (mprint "      promotion....: " (vector-ref g 10))
+      (mprint "      collection...: " (- (vector-ref g 2) (vector-ref g 10)))
+      (mprint "    Generation size: " (vector-ref g 9))
+      (mprint "      allocated....: " (vector-ref g 8))
+      (mprint "      in use.......: " (vector-ref g 3)))
 
     (define (print-per-generation)
       (mprint "Per-generation information")
@@ -187,9 +193,13 @@
       (mprint "  Words allocated: " (vector-ref v 0))
       (mprint "  Words reclaimed: " (vector-ref v 1))
       (mprint "  Words copied...: " (vector-ref v 2))
-      (mprint "  Total GC time..: " (vector-ref v 3) " ms")
-      (mprint "  Heap allocated.: " (vector-ref v 13))
-      (mprint "  Words live.....: " (vector-ref v 4))
+      (mprint "  GC time (ms)...: " (vector-ref v 3))
+      (mprint "    promotion....: " (vector-ref v 28))
+      (mprint "    collection...: " (- (vector-ref v 3) (vector-ref v 28)))
+      (mprint "  Heap allocation")
+      (mprint "    maximum......: " (vector-ref v 27))
+      (mprint "    current......: " (vector-ref v 13))
+      (mprint "    current used.: " (vector-ref v 4))
       (if full?
 	  (mprint "  Last GC........: Generation " (vector-ref v 5) 
 		  "; type " (if (zero? (vector-ref v 6))

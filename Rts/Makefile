@@ -3,12 +3,12 @@
 # Rts/Makefile
 # Larceny -- the main Makefile
 #
-# $Id: Makefile,v 1.8 1997/05/15 00:57:01 lth Exp lth $
+# $Id: Makefile,v 1.10 1997/05/31 01:48:56 lth Exp lth $
 
 
 ############################################################################
 #
-# Target OS configuration section
+# Section 1: Target OS selection
 
 # Uncomment the following to compile for SunOS 4.x (aka Solaris 1.x)
 TARGETOS=SUNOS
@@ -23,7 +23,7 @@ EXTRALIBPATH=
 
 ###########################################################################
 #
-# Feature configuration section.
+# Section 2: Feature configuration section.
 
 # Remembered set computation.
 #
@@ -67,7 +67,6 @@ NP_EXTRA_REMSET=1
 DIVZ=-DCHECK_DIVISION_BY_ZERO
 
 
-
 ############################################################################
 #
 # Directory paths relative to the larceny top-level directory.
@@ -81,6 +80,9 @@ MACH=Sparc
 # Build directory
 BUILD=Build
 
+# Conservative GC directory
+BDW_DIR=bdw-gc
+
 
 ############################################################################
 #
@@ -93,21 +95,30 @@ CONFIG=-DSIMULATE_NEW_BARRIER=$(SIMULATE_NEW_BARRIER) \
 	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING) \
 	-DNP_EXTRA_REMSET=$(NP_EXTRA_REMSET)
 
-DEBUGINFO=-g
-DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
-PROFILE=#-p
-# The -f... switches are gcc-specific.  Their use is experimental.
-OPTIMIZE=-DNDEBUG -O3 # -funroll-loops -fexpensive-optimizations -frerun-cse-after-loop
-
 CC=gcc
 AS=as
 LIBS=-lm
 
+# A mixed blessing, at best, whatwith all the casting going on (or not).
+WARN=#-W #-Wimplicit -Wformat -Wpointer-arith
+
+DEBUGINFO=-g
+DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
+PROFILE=#-p
+OPTIMIZE=-DNDEBUG -O3
+ARCHINFO=-DENDIAN_BIG -DBITS_32
+
+# You typically want this to remain on, unless you want multiple collectors
+# in the same process (beyond the realm of the possible, at the moment).  
+# See Sys/bdw-collector.c for details, and grovel over the source tree :-)
+BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
+
 CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) $(CONFIG) \
-	-I$(SYS) -I$(BUILD) $(DEBUGFLAGS) $(IFLUSH) $(DIVZ)
+	-I$(SYS) -I$(BUILD) $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) $(BDW_GC) \
+	$(ARCHINFO) $(WARN) $(BDW_DEBUG)
 
 ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
-	$(IFLUSH) $(DIVZ)
+	$(IFLUSH) $(DIVZ) $(BDW_GC)
 
 
 ############################################################################
@@ -115,29 +126,45 @@ ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
 # Big bags of files
 #
 # GSGC_OBJS are the object files to link for a generation-scavenging collector.
-# SCGC_OBJS are the object files to link for a stop-and-copy collector.
-# EXGC_OBJS are the object files to link for the experimental collector.
 
-COBJS=$(SYS)/larceny.o $(SYS)/remset.o $(SYS)/stack.o\
-	$(SYS)/cglue.o $(SYS)/heapio.o \
-	$(SYS)/stats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
-	$(SYS)/argv.o $(SYS)/malloc.o \
+# Common C objects
+
+COBJS=$(SYS)/stack.o $(SYS)/cglue.o $(SYS)/heapio.o \
+	$(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
+	$(SYS)/argv.o $(SYS)/malloc.o $(SYS)/util.o \
 	$(MACH)/cache.o
 
-GSGC=$(SYS)/gc.o $(SYS)/memmgr.o \
+# Common ASM objects
+
+ASMOBJS=$(MACH)/mcode.o $(MACH)/glue.o $(BUILD)/table.o \
+	$(MACH)/generic.o $(MACH)/cache0.o $(MACH)/barrier.o
+
+# C and asm objects for all GCs except the Boehm collector
+
+ALL_GC=$(SYS)/larceny.o $(SYS)/memmgr.o $(SYS)/remset.o \
 	$(SYS)/young-heap.o $(SYS)/old-heap.o $(SYS)/sc-heap.o \
 	$(SYS)/unix-alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
-	$(SYS)/barrier.o $(SYS)/np-sc-heap.o $(SYS)/static-heap.o
+	$(SYS)/barrier.o $(SYS)/np-sc-heap.o $(SYS)/static-heap.o \
+	$(MACH)/memory.o $(SYS)/stats.o $(SYS)/gc.o
 
-ASMOBJS=$(MACH)/mcode.o $(MACH)/memory.o $(MACH)/glue.o $(BUILD)/table.o \
-	$(MACH)/generic.o $(MACH)/cache0.o $(MACH)/barrier.o
+# C and asm objects for the Boehm collector.  The source files for
+# these invariably #define BDW_GC and then #include the other source
+# file.
+
+BOEHM_GC=$(SYS)/bdw-larceny.o $(SYS)/bdw-gc.o $(SYS)/bdw-stats.o \
+	$(SYS)/bdw-collector.o $(MACH)/bdw-memory.o 
+
+BOEHMLIB=bdw-gc/gc.a
 
 # Standard generational collector: multiple copying generations
 
-GSGC_OBJS=$(COBJS) $(ASMOBJS) $(GSGC)
+ALL_GC_OBJS=$(COBJS) $(ASMOBJS) $(ALL_GC)
 
-#SCGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/scpolicy.o $(SYS)/gc.o
-#EXGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/expolicy.o
+
+# Boehm-Demers-Weiser conservative collector
+
+BOEHM_GC_OBJS=$(COBJS) $(ASMOBJS) $(BOEHM_GC)
+
 
 # Header files.
 #
@@ -155,7 +182,7 @@ HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
 HDRS=$(SYS)/larceny.h $(SYS)/macros.h $(SYS)/gc.h $(BUILD)/cdefs.h
 
-GCHDRS=$(SYS)/memmgr.h $(SYS)/barrier.h $(SYS)/gclib.h
+GCHDRS=$(SYS)/memmgr.h $(SYS)/barrier.h $(SYS)/gclib.h $(SYS)/semispace.h
 
 
 ############################################################################
@@ -186,30 +213,32 @@ setup:
 	if [ ! -d Build ]; then mkdir Build; fi
 	(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
-larceny: $(GSGC_OBJS)
-	$(CC) $(PROFILE) -o larceny $(GSGC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) 
+larceny: $(ALL_GC_OBJS)
+	$(CC) $(PROFILE) -o larceny \
+		$(ALL_GC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) 
 	/bin/rm -f $(SYS)/version.o
 
-sclarceny: $(SCGC_OBJS)
-	$(CC) $(PROFILE) -o sclarceny $(SCGC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH)
-	/bin/rm -f $(SYS)/version.o
-
-exlarceny: $(EXGC_OBJS)
-	$(CC) $(PROFILE) -o exlarceny $(EXGC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH)
+bdwlarceny: $(BOEHM_GC_OBJS)
+	( cd $(BDW_DIR) ; make gc.a )
+	$(CC) $(PROFILE) -o bdwlarceny $(BOEHM_GC_OBJS) \
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \
+		$(BOEHMLIB)
 	/bin/rm -f $(SYS)/version.o
 
 hsplit: $(SYS)/hsplit.o
 	$(CC) $(PROFILE) $(DEBUGINFO) -o hsplit $(SYS)/hsplit.o
+
 $(SYS)/hsplit.o: $(SYS)/hsplit.c
 	$(CC) -g -o $(SYS)/hsplit.o -I$(BUILD) -I$(SYS) -c $(SYS)/hsplit.c
-clean:
-	rm -f larceny sclarceny exlarceny hsplit
-	rm -f $(GSGC_OBJS) $(SCGC_OBJS) $(EXGC_OBJS)
 
-rtsclean:
+clean:
+	rm -f larceny hsplit core $(SYS)/*.o $(MACH)/*.o $(BUILD)/*.o
+
+rtsclean: clean
 	rm -f $(BUILD)/*.s $(BUILD)/*.*h
 
-realclean:
+realclean: clean
+	( cd $(BDW_DIR) ; make clean )
 	rm -f $(BUILD)/*
 
 
@@ -226,8 +255,14 @@ $(BUILD)/asmdefs.h:	$(ACFG)
 $(BUILD)/schdefs.h:	$(SCFG)
 	cat $(SCFG) > $(BUILD)/schdefs.h
 
+$(MACH)/bdw-memory.o: $(MACH)/memory.s
+$(SYS)/bdw-gc.o: $(SYS)/gc.c
+$(SYS)/bdw-larceny.o: $(SYS)/larceny.c
+$(SYS)/bdw-stats.o: $(SYS)/stats.c
+
 $(COBJS): $(HDRS)
-$(GSGC): $(HDRS) $(GCHDRS)
+$(ALL_GC): $(HDRS) $(GCHDRS)
+$(BOEHM_GC): $(HDRS)
 
 $(ASMOBJS): $(BUILD)/asmdefs.h
 

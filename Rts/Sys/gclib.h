@@ -1,7 +1,7 @@
 /* Rts/Sys/gclib.h
  * Larceny run-time system -- garbage collector library
  *
- * $Id: gclib.h,v 1.7 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: gclib.h,v 1.9 1997/05/31 01:38:14 lth Exp lth $
  *
  * This header defines the interface to the gc library, which provides 
  * the following services:
@@ -74,36 +74,7 @@ extern caddr_t   gclib_pagebase;         /* address of lowest page */
 
 /* Semispaces */
 
-/* A semispace is a set of memory chunks of the same generation. The set
- * can grow and shrink as necessary; typically, it is grown by the gclib
- * when the semispace overflows during gc or promotion, and shrunk by
- * the heap under direction of policy.
- *
- * An old-heap does not have to use these semispaces but I suspect they are
- * generally useful, and therefore included in this interface.
- */
-
-typedef struct semispace semispace_t;
-typedef struct chunk chunk_t;
-
-semispace_t *create_semispace( unsigned bytes, int heap_no, int gen_no );
-
-struct chunk {
-  unsigned bytes;      /* # of bytes allocated; 0 => pointers are garbage */
-  word *bot;           /* Pointer to first word */
-  word *top;           /* Pointer to next free word */
-  word *lim;           /* Pointer past last free word */
-};
-
-struct semispace {
-  int      heap_no;    /* Heap identifier */
-  int      gen_no;     /* Generation identifier */
-  unsigned allocated;  /* Total allocated bytes in semispace */
-  unsigned used;       /* Total used bytes in semispace */
-  int      current;    /* Index of current chunk (may be -1 briefly) */
-  unsigned n;          /* Length of chunk array */
-  chunk_t  *chunks;    /* Array of chunks */
-};
+#include "semispace.h"
 
 
 /* Allocation */
@@ -122,6 +93,8 @@ void gclib_copy_younger_into3( gc_t *gc, semispace_t *to, np_operation_t op );
 void gclib_stopcopy_slow( gc_t *gc, semispace_t *to );
 void gclib_np_copy_younger_into( gc_t *gc, semispace_t *tospace,
 				 np_operation_t op );
+void gclib_stopcopy_split_heap( gc_t *gc, 
+			        semispace_t *data, semispace_t *text );
 
 
 /* Page attribute manipulation */
@@ -129,18 +102,9 @@ void gclib_np_copy_younger_into( gc_t *gc, semispace_t *tospace,
 void gclib_set_gen_no( semispace_t *ss, int gen_no );
 
 
-/* Semispace manipulation */
-
-void ss_expand( semispace_t *ss, unsigned bytes_needed );
-void ss_reset( semispace_t *ss );
-void ss_prune( semispace_t *ss );
-void ss_sync( semispace_t *ss );
-void ss_free( semispace_t *ss );
-
-
 /* Statistics */
 
-void gclib_stats( word *wheap, word *wremset, word *wrts );
+void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap );
 
 #endif /* INCLUDED_GCLIB_H */
 

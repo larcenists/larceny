@@ -1,7 +1,7 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.6 1997/05/15 00:42:10 lth Exp lth $
+; $Id: unix.sch,v 1.7 1997/05/31 01:50:28 lth Exp lth $
 
 ; Various UNIX I/O parameters. The values are taken from header files
 ; for SunOS 4.1.1; at some point we need to find a scheme for generating
@@ -74,6 +74,7 @@
 (define syscall:stats-dump-on 24)
 (define syscall:stats-dump-off 25)
 (define syscall:iflush 26)
+(define syscall:gcctl 27)
 
 ; Wrappers
 
@@ -248,6 +249,12 @@
 
 (define sys$gc unix:gc)
 (define sys$codevector-iflush unix:iflush)
+
+(define (sys$gcctl heap rator rand)
+  (if (not (and (fixnum? heap) (fixnum? rator) (fixnum? rand)))
+      (error "sys$gcctl: bogus: " heap " " rator " " rand))
+  (syscall syscall:gcctl heap rator rand)
+  (unspecified))
 
 ; GC statistics dumping
 

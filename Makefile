@@ -2,12 +2,33 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.6 1997/02/11 21:48:32 lth Exp $
+# $Id: Makefile,v 1.8 1997/05/31 01:54:38 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
 
+###########################################################################
+#
+# User configuration
+
+
+# Boehm-Demers-Weiser garbage collector
+
+BDW_DIST=bdw-gc-4.11.tar.gz
+
+
+# Programs
+
+COMPRESS=gzip
+Z=gz
+
+
+# End user configuration
+#
+###########################################################################
+
 # Directories
+
 RTS=Rts
 SYS=$(RTS)/Sys
 MACH=$(RTS)/Sparc
@@ -21,15 +42,11 @@ AUXLIB=Auxlib
 TEST=Test
 COMP=Compiler
 TEXT=Text
-
-# Programs
-#COMPRESS=compress
-#Z=Z
-COMPRESS=gzip
-Z=gz
+HTML=HTML
 
 # Lists of files
 # CCFG, ACFG, SCFG, and HDRFILES also exist in $(RTS)/Makefile. Watch it!
+
 CCFG=$(BUILD)/globals.ch $(BUILD)/except.ch $(BUILD)/layouts.ch
 
 ACFG=$(BUILD)/globals.ah $(BUILD)/regs.ah $(BUILD)/except.ah \
@@ -40,10 +57,11 @@ SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 
 HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
+
 # These exist only in this file
-MISCFILES=COPYRIGHTS Makefile nbuild larceny.1 README CHGLOG
+
+MISCFILES=COPYRIGHTS README CHGLOG Makefile nbuild
 BUGSFILES=BUGS BUGS-FIXED
-MISC2FILES=$(BUGSFILES) BUGS-0.25 PROBLEMS
 ASMFILES=$(ASM)/*.sch
 LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
@@ -51,10 +69,12 @@ COMPFILES=$(COMP)/*.sch
 TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
 TESTFILES=$(TEST)/*.sch $(TEST)/*.mal $(TEST)/README
+HTMLFILES=$(HTML)/*.html
 
 RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
 	$(UTIL)/*.sch
+
 
 # Files for 'rtstar'
 RTSFILES=$(RTSFILES0) $(HDRFILES) $(BUILD)/*.s
@@ -69,8 +89,8 @@ DISTFILES=$(MISCFILES) $(BUGSFILES) $(RTSFILES0) $(ASMFILES) $(LIBFILES) \
 	$(AUXFILES) $(CHEZFILES) $(COMPFILES)
 
 # Files for 'bigtar'
-MOREFILES=$(RTS)/larceny larceny.heap $(RTS)/sclarceny larceny.eheap \
-	$(TEXTFILES) $(TESTFILES) $(MISC2FILES)
+MOREFILES=$(RTS)/larceny larceny.heap larceny.eheap \
+	$(TEXTFILES) $(HTMLFILES) $(TESTFILES)
 
 # Tar file names; can be overridden when running make.
 RTSTAR=larceny-rts.tar
@@ -83,9 +103,8 @@ default:
 	@echo "Make what?"
 	@echo "Your options are:"
 	@echo "  setup      - initialize system"
+	@echp "  bdw_setup  - unpack Boehm-Demers-Weiser collector"
 	@echo "  larceny    - build standard generational system"
-	@echo "  sclarceny  - build stop-and-copy system"
-	@echo "  exlarceny  - build experimental generational system"
 	@echo "  hsplit     - build heap splitter"
 	@echo "  clean      - remove executables and objects"
 	@echo "  lopclean   - remove all .LOP files"
@@ -99,26 +118,24 @@ default:
 	@echo "  hugetar    - Everything."
 
 setup:
-	rm -f larceny exlarceny sclarceny Build
+	rm -f larceny Build
 	ln -s $(RTS)/larceny
-	ln -s $(RTS)/exlarceny
-	ln -s $(RTS)/sclarceny
+	ln -s $(RTS)/bdwlarceny
 	ln -s $(RTS)/hsplit
 	ln -s $(RTS)/Build
 	(cd $(RTS) ; $(MAKE) setup)
 	$(MAKE) chezstuff
 
+bdw_setup:
+	( cd $(RTS) ; gunzip < ../$(BDW_DIST) | tar xvf - ; mv gc bdw-gc );
+
 larceny: target_larceny
 target_larceny:
 	( cd $(RTS) ; $(MAKE) larceny )
 
-sclarceny: target_sclarceny
-target_sclarceny:
-	( cd $(RTS) ; $(MAKE) sclarceny )
-
-exlarceny: target_exlarceny
-target_exlarceny:
-	( cd $(RTS) ; $(MAKE) exlarceny )
+bdwlarceny: target_bdwlarceny
+target_bdwlarceny:
+	( cd $(RTS) ; $(MAKE) bdwlarceny )
 
 hsplit: target_hsplit
 target_hsplit:
@@ -143,12 +160,12 @@ libclean: lopclean
 		$(TEST)/*.lap
 
 rtsclean: clean
-	rm -f larceny sclarceny exlarceny Build hsplit
+	rm -f larceny Build hsplit
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) rtsclean )
 
 realclean: clean libclean
-	rm -f larceny sclarceny exlarceny Build hsplit
+	rm -f larceny Build hsplit
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) realclean )
 

@@ -1,11 +1,13 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.14 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: larceny.h,v 1.16 1997/05/31 01:38:14 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
 #define INCLUDED_LARCENY_H
+
+#include <limits.h>
 
 #ifdef GC_INTERNAL
 #define NOGLOBALS      /* globals[] array is not declared in this file */
@@ -25,6 +27,12 @@ typedef unsigned word;
 extern word globals[];
 #endif
 
+/* In the garbage collector (Rts/Sys/memmgr.c or Rts/Sys/bdw-collector.c) */
+
+#ifndef GC_INTERNAL
+extern const char *gc_technology;
+#endif
+
 /* In "Rts/Sys/larceny.c" */
 
 extern int  panic( const char *fmt, ... );
@@ -42,7 +50,8 @@ extern unsigned heap_ssize( void );
 extern unsigned heap_tsize( void );
 extern void closeheap( void );
 extern void load_heap_image( word *sbase, word *tbase, word *globals );
-extern int dump_heap_image( char *filename );
+extern int dump_heap_image( char *filename, semispace_t *data, 
+			    semispace_t *text, word *globals );
 #endif
 
 /* In "Rts/Sys/gc.c" -- an old-looking front-end for the new collector */
@@ -54,8 +63,10 @@ extern void garbage_collect( int, unsigned );
 extern void garbage_collect3( unsigned, unsigned, unsigned );
 extern int  compact_ssb( void );
 extern void load_heap( void );
+extern int  reorganize_and_dump_static_heap( char *filename );
 extern int  dump_heap( char *filename );
 extern void init_stats( int show_stats );
+extern void gc_policy_control( int heap, int rator, unsigned rand );
 extern word creg_get( void );
 extern void creg_set( word k );
 extern void stack_overflow( void );
@@ -122,6 +133,7 @@ extern void UNIX_flonum_atan2();
 extern void UNIX_flonum_sqrt();
 extern void UNIX_stats_dump_on();
 extern void UNIX_stats_dump_off();
+extern void UNIX_gcctl_np();
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -194,9 +206,10 @@ extern int memfail( int code, char *fmt, ... );
 #define DEFAULT_TSIZE (1024*1024*2)   /* default tspace size = 2MB */
 #define DEFAULT_SSIZE 0               /* default static size = 0 */
 #define DEFAULT_SC_SIZE (1024*1024*2)  /* default stop+copy size = 2MB */
-#define DEFAULT_NP_SIZE (1024*1024*2) /* default NP space size = 2MB */
 
 #define DEFAULT_STEPS              8  /* default number of NP steps */
+#define DEFAULT_STEPSIZE   (256*1024) /* default NP step size */
+#define DEFAULT_NP_SIZE (DEFAULT_STEPS*DEFAULT_STEPSIZE)
 
 /* GC policy defaults (not tuned) */
 #define DEFAULT_EWATERMARK 50     /* espace > 50% full => tenure */
@@ -250,6 +263,14 @@ extern int memfail( int code, char *fmt, ... );
 #define debug2msg  consolemsg
 #else
 #define debug2msg  1?(void)0:(void)
+#endif
+
+#ifndef PATH_MAX
+# ifdef _POSIX_PATH_MAX
+#  define PATH_MAX _POSIX_PATH_MAX
+# else
+#  define PATH_MAX 1024
+# endif
 #endif
 
 #endif /* if INCLUDED_LARCENY_H */

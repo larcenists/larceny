@@ -1,7 +1,7 @@
 ;; -*- Scheme -*-
 ;; Larceny assembler (Sparc) -- emitting code for integrables.
 ;;
-;; $Id: gen-prim.sch,v 1.2 1997/05/15 00:54:42 lth Exp lth $
+;; $Id: gen-prim.sch,v 1.3 1997/05/31 01:52:16 lth Exp lth $
 ;;
 ;; History
 ;;   November 3, 1995 / lth (v0.25)
@@ -1433,7 +1433,7 @@
 
     ; Allocate space
 
-    (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc-bv ,$r.o7))  ; NOT-IN-SYNC
     (emit! as `(,$i.srai ,$r.result 2 ,$r.result))
 
     ; Setup header, tag pointer.

@@ -1,7 +1,7 @@
 ! Rts/Sparc/memory.s
 ! Larceny run-time system (SPARC)  --  memory management primitives.
 !
-! $Id: memory.s,v 1.3 1997/02/04 16:43:36 lth Exp $
+! $Id: memory.s,v 1.4 1997/05/23 13:59:15 lth Exp $
 !
 ! Naming conventions:
 !   All publicly available procedures are named _mem_something.
@@ -24,6 +24,7 @@
 #include "asmmacro.h"
 
 	.global EXTNAME(mem_alloc)			! allocate raw RAM
+	.global EXTNAME(mem_alloc_bv)			! allocate raw RAM
 	.global EXTNAME(mem_alloci)			! allocate cooked RAM
 	.global	EXTNAME(mem_internal_alloc)		! allocate raw RAM
 	.global EXTNAME(mem_garbage_collect)		! do a GC
@@ -37,7 +38,8 @@
 	.seg "text"
 
 
-! _mem_alloc: allocate uninitialized memory.
+! _mem_alloc: allocate uninitialized pointer-containing memory.
+! _mem_alloc_bv: allocate uninitialized pointer-non-containing memory.
 !
 ! Call from: Scheme
 ! Input    : RESULT = fixnum: size of structure in words
@@ -45,10 +47,20 @@
 ! Output   : RESULT = untagged ptr to uninitialized memory
 ! Destroys : RESULT, Temporaries
 !
-! This procedure could call _mem_internal_alloc, but does its work
+! These procedures could call _mem_internal_alloc, but do their work
 ! in-line for performance reasons.
 
+EXTNAME(mem_alloc_bv):
+#ifdef BDW_GC
+	b	bdw_allocate_atomic		! in bdw-memory.s
+	nop
+#else
+	/* falls through to mem_alloc!! */
+#endif
+
+
 EXTNAME(mem_alloc):
+#ifndef BDW_GC
 Lalloc0:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
@@ -70,6 +82,10 @@ Lalloc1:
 						! without checking for
 						! overflow because everything
 						! is 8-byte aligned.
+#else
+	b	bdw_allocate			! in bdw-memory.s
+	nop
+#endif
 
 
 ! _mem_alloci: allocate initialized memory
@@ -113,6 +129,7 @@ Lalloci2:
 ! Destroys : RESULT, Temporaries
 
 EXTNAME(mem_internal_alloc):
+#ifndef BDW_GC
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -137,6 +154,10 @@ Lialloc1:
 	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
 						! in code for _mem_alloc.
+#else
+	b	bdw_allocate			! in bdw-memory.s
+	nop
+#endif
 
 
 ! heap_overflow: Heap overflow handler for allocation primitives.

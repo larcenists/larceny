@@ -1,7 +1,7 @@
 /* Rts/Sys/stats.c.
  * Larceny run-time system -- run-time statistics.
  *
- * $Id: stats.c,v 1.12 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: stats.c,v 1.14 1997/05/31 01:38:14 lth Exp lth $
  *
  * The stats module maintains run-time statistics.  Mainly, these are
  * statistics on memory use (bytes allocated and collected, amount of 
@@ -86,7 +86,10 @@ typedef struct {
 typedef struct {
   word collections;      /* collections in this heap */
   word promotions;       /* promotions into this heap */
-  word gctime;           /* total gc time in ms */
+  word gctime;           /* total gc time in ms (including promotion) */
+  word promtime;         /* total promotion time in ms */
+  word target;           /* current allocation target (upper bound) */
+  word alloc;            /* current allocation */
   unsigned np_old;       /* 1 iff NP 'old' generation */
   unsigned np_young;     /* 1 iff NP 'young' generation */
   unsigned np_k;         /* Number of steps (old+young together) */
@@ -106,13 +109,15 @@ typedef struct {
   word wcollected_lo;      /*  reclaimed */
   word wcopied_hi;         /* total words */
   word wcopied_lo;         /*  copied */
-  word gctime;             /* total milliseconds GC time */
+  word gctime;             /* total milliseconds GC time (includes promotion)*/
+  word promtime;           /* total milliseconds promotion time */
 
   /* GC stuff - overall (preliminary) */
   gen_stat_t gen_stat[MAX_GENERATIONS]; /* Information about each generation */
 
   /* GC stuff - snapshot */
   word wlive;              /* current words live */
+  word wmax_heap;          /* max words allocated to heap ever */
   word lastcollection_gen; /* generation of last collection */
   word lastcollection_type;/* type of last collection */
 
@@ -175,6 +180,13 @@ static void fill_remset_vector( word *rv, rem_stat_t *rs, int np_remset );
 static void dump_gen_stats( FILE *dumpfile, gen_stat_t *gs, word live );
 static void dump_remset_stats( FILE *dumpfile, rem_stat_t *rs );
 
+/* if we're using the Boehm collector and it was compiled with 
+ * REDIRECT_MALLOC (see bdw-gc/Makefile), then stats routines may
+ * be called from the GC before initialization.  This flag lets us
+ * ignore those calls.
+ */
+
+static int initialized = 0;
 
 /* Initialize the stats module.
  *
@@ -201,6 +213,7 @@ stats_init( gc_t *collector, int gen, int show_heapstats )
 
   if (show_heapstats) 
     print_heapstats( heapstats_after_gc );
+  initialized = 1;
 }
 
 
@@ -213,6 +226,8 @@ void
 stats_before_gc( void )
 {
   word allocated;
+
+  if (!initialized) return;
 
   time_before_gc = stats_rtclock();
 
@@ -238,6 +253,8 @@ stats_before_gc( void )
 void
 stats_gc_type( int generation, stats_gc_t type )
 {
+  if (!initialized) return;
+
   /* Just record the values; stats_gc_type may be called multiple times
      during a collection, and only the last set of values should be
      remembered.
@@ -255,6 +272,8 @@ stats_after_gc( void )
   unsigned gen;
   unsigned time;
 
+  if (!initialized) return;
+
   if (memstats.lastcollection_type == fixnum(STATS_COLLECT))
     memstats.gen_stat[nativeint(memstats.lastcollection_gen)].collections
       += fixnum(1);
@@ -269,16 +288,15 @@ stats_after_gc( void )
        fixnum( live_before_gc - nativeint(memstats.wlive) ) );
 
   gen = nativeint(memstats.lastcollection_gen);
-  if (nativeint(memstats.lastcollection_type) == STATS_COLLECT)
-    add( &memstats.wcopied_hi, &memstats.wcopied_lo,
-	fixnum(heapstats_after_gc[gen].live) );
-  else
-    add( &memstats.wcopied_hi, &memstats.wcopied_lo,
-	fixnum(heapstats_after_gc[gen].live-heapstats_before_gc[gen].live) );
+  add( &memstats.wcopied_hi, &memstats.wcopied_lo,
+      fixnum(heapstats_after_gc[gen].copied_last_gc) );
 
   memstats.gctime += fixnum( time );
   memstats.gen_stat[gen].gctime += fixnum( time );
-
+  if (memstats.lastcollection_type == fixnum(STATS_PROMOTE)) {
+    memstats.promtime += fixnum( time );
+    memstats.gen_stat[gen].promtime += fixnum( time );
+  }
 
   dump_stats( heapstats_after_gc, &memstats );
 }
@@ -421,14 +439,24 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   struct rusage buf;
   unsigned usertime, systime, minflt, majflt;
 
+#ifndef BDW_GC
   vp[ STAT_WALLOCATED_HI ] = ms->wallocated_hi;
   vp[ STAT_WALLOCATED_LO ] = ms->wallocated_lo;
   vp[ STAT_WCOLLECTED_HI ] = ms->wcollected_hi;
   vp[ STAT_WCOLLECTED_LO ] = ms->wcollected_lo;
+#else
+  /* FIXME */
+  vp[ STAT_WALLOCATED_HI ] = 0;
+  vp[ STAT_WALLOCATED_LO ] = 0;
+  vp[ STAT_WCOLLECTED_HI ] = 0;
+  vp[ STAT_WCOLLECTED_LO ] = 0;
+#endif
   vp[ STAT_WCOPIED_HI ]    = ms->wcopied_hi;
   vp[ STAT_WCOPIED_LO ]    = ms->wcopied_lo;
   vp[ STAT_GCTIME ]        = ms->gctime;
+  vp[ STAT_PROMTIME ]      = ms->promtime;
   vp[ STAT_WLIVE ]         = ms->wlive;
+  vp[ STAT_MAX_HEAP ]      = ms->wmax_heap;
   vp[ STAT_LAST_GEN ]      = ms->lastcollection_gen;
   vp[ STAT_LAST_TYPE ]     = (ms->lastcollection_type == STATS_COLLECT 
 			       ? fixnum(0) 
@@ -487,6 +515,9 @@ fill_gen_vector( word *gv, gen_stat_t *gs, word live )
   gv[ STAT_G_NP_OLDP ] = gs->np_old;
   gv[ STAT_G_NP_J ] = gs->np_j;
   gv[ STAT_G_NP_K ] = gs->np_k;
+  gv[ STAT_G_ALLOC ] = gs->alloc;
+  gv[ STAT_G_TARGET ] = gs->target;
+  gv[ STAT_G_PROMTIME ] = gs->promtime;
 }
 
 
@@ -778,6 +809,11 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
     ms->gen_stat[i].np_j = fixnum(stats[i].np_j);
     ms->gen_stat[i].np_k = fixnum(stats[i].np_k);
 
+    /* Policy & allocation */
+    ms->gen_stat[i].target = fixnum(stats[i].target/sizeof(word));
+    ms->gen_stat[i].alloc = fixnum((stats[i].semispace1+stats[i].semispace2)/
+				   sizeof(word));
+
 #if NP_EXTRA_REMSET
     if (stats[i].np_young) {  /* Entries valid exactly when np_young==1 */
       add( &ms->np_remset.hrecorded_hi, &ms->np_remset.hrecorded_lo,
@@ -804,9 +840,16 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
   add( &ms->wflushed_hi, &ms->wflushed_lo, fixnum(bytes_flushed/sizeof(word)));
   add( &ms->frestored_hi, &ms->frestored_lo, fixnum( frames_restored ) );
   ms->stacks_created += fixnum( stacks_created );
-  gclib_stats( &ms->wallocated_heap,
-	       &ms->wallocated_remset, 
-	       &ms->wallocated_rts );
+#ifndef BDW_GC
+  { unsigned heap, remset, rts, max_heap;
+
+    gclib_stats( &heap, &remset, &rts, &max_heap );
+    ms->wallocated_heap = fixnum(heap);
+    ms->wallocated_remset = fixnum(remset);
+    ms->wallocated_rts = fixnum(rts);
+    ms->wmax_heap = fixnum(max_heap);
+  }
+#endif
 
 #if SIMULATE_NEW_BARRIER
   { simulated_barrier_stats_t s;

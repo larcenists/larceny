@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.c
  * Larceny run-time system -- write barrier for new collector
  *
- * $Id: barrier.c,v 1.6 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: barrier.c,v 1.7 1997/05/23 13:42:46 lth Exp $
  *
  * Write barrier support code.
  *
@@ -12,6 +12,10 @@
  *    barrier about a new (reallocated) page table.  This is a hack.
  *
  * Also see Rts/Sparc/barrier.s.
+ *
+ * The code in this file is *NOT* reentrant.
+ * The code in this file does not depend on word size.
+ * The code in this file does not depend on header size.
  */
 
 #define GC_INTERNAL

@@ -1,5 +1,5 @@
 /* hsplit.c -- program that shuffles code into the static area
- * $Id: hsplit.c,v 1.1 1997/01/21 20:04:22 lth Exp $
+ * $Id: hsplit.c,v 1.2 1997/05/23 13:50:06 lth Exp $
  *
  * Lars Thomas Hansen [lth@cs.uoregon.edu]
  * May 28, 1996
@@ -32,7 +32,7 @@
  */
 
 #include <stdio.h>
-#include <varargs.h>
+#include <stdarg.h>
 #include "larceny.h"
 #include "cdefs.h"
 #include "macros.h"
@@ -525,20 +525,19 @@ FILE *fp;
 
 /* from larceny.c */
 
-int panic( va_alist )
-va_dcl
+int panic( const char *fmt, ... )
 {
   static int in_panic = 0;
   va_list args;
-  char *fmt;
 
-  va_start( args );
-  fmt = va_arg( args, char * );
+  va_start( args, fmt );
+  fprintf( stderr, "Larceny Panic: " );
   vfprintf( stderr, fmt, args );
   va_end( args );
   fprintf( stderr, "\n" );
 
   exit( 1 );
+  /* Never returns. Return type is 'int' to facilitate an idiom. */
 }
 
 /* eof */

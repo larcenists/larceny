@@ -1,7 +1,7 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
- * $Id: unix-alloc.c,v 1.8 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: unix-alloc.c,v 1.9 1997/05/31 01:38:14 lth Exp lth $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write
@@ -58,8 +58,13 @@ static unsigned   descriptor_slots;  /* number of allocated slots */
 static caddr_t    memtop;            /* address of highest known word */
 static freelist_t *freelist;         /* linear list of chunks */
 static unsigned   heap_bytes;        /* bytes allocated to heap */
+static unsigned   max_heap_bytes;    /* max ditto */
 static unsigned   remset_bytes;      /* bytes allocated to remset */
+static unsigned   max_remset_bytes;  /* max ditto */
 static unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
+static unsigned   max_rts_bytes;     /* max ditto */
+static unsigned   free_bytes;        /* bytes on free list */
+static unsigned   max_free_bytes;    /* max ditto */
 
 static void *gclib_alloc( unsigned bytes );
 static void dump_freelist( void );
@@ -127,6 +132,7 @@ void *gclib_alloc_heap( unsigned bytes, unsigned heap_no, unsigned gen_no )
     gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY;
   }
   heap_bytes += bytes;
+  if (heap_bytes > max_heap_bytes) max_heap_bytes = heap_bytes;
   return ptr;
 }
 
@@ -147,10 +153,14 @@ void *gclib_alloc_rts( unsigned bytes, unsigned attribute )
     gclib_desc_g[i] = RTS_OWNED_PAGE;
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
   }
-  if (attribute & MB_REMSET)
+  if (attribute & MB_REMSET) {
     remset_bytes += bytes;
-  else
+    if (remset_bytes > max_remset_bytes) max_remset_bytes = remset_bytes;
+  }
+  else {
     rts_bytes += bytes;
+    if (rts_bytes > max_rts_bytes) max_rts_bytes = rts_bytes;
+  }
   return ptr;
 }
 
@@ -185,10 +195,11 @@ static void *gclib_alloc( unsigned bytes )
     else
       freelist = n;
 
-#ifdef GCLIB_DEBUG
+#if GCLIB_DEBUG
     consolemsg( "  *** (allocated %p %u from-free-list)", f, bytes );
     dump_freelist();
 #endif
+    free_bytes -= bytes;
     return (void*)f;
   }
 
@@ -246,8 +257,9 @@ static void *gclib_alloc( unsigned bytes )
 
   memtop = top;
 
-#ifdef GCLIB_DEBUG
+#if GCLIB_DEBUG
   consolemsg( "  *** (allocated %p %u fresh)", ptr, bytes );
+  dump_freelist();
 #endif
   return (void *)ptr;
 }
@@ -266,7 +278,7 @@ void gclib_free( void *addr, unsigned bytes )
   assert(((word)addr & PAGEMASK) == 0);
 
   bytes = roundup_page( bytes );
-#ifdef GCLIB_DEBUG
+#if GCLIB_DEBUG
   consolemsg( "  *** (free %p %u)", addr, bytes );
 #endif
   pages = bytes/PAGESIZE;
@@ -276,13 +288,16 @@ void gclib_free( void *addr, unsigned bytes )
    * That is a reasonable assumption.
    */
   if (pages > 0) {
-    if (gclib_desc_g[pageno] & MB_HEAP_MEMORY)
+    if (gclib_desc_b[pageno] & MB_HEAP_MEMORY)
       heap_bytes -= bytes;
-    else if (gclib_desc_g[pageno] & MB_REMSET)
+    else if (gclib_desc_b[pageno] & MB_REMSET)
       remset_bytes -= bytes;
     else
       rts_bytes -= bytes;
   }
+  free_bytes += bytes;
+  if (free_bytes > max_free_bytes) max_free_bytes = free_bytes;
+
   while (pages > 0) {
     assert( (gclib_desc_b[pageno] & MB_ALLOCATED ) &&
 	    !(gclib_desc_b[pageno] & MB_FOREIGN ) );
@@ -299,7 +314,7 @@ void gclib_free( void *addr, unsigned bytes )
   for ( fl = freelist, p = 0 ; fl != 0 ; p = fl, fl = fl->next ) {
     if ((char*)fl+fl->size == (char*)f) {
       fl->size += bytes;
-#ifdef GCLIB_DEBUG
+#if 0 && GCLIB_DEBUG
       debugmsg( "      trailing existing at %p", fl );
 #endif
       break;
@@ -307,7 +322,7 @@ void gclib_free( void *addr, unsigned bytes )
     else if ((char*)f+f->size == (char*)fl) {
       f->size += fl->size;
       f->next = fl->next;
-#ifdef GCLIB_DEBUG
+#if 0 && GCLIB_DEBUG
       debugmsg( "      preceding existing at %p", fl );
 #endif
       if (p == 0)
@@ -322,7 +337,7 @@ void gclib_free( void *addr, unsigned bytes )
     f->next = freelist;
     freelist = f;
   }
-#ifdef GCLIB_DEBUG
+#if 0 && GCLIB_DEBUG
   dump_freelist();
 #endif
 }
@@ -350,11 +365,12 @@ void gclib_set_gen_no( semispace_t *s, int gen_no )
 
 
 /* Return information about memory use */
-void gclib_stats( word *wheap, word *wremset, word *wrts )
+void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap )
 {
-  *wheap = heap_bytes;
-  *wremset = remset_bytes;
-  *wrts = rts_bytes;
+  *wheap = heap_bytes/sizeof(word);
+  *wremset = remset_bytes/sizeof(word);
+  *wrts = rts_bytes/sizeof(word);
+  *wmax_heap = max_heap_bytes/sizeof(word);
 }
 
 

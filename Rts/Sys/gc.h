@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.h
  * Larceny run-time system -- garbage collector interface (public)
  *
- * $Id: gc.h,v 1.11 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: gc.h,v 1.13 1997/05/31 01:38:14 lth Exp lth $
  *
  * The procedure create_gc() returns a new garbage collector that manages
  * some number of heap areas.  It is implemented in "memmgr.c".
@@ -22,6 +22,8 @@
 #ifndef INCLUDED_GC_H
 #define INCLUDED_GC_H
 
+#include "semispace.h"   /* Sigh.  gc_t needs it. */
+
 /* Information about each heap */
 
 typedef struct heap_info heap_info_t;
@@ -39,6 +41,8 @@ struct gc_param {
   int use_static_heap;        /* 1 if static heap is to be used */
   int use_np_heap;            /* 1 if non-predictive heap is to be used */
   int heaps;                  /* number of heaps to use (not counting static)*/
+
+  int bdw_incremental;        /* 1 if incremental conservative GC */
 
   word *globals;              /* globals table used by collector */
 
@@ -70,6 +74,8 @@ typedef enum { GC_COLLECT, GC_PROMOTE } gc_type_t;
 
 gc_t *
 create_gc( gc_param_t *params, int *actual_generations /* OUT */ );
+gc_t *
+create_bdw_gc( gc_param_t *params, int *actual_generations /* OUT */ );
 
 struct gc { 
   char *id;
@@ -78,6 +84,9 @@ struct gc {
   /* Memory management */
   void (*collect)( gc_t *gc, int gen, gc_type_t type, unsigned request_bytes);
   word *(*allocate)( gc_t *gc, unsigned request_bytes );
+
+  /* Policy control */
+  void (*set_policy)( gc_t *gc, int heap, int rator, unsigned rand );
 
   /* Heap loading */
   word *(*data_load_area)( gc_t *gc, unsigned bytes_needed );
@@ -101,13 +110,16 @@ struct gc {
 
   /* Support for simulated write barrier */
   int (*isremembered)( gc_t *gc, word w );
-
+  
   /* Support for non-predictive collector */
   void (*compact_np_ssb)( gc_t *gc );
   void (*clear_np_remset)( gc_t *gc );
   void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim );
   void (*set_np_collection_flag)( gc_t *gc );
   void (*np_merge_and_clear_remset)( gc_t *gc, int gen );
+
+  /* Support for static heap. */
+  void (*reorganize_static)( gc_t *gc, semispace_t **data, semispace_t **text);
 
   /* PRIVATE */
   /* Internal to the collector implementation. */
@@ -143,8 +155,10 @@ struct heap_stats {
   unsigned stack;           /* stack bytes live, or 0 */
   unsigned semispace1;      /* bytes allocated to semispace1 */
   unsigned semispace2;      /* bytes allocated to semispace2, or 0 */
+  unsigned target;          /* semispace target size (policy) */
 
   /* "Since last call" entries */
+  unsigned copied_last_gc;  /* bytes copied during last GC */
   unsigned frames_flushed;  /* stack frames flushed, or 0 */
   unsigned frames_restored; /* Stack frames restored, or 0 */
   unsigned bytes_flushed;   /* bytes of stack flushed/copied, or 0 */
@@ -176,6 +190,11 @@ struct old_param {
   unsigned hiwatermark;  /* percent */
   unsigned lowatermark;  /* percent */
 };
+
+
+/* In "Rts/Sys/util.c" */
+extern word copy_object( gc_t *gc, word obj );
+
 
 #endif
 

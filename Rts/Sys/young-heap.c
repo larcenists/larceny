@@ -1,7 +1,7 @@
 /* Rts/Sys/young-heap.c
  * Larceny run-time system -- youngest heap.
  *
- * $Id: young-heap.c,v 1.11 1997/05/15 00:58:49 lth Exp lth $
+ * $Id: young-heap.c,v 1.12 1997/05/31 01:38:14 lth Exp lth $
  *
  * Contract
  *
@@ -63,6 +63,8 @@ typedef struct {
   unsigned frames_flushed;  /* stack frames flushed */
   unsigned bytes_flushed;   /* bytes of stack flushed or copied */
   unsigned stacks_created;  /* number of stacks created */
+  unsigned copied_last_gc;  /* bytes */
+  int      dont_clear_copy_number;
 } young_data_t;
 
 #define DATA( heap )  ((young_data_t*)((heap)->data))
@@ -82,7 +84,7 @@ static word creg_get( young_heap_t *heap );
 static void creg_set( young_heap_t *heap, word cont );
 static void do_restore_frame( young_heap_t *heap );
 static void assert_free_space( young_heap_t *heap, unsigned request_bytes );
-
+static void set_policy( young_heap_t *heap, int rator, unsigned rand );
 
 /* Private */
 static void flip( young_heap_t * );
@@ -104,16 +106,8 @@ create_young_heap( int *gen_no,
   young_heap_t *heap;
   word *heapptr;
 
- again:
-  heap = (young_heap_t*)malloc( sizeof( young_heap_t ) );
-  data = (young_data_t*)malloc( sizeof( young_data_t ) );
-
-  if (heap == 0 || data == 0) {
-    if (!heap) free( heap );
-    if (!data) free( data );
-    memfail( MF_MALLOC, "Could not allocate heap metadata." );
-    goto again;
-  }
+  heap = (young_heap_t*)must_malloc( sizeof( young_heap_t ) );
+  data = (young_data_t*)must_malloc( sizeof( young_data_t ) );
 
   heap->id = "sc/fixed";
   heap->initialize = initialize;
@@ -130,6 +124,7 @@ create_young_heap( int *gen_no,
   heap->stats = stats;
   heap->free_space = free_space;
   heap->data_load_area = data_load_area;
+  heap->set_policy = set_policy;
 
   heap->data = data;
 
@@ -165,6 +160,8 @@ create_young_heap( int *gen_no,
   data->heapsize = size_bytes;
   data->must_promote = 0;
   data->just_promoted = 0;
+  data->copied_last_gc = 0;
+  data->dont_clear_copy_number = 0;
   data->promote_always = PROMOTE_ALWAYS;
 
   /* Setup heap pointers needed by RTS */
@@ -192,6 +189,12 @@ initialize( young_heap_t *heap )
   return 1;
 }
 
+
+static void
+set_policy( young_heap_t *heap, int rator, unsigned rand )
+{
+  /* Nothing yet */
+}
 
 static word *
 allocate( young_heap_t *heap, unsigned nbytes )
@@ -236,6 +239,8 @@ collect( young_heap_t *heap, unsigned request_bytes )
 
   data->must_promote = (free_space(heap) < data->watermark);
   data->just_promoted = 0;
+  data->copied_last_gc = globals[G_ETOP]-globals[G_EBOT];
+  data->dont_clear_copy_number = 1;
 
   if (!create_stack( heap )) {
     debugmsg( "[debug] young heap: Failed create-stack." );
@@ -248,6 +253,7 @@ collect( young_heap_t *heap, unsigned request_bytes )
 
   if (free_space( heap ) < request_bytes) goto promote;
 
+  data->dont_clear_copy_number = 0;
   debugmsg( "[debug] young heap: finished collecting." );
   return;
 
@@ -326,6 +332,9 @@ after_promotion( young_heap_t *heap )
 
   DATA(heap)->must_promote = 0;
   DATA(heap)->just_promoted = 1;
+  if (!DATA(heap)->dont_clear_copy_number)
+    DATA(heap)->copied_last_gc = 0;
+  DATA(heap)->dont_clear_copy_number = 0;
 }
 
 
@@ -344,11 +353,14 @@ stats( young_heap_t *heap, heap_stats_t *stats )
   word *globals = DATA(heap)->globals;
 
   stats->live = globals[ G_ETOP ] - globals[ G_EBOT ];
+  stats->copied_last_gc = DATA(heap)->copied_last_gc;
+  DATA(heap)->copied_last_gc = 0;
   stats->stack = globals[ G_STKBOT ] - globals[ G_STKP ];
   stats->frames_flushed = DATA(heap)->frames_flushed;
   stats->frames_restored = globals[G_STKUFLOW];
   stats->bytes_flushed = DATA(heap)->bytes_flushed;
   stats->semispace1 = stats->semispace2 = DATA(heap)->heapsize;
+  stats->target = DATA(heap)->heapsize;
   stats->stacks_created = DATA(heap)->stacks_created;
   DATA(heap)->frames_flushed = 0;
   DATA(heap)->bytes_flushed = 0;
