@@ -112,7 +112,7 @@
   (let ((linebreak (string #\newline)))
     (lambda (as fmt . operands)
       (emit-string! as code-indentation)
-      (emit-string! as (apply twobit-format fmt operands))
+      (emit-string! as (apply twobit-format #f fmt operands))
       (emit-string! as linebreak))))
 
 (define (begin-compiled-scheme-function as label entrypoint? start?)
@@ -357,6 +357,10 @@
 	  (list-instruction "pop" instruction)
 	  (emit-text as "twobit_pop( ~a );" (operand1 instruction))))))
 
+(define-instruction $popstk
+  (lambda (instruction as)
+    (error "POPSTK is not yet implemented by the standard-C assembler.")))
+
 (define-instruction $stack
   (lambda (instruction as)
     (list-instruction "stack" instruction)
@@ -469,15 +473,32 @@
                (operand1 instruction)
 	       (compiled-procedure as (operand1 instruction) #f))))
 
+(define-instruction $check
+  (lambda (instruction as)
+    (list-instruction "check" instruction)
+    (emit-text as "twobit_check( ~a, ~a, ~a, ~a );"
+               (operand1 instruction)
+               (operand2 instruction)
+               (operand3 instruction)
+               (compiled-procedure as (operand4 instruction) #f))))
+
+(define-instruction $trap
+  (lambda (instruction as)
+    (list-instruction "trap" instruction)
+    (emit-text as "twobit_trap( ~a, ~a, ~a, ~a );"
+               (operand1 instruction)
+               (operand2 instruction)
+               (operand3 instruction)
+               (operand4 instruction))))
 
 ; Helper procedures.
 
 (define (compiled-procedure as label start?)
   (if start?
-      (twobit-format "compiled_start_~a_~a" 
+      (twobit-format #f "compiled_start_~a_~a" 
 		     (user-data.toplevel-counter (as-user as))
 		     label)
-      (twobit-format "compiled_block_~a_~a" 
+      (twobit-format #f "compiled_block_~a_~a" 
 		     (user-data.toplevel-counter (as-user as))
 		     label)))
 
@@ -485,8 +506,8 @@
   (let ((id (new-proc-id as)))
     (values
      id
-  (twobit-format "compiled_temp_~a_~a" 
-		 (user-data.toplevel-counter (as-user as))
+     (twobit-format #f "compiled_temp_~a_~a" 
+                    (user-data.toplevel-counter (as-user as))
                     id))))
 
 (define (immediate-constant? x)
