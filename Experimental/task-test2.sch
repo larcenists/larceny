@@ -1,24 +1,22 @@
 ; Copyright 1999 Lars T Hansen
 ;
 ; $Id$
-; 991022 / lth
 ;
-; Bug: server does not close server socket when it is stopped.  For the
+; BUG: server does not close server socket when it is stopped.  For the
 ; other threads, this  program simulates orderly shutdown, but poorly -- 
 ; effectively a cooperative SIGHUP.  A better solution must be found to 
-; signal threads.  For example, an exception can be posted with the
-; scheduler and the scheduler can signal the exception to the thread.
+; signal threads.  (See Thread.AlertWait() in Modula-3.)
+;
+; BUG: killing waiting threads causes the threads system to crash; this
+; is a known bug in that system (see tasking-unix.sch).  Thus stop-server
+; should not be called.
 
 ; You must call begin-tasking before calling start-server.
 
-(load "Experimental/unix.sch")
-(load "Experimental/iosys.sch")
-(load "Experimental/poll.sch")
-(load "Experimental/unix-descriptor.sch")
-(load "Experimental/nonblocking-console.sch")
-(load "Experimental/tasking.sch")
-(load "Experimental/tasking-unix.sch")
-(load "Experimental/socket.sch")
+(require 'experimental/unix-descriptor)
+(require 'experimental/iosys)
+(require 'experimental/tasking-unix)
+(require 'experimental/socket)
 
 (define server #f)                      ; The server or #f
 (define server-threads '())             ; List of (thread . stop-thunk)
@@ -58,8 +56,8 @@
         (self #f))
     (values (lambda ()
               (set! self (current-task))
-              (fluid-let ((console-input-port (lambda () in))
-                          (console-output-port (lambda () out)))
+              (parameterize ((console-input-port-factory (lambda () in))
+                             (console-output-port-factory (lambda () out)))
                   (parameterize ((repl-level 0))
                     (repl)))
               (stop-server-thread self))
@@ -87,5 +85,17 @@
                (assq (current-task) server-threads))
           (stop-server-thread (current-task))
           (apply exit args)))))
+
+; A patch -- remove when REPL exports REPL-LEVEL.
+
+(define repl-level
+  (let ((level 0))
+    (lambda args
+      (cond ((null? args) level)
+            ((null? (cdr args))
+             (set! level (car args))
+             level)
+            (else
+             (error "Wrong args to REPL-LEVEL."))))))
 
 ; eof
