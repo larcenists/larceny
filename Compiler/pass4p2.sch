@@ -625,11 +625,13 @@
         (else (let ((keyword (car exp)))
                 (cond ((eq? keyword 'quote) '())
                       ((eq? keyword 'lambda)
-                       (let ((env (append (make-null-terminated (cadr exp))
-                                          env)))
-                         (apply-union
-                          (map (lambda (x) (freevars2 x env))
-                               (cddr exp)))))
+                       ; Once upon a time this had to be computed.
+                       ;(let ((env (append (make-null-terminated (cadr exp))
+                       ;                   env)))
+                       ;  (apply-union
+                       ;   (map (lambda (x) (freevars2 x env))
+                       ;        (cddr exp)))))
+                       (lambda.F exp))
                       ((memq keyword '(if set! begin))
                        (apply-union
                         (map (lambda (x) (freevars2 x env))
