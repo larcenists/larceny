@@ -11,13 +11,16 @@
 struct gclib_stats {
   /* Snapshot */
   int heap_allocated;		/* words currently allocated to heap areas */
-  int heap_allocated_max;	/* max of wheap over time */
+  int heap_allocated_max;	/* max of heap_allocated over time */
+  int heap_limit;		/* 0 or the current heap limit */
   int remset_allocated;		/* words allocated to remembered sets */
-  int remset_allocated_max;	/* max of wremset over time */
+  int remset_allocated_max;	/* max of remset_allocated over time */
   int rts_allocated;		/* words allocated to run-time systems */
-  int rts_allocated_max;	/* max of wrts over time */
+  int rts_allocated_max;	/* max of rts_allocated over time */
   int heap_fragmentation;	/* words of fragmentation in heap areas */
-  int heap_fragmentation_max;	/* max of wastage over time */
+  int heap_fragmentation_max;	/* max of heap_fragmentation over time */
+  int mem_allocated;		/* words of allocation: heap+rts+remset+frag */
+  int mem_allocated_max;	/* max of mem_allocated over time */
 };
 
 struct gc_stats {
