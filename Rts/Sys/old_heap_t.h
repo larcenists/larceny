@@ -61,15 +61,14 @@ struct old_heap {
      /* A method that is called after any garbage collection.
 	*/
 
-  void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats );
-     /* A method that fills in the stats structure for the heap.
+  void (*stats)( old_heap_t *heap );
+     /* Update the stats for the heap in the central repository.
 
+	Old invariant, does not hold any more, do not rely on it:
 	When called at the beginning of a collection, the before_collection()
 	method will not yet have been called, and when called at the end of
 	a collection, the after_collection() method will have been called
 	first.
-
-	Invariant: generation denotes a generation managed by the heap.
 	*/
 
   word *(*data_load_area)( old_heap_t *heap, int nbytes );
@@ -104,7 +103,7 @@ old_heap_t *create_old_heap_t(
   void (*collect)( old_heap_t *heap, gc_type_t request ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
-  void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats ),
+  void (*stats)( old_heap_t *heap ),
   word *(*data_load_area)( old_heap_t *heap, int nbytes ),
   int  (*load_prepare)( old_heap_t *heap, metadata_block_t *m, 
 		        heapio_t *h, word **lo, word **hi ),
@@ -117,7 +116,7 @@ old_heap_t *create_old_heap_t(
 #define oh_collect( oh,r )         ((oh)->collect( oh,r ))
 #define oh_before_collection( oh ) ((oh)->before_collection( oh ))
 #define oh_after_collection( oh )  ((oh)->after_collection( oh ))
-#define oh_stats( oh, gen, s )     ((oh)->stats( oh, gen, s ))
+#define oh_stats( oh )             ((oh)->stats( oh ))
 #define oh_data_load_area( oh, n ) ((oh)->data_load_area( oh, n ))
 #define oh_set_policy( oh, x, y )  ((oh)->set_policy( oh, x, y ))
 

@@ -21,7 +21,7 @@ old_heap_t *create_old_heap_t(
   void (*collect)( old_heap_t *heap, gc_type_t request ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
-  void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats ),
+  void (*stats)( old_heap_t *heap ),
   word *(*data_load_area)( old_heap_t *heap, int nbytes ),
   int  (*load_prepare)( old_heap_t *heap, metadata_block_t *m, 
 		        heapio_t *h, word **lo, word **hi ),
