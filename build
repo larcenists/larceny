@@ -127,7 +127,7 @@ END
 expand_file() {
   TARGET=`dirname $FILE`/`basename $FILE .mac`.c
   echo "(define host '${BUILD_HOST})" >> $TMPFILE
-  echo "(load \"${UTIL}/expand.sch\")" >> $TMPFILE
+  echo "(load \"${UTIL}/expander.sch\")" >> $TMPFILE
   echo "(expand-file \"${FILE}\" \"${TARGET}\")" >> $TMPFILE
   echo "(exit)" >> $TMPFILE
   run_scheme
