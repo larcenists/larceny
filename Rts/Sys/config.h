@@ -80,7 +80,7 @@
 #undef POSIX_SIGNALS		/* sigaction + sa_handler, as described 
 				   by Lewine */
 #undef XOPEN_SIGNALS		/* sigaction + sa_sigaction */
-
+#undef WIN32_SIGNALS            /* another world altogether */
 
 /*
  * Other configuration options.
@@ -284,7 +284,7 @@
 #endif
 
 /* Sun/SPARC Solaris (2.5 and better, at least), Petit Larceny */ 
-#if 1
+#if 0
 # define PETIT_LARCENY             1
 # define SUNOS5                    1
 # define BITS_32                   1
@@ -341,7 +341,7 @@
 #endif
 
 /* Windows 2000 on x86; MetroWerks Codewarrior Pro 6; (Petit Larceny). */
-#if 0
+#if 1
 # define PETIT_LARCENY             1
 # define WIN32                     1
 # define BITS_32                   1
@@ -393,13 +393,16 @@
    */
 
 #if !defined(BSD_SIGNALS) && !defined(POSIX_SIGNALS) && \
-    !defined(STDC_SIGNALS) &&!defined(XOPEN_SIGNALS)
+    !defined(STDC_SIGNALS) &&!defined(XOPEN_SIGNALS) && \
+    !defined(WIN32_SIGNALS)
 #  if defined(SUNOS4) || defined(BSD_UNIX)
 #    define BSD_SIGNALS
 #  elif defined(LINUX) || defined(POSIX_UNIX)
 #    define POSIX_SIGNALS
 #  elif defined(XOPEN_UNIX) || defined(SUNOS5)
 #    define XOPEN_SIGNALS
+#  elif defined(WIN32)
+#    define WIN32_SIGNALS
 #  else
 #    define STDC_SIGNALS
 #  endif
