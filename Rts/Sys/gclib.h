@@ -56,8 +56,8 @@
 #endif
 
 #if GCLIB_LARGE_TABLE
-# define gen_of( ptr )      (gclib_desc_g[pageof(ptr)] & 127)
-# define attr_of( ptr )     (gclib_desc_g[pageof(ptr)] & ~127)
+# define gen_of( ptr )      (gclib_desc_g[pageof(ptr)] & ~MB_MASK)
+# define attr_of( ptr )     (gclib_desc_g[pageof(ptr)] & MB_MASK)
 #else
 # define gen_of( ptr )      (gclib_desc_g[pageof(ptr)])
 # define attr_of( ptr )     (gclib_desc_b[pageof(ptr)])
@@ -67,7 +67,8 @@
 
 #if GCLIB_LARGE_TABLE
 # define MB_LARGE_OBJECT   128    /* Memory is allocated to a large object */
-# define MB_REMSET         0      /* Not arbitrary */
+# define MB_REMSET         64     /* Memory belongs to remembered set */
+# define MB_MASK           (128+64)
 #else
 # define MB_ALLOCATED      1      /* Page is allocated: 1=yes, 0=don't know */
 # define MB_HEAP_MEMORY    2      /* Memory belongs to Scheme heap */
@@ -90,10 +91,6 @@ typedef byte gclib_desc_t;
 #else
 typedef unsigned gclib_desc_t;
 #endif
-
-#define FOREIGN_PAGE       ((gclib_desc_t)-1)    /* Unknown owner */
-#define UNALLOCATED_PAGE   ((gclib_desc_t)-2)    /* Larceny owns it */
-#define RTS_OWNED_PAGE     ((gclib_desc_t)-3)    /* Larceny owns it */
 
 
 /* Global variables */
