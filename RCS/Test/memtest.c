@@ -3,7 +3,7 @@
  * Derived from garbage collector test program. 
  * EXEC and DEF are no longer supported.
  *
- * $Id$
+ * $Id: memtest.c,v 1.1 91/06/27 16:34:47 lth Exp Locker: lth $
  *
  * Usage:
  *   memtest <inheap> <outheap>
@@ -78,8 +78,8 @@ char **argv;
     panic( "usage: %s <inheap> <outheap>\n", argv[ 0 ] );
 
   printf( "Initializing\n" );
-  if (!init_mem( 1024*1024, 1024*1024, 1024*1024, 1024*8, 1024*512 ))
-    panic( "Unable to initialize!" );
+
+  /* Millicode is used by initializers, so do them first! */
 
   millicode[ M_ALLOC ] = alloc;
   millicode[ M_ALLOCI ] = alloci;
@@ -87,9 +87,15 @@ char **argv;
   millicode[ M_SETCDR ] = setcdr;
   millicode[ M_VECTORSET ] = vectorset;
   millicode[ M_GCSTART ] = gcstart;
-  millicode[ M_STKOFLOW ] = stkoflow;
-  millicode[ M_STKUFLOW ] = stkuflow;
   millicode[ M_EXCEPTION ] = exception;
+  millicode[ M_STKOFLOW ] = stkoflow;
+  /* The address calculation in the next line is necessary because the stack
+     underflow routine is *returned* into, necessitating a weird address to
+     compensate for the compensation done by the return instruction. */
+  millicode[ M_STKUFLOW ] = (void (*)())((word)stkuflow - 8);
+
+  if (!init_mem( 1024*1024, 1024*1024, 1024*1024, 1024*8, 1024*512 ))
+    panic( "Unable to initialize!" );
 
   printf( "Init done; running...\n" );
 
@@ -119,15 +125,59 @@ void exception()
 }
 
 
-test_alloc()
+test_alloc( s )
+char *s;
 {
+  unsigned wds;
+
+  s += strlen( "ALLOC" );
+  if (sscanf( s, "%x", &wds ) != 1)
+    panic( "Illegal ALLOC" );
+  test_alloc_2( wds );
 }
 
 
-test_alloci()
+test_alloci( s )
+char *s;
 {
+  unsigned wds, init;
+
+  s += strlen( "ALLOCI" );
+  if (sscanf( s, "%x %x", &wds, &init ) != 2)
+    panic( "Illegal ALLOCI" );
+  test_alloci_2( wds, init );
 }
 
+
+test_nalloci( s )
+char *s;
+{
+  unsigned wds, init, count;
+
+  s += strlen( "NALLOCI" );
+  if (sscanf( s, "%x %x %x", &count, &wds, &init ) != 3)
+    panic( "Illegal NALLOCI" );
+
+  while (count--)
+    test_alloci_2( wds, init );
+}
+
+test_sum( s )
+char *s;
+{
+  unsigned x;
+
+  s += strlen( "SUM" );
+  if (sscanf( s, "%x", &x ) != 1)
+    panic( "Illegal SUM" );
+  fprintf( ofp, "; sum value: %x\n", test_sum_2( x ) );
+}
+
+outl( s )
+char *s;
+{
+  fprintf( ofp, "%s\n", s );
+}
 
 load_ephemeral()
 {
@@ -302,6 +352,7 @@ pointers()
   outit( "stack_max", globals[ STK_MAX_OFFSET ] );
   outit( "stack_start", globals[ STK_START_OFFSET ] );
   outit( "stack_limit", globals[ STK_LIMIT_OFFSET ] );
+  outit( "stack_ptr", globals[ SP_OFFSET ] );
   outit( "s_base", globals[ S_BASE_OFFSET ] );
   outit( "s_max", globals[ S_MAX_OFFSET ] );
   outit( "current_continuation", globals[ CONTINUATION_OFFSET ] );
@@ -386,8 +437,9 @@ struct {
 	     { "ENTRYLIST", load_entrylist },
 	     { "ROOTS", load_roots },
 	     { "STACK", load_stack },
-	     { "ALLOC", test_alloc },
+	     { "NALLOCI", test_nalloci },
 	     { "ALLOCI", test_alloci },
+	     { "ALLOC", test_alloc },
 	     { "E-COLLECT", e_collect },
 	     { "T-COLLECT", t_collect },
 	     { "S-FLUSH", s_dump },
@@ -398,6 +450,7 @@ struct {
 	     { "R-DUMP", r_dump },
 	     { "S-DUMP", s_dump },
 	     { "POINTERS", pointers },
+	     { "SUM", test_sum },
 	     { "STATS", stats }};
 
 int (*keyword( s ))()
