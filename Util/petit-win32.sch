@@ -5,7 +5,7 @@
 ;
 ; On win32, the DOS shell is not all that useful, so the scripts that 
 ; are used on Unix have been moved into this Scheme program.  It also
-; replaces the Util/load-*.sch programs.
+; replaces the Util/Configurations/load-*.sch programs.
 
 ; Loading this file loads the entire build environment.
 
@@ -20,7 +20,7 @@
   ; loading Util/nbuild.sch -- so are included here separately.
 
   (load "Util\\sysdep-win32.sch")
-  (load "Util\\nbuild-param-C-el-win32.sch")
+  (load "Util\\Configurations\\nbuild-param-C-el-win32.sch")
   (if is-larceny?
       (set! nbuild-parameter 
 	    (make-nbuild-parameter "" #t #f #t "Larceny" "Petit Larceny"))
@@ -108,8 +108,8 @@
 
 (define (load-compiler)
   (if is-larceny?
-      (load "Util\\load-twobit-C-el-win32-larceny.sch")
-      (load "Util\\load-twobit-C-el-win32-petite.sch")))
+      (load "Util\\Configurations\\load-twobit-C-el-win32-larceny.sch")
+      (load "Util\\Configurations\\load-twobit-C-el-win32-petite.sch")))
 
 (define (remove-rts-objects)
   (system "del Rts\\petit-rts.lib")

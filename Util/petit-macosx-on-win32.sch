@@ -1,11 +1,11 @@
-; 21 September 2002
+; 18 November 2002
 ;
 ; General "script" for building Petit Larceny for MacOS X systems,
 ; using Larceny on Win32.
 ;
 ; The scripts that are used on Unix have been moved into this Scheme
 ; program to facilitate cross-compilation.  This script also replaces
-; the Util\load-*.sch programs.
+; the Util\Configurations\load-*.sch programs.
 
 ; Loading this file loads the entire build environment.
 
@@ -20,7 +20,7 @@
   ; loading Util\nbuild.sch -- so are included here separately.
 
   (load "Util\\sysdep-win32.sch")
-  (load "Util\\nbuild-param-C-be-macosx-on-win32.sch")
+  (load "Util\\Configurations\\nbuild-param-C-be-macosx-on-win32.sch")
   (set! nbuild-parameter 
 	(make-nbuild-parameter "" #t #f #t "Larceny" "Petit Larceny"))
   (display "Loading ")
@@ -104,7 +104,7 @@
     (compile-files (reverse files) dll-name)))
 
 (define (load-compiler)
-  (load "Util\\load-twobit-C-be-macosx-on-win32-larceny.sch"))
+  (load "Util\\Configurations\\load-twobit-C-be-macosx-on-win32-larceny.sch"))
 
 (define (remove-rts-objects)
   #t)

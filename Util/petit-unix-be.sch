@@ -1,12 +1,12 @@
 ; -*- mode: scheme -*-
 ;
-; 9 November 2002
+; 18 November 2002
 ;
 ; General "script" for building Petit Larceny on generic big-endian Unix
 ; systems, under Larceny.
 ;
 ; This program is a selfcontained development environment; it replaces
-; the Unix shell scripts and the Util/load-*.sch programs;
+; the Unix shell scripts and the Util/Configurations/load-*.sch programs;
 
 (define nbuild-parameter #f)
 
@@ -16,7 +16,7 @@
 
 (define (unix-initialize)
   (load *sysdep-file*)
-  (load "Util/nbuild-param-C-be-unix.sch")
+  (load "Util/Configurations/nbuild-param-C-be-unix.sch")
   (set! nbuild-parameter (make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
