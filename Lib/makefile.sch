@@ -143,6 +143,7 @@
     "load"              ; Loader
     "syshooks"          ; System functions
     "gcctl"             ; Garbage collector policy control
+    toplevel            ; top-level environment (to be substituted!)
     "go"                ; Driver
 
     ))
@@ -153,7 +154,6 @@
   '("Repl/reploop"      ; Read-eval-print loop
     "Eval/eval"         ; Simple eval procedure (interpreter)
     "Eval/evalprim"     ; Primitives for interpreter
-    "Eval/toplevel"     ; Top-level environment
     "Eval/macro-expand" ; Macro expander (for Eval)
     ))
 
@@ -172,7 +172,8 @@
 (define sparc-heap-project
   (let ((sparc-heap-files 
 	 (objects "Lib/Common/" ".lop" common-heap-files
-		  '((primops . "Lib/Sparc/primops.lop"))))
+		  '((primops . "Lib/Sparc/primops.lop")
+		    (toplevel . "Lib/Sparc/toplevel.lop"))))
 	(sparc-eval-files
 	 (objects "" ".lop" eval-files)))
     (make:project "larceny.heap"
@@ -201,7 +202,8 @@
 (define petit-heap-project 
   (let ((petit-heap-files
 	 (objects "Lib/Common/" ".lop" common-heap-files
-		  '((primops . "Lib/Standard-C/primops.lop"))))
+		  '((primops . "Lib/Standard-C/primops.lop")
+		    (toplevel . "Lib/Standard-C/toplevel.lop"))))
 	(petit-eval-files
 	 (objects "" ".lop" eval-files)))
     (make:project "petit.heap"
