@@ -98,7 +98,7 @@ cat > $TMPFILE <<END
   (load "${UTIL}/nbuild-param-${TARGET}.sch")
   (define nbuild-parameter 
     (make-nbuild-parameter 
-      "${LARCENY}/" $INTERP $VERBOSE "$L_HOSTDIR" "$L_HOSTNAME"))
+      "${LARCENY}/" $INTERP $VERBOSE #t "$L_HOSTDIR" "$L_HOSTNAME"))
 
   (display "Twobit/Larceny development environment running under ")
   (display (nbuild-parameter 'host-system))
