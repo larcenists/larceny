@@ -1,7 +1,7 @@
 ! Assembly-language millicode routines for allocation and mutation.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.6 91/06/27 15:21:46 lth Exp Locker: lth $
+! $Id: memory.s,v 1.7 91/06/29 14:09:01 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -436,7 +436,7 @@ gcstart:
 	mov	%RESULT, %g1		! %RESULT not valid after save...
 	save	%sp, -64, %sp
 	call	_gcstart2		! This *will* flush the stack!
-	mov	%g1, %o1
+	mov	%g1, %o0
 	call	_restore_frame		! Restore our frame
 	nop
 	restore
