@@ -128,6 +128,27 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
 	       word **ssb_lim_loc  /* cell for ssb_lim */
 	      )
 {
+  return create_labelled_remset( tbl_entries,
+				 pool_entries,
+				 ssb_entries,
+				 ssb_bot_loc,
+				 ssb_top_loc,
+				 ssb_lim_loc,
+				 ++identity,
+				 0 );
+}
+
+remset_t *
+create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
+			int pool_entries,   /* size of remset, 0 = default */
+			int ssb_entries,    /* size of ssb, 0 = default */
+			word **ssb_bot_loc, /* cell for ssb_bot */
+			word **ssb_top_loc, /* cell for ssb_top */
+			word **ssb_lim_loc, /* cell for ssb_lim */
+			int major_id,       /* for stats */
+			int minor_id        /* for stats */
+			)
+{
   word *heapptr;
   remset_t *rs;
   remset_data_t *data;
@@ -175,7 +196,7 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
   /* Misc */
   memset( &data->stats, 0, sizeof( data->stats ));
   data->pool_entries = pool_entries;
-  data->self = stats_new_remembered_set( ++identity, 0 );
+  data->self = stats_new_remembered_set( major_id, minor_id );
 
   rs->live = 0;
   rs->has_overflowed = FALSE;
@@ -421,11 +442,11 @@ void rs_enumerate( remset_t *rs,
 			 DATA(rs)->stats.removed );
 }
 
-/* FIXME: Worth optimizing?  The inner loop looks gratuitously slow. */
+/* Optimize: can _copy_ r2 into r1 if r1 is empty */
 void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
 {
   pool_t *ps;
-  word *p, *q;
+  word *p, *q, *top, *lim;
 
   assert( WORDS_PER_POOL_ENTRY == 2 );
   supremely_annoyingmsg( "REMSET @0x%x assimilate @0x%x.", 
@@ -433,22 +454,65 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
 
   rs_compact( r2 );
   ps = DATA(r2)->first_pool;
+  top = *r1->ssb_top;
+  lim = *r1->ssb_lim;
   while (1) {
     p = ps->bot;
     q = ps->top;
     while (p < q) {
       if (*p != 0) {
-	**r1->ssb_top = *p;
-	*r1->ssb_top = *r1->ssb_top + 1;
-	if (*r1->ssb_top == *r1->ssb_lim)
+	*top++ = *p;
+	if (top == lim) {
+	  *r1->ssb_top = top;
 	  rs_compact( r1 );
+	  top = *r1->ssb_top;
+	}
       }
       p += 2;
     }
     if (ps == DATA(r2)->curr_pool) break;
     ps = ps->next;
   }
+  *r1->ssb_top = top;
   rs_compact( r1 );
+}
+
+void rs_assimilate_and_clear( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
+{
+  int hashsize;
+  
+  assert( WORDS_PER_POOL_ENTRY == 2 );
+
+  rs_compact( r1 );
+  rs_compact( r2 );
+
+  /* Use the straightforward code if destination is nonempty or
+     if the source is fairly empty, to avoid the expense of copying
+     the hash table when it won't pay off.  
+     */
+  hashsize = DATA(r2)->tbl_lim-DATA(r2)->tbl_bot;
+  if (r1->live > 0 || r2->live * 0.10 < hashsize)
+    rs_assimilate( r1, r2 );
+  else if (r2->live > 0) {
+    /* r1 is empty, but r2 is not, so just copy the hash table and move the
+       memory blocks.
+       */
+    /* Copy the hash table bits */
+    remset_data_t *data1 = DATA(r1);
+    remset_data_t *data2 = DATA(r2);
+    
+    memcpy( data1->tbl_bot, 
+	    data2->tbl_bot, 
+	    sizeof(word)*(data1->tbl_lim - data1->tbl_bot) );
+    free_pool_segments( data1->first_pool, data1->pool_entries );
+    data1->first_pool = data2->first_pool;
+    data1->curr_pool = data2->curr_pool;
+    data1->numpools = data2->numpools;
+    data2->first_pool = allocate_pool_segment( data1->pool_entries );
+    data2->curr_pool = data2->first_pool;
+    data2->numpools = 1;
+  }
+  rs_clear( r2 );		/* Clear hash table, free extra nodes */
 }
 
 int rs_size( remset_t *rs )

@@ -64,6 +64,19 @@ create_remset( int tbl_ent,	   /* Number of entries in hash table */
      ssb_ent >= 0 
      */
 
+remset_t *
+create_labelled_remset( int tbl_ent,
+			int pool_ent,
+			int ssb_ent,
+			word **ssb_bot_loc,
+			word **ssb_top_loc,
+			word **ssb_lim_loc,
+			int major_id,
+			int minor_id );
+  /* Exactly like create_remset except that the given major and minor ID
+     are used to label the remset in the stats() module.
+     */
+
 void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
@@ -106,8 +119,12 @@ void rs_stats( remset_t *remset );
   /* Add current counters to the global accumulators.
      */
 
-void rs_assimilate( remset_t *borg, remset_t *human );
-  /* Folds the set 'human' into the set 'borg'.
+void rs_assimilate( remset_t *dest, remset_t *src );
+  /* Folds the set 'src' into the set 'dest'.
+     */
+
+void rs_assimilate_and_clear( remset_t *dest, remset_t *src );
+  /* Folds the set 'src' into the set 'dest', and clears 'src'.
      */
 
 bool rs_isremembered( remset_t *rs, word w );
