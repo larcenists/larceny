@@ -169,19 +169,13 @@
      (lambda (a)
        (fprintf (current-error-port) "Calling ~s on ~s~n" 'f a)
        (f a)))))
-(define-syntax wrap2
-  (syntax-rules ()
-    ((wrap2 f)
-     (lambda (a b)
-       (fprintf (current-error-port) "Calling ~s on ~s~n" 'f a)
-       (f a b)))))
 
 (define open-binary-output-file (wrap1 open-output-file))
 (define open-binary-input-file (wrap1 open-input-file))
-(define call-with-binary-output-file (wrap2 call-with-output-file))
-(define call-with-binary-input-file (wrap2 call-with-input-file))
-(define with-binary-output-to-file (wrap2 with-output-to-file))
-(define with-binary-input-from-file (wrap2 with-input-from-file))
+(define call-with-binary-output-file call-with-output-file)
+(define call-with-binary-input-file call-with-input-file)
+(define with-binary-output-to-file with-output-to-file)
+(define with-binary-input-from-file with-input-from-file)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
