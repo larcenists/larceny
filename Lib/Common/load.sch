@@ -14,7 +14,7 @@
 (define load-evaluator
   (system-parameter "load-evaluator"
 		    (lambda (expr env)
-		      (eval expr env)))) ; That's in Eval/eval.sch.
+		      (eval expr env)))) ; That's in Lib/Common/eval.sch.
 
 (define (load filename . rest)
 
