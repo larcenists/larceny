@@ -1,8 +1,8 @@
-; Experimental/socket.sch
-; Interface to Unix socket system calls 
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
+; Interface to Unix socket system calls 
 ; This works for SunOS 5, don't know (yet) about SunOS 4.
 
 ;;; Some sample code that uses the socket stuff.
