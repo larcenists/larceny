@@ -2,14 +2,14 @@
 
 ;; http://download.plt-scheme.org/doc/207/html/mzscheme/mzscheme-Z-H-4.html#node_chap_4
 
-;; FIXME:
+;; FIXME / TODO:
 ;;  - immutable-k-list is ignored.
+;;  - struct-procedure fields should be immutable
 ;;  - auto-fields are broken
 ;;  - struct? isn't quite right.
 ;;  - make-struct-type should use struct-type-property guard proc
 ;;  - inherit things like inspectors, prop-value-lists, struct-procedures
-;;  - make-struct-type should return constructors/accessors/mutators
-;;    built by (make-struct-constructor...) etc.
+;;  - handle error cases appropriately (relies on having Mz. exception system)
 
 
 ;; These procedures are provided.
@@ -34,16 +34,6 @@
 (define struct-accessor-procedure?)
 (define struct-predicate-procedure?)
 (define struct-constructor-procedure?)
-
-;; Consumes a struct instance and produces the proc-spec value
-;; that was provided to make-struct-type when this instance's type
-;; was created.
-(define $sys.struct-proc-spec)
-
-;; Given a structure instance s and a number i,
-;; yield the value in the i-th field of s
-;; : struct number -> value
-(define $sys.struct-ref)
 
 ;; define-record is nowhere to be found.
 (let* ((*rtd-type* (record-type-descriptor (make-record-type "" '())))
@@ -392,21 +382,6 @@
   (define (false? v)
     (eq? v #f))
 
-  ;; given an instance, return its type's proc-spec
-  (define sys:struct-proc-spec
-    (lambda (instance)
-      (let ((type (record-type-descriptor instance)))
-        (stype-proc type))))
-
-  ;; index into an arbitrary structure instance.
-  (define sys:struct-ref
-    ;; the magic number couples this code with the record
-    ;; implementation.
-    (let ((struct-field-offset 1))
-      (lambda (instance index)
-        (vector-like-ref instance (+ index struct-field-offset)))))
-
-  
   ;; Hook up the implementation with the interface.
   (set! make-struct-type make-struct-type*)
   (set! make-struct-type-property make-struct-type-property*)
@@ -435,8 +410,7 @@
 
   )
   
-;; Quick and dirty test case
-;; define-values is in Lib/MzScheme/macros.sch
+;; Quick test cases from the MzScheme manual
 
 (define-values (struct:tup make-tup tup? tup-ref tup-set!)
   (make-struct-type 'tup #f 2 0))
@@ -467,11 +441,11 @@
 (define (fish-weight f) (fish-ref f 0))
 (define (fish-color f) (fish-ref f 1))
 (define wanda (make-fish 12 'red))
-;(fish? wanda) ; => #t
-;(procedure? wanda) ; => #t
-;(fish-weight wanda) ; => 12
-;(for-each wanda '(1 2 3))
-;(fish-weight wanda) ; => 18
+(fish? wanda) ; => #t
+(procedure? wanda) ; => #t
+(fish-weight wanda) ; => 12
+(for-each wanda '(1 2 3))
+(fish-weight wanda) ; => 18
 
 (define-values (struct:ap make-annotated-proc annotated-proc? ap-ref ap-set!) 
   (make-struct-type 'anotated-proc #f 2 0 #f '() #f 0)) 
