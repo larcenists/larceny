@@ -212,6 +212,14 @@
    (nbuild-files 'interp-source '("macro-expand"))
    ))
 
+; Files which implement MzScheme features.
+; For now, these can be bundled up with Larceny, but eventually
+; this will need to be a separate project.
+
+(define mzscheme-files
+  (nbuild-files 'mzscheme-source
+                '("init" "wcm0" "wcm")))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Project for building the sparc-larceny heap image.
@@ -277,12 +285,15 @@
                      (extra  
                       . ,(make-filename "Lib" "IL" "loadable.manifest")))))
          (dotnet-eval-files
-          (objects "" ".manifest" eval-files)))
+          (objects "" ".manifest" eval-files))
+         (dotnet-mzscheme-files
+          (objects "" ".manifest" mzscheme-files)))
     
     ;; a handy procedure to delete all the intermediate files
     (set! remove-dotnet-heap-objects
           (lambda ()
-            (let* ((manifest-files (append dotnet-heap-files
+            (let* ((manifest-files (append dotnet-mzscheme-files
+                                           dotnet-heap-files
                                            dotnet-eval-files))
                    (all-files
                     (cons "dotnet.heap.asm-il"
@@ -311,6 +322,7 @@
       `(dependencies                    ; Order matters.  [Why??!]
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
+        ("dotnet.heap" ,dotnet-mzscheme-files)
         (,(common-relative "ecodes.sch") ,(nbuild-files 'build '("except.sh")))
         (,(common-relative "globals.sch") ,(nbuild-files 'build '("globals.sh")))))))
 
