@@ -14,7 +14,10 @@
 (define load-evaluator
   (system-parameter "load-evaluator"
 		    (lambda (expr env)
-		      (eval expr env)))) ; That's in Lib/Common/eval.sch.
+		      (if (and (pair? expr)
+			       (procedure? (car expr)))
+			  (apply (car expr) (cdr expr))
+			  (eval expr env)))))
 
 (define (load filename . rest)
 
@@ -36,10 +39,7 @@
     (let ((p (open-input-file filename)))
       (do ((expr (read p) (read p)))
 	  ((eof-object? expr))
-	(if (and (pair? expr)
-		 (procedure? (car expr)))
-	    (apply (car expr) (cdr expr))
-	    ((load-evaluator) expr (get-environment))))
+	((load-evaluator) expr (get-environment)))
       (close-input-port p)
       (unspecified)))
 
