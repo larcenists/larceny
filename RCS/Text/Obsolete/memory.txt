@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: memory.txt,v 1.5 91/06/27 15:26:25 lth Exp Locker: lth $
+; $Id: memory.txt,v 1.6 91/07/05 15:20:06 lth Exp Locker: lth $
 
                  Memory Manager Interface Definition
 
@@ -20,7 +20,7 @@ procedures.  Section 3 shows some examples.
 
 1. The application interface to the memory manager
 -------------------------------------------------- 
-Of all memory management procedures in the run-time system, The
+Of all memory management procedures in the run-time system, the
 compiled code should call only the procedures exported from
 "memory.s", all of which are listed below, and which from now on will
 be collectively referred to as "the memory management millicode
@@ -145,32 +145,51 @@ stack cache to catch stack underflows, which may occur after stack flushes.
 ! Assume values to cons are in REG1 and REG2 and that pointer to new 
 ! cell is to be left in RESULT. (If the arguments were in an even/odd 
 ! register pair, we would use 'std' rather than 'st'.)
+!
+! The following code can be improved by moving the 'or' between the stores
+! and using an adjusted offset in the second store.
 
     ld      [ %MILLICODE + M_ALLOC ], %TMP0    
     jmpl    %TMP0, %o7                        ! allocate it
-    mov     8, %RESULT                        ! 8 == fixnum( 2 )
+    mov     fixnum( 2 ), %RESULT
     st      %REG1, [ %RESULT+CAR_OFFSET ]
     st      %REG2, [ %RESULT+CDR_OFFSET ]
     or      %RESULT, PAIR_TAG, %RESULT        ! set tag
 
 ! Open-coded CONS, same assumptions as above.
 !
-! In general, if we cannot use 'std', we can get slightly better
-! performance by moving the setting of the tag between the stores
-! and using a tag-adjusted offset in the second store.
+! This code uses 11 cycles in the general case, but can be made to use
+! only 10 (effectively) if another instruction can be scheduled between
+! the stores. In general, if a store double can be used (even/odd register
+! pair) then that will be beneficial.
 !
-! This code uses 12 cycles in the general case (the two consecutive 
-! stores create a nasty stall on the Sparc 1), assuming we hit the
-! cache (which is perhaps unlikely for an allocation routine...)
+! This code depends on there being a small heap overflow area which can
+! validly be written into as long as the values written into it can be
+! forgotten. This condition is guaranteed (and should be documented).
+!
+! [As an aside, 11 cycles is only 2 more than the "optimal" 9 which is
+!  possible if one does not check for heap overflow and rather takes a 
+!  SIGSEGV when the pair is initialized, a la SML/NJ.]
 
+L0: st      %R1, [ %E_TOP ]
     add     %E_TOP, 8, %E_TOP                     ! allocate optimistically
     cmp     %E_TOP, %E_LIMIT                      ! overflow?
-    ble,a   L1                                    ! jump if not
-    sub     %E_TOP, 8, %RESULT                    ! setup pointer if ok
-    ld      [ %MILLICODE + M_GCSTART ], %TMP0
-    jmpl    %TMP0, %o7                            ! collect and allocate
-    mov     8, %RESULT                            ! argument for gcstart
+    st      %R2, [ %E_TOP-4 ]
+    blt,a   L1                                    ! jump if not
+    add     %E_TOP, -8+PAIR_TAG, %RESULT
+    call    Lcollect
+    add     %o7, (L0-(.-4))-8, %o7
 L1:
-    st      %REG1, [ %RESULT+CAR_OFFSET ]
-    st      %REG2, [ %RESULT+CDR_OFFSET ]
-    or      %RESULT, PAIR_TAG, %RESULT
+
+
+! Lcollect is shown below; it can be shared for the entire procedure.
+! The entry point 'Lcollect' is used for open-coded cons calls (requests
+! 0 bytes); the entry point 'Lcollect1' is used for procedures setting
+! up their own requests.
+
+Lcollect:
+    mov     0, %RESULT
+Lcollect1:
+    ld      [ %MILLICODE + M_GCSTART ], %TMP0
+    jmp     %TMP0
+    nop
