@@ -1,0 +1,85 @@
+To-do list for Petit Larceny.
+See cpetit.html for architectural description.
+
+Compiling
+ - Should get LCC to use GNU as, or turn off -g during LCC compilation 
+   because of Solaris assembler's massive lossage on dealing with the amount 
+   of LCC debug info.
+
+Testing
+ - Must test with Boehm collector.
+ - Must run GC tests and other test suite.
+
+Usability and portability
+ - Compilation technology
+   - Package twobit.h so that it can be included w/o reference to the
+     header files it includes; this makes it easier to compile
+     standalone (like Gambit).
+ - Portability
+   - Portability issues with the use of the use of the C compiler and
+     linker.  This includes name *and location* of libpetit.so
+   - Portability issues with the use of 'cat' to build heap image under Unix.
+   - Need a mechanism to allow static linking (for the sake of portability).
+     However, .a files can't have multiple files with the same basename,
+     so we must be careful -- static linking can't obviously rely on an 
+     archive.  This is annoying.  "Unix: There Has Got To Be a Better Way."
+ - MacOS support
+ - Windows support
+ - Run-time libraries, notably I/O-related [Non-Unix OSs only]
+
+Missing features
+ - SWITCH-based jump discipline
+ - Dynamic loading of compiled files, on platforms where it makes sense.
+ - Foreign function interface
+   - How to use the FFI (essentially a dynamic-loading problem)
+   - how to generate FFI call code in the compiler.  See separate
+     section below.
+
+Code generation quality [order of priority and expected payoff]
+ - Introduce peephole optimizations in the assembler.
+ - Cache STKP for speedup (maybe -- time both ways).
+ - Deal with fallthrough issue in a reasonable way.
+ - Can introduce a twobit_label macro that would be an implicit 
+   function split.  It would make the code look a lot more natural, 
+   and with the twobit_prologue() and a corresponding twobit_epilogue()
+   [more properly called twobit_begin() and twobit_end()] it would 
+   allow the use of the switch() technique.
+
+Foreign function interface
+  There's currently no support for FFI in the compiler, but in a C
+  backend, there must be such support.  One possibility is to introduce
+  a new primop that takes a signature and effectively compiles into a 
+  call to a procedure with that signature.  Example: PLUS is a foreign
+  function that takes two ints and return an int.  Thus the syntax
+
+	(foreign-procedure "plus" (int int) int)
+
+  can be compiled into something like
+
+	const	"plus"
+	op1	ffi-get-address
+	setreg	1
+	lambda *, 1, #f
+		args=	2
+		lexical	1,1
+		op2imm	ffi-call, ((int int) int)
+		return
+	return
+
+  The inner procedure would then turn into something like this:
+
+	twobit_argseq( 2 );
+	twobit_lexical( 1, 1 );
+        int _tmp1 = object2nativeint( reg(1) );  /* unchecked */
+        int _tmp2 = object2nativeint( reg(2) );  /* unchecked */
+        int _tmp3 = ((int(*)(int,int))RESULT)( _tmp1, _tmp );
+        RESULT = nativeint2object( _tmp3 );
+        twobit_return();
+
+  It's not straightforward to do this since we must guarantee that the
+  compiler does not change registers 1 .. n in the inner procedure
+  above; the compiler may believe they are dead and do something silly.
+
+  One possible hack is to generate in-line MAL that is not passed through
+  any compiler stages, but this requires -- of course -- another change
+  to the compiler.
