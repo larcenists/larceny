@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 5 April 1999
+; 5 April 1999.
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
