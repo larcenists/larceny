@@ -1,7 +1,7 @@
 ! Assembly-language millicode routines for allocation and mutation.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.7 91/06/29 14:09:01 lth Exp Locker: lth $
+! $Id: memory.s,v 1.8 91/06/29 14:38:02 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -285,6 +285,10 @@ _gcstart:
 ! of the stack (top of the stack cache). On a return which underflows the
 ! stack cache, '_stkuflow' is entered. It restores a single continuation frame
 ! and jumps to the return address in the newly restored frame.
+!
+! We are assuming that the stack pointer is pointing to the initial
+! word of the dummy continuation on entry to this handler; given the 
+! calling conventions, this is reasonable.
 
 _stkuflow:
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
@@ -344,6 +348,7 @@ Lstkoflow1:
 	set	FALSE_CONST, %TMP1
 	cmp	%TMP0, %TMP1
 	beq	Lstkoflow2
+	nop
 
 	! restore frame
 
