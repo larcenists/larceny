@@ -152,11 +152,11 @@ void C_varargs( void )
   word j = nativeint( globals[ G_RESULT ] );
   word n = nativeint( globals[ G_ARGREG2 ] );
   word r = 31;			                  /* Highest register # */
-  word *p, *q, t;
+  word *p, *first, *prev, t;
   word k, limit;
   word bytes;
-#if defined(BDW_GC)
-  word *prev;
+#if !defined(BDW_GC)
+  word *allocptr;
 #endif
 
   in_noninterruptible_syscall = 1;
@@ -171,69 +171,50 @@ void C_varargs( void )
 
   /* At least one vararg to cons up. */
 
-  /* It's possible to combine these two pieces of code with not much
-     performance loss for the optimized (precise-gc) version: just
-     abstract out allocation in a CONS macro, and then preallocate
-     or not.
+  /* Optimized allocation for precise GC; conservative GC calls
+     allocator each time.
      */
 #if !defined(BDW_GC)
-  q = p = (word*)alloc_from_heap( bytes );  /* Allocate memory for list. */
-
-  k = n + 1;
-  limit = min( j, r-1 );
-
-  while ( k <= limit ) {
-    *p = globals[ G_REG0 + k ];
-    *(p+1) = tagptr( (p+2), PAIR_TAG );
-    p += 2;
-    k++;
-  }
-
-  if (j >= r) {
-    t = globals[ G_REG0 + r ];
-
-    /* Copy the list in t into the memory pointed to by p. */
-
-    while (t != NIL_CONST) {
-      *p = pair_car( t );
-      *(p+1) = tagptr( (p+2), PAIR_TAG );
-      p += 2;
-      t = pair_cdr( t );
-    }
-  }
-
-  *(p-1) = NIL_CONST;
-  globals[ G_REG0+n+1 ] = tagptr( q, PAIR_TAG );
+  allocptr = (word*)alloc_from_heap( bytes );
+# define alloc_one_pair(p) (p = allocptr, allocptr+=2)
 #else
-  /* Can't allocate all in one block */
-  q = prev = 0;
-
+# define alloc_one_pair(p) (p = (word*)alloc_from_heap(2*sizeof(word)) )
+#endif
+  first = prev = 0;
   k = n+1;
   limit = min( j, r-1 );
 
   while (k <= limit ) {
-    p = (word*)alloc_from_heap( 2*sizeof(word) );
+    alloc_one_pair(p);
     *p = globals[ G_REG0 + k ];
-    if (prev) *(prev+1) = tagptr( p, PAIR_TAG ); else q=p;
+    if (prev) 
+      *(prev+1) = tagptr( p, PAIR_TAG ); 
+    else 
+      first = p;
     prev = p;
     k++;
   }
+
+  /* Copy the list in t into the memory pointed to by p. */
 
   if (j >= r) {
     t = globals[ G_REG0 + r ];
 
     while (t != NIL_CONST) {
-      p = (word*)alloc_from_heap( 2*sizeof(word) );
+      alloc_one_pair(p);
       *p = pair_car( t );
-      if (prev) *(prev+1) = tagptr( p, PAIR_TAG ); else q=p;
+      if (prev) 
+	*(prev+1) = tagptr( p, PAIR_TAG ); 
+      else
+	first = p;
       prev = p;
       t = pair_cdr( t );
     }
   }
 
   *(prev+1) = NIL_CONST;
-  globals[ G_REG0+n+1 ] = tagptr( q, PAIR_TAG );
-#endif
+  globals[ G_REG0+n+1 ] = tagptr( first, PAIR_TAG );
+
   in_noninterruptible_syscall = 0;
 }
 
