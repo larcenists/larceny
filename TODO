@@ -165,7 +165,8 @@ Common RTS
   * RTS clean-up:
     - Get rid of the file Sys/gc.c, which is a holdover from way back and
       is really just clutter.  This means some code that now uses the 
-      global variable 'globals' must receive it as a parameter.
+      global variable 'globals' must receive it as a parameter.  [Mostly 
+      done in Petit Larceny, just a matter of merging.]
     - Factor out larceny_init() from main().
     - Simplify the remembered set:
       - remove the remembered-set garbage collector
@@ -489,6 +490,10 @@ Library
        Bigloo 1.9: no sort built-in
        Gambit-C 3.0: no sort built-in
        RScheme 0.7.?: manual lists no sort procedure, but manual is incomplete
+    The order (predicate list) is more natural because it allows code to
+    be indented more reasonably:
+       (sort (lambda (a b) (< (foo a) (foo b)))
+             (... big hairy expression that generates list ...))
   * Would be nice to print bit pattern when printing WEIRD OBJECT.
 
 Testing
