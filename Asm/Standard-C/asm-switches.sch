@@ -46,6 +46,32 @@
      (display-twobit-flag optimize-c-code))
     (else #t)))
 
+(define (assembler-all-flags)
+  (let ((r.s.c (runtime-safety-checking))
+        (c.u.g (catch-undefined-globals))
+        (i.a   (inline-allocation))
+        (p.o   (peephole-optimization))
+	(o.o.c (optimize-c-code))
+        (s.s   (single-stepping)))
+    (lambda ()
+      (runtime-safety-checking r.s.c)
+      (catch-undefined-globals c.u.g)
+      (inline-allocation i.a)
+      (peephole-optimization p.o)
+      (optimize-c-code o.o.c)
+      (single-stepping s.s))))
+
+(define (assembler-global-optimization-flags)
+  (lambda ()
+    #t))
+
+(define (assembler-runtime-safety-flags)
+  (let ((r.s.c (runtime-safety-checking))
+        (c.u.g (catch-undefined-globals)))
+    (lambda ()
+      (runtime-safety-checking r.s.c)
+      (catch-undefined-globals c.u.g))))
+
 (define (set-assembler-flags! mode)
   (case mode
     ((no-optimization)
