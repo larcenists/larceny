@@ -29,9 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#if defined (SUNOS4) || defined(SUNOS5) || defined(LINUX) || defined(CYGWIN) 
-/* really should be HAVE_DLOPEN... */
-#include <dlfcn.h>  /* not on MacOS X */
+#ifdef HAVE_DLFCN
+# include <dlfcn.h>
 #endif
 
 #if defined(SUNOS4)		/* Not in any header file. */
@@ -588,23 +587,31 @@ static void get_rtclock( stat_time_t *real )
 word
 osdep_dlopen( char *path )
 {
-#if defined(SUNOS4)
+#ifdef HAVE_DLFCN
+# if defined(SUNOS4)
   int mode = 1;
-#elif defined(CYGWIN)
+# elif defined(CYGWIN)
   int mode = RTLD_LAZY;
-#else
+# else
   int mode = RTLD_LAZY | RTLD_LOCAL;
-#endif
+# endif
   void *desc = dlopen( path, mode );
   if (desc == 0)
     hardconsolemsg( "dlopen error: %s", dlerror() );
   return (word)desc;
+#else
+  return 0;
+#endif
 }
 
 word
 osdep_dlsym( word handle, char *sym )
 {
+#ifdef HAVE_DLFCN
   return (word)dlsym( (void*)handle, sym );
+#else
+  return 0;
+#endif
 }
 
 #endif /* defined(UNIX) */

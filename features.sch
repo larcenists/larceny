@@ -295,6 +295,7 @@
 			; <stat.h>
  "HAVE_POLL"            ; Library has poll()
  "HAVE_SELECT"          ; Library has select()
+ "HAVE_DLFCN"		; Library has dlfcn.h, dlopen(), and dlsym()
 ))
 
 
@@ -328,6 +329,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_HRTIME_T"
     "HAVE_POLL"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     "GC_HIRES_TIMERS"
     ))
@@ -342,6 +344,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_HRTIME_T"
     "HAVE_POLL"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     "GC_HIRES_TIMERS"
     "USE_CACHED_STATE"
@@ -356,6 +359,7 @@
     "HAVE_STRDUP"
     "HAVE_STRNCASECMP"
     "HAVE_SELECT"
+    ;"HAVE_DLFCN"                        ; only if you have installed the dlcompat package
     "STACK_UNDERFLOW_COUNTING"
     "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
     "USE_CACHED_STATE"
@@ -390,6 +394,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_STRDUP"
     "HAVE_POLL"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
     "USE_CACHED_STATE"
@@ -404,6 +409,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_STRDUP"
     "HAVE_POLL"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
     "USE_CACHED_STATE"
@@ -418,6 +424,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_STRDUP"
     "HAVE_POLL"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
     ))
@@ -431,6 +438,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_STRDUP"
     "HAVE_POLL"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     ))
 
@@ -444,6 +452,7 @@
     "HAVE_RINT"
     "HAVE_STRDUP"
     "HAVE_STRNCASECMP"
+    "HAVE_DLFCN"
     "STACK_UNDERFLOW_COUNTING"
     "XOPEN_SIGNALS"
     ))
