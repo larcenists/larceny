@@ -172,7 +172,7 @@
            (debug/undo-wrapping (cdar broken)))
           (else
            (cons (car broken)
-                 (untrace-look proc (cdr broken))))))
+                 (unbreak-loop proc (cdr broken))))))
 
   (cond ((null? rest)
          (for-each unbreak (map car *broken*)))
