@@ -2,7 +2,7 @@
  * Scheme run-time system
  * C-language procedures for system initialization (SunOS UNIX)
  *
- * $Id: main.c,v 1.1 91/06/21 15:18:57 lth Exp Locker: lth $
+ * $Id: main.c,v 1.2 91/06/30 00:08:07 lth Exp Locker: lth $
  *
  * Exports the procedures C_init() and panic().
  * Accepts the following options from the command line:
@@ -13,15 +13,22 @@
  *    -S nnnn    Static heap size in bytes (decimal) (?)
  *    -s nnnn    Stack cache size in bytes (decimal)
  *    -I nnnn    Interrupt frequency
+ *
+ * Hack options (for benchmarks...)
+ *
+ *    -a nnnn    Argument for the benchmark.
  */
 
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <signal.h>
 #include "machine.h"
-#include "memsupport.h"
-#include "offsets.h"
+#include "gcinterface.h"
 #include "millicode.h"
+#include "offsets.h"
+#include "main.h"
+#include "macros.h"
 
 static void invalid(), setup_interrupts();
 void panic();
@@ -38,7 +45,10 @@ int argc;
 char **argv, **envp;
 {
   unsigned long tsize = 0, esize = 0, elimit = 0, ssize = 0, Ssize = 0;
-  unsigned ifreq = 60;
+  unsigned ifreq = 0xFFFFFFFF;
+  unsigned arg = 0;
+  unsigned milliseconds;
+  struct rusage r1, r2;
 
   while (--argc) {
     ++argv;
@@ -74,6 +84,11 @@ char **argv, **envp;
 	    invalid( "-I" );
 	  ++argv; --argc;
 	  break;
+	case 'a' :
+	  if (argc == 1 || sscanf( *(argv+1), "%u", &arg ) != 1)
+	    invalid( "-a" );
+	  ++argv; --argc;
+	  break;
 	default :
 	  fprintf( stderr, "Invalid option '%s'\n", *argv );
 	  exit( 1 );
@@ -87,12 +102,38 @@ char **argv, **envp;
  
   globals[ INITIAL_TIMER_OFFSET ] = (ifreq == 0 ? 1 : ifreq);
 
-  init_mem( ... );
-  init_iosys( ... );
+  /* Millicode is used by other initializers and must be done first */
+
   init_millicode();
+
+  /* Allocate memory and set up stack. Ignore command line switches for now. */
+
+  if (init_mem( 1024*1024, 1024*1024, 0, 1024*64, 1024*700 ) == 0)
+    panic( "Unable to initialize memory!\n" );
+
+  /* Catch whatever interesting interrupts there are */
+
   setup_interrupts();
 
+  /* Setup the i/o system */
+
+#if 0
+  init_iosys();
+#endif
+
+  globals[ TIMER_OFFSET ] = globals[ INITIAL_TIMER_OFFSET ];
+
+  getrusage( RUSAGE_SELF, &r1 );
+
+  globals[ RESULT_OFFSET ] = fixnum( 1 );
+  globals[ REG1_OFFSET ] = fixnum( arg );
+
   schemestart();
+
+  getrusage( RUSAGE_SELF, &r2 );
+  milliseconds = ((r2.ru_utime.tv_sec - r1.ru_utime.tv_sec)*1000
+		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
+  printf( "Time: %u milliseconds.\n", milliseconds );
 
   exit( 0 );
 }
@@ -108,6 +149,18 @@ char *s;
   exit( 1 );
 }
 
+
+/*
+ * C-language exception handler (called from exception.s)
+ * This is a temporary hack.
+ */
+void C_exception( i )
+{
+  printf( "exception handler called: %d\n.", i );
+  exit( 1 );
+}
+
+
 /*
  * The gyrations required to set up M_STKUFLOW on the Sparc are due to the
  * fact that Sparc return addresses are the addresses of the calling
@@ -116,8 +169,16 @@ char *s;
  */
 static init_millicode()
 {
+  extern word invalid_millicode();
   extern word alloc(), alloci(), setcar(), setcdr(), vectorset(), gcstart();
-  extern word stkoflow(), stkuflow(), exception();
+  extern word stkoflow(), stkuflow(), save_scheme_context();
+  extern word restore_scheme_context(), capture_continuation();
+  extern word restore_continuation(), exception();
+
+  int i;
+
+  for (i = 0 ; i <= LAST_MILLICODE ; i++ )
+    millicode[ i ] = invalid_millicode;
 
   millicode[ M_ALLOC ] = alloc;
   millicode[ M_ALLOCI ] = alloci;
@@ -126,13 +187,27 @@ static init_millicode()
   millicode[ M_VECTORSET ] = vectorset;
   millicode[ M_GCSTART ] = gcstart;
   millicode[ M_STKOFLOW ] = stkoflow;
-#if SPARC1 || SPARC2
-  millicode[ M_STKUFLOW ] = (void (*)())((word)stkuflow - 8);
+#if SPARC
+  millicode[ M_STKUFLOW ] = (word (*)())((word)stkuflow - 8);
 #else
   millicode[ M_STKUFLOW ] = stkuflow();
 #endif
+  millicode[ M_SAVE_CONTEXT ] = save_scheme_context;
+  millicode[ M_RESTORE_CONTEXT ] = restore_scheme_context;
+  millicode[ M_CAPTURE ] = capture_continuation;
+  millicode[ M_RESTORE ] = restore_continuation;
   millicode[ M_EXCEPTION ] = exception;
 }
+
+
+/*
+ * Default millicode handler for non-installed millicode (sanity check).
+ */
+word invalid_millicode()
+{
+  panic( "Invalid millicode call.\n" );
+}
+
 
 /*
  * Initialize signal handlers. We catch SIGINT and SIGQUIT.
