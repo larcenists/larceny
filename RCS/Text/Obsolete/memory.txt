@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: memory.txt,v 1.7 91/07/16 13:23:59 lth Exp Locker: lth $
+; $Id: memory.txt,v 1.8 91/07/24 17:09:45 lth Exp Locker: lth $
 
                  Memory Manager Interface Definition
 
@@ -90,7 +90,10 @@ void stkuflow( void )                       [ M_STKUFLOW ]
 
 void stkoflow( void )                       [ M_STKOFLOW ]
   'Stkoflow' should be invoked from the compiled application to flush the
-  stack cache. The flush may cause a garbage collection.
+  stack cache. The flush may cause a garbage collection. 
+  'Stkoflow' always returns to the return address in %o7, and can be 
+  reliably invoked by millicode. It may modify the global at
+  SAVED_RETADDR_OFFSET.
 
 void save_scheme_context( void )            [ M_SAVE_CONTEXT ]
   'Save_scheme_context' saves the hardware-mapped part of the virtual machine
