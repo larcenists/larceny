@@ -1,5 +1,5 @@
 #line 1 "SchemeObject.cs.cpp"
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops.h"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops.h"
 
 /* Predicates
  * PREDICATE_VIRTUAL_FALSE defines a virtual predicate pair returning false/#f
@@ -274,7 +274,7 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SObject.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SObject.inc"
 // Operations for SObject
 // Mostly, just declares virtual methods that fault with the right excode.
 
@@ -528,7 +528,7 @@ namespace Scheme.Rep {
             w.Write(rep);
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SImmediate.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SImmediate.inc"
 // Ops for SImmediate
 
         public override SObject op_immediatep() { return Factory.True; } public override bool isImmediate() { return true; }
@@ -566,7 +566,7 @@ namespace Scheme.Rep {
             w.Write(val);
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SChar.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SChar.inc"
 // Ops for SChar
 
         public override SObject op_charp() { return Factory.True; } public override bool isChar() { return true; }
@@ -674,7 +674,7 @@ namespace Scheme.Rep {
                 return new SFixnum(val);
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SFixnum.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SFixnum.inc"
 // Ops for SFixnum
 
         public override SObject op_numberp() { return Factory.True; } public override bool isNumber() { return true; }
@@ -1195,7 +1195,7 @@ namespace Scheme.Rep {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2, arg3);
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_STagged.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_STagged.inc"
 // Ops for STagged (ops common to SVL, SByteVL)
 
         public override SObject op_typetag() { return Factory.makeFixnum (this.tag); }
@@ -1252,7 +1252,7 @@ namespace Scheme.Rep {
             }
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SVL.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SVL.inc"
 // Ops for SVL
 
         public override SObject op_numberp() { return (this.isRatnum() || this.isRectnum()) ? Factory.True : Factory.False; } public override bool isNumber() { return (this.isRatnum() || this.isRectnum()); }
@@ -1340,7 +1340,7 @@ namespace Scheme.Rep {
         public override void op_reversed_ratnum_less_or_equal(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_LESSEQ, arg1, this); } else { base.op_reversed_ratnum_less_or_equal(arg1); } }
         public override void op_reversed_ratnum_greater_than(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_GREATER, arg1, this); } else { base.op_reversed_ratnum_greater_than(arg1); } }
         public override void op_reversed_ratnum_greater_or_equal(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_GREATEREQ, arg1, this); } else { base.op_reversed_ratnum_greater_or_equal(arg1); } }
-#line 89 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SVL.inc"
+#line 89 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SVL.inc"
 
         public override void op_reversed_ratnum_plus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_ADD, arg1, this); } else { base.op_reversed_ratnum_plus(arg1); } }
         public override void op_reversed_ratnum_minus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_SUB, arg1, this); } else { base.op_reversed_ratnum_minus(arg1); } }
@@ -1515,7 +1515,7 @@ namespace Scheme.Rep {
             return stringEncoding.GetString(elements);
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
 // Ops for SByteVL
 
         public override SObject op_numberp() { return (this.isBignum() || this.isFlonum() || this.isCompnum()) ? Factory.True : Factory.False; } public override bool isNumber() { return (this.isBignum() || this.isFlonum() || this.isCompnum()); }
@@ -1623,17 +1623,17 @@ namespace Scheme.Rep {
 
         // Bignums
         public override void op_reversed_bignum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_eqvp_not_eq(arg1); } }
-#line 113 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 113 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_numeric_equals(arg1); } }
-#line 115 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 115 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_less_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESS, arg1, this); } else { base.op_reversed_bignum_less_than(arg1); } }
-#line 117 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 117 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_less_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESSEQ, arg1, this); } else { base.op_reversed_bignum_less_or_equal(arg1); } }
-#line 119 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 119 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_greater_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATER, arg1, this); } else { base.op_reversed_bignum_greater_than(arg1); } }
-#line 121 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 121 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_greater_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATEREQ, arg1, this); } else { base.op_reversed_bignum_greater_or_equal(arg1); } }
-#line 123 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 123 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
 
         public override void op_reversed_bignum_plus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_ADD, arg1, this); } else { base.op_reversed_bignum_plus(arg1); } }
         public override void op_reversed_bignum_minus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_SUB, arg1, this); } else { base.op_reversed_bignum_minus(arg1); } }
@@ -1824,7 +1824,7 @@ namespace Scheme.Rep {
             this.rest = rest;
         }
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SPair.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SPair.inc"
 // Ops for SPair
 
         public override SObject op_pairp() { return Factory.True; } public override bool isPair() { return true; }
@@ -1940,411 +1940,422 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
+      //
+      // This is ugly, but in order to create delegates of the correct
+      // type, we have to match the signature exactly.  I expect that
+      // this will change come version 2 of the CLR, so we can live
+      // with this for now.
+      //
+
         public void event_callback (Object sender, EventArgs e) {
-            Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
+            Call.callback (this, Factory.makeForeignBox (sender), Factory.makeForeignBox (e));
             }
 
-	public void event_callback (Object sender, Microsoft.Win32.PowerModeChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, Microsoft.Win32.SessionEndedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, Microsoft.Win32.SessionEndingEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, Microsoft.Win32.TimerElapsedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, Microsoft.Win32.UserPreferenceChangingEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.AssemblyLoadEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.CancelEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.CollectionChangeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.ActiveDesignerEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.ComponentChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.ComponentChangingEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.ComponentEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.ComponentRenameEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.DesignerEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.DesignerTransactionCloseEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.Design.Serialization.ResolveNameEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.ListChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.PropertyChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ComponentModel.RefreshEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Configuration.Install.InstallEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.Common.RowUpdatedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.Common.RowUpdatingEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.DataColumnChangeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.DataRowChangeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.FillErrorEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.MergeFailedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.Odbc.OdbcInfoMessageEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Data.OleDb.OleDbInfoMessageEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-//	public void event_callback (Object sender, System.Data.OracleClient.OracleInfoMessageEventArgs e) {
-//	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-//            }
 
-	public void event_callback (Object sender, System.Data.SqlClient.SqlInfoMessageEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-//	public void event_callback (Object sender, System.Data.SqlServerCe.SqlCeInfoMessageEventArgs e) {
-//	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-//            }
 
-	public void event_callback (Object sender, System.Data.StateChangeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Diagnostics.EntryWrittenEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Drawing.Design.PaintValueEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Drawing.Design.ToolboxComponentsCreatedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Drawing.Design.ToolboxComponentsCreatingEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Drawing.Printing.PrintPageEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.IO.ErrorEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.IO.FileSystemEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Management.ManagementEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Messaging.PeekCompletedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Messaging.ReceiveCompletedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.ResolveEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Threading.ThreadExceptionEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Timers.ElapsedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.UnhandledExceptionEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.Security.DefaultAuthenticationEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.Security.FormsAuthenticationEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.Security.PassportAuthenticationEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.Security.WindowsAuthenticationEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.ImageClickEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.AdCreatedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.CommandEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.DataGridItemEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.DataGridPageChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.DataGridSortCommandEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.DataListItemEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.RepeaterItemEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Web.UI.WebControls.ServerValidateEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ColumnClickEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ContentsResizedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ControlEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ConvertEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.DateRangeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.DragEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.DrawItemEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.GiveFeedbackEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.HelpEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.InputLanguageChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.InvalidateEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ItemChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ItemCheckEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ItemDragEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.KeyEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.KeyPressEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.LabelEditEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.LayoutEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.LinkClickedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.LinkLabelLinkClickedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.MeasureItemEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.MouseEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.NavigateEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.NodeLabelEditEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.PaintEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.PropertyTabChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.PropertyValueChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.QueryAccessibilityHelpEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.QueryContinueDragEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ScrollEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.SelectedGridItemChangedEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.SplitterEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.ToolBarButtonClickEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.TreeViewEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Windows.Forms.UICuesEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Xml.Schema.ValidationEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Xml.Serialization.UnreferencedObjectEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Xml.Serialization.XmlAttributeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Xml.Serialization.XmlElementEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
 
-	public void event_callback (Object sender, System.Xml.Serialization.XmlNodeEventArgs e) {
-	    Call.callback (this, Factory.makeForeign (sender), Factory.makeForeign (e));
-            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#line 909 "SchemeObject.cs.cpp"
 
-#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_Procedure.inc"
+#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_Procedure.inc"
 // Ops for Procedure
 
         public override SObject op_procedurep() { return Factory.True; } public override bool isProcedure() { return true; }
@@ -2353,7 +2364,7 @@ namespace Scheme.Rep {
         }
         public override SObject op_procedure_ref(SObject arg2) { return arg2.op_reversed_procedure_ref(this); }
         public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_reversed_procedure_set(this, arg3); }
-#line 496 "SchemeObject.cs.cpp"
+#line 911 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -2398,13 +2409,18 @@ namespace Scheme.Rep {
         }
     }
 
-    /* Foreign
+    /* ForeignBox
      * Holds foreign values; cooperates with ffi.
      */
-    public class Foreign : SObject {
+    public class ForeignBox : SObject {
         public object value;
-        public Foreign(object value) {
+        public ForeignBox(object value) {
             this.value = value;
         }
+
+       public override string ToString() {
+	 return this.value.ToString();
+       }
+
     }
 }
