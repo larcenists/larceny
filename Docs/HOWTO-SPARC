@@ -57,23 +57,25 @@ See a later section for how to turn Twobit into a standalone compiler
 for other kinds of development.
 
 
-STANDARD HEAP IMAGES
+BUILDING STANDARD HEAP IMAGES
 
 Similarly to Util/twobit-heap.sch there are two other scripts that
 create standard heap images.  Both must be loaded on top of sparc.heap
 as outlined above.
 
 Util/r5rs-heap.sch
+
   Creates a minimal heap image called r5rs.heap: like the heap generated
   by BUILD-HEAP but with a pretty-printer installed.
 
   To set up for this script, evaluate
 
-    > (compile-file "Auxlib/pp.sch")
+    > (build-r5rs-files)
 
   in the development environment to compile the pretty-printer.
 
-Util/std-heap.sch
+Util/larceny-heap.sch
+
   Creates a maximal heap image called larceny.heap: it contains the compiler, 
   installed in such a way that every source file loaded will be compiled as 
   it is loaded, many useful procedures and macros, the debugger, the pretty
@@ -81,7 +83,7 @@ Util/std-heap.sch
 
   To set up for this script, evaluate
 
-    > (build-twobit)
+    > (build-larceny-files)
 
   in the development environment to compile the compiler; once it has
   been loaded by the script it takes care of compiling everything else.

@@ -45,6 +45,19 @@
 
 (load (make-filename (nbuild-parameter 'util) "nbuild-files.sch"))
 
+; Various platform-independent utilities for the build system.
+
+(define (with-current-directory dir thunk)
+  (let ((cdir #f))
+    (dynamic-wind
+	(lambda ()
+	  (set! cdir (current-directory))
+	  (current-directory dir))
+	thunk
+	(lambda ()
+	  (set! dir (current-directory))
+	  (current-directory cdir)))))
+
 ; File lists and procedures
 
 (define (writeln . x)
@@ -67,7 +80,10 @@
 
 (writeln "Loading make utility, makefile, and help.")
 (nbuild-load-files (nbuild:utility-files))
+
+(writeln "Loading utility functions.")
 (compat:load (make-filename (nbuild-parameter 'rts) "make-templates.sch"))
+(compat:load (make-filename (nbuild-parameter 'util) "cleanup.sch"))
 
 ; Initialize Twobit and help system.
 

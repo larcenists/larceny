@@ -1,5 +1,5 @@
 Information about native Larceny on Intel 386-class systems
-1 December 2004 / lth
+12 December 2004 / lth
 
 
 INTRODUCTION.
@@ -13,8 +13,13 @@ the Petit Larceny infrastructure.
 Obviously you need to have NASM installed on your system.  It is free
 and can be downloaded from http://sourceforge.net/projects/nasm.
 
-At the present time the system appears to work, but it feels brittle
-(it is easy to run into bugs).  Also see the section STATUS below.
+At the present time the system appears to work and the system is as
+functional as Petit Larceny, but it feels brittle -- it is easy to run
+into bugs.
+
+Notably, dynamic loading of compiled code works, and though I've not
+tested on Win32, dynamic loading should work there as well because
+alignment is taken care of in the assembler.
 
 
 HOW TO BUILD AND USE.
@@ -34,33 +39,27 @@ There is no technical documentation for this port, but the source files
 are in Asm/Intel/ and Rts/Intel/.
 
 
-STATUS.
+BUGS.
 
-- Can rebuild itself in the interpreter and with the compiled compiler
-- COMPILE-FILES works
-- Dynamic loading works
-- BUILD-TWOBIT (and therefore BUILD-APPLICATION) works
-- Weirdness: if the interpreter is used to recompile the system, it
-  produces a heap image that is identical and object programs of the
-  same size.  But if the compiled twobit is used to recompile the
-  system, it produces a heap image that is not equal to the one
-  produced by the interpreter, nor is the object program of the same
-  size.
-- Would be nice to reuse as much of Asm/Standard-C/dumpheap-* as
-  possible, there is substantial overlap both for -unix and -overrides.
+ * There is a bug in i386-instr.asm: the inline allocation code calls
+   MORECORE, but MORECORE does not reserve any particular amount of
+   space, and if the collector does not reclaim any memory then the
+   system gets into a steady state and we loop forever.  The inline
+   allocation code must instead call ALLOC, never MORECORE.
+
+ * A crash during GC was seen some time following a ^C, which could
+   indicate that kbd interrupts are not handled properly, but this has
+   not been reproduced since.
 
 
 TODO.
 
+ - fix bugs
  - more extensive peephole optimization (many more)
  - minor issues with performance, code size
  - test, test, test
-
-
-OPEN ISSUES.
-
- - a crash during GC was seen some time following a ^C, which 
-   could indicate that kbd interrupts are not handled properly
+ - Would be nice to reuse as much of Asm/Standard-C/dumpheap-* as
+   possible, there is substantial overlap both for -unix and -overrides.
 
 
 OTHER NOTES AND IDEAS.

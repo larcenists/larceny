@@ -2,8 +2,13 @@
 ;
 ; $Id$
 ;
-; Script to dump petit-r5rs.heap -- the small heap image.
-; Petit Larceny only
+; Petit Larceny:
+; Script for building the small heap image "petit-r5rs.heap"
+;
+; 1  Evaluate (BUILD-R5RS-FILES) in the development environment
+; 2  From the command line run
+;        petit-r5rs -stopcopy petit.heap
+; 3  Load this script.  It will create petit-r5rs.heap.
 
 (load "Auxlib/pp.fasl")
 (repl-printer

@@ -1,5 +1,5 @@
 Building and using Larceny and Petit Larceny
-24 November 2004 / lth
+12 December 2004 / lth
 
 
 HOW TO BUILD LARCENY AND USE THE BUILD ENVIRONMENT
@@ -71,9 +71,9 @@ Other useful commands are:
 
 BUILDING AN APPLICATION
 
-It is possible to create an application that contains more compiled code
-than the standard heap image.  The method whereby this is done differs
-between native Larceny and Petit Larceny; see HOWTO-SPARC and
+It is possible to create an application that contains more compiled
+code than the initial heap image.  The method whereby this is done
+differs between native Larceny and Petit Larceny; see HOWTO-SPARC and
 HOWTO-PETIT for more information.
 
 
@@ -82,6 +82,23 @@ COMPILING TWOBIT
 The method for building Twobit also depends on whether you are running
 SPARC-native Larceny or Petit Larceny.  See HOWTO-SPARC and HOWTO-PETIT
 for more information.
+
+
+BUILDING STANDARD HEAP IMAGES
+
+There are two standard heap images that contain more code than the
+minimal heap image.
+
+  r5rs.heap      adds the pretty printer
+  larceny.heap   adds Twobit and many libraries and common macros
+
+If you are using the standard shell scripts in Scripts/ to start
+Larceny, then "larceny -small" runs r5rs.heap and "larceny" runs
+larceny.heap.
+
+These heap images are created in a two-step process, but the process
+differs between Petit Larceny and SPARC larceny.  See HOWTO-PETIT and
+HOWTO-SPARC for more information.
 
 
 COMPILING AND LOADING YOUR OWN PROGRAMS
@@ -116,6 +133,13 @@ INSTALLING TWOBIT ON YOUR SYSTEM
 Installing Twobit outside the Larceny build directory is more
 complicated, see HOWTO-SPARC and HOWTO-PETIT.
 
+
+CLEANING UP
+
+The program Util/cleanup.sch contains several procedures that are
+useful in cleaning up generated files: object files, executable files,
+and so on.  It is loaded by the build system, but can also be loaded
+standalone.
 
 
 --- Local Variables: ---

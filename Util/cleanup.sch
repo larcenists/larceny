@@ -120,8 +120,8 @@
   (for-each cleanup-file
 	    '("core" 
 	      "petit" "petit.exe" "petit.c" "petit.o" "petit.obj" 
-	      "twobit" "twobit.exe" "twobit.app" "twobit.c" "twobit.o" "twobit.obj"
-	      "*.heap" "HEAPDATA.*" "*.fasl"))
+	      "twobit" "twobit.exe" "twobit.app" "twobit.c" "twobit.o"
+	      "twobit.obj" "*.heap" "HEAPDATA.*" "*.fasl"))
   (cleanup-files "arithmetic.c" '(("Rts" "Standard-C")))
   (cleanup-directory '("Rts" "Build"))
   (unspecified))
@@ -134,9 +134,16 @@
   (cleanup-files "*.lib" *libdirs*)
   (cleanup-files "*.a" *libdirs*)
   (cleanup-files "*.dylib" *libdirs*)
+  (cleanup-files "*.dll" *libdirs*)
   (cleanup-files "*.so" *libdirs*)
   (cleanup-files "*.c" *schemedirs*)
   (cleanup-files "*.asm" *schemedirs*)
+  (cleanup-files "ecodes.sch" '(("Lib" "Common")))
+  (cleanup-files "globals.sch" '(("Lib" "Common")))
+  (cleanup-files "*.so" '(("Testsuite" "FFI")))
+  (cleanup-files "*.dll" '(("Testsuite" "FFI")))
+  (cleanup-files "*.pdb" '(("Testsuite" "FFI")))
+  (cleanup-files "*.ilk" '(("Testsuite" "FFI")))
   (unspecified))
 
 (define (clean-lap)

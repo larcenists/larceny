@@ -7,15 +7,18 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Test Win32 pointer transformation for other jump disciplines.
    Works for USE_GOTOS_LOCALLY+RETURN_WITH_VALUE.
  
- * r5rs-heap:
+ * CLEAN-ALL is too aggressive:
+    cvs update: warning: Experimental/socket-offset.c was lost
+    cvs update: warning: Experimental/socket-support.c was lost
+    cvs update: warning: Experimental/unix-support.c was lost
+    cvs update: warning: Testsuite/FFI/ffi-test-ff.c was lost
+    cvs update: warning: Testsuite/FFI/std-ffi-test-ff.c was lost
+
+ * petit-r5rs-heap:
 
     * Seems to work OK (only pretty-printer is added)
 
-    * Package this somehow:
-        (build-application "petit-r5rs" '("Auxlib/pp.lop"))
-      including the compilation of pp.sch to pp.lop
-
- * std-heap:
+ * petit-std-heap:
 
     * petit-std-heap.sch refers directly to osdep-unix.sch and
       petit-unix-el.sch.  Bad!
@@ -33,13 +36,8 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * Examine subversion archives for any hacks that apply right away
 
- * x86-nasm hits infinite gc loop in stop+copy collector: on return
-   from gc, there is not enough memory to allocate a cons, and
-   compiled code calls morecore, which collects and returns, and it
-   happens all over again.  This is a bug in i386-instr.asm: the
-   inline allocation code calls MORECORE, but that does not reserve
-   sufficient space, and because the system is in a steady state we
-   loop forever.  It should not be a problem in the Standard-C system.
+ * SPARC dynamic linking issues
+
 
 ----
 
@@ -62,6 +60,10 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    does the former, it requires being able to inspect the directory.
    The latter solves the silly LD_LIBRARY_PATH problem and makes
    FASL files easily moveable.
+
+ * Quality: REMOVE-HEAP-OBJECTS and REMOVE-RUNTIME-OBJECTS might somehow
+   be based on code in Util/cleanup.sch, rather than duplicating it
+   everywhere.
 
  * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
 

@@ -1,4 +1,4 @@
-; 25 November 2004
+; 12 December 2004
 ;
 ; General "script" for building Petit Larceny on Win32 systems, using
 ; Win32-native C compilers like MinGW, CodeWarrior and Visual C/C++,
@@ -113,6 +113,17 @@
   (make-petit-development-environment)
   (build-application "twobit.exe" (petit-development-environment-lop-files)))
 
+; Set up for loading Util/petit-r5rs-heap.sch
+(define (build-r5rs-files)
+  (compile-and-assemble313 "Auxlib\\pp.sch")
+  (build-application "petit-r5rs" '("Auxlib\\pp.lop")))
+
+; Set up for loading Util/petit-larceny-heap.sch
+(define (build-larceny-files)
+  (make-petit-development-environment)
+  (build-application "petit-larceny"
+		     (petit-development-environment-lop-files)))
+
 (define (build-development-system dll-name)
   (let ((files '())
 	(old-compile-file compile-file))
@@ -183,17 +194,6 @@
   (with-current-directory dir
     (lambda ()
       (system cmd))))
-
-(define (with-current-directory dir thunk)
-  (let ((cdir #f))
-    (dynamic-wind
-	(lambda ()
-	  (set! cdir (current-directory))
-	  (current-directory dir))
-	thunk
-	(lambda ()
-	  (set! dir (current-directory))
-	  (current-directory cdir)))))
 
 (define (compile-files infilenames outfilename)
   (let ((user      (assembly-user-data))

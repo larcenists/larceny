@@ -90,6 +90,17 @@
   (build-application (twobit-application-name)
 		     (petit-development-environment-lop-files)))
 
+; Set up for loading Util/petit-r5rs-heap.sch
+(define (build-r5rs-files)
+  (compile-and-assemble313 "Auxlib/pp.sch")
+  (build-application "petit-r5rs" '("Auxlib/pp.lop")))
+
+; Set up for loading Util/petit-larceny-heap.sch
+(define (build-larceny-files)
+  (make-petit-development-environment)
+  (build-application "petit-larceny"
+		     (petit-development-environment-lop-files)))
+
 (define (require-shared-runtime!)
   (if (not *requires-shared-runtime*)
       (begin
@@ -127,7 +138,9 @@
     #t))
 
 (define (execute-in-directory dir cmd)
-  (system (string-append "( cd " dir "; " cmd " )" )))
+  (with-current-directory dir
+    (lambda ()
+      (system cmd))))
 
 (define (catfiles input-files output-file)
   (if (not (null? input-files))
