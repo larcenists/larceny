@@ -76,7 +76,7 @@
       (field-initializers)              ; (proc ...)
       (getters-n-setters)               ; ((slot-name getter setter) ...)
       (initializers)                    ; (proc ...)
-      (name :initarg :name)             ; a symbol
+      (name :initarg :name :initvalue '-anonymous-)             ; a symbol
       (nfields)                         ; an integer
       (serial-number)                   ; a unique integer
       (slots)                           ; ((name . options) ...)
@@ -177,8 +177,7 @@
                          ;;   getters-n-setters-for-class
                          ;;   (%class-getters-n-setters class))
                          (%class-getters-n-setters class))
-                   (raise* make-exn:application:mismatch
-                           "slot-ref: no slot `~e' in ~e" slot-name class))))))
+                   (error "slot-ref: no slot `~e' in ~e" slot-name class))))))
 
 (define (slot-ref object slot-name)
   ((lookup-slot-info (class-of object) slot-name cadr) object))
@@ -458,7 +457,8 @@
 (%set-class-direct-supers!      <class> (list <object>))
 (%set-class-direct-slots!       <class> the-slots-of-a-class)
 (%set-class-field-initializers! <class> (map (lambda (s)
-                                               unspecified-initializer)
+                                               (let ((initvalue (getarg (cdr s) :initvalue (undefined))))
+                                                 (lambda args initvalue)))
                                              the-slots-of-a-class))
 (%set-class-initializers!       <class> '())
 (%set-class-name!               <class> '<class>)
@@ -538,7 +538,8 @@
     :direct-supers (list <object> <function>)
     :direct-slots  '((methods)
                      (arity :initarg :arity)
-                     (name  :initarg :name)
+                     (name  :initarg :name
+                            :initvalue '-anonymous-generic-)
                      (combination)
                      (app-cache)
                      (singletons-list))
@@ -561,8 +562,10 @@
     :direct-supers (list <object> <function>)
     :direct-slots  '((specializers :initarg :specializers)
                      (procedure    :initarg :procedure)
-                     (qualifier    :initarg :qualifier)
-                     (name         :initarg :name)
+                     (qualifier    :initarg :qualifier
+                                   :initvalue :primary)
+                     (name         :initarg :name
+                                   :initvalue '-anonymous-method-)
                      (arity        :initarg :arity))
     :name          '<method>))
 
@@ -571,8 +574,9 @@
 ;; BOOTSTRAP STEP
 (for-each
  (lambda (slot)
-   (make-setter-locked! (lookup-slot-info <method> slot cdr) #t
-     (lambda () (error "SLOT-SET!:  slot is locked" slot))))
+   (make-setter-locked!
+    (lookup-slot-info <method> slot cdr) #t
+    (lambda () (error "SLOT-SET!:  slot is locked" slot))))
  '(specializers
    procedure
    qualifier))
