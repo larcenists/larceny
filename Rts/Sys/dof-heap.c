@@ -1086,7 +1086,7 @@ static void remset_trace( old_heap_t *heap, char *type, int n1, int n2, int n3 )
   int i, j, k;
   int dofout[ MAX_GENERATIONS ], dofin[ MAX_GENERATIONS ];
 
-  printf( "(%-8s", type );
+  printf( "\nREMSET-TRACE (%-8s", type );
   if (n1 >= 0) printf( "%d ", n1 ); else printf( "  " );
   if (n2 >= 0) printf( "%d ", n2 ); else printf( "  " );
   if (n3 >= 0) printf( "%d ", n3 ); else printf( "  " );
@@ -1108,26 +1108,24 @@ static void remset_trace( old_heap_t *heap, char *type, int n1, int n2, int n3 )
   printf( "(out ", type );
   for ( i=0 ; i < data->n ; i++ )
     printf( " %8s", eish(dofout[i]) );
-  printf( ")\n               (in  " );
+  printf( ") (in  " );
   for ( i=0 ; i < data->n ; i++ )
     printf( " %8s", eish(dofin[i]) );
 #  if REMSET_TRACE_ALL
-  printf( ")\n               " );
+  printf( ") " );
 #  else
   printf( ")" );
 #  endif
 # endif
 # if REMSET_TRACE_ALL
-#  if 0
   /* Always 0 except for the static area, so why bother? */
   printf( "(gen " );
   for ( i=1 ; i < heap->collector->remset_count ; i++ )
     printf( " %8s", eish( heap->collector->remset[i]->live ) );
-  printf( ")\n");
-#  endif
+  printf( ")");
 #  if SHADOW_REMSETS
   if (data->use_shadow_remsets) {
-    printf( "(sha ");
+    printf( " (sha ");
     for ( i=0 ; i < data->n ; i++ )
       printf( " %8s", eish( data->shadow_remsets[i]->live ) );
     printf( ")" );
@@ -1135,6 +1133,7 @@ static void remset_trace( old_heap_t *heap, char *type, int n1, int n2, int n3 )
 #  endif
 # endif
   printf( ")\n" );
+  fflush( stdout );
 #endif
 }
 
