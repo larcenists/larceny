@@ -1,8 +1,10 @@
 /*
- * Ephemeral garbage collector (for Scheme).
+ * Scheme 313 Runtime System.
+ *
+ * Garbage collector.
  * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 2.2 91/07/10 00:03:32 lth Exp Locker: lth $
+ * $Id: gc.c,v 2.3 91/07/10 10:17:26 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -425,6 +427,9 @@ static tenuring_collection()
     }
   }
 
+  if (dest > t_new_max)
+    panic( "Tenured-area overflow." );
+
   /*
    * Flip.
    */
@@ -483,23 +488,29 @@ word w, *base, *limit, **dest;
 #endif
   }
   else {    /* vector-like (bytevector, vector, procedure) */
-    unsigned size2, size;
+    unsigned size;
     word *p1, *p3;
 
     size = roundup4( sizefield( q ) ) + 4;
-    size2 = roundup8( size );
+
+    /* We unroll the loop because everything is double-word
+       aligned. While this costs an extra store occasionally,
+       it may help the compiler figure out what is going on
+       and generate better code. */
 
     p1 = *dest;
-    p3 = (word *) ((word) *dest + size2);
-    while (p1 < p3)
+    p3 = (word *) ((word) *dest + size);
+    while (p1 < p3) {
       *p1++ = *ptr++;
+      *p1++ = *ptr++;
+    }
 
-    *dest += size2 / 4;
+    *dest = p1;
 
     /* Might need to zero out a padding word */
 
     if (size % 8 != 0)         /* need to pad out to doubleword? */
-      *p1 = (word) 0;
+      *(p1-1) = (word) 0;
 
 #ifdef DEBUG
     vectors_copied++;
