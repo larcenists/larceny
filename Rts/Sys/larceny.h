@@ -136,6 +136,9 @@ extern void UNIX_sysfeature( word v );
 extern void UNIX_sro( word ptrtag, word hdrtag, word limit );
 #endif
 
+/* In Rts/Sys/sro.c */
+extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
+
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
