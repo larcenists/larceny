@@ -118,7 +118,7 @@
 
 ; Return a list of byte values representing an IEEE double precision number.
 
-(define (flonum-bits f)
+#;(define (flonum-bits f)
 
   (define nan '(#x7f #xff #xff #xff #xff #xff #xff #xff))
 
@@ -151,9 +151,49 @@
 
 ; Gross hack.
 
-(define unix$bitpattern
+#;(define unix$bitpattern
   (foreign-procedure "bitpattern" (integer-32 double-float) unsigned-32))
 
+
+; More portable than the preceding code.
+; For Chez Scheme and Petite Chez Scheme 6.0.
+;
+; Return a big-endian representation of the floating-point argument
+; as a vector of 8 bytes.
+
+(define flonum-bits
+  (let ((two^52 (expt 2 52))
+	(two^48 (expt 2 48))
+	(two^40 (expt 2 40))
+	(two^32 (expt 2 32))
+	(two^24 (expt 2 24))
+	(two^16 (expt 2 16)))
+    (lambda (f)
+      (cond ((= f +inf.0)
+	     '(#x7F #xF0 0 0 0 0 0 0))
+	    ((= f -inf.0)
+	     '(#xFF #xF0 0 0 0 0 0 0))
+	    ((not (= f f))
+	     '(#x7F #xFF #xFF #xFF #xFF #xFF #xFF #xFF))
+	    ((= f 0.0)
+	     (if (negative? (vector-ref (decode-float f) 2))
+		 '(#x80 0 0 0 0 0 0 0)
+		 '(0 0 0 0 0 0 0 0)))
+	    (else
+	     (let* ((d (decode-float f))
+		    (m (- (vector-ref d 0) two^52))
+		    (e (+ (vector-ref d 1) 52 1023))
+		    (s (if (negative? (vector-ref d 2)) 1 0)))
+	       (list (fxlogor (fxsll s 7)
+			      (fxlogand (fxsrl e 4) 127))
+		     (fxlogor (fxsll (fxlogand e 15) 4)
+			      (fxlogand (quotient m two^48) 15))
+		     (remainder (quotient m two^40) 256)
+		     (remainder (quotient m two^32) 256)
+		     (remainder (quotient m two^24) 256)
+		     (remainder (quotient m two^16) 256)
+		     (remainder (quotient m 256) 256)
+		     (remainder m 256))))))))
 
 ; utility
 
