@@ -8,24 +8,61 @@
 #ifndef PETIT_CONFIG_H
 #define PETIT_CONFIG_H
 
-/* Jump discipline.  Exactly one of these should be true */
+/* Jump discipline.  Exactly one of these three should be true */
 
 #define USE_LONGJUMP               0
-   /* Calls and returns are implemented as calls; when the timer expires, a
-      longjump is performed to prune the stack.  The extern variable 
-      'twobit_cont_label' holds the address to jump to following the longjump.
+   /* Jump, invoke and return are implemented as calls; when the timer
+      expires, a longjump is performed to prune the stack.  The extern 
+      variable 'twobit_cont_label' holds the address to jump to following 
+      the longjump.
       */
 
 #define USE_RETURN_WITHOUT_VALUE   1
-  /* Calls are implemented as returns to a dispatch loop, as are
-     returns.  The extern variable 'twobit_cont_label' holds the address 
+  /* Jump, invoke, and return are implemented as returns to a dispatch 
+     loop.  The extern variable 'twobit_cont_label' holds the address 
      to jump to following the longjmp.
      */
 
 #define USE_RETURN_WITH_VALUE      0
-  /* Calls are implemented as returns to a dispatch loop, as are returns.
-     The address to jump to is returned to the dispatch loop rather than
-     being stored in a global.
+  /* Jump, invoke, and return are implemented as returns to a dispatch
+     loop.  The address to jump to is returned to the dispatch loop 
+     rather than being stored in a global.
+     */
+
+
+/* Additional control of control flow discipline.  Combine this with one
+   of the preceding three.
+   */
+
+#define USE_GOTOS_LOCALLY          1
+  /* If set to one, distinguish between local control transfers (BRANCH, 
+     BRANCHF, and SKIP) and nonlocal control transfers (INVOKE, RETURN, 
+     APPLY, and JUMP).  The nonlocal transfers uses the discipline 
+     selected above; the local transfers use GOTO.
+
+     This local control transfer discipline improves performance, reduces
+     code size, makes register caching worthwhile, and reduces the number 
+     of function pointers, which makes life easier on MacOS. 
+
+     A code address is a pair: function pointer and address within the 
+     function.  The address within the function is of type cont_t; in a
+     portable implementation this is an integral type.
+	 
+     Larceny's representations do not support code addresses larger than
+     one word, but it turns out that the two-word structure can be represented
+     partially in all cases, because it is never exposed fully to anyone --
+     only compiled code and the run-time system manipulates code addresses.
+     Code addresses are stored in procedures and in stack frames:
+	 
+        - In a procedure, the code pointer has the function pointer and the
+          internal address is an implicitly stored 0.
+        - In a stack frame, the return address is the internal address;
+          the code pointer is supplied by the procedure stored in the
+          saved REG0.
+     
+     The external variable twobit_cont_label, if defined, has type cont_t
+     and holds only the internal address; it must be interpreted in the 
+     context the procedure in R0. 
      */
 
 
@@ -45,25 +82,35 @@
 # error "No suitable call/return dicipline has been selected."
 #endif
 
-#define CONT_PARAMS     word *globals /* For argument lists */
-#define CONT_ACTUALS    globals	      /* Call in trampoline */
-  /* Parameter list of all compiled procedures.  By setting CONTY_PARAMS
-     to 'void' and CONT_ACTUALS to the empty string, the procedures will
-     pick up the global 'globals' variable.  Usually you don't want to
-     do that.
-     */
+/* CONT_PARAMS is the parameter list of all compiled procedures.
+   cont_t is the approximate type of a Twobit label.
+   */
+
+#if USE_GOTOS_LOCALLY
+
+# define ENTRY_LABEL  ___k
+# define CONT_PARAMS   word *globals, unsigned ENTRY_LABEL
+# define CONT_ACTUALS  globals, ENTRY_LABEL
+  typedef unsigned cont_t;
+  typedef RTYPE (*codeptr_t)( word *globals, unsigned k );
+ 
+#else
+
+# define CONT_PARAMS     word *globals
+# define CONT_ACTUALS    globals
 
 typedef void (*cont_t)( CONT_PARAMS );
-   /* cont_t is the approximate type of a Twobit label. 
-      (It's really typedef RTYPE (*cont_t)( CONT_PARAMS ), but try telling
-      a C compiler that.)
+   /* cont_t is really typedef RTYPE (*cont_t)( CONT_PARAMS ), but 
+      try telling a C compiler that.
       */
+  typedef RTYPE (*codeptr_t)( word *globals );
+#endif
 
 
 /* Timer ticks */
 
 #if USE_LONGJUMP
-# define STACK_SIZE 262144	            /* 64 KB */
+# define STACK_SIZE 262144	            /* 256 KB */
 # define FRAME_SIZE 96		            /* For SPARC */
 # define TIMER_STEP (STACK_SIZE/FRAME_SIZE)
 #else
