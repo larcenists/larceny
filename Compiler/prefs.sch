@@ -58,4 +58,4 @@
   (make-call (make-variable 'undefined) '()))
 
 (define (make-unspecified)
-  (make-constant 'unspecified))
+  (make-call (make-variable 'unspecified) '()))
