@@ -267,6 +267,10 @@ libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a
 
+# Generic Unix (?)
+libpetit.so: $(PETIT_LARCENY_OBJECTS)
+	gcc -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS)
+
 # Intel x86 with the NASM back-end, on Unix
 libx86.a: $(X86_NASM_LARCENY_OBJECTS)
 	ar -r libx86.a $(X86_NASM_LARCENY_OBJECTS)
