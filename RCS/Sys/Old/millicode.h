@@ -1,43 +1,36 @@
-/*
+/* -*- Fundamental -*-
+ *
+ * Scheme Runtime System.
  * Millicode offsets.
  *
- * $Id$
+ * $Id: millicode.h,v 1.1 91/06/23 20:32:34 lth Exp Locker: lth $
  */
 
-#ifndef ASSEMBLY
+#ifdef ASSEMBLY
+#define ADJUST		4
+#else
+#define ADJUST		1
+#endif
 
-/* C version */
+/* Watch this! */
+#define LAST_MILLICODE	16
 
 #define MILLICODE_TABLE_SIZE	(LAST_MILLICODE+1)
 
-#define M_STKOFLOW	0
-#define M_STKUFLOW	1
-#define M_ALLOC		2
-#define M_ALLOCI	3
-#define M_SETCAR	4
-#define M_SETCDR	5
-#define M_VECTORSET	6
-#define M_GCSTART	7
-#define M_WRONGARGS	8
-#define M_NONPROC	9
-#define M_TIMEREXP	10
-
-#define LAST_MILLICODE	10
-
-#else
-
-/* Assembly version */
-
-#define M_STKOFLOW	0
-#define M_STKUFLOW	4
-#define M_ALLOC		8
-#define M_ALLOCI	12
-#define M_SETCAR	16
-#define M_SETCDR	20
-#define M_VECTORSET	24
-#define M_GCSTART	28
-#define M_WRONGARGS	32
-#define M_NONPROC	36
-#define M_TIMEREXP	40
-
-#endif
+#define M_STKOFLOW	(0*ADJUST)
+#define M_STKUFLOW	(1*ADJUST)
+#define M_ALLOC		(2*ADJUST)
+#define M_ALLOCI	(3*ADJUST)
+#define M_SETCAR	(4*ADJUST)
+#define M_SETCDR	(5*ADJUST)
+#define M_VECTORSET	(6*ADJUST)
+#define M_GCSTART	(7*ADJUST)
+#define M_EXCEPTION	(8*ADJUST)
+#define M_ZEROP		(9*ADJUST)
+#define M_ADD		(10*ADJUST)
+#define M_SUB		(11*ADJUST)
+#define M_MUL		(12*ADJUST)
+#define M_QUOT		(13*ADJUST)
+#define M_REM		(14*ADJUST)
+#define M_DIV		(15*ADJUST)
+#define M_NEG		(16*ADJUST)
