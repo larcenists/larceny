@@ -14,7 +14,7 @@
 # Petit Larceny on generic Unix with gcc
 O=o
 CC=gcc
-DEBUGINFO=-gstabs+
+DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 

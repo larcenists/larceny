@@ -64,8 +64,9 @@
   (execute
    (twobit-format 
     #f
-    "~a -c -gstabs+ ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    "~a -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
     gcc-name
+    (if (optimize-c-code) "" "-gstabs+")
     unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")
     o-name
@@ -84,8 +85,9 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -rdynamic -o ~a ~a ~a"
+    "~a ~a -rdynamic -o ~a ~a ~a"
     gcc-name
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -94,8 +96,9 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -o ~a ~a ~a"
+    "~a ~a -o ~a ~a ~a"
     gcc-name
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -104,8 +107,9 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -shared -o ~a ~a ~a"
+    "~a ~a -shared -o ~a ~a ~a"
     gcc-name
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -114,8 +118,9 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -r -shared -o ~a ~a ~a"
+    "~a ~a -r -shared -o ~a ~a ~a"
     gcc-name
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
