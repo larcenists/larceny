@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 12 March 1999
 
 ($$trace "usual")
 
@@ -56,9 +56,9 @@
     ((let (?bindings ...) . ?body)
      (let (?bindings ...) . ?body))
     ((let ?tag ((?name ?val) ...) ?body ?body1 ...)
-     ((letrec ((?tag (lambda (?name ...) ?body ?body1 ...)))
-        ?tag)
-      ?val ...))))
+     (let ((?name ?val) ...)
+       (letrec ((?tag (lambda (?name ...) ?body ?body1 ...)))
+         (?tag ?name ...))))))
 
 (define-syntax and
   (syntax-rules ()
@@ -152,7 +152,7 @@
     ((case ?e1 ?clause1 ?clause2 ?clause3 ...)
      (letrec-syntax
        ((case-aux
-          (... (syntax-rules ()
+          (... (syntax-rules (else)
                 ((case-aux ?temp (else ?body ?body2 ...))
                  (begin ?body ?body2 ...))
                 ((case-aux ?temp ((?z ...) ?body ?body2 ...))
