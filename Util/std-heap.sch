@@ -46,7 +46,7 @@
 
 ;;; Load record package
 
-(load "Experimental/record.sch")        ; Record package
+(load "Auxlib/record.sch")              ; Record package
 (load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 
 ;;; Load exception system
@@ -71,6 +71,7 @@
 
 ;;; Dump the heap
 
+(gctwa)
 (dump-interactive-heap "larceny.heap")
 (system "./larceny.bin -reorganize-and-dump larceny.heap")
 (system "/bin/mv larceny.heap.split larceny.heap")
