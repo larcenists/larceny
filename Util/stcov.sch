@@ -162,8 +162,9 @@
 	  (else
 	   (loop (+ i 1) ids)))))
 
-(define (stcov-summarize-execution)
-  (let ((m (make-vector 20 '(0 . 0))))
+(define (stcov-summarize-execution . rest)
+  (let* ((buckets (if (null? rest) 20 (car rest)))
+         (m (make-vector buckets '(0 . 0))))
 
     (define (insert i x limit)
       (if (>= limit 0)
@@ -222,10 +223,12 @@
 
 (define (stcov-define expr)
   (if (symbol? (cadr expr))
-      (let ((id (next-stcov-ident)))
-	`(define ,(cadr expr)
-	   (begin ,(stcov-annotation id)
-		  ,(stcov-expr (caddr expr)))))
+      (if (not (null? (cddr expr)))
+          (let ((id (next-stcov-ident)))
+            `(define ,(cadr expr)
+               (begin ,(stcov-annotation id)
+                      ,(stcov-expr (caddr expr)))))
+          `(define ,(cadr expr)))
       `(define ,(cadr expr)
 	 ,@(stcov-body (cddr expr)))))
 
