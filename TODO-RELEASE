@@ -17,8 +17,10 @@ Major features at a glance:
 Remaining to-do items:
 
 [Twobit]
-  * implement and test pass 3
-  * test, test, test
+  * SRFI-0, if finalized early enough (unlikely).
+  * Macro expander performance.
+  * Implement and test pass 3.
+  * Test, test, test.
 
 [General bug fixes]
   * All `high' priority bugs in BUGS.
@@ -30,6 +32,8 @@ Remaining to-do items:
   * Consider creating an FFIGEN back-end and releasing it.
 
 [Assembler]
+  * Performance: get rid of branch target association list and replace
+    it by a bit vector.
   * Assemble-file is only so-so useful in larceny.heap because it can't do
     MAL files -- the MAL names are not bound, and EVAL is used.  We can
     either:
@@ -40,6 +44,11 @@ Remaining to-do items:
       - elaborately hack assemble-file to create an environment that
         contains the MAL names and use this for EVAL -- way too elaborate.
 
+[Library]
+  * Top-level environments must hold syntax definitions, and the hacks
+    used to work around it (in compile-expression, macro-expand-expression)
+    must be removed.
+
 [Debugging]
   * Trace procedures rather than names.
   * Fix `break', reinstate `debugvsm' for what `break' does now.
@@ -47,6 +56,11 @@ Remaining to-do items:
   * Print variable names if at all possible -- at least trace-entry and
     break-entry can print variable names and values if variable names
     or source code are present.
+
+[Documentation]
+  * Describe new compiler switches
+  * Describe any other changes
+  * Fix reported bugs (to be determined)
 
 [General clean-up]
   * SPARC larceny does not currently compile with LCC:
@@ -71,9 +85,9 @@ Remaining to-do items:
 
 [Standard builds]
   * [discussion item]
-    `r5rs.heap' -> `interpreter.heap' (since it's more than R5RS), 
-    possibly make `r5rs.heap' be _only_ r5rs.
-  * The debugger needs to be part of interpreter.heap (r5rs.heap).
+    Rename `r5rs.heap' as `interpreter.heap' (since it's more than R5RS).
+    Consider making a `r5rs.heap' that contains only r5rs procedures.
+  * The debugger needs to be part of interpreter.heap.
   * Should create scripts that setup correct compiler switches before
     compiling all files for standard heaps; automate the entire process
     of building the heaps.  Eg., Scripts/build-larceny-heap, etc.
