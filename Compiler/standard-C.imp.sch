@@ -161,7 +161,7 @@
 ;                                                          kind of
 ;                                                          effect
 
-  `((break            0 break            #f             0 ,:dead     ,:all  #f)
+  `((break            0 break            #f             1 ,:dead     ,:all  #f)
     (creg             0 creg             #f           106 ,:dead     ,:all  #f)
     (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
     (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
@@ -227,7 +227,9 @@
     (set-cdr!         2 set-cdr!         #f            60 ,:dead     ,:cdr  #f)
     (+                2 +                ,stdc-imm?    61 ,:immortal ,:none #t)
     (-                2 -                ,stdc-imm?    62 ,:immortal ,:none #t)
-    (*                2 *                ,stdc-imm?    63 ,:immortal ,:none #f)
+; Immediate version of * not yet operational
+;    (*                2 *                ,stdc-imm?    63 ,:immortal ,:none #t)
+    (*                2 *                #f            63 ,:immortal ,:none #t)
     (/                2 /                #f            64 ,:immortal ,:none #t)
     (quotient         2 quotient         #f            65 ,:immortal ,:none #t)
     (<                2 <                ,stdc-imm?    66 ,:immortal ,:none #t)
@@ -276,7 +278,7 @@
     (vector-like-set! 3 vector-like-set! #f           100 ,:dead     ,:vector #f)
     (vector-like-length 1 vector-like-length #f       101 ,:immortal ,:none #f)
     (bytevector-like-length 1 bytevector-like-length #f 102 ,:immortal ,:none #f)
-    (remainder        2 remainder        #f            103 ,:immortal ,:none #f)
+    (remainder        2 remainder        #f            103 ,:immortal ,:none #t)
     (#f               1 petit-patch-boot-code #f       104 #f         #f     #f)
     (#f               1 syscall          #f            105 #f         #f     #t)
     (gc-counter       0 gc-counter       #f            108 ,:dead     ,:none #f)
@@ -386,6 +388,7 @@
 
 ; Operations introduced by Sparc [sic] peephole optimizer.
 
+'(begin
 (define $reg/op1/branchf                  ; reg/op1/branchf    prim,k1,L
   (make-mnemonic 'reg/op1/branchf))
 (define $reg/op2/branchf                  ; reg/op2/branchf    prim,k1,k2,L
@@ -412,8 +415,10 @@
   (make-mnemonic 'reg/setglbl))
 (define $reg/op3                          ; reg/op3            prim,k1,k2,k3
   (make-mnemonic 'reg/op3))
+)
 (define $const/setreg                     ; const/setreg       const,k
   (make-mnemonic 'const/setreg))
+'(begin
 (define $const/return                     ; const/return       const
   (make-mnemonic 'const/return))
 (define $global/setreg                    ; global/setreg      x,k
@@ -424,7 +429,7 @@
   (make-mnemonic 'setrtn/invoke))
 (define $global/invoke                    ; global/invoke      global,n
   (make-mnemonic 'global/invoke))
-
+)
 ; misc
 
 (define $cons     'cons)
