@@ -1,15 +1,85 @@
+;($$trace "dotnet-ffi")
+
+(define-syntax define-ffi
+  (syntax-rules ()
+    ((define-ffi name code ...)
+     (define-syntax name
+       (syntax-rules ()
+         ((name . args) (syscall code ... . args)))))))
+
+(define-ffi ffi:%get-type          34 0)
+(define-ffi ffi:%get-method        34 1)
+
+(define-ffi ffi:%object->foreign       34 2 0)
+(define-ffi ffi:%schemeobject->foreign 34 2 1)
+(define-ffi ffi:%string->foreign       34 2 2)
+;(define-ffi ffi:%symbol->foreign      34 2 3)
+(define-ffi ffi:%bytes->foreign        34 2 4)
+(define-ffi ffi:%int32->foreign        34 2 5)
+(define-ffi ffi:%flonum->foreign       34 2 6)
+(define-ffi ffi:%double->foreign       34 2 7)
+;(define-ffi ffi:%void->foreign        34 2 8)
+
+(define-ffi ffi:%foreign->object       34 3 0)
+(define-ffi ffi:%foreign->schemeobject 34 3 1)
+(define-ffi ffi:%foreign->string       34 3 2)
+;(define-ffi ffi:%symbol->foreign      34 3 3)
+(define-ffi ffi:%foreign->bytes        34 3 4)
+(define-ffi ffi:%foreign->int          34 3 5)
+(define-ffi ffi:%foreign->flonum       34 3 6)
+(define-ffi ffi:%foreign->double       34 3 7)
+(define-ffi ffi:%foreign->void         34 3 8)
+
+(define-ffi ffi:%invoke                34 4)
+(define-ffi ffi:%get-field             34 5)
+(define-ffi ffi:%get-property          34 6)
+(define-ffi ffi:%isa?                  34 7)
+(define-ffi ffi:%field-get             34 8)
+(define-ffi ffi:%field-set             34 9)
+(define-ffi %foreign?                  34 10)
+(define-ffi ffi:%get-constructor       34 11)
+(define-ffi ffi:%invoke-constructor    34 12)
+(define-ffi ffi:%eq?                   34 13)
+
+(define array%        (ffi:%get-type "System.Array"))
+(define enum%         (ffi:%get-type "System.Enum"))
+(define ffi%          (ffi:%get-type "Scheme.RT.FFI"))
+(define int%          (ffi:%get-type "System.Int32"))
+(define object%       (ffi:%get-type "System.Object"))
+(define schemeobject% (ffi:%get-type "Scheme.Rep.SObject"))
+(define string%       (ffi:%get-type "System.String"))
+(define type%         (ffi:%get-type "System.Type"))
+
+(define foreign-false
+  (ffi:%field-get (ffi:%get-field ffi% "FALSE") #f))
+(define foreign-true
+  (ffi:%field-get (ffi:%get-field ffi% "TRUE") #f))
+(define foreign-null
+  (ffi:%field-get (ffi:%get-field ffi% "NULL") #f))
+
+(define (foreign? object) (%foreign object))
+(define (ffi:isa? object type) (ffi:%isa? object type))
+(define (ffi:eq? left right) (or (eq? left right) (ffi:%eq? left right)))
+
+(define (foreign-null? object)
+  (ffi:%eq? object foreign-null))
 
 (define (ffi:get-type name)
   (if (string? name)
-      (syscall 34 0 name)
+      (ffi:%get-type name)
       (error "get-type: expected a string, got " name)))
 
 (define (ffi:get-method type name argtypes)
-  (if (not (and (foreign? type) (ffi:isa? type type%)))
+  (if (not (and (%foreign? type) (ffi:%isa? type type%)))
       (error "ffi:get-method: expected type, got: " type))
   (if (not (string? name))
       (error "ffi:get-method: expected string, got: " name))
-  (syscall 34 1 type name (list->vector argtypes)))
+  (ffi:%get-method type name (list->vector argtypes)))
+
+(define (ffi:bool->foreign obj)   (if obj foreign-true foreign-false))
+(define (ffi:symbol->foreign obj) (ffi:%string->foreign (symbol->string obj)))
+(define (ffi:foreign->bool   obj) (not (ffi:%eq? obj foreign-false)))
+(define (ffi:foreign->symbol obj) (string->symbol (ffi:%foreign->string obj)))
 
 (define (ffi:datum->foreign conversion obj)
   (case conversion
@@ -28,7 +98,7 @@
          (ffi:datum->foreign 'string obj)
          (error "ffi:datum->foreign (symbol): expected symbol")))
     ((scheme)
-     (if (foreign? obj) obj (ffi:datum->foreign 'schemeobject obj)))
+     (if (%foreign? obj) obj (ffi:datum->foreign 'schemeobject obj)))
     ((bool) (if obj foreign-true foreign-false))
     (else
      (error "ffi:datum->foreign: unknown conversion: " conversion))))
@@ -47,68 +117,32 @@
     ((symbol)
      (string->symbol (ffi:foreign->datum 'string obj)))
     ((scheme)
-     (if (and (foreign? obj) (ffi:isa? obj schemeobject%))
+     (if (and (%foreign? obj) (ffi:%isa? obj schemeobject%))
          (ffi:foreign->datum 'schemeobject obj)
          obj))
-    ((bool) (ffi:equal? foreign-true obj))
-    (else 
+    ((bool) (ffi:eq? foreign-true obj))
+    (else
      (error "ffi:foreign->datum: unknown conversion: " conversion))))
 
 (define (ffi:invoke method obj . args)
-  (syscall 34 4 method obj (list->vector args)))
-
-(define (ffi:get-field type name)
-  (syscall 34 5 type name))
-
-(define (ffi:get-property type name)
-  (syscall 34 6 type name))
-
-(define (ffi:isa? obj type)
-  (syscall 34 7 obj type))
-
-(define (ffi:field-get f obj)
-  (syscall 34 8 f obj))
-
-(define (ffi:field-set f obj value)
-  (syscall 34 9 f obj value))
-
-(define (foreign? obj)
-  (syscall 34 10 obj))
+  (ffi:%invoke method obj (list->vector args)))
 
 (define (ffi:get-constructor type argtypes)
-  (syscall 34 11 type (list->vector argtypes)))
+  (ffi:%get-constructor type (list->vector argtypes)))
 
 (define (ffi:construct c args)
-  (syscall 34 12 c (list->vector args)))
-
-(define (ffi:equal? a b)
-  (syscall 34 13 a b))
+  (ffi:%invoke-constructor c (list->vector args)))
 
 (define (foreign-or-fixnum? x)
-  (or (fixnum? x) (foreign? x)))
-
-(define object% (ffi:get-type "System.Object"))
-(define type% (ffi:get-type "System.Type"))
-(define string% (ffi:get-type "System.String"))
-(define int% (ffi:get-type "System.Int32"))
-(define array% (ffi:get-type "System.Array"))
-(define schemeobject% (ffi:get-type "Scheme.Rep.SObject"))
-(define ffi% (ffi:get-type "Scheme.RT.FFI"))
+  (or (fixnum? x) (%foreign? x)))
 
 (define (ffi:ensure-type t client)
   (cond ((string? t)
-         (ffi:get-type t))
-        ((and (foreign? t) (ffi:isa? t type%))
+         (ffi:%get-type t))
+        ((and (%foreign? t) (ffi:%isa? t type%))
          t)
         (else
          (error client " expected type, got: " t))))
-
-(define foreign-false
-  (ffi:field-get (ffi:get-field ffi% "FALSE") #f))
-(define foreign-true
-  (ffi:field-get (ffi:get-field ffi% "TRUE") #f))
-(define foreign-null
-  (ffi:field-get (ffi:get-field ffi% "NULL") #f))
 
 ;; ----
 
@@ -133,7 +167,7 @@
   (define (ensure-type t) (ffi:ensure-type t 'clr-constructor->procedure))
   (let ((type (ensure-type type)))
     (cond ((not (list? argtypes))
-           (error 
+           (error
             "clr-constructor->procedure: expected list of argument types, got: "
             argtypes))
           (else
@@ -159,7 +193,7 @@
   (lambda (obj . newval)
     (cond ((null? newval)
            (if (car ps)
-               (ffi:foreign->datum newval-c 
+               (ffi:foreign->datum newval-c
                                    ((car ps) (ffi:datum->foreign obj-c obj)))
                (error "foreign-property: not accessible")))
           (else
@@ -169,15 +203,15 @@
                (error "foreign-property: not settable"))))))
 
 (define (clr-field->procedures type name)
-  (let ((fi (ffi:get-field type name)))
+  (let ((fi (ffi:%get-field type name)))
     (if (not fi)
         (error "clr-field->procedures: no such field"))
     (cons
-     (lambda (obj) (ffi:field-get fi obj))
-     (lambda (obj newval) (ffi:field-set fi obj newval)))))
+     (lambda (obj) (ffi:%field-get fi obj))
+     (lambda (obj newval) (ffi:%field-set fi obj newval)))))
 
 (define (clr-property->procedures type name)
-  (let ((pi (ffi:get-property type name)))
+  (let ((pi (ffi:%get-property type name)))
     (if (not pi)
         (error "clr-property->procedures: no such property"))
     (let ((pg (car pi))
@@ -210,15 +244,15 @@
   (wrap-foreign-property pair.car$$ 'scheme 'scheme))
 
 (define array.length
-  (wrap-foreign-property 
+  (wrap-foreign-property
    (clr-property->procedures array% "Length")
    'object 'int))
 (define array.get
-  (wrap-foreign-procedure 
+  (wrap-foreign-procedure
    (clr-method->procedure array% "GetValue" (list int%))
    'scheme '(object int)))
 (define array.set
-  (wrap-foreign-procedure 
+  (wrap-foreign-procedure
    (clr-method->procedure array% "SetValue" (list object% int%))
    'void '(object object int)))
 
@@ -258,7 +292,7 @@
 ;(define forms@ (assembly.load/partial "System.Windows.Forms"))
 ;(define control%
 ;  (assembly.get-type forms@ "System.Windows.Forms.Control"))
-;(define form% 
+;(define form%
 ;  (assembly.get-type forms@ "System.Windows.Forms.Form"))
 ;
 ;(define form.new
