@@ -21,7 +21,9 @@
   (std-ffi-test-bool)
   (std-ffi-test-float)
   (std-ffi-test-string)
-  (std-ffi-test-void))
+  (std-ffi-test-void)
+  (std-ffi-test-get/set)
+  (std-ffi-test-peek/poke))
 
 (foreign-file (string-append *testsuite-dir* "FFI/std-ffi-test-ff.so"))
 
@@ -207,5 +209,17 @@
                    (bytevector-ref b 0))
             1))
     ))
+
+; Get/set procedures
+
+(define (std-ffi-test-get/set)
+  ; FIXME
+  #t)
+
+; peek/poke procedures
+
+(define (std-ffi-test-peek/poke)
+  ; FIXME
+  #t)
 
 ; eof 
