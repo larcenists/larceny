@@ -30,10 +30,10 @@
 (define (macro-expand def-or-exp syntaxenv . rest)
   (call-with-current-continuation
    (lambda (k)
-     (parameterize ((global-syntactic-environment 
+     (parameterize ((global-syntactic-environment
                      syntaxenv)
-                    (global-inline-environment 
-                     (if (not (null? rest)) 
+                    (global-inline-environment
+                     (if (pair? rest)
                          (car rest)
                          (make-minimal-syntactic-environment))))
        (set! m-quit k)
@@ -53,13 +53,13 @@
 
 (define (desugar-definitions exp env make-toplevel-definition)
   (letrec
-    
+
     ; This loop flattens top-level BEGIN forms.
     ; FIXME:  It isn't clear whether the environment needs to be carried
     ; around this loop.  In any case the R5RS semantics should simplify
     ; this code further.
-      
-    ((define-loop 
+
+    ((define-loop
        (lambda (exp rest first env)
          (cond ((and (pair? exp)
                      (symbol? (car exp))
@@ -125,10 +125,10 @@
                                   (cdr rest)
                                   (cons (m-expand exp env) first)
                                   env)))))
-     
+
      (desugar-define
       (lambda (exp env)
-        (cond 
+        (cond
          ((null? (cdr exp)) (m-error "Malformed definition" exp))
          ; (define foo) syntax is transformed into (define foo (undefined)).
          ((null? (cddr exp))
@@ -141,7 +141,7 @@
                                            (make-identifier-denotation id))))
             (make-toplevel-definition (variable.name (m-atom id env))
                                       (make-undefined))))
-         ((pair? (cadr exp))              
+         ((pair? (cadr exp))
           (desugar-define
            (let* ((def (car exp))
                   (pattern (cadr exp))
@@ -170,7 +170,7 @@
                        (make-identifier-denotation id))))
                  (make-toplevel-definition (variable.name (m-atom id env))
                                            (m-expand (caddr exp) env)))))))
-     
+
      (redefinition
       (lambda (id)
         (if (symbol? id)
@@ -179,9 +179,9 @@
                 (if (issue-warnings)
                     (m-warn "Redefining " id)))
             (m-error "Malformed variable or keyword" id)))))
-    
+
     ; body of letrec
-    
+
     (define-loop exp '() '() env)))
 
 ; Given an expression and a syntactic environment,
@@ -197,6 +197,11 @@
            (case (denotation-class keyword)
              ((special)
               (cond
+               ;; MzScheme special syntactic forms
+               ((eq? keyword denotation-of-app)           (m-application (cdr exp) env))
+               ((eq? keyword denotation-of-top)           (m-atom (cdr exp) (global-syntactic-environment)))
+               ((eq? keyword denotation-of-datum)         (m-datum exp))
+
                ((eq? keyword denotation-of-quote)         (m-quote exp))
                ((eq? keyword denotation-of-lambda)        (m-lambda exp env))
                ((eq? keyword denotation-of-if)            (m-if exp env))
@@ -217,6 +222,14 @@
              ((javadot) (m-application exp env))
              (else (m-bug "Bug detected in m-expand" exp)))))))
 
+;; If #t, symbols beginning with : are self-quoting.
+(define recognize-keywords? (make-parameter "recognize-keywords?" #t boolean?))
+
+(define (colon-prefix? symbol)
+  (let ((str (symbol->string symbol)))
+    (and (positive? (string-length str))
+         (char=? (string-ref str 0) #\:))))
+
 (define (m-atom exp env)
   (cond ((not (symbol? exp))
          ; Here exp ought to be a boolean, number, character, or string.
@@ -232,6 +245,9 @@
 		  (not (procedure? exp))
 		  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))
+         (make-constant exp))
+        ((and (recognize-keywords?)
+              (colon-prefix? exp))
          (make-constant exp))
         (else (let ((denotation (syntactic-lookup env exp)))
                 (case (denotation-class denotation)
@@ -258,6 +274,9 @@
                                env)))
                   (else (m-bug "Bug detected by m-atom" exp env)))))))
 
+(define (m-datum exp)
+  (make-constant (m-strip (cdr exp))))
+
 (define (m-quote exp)
   (if (and (pair? (cdr exp))
            (null? (cddr exp)))
@@ -266,23 +285,23 @@
 
 (define (m-lambda exp env)
   (if (> (safe-length exp) 2)
-      
+
       (let* ((formals (cadr exp))
              (alist (rename-vars formals))
              (env (syntactic-rename env alist))
              (body (cddr exp)))
-        
+
         (do ((alist alist (cdr alist)))
             ((null? alist))
             (if (assq (caar alist) (cdr alist))
                 (m-error "Malformed parameter list" formals)))
-        
+
         ; To simplify the run-time system, there's a limit on how many
         ; fixed arguments can be followed by a rest argument.
         ; That limit is removed here.
         ; Bug: documentation slot isn't right when this happens.
         ; Bug: this generates extremely inefficient code.
-        
+
         (if (and (not (list? formals))
                  (> (length alist) @maxargs-with-rest-arg@))
             (let ((TEMP (cdar (rename-vars '(temp)))))
@@ -318,7 +337,7 @@
                                    source-file-name
                                    source-file-position)
                          (m-body body env))))
-      
+
       (m-error "Malformed lambda expression" exp)))
 
 (define (m-body body env)
@@ -484,7 +503,7 @@
       (m-application-args proc args env)))
 
 ; The proc expression has already been macro-expanded.
-        
+
 (define (m-application-args proc args env)
   (let* ((args (map (lambda (exp) (m-expand exp env))
                     args))
