@@ -24,9 +24,9 @@
  * in other parts of the RTS (notably gc->stats() and gclib_stats()) to
  * obtain information about those parts.
  *
- * Scheme code makes a callout to UNIX_getresourceusage(), passing a Scheme
- * vector that is to be filled with resource data.  That call eventually
- * ends up in stats_fillvector(), which performs the filling.
+ * Scheme code makes a callout to UNIX_getresourceusage().  That call 
+ * eventually ends up in stats_fillvector(), which returns a vector of
+ * stats info.
  *
  * There are some static data in this file, and in the longer term
  * a better solution must be found.  The statistics data don't really
@@ -42,7 +42,7 @@
  * - record/report low-level allocator free memory
  * - record/report peak memory usage (allocated) per generation & remset
  *
- * FIXME: this is (very) poorly integrated with the conservative collector.
+ * FIXME: this is poorly integrated with the conservative collector.
  * FIXME: the logic is too tangled.
  */
 
@@ -353,8 +353,15 @@ stats_rtclock( void )
  *
  * The allocation code is wrong for the Boehm collector with 
  * ALL_INTERIOR_POINTERS off, as we create pointers into objects 
- * at unexpected locations.  (Where else do we use this trick? varargs?)
+ * at unexpected locations.
  */
+
+#if defined(BDW_GC)
+/* Really, really gross hack: part the first */
+#define ANCHORS  64	/* This is not an arbitrary number */
+static int anchor_index = 0;
+static word memstats_anchors[ANCHORS];
+#endif
 
 word
 stats_fillvector( void )
@@ -453,6 +460,11 @@ stats_fillvector( void )
   }
 
   vp[ STAT_NPREMSET_P ] = TRUE_CONST;  /* Useful as a hint only */
+
+#if defined(BDW_GC)
+  /* Really, really gross hack: part the second */
+  memstats_anchors[ (anchor_index++ % ANCHORS) ] = tagptr( p, VEC_TAG );
+#endif
 
   return tagptr( p, VEC_TAG );
 }
@@ -872,7 +884,6 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
   add( &ms->wflushed_hi, &ms->wflushed_lo, fixnum(bytes_flushed/sizeof(word)));
   add( &ms->frestored_hi, &ms->frestored_lo, fixnum( frames_restored ) );
   ms->stacks_created += fixnum( stacks_created );
-#ifndef BDW_GC
   { unsigned heap, remset, rts, max_heap;
 
     gclib_stats( &heap, &remset, &rts, &max_heap );
@@ -881,7 +892,6 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
     ms->wallocated_rts = fixnum(rts);
     ms->wmax_heap = fixnum(max_heap);
   }
-#endif
 
 #if SIMULATE_NEW_BARRIER
   { simulated_barrier_stats_t s;
