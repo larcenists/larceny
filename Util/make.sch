@@ -1,7 +1,8 @@
-; Compiler/make.sch
-; Larceny compilation system -- `make' facility.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; `Make' facility.
 ;
 ; DESCRIPTION
 ; A project is created with make:new-project.  It consists of rules, 

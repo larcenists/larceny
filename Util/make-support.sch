@@ -1,5 +1,4 @@
-; Util/make-support.sch
-; Larceny -- make utility
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;

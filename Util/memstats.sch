@@ -1,7 +1,8 @@
-; Util/memstats.sch
-; Accessors for the vector returned by (memstats).
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Accessors for the vector returned by (memstats).
 
 (define (memstats:words-allocated v)
   (vector-ref v 0))
