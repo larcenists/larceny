@@ -185,14 +185,15 @@ namespace Scheme.RT {
     // Generate the C# enum 'Sys' with larceny-csharp/scripts/syscall-enum.ss
     public class Syscall {
 
-	private static int system_boot_tick = Environment.TickCount;
+        private static
+        int system_boot_tick = Environment.TickCount;
 
         private Syscall() {}
 
         // type checking is done in the scheme code that implements
         // the standard library.  if we get here, we can assume
         // that the parameters in the registers are all as expected.
-                // (starting at register 2)
+        // (starting at register 2)
         public static void dispatch(int num_args, Sys num_proc) {
             switch (num_proc) {
             case Sys.open : open(); break;
@@ -209,26 +210,26 @@ namespace Scheme.RT {
             case Sys.pollinput : pollinput(); break;
             case Sys.getenv : getenv(); break;
             // case Sys.gc : gc(); break;
-                        case Sys.flonum_log : flonum_log(); break;
-                        case Sys.flonum_exp : flonum_exp(); break;
-            case Sys.flonum_sin : flonum_sin(); break;
-            case Sys.flonum_cos : flonum_cos(); break;
-            case Sys.flonum_tan : flonum_tan(); break;
-            case Sys.flonum_asin : flonum_asin(); break;
-            case Sys.flonum_acos : flonum_acos(); break;
-            case Sys.flonum_atan : flonum_atan(); break;
-            case Sys.flonum_atan2 : flonum_atan2(); break;
-            case Sys.flonum_sqrt : flonum_sqrt(); break;
-            case Sys.flonum_sinh : flonum_sinh(); break;
-                case Sys.flonum_cosh : flonum_cosh(); break;
+            case Sys.flonum_acos:  flonum_acos(); break;
+            case Sys.flonum_asin:  flonum_asin(); break;
+            case Sys.flonum_atan:  flonum_atan(); break;
+            case Sys.flonum_atan2: flonum_atan2(); break;
+            case Sys.flonum_cos:   flonum_cos(); break;
+            case Sys.flonum_cosh:  flonum_cosh(); break;
+            case Sys.flonum_exp:   flonum_exp(); break;
+            case Sys.flonum_log:   flonum_log(); break;
+            case Sys.flonum_sin:   flonum_sin(); break;
+            case Sys.flonum_sinh:  flonum_sinh(); break;
+            case Sys.flonum_sqrt:  flonum_sqrt(); break;
+            case Sys.flonum_tan:   flonum_tan(); break;
 
-                case Sys.system : system(); break;
-                case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
-                    case Sys.sys_feature : sys_feature(); break;
+            case Sys.system : system(); break;
+            case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
+            case Sys.sys_feature : sys_feature(); break;
 
-                case Sys.segment_code_address : segment_code_address() ; break;
-                case Sys.chdir : chdir() ; break;
-                case Sys.cwd : cwd() ; break;
+            case Sys.segment_code_address : segment_code_address() ; break;
+            case Sys.chdir : chdir() ; break;
+            case Sys.cwd : cwd() ; break;
 
             case Sys.sysglobal:
                 SObject g = (SObject)Reg.globals[((SByteVL)Reg.register2).asString()];
@@ -382,171 +383,208 @@ namespace Scheme.RT {
             string result = Environment.GetEnvironmentVariable (((SByteVL)Reg.register2).asString());
 
             Reg.Result = (result == null)
-	      ? ((SObject) (Factory.False))
-              : ((SObject) (Factory.makeString (result)));
+              ? (SObject) Factory.False
+              : (SObject) Factory.makeString (result);
         }
 
-                private static void flonum_log() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Log(arg));
-            Reg.Result = dst;
+        private static void flonum_acos()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Acos (arg));
+          Reg.Result = dst;
         }
-                private static void flonum_exp() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Exp(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_sin() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Sin(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_cos() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Cos(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_tan() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Tan(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_asin() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Asin(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_acos() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Acos(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_atan() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Atan(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_atan2() {
-                        double arg1 = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-                        double arg2 = ((SByteVL)Reg.register3).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register4;
-            dst.unsafeSetDouble(0, Math.Atan2(arg1, arg2));
-            Reg.Result = dst;
-                }
-                private static void flonum_sqrt() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Sqrt(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_sinh() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Sinh(arg));
-            Reg.Result = dst;
-                }
-                private static void flonum_cosh() {
-                        double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
-            SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(0, Math.Cosh(arg));
-            Reg.Result = dst;
-                }
 
-                private static void system() {
-                    string command = ((SByteVL)Reg.register2).asString();
-                    ProcessStartInfo pi = new ProcessStartInfo();
-                    pi.FileName = "cmd";
-                    pi.Arguments = "/c " + command;
-                    pi.UseShellExecute = true;
+        private static void flonum_asin()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Asin (arg));
+          Reg.Result = dst;
+        }
 
-                    // The CreateNoWindow field isn't defined in
-                    // ProcessStartInfo on Rotor. :(
-                    #if !USING_ROTOR
-                        pi.CreateNoWindow = true;
-                    #endif
+        private static void flonum_atan()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Atan (arg));
+          Reg.Result = dst;
+        }
 
-                    Process p = Process.Start(pi);
-                    p.WaitForExit();
-                    Reg.Result = Factory.makeNumber (p.ExitCode);
-                    p.Dispose();
-                }
+        private static void flonum_atan2()
+        {
+          double arg1 = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          double arg2 = ((SByteVL) Reg.register3).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register4;
+          dst.unsafeSetDouble (0, Math.Atan2 (arg1, arg2));
+          Reg.Result = dst;
+        }
 
-                private static void sys_feature() {
-                    SObject[] v = ((SVL)Reg.register2).elements;
-                    int request = ((SFixnum)v[0]).value;
-                    switch (request) {
-                        case 0: // larceny-major
-                            v[0] = Factory.makeFixnum (0);
-                            break;
-                        case 1: // larceny-minor
-                            v[0] = Factory.makeFixnum (53);
-                            break;
-                        case 2: // os-major
-                            v[0] = Factory.makeNumber (Environment.OSVersion.Version.Major);
-                            break;
-                        case 3: // os-minor
-                            v[0] = Factory.makeNumber (Environment.OSVersion.Version.Minor);
-                            break;
-                        case 4: // gc-info
-                            v[0] = Factory.False;
-                            v[1] = Factory.makeFixnum (0);
-                            break;
-                        case 5: // gen-info
-                            v[0] = Factory.False;
-                            break;
-                        case 6: // arch-name
-                            v[0] = Factory.makeFixnum (3);
-                            break;
-                        case 7: // os-name
-                            v[0] = Factory.makeFixnum (3); // win32
-                            break;
-                        case 8: // endianness
-                            #if BIG_ENDIAN
-                            v[0] = Factory.makeFixnum (0); // big
-                            #else
-                            v[0] = Factory.makeFixnum (1); // little
-                            #endif
-                            break;
-                        case 9: // stats-generations
-                            v[0] = Factory.makeFixnum (0);
-                            break;
-                        case 10: // stats-remsets
-                            v[0] = Factory.makeFixnum (0);
-                            break;
-                    }
-                    Reg.Result = Factory.Unspecified;
-                }
+        private static void flonum_cos()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Cos (arg));
+          Reg.Result = dst;
+        }
 
-                private static void segment_code_address() {
-                    // file, ns, id, number
-                    string file = ((SByteVL)Reg.register2).asString();
-                    string ns = ((SByteVL)Reg.register3).asString();
-                    int id = ((SFixnum)Reg.register4).value;
-                    int number = ((SFixnum)Reg.register5).value;
+        private static void flonum_cosh()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Cosh (arg));
+          Reg.Result = dst;
+        }
 
-                    Reg.Result = Load.findCode(file, ns, id, number);
-                }
+        private static void flonum_exp()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Exp (arg));
+          Reg.Result = dst;
+        }
 
-                private static void chdir() {
-                    string dir = ((SByteVL)Reg.register2).asString();
-                    try {
-                        Directory.SetCurrentDirectory(dir);
-                        Reg.Result = Factory.makeFixnum (0);
-                    } catch {
-                        Reg.Result = Factory.makeFixnum (-1);
-                    }
-                }
+        private static void flonum_log()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Log (arg));
+          Reg.Result = dst;
+        }
 
-                private static void cwd() {
-                    Reg.Result = Factory.makeString (Directory.GetCurrentDirectory());
-                }
+        private static void flonum_sin()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Sin (arg));
+          Reg.Result = dst;
+        }
+
+        private static void flonum_sinh()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Sinh (arg));
+          Reg.Result = dst;
+        }
+
+        private static void flonum_sqrt()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Sqrt (arg));
+          Reg.Result = dst;
+        }
+
+        private static void flonum_tan()
+        {
+          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.register3;
+          dst.unsafeSetDouble (0, Math.Tan (arg));
+          Reg.Result = dst;
+        }
+
+        private static void system()
+        {
+          string command = ((SByteVL) Reg.register2).asString();
+          ProcessStartInfo pi = new ProcessStartInfo();
+          pi.FileName = "cmd";
+          pi.Arguments = "/c " + command;
+          pi.UseShellExecute = true;
+
+          // The CreateNoWindow field isn't defined in
+          // ProcessStartInfo on Rotor. :(
+#if !USING_ROTOR
+          pi.CreateNoWindow = true;
+#endif
+
+          Process p = Process.Start (pi);
+          p.WaitForExit();
+          Reg.Result = Factory.makeNumber (p.ExitCode);
+          p.Dispose();
+        }
+
+        private static void sys_feature()
+        {
+          SObject[] v = ((SVL) Reg.register2).elements;
+          int request = ((SFixnum)v[0]).value;
+          switch (request) {
+          case 0: // larceny-major
+              v[0] = Factory.makeFixnum (0);
+              break;
+          case 1: // larceny-minor
+              v[0] = Factory.makeFixnum (53);
+              break;
+#if HAS_OSVERSION
+          case 2: // os-major
+              v[0] = Factory.makeNumber (Environment.OSVersion.Version.Major);
+              break;
+          case 3: // os-minor
+              v[0] = Factory.makeNumber (Environment.OSVersion.Version.Minor);
+              break;
+#else
+          case 2: // os-major
+              v[0] = Factory.makeNumber (-1);
+              break;
+          case 3: // os-minor
+              v[0] = Factory.makeNumber (-1);
+              break;
+#endif
+          case 4: // gc-info
+              v[0] = Factory.False;
+              v[1] = Factory.makeFixnum (0);
+              break;
+          case 5: // gen-info
+              v[0] = Factory.False;
+              break;
+          case 6: // arch-name
+              v[0] = Factory.makeFixnum (3);
+              break;
+          case 7: // os-name
+              v[0] = Factory.makeFixnum (3); // win32
+              break;
+          case 8: // endianness
+#if BIG_ENDIAN
+              v[0] = Factory.makeFixnum (0); // big
+#else
+              v[0] = Factory.makeFixnum (1); // little
+#endif
+              break;
+          case 9: // stats-generations
+              v[0] = Factory.makeFixnum (0);
+              break;
+          case 10: // stats-remsets
+              v[0] = Factory.makeFixnum (0);
+              break;
+              }
+          Reg.Result = Factory.Unspecified;
+        }
+
+        private static void segment_code_address()
+        {
+          // file, ns, id, number
+          string file = ((SByteVL) Reg.register2).asString();
+          string ns = ((SByteVL) Reg.register3).asString();
+          int id = ((SFixnum)Reg.register4).value;
+          int number = ((SFixnum)Reg.register5).value;
+
+          Reg.Result = Load.findCode(file, ns, id, number);
+        }
+
+      private static void chdir()
+      {
+        string dir = ((SByteVL) Reg.register2).asString();
+        try {
+            Directory.SetCurrentDirectory(dir);
+            Reg.Result = Factory.makeFixnum (0);
+            } catch {
+            Reg.Result = Factory.makeFixnum (-1);
+            }
+      }
+
+      private static void cwd()
+      {
+        Reg.Result = Factory.makeString (Directory.GetCurrentDirectory());
+      }
     }
 }
