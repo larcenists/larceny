@@ -6,12 +6,9 @@
 #
 # Prune the source tree for the 1.0a1 release.
 
-rm -f TODO
-rm -f TODO-RELEASE
-rm -f TODO-RAINYDAY
-rm -f CHGLOG
-rm -f Asm/Intel
-rm -f Asm/MacScheme
+rm -f TODO TODO-RELEASE TODO-RAINYDAY CHGLOG BUGS-FIXED BUGS-RETIRED
+rm -f Asm/Intel Asm/MacScheme
+rm -f Auxlib/std-ffi.sch Auxlib/unix-functions.sch
 rm -f Compiler/standard-C.imp.sch
 rm -f Ffi
 rm -f Experimental/socket* Experimental/unix.sch Experimental/record* \
