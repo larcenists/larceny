@@ -31,7 +31,6 @@
 (define (main argv)
   ($$trace "In main")
   (init-toplevel-environment)
-  (interaction-environment (larceny-environment))
   (setup-error-handlers)
   (evaluator interpret)
   (rep-loop-bootstrap argv))
