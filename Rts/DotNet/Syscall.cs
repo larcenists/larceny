@@ -185,6 +185,8 @@ namespace Scheme.RT {
     // Generate the C# enum 'Sys' with larceny-csharp/scripts/syscall-enum.ss
     public class Syscall {
 
+	private static int system_boot_tick = Environment.TickCount;
+
         private Syscall() {}
 
         // type checking is done in the scheme code that implements
@@ -306,7 +308,7 @@ namespace Scheme.RT {
             SObject zero = Factory.makeFixnum (0);
             SObject[] stats = ((SVL)Reg.register2).elements;
 
-            int ticks = Environment.TickCount;
+            int ticks = unchecked (Environment.TickCount - system_boot_tick);
             stats[28 /*RTIME*/] = Factory.makeNumber (ticks);
             //stats[29 /*STIME*/] = Factory.makeNumber (ticks);
             stats[30 /*UTIME*/] = Factory.makeNumber (ticks);
@@ -377,7 +379,11 @@ namespace Scheme.RT {
 
         private static void getenv() {
             // FIXME: #f seems to be right answer... but maybe not
-            Reg.Result = Factory.False;
+            string result = Environment.GetEnvironmentVariable (((SByteVL)Reg.register2).asString());
+
+            Reg.Result = (result == null)
+	      ? ((SObject) (Factory.False))
+              : ((SObject) (Factory.makeString (result)));
         }
 
                 private static void flonum_log() {
