@@ -3,10 +3,6 @@
  * $Id$
  *
  * Larceny -- copying garbage collector library, for all the GCs.
- *
- * Resist the temptation to shadow gclib_desc_g and gclib_pagebase
- * in locals in the scanning loops -- the low-level memory manager
- * may change them at any time!
  */
 
 #define GC_INTERNAL
@@ -39,6 +35,16 @@
 #define FORW_BY_DUFF     0      /* 1 iteration of Duff's device + memcpy */
 #define FORW_BY_MEMCPY   0      /* Memcpy only */
 
+
+/* 
+ * Normally, resist the temptation to shadow gclib_desc_g and 
+ * gclib_pagebase in locals in the scanning loops -- the low-level 
+ * memory manager may change them at any time!
+ * However, when GCLIB_LARGE_TABLE is defined, gclib_desc_gis guaranteed
+ * not to change, and can be cached.  Also, gclib_pagebase is always 0
+ * and can be ignored.
+ */
+#define SHADOW_TABLE     1      /* Cache gclib_desc_g in the scanning loops */
 
 /* Checking code */
 
@@ -84,7 +90,7 @@
    */
 #define forw_oflo( loc, forw_limit_gen, dest, lim, e )                      \
   do { word T_obj = *loc;                                                   \
-       if (isptr(T_obj) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)){ \
+       if (isptr(T_obj) && gen_of(T_obj) < (forw_limit_gen)){ \
           forw_core( T_obj, loc, dest, lim, e );                            \
        }                                                                    \
   } while( 0 )
@@ -104,7 +110,7 @@
                           old_obj_gen, e )                                  \
   do { word T_obj = *loc;                                                   \
        if (isptr( T_obj )) {                                                \
-          unsigned T_obj_gen = gclib_desc_g[pageof(T_obj)];                 \
+          unsigned T_obj_gen = gen_of(T_obj);                 \
           if (T_obj_gen < (forw_limit_gen)) {                               \
             forw_core( T_obj, loc, dest, lim, e );                          \
           }                                                                 \
@@ -220,7 +226,7 @@
 
 #define forw_oflo2( loc, forw_limit_gen, dest, dest2, lim, lim2, e )          \
   do { word T_obj = *loc;                                                     \
-       if (isptr( T_obj ) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)){ \
+       if (isptr( T_obj ) && gen_of(T_obj) < (forw_limit_gen)){ \
           forw_core2( T_obj, loc, dest, dest2, lim, lim2, e );                \
        }                                                                      \
   } while( 0 )
@@ -290,7 +296,7 @@
 
 #define forw_np( loc, forw_limit_gen, dest, lim, e )                          \
   do { word T_obj = *loc;                                                     \
-       if (isptr( T_obj ) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)){ \
+       if (isptr( T_obj ) && gen_of(T_obj) < (forw_limit_gen)){ \
           forw_core_np( T_obj, loc, dest, lim, e );                           \
        }                                                                      \
   } while( 0 )
@@ -301,7 +307,7 @@
                         old_obj_gen, e )                                  \
   do { word T_obj = *loc;                                                 \
        if (isptr( T_obj )) {                                              \
-          unsigned T_obj_gen = gclib_desc_g[pageof(T_obj)];               \
+          unsigned T_obj_gen = gen_of(T_obj);               \
           if (T_obj_gen < (forw_limit_gen)) {                             \
             forw_core_np( T_obj, loc, dest, lim, e );                     \
           }                                                               \
@@ -326,11 +332,11 @@
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           if (gclib_desc_g[ pageof(T_obj) ] < (forw_limit_gen)) {      \
+           if (gen_of(T_obj) < (forw_limit_gen)) {      \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
            }                                                            \
            T_obj = *loc;                                                \
-           if (gclib_desc_g[pageof(T_obj)] < (np_young_gen))            \
+           if (gen_of(T_obj) < (np_young_gen))            \
              must_add_to_extra = 1;                                     \
        }                                                                \
   } while( 0 )
@@ -479,6 +485,8 @@ struct cheney_env {
   gc_t *gc;                     /* The garbage collector. */
   los_t *los;                   /* The collector's Large Object Space */
 
+  gclib_desc_t *gclib_desc_g;   /* Descriptor table */
+  
   semispace_t *tospace;         /* The first tospace */
   semispace_t *tospace2;        /* The second tospace, or 0 */
   word *dest;                   /* Copy pointer of tospace */
@@ -629,6 +637,7 @@ static void init_env( cheney_env_t *e,
 {
   memset( e, 0, sizeof( cheney_env_t ) );
   e->gc = gc;
+  e->gclib_desc_g = gclib_desc_g;
   e->effective_generation = effective_generation;
   e->scan_static = attributes & SCAN_STATIC;
   e->np_promotion = attributes & NP_PROMOTION;
@@ -687,7 +696,10 @@ static void scan_static_area( cheney_env_t *e )
   word        *lim = e->lim;
   word        *loc, *limit;
   int         i;
-
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
+  
   for ( i=0 ; i <= s_data->current ; i++ ) {
     loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
@@ -719,7 +731,7 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   unsigned     forw_limit_gen = e->effective_generation;
-  unsigned     old_obj_gen = gclib_desc_g[pageof(object)];
+  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
   word         *lim = e->lim;
@@ -739,7 +751,7 @@ static bool remset_scanner_np( word object, void *data, unsigned *count )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   unsigned     forw_limit_gen = e->effective_generation;
-  unsigned     old_obj_gen = gclib_desc_g[pageof(object)];
+  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
   FORW_NP_ENV_BEGIN( e, dest, lim )
@@ -762,6 +774,9 @@ static void scan_oflo_normal( cheney_env_t *e )
   word     *copylim = e->lim;
   word     *los_p = 0, *p;
   int      morework;
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
 
   do {
     morework = 0;
@@ -842,6 +857,9 @@ static void scan_np_old( cheney_env_t *e )
   word     *scanptr = e->scan_ptr;
   word     *scanlim = e->scan_lim;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
 
   while (scanptr != dest && scanptr < scanlim) {
     scan_core( scanptr, e->iflush,
@@ -860,6 +878,9 @@ static void scan_np_young( cheney_env_t *e )
   word     *scanptr = e->scan_ptr2;
   word     *scanlim = e->scan_lim2;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
+#if GCLIB_LARGE_TABLE && SHADOW
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
 
   /* must_add_to_extra is a name used by the scanning and fwd macros as a 
      temp */
@@ -880,6 +901,9 @@ static void scan_np_los_old( cheney_env_t *e, word **los_p )
   unsigned forw_limit_gen = e->tospace->gen_no;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
   word     *p;
+#if GCLIB_LARGE_TABLE && SHADOW
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
 
   while ((p = los_walk_list( e->los->mark1, *los_p )) != 0) {
     *los_p = p;
@@ -897,6 +921,9 @@ static void scan_np_los_young( cheney_env_t *e, word **los_p )
   unsigned np_young_gen = e->tospace2->gen_no;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
   word     *p;
+#if GCLIB_LARGE_TABLE && SHADOW
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
 
   /* must_add_to_extra is a name used by the scanning and fwd macros as a 
      temp */
@@ -1148,8 +1175,8 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
     }
   }
 
-  if (gclib_desc_b[pageof(ptr)] & MB_LARGE_OBJECT) {
-    was_marked = los_mark( los, mark_list, ptr, gclib_desc_g[ pageof(ptr) ] );
+  if (attr_of(ptr) & MB_LARGE_OBJECT) {
+    was_marked = los_mark( los, mark_list, ptr, gen_of(ptr) );
     ret = tagptr( ptr, tag );
   }
   else {
@@ -1158,11 +1185,11 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
 
     hdr = *ptr;
     bytes = roundup8( sizefield( hdr ) + 4 );
-    new = los_allocate( los, bytes, gclib_desc_g[ pageof( ptr ) ] );
+    new = los_allocate( los, bytes, gen_of( ptr ) );
     memcpy( new, ptr, bytes );
     
     /* Must mark it also! */
-    was_marked = los_mark( los, mark_list, new, gclib_desc_g[ pageof( ptr ) ]);
+    was_marked = los_mark( los, mark_list, new, gen_of( ptr ));
     
     /* Leave a forwarding pointer */
     check_address( ptr );
