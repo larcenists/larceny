@@ -28,8 +28,9 @@
 ; same meaning as display, but in Larceny, the former is currently much
 ; faster than the latter.
 
-(define (dump-fasl-segment-to-port segment outp)
-  (let* ((controllify
+(define (dump-fasl-segment-to-port segment outp . rest)
+  (let* ((omit-code? (not (null? rest)))
+         (controllify
 	  (lambda (char)
 	    (integer->char (- (char->integer char) (char->integer #\@)))))
 	 (CTRLP       (controllify #\P))
@@ -74,17 +75,20 @@
       (write-fasl-datum d outp))
 
     (define (dump-codevec bv)
-      (putc #\#)
-      (putc CTRLB)
-      (putc #\")
-      (let ((limit (bytevector-length bv)))
-	(do ((i 0 (+ i 1)))
-	    ((= i limit) (putc #\")
-			 (putc #\newline))
-	  (let ((c (bytevector-ref bv i)))
-	    (cond ((= c DOUBLEQUOTE) (putc #\\))
-		  ((= c BACKSLASH)   (putc #\\)))
-	    (putb c)))))
+      (if omit-code?
+          (puts "#f")
+          (begin
+            (putc #\#)
+            (putc CTRLB)
+            (putc #\")
+            (let ((limit (bytevector-length bv)))
+              (do ((i 0 (+ i 1)))
+                  ((= i limit) (putc #\")
+                               (putc #\newline))
+                (let ((c (bytevector-ref bv i)))
+                  (cond ((= c DOUBLEQUOTE) (putc #\\))
+                        ((= c BACKSLASH)   (putc #\\)))
+                  (putb c)))))))
 
     (define (dump-constvec cv)
       (puts "#(")
@@ -110,13 +114,15 @@
       (putc #\newline))
 
     (define (dump-fasl-segment segment)
-      (puts "(#")
+      (if (not omit-code?) (putc #\())
+      (putc #\#)
       (putc CTRLP)
       (putc #\()
       (dump-codevec (car segment))
       (putc #\space)
       (dump-constvec (cdr segment))
-      (puts " #f))")
+      (puts " #f)")
+      (if (not omit-code?) (putc #\)))
       (putc #\newline))
 
     (dump-fasl-segment segment)
