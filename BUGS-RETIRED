@@ -309,4 +309,19 @@ Program received signal SIGSEGV, Segmentation fault.
     Reason for retiring: removed float-significand and float-exponent
     from the interaction environment.
 
+123 v1.0a1 (990421 / lth)  Retired 990818 by lth
+    Priority: low
+    Category: TWOBIT / performance
+
+    [May have been fixed since]
+
+    The macro for DO produces worse code than it needs to: if there
+    are no <expression>s following the <test> it returns the value
+    of the <test>, which means that the compiler will generate 
+    code to evaluate the boolean for its value, resulting in numerous
+    needless operations.
+
+    Reason for retiring: had been fixed by other compiler fixes, but
+    unknown which.
+
 ; eof
