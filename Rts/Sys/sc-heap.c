@@ -172,9 +172,10 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
   int total_bytes, stack, used_before, used_after;
-  stats_id_t timer;
+  stats_id_t timer1, timer2;
 
-  timer = stats_start_timer();
+  timer1 = stats_start_timer( TIMER_ELAPSED );
+  timer2 = stats_start_timer( TIMER_CPU );
 
   assert( request_bytes >= 0 );
   request_bytes = roundup_balign( request_bytes );
@@ -240,7 +241,8 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   assert( free_current_chunk( heap ) >= request_bytes );
 
   /* More statistics */
-  data->gen_stats.ms_collection += stats_stop_timer( timer );
+  data->gen_stats.ms_collection += stats_stop_timer( timer1 );
+  data->gen_stats.ms_collection_cpu += stats_stop_timer( timer2 );
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
 	       used_space( heap ) );

@@ -231,11 +231,12 @@ static void perform_collect( old_heap_t *heap )
 {
   semispace_t *from, *to;
   old_data_t *data = DATA(heap);
-  stats_id_t timer;
+  stats_id_t timer1, timer2;
 
   annoyingmsg( "  Collecting generation %d.", data->gen_no );
 
-  timer = stats_start_timer();
+  timer1 = stats_start_timer( TIMER_ELAPSED );
+  timer2 = stats_start_timer( TIMER_CPU );
 
   from = data->current_space;
   to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
@@ -249,7 +250,8 @@ static void perform_collect( old_heap_t *heap )
   data->gc_stats.words_copied = bytes2words( to->used );
   data->gc_stats.words_moved = 
     bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
-  data->gen_stats.ms_collection += stats_stop_timer( timer );
+  data->gen_stats.ms_collection += stats_stop_timer( timer1 );
+  data->gen_stats.ms_collection_cpu += stats_stop_timer( timer2 );
   data->gen_stats.collections++;
 }
 
@@ -257,11 +259,12 @@ static void perform_promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   int used_before, tospace_before, los_before;
-  stats_id_t timer;
+  stats_id_t timer1, timer2;
 
   annoyingmsg( "  Promoting into generation %d.", data->gen_no );
 
-  timer = stats_start_timer();
+  timer1 = stats_start_timer( TIMER_ELAPSED );
+  timer2 = stats_start_timer( TIMER_CPU );
 
   used_before = used_space( heap );
   ss_sync( data->current_space );
@@ -277,7 +280,8 @@ static void perform_promote( old_heap_t *heap )
   data->gc_stats.words_moved =
     bytes2words(los_bytes_used(heap->collector->los, data->gen_no)-los_before);
 
-  data->gen_stats.ms_promotion += stats_stop_timer( timer );
+  data->gen_stats.ms_promotion += stats_stop_timer( timer1 );
+  data->gen_stats.ms_promotion_cpu += stats_stop_timer( timer2 );
   data->gen_stats.promotions++;
 }
 

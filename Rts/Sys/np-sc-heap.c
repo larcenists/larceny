@@ -148,15 +148,16 @@ static void collect( old_heap_t *heap, gc_type_t request )
   gc_t *gc = heap->collector;
   los_t *los = gc->los;
   int old_before_gc, old_los_before_gc, young_before_gc, young_los_before_gc;
-  int type, t;
-  stats_id_t timer;
+  int type, t1, t2;
+  stats_id_t timer1, timer2;
 
   annoyingmsg( "" );
   annoyingmsg( "Non-predictive dynamic area: garbage collection. " );
   annoyingmsg( "  Live old: %d   Live young: %d  k: %d  j: %d",
 	       used_old( heap ), used_young( heap ), data->k, data->j );
 
-  timer = stats_start_timer();
+  timer1 = stats_start_timer( TIMER_ELAPSED );
+  timer2 = stats_start_timer( TIMER_CPU );
 
   ss_sync( data->old );
   ss_sync( data->young );
@@ -196,25 +197,31 @@ static void collect( old_heap_t *heap, gc_type_t request )
   switch( type ) {
   case PROMOTE_TO_OLD :
     data->gen_stats_old.promotions++;
-    data->gen_stats_old.ms_promotion += stats_stop_timer( timer ); 
+    data->gen_stats_old.ms_promotion += stats_stop_timer( timer1 ); 
+    data->gen_stats_old.ms_promotion_cpu += stats_stop_timer( timer2 ); 
     break;
   case PROMOTE_TO_BOTH :
     /* Split the cost -- it probably comes out even in the end and
        it's less obviously wrong than assigning all time to one or the
        other.
        */
-    t = stats_stop_timer( timer ); 
+    t1 = stats_stop_timer( timer1 ); 
+    t2 = stats_stop_timer( timer2 ); 
     data->gen_stats_old.promotions++; /* Only count one  */
-    data->gen_stats_old.ms_promotion += t/2;
-    data->gen_stats_young.ms_promotion += t/2;
+    data->gen_stats_old.ms_promotion += t1 / 2;
+    data->gen_stats_old.ms_promotion_cpu += t2 / 2;
+    data->gen_stats_young.ms_promotion += t1 / 2;
+    data->gen_stats_young.ms_promotion_cpu += t2 / 2;
     break;
   case PROMOTE_TO_YOUNG :
     data->gen_stats_young.promotions++;
-    data->gen_stats_young.ms_promotion += stats_stop_timer( timer ); 
+    data->gen_stats_young.ms_promotion += stats_stop_timer( timer1 ); 
+    data->gen_stats_young.ms_promotion_cpu += stats_stop_timer( timer2 ); 
     break;
   case COLLECT : 
     data->gen_stats_old.collections++;
-    data->gen_stats_old.ms_collection += stats_stop_timer( timer ); 
+    data->gen_stats_old.ms_collection += stats_stop_timer( timer1 ); 
+    data->gen_stats_old.ms_collection_cpu += stats_stop_timer( timer2 ); 
     break;
   }
 
