@@ -1,3 +1,5 @@
+;; FIXME:  the ilasm procedure (at the bottom) probably
+;;         needs some attention
 (define (reloadil)
   (load (make-filename *larceny-root* "Asm" "IL" "il.imp.sch"))
   (load (make-filename *larceny-root* "Asm" "IL" "il.imp2.sch"))
