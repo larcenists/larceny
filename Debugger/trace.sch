@@ -15,177 +15,161 @@
 ; (unbreak <proc> ...)          Disable breaking for <procs>
 ; (unbreak)                     Disable breaking for all broken <procs>
 ;
-; Experimental:
-; (trace <symbol>)              Trace the value now in global <symbol>
-; (trace-entry <symbol>)        Trace the value in global <symbol> at entry
-; (trace-exit <symbol>)         Trace the value in global <symbol> at exit
+; IDEA: It may be useful to allow TRACE, TRACE-ENTRY, TRACE-EXIT, 
+;       BREAK-ENTRY to accept an optional name by which to identify 
+;       the traced procedure, since anonymous procedures are otherwise 
+;       hard to tell apart (other than by their code).
 ;
-; FIXME: Must disable breakpoints when printing trace msgs because
-;        the trace package may need to call traced functions; that is
-;        a mess.
+; IDEA: It is possible for BREAK-ENTRY to take an additional
+;       argument which is a procedure that takes an environment
+;       (the environment in which formals are bound to the values)
+;       and is called when the breakpoint is encountered.  The procedure
+;       returns #t if the breakpoint should trigger, #f if not.
+;       The environment can be something as simple as an assoc list.
+;       If formal names aren't available, one can use positional
+;       parameters as the keys, or identifiers like _1, and _2.
+;       In fact, with identifiers like that it is also possible to
+;       pass an _expression_ that will be evaluated in that environment.
 ;
-; FIXME: It is probably a bug that
-;           (begin (trace-entry x) (trace-exit x))
-;        is not the same as
-;           (trace x)
-;        and that should be fixed.  Also fix the docn, which notes this.
+;       Something similar can currently be emulated with a user-installed
+;       break-handler.
 ;
-; FIXME: Come up with a better solution for resetting the trace level than
-;        the redefinition of repl-evaluator.  The most obvious solution is
-;        a set of REPL hooks: REPL-BEFORE-EVAL-HOOK and REPL-AFTER-EVAL-HOOK.
-;        A more subtle solution may use dynamic-wind.
-;
-; FIXME: It may be useful to allow TRACE, TRACE-ENTRY, TRACE-EXIT, BREAK-ENTRY
-;        to accept an optional name by which to identify the traced
-;        procedure, since anonymous procedures are otherwise hard to
-;        tell apart (other than by their code).
-;
-; FIXME: It is possible for BREAK-ENTRY to take an additional
-;        argument which is a procedure that takes an environment
-;        (the environment in which formals are bound to the values)
-;        and is called when the breakpoint is encountered.  The procedure
-;        returns #t if the breakpoint should trigger, #f if not.
-;        The environment can be something as simple as an assoc list.
-;        If formal names aren't available, one can use positional
-;        parameters as the keys, or identifiers like _1, and _2.
-;        In fact, with identifiers like that it is also possible to
-;        pass an _expression_ that will be evaluated in that environment.
-;
-;        Something similar can currently be emulated with a user-installed
-;        break-handler.
+; FIXME: Not reentrant/multi-user-aware.  The traced/broken lists could be
+;        parameters (thus thread-relative for suitable definition of 
+;        parameter) and the handlers could lookup the procedures on the 
+;        traced/broken lists before reporting a trace/breakpoint.
 
-'(require 'debug)
+(define trace-level 
+  (make-parameter "trace-level" 0))
 
-(define *trace-level* 0)
-(define *traced* '())
-(define *broken* '())
+; Invariant: a procedure is on each of these lists at most once.
 
-; Cruft.
-
-; Install an evaluator that resets the trace level each time a top-level 
-; expression is evaluated. (This isn't ideal but it's OK.)
+(define *traced* '())                   ; ((proc . wrap) ...)
+(define *broken* '())                   ; ((proc . wrap) ...)
 
 (define (initialize-trace-and-break)
+
+  ; Install an evaluator that resets the trace level each time a top-level 
+  ; expression is evaluated. (This isn't ideal, because anyone else may
+  ; install their own evaluator, but it's OK for now.)
+
   (let ((old-evaluator (repl-evaluator)))
     (repl-evaluator (lambda (expr env)
-                      (set! *trace-level* 0)
-                      (old-evaluator expr env))))
+                      (parameterize ((trace-level 0))
+                        (old-evaluator expr env)))))
+
+  ; FIXME: can do better here.  If offset=0 then we may be able to use
+  ;        procedure-arity to extract the arguments from the system stack
+  ;        frame.  On the other hand, the debugger can do that too.
+
   (break-handler
-   ; FIXME: can do better here.  If offset=0 then we may be able to use
-   ;        procedure-arity to extract the arguments from the system stack
-   ;        frame.  On the other hand, the debugger can do that too.
    (lambda (proc offset)
      (if (debug/breakpoints-enable)
          (debug/signal-breakpoint proc #f)))))
 
-(define (trace p)       (debug/trace-it p #t #t))
-(define (trace-entry p) (debug/trace-it p #t #f))
-(define (trace-exit p)  (debug/trace-it p #f #t))
+(define (trace p)
+  (debug/trace-it p #t #t))
+
+(define (trace-entry p)
+  (debug/trace-it p #t #f))
+
+(define (trace-exit p)
+  (debug/trace-it p #f #t))
 
 (define (debug/trace-it p enter? exit?)
-  (cond ((assq p *traced*)
-         p)
-        ((symbol? p)
-         (if (not (environment-gettable? (interaction-environment) p))
-             (debug/displayln "TRACE: variable " p " is unbound.")
-             (debug/trace-it (environment-get (interaction-environment) p)
-                             enter?
-                             exit?)))
-        ((not (procedure? p))
-         (debug/displayln "TRACE: ignoring non-procedure " p))
-        (else
-         (let* ((name 
-                 (or (procedure-name p) "anonymous"))
-                (expr 
-                 (procedure-expression p))
-                (wrap-info
-                 (debug/wrap-procedure
-                  p
-                  (lambda (compute)
-                    (lambda args
+  (call-without-interrupts
+    (lambda ()
+      (cond ((assv p *traced*)
+             (untrace p)
+             (debug/trace-it p enter? exit?))
+            ((not (procedure? p))
+             (debug/displayln "TRACE: ignoring non-procedure " p))
+            (else
+             (let* ((name 
+                     (or (procedure-name p) "anonymous"))
+                    (expr 
+                     (procedure-expression p))
+                    (wrap-info
+                     (debug/wrap-procedure
+                      p
+                      (lambda (compute)
+                        (lambda args
 
-                      (define (trace-both)
-                        (debug/trace-enter-msg name expr args)
-                        (call-with-values
-                         (lambda ()
-                           (set! *trace-level* (+ *trace-level* 1))
-                           (apply compute args))
-                         (lambda results
-                           (set! *trace-level* (- *trace-level* 1))
-                           (debug/trace-exit-msg name expr args results)
-                           (apply values results))))
+                          (define (trace-both)
+                            (parameterize ((debug/breakpoints-enable #f))
+                              (debug/trace-enter-msg name expr args))
+                            (let-values (results
+                                         (parameterize ((trace-level 
+                                                         (+ (trace-level) 1)))
+                                           (apply compute args)))
+                              (parameterize ((debug/breakpoints-enable #f))
+                                (debug/trace-exit-msg name expr args results))
+                              (apply values results)))
 
-                      (define (trace-entry)
-                        (debug/trace-enter-msg name expr args)
-                        (apply compute args))
+                          (define (trace-entry)
+                            (parameterize ((debug/breakpoints-enable #f))
+                              (debug/trace-enter-msg name expr args))
+                            (apply compute args))
                       
-                      (define (trace-exit)
-                        (call-with-values
-                         (lambda () (apply compute args))
-                         (lambda results
-                           (debug/trace-exit-msg name expr args results)
-                           (apply values results))))
+                          (define (trace-exit)
+                            (let-values (results (apply compute args))
+                              (parameterize ((debug/breakpoints-enable #f))
+                                (debug/trace-exit-msg name expr args results))
+                              (apply values results)))
 
-                      (cond ((and enter? exit?) (trace-both))
-                            (enter?             (trace-entry))
-                            (exit?              (trace-exit))
-                            (else               ???)))))))
-           (set! *traced* (cons (cons p wrap-info) *traced*))
-           p))))
+                          (if (debug/breakpoints-enable)
+                              (cond ((and enter? exit?) (trace-both))
+                                    (enter?             (trace-entry))
+                                    (exit?              (trace-exit))
+                                    (else               ???))
+                              (apply compute args)))))))
+               (set! *traced* (cons (cons p wrap-info) *traced*))
+               p))))))
 
 (define (untrace . rest)
-
-  (define (untrace-loop proc traced)
-    (cond ((null? traced) '())
-          ((eqv? (caar traced) proc)
-           (debug/undo-wrapping (cdar traced))
-           (untrace-loop proc (cdr traced)))
-          (else
-           (cons (car traced)
-                 (untrace-loop proc (cdr traced))))))
-
-  (cond ((null? rest)
-         (for-each untrace (map car *traced*)))
-        ((null? (cdr rest))
-         (set! *traced* (untrace-loop (car rest) *traced*)))
-        (else
-         (for-each untrace rest)))
+  (call-without-interrupts
+    (lambda ()
+      (cond ((null? rest)
+             (for-each untrace (map car *traced*)))
+            ((null? (cdr rest))
+             (let ((probe (assv (car rest) *traced*)))
+               (if probe
+                   (begin (debug/undo-wrapping (cdr probe))
+                          (set! *traced* (remq! probe *traced*))))))
+            (else
+             (for-each untrace rest)))))
   (unspecified))
 
 (define (break-entry p)
-  (cond ((not (procedure? p))
-         (error p " is not a procedure."))
-        ((assv p *broken*)
-         p)
-        (else
-         (let ((wrap-info
-                (debug/wrap-procedure
-                 p
-                 (lambda (compute)
-                   (lambda args
-                     (debug/signal-breakpoint p args)
-                     (apply compute args))))))
-           (set! *broken* (cons (cons p wrap-info) *broken*))
-           p))))
+  (call-without-interrupts
+    (lambda ()
+      (cond ((not (procedure? p))
+             (error p " is not a procedure."))
+            ((assv p *broken*) p)
+            (else
+             (let ((wrap-info
+                    (debug/wrap-procedure
+                     p
+                     (lambda (compute)
+                       (lambda args
+                         (debug/signal-breakpoint p args)
+                         (apply compute args))))))
+               (set! *broken* (cons (cons p wrap-info) *broken*))
+               p))))))
 
 (define (unbreak . rest)
-
-  (define (unbreak-loop proc broken)
-    (cond ((null? broken) '())
-          ((eqv? (caar broken) proc)
-           (debug/undo-wrapping (cdar broken)))
-          (else
-           (cons (car broken)
-                 (unbreak-loop proc (cdr broken))))))
-
-  (cond ((null? rest)
-         (for-each unbreak (map car *broken*)))
-        ((null? (cdr rest))
-         (set! *broken* (unbreak-loop (car rest) *broken*))
-         (unspecified))
-        (else
-         (for-each unbreak rest))))
-
+  (call-without-interrupts
+    (lambda ()
+      (cond ((null? rest)
+             (for-each unbreak (map car *broken*)))
+            ((null? (cdr rest))
+             (let ((probe (assv (car rest) *broken*)))
+               (if probe
+                   (begin (debug/undo-wrapping (cdr probe))
+                          (set! *broken* (remq! probe *broken*))))))
+            (else
+             (for-each unbreak rest)))))
+  (unspecified))
 
 (define (debug/signal-breakpoint p args)  ; args is a list or #f
   (cond ((and p args)
@@ -204,7 +188,7 @@
   (debug/print-object x))
 
 (define (debug/trace-enter-msg name expr args)
-  (debug/display (make-string *trace-level* #\space) "Enter " name)
+  (debug/display (make-string (trace-level) #\space) "Enter " name)
   (debug/display-args (if expr (cadr expr) #f) args)
   (debug/displayln))
 
@@ -215,7 +199,7 @@
 
 (define (debug/display-args formals args)
   (debug/display "(")
-  (let ((indent (make-string *trace-level* #\space)))
+  (let ((indent (make-string (trace-level) #\space)))
     (if formals
         (let loop ((formals formals) (args args))
           (cond ((null? formals))
@@ -244,7 +228,7 @@
   (debug/display ")"))
 
 (define (debug/trace-exit-msg name exp args results)
-  (debug/display (make-string *trace-level* #\space) "Leave " name)
+  (debug/display (make-string (trace-level) #\space) "Leave " name)
   (debug/display-args (if exp (cadr exp) #f) args)
   (debug/display " => ")
   (cond ((null? results)
