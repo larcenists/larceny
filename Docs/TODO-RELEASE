@@ -3,19 +3,15 @@ $Id$
 Release 2 todo and check lists
 
 
-Things That Must Be Done (tm)
-
- * Merge Util/petit-macosx.sch into Util/petit-unix-be.sch,
-   ditto for any configuration stuff in Util/configurations.
-   Change doc'n as appropriate.
+Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * SRFI: The most important non-supported SRFIs are the exception
    and condition SRFIs.  It would be very nice to have these.
 
- * Remove the local SRFI directory, since it is now in the external 
-   library.
+ * SRFI: Now that the FFI appears to work it is easy to support
+   the date/time and random SRFIs.
 
- * FFI: Test on Win32 and Linux, make sure it works and that the
+ * FFI: Test well on Win32 and Linux, make sure it works and that the
    documentation reflects how it works.
 
  * Test peephole optimization in Petit Larceny, and when it
@@ -50,13 +46,25 @@ Things That Must Be Done (tm)
    put off more optimization and call it 'alpha'.
 
  * Make the debugger work with both x86-NASM and Petit, and make sure
-   debug info is emitted correctly.  (This seems OK in the x86 version
-   but not OK in 0.51, there might be a bug in emitting debug info
-   for some system thunks in Petit Larceny?)
+   debug info is emitted correctly.  Information is probably missing
+   for internal procedures.  See Larceny note #12 and 
+   Lib/Common/procinfo.sch.
 
  * The require system must play nice with heap dumping: the database
    must not be unconditionally reinitialized even if .larceny reloads
    the REQUIRE package.
+
+ * The make system seems broken: a lot of stuff that should never be
+   recompiled for make-petit-heap is anyway recompiled.  What gives?
+
+ * For most people it is most reasonable that Twobit share the macro
+   definitions between the interpreter and compiler, so that loading
+   a file with macros in the interpreter is reflected when the compiler
+   is invoked.  This does not work now.  Fix it!
+
+ * Merge Util/petit-macosx.sch into Util/petit-unix-be.sch,
+   ditto for any configuration stuff in Util/configurations.
+   Change doc'n as appropriate.
 
 
 Release candidate 1 -> Release candidate 2
