@@ -1,0 +1,33 @@
+#
+# Directories
+#
+#  $id$
+#
+#  These are the directories that are considered to be part of the Larceny
+#  development environment.  Everyone who is working on the project has
+#  their own copy of these directories, and uses RCS to populate the
+#  directories with the Larceny sources.  Other directories and files
+#  probably exist in each persons tree, but they are not part of the
+#  project unless they are listed here or are in the RCS directories.
+#
+#  This file is read by:
+#    checkin
+#    checkout
+#    make-larceny-tree
+#
+#  To read this file into a sh variable, skipping lines starting with 
+#  a '#' and ignoring blank lines, do this:
+#
+#  #!/bin/sh
+#  dirs=`awk '!/^#/ {print}' < Directories`
+#
+.
+./Chez
+./Compiler
+./Lib
+./Lib/Sparc
+./Lib/Eval
+./Sparc
+./Sys
+./Text
+	
