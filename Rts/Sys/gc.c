@@ -101,6 +101,8 @@ word allocate_nonmoving( int length, int tag )
     obj[0] = mkheader( length, BYTEVECTOR_HDR );
     return tagptr( obj, BVEC_TAG );
   }
+  /*NOTREACHED*/
+  return 0;
 }
 
 void garbage_collect3( int gen, int request_bytes )
