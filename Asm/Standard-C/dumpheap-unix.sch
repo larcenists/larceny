@@ -144,9 +144,8 @@
       (link-shared-object . ,(case host-os
 			       ((macosx) c-so-linker:gcc-macosx)
 			       (else     c-so-linker:gcc-unix)))
-      (append-files       . ,append-file-shell-command-unix))))
-
-(select-compiler 'gcc)
+      (append-files       . ,append-file-shell-command-unix)
+      (make-configuration . petit-unix-static-gcc))))
 
 ; eof
 

@@ -41,6 +41,9 @@
    object-files
    libraries))
 
+(define (default-makefile-configuration)
+  (cdr (assq 'make-configuration (compiler-commands (current-compiler)))))
+
 (define (obj-suffix)
   (compiler-extension (current-compiler)))
 
@@ -98,7 +101,9 @@
 	  (display output-name)
 	  (newline)))
     (append-files 
-     . ,append-file-shell-command-portable)))
+     . ,append-file-shell-command-portable)
+    (makefile-configuration
+     . NOT-A-VALID-MAKEFILE-CONFIGURATION)))
 
 (select-compiler 'none)
 

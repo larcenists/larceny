@@ -118,9 +118,8 @@
       (link-shared-object . ,(case host-os
 			       ((linux)  c-so-linker:gcc-linux)
 			       (else     c-so-linker:gcc-unix)))
-      (append-files       . ,append-file-shell-command-unix))))
-
-(select-compiler 'nasm+gcc)
+      (append-files       . ,append-file-shell-command-unix)
+      (make-configuration . x86-unix-static-gcc-nasm))))
 
 ; eof
 

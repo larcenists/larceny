@@ -180,7 +180,8 @@
     (link-library       . ,c-library-linker:msvc-win32)
     (link-executable    . ,c-linker:msvc-win32)
     (link-shared-object . ,c-dll-linker:msvc-win32)
-    (append-files       . ,append-file-shell-command-msdos)))
+    (append-files       . ,append-file-shell-command-msdos)
+    (make-configuration . petit-win32-static-visualc)))
 
 (define-compiler 
   "Metrowerks CodeWarrior C/C++ 6.0 on Win32"
@@ -190,7 +191,8 @@
     (link-library       . ,c-library-linker:msvc-win32)
     (link-executable    . ,c-linker:mwld-win32)
     (link-shared-object . ,c-dll-linker:mwcc-win32)
-    (append-files       . ,append-file-shell-command-msdos)))
+    (append-files       . ,append-file-shell-command-msdos)
+    (make-configuration . petit-win32-static-codewarrior)))
 
 (define-compiler 
   "gcc (mingw) on Win32"
@@ -200,9 +202,8 @@
     (link-library       . ,c-library-linker:gcc-win32)
     (link-executable    . ,c-linker:gcc-win32)
     (link-shared-object . ,c-dll-linker:gcc-win32)
-    (append-files       . ,append-file-shell-command-msdos)))
-
-(select-compiler 'gcc-mingw)
+    (append-files       . ,append-file-shell-command-msdos)
+    (make-configuration . petit-win32-static-mingw)))
 
 ; eof
 
