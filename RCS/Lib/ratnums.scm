@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system.
 ; Scheme code for ratnum arithmetic.
 ;
-; $Id: ratnums.scm,v 1.1 91/08/12 12:48:01 lth Exp Locker: lth $
+; $Id: ratnums.scm,v 1.2 91/08/20 15:32:58 lth Exp Locker: lth $
 ;
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
@@ -14,87 +14,85 @@
 ;         ratnum-subtract
 ;         ratnum-multiply
 ;         ratnum-divide
-;         ratnum-=
-;         ratnum->
-;         ratnum-<
-;         ratnum->=
-;         ratnum-<=
-;         ratnum-positive?
-;         ratnum-negative?
-;         ratnum-negate
+;         ratnum-neg
+;         ratnum-abs
+;         ratnum=?
+;         ratnum>?
+;         ratnum<?
+;         ratnum>=?
+;         ratnum<=?
 ;         ratnum->flonum)
 
-; LOW-LEVEL STUFF
-;
-; Ratnums look like vectors. These procedures should be integrable and anyway
-; we're not really allowed to treat ratnums as vectors, so some magic must
-; happen.
+; SYSTEM CODE
 
-(define (numerator ratnum)
-  (vector-ref ratnum 0))
-
-(define (denominator ratnum)
-  (vector-ref ratnum 1))
+; both arguments must be exact integers, and the denominator must be positive.
 
 (define (make-ratnum a b)
   (let ((c (make-vector a b)))
-    (vector-tag-set! c ratnum)
+    (typetag-set! c sys$tag.ratnum-typetag)
     c))
 
-
-; HIGH-LEVEL STUFF
-;
-; Given two integers, return a ratnum or integer. In the former case, the
-; ratnum has the smallest possible denominator.
-;
-; Knuth vol II, 2nd ed, section 4.5
+; ditto 
 
 (define (make-reduced-ratnum a b)
   (let ((gcd (gcd a b)))
     (make-ratnum (/ a gcd) (/ b gcd))))
 
+; ditto
+ 
 (define (make-unreduced-ratnum a b)
   (make-ratnum a b))
 
-(define (ratnum-add a b)
-  '())
+; LOW-LEVEL USER STUFF
+;
+; Ratnums look like vectors.
 
-(define (ratnum-subtract a b)
-  '())
+(define (numerator ratnum)
+  (cond ((ratnum? ratnum)
+	 (vector-like-ref ratnum 0))
+	((integer? ratnum)
+	 ratnum)
+	(else
+	 (error "numerator: not a rational" ratnum))))
 
-(define (ratnum-multiply a b)
+(define (denominator ratnum)
+  (cond ((ratnum? ratnum)
+	 (vector-like-ref ratnum 1))
+	((integer? ratnum)
+	 (if (exact? ratnum)
+	     1
+	     1.0))
+	(else
+	 (error "denominator: not a rational" ratnum))))
+
+(define (ratnum-add a b) (error "Ratnum-add not implemented"))
+
+(define (ratnum-sub a b) (error "Ratnum-sub not implemented"))
+
+(define (ratnum-mul a b)
   (let ((gcd1 (gcd (numerator a) (denominator b)))
 	(gcd2 (gcd (denominator a) (numerator b))))
     (make-ratnum (* (/ (numerator a) gcd1) (/ (numerator b) gcd2))
 		 (* (/ (denominator a) gcd2) (/ (denominator b) gcd1)))))
 
-(define (ratnum-divide a b)
-  '())
+(define (ratnum-div a b) (error "Ratnum-div not implemented"))
 
-(define (ratnum-= a b)
+(define (ratnum-abs a) (error "Ratnum-abs not implemented"))
+
+(define (ratnum-neg a)
+  (make-ratnum (- (numerator a)) (denominator a)))
+
+(define (ratnum=? a b)
   (and (= (numerator a) (numerator b))
        (= (denominator a) (denominator b))))
 
-(define (ratnum-> a b)
-  '())
+(define (ratnum<? a b) (error "Ratnum<? not implemented"))
 
-(define (ratnum->= a b)
-  '())
+(define (ratnum<=? a b) (not (ratnum>? a b)))
 
-(define (ratnum-< a b)
-  '())
+(define (ratnum>? a b) (error "Ratnum>? not implemented"))
 
-(define (ratnum-<= a b)
-  '())
-
-(define (ratnum-positive? a)
-  (positive? (numerator a)))
-
-(define (ratnum-negative? a)
-  (negative? (denominator a)))
-
-(define (ratnum-negate a)
-  (make-ratnum (- (numerator a)) (denominator a)))
+(define (ratnum>=? a b) (not (ratnum<? a b)))
 
 (define (ratnum->flonum a)
   (/ (exact->inexact (numerator a))

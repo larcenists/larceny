@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.6 91/08/12 18:37:34 lth Exp Locker: lth $
+; $Id: bignums.scm,v 1.7 91/08/13 12:59:05 lth Exp Locker: lth $
 ;
 ; This file has four sections:
 ;
@@ -59,6 +59,7 @@
 ;         bignum-remainder
 ;         bignum-divide
 ;         bignum-negate
+;         bignum-abs
 ;         bignum=?
 ;         bignum<=?
 ;         bignum<?
@@ -72,7 +73,8 @@
 ;         bignum->fixnum
 ;         fixnum->bignum
 ;         bignum->flonum
-;         flonum->bignum)
+;         flonum->bignum
+;         bignum->string)
 
 
 ;-----------------------------------------------------------------------------
@@ -119,6 +121,7 @@
 (define positive-sign 0)                       ; ditto of a positive one
 (define bignum-digits-in-a-fixnum 2)
 (define max-bignum-bytes (* 65535 4))         ; a lot of digits
+(define bits-per-bigit 16)
 
 ; The compiler had better make these into bignums! Debugging versions are
 ; at the end of the file.
@@ -150,7 +153,8 @@
   (let ((l (roundup4 (* digits 2))))
     (if (> l max-bignum-bytes)
 	(error 'generic-arithmetic "Bignum too large.")
-	(let ((v (make-bytevector (+ l 4) 0)))
+	(let ((v (make-bytevector (+ l 4))))
+	  (bytevector-fill! v 0)
           (bytevector-tag-set! v 'bignum)
 	  (bignum-length-set! v (quotient l 2))
 	  v))))
@@ -199,9 +203,11 @@
 (define (big-copy! from to)
   (let loop ((i (- (bignum-length from))))
     (if (>= i 0)
-	(begin (bignum-set! c i (bignum-ref b i))
+	(begin (bignum-set! to i (bignum-ref from i))
 	       (loop (- i 1))))))
 
+; THESE SHOULD DEFINITELY BE MOVED INTO "flonum-stuff.sch"!!!
+;
 ; Create a boxed flonum from a bignum on a special format.
 ;
 ; Assumes big-endian representation of IEEE double.
@@ -594,6 +600,9 @@
   (and (not (bignum-zero? b))
        (odd? (bignum-ref b 0))))
 
+(define (bignum-abs b)
+  (error "Bignum-abs is not implemented."))
+
 ; Coercions
 
 ; Assumes the bignum fits in a fixnum.
@@ -632,17 +641,17 @@
 	 (e1     (expt 2 bits-per-bigit))    ; 2^16 if bits-per-bigit = 16
 	 (e2     (* e1 e1))                  ; 2^32 ditto
 	 (e3     (* e1 e2))                  ; 2^48 ditto
-	 (e4     (* e4 e4)))                 ; 2^64 ditto
+	 (e4     (* e2 e2)))                 ; 2^64 ditto
 
     ; used for rounding
 
     (define sticky #f)
     (define non-zero-tail #f)
 
-    ; Remove this one if the compiler knows about shifts of fixnums.
-
-    (define (rshift n) 
-      (quotient n 2))
+;    ; Remove this one if the compiler knows about shifts of fixnums.
+;
+;    (define (rshift n) 
+;      (quotient n 2))
 
     ; Count leading zeroes in a bigit by shifting right (there are
     ; better ways, but this will do). `n' and `e' are always fixnums.
@@ -650,7 +659,7 @@
     (define (leading-zeroes n e)
       (if (zero? n)
 	  (- bits-per-bigit e)
-	  (leading-zeroes (rshift n 2) (+ e 1))))
+	  (leading-zeroes (rsha n 2) (+ e 1))))
 
     ; `m' and `limit' are always bignums.
 
@@ -743,6 +752,9 @@
 					    (bignum-negate! q)
 					    q)))))))
 
+
+(define (bignum->string b r)
+  (error "Bignum->string has not been implemented.\n"))
 
 ;-----------------------------------------------------------------------------
 ; Section 4.
@@ -942,8 +954,8 @@
 	   (loop (- i 1)))
 	  (else
 	   (bignum-length-set! b (+ i 1))
-	   (if (and (bignum-> b largest-negative-bignum)
-		    (bignum-< b smallest-positive-bignum))
+	   (if (and (bignum>? b largest-negative-bignum)
+		    (bignum<? b smallest-positive-bignum))
 	       (bignum->fixnum b)
 	       b)))))
 
@@ -958,8 +970,10 @@
 	   (bignum-length-set! b (+ i 1))
 	   b))))
 
-(display "; redefining debugging values") (newline)
-
-(set! smallest-positive-bignum (integer->bytevector smallest-positive-bignum))
-(set! largest-negative-bignum (integer->bytevector largest-negative-bignum))
+; For debugging under Chez.
+;
+;(display "; redefining debugging values") (newline)
+;
+;(set! smallest-positive-bignum (integer->bytevector smallest-positive-bignum))
+;(set! largest-negative-bignum (integer->bytevector largest-negative-bignum))
 

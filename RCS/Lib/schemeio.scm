@@ -3,7 +3,7 @@
 ; Scheme 313 run-time system
 ; Basic i/o primitives for generic UNIX
 ;
-; $Id: schemeio.scm,v 1.1 91/08/23 22:13:37 lth Exp Locker: lth $
+; $Id: schemeio.scm,v 1.2 91/08/26 15:51:02 lth Exp Locker: lth $
 ;
 ; The following procedures must be either integrable or coded up at some lower
 ; level (currently they are written in MacScheme assembly language):
@@ -12,8 +12,8 @@
 ;   (unix$io:open   filename flags mode)
 ;   (unix$io:close  filedesc)
 ;   (unix$io:unlink filename)
-;   (unix$io:read   filedesc bytes buffer)
-;   (unix$io:write  filedesc bytes buffer)
+;   (unix$io:read   filedesc buffer bytes)
+;   (unix$io:write  filedesc buffer bytes)
 ;
 ; In all cases, a filename is a string, a mode is an integer, a filedesc is
 ; an integer, and a buffer is a string.
@@ -42,13 +42,18 @@
 (define write-char #f)
 (define call-with-input-file #f)
 (define call-with-output-file #f)
+(define char-ready? (lambda p (error "Char-ready is not available.")))
 
 ; The following are extenstions to the standard i/o system.
 
-(define port? #f)              ; (port? <obj>)                --> <bool>
-(define flush-output-port #f)  ; (flush-ouptut-port <oport>)  --> <unspecified>
-(define delete-file #f)        ; (delete-file <string>)       --> <bool>
-(define reset-iosystem #f)     ; (reset-iosystem)             --> <unspecified>
+(define port? #f)              ; (port? <obj>)               --> <bool>
+(define flush-output-port #f)  ; (flush-ouptut-port <oport>) --> <unspecified>
+(define delete-file #f)        ; (delete-file <string>)      --> <bool>
+(define reset-iosystem #f)     ; (reset-iosystem)            --> <unspecified>
+
+; The following global variables are used by the system for various things.
+
+(define **eof** #f)
 
 (let ()
 
@@ -56,8 +61,8 @@
   ; for SunOS 4.1.1; at some point we need to find a scheme for generating
   ; these values automatically.
 
-  (define unix$io:O_RDONLY 0)             ; mode for opening a file for reading
-  (define unix$io:O_WRONLY 1)             ; ditto for writing
+  (define unix$io:O_RDONLY 0)             ; mode for opening a file for read
+  (define unix$io:O_WRONLY 1)             ; ditto for write
   (define unix$io:O_RDWR   2)             ; ditto for both
   (define unix$io:O_CREAT  #x200)         ; create file if !existing (output)
   (define unix$io:O_TRUNC  #x400)         ; truncate if existing (output)
@@ -89,7 +94,9 @@
   ;             the port object.
   ; buffer      A string.
   ; size        The allocated size of the buffer (length of the string).
-  ; count       The number of characters left in the buffer.
+  ; count       The number of characters left in the buffer. For output streams
+  ;             this is the number of chars free; for input streams, the number
+  ;             of chars unread.
   ; ptr         The index of the next character in the buffer.
   ; error       The error handler for i/o errors on this port.
   ; status      'open, 'eof, or 'closed.
@@ -98,30 +105,32 @@
 
   (define port-size 11)
 
-  (define (port.direction p) (vector-ref p 0))
-  (define (port.flush? p) (vector-ref p 1))
-  (define (port.handle p) (vector-ref p 2))
-  (define (port.buffer p) (vector-ref p 3))
-  (define (port.size p) (vector-ref p 4))
-  (define (port.count p) (vector-ref p 5))
-  (define (port.ptr p) (vector-ref p 6))
-  (define (port.error p) (vector-ref p 7))
-  (define (port.status p) (vector-ref p 8))
-  (define (port.fd p) (vector-ref p 9))
-  (define (port.name p) (vector-ref p 10))
+  (define (port.direction p) (vector-like-ref p 0))
+  (define (port.flush? p) (vector-like-ref p 1))
+  (define (port.handle p) (vector-like-ref p 2))
+  (define (port.buffer p) (vector-like-ref p 3))
+  (define (port.size p) (vector-like-ref p 4))
+  (define (port.count p) (vector-like-ref p 5))
+  (define (port.ptr p) (vector-like-ref p 6))
+  (define (port.error p) (vector-like-ref p 7))
+  (define (port.status p) (vector-like-ref p 8))
+  (define (port.fd p) (vector-like-ref p 9))
+  (define (port.name p) (vector-like-ref p 10))
 
-  (define (port.count! p v) (vector-set! p 5 v))
-  (define (port.ptr! p v) (vector-set! p 6 v))
-  (define (port.status! p v) (vector-set! p 8 v))
+  (define (port.count! p v) (vector-like-set! p 5 v))
+  (define (port.ptr! p v) (vector-like-set! p 6 v))
+  (define (port.status! p v) (vector-like-set! p 8 v))
 
   (define (port.stuff! p c)
-    (string-set! (port.buffer p) (port.ptr p) c)
-    (port.ptr! p (+ (port.ptr p) 1))
-    (port.count! p (- (port.count p) 1)))
+    (let ((b (port.buffer p))
+	  (t (port.ptr p)))
+      (string-set! b t c)
+      (port.ptr! p (+ (port.ptr p) 1))
+      (port.count! p (- (port.count p) 1))))
 
   (define (port.snarf! p)
     (let ((c (port.snarf p)))
-      (port.ptr! p (- (port.ptr p) 1))
+      (port.ptr! p (+ (port.ptr p) 1))
       (port.count! p (- (port.count p) 1))
       c))
 
@@ -134,13 +143,13 @@
 		     handle
 		     (make-string size)
 		     size
+		     (if (eq? type 'output) size 0)
 		     0
-		     0
-		     error
+		     (lambda r (apply error r))
 		     'open
 		     fd
 		     name)))
-      ; (vector-tag-set! v 'port)
+      (typetag-set! v sys$tag.port-typetag)
       (set! port-list (cons v port-list))
       v))
 
@@ -151,12 +160,12 @@
 		 #f)
 	       (lambda (self)
 		 (let ((bytes (unix$io:read (port.fd self)
-					    (port.buf self)
+					    (port.buffer self)
 					    (port.size self))))
 		   (if (negative? bytes)
 		       ((port.error self) 'port-input "Error during read.")
-		       (begin (port.count! bytes)
-			      (port.ptr! 0)))))
+		       (begin (port.count! self bytes)
+			      (port.ptr! self 0)))))
 	       1024
 	       name))
 
@@ -170,7 +179,7 @@
 		     #f))
 	       (lambda (self)
 		 (let ((bytes (unix$io:write (port.fd self)
-					     (port.buf self)
+					     (port.buffer self)
 					     (port.ptr self))))
 		   (if (< bytes (port.ptr self))
 		       ((port.error self) 'port-output "Error during write.")
@@ -182,15 +191,14 @@
   ;
 
   (define (%port? x)
-    (and (vector? x)
-	 (= (vector-length x) port-size)
-	 (or (eq? (vector-ref x 0) 'input) (eq? (vector-ref x 0) 'output))))
+    (and (vector-like? x)
+	 (= (typetag x) sys$tag.port-typetag)))
 
   (define (%input-port? p)
     (and (%port? p)
 	 (eq? (port.direction p) 'input)))
 
-  (define (%output-port p)
+  (define (%output-port? p)
     (and (%port? p)
 	 (eq? (port.direction p) 'output)))
 
@@ -228,82 +236,85 @@
 	     (not (eq? (port.status p) 'closed)))
 	(unix$io:close (port.fd p))))
 
-  (define (%read-char . p)
+  (define %read-char
+    (lambda p
 
-    (define (do-read-char p)
-      (cond ((not (%input-port? p))
-	     ((port.error p) 'read-char "Not an input port."))
-	    ((eq? (port.status p) 'eof)
-	     p)
-	    ((not (eq? (port.status p) 'open))
-	     ((port.error p) 'read-char "Port is not open."))
+      (define (do-read-char p)
+	(cond ((not (%input-port? p))
+	       ((port.error p) 'read-char "Not an input port."))
+	      ((eq? (port.status p) 'eof)
+	       p)
+	      ((not (eq? (port.status p) 'open))
+	       ((port.error p) 'read-char "Port is not open."))
+	      (else
+	       (if (zero? (port.count p))
+		   ((port.handle p) p))
+	       (if (zero? (port.count p))
+		   (begin (port.status! p 'eof)
+			  p)
+		   (port.snarf! p)))))
+
+      (cond ((null? p)
+	     (do-read-char stdin))
+	    ((and (not (null? p))
+		  (or (not (null? (cdr p)))
+		      (not (%port? (car p)))))
+	     (error 'read-char "Invalid argument."))
 	    (else
-	     (if (zero? (port.count p))
-		 ((port.handle p) p))
-	     (if (zero? (port.count p))
-		 (begin (port.status! p 'eof)
-			p)
-		 (port.snarf! p)))))
+	     (do-read-char (car p))))))
 
-    (cond ((null? p)
-	   (do-read-char stdin))
-	  ((and (not (null? p))
-		(or (not (null? (cdr p)))
-		    (not (%port? (car p)))))
-	   (error 'read-char "Invalid argument."))
-	  (else
-	   (do-read-char (car p)))))
+  (define %peek-char
+    (lambda p
 
-  (define (%peek-char . p)
+      (define (do-peek-char p)
+	(cond ((not (%input-port? p))
+	       ((port.error p) 'peek-char "Not an input port."))
+	      ((eq? (port.status p) 'efo)
+	       p)
+	      ((not (eq? (port.status p) 'open))
+	       ((port.error p) 'peek-char "Port is not open."))
+	      (else
+	       (if (zero? (port.count p))
+		   ((port.handle p) p))
+	       (if (zero? (port.count p))
+		   (begin (port.status! p 'eof)
+			  p)
+		   (port.snarf p)))))
 
-    (define (do-peek-char p)
-      (cond ((not (%input-port? p))
-	     ((port.error p) 'peek-char "Not an input port."))
-	    ((eq? (port.status p) 'efo)
-	     p)
-	    ((not (eq? (port.status p) 'open))
-	     ((port.error p) 'peek-char "Port is not open."))
+      (cond ((null? p)
+	     (do-peek-char stdin))
+	    ((and (not (null? p))
+		  (or (not (null? (cdr p)))
+		      (not (%port? (car p)))))
+	     (error 'peek-char "Invalid argument."))
 	    (else
-	     (if (zero? (port.count p))
-		 ((port.handle p) p))
-	     (if (zero? (port.count p))
-		 (begin (port.status! p 'eof)
-			p)
-		 (port.snarf p)))))
+	     (do-peek-char (car p))))))
 
-    (cond ((null? p)
-	   (do-peek-char stdin))
-	  ((and (not (null? p))
-		(or (not (null? (cdr p)))
-		    (not (%port? (car p)))))
-	   (error 'peek-char "Invalid argument."))
-	  (else
-	   (do-peek-char (car p)))))
+  (define %write-char
+    (lambda (c . p)
 
-  (define (%write-char c . p)
+      (define (do-write-char c p)
+	(cond ((not (%output-port? p))
+	       ((port.error p) 'write-char "Not an output port."))
+	      ((not (eq? (port.status p) 'open))
+	       ((port.error p) 'write-char "Port is not open."))
+	      (else
+	       (port.stuff! p c)
+	       (if (or (zero? (port.count p))
+		       ((port.flush? p) p c))
+		   ((port.handle p) p))
+	       #t)))
 
-    (define (do-write-char c p)
-      (cond ((not (%output-port? p))
-	     ((port.error p) 'write-char "Not an output port."))
-	    ((not (eq? (port.status p) 'open))
-	     ((port.error p) 'write-char "Port is not open."))
+      (cond ((not (char? c))
+	     (error 'write-char "Not a character."))
+	    ((null? p)
+	     (do-write-char c stdout))
+	    ((and (not (null? p))
+		  (or (not (null? (cdr p)))
+		      (not (%port? (car p)))))
+	     (error 'write-char "Invalid argument."))
 	    (else
-	     (port.stuff! p c)
-	     (if (or (zero? (port.count p))
-		     ((port.flush? p) p c))
-		 ((port.handle p) p))
-	     #t)))
-
-    (cond ((not (char? c))
-	   (error 'write-char "Not a character."))
-	  ((null? p)
-	   (do-write-char c stdout))
-	  ((and (not (null? p))
-		(or (not (null? (cdr p)))
-		    (not (%port? (car p)))))
-	   (error 'write-char "Invalid argument."))
-	  (else
-	   (do-write-char c (car p)))))
+	     (do-write-char c (car p))))))
 
   (define (%call-with-input-file file p)
     (let ((port (%open-input-file file)))
@@ -317,25 +328,26 @@
 	(%close-output-port p)
 	r)))
 
-  (define (%flush-output-port . p)
+  (define %flush-output-port
+    (lambda p
 
-    (define (do-flush-output p)
-      (cond ((not (%output-port? p))
-	     ((port.error p) 'flush-output "Not an output port."))
-	    ((not (eq? (port.status p) 'open))
-	     ((port.error p) 'flush-output "Not an output port."))
-	    (else
-	     ((port.handle p) p)
-	     #t)))
+      (define (do-flush-output p)
+	(cond ((not (%output-port? p))
+	       ((port.error p) 'flush-output "Not an output port."))
+	      ((not (eq? (port.status p) 'open))
+	       ((port.error p) 'flush-output "Not an output port."))
+	      (else
+	       ((port.handle p) p)
+	       #t)))
 
     (cond ((null? p)
-	   (do-flush-output stdin))
+	   (do-flush-output stdout))
 	  ((and (not (null? p))
 		(or (not (null? (cdr p)))
 		    (not (%port? (car p)))))
 	   (error 'flush-output-port "Invalid argument."))
 	  (else
-	   (do-flush-output (car p)))))
+	   (do-flush-output (car p))))))
 
   (define (%delete-file filename)
     (if (not (zero? (unix$io:unlink filename)))
@@ -353,9 +365,9 @@
   (set! stdout (make-output-port unix$io:stdout #t "(stdout)"))
 
   (set! port? %port?)
-  (set! eof-object? %eof-object)
+  (set! eof-object? %eof-object?)
   (set! input-port? %input-port?)
-  (set! outurt-port? %output-port)
+  (set! output-port? %output-port?)
   (set! open-input-file %open-input-file)
   (set! open-output-file %open-output-file)
   (set! close-input-port (lambda (p) (%close-port 'input p)))
@@ -370,4 +382,5 @@
   (set! flush-output-port %flush-output-port)
   (set! delete-file %delete-file)
   (set! reset-iosystem %reset-iosystem)
+
   '())

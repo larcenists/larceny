@@ -1,17 +1,17 @@
 ; Larceny run-time system
 ; Global procedure definitions for integrable procedures.
 ;
-; $Id$
+; $Id: integrable-procs.scm,v 1.1 91/09/14 01:18:48 lth Exp Locker: lth $
 
 (define debugvsm (lambda () (debugvsm)))
 (define reset (lambda () (reset)))
 (define exit (lambda () (exit)))
 (define break (lambda () (break)))
-(define time (lambda () (time)))
-(define gc (lambda (x) (gc x)))
-(define dumpheap (lambda () (dumpheap)))
+; (define time (lambda () (time)))
+; (define gc (lambda (x) (gc x)))
+; (define dumpheap (lambda () (dumpheap)))
 (define creg (lambda () (creg)))
-;(define undefined (lambda () (undefined)))
+; (define undefined (lambda () (undefined)))
 (define typetag (lambda (x) (typetag x)))
 (define not (lambda (x) (not x)))
 (define null? (lambda (x) (null? x)))
@@ -33,7 +33,7 @@
 (define zero? (lambda (x) (zero? x)))
 (define -- (lambda (x) (-- x)))
 (define lognot (lambda (x) (lognot x)))
-(define sqrt (lambda (x) (sqrt x)))
+; (define sqrt (lambda (x) (sqrt x)))
 (define real-part (lambda (x) (real-part x)))
 (define imag-part (lambda (x) (imag-part x)))
 (define char? (lambda (x) (char? x)))
@@ -66,7 +66,9 @@
 (define logior (lambda (x y) (logior x y)))
 (define logxor (lambda (x y) (logxor x y)))
 (define lsh (lambda (x y) (lsh x y)))
-(define rot (lambda (x y) (rot x y)))
+(define rshl (lambda (x y) (rshl x y)))
+(define rsha (lambda (x y) (rsha x y)))
+; (define rot (lambda (x y) (rot x y)))
 (define make-rectangular (lambda (x y) (make-rectangular x y)))
 (define string-ref (lambda (x y) (string-ref x y)))
 (define vector-ref (lambda (x y) (vector-ref x y)))
@@ -82,7 +84,7 @@
 (define bytevector-set! (lambda (x y z) (bytevector-set! x y z)))
 (define procedure-set! (lambda (x y z) (procedure-set! x y z)))
 (define vector-like? (lambda (x) (vector-like? x)))
-(define bytevector-like? (lambda (a) (bytevector-like? x)))
+(define bytevector-like? (lambda (x) (bytevector-like? x)))
 (define vector-like-ref (lambda (x y) (vector-like-ref x y)))
 (define bytevector-like-ref (lambda (x y) (bytevector-like-ref x y)))
 (define vector-like-set! (lambda (x y z) (vector-like-set! x y z)))
