@@ -95,20 +95,15 @@
                 ((eq? name set!0) (loop (cdr e) n))
                 (else (loop (cdr e) (cons name n))))))))
 
-(define *syntactic-env-key* (list 'syntaxenv-key))
-
 (define (syntactic-environment-get syntaxenv id)
   (let ((x (syntactic-lookup syntaxenv id)))
     (if (identifier-denotation? x)
         #f
-        (lambda (key)
-          (if (eq? key *syntactic-env-key*)
-              x
-              (error "Wrong key for macro.  Are you mixing macro expanders?"))))))
+        (lambda () x))))
           
 (define (syntactic-environment-set! syntaxenv id macro)
   (parameterize ((global-syntactic-environment syntaxenv))
-    (syntactic-bind-globally! id (macro *syntactic-env-key*))))
+    (syntactic-bind-globally! id (macro))))
 
 (define (syntactic-environment-remove! syntaxenv id)
   (parameterize ((global-syntactic-environment syntaxenv))
