@@ -1,7 +1,7 @@
 /* Rts/Sys/cheney.c
  * Larceny run-time system -- copying garbage collector library.
  *
- * $Id: cheney.c,v 1.13 1997/09/17 15:17:26 lth Exp $
+ * $Id: cheney.c,v 1.13 1997/09/17 15:17:26 lth Exp lth $
  *
  *
  * Description.

@@ -1,7 +1,7 @@
 ; Lib/print.sch
 ; Larceny -- Print procedures 
 ;
-; $Id: print.sch,v 1.7 1997/09/23 20:08:39 lth Exp lth $
+; $Id: print.sch,v 1.6 1997/08/22 21:05:14 lth Exp $
 ;
 ; Copyright 1991 Lightship Software
 
@@ -88,8 +88,6 @@
                           (printslashed x p)
                           (write-char #\" p))
                    (printstr x p)))
-	      ((structure? x)
-	       ((structure-printer) x p slashify))
 	      ((environment? x)
 	       (printstr (string-append "#<ENVIRONMENT "
 					(environment-name x)

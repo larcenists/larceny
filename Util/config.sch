@@ -77,25 +77,13 @@
 
 (define (config . argv)
 
-  (define $format
-    (case host
-      ((chez)   (lambda (port . rest) (display (apply format rest) port)))
-      ((larceny) (lambda (port . rest) (apply format port rest)))
-      (else ???)))
-
-  (define $gensym
-    (case host
-      ((chez)  gensym)
-      ((larceny)  (lambda () (gensym "G")))
-      (else ???)))
-
   (define error-cont #f)
 
   (define table-file #f)
   (define table-counter 0)
 
   (define (conf-error kill? msg . rest)
-    (apply $format (current-output-port) (cons msg rest))
+    (display (apply format (cons msg rest)))
     (newline)
     (if kill?
 	(error-cont #f)))
@@ -227,7 +215,7 @@
 		      table-file)
 	     (newline table-file)
 	     (let ((i (define-const (cons 'define-const
-					     (cons ($gensym)
+					     (cons (gensym)
 						   (cons table-counter
 							 (cdr item))))
 			info)))
@@ -240,7 +228,7 @@
 	     (display "	nop" table-file)
 	     (newline table-file)
 	     (let ((i (define-const (cons 'define-const
-					     (cons ($gensym)
+					     (cons (gensym)
 						   (cons table-counter
 							 (cdr item))))
 			info)))
@@ -305,10 +293,10 @@
     (define (dump-const! entry lang base)
       (if lang
 	  (if (string? entry)
-	      ($format (lang.port lang)
-		       (lang.fmt lang)
-		       entry
-		       ((lang.action lang) base))
+	      (display (format (lang.fmt lang)
+			       entry
+			       ((lang.action lang) base))
+		       (lang.port lang))
 	      #f)
 	  #f))
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.c
  * Larceny run-time system -- RTS/GC glue code for 0.26.alpha
  * 
- * $Id: gc.c,v 1.19 1997/09/17 15:17:26 lth Exp $
+ * $Id: gc.c,v 1.19 1997/09/17 15:17:26 lth Exp lth $
  *
  * The code in this file presents an interface to the new GC that looks
  * mostly like the interface to the old GC.  The purpose of the deception

@@ -15,7 +15,7 @@ TMPFILE=/tmp/larceny.build.`whoami`.$$
 DIR=`pwd`
 
 # New assembler or not?
-NEW_ASM="#t"
+NEW_ASM="#f"
 
 # Default host system for building is Chez Scheme.
 L_HOST=Chez
@@ -118,7 +118,7 @@ case $L_HOST in
   *)       echo "Internal error in build script."; exit 1 ;;
 esac
 
-rm $TMPFILE
+#rm $TMPFILE
 exit 0
 
 # eof

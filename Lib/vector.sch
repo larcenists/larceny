@@ -40,17 +40,17 @@
 	       (loop (- k 1)))))
   (loop (- (vector-length v) 1)))
 
-(define vector-equal?
-  (letrec ((v-equal-loop
-	    (lambda (v1 v2 i)
-	      (cond ((<? i 0) #t)
-		    ((equal? (vector-ref v1 i) (vector-ref v2 i))
-		     (v-equal-loop v1 v2 (1- i)))
-		    (else #f)))))
-    (lambda (v1 v2)
-      (if (=? (vector-length v1) (vector-length v2))
-          (v-equal-loop v1 v2 (1- (vector-length v1)))
-          #f))))
+(define (vector-equal? v1 v2)
+
+  (define (v-equal-loop i)
+    (cond ((< i 0) #t)
+	  ((equal? (vector-ref v1 i) (vector-ref v2 i))
+	   (v-equal-loop (- i 1)))
+	  (else #f)))
+
+  (if (= (vector-length v1) (vector-length v2))
+      (v-equal-loop (- (vector-length v1) 1))
+      #f))
  
 
 ; eof

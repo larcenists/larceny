@@ -588,17 +588,12 @@ internal_check_signals:
 	cmp	%TMP0, 0
 	bne	1f
 	nop
-
-	ld	[ %GLOBALS + G_FPE_CODE ], %TMP0
-	tst	%TMP0
-	bz	3f
-	nop
-	mov	%TMP0, %ARGREG3
-	mov	EX_FPE, %TMP0
-	b	EXTNAME(m_exception)
-	clr	[ %GLOBALS + G_FPE_CODE ]
-
-3:	jmp	%o7 + 8
+! FIXME: This is absolutely not right!
+!	ld	[ %GLOBALS + G_FPE_CODE ], %TMP0
+!	cmp	%TMP0, 0
+!	bne	EXTNAME(m_fpe_handler)
+!	nop
+	jmp	%o7 + 8
 	nop
 
 1:	ld	[ %GLOBALS + G_SIGINT ], %TMP0

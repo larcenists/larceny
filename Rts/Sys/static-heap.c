@@ -1,7 +1,7 @@
 /* Rts/Sys/static-heap.c
  * Larceny run-time system -- static heap.
  *
- * $Id: static-heap.c,v 1.6 1997/09/17 15:17:26 lth Exp $
+ * $Id: static-heap.c,v 1.6 1997/09/17 15:17:26 lth Exp lth $
  */
 
 #define GC_INTERNAL
@@ -65,23 +65,6 @@ create_static_heap( int heap_no,          /* given */
   return heap;
 }
 
-#if defined(SUNOS)
-/* Debug code, for the time being */
-#include <sys/mman.h>
-
-void protect_static( static_heap_t *heap )
-{
-  static_data_t *data = DATA(heap);
-  int i;
-
-  for ( i=0 ; i <= data->text->current ; i++ ) {
-    if (mprotect( (void*)(data->text->chunks[i].bot),
-		 data->text->chunks[i].bytes,
-		 PROT_READ | PROT_EXEC ) == -1)
-      consolemsg( "mprotect failed." );
-  }
-}
-#endif
 
 static int  initialize( static_heap_t *heap );
 static void reorganize( static_heap_t *heap );

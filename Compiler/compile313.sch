@@ -1,12 +1,36 @@
 ; Compiler/compile313.sch
-; Larceny run-time environment -- compiler drivers
+; Larceny run-time environment -- compiler drivers.
 ;
-; $Id: compile313.sch,v 1.5 1997/09/23 20:06:36 lth Exp lth $
+; $Id: compile313.sch,v 1.4 1997/08/22 21:00:04 lth Exp $
 ;
-; The meanings of the various file types are explained in the on-line
-; documentation (http://www.ccs.neu.edu/home/larceny/manual.html).
+; We operate with several different file formats.
+;
+; - Files with extension ".sch" or ".scm" are Scheme source files and are
+;   processed with the command "compile313".
+;
+; - Files with extension ".lap" (Lisp Assembly Program) are tokenized
+;   MacScheme assembly language files; all opcodes are integerized. They are
+;   processed with the command "assemble313".
+;
+; - Files with extension ".mal" (MacScheme Assembly Language") are untokenized
+;   MacScheme assembly language files. Each expression in the file turns into
+;   a ".lap" expression when evaluated by "eval". (Yeah, this is a hack.)
+;   These files are processed with the command "assemble313".
+;
+; - Files with extension ".lop" (Lisp Object Program) or ".elop" are 
+;   tokenized files in the target architecture's instruction set (elop files
+;   are compiled without write barrier checks). In this representation,
+;   all procedures are represented by a segment, the car of which is the
+;   code vector (a sequence of raw opcode bytes) and the cdr of which is the
+;   constant vector (in symbolic form, still). Segments are transformed into
+;   heaps by the heap loader.
+;   These files can be disassembled (to native assembly language) with the
+;   command "disassemble313".
+;
+; - Files with extension ".fasl" (Fastload) are binary, dynamically-loadable
+;   compiled files.
 
-; Compile and assemble a scheme source file and produce a fastload file.
+;; Compile and assemble a '.sch' or '.scm' file and produce a '.fasl' file.
 
 (define (compile-file infilename . rest)
   (let ((outfilename
@@ -25,31 +49,7 @@
     #t))
 
 
-; Assemble a '.mal' or '.lop' file and produce a fastload file.
-
-(define (assemble-file infilename . rest)
-  (let ((outfilename
-	 (if (not (null? rest))
-	     (car rest)
-	     (rewrite-file-type infilename
-				'(".lap" ".mal")
-				(if (write-barrier)
-				    ".fasl"
-				    ".efasl"))))
-	(malfile?
-	 (and (> n 4)
-	      (string-ci=? ".mal" (substring file (- n 4) n)))))
-    (process-file infilename
-		  outfilename
-		  dump-fasl-segment-to-port
-		  (lambda (item)
-		    (if malfile? 
-			(assemble (eval item))
-			(assemble item))))
-    #t))
-
-
-; Compile a scheme source file to a ".lap" file.
+;; Compile a scheme file (extension ".sch" or ".scm") to a ".lap" file.
 
 (define (compile313 file . rest)
   (let ((outputfile
@@ -62,18 +62,20 @@
 		    (write item port)
 		    (newline port)
 		    (newline port))
-		  compile)
+		  (lambda (x)
+		    ; (break)
+		    (compile x)))
     #t))
 
 
-; Assemble a ".lap" or ".mal" file to a ".lop" file.
+;; Assemble a ".lap" or ".mal" file to a ".lop" file.
 
 (define (assemble313 file . rest)
   (let ((outputfile
 	 (if (not (null? rest))
 	     (car rest)
 	     (rewrite-file-type file
-				'(".lap" ".mal")
+				".lap"
 				(if (write-barrier)
 				    ".lop"
 				    ".elop"))))
@@ -84,21 +86,25 @@
 		  (if (and (> n 4)
 			   (string-ci=? ".mal" (substring file (- n 4) n)))
 		      (lambda (x) (assemble (eval x)))
-		      assemble))
+		      (lambda (x)
+			; (break)
+			(assemble x))))
     #t))
 
 
-; Convert a ".lop" file to fastload format.
+;; Converts each segment into a call to a literal thunk, where the thunk is 
+;; a literal procedure (using magic syntax; see file "makefasl.sch").
 
 (define (make-fasl infilename . rest)
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename
-				'(".lop" ".elop")
-				(if (write-barrier)
-				    ".fasl"
-				    ".efasl")))))
+	     (rewrite-file-type
+	      infilename
+	      ".lop"
+	      (if (write-barrier)
+		  ".fasl"
+		  ".efasl")))))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
@@ -106,116 +112,69 @@
     #t))
 
 
-; Disassemble a procedure's code vector.
+; Disassemble a file; dump output to screen or other (optional) file.
 
-(define (disassemble item . rest)
-  (let ((output-port (if (null? rest)
-			 (current-output-port)
-			 (car rest))))
-    (disassemble-item item #f output-port)))
-
-
-; The item can be either a procedure or a pair (assumed to be a segment).
-
-(define (disassemble-item item segment-no port)
+(define (disassemble313 file . rest)
 
   (define (print . rest)
-    (for-each (lambda (x) (display x port) rest))
-    (newline port))
+    (for-each display rest)
+    (newline))
 
-  (define (print-constvector cv)
-    (do ((i 0 (+ i 1)))
-	((= i (vector-length cv)))
-      (print "------------------------------------------")
-      (print "Constant vector element # " i)
-      (case (car (vector-ref cv i))
-	((codevector)
-	 (print "Code vector")
-	 (print-instructions (disassemble-codevector
-			      (cadr (vector-ref cv i)))))
-	((constantvector)	
-	 (print "Constant vector")
-	 (print-constvector (cadr (vector-ref cv i))))
-	((global)
-	 (print "Global: " (cadr (vector-ref cv i))))
-	((data)
-	 (print "Data: " (cadr (vector-ref cv i)))))))
+  (define (print-segment segment-no segment)
 
-  (define (print-segment segment)
+    (define (print-constvector cv)
+      (let loop ((i 0))
+	(if (< i (vector-length cv))
+	    (begin
+	      (print "------------------------------------------")
+	      (print "Constant vector element # " i)
+	      (case (car (vector-ref cv i))
+		((codevector)
+		 (print "Code vector")
+		 (print-ilist (disassemble (cadr (vector-ref cv i)))))
+		((constantvector)	
+		 (print "Constant vector")
+		 (print-constvector (cadr (vector-ref cv i))))
+		((global)
+		 (print "Global: " (cadr (vector-ref cv i))))
+		((data)
+		 (print "Data: " (cadr (vector-ref cv i)))))
+	      (loop (+ i 1))))))
+
     (print "Segment # " segment-no)
-    (print-instructions (disassemble-codevector (car segment)))
+    (print-ilist (disassemble (car segment)))
     (print-constvector (cdr segment))
     (print "========================================"))
 
-  (cond ((procedure? item)
-	 (print-instructions (disassemble-codevector (procedure-ref item 0))))
-	((and (pair? item)
-	      (bytevector? (car item))
-	      (vector? (cdr item)))
-	 (print-segment item))
-	(else
-	 (error "disassemble-item: " item " is not disassemblable."))))
-
-
-; Disassemble a ".lop" or ".fasl" file; dump output to screen or 
-; other (optional) file.
-
-(define (disassemble-file file . rest)
-
-  (define (doit input-port output-port)
+  (define (doit file)
     (print "; From " file)
-    (do ((segment-no 0 (+ segment-no 1))
-	 (segment (read input-port) (read input-port)))
-	((eof-object? segment))
-      (disassemble-item segment segment-no output-port)))
+    (call-with-input-file
+      file
+      (lambda (inport)
+	(let loop ((segment-no 1) (segment (read inport)))
+	  (if (eof-object? segment)
+	      '()
+	      (begin (print-segment segment-no segment)
+		     (loop (+ segment-no 1) (read inport))))))))
 
   ; disassemble313
 
-  (call-with-input-file file
-    (lambda (input-port)
-      (if (null? rest)
-	  (doit input-port (current-output-port))
-	  (begin
-	    (delete-file (car rest))
-	    (call-with-output-file (car rest)
-	      (lambda (output-port) (doit file output-port))))))))
+  (if (or (and (not (null? rest))
+	       (or (not (null? (cdr rest)))
+		   (not (string? (car rest)))))
+	  (not (string? file)))
+      (error 'disassemble313 "Bogus parameter(s)."))
+  (if (null? rest)
+      (doit file)
+      (begin
+	(delete-file (car rest))
+	(with-output-to-file (car rest) (lambda () (doit file))))))
 
 
-; Meta-switches
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Some utilities
 
-(define target-architecture
-  (let ((arch 'sun4-sunos)
-	(arch-list '(sun4-sunos sun4-solaris unknown)))
-    (lambda rest
-      (cond ((null? rest)
-	     arch)
-	    ((and (null? (cdr rest))
-		  (memq (car rest) arch-list))
-	     (set! arch (car rest))
-	     arch)
-	    ((and (null? (cdr rest))
-		  (eq? (car rest) 'query))
-	     arch-list)
-	    (else
-	     (error "Wrong arguments to target-architecture: " rest))))))
-
-(define (fast-unsafe-code)
-  (integrate-usual-procedures #t)
-  (benchmark-mode #t)
-  (inline-cons #t)
-  (inline-assignment #t)
-  (catch-undefined-globals #f)
-  (unsafe-code #t)
-  (single-stepping #f))
-
-(define (fast-safe-code)
-  (integrate-usual-procedures #t)
-  (benchmark-mode #t)
-  (inline-cons #t)
-  (inline-assignment #t)
-  (catch-undefined-globals #t)
-  (unsafe-code #f)
-  (single-stepping #f))
 
 
 ; Read and process one file, producing another.
@@ -246,8 +205,41 @@
 		 (let* ((n (car m))
 			(l (string-length n)))
 		   (if (and (>= j l)
-			    (string-ci=? (substring filename (- j l) j) n))
+			    (string=? (substring filename (- j l) j) n))
 		       (string-append (substring filename 0 (- j l)) new)
 		       (loop (cdr m))))))))))
 
-; eof
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Display some integer in an mostly arbitrary base to some arbitrary 
+; precision. I forget how one is supposed to use this.
+
+(define (display-in-base n m precision)
+  (let ((v '#(0 1 2 3 4 5 6 7 8 9 #\A #\B #\C #\D #\E #\F)))
+    (if (zero? n)
+	(if (zero? precision)
+	    '()
+	    (begin (display 0)
+		   (display-in-base n m (- precision 1))))
+	(begin (display-in-base (quotient n m) m (- precision 1))
+	       (display (vector-ref v (remainder n m)))))))
+
+; Macros used in the MacScheme version to reduce the size of the heap image.
+
+; (define-macro optimize
+;   (lambda (l)
+;     (list 'declare
+;           (list 'optimize
+;                 (cond ((and (memq 'safety l) (memq 'speed l)) 2)
+;                       ((memq 'speed l) 3)
+;                       ((memq 'space l) 1)
+;                       ((memq 'safety l) 1)
+;                       (else (optimization)))))))
+; 
+; (define-macro optimize
+;   (lambda (l)
+;     '(declare (optimize 1)))) ; for now
+; 
+; 
+; 

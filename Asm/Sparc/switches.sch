@@ -1,7 +1,7 @@
 ; Asm/Sparc/switches.sch
 ; Larceny -- Switches for the Sparc assembler
 ;
-; $Id: switches.sch,v 1.3 1997/09/23 20:02:38 lth Exp lth $
+; $Id: switches.sch,v 1.2 1997/07/18 13:43:13 lth Exp $
 
 ; INTERNAL!
 (define short-effective-addresses
@@ -30,9 +30,6 @@
 
 (define fill-delay-slots
   (make-twobit-flag 'fill-delay-slots))
-
-(define (fast-write-barrier)
-  (eq? (target-architecture) 'sun4-sunos))
 
 ; Initialization
 

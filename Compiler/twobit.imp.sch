@@ -13,7 +13,7 @@
 ;
 ; Target-specific information for Larceny on the SPARC architecture.
 
-(define twobit-sort (lambda (less? list) (compat:sort list less?)))
+(define twobit-sort compat:sort)  ; (sort less? list)
 
 (define renaming-prefix ".")
 

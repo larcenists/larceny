@@ -1,7 +1,7 @@
 ; Util/nbuild.sch
 ; Loader for Larceny development system; portable!
 ;
-; $Id: nbuild.sch,v 1.6 1997/09/23 20:07:36 lth Exp lth $
+; $Id: nbuild.sch,v 1.5 1997/08/22 21:10:46 lth Exp $
 ;
 ; All directory names *must* end with "/" (or whatever is appropriate for
 ; the current operating system), and they should all be absolute (ditto).
@@ -51,7 +51,6 @@
 (loadfile compilerdir "pass4p2.sch")
 (loadfile compilerdir "pass4p3.sch")
 (loadfile compilerdir "pass4patch.sch")  ; @@ Lars
-
 (if (not new-assembler?)
     (begin 
       (display "Loading old generic assembler...")
@@ -109,7 +108,6 @@
 (loadfile compilerdir "printlap.sch")
 (loadfile compilerdir "utils.sch")
 (loadfile common-asmdir "makefasl2.sch")
-(loadfile utildir "init-comp.sch")
 
 (display "Loading makefile...") (newline)
 (loadfile sourcedir "makefile.sch")

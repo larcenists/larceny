@@ -1,7 +1,7 @@
 /* Rts/Sys/old-heap.c
  * Larceny run-time system -- stop-and-copy varsized old heap.
  *
- * $Id: old-heap.c,v 1.13 1997/09/17 15:17:26 lth Exp $
+ * $Id: old-heap.c,v 1.13 1997/09/17 15:17:26 lth Exp lth $
  *
  * An old heap is a heap that receives new objects by promotion from
  * younger heaps, not by direct allocation.  Promotion from younger heaps

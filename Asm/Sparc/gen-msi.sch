@@ -1,13 +1,12 @@
 ; Asm/Sparc/gen-msi.sch
 ; Larceny -- SPARC assembler code emitters for core MacScheme instructions
 ;
-; $Id: gen-msi.sch,v 1.4 1997/09/23 20:02:38 lth Exp lth $
+; $Id: gen-msi.sch,v 1.3 1997/08/22 20:54:57 lth Exp $
 
 
 ; SETGLBL
 ;
 ; A global cell is a pair, where the car holds the value.
-; FIXME: should allow an in-line barrier.
 
 (define (emit-result-register->global! as offset)
   (emit-const->register! as offset $r.tmp0)             ; get cell
@@ -258,7 +257,6 @@
 
 
 ; SETLEX
-; FIXME: should allow an in-line barrier
 
 (define (emit-setlex! as m n)
   (let ((base (emit-follow-chain! as m)))

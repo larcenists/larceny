@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.18 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: larceny.c,v 1.17 1997/09/17 15:17:26 lth Exp lth $
  *
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
@@ -70,8 +70,7 @@ char **argv;
   o.restv = 0;
 
   o.gc_info.heaps = 2;   /* dual-heap generational collector */
-  o.gc_info.heap_info =
-    (heap_info_t*)must_malloc( sizeof(heap_info_t)*MAX_HEAPS );
+  o.gc_info.heap_info = (heap_info_t*)malloc( sizeof(heap_info_t)*MAX_HEAPS );
   memset( o.gc_info.heap_info, 0, sizeof( heap_info_t )*MAX_HEAPS );
   o.gc_info.use_static_heap = 1;
   o.gc_info.globals = globals;

@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.c
  * Larceny run-time system -- write barrier for new collector
  *
- * $Id: barrier.c,v 1.8 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: barrier.c,v 1.7 1997/05/23 13:42:46 lth Exp $
  *
  * Write barrier support code.
  *
@@ -71,12 +71,10 @@ void wb_setup0( void )
 }
 
 void
-wb_re_setup( void *pagebase, unsigned *genv )
+wb_re_setup( unsigned *genv )
 {
-  if (wb_generations > 0) {
+  if (wb_generations > 0)
     wb_globals[ G_GENV ] = (word)genv;
-    wb_globals[ G_PGBASE ] = (word)pagebase;
-  }
 }
 
 

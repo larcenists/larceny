@@ -1,7 +1,7 @@
 /* Rts/Sys/young-heap.c
  * Larceny run-time system -- youngest heap.
  *
- * $Id: young-heap.c,v 1.15 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: young-heap.c,v 1.14 1997/09/17 15:17:26 lth Exp lth $
  *
  * Contract
  *
@@ -264,8 +264,6 @@ collect( young_heap_t *heap, unsigned request_bytes )
   data->copied_last_gc = globals[G_ETOP]-globals[G_EBOT];
   data->dont_clear_copy_number = 1;
 
-  supremely_annoyingmsg( "Bytes copied: %u", data->copied_last_gc );
-
   if (!create_stack( heap )) {
     debugmsg( "[debug] young heap: Failed create-stack." );
     goto promote;
@@ -317,8 +315,8 @@ stack_overflow( young_heap_t *heap )
    */
   word *globals = DATA(heap)->globals;
 
-  supremely_annoyingmsg( "Stack overflow exception: %d.",
-			(int)(globals[ G_ETOP ] - globals [ G_STKP ]));
+  supremely_annoyingmsg( "Stack overflow exception: %u.",
+			globals[ G_ETOP ] - globals [ G_STKP ]);
   heap->collector
     ->collect( heap->collector, DATA(heap)->gen_no, GC_COLLECT, 1024 );
 }

@@ -1,7 +1,7 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.10 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: unix.c,v 1.9 1997/08/25 13:07:31 lth Exp $
  *
  * RTS call-outs, for Unix.
  */
@@ -15,7 +15,7 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <math.h>
-#include <fcntl.h>
+#include <sys/fcntlcom.h>
 #include <signal.h>
 
 #include "larceny.h"
@@ -276,7 +276,7 @@ void UNIX_block_signals( word code )
 void UNIX_system( word w_cmd )
 {
   char *cmd = getstring( w_cmd );
-  globals[ G_RESULT ] = fixnum(system( cmd ));
+  globals[ G_RESULT ] = system( cmd );
 }
 
 /* eof */

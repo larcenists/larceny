@@ -1,7 +1,7 @@
 ! Rts/Sparc/mcode.s.
 ! Larceny run-time system (SPARC) -- miscellaneous primitives.
 !
-! $Id: mcode.s,v 1.4 1997/09/17 15:16:35 lth Exp $
+! $Id: mcode.s,v 1.4 1997/09/17 15:16:35 lth Exp lth $
 
 #include "asmdefs.h"
 #include "asmmacro.h"

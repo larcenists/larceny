@@ -1,7 +1,7 @@
 ; Chez/compat.sch
 ; Compatibility library for the new Twobit under Chez Scheme
 ;
-; $Id: compat.sch,v 1.4 1997/09/17 15:06:46 lth Exp $
+; $Id: compat.sch,v 1.4 1997/09/17 15:06:46 lth Exp lth $
 
 (define host-system 'chez)
 
@@ -89,8 +89,7 @@
 ;
 ; A well-defined sorting procedure
 
-(define (compat:sort list less?)
-  (sort less? list))
+(define compat:sort sort)  ; (sort less? list)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

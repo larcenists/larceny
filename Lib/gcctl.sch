@@ -1,7 +1,7 @@
 ; Lib/gcctl.sch
 ; Larceny library -- garbage collector policy control
 ;
-; $Id: gcctl.sch,v 1.4 1997/09/17 15:13:23 lth Exp $
+; $Id: gcctl.sch,v 1.4 1997/09/17 15:13:23 lth Exp lth $
 ;
 ; This is a hack, until the collector gets rewritten in Scheme.
 

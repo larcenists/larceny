@@ -1,7 +1,7 @@
 ; Asm/Sparc/gen-prim.sch
 ; Larceny -- SPARC assembler code emitters for primops.
 ;
-; $Id: gen-prim.sch,v 1.4 1997/09/23 20:02:38 lth Exp lth $
+; $Id: gen-prim.sch,v 1.3 1997/08/22 20:54:57 lth Exp $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -982,15 +982,13 @@
   (let ((x (force-hwreg! as x $r.argreg2)))
     (sparc.sti as x (- offs $tag.pair-tag) $r.result)
     (if (write-barrier)
-	(let ((L0 (new-label))
-	      (inline-barrier (and (inline-assignment) (fast-write-barrier))))
-	  (if inline-barrier
+	(let ((L0 (new-label)))
+	  (if (inline-assignment)
 	      (begin (sparc.cmpr  as $r.result $r.e-top)
 		     (sparc.ble.a as L0)
 		     (sparc.slot  as)))
 	  (millicode-call/1arg as $m.addtrans x)
-	  (if inline-barrier
-	      (sparc.label as L0))))))
+	  (if (inline-assignment) (sparc.label as L0))))))
 
 (define (emit-set-boolean! as)
   (emit-set-boolean-reg! as $r.result))
@@ -1440,7 +1438,7 @@
       (sparc.addr as $r.result index $r.tmp0)
       (sparc.sti  as value (- 4 tag) $r.tmp0)
       (if (write-barrier)
-	  (if (and (inline-assignment) (fast-write-barrier))
+	  (if (inline-assignment)
 	      (let ((L0 (new-label)))
 		(sparc.cmpr  as $r.result $r.e-top)
 		(sparc.ble.a as L0)

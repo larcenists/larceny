@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp $
+# $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
@@ -21,7 +21,6 @@ BDW_DIST=bdw-gc-4.11.tar.gz
 
 COMPRESS=gzip
 Z=gz
-CC=gcc
 
 
 # End user configuration
@@ -68,7 +67,7 @@ ASMFILES=$(ASM)/Common/*.sch $(ASM)/Sparc-old/*.sch $(ASM)/Sparc/*.sch \
 LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
 LARCFILES=Larceny/*.sch
-COMPFILES=$(COMP)/*.sch $(COMP)/help-topics.txt
+COMPFILES=$(COMP)/*.sch
 TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
 TESTFILES=$(TEST)/*.sch $(TEST)/*.mal $(TEST)/README
@@ -89,8 +88,7 @@ ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
 
 # Files for 'distribution'
 DISTFILES=$(MISCFILES) $(BUGSFILES) $(RTSFILES0) $(ASMFILES) $(LIBFILES) \
-	$(AUXFILES) $(CHEZFILES) $(LARCFILES) $(COMPFILES) \
-	$(HDRFILES) $(BUILD)/table.s
+	$(AUXFILES) $(CHEZFILES) $(LARCFILES) $(COMPFILES)
 
 # Files for 'bigtar'
 MOREFILES=$(RTS)/larceny larceny.heap larceny.eheap \
@@ -177,7 +175,7 @@ rtsclean: clean
 	( cd $(RTS) ; $(MAKE) rtsclean )
 
 realclean: clean libclean
-	rm -f larceny Build hsplit bdwlarceny
+	rm -f larceny Build hsplit
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) realclean )
 
@@ -192,7 +190,7 @@ tar:
 		$(COMPRESS) $(TARFILE); fi
 
 dist:
-	-tar cf $(TARFILE) $(DISTFILES)
+	tar cf $(TARFILE) $(DISTFILES)
 	if [ ! -b $(TARFILE) -a ! -c $(TARFILE) ]; then \
 		$(COMPRESS) $(TARFILE); fi
 

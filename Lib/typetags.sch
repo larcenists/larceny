@@ -1,7 +1,7 @@
 ; Larceny library
 ; Type tags.
 ;
-; $Id: typetags.sch,v 1.2 1997/09/23 20:08:39 lth Exp lth $
+; $Id: typetags.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
 ;
 ; The type tags really should be gotten from the auto-generated stuff.
 
@@ -18,6 +18,5 @@
 (define sys$tag.ratnum-typetag 2)
 (define sys$tag.symbol-typetag 3)
 (define sys$tag.port-typetag 4)
-(define sys$tag.structure-typetag 5)
 
 ; eof

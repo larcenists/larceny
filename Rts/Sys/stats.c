@@ -1,7 +1,7 @@
 /* Rts/Sys/stats.c.
  * Larceny run-time system -- run-time statistics.
  *
- * $Id: stats.c,v 1.16 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: stats.c,v 1.15 1997/07/07 20:13:53 lth Exp $
  *
  * The stats module maintains run-time statistics.  Mainly, these are
  * statistics on memory use (bytes allocated and collected, amount of 
@@ -43,12 +43,13 @@
 
 #include <sys/time.h>
 
-#if defined( SUNOS ) || defined( SOLARIS )   /* Works in 4.x, 5.5, 5.6 */
+#ifdef SUNOS
 /* For rusage() et al. */
 #include <sys/resource.h>
 #endif
 
-#if defined( OLD_SOLARIS )                   /* Worked in 5.3 */
+#ifdef SOLARIS
+/* For rusage() et al, which are obsolete. */
 #include <sys/resource.h>
 #include <sys/rusage.h>
 #endif
@@ -483,12 +484,12 @@ fill_main_entries( word *vp, sys_stat_t *ms )
 
   getrusage( RUSAGE_SELF, &buf );
 
-#if defined( SUNOS ) || defined( SOLARIS )  /* 4.x, 5.5, 5.6 */
+#ifdef SUNOS
   systime = fixnum( buf.ru_stime.tv_sec * 1000 + buf.ru_stime.tv_usec / 1000);
   usertime = fixnum( buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000);
 #endif
 
-#if defined( OLD_SOLARIS )  /* 5.3 */
+#ifdef SOLARIS
   systime = fixnum( buf.ru_stime.tv_sec*1000 + buf.ru_stime.tv_nsec/1000000);
   usertime = fixnum( buf.ru_utime.tv_sec*1000 + buf.ru_utime.tv_nsec/1000000);
 #endif

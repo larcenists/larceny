@@ -54,12 +54,11 @@
 	"Compiler/pass4p3.fasl"
 	"Compiler/pass4patch.fasl"
 	"Compiler/compile313.fasl"
-	"Util/init-comp.fasl"
 	)
  (imports (asm-common assemble)
 	  (asm-common dump-fasl-segment-to-port)
-	  (asm-sparc  disassemble-codevector)
-	  (asm-sparc  print-instructions)
+	  (asm-sparc  disassemble)
+	  (asm-sparc  print-ilist)
 	  (asm-sparc  write-barrier)
 	  ))
 
@@ -107,9 +106,6 @@
 	  (auxiliary pretty-print-to-string)
 	  (auxiliary pretty-line-length)
 	  (compiler compile-file)
-	  (compiler assemble-file)
-	  (compiler disassemble-file)
-	  (compiler disassemble)
 	  (compiler integrate-usual-procedures)
 	  (compiler local-optimizations)
 	  (compiler benchmark-mode)
@@ -118,7 +114,6 @@
 	  (compiler include-procedure-names)
 	  (compiler include-variable-names)
 	  (compiler include-source-code)
-	  (compiler target-architecture)
 	  (asm-common assemble)
 	  (asm-sparc peephole-optimization)
 	  (asm-sparc catch-undefined-globals)
@@ -127,7 +122,6 @@
 	  (asm-sparc write-barrier)
 	  (asm-sparc inline-assignment)
 	  (asm-sparc unsafe-code)
-	  (asm-sparc fast-write-barrier)
 	  (make make:new-project)
 	  (make make:project?)
 	  (make make:rule)
