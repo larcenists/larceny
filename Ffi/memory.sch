@@ -14,10 +14,6 @@
 (define syscall:object->address 36)
 (define syscall:getaddr 37)
 
-; The syscall procedure.
-
-(define syscall (system-function 'syscall))
-
 ; Nonrelocatable object allocation.
 ;
 ; Currently the nonrelocatable objects are allocated in the static area,
