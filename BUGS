@@ -86,7 +86,7 @@ HIGH PRIORITY BUGS: 136.
      On the whole, the dark corners of the input syntax are indeed dark.
 
 042 v0.31 (971024 / lth)
-    Priority: should not be fixed.
+    Priority: low
     Category: LIB / correctness
 
     > (+ 'a)
@@ -135,7 +135,8 @@ HIGH PRIORITY BUGS: 136.
 
     Display-memstats:
 
-    * Does not distinguish the static area in its printout.
+    * Does not distinguish the static area in its printout (can easily use
+      system-information to do this).
 
     * Displays information about the non-predictive remembered set even
       though it is not in use.
@@ -205,6 +206,7 @@ HIGH PRIORITY BUGS: 136.
     as 'debugvsm'.
 
     Chez Scheme uses a parameter 'break-handler'; we should too.
+    (The break-handler is now in the debugger; we're part-way there...)
 
 074 v0.36 (981207 / dougo)
     Priority: medium.
@@ -389,6 +391,9 @@ HIGH PRIORITY BUGS: 136.
     expressions.  Chez Scheme gets good performance apparently w/o doing this,
     because code that uses 'plus' for '+' runs as fast as code that uses '+',
     at optimize-level 1.
+
+    (See file Lib/Common/arith.mal for sample implementation when fixing
+     this.)
 
 089 v0.40 (981219 / lth)
     Priority: medium.
@@ -722,17 +727,6 @@ HIGH PRIORITY BUGS: 136.
 
     It appears there's no way in larceny at present to distinguish -0.0
     from 0.0 without looking at the actual bits.
-
-134 v0.45 and all earlier (990915 / lth)
-    Priority: medium
-    Category: RTS measurements / correctness
-
-    The number of words copied and moved are overreported by factors of four, 
-    because the stats module does not convert bytes to words when computing
-    these fields.
-
-    Not yet fixed because benchmarking is ongoing and there's no desire
-    to rock the boat until we're out of that phase.
 
 136 v0.45
     Priority: high
