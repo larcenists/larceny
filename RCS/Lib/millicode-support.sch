@@ -4,7 +4,7 @@
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
 ;
-; $Id: millicode-support.sch,v 1.4 1992/03/31 12:31:10 lth Exp lth $
+; $Id: millicode-support.sch,v 1.5 1992/05/15 22:18:08 lth Exp remy $
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
@@ -77,6 +77,18 @@
 	   (contagion a b remainder)))
 	(else
 	 (error "remainder: arguments must be integers: " a b))))
+
+
+; When calling fixnum2ratnum-div by saying '(/ 2 4):
+;  the arguments are: 2 and 4
+;  they are known to be integers and to be exact  
+;
+;   -r'm
+(define (fixnum2ratnum-div a b)
+  (cond ((= b 0) (error "fixnum2ratnum-div: division by zero"))
+	((< b 0) (make-reduced-ratnum (- a) (- b)))
+	(else    (make-reduced-ratnum a b))))
+
 
 ; "install-millicode-support" makes a vector of *all* scheme procedures
 ; which are callable from millicode and puts this vector in the global

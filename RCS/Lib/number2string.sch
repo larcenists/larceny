@@ -1,13 +1,17 @@
 ; Copyright Lightship Software.
 ;
-; $Id: number2string.sch,v 1.3 92/02/23 16:56:11 lth Exp Locker: lth $
+; $Id: number2string.sch,v 1.4 1992/03/31 12:31:12 lth Exp remy $
 ;
 ;                                       16 April 1990
 ;
-; An IEEE-conforming implementation of number->string.
-; Assumes a fixnum/bignum/flonum implementation using
-; IEEE double precision flonums in a MacScheme-specific
-; format.  Uses a MacScheme-specific routine for bignums.
+;
+; NOT TRUE anymore:
+;  An IEEE-conforming implementation of number->string.
+;  Assumes a fixnum/bignum/flonum implementation using
+;  IEEE double precision flonums in a MacScheme-specific
+;  format.  Uses a MacScheme-specific routine for bignums.
+;
+
 
 (define number->string
   
@@ -30,6 +34,12 @@
              (integer->string x radix))
             ((bignum? x)
              (bignum->string x radix))
+	    ((ratnum? x)
+	     (ratnum->string x radix))
+	    ((rectnum? x)
+	     (error "number->string, rectnums not implemented yet"))
+	    ((compnum? x)
+	     (error "number->string, compnums not implemented yet"))
             ((= (float-exponent x) flonum:maxexponent)
              (cond ((not (= x x))
                     (string-copy "#<NOT A NUMBER>"))
