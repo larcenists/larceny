@@ -241,11 +241,8 @@
      
 (define (make-sparc-heap . rest)
   (make:pretend (not (null? rest)))
-  (let ((iup (integrate-usual-procedures)))
-    (dynamic-wind 
-     (lambda () (integrate-usual-procedures #t))
-     (lambda () (make:make sparc-heap-project "sparc.heap"))
-     (lambda () (integrate-usual-procedures iup)))))
+  (parameterize ((integrate-procedures 'larceny))
+    (make:make sparc-heap-project "sparc.heap")))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -304,11 +301,8 @@
   (let ((petit-heap-project
 	 (make-petit-heap-project make-dumpheap)))
     (make:pretend (not (null? rest)))
-       (let ((iup (integrate-usual-procedures)))
-	 (dynamic-wind 
-	  (lambda () (integrate-usual-procedures #t))
-	  (lambda () (make:make petit-heap-project "petit.heap"))
-	  (lambda () (integrate-usual-procedures iup))))))
+    (parameterize ((integrate-procedures 'larceny))
+      (make:make petit-heap-project "petit.heap"))))
 
 (define (make-petit-libclean)
   (let ((files (append petit-heap-files petit-eval-files)))
@@ -337,14 +331,18 @@
         (comp-util-files 
          (replace-extension file-type (nbuild:utility-files)))
         (other-util-files
-         (objects (nbuild-parameter 'util)
-                  file-type
-                  '("make-support" "init-comp" "compile-always"
-                    "std-heap" "twobit-heap" "r5rs-heap"))))
+         (append 
+          (objects (nbuild-parameter 'machine-source)
+                   file-type
+                   '("toplevel"))
+          (objects (nbuild-parameter 'util)
+                   file-type
+                   '("make-support" "init-comp"
+                     "std-heap" "twobit-heap" "r5rs-heap")))))
     (make:project "compiler.date"
       `(rules
         (".lop" ".sch" ,make-compile-and-assemble)
-        (".fasl" ".h" ,make-compile-file)  ; wdc
+        (".fasl" ".h" ,make-compile-file)
         (".fasl" ".sch" ,make-compile-file))
       `(targets
         ("compiler.date" ,(lambda args #t)))
