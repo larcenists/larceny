@@ -66,16 +66,67 @@
                     (cdr (assq 'set! standard-syntactic-environment)))
               (syntactic-copy standard-syntactic-environment))))
 
-; The global-syntactic-environment will always be a nonempty
-; association list since there is no way to remove the entry
+; Most macros are stored here.
+
+(define usual-syntactic-environment
+  (make-basic-syntactic-environment))
+
+; Support for Larceny.  Macros are packaged up as procedures chiefly
+; because they are circular structures.
+
+(define (make-minimal-syntactic-environment)
+  (list (cons lambda0
+              (cdr (assq 'lambda standard-syntactic-environment)))
+        (cons set!0
+              (cdr (assq 'set! standard-syntactic-environment)))))
+
+(define (syntactic-environment-names syntaxenv)
+  (let loop ((e syntaxenv) (n '()))
+    (if (null? e) 
+        n
+        (let ((name (caar e)))
+          (cond ((eq? name lambda0) (loop (cdr e) n))
+                ((eq? name set!0) (loop (cdr e) n))
+                (else (loop (cdr e) (cons name n))))))))
+
+(define *syntactic-env-key* (list 'syntaxenv-key))
+
+(define (syntactic-environment-get syntaxenv id)
+  (let ((x (syntactic-lookup syntaxenv id)))
+    (if (identifier-denotation? x)
+        #f
+        (lambda (key)
+          (if (eq? key *syntactic-env-key*)
+              x
+              (error "Wizards only..."))))))
+          
+(define (syntactic-environment-set! syntaxenv id macro)
+  (parameterize ((global-syntactic-environment syntaxenv))
+    (syntactic-bind-globally! id (macro *syntactic-env-key*))))
+
+(define (syntactic-environment-remove! syntaxenv id)
+  (parameterize ((global-syntactic-environment syntaxenv))
+    (syntactic-bind-globally! id (make-identifier-denotation id))))
+
+(define (usual-syntax id)
+  (or (syntactic-environment-get usual-syntactic-environment id)
+      (error "usual-syntax: unknown macro: " id)))
+
+; Whatever is stored in the global-syntactic-environment will always be
+; a nonempty association list since there is no way to remove the entry
 ; for lambda0.  That entry is used as a header by destructive
 ; operations.
 
-(define global-syntactic-environment
-  (make-basic-syntactic-environment))
+(define *global-syntactic-environment*
+  #f)
+
+(define (global-syntactic-environment . rest)
+  (if (not (null? rest))
+      (set! *global-syntactic-environment* (car rest)))
+  *global-syntactic-environment*)
 
 (define (global-syntactic-environment-set! env)
-  (set-cdr! global-syntactic-environment env)
+  (set-cdr! (global-syntactic-environment) env)
   #t)
 
 (define (syntactic-bind-globally! id denotation)
@@ -89,13 +140,13 @@
                         (else (cons (car bindings)
                                     (remove-bindings-for-id (cdr bindings))))))))
         (global-syntactic-environment-set!
-         (remove-bindings-for-id (cdr global-syntactic-environment))))
-      (let ((x (assq id global-syntactic-environment)))
+         (remove-bindings-for-id (cdr (global-syntactic-environment)))))
+      (let ((x (assq id (global-syntactic-environment))))
         (if x
             (begin (set-cdr! x denotation) #t)
             (global-syntactic-environment-set!
              (cons (cons id denotation)
-                   (cdr global-syntactic-environment)))))))
+                   (cdr (global-syntactic-environment))))))))
 
 (define (syntactic-divert env1 env2)
   (append env2 env1))
