@@ -135,6 +135,7 @@
     (,name:MAKE-CELL  1 make-cell        #f          #x7e ,:dead     ,:none)
     (,name:CELL-REF   1 cell-ref         #f          #x7f ,:cell     ,:none)
     (,name:CELL-SET!  2 cell-set!        #f          #xdf ,:dead     ,:cell)
+    (.cell-set!:nwb   2 cell-set!:nwb    #f            -1 ,:dead     ,:cell)
     (,name:CONS       2 cons             #f          #xa8 ,:dead     ,:none)
 
     (.unspecified     0 unspecified      #f            -1 ,:dead     ,:none)
@@ -158,10 +159,17 @@
     (.vector-length:vec 1 vector-length:vec #f          -1 ,:immortal ,:none)
     (.vector-ref:trusted 2 vector-ref:trusted ,sparc-imm? -1 ,:vector ,:none)
     (.vector-set!:trusted 3 vector-set!:trusted #f     -1 ,:dead     ,:vector)
+    (.vector-set!:trusted:nwb 3 vector-set!:trusted:nwb #f -1 ,:dead ,:vector)
+    (.string-length:str 1 string-length:str #f          -1 ,:immortal ,:none)
+    (.string-ref:trusted 2 string-ref:trusted #f       -1 ,:string   ,:none)
+    (.string-set!:trusted 3 string-set!:trusted #f     -1 ,:dead     ,:string)
+
     (.car:pair        1 car:pair         #f            -1 ,:car      ,:none)
     (.cdr:pair        1 cdr:pair         #f            -1 ,:cdr      ,:none)
 
+    (.+:idx:idx       2 +:idx:idx        ,sparc-imm?   -1 ,:immortal ,:none)
     (.+:fix:fix       2 +                #f            -1 ,:immortal ,:none)
+    (.-:idx:idx       2 -:idx:idx        ,sparc-imm?   -1 ,:immortal ,:none)
     (.-:fix:fix       2 -                #f            -1 ,:immortal ,:none)
 
     (.=:fix:fix       2 =:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
@@ -172,15 +180,7 @@
     
     ; Not yet implemented.
 
-    (.vector-set!:trusted:imm 3 vector-set!:trusted:imm #f -1 ,:dead ,:vector)
-
-    (.string-length:str 1 string-length:str #f          -1 ,:immortal ,:none)
-    (.string-ref:trusted 2 string-ref:trusted #f       -1 ,:string   ,:none)
-    (.string-set!:trusted 3 string-set!:trusted #f     -1 ,:dead     ,:string)
-
-    (.+:idx:idx       2 +:idx:idx        ,sparc-imm?   -1 ,:immortal ,:none)
     (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
-    (.-:idx:idx       2 -:idx:idx        ,sparc-imm?   -1 ,:immortal ,:none)
     (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
     (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
     (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
@@ -261,7 +261,7 @@
     (>=               2 >=               ,sparc-imm? #xb9 ,:immortal ,:none)
     (make-string      2 make-string      #f            -1 ,:dead     ,:none)
     (string-ref       2 string-ref       ,sparc-imm? #xd1 ,:string   ,:none)
-    (string-set!      3 string-set!      ,sparc-imm?   -1 ,:dead     ,:string)
+    (string-set!      3 string-set!      #f            -1 ,:dead     ,:string)
     (make-vector      2 make-vector      #f          #xd2 ,:dead     ,:none)
     (vector-ref       2 vector-ref       ,sparc-imm? #xd3 ,:vector   ,:none)
     (char<?           2 char<?           ,char?      #xe0 ,:immortal ,:none)

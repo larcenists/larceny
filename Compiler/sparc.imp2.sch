@@ -182,7 +182,8 @@
      (fl>                (flonum flonum)             .>:flo:flo)
      (fl>=               (flonum flonum)             .>=:flo:flo)
      
-     (vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:imm)
+     (cell-set!          (object nonpointer)         .cell-set!:nwb)
+     (vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
      )))
 
 (define rep-result
