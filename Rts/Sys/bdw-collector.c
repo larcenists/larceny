@@ -240,7 +240,7 @@ void bdw_before_gc( void )
 #endif
   bdw_state.gen_stats.collections += 1;
   bdw_state.slowpath_cancel = TRUE;
-  bdw_state.timer = stats_start_timer();
+  bdw_state.timer = stats_start_timer( TIMER_ELAPSED );
   bdw_state.gc_stats.allocated += bytes2words(GC_get_bytes_since_gc());
 }
 
