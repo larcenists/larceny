@@ -30,7 +30,8 @@
 ; The number of argument registers that are represented by hardware
 ; registers.
 
-(define *nhwregs* 32)
+;(define *nhwregs* 32)
+(define *nhwregs* 16)       ; Helps the NASM assembler generate smaller code
 
 ; Variable names that indicate register targets.
 
@@ -582,6 +583,8 @@
   (make-mnemonic 'reg/op2/check))
 (define $reg/op2imm/check                 ; reg/op2imm/check   prim,k1,x,k2,k3,k4,exn
   (make-mnemonic 'reg/op2imm/check))
+(define $global/invoke                    ; global/invoke      global,n
+  (make-mnemonic 'global/invoke))
 
 ; misc
 
