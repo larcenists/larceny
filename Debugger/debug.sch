@@ -8,7 +8,7 @@
 ; or when a keyboard interrupt is signalled.  After the user has left the
 ; debugger, debugging can be continued by evaluating (debug).
 ;
-; FIXME: When stopped in a breakpoint, or at an error, it really 
+; FIXME: When stopped in a breakpoint, or at an error, it really
 ;        should set the current frame to the proc where the breakpt
 ;        occurred, not past the system-continuation/enter-debugger
 ;        thing.
@@ -16,10 +16,14 @@
 ; FIXME: The E command must change: it should take an expression to be
 ;        evaluated in the environment of the current frame, and print
 ;        the results.
+;
+; FIXME: If the tasking package is active, it may be best to invoke the
+;        debugger in the same way that failed-assertion in the assert
+;        package does: with the timer interrupt handler in a predictable
+;        state
 
-
-'(begin (load "Debugger/inspect-cont.sch")
-        (load "Debugger/trace.sch"))
+;(begin (load "Debugger/inspect-cont.sch")
+;       (load "Debugger/trace.sch"))
 
 (define debug/reset #f)                 ; Dynamically bound: thunk that resets
 (define debug-level 0)                  ; Dynamically bound
@@ -37,6 +41,11 @@
         (begin (debug/displayln "Entering debugger; ? for help.")
                (debug-continuation-structure #f e)))))
 
+(define (dbg)
+  (error-continuation (current-continuation-structure))
+  (debug/displayln)
+  (debug/enter-debugger #t))
+
 (define error-continuation
   (make-parameter "error-continuation" #f))
 
@@ -45,7 +54,7 @@
 
   ; Install an error handler that invokes the debugger.
 
-  (error-handler 
+  (error-handler
    (lambda the-error
      (error-continuation (current-continuation-structure))
      (debug/displayln)
@@ -61,9 +70,9 @@
   (keyboard-interrupt-handler
    (lambda ()
      (let ((enabled? (disable-interrupts)))
-       (debug/displayln "Keyboard interrupt.") 
+       (debug/displayln "Keyboard interrupt.")
        (debug/enter-debugger #t)
-       (if enabled? 
+       (if enabled?
            (enable-interrupts (standard-timeslice))))))
 
   ; Initialize the trace and breakpoint package.
@@ -74,12 +83,12 @@
 
 (define (debug/enter-debugger continuable?)
   (debug/displayln "Entering debugger; type \"?\" for help.")
-  (debug-continuation-structure continuable? 
+  (debug-continuation-structure continuable?
                                 (current-continuation-structure)))
 
 (define (debug-continuation-structure continuable? c . rest)
   (let ((inspector (make-continuation-inspector c))
-	(display? (and (not (null? rest)) (car rest))))
+        (display? (and (not (null? rest)) (car rest))))
 
     (define (user-input)
       (debug/display "debug" (make-string debug-level #\>) " ")
@@ -90,23 +99,23 @@
 
     (define (loop display-frame?)
       (let ((current (inspector 'get)))
-	(if display-frame?
-	    (debug/summarize-frame 0 inspector))
-	(call-with-values
-	 user-input
-	 (lambda (count cmd)
-	   (cond ((eq? cmd 'done)  'done)
+        (if display-frame?
+            (debug/summarize-frame 0 inspector))
+        (call-with-values
+         user-input
+         (lambda (count cmd)
+           (cond ((eq? cmd 'done)  'done)
                  ((eq? cmd 'reset) 'reset)
-		 (cmd
-		  (cmd count inspector)
-		  (loop (not (current 'same? (inspector 'get)))))
-		 (else
-		  (debug/displayln "Bad command.  ? for help.")
-		  (loop #f)))))))
+                 (cmd
+                  (cmd count inspector)
+                  (loop (not (current 'same? (inspector 'get)))))
+                 (else
+                  (debug/displayln "Bad command.  ? for help.")
+                  (loop #f)))))))
 
     (define (command-loop display-frame?)
       (let* ((reset-token (list 'reset-token))
-             (result (debug/safely 
+             (result (debug/safely
                       (lambda () (loop display-frame?))
                       reset-token)))
         (if (eq? reset-token result)
@@ -151,7 +160,7 @@
    (lambda (k)
      (call-with-reset-handler
       (lambda ()
-	(k reset-token))
+        (k reset-token))
       (lambda ()
         (call-with-error-handler
          (lambda error
@@ -181,8 +190,8 @@
 (define (debug-command x)
   (let ((probe (assq x debug/command-list)))
     (if probe
-	(cdr probe)
-	#f)))
+        (cdr probe)
+        #f)))
 
 (define (debug/help count inspector)
   (debug/display *inspector-help*))
@@ -195,26 +204,26 @@
 
 (define (debug/down count inspector)
   (cond ((zero? count))
-	((not (inspector 'down))
-	 (debug/displayln "Already at the bottom."))
-	(else
-	 (debug/down (- count 1) inspector))))
+        ((not (inspector 'down))
+         (debug/displayln "Already at the bottom."))
+        (else
+         (debug/down (- count 1) inspector))))
 
 (define (debug/up count inspector)
   (cond ((zero? count))
-	((not (inspector 'up))
+        ((not (inspector 'up))
          (debug/displayln "Already at the top."))
-	(else
-	 (debug/up (- count 1) inspector))))
+        (else
+         (debug/up (- count 1) inspector))))
 
 (define (debug/summarize-frame count inspector . prefix)
   (let* ((frame (inspector 'get))
-	 (code  (frame 'code))
-	 (class (code 'class))
-	 (expr  (code 'expression))
-	 (proc  (code 'procedure)))
+         (code  (frame 'code))
+         (class (code 'class))
+         (expr  (code 'expression))
+         (proc  (code 'procedure)))
     (if (not (null? prefix))
-	(display (car prefix)))
+        (display (car prefix)))
     (case class
       ((system-procedure)
        (debug/display "system continuation"))
@@ -233,25 +242,25 @@
   (exit 1))
 
 (define (debug/backtrace count inspector)
-  
+
   (define (loop c)
     (let ((f (c 'get)))
       (if (f 'same? (inspector 'get))
-	  (debug/summarize-frame 0 c "=> ")
-	  (debug/summarize-frame 0 c "   ")))
+          (debug/summarize-frame 0 c "=> ")
+          (debug/summarize-frame 0 c "   ")))
     (if (c 'down)
-	(loop c)))
+        (loop c)))
 
   (loop (inspector 'clone)))
 
 (define (debug/examine-frame count inspector)
   (let* ((f (inspector 'get))
-	 (code (f 'code))
-	 (expr (code 'expression)))
+         (code (f 'code))
+         (expr (code 'expression)))
     (if expr
-	(pretty-print expr))
+        (pretty-print expr))
     (do ((i 0 (+ i 1)))
-	((= i (f 'slots)))
+        ((= i (f 'slots)))
       (debug/display "#" i ": ")
       (debug/print-object (f 'ref-slot i))
       (debug/displayln))))
@@ -259,42 +268,42 @@
 (define (debug/code count inspector)
   (let ((expr (((inspector 'get) 'code) 'source-code)))
     (if expr
-	(debug/print-code expr)
-	(debug/displayln "No code."))))
+        (debug/print-code expr)
+        (debug/displayln "No code."))))
 
 (define (debug/inspect count inspector)
 
   (define (inspect-procedure proc)
     (cond ((eq? proc 0)
-	   (debug/displayln "Can't inspect a system procedure."))
-	  ((interpreted-expression? proc)
-	   (debug/print-code (procedure-expression proc)))
-	  (else
-	   (do ((i 0 (+ i 1)))
-	       ((= i (procedure-length proc)))
-	     (debug/print-object (procedure-ref proc i))
-	     (debug/displayln)))))
+           (debug/displayln "Can't inspect a system procedure."))
+          ((interpreted-expression? proc)
+           (debug/print-code (procedure-expression proc)))
+          (else
+           (do ((i 0 (+ i 1)))
+               ((= i (procedure-length proc)))
+             (debug/print-object (procedure-ref proc i))
+             (debug/displayln)))))
 
   (let ((n (debug/get-token)))
     (cond ((eq? n '@)
-	   (inspect-procedure (((inspector 'get) 'code) 'procedure)))
-	  (else
-	   (let ((obj ((inspector 'get) 'ref-slot n)))
-	     (if (not (procedure? obj))
-		 (debug/displayln "Slot " n " does not contain a procedure.")
-		 (inspect-procedure obj)))))))
+           (inspect-procedure (((inspector 'get) 'code) 'procedure)))
+          (else
+           (let ((obj ((inspector 'get) 'ref-slot n)))
+             (if (not (procedure? obj))
+                 (debug/displayln "Slot " n " does not contain a procedure.")
+                 (inspect-procedure obj)))))))
 
 ; This parameter is set to #f whenever the debugger recursively calls
 ; EVAL and can be used by other code (see e.g. trace.sch) to determine
 ; whether breakpoints should be honored or not.
 
-(define debug/breakpoints-enable 
+(define debug/breakpoints-enable
   (make-parameter "debug/breakpoints-enable" #t))
 
 (define (debug/call-with-breakpoints-disabled thunk)
   (parameterize ((debug/breakpoints-enable #f))
     (thunk)))
-  
+
 (define (debug/evaluate count inspector)
 
   (define (valid-frame-slot? frame n)
@@ -302,37 +311,37 @@
 
   (define (evaluate args expr frame)
     (let* ((token (list 'token))
-	   (proc  (debug/safely
-		   (lambda ()
+           (proc  (debug/safely
+                   (lambda ()
                      (parameterize ((debug/breakpoints-enable #f))
                        (eval expr (interaction-environment))))
-		   token)))
+                   token)))
       (cond ((eq? proc token)
-	     (debug/displayln "Expression caused a reset."))
-	    ((not (procedure? proc))
-	     (debug/displayln expr " does not evaluate to a procedure: " proc))
-	    ((not (every? (lambda (n)
-			    (valid-frame-slot? frame n))
-			  args))
-	     (debug/displayln "Some frame slots are not valid in " args))
-	    (else
-	     (let* ((actuals (map (lambda (n)
-				    (frame 'ref-slot n))
-				  args))
-		    (res (debug/safely
-			  (lambda () (apply proc actuals))
-			  token)))
-	       (cond ((eq? res token)
-		      (debug/displayln "Procedure call caused a reset."))
-		     ((eq? res (unspecified))
-		      ; FIXME: really a conditional newline.
-		      (debug/displayln))
-		     (else
-		      (debug/print-object res)
-		      (debug/displayln))))))))
+             (debug/displayln "Expression caused a reset."))
+            ((not (procedure? proc))
+             (debug/displayln expr " does not evaluate to a procedure: " proc))
+            ((not (every? (lambda (n)
+                            (valid-frame-slot? frame n))
+                          args))
+             (debug/displayln "Some frame slots are not valid in " args))
+            (else
+             (let* ((actuals (map (lambda (n)
+                                    (frame 'ref-slot n))
+                                  args))
+                    (res (debug/safely
+                          (lambda () (apply proc actuals))
+                          token)))
+               (cond ((eq? res token)
+                      (debug/displayln "Procedure call caused a reset."))
+                     ((eq? res (unspecified))
+                      ; FIXME: really a conditional newline.
+                      (debug/displayln))
+                     (else
+                      (debug/print-object res)
+                      (debug/displayln))))))))
 
   (let* ((n    (debug/get-token))
-	 (expr (debug/get-token)))
+         (expr (debug/get-token)))
     (evaluate (if (pair? n) n (list n)) expr (inspector 'get))))
 
 (define debug/command-list
@@ -356,14 +365,14 @@
   B           Print backtrace of continuation.
   C           Print source code (if available).
   D           Down to previous activation record.
-  E n expr    Expr is evaluated in the current interaction environment 
+  E n expr    Expr is evaluated in the current interaction environment
               and must evaluate to a procedure.   It is passed the contents
-              of slot n from the current activation record, and the result, 
+              of slot n from the current activation record, and the result,
               if not unspecified, is printed.
   E (n1 ... nk) expr
               Expr is evaluated in the current interaction environment and
               must evaluate to a procedure.   It is passed the contents of
-              slots n1 through nk from the current activation record, and 
+              slots n1 through nk from the current activation record, and
               the result, if not unspecified, is printed.
   I n         Inspect the procedure in slot n of the current activation record.
   I @         Inspect the active procedure.
@@ -374,16 +383,16 @@
   U           Up to the next activation record.
   X           Examine the contents of the current activation record.
 
-The B, D, and U commands can be prefixed with a count, for example, 
-`5 U' moves up five activation records, and `10 B' displays the next 
-10 activation records.  The default for B is to display all the 
+The B, D, and U commands can be prefixed with a count, for example,
+`5 U' moves up five activation records, and `10 B' displays the next
+10 activation records.  The default for B is to display all the
 activations; the default count for D and U is 1.
 
 ")
 
 (define (debug/display . xs)
-  (for-each (lambda (x) 
-              (display x (console-output-port))) 
+  (for-each (lambda (x)
+              (display x (console-output-port)))
             xs))
 
 (define (debug/displayln . xs)

@@ -1,12 +1,12 @@
 ; Copyright (c) 1991, Marc Feeley.            -*- indent-tabs-mode: nil -*-
-; 
+;
 ; Permission to copy this software, in whole or in part, to use this
 ; software for any lawful purpose, and to redistribute this software
 ; is hereby granted.
-; 
+;
 ; $Id$
 ;
-; Pretty printer.  
+; Pretty printer.
 ; [From the Scheme Repository, August 5, 1995.  Since modified.]
 ;
 ; (pretty-print obj [output-port])    => unspecified
@@ -14,7 +14,7 @@
 ;
 ; FIXME:
 ;  - does not honor print-length, print-level
-;  - does not support all the control characters supported by the reader 
+;  - does not support all the control characters supported by the reader
 ;    (return, linefeed, page, backspace).
 ;  - does not support structures.
 ;
@@ -107,7 +107,7 @@
                          (else      (out ")" (wr l (out " . " col)))))))
             (out "()" col)))
 
-      (cond ((pair? obj) 
+      (cond ((pair? obj)
              (wr-expr obj col))
             ((null? obj)
              (wr-lst obj col))
@@ -130,7 +130,7 @@
                         (out (symbol->string n)
                              (out "#<PROCEDURE " col)))
                    (out "#<PROCEDURE>" col))))
-            ((string? obj)      
+            ((string? obj)
              (if display?
                  (out obj col)
                  (let loop ((i 0) (j 0) (col (out "\"" col)))
@@ -146,7 +146,7 @@
                              (loop i (+ j 1) col)))
                        (out "\""
                             (out (substring obj i j) col))))))
-            ((char? obj) 
+            ((char? obj)
              (if display?
                  (out (make-string 1 obj) col)
                  (out (case obj
@@ -172,7 +172,9 @@
             ((eq? obj (undefined))
              (out "#!undefined" col))
             ((structure? obj)
-             (out "#<STRUCTURE>" col))
+             (let ((temp (open-output-string)))
+               ((structure-printer) obj temp #t)
+               (out (get-output-string temp) col)))
             ((bytevector? obj)
              (out "#<BYTEVECTOR>" col))
             (else
@@ -206,9 +208,9 @@
                   (out (reverse-string-append result) col)
                   (if (pair? obj)
                       (pp-pair obj col extra)
-                      (pp-list (vector->list obj) 
-                               (out "#" col) 
-                               extra 
+                      (pp-list (vector->list obj)
+                               (out "#" col)
+                               extra
                                pp-expr))))
             (wr obj col)))
 
@@ -251,7 +253,7 @@
                       (let ((rest (cdr l)))
                         (let ((extra (if (null? rest) (+ extra 1) 0)))
                           (loop rest
-                                (pr (car l) 
+                                (pr (car l)
                                     (indent col2 col)
                                     extra
                                     pp-item)))))
@@ -360,7 +362,7 @@
                         #t))
       (unspecified)))
 
-  (define line-length 
+  (define line-length
     (let ((length 79))
       (lambda args
         (cond ((null? args)
@@ -372,7 +374,7 @@
                (set! length (car args)))
               (else
                (error "pretty-line-length: invalid: " args))))))
-  
+
   (set! pretty-print pretty)
   (set! pretty-line-length line-length)
   'pretty-print)

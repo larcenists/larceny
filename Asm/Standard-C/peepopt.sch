@@ -10,7 +10,7 @@
 ; instruction is assembled.  It may replace the prefix of the instruction
 ; stream by some other instruction sequence.
 ;
-; Invariant: if the peephole optimizer doesn't change anything, then 
+; Invariant: if the peephole optimizer doesn't change anything, then
 ;
 ;  (let ((x (as-source as)))
 ;    (peep as)
@@ -18,6 +18,9 @@
 ;
 ; Note this still isn't right -- it should be integrated with pass5p2 --
 ; but it's a step in the right direction.
+
+; TO DO
+;  * Consider backporting GLOBAL/INVOKE from the x86-nasm version.
 
 (define *peephole-table* (make-vector *number-of-mnemonics* #f))
 
@@ -110,43 +113,43 @@
 
 (define (op1-branchf as i:op1 i:branchf tail)
   (let* ((op (operand1 i:op1))
-	 (L  (operand1 i:branchf))
-	 (op (case op
-	       ((null?)       'internal:branchf-null?)
-	       ((pair?)       'internal:branchf-pair?)
-	       ((zero?)       'internal:branchf-zero?)
-	       ((eof-object?) 'internal:branchf-eof-object?)
-	       ((fixnum?)     'internal:branchf-fixnum?)
-	       ((char?)       'internal:branchf-char?)
-	       ((fxzero?)     'internal:branchf-fxzero?)
-	       ((fxnegative?) 'internal:branchf-fxnegative?)
-	       ((fxpositive?) 'internal:branchf-fxpositive?)
-	       (else #f))))
+         (L  (operand1 i:branchf))
+         (op (case op
+               ((null?)       'internal:branchf-null?)
+               ((pair?)       'internal:branchf-pair?)
+               ((zero?)       'internal:branchf-zero?)
+               ((eof-object?) 'internal:branchf-eof-object?)
+               ((fixnum?)     'internal:branchf-fixnum?)
+               ((char?)       'internal:branchf-char?)
+               ((fxzero?)     'internal:branchf-fxzero?)
+               ((fxnegative?) 'internal:branchf-fxnegative?)
+               ((fxpositive?) 'internal:branchf-fxpositive?)
+               (else #f))))
     (if op
         (as-source! as (cons (list $op1/branchf op L) tail)))))
 
 (define (op2-branchf as i:op2 i:branchf tail)
   (let* ((op  (operand1 i:op2))
-	 (rs2 (operand2 i:op2))
-	 (L   (operand1 i:branchf))
-	 (op  (case op
-		((<)       'internal:branchf-<)
-		((>)       'internal:branchf->)
-		((>=)      'internal:branchf->=)
-		((<=)      'internal:branchf-<=)
-		((=)       'internal:branchf-=)
-		((eq?)     'internal:branchf-eq?)
-		((char=?)  'internal:branchf-char=?)
-		((char>=?) 'internal:branchf-char>=?)
-		((char>?)  'internal:branchf-char>?)
-		((char<=?) 'internal:branchf-char<=?)
-		((char<?)  'internal:branchf-char<?)
-		((fx=)     'internal:branchf-fx=)
-		((fx>)     'internal:branchf-fx>)
-		((fx>=)    'internal:branchf-fx>=)
-		((fx<)     'internal:branchf-fx<)
-		((fx<=)    'internal:branchf-fx<=)
-		(else #f))))
+         (rs2 (operand2 i:op2))
+         (L   (operand1 i:branchf))
+         (op  (case op
+                ((<)       'internal:branchf-<)
+                ((>)       'internal:branchf->)
+                ((>=)      'internal:branchf->=)
+                ((<=)      'internal:branchf-<=)
+                ((=)       'internal:branchf-=)
+                ((eq?)     'internal:branchf-eq?)
+                ((char=?)  'internal:branchf-char=?)
+                ((char>=?) 'internal:branchf-char>=?)
+                ((char>?)  'internal:branchf-char>?)
+                ((char<=?) 'internal:branchf-char<=?)
+                ((char<?)  'internal:branchf-char<?)
+                ((fx=)     'internal:branchf-fx=)
+                ((fx>)     'internal:branchf-fx>)
+                ((fx>=)    'internal:branchf-fx>=)
+                ((fx<)     'internal:branchf-fx<)
+                ((fx<=)    'internal:branchf-fx<=)
+                (else #f))))
     (if op
         (as-source! as
                     (cons (list $op2/branchf op rs2 L)
@@ -154,26 +157,26 @@
 
 (define (op2imm-branchf as i:op2imm i:branchf tail)
   (let* ((op  (operand1 i:op2imm))
-	 (imm (operand2 i:op2imm))
-	 (L   (operand1 i:branchf))
-	 (op  (case op
-		((<)       'internal:branchf-</imm)
-		((>)       'internal:branchf->/imm)
-		((>=)      'internal:branchf->=/imm)
-		((<=)      'internal:branchf-<=/imm)
-		((=)       'internal:branchf-=/imm)
-		((eq?)     'internal:branchf-eq?/imm)
-		((char=?)  'internal:branchf-char=?/imm)
-		((char>=?) 'internal:branchf-char>=?/imm)
-		((char>?)  'internal:branchf-char>?/imm)
-		((char<=?) 'internal:branchf-char<=?/imm)
-		((char<?)  'internal:branchf-char<?/imm)
-		((fx=)     'internal:branchf-fx=/imm)
-		((fx>)     'internal:branchf-fx>/imm)
-		((fx>=)    'internal:branchf-fx>=/imm)
-		((fx<)     'internal:branchf-fx</imm)
-		((fx<=)    'internal:branchf-fx<=/imm)
-		(else #f))))
+         (imm (operand2 i:op2imm))
+         (L   (operand1 i:branchf))
+         (op  (case op
+                ((<)       'internal:branchf-</imm)
+                ((>)       'internal:branchf->/imm)
+                ((>=)      'internal:branchf->=/imm)
+                ((<=)      'internal:branchf-<=/imm)
+                ((=)       'internal:branchf-=/imm)
+                ((eq?)     'internal:branchf-eq?/imm)
+                ((char=?)  'internal:branchf-char=?/imm)
+                ((char>=?) 'internal:branchf-char>=?/imm)
+                ((char>?)  'internal:branchf-char>?/imm)
+                ((char<=?) 'internal:branchf-char<=?/imm)
+                ((char<?)  'internal:branchf-char<?/imm)
+                ((fx=)     'internal:branchf-fx=/imm)
+                ((fx>)     'internal:branchf-fx>/imm)
+                ((fx>=)    'internal:branchf-fx>=/imm)
+                ((fx<)     'internal:branchf-fx</imm)
+                ((fx<=)    'internal:branchf-fx<=/imm)
+                (else #f))))
     (if op
         (as-source! as
                     (cons (list $op2imm/branchf op imm L)
@@ -185,13 +188,13 @@
   (let ((rs (operand1 i:reg))
         (op (operand1 i:op1)))
     (peep-reg/op1/check as
-			op
-			rs
-			(operand4 i:check)
-			(list (operand1 i:check)
-			      (operand2 i:check)
-			      (operand3 i:check))
-			tail)))
+                        op
+                        rs
+                        (operand4 i:check)
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
 
 (define (op1-check as i:op1 i:check tail)
   (let ((op (operand1 i:op1)))
@@ -221,14 +224,14 @@
         (rs2 (operand2 i:op2))
         (op (operand1 i:op2)))
     (peep-reg/op2/check as
-			op
-			rs1
-			rs2
-			(operand4 i:check)
-			(list (operand1 i:check)
-			      (operand2 i:check)
-			      (operand3 i:check))
-			tail)))
+                        op
+                        rs1
+                        rs2
+                        (operand4 i:check)
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
 
 (define (op2-check as i:op2 i:check tail)
   (let ((rs2 (operand2 i:op2))
@@ -259,14 +262,14 @@
         (op (operand1 i:op2imm))
         (imm (operand2 i:op2imm)))
     (peep-reg/op2imm/check as
-			   op
-			   rs1
-			   imm
-			   (operand4 i:check)
-			   (list (operand1 i:check)
-				 (operand2 i:check)
-				 (operand3 i:check))
-			   tail)))
+                           op
+                           rs1
+                           imm
+                           (operand4 i:check)
+                           (list (operand1 i:check)
+                                 (operand2 i:check)
+                                 (operand3 i:check))
+                           tail)))
 
 (define (op2imm-check as i:op2imm i:check tail)
   (let ((op (operand1 i:op2imm))
@@ -353,7 +356,7 @@
 
 ; End of check optimization.
 
-; Reg-setreg is not restricted to hardware registers, as $movereg is 
+; Reg-setreg is not restricted to hardware registers, as $movereg is
 ; a standard instruction.
 
 (define (reg-setreg as i:reg i:setreg tail)

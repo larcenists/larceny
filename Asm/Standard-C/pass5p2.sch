@@ -7,11 +7,11 @@
 ; Code generation strategy:
 ;   Each MAL basic block is compiled to a separate C procedure, with
 ;   the name compiled_block_x_y where x is a procedure label (unique
-;   in a file) and y is the label at the block's entry point.  
+;   in a file) and y is the label at the block's entry point.
 ;
-;   There are implicit basic block breaks in some primitives, and code 
+;   There are implicit basic block breaks in some primitives, and code
 ;   for these primitives is emitted with an extra macro argument that is
-;   the name of that continuation point, e.g., 
+;   the name of that continuation point, e.g.,
 ;      twobit_op2imm_130( 3, compiled_temp_7_1234 )
 ;   Depending on a #define value during C compilation, the macro is
 ;   expanded either to ignore the extra entry point or to end the current
@@ -41,6 +41,19 @@
 (define (assembly-user-data)
   (make-user-data))
 
+(define (assembly-declarations user-data)
+  (append (if (not (runtime-safety-checking))
+              '("#define UNSAFE_CODE")
+              '())
+          (if (not (catch-undefined-globals))
+              '("#define UNSAFE_GLOBALS")
+              '())
+          (if (inline-allocation)
+              '("#define INLINE_ALLOCATION")
+              '())
+          (if (inline-assignment)
+              '("#define INLINE_ASSIGNMENT")
+              '())))
 
 ; User-data structure has two fields:
 ;  toplevel-counter     Different for each compiled segment
@@ -84,7 +97,7 @@
                             (write-char #\,)
                             (write (car operands)))))
              (newline)
-	     (flush-output-port))))
+             (flush-output-port))))
 
 (define (list-label instruction)
   (if listify?
@@ -117,8 +130,8 @@
 
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label start?)))
-    (emit-text as "static RTYPE ~a( CONT_PARAMS ) {~%  twobit_prologue(); " 
-	       name)
+    (emit-text as "static RTYPE ~a( CONT_PARAMS ) {~%  twobit_prologue(); "
+               name)
     (add-function as name #t entrypoint?)
     (set! code-indentation "  ")))
 
@@ -140,9 +153,9 @@
 
 (define (add-function as name definite? entrypoint?)
   (assembler-value! as 'functions (cons (list name definite? entrypoint?)
-					(lookup-functions as)))
+                                        (lookup-functions as)))
   name)
-    
+
 ; Pseudo-instructions.
 
 (define-instruction $.align
@@ -162,8 +175,8 @@
   (lambda (instruction as)
     (list-instruction ".entry" instruction)
     (begin-compiled-scheme-function as (operand1 instruction)
-				    (operand2 instruction)
-				    #t)))
+                                    (operand2 instruction)
+                                    #t)))
 
 (define-instruction $.label
   (lambda (instruction as)
@@ -186,7 +199,7 @@
   (lambda (instruction as)
     ; Use GDB.
     #t))
-    
+
 
 ; Instructions.
 
@@ -205,9 +218,9 @@
                           numeric
                           symbolic
                           (operand1 instruction))))
-	(emit-text as "twobit_op1_~a(); /* ~a */"
-		   (op1-primcode (operand1 instruction))
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op1_~a(); /* ~a */"
+                   (op1-primcode (operand1 instruction))
+                   (operand1 instruction)))))
 
 (define-instruction $op2
   (lambda (instruction as)
@@ -223,10 +236,10 @@
                           numeric
                           symbolic
                           (operand1 instruction))))
-	(emit-text as "twobit_op2_~a( ~a ); /* ~a */"
-		   (op2-primcode (operand1 instruction))
-		   (operand2 instruction)
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op2_~a( ~a ); /* ~a */"
+                   (op2-primcode (operand1 instruction))
+                   (operand2 instruction)
+                   (operand1 instruction)))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
@@ -242,10 +255,10 @@
                           numeric
                           symbolic
                           (operand1 instruction))))
-	(emit-text as "twobit_op2imm_~a( ~a ); /* ~a */"
-		   (op2imm-primcode (operand1 instruction))
-		   (constant-value (operand2 instruction))
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op2imm_~a( ~a ); /* ~a */"
+                   (op2imm-primcode (operand1 instruction))
+                   (constant-value (operand2 instruction))
+                   (operand1 instruction)))))
 
 (define-instruction $op3
   (lambda (instruction as)
@@ -262,61 +275,61 @@
                           numeric
                           symbolic
                           (operand1 instruction))))
-	(emit-text as "twobit_op3_~a( ~a, ~a ); /* ~a */"
-		   (op3-primcode (operand1 instruction))
-		   (operand2 instruction)
-		   (operand3 instruction)
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op3_~a( ~a, ~a ); /* ~a */"
+                   (op3-primcode (operand1 instruction))
+                   (operand2 instruction)
+                   (operand3 instruction)
+                   (operand1 instruction)))))
 
 (define-instruction $const
   (lambda (instruction as)
     (list-instruction "const" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-text as "twobit_imm_const( ~a ); /* ~a */"
-		   (constant-value (operand1 instruction))
+        (emit-text as "twobit_imm_const( ~a ); /* ~a */"
+                   (constant-value (operand1 instruction))
                    (operand1 instruction))
-	(emit-text as "twobit_const( ~a );"
-		   (emit-datum as (operand1 instruction))))))
+        (emit-text as "twobit_const( ~a );"
+                   (emit-datum as (operand1 instruction))))))
 
 (define-instruction $global
   (lambda (instruction as)
     (list-instruction "global" instruction)
     (emit-text as "twobit_global( ~a ); /* ~a */"
-	       (emit-global as (operand1 instruction))
-	       (operand1 instruction))))
+               (emit-global as (operand1 instruction))
+               (operand1 instruction))))
 
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
     (emit-text as "twobit_setglbl( ~a ); /* ~a */"
-	       (emit-global as (operand1 instruction))
-	       (operand1 instruction))))
+               (emit-global as (operand1 instruction))
+               (operand1 instruction))))
 
 (define-instruction $lambda
   (lambda (instruction as)
     (let* ((const-offset #f)
-	   (code-offset  #f)
-	   (entry        (new-proc-id as)))
+           (code-offset  #f)
+           (entry        (new-proc-id as)))
       (list-lambda-start instruction)
       (assemble-nested-lambda
        as
        (cons (list $.entry entry #f)
-	     (operand1 instruction))
+             (operand1 instruction))
        (operand3 instruction)
        (lambda (nested-as segment)
-	 (assembler-value! as 'functions
-			   (append (lookup-functions as)
-				   (lookup-functions nested-as)))
-	 (set-constant! as code-offset (car segment))
-	 (set-constant! as const-offset (cdr segment)))
+         (assembler-value! as 'functions
+                           (append (lookup-functions as)
+                                   (lookup-functions nested-as)))
+         (set-constant! as code-offset (car segment))
+         (set-constant! as const-offset (cdr segment)))
        (as-user as))
       (list-lambda-end)
       (set! code-offset (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
       (emit-text as "twobit_lambda( ~a, ~a, ~a );"
-		 (compiled-procedure as entry #t)
-		 const-offset
-		 (operand2 instruction)))))
+                 (compiled-procedure as entry #t)
+                 const-offset
+                 (operand2 instruction)))))
 
 (define-instruction $lexes
   (lambda (instruction as)
@@ -327,13 +340,13 @@
   (lambda (instruction as)
     (list-instruction "args=" instruction)
     (if (not (unsafe-code))
-	(emit-text as "twobit_argseq( ~a );" (operand1 instruction)))))
+        (emit-text as "twobit_argseq( ~a );" (operand1 instruction)))))
 
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
     (if (not (unsafe-code))
-	(emit-text as "twobit_argsge( ~a );" (operand1 instruction)))))
+        (emit-text as "twobit_argsge( ~a );" (operand1 instruction)))))
 
 (define-instruction $invoke
   (lambda (instruction as)
@@ -343,17 +356,17 @@
 (define-instruction $restore
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))
-	(begin
-	  (list-instruction "restore" instruction)
-	  (emit-text as "twobit_restore( ~a );"
-		     (min (operand1 instruction) (- *nregs* 1)))))))
+        (begin
+          (list-instruction "restore" instruction)
+          (emit-text as "twobit_restore( ~a );"
+                     (min (operand1 instruction) (- *nregs* 1)))))))
 
 (define-instruction $pop
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))
-	(begin
-	  (list-instruction "pop" instruction)
-	  (emit-text as "twobit_pop( ~a );" (operand1 instruction))))))
+        (begin
+          (list-instruction "pop" instruction)
+          (emit-text as "twobit_pop( ~a );" (operand1 instruction))))))
 
 (define-instruction $popstk
   (lambda (instruction as)
@@ -373,27 +386,27 @@
   (lambda (instruction as)
     (list-instruction "load" instruction)
     (emit-text as "twobit_load( ~a, ~a );"
-	       (operand1 instruction) (operand2 instruction))))
+               (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $store
   (lambda (instruction as)
     (list-instruction "store" instruction)
     (emit-text as "twobit_store( ~a, ~a );"
-	       (operand1 instruction) (operand2 instruction))))
+               (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $lexical
   (lambda (instruction as)
     (list-instruction "lexical" instruction)
     (emit-text as "twobit_lexical( ~a, ~a );"
-	       (operand1 instruction)
-	       (operand2 instruction))))
+               (operand1 instruction)
+               (operand2 instruction))))
 
 (define-instruction $setlex
   (lambda (instruction as)
     (list-instruction "setlex" instruction)
     (emit-text as "twobit_setlex( ~a, ~a );"
-	       (operand1 instruction)
-	       (operand2 instruction))))
+               (operand1 instruction)
+               (operand2 instruction))))
 
 (define-instruction $reg
   (lambda (instruction as)
@@ -409,7 +422,7 @@
   (lambda (instruction as)
     (list-instruction "movereg" instruction)
     (emit-text as "twobit_movereg( ~a, ~a );"
-	       (operand1 instruction) (operand2 instruction))))
+               (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $return
   (lambda (instruction as)
@@ -426,21 +439,21 @@
     (if (not (negative? (operand1 instruction)))
         (begin
          (list-instruction "save" instruction)
-	 (emit-text as "twobit_save( ~a );" (operand1 instruction))))))
+         (emit-text as "twobit_save( ~a );" (operand1 instruction))))))
 
 (define-instruction $setrtn
   (lambda (instruction as)
     (list-instruction "setrtn" instruction)
     (emit-text as "twobit_setrtn( ~a, ~a );"
                   (operand1 instruction)
-	       (compiled-procedure as (operand1 instruction) #f))))
+               (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $apply
   (lambda (instruction as)
     (list-instruction "apply" instruction)
     (emit-text as "twobit_apply( ~a, ~a );"
-	       (operand1 instruction)
-	       (operand2 instruction))))
+               (operand1 instruction)
+               (operand2 instruction))))
 
 (define-instruction $jump
   (lambda (instruction as)
@@ -448,28 +461,28 @@
     (emit-text as "twobit_jump( ~a, ~a, ~a );"
                (operand1 instruction)
                (operand2 instruction)
-	       (compiled-procedure as (operand2 instruction) #f))))
+               (compiled-procedure as (operand2 instruction) #f))))
 
 (define-instruction $skip
   (lambda (instruction as)
     (list-instruction "skip" instruction)
     (emit-text as "twobit_skip( ~a, ~a );"
                (operand1 instruction)
-	       (compiled-procedure as (operand1 instruction) #f))))
+               (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $branch
   (lambda (instruction as)
     (list-instruction "branch" instruction)
     (emit-text as "twobit_branch( ~a, ~a );"
                (operand1 instruction)
-	       (compiled-procedure as (operand1 instruction) #f))))
+               (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $branchf
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
     (emit-text as "twobit_branchf( ~a, ~a );"
                (operand1 instruction)
-	       (compiled-procedure as (operand1 instruction) #f))))
+               (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $check
   (lambda (instruction as)
@@ -494,12 +507,12 @@
   (lambda (instruction as)
     (list-instruction "const/setreg" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-text as "twobit_imm_const_setreg( ~a, ~a ); /* ~a */"
-		   (constant-value (operand1 instruction))
-		   (operand2 instruction)
+        (emit-text as "twobit_imm_const_setreg( ~a, ~a ); /* ~a */"
+                   (constant-value (operand1 instruction))
+                   (operand2 instruction)
                    (operand1 instruction))
-	(emit-text as "twobit_const_setreg( ~a, ~a );"
-		   (emit-datum as (operand1 instruction))
+        (emit-text as "twobit_const_setreg( ~a, ~a );"
+                   (emit-datum as (operand1 instruction))
                    (operand2 instruction)))))
 
 (define-instruction $op1/branchf
@@ -514,14 +527,14 @@
                           (op1-primcode (operand1 instruction))
                           numeric
                           symbolic
-			  (operand2 instruction)
-			  (compiled-procedure as (operand2 instruction) #f)
+                          (operand2 instruction)
+                          (compiled-procedure as (operand2 instruction) #f)
                           (operand1 instruction))))
-	(emit-text as "twobit_op1_branchf_~a( ~a, ~a ); /* ~a */"
-		   (op1-primcode (operand1 instruction))
-		   (operand2 instruction)
-		   (compiled-procedure as (operand2 instruction) #f)
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op1_branchf_~a( ~a, ~a ); /* ~a */"
+                   (op1-primcode (operand1 instruction))
+                   (operand2 instruction)
+                   (compiled-procedure as (operand2 instruction) #f)
+                   (operand1 instruction)))))
 
 (define-instruction $op2/branchf
   (lambda (instruction as)
@@ -536,15 +549,15 @@
                           (operand2 instruction)
                           numeric
                           symbolic
-			  (operand3 instruction)
-			  (compiled-procedure as (operand3 instruction) #f)
+                          (operand3 instruction)
+                          (compiled-procedure as (operand3 instruction) #f)
                           (operand1 instruction))))
-	(emit-text as "twobit_op2_branchf_~a( ~a, ~a, ~a ); /* ~a */"
-		   (op2-primcode (operand1 instruction))
-		   (operand2 instruction)
-		   (operand3 instruction)
-		   (compiled-procedure as (operand3 instruction) #f)
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op2_branchf_~a( ~a, ~a, ~a ); /* ~a */"
+                   (op2-primcode (operand1 instruction))
+                   (operand2 instruction)
+                   (operand3 instruction)
+                   (compiled-procedure as (operand3 instruction) #f)
+                   (operand1 instruction)))))
 
 (define-instruction $op2imm/branchf
   (lambda (instruction as)
@@ -559,15 +572,15 @@
                           (constant-value (operand2 instruction))
                           numeric
                           symbolic
-			  (operand3 instruction)
-			  (compiled-procedure as (operand3 instruction) #f)
+                          (operand3 instruction)
+                          (compiled-procedure as (operand3 instruction) #f)
                           (operand1 instruction))))
-	(emit-text as "twobit_op2imm_branchf_~a( ~a, ~a, ~a ); /* ~a */"
-		   (op2-primcode (operand1 instruction))            ; Note, not op2imm-primcode
-		   (constant-value (operand2 instruction))
-		   (operand3 instruction)
-		   (compiled-procedure as (operand3 instruction) #f)
-		   (operand1 instruction)))))
+        (emit-text as "twobit_op2imm_branchf_~a( ~a, ~a, ~a ); /* ~a */"
+                   (op2-primcode (operand1 instruction))            ; Note, not op2imm-primcode
+                   (constant-value (operand2 instruction))
+                   (operand3 instruction)
+                   (compiled-procedure as (operand3 instruction) #f)
+                   (operand1 instruction)))))
 
 ;    Note, for the _check_ optimizations there is a hack in place.  Rather
 ;    than using register numbers in the instructions the assembler emits
@@ -581,71 +594,71 @@
   (lambda (instruction as)
     (list-instruction "reg/op1/check" instruction)
     (if (op1-implicit-continuation? (operand1 instruction))
-	(error "Assembler invariant violated: implicit continuation in REG/OP1/CHECK for " 
-	       (operand1 instruction)))
+        (error "Assembler invariant violated: implicit continuation in REG/OP1/CHECK for "
+               (operand1 instruction)))
     (let ((rn (if (eq? (operand2 instruction) 'RESULT)
-		  "RESULT"
-		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
+                  "RESULT"
+                  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op1_check_~a(~a,~a,~a); /* ~a with ~a */"
-		 (op1-primcode (operand1 instruction))
-		 rn
-		 (operand3 instruction)
-		 (compiled-procedure as (operand3 instruction) #f)
-		 (operand1 instruction)
-		 (operand4 instruction)))))
+                 (op1-primcode (operand1 instruction))
+                 rn
+                 (operand3 instruction)
+                 (compiled-procedure as (operand3 instruction) #f)
+                 (operand1 instruction)
+                 (operand4 instruction)))))
 
 (define-instruction $reg/op2/check
   (lambda (instruction as)
     (list-instruction "reg/op2/check" instruction)
     (if (op2-implicit-continuation? (operand1 instruction))
-	(error "Assembler invariant violated: implicit continuation in REG/OP2/CHECK for " 
-	       (operand1 instruction)))
+        (error "Assembler invariant violated: implicit continuation in REG/OP2/CHECK for "
+               (operand1 instruction)))
     (let ((rn (if (eq? (operand2 instruction) 'RESULT)
-		  "RESULT"
-		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
+                  "RESULT"
+                  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op2_check_~a(~a,reg(~a),~a,~a); /* ~a with ~a */"
-		 (op2-primcode (operand1 instruction))
-		 rn
-		 (operand3 instruction)
-		 (operand4 instruction)
-		 (compiled-procedure as (operand4 instruction) #f)
-		 (operand1 instruction)
-		 (operand5 instruction)))))
+                 (op2-primcode (operand1 instruction))
+                 rn
+                 (operand3 instruction)
+                 (operand4 instruction)
+                 (compiled-procedure as (operand4 instruction) #f)
+                 (operand1 instruction)
+                 (operand5 instruction)))))
 
 (define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
     (if (op2-implicit-continuation? (operand1 instruction))  ; Note, not op2imm-implicit-continuation?
-	(error "Assembler invariant violated: implicit continuation in REG/OP2IMM/CHECK for " 
-	       (operand1 instruction)))
+        (error "Assembler invariant violated: implicit continuation in REG/OP2IMM/CHECK for "
+               (operand1 instruction)))
     (let ((rn (if (eq? (operand2 instruction) 'RESULT)
-		  "RESULT"
-		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
+                  "RESULT"
+                  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op2imm_check_~a(~a,~a,~a,~a); /* ~a with ~a */"
-		 (op2-primcode (operand1 instruction)) ; Note, not op2imm-primcode
-		 rn
-		 (constant-value (operand3 instruction))
-		 (operand4 instruction)
-		 (compiled-procedure as (operand4 instruction) #f)
-		 (operand1 instruction)
-		 (operand5 instruction)))))
+                 (op2-primcode (operand1 instruction)) ; Note, not op2imm-primcode
+                 rn
+                 (constant-value (operand3 instruction))
+                 (operand4 instruction)
+                 (compiled-procedure as (operand4 instruction) #f)
+                 (operand1 instruction)
+                 (operand5 instruction)))))
 
 ; Helper procedures.
 
 (define (compiled-procedure as label start?)
   (if start?
-      (twobit-format #f "compiled_start_~a_~a" 
-		     (user-data.toplevel-counter (as-user as))
-		     label)
-      (twobit-format #f "compiled_block_~a_~a" 
-		     (user-data.toplevel-counter (as-user as))
-		     label)))
+      (twobit-format #f "compiled_start_~a_~a"
+                     (user-data.toplevel-counter (as-user as))
+                     label)
+      (twobit-format #f "compiled_block_~a_~a"
+                     (user-data.toplevel-counter (as-user as))
+                     label)))
 
 (define (implicit-procedure as)
   (let ((id (new-proc-id as)))
     (values
      id
-     (twobit-format #f "compiled_temp_~a_~a" 
+     (twobit-format #f "compiled_temp_~a_~a"
                     (user-data.toplevel-counter (as-user as))
                     id))))
 
@@ -661,24 +674,24 @@
 (define (constant-value x)
 
   (define (exact-int->fixnum x)
-    (* x 4))
+    (string-append "fixnum(" (number->string x) ")"))
 
   (define (char->immediate c)
-    (+ (* (char->integer c) 65536) $imm.character))
+    (string-append "int_to_char(" (number->string (char->integer c)) ")"))
 
   (cond ((fixnum? x)              (exact-int->fixnum x))
         ((eq? x #t)               "TRUE_CONST")
         ((eq? x #f)               "FALSE_CONST")
-	((equal? x (eof-object))  "EOF_CONST")
-	((equal? x (unspecified)) "UNSPECIFIED_CONST")
-	((equal? x (undefined))   "UNDEFINED_CONST")
+        ((equal? x (eof-object))  "EOF_CONST")
+        ((equal? x (unspecified)) "UNSPECIFIED_CONST")
+        ((equal? x (undefined))   "UNDEFINED_CONST")
         ((null? x)                "NIL_CONST")
         ((char? x)                (char->immediate x))
-	(else ???)))
+        (else ???)))
 
 (define (new-proc-id as)
   (let* ((u (as-user as))
-	 (x (user-data.proc-counter u)))
+         (x (user-data.proc-counter u)))
     (user-data.proc-counter! u (+ 1 x))
     x))
 
