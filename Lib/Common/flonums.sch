@@ -158,6 +158,22 @@
   ; Convert a bignum to an IEEE double precision number.
   ;
   ; FIXME: This is sickeningly inefficient.
+  ;
+  ; FIXME: This is buggy:
+  ;
+  ;  ********** FAILURE *********
+  ;  (exact->inexact 14285714285714285714285) did not pass test.
+  ;  Returned value = 1.4285714285714284e22
+  ;  Correct value  = 1.4285714285714286e22
+  ;
+  ; exact->inexact:rational works around that problem, and this 
+  ; procedure is called only from within that to provide an approximation.
+  ;
+  ; Ideally we should use Algorithm Bellerophon for this (simply by
+  ; using (bellerophon b 0)), but it calls exact->inexact on its first
+  ; argument in some cases and I have yet to be convinced that we
+  ; won't loop.  [I haven't looked very hard yet -- it's a minor issue
+  ; at present.]
 
   (define (%bignum->flonum b)
     (let ((sticky #f))   ; for rounding
@@ -174,7 +190,6 @@
       ; FIXME: We can make this faster by simply doing bit ops.
 
       (define (adjust m limit)
-;	(sys$trace 'bignum->flonum:adjust)
 	(if (< m limit)
 	    m
 	    (begin (set! sticky (or sticky (odd? m)))
@@ -248,7 +263,6 @@
 
       ; Bignums are not usually zero, but it happens in system code.
 
-;      (sys$trace 'bignum->flonum)
       (if (zero? b)
 	  flonum:zero
 	  (convert))))
@@ -263,7 +277,6 @@
   ; This must work properly in the case of a compnum with zero imag part!
 
   (define (%flonum->bignum f)
-;    (sys$trace 'flonum->bignum)
     (if (or (flonum-infinity? f)
 	    (flonum-nan? f))
 	(error "Can't convert " f " to an exact number."))
