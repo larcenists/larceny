@@ -1,4 +1,11 @@
 ;;; -*- mode: scheme; mode: font-lock -*-
+;;;
+;;; Copyright (c) 2002, Jens Axel Søgaard
+;;; 
+;;; Permission to copy this software, in whole or in part, to use this
+;;; software for any lawful purpose, and to redistribute this software
+;;; is hereby granted.
+;;;
 ;;; md5.scm  --  Jens Axel Søgaard, 16 oct 2002  
 
 ;;; History
@@ -22,7 +29,11 @@
 ;   - Removed some of the indirection, for a 30% speedup in Larceny's
 ;     interpreter.  Running in the interpreter on my Dell Inspiron 4000
 ;     I get a fingerprint of "Lib/Common/bignums-be.sch" in about 63ms,
-;     which is slow but adequate.
+;     which is slow but adequate.  (The compiled version is not much
+;     faster -- most time is spent in bignum manipulation, which is
+;     compiled in either case.  To do this well we must either operate
+;     on the bignum representation or redo the algorithm to use
+;     fixnums only.)
 
 ;;; Summary
 ; This is an implementation of the md5 message-digest algorithm
@@ -65,12 +76,14 @@
       (mod32 (+ w1 w2 w3 w4)))
 
     (define bitpos 
-      '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31))
+      '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 
+	26 27 28 29 30 31))
 
     (define powers 
       '#(1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536
-	   131072 262144 524288 1048576 2097152 4194304 8388608 16777216 33554432
-	   67108864 134217728 268435456 536870912 1073741824 2147483648 4294967296))
+	 131072 262144 524288 1048576 2097152 4194304 8388608 16777216 33554432
+	 67108864 134217728 268435456 536870912 1073741824 2147483648 
+	 4294967296))
 
     ;; word->bits : word -> (list (union 0 1))
     (define (word->bits w)
@@ -123,22 +136,27 @@
     ;; bytes->word : (list byte*) -> word
     (define (bytes->word bs)
       (define (bs->w akk mul bs)
-	(cond ((null? bs) akk)
-	      (else       (bs->w (+ akk (* (car bs) mul)) (* 256 mul) (cdr bs)))))
+	(if (null? bs) 
+	    akk
+	    (bs->w (+ akk (* (car bs) mul)) (* 256 mul) (cdr bs))))
       (bs->w 0 1 bs))
 
     ;; word->bytes : word -> "(list byte byte byte byte)"
     (define (word->bytes word)
       (define (extract w i)
 	(remainder (quotient w (expt 256 i)) 256))
-      (list (extract word 0) (extract word 1) (extract word 2) (extract word 3)))
+      (list (extract word 0)
+	    (extract word 1) 
+	    (extract word 2) 
+	    (extract word 3)))
 
     ;; bytes->words : (list byte) -> (list word)
     (define (bytes->words bytes)
       (define (loop bs l)
 	(cond ((null? l)          (list (bytes->word (reverse bs))))
 	      ((< (length bs) 4)  (loop (cons (car l) bs)  (cdr l)))
-	      (else               (cons (bytes->word (reverse bs))  (loop '() l)))))
+	      (else               (cons (bytes->word (reverse bs))
+					(loop '() l)))))
       (if (null? bytes)
 	  '()
 	  (loop '() bytes)))
@@ -189,8 +207,11 @@
     (define (step1 message)
       (let ((zero-bits-to-append (modulo (- 448 (* 8 (length message))) 512)))
 	(append message 
-		(cons #x80		; The byte containing the 1 bit => one less 0 byte to append 
-		      (vector->list (make-vector (quotient (- zero-bits-to-append 1) 8) 0))))))
+		(cons #x80 ; The byte containing the 1 bit => one less 
+		           ; 0 byte to append 
+		      (vector->list
+		       (make-vector
+			(quotient (- zero-bits-to-append 1) 8) 0))))))
 
     ;; Step 2  -  Append Length
     ;; A 64 bit representation of the bit length b of the message before
