@@ -19,7 +19,7 @@ Priority high: "Must be fixed ASAP"
 Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
-HIGH PRIORITY BUGS: 088, 109, 111.
+HIGH PRIORITY BUGS: 088, 109, 111, 121.
 
 
 005  (v0.27e)
@@ -708,6 +708,23 @@ HIGH PRIORITY BUGS: 088, 109, 111.
     LET-bound variable comes from an existing register variable.
     Pass 3 should fix this.
 
-NEXT ENTRY: 121
+121 v1.0a1 (990325 / lth)
+    Priority: high
+
+    [Assembler bug]
+    Consider:
+
+	((lambda () 10.0))
+
+    In 1.0a1 this returns '0', as will 
+
+	((lambda () 1/2))
+
+    The bug appears to be in the assembler.  The peephole optimizer
+    generates a const/return operation, but the assembler emits incorrect
+    code for the operation.
+
+
+NEXT ENTRY: 122
 
 ; eof
