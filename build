@@ -151,17 +151,17 @@ run_scheme() {
 }
 
 run_chez() {
-  scheme $TMPFILE $ARGS | tail +4
+  scheme $TMPFILE $ARGS
 }
 
 run_larceny_bin() {
   EXEC=${LARCENY}/larceny.bin
   HEAP=${LARCENY}/sparc.heap
-  $EXEC $HEAP -args $TMPFILE $ARGS | tail +2
+  $EXEC $HEAP -args $TMPFILE $ARGS
 }
 
 run_larceny() {
-  larceny $TMPFILE $ARGS | tail +2
+  larceny $TMPFILE $ARGS
 }
 
 # Main
