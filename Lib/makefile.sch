@@ -2,8 +2,6 @@
 ;
 ; $Id$
 ;
-; 12 April 1999
-;
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
 ; Procedures to call:
@@ -68,12 +66,12 @@
     (lambda (inp)
       (delete-file target)
       (call-with-output-file target
-	(lambda (outp)
-	  (let loop ((item (read-char inp)))
-	    (if (eof-object? item)
-		#t
-		(begin (write-char item outp)
-		       (loop (read-char inp))))))))))
+        (lambda (outp)
+          (let loop ((item (read-char inp)))
+            (if (eof-object? item)
+                #t
+                (begin (write-char item outp)
+                       (loop (read-char inp))))))))))
 
 (define (objects path ext files . rest)
   (let ((substitutions (if (null? rest) '() (car rest))))
@@ -98,8 +96,25 @@
 
 (define (replace-extension ext files)
   (map (lambda (file)
-	 (rewrite-file-type file '(".sch" ".h") ext))
+         (rewrite-file-type file '(".sch" ".h") ext))
        files))
+
+(define (machine-relative x)
+  (string-append (nbuild-parameter 'machine-source) x))
+
+(define (common-relative x)
+  (string-append (nbuild-parameter 'common-source) x))
+
+(define (auxlib-relative x)
+  (string-append (nbuild-parameter 'auxiliary) x))
+
+(define (common-endian x)
+  (string-append (nbuild-parameter 'common-source) 
+                 x
+                 (if (eq? (nbuild-parameter 'endianness) 'little) 
+                     "-el" 
+                     "-be")
+                 ".lop"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,22 +129,24 @@
 
     "malcode"           ; really basic things
     "typetags"          ; type tags
-    "unix"              ; OS primitives for Unix; $$trace procedure.
+    "syscall-id"        ; syscall ID numbers
+    osdep               ; OS dependent system interface (to be substituted!)
+    "system-interface"  ; OS independent system interface
     "error0"            ; Boot-time 'error' procedure.
     primops             ; primop procedures (to be substituted!)
 
     ; General library
 
-    "sysparam"		; system parameters
+    "sysparam"          ; system parameters
     "struct"            ; structures
-    "argv"              ; command line arguments
+    "command-line"      ; command line arguments
     "list"              ; list procedures
     "vector"            ; vector procedures
     "string"            ; string and bytevector procs
     "control"           ; control procedures
-    "preds"             ; some predicates
     "hash"              ; hash functions
     "hashtable"         ; hashtables
+    "preds"             ; some predicates
     "oblist"            ; symbol table
     "mcode"             ; millicode support
     "memstats"          ; runtime stats
@@ -147,7 +164,7 @@
     "fileio"            ; file ports
     "conio"             ; console ports, i.e., terminal
     "stringio"          ; string ports
-    "transio"		; transcript ports
+    "transio"           ; transcript ports
     "stdio"             ; user-level procedures
     "print"             ; write/display
     "ioboot"            ; one-time initialization
@@ -161,9 +178,11 @@
     ; because it depends on much of the rest of the system.
 
     "profile"           ; Profiling code
+    bignum-endian       ; Endian-dependent bignum support (to be substituted!)
     "bignums"           ; Bignum support
     "ratnums"           ; Ratnum support
     "rectnums"          ; Rectnum support
+    flonum-endian       ; Endian-dependent flonum support (to be substituted!)
     "flonums"           ; Flonum support
     "contag"            ; Contagion
     "num2str"           ; Number printer
@@ -187,7 +206,7 @@
 (define eval-files
   (append
    (nbuild-files 'repl-source '("reploop"))
-   (nbuild-files 'interp-source '("eval" "evalprim" "switches"))
+   (nbuild-files 'interp-source '("interp" "interp-prim" "switches"))
    (nbuild-files 'compiler 
                  '("pass1" "pass1.aux" "pass2.aux" "prefs" 
                    "syntaxenv" "syntaxrules" "lowlevel" "expand" "usual"))
@@ -200,27 +219,30 @@
 
 (define sparc-heap-project
   (let ((sparc-heap-files 
-	 (objects "Lib/Common/"
+         (objects "Lib/Common/"
                   ".lop"
                   common-heap-files
-		  '((primops . "Lib/Sparc/primops.lop")
-		    (toplevel . "Lib/Sparc/toplevel.lop")
+                  '((primops . "Lib/Sparc/primops.lop")
+                    (toplevel . "Lib/Sparc/toplevel.lop")
+                    (flonum-endian . "Lib/Common/flonums-be.lop")
+                    (bignum-endian . "Lib/Common/bignums-be.lop")
+                    (osdep . "Lib/Common/sys-unix.lop")
                     (extra . #f))))
-	(sparc-eval-files
-	 (objects "" ".lop" eval-files)))
+        (sparc-eval-files
+         (objects "" ".lop" eval-files)))
     (make:project "sparc.heap"
       `(rules
-	(".lop" ".mal" ,make-assemble)
-	(".lop" ".lap" ,make-assemble)
-	(".lap" ".sch" ,make-compile)
-	(".sch" ".sh"  ,make-copy))
+        (".lop" ".mal" ,make-assemble)
+        (".lop" ".lap" ,make-assemble)
+        (".lap" ".sch" ,make-compile)
+        (".sch" ".sh"  ,make-copy))
       `(targets 
-	("sparc.heap" ,make-dumpheap))
-      `(dependencies			; Order matters.  [Why??!]
-	("sparc.heap" ,sparc-heap-files)
-	("sparc.heap" ,sparc-eval-files)
-	("Lib/Common/ecodes.sch" ,(nbuild-files 'build '("except.sh")))
-	("Lib/Common/globals.sch" ,(nbuild-files 'build '("globals.sh")))))))
+        ("sparc.heap" ,make-dumpheap))
+      `(dependencies                    ; Order matters.  [Why??!]
+        ("sparc.heap" ,sparc-heap-files)
+        ("sparc.heap" ,sparc-eval-files)
+        ("Lib/Common/ecodes.sch" ,(nbuild-files 'build '("except.sh")))
+        ("Lib/Common/globals.sch" ,(nbuild-files 'build '("globals.sh")))))))
      
 (define (make-sparc-heap . rest)
   (make:pretend (not (null? rest)))
@@ -235,59 +257,76 @@
 ;
 ; Project for building the petit-larceny heap image.
 
+(define petit-heap-files '())
+(define petit-eval-files '())
+
+(define (petit-select-target target)
+  (define (select target)
+    (set! petit-heap-files
+	  (objects (nbuild-parameter 'common-source) 
+		   ".lop" 
+		   common-heap-files
+		   `((primops  . ,(machine-relative "primops.lop"))
+		     (toplevel . ,(machine-relative "toplevel.lop"))
+		     (flonum-endian . ,(common-endian "flonums"))
+		     (bignum-endian . ,(common-endian "bignums"))
+		     (osdep    . ,(common-relative target))
+		     (extra    . ,(machine-relative "loadable.lop")))))
+    (set! petit-eval-files
+	  (objects "" ".lop" eval-files))
+    (unspecified))
+
+  (case target
+    ((unix) (select "sys-unix.lop"))
+    ((macos) (select "sys-macos.lop"))
+    ((help) 
+     (display "Targets are unix, macos.")
+     (newline))
+    (else 
+     (error "Unsupported target "
+	    target 
+	    "; try one of unix, macos."))))
+ 
 (define (make-petit-heap-project heap-dumper)
+  (make:project "petit.heap"
+    `(rules 
+      (".lop" ".mal" ,make-assemble)
+      (".lop" ".lap" ,make-assemble)
+      (".lap" ".sch" ,make-compile)
+      (".sch" ".sh"  ,make-copy))
+    `(targets
+      ("petit.heap" ,heap-dumper))
+    `(dependencies                    ; Order matters [why??!]
+      ("petit.heap" ,petit-heap-files)
+      ("petit.heap" ,petit-eval-files)
+      (,(common-relative "ecodes.sch") ,(nbuild-files 'build '("except.sh")))
+      (,(common-relative "globals.sch")
+       ,(nbuild-files 'build '("globals.sh"))))))
 
-  (define (machine-relative x)
-    (string-append (nbuild-parameter 'machine-source) x))
-
-  (define (common x)
-    (string-append (nbuild-parameter 'common-source) x))
-
-  (let ((petit-heap-files
-	 (objects (nbuild-parameter 'common-source) 
-                  ".lop" 
-                  common-heap-files
-                  `((primops . ,(machine-relative "primops.lop"))
-                    (toplevel . ,(machine-relative "toplevel.lop"))
-                    (extra . ,(machine-relative "loadable.lop")))))
-	(petit-eval-files
-	 (objects "" ".lop" eval-files)))
-    (make:project "petit.heap"
-      `(rules 
-	(".lop" ".mal" ,make-assemble)
-	(".lop" ".lap" ,make-assemble)
-	(".lap" ".sch" ,make-compile)
-	(".sch" ".sh"  ,make-copy))
-      `(targets
-	("petit.heap" ,heap-dumper))
-      `(dependencies			; Order matters [why??!]
-	("petit.heap" ,petit-heap-files)
-	("petit.heap" ,petit-eval-files)
-	(,(common "ecodes.sch") ,(nbuild-files 'build '("except.sh")))
-	(,(common "globals.sch") ,(nbuild-files 'build '("globals.sh")))))))
-
-(define petit-heap-project
-  (make-petit-heap-project make-dumpheap))
-
-(define extended-petit-heap-project
-  (make-petit-heap-project make-dumpheap-extended))
-	
 (define (make-petit-heap . rest)
-  (make:pretend (not (null? rest)))
-  (let ((iup (integrate-usual-procedures)))
-    (dynamic-wind 
-     (lambda () (integrate-usual-procedures #t))
-     (lambda () (make:make petit-heap-project "petit.heap"))
-     (lambda () (integrate-usual-procedures iup)))))
+  (if (null? petit-heap-files)
+      (petit-select-target (nbuild-parameter 'target-os)))
+  (let ((petit-heap-project
+	 (make-petit-heap-project make-dumpheap)))
+    (make:pretend (not (null? rest)))
+       (let ((iup (integrate-usual-procedures)))
+	 (dynamic-wind 
+	  (lambda () (integrate-usual-procedures #t))
+	  (lambda () (make:make petit-heap-project "petit.heap"))
+	  (lambda () (integrate-usual-procedures iup))))))
 
-(define (make-extended-petit-heap files . rest)
-  (make:pretend (not (null? rest)))
-  (set! *extended-files* files)
-  (let ((iup (integrate-usual-procedures)))
-    (dynamic-wind 
-     (lambda () (integrate-usual-procedures #t))
-     (lambda () (make:make extended-petit-heap-project "petit.heap"))
-     (lambda () (integrate-usual-procedures iup)))))
+(define (make-petit-libclean)
+  (let ((files (append petit-heap-files petit-eval-files)))
+    (for-each (lambda (x)
+                (if (file-exists? x)
+                    (delete-file x)))
+              (append files
+                      (map (lambda (x) (rewrite-file-type x '(".lop") ".c"))
+                           files)
+                      (map (lambda (x) (rewrite-file-type x '(".lop") ".o"))
+                           files)
+                      (map (lambda (x) (rewrite-file-type x '(".lop") ".lap"))
+                           files)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -295,25 +334,25 @@
 
 (define (make-compiler-project file-type)
   (let ((compiler-files 
-	 (replace-extension file-type (nbuild:twobit-files)))
-	(comp-util-files 
+         (replace-extension file-type (nbuild:twobit-files)))
+        (comp-util-files 
          (replace-extension file-type (nbuild:utility-files)))
         (other-util-files
-	 (objects (nbuild-parameter 'util)
+         (objects (nbuild-parameter 'util)
                   file-type
                   '("make-support" "init-comp" "compile-always"
                     "std-heap" "twobit-heap" "r5rs-heap"))))
     (make:project "compiler.date"
       `(rules
-        (".lop" ".sch"  ,make-compile-and-assemble)
-	(".fasl" ".h"   ,make-compile-file)  ; wdc
-	(".fasl" ".sch" ,make-compile-file))
+        (".lop" ".sch" ,make-compile-and-assemble)
+        (".fasl" ".h" ,make-compile-file)  ; wdc
+        (".fasl" ".sch" ,make-compile-file))
       `(targets
-	("compiler.date" ,(lambda args #t)))
+        ("compiler.date" ,(lambda args #t)))
       `(dependencies
-	("compiler.date" ,compiler-files)
+        ("compiler.date" ,compiler-files)
         ("compiler.date" ,comp-util-files)
-	("compiler.date" ,other-util-files)))))
+        ("compiler.date" ,other-util-files)))))
 
 (define compiler-project/fasl (make-compiler-project ".fasl"))
 
@@ -327,7 +366,6 @@
   (make:pretend (not (null? rest)))
   (make:make compiler-project/lop "compiler.date"))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Project for building all the files in the new generic assembler and
@@ -335,20 +373,20 @@
 
 (define sparcasm-project
   (let ((common-asm-files
-	 (append
-	  (replace-extension ".fasl" (nbuild:common-asm-files))
-	  (nbuild-files 'common-asm '("link-lop.fasl"))))
-	(sparcasm-files
-	 (replace-extension ".fasl" (nbuild:machine-asm-files))))
+         (append
+          (replace-extension ".fasl" (nbuild:common-asm-files))
+          (nbuild-files 'common-asm '("link-lop.fasl"))))
+        (sparcasm-files
+         (replace-extension ".fasl" (nbuild:machine-asm-files))))
     (make:project "sparcasm.date"
       `(rules
-	(".fasl" ".h" ,make-compile-file)
-	(".fasl" ".sch" ,make-compile-file))
+        (".fasl" ".h" ,make-compile-file)
+        (".fasl" ".sch" ,make-compile-file))
       `(targets
-	("sparcasm.date" ,(lambda args #t)))
+        ("sparcasm.date" ,(lambda args #t)))
       `(dependencies
-	("sparcasm.date" ,common-asm-files)
-	("sparcasm.date" ,sparcasm-files)))))
+        ("sparcasm.date" ,common-asm-files)
+        ("sparcasm.date" ,sparcasm-files)))))
 
 (define (make-sparcasm . rest)
   (make:pretend (not (null? rest)))
@@ -368,17 +406,14 @@
       `(rules
         (".lop" ".h" ,make-compile-and-assemble)
         (".lop" ".sch" ,make-compile-and-assemble)
-	(".fasl" ".sch" ,make-compile-file))
+        (".fasl" ".sch" ,make-compile-file))
       `(targets
-	("petitasm.date" ,(lambda args #t)))
+        ("petitasm.date" ,(lambda args #t)))
       `(dependencies
-	("petitasm.date" ,common-asm-files)
-	("petitasm.date" ,petit-asm-files)))))
+        ("petitasm.date" ,common-asm-files)
+        ("petitasm.date" ,petit-asm-files)))))
 
 (define petit-asm-project/fasl (make-petit-asm-project ".fasl"))
-
-(define (standard-C-present?)
-  (file-exists? "Asm/Standard-C"))
 
 (define (make-petitasm . rest)
   (make:pretend (not (null? rest)))
@@ -403,7 +438,8 @@
     `(targets
       ("compat.date" ,(lambda args #t)))
     `(dependencies
-      ("compat.date" (,(string-append "Compat/Larceny/compat2"
+      ("compat.date" (,(string-append (nbuild-parameter 'compatibility)
+                                      "compat2"
                                       file-type))))))
 
 (define compat-project/fasl (make-compat-project ".fasl"))
@@ -422,20 +458,36 @@
 ;
 ; Project for building the Auxiliary libraries.
 
+(define auxlib-files
+  '("misc" "list" "vector" "string" "pp" "io" "format" "load" "osdep-unix"))
+
+(define experimental-files
+  '("applyhook" "applyhook0" "apropos" "system-stuff"))
+
+(define debugger-files
+  '("debug" "countcalls" "trace" "inspect-cont"))
+
 (define (make-auxlib-project file-type)
+
+  (define (auxfile fn)
+    (string-append (nbuild-parameter 'auxiliary) 
+                   fn 
+                   file-type))
+  (define (expfile fn)
+    (string-append (pathname-append (nbuild-parameter 'root) "Experimental")
+                   fn
+                   file-type))
+  (define (debfile fn)
+    (string-append (pathname-append (nbuild-parameter 'root) "Debugger")
+                   fn
+                   file-type))
+                     
   (let ((auxlib-files
-         (objects "Auxlib/"
-                  file-type
-                  '("misc" "list" "vector" "string" "pp" "io" "format" "load" 
-                    "osdep-unix")))
-	(experimental-files
-         (objects "Experimental/"
-                  file-type
-                  '("applyhook" "applyhook0" "apropos" "system-stuff")))
-	(debugger-files
-         (objects "Debugger/"
-                  file-type
-                  '("debug" "countcalls" "trace" "inspect-cont"))))
+         (map auxfile auxlib-files))
+        (experimental-files
+         (map expfile experimental-files))
+        (debugger-files
+         (map debfile debugger-files)))
     (make:project "Auxiliary library"
     `(rules
       (".lop" ".sch" ,make-compile-and-assemble)
@@ -467,16 +519,16 @@
 
 (define gc-testsuite-project 
   (let ((gc-testsuite-files
-	 '("dynamic" "gcbench0" "gcbench1" "grow" "lattice" "nbody"
-	   "nboyer" "nucleic2" "permsort" "sboyer" "dummy")))
+         '("dynamic" "gcbench0" "gcbench1" "grow" "lattice" "nbody"
+           "nboyer" "nucleic2" "permsort" "sboyer" "dummy")))
     (make:project "GC Testsuite"
       `(rules
-	(".fasl" ".sch" ,make-compile-file))
+        (".fasl" ".sch" ,make-compile-file))
       `(targets
-	("gc-testsuite.date" ,(lambda args #t)))
+        ("gc-testsuite.date" ,(lambda args #t)))
       `(dependencies
-	("gc-testsuite.date"
-	 ,(objects "Testsuite/GC/" ".fasl" gc-testsuite-files))))))
+        ("gc-testsuite.date"
+         ,(objects "Testsuite/GC/" ".fasl" gc-testsuite-files))))))
 
 (define (make-gc-testsuite . rest)
   (make:pretend (not (null? rest)))
@@ -489,17 +541,17 @@
 
 (define regression-test-project
   (let ((regression-test-files 
-	 '("test" "bool" "char" "ctak" "dynamic-wind" "fact" "fib" "fixnums" 
-	   "number" "pred" "regression")))
+         '("test" "bool" "char" "ctak" "dynamic-wind" "fact" "fib" "fixnums" 
+           "number" "pred" "regression")))
     (make:project "Regression tests"
       `(rules
-	(".fasl" ".sch" ,make-compile-file)
-	(".fasl" ".mal" ,make-assemble-file))
+        (".fasl" ".sch" ,make-compile-file)
+        (".fasl" ".mal" ,make-assemble-file))
       `(targets
-	("regression-test.date" ,(lambda args #t)))
+        ("regression-test.date" ,(lambda args #t)))
       `(dependencies
-	("regression-test.date"
-	 ,(objects "Testsuite/Lib/" ".fasl" regression-test-files))))))
+        ("regression-test.date"
+         ,(objects "Testsuite/Lib/" ".fasl" regression-test-files))))))
 
 (define (make-regression-test . rest)
   (make:pretend (not (null? rest)))
@@ -516,8 +568,6 @@
   (apply make-auxlib rest)
   (apply make-compiler rest)
   (apply make-sparcasm rest)
-  (if (standard-C-present?)
-      (apply make-petitasm rest))
   (apply make-compat rest)
   (compile-file "Lib/makefile.sch"))
 
@@ -528,16 +578,21 @@
   (apply make-petit-compiler rest)
   (apply make-petit-petitasm rest)
   (apply make-petit-compat rest)
-  (compile-and-assemble313 "Lib/makefile.sch"))
+  (compile-and-assemble313 (string-append (nbuild-parameter 'source)
+                                          "makefile.sch")))
 
-(define (make-petit-heap-with-compiler)
+(define (make-twobit-application)
 
   (define (fix files)
     (replace-extension ".lop" files))
 
   (make-petit-development-environment)
-  (make-extended-petit-heap
-   (append '("Compat/Larceny/compat2.lop" "Auxlib/list.lop" "Auxlib/pp.lop")
+  (build-application 
+   "twobit" 
+   (append (list 
+            (string-append (nbuild-parameter 'compatibility) "compat2.lop")
+            (string-append (nbuild-parameter 'auxiliary) "list.lop")
+            (string-append (nbuild-parameter 'auxiliary) "pp.lop"))
            (fix (nbuild:twobit-files))
            (fix (nbuild:common-asm-files))
            (fix (nbuild:machine-asm-files))
