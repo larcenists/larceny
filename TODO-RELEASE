@@ -90,6 +90,7 @@ For Version 1.0a2 [tentatively]
     - optimize fx+ and fx- when it's possible to undo.
   * In-line _typetag_ in unsafe mode.
   * Peephole optimization (from in-line expansion of fast path of READ-CHAR):
+    - make-cell: with source register and target register
     - vector-like? for control
     - bytevector-like? for control
     - Generally: more primitives for control:
@@ -123,6 +124,12 @@ For Version 1.0a2 [tentatively]
       are easy to fix.
 
 [Compiler]
+  * Macro for DO produces worse code than it needs to: if there
+    are no <expression>s following the <test> it returns the value
+    of the <test>, which means that the compiler will generate 
+    code to evaluate the boolean for its value, resulting in numerous
+    needless operations.
+
   * Need inline procedures and constant folding for fixnum operations.
 
   * Need inline procedures and constant folding for flonum operations.
