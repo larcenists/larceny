@@ -302,7 +302,7 @@ heap_overflow:
 
 EXTNAME(mem_garbage_collect):
 	set	EXTNAME(C_garbage_collect), %TMP0
-	b	internal_callout_to_C
+	b	callout_to_C
 	nop
 
 
