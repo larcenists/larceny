@@ -49,11 +49,15 @@
                               (cons c l))))))
           (offset->name
            (lambda (n) (string->symbol
-                   (string-append "field-" (number->string n)))))
-          (defaults '(#f () (current-inspector) #f ())))
+                   (string-append "field-" (number->string n))))))
       (lambda (name super init-field-k auto-field-k . rest)
         ;; no opt-lambda, sorry...
-        (let* ((opts (append rest
+        (let* ((defaults '(#f ;; auto-fill value
+                           () ;; property value list
+                           (sys$.inspector->superior (current-inspector))
+                           #f ;; structure procedure
+                           ())) ;; list of immutable field indices
+               (opts (append rest
                              (drop (length rest) defaults)))
                (opts (list->vector opts)))
           
