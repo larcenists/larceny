@@ -519,21 +519,6 @@ HIGH PRIORITY BUGS: 136, 137.
     I don't know whether the compiler or the assembler should be responsible
     for cleaning this up; either way, the name needs to be demangled.
 
-108 v1.0a1 (990208 / lth)
-    Priority: medium.
-    Category: RTS / correctness
-
-    Very large fixnums that result in address wrap-around make some 
-    allocation primitives crash the system:
-
-	> (make-vector (- (expt 2 29) 4))
-
-	Process scheme segmentation violation (core dumped)
-
-	> (make-bytevector (- (expt 2 29) 4))
-
-	Process scheme segmentation violation (core dumped)
-
 112 v0.34 (981016 / wdc)
     Priority: medium
     Category: TWOBIT / quality-of-implementation
@@ -831,6 +816,62 @@ HIGH PRIORITY BUGS: 136, 137.
     slowly.  See comments in that file.
 
 
-NEXT ENTRY: 141
+141 v0.47 (991121 / lth)
+    Priority: low
+    Category: ASSEMBLER / correctness
+
+    The error codes reported for make-vector and make-procedure are wrong:
+
+	> (make-vector -10)
+	Error: make-vector-like: -10 is not an exact nonnegative integer.
+
+	> (make-procedure -10)
+	Error: make-vector-like: -10 is not an exact nonnegative integer.
+
+    See Asm/Sparc/sparcprim-3b.sch: emit-make-vector-like!.
+
+
+142 v0.47 (991121 / lth)
+    Priority: low
+    Category: ASSEMBLER / correctness
+
+    There is no check that the value stored into a bytevector actually
+    fits in a byte:
+
+	> (let ((x (make-bytevector 1))) 
+	    (bytevector-set! x 0 377) 
+	    (bytevector-ref x 0))
+	121
+
+    (This may be a feature actually.)
+
+
+143 v0.47 (991121 / lth)
+    Priority: low
+    Category: RTS / error handling
+
+    Currently, the system will signal an error appropriately if the
+    argument to make-vector, make-bytevector, or make-procedure is negative
+    or if it is a bignum but not if it is a nonnegative fixnum larger
+    than the max object size -- in that case, the system will panic.
+
+    The current behavior is inconsistent and unreasonably brutal.  It 
+    would be nice if some reasonable error could be signalled like in
+    the other cases.
+
+
+144 v0.47 (991121 / lth)
+    Priority: low
+    Category: RTS / error handling
+
+    The number reported is obviously wrong but somewhat benign, given what
+    the system does next:
+
+	> (mkv (- (expt 2 29) 1))
+	Larceny Panic: Can't allocate an object of size -2147483648 bytes: \
+	\max is 16777215 bytes.
+
+
+NEXT ENTRY: 145
 
 ; eof
