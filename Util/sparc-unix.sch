@@ -11,7 +11,7 @@
   (load "Util/sysdep-unix.sch")
   (load "Util/nbuild-param.sch")
   (set! nbuild-parameter 
-	(make-nbuild-parameter 'always-source? #t
+	(make-nbuild-parameter 'always-source? #f
                                'verbose-load? #t
                                'development? #t
                                'machine-source "Lib/Sparc/"
