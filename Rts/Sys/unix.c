@@ -91,10 +91,10 @@ word w_fd, w_buf, w_cnt, w_offset;
 				     nativeint( w_cnt ) ) );
 }
 
-void UNIX_getresourceusage( void )
+void UNIX_getresourceusage( word w_buffer )
 {
   /* call on the procedure defined in Rts/Sys/stats.c */
-  globals[ G_RESULT ] = stats_fillvector();
+  globals[ G_RESULT ] = stats_fillvector( w_buffer );
 }
 
 void UNIX_dumpheap( w_fn, w_proc )

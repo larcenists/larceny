@@ -21,7 +21,7 @@ static struct {
 		      { (fptr)UNIX_closefile, 1, 1  },
 		      { (fptr)UNIX_readfile, 3, 1 },
 		      { (fptr)UNIX_writefile, 4, 1 },
-		      { (fptr)UNIX_getresourceusage, 0, 1 },
+		      { (fptr)UNIX_getresourceusage, 1, 1 },
 		      { (fptr)UNIX_dumpheap, 2, 1 },
 		      { (fptr)UNIX_exit, 1, 0 },
 		      { (fptr)UNIX_mtime, 2, 1 },
