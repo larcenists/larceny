@@ -288,7 +288,7 @@
   (il 'comment (string-append "// " (apply twobit-format #f format-string args))))
 
 (define (il:comment/info key arg)
-  (il 'comment (string-append "//* " key (format " ~s" arg))))
+  (il 'comment (string-append "//* " key (twobit-format #f " ~s" arg))))
 
 (define (il:comment/wrap key . wrapped-il)
   (list 
