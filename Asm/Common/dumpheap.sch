@@ -6,31 +6,31 @@
 ;
 ; Usage: (build-heap-image outputfile inputfile-list)
 ;
-; Each input file is a sequence of segments, the structure of which 
-; depends on the target architecture, but at least segment.code and 
+; Each input file is a sequence of segments, the structure of which
+; depends on the target architecture, but at least segment.code and
 ; segment.constants exist as accessors.
 ;
-; The code is a bytevector.  The constant vector contains tagged 
+; The code is a bytevector.  The constant vector contains tagged
 ; entries (represented using length-2 lists), where the tags are
 ; `data', `codevector', `constantvector', `global', or `bits'.
 ;
-; `build-heap-image' reads its file arguments into the heap, creates 
-; thunks from the segments, and creates a list of the thunks.  It also 
-; creates a list of all symbols present in the loaded files.  Finally, 
+; `build-heap-image' reads its file arguments into the heap, creates
+; thunks from the segments, and creates a list of the thunks.  It also
+; creates a list of all symbols present in the loaded files.  Finally,
 ; it generates an initialization procedure (the LAP of which is hardcoded
-; into this file; see below).  A pointer to this procedure is installed 
-; in the SCHEME_ENTRY root pointer; hence, this procedure (a thunk, as 
+; into this file; see below).  A pointer to this procedure is installed
+; in the SCHEME_ENTRY root pointer; hence, this procedure (a thunk, as
 ; it were) is called when the heap image is loaded.
 ;
-; The initialization procedure calls each procedure in the thunk list in 
+; The initialization procedure calls each procedure in the thunk list in
 ; order.  It then invokes the procedure `go', which takes one argument:
 ; the list of symbols.  Typically, `go' will initialize the symbol table
 ; and other system tables and then call `main', but this is by no means
 ; required.
 ;
-; The Scheme assembler must be co-resident, since it is used by 
+; The Scheme assembler must be co-resident, since it is used by
 ; `build-heap-image' procedure to assemble the final startup code.  This
-; could be avoided by pre-assembling the code and patching it here, but 
+; could be avoided by pre-assembling the code and patching it here, but
 ; the way it is now, this procedure is entirely portable -- no target
 ; dependencies.
 ;
@@ -44,12 +44,12 @@
 (define heap.version-number 9)          ; Heap version number
 
 (define heap.root-names                 ; Roots in heap version 9
-  '(result argreg2 argreg3 
+  '(result argreg2 argreg3
     reg0 reg1 reg2 reg3 reg3 reg5 reg6 reg7 reg8 reg9 reg10 reg11 reg12
     reg13 reg14 reg15 reg16 reg17 reg18 reg19 reg20 reg21 reg22 reg23
-    reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 
+    reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31
     cont startup callouts schcall-arg4 alloci-tmp))
-    
+
 (define (build-heap-image output-file input-files)
 
   (define tmp-file "HEAPDATA.dat")
@@ -93,7 +93,7 @@
 ;
 ;  version          a fixnum (constant) - heap type version number
 ;  roots            an assoc list that maps root names to values
-;  top              an exact nonnegative integer: the address of the 
+;  top              an exact nonnegative integer: the address of the
 ;                   next byte to be emitted
 ;  symbol-table     a symbol table abstract data type
 ;  extra            any value - a client-extension field
@@ -129,7 +129,7 @@
 
 ; Symbol table.
 ;
-; The symbol table maps names to symbol structures, and a symbol 
+; The symbol table maps names to symbol structures, and a symbol
 ; structure contains information about that symbol.
 ;
 ; The structure has four fields:
@@ -198,27 +198,27 @@
   (heap.top! h (+ 1 (heap.top h))))
 
 (define (write-word-be w out)
-  (write-char (integer->char (quotient w twofiftysix^3)) 
+  (write-char (integer->char (quotient w twofiftysix^3))
               out)
-  (write-char (integer->char (quotient (remainder w twofiftysix^3) 
+  (write-char (integer->char (quotient (remainder w twofiftysix^3)
                                        twofiftysix^2))
               out)
-  (write-char (integer->char (quotient (remainder w twofiftysix^2) 
+  (write-char (integer->char (quotient (remainder w twofiftysix^2)
                                        twofiftysix))
               out)
-  (write-char (integer->char (remainder w twofiftysix)) 
+  (write-char (integer->char (remainder w twofiftysix))
               out))
 
 (define (write-word-el w out)
-  (write-char (integer->char (remainder w twofiftysix)) 
+  (write-char (integer->char (remainder w twofiftysix))
               out)
-  (write-char (integer->char (quotient (remainder w twofiftysix^2) 
+  (write-char (integer->char (quotient (remainder w twofiftysix^2)
                                        twofiftysix))
               out)
-  (write-char (integer->char (quotient (remainder w twofiftysix^3) 
+  (write-char (integer->char (quotient (remainder w twofiftysix^3)
                                        twofiftysix^2))
               out)
-  (write-char (integer->char (quotient w twofiftysix^3)) 
+  (write-char (integer->char (quotient w twofiftysix^3))
               out))
 
 (define write-word write-word-be)
@@ -242,7 +242,7 @@
           '()
           (begin (heap.byte! h 0)
                  (loop (- i 1)))))))
-  
+
 (define heap.largest-fixnum (- (expt 2 29) 1))
 (define heap.smallest-fixnum (- (expt 2 29)))
 
@@ -262,16 +262,21 @@
 ; the order dumped.
 
 (define (dump-file! h filename)
-  (before-dump-file h filename)
   (call-with-binary-input-file filename
     (lambda (in)
-      (do ((segment (read in) (read in))
-           (thunks  '() (cons (dump-segment! h segment) thunks)))
-          ((eof-object? segment)
-           (after-dump-file h filename)
-           (reverse thunks))))))
+      (let loop ((decls '()))
+        (let ((item (read in)))
+          (if (string? item)
+              (loop (cons item decls))
+              (begin
+                (before-dump-file h filename (reverse decls))
+                (do ((segment item (read in))
+                     (thunks  '() (cons (dump-segment! h segment) thunks)))
+                    ((eof-object? segment)
+                     (after-dump-file h filename)
+                     (reverse thunks))))))))))
 
-(define (before-dump-file h filename) #t)
+(define (before-dump-file h filename decls) #t)
 (define (after-dump-file h filename) #t)
 
 ; Dump a segment and return the heap address of the resulting thunk.
@@ -372,8 +377,8 @@
   (dump-bytevector! h (bignum->bytevector b) $tag.bignum-typetag))
 
 (define (dump-ratnum! h r)
-  (dump-vector! h 
-                (vector (numerator r) (denominator r)) 
+  (dump-vector! h
+                (vector (numerator r) (denominator r))
                 $tag.ratnum-typetag))
 
 (define (dump-flonum! h f)
@@ -510,6 +515,7 @@
     (,$reg 1)
     (,$op1 car)
     (,$invoke 0)                        ; ((car l))
+    (,$.align 4)
     (,$.label 3)
     (,$.cont)
     (,$restore 2)
@@ -526,7 +532,7 @@
 
 (define (create-symbol! h s)
   (dump-vector-like!
-   h 
+   h
    (vector `(bits ,(dump-string! h (symbol->string s)))
            '(data 0)
            '(data ()))
@@ -550,7 +556,7 @@
 
 (define (construct-startup-procedure symbol-list-addr init-list-addr)
 
-  ; Given some value which might appear in the constant vector, 
+  ; Given some value which might appear in the constant vector,
   ; replace the entries matching that value with a new value.
 
   (define (patch-constant-vector! v old new)
@@ -628,8 +634,8 @@
 
 (define (append-file-shell-command file-to-append file-to-append-to)
   (display "Creating final image in \"")
-  (display file-to-append-to) 
-  (display "\"...") 
+  (display file-to-append-to)
+  (display "\"...")
   (newline)
   (if (*append-file-shell-command* file-to-append file-to-append-to)
       (delete-file file-to-append)
@@ -639,22 +645,22 @@
 ; Unix: just run CAT to append the file.
 
 (define (append-file-shell-command-unix file-to-append file-to-append-to)
-  (zero? (system (string-append "cat " 
-                                file-to-append 
-                                " >> " 
+  (zero? (system (string-append "cat "
+                                file-to-append
+                                " >> "
                                 file-to-append-to))))
 
 (define (append-file-shell-command-msdos file-to-append file-to-append-to)
-  (let ((x (system (string-append "copy/b/y " 
-				  file-to-append-to "+" file-to-append 
-				  " TEMPCAT"))))
+  (let ((x (system (string-append "copy/b/y "
+                                  file-to-append-to "+" file-to-append
+                                  " TEMPCAT"))))
     (if (not (zero? x))
-	#f
-	(let ((x (system (string-append "copy/b/y TEMPCAT " file-to-append-to))))
-	  (system "del TEMPCAT")
-	  (zero? x)))))
-  
-			 
+        #f
+        (let ((x (system (string-append "copy/b/y TEMPCAT " file-to-append-to))))
+          (system "del TEMPCAT")
+          (zero? x)))))
+
+
 ; Quasi-portable: use read-char and write-char.
 ; Needs to be read-byte and write-byte.
 

@@ -1,5 +1,5 @@
 ; Copyright 1991 Lightship Software, Incorporated.
-; 
+;
 ; $Id$
 ;
 ; Target-independent part of the assembler.
@@ -8,13 +8,13 @@
 ; Part of it assumes a big-endian target machine.
 ;
 ; The input to this pass is a list of symbolic MacScheme machine
-; instructions and pseudo-instructions.  Each symbolic MacScheme 
+; instructions and pseudo-instructions.  Each symbolic MacScheme
 ; machine instruction or pseudo-instruction is a list whose car
 ; is a small non-negative fixnum that acts as the mnemonic for the
 ; instruction.  The rest of the list is interpreted as indicated
 ; by the mnemonic.
 ;
-; The output is a pair consisting of machine code (a bytevector or 
+; The output is a pair consisting of machine code (a bytevector or
 ; string) and a constant vector.
 ;
 ; This assembler is table-driven, and may be customized to emit
@@ -24,26 +24,27 @@
 ; and a source instruction.  The procedure should just assemble
 ; the instruction using the operations defined below.
 ;
-; The table and target can be changed by redefining the following 
+; The table and target can be changed by redefining the following
 ; five procedures.
 
 (define (assembly-table) (error "No assembly table defined."))
 (define (assembly-start as) #t)
 (define (assembly-end as segment) segment)
 (define (assembly-user-data) #f)
+(define (assembly-declarations user-data) '())
 
 ; The main entry point.
 
 (define (assemble source . rest)
   (let* ((user (if (null? rest) (assembly-user-data) (car rest)))
-	 (as   (make-assembly-structure source (assembly-table) user)))
+         (as   (make-assembly-structure source (assembly-table) user)))
     (assembly-start as)
     (assemble1 as
-	       (lambda (as)
-		 (let ((segment (assemble-pasteup as)))
-		   (assemble-finalize! as)
-		   (assembly-end as segment)))
-	       #f)))
+               (lambda (as)
+                 (let ((segment (assemble-pasteup as)))
+                   (assemble-finalize! as)
+                   (assembly-end as segment)))
+               #f)))
 
 ; The following procedures are to be called by table routines.
 ;
@@ -63,17 +64,17 @@
 
 (define (assemble-nested-lambda as source doc k . rest)
   (let* ((user (if (null? rest) #f (car rest)))
-	 (nested-as (make-assembly-structure source (as-table as) user)))
+         (nested-as (make-assembly-structure source (as-table as) user)))
     (as-parent! nested-as as)
     (as-nested! as (cons (lambda ()
-			   (assemble1 nested-as 
-				      (lambda (nested-as)
-					(let ((segment
-					       (assemble-pasteup nested-as)))
-					  (assemble-finalize! nested-as)
-					  (k nested-as segment)))
-				      doc))
-			 (as-nested as)))))
+                           (assemble1 nested-as
+                                      (lambda (nested-as)
+                                        (let ((segment
+                                               (assemble-pasteup nested-as)))
+                                          (assemble-finalize! nested-as)
+                                          (k nested-as segment)))
+                                      doc))
+                         (as-nested as)))))
 
 (define operand0 car)      ; the mnemonic
 (define operand1 cadr)
@@ -102,7 +103,7 @@
        (y (as-constants as) (cdr y)))
       ((or (null? y) (equal? x (car y)))
        (if (null? y)
-	   (as-constants! as (append! (as-constants as) (list x))))
+           (as-constants! as (append! (as-constants as) (list x))))
        i)))
 
 (define (emit-datum as x)
@@ -146,21 +147,21 @@
 
 (define (emit-fixup! as offset size n)
   (as-fixups! as (cons (list (+ offset (as-lc as)) size n)
-		       (as-fixups as))))
+                       (as-fixups as))))
 
 ; Adds the value of the label L to the size code bytes beginning
 ; at the given byte offset from the current location counter.
 
 (define (emit-fixup-label! as offset size L)
   (as-fixups! as (cons (list (+ offset (as-lc as)) size (list L))
-		       (as-fixups as))))
+                       (as-fixups as))))
 
 ; Allows the procedure proc of two arguments (code vector and current
 ; location counter) to modify the code vector at will, at fixup time.
 
 (define (emit-fixup-proc! as proc)
   (as-fixups! as (cons (list (as-lc as) 0 proc)
-		       (as-fixups as))))
+                       (as-fixups as))))
 
 ; Labels.
 
@@ -173,10 +174,10 @@
 (define (make-asm-label as label)
   (let ((probe (find-label as label)))
     (if probe
-	probe
-	(let ((l (cons label #f)))
-	  (as-labels! as (cons l (as-labels as)))
-	  l))))
+        probe
+        (let ((l (cons label #f)))
+          (as-labels! as (cons l (as-labels as)))
+          l))))
 
 ; This can use hashed lookup.
 
@@ -185,10 +186,10 @@
   (define (lookup-label-loop x labels parent)
     (let ((entry (assq x labels)))
       (cond (entry)
-	    ((not parent) #f)
-	    (else 
-	     (lookup-label-loop x (as-labels parent) (as-parent parent))))))
-    
+            ((not parent) #f)
+            (else
+             (lookup-label-loop x (as-labels parent) (as-parent parent))))))
+
   (lookup-label-loop L (as-labels as) (as-parent as)))
 
 ; Create a new assembler label, distinguishable from a MAL label.
@@ -222,14 +223,14 @@
 (define (assembler-value as key)
   (let ((probe (assq key (as-values as))))
     (if probe
-	(cdr probe)
-	#f)))
+        (cdr probe)
+        #f)))
 
 (define (assembler-value! as key value)
   (let ((probe (assq key (as-values as))))
     (if probe
-	(set-cdr! probe value)
-	(as-values! as (cons (cons key value) (as-values as))))))
+        (set-cdr! probe value)
+        (as-values! as (cons (cons key value) (as-values as))))))
 
 ; For documentation.
 ;
@@ -237,17 +238,17 @@
 
 (define (add-documentation as doc)
   (let* ((existing-constants (cadr (car (as-constants as))))
-	 (new-constants 
-	  (twobit-sort (lambda (a b)
-			 (< (car a) (car b)))
-		       (cond ((not existing-constants)
-			      (list (cons (here as) doc)))
-			     ((pair? existing-constants)
-			      (cons (cons (here as) doc)
-				    existing-constants))
-			     (else
-			      (list (cons (here as) doc)
-				    (cons 0 existing-constants)))))))
+         (new-constants
+          (twobit-sort (lambda (a b)
+                         (< (car a) (car b)))
+                       (cond ((not existing-constants)
+                              (list (cons (here as) doc)))
+                             ((pair? existing-constants)
+                              (cons (cons (here as) doc)
+                                    existing-constants))
+                             (else
+                              (list (cons (here as) doc)
+                                    (cons 0 existing-constants)))))))
     (set-car! (cdar (as-constants as)) new-constants)))
 
 ; This is called when a value is too large to be handled by the assembler.
@@ -264,15 +265,15 @@
 
 (define (asm-error msg . rest)
   (cond ((eq? host-system 'chez)
-	 (error 'assembler "~a" (list msg rest)))
-	(else
-	 (apply error msg rest))))
+         (error 'assembler "~a" (list msg rest)))
+        (else
+         (apply error msg rest))))
 
 (define (disasm-error msg . rest)
   (cond ((eq? host-system 'chez)
-	 (error 'disassembler "~a" (list msg rest)))
-	(else
-	 (apply error msg rest))))
+         (error 'disassembler "~a" (list msg rest)))
+        (else
+         (apply error msg rest))))
 
 ; The remaining procedures in this file are local to the assembler.
 
@@ -305,10 +306,10 @@
           '()
           '()
           '()
-	  '()
-	  #f
-	  #f
-	  user-data))
+          '()
+          #f
+          #f
+          user-data))
 
 (define (as-reset! as source)
   (as-source! as source)
@@ -350,87 +351,87 @@
 
 (define (assemble1 as finalize doc)
   (let ((assembly-table (as-table as))
-	(peep? (peephole-optimization))
-	(step? (single-stepping))
-	(step-instr (list $.singlestep))
-	(end-instr (list $.end)))
+        (peep? (peephole-optimization))
+        (step? (single-stepping))
+        (step-instr (list $.singlestep))
+        (end-instr (list $.end)))
 
     (define (loop)
       (let ((source (as-source as)))
         (if (null? source)
-	    (begin ((vector-ref assembly-table $.end) end-instr as)
-		   (finalize as))
+            (begin ((vector-ref assembly-table $.end) end-instr as)
+                   (finalize as))
             (begin (if step?
-		       ((vector-ref assembly-table $.singlestep)
-			step-instr
-			as))
-		   (if peep?
-		       (let peeploop ((src1 source))
-			 (peep as)
-			 (let ((src2 (as-source as)))
-			   (if (not (eq? src1 src2))
-			       (peeploop src2)))))
-		   (let ((source (as-source as)))
-		     (as-source! as (cdr source))
-		     ((vector-ref assembly-table (caar source))
-		      (car source)
-		      as)
-		     (loop))))))
+                       ((vector-ref assembly-table $.singlestep)
+                        step-instr
+                        as))
+                   (if peep?
+                       (let peeploop ((src1 source))
+                         (peep as)
+                         (let ((src2 (as-source as)))
+                           (if (not (eq? src1 src2))
+                               (peeploop src2)))))
+                   (let ((source (as-source as)))
+                     (as-source! as (cdr source))
+                     ((vector-ref assembly-table (caar source))
+                      (car source)
+                      as)
+                     (loop))))))
 
     (define (doit)
       (emit-datum as doc)
       (loop))
 
     (let* ((source (as-source as))
-	   (r (call-with-current-continuation
-	       (lambda (k)
-		 (as-retry! as (lambda () (k 'retry)))
-		 (doit)))))
+           (r (call-with-current-continuation
+               (lambda (k)
+                 (as-retry! as (lambda () (k 'retry)))
+                 (doit)))))
       (if (eq? r 'retry)
-	  (let ((old (short-effective-addresses)))
-	    (as-reset! as source)
-	    (dynamic-wind
-	     (lambda ()
-	       (short-effective-addresses #f))
-	     doit
-	     (lambda ()
-	       (short-effective-addresses old))))
-	  r))))
+          (let ((old (short-effective-addresses)))
+            (as-reset! as source)
+            (dynamic-wind
+             (lambda ()
+               (short-effective-addresses #f))
+             doit
+             (lambda ()
+               (short-effective-addresses old))))
+          r))))
 
 (define (assemble-pasteup as)
 
   (define (pasteup-code)
     (let ((code      (make-bytevector (as-lc as)))
-	  (constants (list->vector (as-constants as))))
-    
+          (constants (list->vector (as-constants as))))
+
       ; The bytevectors: byte 0 is most significant.
 
       (define (paste-code! bvs i)
-	(if (not (null? bvs))
-	    (let* ((bv (car bvs))
-		   (n  (bytevector-length bv)))
-	      (do ((i i (- i 1))
-		   (j (- n 1) (- j 1)))	; (j 0 (+ j 1))
-		  ((< j 0)		; (= j n)
-		   (paste-code! (cdr bvs) i))
+        (if (not (null? bvs))
+            (let* ((bv (car bvs))
+                   (n  (bytevector-length bv)))
+              (do ((i i (- i 1))
+                   (j (- n 1) (- j 1))) ; (j 0 (+ j 1))
+                  ((< j 0)              ; (= j n)
+                   (paste-code! (cdr bvs) i))
                 (bytevector-set! code i (bytevector-ref bv j))))))
-    
+
       (paste-code! (as-code as) (- (as-lc as) 1))
       (as-code! as (list code))
       (cons code constants)))
 
   (define (pasteup-strings)
     (let ((code      (make-string (as-lc as)))
-	  (constants (list->vector (as-constants as))))
+          (constants (list->vector (as-constants as))))
 
       (define (paste-code! strs i)
-	(if (not (null? strs))
-	    (let* ((s (car strs))
-		   (n (string-length s)))
-	      (do ((i i (- i 1))
-		   (j (- n 1) (- j 1)))	; (j 0 (+ j 1))
-		  ((< j 0)		; (= j n)
-		   (paste-code! (cdr strs) i))
+        (if (not (null? strs))
+            (let* ((s (car strs))
+                   (n (string-length s)))
+              (do ((i i (- i 1))
+                   (j (- n 1) (- j 1))) ; (j 0 (+ j 1))
+                  ((< j 0)              ; (= j n)
+                   (paste-code! (cdr strs) i))
                 (string-set! code i (string-ref s j))))))
 
       (paste-code! (as-code as) (- (as-lc as) 1))
@@ -451,10 +452,10 @@
                  (size       (cadr fixup))
                  (adjustment (caddr fixup))  ; may be procedure
                  (n          (if (label? adjustment)
-				 (lookup-label adjustment)
-				 adjustment)))
+                                 (lookup-label adjustment)
+                                 adjustment)))
             (case size
-	      ((0) (fixup-proc code i n))
+              ((0) (fixup-proc code i n))
               ((1) (fixup1 code i n))
               ((2) (fixup2 code i n))
               ((3) (fixup3 code i n))
@@ -464,13 +465,13 @@
 
     (define (lookup-label L)
       (or (label-value as (label.ident L))
-	  (asm-error "Assembler error -- undefined label " L)))
+          (asm-error "Assembler error -- undefined label " L)))
 
     (apply-fixups! (reverse! (as-fixups as)))
 
     (for-each (lambda (nested-as-proc)
-		(nested-as-proc))
-	      (as-nested as))))
+                (nested-as-proc))
+              (as-nested as))))
 
 
 ; These fixup routines assume a big-endian target machine.
@@ -489,7 +490,7 @@
 
 (define (fixup3 code i n)
   (let* ((x  (+ (* 65536 (bytevector-ref code i))
-		(* 256 (bytevector-ref code (+ i 1)))
+                (* 256 (bytevector-ref code (+ i 1)))
                 (bytevector-ref code (+ i 2))))
          (y  (+ x n))
          (y0 (modulo y 256))
@@ -501,9 +502,9 @@
 
 (define (fixup4 code i n)
   (let* ((x  (+ (* 16777216 (bytevector-ref code i))
-		(* 65536 (bytevector-ref code (+ i 1)))
-		(* 256 (bytevector-ref code (+ i 2)))
-		(bytevector-ref code (+ i 3))))
+                (* 65536 (bytevector-ref code (+ i 1)))
+                (* 256 (bytevector-ref code (+ i 2)))
+                (bytevector-ref code (+ i 3))))
          (y  (+ x n))
          (y0 (modulo y 256))
          (y1 (modulo (quotient (- y y0) 256) 256))
@@ -536,9 +537,9 @@
               (newline))
           (let ((byte (bytevector-ref bv i)))
             (write-char
-	     (string-ref (number->string (quotient byte 16) 16) 0))
+             (string-ref (number->string (quotient byte 16) 16) 0))
             (write-char
-	     (string-ref (number->string (remainder byte 16) 16) 0))))))
+             (string-ref (number->string (remainder byte 16) 16) 0))))))
   (if (and (pair? segment)
            (bytevector? (car segment))
            (vector? (cdr segment)))
