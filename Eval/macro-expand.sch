@@ -7,28 +7,21 @@
 
 ($$trace "macro-expand")
 
-(define *usual-macros*
-  (syntactic-copy global-syntactic-environment))
-
-(define *all-macros*
-  global-syntactic-environment)
-
-
 ; Used by the interpreter.
 ;
-; The use of *all-macros* in the 'else' case is really wrong -- 
-; it is technically an error.  However, it is correct for correct
-; code, and it allows std-heap.sch to be used until we fix this
-; properly.
+; The use of global-syntactic-environment in the 'else' case is 
+; really wrong -- it is technically an error.  However, it is correct 
+; for correct code, and it allows std-heap.sch to be used until we fix 
+; this properly.
 
 (define (interpreter-macro-expand expr . rest)
   (let* ((env
 	  (if (null? rest) (interaction-environment) (car rest)))
 	 (syntax-env
 	  (case (environment-tag env)
-	    ((0 1) (syntactic-copy *usual-macros*))
-	    ((2)   *all-macros*)
-	    (else  *all-macros*))))
+	    ((0 1) (make-standard-syntactic-environment))
+	    ((2)   global-syntactic-environment)
+	    (else  global-syntactic-environment))))
     (let ((current-env global-syntactic-environment))
       (dynamic-wind
        (lambda ()
