@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 14 April 1999.
+; 7 June 1999.
 ;
 ; Conversion to A-normal form, with heuristics for
 ; choosing a good order of evaluation.
@@ -129,6 +129,10 @@
 ; (A-normal-form (A-normal-form E ".T")
 ;                ".U")
 
+; This is the declaration that is used to indicate A-normal form.
+
+(define A-normal-form-declaration (list 'anf))
+
 (define (A-normal-form E . rest)
   
   (define (A-normal-form E)
@@ -204,7 +208,7 @@
                                           '()
                                           '()
                                           '()
-                                          '()
+                                          (list A-normal-form-declaration)
                                           '()
                                           body)
                              (list E1))))))
@@ -233,7 +237,8 @@
                   '()
                   '()
                   '()
-                  (lambda.decls L)
+                  (cons A-normal-form-declaration
+                        (lambda.decls L))
                   (lambda.doc L)
                   (anf-make-let*
                    (anf (lambda.body L)
@@ -314,7 +319,8 @@
                                      '()
                                      '()
                                      '()
-                                     (lambda.decls proc)
+                                     (cons A-normal-form-declaration
+                                           (lambda.decls proc))
                                      (lambda.doc proc)
                                      (lambda.body proc))
                         bindings

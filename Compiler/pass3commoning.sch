@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 25 April 1999.
+; 7 June 1999.
 ;
 ; Intraprocedural common subexpression elimination, constant propagation,
 ; copy propagation, dead code elimination, and register targeting.
@@ -356,8 +356,7 @@
          (let* ((args (lambda.args L))
                 (T1 (car args))
                 (free (union F1 (difference F args)))
-                (simple-let? (and (null? (lambda.defs L))
-                                  (null? (lambda.decls L))))
+                (simple-let? (simple-lambda? L))
                 (regbindings 
                  
                  ; At least one of regbindings0 and regbindings1
@@ -388,8 +387,7 @@
        
        (define (scan-let0 E env available)
          (let ((L (call.proc E)))
-           (if (and (null? (lambda.defs L))
-                    (null? (lambda.decls L)))
+           (if (simple-lambda? L)
                (scan (lambda.body L) env available)
                (let ((T1 (make-variable name:IGNORED)))
                  (lambda.args-set! L (list T1))

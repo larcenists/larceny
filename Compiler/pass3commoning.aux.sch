@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 18 April 1999.
+; 7 June 1999.
 ;
 ; Support for intraprocedural value numbering:
 ;     set of available expressions
@@ -169,6 +169,15 @@
 
 ; Miscellaneous.
 
+; A simple lambda expression has no internal definitions at its head
+; and no declarations aside from A-normal form.
+
+(define (simple-lambda? L)
+  (and (null? (lambda.defs L))
+       (every? (lambda (decl)
+                 (eq? decl A-normal-form-declaration))
+               (lambda.decls L))))
+
 ; A real call is a call whose procedure expression is
 ; neither a lambda expression nor a primop.
 
@@ -263,7 +272,14 @@
              (x (regbinding.rhs regbinding)))
         (wrap-with-register-bindings
          (cdr regbindings)
-         (make-call (make-lambda (list R) '() '() F F '() #f E)
+         (make-call (make-lambda (list R)
+                                 '()
+                                 '()
+                                 F
+                                 F
+                                 (list A-normal-form-declaration)
+                                 #f
+                                 E)
                     (list (make-variable x)))
          (union (list x)
                 (difference F (list R)))))))

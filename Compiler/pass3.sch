@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 29 April 1999.
+; 11 June 1999.
 ;
 ; The third "pass" of the Twobit compiler actually consists of several
 ; passes, which are related by the common theme of flow analysis:
@@ -67,6 +67,8 @@
 ;      the identifiers that occur free in the body of that lambda
 ;      expression, and possibly a few extra identifiers that were
 ;      once free but have been removed by optimization.
+;   *  If a lambda expression is declared to be in A-normal form (see
+;      pass3anormal.sch), then it really is in A-normal form.
 ;
 ; The phases of pass 3 interact with the referencing information R
 ; and the free variables F as follows:
@@ -93,20 +95,36 @@
   
   (define (phase3 exp)
     (if (common-subexpression-elimination)
-        ; Must alpha-convert unless that was done in phase 2.
-        (let ((exp (if (interprocedural-constant-propagation)
-                       exp
-                       (copy-exp exp))))
-          (intraprocedural-commoning (a-normal-form exp)))
+        (let* ((exp (if (interprocedural-constant-propagation)
+                        exp
+                        ; alpha-conversion
+                        (copy-exp exp)))
+               (exp (a-normal-form exp)))
+          (if (representation-inference)
+              (intraprocedural-commoning exp 'commoning)
+              (intraprocedural-commoning exp)))
         exp))
   
   (define (phase4 exp)
-    exp)
+    (if (representation-inference)
+        (let ((exp (cond ((common-subexpression-elimination)
+                          exp)
+                         ((interprocedural-constant-propagation)
+                          (a-normal-form exp))
+                         (else
+                          ; alpha-conversion
+                          (a-normal-form (copy-exp exp))))))
+          (intraprocedural-commoning
+           (representation-analysis exp)))
+        exp))
   
   (define (finish exp)
-    (if (not (common-subexpression-elimination))
-        (compute-free-variables! exp))
-    exp)
+    (if (and (not (interprocedural-constant-propagation))
+             (not (common-subexpression-elimination)))
+        (begin (compute-free-variables! exp)
+               exp)
+        ;(make-begin (list (make-constant 'anf) exp))))
+        exp))
   
   (define (verify exp)
     (check-referencing-invariants exp 'free)
