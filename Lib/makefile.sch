@@ -158,6 +158,7 @@
     "Eval/eval"             ; Simple eval procedure (interpreter)
     "Eval/evalprim"         ; Primitives for interpreter
     "Eval/macro-expand"     ; Macro expander wrapper (for interpreter)
+    "Compiler/pass1"
     "Compiler/pass1.aux"
     "Compiler/pass2.aux"
     "Compiler/prefs"
