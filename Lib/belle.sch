@@ -1,18 +1,10 @@
-; Copyright Lightship Software
+; Copyright Lightship Software.
 ;
 ; $Id$
 ;
 ; A version of Algorithm Bellerophon for implementations
 ; of Scheme that support IEEE double precision arithmetic
 ; and exact integer arithmetic of unlimited precision.
-;
-; FIXME:
-;  - use of install-millicode-support (see comment below)
-;  - larceny doesn't have 'log' yet, so log5-of-two^n is precomputed
-;  - slow-ten-to-e is _really_ slow for large negative arguments;
-;    (slow-ten-to-e -216) takes roughly 10 seconds on a Sparc 10!
-;    It would be better, for the time being, to just precompute those
-;    values.
 
 ($$trace "belle")
 
@@ -100,7 +92,6 @@
     ; as an extended precision number, so the slop factor is exactly
     ; twice the maximum error in the approximation to 10^e.
     
-;    (define dummy1 (begin ($$trace "Bellerophon#1") #t))
     (define slop-216 45)
     (define slop-108  9)
     (define slop-54   3)
@@ -112,7 +103,6 @@
     (define slop216   9)
     (define slop324  21)
     
-;    (define dummy2 (begin ($$trace "Bellerophon#2") #t))
     (define n         53)
     (define two^n-1   4503599627370496)     ; (expt 2 (- n 1))
     (define two^n     9007199254740992)     ; (expt 2 n)
@@ -122,7 +112,6 @@
     (define two^p-n-1 1024)                 ; (expt 2 (- p n 1))
     (define two^p-n   2048)                 ; (expt 2 (- p n))
     
-;    (define dummy3 (begin ($$trace "Bellerophon#3") #t))
     (define flonum:zero 0.0)
     (define flonum:infinity 1e500)
     (define flonum:minexponent -1023)
@@ -130,8 +119,8 @@
     (define bellerophon:big-f 18446744073709551616)   ; (expt 2 64)
     (define bellerophon:small-e -306)
     (define bellerophon:big-e 309)
-;    (define dummy4 (begin ($$trace "Bellerophon#4") #t))
-; FIXME: don't have LOG yet
+
+; Precomputed so we don't have to rely on LOG in initialization phase.
 ;    (define log5-of-two^n (inexact->exact (ceiling (/ (log two^n) (log 5)))))
     (define log5-of-two^n 23)
     
@@ -157,7 +146,6 @@
                                ((zero? (remainder q 2)) q)
                                (else (+ q 1)))
                          n)))
-;      (display "in slow-ten-to-e") (newline)
       (if (negative? e)
           (loop3 1 (expt 10 (- e)) 0)
           (let ((10^e (expt 10 e)))
@@ -190,7 +178,6 @@
     ; This flag is set by some operations to indicate whether
     ; any accuracy was lost during the operation.
     
-;    (define dummy5 (begin ($$trace "Bellerophon#5") #t))
     (define inexact-flag #f)
     
     ; (expt 2 (- (* 2 p) 1))
@@ -354,8 +341,8 @@
     ;           ((<= 1.0 x) (loop (* .5 x) (+ k 1)))))
     ;   (loop x 0))
     
-;    ($$trace "Bellerophon#6")
-
+; slow-ten-to-e is _really_ slow in Larceny.
+;
 ;    (set! ten^-216 (slow-ten-to-e -216))
 ;    (set! ten^-108 (slow-ten-to-e -108))
 ;    (set! ten^-54  (slow-ten-to-e -54))
@@ -375,10 +362,7 @@
     (set! ten^108  '(15709099088952724970 295))
     (set! ten^216  '(13377742608693866209 654))
     
-;    ($$trace "Bellerophon#7")
     bellerophon))
 
-;($$trace "bellerophon#end")
-;($$trace (if bellerophon "yes" "no"))
 
 ; eof
