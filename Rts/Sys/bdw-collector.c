@@ -11,15 +11,10 @@
  *
  * The stack cache:
  *
- * The stack cache must have the same appearance to compiled code as it
- * usually has.  This means setting up the pointers in the globals table
- * and so on.  However, since we have no control over when the collector
- * is called, we cannot count on flushing the stack before gc, so the
- * stack must be visible to the collector.  That means that there might
- * be garbage beyond the stack top that will cause retention!  I don't
- * yet know how to fix this, although it can be fixed by periodically
- * clearing the stack cache above the current point.  Clearing can be
- * triggered by overflow/underflow or other events.
+ * The stack cache is visible to the collector (allocated in the heap),
+ * and I try to avoid retention by clearing the unused portion before 
+ * every collection.  Unlike the precise collectors, the stack cache 
+ * is not flushed before the collection.
  *
  * The static area (data_load_area, text_load_area):
  *
@@ -31,7 +26,7 @@
  *
  * It is probably important to use a split heap (where the code vectors
  * are in a separate segment) so that the collector will not get confused
- * about instructions looking like data.  This has yet to be substantiated.
+ * about instructions looking like data.
  *
  * The code in this file is reentrant.
  * The code in this file does not rely on word size.
@@ -85,6 +80,7 @@ static word *bdw_globals = 0;
 
 extern double GC_load_factor;
 extern void GC_set_min_heap_size( int min_size_bytes );
+extern int GC_allow_contraction;
 
 void bdw_before_gc( void );
 void bdw_after_gc( void );
@@ -115,8 +111,14 @@ create_bdw_gc( gc_param_t *params, int *generations )
     GC_set_max_heap_size( params->bdw_info.dynamic_max );
   if (params->bdw_info.dynamic_min > 0)
     GC_set_min_heap_size( params->bdw_info.dynamic_min );
-  if (params->bdw_info.load_factor > 0.0)
+  if (params->bdw_info.load_factor > 0.0) {
     GC_load_factor = params->bdw_info.load_factor;
+    GC_allow_contraction = 1;
+  }
+  if (params->bdw_info.expansion_factor > 0.0) {
+    GC_load_factor = params->bdw_info.expansion_factor;
+    GC_allow_contraction = 0;
+  }
   if (params->use_incremental_bdw_collector)
     GC_enable_incremental();
 
@@ -242,7 +244,7 @@ void bdw_before_gc( void )
 #endif
   slowpath_cancel = 1;
   stats_before_gc();
-  stats_gc_type( 0, STATS_COLLECT );
+  stats_gc_type( 0, GCTYPE_COLLECT );
 }
 
 /* Hook run after gc (if gc has been set up to do it). */
@@ -275,7 +277,7 @@ static int initialize( gc_t *gc )
   return 1;
 }
 
-static void collect( gc_t *gc, int gen, int nbytes )
+static void collect( gc_t *gc, int gen, int nbytes, gc_type_t type )
 {
   GC_gcollect();
 }
@@ -472,6 +474,8 @@ static gc_t *allocate_area( word *globals )
 		     allocate,
 		     allocate_nonmoving,
 		     collect,
+		     0,		/* collect_old_with_selective_fromspace */
+		     0,		/* rotate_areas_down */
 		     no_op_warn,     	     /* set_policy */
 		     data_load_area,
 		     text_load_area,
@@ -486,6 +490,8 @@ static gc_t *allocate_area( word *globals )
 		     no_op_warn,             /* np_remset_ptrs */
 		     0,                      /* load_heap */
 		     0,                      /* dump_heap */
+		     (word *(*)())no_op_warn, /* make_handle */
+		     no_op_warn,             /* free_handle */
 		     no_op_warn,             /* enumerate_roots */
 		     no_op_warn              /* enumerate_remsets_older_than */
 		     );
