@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "larceny.h"
 #include "gc.h"
@@ -714,6 +715,21 @@ int memfail( int code, char *fmt, ... )
   vfprintf( stderr, fmt, args );
   va_end( args );
   abort();
+}
+
+void conditional_abort( void )
+{
+  char buf[ 10 ];
+
+  while (1) {
+    hardconsolemsg( "Abort (yes/no)?" );
+    if (fgets( buf, 10, stdin ) == NULL) {
+      hardconsolemsg( "EOF -- exiting." );
+      exit(1);
+    }
+    if (strncasecmp( buf, "yes", 3 ) == 0) abort();
+    if (strncasecmp( buf, "no", 2 ) == 0) return;
+  }
 }
 
 
