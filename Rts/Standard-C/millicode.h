@@ -14,7 +14,7 @@
 
 /* The following must be exported by compiled Scheme code. */
 
-extern cont_t twobit_start_procedures[];
+extern codeptr_t twobit_start_procedures[];
   /* A vector of procedure pointers, to be used by the procedure
      mc_petit_patch_boot_code (qv).
      */
@@ -24,25 +24,6 @@ extern RTYPE twobit_start( CONT_PARAMS );
      */
 
 /* The following millicode procedures are in millicode.c */
-
-void scheme_init( word *globals );
-  /* Initialize the things that need to be initialized once.
-     */
-
-void scheme_start( word *globals );
-  /* Scheme_start runs a Scheme procedure in the context of the
-     given globals vector.  The caller must allocate a stack frame and
-     must also place arguments in the register save area in globals, 
-     and must set up the argument count in globals[ G_RESULT ].  The
-     procedure slot (REG0) must hold a Scheme procedure.
-
-     Scheme_start will initialize the return address slot of the
-     frame, and call the procedure.  If the procedure returns, then 
-     scheme_start returns to its caller.
-
-     Input:  As explained above.
-     Output: Any values left in globals by the Scheme procedure.
-     */
 
 void twobit_integrity_check( word *globals, const char *name );
   /* Check the integrity of the virtual machine state, and assert
@@ -74,13 +55,14 @@ void mc_alloci( word *globals );
      Output: RESULT = raw pointer to allocated memory.
      */
 
-void mem_stkuflow( void );
+RTYPE mem_stkuflow( CONT_PARAMS );
   /* Stack underflow handler.  
      This procedure is designed to be returned into -- not to be called.
      It restores a stack frame from the heap into the stack cache.
 
      The name (mem_ rather than mc_) is a historical artifact that will
-     be corrected eventually. [FIXME]
+     be corrected eventually. That it is public is also an artifact.
+     [FIXME]
 
      Input:  nothing.
      Output: nothing.
