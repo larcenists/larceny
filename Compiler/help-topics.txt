@@ -1,11 +1,11 @@
-; Compiler/help-topics.txt
-; Larceny -- help topics for development environment's help system
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
+; Help topics for development environment's help system
 ; Entry format: (<tag> <descriptor string> <text>)
 ;
-; 13 December 1998
+; 16 December 1998
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
@@ -48,8 +48,11 @@ Compilation switches:
   issue-warnings             Print warning messages.
 
 Compilation meta-switches:
-  fast-unsafe-code           Set switches to generate fast, unsafe code.
+  slow-code                  Turn off all optimizations.
+  default-code               Set switches to generate semantics-preserving
+                             but optimized code.
   fast-safe-code             Set switches to generate fast, safe code.
+  fast-unsafe-code           Set switches to generate fast, unsafe code.
 
 Documentation switches:
   include-procedure-names    Compiled code will contain the procedure name.
@@ -57,13 +60,11 @@ Documentation switches:
   include-source-code        Compiled code will contain source code.
 
 Assembler switches:
-  target-architecture        Architecture code is being generated for.
   peephole-optimization      Perform peephole optimization.
   catch-undefined-globals    Check references to global variables.
   generate-global-symbols    Let each global cell contain its name.
   inline-allocation          Generate in-line code for some allocation.
   write-barrier              Generate code for generational GC.
-  inline-assignment          Generate in-line write barrier code.
   fast-write-barrier         Generate fast in-line write barrier code.
   unsafe-code                Turn off type checking for many primitives.
 
@@ -72,11 +73,10 @@ Internal (development) switches:
   single-stepping            Insert singlestepping support code.
   fill-delay-slots           Fill SPARC branch delay slots.
 
-All switches except the meta-switches and the target-architecture switch
-can be set to #t to enable the effect explained above, or to #f to
-disable the effect.  If the switch is a variable, its value can be set
-by an assignment.  If the switch is a procedure, it can be set by
-passing an argument as in (benchmark-mode #f).  
+All switches except the meta-switches can be set to #t to enable the
+effect explained above, or to #f to disable the effect.  If the switch
+is a variable, its value can be set by an assignment.  If the switch is
+a procedure, it can be set by passing an argument as in (benchmark-mode #f).
 
 The meta-switches can only be called without any arguments.
 
@@ -111,8 +111,7 @@ Assembly Program\". Again, you can use others at the risk of having
 to type a lot.
 
 MacScheme assembly language files in symbolic form have extension
-.mal (for MacScheme Assembly Language). These files are mostly
-obsolete, as their format requires that 'eval' is available.
+.mal (for MacScheme Assembly Language).
 
 Assembled files containing machine code segments have extension
 .lop (for \"Lisp Object Program\".
@@ -129,7 +128,7 @@ Heap files usually have the extension .heap.
 "  heaps              Dumping heap images."
 "A bootstrap heap image is created with the dump-heap procedure:
 
-  (dump-heap <heapname> <object-file> ...)
+  (build-heap-image <heapname> <object-file> ...)
 
 This creates a bootstrap heap image containing all the given objects.
 However, it is not usually called directly; the following procedure
@@ -142,7 +141,9 @@ is typically more convenient:
 Beware that neither of these commands cleans up .lop files compiled
 for a different collector type; you should first 'make lopclean' from
 the Unix shell if you are building a heap of a kind different from
-the one you built last.
+the one you built last.  And if you have changed compiler switches,
+you should 'make libclean' from the Unix shell to remove both LAP and
+LOP files.
 
 For details, see the file Lib/makefile.sch.
 ")
