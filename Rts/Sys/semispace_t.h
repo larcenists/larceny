@@ -111,6 +111,14 @@ int ss_move_block_to_semispace( semispace_t *from, int i, semispace_t *to );
      0 <= i < from.n && from.chunks[i].bytes > 0
      */
 
+int ss_insert_block_in_semispace( semispace_t *from, int i, semispace_t *to );
+  /* Like move_block_to_semispace(), but inserts the block before 
+     to->current if to->current >= 0 and at 0 if to->current == -1.  
+     Updates to->current.
+     
+     0 <= i < from.n && from.chunks[i].bytes > 0
+     */
+
 void ss_free_block( semispace_t *ss, int i );
   /* Free the memory associated with chunk `i' in semispace `ss'.
      

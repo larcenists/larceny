@@ -302,6 +302,57 @@ ss_move_block_to_semispace( semispace_t *from, int from_idx, semispace_t *to )
 }
 
 
+int 
+ss_insert_block_in_semispace( semispace_t *from, int from_idx, semispace_t *to)
+{
+  int slot, k;
+
+  ss_invariants( from );
+  ss_invariants( to );
+  assert( 0 <= from_idx && from_idx < from->n );
+  assert( from->chunks[from_idx].bytes > 0 );
+
+  if (to->current == -1) {
+    slot = 0;
+    to->current = 0;
+  }
+  else {
+    slot = to->current;
+    /* Create a hole at to->current: move the following chunk, shift current */
+    for ( k=to->current+1 ; k < to->n && to->chunks[k].bytes > 0 ; k++ )
+      ;
+    if (k == to->n)
+      extend_chunk_array( to );
+    to->chunks[k] = to->chunks[to->current+1];
+    to->chunks[to->current+1] = to->chunks[to->current];
+    to->current++;
+  }
+
+  /* Swap the chunk into the right slot. */
+  to->chunks[slot] = from->chunks[from_idx];
+
+  /* Fill hole in `from': shift down, adjust current if necessary */
+  for ( k=from_idx ; k < from->n - 1 ; k++ )
+    from->chunks[k] = from->chunks[k+1];
+  clear( from, from->n - 1 );
+  while (from->chunks[from->current].bytes == 0 && from->current >= 0)
+    from->current = from->current - 1;
+
+  /* Update statistics */
+  to->allocated += to->chunks[slot].bytes;
+  from->allocated -= to->chunks[slot].bytes;
+
+  /* Set generation number on moved memory */
+  gclib_set_generation( to->chunks[slot].bot, to->chunks[slot].bytes, 
+                        to->gen_no );
+
+  ss_invariants( from );
+  ss_invariants( to );
+
+  return slot;
+}
+
+
 void ss_free_block( semispace_t *ss, int idx )
 {
   int k;
