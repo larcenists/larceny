@@ -16,7 +16,7 @@
 
 (define (generic-exact->inexact a)
   (cond ((bignum? a) 
-	 (exact->inexact:rational a))
+         (bignum->flonum a))
 	((ratnum? a)
 	 (exact->inexact:rational a))
 	((rectnum? a) 
@@ -88,33 +88,17 @@
           (make-float (* .5 m) (+ q 1))
           (* (+ m 0.0) (expt 2.0 q))))
 
-    (define (exact->inexact-internal x)
-      (cond ((fixnum? x)
-	     (exact->inexact x))
-	    ((bignum? x)
-	     (bignum->flonum x))
-	    (else
-	     (error "Impossible case in exact->inexact:rational"))))
-
     (lambda (r)
       (if (negative? r)
           (- (exact->inexact:rational (- r)))
           (let* ((p (numerator r))
                  (q (denominator r))
-		 (a (exact->inexact-internal p))
-		 (b (exact->inexact-internal q))
+		 (a (exact->inexact p))
+		 (b (exact->inexact q))
 		 (x (/ a b)))
             (cond ((and (<= p two^n)
 			(<= q two^n))
 		   x)
-		  ((or (= a +inf.0) (= a -inf.0))
-		   (if (or (= b +inf.0) (= b -inf.0))
-		       +nan.0
-		       a))
-		  ((or (= b +inf.0) (= b -inf.0))
-		   (if (or (= a +inf.0) (= a -inf.0))
-		       +nan.0
-		       b))
 		  (else
 		   (hard-case p q x))))))))
 
