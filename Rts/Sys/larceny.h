@@ -149,7 +149,7 @@ extern char *larceny_architecture;
 /* In "Rts/Sys/argv.c" */
 
 #ifndef GC_INTERNAL
-extern word allocate_argument_vector( int argc, char **argv );
+extern word allocate_argument_vector( gc_t *gc, int argc, char **argv );
 #endif
 
 /* In "Rts/Sys/malloc.c" */
