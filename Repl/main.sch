@@ -20,6 +20,14 @@
 ; Entry point in a saved interactive heap.
 
 (define (interactive-entry-point argv)
+  (eval
+   '(define-syntax .javadot
+      (transformer
+       (lambda (exp rename compare)
+         (let ((exp (cadr exp)))
+           (display "inside .javadot: ") (write exp) (newline)
+           (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp)))))))
+
   ($$trace "In interactive-entry-point")
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))

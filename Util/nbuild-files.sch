@@ -17,7 +17,8 @@
     `("sets.sch" "hash.sch" "hashtable.sch" "hashtree.sch"
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
       "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
-      "expand.sch" "usual.sch" "pass1.sch"
+      "expand.sch" "usual.sch"
+      "pass1.sch"
       "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch")))
 
 (define *nbuild:sparc/twobit-files*
@@ -50,7 +51,10 @@
       ,(if (nbuild-parameter 'development?)
            "driver-twobit.sch"
            "driver-larceny.sch")
-      "printlap.sch")))
+      "printlap.sch"
+      ;;
+      "javadot-macro.sch"
+      )))
 
 (define *nbuild:common-asm-be*
   (nbuild-files 'common-asm

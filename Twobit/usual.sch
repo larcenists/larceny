@@ -379,10 +379,10 @@
 ;       (display "inside .javadot: ") (write exp) (newline)
 ;       (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp))))))
 
-(define-syntax .javadot
-  (syntax-rules ()
-    ((_ ?exp)
-     (dotnet-mumble ?exp))))
+;(define-syntax .javadot
+;  (syntax-rules ()
+;    ((_ ?exp)
+;     (dotnet-mumble ?exp))))
 
 ))  ; end of (for-each (lambda (x) (macro-expand ...)) ...)
 

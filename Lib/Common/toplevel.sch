@@ -351,7 +351,7 @@
   (environment-set-macro! larc 'let*-values (usual-syntax 'let*-values))
 
   ;; JavaDot and case-sensitivity
-  (environment-set-macro! larc '.javadot (usual-syntax '.javadot))
+  ;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
   
   (environment-set! larc 'case-sensitive? case-sensitive?)
   (environment-set! larc
