@@ -1,8 +1,9 @@
+! -*- Fundamental -*-
 !
 ! Scheme 313 Runtime System
 ! Millicode for Generic Arithmetic, SPARC.
 !
-! $Id$
+! $Id: generic.s,v 1.1 91/08/03 15:50:26 lth Exp Locker: lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -10,7 +11,7 @@
 ! operation is retried. A compnum with a 0 imaginary part is treated as a
 ! flonum.
 !
-! Chain order: fixnum, flonum, compnum, bignum, ratnum, rectnum.
+! Chain order: flonum, compnum, (fixnum,) bignum, ratnum, rectnum.
 !
 ! If both operands are fixnums, then we know that the original (in-line)
 ! calculation overflowed, and we create a bignum.
@@ -19,7 +20,7 @@
 ! vector-like (rectnum, ratnum) and bytevector-like (flonum, compnum, bignum)
 ! structures.
 !
-! Arithmetic for bignums, ratnums, and rectnums are done externally (C code),
+! Arithmetic for bignums, ratnums, and rectnums are done externally,
 ! while fixnums, flonums, and compnums are handled in-line in this file.
 !
 ! When a generic arithmetic routine is called, the operands must be in the
@@ -27,72 +28,88 @@
 ! invoked the arithmetic routine *must* be in %o7 so that operations can
 ! be retried.
 
-	.global	_generic_add
-	.global	_generic_sub
-	.global	_generic_mul
-	.global	_generic_neg
-	.global	_generic_zerop
-	.global	_generic_equalp
-	.global	_generic_lessp
-	.global	_generic_less_or_equalp
-	.global	_generic_greaterp
-	.global	_generic_greater_or_equalp
-
+	.global	_generic_add			! (+ a b)
+	.global	_generic_sub			! (- a b)
+	.global	_generic_mul			! (* a b)
+	.global	_generic_div			! (/ a b)
+	.global	_generic_quo			! (quotient a b)
+	.global	_generic_rem			! (remainder a b)
+	.global	_generic_mod			! (modulo a b)
+	.global	_generic_neg			! (- a)
+	.global	_generic_zerop			! (zero? a)
+	.global	_generic_equalp			! (= a b)
+	.global	_generic_lessp			! (< a b)
+	.global	_generic_less_or_equalp		! (<= a b)
+	.global	_generic_greaterp		! (> a b)
+	.global	_generic_greater_or_equalp	! (>= a b)
+	.global	_generic_complexp		! (complex? a)
+	.global	_generic_realp			! (real? a)
+	.global	_generic_rationalp		! (rational? a)
+	.global	_generic_integerp		! (integer? a)
+	.global	_generic_exactp			! (exact? a)
+	.global	_generic_inexactp		! (inexact? a)
+	.global	_generic_exact2inexact		! (exact->inexact a)
+	.global	_generic_inexact2exact		! (inexact->exact a)
 
 	.seg	"text"
 _generic_add:
-	st	%o7, [ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ]
-	andcc	%RESULT, 3, %g0
-	bnz	addother
-	andcc	%ARGREG2, 3, %g0
-	bnz	_contagion
+	! Not needed in bootstrap system, and not tested, so let's not
+	! take any chances.
+
+	jmp	%MILLICODE + M_NOT_SUPPORTED
 	nop
 
-	! add two fixnums and produce a bignum
+	! Real code
 
+	st	%o7, [ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ]
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG			! flonum, bignum, compnum?
+	bnz	addother
+	cmp	%TMP1, BVEC_TAG
+	bz	addbytevec
+	nop
+addother:
+	andcc	%RESULT, 3, %g0
+	bnz	addother1
+	andcc	%ARGREG2, 3, %g0
+	bz	addfix
+	nop
+addother1:
+	cmp	%TMP0, VEC_TAG			! ratnum, rectnum?
+	bnz	_contagion
+	cmp	%TMP1, VEC_TAG
+	bz	addvec
+	nop
+	b	_contagion
+	nop
+
+	! Add two fixnums and produce a bignum.
+
+addfix:
 	mov	%RESULT, %ARGREG3
 	call	_alloc				! grab some memory
-	mov	12, %RESULT
+	mov	12, %RESULT			! 12 bytes is enough
 
 	sra	%ARGREG3, 2, %TMP0
 	sra	%ARGREG2, 2, %TMP1
 	addcc	%TMP0, %TMP1, %TMP0
 	bge	addfix2
-	mov	0, %TMP1
+	set	(0 << 16) + 1, %TMP1		! sign + length
 	neg	%TMP0
-	mov	0xff, %TMP1
+	mov	(1 << 16) + 1, %TMP1		! ditto, negative
 addfix2:
-	sll	%TMP0, 8, %TMP2
-	or	%TMP1, %TMP2, %TMP2
-	st	%TMP2, [ %RESULT + 4 ]		! store sign & 3 digits
-	sra	%TMP0, 24, %TMP2
-	st	%TMP2, [ %RESULT + 8 ]		! store 4th digit
-	mov	(5 << 8) | BIG_HDR, %TMP0
+	st	%TMP1, [ %RESULT + 4 ]		! store sign, length
+	st	%TMP0, [ %RESULT + 8 ]		! store number
+	set	(8 << 8) | BIG_HDR, %TMP0
 	st	%TMP0, [ %RESULT ]
 	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %o7
 	jmp	%o7+8
 	or	%RESULT, BVEC_TAG, %RESULT
 	
-addother:
-	and	%RESULT, TAGMASK, %TMP0
-	and	%ARGREG2, TAGMASK, %TMP1
-	cmp	%TMP0, BVEC_TAG			! flonum, bignum, compnum?
-	bnz	addother1
-	cmp	%TMP1, BVEC_TAG
-	bz	addother2
-	nop
-addother1:
-	cmp	%TMP0, VEC_TAG			! ratnum, rectnum?
-	bnz	_nonnumeric
-	cmp	%TMP1, VEC_TAG
-	bz	addother3
-	nop
-	b	_nonnumeric
-	nop
-
 ! Daisy-chain for floats, compnums, and bignums starts here.
 
-addother2:
+addbytevec:
 	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
 	ldub	[ %ARGREG2 + 3 - BVEC_TAG ], %TMP1
 	set	_dzero, %TMP2
@@ -187,7 +204,7 @@ addbig:
 
 ! Daisy-chain for ratnums and rectnums starts here.
 
-addother3:
+addvec:
 	ldbu	[ %RESULT + 3 - VEC_TAG ], %TMP0
 	ldbu	[ %ARGREG2 + 3 - VEC_TAG ], %TMP1
 
@@ -217,12 +234,75 @@ addrect:
 	b	scheme_call
 	nop
 
+! Should never be invoked in bootstrap system.
 _generic_sub:
+	jmp	%MILLICODE + M_NOT_SUPPORTED
+	nop
+
+! This multiplication code is temporary; it handles fixnums which multiply w/o
+! overflow. Other types are caught, but overflow is not.
+
 _generic_mul:
+	or	%RESULT, %ARGREG2, %TMP0
+	and	%TMP0, 3, %g0
+	bne	Lmul1
+	nop
+	save	%sp, -96, %sp
+	mov	%SAVED_RESULT, %o0
+	call	.mul
+	sar	%SAVED_ARGREG2, 2, %o1
+	mov	%o0, %SAVED_RESULT		! this assumes no overflow!
+	jmp	%i7+8
+	restore
+Lmul1:
+	jmp	%MILLICODE + M_TYPE_EXCEPTION
+	nop
+
+! Division is treated as quotient in the bootstrap system (no ratnums 
+! supported).
+
 _generic_div:
+	b	generic_quo
+	nop
+
+! Similar to multiplication (above) in that it is temporary.
+
 _generic_quo:
+	or	%RESULT, %ARGREG2, %TMP0
+	and	%TMP0, 3, %g0
+	bne	Lquo1
+	nop
+	save	%sp, -96, %sp
+	mov	%SAVED_RESULT, %o0
+	call	.div
+	sar	%SAVED_ARGREG2, 2, %o1
+	mov	%o0, %SAVED_RESULT
+	jmp	%i7+8
+	restore
+Lquo1:
+	jmp	%MILLICODE + M_TYPE_EXCEPTION
+	nop
+
+! Similar to multiplication (above) in that it is temporary.
+
 _generic_rem:
-	jmp	%o7+8
+	or	%RESULT, %ARGREG2, %TMP0
+	and	%TMP0, 3, %g0
+	bne	Lrem1
+	nop
+	save	%sp, -96, %sp
+	mov	%SAVED_RESULT, %o0
+	call	.rem
+	sar	%SAVED_ARGREG2, 2, %o1
+	mov	%o0, %SAVED_RESULT
+	jmp	%i7+8
+	restore
+Lrem1:
+	jmp	%MILLICODE + M_TYPE_EXCEPTION
+	nop
+
+_generic_mod:
+	jmp	%MILLICODE + M_NOT_SUPPORTED
 	nop
 
 ! `zero?' does not have a fixnum case since that case is always handled
@@ -288,112 +368,226 @@ zerop6:
 	jmp	%o7+8
 	mov	FALSE_CONST, %RESULT
 
-! Given a pointer to a scheme procedure in %ARGREG3, and two operands in
-! %RESULT and %ARGREG2, call the scheme procedure with the given arguments.
-! The return address is already saved in ARITH_SAVED_RETADDR_OFFSET, but is
-! fetched from there and stored in a stack frame which we set up here.
-!
-! Before calling the Scheme procedure, the entire register set is saved
-! in a local continuation (this is because the caller is not required to
-! save the registers before invoking an arithmetic millicode routine).
-! The saved stack frame is somewhat nonstandard:
-!
-!       | etc...        |
-!       | saved reg 2   |
-!       | saved reg 1   |
-!       | saved reg 0   |
-!       | return offset |  Scheme return address in offset form
-!       | 0             |
-!       | 0             |
-!       | frame size    |
-! SP -> | retaddr slot  |
-!
-! This procedure calculates the return offset, if any, and stores it in
-! the middle of the frame. The alternative is to setup two frames here,
-! but that creates a mess in the event of a stack flush, since we have to
-! check for a frame underflow after the Scheme code returns (since the second
-! frame would not be restored automagiva
+! These are not needed to bootstrap the system.
 
-scheme_call:
-	ld	[ %GLOBALS + STK_LIMIT_OFFSET ], %TMP0
-	cmp	%STKP, %TMP0
-	bge	scheme_call_1
+_generic_equalp:
+_generic_lessp:
+_generic_less_or_equalp:
+_generic_greaterp:
+_generic_greater_or_equalp:
+	jmp	%MILLICODE + M_NOT_SUPPORTED
 	nop
-	ld	[ %MILLICODE + M_STKOFLOW ], %TMP0
-	jmpl	%TMP0, %o7
+
+! The tower of numbers.
+! The implementation of the predicates is rather interweaved, as we strive for
+! at least some semblance of efficiency while keeping the code small.
+
+! (define (complex? x)
+!   (or (compnum? x) (rectnum? x) (real? x)))
+
+_generic_complexp:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%RESULT, BVEC_TAG
+	bne	Lcomplexp1
 	nop
-scheme_call_1:
-	sub	%STKP, 32*4+8, %STKP		! all regs plus bookkeeping
-	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
-	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %TMP1
-	sub	%TMP1, %TMP0, %TMP1
-	sub	%TMP1, 4, %TMP1
-	
-	std	%REG0, [ %STKP + 8*1 ]
-	std	%REG2, [ %STKP + 8*2 ]
-	std	%REG4, [ %STKP + 8*3 ]
-	std	%REG6, [ %STKP + 8*4 ]
-	ld	[ %GLOBALS + REG8_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG9_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*5 ]
-	ld	[ %GLOBALS + REG10_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG11_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*6 ]
-	ld	[ %GLOBALS + REG12_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG13_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*7 ]
-	ld	[ %GLOBALS + REG14_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG15_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*8 ]
-	ld	[ %GLOBALS + REG16_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG17_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*9 ]
-	ld	[ %GLOBALS + REG18_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG19_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*10 ]
-	ld	[ %GLOBALS + REG20_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG21_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*11 ]
-	ld	[ %GLOBALS + REG22_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG23_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*12 ]
-	ld	[ %GLOBALS + REG24_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG25_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*13 ]
-	ld	[ %GLOBALS + REG26_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG27_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*14 ]
-	ld	[ %GLOBALS + REG28_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG29_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*15 ]
-	ld	[ %GLOBALS + REG30_OFFSET ], %REG0
-	ld	[ %GLOBALS + REG31_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*16 ]
-	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %g1
-	st	%g1, [ %STKP ]
-	mov	32*4+8, %g1
-	st	%g1, [ %STKP + 4 ]
+	ldbu	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, COMPNUM_HDR
+	bne	_generic_realp_b			! other bytevector-like
+	nop
+	jmp	%o7+8
+	mov	TRUE_CONST, %RESULT
+Lcomplexp1:
+	cmp	%RESULT, VEC_TAG
+	bne	_generic_integerp_f			! got to be fixnum
+	nop
+	ldbu	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, RECTNUM_HDR
+	bne	_generic_rationalp_v			! other vector-like
+	nop
+	jmp	%o7+8
+	mov	TRUE_CONST, %RESULT
 
-	sub	%STKP, 16, %STKP	! make a dummy frame
-	mov	12, %g1
-	std	%g0, [ %STKP ]
-	st	%g0, [ %STKP+8 ]
+! (define (real? x)
+!   (or (and (compnum? x) (= (imag-part x) 0.0)) (flonum? x) (rational? x)))
 
-	mov	%RESULT, %REG1
-	mov	%ARGREG2, %REG2
-	
-	ld	[ %ARGREG3 + A_CODEVECTOR ], %TMP0
-	jmpl	%TMP0 + A_CODEOFFSET, %ARGREG3
-	mov	8, %RESULT
+_generic_realp:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%RESULT, BVEC_TAG
+	bne	Lrealp1
+	nop
+	ldbu	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+_generic_realp_b:
+	cmp	%TMP0, FLONUM_HDR
+	be	Lrealp0
+	nop
+	cmp	%TMP0, COMPNUM_HDR
+	bne	_generic_integerp_b			! got to be bignum
+	nop
+	lddf	[ %RESULT - BVEC_TAG + 16 ], %f2
+	set	dzero, %TMP1
+	lddf	[ %TMP1 ], %f0
+	fcmpd	%f0, %f2
+	mov	TRUE_CONST, %RESULT
+	fbne,a	Lrealp0
+	mov	FALSE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+Lrealp1:
+	cmp	%RESULT, VEC_TAG
+	bne	_generic_integerp_f			! got to be fixnum
+	nop
+	ldbu	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_generic_rationalp_v			! vector-like
 
-	add	%STKP, 16, %STKP	! toss dummy frame
+! (define (rational? x)
+!   (or (ratnum? x) (integer? x)))
 
-	! aren't allowed to assume this frame exists on stack!!
+_generic_rationalp:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%RESULT, VEC_TAG
+	bne	_generic_integerp
+	nop
+	ldbu	[ %RESULT - VEC_TAG + 3 ], %TMP0
+_generic_rationalp_v:
+	cmp	%TMP0, RATNUM_HDR
+	mov	TRUE_CONST, %RESULT
+	bne,a	.+8
+	mov	FALSE_CONST, %RESULT
+	jmp	%o7+8
+	nop
 
-	ldd	[ %STKP + 8*16 ], %REG0
-	st	%REG0, [ %GLOBALS + REG30_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG31_OFFSET ]
+! (define (integer? x)
+!   (or (bignum? x)
+!       (fixnum? x)
+!       (or (and (flonum? x) (representable-as-int? x))
+!           (and (compnum? x) 
+!                (= (imag-part x) 0.0)
+!                (representable-as-int? (real-part x))))))
 
+_generic_integerp:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%RESULT, BVEC_TAG
+	bne	_generic_integerp_f
+	nop
+	ldbu	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+_generic_integerp_b:
+	cmp	%TMP0, BIGNUM_HDR
+	bne	Lintegerp1
+	nop
+	jmp	%o7+8
+	mov	TRUE_CONST, %RESULT
+Lintegerp1:
+	! It is a bytevector, and it is not a bignum. Ergo, it is a flonum or
+	! a compnum. Check to see if the real part is representable as an
+	! integer. If so, jump to `real?' for the final test (this test could
+	! be done in-line for greater efficiency). Otherwise, return #f.
+	!
+	! The real part is representable as an integer if the magnitude of
+	! the unbiased exponent is <= the number of bits in the mantissa 
+	! (including the hidden bit):
+	!
+	! (define (representable-as-integer? x)
+	!   (let ((e (- (exponent x) bias)))
+	!     (and (>= x 0) (<= x 53))))
+
+	ld	[ %RESULT - BVEC_TAG + 8 ], %TMP1	! get hi word
+	srl	%TMP1, 20, %TMP1
+	and	%TMP1, 0x7FF, %TMP1			! now has biased expt
+	cmp	%TMP1, 1023
+	blt	Linteger2				! < 0
+	mov	FALSE_CONST, %RESULT
+	cmp	%TMP1, 1023+53
+	bgt	Linteger2				! > 53
+	mov	FALSE_CONST, %RESULT
+	jmp	_generic_realp_b
+	nop	
+_generic_integerp_f:
+	and	%RESULT, 3, %g0
+	mov	TRUE_CONST, %RESULT
+	bne,a	.+8
+	mov	FALSE_CONST, %RESULT
+Lintegerp2:
+	jmp	%o7+8
+	nop
+
+
+! Exactness maps trivially to representation (or the other way around.)
+
+! (define (exact? x)
+!   (cond ((or (fixnum? x) (bignum? x) (ratnum? x) (rectnum? x))
+!          #t)
+!         ((or (compnum? x) (flonum? x))
+!          #f)
+!         (else
+!          (error ...))))
+
+_generic_exactp:
+	mov	TRUE_CONST, %ARGREG2
+	mov	FALSE_CONST, %ARGREG3
+_generic_exactness_test:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%TMP0, VEC_TAG
+	bne	Lexactp1
+	nop
+	! It's a vector.
+	ldbu	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, RATNUM_HDR
+	be	Lexactp99
+	cmp	%TMP0, RECTNUM_HDR
+	be	Lexactp99
+	nop
+	b	_nonnumeric1
+	nop
+Lexactp1:
+	cmp	%TMP0, BVEC_TAG
+	bne	Lexactp2
+	nop
+	ldbu	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, BIGNUM_HDR
+	be	Lexactp99
+	cmp	%TMP0, FLONUM_HDR
+	be	Lexactp98
+	cmp	%TMP0, COMPNUM_HDR
+	be	Lexactp98
+	nop
+	b	_nonnumeric1
+	nop
+Lexactp2:
+	andcc	%RESULT, 3, %g0
+	bne	_nonnumeric1
+	nop
+Lexactp99:
+	jmp	%o7+8
+	mov	%ARGREG2, %RESULT
+Lexactp98:
+	jmp	%o7+8
+	mov	%ARGREG3, %RESULT
+
+! (define (inexact? x)
+!   (cond ((or (compnum? x) (flonum? x))
+!          #t)
+!         ((or (fixnum? x) (flonum? x) (ratnum? x) (rectnum? x))
+!          #f)
+!         (else
+!          (error ...))))
+
+_generic_inexactp:
+	mov	FALSE_CONST, %ARGREG2
+	b	_generic_exactness_test
+	mov	TRUE_CONST, %ARGREG3
+
+! Fixnum->flonum (and perhaps ratnum->flonum) is interesting; everything else
+! is not, and should be handled by Scheme.
+
+_generic_exact2inexact:
+	jmp	%o7+8
+	nop
+
+! Why this is here, is beyond me.
+
+_generic_inexact2exact:
+	jmp	%o7+8
+	nop
 
 ! '_contagion' implements the coercion matrix for arithmetic operations.
 ! It assumes that the two operands are passed in %RESULT and %ARGREG2 and
