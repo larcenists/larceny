@@ -29,7 +29,7 @@ Ephemeral heap size in bytes (decimal). The ephemeral heap defaults to 1MB.
 .TP
 .B \-l nnnn
 Ephemeral watermark in bytes (decimal). The ephemeral watermark defaults to
-0.5MB (I think).
+50% of the ephemeral heap size (even in the presence of \-e).
 .TP
 .B \-s nnnn
 Stack cache size in bytes (decimal). The default is 64KB.
@@ -49,21 +49,26 @@ Raise the level of diagnostic output by one. It starts at 0; each \-d
 increments it by 1.
 .TP
 .B \-B
-Stop at every breakpoint (not much use any more).
-.TP
-.B \-b n 
-Breakpoint stop number (for debugging) (ditto).
+Stop at every breakpoint.
 .TP
 .B \-z
-Turn on single-stepping (ditto). This assumes your code (or part of it) was
-compiled with single-stepping enabled, although no harm if it wasn't, you just
-won't single step.
+Turn on single-stepping. This assumes your code (or part of it) was
+compiled with single-stepping enabled, although no harm results if it
+wasn't, you just won't single step.
+.TP
+.B \-P
+Print memory usage statistics after the heap has been loaded.
+.TP
+.B \-v
+Do a vadvise( V_ANOM ) to tell the virtual memory system about random
+paging behavior. Be warned that experience shows that doing this does
+not help much and can in fact result in worse paging behavior.
 .SH BUGS
 There should be a way to give heap sizes in KB and/or MB.
 
 The tenured heap should be automatically expanded on overflow.
 
-Better way to give timer limit would be nice.
+A better way to give timer limit would be nice.
 
 An argument could be made that the watermark should be given in percent of
 the heap size rather than in bytes, although they are essentially equivalent.
@@ -71,7 +76,7 @@ the heap size rather than in bytes, although they are essentially equivalent.
 Others, no doubt.
 
 .SH VERSION
-Version 0.13, very alpha.
+Version 0.14, very alpha.
 
 .SH AUTHORS
 Lars Thomas Hansen and Will Clinger.
@@ -79,4 +84,4 @@ Lars Thomas Hansen and Will Clinger.
 .SH SEE ALSO
 Revised^4 Report on Algorithmic Language Scheme
 .sp 0
-Larceny Reference Manual.
+Larceny Notes
