@@ -22,30 +22,31 @@
              ;; Before we save, is the *current frame* a mark frame?
              ;; It's a mark frame iff it's ENV slot is CALL/CM, 
              ;; that is, the currently executing procedure.
-             (,$load 31 0)      ;; Get the current frame's ENV slot => reg31
+             (,$load 4 0)      ;; Get the current frame's ENV slot => reg31
              (,$reg 0)         ;; Load self (call/cm) to Result
-             (,$op2 eq? 31)    ;; Compare
+             (,$op2 eq? 4)    ;; Compare
              (,$branchf 1002)  ;; If different, save and invoke.
                                ;; Otherwise, fall though to overwrite.
              
              ;; Overwrite and invoke.
              ;; It's a mark frame, so it's okay to write on it, even
              ;; though we didn't create it.
-             (,$load 31 1)      ;; Load the current mark-alist to reg31
+             (,$load 4 1)      ;; Load the current mark-alist to reg31
              (,$save 1)         ;; Have to save the thunk
              (,$store 0 0)      ;; (unnecesary?!)
              (,$store 3 1)      ;; Store thunk to slot 1
-             (,$movereg 31 3)   ;; Move alist to arg3 (args 1,2 already done)
+             (,$movereg 4 3)   ;; Move alist to arg3 (args 1,2 already done)
              (,$setrtn 1003)
              (,$global sys$replace-mark-functional)
              (,$invoke 3)       ;; Compute the new mark-alist
              ;; -- write and invoke
              (,$.label 1003)
              (,$.cont)
-             (,$setreg 31)     ;; Store new mark-alist in reg31
+             (,$load 0 0)
              (,$load 1 1)      ;; Reload the thunk
+             (,$setreg 4)     ;; Store new mark-alist in reg31
              (,$pop 1)         ;; Discard old frame
-             (,$store 31 1)    ;; Write the mark-alist to slot 1 of the frame.
+             (,$store 4 1)    ;; Write the mark-alist to slot 1 of the frame.
              (,$reg 1)
              (,$invoke 0)      ;; Invoke thunk, keeping old mark frame.
              
