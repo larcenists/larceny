@@ -1,6 +1,10 @@
-;; This code depends on Auxlib/record.sch and Lib/XSMzScheme/inspector.sch
+;; This code depends on Auxlib/record.sch and Lib/MzScheme/inspector.sch
 
 ;; http://download.plt-scheme.org/doc/207/html/mzscheme/mzscheme-Z-H-4.html#node_chap_4
+
+;; FIXME:
+;;  - immutable-k-list is ignored.
+
 
 ;; These procedures are provided.
 (define make-struct-type (undefined))
@@ -25,13 +29,51 @@
 (define struct-predicate-procedure? (undefined))
 (define struct-constructor-procedure? (undefined))
 
-(let ()
+;; This shouldn't be visible to MzScheme programs, but the apply
+;; code for structure-procedures needs it.
+;; Consumes either a struct instance or a struct-type.
+;; Produces a procedure if there is one, or (undefined)
+(define $sys.struct->procedure (undefined))
 
-  ;; drop the first n elements of list
+;; define-record is nowhere to be found.
+(let* ((*rtd-type* (record-type-descriptor (make-record-type "" '())))
+       (get-slots (record-accessor *rtd-type* 'slot-offsets))
+       (get-printer (record-accessor *rtd-type* 'printer))
+       (get-hier-vector (record-accessor *rtd-type* 'hierarchy-vector))
+       (get-hier-depth (record-accessor *rtd-type* 'hierarchy-depth))
+       (get-record-size (record-accessor *rtd-type* 'record-size))
+       
+       ;; The struct-type-descriptor type is a subtype of the
+       ;; record-type-descriptor type.  (Say that five times fast!)
+       (*std-type*
+        (make-record-type
+         'struct-type-descriptor
+         '(auto-v prop-values inspector proc immutable-k-list)
+         *rtd-type*))
+       
+       (make-stype (record-constructor *std-type*))
+        
+       (stype-auto-v (record-accessor *std-type* 'auto-v))
+       (stype-prop-values (record-accessor *std-type* 'prop-values))
+       (stype-inspector (record-accessor *std-type* 'inspector))
+       (stype-proc (record-accessor *std-type* 'proc))
+       (stype-immutable-k-list (record-accessor *std-type* 'immutable-k-list))
+       (stype? (record-predicate *std-type*)))
+  
+  ;; drop the first n elements of lst
   (define (drop n lst)
     (if (zero? n)
         lst
         (drop (- n 1) (cdr lst))))
+
+  ;; generate (list 0 1 ... n-1)
+  (define (nats-to n)
+    (let loop ((c (- n 1))
+               (l '()))
+      (if (< c 0)
+          l
+          (loop (- c 1)
+                (cons c l)))))
   
   ;; A structure type is a record consisting of
   ;; - a record type descriptor
@@ -40,20 +82,14 @@
   ;; - proc-spec
   ;; - immutable-k-list
   (define make-struct-type*
-    (let ((nats-to  ;; generate a list from [0, n)
-           (lambda (n) (let loop ((c 0)
-                             (l '()))
-                    (if (= c n)
-                        l
-                        (loop (+ 1 c)
-                              (cons c l))))))
-          (offset->name
+    (let ((offset->name
            (lambda (n) (string->symbol
-                   (string-append "field-" (number->string n))))))
+                        (string-append "field-" (number->string n))))))
       (lambda (name super init-field-k auto-field-k . rest)
         ;; no opt-lambda, sorry...
         (let* ((defaults '(#f ;; auto-fill value
                            () ;; property value list
+                           ;; go one up to get an opaque type
                            ($sys.inspector->superior (current-inspector))
                            #f ;; structure procedure
                            ())) ;; list of immutable field indices
@@ -62,24 +98,52 @@
                (opts (list->vector opts)))
           
           (let ((auto-v (vector-ref opts 0))
-                (prop-value-list (vector-ref opts 1))
+                (prop-values (vector-ref opts 1))
                 (inspector (vector-ref opts 2))
                 (proc-spec (vector-ref opts 3))
                 (immutable-k-list (vector-ref opts 4))
-
+                
                 (field-names
                  (map offset->name
                       (nats-to (+ init-field-k auto-field-k)))))
-            (let ((type-descr (make-record-type name field-names super)))
-              (let ((constructor (record-constructor type-descr))
-                    (predicate (record-predicate type-descr))
-                    (accessor (record-indexer type-descr))
-                    (mutator (record-mutator type-descr)))
-                (values type-descr
-                        constructor
-                        predicate
-                        accessor
-                        mutator))))))))
+            
+            ;; Make a record-type, and then use accessors to transfer
+            ;; the data into a struct-type
+            (let ((rtd (make-record-type (symbol->string name)
+                                         field-names
+                                         super)))
+              (let ((hierarchy-vec (get-hier-vector rtd))
+                    (hierarchy-depth (get-hier-depth rtd)))
+                    
+                (let ((st (make-stype
+                           (record-type-name rtd)
+                           (get-slots rtd)
+                           (get-printer rtd)
+                           (get-record-size rtd)
+                           hierarchy-vec
+                           hierarchy-depth
+                           ;;
+                           auto-v
+                           prop-values
+                           inspector
+                           proc-spec
+                           immutable-k-list)))
+                  ;; Still need to invoke a bit of voodoo:
+                  ;; make-record-type leaves the hierarchy-vector entry
+                  ;; as a record-type-descriptor, but we want our
+                  ;; shiny new struct-type-descriptor there instead.
+                  (vector-set! hierarchy-vec hierarchy-depth st)
+
+                  (let ((constructor (record-constructor st))
+                        (predicate (record-predicate st))
+                        (accessor (record-indexer st))
+                        (mutator (record-mutator st)))
+                
+                    (values st
+                            constructor
+                            predicate
+                            accessor
+                            mutator))))))))))
 
   (define make-struct-type-property*
     (case-lambda
@@ -106,9 +170,12 @@
   (define make-wrapped-waitable*  (undefined))
   (define make-nack-guard-waitable*  (undefined))
   (define make-poll-guard-waitable*  (undefined))
-  
+
+  ;; struct? is wrong.  see 4.8.
   (define struct?* record?)
-  (define struct-type?*  record-type-descriptor?)
+  (define struct-type?*
+    (lambda (t) (struct-type-descriptor? t)))
+  
   (define struct-type-property?*  (undefined))
   
   (define struct-info*  (undefined))
@@ -120,6 +187,12 @@
   (define struct-predicate-procedure?*  (undefined))
   (define struct-constructor-procedure?* (undefined))
 
+  ;; consumes either a structure instance or a structure-type
+  ;; returns a procedure if one is available, '#!undefined otherwise
+  (define ->procedure (unspecified))
+
+  
+  
   ;; Hook up the implementation with the interface.
   (set! make-struct-type make-struct-type*)
   (set! make-struct-type-property make-struct-type-property*)
@@ -142,9 +215,10 @@
   (set! struct-accessor-procedure? struct-accessor-procedure?*)
   (set! struct-predicate-procedure? struct-predicate-procedure?*)
   (set! struct-constructor-procedure? struct-constructor-procedure?*)
+
+  (set! $sys.struct->procedure ->procedure)
   )
   
-
 ;; Quick and dirty test case
 ;; Larceny doesn't seem to have define-values
 (define tup)
@@ -159,3 +233,16 @@
   (set! tup? pred)
   (set! tup-ref ref)
   (set! tup-set! set))
+
+(define triple)
+(define mk-triple)
+(define triple?)
+(define triple-ref)
+(define triple-set!)
+(let-values (((type cons pred ref set)
+              (make-struct-type 'triple tup 1 0)))
+  (set! triple type)
+  (set! mk-triple cons)
+  (set! triple? pred)
+  (set! triple-ref ref)
+  (set! triple-set set))
