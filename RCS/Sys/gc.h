@@ -1,7 +1,7 @@
 /*
  * User-defined parameters for garbage collector.
  *
- * $Id$
+ * $Id: gc.h,v 1.2 91/06/21 15:15:02 lth Exp Locker: lth $
  * 
  * Whoever writes the program that interfaces to the collector must define
  * the desired defaults in this file for the garbage collector to use.
@@ -15,6 +15,7 @@
 
 #include "offsets.h"
 #include "gcinterface.h"
+#include "main.h"
 
 /* 
  * The following limits are all in bytes and should be evenly 
@@ -28,5 +29,3 @@
 #define MIN_T_SIZE          (1024*1024)     /* Minimum size of tenured area */
 #define MIN_E_SIZE          (128*1024)    /* Minimum size of ephemeral area */
 #define MIN_STK_SIZE        (8*1024)         /* Minimum size of stack cahce */
-
-extern word globals[];
