@@ -152,21 +152,26 @@
 	(libdir (make-filename basedir "lib")))
     (for-each (lambda (fn)
 		(system (string-append "cp " fn " " incdir)))
-	      '("Rts/Standard-C/twobit.h"
+	      '("Rts/Standard-C/petit-instr.h"
 		"Rts/Standard-C/millicode.h"
 		"Rts/Standard-C/petit-config.h"
-		"Rts/Standard-C/petit-hacks.h"
+		"Rts/Standard-C/petit-machine.h"
 		"Rts/Sys/larceny-types.h"
 		"Rts/Sys/macros.h"
 		"Rts/Sys/assert.h"
-		"Rts/Sys/config.h"
+		"Rts/Build/config.h"
 		"Rts/Build/cdefs.h"))
-    (for-each (lambda (fn)
-		(system (string-append "cp " fn " " libdir)))
-	      '("Rts/libpetit.a"
-		"libheap.a"))
+    (system (string-append "cp libheap.a " libdir))
+    (if (file-exists? "Rts/libpetit.a")
+        (system (string-append "cp Rts/libpetit.a " libdir)))
+    (if (file-exists? "Rts/libpetit.so")
+        (system (string-append "cp Rts/libpetit.so " libdir)))
     (set! unix/petit-include-path (string-append "-I" incdir))
-    (set! unix/petit-rts-library (string-append libdir "/libpetit.a"))
+    ; Note order here, .so overrides .a
+    (if (file-exists? "Rts/libpetit.a")
+        (set! unix/petit-rts-library (string-append libdir "/libpetit.a")))
+    (if (file-exists? "Rts/libpetit.so")
+        (set! unix/petit-rts-library (string-append libdir "/libpetit.so")))
     (set! unix/petit-lib-library (string-append libdir "/libheap.a"))
     'installed))
 

@@ -118,9 +118,9 @@ Anyway, to create a standalone compiler do the following:
       as its argument, then evaluate
          > COMPILE313
       The REPL should print #<PROCEDURE compile313>.
-  (6) Exit.  Copy the twobit executable and twobit.heap to /usr/lib/larceny,
-      then create another script in /usr/bin called "twobit" which
-      contains
+  (6) Exit.  Copy the twobit executable and twobit.heap as well as
+      petit.heap to /usr/lib/larceny, then create another script in 
+      /usr/bin called "twobit" which contains
         /usr/lib/larceny/twobit /usr/lib/larceny/twobit.heap
       You should now be able to type 'twobit' anywhere, and you should
       be able both to compile to FASL and to create entire applications
