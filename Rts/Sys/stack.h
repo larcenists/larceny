@@ -25,11 +25,9 @@ void stk_clear( word *globals );
   /* Clear the current stack.
      */
 
-void stk_flush( word *globals, unsigned *frames_flushed,
-	        unsigned *bytes_flushed );
+void stk_flush( word *globals );
   /* Flush the stack cache to the heap, converting stack frames to heap
      frames, and setting globals[G_CONT] to point to the topmost frame.
-     The by-reference variables are assigned statistics data.
      */
 
 int stk_restore_frame( word *globals );
@@ -42,6 +40,11 @@ int stk_size_for_top_stack_frame( word *globals );
   /* Compute the number of bytes required to accomodate a new stack as well
      as the top stack frame in the current stack.
      */
+
+void stk_stats( word *globals, stack_stats_t *stats );
+  /* Fill in the stats structure with statistics about the stack module.
+     */
+
 
 /* IMPORTED ROUTINES */
 
