@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 88, 111, 135, 136.
+HIGH PRIORITY BUGS: 88, 111, 136.
 
 
 005  (v0.27e)
@@ -123,16 +123,25 @@ HIGH PRIORITY BUGS: 88, 111, 135, 136.
     interact properly with the error system?
 
 057 v0.32 (980403 / lth)
+087 v0.39 (981216 / lth)
     Priority: low
     Category: LIB / correctness
 
-    display-memstats:
-    * Does not distinguish information about the static area as being
-      about the static area (calls it Generation#n rather than Static).
+    Memstats and the static area:
+
+    * Memstats does not return information that distinguishes the static
+      area, if present.  Instead it returns information about Generation #n.
+      So the info is there, it's just not being distinguished.
+
+    Display-memstats:
+
+    * Does not distinguish the static area in its printout.
+
     * Displays information about the non-predictive remembered set even
       though it is not in use.
 
-    See also bugs 86, 87.
+    (See also fixed bug 86, which solved part of the problem: gathering
+     the statistics in the RTS.)
 
 062 v0.33 (980430 / wdc)
     Priority: low
@@ -275,23 +284,6 @@ HIGH PRIORITY BUGS: 88, 111, 135, 136.
     (Eval/macro-expand.sch) should allow any environment to be used.
 
     [In any case the current setup is not the right thing.]
-
-086 v0.39 (981216 / lth)
-    Priority: low
-    Category: RTS / correctness
-
-    With -stats switch, Larceny does not print size of text/static area, 
-    if there's one; see print_heapstats() in Rts/Sys/stats.c.
-
-    See also bug 57.
-
-087 v0.39 (981216 / lth)
-    Priority: low
-    Category: LIB / correctness
-
-    Memstats does not return information about the static area, if any.
-
-    See also bug 57.
 
 088 v0.40 (981219 / lth)
     Priority: high.
