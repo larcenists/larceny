@@ -241,7 +241,10 @@
                                 (string-downcase! (list->string r)))))
                         (if (not (peculiar-identifier? x))
                             (warn peculiar-id-message x))
-                        x)))
+                        (if (and (recognize-javadot-symbols?)
+                                 (javadot-syntax? x))
+                            (symbol->javadot-symbol x)
+                            x))))
                 (read-atom (tyinext p) p (cons c l))))))
        
        (parse-prefixed-number
