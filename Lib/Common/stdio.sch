@@ -238,4 +238,6 @@
 (define (delete-file filename)
   (file-io/delete-file filename))
 
+(define port-position io/port-position)
+
 ; eof
