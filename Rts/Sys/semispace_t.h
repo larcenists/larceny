@@ -108,8 +108,8 @@ void ss_sync( semispace_t *ss );
 
 void ss_set_gen_no( semispace_t *ss, int gen_no );
   /* Set the generation number for all pages in the semispace `ss' 
-     to `gen_no'.  This only changes the descriptor tables -- no
-     heap memory is moved or otherwise changed.
+     to `gen_no'.  This only changes the ss structure and the descriptor
+     tables -- no heap memory is moved or otherwise changed.
      */
 
 #endif  /* INCLUDED_SEMISPACE_T_H */
