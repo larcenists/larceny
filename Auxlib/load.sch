@@ -47,7 +47,7 @@
 
 ; Load parameters
 
-(define *load-print-filename* #t)
+(define *load-print-filename* #f)
 (define *load-prefer-requested* #t)
 (define *load-path* (list *current-directory-designator*))
 (define *load-extensions* '("sch" "scm" "fasl"))
@@ -126,7 +126,7 @@
 	  (else (error "load: Could not find file " fn)))
     (unspecified))
 
-  (define (internal:load fn . load-args)
+  (define (smart-load fn . load-args)
     (let* ((evaluator
 	    (load-evaluator))
 	   (new-ev
@@ -164,11 +164,11 @@
 	  (let ((noise *load-noise-level*))
 	    (dynamic-wind
 	     (lambda () (set! *load-noise-level* new-noise))
-	     (lambda () (apply internal:load args))
+	     (lambda () (apply smart-load args))
 	     (lambda () (set! *load-noise-level* noise)))))
       (unspecified)))
        
-  (set! load internal:load)
+  (set! load smart-load)
   (set! load-noisily (load-with-noise #t))
   (set! load-quietly (load-with-noise #f)))
 
