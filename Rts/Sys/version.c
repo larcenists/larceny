@@ -34,7 +34,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 50;
-char *larceny_version_qualifier = " Ambassador de Sadesky";
+char *larceny_version_qualifier = " \"Ambassador de Sadesky\"";
 
 char *date = DATE;
 char *user = USER;
