@@ -107,4 +107,14 @@
 (define (system command)
   (##shell-command command))
 
+(define (make-parameter name value)
+  (lambda v
+    (cond ((null? v) value)
+	  ((null? (cdr v))
+	   (set! value (car v))
+	   value)
+	  (else
+	   (error "Too many params to make-parameter.")))))
+
+
 ; eof
