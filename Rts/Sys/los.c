@@ -121,7 +121,7 @@ bool los_mark( los_t *los, los_list_t *marked, word *w, int gen_no )
   assert( ishdr( *w ) );
   remove( w );
   los->object_lists[ gen_no ]->bytes -= size( w );
-  marked->bytes += size( w );
+  /* marked->bytes += size( w );  WRONG! -- insert_at_end does this too */
   insert_at_end( w, marked );
   set_prev( w, 0 );
   return 0;
