@@ -197,7 +197,7 @@
 (define (build-runtime-system)
   (case (nbuild-parameter 'host-os)
     ((win32)
-     (system (string-append "cd Rts\\DotNet && " nmake-executable)))
+     (system (twobit-format "cd Rts\\DotNet && ~s" nmake-executable)))
     ((unix macosx)
      (system "cd Rts/DotNet; make"))
     (else
