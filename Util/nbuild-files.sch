@@ -54,7 +54,7 @@
 
 (define *nbuild:petitasm-files*
   (nbuild-files 'standard-C-asm
-		'("pass5p2.sch" "switches.sch")))
+		'("pass5p2.sch" "switches.sch" "dumpheap-extra.sch")))
 
 (define *nbuild:make-files*
   (append (nbuild-files 'util '("make.sch"))
@@ -67,7 +67,7 @@
   '())
 
 (define *nbuild:petit-heap-dumper-files*
-  (nbuild-files 'standard-C-asm '("dumpheap-extra.sch")))
+  (nbuild-files 'standard-C-asm '()))
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*
