@@ -1,5 +1,5 @@
 ! -*- Fundamental -*-
-! $Id: bench1.s,v 1.1 91/06/24 14:16:20 lth Exp Locker: lth $
+! $Id: bench1.s,v 1.2 91/06/26 12:21:17 lth Exp Locker: lth $
 !
 ! Hand-compiled code for the following program:
 !
@@ -47,6 +47,7 @@ L2:
 	ld	[ %MILLICODE + M_ZEROP ], %TMP0
 	jmpl	%TMP0, %o7
 	mov	%REG1, %RESULT
+	cmp	%RESULT, TRUE_CONST			! Set condition codes
 L3:
 	bne,a	L4
 	nop
@@ -91,7 +92,7 @@ L13:
 
 	! Generic case
 
-	ld	[ %MILLICODE + M_ADD ], %TMP0
+	ld	[ %MILLICODE + M_SUB ], %TMP0
 	mov	%REG1, %RESULT
 	jmpl	%TMP0, %o7
 	mov	4, %ARGREG2
