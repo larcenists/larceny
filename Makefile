@@ -61,14 +61,17 @@ clean: libclean rtsclean
 	( cd Rts ; $(MAKE) clean )
 
 lopclean:
-	rm -f   Lib/*.*lop Lib/*.c Lib/*.o \
+	rm -f   Lib/Common/*.*lop Lib/Common/*.c Lib/Common/*.o \
+	        Lib/Sparc/*.*lop Lib/Sparc/*.c Lib/Sparc/*.o \
+	        Lib/Standard-C/*.*lop Lib/Standard-C/*.c Lib/Standard-C/*.o \
 		Eval/*.*lop Eval/*.c Eval/*.o \
 		Repl/*.*lop Repl/*.c Repl/*.o \
 		Auxlib/*.*lop \
 		Testsuite/Lib/*.*lop
 
 libclean: lopclean
-	rm -f   Lib/*.lap \
+	rm -f   Lib/Common/*.lap Lib/Sparc/*.lap Lib/Standard-C/*.lap \
+	        Lib/Common/ecodes.sch Lib/Common/globals.sch \
 		Eval/*.lap \
 		Repl/*.lap \
 		Auxlib/*.lap \
@@ -86,7 +89,7 @@ faslclean:
 	rm -f Experimental/*.fasl
 	rm -f Compat/Larceny/*.fasl
 	rm -f Util/*.fasl
-	rm -f Lib/makefile.fasl Lib/globals.sch Lib/ecodes.sch
+	rm -f Lib/makefile.fasl
 	rm -f Auxlib/*.fasl
 	rm -f Debugger/*.fasl
 	rm -f Testsuite/GC/*.fasl
