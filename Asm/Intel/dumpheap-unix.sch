@@ -76,7 +76,8 @@
   (execute
    (twobit-format 
     #f
-    "gcc -gstabs+ -rdynamic -o ~a ~a ~a"
+    "gcc ~a -rdynamic -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -85,7 +86,8 @@
   (execute
    (twobit-format 
     #f
-    "gcc -gstabs+ -o ~a ~a ~a"
+    "gcc ~a -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -97,7 +99,8 @@
   (execute
    (twobit-format 
     #f
-    "gcc -gstabs+ -shared -o ~a ~a ~a"
+    "gcc ~a -shared -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
