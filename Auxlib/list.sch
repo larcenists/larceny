@@ -8,7 +8,7 @@
 ; * Reduce, reduce-right, fold-right, fold-left are compatible with MIT Scheme.
 ; * Make-list is compatible with MIT Scheme and Chez Scheme.
 ; * These are not (yet) compatible with Shivers's proposed list functions.
-; * remq, remv, remove, remq!, remv!, remov!, every?, and some? are in the 
+; * remq, remv, remove, remq!, remv!, remove!, every?, and some? are in the 
 ;   basic library.
 
 ; Destructively remove all associations whose key matches `key' from `alist'.
@@ -36,6 +36,23 @@
 	(else
 	 (set-cdr! alist (aremove! key (cdr alist)))
 	 alist)))
+
+; Assq etc on the cdr of the entry.
+
+(define (reverse-assq key alist)
+  (cond ((null? alist) #f)
+        ((eq? (cdar alist) key) (car alist))
+        (else (reverse-assq key (cdr alist)))))
+
+(define (reverse-assv key alist)
+  (cond ((null? alist) #f)
+        ((eqv? (cdar alist) key) (car alist))
+        (else (reverse-assv key (cdr alist)))))
+
+(define (reverse-assoc key alist)
+  (cond ((null? alist) #f)
+        ((equal? (cdar alist) key) (car alist))
+        (else (reverse-assoc key (cdr alist)))))
 
 ; Return a list of elements of `list' selected by the predicate.
 
@@ -159,6 +176,5 @@
   (if (zero? n)
       '()
       (cons (car l) (list-head (cdr l) (- n 1)))))
-
 	
 ; eof
