@@ -38,7 +38,7 @@ The following instructions are for Emacs 19 and do not work in Emacs 18.
 
 3. To open the CVS documentation, which unfortunately is not yet part of
    the standard Info tree installed by systems, type `C-u C-h i'.  When
-   emacs asks for a filename, type `/arch/gnu/packages/cvs-1.9/info/cvs.info'.
+   emacs asks for a filename, type `/arch/gnu/packages/cvs-1.10/info/cvs.info'.
 
 If you haven't already done so, you should start the info reader and
 read the introductory sections now.  Read at least parts of the sections
@@ -51,7 +51,7 @@ its info reader.)
 1 and 2. As above.
 
 3. Type 'g', and when Info asks for node, type
-      (/arch/gnu/packages/cvs-1.9/info/cvs.info)
+      (/arch/gnu/packages/cvs-1.10/info/cvs.info)
    including the parentheses.
 
 
