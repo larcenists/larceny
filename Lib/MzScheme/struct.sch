@@ -7,33 +7,33 @@
 
 
 ;; These procedures are provided.
-(define make-struct-type (undefined))
-(define make-struct-type-property (undefined))
-(define make-struct-field-accessor (undefined))
-(define make-struct-field-mutator (undefined))
+(define make-struct-type)
+(define make-struct-type-property)
+(define make-struct-field-accessor)
+(define make-struct-field-mutator)
 
-(define make-wrapped-waitable (undefined))
-(define make-nack-guard-waitable (undefined))
-(define make-poll-guard-waitable (undefined))
+(define make-wrapped-waitable)
+(define make-nack-guard-waitable)
+(define make-poll-guard-waitable)
 
-(define struct? (undefined))
-(define struct-type? (undefined))
-(define struct-type-property? (undefined))
+(define struct?)
+(define struct-type?)
+(define struct-type-property?)
 
-(define struct-info (undefined))
-(define struct-type-info (undefined))
-(define struct->vector (undefined))
+(define struct-info)
+(define struct-type-info)
+(define struct->vector)
 
-(define struct-mutator-procedure? (undefined))
-(define struct-accessor-procedure? (undefined))
-(define struct-predicate-procedure? (undefined))
-(define struct-constructor-procedure? (undefined))
+(define struct-mutator-procedure?)
+(define struct-accessor-procedure?)
+(define struct-predicate-procedure?)
+(define struct-constructor-procedure?)
 
 ;; This shouldn't be visible to MzScheme programs, but the apply
 ;; code for structure-procedures needs it.
 ;; Consumes either a struct instance or a struct-type.
 ;; Produces a procedure if there is one, or (undefined)
-(define $sys.struct-proc-spec (undefined))
+(define $sys.struct-proc-spec)
 (define $sys.struct-ref)
 
 ;; define-record is nowhere to be found.
@@ -169,36 +169,35 @@
   (define make-struct-field-accessor* (undefined))
   (define make-struct-field-mutator* (undefined))
   
-  (define make-wrapped-waitable*  (undefined))
-  (define make-nack-guard-waitable*  (undefined))
-  (define make-poll-guard-waitable*  (undefined))
+  (define make-wrapped-waitable* (undefined))
+  (define make-nack-guard-waitable* (undefined))
+  (define make-poll-guard-waitable* (undefined))
 
-  ;; struct? is wrong.  see 4.8.
-  (define struct?* record?)
+  ;; FIXME:  This isn't right.  struct? only yields true when
+  ;; struct->vector would produce a vector with some field values exposed.
+  ;; Weird.  See MzScheme manual 4.8.
+  (define struct?*
+    (lambda (obj) (and (record? obj)
+                  (struct-type? (record-type-descriptor obj)))))
   (define struct-type?*
     (lambda (t) (stype? t)))
   
-  (define struct-type-property?*  (undefined))
+  (define struct-type-property?* (undefined))
   
-  (define struct-info*  (undefined))
-  (define struct-type-info*  (undefined))
-  (define struct->vector*  (undefined))
+  (define struct-info* (undefined))
+  (define struct-type-info* (undefined))
+  (define struct->vector* (undefined))
   
-  (define struct-mutator-procedure?*  (undefined))
-  (define struct-accessor-procedure?*  (undefined))
-  (define struct-predicate-procedure?*  (undefined))
+  (define struct-mutator-procedure?* (undefined))
+  (define struct-accessor-procedure?* (undefined))
+  (define struct-predicate-procedure?* (undefined))
   (define struct-constructor-procedure?* (undefined))
 
-  ;; this isn't exported... different from struct?
-  (define (struct-instance? obj)
-    (and (record? obj)
-         (struct-type? (record-type-descriptor obj))))
-
-  ;; given an instance, return its type's proc-spec
+   ;; given an instance, return its type's proc-spec
   (define sys:struct-proc-spec
     (lambda (instance)
       (let ((type (record-type-descriptor instance)))
-        (stype-proc-spec type))))
+        (stype-proc type))))
 
   (define sys:struct-ref
     (lambda (instance index)
@@ -233,28 +232,28 @@
   
 ;; Quick and dirty test case
 ;; Larceny doesn't seem to have define-values
-(define tup)
-(define mk-tup)
-(define tup?)
-(define tup-ref)
-(define tup-set!)
-(let-values (((type cons pred ref set)
-              (make-struct-type 'tup #f 2 0)))
-  (set! tup type)
-  (set! mk-tup cons)
-  (set! tup? pred)
-  (set! tup-ref ref)
-  (set! tup-set! set))
+; (define tup)
+; (define mk-tup)
+; (define tup?)
+; (define tup-ref)
+; (define tup-set!)
+; (let-values ((type cons pred ref set)
+;               (make-struct-type 'tup #f 2 0))
+;   (set! tup type)
+;   (set! mk-tup cons)
+;   (set! tup? pred)
+;   (set! tup-ref ref)
+;   (set! tup-set! set))
 
-(define triple)
-(define mk-triple)
-(define triple?)
-(define triple-ref)
-(define triple-set!)
-(let-values (((type cons pred ref set)
-              (make-struct-type 'triple tup 1 0)))
-  (set! triple type)
-  (set! mk-triple cons)
-  (set! triple? pred)
-  (set! triple-ref ref)
-  (set! triple-set set))
+; (define triple)
+; (define mk-triple)
+; (define triple?)
+; (define triple-ref)
+; (define triple-set!)
+; (let-values (((type cons pred ref set)
+;               (make-struct-type 'triple tup 1 0)))
+;   (set! triple type)
+;   (set! mk-triple cons)
+;   (set! triple? pred)
+;   (set! triple-ref ref)
+;   (set! triple-set set))
