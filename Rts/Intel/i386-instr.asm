@@ -1,5 +1,4 @@
 ;;; NASM/i386 macros for the MacScheme instruction set.
-;;; 2004-01-27 / lth
 ;;;
 ;;; $Id$
 ;;; 
@@ -294,12 +293,14 @@ t_label(%1):
 %macro T_GLOBAL 1
 %%L0:	loadc	RESULT, %1
 	mov	RESULT, [RESULT-PAIR_TAG]
-%if !defined UNSAFE_CODE && !defined UNSAFE_GLOBALS
+%ifndef UNSAFE_CODE
+%ifndef UNSAFE_GLOBALS
 	cmp	RESULT, UNDEFINED_CONST
 	jne short %%L1
 	mcall	M_GLOBAL_EX
 	jmp short %%L0
 %%L1:
+%endif
 %endif
 %endmacro
 
@@ -2071,8 +2072,11 @@ t_label(%1):
 %endif
 %endmacro
 
+;;; OPTIMIZEME:	T_OP2_61 does tag checking that we do not need (but we do
+;;; need the overflow checking).
+	
 %macro T_OP2_501 1		; +:fix:fix
-	T_OP2_500 %1
+	T_OP2_61 %1
 %endmacro
 	
 %macro T_OP2_502 1		; -:idx:idx
@@ -2083,24 +2087,33 @@ t_label(%1):
 %endif
 %endmacro
 
+;;; OPTIMIZEME:	T_OP2_62 does tag checking that we do not need (but we do
+;;; need the overflow checking).
+	
 %macro T_OP2_503 1		; -:fix:fix
-	T_OP2_502 %1
+	T_OP2_62 %1
 %endmacro
 
 %macro T_OP2IMM_520 1		; +:idx:idx
 	add	RESULT, %1
 %endmacro
 
+;;; OPTIMIZEME:	T_OP2IMM_130 does tag checking that we do not need (but we do
+;;; need the overflow checking).
+	
 %macro T_OP2IMM_521 1		; +:fix:fix
-	add	RESULT, %1
+	T_OP2IMM_130 %1
 %endmacro
 
 %macro T_OP2IMM_522 1		; -:idx:idx
 	sub	RESULT, %1
 %endmacro
 
+;;; OPTIMIZEME:	T_OP2IMM_131 does tag checking that we do not need (but we do
+;;; need the overflow checking).
+	
 %macro T_OP2IMM_523 1		; -:fix:fix
-	sub	RESULT, %1
+	T_OP2IMM_131 %1
 %endmacro
 
 
