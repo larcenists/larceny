@@ -306,6 +306,7 @@
     (environment-set! r4rs 'list->vector list->vector)
     (environment-set! r4rs 'vector-fill! vector-fill!)
     ;; not in R4RS:
+    (environment-set! larc 'vector-copy vector-copy)
     (environment-set! null 'vector-length:vec vector-length:vec)
     (environment-set! null 'vector-ref:trusted vector-ref:trusted)
     (environment-set! null 'vector-set!:trusted vector-set!:trusted)
@@ -325,6 +326,8 @@
     (environment-set! r5rs 'values values)
     (environment-set! r5rs 'call-with-values call-with-values)
     ;; not in R4RS:
+    (environment-set! larc 'make-trampoline make-trampoline)
+    (environment-set! larc 'procedure-copy procedure-copy)
     (environment-set! larc 'evaluator evaluator)
     (environment-set! larc 'procedure-length procedure-length)
     (environment-set! larc 'procedure-ref procedure-ref)
