@@ -362,6 +362,9 @@
 ;; ===============================================
 ;; Helpers for building programs
 
+;; ilasm-executable : string
+(define ilasm-executable "ilasm")
+
 (define (create-application app src-manifests)
   (let* ((app-exe (string-append app ".exe"))
          (assembly-il 
@@ -382,7 +385,8 @@
          (if (codegen-option 'ilasm-debug)
              "/nologo /quiet /debug"
              "/nologo /quiet")))
-    (system (twobit-format #f "ilasm ~a /output:~a ~a" 
+    (system (twobit-format #f "~a ~a/output:~a ~a" 
+                           ilasm-executable
                            options
                            exe-file
                            (apply string-append
