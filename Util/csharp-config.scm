@@ -137,8 +137,8 @@
      inp))
 
   (define (fold/sexprs/file op info port)
-    (let loop [(info info)]
-      (let [(next (read port))]
+    (let loop ((info info))
+      (let ((next (read port)))
         (if (eof-object? next)
             info
             (loop (op next info))))))
@@ -248,12 +248,14 @@
     (lambda (outport)
         (prologue outport)
         (for-each (lambda (fn type)
-                    (let [(entry-format
+                    (let ((entry-format
                            (case type
                              ((int) entry-format/int)
-                             ((uint) entry-format)))]
-                      (let [(config-info
-                             (make-info '() (make-lang #f outport entry-format values)))]
+                             ((uint) entry-format))))
+                      (let ((config-info
+                             (make-info 
+                              '() 
+                              (make-lang #f outport entry-format values))))
                         (let* ((inp   (open-input-file fn))
                                (files (read inp)))
                           (if (not (define-files? files))
