@@ -5,8 +5,7 @@
 ; Interface to Unix socket system calls .
 ; This works for SunOS 5, don't know (yet) about SunOS 4.
 
-'(begin (load "Experimental/unix.sch")  ; system calls and helpers
-        (load "Auxlib/macros.sch"))     ; syntax
+(require 'experimental/unix)
 
 ; FIXME: ignoring byte order because network byte order is big-endian,
 ; like the SPARC.
