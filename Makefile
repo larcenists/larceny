@@ -31,12 +31,17 @@ libclean:
 	( cd Twobit ; $(MAKE) libclean )
 
 rtsclean:
-	( cd Rts ; $(MAKE) clean )
+	( cd Rts ; \
+	  rm -f Makefile larceny.bin hsplit bdwlarceny.bin petit-larceny core \
+	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \
+	   Build/*.o Intel/*.o Sparc/*.o Standard-C/*.o Sys/*.o Util/*.o \
+	   Build/*.obj Intel/*.obj Sparc/*.obj Standard-C/*.obj Sys/*.obj Util/*.obj \
+	  if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi )
 
 compilerclean:
 	( cd Twobit ; $(MAKE) clean )
 
-realclean: tildeclean rejclean tcovclean
+realclean: rtsclean tildeclean rejclean tcovclean faslclean lapclean lopclean
 	rm -f core *.heap petit petit.c petit.o twobit twobit.c twobit.o \
 		HEAPDATA.* *.fasl libheap.a
 	( cd Lib ; $(MAKE) realclean )
@@ -45,7 +50,7 @@ realclean: tildeclean rejclean tcovclean
 	( cd Auxlib ; $(MAKE) realclean )
 	( cd Twobit ; $(MAKE) realclean )
 	( cd Compat ; $(MAKE) realclean )
-	( cd Rts ; $(MAKE) realclean )
+	( cd Rts ; rm -rf Standard-C/arithmetic.c Build )
 
 # These are pretty coarse; use with some discretion.
 
