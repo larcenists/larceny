@@ -16,10 +16,14 @@
 ; FIXME: The E command must change: it should take an expression to be
 ;        evaluated in the environment of the current frame, and print
 ;        the results.
+;
+; FIXME: If the tasking package is active, it may be best to invoke the
+;        debugger in the same way that failed-assertion in the assert
+;        package does: with the timer interrupt handler in a predictable
+;        state
 
-
-'(begin (load "Debugger/inspect-cont.sch")
-        (load "Debugger/trace.sch"))
+;(begin (load "Debugger/inspect-cont.sch")
+;       (load "Debugger/trace.sch"))
 
 (define debug/reset #f)                 ; Dynamically bound: thunk that resets
 (define debug-level 0)                  ; Dynamically bound
@@ -36,6 +40,11 @@
         (debug/displayln "No error continuation!")
         (begin (debug/displayln "Entering debugger; ? for help.")
                (debug-continuation-structure #f e)))))
+
+(define (dbg)
+  (error-continuation (current-continuation-structure))
+  (debug/displayln)
+  (debug/enter-debugger #t))
 
 (define error-continuation
   (make-parameter "error-continuation" #f))
