@@ -6,11 +6,11 @@
  * There is purposely very little documentation in this file.
  *
  * FIXME/BUGS
+ *   Since over half of the dof-remsets are not used, we should avoid
+ *   creating them (to save space).
+ *
  *   Must incorporate information about other areas when recomputing
  *   heap size (can we use gc_compute_dynamic_size()?).
- *
- *   Convert two uses of assert() to assert2() when starting to benchmark;
- *   search for assert2() and look for FIXMEs.
  */
 
 #include <math.h>
@@ -37,6 +37,7 @@
 #define EXPENSIVE_CHECKS_TOO  0 /* Quite expensive */
 
 #define USE_DOF_REMSET        1 /* Generally desirable */
+#define SPLIT_REMSETS         1 /* Ditto */
 
 #define BLOCK_SIZE            (64*KILOBYTE)   /* Block granularity */
 #define DOF_REMSET_SIZE       (16*KILOBYTE)   /* Remset block */
@@ -71,7 +72,15 @@ struct gen {
   semispace_t *live;            /* The data */
   gen_stats_t stats;            /* Counters */
 #if USE_DOF_REMSET
-  dof_remset_t *dof_remset;     /* For GC barrier */
+  /* For GC barrier */
+# if SPLIT_REMSETS
+  /* dof_remsets[i] contains those objects with pointers from this
+     generation to generation i, where i is an order number.
+     */
+  dof_remset_t *dof_remsets[ MAX_GENERATIONS ];
+# else
+  dof_remset_t *dof_remset;
+# endif
 #endif
 #if INVARIANT_CHECKING
   remset_t    *remset;          /* The remembered set */
@@ -165,9 +174,10 @@ static int space_needed_for_promotion( dof_data_t *data )
                                (double)BLOCK_SIZE );
   minor_overhead = minor_fragments * GC_LARGE_OBJECT_LIMIT;
 
-  annoyingmsg( "Total promotion overhead computed as %d",
-               major_overhead + minor_overhead );
-
+  /*  annoyingmsg( "   (Total promotion overhead computed as %d)",
+                   major_overhead + minor_overhead );
+  */
+  
   return data->ephemeral_size + major_overhead + minor_overhead;
 }
 
@@ -206,25 +216,46 @@ static void free_dof_pools( dof_pool_t *p )
   }
 }
 
-static void clear_dof_remset( old_heap_t *heap, int order )
+static void clear_one_dof_set( dof_remset_t *r )
 {
-  dof_data_t *data = DATA(heap);
-  dof_remset_t *r = 0;
-  int i;
-
-  for ( i=0 ; i < data->n ; i++ )
-    if (data->gen[i]->order == order) {
-      r = data->gen[i]->dof_remset;
-      break;
-    }
-  assert( r != 0 );
-
+  if (r == 0) return;
+  
   free_dof_pools( r->first->next );
   r->curr_pools = 1;
   r->first->next = 0;
   r->curr = r->first;
   r->first->top = r->first->bot;
   r->stats.cleared++;
+}
+
+/* If points_in is true, then clear those sets in other generations
+   that remember objects with pointers into generation 'order'.
+   */
+static void clear_dof_remset( old_heap_t *heap, int order, bool points_in )
+{
+  dof_data_t *data = DATA(heap);
+  int i, j;
+
+# if SPLIT_REMSETS
+  for ( i=0 ; i < data->n ; i++ ) {
+    if (data->gen[i]->order == order) {
+      for ( j=0 ; j < data->n ; j++ )
+        clear_one_dof_set( data->gen[i]->dof_remsets[j] );
+      break;
+    }
+  }
+  if (points_in)
+    for ( i=0 ; i < data->n ; i++ )
+      clear_one_dof_set( data->gen[i]->dof_remsets[order] );
+# else
+  /* 'points_in' means nothing here */
+  for ( i=0 ; i < data->n ; i++ ) {
+    if (data->gen[i]->order == order) {
+      clear_one_dof_set( data->gen[i]->dof_remset );
+      break;
+    }
+  }
+# endif
 }
 
 static void advance_dof_remset( dof_remset_t *r )
@@ -481,29 +512,43 @@ static int inv95( old_heap_t *heap )  /* los-list-order */
 }
 
 #if USE_DOF_REMSET
+static int inv96_helper( old_heap_t *heap, dof_remset_t *r, int i )
+{
+  dof_data_t *data = DATA(heap);
+
+  if (r != 0 &&
+      (i < data->ap || 
+       i == data->ap && gen_used( data->gen[i] ) == 0 ||
+       i > data->cp && i < data->rp ||
+       i == data->rp && gen_used( data->gen[i] ) == 0)) {
+    if (r->curr != r->first) {
+      hardconsolemsg( "inv96#1: %d", i );
+      return 0;
+    }
+    if (r->first->top != r->first->bot) {
+      hardconsolemsg( "inv96#2: %d", i );
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int inv96( old_heap_t *heap ) /* dof-remset-content */
 {
   dof_data_t *data = DATA(heap);
-  dof_remset_t *r;
-
-  int i;
+  int i, j;
 
   for ( i=0 ; i < data->n ; i++ ) {
-    r = data->gen[i]->dof_remset;
-    if (r != 0 &&
-        (i < data->ap || 
-         i == data->ap && gen_used( data->gen[i] ) == 0 ||
-         i > data->cp && i < data->rp ||
-         i == data->rp && gen_used( data->gen[i] ) == 0)) {
-      if (r->curr != r->first) {
-        hardconsolemsg( "inv96#1: %d", i );
+# if SPLIT_REMSETS
+#if 0
+    for ( j=0 ; j < data->n ; j++ )
+      if (!inv96_helper( heap, data->gen[i]->dof_remsets[j], i ))
         return 0;
-      }
-      if (r->first->top != r->first->bot) {
-        hardconsolemsg( "inv96#2: %d", i );
-        return 0;
-      }
-    }
+#endif
+# else
+    if (!inv96_helper( heap, data->gen[i]->dof_remset, i ))
+      return 0;
+# endif
   }
   return 1;
 }
@@ -542,7 +587,7 @@ static int inv98( dof_data_t *data ) /* semispace */
   }
   return 1;
 }
-#endif
+#endif  /* USE_DOF_REMSETS */
 
 static int fail_inv( dof_data_t *data, char *token )
 {
@@ -627,7 +672,10 @@ reorder_generations( old_heap_t *heap, int permutation[] )
 {
   dof_data_t *data = DATA(heap);
   gen_t *oldgen[ MAX_GENERATIONS ], *g;
-  int i, id, k, remset_perm[ MAX_GENERATIONS ], old_order;
+#if SPLIT_REMSETS
+  dof_remset_t *oldrem[ MAX_GENERATIONS ];
+#endif
+  int i, j, k, id, remset_perm[ MAX_GENERATIONS ], old_order;
 
   init_permutation( remset_perm );
 
@@ -644,8 +692,19 @@ reorder_generations( old_heap_t *heap, int permutation[] )
                 data->n - id + data->cp);
     ss_set_gen_no( g->live, g->order + data->first_gen_no );
     remset_perm[old_order + data->first_gen_no ] = g->order+data->first_gen_no;
-    /* No need to do anything with the dof_remset. */
   }
+
+#if SPLIT_REMSETS
+  /* Must permute the split remsets too. */
+  for ( i=0 ; i < data->n ; i++ ) {
+    for ( j=0 ; j < data->n ; j++ )
+      oldrem[j] = data->gen[i]->dof_remsets[j];
+    for ( j=0 ; j < data->n ; j++ ) {
+      k = remset_perm[ j + data->first_gen_no ] - data->first_gen_no;
+      data->gen[i]->dof_remsets[k] = oldrem[j];
+    }
+  }
+#endif
 
   gc_permute_remembered_sets( heap->collector, remset_perm );
   los_permute_object_lists( heap->collector->los, remset_perm );
@@ -728,36 +787,46 @@ static bool fullgc_should_keep_p( word loc, void *data, unsigned *stats )
 }
 
 #if USE_DOF_REMSET
+static int sweep_one_remset( dof_remset_t *r, msgc_context_t *context )
+{
+  dof_pool_t *segment;
+  word *slot, *slotlim, object;
+  int scanned = 0, removed = 0;
+
+  for ( segment=r->first ; segment ; segment=segment->next ) {
+    slotlim = segment->top;
+    for ( slot=segment->bot ; slot < slotlim ; slot++ ) {
+      object = *slot;
+      if (object != 0) {
+        assert2(isptr(object));
+        scanned++;
+        if (!msgc_object_marked_p( context, *slot )) {
+          *slot = 0;
+          removed++;
+        }
+      }
+    }
+  }
+  r->stats.objs_scanned += scanned;
+  r->stats.removed += removed;
+  return removed;
+}
+
 static int
 sweep_dof_remembered_sets( old_heap_t *heap, msgc_context_t *context )
 {
   dof_data_t *data = DATA(heap);
-  dof_remset_t *r;
-  dof_pool_t *segment;
-  word *slot, *slotlim, object;
-  int scanned = 0, removed = 0, removed_total = 0, i;
+  int i, j, removed_total = 0;
 
   for ( i=0 ; i < data->n ; i++ ) {
-    r = data->gen[i]->dof_remset;
-    for ( segment=r->first ; segment ; segment=segment->next ) {
-      slotlim = segment->top;
-      for ( slot=segment->bot ; slot < slotlim ; slot++ ) {
-        object = *slot;
-        if (object != 0) {
-          assert(isptr(object)); /* FIXME: needs to be assert2 */
-          scanned++;
-          if (!msgc_object_marked_p( context, *slot )) {
-            *slot = 0;
-            removed++;
-          }
-        }
-      }
-    }
-    r->stats.objs_scanned += scanned;
-    r->stats.removed += removed;
-    removed_total += removed;
-    scanned = 0;
-    removed = 0;
+# if SPLIT_REMSETS
+    for ( j=0 ; j < data->n ; j++ )
+      if (data->gen[i]->dof_remsets[j] != 0)
+        removed_total += sweep_one_remset( data->gen[i]->dof_remsets[j],
+                                           context );
+# else
+    removed_total += sweep_one_remset( data->gen[i]->dof_remset, context );
+# endif
   }
   return removed_total;
 }
@@ -832,7 +901,7 @@ static void do_promote_in( old_heap_t *heap )
      */
   rs_clear( heap->collector->remset[ data->first_gen_no ] );
 #if USE_DOF_REMSET
-  clear_dof_remset( heap, 0 );
+  clear_dof_remset( heap, 0, FALSE );
 #endif
 }
 
@@ -1081,8 +1150,8 @@ static void do_perform_collection( old_heap_t *heap )
   rs_clear( heap->collector->remset[ data->first_gen_no ] );
   rs_clear( heap->collector->remset[ data->first_gen_no+1 ] );
 #if USE_DOF_REMSET
-  clear_dof_remset( heap, 0 );
-  clear_dof_remset( heap, 1 );
+  clear_dof_remset( heap, 0, TRUE );
+  clear_dof_remset( heap, 1, FALSE );
 #endif
 }
 
@@ -1215,14 +1284,28 @@ static void after_collection( old_heap_t *heap )
 {
 }
 
+#if USE_DOF_REMSET
+static void dof_remset_stats( dof_remset_t *r )
+{
+  /* The 'live' field is not accurately computed because a little
+     bit of machinery is required to track it during GC.  Easy to fix.
+     When fixed, can't use memset() to clear the fields.
+  */
+  r->stats.allocated = r->curr_pools * DOF_REMSET_SIZE;
+  r->stats.used = r->stats.allocated - (r->curr->lim - r->curr->top);
+  r->stats.live = r->stats.used;                    /* FIXME */
+  stats_add_remset_stats( r->self, &r->stats );
+  memset( &r->stats, 0, sizeof( remset_stats_t ) );
+}
+#endif
+
 static void stats( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int i;
+  int i, j;
 
   for ( i=0 ; i < data->n ; i++ ) {
     gen_t *g = data->gen[i];
-    dof_remset_t *r = g->dof_remset;
     int gen = data->first_gen_no + g->order;
     int los_words = bytes2words( los_bytes_used( heap->collector->los, gen ) );
 
@@ -1238,16 +1321,13 @@ static void stats( old_heap_t *heap )
     rs_stats( heap->collector->remset[ gen ] );
 
 #if USE_DOF_REMSET
-    /* extra remset */
-    /* The 'live' field is not accurately computed because a little
-       bit of machinery is required to track it during GC.  Easy to fix.
-       When fixed, can't use memset() to clear the fields.
-       */
-    r->stats.allocated = r->curr_pools * DOF_REMSET_SIZE;
-    r->stats.used = r->stats.allocated - (r->curr->lim - r->curr->top);
-    r->stats.live = r->stats.used;                    /* FIXME */
-    stats_add_remset_stats( r->self, &r->stats );
-    memset( &r->stats, 0, sizeof( remset_stats_t ) );
+# if SPLIT_REMSETS
+    for ( j=0 ; j < data->n ; j++ )
+      if (g->dof_remsets[j] != 0)
+        dof_remset_stats( g->dof_remsets[j] );
+# else
+    dof_remset_stats( g->dof_remset );
+# endif
 #endif
   }
 
@@ -1274,7 +1354,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   int full_frequency = info->full_frequency;
   double growth_divisor = info->growth_divisor;
   dof_data_t *data;
-  int i, quantum;
+  int i, j, quantum;
   old_heap_t *heap;
 
   assert( area_size > 0 );
@@ -1316,7 +1396,14 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
                             (data->s / BLOCK_SIZE), 
                             gen_no+g->order );
 #if USE_DOF_REMSET
-    g->dof_remset = make_dof_remset( gen_no + i, 1 );
+# if SPLIT_REMSETS
+    for ( j=0 ; j < data->n ; j++ )
+      g->dof_remsets[j] = make_dof_remset( gen_no+i, j+1 );
+    for ( j=data->n ; j < MAX_GENERATIONS ; j++ )
+      g->dof_remsets[j] = 0;
+# else
+    g->dof_remset = make_dof_remset( gen_no+i, 1 );
+# endif
 #endif
 #if INVARIANT_CHECKING
     g->remset = 0;
@@ -1359,10 +1446,10 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
      forw_np_partial()
      forw_core_np()
      check_space_np()
-     scan_core_partial()
      remember_pair()
    The following macros have been modified:
-     remember_vec()
+     scan_core_partial()  -- fixed a bug
+     remember_vec()       -- deep changes
    I've kept the _np names to avoid gratuitous changes; after all, what's 
    in a name?
    */
@@ -1436,6 +1523,7 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
    Tuned extra for the case when an object does not need to be
    forwarded, as an experiment.
 */
+#if !SPLIT_REMSETS
 #define forw_np_partial( loc, forw_limit_gen, dest, lim, np_young_gen,  \
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
@@ -1444,13 +1532,30 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
            if (T_g < (forw_limit_gen)) {                                \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
              T_obj = *loc;                                              \
-             if (gclib_desc_g[pageof(T_obj)] < (np_young_gen))          \
-               must_add_to_extra = 1;                                   \
+             T_g = gclib_desc_g[ pageof(T_obj)];                        \
            }                                                            \
-           else if (T_g < (np_young_gen))                               \
+           if (T_g < (np_young_gen))                                    \
              must_add_to_extra = 1;                                     \
        }                                                                \
   } while( 0 )
+#else
+#define forw_np_partial( loc, forw_limit_gen, dest, lim, np_young_gen,  \
+                         must_add_to_extra, e )                         \
+  do { word T_obj = *loc;                                               \
+       if ( isptr( T_obj ) ) {                                          \
+           word T_g = gclib_desc_g[ pageof(T_obj) ];                    \
+           if (T_g < (forw_limit_gen)) {                                \
+             forw_core_np( T_obj, loc, dest, lim, e );                  \
+             T_obj = *loc;                                              \
+             T_g = gclib_desc_g[pageof(T_obj)];                         \
+           }                                                            \
+           if (T_g < (np_young_gen)) {                                  \
+             extra_gen[T_g] = 1;                                        \
+             must_add_to_extra = 1;                                     \
+           }                                                            \
+       }                                                                \
+  } while( 0 )
+#endif
 
 #define forw_core_np( T_obj, loc, dest, lim, e )        \
   word *TMP_P = ptrof( T_obj );                         \
@@ -1529,25 +1634,43 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
     }                                                                         \
   } while (0)
 
-/* #define remember_vec( w, e )                    \ */
-/*  do {  word *remtop = scan_remtop(e);           \ */
-/*        word *remlim = scan_remlim(e);           \ */
-/*        *remtop = w; remtop = remtop+1;          \ */
-/*        scan_remtop(e) = remtop;                 \ */
-/*        if (remtop == remlim)                    \ */
-/*          dof_remset_advance( e );               \ */
-/*  } while(0) */
 
 #if USE_DOF_REMSET
-#define remember_vec( w, e )                    \
- do {  *remtop = w; remtop = remtop+1;          \
-       if (remtop == remlim) {                  \
-         scan_remtop(e) = remtop;               \
-         dof_remset_advance( e );               \
-         remtop = scan_remtop(e);               \
-         remlim = scan_remlim(e);               \
-       }                                        \
- } while(0)
+# if SPLIT_REMSETS
+/* Here, add to every remset for which extra_gen is nonzero, and clear the
+   extra_gen slot if set. */
+/* The use of e->first is very tricky.  The problem is that when a large
+   object is forwarded, its generation bits are not changed until after
+   scanning is over (this is a bug in the NP collector too).  That means
+   that e.g. extra_gen[0] may be nonzero even when there is not a remset
+   is slot 0.  The use of e->first sidesteps the problem.  The better
+   solution is probably to change the generation bits when the object
+   is forwarded.
+   */
+#  define remember_vec( w, e )                          \
+    do { int I;                                         \
+      for ( I=e->first ; I < e->ngenerations ; I++ )    \
+         if (extra_gen[I]) {                            \
+           word *remtop = scan_remtop(e,I);             \
+           word *remlim = scan_remlim(e,I);             \
+           extra_gen[I] = 0;                            \
+           *remtop = w; remtop = remtop+1;              \
+           scan_remtop(e,I) = remtop;                   \
+           if (remtop == remlim)                        \
+             dof_remset_advance(e,I);                   \
+         }                                              \
+    } while(0)
+# else
+#  define remember_vec( w, e )                  \
+   do {  *remtop = w; remtop = remtop+1;        \
+         if (remtop == remlim) {                \
+           scan_remtop(e) = remtop;             \
+           dof_remset_advance( e );             \
+           remtop = scan_remtop(e);             \
+           remlim = scan_remlim(e);             \
+         }                                      \
+   } while(0)
+# endif
 #else
 #define remember_vec( w, e )                    \
  do {  word **ssbtop = scan_ssbtop(e);          \
@@ -1566,14 +1689,22 @@ typedef struct dof_env dof_env_t;
 struct dof_env {
   gc_t *gc;                     /* The collector */
   old_heap_t *heap;             /* The heap */
+  int first;                    /* First generation number for gc barrier */
+  int ngenerations;             /* Number of generations */
   int nspaces;                  /* Number of tospaces */
   struct {                      /* One of these per tospace */
     int         gen_no;
     remset_t    *remset;
 #if USE_DOF_REMSET
+# if SPLIT_REMSETS
+    dof_remset_t *dof_remsets[ MAX_GENERATIONS ];
+    word         *remset_tops[ MAX_GENERATIONS ];
+    word         *remset_lims[ MAX_GENERATIONS ];
+# else
     dof_remset_t *dof_remset;
     word         *remset_top;
     word         *remset_lim;
+# endif
 #else
     word        **ssbtop;
     word        **ssblim;
@@ -1595,22 +1726,31 @@ struct dof_env {
 
 #define copy_gen_no( e ) ((e)->tospaces[(e)->copy_idx].gen_no)
 #define copy_remset( e ) ((e)->tospaces[(e)->copy_idx].remset)
-#define copy_ssbtop( e ) ((e)->tospaces[(e)->copy_idx].ssbtop)
-#define copy_ssblim( e ) ((e)->tospaces[(e)->copy_idx].ssblim)
 #define copy_ss( e )     ((e)->tospaces[(e)->copy_idx].ss)
 #define copy_marked( e ) ((e)->tospaces[(e)->copy_idx].marked)
 #define copy_mark_context( e ) ((e)->tospaces[(e)->copy_idx].mark_context)
 
 #define scan_gen_no( e ) ((e)->tospaces[(e)->scan_idx].gen_no)
 #define scan_remset( e ) ((e)->tospaces[(e)->scan_idx].remset)
-#define scan_ssbtop( e ) ((e)->tospaces[(e)->scan_idx].ssbtop)
-#define scan_ssblim( e ) ((e)->tospaces[(e)->scan_idx].ssblim)
-#define scan_dofset( e ) ((e)->tospaces[(e)->scan_idx].dof_remset)
-#define scan_remtop( e ) ((e)->tospaces[(e)->scan_idx].remset_top)
-#define scan_remlim( e ) ((e)->tospaces[(e)->scan_idx].remset_lim)
+#if !USE_DOF_REMSET
+# define scan_ssbtop( e ) ((e)->tospaces[(e)->scan_idx].ssbtop)
+# define scan_ssblim( e ) ((e)->tospaces[(e)->scan_idx].ssblim)
+#endif
+#if USE_DOF_REMSET
+# if SPLIT_REMSETS
+#  define scan_dofset( e,i ) ((e)->tospaces[(e)->scan_idx].dof_remsets[i])
+#  define scan_remtop( e,i ) ((e)->tospaces[(e)->scan_idx].remset_tops[i])
+#  define scan_remlim( e,i ) ((e)->tospaces[(e)->scan_idx].remset_lims[i])
+# else
+#  define scan_dofset( e ) ((e)->tospaces[(e)->scan_idx].dof_remset)
+#  define scan_remtop( e ) ((e)->tospaces[(e)->scan_idx].remset_top)
+#  define scan_remlim( e ) ((e)->tospaces[(e)->scan_idx].remset_lim)
+# endif
+#endif
 #define scan_ss( e )     ((e)->tospaces[(e)->scan_idx].ss)
 #define scan_marked( e ) ((e)->tospaces[(e)->scan_idx].marked)
 #define scan_mark_context( e ) ((e)->tospaces[(e)->scan_idx].mark_context)
+
 
 #define ss_lim(ss) ((ss)->chunks[(ss)->current].lim)
 #define ss_top(ss) ((ss)->chunks[(ss)->current].top)
@@ -1628,12 +1768,22 @@ struct dof_env {
   ss_top(copy_ss(E)) = DEST;                    \
   ss_lim(copy_ss(E)) = LIM
 
-#define SETUP_REMSET_PTRS( E, TOP, LIM )        \
-  word *TOP = scan_remtop( E );                 \
-  word *LIM = scan_remlim( E )
+#if USE_DOF_REMSET
+# if SPLIT_REMSETS
+#  define SETUP_REMSET_PTRS( E, TOP, LIM )  int TOP, LIM
+#  define TAKEDOWN_REMSET_PTRS( E, TOP, LIM ) ((void)0)
+# else
+#  define SETUP_REMSET_PTRS( E, TOP, LIM )      \
+    word *TOP = scan_remtop( E );               \
+    word *LIM = scan_remlim( E )
 
-#define TAKEDOWN_REMSET_PTRS( E, TOP, LIM )     \
-  scan_remtop( E ) = TOP
+#  define TAKEDOWN_REMSET_PTRS( E, TOP, LIM )   \
+    scan_remtop( E ) = TOP
+# endif
+#else
+# define SETUP_REMSET_PTRS( E, TOP, LIM )  int TOP, LIM
+# define TAKEDOWN_REMSET_PTRS( E, TOP, LIM )  ((void)0)
+#endif
 
 extern void mem_icache_flush( void *start, void *end );
 
@@ -1647,7 +1797,11 @@ static void seal_chunk( semispace_t *, word *, word * );
 static void expand_semispace_np( word **, word **, unsigned, dof_env_t * );
 static word forward_large_object( dof_env_t *, word *, int );
 #if USE_DOF_REMSET
+# if SPLIT_REMSETS
+static void dof_remset_advance( dof_env_t *, int i );
+# else
 static void dof_remset_advance( dof_env_t * );
+# endif
 static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r );
 #endif
 
@@ -1660,16 +1814,25 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
 {
   gc_t *gc = heap->collector;
   dof_env_t e;
-  int i, gen;
+  int i, j, gen;
 
   /* Setup collection data */
   for ( i=0 ; tospaces[i] != 0 ; i++ ) {
     gen = e.tospaces[i].gen_no = tospaces[i]->live->gen_no;
     e.tospaces[i].remset = gc->remset[gen];
 #if USE_DOF_REMSET
+# if SPLIT_REMSETS
+    for ( j=0 ; j < data->n ; j++ ) {
+      int k = j+data->first_gen_no;
+      e.tospaces[i].dof_remsets[k] = tospaces[i]->dof_remsets[j];
+      e.tospaces[i].remset_tops[k] = tospaces[i]->dof_remsets[j]->curr->top;
+      e.tospaces[i].remset_lims[k] = tospaces[i]->dof_remsets[j]->curr->lim;
+    }
+# else
     e.tospaces[i].dof_remset = tospaces[i]->dof_remset;
     e.tospaces[i].remset_top = tospaces[i]->dof_remset->curr->top;
     e.tospaces[i].remset_lim = tospaces[i]->dof_remset->curr->lim;
+# endif
 #else
     e.tospaces[i].ssbtop = gc->remset[gen]->ssb_top;
     e.tospaces[i].ssblim = gc->remset[gen]->ssb_lim;
@@ -1681,6 +1844,8 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
   e.gc = gc;
   e.heap = heap;
   e.nspaces = i;
+  e.first = data->first_gen_no;
+  e.ngenerations = data->first_gen_no + data->n;
   e.younger_than = younger_than;
   e.copy_idx = 0;
   e.scan_idx = 0;
@@ -1696,16 +1861,36 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
                                    (void*)&e,
                                    FALSE );
 #if USE_DOF_REMSET
+# if SPLIT_REMSETS
+  if (type == GCTYPE_COLLECT)
+    for ( i=0 ; i < data->n ; i++ )
+      if (data->gen[i]->order + data->first_gen_no >= e.younger_than) {
+        int j = e.younger_than - 1 - data->first_gen_no;
+        assert( j >= 0 && j < data->n );
+        annoyingmsg( "Scanning DOF %d,%d (%d)", i, j, data->gen[i]->order );
+        scan_from_dof_remset( &e, data->gen[i]->dof_remsets[j] );
+      }
+# else
   if (type == GCTYPE_COLLECT)
     for ( i=0 ; i < data->n ; i++ )
       if (data->gen[i]->order + data->first_gen_no >= e.younger_than)
         scan_from_dof_remset( &e, data->gen[i]->dof_remset );
+# endif
 #endif
+
   scan_from_tospace( &e );
 
 #if USE_DOF_REMSET
+# if SPLIT_REMSETS
+  for ( i=0 ; tospaces[i] != 0 ; i++ )
+    for ( j=0 ; j < data->n ; j++ ) {
+      int k = j + data->first_gen_no;
+      tospaces[i]->dof_remsets[j]->curr->top = e.tospaces[i].remset_tops[k];
+    }
+# else
   for ( i=0 ; tospaces[i] != 0 ; i++ ) 
     tospaces[i]->dof_remset->curr->top = e.tospaces[i].remset_top;
+# endif
 #endif
 
   assert( e.copy_idx == e.scan_idx );
@@ -1725,6 +1910,17 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
 }
 
 #if USE_DOF_REMSET
+# if SPLIT_REMSETS
+static void dof_remset_advance( dof_env_t *e, int i )
+{
+  dof_remset_t *r = scan_dofset(e,i);
+
+  r->curr->top = scan_remtop(e,i);
+  advance_dof_remset( r );
+  scan_remtop(e,i) = r->curr->top;
+  scan_remlim(e,i) = r->curr->lim;
+}
+# else
 static void dof_remset_advance( dof_env_t *e )
 {
   dof_remset_t *r = scan_dofset(e);
@@ -1734,6 +1930,7 @@ static void dof_remset_advance( dof_env_t *e )
   scan_remtop(e) = r->curr->top;
   scan_remlim(e) = r->curr->lim;
 }
+# endif
 #endif
 
 static void scan_from_globals( word *ptr, void *data )
@@ -1792,6 +1989,7 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r )
   r->stats.words_scanned += scanned;
   r->stats.objs_scanned += objects;
   TAKEDOWN_COPY_PTRS( e, dest, lim );
+  annoyingmsg( "DOF remset; scanned=%d, objects=%d", scanned, objects );
 }
 #endif
 
@@ -1837,6 +2035,9 @@ static void scan_small_objects( dof_env_t *e )
   SETUP_REMSET_PTRS( e, remtop, remlim );
   word *scanptr = e->scan_ptr;
   word *scanlim = ss_lim2(scan_ss(e), e->scan_chunk_idx);
+  int  extra_gen[ MAX_GENERATIONS ];
+
+  memset( extra_gen, 0, sizeof( extra_gen ) );
 
   /* FIXME: pass remtop, remlim to the macro! */
   /* FIXME: it's not clear that the special case helps much */
@@ -1874,6 +2075,9 @@ static bool scan_large_objects( dof_env_t *e, int gen )
   SETUP_REMSET_PTRS( e, remtop, remlim );
   word *p;
   bool work = FALSE;
+  int  extra_gen[ MAX_GENERATIONS ];
+
+  memset( extra_gen, 0, sizeof( extra_gen ) );
 
   /* must_add_to_extra is a name used by the scanning and fwd macros as a 
      temp */
