@@ -3,9 +3,8 @@
 ; Scheme 313 runtime system.
 ; Scheme code for ratnum arithmetic.
 ;
-; $Id$
+; $Id: ratnums.scm,v 1.1 91/08/12 12:48:01 lth Exp Locker: lth $
 ;
-; BUGS?
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
 
@@ -73,7 +72,8 @@
   '())
 
 (define (ratnum-= a b)
-  '())
+  (and (= (numerator a) (numerator b))
+       (= (denominator a) (denominator b))))
 
 (define (ratnum-> a b)
   '())
@@ -88,13 +88,13 @@
   '())
 
 (define (ratnum-positive? a)
-  '())
+  (positive? (numerator a)))
 
 (define (ratnum-negative? a)
-  '())
+  (negative? (denominator a)))
 
 (define (ratnum-negate a)
-  '())
+  (make-ratnum (- (numerator a)) (denominator a)))
 
 (define (ratnum->flonum a)
   (/ (exact->inexact (numerator a))
