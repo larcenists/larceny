@@ -1,10 +1,10 @@
 ;; $Id$
 ;;
 ;; Initialization of MzScheme system.
-;; First we need to get larceny going, but without starting the 
+;; First we need to get larceny going, but without starting the
 ;; main program. So we redefine go.
 ;;
-;; Files executed after this file are able to use basic larceny 
+;; Files executed after this file are able to use basic larceny
 ;; functionality, but should not rely on oblist or the reader.
 
 (define (go symlist argv)
@@ -32,7 +32,7 @@
 
 (larceny-go)
 
-;; Lists exported names. Make sure you also put the files in 
+;; Lists exported names. Make sure you also put the files in
 ;; Lib/makefile.scm in the dotnet-mzscheme-files list.
 
 (define-syntax export
@@ -96,7 +96,118 @@
 (export-syntax
  '(define-syntax .javadot
     (transformer
-     (lambda (exp rename compare)
-       (let ((exp (cadr exp)))
-         (display "inside .javadot: ") (write exp) (newline)
-         (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp)))))))
+     ((lambda ()
+
+        (define (leading? char string)
+          ;; Return #t if the string begins with CHAR.
+          (char=? (string-ref string 0) char))
+
+        (define (trailing? char string)
+          ;; Return #t if the symbol ends with CHAR.
+          (char=? (string-ref string (- (string-length string) 1))
+                  char))
+
+        (define (leading-dot? string)
+          ;; Return #T if the `string' has a leading dot.
+          (leading? #\. string))
+
+        (define (trailing-dollar? string)
+          ;; Return #T if the string has a trailing dollar.
+          (trailing? #\$ string))
+
+        (define (trailing-dot? string)
+          (trailing? #\. string))
+
+        (define (dot-dollar? string)
+          ;; Return #T if the symbol has a leading dot and a trailing
+          ;; dollar sign.
+          (and (leading-dot? string)
+               (trailing-dollar? string)))
+
+        (define (set-dot-dollar-excl? string)
+          ;; Return #T if the symbol begins with SET-.  and ends
+          ;; with $!
+          ;; These symbols are created from the SETF! macro.
+          ;; Kinda gross.
+          (let ((length (string-length string)))
+            (and (> length 7)
+                 (char=? (string-ref string 0) #\s)
+                 (char=? (string-ref string 1) #\e)
+                 (char=? (string-ref string 2) #\t)
+                 (char=? (string-ref string 3) #\-)
+                 (char=? (string-ref string 4) #\.)
+                 (char=? (string-ref string (- length 2)) #\$)
+                 (char=? (string-ref string (- length 1)) #\!))))
+
+        (define (trailing-dot-class? string)
+          (let ((length (string-length string)))
+            (and (> length 6)
+                 (char=? (string-ref string (- length 6)) #\.)
+                 (char=? (string-ref string (- length 5)) #\c)
+                 (char=? (string-ref string (- length 4)) #\l)
+                 (char=? (string-ref string (- length 3)) #\a)
+                 (char=? (string-ref string (- length 2)) #\s)
+                 (char=? (string-ref string (- length 1)) #\s))))
+
+        (define (split-on-dots string)
+          (let loop ((scan 0)
+                     (start 0)
+                     (accum '()))
+            (cond ((>= scan (string-length string))
+                   (reverse (cons (substring string start scan) accum)))
+                  ((char=? (string-ref string scan) #\.)
+                   (loop (+ scan 1)
+                         (+ scan 1)
+                         (cons (substring string start scan) accum)))
+                  (else (loop (+ scan 1) start accum)))))
+
+        (define (embedded-dot? string)
+          ;; return #T if the `string' has embedded dots
+          ;; and no leading and trailing dots.
+          (let ((length (string-length string)))
+            (and (> length 2)
+                 (not (char=? (string-ref string 0) #\.))
+                 (not (char=? (string-ref string (- length 1)) #\.))
+                 (let loop ((scan 1))
+                   (cond ((>= scan length) #f)
+                         ((char=? (string-ref string scan) #\.) #t)
+                         (else (loop (+ scan 1))))))))
+
+        (define (transform exp rename compare)
+          (let* ((exp (cadr exp))
+                 (text (symbol->string (javadot-symbol->symbol exp))))
+            (cond ((dot-dollar? text)
+                   `(,(rename 'clr/find-instance-field-getter)
+                     ,@(map (lambda (fragment)
+                              (list (rename 'quote) (string->symbol fragment)))
+                            (split-on-dots (substring text 1 (- (string-length text) 1))))))
+
+                  ((set-dot-dollar-excl? text)
+                   `(,(rename 'clr/find-instance-field-setter)
+                     ,@(map (lambda (fragment)
+                              (list (rename 'quote) (string->symbol fragment)))
+                            (split-on-dots (substring text 5 (- (string-length text) 2))))))
+
+                  ((leading-dot? text)
+                   `(,(rename 'clr/find-generic)
+                     (,(rename 'quote) ,(string->symbol (substring text 1 (string-length text))))))
+
+                  ((trailing-dot? text)
+                   `(,(rename 'clr/find-constructor)
+                     (,(rename 'quote) ,(string->symbol (substring text 0 (- (string-length text) 1))))))
+
+                  ((trailing-dollar? text)
+                   `(,(rename 'clr/find-static-field)
+                     (,(rename 'quote) ,(string->symbol (substring text 0 (- (string-length text) 1))))))
+
+                  ((trailing-dot-class? text)
+                   `(,(rename 'clr/find-class)
+                     (,(rename 'quote) ,(string->symbol (substring text 0 (- (string-length text) 6))))))
+
+                  ((embedded-dot? text)
+                   `(,(rename 'clr/find-static-method)
+                     (,(rename 'quote) ,(javadot-symbol->symbol exp))))
+
+                  (else (error "Bad javadot identifier?" exp)))))
+
+        transform)))))
