@@ -28,7 +28,7 @@
 typedef struct opt opt_t;
 struct opt {
   int        maxheaps;		        /* length of size[] member */
-  int        size[ MAX_HEAPS ];	        /* area 1 at loc 0, etc */
+  int        size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
   gc_param_t gc_info;                   /* detailed info about areas */
   unsigned   timerval;                  /* timer value */
   bool       enable_singlestep;         /* enable/disable single stepping */
@@ -91,7 +91,7 @@ int main( int argc, char **os_argv )
 #endif
 
   memset( &o, 0, sizeof( o ) );
-  o.maxheaps = MAX_HEAPS;
+  o.maxheaps = MAX_GENERATIONS;
   o.timerval = 0xFFFFFFFF;
   o.heapfile = 0;
   o.enable_breakpoints = 1;
@@ -368,6 +368,7 @@ parse_options( int argc, char **argv, opt_t *o )
   double phase_detection = -1.0;              /* No detection. */
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
   int full_frequency = 0;
+  double growth_divisor = 1.0;
   int dynamic_max = 0;
   int dynamic_min = 0;
   int val;
@@ -421,6 +422,10 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (numbarg( "-full-frequency", &argc, &argv, &full_frequency )) {
       if (full_frequency < 0)
 	param_error( "Full GC frequency must be nonnegative." );
+    }
+    else if (doublearg( "-growth-divisor", &argc, &argv, &growth_divisor )) {
+      if (growth_divisor <= 0.0)
+	param_error( "Growth divisor must be positive." );
     }
     else 
 #endif
@@ -574,6 +579,7 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_dof_info.dynamic_max = dynamic_max;
       o->gc_info.dynamic_dof_info.dynamic_min = dynamic_min;
       o->gc_info.dynamic_dof_info.full_frequency = full_frequency;
+      o->gc_info.dynamic_dof_info.growth_divisor = growth_divisor;
       if (o->size[n] == 0) {
 	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
 	if (dynamic_min) size = max( dynamic_min, size );
@@ -955,15 +961,19 @@ static char *helptext[] = {
   "     A fudge factor for the non-predictive collector, n >= 0.",
   "     If, after a promotion into the non-predictive young area, the number",
   "     of entries in the remembered set that tracks pointers from the",
-  "     non-predictive young area to the non-predictive old area, extrapolated",
-  "     to the point when the young area is full, exceeds n, then the",
-  "     collector is allowed to shuffle the entire contents of the",
+  "     non-predictive young area to the non-predictive old area, ",
+  "     extrapolated to the point when the young area is full, exceeds n, ",
+  "     then the collector is allowed to shuffle the entire contents of the",
   "     young area to the old area and to clear the remembered set.  By",
   "     default, the limit is infinity.  This parameter does not select",
   "     anything else, not even the nonpredictive GC.",
   "  -full-frequency n",
   "     The frequency of full garbage collections in the DOF collector.",
   "     The default value is 0 (never), which is the right thing right now.",
+  "  -growth-divisor d",
+  "     The speed with which the heap is expanded in the DOF collector.",
+  "     The default value is 1.0, which lets the heap grow exactly as",
+  "     determined by the computed live size.  Larger numbers slow growth.",
   "  -rhash nnnn",
   "     Set the remembered-set hash table size, in elements.  The size must",
   "     be a power of 2.",
