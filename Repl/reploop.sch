@@ -2,58 +2,35 @@
 ;
 ; $Id$
 ;
-; Read-eval-print loop and error handler.
-
-; User-accessible parameter procedures:
-;
-;  repl-prompt
-;    Procedure parameter that takes the nesting level and prints a prompt.
-;
-;  repl-evaluator 
-;    Procedure parameter that takes an expression and an environment and
-;    evaluates the expression, returning all its return values.
-;
-;  repl-printer
-;    Procedure parameter that takes a value and prints it on the current
-;    output port.
-
+; Read-eval-print loop and basic interaction logic.
 
 ($$trace "reploop")
-
-(define *init-file-name* ".larceny")  ; FIXME: Unix-ism.
-(define *file-arguments* #f)          ; #t if file arguments were loaded
-(define *reset-continuation* #f)      ; current longjump point
-(define *saved-continuation* #f)      ; last saved error continuation
-(define *repl-level* 0)               ; nesting level
 
 ; Entry point in a bootstrap heap.
 
 (define (main argv)
   ($$trace "In main")
   (init-toplevel-environment)
-  (setup-error-handlers)
-  (setup-interrupt-handlers)
+  (setup-interrupt-and-error-handlers)
   (evaluator interpret)
-  (rep-loop-bootstrap argv))
+  (interactive-entry-point argv))
 
 
 ; Entry point in a saved interactive heap.
 
-(define (rep-loop-bootstrap argv)
-  ($$trace "In rep-loop-bootstrap")
-  (set! *file-arguments* #f)
-  (set! *reset-continuation* #f)
-  (set! *repl-level* 0)
+(define (interactive-entry-point argv)
+  ($$trace "In interactive-entry-point")
+  (repl-reset-continuation #f)
   (command-line-arguments argv)
-  (record-current-console-io)
-  (standard-timeslice (most-positive-fixnum)) ; Largest possible slice.
+  (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
   (failsafe-load-init-file)
   (failsafe-load-file-arguments)
   (if (herald)
-      (begin (display (herald))
-	     (newline)))
-  (newline)
+      (writeln (herald)))
+  (writeln)
+  ($$trace "Entering REPL")
+  (repl-level 0)
   (repl)
   (exit 0))
 
@@ -64,80 +41,84 @@
   (define (repl-display result)
     (call-with-error-handler
      (lambda (who . args)
-       (reestablish-console-io)
-       (format #t "Error: Bogus display procedure; reverting to default.")
+       (writeln "Error during printing; reverting to default printer.")
        (repl-printer default-repl-printer)
        (reset))
      (lambda ()
-       ((repl-printer) result))))
+       ((repl-printer) result (console-output-port)))))
 
   (define (repl)
-    ((repl-prompt) *repl-level*)
-    (flush-output-port)
-    (let ((expr (read)))
+    ((repl-prompt) (repl-level) (console-output-port))
+    (flush-output-port (console-output-port))
+    (let ((expr (read (console-input-port))))
       (if (not (eof-object? expr))
 	  (let ((results (call-with-values 
 			  (lambda ()
-			    ((repl-evaluator) expr (interaction-environment)))
+                            ((repl-evaluator) expr (interaction-environment)))
 			  (lambda values
 			    values))))
-	    (reestablish-console-io)
-	    (cond ((null? results)
-		   (display "; No values") (newline))
-		  ((null? (cdr results))
-		   (repl-display (car results)))
-		  (else
-		   (display (string-append
-			     "; "
-			     (number->string (length results))
-			     " values"))
-		   (newline)
-		   (for-each (lambda (x)
-			       (repl-display x))
-			     results)))
+            (cond ((null? results)
+                   (writeln "; No values"))
+                  ((null? (cdr results))
+                   (repl-display (car results)))
+                  (else
+                   (writeln "; " (length results) " values")
+                   (for-each (lambda (x)
+                               (repl-display x))
+                             results)))
 	    (repl))
 	  (begin
-	    (reestablish-console-io)
-	    (newline)
-	    (set! done #t)
-	    (*reset-continuation* #f)))))
+            (writeln)
+	    (set! done #t)))))
 
-  ; Setup the error continuation.  We wrap it in a dynamic-wind to allow
-  ; REPLs to be nested.
+  ; Setup the reset continuation and repl level.  REPLs can be nested,
+  ; and they can be concurrent, though they share the underlying console
+  ; architecture (There Can Be Only One).
 
-  ($$trace "In repl (toplevel)")
-  (let ((x *reset-continuation*))
-    (let ((k #f))
-      (call-with-current-continuation
-       (lambda (c) (set! k c)))
-      (if (not done)
+  (let ((repl-continuation #f))
+    (call-with-current-continuation
+     (lambda (k) 
+       (set! repl-continuation k)))
+    (if (not done)
+        ; FIXME: use PARAMETERIZE
+        (let ((old-reset (repl-reset-continuation))
+              (old-repl-level (repl-level)))
 	  (dynamic-wind
 	   (lambda ()
-	     (set! *reset-continuation* k)
-	     (set! *repl-level* (+ *repl-level* 1)))
+	     (repl-reset-continuation repl-continuation)
+	     (repl-level (+ (repl-level) 1)))
 	   (lambda ()
              (enable-interrupts (standard-timeslice))
 	     (repl))
 	   (lambda ()
-	     (set! *repl-level* (- *repl-level* 1))
-	     (set! *reset-continuation* x))))))
+	     (repl-level old-repl-level)
+	     (repl-reset-continuation old-reset))))))
   (unspecified))
 
+
+; Default REPL printer.
 ; The default printer uses "write" and does not print unspecified values.
 
 (define default-repl-printer
-  (lambda (result)
+  (lambda (result port)
     (if (not (eq? result (unspecified)))
-	(begin (write result)
-	       (newline)))))
+        (begin (write result port)
+               (newline port)))))
+
+
+; REPL parameters (some public, some not)
+
+(define repl-level
+  (system-parameter "repl-level" 0))
+
+(define repl-reset-continuation
+  (system-parameter "reset-continuation" #f))
 
 (define repl-prompt
   (system-parameter "repl-prompt"
-		    (lambda (level)
-		      (do ((i 0 (+ i 1)))
-			  ((= i level))
-			(write-char #\>))
-		      (write-char #\space))))
+		    (lambda (level port)
+                      (display (make-string level #\>) port)
+                      (display " " port))))
 
 (define repl-evaluator
   (system-parameter "repl-evaluator" eval))
@@ -148,119 +129,65 @@
 (define herald
   (system-parameter "herald" #f))
 
-; User-available procedures.
 
-(define (error-continuation)
-  *saved-continuation*)
+; Other public procedures.
 
 (define (dump-interactive-heap filename)
-  (dump-heap filename rep-loop-bootstrap))
+  (dump-heap filename interactive-entry-point))
 
 
-; Console i/o handling -- after an error, console i/o must be reset.
+; Error/reset/interrupt handling.
 
-; FIXME: this support belongs in the console I/O package, but I haven't
-; moved it because I want to first integrate changes to that package
-; from the Petit Larceny development trees.
+(define (setup-interrupt-and-error-handlers)
+  (reset-handler 
+   (lambda ()
+     (if (repl-reset-continuation)
+         ((repl-reset-continuation) #f)
+         (exit))))
 
-; By design, the use of (current-input-port x) and (current-output-port x)
-; does not affect the REPL's I/O.  However, there are some issues that remain
-; to be solved: transcript-on/off affects the REPL's I/O, but what does the 
-; REPL do if I/O on the echo port fails?
+  (error-handler 
+   (let ((old-handler (error-handler)))
+     (lambda args
+       (with-output-to-port (console-output-port)
+         (lambda ()
+           (apply old-handler args))))))
 
-(define *conin* #f)                   ; console input
-(define *conout* #f)                  ; console output
-
-(define (record-current-console-io)
-  (set! *conin* (current-input-port))
-  (set! *conout* (current-output-port)))
-
-(define (reestablish-console-io)
-  (if (or (not (io/open-port? *conin*))
-	  (io/port-error-condition? *conin*)
-	  (io/port-at-eof? *conin*))
-      (set! *conin* (console-io/open-input-console)))
-  (if (or (not (io/open-port? *conout*))
-	  (io/port-error-condition? *conout*))
-      (set! *conout* (console-io/open-output-console)))
-  (current-input-port *conin*)
-  (current-output-port *conout*))
-
-(transcript-event-notifier record-current-console-io)
-
-; Error handling.
-;
-; We set up customized error and reset handlers so that we can
-; capture errors and save a debugging continuation for a backtrace.
-;
-; The new error handler captures the current continuation _structure_,
-; saves it in the global *saved-continuation*, and then invokes the
-; previously defined (default) error handler, which in normal cases will
-; print an error message and then do a (reset).
-;
-; The new reset handler does a longjump to the currently saved
-; reset continuation, which will be set up by the read-eval-print loop.
-
-(define (setup-error-handlers)
-  (reset-handler new-reset-handler)
-  (error-handler (new-error-handler)))
-
-(define (new-error-handler)
-  (let ((old (error-handler)))
-    (lambda args
-      (reestablish-console-io)          ; So that we can print the message.
-      (let ((k (current-continuation-structure)))
-	 (set! *saved-continuation* k)
-	 (apply old args)))))
-
-(define (new-reset-handler)
-  (if *reset-continuation*
-      (*reset-continuation* #f)
-      (exit)))
-
-; Interrupt handling.
-
-(define (setup-interrupt-handlers)
   (timer-interrupt-handler
    (lambda ()
      (enable-interrupts (standard-timeslice))))
+
   (keyboard-interrupt-handler
    (lambda ()
-     (reestablish-console-io)
-     (display "Keyboard interrupt.")
-     (newline)
-     (let ((k (current-continuation-structure)))
-       (set! *saved-continuation* k)
-       (reset)))))
+     (writeln "Keyboard interrupt.")
+     (reset))))
+
 
 ; Init file loading.
 
 (define (failsafe-load-init-file)
-  (cond ((file-exists? *init-file-name*)
-	 (failsafe-load-file *init-file-name*))
-	((getenv "HOME") 
-	 => 
-	 (lambda (home)
-	   (let ((fn (string-append home "/" *init-file-name*)))
-	     (if (file-exists? fn)
-		 (failsafe-load-file fn)))))))
+  (let ((fn (osdep/find-init-file)))
+    (if fn (failsafe-load-file fn))))
 
 (define (failsafe-load-file-arguments)
   (let ((argv (command-line-arguments)))
     (do ((i 0 (+ i 1)))
 	((= i (vector-length argv)))
       (if (file-exists? (vector-ref argv i))
-	  (begin (set! *file-arguments* #t)
-		 (failsafe-load-file (vector-ref argv i)))))))
+          (failsafe-load-file (vector-ref argv i))))))
 
 (define (failsafe-load-file filename)
   (call-with-current-continuation
    (lambda (k)
      (call-with-reset-handler
       (lambda ()
-	(format #t "Error while loading ~a.~%" filename)
+        (writeln "Error while loading " filename)
 	(k #f))
       (lambda ()
 	(load filename))))))
+
+(define (writeln . xs)
+  (let ((p (console-output-port)))
+    (for-each (lambda (x) (display x p)) xs)
+    (newline p)))
 
 ; eof
