@@ -121,6 +121,7 @@
     (environment-set! larc 'environment-set! environment-set!)
     (environment-set! larc 'environment-reify environment-reify)
     (environment-set! larc 'larceny-environment larceny-environment)
+    (environment-set! larc 'environment-tag environment-tag)
 
     ;; numbers
 
@@ -292,6 +293,7 @@
     (environment-set! r5rs 'values values)
     (environment-set! r5rs 'call-with-values call-with-values)
     ;; not in R4RS:
+    (environment-set! larc 'evaluator evaluator)
     (environment-set! larc 'procedure-length procedure-length)
     (environment-set! larc 'procedure-ref procedure-ref)
     (environment-set! larc 'procedure-set! procedure-set!)
@@ -482,7 +484,6 @@
     (set! *r4rs-environment* r4rs)
     (set! *r5rs-environment* r5rs)
     (set! *larceny-environment* larc)
-
     #t))
 
 ; eof
