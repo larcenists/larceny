@@ -1,14 +1,16 @@
-; Auxlib/list.sch
-; Larceny auxiliary library -- list functions.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; Compatibility notes:
-; * Make-list, reduce, reduce-right, fold-right, fold-left are
-;   compatible with MIT Scheme.
-; * Make-list is compatible with Chez Scheme.
+; Useful list functions.
+;
+; Notes:
+; * Reduce, reduce-right, fold-right, fold-left are compatible with MIT Scheme.
+; * Make-list is compatible with MIT Scheme and Chez Scheme.
+; * These are not (yet) compatible with Shivers's proposed list functions.
+; * remq, remv, remove, every?, and some? are in the basic library already.
 
-; These removal procedures work on any lists.
+; Destructively remove all elements that match `key' from `list'.
 
 (define (remq! key list)
   (cond ((null? list) list)
@@ -31,31 +33,30 @@
 	(else
 	 (set-cdr! list (remove! key (cdr list))))))
 
-; These removal procedures work on assoc lists.
+; Destructively remove all associations whose key matches `key' from `alist'.
 
-(define (aremq! key list)
-  (cond ((null? list) list)
-	((eq? key (caar list))
-	 (aremq! key (cdr list)))
+(define (aremq! key alist)
+  (cond ((null? alist) alist)
+	((eq? key (caar alist))
+	 (aremq! key (cdr alist)))
 	(else
-	 (set-cdr! list (aremq! key (cdr list))))))
+	 (set-cdr! alist (aremq! key (cdr alist))))))
 
-(define (aremv! key list)
-  (cond ((null? list) list)
-	((eqv? key (caar list))
-	 (aremv! key (cdr list)))
+(define (aremv! key alist)
+  (cond ((null? alist) alist)
+	((eqv? key (caar alist))
+	 (aremv! key (cdr alist)))
 	(else
-	 (set-cdr! list (aremv! key (cdr list))))))
+	 (set-cdr! alist (aremv! key (cdr alist))))))
 
-(define (aremove! key list)
-  (cond ((null? list) list)
-	((equal? key (caar list))
-	 (aremove! key (cdr list)))
+(define (aremove! key alist)
+  (cond ((null? alist) alist)
+	((equal? key (caar alist))
+	 (aremove! key (cdr alist)))
 	(else
-	 (set-cdr! list (aremove! key (cdr list))))))
+	 (set-cdr! alist (aremove! key (cdr alist))))))
 
-; Generalized selector -- returns a list of elements selected by
-; the predicate.
+; Return a list of elements of `list' selected by the predicate.
 
 (define (filter select? list)
   (cond ((null? list) list)
@@ -64,32 +65,30 @@
 	(else
 	 (filter select? (cdr list)))))
 
-; Generalized searcher -- returns the first element selected by
-; the predicate.
+; Return the first element of `list' selected by the predicate.
 
 (define (find selected? list)
   (cond ((null? list) #f)
 	((selected? (car list)) (car list))
 	(else (find selected? (cdr list)))))
 
-; Return the least element of a list according to some total order.
+; Return the least element of `list' according to some total order.
 
-(define (least less? l)
-  (reduce (lambda (a b) (if (less? a b) a b)) #f l))
+(define (least less? list)
+  (reduce (lambda (a b) (if (less? a b) a b)) #f list))
 
-; Return the greatest element of a list according to some total order.
+; Return the greatest element of `list' according to some total order.
 
-(define (greatest greater? l)
-  (reduce (lambda (a b) (if (greater? a b) a b)) #f l))
+(define (greatest greater? list)
+  (reduce (lambda (a b) (if (greater? a b) a b)) #f list))
   
-; Map (proc : x -> list) over l, and append the resulting lists into 
-; one list.
+; (mappend p l) = (apply append (map p l))
 
 (define (mappend proc l)
   (apply append (map proc l)))
 
-; (make-list n) => list of length n
-; (make-list n x) => list of length n containing all x's
+; (make-list n)   => (a1 ... an) for some ai
+; (make-list n x) => (a1 ... an) where ai = x
 
 (define (make-list nelem . rest)
   (let ((val (if (null? rest) #f (car rest))))
@@ -122,7 +121,7 @@
 
   (define (loop l)
     (if (null? (cdr l))
-	(proc (car l) (cadr l))
+	(car l)
 	(proc (car l) (loop (cdr l)))))
 
   (cond ((null? l) initial)
@@ -151,5 +150,13 @@
       (if (= n 0)
 	  r
 	  (loop (- n 1) r)))))
+
+; (list-head (a1 ... an) m) => (a1 ... am)   for m <= n
+
+(define (list-head l n)
+  (if (zero? n)
+      '()
+      (cons (car l) (list-head (cdr l) (- n 1)))))
+
 	
 ; eof
