@@ -148,8 +148,8 @@
      (let ((src-file (make-filename *larceny-root* "Rts" cfgfile))
            (target-file
             (make-filename *larceny-root* "Rts" "Build" cfgfile)))
-       (unless (file-exists? target-file)
-         (catfiles (list src-file) target-file))))
+       (if (not (file-exists? target-file))
+           (catfiles (list src-file) target-file))))
    (map (lambda (f) (make-filename (string-append f ".cfg")))
         cfg-names))
   
