@@ -3,7 +3,7 @@
 ! Scheme 313 Runtime System
 ! Millicode for Generic Arithmetic, SPARC.
 !
-! $Id: generic.s,v 1.2 91/09/09 18:58:35 lth Exp Locker: lth $
+! $Id: generic.s,v 1.3 91/09/13 03:02:30 lth Exp Locker: lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -13,9 +13,6 @@
 !
 ! Chain order: flonum, compnum, (fixnum,) bignum, ratnum, rectnum.
 !
-! If both operands are fixnums, then we know that the original (in-line)
-! calculation overflowed, and we create a bignum.
-!
 ! For the non-fixnum case, the chain splits: we distinguish between 
 ! vector-like (rectnum, ratnum) and bytevector-like (flonum, compnum, bignum)
 ! structures.
@@ -24,9 +21,17 @@
 ! while fixnums, flonums, and compnums are handled in-line in this file.
 !
 ! When a generic arithmetic routine is called, the operands must be in the
-! millicode argument registers, and the address of the instruction which 
-! invoked the arithmetic routine *must* be in %o7 so that operations can
-! be retried.
+! millicode argument registers, and the Scheme return address must be in %o7.
+!
+! ACKNOWLEDGMENTS
+! - Compnum algorithms were taken from Press et al: "Numerical Recipes in C", 
+!   Cambridge University Press, 1988.
+!
+! BUGS
+! - Some of this code depends on TMP0 being a global register (which 
+!   is currently the case).
+! - Division code (and quotient, remainder, modulus) do not check for 
+!   a zero divisor.
 
 #include "registers.s.h"
 #include "millicode.h"
@@ -61,332 +66,914 @@
 	.global	_generic_sqrt			! (sqrt z)
 	.global	_generic_round			! (round x)
 	.global	_generic_truncate		! (truncate x)
+	.global	_generic_abs			! (abs x)
+	.global	_generic_negativep		! (negative? x)
+	.global	_generic_positivep		! (positive? x)
 
 	.seg	"text"
+
+! Addition
+! The fixnum case is done in line, so if the operands are fixnums, we had
+! an overflow and must box the result in a bignum.
+
 _generic_add:
-	! Not needed in bootstrap system, and not tested, so let's not
-	! take any chances.
-
-	jmp	%MILLICODE + M_NOT_SUPPORTED
-	nop
-
-	! Real code
-
-	st	%o7, [ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ]
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
-	cmp	%TMP0, BVEC_TAG			! flonum, bignum, compnum?
-	bnz	addother
+	cmp	%TMP0, BVEC_TAG
+	be,a	Ladd_bvec
 	cmp	%TMP1, BVEC_TAG
-	bz	addbytevec
+	or	%RESULT, %ARGREG2, %TMP2
+	andcc	%TMP2, 3, %g0
+	be,a	Ladd_fix
 	nop
-addother:
-	andcc	%RESULT, 3, %g0
-	bnz	addother1
-	andcc	%ARGREG2, 3, %g0
-	bz	addfix
-	nop
-addother1:
-	cmp	%TMP0, VEC_TAG			! ratnum, rectnum?
-	bnz	_contagion
+	cmp	%TMP0, VEC_TAG
+	be,a	Ladd_vec
 	cmp	%TMP1, VEC_TAG
-	bz	addvec
+	b	_non_numeric2
 	nop
-	b	_contagion
-	nop
-
-	! Add two fixnums and produce a bignum.
-
-addfix:
-	mov	%RESULT, %ARGREG3
-	call	_alloc				! grab some memory
-	mov	12, %RESULT			! 12 bytes is enough
-
-	sra	%ARGREG3, 2, %TMP0
-	sra	%ARGREG2, 2, %TMP1
-	addcc	%TMP0, %TMP1, %TMP0
-	bge	addfix2
-	set	(0 << 16) + 1, %TMP1		! sign + length
-	neg	%TMP0
-	set	(1 << 16) + 1, %TMP1		! ditto, negative
-addfix2:
-	st	%TMP1, [ %RESULT + 4 ]		! store sign, length
-	st	%TMP0, [ %RESULT + 8 ]		! store number
-	set	(8 << 8) | BIGNUM_HDR, %TMP0
-	st	%TMP0, [ %RESULT ]
-	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %o7
-	jmp	%o7+8
-	or	%RESULT, BVEC_TAG, %RESULT
-	
-! Daisy-chain for floats, compnums, and bignums starts here.
-
-addbytevec:
+Ladd_bvec:
+	be,a	Ladd_bvec2
 	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_bvec2:
 	ldub	[ %ARGREG2 + 3 - BVEC_TAG ], %TMP1
-
-addfloat:
 	cmp	%TMP0, FLONUM_HDR
-	bz	addfloat2
-	cmp	%TMP0, COMPNUM_HDR
-	bnz	addcomp
-	nop
-	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
-	fcmpd	%f0, %f2
-	nop
-	fbne	addcomp
-	nop
-addfloat2:
+	be,a	Ladd_flo
 	cmp	%TMP1, FLONUM_HDR
-	bz	addfloat3
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Ladd_comp
 	cmp	%TMP1, COMPNUM_HDR
-	bnz	_contagion
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Ladd_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric2
 	nop
-	ldd	[ %ARGREG3 + 8 - BVEC_TAG ], %f2
+Ladd_flo:
+	be,a	Ladd_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	! Got a flonum and something; check for compnum with 0i.
+	cmp	%TMP1, COMPNUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f2
 	fcmpd	%f0, %f2
 	nop
-	fbe	addfloat3
-	cmp	%TMP0, COMPNUM_HDR
-	be	addcomp				! two comps, one with 0i
-	nop
-	b	_contagion			! one comp w/!0i, one float
-	nop
-addfloat3:
-
-	! Add two flonums (or compnums with 0 imag part) and produce a flonum.
-
+	fbe,a	Ladd_flo2
 	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_flo2:
 	ldd	[ %ARGREG2 + 8 - BVEC_TAG ], %f4
-	faddd	%f2, %f4, %f2
-
 	b	_box_flonum
-	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %o7
-
-addcomp:
-	cmp	%TMP0, COMPNUM_HDR
-	bnz	addbig
-	cmp	%TMP1, COMPNUM_HDR
-	bnz	_contagion
-	nop
-
-	! Add two compnums and produce a compnum
-
+	faddd	%f2, %f4, %f2
+Ladd_comp:
+	be,a	Ladd_comp2
 	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	! op1 is a compnum, but perhaps op2 is a flonum and op1 has 0i.
+	cmp	%TMP1, FLONUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Ladd_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_comp2:
 	ldd	[ %ARGREG2 + 8 - BVEC_TAG ], %f4
+	ldd	[ %RESULT + 16 - BVEC_TAG ], %f6
 	faddd	%f2, %f4, %f2
-
-	ldd	[ %RESULT + 16 - BVEC_TAG ], %f2
-	ldd	[ %ARGREG2 + 16 - BVEC_TAG ], %f4
-	faddd	%f2, %f4, %f2
-
+	ldd	[ %ARGREG2 + 16 - BVEC_TAG ], %f8
 	b	_box_compnum
-	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %o7
-
-addbig:
-	cmp	%TMP0, BIGNUM_HDR
-	bnz	_nonnumeric
-	cmp	%TMP1, BIGNUM_HDR
-	bnz	_contagion
-	nop
-
-	! add two bignums producing a bignum
-
-	b	_not_supported
-	nop
-
-!	set	_bigadd, %g1
-!	b	_scheme_call
-!	nop
-
-! Daisy-chain for ratnums and rectnums starts here.
-
-addvec:
-	ldub	[ %RESULT + 3 - VEC_TAG ], %TMP0
-	ldub	[ %ARGREG2 + 3 - VEC_TAG ], %TMP1
-
-addrat:
+	faddd	%f6, %f8, %f4
+Ladd_big:
+	be,a	Ladd_big2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_ADD, %TMP2
+Ladd_vec:
+	be,a	Ladd_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_vec2:
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP1
 	cmp	%TMP0, RATNUM_HDR
-	bnz	addrect
+	be,a	Ladd_rat
 	cmp	%TMP1, RATNUM_HDR
-	bnz	_contagion
-	nop
-
-	! add two ratnums producing a ratnum
-
-	b	_not_supported
-	nop
-
-!	set	_ratadd, %g1
-!	b	_scheme_call
-!	nop
-
-addrect:
 	cmp	%TMP0, RECTNUM_HDR
-	bnz	_nonnumeric
+	be,a	Ladd_rect
 	cmp	%TMP1, RECTNUM_HDR
-	bnz	_contagion
+	b	_non_numeric2
 	nop
+Ladd_rat:
+	be,a	Ladd_rat2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_ADD, %TMP2
+Ladd_rect:
+	be,a	Ladd_rect2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_rect2:
+	b	_scheme_call
+	mov	MS_RECTNUM_ADD, %TMP2
+Ladd_fix:
+	sra	%RESULT, 2, %TMP0
+	sra	%ARGREG2, 2, %TMP1
+	b	_box_single_bignum
+	add	%TMP0, %TMP1, %TMP0
 
-	! add two rectnums producing a rectnum
-
-	b	_not_supported
-	nop
-
-!	set	_rectadd, %g1
-!	b	_scheme_call
-!	nop
-
-! Should never be invoked in bootstrap system.
+! Subtraction.
+! The fixnum case is handled in line, so if the operands are fixnums, we
+! had an underflow (negative result too large in magnitude) and must box
+! the result in a bignum.
 
 _generic_sub:
-	jmp	%MILLICODE + M_NOT_SUPPORTED
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lsub_bvec
+	cmp	%TMP1, BVEC_TAG
+	or	%RESULT, %ARGREG2, %TMP2
+	andcc	%TMP2, 3, %g0
+	be,a	Lsub_fix
 	nop
+	cmp	%TMP0, VEC_TAG
+	be,a	Lsub_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric2
+	nop
+Lsub_bvec:
+	be,a	Lsub_bvec2
+	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_bvec2:
+	ldub	[ %ARGREG2 + 3 - BVEC_TAG ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lsub_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lsub_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lsub_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric2
+	nop
+Lsub_flo:
+	be,a	Lsub_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	! op1 is a flonum; maybe op2 is a compnum with 0i.
+	cmp	%TMP1, COMPNUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lsub_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_flo2:
+	ldd	[ %ARGREG2 + 8 - BVEC_TAG ], %f4
+	b	_box_flonum
+	fsubd	%f2, %f4, %f2
+Lsub_comp:
+	be,a	Lsub_comp2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	! op1 is a compnum, but perhaps op2 is a flonum and op1 has 0i.
+	cmp	%TMP1, FLONUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lsub_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_comp2:
+	ldd	[ %ARGREG2 + 8 - BVEC_TAG ], %f4
+	ldd	[ %RESULT + 16 - BVEC_TAG ], %f6
+	fsubd	%f2, %f4, %f2
+	ldd	[ %ARGREG2 + 16 - BVEC_TAG ], %f8
+	b	_box_compnum
+	fsubd	%f6, %f8, %f4
+Lsub_big:
+	be,a	Lsub_big2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_SUB, %TMP2
+Lsub_vec:
+	be,a	Lsub_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_vec2:
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Lsub_rat
+	cmp	%TMP1, RATNUM_HDR
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Lsub_rect
+	cmp	%TMP1, RECTNUM_HDR
+	b	_non_numeric2
+	nop
+Lsub_rat:
+	be,a	Lsub_rat2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_SUB, %TMP2
+Lsub_rect:
+	be,a	Lsub_rect2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
+Lsub_rect2:
+	b	_scheme_call
+	mov	MS_RECTNUM_SUB, %TMP2
+Lsub_fix:
+	sra	%RESULT, 2, %TMP0
+	sra	%ARGREG2, 2, %TMP1
+	b	_box_single_bignum
+	sub	%TMP0, %TMP1, %TMP0
 
-! This multiplication code is temporary; it handles fixnums which multiply w/o
-! overflow. Other types are caught, but overflow is not.
+! Multiplication.
+! Fixnums may or may not be handled in line (depending on the availablity of
+! hardware multiply on the target implementation); either way we must redo the
+! operation here and check for the fixnum->bignum case.
 
 _generic_mul:
-	or	%RESULT, %ARGREG2, %TMP0
-	and	%TMP0, 3, %g0
-	bne	Lmul1
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lmul_bvec
+	cmp	%TMP1, BVEC_TAG
+	or	%RESULT, %ARGREG2, %TMP2
+	andcc	%TMP2, 3, %g0
+	be	Lmul_fix
 	nop
+	cmp	%TMP0, VEC_TAG
+	be,a	Lmul_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric2
+	nop
+Lmul_bvec:
+	be,a	Lmul_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_bvec2:
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lmul_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lmul_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lmul_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_contagion
+	nop
+Lmul_flo:
+	be,a	Lmul_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	! op1 is flonum; but perhaps op2 is a compnum with 0i.
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lmul_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	b	_box_flonum
+	fmuld	%f2, %f4, %f2
+Lmul_comp:
+	be,a	Lmul_comp2
+	nop
+	! op1 is compnum, but perhaps op2 is a flonum and op1 has 0i.
+	cmp	%TMP1, FLONUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lmul_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_comp2:
+	! Needs scheduling. 
+	! After scheduling, move the first load into the slot above.
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f6
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f8
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f10
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f12
+	fmuld	%f6, %f10, %f14
+	fmuld	%f8, %f12, %f16
+	fsubd	%f14, %f16, %f2
+	fmuld	%f8, %f10, %f18
+	fmuld	%f16, %f12, %f20
+	faddd	%f18, %f20, %f4
+	b	_box_comnum
+	nop
+Lmul_big:
+	be,a	Lmul_big2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_MUL, %TMP2
+Lmul_vec:
+	be,a	Lmul_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Lmul_rat
+	cmp	%TMP1, RATNUM_HDR
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Lmul_rect
+	cmp	%TMP1, RECTNUM_HDR
+	b	_non_numeric2
+	nop
+Lmul_rat:
+	be,a	Lmul_rat2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_MUL, %TMP2
+Lmul_rect:
+	be,a	Lmul_rect2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
+Lmul_rect2:
+	b	_scheme_call
+	mov	MS_RECTNUM_MUL, %TMP2
+Lmul_fix:
+	! This code depends on %TMP0 being a global register.
+	! The %y hack below is necessary because other TMPs may not be
+	! global registers. Really, all TMPs ought to be global regs.
+
 	save	%sp, -96, %sp
 	mov	%SAVED_RESULT, %o0
 	call	.mul
 	sra	%SAVED_ARGREG2, 2, %o1
-	mov	%o0, %SAVED_RESULT		! this assumes no overflow!
+
+	cmp	%o1, 0				! fit in a fixnum?
+	be,a	Lmul_fix2			! yes
+	mov	%o0, %SAVED_RESULT
+	cmp	%o1, -1
+	be,a	Lmul_fix2			! ditto
+	mov	%o0, %SAVED_RESULT
+	sra	%o1, 2, %o2
+	cmp	%o2, 0				! fit in a one-word bignum?
+	be,a	Lmul_fix3			! yes
+	nop
+	cmp	%o2, -1
+	be,a	Lmul_fix3			! yes
+	nop
+
+	! Fits in two-word bignum. Mush together and box.
+	sll	%o1, 30, %o1
+	srl	%o0, 2, %o0
+	or	%o0, %o1, %TMP0
+	wry	%o2, %g0, %y
+	b	_box_double_bignum
+	restore
+
+Lmul_fix3:
+	! Fits in one-word bignum. Mush together and box.
+	sll	%o1, 30, %o1
+	srl	%o0, 2, %o0
+	or	%o0, %o1, %TMP0
+	b	_box_single_bignum
+	restore
+
+Lmul_fix2:
 	jmp	%i7+8
 	restore
-Lmul1:
-	jmp	%MILLICODE + M_TYPE_EXCEPTION
-	nop
 
-! Division is treated as quotient in the bootstrap system (no ratnums 
-! supported).
+! Division.
+! Fixnum case may or may not be handled in line (depending on the availability
+! of hardware divide on the target architecture); either way we have to redo
+! the operation here and check for the fixnum->bignum case.
 
 _generic_div:
-	b	_generic_quo
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Ldiv_bvec
+	cmp	%TMP1, BVEC_TAG
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	be	Ldiv_fix
+	nop
+	cmp	%TMP0, VEC_TAG
+	be,a	Ldiv_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric2
+	nop
+Ldiv_bvec:
+	be,a	Ldiv_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_bvec2:
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Ldiv_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Ldiv_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Ldiv_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_flo:
+	be,a	Ldiv_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	! op1 is flonum; but perhaps op2 is a compnum with 0i.
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Ldiv_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	b	_box_flonum
+	fdivd	%f2, %f4, %f2
+Ldiv_comp:
+	be,a	Ldiv_comp2
+	nop
+	! op1 is compnum, but perhaps op2 is a flonum and op1 has 0i.
+	cmp	%TMP1, FLONUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Ldiv_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_comp2:
+	! needs scheduling badly.
+	! when scheduled, move one instruction into the slot above.
+
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f6
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f8
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f10
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f12
+	fabsd	%f10, %f14
+	fabsd	%f12, %f16
+	fcmpd	%f14, %f16
+	nop
+	fblt	Ldiv_comp3
 	nop
 
-! Similar to multiplication (above) in that it is temporary.
+	! case 1: (>= (abs (real-part b)) (abs (imag-part a)))
+
+	fdivd	%f12, %f10, %f14  ! r:   (/ (imag-part b) (real-part b))
+	fmuld	%f14, %f12, %f16
+	faddd	%f10, %f16, %f16  ! den: (+ (real-part b) (* r (imag-part b)))
+
+	fmuld	%f14, %f8, %f18
+	faddd	%f6, %f18, %f2
+	fdivd	%f2, %f16, %f2	  ! c.r
+
+	fmuld	%f14, %f6, %f18
+	fsubd	%f8, %f18, %f4
+	fdivd	%f4, %f16, %f4	  ! c.i
+	b	_box_compnum
+	nop
+
+Ldiv_comp3:
+
+	! case 2: (< (abs (real-part b)) (abs (imag-part a)))
+
+	fdivd	%f10, %f12, %f14  ! r:   (/ (real-part b) (imag-part b))
+	fmuld	%f14, %f10, %f16
+	faddd	%f12, %f16, %f16  ! den: (+ (imag-part b) (* r (real-part b)))
+
+	fmuld	%f6, %f16, %f18
+	faddd	%f18, %f8, %f2
+	fdivd	%f2, %f16, %f2	  ! c.r
+
+	fmuld	%f8, %f16, %f18
+	fsubd	%f18, %f6, %f4
+	fdivd	%f4, %f16, %f4
+	b	_box_compnum
+	nop
+
+Ldiv_big:
+	be,a	Ldiv_big2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_DIV, %TMP2
+Ldiv_vec:
+	be,a	Ldiv_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_DIV
+Ldiv_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Ldiv_rat
+	cmp	%TMP1, RATNUM_HDR
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Ldiv_rect
+	cmp	%TMP1, RECTNUM_HDR
+	b	_non_numeric2
+	nop
+Ldiv_rat:
+	be,a	Ldiv_rat2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_DIV, %TMP2
+Ldiv_rect:
+	be,a	Ldiv_rect2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
+Ldiv_rect2:
+	b	_scheme_call
+	mov	MS_RECTNUM_DIV, %TMP2
+Ldiv_fix:
+	! Oh, joy.
+	! If the remainder of the division is 0, then we return a result as
+	! expected; otherwise, the operation will generate a ratnum and the
+	! whole thing is pushed into Scheme.
+
+	save	%sp, -96, %sp
+	sra	%SAVED_RESULT, 2, %o0
+	call	.rem
+	sra	%SAVED_ARGREG2, 2, %o1
+	cmp	%o0, 0
+	bne	Ldiv_fix2
+	restore
+	sra	%SAVED_RESULT, 2, %o0
+	call	.div
+	sra	%SAVED_ARGREG2, 2, %o1
+	sll	%o0, SAVED_RESULT
+	jmp	%i7+8
+	restore
+Ldiv_fix2:
+	mov	2, %TMP1
+	b	_scheme_call
+	mov	MS_FIXNUM2RATNUM_DIV, %TMP2
+
+! Quotient.
+! Quotient must work on all integer operands, including flonums and compnums
+! which are representable as integers. In order to perserve the programmer's
+! sanity, only fixnums are dealt with in millicode; all other arguments are 
+! passed to the "generic-quotient" procedure (in Scheme).
 
 _generic_quo:
 	or	%RESULT, %ARGREG2, %TMP0
-	and	%TMP0, 3, %g0
-	bne	Lquo1
+	andcc	%TMP0, 3, %g0
+	bne	Lquotient1
 	nop
 	save	%sp, -96, %sp
-	mov	%SAVED_RESULT, %o0
+	sra	%SAVED_RESULT, 2, %o0
 	call	.div
 	sra	%SAVED_ARGREG2, 2, %o1
-	mov	%o0, %SAVED_RESULT
+	sll	%o0, 2, %SAVED_RESULT
 	jmp	%i7+8
 	restore
-Lquo1:
-	jmp	%MILLICODE + M_TYPE_EXCEPTION
-	nop
+Lquoient1:
+	mov	2, %TMP1
+	b	_scheme_call
+	mov	MS_HEAVY_QUOTIENT, %TMP2
 
-! Similar to multiplication (above) in that it is temporary.
+! Remainder.
+! Same treatment of arguments as for quotient, above.
+!
+! The .rem procedure produces the correct signs and values for "remainder".
 
 _generic_rem:
 	or	%RESULT, %ARGREG2, %TMP0
-	and	%TMP0, 3, %g0
-	bne	Lrem1
+	andcc	%TMP0, 3, %g0
+	bne	Lremainder1
 	nop
 	save	%sp, -96, %sp
-	mov	%SAVED_RESULT, %o0
+	sra	%SAVED_RESULT, 2, %o0
 	call	.rem
 	sra	%SAVED_ARGREG2, 2, %o1
-	mov	%o0, %SAVED_RESULT
+	sll	%o0, 2, %SAVED_RESULT
 	jmp	%i7+8
 	restore
-Lrem1:
-	jmp	%MILLICODE + M_TYPE_EXCEPTION
-	nop
+Lremainder1:
+	mov	2, %TMP1
+	b	_scheme_call
+	mov	MS_HEAVY_REMAINDER, %TMP2
 
-! Modulus
+! Modulus.
+! Same treatment of arguments as for quotient, above.
+!
+! The .rem procedure does not produce the correct sign and value for "modulo"
+! and hence we have to adjust the result.
 
 _generic_mod:
-	jmp	%MILLICODE + M_NOT_SUPPORTED
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	bne	Lmodulo1
 	nop
+	save	%sp, -96, %sp
+	sra	%SAVED_RESULT, 2, %o0
+	call	.rem
+	sra	%SAVED_ARGREG2, 2, %o1
+	xorcc	%SAVED_RESULT, %SAVED_ARGREG2, %g0
+	bpos,a	Lmodulo2			! same signs
+	sll	%o0, 2, %SAVED_RESULT
+	sll	%o0, 2, %o0
+	cmp	%SAVED_ARGREG2, 0
+	bge,a	Lmodulo2
+	add	%SAVED_ARGREG2, %o0, %RESULT
+	sub	%SAVED_ARGREG2, %o0, %RESULT
+Lmodulo2:
+	jmp	%i7+8
+	restore
+Lmodulo1:
+	mov	2, %TMP1
+	b	_scheme_call
+	mov	MS_HEAVY_MODULO, %TMP2
 
 ! Negation
+! The fixnum case is always handled in line.
 
 _generic_neg:
-	jmp	%MILLICODE + M_NOT_SUPPORTED
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lneg_bvec
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Lneg_vec
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_non_numeric1
 	nop
+Lneg_bvec:
+	cmp	%TMP0, FLONUM_TAG
+	be,a	Lneg_flo
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP0, COMPNUM_TAG
+	be,a	Lneg_comp
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP0, BIGNUM_TAG
+	be,a	Lneg_big
+	mov	1, %TMP1
+	b	_non_numeric1
+	nop
+Lneg_flo:
+	b	_box_flonum
+	fnegd	%f2, %f2
+Lneg_comp:
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f4
+	fnegd	%f2, %f2
+	b	_box_compnum
+	fnegd	%f4, %f4
+Lneg_big:
+	b	_scheme_call
+	mov	MS_BIGNUM_NEGATE. %TMP2	
+Lneg_vec:
+	cmp	%TMP0, RATNUM_HDR
+	be	Lneg_rat
+	mov	1, %TMP1
+	cmp	%TMP0, RECTNUM_HDR
+	be	Lneg_rect
+	mov	1, %TMP1
+	b	_non_numeric1
+	nop
+Lneg_rat:
+	b	_scheme_call
+	mov	MS_RATNUM_NEGATE, %TMP2
+Lneg_rect:
+	b	_scheme_call
+	mov	MS_RECTNUM_NEGATE, %TMP2
 
-! `zero?' does not have a fixnum case since that case is always handled
-! fully in-line. Furthermore, there are no bignums, rectnums, or ratnums
-! which are zero, but we must check for these types anyway, so that we can
-! signal non-numeric exceptions.
+! Absolute value.
+! The fixnum case is always handled in line.
+
+_generic_abs:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	be,a	Labs_bvec
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Labs_vec
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_non_numeric1
+	nop
+Labs_bvec:
+	cmp	%TMP0, FLONUM_TAG
+	be,a	Labs_flo
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP0, COMPNUM_TAG
+	be,a	Labs_comp
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP0, BIGNUM_TAG
+	be,a	Labs_big
+	mov	1, %TMP1
+	b	_non_numeric1
+	nop
+Labs_flo:
+	b	_box_flonum
+	fabsd	%f2, %f2
+Labs_comp:
+	b	_domain_error1
+	nop
+Labs_big:
+	b	_scheme_call
+	mov	MS_BIGNUM_ABS, %TMP2	
+Labs_vec:
+	cmp	%TMP0, RATNUM_HDR
+	be	Labs_rat
+	mov	1, %TMP1
+	cmp	%TMP0, RECTNUM_HDR
+	be	Labs_rect
+	mov	1, %TMP1
+	b	_non_numeric1
+	nop
+Labs_rat:
+	b	_scheme_call
+	mov	MS_RATNUM_ABS, %TMP2
+Labs_rect:
+	b	_scheme_call
+	mov	MS_RECTNUM_ABS, %TMP2
+
+! Test for zero.
+! The fixnum case is always handled in line. Furthermore, there are no 
+! bignums, rectnums, or ratnums which are zero, but we must check for
+! these types anyway, so that we can signal non-numeric exceptions.
 
 _generic_zerop:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bz	zerop2
-	cmp	%TMP0, VEC_TAG
-	bz	zerop5
-	nop
-	b	_nonnumeric1
-	nop
-zerop2:
+	be,a	Lzero_bvec
 	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Lzero_vec
+	ldub	[ %RESULT + 3 - VEC_TAG ], %TMP0
+	b	_non_numeric1
+	nop
+Lzero_bvec:
 	cmp	%TMP0, FLONUM_HDR
-	bnz	zerop3
-	nop
-	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
-	fcmpd	%f0, %f2
-	! this is a bit tricky...
-	mov	FALSE_CONST, %RESULT
-	fbe,a	.+8
-	mov	TRUE_CONST, %RESULT
-	jmp	%o7+8
-	nop
-zerop3:
+	be,a	Lzero_flo
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	cmp	%TMP0, COMPNUM_HDR
-	bnz	zerop4
-	nop
-	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
-	fcmpd	%f0, %f2
-	nop
-	fbne,a	zerop3.1
+	be,a	Lzero_comp
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lzero_num
 	mov	FALSE_CONST, %RESULT
-	ldd	[ %RESULT + 16 - BVEC_TAG ], %f2
+	b	_non_numeric1
+	nop
+Lzero_flo:
 	fcmpd	%f0, %f2
 	mov	FALSE_CONST, %RESULT
 	fbe,a	.+8
 	mov	TRUE_CONST, %RESULT
-zerop3.1:
 	jmp	%o7+8
 	nop
-zerop4:
-	cmp	%TMP0, BIGNUM_HDR
-	bz	zerop6
-	nop
-	b	_nonnumeric1
-	nop
-zerop5:
-	ldub	[ %RESULT + 3 - VECTOR_HDR ], %TMP0
-	cmp	%TMP0, RATNUM_HDR
-	bz	zerop6
-	cmp	%TMP0, RECTNUM_HDR
-	bnz	_nonnumeric1
-	nop
-zerop6:
-	jmp	%o7+8
+Lzero_comp:
+	fcmpd	%f0, %f2
+	ldd	[ %RESULT + 16 - BVEC_TAG ], %f4
+	fbne,a	Lzero_num
 	mov	FALSE_CONST, %RESULT
+	fcmpd	%f0, %f4
+	mov	FALSE_CONST, %RESULT
+	fbe,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+Lzero_vec:
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Lzero_num
+	mov	FALSE_CONST, %RESULT
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Lzero_num
+	mov	FALSE_CONST, %RESULT
+	b	_non_numeric1
+	nop
+Lzero_num:
+	jmp	%o7+8
+	nop
 
-! These are not needed to bootstrap the system.
+! Equality.
+! The fixnum case is handled in line.
 
 _generic_equalp:
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lequal_bvec
+	cmp	%TMP1, BVEC_TAG
+	cmp	%TMP0, VEC_TAG
+	be,a	Lequal_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric1
+	nop
+Lequal_bvec:
+	be,a	Lequal_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_econtagion
+	mov	MS_GENERIC_EQUALP, %TMP2
+Lequal_bvec2:
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lequal_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lequal_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lequal_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric1
+	nop
+Lequal_flo:
+	be,a	Lequal_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lequal_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+Lequal_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	fcmpd	%f2, %f4
+	mov	FALSE_CONST, %RESULT
+	fbe,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+Lequal_comp:
+Lequal_big:
+	be,a	Lequal_big2
+	mov	2, %TMP1
+	b	_econtagion
+	mov	MS_GENERIC_EQUALP, %TMP2
+Lequal_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_EQUALP, %TMP2
+Lequal_vec:
+
 _generic_lessp:
 _generic_less_or_equalp:
 _generic_greaterp:
 _generic_greater_or_equalp:
-	jmp	%MILLICODE + M_NOT_SUPPORTED
+	jmp	%o7+8
 	nop
 
-! The tower of numbers.
+! The tower of numeric types.
+!
 ! The implementation of the predicates is rather interweaved, as we strive for
 ! at least some semblance of efficiency while keeping the code small.
 
@@ -395,8 +982,8 @@ _generic_greater_or_equalp:
 
 _generic_complexp:
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%RESULT, BVEC_TAG
-	bne	Lcomplexp1
+	cmp	%TMP0, BVEC_TAG
+	bne	Lcomplexp_bvec
 	nop
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
 	cmp	%TMP0, COMPNUM_HDR
@@ -405,7 +992,7 @@ _generic_complexp:
 	jmp	%o7+8
 	mov	TRUE_CONST, %RESULT
 Lcomplexp1:
-	cmp	%RESULT, VEC_TAG
+	cmp	%TMP0, VEC_TAG
 	bne	_generic_integerp_f			! got to be fixnum
 	nop
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
@@ -420,7 +1007,7 @@ Lcomplexp1:
 
 _generic_realp:
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%RESULT, BVEC_TAG
+	cmp	%TMP0, BVEC_TAG
 	bne	Lrealp1
 	nop
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -440,7 +1027,7 @@ Lrealp0:
 	jmp	%o7+8
 	nop
 Lrealp1:
-	cmp	%RESULT, VEC_TAG
+	cmp	%TMP1, VEC_TAG
 	bne	_generic_integerp_f			! got to be fixnum
 	nop
 	b	_generic_rationalp_v			! vector-like
@@ -451,7 +1038,7 @@ Lrealp1:
 
 _generic_rationalp:
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%RESULT, VEC_TAG
+	cmp	%TMP0, VEC_TAG
 	bne	_generic_integerp
 	nop
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
@@ -473,7 +1060,7 @@ _generic_rationalp_v:
 
 _generic_integerp:
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%RESULT, BVEC_TAG
+	cmp	%TMP0, BVEC_TAG
 	bne	_generic_integerp_f
 	nop
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -509,7 +1096,7 @@ Lintegerp1:
 	b	_generic_realp_b
 	nop	
 _generic_integerp_f:
-	and	%RESULT, 3, %g0
+	andcc	%RESULT, 3, %g0
 	mov	TRUE_CONST, %RESULT
 	bne,a	.+8
 	mov	FALSE_CONST, %RESULT
@@ -823,10 +1410,30 @@ _nonnumeric1:
 	st	%o7, [ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ]
 _nonnumeric:
 
-	! do something interesting; for now, just panic
+	call	_save_scheme_context
+	nop
 
-	call	_panic
-	mov	errmsg, %o0
+	ld	[ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ], %g1
+	st	%g1, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
+
+	save	%sp, -96, %sp
+
+	set	errmsg, %o0
+	call	_printf
+	nop
+
+	call	_localdebugger
+	nop
+
+	restore
+
+	call	_restore_scheme_context
+	nop
+
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
+	jmp	%o7 + 8
+	nop
+
 
 
 !-----------------------------------------------------------------------------
@@ -835,8 +1442,10 @@ _nonnumeric:
 ! Box the double in %f2/f3 as a flonum. Return tagged pointer in RESULT.
 
 _box_flonum:
+	st	%o7, [ %GLOBALS + GEN_TMP1_OFFSET ]
 	call	_alloc
 	mov	16, %RESULT
+	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %o7
 
 	std	%f2, [ %RESULT + 8 ]
 	set	(16 << 8) | FLONUM_HDR, %TMP0
@@ -849,8 +1458,10 @@ _box_flonum:
 ! Return tagged pointer in RESULT.
 
 _box_compnum:
+	st	%o7, [ %GLOBALS + GEN_TMP1_OFFSET ]
 	call	_alloc
 	mov	24, %RESULT
+	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %o7
 
 	std	%f2, [ %RESULT + 8 ]
 	std	%f4, [ %RESULT + 16 ]
@@ -859,11 +1470,41 @@ _box_compnum:
 	jmp	%o7+8
 	add	%RESULT, BVEC_TAG, %RESULT
 
+! Box an integer in a bignum with one digit. The integer is passed in %TMP0.
+! %o7 has the Scheme return address.
+
+_box_single_bignum:
+	st	%TMP0, [ %GLOBALS + GEN_TMP1_OFFSET ]
+	mov	%o7, %TMP0
+	call	_internal_alloc
+	mov	12, %RESULT
+	mov	%TMP0, %o7
+	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
+	cmp	%TMP0, 0
+	bge	Lbox_s_fix2
+	set	(0 << 16) + 1, %TMP1		! sign + length
+	neg	%TMP0
+	set	(1 << 16) + 1, %TMP1		! ditto, negative
+Lbox_s_fix2:
+	st	%TMP1, [ %RESULT + 4 ]		! store sign, length
+	st	%TMP0, [ %RESULT + 8 ]		! store number
+	set	(8 << 8) | BIGNUM_HDR, %TMP0
+	st	%TMP0, [ %RESULT ]
+	jmp	%o7+8
+	or	%RESULT, BVEC_TAG, %RESULT
+
+! Box an integer in a bignum with two digits. The integer is passed in
+! %TMP0 (low word) and %y (high word). [This is a hack but it works well.]
+! %o7 has the Scheme return address.
+
+_box_double_bignum:
+	jmp	%o7+8
+	nop
 
 ! Interesting data for the generic arithmetic system.
 
 	.seg	"data"
 errmsg:
-	.asciz	"Non-numeric operand(s) to arithmetic operation."
+	.asciz	"Non-numeric operand(s) to arithmetic operation.\n"
 
 	! end
