@@ -479,8 +479,6 @@
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
 
-    (environment-set! larc 'bignum->flonum bignum->flonum)
-
     (initialize-environments null r4rs r5rs larc)
     #t))
 
