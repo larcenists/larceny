@@ -721,6 +721,26 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 	(begin)
 
 
-NEXT ENTRY: 130
+130 v0.43 (990715 / lth)
+    Priority: medium
+    Category: TWOBIT / correctness
+
+    Twobit is confused by the following program, which uses a trick to ensure
+    that knowledge of the default fill is only encoded in the compiler.  I use
+    a similar trick for make-vector; it signals an error for that too.
+
+
+    > (compile '(define make-string
+	          (lambda (x . rest)
+		    (if (null? rest)
+	  	        (make-string x)
+		        (make-string x (car rest))))))
+    WARNING from macro expander:
+    Redefining 
+    make-string
+    Error: Wrong number of arguments to integrable procedure(make-string .x|1)
+
+
+NEXT ENTRY: 131
 
 ; eof
