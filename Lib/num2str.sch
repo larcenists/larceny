@@ -2,15 +2,7 @@
 ;
 ; $Id$
 ;
-;                                       16 April 1990
-;
-;
-; NOT TRUE anymore:
-;  An IEEE-conforming implementation of number->string.
-;  Assumes a fixnum/bignum/flonum implementation using
-;  IEEE double precision flonums in a MacScheme-specific
-;  format.  Uses a MacScheme-specific routine for bignums.
-;
+; An IEEE-conforming implementation of number->string.
 
 ($$trace "num2str")
 
@@ -124,21 +116,6 @@
       '#(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9
          #\a #\b #\c #\d #\e #\f #\g #\h #\i #\j #\k #\l #\m
          #\n #\o #\p #\q #\r #\s #\t #\u #\v #\w #\x #\y #\z))
-    
-    ; bignum->string takes two arguments:  a bignum and a radix
-    ; For Larceny, bignum->string is defined in "bignums.sch".
-
-;    (define bignum->string
-;      (->procedure
-;       (list (cons (list->bytevector
-;                    '(149 2      ; args=   2
-;                          157        ; locals  1
-;                          161        ; local   1
-;                          151        ; push
-;                          160        ; local   0
-;                          116        ; bigdigits
-;                          152))      ; restore
-;                   '#(#f)))))
     
     ; "Simplified Floating-Point Printout Algorithm"
     ; from Tables 12 and 13 of draft of Steele and White.
@@ -271,40 +248,6 @@
                                   s)))
               (else (string-append s (make-string n #\0) ".0")))))
     
-; These are global in Larceny.
-;
-;    ; MacScheme-specific code.
-;    ; Depends on the representations of bignums as well as flonums.
-;    
-;    (define (float-significand x)
-;      (let ((x (->bytevector x))
-;            (n (make-bytevector 12)))
-;        (bytevector-set! n 0 0)
-;        (bytevector-set! n 1 1)   ; sign
-;        (bytevector-set! n 2 0)
-;        (bytevector-set! n 3 4)   ; size (in bignum digits)
-;        (bytevector-set! n 4 (bytevector-ref x 6))
-;        (bytevector-set! n 5 (bytevector-ref x 7))
-;        (bytevector-set! n 6 (bytevector-ref x 4))
-;        (bytevector-set! n 7 (bytevector-ref x 5))
-;        (bytevector-set! n 8 (bytevector-ref x 2))
-;        (bytevector-set! n 9 (bytevector-ref x 3))
-;        (bytevector-set! n 10 0)
-;        (bytevector-set! n 11 (logior 16 (logand 15 (bytevector-ref x 1))))
-;        
-;        ; subtract hidden bit if x is denormalized
-;        
-;        (if (and (zero? (bytevector-ref x 0))
-;                 (zero? (logand -16 (bytevector-ref x 1))))
-;            (- (typetag-set! n (typetag two^n-1)) two^n-1)
-;            (typetag-set! n (typetag two^n-1)))))
-;    
-;    (define (float-exponent x)
-;      (let* ((x (->bytevector x))
-;             (e (logior (lsh (logand 127 (bytevector-ref x 0)) 4)
-;                        (lsh (bytevector-ref x 1) -4))))
-;        (if (zero? e)
-;            (- flonum:minexponent 51)          ; no hidden bit
-;            (- e (+ 1023 52)))))
- 
     number->string))
+
+; eof
