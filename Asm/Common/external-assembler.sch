@@ -12,9 +12,6 @@
 (define *available-compilers* '())  ; Assigned below -- ((tag name obj functions) ...)
 (define *current-compiler* #f)      ; Assigned below -- (tag name obj functions)
 
-(define optimize-c-code
-  (make-twobit-flag "optimize-c-code"))
-
 (define (c-compile-file c-name o-name)
   ((cdr (assq 'compile (cadddr *current-compiler*))) c-name o-name))
 

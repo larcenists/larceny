@@ -19,6 +19,9 @@
 (define peephole-optimization
   (make-twobit-flag 'peephole-optimization))
 
+(define optimize-c-code
+  (make-twobit-flag "optimize-c-code"))
+
 ; Backwards compatible
 
 (define (single-stepping . rest) #f)    ; Not a switch
@@ -39,17 +42,20 @@
     ((optimization)
      (display-twobit-flag peephole-optimization)
      (display-twobit-flag inline-allocation)
-     (display-twobit-flag inline-assignment))
+     (display-twobit-flag inline-assignment)
+     (display-twobit-flag optimize-c-code))
     (else #t)))
 
 (define (set-assembler-flags! mode)
   (case mode
     ((no-optimization)
      (set-assembler-flags! 'standard)
+     (optimize-c-code #f)
      (peephole-optimization #f))
     ((standard)
      (runtime-safety-checking #t)
      (catch-undefined-globals #t)
+     (optimize-c-code #t)
      (inline-allocation #f)
      (inline-assignment #f)
      (peephole-optimization #t))

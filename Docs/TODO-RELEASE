@@ -57,19 +57,18 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Quality: Clean up the Util/petit-win32.sch; the unix variants are
    much cleaner.
 
- * Quality: Instances of OPTIMIZEME in Rts/Standard-C/twobit.h
+ * Quality: Instances of OPTIMIZEME in Rts/Standard-C/twobit.h.  
+
+ * Perhaps twobit.h should be renamed petit-instr.h, to conform to
+   what is going on in Intel/ and PowerPC/.
 
  * Quality: petit-hacks.h should be renamed eg petit-machine.h,
-   since this file serves the same purpose as i386-machine.h
+   since this file serves the same purpose as i386-machine.h.  These
+   files are abstraction layers for the instruction macros to build on,
+   sort of a VM substrate.
 
  * Quality: dumpheap-extra.sch is a silly name, perhaps better
-   would be dumpheap-overrides.sch.
-
- * Quality: the support code for the C compiler can be factored out of
-   Asm/Intel/dumpheap-extra.sch and Asm/Standard-C/dumpheap-extra.sch
-   and into something common, eg, Asm/Common/external-compiler.sch, and
-   the flag for optimization can be defined more thoroughly there and
-   integrated into asm-switches.sch.
+   would be dumpheap-overrides.sch or dumpheap-target.sch
 
 
 Release candidate 1 -> Release candidate 2
