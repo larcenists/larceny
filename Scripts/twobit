@@ -6,37 +6,31 @@
 # Shell script to run twobit.
 #
 # Usage: twobit [larceny-options ...] [program-options ...]
-# where larceny-options are valid options for larceny _except_ that
-# they use @ for the option character rather than -, and program-
-# options are everything else.
+# where larceny-options are valid options for larceny, and program-
+# options are anything else.  If you want to pass an option
+# that is a valid larceny-option as a program-option, then use -args
+# to separate program options and larceny options.
+#
+# For example,
+#  larceny -np -foo         ; -np is a larc.opt., -foo a prog.opt.
+#  larceny -np -args -load  ; -np is a larc.opt., -args -load a prog.opt.
 
 # EDIT THIS PATH TO SUIT YOUR SYSTEM.
 LARCENY_PATH=/usr/local/lib/larceny
 unset LARGS
 unset PARGS
+SMALL=0
 while [ "$1" != "" ]; do 
   case $1 in
-    @stopcopy) LARGS="$LARGS -stopcopy"; shift ;;
-    @areas) LARGS="$LARGS -areas $2"; shift; shift ;;
-    @gen) LARGS="$LARGS -gen"; shift ;;
-    @nostatic) LARGS="$LARGS -nostatic"; shift ;;
-    @size*) LARGS="$LARGS `echo $1 | sed s/@/-/` $2"; shift; shift ;;
-    @load) LARGS="$LARGS -load $2"; shift; shift ;;
-    @np) LARGS="$LARGS -np"; shift ;;
-    @steps) LARGS="$LARGS -steps $2"; shift; shift ;;
-    @stepsize) LARGS="$LARGS -stepsize $2"; shift; shift ;;
-    @max) LARGS="$LARGS -max $2"; shift; shift ;;
-    @stats) LARGS="$LARGS -stats"; shift ;;
-    @quiet) LARGS="$LARGS -quiet"; shift ;;
-    @annoy-user) LARGS="$LARGS -annoy-user"; shift ;;
-    @annoy-user-greatly) LARGS="$LARGS -annoy-user-greatly"; shift ;;
-    @help) LARGS="$LARGS -help"; shift ;;
-    @rhash) LARGS="$LARGS -rhash $2"; shift; shift ;;
-    @ssb) LARGS="$LARGS -ssb $2"; shift; shift ;;
-    @ticks) LARGS="$LARGS -ticks $2"; shift; shift ;;
-    @nobreak) LARGS="$LARGS -nobreak"; shift ;;
-    @step) LARGS="$LARGS -step"; shift ;;
-    @reorganize-and-dump) LARGS="$LARGS -reorganize-and-dump"; shift ;;
+    -annoy-user | -annoy-user-greatly | -gen | -help | -nobreak | -nostatic | \
+    -np | -quiet | -reorganize-and-dump | -stats | -step | -stopcopy)
+      LARGS="$LARGS $1"; shift 
+      ;;
+    -areas | -load | -max | -rhash | -size* | -ssb | -steps | -stepsize | \
+    -ticks)
+      LARGS="$LARGS $1 $2"; shift; shift 
+      ;;
+    -args) PARGS="$@"; break ;;
     *) PARGS="-args $@"; break ;;
   esac
 done
