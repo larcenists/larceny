@@ -1,0 +1,22 @@
+;;; This is part of the RIPOFF object system.
+
+;; The MAL code guarantees that the inner lambda's environment rib
+;; contains 'proc', 'class', and 'state' at known offsets.
+
+;; %instance : procedure * object * object -> procedure
+
+`((,$lambda ((,$args= 3)
+             (,$lambda ((,$args>= 0)    ;; reg1 <- arg list
+                        (,$movereg 1 2) ;; reg2 <- reg1
+                        (,$lexical 0 1) ;; Result <- the procedure
+                        (,$setreg 1)    ;; reg1 <- Result
+                        (,$global apply);; Result <- apply
+                        (,$invoke 2))   ;; (apply reg1 reg2)
+                       3 ;; close over the proc, class, and state vector
+                       #(%instance #f 0.0 #f #f)) ;; do not change this name!
+             (,$return))
+            0
+            #f)
+  (,$setglbl %instance)
+  (,$const   %instance)
+  (,$return))
