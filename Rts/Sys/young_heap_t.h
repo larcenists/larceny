@@ -59,13 +59,14 @@ struct young_heap {
 	nbytes > 0
 	*/
 
-  void (*collect)( young_heap_t *heap, int nbytes );
+  void (*collect)( young_heap_t *heap, int nbytes, int request );
      /* A method that requests a garbage collection in the heap, without
 	guaranteeing that one is performed, but in any event guaranteeing
 	that at least `nbytes' bytes are free for allocation following
 	the call, at the location of the current heap pointer.
 
 	nbytes >= 0
+	request == GCTYPE_COLLECT || request == GCTYPE_PROMOTE
 	*/
 
   void (*before_collection)( young_heap_t *heap );
@@ -145,7 +146,7 @@ young_heap_t *create_young_heap_t(
    word code,
    int  (*initialize)( young_heap_t *heap ),
    word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc ),
-   void (*collect)( young_heap_t *heap, int nbytes ),
+   void (*collect)( young_heap_t *heap, int nbytes, int request ),
    void (*before_collection)( young_heap_t *heap ),
    void (*after_collection)( young_heap_t *heap ),
    void (*set_policy)( young_heap_t *heap, int rator, int rand ),
@@ -164,7 +165,7 @@ young_heap_t *create_young_heap_t(
 
 #define yh_initialize( h )         ((h)->initialize( (h) ))
 #define yh_allocate( h, n, f )     ((h)->allocate( (h), (n), (f) ))
-#define yh_collect( h, n )         ((h)->collect( (h), (n) ))
+#define yh_collect( h, n, r )      ((h)->collect( (h), (n), (r) ))
 #define yh_before_collection( h )  ((h)->before_collection( (h) ))
 #define yh_after_collection( h )   ((h)->after_collection( (h) ))
 #define yh_set_policy( h, x, y )   ((h)->set_policy( h, x, y ))

@@ -17,7 +17,7 @@ young_heap_t *create_young_heap_t(
    word code,
    int  (*initialize)( young_heap_t *heap ),
    word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc ),
-   void (*collect)( young_heap_t *heap, int nbytes ),
+   void (*collect)( young_heap_t *heap, int nbytes, int request ),
    void (*before_collection)( young_heap_t *heap ),
    void (*after_collection)( young_heap_t *heap ),
    void (*set_policy)( young_heap_t *heap, int rator, int rand ),
