@@ -50,10 +50,6 @@
 
   (set! *larceny-root* (make-filename ""))
 
-  
-  ;; Standard-C version.  Have to fix this once .Net backend
-  ;; stops needing to load & mutate the Standard-C backend.  It might also
-  ;; be nice if a bunch of the options weren't hardcoded.
   (let ((option:source? #t)
         (option:verbose? #f)
         (option:development? #t))
@@ -106,6 +102,7 @@
   (set! config-path "Rts/Build/")
   (load (string-append (nbuild-parameter 'util) "csharp-config.scm"))
   )
+
 
 (define (setup-directory-structure)
   (case option:os
@@ -185,11 +182,10 @@
          (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))))
   
   (display " -- Running C# config...")(newline)
-  (let ((file (make-filename *larceny-root* "Rts/DotNet/Constants.cs")))
+  (let ((file (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs")))
     (if (file-exists? file)
         (delete-file file)))
   (run-csharp-config))
-
 
 ;; Load the compiler
 (define (load-compiler)
