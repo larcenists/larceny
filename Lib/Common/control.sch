@@ -183,6 +183,9 @@
 ; We need to replace these definitions when Larceny gets compiler
 ; support for them.
 
+; Note that dynamic-wind (defined below) depends on the ability to
+; to pass multiple values through by simple not looking at them.
+
 (define *multiple-values* (list '*multiple-values*))
 (define *values0* (list *multiple-values*))
 
@@ -276,22 +279,32 @@
 (define (dynamic-wind before during after)
   (let ((here *here*))
     (reroot! (cons (cons before after) here))
-    (call-with-values during
-      (lambda results
-        (reroot! here)
-        (values-list results)))))
+    ;; Don't listify and respread the values.
+    ;; (call-with-values during
+    ;;  (lambda results
+    ;;    (reroot! here)
+    ;;    (values-list results)))
+    (let ((result (during)))
+      (reroot! here)
+      result)))
 
 (define (reroot! there)
 
   (define (reroot-loop there)
     (if (not (eq? *here* there))
         (begin (reroot-loop (cdr there))
-               (let ((before (caar there))
-                     (after  (cdar there)))
-                 (set-car! *here* (cons after before))
-                 (set-cdr! *here* there)
+               ;; Reusing this cell cuts a significant
+               ;; amount of consing.
+               (let* ((reuse-cell (car there))
+                      (before (car reuse-cell))
+                      (after  (cdr reuse-cell)))
                  (set-car! there #f)
                  (set-cdr! there '())
+                 (set-car! reuse-cell after)
+                 (set-cdr! reuse-cell before)
+
+                 (set-car! *here* reuse-cell)
+                 (set-cdr! *here* there)
                  (set! *here* there)
                  (before)))))
 
