@@ -3,8 +3,10 @@
 ; $Id$
 ;
 ; Larceny -- simple help system for the development environment
+;
+; 2000-01-11 / lth
 
-(define *help-topics*)
+(define *help-topics* #f)
 (define *help-mode* 'full)
 
 (define help.keyword car)
