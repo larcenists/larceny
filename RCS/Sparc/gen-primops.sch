@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id$
+; $Id: integrables.scm,v 1.1 91/09/09 18:58:58 lth Exp Locker: lth $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -42,11 +42,11 @@
 
    (cons 'zero?
 	 (lambda (as)
-	   (emit-cmp-primop! as $i.tsubrcc $i.beq.a $m.zerop $r.g0)))
+	   (emit-cmp-primop! as $i.tsubrcc $i.be.a $m.zerop $r.g0)))
 
    (cons '=
 	 (lambda (as r)
-	   (emit-cmp-primop! as $i.tsubrcc $i.beq.a $m.numeq r)))
+	   (emit-cmp-primop! as $i.tsubrcc $i.be.a $m.numeq r)))
 
    (cons '<
 	 (lambda (as r)
@@ -97,7 +97,7 @@
    (cons 'fixnum?
 	 (lambda (as)
 	   (emit! as `(,$i.andicc ,$r.result 3 ,$r.g0))
-	   (emit-set-bool! as)))
+	   (emit-set-boolean! as)))
 
    ; -----------------------------------------------------------------
 
@@ -120,25 +120,41 @@
 	     (emit! as `(,$i.orr ,$r.g0 ,tmp ,$r.argreg2)))))
 
    (cons '/
-	 (lambda (as x y)
+	 (lambda (as r)
 	   (let ((tmp (if (hardware-mapped? r)
 			  r
 			  (emit-load-reg! as r $r.tmp0))))
-	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.divide ,$.o7))
+	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.divide ,$r.o7))
 	     (emit! as `(,$i.orr ,$r.g0 ,tmp ,$r.argreg2)))))
 
    (cons 'quotient
-	 (lambda (as x y)
+	 (lambda (as r)
 	   (let ((tmp (if (hardware-mapped? r)
 			  r
 			  (emit-load-reg! as r $r.tmp0))))
-	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.quotient ,$.o7))
+	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.quotient ,$r.o7))
+	     (emit! as `(,$i.orr ,$r.g0 ,tmp ,$r.argreg2)))))
+
+   (cons 'remainder
+	 (lambda (as r)
+	   (let ((tmp (if (hardware-mapped? r)
+			  r
+			  (emit-load-reg! as r $r.tmp0))))
+	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.remainder ,$r.o7))
+	     (emit! as `(,$i.orr ,$r.g0 ,tmp ,$r.argreg2)))))
+
+   (cons 'modulo
+	 (lambda (as r)
+	   (let ((tmp (if (hardware-mapped? r)
+			  r
+			  (emit-load-reg! as r $r.tmp0))))
+	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.modulo ,$r.o7))
 	     (emit! as `(,$i.orr ,$r.g0 ,tmp ,$r.argreg2)))))
 
    (cons '--
 	 (lambda (as)
 	   (let ((l1 (new-label)))
-	     (emit! as `(,$i.tsubcc ,$r.g0 ,$r.result, $r.tmp0))
+	     (emit! as `(,$i.tsubrcc ,$r.g0 ,$r.result, $r.tmp0))
 	     (emit! as `(,$i.bvc.a ,l1))
 	     (emit! as `(,$i.orr ,$r.g0 ,$r.tmp0 ,$r.result))
 	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.negate ,$r.o7))
@@ -157,11 +173,15 @@
 	 (lambda (as)
 	   (silly 'sqrt)))
 
+   ; fixnums only
+
    (cons 'lognot
 	 (lambda (as)
 	   (emit-assert-fixnum! as $r.result)
 	   (emit! as `(,$i.ornr ,$r.result ,$r.g0 ,$r.result))
 	   (emit! as `(,$i.xori ,$r.result 3 ,$r.result))))
+
+   ; fixnums only
 
    (cons 'logand
 	 (lambda (as x)
@@ -172,6 +192,8 @@
 	     (emit-assert-fixnum! as $r.tmp0)
 	     (emit! as `(,$i.andr ,$r.result ,x ,$r.result)))))
 
+   ; fixnums only
+
    (cons 'logior
 	 (lambda (as x)
 	   (let ((tmp (if (hardware-mapped? x)
@@ -180,6 +202,8 @@
 	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
 	     (emit-assert-fixnum! as $r.tmp0)
 	     (emit! as `(,$i.orr ,$r.result ,x ,$r.result)))))
+
+   ; fixnums only
 
    (cons 'logxor
 	 (lambda (as x)
@@ -190,9 +214,50 @@
 	     (emit-assert-fixnum! as $r.tmp0)
 	     (emit! as `(,$i.xorr ,$r.result ,tmp ,$r.result)))))
 
+   ; fixnums only, and only positive shifts are meaningful.
+
    (cons 'lsh
 	 (lambda (as x)
-	   (silly 'lsh)))
+	   (let ((tmp (if (hardware-mapped? x)
+			  x
+			  (emit-load-reg! as x $r.tmp1))))
+	     (emit! as `(,$i.orr, $r.result ,tmp ,$r.tmp0))
+	     (emit-assert-positive-fixnum! as $r.tmp0)
+	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
+	     (emit! as `(,$i.sllr ,$r.result ,$r.tmp1 ,$r.result)))))
+
+   ; fixnums only, and only positive shifts are meaningful.
+   ; watch the semantics of the shift instruction! we have to do the
+   ; original shift first and *then* adjust; no combination is possible
+   ; in general.
+
+   (cons 'rshl
+	 (lambda (as x)
+	   (let ((tmp (if (hardware-mapped? x)
+			  x
+			  (emit-load-reg! as x $r.tmp1))))
+	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
+	     (emit-assert-positive-fixnum! as $r.tmp0)
+	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
+	     (emit! as `(,$i.srlr ,$r.result ,$r.tmp1 ,$r.result))
+	     (emit! as `(,$i.srli ,$r.result 2 ,$r.result))
+	     (emit! as `(,$i.slli ,$r.result 2 ,$r.result)))))
+
+   ; fixnums only, and only positive shifts are meaningful.
+
+   (cons 'rsha
+	 (lambda (as x)
+	   (let ((tmp (if (hardware-mapped? x)
+			  x
+			  (emit-load-reg! as x $r.tmp1))))
+	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
+	     (emit-assert-positive-fixnum! as $r.tmp0)
+	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
+	     (emit! as `(,$i.srar ,$r.result ,$r.tmp1 ,$r.result))
+	     (emit! as `(,$i.srli ,$r.result 2 ,$r.result))
+	     (emit! as `(,$i.slli ,$r.result 2 ,$r.result)))))
+
+   ; fixnums only
 
    (cons 'rot
 	 (lambda (as x)
@@ -213,37 +278,39 @@
 
    (cons 'symbol?
 	 (lambda (as)
-	   (emit-vector-like? as $tag.symbol-typetag)))
+	   (emit-double-tagcheck->bool! as $tag.vector-tag
+					   (+ $imm.vector-header
+					      $tag.symbol-typetag))))
 
    (cons 'char?
 	 (lambda (as)
 	   (emit! as `(,$i.andi ,$r.result #xFF ,$r.tmp0))
-	   (emit! as `(,$i.xoricc ,$r.tmp0 ,$imm.char ,$r.g0))
+	   (emit! as `(,$i.xoricc ,$r.tmp0 ,$imm.character ,$r.g0))
 	   (emit-set-boolean! as)))
 
    (cons 'string?
 	 (lambda (as)
 	   (emit-double-tagcheck->bool! as
 					$tag.bytevector-tag
-					(+ $bytevector-hdr
+					(+ $imm.bytevector-header
 					   $tag.string-typetag))))
 
    (cons 'bytevector?
 	 (lambda (as)
 	   (emit-double-tagcheck->bool! as
 					$tag.bytevector-tag
-					(+ $tag.bytevector-hdr
+					(+ $imm.bytevector-header
 					   $tag.bytevector-typetag))))
 
    (cons 'bytevector-like?
 	 (lambda (as)
-	   (emit-single-tagcheck->bool as $tag.bytevector-tag)))
+	   (emit-single-tagcheck->bool! as $tag.bytevector-tag)))
 
    (cons 'vector?
 	 (lambda (as)
 	   (emit-double-tagcheck->bool! as
 					$tag.vector-tag
-					(+ $tag.vector-hdr
+					(+ $imm.vector-header
 					   $tag.vector-typetag))))
 
    (cons 'vector-like?
@@ -265,18 +332,21 @@
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
 	   (emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
 	   (emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
-	   (emit! as `(,$i.sti ,r 4 ,$r.result))
-	   (emit! as `(,$i.addi ,$r.result ,$tag.pair ,$r.result))))
+	   (if (hardware-mapped? r)
+	       (emit! as `(,$i.sti ,r 4 ,$r.result))
+	       (begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp0))
+		      (emit! as `(,$i.sti ,$r.tmp0 4 ,$r.result))))
+	   (emit! as `(,$i.addi ,$r.result ,$tag.pair-tag ,$r.result))))
 
    (cons 'car
 	 (lambda (as)
-	   (emit-single-tagcheck-assert! as $tag.pair)
-	   (emit! as `(,$i.ldi ,$r.result ,(- 0 $tag.pair) ,$r.result))))
+	   (emit-single-tagcheck-assert! as $tag.pair-tag)
+	   (emit! as `(,$i.ldi ,$r.result ,(- 0 $tag.pair-tag) ,$r.result))))
 
    (cons 'cdr
 	 (lambda (as)
-	   (emit-single-tagcheck-assert! as $tag.pair)
-	   (emit! as `(,$i.ldi ,$r.result ,(- 4 $tag.pair) ,$r.result))))
+	   (emit-single-tagcheck-assert! as $tag.pair-tag)
+	   (emit! as `(,$i.ldi ,$r.result ,(- 4 $tag.pair-tag) ,$r.result))))
 
    (cons 'set-car!
 	 (lambda (as x)
@@ -305,11 +375,11 @@
 	   (emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
 	   (emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 	   (emit! as `(,$i.sti ,$r.g0 4 ,$r.result))
-	   (emit! as `(,$i.addi ,$r.result ,$tag.pair ,$r.result))))
+	   (emit! as `(,$i.addi ,$r.result ,$tag.pair-tag ,$r.result))))
 
    (cons 'cell-ref
 	 (lambda (as)
-	   (emit! as `(,$i.ldi ,$r.result ,(- $tag.pair) ,$r.result))))
+	   (emit! as `(,$i.ldi ,$r.result ,(- $tag.pair-tag) ,$r.result))))
 
    (cons 'cell-set!
 	 (lambda (as r)
@@ -324,7 +394,7 @@
 
    (cons 'debugvsm
 	 (lambda (as)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.debug ,$ro7))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.debug ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
    (cons 'reset
@@ -378,7 +448,7 @@
 
    (cons 'typetag
 	 (lambda (as)
-	   (emit! as `(,$i.jmpli $r.millicode ,$m.typetag ,$r.o7))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.typetag ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
    (cons 'typetag-set!
@@ -414,15 +484,15 @@
 
    (cons 'char->integer
 	 (lambda (as)
-	   (emit-assert-char! as $r.result)
+	   (emit-assert-char! as)
 	   (emit! as `(,$i.srli ,$r.result 14 ,$r.result))))
 
    (cons 'integer->char
 	 (lambda (as)
 	   (emit-assert-fixnum! as $r.result)
 	   (emit! as `(,$i.andi ,$r.result #x3FF ,$r.result))
-	   (emit! as `(,$i.shli ,$r.result 14 $r.result))
-	   (emit! as `(,$i.ori  ,$r.result $imm.char ,$r.result))))
+	   (emit! as `(,$i.slli ,$r.result 14 ,$r.result))
+	   (emit! as `(,$i.ori  ,$r.result ,$imm.character ,$r.result))))
 
    (cons 'make-rectangular
 	 (lambda (as x)
@@ -431,7 +501,15 @@
    (cons 'not
 	 (lambda (as)
 	   (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
-	   (emit-set-bool! as)))
+	   (emit-set-boolean! as)))
+
+   (cons 'eq?
+	 (lambda (as x)
+	   (let ((tmp (if (hardware-mapped? x)
+			  x
+			  (emit-load-reg! as x $r.tmp0))))
+	     (emit! as `(,$i.subrcc ,$r.result ,tmp ,$r.g0))
+	     (emit-set-boolean! as))))
 
    (cons 'eqv?
 	 (lambda (as x)
@@ -439,7 +517,7 @@
 			  x
 			  (emit-load-reg! as x $r.tmp0)))
 		 (l1  (new-label)))
-	     (emit! as `(,$i.subicc ,$r.result ,tmp ,$r.g0))
+	     (emit! as `(,$i.subrcc ,$r.result ,tmp ,$r.g0))
 	     (emit! as `(,$i.be.a ,l1))
 	     (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
 	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.eqv ,$r.o7))
@@ -453,30 +531,27 @@
    (cons 'make-bytevector
 	 (lambda (as)
 	   (emit-make-bytevector-like! as
-				       '()
-				       (+ $tag.bytevector-hdr
+				       (+ $imm.bytevector-header
 					  $tag.bytevector-typetag)
 				       $tag.bytevector-tag)))
 
-   (cons 'make-string
+   (cons 'bytevector-fill!
 	 (lambda (as r)
-	   (emit-make-bytevector-like! as
+	   (emit-bytevector-like-fill! as 
 				       r
-				       (+ $tag.bytevector-hdr
-					  $tag.string-typetag)
-				       $tag.bytevector-tag)))
+				       $imm.bytevector-header)))
 
    (cons 'string-length
 	 (lambda (as)
 	   (emit-get-length! as
 			     $tag.bytevector-tag
-			     (+ $tag.bytevector-hdr $tag.string-typetag))))
+			     (+ $imm.bytevector-header $tag.string-typetag))))
 
    (cons 'bytevector-length
 	 (lambda (as)
 	   (emit-get-length! as 
 			     $tag.bytevector-tag
-			     (+ $tag.bytevector-hdr $tag.bytevector-typetag))))
+			     (+ $imm.bytevector-header $tag.bytevector-typetag))))
 
    (cons 'bytevector-like-length
 	 (lambda (as)
@@ -487,22 +562,22 @@
 	   (let* ((fault (emit-double-tagcheck-assert! 
 			  as
 			  $tag.bytevector-tag
-			  (+ $tag.bytevector-hdr $tag.string-typetag)))
+			  (+ $imm.bytevector-header $tag.string-typetag)))
 		  (r (if (not (hardware-mapped? r))
 			 (emit-load-reg! as r $r.tmp0)
 			 r)))
-	     (emit-bytevector-like-ref! as r fault))))
+	     (emit-bytevector-like-ref! as r fault #t))))
 
    (cons 'bytevector-ref
 	 (lambda (as r)
 	   (let* ((fault (emit-double-tagcheck-assert!
 			  as
 			  $tag.bytevector-tag
-			  (+ $tag.bytevector-hdr $tag.bytevector-typetag)))
+			  (+ $imm.bytevector-header $tag.bytevector-typetag)))
 		  (r (if (not (hardware-mapped? r))
 			 (emit-load-reg! as r $r.tmp0)
 			 r)))
-	     (emit-bytevector-like-ref! as r fault))))
+	     (emit-bytevector-like-ref! as r fault #f))))
 
    (cons 'bytevector-like-ref
 	 (lambda (as r)
@@ -510,23 +585,7 @@
 		  (r (if (not (hardware-mapped? r))
 			 (emit-load-reg! as r $r.tmp0)
 			 r)))
-	     (emit-bytevector-like-ref! as r fault))))
-
-   (cons 'string-set!
-
-	 ; Wrong! Must check for char, then convert to fixnum.
-	 ; FIXME.
-	 ; (Don't forget that that fixnum need not be checked. Altogether,
-	 ; we should make this a special case completely.)
-
-	 (lambda (as x)
-	   (let ((fault (emit-double-tagcheck-assert!
-			 as
-			 $tag.bytevector-tag
-			 (+ $tag.bytevector-hdr $tag.string-typetag))))
-	     (display "warning: string-set! is not done")
-	     (newline)
-	     (emit-bytevector-like-set! as x y fault))))
+	     (emit-bytevector-like-ref! as r fault #f))))
 
    (cons 'bytevector-like-set!
 	 (lambda (as x y)
@@ -538,7 +597,7 @@
 	   (let ((fault (emit-double-tagcheck-assert!
 			 as
 			 $tag.bytevector-tag
-			 (+ $tag.bytevector-hdr $tag.bytevector-typetag))))
+			 (+ $imm.bytevector-header $tag.bytevector-typetag))))
 	     (emit-bytevector-like-set! as x y fault))))
 
    ;-----------------------------------------------------------------
@@ -549,21 +608,21 @@
 	 (lambda (as)
 	   (emit-make-vector-like! as
 				   '()
-				   $tag.procedure-hdr
+				   $imm.procedure-header
 				   $tag.procedure-tag)))
 
    (cons 'make-vector
 	 (lambda (as r)
 	   (emit-make-vector-like! as
 				   r
-				   (+ $tag.vector-hdr $tag.vector-typetag)
+				   (+ $imm.vector-header $tag.vector-typetag)
 				   $tag.vector-tag)))
 
    (cons 'vector-length
 	 (lambda (as)
 	   (emit-get-length! as
 			     $tag.vector-tag
-			     (+ $tag.vector-hdr $tag.vector-typetag))))
+			     (+ $imm.vector-header $tag.vector-typetag))))
 
    (cons 'vector-like-length
 	 (lambda (as)
@@ -578,7 +637,7 @@
 	   (let ((fault (emit-double-tagcheck-assert!
 			 as
 			 $tag.vector-tag
-			 (+ $tag.vector-hdr $tag.vector-typetag))))
+			 (+ $imm.vector-header $tag.vector-typetag))))
 	     (emit-vector-like-ref! as r fault $tag.vector-tag))))
 
    (cons 'vector-like-ref
@@ -587,8 +646,8 @@
 	     (emit-vector-like-ref! as r fault $tag.vector-tag))))
 
    (cons 'procedure-ref
-	 (lambda (as x)
-	   (let ((fault (emit-single-tagchech-assert! as $tag.procedure-tag)))
+	 (lambda (as r)
+	   (let ((fault (emit-single-tagcheck-assert! as $tag.procedure-tag)))
 	     (emit-vector-like-ref! as r fault $tag.procedure-tag))))
 
    (cons 'vector-set!
@@ -596,7 +655,7 @@
 	   (let ((fault (emit-double-tagcheck-assert!
 			 as
 			 $tag.vector-tag
-			 (+ $tag.vector-hdr $tag.vector-typetag))))
+			 (+ $imm.vector-header $tag.vector-typetag))))
 	     (emit-vector-like-set! as r1 r2 fault $tag.vector-tag))))
 
    (cons 'vector-like-set!
@@ -605,7 +664,7 @@
 	     (emit-vector-like-set! as r1 r2 fault $tag.vector-tag))))
 
    (cons 'procedure-set!
-	 (lambda (as x y)
+	 (lambda (as r1 r2)
 	   (let ((fault (emit-single-tagcheck-assert! as $tag.procedure-tag)))
 	     (emit-vector-like-set! as r1 r2 fault $tag.procedure-tag))))
 
@@ -615,7 +674,7 @@
 
    (cons 'char<?
 	 (lambda (as x)
-	   (emit-char-cmp as x $i.blt.a)))
+	   (emit-char-cmp as x $i.bl.a)))
 
    (cons 'char<=?
 	 (lambda (as x)
@@ -627,7 +686,7 @@
 
    (cons 'char>?
 	 (lambda (as x)
-	   (emit-char-cmp as x $i.bgt.a)))
+	   (emit-char-cmp as x $i.bg.a)))
 
    (cons 'char>=?
 	 (lambda (as x)
@@ -643,14 +702,14 @@
    (cons 'bfnull?
 	 (lambda (as label)
 	   (emit! as `(,$i.subicc ,$r.result ,$imm.null ,$r.g0))
-	   (emit! as `(,$i.bne.a ,(make-label label)))
+	   (emit! as `(,$i.bne.a ,(make-asm-label label)))
 	   (emit! as `(,$i.slot))))
 
    (cons 'bfpair?
 	 (lambda (as label)
 	   (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-	   (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
-	   (emit! as `(,$i.bne.a ,(make-label label)))
+	   (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair-tag ,$r.g0))
+	   (emit! as `(,$i.bne.a ,(make-asm-label label)))
 	   (emit! as `(,$i.slot))))
 
    (cons 'bfzero?
@@ -684,19 +743,19 @@
    ; integrables table!)
 
    (cons 'open-file
-	 (lambda (as r)
+	 (lambda (as r1 r2)
+	   (if (hardware-mapped? r1)
+	       (emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r1) ,$r.argreg2)))
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.open-file ,$r.o7))
-	   (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))))
+	   (if (hardware-mapped? r2)
+	       (emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))
+	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r2) ,$r.argreg3)))))
 
    (cons 'close-file
 	 (lambda (as)
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.close-file ,$r.o7))
 	   (emit! as `(,$i.nop))))
-
-   (cons 'create-file
-	 (lambda (as r)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.create-file ,$r.o7))
-	   (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))))
 
    (cons 'unlink-file
 	 (lambda (as)
@@ -705,20 +764,32 @@
 
    (cons 'read-file
 	 (lambda (as r1 r2)
-	   (emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+	   (if (hardware-mapped? r1)
+	       (emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r1) ,$r.argreg2)))
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.read-file ,$r.o7))
-	   (emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))))
+	   (if (hardware-mapped? r2)
+	       (emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))
+	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r2) ,$r.argreg3)))))
 
    (cons 'write-file
 	 (lambda (as r1 r2)
-	   (emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+	   (if (hardware-mapped? r1)
+	       (emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r1) ,$r.argreg2)))
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.write-file ,$r.o7))
-	   (emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))))))
+	   (if (hardware-mapped? r2)
+	       (emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))
+	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r2) ,$r.argreg3)))))
+
+   ))
 
 ; quite temporary
 
 (define (silly name)
   (error 'silly "Silly, silly. (undefined integrable ~a)." name))
+
+; not so temporary
 
 (define (emit-set-boolean! as)
   (let ((l1 (new-label)))
@@ -734,7 +805,7 @@
     (emit! as `(,$i.bne.a ,l1))
     (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
     (emit! as `(,$i.ldbi ,$r.result (+ (- ,tag1) 3) ,$r.tmp0))
-    (emit! as `(,$i.ori ,$r.g0 ,$r.true ,$r.result))
+    (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
     (emit! as `(,$i.subicc ,$r.tmp0 ,tag2 ,$r.g0))
     (emit! as `(,$i.bne.a ,l1))
     (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
@@ -772,8 +843,8 @@
     (emit! as `(,$i.xoricc ,$r.tmp0 ,tag1 ,$r.g0))
     (emit! as `(,$i.be.a ,l1))
     (emit! as `(,$i.slot))
-    (emit! as `(,$i.label ,l2))n
-    (emit! as `(,$i.jmpli ,4r.millicode ,$m.type-exception ,$r.o7))
+    (emit! as `(,$i.label ,l2))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l0 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))
     l2))
@@ -784,7 +855,7 @@
 ; This is just a convenient shorthand.
 
 (define (emit-load-reg! as x rd)
-  (emit! as `(,$i.ldi ,$r.globals ,(offsetof x) ,$r.tmp0))
+  (emit! as `(,$i.ldi ,$r.globals ,(offsetof x) ,rd))
   rd)
 
 ; Assert that a machine register has a fixnum in it.
@@ -799,7 +870,7 @@
     (emit! as `(,$i.be.a ,l1))
     (emit! as `(,$i.slot))
     (emit! as `(,$i.label ,l0))
-    (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-execption ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))
     l0))
@@ -813,7 +884,7 @@
 	(l2 (new-label)))
     (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.andi ,$r.result #xFF ,$r.tmp0))
-    (emit! as `(,$i.subicc ,$r.tmp0 ,$imm.char ,$r.g0))
+    (emit! as `(,$i.subicc ,$r.tmp0 ,$imm.character ,$r.g0))
     (emit! as `(,$i.be.a ,l2))
     (emit! as `(,$i.slot))
     (emit! as `(,$i.label ,l0))
@@ -860,6 +931,7 @@
     (emit! as `(,$i.jmpli ,$r.millicode ,generic ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))
+    (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
     (emit! as `(,test ,l2))
     (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
     (emit! as `(,$i.label ,l2))))
@@ -868,7 +940,7 @@
 
 (define (emit-bcmp-primop! as ntest r label generic)
   (let ((l1 (new-label))
-	(l2 (make-label label))
+	(l2 (make-asm-label label))
 	(r  (if (not (hardware-mapped? r))
 		(begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp1))
 		       $r.tmp1)
@@ -908,47 +980,95 @@
       (emit-single-tagcheck-assert! as tag1))
   (emit! as `(,$i.ldi ,$r.result (- ,tag1) ,$r.tmp0))
   (emit! as `(,$i.srli ,$r.tmp0 8 ,$r.result))
-  (if (= tag1 $tag.bytevector)
-      (emit! as `(,$i.shli ,$r.result 2 ,$r.result))))
+  (if (= tag1 $tag.bytevector-tag)
+      (emit! as `(,$i.slli ,$r.result 2 ,$r.result))))
 
 
 ; BYTEVECTORS
 
-; This is not done (must setup header, pointer), and what is here is not
-; correct: the byte count must be rounded up to a word count, and the 
-; length must be preserved across the call for later use in initialization
-; of the header.
-;
-; The complex case ought to go into millicode; it's too hairy to have in-line.
-;
-; FIXME
+; The major problem is that $r.result is clobbered by the call to alloc(i),
+; and hence, it must be preserved. Since $r.argreg3 is known not to be touched
+; by the allocator (unless there is an exception, which would be fatal 
+; (we hope)), it is used for preserving the value.
 
-(define (emit-make-bytevector-like as r hdr ptrtag)
+(define (emit-make-bytevector-like! as hdr ptrtag)
   (let ((fault (emit-assert-positive-fixnum! as $r.result)))
-    (if (null? r)
-      (begin (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
-	     (emit! as `(,$i.nop)))
-      (let ((r (if (hardware-mapped? r)
-		   r
-		   (emit-load-reg! r $r.tmp0))))
-	(emit! as `(,$i.andicc ,r #xFF ,$r.tmp1))
-	(emit! as `(,$i.subicc ,$r.tmp1 ,$imm.char-hdr ,$r.g0))
-	(emit! as `(,$i.bne ,fault))
-	(emit! as `(,$i.nop))
-	(emit! as `(,$i.and ,r #xFFFFFF00 ,$r.tmp0))
-	(emit! as `(,$i.slai ,$r.tmp0 8 ,$r.tmp1))
-	(emit! as `(,$i.orr ,$r.tmp0 ,$r.tmp1 ,$r.tmp1))
-	(emit! as `(,$i.srai ,$r.tmp1 16 ,$r.tmp0))
-	(emit! as `(,$i.orr ,$r.tmp0 ,$r.tmp1 ,$r.argreg2))
-	(emit! as `(,$i.jmpli ,$r.millicode ,$m.alloci ,$r.o7))
-	(emit! as `(,$i.nop))))))
 
-; FIXME
+    ; Preserve the length field, then calculate the number of words
+    ; to allocate.
+    ; The value `28' is an adjustment of 3 (for rounding up) plus another
+    ; 4 bytes for the header, all represented as a fixnum.
 
-(define (emit-bytevector-like-ref! as x y fault)
-  '())
+    (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg3))
+    (emit! as `(,$i.addi ,$r.result 28 ,$r.result))
+    (emit! as `(,$i.andi ,$r.result #xFFFFFFF0 ,$r.result))
 
-; FIXME
+    ; Allocate space
+
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
+    (emit! as `(,$i.srai ,$r.result 2 ,$r.result))
+
+    ; Setup header, tag pointer.
+
+    (emit! as `(,$i.slli ,$r.argreg3 6 ,$r.tmp0))
+    (emit! as `(,$i.addi ,$r.tmp0 ,hdr ,$r.tmp0))
+    (emit! as `(,$i.sti ,$r.tmp0 0 ,$r.result))
+    (emit! as `(,$i.addi ,$r.result ,ptrtag ,$r.result))))
+
+; Given a bytevector-like structure and a fixnum, fill the bytevector with the
+; fixnum.
+
+(define (emit-bytevector-like-fill! as r hdr)
+  (let* ((fault (emit-double-tagcheck-assert! as $tag.bytevector-tag hdr))
+	 (l1    (new-label))
+	 (l2    (new-label))
+	 (r     (if (hardware-mapped? r)
+		    r
+		    (emit-load-reg! as r $r.tmp2))))
+
+    ; tmp0 is the count/index, tmp1 is the base pointer, r/tmp2 has the byte
+    ; to fill with. 
+    ; word fill is better, but the word has to be created (takes several
+    ; instructions -- add this when/if we move to millicode or have
+    ; optimization modes).
+
+    (emit! as `(,$i.andi ,r 3 ,$r.g0))
+    (emit! as `(,$i.bne ,fault))
+    (emit! as `(,$i.srai ,r 2 ,$r.tmp2))
+    (emit! as `(,$i.ldi ,$r.result (- ,$tag.bytevector-tag) ,$r.tmp0))
+    (emit! as `(,$i.addi ,$r.result (- 4 ,$tag.bytevector-tag) ,$r.tmp1))
+    (emit! as `(,$i.srai ,$r.tmp0 8 ,$r.tmp0))
+    (emit! as `(,$i.label ,l2))
+    (emit! as `(,$i.subicc ,$r.tmp0 1 ,$r.tmp0))
+    (emit! as `(,$i.bge.a ,l2))
+    (emit! as `(,$i.stbr ,$r.tmp2 ,$r.tmp0 ,$r.tmp1))
+    (emit! as `(,$i.label ,l1))))
+
+; The pointer in $result is known to be bytevector-like. Reference the xth
+; element. If the header has been loaded before, it will be loaded again.
+; This must be fixed (later).
+
+(define (emit-bytevector-like-ref! as x fault charize?)
+  (let ((r (if (hardware-mapped? x)
+	       x
+	       (emit-load-reg! as x $r.tmp1))))
+    (emit! as `(,$i.andicc ,r 3 ,$r.g0))
+    (emit! as `(,$i.bne ,fault))
+    (emit! as `(,$i.ldi ,$r.result (- ,$tag.bytevector-tag) ,$r.tmp0))
+    (emit! as `(,$i.srli ,$r.tmp0 8 ,$r.tmp0))
+    (emit! as `(,$i.srli ,r 2 ,$r.tmp1))
+    (emit! as `(,$i.subrcc ,$r.tmp1 ,$r.tmp0 ,$r.g0))
+    (emit! as `(,$i.bgeu.a ,fault))
+    (emit! as `(,$i.slot))
+    (emit! as `(,$i.subi ,$r.result ,(- $tag.bytevector-tag 4) ,$r.tmp0))
+    (emit! as `(,$i.ldbr ,$r.tmp0 ,$r.tmp1 ,$r.tmp0))
+    (if (not charize?)
+	(emit! as `(,$i.slli ,$r.tmp0 2 ,$r.result))
+	(begin (emit! as `(,$i.slli ,$r.tmp0 16 ,$r.result))
+	       (emit! as `(,$i.ori ,$r.result ,$imm.character ,$r.result))))))
+
+
+;
 
 (define (emit-bytevector-like-set! as x y fault)
   (let ((r1 (if (hardware-mapped? x)
@@ -956,52 +1076,57 @@
 		(emit-load-reg! as x $r.tmp0)))
 	(r2 (if (hardware-mapped? y)
 		y
-		(emit-load-reg! as x $r.tmp1))))
+		(emit-load-reg! as y $r.tmp1))))
     (emit! as `(,$i.orr ,r1 ,r2 ,$r.tmp2))
     (emit! as `(,$i.andicc ,$r.tmp2 3 ,$r.g0))
     (emit! as `(,$i.bne ,fault))
-    (emit! as `(,$i.ldi ,$r.result
-			(- ,$tag.bytevector-tag)
-			,$r.tmp2))
-    (emit! as `(,$i.srai ,r1 2 ,$r.tmp0))
-    (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
-    (emit! as `(,$i.subicc ,$r.tmp0 ,$r.tmp2 ,$g0))
+    (emit! as `(,$i.ldi ,$r.result (- ,$tag.bytevector-tag) ,$r.tmp2))
+    (emit! as `(,$i.srli ,$r.tmp2 8 ,$r.tmp2))
+    (emit! as `(,$i.srli ,r1 2 ,$r.tmp0))
+    (emit! as `(,$i.subrcc ,$r.tmp0 ,$r.tmp2 ,$r.g0))
     (emit! as `(,$i.bgeu ,fault))	       
-    ...))
+    (emit! as `(,$i.srli ,r2 2 ,$r.tmp1))
+    (emit! as `(,$i.subi ,$r.result ,(- $tag.bytevector-tag 4) ,$r.tmp2))
+    (emit! as `(,$i.stbr ,$r.tmp1 ,$r.tmp2 ,$r.tmp0))))
 
 
 ; VECTORS and PROCEDURES
 
-; Not done; not correct (see comments for make-bytevector-like).
-; FIXME
+;
 
 (define (emit-make-vector-like! as r hdr ptrtag)
-  (emit-assert-positive-fixnum! as $r.result)
-  (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloci ,$r.o7))
-  (cond ((null? r)
-	 (emit! as `(,$i.ori ,$r.g0 ,$imm.null ,$r.argreg2)))
-	((hardware-mapped? r)
-	 (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2)))
-	(else
-	 (emit-load-reg! as r $r.argreg2)))
-  (emit! as ...))
+  (let ((fault (emit-assert-positive-fixnum! as $r.result)))
+    (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg3))
+    (emit! as `(,$i.addi ,$r.result 4 ,$r.result))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloci ,$r.o7))
+    (cond ((null? r)
+	   (emit! as `(,$i.ori ,$r.g0 ,$imm.null ,$r.argreg2)))
+	  ((hardware-mapped? r)
+	   (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2)))
+	  (else
+	   (emit-load-reg! as r $r.argreg2)))
+    (emit! as `(,$i.slli ,$r.argreg3 8 ,$r.argreg3))
+    (emit! as `(,$i.addi ,$r.argreg3 ,hdr ,$r.argreg3))
+    (emit! as `(,$i.sti ,$r.argreg3 0 ,$r.result))
+    (emit! as `(,$i.addi ,$r.result ,ptrtag ,$r.result))))
 
 
 ; `vector-ref' in various guises.
 ;
+; Pointer must be valid; header may be reloaded unnecessarily. Fix later.
 
 (define (emit-vector-like-ref! as r fault tag)
-  (let ((r1 (if (hardware-mapped? x)
-		x
-		(emit-load-reg! as x $r.argreg2))))
+  (let ((r1 (if (hardware-mapped? r)
+		r
+		(emit-load-reg! as r $r.argreg2))))
     (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
     (emit! as `(,$i.bne.a ,fault))
     (emit! as `(,$i.slot))
     (emit! as `(,$i.ldi ,$r.result (- ,tag) ,$r.tmp2))
     (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
     (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
-    (emit! as `(,$i.bgeu ,fault))
-    (emit! as `(,$i.addi ,$r.result (- 4 tag) ,$r.tmp0))
+    (emit! as `(,$i.blu ,fault))
+    (emit! as `(,$i.addi ,$r.result ,(- 4 tag) ,$r.tmp0))
     (emit! as `(,$i.ldr ,$r.tmp0 ,r1 ,$r.result))))
 
 
@@ -1024,7 +1149,7 @@
     (emit! as `(,$i.ldi ,$r.result (- ,tag) ,$r.tmp2))
     (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
     (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
-    (emit! as `(,$i.bgeu.a ,fault))
+    (emit! as `(,$i.blu.a ,fault))
     (emit! as `(,$i.slot))
     (if (hardware-mapped? x)
 	(emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2)))
@@ -1032,3 +1157,29 @@
     (if (hardware-mapped? y)
 	(emit! as `(,$i.orr ,$r.g0 ,y ,$r.argreg3))
 	(emit-load-reg! as y $r.argreg3))))
+
+; We check the tags of both by xoring them and seeing if the low byte is 0.
+; If so, then we can subtract one from the other (tag and all) and check the
+; condition codes.
+;
+; The branch-on-true instruction must have the annull bit set.
+
+(define (emit-char-cmp as r btrue)
+  (let ((tmp (if (hardware-mapped? r)
+		 r
+		 (emit-load-reg! as r $r.tmp0)))
+	(l0 (new-label))
+	(l1 (new-label))
+	(l2 (new-label)))
+    (emit! as `(,$i.label ,l0))
+    (emit! as `(,$i.xorr ,$r.result ,tmp ,$r.tmp1))
+    (emit! as `(,$i.andicc ,$r.tmp1 #xFF ,$r.tmp1))
+    (emit! as `(,$i.be.a ,l1))
+    (emit! as `(,$i.subrcc ,$r.result ,tmp ,$r.g0))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
+    (emit! as `(,$i.addi ,$r.o7 (- ,l0 (- $ 4) 8) ,$r.o7))
+    (emit! as `(,$i.label ,l1))
+    (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
+    (emit! as `(,btrue ,l2))
+    (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
+    (emit! as `(,$i.label ,l2))))
