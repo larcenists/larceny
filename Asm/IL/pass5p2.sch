@@ -41,10 +41,6 @@
 ;; new-label : assembler -> number
 (define (new-label as)
   (new-proc-id as))
-;  (let* ((u (as-user as))
-;         (x (user-data.label-counter u)))
-;    (user-data.label-counter! u (+ 1 x))
-;    x))
 
 ;; emit-constantvector-slot : as symbol value -> number
 (define (emit-constantvector-slot as kind value)
@@ -395,24 +391,23 @@
                    (not (member name '(".end"))))
               (il:set-debug-info line listify-filename (member name '(".cont" ".proc")))
               '()))
-    (if (codegen-option 'listify-write-list-file)
-        (write-listify-line line name instr))))
+    (when (codegen-option 'listify-write-list-file)
+      (write-listify-line line name instr))))
 
 (define (list-label/line instr as)
   (let ((line listify-counter))
     (emit as 
           (il:comment/info "Instruction" (cons '.label (cdr instr))))
-    (if (codegen-option 'listify-write-list-file)
-        (write-listify-label line (cadr instr)))))
+    (when (codegen-option 'listify-write-list-file)
+      (write-listify-label line (cadr instr)))))
 
 ;; list-entry/line : symbol instruction assembler -> number
 (define (list-entry/line name instruction as)
-  (if (codegen-option 'listify-write-list-file)
-      (begin
-        (listify-newline)
-        (twobit-format listify-oport "Procedure ~s"
-                       (assembler-value as 'current-codevector))
-        (listify-newline)))
+  (when (codegen-option 'listify-write-list-file)
+    (listify-newline)
+    (twobit-format listify-oport "Procedure ~s"
+                   (assembler-value as 'current-codevector))
+    (listify-newline))
   (list-instruction/line name instruction as))
 
 (define (il:set-debug-info line filename set-filename?)

@@ -86,44 +86,38 @@
 (define (il:load-constant datum)
   (cond ((immediate-fixnum? datum) 
          ;; Fixnum in preallocated fixnum pool
-         (list
-          (il:comment "Fetching SFixnum(~s) from pool" datum)
-          (il:ldsfld iltype-fixnum-array il-fixnum "pool")
-          (il 'ldc.i4 (- datum FIXNUM-POOL-MIN))
-          (il 'ldelem.ref)))
+         (rep:fixnum-from-pool datum))
         ((fixnum? datum)
          ;; General case: not in preallocated fixnum pool
          (list (il 'ldc.i4 datum)
-               (il:make-fixnum)))
-;        ((bignum/ulong/sign? datum)
-;         (list (il:load-int8 (abs datum))
-;               (il 'ldc.i4 (if (negative? datum) 0 1))
-;               (il:make-bignum/ulong/sign)))
+               (rep:make-fixnum)))
         ((bignum? datum)
-         (let ((pos? (>= datum 0)))
+         (let ((pos? (>= datum 0))
+               (2^16 #x10000))
            (let loop ((datum (abs datum)) (bigits '()))
              (if (zero? datum)
                  (list (il:load-int16-array 
                         (reverse bigits))
                        (il 'ldc.i4 (if pos? 1 0))
-                       (il:make-bignum/data))
-                 (loop (rsha datum 16) 
-                       (cons (logand datum #xFFFF) bigits))))))
+                       (rep:make-bignum/data))
+                 (loop (quotient datum 2^16)        ;; (rsha datum 16) 
+                       (cons (remainder datum 2^16) ;; (logand datum #xFFFF)
+                             bigits))))))
         ((and (rational? datum) (exact? datum))
          (list (il:load-constant (numerator datum))
                (il:load-constant (denominator datum))
-               (il:make-ratnum)))
+               (rep:make-ratnum)))
         ((flonum? datum)
-         (list (il:load-real8-as-int8 datum)
-               (il:make-flonum-from-int8)))
+         (list (il:load-real8 datum)
+               (rep:make-flonum)))
         ((and (complex? datum) (exact? datum))
          (list (il:load-constant (real-part datum))
                (il:load-constant (imag-part datum))
-               (il:make-rectnum)))
+               (rep:make-rectnum)))
         ((and (complex? datum) (inexact? datum))
-         (list (il:load-real8-as-int8 (real-part datum))
-               (il:load-real8-as-int8 (imag-part datum))
-               (il:make-compnum-from-int8)))
+         (list (il:load-real8 (real-part datum))
+               (il:load-real8 (imag-part datum))
+               (rep:make-compnum)))
         ((number? datum)
          (error "Missed a case in il:load-constant for ~s" datum))
         ((eq? datum #t)
@@ -139,26 +133,24 @@
         ((null? datum)
          (il:ldsfld iltype-immediate il-schemeobject "Null"))
         ((immediate-char? datum) ;; Load from pool
-         (list (il:ldsfld iltype-schemechar-array il-schemechar "characters")
-               (il 'ldc.i4 (char->integer datum))
-               (il 'ldelem.ref)))
+         (rep:char-from-pool datum))
         ((char? datum) ;; General case
          (list (il 'ldc.i4 (char->integer datum))
-               (il:make-char)))
+               (rep:make-char)))
         ((pair? datum)
          (list 
           ;; Builds CDR first so that long lists still take small space
           (il:load-constant (cdr datum))
           (il:load-constant (car datum))
-          (il:make-pair-reversed)))
+          (rep:make-pair-reversed)))
         ((symbol? datum)
          (list 
           (il:ldstr (symbol->string datum))
-          (il:make-interned-symbol)))
+          (rep:make-interned-symbol)))
         ((string? datum)
          (list
           (il:ldstr datum)
-          (il:make-string)))
+          (rep:make-string)))
         ((vector? datum)
          (list
           (il 'ldc.i4 (vector-length datum))
@@ -172,7 +164,7 @@
                     (il:load-constant (car items))
                     (il 'stelem.ref)
                     (loop (+ 1 index) (cdr items))))))
-          (il:make-vector)))
+          (rep:make-vector)))
         (else
          (twobit-format (current-error-port)
                         "cannot emit IL to load constant: ~s~%" datum)
@@ -206,7 +198,7 @@
 (define (il:ldfld type class field)
   (il 'ldfld (il-field type class field)))
 
-;; il:ldfld : iltype ilclass string -> ilpackage
+;; il:stfld : iltype ilclass string -> ilpackage
 ;; IL code to store to (instance) field
 (define (il:stfld type class field)
   (il 'stfld (il-field type class field)))
@@ -221,18 +213,22 @@
 (define (il:stsfld type class field)
   (il 'stsfld (il-field type class field)))
 
-;; il:load-real8-as-int8 : real -> ilpackage
-;; FIXME: Assumes same target as host endianness
-(define (il:load-real8-as-int8 datum)
-  (il:load-int8
-   (integer-byte-string->integer
-    (real->floating-point-byte-string datum 8) #f)))
+;; il:load-real8 : real -> ilpackage
+(define (il:load-real8 datum)
+  (cond ((equal? datum +nan.0)
+         (il:ldsfld iltype-double il-schemefactory "NaN"))
+        ((equal? datum +inf.0)
+         (il:ldsfld iltype-double il-schemefactory "PositiveInfinity"))
+        ((equal? datum -inf.0)
+         (il:ldsfld iltype-double il-schemefactory "NegativeInfinity"))
+        (else
+         (il 'ldc.r8 (exact->inexact datum)))))
 
 ;; il:load-int8 : integer -> ilpackage
 (define (il:load-int8 datum)
   (il 'ldc.i8 (string-append "0x" (number->string datum 16))))
 
-;; il:load-1nt16-array : (listof integer) -> ilpackage
+;; il:load-int16-array : (listof integer) -> ilpackage
 (define (il:load-int16-array data)
   (list (il 'ldc.i4 (length data))
         (il 'newarr iltype-int16)
@@ -244,7 +240,7 @@
                     (il 'ldc.i4 (car data))
                     (il 'stelem.i2)
                     (loop (cdr data) (+ 1 i)))))))
-              
+
 ;; il:call : (listof sym) iltype ilclass string (listof iltype) -> ilpackage
 ;; IL to call method; opts may include '(virtual instance tail). If 'tail 
 ;; option is given, generates 'ret automatically
@@ -484,34 +480,9 @@
       (list
        (il:load-register ENV-REGISTER)
        (il 'castclass iltype-procedure)
-       (il:ldfld iltype-schemeobject-array il-procedure "constants")
+       (rep:procedure-constants)
        (il 'stloc LOCAL-CONSTANT-VECTOR))
       '()))
-
-
-;; il:load-static-link : number -> ilpackage
-;; IL to load the MacScheme Procedure the given number of levels up the 
-;; static link chain.
-(define (il:load-static-link up)
-  (list
-   (il:load-register ENV-REGISTER)
-   (il 'castclass iltype-procedure)
-   (let loop ((count up))
-     (cond ((zero? count) '())
-           (else (list (il 'ldfld (il-field iltype-schemeobject-array
-                                            il-procedure
-                                            "rib"))
-                       (il 'ldc.i4 0)
-                       (il 'ldelem.ref)
-                       (il 'castclass iltype-procedure)
-                       (loop (- count 1))))))))
-
-;; il:load-rib : number -> ilpackage
-;; IL to load the MacScheme rib (array) the given number of levels up 
-;; the static link chain.
-(define (il:load-rib up)
-  (list (il:load-static-link up)
-        (il 'ldfld (il-field iltype-schemeobject-array il-procedure "rib"))))
 
 ;; il:load-global-cell : number -> ilpackage
 ;; Loads a global cell (not its contents)
@@ -554,15 +525,6 @@
    (il:call '() iltype-void il-exn "faultTimer" (list iltype-int32))
    (il 'ret)))
 
-(define (il:set-implicit-continuation label)
-  (lambda (as)
-    (list (il 'ldc.i4 (intern-label as label))
-          (il:stsfld iltype-int32 il-reg "implicitContinuation"))))
-
-(define (il:reset-implicit-continuation)
-  (list (il 'ldc.i4 -1)
-        (il:stsfld iltype-int32 il-reg "implicitContinuation")))
-
 ;; =========================================================
 ;; FUEL (BRANCH / CALL)
 
@@ -580,50 +542,14 @@
 (define (il:use-fuel jump-index resume-label)
   (lambda (as)
     (let ((label-okay (or resume-label (allocate-label as))))
-      (list (il:ldsfld iltype-int32 il-reg "timer")
+      (list (rep:get-timer)
             (il 'ldc.i4 1)
             (il 'sub)
             (il 'dup)
-            (il:stsfld iltype-int32 il-reg "timer")
+            (rep:set-timer)
             (il:branch 'brtrue label-okay)
             (il:fault/timer jump-index)
             (if resume-label '() (il:label label-okay))))))
-
-;; =========================================================
-;; CONTINUATIONS
-
-(define (il:load-current-frame)
-  (il:ldsfld iltype-cache-frame il-cont "cont"))
-
-(define (il:load-frame-slot slot)
-  (if (< slot CONTINUATION-FRAME-SLOTS)
-      (list
-       (il:ldfld iltype-schemeobject il-continuation-frame 
-                 (twobit-format #f "slot~s" slot)))
-      (list 
-       (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
-       (il 'ldc.i4 (- slot CONTINUATION-FRAME-SLOTS))
-       (il 'ldelem.ref))))
-
-(define (il:set-frame-slot slot ilpackage)
-  (if (< slot CONTINUATION-FRAME-SLOTS)
-      (list
-       ilpackage
-       (il:stfld iltype-schemeobject il-continuation-frame 
-                 (twobit-format #f "slot~s" slot)))
-      (list
-       (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
-       (il 'ldc.i4 (- slot CONTINUATION-FRAME-SLOTS))
-       ilpackage
-       (il 'stelem.ref))))
-
-(define (il:load-current-frame-slot slot)
-  (list (il:load-current-frame)
-        (il:load-frame-slot slot)))
-
-(define (il:set-current-frame-slot slot ilpackage)
-  (list (il:load-current-frame)
-        (il:set-frame-slot slot ilpackage)))
 
 ;; =========================================================
 ;; LOCAL VARIABLES
@@ -745,7 +671,7 @@
   (list (il 'ldc.i4 (length constants))
         (il 'newarr iltype-schemeobject)
         (il:fill-ref-array constants il:resolve-constant)
-        (il:make-vector)))
+        (rep:make-vector)))
 
 ;; il:resolve-constant : tagged-constant -> ilpackage
 (define (il:resolve-constant constant)
@@ -773,5 +699,6 @@
                (f (car items))
                store-command
                (loop (+ 1 index) (cdr items))))))))
+
 (define il:fill-ref-array (il:fill-X-array (il 'stelem.ref)))
 

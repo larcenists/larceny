@@ -66,10 +66,10 @@
                 (il:comment "operation ~s" (operand1 instruction))
                 (il:comment "  implicit continuation LABEL ~s; JUMP INDEX ~s"
                             numeric (intern-label as numeric))
-                (il:set-implicit-continuation numeric)
+                (rep:set-implicit-continuation numeric)
                 load-arguments-code
                 (il:call-opX (operand1 instruction) argc #t)
-                (il:reset-implicit-continuation)
+                (rep:reset-implicit-continuation)
                 (il:label numeric)))
         (emit as
               load-arguments-code
@@ -133,7 +133,7 @@
           (il:load-register 'result)
           (il:load-constant #f)
           (il 'ceq)
-          (il:make-boolean)
+          (rep:make-boolean)
           (il:set-register/pop 'result))))
 
 ;; Predicates
@@ -144,7 +144,7 @@
           (il:load-register 'result)
           (il:load-register reg2)
           (il 'ceq)
-          (il:make-boolean)
+          (rep:make-boolean)
           (il:set-register/pop 'result))))
 
 (define (define-type-predicate op type)
@@ -167,7 +167,7 @@
       (emit as
             (il:load-register 'result)
             (il:call '(instance virtual) iltype-bool il-schemeobject method '())
-            (il:make-boolean)
+            (rep:make-boolean)
             (il:set-register/pop 'result)))))
 
 (define-predicate 'complex? "isComplex")
@@ -205,7 +205,7 @@
             (il:load-register 'result)
             (il:load-constant value)
             (il 'ceq)
-            (il:make-boolean)
+            (rep:make-boolean)
             (il:set-register/pop 'result)))))
 (define-eq-predicate 'null? '())
 (define-eq-predicate 'unspecified? (unspecified))
@@ -222,43 +222,21 @@
 
 ;; Data
 ;
-;; Char Data
-;; char comparisons...
-;;(define-operation 1 'char->integer
-;;  (lambda (as)
-;;    (emit as
-;;          (il:load-register 'result)
-;;          (il:check-type iltype-schemechar
-;;                         (il:fault-abort $ex.char2int))
-;;          (il:ldfld iltype-char il-schemechar "val")
-;;          (il 'conv.i4)
-;;          (il:make-fixnum)
-;;          (il:set-register/pop 'result))))
-;;(define-operation 1 'integer->char
-;;   (lambda (as)
-;;     (emit as
-;;           (il:load-register 'result)
-;;           (il:check-type iltype-fixnum
-;;                          (il:fault-abort $ex.int2char))
-;;           (il:ldfld iltype-int32 il-fixnum "value")
-;;           (il:call '() iltype-schemechar il-schemefactory "makeChar" (list iltype-int32))
-;;           (il:set-register/pop 'result))))
-;
 ;; Cell Data
-;
-;(define-operation 1 'make-cell
-;  (lambda (as)
-;    (emit as
-;          (il:load-register 'result)
-;          (il:load-constant #f)
-;          (il:make-pair)
-;          (il:set-register/pop 'result))))
+
+(define-operation 1 'make-cell
+  (lambda (as)
+    (emit as
+          (il:load-register 'result)
+          (il:load-constant #f)
+          (rep:make-pair)
+          (il:set-register/pop 'result))))
 ;(define-operation 1 'cell-ref
 ;   (lambda (as)
 ;     (emit as
 ;           (il:load-register 'result)
 ;           (il 'castclass iltype-schemepair)
-;           (il:ldfld iltype-schemeobject il-schemepair "first")
+;           (rep:pair-car)
 ;           (il:set-register/pop 'result))))
 ;(define-operation 2 'cell-set!
 ;   (lambda (as reg2)
@@ -266,18 +244,18 @@
 ;           (il:load-register 'result)
 ;           (il 'castclass iltype-schemepair)
 ;           (il:load-register reg2)
-;           (il:stfld iltype-schemeobject il-schemepair "first")
+;           (rep:set-pair-car!)
 ;           (il:load-constant (unspecified))
 ;           (il:set-register/pop 'result))))
-;
+
 ;; List Data
-;
+
 (define-operation 2 'cons
    (lambda (as reg2)
      (emit as
            (il:load-register 'result)
            (il:load-register reg2)
-           (il:make-pair)
+           (rep:make-pair)
            (il:set-register/pop 'result))))
 ;(define-operation 1 'car
 ;  (lambda (as)
@@ -285,14 +263,14 @@
 ;          (il:load-register 'result)
 ;          (il:check-type iltype-schemepair
 ;                         (il:fault-abort $ex.car))
-;          (il:ldfld iltype-schemeobject il-schemepair "first")
+;          (rep:pair-car)
 ;          (il:set-register/pop 'result))))
-'(define-operation 1 'car:pair
+(define-operation 1 'car:pair
   (lambda (as)
     (emit as
           (il:load-register 'result)
           (il 'castclass iltype-schemepair)
-          (il:ldfld iltype-schemeobject il-schemepair "first")
+          (rep:pair-car)
           (il:set-register/pop 'result))))
 ;(define-operation 1 'cdr
 ;  (lambda (as)
@@ -300,14 +278,14 @@
 ;          (il:load-register 'result)
 ;          (il:check-type iltype-schemepair
 ;                         (il:fault-abort $ex.cdr))
-;          (il:ldfld iltype-schemeobject il-schemepair "rest")
+;          (rep:pair-cdr)
 ;          (il:set-register/pop 'result))))
-'(define-operation 1 'cdr:pair
+(define-operation 1 'cdr:pair
   (lambda (as)
     (emit as
           (il:load-register 'result)
           (il 'castclass iltype-schemepair)
-          (il:ldfld iltype-schemeobject il-schemepair "rest")
+          (rep:pair-cdr)
           (il:set-register/pop 'result))))
 ;(define-operation 2 'set-car!
 ;  (lambda (as reg2)
@@ -316,15 +294,15 @@
 ;          (il:check-type iltype-schemepair
 ;                         (il:fault-abort $ex.setcar))
 ;          (il:load-register reg2)
-;          (il:stfld iltype-schemeobject il-schemepair "first")
+;          (rep:set-pair-car!)
 ;          (il:set-register 'result (il:load-constant (unspecified))))))
-'(define-operation 2 'set-car!:pair
+(define-operation 2 'set-car!:pair
   (lambda (as reg2)
     (emit as
           (il:load-register 'result)
           (il 'castclass iltype-schemepair)
           (il:load-register reg2)
-          (il:stfld iltype-schemeobject il-schemepair "first")
+          (rep:set-pair-car!)
           (il:set-register 'result (il:load-constant (unspecified))))))
 ;(define-operation 2 'set-cdr!
 ;  (lambda (as reg2)
@@ -333,122 +311,40 @@
 ;          (il:check-type iltype-schemepair
 ;                         (il:fault-abort $ex.setcar))
 ;          (il:load-register reg2)
-;          (il:stfld iltype-schemeobject il-schemepair "rest")
+;          (rep:set-pair-cdr!)
 ;          (il:set-register 'result (il:load-constant (unspecified))))))
-'(define-operation 2 'set-cdr!:pair
+(define-operation 2 'set-cdr!:pair
   (lambda (as reg2)
     (emit as
           (il:load-register 'result)
           (il 'castclass iltype-schemepair)
           (il:load-register reg2)
-          (il:stfld iltype-schemeobject il-schemepair "rest")
+          (rep:set-pair-cdr!)
           (il:set-register 'result (il:load-constant (unspecified))))))
-;
-;; Vector Data
-;
-;(define-operation 1 'vector-like-length
-;  (lambda (as)
-;    (emit as
-;          (il:load-register 'result)
-;          (il:check-type iltype-svl (il:fault-abort $ex.vllen))
-;          (il:call '(instance) iltype-int32 il-svl "length" '())
-;          (il:make-fixnum)
-;          (il:set-register/pop 'result))))
-;(define-operation 1 'vector-length
-;  (lambda (as)
-;    (emit as
-;          (il:load-register 'result)
-;          (il:call '(instance virtual) iltype-bool il-schemeobject "isVector")
-;          (il:check-bool iltype-svl (il:fault-abort $ex.vlen))
-;          (il:call '(instance) iltype-int32 il-svl "length" '())
-;          (il:make-fixnum)
-;          (il:set-register/pop 'result))))
-'(define-operation 1 'vector-length:vec
-  (lambda (as)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-svl)
-          (il:call '(instance) iltype-int32 il-svl "length" '())
-          (il:make-fixnum)
-          (il:set-register/pop 'result))))
-'(define-operation 2 'vector-ref:trusted
-  (lambda (as reg2)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-svl)
-          (il:ldfld iltype-schemeobject-array il-svl "elements")
-          (il:load-register reg2)
-          (il 'castclass iltype-fixnum)
-          (il:ldfld iltype-int32 il-fixnum "value")
-          (il 'ldelem.ref)
-          (il:set-register/pop 'result))))
-'(define-operation 3 'vector-set!:trusted
-  (lambda (as reg2 reg3)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-svl)
-          (il:ldfld iltype-schemeobject-array il-svl "elements")
-          (il:load-register reg2)
-          (il 'castclass iltype-fixnum)
-          (il:ldfld iltype-int32 il-fixnum "value")
-          (il:load-register reg3)
-          (il 'stelem.ref)
-          (il:set-register 'result (il:load-constant (unspecified))))))
-
-;; String Data
-;
-;(define-operation 1 'string-length
-;  (lambda (as)
-;    (emit as
-;          (il:load-register 'result)
-;          (il:call '(instance virtual) iltype-bool il-schemeobject "isString")
-;          (il:check-bool iltype-sbytevl (il:fault-abort $ex.vlen))
-;          (il:call '(instance) iltype-int32 il-sbytevl "length" '())
-;          (il:make-fixnum)
-;          (il:set-register/pop 'result))))
-'(define-operation 1 'string-length:str
-  (lambda (as)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-sbytevl)
-          (il:call '(instance) iltype-int32 il-sbytevl "length" '())
-          (il:make-fixnum)
-          (il:set-register/pop 'result))))
-'(define-operation 2 'string-ref:trusted
-  (lambda (as reg2)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-sbytevl)
-          (il:ldfld iltype-byte-array il-sbytevl "elements")
-          (il:load-register reg2)
-          (il 'castclass iltype-fixnum)
-          (il:ldfld iltype-int32 il-fixnum "value")
-          (il 'ldelem.u1)
-          (il:make-char)
-          (il:set-register/pop 'result))))
 
 ;; Fixnum Data
-;
-(define-eq-predicate 'fxzero 0)
+
+(define-eq-predicate 'fxzero? 0)
+
 ;(define-operation 'fxpositive?
 ;  (lambda (as)
 ;    (emit as
 ;          (il:load-register 'result)
 ;          (il:check-type iltype-fixnum (il:abort-fail $ex.fxpositivep))
-;          (il:ldfld iltype-int32 il-fixnum "value")
+;          (rep:fixnum-value)
 ;          (il 'ldc.i4 0)
 ;          (il 'cgt)
-;          (il:make-boolean)
+;          (rep:make-boolean)
 ;          (il:set-register/pop 'result))))
 ;(define-operation 'fxnegative?
 ;  (lambda (as)
 ;    (emit as
 ;          (il:load-register 'result)
 ;          (il:check-type iltype-fixnum (il:abort-fail $ex.fxpositivep))
-;          (il:ldfld iltype-int32 il-fixnum "value")
+;          (rep:fixnum-value)
 ;          (il 'ldc.i4 0)
 ;          (il 'clt)
-;          (il:make-boolean)
+;          (rep:make-boolean)
 ;          (il:set-register/pop 'result))))
 
 ;; could do 2-operand fixnum arithmetic here...

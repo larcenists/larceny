@@ -48,11 +48,11 @@
   (syntax-rules ()
    ((_ opts class name (argtype ...))
      (define-instr-methodname 'name
-                              (il:call 'opts
-                                       iltype-void 
-                                       class 
-                                       (symbol->string 'name)
-                                       (list argtype ...))))))
+       (il:call 'opts
+                iltype-void 
+                class 
+                (symbol->string 'name)
+                (list argtype ...))))))
 
 (define-syntax instr-method
   (syntax-rules ()
@@ -132,10 +132,7 @@
       (begin-codevector-class as 
                               (operand1 instruction)
                               (operand2 instruction))
-      (list-entry/line ".entry" instruction as)
-      (if local-variables-closed
-          (emit as (il:comment/info "local-variables-closed" 
-                                    local-variables-closed))))))
+      (list-entry/line ".entry" instruction as))))
 
 (define-instruction $.label
   (lambda (instruction as)
@@ -187,7 +184,7 @@
           (global-index (emit-global as (operand1 instruction))))
       (emit as
             (il:load-global-cell global-index)
-            (il 'ldfld (il-field iltype-schemeobject il-schemepair "first"))
+            (rep:pair-car)
             (il 'dup)
             (il:load-constant (undefined))
             (il:branch-s 'bne.un defined-label)
@@ -212,7 +209,7 @@
     (emit as
           (il:load-global-cell (emit-global as (operand1 instruction)))
           (il:load-register 'result)
-          (il 'stfld (il-field iltype-schemeobject il-schemepair "first"))))
+          (rep:set-pair-car!)))
   (lambda (instruction as)
     (list-instruction/line "setglbl" instruction as)
     (emit as 
@@ -250,8 +247,6 @@
         (set! const-offset (emit-constantvector as (nested-id)))
         
         (emit as
-              (il:comment/info "lambda-local-variables" 
-                               (operand2 instruction))
               (il:load-codevector
                (codevector-name (codevector-id as entry))
                (as-il-namespace as))
@@ -271,7 +266,7 @@
             (il:load-register 'result)
             ; unchecked: we trust call convention
             (il 'castclass iltype-fixnum)
-            (il:ldfld iltype-int32 il-fixnum "value")
+            (rep:fixnum-value)
             (il 'ldc.i4 (operand1 instruction))
             (il:branch-s 'beq okay-label)
             (il:fault-abort/message 
@@ -280,21 +275,7 @@
             (il:label okay-label))))
   (instr-runtime-method 'argseq 1))
 
-;; FIXME: Incomplete -- not used
 (define-instruction $args>=
-  (lambda (instruction as)
-    (list-instruction/line "args>=" instruction as)
-    (let ((okay-label (allocate-label as)))
-      (emit as 
-            (il:load-register 'result)
-            (il 'castclass iltype-fixnum)
-              ; unchecked: we trust call convention
-            (il 'ldfld (il-field iltype-int32 il-fixnum "value"))
-            (il 'ldc.i4 (operand1 instruction))
-            (il:branch-s 'bge okay-label)
-            (il:fault-abort $ex.argc)
-            
-            (il:label okay-label))))
   (instr-runtime-method 'argsge 1))
 
 (define-instruction $invoke
@@ -318,9 +299,7 @@
              
              (il:use-fuel/call)
              (il 'ldloc procedure-local)
-             (il 'ldfld 
-                 (il-field iltype-codevector 
-                           il-procedure "entrypoint"))
+             (rep:procedure-entrypoint)
              (il 'ldc.i4 FIRST-JUMP-INDEX)
              (il:call-scheme))))
     (assembler-value! as 'basic-block-closed #t))
@@ -349,14 +328,12 @@
              (il:call '() iltype-int32 il-call "applySetup" 
                       (list iltype-int32 iltype-int32))
              ;; records N in RESULT
-             (il:make-fixnum)
+             (rep:make-fixnum)
              (il:set-register/pop 'result)
              
              (il:use-fuel/call)
              (il 'ldloc procedure-local)
-             (il 'ldfld (il-field iltype-codevector
-                                  il-procedure
-                                  "entrypoint"))
+             (rep:procedure-entrypoint)
              (il 'ldc.i4 FIRST-JUMP-INDEX)
              (il:call-scheme))))
     (assembler-value! as 'basic-block-closed #t))
@@ -364,53 +341,12 @@
 
 ;; Stack
 (define-instruction $save
-;  (lambda (instruction as)
-;    (list-instruction/line "save" instruction as)
-;    (let ((after-label (allocate-label as))
-;          (done-label (allocate-label as)))
-;      (emit as
-;            (il:load-current-frame)
-;            (il:ldfld iltype-cache-frame il-cache-frame "after")
-;            (il 'dup)
-;            (il:branch-s 'brtrue above-label)
-;            (il 'pop)
-;            (il 'ldc.i4 (operand1 instruction))
-;            (il:call iltype-void il-cont "save" (list iltype-int32))
-;            (il:branch-s 'br done-label)
-;            
-;            (il:label above-label)
-;            (il 'dup)
-;            (il:stsfld iltype-cache-frame il-cont "cont")
-;            
-;            (il 'ldc.i4 (operand1 instruction))
-;            (il:call '(instance) iltype-void il-continuation-frame "prepare" 
-;                     (list iltype-int32))
-;            (il:set-current-frame-slot 
-;             0
-;             (il:load-register ENV-REGISTER))
-;            (il:label done-label))))
   (instr-runtime-method 'save 1))
 
 (define-instruction $restore
   (instr-runtime-method 'restore 1))
 
 (define-instruction $pop
-;  (lambda (instruction as)
-;    (list-instruction/line "pop" instruction as)
-;    (let ((set-below-label (allocate-label as))
-;          (done-label (allocate-label as)))
-;      (emit as
-;            (il:load-current-frame)
-;            (il 'ldfld (il-field iltype-cache-frame il-cache-frame "below"))
-;            (il 'dup)
-;            (il:branch-s 'brtrue set-below-label)
-;            (il 'pop)
-;            (il:call '() iltype-void il-cont "fillCache" '())
-;            (il:branch-s 'br done-label)
-;            
-;            (il:label set-below-label)
-;            (il:stsfld iltype-cache-frame il-cont "cont")
-;            (il:label done-label))))
   (instr-runtime-method 'pop 1))
 
 (define-instruction $popstk
@@ -422,7 +358,7 @@
     (list-instruction/line "stack" instruction as)
     (emit as
           (il:set-register 'result
-                           (il:load-current-frame-slot 
+                           (rep:load-current-frame-slot 
                             (operand1 instruction)))))
   (instr-runtime-method 'stack 1))
 
@@ -440,14 +376,14 @@
     (emit as
           (il:set-register 
            (operand1 instruction)
-           (il:load-current-frame-slot (operand2 instruction)))))
+           (rep:load-current-frame-slot (operand2 instruction)))))
   (instr-runtime-method 'load 2))
 
 (define-instruction $store
   (lambda (instruction as)
     (list-instruction/line "store" instruction as)
     (emit as
-          (il:set-current-frame-slot 
+          (rep:set-current-frame-slot 
            (operand2 instruction) 
            (il:load-register (operand1 instruction)))))
   (instr-runtime-method 'store 2))
@@ -458,16 +394,16 @@
     (with-il-locals as (list iltype-continuation-frame)
      (lambda (contframe)
        (emit as
-             (il:load-current-frame)
+             (rep:current-frame)
              (il 'stloc contframe)
              (il 'ldloc contframe)
-             (il:load-frame-slot 0)
+             (rep:load-frame-slot 0)
              (il 'dup)
              (il:set-register/pop ENV-REGISTER)
              (il 'castclass iltype-procedure)
-             (il:ldfld iltype-codevector il-procedure "entrypoint")
+             (rep:procedure-entrypoint)
              (il 'ldloc contframe)
-             (il:ldfld iltype-int32 il-continuation-frame "returnIndex")
+             (rep:frame-return-index)
              (il:call-scheme))))
     (assembler-value! as 'basic-block-closed #t))
   (instr-runtime-method/ret 'rtn 0))
@@ -476,9 +412,9 @@
   (lambda (instruction as)
     (list-instruction/line "setrtn" instruction as)
     (emit as
-          (il:load-current-frame)
+          (rep:current-frame)
           (il 'ldc.i4 (intern-label as (operand1 instruction)))
-          (il:stfld iltype-int32 il-continuation-frame "returnIndex")))
+          (rep:set-frame-return-index!)))
   (lambda (instruction as)
     (list-instruction/line "setrtn" instruction as)
     (emit as
@@ -493,7 +429,7 @@
     (emit as
           (il:set-register 'result
                            (list
-                            (il:load-rib (operand1 instruction))
+                            (rep:load-rib (operand1 instruction))
                             (il 'ldc.i4 (operand2 instruction))
                             (il 'ldelem.ref)))))
   (instr-runtime-method 'lexical 2))
@@ -502,7 +438,7 @@
   (lambda (instruction as)
     (list-instruction/line "setlex" instruction as)
     (emit as
-          (il:load-rib (operand1 instruction))
+          (rep:load-rib (operand1 instruction))
           (il 'ldc.i4 (operand2 instruction))
           (il:load-register 'result)
           (il 'stelem.ref)))
@@ -550,13 +486,11 @@
           (il:set-register
            ENV-REGISTER
            (list 
-            (il:load-static-link (operand1 instruction))))
+            (rep:load-static-link (operand1 instruction))))
           
           (il:load-register ENV-REGISTER)
           (il 'castclass iltype-procedure)
-          (il 'ldfld 
-              (il-field iltype-codevector il-procedure 
-                        "entrypoint"))
+          (rep:procedure-entrypoint)
           ;; Load the jump index (delayed, will be forced
           ;; in patch-up, when all info is available)
           (il:delay (il 'ldc.i4 (as:label->index as (operand2 instruction))))
