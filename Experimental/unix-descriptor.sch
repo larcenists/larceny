@@ -10,6 +10,7 @@
 ; extensions that implement the scheduler compatible with nonblocking I/O.
 
 '(begin (require 'unix)
+        (require 'poll)
         (require 'iosys))
 
 ; Flags are:
