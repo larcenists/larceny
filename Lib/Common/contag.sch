@@ -48,7 +48,7 @@
     (make-rectnum f 0))
 
   (define (bignum->compnum f)
-    (make-compnum (bignum->flonum f) 0.0))
+    (make-compnum (exact->inexact:rational f) 0.0))
 
   (define (ratnum->rectnum f)
     (make-rectnum f 0))
@@ -99,7 +99,8 @@
     (if (bytevector-like? a)
 	(let ((t (typetag a)))
 	  (cond ((eq? t sys$tag.flonum-typetag) a)
-		((eq? t sys$tag.bignum-typetag) (bignum->flonum a))
+		((eq? t sys$tag.bignum-typetag) 
+		 (exact->inexact:rational a))
 		((eq? t sys$tag.compnum-typetag)
 		 (if (zero? (imag-part a))
 		     a
@@ -111,7 +112,7 @@
   (define (->flo/comp a)		; 'a' flonum, compnum, bignum
     (if (and (bytevector-like? a)
 	     (eq? (typetag a) sys$tag.bignum-typetag))
-	(bignum->flonum a)
+	(exact->inexact:rational a)
 	a))
 
   (define (->rect a)			; 'a' is anything
