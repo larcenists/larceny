@@ -111,7 +111,7 @@ create_sc_heap( int gen_no,
 
   data->globals = globals;
   data->current_space =
-    create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
+    create_semispace( GC_CHUNK_SIZE, data->gen_no );
 
   data->load_factor = info->load_factor;
   data->size_bytes = info->size_bytes;
@@ -205,7 +205,7 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 			 los_bytes_used( heap->collector->los, 0 ) );
 
   other_space =
-    create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
+    create_semispace( GC_CHUNK_SIZE, data->gen_no );
 
   gclib_stopcopy_collect_and_scan_static( heap->collector, other_space );
 
