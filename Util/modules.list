@@ -101,6 +101,8 @@
 	   (compiler assemble-file)
 	   (compiler compile-expression)
 	   (compiler macro-expand-expression)
+	   ; On-line help
+	   (compiler help)
 	   ; Disassembler
 	   (compiler disassemble-codevector)
 	   (compiler print-instructions)
