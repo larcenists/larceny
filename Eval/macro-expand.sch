@@ -3,40 +3,49 @@
 ; $Id$
 ;
 ; Macro expander interface for the interpreter and the top-level
-; environment.
+; environment.  This file is loaded after Twobit's macro expander.
 
 ($$trace "macro-expand")
 
-; Compiler switches used by Twobit's macro expander, redefined here
-; for when the expander is used by the interpreter.
+(define *usual-macros*
+  (syntactic-copy global-syntactic-environment))
 
-(define (issue-warnings) #t)
-(define (include-source-code) #t)
-(define (include-procedure-names) #t)
-(define (include-variable-names) #t)
-(define (integrate-usual-procedures) #f)
-(define (benchmark-mode) #f)
+(define *all-macros*
+  global-syntactic-environment)
+
 
 ; Used by the interpreter -- this will eventually change so that
 ; the interpreter core can use the procedure documentation structure.
 
 (define (interpreter-macro-expand expr . rest)
-  (let ((env (if (null? rest)
-		 (interaction-environment)
-		 (car rest))))
-    ; ENV is currently unused.
-    (make-readable
-     (macro-expand expr))))
+  (apply toplevel-macro-expand expr rest))
+
 
 ; Exported to the user environment.
+;
+; The use of *all-macros* in the 'else' case is really wrong -- 
+; it is technically an error.  However, it is correct for correct
+; code, and it allows std-heap.sch to be used until we fix this
+; properly.
 
 (define (toplevel-macro-expand expr . rest)
-  (let ((env (if (null? rest)
-		 (interaction-environment)
-		 (car rest))))
-    ; ENV is currently unused.
-    (make-readable
-     (macro-expand expr))))
+  (let* ((env
+	  (if (null? rest) (interaction-environment) (car rest)))
+	 (syntax-env
+	  (case (environment-tag env)
+	    ((0 1) (syntactic-copy *usual-macros*))
+	    ((2)   *all-macros*)
+	    (else  *all-macros*))))
+    (let ((current-env global-syntactic-environment))
+      (dynamic-wind
+       (lambda ()
+	 (set! global-syntactic-environment syntax-env))
+       (lambda ()
+	 (make-readable
+	  (macro-expand expr)))
+       (lambda ()
+	 (set! global-syntactic-environment current-env))))))
+
 
 ; `Twobit-sort' is used by Twobit's macro expander.
 
