@@ -1,7 +1,7 @@
 ! Scheme 313 Run-time system
 ! Miscellaneous assembly language "glue".
 !
-! $Id$
+! $Id: glue.s,v 1.1 91/08/22 01:43:48 lth Exp Locker: lth $
 
 #define ASSEMBLY
 #include "millicode.h"
@@ -11,6 +11,12 @@
 	.seg	"text"
 
 	.global	_scheme_call
+	.global	_open_file
+	.global	_close_file
+	.global	_create_file
+	.global	_unlink_file
+	.global	_read_file
+	.global	_write_file
 
 ! `_scheme_call':
 !
@@ -162,5 +168,126 @@ scheme_call_1:
 	ld	[ %STKP+12 ], %o7
 	jmp	%o7+8
 	add	%STKP, 32*4 + 24, %STKP
+
+
+! I/O primitives -- these tap right into the OS.
+!
+! These all assume that the right types are passed; no error checking is
+! performed. How wise this is, remains to be seen.
+
+! Open, create, and unlink require a null-terminated string for the filename
+! argument. Since the argument in is not on that form (rather, it has a length
+! byte), we have to convert it.
+
+_open_file:
+	save	%sp, -96, %sp
+
+	call	copystring
+	nop
+
+	set	_fnbuf, %o0
+	call	_open
+	shrl	%SAVED_ARGREG2, 2, %o1
+	shl	%o0, 2, %SAVED_RESULT
+
+	jmp	%i7+8
+	restore
+
+_create_file:
+	save	%sp, -96, %sp
+
+	call	copystring
+	nop
+
+	set	_fnbuf, %o0
+	call	_creat
+	shrl	%SAVED_ARGREG2, 2, %o1
+	shl	%o0, 2, %SAVED_RESULT
+
+	jmp	%i7+8
+	restore
+
+_unlink_file:
+	save	%sp, -96, %sp
+
+	call	copystring
+	nop
+
+	set	_fnbuf, %o0
+	call	_unlink
+	nop
+	shl	%o0, 2, %SAVED_RESULT
+
+	jmp	%i7+8
+	restore
+
+! Copy the string into the local buffer, truncating if necessary, and null-
+! terminating.
+! This is not particularly efficient. I couldn't care less.
+
+copystring:
+	ld	[ %SAVED_RESULT - BVEC_TAG ], %l0	! get hdr
+	shrl	%l0, 8, %l0				! get length
+	andcc	%l0, 255, %l0				! truncate
+	set	_fnbuf, %l2				! dest ptr
+	stb	%g0, [ %l2 + %l0 ]			! terminator
+	b	Lopen1
+	add	%SAVED_RESULT, 4 - BVEC_TAG, %l1	! src ptr
+Lopen0:
+	ldb	[ %l1+%l0 ], %l3			! get
+	stb	%l3, [ %l2+l0 ]				! put
+Lopen1:
+	subcc	%l0, 1, %l0				! dec
+	bge	Lopen0					! again?
+	nop
+	
+	jmp	%o7+8
+	nop
+
+! Close is trivial.
+
+_close_file:
+	save	%sp, -96, %sp
+
+	call	_close
+	shrl	%SAVED_RESULT, 2, %o0			! file descriptor
+	shr	%o0, 2, %SAVED_RESULT			! setup result
+
+	jmp	%i7+8
+	restore
+
+! Reading is straightforward -- move args to registers, call _read.
+
+_read_file:
+	save	%sp, -96, %sp
+
+	shrl	%SAVED_RESULT, 2, %o0			! file descriptor
+	shrl	%SAVED_ARGREG2, 2, %o1			! byte count
+	call	_read
+	add	%SAVED_ARGREG3, 4 - BVEC_TAG, %o2	! buffer pointer
+	shl	%o0, 2, %SAVED_RESULT			! setup result
+
+	jmp	%i7+8
+	restore
+
+! Ditto for writing.
+
+_write_file:
+	save	%sp, -96, %sp
+
+	shrl	%SAVED_RESULT, 2, %o0			! file descriptor
+	shrl	%SAVED_ARGREG2, 2, %o1			! byte count
+	call	_write
+	add	%SAVED_ARGREG3, 4 - BVEC_TAG, %o2	! buffer pointer
+	shl	%o0, 2, %SAVED_RESULT			! setup result
+
+	jmp	%i7+8
+	restore
+
+! Static data for this module.
+
+	.seg	"data"
+
+fnbuf:	.skip	256
 
 	! end of file
