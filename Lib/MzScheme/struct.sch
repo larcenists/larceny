@@ -105,6 +105,7 @@
       (let ((constructor
              (cond ((procedure? proc-spec)
                     (lambda field-vals
+                      (display (procedure-arity make/rec)) (newline)
                       (make-struct-method proc-spec
                                           (apply make/rec field-vals))))
                    ;; The number will have been range-checked by
@@ -129,7 +130,7 @@
                                               proc-spec
                                               field-vals)))))
                             
-                   (else make/rec))))))
+                   (else make/rec))))
                    
         (make-struct-proc constructor
                           sys$tag.struct-constructor-procedure))))
@@ -143,12 +144,13 @@
   (define (struct-predicate stype)
     (let ((instance-of-stype? (record-predicate stype))
           (proc-spec (stype-proc stype)))
-      ;; FIXME:  Is this right?
+      
       (let ((predicate
              (if (or (procedure? proc-spec)
                      (number? proc-spec))
-                 (lambda (struct-proc)
-                   (instance-of-stype? (struct-proc-extra struct-proc)))
+                 (lambda (obj)
+                   (and (struct-proc? obj)
+                        (instance-of-stype? (struct-proc-extra obj))))
                  instance-of-stype?)))
         (make-struct-proc predicate
                           sys$tag.struct-predicate-procedure))))
@@ -158,31 +160,66 @@
          (eq? (struct-proc-extra obj)
               sys$tag.struct-predicate-procedure)))
 
-  ;; struct-type -> struct-accessor-procedure
-  (define (struct-accessor stype)
+  ;; struct-type * struct-predicate-procedure -> struct-accessor-procedure
+  (define (struct-accessor stype instance-of-stype?)
     (let ((rec-index (record-indexer stype))
           (proc-spec (stype-proc stype)))
-      (let ((accessor
-             (if (or (procedure? proc-spec)
-                     (number? proc-spec))
-                 (lambda (struct-proc index)
-                   (rec-index (struct-proc-extra struct-proc)
-                              index))
-                 rec-index)))
-      (make-struct-proc 
-       (lambda (obj index)
-         (
-       sys$tag.struct-accessor-procedure))
+      (let* ((throw-type-error (lambda (obj index)
+                                 (raise-type-error
+                                  (string->symbol
+                                   (string-append
+                                    (record-type-name stype) "-ref"))
+                                  (record-type-name stype)
+                                  0 ; 1st argument no good
+                                  (list obj index))))
+             (accessor
+              (if (or (procedure? proc-spec)
+                      (number? proc-spec))
+                  (lambda (struct-proc index)
+                    (if (instance-of-stype? struct-proc)
+                        (rec-index (struct-proc-extra struct-proc)
+                                   index)
+                        (throw-type-error struct-proc index)))
+                  (lambda (obj index)
+                    (if (instance-of-stype? obj)
+                        (rec-index obj)
+                        (throw-type-error obj index))))))
+        (make-struct-proc accessor
+                          sys$tag.struct-accessor-procedure))))
   
   (define (struct-accessor-procedure?* obj)
     (and (struct-proc? obj)
          (eq? (struct-proc-extra obj)
               sys$tag.struct-accessor-procedure)))
 
-  ;; struct-type -> struct-mutator-procedure
-  (define (struct-mutator stype)
-    (make-struct-proc (record-mutator stype)
-                      sys$tag.struct-mutator-procedure))
+  ;; struct-type * struct-predicate-procedure -> struct-mutator-procedure
+  (define (struct-mutator stype instance-of-stype?)
+    (let ((rec-set!  (record-mutator stype))
+          (proc-spec (stype-proc stype)))
+      (let* ((throw-type-error (lambda (obj index new-val)
+                                 (raise-type-error
+                                  (string->symbol
+                                   (string-append
+                                    (record-type-name stype) "-set!"))
+                                  (record-type-name stype)
+                                  0
+                                  (list obj index new-val))))
+             (mutator
+              (if (or (procedure? proc-spec)
+                      (number? proc-spec))
+                  (lambda (obj index new-value)
+                    (if (instance-of-stype? obj)
+                        (let ((instance (struct-proc-extra obj)))
+                          (rec-set! instance index new-value)
+                          (set-struct-proc-extra! obj instance)
+                          obj)
+                        (throw-type-error obj index new-value)))
+                  (lambda (obj index new-value)
+                    (if (instance-of-stype? obj)
+                        (rec-set! obj index new-value)
+                        (throw-type-error obj index new-value))))))
+      (make-struct-proc mutator
+                        sys$tag.struct-mutator-procedure))))
   (define (struct-mutator-procedure?* obj)
     (and (struct-proc? obj)
          (eq? (struct-proc-extra obj)
@@ -221,7 +258,7 @@
                                          super)))
               (let ((hierarchy-vec (get-hier-vector rtd))
                     (hierarchy-depth (get-hier-depth rtd)))
-                    
+                
                 (let ((st (make-stype
                            (record-type-name rtd)
                            (get-slots rtd)
@@ -230,6 +267,8 @@
                            hierarchy-vec
                            hierarchy-depth
                            ;;
+                           init-field-k
+                           auto-field-k
                            auto-v
                            prop-values
                            inspector
@@ -240,21 +279,19 @@
                   ;; as a record-type-descriptor, but we want our
                   ;; shiny new struct-type-descriptor there instead.
                   (vector-set! hierarchy-vec hierarchy-depth st)
-
-                  (let ((constructor
-                         (struct-constructor st))
-                        (predicate
-                         (struct-predicate st))
-                        (accessor
-                         (struct-accessor st))
-                        (mutator
-                         (struct-mutator st)))
+                  
+                  (let ((predicate (struct-predicate st))
+                        (constructor (struct-constructor st)))
+                    (let ((accessor
+                           (struct-accessor st predicate))
+                          (mutator
+                           (struct-mutator st predicate)))
                 
-                    (values st
-                            constructor
-                            predicate
-                            accessor
-                            mutator))))))))))
+                      (values st
+                              constructor
+                              predicate
+                              accessor
+                              mutator)))))))))))
 
   (define make-struct-type-property*
     (case-lambda
@@ -295,7 +332,7 @@
           (make-struct-proc (lambda (obj) (ref-proc obj field-index)))
           (raise-type-error 'make-struct-field-accessor
                             "accessor procedure that requires a field index"
-                            ref-proc)))
+                            ref-proc))))
   
   (define (make-struct-field-mutator* mutator-proc field-index . rest)
     (let ((name (if (pair? rest)
@@ -411,14 +448,39 @@
 (define-values (prop:p p? p-ref) (make-struct-type-property 'p))
 
 (define-values (struct:a make-a a? a-ref a-set!) 
-  (make-struct-type 'a #f 2 1 'uninitialized (list (cons prop:p 8))))
+  (make-struct-type 'a #f 2 0 'uninitialized (list (cons prop:p 8))))
 
-;(p? struct:a) ; => #t 
-;(p? 13) ; => #f 
-;(define an-a (make-a 'x 'y)) 
-;(p? an-a) ; => #t
-;(p-ref an-a) ; => 8
+;;; Test struct-type properties
+(p? struct:a) ; => #t 
+(p? 13) ; => #f 
+(define an-a (make-a 'x 'y)) 
+(p? an-a) ; => #t
+(p-ref an-a) ; => 8
 
 (define-values (struct:b make-b b? b-ref b-set!) 
   (make-struct-type 'b #f 0 0 #f)) 
-;(p? struct:b) ; => #f
+(p? struct:b) ; => #f
+
+
+(define-values (struct:fish make-fish fish? fish-ref fish-set!) 
+  (make-struct-type 'fish #f 2 0 #f '() #f 
+                    (lambda (f n) (fish-set! f 0 (+ n (fish-ref f 0))))))
+(define (fish-weight f) (fish-ref f 0))
+(define (fish-color f) (fish-ref f 1))
+(define wanda (make-fish 12 'red))
+;(fish? wanda) ; => #t
+;(procedure? wanda) ; => #t
+;(fish-weight wanda) ; => 12
+;(for-each wanda '(1 2 3))
+;(fish-weight wanda) ; => 18
+
+(define-values (struct:ap make-annotated-proc annotated-proc? ap-ref ap-set!) 
+  (make-struct-type 'anotated-proc #f 2 0 #f '() #f 0)) 
+(define (proc-annotation p) (ap-ref p 1))
+(define plus1 (make-annotated-proc
+                (lambda (x) (+ x 1))
+                "adds 1 to its argument"))
+(procedure? plus1) ; => #t
+(annotated-proc? plus1) ; => #t
+(plus1 10) ; => 11
+(proc-annotation plus1) ; => "adds 1 to its argument"

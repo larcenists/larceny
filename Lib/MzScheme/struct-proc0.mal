@@ -1,3 +1,4 @@
+
 ;; This code is based on Experimental/applyhook0.mal
 
 ;; make-struct-method : procedure * object -> procedure
@@ -25,7 +26,7 @@
                         (,$invoke 2))   ;; Defer to apply
                        2    ;; make sure inner lambda closes over
                             ;; 'proc' and 'struct-instance'
-                       #f)
+                       #(make-struct-method/raw #f 0.0 #f #f))
              (,$return))
             0
             #f)
@@ -43,7 +44,7 @@
                         (,$global apply);; Result <- apply
                         (,$invoke 2))   ;; (apply reg1 reg2)
                        2 ;; close over the proc and the struct-instance
-                       #f)
+                       #(make-struct-proc/raw #f 0.0 #f #f))
              (,$return))
             0
             #f)
