@@ -9,9 +9,6 @@
 ; signal threads.  For example, an exception can be posted with the
 ; scheduler and the scheduler can signal the exception to the thread.
 
-; Bug in tasking system: if we kill a task that's in I/O wait, it should
-; be removed from the set of descriptors to poll on.  Ditto for unblock?
-
 ; You must call begin-tasking before calling start-server.
 
 (load "Experimental/unix.sch")
@@ -21,7 +18,6 @@
 (load "Experimental/nonblocking-console.sch")
 (load "Experimental/tasking.sch")
 (load "Experimental/tasking-unix.sch")
-(load "Experimental/tasking-repl.sch")
 (load "Experimental/socket.sch")
 
 (define server #f)                      ; The server or #f
