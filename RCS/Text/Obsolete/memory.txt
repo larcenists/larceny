@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: memory.txt,v 1.3 91/06/23 16:03:22 lth Exp Locker: lth $
+; $Id: memory.txt,v 1.4 91/06/25 22:10:19 lth Exp Locker: lth $
 
                  Memory Manager Interface Definition
 
@@ -89,6 +89,18 @@ void stkuflow( void )                       [ M_STKUFLOW ]
 void stkoflow( void )                       [ M_STKOFLOW ]
   'Stkoflow' should be invoked from the compiled application to flush the
   stack cache. The flush may cause a garbage collection.
+
+void save_scheme_context( void )            [ M_SAVE_CONTEXT ]
+  'Save_scheme_context' saves the hardware-mapped part of the virtual machine
+  state into the "globals" array. If the virtual machine has not been
+  previously initialized, then the results are undefined. This procedure
+  is useful for inter-language calls.
+
+void restore_scheme_context( void )         [ M_RESTORE_CONTEXT ]
+  'Restore_scheme_context' sets up the hardware-mapped part of the virtual
+  machine state from the saved values in the "globals" array. If "globals"
+  has not been properly initialized, then the results are undefined. This
+  procedure is useful for inter-language calls.
 
 
 2. Initializing the memory manager
