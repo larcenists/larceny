@@ -413,7 +413,7 @@
 
     (define (table-heading)
       (show '("#define ASSEMBLER 1" #\newline
-              "#include \"../Sys/config.h\"" #\newline
+              "#include \"../Build/config.h\"" #\newline
               "#include \"asmmacro.h\"" #\newline
 	      #\tab ".seg" #\tab "\"data\"" #\newline
 	      #\tab ".global EXTNAME(globals)" #\newline
