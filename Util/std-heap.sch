@@ -248,7 +248,6 @@
 (load "Experimental/exception.sch")
 (load "Auxlib/std-ffi.sch")
 (load "Auxlib/unix-functions.sch")
-(load "Experimental/apropos.fasl")
 (load "Experimental/system-stuff.fasl")
 (load "Experimental/applyhook0.fasl")
 (load "Experimental/applyhook.fasl")
