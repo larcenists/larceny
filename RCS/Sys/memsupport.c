@@ -2,7 +2,7 @@
  * Scheme 313 Run-Time System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.7 91/07/10 18:14:30 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.8 91/07/24 12:12:48 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -12,6 +12,7 @@
 
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <stdio.h>
 #include "machine.h"
 #include "gcinterface.h"
 #include "layouts.h"
@@ -19,17 +20,14 @@
 #include "macros.h"
 #include "main.h"
 #include "millicode.h"
-#ifdef DEBUG
-#include <stdio.h>
-#else
-#define NULL       0
-#endif
+
+/* Heap format version */
+#define CURRENT_MAGIC_NUMBER 0
 
 /* Calculate free bytes in ephemeral space. Can be negative! */
 #define free_e_space() ((long)globals[E_LIMIT_OFFSET] - (long)globals[E_TOP_OFFSET])
 
 static local_collect(),
-       flush_stack_cache(),
        setup_memory_limits(),
        setup_stack();
 
@@ -89,6 +87,129 @@ word n;
   }
 
   flush_icache();
+}
+
+
+/*
+ * Load a heap into the tenured area. The heap has the following format:
+ *  - the first word is a version number.
+ *  - then follow all the rootables that go into the globals table.
+ *  - then follows a word count (for the heap area).
+ *  - then follows the heap area.
+ * All pointers in the roots or in the heap are from some base 0. They
+ * are adjusted as the heap is read in.
+ *
+ * All words are stored in big-endian format.
+ *
+ * Returns 0 if everything went fine; -1 otherwise.
+ */
+load_heap( fp )
+FILE *fp;
+{
+  word base, magic, count, *p, w;
+  int i;
+
+  base = globals[ T_BASE_OFFSET ];
+  magic = getword( fp );
+  if (magic != CURRENT_MAGIC_NUMBER)
+    panic( "Wrong version heap image." );
+
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
+    w = getword( fp );
+    globals[ i ] = (isptr( w ) ? w + base : w);
+  }
+
+  count = getword( fp );
+  if (count*4 > globals[ T_MAX_OFFSET ] - globals[ T_BASE_OFFSET ])
+    panic( "Heap image will not fit in tenured heap.");
+
+  p = (word *) base;
+  while (count--) {
+    w = getword( fp );
+    *p++ = (isptr( w ) ? w + base : w);
+    if (header( w ) == BV_HDR) {
+      i = roundup4( sizefield( w ) ) / 4;
+      while (i--)
+	*p++ = getword( fp );
+    }
+  }
+
+  globals[ T_TOP_OFFSET ] = (word) p;
+  return 0;
+}
+
+
+static getword( fp )
+FILE *fp;
+{
+  word a = getc( fp );
+  word b = getc( fp );
+  word c = getc( fp );
+  word d = getc( fp );
+
+  return (a << 24) | (b << 16) | (c << 8) | d;
+}
+
+
+/*
+ * Dumps the tenured heap. The heap layout is described above.
+ * Returns 0 if everything went fine; EOF otherwise.
+ *
+ * The tenured heap is dumped "as is"; pointers into other areas are
+ * dumped literally and should not exist (how do we deal with pointers into
+ * the static area? At least pointers into the tenured area can be gc'd away.)
+ */
+dump_heap( fp )
+FILE *fp;
+{
+  word base, top, count, w, *p;
+  int i, align;
+
+  base = globals[ T_BASE_OFFSET ];
+  top  = globals[ T_TOP_OFFSET ];
+  if (putword( CURRENT_MAGIC_NUMBER, fp ) == EOF)
+    return EOF;
+
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    if (putword( globals[ i ], fp ) == EOF)
+      return EOF;
+
+  count = (top - base) / 4;
+  if (putword( count, fp ) == EOF)
+    return EOF;
+
+  p = (word *) base;
+  while (count--) {
+    w = *p++;
+    if (putword( isptr( w ) ? w-base : w, fp ) == EOF)
+      return EOF;
+    
+    if (header( w ) == BV_HDR) {
+      i = roundup4( sizefield( w ) ) / 4;
+      align = (i % 2 == 0);
+      while (i--) {
+	if (putword( *p++, fp ) == EOF)
+	  return EOF;
+      }
+      if (align)
+	if (putword( 0, fp ) == EOF)
+	  return EOF;
+    }
+  }
+
+  return 0;
+}
+
+
+static putword( w, fp )
+word w;
+FILE *fp;
+{
+  if (putc( (w >> 24) & 0xFF, fp ) == EOF) return EOF;
+  if (putc( (w >> 16) & 0xFF, fp ) == EOF) return EOF;
+  if (putc( (w >> 8) & 0xFF, fp ) == EOF) return EOF;
+  if (putc( w & 0xFF, fp ) == EOF) return EOF;
+  return 0;
 }
 
 
@@ -227,14 +348,19 @@ void restore_frame()
 
     globals[ CONTINUATION_OFFSET ] = *(hframe + HC_DYNLINK);
 
-    /* Setup stack frame header. Special case for procedures with value 0. */
+    /* Setup stack frame header. Special case for procedures with value 0. 
+     * Also note that since the offset in the heap frame is a bytevector
+     * index (rather than an offset from the bytevector header), then
+     * 4 have to be added.
+     * Observe the inverse code in flush-stack_cache(), below.
+     */
 
     { word *procptr, *codeptr;
 
       procptr = ptrof( *(hframe + HC_PROC) );
       if ((word) procptr != 0) {
 	codeptr = ptrof( *(procptr + PROC_CODEPTR) );
-	*(sframe + STK_RETADDR) = (word) (codeptr + *(hframe + HC_RETOFFSET));
+	*(sframe + STK_RETADDR) = (word)(codeptr + *(hframe+HC_RETOFFSET) + 4);
       }
       else
 	*(sframe + STK_RETADDR) = *(hframe + HC_RETOFFSET);
@@ -304,8 +430,8 @@ flush_stack_cache()
     *hframe = mkheader( hframesize-4, VEC_HDR | CONT_SUBTAG );
     *(hframe + HC_DYNLINK) = FALSE_CONST;
     if ((word) procptr != 0) {
-      codeptr = *(procptr + PROC_CODEPTR);            /* raw word value */
-      *(hframe + HC_RETOFFSET) = retaddr - codeptr;   /* offset */
+      codeptr = *(procptr + PROC_CODEPTR);               /* raw word value */
+      *(hframe + HC_RETOFFSET) = retaddr - codeptr - 4;  /* offset is bv idx */
     }
     else
       *(hframe + HC_RETOFFSET) = retaddr;
