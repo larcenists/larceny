@@ -66,29 +66,36 @@
                   "switches.sch" "sparcdis.sch")))
 
 (define *nbuild:petitasm-files*
-  (nbuild-files 'standard-C-asm
-		`("pass5p2.sch" 
-		  "peepopt.sch" 
-		  "asm-switches.sch" 
-		  "dumpheap-extra.sch" 
-		  "md5.sch"
-		  ,@(case (nbuild-parameter 'host-os)
-		      ((macosx unix) '("dumpheap-unix.sch"))
-		      ((win32)       '("dumpheap-win32.sch"))
-		      (else          '())))))
+  (append
+   (nbuild-files 'common-asm
+		 '("external-assembler.sch"))
+   (nbuild-files 'standard-C-asm
+		 `("pass5p2.sch" 
+		   "peepopt.sch" 
+		   "asm-switches.sch" 
+		   "dumpheap-extra.sch" 
+		   "petit-init-proc.sch"
+		   "md5.sch"
+		   ,@(case (nbuild-parameter 'host-os)
+		       ((macosx unix) '("dumpheap-unix.sch"))
+		       ((win32)       '("dumpheap-win32.sch"))
+		       (else          '()))))))
 
 (define *nbuild:x86-nasm-files*
   (append
+   (nbuild-files 'common-asm
+		 '("external-assembler.sch"))
    (nbuild-files 'x86-nasm-asm
 		 `("pass5p2-nasm.sch"
-		   "dumpheap-extra.sch" 
 		   "peepopt.sch"
+		   "dumpheap-extra.sch" 
 		   ,@(case (nbuild-parameter 'host-os)
 		      ((unix)  '("dumpheap-unix.sch"))
 		      ((win32) '("dumpheap-win32.sch"))
 		      (else    '()))))
    (nbuild-files 'standard-C-asm
 		 '("asm-switches.sch"
+		   "petit-init-proc.sch"
 		   "md5.sch"))))
 
 (define *nbuild:make-files*
