@@ -5,6 +5,8 @@
 ;
 ; Copyright 1991 Lightship Software
 
+($$trace "print")
+
 (define (print x p slashify)
   
   (letrec

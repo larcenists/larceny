@@ -113,34 +113,38 @@
 
 (define (disassemble313 file . rest)
 
+  (define (print . rest)
+    (for-each display rest)
+    (newline))
+
   (define (print-segment segment-no segment)
 
     (define (print-constvector cv)
       (let loop ((i 0))
 	(if (< i (vector-length cv))
 	    (begin
-	      (display (format "------------------------------------------~%"))
-	      (display (format "Constant vector element # ~a~%" i))
+	      (print "------------------------------------------")
+	      (print "Constant vector element # " i)
 	      (case (car (vector-ref cv i))
 		((codevector)
-		 (display (format "Code vector~%"))
+		 (print "Code vector")
 		 (print-ilist (disassemble (cadr (vector-ref cv i)))))
 		((constantvector)	
-		 (display (format "Constant vector~%"))
+		 (print "Constant vector")
 		 (print-constvector (cadr (vector-ref cv i))))
 		((global)
-		 (display (format "Global: ~a~%" (cadr (vector-ref cv i)))))
+		 (print "Global: " (cadr (vector-ref cv i))))
 		((data)
-		 (display (format "Data: ~a~%" (cadr (vector-ref cv i))))))
+		 (print "Data: " (cadr (vector-ref cv i)))))
 	      (loop (+ i 1))))))
 
-    (display (format "Segment # ~a~%" segment-no))
+    (print "Segment # " segment-no)
     (print-ilist (disassemble (car segment)))
     (print-constvector (cdr segment))
-    (display (format "========================================~%")))
+    (print "========================================"))
 
   (define (doit file)
-    (display (format "; From ~a~%" file))
+    (print "; From " file)
     (call-with-input-file
       file
       (lambda (inport)

@@ -3,24 +3,25 @@
 ;
 ; $Id: nbuild.sch,v 1.3 1997/02/11 21:53:13 lth Exp $
 ;
+; All directory names *must* end with "/" (or whatever is appropriate for
+; the current operating system), and they should all be absolute (ditto).
+;
 ; This file assumes that the following variables are defined:
 ;
-;  "compilerdir" is the absolute name of the directory which has
-;  the compiler files; it ends with a "/".
+; * `compilerdir' is the name of the directory that has the compiler files.
 ;
-;  "sourcedir" is the absolute name of the directory which has the
-;  source files for the libraries as well as the makefile for building
-;  the initial heap; it ends with a "/".
+; * `sparc-olddir' is the name of the directory that has all the
+;   files (target-independent and -dependent, both) for the old SPARC 
+;   assembler.
 ;
-;  "targetdir" is the absolute name of the directory which has or will have
-;  the intermediate and final output files from the compiler and the 
-;  assembler; it, too, ends with a "/".
+; * `common-asmdir' is the name of the directory that has all the 
+;   target-independent files for the new assembler.
 ;
-;  "sparcdir" is the absolute name of the directory with the sparc specific
-;  files; it ends with a "/".
+; * `sparc-asmdir' is the name of the directory that has all the 
+;   SPARC-specific files for the new SPARC assembler.
 ;
-;  "hostdir" is the absolute name of the directory which has the 
-;  host system support and compatibility files; it ends with a "/".
+; * `sourcedir' is the absolute name of the directory that has the
+;   Larceny makefile.
 
 ; Note: the compatibility package has already been loaded by the build script.
 
@@ -47,26 +48,51 @@
 (loadfile compilerdir "pass4p2.sch")
 (loadfile compilerdir "pass4p3.sch")     ; @@ Will
 
-(display "Loading generic assembler...") (newline)
-(with-optimization 2
-  (lambda ()
-    (loadfile compilerdir "assembler.sch")
-    (Loadfile compilerdir "peepopt.sch")))
+(if (not new-assembler?)
+    (begin 
+      (display "Loading old generic assembler...")
+      (newline)
+      (with-optimization 2
+        (lambda ()
+	  (loadfile sparc-olddir "assembler.sch")
+	  (loadfile sparc-olddir "peepopt.sch"))))
+    (begin
+      (display "Loading new generic assembler...") (newline)
+      (loadfile common-asmdir "pass5p1.sch")
+      (loadfile common-asmdir "asmutil.sch")
+      (loadfile common-asmdir "asmutil32.sch")))
 
 (display "Loading SPARC header files...") (newline)
 (loadfile builddir "schdefs.h")
 
-(display "Loading SPARC assembler and code generator...") (newline)
-(with-optimization 2
-  (lambda ()
-    (loadfile sparcdir "sparcasm.sch")))
-(loadfile sparcdir "gen-msi.sch")
-(loadfile sparcdir "gen-prim.sch")
-(loadfile sparcdir "asmutil.sch")
-(loadfile sparcdir "switches.sch")
+(if (not new-assembler?)
+    (begin
+      (display "Loading old SPARC assembler and code generator...") (newline)
+      (with-optimization 2
+	(lambda ()
+	  (loadfile sparc-olddir "sparcasm.sch")))
+      (loadfile sparc-olddir "gen-msi.sch")
+      (loadfile sparc-olddir "gen-prim.sch")
+      (loadfile sparc-olddir "asmutil.sch")
+      (loadfile sparc-olddir "switches.sch"))
+    (begin 
+      (display "Loading new SPARC assembler and code generator...") (newline)
+      (loadfile sparc-asmdir "pass5p2.sch")
+      (loadfile sparc-asmdir "peepopt.sch")
+      (loadfile sparc-asmdir "sparcutil.sch")
+      (loadfile sparc-asmdir "sparcasm.sch")
+      (loadfile sparc-asmdir "gen-msi.sch")
+      (loadfile sparc-asmdir "gen-prim.sch")
+      (loadfile sparc-asmdir "switches.sch")))
 
-(display "Loading SPARC disassembler...") (newline)
-(loadfile sparcdir "sparcdis.sch")
+(if (not new-assembler?)
+    (begin 
+      (display "Loading SPARC disassembler...") (newline)
+      (loadfile sparc-olddir "sparcdis.sch"))
+    (begin
+      (display "Loading new SPARC disassembler...") (newline)
+      (loadfile sparc-asmdir "sparcdis.sch")
+      ))
 
 (display "Loading bootstrap heap dumper...") (newline)
 (with-optimization 3

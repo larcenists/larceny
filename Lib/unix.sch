@@ -323,6 +323,10 @@
     (sys$write-file4 1 msg (string-length msg) 0)
     (sys$write-file4 1 nl 1 0)))
 
+; For 0.28e release *only*
+
+(define ($$trace msg)
+  #f)
 
 ; Unix signal handling  --  prototype!
 ;

@@ -1,6 +1,8 @@
 ; Invoking primitives that take 1 argument.  The primitive procedures
 ; could usefully be defined using a macro.
 
+($$trace "evalprim")
+
 (define (eval/invoke-prim1:- a orig cell)
   (lambda (env)
     (let ((v (car cell)))

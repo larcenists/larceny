@@ -10,6 +10,8 @@
 ; In Larceny, these will be built on top of real first-class toplevel
 ; environments (namespaces).
 
+($$trace "env")
+
 (define *env-tag* (list 'environment))
 
 (define (environment? obj)

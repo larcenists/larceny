@@ -3,7 +3,20 @@
 ;
 ; $Id: timer.sch,v 1.1 1997/07/07 20:52:12 lth Exp lth $
 
+($$trace "timer")
+
+; This is well-behaved but somewhat expensive.
+
 (define (call-without-interrupts thunk)
+  (let ((old #f))
+    (dynamic-wind 
+     (lambda () (set! old (disable-interrupts)))
+     thunk
+     (lambda () (if old (enable-interrupts old))))))
+
+; This is not well-behaved but less expensive; I've left it here for reference.
+
+(define (old-call-without-interrupts thunk)
   (let ((old (disable-interrupts)))
     (let ((r (thunk)))
       (if old

@@ -10,6 +10,7 @@
 ; 'Exit' is OS-specific (see e.g. Lib/unix.sch)
 ; 'Call-without-interrupts' is in Lib/timer.sch.
 
+($$trace "control")
 
 ; APPLY
 ;
@@ -111,7 +112,7 @@
 ; Snarfed from Lisp Pointers, V(4), October-December 1992, p45.
 ; Written by Jonathan Rees.
 ;
-; NOTE: this code is not thread-aware.
+; FIXME: this code is not thread-aware.
 
 (define *here* (list #f))
 

@@ -12,6 +12,7 @@
 ;  format.  Uses a MacScheme-specific routine for bignums.
 ;
 
+($$trace "num2str")
 
 (define number->string
   

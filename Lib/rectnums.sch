@@ -42,6 +42,7 @@
 ;     z = a + bi  ->  |z| = r
 ;
 
+($$trace "rectnums")
 
 ; (export rectnum-add
 ;         rectnum-subtract

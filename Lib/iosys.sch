@@ -9,6 +9,8 @@
 ; FIXME:
 ;  'Port?' needs to be integrable for maximal efficiency.
 
+($$trace "iosys")
+
 (define port.input?     0) ; boolean: an open input port
 (define port.output?    1) ; boolean: an open output port
 (define port.iodata     2) ; port-specific data

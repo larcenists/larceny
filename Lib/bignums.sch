@@ -67,6 +67,7 @@
 ;  entering the bignum code to do this, and division by a 2-bigit bignum 
 ;  by a fixnum must also be transparently handled.
 
+($$trace "bignums")
 
 ; INTERFACE
 ;

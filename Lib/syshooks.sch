@@ -6,6 +6,8 @@
 ; Simple hack that makes low-level system functions available interactively
 ; in a controlled manner.
 
+($$trace "syshooks")
+
 (define (system-function name)
   (case name
     ((sys$get-resource-usage) sys$get-resource-usage)

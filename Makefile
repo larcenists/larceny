@@ -34,7 +34,7 @@ SYS=$(RTS)/Sys
 MACH=$(RTS)/Sparc
 BUILD=$(RTS)/Build
 UTIL=Util
-ASM=Sparcasm
+ASM=Asm
 LIB=Lib
 EVAL=Eval
 REPL=Repl
@@ -61,10 +61,12 @@ HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 # These exist only in this file
 
 MISCFILES=COPYRIGHTS README CHGLOG Makefile nbuild
-BUGSFILES=BUGS BUGS-FIXED
-ASMFILES=$(ASM)/*.sch
+BUGSFILES=BUGS BUGS-FIXED BUGS-RETIRED
+ASMFILES=$(ASM)/Common/*.sch $(ASM)/Sparc-old/*.sch $(ASM)/Sparc/*.sch \
+	$(ASM)/MacScheme/*.sch
 LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
+LARCFILES=Larceny/*.sch
 COMPFILES=$(COMP)/*.sch
 TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
@@ -82,11 +84,11 @@ RTSFILES=$(RTSFILES0) $(HDRFILES) $(BUILD)/*.s
 
 # Files for 'tar'
 ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
-	$(CHEZFILES) $(COMPFILES)
+	$(CHEZFILES) $(LARCFILES) $(COMPFILES)
 
 # Files for 'distribution'
 DISTFILES=$(MISCFILES) $(BUGSFILES) $(RTSFILES0) $(ASMFILES) $(LIBFILES) \
-	$(AUXFILES) $(CHEZFILES) $(COMPFILES)
+	$(AUXFILES) $(CHEZFILES) $(LARCFILES) $(COMPFILES)
 
 # Files for 'bigtar'
 MOREFILES=$(RTS)/larceny larceny.heap larceny.eheap \

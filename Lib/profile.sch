@@ -2,6 +2,8 @@
 ;
 ; $Id: profile.sch,v 1.2 1997/07/07 20:52:12 lth Exp lth $
 
+($$trace "profile")
+
 ; Simple, slow trace facility for primitive profiling.
 ; You can control the state of tracing with sys$tracectl.
 ; To trace a procedure, call sys$trace with a symbol; the entry for

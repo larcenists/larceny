@@ -26,6 +26,13 @@
      FIX:
      Wrote the required code to make this work :-)
 
+003  (v0.26)   Fixed 970716 by lth (new assembler only!)
+
+     Singlestepping does not seem to work any longer.
+
+     FIX:
+     Rewrote the required bits.
+
 004  (v0.27e)  Fixed 970701 by lth
 
      The following expression loops forever:
@@ -200,6 +207,41 @@
     * Third, a typo in after_promote_all made out-of-bounds array references
       to prom-bits possible (although not in the current case).
 
+
+010  (v0.28) Fixed 970716 by lth
+
+     Error in vector-ref
+
+     Symptom:
+	> (vector-ref (vector-ref (sys$get-resource-usage) 11) 3)
+	#<WEIRD OBJECT>
+
+     Another:
+	> (vector-ref '#(1 2 3) 3)
+	quote
+
+     Most likely the 'blu' below should be 'bleu' (code from 
+     Sparcasm/gen-prim.sch).
+
+	(define (emit-vector-like-ref! as r fault tag)
+	  (let ((r1 (force-hwreg! as r $r.argreg2)))
+	    (if (not (unsafe-code))
+		(begin
+		  (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
+		  (emit! as `(,$i.bne.a ,fault))
+		  (emit! as `(,$i.slot))
+		  (emit! as `(,$i.ldi ,$r.result (- ,tag) ,$r.tmp2))
+		  (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
+		  (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
+		  (emit! as `(,$i.blu ,fault))))
+	    (emit! as `(,$i.addi ,$r.result ,(- 4 tag) ,$r.tmp0))
+	    (emit! as `(,$i.ldr ,$r.tmp0 ,r1 ,$r.result))))
+
+     Note: fix this in the _new_ assembler.
+
+     FIX:
+     Changed the instruction to bleu.
+
 017  (v0.28)  970507  Fixed 970625 by lth
 
      Must restore console i/o on error.  Consider:
@@ -327,4 +369,19 @@
      the heap number, but it compared it against the maximum generation 
      number.  The code was fixed to compare agains the index of the
      oldest old heap.
+
+030  v0.28e (970708 / lth)  Fixed 970716 by lth
+
+     Reader bug: initial capital letters are not folded to lowercase:
+
+	> 'Loadfile
+	Loadfile
+	> 'loadfile
+	loadfile
+	> 'loAdfile
+	loadfile
+	> 
+
+     FIX:
+     But in read-symbol introduced during optimization.
 

@@ -15,6 +15,8 @@
 ; fairly expensive in the first place, so it may not matter much in the
 ; overall scheme of things.
 
+($$trace "contag")
+
 (define contagion #f)
 (define econtagion #f)
 (define pcontagion #f)

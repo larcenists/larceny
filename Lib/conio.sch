@@ -6,6 +6,8 @@
 ; The code in this file relies on the code in fileio.sch -- these console 
 ; ports are only slight variations on file ports.
 
+($$trace "conio")
+
 (define (console-io/initialize)
   ; nothing, for now
   #t)

@@ -59,6 +59,8 @@
 ; <digit 10>  -->  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9
 ; <digit 16>  -->  <digit 10>  |  a  |  b  |  c  |  d  |  e  |  f
 
+($$trace "str2num")
+
 ; String->number takes a number or a number and a radix.
 ; Its output is a number, or #f.
 
@@ -70,10 +72,17 @@
 
 (define parse-number
   
-  (let ((bellerophon  bellerophon)
-	(flonum:inf   1e500)
-	(flonum:nan   (make-flonum 0 1 1024)))
+  (let ((bellerophon  bellerophon))
+
+    ; This is a procedure because at the time we wish to call make-flonum,
+    ; generic arithmetic is not yet fully operational.
+
+    (define (flonum:nan) (make-flonum 0 1 1024))
     
+    ; This is a procedure because flonum:nan is.
+
+    (define (flonum:inf) 1e500)
+
     (define (decimal-digit? c)
       (and (char>=? c #\0) (char<=? c #\9)))
 
@@ -238,10 +247,10 @@
                   (radix-digit? (cadr input) 10))
              (q3 (cdr input) (or exactness 'i) sign 0 0))
 	    ((char=? (char-downcase (car input)) #\n)
-	     (special-syntax (cdr input) '(#\a #\n #\. #\0) flonum:nan))
+	     (special-syntax (cdr input) '(#\a #\n #\. #\0) (flonum:nan)))
 	    ((char=? (char-downcase (car input)) #\i)
 	     (special-syntax (cdr input) '(#\n #\f #\. #\0) 
-			     (* sign flonum:inf)))
+			     (* sign (flonum:inf))))
             (else #f)))
 
     ; Special syntax:

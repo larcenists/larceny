@@ -8,6 +8,8 @@
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
 
+($$trace "ratnums")
+
 ; (export make-reduced-ratnum
 ;         make-unreduced-ratnum
 ;         ratnum-add

@@ -145,6 +145,9 @@ EXTNAME(m_typetag):
 	cmp	%TMP0, BVEC_TAG
 	be,a	Ltypetag1
 	ld	[ %RESULT - BVEC_TAG ], %TMP0
+	cmp	%TMP0, PROC_TAG
+	be,a	Ltypetag1
+	ld	[ %RESULT - PROC_TAG ], %TMP0
 	jmp	%MILLICODE + M_EXCEPTION
 	mov	EX_TYPETAG, %TMP0
 Ltypetag1:
@@ -170,6 +173,9 @@ EXTNAME(m_typetag_set):
 	cmp	%TMP0, BVEC_TAG
 	be,a	Ltypetagset1
 	xor	%RESULT, BVEC_TAG, %TMP0
+	cmp	%TMP0, PROC_TAG
+	be,a	Ltypetagset1
+	xor	%RESULT, PROC_TAG, %TMP0
 Ltypetagset0:
 	jmp	%MILLICODE + M_EXCEPTION
 	mov	EX_TYPETAGSET, %TMP0

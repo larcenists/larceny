@@ -30,6 +30,8 @@
 ; * Would be nice to flatten BEGINs to get rid of some interpretation
 ;   overhead.
 
+($$trace "macro-expand")
+
 (define *eval-macros* '())
 
 (define (define-eval-macro kwd proc)
@@ -85,11 +87,17 @@
     ; other special forms need to do that.
 
     (define (rewrite-define expr)
-      (if (pair? (cadr expr))
-	  `(define 
-	     ,(caadr expr) 
-	     ,(rewrite-lambda `(lambda ,(cdadr expr) ,@(cddr expr))))
-	  `(define ,(cadr expr) ,(rewrite-expr (caddr expr)))))
+      (cond ((pair? (cadr expr))
+	     `(define 
+		,(caadr expr) 
+		,(rewrite-lambda `(lambda ,(cdadr expr) ,@(cddr expr)))))
+	    ((not (symbol? (cadr expr)))
+	     (error "Illegal define form: " expr)
+	     #t)
+	    ((null? (cddr expr))
+	     `(define ,(cadr expr) ,(undefined)))
+	    (else
+	     `(define ,(cadr expr) ,(rewrite-expr (caddr expr))))))
 
 
     ; Top-level defines are left as a 'define', with the usual special 
@@ -196,7 +204,7 @@
   (lambda (expr)
     (let ((bindings (cadr expr)))
       (if (null? bindings)
-	  `(begin ,@(cddr expr))
+	  `(let () ,@(cddr expr))
 	  `(let (,(car bindings))
 	     (let* ,(cdr bindings) ,@(cddr expr)))))))
 
@@ -213,7 +221,7 @@
 		 (let ((tmp (gensym "cond")))
 		   `(let ((,tmp ,test))
 		      (if ,tmp
-			  (,(cadr e-sequence) tmp)
+			  (,(cadr e-sequence) ,tmp)
 			  (cond ,@clause2)))))
 		(else 
 		 `(if ,test (begin ,@e-sequence) (cond ,@clause2))))))))

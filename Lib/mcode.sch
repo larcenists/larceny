@@ -1,10 +1,13 @@
-; -*- Scheme -*-
+; Lib/mcode.sch
+; Larceny library -- millicode support code
 ;
+; $Id: mcode.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
+; 
 ; This file contains architecture-independent procedures which set up
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
-;
-; $Id: mcode.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
+
+($$trace "mcode")
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;

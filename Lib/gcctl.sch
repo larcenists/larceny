@@ -5,6 +5,8 @@
 ;
 ; This is a hack, until the collector gets rewritten in Scheme.
 
+($$trace "gcctl")
+
 ; Heap number is 1..n.
 ; Operation codes can be read off the "case" below.  These things should
 ; go in a config file.

@@ -3,6 +3,8 @@
 ;
 ; $Id: fileio.sch,v 1.2 1997/03/05 19:28:51 lth Exp $
 
+($$trace "fileio")
+
 (define *file-io/files* '())
 
 (define (file-io/initialize)

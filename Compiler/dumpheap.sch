@@ -1,50 +1,42 @@
-; -*- Scheme -*-
-;
-; Larceny -- heap dumper.
-; Code to dump a bootstrap heap image from un-encoded scheme object files.
-;
-; Second major version, for Chez Scheme.
+; Compiler/dumpheap.sch
+; Larceny -- bootstrap heap dumper.
 ;
 ; $Id: dumpheap.sch,v 1.3 1997/07/07 20:41:40 lth Exp lth $
 ;
-; Each input file consists of pairs. The car of a pair is a code vector
-; and the cdr of the pair is a constant vector. The code vector is a regular
-; vector, although it is treated as a byte vector rather than a word vector.
-; The constant vector has all tagged entries (represented using lists), where
-; the tags are `data', `codevector', `constantvector', `global', or `bits'.
+; Each input file is a sequence of segments, which are represented as pairs.
+; The car of a segment is a code vector and the cdr of a segment is a constant
+; vector.  The code vector is a bytevector (under Chez Scheme, it's a normal
+; vector, but we pretend it's a bytevector).  The constant vector has all
+; tagged entries (represented using length-2 lists), where the tags are
+; `data', `codevector', `constantvector', `global', or `bits'.
 ;
-; `Dump-heap' loads its file arguments into the heap, creates thunks from the
-; code and constant vectors, and creates a list of the thunks. It also creates
-; a list of all symbols used in the loaded files. Finally, it generates an
+; `build-heap-image' reads its file arguments into the heap, creates thunks
+; from the segments, and creates a list of the thunks.  It also creates a
+; list of all symbols present in the loaded files.  Finally, it generates an
 ; initialization procedure (the LAP of which is hardcoded into this file; see
-; below). A pointer to this procedure is installed in the SCHEME_ENTRY root
+; below).  A pointer to this procedure is installed in the SCHEME_ENTRY root
 ; pointer; hence, this procedure (a thunk, as it were) is called when the heap
 ; image is loaded.
 ;
-; The initialization procedure calls each procedure in the thunk list in order.
-; It then invokes the procedure ``go'', which takes one argument: the list of
-; symbols. Typically, ``go'' will initialize the symbol table and then call
-; the REP loop, but this is by no means required.
+; The initialization procedure calls each procedure in the thunk list in 
+; order.  It then invokes the procedure `go', which takes one argument:
+; the list of symbols.  Typically, `go' will initialize the symbol table
+; and other system tables and then call `main', but this is by no means
+; required.
 ;
-; The Scheme assembler must be co-resident, since it is used by this
-; procedure to assemble the final startup code. This could be avoided
-; by pre-assembling the code and patching it here, but the way it is now,
-; this procedure is entirely portable -- no target dependencies.
+; The Scheme assembler must be co-resident, since it is used by 
+; `build-heap-image' procedure to assemble the final startup code.  This
+; could be avoided by pre-assembling the code and patching it here, but 
+; the way it is now, this procedure is entirely portable -- no target
+; dependencies.
 ;
-; Usage: (dump-heap outputfile inputfile ... )
-
-; When this switch is set, the cdr of the global value cell is initialized
-; to the symbol which has the same printname as the name of the cell.
-; Otherwise, the cdr of the global value cell is given an ordinal number
-; which can be found later in the map file.
-
-;
+; Usage: (build-heap-image outputfile inputfile ... )
 
 (define build-heap-image
 
   (let ()
 
-    ; Neat constants.
+    ; Useful constants.
 
     (define twofiftysix^3 (* 256 256 256))
     (define twofiftysix^2 (* 256 256))
@@ -453,12 +445,11 @@
 	  (,$op1 break)
 	  (,$invoke 2)           ; (go <list of symbols> argv)
 	  (,$.label 2)
-;	  (,$save 3 1)                                           ; @@ Will
-          (,$save 2)                                             ; @@ Will
-          (,$store 0 0)                                          ; @@ Will
-          (,$store 1 1)                                          ; @@ Will
+          (,$save 2)
+          (,$store 0 0)
+          (,$store 1 1)
 	  (,$store 2 2)
-          (,$setrtn 3)                                           ; @@ Will
+          (,$setrtn 3)
 	  (,$reg 1)
 	  (,$op1 car)
 	  (,$invoke 0)           ; ((car l))
@@ -498,12 +489,12 @@
       ; traverses the list and calls each in turn.
 
       (display "Assembling final procedure") (newline)
-      (let ((e enable-singlestep?))
-	(set! enable-singlestep? #f)
+      (let ((e (single-stepping)))
+	(single-stepping #f)
 	(let* ((l       (dump-list! h (reverse inits)))
 	       (m       (dump-list! h (symbol-names)))
 	       (segment (assemble (init-proc))))
-	  (set! enable-singlestep? e)
+	  (single-stepping e)
 	  (patch-constant-vector! (cdr segment) '(data (1)) `(bits ,l))
 	  (patch-constant-vector! (cdr segment) '(data (2)) `(bits ,m))
 	  (dump-segment! h segment))))
@@ -600,3 +591,5 @@
 		     (load-map))))))
 
     build-heap-image))
+
+; eof

@@ -4,12 +4,77 @@
 
 
 ----------------------------------------------------------------------
+v0.28e released 970717 by lth
+
+The following qualify as maintenance fixes:
+
+[Chez/compat.sch]
+  Turned off echoing when loading .so files (much too annoying).
+
+[Lib/oblist.sch]
+  Removed the printing of an informative message when rehashing the 
+  symbol table.
+
+[Lib/oblist.sch]
+  All symbol table procedures that have side effects are now protected
+  by critical sections.
+
+[Lib/timer.sch]
+  Re-implemented call-without-interrupts to behave properly in the presence
+  of escape from and re-entry into the critical section by using dynamic-wind.
+
+[Eval/macro-expand.sch]
+  Added support for (define variable) syntax.
+  Fixed bug in expansion of let* that caused internal definitions not 
+  to be handled.
+  Fixed bug in expansion of cond => (forgot an unquote).
+
+[Eval/eval.sch]
+  Evaluator now knows about #!undefined (so that it can deal with the
+  expansion of (define variable), see directly above).
+
+[Lib/number.sch]
+  Changed make-polar (again), simplifying the implementation.
+
+[Lib/reader.sch]
+  Fixed a serious error in the reader whereby character constants could
+  not be read; seems to have crept in between revisions 1.6 and 1.7.
+
+[Lib/string.sch]
+  Fixed two typos in bytevector-copy (n should have been v, and ! was missing).
+
+[nbuild; Util/nbuild.sch]
+  Changes to accomodate builds with larceny and to choose among new and old
+  assembler.
+
+[Larceny/compat.sch]
+  Fixed some bugs resulting from not maintaining this code.
+
+[Compiler/compile313.sch]
+  Removed incompatible use of 'format' from disassemble313 procedure.
+
+[Rts/Sparc/mcode.s]
+  Procedures can now be arguments to typetag and typetag-set!.
+
+[Rts/Sys/ldebug.c]
+  Added prototypes (and fixed a bug unseen by the compiler because the file
+  did not have prototypes).
+  Added b+/b- operation.
+
+[new assembler]
+  [Bug 003] Singlestepping works.
+  [Bug 010] Vector-ref range checking works.
+
+[Lib/reader.sch]
+  [Bug 030] Initial-capital letter problem fixed.
+
+[Compiler/assembler.sch; Compiler/peepopt.sch; Sparcasm/*; Util/nbuild.sch]
+  Moved the assembler files to Asm/Sparc-old/ and changed the build script
+  correspondingly.
+
+
+----------------------------------------------------------------------
 v0.28d released 970707 by lth
-
-***NOTE***   
-Internal tables have changed.  All .lop and .fasl files must be regenerated,
-and all heaps must be rebuilt!  
-
 
 STATUS
 * Timer interrupts have been tested and seem to be working correctly.
@@ -110,6 +175,9 @@ BUGS FIXED
 [Compiler/make.sch]
   Fixed long-standing make bug where files were not correctly copied from
   the Build directory after changes to the configuration files.
+
+[Rts/Sys/*]
+  Numerous fixes to GC policy code from Will.
 
 
 ----------------------------------------------------------------------

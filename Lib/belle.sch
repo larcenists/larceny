@@ -14,15 +14,7 @@
 ;    It would be better, for the time being, to just precompute those
 ;    values.
 
-; FIXME
-; Hack to resolve load order problem: loading this module results in
-; calls to contagion, but contagion is not usually installed when this
-; procedure is run. The call to install-millicode-support deals with
-; this (for now).
-
-(install-millicode-support)
-
-; Real stuff here
+($$trace "belle")
 
 (define bellerophon
   (let ()
@@ -108,7 +100,7 @@
     ; as an extended precision number, so the slop factor is exactly
     ; twice the maximum error in the approximation to 10^e.
     
-;    (define dummy1 (begin (display "Bellerophon init 1") (newline)))
+;    (define dummy1 (begin ($$trace "Bellerophon#1") #t))
     (define slop-216 45)
     (define slop-108  9)
     (define slop-54   3)
@@ -120,25 +112,25 @@
     (define slop216   9)
     (define slop324  21)
     
-;    (define dummy2 (begin (display "Bellerophon init 2") (newline)))
+;    (define dummy2 (begin ($$trace "Bellerophon#2") #t))
     (define n         53)
-    (define two^n-1   (expt 2 (- n 1)))
-    (define two^n     (expt 2 n))
+    (define two^n-1   4503599627370496)     ; (expt 2 (- n 1))
+    (define two^n     9007199254740992)     ; (expt 2 n)
     (define p         64)
-    (define two^p-1   (expt 2 (- p 1)))
-    (define two^p     (expt 2 p))
-    (define two^p-n-1 (expt 2 (- p n 1)))
-    (define two^p-n   (expt 2 (- p n)))
+    (define two^p-1   9223372036854775808)  ; (expt 2 (- p 1))
+    (define two^p     18446744073709551616) ; (expt 2 p)
+    (define two^p-n-1 1024)                 ; (expt 2 (- p n 1))
+    (define two^p-n   2048)                 ; (expt 2 (- p n))
     
-;    (define dummy3 (begin (display "Bellerophon init 3") (newline)))
+;    (define dummy3 (begin ($$trace "Bellerophon#3") #t))
     (define flonum:zero 0.0)
     (define flonum:infinity 1e500)
     (define flonum:minexponent -1023)
     (define flonum:minexponent-51 -1074)
-    (define bellerophon:big-f (expt 2 64))
+    (define bellerophon:big-f 18446744073709551616)   ; (expt 2 64)
     (define bellerophon:small-e -306)
     (define bellerophon:big-e 309)
-;    (define dummy4 (begin (display "Bellerophon init 4") (newline)))
+;    (define dummy4 (begin ($$trace "Bellerophon#4") #t))
 ; FIXME: don't have LOG yet
 ;    (define log5-of-two^n (inexact->exact (ceiling (/ (log two^n) (log 5)))))
     (define log5-of-two^n 23)
@@ -198,11 +190,14 @@
     ; This flag is set by some operations to indicate whether
     ; any accuracy was lost during the operation.
     
-;    (define dummy5 (begin (display "Bellerophon init 5") (newline)))
+;    (define dummy5 (begin ($$trace "Bellerophon#5") #t))
     (define inexact-flag #f)
     
-    (define two^2p-1 (expt 2 (- (* 2 p) 1)))
-    (define two^2n-1 (expt 2 (- (* 2 n) 1)))
+    ; (expt 2 (- (* 2 p) 1))
+    (define two^2p-1 170141183460469231731687303715884105728)
+
+    ; (expt 2 (- (* 2 n) 1))
+    (define two^2n-1 40564819207303340847894502572032)
     
     (define (integer->extended n)
       (cond ((< n two^p-1)
@@ -359,45 +354,7 @@
     ;           ((<= 1.0 x) (loop (* .5 x) (+ k 1)))))
     ;   (loop x 0))
     
-; For Larceny, the following code has been moved out of bellerophon, into
-; the general libraries, since these procedures are useful in general.
-;
-;    ; MacScheme-specific code.
-;    ; Depends on the representations of bignums as well as flonums.
-;    
-;    (define (float-significand x)
-;      (let ((x (->bytevector x))
-;            (n (make-bytevector 12)))
-;        (bytevector-set! n 0 0)
-;        (bytevector-set! n 1 1)   ; sign
-;        (bytevector-set! n 2 0)
-;        (bytevector-set! n 3 4)   ; size
-;        (bytevector-set! n 4 (bytevector-ref x 6))
-;        (bytevector-set! n 5 (bytevector-ref x 7))
-;        (bytevector-set! n 6 (bytevector-ref x 4))
-;        (bytevector-set! n 7 (bytevector-ref x 5))
-;        (bytevector-set! n 8 (bytevector-ref x 2))
-;        (bytevector-set! n 9 (bytevector-ref x 3))
-;        (bytevector-set! n 10 0)
-;        (bytevector-set! n 11 (logior 16 (logand 15 (bytevector-ref x 1))))
-;        
-;        ; subtract hidden bit if x is denormalized
-;        
-;        (if (and (zero? (bytevector-ref x 0))
-;                 (zero? (logand -16 (bytevector-ref x 1))))
-;            (- (typetag-set! n (typetag two^n-1)) two^n-1)
-;            (typetag-set! n (typetag two^n-1)))))
-;    
-;    (define (float-exponent x)
-;      (let* ((x (->bytevector x))
-;             (e (logior (lsh (logand 127 (bytevector-ref x 0)) 4)
-;                        (lsh (bytevector-ref x 1) -4))))
-;        (if (zero? e)
-;            (- flonum:minexponent 51)          ; no hidden bit
-;            (- e (+ 1023 52)))))
-
-
-;    (display "Bellerophon init 6") (newline)
+;    ($$trace "Bellerophon#6")
 
 ;    (set! ten^-216 (slow-ten-to-e -216))
 ;    (set! ten^-108 (slow-ten-to-e -108))
@@ -418,6 +375,10 @@
     (set! ten^108  '(15709099088952724970 295))
     (set! ten^216  '(13377742608693866209 654))
     
-;    (display "Bellerophon init done") (newline)
+;    ($$trace "Bellerophon#7")
     bellerophon))
 
+;($$trace "bellerophon#end")
+;($$trace (if bellerophon "yes" "no"))
+
+; eof

@@ -9,6 +9,7 @@
 ;  - many character procedures should be table driven.
 ;  - see FIXMEs in the code for other issues.
 
+($$trace "string")
 
 ; Upper- and lower-case predicates and conversions
 ; for both characters and strings.
@@ -291,8 +292,8 @@
 
 (define (bytevector-like-copy b)
   (let ((v (make-bytevector (bytevector-like-length b))))
-    (typetag-set! n (typetag b))
-    (bytevector-like-copy-into b 0 (bytevector-like-length b) v 0)))
+    (typetag-set! v (typetag b))
+    (bytevector-like-copy-into! b 0 (bytevector-like-length b) v 0)))
 
 
 (define (bytevector-like-copy-into! src from lim dest to)

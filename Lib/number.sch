@@ -6,6 +6,8 @@
 ; Parts of this file is Copyright Lightship Software.
 ; Additional code and modifications by Lars Hansen.
 
+($$trace "number")
+
 ; FIXME: this is a poor approximation indeed.
 
 (define *pi* 3.14159)
@@ -246,7 +248,7 @@
   (if (not (and (real? a) (real? b)))
       (begin (error "make-polar: invalid arguments: " a " " b)
 	     #t)
-      (* a (exp (* +1.0i b)))))
+      (make-rectangular (* a (cos b)) (* a (sin b)))))
 
 (define (angle c)
   (atan (imag-part c) (real-part c)))

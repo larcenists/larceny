@@ -22,6 +22,8 @@
 ;   in here that use the latter form into the former form, because they
 ;   look nicer.
 
+($$trace "list")
+
 (define caar (lambda (x) (car (car x))))
 (define cadr (lambda (x) (car (cdr x))))
 (define cdar (lambda (x) (cdr (car x))))

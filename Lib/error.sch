@@ -1,4 +1,4 @@
-; -*- scheme -*-
+; Lib/error.sch
 ; Larceny library -- error system
 ;
 ; $Id: error.sch,v 1.2 1997/07/07 20:45:06 lth Exp $
@@ -14,6 +14,8 @@
 ;  An installed error handler may not return. 
 ;
 ;  An installed reset handler takes no arguments. It may not return.
+
+($$trace "error")
 
 (define (error . args)
   (apply (error-handler) '() args))

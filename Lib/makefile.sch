@@ -204,13 +204,9 @@
 			 "twobit.imp" "pass1" "pass2.aux"
 			 "pass2p1" "pass2p2" "pass4.aux"
 			 "pass4p1" "pass4p2" "pass4p3" "compile313"
-			 ; Old assembler driver
-			 "assembler" 
-			 ; New assembler driver
-			 "pass5p1" "pass5p2sparc"
-			 "peepopt" "makefasl" "make"
-			 ; Heap dumper
-			 "dumpheap"))
+			 ; Miscellaneous
+			 "makefasl" "make" "dumpheap"
+			 ))
 
 (make:rule compiler-project ".fasl" ".sch" make-compile-file)
 (make:deps compiler-project '("compiler.date") 
@@ -227,15 +223,46 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Project for building all the files in the Sparcasm subdirectory.
+; Project for building all the files of the old SPARC assembler 
+; (Asm/Sparc-old/*).
+
+(define sparc-oldasm-project (make:new-project "sparc-oldasm.date"))
+(define sparc-oldasm-files '("asmutil" "gen-msi" "gen-prim" "sparcasm" 
+			     "sparcdis" "switches" "assembler" "peepopt"))
+
+(make:rule sparc-oldasm-project ".fasl" ".sch" make-compile-file)
+(make:deps sparc-oldasm-project '("sparc-oldasm.date")
+	   (objects "Asm/Sparc-old/" ".fasl" sparc-oldasm-files))
+(make:targets sparc-oldasm-project '("sparc-oldasm.date") (lambda args #t))
+
+(define (make-sparc-oldasm . rest)
+  (include-source-code #f)
+  (include-variable-names #f)
+  (include-procedure-names #t)
+  (make:pretend (not (null? rest)))
+  (make:make sparc-oldasm-project "sparc-oldasm.date"))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Project for building all the files in the new generic assembler and
+; the Sparc assembler.
 
 (define sparcasm-project (make:new-project "sparcasm.date"))
-(define sparcasm-files '("asmutil" "gen-msi" "gen-prim" "sparcasm" 
-			 "sparcdis" "switches"))
+
+(define generic-asm-files
+  '("pass5p1" "asmutil" "asmutil32"))
+
+(define sparcasm-files
+  '("pass5p2" "gen-msi" "gen-prim" "sparcasm" "sparcutil"
+    "switches" "sparcdis"))
 
 (make:rule sparcasm-project ".fasl" ".sch" make-compile-file)
 (make:deps sparcasm-project '("sparcasm.date")
-	   (objects "Sparcasm/" ".fasl" sparcasm-files))
+	   (objects "Asm/Common/" ".fasl" generic-asm-files))
+(make:deps sparcasm-project '("sparcasm.date")
+	   (objects "Asm/Sparc/" ".fasl" sparcasm-files))
 (make:targets sparcasm-project '("sparcasm.date") (lambda args #t))
 
 (define (make-sparcasm . rest)
@@ -244,30 +271,6 @@
   (include-procedure-names #t)
   (make:pretend (not (null? rest)))
   (make:make sparcasm-project "sparcasm.date"))
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Project for building all the files in the Newasm subdirectory.
-
-(define newasm-project (make:new-project "newasm.date"))
-(define newasm-files '("asmutil" "gen-msi" "gen-prim" "sparcasm" "sparcutil"
-    		       "switches"
-		       ; "sparcdis" 
-		       ))
-
-(make:rule newasm-project ".fasl" ".sch" make-compile-file)
-(make:deps newasm-project '("newasm.date")
-	   (objects "Newasm/" ".fasl" newasm-files))
-(make:targets newasm-project '("newasm.date") (lambda args #t))
-
-(define (make-newasm . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
-  (make:pretend (not (null? rest)))
-  (make:make newasm-project "newasm.date"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

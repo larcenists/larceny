@@ -4,7 +4,7 @@
  * $Id: version.c,v 1.7 1997/07/07 20:13:53 lth Exp lth $
  */
 
-char *version = "0.28d";
+char *version = "0.28e";
 char *date = DATE;
 char *user = USER;
 

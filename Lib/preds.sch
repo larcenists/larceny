@@ -1,25 +1,12 @@
-; Copyright Lightship Software.
-;
+; Lib/preds.sch
 ; Larceny library -- general predicates
 ;
 ; $Id: preds.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
-; Modified 950802 / lth:
-;    Moved string-equal? to strings.sch
-;    Moved vector-equal? to vector.sch
-;    Moved all list-based predicates to list.sch
-;
-; Modified 950711 / lth:
-;    Added reverse!, append!.
-;
-; Modified 950611 / lth:
-;    Memq now uses eq? (rather than eqv?).
-;
-; Modified 950528 / lth: 
-;    Added IEEE-compliant list?, and last-pair.
-;
-; Modified 15 March by Will Clinger:
-;    added list-tail, list-ref
+; In part based on code from MacScheme:
+;    Copyright Lightship Software.
+
+($$trace "preds")
  
 (define (atom? x) (not (pair? x)))
 

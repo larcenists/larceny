@@ -1,8 +1,6 @@
-; -*- scheme -*-
+; Lib/ehandler.sch
+; Larceny library -- system exception handler.
 ;
-; Larceny run-time library -- system exception handler.
-;
-; lth@cs.uoregon.edu / Sometime in 1992 
 ; $Id: ehandler.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, 
@@ -19,6 +17,8 @@
 ; a little coarse; it works for now.
 ;
 ; Implementation: it would be more reasonable to use a vector here.
+
+($$trace "ehandler")
 
 (define (exception-handler arg1 arg2 arg3 code)
   (if (= code $ex.timer)

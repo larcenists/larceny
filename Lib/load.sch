@@ -8,6 +8,8 @@
 ; FIXME: Loader should install reader macros for #^G, #^B, #^P so that 
 ; the reader would not need to be aware of these extensions.
 
+($$trace "load")
+
 (define *load-noise-level* #f)
 
 (define (load filename . rest)

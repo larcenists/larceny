@@ -175,16 +175,17 @@ void C_break( void )
 }
 
 /* Single stepping. Takes a fixnum argument which is the constant vector
- * index (1-based!) at which to find a string. G_REG0 must be valid.
+ * index at which to find a string.  G_REG0 must be valid.
  */
 void C_singlestep( word cidx )
 {
   char buf[ 300 ];
   int l;
   word s;
+  word constvec;
 
-
-  s = *(ptrof( *(ptrof( globals[ G_REG0 ] ) + 2) ) + cidx / 4);
+  constvec = *( ptrof( globals[G_REG0] ) + 2 );
+  s = *( ptrof( constvec ) + VEC_HEADER_WORDS + nativeint(cidx) );
   if (tagof( s ) != BVEC_TAG)
     panic( "Internal: Bad arg to C_singlestep().\n" );
 

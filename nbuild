@@ -14,19 +14,41 @@ TMPFILE=/tmp/larceny.build.`whoami`.$$
 # Working directory
 DIR=`pwd`
 
+# New assembler or not?
+NEW_ASM="#f"
+
 # Default host system for building is Chez Scheme.
 L_HOST=Chez
+L_HOSTNAME="Chez Scheme"
 
-case "$1" in
-  -larceny | -l)   L_HOST=Larceny; L_HOSTNAME="Larceny" ;;
-  -chez | -c | "") L_HOST=Chez; L_HOSTNAME="Chez Scheme" ;;
-  *)               echo "Unknown host system: $1"
-                   echo "Usage: $0 [ -larceny | -l | -chez | -c ]"
-                   exit 1
-                   ;;
-esac
+ARGS=""
+
+while [ "$1" != "" ]; do 
+  case $1 in
+    -larceny | -l)
+       L_HOST=Larceny; L_HOSTNAME="Larceny" 
+       ;;
+    -chez | -c)
+       L_HOST=Chez; L_HOSTNAME="Chez Scheme" 
+       ;;
+    -new | -n)
+       NEW_ASM="#t" 
+       ;;
+    -a)
+       shift
+       ARGS=$*
+       break
+       ;;
+    *) echo "Unknown host system: $1"
+       echo "Usage: $0 [ -larceny | -l | -chez | -c | -new | -n ] [-a args]"
+       exit 1
+       ;;
+  esac
+  shift
+done
 
 cat > $TMPFILE <<END
+(define new-assembler? $NEW_ASM)
 (define host-system-name "$L_HOSTNAME")
 (define host-system '$L_HOST)
 (define hostdir "$DIR/$L_HOST/")
@@ -34,8 +56,10 @@ cat > $TMPFILE <<END
 (define sourcedir "$DIR/Lib/")
 (define targetdir "$DIR/Lib/")
 (define configdir "$DIR/")
-(define sparcdir "$DIR/Sparcasm/")
 (define compilerdir "$DIR/Compiler/")
+(define sparc-olddir "$DIR/Asm/Sparc-old/")
+(define common-asmdir "$DIR/Asm/Common/")
+(define sparc-asmdir "$DIR/Asm/Sparc/")
 (define utildir "$DIR/Util/")
 (define builddir "$DIR/Build/")
 (define evaldir "$DIR/Eval/")
@@ -58,8 +82,8 @@ END
 # Run the development environment.
 
 case $L_HOST in
-  Chez)    scheme $TMPFILE ;;
-  Larceny) larceny larceny.heap -args $TMPFILE ;;
+  Chez)    scheme $ARGS $TMPFILE ;;
+  Larceny) larceny $ARGS -args $TMPFILE ;;
   *)       echo "Internal error in build script."; exit 1 ;;
 esac
 

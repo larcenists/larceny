@@ -3,6 +3,8 @@
 ;
 ; $Id: dump.sch,v 1.1 1997/07/07 20:45:06 lth Exp $
 
+($$trace "dump")
+
 (define (dump-heap filename proc)
   (cond ((not (string? filename))
 	 (error "dump-heap: invalid file name: " filename)

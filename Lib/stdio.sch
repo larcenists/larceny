@@ -14,6 +14,7 @@
 ; Notes
 ;   eof-object? needs to be integrable for good performance.
 
+($$trace "stdio")
 
 ; First there are private variables and some procedures that depend on them.
 ; In a multi-threaded system, we must be more sophisticated than this, because

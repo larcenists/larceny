@@ -17,6 +17,7 @@
 ; should also be split, as they will overflow after 149 hours or so. For
 ; most of these fields, though, more than 29 bits is really overkill.
 
+($$trace "memstats")
 
 ; (memstats) => vector
 ;

@@ -1,11 +1,7 @@
-/*
- * This is the file Sys/ldebug.c.
+/* Rts/Sys/ldebug.c.
+ * Larceny -- the run-time system debugger.
  *
- * Larceny run-time system (Unix) -- the run-time system debugger.
- *
- * History
- *   July 1, 1994 / lth (v0.20)
- *     Commented out the worst bits, cleaned up the rest.
+ * $Id$
  *
  * BUGS
  *  - Parsing is somewhat ad-hoc; all should accept RESULT, ARGREG2, and
@@ -17,18 +13,28 @@
 #include "macros.h"
 #include "cdefs.h"
 
-static confused(), step(), backtrace(), setreg(), help(), examine(),
-       dumpproc(), dumpregs(), dumpcodevec(), getreg(), getuint();
+static void confused( char * );
+static void step( char * );
+static void breakpt( char * );
+static void backtrace( void );
+static void setreg( char * );
+static void help( void );
+static void examine( char * );
+static void dumpproc( void );
+static void dumpregs( void );
+static void dumpcodevec( void );
+static int getreg( char ** );
+static int getuint( char ** );
 
 void localdebugger()
 {
-  printf( "[runtime system debugger; type '?' for help]\n" );
+/*  printf( "[runtime system debugger; type '?' for help]\n" ); */
   while (1) {
     char cmd[ 80 ], cmdl[ 80 ];
     word val;
     int regno;
 
-    printf( "> " ); fflush( stdout );
+    printf( "@ " ); fflush( stdout );
     if (fgets( cmd, 80, stdin ) == NULL) {
       printf( "\n" );
       exit( 1 );
@@ -36,6 +42,7 @@ void localdebugger()
     else if (sscanf( cmd, "%s", cmdl ) == 1) {
       switch (*cmdl) {
         case '=' : setreg( cmd ); break;
+	case 'b' : breakpt( cmd ); break;
         case 'B' : backtrace(); break;
         case 'd' : dumpregs(); break;
         case 'r' : return;
@@ -52,14 +59,12 @@ void localdebugger()
   }
 }
 
-static confused( msg )
-char *msg;
+static void confused( char *msg )
 {
   printf( "?%s\n", msg );
 }
 
-static step( cmd )
-char *cmd;
+static void step( char *cmd )
 {
   if (cmd[ 1 ] == '+') 
     globals[ G_SINGLESTEP_ENABLE ] = TRUE_CONST;
@@ -69,6 +74,15 @@ char *cmd;
     confused( "step" );
 }
 
+static void breakpt( char *cmd )
+{
+  if (cmd[ 1 ] == '+') 
+    globals[ G_BREAKPT_ENABLE ] = TRUE_CONST;
+  else if (cmd[ 1 ] == '-')
+    globals[ G_BREAKPT_ENABLE ] = FALSE_CONST;
+  else
+    confused( "breakpt" );
+}
 
 /*
  * Go back thru the stack and continuation chain and print those procedure
@@ -77,7 +91,7 @@ char *cmd;
  *
  * This procedure has detailed knowledge about frame layouts.
  */
-static backtrace()
+static void backtrace( void )
 {
 #if 0
   word wretn, p, w;
@@ -126,8 +140,7 @@ static backtrace()
 #endif
 }
 
-static setreg( cmd )
-char *cmd;
+static void setreg( char *cmd )
 {
   int regno;
   unsigned val;
@@ -138,25 +151,27 @@ char *cmd;
   else confused( "reg" );
 }
 
-static help()
+static void help( void )
 {
-  printf( "d - dump regs\n" );
-  printf( "B - stack backtrace\n" );
-  printf( "r - return to running program\n" );
-  printf( "p - dump the current procedure (if possible)\n" );
-  printf( "Xx <loc> <count> - examine w(ord),b(yte),c(har)\n" );
-  printf( "Xo <loc> - examine object\n" );
-  printf( "z{+|-}  - manipulate single stepping status.\n" );
-  printf( "c - dump the current code vector (symbolic) to /tmp/larceny.\n" );
-  printf( "= <reg> <val> --  set register\n" );
+  printf( "b{+|-}   manipulate breakpoint enable\n" );
+  printf( "B        stack backtrace\n" );
+  printf( "c        dump the current code vector to /tmp/larceny\n" );
+  printf( "d        display register values\n" );
+  printf( "p        dump the current procedure (if possible)\n" );
+  printf( "r        return\n" );
+  printf( "Xo <loc> examine object\n" );
+  printf( "Xx <loc> <count>\n" );
+  printf( "         examine w(ord),b(yte),c(har)\n" );
+  printf( "z{+|-}   manipulate single stepping enable\n" );
+  printf( "= <reg> <val>\n" );
+  printf( "         set register value\n" );
   printf( "\n" );
-  printf( "<loc> is either an address (number) or a register name.\n" );
-  printf( "For Xw the tag is masked off the location before use.\n" );
-  printf( "Numbers are decimal, octal, or hex.\n" );
+  printf( "<loc> is either an address (number) or a register name (syntax: Rn).\n" );
+  printf( "For Xw and Xo the tag is masked off the <loc>.\n" );
+  printf( "Numbers are decimal, octal, or hex (use C syntax).\n" );
 }
 
-static examine( cmdl )
-char *cmdl;
+static void examine( char *cmdl )
 {
   word loc;
   unsigned count;
@@ -266,8 +281,7 @@ char *cmdl;
   }
 }
 
-static getreg( cmdl )
-char **cmdl;
+static int getreg( char **cmdl )
 {
   int regno;
   char *p = *cmdl;
@@ -286,7 +300,7 @@ char **cmdl;
   }
   else if (*p == 'R') {
     p++;
-    regno = getuint();
+    regno = getuint( &p );
     if (regno == -1 || regno > 31) return -1;
     regno += G_REG0;
   }
@@ -299,8 +313,7 @@ char **cmdl;
   return -1;
 }
 
-static getuint( cmdl )
-char **cmdl;
+static int getuint( char **cmdl )
 {
   char *p = *cmdl, *q;
   char buf[ 40 ];
@@ -322,7 +335,7 @@ char **cmdl;
 }
 
 
-static dumpproc()
+static void dumpproc( void )
 {
   word w = globals[ G_REG0 ];
   word q, l, *p;
@@ -342,7 +355,7 @@ static dumpproc()
   }
 }
 
-static dumpregs()
+static void dumpregs( void )
 {
   int j, k;
 
@@ -371,7 +384,7 @@ static dumpregs()
           globals[ G_ETOP ] );
 }
 
-static dumpcodevec()
+static void dumpcodevec( void )
 {
   word w = globals[ G_REG0 ];
   word q, l, *p;

@@ -7,6 +7,8 @@
 ; argument.  What constitutes an argument is up to the user's shell or
 ; the C language startup.
 
+($$trace "argv")
+
 (define *argv* '#())
 
 (define (command-line-arguments . rest)

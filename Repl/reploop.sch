@@ -3,6 +3,8 @@
 ;
 ; $Id: reploop.sch,v 1.2 1997/07/07 21:01:13 lth Exp lth $
 
+($$trace "reploop")
+
 (define *init-file-name* ".larceny")  ; Unix-ism.
 (define *file-arguments* #f)          ; #t if file arguments were loaded
 (define *reset-continuation* #f)      ; current longjump point

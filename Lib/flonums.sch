@@ -18,6 +18,8 @@
 ; number of 32-bit digits, and the remaining bytes are grouped in 4s as 32-bit
 ; digits.
 
+($$trace "flonums")
+
 ; exports
 
 (define compnum?)                ; eventually a primop

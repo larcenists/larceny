@@ -26,7 +26,7 @@
   (let ((cfn (chez-new-extension filename "so")))
     (if (and (file-exists? cfn)
 	     (compat:file-newer? cfn filename))
-	(begin (display (format "; ~a~%" cfn))
+	(begin ; (display (format "; ~a~%" cfn))
 	       (load cfn))
 	(load filename))))
 

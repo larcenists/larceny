@@ -73,6 +73,8 @@
 ;   at preprocessing time and generate code for setglbl that signals
 ;   an error if executed (and perhaps a warning during preprocessing).
 
+($$trace "eval")
+
 (define eval
   (let ()
 
@@ -104,8 +106,8 @@
   (cond ((symbol? expr)
 	 (let ((address (eval/var-address expr env)))
 	   (if address
-	       (eval/lexical (car address) (cdr address))
-	       (eval/global expr find-global))))
+	       (eval/lexical (car address) (cdr address) expr)
+	       (eval/global expr find-global expr))))
 	((pair? expr)
 	 (case (car expr)
 	   ((quote)  (eval/const (cadr expr)))
@@ -113,9 +115,9 @@
 			   (rhs
 			    (eval/preprocess (caddr expr) env find-global)))
 		       (if address
-			   (eval/setlex (car address) (cdr address) rhs)
-			   (eval/setglbl (cadr expr) rhs find-global))))
-	   ((lambda) (eval/make-proc expr env find-global))
+			   (eval/setlex (car address) (cdr address) rhs expr)
+			   (eval/setglbl (cadr expr) rhs find-global expr))))
+	   ((lambda) (eval/make-proc expr env find-global expr))
 	   ((begin)  (if (null? (cdr expr))
 			 (begin (error "EVAL: empty BEGIN")
 				#t)
@@ -132,7 +134,7 @@
 				(eval/const (unspecified))
 				(eval/preprocess (cadddr expr) env
 						 find-global))))
-		       (eval/if test *then *else)))
+		       (eval/if test *then *else expr)))
 	   (else     (eval/make-call expr env find-global))))
 	((eval/self-evaluating? expr)
 	 (eval/const expr))
@@ -148,13 +150,14 @@
       (number? expr)
       (char? expr)
       (eq? expr (unspecified))
+      (eq? expr (undefined))
       (eof-object? expr)))
 
 ; Closure creation.  Special cases handled: 
 ;  - procedures of 0..4 arguments.
 ;  - varargs procedures.
 
-(define (eval/make-proc expr env find-global)
+(define (eval/make-proc expr env find-global src)
 
   (define (listify x)
     (cond ((null? x) x)
@@ -172,13 +175,13 @@
 	 (exprs (eval/preprocess (cons 'begin body) nenv find-global)))
     (if (list? args)
 	(case (length args)
-	  ((0) (eval/lambda0 exprs))
-	  ((1) (eval/lambda1 exprs))
-	  ((2) (eval/lambda2 exprs))
-	  ((3) (eval/lambda3 exprs))
-	  ((4) (eval/lambda4 exprs))
-	  (else (eval/lambda-n (length args) exprs)))
-	(eval/lambda-dot (fixed-args args 0) exprs))))
+	  ((0) (eval/lambda0 exprs src))
+	  ((1) (eval/lambda1 exprs src))
+	  ((2) (eval/lambda2 exprs src))
+	  ((3) (eval/lambda3 exprs src))
+	  ((4) (eval/lambda4 exprs src))
+	  (else (eval/lambda-n (length args) exprs src)))
+	(eval/lambda-dot (fixed-args args 0) exprs src))))
 
 ; Procedure call.  Special cases handled:
 ;  - letrec:  ((lambda (a b ...) ...) #!unspecified ...)
@@ -232,66 +235,88 @@
 		(else
 		 (a-loop (cdr rib) (+ j 1))))))))
 
-(define (eval/global name find-global)
+(define (eval/global name find-global src)
   (let ((cell (find-global name)))
-    (lambda (env)
-      (let ((v (car cell)))
-	(if (eq? v (undefined))
-	    (error "Reference to undefined global variable `" name "'.")
-	    v)))))
+    (evaluator-procedure
+     (lambda (env)
+       (let ((v (car cell)))
+	 (if (eq? v (undefined))
+	     (begin
+	       (error "Reference to undefined global variable `" name "'.")
+	       #t)
+	     v)))
+     src)))
 
-(define (eval/setglbl name expr find-global)
+(define (eval/setglbl name expr find-global src)
   (let ((cell (find-global name)))
-    (lambda (env)
-      (set-car! cell (expr env)))))
+    (evaluator-procedure 
+     (lambda (env)
+       (set-car! cell (expr env)))
+     src)))
 
 ; Unroll loop for the closest ribs.
 
-(define (eval/lexical rib offset)
+(define (eval/lexical rib offset src)
   (case rib
-    ((0) (eval/lexical0 offset))
-    ((1) (eval/lexical1 offset))
-    ((2) (eval/lexical2 offset))
-    ((3) (eval/lexical3 offset))
-    (else (eval/lexical-n rib offset))))
+    ((0) (eval/lexical0 offset src))
+    ((1) (eval/lexical1 offset src))
+    ((2) (eval/lexical2 offset src))
+    ((3) (eval/lexical3 offset src))
+    (else (eval/lexical-n rib offset src))))
 
-(define (eval/lexical0 offset)
-  (lambda (env)
-    (vector-ref (car env) offset)))
+(define (eval/lexical0 offset src)
+  (evaluator-procedure
+   (lambda (env)
+     (vector-ref (car env) offset))
+   src))
 
-(define (eval/lexical1 offset)
-  (lambda (env)
-    (vector-ref (cadr env) offset)))
+(define (eval/lexical1 offset src)
+  (evaluator-procedure
+   (lambda (env)
+     (vector-ref (cadr env) offset))
+   src))
 
-(define (eval/lexical2 offset)
-  (lambda (env)
-    (vector-ref (caddr env) offset)))
+(define (eval/lexical2 offset src)
+  (evaluator-procedure
+   (lambda (env)
+     (vector-ref (caddr env) offset))
+   src))
 
-(define (eval/lexical3 offset)
-  (lambda (env)
-    (vector-ref (cadddr env) offset)))
+(define (eval/lexical3 offset src)
+  (evaluator-procedure
+   (lambda (env)
+     (vector-ref (cadddr env) offset))
+   src))
 
-(define (eval/lexical-n rib offset)
-  (lambda (env0)
-    (let loop ((rib rib) (env env0))
-      (if (= rib 0)
-	  (vector-ref (car env) offset)
-	  (loop (- rib 1) (cdr env))))))
+(define (eval/lexical-n rib offset src)
+  (evaluator-procedure
+   (lambda (env0)
+     (let loop ((rib rib) (env env0))
+       (if (= rib 0)
+	   (vector-ref (car env) offset)
+	   (loop (- rib 1) (cdr env)))))
+   src))
 
-(define (eval/setlex rib offset expr)
-  (lambda (env0)
-    (let loop ((rib rib) (env env0))
-      (if (= rib 0)
-	  (vector-set! (car env) offset (expr env0))
-	  (loop (- rib 1) (cdr env))))))
+(define (eval/setlex rib offset expr src)
+  (evaluator-procedure
+   (lambda (env0)
+     (let loop ((rib rib) (env env0))
+       (if (= rib 0)
+	   (vector-set! (car env) offset (expr env0))
+	   (loop (- rib 1) (cdr env)))))
+   src))
 
 (define (eval/const c)
-  (lambda (env)
-    c))
+  (evaluator-procedure
+   (lambda (env)
+     c)
+   c))
 
-(define (eval/if test consequent alternate)
-  (lambda (env)
-    (if (test env) (consequent env) (alternate env))))
+(define (eval/if test consequent alternate src)
+  (evaluator-procedure
+   (lambda (env)
+     (if (test env) (consequent env) (alternate env)))
+   src))
 
 ; Special cases: 1..4 expressions.
 
@@ -392,60 +417,86 @@
 ; If 'vector' were faster, it would be a better choice for constructing 
 ; ribs than make-vector + vector-set!.
 
-(define (eval/lambda0 body)
+(define (eval/lambda0 body src)
   (lambda (env)
-    (lambda ()
-      (body (cons '#() env)))))
+    (evaluator-procedure
+     (lambda ()
+       (body (cons '#() env)))
+     src)))
 
-(define (eval/lambda1 body)
+(define (eval/lambda1 body src)
   (lambda (env)
-    (lambda (a)
-      (let ((v (make-vector 1 a)))
-	(body (cons v env))))))
+    (evaluator-procedure
+     (lambda (a)
+       (let ((v (make-vector 1 a)))
+	 (body (cons v env))))
+     src)))
 
-(define (eval/lambda2 body)
+(define (eval/lambda2 body src)
   (lambda (env)
-    (lambda (a b)
-      (let ((v (make-vector 2 a)))
-	(vector-set! v 1 b)
-	(body (cons v env))))))
+    (evaluator-procedure
+     (lambda (a b)
+       (let ((v (make-vector 2 a)))
+	 (vector-set! v 1 b)
+	 (body (cons v env))))
+     src)))
 
-(define (eval/lambda3 body)
+(define (eval/lambda3 body src)
   (lambda (env)
-    (lambda (a b c)
-      (let ((v (make-vector 3 a)))
-	(vector-set! v 1 b)
-	(vector-set! v 2 c)
-	(body (cons v env))))))
+    (evaluator-procedure
+     (lambda (a b c)
+       (let ((v (make-vector 3 a)))
+	 (vector-set! v 1 b)
+	 (vector-set! v 2 c)
+	 (body (cons v env))))
+     src)))
 
-(define (eval/lambda4 body)
-  (lambda (env)
-    (lambda (a b c d)
-      (let ((v (make-vector 4 a)))
-	(vector-set! v 1 b)
-	(vector-set! v 2 c)
-	(vector-set! v 3 d)
-	(body (cons v env))))))
+(define (eval/lambda4 body src)
+  (evaluator-procedure
+   (lambda (env)
+     (lambda (a b c d)
+       (let ((v (make-vector 4 a)))
+	 (vector-set! v 1 b)
+	 (vector-set! v 2 c)
+	 (vector-set! v 3 d)
+	 (body (cons v env)))))
+   src))
 
-(define (eval/lambda-n n body)
-  (lambda (env)
-    (lambda args
-      (body (cons (list->vector args) env)))))
+(define (eval/lambda-n n body src)
+  (evaluator-procedure
+   (lambda (env)
+     (lambda args
+       (body (cons (list->vector args) env))))
+   src))
 
 ; `n' is the number of fixed arguments.
 
-(define (eval/lambda-dot n body)
-  (lambda (env)
-    (lambda args
-      (let ((l (length args))
-	    (v (make-vector (+ n 1) (unspecified))))
-	(if (< l n)
-	    (error "Too few arguments to procedure."))
-	(do ((args args (cdr args))
-	     (i 0 (+ i 1)))
-	    ((= i n)
-	     (vector-set! v i args)
-	     (body (cons v env)))
-	  (vector-set! v i (car args)))))))
+(define (eval/lambda-dot n body src)
+  (evaluator-procedure
+   (lambda (env)
+     (lambda args
+       (let ((l (length args))
+	     (v (make-vector (+ n 1) (unspecified))))
+	 (if (< l n)
+	     (error "Too few arguments to procedure."))
+	 (do ((args args (cdr args))
+	      (i 0 (+ i 1)))
+	     ((= i n)
+	      (vector-set! v i args)
+	      (body (cons v env)))
+	   (vector-set! v i (car args))))))
+   src))
+
+;;; Debugger support
+
+(define (evaluator-procedure proc doc)
+  (let* ((l (procedure-length proc))
+	 (p (make-procedure (+ l 1))))
+    (do ((i 0 (+ i 1)))
+	((= i l))
+      (procedure-set! p i (procedure-ref proc i)))
+    (procedure-set! p l doc)
+    (typetag-set! p 0)
+    p))
 
 ; eof

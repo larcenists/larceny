@@ -3,6 +3,8 @@
 ;
 ; $Id: primops.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
 
+($$trace "primops")
+
 ; General predicates
 
 (define not (lambda (x) (not x)))

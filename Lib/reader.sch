@@ -27,6 +27,8 @@
 ; such as is returned by the readtable-ref procedure, and changes the
 ; character's character class and dispatch procedures.
 
+($$trace "reader")
+
 (define install-reader
   (lambda ()
     (letrec
@@ -195,7 +197,7 @@
 	    ; Initial hackery to be compatible with read-symbol consumers.
 	    (if (null? l)
 		(read-symbol2 c p s 0 (string-length s))
-		(begin (string-set! s 0 (car l))
+		(begin (string-set! s 0 (char-downcase (car l)))
 		       (read-symbol2 c p s 1 (string-length s)))))))
 
        (read-symbol2
@@ -427,23 +429,32 @@
                   ((char=? c #\f) (not #t))
                   ((char=? c #\\)
                    (let ((c (tyipeek p)))
-                     (cond ((not (char? c)) (read-unexpected-eof p))
+                     (cond ((not (char? c))
+			    (read-unexpected-eof p))
                            ((char-alphabetic? c)
+			    ;; This is horrifically expensive.
                             (let ((x (read-symbol c p '())))
-                              (case x
-                                ((space) (integer->char 32))
-                                ((newline) (integer->char **newline**))
-                                ((tab) (integer->char 9))
-                                ((return) (integer->char 13))
-                                ((linefeed) (integer->char 10))
-                                ((page) (integer->char 12))
-                                ((backspace) (integer->char 8))
-                                ((= (string-length (symbol->string x)) 1)
-				 c)
-				(else
-				 (error "Malformed #\\ syntax" x)
-				 #t))))
-                           (else (begin (tyi p) c)))))
+                              (cond ((eq? x 'space)
+				     (integer->char 32))
+				    ((eq? x 'newline)
+				     (integer->char **newline**))
+				    ((eq? x 'tab)
+				     (integer->char 9))
+				    ((eq? x 'return)
+				     (integer->char 13))
+				    ((eq? x 'linefeed)
+				     (integer->char 10))
+				    ((eq? x 'page)
+				     (integer->char 12))
+				    ((eq? x 'backspace)
+				     (integer->char 8))
+				    ((= (string-length (symbol->string x)) 1)
+				     c)
+				    (else
+				     (error "Malformed #\\ syntax: " x)
+				     #t))))
+                           (else
+			    (begin (tyi p) c)))))
                   ((char=? c #\!)
                    (let ((x (read-symbol (tyipeek p) p '())))
                      (case x

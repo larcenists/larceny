@@ -3,6 +3,8 @@
 ;
 ; Larceny run-time system: The top-level environment.
 
+($$trace "toplevel")
+
 ; Return the global variable cell for the named variable in the default
 ; environment. Create cell if it does not exist.
 

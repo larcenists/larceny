@@ -10,8 +10,12 @@
 ;   ~a   - write as with 'display'
 ;   ~w   - write as with 'write'
 ;   ~c   - write character as with 'write-char'
+;   ~b   - write bytevector elements (decimal)
+;   ~B   - write bytevector elements (hexadecimal)
 ;   ~%   - newline
 ;   ~~   - write a ~
+
+($$trace "format")
 
 (define (format port format-string . args)
   (let ((port (cond ((output-port? port) port)
@@ -38,6 +42,17 @@
 		      (format-loop (+ i 2) (cdr args)))
 		     ((char=? c #\c)
 		      (write-char (car args) port)
+		      (format-loop (+ i 2) (cdr args)))
+		     ((or (char=? c #\b)
+			  (char=? c #\B))
+		      (let ((bv    (car args))
+			    (radix (if (char=? c #\b) 10 16)))
+			(if (not (bytevector? bv))
+			    (error "format: not a bytevector: " bv))
+			(do ((k 0 (+ k 1)))
+			    ((= k (bytevector-length bv)))
+			(display (number->string (bytevector-ref bv k) radix))
+			(write-char #\space)))
 		      (format-loop (+ i 2) (cdr args)))
 		     (else
 		      (format-loop (+ i 1) args)))))

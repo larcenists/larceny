@@ -5,6 +5,8 @@
 ;
 ; $Id: vector.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
 
+($$trace "vector")
+
 (define vector
   (lambda l
     (list->vector l)))

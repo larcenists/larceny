@@ -41,6 +41,11 @@
 (define enable-peephole? #t)   ; peephole optimization switch
 (define listify? #f)           ; produce listing
 
+(define (single-stepping . rest)  ; Patch
+  (if (null? rest)
+      enable-singlestep?
+      (set! enable-singlestep? (car rest))))
+
 ; The main entry point.
 
 (define (assemble source)
