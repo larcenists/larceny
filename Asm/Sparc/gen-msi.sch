@@ -4,6 +4,8 @@
 ;
 ; Asm/Sparc/gen-msi.sch -- SPARC assembler code emitters for 
 ;    core MacScheme instructions
+;
+; 15 April 1999 / wdc
 
 
 ; SETGLBL
@@ -372,16 +374,22 @@
 
 ; LAMBDA
 
-(define (emit-lambda! as code-offs const-offs n-slots)
-  (let ((code-offs  (+ 4 (- (* 4 code-offs) $tag.vector-tag)))
-	(const-offs (+ 4 (- (* 4 const-offs) $tag.vector-tag))))
-  (emit-alloc-proc! as n-slots)
-  (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
-  (sparc.ldi as $r.tmp0 code-offs $r.tmp1)
-  (sparc.sti as $r.tmp1 $p.codevector $r.result)
-  (sparc.ldi as $r.tmp0 const-offs $r.tmp1)
-  (sparc.sti as $r.tmp1 $p.constvector $r.result)
-  (emit-init-proc-slots! as n-slots)))
+(define (emit-lambda! as code-offs0 const-offs0 n-slots)
+  (let* ((code-offs  (+ 4 (- (* 4 code-offs0) $tag.vector-tag)))
+         (const-offs (+ 4 (- (* 4 const-offs0) $tag.vector-tag)))
+         (fits? (asm:fits? const-offs 13)))
+    (emit-alloc-proc! as n-slots)
+    (if fits?
+        (begin (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
+               (sparc.ldi as $r.tmp0 code-offs $r.tmp1))
+        (emit-const->register! as code-offs0 $r.tmp1))
+    (sparc.sti as $r.tmp1 $p.codevector $r.result)
+    (if fits?
+        (begin (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
+               (sparc.ldi as $r.tmp0 const-offs $r.tmp1))
+        (emit-const->register! as const-offs0 $r.tmp1))
+    (sparc.sti as $r.tmp1 $p.constvector $r.result)
+    (emit-init-proc-slots! as n-slots)))
  
 ; Allocate procedure with room for n register slots; return tagged pointer.
 

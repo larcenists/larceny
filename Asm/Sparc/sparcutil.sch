@@ -3,6 +3,8 @@
 ; $Id$
 ;
 ; SPARC assembler machine parameters & utility procedures.
+;
+; 15 April 1999 / wdc
 
 ; Round up to nearest 8.
 
@@ -138,22 +140,22 @@
 
 
 ; Reference the constants vector and put the constant reference in a register.
-; `cvlabel' is an integer offset into the constants vector (a constant) for
+; `offset' is an integer offset into the constants vector (a constant) for
 ; the current procedure.
-; (CONST, for structured constants.)
+; Destroys $r.tmp0 and $r.tmp1, but either can be the destination register.
+; (CONST, for structured constants, GLOBAL, SETGLBL, LAMBDA).
 
-(define (emit-const->register! as cvlabel r)
-  (let ((cvlabel (+ 4 (- (* cvlabel 4) $tag.vector-tag))))
+(define (emit-const->register! as offset r)
+  (let ((cvlabel (+ 4 (- (* offset 4) $tag.vector-tag))))
     (cond ((hardware-mapped? r)
+           (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
            (if (asm:fits? cvlabel 13)
-               (begin (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
-                      (sparc.ldi as $r.tmp0 cvlabel r))
-               (begin (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
-                      (sparc.sethi as `(hi ,val) $r.tmp1)
+               (sparc.ldi as $r.tmp0 cvlabel r)
+               (begin (sparc.sethi as `(hi ,cvlabel) $r.tmp1)
                       (sparc.addr  as $r.tmp0 $r.tmp1 $r.tmp0)
-                      (sparc.ldi   as $r.tmp0 `(lo ,val) $r.tmp0))))
+                      (sparc.ldi   as $r.tmp0 `(lo ,cvlabel) r))))
           (else
-           (emit-const->register! as cvlabel $r.tmp0)
+           (emit-const->register! as offset $r.tmp0)
            (emit-store-reg! as $r.tmp0 r)))))
 
 
@@ -171,7 +173,7 @@
   (if (or (not (hardware-mapped? from)) (hardware-mapped? to))
       (asm-error "emit-store-reg: " from to)
       (begin (sparc.sti as from (swreg-global-offset to) $r.globals)
-	     to)))
+             to)))
 
 ; Generic move-reg-to-HW-reg
 
