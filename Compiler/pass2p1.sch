@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-;  5 April 1999.
+; 12 April 1999.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
@@ -168,71 +168,6 @@
               notepad)))
           (else (assignment.rhs-set! exp rhs) exp))))
 
-; Some source transformations on IF expressions:
-;
-; (if '#f E1 E2)                E2
-; (if 'K  E1 E2)                E1                          K != #f
-; (if (if B0 '#f '#f) E1 E2)    (begin B0 E2)
-; (if (if B0 '#f 'K ) E1 E2)    (if B0 E2 E1)               K != #f
-; (if (if B0 'K  '#f) E1 E2)    (if B0 E1 E2)               K != #f
-; (if (if B0 'K1 'K2) E1 E2)    (begin B0 E1)               K1, K2 != #f
-; (if (begin ... B0) E1 E2)     (begin ... (if B0 E1 E2))
-; (if (not E0) E1 E2)           (if E0 E2 E1)               not is integrable
-;
-; FIXME:  Transformations needed:
-;    to simplify the output of the OR macro
-;    to simplify the output of the CASE macro
-
-(define (simplify-conditional exp notepad)
-  (let loop ((test (simplify (if.test exp) notepad)))
-    (if.test-set! exp test)
-    (cond ((constant? test)
-           (simplify (if (constant.value test)
-                         (if.then exp)
-                         (if.else exp))
-                     notepad))
-          ((and (conditional? test)
-                (constant? (if.then test))
-                (constant? (if.else test)))
-           (cond ((and (constant.value (if.then test))
-                       (constant.value (if.else test)))
-                  (post-simplify-begin
-                   (make-begin (list (if.test test)
-                                     (simplify (if.then exp) notepad)))
-                   notepad))
-                 ((and (not (constant.value (if.then test)))
-                       (not (constant.value (if.else test))))
-                  (post-simplify-begin
-                   (make-begin (list (if.test test)
-                                     (simplify (if.else exp) notepad)))
-                   notepad))
-                 (else (if (not (constant.value (if.then test)))
-                           (let ((temp (if.then exp)))
-                             (if.then-set! exp (if.else exp))
-                             (if.else-set! exp temp)))
-                       (if.test-set! exp (if.test test))
-                       (loop (if.test exp)))))
-          ((begin? test)
-           (let ((exprs (reverse (begin.exprs test))))
-             (if.test-set! exp (car exprs))
-             (if.then-set! exp (simplify (if.then exp) notepad))
-             (if.else-set! exp (simplify (if.else exp) notepad))
-             (post-simplify-begin
-              (make-begin (reverse (cons exp (cdr exprs))))
-              notepad)))
-          ((and (call? test)
-                (variable? (call.proc test))
-                (eq? (variable.name (call.proc test)) 'NOT)
-                (integrable? 'NOT)
-                (= (length (call.args test)) 1))
-           (let ((temp (if.then exp)))
-             (if.then-set! exp (if.else exp))
-             (if.else-set! exp temp))
-           (loop (car (call.args test))))
-          (else (if.then-set! exp (simplify (if.then exp) notepad))
-                (if.else-set! exp (simplify (if.else exp) notepad))
-                exp))))
-
 (define (simplify-sequential exp notepad)
   (let ((exprs (map (lambda (exp) (simplify exp notepad))
                     (begin.exprs exp))))
@@ -316,15 +251,17 @@
                                (and entry
                                     (let ((predicates
                                            (constant-folding-predicates entry)))
-                                      (= (length args)
-                                         (length predicates))
-                                      (let loop ((args args)
-                                                 (predicates predicates))
-                                        (cond ((null? args) entry)
-                                              (((car predicates)
-                                                (constant.value (car args)))
-                                               (loop (cdr args) (cdr predicates)))
-                                              (else #f)))))))))
+                                      (and (= (length args)
+                                              (length predicates))
+                                           (let loop ((args args)
+                                                      (predicates predicates))
+                                             (cond ((null? args) entry)
+                                                   (((car predicates)
+                                                     (constant.value
+                                                      (car args)))
+                                                    (loop (cdr args)
+                                                          (cdr predicates)))
+                                                   (else #f))))))))))
                   (if entry
                       (make-constant (apply (constant-folding-folder entry)
                                             (map constant.value args)))
@@ -358,6 +295,25 @@
 ; -> ((lambda (I2 ...) (begin (define I1 L) D ...) (quote ...) E) ...)
 ;
 ; provided I1 is not assigned and each reference to I1 is in call position.
+;
+;    ((lambda (I1)
+;       (begin)
+;       (quote ((I1 ((begin I1)) () ())))
+;       (begin I1))
+;     E1)
+;
+; -> E1
+;
+;    ((lambda (I1)
+;       (begin)
+;       (quote ((I1 ((begin I1)) () ())))
+;       (if (begin I1) E2 E3))
+;     E1)
+;
+; -> (if E1 E2 E3)
+;
+; (Together with SIMPLIFY-CONDITIONAL, this cleans up the output of the OR
+; macro and enables certain control optimizations.)
 ;
 ;    ((lambda (I1 I2 ...)
 ;       (begin D ...)
@@ -457,8 +413,31 @@
     (let ((formals (reverse rev-formals))
           (actuals (reverse rev-actuals)))
       (lambda.args-set! proc formals)
-      (simplify-lambda proc notepad)
-      (loop2 formals actuals '() '() '())))
+      (if (and (not (null? formals))
+               (null? (cdr formals))
+               (let* ((x (car formals))
+                      (R (lambda.R proc))
+                      (refs (references R x)))
+                 (and (= 1 (length refs))
+                      (null? (assignments R x)))))
+          (let ((x (car formals))
+                (body (lambda.body proc)))
+            (cond ((and (variable? body)
+                        (eq? x (variable.name body)))
+                   (simplify (car actuals) notepad))
+                  ((and (conditional? body)
+                        (let ((B0 (if.test body)))
+                          (variable? B0)
+                          (eq? x (variable.name B0))))
+                   (if.test-set! body (car actuals))
+                   (simplify body notepad))
+                  (else
+                   (return1-finish formals actuals))))
+          (return1-finish formals actuals))))
+  
+  (define (return1-finish formals actuals)
+    (simplify-lambda proc notepad)
+    (loop2 formals actuals '() '() '()))
   
   ; Loop2 operates after simplification of the lambda body.
   

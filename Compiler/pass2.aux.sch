@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 5 April 1999.
+; 12 April 1999.
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
@@ -76,6 +76,8 @@
 (define (if.then-set! exp exp0) (set-car! (cddr exp) exp0))
 (define (if.else-set! exp exp0) (set-car! (cdddr exp) exp0))
 (define (begin.exprs-set! exp exprs) (set-cdr! exp exprs))
+
+(define expression-set! variable-set!)  ; used only by pass 3
 
 ; FIXME:  This duplicates information in Lib/procinfo.sch.
 

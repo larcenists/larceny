@@ -14,9 +14,11 @@
 
 (define *nbuild:twobit-files-1*
   (nbuild-files 'compiler
-		'("sets.sch" "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
-		  "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
-		  "expand.sch" "usual.sch" "copy.sch" "pass1.sch")))
+    '("sets.sch" "hash.sch" "hashtable.sch"
+      "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
+      "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
+      "expand.sch" "usual.sch" "copy.sch" "pass1.sch"
+      "pass3commoning.aux.sch")))
 
 (define *nbuild:sparc/twobit-files*
   (nbuild-files 'compiler
@@ -28,9 +30,12 @@
 
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler
-		'("pass2p1.sch" "pass2p2.sch"
-		  "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4p3.sch"
-		  "compile313.sch" "printlap.sch")))
+    '("pass2p1.sch" "pass2p2.sch" "pass2if.sch"
+      "pass3callgraph.sch" "pass3inlining.sch" "pass3folding.sch"
+      "pass3anormal.sch" "pass3anormal2.sch" "pass3commoning.sch"
+      "pass3.sch"
+      "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4p3.sch"
+      "compile313.sch" "printlap.sch")))
 
 (define *nbuild:common-asm-be*
   (nbuild-files 'common-asm

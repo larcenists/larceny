@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 5 April 1999
+; 12 April 1999
 
 ($$trace "expand")
 
@@ -467,15 +467,16 @@
                            (and entry
                                 (let ((predicates
                                        (constant-folding-predicates entry)))
-                                  (= (length args)
-                                     (length predicates))
-                                  (let loop ((args args)
-                                             (predicates predicates))
-                                    (cond ((null? args) entry)
-                                          (((car predicates)
-                                            (constant.value (car args)))
-                                           (loop (cdr args) (cdr predicates)))
-                                          (else #f)))))))))
+                                  (and (= (length args)
+                                          (length predicates))
+                                       (let loop ((args args)
+                                                  (predicates predicates))
+                                         (cond ((null? args) entry)
+                                               (((car predicates)
+                                                 (constant.value (car args)))
+                                                (loop (cdr args)
+                                                      (cdr predicates)))
+                                               (else #f))))))))))
               (if entry
                   (make-constant (apply (constant-folding-folder entry)
                                         (map constant.value args)))

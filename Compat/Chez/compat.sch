@@ -3,6 +3,8 @@
 ; $Id$
 ;
 ; Compatibility library for the new Twobit under Chez Scheme
+;
+; 12 April 1999
 
 (optimize-level 1)                      ; Full opt.; no inlining; safe.
 
@@ -117,6 +119,13 @@
 (define (compat:sort list less?)
   (sort less? list))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Well-defined character codes.
+; Returns the UCS-2 code for a character.
+
+(define compat:char->integer char->integer)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

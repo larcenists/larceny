@@ -144,11 +144,19 @@
 
 (define (emit-const->register! as cvlabel r)
   (let ((cvlabel (+ 4 (- (* cvlabel 4) $tag.vector-tag))))
-    (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
-    (if (hardware-mapped? r)
-	(sparc.ldi as $r.tmp0 cvlabel r)
-	(begin (sparc.ldi as $r.tmp0 cvlabel $r.tmp0)
-	       (emit-store-reg! as $r.tmp0 r)))))
+    (cond ((hardware-mapped? r)
+           (if (asm:fits? cvlabel 13)
+               (begin (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
+                      (sparc.ldi as $r.tmp0 cvlabel r))
+               (begin (sparc.ldi as $r.reg0 $p.constvector $r.tmp0)
+                      (sparc.sethi as `(hi ,val) $r.tmp1)
+                      (sparc.addr  as $r.tmp0 $r.tmp1 $r.tmp0)
+                      (sparc.ldi   as $r.tmp0 `(lo ,val) $r.tmp0))))
+          (else
+           (emit-const->register! as cvlabel $r.tmp0)
+           (emit-store-reg! as $r.tmp0 r)))))
+
+
 
 ; Emit single instruction to load sw-mapped reg into another reg, and return
 ; the destination reg.

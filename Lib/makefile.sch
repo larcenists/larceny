@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 12 April 1999
+;
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
 ; Procedures to call:
@@ -126,6 +128,8 @@
     "string"            ; string and bytevector procs
     "control"           ; control procedures
     "preds"             ; some predicates
+    "hash"              ; hash functions
+    "hashtable"         ; hashtables
     "oblist"            ; symbol table
     "mcode"             ; millicode support
     "memstats"          ; runtime stats

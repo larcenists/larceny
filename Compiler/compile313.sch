@@ -2,7 +2,7 @@
 ; 
 ; $Id$
 ;
-; 8 February 1999
+; 14 April 1999
 ;
 ; compile313 -- compilation parameters and driver procedures.
 
@@ -28,7 +28,8 @@
                                   *fasl-file-type*)))
           (user
            (assembly-user-data)))
-      (if (not (integrate-usual-procedures))
+      (if (and (not (integrate-usual-procedures))
+               (issue-warnings))
           (begin 
             (display "WARNING from compiler: ")
             (display "integrate-usual-procedures is turned off")
@@ -303,8 +304,8 @@
     (set-assembler-flags! 'no-optimization))
 
   (define (standard-code)
-    (set-compiler-flags! 'default)
-    (set-assembler-flags! 'default))
+    (set-compiler-flags! 'standard)
+    (set-assembler-flags! 'standard))
 
   (define (fast-safe-code)
     (set-compiler-flags! 'fast-safe)
@@ -315,25 +316,38 @@
     (set-assembler-flags! 'fast-unsafe))
 
   (cond ((null? rest)
-         (display-twobit-flags)
+         (display "Debugging:")
          (newline)
-         (display-assembler-flags)
-         (unspecified))
+         (display-twobit-flags 'debugging)
+         (display-assembler-flags 'debugging)
+         (newline)
+         (display "Safety:")
+         (newline)
+         (display-twobit-flags 'safety)
+         (display-assembler-flags 'safety)
+         (newline)
+         (display "Speed:")
+         (newline)
+         (display-twobit-flags 'optimization)
+         (display-assembler-flags 'optimization)
+         (if #f #f))
         ((null? (cdr rest))
          (case (car rest)
-           ((slow)             (slow-code))
-           ((standard)         (standard-code))
-           ((fast-safe)        (fast-safe-code))
-           ((fast-unsafe)      (fast-unsafe-code))
-           ((factory-settings) (fast-safe-code)
-                               (include-source-code #t)
-                               (benchmark-mode #f))
+           ((0 slow)             (slow-code))
+           ((1 standard)         (standard-code))
+           ((2 fast-safe)        (fast-safe-code))
+           ((3 fast-unsafe)      (fast-unsafe-code))
+           ((default
+             factory-settings)   (fast-safe-code)
+                                 (include-source-code #t)
+                                 (benchmark-mode #f)
+                                 (common-subexpression-elimination #f)
+                                 (representation-inference #f))
            (else 
             (error "Unrecognized flag " (car rest) " to compiler-switches.")))
          (unspecified))
         (else
          (error "Too many arguments to compiler-switches."))))
-
 
 ; Read and process one file, producing another.
 ; Preserves the global syntactic environment.

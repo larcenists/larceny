@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 12 December 1998 / wdc
+; 14 April 1999 / wdc
 
 ($$trace "pass1.aux")
 
@@ -144,36 +144,125 @@
 ; Since the procedures and their transformations are target-specific,
 ; they are defined in another file, in the Target subdirectory.
 
+; FIXME:
 ; I think this is now used in only one place, in simplify-if.
 
 (define (integrable? name)
   (and (integrate-usual-procedures)
        (prim-entry name)))
 
-; For testing.
-
 ; MAKE-READABLE strips the referencing information
 ; and replaces (begin I) by I.
+; If the optional argument is true, then it also reconstructs LET.
 
-(define (make-readable exp)
-  (case (car exp)
-    ((quote)    exp)
-    ((lambda)   `(lambda ,(lambda.args exp)
+(define (make-readable exp . rest)
+  (let ((fancy? (and (not (null? rest))
+                     (car rest))))
+    (define (make-readable exp)
+      (case (car exp)
+        ((quote)    (make-readable-quote exp))
+        ((lambda)   `(lambda ,(lambda.args exp)
+                             ,@(map (lambda (def)
+                                      `(define ,(def.lhs def)
+                                               ,(make-readable (def.rhs def))))
+                                    (lambda.defs exp))
+                               ,(make-readable (lambda.body exp))))
+        ((set!)     `(set! ,(assignment.lhs exp)
+                           ,(make-readable (assignment.rhs exp))))
+        ((if)       `(if ,(make-readable (if.test exp))
+                         ,(make-readable (if.then exp))
+                         ,(make-readable (if.else exp))))
+        ((begin)    (if (variable? exp)
+                        (variable.name exp)
+                        `(begin ,@(map make-readable (begin.exprs exp)))))
+        (else       (make-readable-call exp))))
+    (define (make-readable-quote exp)
+      (let ((x (constant.value exp)))
+        (if (and fancy?
+                 (or (boolean? x)
+                     (number? x)
+                     (char? x)
+                     (string? x)))
+            x
+            exp)))
+    (define (make-readable-call exp)
+      (let ((proc (call.proc exp)))
+        (if (and fancy?
+                 (lambda? proc)
+                 (list? (lambda.args proc)))
+            ;(make-readable-let* exp '() '() '())
+            (make-readable-let exp)
+            `(,(make-readable (call.proc exp))
+              ,@(map make-readable (call.args exp))))))
+    (define (make-readable-let exp)
+      (let* ((L (call.proc exp))
+             (formals (lambda.args L))
+             (args (map make-readable (call.args exp)))
+             (body (make-readable (lambda.body L))))
+        (if (and (null? (lambda.defs L))
+                 (= (length args) 1)
+                 (pair? body)
+                 (or (and (eq? (car body) 'let)
+                          (= (length (cadr body)) 1))
+                     (eq? (car body) 'let*)))
+            `(let* ((,(car formals) ,(car args))
+                    ,@(cadr body))
+                   ,@(cddr body))
+            `(let ,(map list
+                        (lambda.args L)
+                        args)
+                  ,@(map (lambda (def)
+                           `(define ,(def.lhs def)
+                                    ,(make-readable (def.rhs def))))
+                         (lambda.defs L))
+                    ,body))))
+    (define (make-readable-let* exp vars inits defs)
+      (if (and (null? defs)
+               (call? exp)
+               (lambda? (call.proc exp))
+               (= 1 (length (lambda.args (call.proc exp)))))
+          (let ((proc (call.proc exp))
+                (arg (car (call.args exp))))
+            (if (and (call? arg)
+                     (lambda? (call.proc arg))
+                     (= 1 (length (lambda.args (call.proc arg))))
+                     (null? (lambda.defs (call.proc arg))))
+                (make-readable-let*
+                 (make-call proc (list (lambda.body (call.proc arg))))
+                 (cons (car (lambda.args (call.proc arg))) vars)
+                 (cons (make-readable (car (call.args arg))) inits)
+                 '())
+                (make-readable-let* (lambda.body proc)
+                                    (cons (car (lambda.args proc)) vars)
+                                    (cons (make-readable (car (call.args exp)))
+                                          inits)
+                                    (map (lambda (def)
+                                           `(define ,(def.lhs def)
+                                                    ,(make-readable (def.rhs def))))
+                                         (reverse (lambda.defs proc))))))
+          (cond ((or (not (null? vars))
+                     (not (null? defs)))
+                 `(let* ,(map list
+                              (reverse vars)
+                              (reverse inits))
+                        ,@defs
+                         ,(make-readable exp)))
+                ((and (call? exp)
+                      (lambda? (call.proc exp)))
+                 (let ((proc (call.proc exp)))
+                   `(let ,(map list
+                               (lambda.args proc)
+                               (map make-readable (call.args exp)))
                          ,@(map (lambda (def)
                                   `(define ,(def.lhs def)
                                            ,(make-readable (def.rhs def))))
-                                (lambda.defs exp))
-                           ,(make-readable (lambda.body exp))))
-    ((set!)     `(set! ,(assignment.lhs exp)
-                       ,(make-readable (assignment.rhs exp))))
-    ((if)       `(if ,(make-readable (if.test exp))
-                     ,(make-readable (if.then exp))
-                     ,(make-readable (if.else exp))))
-    ((begin)    (if (variable? exp)
-                    (variable.name exp)
-                    `(begin ,@(map make-readable (begin.exprs exp)))))
-    (else       `(,(make-readable (call.proc exp))
-                  ,@(map make-readable (call.args exp))))))
+                                (lambda.defs proc))
+                          ,(make-readable (lambda.body proc)))))
+                (else
+                 (make-readable exp)))))
+    (make-readable exp)))
+
+; For testing.
 
 ; MAKE-UNREADABLE does the reverse.
 ; It assumes there are no internal definitions.

@@ -7,10 +7,28 @@
 (load "../Lib/test.sch")
 
 (define switches
-  (list ignore-space-leaks integrate-usual-procedures 
-        benchmark-mode benchmark-block-mode local-optimizations
-        global-optimizations representation-optimizations
-        lambda-optimizations parallel-assignment-optimization))
+  (list avoid-space-leaks
+        integrate-usual-procedures
+        control-optimization
+        parallel-assignment-optimization
+        lambda-optimization
+        benchmark-mode
+        benchmark-block-mode
+        ;global-optimization ; must be on for some of these tests
+        interprocedural-inlining
+        interprocedural-constant-propagation
+        common-subexpression-elimination
+        ;representation-inference ; not yet implemented
+        local-optimization
+        
+        ; Assembler switches
+        
+        ;peephole-optimization
+        ;inline-allocation
+        ;fill-delay-slots
+        ;runtime-safety-checking
+        ;catch-undefined-globals
+        ))
 
 (define files
   '("p2tests" "p4tests"))

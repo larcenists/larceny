@@ -316,37 +316,41 @@
   ; branch (which will always set the cache).
 
   (define (branch type bits annul)
-    (let ((bits (asm:logior (asm:lsh bits 25) (asm:lsh type 22) annul)))
+    ; The delay slot should be filled if this is an annulled branch
+    ; or an unconditional branch.
+    (let ((fill-delay-slot? (or (not (eq? annul zero))
+                                (eq? bits #b1000)))
+          (bits (asm:logior (asm:lsh bits 25) (asm:lsh type 22) annul)))
       (lambda (as target0)
-	(let ((target `(- ,target0 ,(here as))))
-
-	  (define (expr)
-	    (let ((e (eval-expr as target)))
-	      (cond ((not e)
-		     e)
-		    ((not (zero? (logand e 3)))
-		     (signal-error 'unaligned "branch" target0))
-		    ((asm:fits? e 24)
-		     e)
-		    (else
-		     (asm-value-too-large as "branch" target e)))))
-
-	  (define (fixup bv loc)
-	    (let ((e (expr)))
-	      (if e
-		  (dep-branch-offset! bv loc e)
-		  (signal-error 'fixup "branch" target0))))
-
-	  (if (not (eq? annul zero))
-	      (remember-branch-target as target0)
-	      (remember-branch-target as #f)) ; Clears the cache.
-	  (not-a-delay-slot-instruction as)
-	  (let ((bits (copy bits))
-		(e    (expr)))
-	    (if e
-		(dep-branch-offset! bits 0 e)
-		(emit-fixup-proc! as (lambda (b l) (fixup b l))))
-	    (emit! as bits))))))
+        (let ((target `(- ,target0 ,(here as))))
+          
+          (define (expr)
+            (let ((e (eval-expr as target)))
+              (cond ((not e)
+                     e)
+                    ((not (zero? (logand e 3)))
+                     (signal-error 'unaligned "branch" target0))
+                    ((asm:fits? e 24)
+                     e)
+                    (else
+                     (asm-value-too-large as "branch" target e)))))
+          
+          (define (fixup bv loc)
+            (let ((e (expr)))
+              (if e
+                  (dep-branch-offset! bv loc e)
+                  (signal-error 'fixup "branch" target0))))
+          
+          (if fill-delay-slot?
+              (remember-branch-target as target0)
+              (remember-branch-target as #f)) ; Clears the cache.
+          (not-a-delay-slot-instruction as)
+          (let ((bits (copy bits))
+                (e    (expr)))
+            (if e
+                (dep-branch-offset! bits 0 e)
+                (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+            (emit! as bits))))))
 
   ; Branch delay slot pseudo-instruction.
   ;
@@ -362,23 +366,23 @@
   (define (class-slot)
     (let ((nop-instr (class-nop #b100)))
       (lambda (as)
-
-	; The branch target is the expression denoting the target location.
-
-	(define branch-target (recover-branch-target as))
-
-	(define (fixup bv loc)
-	  (let ((bt (or (eval-expr as branch-target)
-			(asm-error "Branch fixup: can't happen: " 
-				   branch-target))))
-	    (if (is-a-delay-slot-instruction? as bv bt)
-		(begin
-		  (copy-instr bv bt loc)
-		  (add1 bv (- loc 4))))))
-
-	(if (and branch-target (fill-delay-slots))
-	    (emit-fixup-proc! as (lambda (b l) (fixup b l))))
-	(nop-instr as))))
+        
+        ; The branch target is the expression denoting the target location.
+        
+        (define branch-target (recover-branch-target as))
+        
+        (define (fixup bv loc)
+          (let ((bt (or (eval-expr as branch-target)
+                        (asm-error "Branch fixup: can't happen: " 
+                                   branch-target))))
+            (if (is-a-delay-slot-instruction? as bv bt)
+                (begin
+                 (copy-instr bv bt loc)
+                 (add1 bv (- loc 4))))))
+        
+        (if (and branch-target (fill-delay-slots))
+            (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+        (nop-instr as))))
 
   ; ALU stuff, register operand, rdy, wryr. Also: jump.
 
@@ -542,27 +546,27 @@
 	  (emit! as bits)))))
 
   (set! sparc-instruction
-	(lambda (kwd . ops)
-	  (case kwd
-	    ((i11)   (apply class11i ops))
-	    ((r11)   (apply class11r ops))
-	    ((si11)  (apply class11si ops))
-	    ((sr11)  (apply class11sr ops))
-	    ((sethi) (apply class-sethi ops))
-	    ((r10)   (apply class10r ops))
-	    ((i10)   (apply class10i ops))
-	    ((b00)   (apply class00b ops))
-	    ((a00)   (apply class00a ops))
-	    ((call)  (apply class-call ops))
-	    ((label) (apply class-label ops))
-	    ((nop)   (apply class-nop ops))
-	    ((slot)  (apply class-slot ops))
-	    ((fb00)  (apply classf00b ops))
-	    ((fa00)  (apply classf00a ops))
-	    ((fp)    (apply class-fpop1 ops))
-	    ((fpcc)  (apply class-fpop2 ops))
-	    (else
-	     (asm-error "sparc-instruction: unrecognized class: " kwd)))))
+        (lambda (kwd . ops)
+          (case kwd
+            ((i11)   (apply class11i ops))
+            ((r11)   (apply class11r ops))
+            ((si11)  (apply class11si ops))
+            ((sr11)  (apply class11sr ops))
+            ((sethi) (apply class-sethi ops))
+            ((r10)   (apply class10r ops))
+            ((i10)   (apply class10i ops))
+            ((b00)   (apply class00b ops))
+            ((a00)   (apply class00a ops))
+            ((call)  (apply class-call ops))
+            ((label) (apply class-label ops))
+            ((nop)   (apply class-nop ops))
+            ((slot)  (apply class-slot ops))
+            ((fb00)  (apply classf00b ops))
+            ((fa00)  (apply classf00a ops))
+            ((fp)    (apply class-fpop1 ops))
+            ((fpcc)  (apply class-fpop2 ops))
+            (else
+             (asm-error "sparc-instruction: unrecognized class: " kwd)))))
   'sparc-instruction)
 
 ; Instruction mnemonics

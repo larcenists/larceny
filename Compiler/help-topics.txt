@@ -10,7 +10,7 @@
 ;   <text> ::= ((<selector> ...) <string>)
 ;   <selector> ::= brief | full
 ;
-; 22 january 1999
+; 12 April 1999
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
@@ -39,52 +39,60 @@
 "  compiler-switches  Info about a slew of compiler switches."
 ((brief full)
 "
-There are a number of compiler and assembler switches.  The
-command (compiler-switches) lists all switches and their current
-settings.  The switches are:
+The command (compiler-switches) lists the current settings of all compiler
+and assembler switches.  These switches are:
 
-Compilation switches:
-  integrate-usual-procedures Generate in-line code for primitives.
-  local-optimizations        Suppress redundant instructions.
-  lambda-optimizations       Suppress closures for known local procedures.
-  parallel-assignment-optimization    Choose a good order of evaluation.
-  benchmark-mode             Assume that self-recursive global procedures
-                             will not be redefined.
-  benchmark-block-mode       Assume variables will not be assigned outside
-                             of the file in which they are defined.
-  issue-warnings             Print warning messages.
-
-Documentation switches:
+Debugging:
+  issue-warnings             Display warning messages.
   include-procedure-names    Compiled code will contain the procedure name.
   include-variable-names     Compiled code will contain variable names.
   include-source-code        Compiled code will contain source code.
+  single-stepping            Insert singlestepping support code.
 
-Assembler switches:
-  peephole-optimization      Perform peephole optimization.
-  catch-undefined-globals    Check references to global variables.
-  inline-allocation          Generate in-line code for some allocation.
+Safety:
+  avoid-space-leaks          Generate code to clear stale registers.
   write-barrier              Generate code for generational GC.
-  unsafe-code                Turn off type checking for many primitives.
+  runtime-safety-checking    Check for illegal arguments and other errors.
+    catch-undefined-globals  Check references to global variables.
 
-The command (compiler-switches <flag>) sets groups of switches depending
-on the value of the symbol <flag>.  The flags are:
-  slow                  Turn off all optimizations.
-  standard              Enable all semantics-preserving optimizations.
-  fast-safe             Enable all optimizations but generate code to
-                        do full type and range checking.
-  fast-unsafe           Enable all optimizations and disable type and
-                        range checking.
-  factory-settings      Set switches to their default settings.
+Speed:
+  integrate-usual-procedures Generate in-line code for primitive procedures.
+  control-optimization       Improve code for IF, AND, OR, COND, CASE.
+  parallel-assignment-optimization    Choose a good order of evaluation.
+  lambda-optimization        Improve code for known local procedures.
+  benchmark-mode             Assume that self-recursive global procedures
+                             will not be redefined.
+  benchmark-block-mode       Assume that variables will not be assigned
+                             outside of the file in which they are defined.
+  global-optimization        Perform a flow analysis to support:
+    interprocedural-inlining                of small known local procedures.
+    interprocedural-constant-propagation    and constant folding.
+    common-subexpression-elimination        of redundant expressions.
+    representation-inference                to suppress redundant checking.
+  local-optimization         Eliminate branches to branches and locally
+                             redundant machine instructions.
+  peephole-optimization      Improve common sequences of machine code.
+  fill-delay-slots           Fill SPARC branch delay slots.
+  inline-allocation          Generate in-line code for CONS, et cetera.
 ")
 ((full)
 "
 Internal (development) switches:
   listify?                   Produce listing of MAL code.  (NOTE: a variable)
-  single-stepping            Insert singlestepping support code.
-  fill-delay-slots           Fill SPARC branch delay slots.
 ")
 ((brief full)
 "
+The command (compiler-switches <flag>) sets groups of switches depending
+on the value of the symbol <flag>.  The flags are:
+  slow          Turn off all optimizations.
+  standard      Enable all semantics-preserving optimizations.
+  fast-safe     Enable all optimizations (except benchmark-block-mode)
+                but generate code to perform all run-time type and range
+                checks that are needed for safety.
+  fast-unsafe   Enable all optimizations (except benchmark-block-mode)
+                and disable type and range checking.
+  default       Set switches to their default (factory) settings.
+
 All switches can be set to #t to enable the effect explained above, or to
 #f to disable the effect.  If the switch is a variable, its value can be 
 set by an assignment.  If the switch is a procedure, it can be set by

@@ -4,6 +4,8 @@
 ;
 ; Larceny -- second part of compatibility code
 ; This file ought to be compiled, but doesn't have to be.
+;
+; 12 April 1999
 
 (define host-system 'larceny)		; Don't remove this!
 
@@ -13,6 +15,13 @@
 
 (define compat:sort (lambda (list less?) (sort list less?)))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Well-defined character codes.
+; Returns the UCS-2 code for a character.
+
+(define compat:char->integer char->integer)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

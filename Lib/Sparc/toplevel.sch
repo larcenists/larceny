@@ -87,6 +87,22 @@
     (environment-set! larc 'some? some?)
     (environment-set! larc 'every? every?)
 
+    ;; hash functions and hashtables
+    ;; not in R4RS:
+    (environment-set! larc 'object-hash object-hash)
+    (environment-set! larc 'equal-hash equal-hash)
+    (environment-set! larc 'make-hashtable make-hashtable)
+    (environment-set! larc 'hashtable-contains? hashtable-contains?)
+    (environment-set! larc 'hashtable-fetch hashtable-fetch)
+    (environment-set! larc 'hashtable-get hashtable-get)
+    (environment-set! larc 'hashtable-put! hashtable-put!)
+    (environment-set! larc 'hashtable-remove! hashtable-put!)
+    (environment-set! larc 'hashtable-clear! hashtable-clear!)
+    (environment-set! larc 'hashtable-size hashtable-size)
+    (environment-set! larc 'hashtable-for-each hashtable-for-each)
+    (environment-set! larc 'hashtable-map hashtable-map)
+    (environment-set! larc 'hashtable-copy hashtable-copy)
+
     ;; symbols
 
     (environment-set! r4rs 'symbol? symbol?)

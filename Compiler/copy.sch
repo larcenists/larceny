@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 2 April 1999
 ;
 ; Given an expression in the subset of Scheme used as an intermediate language
 ; by Twobit, returns a newly allocated copy of the expression in which the
@@ -11,6 +11,8 @@
 
 (define (copy-exp exp)
   
+  (define special-names (cons name:IGNORED argument-registers))
+  
   (define original-names '())
   
   (define renaming-counter 0)
@@ -18,15 +20,22 @@
   (define (rename-vars vars)
     (let ((rename (make-rename-procedure)))
       (map (lambda (var)
-             (if (memq var original-names)
-                 (rename var)
-                 (begin (set! original-names (cons var original-names))
-                        var)))
+             (cond ((memq var special-names)
+                    var)
+                   ((memq var original-names)
+                    (rename var))
+                   (else
+                    (set! original-names (cons var original-names))
+                    var)))
            vars)))
   
   (define (rename-formals formals newnames)
     (cond ((null? formals) '())
           ((symbol? formals) (car newnames))
+          ((memq (car formals) special-names)
+           (cons (car formals)
+                 (rename-formals (cdr formals)
+                                 (cdr newnames))))
           (else (cons (car newnames)
                       (rename-formals (cdr formals)
                                       (cdr newnames))))))

@@ -2,13 +2,14 @@
 ;
 ; $Id$
 ;
-;  5 April 1999.
+; 13 April 1999.
 
 ; Procedure calls.
 
 (define (cg-call output exp target regs frame env tail?)
   (let ((proc (call.proc exp)))
-    (cond ((lambda? proc)
+    (cond ((and (lambda? proc)
+                (list? (lambda.args proc)))
            (cg-let output exp target regs frame env tail?))
           ((not (variable? proc))
            (cg-unknown-call output exp target regs frame env tail?))
@@ -54,13 +55,27 @@
   (let* ((proc (call.proc exp))
          (v (car (lambda.args proc)))
          (arg (car (call.args exp))))
-    (let ((r (if (assq v *regnames*)
-                 (cdr (assq v *regnames*))
-                 (choose-register regs frame))))
+    
+    (define (evaluate-into-register r)
       (cg0 output arg r regs frame env #f)
       (cgreg-bind! regs r v)
       (gen-store! output frame r v))
-    (cg-let-body output proc target regs frame env tail?)))
+    
+    (define (evaluate-normally)
+      (evaluate-into-register (choose-register regs frame))
+      (cg-let-body output proc target regs frame env tail?))
+    
+    (cond ((assq v *regnames*)
+           (evaluate-into-register (cdr (assq v *regnames*)))
+           (cg-let-body output proc target regs frame env tail?))
+          
+          ((not (memq v (lambda.F proc)))
+           (cg0 output arg #f regs frame env #f)
+           (cg-let-body output proc target regs frame env tail?))
+          
+          (else
+           (evaluate-into-register (choose-register regs frame))
+           (cg-let-body output proc target regs frame env tail?)))))
 
 (define (cg-let-body output L target regs frame env tail?)
   (let ((vars (lambda.args L))

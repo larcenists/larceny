@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 19 December 1998
+; 12 April 1999
 
 ; Implements the following abstract data types.
 ;
@@ -654,11 +654,11 @@
 
 (define compile
   (lambda (x)
-    (pass4 (pass2 (pass1 x)) $usual-integrable-procedures$)))
+    (pass4 (pass3 (pass2 (pass1 x))) $usual-integrable-procedures$)))
 
 (define compile-block
   (lambda (x)
-    (pass4 (pass2 (pass1-block x)) $usual-integrable-procedures$)))
+    (pass4 (pass3 (pass2 (pass1-block x))) $usual-integrable-procedures$)))
 
 ; For testing.
 
