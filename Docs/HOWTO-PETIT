@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-3 July 2004 / lth
+1 August 2004 / lth
 
 
 HOW TO BUILD PETIT LARCENY AND USE THE BUILD ENVIRONMENT
@@ -28,9 +28,9 @@ Then start your host Scheme system, change your working directory to
 be the Larceny source directory if necessary, and load the appropriate
 configuration file for your operating system, currently one of:
 
-    Util/petit-win32.sch
-    Util/petit-unix-be.sch
-    Util/petit-unix-el.sch
+    Util/petit-unix-be.sch         (Big-endian Unix, including MacOS X)
+    Util/petit-unix-el.sch         (Little-endian Unix, including Cygwin)
+    Util/petit-win32.sch           (Microsoft Windows)
 
 These programs sometimes invoke external programs and may place
 additional demands on your host system.  Currently all systems need
@@ -101,7 +101,7 @@ creates an executable "twobit" (or "twobit.exe") that contains the
 code for Twobit, as well as FASL files for all these files.
 
 If you build Twobit using BUILD-TWOBIT, and then start "twobit" and
-follow the directions above (loading "Util/petit-macosx.sch", say, and
+follow the directions above (loading "Util/petit-unix-el.sch", say, and
 then running LOAD-COMPILER), you will have a development environment
 with a compiled compiler, suitable mainly for compiler development.
 
