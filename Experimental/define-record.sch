@@ -27,8 +27,6 @@
 ;  - allow use of the record printer feature
 ;  - define let-record or find another solution for internal records
 
-'(require 'record)                      ; record package
-
 (define-syntax define-record
   (transformer
    (lambda (exp rename compare)
