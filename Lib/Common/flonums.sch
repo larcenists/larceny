@@ -181,7 +181,9 @@
       (define (odd? x)
 	(cond ((fixnum? x) (zero? (logand x 1)))
 	      ((bignum? x) (zero? (logand (bignum-ref x 0) 1)))
-	      (else ???)))
+	      (else 
+	       (error "Impossible case in bignum->flonum: " x)
+	       #t)))
 	    
       ; Divide m by 2 until it is less than the limit, setting the sticky
       ; bit if a 1 bit is lost in the process. Return the new m.

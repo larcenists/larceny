@@ -263,7 +263,8 @@
 		    (+ unix:open-write unix:open-create unix:open-trunc)
 		    unix:create-mode))
 	(else
-	 ???open-file)))
+	 (error "sys$open-file: " mode " is not a valid file mode.")
+	 #t)))
 
 (define sys$get-resource-usage unix:get-resource-usage)
 

@@ -29,6 +29,8 @@
     ((io/read-char) io/read-char)
     ((syscall) syscall)
     ((iflush) sys$codevector-iflush)
-    (else ???)))
+    (else 
+     (error "system-function: " name " is not a function I know about.")
+     #t)))
 
 ; eof

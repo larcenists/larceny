@@ -64,7 +64,9 @@
     (define ten^216  0)
     
     (define (ten-to-e e)
-      (cond ((< e -432) ???bellerophon1)
+      (cond ((< e -432) 
+	     (error "Impossible case 1 in bellerophon: " e)
+	     #t)
             ((< e -216)
              (extended-multiply ten^-216
                                 (extended-multiply ten^-216
@@ -86,7 +88,9 @@
              (extended-multiply ten^108 (ten-to-e (- e 108))))
             ((<= e 324)
              (extended-multiply ten^216 (ten-to-e (- e 216))))
-            (else ???bellerophon2)))
+            (else 
+	     (error "Impossible case 2 in bellerophon: " e)
+	     #t)))
     
     ; These slop factors assume that f can be represented exactly
     ; as an extended precision number, so the slop factor is exactly
