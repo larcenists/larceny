@@ -37,9 +37,6 @@ Miscellaneous
  * Need to rename some files:
      Util/std-heap.sch    ->   Util/larceny-heap.sch
      Util/init-comp.sch   ->   Util/larceny-heap-init.sch
-     Eval                 ->   Interpreter
-     Eval/eval.sch        ->   Interpreter/interp.sch
-     Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
  * From Will:
      >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
      >constants, accessors, and setters for the documentation slot.
@@ -63,6 +60,7 @@ Miscellaneous
    addition to version, eg, PETIT-BE, PETIT-EL, SPARC-NATIVE, ..., and
    should also encode the control transfer method used for Petit Larceny
    -- libpetit.so needs to be built with the appropriate #define.
+   The first word of the image needs to be in a fixed endianness.
 
 Development system & compiler
  * Make-development-environment does not compile the .imp.sch file
@@ -109,18 +107,21 @@ Build system:
 
    One can _always_ hack Rts/Sys/config.h.
 
- * Setup mechanism: Right now we have "make setup" (some places) and
-   "make setup_<HOST>" other places.  It's a mess.  In the same way that
-   the configuration system is being restructured to not allow rebuilding
-   for a different architecture without re-configuration, it would make
-   sense for setup to hardwire a lot more things than it hardwires
-   right now.  This is particularly so because it makes things easier
-   overall.  Thus we should not run "make setup" but rather, on Unix
-   systems,  
+ * Setup mechanism: Right now we have "make setup_<HOST>".  In the same
+   way that the configuration system is being restructured to not allow
+   rebuilding for a different architecture without re-configuration, it 
+   would make sense for setup to hardwire a lot more things than it 
+   hardwires right now.  This is particularly so because it makes things 
+   easier overall.  Thus we should not run "make setup" but rather, on 
+   Unix systems,  
 
       build -setup target=sparc os=sunos4 host=larceny
       build -setup target=ppc   os=... host=...
       build -setup target=petit-el-32 os=... host=...
+
+ * Right now there is one set of config files in Rts/, but this set 
+   depends on the target architecture, so we need to fix that when we
+   have more target architectures.
 
 Twobit
   * Clean up mess around primitives that are rewritten by compiler
@@ -250,7 +251,7 @@ Assembler performance (general and SPARC)
   * [SPARC] The searching of the not-dsi slot of the assembler-value list 
     may be expensive, especially during block compilation.  This can be 
     fixed with a bit vector, I think, and should be, especially since 
-    most of the searches in the list will fail.
+    most of the searches in the list will fail.  (Or use hash table)
 
 SPARC Assembler
   * More singlestepping fixes:
@@ -390,7 +391,9 @@ Debugging
   * A more generalized object inspector (a la what Chez Scheme has).
   * Single-stepping, especially in interpreted code.
 
-Library
+Library / primitives
+  * make enable-interrupts, disable-interrupts sane.
+  * I/O system is not thread safe.
   * Top-level environments must also hold syntax definitions.
   * Move Experimental functionality to Auxlib
      - records (requires cleaning up and documenting records).
@@ -447,7 +450,14 @@ Library
   * Bignums
     - speedup
     - decent test suite
-    - remove dependencies on bigit size and endianness
+    - remove dependencies on bigit size 
+    - abandon the bogus bignum-truncate-length!; see comments in bignum code.
+  * Flonums
+    - Names like flonum:infinity are being defined and used all
+      over the place.  Better to have one copy of these that everyone can
+      reference?
+    - it's called make-flonum but float-sign, etc: this inconsistency
+      is common.  Better to fix it once and for all?
   * Speed up make-compnum (see comments in Lib/flonums.sch).
   * Compnum->string (in num2str.sch) can be made to handle other radices
     than 10 (see comments in Lib/num2str.sch).
