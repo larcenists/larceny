@@ -66,16 +66,17 @@
 (define pass1-block-assignments '())
 (define pass1-block-inlines '())
 
-; pass1 and pass1-block take a syntax environment.
+; pass1 and pass1-block take a syntax environment and an optional inline
+; environment, which is just a second (but immutable) syntax environment.
 
-(define (pass1 def-or-exp syntaxenv)
+(define (pass1 def-or-exp syntaxenv . rest)
   (set! source-file-name #f)
   (set! source-file-position #f)
   (set! pass1-block-compiling? #f)
   (set! pass1-block-assignments '())
   (set! pass1-block-inlines '())
   (set! renaming-counter 0)
-  (macro-expand def-or-exp syntaxenv))
+  (apply macro-expand def-or-exp syntaxenv rest))
 
 ; Compiles a whole sequence of top-level forms on the assumption
 ; that no variable that is defined by a form in the sequence is
@@ -96,7 +97,7 @@
 
 ; FIXME: Need to turn off warning messages.
 
-(define (pass1-block forms syntaxenv)
+(define (pass1-block forms syntaxenv . rest)
   
   (define (part1)
     (set! pass1-block-compiling? #t)
