@@ -2,13 +2,24 @@
 ;
 ; $Id$
 ;
-; Load script for twobit with SPARC assembler.
+; Load script for twobit with SPARC assembler, Unix.
 
-(load "Util/sysdep-unix.sch")
+; Only place in the system where the absolute path is needed.
 
-(load (make-relative-filename "Util" "nbuild-param-sparc.sch"))
-(load (make-relative-filename "Compat" "Larceny" "compat.sch"))
+(define *root-directory* "")                               ; Unix
+(define *sysdep-file* 
+  (string-append *root-directory* "Util/sysdep-unix.sch")) ; Unix
+
+; It should not be necessary to modify any of these.
+
+(load *sysdep-file*)
+
+(load (pathname-append *root-directory* "Util" "nbuild-param-sparc.sch"))
+(define nbuild-parameter
+  (make-nbuild-parameter *root-directory* #f #f "Larceny" "Larceny"))
+
+(load (pathname-append *root-directory* "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
-(load (make-relative-filename "Util" "nbuild.sch"))
+(load (pathname-append *root-directory* "Util" "nbuild.sch"))
 
 ; eof
