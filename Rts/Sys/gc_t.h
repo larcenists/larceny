@@ -86,25 +86,10 @@ struct gc {
        allocated following the collection.
        */
 
-  void (*collect_old_with_selective_fromspace)( gc_t *gc, int *fromspaces );
-    /* Takes an array of generation numbers to consider as part of fromspace
-       during the collection, and promotes these into oldspace (or collects 
-       oldspace, promoting them in the process).  
-     
-       There is a write barrier during GC: any promoted object that points to
-       any area not in fromspace must be added to the dynamic area's remembered
-       set.
-     
-       NOTE.  This is an abstraction-breaking hack used by the DOF collector
-       because the GC protocol is not suited to its use.  FIXME.
-       */
-
-  void (*rotate_areas_down)( gc_t *gc, int lo_gen, int hi_gen, int places );
-    /* Rotate areas in range down: low become high, others are shifted "down". 
-       This sets page attributes and makes sure that all cached data are 
-       modified to reflect changes.
-       
-       Only non-nursery ephemeral areas can be rotated.
+  void (*permute_remembered_sets)( gc_t *gc, int permutation[] );
+    /* Permute the remembered sets and pertinent remembered-set system
+       data according to `permutation', where permutation[i] = j means
+       that remembered-set i becomes remembered-set j.
        */
 
   void (*set_policy)( gc_t *gc, int heap, int x, int y );
@@ -207,10 +192,8 @@ struct gc {
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
-#define gc_collect_old_with_selective_fromspace( gc, f ) \
-  ((gc)->collect_old_with_selective_fromspace( gc, f ))
-#define gc_rotate_areas_down( gc, l, h, n ) \
-  ((gc)->rotate_areas_down( gc, l, h, n ))
+#define gc_permute_remembered_sets( gc, p ) \
+  ((gc)->permute_remembered_sets( (gc), (p) ))
 #define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
@@ -222,9 +205,8 @@ gc_t
 	     int  (*initialize)( gc_t *gc ),
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
-	     void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t req ),
-	     void (*collect_old_with_selective_fromspace)( gc_t *gc, int *fromspaces ),
-	     void (*rotate_areas_down)( gc_t *gc, int lo, int hi, int places ),
+	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
+	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),

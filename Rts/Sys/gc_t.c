@@ -14,9 +14,8 @@ gc_t
 	     int  (*initialize)( gc_t *gc ),
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
-	     void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t req ),
-	     void (*collect_old_with_selective_fromspace)( gc_t *gc, int *fromspaces ),
-	     void (*rotate_areas_down)( gc_t *gc, int lo, int hi, int places ),
+	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
+	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),
@@ -66,8 +65,7 @@ gc_t
   gc->allocate = allocate;
   gc->allocate_nonmoving = allocate_nonmoving;
   gc->collect = collect;
-  gc->collect_old_with_selective_fromspace = collect_old_with_selective_fromspace;
-  gc->rotate_areas_down = rotate_areas_down;
+  gc->permute_remembered_sets = permute_remembered_sets;
   gc->set_policy = set_policy;
   gc->data_load_area = data_load_area;
   gc->text_load_area = text_load_area;
