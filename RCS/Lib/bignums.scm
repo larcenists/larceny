@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.3 91/08/07 20:30:16 lth Exp Locker: lth $
+; $Id: bignums.scm,v 1.4 91/08/07 22:02:59 lth Exp Locker: lth $
 ;
 ; This file has four sections:
 ;
@@ -116,40 +116,43 @@
 (define negative-sign 1)                       ; the sign of a negative bignum
 (define positive-sign 0)                       ; ditto of a positive one
 (define bignum-digits-in-a-fixnum 2)
-(define max-bignum-digits (* 65535 2))         ; a lot of digits
+(define max-bignum-bytes (* 65535 4))         ; a lot of digits
 
 ; The compiler had better make these into bignums! Debugging versions are
 ; at the end of the file.
+
 (define smallest-positive-bignum (expt 2 30))
 (define largest-negative-bignum (- (+ (expt 2 30) 1)))
 
 
-
 ; `Bignum-ref' does zero-based referencing of a bignum structure, returning
 ; a 16-bit digit (adjusted to be a fixnum) from the bignum. 
-; This procedure goes away when `big+' etc. are recognized by the compiler.
-; Ditto for `bignum-set!'.
 
 (define (bignum-ref a i)
   (let ((base (+ (* i 2) (if (odd? i) 2 6))))
     (+ (* byte-base (bytevector-ref a base))
        (bytevector-ref a (+ base 1)))))
 
+
+; Ditto for `bignum-set!'.
+
 (define (bignum-set! a i v)
   (let ((base (+ (* i 2) (if (odd? i) 2 6))))
     (bytevector-set! a base (quotient v byte-base))
     (bytevector-set! a (+ base 1) (remainder v byte-base))))
 
+
 ; Allocate a bignum given the count of 16-bit digits.
 
 (define (bignum-alloc digits)
   (let ((l (roundup4 (* digits 2))))
-    (if (> l max-bignum-digits)
+    (if (> l max-bignum-bytes)
 	(error 'generic-arithmetic "Bignum too large.")
 	(let ((v (make-bytevector (+ l 4) 0)))
           (bytevector-tag-set! v 'bignum)
 	  (bignum-length-set! v (quotient l 2))
 	  v))))
+
 
 ; Return the number of 16-bit digits. We check if the high 16-bit digit of
 ; the high 32-bit digit is 0 (which it may validly be) and return length-1
@@ -163,10 +166,11 @@
 	(- l 1)
 	l)))
 
+
 ; Set the number of 16-bit digits. The number is converted to 32-bit digits,
 ; which may involve adding a 0 digit at the high end; see comments above.
 ;
-; l is the number of 16-bit digits. To get the number of 32-bit digits,
+; `l' is the number of 16-bit digits. To get the number of 32-bit digits,
 ; we must round up to an even number, then divide by 2. This is equivalent
 ; to adding 1 and dividing by 2.
 
@@ -175,15 +179,18 @@
     (bytevector-set! b 2 (quotient l byte-base))
     (bytevector-set! b 3 (remainder l byte-base))))
 
+
 ; Get the sign.
 
 (define (bignum-sign b)
   (bytevector-ref b 1))
 
+
 ; Set the sign.
 
 (define (bignum-sign-set! b s)
   (bytevector-set! b 1 s))
+
 
 ; Copy.
 
@@ -219,12 +226,14 @@
     (bignum-set! c i (remainder r bignum-base))
     (quotient r bignum-base)))
 
+
 ; Special case: carry propagation.
 
 (define (big1+ a c i carry)
   (let ((r (+ (bignum-ref a i) carry)))
     (bignum-set! c i (remainder r bignum-base))
     (quotient r bignum-base)))
+
 
 ; SUBTRACTION
 
@@ -236,12 +245,14 @@
     (bignum-set! c i (remainder (+ r bignum-base) bignum-base))
     (if (negative? r) 1 0)))
 
+
 ; Special case: borrow propagation.
 
 (define (big1- a c i borrow)
   (let ((r (- (bignum-ref a i) borrow)))
     (bignum-set! c i (remainder (+ r bignum-base) bignum-base))
     (if (negative? r) 1 0)))
+
 
 ; MULTIPLICATION
 
@@ -262,6 +273,26 @@
 	      carry)))
     (bignum-set! c (+ i j) (remainder r bignum-base))
     (quotient r bignum-base)))
+
+; This is potentially faster, but "machine-dependent"; for benchmarking only.
+; It should pay off if procedure calls are expensive.
+;
+; (define (big2*+ a b c i j carry)
+;   (let ((i+j (+ i j)))
+;     (let ((base1 (+ (* i 2) (if (odd? i) 2 6)))
+; 	  (base2 (+ (* j 2) (if (odd? j) 2 6)))
+; 	  (base3 (+ (* i+j 2) (if (odd? i+j) 2 6))))
+;       (let ((adigit (+ (* byte-base (bytevector-ref a base1))
+; 		       (bytevector-ref a (+ base1 1))))
+; 	    (bdigit (+ (* byte-base (bytevector-ref b base2))
+; 		       (bytevector-ref b (+ base2 1))))
+; 	    (cdigit (+ (* byte-base (bytevector-ref c base3))
+; 		       (bytevector-ref c (+ base3 1)))))
+; 	(let ((r (+ (* adigit bdigit) cdigit carry)))
+; 	  (let ((r (remainder r bignum-base)))
+; 	    (bytevector-set! c base3 (quotient r byte-base))
+; 	    (bytevector-set! c (+ base3 1) (remainder r byte-base)))
+; 	  (quotient r bignum-base))))))
 
 
 ; DIVISION
@@ -326,6 +357,7 @@
 	  (else
 	   '()))))
 
+; Mutliply through by a fixnum.
 ; Must normalize here, since division algorithm depends on the high digit
 ; being non-zero (take it from someone who knows...)
 ; Also, it is not safe to use the standard normalizer, because the number
@@ -341,6 +373,7 @@
 	    (loop (+ i 1) (quotient r bignum-base)))
 	  (begin (bignum-set! q i carry)
 		 (big-limited-normalize! q))))))
+
 
 ; copy bignum with an extra 0 as the most significant digit.
 
@@ -746,3 +779,4 @@
 
 (set! smallest-positive-bignum (integer->bytevector smallest-positive-bignum))
 (set! largest-negative-bignum (integer->bytevector largest-negative-bignum))
+
