@@ -850,6 +850,23 @@ HIGH PRIORITY BUGS: none.
     distinguished primitive table, in the same way that it does not have a
     distinguished macro environment (known bug).
 
+    Comment 2000-09-21 / lth
+
+    This is somewhat deep.  The "right way" here would might be
+    to restrict the primitives for a compilation based on which top-level
+    environment is in use.  Currently we don't do that, and it seems
+    really complicated to do it, maybe even unnecessary.  The right
+    way to do the above is
+
+	(parameterize ((integrate-procedures 'none))
+          (eval '(car '(1 2)) (null-environment 5)))
+
+    which restricts both the top-level bindings available as well as
+    the primitives available.  Crufty, sure, but would it really be
+    better if this were an implicit fact of passing null-environment
+    to EVAL?  Not sure...
+
+
 NEXT ENTRY: 163
 
 ; eof
