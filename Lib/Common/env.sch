@@ -43,6 +43,7 @@
 
 ; Environments are represented as vectors with a magic tag.
 ; FIXME: an environment should be a record (or structure).
+; FIXME: use the new hash-tables here.
 
 (define (make-environment name parent . rest)
   (let ((size (if (null? rest) 10 (car rest))))
