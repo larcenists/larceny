@@ -27,14 +27,18 @@
                 il-ops-special
                 (twobit-format #f "op~a_~a" argc (csharp-op-name opcode))
                 (let loop ((argc argc))
-                  (if (zero? argc) '() (cons iltype-schemeobject (loop (- argc 1))))))
+                  (if (zero? argc) 
+                      '()
+                      (cons iltype-schemeobject (loop (- argc 1))))))
        (il:recache-result))
       (il:call '() 
                iltype-schemeobject
                il-ops
                (twobit-format #f "op~a_~a" argc (csharp-op-name opcode))
                (let loop ((argc argc))
-                 (if (zero? argc) '() (cons iltype-schemeobject (loop (- argc 1))))))))
+                 (if (zero? argc)
+                     '()
+                     (cons iltype-schemeobject (loop (- argc 1))))))))
 
 ;; opX : assembler (opcode -> boolean) symbol instruction thunk -> void
 ;; If there is a special implementation defined in the operations-table, 

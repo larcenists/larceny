@@ -5,6 +5,84 @@
 ;; NOTES
 ;; Uses syntax defined in il-gen, thus order of loading is important
 
+;; The following procedures are overridden from Twobit/Common/pass5p1:
+;;   assemble-pasteup
+;;   assemble-finalize!
+;;   assembly-start
+;;   assembly-end
+;;   assembly-user-data
+
+; An assembly structure is a vector consisting of
+;
+;    table          (a table of assembly routines)
+;    source         (a list of symbolic instructions)
+;    lc             (location counter; an integer)
+;    code           (a list of bytevectors)
+;    constants      (a list)
+;    labels         (an alist of labels and values)
+;    fixups         (an alist of locations, sizes, and labels or fixnums)
+;    nested         (a list of assembly procedures for nested lambdas)
+;    values         (an assoc list)
+;    parent         (an assembly structure or #f)
+;    retry          (a thunk or #f)
+;    user-data      (anything)
+
+;; assemble-pasteup : assembler -> (cons code constants)
+;; Forces all il:delay ilpackages in the instruction stream
+(define (assemble-pasteup as)
+  (let* ((code (as-code as))
+         (instrs (cvclass-instrs code)))
+    (let loop ((instrs instrs) (processed-instrs '()))
+      (cond ((null? instrs)
+             (cons (make-cvclass (cvclass-il-namespace code)
+                                 (cvclass-id code) 
+                                 (reverse processed-instrs)
+                                 (cvclass-constants code))
+                   (list->vector (as-constants as))))
+            ((string? (car instrs))
+             (loop (cdr instrs) (cons (car instrs) processed-instrs)))
+            ((il? (car instrs)) ;; Is it a normal IL instr?
+             (loop (cdr instrs) (cons (car instrs) processed-instrs)))
+            ((il-delay? (car instrs))
+             (let ((forced (il-delay-force (car instrs))))
+               (loop (cdr instrs) (cons forced processed-instrs))))
+            (else (error 'something-else-in-assembler-code))))))
+
+;; assemble-finalize! : assembler -> void
+(define (assemble-finalize! as)
+  (for-each (lambda (p) (p)) (as-nested as))
+  (as-nested! as '()))
+
+;; assembly-start : assembler -> ??
+;; Initializes the assembler?
+(define (assembly-start as)
+  (let ((u (as-user as)))
+    (user-data.proc-counter! u 0)
+    (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
+  (let ((e (new-proc-id as)))
+    (as-source! as (cons (list $.entry e #t) (as-source as)))))
+
+;; assembly-end : assembler ?? -> (list code constants codevector-ids???)
+(define (assembly-end as segment)
+  (list (car segment) (cdr segment) (lookup-functions as)))
+
+;; assembly-user-data : -> user-data
+(define (assembly-user-data)
+  (make-user-data))
+
+;; lookup-functions : as -> ??
+(define (lookup-functions as)
+  '(twobit-format (current-output-port)
+                 "functions are: ~s~%" (assembler-value as 'functions))
+  (or (assembler-value as 'functions) '()))
+
+;; add-function : as ... -> void
+(define (add-function as name il-namespace definite? entrypoint?)
+  (assembler-value! as 'functions 
+                    (cons (list name il-namespace definite? entrypoint?)
+                          (lookup-functions as)))
+  name)
+
 ;; -----------------
 ;; Assembler
 ;; -----------------
@@ -41,40 +119,6 @@
 ;; new-label : assembler -> number
 (define (new-label as)
   (new-proc-id as))
-
-;; emit-constantvector-slot : as symbol value -> number
-(define (emit-constantvector-slot as kind value)
-  (let ((all-constants (as-constants as))
-        (item (list kind value)))
-    (let loop ((n 0) (constants all-constants))
-      (cond ((null? constants)
-             (begin (as-constants! as (append! all-constants (list item)))
-                    n))
-            ((equal? (car constants) item)
-             n)
-            (else
-             (loop (+ 1 n) (cdr constants)))))))
-
-;; set-constantvector-slot! : as symbol number value -> void
-(define (set-constantvector-slot! as kind index value)
-  (let ((constants (as-constants as)))
-    (let loop ((n index) (constants constants))
-      (cond ((zero? n)
-             (set-car! (cdr (car constants)) value))
-            (else
-             (loop (- n 1) (cdr constants)))))))
-
-;; emit-X : as value -> number
-;; Emits an X into the constant vector, returning the number of 
-;; all X before it (can be used as index into X-only array)
-(define (emit-datum as datum)
-  (emit-constantvector-slot as 'data datum))
-(define (emit-global as identifier)
-  (emit-constantvector-slot as 'global identifier))
-(define (emit-codevector as codevector)
-  (emit-constantvector-slot as 'codevector codevector))
-(define (emit-constantvector as constantvector)
-  (emit-constantvector-slot as 'constantvector constantvector))
 
 ; User-data structure is shared between all assembly structures operating
 ; on a particular source; assemble-nested-lambda passes user-data to new 
@@ -128,12 +172,6 @@
  (as:basic-block-closed as:basic-block-closed! 'basic-block-closed)
  (as:next-jump-index as:next-jump-index! 'next-jump-index)
  (as:local-variables as:local-variables! 'local-variables))
-
-;; assemble-finalize! : assembler -> void
-(define (assemble-finalize! as)
-  (for-each (lambda (nested-as-proc)
-              (nested-as-proc))
-            (as-nested as)))
 
 ;; /Assembler ------
 
@@ -344,7 +382,6 @@
 ;; immediate-constant? : any -> boolean
 ;; Is the value a constant which may be expressed "inlined" in
 ;; the program? (takes a single load or pool access)
-;; NOTE: Symbols should never be considered immediate.
 (define (immediate-constant? x)
   (or (immediate-fixnum? x)
       (null? x)
@@ -362,21 +399,6 @@
 
 ;; /C# translation -
 
-;; -----------------
-;; Attic
-;; -----------------
-
-(define (lookup-functions as)
-  '(twobit-format (current-output-port)
-                 "functions are: ~s~%" (assembler-value as 'functions))
-  (or (assembler-value as 'functions) '()))
-
-(define (add-function as name il-namespace definite? entrypoint?)
-  (assembler-value! as 'functions 
-                    (cons (list name il-namespace definite? entrypoint?)
-                          (lookup-functions as)))
-  name)
-
 ;; ------------------------------
 ;; Listify, .list file generation
 ;; ------------------------------
@@ -389,7 +411,8 @@
           (il:comment/info "instruction" (cons (string->symbol name) (cdr instr)))
           (if (and (codegen-option 'listify-debug-location)
                    (not (member name '(".end"))))
-              (il:set-debug-info line listify-filename (member name '(".cont" ".proc")))
+              (il:set-debug-info line listify-filename 
+                                 (member name '(".cont" ".proc")))
               '()))
     (when (codegen-option 'listify-write-list-file)
       (write-listify-line line name instr))))
@@ -455,8 +478,6 @@
 (define (listify-newline)
   (newline listify-oport)
   (set! listify-counter (+ 1 listify-counter)))
-
-;; /Attic ----------
 
 ;; Instruction implementations in pass5p2-instructions.sch
 

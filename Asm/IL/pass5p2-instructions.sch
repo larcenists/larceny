@@ -238,10 +238,8 @@
             as 'functions
             (append (lookup-functions as)
                     (lookup-functions nested-as)))
-           (set-constantvector-slot! as 'codevector 
-                                     code-offset (car segment))
-           (set-constantvector-slot! as 'constantvector 
-                                     const-offset (cdr segment)))
+           (set-constant! as code-offset (car segment))
+           (set-constant! as const-offset (cdr segment)))
          (as-user as))
         (set! code-offset (emit-codevector as (nested-id)))
         (set! const-offset (emit-constantvector as (nested-id)))
