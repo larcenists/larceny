@@ -11,24 +11,35 @@
 
 ($$trace "load")
 
+; It's necessary to set the interaction environment so that any uses of 
+; EVAL in the loaded file will reference the correct environment.
+
 (define load-evaluator
   (system-parameter "load-evaluator"
-		    (lambda (expr env)
-		      (if (and (pair? expr)
-			       (procedure? (car expr)))
-			  (apply (car expr) (cdr expr))
-			  (eval expr env)))))
+                    (lambda (expr env)
+                      (let ((old-env (interaction-environment)))
+                        (dynamic-wind 
+                         (lambda ()
+                           (interaction-environment env))
+                         (lambda ()
+                           (if (and (pair? expr)
+                                    (procedure? (car expr)))
+                               (apply (car expr) (cdr expr))
+                               (eval expr env)))
+                         (lambda ()
+                           (if (eq? (interaction-environment) env)
+                               (interaction-environment old-env))))))))
 
 (define (load filename . rest)
 
   (define (get-environment)
     (cond ((null? rest)
-	   (interaction-environment))
-	  ((null? (cdr rest))
-	   (car rest))
-	  (else
-	   (error "load: too many arguments")
-	   #t)))
+           (interaction-environment))
+          ((null? (cdr rest))
+           (car rest))
+          (else
+           (error "load: too many arguments")
+           #t)))
 
   ;; The environment must be recomputed for each expression evaluation --
   ;; the loaded expressions may change the interaction environment, and
@@ -38,8 +49,8 @@
   (define (load-file)
     (let ((p (open-input-file filename)))
       (do ((expr (read p) (read p)))
-	  ((eof-object? expr))
-	((load-evaluator) expr (get-environment)))
+          ((eof-object? expr))
+        ((load-evaluator) expr (get-environment)))
       (close-input-port p)
       (unspecified)))
 
@@ -50,8 +61,8 @@
   ;; silliness.
 
   (let ((old-resolver (global-name-resolver))
-	(new-resolver (lambda (sym)
-			(environment-lookup-binding (get-environment) sym))))
+        (new-resolver (lambda (sym)
+                        (environment-get-cell (get-environment) sym))))
     (dynamic-wind 
      (lambda () (global-name-resolver new-resolver))
      (lambda () (load-file))
@@ -64,8 +75,8 @@
   (let ((p (make-procedure (length list))))
     (let loop ((l list) (i 0))
       (if (null? l)
-	  p
-	  (begin (procedure-set! p i (car l))
-		 (loop (cdr l) (+ i 1)))))))
+          p
+          (begin (procedure-set! p i (car l))
+                 (loop (cdr l) (+ i 1)))))))
 
 ; eof
