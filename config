@@ -8,6 +8,6 @@ do
 done
 echo ")" >> tmp.config
 echo "(exit)" >> tmp.config
-scheme tmp.config
+scheme tmp.config | tail +4		# skips Chez drivel.
 rm tmp.config
 
