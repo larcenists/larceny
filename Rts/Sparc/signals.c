@@ -26,7 +26,7 @@ extern void m_fpe_handler();
 #if defined(SUNOS4)
 void execute_sigfpe_magic( void *p )
 {
-  struct sigcontext *scp = (struct sigcontext *scp)p;
+  struct sigcontext *scp = (struct sigcontext *)p;
 
   scp->sc_pc = (int)m_fpe_handler;
   scp->sc_npc = (int)m_fpe_handler + 4;
