@@ -49,7 +49,7 @@ create_remset( int tbl_ent,	   /* Number of entries in hash table */
 	       int pool_ent,       /* Number of entries in initial node pool */
 	       int ssb_ent,        /* Number of entries in SSB */
 	       word **ssb_bot_loc, /* Location of pointer to start of SSB */
-	       word **ssb_top_loc, /* Location of pointer to next free of SSB */
+	       word **ssb_top_loc, /* Location of pointer to next free of SSB*/
 	       word **ssb_lim_loc  /* Location of pointer past end of SSB */
 	       );
   /* Create a remembered set and return a pointer to it.
@@ -110,15 +110,16 @@ void rs_assimilate( remset_t *borg, remset_t *human );
   /* Folds the set 'human' into the set 'borg'.
      */
 
-#if defined(SIMULATE_NEW_BARRIER)
 bool rs_isremembered( remset_t *rs, word w );
   /* Returns TRUE if the object denoted by w is in the remembered set.
      */
-#endif
 
-void rs_consistency_check( remset_t *rs );
+void rs_consistency_check( remset_t *rs, int gen_no );
   /* Perform a consistency check and print some statistics.  Useful mainly
-     when called from an interactive debugger.
+     when called from an interactive debugger.  If gen_no >= 0 then a
+     check will be performed that every entry in the set points to a
+     heap page with that generation number, and that it points to
+     an apparently valid object.
      */
 
 #if defined(REMSET_PROFILE)
