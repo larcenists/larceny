@@ -7,7 +7,7 @@ using Scheme.Rep;
 namespace Scheme.RT {
 
     public class Exn {
-        
+
         public static readonly Hashtable namespaces = new Hashtable();
         public static void registerNamespace(string ns, string source) {
             namespaces[ns] = source;
@@ -20,10 +20,10 @@ namespace Scheme.RT {
         public static void internalError(string message) {
             throw new Exception("Internal Error:" + message);
         }
-        
+
         /** fault
          * The basic interface to the exception system. Excode is a code
-         * defined in Rts/except.cfg. A fault may be but is not necessarily 
+         * defined in Rts/except.cfg. A fault may be but is not necessarily
          * continuable.
          * Exception codes are defined in Constants.cs, created by csharp-config.scm
          */
@@ -39,7 +39,7 @@ namespace Scheme.RT {
             Reg.Second = arg2;
             Exn.fault(blame, m);
         }
-        public static void fault(int blame, string m, 
+        public static void fault(int blame, string m,
                                  SObject arg1, SObject arg2, SObject arg3) {
             Reg.Result = arg1;
             Reg.Second = arg2;
@@ -59,7 +59,7 @@ namespace Scheme.RT {
             }
             Call.callExceptionHandler(Reg.Result, Reg.Second, Reg.Third, (int)excode);
         }
-        
+
         /** faultTimer
          * Specialized fault for timer interrupt.
          * Called directly from IL.
@@ -101,7 +101,7 @@ namespace Scheme.RT {
             Reg.Second = Reg.getRegister(k1);
             fault(Constants.EX_APPLY);
         }
-        
+
         /** checkSignals
          * Check for keyboard interrupt or other signal
          */
@@ -110,7 +110,7 @@ namespace Scheme.RT {
         }
 
         public static void error(string msg) {
-            debug.WriteLine("** called Exn.error(string)");
+            debug.WriteLine("** called Exn.error(string) " + msg);
             SObject string0 = Factory.wrap("");
             Call.callExceptionHandler
                 (new SObject[] {Factory.wrap(msg), string0, string0, Factory.Null});
@@ -123,7 +123,7 @@ namespace Scheme.RT {
         // =================================================
 
         /* Reporting Framework
-         * These methods are called to report machine state when exception 
+         * These methods are called to report machine state when exception
          * occurs and also at end of execution
          */
 
@@ -167,7 +167,7 @@ namespace Scheme.RT {
             msg.WriteLine("  Continuation ended with {0}", sframe);
             msg.WriteLine();
         }
-        
+
         public static void dumpFrame(SObject[] frame, int i) {
             if (frame[Cont.HC_PROC] == RestoreContextCode.singletonProcedure) {
                 msg.WriteLine("  Saved Context Frame {0}", i);
@@ -208,7 +208,7 @@ namespace Scheme.RT {
 
         // :-)
         public static void miniCoreDump(Timer timer) {
-            msg.WriteLine("Time for program (s) = {0:f3}", 
+            msg.WriteLine("Time for program (s) = {0:f3}",
                           (double)timer.getElapsedTime() / 1000000.0);
         }
         public static void coredump() {
@@ -245,14 +245,14 @@ namespace Scheme.RT {
         public Timer() {
             this.reset();
         }
-    
+
         // Start time in microseconds
         private long startTime = 0;
 
         public void reset() {
             startTime = DateTime.Now.Ticks / 10; // :-)
         }
-    
+
         // time in microseconds
         public long getElapsedTime() {
             long stopTime = DateTime.Now.Ticks / 10; // :-)
@@ -261,4 +261,3 @@ namespace Scheme.RT {
     }
 
 }
-
