@@ -369,6 +369,8 @@
   ;; pairs and lists
 
   (environment-set! larc 'append! append!)
+  (environment-set! larc 'append-map append-map)
+  (environment-set! larc 'append-map! append-map!)
   (environment-set! larc 'assoc assoc)
   (environment-set! larc 'assoc-string assoc-string)
   (environment-set! larc 'assoc-string-ci assoc-string-ci)
@@ -377,8 +379,10 @@
   (environment-set! larc 'every? every?)
   (environment-set! larc 'filter filter)
   (environment-set! larc 'find-if find-if)
+  (environment-set! larc 'find-if-not find-if-not)
   (environment-set! larc 'foldl foldl)
   (environment-set! larc 'foldr foldr)
+  (environment-set! larc 'last last)
   (environment-set! larc 'last-pair last-pair)
   (environment-set! larc 'length<=? length<=?)
   (environment-set! larc 'length<? length<?)
@@ -388,7 +392,10 @@
   (environment-set! larc 'list* list*)
   (environment-set! larc 'list-copy list-copy)
   (environment-set! larc 'list-head list-head)
+  (environment-set! larc 'list-set! list-set!)
   (environment-set! larc 'longer? longer?)
+  (environment-set! larc 'memf memf)
+  (environment-set! larc 'memf-not memf-not)
   (environment-set! larc 'position-of position-of)
   (environment-set! larc 'remove remove)
   (environment-set! larc 'remove! remove!)
@@ -396,7 +403,10 @@
   (environment-set! larc 'remq! remq!)
   (environment-set! larc 'remv remv)
   (environment-set! larc 'remv! remv!)
+  (environment-set! larc 'revappend revappend)
+  (environment-set! larc 'revappend! revappend!)
   (environment-set! larc 'reverse! reverse!)
+  (environment-set! larc 'set-last! set-last!)
   (environment-set! larc 'shorter? shorter?)
   (environment-set! larc 'some? some?)
 
@@ -475,6 +485,7 @@
 
   ;; control features
 
+  (environment-set! larc 'values-list values-list)
   (environment-set! larc 'syscall syscall)
   (environment-set! larc 'make-trampoline make-trampoline)
   (environment-set! larc 'procedure-copy procedure-copy)
