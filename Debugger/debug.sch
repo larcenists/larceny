@@ -4,39 +4,42 @@
 ;
 ; Bare-bones debugger.
 ;
-; The debugger is installed by evaluating (install-debugger).
-;
 ; The debugger will be invoked automatically when an error is encountered
 ; or when a keyboard interrupt is signalled.  After the user has left the
 ; debugger, debugging can be continued by evaluating (debug).
 ;
-; FIXME: When using nested debuggers, and using the Q command to pop out
-;        of one level to the next level, the mysterious message "Procedure 
-;        call caused a reset." is printed, hardly what the user would expect.
-;
-; FIXME: When using nested debuggers, there is a difference between
-;        popping out one level and popping out all the way to the top level;
-;        currently the latter is not possible.
-;
-; FIXME: It may be that interactive EOF should work as R rather than Q,
-;        which is the case now (holdover from waybackwhen).
-;
 ; FIXME: When stopped in a breakpoint, or at an error, it really 
 ;        should set the current frame to the proc where the breakpt
-;        occured, not past the system-continuation/enter-debugger
+;        occurred, not past the system-continuation/enter-debugger
 ;        thing.
+;
+; FIXME: The E command must change: it should take an expression to be
+;        evaluated in the environment of the current frame, and print
+;        the results.
 
-'(require 'pretty-print)                ; Auxlib/pp.sch
-'(require 'inspect-cont)                ; Debugger/inspect-cont.sch
-'(require 'trace)                       ; Debugger/trace.sch
 
-(define debug/return #f)                ; Thunk that returns
-(define debug/reset #f)                 ; Thunk that resets
+'(begin (load "Debugger/inspect-cont.sch")
+        (load "Debugger/trace.sch"))
 
-(define *debug-level* 0)                ; Debugger nesting level
-(define *error-continuation* #f)        ; Saved continuation structure
+(define debug/reset #f)                 ; Dynamically bound: thunk that resets
+(define debug-level 0)                  ; Dynamically bound
+
 (define *debug-print-length* 7)         ; For PRINT-LENGTH
 (define *debug-print-level* 7)          ; for PRINT-LEVEL
+
+; The user can restart the debugger by typing (debug); the error
+; continuation is saved by the error handler.
+
+(define (debug)
+  (let ((e (error-continuation)))
+    (if (not e)
+        (debug/displayln "No error continuation!")
+        (begin (debug/displayln "Entering debugger; ? for help.")
+               (debug-continuation-structure #f e)))))
+
+(define error-continuation
+  (make-parameter "error-continuation" #f))
+
 
 (define (install-debugger)
 
@@ -69,31 +72,17 @@
 
   #t)
 
-(define (error-continuation . rest)
-  (cond ((null? rest) 
-         *error-continuation*)
-        ((null? (cdr rest))
-         (set! *error-continuation* (car rest)))
-        (else
-         (error "Too many arguments to ERROR-CONTINUATION."))))
-
-(define (debug)
-  (let ((e (error-continuation)))
-    (if (not e)
-        (debug/displayln "No error continuation!")
-        (begin (debug/displayln "Entering debugger; ? for help.")
-               (debug-continuation-structure #f e)))))
-
 (define (debug/enter-debugger continuable?)
   (debug/displayln "Entering debugger; type \"?\" for help.")
-  (debug-continuation-structure continuable? (current-continuation-structure)))
+  (debug-continuation-structure continuable? 
+                                (current-continuation-structure)))
 
 (define (debug-continuation-structure continuable? c . rest)
   (let ((inspector (make-continuation-inspector c))
 	(display? (and (not (null? rest)) (car rest))))
 
     (define (user-input)
-      (debug/display "debug" (make-string *debug-level* #\>) " ")
+      (debug/display "debug" (make-string debug-level #\>) " ")
       (let* ((x     (debug/get-token))
              (count (if (number? x) x 1))
              (cmd   (if (number? x) (debug/get-token) x)))
@@ -133,18 +122,23 @@
                (debug/displayln "Computation is not continuable.")
                (inspect-continuation #f)))))
 
-    (dynamic-wind
-     (lambda () (set! *debug-level* (+ *debug-level* 1)))
-     (lambda ()
-       (case (call-with-current-continuation
-              (lambda (k)
-                (set! debug/return (lambda () (k 'return)))
-                (set! debug/reset  (lambda () (k 'reset)))
-                (inspect-continuation display?)))
-         ((return) #t)
-         ((reset) (reset))
-         (else ???)))
-     (lambda () (set! *debug-level* (- *debug-level* 1))))))
+    (case (call-with-current-continuation
+           (lambda (k)
+             ; FIXME: really fluid-let
+             (let ((old-reset debug/reset)
+                   (old-level debug-level))
+               (dynamic-wind
+                (lambda ()
+                  (set! debug/reset (lambda () (k 'reset)))
+                  (set! debug-level (+ debug-level 1)))
+                (lambda ()
+                  (inspect-continuation display?))
+                (lambda ()
+                  (set! debug/reset old-reset)
+                  (set! debug-level old-level))))))
+      ((return) #t)
+      ((reset) (reset))
+      (else ???))))
 
 
 ; Safe evaluation
@@ -158,7 +152,12 @@
      (call-with-reset-handler
       (lambda ()
 	(k reset-token))
-      thunk))))
+      (lambda ()
+        (call-with-error-handler
+         (lambda error
+           (decode-error error (console-output-port))
+           (k (unspecified)))
+         thunk))))))
 
 
 ; Debugger user interface.
@@ -187,6 +186,12 @@
 
 (define (debug/help count inspector)
   (debug/display *inspector-help*))
+
+(define (debug/repl count inspector)
+  (with-input-from-port (console-input-port)
+    (lambda ()
+      (with-output-to-port (console-output-port)
+        repl))))
 
 (define (debug/down count inspector)
   (cond ((zero? count))
@@ -223,6 +228,9 @@
       (else
        (error "debug/summarize-frame: Unknown class " class)))
     (debug/displayln)))
+
+(define (debug/abort count inspector)
+  (exit 1))
 
 (define (debug/backtrace count inspector)
   
@@ -281,15 +289,7 @@
 ; whether breakpoints should be honored or not.
 
 (define debug/breakpoints-enable 
-  (let ((enable #t))
-    (lambda rest
-      (cond ((null? rest) enable)
-            ((null? (cdr rest))
-             (set! enable (car rest))
-             enable)
-            (else
-             (error "Wrong number of arguments to debug/breakpoints-enable "
-                    rest))))))
+  (make-parameter "debug/breakpoints-enable" #t))
 
 (define (debug/call-with-breakpoints-disabled thunk)
   (parameterize ((debug/breakpoints-enable #f))
@@ -337,11 +337,13 @@
 
 (define debug/command-list
   `((? . ,debug/help)
+    (a . ,debug/abort)
     (b . ,debug/backtrace)
     (c . ,debug/code)
     (d . ,debug/down)
     (e . ,debug/evaluate)
     (i . ,debug/inspect)
+    (n . ,debug/repl)
     (q . reset)
     (r . done)
     (s . ,debug/summarize-frame)
@@ -350,6 +352,7 @@
     ))
 
 (define *inspector-help* "
+  A           Abort (exit from Larceny).
   B           Print backtrace of continuation.
   C           Print source code (if available).
   D           Down to previous activation record.
@@ -364,6 +367,7 @@
               the result, if not unspecified, is printed.
   I n         Inspect the procedure in slot n of the current activation record.
   I @         Inspect the active procedure.
+  N           Enter a nested REPL.
   Q           Quit the debugger and abort the computation.
   R           Return from the debugger and continue the computation.
   S           Summarize the contents of the current activation record.
