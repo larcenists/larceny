@@ -74,23 +74,12 @@
 ;   use a defined name as a formal in a lambda expression, and don't define
 ;   a name using a Scheme reserved word.
 
+(define config-path "")                 ; hack
 
 ; "Config" takes configuration files as arguments and runs through each one
 ; in turn.
 
 (define (config . argv)
-
-  (define $format
-    (case host
-      ((chez)   (lambda (port . rest) (display (apply format rest) port)))
-      ((larceny) (lambda (port . rest) (apply format port rest)))
-      (else ???)))
-
-  (define $gensym
-    (case host
-      ((chez)  gensym)
-      ((larceny)  (lambda () (gensym "G")))
-      (else ???)))
 
   (define error-cont #f)
 
@@ -98,7 +87,7 @@
   (define table-counter 0)
 
   (define (conf-error kill? msg . rest)
-    (apply $format (current-output-port) (cons msg rest))
+    (apply format (current-output-port) (cons msg rest))
     (newline)
     (if kill?
 	(error-cont #f)))
@@ -131,12 +120,13 @@
     (list->vector (cons '()
 			(map (lambda (x y z)
 			       (if x
-				   (begin (delete-file x)
-					  (let ((f (open-output-file x)))
-					    (display z f)
-					    (newline f)
-					    (newline f)
-					    (make-lang x f y id)))
+				   (let ((x (string-append config-path x)))
+                                     (delete-file x)
+                                     (let ((f (open-output-file x)))
+                                       (display z f)
+                                       (newline f)
+                                       (newline f)
+                                       (make-lang x f y id)))
 				   #f))
 			     flist
 			     formats
@@ -223,7 +213,7 @@
 	    ((define-global? item)
 	     (table-word 0 (or (cadr item) (caddr item) (cadddr item) "???"))
 	     (let ((i (define-const (cons 'define-const
-					     (cons ($gensym)
+					     (cons (gensym "G_")
 						   (cons table-counter
 							 (cdr item))))
 			info)))
@@ -232,7 +222,7 @@
 	    ((define-mproc? item)
 	     (table-branch (extname (list-ref item 4)))
 	     (let ((i (define-const (cons 'define-const
-					     (cons ($gensym)
+					     (cons (gensym "G_")
 						   (cons table-counter
 							 (cdr item))))
 			info)))
@@ -262,7 +252,7 @@
 
     (define (open-table-output name table comment)
       (delete-file name)
-      (let ((port (open-output-file name)))
+      (let ((port (open-output-file (string-append config-path name))))
 	(display comment port)
 	(newline port)
 	(set! table-objects (cons (the-table port table) table-objects))))
@@ -329,10 +319,10 @@
     (define (dump-const! entry lang base)
       (if lang
 	  (if (string? entry)
-	      ($format (lang.port lang)
-		       (lang.fmt lang)
-		       entry
-		       ((lang.action lang) base))
+	      (format (lang.port lang)
+                      (lang.fmt lang)
+                      entry
+                      ((lang.action lang) base))
 	      #f)
 	  #f))
 
