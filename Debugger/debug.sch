@@ -27,7 +27,7 @@
 
 (define (debug-continuation-structure c . rest)
   (let ((c (make-continuation-inspector c))
-	(display? (and (not (null? (car rest))) (car rest))))
+	(display? (and (not (null? rest)) (car rest))))
 
     (define (user-input)
       (display "Debug> ")
