@@ -88,7 +88,7 @@ ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
 # Big bags of files
 
 COMMON_RTS_OBJECTS=\
-	Sys/argv.o Sys/barrier.o Sys/callback.o Sys/ffi.o Sys/gc_t.o \
+	Sys/argv.o Sys/barrier.o Sys/callback.o Sys/gc_t.o \
 	Sys/ldebug.o Sys/malloc.o Sys/osdep-generic.o \
 	Sys/osdep-macos.o Sys/osdep-unix.o Sys/osdep-win32.o \
 	Sys/primitive.o Sys/signals.o Sys/sro.o Sys/stack.o Sys/syscall.o \
@@ -96,13 +96,14 @@ COMMON_RTS_OBJECTS=\
 
 PRECISE_GC_OBJECTS=\
 	Sys/alloc.o Sys/cheney.o Sys/dof-heap.o Sys/gc.o Sys/heapio.o \
-	Sys/los.o Sys/memmgr.o \
+	Sys/los.o Sys/memmgr.o Sys/ffi.o \
 	Sys/msgc-core.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
 	Sys/old-heap.o Sys/remset.o Sys/sc-heap.o Sys/semispace.o \
 	Sys/static-heap.o Sys/stats.o Sys/young_heap_t.o
 
 BOEHM_GC_OBJECTS=\
-	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o Sys/bdw-heapio.o 
+	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o Sys/bdw-heapio.o \
+	Sys/bdw-ffi.o
 
 BOEHM_GC_SPARC_OBJECTS=\
 	Sparc/bdw-memory.o Sparc/bdw-generic.o Sparc/bdw-cglue.o
@@ -304,6 +305,7 @@ Sys/bdw-gc.o: Sys/gc.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h \
 Sys/bdw-larceny.o: Sys/larceny.c $(LARCENY_H) Sys/gc.h
 Sys/bdw-stats.o: Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
 	Sys/stats.h Sys/memmgr.h
+Sys/bdw-ffi.o: Sys/ffi.c $(LARCENY_H)
 Sys/callback.o: $(LARCENY_H)
 Sys/cheney.o: $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \
 	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
