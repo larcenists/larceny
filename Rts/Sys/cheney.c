@@ -11,7 +11,7 @@
 
 #define GC_INTERNAL
 
-#include <memory.h>                /* For memcpy() */
+#include <string.h>
 #include "larceny.h"
 #include "memmgr.h"
 #include "gc_t.h"
@@ -418,12 +418,12 @@
 #define remember_pair( w, e ) remember_vec( w, e )
 
 #define FORW_NP_ENV_BEGIN( e_, dest_, lim_ ) \
-  word *dest_ = (e_->np.has_switched ? e->dest2 : e->dest); \
-  word *lim_ = (e_->np.has_switched ? e->lim2 : e->lim);
+  word *dest_ = (e_->np.has_switched ? e_->dest2 : e_->dest); \
+  word *lim_ = (e_->np.has_switched ? e_->lim2 : e_->lim);
 
 #define FORW_NP_ENV_END( e_, dest_, lim_ ) \
   if (e_->np.has_switched) { e_->dest2 = dest_; e_->lim2 = lim_; } \
-  else { e_->dest = dest_; e->lim = lim_; }
+  else { e_->dest = dest_; e_->lim = lim_; }
 
 
 /* Parameter container data structure */
@@ -581,6 +581,82 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
   init_env( &e, gc, tospace, 0, tospace->gen_no, 0, 0, 1, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
+}
+
+/* Deferred-oldest-first promotion:  Promote all objects from the nursery
+  (generation 0) into the areas referenced by dest_areas[] and sizes[].
+  The dest_areas[] and sizes[] arrays are terminated by 0 entries.
+  Return the index in dest_areas[] of the last area used in last_used.
+  The parameter dynamic_gen is the generation number of the dynamic generation.
+
+  This collector has a complex write barrier: an object promoted into an
+  area is added to the area's remembered set if it references any younger
+  generation or if it references the dynamic generation.
+  
+  Observe: in the DOF collector the areas being promoted into are
+  always the youngest ephemeral areas (in younger->older order).  Can
+  we take advantage of that?  Yes: it means that no remembered sets
+  for other areas need change, only the remembered sets of the areas
+  being promoted into need be maintained. 
+*/
+
+void gclib_stopcopy_promote_into_dof( gc_t *gc,
+				      semispace_t **dest_areas,
+				      int *sizes,
+				      int *last_used,
+				      int dynamic_gen )
+{
+  panic( "gclib_stopcopy_promote_into_dof" );
+}
+
+/* Promote all live objects from the generations named by 0-terminated
+   array FROMSPACES into unbounded semispace TOSPACE, adding to the
+   remembered set of TOSPACE all those objects promoted that still 
+   reference objects in younger generations not part of FROMSPACES.
+   
+   OBSERVE that in the DOF collector, it's always the youngest chunks
+   that are promoted; this is by design and reduces the size of the
+   remembered sets (only need pointers in one direction).  We should
+   codify that practice and take advantage of it here!  It lets us 
+   specify the fromspace using a generation limit test, and we can
+   use standard remset enumeration.
+   
+   Scanning roots: no extra action.
+   Scanning remembered objects: no extra action.  A remembered set entry 
+     in a non-promoted region never has to be removed, since an object 
+     that is remembered because it has pointers to younger objects must
+     also be remembered if it has pointers into the dynamic generation: 
+     the dynamic generation can be collected independently.
+   Scanning forwarded objects: an object must be added to the remembered
+     set of the dynamic generation if it contains pointers into
+     non-collected regions; this is a simple comparison with an integer
+     variable (the generation number of the dynamic generation). 
+
+   Since these scans are run consecutively, there is no danger of
+   remset update interfering with remset scanning.
+   */
+
+void gclib_stopcopy_promote_into_selective( gc_t *gc, 
+                                            semispace_t *tospace,
+                                            int *fromspaces )
+{
+  panic( "gclib_stopcopy_promote_into_selective" );
+}
+
+/* This is like above, but since the dynamic generation starts afresh, its
+   remembered set must be cleared before collection commences.  The client
+   is responsible for doing that.
+   
+   In this case, fromspace includes the generation of TOSPACE.  We can use the
+   same techniques as above by changing the generation number of the dynamic
+   fromspace to be that of one of the other fromspaces, thus lower than any
+   of the spaces not touched.  Doing so lets us reuse existing technology.
+   */
+void gclib_stopcopy_collect_selective( gc_t *gc,
+                                       semispace_t *tospace,
+                                       int *fromspaces )
+{
+  panic( "gclib_stopcopy_collect_selective" );
 }
 
 void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text )
