@@ -180,11 +180,11 @@
 ;
 ; Gross, huh?
 
-(define (an-arbitrary-number)
-  (system "echo \\\"`date`\\\" > a-random-number")
-  (let ((x (string-hash (call-with-input-file "a-random-number" read))))
-    (delete-file "a-random-number")
-    x))
+(define an-arbitrary-number
+  (let ((counter 0))
+    (lambda ()
+      (set! counter (+ 1 counter))
+      (string-hash (string-append (number->string counter) (date-and-time))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
