@@ -259,8 +259,9 @@
 		      (cons (here as)
 			    (or (assembler-value as 'not-dsi) '()))))
 
-  (define (is-a-delay-slot-instruction? as addr)
-    (not (memv addr (or (assembler-value as 'not-dsi) '()))))
+  (define (is-a-delay-slot-instruction? as bv addr)
+    (and (not (memv addr (or (assembler-value as 'not-dsi) '())))
+	 (< addr (bytevector-length bv))))
 
   ; SETHI, etc.
 
@@ -370,7 +371,7 @@
 	  (let ((bt (or (eval-expr as branch-target)
 			(asm-error "Branch fixup: can't happen: " 
 				   branch-target))))
-	    (if (is-a-delay-slot-instruction? as bt)
+	    (if (is-a-delay-slot-instruction? as bv bt)
 		(begin
 		  (copy-instr bv bt loc)
 		  (add1 bv (- loc 4))))))
