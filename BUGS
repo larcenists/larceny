@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 136.
+HIGH PRIORITY BUGS: 136, 137.
 
 
 005  (v0.27e)
@@ -716,7 +716,7 @@ HIGH PRIORITY BUGS: 136.
     It appears there's no way in larceny at present to distinguish -0.0
     from 0.0 without looking at the actual bits.
 
-136 v0.45
+136 v0.45 (??? / lth)
     Priority: high
     Category: TWOBIT / correctness
 
@@ -760,7 +760,74 @@ HIGH PRIORITY BUGS: 136.
     
     but the expansion incorrectly uses an alpha-converted name for
     __super-secret-variable-name in the definition but not in later uses.
-    
-NEXT ENTRY: 137
+
+
+137 v0.45 (991013 / lth)
+    Priority: high
+    Category: TWOBIT / correctness
+
+    This was illegal in R4RS but is legal in R5RS, cf sec 5.1.  Almost
+    certainly related to the logged bug #136.
+
+    > (begin (load "../Auxlib/list.fasl")
+             (define x (make-list 125000))
+             (do ((i 0 (+ i 1)) (y x (reverse y))) ((= i 100) #t)))
+    ERROR detected during macro expansion:
+    Definition out of context
+    (define x (make-list 125000))
+
+138 v0.45 (991015 / lth)
+    Priority: low
+    Category: RTS / correctness
+
+    Description.
+
+    I have discovered a problem in the GC write barrier in the NP collector.
+    In the macro scan_core_partial() a pointer is added to the SSB of the NP
+    extra set by another macro remember_vec(), the call to that macro is:
+
+    (line 396)
+        if (must_add_to_extra) remember_vec( tagptr( T_objp, VEC_TAG ), e );
+
+    However the case being handled in scan_core_partial() is that for both
+    procedures and vectors, thus we see that the pointer added to the SSB
+    and remembered set may have the wrong tag (a vector tag for a procedure
+    pointer).
+
+    Impact.
+
+    The problem only occurs when a procedure structure promoted to the GC
+    young area contains a pointer to the GC old area: in this case only will
+    an incorrect pointer be added to the SSB for the NP extra set.  Normally
+    procedures are created on-the-fly by loading compiled code, by creating
+    closures, by the interpreter (which actually creates them at a very high
+    rate, which is why some scrupulous debugging code found the problem),
+    and by the debugger.
+
+    The GC currently treats vectors and procedures alike by stripping the
+    tag and then handling the raw pointer, so I do not expect GC crashes due
+    to mis-tagging.
+
+    While the remembered set hashes the pointer by stripping the tag,
+    comparisons in the hash table are on the full pointer, so there could
+    plausibly be duplicate entries in the hash table.  Duplicates are
+    unlikely however since promotion creates only one pointer and the other
+    would have to be created by assignment, and procedures are usually
+    side-effected only for initialization and those assignments should
+    almost never trap in the write barrier.  If duplicates do occur, then an
+    object may be scanned twice.  As far as I know, that does not create any
+    problems for the collector.
+
+    In summary it is extremely unlikely that the bug causes performance
+    degradation, and as far as I can tell, it is not possible for it to
+    cause GC crashes.
+
+    Action.
+
+    The bug should be fixed.  Fixing it will slow down the case when a
+    pointer needs to be added to the SSB, probably not an issue in practice.
+
+
+NEXT ENTRY: 139
 
 ; eof
