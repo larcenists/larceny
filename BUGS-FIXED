@@ -978,6 +978,20 @@ $Id$
      Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
      Asm/Sparc/gen-prim.sch to implement this.
 
+054 v0.32 (971107 / lth) Fixed 981214 by lth
+    Priority: high.  Await new compiler before fixing.
+
+    [Macros that work]
+    When a syntactic keyword is used as a variable, e.g.,
+
+	> repeat
+
+    then the macro expander gives an error and returns the syntactic
+    environment, which is massive.  This is _not_ useful.  On the whole,
+    macro expander errors should be mapped onto regular errors?
+
+    FIX: new macro expander fixes it.
+
 055 v0.32 (980116 / lth)  Fixed 980116 by lth
 
     I/O redirection at the shell seems to be overridden by Larceny; this
@@ -1156,6 +1170,25 @@ $Id$
 
     FIX: this was fixed when rounding was fixed (see bug 047).
 
+075 v0.36 (981207 / lth) Fixed 981214 by lth
+    Priority: high
+
+    Jaffer's test suite:
+
+	> (letrec ((x 3)) (define x 10) x)
+	Error: Reference to undefined global variable `define'.
+
+    This is a macro expander bug:
+
+	Larceny v0.36 (precise:SunOS5:split) (lth 07-Dec-98 09:50:13)
+
+	> (macro-expand '(letrec ((x 3)) (define x 10) x))
+	((lambda (x) (begin (set! x '3) (define x '10) x)) '#!unspecified)
+
+    Await new macro expander.  Search for BUG IN LARCENY in r4rstest.scm.
+
+    FIX: new macro expander fixes it.
+
 076 v0.36 (981207 / lth) Fixed 981207 by lth
     Priority: high
 
@@ -1218,4 +1251,22 @@ $Id$
     FIX: made sure all computation happens using exact arithmetic.  It
     still returns 0.0 rather than -0.0; this wouldn't be hard to fix but
     await work to clean up IEEE arithmetic.
+
+081 v0.36 (981207 / lth, previously reported by wdc)  FIXED 9812014 by lth
+    Priority: high
+
+    In the interpreter, but not in the compiler:
+
+	> (begin (define (x) 1) (define (y) 2))
+	Error: symbol-hash: (x) is not a symbol.
+
+    This is a macro expander bug, as can be seen from
+
+	> (macro-expand '(begin (define (x) 1) (define (y) 2)))
+	(begin (define (x) '1) (define (y) '2))
+
+    The definitions should have been rewritten to canonical form, but
+    were not.
+
+    FIX: New macro expander took care of it.
 

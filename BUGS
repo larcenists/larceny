@@ -15,7 +15,7 @@ version of Larceny in which the bug was discovered, the date it was
 recorded and who found it, a description of the problem, and any
 supporting documentation, information, test cases, and so on.
 
-HIGH PRIORITY BUGS: 054, 064, 075, 081.
+HIGH PRIORITY BUGS: 064, 082.
 
 
 005  (v0.27e)
@@ -115,18 +115,6 @@ HIGH PRIORITY BUGS: 054, 064, 075, 081.
     bignum->flonum is very, very slow.  The fix for this exists but
     needs to be implemented and tested.  See comments in 
     Lib/Common/flonums.sch.
-
-054 v0.32 (971107 / lth)
-    Priority: high.  Await new compiler before fixing.
-
-    [Macros that work]
-    When a syntactic keyword is used as a variable, e.g.,
-
-	> repeat
-
-    then the macro expander gives an error and returns the syntactic
-    environment, which is massive.  This is _not_ useful.  On the whole,
-    macro expander errors should be mapped onto regular errors?
 
 056 v0.32 (980126 / lth)
     Priority: low
@@ -278,23 +266,6 @@ HIGH PRIORITY BUGS: 054, 064, 075, 081.
     will probably require changing the semantics of the structure printer,
     which now has no notion of "layout".
 
-075 v0.36 (981207 / lth)
-    Priority: high
-
-    Jaffer's test suite:
-
-	> (letrec ((x 3)) (define x 10) x)
-	Error: Reference to undefined global variable `define'.
-
-    This is a macro expander bug:
-
-	Larceny v0.36 (precise:SunOS5:split) (lth 07-Dec-98 09:50:13)
-
-	> (macro-expand '(letrec ((x 3)) (define x 10) x))
-	((lambda (x) (begin (set! x '3) (define x '10) x)) '#!unspecified)
-
-    Await new macro expander.  Search for BUG IN LARCENY in r4rstest.scm.
-
 077 v0.36 (981207 / lth)
     Priority: low.
 
@@ -317,23 +288,20 @@ HIGH PRIORITY BUGS: 054, 064, 075, 081.
     explicit sign if a complex has no real part.  (There are plenty of
     similar "bugs" in the number parser, see comments in the code.)
 
-081 v0.36 (981207 / lth, previously reported by wdc)
-    Priority: high
+082 v0.37 + new compiler (981214 / lth)
+    Priority: high.
 
-    In the interpreter, but not in the compiler:
+	> (log (fact 256))
+	Error: <: -364.0037127757854+4.532360141827194i is not a real number.
 
-	> (begin (define (x) 1) (define (y) 2))
-	Error: symbol-hash: (x) is not a symbol.
+    In fact: 
 
-    This is a macro expander bug, as can be seen from
+	> (exact->inexact (fact 180))
+	Error: log: Domain error: 0.0
 
-	> (macro-expand '(begin (define (x) 1) (define (y) 2)))
-	(begin (define (x) '1) (define (y) '2))
+    [This fails for 171 -- at that point, the number is not representable
+     as a flonum.]
 
-    The definitions should have been rewritten to canonical form, but
-    were not.
-
-
-NEXT ENTRY: 082
+NEXT ENTRY: 083
 	
 ; eof
