@@ -7,7 +7,7 @@ Argument passing
 ----------------
 All arguments are passed on the stack, and are pushed in right-to-left
 order.  The word and byte order is little endian; for a double, the
-low word (containing the least significant bits of the significan) is
+low word (containing the least significant bits of the significand) is
 stored at the lower address.
 
 The stack is word aligned by convention (but probably need not be).
@@ -17,7 +17,7 @@ Argument popping
 ----------------
 
 If the function is compiled with the __stdcall declaration, then the
-calleee pops the arguments; if it is compiled with the __cdecl
+callee pops the arguments; if it is compiled with the __cdecl
 declaration, then the caller pops the arguments.  The lowlevel FFI
 supports both calling conventions, but there is no way to express in
 the rest of the FFI system which conventions should be used.
@@ -36,8 +36,8 @@ on the floating-point stack.
 
 Compiling and linking
 ---------------------
-The FFI is able to load DLLs.  The functions must be exported through
-an export file or through a compiler switch (eg /export:foo).  It
-appears that the default is not to mangle the name at all (not even
+The Win32 FFI is able to load DLLs.  The functions must be exported
+through an export file or through a compiler switch (eg /export:foo).
+It appears that the default is not to mangle the name at all (not even
 prepending an underscore).
 
