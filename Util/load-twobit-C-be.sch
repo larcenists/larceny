@@ -4,9 +4,11 @@
 ;
 ; Load script for twobit with Standard-C assembler, big-endian.
 
-(load "Util/nbuild-param-C-be.sch")
-(load "Compat/Larceny/compat.sch")
+(load "Util/sysdep-unix.sch")
+
+(load (make-relative-filename "Util" "nbuild-param-C-be.sch"))
+(load (make-relative-filename "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
-(load "Util/nbuild.sch")
+(load (make-relative-filename "Util" "nbuild.sch"))
 
 ; eof
