@@ -469,18 +469,12 @@
     (environment-set! larc 'repl-evaluator repl-evaluator)
     (environment-set! larc 'repl-prompt repl-prompt)
     (environment-set! larc 'herald herald)
-    (environment-set! larc 'eval-macro-expander eval-macro-expander)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
     (environment-set! larc 'typetag-set! typetag-set!)
-    (environment-set! larc '**newline** **newline**)
+    (environment-set! larc '**newline** **newline**) ; Who uses this???
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
-
-    ;; flonum debugging
-
-    (environment-set! larc 'float-significand float-significand)
-    (environment-set! larc 'float-exponent float-exponent)
 
     (set! *null-environment* null)
     (set! *r4rs-environment* r4rs)
