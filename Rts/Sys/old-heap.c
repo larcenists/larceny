@@ -38,7 +38,8 @@ struct old_data {
 
   /* Strategy/Policy/Mechanism */
   int         size_bytes;         /* Initial size */
-  int         upper_limit;	  /* Dynamic area only: 0 or upper limit */
+  int         lower_limit;        /* 0 or lower limit on expandable area */
+  int         upper_limit;	  /* 0 or upper limit on expandable area */
   int         target_size;        /* Current size */
   double      load_factor;        /* That's the L from the formula above */
   bool        must_clear_area;    /* Clear area after collection */
@@ -78,6 +79,7 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
 
   if (!ephemeral) {
     data->load_factor = info->load_factor;
+    data->lower_limit = info->dynamic_min;
     data->upper_limit = info->dynamic_max;
     data->target_size =
       compute_dynamic_size( heap,
@@ -334,9 +336,10 @@ static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
   static_heap_t *s = heap->collector->static_area;
   int S = (s ? s->allocated : 0);
   double L = DATA(heap)->load_factor;
-  int limit = DATA(heap)->upper_limit;
+  int upper_limit = DATA(heap)->upper_limit;
+  int lower_limit = DATA(heap)->lower_limit;
 
-  return gc_compute_dynamic_size( D, S, Q, L, limit );
+  return gc_compute_dynamic_size( D, S, Q, L, lower_limit, upper_limit );
 }
 
 
@@ -355,7 +358,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
   old_data_t *data;
 
   data = (old_data_t*)must_malloc( sizeof( old_data_t ) );
-  heap = create_old_heap_t( "sc/variable",
+  heap = create_old_heap_t( (ephem ? "sc/fixed" : "sc/variable" ),
 			    HEAPCODE_OLD_2SPACE,
 			    0,                    /* initialize */
 			    (ephem ? collect_ephemeral : collect_dynamic),
