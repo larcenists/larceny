@@ -39,41 +39,35 @@
 #include "macros.h"
 #include "cdefs.h"
 
-#define FASTFWD 1
-
-/* static void forw( word *, word *, word *, word ** ) */
-#if FASTFWD
+/* static void forw( word *p, word *oldlo, word *oldhi, word *dest ) */
+/* assumes that all params are simple names! */
 #define forw( p, oldlo, oldhi, dest ) \
-  do { word *TMP1 = (p); \
-       word TMP2 = *TMP1; \
+  do { word TMP2 = *p; \
        if (isptr( TMP2 ) && (word*)TMP2 >= oldlo && (word*)TMP2 < oldhi) { \
            word *TMP_P = ptrof( TMP2 ); \
-           if (*TMP_P == 0xFFFFFFFE) *TMP1 = *(TMP_P+1); \
+           if (*TMP_P == 0xFFFFFFFE) \
+	     *p = *(TMP_P+1); \
 	   else if (tagof( TMP2 ) == PAIR_TAG) { \
-             word *TMPQ = *dest; \
-             *TMPQ = *TMP_P; *(TMPQ+1) = *(TMP_P+1); \
+             *dest = *TMP_P; \
+	     *(dest+1) = *(TMP_P+1); \
              *TMP_P = 0xFFFFFFFE; \
-	     *(TMP_P+1) = *TMP1 = (word)tagptr(TMPQ, PAIR_TAG); \
-             *dest = TMPQ+2; \
-	   } else *TMP1 = forward( TMP2, dest ); \
+	     *(TMP_P+1) = *p = (word)tagptr(dest, PAIR_TAG); \
+             dest += 2; \
+	   } \
+	   else { \
+	     word *TMPD = dest; \
+	     *p = forward( TMP2, &TMPD ); dest = TMPD; \
+	   } \
        } \
   } while( 0 )
-#else
-#define forw( p, oldlo, oldhi, dest ) \
-  do { word *TMP1 = (p); \
-       word TMP2 = *TMP1; \
-       if (isptr( TMP2 ) && (word*)TMP2 >= oldlo && (word*)TMP2 < oldhi) { \
-           word *TMP_P = ptrof( TMP2 ); \
-           if (*TMP_P == 0xFFFFFFFE) *TMP1 = *(TMP_P+1); \
-	   else *TMP1 = forward( TMP2, dest ); \
-       } \
-  } while( 0 )
-#endif
 
 static void remset_scanner();
 static void root_scanner();
 static void scan();
 static word forward();
+
+/* Some private globals to emulate closures */
+static word *g_oldlo, *g_oldhi, **g_dest;
 
 word *minor_collection( oldlo, oldhi, newlo )
 word *oldlo, *oldhi, *newlo;
@@ -84,8 +78,12 @@ word *oldlo, *oldhi, *newlo;
   consolemsg( "[debug] Minor collection %08lx %08lx %08lx.",
 	     oldlo, oldhi, newlo );
 #endif
-  enumerate_roots( root_scanner, oldlo, oldhi, &dest );
-  enumerate_remset( remset_scanner, oldlo, oldhi, &dest );
+  g_oldlo = oldlo;
+  g_oldhi = oldhi;
+  g_dest = &dest;
+
+  enumerate_roots( root_scanner );
+  enumerate_remset( remset_scanner );
   scan( newlo, oldlo, oldhi, &dest );
 
   return dest;
@@ -102,7 +100,11 @@ word *oldlo, *oldhi, *newlo;
 #else
   consolemsg( "Major collection." );
 #endif
-  enumerate_roots( root_scanner, oldlo, oldhi, &dest );
+  g_oldlo = oldlo;
+  g_oldhi = oldhi;
+  g_dest = &dest;
+
+  enumerate_roots( root_scanner );
   scan( newlo, oldlo, oldhi, &dest );
 
   return dest;
@@ -111,24 +113,37 @@ word *oldlo, *oldhi, *newlo;
 /* This procedure receives a pointer to a tagged pointer and may forward 
  * the tagged pointer.
  */
-static void root_scanner( ptr, oldlo, oldhi, dest )
-word *ptr, *oldlo, *oldhi, **dest;
+static void root_scanner( ptr )
+word *ptr;
 {
+  word *oldlo, *oldhi, *dest;
+
+  oldlo = g_oldlo;
+  oldhi = g_oldhi;
+  dest = *g_dest;
+
   forw( ptr, oldlo, oldhi, dest );
+
+  *g_dest = dest;
 }
 
 /* This receives a tagged ptr to a pair, vector-like, or procedure 
  * to scan for pointers to the space between oldlo and oldhi.
  */
-static void remset_scanner( ptr, oldlo, oldhi, dest )
-word ptr, *oldlo, *oldhi, **dest;
+static void remset_scanner( ptr )
+word ptr;
 {
-  word words, *p;
+  word words, *p, *oldlo, *oldhi, *dest;
+
+  oldlo = g_oldlo;
+  oldhi = g_oldhi;
+  dest = *g_dest;
 
   p = ptrof( ptr );
   if (tagof( ptr ) == PAIR_TAG) {
     forw( p, oldlo, oldhi, dest );
-    forw( p+1, oldlo, oldhi, dest );
+    ++p;
+    forw( p, oldlo, oldhi, dest );
   }
   else {
     words = sizefield( *p ) / 4;
@@ -137,24 +152,48 @@ word ptr, *oldlo, *oldhi, **dest;
       forw( p, oldlo, oldhi, dest );
     }
   }
+
+  *g_dest = dest;
 }
 
-static void scan( ptr, oldlo, oldhi, dest )
-word *ptr, *oldlo, *oldhi, **dest;
+static void scan( ptr, oldlo, oldhi, d )
+word *ptr, *oldlo, *oldhi, **d;
 {
-  word w, bytes;
+  word w, bytes, words, h;
+  word *dest;
 
-  while (ptr < *dest) {
+  dest = *d;
+
+  while (ptr < dest) {
     w = *ptr;
-    if (ishdr( w ) && header( w ) == BV_HDR) {
-      bytes = roundup4( sizefield( w ) );
-      ptr = (word *) ((word) ptr + (bytes + 4));  /* does _not_ skip padding */
+    if (ishdr( w )) {
+      h = header( w );
+      if (h == BV_HDR) {
+	/* bytevector: skip it */
+	bytes = roundup4( sizefield( w ) );
+	ptr = (word *) ((word) ptr + (bytes + 4));  /* doesn't skip padding */
+	if (!(bytes & 4)) ptr++;                    /* skip padding */
+      }
+      else {
+	/* vector or procedure: scan in a tight loop */
+	words = sizefield( w ) >> 2;
+	ptr++;
+	while (words--) {
+	  forw( ptr, oldlo, oldhi, dest );
+	  ptr++;
+	}
+	if (!(sizefield( w ) & 4)) ptr++;           /* skip padding */
+      }
     }
     else {
       forw( ptr, oldlo, oldhi, dest );
       ptr++;
+      forw( ptr, oldlo, oldhi, dest );
+      ptr++;
     }
   }
+
+  *d = dest;
 }
 
 /*
@@ -177,31 +216,35 @@ word p, **dest;
   newptr = (word)p1;    /* really *dest, but the compiler is dumb. */
   p2 = ptr;
 
-#if !FASTFWD
-  if (tag == PAIR_TAG) {
-    *p1++ = *p2++;
-    *p1++ = *p2++;
-  }
-  else 
-#endif
-  {
-    hdr = *ptr;
-    bytes = roundup4( sizefield( hdr ) ) + 4;
+  hdr = *ptr;
+  bytes = roundup8( sizefield( hdr ) + 4 );
 
-    switch (bytes >> 2) {
-    case 8 : *p1++ = *p2++;
-    case 7 : *p1++ = *p2++;
-    case 6 : *p1++ = *p2++;
-    case 5 : *p1++ = *p2++;
-    case 4 : *p1++ = *p2++; 
-    case 3 : *p1++ = *p2++;
-    case 2 : *p1++ = *p2++;
-    case 1 : *p1++ = *p2++;
-    case 0 : break;
-    default: memcpy( p1, p2, bytes ); p1 += (bytes >> 2);
-    }
-    if (bytes & 4) *p1++ = 0;
-  }    
+  /* One might be tempted to think that the following can be speeded up by
+   * either using explicit indices (e.g. *(p1+5) = *(p2+5)), introducing
+   * temporaries to allow the compiler more room to schedule, by prefetching
+   * the destination to prevent cache stalls, and so on. On the Sparc, 
+   * however, this code is still faster.
+   */
+  switch (bytes >> 3) {
+    case 8  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 7  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 6  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 5  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 4  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 3  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 2  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 1  : *p1++ = *p2++;
+              *p1++ = *p2++;
+    case 0  : break;
+    default : memcpy( p1, p2, bytes );  p1 += (bytes >> 2);
+  }
   *dest = p1;
   newptr = (word) tagptr( newptr, tag );
 

@@ -83,7 +83,6 @@ unsigned heap_ssize()
 
 /*
  * Load the heap into the tenured area.
- * Knows too much about the globals[] table, but we can fix that.
  */
 void load_heap()
 {
@@ -93,8 +92,8 @@ void load_heap()
   if (fp == 0)
     panic( "load_heap(): No heap has been opened!" );
 
-  base = globals[ G_TBOT ];
-  limit = globals[ G_TLIM ];
+  base = (word)getheaplimit( HL_TTOP );
+  limit = (word)getheaplimit( HL_TLIM );
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
     w = getword();
@@ -107,7 +106,7 @@ void load_heap()
   hcount = getword();
   p = loadit( base, limit, hcount );
 
-  globals[ G_TTOP ] = (word) p;
+  setheaplimit( HL_TTOP, p );
 }
 
 static word *loadit( base, limit, count )
@@ -172,8 +171,8 @@ char *filename;
   if (fp == NULL)
     return -1;
 
-  base = globals[ G_TBOT ];
-  top  = globals[ G_TTOP ];
+  base = (word)getheaplimit( HL_TBOT );
+  top  = (word)getheaplimit( HL_TTOP );
 
   if (putword( HEAP_VERSION, fp ) == EOF)
     return -1;

@@ -20,12 +20,12 @@
 ;;  "chezdir" is the absolute name of the directory which has the chez
 ;;  Scheme support and compatibility files; it ends with a "/".
 
-(print-vector-length #f)          ; a curse on dybvig/hieb!
+(print-vector-length #f)          ; a curse on dybvig!
 
 (define (loadfile path file)
   (load (string-append path file)))
 
-(display "Larceny develompment environment under Chez scheme")
+(display "Larceny development environment under Chez scheme")
 (newline)
 (newline)
 
@@ -85,15 +85,19 @@
 (display "Loading makefile...") (newline)
 (loadfile sourcedir "makefile.sch")
 
+(display "Loading help...") (newline)
+(loadfile compilerdir "help.sch")
+
 ; Compiler switches!
 
-(define unsafe-mode #f)         ; turn of checking on a lot of primitives
+(define unsafe-mode #f)         ; turn off checking on a lot of primitives
 (define inline-cons #f)         ; inline CONS 
 (define fast-pop #f)            ; assumes no spill frames
 (define inline-assignment #f)   ; inline gen. check in assignments
 (define assume-short-distance-to-call #f)  ; faster SAVE/SETRTN
 (set!   emit-undef-check? #t)   ; undefined globals are caught
 (set!   listify? #f)            ; generate listing; not very useful any more
+(set!   generate-global-symbols? #t)  ; each cell has the name
 
 ; In addition, there are other switches:
 ;   the nullary procedure benchmark-mode is defined in Chez/compat.ss
@@ -129,9 +133,9 @@
   (display-switch "Emit-undef-check?" emit-undef-check?)
   (display-switch "Generate-global-symbols?" generate-global-symbols?))
 
-(compiler-switches)
-(newline)
-(display "Welcome.")
+;(compiler-switches)
+;(newline)
+(display "Welcome. Type (help) for help.")
 (newline)
 
 (define (roundup8 n)

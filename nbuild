@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# This script starts up the development environment with correct paths set.
+#
+# The advantage of having this script is that it can be cloned and specialized
+# for different object (or source) directories.
+
+TMPFILE=/tmp/larceny.build.`whoami`.$$
+USER=lth
+DIR=`pwd`
+
+make Build/schdefs.h
+
+echo "(define topleveldir \"$DIR/\")" >> $TMPFILE
+echo "(define sourcedir \"$DIR/Lib/\")" >> $TMPFILE
+echo "(define targetdir \"$DIR/Lib/\")" >> $TMPFILE
+echo "(define configdir \"$DIR/\")" >> $TMPFILE
+echo "(define chezdir \"$DIR/Chez/\")" >> $TMPFILE
+echo "(define sparcdir \"$DIR/Sparc/\")" >> $TMPFILE
+echo "(define compilerdir \"$DIR/Compiler/\")" >> $TMPFILE
+echo "(define builddir \"$DIR/Build/\")" >> $TMPFILE
+echo "(load (string-append compilerdir \"nbuild.sch\"))" >> $TMPFILE
+scheme $TMPFILE
+rm $TMPFILE

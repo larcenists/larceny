@@ -1,25 +1,30 @@
-; Copyright 1991 Lightship Software
-;
-; 29 August 1991
-;
-; Integrable procedures and procedure-specific source code transformations.
-; Every integrable procedure that takes a varying number of arguments must
-; supply a transformation procedure to map calls into the fixed arity
-; required by the MacScheme machine instructions.
+;; Copyright 1991 Lightship Software
+;;
+;; July 19, 1994 / lth
+;;   Moved more macro definitions from pass1.imp.sch to this file.
+;;
+;; 29 August 1991 / will (from MacScheme)
+;;
+;; Integrable procedures and procedure-specific source code transformations.
+;; Every integrable procedure that takes a varying number of arguments must
+;; supply a transformation procedure to map calls into the fixed arity
+;; required by the MacScheme machine instructions.
 
-; The maximum number of fixed arguments that may be followed by a rest
-; argument.  This limitation is removed by the macro expander.
+;; The maximum number of fixed arguments that may be followed by a rest
+;; argument.  This limitation is removed by the macro expander.
 
 (define @maxargs-with-rest-arg@ 30)
 
-; The table of integrable procedures.
-; Each entry is a list of the following items:
-;
-;    procedure name
-;    arity
-;    procedure name to be used by the disassembler
-;    predicate for immediate operands (or #f)
-;    primop code in the MacScheme machine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; The table of integrable procedures.
+;; Each entry is a list of the following items:
+;;
+;;    procedure name
+;;    arity
+;;    procedure name to be used by the disassembler
+;;    predicate for immediate operands (or #f)
+;;    primop code in the MacScheme machine
 
 (define (prim-entry name)
   (assq name $usual-integrable-procedures$))
@@ -30,20 +35,25 @@
 (define (prim-primcode entry)
   (car (cddddr entry)))
 
-; Procedure-specific source code transformations.
-; The transformer is passed a source code expression and a predicate
-; and returns one of:
-;
-;    the original source code expression
-;    a new source code expression to use in place of the original
-;    #f to indicate that the procedure is being called
-;      with an incorrect number of arguments or
-;      with an incorrect operand
-;
-; The original source code expression is guaranteed to be a list whose
-; car is the name associated with the transformer.
-; The predicate takes an identifier (a symbol) and returns true iff
-; that identifier is bound to something other than its global binding.
+; NOTE: the table itself is defined in pass1.imp.sch.
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Procedure-specific source code transformations.
+;; The transformer is passed a source code expression and a predicate
+;; and returns one of:
+;;
+;;    the original source code expression
+;;    a new source code expression to use in place of the original
+;;    #f to indicate that the procedure is being called
+;;      with an incorrect number of arguments or
+;;      with an incorrect operand
+;;
+;; The original source code expression is guaranteed to be a list whose
+;; car is the name associated with the transformer.
+;; The predicate takes an identifier (a symbol) and returns true iff
+;; that identifier is bound to something other than its global binding.
 
 (define @integrable@ '())
 
@@ -51,8 +61,6 @@
   (and (integrate-usual-procedures)
        (or (assq name @integrable@)
            (prim-entry name))))
-
-(define define-inline)
 
 (define (define-inline name transformer)
   (if (assq name @integrable@)
@@ -411,30 +419,28 @@
                        (m-scan (caddr exp) env)))))))
 
 
-
-; Macros for cross-compilation.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Macros.
 
 (define @special-forms@
   '(quote lambda if set! begin))
 
 (define @macros@ '())
 
-(define (install-macro keyword transformer)
+(define (define-macro keyword transformer)
   (if (assq keyword @macros@)
       (begin (set! @special-forms@ (remq! keyword @special-forms@))
              (set! @macros@ (remq! (assq keyword @macros@) @macros@))
-             (install-macro keyword transformer))
+             (define-macro keyword transformer))
       (begin (set! @macros@ (cons (list keyword transformer) @macros@))
              (set! @special-forms@ (cons keyword @special-forms@))
              keyword)))
 
-(for-each (lambda (x) (install-macro (car x) (cadr x)))
-          **macros**)
-
-(define-macro undefined
+(define-macro 'undefined
   (lambda (l) `',hash-bang-unspecified))
 
-(define-macro or
+(define-macro 'or
   (lambda (l)
     (cond ((null? (cdr l)) '#f)
           ((null? (cddr l)) (cadr l))
@@ -442,7 +448,7 @@
                   `(let ((,temp ,(cadr l)))
                         (if ,temp ,temp (or ,@(cddr l)))))))))
 
-(define-macro cond
+(define-macro 'cond
   (lambda (l)
     (if (null? (cdr l))
         `',hash-bang-unspecified
@@ -474,7 +480,7 @@
 ; This generates pretty terrible code for named let.
 ; Ought to fix it someday.
 
-(define-macro let
+(define-macro 'let
   (lambda (l)
     (if (and (atom? (cadr l))
              (not (null? (cadr l))))
@@ -490,7 +496,7 @@
                           (cddr l)))
               (map (lambda (x) (cadr x)) (cadr l))))))
 
-(define-macro letrec
+(define-macro 'letrec
   (lambda (l)
     (let ((bindings (sort (cadr l)
                           (lambda (x y)
@@ -504,7 +510,7 @@
                   (cons 'let (cons '() body)))
             (map (lambda (x) '(undefined)) bindings)))))
 
-(define-macro do
+(define-macro 'do
   (let ((oops (lambda (l) 
                 (error "Malformed do expression" l))))
     (lambda (l)
@@ -536,7 +542,170 @@
                                             (cons loop (map caddr bindings)))))))
               (cons loop (map cadr bindings)))))))
 
-; For testing.
+(define-macro 'and
+  (lambda (l)
+    (cond ((null? (cdr l)) #t)
+	  ((null? (cddr l)) (cadr l))
+	  (else (let ((temp (gensym "T")))
+		  `(let ((,temp ,(cadr l)))
+		     (if ,temp (and ,@(cddr l)) #f)))))))
+	
+(define-macro 'case
+  (lambda (l)
+    (let ((s (gensym "T")))
+      `(let ((,s ,(cadr l)))
+	 (cond
+	  ,@(let loop ((q (cddr l)) (r '()))
+	      (cond ((null? q) (reverse r))
+		    ((eq? (caar q) 'else)
+		     (reverse (cons (car q) r)))
+		    (else
+		     (loop (cdr q)
+			   (cons 
+			    (let ((x (car q)))
+			      (cons (cons 'or
+					  (map (lambda (z)
+						 `(eqv? ,s (quote ,z)))
+					       (car x)))
+				    (cdr x)))
+			    r))))))))))
+
+(define-macro 'let*
+  (lambda (l)
+    (cond ((null? (cadr l))
+	   `(begin ,@(cddr l)))
+	  (else
+	   `(let (,(caadr l))
+	      (let* ,(cdadr l)
+		,@(cddr l)))))))
+
+(define-macro 'delay
+  (lambda (l)
+    (let ((hasval (gensym "T"))
+	  (val    (gensym "T"))
+	  (tmp    (gensym "T")))
+      `(let ((,hasval #f) (,val #f))
+	 (lambda ()
+	   (if ,hasval
+	       ,val
+	       (let ((,tmp ,(cadr l)))
+		 (if ,hasval
+		     ,val
+		     (begin (set! ,hasval #t)
+			    (set! ,val ,tmp)
+			    ,tmp)))))))))
+
+;; Rewrites quasiquotations. Painfully.
+;; A stop-gap measure only.
+;;
+;; Notation:
+;;
+;;   0 <= m <= infty
+;;   1 <= n <= infty
+;;   v is a vector
+;;   Caps indicate literals. Lower case indicates actual code.
+;;   Aliases: QQ = quasiquote
+;;            UNQ = unquote
+;;            UNQS = unquote-splicing
+;;            L->V = list->vector
+;;            v->l = vector->list
+;;
+;; Rewrite Rules (apply matching top-down, from the outside and in):
+;;
+;;   (r (QQ v) 0) => (L->V (r (QQ (v->l v)) 0)))
+;;   (r (QQ v) n) => (LIST (QUOTE QQ) (L->V (r (QQ (v->l v)) n))))
+;;   (r (QQ (UNQ x) 0)) => x
+;;   (r (QQ (UNQ x) n)) => (LIST (QUOTE UNQ) (r (QQ x) (- n 1)))
+;;   (r (QQ (QQ x) m)) => (LIST (QUOTE QQ) (r (QQ x) (+ m 1)))
+;;   (r (QQ ((UNQS x) . y)) 0) => (APPEND x (r (QQ y) 0))
+;;   (r (QQ ((UNQS x) . y)) n) => (LIST (QUOTE QQ)
+;;                                      (LIST (LIST (QUOTE UNQS) 
+;;                                                  (r (QQ x) (- n 1)))
+;;                                                  (r (QQ y) n)))
+;;   (r (QQ (QUOTE x)) m) => (LIST (QUOTE QUOTE) (QUOTE x))
+;;   (r (QQ (x . y) m)) => (CONS (r (QQ x) m) (r (QQ y) m))
+;;   (r (QQ x) m) => (QUOTE x)
+;;
+;; Notes:
+;;
+;;   Not terribly robust.
+;;   One could write a set of rules which would expand to more 
+;;   efficient code, using literals wherever possible. Here, we 
+;;   almost always expand to runnable code, resulting in slower
+;;   and larger code. 
+;;
+;; Assumes existence of top-level names %LIST, %CONS, %LIST->VECTOR, 
+;; and %APPEND; they may not be redefined nor shadowed by local names... sigh.
+
+(define-macro 'quasiquote
+  (lambda (expr)
+
+    (define hyg-list->vector '%list->vector)
+    (define hyg-list '%list)
+    (define hyg-cons '%cons)
+    (define hyg-append '%append)
+
+    (define (r e l)
+      (cond ((vector? (cadr e))
+	     (let ((v (cadr e)))
+	       (if (zero? l)
+		   (list hyg-list->vector
+			 (r (list 'QUASIQUOTE (vector->list v)) l))
+		   (list hyg-list
+			 'QUASIQUOTE
+			 (list hyg-list->vector 
+			       (r (list 'QUASIQUOTE (vector->list v)) l))))))
+	    ((pair? (cadr e))
+	     (cond ((eq? (car (cadr e)) 'UNQUOTE)
+		    (let ((x (cadr (cadr e))))
+		      (if (zero? l)
+			  x
+			  (list hyg-list '(QUOTE UNQUOTE)
+				(r (list 'QUASIQUOTE x) (- l 1))))))
+		   ((eq? (car (cadr e)) 'QUASIQUOTE)
+		    (let ((x (cadr (cadr e))))
+		      (list hyg-list 
+			    '(QUOTE QUASIQUOTE)
+			    (r (list 'QUASIQUOTE x) (+ l 1)))))
+		   ((and (pair? (car (cadr e)))
+			 (eq? (caar (cadr e)) 'UNQUOTE-SPLICING))
+		    (let ((x (cadr (car (cadr e))))
+			  (y (cdr (cadr e))))
+		      (if (zero? l)
+			  (list hyg-append x (r (list 'QUASIQUOTE y) 0))
+			  (list hyg-list
+				'(QUOTE quasiquote)
+				(list hyg-list
+				      (list hyg-list 
+					    '(QUOTE UNQUOTE-SPLICING)
+					    (r (list 'QUASIQUOTE x) (- l 1)))
+				      (r (list 'QUASIQUOTE y) l))))))
+		   ((eq? (car (cadr e)) 'QUOTE)
+		    (list hyg-list '(QUOTE QUOTE) (cadr e)))
+		   (else
+		    (let ((x (car (cadr e)))
+			  (y (cdr (cadr e))))
+		      (list hyg-cons 
+			    (r (list 'QUASIQUOTE x) l) 
+			    (r (list 'QUASIQUOTE y) l))))))
+	    (else
+	     (let ((x (cadr e)))
+	       (list 'QUOTE x)))))
+
+    (r expr 0)))
+
+(define-macro 'unquote
+  (lambda (expr)
+    (error "Invalid context for UNQUOTE special form.")))
+
+(define-macro 'unquote-splicing
+  (lambda (expr)
+    (error "Invalid context for UNQUOTE-SPLICING special form.")))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; For testing.
 
 ; MAKE-READABLE strips the referencing information
 ; and replaces (begin I) by I.

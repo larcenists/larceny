@@ -47,6 +47,7 @@ int show_heapstats;
   heap_after = used_espace() + used_tspace();
   rtstart = memstat_rtclock();
 
+#if 0
   if (show_heapstats) {
     consolemsg( "Heap statistics:\n");
     consolemsg( "  Size of ephemeral area: %lu bytes\n", size_espace() );
@@ -54,6 +55,7 @@ int show_heapstats;
     consolemsg( "  Live ephemeral data: %lu bytes\n", used_espace() );
     consolemsg( "  Live tenured data: %lu bytes\n", used_tspace() );
   }
+#endif
 }
 
 void memstat_before_gc( type )

@@ -176,9 +176,8 @@ int compact_ssb()
  * Called from the garbage collector; makes the implementation of the
  * remembered set abstract.
  */
-void enumerate_remset( scanner, p1, p2, p3 )
+void enumerate_remset( scanner )
 int (*scanner)();
-word *p1, *p2, **p3;
 {
   word *p, *q;
 
@@ -186,7 +185,7 @@ word *p1, *p2, **p3;
   q = (word*)globals[ G_REMSET_POOLTOP ];
   memstat_transactions_scanned( (q - p)/2 );
   while (p < q) {
-    scanner( *p, p1, p2, p3 );
+    scanner( *p );
     p += 2;
   }
 
@@ -197,7 +196,7 @@ word *p1, *p2, **p3;
   q = (word*)globals[ G_SSBTOP ];
   memstat_transactions_scanned( q - p );
   while (p < q) {
-    scanner( *p, p1, p2, p3 );
+    scanner( *p );
     p++;
   }
 }

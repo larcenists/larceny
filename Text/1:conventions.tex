@@ -1,0 +1,489 @@
+% -*- TeX -*-
+% $Id: 1:conventions.tex,v 1.4 1992/08/04 18:28:19 lth Exp $
+
+\input{larceny.sty}
+
+\title{Larceny Note \#1: \\
+       Register Usage, Continuation Layout, and Calling Conventions}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document discusses the mapping of virtual-to-physical registers, the
+use of the Scheme stack, the calling conventions for Scheme and millicode,
+and the layout of procedures and continuations.
+\end{abstract}
+
+\section{Register Usage}
+
+The mapping of virtual to physical registers is defined in the header
+file ``registers.s.h'', and is also summarized below. That file
+also define symbolic names for registers for use by assembly language
+procedures.  The following discussion highlights some of the
+trade-offs.
+
+The Sparc version 8 manual states that in order to maintain Sparc ABI
+compliance, only the global registers \%g1-\%g4 are available, while
+\%g5-\%g7 are reserved for systems use. It is unclear what constitutes
+``systems use'', and it appears that if we don't care about Sparc ABI
+compliance, we can use all the global registers. Since our register
+model already violates the Sparc ABI spec, there is little point in
+staying away from the global registers.
+
+The ``call'' instruction uses \%o7 to store the return address; we
+cannot in general use the ``call'' instruction for calls in the Scheme calling
+conventions, but it is convenient to simulate a ``call'' using
+the ``jmpl'' instruction, because calling the millicode becomes
+cheaper that way (this is discussed in some detail below).  Therefore,
+we should reserve \%o7 for miscellaneous operations involving a return
+address.
+
+Likewise, we will want two stacks: one for C and one for Scheme. This
+choice lets us tailor the Scheme calling conventions without having to
+worry about interrupts and related problems, which reqire a specific
+stack layout. The C stack follows the conventions necessary to deal
+with asynchronous events. Since the C stack pointer must at all times
+be in register \%o6, we cannot use this register for Scheme.
+
+Since the operating system window overflow trap handler uses the stack
+pointers of previous windows (i.e. \%i6 after a save), the \%i6
+register cannot be used by Scheme, either.
+
+Although \%i7 holds the return address of the previous procedure in the
+C calling conventions, we can simply save it somewhere (typically on
+the C stack), so \%i7 is available.
+
+Hence we are left with 28 registers available to Scheme: \%g1-\%g7,
+\%i0-\%i5, \%i7, \%l0-\%l7, and \%o0-\%o5. In addition, \%g0 is hardwired
+to the value 0. We have the following virtual and work register classes to
+map onto those registers (their function is elaborated on later):
+
+\vfill
+\begin{description}
+
+\item {\bf REG0 ... REGn, for some n}
+
+These are the general-purpose virtual registers. A subset must be
+mapped to physical registers, and the rest will be in memory.
+Rootable.
+
+\item {\bf RESULT}
+
+The register in which we return a value and pass argument counts. Also used
+to pass the first argument to millicode procedures. Rootable.
+
+\item {\bf ARGREG2}
+
+Second argument to a millicode procedure. Rootable.
+
+\item {\bf ARGREG3}
+
+Third argument to a millicode procedure. Rootable.
+
+\item {\bf STKP}
+
+Scheme stack pointer. Nonrootable.
+
+\item {\bf E\_TOP, E\_LIMIT, and others (perhaps STK\_LIMIT)}
+
+Heap pointers. Nonrootable.
+
+\item {\bf GLOBALS}
+
+A register pointing to an array of global variables. Nonrootable.
+
+\item {\bf MILLICODE}
+
+A register pointing to a vector of pointers to millicode procedures. 
+Nonrootable. This register could be the same register as GLOBALS; in the
+current implementation they are different registers.
+
+\item {\bf TIMER}
+
+The countdown timer register. Nonrootable.
+
+\item {\bf TMP0 \ldots TMPm, for some m}
+
+Temporary registers. Nonrootable.
+\end{description}
+
+It is convenient for the purposes of code generation to have
+even-numbered general-purpose registers mapped to even-numbered
+machine registers, as this saves instructions and cycles in some cases
+when a "store double" instruction can be used. This also requires that
+the Scheme stack pointer always be double-word aligned.
+
+The number of temporary registers needed is unclear; the more the better is
+a good rule, but there is clearly a limit. For reasons which will become
+clear later, \%g1 should be mapped to a TMP register.\footnote{Actually,
+an output register would do, but those are all taken by other stuff, so
+the point is still valid.} Also, some two of the
+temporaries should be allocated so that they can be used as a register pair,
+since this allows certain tweaks.
+
+The current register mapping is shown in table \ref{mappings}.
+Note that \%g1 is a temporary, and that \%TMP1/\%TMP2 is a temporary-register
+pair.
+
+
+\begin{table}[hbt]
+\begin{center}
+\begin{tabular}{|l|l|} \hline
+Logical & Physical \\ \hline\hline
+   REG0 ... REG7 &  l0 ... l7  \\
+   RESULT        &  o0 \\
+   ARGREG2       &  o1 \\
+   ARGREG3       &  o2 \\
+   STKP          &  o3 \\
+   E\_TOP        & i0 \\
+   E\_LIMIT      & i1 \\
+   GLOBALS       &  i7 \\
+   MILLICODE     &  i5 \\
+   TIMER         &  i4 \\
+   TMP0          &  g1 \\
+   TMP1          &  o4 \\
+   TMP2          &  o5 \\ \hline
+\end{tabular}
+\end{center}
+\caption{Virtual-to-physical register mapping}
+\label{mappings}
+\end{table}
+
+The symbolic names \%SAVED\_RESULT, \%SAVED\_ARGREG2, \%SAVED\_ARGREG3,
+\%SAVED\_STKP, \%SAVED\_TMP0, \%SAVED\_TMP1, and \%SAVED\_TMP2 can be 
+used to access their obvious counterparts after a ``save'' instruction has
+been executed.
+
+Registers not mapped to hardware registers are mapped to their save locations
+in the globals table.
+
+\section{Continuations}
+
+There are two continuation layouts: in the stack and on the heap. Heap
+continuations are never manipulated directly by compiled Scheme code;
+instead, they are created on stack overflow or on the capture of a
+continuation, and restored into the stack on a stack underflow or the
+reinstatement of a continuation.
+
+Stack frames have the following layout (memory addresses increasing
+going down the figure):
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+%STKP --> pppp pppp pppp pppp pppp pppp pppp pp00   return address slot
+          ssss ssss ssss ssss ssss ssss ssss ss00   frame size (bytes)
+          pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   argument  (saved REG1)
+          ....
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   temporary
+          ....
+\end{verbatim}
+\end{minipage}
+
+The frame size is the number of bytes used by the frame, including the
+return address and size fields.  A frame should always be an even
+number of words, but the size field should indicate the number of
+actually used words, i.e. less any padding words. This doubleword
+alignment of the stack lets us save some instructions in some cases.
+The unused word of the frame should always be the highest addressed word
+in the frame, and it may remain uninitialized, if desired: the stack
+flushing routine deals with it in a coherent way.
+
+As a special case the procedure word may be all 0's, in which case the
+return address will not be adjusted when the stack frame is flushed to the
+heap (see note \#8 for details). This allows the creation of frames which
+correspond to nonrelocatable code.
+
+When the stack cache is flushed into the heap, each frame is made into
+a vector structure with the following layout:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+      --> 0sss ssss ssss ssss ssss ss00 101t tt10   vector header word
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   dynamic link or #f
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xx00   return offset
+          pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   argument  (saved REG1)
+          ....
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   temporary
+          ....
+\end{verbatim}
+\end{minipage}
+
+The return offset is the offset into the code vector of the saved
+procedure to which point the return address pointed before the frame
+was flushed to the heap. The code vector is a byte vector; the offset
+is from the start of the first data byte of the bytevector, i.e. it is
+a valid bytevector index.  Note that all words in the heap
+continuation frame must be valid scheme objects; hence, if there is a
+chance that a frame is flushed before all temporaries are used, then
+the temporaries must have been initialized.
+
+The tag of a continuation frame is an ordinary vector tag.
+
+\section{Procedure layout}
+
+A procedure looks much like a vector (although it has a distinguished
+header and is pointed to by a distinguished pointer):
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+     --> 0sss ssss ssss ssss ssss ssss 1111 1110    header
+         pppp pppp pppp pppp pppp pppp pppp p101    bytevector ptr (to code)
+         vvvv vvvv vvvv vvvv vvvv vvvv vvvv v011    vector ptr (to constants)
+         llll llll llll llll llll llll llll llll    static link
+         xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx    data slot
+         ....
+\end{verbatim}
+\end{minipage}
+
+The data slots contain the contents of variables which were closed
+over at run time, and the static link points to another procedure
+structure. Top-level procedures do not have static links nor data slots.
+
+
+\section{Calling conventions}
+
+The discussion of procedure calls separates into several parts:
+Procedure entry; setting up for a call; doing a tail call; doing a
+non-tail call; and returning from a call. 
+
+One operation which is used quite a bit is the equivalent of the ``lea''
+(load effective address) instruction on the mc68000. It calculates the
+effective address of some location based on the current PC.  However,
+the Sparc has no ``lea'' instruction, nor is the PC available to other
+instructions than the ``call'' instruction. On the other hand, since the
+``call'' instruction is PC-relative, we can use it to extract the PC and
+calculate an effective address from there. So assume we want to say
+
+\begin{verbatim}
+        lea     L2, %TMP0               ! compute effective address of L2 into %TMP0
+\end{verbatim}
+
+then we really say
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+        call    .+8                     ! "." means "current pc"
+        add     %o7, (L2-(.-4)), %TMP0
+\end{verbatim}
+\end{minipage}
+
+This setup is reasonable as long as \%o7 is not used in compiled Scheme
+code, which it isn't. (One of the reasons why \%o7 should not be used
+for the return address is because it is needed as a work register for
+``lea''.)  The above construct is also fast -- a call completes in 1
+cycle, so the entire operation takes only 2 cycles and 2 instructions.
+Furthermore, by manipulating the branch address of the call, we can do
+a branch and ``lea'' all-in-one.
+
+Special care must be taken when the distance between the ``lea'' and the 
+label it addresses is not bounded by some small constant (4K); if it is
+the case that the distance can be larger, more instructions are necessary
+to calculate the correct address because the offset won't fit in the
+immediate of the ``add'' instruction.
+
+\section{Procedure entry}
+
+We have a caller-saves dicipline, so the callee must do very little at
+procedure entry time. Typically all that is done is to check the number
+of arguments, and even doing so is not mandated by the calling conventions,
+but is rather a compiler issue.
+
+In the case of a fixed number of arguments, the check is straightforward
+(ARG\_COUNT is the number of expected arguments):
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+L0:
+     cmp   %RESULT, ARG_COUNT
+     be,a  L1
+     nop
+     jmpl  %MILLICODE + M_ARG_EXCEPTION
+     add   %o7, L0-(.-4))-8, %o7          ; subject to change
+L1:
+\end{verbatim}
+\end{minipage}
+
+The return address given to the exception handler is that of the procedure
+entry point, so that the operation can be retried.\footnote{Exception
+handling semantics and mechanisms are still in rough shape.} Exception
+handling semantics is covered in detail in Note \#2.
+
+Notice the adjustment of "-8" on the effective address calculations.
+The adjustment is necessary because a standard return jumps to the
+instruction at (return address + 8).  Since there is no sense in using
+both adjusted and unadjusted returns, 
+ we will use adjusted ones everywhere.
+
+In the case of a variable number of arguments, the check is a lot more 
+complicated because excess arguments must be copied into a list and so
+on; the entire process has been encapsulated in the millicode procedure
+M\_VARARGS, and checking for a variable number of arguments involves
+calling this procedure with an extra argument expressing the number of
+fixed parameters (FIXED\_ARGS):
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+     jmpl   %MILLICODE + M_VARARGS, %o7
+     mov    FIXED_ARGS, %ARGREG2
+\end{verbatim}
+\end{minipage}
+
+\section{Stack Frame Creation}
+
+For non-tail calls (and at some other times), the compiler will save
+the live registers in a stack frame before the arguments to the call
+are evaluated and the callee is invoked. The code for saving the registers
+involves
+allocating the stack frame (cheking for overflow in the process), and
+then storing the necessary registers and a return address in the new
+frame. The code is straightforward, if somewhat wordy; assume that
+A\_FSIZE is the adjusted (up to a doubleword boundary) size of the
+frame being allocated (in bytes), and FSIZE is the real size of the
+frame:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    ld      [ %GLOBALS+SP_LIMIT_OFFSET ], %TMP0 ! Get stack limit
+    cmp     %STKP, %TMP0                        ! check stack pointer
+    bgt,a   L1                                  ! Skip if no overflow
+    sub     %STKP, A_FSIZE, %STKP               ! Allocate frame (delayed)
+    jmpl    %MILLICODE + M_STKOFLOW, %o7
+    nop
+    sub     %STKP, A_FSIZE, %STKP               ! Alloc frame (after trap)
+L1:
+    st      %REG0, [ %STKP+8 ]                  ! save REG0
+    st      %REG1, [ %STKP+12 ]                 ! save REG1
+      :
+    ld      [ %GLOBALS + REG8_OFFSET ], %TMP0   ! fetch memory-mapped reg
+    st      %TMP0, [ %STKP+40 ]                 ! save REG8
+      :
+    call    .+8
+    add     %o7, (L2-(.-4))-8, %o7              ! return to some L2
+    st      %o7, [ %STKP+0 ]                    ! save retrun address
+    mov     FSIZE, %TMP0                        ! real frame size
+    st      %TMP0, [ %STKP+4 ]                  ! save frame size
+\end{verbatim}
+\end{minipage}
+
+Some of this code can be tweaked by using doubleword loads and stores in
+several cases, but this is in general what a ``save'' looks like.
+
+\section{Procedure Call}
+
+Calling a procedure is fairly straightforward. The caller must decrement
+the software timer (and raise an exception if it has reached zero), then check
+to see that the callee is indeed a procedure (and raise an exception if it
+is not), and finally it must set up the argument count register and branch
+to the code for the callee.
+
+Notice that the code for a tail call and the code for a non-tail call are
+the same, as a stack frame (with a return address) is created separately
+from the invocation of the callee.
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+L0:
+     subcc  %TIMER, 1, %TIMER
+     bne,a  L1
+     and    %RESULT, TAG_MASK, %TMP0
+     jmpl   %MILLICODE + M_TIMER_EXCEPTION, %o7
+     add    %o7, L0-(.-4)-8, %o7
+L1:
+     cmp    %RESULT, PROC_TAG
+     be,a   L2
+     ld     [ %RESULT + CODEVECTOR_OFFSET - PROC_TAG ], %TMP0
+     jmpl   %MILLICODE + M_PROC_EXCEPTION
+     add    %o7, L1-(.-4)-8, %o7
+L2:
+     mov    %RESULT, %REG0
+     jmp    %TMP0 + 4 - BVEC_TAG
+     mov    ARGCOUNT, %RESULT
+\end{verbatim}
+\end{minipage}
+
+(The bit about moving \%RESULT into \%REG0 is due to the MacScheme assembly
+language calling conventions.) A call without exceptions takes 10 clocks if
+the load hits the cache.
+
+\section{Returning From a Call}
+
+Returning from a call is almost trivial. The return address is in the
+return address slot of the topmost stack frame, and all we have to do
+is to get it out of there and jump to the indicated address. The result
+will already have been stored in the RESULT register. There is no need
+to pop a stack frame; this is done by the caller if necessary.
+
+Sometimes the stack cache will underflow. To handle this, there is a dummy
+continuation at the bottom of the stack which contains a return address to
+the stack underflow handler. Hence, a procedure will normally return to its
+caller, but sometimes it will be thrown into the underflow handler. The code
+in the handler will restore a stack frame from the heap and jump to the
+return address in the new frame. Neither caller nor callee will notice that
+this has happened.
+
+We therefore get the following code for the return operation:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    ld      [ %STKP + 0 ], %TMP0
+    jmp     %TMP0+8
+    nop
+\end{verbatim}
+\end{minipage}
+
+Occasionally the delay slot can be filled; it is also advantageous to
+try to move an instruction between the load and the jump to remove some
+of the latency due to the load.
+
+\section{Calling Millicode From Scheme}
+
+All millicode procedures are called indirectly through the global
+array "millicode", a pointer to which is in the register \%MILLICODE.
+The offsets into the table are defined in the file "millicode.s.h".
+
+Millicode procedures take 0, 1, 2, or 3 arguments. If there are
+arguments, they are passed in the registers \%RESULT, \%ARGREG2, and
+\%ARGREG3, in left-to-right order. All results are returned in the
+\%RESULT register.  If there are no results, as in the case of e.g.
+"setcar()", then \%RESULT is set to fixnum(~0~). \%ARGREG2 and \%ARGREG3 are
+preserved across millicode calls and may hence be used as rootable
+temporaries. [This guarantee is here because the memory management
+millicode upholds it; if other millicode cannot, then we'll remove the
+guarantee. The compiler will have to be somewhat sophisticated,
+anyway, to use the argument registers as temps.]
+
+Every millicode procedure requires that the return address is set up
+in register \%o7 when the procedure is entered, and that \%REG0 has a
+pointer to the procedure that called the millicode procedure.  [It
+would be unreasonable for the millicode to require the return address
+to be stored in the continuation, because the continuation may not
+exist.]
+
+To call a millicode procedure, then, we have the following code
+snippets. First, assuming we're returning to the instruction
+following the call:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    jmpl    %MILLICODE + M_<something>, %o7
+    nop
+\end{verbatim}
+\end{minipage}
+
+The delay slot can usually be filled with the setting up of one of 
+the millicode argument registers.
+Second, assuming we're returning to some other place (within the same
+code vector!), in this case "L2":
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    jmpl    %MILLICODE + M_<something>, %o7
+    add     %o7, (L2-(.-4))-8, %o7
+\end{verbatim}
+\end{minipage}
+
+\end{document}

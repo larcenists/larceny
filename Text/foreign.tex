@@ -1,0 +1,109 @@
+\input{larceny.sty}
+\title{Larceny Note \#19: \\
+       Foreign Procedure Interface \\
+       {\tenrm (proposal)}}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+We describe a small number of extra primops which, with the necessary
+Scheme-level glue, facilitates calling procedures written in other
+languages. For each implementation, there is a set of defined languages
+which Scheme knows about, and the definitions below are cast in terms
+of some unknown language ``X''. For each language there is a defined set
+of valid return types. The definitions below sometimes refer to a return
+type in terms of the variable ``Y''.
+
+The implementation of these primitives will vary between implementations
+of Larceny; however, a suggested implementation for the Sparc version with
+foreign C procedures is described below.
+
+\begin{description}
+
+\item[\verb+(foreign-X-procedure-address name)  =>  integer+]
+
+{\tt Foreign-X-procedure-address} takes the name of the foreign procedure
+as it would appear in a program in the foreign language, and returns an
+exact integer which is the core address of the foreign procedure. This
+assumes that the foreign address will not move; an implementation can
+get around moving foreign procedure by having a level of indirection.
+
+\item[\verb+(foreign-X-procedure-call-returning-Y integer args) => object+]
+
+{\tt Foreign-X-procedure-call-returning-Y} takes an integer (the address of
+the foreign procedure) and the list of arguments to that procedure, and calls
+that procedure. The effects of passing an invalid address are undefined.
+The type of the returned value is given by Y; the returned object is a
+Scheme object.
+
+\end{description}
+
+For the C language:
+
+\begin{verbatim}
+        foreign-C-procedure-address
+        foreign-C-procedure-call-returning-char
+        foreign-C-procedure-call-returning-int32
+        foreign-C-procedure-call-returning-uint32
+        foreign-C-procedure-call-returning-ieee32
+        foreign-C-procedure-call-returning-ieee64
+        foreign-C-procedure-call-returning-string
+        foreign-C-procedure-call-returning-taggedptr
+\end{verbatim}
+
+The type ``string'' indicates that the procedure returns a pointer
+to a null-terminated array of characters. A copy of the string is made
+in the Scheme heap and returned.
+
+The type ``taggedptr'' indicates that the procedure returns a tagged word
+which lives in the Scheme heap. This object could have been passed to the
+C procedure or it could have been allocated in the Scheme heap by the C
+procedure; the implementation of the latter is out of the scope of this
+document.
+
+In principle we could arrange for user-defined return types like structures
+(but not necessarily unions). These would be mapped from the C structure to
+an array or a list. However, the runtime then needs detailed knowledge of
+how the structures are laid out by the compiler.
+
+On the other hand, it is difficult to pass Scheme structures and expect the
+C code to fill them in correctly.
+
+One can malloc foreign memory, but this requires that we have an access
+facility; one can be written using C calls, but that is pretty slow.
+
+One possibility is to provide for returning C arrays [which are then copied
+into Scheme arrays], for some scalar types.
+
+A higher-level wrapper for these low-level facilities:
+
+\begin{verbatim}
+(define (foreign-C-function name argument-types result-type)
+  (let ((addr (foreign-C-procedure-address name)))
+    (if (not name)
+        (error "Undefined foreign procedure " name)
+        (let ((caller 
+                (case result-type
+                  ((char)      foreign-C-procedure-call-returning-char)
+		  ((int32)     foreign-C-procedure-call-returning-int32)
+                  ((uint32)    foreign-C-procedure-call-returning-uint32)
+                  ((ieee32)    foreign-C-procedure-call-returning-ieee32)
+                  ((ieee64)    foreign-C-procedure-call-returning-ieee64)
+                  ((string)    foreign-C-procedure-call-returning-string)
+                  ((taggedptr) foreign-C-procedure-call-returning-taggedptr)
+                  (else (error ...)))))
+          (lambda args
+            (map (lambda (a b)
+                   (case a
+                     ((char) (if (not (character? b))
+                                 (error ...)))
+                     ((int32) ...)
+                     ...))
+                 argument-types
+                 args)
+            (caller addr args))))))
+\end{verbatim}
+
+	
+\end{document}

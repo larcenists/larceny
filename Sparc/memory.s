@@ -208,6 +208,8 @@ _mem_internal_collect:
 ! Output:    Nothing
 ! Destroys:  Temporaries
 !
+! [NOTE: The following does not explain the experimental collector.]
+!
 ! To check that the assigned-to object is indeed ephemeral we must
 ! compare to the real upper limit of the ephemeral space, not to E_TOP
 ! or E_LIM. The reason for this is that the latter provide only a
@@ -219,7 +221,14 @@ _mem_internal_collect:
 ! In-line code may validly use the conservative limits.
 
 _mem_addtrans:
-	ld	[ %GLOBALS + G_ELIM ], %TMP0	! get real limit
+#if 0
+	! This code is for the experimental collector (exgc).
+	ld	[ %GLOBALS + G_TBRK ], %TMP0	! limit of espace
+	cmp	%RESULT, %TMP0			! ephemeral RHS?
+	bge	Laddtrans_exit			! exit if so
+	nop
+#endif
+	ld	[ %GLOBALS + G_ELIM ], %TMP0	! limit of cspace
 	cmp	%RESULT, %TMP0			! ephemeral LHS?
 	blt	Laddtrans_exit			! exit if so
 	nop
@@ -263,16 +272,81 @@ Laddtrans_exit:
 ! This is designed to be returned through on a stack cache underflow.
 ! It _can_ be called from scheme, and is, in the current implementation,
 ! due to the compiler bug with spill frames.
-!
-! This code is probably slower than it ought to be, but it _is_ very
-! simple. If performance is a problem, _C_restore_frame should be moved
-! in-line so we avoid having to save and restore the context.
 
 _mem_stkuflow:
 	! This is where it starts when called
 	b	Lstkuflow1
 	nop
-	! This is where it starts when returned into
+	! This is where it starts when returned into; must be 8 bytes from
+	! the label _mem_stkuflow.
+#if 1
+	! The code in the #if ... #endif is a transcription of
+	! the code in the C procedure restore_frame() in stack.c.
+	! By moving it in-line we save two context switches, a very
+	! significant part of the cost since it is incurred on
+	! every underflow. On deeply recursive code (like append-rec)
+	! this fix pays off with a speedup of 15-50%
+	!
+	! If you change this code, be sure to check the C code as well!
+	! The code is in an #if ... #endif so that it can be turned off
+	! to measure gains or look for bugs.
+
+	ld	[ %GLOBALS + G_CONT ], %TMP0	! get heap frame ptr
+	ld	[ %TMP0 - VEC_TAG ], %TMP1	! get header
+	srl	%TMP1, 10, %TMP1		! size in words
+	inc	%TMP1				! need to copy header too
+	! now rounding up to even words
+	andcc	%TMP1, 1, %g0
+	bne,a	.+8
+	inc	%TMP1
+	! Allocate frame, check for overflow
+	sll	%TMP1, 2, %TMP2			! must subtract bytes...
+	sub	%STKP, %TMP2, %STKP
+	cmp	%STKP, %E_TOP
+	bl,a	1f
+	add	%STKP, %TMP2, %STKP
+	! Need a temp
+	st	%RESULT, [ %GLOBALS + G_RESULT ]
+	! While more frames to copy...
+	!  TMP1 has loop count (even # of words),
+	!  TMP0 has src (heap frame),
+	!  TMP2 has dest (stack pointer).
+	mov	%STKP, %TMP2
+	dec	VEC_TAG, %TMP0
+	b	2f
+	tst	%TMP1
+3:
+	inc	4, %TMP0
+	st	%RESULT, [ %TMP2 ]
+	inc	4, %TMP2
+	ld	[ %TMP0 ], %RESULT
+	inc	4, %TMP0
+	st	%RESULT, [ %TMP2 ]
+	inc	4, %TMP2
+	deccc	2, %TMP1
+2:
+	bne,a	3b
+	ld	[ %TMP0 ], %RESULT
+	! Restore that temp
+	ld	[ %GLOBALS + G_RESULT ], %RESULT
+	! follow continuation chain
+	ld	[ %STKP + 8 ], %TMP0
+	st	%TMP0, [ %GLOBALS + G_CONT ]
+	! convert size field in frame
+	ld	[ %STKP ], %TMP0
+	sra	%TMP0, 8, %TMP0
+	st	%TMP0, [ %STKP ]
+	! convert return address
+	ld	[ %STKP+4 ], %TMP0		! return offset
+	call	internal_fixnum2retaddr
+	ld	[ %STKP+12 ], %REG0		! procedure
+	jmp	%TMP0+8
+	st	%TMP0, [ %STKP+4 ]		! to be on the safe side
+
+	! If we get to this point, the heap overflowed, so just call
+	! the C version and let it deal with it.
+1:
+#endif
 	set	_C_restore_frame, %TMP0
 	mov	0, %REG0			! procedure no longer valid...
 	call	internal_callout_to_C

@@ -1,0 +1,96 @@
+% -*- TeX -*-
+%
+% Ultimate definition of the basic representations in Larceny.
+% Derived representations are not shown here.
+
+\input{larceny.sty}
+\title{Larceny Note \#2001: \\
+       Basic Representations}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+A pointer has a 2 or 3 bit type tag in the low order bits. Structures on
+the heap (except pairs) have a type tag in the first word. All heap
+structures must be aligned on an 8-byte boundary.
+
+The following are the tagged pointer formats.
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx00   fixnum
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx10   immediate
+  pppp pppp  pppp pppp  pppp pppp  pppp p001   pointer to pair 
+  pppp pppp  pppp pppp  pppp pppp  pppp p011   pointer to vector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p101   pointer to bytevector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p111   pointer to procedure struct
+\end{verbatim}
+\end{minipage}
+
+The following are the immediate formats.
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+  0000 0000  0000 0000  0000 0000  0000 0010   #f
+  0000 0000  0000 0000  0000 0000  0000 0110   #t
+  0000 0000  0000 0000  0000 0000  0000 1010   empty list
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  0001 0110   miscellaneous
+  0000 0000  cccc cccc  0000 0000  0010 0110   character
+  0sss ssss  ssss ssss  ssss ssss  100x xx10   reserved header
+  0sss ssss  ssss ssss  ssss ssss  101x xx10   vector-like header
+  0sss ssss  ssss ssss  ssss ssss  110x xx10   bytevector-like header
+  0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
+\end{verbatim}
+\end{minipage}
+
+The "xxx" bits in the low byte of a header can be used by the mutator to
+distinguish between different subtypes of structures; they are neither
+used nor examined by the collector.
+
+The "s" bits must contain the size of the data structure in bytes, not
+including the header word, and not including padding (see below). The
+collector will correctly round "bytevector" and "reserved" lengths up
+to a word boundary. Hence, for these structures, the "s" bits give the
+correct length of the datum, like the length of a string. For vectors
+and procedures the s field must be evenly divisible by 4 (low two bits
+are 0).
+
+Since all pointers are doubleword-aligned, some vectors, bytevectors,
+and procedures will have to be padded out to an even number of words.
+The mutator must allocate the extra word but may choose to leave it
+uninitialized; the collector will take the size of the vector into
+account and skip the padding. If the word is initialized, it may or
+may not be copied along with the structure during a collection.
+
+The structure layouts are these:
+
+\begin{itemize}
+\item
+Pairs: A pair has two words, the car (low word) and the cdr (high word).
+The pair pointer points to the car of the pair.
+
+\item
+A vector-like structure has the header word in the low position, followed
+by tagged pointers in all locations of the vector. The vector pointer
+points to the header word.
+
+\item
+A bytevector-like structure has the header word in the low position,
+followed by untagged bytes in all locations of the vector. The bytevector
+pointer points to the header word.
+
+\item
+A procedure structure has the header word in the low position, followed by
+tagged pointers in all locations of the procedure structure. To the
+collector, and with the exception of the pointer and header tags, a
+procedure looks just like a vector-like structure. The interpretation of
+each word of the procedure structure is up to the mutator and is not
+documented here. The procedure pointer points to the header word.
+
+\item
+There is a "reserved" header but currently no "reserved" data layout; the
+collector does not know about the "reserved" header.
+\end{itemize}
+
+\end{document}

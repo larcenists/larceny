@@ -4,7 +4,7 @@
  * Larceny run-time system (Unix) -- memory manager.
  *
  * History
- *   June 28 - July 1, 1994 / lth (v0.20)
+ *   June 28 - July 15, 1994 / lth (v0.20)
  *     Pruned from memsupport.c.
  *
  * This file contains procedures for memory allocatation and garbage 
@@ -33,13 +33,27 @@
  *   - use of madvise() is indicated but not implemented, below.
  *   - may be good to lock the ephemeral area, the ssb, and the remset
  *     in memory to avoid paging them, using mlock().
+ *
+ * Points to ponder:
+ *   It is not clear that having watermarks in percent of the heap size is
+ *   such a good idea, esp. since the expansion and contraction routines
+ *   change the heap size by an absolute amount (the size of espace). Perhaps
+ *   better would be to use an absolute amount for calculating expansion
+ *   and contraction, too, e.g., if less than one espace free after major GC
+ *   then expand; if more than two espaces free after major GC then contract.
+ *
+ *   The use of GC_SURV is not very nice.
  */
-
 
 #include <sys/types.h>
 #include "larceny.h"
 #include "macros.h"
 #include "cdefs.h"
+
+char *gctype = "gsgc";
+
+caddr_t sbrk();
+int brk();
 
 /* The value GC_SURV is the number n s.t. 1/n is a 'typical' survival
  * ratio after a minor garbage collection. It is a fudge factor used
@@ -78,12 +92,13 @@
  * Procedure to intialize garbage collector.  All sizes are in bytes. 
  * Returns 1 if ok, 0 if not.
  */
-int allocate_heap( ephemeral_size, tenured_size, static_size, ewatermark, twatermark )
+int allocate_heap( ephemeral_size, tenured_size, static_size, ewatermark, thiwatermark, tlowatermark )
 unsigned ephemeral_size;    /* size of espace; 0 = default */
 unsigned tenured_size;      /* initial size of tspace; 0 = default */
 unsigned static_size;       /* size of sspace; 0 = default */
 unsigned ewatermark;        /* tenuring threshold in %, 0 = default */
-unsigned twatermark;        /* heap expansion threshold in % */
+unsigned thiwatermark;      /* heap expansion threshold in % */
+unsigned tlowatermark;      /* heap contraction threshold in % */
 {
   word *heapptr;
 
@@ -92,8 +107,10 @@ unsigned twatermark;        /* heap expansion threshold in % */
   if (static_size == 0) static_size = DEFAULT_SSIZE;
   if (ewatermark <= 0 || ewatermark > 100)
     ewatermark = DEFAULT_EWATERMARK;
-  if (twatermark <= 0 || twatermark > 100)
-    twatermark = DEFAULT_TWATERMARK;
+  if (thiwatermark <= 0 || thiwatermark > 100)
+    thiwatermark = DEFAULT_THIWATERMARK;
+  if (tlowatermark <= 0 || tlowatermark > 100)
+    tlowatermark = DEFAULT_TLOWATERMARK;
 
   ephemeral_size = roundup8( ephemeral_size );
   tenured_size = roundup8( tenured_size );
@@ -128,7 +145,8 @@ unsigned twatermark;        /* heap expansion threshold in % */
 
   globals[ G_CONT ] = FALSE_CONST;
   globals[ G_EWATERMARK ] = ewatermark;
-  globals[ G_TWATERMARK ] = twatermark;
+  globals[ G_THIWATERMARK ] = thiwatermark;
+  globals[ G_TLOWATERMARK ] = tlowatermark;
   globals[ G_EBOT ] = globals[ G_ESPACE1_BOT ];
   globals[ G_ETOP ] = globals[ G_ESPACE1_BOT ];
   globals[ G_ELIM ] = globals[ G_ESPACE1_LIM ];
@@ -162,6 +180,31 @@ int size_tspace()
 int used_tspace()
 { return size_tspace() - free_tspace(); }
 
+word *getheaplimit( which )
+int which;
+{ 
+  switch (which) {
+    case HL_TBOT : return (word*)globals[ G_TBOT ];
+    case HL_TTOP : return (word*)globals[ G_TTOP ];
+    case HL_TLIM : return (word*)globals[ G_TLIM ];
+    default      : panic( "Bad argument to getheaplimit()." );
+  }
+  /*NOTREACHED*/
+  return 0;
+}
+
+void setheaplimit( which, p )
+int which;
+word *p;
+{
+  switch (which) {
+    case HL_TBOT : globals[ G_TBOT ] = (word)p; break;
+    case HL_TTOP : globals[ G_TTOP ] = (word)p; break;
+    case HL_TLIM : globals[ G_TLIM ] = (word)p; break;
+    default      : panic( "Bad argument to setheaplimit()." );
+  }
+}
+
 /*
  * Expand the tenured area. We always expand each tenured space with
  * the size of one ephemeral area; don't know how well this works in
@@ -169,15 +212,15 @@ int used_tspace()
  */
 static void expand_tspace()
 {
-  word *heapptr;
-  word esize;
+  int esize;
 
+#ifdef DEBUG
   if (globals[ G_TBOT ] != globals[ G_TSPACE1_BOT ])
     panic( "internal error in expand_tspace()." );
+#endif
 
   esize = size_espace();
-  heapptr = (word*)sbrk( 2*esize );
-  if ((caddr_t)heapptr == (caddr_t)-1)
+  if (sbrk( 2*esize ) == (caddr_t)-1)
     panic( "Unable to expand the heap." );
 
   globals[ G_TSPACE1_LIM ] += esize;
@@ -185,8 +228,34 @@ static void expand_tspace()
   globals[ G_TSPACE2_LIM ] += 2*esize;
   globals[ G_TLIM ] += esize;
 
-  consolemsg( "Expanding tenured area; new size = 0x%08lx bytes.",
-	      globals[ G_TSPACE1_LIM ] - globals[ G_TSPACE1_BOT ] );
+  consolemsg( "Expanding tspace; new size = %dKB.", size_tspace()/1024 );
+}
+
+/*
+ * Contract the tenured area. The tenured area is shrunk by the size of
+ * one ephemeral area.
+ */
+static void contract_tspace()
+{
+  int esize;
+
+#ifdef DEBUG
+  if (globals[ G_TBOT ] != globals[ G_TSPACE1_BOT ])
+    panic( "internal error in contract_tspace()." );
+#endif
+
+  esize = size_espace();
+  if (size_tspace() - esize <= used_tspace()) return;
+
+  if (brk( (caddr_t)((char*)sbrk(0)-2*esize) ) == -1)
+    panic( "Unable to contract the heap." );
+    
+  globals[ G_TSPACE1_LIM ] -= esize;
+  globals[ G_TSPACE2_BOT ] -= esize;
+  globals[ G_TSPACE2_LIM ] -= 2*esize;
+  globals[ G_TLIM ] -= esize;
+    
+  consolemsg( "Contracting tspace; new size = %dKB.", size_tspace()/1024 );
 }
 
 /***************************************************************************
@@ -203,7 +272,7 @@ int n;
   word p;
 
   n = roundup8( n );
-  if (globals[ G_ETOP ] + n >= globals[ G_ELIM ])
+  if (globals[ G_ETOP ] + n >= globals[ G_STKP ]) /* was: elim */
     garbage_collect( EPHEMERAL_COLLECTION, n );
 
   p = globals[ G_ETOP ];
@@ -226,14 +295,36 @@ static void tenuring_collection();
 static void full_collection();
 static void eflip();
 static void tflip();
+static void gsgc();
+static void mlgc();
 
 void garbage_collect( type, request )
 int type;       /* collection type requested */
 int request;    /* words requested */
 {
+  gsgc( type, request );
+}
+
+/*
+ * A simple experiment with an ML-style collector; every minor collection
+ * is a tenuring collection.
+ */
+static void mlgc( type, request )
+int type;
+int request;
+{
+  if (type == EPHEMERAL_COLLECTION)
+    type = TENURING_COLLECTION;
+  gsgc( type, request );
+}
+
+/* The default generation-scavenging collector */
+static void gsgc( type, request )
+int type;
+int request;
+{
   request *= 4;  /* to get bytes */
 
-  flush_stack();
   if (!compact_ssb())
     if (type == EPHEMERAL_COLLECTION)
       type = TENURING_COLLECTION;
@@ -242,6 +333,11 @@ int request;    /* words requested */
     type = TENURING_COLLECTION;
 
  again:
+  /* We flush the stack on each iteration in this procedure so that
+   * any restored frames get put back on the chain properly.
+   */
+  flush_stack();
+
   if (type == TENURING_COLLECTION) {
     if (globals[ G_TBOT ] == globals[ G_TSPACE1_BOT ]) {
       /* Tspace A has data */
@@ -262,6 +358,7 @@ int request;    /* words requested */
       }
     }
 
+#if 0
     if (type == TENURING_COLLECTION
      && used_tspace()+used_espace() < size_tspace()) {
       /* Maybe we should do a major collection w/o expansion? 
@@ -277,6 +374,7 @@ int request;    /* words requested */
       if (used_tspace()+used_espace() > size_tspace()-size_espace()/GC_SURV)
 	type = FULL_COLLECTION;
     }
+#endif
   }
 
   if (type == FULL_COLLECTION) {
@@ -296,9 +394,16 @@ int request;    /* words requested */
     case TENURING_COLLECTION  : tenuring_collection(); break;
     case FULL_COLLECTION      : full_collection(); break;
   }
-  globals[ G_STKP ] = globals[ G_ELIM ];  /* for free_espace/create_stack */
+  globals[ G_STKP ] = globals[ G_ELIM ];    /* for free_espace/create_stack */
+  globals[ G_STKBOT ] = globals[ G_STKP ];  /* for flush_stack() */
 
   memstat_after_gc();
+
+  /* Maybe do a tenuring collection next time? */
+  if (used_espace() > size_espace()*globals[ G_EWATERMARK ]/100)
+    globals[ G_GC_MUST_TENURE ] = 1;
+  else
+    globals[ G_GC_MUST_TENURE ] = 0;
 
   if (!create_stack()) {
 #ifdef DEBUG
@@ -306,6 +411,16 @@ int request;    /* words requested */
 #endif
     if (type != EPHEMERAL_COLLECTION)
       panic( "Internal inconsistency in garbage collector." );
+    type = TENURING_COLLECTION;
+    goto again;
+  }
+
+  if (!restore_frame()) {
+#ifdef DEBUG
+    consolemsg( "[debug] GC: Failed restore-frame." );
+#endif
+    if (type != EPHEMERAL_COLLECTION)
+      panic( "Unable to restore a stack frame after gc." );
     type = TENURING_COLLECTION;
     goto again;
   }
@@ -322,42 +437,31 @@ int request;    /* words requested */
       panic( "Object of size %d too large to allocate!\n", request );
   }
 
-  if (used_espace() > size_espace()*globals[ G_EWATERMARK ]/100)
-    globals[ G_GC_MUST_TENURE ] = 1;
-  else
-    globals[ G_GC_MUST_TENURE ] = 0;
-
-  if (!restore_frame()) {
-#ifdef DEBUG
-    consolemsg( "[debug] GC: Failed restore-frame." );
-#endif
-    if (type != EPHEMERAL_COLLECTION)
-      panic( "Unable to restore a stack frame after gc." );
-    type = TENURING_COLLECTION;
-    goto again;
-  }
-
   /* 
-   * If we performed a full collection into tspace A, and more data is
-   * live than we consider reasonable, expand the heap to avoid thrashing.
+   * If we performed a full collection into tspace A:
+   * - If more data is live than we consider reasonable, expand the heap 
+   *   to avoid GC thrashing.
+   * - If there is more free space than reasonable, contract the heap to
+   *   avoid VM thrashing.
    */
-  if (type == FULL_COLLECTION
-   && used_tspace() > size_tspace()/globals[ G_TWATERMARK ]*100
-   && globals[ G_TBOT ] == globals[ G_TSPACE1_BOT ])
-    expand_tspace();
+  if (type == FULL_COLLECTION && globals[G_TBOT] == globals[G_TSPACE1_BOT]) {
+    if (used_tspace() > size_tspace()/100*globals[ G_THIWATERMARK ]) 
+      expand_tspace();
+    else if (used_tspace() < size_tspace()/100*globals[ G_TLOWATERMARK ])
+      contract_tspace();
+  }
 
   if (type != EPHEMERAL_COLLECTION) clear_remset();
 }
 
 /* This procedure is used by the low-level garbage collector */
-void enumerate_roots( enumerator, p1, p2, p3 )
+void enumerate_roots( enumerator )
 void (*enumerator)();
-word *p1, *p2, **p3;
 {
   int i;
 
   for ( i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
-    enumerator( &globals[ i ], p1, p2, p3 );
+    enumerator( &globals[ i ] );
 }
 
 static void ephemeral_collection()

@@ -1,7 +1,9 @@
-; Batch compiler/assembler/disassembler drivers for Scheme 313.
-;
-; $Id: compile313.sch,v 1.5 1992/06/10 09:05:03 lth Exp $
-;
+;; Larceny run-time environment -- compiler drivers.
+;;
+;; History
+;;   July 19, 1994 / lth (v0.20)
+;;     Cleaned up.
+
 ; We operate with several different file formats.
 ;
 ; - Files with extension ".sch" or ".scm" are Scheme source files and are
@@ -24,76 +26,81 @@
 ;   heaps by the heap loader.
 ;   These files can be disassembled (to native assembly language) with the
 ;   command "disassemble313".
+;
+; - Files with extension ".fasl" (Fastload) are binary, dynamically-loadable
+;   compiled files.
 
-; Compile a scheme file (extension ".sch" or ".scm") to a ".lap" file.
+;; Compile and assemble a '.sch' or '.scm' file and produce a '.fasl' file.
+
+(define (compile-file infilename . rest)
+  (let ((outfilename
+	 (if (not (null? rest))
+	     (car rest)
+	     (rewrite-file-type infilename
+				'(".sch" ".scm")
+				(if register-transactions-for-side-effects
+				    ".fasl"
+				    ".efasl")))))
+    (process-file infilename
+		  outfilename
+		  dump-fasl-segment-to-port
+		  (lambda (item)
+		    (assemble (compile item))))
+    #t))
+
+
+;; Compile a scheme file (extension ".sch" or ".scm") to a ".lap" file.
 
 (define (compile313 file . rest)
-  (let* ((n (string-length file))
-         (outputfile
-	  (if (not (null? rest))
-	      (car rest)
-	      (string-append
-	       (if (and (> n 4)
-			(or (string-ci=? ".sch" (substring file (- n 4) n))
-			    (string-ci=? ".scm" (substring file (- n 4) n))))
-		   (substring file 0 (- n 4))
-		   file)
-	       ".lap"))))
-    (call-with-input-file
-     file
-     (lambda (p)
-       (delete-file outputfile)
-       (call-with-output-file
-        outputfile
-        (lambda (q)
-          (display "\; Compiled from " q)
-          (display file q)
-          (newline q)
-          (newline q)
-          (do ((x (read p) (read p)))
-              ((eof-object? x))
-              (write-codelist (compile x) q)
-              (newline q)
-              (newline q))))))))
+  (let ((outputfile
+	 (if (not (null? rest))
+	     (car rest)
+	     (rewrite-file-type file '(".sch" ".scm") ".lap"))))
+    (process-file file
+		  outputfile
+		  (lambda (item port)
+		    (write-codelist item port)
+		    (newline port)
+		    (newline port))
+		  compile)
+    #t))
 
 
-; Assemble a ".lap" or ".mal" file to a ".lop" file.
+;; Assemble a ".lap" or ".mal" file to a ".lop" file.
 
 (define (assemble313 file . rest)
+  (let ((outputfile (if (not (null? rest))
+			(car rest)
+			(rewrite-file-type file ".lap" ".mal")))
+	(n          (string-length file)))
+    (process-file file
+		  outputfile
+		  write
+		  (if (and (> n 4)
+			   (string-ci=? ".mal" (substring file (- n 4) n)))
+		      (lambda (x) (assemble (eval x)))
+		      assemble))
+    #t))
 
-  (define (assemble-file filter infile outfile)
 
-    (define (file-for-each proc filename)
-      (call-with-input-file filename
-	(lambda (p)
-	  (let loop ((x (read p)))
-	    (if (eof-object? x)
-		#t
-		(begin (proc x)
-		       (loop (read p))))))))
+;; Converts each segment into a call to a literal thunk, where the thunk is 
+;; a literal procedure (using magic syntax; see file "makefasl.sch").
 
-    (delete-file outfile)
-    (let ((p (open-output-file outfile)))
-      (file-for-each (lambda (x) (write (assemble (filter x)) p)) infile)
-      (close-output-port p)
-      #t))
-
-  ; assemble313
-
-  (let* ((n (string-length file))
-         (outputfile
-	  (if (not (null? rest))
-	      (car rest)
-	      (string-append
-	       (if (and (> n 4)
-			(or (string-ci=? ".lap" (substring file (- n 4) n))
-			    (string-ci=? ".mal" (substring file (- n 4) n))))
-		   (substring file 0 (- n 4))
-		   file)
-	       ".lop"))))
-    (if (and (> n 4) (string-ci=? ".mal" (substring file (- n 4) n)))
-	(assemble-file eval file outputfile)
-	(assemble-file (lambda (x) x) file outputfile))))
+(define (make-fasl infilename . rest)
+  (let ((outfilename
+	 (if (not (null? rest))
+	     (car rest)
+	     (rewrite-file-type
+	      infilename
+	      ".lop"
+	      (if register-transactions-for-side-effects
+		  ".fasl"
+		  ".efasl")))))
+    (process-file infilename
+		  outfilename
+		  dump-fasl-segment-to-port
+		  (lambda (x) x))
+    #t))
 
 
 ; Disassemble a file; dump output to screen or other (optional) file.
@@ -150,6 +157,47 @@
 	(delete-file (car rest))
 	(with-output-to-file (car rest) (lambda () (doit file))))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Some utilities
+
+
+
+; Read and process one file, producing another.
+
+(define (process-file infilename outfilename writer processer)
+  (delete-file outfilename)
+  (call-with-output-file outfilename
+    (lambda (outport)
+      (call-with-input-file infilename
+	(lambda (inport)
+	  (let loop ((x (read inport)))
+	    (if (eof-object? x)
+		#t
+		(begin (writer (processer x) outport)
+		       (loop (read inport))))))))))
+
+
+; Given a file name with some type, produce another with some other type.
+
+(define (rewrite-file-type filename matches new)
+  (if (not (pair? matches))
+      (rewrite-file-type filename (list matches) new)
+      (let ((j (string-length filename)))
+	(let loop ((m matches))
+	  (cond ((null? m)
+		 (string-append filename new))
+		(else
+		 (let* ((n (car m))
+			(l (string-length n)))
+		   (if (and (>= j l)
+			    (string=? (substring filename (- j l) j) n))
+		       (string-append (substring filename 0 (- j l)) new)
+		       (loop (cdr m))))))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Display some integer in an mostly arbitrary base to some arbitrary 
 ; precision. I forget how one is supposed to use this.

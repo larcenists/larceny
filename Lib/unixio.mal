@@ -1,0 +1,82 @@
+; -*- Scheme -*-
+;
+; Scheme 313 run-time system
+; MacScheme Assembly language glue for generic unix i/o calls.
+;
+; $Id: unixio.mal,v 1.3 1992/02/10 03:24:01 lth Exp $
+;
+; Requires integrables `open-file', `close-file', `unlink-file', `read-file',
+; and `write-file'.
+
+`((,$lambda
+
+   ; unix$io:open takes two or three args: filename, flags, and optionally 
+   ; the file mode (for creation if O_CREAT is set).
+
+   ((,$setreg 4)
+    (,$reg 4)
+    (,$op2imm =,2)
+    (,$branchf 1)
+    (,$const 0)
+    (,$setreg 3)
+    (,$skip 3)
+    (,$.label 1)
+    (,$reg 4)
+    (,$op2imm =,3)
+    (,$branchf 2)
+    (,$.label 3)
+    (,$reg 1)
+    (,$op3 open-file 2 3)
+    (,$return)
+    (,$.label 2)
+    (,$reg 4)
+    (,$args= 2)	  		        ; a hack -- this should always fault.
+    (,$return))				; never executed
+   0
+   (unix$io:open))
+  (,$setglbl unix$io:open)
+  (,$lambda
+
+   ; unix$io:close takes one arg: the fd.
+
+   ((,$args= 1)
+    (,$reg 1)
+    (,$op1 close-file)
+    (,$return))
+   0
+   (unix$io:close))
+  (,$setglbl unix$io:close)
+  (,$lambda
+
+   ; unix$io:unlink takes one arg: the filename
+
+   ((,$args= 1)
+    (,$reg 1)
+    (,$op1 unlink-file)
+    (,$return))
+   0
+   (unix$io:unlink))
+  (,$setglbl unix$io:unlink)
+  (,$lambda
+
+   ; unix$io:read takes three arguments: fd, buffer, and byte count.
+
+   ((,$args= 3)
+    (,$reg 1)
+    (,$op3 read-file 2 3)
+    (,$return))
+   0
+   (unix$io:read))
+  (,$setglbl unix$io:read)
+  (,$lambda
+
+   ; unix$io:write takes three arguments: fd, buffer, and byte count.
+
+   ((,$args= 3)
+    (,$reg 1)
+    (,$op3 write-file 2 3)
+    (,$return))
+   0
+   (unix$io:write))
+  (,$setglbl unix$io:write)
+  (,$return))

@@ -135,6 +135,9 @@ void flush_stack()
  * currently points to a frame created by create_stack().
  *
  * Returns 1 if the frame could be restored, 0 if the heap is full.
+ *
+ * A copy of this code exists in Sparc/memory.s; if you change anything
+ * here, check that code as well.
  */
 int restore_frame()
 {

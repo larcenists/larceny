@@ -1,0 +1,34 @@
+List of changes to Larceny
+
+----------------------------------------------------------------------
+v0.20 created July 19, 1994 by lth.
+
+Major changes to Compiler/compile313: much cleaned up. make-fasl is now
+a part of this file, which contains all drivers.
+
+Make-fasl moved out of Compiler/makefasl.sch; there is now only one
+procedure, dump-fasl-segment-to-port, in this file.
+
+
+----------------------------------------------------------------------
+v0.21 created July 29, 1994 by lth
+
+Speeded up the garbage collector by redesigning scan() and by removing
+a level of indirection in forw(). Nice payoff, ~8% on Boyer.
+
+
+----------------------------------------------------------------------
+v0.22 created August 20, 1994 by lth
+
+Speeded up stack underflow by recoding restore_frame directly in the
+underflow handler, saving two full context switches on every frame restore.
+On code like the deeply recursive append there is a nice speedup (esp. on
+owyhee, for some reason, less on the ELC) in the range 15-50%, so it
+is worth it for code like that; the handler gets pretty big though, so
+there's extra complexity to deal with.
+
+Whether this affects the performance of "real" programs is unknown. It
+was more ment as an experiment to see how fast stack handling can go.
+It can't go much faster than this...
+
+

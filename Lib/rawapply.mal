@@ -1,0 +1,19 @@
+; -*- scheme -*-
+; The raw apply procedure has to be written in mal
+; (MacScheme assembly language) because the compiler
+; never emits an apply instruction.
+
+;(define (@raw-apply@ f l)
+;  (primop-apply f l))
+
+`((,$lambda ((,$.proc)
+             (,$args= 3)
+             (,$reg 1)
+             (,$apply 2 3)
+             (,$.label 1001)
+             (,$branch 1001))  ; just a precaution
+            0
+            (#t))
+  (,$setglbl @raw-apply@)
+  (,$const @raw-apply@)
+  (,$return))

@@ -1,6 +1,15 @@
-;; Given the name of a .lop file, creates a .fasl file.
+;; Larceny run-time environment -- procedure to create loadable file.
 ;;
-;; $Id: makefasl.sch,v 1.2 1992/06/10 09:05:08 lth Exp lth $
+;; This file exports the procedure 'dump-fasl-segment-to-port'. It takes
+;; a segment and an output port as arguments. It is way slow.
+;;
+;; History
+;;   July 19, 1994 / lth (v0.20)
+;;     The procedure 'make-fasl' is no longer in this file, but in the
+;;     driver file.
+;;
+;;   Long time ago / lth
+;;     Created.
 ;;
 ;; The format of the fastload file is one of a sequence of expressions.
 ;; Procedures, bytevectors, and references to global variables can be
@@ -9,107 +18,83 @@
 ;; Magic syntax:
 ;;  - A procedure is a list prefixed by #^P.
 ;;  - A code vector is a string prefixed by #^B. The string may contain 
-;;    control characters; \ and " must be quoted as usual.
+;;    control characters; \ and " must be quoted as usual. There are some
+;;    subtle dependencies here on Unix I/O semantics: no control characters
+;;    are translated on output or input.
 ;;  - A global variable cell is a symbol prefixed by #^G. On reading, the
 ;;    reference is replaced by (a pointer to) the actual cell, with the 
 ;;    context being the current top-level environment.
-;;
-;; An alternative way of accomplishing the resolution of global variables would
-;; be to use (procedure <cvec> (vector <const> <global> ...) #f) rather than
-;; the magic syntax; after all, the reader performs these operations anyway.
-;; The ^B magic syntax should be used anyway, as there are no substructures
-;; which need to be resolved. The reader would not need to know about the
-;; top-level environment.
 
-(define make-fasl #f)
+(define (dump-fasl-segment-to-port segment outp)
+  (let* ((controllify
+	  (lambda (char)
+	    (integer->char (- (char->integer char) (char->integer #\@)))))
+	 (CTRLP (controllify #\P))
+	 (CTRLB (controllify #\B))
+	 (CTRLG (controllify #\G)))
 
-(let ()
+    ;; Everyone calls putc/puts/putd; these can then be optimized.
 
-  (define (controllify char)
-    (integer->char (- (char->integer char) (char->integer #\@))))
+    (define (putc c)
+      (write-char c outp))
 
-  (define CTRLP (controllify #\P))
-  (define CTRLB (controllify #\B))
-  (define CTRLG (controllify #\G))
+    (define (puts s)
+      (for-each (lambda (c)
+		  (write-char c outp))
+		(string->list s)))
 
-  ;; Converts each segment into a call to a literal thunk, where the thunk is 
-  ;; a literal procedure (represented via magic syntax).
+    (define (putd d)
+      (write d outp))
 
-  (define (%make-fasl infilename . rest)
-    (let ((outfilename
-	   (if (not (null? rest))
-	       (car rest)
-	       (if (and (>= (string-length infilename) 4)
-			(string=? (substring infilename 
-					     (- (string-length infilename) 4)
-					     (string-length infilename))
-				  ".lop"))
-		   (string-append (substring infilename 
-					     0 
-					     (- (string-length infilename) 4))
-				  ".fasl")
-		   (string-append infilename ".fasl")))))
-      (delete-file outfilename)
-      (let ((inp  (open-input-file infilename))
-	    (outp (open-output-file outfilename)))
-	(let loop ((segment (read inp)))
-	  (if (not (eof-object? segment))
-	      (begin
-		(display "(" outp)
-		(display "#" outp)
-		(display CTRLP outp)
-		(display "(" outp)
-		(dump-codevec (car segment) outp)
-		(display " " outp)
-		(dump-constvec (cdr segment) outp)
-		(display " " outp)
-		(display "#f)" outp)
-		(display ")" outp)
-		(newline outp)
-		(loop (read inp)))
-	      (begin
-		(close-input-port inp)
-		(close-output-port outp)
-		#t))))))
+    ;; Should use bytevectors; optimized for Chez.
 
+    (define (dump-codevec bv)
+      (putc #\#)
+      (putc CTRLB)
+      (putc #\")
+      (let loop ((i 0) (m (vector-length bv)))
+	(if (< i m)
+	    (let ((c (integer->char (vector-ref bv i))))
+	      (if (or (char=? c #\") (char=? c #\\))
+		  (putc #\\))
+	      (putc c)
+	      (loop (+ i 1) m))))
+      (putc #\")
+      (putc #\newline))
 
-  (define (dump-codevec bv outp)
-    (display "#" outp)
-    (display CTRLB outp)
-    (display #\" outp)
-    (let loop ((i 0))
-      (if (< i (bytevector-length bv))
-	  (let ((c (integer->char (bytevector-ref bv i))))
-	    (if (or (char=? c #\") (char=? c #\\))
-		(display #\\ outp))
-	    (display c outp)
-	    (loop (+ i 1)))
-	  (display #\" outp))))
+    (define (dump-constvec cv)
+      (puts "#(")
+      (for-each (lambda (const)
+		  (putc #\space)
+		  (case (car const)
+		    ((data)
+		     (putd (cadr const)))
+		    ((constantvector)
+		     (dump-constvec (cadr const)))
+		    ((codevector)
+		     (dump-codevec (cadr const)))
+		    ((global)
+		     (putc #\#)
+		     (putc CTRLG)
+		     (putd (cadr const)))
+		    ((bits)
+		     (error "The BITS attribute is not supported in fasl files."))
+		    (else
+		     (error "Faulty .lop file."))))
+		(vector->list cv))
+      (puts ")")
+      (putc #\newline))
 
+    (define (dump-fasl-segment segment)
+      (puts "(#")
+      (putc CTRLP)
+      (putc #\()
+      (dump-codevec (car segment))
+      (putc #\space)
+      (dump-constvec (cdr segment))
+      (puts " #f))")
+      (putc #\newline))
 
-  (define (dump-constvec cv outp)
-    (display "#(" outp)
-    (for-each (lambda (const)
-		(display " " outp)
-		(case (car const)
-		  ((data)
-		   (write (cadr const) outp))
-		  ((constantvector)
-		   (dump-constvec (cadr const) outp))
-		  ((codevector)
-		   (dump-codevec (cadr const) outp))
-		  ((global)
-		   (display "#" outp)
-		   (display CTRLG outp)
-		   (write (cadr const) outp))
-		  ((bits)
-		   (error "The BITS attribute is not supported in fasl files."))
-		  (else
-		   (error "Faulty .lop file."))))
-	      (vector->list cv))
-    (display ")" outp))
-
-  (set! make-fasl %make-fasl)
-  'make-fasl)
+    (dump-fasl-segment segment)))
 
 ; eof

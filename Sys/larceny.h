@@ -41,16 +41,24 @@ extern void hardconsolemsg( /* char *fmt, ... */ );
 
 /* In "Sys/policy.c" */
 
-extern int allocate_heap( /* uint esize, uint tsize, uint ssize, uint emark, uint tmark */ );
-extern int free_espace();
-extern int size_espace();
-extern int used_espace();
-extern int free_tspace();
-extern int size_tspace();
-extern int used_tspace();
+extern char *gctype;
+extern int  allocate_heap( /* uint esize, 
+			      uint tsize, 
+			      uint ssize, 
+			      uint emark, 
+			      uint thimark, 
+			      uint tlomark */ );
+extern int  free_espace();
+extern int  size_espace();
+extern int  used_espace();
+extern int  free_tspace();
+extern int  size_tspace();
+extern int  used_tspace();
+extern word *getheaplimit( /* int which */ );
+extern void setheaplimit( /* int which, word *p */ );
 extern word *alloc_from_heap( /* int nbytes */ );
 extern void garbage_collect( /* int type, int request */ );
-extern void enumerate_roots( /* void (*f)(), word *p1, word *p2, word **p3 */);
+extern void enumerate_roots( /* void (*f)() */);
 
 /* In "Sys/gc.c" */
 
@@ -62,7 +70,7 @@ extern word *major_collection( /* word *oldlo, word *oldhi, word *newlo */ );
 extern int create_remset( /* uint tblsize, uint poolsize, uint ssbsize */ );
 extern void clear_remset();
 extern int compact_ssb();
-extern void enumerate_remset( /* void(*f)(), word *p1, word *p2, word **p3 */ );
+extern void enumerate_remset( /* void(*f)() */ );
 
 /* In "Sys/heapio.c" */
 
@@ -143,14 +151,20 @@ extern void scheme_start();
 #define DEFAULT_SSIZE 0               /* default static size = 0 */
 
 /* GC policy defaults (not tuned) */
-#define DEFAULT_EWATERMARK 50     /* espace 50% full => tenure */
-#define DEFAULT_TWATERMARK 75     /* tspace 75% full => expand */
-#define DEFAULT_RWATERMARK 75     /* remset-pool 75% full => tenure */
+#define DEFAULT_EWATERMARK 50     /* espace > 50% full => tenure */
+#define DEFAULT_THIWATERMARK 75   /* tspace > 75% full => expand */
+#define DEFAULT_TLOWATERMARK 50   /* tspace < 50% full => contract */
+#define DEFAULT_RWATERMARK 75     /* remset-pool > 75% full => tenure */
 
 /* Remembered set defaults (not tuned) */
 #define DEFAULT_REMSET_POOLSIZE   8192     /* 8K elements = 64KB */
 #define DEFAULT_REMSET_TBLSIZE   16384     /* 16K elements = 64KB */
 #define DEFAULT_SSB_SIZE         16384     /* 16K elements = 64KB */
+
+/* Selectors for getheaplimit/setheaplimit */
+#define HL_TBOT 0
+#define HL_TTOP 1
+#define HL_TLIM 2
 
 #endif /* if INCLUDED_LARCENY_H */
 

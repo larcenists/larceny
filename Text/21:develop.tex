@@ -1,0 +1,247 @@
+\input{larceny.sty}
+\title{Larceny Note \#21: \\
+       The Larceny Development Environment}
+\author{R\'{e}my Evard and Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+The Larceny development environment is a collection of directories
+populated with files related to the Larceny project.  Most are used
+to build either the larceny executable or the larceny heap, while others
+are documentation.  This document describes how to work in this
+environment.
+
+\section{The Environment}
+
+As there are multiple people working on the project, some form of file
+synchronization must be used.  This is done using RCS, the Revision Control
+System. There is a central directory of RCS files which contains the real
+files.  Each person working on the project has their own mirror of this
+hierarchy.  To read a file, they ``check out'' the file, to write the file,
+they ``lock'' it, and when they have completed it, they ``check in'' the
+file.  Only files which have been checked in are available to other people
+on the project. This minimizes confusion caused by having multiple authors.
+
+Each person has their own Larceny tree - the root of that tree is where
+most of the work is done, and thus has a special name: $\sim$larceny.
+The larceny executable, the heap, and most of the utilities are located
+in $\sim$larceny.
+
+The actual directories and files are subject to frequent change.
+Each directory contains a file called {\tt Index}, which describes 
+each file in that directory.  The Index in $\sim$larceny also
+describes each directory in the project.
+
+\section{Getting Started}
+
+To create a larceny directory tree, first create the root directory,
+which will be your $\sim$larceny.  Currently, the conventional name
+for this directory is {\tt /research/owyhee/$<$user$>$/scheme313}.
+Make this directory your current working directory (i.e. cd into it).
+Now run the script {\tt make-larceny-tree}.  Since you don't currently
+have a copy of this program, you will need to run someone else's.  
+This will create the directory tree for you, and fill in the RCS links.
+Finally, run the script {\tt checkout}.  Again, you will need
+to run someone else's copy (or check it out directly first).  This
+script will populate your directory with the files that are part of
+the larceny development environment.
+
+The steps to do this are:
+\begin{verbatim}
+  % cd /research/owyhee/<user>
+  % mkdir scheme313
+  % cd scheme313
+  % /research/owyhee/scheme313/make-larceny-tree
+  % co checkout
+  % co Directories
+  % checkout
+  % co *.cfg
+\end{verbatim}
+
+The last line makes sure the config files are newer than anything else,
+which in general simplifies things as far as {\tt make} is concerned.
+
+\section{Building larceny}
+
+To make the larceny executable, make sure you are in $\sim$larceny,
+then type {\tt make}.   This will compile and assemble the correct
+files (assuming you have them checked out), and produce a file called
+{\tt larceny} in $\sim$larceny.
+
+Now type {\tt make~basicstuff} to create some object files needed by the
+development environment.
+
+\section{Building the heap}
+
+To build the larceny heap, make sure you are in $\sim$larceny, 
+then type {\tt build}.  This will start a Chez Scheme process running
+the make utilties.  It will load several packages, then end at
+the Chez prompt.
+
+To create the heap, say {\tt (make-larceny-heap)}.  It will compile
+and assemble the necessary files, then load each file that is part
+of the runtime environment, and then create a file called larceny.heap, 
+which will be located in $\sim$larceny.
+
+It is possible to create heaps in other ways - Larceny Note \#5 details
+some of them.
+
+\section{Active editing}
+
+Initially, all the files that you checked out will be read-only - you 
+will not be able to edit them.  This is part of using RCS.  Only 
+the source files are read-only.  The files which you produce: larceny,
+.o files, and so on. are all readable and writeable by you.
+
+Once you decide you would like to edit a file, you need to check out the
+file and lock it.  This keeps other people from editing the file while
+you are working on it.  (It is possible to use some forms of revision
+software which allow multiple people to edit the same file, but that
+hasn't really been needed as yet.)  To lock a file, you say 
+{\tt co -l $<$file$>$}.  
+
+Once you have completed editing it and you would like to make the new
+version available to other people, you check it in.  This is done by
+saying {\tt ci $<$file$>$}.
+
+If you have checked out a lot of files (a common occurence), you can
+check them all in again by going to $\sim$larceny and running the
+{\tt checkin} script.
+
+If other people have checked in a lot of files (another common
+occurence), and you would like to get the newest versions of all those
+files, you can run the {\tt checkout} script.  Again, this must be
+run while in $\sim$larceny.
+
+\section{Creating a new file}
+
+If you create a new file to add to the Larceny environment, you must
+do an initial check-in.  This is done by saying {\tt ci $<$file$>$}.
+RCS will ask you for a description of the file - type whatever you'd
+like.  
+
+At this point, you should add an entry to the {\tt Index} in the current
+directory, describing a bit about the file.  You will have to lock the
+Index to edit it. 
+
+You may also want to consider whether or not you have introduced some
+new concepts which should be mentioned in the Glarceny (Larceny Note \#666).
+
+\section{Adding a primop}
+
+The stuff that Larceny is made of...
+
+\subsection{The story according to R\'{e}my}
+
+Follow these instructions:
+\begin{enumerate}
+\item Find Lars.
+\item Take him to the Fall Creek Bakery.
+\item Mention that you would like to add a primop.
+\item Take careful notes, and enjoy thoroughly.
+\item Add the primop.
+\item Get Lars to fix whatever broke...
+\end{enumerate}
+
+\subsection{The story according to Lars}
+
+Adding a primop can be a very educational experience. I'll try to expand on
+steps 3 and 4 above, as these are the vital ones (although a brownie and a
+cup of coffee helps).
+
+For the time being, a primop is defined to the compiler by adding it to the
+table \verb+$usual-integrable-procedures$+ in {\tt Compiler/pass1.imp.sch}.
+This table is a list of 5-element lists. The first element is the name of
+the primop as it will appear in a Scheme source file.  The second element is
+the number of arguments the primop takes. The third argument is the name of
+the primop as it should appear in the MacScheme assembly language output
+from the compiler; this is the name that the assembler recognizes. The
+fourth element is a predicate whose function is a little unclear to me right
+now but which does something with literal arguments to the primop. The fifth
+element is the MacScheme machine opcode for the primop; for Larceny-specific
+primops it is always -1, and in fact, in Larceny this element is always
+ignored.
+
+So, to add a primop, you first define an entry for the primop in this table.
+If the primop has an immediate form, you must also add an entry to the
+other table in this file, \verb+$immediate-primops$+. This table is a list
+of lists where the sublist has a primop name (source form, I think) and the
+MacScheme opcode.
+
+When the primop has been defined in this table, you usually want to define
+a stub procedure for it so that it can be passed around as an ``ordinary''
+procedure. The stubs are defined in {\tt Lib/integrable-procs.scm} and are
+all of the form
+
+\begin{verbatim}
+          (define foo (lambda (x) (foo x)))
+\end{verbatim}
+
+for a primop {\tt foo} of one argument. Note that the MIT-style definitions
+should *not* be used here. The assumption is that this procedure will be
+compiled with optimization turned on, and on such a setting, the compiler
+will distinguish between the two forms. The Indiana-style definition above
+will not be self-referential, but an MIT-style definition will be. So watch
+it!
+
+The next thing to do is to write the code generation stub for the primop. In
+the current system this means adding a primop to the primop list in
+{\tt Sparc/gen-primops.sch}. This file contains an association list which
+associates a primop name with a procedure. The procedure is the code generation
+stub for the primop. Such a stub takes at least one argument (the assembler
+structure) and then additional arguments depending on the primop. For
+example, a two-argument primop {\tt bar} would have a definition much like
+this (in the definition of the list):
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+          (cons 'bar
+                (lambda (as r)
+                  ...))
+\end{verbatim}
+\end{minipage}
+
+where {\tt r} is the register name in which the second argument to {\tt bar}
+is passed (the first is always in {\tt RESULT}, of course).
+
+The process of creating the code generation stub is actually a little more
+complicated, since there may be more than one stub for each primop: one
+for immediate args, one for the general case. The current system punts that
+by always moving immediates into regs and then doing the general case, but
+this is clearly the wrong thing.
+
+A rewrite of {\tt Sparc/gen-primops.sch} which is much cleaner has been
+done, but is untested and is not currently in use.
+
+In principle you have now added the primop to the system. However, some
+primops need support beyond what can be done in-line, and the code
+generation stub will in these cases generate a branch thru the millicode
+table to a millicode procedure. If this is the case, there are more steps:
+
+First, you have to create a slot in the millicode table for the millicode
+procedure. First, edit the file {\tt millicode.cfg} to define the slot number
+for the new slot. This is simple; just add one to the end of the file and
+then update the count up at the top of the file (try it, it's obvious).
+Then, edit the file {\tt Sparc/tables.s} to add another slot at the end.
+Each slot is an unconditional branch to the millicode procedure followed
+by a no-op instruction.
+
+The millicode table is now in good shape. At this point, you will need to
+write the SPARC assembly code for the millicode operation itself. A millicode
+procedure goes into one of three files: {\tt Sparc/memory.s} if it has to
+do with memory management; {\tt Sparc/generic.s} if it has to do with generic
+arithmetic; and in {\tt Sparc/glue.s} otherwise.
+
+Of course, the millicode procedure may call C code to do some stuff for it;
+C code which supports millicode goes in {\tt Sys/cglue.c} or 
+{\tt Sys/memsupport.c}, depending on what it does: the latter is for memory
+management stuff; the former for everything else.
+
+Remember that after {\em changing} a primop, you must recompile everything
+that uses the primop, or you will be in deep trouble. A wholesale recompile
+is sometimes the best. Often you can get away with reassembling.
+
+\end{document}

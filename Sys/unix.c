@@ -68,10 +68,13 @@ int UNIX_getresourceusage()
 
 int UNIX_dumpheap()
 {
-  char *fn = getfilename( G_RESULT );
+  char *fn;
 
-  /* call on the procedure defined in heapio.c */
+  fn = getfilename( G_RESULT );                  /* heap file name */
+  globals[ G_STARTUP ] = globals[ G_ARGREG2 ];   /* startup procedure */
+
   garbage_collect( FULL_COLLECTION, 0 );
+
   if (fn == 0 || dump_heap( fn ) == -1)
     globals[ G_RESULT ] = FALSE_CONST;
   else 

@@ -1,7 +1,7 @@
 ; -*- Scheme -*-
 ;
 ; Multi-lingual autoconfiguration program, version 2.
-; Visciously hacked to accomodate v0.20, needs cleaning up.
+; Visciously hacked to accomodate v0.20, needs cleaning up. It's a mess.
 ;
 ; USAGE
 ;   (config <configfile> ...)
@@ -179,6 +179,9 @@
   (define (define-mproc? x)
     (and (pair? x) (eq? (car x) 'define-mproc)))
 
+  (define (align? x)
+    (and (pair? x) (eq? (car x) 'align)))
+
   (define (config-loop inp info)
     (let loop ((item (read inp)) (info info))
       (cond ((eof-object? item)
@@ -231,6 +234,17 @@
 			info)))
 	       (set! table-counter (+ table-counter 2))
 	       (loop (read inp) i)))
+	    ((align? item)
+	     (let ((n (cadr item)))
+	       (if (< n table-counter)
+		   (error 'config "Align directive exceeded:" item)
+		   (let loop2 ()
+		     (if (< table-counter n)
+			 (begin (display "	.word	0	! padding" table-file)
+				(newline table-file)
+				(set! table-counter (+ table-counter 1))
+				(loop2))
+			 (loop (read inp) info))))))
 	    (else
 	     (conf-error #f "Unknown command ~a" item)
 	     (loop (read inp) info)))))

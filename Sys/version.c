@@ -4,7 +4,7 @@
  * Larceny run-time system -- the version number :-)
  */
 
-char *version = "0.20";
+char *version = "0.22";
 char *date = DATE;
 char *user = USER;
 

@@ -1,0 +1,96 @@
+\input{larceny.sty}
+\title{Larceny Note \#14: \\
+       Thoughts on future enhancments \\
+       {\tenrm (working document)}}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present some thoughts on possible future enhancments which will improve the
+run-time performance of Scheme programs running under Larceny. Primarily,
+this document is to be considered an exhaustive list of things we want to
+consider doing to the run-time system and/or the compiler, not all of which
+should necessarily be incorporated.
+\end{abstract}
+
+\section{Keeping the Return Address in a Register}
+
+Currently the return address is always stored in the stack frame when it has
+been calculated by a {\tt save} or {\tt setrtn} instruction. In order to make
+calls to leaf routines cheaper, it would be advantageous to keep the return
+address in a register; this pays off especially when the compiler knows how
+to reuse stack frames. A {\tt save} instruction would save the current return
+address in the current stack frame before creating a new frame, and calculate
+the new return address into a register. More return addresses can then be
+calculated and put into the register with no memory traffic later; the previous
+return address is already saved.
+
+A different scenario is possible: the old return address is saved in the new
+stack frame after this has been created.
+
+In order to make either of these options work out, a number of conditions
+must hold.
+
+\begin{itemize}
+\item
+There must always be a stack frame in which to save the return address.
+This makes things a little more complicated, and the second scenario would
+be better in this respect.
+
+\item
+The return instruction does not need to load the return address since it's
+already in a register.
+
+\item
+The {\tt save} and {\tt setrtn} instructions change.
+
+\item
+The {\tt restore} or the {\tt pop} instruction will need to fetch the return
+address from a frame and move it back into the register.
+
+\item
+Millicode which knows about calling conventions will have to change.
+In particular, {\tt save\_scheme\_context} will have to save the return
+address either in the stack (scenario 1) or in a global (scenario 2).
+In the case of scenario 2, it may be difficult to keep the reentrancy
+guarantees we have had so far when going from Scheme to C to Scheme again.
+
+\item
+On a stack underflow, the underflow handler must get the return address
+from the restored frame and put it into the return register.
+
+\item
+On a stack overflow, we must be careful to save the return address
+in a register before the overflow handler is detected if we use the first
+approach outlined above.
+
+\end{itemize}
+
+\section{Merging Millicode and Globals Tables}
+
+This is fairly straightforward; we just need to allocate space for the globals
+in {\tt tables.s} and adjust all offsets in {\tt offsets.cfg}. Eventually,
+all references to one of the registers should go away and be replaced by
+references to the other, but in the mean time, one can alias the other.
+
+This change may or may not be desirable; it may be that we wish to keep them
+separate so that all roots can later move into a vector in the heap.
+
+\section{Fast Function Calls to Global Procedures}
+
+Global variables should have a value cell and a function cell. When we are
+calling a global variable, we should fetch the function cell rather than
+the procedure cell, and just do a jump, assuming that the function cell
+contains a procedure or the address of an error handler.
+
+This involves work on the compiler (it must generate a special kind of {\tt
+global} instruction), and {\tt setglbl} must be changed so that if it stores
+a non-procedure into a global, it sets the function cell to the error
+handler, and if it stores a procedure, it updates the function cell. It's
+unclear how much we win, but it's probably worth the bother if we have lots
+of global accessor functions and so on, all of which take little time and
+which are all called frequently.
+
+\end{document}

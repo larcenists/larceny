@@ -1,0 +1,60 @@
+\input{larceny.sty}
+\title{Larceny Note \#23: System Invariants}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document attempts to list all invariants in the implementation of Larceny.
+Each invariant is given an identifying number (which does {\em not} change
+as this document evolves), the idea being that a comment in the source can
+refer to an invariant by its number in order to justify the code. Each
+invariant mentioned in this document is probably documented in some other
+note, and if so, a reference to the pertinent note is found herein.
+
+When a piece of code is written or debugged and its correctness depends on
+a perceived invariant, that invariant must be located and understood before
+the code can be considered correct.
+\end{abstract}
+
+\section{Definitions}
+
+Execution is always\footnote{At least for the time being.} in one of three
+{\em modes}. In {\em C mode} the Scheme register contents are all saved
+in the software registers in the globals table, and the calling conventions
+in effect are those of the C compiler. In {\em Scheme mode}, some Scheme
+registers are mapped to hardware registers, and all of the defined mappings
+are in effect. In {\em Millicode mode}, we are mostly in Scheme mode,
+but may sometimes use the temporary registers for internal parameter passing,
+and we may temporarily switch out of Scheme mode by doing a {\tt save}
+instruction to get more registers or to prepare to go into C mode.
+
+
+\section{Invariants}
+
+\begin{enumerate}
+% 1
+\item
+When executing in Scheme mode, and except after executing a RETURN
+instruction and before executing a RESTORE instruction, REG0 is a pointer to
+the currently executing procedure. This is required by the MacScheme calling
+conventions and mentioned parenthetically in [Larceny Note \#1].
+
+% 2
+\item
+When entering a millicode procedure, REG0 always points to the currently
+executing procedure, and {\tt \%o7} is used to save the return address.
+The first argument is passed in RESULT, the second in ARGREG2, and the third
+in ARGREG2. [Larceny Note \#1.]
+
+% 3
+\item
+RESULT, ARGREG2, and ARGREG3 are preserved across calls to memory management
+millicode routines (although if a result is returned, RESULT is of course
+destroyed). [Larceny Note \#3.]
+
+\end{enumerate}
+
+\end{document}
+

@@ -37,17 +37,18 @@ char **argv;
   unsigned rhash = 0;
   unsigned ssb = 0;
   unsigned ewatermark = 0;
-  unsigned twatermark = 0;
+  unsigned thiwatermark = 0;
+  unsigned tlowatermark = 0;
   unsigned timerval = 0xFFFFFFFF;
   unsigned enable_singlestep = 0;
   unsigned enable_breakpoints = 0;
   unsigned enable_timer = 1;
   unsigned show_heapstats = 0;
   char *heapfile = NULL;
-  unsigned q;
+  unsigned q = 0;
 
-  consolemsg( "Larceny version %s (Compiled by %s on %s)",
-	      version, user, date );
+  consolemsg( "Larceny version %s (%s) (Compiled by %s on %s)",
+	      version, gctype, user, date );
 
   parse_options( argc, argv,
 		 &esize,
@@ -56,7 +57,8 @@ char **argv;
 		 &rhash,
 		 &ssb,
 		 &ewatermark,
-		 &twatermark,
+		 &thiwatermark,
+		 &tlowatermark,
 		 &timerval,
 		 &enable_singlestep,
 		 &enable_breakpoints,
@@ -74,7 +76,8 @@ char **argv;
   /* Load the heap */
   openheap( heapfile );
 
-  if (!allocate_heap( esize, tsize, heap_ssize(), ewatermark, twatermark ))
+  if (!allocate_heap( esize, tsize, heap_ssize(), ewatermark,
+		      thiwatermark, tlowatermark ))
     panic( "Unable to create heap." );
 
   load_heap();
@@ -193,12 +196,12 @@ static void fpehandler()
  */
 static 
 void parse_options( argc, argv,
-                   esize, tsize, rpool, rhash, ssb, emark, tmark,
+                   esize, tsize, rpool, rhash, ssb, emark, thimark, tlomark,
 		   ticks, enable_singlestep, enable_break, 
 		   enable_timer, show_heapstats, heapfile, quiet )
 int argc;
 char **argv;
-unsigned *esize, *tsize, *rpool, *rhash, *ssb, *emark, *tmark,
+unsigned *esize, *tsize, *rpool, *rhash, *ssb, *emark, *thimark, *tlomark,
          *ticks, *enable_singlestep, *enable_break, *enable_timer, 
          *show_heapstats, *quiet;
 char **heapfile;
@@ -230,9 +233,14 @@ char **heapfile;
 	invalid( "-emark" );
       ++argv; --argc;
     }
-    else if (strcmp( *argv, "-tmark" ) == 0) {
-      if (argc == 1 || sscanf( *(argv+1), "%d", tmark ) != 1)
-	invalid( "-tmark" );
+    else if (strcmp( *argv, "-thimark" ) == 0) {
+      if (argc == 1 || sscanf( *(argv+1), "%d", thimark ) != 1)
+	invalid( "-thimark" );
+      ++argv; --argc;
+    }
+    else if (strcmp( *argv, "-tlomark" ) == 0) {
+      if (argc == 1 || sscanf( *(argv+1), "%d", tlomark ) != 1)
+	invalid( "-tlomark" );
       ++argv; --argc;
     }
     else if (strcmp( *argv, "-ticks" ) == 0) {
@@ -300,19 +308,20 @@ static void usage()
   consolemsg( "" );
   consolemsg( "Usage: larceny [ options ] heapfile" );
   consolemsg( "Options:" );
-  consolemsg( "\t-tsize nnnn   Initial tenured area size in bytes" );
-  consolemsg( "\t-esize nnnn   Ephemeral area size in bytes" );
-  consolemsg( "\t-rpool nnnn   Remembered set storage pool size in elements" );
-  consolemsg( "\t-rhash nnnn   Remembered set hash table in elements (pow2)" );
-  consolemsg( "\t-ssb   nnnn   SSB size in elements" );
-  consolemsg( "\t-emark n      Ephemeral area watermark in percent" );
-  consolemsg( "\t-tmark n      Tenured area watermark in percent" );
-  consolemsg( "\t-ticks nnnn   Initial timer interval value" );
-  consolemsg( "\t-break        Enable breakpoints" );
-  consolemsg( "\t-step         Enable single-stepping" );
-  consolemsg( "\t-timer        Disable timer interrupts" );
-  consolemsg( "\t-memstats     Print memory statistics" );
-  consolemsg( "\t-quiet        Suppress nonessential messages" );
+  consolemsg( "\t-tsize   nnnn   Initial tenured area size in bytes" );
+  consolemsg( "\t-esize   nnnn   Ephemeral area size in bytes" );
+  consolemsg( "\t-rpool   nnnn   Remembered set storage pool size in elements" );
+  consolemsg( "\t-rhash   nnnn   Remembered set hash table in elements (pow2)" );
+  consolemsg( "\t-ssb     nnnn   SSB size in elements" );
+  consolemsg( "\t-emark   n      Ephemeral area watermark in percent" );
+  consolemsg( "\t-thimark n      Tenured area high watermark in percent" );
+  consolemsg( "\t-tlomark n      Tenured area low watermark in percent" );
+  consolemsg( "\t-ticks   nnnn   Initial timer interval value" );
+  consolemsg( "\t-break          Enable breakpoints" );
+  consolemsg( "\t-step           Enable single-stepping" );
+  consolemsg( "\t-timer          Disable timer interrupts" );
+  consolemsg( "\t-memstats       Print memory statistics" );
+  consolemsg( "\t-quiet          Suppress nonessential messages" );
   consolemsg( "" );
   consolemsg( "Values can be in decimal, octal (0nnn), hex (0xnnn), or suffixed" );
   consolemsg( "by K (for KB) or M (for MB) when that makes sense." );
