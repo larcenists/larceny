@@ -46,7 +46,10 @@
 				   integer division by zero. */
 #undef FLUSH_ALWAYS             /* Set to 1 to force icache flushing */
 #undef FLUSH_NEVER              /* Set to 1 to disable icache flushing */
-
+#undef HARDWARE_DIVISION        /* Set to 1 to use hardware division even
+				   if that compromises backward compatibility.
+				   Some RISC systems implement HW division
+				   only in later architecture versions. */
 
 /* 
  * Operating systems. 
@@ -222,10 +225,8 @@
 #define HAVE_STRNCASECMP          1
 #define HAVE_HRTIME_T             1
 #define STACK_UNDERFLOW_COUNTING  1
-#define GC_HIRES_TIMERS           0
+#define GC_HIRES_TIMERS           1
 #define GC_EVENT_COUNTERS         0
-#define GCLIB_LARGE_TABLE         0 /* Experimental */
-#define RETURN_MEMORY_TO_OS       0 /* Experimental */
 
 /* MacOS; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1
