@@ -617,7 +617,7 @@
 	   (or (fixnum? addr)
 	       (and (bignum? addr)
 		    (<= 0 addr 4294967295))))
-      (syscall syscall:poke-bytes addr bv count))
-      (error "poke-bytes: invalid arguments " addr ", " bv ", " count))
+      (syscall syscall:poke-bytes addr bv count)
+      (error "poke-bytes: invalid arguments " addr ", " bv ", " count)))
 
 ; eof
