@@ -145,16 +145,22 @@
   (string-io/get-output-string port))
 
 (define (close-input-port p) 
-  (if (input-port? p)
-      (io/close-port p)
-      (begin (error "close-input-port: not an input port: " p)
-	     #t)))
+  (cond ((input-port? p)
+	 (io/close-port p))
+	((not (output-port? p)) ; HACK: port is closed
+	 (unspecified))
+	(else
+	 (error "close-input-port: not an input port: " p)
+	 #t)))
 
 (define (close-output-port p)
-  (if (output-port? p)
-      (io/close-port p)
-      (begin (error "close-output-port: not an output port: " p)
-	     #t)))
+  (cond ((output-port? p)
+	 (io/close-port p))
+	((not (input-port? p)) ; HACK: port is closed
+	 (unspecified))
+	(else
+	 (error "close-output-port: not an output port: " p)
+	 #t)))
 
 (define (flush-output-port . rest)
   (cond ((null? rest)
