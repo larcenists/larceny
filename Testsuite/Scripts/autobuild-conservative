@@ -19,7 +19,7 @@ RUN_GC_TESTS=${RUN_GC_TESTS:-1}
 LOG="log.auto"
 TRACE="trace.auto"
 
-if [ $BUILD_HEAP != 0 ]; then
+if [ $BUILD_SYSTEM != 0 ]; then
 build -chez <<EOF
 $CUSTOM_EXPRESSIONS
 (system "make libclean faslclean")
