@@ -8,7 +8,7 @@
 
   (define architecture
     (let* ((f   (system-features))
-	   (os  (cdr (assq 'operating-system-name f)))
+	   (os  (cdr (assq 'os-name f)))
 	   (maj (cdr (assq 'os-major-version f))))
       (cond ((string=? os "SunOS")
 	     (case maj
