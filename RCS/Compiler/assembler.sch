@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.3 91/08/17 04:34:24 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.4 91/08/20 15:31:25 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -236,7 +236,7 @@
       (begin (display list-indentation)
              (display "        ")
              (display name)
-             (display (make-string (max (- 8 (string-length name)))
+             (display (make-string (max (- 12 (string-length name)))
                                    #\space))
              (if (not (null? (cdr instruction)))
                  (begin (write (cadr instruction))
@@ -316,7 +316,7 @@
 (define $branch (make-mnemonic 'branch))         ; branch  L
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
 (define $optb2 (make-mnemonic 'optb2))           ; optb2   prim,L
-(defien $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
+(define $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
 
 (define $cons 'cons)
 
@@ -400,12 +400,12 @@
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
 	     (consume-next-instruction! as)
-	     (push-instruction as (list $optb 'bfnull? (operand1 i)))))
+	     (push-instruction as (list $optb2 'bfnull? (operand1 i)))))
 	  ((and (eq? (operand1 instruction) 'zero?)
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
 	     (consume-next-instruction! as)
-	     (push-instruction as (list $optb 'bfzero? (operand1 i)))))
+	     (push-instruction as (list $optb2 'bfzero? (operand1 i)))))
 	  ((and (eq? (operand1 instruction) 'pair?)
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
@@ -428,7 +428,7 @@
 	    (let ((i (next-instruction as)))
 	      (consume-next-instruction! as)
 	      (push-instruction as (list $optb3
-					 (cdr op)
+					 (cadr op)
 					 (operand2 instruction)
 					 (operand1 i))))
 	    (begin
@@ -466,7 +466,7 @@
 ;
 ; ($optb2 test label)
 
-(define-instruction $optb
+(define-instruction $optb2
   (lambda (instruction as)
     (list-instruction "optb2" instruction)
     (emit-primop1! as
@@ -474,7 +474,7 @@
 		   (operand2 instruction))))
 
 (define-instruction $optb3
-  (lambda (instruction as r)
+  (lambda (instruction as)
     (list-instruction "optb3" instruction)
     (emit-primop2! as
 		   (operand1 instruction)
@@ -485,8 +485,18 @@
 
 (define-instruction $const
   (lambda (instruction as)
-    (list-instruction "const" instruction)
-    (emit-constant->register as (operand1 instruction) $r.result)))
+    (let ((next (next-instruction as)))
+      (cond ((= (operand0 next) $setreg)
+	     (consume-next-instruction! as)
+	     (list-instruction "const2reg" (list '()
+						 (operand1 instruction)
+						 (operand1 next)))
+	     (emit-constant->register as
+				      (operand1 instruction)
+				      (regname (operand1 next))))
+	    (else
+	     (list-instruction "const" instruction)
+	     (emit-constant->register as (operand1 instruction) $r.result))))))
 
 (define-instruction $global
   (lambda (instruction as)
