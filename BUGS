@@ -931,9 +931,18 @@ HIGH PRIORITY BUGS: 136, 137, 147.
 
     LOGAND, LOGIOR, LOGNOT, and LOGXOR should probably be called
     something like FXAND, FXIOR, FXNOT, and FXXOR for consistency with
-    other fixnum operators' naming.
+    other fixnum operators' naming.  Ditto LSH, RSHA, RSHL.
 
 
-NEXT ENTRY: 150
+150 v0.48 (991124 / lth)
+    Priority: low
+    Category: Language / usefulness
+
+    There is no way to seed the random number generator, and it doesn't
+    auto-seed on startup, so we get the same sequence every execution
+    of the system.
+
+
+NEXT ENTRY: 151
 
 ; eof
