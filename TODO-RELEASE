@@ -28,6 +28,7 @@ Remaining to-do items:
           integrate-usual-procedures off (verified present in 0.46).
      130: [wdc] macro expander confused about multiple uses of variable-arity
           primitives in same scope (verified present in 0.46).
+     147: [wdc] macro expander bug
 
   * Tentatively the following `medium' priority BUGS:
      098: [wdc] define-inline problem
@@ -38,9 +39,7 @@ Remaining to-do items:
   * Handling primitives correctly
      - depends on syntax environment bug fix
   * Better debug information
-     - lth must write spec first
-  * Macro expander performance issues?  [Not a priority]
-  * Compiler performance issues?        [Not a priority]
+     - lth must write spec first [done, see Debugger/debug-info.txt]
 
 [Run-time system]
   * Provide more accurate data to memstats: it is possible to provide
@@ -53,30 +52,40 @@ Remaining to-do items:
   * Top-level environments must hold syntax definitions, and the hacks
     used to work around it (in compile-expression, macro-expand-expression)
     must be removed.
-  * MAKE-PARAMETER
+     - lth must propose spec
+  * The following magic/compiler-internal names in the toplevel 
+    environment must be given new names (e.g., starting with `.'),
+    and Lib/Sparc/toplevel.sch must be fixed; presumably when the
+    primitive situation has been fixed these can just go away
+    altogether:
+	car:pair
+	cdr:pair
+	=:fix:fix, <:fix:fix, <=:fix:fix, >:fix:fix, >=:fix:fix
+	vector-length:vec
+	vector-ref:trusted
+	vector-set!:trusted
 
 [SRFI]
-  * Definite: SRFI 0  (basic)
-              SRFI 6  (string I/O)
-              SRFI 11 (LET-VALUES)
-  * Probable: SRFI 12 (Exceptions; pending exception hierarchy definition)
-              SRFI 9  (DEFINE-RECORD-TYPE syntax)
-  * Possible: SRFI 7  (Program-based configuration language)
-
-[FFI]
-  * Fix the RTLD_LOCAL / RTLD_GLOBAL bug in calls to dlopen
+  * Definite: SRFI 0  (basic)          [ done, modulo adding SRFIs ]
+              SRFI 6  (string I/O)     [ done -- built-in ]
+              SRFI 11 (LET-VALUES)     [ done -- built-in ]
+  * Probable: SRFI 12 (Exceptions)     [ done -- pending exception 
+					 hierarchy definition ]
+  * Possible: SRFI 7  (Program-based configuration language)  [ done ]
+              SRFI 9  (DEFINE-RECORD-TYPE syntax)             [ done ]
 
 [Debugging]
   * Print variable names where convenient.
      - must have info from compiler first.
-  * Add a command to enter a nested REPL.
-  * Debugger bugs -- see FIXMEs in the files.
+  * Revise the command set, and update the documentation to reflect
+    the revisions.
 
 [General clean-up]
   * Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
     constants, accessors, and setters for the documentation slot.
     This information should exist in only one place, and it has to
     be part of the development environment.
+  * Remove some of the weirder list and string procs and macros in Auxlib.
 
 [Scripts/options]
   * Scripts may have to be aware of the new command line arguments,
@@ -98,6 +107,8 @@ Remaining to-do items:
     -noinit after -args.
 
 [Standard builds]
+  * No longer any need to load Auxlib/vector.sch since vector-copy is
+    in the bootstrap heap.
   * Need to hide the nbuild internals in Util/std-heap.sch
   * Need to hide the FFI internals in Util/std-heap.sch
   * Need to avoid loading FFI source so we don't include the source code.
@@ -112,24 +123,67 @@ Remaining to-do items:
     of building the heaps.  Eg., Scripts/build-larceny-heap.
 
 [Documentation]
-  * Go thru toplevel.sch and make sure every non-R5RS procedure is
-    documented in the User's Manual.
+  * The following non-R5RS procedure are not in the User Manual's 
+    procedure index, at least.  Must add them and create documentation
+    for the ones that have none.
+
+	syscall
+	make-environment
+	environment*
+	fl+, fl-, fl--, fl*, fl=, fl<, fl<=, fl>, fl>=
+	make-trampoline
+	evaluator		[ a parameter ]
+	procedure-arity, other procedure doc fns
+	interpreted-*?, interpreted-expression-source
+	open-binary-*-file
+	call-with-binary-*-file
+	with-*-*-binary-file    [ These are silly -- nuke them ]
+	format			[ Park it or move it ]
+	port-name
+	write-bytevector-like   [ Who uses this and not lowlevel-write?]
+	lowlevel-write	        [ Who uses this and not write-bytevector-like?]
+	readtable-ref
+	readtable-set!
+	console-input-port, console-output-port, *-factory
+	print-length, print-level
+	call-with-error-handler	[ Obsolete -- use parameterize ]
+	call-without-errors	[ Obsolete -- use parameterize ]
+	call-with-reset-handler	[ Obsolete -- use parameterize ]
+	quit
+	quit-handler		[ A parameter ]
+	make-parameter
+	current-continuation-structure
+	make-bytevector is misspelled make-bytevector?
+	bytevector-like? is misplaced
+	macro-expand
+	system-function		[ Largely obsolete? ]
+	sys$C-ffi-*		[ Should probably be .c-ffi-* ]
+	peek-bytes, poke-bytes
+	delete-file is misplaced
+	memstats-*
+	command-line-arguments
+	system
+	repl
+	repl-level		[ A parameter ]
+	unspecified, undefined
+        sys$codevector-iflush	[ Used by FFI ]
+
   * Fix reported documentation bugs (to be determined)
      - bugs: remove claim that all optional functionality is supported,
-       because transcript ports are currently not supported.
+       because transcript ports are currently not supported (they are
+       in Experimental and depend on the experimental user-level I/O system)
      - new stuff
          QUIT, QUIT-HANDLER
-         PARAMETERIZE
+         PARAMETERIZE, MAKE-PARAMETER
          LET-VALUES
          CONSOLE-INPUT-PORT-FACTORY, CONSOLE-OUTPUT-PORT-FACTORY
+	 REPL-LEVEL
      - some were reported on the mailing list
         - ...
      - manual/intro.html: 
         - debugging info
         - compiler switches
         - "make setup" will no longer work.
-     - manual/debugging.html:
-        - remove cautionary note about tracing once bug is fixed
      - manual/fixnums.html:
         - flesh out, or cross-link to general definitions?
      - manual/ffi.html:
@@ -137,7 +191,7 @@ Remaining to-do items:
         - ditto uint type name
         - document FOREIGN-FUNCTION-POINTER
      - manual/parameters.html
-        - add current-input-port, current-output-port
+        - add CURRENT-INPUT-PORT, CURRENT-OUTPUT-PORT
      - manual/io.html:
        - changed meaning of CURRENT-INPUT-PORT, CURRENT-OUTPUT-PORT:
          they now return the new value (like all parameters)
