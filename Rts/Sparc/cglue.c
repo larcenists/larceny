@@ -22,6 +22,7 @@
 #include "signals.h"
 #include "gc.h"
 #include "gc_t.h"
+#include "young_heap_t.h"
 #include "stack.h"
 
 void scheme_init( word *globals )
@@ -76,6 +77,15 @@ void C_creg_set( void )
   gc_creg_set( the_gc( globals ), globals[ G_RESULT ] );
   in_noninterruptible_syscall = 0;
 }
+
+#if !defined(BDW_GC)
+void C_morecore( void )
+{
+  in_noninterruptible_syscall = 1;
+  yh_make_room( (the_gc( globals ))->young_area );
+  in_noninterruptible_syscall = 0;
+}
+#endif
 
 /* C_restore_frame: stack underflowed, restore a frame */
 void C_restore_frame( void )
@@ -286,22 +296,6 @@ void C_syscall( void )
   nproc = nativeint( globals[ G_REG1 ] );
 
   larceny_syscall( nargs, nproc, &globals[ G_REG2 ] );
-}
-
-/* Garbage collect the youngest generation and free up enough space
- * for at least one cons cell.
- */
-void C_garbage_collect( void )
-{
-  in_noninterruptible_syscall = 1;
-  gc_collect( the_gc( globals ), 0, 8, GCTYPE_PROMOTE );
-  in_noninterruptible_syscall = 0;
-}
-
-/* OBSOLETE */
-void C_compact_ssb( void )
-{
-  panic( "Obsolete function C_compact_ssb." );
 }
 
 #if defined(SIMULATE_NEW_BARRIER)
