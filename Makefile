@@ -1,4 +1,4 @@
-# Copyright 1998 Lars T Hansen.          -*- fundamental -*- 
+# Copyright 1998 Lars T Hansen.		 -*- fundamental -*- 
 #
 # $Id$
 #
@@ -20,9 +20,13 @@ CC=gcc
 ###########################################################################
 
 default:
+	@echo ""
 	@echo "Make what?"
+	@echo ""
 	@echo "Your options are:"
-	@echo "  setup          - initialize system"
+	@echo "  setup_larceny  - setup build system for larceny host"
+	@echo "  setup_chez     - setup build system for chez scheme and larceny hosts"
+	@echo "  setup_gambit   - setup build system for gambit-c and larceny hosts"
 	@echo "  bdw_setup      - unpack Boehm-Demers-Weiser collector"
 	@echo "  larceny.bin    - build standard generational system"
 	@echo "  bdwlarceny.bin - build conservative collector system"
@@ -37,6 +41,12 @@ default:
 	@echo "  realclean      - remove all generated and backup files"
 
 setup:
+	@echo "'setup' is no longer a target.  Try one of:"
+	@echo "   setup_chez     setup for chez scheme host system"
+	@echo "   setup_gambit   setup for gambit-c host system"
+	@echo "   setup_larceny  setup for larceny host system"
+
+setup_larceny:
 	rm -f bdwlarceny.bin hsplit larceny.bin
 	ln -s Rts/larceny.bin
 	ln -s Rts/bdwlarceny.bin
@@ -47,7 +57,14 @@ setup:
 	rm build.safe
 	chmod a+x build
 	(cd Rts ; $(MAKE) setup)
+
+setup_chez:
+	$(MAKE) setup_larceny
 	$(MAKE) chezstuff
+
+setup_gambit:
+	$(MAKE) setup_larceny
+	$(MAKE) gambitstuff
 
 bdw_setup:
 	( cd Rts ; $(BDW_UNZIP) < ../$(BDW_DIST) | tar xvf - ; mv gc bdw-gc );
@@ -68,17 +85,20 @@ hsplit: target_hsplit
 target_hsplit:
 	( cd Rts ; $(MAKE) hsplit )
 
+petit.bin:
+	$(MAKE) -f makefile.gcc petit.bin
+
 clean: libclean rtsclean
 	( cd Rts ; $(MAKE) clean )
 
 lopclean: seedclean
-	rm -f   Lib/Common/*.*lop Lib/Common/*.c Lib/Common/*.o \
-	        Lib/Sparc/*.*lop Lib/Sparc/*.c Lib/Sparc/*.o \
-	        Lib/Standard-C/*.*lop Lib/Standard-C/*.c Lib/Standard-C/*.o \
+	rm -f	Lib/Common/*.*lop Lib/Common/*.c Lib/Common/*.o \
+		Lib/Sparc/*.*lop Lib/Sparc/*.c Lib/Sparc/*.o \
+		Lib/Standard-C/*.*lop Lib/Standard-C/*.c Lib/Standard-C/*.o \
 		Lib/*.*lop Lib/*.c Lib/*.o \
 		Asm/Common/*.lop Asm/Common/*.c Asm/Common/*.o \
 		Asm/Standard-C/*.lop Asm/Standard-C/*.c Asm/Standard-C/*.o \
-		Eval/*.*lop Eval/*.c Eval/*.o \
+		Interpreter/*.*lop Interpreter/*.c Interpreter/*.o \
 		Repl/*.*lop Repl/*.c Repl/*.o \
 		Auxlib/*.*lop Auxlib/*.c Auxlib/*.o \
 		Util/*.*lop Util/*.c Util/*.o \
@@ -88,10 +108,10 @@ lopclean: seedclean
 		Rts/Build/*.*lop
 
 libclean: lopclean
-	rm -f   Lib/Common/*.lap Lib/Sparc/*.lap Lib/Standard-C/*.lap \
-	        Lib/Common/ecodes.sch Lib/Common/globals.sch \
+	rm -f	Lib/Common/*.lap Lib/Sparc/*.lap Lib/Standard-C/*.lap \
+		Lib/Common/ecodes.sch Lib/Common/globals.sch \
 		Asm/Common/*.lap Asm/Standard-C/*.lap \
-		Eval/*.lap \
+		Interpreter/*.lap \
 		Repl/*.lap \
 		Auxlib/*.lap \
 		Testsuite/Lib/*.lap \
@@ -139,9 +159,19 @@ rejclean:
 seedclean:
 	rm -f `find . -name '*\.seed' -print`
 
-# For Chez-hosted system
+# For Chez-hosted system.
 
 chezstuff: 
 	( cd Compat/Chez ; $(CC) -c bitpattern.c mtime.c )
+
+# For Gambit-hosted system.
+# Tested with CC=gcc only.
+
+gambitstuff:
+	( cd Compat/Gambit-C ; \
+	  rm -f gsi-ffs.o* ; \
+	  gsc gsi-ffs.scm ; \
+	  gcc -shared -fPIC -D___DYNAMIC gsi-ffs.c gsi-ffs_.c -lc -lgambc \
+		-o gsi-ffs.o1 )
 
 # eof
