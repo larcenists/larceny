@@ -7,7 +7,11 @@ namespace Scheme.RT {
     public class FFI {
 
         public static void ffi_syscall() {
+            try {
                 ffi_syscall_main();
+            } catch (Exception e) {
+                Exn.error("exception in ffi: " + e.ToString());
+            }
         }
 
         private static void ffi_syscall_main() {
@@ -166,10 +170,15 @@ namespace Scheme.RT {
             {
                 object a = unwrapF(arg1);
                 object b = unwrapF(arg2);
-                Reg.Result = Factory.wrap(a.Equals(b));
+                if (a == null) {
+                    Reg.Result = Factory.wrap(b == null);
+                } else if (b == null) {
+                    Reg.Result = Factory.wrap(a == null);
+                } else {
+                    Reg.Result = Factory.wrap(a.Equals(b));
+                }
                 return;
             }
-
 
             }
             Exn.error("bad ffi syscall code");
