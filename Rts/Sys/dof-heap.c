@@ -41,9 +41,29 @@
 #define EXPENSIVE_CHECKS_TOO  0 /* Quite expensive */
 
 #define USE_DOF_REMSET        1 /* Generally desirable */
-#define SPLIT_REMSETS         1 /* Ditto */
-#define SHADOW_TABLE          1 /* Ditto */
+  /* Separate the sets that track pointers among dof generations
+     from the sets that track pointers to ephemeral area.
+     */
 
+#define SPLIT_REMSETS         1 /* Generally desirable */
+  /* Split the dof remsets so that there is one for every pair of
+     generations, reducing scanning work.
+     */
+
+#define SHADOW_TABLE          1 /* Generally desirable */
+  /* If the large descriptor table is being used, shadow the table
+     pointer in the GC routines to speed up access.
+     */
+
+#define TRUTHFUL_FREE_SPACE   1 /* Generally desirable */
+  /* When computing heap free space, ask the lowlevel allocator about
+     the space free and use that, since large objects may have used some
+     of the heap memory.
+     */
+  
+#define FULLGC_COUNT_GCS      0 /* Trigger on collection count */
+#define FULLGC_COUNT_RESETS   1 /* Trigger on reset counts */
+                                   
 #define BLOCK_SIZE            (64*KILOBYTE)   /* Block granularity */
 #define DOF_REMSET_SIZE       (16*KILOBYTE)   /* Remset block */
 
@@ -94,15 +114,18 @@ struct gen {
 };
 
 struct dof_data {
-  int    area_size;             /* Total memory allocated */
+  int    area_size;             /* Total memory allocated in bytes,
+                                   divisible by quantum. */
+  int    heap_limit;            /* 0 or the max area size in bytes,
+                                   divisible by quantum */
+  int    quantum;               /* Heap growth quantum in bytes */
   double load_factor;
-  int    heap_limit;            /* 0 or the max area size in bytes */
   int    full_frequency;        /* 0 or frequency of full GCs */
+  bool   retry_ok;              /* TRUE if OK to do full GC on heap-full */
   int    gc_counter;            /* counter for full GC management */
   double growth_divisor;        /* Controls heap expansion */
   int    ephemeral_size;        /* Max amount that can be promoted in from
                                    the ephemeral areas */
-  int    quantum;               /* Heap growth quantum */
   int    first_gen_no;          /* Generation number of lowest-numbered gen. */
 
   gen_t  **gen;                 /* Array of generation structures */
@@ -641,13 +664,29 @@ static int heap_free_space( old_heap_t *heap )
 {
   const int infinity = -1;
   dof_data_t *data = DATA(heap);
-  int limit;
-
+  int free;
+#if TRUTHFUL_FREE_SPACE
+  int actual_free;
+  gclib_stats_t stats;
+#endif
+  
   if (data->heap_limit == 0)
     return infinity;
 
-  limit = data->quantum * (data->heap_limit / data->quantum); /* Round down */
-  return limit - data->area_size;
+  free = data->heap_limit - data->area_size;
+#if TRUTHFUL_FREE_SPACE
+  gclib_stats( &stats );
+  if (stats.heap_limit > 0) {
+    actual_free = words2bytes( stats.heap_limit - stats.heap_allocated );
+    /* Round down */
+    actual_free = data->quantum * (actual_free / data->quantum); 
+    if (actual_free < free) {
+      annoyingmsg( "  Less free than expected: %d < %d", actual_free, free );
+      free = actual_free;
+    }
+  }
+#endif
+  return free;
 }
 
 /* A permuation is an int array of length MAX_GENERATIONS and it
@@ -853,7 +892,7 @@ static int sweep_remembered_sets( old_heap_t *heap, msgc_context_t *context )
 static void full_collection( old_heap_t *heap )
 {
   msgc_context_t *context;
-  int marked, traced, removed;
+  int marked, traced, removed, words_marked;
   stats_id_t timer;
 
   /* DEBUG -- replace with annoyingmsg at some point */
@@ -863,7 +902,7 @@ static void full_collection( old_heap_t *heap )
   timer = stats_start_timer();
 
   context = msgc_begin( heap->collector );
-  msgc_mark_objects_from_roots( context, &marked, &traced );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
 #if USE_DOF_REMSET
   removed = sweep_dof_remembered_sets( heap, context );
 #endif
@@ -876,7 +915,8 @@ static void full_collection( old_heap_t *heap )
   DATA(heap)->stats.full_collections++;
   DATA(heap)->stats.full_objects_marked += marked;
   DATA(heap)->stats.full_pointers_traced += traced;
-
+  DATA(heap)->stats.full_words_marked += words_marked;
+  
   /* DEBUG -- ditto */
   consolemsg( " Full collection ends.  Marked=%d traced=%d removed=%d",
               marked, traced, removed );
@@ -1009,13 +1049,30 @@ static void reset_after_collection( old_heap_t *heap )
   int free = 0, old_rp, new_size, permutation[ MAX_GENERATIONS ], i;
 
   if (data->copying == 0 && data->consing == 0)
-    panic_abort( "DOF GC bug: mark/cons ratio is NaN." );
+    panic_abort( "DOF GC bug: mark/cons ratio is 0/0." );
 
-  if (data->consing == 0 && heap_free_space( heap ) == 0) {
-    /* FIXME: could try a full collection here; need to work out the
-       exact logic for that. */
-    panic("No progress in one full collection cycle, and heap full.");
+#if FULLGC_COUNT_RESETS
+  if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
+    full_collection( heap );
+    check_invariants( heap, FALSE );
+    data->gc_counter = 0;
   }
+#endif
+
+  if (mark_cons > 20.0 && heap_free_space( heap ) == 0) {
+    if (data->retry_ok) {
+      /* Try a full collection */
+      consolemsg( "  Heap is nearly full (mark/cons=%.3f)." );
+      full_collection( heap );
+      check_invariants( heap, FALSE );
+      data->gc_counter = 0;
+      data->retry_ok = FALSE;
+    }
+    else
+      panic( "Heap is full." );
+  }
+  else
+    data->retry_ok = TRUE;
 
   data->stats.resets++;
   if (data->cp > 0) {
@@ -1212,11 +1269,13 @@ static void maybe_collect( old_heap_t *heap )
     if (repeating) 
       data->stats.repeats++;
 
+#if FULLGC_COUNT_GCS
     if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
       full_collection( heap );
       check_invariants( heap, FALSE );
       data->gc_counter = 0;
     }
+#endif
     copying_before = data->copying + data->total_copying;
 
     perform_collection( heap );
@@ -1241,6 +1300,13 @@ static int initialize( old_heap_t *heap )
 
   data->ephemeral_size = esize;
 
+  if (data->area_size < data->ephemeral_size) {
+    int growth = roundup( data->ephemeral_size - data->area_size, 
+                          data->quantum );
+    if (data->heap_limit && data->area_size + growth > data->heap_limit)
+      panic( "DOF heap is too small to accomodate promotion." );
+    grow_all_generations( heap, growth / (data->n - 1) );
+  }
 #if INVARIANT_CHECKING
   for ( i=0 ; i < data->n ; i++ ) {
     int x = data->first_gen_no+data->gen[i]->order;
@@ -1372,6 +1438,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   memset( data, 0, sizeof( data ) );
   data->load_factor = load_factor;
   data->full_frequency = full_frequency;
+  data->retry_ok = TRUE;
   data->growth_divisor = growth_divisor;
   data->ephemeral_size = 0;     /* Will be set by initialize() */
   data->quantum = quantum = (BLOCK_SIZE * (generations+1));
@@ -1540,11 +1607,11 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           word T_g = gen_of(T_obj);                    \
+           word T_g = gen_of(T_obj);                                    \
            if (T_g < (forw_limit_gen)) {                                \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
              T_obj = *loc;                                              \
-             T_g = gen_of(T_obj);                        \
+             T_g = gen_of(T_obj);                                       \
            }                                                            \
            if (T_g < (np_young_gen))                                    \
              must_add_to_extra = 1;                                     \
@@ -1555,11 +1622,11 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           word T_g = gen_of(T_obj);                    \
+           word T_g = gen_of(T_obj);                                    \
            if (T_g < (forw_limit_gen)) {                                \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
              T_obj = *loc;                                              \
-             T_g = gen_of(T_obj);                         \
+             T_g = gen_of(T_obj);                                       \
            }                                                            \
            if (T_g < (np_young_gen)) {                                  \
              extra_gen[T_g] = 1;                                        \
@@ -2097,7 +2164,7 @@ static bool scan_large_objects( dof_env_t *e, int gen )
   bool work = FALSE;
   int  extra_gen[ MAX_GENERATIONS ];
 #if GCLIB_LARGE_TABLE && SHADOW_TABLE
-  gclib_desc_t *gclib_desg_g = e->gclib_desc_g;
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
   
   memset( extra_gen, 0, sizeof( extra_gen ) );
