@@ -10,7 +10,7 @@
 ;   <text> ::= ((<selector> ...) <string>)
 ;   <selector> ::= brief | full
 ;
-; 16 December 1998
+; 21 january 1999
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
@@ -41,7 +41,7 @@
 "
 There are a number of compiler and assembler switches.  The
 command (compiler-switches) lists all switches and their current
-settings. The switches are:
+settings.  The switches are:
 
 Compilation switches:
   integrate-usual-procedures Generate in-line code for primitives.
@@ -54,13 +54,6 @@ Compilation switches:
                              of the file in which they are defined.
   issue-warnings             Print warning messages.
 
-Compilation meta-switches:
-  slow-code                  Turn off all optimizations.
-  standard-code              Set switches to generate semantics-preserving
-                             but somewhat optimized code.
-  fast-safe-code             Set switches to generate fast, safe code.
-  fast-unsafe-code           Set switches to generate fast, unsafe code.
-
 Documentation switches:
   include-procedure-names    Compiled code will contain the procedure name.
   include-variable-names     Compiled code will contain variable names.
@@ -72,6 +65,16 @@ Assembler switches:
   inline-allocation          Generate in-line code for some allocation.
   write-barrier              Generate code for generational GC.
   unsafe-code                Turn off type checking for many primitives.
+
+The command (compiler-switches <flag>) sets groups of switches depending
+on the value of the symbol <flag>.  The flags are:
+  slow                  Turn off all optimizations.
+  standard              Enable all semantics-preserving optimizations.
+  fast-safe             Enable all optimizations but generate code to
+                        do full type and range checking.
+  fast-unsafe           Enable all optimizations and disable type and
+                        range checking.
+  factory-settings      Set switches to their default settings.
 ")
 ((full)
 "
@@ -82,12 +85,10 @@ Internal (development) switches:
 ")
 ((brief full)
 "
-All switches except the meta-switches can be set to #t to enable the
-effect explained above, or to #f to disable the effect.  If the switch
-is a variable, its value can be set by an assignment.  If the switch is
-a procedure, it can be set by passing an argument as in (benchmark-mode #f).
-
-The meta-switches can only be called without any arguments.
+All switches can be set to #t to enable the effect explained above, or to
+#f to disable the effect.  If the switch is a variable, its value can be 
+set by an assignment.  If the switch is a procedure, it can be set by
+passing an argument as in (benchmark-mode #f).
 "))
 
 (disassembling
