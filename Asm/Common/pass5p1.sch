@@ -255,14 +255,7 @@
 
 (define (asm-value-too-large as info expr val)
   (if (as-retry as)
-      (begin 
-	(if (issue-warnings)
-	    (begin
-	      (display "Warning (SPARCasm): immediate overflow (")
-	      (display val)
-	      (display "); retrying assembly with long offsets.")
-	      (newline)))
-	((as-retry as)))
+      ((as-retry as))
       (asm-error info ": Value too large: " expr " = " val)))
 
 ; The implementations of asm-error and disasm-error depend on the host
