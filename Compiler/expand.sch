@@ -203,11 +203,11 @@
                     (eq? keyword denotation-of-define-syntax)
                     (eq? keyword denotation-of-define-inline))
                 (m-error "Definition out of context" exp))
-               (else (m-bug "Bug detected in m-expand" exp env))))
+               (else (m-bug "Bug detected in m-expand" exp))))
              ((macro) (m-macro exp env))
              ((inline) (m-inline exp env))
              ((identifier) (m-application exp env))
-             (else (m-bug "Bug detected in m-expand" exp env)))))))
+             (else (m-bug "Bug detected in m-expand" exp)))))))
 
 (define (m-atom exp env)
   (cond ((not (symbol? exp))
