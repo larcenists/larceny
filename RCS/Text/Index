@@ -1,0 +1,67 @@
+The index for ~larceny/Text
+$Id
+
+This directory contains all (or nearly all) of the documentation on Larceny.
+
+Index 
+  This file
+
+0:contents.tex
+  Larceny note 0 - A Meta-Note
+
+14:whatif.tex
+  Larceny note 14 - Thoughts on Future Enhancements
+
+17:basicrepr.tex
+  Larceny note 17 - Basic Representations
+
+18:bootstrap.tex
+  Larceny note 18 - Bootstrapping, Startup, and Magic Variables
+
+3:memory.tex
+  Larceny note 3 - Memory Management Interface Definition
+
+4:numrepr.tex
+  Larceny note 4 - Number Representations
+
+666:glarceny.tex
+  Larceny note 666 - The Glarceny
+
+6:fileformats.tex
+  Larceny note 6 - File Formats
+
+7:arithmetic.tex
+  Larceny note 7 - The Generic Arithemetic Implementation
+
+8:gc.tex
+  Larceny note 8 - Garbage Collector Interface Definition
+
+assembler.tex
+  Larceny note 9 - The Hitchhiker's Guide to the Assembler
+
+compmodel.tex
+  Larceny note 12 - The MacScheme Computational Model
+
+conventions.tex
+  Larceny note 1 - Register Usage, Continuation Layout, and Calling Conventions
+
+exceptions.tex
+  Larceny note 2 - Exception Handling
+
+frontpage.tex
+  Larceny note -1 - The cover page
+
+instrdef.tex
+  Larceny note 13 - Instruction Definitions
+
+larceny.sty
+  The LaTeX style parameters for Larceny notes.  Included by all notes.
+
+larceny.tex
+  looks very familiar, but I have no idea where this fits in
+
+overview.tex
+  Larceny note 5 - An Overview of the System
+
+techreport.tex
+  Possibly Larceny note 11 - Larceny: Scheme on the Sun SPARCstation
