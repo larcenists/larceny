@@ -53,15 +53,7 @@
     (or (= x +inf.0) (= x -inf.0)))
 
   (define (flonum-nan? x)
-    (let ((y +nan.0))
-      (and (= (bytevector-like-ref x 4) (bytevector-like-ref y 4))
-	   (= (bytevector-like-ref x 5) (bytevector-like-ref y 5))
-	   (= (bytevector-like-ref x 6) (bytevector-like-ref y 6))
-	   (= (bytevector-like-ref x 7) (bytevector-like-ref y 7))
-	   (= (bytevector-like-ref x 8) (bytevector-like-ref y 8))
-	   (= (bytevector-like-ref x 9) (bytevector-like-ref y 9))
-	   (= (bytevector-like-ref x 10) (bytevector-like-ref y 10))
-	   (= (bytevector-like-ref x 11) (bytevector-like-ref y 11)))))
+    (not (= x x)))
 
   ; Rip out the fraction and stuff it into a bignum.
   ; The fraction is always positive and exact.
