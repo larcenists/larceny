@@ -469,6 +469,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_dof_info.fullgc_generational = TRUE;
     else if (strcmp( *argv, "-dof-fullgc-on-collection" ) == 0)
       o->gc_info.dynamic_dof_info.fullgc_on_collection = TRUE;
+    else if (strcmp( *argv, "-dof-fullgc-on-promotion" ) == 0)
+      o->gc_info.dynamic_dof_info.fullgc_on_promotion = TRUE;
     else if (strcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
     else if (strcmp( *argv, "-step" ) == 0)
@@ -864,7 +866,9 @@ static void dump_options( opt_t *o )
       consolemsg( "    Generational full GC? %s",
                   (i->fullgc_generational ? "yes" : "no" ));
       consolemsg( "    Full gc policy counts: %s",
-                  (i->fullgc_on_collection ? "collections" : "window resets"));
+                  (i->fullgc_on_promotion ? "promotions" :
+                   (i->fullgc_on_collection ? "collections" : 
+                    "window resets")));
     }
     else {
       sc_info_t *i = &o->gc_info.dynamic_sc_info;
@@ -1030,6 +1034,10 @@ static char *helptext[] = {
   "  -dof-fullgc-on-collection",
   "     The DOF collector should count DOF collections, rather than window",
   "     resets, when deciding when to trigger the full collector.",
+  "  -dof-fullgc-on-promotion",
+  "     The DOF collector should count promotions into the DOF area, rather",
+  "     than window resets or DOF collections, when deciding when to trigger",
+  "     the full collector.  (Only useful for certain experimental work.)",
   "  -dof-fullgc-generational",
   "     Use generational techniques to attempt to speed up the full",
   "     collector.  This may reduce the effectiveness of the collector,",
