@@ -45,9 +45,10 @@ struct npsc_data {
   int j_percent;              /* -1 or percentage for calculating j */
   int j_pin;                  /* -1 or value at which to pin j */
   double load_factor;
-  int upper_limit;		/* Upper limit on heap size */
-  semispace_t *old;		/* 'old' generation */
-  semispace_t *young;		/* 'young' generation */
+  int lower_limit;            /* 0 or lower limit on the non-predictive area */
+  int upper_limit;	      /* 0 or upper limit on the non-predictive area */
+  semispace_t *old;	      /* 'old' generation */
+  semispace_t *young;	      /* 'young' generation */
 
   int copied_last_gc_old;     /* bytes */
   int moved_last_gc_old;
@@ -84,6 +85,7 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->j_pin = -1;
   data->j_percent = 50;
   data->load_factor = info->load_factor;
+  data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
 
   /* This is an OK initial j if the heap is empty.  If the heap is used
@@ -395,9 +397,10 @@ static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
   static_heap_t *s = heap->collector->static_area;
   int S = (s ? s->allocated : 0);
   double L = DATA(heap)->load_factor;
-  int limit = DATA(heap)->upper_limit;
+  int upper_limit = DATA(heap)->upper_limit;
+  int lower_limit = DATA(heap)->lower_limit;
 
-  return gc_compute_dynamic_size( D, S, Q, L, limit );
+  return gc_compute_dynamic_size( D, S, Q, L, lower_limit, upper_limit );
 }
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc )

@@ -65,7 +65,8 @@ typedef struct {
   int size_bytes;      /* Size requested at startup time */
   int target_size;     /* Size for this area computed following previous gc. */
   double load_factor;  /* That's the L from the formula above */
-  int upper_limit;     /* Bound on the heap size */
+  int lower_limit;     /* 0 or lower bound on collected area (bytes) */
+  int upper_limit;     /* 0 or upper bound on collected area (bytes) */
 
   /* Statistics */
   unsigned stacks_created;
@@ -114,6 +115,7 @@ create_sc_heap( int gen_no,
 
   data->load_factor = info->load_factor;
   data->size_bytes = info->size_bytes;
+  data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
   data->target_size =
     compute_target_size( heap, (int)(info->size_bytes/data->load_factor), 0 );
@@ -242,6 +244,7 @@ static int compute_target_size( young_heap_t *heap, int D, int Q )
 			       static_used( heap ),
 			       Q,
 			       DATA(heap)->load_factor,
+			       DATA(heap)->lower_limit,
 			       DATA(heap)->upper_limit );
   /* gc_compute_dynamic_size() may return with no room for allocation */
   if (s - D < 65536)
