@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Procedures for rectnum arithmetic
 ;
-; $Id: rectnums.scm,v 1.1 91/08/12 13:12:50 lth Exp Locker: lth $
+; $Id: rectnums.scm,v 1.2 92/02/17 18:27:14 lth Exp Locker: lth $
 ;
 ; A rectnum is a pair of two exact real numbers (the "real" and "imaginary"
 ; parts) where the imaginary part is nonzero.
@@ -63,5 +63,3 @@
 (define (rectnum-div a b) (error "Rectnum-div not implemented"))
 (define (rectnum-neg a)   (error "Rectnum-neg not implemented"))
 (define (rectnum=? a b)   (error "Rectnum=? not implemented"))
-
-(display "rectnums") (newline)

@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: reader.sch,v 1.1 92/01/19 16:43:44 lth Exp Locker: lth $
+; $Id: reader.sch,v 1.2 92/02/10 03:18:00 lth Exp Locker: lth $
 ;
 ; Scheme reader.                        17 April 1990
 ; Modified for the new system by lth.   16 January 1992
@@ -25,9 +25,6 @@
 ; The readtable-set! procedure takes two arguments, a character and a list
 ; such as is returned by the readtable-ref procedure, and changes the
 ; character's character class and dispatch procedures.
-
-(begin (display "$Id: reader.sch,v 1.1 92/01/19 16:43:44 lth Exp Locker: lth $")
-       (newline))
 
 ; Some rudimentary compatibility stuff (aka "patches")
 

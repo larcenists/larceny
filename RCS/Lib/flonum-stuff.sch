@@ -1,6 +1,6 @@
 ; *Way* low-level floating point stuff.
 ;
-; $Id: flonum-stuff.sch,v 1.2 92/02/10 03:15:31 lth Exp Locker: lth $
+; $Id: flonum-stuff.sch,v 1.3 92/02/17 18:26:56 lth Exp Locker: lth $
 ;
 ; The procedures in this file all operate on IEEE flonums.
 ; Formats of flonums and bignums and operations used are all specific
@@ -279,5 +279,4 @@
   (set! flonum->bignum %flonum->bignum)
   (set! flonum->integer %flonum->integer)
 
-  (display "Flonum stuff") (newline))
-
+  #t)

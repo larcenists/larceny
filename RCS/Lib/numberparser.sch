@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: numberparser.sch,v 1.2 92/02/10 03:16:58 lth Exp Locker: lth $
+; $Id: numberparser.sch,v 1.3 92/02/23 16:56:13 lth Exp Locker: lth $
 ;
 ;                                      16 April 1990
 ;
@@ -64,9 +64,6 @@
 ;(macro decimal-value
 ;       (lambda (l)
 ;         (list '- (list 'char->integer (cadr l)) '48)))
-
-(begin (display "$Id: numberparser.sch,v 1.2 92/02/10 03:16:58 lth Exp Locker: lth $")
-       (newline))
 
 (define (bellerophon . s)
   (error "Bellerophon not included."))
