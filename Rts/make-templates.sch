@@ -162,16 +162,15 @@ LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so -lm -lc -all
 
 (define make-template-sparc-solaris-common
 "O=o
-CC=gcc
 DEBUG=-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 PROFILE=#-pg
 TCOV=#-a -g
 BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 LDXFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
-CFLAGS=-c -ISys -IBuild -IStandard-C \
+CFLAGS=-c -ISys -IBuild -IStandard-C \\
 	$(DEBUG) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
-CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \\
 	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
 AS=../Util/gasmask.sh
 LIBS=-lm -ldl
@@ -182,7 +181,8 @@ LIBS=-lm -ldl
 (define make-template-sparc-solaris-gcc-gas
   (string-append
 "CC=gcc
-AS=../Util/gasmask.sh"
+AS=../Util/gasmask.sh
+"
    make-template-sparc-solaris-common))
 
 ; Solaris: SPARC-native Larceny: Sun C and Sun assembler
@@ -193,7 +193,8 @@ AS=../Util/gasmask.sh"
   (string-append
 "CC=cc
 AS=as
-ASFLAGS=-P -ISparc -IBuild"
+ASFLAGS=-P -ISparc -IBuild
+"
    make-template-sparc-solaris-common))
 
 ; Targets
@@ -362,10 +363,10 @@ Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
-	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \
-	   Sys/*.$(O) Util/*.$(O) \
-	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \
+	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \\
+	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \\
+	   Sys/*.$(O) Util/*.$(O) \\
+	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \\
 	   Standard-C/arithmetic.c
 
 rtsclean: clean

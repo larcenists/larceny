@@ -67,7 +67,7 @@
   (catfiles (append (maybe-file "Rts/Build/globals.ah")
 		    (maybe-file "Rts/Build/except.ah")
 		    (maybe-file "Rts/Build/layouts.ah"))
-	    "Rts/Build/asmdefs.ah")
+	    "Rts/Build/asmdefs.h")
   (load "features.sch"))
 
 (define (build-heap . args)

@@ -73,6 +73,12 @@
 	      "Rts/Build/layouts.sh"
 	      "Rts/Build/regs.sh")
 	    "Rts/Build/schdefs.h")
+  (catfiles '("Rts/Build/globals.ah"
+              "Rts/Build/except.ah"
+              "Rts/Build/layouts.ah"
+              "Rts/Build/mprocs.ah"
+              "Rts/Build/regs.ah")
+	    "Rts/Build/asmdefs.h")
   (load "features.sch"))
 
 (define (build-heap . args)
@@ -81,7 +87,7 @@
 (define (build-runtime)
   (delete-file "larceny.bin")
   (execute-in-directory "Rts" "make larceny.bin")
-  (if (file-exists "Rts/larceny.bin")
+  (if (file-exists? "Rts/larceny.bin")
       (system "cp Rts/larceny.bin .")))
 
 (define (build-twobit)
