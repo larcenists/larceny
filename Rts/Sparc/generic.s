@@ -695,26 +695,25 @@ Ldiv_fix:
 #endif
 	set	EX_DIV, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
+
 	save	%sp, -104, %sp
-	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
 	call	.rem
 	sra	%SAVED_ARGREG2, 2, %o1
-	!ld	[ %fp-4 ], %STKLIM
 	cmp	%o0, 0
+	bne,a	Ldiv_fix2
 	restore
-	bne	Ldiv_fix2
-	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 
-	! no need to store STKLIM again
 	sra	%SAVED_RESULT, 2, %o0
 	call	.div
 	sra	%SAVED_ARGREG2, 2, %o1
-	!ld	[ %fp-4 ], %STKLIM
 	sll	%o0, 2, %SAVED_RESULT
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 	jmp	%i7+8
 	restore
+
 Ldiv_fix2:
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 	mov	2, %TMP1
 	b	internal_scheme_call
 	mov	MS_FIXNUM2RATNUM_DIV, %TMP2
