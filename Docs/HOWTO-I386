@@ -1,5 +1,5 @@
 Information about native Larceny on Intel 386-class systems
-2 July 2004 / lth
+4 July 2004 / lth
 
 
 HOW TO BUILD AND USE.
@@ -18,23 +18,21 @@ rather than source files in C.
 Obviously you need to have NASM installed on your system.  It is free
 and can be downloaded from http://sourceforge.net/projects/nasm.
 
-Technical details are scattered (too much) across Asm/Intel/README and
-files in Rts/Intel.
+Technical details are scattered across Asm/Intel/README and files in
+Rts/Intel.
 
 
 STATUS.
 
-Operational and pretty much complete.  Twobit running in the
-interpreter creates an executable and heap image identical to those it
-creates when running in Petit Larceny's interpreter.
+Operational.  Twobit running in the interpreter creates an executable
+and heap image identical to those it creates when running in Petit
+Larceny's interpreter.
 
 
 TODO.
 
- - a few OPTIMIZEMEs in Rts/Intel/i386-instr.asm (unproblematic)
- - honor INLINE_ASSIGNMENT, UNSAFE_CODE, UNSAFE_GLOBALS, ...
- - performance (see below)
- - code size (see below)
+ - more extensive peephole optimization
+ - minor issues with performance, code size
  - test, test, test
 
 
@@ -42,6 +40,24 @@ ISSUES.
 
  - a crash during GC was seen some time following a ^C, which 
    could indicate that kbd interrupts are not handled properly
+
+
+OTHER NOTES AND IDEAS.
+
+ - NASM can generate .bin format files, ie, raw code.  We can use this
+   to create a system with on-line compilation: just dump the code to
+   an asm file in /tmp, assemble it to a .bin, and slurp the object
+   code into a code vector in the heap.  There should be very little
+   extra work involved in getting this done, once the rest works.  
+
+   There is a subtle snag with this approach: code vectors in the heap
+   are bytevector pointers but code vectors in the executable look
+   like fixnums.  Different calling sequences are used for the two.
+   Thus it is unlikely that we can build a system containing both
+   kinds of code.
+
+ - The GNU assembler (gas) cannot create a .bin directly, but ld can
+   (using --oformat=binary), so the same trick applies there.
 
 
 PERFORMANCE.
@@ -99,14 +115,20 @@ section below both for what's been done and remaining ideas); this
 seems to improve performance too.
 
 The Intel manuals stress the importance of being nice to the CPU by
-generating straight-line code and getting static prefetches right (ie,
-backward branch is predicted as taken, forward predicted as not taken,
-many details).  Also, several short instructions may be preferable to
-one long one, for the sake of the decoder.
+generating straight-line code and getting static prefetches right.
+(Eg, backward branch is predicted as taken, forward predicted as not
+taken, many details.  The current code does it the other way around,
+with a lot of skipping over error handlers or skipping backward to
+error handlers.  This minimizes code size, which is why it is the way
+it is.)  Also, several short instructions may be preferable to one
+long one, for the sake of the decoder.
 
 May also be able to use conditional move instruction on 586-class
 systems (even better if it were introduced on 486, I haven't checked)
-to reduce branches, but it requires some reworking.
+to reduce branches, but it requires some reworking, and with proper
+peephole optimization the issue is less important.
+
+Look for OPTIMIZEMEs in Rts/Intel/i386-instr.asm.
 
 
 MILLICODE CALLS.
@@ -211,16 +233,6 @@ SIZE OPTIMIZATIONS IMPLEMENTED.
 
  - RTS trimming: the RTS can now be configured without the ROF and DOF
    collectors, saving 54KB (including help text), down to 1320408.
-
-
-OTHER NOTES.
-
-Future ideas:
- - nasm can generate .bin format files, ie, raw code.  We can use this to 
-   create a system with on-line compilation: just dump the code to an asm 
-   file in /tmp, assemble it to a .bin, and slurp the object code into a
-   code vector in the heap.  There should be very little extra work involved 
-   in getting this done, once the rest works.
 
 
 ; 2003-11-24
