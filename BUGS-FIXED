@@ -1828,6 +1828,18 @@ $Id$
     Impact: current fixes are enough to allow benchmarking, but the
     others must be fixed.
 
+129 v0.43 (990709 / lth)  Fixed 2000-09-14 by wdc
+    Priority: low
+    Category: TWOBIT / correctness
+
+    The macro expander incorrectly gives a warning about empty top-level 
+    BEGIN forms:
+
+	> (begin)
+	WARNING from macro expander:
+	Non-standard begin expression
+	(begin)
+
 131 v0.43 (990816 / lth)
     Priority: medium
     Category: ASSEMBLER, LIB / correctness

@@ -619,19 +619,6 @@ HIGH PRIORITY BUGS: none.
     need to be able to read the timer, we can introduce a timer-get
     procedure later.
 
-129 v0.43 (990709 / lth)
-    Priority: low
-    Category: TWOBIT / correctness
-
-    The macro expander incorrectly gives a warning about empty top-level 
-    BEGIN forms:
-
-	> (begin)
-	WARNING from macro expander:
-	Non-standard begin expression
-	(begin)
-
-
 130 v0.43 (990715 / lth)
     Priority: medium
     Category: TWOBIT / correctness

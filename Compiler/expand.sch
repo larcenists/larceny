@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 22 April 1999
+; 14 September 2000.
 
 ($$trace "expand")
 
@@ -432,7 +432,7 @@
   (cond ((> (safe-length exp) 1)
          (make-begin (map (lambda (exp) (m-expand exp env)) (cdr exp))))
         ((= (safe-length exp) 1)
-         (m-warn "Non-standard begin expression" exp)
+         ;(m-warn "Non-standard begin expression" exp)
          (make-unspecified))
         (else
          (m-error "Malformed begin expression" exp))))
