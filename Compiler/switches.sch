@@ -2,12 +2,12 @@
 ;
 ; $Id$
 ;
-; 24 April 1999
+; 2000-01-11 / lth
 ;
 ; Compiler switches needed by Twobit.
 
-(define make-twobit-flag)
-(define display-twobit-flag)
+(define make-twobit-flag #f)
+(define display-twobit-flag #f)
 
 (define make-twobit-flag
   (lambda (name)
