@@ -1,21 +1,30 @@
 ; -*- Scheme -*-
 ;
-; Scheme 313 Compiler
+; Scheme 313 compiler
 ; Code to dump a bootstrap heap image from un-encoded scheme object files.
 ;
-; $Id: dumpheap.scm,v 1.2 91/08/17 23:23:29 lth Exp Locker: lth $
+; Second major version.
 ;
-; Each input file consists of a pair, the car of which is a code vector and the
-; cdr of which is a constant vector. The code vector is a regular vector,
-; although it is treated as a byte vector rather than a word vector. The
-; constant vector has all tagged entries (represented using lists), where the
-; tags are `data', `codevector', `constantvector', `global', or `bits'.
+; $Id: dumpheap.scm,v 1.3 91/08/20 15:31:37 lth Exp Locker: lth $
+;
+; Each input file consists of pairs. The car of a pair is a code vector
+; and the cdr of the pair is a constant vector. The code vector is a regular
+; vector, although it is treated as a byte vector rather than a word vector.
+; The constant vector has all tagged entries (represented using lists), where
+; the tags are `data', `codevector', `constantvector', `global', or `bits'.
 ;
 ; `Dump-heap' loads its file arguments into the heap, creates thunks from the
-; code and constant vectors, and generates an initialization procedure which 
-; calls each thunk in turn by traversing the list of thunks. This procedure is
-; then installed in the SCHEME_ENTRY root pointer. The thunks are called in
-; the order they are loaded.
+; code and constant vectors, and creates a list of the thunks. It also creates
+; a list of all symbols used in the loaded files. Finally, it generates an
+; initialization procedure (the LAP of which is hardcoded into this file; see
+; below). A pointer to this procedure is installed in the SCHEME_ENTRY root
+; pointer; hence, this procedure (a thunk, as it were) is called when the heap
+; image is loaded.
+;
+; The initialization procedure calls each procedure in the thunk list in order.
+; It then invokes the procedure ``go'', which takes one argument: the list of
+; symbols. Typically, ``go'' will initialize the symbol table and then call
+; the REP loop, but this is by no means required.
 ;
 ; The Scheme assembler must be co-resident, since it is used by this
 ; procedure to assemble the final startup code. This could be avoided
@@ -37,13 +46,13 @@
     (define largest-fixnum (- (expt 2 29) 1))
     (define smallest-fixnum (- (expt 2 29)))
 
-    (define heap-version 0)
+    (define heap-version 1)
 
     (define roots
       '(reg0 reg1 reg2 reg3 reg3 reg5 reg6 reg7 reg8 reg9 reg10 reg11 reg12
 	reg13 reg14 reg15 reg16 reg17 reg18 reg19 reg20 reg21 reg22 reg23
-	reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 aregreg2 argreg3
-	result continuation saved-result startproc symtab))
+	reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 argreg2 argreg3
+	result continuation saved-result startproc))
     
     ; A heap is represented internally as a vector of three elements,
     ; denoted the `bytes', `globals', and `top'. `Bytes' is a list
@@ -112,7 +121,7 @@
     (define (dump-item! h item)
       (case (car item)
 	((codevector)
-	 (dump-bytevector! h (cadr item) $tag.bytevec-hdrtag))
+	 (dump-bytevector! h (cadr item) $tag.bytevec-typetag))
 	((constantvector)
 	 (dump-constantvector! h (cadr item)))
 	((data)
@@ -125,7 +134,7 @@
 	 (error 'dump-item! "Unknown item ~a" item))))
 
     (define (dump-constantvector! h cv)
-      (dump-vector-like! h cv dump-item! $tag.vector-hdrtag))
+      (dump-vector-like! h cv dump-item! $tag.vector-typetag))
 
     ; Only a subset of the data types have been accounted for here.
 
@@ -145,9 +154,9 @@
 	    ((eq? datum #f)
 	     $imm.false)
 	    ((vector? datum)
-	     (dump-vector! h datum $tag.vector-hdrtag))
+	     (dump-vector! h datum $tag.vector-typetag))
 	    ((bytevector? datum)
-	     (dump-bytevector! h datum $tag.bytevec-hdrtag))
+	     (dump-bytevector! h datum $tag.bytevec-typetag))
 	    ((pair? datum)
 	     (dump-pair! h datum))
 	    ((string? datum)
@@ -171,13 +180,13 @@
     ; misc->bytevector must be provided externally.
 
     (define (dump-bignum! h b)
-      (dump-bytevector! h (bignum->bytevector b) $tag.bignum-hdrtag))
+      (dump-bytevector! h (bignum->bytevector b) $tag.bignum-typetag))
 
     (define (dump-flonum! h f)
-      (dump-bytevector! h (flonum->bytevector b) $tag.flonum-hdrtag))
+      (dump-bytevector! h (flonum->bytevector b) $tag.flonum-typetag))
 
     (define (dump-string! h s)
-      (dump-bytevector! h (string->bytevector b) $tag.string-hdrtag))
+      (dump-bytevector! h (string->bytevector b) $tag.string-typetag))
 
     (define (dump-pair! h p)
       (let ((the-car (dump-data! h (car p)))
@@ -185,7 +194,7 @@
 	(let ((base (heap.top h)))
 	  (heap.word! h the-car)
 	  (heap.word! h the-cdr)
-	  (+ base $tag.pair))))
+	  (+ base $tag.pair-tag))))
 
     (define (dump-bytevector! h bv variation)
       (let ((base (heap.top h))
@@ -196,7 +205,7 @@
 	      (begin (heap.byte! h (bytevector-ref bv i))
 		     (loop (+ i 1)))
 	      (begin (heap.adjust! h)
-		     (+ base $tag.bytevector))))))
+		     (+ base $tag.bytevector-tag))))))
 
     (define (dump-vector! h v variation)
       (dump-vector-like! h v dump-data! variation))
@@ -215,7 +224,7 @@
 		      (begin (heap.word! h (vector-ref v i))
 			     (loop (+ i 1)))
 		      (begin (heap.adjust! h)
-			     (+ base $tag.vector)))))))))
+			     (+ base $tag.vector-tag)))))))))
 
     ; Symbols and globals have an awful lot in common.
     ;
@@ -234,8 +243,21 @@
 	      p)
 	    x)))
 
+    ; Return list of symbol locations.
+
+    (define (symbol-names)
+      (map cadr symbol-table))
+
+    ; Stuff a new symbol into the heap, return its location.
+
     (define (create-symbol! h s)
-      (dump-bytevector! h (symbol->bytevector s) $tag.symbol-hdrtag))
+      (dump-vector! h 
+		    (vector `(bits ,(dump-string! h (symbol->string s)))
+			    0
+			    '())
+		    $tag.symbol-typetag))
+
+    ; Stuff a value cell into the heap, return its location.
 
     (define (create-cell! h)
       (dump-pair! h (cons '() '())))
@@ -257,14 +279,14 @@
     (define (dump-segment! h segment)
       (let* ((the-code   (dump-bytevector! h
 					  (car segment)
-					  $tag.bytevec-hdrtag))
+					  $tag.bytevec-typetag))
 	     (the-consts (dump-constantvector! h (cdr segment))))
 	(let ((base (heap.top h)))
 	  (dump-header-word! h $imm.procedure-header 8)
 	  (heap.word! h the-code)
 	  (heap.word! h the-consts)
 	  (heap.adjust! h)
-	  (+ base $tag.procedure))))
+	  (+ base $tag.procedure-tag))))
 
     ; Given a file name and a heap, load the file into the heap, create a
     ; thunk in the heap of the code and constant vector, and return the
@@ -284,54 +306,76 @@
 
     (define (create-init-proc! h inits)
 
-      ; The initialization procedure.
+      ; The initialization procedure. The lists are magically patched into
+      ; the constant vector after the procedure has been assembled but before
+      ; it is dumped into the heap. See below.
+      ;
+      ; (define (init-proc)
+      ;   (let loop ((l <list-of-thunks>))
+      ;     (if (null? l)
+      ;         (go <list-of-symbols>)
+      ;         (begin ((car l))
+      ;                (loop (cdr l))))))
 
       (define (init-proc)
 	`((,$.proc)
 	  (,$args= 0)
-	  (,$const (1))
+	  (,$const (1))          ; dummy list of thunks.
 	  (,$setreg 1)
 	  (,$.label 0)
 	  (,$reg 1)
-	  (,$op1 null?)
+	  (,$op1 null?)          ; (null? l)
 	  (,$branchf 2)
-	  (,$reg 2)
-	  (,$return)
+	  (,$const (2))          ; dummy list of symbols
+	  (,$setreg 1)
+	  (,$global go)
+	  (,$invoke 1)           ; (go <list of symbols>)
 	  (,$.label 2)
 	  (,$save 3 1)
 	  (,$reg 1)
 	  (,$op1 car)
-	  (,$invoke 0)
+	  (,$invoke 0)           ; ((car l))
 	  (,$.label 3)
 	  (,$.cont)
 	  (,$restore 1)
-	  (,$setreg 2)
 	  (,$pop 1)
 	  (,$reg 1)
 	  (,$op1 cdr)
 	  (,$setreg 1)
-	  (,$branch 0)))
+	  (,$branch 0)))         ; (loop (cdr l))
 
       ; The car's are all heap pointers, so they should not be messed with.
       ; The cdr must be dumped, and then the pair.
 
-      (define (dump-init-list! h inits)
+      (define (dump-list! h inits)
 	(if (null? inits)
 	    $imm.null
 	    (let ((the-car (car inits))
-		  (the-cdr (dump-init-list! h (cdr inits))))
+		  (the-cdr (dump-list! h (cdr inits))))
 	      (let ((base (heap.top h)))
 		(heap.word! h the-car)
 		(heap.word! h the-cdr)
-		(+ base $tag.pair)))))
+		(+ base $tag.pair-tag)))))
+
+      ; Given some value which might appear in the constant vector, 
+      ; replace the entries matching that value with a new value.
+
+      (define (patch-constant-vector! v old new)
+	(let loop ((i (- (vector-length v) 1)))
+	  (if (>= i 0)
+	      (begin (if (equal? (vector-ref v i) old)
+			 (vector-set! v i new))
+		     (loop (- i 1))))))
 
       ; Dump the list of init procs, then assemble the thunk which
       ; traverses the list and calls each in turn.
 
       (display "Assembling final procedure") (newline)
-      (let ((l       (dump-init-list! h (reverse inits)))
+      (let ((l       (dump-list! h (reverse inits)))
+	    (m       (dump-list! h (symbol-names)))
 	    (segment (assemble (init-proc))))
-	(vector-set! (cdr segment) 0 `(bits ,l))     ; patch constant vector
+	(patch-constant-vector! (cdr segment) '(data (1)) `(bits ,l))
+	(patch-constant-vector! (cdr segment) '(data (2)) `(bits ,m))
 	(dump-segment! h segment)))
 
     ; Write to the output file.
