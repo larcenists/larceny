@@ -167,11 +167,6 @@
 
 ; Other system hooks
 
-(define (osdep/system cmd)
-  (if (not (string? cmd))
-      (error "osdep/system: " cmd " is not a string."))
-  (syscall syscall:system cmd))
-
 (define (osdep/find-init-file)
   (let ((init-file-name ".larceny"))
     (cond ((file-exists? init-file-name)
@@ -200,9 +195,9 @@
 
 ; For releases (and when we get tired of seeing all the startup msgs).
 
-'(define ($$trace msg)
+(define ($$trace msg)
   #f)
 
-($$trace "Done loading sys-unix.")
+($$trace "Done loading sys-win32")
 
 ; eof

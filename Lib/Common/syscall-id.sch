@@ -51,5 +51,7 @@
 (define syscall:poke-bytes 41)
 (define syscall:segment-code-address 42)          ; Petit Larceny only
 (define syscall:stats-dump-stdout 43)
+(define syscall:chdir 44)
+(define syscall:cwd 45)
 
 ; eof

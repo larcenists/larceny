@@ -199,7 +199,17 @@
   (syscall syscall:sro ptr hdr limit))
 
 (define (system cmd)
-  (osdep/system cmd))
+  (if (not (string? cmd))
+      (error "system: " cmd " is not a string."))
+  (syscall syscall:system cmd))
+
+(define (current-directory . rest)
+  (if (null? rest)
+      (syscall syscall:cwd)
+      (let ((path (car rest)))
+	(if (not (string? path))
+	    (error "current-directory: " path " is not a string."))
+	(syscall syscall:chdir path))))
 
 (define (sys$C-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:C-ffi-apply trampoline arg-encoding ret-encoding actuals))

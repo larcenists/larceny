@@ -166,11 +166,6 @@
 
 ; Other system hooks
 
-(define (osdep/system cmd)
-  (if (not (string? cmd))
-      (error "osdep/system: " cmd " is not a string."))
-  (syscall syscall:system cmd))
-
 (define (osdep/find-init-file)
   (let ((init-file-name ".larceny"))
     (cond ((file-exists? init-file-name)
