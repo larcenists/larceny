@@ -58,6 +58,18 @@ void osdep_system( word w_cmd )
   globals[ G_RESULT ] = fixnum(system( cmd ));
 }
 
+/* chdir() is not portable */
+void osdep_chdir( word w_cmd )
+{
+  globals[G_RESULT] = fixnum(-1);
+}
+
+/* cwd() is not portable */
+void osdep_cwd( void )
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
 /* Return 0.0 */
 void osdep_os_version( int *major, int *minor )
 {

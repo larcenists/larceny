@@ -198,6 +198,29 @@ void osdep_system( word w_cmd )
   globals[ G_RESULT ] = fixnum(system( cmd ));
 }
 
+void osdep_chdir( word w_cmd )
+{
+  char *path = string2asciiz( w_cmd );
+  globals[ G_RESULT ] = fixnum(chdir(cmd));
+}
+
+void osdep_cwd( void )
+{
+  char buf[FILENAME_MAX+1];
+  int k;
+
+  if (getcwd( buf, sizeof(buf) ) == NULL)
+    globals[G_RESULT] = FALSE_CONST;
+  else
+  {
+    int nwords = roundup4(k)/4;
+    word *p = alloc_from_heap( (nwords+1)*sizeof(word) );
+    *p = mkheader( k, STR_HDR );
+    memcpy( p+1, buf, k );
+    globals[G_RESULT] = tagptr(p,BVEC_TAG);
+  }
+}
+
 void osdep_os_version( int *major, int *minor )
 {
   struct utsname name;
