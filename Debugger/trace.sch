@@ -17,7 +17,7 @@
 
 ; Requires:
 ;  (debug/print-object obj)     Print the object safely
-;  (debug/enter-debugger)       Enter debugger in current context
+;  (debug/enter-debugger cont?) Enter debugger in current context
 
 ; FIXME: BREAK-HERE should be called BREAK, but that name is currently
 ;        used by the primitive that should be called DEBUGVSM.
@@ -145,11 +145,11 @@
          (debug/trace-enter-msg (or (procedure-name p) "anonymous")
                                 (procedure-expression p)
                                 args)
-         (debug/enter-debugger))
+         (debug/enter-debugger #t))
         (else
          (display "Breakpoint.")
          (newline)
-         (debug/enter-debugger))))       
+         (debug/enter-debugger #t))))
 
 (define (debug/call-with-breakpoints-disabled thunk)
   (let ((outside *breakpoints-enabled*))
