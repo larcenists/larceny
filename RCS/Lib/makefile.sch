@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id$
+; $Id: makefile.sch,v 1.1 92/02/10 03:15:52 lth Exp Locker: lth $
 ;
 ; USAGE:
 ;
@@ -39,7 +39,7 @@
   (make-heap "../ctak.heap" 'global-symbols 'global-refs "../Lib/ctak.lop"))
 
 (define (make-test-heap)
-  (make-heap "../larceny.heap" 'global-symbols 'global-refs))      
+  (make-heap "../test.heap" 'global-symbols 'global-refs "../Lib/main.lop"))
 
 (let ()
 
@@ -59,6 +59,7 @@
     (compile313 (car x)))
 
   ; *All* simple file dependencies go here.
+  ; Some shorthands would be lovely.
 
   (define deps
     `((("../Lib/unixio.lop" "../Lib/unixio.mal") ,assemble)
@@ -113,6 +114,8 @@
       (("../Lib/ratnums.lap" "../Lib/ratnums.scm") ,compile)
       (("../Lib/number.lop" "../Lib/number.lap") ,assemble)
       (("../Lib/number.lap" "../Lib/number.sch") ,compile)
+      (("../Lib/main.lop" "../Lib/main.lap") ,assemble)
+      (("../Lib/main.lap" "../Lib/main.sch") ,compile)
       ))
 
   ; Basic make command for a heap.
