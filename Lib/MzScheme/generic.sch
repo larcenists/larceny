@@ -1263,11 +1263,12 @@
     ((defprimclass primclass) (defprimclass primclass <builtin>))
     ((defprimclass primclass supers ...)
      (define primclass
+       (parameterize ((*default-object-class* #f))
        (make <primitive-class>
          ':name          'primclass
          ':direct-default-initargs '()
          ':direct-supers (list supers ...)
-         ':direct-slots  '())))))
+         ':direct-slots  '()))))))
 
 (defprimclass <immutable>)
 (defprimclass <boolean>)
@@ -1361,7 +1362,37 @@
         :direct-slots  '()))
 
 ;;; BOOTSTRAP STEP
-(*default-object-class* <object>) ; turn auto-superclass back on
+;;; replace class-of with something more intelligent
+(set! class-of
+      (lambda (object)
+        (cond ((instance? object) (instance/class object))
+              ((procedure? object) <procedure>)
+              ((string?   object) <string>)
+              ((pair?     object) (if (list? object)
+                                      <nonempty-list>
+                                      <pair>))
+              ((null?     object) <null>)
+              ((char?     object) <char>)
+              ((symbol?   object) <symbol>)
+              ((number?   object) (if (exact? object)
+                                  (cond ((integer?  object) <exact-integer>)
+                                        ((rational? object) <exact-rational>)
+                                        ((real?     object) <exact-real>)
+                                        ((complex?  object) <exact-complex>)
+                                        (else <exact>)) ; should not happen
+                                  (cond ((integer?  object) <inexact-integer>)
+                                        ((rational? object) <inexact-rational>)
+                                        ((real?     object) <inexact-real>)
+                                        ((complex?  object) <inexact-complex>)
+                                        (else <inexact>)))) ; should not happen
+              ((boolean?     object) <boolean>)
+              ((vector?      object) <vector>)
+              ((eof-object?  object) <end-of-file>)
+              ((input-port?  object) <input-port>)
+              ((output-port? object) <output-port>)
+              ((struct-type? object) <struct-type>)
+              ((hash-table?  object) <hash-table>)
+              (else <unknown-primitive>))))
 
 ;;; Print methods for objects, classes and instances.
 
