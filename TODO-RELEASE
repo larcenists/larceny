@@ -1,79 +1,33 @@
 $Id$
 
-For Version 1.0a2 [tentatively]
+SPARC Larceny version 1.0a2, tentative release date 1 June 1999.
+
 -------------------------------
 
-[Portability]
-  * Find a way to compile with lcc:
-    - Can't currently compile with lcc because the Sys/config.h trick 
-      to determine the platform does not work with lcc.  A reasonable 
-      fix is to make `make setup' determine the platform and record it 
-      in Sys/config.h; the current trick is in any case very brittle.
-    - It hasn't a prayer compiling Sys/signals.c
-    - It picks up LCC header files rather than system header files,
-      which is wrong.
+Major features at a glance:
 
-[Bug fixes]
+  * Twobit pass 3
+  * Foreign function interface
+  * Performance bug fixes (named LET, CASE)
+  * Other bug fixes
+  * General clean-up
+
+-------------------------------
+
+Remaining to-do items:
+
+[Twobit]
+  * implement and test pass 3
+  * test, test, test
+
+[General bug fixes]
   * All `high' priority bugs in BUGS.
-  * Other bugs as specified below.
+  * The following `medium' priority BUGS:
+     (list to be determined)
 
-[FFI]
-  * FFI procedures are not hidden in larceny.heap.
-  * Sundry bugs must be fixed (see the TODO file).
-    - How to load e.g. the file socket-support.o that has unresolved
-      external references?
-        - looks like linking it with the appropriate libraries is OK.
-    - Test (better) on SunOS 5.
-    - Test on SunOS 4.
-    - Write guidelines for compiling C code for use with FFI.
-    - Should exit if errors are discovered in the relinking phase.
-    - Document!
-    - larceny_call() must deal with stack overflow.
-    - sample code.
-  * Testing.
-  * FFIGEN back-end.
-
-[RTS]
-  * Heap dumping in the generational system(s).
-
-[Standard heap]
-  * The debugger needs to be part of interpreter.heap (r5rs.heap).
-  * Should create scripts that setup correct compiler switches before
-    compiling all files for standard heaps; automate the entire process
-    of building the heaps.  Eg., Scripts/build-larceny-heap, etc.
-
-[Libraries]
-  * Remove `format' from the standard library and put it in Auxlib.
-    Make sure it supports a proper subset of SLIBs `format' so that 
-    Larceny code (eg debugger) that uses format can live with the
-    substitute.
-  * Performance: use define-inline judiciously to see if we can wring
-    more speed out of the bignum code, and possibly other code (reader).
-  * Arguably the intepreter's wacky notion of legal environment arguments
-    should not be the default.  This should be a switch that's called by
-    std-heap.sch and otherwise undocumented. Could call it 
-
-       (interpreter/allow-illegal-use-of-environments)
-
-    Better to fix this properly by integrating environments and syntax
-    environments the way it "should" be done.
-
-[Misc]
-  * Get rid of reliance on Unix pathname syntax
-    - nbuild-files
-    - Lib/makefile.sch
-    - others?
-  * Rename:
-      Util/std-heap.sch    ->   Util/larceny-heap.sch
-      Util/init-comp.sch   ->   Util/larceny-heap-init.sch
-      Eval                 ->   Interpreter
-      Eval/eval.sch        ->   Interpreter/interp.sch
-      Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
-  * From Will:
-	>Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
-	>constants, accessors, and setters for the documentation slot.
-	>This information should exist in only one place, and it has to
-	>be part of the development environment.
+[FFI -- call-outs only]
+  * Make it work (see TODO).
+  * Consider creating an FFIGEN back-end and releasing it.
 
 [Assembler]
   * Assemble-file is only so-so useful in larceny.heap because it can't do
@@ -85,94 +39,52 @@ For Version 1.0a2 [tentatively]
         in the development environment anyway.
       - elaborately hack assemble-file to create an environment that
         contains the MAL names and use this for EVAL -- way too elaborate.
-  * Support flonum-specific operations.
-  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
-    - optimize fx+ and fx- when it's possible to undo.
-  * In-line _typetag_ in unsafe mode.
-  * Peephole optimization (from in-line expansion of fast path of READ-CHAR):
-    - make-cell: with source register and target register
-    - vector-like? for control
-    - bytevector-like? for control
-    - Generally: more primitives for control:
-       vector?, string?, bytevector?, flonum?, compnum?, bignum?
-    - const + skip -- if the const is an immediate, the setup can go in
-      the delay slot.  AND uses this construction.  
-    - Generally: we can peephole
-           any instruction
-           ba target
-           nop
-      as long as <any instruction> is not in a delay slot.  We can also
-      peephole any non-branch instruction from the target of a BA into
-      its slot.
-    - Generally: Ditto jmpl, call.  This will take care of RETURN.
-    - Consider the following code (unsafe expansion of vector-like-ref
-      with constant index):
-	136	or	%g0, 16, %r5	! 0x10
-	140	or	%g0, %r7, %result
-	144	add	%result, 1, %tmp0
-	148	ld	[ %tmp0+%r5 ], %result
-	152	or	%g0, %result, %r5
-      The move at #140 is clearly not necessary; #144 could add from r7 
-      into tmp0.  Similarly, the move at #152 is not necessary, as the load
-      at #148 could load directly into r5.  Finally, the setup of the
-      constant at #136 is not necessary, as it could be used directly
-      at #148.  The best instruction sequence is a single instruction (!):
-	136	ld	[ %r7+17 ], %r5
-      The instruction at #136 is due to the bad op2imm implementation;
-      the instructions at #140 and at #152 are due to not having implemented
-      vector-like-ref with source-register and destination-register.  Both
-      are easy to fix.
-
-[Compiler]
-  * Macro for DO produces worse code than it needs to: if there
-    are no <expression>s following the <test> it returns the value
-    of the <test>, which means that the compiler will generate 
-    code to evaluate the boolean for its value, resulting in numerous
-    needless operations.
-
-  * Need inline procedures and constant folding for fixnum operations.
-
-  * Need inline procedures and constant folding for flonum operations.
-
-  * Should rename `define-inline' as `define-compiler-macro', because
-    `define-inline' is much more useful as a proper inline-procedure
-    definer.  The current define-inline has the wrong semantics for
-    everyday use (it can be made to evaluate its arguments more
-    than once, or not at all).
-
-  * Need a way to restrict primitive tables to a given set.
 
 [Debugging]
   * Trace procedures rather than names.
   * Fix `break', reinstate `debugvsm' for what `break' does now.
-  * `breakpt' -> `break-entry'.
-  * Variable names if at all possible -- at least trace-entry, 
+  * Rename `breakpt' as `break-entry'.
+  * Print variable names if at all possible -- at least trace-entry and
     break-entry can print variable names and values if variable names
     or source code are present.
-  * General improvements.
 
-[Discussion items]
-  * `r5rs.heap' -> `interpreter.heap' (since it's more than R5RS), 
+[General clean-up]
+  * SPARC larceny does not currently compile with LCC:
+    - Can't currently compile with lcc because the Sys/config.h trick 
+      to determine the platform does not work with lcc.  A reasonable 
+      fix is to make `make setup' determine the platform and record it 
+      in Sys/config.h; the current trick is in any case very brittle.
+    - It hasn't a prayer compiling Sys/signals.c
+    - It picks up LCC header files rather than system header files,
+      which is wrong.
+  * Rename some files:
+      Util/std-heap.sch    ->   Util/larceny-heap.sch
+      Util/init-comp.sch   ->   Util/larceny-heap-init.sch
+      Eval                 ->   Interpreter
+      Eval/eval.sch        ->   Interpreter/interp.sch
+      Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
+  * From Will:
+      >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
+      >constants, accessors, and setters for the documentation slot.
+      >This information should exist in only one place, and it has to
+      >be part of the development environment.
+
+[Standard builds]
+  * [discussion item]
+    `r5rs.heap' -> `interpreter.heap' (since it's more than R5RS), 
     possibly make `r5rs.heap' be _only_ r5rs.
+  * The debugger needs to be part of interpreter.heap (r5rs.heap).
+  * Should create scripts that setup correct compiler switches before
+    compiling all files for standard heaps; automate the entire process
+    of building the heaps.  Eg., Scripts/build-larceny-heap, etc.
 
 ----------------------------------------------------------------------
 
-Finished:
+Release process checklist etc
 
-[Compiler]
-  * Want to print a warning if compile-file is used with "slow"
-    switch settings (non-semantics-changing optimizations or
-    integrate-usual-procedures off).
-
-[Assembler]
-  * A MacScheme NOP instruction shouldn't result in a NOP being
-    generated in the SPARC assembly (I think).
-
-----------------------------------------------------------------------
-
-Bug to watch out for:  The binary archives have a symbolic link to the 
-  binary, rather than the binary, due to the directory structure's use
-  of links.
+Bug to watch out for: The binary archives have a symbolic link to the
+binary, rather than the binary, due to the directory structure's use of
+links.
 
 [Release]
   * Source freeze (in this order):                                
