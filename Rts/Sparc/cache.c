@@ -7,6 +7,8 @@
 
 #include "larceny.h"
 
+extern int test_cache( void );	/* See cache0.s */
+
 /* Configure Larceny's cache logic */
 void cache_setup( void )
 {
