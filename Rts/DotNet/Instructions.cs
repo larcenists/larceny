@@ -11,11 +11,11 @@ public class Instructions {
 
     /** nop */
     public static void nop() {
-        return; 
+        return;
     }
-    
+
     /** global
-     * Retrieves global variable at the given index from the current 
+     * Retrieves global variable at the given index from the current
      * Procedure's global array. Uses given string name to report error.
      */
     public static void global(int index, string name) {
@@ -31,7 +31,7 @@ public class Instructions {
             Reg.Result = cell.first;
         }
     }
-    
+
     /** setglbl
      * Set global variable at given index in current Procedure's global
      * array.
@@ -41,47 +41,47 @@ public class Instructions {
         ((SPair)thisProc.constants[index]).first = Reg.Result;
         return;
     }
-    
+
     /** constant
      */
     public static void constant(int constIndex) {
         Procedure p = (Procedure) Reg.getRegister(0);
         Reg.Result = p.constants[constIndex];
     }
-    
+
     /** imm_constant
      * Loads Reg.Result with immediate constant
      */
     public static void imm_constant(SObject immediate) {
         Reg.Result = immediate;
     }
-    
+
     /** imm_const_setreg
      * Loads given register with immediate constant
      */
     public static void imm_const_setreg(SObject immediate, int register) {
         Reg.setRegister(register, immediate);
     }
-    
+
     /** reg
      * Load Register k into Reg.Result
      */
     public static void reg(int k) {
         Reg.Result = Reg.getRegister(k);
     }
-    
+
     /** setreg
      * Load Reg.Result into Register k
      */
     public static void setreg(int k) {
         Reg.setRegister(k, Reg.Result);
     }
-    
+
     /** movereg
      * Move Register src to Register dst
      */
-    public static void movereg(int src, int dst) { 
-        Reg.setRegister(dst, Reg.getRegister(src)); 
+    public static void movereg(int src, int dst) {
+        Reg.setRegister(dst, Reg.getRegister(src));
     }
 
     /* ===================================================== */
@@ -89,13 +89,13 @@ public class Instructions {
     /* ===================================================== */
 
     /** invoke
-     * Pass control to Procedure in Result; fault if 
+     * Pass control to Procedure in Result; fault if
      * Result doesn't contain Procedure; uses trampoline
      */
     public static void invoke(int argc) {
         if (!(Reg.Result is Procedure)) {
-            Exn.fault(Constants.EX_NONPROC, 
-                      "invoke: not a procedure", 
+            Exn.fault(Constants.EX_NONPROC,
+                      "invoke: not a procedure",
                       Reg.Result);
             return;
         }
@@ -103,7 +103,7 @@ public class Instructions {
         // FIXME: use fuel
         Call.call(p, argc);
     }
-    
+
     /** apply
      * Pass control to Procedure in Result; fault if Result doesn't
      * contain Procedure; uses trampoline, arranges arguments from
@@ -123,21 +123,19 @@ public class Instructions {
     /*   Closures                                            */
     /* ===================================================== */
 
-    
-    /** lambda 
-     * Create a new Procedure based on current Procedure (Register 0), 
+
+    /** lambda
+     * Create a new Procedure based on current Procedure (Register 0),
      * given CodeVector, and given number of registers to close over
      */
-    public static void lambda(CodeVector codevector, 
+    public static void lambda(CodeVector codevector,
                               int constIndex, int numRegs) {
         Procedure thisProc = (Procedure)Reg.getRegister(0);
-        SObject[] environment = new SObject[numRegs+1];
 
         if (numRegs < Reg.LASTREG) {
-            for (int i = 0; i <= numRegs; ++i) {
-                environment[i] = Reg.getRegister(i);
-            }
+            Reg.Result = new Procedure (codevector, thisProc.constants[constIndex], Reg.Close(numRegs));
         } else {
+            SObject[] environment = new SObject[numRegs+1];
             for (int i = 0; i <= Reg.LASTREG -1; ++i) {
                 environment[i] = Reg.getRegister(i);
             }
@@ -147,8 +145,8 @@ public class Instructions {
                 environment[i] = restpair.first;
                 restlist = restpair.rest;
             }
-        }
         Reg.Result = new Procedure(codevector, thisProc.constants[constIndex], environment);
+        }
     }
 
     /** lexes
@@ -157,13 +155,10 @@ public class Instructions {
     public static void lexes(int numRegs) {
         Procedure thisProc = (Procedure) Reg.getRegister(0);
 
-        SObject[] environment = new SObject[numRegs+1];
-
         if (numRegs < Reg.LASTREG) {
-            for (int i = 0; i <= numRegs; ++i) {
-                environment[i] = Reg.getRegister(i);
-            }
+           Reg.Result = new Procedure (thisProc.entrypoint, thisProc.constantvector, Reg.Close (numRegs));
         } else {
+            SObject[] environment = new SObject[numRegs+1];
             for (int i = 0; i <= Reg.LASTREG -1; ++i) {
                 environment[i] = Reg.getRegister(i);
             }
@@ -173,11 +168,10 @@ public class Instructions {
                 environment[i] = restpair.first;
                 restlist = restpair.rest;
             }
-        }
-
         Reg.Result = new Procedure(thisProc.entrypoint,
                                    thisProc.constantvector,
                                    environment);
+        }
     }
 
     /** lexical
@@ -201,7 +195,7 @@ public class Instructions {
      * Fault if Reg.Result isn't a number equal to n.
      * Used to check procedure arity.
      */
-    public static void argseq(int n) { 
+    public static void argseq(int n) {
         if (((SFixnum)Reg.Result).value != n)
             Exn.fault(Constants.EX_ARGSEQ, "args= check failed");
     }
@@ -272,7 +266,7 @@ public class Instructions {
         }
         Cont.cont.returnIndex = index;
     }
-    
+
     public static void stack(int slot) {
         Reg.Result = Cont.cont.getSlot(slot);
     }
