@@ -747,39 +747,29 @@
 
 (define compile
   (lambda (x . rest)
-    (let ((syntaxenv (let ((inlines (compiler-macros)))
-                       (syntactic-extend
-                        (if (null? rest)
-                            usual-syntactic-environment
-                            (car rest))
-                        (map car inlines)
-                        (map cdr inlines)))))
-      (pass4 (pass3 (pass2 (pass1 x syntaxenv)))
+    (let ((syntaxenv (if (null? rest)
+                         (the-usual-syntactic-environment)
+                         (car rest)))
+          (inlineenv (compiler-macros)))
+      (pass4 (pass3 (pass2 (pass1 x syntaxenv inlineenv)))
              (twobit-integrable-procedures)))))
 
 (define expand
   (lambda (x . rest)
-    (let ((syntaxenv (let ((inlines (compiler-macros)))
-                       (syntactic-extend
-                        (if (null? rest)
-                            usual-syntactic-environment
-                            (car rest))
-                        (map car inlines)
-                        (map cdr inlines)))))
-      (pass1 x syntaxenv))))
+    (let ((syntaxenv (if (null? rest)
+                         (the-usual-syntactic-environment)
+                         (car rest)))
+          (inlineenv (compiler-macros)))
+      (pass1 x syntaxenv inlineenv))))
 
 (define compile-block
   (lambda (x . rest)
-    (let ((syntaxenv (let ((inlines (compiler-macros)))
-                       (syntactic-extend
-                        (if (null? rest)
-                            usual-syntactic-environment
-                            (car rest))
-                        (map car inlines)
-                        (map cdr inlines)))))
-      (pass4 (pass3 (pass2 (pass1-block x syntaxenv)))
+    (let ((syntaxenv (if (null? rest)
+                         (the-usual-syntactic-environment)
+                         (car rest)))
+          (inlineenv (compiler-macros)))
+      (pass4 (pass3 (pass2 (pass1-block x syntaxenv inlineenv)))
              (twobit-integrable-procedures)))))
-
 
 ; Find the smallest number of registers such that
 ; adding more registers does not affect the code
