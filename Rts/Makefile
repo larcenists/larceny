@@ -12,11 +12,18 @@
 # DEFAULT CONFIGURATION
 #
 # Petit Larceny on generic Unix with gcc
+#O=o
+#CC=gcc
+#DEBUGINFO=#-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+
+# Petit Larceny on MacOS X with gcc, building libpetit.dylib
 O=o
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
 # Petit Larceny on Win32: Metrowerks CodeWarrior 6
 #O=obj
@@ -211,20 +218,6 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 default:
 	echo "Please give me a target."
 
-setup:
-	if [ ! -d Build ]; then mkdir Build; fi
-	-(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
-
-# The 'config' target is used before shipping so that a working Scheme
-# system is not required to build larceny.bin.
-config:
-	$(MAKE) Build/cdefs.h
-	$(MAKE) Build/asmdefs.h
-	$(MAKE) Build/schdefs.h
-	$(MAKE) Build/sparc-table.s
-	$(MAKE) Build/c-table.c
-	$(MAKE) Standard-C/arithmetic.c
-
 larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) 
@@ -237,24 +230,25 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
 
-# SunOS 5.6, for sure.
+# Generic Unix static library
+libpetit.a: $(PETIT_LARCENY_OBJECTS)
+	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
+	ranlib libpetit.a
+
+# Generic Unix shared library
+libpetit.so: $(PETIT_LARCENY_OBJECTS)
+	gcc -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS)
+
+# SunOS 5.6 (not tested much lately)
 #libpetit.so: $(PETIT_LARCENY_OBJECTS)
 #	ld -G -o libpetit.so -L/usr/lib -lc $(PETIT_LARCENY_OBJECTS) \
 #		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 #	/bin/rm -f Sys/version.o
 
-# MacOS X shared object (not tested much)
-libpetit.so: $(PETIT_LARCENY_OBJECTS)
-	$(CC) -dylib -o libpetit.dylib $(PETIT_LARCENY_OBJECTS)
-
-# Generic Unix
-libpetit.a: $(PETIT_LARCENY_OBJECTS)
-	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
-	ranlib libpetit.a
-
-# Generic Unix (?)
-#libpetit.so: $(PETIT_LARCENY_OBJECTS)
-#	gcc -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS)
+# MacOS X dynamic shared library
+# You need to set your DYLD_LIBRARY_PATH to point to Rts/ to load this.
+libpetit.dylib: $(PETIT_LARCENY_OBJECTS)
+	$(CC) -undefined suppress -flat_namespace -dynamiclib -o libpetit.dylib $(PETIT_LARCENY_OBJECTS)
 
 # Intel x86 with the NASM back-end, on Unix
 libx86.a: $(X86_NASM_LARCENY_OBJECTS)
@@ -277,7 +271,7 @@ clean:
 	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \
 	   Sys/*.$(O) Util/*.$(O) \
-	   petit-rts.lib petit-lib.lib libpetit.so libpetit.a \
+	   petit-rts.lib petit-lib.lib libpetit.so libpetit.dylib libpetit.a \
 	   Standard-C/arithmetic.c
 
 rtsclean: clean
