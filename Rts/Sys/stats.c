@@ -469,13 +469,21 @@ print_heapstats( heap_stats_t *stats )
 
   consolemsg( "Heap statistics:");
   for ( i=0; i < generations ; i++ ) {
-    consolemsg( "Generation %d", i );
-    consolemsg( "  Size of semispace 1: %lu bytes", stats[i].semispace1 );
-    consolemsg( "  Size of semispace 2: %lu bytes", stats[i].semispace2 );
+    if (i == generations-1 && gc->static_area != 0) {
+      /* Static area */
+      consolemsg( "Generation %d (static)", i );
+      consolemsg( "  Size of text area: %lu bytes", stats[i].semispace1 );
+      consolemsg( "  Size of data area: %lu bytes", stats[i].semispace2 );
+    }
+    else {
+      /* Any other */
+      consolemsg( "Generation %d", i );
+      consolemsg( "  Size of semispace 1: %lu bytes", stats[i].semispace1 );
+      consolemsg( "  Size of semispace 2: %lu bytes", stats[i].semispace2 );
+      if (stats[i].stack || i==0)
+	consolemsg( "  Live stack: %lu bytes", stats[i].stack );
+    }
     consolemsg( "  Live data: %lu bytes", stats[i].live );
-    if (stats[i].stack || i==0)
-      consolemsg( "  Live stack: %lu bytes", stats[i].stack );
-    /* FIXME: also: text/static area, if there's one. */
   }
 }
 
