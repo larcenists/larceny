@@ -1,7 +1,66 @@
 ;; -*-Mode: Scheme; coding: iso-8859-1 -*-
-;; Port of dotnet.ss to larceny
 
-;; NOTE:  This file requires that dotnet-ffi.sch has been loaded.
+;;; This file implements the JavaDot notation for interoperating
+;;; between Scheme and the dotnet class library.  To use this code, you
+;;; must follow these steps:
+;;;
+;;;  1.  Load  dotnet-ffi.sch
+;;;  2.  Load  dotnet.sch (this file)
+;;;  3.  (enable-dotnet!)
+;;;
+;;;  enable-dotnet! will take several seconds to complete.
+;;;
+;;; Once enabled, you can use JavaDot notation to refer to .NET
+;;; objects, classes, and methods.  Briefly, the syntax is this:
+;;;
+;;;  1.  Identifiers (variable names) with leading, trailing, or
+;;;      embedded periods (`dots') become special.
+;;;
+;;;  2.  Fully qualified names ending with the characters ".class"
+;;;      refer to reflected class objects.  E.g.
+;;;
+;;;         Microsoft.Office.Interop.Excel.WorkbookClass.class
+;;;         System.Reflection.AssemblyName.class
+;;;
+;;;  3.  Fully qualified names ending with a dot refer to
+;;;      constructors.  E.g.
+;;;
+;;;        System.Reflection.AssemblyName.
+;;;        Microsoft.Office.Interop.Excel.ApplicationClass.
+;;;
+;;;  4.  Fully qualified names *not* ending with a dot refer to static
+;;;      methods.  E.g.
+;;;
+;;;        System.Reflection.Assembly.LoadWithPartialName
+;;;        System.Windows.Forms.Application.Run
+;;;
+;;;  5.  Fully qualified names ending with a $ refer to functions that
+;;;      return the values of static fields (or properties) or
+;;;      enumerations  E.g.
+;;;
+;;;        System.AppDomain.CurrentDomain$
+;;;        System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$
+;;;
+;;;  6.  Names starting with a dot and not ending with a $
+;;;      refer to instance methods.  E.g.
+;;;
+;;;        .DefineDynamicAssembly
+;;;        .GetType
+;;;
+;;;  7.  Names starting with a dot and ending with a $ refer to
+;;;      procedures that return the values of instance fields.  E.g.
+;;;
+;;;         .visible$
+;;;         .ActiveSheet$
+;;;
+;;;  8.  Affix the `set-' prefix and an `!' suffix to refer to the
+;;;      mutation procedure for mutable fields.  E.g.
+;;;
+;;;        .color$  ===>  set-.color$!
+;;;
+;;;  JavaDot notation was invented by Tim Hickey and Ken Anderson.
+;;;  See the files excel-demo.sch and windows.sch for examples of
+;;;  using JavaDot notation.
 
 ;;; Snarf these two macros to facilitate bootstrapping.
 (define-syntax %set-instance/procedure!

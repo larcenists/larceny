@@ -1,7 +1,17 @@
 ;; -*-Mode: Scheme; coding: iso-8859-1 -*-
 
+;;; This file uses the dotnet system calls to build a low-level
+;;; interface to the reflection API of the .NET library.  It is used
+;;; primarily by the JavaDot layer implemented in dotnet.sch, but the
+;;; low-level window example code (in windows.sch) makes use of it
+;;; to achieve better performance.
+
+;;; See the notes at the beginning of dotnet.sch
+
 ;($$trace "dotnet-ffi")
 
+;; Set this variable to an integer from 0 through 5 to trace execution
+;; of the dotnet code.  0 is least verbose, 5 is very detailed.
 (define *dotnet-noise-level* #f)
 
 (define (dotnet-message message-level text . objects)

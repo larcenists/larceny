@@ -1,6 +1,29 @@
 ;;; -*- Mode: Scheme; coding: iso-8859-1 -*-
+
 ;;; A demo of using dotnet to talk to Windows.
-;;; Requires that dotnet be loaded and initialized.
+;;;
+;;; To use this code, follow these steps:
+;;;
+;;; 1.  Load  dotnet-ffi.sch
+;;; 2.  Load  dotnet.sch
+;;; 3.  (enable-dotnet!)
+;;; 4.  Load  windows.sch  (this file)
+;;; 5.  (window-demo)
+
+;;; Note that when you load this file, and when you first call
+;;; (window-demo), that Scheme must do a lot of work to build a model
+;;; of the .NET types that implement Windows Forms.  It will take some
+;;; time for this file to load, and several seconds for the window to
+;;; appear when you first call (window-demo).
+
+
+;;; The code between here and `SAMPLE CODE' below implement a generic
+;;; function API to the windows message loop.  When a windows message
+;;; is received, it is dispatched to an appropriately named generic
+;;; function.  The generic function has a default method of simply
+;;; declining to handle the method (returning false).  The sample code
+;;; shows how you can add a method to the generic function to modify
+;;; how windows messages are handled.
 
 (define *system-drawing-assembly* #f)
 (define *system-windows-forms-assembly* #f)
@@ -837,7 +860,10 @@
    (clr/%procedure->message-filter standard-message-dispatch)))
 
 
+;;; Low-Level message pump code ends here
 
+
+;;; SAMPLE CODE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sample code.  Creates a window and hooks the mouse-leave events.
 

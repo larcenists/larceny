@@ -1,41 +1,18 @@
 ;;; A demo of using dotnet to talk to Excel.
-;;; Requires that dotnet be loaded and initialized.
+;;;
+;;; To use this code, you must have Microsoft Excel installed.
+;;;
+;;; Follow these steps:
+;;;
+;;; 1.  Load  dotnet-ffi.sch
+;;; 2.  Load  dotnet.sch
+;;; 3.  (enable-dotnet!)
+;;; 4.  Load  excel-demo.sch  (this file)
+;;; 5.  (whizbang-excel-demo)
 
-;;; Some stuff to debug.
-
-(define *scheme-dynamic-assembly-name*
-  (let ((name (System.Reflection.AssemblyName.)))
-    (set-.name$! name "SchemeDynamicAssembly")
-    name))
-
-(define *scheme-application-domain* #f)
-
-(define (scheme-application-domain)
-  (or *scheme-application-domain*
-      (begin (set! *scheme-application-domain* (System.AppDomain.CurrentDomain$))
-             *scheme-application-domain*)))
-
-(define *scheme-dynamic-assembly* #f)
-
-(define (scheme-dynamic-assembly)
-  (or *scheme-dynamic-assembly*
-      (begin
-        (set! *scheme-dynamic-assembly*
-              (.DefineDynamicAssembly (scheme-application-domain)
-                                      *scheme-dynamic-assembly-name*
-                                      (System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$)))
-        *scheme-dynamic-assembly*)))
-
-(define *scheme-dynamic-module* #f)
-
-(define (scheme-dynamic-module)
-  (or *scheme-dynamic-module*
-      (begin
-        (set! *scheme-dynamic-module*
-              (.DefineDynamicModule (scheme-dynamic-assembly) "SchemeModule.dll" "SchemeModule.dll"))
-        *scheme-dynamic-module*)))
-
-;;; End of temp code
+;;; Note that the first time you call whizbang-excel-demo it will take
+;;; quite some time (about a minute on a fast machine) to bootstrap
+;;; the reflected methods.
 
 (define *the-excel-assembly* #f)
 
