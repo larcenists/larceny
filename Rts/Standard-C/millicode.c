@@ -12,14 +12,18 @@
 #include "larceny.h"
 #include "gc_t.h"		/* For gc_allocate() macro */
 #include "barrier.h"		/* For prototypes */
-#include "gclib.h"		/* For pageof */
+#include "gclib.h"		/* For pageof() */
 #include "stack.h"
 #include "millicode.h"
 #include "petit-hacks.h"	/* Temporary grossness */
 #include "signals.h"
 
-int cached_state = 0;           /* HACK! For twobit.h debug code */
+int twobit_cache_state = 0;	/* For twobit.h debug code */
+#if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
+cont_t twobit_cont_label = 0;	/* Label to jump to */
+#endif
 
+static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, 
 			      int preserve );
 static void setup_timer( word *globals, int timer, cont_t k );
@@ -34,11 +38,13 @@ static int valid_datum( word x );
 static jmp_buf dispatch_jump_buffer;
 static int already_running = 0;
 
-#define DISPATCH_CALL_AGAIN             1
-#define DISPATCH_EXIT                   2
-#define DISPATCH_RETURN_FROM_S2S_CALL   3
-#define DISPATCH_STKUFLOW               4
-#define DISPATCH_SIGFPE                 5
+#define DISPATCH_CALL_AGAIN             1 /* Call twobit_cont_label */
+#define DISPATCH_EXIT                   2 /* Return from scheme_start() */
+#define DISPATCH_RETURN_FROM_S2S_CALL   3 /* Return from scheme->scheme call */
+#define DISPATCH_STKUFLOW               4 /* Handle stack underflow */
+#define DISPATCH_SIGFPE                 5 /* Handle synchronous signal */
+#define DISPATCH_TIMER                  6 /* Handle timer interrupt */
+#define DISPATCH_CALL_R0	        7 /* Call proc in R0 */
 
 typedef cont_t (*tramp_t)( CONT_PARAMS );
 
@@ -65,25 +71,85 @@ void scheme_start( word *globals )
   /* Return address for bottom-most frame */
   stkp[ 1 ] = (word)dispatch_loop_return;
 
-  /* Dispatch loop */
-  x = setjmp( dispatch_jump_buffer );
-  if (x == DISPATCH_EXIT) {
+#if USE_LONGJUMP
+  globals[ G_TIMER ] = TIMER_STEP;
+#endif
+
+  /* The dispatch loop is a doubly-nested quasi-loop.  
+
+     The outer loop uses setjmp/longjmp for control and is entered but 
+     rarely; most of the time is spent in the innter loop.  The job of
+     the outer loop is to provide the inner loop with the address of
+     the first block to execute.
+
+     The structure of the inner loop depends on the jump discipline.  
+     When the jump discipline is anything but USE_LONGJUMP, the inner 
+     loop is a _while_ loop that performs control transfer to the next
+     block, the address of which is returned from the previously executed 
+     block either as a return value or through a global variable.  When 
+     the jump discipline is USE_LONGJUMP, then the inner loop simply 
+     consists of a call to a block, and the transfer to the next block 
+     is done in the block itself by means of a tail call.  Occasionally,
+     the C stack must be pruned, and the block signals a timer interrupt
+     (longjump with DISPATCH_TIMER).
+     */
+
+  /* Outer loop */
+  switch (x = setjmp( dispatch_jump_buffer )) {
+  case 0 :
+  case DISPATCH_CALL_R0 :
+    f = (cont_t)(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
+    break;
+  case DISPATCH_CALL_AGAIN :
+#if USE_LONGJUMP
+    /* A longjump has pruned the stack; now continue. */
+    f = twobit_cont_label;
+    break;
+#else
+    panic( "Unexpected entry to DISPATCH_CALL_AGAIN case in scheme_start()" );
+#endif
+  case DISPATCH_EXIT:
     already_running = 0;
     return;
-  }
-  else if (x == DISPATCH_RETURN_FROM_S2S_CALL)
+  case DISPATCH_RETURN_FROM_S2S_CALL :
     f = restore_context( globals );
-  else if (x == DISPATCH_STKUFLOW)
+    break;
+  case DISPATCH_STKUFLOW :
     f = refill_stack_cache( globals );
-  else if (x == DISPATCH_SIGFPE) {
+    break;
+  case DISPATCH_SIGFPE :
     handle_sigfpe( globals );
     panic( "handle_sigfpe() returned." );
+  case DISPATCH_TIMER :
+#if USE_LONGJUMP
+    /* The first-level timer expired.  The longjmp has pruned the stack; now
+       handle the timer expiration (and re-setup the timer).  The call to 
+       timer_exception returns unless TIMER2==0 or an interrupt is pending.
+       */
+    timer_exception( globals, twobit_cont_label );
+    f = twobit_cont_label;
+    break;
+#else
+    panic( "Unexpected entry to DISPATCH_TIMER case in scheme_start()" );
+#endif
+  default :
+    panic( "Unexpected value %d from setjmp in scheme_start()", x );
   }
-  else 
-    f = (cont_t)(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
 
+  /* Inner loop */
+#if USE_RETURN_WITH_VALUE
   while (1)
     f = ((tramp_t)f)( CONT_ACTUALS );
+#elif USE_RETURN_WITHOUT_VALUE
+  twobit_cont_label = f;
+  while (1)
+    ((tramp_t)twobit_cont_label)( CONT_ACTUALS );
+#elif USE_LONGJUMP
+  ((tramp_t)f)( CONT_ACTUALS );
+  panic( "Unexpected return from procedure in scheme_start()" );
+#else
+# error "Missing dispatch loop discipline in scheme_start()"
+#endif
 }
 
 void twobit_integrity_check( word *globals, const char *name )
@@ -187,6 +253,12 @@ void mc_alloc( word *globals )
   word *elim = (word*)globals[ G_STKP ];
   word *p;
 
+  /* Debug code */
+  if (((word)etop & 7) != 0)
+    panic_abort( "Unaligned heap pointer!" );
+  if (((word)elim & 7) != 0)
+    panic_abort( "Unaligned stack pointer!" );
+
   nwords = roundup_walign( nwords );
   p = etop;
   etop += nwords;
@@ -276,6 +348,16 @@ void mc_break( word *globals )
 
 void mc_timer_exception( word *globals, cont_t k )
 {
+#if USE_LONGJUMP
+  twobit_cont_label = k;
+  longjmp( dispatch_jump_buffer, DISPATCH_TIMER );
+#else
+  timer_exception( globals, k );
+#endif
+}
+
+static void timer_exception( word *globals, cont_t k )
+{
   check_signals( globals, k );
 
   if (globals[ G_TIMER_ENABLE ] == FALSE_CONST)
@@ -292,11 +374,16 @@ void mc_enable_interrupts( word *globals, cont_t k )
 
   if (is_fixnum( x ) && (int)x > 0) {
     globals[ G_TIMER_ENABLE ] = TRUE_CONST;
-    setup_timer( globals, nativeuint( x ), k );
+    setup_timer( globals, nativeuint( x ), k );	/* Checks signals */
   }
   else
-    signal_exception( globals, EX_EINTR, 0, 0 );
-  check_signals( globals, k );
+    signal_exception( globals, EX_EINTR, 0, 0 ); /* Never returns */
+  check_signals( globals, k );	                 /* Thus, redundant */
+#if USE_LONGJUMP
+  /* For now: prune the stack */
+  twobit_cont_label = k;
+  longjmp( dispatch_jump_buffer, DISPATCH_CALL_AGAIN );
+#endif
 }
 
 void mc_disable_interrupts( word *globals, cont_t k )
@@ -499,6 +586,7 @@ void mc_partial_list2vector( word *globals )
   p = (word*)globals[ G_RESULT ];
   *p = mkheader( y*sizeof( word ), VECTOR_HDR );
 
+  x = globals[ G_THIRD ];	/* restore safe value */
   dest = p + VEC_HEADER_WORDS;
   while ( y-- ) {
     *dest++ = pair_car( x );
@@ -745,7 +833,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
 
-  longjmp( dispatch_jump_buffer, DISPATCH_CALL_AGAIN );
+  longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
 }
 
 /* Return address for scheme-to-scheme call frame. 
