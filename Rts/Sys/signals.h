@@ -77,7 +77,7 @@
 
 #if defined(BSD_SIGNALS)
 # define signal_set_t int
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
 # define signal_set_t int
 #elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
 # define signal_set_t sigset_t

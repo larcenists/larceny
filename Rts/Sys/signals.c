@@ -85,11 +85,17 @@ int sigsetmask( int );		/* Should be in <signal.h> but isn't */
 #elif defined(POSIX_SIGNALS)
   static void inthandler( int );
   static void fpehandler( int );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   static void inthandler( int );
   static void fpehandler( int );
 #else
 # error "No signal handler could be selected for chosen feature set."
+#endif
+
+#if defined(WIN32_SIGNALS)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+static __stdcall int win32_inthandler(unsigned long sig);
 #endif
 
 signal_set_t syscall_blocked_signals;
@@ -135,6 +141,9 @@ void setup_signal_handlers( void )
 
   act.sa_handler = fpehandler;
   sigaction( SIGFPE, &act, (struct sigaction*)0 );
+#elif defined(WIN32_SIGNALS)
+  SetConsoleCtrlHandler(win32_inthandler,TRUE);
+  signal(SIGFPE, fpehandler);
 #elif defined(STDC_SIGNALS)
   signal( SIGINT, inthandler );
   signal( SIGFPE, fpehandler );
@@ -151,6 +160,8 @@ static void inthandler( int sig, siginfo_t *siginfo, void *context )
 #elif defined(POSIX_SIGNALS)
 static void inthandler( int sig )
 #elif defined(STDC_SIGNALS)
+static void inthandler( int sig )
+#elif defined(WIN32_SIGNALS)
 static void inthandler( int sig )
 #else
 # error "No definition of inthandler."
@@ -178,6 +189,15 @@ static void inthandler( int sig )
 #endif
 }
 
+#if defined(WIN32_SIGNALS)
+static __stdcall int win32_inthandler(unsigned long sig)
+{
+  if (sig != CTRL_C_EVENT && sig != CTRL_BREAK_EVENT)
+    return 0;
+  inthandler(SIGINT);
+  return 1;
+}
+#endif
 
 /* Synchronous signal -- only SIGFPE for now. */
 #if defined(BSD_SIGNALS)
@@ -186,7 +206,7 @@ static void fpehandler( int sig, int code, struct sigcontext *scp, char *addr )
 static void fpehandler( int sig, siginfo_t *siginfo, void *context )
 #elif defined(POSIX_SIGNALS)
 static void fpehandler( int sig )
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
 static void fpehandler( int sig )
 #else
 # error "No definition of fpehandler."
@@ -250,7 +270,7 @@ void block_all_signals( signal_set_t *s )  /* s may be NULL */
 
   sigfillset( &t );
   sigprocmask( SIG_SETMASK, &t, s );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   /* Can't block anything! */
 #else
 # error "No implementation for block_all_signals."
@@ -263,7 +283,7 @@ void unblock_signals( signal_set_t *s )
   sigsetmask( *s );
 #elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
   sigprocmask( SIG_SETMASK, s, (sigset_t*)0 );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   /* Can't unblock anything! */
 #else
 # error "No implementation for unblock_signals."
@@ -282,7 +302,7 @@ void unblock_all_signals( void )
 
   sigemptyset( &s );
   sigprocmask( SIG_SETMASK, &s, (sigset_t*)0 );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   /* Can't unblock all! */
 #else
 # error "No implementation for unblock_all_signals."
