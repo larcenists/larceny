@@ -27,52 +27,81 @@
   (syntax-rules ()
     ((define-syscall name code ...)
      (define-syntax name
+;       ;; Very slow, thoroughly traced version.
+;       (syntax-rules ()
+;         ((name . args)
+;          (begin (dotnet-message 5 "Syscall" 'name)
+;                 (syscall code ... . args))))
+       ;; Regular version.
        (syntax-rules ()
          ((name . args)
-          (syscall code ... . args)))))))
+          (syscall code ... . args)))
+       ))))
 
-(define-syscall clr/%get-type          34 0)
-(define-syscall clr/%get-method        34 1)
+(define-syscall clr/%clr-version        34  0)
+(define-syscall clr/%ffi-version        34  1)
+(define-syscall %foreign?               34  2)
+(define-syscall clr/%to-string          34  3)
+(define-syscall clr/%object-type        34  4)
+(define-syscall clr/%isa?               34  5)
+(define-syscall clr/%eq?                34  6)
 
-(define-syscall clr/%object->foreign       34 2 0)
-(define-syscall clr/%schemeobject->foreign 34 2 1)
-(define-syscall clr/%string->foreign       34 2 2)
-;(define-syscall clr/%symbol->foreign      34 2 3)
-(define-syscall clr/%bytes->foreign        34 2 4)
-(define-syscall clr/%int32->foreign        34 2 5)
-(define-syscall clr/%flonum->foreign       34 2 6)
-(define-syscall clr/%double->foreign       34 2 7)
-;(define-syscall clr/%void->foreign        34 2 8)
-(define-syscall clr/%procedure->message-filter 34 2 9)
+(define-syscall clr/%get-type           34  7)
+(define-syscall clr/%get-field          34  8)
+(define-syscall clr/%get-constructor    34  9)
+(define-syscall clr/%get-method         34 10)
+(define-syscall clr/%get-property       34 11)
 
-(define-syscall clr/%foreign->object       34 3 0)
-(define-syscall clr/%foreign->schemeobject 34 3 1)
-(define-syscall clr/%foreign->string       34 3 2)
-;(define-syscall clr/%foreign->symbol      34 3 3)
-(define-syscall clr/%foreign->bytes        34 3 4)
-(define-syscall clr/%foreign->int          34 3 5)
-(define-syscall clr/%foreign->flonum       34 3 6)
-(define-syscall clr/%foreign->double       34 3 7)
-(define-syscall clr/%foreign->void         34 3 8)
+(define-syscall clr/%field-ref          34 12)
+(define-syscall clr/%field-set!         34 13)
+(define-syscall clr/%invoke-constructor 34 14)
+(define-syscall clr/%invoke             34 15)
+(define-syscall clr/%property-ref       34 16)
+(define-syscall clr/%property-set!      34 17)
+(define-syscall clr/%foreign-aref       34 18)
 
-(define-syscall clr/%invoke                34 4)
-(define-syscall clr/%get-field             34 5)
-(define-syscall clr/%get-property          34 6)
-(define-syscall clr/%isa?                  34 7)
-(define-syscall clr/%field-ref             34 8)
-(define-syscall clr/%field-set!            34 9)
-(define-syscall %foreign?                  34 10)
-(define-syscall clr/%get-constructor       34 11)
-(define-syscall clr/%invoke-constructor    34 12)
-(define-syscall clr/%eq?                   34 13)
-(define-syscall clr/%property-ref          34 14)
-(define-syscall clr/%property-set!         34 15)
-(define-syscall clr/%to-string             34 16)
-(define-syscall clr/%property-ref-bool     34 17)
-(define-syscall clr/%property-ref-int      34 18)
-(define-syscall clr/%foreign-aref          34 19)
-(define-syscall clr/%object-type           34 20)
-(define-syscall clr/test-syscall           34 21)
+(define-syscall clr/%foreign-box            34 19 0)
+(define-syscall clr/%string->foreign        34 19 1)
+(define-syscall clr/%number->foreign-byte   34 19 2)
+(define-syscall clr/%number->foreign-uint16 34 19 3)
+(define-syscall clr/%number->foreign-uint32 34 19 4)
+(define-syscall clr/%number->foreign-sbyte  34 19 5)
+(define-syscall clr/%number->foreign-int16  34 19 6)
+(define-syscall clr/%number->foreign-int32  34 19 7)
+(define-syscall clr/%procedure->message-filter 34 19 8)
+;(define-syscall clr/%void->foreign         34 19 9)
+
+(define-syscall clr/%foreign->object       34 20 0)
+(define-syscall clr/%foreign->schemeobject 34 20 1)
+(define-syscall clr/%foreign->string       34 20 2)
+;(define-syscall clr/%foreign->symbol      34 20 3)
+(define-syscall clr/%foreign->bytes        34 20 4)
+(define-syscall clr/%foreign->int          34 20 5)
+(define-syscall clr/%foreign->flonum       34 20 6)
+(define-syscall clr/%foreign->double       34 20 7)
+(define-syscall clr/%foreign->void         34 20 8)
+
+;; special for performance
+(define-syscall clr/%property-ref-bool     34 21)
+(define-syscall clr/%property-ref-int      34 22)
+(define-syscall clr/%property-ref-window   34 23)
+(define-syscall clr/%property-ref-intptr-int 34 24)
+
+;; Hook this asap to make it easy to debug this file.
+;; Using the syscalls directly means that we can turn on
+;; the debug printing above but not have it interfere here.
+(define print-foreign-object
+  (let ((old-weird-printer (weird-printer)))
+    (lambda (weird-object port slashify)
+      (if (syscall 34 2 weird-object)
+          (begin
+            (display "#<Foreign " port)
+            (display (syscall 34 3 weird-object) port)
+            (display ">" port))
+          (old-weird-printer weird-object port slashify)))))
+
+;;; Install the new weird printer.
+(weird-printer print-foreign-object)
 
 ;;; Basic types needed to boostrap the rest of the dotnet interface.
 (define clr-type-handle/scheme-rt-ffi                   (clr/%get-type "Scheme.RT.FFI"))
@@ -120,7 +149,8 @@
 
 (define (clr/bool->foreign   obj) (if obj clr/true clr/false))
 (define (clr/double->foreign obj) (clr/%double->foreign obj))
-(define (clr/int->foreign    obj) (clr/%int32->foreign obj))
+(define (clr/int->foreign    obj) (clr/%number->foreign-int32 obj))
+(define (clr/string->foreign obj) (clr/%string->foreign obj))
 (define (clr/symbol->foreign obj) (clr/%string->foreign (symbol->string obj)))
 (define (clr/foreign->bool   obj) (not (clr/%eq? obj clr/false)))
 (define (clr/foreign->char   obj) (integer->char (clr/%foreign->int obj)))
@@ -151,25 +181,47 @@
   (syntax-rules ()
     ((define-clr-property name type-handle property-name)
      (define name
-       (let ((handle (clr/%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (clr/%property-ref handle foreign-object '#())))))))
+       (let ((handle (clr/%get-property type-handle property-name '#())))
+         (if handle
+             (lambda (foreign-object)
+               (clr/%property-ref handle foreign-object '#()))
+             (error (string-append "Property "property-name" not found."))))))))
 
 (define-syntax define-boolean-clr-property
   (syntax-rules ()
     ((define-boolean-clr-property name type-handle property-name)
      (define name
-       (let ((handle (clr/%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (clr/%property-ref-bool handle foreign-object '#())))))))
+       (let ((handle (clr/%get-property type-handle property-name '#())))
+         (if handle
+             (lambda (foreign-object)
+               (clr/%property-ref-bool handle foreign-object '#()))
+             (error (string-append "Boolean property " property-name " not found."))))))
+
+    ;; The fourth argument of #T allows us to refer to properties that
+    ;; don't exist.  They will seem to always the value #F.  .NET version 2.0
+    ;; adds new properties to types.
+    ((define-boolean-clr-property name type-handle property-name #t)
+     (define name
+       (let ((handle (clr/%get-property type-handle property-name '#())))
+         (if handle
+             (lambda (foreign-object)
+               (clr/%property-ref-bool handle foreign-object '#()))
+             (lambda (foreign-object)
+               #f)))))
+
+    ;; By default, though, error if we can't find the property.
+    ((define-boolean-clr-property name type-handle property-name #f)
+     (define-boolean-clr-property name type-handle property-name))))
 
 (define-syntax define-int-clr-property
   (syntax-rules ()
     ((define-int-clr-property name type-handle property-name)
      (define name
-       (let ((handle (clr/%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (clr/%property-ref-int handle foreign-object '#())))))))
+       (let ((handle (clr/%get-property type-handle property-name '#())))
+         (if handle
+             (lambda (foreign-object)
+               (clr/%property-ref-int handle foreign-object '#()))
+             (error (string-append "Integer property "property-name" not found."))))))))
 
 (define-clr-property         clr-app-domain/%current-domain
   clr-type-handle/system-appdomain "CurrentDomain")
@@ -191,8 +243,8 @@
 (define-clr-property         clr-memberinfo/%name
   clr-type-handle/system-reflection-memberinfo "Name")
 
-(define (clr-memberinfo/name memberinfo)
-  (clr/foreign->string (clr-memberinfo/%name memberinfo)))
+(define (clr-memberinfo/name object)
+  (clr/%foreign->string (clr-memberinfo/%name object)))
 
 (define-int-clr-property     clr-memberinfo/member-type
   clr-type-handle/system-reflection-memberinfo "MemberType")
@@ -225,10 +277,30 @@
   clr-type-handle/system-type "Attributes")
 (define-clr-property         clr-type/%assembly
   clr-type-handle/system-type "Assembly")
+(define-clr-property         clr-type/%assembly-qualified-name
+  clr-type-handle/system-type "AssemblyQualifiedName")
 (define-clr-property         clr-type/%base-type
   clr-type-handle/system-type "BaseType")
+(define-clr-property         clr-type/%full-name
+  clr-type-handle/system-type "FullName")
 (define-boolean-clr-property clr-type/is-enum?
   clr-type-handle/system-type "IsEnum")
+(define-boolean-clr-property clr-type/is-generic?
+  clr-type-handle/system-type "IsGenericTypeDefinition" #t)
+(define-boolean-clr-property clr-type/is-special-name?
+  clr-type-handle/system-type "IsSpecialName")
+
+(define (clr-array->list handle)
+  (if (%clr-array? handle)
+      (let loop ((result '())
+                 (idx     0)
+                 (limit  (clr-array/length handle)))
+        (if (>= idx limit)
+            (reverse! result)
+            (loop (cons (clr/%foreign-aref handle idx) result)
+                  (+ idx 1)
+                  limit)))
+      (error "map-clr-array: not a foreign array" handle)))
 
 (define (map-clr-array proc handle)
   (if (%clr-array? handle)
@@ -288,8 +360,10 @@
     ((define-clr-method (name) type-handle method-name)
      (define name
        (let ((method-handle (clr/%get-method type-handle method-name '#())))
-         (lambda (object)
-           (clr/%invoke method-handle object '#())))))))
+         (if method-handle
+             (lambda (object)
+               (clr/%invoke method-handle object '#()))
+             (error (string-append "Method "method-name" not found."))))))))
 
 (define-clr-method (clr-app-domain/%get-assemblies)
   clr-type-handle/system-appdomain "GetAssemblies")
@@ -347,7 +421,7 @@
                                         (vector clr-type-handle/system-type
                                                 clr-type-handle/system-int32))))
     (lambda (class-handle number)
-      (clr/%invoke method-handle #f (vector class-handle number)))))
+      (clr/%invoke method-handle #f (vector class-handle (clr/%number->foreign-int32 number))))))
 
 (define clr-field-info/%get-value
   (let ((method (clr/%get-method clr-type-handle/system-reflection-fieldinfo "GetValue"
@@ -413,6 +487,7 @@
                                        arglist-instance-non-public))))))
 
 (define (find-clr-type clr-type-name)
+  (dotnet-message 5 "FIND-CLR-TYPE " clr-type-name)
   (let ((canonical-name
          (cond ((string? clr-type-name) clr-type-name)
                ((symbol? clr-type-name) (symbol->string clr-type-name))
@@ -432,281 +507,3 @@
                       (if (%clr-type? probe)
                           probe
                           (loop (+ idx 1) limit))))))))))
-
-#||
-(define (foreign? object) (%foreign object))
-(define (ffi:isa? object type) (clr/%isa? object type))
-(define (ffi:eq? left right) (or (eq? left right) (clr/%eq? left right)))
-
-(define (foreign-null? object)
-  (clr/%eq? object foreign-null))
-
-(define (ffi:get-type name)
-  (if (string? name)
-      (clr/%get-type name)
-      (error "get-type: expected a string, got " name)))
-
-(define (ffi:get-method type name argtypes)
-  (if (not (and (%foreign? type) (clr/%isa? type type%)))
-      (error "ffi:get-method: expected type, got: " type))
-  (if (not (string? name))
-      (error "ffi:get-method: expected string, got: " name))
-  (clr/%get-method type name (list->vector argtypes)))
-
-
-(define (ffi:default-in-marshaler class-name)
-  (cond
-        ((string=? class-name "System.Byte")   ffi:foreign->int)
-        ((string=? class-name "System.Char")   ffi:foreign->int)
-        ((string=? class-name "System.Double") ffi:foreign->double)
-        ((string=? class-name "System.Int16")  ffi:foreign->int)
-        ((string=? class-name "System.Int32")  ffi:foreign->int)
-        ((string=? class-name "System.Int64")  ffi:foreign->int)
-        ((string=? class-name "System.SByte")  ffi:foreign->int)
-        ((string=? class-name "System.Single") ffi:foreign->float)
-        ((string=? class-name "System.String") ffi:foreign->symbol)
-        ((string=? class-name "System.UInt16") ffi:foreign->int)
-        ((string=? class-name "System.UInt32") ffi:foreign->int)
-        ((string=? class-name "System.UInt64") ffi:foreign->int)
-        (else #f)))
-
-(define (ffi:datum->foreign conversion obj)
-  (case conversion
-    ((object) (syscall 34 2 0 obj))
-    ((schemeobject) (syscall 34 2 1 obj))
-    ((string) (syscall 34 2 2 obj))
-    ((bytes) (syscall 34 2 4 obj))
-    ((int) (syscall 34 2 5 obj))
-    ((float) (syscall 34 2 6 obj))
-    ((double) (syscall 34 2 7 obj))
-    ((void)
-     (error "ffi:datum->foreign: void conversion not allowed"))
-
-    ((symbol)
-     (if (symbol? obj)
-         (ffi:datum->foreign 'string obj)
-         (error "ffi:datum->foreign (symbol): expected symbol")))
-    ((scheme)
-     (if (%foreign? obj) obj (ffi:datum->foreign 'schemeobject obj)))
-    ((bool) (if obj foreign-true foreign-false))
-    (else
-     (error "ffi:datum->foreign: unknown conversion: " conversion))))
-
-(define (ffi:foreign->datum conversion obj)
-  (case conversion
-    ((object) (syscall 34 3 0 obj))
-    ((schemeobject) (syscall 34 3 1 obj))
-    ((string) (syscall 34 3 2 obj))
-    ((bytes) (syscall 34 3 4 obj))
-    ((int) (syscall 34 3 5 obj))
-    ((float) (syscall 34 3 6 obj))
-    ((double) (syscall 34 3 7 obj))
-    ((void) (unspecified))
-
-    ((symbol)
-     (string->symbol (ffi:foreign->datum 'string obj)))
-    ((scheme)
-     (if (and (%foreign? obj) (clr/%isa? obj schemeobject%))
-         (ffi:foreign->datum 'schemeobject obj)
-         obj))
-    ((bool) (ffi:eq? foreign-true obj))
-    (else
-     (error "ffi:foreign->datum: unknown conversion: " conversion))))
-
-(define (ffi:invoke method obj . args)
-  (clr/%invoke method obj (list->vector args)))
-
-(define (ffi:get-constructor type argtypes)
-  (clr/%get-constructor type (list->vector argtypes)))
-
-(define (ffi:construct c args)
-  (clr/%invoke-constructor c (list->vector args)))
-
-(define (foreign-or-fixnum? x)
-  (or (fixnum? x) (%foreign? x)))
-
-(define (ffi:ensure-type t client)
-  (cond ((string? t)
-         (clr/%get-type t))
-        ((and (%foreign? t) (clr/%isa? t type%))
-         t)
-        (else
-         (error client " expected type, got: " t))))
-
-(define ffi:foreign-array-length
-  (let ((property (clr/%get-property array% "Length")))
-    (lambda (foreign-array)
-      (clr/%property-ref-int property foreign-array '#()))))
-
-(define (map-foreign-array proc handle)
-  (if (clr/%isa? handle array%)
-      (let loop ((result '())
-                 (idx     0)
-                 (limit  (ffi:foreign-array-length handle)))
-        (if (>= idx limit)
-            (reverse! result)
-            (loop (cons (proc (clr/%foreign-aref handle idx)) result)
-                  (+ idx 1)
-                  limit)))
-      (error "map-foreign-array: not a foreign array" handle)))
-
-;; ----
-
-(define (clr-method->procedure type name argtypes)
-  (define (ensure-type t) (ffi:ensure-type t 'clr-method->procedure))
-  (let ((type (ensure-type type)))
-    (cond ((not (string? name))
-           (error "clr-method->procedure: expected string for method name, got: "
-                  name))
-          ((not (list? argtypes))
-           (error "clr-method->procedure: expected list of argument types, got: "
-                  argtypes))
-          (else
-           (let ((argtypes (map ensure-type argtypes)))
-             (let ((mi (ffi:get-method type name argtypes)))
-               (if (not mi)
-                   (error "clr-method->procedure: no such method"))
-               (lambda args
-                 (apply ffi:invoke mi args))))))))
-
-(define (clr-constructor->procedure type argtypes)
-  (define (ensure-type t) (ffi:ensure-type t 'clr-constructor->procedure))
-  (let ((type (ensure-type type)))
-    (cond ((not (list? argtypes))
-           (error
-            "clr-constructor->procedure: expected list of argument types, got: "
-            argtypes))
-          (else
-           (let ((argtypes (map ensure-type argtypes)))
-             (let ((ci (ffi:get-constructor type argtypes)))
-               (if (not ci)
-                   (error "clr-constructor->procedure: no such constructor"))
-               (lambda args
-                 (ffi:construct ci args))))))))
-
-(define (wrap-foreign-procedure p return-c arg-cs)
-  (if (not (procedure? p))
-      (error "wrap-foreign-procedure: expected procedure, given: " p))
-  (lambda args
-    (ffi:foreign->datum return-c
-                        (apply p (map ffi:datum->foreign arg-cs args)))))
-
-(define (static-method m)
-  (lambda args
-    (apply m #f args)))
-
-(define (wrap-foreign-property ps obj-c newval-c)
-  (lambda (obj . newval)
-    (cond ((null? newval)
-           (if (car ps)
-               (ffi:foreign->datum newval-c
-                                   ((car ps) (ffi:datum->foreign obj-c obj)))
-               (error "foreign-property: not accessible")))
-          (else
-           (if (cdr ps)
-               ((cdr ps) (ffi:datum->foreign obj-c obj)
-                         (ffi:datum->foreign newval-c (car newval)))
-               (error "foreign-property: not settable"))))))
-
-(define (clr-field->procedures type name)
-  (let ((fi (clr/%get-field type name)))
-    (if (not fi)
-        (error "clr-field->procedures: no such field"))
-    (cons
-     (lambda (obj) (clr/%field-ref fi obj))
-     (lambda (obj newval) (clr/%field-set! fi obj newval)))))
-
-(define (clr-property->procedures type name)
-  (let ((pi (clr/%get-property type name)))
-    (if (not pi)
-        (error "clr-property->procedures: no such property"))
-    (cons
-     (lambda (obj . args) (clr/%property-ref pg obj (list->vector args)))
-     (lambda (obj newval . args) (clr/%property-set! ps obj newval (list->vector args))))))
-
-;; ----
-
-(define object.to-string
-  (wrap-foreign-procedure (clr-method->procedure object% "ToString" '())
-                          'string '(scheme)))
-(define object.equals
-  (wrap-foreign-procedure
-   (clr-method->procedure object% "Equals" (list object%))
-   'bool '(scheme scheme)))
-(define object.get-type
-  (wrap-foreign-procedure
-   (clr-method->procedure object% "GetType" '())
-   'object '(scheme)))
-
-(define string.length$$ (clr-property->procedures string% "Length"))
-(define string.length
-  (wrap-foreign-property string.length$$ 'string 'int))
-
-(define pair.car$$
-  (clr-field->procedures (ffi:get-type "Scheme.Rep.SPair") "first"))
-(define pair.car
-  (wrap-foreign-property pair.car$$ 'scheme 'scheme))
-
-(define array.length
-  (wrap-foreign-property
-   (clr-property->procedures array% "Length")
-   'object 'int))
-(define array.get
-  (wrap-foreign-procedure
-   (clr-method->procedure array% "GetValue" (list int%))
-   'scheme '(object int)))
-(define array.set
-  (wrap-foreign-procedure
-   (clr-method->procedure array% "SetValue" (list object% int%))
-   'void '(object object int)))
-
-(define array.new
-  (static-method
-   (wrap-foreign-procedure
-    (clr-method->procedure array% "CreateInstance" (list type% int%))
-    'object '(scheme object int))))
-
-(define type.base-type
-  (wrap-foreign-property
-   (clr-property->procedures type% "BaseType")
-   'object 'object))
-
-;; Assemblies
-
-(define assembly% (ffi:get-type "System.Reflection.Assembly"))
-
-(define assembly.get-type
-  (wrap-foreign-procedure
-   (clr-method->procedure assembly% "GetType" (list string%))
-   'object '(object string)))
-
-(define assembly.load
-  (static-method
-   (wrap-foreign-procedure
-    (clr-method->procedure assembly% "Load" (list string%))
-    'object '(scheme string))))
-
-(define assembly.load/partial
-  (static-method
-   (wrap-foreign-procedure
-    (clr-method->procedure assembly% "LoadWithPartialName" (list string%))
-    'object '(scheme string))))
-
-;; ----
-;(define forms@ (assembly.load/partial "System.Windows.Forms"))
-;(define control%
-;  (assembly.get-type forms@ "System.Windows.Forms.Control"))
-;(define form%
-;  (assembly.get-type forms@ "System.Windows.Forms.Form"))
-;
-;(define form.new
-;  (clr-constructor->procedure form% '()))
-;(define form.show
-;  (wrap-foreign-procedure
-;   (clr-method->procedure form% "Show" '())
-;   'void '(object)))
-;(define control.left
-;  (wrap-foreign-property
-;   (clr-property->procedures control% "Left")
-;   'object 'int))
-||#
