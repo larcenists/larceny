@@ -9,7 +9,6 @@ using Scheme.Rep;
  */
 namespace Scheme.RT {
     public class DynLoad {
-
         public static void Main(string[] args) {
             bool keepRunning = true;
             foreach (string arg in args) {

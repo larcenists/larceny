@@ -7,6 +7,15 @@ namespace Scheme.RT {
     public class FFI {
 
         public static void ffi_syscall() {
+            try {
+                ffi_syscall_main();
+            } catch (Exception e) {
+                Exn.debug.WriteLine("exception in ffi: " + e.ToString());
+                Exn.fault(Constants.EX_UNSUPPORTED);
+            }
+        }
+
+        private static void ffi_syscall_main() {
             SObject scode = Reg.register2;
             SObject arg1 = Reg.register3;
             SObject arg2 = Reg.register4;
@@ -33,16 +42,26 @@ namespace Scheme.RT {
                 Reg.Result = getMethod(t, name, types);
                 return;
             }
-            case 2: // scheme -> clr
-                Reg.Result = Factory.makeForeign(Scheme2CLR(arg1));
+            case 2: // foreign-box
+                // Reg.Result = Factory.makeForeign(Scheme2CLR(arg1));
+                Reg.Result = Factory.makeForeign(arg1);
                 return;
-            case 3: // clr -> scheme
-                Reg.Result = CLR2Scheme(((Foreign)arg1).value);
+            case 3: // foreign-unbox
+                // Reg.Result = CLR2Scheme(((Foreign)arg1).value);
+                object value = ((Foreign)arg1).value;
+                if (value is SObject) {
+                    Reg.Result = (SObject) value;
+                } else {
+                    Reg.Result = Factory.False;
+                }
                 return;
             case 4: // invoke
             {
                 MethodInfo m = (MethodInfo) ((Foreign)arg1).value;
-                object obj = ((Foreign)arg2).value;
+                object obj = null;
+                if (!m.IsStatic) {
+                    obj = ((Foreign)arg2).value;
+                }
                 SObject[] sargv = ((SVL)arg3).elements;
                 object[] args = new object[sargv.Length];
                 for (int i = 0; i < args.Length; ++i) {
@@ -75,20 +94,53 @@ namespace Scheme.RT {
             case 8: // field-get
             {
                 FieldInfo f = (FieldInfo) ((Foreign)arg1).value;
-                object obj = ((Foreign)arg2).value;
+                object obj = null;
+                if (!f.IsStatic) {
+                    obj = ((Foreign)arg2).value;
+                }
                 Reg.Result = Factory.makeForeign(f.GetValue(obj));
                 return;
             }
             case 9: // field-set
             {
                 FieldInfo f = (FieldInfo) ((Foreign)arg1).value;
-                object obj = ((Foreign)arg2).value;
+                object obj = null;
+                if (!f.IsStatic) {
+                    obj = ((Foreign)arg2).value;
+                }
                 object newvalue = ((Foreign)arg3).value;
                 f.SetValue(obj, newvalue);
                 Reg.Result = Factory.Unspecified;
                 return;
             }
-            
+            case 10: // foreign?
+            {
+                Reg.Result = Factory.wrap(arg1 is Foreign);
+                return;
+            }
+            case 11: // get-constructor
+            {
+                Type t = (Type) ((Foreign)arg1).value;
+                SObject[] typev = ((SVL)arg2).elements;
+                Type[] types = new Type[typev.Length];
+                for (int i = 0; i < types.Length; ++i) {
+                    types[i] = (Type) ((Foreign)typev[i]).value;
+                }
+                Reg.Result = Factory.makeForeignF(t.GetConstructor(types));
+                return;
+            }
+            case 12: // invoke-constructor
+            {
+                ConstructorInfo m = (ConstructorInfo) ((Foreign)arg1).value;
+                SObject[] sargv = ((SVL)arg2).elements;
+                object[] args = new object[sargv.Length];
+                for (int i = 0; i < args.Length; ++i) {
+                    args[i] = ((Foreign)sargv[i]).value;
+                }
+                Reg.Result = Factory.makeForeign(m.Invoke(args));
+                return;
+            }
+
             }
             Exn.fault(Constants.EX_UNSUPPORTED, "bad ffi syscall code");
             return;
@@ -160,5 +212,9 @@ namespace Scheme.RT {
             object result = m.Invoke(obj, args);
             return Factory.makeForeign(result);
         }
+        
+        public static SObject ForeignNull = null;
+        
+        
     }
 }
