@@ -9,6 +9,14 @@
 ; It takes too long to test every combination of compiler switches,
 ; so we have to factor them into moderately independent sets.
 
+; A small set of switches is useful for quick sanity checks.
+
+(define sanity-switches
+  (list integrate-procedures
+        global-optimization
+        peephole-optimization
+        runtime-safety-checking))
+
 ; Switches that exist primarily for compiler research,
 ; and are seldom disabled by real users.
 
@@ -22,14 +30,14 @@
 ; Compiler and assembler switches that are likely to interact.
 
 (define optimization-switches
-  (list integrate-usual-procedures
+  (list integrate-procedures
         benchmark-mode
-        benchmark-block-mode
+;        benchmark-block-mode
         ;global-optimization ; must be on for some of these tests
         interprocedural-inlining
         interprocedural-constant-propagation
         common-subexpression-elimination
-        ;representation-inference ; not yet implemented
+        representation-inference
         local-optimization
         
         ; Assembler switches
@@ -47,7 +55,7 @@
         ))
 
 (define files
-  '("p2tests" "p4tests"))
+  '("p2tests" "p4tests" "primtests"))
 
 (define (run-compiler-tests . rest)
 
@@ -71,7 +79,8 @@
                 files)
       (for-each (lambda (fn)
                   (load (string-append fn ".fasl")))
-                files))))
+                files)))
+  (newline))
 
 ; Warnings are too annoying with this test.
 
