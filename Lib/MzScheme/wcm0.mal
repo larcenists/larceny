@@ -1,0 +1,48 @@
+
+;; FIXME: need to implement frame-coalescing.
+;; PROBLEM: this is going to totally fail when we
+;;   try to coalesce frames in interpreted code.
+
+;; call-with-continuation-mark : mark (-> 'a) -> 'a
+;; Installs a frame with known structure on the continuation stack
+;; and invokes thunk.
+
+;; Mark Frame structure
+;; +----------------------+
+;; | RA | up | ENV | mark |
+;; +----------------------+
+;;   --   --  slot0  slot1
+;;
+;; On a mark frame, ENV will always be 'call-with-continuation-mark',
+;; so we can test for that and just pluck the value out.
+
+`((,$lambda ((,$.proc)
+             (,$args= 2)
+             (,$save 1)
+             (,$store 0 0) ;; unnecessary?!
+             (,$store 1 1)
+             (,$reg 2)     ;; Load procedure argument
+             (,$setrtn 1001)
+             (,$invoke 0)    ;; Invoke thunk... mark frame remains!
+             
+             (,$.label 1001)
+             (,$pop 1)       ;; Remove mark frame.
+             (,$return))
+            0
+            #f)
+  (,$setglbl call-with-continuation-mark)
+  (,$const   call-with-continuation-mark)
+  (,$return))
+ 
+;`((,$lambda ((,$.proc)
+;             (,$args= 1)
+;             (,$reg 1)     ;; Thunk
+;             (,$setreg 31) ;; Move to temp
+;             (,$op1 creg)  ;; Get continuation object
+;             (,$setreg 1)  ;; Place as argument to thunk.
+;             (,$reg 31)
+;             (,$invoke 1))
+;            0
+;            #f)
+;  (,$setglbl call-with-continuation-object)
+;  (,$const   call-with-continuation-object))
