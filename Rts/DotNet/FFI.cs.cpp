@@ -119,6 +119,8 @@ namespace Scheme.RT {
 
             case 6: // foreign-eq?
             {
+                // this is a mess and should be rewritten!  ~jrm
+
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
                 // SObject arg3 = Reg.register5;
@@ -128,9 +130,21 @@ namespace Scheme.RT {
                     }
                 else if (arg1 is ForeignBox) {
                     if (arg2 is ForeignBox) {
-                        Reg.Result = ((((ForeignBox)arg1).value) == (((ForeignBox)arg2).value))
-                            ? Factory.True
-                            : Factory.False;
+                        // We can't use the Equals method on null objects,
+                        // so we have to test for those first.
+                        if (((ForeignBox)arg1).value == null) {
+                            Reg.Result = (((ForeignBox)arg2).value == null)
+                                ? Factory.True
+                                : Factory.False;
+                            }
+                        else if (((ForeignBox)arg2).value == null) {
+                            Reg.Result = Factory.False;
+                            }
+                        else {
+                            Reg.Result = ((((ForeignBox)arg1).value).Equals (((ForeignBox)arg2).value))
+                                ? Factory.True
+                                : Factory.False;
+                            }
                         }
                     else if (arg2 is SFixnum) {
                         Reg.Result = Factory.False;
