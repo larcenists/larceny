@@ -53,6 +53,12 @@
 	((selected? (car list)) (car list))
 	(else (find selected? (cdr list)))))
 
+; Map proc over lists and return all non-#f values.
+
+(define (filter-map proc . lists)
+  (filter (lambda (x) x)
+          (apply map proc lists)))
+
 ; Return a list with all duplicates (according to predicate) removed.
 
 (define (remove-duplicates list same?)
