@@ -6,17 +6,32 @@
 
 ($$trace "print")
 
+;; Make this a parameter so that callable structures and instances can
+;; hook in.
+(define procedure-printer
+  (make-parameter
+   "procedure-printer"
+   (lambda (procedure port slashify)
+     (print (string-append "#<PROCEDURE"
+                           (let ((doc (procedure-name procedure)))
+                             (if doc
+                                 (string-append " " (symbol->string doc))
+                                 ""))
+                           ">")
+            port
+            #f))))
+
 (define (print x p slashify)
-  
+
   (define write-char io/write-char)
-     
+
   (define quoters '(quote quasiquote unquote unquote-splicing))
-     
+
   (define quoter-strings '((quote . "'")
 			   (quasiquote . "`")
 			   (unquote . ",")
 			   (unquote-splicing . ",@")))
-     
+
   (define funny-characters (list #\" #\\ #\;))
 
   (define ctrl-B (integer->char 2))
@@ -37,10 +52,10 @@
 	  (else
            (write-char (string-ref "(" 0) p)
            (print (car x) p slashify (- level 1))
-           (print-cdr (cdr x) p slashify 
-                      (- level 1) 
+           (print-cdr (cdr x) p slashify
+                      (- level 1)
                       (- (or (print-length) 0) 1)))))
-     
+
   (define (print-cdr x p slashify level length)
     (cond ((null? x)
            (write-char (string-ref ")" 0) p))
@@ -54,7 +69,7 @@
 	   (write-char #\space p)
            (print (car x) p slashify level)
            (print-cdr (cdr x) p slashify level (- length 1)))))
-     
+
   (define (printstr s p)
 
     (define (loop x p i n)
@@ -63,7 +78,7 @@
 		 (loop x p (+ 1 i) n))))
 
     (loop s p 0 (string-length s)))
-     
+
   (define (print-slashed-string s p)
 
     (define (loop x p i n)
@@ -87,7 +102,7 @@
 	    (loop x p (+ 1 i) n))))
 
     (loop s p 0 (bytevector-length s)))
-     
+
   (define (patom x p slashify level)
     (cond ((eq? x '())              (printstr "()" p))
 	  ((not x)                  (printstr "#f" p))
@@ -121,7 +136,7 @@
 	  ((structure? x)
 	   ((structure-printer) x p slashify))
 	  (else                     (printweird x p slashify))))
-     
+
   (define (printnumber n p slashify)
     (if (eq? slashify **lowlevel**)
 	(cond ((flonum? n)
@@ -139,7 +154,7 @@
 	      (else
 	       (printstr (number->string n) p)))
 	(printstr (number->string n) p)))
-     
+
   (define (printcharacter c p)
     (write-char #\# p)
     (write-char #\\ p)
@@ -152,16 +167,10 @@
 	    ((= k **form-feed**) (printstr "page" p))
 	    ((= k **backspace**) (printstr "backspace" p))
 	    (else (write-char c p)))))
-     
+
   (define (printprocedure x p slashify)
-    (printstr (string-append "#<PROCEDURE"
-			     (let ((doc (procedure-name x)))
-			       (if doc
-				   (string-append " " (symbol->string doc))
-				   ""))
-			     ">")
-	      p))
-     
+    ((procedure-printer) x p slashify))
+
   (define (printbytevector x p slashify)
     (if (eq? slashify **lowlevel**)
 	(begin (write-char #\# p)
@@ -170,7 +179,7 @@
 	       (print-slashed-bytevector x p)
 	       (write-char #\" p))
 	(printstr "#<BYTEVECTOR>" p)))
-     
+
   (define (printport x p slashify)
     (printstr (string-append "#<" (cond ((input-port? x) "INPUT PORT ")
 					((output-port? x) "OUTPUT PORT ")
@@ -178,17 +187,17 @@
 			     (port-name x)
 			     ">")
 	      p))
-     
+
   (define (printeof x p slashify)
     (printstr "#<EOF>" p))
-     
+
   (define (printweird x p slashify)
     (printstr "#<WEIRD OBJECT>" p))
-     
+
   (define (print-quoted x p slashify level)
     (printstr (cdr (assq (car x) quoter-strings)) p)
     (print (cadr x) p slashify (- level 1)))
-    
+
   (print x p slashify (+ (or (print-level) -2) 1)))
 
 (define print-length
@@ -222,7 +231,7 @@
 (define **lowlevel** (list 0))   ; any unforgeable value
 
 (define **nonprinting-value** (unspecified))
-  
+
 (define write
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
