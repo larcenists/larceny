@@ -49,12 +49,6 @@
 	  x
 	  fn)))
 
-  ; Temporary.
-
-  (define (check)
-    (if (memq 'every1? (environment-variables (interaction-environment)))
-	(begin (display "*** HERE ***") (newline))))
-
   (define (loadf files env)
     (for-each (lambda (fn)
 		(let ((fn (prefer-fasl (string-append basedir fn))))
