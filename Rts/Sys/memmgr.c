@@ -162,8 +162,15 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
     return roundup_page( upper_limit - (int)(upper_limit/L) );
   }
 
-  M = max( M, lower_limit );
-
+  if (lower_limit) {
+    /* Must adjust estimate of live at next GC to avoid inflating
+       the allocation budget beyond reason, if not much is live at
+       present.
+       */
+    M = max( M, lower_limit );
+    est_live_next_gc = max( M/L, est_live_next_gc );
+  }
+  
   if (!DATA(gc)->shrink_heap) {
     gclib_stats_t stats;
 
