@@ -975,7 +975,7 @@ _m_generic_exception:
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
 	cmp	%TMP1, UNSPECIFIED_CONST
 	be	Lgeneric_exception
-	nop
+	mov	%TMP0, %TMP1
 	mov	4, %TMP1
 	b	_scheme_call
 	mov	MS_EXCEPTION_HANDLER, %TMP2
@@ -1070,10 +1070,10 @@ _undef_exception:
 
 Lgeneric_exception:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]
+!	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]
 	call	_mem_save_scheme_context
 	nop
-	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
+!	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
 	mov	%TMP1, %g1
 
 	save	%sp, -96, %sp
