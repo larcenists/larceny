@@ -341,7 +341,6 @@ Interpreter
 
 Debugging
   * Document the debugger.
-  * Trace/break procedures rather than names.
   * Record source file name in debug info, if available.
   * Record source code location in debug info, if available.
     This is how to do it: install a reader macro for #\(.  This macro
@@ -382,14 +381,11 @@ Debugging
         the compiled code in .BCH files.  We can do this too.  A related 
         trick is to dynamically shuffle debugging info to disk as FASL files
         are loaded.)
-  * Rename the current `break' primitive as `debugvsm' and do not change
-    its functionality.
-  * Create a new `break' primitive that traps to a user-configurable handler
-    in the same way interrupts are now handled.
+  * Create a debugvsm primitive that does what break used to do.
   * Graph printing and reading could vastly reduce the amount of 
     source code emitted as part of the documentation, where code may now be
     duplicated during writing and reading.  (Not a problem for in-memory
-    compilation.)
+    compilation.)  (Better to just support source file locations.)
   * Full support for interpreted code.
   * A more generalized object inspector (a la what Chez Scheme has).
   * Single-stepping, especially in interpreted code.
