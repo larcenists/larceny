@@ -13,13 +13,12 @@
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
 ; 'a' is known to be a non-fixnum exact number, or not a number at all.
-; FIXME: should ratnum case be handled by Algorithm Bellerophon?
 
 (define (generic-exact->inexact a)
   (cond ((bignum? a) 
-	 (bignum->flonum a))
+	 (exact->inexact:rational a))
 	((ratnum? a)
-	 (/ (exact->inexact (numerator a)) (exact->inexact (denominator a))))
+	 (exact->inexact:rational a))
 	((rectnum? a) 
 	 (make-rectangular (exact->inexact (real-part a))
 			   (exact->inexact (imag-part a))))
@@ -27,11 +26,6 @@
 	 (error "exact->inexact: " a " is not a number.")
 	 #t)))
 
-; Currently not used, but should be -- the above ratnum case is not right.
-;
-; WARNING: there are unbound global variables in this code [make-float
-; comes to mind].  Inspect very carefully.
-;
 ; Date: Mon, 18 May 1998 13:41:40 -0400
 ; From: William D Clinger <will@ccs.neu.edu>
 ;
@@ -44,7 +38,7 @@
 ; Test case: (exact->inexact 14285714285714285714285) should be
 ; 1.4285714285714286e22, not 1.4285714285714284e22.
 
-'(define exact->inexact:rational
+(define exact->inexact:rational
   (let* ((n         53)
          (two^n-1   4503599627370496)     ; (expt 2 (- n 1))
          (two^n     9007199254740992)     ; (expt 2 n)
@@ -93,14 +87,22 @@
       (if (< q flonum:minexponent)
           (make-float (* .5 m) (+ q 1))
           (* (+ m 0.0) (expt 2.0 q))))
-    
+
+    (define (exact->inexact-internal x)
+      (cond ((fixnum? x)
+	     (exact->inexact x))
+	    ((bignum? x)
+	     (bignum->flonum x))
+	    (else
+	     (error "Impossible case in exact->inexact:rational"))))
+
     (lambda (r)
       (if (negative? r)
           (- (exact->inexact:rational (- r)))
           (let* ((p (numerator r))
                  (q (denominator r))
-                 (x (/ (exact->inexact p)
-                       (exact->inexact q))))
+		 (x (/ (exact->inexact-internal p)
+		       (exact->inexact-internal q))))
             (if (and (<= p two^n)
                      (<= q two^n))
                 x
@@ -156,28 +158,6 @@
   (cond ((= b 0) (error "fixnum2ratnum-div: division by zero") #t)
 	((< b 0) (make-reduced-ratnum (- a) (- b)))
 	(else    (make-reduced-ratnum a b))))
-
-
-; Obsolete
-
-(define (generic-make-rectangular a b) 
-  (error "Call to obsolete generic-make-rectangular.")
-  (cond ((exact? a)
-	 (if (exact? b)
-	     (if (= b 0)
-		 a
-		 (make-rectnum a b))
-	     (if (= b 0.0)
-		 (exact->inexact a)
-		 (make-compnum (exact->inexact a) b))))
-	((exact? b)
-	 (if (= b 0)
-	     a
-	     (make-compnum a (exact->inexact b))))
-	(else
-	 (if (= b 0.0)
-	     a
-	     (make-compnum a b)))))
 
 
 ; "install-millicode-support" makes a vector of *all* scheme procedures
@@ -288,7 +268,7 @@
 		   #f
 		   #f
 		   #f
-		   generic-make-rectangular ; loc 90
+		   #f                                   ; loc 90
 		   generic-inexact->exact
 		   generic-exact->inexact
 		   )))
