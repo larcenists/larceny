@@ -249,12 +249,13 @@
                       (cons var (R-entry.references R-entry)))
                      var))
                   ((javadot)
-                   (let* ((dot-javadot (make-identifier '.javadot))
+                   (let* ((dot-javadot '.javadot)
                           (id exp)
-                          (new-exp `(,dot-javadot ,id)))
-                     (display ">> ") (display new-exp) (newline)
+                          (new-exp (list dot-javadot id)))
+                     ;(for-each display `(">>" ,new-exp "<<"))
+                     ;(newline)
                      (m-expand new-exp
-                              env)))
+                               env)))
                   (else (m-bug "Bug detected by m-atom" exp env)))))))
 
 (define (m-quote exp)

@@ -193,6 +193,8 @@
 (define recognize-javadot-symbols? (make-parameter #f boolean?))
 (define case-sensitive? (make-parameter #f boolean?))
 (define javadot-symbol? (lambda (x) #f))
+(define (javadot-symbol->symbol x) x)
+(define (symbol->javadot-symbol x) x)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

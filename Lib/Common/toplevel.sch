@@ -351,12 +351,15 @@
   (environment-set-macro! larc 'let*-values (usual-syntax 'let*-values))
 
   ;; JavaDot and case-sensitivity
+  (environment-set-macro! larc '.javadot (usual-syntax '.javadot))
+  
   (environment-set! larc 'case-sensitive? case-sensitive?)
   (environment-set! larc
                     'recognize-javadot-symbols?
                     recognize-javadot-symbols?)
   (environment-set! larc 'javadot-symbol? javadot-symbol?)
-  ;; Do we need to add symbol->javadot-symbol, etc to the env?
+  (environment-set! larc 'javadot-symbol->symbol javadot-symbol->symbol)
+  (environment-set! larc 'symbol->javadot-symbol symbol->javadot-symbol)
 
   
   ;; pairs and lists

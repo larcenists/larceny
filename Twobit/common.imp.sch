@@ -203,15 +203,6 @@
             (macro-expand x (the-usual-syntactic-environment)))
 `(
 
-(define-syntax .javadot
-  (transformer
-   (lambda (exp rename compare)
-     (let ((exp (cadr exp)))
-       (display "!! .javadot macro invoked (common.imp.sch 209)")
-       (newline)
-       (display "   exp = ") (display exp) (newline)
-       exp))))
-
 (define-syntax .rewrite-eqv?
   (transformer
    (lambda (exp rename compare)

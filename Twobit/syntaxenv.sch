@@ -88,7 +88,7 @@
 
 (define (syntactic-environment-names syntaxenv)
   (let loop ((e syntaxenv) (n '()))
-    (if (null? e) 
+    (if (null? e)
         n
         (let ((name (caar e)))
           (cond ((eq? name lambda0) (loop (cdr e) n))
