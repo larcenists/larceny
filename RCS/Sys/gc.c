@@ -2,7 +2,7 @@
  * Ephemeral garbage collector (for Scheme).
  * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 1.6 91/07/03 20:49:57 lth Exp Locker: lth $
+ * $Id: gc.c,v 1.7 91/07/03 20:53:27 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -49,6 +49,11 @@ static word *t_base, *t_max, *t_top, *t_trans;
 static word *t_new_base, *t_new_max;
 static word *s_base, *s_max;
 static word *stk_base, *stk_max;
+
+#ifdef DEBUG
+static unsigned pairs_copied;
+static unsigned vectors_copied;
+#endif
 
 static word forward();
 static unsigned words_used();
@@ -206,6 +211,10 @@ unsigned int type;
   words1 = words_used();
   words_allocated += words1 - words2;
 
+#ifdef DEBUG
+  pairs_copied = vectors_copied = 0;
+#endif
+
   if (must_tenure || type != EPHEMERAL_COLLECTION) {
 #ifdef DEBUG
     printf( "Tenuring collection commences...\n" );
@@ -213,6 +222,9 @@ unsigned int type;
     tenuring_collection();
     tcollections++;
     must_tenure = 0;
+#ifdef DEBUG
+    printf( "Copied %d bytes\n", (word) t_top - (word) t_base );
+#endif
   }
   else {
 #ifdef DEBUG
@@ -221,9 +233,14 @@ unsigned int type;
     ephemeral_collection();
     ecollections++;
     must_tenure = e_top > e_mark;
+#ifdef DEBUG
+    printf( "Copied %d bytes\n", (word) e_top - (word) e_base );
+#endif
   }
+
 #ifdef DEBUG
   printf( "Done collecting.\n" );
+  printf( "pairs: %d   vectors: %d\n", pairs_copied, vectors_copied );
 #endif
 
   words2 = words_used();
@@ -324,16 +341,24 @@ static ephemeral_collection()
 
   /*
    * Now do all the copied objects in newspace, until all are done.
+   * Caching the global variables in locals helps the compiler figure
+   * out that they won't change when forward() is called.
    */
-  ptr = e_new_base;
-  while (ptr < dest) {
-    if (ishdr( *ptr ) && header( *ptr ) == BV_HDR) {
-      size = (sizefield( *ptr ) + 3) >> 2;
-      ptr += size + 1;
-    }
-    else {
-      *ptr = forward( *ptr, e_base, e_max, &dest );
-      ptr++;
+  { word *my_e_base = e_base;
+    word *my_e_max = e_max;
+
+    ptr = e_new_base;
+    while (ptr < dest) {
+      if (ishdr( *ptr ) && header( *ptr ) == BV_HDR) {
+	size = roundup4( sizefield( *ptr ) );
+	ptr = (word *) ((word) ptr + (size + 4));
+      }
+      else if isptr( *ptr ) {
+	*ptr = forward( *ptr, my_e_base, my_e_max, &dest );
+	ptr++;
+      }
+      else
+	ptr++;
     }
   }
 
@@ -353,8 +378,8 @@ static ephemeral_collection()
  */
 static tenuring_collection()
 {
-  word *p, *dest, *tmp;
-  unsigned int i, size;
+  word *dest, *tmp;
+  unsigned int i;
 
   /*
    * 'Dest' is a pointer into newspace, at which point to place the object
@@ -373,25 +398,30 @@ static tenuring_collection()
 
   /*
    * Do the copied objects until there are no more.
+   * Caching the globals in locals are beneficial because the compiler
+   * can then make assumptions about them not changing.
    */
-  p = t_new_base;
-  while (p < dest) {
-    if (ishdr( *p ) && header( *p ) == BV_HDR) {
-      size = (sizefield( *p ) + 3) >> 2;
-      p += size + 1;
-    }
-    else {
-      if (isptr( *p )) {
-	if (ptrof( *p ) <= e_max) {
-	  word tmp;
+  { word *my_e_base = e_base;
+    word *my_e_max = e_max;
+    word *my_t_base = t_base;
+    word *my_t_max = t_max;
+    word *p =  t_new_base;
+    unsigned size;
 
-	  tmp = forward( *p, e_base, e_max, &dest );
-	  *p = tmp;
-	}
-	else
-	  *p = forward( *p, t_base, t_max, &dest );
+    while (p < dest) {
+      if (ishdr( *p ) && header( *p ) == BV_HDR) {
+	size = roundup4( sizefield( *p ) );
+	p = (word *) ((word) p + (size + 4));
       }
-      p++;
+      else {
+	if (isptr( *p )) {
+	  if (ptrof( *p ) <= my_e_max)
+	    *p = forward( *p, my_e_base, my_e_max, &dest );
+	  else
+	    *p = forward( *p, my_t_base, my_t_max, &dest );
+	}
+	p++;
+      }
     }
   }
 
@@ -419,9 +449,6 @@ static tenuring_collection()
  * by w is a pointer not into oldspace, then that pointer is returned. A
  * forwarding pointer is indistinguishable from a pointer which is to a space
  * different from oldspace. 
- *
- * [Implementation note: can we do better than memcpy() here because we know
- *  that the structure is aligned?]
  */
 static word forward( w, base, limit, dest )
 word w, *base, *limit, **dest;
@@ -449,15 +476,44 @@ word w, *base, *limit, **dest;
   tag = tagof( w );
   newptr = *dest;
   if (tag == PAIR_TAG) {
-    *((*dest)++) = *ptr++;
-    *((*dest)++) = *ptr++;
+    *newptr = *ptr++;
+    *(newptr+1) = *ptr++;
+    **dest += 2;
+#ifdef DEBUG
+    pairs_copied++;
+#endif
   }
-  else {                     /* vector-like (bytevector, vector, procedure) */
-    size = roundup4( sizefield( q ) + 4 );
-    memcpy( (char *) *dest, (char *) ptr, size );
-    *dest += size / 4;
+  else {    /* vector-like (bytevector, vector, procedure) */
+    unsigned size2;
+
+    size = roundup4( sizefield( q ) ) + 4;
+    size2 = roundup8( size );
+
+    {
+      /* The use of 'double' here is a hack that makes sense only if compiled
+       * with the '-dalign' switch on Sun's C compiler; it allows cc to use
+       * ldd and std instructions. We haven't substantiated that this is
+       * in fact a win. Ugh. And is it portable?
+       */
+      double *p1, *p2, *p3;
+
+      p1 = (double *) *dest;
+      p2 = (double *) ptr;
+      p3 = (double *)((word) *dest + size2);
+      while (p1 < p3)
+	*p1++ = *p2++;
+    }
+
+    *dest += size2 / 4;
+
+    /* Might need to zero out a padding word */
+
     if (size % 8 != 0)         /* need to pad out to doubleword? */
-      *((*dest)++) = (word) 0;
+      *(*dest-1) = (word) 0;
+
+#ifdef DEBUG
+    vectors_copied++;
+#endif
   }
 
   forw = (word) tagptr( newptr, tag );
