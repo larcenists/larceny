@@ -341,6 +341,7 @@
 
   (environment-set-macro! larc 'parameterize (usual-syntax 'parameterize))
   (environment-set-macro! larc 'let-values (usual-syntax 'let-values))
+  (environment-set-macro! larc 'let*-values (usual-syntax 'let*-values))
 
   ;; pairs and lists
 
