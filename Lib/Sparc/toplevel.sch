@@ -192,6 +192,18 @@
     (environment-set! larc 'rsha rsha)
     (environment-set! larc 'rshl rshl)
     (environment-set! larc 'lsh lsh)
+    (environment-set! larc 'fx+ fx+)
+    (environment-set! larc 'fx- fx-)
+    (environment-set! larc 'fx-- fx--)
+    (environment-set! larc 'fx* fx*)
+    (environment-set! larc 'fxzero? fxzero?)
+    (environment-set! larc 'fxpositive? fxpositive?)
+    (environment-set! larc 'fxnegative? fxnegative?)
+    (environment-set! larc 'fx= fx=)
+    (environment-set! larc 'fx< fx<)
+    (environment-set! larc 'fx<= fx<=)
+    (environment-set! larc 'fx> fx>)
+    (environment-set! larc 'fx>= fx>=)
 
     ;; Characters
 
