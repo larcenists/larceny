@@ -1433,6 +1433,17 @@ $Id$
     change the way the compiler operates but instead just reduce the
     primitive table to contain the name:* primitives.
 
+091 v0.40 (981219 / lth ) Fixed 2002-11-17 by lth
+    Priority: medium.
+    Category: TWOBIT / correctness
+
+    The macro expander generates calls to procedures (unspecified) and 
+    (undefined).  With (integrate-usual-primitives #f), this is incorrect 
+    -- either these should be the procedures (.unspecified) and (.undefined),
+    in which case see Bug 090, or they should be the correct constants.
+
+    Fixed by changing Compiler/prefs.sch and the primitive tables.
+
 092 v0.40 (981219 / lth) Fixed 990416 by wdc
     Priority: medium.
 

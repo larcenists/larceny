@@ -393,15 +393,6 @@ HIGH PRIORITY BUGS: none.
     This is partly implemented in Rts/Sys/signals.c but not complete; a 
     minor redesign of the exception handling system seems in order.
 
-091 v0.40 (981219 / lth )
-    Priority: medium.
-    Category: TWOBIT / correctness
-
-    The macro expander generates calls to procedures (unspecified) and 
-    (undefined).  With (integrate-usual-primitives #f), this is incorrect 
-    -- either these should be the procedures (.unspecified) and (.undefined),
-    in which case see Bug 090, or they should be the correct constants.
-
 095 v1.0a1 (981221 / lth)
     Priority: low
     Category: BUILD / correctness
