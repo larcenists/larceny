@@ -21,31 +21,31 @@
 
 (define (current-input-port . rest)
   (cond ((null? rest) *stdin*)
-	((null? (cdr rest))
-	 (let ((old *stdin*)
-	       (new (car rest)))
-	   (if (input-port? new)
-	       (begin (set! *stdin* new)
-		      old)
-	       (begin (error "current-input-port: not an input port: " new)
-		      #t))))
-	(else
-	 (error "current-input-port: too many arguments.")
-	 #t)))
+        ((null? (cdr rest))
+         (let ((old *stdin*)
+               (new (car rest)))
+           (if (input-port? new)
+               (begin (set! *stdin* new)
+                      old)
+               (begin (error "current-input-port: not an input port: " new)
+                      #t))))
+        (else
+         (error "current-input-port: too many arguments.")
+         #t)))
 
 (define (current-output-port . rest)
   (cond ((null? rest) *stdout*)
-	((null? (cdr rest))
-	 (let ((old *stdout*)
-	       (new (car rest)))
-	   (if (output-port? new)
-	       (begin (set! *stdout* new)
-		      old)
-	       (begin (error "current-output-port: not an output port: " new)
-		      #t))))
-	(else
-	 (error "current-output-port: too many arguments.")
-	 #t)))
+        ((null? (cdr rest))
+         (let ((old *stdout*)
+               (new (car rest)))
+           (if (output-port? new)
+               (begin (set! *stdout* new)
+                      old)
+               (begin (error "current-output-port: not an output port: " new)
+                      #t))))
+        (else
+         (error "current-output-port: too many arguments.")
+         #t)))
 
 ; Then there is code that does not depend on *stdin* or *stdout*, but
 ; that use only current-input-port and current-output-port.
@@ -66,50 +66,50 @@
 ;
 ;(define (read-char . rest)
 ;  (cond ((null? rest)
-;	 (io/read-char (current-input-port)))
-;	((null? (cdr rest))
-;	 (io/read-char (car rest)))
-;	(else
-;	 (error "read-char: too many arguments.")
-;	 #t)))
+;        (io/read-char (current-input-port)))
+;       ((null? (cdr rest))
+;        (io/read-char (car rest)))
+;       (else
+;        (error "read-char: too many arguments.")
+;        #t)))
 
 (define (peek-char . rest)
   (cond ((null? rest)
-	 (io/peek-char (current-input-port)))
-	((null? (cdr rest))
-	 (io/peek-char (car rest)))
-	(else
-	 (error "peek-char: too many arguments.")
-	 #t)))
+         (io/peek-char (current-input-port)))
+        ((null? (cdr rest))
+         (io/peek-char (car rest)))
+        (else
+         (error "peek-char: too many arguments.")
+         #t)))
 
 (define (char-ready? . rest)
   (cond ((null? rest)
-	 (io/char-ready? (current-input-port)))
-	((null? (cdr rest))
-	 (io/char-ready? (car rest)))
-	(else
-	 (error "char-ready?: too many arguments.")
-	 #t)))
+         (io/char-ready? (current-input-port)))
+        ((null? (cdr rest))
+         (io/char-ready? (car rest)))
+        (else
+         (error "char-ready?: too many arguments.")
+         #t)))
 
 ; Write-char has been re-coded in MAL for performance; see Lib/malcode.mal.
 ;
 ;(define (write-char c . rest)
 ;  (cond ((null? rest)
-;	 (io/write-char c (current-output-port)))
-;	((null? (cdr rest))
-;	 (io/write-char c (car rest)))
-;	(else
-;	 (error "write-char: too many arguments.")
-;	 #t)))
+;        (io/write-char c (current-output-port)))
+;       ((null? (cdr rest))
+;        (io/write-char c (car rest)))
+;       (else
+;        (error "write-char: too many arguments.")
+;        #t)))
 
 (define (write-bytevector-like bvl . rest)
   (cond ((null? rest)
-	 (io/write-bytevector-like bvl (current-output-port)))
-	((null? (cdr rest))
-	 (io/write-bytevector-like bvl (car rest)))
-	(else
-	 (error "write-bytevector-like: too many arguments.")
-	 #t)))
+         (io/write-bytevector-like bvl (current-output-port)))
+        ((null? (cdr rest))
+         (io/write-bytevector-like bvl (car rest)))
+        (else
+         (error "write-bytevector-like: too many arguments.")
+         #t)))
 
 (define (input-port? p)
   (io/input-port? p))
@@ -121,10 +121,16 @@
   (io/port-name p))
 
 (define (open-input-file filename)
-  (file-io/open-input-file filename))
+  (file-io/open-file filename 'input 'text))
 
 (define (open-output-file filename)
-  (file-io/open-output-file filename))
+  (file-io/open-file filename 'output 'text))
+
+(define (open-binary-input-file filename)
+  (file-io/open-file filename 'input 'binary))
+
+(define (open-binary-output-file filename)
+  (file-io/open-file filename 'output 'binary))
 
 (define (open-input-console)
   (console-io/open-input-console))
@@ -146,30 +152,30 @@
 
 (define (close-input-port p) 
   (cond ((input-port? p)
-	 (io/close-port p))
-	((not (output-port? p)) ; HACK: port is closed
-	 (unspecified))
-	(else
-	 (error "close-input-port: not an input port: " p)
-	 #t)))
+         (io/close-port p))
+        ((not (output-port? p)) ; HACK: port is closed
+         (unspecified))
+        (else
+         (error "close-input-port: not an input port: " p)
+         #t)))
 
 (define (close-output-port p)
   (cond ((output-port? p)
-	 (io/close-port p))
-	((not (input-port? p)) ; HACK: port is closed
-	 (unspecified))
-	(else
-	 (error "close-output-port: not an output port: " p)
-	 #t)))
+         (io/close-port p))
+        ((not (input-port? p)) ; HACK: port is closed
+         (unspecified))
+        (else
+         (error "close-output-port: not an output port: " p)
+         #t)))
 
 (define (flush-output-port . rest)
   (cond ((null? rest)
-	 (io/flush (current-output-port)))
-	((null? (cdr rest))
-	 (io/flush (car rest)))
-	(else
-	 (error "flush-output-port: too many arguments.")
-	 #t)))
+         (io/flush (current-output-port)))
+        ((null? (cdr rest))
+         (io/flush (car rest)))
+        (else
+         (error "flush-output-port: too many arguments.")
+         #t)))
 
 (define (call-with-input-file file proc)
   (let ((port (open-input-file file)))
@@ -179,6 +185,18 @@
 
 (define (call-with-output-file file proc)
   (let ((port (open-output-file file)))
+    (let ((r (proc port)))
+      (close-output-port port)
+      r)))
+
+(define (call-with-binary-input-file file proc)
+  (let ((port (open-binary-input-file file)))
+    (let ((r (proc port)))
+      (close-input-port port)
+      r)))
+
+(define (call-with-binary-output-file file proc)
+  (let ((port (open-binary-output-file file)))
     (let ((r (proc port)))
       (close-output-port port)
       r)))
@@ -212,6 +230,16 @@
 
 (define (with-output-to-file fn thunk)
   (call-with-output-file fn
+    (lambda (p)
+      (with-output-to-port p thunk))))
+
+(define (with-input-from-binary-file fn thunk)
+  (call-with-binary-input-file fn
+    (lambda (p)
+      (with-input-from-port p thunk))))
+
+(define (with-output-to-binary-file fn thunk)
+  (call-with-binary-output-file fn
     (lambda (p)
       (with-output-to-port p thunk))))
 
