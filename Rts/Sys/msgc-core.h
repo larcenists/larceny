@@ -1,4 +1,4 @@
-/* Copyright 1999 Lars T Hansen
+/* Copyright 1999 Lars T Hansen           -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -14,8 +14,11 @@ extern msgc_context_t *msgc_begin( gc_t *gc );
      return the context.
      */
 
-extern void msgc_mark_from_roots( msgc_context_t *context );
-  /* Mark the entire heap from roots.
+extern void msgc_mark_objects_from_roots( msgc_context_t *context, 
+                                          int *marked, int *traced );
+  /* Mark the entire heap from roots, marking only objects (not interior
+     locations).  Return number of objects marked in *marked and number
+     of pointers traced in *traced.
      */
 
 extern bool msgc_object_marked_p( msgc_context_t *context, word obj );
