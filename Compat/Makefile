@@ -3,6 +3,8 @@
 
 default:
 
+clean:
+
 realclean:
 	( cd Chez ; $(MAKE) realclean )
 	( cd Larceny ; $(MAKE) realclean )
