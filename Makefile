@@ -34,11 +34,10 @@ default:
 	@echo "  realclean      - remove all generated and backup files"
 
 setup:
-	rm -f bdwlarceny.bin hsplit larceny.bin Build
+	rm -f bdwlarceny.bin hsplit larceny.bin
 	ln -s Rts/larceny.bin
 	ln -s Rts/bdwlarceny.bin
 	ln -s Rts/hsplit
-	ln -s Rts/Build
 	mv build build.safe
 	sed "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" < build.safe > build || \
 	   ( echo "build hack failed!"; mv build.safe build; exit 1 )
@@ -72,7 +71,8 @@ lopclean:
 		Eval/*.*lop Eval/*.c Eval/*.o \
 		Repl/*.*lop Repl/*.c Repl/*.o \
 		Auxlib/*.*lop \
-		Testsuite/Lib/*.*lop
+		Testsuite/Lib/*.*lop \
+		Compiler/*.*lop
 
 libclean: lopclean
 	rm -f   Lib/Common/*.lap Lib/Sparc/*.lap Lib/Standard-C/*.lap \
@@ -80,7 +80,8 @@ libclean: lopclean
 		Eval/*.lap \
 		Repl/*.lap \
 		Auxlib/*.lap \
-		Testsuite/Lib/*.lap
+		Testsuite/Lib/*.lap \
+		Compiler/*.lap
 
 soclean:
 	rm -f Lib/*.so
@@ -103,7 +104,7 @@ faslclean:
 
 rtsclean:
 	rm -f *.map
-	rm -f larceny.bin petit-larceny.bin Build hsplit bdwlarceny.bin
+	rm -f larceny.bin petit-larceny.bin hsplit bdwlarceny.bin
 	rm -f Compat/Chez/*.o
 	( cd Rts ; $(MAKE) rtsclean )
 
@@ -121,9 +122,6 @@ tildeclean:
 
 rejclean:
 	rm -f `find . -name '*\.rej' -print`
-
-Build/schdefs.h:
-	@( cd Rts ; $(MAKE) Build/schdefs.h )
 
 # For Chez-hosted system
 
