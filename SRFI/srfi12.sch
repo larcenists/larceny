@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; See <http://srfi.schemers.org/srfi-12/srfi-12.html> for the full document.
+;
 ; Copyright (C) William Clinger, R. Kent Dybvig, Matthew Flatt, and 
 ; Marc Feeley (1999).  All rights reserved.
 ;
@@ -101,7 +103,9 @@
                   (error "No kind-key " kind-key " in " exn)
                   (let ((probe (memv prop-key probe)))
                     (if (not probe)
-                        (error "No prop-key " prop-key " for kind-key " kind-key " in " exn)
+                        (error "No prop-key " prop-key 
+                               " for kind-key " kind-key 
+                               " in " exn)
                         (cadr probe))))))))
   #t)
 
