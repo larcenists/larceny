@@ -28,13 +28,14 @@
  * are in a separate segment) so that the collector will not get confused
  * about instructions looking like data.
  *
- * The code in this file is reentrant.
- * The code in this file does not rely on word size.
- * The code in this file does not depend on header size.
+ * The code in this file is not reentrant.
+ * The code in this file does not depend on word size.
+ * The code in this file does not depend on object header size.
  */
 
 #define BDW_CLEAR_STACK 1
 #define BDW_DEBUG       1
+#define USE_HR_TIMER    1	/* Nanosecond timer; SunOS 5.6 (at least) */
 
 #define GC_INTERNAL
 
@@ -47,7 +48,7 @@
 #include "memmgr.h"
 #include "gclib.h"
 #include "barrier.h"
-#include "heap_stats_t.h"
+#include "stats.h"
 #include "stack.h"
 #include "../bdw-gc/include/gc.h"
 
@@ -59,24 +60,27 @@ const char *larceny_gc_technology = "conservative/noatomic";
 const char *larceny_gc_technology = "conservative";
 #endif
 
-typedef struct {
-  word *globals;
-
-  unsigned frames_flushed;
-  unsigned stacks_created;
-  unsigned bytes_flushed;
-} bdw_data_t;
-
-#define DATA( gc )   ((bdw_data_t*)gc->data)
+static struct {
+  stats_id_t  gen_self;		/* Identity */
+  stats_id_t  timer;		/* For timing GC */
+  word        *globals;
+  gc_stats_t  gc_stats;
+  gen_stats_t gen_stats;
+#if USE_HR_TIMER
+  hrtime_t    slowpath_timeval;
+  hrtime_t    slowpath_nsec;
+#else
+  struct timeval slowpath_timeval;
+  long        slowpath_usec;
+  long        slowpath_sec;
+#endif
+  bool        slowpath_cancel;	/* TRUE when GC is happening */
+} bdw_state;
 
 static void init_stack( gc_t *gc );
 static void flush_stack( gc_t *gc );
 static gc_t *allocate_area( word *globals );
-
-/* You can turn this off to allow multiple collectors in the same process. */
-#if BDW_DEBUG
-static word *bdw_globals = 0;
-#endif
+static void do_stats_after_gc( void );
 
 extern double GC_load_factor;
 extern void GC_set_min_heap_size( int min_size_bytes );
@@ -141,29 +145,14 @@ void gc_parameters( gc_t *gc, int op, int *ans )
   }
 }
 
-/* Hook run before gc (if gc has been set up to do it). */
-
 /* Fast hooks to run before/after lazy sweep */
-
-#define USE_HR_TIMER 1		/* Nanosecond timer; SunOS 5.6 (at least) */
-				/* Experimental */
-
-#if USE_HR_TIMER
-static hrtime_t slowpath_timeval;
-static hrtime_t slowpath_nsec = 0;
-#else
-static struct timeval slowpath_timeval;
-static long slowpath_usec = 0;
-static long slowpath_sec = 0;
-#endif
-static int slowpath_cancel = 0;
 
 void bdw_before_gc_slowpath( void )
 {
 #if USE_HR_TIMER
-  slowpath_timeval = gethrtime();
+  bdw_state.slowpath_timeval = gethrtime();
 #else
-  gettimeofday( &slowpath_timeval, 0 );
+  gettimeofday( &bdw_state.slowpath_timeval, 0 );
 #endif
 }
 
@@ -172,24 +161,30 @@ void bdw_after_gc_slowpath( void )
 #if USE_HR_TIMER
   hrtime_t t;
 
-  if (slowpath_cancel) { slowpath_cancel=0; return; }
+  if (bdw_state.slowpath_cancel) { 
+    bdw_state.slowpath_cancel=FALSE;
+    return; 
+  }
   t = gethrtime();
-  slowpath_nsec += (t - slowpath_timeval);
+  bdw_state.slowpath_nsec += (t - bdw_state.slowpath_timeval);
 #else
   struct timeval t;
   long s, us;
 
-  if (slowpath_cancel) { slowpath_cancel=0; return; }
+  if (bdw_state.slowpath_cancel) { 
+    bdw_state.slowpath_cancel=FALSE; 
+    return; 
+  }
   gettimeofday( &t, 0 );
   s = 0;
-  us = t.tv_usec - slowpath_timeval.tv_usec;
+  us = t.tv_usec - bdw_state.slowpath_timeval.tv_usec;
   if (us < 0) {
     s--;
     us += 1000000;
   }
-  s += t.tv_sec - slowpath_timeval.tv_sec;
-  slowpath_usec += us;
-  slowpath_sec += s;
+  s += t.tv_sec - bdw_state.slowpath_timeval.tv_sec;
+  bdw_state.slowpath_usec += us;
+  bdw_state.slowpath_sec += s;
 #endif
 }
 
@@ -198,16 +193,14 @@ void bdw_after_gc_slowpath( void )
 void bdw_before_gc( void )
 {
 #if BDW_DEBUG
-  word *p, *lim;
+  word *p = 0, *lim = 0;
   int n, s;
-
-  if (!bdw_globals) return;
 
   /* Don't increment the count because it's a nonmoving collector! */
   /* globals[ G_GC_CNT ] += fixnum(1); */
 
   /* Stack sanity check */
-  if (bdw_globals[G_ETOP] != bdw_globals[G_EBOT])
+  if (bdw_state.globals[G_ETOP] != bdw_state.globals[G_EBOT])
     panic( "Foo!  In-line allocation has taken place!  Aborting." );
 
 # if BDW_CLEAR_STACK
@@ -215,13 +208,13 @@ void bdw_before_gc( void )
    * it would be better to tell the collector to just ignore that
    * region.
    */
-  memset( (void*)bdw_globals[G_ETOP], 
+  memset( (void*)bdw_state.globals[G_ETOP], 
  	  0,
-	  bdw_globals[G_STKP]-bdw_globals[G_ETOP] );
+	  bdw_state.globals[G_STKP]-bdw_state.globals[G_ETOP] );
 
   /* Clear all the dynamic links and pad words, since they're garbage. */
-  p = (word*)bdw_globals[ G_STKP ];
-  lim = (word*)bdw_globals[ G_STKBOT ];
+  p = (word*)bdw_state.globals[ G_STKP ];
+  lim = (word*)bdw_state.globals[ G_STKBOT ];
   while (p < lim) {
     p[2] = 0;			        /* Clear the dynamic link */
     s = (p[0] >> 2) + 1;
@@ -232,36 +225,39 @@ void bdw_before_gc( void )
 
 # endif
 #endif
+
 #if USE_HR_TIMER
-  stats_add_gctime( (long)(slowpath_nsec / 1000000000),
-		    (long)((slowpath_nsec / 1000000) % 1000) );
-  slowpath_nsec = 0;
+  bdw_state.gen_stats.ms_collection +=
+    (long)(bdw_state.slowpath_nsec / 1000000000)  *1000 +
+    (long)((bdw_state.slowpath_nsec / 1000000) % 1000);
+  bdw_state.slowpath_nsec = 0;
 #else
-  stats_add_gctime( slowpath_sec + slowpath_usec / 1000000, 
-		    slowpath_usec / 1000 );
-  slowpath_sec = 0;
-  slowpath_usec = 0;
+  bdw_state.gen_stats.ms_collection +=
+    bdw_state.slowpath_sec + bdw_state.slowpath_usec / 1000000 +
+    bdw_state.slowpath_usec / 1000;
+  bdw_state.slowpath_sec = 0;
+  bdw_state.slowpath_usec = 0;
 #endif
-  slowpath_cancel = 1;
-  stats_before_gc();
-  stats_gc_type( 0, GCTYPE_COLLECT );
+  bdw_state.gen_stats.collections += 1;
+  bdw_state.slowpath_cancel = TRUE;
+  bdw_state.timer = stats_start_timer();
+  bdw_state.gc_stats.allocated += bytes2words(GC_get_bytes_since_gc());
 }
 
 /* Hook run after gc (if gc has been set up to do it). */
 
 void bdw_after_gc( void )
 {
-#if BDW_DEBUG
-  if (!bdw_globals) return;
-#endif
-  stats_after_gc();
+  bdw_state.gc_stats.reclaimed += 0; /* FIXME -- must hack in support. */
+  bdw_state.gen_stats.ms_collection += stats_stop_timer( bdw_state.timer );
+  do_stats_after_gc();
 }
 
 void gclib_stats( gclib_stats_t *stats )
 {
   memset( stats, 0, sizeof( gclib_stats_t ) );
-  stats->wheap = GC_get_heap_size() / sizeof( word );
-  stats->wmax_heap = GC_get_max_heap_size() / sizeof( word );
+  stats->heap_allocated = bytes2words( GC_get_heap_size() );
+  stats->heap_allocated_max = bytes2words( GC_get_max_heap_size() );
 }
 
 static void no_op_warn()
@@ -271,9 +267,6 @@ static void no_op_warn()
 
 static int initialize( gc_t *gc )
 {
-#if BDW_DEBUG
-  bdw_globals = DATA(gc)->globals;
-#endif  
   return 1;
 }
 
@@ -335,33 +328,47 @@ static word *text_load_area( gc_t *gc, int nbytes )
 
 static int iflush( gc_t *gc, int generation )
 {
-  return (int)(DATA(gc)->globals[G_CACHE_FLUSH]);
+  return (int)(bdw_state.globals[G_CACHE_FLUSH]);
 }
 
-static void stats( gc_t *gc, int generation, heap_stats_t *stats )
+static void stats( gc_t *gc )
 {
-  bdw_data_t *data = DATA(gc);
+  panic( "Stats no longer in use." );
+}
 
-  /* The following functions are available:
-     GC_word GC_no_gc                 -- # of collections
-     size_t GC_get_heap_size()        -- bytes; heap memory (not overhead)
-     size_t GC_get_bytes_since_gc()
+/* The following functions are available:
+   GC_word GC_no_gc                 -- # of collections
+   size_t GC_get_heap_size()        -- bytes; heap memory (not overhead)
+   size_t GC_get_bytes_since_gc()
    */
-  stats->live = stats->semispace1 = GC_get_heap_size();
-  stats->frames_flushed = data->frames_flushed;
-  stats->bytes_flushed = data->bytes_flushed;
-  stats->stacks_created = data->stacks_created;
-  stats->frames_restored = data->globals[ G_STKUFLOW ];
+static void do_stats_after_gc( void )
+{
+  stack_stats_t stats_stack;
+  gclib_stats_t stats_gclib;
 
-  data->frames_flushed = 0;
-  data->bytes_flushed = 0;
-  data->stacks_created = 0;
-  data->globals[ G_STKUFLOW ] = 0;
+  stats_add_gc_stats( &bdw_state.gc_stats );
+  memset( &bdw_state.gc_stats, 0, sizeof( gc_stats_t ) );
+
+  bdw_state.gen_stats.target = GC_get_heap_size();
+  bdw_state.gen_stats.allocated = bdw_state.gen_stats.target;
+  bdw_state.gen_stats.used = bdw_state.gen_stats.target;
+  stats_add_gen_stats( bdw_state.gen_self, &bdw_state.gen_stats );
+  memset( &bdw_state.gen_stats, 0, sizeof( gen_stats_t ) );
+
+  memset( &stats_stack, 0, sizeof( stack_stats_t ) );
+  stk_stats( bdw_state.globals, &stats_stack );
+  stats_add_stack_stats( &stats_stack );
+
+  memset( &stats_gclib, 0, sizeof( gclib_stats_t ) );
+  gclib_stats( &stats_gclib );
+  stats_add_gclib_stats( &stats_gclib );
+
+  stats_dumpstate();		/* Dumps stats state if dumping is on */
 }
 
 static void stack_underflow( gc_t *gc )
 {
-  if (!stk_restore_frame( DATA(gc)->globals ))
+  if (!stk_restore_frame( bdw_state.globals ))
     panic( "stack_underflow" );
 }
 
@@ -376,15 +383,15 @@ static word creg_get( gc_t *gc )
   word k;
 
   flush_stack( gc );
-  k = DATA(gc)->globals[ G_CONT ];
+  k = bdw_state.globals[ G_CONT ];
   stack_underflow( gc );
   return k;
 }
 
 static void creg_set( gc_t *gc, word k )
 {
-  stk_clear( DATA(gc)->globals );
-  DATA(gc)->globals[ G_CONT ] = k;
+  stk_clear( bdw_state.globals );
+  bdw_state.globals[ G_CONT ] = k;
   stack_underflow( gc );
 }
 
@@ -400,7 +407,7 @@ static GC_PTR bdw_out_of_memory_handler( size_t bytes_requested )
 static void init_stack( gc_t *gc )
 {
   static void *anchor = 0;
-  word *globals = DATA(gc)->globals;
+  word *globals = bdw_state.globals;
 
   if (anchor == 0)
     anchor = GC_malloc_ignore_off_page( STACK_CACHE_SIZE );
@@ -412,24 +419,21 @@ static void init_stack( gc_t *gc )
   globals[ G_STKP ] = globals[ G_ELIM ];
   globals[ G_STKUFLOW ] = 0;
 
-  if (!stk_create( DATA(gc)->globals ))
+  if (!stk_create( bdw_state.globals ))
     panic( "create_stack" );
-  DATA(gc)->stacks_created++;
 }
 
 static void flush_stack( gc_t *gc )
 {
-  bdw_data_t *data = DATA(gc);
-  unsigned frames, bytes;
   word k1, k2, first, new, last;
 
   /* Must flush in-place first, then walk the chain of frames and
    * copy each individually into the heap.  Can't just allocate a
    * single chunk (or we'd retain a lot of garbage, potentially).
    */
-  k1 = data->globals[ G_CONT ];                /* already in heap */
-  stk_flush( data->globals, &frames, &bytes );
-  k2 = data->globals[ G_CONT ];                /* handle to first frame */
+  k1 = bdw_state.globals[ G_CONT ];                /* already in heap */
+  stk_flush( bdw_state.globals );
+  k2 = bdw_state.globals[ G_CONT ];                /* handle to first frame */
 
   if (k1 != k2) {
     first = last = 0;
@@ -444,32 +448,25 @@ static void flush_stack( gc_t *gc )
       k2 = *(ptrof(k2)+HC_DYNLINK);
     }
     *(ptrof(last)+HC_DYNLINK) = k1;
-    data->globals[ G_CONT ] = first;
-
-    data->frames_flushed += frames;
-    data->bytes_flushed += bytes;
+    bdw_state.globals[ G_CONT ] = first;
   }
   init_stack( gc );
 }
 
 static void clear_stack( gc_t *gc )
 {
-  stk_clear( DATA(gc)->globals );
+  stk_clear( bdw_state.globals );
 }
 
 static gc_t *allocate_area( word *globals )
 {
-  bdw_data_t *data;
-
-  data = (bdw_data_t*)must_malloc( sizeof( bdw_data_t ) );
-
-  data->globals = globals;
-  data->frames_flushed = 0;
-  data->bytes_flushed = 0;
-  data->stacks_created = 0;
+  bdw_state.gen_self = stats_new_generation( 0, 0 );
+  bdw_state.globals = globals;
+  memset( &bdw_state.gen_stats, 0, sizeof( gen_stats_t ) );
+  memset( &bdw_state.gc_stats, 0, sizeof( gc_stats_t ) );
 
   return create_gc_t("bdw/variable", 
-		     data,
+		     0,
 		     initialize,
 		     allocate,
 		     allocate_nonmoving,
