@@ -48,8 +48,8 @@ extern void conditional_abort( void );
 extern int heap_is_bootstrap( void );
 extern void load_bootstrap_heap( word *sbase, word *tbase, word *globals );
 extern void load_dumped_heap( word *globals );
-extern int dump_bootstrap_heap( char *filename, semispace_t *data, 
-			        semispace_t *text, word *globals );
+extern int dump_bootstrap_heap( char *filename, semispace_t *data,
+                                semispace_t *text, word *globals );
 extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 #endif
 
@@ -164,14 +164,14 @@ void setup_signal_handlers( void );
 /* In "Rts/Sys/ffi.c" */
 
 void larceny_C_ffi_apply( word trampoline_bytevector,
-			  word argument_descriptor,
-			  word return_descriptor,
-		          word actuals );
+                          word argument_descriptor,
+                          word return_descriptor,
+                          word actuals );
 void larceny_C_ffi_dlopen( word w_path );
 void larceny_C_ffi_dlsym( word w_handle, word w_sym );
 void larceny_C_ffi_getaddr( word w_key );
 void larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
-				    word *adesc, int rdesc, int argc );
+                                    word *adesc, int rdesc, int argc );
 void larceny_peek_bytes( word w_addr, word w_bytevector, word w_count );
 void larceny_poke_bytes( word w_addr, word w_bytevector, word w_count );
 
@@ -199,7 +199,7 @@ int unbox_int( word w );
 double rint( double f );
 double aint( double f );
 int strncasecmp( const char *s1, const char *s2, size_t n );
-#if !defined(DEBIAN_SPARC)
+#if !defined(DEBIAN_STRDUP_WEIRDNESS)
 char *strdup( const char * );
 #endif
 
@@ -218,12 +218,12 @@ void scheme_init( word *globals );
 void scheme_start( word *globals );
   /* Scheme_start runs a Scheme procedure in the context of the
      given globals vector.  The caller must allocate a stack frame and
-     must also place arguments in the register save area in globals, 
+     must also place arguments in the register save area in globals,
      and must set up the argument count in globals[ G_RESULT ].  The
      procedure slot (REG0) must hold a Scheme procedure.
 
      Scheme_start will initialize the return address slot of the
-     frame, and call the procedure.  If the procedure returns, then 
+     frame, and call the procedure.  If the procedure returns, then
      scheme_start returns to its caller.
 
      Input:  As explained above.
@@ -275,7 +275,7 @@ extern int memfail( int code, char *fmt, ... );
 #define HL_SBOT 3
 #define HL_STOP 4
 
-/* There are some limits even in Larceny :-) 
+/* There are some limits even in Larceny :-)
  *
  * The size of the largest object is determined by the size field in
  * a vector, bytevector, or procedure header.  In the 32-bit implementation,

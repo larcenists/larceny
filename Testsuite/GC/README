@@ -3,10 +3,10 @@ $Id$
 Testing the garbage collector.
 
 The test programs in this directory exercise Larceny's garbage
-collector.  Each benchmark should be compiled, loaded into a fresh
-Scheme system, and then run several times in succession.  The
-configurations, parameters, and number of runs used is currently as
-follows:
+collector.  Each benchmark should be compiled (use MAKE-GC-TESTSUITE),
+loaded into a fresh Scheme system, and then run several times in
+succession.  The configurations, parameters, and number of runs used is
+currently as follows:
 
 Executable/settings
 
@@ -23,7 +23,7 @@ bdwlarceny
 
 Program   Parameter   Number of runs
 
-dynamic      50             3  
+dynamic      50             3
 nbody                       3
 nucleic2                    3
 lattice                     2
@@ -34,6 +34,6 @@ gcbench1                    2
 
 
 A fast machine is better -- some of these programs take a while.  Also,
-plenty of real memory is a plus, since the heap size can grow over 30MB
+plenty of real memory is a plus, since the heap size can grow over 30MB(!)
 for some programs.
 

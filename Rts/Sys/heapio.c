@@ -30,7 +30,7 @@
  *    - text area
  *    - data area
  *
- *   Intergenerational pointers (data -> text) have the high bit set. 
+ *   Intergenerational pointers (data -> text) have the high bit set.
  *   All pointers are adjusted relative to 0 of the heap they point to.
  *
  * Dumped heaps are dumped interactively and preserve the data of each
@@ -56,7 +56,7 @@
  *  followed by a number of heap-specific words.
  *
  *  Each collector/heap type has its own type word, and a generation's data
- *  can only be restored to the same kind of collector/heap that created 
+ *  can only be restored to the same kind of collector/heap that created
  *  the data block.  A dumped heap can therefore only be restored to
  *  a system with the exact same configuration that created the heap.
  *  [This is probably too restrictive; at the very least, it should be
@@ -124,9 +124,9 @@ static void dump_data( word, word, word, word, FILE* );
 #else
 static void put_tagged_word( word w, word *lowest, word *pagetbl, FILE *fp );
 static void dump_text_block( hio_range a, word *lowest, word *pagetbl,
-			     FILE *fp );
+                             FILE *fp );
 static void dump_data_block( hio_range a, word *lowest, word *pagetbl,
-			     FILE *fp );
+                             FILE *fp );
 #endif
 static word getword( FILE *fp );
 static void putword( word, FILE* );
@@ -178,8 +178,8 @@ int hio_open( heapio_t *h, const char *filename )
     fclose( fp );
     return HEAPIO_WRONGVERSION;
   }
-  
-  for (i = FIRST_ROOT, j=0 ; i <= LAST_ROOT ; i++,j++ ) 
+
+  for (i = FIRST_ROOT, j=0 ; i <= LAST_ROOT ; i++,j++ )
     h->roots[j] = getword( fp );
 
   h->type = (h->magic >> 16) & 0xFFFF;
@@ -196,7 +196,7 @@ int hio_open( heapio_t *h, const char *filename )
     h->data_size = getword( fp );
     break;
   case HEAP_DUMPED:
-    panic_exit( "Can't open DUMPED heaps." ); 
+    panic_exit( "Can't open DUMPED heaps." );
     break;
   default:
     fclose( fp );
@@ -348,7 +348,7 @@ int hio_dump_commit( heapio_t *h )
     return r;
 
   putword( h->magic, h->fp );
-  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) 
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     put_tagged_word( h->globals[i], lowest, pagetbl, h->fp );
   putword( text_size/sizeof(word), h->fp );
   putword( data_size/sizeof(word), h->fp );
@@ -366,7 +366,7 @@ put_tagged_word( word w, word *lowest, word *pagetbl, FILE *fp )
     putword( pagetbl[pageof_pb(w, lowest)] | (w & PAGEMASK), fp );
   else
     putword( w, fp );
-}    
+}
 
 static void
 pad( int bytes, FILE *fp )
@@ -401,16 +401,18 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
       data_count--;
     }
   }
-  while (data_count) {
-    w = *p++; 
+  /* data_count may go negative if a.top is not 8-byte aligned,
+     this may occur when dumping large objects.  */
+  while (data_count > 0) {
+    w = *p++;
     put_tagged_word( w, lowest, pagetbl, fp );
     data_count--;
 
     if (header( w ) == BV_HDR) {
       i = roundup4( sizefield( w ) ) / sizeof( word );
       while (i--) {
-	putword( *p++, fp );
-	data_count--;
+        putword( *p++, fp );
+        data_count--;
       }
     }
   }
@@ -418,7 +420,7 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
 }
 
 int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
-		       word *globals )
+                       word *globals )
 {
   int i, j, r;
 
@@ -431,9 +433,9 @@ int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
   for ( i=FIRST_ROOT, j=0 ; i<=LAST_ROOT ; i++, j++ ) {
     if (isptr( h->roots[j] )) {
       if (h->roots[j] & HIBIT)
-	globals[i] = (h->roots[j] & ~HIBIT) + (word)text_base;
+        globals[i] = (h->roots[j] & ~HIBIT) + (word)text_base;
       else
-	globals[i] = h->roots[j] + (word)data_base;
+        globals[i] = h->roots[j] + (word)data_base;
     }
     else
       globals[ i ] = h->roots[j];
@@ -472,9 +474,9 @@ load_data( heapio_t *h, word *text_base, word *data_base, int count )
     count--;
     if (isptr( w )) {
       if (w & HIBIT)
-	*p = (w & ~HIBIT) + (word)text_base;
+        *p = (w & ~HIBIT) + (word)text_base;
       else
-	*p = w + (word)data_base;
+        *p = w + (word)data_base;
     }
     p++;
     if (header( w ) == BV_HDR) { /* is well-defined on non-hdrs */
@@ -491,8 +493,8 @@ load_data( heapio_t *h, word *text_base, word *data_base, int count )
 }
 
 #if 0
-int hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data, 
-		        word *globals )
+int hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data,
+                        word *globals )
 {
   word data_base = 0, data_top = 0, data_count = 0;
   word text_count = 0, text_base = 0, text_top = 0;
@@ -509,7 +511,7 @@ int hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data,
   if (data && data->current != 0) panic_exit( "dump_heap_image#1" );
   if (text && text->current != 0) panic_exit( "dump_heap_image#2" );
 
-  if (!data) 
+  if (!data)
     panic_exit( "dump_heap_image#3" );
 
   data_base = (word)data->chunks[data->current].bot;
@@ -538,14 +540,14 @@ int hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data,
 static void
 dump_text( word text_base, word text_top, FILE *fp )
 {
-  if (fwrite( (char*)text_base, 1, text_top-text_base, fp ) 
-      != text_top-text_base) 
+  if (fwrite( (char*)text_base, 1, text_top-text_base, fp )
+      != text_top-text_base)
     THROW( HEAPIO_CANTWRITE );
 }
 
 static void
 dump_data( word data_base, word data_top, word text_base, word text_top,
-	   FILE *fp )
+           FILE *fp )
 {
   word w, *p, words, data_count;
   int i, r;
@@ -554,7 +556,7 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
   p = (word *) data_base;
   words = 0;
   while (data_count) {
-    w = *p++; 
+    w = *p++;
     put_tagged_word( w, fp, data_base, text_base, text_top );
     data_count--;
     words++;
@@ -562,18 +564,18 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
     if (header( w ) == BV_HDR) {
       i = roundup4( sizefield( w ) ) / sizeof( word );
       while (i--) {
-	putword( *p++, fp );
-	data_count--;
-	words++;
+        putword( *p++, fp );
+        data_count--;
+        words++;
       }
     }
   }
 }
 
 static void
-putheader( FILE *fp, 
-	   word data_base, word text_base, word text_top, word *globals,
-	   word magic)
+putheader( FILE *fp,
+           word data_base, word text_base, word text_top, word *globals,
+           word magic)
 {
   int i;
 
@@ -584,12 +586,12 @@ putheader( FILE *fp,
 
 static void
 put_tagged_word( word w, FILE *fp,
-		 word data_base, word text_base, word text_top )
+                 word data_base, word text_base, word text_top )
 {
   if (isptr( w )) {
-    if (w >= text_base && w < text_top) 
+    if (w >= text_base && w < text_top)
       putword( (w-text_base) | 0x80000000, fp );
-    else 
+    else
       putword( w-data_base, fp );
   }
   else

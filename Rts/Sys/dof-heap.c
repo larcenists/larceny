@@ -21,6 +21,9 @@
 #define GC_INTERNAL
 
 #include "larceny.h"
+
+#if DOF_COLLECTOR
+
 #include "memmgr.h"
 #include "gc.h"
 #include "gclib.h"
@@ -66,7 +69,7 @@
 
 #define DYNAMIC_ALLOCATION    1 /* Beneficial. */
   /* Allocate memory for the reserve and unused heap areas on demand.
-     This is intended to make memory allocation more flexible so that 
+     This is intended to make memory allocation more flexible so that
      LOS allocation does not run out of storage even if we're running
      in a fixed-size heap.
 
@@ -79,12 +82,12 @@
      is found to be smaller than the reserve, then trigger a full collection
      to reclaim any dead storage not yet reclaimed.  This is probably most
      effective in conjunction with FULLGC_SWEEP_LOS.
-     
+
      Cost: not yet quantified.  There is always the chance that it kicks
      in when it's not needed (i.e, the memory available is low but the
      collection needs even less), thus costing extra.
      */
-     
+
 #define FULLGC_SWEEP_LOS      1 /* Beneficial */
   /* Sweep the LOS following full GC, freeing any unmarked objects.
      If this option is 0, then unmarked LOS objects are reclaimed only
@@ -92,7 +95,7 @@
      a normal DOF collection.  Eager freeing of large objects may make
      more memory available for future LOS allocation, avoiding starvation
      in a fixed-size heap.
-     
+
      Cost: proportional to the number of large objects; usually there
      are very few.  Cost in practice is close to zero.
      */
@@ -102,8 +105,8 @@
      free the unused pool nodes.  By eagerly freeing pool nodes we
      hope to keep the sizes of the DOF remsets lower than they would
      otherwise be.
-     
-     If FULLGC_COMPACT_DOF_REMSET is 0, then unused entries are instead 
+
+     If FULLGC_COMPACT_DOF_REMSET is 0, then unused entries are instead
      set to 0.
 
      Cost: not yet quantified.
@@ -137,8 +140,8 @@
      Shadow remset use is also controlled by a command line parameter.
      */
 
-/* GC write barrier control.  
-   
+/* GC write barrier control.
+
    There are four settings here to control the code that does the
    duplicate filtering.  Filtering works as follows.  An object is a
    candidate for addition to the remembered set only once between each
@@ -146,26 +149,26 @@
    those sets (i,j) for all j into which it contains pointers.  However,
    if it contains several pointers into j, then it should only be added
    to set (i,j) once.
-   
+
    Logically, therefore, the barrier keeps an array of boolean values,
    initially 0, and when it discovers a pointer into generation j, it
    adds the object to set (i,j) and sets the bit to 1, unless the bit
    is already 1, in which case it does nothing.
-   
+
    1. If EXTRA_GEN_LOOKUP and EXTRA_GEN_BITVECTOR are both 0, then the
    barrier implements the above logic, except that the barrier only sets
    the bit and code running after the object has been fully scanned
    loops over the array, checking bits and adding pointers to the set.
    At that time it also clears the array, which must in any case be
    done.
-   
+
    2. If EXTRA_GEN_BITVECTOR is set, then the number of generations must
    be no more than 32, and a single word of 32 bits is used as the
    array of booleans.  Otherwise the code is as for the first case,
    except that it's cheaper to clear the bitvector than the vector.
    It is not necessary to run a loop after the barrier here; see
    case 4.
-   
+
    3. If EXTRA_GEN_LOOKUP is set, then an array is again used but instead
    of storing booleans it stores, for each j, the last object that was
    stored into set (i,j).  Thus the array need never be cleared, and
@@ -173,7 +176,7 @@
    in the object, not to the length of the array.  This is a win on
    pairs, in particular.  In addition, the code for the remembered set
    insertion is in the barrier.
-   
+
    4. If both EXTRA_GEN_LOOKUP and EXTRA_GEN_BITVECTOR are set, then
    the code uses a bitvector (cleared after the object has been scanned)
    but has the remembered set insertion code inside the barrier code.
@@ -183,7 +186,7 @@
    to boost performance some more under some configurations (notably when
    EXTRA_GEN_LOOKUP is set).
    */
-#define EXTRA_GEN_LOOKUP      1 
+#define EXTRA_GEN_LOOKUP      1
 #define EXTRA_GEN_BITVECTOR   1
 
 #define BLOCK_SIZE            (64*KILOBYTE)   /* Block granularity */
@@ -270,7 +273,7 @@ struct dof_data {
   int    rp;                    /* Reserve pointer (index into gen) */
 
   remset_t *shadow_remsets[ MAX_GENERATIONS ];
-  struct { 
+  struct {
     word *ssb_bot;
     word *ssb_top;
     word *ssb_lim;
@@ -299,7 +302,7 @@ static gc_event_stats_t dof;
          dof.remset_large_objs_scanned++;               \
          dof.remset_large_obj_words_scanned += x;       \
        }                                                \
-  } while(0) 
+  } while(0)
 #else
 # define COUNT_WORDS_FORWARDED()   (void)0
 # define COUNT_PTRS_FORWARDED()    (void)0
@@ -329,8 +332,8 @@ static void stop( void )
 #endif
 
 static int dof_copy_into_with_barrier( old_heap_t *heap,
-                                       int younger_than, 
-                                       gen_t **tospaces, 
+                                       int younger_than,
+                                       gen_t **tospaces,
                                        gc_type_t type,
                                        dof_data_t *data );
   /* Copy objects from generations younger than `younger_than' into the
@@ -338,7 +341,7 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
      extending an area (overflow is a fatal error).  Large objects are
      not counted in the calculation of area usage.  There is a traditional
      write barrier on the areas of `tospaces'.
-     
+
      All tospaces but the first must be empty.
 
      Returns the index of the last tospace used.
@@ -363,7 +366,7 @@ static void gen_clear( gen_t *g )
 static int free_in_allocation_area( dof_data_t *data )
 {
   int free = 0, i;
-  
+
   for ( i=0 ; i <= data->ap ; i++ )
     free += gen_free( data->gen[ i ] );
   return free;
@@ -375,19 +378,19 @@ static int space_needed_for_promotion( dof_data_t *data )
   int minor_fragments;          /* Crossing blocks */
   int major_overhead, minor_overhead;
 
-  major_fragments = 
+  major_fragments =
     (int)ceil( max( 0.0, data->ephemeral_size-gen_free(data->gen[data->ap])) /
                (double)(data->s) );
   major_overhead  = major_fragments * GC_LARGE_OBJECT_LIMIT;
 
-  minor_fragments = (int)ceil( (data->ephemeral_size + major_overhead) / 
+  minor_fragments = (int)ceil( (data->ephemeral_size + major_overhead) /
                                (double)BLOCK_SIZE );
   minor_overhead = minor_fragments * GC_LARGE_OBJECT_LIMIT;
 
   /*  annoyingmsg( "   (Total promotion overhead computed as %d)",
                    major_overhead + minor_overhead );
   */
-  
+
   return data->ephemeral_size + major_overhead + minor_overhead;
 }
 
@@ -445,7 +448,7 @@ static int free_dof_pools( dof_pool_t *p )
 static void clear_one_dof_set( dof_remset_t *r )
 {
   if (r == 0) return;
-  
+
   free_dof_pools( r->first->next );
   r->curr_pools = 1;
   r->first->next = 0;
@@ -537,7 +540,7 @@ static void print_generation_stats( dof_data_t *data )
                 g->live->allocated );
   }
 }
- 
+
 #if INVARIANT_CHECKING
 static int inv1( dof_data_t *data )/* all-same-size */
 {
@@ -618,8 +621,8 @@ static int inv10( dof_data_t *data ) /* can-collect-1 */
 static int inv11( dof_data_t *data ) /* can-collect-2 */
 {
   return !(data->rp == data->cp+2)
-    || ((data->gen[data->rp]->claim + 
-         data->gen[data->rp-1]->claim - 
+    || ((data->gen[data->rp]->claim +
+         data->gen[data->rp-1]->claim -
          gen_used( data->gen[ data->rp ] ))
         >= (data->s + GC_LARGE_OBJECT_LIMIT));
 }
@@ -691,7 +694,7 @@ static int inv92( old_heap_t *heap )  /* remset-order */
 
   for ( i=0 ; i < data->n ; i++ )
     if (data->gen[i]->remset != 0 &&
-        data->gen[i]->remset != 
+        data->gen[i]->remset !=
           gc->remset[data->first_gen_no+data->gen[i]->order])
       return 0;
   return 1;
@@ -705,7 +708,7 @@ static int inv93( old_heap_t *heap )  /* remset-content */
 
   for ( i=0 ; i < data->n ; i++ )
     if (data->gen[i]->remset != 0 &&
-        (i < data->ap || 
+        (i < data->ap ||
          i == data->ap && gen_used( data->gen[i] ) == 0 ||
          i > data->cp && i < data->rp ||
          i == data->rp && gen_used( data->gen[i] ) == 0)) {
@@ -728,7 +731,7 @@ static int inv94( old_heap_t *heap )  /* remset-data */
   for ( i=0 ; i < data->n ; i++ )
     if (data->gen[i]->remset != 0)
       /* rs_consistency check signals the error */
-      rs_consistency_check( data->gen[i]->remset, 
+      rs_consistency_check( data->gen[i]->remset,
                             data->gen[i]->order + data->first_gen_no );
 #endif
   return 1;
@@ -743,7 +746,7 @@ static int inv95( old_heap_t *heap )  /* los-list-order */
 
   for ( i=0 ; i < data->n ; i++ )
     if (data->gen[i]->los != 0 &&
-        data->gen[i]->los != 
+        data->gen[i]->los !=
           gc->los->object_lists[data->first_gen_no+data->gen[i]->order]) {
       hardconsolemsg( "inv95: %d", i );
       return 0;
@@ -762,7 +765,7 @@ static int inv96_helper( old_heap_t *heap, dof_remset_t *r, int i )
   dof_data_t *data = DATA(heap);
 
   if (r != 0 &&
-      (i < data->ap || 
+      (i < data->ap ||
        i == data->ap && gen_used( data->gen[i] ) == 0 ||
        i > data->cp && i < data->rp ||
        i == data->rp && gen_used( data->gen[i] ) == 0)) {
@@ -786,7 +789,7 @@ static int inv96( old_heap_t *heap ) /* dof-remset-content */
         return 0;
       if (data->gen[i]->order <= data->gen[j]->order)
         if (!dof_set_empty( data->gen[i]->dof_remsets[data->gen[j]->order])) {
-          hardconsolemsg( "inv96#3: %d %d %d", i, j, 
+          hardconsolemsg( "inv96#3: %d %d %d", i, j,
                           dof_rs_size( data->gen[i]->dof_remsets[j] ) );
           for ( i=0 ; i < data->n ; i++ ) {
             for ( j=0 ; j < data->n ; j++ )
@@ -814,11 +817,11 @@ static int inv97( old_heap_t *heap ) /* dof-remset-data */
   /* dof_remset_consistency_check signals the error */
   for ( i=0 ; i < data->n ; i++ )
     for ( j=0 ; j < data->n ; j++ )
-      dof_remset_consistency_check( data->gen[i]->dof_remsets[j], 
+      dof_remset_consistency_check( data->gen[i]->dof_remsets[j],
                                     data->gen[i]->order + data->first_gen_no );
 # else
   for ( i=0 ; i < data->n ; i++ )
-    dof_remset_consistency_check( data->gen[i]->dof_remset, 
+    dof_remset_consistency_check( data->gen[i]->dof_remset,
                                   data->gen[i]->order + data->first_gen_no );
 # endif
 #endif
@@ -833,7 +836,7 @@ static int inv98( dof_data_t *data ) /* semispace */
   for ( i=0 ; i < data->n ; i++ ) {
     if (data->gen[i]->claim == 0 && data->gen[i]->live->current != -1)
       return 0;
-    if (i < data->ap || 
+    if (i < data->ap ||
         i == data->ap && gen_used( data->gen[i] ) == 0 ||
         i > data->cp && i < data->rp ||
         i == data->rp && gen_used( data->gen[i] ) == 0) {
@@ -900,7 +903,7 @@ static int heap_free_space( old_heap_t *heap )
   int actual_free;
   gclib_stats_t stats;
 #endif
-  
+
   if (data->heap_limit == 0)
     return infinity;
 
@@ -910,7 +913,7 @@ static int heap_free_space( old_heap_t *heap )
   if (stats.heap_limit > 0) {
     actual_free = words2bytes( stats.heap_limit - stats.heap_allocated );
     /* Round down */
-    actual_free = data->quantum * (actual_free / data->quantum); 
+    actual_free = data->quantum * (actual_free / data->quantum);
     if (actual_free < free) {
       annoyingmsg( "  Less free than expected: %d < %d", actual_free, free );
       free = actual_free;
@@ -927,7 +930,7 @@ static void init_permutation( int permutation[] )
 {
   int i;
 
-  for ( i=0 ; i < MAX_GENERATIONS ; i++ ) 
+  for ( i=0 ; i < MAX_GENERATIONS ; i++ )
     permutation[i] = i;
 }
 
@@ -940,7 +943,7 @@ static void init_permutation( int permutation[] )
      - sets page table bits according to new order number
    - Shuffles remembered sets according to new order numbers
   */
-static void 
+static void
 reorder_generations( old_heap_t *heap, int permutation[] )
 {
   dof_data_t *data = DATA(heap);
@@ -963,8 +966,8 @@ reorder_generations( old_heap_t *heap, int permutation[] )
     data->gen[ k - data->first_gen_no ] = g = oldgen[i];
     g->id = id = k - data->first_gen_no;
     old_order = g->order;
-    g->order = (id <= data->cp ? 
-                data->cp - id : 
+    g->order = (id <= data->cp ?
+                data->cp - id :
                 data->n - id + data->cp);
     ss_set_gen_no( g->live, g->order + data->first_gen_no );
     remset_perm[old_order + data->first_gen_no ] = g->order+data->first_gen_no;
@@ -984,7 +987,7 @@ reorder_generations( old_heap_t *heap, int permutation[] )
 #if SHADOW_REMSETS
   /* Must permute the shadow remsets also */
   if (data->use_shadow_remsets) {
-    for ( i=0 ; i < data->n ; i++ ) 
+    for ( i=0 ; i < data->n ; i++ )
       oldshadow[i] = data->shadow_remsets[i];
     for ( i=0 ; i < data->n ; i++ ) {
       k = remset_perm[i + data->first_gen_no ] - data->first_gen_no;
@@ -992,7 +995,7 @@ reorder_generations( old_heap_t *heap, int permutation[] )
     }
   }
 #endif
-  
+
   gc_permute_remembered_sets( heap->collector, remset_perm );
   los_permute_object_lists( heap->collector->los, remset_perm );
 }
@@ -1003,7 +1006,7 @@ static void rotate_CP_to_0( old_heap_t *heap )
   int i, permutation[ MAX_GENERATIONS ];
 
   init_permutation( permutation );
-  for ( i=data->first_gen_no ; i < data->first_gen_no+data->cp ; i++ ) 
+  for ( i=data->first_gen_no ; i < data->first_gen_no+data->cp ; i++ )
     permutation[i] = i+1;
   permutation[i] = data->first_gen_no;
   reorder_generations( heap, permutation );
@@ -1033,7 +1036,7 @@ static void move_memory( gen_t *g_from, gen_t *g_to, int amount )
 #if !DYNAMIC_ALLOCATION
   int i, k, amt;
 #endif
-  
+
   if (amount == 0) return;
 
   from = g_from->live;
@@ -1043,12 +1046,12 @@ static void move_memory( gen_t *g_from, gen_t *g_to, int amount )
 #if !DYNAMIC_ALLOCATION
   assert( from->current >= 0 );
 
-  if (from->chunks[from->current].top == from->chunks[from->current].bot && 
+  if (from->chunks[from->current].top == from->chunks[from->current].bot &&
       from->allocated - (from->current+1)*BLOCK_SIZE < amount) {
     annoyingmsg( "  NOTE exceptional case in move_memory." );
     from->current--;
   }
-  
+
   i = from->current+1;
   amt = amount;
   while (amt > 0) {
@@ -1067,7 +1070,7 @@ static char *eish( int n )
   static char buf[10];
   int e = 0;
   double m = n;
-  
+
   while (m >= 1000.0) {
     e += 3;
     m /= 1000.0;
@@ -1193,7 +1196,7 @@ static int sweep_one_remset( dof_remset_t *r, msgc_context_t *context )
      */
   if (r->curr->top == r->curr->lim)
     advance_dof_remset( r );
-  
+
   r->stats.objs_scanned += scanned;
   r->stats.removed += removed;
   return removed;
@@ -1245,7 +1248,7 @@ sweep_dof_remembered_sets( old_heap_t *heap, msgc_context_t *context )
 #endif
 
 static int
-sweep_remembered_sets( remset_t **remsets, int first, int last, 
+sweep_remembered_sets( remset_t **remsets, int first, int last,
                        msgc_context_t *context )
 {
   int i;
@@ -1263,7 +1266,7 @@ static int sweep_large_objects( old_heap_t *heap, msgc_context_t *context )
   los_t *los = heap->collector->los;
   int i, marked=0, deleted=0, bmarked=0, bdeleted=0, size;
   word *p, *q, obj, hdr;
-  
+
   obj = 0;                      /* Shuts up the compiler */
   assert( los_bytes_used( los, LOS_MARK1 ) == 0 );
   assert( los_bytes_used( los, LOS_MARK2 ) == 0 );
@@ -1296,7 +1299,7 @@ static int sweep_large_objects( old_heap_t *heap, msgc_context_t *context )
     los_append_and_clear_list( los, los->mark1, i );
   }
   /* DEBUG -- replace with annoyingmsg at some point */
-  consolemsg( "  LOS sweep: marked=%d, bmarked=%d, deleted=%d, bdeleted=%d", 
+  consolemsg( "  LOS sweep: marked=%d, bmarked=%d, deleted=%d, bdeleted=%d",
               marked, bmarked, deleted, bdeleted );
   return deleted;
 }
@@ -1318,7 +1321,7 @@ static void push_from_dof_remset( dof_remset_t *r, push_context_t *pcontext )
   dof_pool_t *segment;
   word *slot, *slotlim;
   msgc_context_t *context = pcontext->context;
-  
+
   for ( segment=r->first ; segment ; segment=segment->next ) {
     slotlim = segment->top;
     for ( slot=segment->bot ; slot < slotlim ; slot++ ) {
@@ -1326,9 +1329,9 @@ static void push_from_dof_remset( dof_remset_t *r, push_context_t *pcontext )
         msgc_push_constituents( context, *slot );
         if (++pcontext->pushes >= PUSH_LIMIT) {
           pcontext->pushes = 0;
-          msgc_mark_objects_from_roots( context, 
-                                        pcontext->marked, 
-                                        pcontext->traced, 
+          msgc_mark_objects_from_roots( context,
+                                        pcontext->marked,
+                                        pcontext->traced,
                                         pcontext->words_marked );
         }
       }
@@ -1339,13 +1342,13 @@ static void push_from_dof_remset( dof_remset_t *r, push_context_t *pcontext )
 static bool pusher( word loc, void *data, unsigned *stats )
 {
   push_context_t *pcontext = (push_context_t*)data;
-  
+
   msgc_push_constituents( pcontext->context, loc );
   if (++pcontext->pushes >= PUSH_LIMIT) {
     pcontext->pushes = 0;
     msgc_mark_objects_from_roots( pcontext->context,
-                                  pcontext->marked, 
-                                  pcontext->traced, 
+                                  pcontext->marked,
+                                  pcontext->traced,
                                   pcontext->words_marked );
   }
   return TRUE;
@@ -1357,18 +1360,18 @@ static bool pusher( word loc, void *data, unsigned *stats )
    marking cost.  Since the remembered sets already have exactly the
    right stuff in them, there is no added cost for maintaining the
    remembered sets.
-   
+
    For all practical purposes, this is a mark-sweep radioactive decay
    collector.
-   
+
    The only snag is that the remembered sets tend to be large, so
    we can't push all intergenerational pointers on the stack at once --
    we must interleave pushing and marking.
 
    It is not correct to call this collector after collection but before
    reset or decrement.
-   
-   FIXME: be sure to sweep only remsets that are subject to removal.  
+
+   FIXME: be sure to sweep only remsets that are subject to removal.
    */
 
 /* Fill the array with indices into data->gen[] */
@@ -1377,7 +1380,7 @@ static int select_generations_to_premark( old_heap_t *heap, int *gens )
 {
   dof_data_t *data = DATA(heap);
   int i, k;
-  
+
   /* We must premark all generations in the _order_ range RP downto x,
      for some x.  It's OK to premark none.
      */
@@ -1392,7 +1395,7 @@ static int select_generations_to_premark( old_heap_t *heap, int *gens )
   return k;
 }
 
-static void 
+static void
 generational_marking( old_heap_t *heap, msgc_context_t *context,
                       int *marked, int *traced, int *words_marked )
 {
@@ -1403,7 +1406,7 @@ generational_marking( old_heap_t *heap, msgc_context_t *context,
   los_list_t *list;
   int gens[ MAX_GENERATIONS ];
   semispace_t *live;
-  
+
   pcontext.pushes = 0;
   pcontext.context = context;
   pcontext.marked = marked;
@@ -1411,7 +1414,7 @@ generational_marking( old_heap_t *heap, msgc_context_t *context,
   pcontext.words_marked = words_marked;
 
   n = select_generations_to_premark( heap, gens );
-  
+
   /* Mark some young stuff. */
   for ( k=0 ; k < n ; k++ ) {
     i = gens[k];
@@ -1429,12 +1432,12 @@ generational_marking( old_heap_t *heap, msgc_context_t *context,
   if (heap->collector->static_area != 0) {
     if (heap->collector->static_area->data_area != 0) {
       live = heap->collector->static_area->data_area;
-      for ( j=0 ; j <= live->current ; j++ ) 
+      for ( j=0 ; j <= live->current ; j++ )
         msgc_mark_range( context, live->chunks[j].bot, live->chunks[j].top );
     }
     if (heap->collector->static_area->text_area != 0) {
       live = heap->collector->static_area->text_area;
-      for ( j=0 ; j <= live->current ; j++ ) 
+      for ( j=0 ; j <= live->current ; j++ )
         msgc_mark_range( context, live->chunks[j].bot, live->chunks[j].top );
     }
   }
@@ -1449,8 +1452,8 @@ generational_marking( old_heap_t *heap, msgc_context_t *context,
 
 # if SHADOW_REMSETS
     if (data->use_shadow_remsets)
-      rs_enumerate( data->shadow_remsets[data->gen[i]->order], 
-                    pusher, 
+      rs_enumerate( data->shadow_remsets[data->gen[i]->order],
+                    pusher,
                     &pcontext );
 # endif
 # if USE_DOF_REMSET
@@ -1460,7 +1463,7 @@ generational_marking( old_heap_t *heap, msgc_context_t *context,
 #  else
     push_from_dof_remset( data->gen[i]->dof_remset, &pcontext );
 #  endif
-# endif      
+# endif
   }
   if (heap->collector->static_area)
     rs_enumerate( heap->collector->remset[data->first_gen_no+data->n],
@@ -1479,13 +1482,13 @@ static void full_collection( old_heap_t *heap )
   msgc_context_t *context;
   int marked=0, traced=0, removed=0, words_marked=0, deallocated=0;
   stats_id_t timer1, timer2;
-  
+
   /* DEBUG -- replace with annoyingmsg at some point */
   consolemsg( " Full collection starts." );
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
   timer2 = stats_start_timer( TIMER_CPU );
-  
+
   context = msgc_begin( heap->collector );
   start( &dof.msgc_mark );
   if (DATA(heap)->fullgc_generational)
@@ -1528,7 +1531,7 @@ static void full_collection( old_heap_t *heap )
   DATA(heap)->stats.full_objects_marked += marked;
   DATA(heap)->stats.full_pointers_traced += traced;
   DATA(heap)->stats.full_words_marked += words_marked;
-  
+
   /* DEBUG -- ditto */
   consolemsg( " Full collection ends.  Marked=%d traced=%d removed=%d",
               marked, traced, removed );
@@ -1549,8 +1552,8 @@ static void do_promote_in( old_heap_t *heap )
     targets[j] = data->gen[i];
   targets[j] = 0;
 
-  data->ap = 
-    data->ap - 
+  data->ap =
+    data->ap -
     dof_copy_into_with_barrier( heap, data->first_gen_no, targets,
                                 GCTYPE_PROMOTE, data );
   assert( data->ap >= 0 );
@@ -1568,7 +1571,7 @@ static void do_promote_in( old_heap_t *heap )
     start( &dof.assimilate_prom );
     rs_clear( data->shadow_remsets[0] );
     for ( i=1 ; i < data->n ; i++ )
-      rs_assimilate_and_clear( data->shadow_remsets[i], 
+      rs_assimilate_and_clear( data->shadow_remsets[i],
                                heap->collector->remset[data->first_gen_no+i] );
     stop();
   }
@@ -1583,10 +1586,10 @@ static void promote_in( old_heap_t *heap )
 #if GC_HIRES_TIMERS
   hrtime_t now;
 #endif
-  
+
   if (data->fullgc_on_promotion)
     full_collection( heap );
-  
+
   annoyingmsg( " DOF promotion begins" );
 
   gc_signal_moving_collection( heap->collector );
@@ -1595,7 +1598,7 @@ static void promote_in( old_heap_t *heap )
 
   ap_before = data->ap;
   live_before = gen_used( data->gen[ap_before] );
-  los_before = los_bytes_used( heap->collector->los, 
+  los_before = los_bytes_used( heap->collector->los,
                                data->gen[ap_before]->order+data->first_gen_no);
 
 #if GC_HIRES_TIMERS /* hack -- start() and stop() don't nest */
@@ -1605,7 +1608,7 @@ static void promote_in( old_heap_t *heap )
 #if GC_HIRES_TIMERS
   dof.promtime += gethrtime() - now;
 #endif
-  
+
   live_after = 0;
   los_after = 0;
   for ( i=ap_before ; i >= data->ap ; i-- ) {
@@ -1658,8 +1661,8 @@ static void grow_all_generations( old_heap_t *heap, int per_generation )
   }
 }
 
-static int growth_function( old_heap_t *heap, int new, int old ) 
-{ 
+static int growth_function( old_heap_t *heap, int new, int old )
+{
   return (new-old)/DATA(heap)->growth_divisor;
 }
 
@@ -1671,8 +1674,8 @@ expand_heap_after_reset( old_heap_t *heap, int new_size, double mark_cons )
 
   free = heap_free_space( heap ); /* Negative means "as much as you like" */
   if (free < 0)
-    growth = growth_function( heap, 
-                              new_size, 
+    growth = growth_function( heap,
+                              new_size,
                               data->area_size );
   else
     growth = growth_function( heap,
@@ -1725,12 +1728,12 @@ static void reset_after_collection( old_heap_t *heap )
                  data->ap, data->cp, data->rp, mark_cons );
     free = data->cp+1;
   }
-  else 
+  else
     panic_abort( "Impossible case reset_after_collection: "
                  "AP=%d CP=%d RP=%d", data->ap, data->cp, data->rp );
   move_memory( data->gen[0], data->gen[data->cp+1], data->gen[0]->claim );
   old_rp = data->rp;
-  
+
   /* CP at least is used by reorder_generations, so don't move these below */
   data->ap = old_rp - 1;
   data->rp = data->n - 1;
@@ -1742,7 +1745,7 @@ static void reset_after_collection( old_heap_t *heap )
     permutation[data->first_gen_no+i] = data->first_gen_no+i-1;
   permutation[data->first_gen_no+free] = data->first_gen_no+data->n-1;
   reorder_generations( heap, permutation );
-  
+
   data->total_copying += data->copying;
   data->total_consing += data->consing;
   data->copying = 0;
@@ -1799,9 +1802,9 @@ static void decrement_after_collection( old_heap_t *heap )
     annoyingmsg( "  Decrement case 2" );
     first = data->gen[0];
     move_memory( victim, reserve, data->s - reserve->claim );
-    move_memory( victim, 
-                 first, 
-                 round_down_to_block_size( victim->claim - 
+    move_memory( victim,
+                 first,
+                 round_down_to_block_size( victim->claim -
                                            (gen_used( reserve ) +
                                             GC_LARGE_OBJECT_LIMIT )));
     if (victim->claim == 0) {
@@ -1817,7 +1820,7 @@ static void decrement_after_collection( old_heap_t *heap )
     annoyingmsg( "  Decrement case 3" );
     middle = data->gen[ data->rp - 1 ];
     first = data->gen[0];
-    need = (data->s + GC_LARGE_OBJECT_LIMIT) - 
+    need = (data->s + GC_LARGE_OBJECT_LIMIT) -
       (middle->claim + gen_free(reserve));
     move_memory( victim, middle, round_up_to_block_size( need ) );
     move_memory( victim, first, data->s - first->claim );
@@ -1848,7 +1851,7 @@ static void free_unused_memory( old_heap_t *heap )
 static void post_collection_policy( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  
+
   gen_clear( data->gen[ data->cp ] );
   if (data->cp > data->ap)
     decrement_after_collection( heap );
@@ -1881,16 +1884,16 @@ static void do_perform_collection( old_heap_t *heap )
     stop();
   }
 #endif
-  
+
   /* Copy into gen(RP) and perhaps gen(RP-1). */
   for ( i=data->rp, j=0 ; i > data->cp ; i--, j++ )
     targets[j] = data->gen[i];
   targets[j] = 0;
-  
+
   assert( data->gen[data->cp]->order == 0 );
-  data->rp = 
+  data->rp =
     data->rp -
-    dof_copy_into_with_barrier( heap, data->first_gen_no+1, targets, 
+    dof_copy_into_with_barrier( heap, data->first_gen_no+1, targets,
                                 GCTYPE_COLLECT, data );
 
   /* See comments about rs_clear() in promote_in(). */
@@ -1923,7 +1926,7 @@ static void perform_collection( old_heap_t *heap )
 #if GC_HIRES_TIMERS
   hrtime_t now;
 #endif
-  
+
   annoyingmsg("  Collecting: AP=%d CP=%d RP=%d", data->ap, data->cp, data->rp);
 
   gc_signal_moving_collection( heap->collector );
@@ -1940,20 +1943,20 @@ static void perform_collection( old_heap_t *heap )
                                data->gen[rp_before]->order+data->first_gen_no);
 
   do_perform_collection( heap );
-  
+
   live_after = 0;
   los_after = 0;
   for ( i=rp_before ; i >= data->rp ; i-- ) {
     live_after += gen_used( data->gen[i] );
     los_after += los_bytes_used( heap->collector->los,
                                  data->gen[i]->order + data->first_gen_no );
-  }  
+  }
   data->copying += live_after - live_before;
 #if GC_HIRES_TIMERS
   dof.gctime += gethrtime() - now;
 #endif
-  /* For simplicity's sake the time and the collection counter increment 
-     is given to the area in which RP was before the collection, even 
+  /* For simplicity's sake the time and the collection counter increment
+     is given to the area in which RP was before the collection, even
      though the collection may have copied data into two generations.
      */
   data->stats.words_copied += bytes2words( live_after - live_before );
@@ -1969,7 +1972,7 @@ static void perform_collection( old_heap_t *heap )
   remset_trace( heap, "collect", cp_before, rp_before, data->rp );
 
   /* post_collection_policy changes the meaning of rp_before! */
-  
+
   post_collection_policy( heap );
 }
 
@@ -1979,10 +1982,10 @@ static void maybe_collect( old_heap_t *heap, double factor )
   bool repeating = FALSE;
   double copying_before;
 
-  while (free_in_allocation_area(data) < 
+  while (free_in_allocation_area(data) <
          factor*space_needed_for_promotion(data)) {
     annoyingmsg( " DOF collection begins" );
-    if (repeating) 
+    if (repeating)
       data->stats.repeats++;
 
     if (data->fullgc_on_collection) {
@@ -1998,7 +2001,7 @@ static void maybe_collect( old_heap_t *heap, double factor )
     check_invariants( heap, FALSE );
 
     annoyingmsg( " DOF collection ends: AP=%d CP=%d RP=%d survivors=%.0f",
-                 data->ap, data->cp, data->rp, 
+                 data->ap, data->cp, data->rp,
                  data->copying + data->total_copying - copying_before );
     repeating = TRUE;
   }
@@ -2022,7 +2025,7 @@ static int initialize( old_heap_t *heap )
      */
   dofsize = data->s*(data->n-2); /* Actual space available */
   if (dofsize < esize) {
-    int growth = roundup( (data->n-1)*(esize-dofsize)/(data->n-2), 
+    int growth = roundup( (data->n-1)*(esize-dofsize)/(data->n-2),
                           data->quantum );
     if (data->heap_limit && data->area_size + growth > data->heap_limit)
       panic_exit( "DOF heap is too small to accomodate promotion." );
@@ -2039,7 +2042,7 @@ static int initialize( old_heap_t *heap )
 }
 
 #if DYNAMIC_ALLOCATION && FULLGC_ON_LOW_RESERVE
-static bool 
+static bool
 trigger_full_if_reserve_low( old_heap_t *heap, int need, char *who )
 {
   dof_data_t *data = DATA(heap);
@@ -2066,17 +2069,17 @@ static void collect( old_heap_t *heap, gc_type_t request )
 {
   dof_data_t *data = DATA(heap);
   bool done_full = FALSE;
-  
+
   annoyingmsg( "DOF collection cycle begins: AP=%d CP=%d RP=%d",
                data->ap, data->cp, data->rp );
 
- 
+
   check_invariants( heap, TRUE );
 
 #if DYNAMIC_ALLOCATION && FULLGC_ON_LOW_RESERVE
-  done_full = 
-    trigger_full_if_reserve_low( 
-      heap, 
+  done_full =
+    trigger_full_if_reserve_low(
+      heap,
       (int)(data->ephemeral_size*data->free_before_promotion),
       "promotion" );
 #endif
@@ -2085,10 +2088,10 @@ static void collect( old_heap_t *heap, gc_type_t request )
   check_invariants( heap, FALSE );
 
 #if DYNAMIC_ALLOCATION && FULLGC_ON_LOW_RESERVE
-  if (!done_full) 
-    done_full = 
-      trigger_full_if_reserve_low( 
-        heap, 
+  if (!done_full)
+    done_full =
+      trigger_full_if_reserve_low(
+        heap,
         (int)(data->gen[0]->size*data->free_before_collection),
         "collection" );
 #endif
@@ -2105,7 +2108,7 @@ static void before_collection( old_heap_t *heap )
   int used;
 
   heap->maximum = DATA(heap)->area_size;
-  
+
   used = 0;
   for ( i=0 ; i < DATA(heap)->n ; i++ )
     used += gen_used( DATA(heap)->gen[i] );
@@ -2196,10 +2199,10 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   assert( generations > 0 );
   assert( load_factor >= 1.0 );
   assert( BLOCK_SIZE % PAGESIZE == 0 );
-  
+
   area_size = round_up_to_block_size(max( area_size, dynamic_min ));
   heap_limit = round_up_to_block_size(heap_limit);
-  
+
   data = (dof_data_t*)must_malloc( sizeof( dof_data_t ) );
   memset( data, 0, sizeof( data ) );
   data->load_factor = load_factor;
@@ -2212,9 +2215,9 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   data->use_shadow_remsets = !info->no_shadow_remsets;
   data->fullgc_generational = info->fullgc_generational;
   data->fullgc_on_promotion = info->fullgc_on_promotion;
-  data->fullgc_on_collection = 
+  data->fullgc_on_collection =
     info->fullgc_on_collection && !info->fullgc_on_promotion;
-  data->fullgc_on_reset = 
+  data->fullgc_on_reset =
     !data->fullgc_on_collection && !info->fullgc_on_promotion;
   data->ephemeral_size = 0;     /* Will be set by initialize() */
   data->quantum = quantum = (BLOCK_SIZE * (generations+1));
@@ -2224,14 +2227,14 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
 
   if (heap_limit > 0)
     area_size = min( area_size, heap_limit );
-  
+
   data->n = generations+2;
   data->s = round_down_to_block_size( area_size / (data->n - 1) );
   data->area_size = data->s*(data->n-1);
 
   assert( data->s > 0 );
   assert( data->area_size > 0 );
-  
+
   data->gen = (gen_t**)must_malloc( data->n*sizeof( gen_t* ) );
   for ( i=0 ; i < data->n ; i++ ) {
     gen_t *g;
@@ -2250,9 +2253,9 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
       g->live = create_semispace_n( 0, 0, gen_no+g->order );
 #else
       /* fixed allocation */
-      g->live = 
-        create_semispace_n( BLOCK_SIZE, 
-                            (data->s / BLOCK_SIZE), 
+      g->live =
+        create_semispace_n( BLOCK_SIZE,
+                            (data->s / BLOCK_SIZE),
                             gen_no+g->order );
 #endif
     memset( &g->stats, 0, sizeof( gen_stats_t ) );
@@ -2279,8 +2282,8 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
 
 #if SHADOW_REMSETS
   if (data->use_shadow_remsets) {
-    for ( i=0 ; i < data->n ; i++ ) 
-      data->shadow_remsets[i] = 
+    for ( i=0 ; i < data->n ; i++ )
+      data->shadow_remsets[i] =
         create_labelled_remset( 2048, 0, 2048,  /* FIXME? */
                                 &data->shadow_ssb_loc[i].ssb_bot,
                                 &data->shadow_ssb_loc[i].ssb_top,
@@ -2288,8 +2291,8 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
                                 i+data->first_gen_no, 255 );
   }
 #endif
-  
-  heap = create_old_heap_t( "dof", 
+
+  heap = create_old_heap_t( "dof",
                             HEAPCODE_DOF,
                             initialize,
                             collect,
@@ -2395,8 +2398,8 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
   } while( 0 )
 
 /* This is slow -- gclib_desc_g is a global variable that can't
-   be cached locally because its value may change due to memory 
-   allocation.  
+   be cached locally because its value may change due to memory
+   allocation.
 
    Tuned extra for the case when an object does not need to be
    forwarded, as an experiment.
@@ -2582,9 +2585,9 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
 
 /* Here, add to every remset for which extra_gen is nonzero, and clear the
    extra_gen slot if set.
-   
-   FIXME: Note invariant: there must be space for at least one entry.  
-   This is a holdover from the SSB-based code and it complicates the 
+
+   FIXME: Note invariant: there must be space for at least one entry.
+   This is a holdover from the SSB-based code and it complicates the
    system slightly throughout; should just fix it.
    */
 
@@ -2775,7 +2778,7 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r );
 
 
 static int dof_copy_into_with_barrier( old_heap_t *heap,
-                                       int younger_than, 
+                                       int younger_than,
                                        gen_t **tospaces,
                                        gc_type_t type,
                                        dof_data_t *data )
@@ -2795,7 +2798,7 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
       e.tospaces[i].dof_remsets[k] = tospaces[i]->dof_remsets[j];
       e.tospaces[i].remset_tops[k] = tospaces[i]->dof_remsets[j]->curr->top;
       e.tospaces[i].remset_lims[k] = tospaces[i]->dof_remsets[j]->curr->lim;
-      e.tospaces[i].remset_sizes[k] = 
+      e.tospaces[i].remset_sizes[k] =
         dof_rs_size( tospaces[i]->dof_remsets[j] );
       assert( e.tospaces[i].remset_tops[k] < e.tospaces[i].remset_lims[k] );
     }
@@ -2836,13 +2839,13 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
   gc_enumerate_roots( gc, scan_from_globals, (void*)&e );
   stop();
   start( type == GCTYPE_COLLECT ? &dof.remset_scan_gc : &dof.remset_scan_prom);
-  gc_enumerate_remsets_older_than( gc, 
+  gc_enumerate_remsets_older_than( gc,
                                    e.younger_than - 1,
                                    scan_from_remsets,
                                    (void*)&e,
                                    FALSE );
   stop();
-  
+
 #if USE_DOF_REMSET
 # if SPLIT_REMSETS
   if (type == GCTYPE_COLLECT) {
@@ -2868,7 +2871,7 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
   start( type==GCTYPE_COLLECT ? &dof.tospace_scan_gc : &dof.tospace_scan_prom);
   scan_from_tospace( &e );
   stop();
-  
+
 #if USE_DOF_REMSET
 # if SPLIT_REMSETS
   for ( i=0 ; tospaces[i] != 0 ; i++ )
@@ -2897,13 +2900,13 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
   for ( i=0 ; i < e.younger_than ; i++ )
     los_sweep( gc->los, i );
   for ( i=0 ; i < e.nspaces ; i++ ) {
-    los_append_and_clear_list( gc->los, 
-                               e.tospaces[i].marked, 
+    los_append_and_clear_list( gc->los,
+                               e.tospaces[i].marked,
                                e.tospaces[i].gen_no );
     los_free_list( e.tospaces[i].marked );
   }
   stop();
-  
+
   return e.copy_idx;            /* Last tospace used */
 }
 
@@ -2950,7 +2953,7 @@ static bool scan_from_remsets( word object, void *data, unsigned *count )
   word         *loc;            /* Used as a temp by scanner and fwd macros */
   SETUP_COPY_PTRS( e, dest, lim );
 
-  remset_scanner_core( object, loc, 
+  remset_scanner_core( object, loc,
                        forw_np_record( loc, forw_limit_gen, dest, lim,
                                        has_intergen_ptr, old_obj_gen, e ),
                        *count );
@@ -2984,7 +2987,7 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r )
       if (object != 0) {
         bool has_intergen_ptr = FALSE;
         int old_obj_gen = gen_of(object);
-        
+
         objects++;
         assert2(isptr( object ));
         remset_scanner_core( object, loc,
@@ -2992,7 +2995,7 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r )
                                               has_intergen_ptr, old_obj_gen,
                                               e ),
                              scanned );
-        if (has_intergen_ptr) 
+        if (has_intergen_ptr)
           *rdest++ = object;
       }
     }
@@ -3008,7 +3011,7 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r )
       if (object != 0) {
         objects++;
         assert2(isptr( object ));
-        remset_scanner_core( object, loc, 
+        remset_scanner_core( object, loc,
                              forw_np( loc, forw_limit_gen, dest, lim, e ),
                              scanned );
       }
@@ -3037,7 +3040,7 @@ static void scan_from_tospace( dof_env_t *e )
         e->scan_chunk_idx++;
         e->scan_ptr = ss_bot2(scan_ss(e), e->scan_chunk_idx);
       }
-      else if (e->scan_idx < e->copy_idx) { 
+      else if (e->scan_idx < e->copy_idx) {
         /* More generations to scan */
         e->scan_idx++;
         e->scan_chunk_idx = 0;
@@ -3045,7 +3048,7 @@ static void scan_from_tospace( dof_env_t *e )
       }
     }
 
-    if (e->scan_ptr != ss_lim2(scan_ss(e), e->scan_chunk_idx) && 
+    if (e->scan_ptr != ss_lim2(scan_ss(e), e->scan_chunk_idx) &&
         e->scan_ptr != ss_top(copy_ss(e))) {
       scan_small_objects( e );
       work=TRUE;
@@ -3071,8 +3074,8 @@ static void scan_small_objects( dof_env_t *e )
 #if EXTRA_GEN_BITVECTOR && !EXTRA_GEN_LOOKUP
 # define must_add_to_extra extra_gen
 #elif EXTRA_GEN_LOOKUP
-  word **remtops = e->tospaces[e->scan_idx].remset_tops;     
-  word **remlims = e->tospaces[e->scan_idx].remset_lims;     
+  word **remtops = e->tospaces[e->scan_idx].remset_tops;
+  word **remlims = e->tospaces[e->scan_idx].remset_lims;
 # if EXTRA_GEN_BITVECTOR
   word extra_gen = 0;
 # else
@@ -3085,23 +3088,23 @@ static void scan_small_objects( dof_env_t *e )
 #if GCLIB_LARGE_TABLE && SHADOW_TABLE
   gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
-  
+
 #if EXTRA_GEN_BITVECTOR
   assert( e->ngenerations <= 32 );
 #else
   for ( i=0 ; i < MAX_GENERATIONS ; i++ )
     extra_gen[i] = 0;
 #endif
-  
+
   /* FIXME: pass remtop, remlim to the macro! */
   /* FIXME: it's not clear that the special case helps much */
-  /* must_add_to_extra is a name used by the scanning and fwd macros as a 
+  /* must_add_to_extra is a name used by the scanning and fwd macros as a
      temp */
   if ( scanptr <= dest && dest < scanlim) {
     while (scanptr != dest && scanptr < scanlim) {
       scan_core_partial( scanptr, e->iflush,
-                         forw_np_partial( scanptr, forw_younger_than, dest, 
-                                          copylim, barrier_younger_than, 
+                         forw_np_partial( scanptr, forw_younger_than, dest,
+                                          copylim, barrier_younger_than,
                                           must_add_to_extra, e ),
                          must_add_to_extra, e );
 #if EXTRA_GEN_LOOKUP && EXTRA_GEN_BITVECTOR
@@ -3112,8 +3115,8 @@ static void scan_small_objects( dof_env_t *e )
   else {
     while (scanptr < scanlim) {
       scan_core_partial( scanptr, e->iflush,
-                         forw_np_partial( scanptr, forw_younger_than, dest, 
-                                          copylim, barrier_younger_than, 
+                         forw_np_partial( scanptr, forw_younger_than, dest,
+                                          copylim, barrier_younger_than,
                                           must_add_to_extra, e ),
                          must_add_to_extra, e );
 #if EXTRA_GEN_LOOKUP && EXTRA_GEN_BITVECTOR
@@ -3141,8 +3144,8 @@ static bool scan_large_objects( dof_env_t *e, int gen )
 #if EXTRA_GEN_BITVECTOR && !EXTRA_GEN_LOOKUP
 # define must_add_to_extra extra_gen
 #elif EXTRA_GEN_LOOKUP
-  word **remtops = e->tospaces[e->scan_idx].remset_tops;     
-  word **remlims = e->tospaces[e->scan_idx].remset_lims;     
+  word **remtops = e->tospaces[e->scan_idx].remset_tops;
+  word **remlims = e->tospaces[e->scan_idx].remset_lims;
 # if EXTRA_GEN_BITVECTOR
   word extra_gen = 0;
 # else
@@ -3155,24 +3158,24 @@ static bool scan_large_objects( dof_env_t *e, int gen )
 #if GCLIB_LARGE_TABLE && SHADOW_TABLE
   gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
-  
+
 #if EXTRA_GEN_BITVECTOR
   assert( e->ngenerations <= 32 );
 #else
   for ( i=0 ; i < MAX_GENERATIONS ; i++ )
     extra_gen[i] = 0;
 #endif
-  
-  /* must_add_to_extra is a name used by the scanning and fwd macros as a 
+
+  /* must_add_to_extra is a name used by the scanning and fwd macros as a
      temp */
-  while ((p = los_walk_list( e->tospaces[gen].marked, 
+  while ((p = los_walk_list( e->tospaces[gen].marked,
                              e->tospaces[gen].mark_context )) != 0) {
     e->tospaces[gen].mark_context = p;
     work = TRUE;
     assert2( ishdr( *p ) );
     scan_core_partial( p, e->iflush,
                        forw_np_partial( p, forw_younger_than, dest, copylim,
-                                        barrier_younger_than, must_add_to_extra, 
+                                        barrier_younger_than, must_add_to_extra,
                                         e ),
                        must_add_to_extra, e );
 #if EXTRA_GEN_LOOKUP && EXTRA_GEN_BITVECTOR
@@ -3199,7 +3202,7 @@ static word forward( word p, word **dest, dof_env_t *e )
   word hdr, newptr, *p1, *p2, tag, *ptr;
   unsigned words;
 
-  tag = tagof( p ); 
+  tag = tagof( p );
   ptr = ptrof( p );
 
   /* Copy the structure into newspace and pad if necessary. */
@@ -3228,7 +3231,7 @@ static word forward( word p, word **dest, dof_env_t *e )
       words -= 2;
     }
   }
-  else if (words > GC_LARGE_OBJECT_LIMIT/4 && e->gc->los) 
+  else if (words > GC_LARGE_OBJECT_LIMIT/4 && e->gc->los)
     return forward_large_object( e, ptr, tag );
   else {
     memcpy( p1, p2, words*4 );
@@ -3270,10 +3273,10 @@ static word forward_large_object( dof_env_t *e, word *ptr, int tag )
     bytes = roundup8( sizefield( hdr ) + 4 );
     new = los_allocate( e->gc->los, bytes, copy_gen_no(e) );
     memcpy( new, ptr, bytes );
-    
+
     /* Mark it */
     los_mark( e->gc->los, copy_marked(e), new, copy_gen_no(e) );
-    
+
     /* Leave a forwarding pointer */
     check_address( ptr );
     *ptr = FORWARD_HDR;
@@ -3345,12 +3348,14 @@ expand_semispace_np( word **lim, word **dest, unsigned bytes, dof_env_t *e )
     copy_ss(e)->current++;
 #endif
   }
-  
+
   assert( copy_ss(e)->current < copy_ss(e)->n );
   assert( copy_ss(e)->chunks[copy_ss(e)->current ].bytes > 0 );
 
   *dest = copy_ss(e)->chunks[ copy_ss(e)->current ].bot;
   *lim = copy_ss(e)->chunks[ copy_ss(e)->current ].lim;
 }
+
+#endif /* DOF_COLLECTOR */
 
 /* eof */

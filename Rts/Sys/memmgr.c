@@ -38,20 +38,20 @@ typedef struct gc_data gc_data_t;
 
 struct gc_data {
   bool is_generational_system;  /* True if system has multiple generations */
-  bool use_dof_collector;	/* True if system uses DOF collector */
-  bool use_np_collector;	/* True if dynamic area is non-predictive */
-  bool shrink_heap;		/* True if heap can be shrunk */
-  int  dynamic_min;		/* 0 or lower limit of expandable area */
-  int  dynamic_max;		/* 0 or upper limit of expandable area */
-  int  nonexpandable_size;	/* Size of nonexpandable areas */
+  bool use_dof_collector;       /* True if system uses DOF collector */
+  bool use_np_collector;        /* True if dynamic area is non-predictive */
+  bool shrink_heap;             /* True if heap can be shrunk */
+  int  dynamic_min;             /* 0 or lower limit of expandable area */
+  int  dynamic_max;             /* 0 or upper limit of expandable area */
+  int  nonexpandable_size;      /* Size of nonexpandable areas */
 
   word *globals;
   word *handles;               /* array of handles */
   int  nhandles;               /* current array length */
   int  in_gc;                  /* a counter: > 0 means in gc */
   int  generations;            /* number of generations (incl. static) */
-  int  static_generation;	/* Generation number of static area */
-  bool have_stats;		/* For DOF collection */
+  int  static_generation;       /* Generation number of static area */
+  bool have_stats;              /* For DOF collection */
   word **ssb_bot;
   word **ssb_top;
   word **ssb_lim;
@@ -87,7 +87,7 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   gc = alloc_gc_structure( info->globals, info );
 
   /* Number of generations includes static heap, if any */
-  if (info->is_generational_system) 
+  if (info->is_generational_system)
     *generations = allocate_generational_system( gc, info );
   else
     *generations = allocate_stopcopy_system( gc, info );
@@ -104,15 +104,15 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 /* The size of the dynamic (expandable) area is computed based on live data.
 
    The size is computed as the size to which allocation can grow
-   before GC is necessary.  D = live copied data, Q = live large 
+   before GC is necessary.  D = live copied data, Q = live large
    data, S = live static data, L is the inverse load factor, lower_limit
    is 0 or the lower limit on the dynamic area, upper_limit is 0 or
    the upper limit on the dynamic area.
 
    Let the total memory use be M = L*(D+S+Q).
 
-   Fundamentally, size = M - live_at_next_gc, that is, the amount of 
-   memory that can be used for currently live data and allocation, 
+   Fundamentally, size = M - live_at_next_gc, that is, the amount of
+   memory that can be used for currently live data and allocation,
    assuming some value for the amount of live data at the next GC that
    must also be accomodated (since we have a copying GC).
 
@@ -128,7 +128,7 @@ gc_t *create_gc( gc_param_t *info, int *generations )
    * A different approach is to use (D+S+Q); that quantity is independent
      of where live data is located, which is nice because it makes the
      effects of changes to L more predictable.  However, it underestimates
-     the size.  
+     the size.
 
    I'm currently using the latter quantity.
 
@@ -138,10 +138,10 @@ gc_t *create_gc( gc_param_t *info, int *generations )
    If M - current_live - live_at_next_gc is negative, then there is
    negative space available for allocation, which is absurd, hence the
    limit may be exceeded.  However, whether it actually will be exceeded
-   depends on the actual amount of live data at next GC, so compute size 
+   depends on the actual amount of live data at next GC, so compute size
    to be exactly large enough to allow 0 allocation; that way, by the time
-   the next collection happens, enough data may have died to allow the 
-   collection to take place without exceeding the limit.  
+   the next collection happens, enough data may have died to allow the
+   collection to take place without exceeding the limit.
 
    This appears to work well in practice, although it does depend on
    the program actually staying within the limit most of the time and
@@ -150,12 +150,12 @@ gc_t *create_gc( gc_param_t *info, int *generations )
    can be estimated with some certainty.  Other programs should use the
    load factor for control.
    */
-int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L, 
-			     int lower_limit, int upper_limit )
+int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
+                             int lower_limit, int upper_limit )
 {
   int live = D+S+Q;
   int M = (int)(L*live);
-  int est_live_next_gc = live;	/* == M/L */
+  int est_live_next_gc = live;  /* == M/L */
 
   if (lower_limit && upper_limit == lower_limit) {
     /* Fixed heap size */
@@ -170,7 +170,7 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
     M = max( M, lower_limit );
     est_live_next_gc = max( M/L, est_live_next_gc );
   }
-  
+
   if (!DATA(gc)->shrink_heap) {
     gclib_stats_t stats;
 
@@ -182,7 +182,7 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
     int newM = min( M, upper_limit );
     int avail = (newM - live - est_live_next_gc);
     if (avail < 0)
-      M = newM + roundup_page( abs( avail ) );	/* _Minimal_ amount */
+      M = newM + roundup_page( abs( avail ) );  /* _Minimal_ amount */
     else
       M = newM;
   }
@@ -218,14 +218,14 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     if (op == 0) {
       ans[1] = gc->young_area->maximum;
       if (data->is_generational_system) {
-	/* Nursery */
-	ans[0] = 0;
-	ans[2] = 0;
+        /* Nursery */
+        ans[0] = 0;
+        ans[2] = 0;
       }
       else {
-	/* Stopcopy area */
-	ans[0] = 1;
-	ans[2] = 1;
+        /* Stopcopy area */
+        ans[0] = 1;
+        ans[2] = 1;
       }
     }
     else if (op-1 < gc->ephemeral_area_count) {
@@ -234,8 +234,9 @@ void gc_parameters( gc_t *gc, int op, int *ans )
       ans[2] = 0;
     }
     else if (op < data->static_generation &&
-	     gc->dynamic_area &&
-	     data->use_np_collector) {
+             gc->dynamic_area &&
+             data->use_np_collector) {
+#if ROF_COLLECTOR
       int k, j;
 
       /* Non-predictive dynamic area */
@@ -243,25 +244,28 @@ void gc_parameters( gc_t *gc, int op, int *ans )
       ans[2] = k;
       ans[3] = j;
       if (op-1 == gc->ephemeral_area_count) {
-	/* NP old */
-	ans[0] = 2;
-	ans[1] = (gc->dynamic_area->maximum / k) * (k - j);
+        /* NP old */
+        ans[0] = 2;
+        ans[1] = (gc->dynamic_area->maximum / k) * (k - j);
       }
       else {
-	ans[0] = 3;
-	ans[1] = (gc->dynamic_area->maximum / k) * j;
+        ans[0] = 3;
+        ans[1] = (gc->dynamic_area->maximum / k) * j;
       }
+#endif
     }
     else if (op < data->static_generation &&
-	     gc->dynamic_area &&
-	     data->use_dof_collector) {
+             gc->dynamic_area &&
+             data->use_dof_collector) {
+#if DOF_COLLECTOR
       /*  DOF area -- fixed number of same-size generations */
       int size;
 
       dof_gc_parameters( gc->dynamic_area, &size );
       ans[0] = 6;
       ans[1] = size;
-      ans[2] = 1;		/* Expandable */
+      ans[2] = 1;               /* Expandable */
+#endif
     }
     else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
       /* Dynamic area */
@@ -289,7 +293,7 @@ static int initialize( gc_t *gc )
   if (gc->ephemeral_area)
     for ( i = 0 ; i < gc->ephemeral_area_count  ; i++ )
       if (!oh_initialize( gc->ephemeral_area[i] ))
-	return 0;
+        return 0;
 
   if (gc->dynamic_area)
     if (!oh_initialize( gc->dynamic_area ))
@@ -302,17 +306,17 @@ static int initialize( gc_t *gc )
   if (data->is_generational_system) {
     wb_setup( gclib_desc_g,
 #if GCLIB_LARGE_TABLE
-	      (byte*)0,
+              (byte*)0,
 #else
-	      (byte*)gclib_pagebase,
+              (byte*)gclib_pagebase,
 #endif
-	      data->generations,
-	      data->globals,
-	      data->ssb_top,
-	      data->ssb_lim, 
-	      (data->use_np_collector ? data->generations-1 : -1 ),
-	      gc->np_remset
-	     );
+              data->generations,
+              data->globals,
+              data->ssb_top,
+              data->ssb_lim,
+              (data->use_np_collector ? data->generations-1 : -1 ),
+              gc->np_remset
+             );
   }
   else
     wb_disable_barrier( data->globals );
@@ -321,7 +325,7 @@ static int initialize( gc_t *gc )
 
   return 1;
 }
-  
+
 static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
 {
   assert( nbytes > 0 );
@@ -329,7 +333,7 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
     panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
-	        nbytes, LARGEST_OBJECT );
+                nbytes, LARGEST_OBJECT );
 
   return yh_allocate( gc->young_area, nbytes, no_gc );
 }
@@ -344,7 +348,7 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
     panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
-	        nbytes, LARGEST_OBJECT );
+                nbytes, LARGEST_OBJECT );
 
   return sh_allocate( gc->static_area, nbytes );
 }
@@ -352,7 +356,7 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
 /* Shuffle remembered sets
    Shuffle SSB pointer table entries
    Shuffle the pointers in the remsets to the ssb pointer tables
-   
+
    The permutation encodes the destination: v[i] -> v[perm[i]]
    */
 static void permute_remembered_sets( gc_t *gc, int permutation[] )
@@ -419,8 +423,8 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 
     gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
-		 stats.heap_allocated, stats.remset_allocated, 
-		 stats.rts_allocated );
+                 stats.heap_allocated, stats.remset_allocated,
+                 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
   }
 }
@@ -430,9 +434,10 @@ void gc_signal_moving_collection( gc_t *gc )
   DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
   if (DATA(gc)->globals[ G_GC_CNT ] == 0)
     hardconsolemsg( "\n\nCongratulations!\n"
-		    "You have survived 1,073,741,824 garbage collections!\n" );
+                    "You have survived 1,073,741,824 garbage collections!\n" );
 }
 
+#if DOF_COLLECTOR
 /* DOF collection is a little different. */
 /* hack */
 static void gc_start_gc( gc_t *gc )
@@ -456,7 +461,7 @@ static void gc_end_gc( gc_t *gc )
   }
 }
 
-static void 
+static void
 dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
   gc_data_t *data = DATA(gc);
@@ -483,12 +488,13 @@ dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 
     gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
-		 stats.heap_allocated, stats.remset_allocated,
-		 stats.rts_allocated );
-    annoyingmsg( "  Max heap usage: %d words", 
-		 stats.heap_allocated_max );
+                 stats.heap_allocated, stats.remset_allocated,
+                 stats.rts_allocated );
+    annoyingmsg( "  Max heap usage: %d words",
+                 stats.heap_allocated_max );
   }
 }
+#endif /* DOF_COLLECTOR */
 
 static void before_collection( gc_t *gc )
 {
@@ -538,10 +544,10 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
 
 static void
 enumerate_remsets_older_than( gc_t *gc,
-			      int generation,
-			      bool (*f)(word obj, void *data, unsigned *count),
-			      void *fdata,
-			      bool enumerate_np_young )
+                              int generation,
+                              bool (*f)(word obj, void *data, unsigned *count),
+                              void *fdata,
+                              bool enumerate_np_young )
 {
   int i;
 
@@ -572,7 +578,7 @@ static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
 {
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
-  
+
   if (gc->static_area)
     DATA(gc)->nonexpandable_size += nbytes;
   effect_heap_limits( gc );
@@ -592,16 +598,16 @@ static int iflush( gc_t *gc, int generation )
   return (int)(DATA(gc)->globals[G_CACHE_FLUSH]);
 }
 
-static word creg_get( gc_t *gc ) 
+static word creg_get( gc_t *gc )
   { return yh_creg_get( gc->young_area ); }
 
-static void creg_set( gc_t *gc, word k ) 
+static void creg_set( gc_t *gc, word k )
   { yh_creg_set( gc->young_area, k ); }
 
-static void stack_overflow( gc_t *gc ) 
+static void stack_overflow( gc_t *gc )
   { yh_stack_overflow( gc->young_area ); }
 
-static void stack_underflow( gc_t *gc ) 
+static void stack_underflow( gc_t *gc )
   { yh_stack_underflow( gc->young_area ); }
 
 #if defined(SIMULATE_NEW_BARRIER)
@@ -622,7 +628,7 @@ static int isremembered( gc_t *gc, word w )
 }
 #endif
 
-/* Strategy: generations report the data for themselves and their 
+/* Strategy: generations report the data for themselves and their
    remembered sets.  Everything else is handled here.
    */
 static void stats_following_gc( gc_t *gc )
@@ -656,7 +662,7 @@ static void stats_following_gc( gc_t *gc )
   gclib_stats( &stats_gclib );
   stats_add_gclib_stats( &stats_gclib );
 
-  stats_dumpstate();		/* Dumps stats state if dumping is on */
+  stats_dumpstate();            /* Dumps stats state if dumping is on */
 }
 
 static int compact_all_ssbs( gc_t *gc )
@@ -688,7 +694,7 @@ static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim )
 
 static int dump_image( gc_t *gc, const char *filename, bool compact )
 {
-  if (DATA(gc)->is_generational_system) 
+  if (DATA(gc)->is_generational_system)
     return dump_generational_system( gc, filename, compact );
   else
     return dump_stopcopy_system( gc, filename, compact );
@@ -749,7 +755,7 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
   p = 0;
   while ((p = los_walk_list ( gc->los->object_lists[0], p )) != 0) {
     r = hio_dump_segment( heap, DATA_SEGMENT,
-			  p, p + bytes2words(sizefield(*ptrof(p))) + 1 );
+                          p, p + bytes2words(sizefield(*ptrof(p))) + 1 );
     if (r < 0) goto fail;
   }
 
@@ -799,7 +805,7 @@ static word *make_handle( gc_t *gc, word obj )
 static void free_handle( gc_t *gc, word *handle )
 {
   gc_data_t *data = DATA( gc );
-  
+
   assert( handle >= data->handles && handle < data->handles + data->nhandles );
   assert( *handle != 0 );
   *handle = 0;
@@ -858,7 +864,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   gen_no += 1;
   strcpy( buf, gc->young_area->id );
 
-  /* Create ephemeral areas. 
+  /* Create ephemeral areas.
      */
   { int e = gc->ephemeral_area_count = info->ephemeral_area_count;
     gc->ephemeral_area =
@@ -866,14 +872,14 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 
     for ( i = 0 ; i < e ; i++ ) {
       size += info->ephemeral_info[i].size_bytes;
-      gc->ephemeral_area[ i ] = 
-	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
+      gc->ephemeral_area[ i ] =
+        create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
       gen_no += 1;
     }
   }
   if (gc->ephemeral_area_count > 0) {
     sprintf( buf2, "+%d*%s",
-	     gc->ephemeral_area_count, gc->ephemeral_area[0]->id );
+             gc->ephemeral_area_count, gc->ephemeral_area[0]->id );
     strcat( buf, buf2 );
   }
 
@@ -882,18 +888,26 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   /* Create dynamic area.
      */
   if (info->use_non_predictive_collector) {
+#if ROF_COLLECTOR
     int gen_allocd;
 
-    gc->dynamic_area = 
+    gc->dynamic_area =
       create_np_dynamic_area( gen_no, &gen_allocd, gc, &info->dynamic_np_info);
     gen_no += gen_allocd;
+#else
+    panic_exit( "ROF collector not compiled in" );
+#endif
   }
   else if (info->use_dof_collector) {
+#if DOF_COLLECTOR
     int gen_allocd;
 
-    gc->dynamic_area = 
+    gc->dynamic_area =
       create_dof_area( gen_no, &gen_allocd, gc, &info->dynamic_dof_info );
     gen_no += gen_allocd;
+#else
+    panic_exit( "DOF collector not compiled in" );
+#endif
   }
   else {
     gc->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
@@ -934,7 +948,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   for ( i = 1 ; i < gc->remset_count ; i++ )
     gc->remset[i] =
       create_remset( info->rhash, 0, info->ssb,
-		     &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i] );
+                     &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i] );
 
   if (info->use_non_predictive_collector)
     gc->np_remset = gc->remset_count - 1;
@@ -947,7 +961,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
-  
+
   data = (gc_data_t*)must_malloc( sizeof( gc_data_t ) );
 
   data->globals = globals;
@@ -965,34 +979,38 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->dynamic_min = 0;
   data->nonexpandable_size = 0;
 
-  return 
+  return
     create_gc_t( "*invalid*",
-		 data,
-		 initialize, 
-		 allocate,
-		 allocate_nonmoving,
-		 (info->use_dof_collector ? dof_collect : collect),
-		 permute_remembered_sets,
-		 set_policy,
-		 data_load_area,
-		 text_load_area,
-		 iflush,
-		 creg_get,
-		 creg_set,
-		 stack_overflow,
-		 stack_underflow,
-		 compact_all_ssbs,
-#if defined(SIMULATE_NEW_BARRIER)
-		 isremembered,
+                 data,
+                 initialize,
+                 allocate,
+                 allocate_nonmoving,
+#if DOF_COLLECTOR
+                 (info->use_dof_collector ? dof_collect : collect),
+#else
+                 collect,
 #endif
-		 compact_np_ssb,
-		 np_remset_ptrs,
-		 0,		/* load_heap */
-		 dump_image,
-		 make_handle,
-		 free_handle,
-		 enumerate_roots,
-		 enumerate_remsets_older_than );
+                 permute_remembered_sets,
+                 set_policy,
+                 data_load_area,
+                 text_load_area,
+                 iflush,
+                 creg_get,
+                 creg_set,
+                 stack_overflow,
+                 stack_underflow,
+                 compact_all_ssbs,
+#if defined(SIMULATE_NEW_BARRIER)
+                 isremembered,
+#endif
+                 compact_np_ssb,
+                 np_remset_ptrs,
+                 0,             /* load_heap */
+                 dump_image,
+                 make_handle,
+                 free_handle,
+                 enumerate_roots,
+                 enumerate_remsets_older_than );
 }
 
 /* eof */

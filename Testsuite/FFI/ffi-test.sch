@@ -4,10 +4,19 @@
 ;
 ; This program loads and exercises the lowlevel FFI in various ways.
 ;
+; How to run this:
+;   - fix the definition of *work-path* below, if necessary
+;   - start Larceny (with any heap)
+;   - load this file
+;   - evaluate (RUN-BASIC-FFI-TESTS)
+; If no errors are printed, you're OK.
+
 ; Some of the tests have been chosen because they test corners of the
 ; calling conventions: splitting data across registers and stack,
 ; across even/odd register pairs, and so on.  See ffi-test-ff.c for
 ; more details.
+
+; Points to the top-level development directory
 
 (define *work-path* "/home/lth/net/larceny/")
 
@@ -25,7 +34,8 @@
 
 (define (run-basic-ffi-tests)
   (run-callout-tests)
-  (run-callback-tests)
+  (if (string=? "SPARC" (cdr (assq 'arch-name (system-features))))
+      (run-callback-tests))
   (run-peek-poke-tests))
 
 (load (string-append *ffi-path* "ffi-load.sch"))
@@ -61,8 +71,8 @@
 		   (double . ieee64)
 		   (void . void)
 		   (pointer . pointer)))))
-			  
-  (ffi/foreign-procedure callout-abi name 
+
+  (ffi/foreign-procedure callout-abi name
 			 (map rename param)
 			 (rename ret)))
 
@@ -125,7 +135,7 @@
 
 (define (run-callback-tests)
   (allof "Callback tests"
-    (test "Callback 1" 
+    (test "Callback 1"
           (let ((r (fficb1 cb:void->void)))
             (cons r *the-value*))
           '(#!unspecified . cb:void->void))
@@ -179,7 +189,7 @@
            (lo2 (make-bytevector 4))
            (hi1 (make-bytevector 4))
            (hi2 (make-bytevector 4)))
-       
+
        (define (dealloc)
          (free buffer))
 

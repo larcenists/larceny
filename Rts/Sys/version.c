@@ -11,21 +11,24 @@
  *  Big Board                   0.48
  *  'Buck' Turgidson            0.49
  *  The Coca-Cola Company       0.51
- *  CRM-114
- *  Dear John
+ *  CRM-114                     0.52
+ *  Dear John                   0.53
  *  Doomsday Device
  *  Fluoridation
- *  General Ripper 
+ *  General Ripper
  *  Group Commander Mandrake
  *  Hi There!
  *  'King' Kong
+ *  Mine-shaft Gap
  *  Missile Complex at Laputa
+ *  Mutiny of Preverts
  *  Operation Drop-Kick
  *  Peace is our Profession
  *  Plan R
  *  Precious Bodily Fluids
  *  Premier Kissoff
  *  President Muffley
+ *  Purity of Essence
  *  Dr Strangelove
  *  War Room
  */
@@ -33,8 +36,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 51;
-char *larceny_version_qualifier = " \"The Coca-Cola Company\"";
+int  larceny_minor_version = 53;
+char *larceny_version_qualifier = " \"Dear John\"";
 
 char *date = DATE;
 char *user = USER;
@@ -46,6 +49,8 @@ char *user = USER;
   char *osname = "SunOS5";
 #elif defined(LINUX)
   char *osname = "Linux";
+#elif defined(CYGWIN)
+  char *osname = "Cygwin";
 #elif defined(BSD_UNIX)
   char *osname = "BSD Unix";
 #elif defined(POSIX_UNIX)

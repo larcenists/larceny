@@ -7,6 +7,8 @@
 ; FIXME:  If the compiler is sufficiently clever, some of these cases
 ; may not test anything but the host system.
 
+(define (hide x) x)
+
 (define (run-regression-tests)
   (display "Regression") (newline)
   (allof "Past error cases"
@@ -67,23 +69,23 @@
    (test "Error case #17"		; Bug 080
 	 (modulo 33333333333333333333.0 -3.0) 0.0)
    (test "Error case #18"		; Bug 064
-	 (call-with-values 
-	  (lambda () 
+	 (call-with-values
+	  (lambda ()
 	    (call-with-current-continuation (lambda (k) (values 1 2 3))))
-	  (lambda (a b c) 
+	  (lambda (a b c)
 	    (list a b c)))
 	 '(1 2 3))
    (test "Error case #19"		; Bug 064
-	 (call-with-values 
-	  (lambda () 
-	    (call-with-current-continuation (lambda (k) (k 1 2 3)))) 
-	  (lambda (a b c) 
+	 (call-with-values
+	  (lambda ()
+	    (call-with-current-continuation (lambda (k) (k 1 2 3))))
+	  (lambda (a b c)
 	    (list a b c)))
 	 '(1 2 3))
    (test "Error case #20"		; Bug 064
-	 (call-with-values 
+	 (call-with-values
 	  (lambda ()
-	    (call-with-current-continuation (lambda (k) (k 1 2 3)))) 
+	    (call-with-current-continuation (lambda (k) (k 1 2 3))))
 	  (lambda a a))
 	 '(1 2 3))
    (test "Error case #21"               ; Bug 082
@@ -121,15 +123,15 @@
                  (user 23))             ; user time
              ; Test that allocation is the same and that execution time
              ; ratio is within reason.
-             (cons 
+             (cons
               (= (- (vector-ref t1 alloc) (vector-ref t0 alloc))
                  (- (vector-ref t2 alloc) (vector-ref t1 alloc)))
-              (let ((time1 (- (vector-ref t1 user) (vector-ref t2 user)))
+              (let ((time1 (- (vector-ref t1 user) (vector-ref t0 user)))
                     (time2 (- (vector-ref t2 user) (vector-ref t1 user))))
                 (if (> time1 time2)
                     (>= (/ time2 time1) 0.9)
                     (>= (/ time1 time2) 0.9))))))
-         '(#t #t))
+         '(#t . #t))
    (test "Error case #25"               ; Bug 107
          (let ((ans #t))
            (let ((x (bug-107-datum)))
@@ -138,6 +140,9 @@
                ((constantvector) (set! ans #f))))
            ans)
          #t)
+   (test "Error case #26"		; Bug in Larceny through 0.51
+	 (remainder (hide #xc6450c30) (hide #x100000000))
+	 #xc6450c30)
    ))
 
 (define (bug-105-test1)

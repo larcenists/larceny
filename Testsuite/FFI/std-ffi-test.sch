@@ -4,6 +4,15 @@
 ;
 ; Test cases for the standard FFI.
 ;
+; How to run this:
+;  - fix the setup of *testsuite-dir* and *foreign-file*, if necessary
+;  - go to the toplevel development directory
+;  - start Larceny (with any heap)
+;  - load Auxlib/std-ffi.sch
+;  - load this file
+;  - evaluate (RUN-STD-FFI-TESTS)
+; If no errors are printed, you're OK.
+
 ; The test of the basic FFI tests whether the fundamental parameter types
 ; can be passed in various locations and so on, so this file tests whether
 ; the std-ffi type names work, whether foreign-procedure and foreign-file
@@ -63,7 +72,7 @@
 (define add-ints (foreign-procedure "add_ints" '(int int) 'int))
 (define add-shorts (foreign-procedure "add_shorts" '(short short) 'short))
 (define add-longs (foreign-procedure "add_longs" '(long long) 'long))
-(define add-uints (foreign-procedure "add_uints" '(unsigned unsigned) 
+(define add-uints (foreign-procedure "add_uints" '(unsigned unsigned)
                                      'unsigned))
 (define add-ushorts (foreign-procedure "add_ushorts" '(ushort ushort) 'ushort))
 (define add-ulongs (foreign-procedure "add_ulongs" '(ulong ulong) 'ulong))
@@ -88,13 +97,13 @@
             36))))
 
 (define (std-ffi-test-int)
-  (for-each int-test 
+  (for-each int-test
             `(("int" ,add-ints)
               ("short" ,add-shorts)
               ("long" ,add-longs))))
 
 (define (std-ffi-test-uint)
-  (for-each uint-test 
+  (for-each uint-test
             `(("uint" ,add-uints)
               ("ushort" ,add-ushorts)
               ("ulong" ,add-ulongs))))
@@ -143,7 +152,7 @@
 
 ; Floating types
 
-(define add-doubles 
+(define add-doubles
   (foreign-procedure "add_doubles" '(double double) 'double))
 
 (define add-floats
@@ -161,10 +170,10 @@
       (test name (fixit (p -1.0 (p (p 5.4 7.0) -11.0))) 0.4))))
 
 (define (std-ffi-test-float)
-  (for-each floating-test 
+  (for-each floating-test
             `(("double" ,add-doubles)
               ("float" ,add-floats))))
-          
+
 ; String and boxed types
 
 (define return-half                     ; Return second half of the string.
@@ -178,7 +187,7 @@
 
 (define pass-null-pointer-to-boxed      ; Pass #f as NULL, test result.
   (foreign-procedure "pass_null_pointer_to_boxed" '(boxed) 'bool))
-                     
+
 (define (std-ffi-test-string)
   (allof "string test"
     (test "pass and return null pointer through STRING"
@@ -231,4 +240,4 @@
   ; FIXME
   #t)
 
-; eof 
+; eof

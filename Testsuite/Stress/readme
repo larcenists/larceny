@@ -1,20 +1,26 @@
-This directory contains a set of Scheme benchmarks, including some of
-the Gabriel benchmarks and a few larger benchmarks.
+Setup
+-----
+The bench shell script must be run from this directory.  When it is run,
+there must be a link in the directory to an executable 'larceny' and
+links to two heap images: 'r5rs.heap' should be the basic heap image,
+and 'twobit.heap' should be the twobit heap image.
 
-The "bench" script can be used to run a set of benchmarks or a single
-benchmark.  Documentation for this script is available by executing
-"bench" with no argument.
+Running
+-------
+To run, say:
+	./bench larceny all
 
-As a simple example, executing
+If the purpose of the run is to test performance, then
+ - larceny.heap should have been initialized, re-dumped and treated
+   with -reorganize-and-dump
+ - all files should reside on a local file system
 
-  bench gambit-int "fib tak"
 
-will run the benchmarks "fib" and "tak" using the Gambit-C
-interpreter.  The results are sent to standard output and to
-"results.Gambit-C-int".  A summary of the results is obtained
-by executing
+Summarizing
+-----------
+To summarize results, load summarize.sch into a Scheme system and then
+run
 
-  summarize results.Gambit-C-int
+	((summarize larceny-results) "results.Larceny")
 
-The "bench" script assumes that the Gambit-C system has been installed
-cleanly.
+Note that successive runs of bench append the output to results.Larceny.

@@ -58,6 +58,18 @@ void osdep_system( word w_cmd )
   globals[ G_RESULT ] = fixnum(system( cmd ));
 }
 
+/* chdir() is not portable */
+void osdep_chdir( word w_cmd )
+{
+  globals[G_RESULT] = fixnum(-1);
+}
+
+/* cwd() is not portable */
+void osdep_cwd( void )
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
 /* Return 0.0 */
 void osdep_os_version( int *major, int *minor )
 {
@@ -66,7 +78,7 @@ void osdep_os_version( int *major, int *minor )
 }
 
 /* Fill in the structures with real, user, system times. */
-void 
+void
 osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
@@ -96,6 +108,21 @@ static void get_rtclock( stat_time_t *real )
 {
   real->sec = 0;
   real->usec = 0;
+}
+
+word
+osdep_dlopen( char *path )
+{
+#ifndef DYNAMIC_LOADING
+  hardconsolemsg( "Larceny configured without DYNAMIC_LOADING" );
+#endif
+  return 0;
+}
+
+word
+osdep_dlsym( word handle, char *sym )
+{
+  return 0;
 }
 
 #endif /* GENERIC_OS */
@@ -150,7 +177,7 @@ void osdep_mtime( word w_fn, word w_buf )
   globals[ G_RESULT ] = fixnum( 0 );
 }
 
-/* Standard C does not have a procedure to check whether a file exists. 
+/* Standard C does not have a procedure to check whether a file exists.
    We use stat() if we have it; many systems do.  If not, try to open
    the file in read mode to find out if it exists; this is usually OK
    (not always).  The mode is ignored.
@@ -294,7 +321,7 @@ void osdep_closefile( word w_fd )
     globals[ G_RESULT ] = fixnum(-1);
   else if (fclose( fdarray[fd].fp ) == EOF)
     globals[ G_RESULT ] = fixnum(-1);
-  else 
+  else
     globals[ G_RESULT ] = fixnum(0);
   fdarray[fd].fp = 0;
   fdarray[fd].mode = 0;
@@ -363,7 +390,7 @@ void osdep_writefile( word w_fd, word w_buf, word w_cnt, word w_offset )
 }
 
 /* Standard C does not have a procedure to check for input-ready.
-   Return 1 always to indicate input ready.  This is correct for disk 
+   Return 1 always to indicate input ready.  This is correct for disk
    files, but not for intermittent input sources (console, etc).
    */
 void osdep_pollinput( word w_fd )
@@ -379,7 +406,7 @@ void osdep_pollinput( word w_fd )
 
 #if USE_GENERIC_ALLOCATOR || GENERIC_OS
 /* Memory management.
-   
+
    In a portable system the most we can rely on is malloc, and malloc
    does not come with any alignment guarantees.  Therefore we always
    allocate blocks that are 4096 bytes larger than we need and return
@@ -396,7 +423,7 @@ void osdep_pollinput( word w_fd )
    easily reaches 10% of the live memory.  The code below should be
    improved to do one of several things:
 
-     - allocate larger blocks then parcel out the blocks to fill 
+     - allocate larger blocks then parcel out the blocks to fill
        requests
 
      - allocate blocks from malloc with smaller overheads than 4096,
@@ -453,8 +480,8 @@ static void register_pointer( byte *derived, byte *original )
     j = 0;
     for ( i=0 ; i < reg_size; i++ ) {
       if (registry[i].original != 0) {
-	registry[j] = registry[i];
-	j++;
+        registry[j] = registry[i];
+        j++;
       }
     }
 
@@ -470,13 +497,13 @@ static void register_pointer( byte *derived, byte *original )
       k = max( 256, reg_size * 2 );
       new_reg = (struct regentry *)must_malloc( k*sizeof( struct regentry ) );
       for ( i=0 ; i < reg_size ; i++ )
-	new_reg[i] = registry[i];
+        new_reg[i] = registry[i];
       if (registry != 0) free( registry );
       registry = new_reg;
       reg_size = k;
     }
   }
-	
+
   registry[reg_next].original = original;
   registry[reg_next].derived = derived;
   reg_next++;

@@ -60,6 +60,8 @@ static struct {
 		      { (fptr)larceny_poke_bytes, 3, 0 },
 		      { (fptr)larceny_segment_code_address, 2, 0 },
 		      { (fptr)primitive_stats_dump_stdout, 0, 1 },
+		      { (fptr)osdep_chdir, 1, 0 },
+		      { (fptr)osdep_cwd, 0, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

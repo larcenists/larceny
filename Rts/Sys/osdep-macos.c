@@ -6,7 +6,7 @@
  * The interface is specified in osdep.h.
  *
  * FIXME/BUGS
- *  - This implementation depends on Codewarrior because it uses 
+ *  - This implementation depends on Codewarrior because it uses
  *    Codewarrior's Unix emulation libraries for some tasks.
  *  - File creator code is hardwired.
  *  - osdep_poll_startup_events implementation seems like a hack.
@@ -49,7 +49,7 @@ static void get_rtclock( stat_time_t *real );
 void osdep_init( void )
 {
   /* Set the creator for files to 'Plth': Petit Larceny.
-     FIXME: It would be better to get the creator code from the application file. 
+     FIXME: It would be better to get the creator code from the application file.
      */
   _fcreator = 'Plth';
   real_start.sec = 0;
@@ -63,12 +63,12 @@ void osdep_init( void )
 }
 
 /* Is there a principled way to do this?
-   Loop for a while to process OpenDocument Apple Event to get the 
+   Loop for a while to process OpenDocument Apple Event to get the
    heap file, if any.
    */
 void osdep_poll_startup_events( void )
 {
-  EventRecord event; 
+  EventRecord event;
   int i;
 
   for ( i=0 ; i < 10 ; i++ ) {
@@ -100,7 +100,7 @@ word w_fn, w_flags, w_mode;
   if (flags & 0x08) newflags |= O_CREAT;
   if (flags & 0x10) newflags |= O_TRUNC;
   if (flags & 0x20) newflags |= O_BINARY;
-  
+
   if (fn == 0) {
     globals[ G_RESULT ] = fixnum( -1 );
     return;
@@ -176,7 +176,7 @@ word w_fn, w_bits;
     globals[ G_RESULT ] = fixnum( 0 );
   }
   else
-    globals[ G_RESULT ] = fixnum( -1 ); 
+    globals[ G_RESULT ] = fixnum( -1 );
 }
 
 void osdep_rename( w_from, w_to )
@@ -200,6 +200,12 @@ void osdep_system( word w_cmd )  /* FIXME */
   globals[ G_RESULT ] = fixnum( 1 );
 }
 
+void osdep_chdir ( word w_cmd )
+{
+  hardconsolemsg( "CHDIR primitive not implemented on this platform." );
+  globals[ G_RESULT ] = fixnum(-1);
+}
+
 word osdep_dlopen( const char *path )
 {
   OSErr r;
@@ -207,7 +213,7 @@ word osdep_dlopen( const char *path )
   Str255 errName;
   Ptr mainAddr;
 
-  r = GetSharedLibrary( (unsigned char *)path, 
+  r = GetSharedLibrary( (unsigned char *)path,
   			kPowerPCCFragArch, kLoadCFrag, &connID, &mainAddr, errName );
   if (r < 0) {
     hardconsolemsg( "GetSharedLibrary error: %#s: %#s (%d)\n", path, errName, r );
@@ -242,9 +248,9 @@ void osdep_open_shared_object( word w_param, word results )
   word *rh = gc_make_handle( gc, results );
   word *hdata;
   int tbl_bytes, data_bytes;
-  
+
   desc = osdep_dlopen( path );
-  if (desc == 0) 
+  if (desc == 0)
     return;
   tbl = (void*)osdep_dlsym( desc, (char*)"\ptwobit_entry_table" );
   if (tbl == 0)
@@ -252,7 +258,7 @@ void osdep_open_shared_object( word w_param, word results )
   data = (void*)osdep_dlsym( desc, (char*)"\ptwobit_data" );
   if (data == 0)
     return;
-  
+
   /* It's illegal to have tagged pointers to outside the heap,
      so copy the data into heap-allocated data structures.
      */
@@ -262,10 +268,10 @@ void osdep_open_shared_object( word w_param, word results )
   ndata = gc_allocate( gc, data_bytes, FALSE, TRUE );
   memcpy( ndata, data, data_bytes );
   hdata = gc_make_handle( gc, tagptr( ndata, BVEC_TAG ) );  /* Another alloc coming... */
-  
+
   ntbl = gc_allocate( gc, tbl_bytes, FALSE, FALSE );
   memcpy( ntbl, tbl, tbl_bytes );
- 
+
   vector_set( *rh, 0, tagptr( ntbl, VEC_TAG ) );
   vector_set( *rh, 1, *hdata );
 
@@ -275,7 +281,7 @@ void osdep_open_shared_object( word w_param, word results )
 void osdep_os_version( int *major, int *minor )
 {
   long response;
-  
+
   *major = *minor = 0;
   if (Gestalt( gestaltSystemVersion, &response ) == 0) {
     *major = (response & 0x0F00) >> 8;

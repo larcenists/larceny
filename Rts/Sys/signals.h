@@ -4,8 +4,8 @@
  *
  * Larceny Run-time system -- signal handling.
  *
- * Signals are either synchronous (SIGFPE, SIGBUS, SIGSEGV, SIGILL) or 
- * asynchronous (SIGINT, SIGQUIT, etc).  Synchronous signals must be 
+ * Signals are either synchronous (SIGFPE, SIGBUS, SIGSEGV, SIGILL) or
+ * asynchronous (SIGINT, SIGQUIT, etc).  Synchronous signals must be
  * handled as they occur, whereas asynchronous signals can be handled
  * when it is convenient to do so.
  *
@@ -33,7 +33,7 @@
  *     create conditions that result in synchronous signals.  Ditto system
  *     code.
  *
- * (3) Synchronous signals in interruptible syscalls or foreign functions: 
+ * (3) Synchronous signals in interruptible syscalls or foreign functions:
  *     SIGBUS and SIGSEGV are errors and can be handled as such by aborting
  *     the syscall and signalling the error, but things like SIGFPE are more
  *     problematic because they may occur for legitimate reasons, yet it is
@@ -77,7 +77,7 @@
 
 #if defined(BSD_SIGNALS)
 # define signal_set_t int
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
 # define signal_set_t int
 #elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
 # define signal_set_t sigset_t

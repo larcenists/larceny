@@ -13,7 +13,7 @@
 #define GC_INTERNAL
 
 #define FLOAT_REDUCTION  0
-  /* Define this to 1 to do a mark-and-remset-sweep before every ROF 
+  /* Define this to 1 to do a mark-and-remset-sweep before every ROF
      collection and 2 to do ditto before every collection.
 
      Normally this should be 0!
@@ -22,13 +22,16 @@
 #define REMSET_TRACE     0
   /* Set this to 1 to dump a record of the remembered set sizes following
      every garbage collection.
-     
+
      Normally this should be 0!
      */
 
 #include <stdlib.h>
 
 #include "larceny.h"
+
+#if ROF_COLLECTOR
+
 #include "memmgr.h"
 #include "gc.h"
 #include "gclib.h"
@@ -132,9 +135,9 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->remset_limit    = info->extra_remset_limit;
   data->luck            = info->luck;
   data->phase_detection = info->phase_detection;
-  
+
   /* Assume size/L live (steady state) for initial k */
-  data->target_size = 
+  data->target_size =
     compute_dynamic_size( heap,
                           size_bytes / data->load_factor,
                           0 );
@@ -181,8 +184,8 @@ static void collect( old_heap_t *heap, gc_type_t request )
   case PROMOTE_TO_OLD :
     perform_promote_to_old( heap );
     data->gen_stats_old.promotions++;
-    data->gen_stats_old.ms_promotion += stats_stop_timer( timer1 ); 
-    data->gen_stats_old.ms_promotion_cpu += stats_stop_timer( timer2 ); 
+    data->gen_stats_old.ms_promotion += stats_stop_timer( timer1 );
+    data->gen_stats_old.ms_promotion_cpu += stats_stop_timer( timer2 );
 #if REMSET_TRACE
     remset_trace( heap, "rof-promote-old" );
 #endif
@@ -193,8 +196,8 @@ static void collect( old_heap_t *heap, gc_type_t request )
        it's less obviously wrong than assigning all time to one or the
        other.
        */
-    t1 = stats_stop_timer( timer1 ); 
-    t2 = stats_stop_timer( timer2 ); 
+    t1 = stats_stop_timer( timer1 );
+    t2 = stats_stop_timer( timer2 );
     data->gen_stats_old.promotions++; /* Only count one.  Could split it?  */
     data->gen_stats_old.ms_promotion += t1 / 2;
     data->gen_stats_old.ms_promotion_cpu += t2 / 2;
@@ -207,17 +210,17 @@ static void collect( old_heap_t *heap, gc_type_t request )
   case PROMOTE_TO_YOUNG :
     perform_promote_to_both( heap ); /* sic! */
     data->gen_stats_young.promotions++;
-    data->gen_stats_young.ms_promotion += stats_stop_timer( timer1 ); 
-    data->gen_stats_young.ms_promotion_cpu += stats_stop_timer( timer2 ); 
+    data->gen_stats_young.ms_promotion += stats_stop_timer( timer1 );
+    data->gen_stats_young.ms_promotion_cpu += stats_stop_timer( timer2 );
 #if REMSET_TRACE
     remset_trace( heap, "rof-promote-young" );
 #endif
     break;
-  case COLLECT : 
+  case COLLECT :
     perform_collect( heap );
     data->gen_stats_old.collections++;
-    data->gen_stats_old.ms_collection += stats_stop_timer( timer1 ); 
-    data->gen_stats_old.ms_collection_cpu += stats_stop_timer( timer2 ); 
+    data->gen_stats_old.ms_collection += stats_stop_timer( timer1 );
+    data->gen_stats_old.ms_collection_cpu += stats_stop_timer( timer2 );
 #if REMSET_TRACE
     remset_trace( heap, "rof-collect-old" );
 #endif
@@ -228,7 +231,7 @@ static void collect( old_heap_t *heap, gc_type_t request )
                used_old( heap ), used_young( heap ), data->k, data->j );
 }
 
-/* Cautious strategy: 
+/* Cautious strategy:
      Let X be the amount of memory allocated in ephemeral area.
      Let No be the amount of memory available in the 'old' generation.
      Let Ny be the amount of memory available in the 'young' generation.
@@ -257,21 +260,21 @@ static enum action decision( old_heap_t *heap )
     X += gc->ephemeral_area[i]->allocated;
 
   /* Max fragmentation in the data promoted in depends on the amount being
-     promoted, the maximum small object size, and the allocation area chunk 
+     promoted, the maximum small object size, and the allocation area chunk
      size.
      */
-  max_fragmentation = 
+  max_fragmentation =
     GC_LARGE_OBJECT_LIMIT*(ceildiv( X, GC_CHUNK_SIZE )-1) + GC_CHUNK_SIZE;
   X += max_fragmentation;
-  
+
   No = data->stepsize * (data->k - data->j) - used_in_space( data->old );
   Ny = data->stepsize * data->j - used_in_space( data->young );
-  large_live =   los_bytes_used( gc->los, data->gen_no ) 
+  large_live =   los_bytes_used( gc->los, data->gen_no )
                + los_bytes_used( gc->los, data->gen_no+1 );
-    
+
   assert( No >= 0 );
   assert( Ny >= 0 );
-  
+
   if (large_live > No + Ny)
     return COLLECT;
   else if (X <= No)
@@ -293,7 +296,7 @@ static bool run_phase_detector( old_heap_t *heap )
   npsc_data_t *data = DATA(heap);
   int i, j, min_entries, prev, young;
 
-  if (data->phase_detection < 0.0) 
+  if (data->phase_detection < 0.0)
     return FALSE;               /* disabled */
 
   /* Determine if old window exhibits growth */
@@ -303,7 +306,7 @@ static bool run_phase_detector( old_heap_t *heap )
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
       return FALSE;             /* shrank */
-    min_entries = 
+    min_entries =
       data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
     if (data->phase_buf[j].remset_size <= min_entries)
       return FALSE;             /* grown too little */
@@ -322,14 +325,14 @@ static bool run_phase_detector( old_heap_t *heap )
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
       return FALSE;             /* shrank */
-    min_entries = 
+    min_entries =
       data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
     if (data->phase_buf[j].remset_size > min_entries)
       return FALSE;             /* grown too much */
     prev = j;
   }
 
-  if (data->phase_buf[young].j >= data->j) 
+  if (data->phase_buf[young].j >= data->j)
     return FALSE;
 
   annoyingmsg( "Phase detector triggered. "
@@ -348,12 +351,12 @@ static void update_phase_data( old_heap_t *heap )
   npsc_data_t *data = DATA(heap);
   int i, effective_j;
 
-  effective_j = 
+  effective_j =
     (data->j*data->stepsize - used_in_space( data->young )) / data->stepsize;
   assert( effective_j >= 0 );
 
   i = data->phase_idx;
-  data->phase_buf[i].remset_size = 
+  data->phase_buf[i].remset_size =
     heap->collector->remset[ heap->collector->np_remset ]->live;
   data->phase_buf[i].j = effective_j;
   data->phase_idx = (data->phase_idx+1) % PHASE_BUFSIZ;
@@ -361,7 +364,7 @@ static void update_phase_data( old_heap_t *heap )
 
 /* Return TRUE if the extra remset, scaled to the expected size when the
    generation is full, is fuller than allowed by the limit.  (The
-   default limit is INT_MAX, ie roughly infinite.)  
+   default limit is INT_MAX, ie roughly infinite.)
    */
 static bool check_for_remset_overflow( old_heap_t *heap )
 {
@@ -401,7 +404,7 @@ static void adjust_j( old_heap_t *heap )
      Must scan the NP remset and remove pointers not into the correct area.
      Must scan the young remset and remove pointers not into the correct area.
 
-     Cheap solution: 
+     Cheap solution:
      Shuffle _all_ young into old.  This can be bad if the size of young
      has increased a lot since remset stability, because it will shuffle
      too much memory, but is otherwise a close approximation.  Wholesale
@@ -415,25 +418,25 @@ static void adjust_j( old_heap_t *heap )
   n=data->young->current;
   for ( i=n ; i >= 0 ; i-- )
     ss_insert_block_in_semispace( data->young, i, data->old );
-  los_append_and_clear_list( los, 
-                             los->object_lists[ data->gen_no+1 ], 
+  los_append_and_clear_list( los,
+                             los->object_lists[ data->gen_no+1 ],
                              data->gen_no);
 
   ss_free( data->young );
-  data->young = 
+  data->young =
     create_semispace( GC_CHUNK_SIZE, data->gen_no+1 );
 
-  /* Clear or move remset contents. Can't clear all three sets 
-     because adjust_j() can be called while there's still live 
+  /* Clear or move remset contents. Can't clear all three sets
+     because adjust_j() can be called while there's still live
      data in the ephemeral area.
      */
-  rs_assimilate_and_clear( heap->collector->remset[ data->gen_no ], 
+  rs_assimilate_and_clear( heap->collector->remset[ data->gen_no ],
                            heap->collector->remset[ data->gen_no+1 ] );
   rs_clear( heap->collector->remset[ heap->collector->np_remset ] );
 
   data->j -= n+1;
   assert( data->j >= 0 );
-  
+
   annoyingmsg( "Adjusted value of j=%d", data->j );
 }
 
@@ -443,7 +446,7 @@ static void perform_promote_to_old( old_heap_t *heap )
   int old_before_gc, old_los_before_gc;
   gc_t *gc = heap->collector;
   los_t *los = gc->los;
-  
+
   annoyingmsg( "  Promoting into old area." );
 
 #if FLOAT_REDUCTION == 2
@@ -458,14 +461,14 @@ static void perform_promote_to_old( old_heap_t *heap )
   rs_clear( heap->collector->remset[ data->gen_no ] );
 
   ss_sync( data->old );
-  data->gc_stats.words_copied += 
+  data->gc_stats.words_copied +=
         bytes2words( data->old->used - old_before_gc );
-  data->gc_stats.words_moved += 
+  data->gc_stats.words_moved +=
         bytes2words( los_bytes_used( los, data->gen_no )-old_los_before_gc );
 #if GC_EVENT_COUNTERS
-  data->event_stats.copied_by_prom += 
+  data->event_stats.copied_by_prom +=
         bytes2words( data->old->used - old_before_gc );
-  data->event_stats.moved_by_prom += 
+  data->event_stats.moved_by_prom +=
         bytes2words( los_bytes_used( los, data->gen_no )-old_los_before_gc );
 #endif
 }
@@ -496,22 +499,22 @@ static void perform_promote_to_both( old_heap_t *heap )
   young_los_before_gc = los_bytes_used( los, data->gen_no+1 );
 
   young_available = data->j*data->stepsize - used_in_space( data->young );
-  old_available = 
+  old_available =
     (data->k - data->j)*data->stepsize - used_in_space( data->old );
 
   /* Precondition for promotion into old and young: free space is the
      sum of free space in the current chunk plus an integral number of
-     chunks.  
+     chunks.
      */
   assert( old_available % GC_CHUNK_SIZE ==
           words2bytes( data->old->chunks[data->old->current].lim -
-                       data->old->chunks[data->old->current].top ) 
+                       data->old->chunks[data->old->current].top )
             % GC_CHUNK_SIZE );
-  assert( young_available % GC_CHUNK_SIZE == 
+  assert( young_available % GC_CHUNK_SIZE ==
           words2bytes( data->young->chunks[data->young->current].lim -
-                       data->young->chunks[data->young->current].top ) 
+                       data->young->chunks[data->young->current].top )
             % GC_CHUNK_SIZE );
-  
+
   gclib_stopcopy_promote_into_np( heap->collector,
                                   data->old,
                                   data->young,
@@ -529,17 +532,17 @@ static void perform_promote_to_both( old_heap_t *heap )
   /* Must update stats before changing j */
   ss_sync( data->old );
   ss_sync( data->young );
-  data->gc_stats.words_copied += 
+  data->gc_stats.words_copied +=
       bytes2words( data->old->used - old_before_gc )
     + bytes2words( data->young->used - young_before_gc );
-  data->gc_stats.words_moved += 
+  data->gc_stats.words_moved +=
       bytes2words(los_bytes_used( los, data->gen_no )-old_los_before_gc)
     + bytes2words(los_bytes_used( los, data->gen_no+1 )-young_los_before_gc);
 #if GC_EVENT_COUNTERS
-  data->event_stats.copied_by_prom += 
+  data->event_stats.copied_by_prom +=
       bytes2words( data->old->used - old_before_gc )
     + bytes2words( data->young->used - young_before_gc );
-  data->event_stats.moved_by_prom += 
+  data->event_stats.moved_by_prom +=
       bytes2words(los_bytes_used( los, data->gen_no )-old_los_before_gc)
     + bytes2words(los_bytes_used( los, data->gen_no+1 )-young_los_before_gc);
 #endif
@@ -582,8 +585,8 @@ static void perform_collect( old_heap_t *heap )
 
   ss_set_gen_no( data->old, data->gen_no );
   assert( los_bytes_used( los, data->gen_no ) == 0 );
-  los_append_and_clear_list( los, 
-                             los->object_lists[ data->gen_no+1 ], 
+  los_append_and_clear_list( los,
+                             los->object_lists[ data->gen_no+1 ],
                              data->gen_no);
 
   data->young = create_semispace( GC_CHUNK_SIZE, data->gen_no+1);
@@ -592,35 +595,35 @@ static void perform_collect( old_heap_t *heap )
      Young is empty.
 
      What should the new k be?
-     
+
      Assuming that all of old is live, computing k is easy: it's the
-     standard load-factor based computation, adjusted for the large 
+     standard load-factor based computation, adjusted for the large
      object volume.
-     
-     All of old is probably not live, though, so k can be adjusted; 
+
+     All of old is probably not live, though, so k can be adjusted;
      see further down.
      */
   data->target_size =
     compute_dynamic_size( heap,
                           used_in_space( data->old ),
                           los_bytes_used( los, data->gen_no ) );
-  data->k = 
+  data->k =
     (data->target_size - los_bytes_used( los, data->gen_no )) / data->stepsize;
   if (data->k < 0) {
     /* Hard heap overflow in fixed-size heap. */
     panic_exit( "ROF collector: The heap is full." );
   }
 
-  free_steps = 
+  free_steps =
     (data->k * data->stepsize - used_in_space( data->old )) / data->stepsize;
   if (free_steps < 0) {
     /* Soft heap overflow in a fixed-size heap. */
     free_steps = 0;
   }
 
-  /* Policy: j is calculated either as a percentage of free steps, or it's 
+  /* Policy: j is calculated either as a percentage of free steps, or it's
      pinned at some value (if possible).  For example, if pin_value == 1
-     and there is at least one empty step, then j is set to 1.  
+     and there is at least one empty step, then j is set to 1.
      */
   assert( data->j_percent >= 0 || data->j_pin >= 0 );
   if (data->j_percent >= 0)
@@ -634,10 +637,10 @@ static void perform_collect( old_heap_t *heap )
   }
 
   /* Now adjust k.
-     
-        I know what you're thinking, punk. You're thinking, did he 
-        fire six shots or only five?  Well in all the excitement 
-        I've forgotten myself.  So you have to ask yourself, do I 
+
+        I know what you're thinking, punk. You're thinking, did he
+        fire six shots or only five?  Well in all the excitement
+        I've forgotten myself.  So you have to ask yourself, do I
         feel lucky?  Well, do you, punk?
 
      At the time of the next GC, whatever's in 1..j will not be copied,
@@ -646,36 +649,36 @@ static void perform_collect( old_heap_t *heap )
      into the old generation, where it becomes available for allocation.
 
      By assumption, the amount of garbage in the system at the next GC
-     is H/L.  If all of 1..j is live, then j steps can be added to k.  
-     However, there will probably be some garbage in 1..j, so assuming 
-     that all of 1..j is live probably underestimates the amount of live 
-     storage in steps j+1..k.  Therefore, less than j steps should be 
+     is H/L.  If all of 1..j is live, then j steps can be added to k.
+     However, there will probably be some garbage in 1..j, so assuming
+     that all of 1..j is live probably underestimates the amount of live
+     storage in steps j+1..k.  Therefore, less than j steps should be
      added to k, because some space needs to be set aside for the copies
      of the live objects that are in j+1..k rather than in 1..j.  The
      parameter f controls the fraction of j that's added to k.
 
-     The default value of f is 0.0, which is an extremely conservative 
+     The default value of f is 0.0, which is an extremely conservative
      approximation.  But a value closer to 1.0 increases the risk of
      underestimating the amount of live storage in steps j+1..k, thus
-     increasing the chance of memory overflow during collection in a 
+     increasing the chance of memory overflow during collection in a
      fixed heap.  So, how lucky do you feel?
      */
   luck_steps = (int)(data->j*data->luck);
   data->k += luck_steps;
 
   ss_sync( data->old );
-  data->gc_stats.words_copied += 
+  data->gc_stats.words_copied +=
     bytes2words( data->old->used - young_before_gc );
   data->gc_stats.words_moved +=
     bytes2words( los_bytes_used( los, data->gen_no ) - young_los_before_gc );
 #if GC_EVENT_COUNTERS
-  data->event_stats.copied_by_gc += 
+  data->event_stats.copied_by_gc +=
     bytes2words( data->old->used - young_before_gc );
   data->event_stats.moved_by_gc +=
     bytes2words( los_bytes_used( los, data->gen_no ) - young_los_before_gc );
 #endif
-  
-  annoyingmsg( "  ROF GC: Adjusting parameters, k=%d j=%d, luck=%d", 
+
+  annoyingmsg( "  ROF GC: Adjusting parameters, k=%d j=%d, luck=%d",
                data->k, data->j, luck_steps );
   assert( data->k > 0 );
   assert( 0 <= data->j && data->j < data->k );
@@ -690,11 +693,11 @@ static void stats( old_heap_t *heap )
 
   ss_sync( data->old );
   ss_sync( data->young );
-  
+
   live_los = los_bytes_used( heap->collector->los, data->gen_no );
-  data->gen_stats_old.target = 
+  data->gen_stats_old.target =
     bytes2words( data->stepsize * (data->k - data->j) );
-  data->gen_stats_old.allocated = 
+  data->gen_stats_old.allocated =
     bytes2words( data->old->allocated + live_los );
   data->gen_stats_old.used = bytes2words( data->old->used + live_los );
   stats_add_gen_stats( data->self_old, &data->gen_stats_old );
@@ -703,7 +706,7 @@ static void stats( old_heap_t *heap )
 
   live_los = los_bytes_used( heap->collector->los, data->gen_no+1 );
   data->gen_stats_young.target = bytes2words( data->stepsize * data->j );
-  data->gen_stats_young.allocated = 
+  data->gen_stats_young.allocated =
     bytes2words( data->young->allocated + live_los );
   data->gen_stats_young.used = bytes2words( data->young->used + live_los );
   stats_add_gen_stats( data->self_young, &data->gen_stats_young );
@@ -792,7 +795,7 @@ static int used_old( old_heap_t *heap )
   npsc_data_t *data = DATA(heap);
 
   ss_sync( data->old );
-  return 
+  return
    data->old->used + los_bytes_used( heap->collector->los, data->gen_no );
 }
 
@@ -872,7 +875,7 @@ static char *eish( int n )
   static char buf[10];
   int e = 0;
   double m = n;
-  
+
   while (m >= 1000.0) {
     e += 3;
     m /= 1000.0;
@@ -919,9 +922,9 @@ fullgc_should_keep_p( word loc, void *data, unsigned *stats )
   }
 }
 
-static int 
-sweep_remembered_sets( remset_t **remsets, int first, int last, 
-		       msgc_context_t *context )
+static int
+sweep_remembered_sets( remset_t **remsets, int first, int last,
+                       msgc_context_t *context )
 {
   int i;
   scan_datum_t d;
@@ -938,7 +941,7 @@ void full_collection( old_heap_t *heap )
 {
   msgc_context_t *context;
   int marked=0, traced=0, removed=0, words_marked=0;
-  
+
   consolemsg( ">>> Full collection starts." );
 
   context = msgc_begin( heap->collector );
@@ -953,6 +956,8 @@ void full_collection( old_heap_t *heap )
   consolemsg( ">>> Full collection ends.  Marked=%d traced=%d removed=%d",
               marked, traced, removed );
 }
-#endif
+#endif /* FLOAT_REDUCTION */
+
+#endif /* ROF_COLLECTOR */
 
 /* eof */

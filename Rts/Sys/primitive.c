@@ -31,7 +31,7 @@ void primitive_dumpheap( word w_fn, word w_proc )
 
   if (fn == 0 || dump_heap_image_to_file( fn ) == -1)
     globals[ G_RESULT ] = FALSE_CONST;
-  else 
+  else
     globals[ G_RESULT ] = TRUE_CONST;
 }
 
@@ -58,8 +58,8 @@ void primitive_garbage_collect( w_gen, w_type )
 word w_gen;			/* fixnum: generation */
 word w_type;			/* fixnum: type requested */
 {
-  gc_collect( the_gc( globals ), 
-	      nativeint( w_gen ), 
+  gc_collect( the_gc( globals ),
+	      nativeint( w_gen ),
 	      0,
 	      (w_type ? GCTYPE_COLLECT : GCTYPE_PROMOTE ) );
 }
@@ -67,7 +67,7 @@ word w_type;			/* fixnum: type requested */
 void primitive_iflush( w_bv )
 word w_bv;
 {
-  mem_icache_flush( ptrof( w_bv )+1, 
+  mem_icache_flush( ptrof( w_bv )+1,
 		    ptrof( w_bv )+roundup4(sizefield(*ptrof(w_bv)))/4 );
 }
 
@@ -129,7 +129,7 @@ void primitive_gcctl_np( word heap, word rator, word rand )
   /* Heap# comes in as 1..n, but RTS uses 0..n-1 */
   gc_set_policy( the_gc( globals ),
 		 nativeint( heap )-1,
-		 nativeint( rator ), 
+		 nativeint( rator ),
 		 (unsigned)nativeint( rand ) );
 }
 
@@ -145,7 +145,7 @@ void primitive_block_signals( word code )
 
 void primitive_allocate_nonmoving( word w_length, word w_tag )
 {
-  globals[ G_RESULT ] = 
+  globals[ G_RESULT ] =
     allocate_nonmoving( nativeint( w_length ), nativeint( w_tag ) );
 }
 
@@ -197,6 +197,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       vector_set( v, 0, fixnum(0) );
     else if (strcmp( larceny_architecture, "Standard-C" ) == 0)
       vector_set( v, 0, fixnum(1) );
+    else if (strcmp( larceny_architecture, "X86-NASM" ) == 0)
+      vector_set( v, 0, fixnum(2) );
     else
       vector_set( v, 0, fixnum(-1) );
     break;
@@ -232,7 +234,20 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
   case 10 : /* stats-remsets */
     vector_set( v, 0, fixnum( stats_parameter( 1 ) ) );
     break;
-  default : 
+  case 11 : /* codevec */
+#if defined PETIT_LARCENY || defined X86_NASM
+# if defined CODEPTR_SHIFT2
+    vector_set( v, 0, fixnum( 3 ) );  // pointer shifted two bits
+# elif defined CODEPTR_SHIFT1
+    vector_set( v, 0, fixnum( 2 ) );  // pointer shifted one bit
+# else
+    vector_set( v, 0, fixnum( 1 ) );  // raw pointer
+# endif
+#else
+    vector_set( v, 0, fixnum( 0 ) );  // bytevector
+#endif
+    break;
+  default :
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }
 }

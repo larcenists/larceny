@@ -11,14 +11,14 @@
 
 #include "config.h"
 
-#if defined(UNIX)		/* This file in effect only on Unix systems */
+#if defined(UNIX)               /* This file in effect only on Unix systems */
 
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#include <sys/mman.h>		/* For mmap() and munmap() */
+#include <sys/mman.h>           /* For mmap() and munmap() */
 #include <unistd.h>
 #include <time.h>
 #ifdef HAVE_POLL
@@ -29,8 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifdef HAVE_DLFCN
+# include <dlfcn.h>
+#endif
 
-#if defined(SUNOS4)		/* Not in any header file. */
+#if defined(SUNOS4)             /* Not in any header file. */
 extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
 extern int getrusage( int who, struct rusage *rusage );
 extern int rename( const char *oldname, const char *newname );
@@ -38,7 +41,7 @@ extern int poll( struct pollfd *fds, unsigned long nfds, int timeout );
 #endif
 
 #include "larceny.h"
-#include "memmgr.h"		/* for GC_CHUNK_SIZE */
+#include "memmgr.h"             /* for GC_CHUNK_SIZE */
 
 static stat_time_t real_start;
 
@@ -76,6 +79,12 @@ word w_fn, w_flags, w_mode;
   if (flags & 0x04) newflags |= O_APPEND;
   if (flags & 0x08) newflags |= O_CREAT;
   if (flags & 0x10) newflags |= O_TRUNC;
+#if defined O_BINARY
+  if (flags & 0x20) newflags |= O_BINARY;
+#endif
+#if defined O_RAW
+  if (flags & 0x20) newflags |= O_RAW;
+#endif
 
   if (fn == 0) {
     globals[ G_RESULT ] = fixnum( -1 );
@@ -105,16 +114,16 @@ void osdep_readfile( w_fd, w_buf, w_cnt )
 word w_fd, w_buf, w_cnt;
 {
   globals[ G_RESULT ] = fixnum( read( nativeint( w_fd ),
-				    string_data( w_buf ),
-				    nativeint( w_cnt ) ) );
+                                    string_data( w_buf ),
+                                    nativeint( w_cnt ) ) );
 }
 
 void osdep_writefile( w_fd, w_buf, w_cnt, w_offset )
 word w_fd, w_buf, w_cnt, w_offset;
 {
   globals[ G_RESULT ] = fixnum( write( nativeint( w_fd ),
-				     string_data(w_buf)+nativeint(w_offset),
-				     nativeint( w_cnt ) ) );
+                                     string_data(w_buf)+nativeint(w_offset),
+                                     nativeint( w_cnt ) ) );
 }
 
 /* File modification time as six-element vector */
@@ -198,6 +207,29 @@ void osdep_system( word w_cmd )
   globals[ G_RESULT ] = fixnum(system( cmd ));
 }
 
+void osdep_chdir( word w_cmd )
+{
+  char *path = string2asciiz( w_cmd );
+  globals[ G_RESULT ] = fixnum(chdir(path));
+}
+
+void osdep_cwd( void )
+{
+  char buf[FILENAME_MAX+1];
+
+  if (getcwd( buf, sizeof(buf) ) == NULL)
+    globals[G_RESULT] = FALSE_CONST;
+  else
+  {
+    int k = strlen( buf );
+    int nwords = roundup4(k)/4;
+    word *p = alloc_from_heap( (nwords+1)*sizeof(word) );
+    *p = mkheader( k, STR_HDR );
+    memcpy( p+1, buf, k );
+    globals[G_RESULT] = tagptr(p,BVEC_TAG);
+  }
+}
+
 void osdep_os_version( int *major, int *minor )
 {
   struct utsname name;
@@ -208,17 +240,17 @@ void osdep_os_version( int *major, int *minor )
 
 /* Low level memory management */
 
-#if !USE_GENERIC_ALLOCATOR	/* in osdep-generic.c */
+#if !USE_GENERIC_ALLOCATOR      /* in osdep-generic.c */
 /* mmap() and munmap() are not entirely portable, but work well where
    available, in particular because munmap() allows memory to be
    returned to the operating system.
 
    The following code has been tested on Solaris 2.6.
 
-   4.4BSD, Linux, and DEC OSF/1 (X/OPEN) all have mmap()/munmap(), 
-   though there may be slight variations -- I haven't studied them 
+   4.4BSD, Linux, and DEC OSF/1 (X/OPEN) all have mmap()/munmap(),
+   though there may be slight variations -- I haven't studied them
    in detail.
-   
+
    4.3BSD and earlier do not have mmap()/munmap().
    */
 
@@ -228,12 +260,12 @@ void osdep_os_version( int *major, int *minor )
    request from it, and if there's space, put a block there rather
    than returning it right away.
    */
-#define NUM_AVAILABLE 16	/* high for some, low for others? */
+#define NUM_AVAILABLE 16        /* high for some, low for others? */
 static struct {
-  void *datum;			/* the block */
-  int  bytes;			/* 0 if slot is empty */
-} available[ NUM_AVAILABLE ];	/* free blocks not yet returned to OS */
-static int  nextvictim;		/* index of next to eject */
+  void *datum;                  /* the block */
+  int  bytes;                   /* 0 if slot is empty */
+} available[ NUM_AVAILABLE ];   /* free blocks not yet returned to OS */
+static int  nextvictim;         /* index of next to eject */
 #else
 #define KILOBYTE      1024
 #define NUM_AVAILABLE 4
@@ -254,17 +286,17 @@ static int  nextvictim;		/* index of next to eject */
    deallocation, the size of the quick list is bounded by the average of
    the values in the history buffer; if more blocks than the bound are
    freed, then they are released to the OS.
-   
+
    The LRU cache keeps an age field for each entry, and the age field
    is incremented on every allocation outside the range of the quick
-   lists.  If an entry ages to more than twice the size of the cache, 
-   it is evicted as being insufficiently often used.  
+   lists.  If an entry ages to more than twice the size of the cache,
+   it is evicted as being insufficiently often used.
    */
 static struct {
-  void *datum;			/* the block */
-  int  bytes;			/* 0 if slot is empty */
+  void *datum;                  /* the block */
+  int  bytes;                   /* 0 if slot is empty */
   int  age;
-} available[ NUM_AVAILABLE ];	/* free blocks not yet returned to OS */
+} available[ NUM_AVAILABLE ];   /* free blocks not yet returned to OS */
 
 static struct {
   word *blocks;
@@ -275,10 +307,10 @@ static struct {
 } quick[ 256/4 ];
 
 #endif
-static int  zero = -1;		/* file descriptor for /dev/zero */
-static int  pagesize;		/* operating system's page size */
-static void *addr_hint = 0;	/* address of the first returned block */
-static int  fragmentation;	/* current fragmentation */
+static int  zero = -1;          /* file descriptor for /dev/zero */
+static int  pagesize;           /* operating system's page size */
+static void *addr_hint = 0;     /* address of the first returned block */
+static int  fragmentation;      /* current fragmentation */
 static int  initialized;
 
 static hrtime_t mmap_time;
@@ -291,7 +323,7 @@ static void* alloc_block( int bytes )
   if (zero == -1) {
     pagesize = getpagesize();
     zero = open( "/dev/zero", O_RDONLY );
-    if (zero == -1) 
+    if (zero == -1)
       panic_exit( "mmap: %s: failed to open /dev/zero.", strerror( errno ) );
   }
 
@@ -303,14 +335,14 @@ again:
      requires the file to be opened for writing (docs say so) but changing
      O_RDONLY to O_RDWR above does not help.  */
   addr = mmap( addr_hint,
-	       bytes,
-	       (PROT_READ | PROT_WRITE | PROT_EXEC), 
-	       MAP_PRIVATE, 
-	       zero, 
-	       0 );
+               bytes,
+               (PROT_READ | PROT_WRITE | PROT_EXEC),
+               MAP_PRIVATE,
+               zero,
+               0 );
   if (addr == MAP_FAILED) {
-    memfail( MF_HEAP, "mmap: %s: failed to map %d bytes.", 
-	     strerror( errno ), bytes );
+    memfail( MF_HEAP, "mmap: %s: failed to map %d bytes.",
+             strerror( errno ), bytes );
     goto again;
   }
   addr_hint = addr;
@@ -323,8 +355,8 @@ static void free_block( void *block, int bytes )
   assert( fragmentation >= 0 );
 
   if (munmap( block, bytes ) == -1)
-    panic_abort( "munmap: %s: failed to unmap %d bytes.", 
-		 strerror(errno), bytes );
+    panic_abort( "munmap: %s: failed to unmap %d bytes.",
+                 strerror(errno), bytes );
 }
 
 void *osdep_alloc_aligned( int bytes )
@@ -332,7 +364,7 @@ void *osdep_alloc_aligned( int bytes )
   void *addr;
   int i;
   hrtime_t now = gethrtime();
-  
+
   assert( bytes % 4096 == 0 );
 
   if (!initialized) {
@@ -366,14 +398,14 @@ void *osdep_alloc_aligned( int bytes )
   }
   else {
     int j;
-    
+
     addr = 0;
     for ( i=0 ; i < NUM_AVAILABLE && addr == 0 ; i++ )
       if (available[i].bytes == bytes) {
-	addr = available[i].datum;
-	for ( j=i ; j < NUM_AVAILABLE-1 ; j++ )
-	  available[j] = available[j+1];
-	available[NUM_AVAILABLE-1].bytes = 0;
+        addr = available[i].datum;
+        for ( j=i ; j < NUM_AVAILABLE-1 ; j++ )
+          available[j] = available[j+1];
+        available[NUM_AVAILABLE-1].bytes = 0;
       }
     if (addr == 0)
       addr = alloc_block( bytes );
@@ -382,13 +414,13 @@ void *osdep_alloc_aligned( int bytes )
     i=0;
     while (i < NUM_AVAILABLE) {
       if (available[i].bytes > 0 && ++available[i].age >= NUM_AVAILABLE*2) {
-	free_block( available[i].datum, available[i].bytes );
-	for ( j=i ; j < NUM_AVAILABLE-1 ; j++ )
-	  available[j] = available[j+1];
-	available[NUM_AVAILABLE-1].bytes = 0;
+        free_block( available[i].datum, available[i].bytes );
+        for ( j=i ; j < NUM_AVAILABLE-1 ; j++ )
+          available[j] = available[j+1];
+        available[NUM_AVAILABLE-1].bytes = 0;
       }
       else
-	i++;
+        i++;
     }
   }
 #endif
@@ -400,11 +432,11 @@ void osdep_free_aligned( void *block, int bytes )
 {
   int i;
   hrtime_t now = gethrtime();
- 
+
   assert( bytes % 4096 == 0 );
 
 #if RETURN_MEMORY_TO_OS
-  if (bytes > GC_CHUNK_SIZE) 
+  if (bytes > GC_CHUNK_SIZE)
     free_block( block, bytes );
   else {
     for ( i=0 ; i < NUM_AVAILABLE && available[i].bytes > 0 ; i++ )
@@ -423,20 +455,20 @@ void osdep_free_aligned( void *block, int bytes )
     if (quick[i].numallocs > 0) {
       int sum = 0, j;
       void *p;
-      
+
       for ( j=0 ; j < NUM_HIST-1 ; j++ ) {
-	sum += quick[i].history[j];
-	quick[i].history[j] = quick[i].history[j+1];
+        sum += quick[i].history[j];
+        quick[i].history[j] = quick[i].history[j+1];
       }
       quick[i].history[j] = quick[i].numallocs;
       sum += quick[i].history[j];
       quick[i].bound = sum/NUM_HIST;
       quick[i].numallocs = 0;
       while (quick[i].size > quick[i].bound) {
-	p = quick[i].blocks;
-	quick[i].blocks = (word*)*(word*)p;
-	free_block( p, bytes );
-	quick[i].size--;
+        p = quick[i].blocks;
+        quick[i].blocks = (word*)*(word*)p;
+        free_block( p, bytes );
+        quick[i].size--;
       }
     }
     if (quick[i].size < quick[i].bound) {
@@ -450,7 +482,7 @@ void osdep_free_aligned( void *block, int bytes )
   else {
     if (available[NUM_AVAILABLE-1].bytes > 0)
       free_block( available[NUM_AVAILABLE-1].datum,
-		  available[NUM_AVAILABLE-1].bytes );
+                  available[NUM_AVAILABLE-1].bytes );
     for (i=NUM_AVAILABLE-1 ; i > 0 ; i-- )
       available[i] = available[i-1];
     available[0].bytes = bytes;
@@ -482,7 +514,7 @@ unsigned osdep_cpuclock( void )
 {
   struct rusage buf;
   int sec, usec;
-  
+
   getrusage( RUSAGE_SELF, &buf );
 
   sec = buf.ru_utime.tv_sec + buf.ru_stime.tv_sec;
@@ -498,7 +530,7 @@ unsigned osdep_cpuclock( void )
 
 
 /* How portable is getrusage()? */
-void 
+void
 osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
@@ -544,6 +576,47 @@ static void get_rtclock( stat_time_t *real )
   real->sec = sec;
   real->usec = usec;
 }
+
+/* One can debate whether the mode choices are right.
+   Perhaps the mode should be a parameter to this function.
+
+   Note: libjava.so requires RTLD_GLOBAL; currently that is
+   hacked around in Scheme code.  RTLD_GLOBAL does not
+   strike me as a reasonable default mode.  --lars
+   */
+word
+osdep_dlopen( char *path )
+{
+#if defined DYNAMIC_LOADING && defined HAVE_DLFCN
+# if defined(SUNOS4)
+  int mode = 1;
+# elif defined(CYGWIN)
+  int mode = RTLD_LAZY;
+# else
+  int mode = RTLD_LAZY | RTLD_LOCAL;
+# endif
+  void *desc = dlopen( path, mode );
+  if (desc == 0)
+    hardconsolemsg( "dlopen error: %s", dlerror() );
+  return (word)desc;
+#else
+# ifndef DYNAMIC_LOADING
+  hardconsolemsg( "Larceny configured without DYNAMIC_LOADING" );
+# endif
+  return 0;
+#endif
+}
+
+word
+osdep_dlsym( word handle, char *sym )
+{
+#if defined DYNAMIC_LOADING && defined HAVE_DLFCN
+  return (word)dlsym( (void*)handle, sym );
+#else
+  return 0;
+#endif
+}
+
 #endif /* defined(UNIX) */
 
 /* eof */

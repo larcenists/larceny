@@ -13,13 +13,13 @@
 #include "signals.h"
 
 /* Signal implementation.
-   
+
    See the comment at the head of signals.h for a general explanation
    of signal handling strategy.
 
    Asynchronous exceptions.
 
-   Currently only SIGINT is handled.  
+   Currently only SIGINT is handled.
 
    The signal delivery is recorded in two variables in the virtual
    machine context, G_SIGNAL and G_SIGINT, both of which are set to 1 by
@@ -66,10 +66,10 @@
    The procedure that manipulates the context is the inappropriately
    named `execute_sigfpe_magic()', in $MACHINE/signals.c (usually).
 
-   The portable implementation does not need the context, and its 
+   The portable implementation does not need the context, and its
    implementation of execute_sigfpe_magic() simply calls longjmp(),
    which works fine because none of the virtual machine state is in
-   registers at the time of an exception 
+   registers at the time of an exception
    */
 
 #if defined(SUNOS4)
@@ -85,11 +85,17 @@ int sigsetmask( int );		/* Should be in <signal.h> but isn't */
 #elif defined(POSIX_SIGNALS)
   static void inthandler( int );
   static void fpehandler( int );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   static void inthandler( int );
   static void fpehandler( int );
 #else
 # error "No signal handler could be selected for chosen feature set."
+#endif
+
+#if defined(WIN32_SIGNALS)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+static __stdcall int win32_inthandler(unsigned long sig);
 #endif
 
 signal_set_t syscall_blocked_signals;
@@ -119,7 +125,7 @@ void setup_signal_handlers( void )
   act.sa_sigaction = fpehandler;
   sigaction( SIGFPE, &act, (struct sigaction*)0 );
 # if defined(DEBIAN_SPARC)
-  /* Integer division by zero is sometimes(?) signalled as a SIGILL with 
+  /* Integer division by zero is sometimes(?) signalled as a SIGILL with
      si_code=ILL_OPN, so install that here too. */
   sigaction( SIGILL, &act, (struct sigaction*)0 );
 # endif
@@ -135,6 +141,9 @@ void setup_signal_handlers( void )
 
   act.sa_handler = fpehandler;
   sigaction( SIGFPE, &act, (struct sigaction*)0 );
+#elif defined(WIN32_SIGNALS)
+  SetConsoleCtrlHandler(win32_inthandler,TRUE);
+  signal(SIGFPE, fpehandler);
 #elif defined(STDC_SIGNALS)
   signal( SIGINT, inthandler );
   signal( SIGFPE, fpehandler );
@@ -151,6 +160,8 @@ static void inthandler( int sig, siginfo_t *siginfo, void *context )
 #elif defined(POSIX_SIGNALS)
 static void inthandler( int sig )
 #elif defined(STDC_SIGNALS)
+static void inthandler( int sig )
+#elif defined(WIN32_SIGNALS)
 static void inthandler( int sig )
 #else
 # error "No definition of inthandler."
@@ -172,12 +183,21 @@ static void inthandler( int sig )
 
 #if !NO_SYNCHRONOUS_SIGNALS
   /* Interruptible syscall.  Interrupt it by longjumping back to the
-     callout point, where cleanup will take place. 
+     callout point, where cleanup will take place.
      */
   longjmp( syscall_interrupt_buf, ASYNCHRONOUS_ERROR );
 #endif
 }
 
+#if defined(WIN32_SIGNALS)
+static __stdcall int win32_inthandler(unsigned long sig)
+{
+  if (sig != CTRL_C_EVENT && sig != CTRL_BREAK_EVENT)
+    return 0;
+  inthandler(SIGINT);
+  return 1;
+}
+#endif
 
 /* Synchronous signal -- only SIGFPE for now. */
 #if defined(BSD_SIGNALS)
@@ -186,7 +206,7 @@ static void fpehandler( int sig, int code, struct sigcontext *scp, char *addr )
 static void fpehandler( int sig, siginfo_t *siginfo, void *context )
 #elif defined(POSIX_SIGNALS)
 static void fpehandler( int sig )
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
 static void fpehandler( int sig )
 #else
 # error "No definition of fpehandler."
@@ -197,7 +217,7 @@ static void fpehandler( int sig )
 #elif defined(XOPEN_SIGNALS)
   void *ctx = context;
   int code = siginfo->si_code;
-#elif defined(PETIT_LARCENY)
+#elif defined(PETIT_LARCENY) || defined(X86_NASM)
   void *ctx = (void*)0;
   int code = 0;
 #else
@@ -209,7 +229,7 @@ static void fpehandler( int sig )
 #endif
 
   globals[ G_FPE_CODE ] = fixnum( code );
-    
+
   if (in_interruptible_syscall) {
     /* Interrupt the call and return to the callout point, where
        cleanup will take place.
@@ -250,7 +270,7 @@ void block_all_signals( signal_set_t *s )  /* s may be NULL */
 
   sigfillset( &t );
   sigprocmask( SIG_SETMASK, &t, s );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   /* Can't block anything! */
 #else
 # error "No implementation for block_all_signals."
@@ -263,7 +283,7 @@ void unblock_signals( signal_set_t *s )
   sigsetmask( *s );
 #elif defined(POSIX_SIGNALS) || defined(XOPEN_SIGNALS)
   sigprocmask( SIG_SETMASK, s, (sigset_t*)0 );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   /* Can't unblock anything! */
 #else
 # error "No implementation for unblock_signals."
@@ -282,7 +302,7 @@ void unblock_all_signals( void )
 
   sigemptyset( &s );
   sigprocmask( SIG_SETMASK, &s, (sigset_t*)0 );
-#elif defined(STDC_SIGNALS)
+#elif defined(STDC_SIGNALS) || defined(WIN32_SIGNALS)
   /* Can't unblock all! */
 #else
 # error "No implementation for unblock_all_signals."
