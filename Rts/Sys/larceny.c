@@ -297,6 +297,7 @@ parse_options( int argc, char **argv, opt_t *o )
   int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
 #if !defined( BDW_GC )
   double load_factor = DEFAULT_LOAD_FACTOR;
+  double feeling_lucky = 0.0;
 #else
   double load_factor = 1.25;	/* Compatible */
 #endif
@@ -349,6 +350,8 @@ parse_options( int argc, char **argv, opt_t *o )
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
     else if (doublearg( "-load", &argc, &argv, &load_factor ))
+      ;
+    else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
       ;
     else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
       ;
@@ -452,6 +455,10 @@ parse_options( int argc, char **argv, opt_t *o )
       if (dynamic_min) size = max( dynamic_min, size );
       if (dynamic_max) size = min( dynamic_max, size );
       compute_np_parameters( o, size );
+      if (feeling_lucky < 0.0 || feeling_lucky > 1.0)
+	param_error( "NP luck parameter out of range." );
+      else
+	o->gc_info.dynamic_np_info.luck = feeling_lucky;
     }
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
@@ -489,6 +496,7 @@ parse_options( int argc, char **argv, opt_t *o )
   }
 }
 
+/* Note that by design, we do not take the load factor into account. */
 static void compute_np_parameters( opt_t *o, int suggested_size )
 {
   int steps = o->gc_info.dynamic_np_info.steps;
@@ -670,6 +678,7 @@ static void dump_options( opt_t *o )
       consolemsg( "    Inverse load factor: %f", i->load_factor );
       consolemsg( "    Min size: %d", i->dynamic_min );
       consolemsg( "    Max size: %d", i->dynamic_max );
+      consolemsg( "    Luck: %f", i->luck );
     }
     else {
       sc_info_t *i = &o->gc_info.dynamic_sc_info;
@@ -736,6 +745,8 @@ static void help( void )
   consolemsg("\t-max      nnnn  Upper limit on the expandable area." );
   consolemsg("\t-load     d     Use inverse load factor d for dynamic area");
   consolemsg("\t                  or for stop-and-copy heap." );
+  consolemsg("\t-feeling-lucky d  NP gc fudge factor 0.0..1.0.  Default=0.0");
+  consolemsg("\t                  (Doesn't select anything else.)");
 #ifdef BDW_GC
   consolemsg("\t-divisor  n     Allocation divisor s.t. live/n bytes are" );
   consolemsg("\t                 allocated before next GC." );
