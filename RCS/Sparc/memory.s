@@ -3,7 +3,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.11 91/07/02 12:27:11 lth Exp Locker: lth $
+! $Id: memory.s,v 1.12 91/07/03 16:35:42 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -340,10 +340,6 @@ _stkuflow:
 ! '_stkoflow' handles stack overflow. When the mutator detects stack overflow,
 ! then '_stkoflow' should be called. It flushes the stack cache and invokes
 ! the garbage collector if necessary, and then returns to its caller.
-!
-! '_stkoflow' can also be used to capture a continuation. After a call to
-! this procedure, a pointer to the current continuation is in the variable
-! "globals[ CONTINUATION_OFFSET ]". See the example in "memory.txt".
 
 _stkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
@@ -370,9 +366,8 @@ _stkoflow:
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 
 	mov	%o7, %TMP0
-	set	fixnum( 0 ), %RESULT
 	call	gcstart
-	nop
+	set	fixnum( 0 ), %RESULT
 
 	jmp	%TMP0+8
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
@@ -384,8 +379,7 @@ _stkoflow:
 
 Lstkoflow1:
 	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %TMP0
-	set	FALSE_CONST, %TMP1
-	cmp	%TMP0, %TMP1
+	cmp	%TMP0, FALSE_CONST
 	beq	Lstkoflow2
 	nop
 
@@ -437,7 +431,30 @@ _save_scheme_context:
 ! at the time of the call to this procedure.
 
 _capture_continuation:
-	retl
+	st	%STKP, [ %GLOBALS + SP_OFFSET ]
+	st	%E_TOP, [ %GLOBALS + E_TOP_OFFSET ]
+
+	save	%sp, -96, %sp
+	call	_flush_stack_cache
+	nop
+	restore
+
+	ld	[ %GLOBALS + E_TOP_OFFSET ], %E_TOP
+	ld	[ %GLOBALS + SP_OFFSET ], %STKP
+
+	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %RESULT
+
+	cmp	%E_TOP, %E_LIMIT
+	blt	Lcapture_cont2
+	mov	%o7, %TMP0
+
+	st	%RESULT, [ %GLOBALS + SAVED_RETURN_OFFSET ]
+	call	gcstart
+	set	fixnum( 0 ), %RESULT
+	ld	[ %GLOBALS + SAVED_RETURN_OFFSET ], %RESULT
+
+Lcapture_cont2:
+	jmp	%TMP0+8
 	nop
 
 
@@ -447,8 +464,25 @@ _capture_continuation:
 ! and reinstates the continuation which is an argument to this procedure.
 
 _restore_continuation:
-	retl
+	ld	[ %GLOBALS + STK_START_OFFSET ], %TMP0
+	st	%RESULT, [ %GLOBALS + CONTINUATION_OFFSET ]
+
+	! Is there a frame to restore?
+
+	cmp	%RESULT, FALSE_CONST
+	beq	Lrestore_cont2
+	st	%TMP0, [ %GLOBALS + SP_OFFSET ]
+
+	! restore a frame
+
+	save	%sp, -96, %sp
+	call	_restore_frame
 	nop
+	restore
+
+Lrestore_cont2:
+	jmp	%o7+8
+	ld	[ %GLOBALS + SP_OFFSET ], %STKP
 
 
 !-----------------------------------------------------------------------------
@@ -513,8 +547,7 @@ gcstart:
 
 	! Must now allocate memory!
 
-	set	fixnum( -1 ), %TMP0
-	cmp	%RESULT, %TMP0
+	cmp	%RESULT, fixnum( - 1 )
 	beq,a	Lgcstart1
 	mov	0, %RESULT
 
@@ -542,8 +575,7 @@ Lgcstart1:
 	! Is there another frame?
 
 	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %TMP0
-	set	FALSE_CONST, %TMP1
-	cmp	%TMP0, %TMP1
+	cmp	%TMP0, FALSE_CONST
 	beq	Lgcstart2
 	nop
 
