@@ -7,12 +7,7 @@ namespace Scheme.RT {
     public class FFI {
 
         public static void ffi_syscall() {
-            try {
                 ffi_syscall_main();
-            } catch (Exception e) {
-                Exn.debug.WriteLine("exception in ffi: " + e.ToString());
-                Exn.fault(Constants.EX_UNSUPPORTED);
-            }
         }
 
         private static void ffi_syscall_main() {
@@ -28,8 +23,12 @@ namespace Scheme.RT {
             int code = ((SFixnum)scode).value;
             switch (code) {
             case 0: // get type
-                Reg.Result = getType(((SByteVL)arg1).asString());
+            {
+                string name = ((SByteVL)arg1).asString();
+                Type t = Type.GetType(name);
+                Reg.Result = Factory.makeForeignF(t);
                 return;
+            }
             case 1: // get method
             {
                 Type t = (Type) ((Foreign)arg1).value;
@@ -39,35 +38,43 @@ namespace Scheme.RT {
                 for (int i = 0; i < types.Length; ++i) {
                     types[i] = (Type) ((Foreign)typev[i]).value;
                 }
-                Reg.Result = getMethod(t, name, types);
+                MethodInfo mi = t.GetMethod(name, types);
+                Reg.Result = Factory.makeForeignF(mi);
                 return;
             }
-            case 2: // foreign-box
-                // Reg.Result = Factory.makeForeign(Scheme2CLR(arg1));
-                Reg.Result = Factory.makeForeign(arg1);
+            case 2: // datum2foreign
+            {
+                int conversion = ((SFixnum)arg1).value;
+                Reg.Result = datum2foreign(conversion, arg2);
                 return;
-            case 3: // foreign-unbox
-                // Reg.Result = CLR2Scheme(((Foreign)arg1).value);
-                object value = ((Foreign)arg1).value;
-                if (value is SObject) {
-                    Reg.Result = (SObject) value;
-                } else {
-                    Reg.Result = Factory.False;
-                }
+            }
+            case 3: // foreign2datum
+            {
+                int conversion = ((SFixnum)arg1).value;
+                Reg.Result = foreign2datum(conversion, arg2);
                 return;
+            }
             case 4: // invoke
             {
                 MethodInfo m = (MethodInfo) ((Foreign)arg1).value;
                 object obj = null;
                 if (!m.IsStatic) {
-                    obj = ((Foreign)arg2).value;
+                    obj = unwrapF(arg2);
                 }
                 SObject[] sargv = ((SVL)arg3).elements;
                 object[] args = new object[sargv.Length];
                 for (int i = 0; i < args.Length; ++i) {
-                    args[i] = ((Foreign)sargv[i]).value;
+                    args[i] = unwrapF(sargv[i]);
                 }
-                Reg.Result = invokeMethod(m, obj, args);
+                object result;
+                try {
+                    result = m.Invoke(obj, args);
+                } catch (Exception e) {
+                    Exn.error("ffi:invoke: error in foreign function: " + e);
+                    return;
+                }
+
+                Reg.Result = wrapF(result);
                 return;
             }
             case 5: // get field
@@ -96,22 +103,32 @@ namespace Scheme.RT {
                 FieldInfo f = (FieldInfo) ((Foreign)arg1).value;
                 object obj = null;
                 if (!f.IsStatic) {
-                    obj = ((Foreign)arg2).value;
+                    obj = unwrapF(arg2);
                 }
-                Reg.Result = Factory.makeForeign(f.GetValue(obj));
-                return;
+                try {
+                    Reg.Result = wrapF(f.GetValue(obj));
+                    return;
+                } catch (Exception e) {
+                    Exn.error("ffi:field-get: " + e);
+                    return;
+                }
             }
             case 9: // field-set
             {
                 FieldInfo f = (FieldInfo) ((Foreign)arg1).value;
                 object obj = null;
                 if (!f.IsStatic) {
-                    obj = ((Foreign)arg2).value;
+                    obj = unwrapF(arg2);
                 }
-                object newvalue = ((Foreign)arg3).value;
-                f.SetValue(obj, newvalue);
-                Reg.Result = Factory.Unspecified;
-                return;
+                object newvalue = unwrapF(arg3);
+                try {
+                    f.SetValue(obj, newvalue);
+                    Reg.Result = Factory.Unspecified;
+                    return;
+                } catch (Exception e) {
+                    Exn.error("ffi:field-set: " + e);
+                    return;
+                }
             }
             case 10: // foreign?
             {
@@ -135,37 +152,215 @@ namespace Scheme.RT {
                 SObject[] sargv = ((SVL)arg2).elements;
                 object[] args = new object[sargv.Length];
                 for (int i = 0; i < args.Length; ++i) {
-                    args[i] = ((Foreign)sargv[i]).value;
+                    args[i] = unwrapF(sargv[i]);
                 }
-                Reg.Result = Factory.makeForeign(m.Invoke(args));
+                try {
+                    Reg.Result = wrapF(m.Invoke(args));
+                    return;
+                } catch (Exception e) {
+                    Exn.error("ffi:invoke-constructor: " + e);
+                    return;
+                }
+            }
+            case 13: // equals?
+            {
+                object a = unwrapF(arg1);
+                object b = unwrapF(arg2);
+                Reg.Result = Factory.wrap(a.Equals(b));
                 return;
             }
 
+
             }
-            Exn.fault(Constants.EX_UNSUPPORTED, "bad ffi syscall code");
+            Exn.error("bad ffi syscall code");
             return;
         }
 
-        public static SObject getType(string name) {
-            Type t = Type.GetType(name);
-            return Factory.makeForeignF(Type.GetType(name));
+        private static SObject wrapF(object o) {
+            if (o is Int32 && SFixnum.inFixnumRange((int)o)) {
+                return Factory.wrap((int)o);
+            } else {
+                return Factory.makeForeign(o);
+            }
         }
-        
+        private static object unwrapF(SObject s) {
+            if (s is SFixnum) {
+                return ((SFixnum)s).value;
+            } else if (s is Foreign) {
+                return ((Foreign)s).value;
+            } else {
+                Exn.error("cannot unwrap foreign argument"); return Factory.Impossible;;
+            }
+        }
+
+        private static SObject datum2foreign(int conversion, SObject obj) {
+            // datum->foreign : conversion value -> F
+            switch (conversion) {
+                case 0: // object
+                {
+                    if (obj is SFixnum || obj is Foreign) {
+                        return obj;
+                    } else {
+                        Exn.error("datum->foreign (object) expected F"); return Factory.Impossible;;
+                    }
+                }
+                case 1: // schemeobject
+                {
+                    return Factory.makeForeign(obj);
+                }
+                case 2: // string
+                {
+                    if (obj is SByteVL) {
+                        string value = ((SByteVL)obj).asString();
+                        return Factory.makeForeign(value);
+                    } else {
+                        Exn.error("datum->foreign (string) expected string"); return Factory.Impossible;;
+                    }
+                }
+                case 3: // symbol
+                {
+                    Exn.error("datum->foreign (symbol) not implemented in runtime");
+                    return Factory.Impossible;
+                }
+                case 4: // bytes
+                {
+                    if (obj is SByteVL) {
+                        return Factory.makeForeign(((SByteVL)obj).elements);
+                    } else {
+                        Exn.error("datum->foreign (bytes) expected bytevector");
+                        return Factory.Impossible;
+                    }
+                }
+                case 5: // int
+                {
+                    if (obj is SFixnum) {
+                        return obj;
+                    } else if (obj.isBignum()) {
+                        SByteVL n = (SByteVL)obj;
+                        if (Number.getBignumLength(n) == 1) {
+                            uint magn = (uint)(Number.bignumRef(n, 1) << 16)
+                                      + (uint)Number.bignumRef(n, 0);
+                            int val = Number.getBignumSign(n);
+                            return Factory.makeForeign(val);
+                        }
+                    }
+                    Exn.error("datum->foreign (int) expected small integer");
+                    return Factory.Impossible;
+                }
+                case 6: // float
+                {
+                    if (obj.isFlonum()) {
+                        double value = ((SByteVL)obj).unsafeAsDouble(0);
+                        return Factory.makeForeign((float)value);
+                    } else {
+                        Exn.error("datum->foreign (float) expected flonum");
+                        return Factory.Impossible;
+                    }
+                }
+                case 7: // double
+                {
+                    if (obj.isFlonum()) {
+                        double value = ((SByteVL)obj).unsafeAsDouble(0);
+                        return Factory.makeForeign(value);
+                    } else {
+                        Exn.error("datum->foreign (float) expected flonum");
+                        return Factory.Impossible;
+                    }
+                }
+                case 8: // void
+                {
+                    Exn.error("datum->foreign (void) not allowed");
+                    return Factory.Impossible;
+                }
+            }
+            Exn.error("datum->foreign: unknown conversion");
+            return Factory.Impossible;
+        }
+        private static SObject foreign2datum(int conversion, SObject obj) {
+            // foreign->datum : conversion F -> value
+            object value;
+            if (obj is Foreign) {
+                value = ((Foreign)obj).value;
+            } else if (obj is SFixnum) {
+                value = ((SFixnum)obj).value;
+            } else {
+                Exn.error("foreign->datum: argument is not foreign-box or fixnum");
+                return Factory.Impossible;
+            }
+
+            switch (conversion) {
+                case 0: { // object
+                    return obj;
+                }
+                case 1: { // schemeobject
+                    if (value is SObject) {
+                        return (SObject)value;
+                    } else {
+                        Exn.error("foreign->datum (schemeobject): not a scheme value");
+                        return Factory.Impossible;
+                    }
+                }
+                case 2: { // string
+                    if (value is string) {
+                        return Factory.wrap((string)value);
+                    } else {
+                        Exn.error("foreign->datum (string): not a string");
+                        return Factory.Impossible;
+                    }
+                }
+                case 3: { // symbol
+                    Exn.error("foreign->datum (symbol): not handled by runtime");
+                    return Factory.Impossible;
+                }
+                case 4: { // bytes
+                    if (value is byte[]) {
+                        return Factory.makeString((byte[])value);
+                    } else {
+                        Exn.error("foreign->datum (bytes): not byte[]");
+                        return Factory.Impossible;
+                    }
+                }
+                case 5: { // int
+                    if (value is int) {
+                        return Factory.makeNumber((int)value);
+                    } else if (value is long) {
+                        return Factory.makeNumber((long) value);
+                    } else {
+                        Exn.error("foreign->datum (int): not an integer");
+                        return Factory.Impossible;
+                    }
+                }
+                case 6: { // float
+                    if (value is float) {
+                        return Factory.wrap((float)value);
+                    } else {
+                        Exn.error("foreign->datum (float): not a float");
+                        return Factory.Impossible;
+                    }
+                }
+                case 7: { // double
+                    if (value is double) {
+                        return Factory.wrap((double)value);
+                    } else {
+                        Exn.error("foreign->datum (double): not a double");
+                        return Factory.Impossible;
+                    }
+                }
+                case 8: { // void
+                    return Factory.Unspecified;
+                }
+            }
+            Exn.error("foreign->datum: unknown conversion");
+            return Factory.Impossible;
+        }
+
         public static SObject getMethod(Type type, string name, Type[] formals) {
             MethodInfo m = type.GetMethod(name, formals);
-            if (m == null) {
-                Exn.internalError("no such method");
-                return null;
-            }
             return Factory.makeForeignF(m);
         }
 
         public static SObject getField(Type type, string name) {
             FieldInfo f = type.GetField(name);
-            if (f == null) {
-                Exn.internalError("no such field");
-                return null;
-            }
             return Factory.makeForeignF(f);
         }
 
@@ -182,39 +377,10 @@ namespace Scheme.RT {
                  Factory.makeForeignF(pset));
         }
 
-        public static object Scheme2CLR(SObject obj) {
-            if (obj.isFixnum()) {
-                return ((SFixnum)obj).value;
-            } else if (obj.isChar()) {
-                return ((SChar)obj).val;
-            } else if (obj.isString()) {
-                return ((SByteVL)obj).asString();
-            } else if (obj == Factory.False) {
-                return null;
-            } else {
-                return null;
-            }
-        }
-        
-        public static SObject CLR2Scheme(object obj) {
-            if (obj is string) {
-                return Factory.wrap((string)obj);
-            } else if (obj is Int32) {
-                return Factory.wrap((int)obj);
-            } else if (obj == null) {
-                return Factory.False;
-            } else {
-                return Factory.False;
-            }
-        }
-        
-        public static SObject invokeMethod(MethodInfo m, object obj, object[] args) {
-            object result = m.Invoke(obj, args);
-            return Factory.makeForeign(result);
-        }
-        
-        public static SObject ForeignNull = null;
-        
-        
+        // Public Constants
+        public static readonly bool TRUE = true;
+        public static readonly bool FALSE = false;
+        public static readonly object NULL = null;
+
     }
 }
