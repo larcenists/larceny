@@ -1,7 +1,8 @@
-; Testsuite/Lib/number.sch
-; Larceny test suite -- numerical operations
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Test suite -- numerical operations.
 ;
 ; The test scaffolding is in test.sch, which should be loaded first.
 ;
@@ -39,7 +40,8 @@
   (test-odd-even)
   (test-sundry-arithmetic)
   (test-in-out-conversion)
-  (test-trancendental-functions))
+  (test-trancendental-functions)
+  (test-past-error-cases))
 
 
 ; NOTE
@@ -541,6 +543,9 @@
 	 (eqv? 1+1i (inexact->exact 1.0+1.0i)) #t)
    (test "(eqv? 0.5 (exact->inexact 1/2))" (eqv? 0.5 (exact->inexact 1/2)) #t)
    (test "(eqv? 1/2 (inexact->exact 0.5))" (eqv? 1/2 (inexact->exact 0.5)) #t)
+   (test "(exact->inexact 14285714285714285714285)"
+	 (exact->inexact 14285714285714285714285)
+	 1.4285714285714286e22)
    ))
 
 (define (test-number-constructors-and-accessors)
@@ -712,19 +717,74 @@
    ; FIXME: rationalize
    ; FIXME: expt
    ; FIXME: modulo
+   ; FIXME: all complex arithmetic!
 
    ))
 
-; FIXME: implement
+; FIXME: implement more
+
 (define (test-in-out-conversion)
   (allof  "number->string, string->number"
-   #t
-   ))
+	  #t))
+
 
 ; FIXME: implement
 (define (test-trancendental-functions)
   (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2"
    #t
+   ))
+
+(define (test-past-error-cases)
+  (allof
+   "past error cases"
+   (test "Error case #1"		; Bug 060
+	 (= (+ 1 (make-rectangular (expt 2 100) 1))
+	    (make-rectangular (expt 2.0 100) 1.0))
+	 #f)
+   (test "Error case #2"		; Bug 060
+	 (- (+ 1 (make-rectangular (expt 2 100) 1))
+	    (make-rectangular (expt 2.0 100) 1.0))
+	 1.0)
+   (test "Error case #3"		; Bug 073
+	 (let ((a (string->number
+		   (string-append "#b" (number->string (sqrt 2) 2))))
+	       (b (sqrt 2)))
+	   (= a b))
+	 #t)
+   (test "Error case #4"		; Bug 058
+	 (zero? (- (expt 2. 100) (+ (expt 2 100) 1)))
+	 #f)
+   (test "Error case #5"		; Bug 058
+	 (- (expt 2.0 100) (+ (expt 2 100) 1))
+	 -1.0)
+   (test "Error case #6"		; Bug 007
+	 (number->string -0.0)
+	 "-0.0")
+   (test "Error case #7"		; Bug 038
+	 (- (expt 2 29))
+	 -536870912)
+   (test "Error case #8"		; Bug 061
+	 (logand -536870912 1)
+	 0)
+   (test "Error case #9"		; Bug 066
+	 (exact->inexact 14285714285714285714285)
+	 1.4285714285714286e22)
+   (let ((z (make-rectangular +inf.0 +inf.0)))
+     (test "Error case #10"		; Bug 059
+	   (* 1.0 z)
+	   z))
+   (let ((z (make-rectangular +inf.0 +inf.0)))
+     (test "Error case #11"		; Bug 059
+	   (* z 1.0)
+	   z))
+   (let ((z (make-rectangular +inf.0 +inf.0)))
+     (test "Error case #12"		; Bug 059
+	   (* 1 z)
+	   z))
+   (let ((z (make-rectangular +inf.0 +inf.0)))
+     (test "Error case #13"		; Bug 059
+	   (* z 1)
+	   z))
    ))
 
 ; eof
