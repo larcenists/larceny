@@ -143,7 +143,7 @@
   (define (struct-predicate stype)
     (let ((instance-of-stype? (record-predicate stype))
           (proc-spec (stype-proc stype)))
-      
+
       (let ((predicate
              (if (or (procedure? proc-spec)
                      (number? proc-spec))
