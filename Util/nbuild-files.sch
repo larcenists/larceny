@@ -82,13 +82,13 @@
    (nbuild-files 'x86-nasm-asm
 		 `("pass5p2-nasm.sch"
 		   "dumpheap-extra.sch" 
-		  ,@(case (nbuild-parameter 'host-os)
+		   "peepopt.sch"
+		   ,@(case (nbuild-parameter 'host-os)
 		      ((unix)  '("dumpheap-unix.sch"))
 		      ((win32) '("dumpheap-win32.sch"))
 		      (else    '()))))
    (nbuild-files 'standard-C-asm
-		 '("peepopt.sch"
-		   "asm-switches.sch"
+		 '("asm-switches.sch"
 		   "md5.sch"))))
 
 (define *nbuild:make-files*
