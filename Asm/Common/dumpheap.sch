@@ -67,7 +67,7 @@
                      (append inits (list (dump-file! heap filename)))))))))
 
   (delete-file tmp-file)
-  (let ((heap  (make-heap #f (open-output-file tmp-file))))
+  (let ((heap  (make-heap #f (open-binary-output-file tmp-file))))
     (before-all-files heap output-file input-files)
     (process-input-files heap)
     (heap.set-root! heap
@@ -263,7 +263,7 @@
 
 (define (dump-file! h filename)
   (before-dump-file h filename)
-  (call-with-input-file filename
+  (call-with-binary-input-file filename
     (lambda (in)
       (do ((segment (read in) (read in))
            (thunks  '() (cons (dump-segment! h segment) thunks)))
@@ -605,7 +605,7 @@
 
 (define (write-header h output-file)
   (delete-file output-file)
-  (call-with-output-file output-file
+  (call-with-binary-output-file output-file
     (lambda (out)
 
       (define (write-roots)
@@ -644,11 +644,23 @@
                                 " >> " 
                                 file-to-append-to))))
 
+(define (append-file-shell-command-msdos file-to-append file-to-append-to)
+  (let ((x (system (string-append "copy/b/y " 
+				  file-to-append-to "+" file-to-append 
+				  " TEMPCAT"))))
+    (if (not (zero? x))
+	#f
+	(let ((x (system (string-append "copy/b/y TEMPCAT " file-to-append-to))))
+	  (system "del TEMPCAT")
+	  (zero? x)))))
+  
+			 
 ; Quasi-portable: use read-char and write-char.
 ; Needs to be read-byte and write-byte.
 
 (define (append-file-shell-command-portable file-to-append file-to-append-to)
   (rename-file file-to-append-to "HEAPDUMP.TEMP")
+  (delete-file file-to-append-to)
   (call-with-binary-output-file file-to-append-to
     (lambda (out)
       (call-with-binary-input-file "HEAPDUMP.TEMP"
