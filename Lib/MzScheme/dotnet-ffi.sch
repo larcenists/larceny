@@ -50,7 +50,7 @@
      (if (and (foreign? obj) (ffi:isa? obj schemeobject%))
          (ffi:foreign->datum 'schemeobject obj)
          obj))
-    ((bool) (ffi:eq? foreign-true obj))
+    ((bool) (ffi:equal? foreign-true obj))
     (else 
      (error "ffi:foreign->datum: unknown conversion: " conversion))))
 
@@ -81,7 +81,7 @@
 (define (ffi:construct c args)
   (syscall 34 12 c (list->vector args)))
 
-(define (ffi:eq? a b)
+(define (ffi:equal? a b)
   (syscall 34 13 a b))
 
 (define (foreign-or-fixnum? x)
