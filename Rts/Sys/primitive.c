@@ -13,6 +13,7 @@
 #include "signals.h"
 #include "gc_t.h"
 #include "gc.h"
+#include "stats.h"
 
 extern void mem_icache_flush( void *lo, void *limit );
 
@@ -213,6 +214,12 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
 #else
 #error "No endianness."
 #endif
+    break;
+  case 9 : /* stats-generations */
+    vector_set( v, 0, fixnum( stats_parameter( 0 ) ) );
+    break;
+  case 10 : /* stats-remsets */
+    vector_set( v, 0, fixnum( stats_parameter( 1 ) ) );
     break;
   default : 
     panic( "Unknown code %d passed to primitive_sysfeature",
