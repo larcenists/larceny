@@ -687,15 +687,14 @@
     :qualifier :primary
     :procedure ((lambda ()
                   (define (method:initialize-instance call-next-method object initargs)
-                    (let* ((class (class-of object))
-                           (field-initializers (%class-field-initializers class)))
+                    (let ((class (class-of object)))
                       (for-each (lambda (init) (apply init initargs))
                                 (%class-initializers class))
-                      (let loop ((n 0) (inits field-initializers))
-                        (if (pair? inits)
-                            (begin
-                              (%instance/set! object n (apply (car inits) initargs))
-                              (loop (+ n 1) (cdr inits)))))))
+                      (foldl (lambda (index initializer)
+                               (%instance/set! object index (apply initializer initargs))
+                               (+ index 1))
+                             0
+                             (%class-field-initializers class))))
                   method:initialize-instance))))
 
 (add-method initialize-instance
