@@ -6,7 +6,7 @@
 # you are building on.
 
 ## Win32 (.NET SDK)
-#CSC = csc
+CSC = csc
 
 ## MacOS X (Rotor)
 #CSC = csc /d:USING_ROTOR /d:BIG_ENDIAN
@@ -15,7 +15,7 @@
 #CSC = mcs
 
 ## Solaris (Mono)
-CSC = mcs /d:BIG_ENDIAN
+#CSC = mcs /d:BIG_ENDIAN
 
 ##########################################
 ## END USER-CONFIGURABLE SECTION
