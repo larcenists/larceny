@@ -14,6 +14,7 @@
 #     for locks" won't work.
 
 
+rlog=/local/apps/rcs/rcs-pre5.6/rlog
 top="."
 dirs=" 	${top}
 	${top}/Chez
@@ -42,7 +43,7 @@ for dir in ${dirs}; do
 
   for rcsfile in ${filelist}; do
     file=`basename ${rcsfile} ,v`
-    locks=`rlog ${file} | egrep '^locks:' | awk '{print $2}'` &&
+    locks=`$rlog ${file} | egrep '^locks:' | awk '{print $2}'` &&
       if [ "${locks}" = "${USER}:" ]; then
         echo "Checking in ${dir}/${file}"
         ci -u -f "-mChecked in by checkin script" ${file}
