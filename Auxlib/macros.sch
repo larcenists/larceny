@@ -1,8 +1,8 @@
-; copyright 1998 lars t hansen.
+; Copyright 1998 Lars T Hansen
 ;
-; $id: macros.sch,v 1.2 1998/11/24 16:52:05 lth exp $
+; $Id$
 ;
-; a collection of useful and common macros.
+; A collection of useful and common macros.  
 
 (define-syntax when
   (syntax-rules ()
@@ -89,6 +89,8 @@
 	(lambda ()
 	  (swap! t p) ...))))))
 
+; FIXME: does not consider syntax bindings.
+
 (define-syntax bound?
   (syntax-rules ()
     ((bound? x)
@@ -104,12 +106,20 @@
 	e0)
       (lambda (i1 ...) e1 e2 ...)))))
 
-; this is really quite gross, but it seems to work.
+(define-syntax time
+  (syntax-rules ()
+    ((time ?expr)
+     (run-with-stats (lambda () ?expr)))))
+
+; This is really quite gross, but it seems to work.
 ;
-; if the compiler can evaluate the length of a constant list, and 
-; constant-folds the cases in the cond, then it's almost efficient!
-; (currently, it does the former but not the latter.)
-; the interpreter loses...
+; If the compiler can evaluate the length of a constant list, and 
+; constant-folds the cases in the cond, then it's almost efficient.
+; (Currently, it does the former but not the latter.)
+;
+; The interpreter loses...
+;
+; FIXME: must handle other two forms of formals lists also.
 
 (define-syntax case-lambda
   (syntax-rules ()
