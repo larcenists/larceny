@@ -602,7 +602,7 @@
 
 (define-primop 'string-length:str
   (lambda (as)
-    (emit-get-length-trusted! as $tag.string-tag $r.result $r.result)))
+    (emit-get-length-trusted! as $tag.bytevector-tag $r.result $r.result)))
 
 (define-primop 'string-ref
   (lambda (as r)
