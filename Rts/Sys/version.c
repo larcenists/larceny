@@ -3,13 +3,30 @@
  * $Id$
  *
  * Larceny run-time system -- the version number :-)
+ *
+ * Some nicknames to choose from:
+ *  Burpelson                  1.0
+ *  Doomsday Device
+ *  Fluoridation
+ *  Guano
+ *  Kissoff
+ *  Kong
+ *  Mandrake
+ *  Muffley
+ *  Operation Drop-Kick
+ *  Plan R
+ *  Precious Bodily Fluids
+ *  Ripper
+ *  de Sadesky
+ *  Strangelove
+ *  Turgidson
  */
 
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 45;
-char *larceny_version_qualifier = "";
+int  larceny_minor_version = 46;
+char *larceny_version_qualifier = " \"Burpelson\"";
 
 char *date = DATE;
 char *user = USER;
