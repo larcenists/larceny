@@ -41,7 +41,6 @@
 (define global-cell-ref  (lambda (cell) (car cell)))
 (define global-cell-set! (lambda (cell value) (set-car! cell value)))
 
-
 ; Environments are represented as vectors with a magic tag.
 ; FIXME: an environment should be a record (or structure).
 
@@ -131,8 +130,6 @@
 		     (global-cell-set! probe (undefined)))))
 	   probe))))
 
-(define environment-lookup-binding environment-get-cell)  ; Compatibility.
-
 (define (environment-set! env name value)
   (cond ((not env) #f)
         ((not (environment? env))
@@ -160,11 +157,17 @@
          env)))
 
 ; Environment operations as defined in the R5RS, somewhat extended.
-;
-; The variables *r4rs-environment*, *r5rs-environment*, and 
-; *larceny-environment* are defined in Eval/toplevel.sch.
 
-(define *interaction-environment* #f)
+(define *null-environment*)
+(define *r4rs-environment*)
+(define *r5rs-environment*)
+(define *interaction-environment*)
+
+(define (initialize-environments null r4rs r5rs larc)
+  (set! *null-environment* (tag-environment (env/flatten null) 0))
+  (set! *r4rs-environment* (tag-environment (env/flatten r4rs) 1))
+  (set! *r5rs-environment* (tag-environment (env/flatten r5rs) 1))
+  (set! *interaction-environment* (tag-environment (env/flatten larc) 2)))
 
 (define (interaction-environment . rest)
   (cond ((null? rest)
@@ -182,34 +185,18 @@
 
 (define (scheme-report-environment version)
   (case version
-    ((4) 
-     (tag-environment
-      (make-environment "scheme-report-environment-v4"
-			*r4rs-environment*)
-      1))
-    ((5)
-     (tag-environment
-      (make-environment "scheme-report-environment-v5"
-			*r5rs-environment*)
-      1))
-    (else
-     (error "scheme-report-environment: " version
-	    " is not an accepted version number.")
-     #t)))
+    ((4)  *r4rs-environment*)
+    ((5)  *r5rs-environment*)
+    (else (error "scheme-report-environment: " version
+		 " is not an accepted version number.")
+	  #t)))
 
 (define (null-environment version)
-  (if (or (= version 4) (= version 5))
-      (tag-environment
-       (make-environment "null-environment" *null-environment*)
-       0)
-      (begin 
-	(error "null-environment: " version 
-	       " is not an accepted version number."))))
-
-(define (larceny-environment)
-  (tag-environment
-   (make-environment "larceny-environment" *larceny-environment*)
-   2))
+  (case version
+    ((4 5) *null-environment*)
+    (else  (error "null-environment: " version 
+		  " is not an accepted version number.")
+	   #t)))
 
 (define (tag-environment env tag)
   (env.tag! env tag)
@@ -310,6 +297,14 @@
     (env.count! env (env.count new-env))
     env))
 
+(define (env/flatten env)
+  (let ((new-env (make-environment (env.name env) #f))
+	(vars (environment-variables env)))
+    (do ((vars vars (cdr vars)))
+	((null? vars) new-env)
+      (if (environment-gettable? env (car vars))
+	  (let ((val (environment-get env (car vars))))
+	    (environment-set! new-env (car vars) val))))))
 
 ; Backwards compatible -- loader and reader still uses this.
 ;
