@@ -2,6 +2,7 @@
 ;
 ; $Id$
 
+(require 'experimental/iosys)
 (require 'experimental/unix)
 (require 'experimental/unix-descriptor)
 
@@ -18,7 +19,8 @@
           (define (reset-port)
             (let ((fd (unix/open "/dev/tty" unix/O_RDONLY)))
               (if (< fd 0)
-                  (error "Failed to open /dev/tty for console."))
+                  (begin (error "Failed to open /dev/tty for console.")
+                         (exit)))
               (set! *current-conin*
                     (open-input-descriptor fd 'nonblocking 'char))))
 
@@ -36,7 +38,8 @@
           (define (reset-port)
             (let ((fd (unix/open "/dev/tty" unix/O_WRONLY)))
               (if (< fd 0)
-                  (error "Failed to open /dev/tty for console."))
+                  (begin (error "Failed to open /dev/tty for console.")
+                         (exit)))
               (set! *current-conout*
                     (open-output-descriptor fd 'nonblocking 'char 'flush))))
 

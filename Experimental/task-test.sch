@@ -2,11 +2,12 @@
 ;
 ; $Id$
 ;
-; Test program to exhibit the nonblocking I/O system and tasking along 
+; Test program to exhibit the nonblocking I/O system and tasking along
 ; with sockets.
 
 ; You must call begin-tasking before calling test.
 
+(require 'common-syntax)
 (require 'experimental/unix-descriptor)
 (require 'experimental/iosys)
 (require 'experimental/tasking-unix)
@@ -43,21 +44,28 @@
     (let ((in  (open-input-descriptor ns 'nonblocking 'char))
           (out (open-output-descriptor ns 'nonblocking 'char 'flush)))
       (let loop ((x (read in)))
-        (set! server-trips (+ server-trips 1))
-        (cond ((eq? (car x) 'done)
-               (write 'done out)
-               (newline out)
-               (close-input-port in)
-               (close-output-port out))
-              ((eq? (car x) 'double)
-               (write (double (cadr x)) out)
-               (newline out)
-               (loop (read in)))
-              ((eq? (car x) 'square)
-               (write (square (cadr x)) out)
-               (newline out)
-               (loop (read in)))
-              (else ???))))))
+        (call-with-current-continuation
+         (lambda (k)
+           (parameterize ((error-handler
+                           (lambda args
+                             (write 'ouch! out)
+                             (newline out)
+                             (k #f))))
+             (set! server-trips (+ server-trips 1))
+             (cond ((eq? (car x) 'done)
+                    (write 'done out)
+                    (newline out)
+                    (close-input-port in)
+                    (close-output-port out))
+                   ((eq? (car x) 'double)
+                    (write (double (cadr x)) out)
+                    (newline out)
+                    (loop (read in)))
+                   ((eq? (car x) 'square)
+                    (write (square (cadr x)) out)
+                    (newline out)
+                    (loop (read in)))
+                   (else ???)))))))))
 
 (define (make-client port fn tag)
   (lambda ()

@@ -4,6 +4,8 @@
 ;
 ; Non-I/O-aware multitasking for Larceny.
 
+(require 'define-record)
+
 ; Interface
 
 (define-syntax without-interrupts       ; Critical section
@@ -45,7 +47,7 @@
   (set! *saved-interrupt-handler* (timer-interrupt-handler))
   (set! *saved-timeslice* (standard-timeslice))
   (standard-timeslice *timeslice*)
-  (timer-interrupt-handler 
+  (timer-interrupt-handler
    (lambda ()
      (tasks/switch #t #f)))
   (tasks/initialize-scheduler)
@@ -74,7 +76,7 @@
 
   (if (not *tasking-on*) (error "Tasking is not on."))
   (tasks/without-interrupts
-   (tasks/schedule (make-task 
+   (tasks/schedule (make-task
                     (lambda ()
                       (parameterize ((reset-handler tasking-reset-handler))
                         (thunk)))))))
@@ -95,7 +97,7 @@
     (tasks/without-interrupts
      (tasks/switch #t critical?))))
 
-(define (current-task) 
+(define (current-task)
   (if (not *tasking-on*) (error "Tasking is not on."))
   (tasks/without-interrupts
    (tasks/current-task)))
@@ -124,7 +126,7 @@
 
 (define-record task (k alive critical prev next id))
 
-(define make-task 
+(define make-task
   (let ((make-task make-task)
         (id 0))
     (lambda (thunk)
@@ -196,13 +198,13 @@
 
 ; Run queue manipulation -- use in critical section only.
 
-(define (make-queue) 
+(define (make-queue)
   (let ((q (make-task (lambda () (tasks/critical-error "NOT A TASK.")))))
     (task-next-set! q q)
     (task-prev-set! q q)
     q))
 
-(define (run-queue.empty? q) 
+(define (run-queue.empty? q)
   (eq? q (task-next q)))
 
 (define (run-queue.head q)
@@ -219,7 +221,7 @@
 
 (define (run-queue.dequeue! q)
   (run-queue.remove! q (run-queue.head q)))
-  
+
 (define (run-queue.remove! q x)
   (task-prev-set! (task-next x) (task-prev x))
   (task-next-set! (task-prev x) (task-next x))

@@ -1,5 +1,5 @@
 ; Copyright 1999 Lars T Hansen
-; 
+;
 ; $Id$
 ;
 ; Code that creates blocking and nonblocking ports on Unix file descriptors.
@@ -9,6 +9,7 @@
 ; Nonblocking I/O requires use of the tasking system and the tasking system
 ; extensions that implement the scheduler compatible with nonblocking I/O.
 
+(require 'define-record)
 (require 'experimental/unix)
 (require 'experimental/poll)
 (require 'experimental/iosys)
@@ -66,7 +67,7 @@
 (define (descio/read data buf)
   (if (and (descio-nonblocking? data)
            (not (descio/ready-input? data)))
-      (unix-tasks/block-for-input (descio-fd data)))
+      (input-not-ready-handler (descio-fd data)))
   (let ((result (unix/read (descio-fd data) buf (string-length buf))))
     (cond ((< result 0) 'error)
           ((= result 0) 'eof)
@@ -88,17 +89,17 @@
                  'error
                  (loop (+ idx written) (- count written)))))
           (else
-           (unix-tasks/block-for-output (descio-fd data))
+           (output-not-ready-handler (descio-fd data))
            (loop idx count))))
 
   (loop 0 count))
 
 (define (descio/ready-input? data)
-  (let ((ready (poll-descriptors (list (descio-fd data)) '() 0)))
+  (let ((ready (poll-descriptors (list (descio-fd data)) '() #f)))
     (not (null? ready))))
 
 (define (descio/ready-output? data)
-  (let ((ready (poll-descriptors '() (list (descio-fd data)) 0)))
+  (let ((ready (poll-descriptors '() (list (descio-fd data)) #f)))
     (not (null? ready))))
 
 (define (descio/close data)
@@ -108,7 +109,7 @@
         'ok)))
 
 (define (descio/name data)
-  (string-append "*descriptor " 
+  (string-append "*descriptor "
                  (number->string (descio-fd data))
                  "*"))
 

@@ -5,20 +5,20 @@
 ; A wrapper around the poll(2) system call.
 ; Life is nasty, brutish, and short.
 
-(define (poll-descriptors inputs outputs timeout)
+(define (poll-descriptors inputs outputs block?)
 
   (define sizeof:struct_pollfd (+ sizeof:int sizeof:short sizeof:short))
 
-  (define (pollfdv-fd-set! v i fd) 
+  (define (pollfdv-fd-set! v i fd)
     (%set-int v (* i sizeof:struct_pollfd) fd))
 
   (define (pollfdv-events-set! v i events)
     (%set-short v (+ (* i sizeof:struct_pollfd) sizeof:int) events))
 
-  (define (pollfdv-fd-get v i) 
+  (define (pollfdv-fd-get v i)
     (%get-int v (* i sizeof:struct_pollfd)))
 
-  (define (pollfdv-revents-get v i) 
+  (define (pollfdv-revents-get v i)
     (%get-short v (+ (* i sizeof:struct_pollfd) sizeof:int sizeof:short)))
 
   (let* ((n-i (length inputs))
@@ -36,7 +36,7 @@
         ((null? fds))
       (pollfdv-fd-set! v i (car fds))
       (pollfdv-events-set! v i (+ unix/POLLWRNORM unix/POLLWRBAND)))
-    (let ((r (unix/poll v n timeout)))
+    (let ((r (unix/poll v n (if block? -1 0))))
       (cond ((< r 0)
              (error "Poll: " (unix/strerror (get-errno))))
             ((= r 0)

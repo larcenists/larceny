@@ -2,9 +2,10 @@
 ;
 ; $Id$
 ;
-; Tasking system extensions for Unix, supporting nonblocking I/O and 
+; Tasking system extensions for Unix, supporting nonblocking I/O and
 ; a nonblocking console.
 
+(require 'list)
 (require 'experimental/poll)
 (require 'experimental/nonblocking-console)
 (require 'experimental/tasking)
@@ -76,18 +77,19 @@
   (let ((ready (poll-descriptors (map car *poll-input*)
                                  (map car *poll-output*)
                                  (if block-system? -1 0))))
+    ; Tasks may have been killed while waiting
     (do ((ready ready (cdr ready)))
         ((null? ready))
-      (cond ((assq (car ready) *poll-input*) 
-             => (lambda (x)
-                  (set! *poll-input* (remq! x *poll-input*))
-                  (tasks/schedule (cdr x))))
-            ((assq (car ready) *poll-output*)
-             => (lambda (x)
-                  (set! *poll-output* (remq! x *poll-output*))
-                  (tasks/schedule (cdr x))))
-            (else
-             (error "Internal error in tasks/poll-for-io: " (car ready)))))))
+      (let ((probe (assq (car ready) *poll-input*)))
+        (if (and probe (task-alive (cdr probe)))
+            (begin
+              (set! *poll-input* (remq! probe *poll-input*))
+              (tasks/schedule (cdr probe)))
+            (let ((probe (assq (car ready) *poll-output*)))
+              (if (and probe (task-alive (cdr probe)))
+                  (begin
+                    (set! *poll-output* (remq! probe *poll-output*))
+                    (tasks/schedule (cdr probe))))))))))
 
 ; May be called outside critical section.
 
