@@ -11,9 +11,9 @@
 
 #include "config.h"
 
-#if defined(MACOS)		/* This file in effect only on MacOS systems */
+#if MACOS		/* This file in effect only on MacOS systems */
 
-#if !defined(CODEWARRIOR)
+#if !CODEWARRIOR
 #  error "The file :Rts:Sys:osdep-macos.c is Codewarrior-dependent."
 #endif
 
@@ -195,7 +195,7 @@ void osdep_os_version( int *major, int *minor )
 }
 
 /* Return the current time in milliseconds since initialization */
-unsigned stats_rtclock( void )
+unsigned osdep_realclock( void )
 {
   stat_time_t now;
 
@@ -205,7 +205,7 @@ unsigned stats_rtclock( void )
 
 /* Fill in the structures with real, user, system times. */
 void 
-stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
+osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
     get_rtclock( real );
@@ -224,7 +224,7 @@ stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
   }
 }
 
-void stats_pagefaults( unsigned *major, unsigned *minor )
+void osdep_pagefaults( unsigned *major, unsigned *minor )
 {
   *major = 0;
   *minor = 0;
@@ -288,6 +288,6 @@ void gettimeofday ( struct timeval *t, struct timezone *tz )
   t->tv_usec = ticks;
 }
 
-#endif /* if defined(MACOS) */
+#endif /* if MACOS */
 
 /* eof */
