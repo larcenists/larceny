@@ -28,6 +28,10 @@
 (define record-updater)
 (define record-type-descriptor)
 
+;; Added these to support MzScheme structure interface
+(define record-indexer)
+(define record-mutator)
+
 (let ((interface
 
        ; Records of length n are represented as structures where element 0 
@@ -125,6 +129,26 @@
          (define (record-type-descriptor rec)
            (assert-record rec)
            (vector-like-ref rec 0))
+
+         (define (record-indexer rtd)
+           (assert-rtd rtd)
+           (let ((num-fields (length (record-type-field-names rtd))))
+             (lambda (obj index)
+               (cond ((zero? num-fields)
+                      (error "No slots in " (record-type-name rtd)))
+                     ((<= 0 index (- num-fields 1))
+                      (vector-like-ref obj (+ index
+                                              record-overhead)))
+                     (else (error "slot index must be in [0, " (- num-fields 1) "]") )))))
+
+         (define (record-mutator rtd)
+           (assert-rtd rtd)
+           (let ((num-fields (length (record-type-field-names rtd))))
+             (lambda (obj index new-val)
+               (assert-record-of-type obj rtd)
+               (vector-like-set! obj
+                                 (+ index record-overhead)
+                                 new-val))))
 
          ; Record types
   
@@ -299,7 +323,9 @@
           (lambda (rtd) (record-predicate rtd))
           (lambda (rtd field-name) (record-accessor rtd field-name))
           (lambda (rtd field-name) (record-updater rtd field-name))
-          (lambda (x) (record-type-descriptor x))))))
+          (lambda (x) (record-type-descriptor x))
+          (lambda (rtd) (record-indexer rtd))
+          (lambda (rtd) (record-mutator rtd))))))
 
   (set! make-record-type (list-ref interface 0))
   (set! record-type-descriptor? (list-ref interface 1))
@@ -313,6 +339,8 @@
   (set! record-accessor (list-ref interface 9))
   (set! record-updater (list-ref interface 10))
   (set! record-type-descriptor (list-ref interface 11))
+  (set! record-indexer (list-ref interface 12))
+  (set! record-mutator (list-ref interface 13))
   'records)
 
 
