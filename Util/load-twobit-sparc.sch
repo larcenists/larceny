@@ -4,9 +4,11 @@
 ;
 ; Load script for twobit with SPARC assembler.
 
-(load "Util/nbuild-param-sparc.sch")
-(load "Compat/Larceny/compat.sch")
+(load "Util/sysdep-unix.sch")
+
+(load (make-relative-filename "Util" "nbuild-param-sparc.sch"))
+(load (make-relative-filename "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
-(load "Util/nbuild.sch")
+(load (make-relative-filename "Util" "nbuild.sch"))
 
 ; eof
