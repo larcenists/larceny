@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 18 December 1998
 
 ($$trace "expand")
 
@@ -112,10 +112,11 @@
                       (benchmark-mode)
                       (list? (cadr exp)))
                  `(,def ,f
-                         ((,lambda0 (,f)
-                                    (,set!0 ,f (,lambda0 ,args ,@body))
-                                    (,lambda0 ,args ,pattern))
-                          0))
+                        (,lambda0 ,args
+                           ((,lambda0 (,f)
+                               (,set!0 ,f (,lambda0 ,args ,@body))
+                               ,pattern)
+                            0)))
                  `(,def ,f (,lambda0 ,args ,@body))))
            env))
          ((> (length exp) 3) (m-error "Malformed definition" exp))
