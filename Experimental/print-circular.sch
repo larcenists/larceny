@@ -1,15 +1,12 @@
-; Experimental/print-circular.sch
-; Larceny -- a printer for circular objects
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; It's currently O(n^3), which is not at all good.  It can be O(n) if
+; A printer for circular objects
+;
+; It's currently O(n^2), which is not at all good.  It can be O(n) if
 ; we can implement an O(1) object-id or object-hash procedure.  We'd
 ; then have an internal actual hash table keyed on object ID.
-;
-; But if you're willing to pay, you can play.
-
-; Test code
 
 (define (print-circular obj . rest)
   (print-circular-internal obj
@@ -20,12 +17,12 @@
 				 (write obj port)
 				 (display obj port)))))
 
-; The idea here is that primitive-printer is the system's print procedure:
-; it should be used to print objects that are not mutable or that
-; do not have an interesting (i.e., readable) printed representation, 
-; e.g., procedures print as #<procedure x>, which is uninteresting.
+; Primitive-printer is the system's print procedure: it should be used 
+; to print objects that are not mutable or that do not have an interesting
+; (i.e., readable) printed representation, e.g., procedures print as 
+; #<procedure x>, which is uninteresting.
 ;
-; The circular-printer assumes that only ports, vectors, and strings
+; The circular-printer assumes that only pairs, vectors, and strings
 ; are mutable objects with an interesting printed representation.  This
 ; is false, since at least structures can be printed in interesting 
 ; ways.  The definition of installed structure printers needs to be
@@ -63,7 +60,7 @@
     (caddr r))
 
   (define (out x quote?)
-    (*primitive-print* x port quote?))
+    (primitive-printer x port quote?))
 
   ; Must add objects that have identity to the hash table.  Procedures,
   ; bytevectors, ports, structures, and environments have identity, too, 
@@ -141,7 +138,7 @@
 	  ((vector? obj)
 	   (print-obj-with-identity obj print-vector))
 	  ((string? obj)
-	   (print-obj-with-identity obj display))
+	   (print-obj-with-identity obj primitive-printer))
 	  (else
 	   (out obj quote?))))
   
