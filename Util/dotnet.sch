@@ -188,125 +188,17 @@
 
 
 ;; Load the compiler
-(define (load-twobit)
+(define (load-compiler)
   (load (make-filename *larceny-root* "Util" "nbuild.sch"))
   (load (make-filename *larceny-root* "Util" "il.scm")))
 
-;; FIXME:  PLT dependent.
-(define (ensure-build-environment)
-  (unless (directory-exists? (build-path *root-directory* "Rts" "Build"))
-    (printf "Setting up directories~n")
-    (setup-directory-structure))
-  (unless (andmap file-exists?
-                  (map (lambda (f) 
-                         (build-path *root-directory* "Rts" "Build" f))
-                       '("cdefs.h" "schdefs.h")))
-    (printf "Building config files~n")
-    (build-config-files)))
+(define (build-runtime-system)
+  (case (nbuild-parameter 'host-os)
+    ((win32)
+     (system "cd Rts\\DotNet && nmake"))
+    ((unix macosx)
+     (system "cd Rts/DotNet; make"))
+    (else
+     (error "Unknown operating system: " (nbuild-paramter 'host-os)))))
 
-;; These files are in *larceny-root*/Lib/Common
-(define (lib-files)
-  `[(,(if (eq? option:os 'win32) "sys-win32" "sys-unix") 
-     "list" "except.sh" "globals.sh" "malcode" 
-     ;; "arith"  ;; Arith introduces generic+, which is not defined anywhere
-     "sysparam" "vector")
-    ("belle" 
-     ,(if (system-big-endian?) "bignums-be" "bignums-el")
-     "bignums" "command-line" "conio" "contag" 
-     "control" "dump" "ehandler" "env" "error0" "error" "eval" "exit"
-     "fileio"
-     ,(if (system-big-endian?) "flonums-be" "flonums-el") 
-     "flonums" "format" "gcctl" "go" "hash" "hashtable"
-     "load" "memstats" "num2str" "number" "oblist" "preds" "print"
-     "procinfo" "profile" "ratnums" "reader" "rectnums" "secret" "sort"
-     "str2num" "string" "stringio" "struct" "syscall-id" 
-     "syshooks" "system-interface" "timer" "toplevel"
-     "transio" "typetags")
-    ("iosys" "stdio" "ioboot" "mcode")])
-;; These are in *larceny-root*/Lib/IL
-(define (lib-il-files)
-  '("primops" "loadable" "toplevel-target"))
-
-;; FIXME:  These used to be in larceny-csharp/More...
-;;         What about now?
-(define (repl-files)
-  '("main" "reploop" "interp" "interp-prim" "switches" 
-    "pass1" "pass1.aux" "pass2.aux" "prefs" 
-    "syntaxenv" "syntaxrules" "lowlevel" "expand" "usual"
-    "macro-expand"))
-
-;(define (create-application app src-manifests)
-;  (define app-exe (string-append app ".exe"))
-;  (define app-il (string-append app ".il"))
-;  (define ordered-il-files
-;    (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
-;         src-manifests))
-;  (define assembly-il 
-;    (create-assembly app-exe src-manifests))
-;  (concatenate-files app-il (cons assembly-il ordered-il-files)))
-
-;(define (create-standard-library)
-;  (parameterize [(current-directory
-;                  (build-path LARCENY-PATH "Lib"))]
-;    (define files 
-;      (append (map (lambda (f) (build-path "Common" (string-append f ".manifest")))
-;                   (apply append (lib-files)))
-;              (map (lambda (f) (build-path "IL" (string-append f ".manifest")))
-;                   (lib-il-files)))
-;    (create-application "Lib" files)))
-
-(define (create-standard-library)
-  (define files
-    (append (map (lambda (f)
-                   (make-filename *larceny-root*
-                                  "Lib"
-                                  "Common"
-                                  (string-append f ".manifest")))
-                 (apply append (lib-files)))
-            (map (lambda (f)
-                   (make-filename *larceny-root*
-                                  "Lib"
-                                  "IL"
-                                  (string-append f ".manifest")))
-                 (lib-il-files))))
-  ;; Lib appears twice... first says use the "Lib" subdirectory
-  ;; second says to create "Lib.il"
-  (create-application (make-filename *larceny-root* "Lib" "Lib") files))
-
-;; FIXME:  should look more like create-standard-library.
-;;         Also, need to add "More" to larceny_src tree
-(define (create-repl)
-  (parameterize [(current-directory
-                  (build-path LARCENY-PATH "Lib"))]
-    (define files 
-      (map (lambda (f) (build-path "More" (string-append f ".manifest")))
-           repl-files))
-    (create-application "Repl" files)))
-
-(define (concatenate-files target sources)
-  (with-output-to-file target
-    (lambda ()
-      (for-each display-file sources))))
-
-;; read-string isn't portable
-;(define (display-file source)
-;  (with-input-from-file source
-;    (lambda ()
-;      (let loop ()
-;        (let [(next (read-string 1024))]
-;          (if (eof-object? next)
-;              #t
-;              (begin
-;                (display next)
-;                (loop))))))))
-
-(define (display-file source)
-  (with-input-from-file source
-    (lambda ()
-      (let loop ()
-        (let ((next (read-char)))
-          (if (eof-object? next)
-              #t
-              (begin
-                (display next)
-                (loop))))))))
+  
