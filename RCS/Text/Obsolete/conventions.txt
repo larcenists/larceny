@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id$
+; $Id: conventions.txt,v 1.2 91/06/24 00:55:17 lth Exp Locker: lth $
 
 		Calling Conventions and Register Usage
 				   
@@ -280,6 +280,10 @@ tweak the code some; the register pair %g0/%g1 can be used as the
 source of some doubleword stores to initialize temporaries and
 book-keeping information.
 
+[It is possible that the call to M_WRONGARGS should be replaced by a 
+branch to the generic exception handler; see examples in the next
+section.]
+ 
 
 6. Calling a procedure
 ---------------------- 
@@ -325,7 +329,7 @@ a branch and "cea" all-in-one. [I admit that I'm a little proud of
 this construction.]
 
 Now, assuming arguments are set up with the presumed procedure in %REG0,
-a tail call looks like this:
+a tail call looks like the following:
 
     and	     %REG0, TAGMASK, %TMP1              ! get tag
     cmp      %TMP1, PROCTAG                     ! procedure?
@@ -337,7 +341,7 @@ a tail call looks like this:
 ! just before the procedure position of the call was evaluated?)
 
     call     L2
-    add      %o7, (L1-(.-4)), %o7
+    add      %o7, (L1-(.-4))-8, %o7
 
 L3:
     bne      L4                                  ! Timer zero?
@@ -347,7 +351,7 @@ L3:
 ! argument count is already set up.
 
     call     L2
-    add      %o7, (L4-(.-4)), %o7
+    add      %o7, (L4-(.-4))-8, %o7
 
 L4:
     ld       [ %REG0+... ], %TMP0                ! get code vector
@@ -364,12 +368,17 @@ L2:
     jmp      %TMP0                               ! execute it
     nop
 
+Notice the adjustment of "-8" on the effective address calculations.
+The adjustment is necessary because a standard return jumps to the
+instruction at (return address + 8).  Since there is no sense in
+using both adjusted and unadjusted returns, and since we cannot get
+rid of the adjusted ones easily, we will use them everywhere.
 
 After seeing all this, non-tail calls are not much different; in fact,
-only the last basic block changes. (In the code below the slot in the
-call has been used for the load, thereby avoiding a dependency between
-the load and the jump, saving a cycle; this means that we must adjust
-somewhat the constants in the add that calculates the effective
+only the last basic block changes. (In the code below the delay slot
+in the call has been used for the load, thereby avoiding a dependency
+between the load and the jump, saving a cycle; this means that we must
+adjust somewhat the constants in the add that calculates the effective
 address.)
 
 L4:
@@ -382,7 +391,6 @@ L4:
 
 7. Returning from a procedure
 -----------------------------
-
 In general, to return from a procedure, we must deallocate the stack
 frame, get the return address in the previous continuation, and then
 jump to that address. There is also the sticky issue of stack
@@ -398,7 +406,7 @@ code for the return, assuming that the return value has been stored
 into the RESULT register:
 
     ld      [ %STKP + FSIZE ], %TMP0   ! get return address of previous frame
-    jmp     %TMP0                      ! return
+    jmp     %TMP0+8                    ! return
     add     %STKP, FSIZE, %STKP        ! deallocate frame
 
 The running time of this code can be improved somewhat if an
