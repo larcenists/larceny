@@ -647,6 +647,28 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     LET-bound variable comes from an existing register variable.
     Pass 3 should fix this.
 
-NEXT ENTRY: 123
+123 v1.0a1 (990421 / lth)
+    Priority: low
+
+    [May have been fixed since]
+
+    The macro for DO produces worse code than it needs to: if there
+    are no <expression>s following the <test> it returns the value
+    of the <test>, which means that the compiler will generate 
+    code to evaluate the boolean for its value, resulting in numerous
+    needless operations.
+
+124 v1.0a1 (990421 / lth)
+    Priority: medium.
+
+    WITH-INPUT-FROM-PORT and WITH-OUTPUT-TO-PORT (which are also used by
+    WITH-INPUT-FROM-FILE and WITH-OUTPUT-TO-FILE) are not behaving 
+    correctly if the thunk jumps out of the dynamic context and then
+    back in again.  The input port in effect inside the procedure remains
+    in effect outside the procedure, and any change to the input port
+    outside the procedure is visible inside the procedure after the jump
+    back in.  Ditto for output-ports.  Easy to fix with dynamic-wind.
+
+NEXT ENTRY: 125
 
 ; eof
