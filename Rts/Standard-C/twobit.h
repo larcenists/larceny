@@ -11,6 +11,17 @@
  *     Search for >> in the code to find all places where this happens.
  *
  *     Larceny needs to be delivered with a program that tests this!
+ *
+ * BUGS!
+ *  - The test in lsh, rsha, rshl that ensures that the shift count < 32 is
+ *    actually architecture-dependent; the constant 32 should be factored out.
+ *
+ *  - Code that uses UNSAFE_TRUE( double_tag_test( ..., h ) ) to implicitly
+ *    fetch h and then use h outside the test expression will _break_ if
+ *    running with usafe code.  At fault are:
+ *      string-length
+ *      vector-length
+ *      bytevector-length
  */
 
 #ifndef TWOBIT_H
@@ -122,7 +133,7 @@ extern cont_t twobit_cont_label;
 #define vec_addr( x, y )  word_addr( x, VEC_TAG, VEC_HEADER_WORDS, fixnum(y) )
 #define proc_addr( x, y ) word_addr( x, PROC_TAG, PROC_HEADER_WORDS, fixnum(y))
 
-#define the_header( x, tag ) (*(word*)((byte*)x-tag))
+#define the_header( x, tag ) (*(word*)((byte*)(x)-tag))
 
 #define double_tag_test( x, tag, hdr, tmp ) \
   (tagof(x) == tag && ((tmp = the_header( x, tag ))&255) == hdr)
@@ -498,7 +509,20 @@ extern cont_t twobit_cont_label;
 # endif
 #endif
 
+#define twobit_check( x, y, z, L ) \
+  if (RESULT == FALSE_CONST) { \
+    twobit_skip( L ); \
+  }
 
+#define twobit_trap( x, y, z, excode ) \
+  do { \
+    if (x != 0) RESULT = reg(x); \
+    if (y != 0) SECOND = reg(y); \
+    if (z != 0) THIRD  = reg(z); \
+    SAVE_STATE(); \
+    mc_exception( globals, excode ); \
+  } while(0)
+     
 /* Primitives */
 
 #define twobit_op1_1() /* break -- really 0 args */ \
@@ -557,16 +581,10 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_17() /* symbol? */ \
    double_tag_predicate( RESULT, VEC_TAG, SYMBOL_HDR )
 
-#define twobit_op1_18() /* number? */ \
+#define twobit_op1_18() /* number?, complex? */ \
    WITH_SAVED_STATE( mc_complexp( globals ) )
 
-#define twobit_op1_19() /* complex? */ \
-   WITH_SAVED_STATE( mc_complexp( globals ) )
-
-#define twobit_op1_20() /* real? */ \
-   WITH_SAVED_STATE( mc_rationalp( globals ) )
-
-#define twobit_op1_20() /* rational? */ \
+#define twobit_op1_20() /* real?, rational? */ \
    WITH_SAVED_STATE( mc_rationalp( globals ) )
 
 #define twobit_op1_21() /* compnum? */ \
@@ -697,7 +715,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_48() /* procedure-length */ \
    do { word a=RESULT; \
         if (UNSAFE_TRUE(tagof( a ) == PROC_TAG)) \
-          RESULT = sizefield(*striptag(a,PROC_TAG)) & ~3; \
+          RESULT = fixnum(procedure_length(a)); \
         else { SAVE_STATE(); \
 	       mc_exception( globals, EX_PROCEDURE_LENGTH ); } \
    } while(0)
@@ -1120,6 +1138,56 @@ extern cont_t twobit_cont_label;
 #define twobit_op2imm_141( y ) /* char>=? */ \
   charcmp_imm( >=, y, EX_CHARGE )
 
+
+/* For CSE and representation analysis: 400 - 499 */
+
+#define twobit_op1_401() /* vector-length:vec */ \
+  RESULT = fixnum( vector_length( RESULT ) )
+
+#define twobit_op2_402( y ) /* vector-ref:trusted */ \
+  RESULT = vector_ref( RESULT, reg(y) >> 2 )
+
+#define twobit_op3_403( y, z ) /* vector-set!:trusted */ \
+  vector_set( RESULT, reg(y) >> 2, reg(z) )
+
+#define twobit_op1_404() /* car:pair */ \
+  RESULT = pair_car(RESULT)
+
+#define twobit_op1_405() /* cdr:pair */ \
+  RESULT = pair_cdr(RESULT)
+
+#define twobit_op2_406( y ) /* =:fix:fix */ \
+  RESULT = (RESULT == reg(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2_407( y ) /* <:fix:fix */ \
+  RESULT = (RESULT < reg(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2_408( y ) /* <=:fix:fix */ \
+  RESULT = (RESULT <= reg(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2_409( y ) /* >:fix:fix */ \
+  RESULT = (RESULT > reg(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2_410( y ) /* >=:fix:fix */ \
+  RESULT = (RESULT >= reg(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2imm_450( y ) /* vector-ref:trusted */ \
+  RESULT = vector_ref( RESULT, y )
+
+#define twobit_op2imm_451( y ) /* =:fix:fix */ \
+  RESULT = (RESULT == fixnum(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2imm_452( y ) /* <:fix:fix */ \
+  RESULT = (RESULT < fixnum(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2imm_453( y ) /* <=:fix:fix */ \
+  RESULT = (RESULT <= fixnum(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2imm_454( y ) /* >:fix:fix */ \
+  RESULT = (RESULT > fixnum(y) ? TRUE_CONST : FALSE_CONST)
+
+#define twobit_op2imm_455( y ) /* >=:fix:fix */ \
+  RESULT = (RESULT >= fixnum(y) ? TRUE_CONST : FALSE_CONST)
 
 #endif /* TWOBIT_H */
 
