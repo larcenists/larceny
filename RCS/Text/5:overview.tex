@@ -1,0 +1,479 @@
+% -*- TeX -*-
+% $id$
+
+\input{larceny.sty}
+\title{Larceny Note \#5: \\
+       An Overview of the System \\
+       {\tenrm (draft!)}}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document is gives an overview of Larceny and then delves
+into some gory detail about how to use the Chez Scheme hosted compiler,
+how to build a heap, how to load the heap, what debugging facilities are
+available, and so on.
+\end{abstract}
+
+\section{Introduction}
+
+The general structure of running a Scheme program is this: the
+compiler generates MacScheme assembly language, which the assembler
+then converts to files of Sparc object code in a relocatable format.
+Several such files are combined into a relocatable heap image, which
+is loaded by the Larceny executable at startup time. Section
+\ref{compiling} explains this process in more detail. Eventually the
+compiler and assembler will run as part of the Larceny system, and the
+Sparc object code modules will be loaded directly into a running
+Scheme system.
+
+%%
+
+\section{From Scheme to a Heap}
+\label{compiling}
+
+The compiler converts each top-level construct in the source program
+to a thunk before compilation proper; for example, the two expressions
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    (define (foo x)
+      ...)
+
+    (foo 33)
+\end{verbatim}
+\end{minipage}
+
+\noindent become
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    (lambda ()
+      (set! foo (lambda (x)
+                  ...)))
+
+    (lambda ()
+      (foo 33))
+\end{verbatim}
+\end{minipage}
+
+\noindent The advantage of this conversion is that it becomes a simple and
+uniform task to perform heap initialization, as described below.
+
+Each thunk, when compiled, becomes a list of MacScheme assembly language
+instructions where the mnemonic of the instruction is a small positive
+fixnum. These mnemonics are defined in the file ``Compiler/pass4.imp.sch''.
+Files consisting of such lists of compiled thunks have the file 
+extension {\tt .lap}, for ``Lisp Assembly Program''.
+
+The assembler takes such a list of MacScheme instructions as input and
+generates as output a {\em segment}: a segment is a pair, the car of
+which is a byte vector\footnote{In implementations without byte
+vectors, like Chez Scheme, byte vectors are represented using ordinary
+vectors.} with the relocatable Sparc object code, and the cdr of which
+is the constant vector for that piece of code.  Files consisting of
+segments have the file extension {\tt .lop}, for ``Lisp Object
+Program''. Segements are described in detail in Larceny Note \#6.
+
+In addition, there is another file format for MacScheme assembly
+programs.  Some MacScheme assembly code must be written by hand to get
+at the correct low-level primitives. Such code is kept in files with a
+{\tt .mal} extension, for ``MacScheme Assembly Language''. The format
+of these files is the same as the format of the {\tt .lap} files,
+except that when read by the assembler driver, each source expression
+in a {\tt .mal} file must be evaluated before it can be assembled: the
+opcode mnemonics are unevaluated in these files.  As a typical
+example, consider
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    `((,$lambda ((,$.proc)
+                 (,$args= 2)
+                 (,$reg 1))
+                0
+                (#t))
+      (,$setglbl foo)
+      (,$return))
+\end{verbatim}
+\end{minipage}
+
+\noindent This expression, when {\em evaluated}, will be a valid input to the
+assembler.
+
+The heap dumper takes a number of {\tt .lop} files and combines them
+into a relocatable, loadable heap. The heap image consists of a number
+of root pointers (which are loaded into the roots table in the running
+system) followed by the relocatable heap proper. One of the roots is
+set to point to the heap initialization thunk, which is created by the
+heap dumper. This thunk has in its constant vector a pointer to a list
+of all the thunks loaded into the heap (except itself), and it will,
+when run, cdr down this list, calling each thunk, so that the heap can
+be initialized properly. The thunks are called in the order in which
+they were loaded. When the list has been exhausted, the global
+(programmer-defined) procedure ``go'' is called with the list of used
+symbols as its argument; this procedure must initialize the symbol
+table and then it can do what it wishes. Typically, it calls
+initializion routines for a number of system packages and then the
+read-eval-print loop, or some other top-level code.
+
+Heaps are stored in files with a {\tt .heap} extension, and heap files
+are described in detail in Larceny Note \#6.
+
+The heap dumper also makes a map file (occasionally useful for
+debugging) which contains the names of all the global symbols together
+with an identifying number for each; the heap dumper also places this
+number in the cdr of the actual value cell for the global variable.
+Hence, when some unknown global is encountered, its identifying number
+can be found, and its name can be discovered from the map file.
+
+A more general map file would be nice, but it would not be very useful
+after the first garbage collection.
+
+To make a heap, call on the ``make-heap'' procedure in the hosted
+environment. It takes an argument which is the filename for the heap
+to be made, and in addition a number of optional arguments which are
+switches to various passes of the compiler, assembler, and heap
+dumper.
+
+The swithces are these:
+
+\begin{description}
+\item[listify] This is a switch to the assembler which tells it to list
+the MacScheme code as it is assembled. This has limited utility when things
+get big. It is better to use the procedure ``readify-file'' to get the same
+effect (see below).
+
+\item[global-refs] This is a switch to the assembler which tells it to
+insert checks on global variables when they are loaded into registers; if
+a global variable has the value \verb+#!unspecified+, then an exception
+about an undefined global variable is raised.
+
+\item[global-symbols] This is a switch to the heap dumper which, when given,
+makes the heap dumper initialize the cdr of a global cell with a pointer
+to the symbol structure which has the same printname as the global variable.
+This can be very useful in debugging. Normally the cdr of a global cell is
+initialized to the ordinal number of the cell.
+
+\end{description}
+
+A brief description of what happens behind the scenes is appropriate
+at this point. ``Make-heap'' is a procedure defined in
+``Lib/makefile.sch'' which creates a dependency list based on the
+arguments and an internal variable which holds the list of files which
+go into a default heap image. In addition, the switches, if any,
+trigger the setting or resetting of various global variables in
+different modules. The dependency list is passed to the ``make''
+procedure, a simple UNIX-like ``make'' facility, defined and
+documented in ``Compiler/make.sch''. This utility traverses the
+dependencies and recompiles targets which are out of date with respect
+to their sources.  Custom versions of ``make-heap'' for other library
+configurations should be straightforward. Anyway, to compile a
+``.sch'' file to a ``.lap'' file, the procedure ``compile313'' is
+used, and to assemble a ``.mal'' or ``.lap'' file to a ``.lop'' file,
+the procedure ``assemble313'' is used. Both procedures are described
+below. Finally, the procedure ``dump-heap'' is called to dump a heap
+containing the ``.lop'' files in its argument list; this procedure is
+defined in ``Compiler/dumpheap.sch''.
+
+\section{The Hosted Compiler.}
+
+Table \ref{files} presents all files which are part of the compiler,
+assembler, and heap dumper.
+
+\begin{table}[hbt]
+\begin{center}
+\begin{tabular}{|l|l|} \hline
+Sparc/asm.sparc.scm       & Sparc assembler \\
+Sparc/disasm.sparc.scm    & Sparc disassembler \\
+Sparc/gen-primops.scm     & Code emitters for ``op'' instructions \\
+Sparc/gen-msi.sch         & Code emitters for MacScheme instructions \\
+Compiler/assembler.sch    & Assembler top level (generic) \\
+Compiler/build.sch        & Compiler system bootstrap \\
+Compiler/compile313.sch   & Drivers for compiler, assembler, disassembler \\
+Compiler/dumpheap.sch     & Heap dumper \\
+Compiler/pass1.sch        & Macro expansion \\
+Compiler/pass1.aux.sch    & \\
+Compiler/pass1.imp.sch    & Primop tables \\
+Compiler/pass2.sch        & Closure analysis \\
+Compiler/pass4p1.sch      & Code generation \\
+Compiler/pass4p2.sch      & \\
+Compiler/pass4.aux.sch    & \\
+Compiler/pass4.imp.sch    & MacScheme instruction mnemonics \\
+Compiler/printlap.sch     & Utility \\
+Compiler/sets.sch         & Set operations for compiler \\
+Compiler/utils.sch        & More utilities \\
+Compiler/make.sch         & ``Make'' utility \\
+Lib/makefile.sch          & Makefile for Larceny heaps \\
+Chez/*                    & Compatibility package \\ \hline
+\end{tabular}
+\end{center}
+\caption{Files in the hosted system}
+\label{files}
+\end{table}
+
+The batch compiler hosted under Chez Scheme can be built by loading
+the file ``Compiler/build.sch''. You should be in the ``Compiler''
+subdirectory when starting up Scheme, as all paths in the files are
+relative to that directory. The build script will in turn load the
+compiler, Sparc assembler, heap dumper, compatibility package, make
+utility, and other utilities. In general, the following procedures are
+useful:
+
+\begin{description}
+\item {\verb+(compile313 <filename>)+}
+
+Compile the source file (full path name) with extension ``.scm'' or
+``.sch'' (Scheme source files) to a file with the same path and base
+name but with extension ``.lap'' (MacScheme assemly language code).
+
+\item {\verb+(assemble313 <filename>)+}
+
+Assemble a file with extension ``.lap'' or ``.mal'' (MacScheme assembly
+language files) to one with extension ``.lop'' (compiled and assembled
+Sparc code in segment form).
+
+\item {\verb+(disassemble313 <inputfile> [ <outputfile> ] )+}
+
+Disassemble a file on segment form (``.lop'' type); the code vectors are
+disassembled to Sparc assembly language. Constant vectors are not shown,
+but code vectors in the constant vector are disassembled. The code vectors
+are labelled somewhat coherently.
+
+\item {\verb+(dump-heap <outputfile> <inputfile> ...)+}
+
+Collect all the ``.lop'' input files and create a heap as the output file.
+All thunks are gathered in a list and will be called in turn (in load order)
+when the heap is loaded into Larceny; finally, there must in one of these
+files be a procedure ``go'' of one argument which will be called after all
+the thunks have been called. The argument passed to ``go'' will be a list
+of symbols in the load image; ``go'' may do what it wants with them.
+``Go'' should never return.
+
+\item {\verb+(readify-file <inputfile> [ <outputfile> ] )+}
+
+List a ``.lap'' file by converting the mnemonic codes for MacScheme 
+instructions to human-readable form.
+
+\item {\verb+(make-heap <filename> [ <argument> ... ] )+}
+
+Run the make utility to make a heap with the given name. The arguments to
+this command are described above.
+
+\item {\verb+(make <target> <dependencies>)+}
+
+You can use the make utility directly if you create a proper list of
+dependencies. The gory details are in the comments at the head of the file
+``Compiler/make.sch''.
+
+\end{description}
+
+\section{Running Larceny}
+
+Once you've managed to make the executable (say ``make'' at the UNIX prompt
+when you're at the root of the build tree), you can invoke Larceny with
+the command ``larceny'' and appropriate options. The following options are
+currently recognized:
+
+... stuff ...
+
+% \section{Overview of The Assembler}
+% 
+% The MacScheme instruction set is summarized in the file
+% ``Text/instructions''. Most Scheme operators are not instructions in
+% MacScheme even though in-line code is generated for them. Rather, they
+% are given as operands to the {\tt op} instructions, for example
+% 
+% \begin{verbatim}
+%       op2   +,3
+% \end{verbatim}
+% 
+% \noindent which means ``add register R3 to the RESULT register''. 
+% When an {\tt op} instruction is encountered, the assembler searches
+% the primop-table for a procedure which can generate Sparc code for the
+% given operator.  To add primitive operators, therefore, one must add a
+% definition of the operator (in terms of Sparc assembly language
+% instructions) to the primop-table in the file XYZZY.
+
+\section{The Run-time System}
+
+The run-time system consists of the following major parts:
+
+\begin{itemize}
+\item Memory management (storage allocation and reclamation)
+\item Generic arithmetic support
+\item Library code
+\end{itemize}
+
+This seems awfully simple, and indeed it is deceptive: much of the
+work in the system has not been to implement these parts, but rather
+to design calling conventions and register usage strategies, and to
+write the compiler and assembler. Nevertheless, only the above parts
+will be described here.
+
+\subsection{Memory Management}
+
+One of the major advantages of higher-level languages like Scheme is
+the availability of automatic storage allocation and reclamation. All
+responsibility for maintaining storage is taken away from the programmer
+and given to the run-time system. The cost of this is that the run-time
+system must provide a garbage collector to reclaim storage no longer in
+use. The presence of a garbage collector, in turn, imposes several
+constraints on the design of the rest of the run-time system, as well as
+on calling conventions, stack layout, and other performance-affecting
+parts of the system.
+
+First, all data must be tagged so that the garbage collector can
+figure out what kind of data it is dealing with and how to collect it
+properly. In Larceny, each word is tagged with a 3-bit tag which
+uniquely identifies it (the exception being data in bytevectors; see
+the next section).  Tags are kept in the low three bits of a word.
+
+Second, registers must be classified as either rootable or
+nonrootable.  Rootable registers are used as starting points
+(``roots'') for the garbage collector as it traces pointers around
+data structures; nonrootable registers are used as temporaries. There
+is a need for nonrootable registers because not all bit patterns
+represent meaningful Scheme objects, and in order for the collector
+not to be confused, we store such bit patterns only in places where
+the collector cannot get to them. Similarly, it is a requirement that
+all live objects must be reachable by following links from a root.
+
+Third, stack frames must be laid out in such a fashion that the
+collector knows what is contained in each word in the frame, and such
+that it can find the boundaries between frames.
+
+Fourth, data structures must be laid out carefully so that the collector
+can easily traverse them, while at the same time, the structures allow
+efficient accessing.
+
+\subsubsection{Overview of Data Structure Layout}
+
+This material is presented in depth in Larceny Note \#8; consider the
+following a brief summary of the highlights.
+
+... stuff ...
+
+\subsubsection{An Efficient Garbage Collector}
+
+It has long been clear that the memory allocation behavior of
+higher-level languages like Scheme is characterized by the allocation
+of a varying amounts of short-lived memory and, over time, rather
+larger amounts of long-lived memory. Most reasonable garbage
+collectors use a copying approach (know as stop-and-copy): objects are
+allocated in an area of memory known as ``oldspace'', and when that
+area fills up, the live objects are traced out from the roots and
+copied into a ``newspace'', with the necessary pointer adjustments.
+Then, ``newspace'' becomes the new ``oldspace'' and ``oldspace''
+becomes the new ``newspace'', and execution continues. There are two
+main advantages of this method of garbage collection: only live
+objects are referenced, and compaction of the heap is automatic.
+Another popular technique known as mark-and-sweep both references all
+objects (live and dead) and does not compact automatically.
+Larceny uses a stop-and-copy approach.
+
+However, due to the way the collector works, it is advantageous to
+collect only among those objects which are likely to be ``dead''
+(since dead objects are not referenced) and to avoid objects we know
+to be live. Taking the memory allocation behavior of Scheme programs
+into account, we divide the heap into two generations: an
+``ephemeral'' generation, and a ``tenured'' generation, each of which
+has an oldspace and a newspace. All objects are allocated in the
+ephemeral generation, and when a garbage collection happens, live
+objects are copied from the ephemeral oldspace to the ephemeral
+newspace; this is know as an ephemeral collection. If, after such a
+collection, the ephemeral newspace is fuller than some limit, the {\em
+next} collection will copy all the live objects from the ephemeral
+oldspace into the tenured newspace; this is known as a tenuring
+collection. After that, the system goes back to allocating and
+collecting in the ephemeral area again, until it fills up anew, and a
+tenuring collection has to be performed.  Eventually, the tenured
+newspace will fill up, and a collection of tenured space will have to
+be performed; this is know as a full collection\footnote{Also ``moby''
+collection.} When the tenured newspace is full after a collection,
+the system panics. This can be fixed, but it is not worth 
+worrying about at the moment.
+
+In general, the full collection should not necessarily be of the copying
+kind, as it means having a large number of megabytes of unused space
+floating around at all times. This, too, can be fixed but is of little
+importance.
+
+In Larceny there are two more heap areas, known respectively as the
+``static'' and ``stack'' areas. The static area holds objects which
+will never be collected, like system code. The stack area holds the
+stack cache, about which more will be said later.
+
+\subsubsection{The Problem of Side Effects}
+
+The generational collection scheme creates a problem, however, in
+languages in which side effects on data structures are allowed.
+Consider the case where a field in a data structure in the tenured
+space is made to point to an object which has been newly allocated in
+the ephemeral space. If this pointer is the only reference to the
+object in the ephemeral space, it must be found, otherwise the object
+will not be copied. If it is not the only link, then the object may be
+copied, yet the pointer will not be changed to point to the new
+location of the object. In short: all pointers from the tenured
+generation into the ephemeral generation must be found and updated
+when an ephemeral collection occurs. While there are several ways to
+do this, the one used by Larceny involves the maintaining of a
+{\em transaction area} which contains pointers to all objects in the
+tenured space which in turn contain pointers into the ephemeral space.
+Whenever a side effect (vector-set!, set-car!, set-cdr!, and system
+procedures like cell-set!) is performed, and the object being changed
+is in the tenured space, a transaction is recorded in the transaction
+area. Then, when an ephemeral collection is performed, the transaction
+area is traversed and all pointers into the ephemeral area are followed
+and updated.
+
+\subsubsection{Efficient First-class Continuations}
+
+One of the unique features of Scheme is the access it grants the
+programmer to the continuation structures. However, if the programmer
+is going to be interested in using this feature (and it is an
+interesting and useful concept), it must be efficiently implemented.
+A number of strategies for efficient implementation of the system
+procedure ``call-with-current-continuation'' (abbreviated ``call/cc'')
+have been proposed; the one used in Larceny is known as the incremental
+stack/heap approach and works as follows.
+
+There is a stack cache of limited size; the default is 64KB.
+Continuation frames are created on this stack until it overflows or
+until the continuation is captured with ``call/cc''. When either of
+these happen, the stack cache is broken up into individual frames
+which are moved to the heap (and where the frames form a linked list,
+linked by the dynamic links of the frames). When the stack cache
+underflows or a continuation is reinstated, a single frame is fetched
+into the cache again before execution continues (the reinstating of a
+continuation causes the stack cache to be cleared before the fetching
+of the frame). Thus, if ``call/cc'' is called again, most of the
+continuation may already be in the heap,\footnote{The common case
+appears to be that continuations share much of their structures.} and
+only a few frames have to be flushed.
+
+The overhead in this strategy is the checking for stack cache overflow
+on frame creation. There need not be any overhead to detect underflow;
+one places a dummy frame on the bottom of the stack cache, which, when
+returned into, jumps to the underflow handler and reinstates a frame
+before jumping to the correct return address.
+
+\subsection{Generic Arithmetic Support}
+
+One of the goals in implementing Larceny was to get a testbed for
+research in fast generic arithmetic. Consequently, the support for
+generic arithmetic is extensive and comprises a large part of the
+run-time system; the basic arithmetic operations weigh in at about
+4000 lines of code, half of it in Scheme and half of it in Sparc
+assembly language.
+
+In the absence of type information at compile time, all fixnum
+arithmetic is done in line, and the rest is pushed into millicode.
+Larceny Note \#X goes into detail; the following is just an overview.
+
+... stuff ...
+
+\subsection{The Run-time Library}
+
+\end{document}

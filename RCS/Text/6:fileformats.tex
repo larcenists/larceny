@@ -1,0 +1,86 @@
+% -*-TeX -*-
+% $Id$
+
+\input{larceny.sty}
+
+\title{Larceny Note \#6: \\
+       File Formats}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document describes the formats of ``.lap'', ``.mal'', ``.lop'' and
+``.heap'' files in detail.
+\end{abstract}
+
+\section{Segment Format}
+
+A segment is a pair:
+
+\begin{itemize}
+\item
+The car of the segment is a byte vector (externally represented as a
+vector in some host implementations) containing the raw bytes of the
+SPARC object code. This code is fully compiled and will not need to be
+further patched at load time. The bytes are laid out in order of increasing
+addresses for fast loading. The byte vector is exactly long enough.
+
+\item
+The cdr of the segment is a vector containing all non-inlined constants
+used by the procedure. Constants may share structure if the assembler
+determined that they could. Examples of constants include lists, flonums, 
+and code and constant vectors for nested procedures which are to be created
+at run time. Each entry in the constant vector is a pair. The car of the
+pair is the tag of the entry; the cdr is the actual data. There are five
+kinds of tags: ``data'', ``codevector'', ``constantvector'', ``global'',
+and ``bits''. 
+
+\end{itemize}
+
+The tags and their data are interpreted thusly:
+
+\begin{itemize}
+\item
+The ``data'' tag is used for raw data which is to be dumped
+into the heap as is, but with the correct tags added. For example,
+\verb+(data . 1234567890)+ is dumped as a bignum.
+
+\item
+The ``codevector'' tag means that the following vector will have to be dumped
+as a byte vector. This tag is necessary only because there in not a standard
+print syntax for byte vectors; if there were one, we could use the ``data''
+tag.
+
+\item
+Each ``constantvector'' will be recursively traversed to check for tags.
+
+\item
+A ``global'' forces the heap dumper to insert a reference to the global
+variable cell for the given global variable; the datum in this case is
+a symbol naming the global variable.
+
+\item
+If the tag is ``bits'', then the datum (an integer) is dumped as is without 
+any change of tags. This is useful internally in the heap dumper.
+
+\end{itemize}
+
+\section{Heap Format}
+
+This is the format for the current (version 1) heap, which is a single memory
+area heap -- there are no provisions for the static area (see the GC section,
+below).
+
+\begin{itemize}
+\item Heap proper is always padded to 8-byte boundary
+\item Version number (1 word)
+\item Roots (38 words in current version; number of roots and exact layout
+\item depends on the version. The roots and the order is typically the same
+as defined in ``offsets.h''.)
+\item Heap length in words (1 word)
+\item Heap itself (n words)
+\end{itemize}
+
+\end{document}
