@@ -25,23 +25,24 @@
 ; The outermost lambda allows known procedures to be lifted outside
 ; all local variables.
 
-(define (macro-expand def-or-exp)
+(define (macro-expand def-or-exp syntaxenv)
   (call-with-current-continuation
    (lambda (k)
-     (set! m-quit k)
-     (set! renaming-counter 0)
-     (make-call
-      (make-lambda '() ; formals
-                   '() ; definitions
-                   '() ; R
-                   '() ; F
-                   '() ; G
-                   '() ; declarations
-                   #f  ; documentation
-                   (desugar-definitions def-or-exp
-                                        global-syntactic-environment
-                                        make-toplevel-definition))
-      '()))))
+     (parameterize ((global-syntactic-environment syntaxenv))
+       (set! m-quit k)
+       (set! renaming-counter 0)
+       (make-call
+        (make-lambda '()                ; formals
+                     '()                ; definitions
+                     '()                ; R
+                     '()                ; F
+                     '()                ; G
+                     '()                ; declarations
+                     #f                 ; documentation
+                     (desugar-definitions def-or-exp
+                                          (global-syntactic-environment)
+                                          make-toplevel-definition))
+        '())))))
 
 (define (desugar-definitions exp env make-toplevel-definition)
   (letrec
@@ -167,7 +168,7 @@
       (lambda (id)
         (if (symbol? id)
             (if (not (identifier-denotation?
-                      (syntactic-lookup global-syntactic-environment id)))
+                      (syntactic-lookup (global-syntactic-environment) id)))
                 (if (issue-warnings)
                     (m-warn "Redefining " id)))
             (m-error "Malformed variable or keyword" id)))))
@@ -448,7 +449,6 @@
                    (entry
                     (and (not (null? args))
                          (constant? (car args))
-                         (integrate-usual-procedures)
                          (every1? constant? args)
                          (let ((entry (constant-folding-entry procname)))
                            (and entry
@@ -488,7 +488,7 @@
                              env
                              (define-syntax-scope))
            (let ((denotation
-                  (syntactic-lookup global-syntactic-environment name)))
+                  (syntactic-lookup (global-syntactic-environment) name)))
              (syntactic-bind-globally!
               name
               (make-inline-denotation name
@@ -604,14 +604,12 @@
                   (m-expand exp env))))
 
 (define (m-inline exp env)
-  (if (integrate-usual-procedures)
-      (m-transcribe-inline exp
-                           env
-                           (lambda (newexp env)
-                             (if (eq? exp newexp)
-                                 (m-application exp env)
-                                 (m-expand newexp env))))
-      (m-application exp env)))
+  (m-transcribe-inline exp
+                       env
+                       (lambda (newexp env)
+                         (if (eq? exp newexp)
+                             (m-application exp env)
+                             (m-expand newexp env)))))
 
 (define m-quit             ; assigned by macro-expand
   (lambda (v) v))
