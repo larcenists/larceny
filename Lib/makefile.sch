@@ -29,7 +29,7 @@
 ;
 ; Action procedures for the rules.
 
-(define (make-compile target deps) 
+(define (make-compile target deps)
   (display "Compiling ") (display target) (newline)
   (compile313 (car deps) target))
 
@@ -72,7 +72,7 @@
 (define (objects path ext files . rest)
   (let ((substitutions (if (null? rest) '() (car rest))))
     (define (loop files)
-      (cond ((null? files) 
+      (cond ((null? files)
              '())
             ((string? (car files))
              (cons (string-append path (car files) ext)
@@ -80,7 +80,7 @@
             ((symbol? (car files))
              (let ((probe (assq (car files) substitutions)))
                (cond ((not probe)
-                      (error "objects: No substitutions found for " 
+                      (error "objects: No substitutions found for "
                              (car files)))
                      ((not (cdr probe))
                       (loop (cdr files)))
@@ -105,10 +105,10 @@
   (string-append (nbuild-parameter 'auxiliary) x))
 
 (define (common-endian x . rest)
-  (string-append (nbuild-parameter 'common-source) 
+  (string-append (nbuild-parameter 'common-source)
                  x
-                 (if (eq? (nbuild-parameter 'endianness) 'little) 
-                     "-el" 
+                 (if (eq? (nbuild-parameter 'endianness) 'little)
+                     "-el"
                      "-be")
                  (if (null? rest)
                      ".lop"
@@ -208,8 +208,8 @@
   (append
    (nbuild-files 'repl-source '("main" "reploop"))
    (nbuild-files 'interp-source '("interp" "interp-prim" "switches"))
-   (nbuild-files 'compiler 
-                 '("pass1" "pass1.aux" "pass2.aux" "prefs" 
+   (nbuild-files 'compiler
+                 '("pass1" "pass1.aux" "pass2.aux" "prefs"
                    "syntaxenv" "syntaxrules" "lowlevel" "expand" "usual"
                    ))
    (nbuild-files 'interp-source '("macro-expand"))
@@ -222,15 +222,18 @@
 (define mzscheme-files
   (nbuild-files 'mzscheme-source
                 '("init" "wcm0" "wcm" "hash-compat"
+                  "misc"
                   "record" "inspector"
-                  "struct-proc0" "struct-proc" "struct" "struct-macros")))
+                  "struct-proc0" "struct-proc" "struct" "struct-macros"
+                  "instance0" "instance" "class" "generic" ; Ripoff
+                  )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Project for building the sparc-larceny heap image.
 
 (define sparc-heap-project
-  (let ((sparc-heap-files 
+  (let ((sparc-heap-files
          (objects "Lib/Common/"
                   ".lop"
                   common-heap-files
@@ -248,14 +251,14 @@
         (".lop" ".lap" ,make-assemble)
         (".lap" ".sch" ,make-compile)
         (".sch" ".sh"  ,make-copy))
-      `(targets 
+      `(targets
         ("sparc.heap" ,make-dumpheap))
       `(dependencies                    ; Order matters.  [Why??!]
         ("sparc.heap" ,sparc-heap-files)
         ("sparc.heap" ,sparc-eval-files)
         ("Lib/Common/ecodes.sch" ,(nbuild-files 'build '("except.sh")))
         ("Lib/Common/globals.sch" ,(nbuild-files 'build '("globals.sh")))))))
-     
+
 (define (make-sparc-heap . rest)
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny))
@@ -277,23 +280,23 @@
           (objects (nbuild-parameter 'common-source)
                    ".manifest"
                    common-heap-files
-                   `((primops 
+                   `((primops
                       . ,(make-filename "Lib" "IL" "primops.manifest"))
-                     (toplevel-target 
+                     (toplevel-target
                       . ,(make-filename "Lib" "IL" "toplevel-target.manifest"))
-                     (flonum-endian 
+                     (flonum-endian
                       . ,(common-endian "flonums" ".manifest"))
-                     (bignum-endian 
+                     (bignum-endian
                       . ,(common-endian "bignums" ".manifest"))
-                     (osdep 
+                     (osdep
                       . ,(common-relative osdep-file))
-                     (extra  
+                     (extra
                       . ,(make-filename "Lib" "IL" "loadable.manifest")))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files))
          (dotnet-mzscheme-files
           (objects "" ".manifest" mzscheme-files)))
-    
+
     ;; a handy procedure to delete all the intermediate files
     (set! remove-dotnet-heap-objects
           (lambda ()
@@ -314,7 +317,7 @@
                                         ext))
                                      manifest-files))
                                   '(".fasl" ".lap" ".lop" ".code-il")))))))
-              
+
               (for-each (lambda (f) (if (file-exists? f) (delete-file f)))
                         all-files))))
     (make:project "dotnet.heap"
@@ -322,7 +325,7 @@
         (".manifest" ".mal" ,(lambda (tgt deps) (mal->il (car deps))))
         (".manifest" ".sch" ,(lambda (tgt deps) (sch->il (car deps))))
         (".sch" ".sh"  ,make-copy))
-      `(targets 
+      `(targets
         ("dotnet.heap" ,make-dumpheap))
       `(dependencies                    ; Order matters.  [Why??!]
         ("dotnet.heap" ,dotnet-heap-files)
@@ -346,8 +349,8 @@
 (define (petit-select-target target)
   (define (select target)
     (set! petit-heap-files
-	  (objects (nbuild-parameter 'common-source) 
-		   ".lop" 
+	  (objects (nbuild-parameter 'common-source)
+		   ".lop"
 		   common-heap-files
 		   `((primops  . ,(machine-relative "primops.lop"))
 		     (toplevel-target . ,(machine-relative "toplevel-target.lop"))
@@ -363,17 +366,17 @@
     ((unix macosx) (select "sys-unix.lop"))
     ((macos) (select "sys-macos.lop"))
     ((win32) (select "sys-win32.lop"))
-    ((help) 
+    ((help)
      (display "Targets are unix, macosx, macos, win32.")
      (newline))
-    (else 
+    (else
      (error "Unsupported target "
-	    target 
+	    target
 	    "; try one of unix, macosx, macos, win32."))))
- 
+
 (define (make-petit-heap-project heap-dumper)
   (make:project "petit.heap"
-    `(rules 
+    `(rules
       (".lop" ".mal" ,make-assemble)
       (".lop" ".lap" ,make-assemble)
       (".lap" ".sch" ,make-compile)
@@ -415,16 +418,16 @@
 ; Project for building all the files in the Compiler subdirectory.
 
 (define (make-compiler-project file-type)
-  (let ((compiler-files 
+  (let ((compiler-files
          (append
           (replace-extension file-type (nbuild:twobit-files))
           (objects (nbuild-parameter 'compiler)
                    file-type
                    '("driver-larceny"))))
-        (comp-util-files 
+        (comp-util-files
          (replace-extension file-type (nbuild:utility-files)))
         (other-util-files
-         (append 
+         (append
           (objects (nbuild-parameter 'machine-source)
                    file-type
                    '("toplevel-target"))
@@ -563,8 +566,8 @@
 (define (make-auxlib-project file-type)
 
   (define (auxfile fn)
-    (string-append (nbuild-parameter 'auxiliary) 
-                   fn 
+    (string-append (nbuild-parameter 'auxiliary)
+                   fn
                    file-type))
   (define (expfile fn)
     (string-append (pathname-append (nbuild-parameter 'root) "Experimental")
@@ -574,7 +577,7 @@
     (string-append (pathname-append (nbuild-parameter 'root) "Debugger")
                    fn
                    file-type))
-                     
+
   (let ((auxlib-files
          (map auxfile auxlib-files))
         (experimental-files
@@ -610,7 +613,7 @@
 ;
 ; Project for building the GC test suite.
 
-(define gc-testsuite-project 
+(define gc-testsuite-project
   (let ((gc-testsuite-files
          '("dynamic" "gcbench0" "gcbench1" "grow" "lattice" "nbody"
            "nboyer" "nucleic2" "permsort" "sboyer" "dummy")))
@@ -633,8 +636,8 @@
 ; Regression tests.
 
 (define regression-test-project
-  (let ((regression-test-files 
-         '("test" "bool" "char" "ctak" "dynamic-wind" "fact" "fib" "fixnums" 
+  (let ((regression-test-files
+         '("test" "bool" "char" "ctak" "dynamic-wind" "fact" "fib" "fixnums"
            "number" "pred" "regression")))
     (make:project "Regression tests"
       `(rules
@@ -679,7 +682,7 @@
   (define (fix files)
     (replace-extension ".lop" files))
 
-  (append (list 
+  (append (list
 	   (string-append (nbuild-parameter 'compatibility) "compat2.lop")
 	   (string-append (nbuild-parameter 'auxiliary) "list.lop")
 	   (string-append (nbuild-parameter 'auxiliary) "pp.lop"))
