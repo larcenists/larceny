@@ -1,0 +1,107 @@
+$Header$
+
+0. Scope
+--------
+This document discusses the interface between the memory management system
+and the compiled Scheme application. Rules for the interaction are set
+forth and some examples are presented. 
+
+
+1. The application interface to the memory manager
+--------------------------------------------------
+The compiled code should call only the procedures exported from "memory.s",
+all of which are listed below. All procedures in "memory.s" may invoke the
+garbage collector.
+
+Procedures in "memory.s" take arguments in the millicode registers ARGREG1,
+ARGREG2, and ARGREG3, from leftmost to rightmost argument.  Results are
+returned in the RETURN register. Argument registers are never changed
+by these procedures, with the exception of address changes due to garbage
+collection. Hence, the millicode argument registers can be used as 
+rootable temporary registers even across millicode calls.
+
+The procedures in "memory.s" use the "globals" array. The offsets of
+variables within this array as well as the mappings from logical register
+names to physical register names must be defined in the file "memory.s.h",
+which is to be included only by "memory.s".
+
+The procedures exported from "memory.s" are the following, shown using C
+declaration syntax.
+
+word *alloc( word n )
+  Allocates n uninitialized words on the heap and returns an untagged
+  pointer to the first (lowest-addressed) word. Since the words are not
+  initialized, they must be initialized by the caller of alloc() before
+  any other procedure which might invoke the garbage collector is
+  called. If n is odd, it will be rounded upward to an even number; the 
+  caller need not initialize the resulting padding word.
+
+word *alloci( word i, word v )
+  Allocates n words on the heap and initializes each to the value v,
+  returning an untagged pointer to the first (lowest-addressed) word.
+  If n is odd, it is rounded upward to an even number; the resulting
+  padding word may or may not be initialized by alloci(), and the caller
+  should not depend on any particular behavior in this respect.
+
+void setcar( word p, word v )
+  If p is a tagged pointer to a pair, then the 'car' field of the pair is
+  set to the value v. The value of RESULT is undefined after a call to 
+  setcar(), but is guaranteed to be a valid Scheme object. If p is not
+  a tagged pointer to a pair, then the effect of calling setcar() is 
+  undefined.
+
+void setcdr( word p, word v )
+  Like setcar(), only the 'cdr' field is affected rather than the 'car' field.
+
+void vectorset( word p, word i, word v )
+  If p is a tagged pointer to a vector, and i is a valid index into the 
+  vector, then the i'th element of the vector is set to the value v. The 
+  value of RESULT is undefined after a call to vectorset(), but is guaranteed 
+  to be a valid Scheme object. If p is not a tagged pointer to a vector, or
+  if i is not a valid index into the vector pointed to by p, then the effect
+  of calling vectorset() is undefined. The argument i must be a fixnum.
+
+word *gcstart( word n )
+  If n is the fixnum representing -1 (namely, 0xFFFFFFFC) then the garbage
+  collector is invoked to do a tenuring collection, and the value of RESULT
+  is unchanged (modulo address updates). Otherwise, the garbage collector is
+  invoked to collect the ephemeral area, a block of n words is allocated
+  as for alloc(), above, and RESULT is set to an untagged pointer to the
+  allocated memory.
+  A tenuring collection may be invoked even if n is not -1, depending on the
+  internal state of the collector.
+  The parameter n must be a fixnum.
+
+(At some point all of these procedures will be assigned slots in the 
+millicode table.)
+
+
+2. Examples of use of the memory manager
+----------------------------------------
+
+! CONS using alloc()
+!
+! Assume values to cons are in R0 and R1 and that pointer to new cell is
+! to be left in RESULT
+
+	call	alloc
+	set	#8, %ARGREG1			! #8 == fixnum( #2 )
+	st	%R1, CAR_OFFSET[ %RESULT ]
+	st	%R2, CDR_OFFSET[ %RESULT ]
+
+
+! Open-coded CONS, same assumptions as above.
+!
+! 8 cycles in the common case (I think: check what happens on cache misses,
+! the depth of the write buffer, and the timings of the store instructions),
+! and only 8 instructions total.
+
+	add	%E_TOP, #8, %E_TOP		! allocate optimistically
+	cmp	%E_TOP, %E_LIMIT		! overflow?
+	ble,a	L1				! jump if not
+	sub	%E_TOP, #8, %RESULT		! setup pointer if ok
+	call	gcstart				! collect and allocate
+	set	#8, %ARGREG1			! argument for gcstart
+L1:
+	st	%R1, CAR_OFFSET[ %RESULT ]
+	st	%R2, CDR_OFFSET[ %RESULT ]
