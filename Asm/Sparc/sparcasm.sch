@@ -275,8 +275,10 @@
           (else
            (dep-call-offset! bits k (asm:int->bv offs)))))
   
-  ; Add 1 to an instruction (to bump a branch offset by 4).
-  ; FIXME: should check for field overflow.
+  ; Add 1 to an instruction (to bump a branch offset by 4).  
+  ;
+  ; FIXME: should check for field overflow, which will happen
+  ; exactly when the field value is 1fffff.
   
   (define (add1 bv loc)
     (let* ((r0 (+ (bytevector-ref bv (+ loc 3)) 1))
@@ -288,7 +290,8 @@
              (c1 (rshl r1 8)))
         (bytevector-set! bv (+ loc 2) d1)
         (let* ((r2 (+ (bytevector-ref bv (+ loc 1)) c1))
-               (d2 (logand r2 255)))
+               (d2 (logior (logand r2 #x3f)
+                           (logand (bytevector-ref bv (+ loc 1)) #xc0))))
           (bytevector-set! bv (+ loc 1) d2)))))
   
   ; For delay slot filling -- uses the assembler value scratchpad in
