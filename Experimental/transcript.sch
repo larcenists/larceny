@@ -3,13 +3,20 @@
 ; $Id$
 ;
 ; Transcript ports.  Simple implementation based on user ports and
-; a new REPL.  Starting a transcript enters a new REPL.  Leaving the
-; new REPL shuts the transcript off, and shutting the transcript off
-; leaves the new REPL.
+; a nested REPL.  Starting a transcript enters the nested REPL.  Leaving 
+; the nested REPL shuts the transcript off, and shutting the transcript 
+; off leaves the nested REPL.
 ;
 ; The R5RS is silent about what happens when closing the standard
 ; input or output, so I have chosen to have CLOSE on either port,
 ; when a transcript is in effect, signal an error.
+
+; FIXME: this isn't right.  the problem is that before writing output
+; to the output port, we must copy all pending input to the output port,
+; while allowing the user program to read it later.  So there's no way 
+; around it: this module must implement its own buffering.
+
+'(require 'iosys)
 
 (define transcript-on)
 (define transcript-off)
@@ -21,10 +28,12 @@
   (define transcript-output #f)
   (define transcript #f)
 
-  (define cin console-input-port)
-  (define cout console-output-port)
+  (define cin #f)
+  (define cout #f)
 
   (define (start-transcript filename)
+    (set! cin (console-input-port-factory))
+    (set! cout (console-output-port-factory))
     (if reset-continuation
         (error "Transcript is already on."))
     (set! transcript (open-output-file filename))
@@ -61,7 +70,8 @@
                       ((= i count))
                     (write-char (string-ref buf i) (cout))
                     (write-char (string-ref buf i) transcript))
-                  (flush-output-port (cout))))
+                  (flush-output-port (cout))
+                  'ok))
                ((close)
                 (lambda (datum) 
                   (error "The console output port may not be closed.")))
@@ -71,15 +81,8 @@
            #f
            'char
            #t))
-
-    ; FIXME:
-    ; This is neat but won't work because the REPL is closed in a
-    ; different environment.  Should the REPL be exposed more,
-    ; should we re-load the REPL, or should there be a mechanism
-    ; for overriding these procedures?  (call-with-console-factory ...)
-
-    (fluid-let ((console-input-port  (lambda () transcript-input))
-                (console-output-port (lambda () transcript-output)))
+    (parameterize ((console-input-port-factory  (lambda () transcript-input))
+                   (console-output-port-factory (lambda () transcript-output)))
       (display "Transcript started on ")
       (display filename)
       (display ".")
