@@ -201,7 +201,7 @@ void osdep_system( word w_cmd )
 void osdep_chdir( word w_cmd )
 {
   char *path = string2asciiz( w_cmd );
-  globals[ G_RESULT ] = fixnum(chdir(cmd));
+  globals[ G_RESULT ] = fixnum(chdir(path));
 }
 
 void osdep_cwd( void )
