@@ -254,7 +254,7 @@ static int inv91( dof_data_t *data ) /* order=gen */
   return 1;
 }
 
-static int inv92( old_heap_t *heap )  /* remset */
+static int inv92( old_heap_t *heap )  /* remset-order */
 {
   dof_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
@@ -266,6 +266,38 @@ static int inv92( old_heap_t *heap )  /* remset */
         data->gen[i]->remset != 
           gc->remset[data->first_gen_no+data->gen[i]->order])
       return 0;
+  return 1;
+}
+
+static int inv93( old_heap_t *heap )  /* remset-content */
+{
+  dof_data_t *data = DATA(heap);
+
+  int i;
+
+  for ( i=0 ; i < data->n ; i++ )
+    if (data->gen[i]->remset != 0 &&
+        (i < data->ap || 
+         i == data->ap && gen_used( data->gen[i] ) == 0 ||
+         i > data->cp && i < data->rp ||
+         i == data->rp && gen_used( data->gen[i] ) == 0)) {
+      rs_compact( data->gen[i]->remset );
+      if (data->gen[i]->remset->live != 0) return 0;
+    }
+  return 1;
+}
+
+static int inv94( old_heap_t *heap )  /* remset-data */
+{
+  dof_data_t *data = DATA(heap);
+
+  int i;
+
+  for ( i=0 ; i < data->n ; i++ )
+    if (data->gen[i]->remset != 0)
+      /* rs_consistency check signals the error */
+      rs_consistency_check( data->gen[i]->remset, 
+                            data->gen[i]->order + data->first_gen_no );
   return 1;
 }
 
@@ -311,7 +343,9 @@ static void check_invariants( old_heap_t *heap, bool can_allocate )
   if (!inv23( DATA(heap) )) fail_inv( DATA(heap), "alloc-order" );
   if (!inv90( DATA(heap) )) fail_inv( DATA(heap), "gen-id" );
   if (!inv91( DATA(heap) )) fail_inv( DATA(heap), "order=gen" );
-  if (!inv92( heap )) fail_inv( DATA(heap), "remset" );
+  if (!inv92( heap )) fail_inv( DATA(heap), "remset-order" );
+  if (!inv93( heap )) fail_inv( DATA(heap), "remset-content" );
+  if (!inv94( heap )) fail_inv( DATA(heap), "remset-data" );
 }
 
 static int heap_free_space( old_heap_t *heap )
@@ -351,31 +385,32 @@ static void reorder_generations( old_heap_t *heap, int permutation[] )
 {
   dof_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
-  gen_t *oldgen[ MAX_GENERATIONS ];
-  los_list_t *oldlos[ MAX_GENERATIONS ];
-  int i, j;
+  gen_t *oldgen[ MAX_GENERATIONS ], *g;
+  los_list_t *oldlos[ MAX_GENERATIONS ], *l;
+  int i, id, k, remset_perm[ MAX_GENERATIONS ], old_order;
 
-  for ( i=0, j=data->first_gen_no ; i < data->n ; i++, j++ ) {
-    oldgen[permutation[j]] = data->gen[i];
-    oldlos[permutation[j]] = gc->los->object_lists[i];
+  init_permutation( remset_perm );
+
+  for ( i=0 ; i < data->n ; i++ ) {
+    oldgen[i] = data->gen[i];
+    oldlos[i] = gc->los->object_lists[i + data->first_gen_no];
   }
 
-  init_permutation( permutation );
-  for ( i=0, j=data->first_gen_no ; i < data->n ; i++, j++ ) {
-    data->gen[i] = oldgen[j];
-    gc->los->object_lists[i] = oldlos[j];
-    data->gen[i]->id = i;
-    data->gen[i]->order = (i <= data->cp ? 
-                           data->cp - i : 
-                           data->n - i + data->cp);
-    /* Don't we need to set generation number on LOS data too?? */
-    ss_set_gen_no( data->gen[i]->live, 
-                   data->gen[i]->order + data->first_gen_no );
-    /* Wrong */
-    permutation[j] = data->gen[i]->order + data->first_gen_no;
+  for ( i=0 ; i < data->n ; i++ ) {
+    k = permutation[ i + data->first_gen_no ];
+    data->gen[ k - data->first_gen_no ] = g = oldgen[i];
+    gc->los->object_lists[k] = l = oldlos[i];
+    g->id = id = k - data->first_gen_no;
+    old_order = g->order;
+    g->order = (id <= data->cp ? 
+                data->cp - id : 
+                data->n - id + data->cp);
+    remset_perm[old_order + data->first_gen_no ] = g->order+data->first_gen_no;
+    ss_set_gen_no( g->live, g->order + data->first_gen_no );
+    los_list_set_gen_no( l, g->order + data->first_gen_no );
   }
 
-  gc_permute_remembered_sets( heap->collector, permutation );
+  gc_permute_remembered_sets( heap->collector, remset_perm );
 }
 
 static void rotate_0_to_CP( old_heap_t *heap )
@@ -474,7 +509,14 @@ static void promote_in( old_heap_t *heap )
     gclib_copy_into_with_barrier(heap->collector, data->first_gen_no, targets,
                                  GCTYPE_PROMOTE );
   assert( data->ap >= 0 );
-  rs_clear( heap->collector->remset[ data->first_gen_no ] );
+#if 0
+  /* This is wrong.  The clearing should only be partial: only those entries
+     pointing into GEN 0.  But those entries should have been taken care of
+     by */
+  for ( i=0 ; i < data->n ; i++ )
+    if (data->gen[i]->order <= data->gen[ap_before]->order )
+      rs_clear( heap->collector->remset[ data->gen[i]->order + data->first_gen_no ] );
+#endif
 
   live_after = 0;
   for ( i=ap_before ; i >= data->ap ; i-- )
@@ -666,11 +708,6 @@ static void post_collection_policy( old_heap_t *heap )
     reset_after_collection( heap );
 }
 
-/* Strategy:
-   Shuffle CP to top to allow use of gclib_copy_into_with_barrier().
-   Then do the collection.
-   Then shuffle CP back where it was before.
-   */
 static void perform_collection( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
@@ -694,7 +731,7 @@ static void perform_collection( old_heap_t *heap )
     data->rp -
     gclib_copy_into_with_barrier(heap->collector, data->first_gen_no+1, 
                                  targets,
-                                 GCTYPE_COLLECT );
+                                 GCTYPE_PROMOTE );
   rs_clear( heap->collector->remset[ data->first_gen_no ] );
   rs_clear( heap->collector->remset[ data->first_gen_no+1 ] );
 
@@ -709,17 +746,19 @@ static void perform_collection( old_heap_t *heap )
 static void maybe_collect( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int repeating = 0, marking_before;
+  int repeating = 0;
+  double marking_before;
 
   while (free_in_allocation_area(data) < space_needed_for_promotion(data)) {
     annoyingmsg( " DOF collection begins" );
     if (repeating) 
       data->repeat_collections++;
-    marking_before = data->marking;
+    marking_before = data->marking + data->total_marking;
     perform_collection( heap );
     check_invariants( heap, FALSE );
-    annoyingmsg( " DOF collection ends: AP=%d CP=%d RP=%d survivors=%d",
-                 data->ap, data->cp, data->rp, data->marking - marking_before );
+    annoyingmsg( " DOF collection ends: AP=%d CP=%d RP=%d survivors=%.0f",
+                 data->ap, data->cp, data->rp, 
+                 data->marking + data->total_marking - marking_before );
     repeating = 1;
   }
 }
@@ -747,7 +786,11 @@ static void collect( old_heap_t *heap, gc_type_t request )
 
   annoyingmsg( "DOF collection cycle begins: AP=%d CP=%d RP=%d",
                data->ap, data->cp, data->rp );
+  check_invariants( heap, FALSE );
+  gc_compact_all_ssbs( heap->collector );
+  check_invariants( heap, FALSE );
   promote_in( heap );
+  gc_compact_all_ssbs( heap->collector );
   check_invariants( heap, FALSE );
   if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
     full_collection( heap );
@@ -890,8 +933,20 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
    */
 #define FORWARD_HDR      0xFFFFFFFE
 
-#define check_address( x )    ((void)0)
-#define check_memory( x, y )  ((void)0)
+#define CHECK_EVERY_WORD 1
+
+#if CHECK_EVERY_WORD
+# define check_memory( ptr, nwords )            \
+    gclib_check_memory_validity( ptr, nwords )
+# define check_address( ptr )                                           \
+    do { if (((word)(ptr) & 7) != 0)                                    \
+           panic_abort( "Odd address for forw. ptr: 0x%08x!", (ptr) );  \
+    } while(0)
+#else
+# define check_memory( ptr, nwords ) (void)0
+# define check_address( ptr )  (void)0
+#endif
+
 
 #define remset_scanner_core( ptr, p, FORW, count )      \
   p = ptrof( ptr );                                     \
@@ -1000,7 +1055,12 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
           FORW;                                                               \
           ptr++;                                                              \
         }                                                                     \
-        if (must_add_to_extra) remember_vec( tagptr( T_objp, VEC_TAG ), e );  \
+        if (must_add_to_extra) {                                              \
+          if (T_h == VEC_HDR)                                                 \
+            remember_vec( tagptr( T_objp, VEC_TAG ), e );                     \
+          else                                                                \
+            remember_vec( tagptr( T_objp, PROC_TAG ), e );                    \
+        }                                                                     \
         if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
       }                                                                       \
     }                                                                         \
@@ -1286,6 +1346,12 @@ static word forward( word p, word **dest, dof_env_t *e )
 
   words = roundup8( sizefield( hdr ) + 4 ) / 4;
 
+#if CHECK_EVERY_WORD
+    switch (tag) {
+    case VEC_TAG : case PROC_TAG :
+      gclib_check_memory_validity( p2, (sizefield( hdr ) + 4)/4 );
+    }
+#endif
   /* 32 is loosely chosen to match overhead of memcpy(). */
   if (words < 32) {
     while (words > 0) {
@@ -1307,6 +1373,7 @@ static word forward( word p, word **dest, dof_env_t *e )
   newptr = (word) tagptr( newptr, tag );
 
   /* leave forwarding pointer */
+  check_address( ptr );
   *ptr = FORWARD_HDR;
   *(ptr+1) = newptr;
 
@@ -1315,8 +1382,17 @@ static word forward( word p, word **dest, dof_env_t *e )
 
 static word forward_large_object( dof_env_t *e, word *ptr, int tag )
 {
-  if (gclib_desc_b[pageof(ptr)] & MB_LARGE_OBJECT)
+#if CHECK_EVERY_WORD
+    switch (tag) {
+    case VEC_TAG : case PROC_TAG :
+      gclib_check_memory_validity( ptr, (sizefield(*ptr)+4)/4 );
+      break;
+    }
+#endif
+  if (gclib_desc_b[pageof(ptr)] & MB_LARGE_OBJECT) {
+    los_mark( e->gc->los, copy_marked(e), ptr, gclib_desc_g[ pageof(ptr) ] );
     return tagptr( ptr, tag );
+  }
   else {
     /* The large object was not allocated specially, so we must move it. */
     word *new, hdr;
@@ -1332,6 +1408,7 @@ static word forward_large_object( dof_env_t *e, word *ptr, int tag )
     los_mark( e->gc->los, copy_marked(e), new, gclib_desc_g[ pageof( ptr ) ]);
     
     /* Leave a forwarding pointer */
+    check_address( ptr );
     *ptr = FORWARD_HDR;
     *(ptr+1) = tagptr( new, tag );
     return *(ptr+1);
