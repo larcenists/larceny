@@ -95,6 +95,7 @@
            (debugger break-here)
 	   (debugger break-entry)
 	   (debugger unbreak)
+           (debugger install-debugger)
 	   ; Compilation
 	   (compiler compile-file)
 	   (compiler assemble-file)
