@@ -49,6 +49,11 @@
     (let-syntax    . (special let-syntax))
     (letrec-syntax . (special letrec-syntax))
     (syntax-rules  . (special syntax-rules))
+
+    ;; MzScheme specific
+    (#%datum       . (special #%datum))
+    (#%top         . (special #%top))
+    (#%app         . (special #%app))
     ))
 
 ; Unforgeable synonyms for lambda and set!, used to expand definitions.
@@ -100,7 +105,7 @@
     (if (identifier-denotation? x)
         #f
         (lambda () x))))
-          
+
 (define (syntactic-environment-set! syntaxenv id macro)
   (parameterize ((global-syntactic-environment syntaxenv))
     (syntactic-bind-globally! id (macro))))
@@ -262,6 +267,15 @@
 
 (define denotation-of-transformer
   (syntactic-lookup standard-syntactic-environment 'transformer))
+
+(define denotation-of-app
+  (syntactic-lookup standard-syntactic-environment '#%app))
+
+(define denotation-of-datum
+  (syntactic-lookup standard-syntactic-environment '#%datum))
+
+(define denotation-of-top
+  (syntactic-lookup standard-syntactic-environment '#%top))
 
 ; Given a syntactic environment env to be extended, an alist returned
 ; by rename-vars, and a syntactic environment env2, extends env by
