@@ -54,12 +54,14 @@
 
   ;; support procedures for compiled code and macro expansion
 
-  ; FIXME: most of these do not belong here; they are primitives
-  ;        that are introduced by the compiler and should always be
-  ;        open-coded.  Fix when we've fixed the compiler tables.
+  ; Some of these are that are introduced by the compiler.  The
+  ; compiler should always open-codes them, and it should be possible
+  ; to remove them from here.
+  ;
+  ; The rest are introduced by the macro expander; the compiler will
+  ; open-code them as well, but the interpreter will not, so the
+  ; definitions must be here.
 
-  (environment-set! null 'unspecified unspecified) ; Twobit bug
-  (environment-set! null 'undefined undefined)     ; Twobit bug
   (environment-set! null 'car:pair car:pair)
   (environment-set! null 'cdr:pair cdr:pair)
   (environment-set! null '=:fix:fix  =:fix:fix)
@@ -81,6 +83,8 @@
   (environment-set! null '.cell-ref .cell-ref)
   (environment-set! null '.cell-set! .cell-set!)
   (environment-set! null '.check! .check!)
+  (environment-set! null '.unspecified unspecified)
+  (environment-set! null '.undefined undefined)
 
   null)
 
@@ -756,6 +760,7 @@
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
   (environment-set! larc 'system system)
+  (environment-set! larc 'current-directory current-directory)
 
   ;; miscellaneous extensions and hacks
 
