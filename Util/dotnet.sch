@@ -192,10 +192,12 @@
 (define (load-compiler)
   (load (make-filename *larceny-root* "Util" "nbuild.sch")))
 
+(define nmake-executable "nmake.exe")
+
 (define (build-runtime-system)
   (case (nbuild-parameter 'host-os)
     ((win32)
-     (system "cd Rts\\DotNet && nmake"))
+     (system (string-append "cd Rts\\DotNet && " nmake-executable)))
     ((unix macosx)
      (system "cd Rts/DotNet; make"))
     (else
