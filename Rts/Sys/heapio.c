@@ -257,6 +257,7 @@ int hio_close( heapio_t *h )
 int hio_dump_initiate( heapio_t *h, word *globals )
 {
   h->globals = globals;
+  return HEAPIO_OK;
 }
 
 int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
@@ -316,7 +317,7 @@ int hio_dump_commit( heapio_t *h )
      with the high bit set for addresses in the text area.
      */
   pages = roundup_page((highest-lowest)*sizeof(word))/PAGESIZE;
-  pagetbl = (int*)must_malloc( sizeof(word)*pages );
+  pagetbl = (word*)must_malloc( sizeof(word)*pages );
   for ( i=0 ; i<pages ; i++ )
     pagetbl[i] = 0;
 
@@ -353,6 +354,7 @@ int hio_dump_commit( heapio_t *h )
     dump_text_block( h->text_segments->a[i], lowest, pagetbl, h->fp );
   for ( i=0 ; i < h->data_segments->next ; i++ )
     dump_data_block( h->data_segments->a[i], lowest, pagetbl, h->fp );
+  return HEAPIO_OK;
 }
 
 static void
@@ -450,6 +452,7 @@ load_text( heapio_t *h, word *text_base, int count )
   n = fread( (char*)text_base, sizeof( word ), count, h->fp );
   if (n < count)
     return HEAPIO_CANTREAD;
+  return HEAPIO_OK;
 }
 
 static int
