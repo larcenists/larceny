@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.       -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -56,22 +56,22 @@
 #include "stats.h"
 
 typedef struct {
-  stats_id_t  self;		/* Identity */
-  int         gen_no;
-  word        *globals;
-  semispace_t *current_space;
+  /* The heap */
+  stats_id_t  self;             /* Identity */
+  int         gen_no;           /* Always 0, actually */
+  word        *globals;         /* Register save area & RTS globals */
+  semispace_t *current_space;   /* The heap area */
 
   /* Strategy/Policy/Mechanism */
-  int    size_bytes;   /* Size requested at startup time */
-  int    target_size;  /* Size for this area computed following previous gc. */
-  double load_factor;  /* That's the L from the formula above */
-  int    lower_limit;  /* 0 or lower bound on collected area (bytes) */
-  int    upper_limit;  /* 0 or upper bound on collected area (bytes) */
+  int         target_size;      /* Dynamic area size computed following GC. */
+  double      load_factor;      /* Really the inverse load, L */
+  int         lower_limit;      /* 0 or lower bound on area (bytes) */
+  int         upper_limit;      /* 0 or upper bound on area (bytes) */
 
   /* Statistics */
   int         used_after_last_gc;  /* Bytes */
-  gen_stats_t gen_stats;	   /* Local statistics */
-  gc_stats_t  gc_stats;		   /* Global statistics */
+  gen_stats_t gen_stats;        /* Local statistics */
+  gc_stats_t  gc_stats;         /* Global statistics */
 } sc_data_t;
 
 #define DATA(heap)  ((sc_data_t*)((heap)->data))
@@ -93,10 +93,10 @@ static int  free_space( young_heap_t *heap );
 
 young_heap_t*
 create_sc_heap( int gen_no, 
-	        gc_t *gc,
-	        sc_info_t *info,        /* creation parameters */
-	        word *globals           /* the globals array */
-	       )
+                gc_t *gc,
+                sc_info_t *info,        /* creation parameters */
+                word *globals           /* the globals array */
+               )
 {
   young_heap_t *heap;
   sc_data_t *data;
@@ -111,7 +111,6 @@ create_sc_heap( int gen_no,
     create_semispace( GC_CHUNK_SIZE, data->gen_no );
 
   data->load_factor = info->load_factor;
-  data->size_bytes = info->size_bytes;
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
   data->target_size =
@@ -199,10 +198,10 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( "ss used=%d, ss allocd=%d, stack=%d, los=%d",
-			 data->current_space->used,
-			 data->current_space->allocated,
-			 stack,
-			 los_bytes_used( heap->collector->los, 0 ) );
+                         data->current_space->used,
+                         data->current_space->allocated,
+                         stack,
+                         los_bytes_used( heap->collector->los, 0 ) );
 
   other_space =
     create_semispace( GC_CHUNK_SIZE, data->gen_no );
@@ -230,8 +229,8 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   /* POLICY */
   data->target_size =
     compute_target_size( heap,
-			 data->current_space->used, 
-			 los_bytes_used( heap->collector->los, 0 ) );
+                         data->current_space->used, 
+                         los_bytes_used( heap->collector->los, 0 ) );
 
   make_space_for( heap, total_bytes, 0 );
 
@@ -245,7 +244,7 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   data->gen_stats.ms_collection_cpu += stats_stop_timer( timer2 );
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
-	       used_space( heap ) );
+               used_space( heap ) );
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( 
@@ -262,12 +261,12 @@ static int compute_target_size( young_heap_t *heap, int D, int Q )
 {
   int s;
   s = gc_compute_dynamic_size( heap->collector,
-			       D,
-			       static_used( heap ),
-			       Q,
-			       DATA(heap)->load_factor,
-			       DATA(heap)->lower_limit,
-			       DATA(heap)->upper_limit );
+                               D,
+                               static_used( heap ),
+                               Q,
+                               DATA(heap)->load_factor,
+                               DATA(heap)->lower_limit,
+                               DATA(heap)->upper_limit );
   /* gc_compute_dynamic_size() may return with no room for allocation */
   if (s - D < 65536)
     s += 65536;
@@ -301,7 +300,7 @@ static void stats( young_heap_t *heap )
   data->gen_stats.target = bytes2words( data->target_size );
   data->gen_stats.allocated = 
     bytes2words( data->current_space->allocated 
-		 + los_bytes_used( heap->collector->los, data->gen_no ) );
+                 + los_bytes_used( heap->collector->los, data->gen_no ) );
   data->gen_stats.used = 
     bytes2words( used_space( heap ) - used_stack_space( heap ) );
 
@@ -374,7 +373,7 @@ static int collect_if_no_room( young_heap_t *heap, int nbytes )
 {
   if (free_space( heap ) < nbytes) {
     supremely_annoyingmsg( "sc-heap: couldn't find room for %d bytes",
-			   nbytes );
+                           nbytes );
     if (nbytes <= GC_LARGE_OBJECT_LIMIT)
       gc_collect( heap->collector, 0, nbytes, GCTYPE_COLLECT );
     else
@@ -483,7 +482,7 @@ static int used_space( young_heap_t *heap )
   ss_sync( ss );
   return ss->used +
          used_stack_space( heap ) +
-	 los_bytes_used( heap->collector->los, 0 );
+         los_bytes_used( heap->collector->los, 0 );
 }
 
 static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
@@ -493,24 +492,24 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
 
   data = (sc_data_t*)must_malloc( sizeof( sc_data_t ) );
   heap = create_young_heap_t( "sc/variable", 
-			      HEAPCODE_YOUNG_2SPACE,
-			      0,                 /* intialize */
-			      allocate,
-			      make_room,
-			      collect,
-			      before_collection,
-			      after_collection,
-			      0,                 /* set_policy */
-			      free_space,
-			      stats,
-			      data_load_area,
-			      0,                 /* FIXME: load_prepare */
-			      0,                 /* FIXME: load_data */ 
-			      creg_get,
-			      creg_set,
-			      stack_underflow,
-			      stack_overflow,
-			      data );
+                              HEAPCODE_YOUNG_2SPACE,
+                              0,                 /* intialize */
+                              allocate,
+                              make_room,
+                              collect,
+                              before_collection,
+                              after_collection,
+                              0,                 /* set_policy */
+                              free_space,
+                              stats,
+                              data_load_area,
+                              0,                 /* FIXME: load_prepare */
+                              0,                 /* FIXME: load_data */ 
+                              creg_get,
+                              creg_set,
+                              stack_underflow,
+                              stack_overflow,
+                              data );
   heap->collector = gc;
 
   data->self = stats_new_generation( gen_no, 0 );
