@@ -2,7 +2,7 @@
 
 (define $operation-table$ (vector '() '() '() '() '() '()))
 (define (define-operation argc op handler)
-  (vector-set! $operation-table$ argc 
+  (vector-set! $operation-table$ argc
                (cons (cons op handler) (vector-ref $operation-table$ argc))))
 (define (define-imm2-operation op handler)
   (vector-set! $operation-table$ 4
@@ -20,7 +20,7 @@
 ;; il:call-opX : symbol number boolean -> ilpackage
 (define (il:call-opX opcode argc can-call-scheme?)
   (if (codegen-option 'new-operations)
-      (il:call '(virtual instance) 
+      (il:call '(virtual instance)
                (if can-call-scheme? iltype-void iltype-schemeobject)
                il-schemeobject
                (twobit-format #f "op_~a" (csharp-op-name opcode))
@@ -35,7 +35,7 @@
                     il-ops-special
                     (twobit-format #f "op~a_~a" argc (csharp-op-name opcode))
                     (let loop ((argc argc))
-                      (if (zero? argc) 
+                      (if (zero? argc)
                           '()
                           (cons iltype-schemeobject (loop (- argc 1)))))))
           (il:call '()
@@ -47,10 +47,10 @@
                          '()
                          (cons iltype-schemeobject (loop (- argc 1)))))))))
 
-          
+
 
 ;; opX : assembler (opcode -> boolean) symbol instruction thunk -> void
-;; If there is a special implementation defined in the operations-table, 
+;; If there is a special implementation defined in the operations-table,
 ;; use that. Otherwise, call the generic implementation.
 (define (opX argc immediate?)
   (lambda (instruction as)
@@ -62,11 +62,11 @@
           (else (opX/rt argc immediate? instruction as)))))
 (define (opX/rt argc immediate? instruction as)
   (let ((load-arguments-code
-         (list 
+         (list
           (il:load-register 'result)
           (case argc
             ((1) '())
-            ((2) 
+            ((2)
              (if immediate?
                  (il:load-constant (operand2 instruction))
                  (il:load-register (operand2 instruction))))

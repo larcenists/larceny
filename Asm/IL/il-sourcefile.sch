@@ -1,5 +1,5 @@
 ;; il-sourcefile.sch
-;; Dumps IL code to an IL assembly file, to be compiled using ILASM, the 
+;; Dumps IL code to an IL assembly file, to be compiled using ILASM, the
 ;; IL assembler.
 
 ;; dump-source-text : string . (listof value) -> void
@@ -10,7 +10,7 @@
 
 ;; dump-source : string -> void
 (define (dump-source fmt . args)
-  (if beginning-of-line? 
+  (if beginning-of-line?
       (let ((indent (make-string source-indent #\space)))
         (dump-source-text "~a" indent)))
   (set! beginning-of-line? #f)
@@ -23,10 +23,10 @@
 (define beginning-of-line? #t)
 (define source-indent 0)
 (define source-indent-string (make-string source-indent #\space))
-(define (indent-up!) 
+(define (indent-up!)
   (set! source-indent (+ 2 source-indent))
   (set! source-indent-string (make-string source-indent #\space)))
-(define (indent-down!) 
+(define (indent-down!)
   (set! source-indent (- source-indent 2))
   (set! source-indent-string (make-string source-indent #\space)))
 
@@ -54,7 +54,7 @@
 ;; dump-class : class -> void
 (define (dump-class class)
   (let ((il-namespace (class-il-namespace class)))
-    (if il-namespace 
+    (if il-namespace
         (begin (dump-source ".namespace ~a" il-namespace)
                (dump-as-nested-block
                 (lambda ()
@@ -71,7 +71,7 @@
     (for-each dump-source options)
     (dump-source name)
     (dump-source "extends ~a" super)
-    
+
     (dump-as-nested-block
      (lambda () (for-each dump-member (reverse members))))))
 
@@ -104,16 +104,16 @@
     (for-each dump-source (filter-intersect options before-options))
     (dump-source type)
     (dump-source (il-quote-name name))
-    
+
     (dump-source "(")
     (for-each/separated
      (lambda (item) (dump-source item))
      (lambda () (dump-source ","))
      argtypes)
-    
+
     (dump-source ")")
     (for-each dump-source (filter-intersect options after-options))
-    
+
     (dump-as-nested-block
      (lambda () (for-each dump-il instrs)))
     (dump-newline)))
@@ -124,7 +124,7 @@
         ((memq (car a) b) (cons (car a) (filter-intersect (cdr a) b)))
         (else (filter-intersect (cdr a) b))))
 
-(define before-options '(public private hidebysig virtual static 
+(define before-options '(public private hidebysig virtual static
                          instance specialname rtspecialname))
 (define after-options '(cil managed))
 
@@ -170,13 +170,13 @@
      (dump-source ".assembly '~a'" (car args))
      (dump-as-nested-block (lambda () (for-each dump-il (cadr args)))))
     ((local)
-     (for-each 
+     (for-each
       (lambda (type)
         (dump-source ".locals init (~a)" type)
         (dump-newline))
       (car args)))
     ((line)
-     (dump-source ".line ~a ~a" (car args) 
+     (dump-source ".line ~a ~a" (car args)
                   (if (cadr args) (twobit-format #f "'~a'" (cadr args)) "")))
     (else (error 'unimplemented "unknown directive: " directive)))
   (dump-newline))
@@ -197,13 +197,13 @@
          (dump-source "~a" (car args)))
         ((null? (cddr args))
          (dump-source "~a, ~a" (car args) (cadr args)))
-        (else (error 'unimplemented "unknown instruction format: " 
+        (else (error 'unimplemented "unknown instruction format: "
                      (cons bytecode args))))
   (dump-newline))
 
 (define (dump-ldc-i4 bytecode datum)
   (cond ((memv datum '(0 1 2 3 4 5 6 7 8))
-         (dump-instr (string-append (symbol->string bytecode) "." 
+         (dump-instr (string-append (symbol->string bytecode) "."
                                     (number->string datum))
                      '()))
         ((= datum -1)
@@ -211,7 +211,7 @@
         ((and (>= datum 0) (< datum 128))
          (dump-instr 'ldc.i4.s (list datum)))
         (else (dump-instr bytecode (list datum)))))
- 
+
 (define (dump-short-form bytecode datum)
   (cond ((and (eqv? bytecode 'ldloc) (memv datum '(0 1 2 3)))
          (dump-instr (string-append (symbol->string bytecode) "."
@@ -225,7 +225,7 @@
 ;; dump-switch : (listof string) -> void
 (define (dump-switch labels)
   (dump-source "switch (")
-  (for-each/separated 
+  (for-each/separated
    (lambda (item) (dump-source "~a" item))
    (lambda () (dump-source ","))
    labels)
