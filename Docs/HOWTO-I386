@@ -1,0 +1,232 @@
+Notes on an i386 native version of Larceny.
+
+VM registers that need space:
+  RESULT
+  SECOND
+  THIRD
+  FOURTH
+  CONT
+  REG0
+  ...
+  REGn
+  TIMPER
+  globals pointer
+  temp registers
+  heap pointer / stack limit
+
+i386 registers and proposed mapping:
+  EAX       temp / SECOND
+  EBX       RESULT
+  ECX       R1
+  EDX       R2
+  EDI       R3
+  ESI       R4
+  EBP       GLOBALS / temp
+  ESP       CONT / temp
+
+We assume that interrupts are always routed through a task gate
+(causing a task switch with registers saved to a dedicated area by the
+hardware).  If not, then ESP can't be used as above, or at least the
+stack implementation in Larceny must leave room for the interrupt
+handler to scribble on the stack.
+
+If interrupts are not serviced on the user stack then it is possible
+to flush CONT without writing it, as long CONT it is always saved to
+GLOBALS when it is changed.  Thus CONT can serve as a fairly cheap
+temporary register.  (GLOBALS can be used in the same fashion, since
+it can be reloaded from a constant.)
+
+On millicode calls, eax serves as SECOND and CONT serves as THIRD.
+EAX is never preserved by the call; if THIRD is used then the call
+always restores CONT.  Note millicode calls use CALL, which pushes
+the return address on the stack, so CONT must be valid and have
+space for at least one word on the stack.
+
+Note R0 is not in a register; it doesn't seem to be accessed enough
+to make it worth removing a general register.  
+
+Unclear is whether we should force twobit to use just four registers
+or if we should still map some registers to the software register
+file.
+
+
+Some code snippets follow.  Note that all conditional jumps are short
+(within -128/+127 bytes) so error handling becomes a short conditional
+jump to a (common) long unconditional jump to the error handler,
+rather than individual conditional jumps across individual long jumps
+to the error handler; this should save code space.
+
+
+; vector-ref if both arguments are in registers
+OP2 VECTOR_REF, 4
+	mov	eax, RESULT			; test vector tag
+	and	eax, 7
+	cmp	eax, 3
+	je	1f
+0:	jmp	<error_handler>
+1:	mov	eax, [ RESULT + 1 ]		; test vector subtag
+	and	eax, $SUBTAG_MASK
+	cmp	eax, $VECTOR_SUBTAG
+	jne	0b
+	test	REG4, 3				; test index fixnum
+	jne	0b
+	mov	eax, [ RESULT + 1 ]		; test index range
+	srl	eax, 8
+	cmp	eax, REG4
+	jae	0b
+	add	RESULT, REG4
+	mov	RESULT, [ RESULT + 1 ]
+
+
+; vector-ref if index arguments is in memory
+OP2 VECTOR_REF, 6
+	mov	eax, RESULT			; test vector tag
+	mov	CONT, [ GLOBALS + $G_REG6 ]
+	and	eax, 7
+	cmp	eax, 3
+	je	1f
+0:	jmp	<error_handler>			; handler always restores CONT
+1:	mov	eax, [ RESULT + 1 ]		; test vector subtag
+	and	eax, $SUBTAG_MASK
+	cmp	eax, $VECTOR_SUBTAG
+	jne	0b
+	test	CONT, 3				; test index fixnum
+	jne	0b
+	mov	eax, [ RESULT + 1 ]		; test index range
+	srl	eax, 8
+	cmp	eax, CONT
+	jae	0b
+	add	RESULT, CONT
+	mov	RESULT, [ RESULT + 1 ]
+	mov	CONT, [ GLOBALS + $G_CONT ]
+
+
+; cons if second argument is in a register
+OP2 CONS, 4
+	mov	eax, [ GLOBALS + $G_HEAPTOP ]
+	add	eax, 8
+	cmp	eax, CONT
+	jb	0f
+	mov	SECOND, REG4
+	call	[ GLOBALS + $MC_CONS ]
+	jmp	1f
+0:	mov	[ GLOBALS + $G_HEAPTOP ], eax
+	mov	[ eax - 8 ], RESULT
+	mov	[ eax - 4 ], REG4
+	mov	RESULT, eax
+	sub	RESULT, 7
+
+
+; cons if second argument is in memory
+OP2 CONS, 6
+	mov	eax, [ GLOBALS + $G_HEAPTOP ]
+	add	eax, 8
+	cmp	eax, CONT
+	jb	0f
+	mov	SECOND, [ GLOBALS + $G_REG6 ]
+	call	[ GLOBALS + $MC_CONS ]
+	jmp	1f
+0:	mov	[ GLOBALS + $G_HEAPTOP ], eax
+	mov	[ eax - 8 ], RESULT
+	mov	RESULT, eax
+	mov	eax, [ GLOBALS + $G_REG6 ]
+	mov	[ RESULT - 4 ], eax
+	sub	RESULT, 7
+
+
+; inline add if second argument is in register
+OP2 +, 4
+	mov	eax, RESULT
+	or	eax, REG4
+	test	eax, 3
+	jne	1f
+	add	RESULT, REG4
+	jno	2f
+	sub	RESULT, REG4
+1:	mov	SECOND, REG4
+	call	[ GLOBALS + $MC_ADD ]
+2:
+
+
+; invoke
+INVOKE 3
+	dec	[ GLOBALS + $G_TIMER ]
+	jnz	1f
+	call	[ GLOBALS + $MC_TIMER_EXCEPTION ]
+1:	mov	eax, RESULT
+	and	eax, 7
+	cmp	eax, 7
+	je	2f
+	jmp	<error_handler>
+2:	mov	[ GLOBALS + $G_REG0 ], RESULT
+	mov	eax, [ RESULT - 3 ]
+	mov	RESULT, 12
+	jmp	eax
+
+
+; stack push
+SAVE 10
+0:	sub	CONT, 40
+	cmp	CONT, [ GLOBALS + $G_HEAPTOP ]
+	jae	1f
+	add	CONT, 40
+	call	[ GLOBALS + $MC_STACK_OVERFLOW ]
+	jmp	0b
+1:	mov	[ GLOBALS + $G_CONT ], CONT
+	mov	[ CONT ], 44
+	mov	[ CONT+4 ], 0
+	mov	eax, [ GLOBALS + $G_REG0 ]
+	mov	[ CONT+8 ], eax
+	mov	[ CONT+12 ], $UNSPECIFIED_CONST
+	...
+	mov	[ CONT+40 ], $UNSPECIFIED_CONSTS
+
+; set-car! with write barrier partially inline and partially out-of-line.
+OP2 SET-CAR!, 4
+	mov	eax, RESULT
+	and	eax, 7
+	cmp	eax, 1
+	je	1f
+	jmp	<error_handler>
+1:	mov	[ RESULT+1 ], REG4
+	test	REG4, 1
+	jz	2f	
+	mov	eax, REG4
+	call	[ GLOBALS + $MC_BARRIER ]
+
+
+A general millicode procedure implementation will look something like this (with
+two arguments):
+
+millicode_proc:
+	mov	[ GLOBALS + $G_SECOND ], eax
+	pop	eax
+	mov	[ GLOBALS + $G_RETADDR ], eax
+	mov	eax, offset the_c_proc			; implemented in C
+	jmp	callout_to_C
+
+
+callout_to_C:
+	mov	[ GLOBALS + G_RESULT ], RESULT
+	mov	[ GLOBALS + G_REG1 ], REG1
+	mov	[ GLOBALS + G_REG2 ], REG2
+	mov	[ GLOBALS + G_REG3 ], REG3
+	mov	[ GLOBALS + G_REG4 ], REG4
+
+	mov	ebx, GLOBALS
+	mov	ESP, [ GLOBALS + G_SAVED_ESP ]
+	mov	EBP, [ GLOBALS + G_SAVED_EBP ]
+	push	[ ebx + G_THIRD ]
+	push	[ ebx + G_SECOND ]
+	push	[ ebx + G_RESULT ]
+	call	eax
+
+	mov	GLOBALS, offset _globals
+	mov	CONT, [ GLOBALS + G_CONT ]
+	mov	RESULT, [ GLOBALS + G_RESULT ]
+	mov	REG1, [ GLOBALS + G_REG1 ]
+	mov	REG2, [ GLOBALS + G_REG2 ]
+	mov	REG3, [ GLOBALS + G_REG3 ]
+	mov	REG4, [ GLOBALS + G_REG4 ]
+	push	[ GLOBALS + G_RETADDR ]
+	ret

@@ -1,0 +1,62 @@
+-*- text -*-
+
+$Id$
+
+
+		   LIST OF USER REQUESTS FOR LARCENY
+
+
+This is the list of (largely minor) requests for larceny that are not
+outright bugs.  See also the file TODO-RAINYDAY, which is the list of
+(largely major) requests from the developers.
+
+001  (v1.0a1 / dougo)  990527
+     Title: Fix inconsistency in error handling
+     Category: Fix lossage
+     System modules affected: Library
+     Assessment: Desirable.  ERROR or ERROR-HANDLER gets a new spec.
+                 Code that relies on old spec must change.
+
+     Bring the interfaces of ERROR and ERROR-HANDLER into sync: the
+     former prints all its arguments in order, without spaces; the latter
+     has magic behavior for the first argument (to be somewhat compatible
+     with Chez Scheme's weird definition of ERROR).  The most reasonable
+     fix is to remove Chez Scheme "compatibility".
+
+002  (v1.0a1 / dougo) 990525
+     Title: A macro-expander that expands user macros only.
+     Category: New functionality
+     System modules affected: Macro expander, at least.
+     Evaluation: Desirable.  Possibly a lot of work.
+
+     Provide a procedure MACRO-EXPAND1 that expands user macros only
+     but leaves "system" macros untouched.  This mechanism is useful
+     in debugging user-written macros, where expansion of system
+     macros makes the resulting output hard to read.
+
+     It's not clear to what extent the current macro expander can accomodate
+     this request because it depends on expanding everything down to the
+     core forms to discover variable bindings.  Just passing the current
+     expander an environment that contains only the user macros is not
+     correct because the resulting expansion may capture user variables.
+     (It may be sufficient for debugging, however, thus for the intended
+     use of the procedure.  Thus it may be that we should just generalize
+     macro-expand to take an optional syntactic environment.)
+
+003  (v1.0a1 / dougo) 990418
+     Title: A command line switch that prints the version number
+     Category: New functionality for CLI users
+     System modules affected: RTS
+     Assessment: Feeping creaturitis.
+
+     Have a command line switch -version or -v that prints the version
+     number and exits.
+
+004  (v1.0a1 / dougo) 
+     Title: A command line switch to control the use of .larceny
+     Category: New functionality for CLI users
+     System modules affected: Shell script, REPL
+     Assessment: Feeping creaturitis.
+
+     Have a command line switch or switches that (a) disable loading of
+     the .larceny file, and (b) select a different file to load.

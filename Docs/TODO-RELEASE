@@ -1,0 +1,298 @@
+$Id$
+
+Release 2
+---------
+
+This is the second release of the SPARC version, and a "beta" release
+of Petit Larceny on some platforms.
+
+Major features of this release
+  * Compiler improvements (pass 3, bug fixes, performance)
+  * Library improvements (bug fixes, performance)
+  * Better top-level environments
+  * FFI
+  * Record package
+  * SRFIs
+  * Support for other operating systems in Sparc version
+  * Petit Larceny on some platforms
+
+Platforms:
+	* Sparc Larceny on
+	      - Solaris
+	      - Debian Linux
+	      - OpenBSD
+	* Petit Larceny on
+	      - Unix/BSD/Linux/MacOS X with GCC or native C compiler
+	      - Win32 with MetroWerks
+	      - Win32 with Cygwin
+
+Known bugs that should be fixed:
+	091 (macro expander buglet)
+
+Known bugs it would be nice to fix:
+	074/139 (pretty printer is unreasonable; I've written a new one
+		 but it needs testing)
+
+Issues that must be addressed:
+	--- Representation-specific primitives in compiler tables
+	--- SRFI system -- must work with new environments
+	--- Update build documentation
+	--- Update documentation generally (see $LARCENY/TODO-RELEASE)
+	--- Update help text as necessary (switch values and names?)
+	--- Write more test code
+	--- What's the story with Petit Larceny?
+        --- Should ENVIRONMENT-SYNTAX-ENVIRONMENT really be called
+            ENVIRONMENT-SYNTACTIC-ENVIRONMENT?  (Can fix this later,
+            it's not for general consumption.)
+        --- Bug: UNSPECIFIED and UNDEFINED should not be in the null 
+            environment, but in the Larceny environment (sparc.imp.sch). 
+            So they need to move.
+
+If there's time:
+	126 (broken timer interrupt mechanism)
+	148 (the I/O system is not thread safe)
+	--- Support SRFI 12 (Exceptions; not an official SRFI)
+	--- Better documentation information (source pos + filename)
+
+
+******** Move things above this line to include them in the release ********
+
+
+[Twobit]
+  * BUG: The flonum primitives fl+, fl-, fl--, fl*, fl=, fl<=, fl>, fl>= 
+    should check that their arguments are flonums and signal an error if 
+    not; at present they are mapped to the generic operations in the 
+    primitive table.
+  * DEBUG: Better debug information would be nice
+     - source position / source file name [lth knows how]
+     - lth must write spec first [done, see Debugger/debug-info.txt]
+  * CLEANUP: fix these, or don't
+    - Some primitives are obsolete in sparc.imp.sch (only available to MAL):
+      - creg, creg-set!
+    - The parameters FIXNUM-PRIMITIVES, FLONUM-PRIMITIVES (used in sparc.imp)
+      are not exported to the std environment, should be removed when
+      primitive handling is cleaned up
+
+[Library]
+  * Remove these from the toplevel env and the library after checking
+    that they're not used by compiler or assembler
+	call-with-error-handler	[ use parameterize or exception system ]
+	call-without-errors	[ use parameterize or exception system ]
+	call-with-reset-handler	[ use parameterize ]
+	system-function		[ obsolete ]
+	with-*-*-binary-file    [ not useful ]
+
+[SRFI]
+  * Definite: SRFI 0  (basic)          [ done, modulo adding SRFIs ]
+              SRFI 6  (string I/O)     [ done -- built-in ]
+              SRFI 11 (LET-VALUES)     [ done -- built-in ]
+  * Probable: SRFI 12 (Exceptions)     [ done -- pending exception 
+					 hierarchy definition ]
+  * Possible: SRFI 7  (Program-based configuration language)  [ done ]
+              SRFI 9  (DEFINE-RECORD-TYPE syntax)             [ done ]
+
+[Run-time system]
+  * [lth] Provide more accurate data to memstats: it is possible to provide
+    up-to-date data for allocation volume and currently allocated heap,
+    not just data accurate to the last GC.  
+  * [lth] memstats: must compute words reclaimed.
+  * [lth] Must deal with more signals on Unix systems (important for buggy 
+    foreign code)
+  * [lth] Would be nice if NP remset could be flagged as such with (x,1)
+    identity.
+  * [lth] Must fix simulated barrier stats (in memmgr.c)
+
+[Debugging]
+  * Print variable names where convenient.
+     - must have info from compiler first.
+  * Revise the command set, and update the documentation to reflect
+    the revisions.
+
+[Util and other benchmarking code]
+  * Must fix Util/process-stats.sch
+  * Must fix/convert crunch, process-output to use new format?
+
+[General clean-up]
+  * Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
+    constants, accessors, and setters for the documentation slot.
+    This information should exist in only one place, and it has to
+    be part of the development environment.
+  * Remove some of the weirder list and string procs and macros in Auxlib.
+
+[Scripts/options]
+  * Scripts may have to be aware of the new command line arguments,
+    because the scripts process command line arguments too.
+  * The help printed by larceny is pertinent to running the binary
+    directly but not to running the shell script (which accepts 
+    -small, does not accept heap file, adds -args implicitly, and
+    accepts files to load (because the heap runs the REPL)).  Perhaps
+    we should have the script print an appropriate help text that is
+    independent of the binary's (and shorter, not mentioning all the
+    GC options).
+  * Really do need a -noinit file that avoids loading .larceny.
+    The messy part of this is that the REPL does that loading but
+    the binary interprets the options... so the -noinit must be
+    passed _after_ -args, which is just not intuitive.  Instead the
+    binary could recognize that -noinit needs to be passed as
+    an argument to the Scheme program, when it is run, but that 
+    is a mess also.  The best seems to be for the script to pass
+    -noinit after -args.
+
+[Standard builds]
+  * No longer any need to load Auxlib/vector.sch since vector-copy is
+    in the bootstrap heap.
+  * Need to hide the nbuild internals in Util/std-heap.sch
+  * Need to hide the FFI internals in Util/std-heap.sch
+  * Need to avoid loading FFI source so we don't include the source code.
+  * Need to not load Experimental/exception.sch in std-heap.sch, as it
+    will be replaced by SRFI 12.
+  * [discussion item]
+    Rename `r5rs.heap' as `interpreter.heap' (since it's more than R5RS).
+    Consider making a `r5rs.heap' that contains only r5rs procedures.
+  * The debugger needs to be part of interpreter.heap.
+  * Should create scripts that setup correct compiler switches before
+    compiling all files for standard heaps; automate the entire process
+    of building the heaps.  Eg., Scripts/build-larceny-heap.
+
+[Documentation]
+  * The following non-R5RS procedure are not in the User Manual's 
+    procedure index, at least.  Must add them and create documentation
+    for the ones that have none.
+
+    I/O:
+	readtable-ref
+	readtable-set!
+	open-binary-*-file
+	call-with-binary-*-file
+	print-length
+	print-level
+	write-bytevector-like
+	lowlevel-write
+	format			[ Park it or move it ]
+
+	interpreted-*?, interpreted-expression-source
+
+	make-environment
+	environment*
+	fl+, fl-, fl--, fl*, fl=, fl<, fl<=, fl>, fl>=
+	make-parameter
+	macro-expand
+	sys$C-ffi-*		[ Should probably be .c-ffi-* ]
+        sys$codevector-iflush	[ Should probably be .c-ffi-codevector-iflush ]
+	memstats-*
+	repl
+	unspecified, undefined
+
+  * Fix reported documentation bugs (to be determined)
+     - BUG: remove claim that all optional functionality is supported,
+       because transcript ports are currently not supported (they are
+       in Experimental and depend on the experimental user-level I/O 
+       system).
+     - BUG: some bugs were reported on the mailing list but are not recorded
+       anywhere.
+     - BUG: CHECK, POPSTK, TRAP are not documented in the instruction set 
+       manual.
+     - Language: the low-level macro system and the extensions to the 
+       high-level system are not documented.
+     - New stuff
+         PARAMETERIZE, MAKE-PARAMETER
+         LET-VALUES
+     - manual/intro.html: 
+        - debugging info
+        - compiler switches
+        - "make setup" will no longer work.
+     - manual/ffi.html:
+        - add -uint versions (and perhaps deprecate -unsigned versions)
+        - ditto uint type name
+        - document FOREIGN-FUNCTION-POINTER
+     - manual/io.html:
+       - introduced PRINT-LENGTH, PRINT-LEVEL  [ Also parameters! ]
+       - introduced binary i/o procedures
+     - manual/syscontrol.html:
+       - memstats now accessed via accessor functions
+       - memstats vector changes:
+         - some fields no longer present
+         - some new fields
+         - remembered-set and generation identity fields
+     - manual/auxlib.html:
+       - This file is a mess.  Should abandon, and fold into the other
+         files?
+     - manual/ephemeral.html:
+       - remove debug stuff
+       - clean up or move record stuff
+     - manual/compiling.html -- read and redo 
+       - note Rts/Sys/config.h
+       - note change in 'make setup'
+     - manual/starting.html -- many more switches now
+     - manual/repl.hmtl
+       - clean up according to comments in file
+     - manual/developing.html:
+       - build probably has more switches now?
+     - manual/bdw.html:
+       - setup process now more complicated since there is a lot of 
+         support inside the (modified) collector.  How to deal with that?
+     - manual/concept.html:
+       - needs some cleanup (see the file).
+
+----------------------------------------------------------------------
+
+Release process checklist etc
+
+Bug to watch out for: The binary archives have a symbolic link to the
+binary, rather than the binary, due to the directory structure's use of
+links.
+
+Observe that the Standard-FFI is _not_ portable between operating
+systems, not even between SunOS 4 and SunOS 5.  The reason is different
+name mangling (prepended underscore on SunOS 4, none on SunOS 5).  Thus
+larceny.heap must be built for each system.  Annoying but it's the way
+it is for now (see TODO for more info).
+
+[Release]
+  * Source freeze (in this order):                                
+    - Branch source tree as branch-1-0-a1                         
+      cvs rtag -b branch-1-0-a1 larceny_src                       
+      cvs rtag -b branch-1-0-a1 larceny_doc                       
+  * Source archive                                                
+    - move version number on branch to 1.0a1                      
+    - iterate until it works:
+      - cvs export on branch-1-0-a1                               
+      - run Scripts/release-1.0a1                                 
+        *** It was necessary to fix the script to
+            use rm -rf rather than rm -f on directories.
+      - run ( cd Rts; BUILD_HOST=chez make config )               
+        *** It was necessary to run `make setup' first to
+            create directories, setup links, edit `build'.
+            Then it was necessary to remove .o files in 
+            Compat/Chez.
+      - make source archive  larceny-1.0a1-src.tar.gz             
+        *** It was necessary to manually remove RELEASE-NOTES,
+            which doesn't go in the archive (wasn't finished,
+            either).
+      - install, rebuild, run some simple tests.                  
+        *** `make setup' gives harmless error messages because
+            the cfg files are already in the Build directory
+            when linking happens; we should check before linking.
+  * Doc archive                                                   
+    - create archive
+  * Archives:
+    - Get binary distributions from the source archive builds     
+    - Archive names and contents
+      larceny-1.0a1-src.tar.gz                                    
+        pruned src tree
+      larceny-1.0a1-sunos4-bin.tar.gz                             
+        binary, heaps, Scripts/*, COPYRIGHT
+      larceny-1.0a1-sunos5-bin.tar.gz                             
+        binary, heaps, Scripts/*, COPYRIGHT
+      larceny-1.0a-doc.tar.gz                                     
+        (pruned?) doc tree
+  * Finish release notes (do not go in ARCHIVE).                  
+  * Put release date on download page.                            
+  * Add archive sizes on download page.                           
+  * Move archives and files to FTP directory
+  * Test that FTP works the way it's supposed to.
+  * Install documentation somewhere useful; put a permanent 
+    link to it on the home page.
+  * Backup archives onto MO-disk.                                 
+  * Install Larceny in /proj/will/Apps/larceny!                   
+
