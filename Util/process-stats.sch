@@ -51,10 +51,10 @@
 (define (pool-words-used x rem)
   (list-ref (remset x rem) 1))
 
-(define (hash-entries-allocated x rem)
+(define (pool-words-live x rem)
   (list-ref (remset x rem) 2))
 
-(define (hash-entries-used x rem)
+(define (hash-entries-allocated x rem)
   (list-ref (remset x rem) 3))
 
 (define (hash-entries-recorded x rem)
@@ -76,6 +76,21 @@
 (define (ssb-transactions-recorded x rem)
   (let ((g (remset x rem)))
     (bignum (list-ref g 12) (list-ref g 13))))
+
+(define (times-cleared x rem)
+  (list-ref (remset x rem) 15))
+
+(define (times-scanned x rem)
+  (list-ref (remset x rem) 16))
+
+(define (times-compacted x rem)
+  (list-ref (remset x rem) 17))
+
+(define (remset-max-size x rem)
+  (list-ref (remset x rem) 18))
+
+(define (remset-id x rem)
+  (list-ref (remset x rem) 19))
 
 (define (frames-flushed x) (bignum (list-ref x 12) (list-ref x 13)))
 (define (words-flushed x) (bignum (list-ref x 14) (list-ref x 15)))
@@ -182,11 +197,10 @@
   (print "   Words live: " (words-live x i)))
 
 (define (print-remset-data x i)
-  (print "   Words allocated to pool: "
-	 (pool-words-allocated x i))
+  (print "   Words allocated to pool: " (pool-words-allocated x i))
   (print "   Words used in pool: " (pool-words-used x i))
+  (print "   Words live in pool: " (pool-words-live x i))
   (print "   Hash entries allocated: " (hash-entries-allocated x i))
-  (print "   Hash entries used: " (hash-entries-used x i))
   (print "   Hash entries recorded: " (hash-entries-recorded x i))
   (print "   Hash entries removed: " (hash-entries-removed x i))
   (print "   Hash entries scanned: " (hash-entries-scanned x i))
@@ -301,17 +315,18 @@ for that collection.
 	 (vector-set! wnow i (- (old-words-scanned r i)
 				(old-words-scanned prev i))))
        (set! prev r)
-       (nprint "GC: " (last-gc r))
-       (do ((i 0 (+ i 1)))
-	   ((= i (remsets r)))
+       (nprint "GC: " (field (last-gc r) 15 'left))
+       (do ((i 0 (+ i 1))
+            (esum 0 (+ esum (vector-ref enow i))))
+	   ((= i (remsets r))
+            (nprint " " (field esum i)))
 	 (nprint " " ;" ("
-		 (field (vector-ref enow i) 5)
+		 (field (vector-ref enow i) 10)
 		 ;";"
 		 ;(vector-ref wnow i)
 		 ;")"
 		 ))
        (newline)))))
-
 
 ; Gc profile:  for each record, print gc type and time spent in each
 ; collector for that gc.  Try it -- it's a pretty picture.
@@ -437,21 +452,20 @@ for that collection.
 (define (nprint . rest)
   (for-each display rest))
 
-; Format a number n in a field of width k, right-justified unless the
+; Format a datum n in a field of width k, right-justified unless the
 ; optional symbol argument 'left is also given, in which case it 
-; is left-justified.  If the number fills the field, then a space is
+; is left-justified.  If the datum fills the field, then a space is
 ; added on the right.
 
 (define (field n k . attr)
-  (let ((s (number->string n)))
-    (if (= (string-length s) k)
-	(string-append s " ")
-	(let loop ((s (number->string n)))
-	  (if (< (string-length s) k)
-	      (if (memq 'left attr)
-		  (loop (string-append s " "))
-		  (loop (string-append " " s)))
-	      s)))))
-	
+  (let ((s (let ((str (open-output-string)))
+             (display n str)
+             (get-output-string str))))
+    (cond ((>= (string-length s) k)
+           (string-append s " "))
+          ((memq 'left attr)
+           (string-append s (make-string (- k (string-length s)) #\space)))
+          (else
+           (string-append (make-string (- k (string-length s)) #\space) s)))))
 
 ; eof
