@@ -1,0 +1,24 @@
+#!/bin/sh -x
+#
+# Copyright 1998 Lars T Hansen.
+#
+# $Id$
+#
+# Prune the source tree for the 1.0a1 release.
+
+rm -f TODO
+rm -f TODO-RELEASE
+rm -f TODO-RAINYDAY
+rm -f CHGLOG
+rm -f Asm/Intel
+rm -f Asm/MacScheme
+rm -f Compiler/standard-C.imp.sch
+rm -f Ffi
+rm -f Experimental/socket* Experimental/unix.sch Experimental/record* \
+	Experimental/print-circular.sch
+rm -f Lib/Standard-C
+rm -f Rts/Standard-C
+rm -f Testsuite
+rm -f Util/compfasl.sch Util/heap-info.sch Util/load-twobit-C* \
+	Util/nbuild-param-C* Util/sim.sch
+
