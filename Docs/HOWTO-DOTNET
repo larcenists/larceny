@@ -1,0 +1,76 @@
+Building and using Larceny.NET aka DotNet Larceny
+17 May 2004
+
+HOW TO BUILD DOTNET LARCENY
+
+DotNet Larceny is written using most of the same build infrastructure as
+Petit Larceny. Most of this infrastructure consists of tools written in
+Scheme, so you need a working host Scheme system; a version of Petit
+Larceny with just the interpreter is sufficient.
+
+First things first:
+
+  * You will probably need to edit Rts/DotNet/makefile to make it fit
+    your system -- "make" or "nmake" is used to build the run-time
+    system.
+
+  * You must have the ILAsm assembler "ilasm" in your path when you
+    start the host Scheme system. This is not true by default on Windows
+    unless you are using the "Visual Studio .NET Command Prompt." If you
+    have only the .NET SDK, look for ilasm.exe in
+    \windows\microsoft.net\framework\v?.?.?\ilasm.exe.
+
+Then start your host Scheme system, change your working directory to
+be the Larceny source directory if necessary, and load the configuration 
+file for Larceny.NET:
+
+    Util/dotnet.sch
+
+Then you must inform the build tool of the specifics of the host
+environment. Invoke larceny-setup with three arguments:
+
+   (larceny-setup <host-scheme> <os> <endianness>)
+
+where 
+   - <host-scheme> is a string corresponding to your Scheme system; it
+     must match one of the subdirectories of Compat, eg "Petite",
+    "MzScheme", "Larceny"
+   - <os> is a symbol, one of 'win32, 'unix
+   - <endianness> is a symbol, one of 'little, 'big
+
+The following build programs sometimes invoke external programs and
+may place additional demands on your host system.  Currently all systems
+need some version of "make" to be able to build the run-time system, and
+will need access to a command interepreter.
+
+The first time you run the build environment you will want to evaluate:
+
+    > (setup-directory-structure)
+
+Whenever you have altered any of the Rts/*.cfg, or the first time you
+run the build environment, you will want to evaluate:
+
+    > (build-config-files)
+
+It is safe to ignore the warning "Unknown command (include ...)".
+
+Most of the time you will just load Twobit (you can't load Twobit
+until after you have created the directory structure and config files,
+which is why it is a separate step):
+
+    > (load-compiler)
+
+and then build the heap image and the runtime system:
+
+    > (make-dotnet-heap)
+    > (build-runtime-system)
+
+Other useful commands are:
+
+    > (remove-dotnet-heap-objects)
+    > (remove-rts-objects)
+
+TODO:
+
+  - describe build-application or equivalent
+  - describe batch compiler interface
