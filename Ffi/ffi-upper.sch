@@ -24,7 +24,7 @@
     (let ((probe ((abi 'load-lib) name)))
       (if probe
 	  probe
-	  (begin (format #t "ffi/load-libraries: ~a can't be opened." name)
+	  (begin (format #t "ffi/load-libraries: ~a can't be opened.~%" name)
 		 #f))))
 
   (define (merge-libraries libs result)
