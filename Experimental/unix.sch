@@ -7,7 +7,7 @@
 
 (foreign-file "/lib/libsocket.so")
 (foreign-file "/lib/libxnet.so")
-(foreign-file "Experimental/unix-support.so")
+(foreign-file (in-vicinity (program-vicinity) "unix-support.so"))
 
 ; accept(3XN)
 ; int accept( int s, struct sockaddr *addr, int *addrlen )
