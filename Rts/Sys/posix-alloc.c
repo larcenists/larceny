@@ -61,6 +61,7 @@ static struct {
   unsigned   max_remset_bytes;  /* max ditto */
   unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
   unsigned   max_rts_bytes;     /* max ditto */
+  unsigned   heap_bytes_limit;	/* Maximum allowed heap allocation */
 } data;
 
 #if TEST_POSIX_ALLOC
@@ -119,12 +120,25 @@ void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
   *highest = data.memtop;
 }
 
+void gclib_set_heap_limit( int bytes )
+{
+  data.heap_bytes_limit = bytes;
+}
+
 void *gclib_alloc_heap( int bytes, int gen_no )
 {
   byte *ptr;
   int i;
 
   bytes = roundup_page( bytes );
+
+  if (data.heap_bytes_limit > 0 &&
+      data.heap_bytes + bytes > data.heap_bytes_limit) {
+    memfail( MF_HEAP, "Hard heap limit exceeded by request for %d bytes.\n"
+	    "Current size is %d bytes.", 
+	     bytes, data.heap_bytes );
+  }
+
   ptr = gclib_alloc( bytes );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
