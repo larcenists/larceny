@@ -199,9 +199,12 @@
   (define conservative? #f)
 
   (define bm-names (remv 'dummy (map bm.ident benchmarks)))
-  (define param-names (if conservative?
-			  (map param.ident conservative-parameters)
-			  (map param.ident precise-parameters)))
+  (define param-names (map param.ident precise-parameters))
+
+  (define (setup-param-names)
+    (set! param-names (if conservative?
+                          (map param.ident conservative-parameters)
+                          (map param.ident precise-parameters))))
 
   (define core-number 0)
   (define next-bb-file 0)
@@ -234,14 +237,17 @@
     (cond ((null? l))
 	  ((eq? (car l) 'conservative)
 	   (set! conservative? #t)
+           (setup-param-names)
 	   (parse-keywords (cdr l)))
-	  ((null? (cdr l)) (error "Bad rest parameters."))
+	  ((null? (cdr l)) 
+           (error "Bad rest parameters."))
 	  ((eq? (car l) 'bm)
 	   (cond ((symbol? (cadr l))
 		  (set! bm-names (list (cadr l))))
 		 ((list? (cadr l))
 		  (set! bm-names (cadr l)))
-		 (else "Bad arg to 'bm."))
+		 (else 
+                  (error "Bad arg to 'bm.")))
 	   (if (not (every? valid-bm-name? bm-names))
 	       (error "Invalid bm name in list " bm-names))
 	   (parse-keywords (cddr l)))
@@ -250,11 +256,13 @@
 		  (set! param-names (list (cadr l))))
 		 ((list? (cadr l))
 		  (set! param-names (cadr l)))
-		 (else "Bad arg to 'param."))
+		 (else 
+                  (error "Bad arg to 'param.")))
 	   (if (not (every? valid-param-name? param-names))
 	       (error "Invalid parameter name in list " param-names))
 	   (parse-keywords (cddr l)))
-	  (else (error "Bad keyword."))))
+	  (else 
+           (error "Bad keyword " (car l)))))
 
   (define (find-benchmarks)
     (mappend (lambda (x)
