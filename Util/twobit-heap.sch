@@ -15,22 +15,15 @@
 (load "Auxlib/string.fasl")
 (load "Experimental/apropos.fasl")
 
-(define apropos
-  (let ((apropos apropos))
-    (lambda (x)
-      (sort (apropos x) 
-	    (lambda (a b)
-	      (string<? (symbol->string a) (symbol->string b)))))))
-
 (load "Debugger/debug.fasl")
 (load "Debugger/inspect-cont.fasl")
 (load "Debugger/trace.fasl")
 (install-debugger)
 
 (repl-printer
- (lambda (x)
+ (lambda (x port)
    (if (not (eq? x (unspecified)))
-       (pretty-print x))))
+       (pretty-print x port))))
 
 (dump-interactive-heap "twobit.heap")
 (system "./larceny.bin -reorganize-and-dump twobit.heap")
