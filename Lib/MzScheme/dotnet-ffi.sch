@@ -500,6 +500,9 @@
                                        arglist-instance-public
                                        arglist-instance-non-public))))))
 
+(define (clr/type-not-found canonical-name)
+  (error "Couldn't find-clr-type " canonical-name))
+
 (define (find-clr-type clr-type-name)
   (dotnet-message 5 "FIND-CLR-TYPE " clr-type-name)
   (let ((canonical-name
@@ -511,11 +514,11 @@
         (let ((assemblies (clr-app-domain/%get-assemblies (clr-app-domain/%current-domain clr/false)))
               (name-as-string (clr/%string->foreign canonical-name)))
           (if (not (%clr-array? assemblies))
-              (error "Couldn't find-clr-type " canonical-name)
+              (clr/type-not-found canonical-name)
               (let loop ((idx 0)
                          (limit (clr-array/length assemblies)))
                 (if (>= idx limit)
-                    (error "Couldn't find-clr-type " canonical-name)
+                    (clr/type-not-found canonical-name)
                     (let* ((this-assembly (clr/%foreign-aref assemblies idx))
                            (probe (clr-assembly/%get-type this-assembly name-as-string)))
                       (if (%clr-type? probe)
