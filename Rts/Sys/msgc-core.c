@@ -33,7 +33,7 @@ struct msgc_context {
   word         *highest_heap_address;
   int          words_in_bitmap;
   word         *bitmap;
-  msgc_stack_t *stack;
+  msgc_stack_t *stack;          /* current segment */
   word         *stkp;
   word         *stkbot;
   word         *stklim;
@@ -41,7 +41,7 @@ struct msgc_context {
   int          marked;
 };
 
-#define STACKSIZE  32768        /* Should be large. */
+#define STACKSIZE  32760        /* Should be large. */
 
 struct msgc_stack {
   word         stack[STACKSIZE];
@@ -58,6 +58,7 @@ static void push_segment( msgc_context_t *context )
   else {
     sp = must_malloc( sizeof(msgc_stack_t) );
     sp->prev = context->stack;
+    if (context->stack != 0) context->stack->next = sp;
     sp->next = 0;
   }
   
@@ -79,12 +80,15 @@ static bool pop_segment( msgc_context_t *context )
   return TRUE;
 }
 
-static void free_stack( msgc_stack_t *stack )
+static int free_stack( msgc_stack_t *stack )
 {
+  int n = 0;
+
   if (stack != 0) {
-    free_stack( stack->next );
+    n = 1 + free_stack( stack->next );
     free( stack );
   }
+  return n;
 }
 
 #define PUSH( context, obj )                            \
@@ -124,10 +128,10 @@ static void mark_from_stack( msgc_context_t *context )
     /* Process contents */
     switch (tagof(w)) {
     case PAIR_TAG :
-      PUSH( context, pair_car( w ) );
-      PUSH( context, pair_cdr( w ) );
+      PUSH( context, pair_cdr( w ) ); /* Do the CDR last */
+      PUSH( context, pair_car( w ) ); /* Do the CAR first */
       break;
-    case VEC_TAG :              /* FIXME: super bad for long vectors */
+    case VEC_TAG :                    /* FIXME: super bad for long vectors */
     case PROC_TAG :
       n = sizefield( *ptrof(w) ) / sizeof(word);
       for ( i=0 ; i < n ; i++ )
@@ -171,7 +175,8 @@ msgc_context_t *msgc_begin( gc_t *gc )
   context->lowest_heap_address = (word*)lowest;
   context->highest_heap_address = (word*)highest;
   doublewords = roundup(highest-lowest,(2*sizeof(word)))/(2*sizeof(word));
-  context->words_in_bitmap = roundup(doublewords,(8*sizeof(word)))/(8*sizeof(word));
+  context->words_in_bitmap = 
+    roundup(doublewords,(8*sizeof(word)))/(8*sizeof(word));
   context->bitmap = must_malloc( context->words_in_bitmap * sizeof( word ) );
 
   return context;
@@ -180,6 +185,8 @@ msgc_context_t *msgc_begin( gc_t *gc )
 void 
 msgc_mark_objects_from_roots(msgc_context_t *context, int *marked, int *traced)
 {
+  int n;
+
   memset( context->bitmap, 0, context->words_in_bitmap*sizeof( word ) );
   context->stack = 0;
   context->stkp = 0;
@@ -192,7 +199,9 @@ msgc_mark_objects_from_roots(msgc_context_t *context, int *marked, int *traced)
   gc_enumerate_roots( context->gc, push_root, (void*)context );
   mark_from_stack( context );
 
-  free_stack( context->stack );
+  n = free_stack( context->stack );
+  if (n > 1)
+    hardconsolemsg( "  Warning: deep mark stack: %d elements.", n*STACKSIZE );
   *marked = context->marked;
   *traced = context->traced;
 }
