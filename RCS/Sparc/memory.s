@@ -2,7 +2,7 @@
 ! Sparc version.
 ! All code goes into this file; definitions are in "memory.s.h"
 !
-! $Id$
+! $Id: memory.s,v 1.2 91/06/17 18:52:17 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -18,6 +18,14 @@
 !			  fixnum -1, then no memory is allocated; rather,
 !			  a tenuring collection is invoked. (The default is
 !			  to do an ephemeral collection.)
+!   stkuflow()		  Procedure to be called on a stack cache underflow.
+!			  It will restore a single continuation frame from
+!			  the heap-based continuations, if there are any.
+!			  After restoring the frame, it will branch to the
+!			  return address in the frame.
+!   stkoflow()		  Procedure to be called on a stack cache overflow.
+!			  It will flush the stack cache to memory and setup
+!			  the continuation pointer, and return to its caller.
 !
 ! 'gcstart' is made public for use by open-coded 'cons' calls and can also
 ! be used to implement a user-level procedure which invokes the collector;
@@ -28,9 +36,8 @@
 ! If no result is required, RESULT remains untouched. ARGREG2 and ARGREG2 are
 ! never destroyed by the call.
 !
-! THIS CODE ASSUMES THE AVAILABILITY OF TWO NONROOTABLE TEMPORARY REGISTERS
-! CALLED MTMP1 AND MTMP2 (Millicode Temporaries) WHICH NEED NOT BE SAVED
-! BEFORE USE. THEY DO NOT SURVIVE A CALL.
+! THIS CODE USES AND CHANGES %TMP0 AND %TMP1, BOTH OF WHICH MUST BE 
+! NONROOTABLE.
 !
 ! %GLOBALS should never be allocated to an %o register! If it is, some of 
 ! these procedures will not work right.
@@ -54,6 +61,7 @@
 #define TAG_VEC		0x03
 
 	.globl alloc, alloci, setcar, setcdr, vectorset, gcstart
+	.globl stkoflow, stkuflow
 
 	.text
 
@@ -75,7 +83,7 @@
 
 alloc:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
-	and	%RESULT, 0x04, %MTMP1		! get 'odd' bit
+	and	%RESULT, 0x04, %TMP0		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
 	blt,a	Lalloc1				! skip of no overflow
 	sub	%E_TOP, %RESULT, %RESULT	! setup result
@@ -85,7 +93,7 @@ alloc:
 	nop
 Lalloc1:
 	retl
-	add	%E_TOP, %MTMP1, %E_TOP		! round up
+	add	%E_TOP, %TMP0, %E_TOP		! round up
 
 
 !-----------------------------------------------------------------------------
@@ -109,33 +117,33 @@ Lalloc1:
 ! }
 
 alloci:
-	mov	%RESULT, %MTMP1			! count into MTMP1
+	mov	%RESULT, %TMP0			! count into TMP0
 	mov	%E_TOP, %RESULT			! resulting pointer
-	add	%E_TOP, %MTMP1, %E_TOP		! allocate optimistically
-	and	%MTMP1, 0x04, %MTMP2		! get 'odd' bit
+	add	%E_TOP, %TMP0, %E_TOP		! allocate optimistically
+	and	%TMP0, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
 	ble,a	Lalloci1			! no overflow, start init
-	add	%E_TOP, %MTMP2, %E_TOP		! adjust if necessary
+	add	%E_TOP, %TMP1, %E_TOP		! adjust if necessary
 	call	gcstart				! deal with overflow
-	mov	%MTMP1, %RESULT			! restore count for argument
+	mov	%TMP0, %RESULT			! restore count for argument
 
 	! restore byte/word count for use in initialization
 
-	sub	%E_TOP, %RESULT, %MTMP1
-	add	%MTMP1, 0x04, %MTMP1
+	sub	%E_TOP, %RESULT, %TMP0
+	add	%TMP0, 0x04, %TMP0
 
-	! Now have pointer to memory in %RESULT, count in %MTMP1
+	! Now have pointer to memory in %RESULT, count in %TMP0
 
 Lalloci1:
-	sub	%RESULT, 0x04, %MTMP2		! start off early
+	sub	%RESULT, 0x04, %TMP1		! start off early
 	b	Lalloci2
-	tst	%MTMP1
+	tst	%TMP0
 Lalloci3:
-	st	%ARGREG2, [ %MTMP2+0 ]		! init a word
-	subcc	%MTMP1, 0x04, %MTMP1		! n -= 4, test n
+	st	%ARGREG2, [ %TMP1+0 ]		! init a word
+	subcc	%TMP0, 0x04, %TMP0		! n -= 4, test n
 Lalloci2:
 	bne	Lalloci3
-	add	%MTMP2, 0x04, %MTMP2		! q += 4
+	add	%TMP1, 0x04, %TMP1		! q += 4
 	retl
 	nop
 
@@ -154,17 +162,16 @@ Lalloci2:
 ! }
 
 setcar:
-	ld	[ %GLOBALS+T_BASE_OFFSET ], %MTMP1	! fetch tenured base
-	xor	%RESULT, TAG_PAIR, %MTMP2	! strip tag
-	cmp	%MTMP2, %MTMP1
+	ld	[ %GLOBALS+T_BASE_OFFSET ], %TMP0	! fetch tenured base
+	xor	%RESULT, TAG_PAIR, %TMP1	! strip tag
+	cmp	%TMP1, %TMP0
 	blt	Lsetcar1
 	nop
 	call	addtrans			! add transaction to list
 	nop
 Lsetcar1:
-	st	%ARGREG2, [%ARGREG1+CAR_OFFSET]	! CAR_OFFSET compensates right
 	retl
-	nop
+	st	%ARGREG2, [%ARGREG1+CAR_OFFSET]	! CAR_OFFSET compensates right
 
 
 !-----------------------------------------------------------------------------
@@ -181,17 +188,16 @@ Lsetcar1:
 ! }
 
 setcdr:
-	ld	[%GLOBALS+T_BASE_OFFSET], %MTMP1 ! fetch tenured base
-	xor	%RESULT, TAG_PAIR, %MTMP2	! strip tag
-	cmp	%MTMP2, %MTMP1
+	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
+	xor	%RESULT, TAG_PAIR, %TMP1	! strip tag
+	cmp	%TMP1, %TMP0
 	blt	Lsetcdr1
 	nop
 	call	addtrans			! add transaction to list
 	nop
 Lsetcdr1:
-	st	%ARGREG2, [%ARGREG1+CDR_OFFSET]	! CDR_OFFSET compensates right
 	retl
-	nop
+	st	%ARGREG2, [%ARGREG1+CDR_OFFSET]	! CDR_OFFSET compensates right
 
 
 !-----------------------------------------------------------------------------
@@ -210,20 +216,19 @@ Lsetcdr1:
 ! }
 
 vectorset:
-	ld	[%GLOBALS+T_BASE_OFFSET], %MTMP1 ! fetch tenured base
-	xor	%RESULT, TAG_VEC, %MTMP2	! strip tag
-	cmp	%MTMP2, %MTMP1
+	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
+	xor	%RESULT, TAG_VEC, %TMP1	! strip tag
+	cmp	%TMP1, %TMP0
 	blt	Lvectorset1			! not in tenured space
 	nop
 	call	addtrans
 	nop
 Lvectorset1:
-	add	%RESULT, %ARGREG2, %MTMP1	! pointer which does not
+	add	%RESULT, %ARGREG2, %TMP0	! pointer which does not
 						! compensate for header
 						! or tag
-	st	%ARGREG3, [%MTMP1+VEC_OFFSET]	! VEC_OFFSET compensates
 	retl
-	nop
+	st	%ARGREG3, [%TMP0+VEC_OFFSET]	! VEC_OFFSET compensates
 
 
 !-----------------------------------------------------------------------------
@@ -260,7 +265,7 @@ gcstart:
 
 	! C-language call
 
-	mov	%ARGREG1, %o0
+	mov	%RESULT, %o0
 	call	_gcstart2
 	nop
 
@@ -285,18 +290,75 @@ gcstart:
 
 	! Must now allocate memory!
 
-	set	0xFFFFFFFC, %MTMP1
-	cmp	%RESULT, %MTMP1
+	set	0xFFFFFFFC, %TMP0
+	cmp	%RESULT, %TMP0
 	beq	Lgcstart1
 	nop
 
 	! Allocate...
 
 	add	%E_TOP, %RESULT, %E_TOP
-	and	%RESULT, 0x04, %MTMP1
-	add	%E_TOP, %MTMP1, %E_TOP
+	and	%RESULT, 0x04, %TMP0
+	add	%E_TOP, %TMP0, %E_TOP
 	
 Lgcstart1:
+	retl
+	nop
+
+
+!-----------------------------------------------------------------------------
+! 'stkuflow' is designed to be returned through on a stack cache underflow.
+! The address of 'stkuflow' should be in a dummy continuation at the bottom
+! of the stack (top of the stack cache). On a return which underflows the
+! stack cache, 'stkuflow' is entered. It restores a single continuation frame
+! and jumps to the return address in the newly restored frame.
+
+stkuflow:
+	std	%o0, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET ]
+	std	%o2, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+8 ]
+	std	%o4, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+16 ]
+	std	%o6, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ]
+
+	call	_restore_frame
+	st	%SP, [ %GLOBALS+SP_OFFSET ]
+
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET ], %o0
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+8 ], %o2
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+16 ], %o4
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ], %o6
+
+	ld	[ %GLOBALS+SP_OFFSET ], %SP
+	ld	[ %SP ], %TMP0
+	jump	%TMP0+8
+	nop
+
+
+!-----------------------------------------------------------------------------
+! 'stkoflow' handles stack overflow. When the mutator detects stack overflow,
+! then 'stkoflow' should be called. It flushes the stack cache and invokes
+! the garbage collector if necessary, and then returns to its caller.
+
+stkoflow:
+	std	%o0, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET ]
+	std	%o2, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+8 ]
+	std	%o4, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+16 ]
+	std	%o6, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ]
+
+	call	_flush_stack_cache
+	st	%SP, [ %GLOBALS+SP_OFFSET ]
+
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET ], %o0
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+8 ], %o2
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+16 ], %o4
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ], %o6
+
+	ld	[ %GLOBALS+SP_OFFSET ], %sp
+	cmp	%E_TOP, %E_LIMIT
+	blt	Lstkoflow1
+	nop
+	call	gcstart
+	nop
+Lstkoflow1:
 	retl
 	nop
 
@@ -322,11 +384,11 @@ addtrans:
 
 	! Get tenured-space limits and check for overflow
 
-	ld	[ %GLOBALS+T_ENTRIES_OFFSET ], %MTMP1
-	ld	[ %GLOBALS+T_TOP_OFFSET ], %MTMP2
-	cmp	%MTMP1, %MTMP2
+	ld	[ %GLOBALS+T_ENTRIES_OFFSET ], %TMP0
+	ld	[ %GLOBALS+T_TOP_OFFSET ], %TMP1
+	cmp	%TMP0, %TMP1
 	bgt	Laddtrans1
-	sub	%MTMP1, 4, %MTMP2
+	sub	%TMP0, 4, %TMP1
 
 	! %GLOBALS had better not be a %o register!
 
@@ -345,7 +407,7 @@ addtrans:
 	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ], %o6
 
 	bne	Laddtrans1
-	sub	%MTMP1, 4, %MTMP2
+	sub	%TMP0, 4, %TMP1
 
 	! We've lost. Go ahead and collect.
 
@@ -356,8 +418,8 @@ addtrans:
 	nop
 
 Laddtrans1:
-	st	%RESULT, [ %MTMP1+0 ]
+	st	%RESULT, [ %TMP0+0 ]
 	retl
-	st	%MTMP2, [ %GLOBALS+T_ENTRIES_OFFSET ]
+	st	%TMP1, [ %GLOBALS+T_ENTRIES_OFFSET ]
 
 	! end of file
