@@ -211,7 +211,7 @@
         SPECIALOP2_VIRTUAL(eqvp_not_eq) {
             Reg.Result = Factory.False;
         }
-        SPECIALOP2_REVERSED(eqvp_not_eq) {
+        SPECIALOP2_REVERSED_G(eqvp_not_eq) {
             Reg.Result = Factory.False;
         }
         SPECIALOP2_VIRTUAL_REVERSED_SET(eqvp_not_eq)
@@ -227,9 +227,10 @@
         SPECIALOP2_NUMERIC_SET(minus, contagion, MS_GENERIC_SUB)
         SPECIALOP2_NUMERIC_SET(multiply, contagion, MS_GENERIC_MUL)
         SPECIALOP2_NUMERIC_SET(divide, contagion, MS_GENERIC_DIV)
-        SPECIALOP2_NUMERIC_SET(quotient, contagion, MS_HEAVY_QUOTIENT)
-        SPECIALOP2_NUMERIC_SET(remainder, contagion, MS_HEAVY_REMAINDER)
-
+        
+        SPECIALOP2_NUMERIC_SET_NC(quotient, MS_HEAVY_QUOTIENT)
+        SPECIALOP2_NUMERIC_SET_NC(remainder, MS_HEAVY_REMAINDER)
+        
         SPECIALOP1_VIRTUAL_EXN(truncate, EX_TRUNC)
         SPECIALOP1_VIRTUAL_EXN(round, EX_ROUND)
         SPECIALOP1_VIRTUAL_EXN(negative, EX_NEG)

@@ -453,7 +453,9 @@
             Reg.Result = Factory.wrap(arg1.value - this.value);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(multiply, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap((long)(arg1.value * this.value));
+            long a = arg1.value;
+            long b = this.value;
+            Reg.Result = Factory.wrap(a * b);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(divide, fixnum, SFixnum) {
             int a = arg1.value, b = this.value;
@@ -475,12 +477,17 @@
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(quotient, bignum, SByteVL) {
             // Must handle 1-word bignums too.
+            // Exn.debug.WriteLine("trying bignum/fixnum case: {0}; {1}", arg1, this);
             int bv = this.value;
-            if (bv > 0 &&
-                Number.getBignumLength(arg1) == 1 && 
-                Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
+            if (bv == 0) {
+                Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
+                return;
+            } else if (bv > 0 &&
+                       Number.getBignumLength(arg1) == 1 && 
+                       Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
                 uint av = arg1.getUInt32(1);
                 uint result = av / (uint)bv;
+                // Exn.debug.WriteLine("  / {0}; {1}", av, bv);
                 Reg.Result = Factory.makeNumber(result);
                 return;
             }
