@@ -1,7 +1,8 @@
-; Lib/error0.sch
-; Larceny -- Boot-time error procedure! 
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- Boot-time error procedure.
 
 ($$trace "error0")
 

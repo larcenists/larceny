@@ -1,8 +1,9 @@
-; Lib/mcode.sch
-; Larceny library -- millicode support code
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ; 
+; Larceny library -- millicode support code.
+;
 ; This file contains architecture-independent procedures which set up
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.

@@ -1,7 +1,8 @@
-; Lib/error.sch
-; Larceny library -- error system
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- error system
 ;
 ; Documented behavior:
 ;  The default error handler prints all its arguments and then calls reset.

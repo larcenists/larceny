@@ -1,12 +1,10 @@
-; Lib/string.sch
-; Larceny library --  characters, strings, and bytevectors.
+; Copyright Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
-; Parts of this code Copyright Lightship Software.
+; Larceny library --  characters, strings, and bytevectors.
 ;
-; FIXME: 
-;  - see FIXMEs in the code for other issues.
+; Should there be a bytevector-like-subfill! primop to use here?
 
 ($$trace "string")
 
@@ -23,7 +21,7 @@
 (define *char-table* '#())
 
 
-; ISO latin 1 character set.
+; ISO Latin 1 character set.
 
 (define (make-iso-latin-1-table)
 
@@ -205,8 +203,6 @@
 	(begin (error "string-fill!: bad operands: " s " " c)
 	       #t))))
  
-; FIXME: should there be a bytevector-like-subfill! primop?
-
 (define substring-fill!
   (lambda (s start end c)
     (do ((i start (+ i 1)))

@@ -1,4 +1,5 @@
-; -*- scheme -*-
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
 ;
 ; Larceny run-time system -- interface to system functions

@@ -1,7 +1,8 @@
-; Lib/exit.sch
-; Larceny library -- the exit procedure, and init/exit hooks.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- the exit procedure, and init/exit hooks.
 
 ($$trace "exit")
 

@@ -1,7 +1,8 @@
-; Lib/stringio.sch
-; Larceny -- string I/O ports
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny -- string I/O ports.
 ;
 ; Compatibility notes:
 ;
@@ -15,9 +16,9 @@
 
 ; Offsets in the string port data structure.
 
-(define string-io.type 0)		; Symbol
-(define string-io.s 1)			; Input: string; output: list of strings
-(define string-io.i 2)			; Input: fixnum; output: garbage
+(define string-io.type 0)	       ; Symbol
+(define string-io.s 1)		       ; Input: string; output: list of strings
+(define string-io.i 2)		       ; Input: fixnum; output: garbage
 
 (define (string-io/open-input-string s)
   (if (not (string? s))
@@ -44,18 +45,12 @@
 
 (define (string-io/ioproc op)
   (case op
-    ((read)
-     string-io/fill-buffer)
-    ((write)
-     string-io/flush-buffer)
-    ((close)
-     (lambda (data) #t))
-    ((ready?)
-     (lambda (data) #t))
-    ((name)
-     (lambda (data) "*string*"))
-    (else
-     (error "string-io/ioproc: illegal operation: " op))))
+    ((read)   string-io/fill-buffer)
+    ((write)  string-io/flush-buffer)
+    ((close)  (lambda (data) #t))
+    ((ready?) (lambda (data) #t))
+    ((name)   (lambda (data) "*string*"))
+    (else     (error "string-io/ioproc: illegal operation: " op))))
 
 (define (string-io/fill-buffer data buffer)
   (let ((s (vector-ref data string-io.s))

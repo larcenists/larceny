@@ -1,7 +1,8 @@
-; Larceny library
-; Type tags.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- Type tags.
 ;
 ; The type tags really should be gotten from the auto-generated stuff.
 

@@ -1,7 +1,8 @@
-; Lib/makefile.sch
-; Larceny development system -- makefile for compiling Scheme files.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny development system -- makefile for compiling Scheme files.
 ;
 ; Procedures to call:
 ;  make-larceny-heap

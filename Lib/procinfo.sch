@@ -1,12 +1,13 @@
-; Lib/procinfo.sch
-; Larceny library -- heuristic procedure information
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- heuristic procedure information.
 ;
 ; Based on a proposal by Will Clinger to the rrrs-authors mailing list,
 ; with one addition proposed by Aubrey Jaffer.
 ;
-; Old documentation format (pre-v0.31)
+; Old documentation format (pre-v0.31)  [Time to retire this!]
 ;   The documentation slot contains either
 ;     a symbol -- the procedure name.
 ;     a list beginning with 'lambda' -- the procedure source code.

@@ -1,7 +1,8 @@
-; Lib/memstats.sch
-; Larceny runtime library -- system statistics
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- system statistics.
 ;
 ; System statistics is maintained by the parts of the system written in C
 ; and are obtained by a call on the primitive sys$get-resource-usage (which

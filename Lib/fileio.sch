@@ -1,7 +1,8 @@
-; Lib/fileio.sch
-; Larceny -- file I/O
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- file I/O.
 
 ($$trace "fileio")
 

@@ -1,14 +1,11 @@
-; Lib/flonums.sch
-; Larceny -- low-level floating point code
+; Copyright Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
+; Larceny -- low-level floating point code
+;
 ; The procedures in this file all operate on IEEE flonums.  Formats of
 ; flonums and bignums and operations used are all specific to Larceny.
-;
-; Some is based on code from MacScheme; so
-;
-;    Copyright Lightship Software.
 ;
 ; Larceny flonums are represented as a bytevector of 12 bytes, where the
 ; first four are unused and the remaining eight is an IEEE flonum.  The

@@ -1,9 +1,8 @@
-; -*- scheme -*-
-;
-; Lib/malcode.mal
-; Larceny -- MAL code that supports Larceny's standard libraries
+; Copyright Lightship Software, Incorporated.
 ;
 ; $Id$
+;
+; MAL code that supports Larceny's standard libraries
 
 ; @raw-apply@
 ;

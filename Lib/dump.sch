@@ -1,7 +1,8 @@
-; Lib/dump.sch
-; Larceny library -- heap dumping
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- heap dumping
 
 ($$trace "dump")
 

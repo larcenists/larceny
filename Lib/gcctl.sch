@@ -1,9 +1,10 @@
-; Lib/gcctl.sch
-; Larceny library -- garbage collector policy control
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; This is a hack, until the collector gets rewritten in Scheme.
+; Larceny library -- garbage collector policy control
+;
+; This is a hack.
 
 ($$trace "gcctl")
 

@@ -1,9 +1,8 @@
-; Copyright 1991 Lightship Software
-; Copyright 1995 Lars Thomas Hansen
-;
-; Larceny library -- vector procedures
+; Copyright 1991 Lightship Software, Incorporated.
 ;
 ; $Id$
+;
+; Larceny library -- vector procedures.
 
 ($$trace "vector")
 

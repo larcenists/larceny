@@ -1,4 +1,4 @@
-; Copyright Lightship Software.
+; Copyright Lightship Software, Incorporated.
 ;
 ; $Id$
 ;

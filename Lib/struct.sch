@@ -1,7 +1,8 @@
-; Lib/struct.sch
-; Larceny library -- structures.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- structures.
 
 ($$trace "struct")
 

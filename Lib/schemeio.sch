@@ -1,7 +1,8 @@
-; -*- Scheme -*-
-; Larceny run-time system -- generic I/O system.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny run-time system -- generic I/O system.
 ;
 ; Ports are represented using vectors. A port can be either for input or for
 ; output, and it can be in one of three states: open, closed, or at 

@@ -1,9 +1,10 @@
-; Lib/secret.sch
-; Larceny -- secret names for the macro expanders.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; These names _must_ be synchronized in exactly five places:
+; Larceny -- secret names for the macro expanders.
+;
+; These names _must_ be synchronized in exactly five places (gag!):
 ;
 ; - in Compiler/*.imp.sch, in the definition of the primop table and
 ;                          in the definition of name:LIST

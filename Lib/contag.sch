@@ -1,7 +1,7 @@
-; -*- Scheme -*-
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
 ;
-; Larceny runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.
 ;
 ; There are three main procedures: contagion, pcontagion, and econtagion.

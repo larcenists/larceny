@@ -1,9 +1,8 @@
-; Lib/print.sch
-; Larceny -- Print procedures 
+; Copyright 1991 Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
-; Copyright 1991 Lightship Software
+; Larceny -- Print procedures.
 
 ($$trace "print")
 

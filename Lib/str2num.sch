@@ -1,24 +1,14 @@
-; Copyright Lightship Software.
+; Copyright Lightship Software, Incorporated.
 ;
 ; $Id$
-;
-;                                      16 April 1990 / lightship
 ;
 ; A parser for numeric constants in MacScheme.
 ; Designed to be called by the reader.
 ; Captures a procedure named bellerophon, which should implement
 ; Algorithm Bellerophon for reading floating point numbers perfectly.
 ;
-;                                      11 November 1995 / lth
-;
-; Added support for complex numbers, and did some general tidying up.
-;
-;                                      28 January 1996 / lth
-;
-; Added support for +inf.0, -inf.0, +nan.0, -nan.0, and their complex
-; combinations.  These are nonstandard.
-;
-; Number syntax for MacScheme
+; Number syntax; note the code also supports +inf.0, -inf.0, +nan.0, 
+; -nan.0, and their complex combinations:
 ; 
 ; <number>  -->  <num 2>  |  <num 8>  |  <num 10>  |  <num 16>
 ; 

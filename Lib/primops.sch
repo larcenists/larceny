@@ -1,9 +1,10 @@
-; Lib/primops.sch
-; Larceny library -- global procedure definitions for integrable procedures.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; This file _must_ be compiled with integrate-usual-procedures on.
+; Larceny library -- Procedure definitions for integrable procedures.
+;
+; NOTE! This file must be compiled with integrate-usual-procedures on.
 
 ($$trace "primops")
 

@@ -1,7 +1,8 @@
-; Lib/ehandler.sch
-; Larceny library -- system exception handler.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- system exception handler.
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, 
 ; ARGREG2, and ARGREG3, and an exception code as arguments. It 

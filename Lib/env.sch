@@ -1,7 +1,8 @@
-; Lib/env.sch
-; Larceny library -- environments.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- environments.
 ;
 ; An `environment' is a map from names (symbols) to locations (global cells).
 ;

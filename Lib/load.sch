@@ -1,12 +1,13 @@
-; Lib/load.sch
-; Larceny -- the 'load' procedure.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; Not entirely robust, but ok for now.
+; Larceny -- the 'load' procedure.
 ;
-; FIXME: Loader should install reader macros for #^G, #^B, #^P so that 
-; the reader would not need to be aware of these extensions.
+; FIXME:
+;  - Not entirely robust, but ok for now.
+;  - Loader should install reader macros for #^G, #^B, #^P so that 
+;    the reader would not need to be aware of these extensions.
 
 ($$trace "load")
 

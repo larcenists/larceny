@@ -1,7 +1,8 @@
-; Lib/iosys.sch
-; Larceny -- New I/O system
+; Copyright 1998 Lars T Hansen.
 ;
-; *$Id$
+; $Id$
+;
+; Larceny -- I/O system.
 ;
 ; Design: the system is designed so that in the common case, very few
 ; procedure calls are executed.

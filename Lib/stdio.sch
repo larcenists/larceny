@@ -1,7 +1,8 @@
-; Lib/stdio.sch
-; Larceny -- standard Scheme I/O library
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny -- standard Scheme I/O library
 ;
 ; Procedures we could add:
 ;   file-port?

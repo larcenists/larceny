@@ -1,9 +1,8 @@
-; Lib/control.sch
-; Larceny library -- various control procedures
+; Copyright 1991 Lightship Software
 ;
 ; $Id$
 ;
-; Copyright 1991 Lightship Software
+; Larceny library -- various control procedures
 ;
 ; 'Member', 'assq', and so on may be found in Lib/list.sch.
 ; 'Call-with-current-continuation' is in Lib/malcode.mal.

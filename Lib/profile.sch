@@ -1,6 +1,8 @@
-; Larceny library -- profiling support.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- profiling support.
 
 ($$trace "profile")
 

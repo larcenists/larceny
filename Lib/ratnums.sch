@@ -1,7 +1,8 @@
-; Lib/ratnums.sch
-; Larceny library  -  Scheme code for ratnum arithmetic.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library  -  Scheme code for ratnum arithmetic.
 ;
 ; (Originally written by Remy Evard; extensively modified by Lars Hansen.)
 ;

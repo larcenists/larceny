@@ -1,7 +1,7 @@
-; -*- Scheme -*-
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
 ;
-; Larceny runtime system.
 ; Scheme code for bignum arithmetic.
 ;
 ; FILE OVERVIEW

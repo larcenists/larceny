@@ -1,7 +1,8 @@
-; Lib/timer.sch
-; Larceny library -- timer interrupts
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- timer interrupts.
 
 ($$trace "timer")
 

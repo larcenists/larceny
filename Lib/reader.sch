@@ -1,10 +1,8 @@
-; Lib/reader.sch
-; Larceny -- Scheme reader
+; Copyright Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
-; Original code Copyright Lightship Software.
-; Extensive modifications by Lars T. Hansen.
+; Larceny -- Scheme reader.
 ;
 ; install-reader takes no arguments
 ;

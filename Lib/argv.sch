@@ -1,7 +1,8 @@
-; Lib/argv.sch
-; Larceny library -- command line arguments
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- command line arguments.
 ;
 ; The argument vector is a vector of strings, one for each command line 
 ; argument.  What constitutes an argument is up to the user's shell or

@@ -1,7 +1,8 @@
-; Lib/unix.sch
-; Larceny library -- Some Unix primitives
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- Some Unix primitives.
 
 ; Parameters for unix:open; the magic numbers are portable.
 

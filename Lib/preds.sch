@@ -1,10 +1,8 @@
-; Lib/preds.sch
-; Larceny library -- general predicates
-;
+; Copyright Lightship Software, Incorporated.
+; 
 ; $Id$
 ;
-; In part based on code from MacScheme:
-;    Copyright Lightship Software.
+; Larceny library -- general predicates.
 
 ($$trace "preds")
  

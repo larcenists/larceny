@@ -1,8 +1,9 @@
-; Lib/format.sch
-; Larceny library -- primitive 'format' procedure.
-; 
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
 ;
+; Larceny library -- primitive 'format' procedure.
+; 
 ; Usage:
 ;   (format <port> <format-string> <arg> ...)
 ; where <port> can be an output port or #t, and the following formatting

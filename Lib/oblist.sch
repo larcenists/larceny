@@ -1,10 +1,8 @@
-; Lib/oblist.sch
-; Larceny library -- symbol table management.
+; Copyright 1991 Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
-; In part based on code from MacScheme:
-;    Copyright 1991 lightship software.
+; Larceny library -- symbol table management.
 ;
 ; A symbol is a vector-like structure with typetag sys$tag.symbol-typetag.
 ; It has three fields: the print name, the hash code, and the property list.

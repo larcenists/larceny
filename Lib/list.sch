@@ -1,9 +1,8 @@
-; Lib/list.sch
-; Larceny library -- list procedures
+; Copyright 1991 Lightship Software
 ;
 ; $Id$
 ;
-; Copyright 1991 Lightship Software
+; Larceny library -- list procedures.
 ;
 ; Procedures of the form x->list and list->x can be found in the file for x.
 
@@ -145,6 +144,8 @@
     (lambda (l)
       (reverse-loop l '()))))
 
+
+; Probably due to JonL White.
 
 (define (reverse! l)
   (define (loop0 prev curr next)

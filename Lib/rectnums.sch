@@ -1,9 +1,8 @@
-; -*- Scheme -*-
-;
-; Scheme 313 runtime system
-; Procedures for rectnum arithmetic
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- Procedures for rectnum arithmetic.
 ;
 ; A rectnum is a pair of two exact real numbers (the "real" and "imaginary"
 ; parts) where the imaginary part is nonzero.

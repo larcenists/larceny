@@ -1,7 +1,8 @@
-; Lib/sysparam.sch
-; Larceny library -- system parameter abstraction
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- system parameter abstraction.
 
 ($$trace "sysparam")
 
