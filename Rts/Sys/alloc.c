@@ -301,7 +301,8 @@ static void allocation_below_membot( byte *ptr, int bytes )
       gclib_desc_g[i] = gclib_desc_g[i-diff];
       gclib_desc_b[i] = gclib_desc_b[i-diff];
     }
-    gclib_pagebase = data.membot = (caddr_t)ptr;
+    gclib_pagebase = (caddr_t)ptr;
+    data.membot = (byte*)ptr;
   }
 
   /* Fill out table */
@@ -310,7 +311,7 @@ static void allocation_below_membot( byte *ptr, int bytes )
     gclib_desc_b[i] = MB_FOREIGN;
   }
 
-  wb_re_setup( gclib_pagebase, gclib_desc_g );
+  wb_re_setup( (byte*)gclib_pagebase, gclib_desc_g );
 }
 
 static void allocation_above_memtop( byte *ptr, int bytes )
@@ -324,7 +325,7 @@ static void allocation_above_memtop( byte *ptr, int bytes )
 
   if (pageof( top-1 ) >= data.descriptor_slots) {
     grow_table( (byte*)gclib_pagebase, top );  /* changes data.memtop */
-    wb_re_setup( gclib_pagebase, gclib_desc_g );
+    wb_re_setup( (byte*)gclib_pagebase, gclib_desc_g );
   }
   else
     data.memtop = top;
@@ -379,7 +380,7 @@ static void grow_table( byte *new_bot, byte *new_top )
   data.descriptor_slots = slots;
   gclib_pagebase = (caddr_t)new_bot;
   data.membot = new_bot;
-  data.memtop = (caddr_t)new_top;
+  data.memtop = (byte*)new_top;
 }
 #endif
 
