@@ -64,7 +64,7 @@
 	       (apply string-append (construct components)))))
     (if (not (let ((c (string-ref n (- (string-length n) 1))))
 	       (or (char=? c #\/) (char=? c #\\))))
-	(string-append n "/")
+	(string-append n "\\")
 	n)))
 
 ; eof
