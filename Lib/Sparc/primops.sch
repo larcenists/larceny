@@ -208,7 +208,7 @@
 (define make-string
   (lambda (x . rest)
     (if (null? rest)
-	(make-string x #\space)
+	(make-string x #\space)         ; fixme
 	(make-string x (car rest)))))
 (define string? (lambda (x) (string? x)))
 (define string-length (lambda (x) (string-length x)))
@@ -220,7 +220,7 @@
 (define make-vector
   (lambda (x . rest) 
     (if (null? rest)
-	(make-vector x #f)
+	(make-vector x '())             ; fixme
 	(make-vector x (car rest)))))
 (define vector? (lambda (x) (vector? x)))
 (define vector-length (lambda (x) (vector-length x)))
