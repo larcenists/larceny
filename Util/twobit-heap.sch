@@ -3,17 +3,17 @@
 ; $Id$
 ;
 ; Load script for building a heap image with all compiler names exposed.
+;
+; Before you use this script, you must compile the development environment
+; and debugger.  The easiest way to do that is to run 'build' and then 
+; evaluate
+;   (make-development-environment)
 
 (load "Util/load-twobit-sparc.sch")
 
 (load "Auxlib/io.fasl")
+(load "Auxlib/string.fasl")
 (load "Experimental/apropos.fasl")
-
-(load "Auxlib/optimize-level.sch")
-(load "Auxlib/std-ffi.sch")
-(load "Auxlib/ffi-functions.sch")
-
-(define pp pretty-print)
 
 (define apropos
   (let ((apropos apropos))
@@ -22,14 +22,17 @@
 	    (lambda (a b)
 	      (string<? (symbol->string a) (symbol->string b)))))))
 
-(load "Debugger/debug.sch")
-(load "Debugger/trace.sch")
+(load "Debugger/debug.fasl")
+(load "Debugger/inspect-cont.fasl")
+(load "Debugger/trace.fasl")
 
-(herald (string-append "\nTwobit heap image dumped on "
-		       (unix:current-timestamp)
-		       ".\nUsing interpreter for evaluation."))
+(repl-printer
+ (lambda (x)
+   (if (not (eq? x (unspecified)))
+       (pretty-print x))))
+
 (dump-interactive-heap "twobit.heap")
-(system "larceny -reorganize-and-dump twobit.heap")
-(system "mv twobit.heap.split twobit.heap")
+(system "./larceny.bin -reorganize-and-dump twobit.heap")
+(system "/bin/mv twobit.heap.split twobit.heap")
 
 ; eof
