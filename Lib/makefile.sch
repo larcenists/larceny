@@ -40,12 +40,7 @@
 (define (make-dumpheap target files)
   (display "Dumping ") (display target) (newline)
   (delete-file target)
-  (let ((fn (string-append target ".map")))
-    (delete-file fn)
-    (call-with-output-file fn
-      (lambda (p)
-	(let ((q (apply build-heap-image target files)))
-	  (pretty-print q p))))))  ; could be `display' or `write'.
+  (apply build-heap-image target files))
 
 (define (make-copy target src)
   (display "Copying ") (display target) (newline)
@@ -72,6 +67,11 @@
 			(error "objects: No substitution found for " n))))
 		 (else ???)))
 	 files)))
+
+(define (replace-extension ext files)
+  (map (lambda (file)
+	 (rewrite-file-type file '(".sch" ".h") ext))
+       files))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -177,23 +177,23 @@
 		    (toplevel . "Lib/Sparc/toplevel.lop"))))
 	(sparc-eval-files
 	 (objects "" ".lop" eval-files)))
-    (make:project "larceny.heap"
+    (make:project "sparc.heap"
       `(rules
 	(".lop" ".mal" ,make-assemble)
 	(".lop" ".lap" ,make-assemble)
 	(".lap" ".sch" ,make-compile)
 	(".sch" ".sh"  ,make-copy))
       `(targets 
-	("larceny.heap" ,make-dumpheap))
+	("sparc.heap" ,make-dumpheap))
       `(dependencies			; Order matters.
-	("larceny.heap" ,sparc-heap-files)
-	("larceny.heap" ,sparc-eval-files)
+	("sparc.heap" ,sparc-heap-files)
+	("sparc.heap" ,sparc-eval-files)
 	("Lib/Common/ecodes.sch" ("Build/except.sh"))
 	("Lib/Common/globals.sch" ("Build/globals.sh"))))))
      
 (define (make-sparc-heap . rest)
   (make:pretend (not (null? rest)))
-  (make:make sparc-heap-project "larceny.heap"))
+  (make:make sparc-heap-project "sparc.heap"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -232,11 +232,7 @@
 
 (define compiler-project
   (let ((compiler-files 
-	 '("compile313" "help" "copy" "pass1.aux" "pass1" "pass2.aux" 
-	   "pass2p1" "pass2p2" "pass4.aux" "pass4p1" "pass4p2" "pass4p3" 
-	   "sets" "switches" "sparc.imp" "patch0" "printlap"))
-	(comp-asm-files 
-	 '("makefasl" "dumpheap"))
+	 (replace-extension ".fasl" (nbuild:twobit-files)))
 	(comp-util-files 
 	 '("make" "make-support" "init-comp")))
     (make:project "compiler.date"
@@ -245,8 +241,7 @@
       `(targets
 	("compiler.date" ,(lambda args #t)))
       `(dependencies
-	("compiler.date" ,(objects "Compiler/" ".fasl" compiler-files))
-	("compiler.date" ,(objects "Asm/Common/" ".fasl" comp-asm-files))
+	("compiler.date" ,compiler-files)
 	("compiler.date" ,(objects "Util/" ".fasl" comp-util-files))))))
 
 (define (make-compiler . rest)
@@ -261,20 +256,20 @@
 
 (define sparcasm-project
   (let ((common-asm-files
-	 '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "asmutil32el" 
-           "link-lop"))
+	 (append
+	  (replace-extension ".fasl" (nbuild:common-asm-files))
+	  (nbuild-files 'common-asm '("link-lop.fasl"))))
 	(sparcasm-files
-	 '("pass5p2" "sparcasm" "sparcutil" "switches" "sparcdis" "peepopt"
-	   "gen-msi" "sparcprim-part1" "sparcprim-part2" "sparcprim-part3"
-	   "sparcprim-part4")))
+	 (replace-extension ".fasl" (nbuild:machine-asm-files))))
     (make:project "sparcasm.date"
       `(rules
+	(".fasl" ".h" ,make-compile-file)
 	(".fasl" ".sch" ,make-compile-file))
       `(targets
 	("sparcasm.date" ,(lambda args #t)))
       `(dependencies
-	("sparcasm.date" ,(objects "Asm/Common/" ".fasl" common-asm-files))
-	("sparcasm.date" ,(objects "Asm/Sparc/" ".fasl" sparcasm-files))))))
+	("sparcasm.date" ,common-asm-files)
+	("sparcasm.date" ,sparcasm-files)))))
 
 (define (make-sparcasm . rest)
   (make:pretend (not (null? rest)))
