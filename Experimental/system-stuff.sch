@@ -132,7 +132,7 @@
 		     (cons s dead)
 		     dead))))
 	((= i (vector-length symbols))
-	 (oblist-set! (select (lambda (x)
+	 (oblist-set! (filter (lambda (x)
 				(not (memq x dead)))
 			      (oblist)))))))
 
