@@ -143,7 +143,7 @@
   (define bits-per-byte 8)
 
   (define wordsize
-    (quotient (cdr (assq 'architecture-word-size (system-features)))
+    (quotient (cdr (assq 'arch-word-size (system-features)))
 	      bits-per-byte))
 
   (define (memstats-gen x) (vector-ref x 7))
