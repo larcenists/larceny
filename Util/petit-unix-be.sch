@@ -87,7 +87,7 @@
   (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
 
 (define (load-compiler)
-  (load (make-filename *root-directory* "Util" "nbuild.sch"))
+  (load (make-filename "" "Util" "nbuild.sch"))
   (configure-system))
 
 ; Make a guess at any extra libraries used for the system.
