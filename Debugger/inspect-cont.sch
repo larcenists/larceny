@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; Debugger/inspect-cont.sch -- continuation and frame inspector.
+; Continuation and frame inspector.
 
 ; Continuation inspector.
 ;
