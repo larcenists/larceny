@@ -50,7 +50,8 @@
  * FIXME: This code is not reentrant.
  *
  * FIXME: Uses of caddr_t should be replaced by uses of byte*, but the
- *   effects are nonlocal so don't do it yet.  */
+ *   effects are nonlocal so don't do it yet.  
+ */
 
 #define GC_INTERNAL
 
@@ -72,8 +73,11 @@ caddr_t      gclib_pagebase;	/* page address of lowest known word */
 /* Private globals */
 
 static struct {
-  caddr_t membot;		/* address of lowest known word */
-  caddr_t memtop;		/* address of highest known word */
+  byte *membot;		/* address of lowest known word */
+  byte *memtop;		/* address of highest known word */
+  byte *heapbot;
+  byte *heaplim;
+  
   int     descriptor_slots;	/* number of allocated slots */
   int     heap_bytes_limit;	/* Maximum allowed heap allocation */
   int     heap_bytes;		/* bytes allocated to heap */
@@ -90,14 +94,13 @@ static struct {
 
 static byte *gclib_alloc( unsigned bytes );
 #if !GCLIB_LARGE_TABLE
+static void allocation_below_membot( byte *ptr, int bytes );
+static void allocation_above_memtop( byte *ptr, int bytes );
 static void grow_table( byte *new_bot, byte *new_top );
 #endif
 static byte *alloc_aligned( unsigned bytes );
-static void register_pointer( byte *derived, byte *original );
-static byte *find_and_free_pointer( byte *x );
+static void free_aligned( byte *p, unsigned bytes );
 static void update_mem_bytes( void );
-
-#define FREE_ALIGNED( x, bytes ) free( find_and_free_pointer( x ) )
 
 /* Initialize descriptor tables and memory allocation pointers. */
 
@@ -122,26 +125,17 @@ gclib_init( void )
 #endif
   
   for ( i = 0 ; i < data.descriptor_slots ; i++ ) {
-    gclib_desc_g[i] = 0;
+    gclib_desc_g[i] = FOREIGN_PAGE;
 #if !GCLIB_LARGE_TABLE
-    gclib_desc_b[i] = 0;
+    gclib_desc_b[i] = MB_FOREIGN;
 #endif
   }
 
-  /* Assume all allocation will happen following these allocations.
-   * That doesn't have to be true; gclib_alloc() will later slide the
-   * address ranges as necessary.
-   */
+  /* Leave these explicitly uninitialized until first allocation. */
+  data.memtop = data.membot = 0;
+  data.heapbot = data.heaplim = 0;
 #if !GCLIB_LARGE_TABLE
-  if ((long)gclib_desc_b > (long)gclib_desc_g)
-    data.membot = data.memtop = 
-      (caddr_t)roundup_page((byte*)(gclib_desc_b + data.descriptor_slots));
-  else
-#endif
-    data.membot = data.memtop =
-      (caddr_t)roundup_page((byte*)(gclib_desc_g + data.descriptor_slots));
-#if !GCLIB_LARGE_TABLE
-  gclib_pagebase = data.memtop;
+  gclib_pagebase = 0;
 #endif
 }
 
@@ -150,8 +144,13 @@ gclib_init( void )
    */
 void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
 {
+#if 0
   *lowest = data.membot;
   *highest = data.memtop;
+#else
+  *lowest = (caddr_t)data.heapbot;
+  *highest = (caddr_t)data.heaplim;
+#endif
 }
 
 void gclib_set_heap_limit( int bytes )
@@ -176,10 +175,8 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   ptr = gclib_alloc( bytes );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
-#if GCLIB_LARGE_TABLE
     gclib_desc_g[i] = gen_no;
-#else
-    gclib_desc_g[i] = gen_no;
+#if !GCLIB_LARGE_TABLE
     gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY;
 #endif
   }
@@ -190,6 +187,9 @@ void *gclib_alloc_heap( int bytes, int gen_no )
 			 gen_no, bytes, (void*)ptr );
 
   update_mem_bytes();
+
+  if (data.heapbot == 0 || ptr < data.heapbot) data.heapbot = ptr;
+  if (data.heaplim == 0 || ptr+bytes > data.heaplim) data.heaplim = ptr+bytes;
   return (void*)ptr;
 }
 
@@ -207,14 +207,11 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
 #endif
   }
-#if !GCLIB_LARGE_TABLE
   if (attribute & MB_REMSET) {
     data.remset_bytes += bytes;
     data.max_remset_bytes = max( data.max_remset_bytes, data.remset_bytes );
   }
-  else 
-#endif
-  {
+  else {
     data.rts_bytes += bytes;
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
@@ -235,74 +232,96 @@ static void update_mem_bytes( void )
  * address range cannot be captured by the descriptor table at its
  * current size.  Other times, the descriptor table can just be slid
  * over the active region.  We slide the table down only when a chunk
- * is allocated below the current pagebase.
+ * is allocated below the current pagebase.  On system where the heap
+ * grows down (MacOS, Solaris with mmap()) it would be better to slide
+ * more aggressively.  FIXME.
  */
 static byte *gclib_alloc( unsigned bytes )
 {
   byte *ptr, *top;
-#if !GCLIB_LARGE_TABLE
-  int i;
-  caddr_t old_pagebase, old_memtop;
-#endif
   
   assert( ( bytes % PAGESIZE) == 0 );
   ptr = alloc_aligned( bytes );
   top = ptr+bytes;
 
 #if GCLIB_LARGE_TABLE
-  if ((caddr_t)ptr < data.membot) data.membot = (caddr_t)ptr;
-  if ((caddr_t)top > data.memtop) data.memtop = (caddr_t)top;
+  if (data.membot == 0 || ptr < data.membot) data.membot = ptr;
+  if (data.memtop == 0 || top > data.memtop) data.memtop = top;
 #else
-  if ((caddr_t)ptr < gclib_pagebase) {   /* new allocation below pagebase */
-    old_pagebase = gclib_pagebase;
-
-    if (pageof_pb( top-1, ptr ) >= data.descriptor_slots)
-      grow_table( ptr, (byte*)data.memtop );    /* changes gclib_pagebase */
-    else {
-      /* Slide the table down, i.e., move the entries up */
-      int diff = pageof_pb( gclib_pagebase, ptr );
-
-      annoyingmsg( "Low-level allocator: Sliding page table by %d entries.",
-		   diff );
-
-      for ( i = data.descriptor_slots-1 ; i >= diff ; i-- ) {
-	gclib_desc_g[i] = gclib_desc_g[i-diff];
-	gclib_desc_b[i] = gclib_desc_b[i-diff];
-      }
-      gclib_pagebase = (caddr_t)ptr;
-    }
-
-    /* Fill out table */
-    for ( i = pageof( top ) ; i < pageof( old_pagebase ) ; i++ ) {
-      gclib_desc_g[i] = FOREIGN_PAGE;
-      gclib_desc_b[i] = MB_FOREIGN;
-    }
-
-    wb_re_setup( gclib_pagebase, gclib_desc_g );
+  assert( gclib_pagebase == 0 || (byte*)gclib_pagebase == data.membot );
+  
+  if (gclib_pagebase == 0) {
+    gclib_pagebase = (caddr_t)ptr;
+    data.membot = ptr;
+    data.memtop = top;
   }
-  else if ((caddr_t)top > data.memtop) {  /* new allocation above memtop */
-    
-    old_memtop = data.memtop;
-
-    if (pageof( top-1 ) >= data.descriptor_slots) {
-      grow_table( (byte*)gclib_pagebase, top );  /* changes memtop */
-      wb_re_setup( gclib_pagebase, gclib_desc_g );
-    }
-    else
-      data.memtop = (caddr_t)top;
-
-    /* Fill out table */
-    for ( i = pageof( old_memtop ) ; i < pageof( ptr ) ; i++ ) {
-      gclib_desc_g[i] = FOREIGN_PAGE;
-      gclib_desc_b[i] = MB_FOREIGN;
-    }
-  }
+  else if (ptr < data.membot)
+    allocation_below_membot( ptr, bytes );
+  else if (top > data.memtop)
+    allocation_above_memtop( ptr, bytes );
 #endif
   
   return ptr;
 }
 
 #if !GCLIB_LARGE_TABLE
+static void allocation_below_membot( byte *ptr, int bytes )
+{
+  int i;
+  byte *old_pagebase;
+  byte *top = ptr + bytes;
+  
+  old_pagebase = (byte*)gclib_pagebase;
+
+  if (pageof_pb( data.memtop-1, ptr ) >= data.descriptor_slots)
+    grow_table( ptr, data.memtop );    /* changes gclib_pagebase 
+					         and data.membot */
+  else {
+    /* Slide the table down, i.e., move the entries up */
+    int diff = pageof_pb( gclib_pagebase, ptr );
+
+    annoyingmsg( "Low-level allocator: Sliding page table by %d entries.",
+		 diff );
+
+    for ( i = data.descriptor_slots-1 ; i >= diff ; i-- ) {
+      gclib_desc_g[i] = gclib_desc_g[i-diff];
+      gclib_desc_b[i] = gclib_desc_b[i-diff];
+    }
+    gclib_pagebase = data.membot = (caddr_t)ptr;
+  }
+
+  /* Fill out table */
+  for ( i = pageof( top ) ; i < pageof( old_pagebase ) ; i++ ) {
+    gclib_desc_g[i] = FOREIGN_PAGE;
+    gclib_desc_b[i] = MB_FOREIGN;
+  }
+
+  wb_re_setup( gclib_pagebase, gclib_desc_g );
+}
+
+static void allocation_above_memtop( byte *ptr, int bytes )
+{
+  int i;
+  byte *old_memtop;
+  byte *top;
+  
+  top = ptr + bytes;
+  old_memtop = data.memtop;
+
+  if (pageof( top-1 ) >= data.descriptor_slots) {
+    grow_table( (byte*)gclib_pagebase, top );  /* changes data.memtop */
+    wb_re_setup( gclib_pagebase, gclib_desc_g );
+  }
+  else
+    data.memtop = top;
+
+  /* Fill out table */
+  for ( i = pageof( old_memtop ) ; i < pageof( ptr ) ; i++ ) {
+    gclib_desc_g[i] = FOREIGN_PAGE;
+    gclib_desc_b[i] = MB_FOREIGN;
+  }
+}
+
 static void grow_table( byte *new_bot, byte *new_top )
 {
   gclib_desc_t *desc_g, *desc_b;
@@ -310,16 +329,17 @@ static void grow_table( byte *new_bot, byte *new_top )
 
   assert( (word)new_bot % PAGESIZE == 0 &&
           (word)new_top % PAGESIZE == 0 &&
-          (caddr_t)new_bot <= gclib_pagebase &&
-          (caddr_t)new_top >= data.memtop );
+          new_bot <= (byte*)gclib_pagebase &&
+          new_top >= data.memtop );
 
   slots = max( pageof_pb( new_top, new_bot ), data.descriptor_slots*2 );
-  annoyingmsg( "Growing page tables -- new slots=%d.", slots );
+  /*annoyingmsg*/consolemsg( "Growing page tables -- new slots=%d.", slots );
 
   desc_g = (gclib_desc_t*)must_malloc( sizeof( gclib_desc_t ) * slots );
   desc_b = (gclib_desc_t*)must_malloc( sizeof( gclib_desc_t ) * slots );
   data.mem_bytes += sizeof(gclib_desc_t)*slots*2;
-
+  data.rts_bytes += sizeof(gclib_desc_t)*slots*2;
+  
   /* The slot in the new table at which to start copying the old table */
   dest = pageof_pb( gclib_pagebase, new_bot );
 
@@ -331,6 +351,7 @@ static void grow_table( byte *new_bot, byte *new_top )
 	  sizeof(gclib_desc_t)*data.descriptor_slots );
   free( gclib_desc_b );
   data.mem_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
+  data.rts_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   gclib_desc_b = desc_b;
 
   memset( desc_g, 0, sizeof(gclib_desc_t)*slots );
@@ -338,25 +359,15 @@ static void grow_table( byte *new_bot, byte *new_top )
 	  sizeof(gclib_desc_t)*data.descriptor_slots );
   free( gclib_desc_g );
   data.mem_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
+  data.rts_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   gclib_desc_g = desc_g;
 
   data.descriptor_slots = slots;
   gclib_pagebase = (caddr_t)new_bot;
+  data.membot = new_bot;
   data.memtop = (caddr_t)new_top;
 }
 #endif
-
-static byte *alloc_aligned( unsigned bytes )
-{
-  byte *p, *q;
-
-  p = (byte*)must_malloc( bytes+PAGESIZE );
-  q = (byte*)roundup_page( p );
-  data.wastage_bytes += PAGESIZE;
-  data.max_wastage_bytes = max( data.max_wastage_bytes, data.wastage_bytes );
-  register_pointer( q, p );
-  return q;
-}
 
 void gclib_free( void *addr, int bytes )
 {
@@ -369,7 +380,7 @@ void gclib_free( void *addr, int bytes )
 
   supremely_annoyingmsg( "Freeing: bytes=%d addr=%p", bytes, (void*)addr );
   
-  FREE_ALIGNED( addr, bytes );
+  free_aligned( addr, bytes );
   data.wastage_bytes -= PAGESIZE;
 
   pages = bytes/PAGESIZE;
@@ -460,71 +471,27 @@ void gclib_stats( gclib_stats_t *stats )
   stats->heap_limit             = bytes2words( data.heap_bytes_limit );
 }
 
-/* Pointer registry for mapping pointers returned from malloc to pointers
-   to page boundaries, and back.
-   */
 
-/* This is probably far too slow, but it's OK for now. */
+/* Very lowest level allocator */
 
-struct regentry {
-  byte *original;
-  byte *derived;
-};
-static struct regentry *registry = 0;
-static int reg_next = 0;
-static int reg_size = 0;
-
-static void register_pointer( byte *derived, byte *original )
+static byte *alloc_aligned( unsigned bytes )
 {
-  int i, j;
+  byte *p;
+  
+  assert( bytes % PAGESIZE == 0 );
 
-  if (reg_next == reg_size) {
-    /* It's full, so compact it and see what happens */
-    j = 0;
-    for ( i=0 ; i < reg_size; i++ ) {
-      if (registry[i].original != 0) {
-	registry[j] = registry[i];
-	j++;
-      }
-    }
-
-    if (j < reg_size) {
-      /* Compaction succeeded */
-      reg_next = j;
-    }
-    else {
-      /* Compaction failed: registry is full, so double its size. */
-      struct regentry *new_reg;
-      int k;
-
-      k = max( 256, reg_size * 2 );
-      new_reg = (struct regentry *)must_malloc( k*sizeof( struct regentry ) );
-      for ( i=0 ; i < reg_size ; i++ )
-	new_reg[i] = registry[i];
-      if (registry != 0) free( registry );
-      registry = new_reg;
-      reg_size = k;
-    }
-  }
-	
-  registry[reg_next].original = original;
-  registry[reg_next].derived = derived;
-  reg_next++;
+  p = (byte*)osdep_alloc_aligned( bytes );
+  data.wastage_bytes = osdep_fragmentation();
+  data.max_wastage_bytes = max( data.max_wastage_bytes, data.wastage_bytes );
+  return p;
 }
 
-static byte *find_and_free_pointer( byte *derived )
+static void free_aligned( byte *p, unsigned bytes )
 {
-  int i;
-  byte *p;
+  assert( bytes % PAGESIZE == 0 );
 
-  for ( i=0 ; i < reg_next && registry[i].derived != derived ; i++ )
-    ;
-  if (i == reg_next)
-    panic_abort( "posix_alloc: pointer %p not found in registry.",
-		 (void*)derived );
-  p = registry[i].original;
-  registry[i].original = registry[i].derived = 0;
-  return p;
+  osdep_free_aligned( (void*)p, bytes );
+  data.wastage_bytes = osdep_fragmentation();
 }
 
 /* eof */
