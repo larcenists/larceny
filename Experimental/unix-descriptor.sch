@@ -9,9 +9,9 @@
 ; Nonblocking I/O requires use of the tasking system and the tasking system
 ; extensions that implement the scheduler compatible with nonblocking I/O.
 
-'(begin (require 'unix)
-        (require 'poll)
-        (require 'iosys))
+(require 'experimental/unix)
+(require 'experimental/poll)
+(require 'experimental/iosys)
 
 ; Flags are:
 ;   nonblocking -- use nonblocking input

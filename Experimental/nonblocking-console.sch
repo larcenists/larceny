@@ -2,6 +2,9 @@
 ;
 ; $Id$
 
+(require 'experimental/unix)
+(require 'experimental/unix-descriptor)
+
 (define nonblocking-console-input-port)  ; Just like CONSOLE-INPUT-PORT
 (define nonblocking-console-output-port) ; Just like CONSOLE-OUTPUT-PORT
 

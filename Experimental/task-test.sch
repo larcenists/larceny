@@ -1,27 +1,20 @@
 ; Copyright 1999 Lars T Hansen
 ;
 ; $Id$
-; 991021 / lth
 ;
 ; Test program to exhibit the nonblocking I/O system and tasking along 
 ; with sockets.
 
-; Don't change the order much here.
+; You must call begin-tasking before calling test.
 
-(load "Experimental/unix.sch")
-(load "Experimental/iosys.sch")
-(load "Experimental/poll.sch")
-(load "Experimental/unix-descriptor.sch")
-(load "Experimental/nonblocking-console.sch")
-(load "Experimental/tasking.sch")
-(load "Experimental/tasking-unix.sch")
-(load "Experimental/socket.sch")
+(require 'experimental/unix-descriptor)
+(require 'experimental/iosys)
+(require 'experimental/tasking-unix)
+(require 'experimental/socket)
 
 (define server #f)                      ; The server or #f
 (define server-trips 0)                 ; just a counter
 (define client-trips 0)                 ; just a counter
-
-; Interactively call begin-tasking first.
 
 (define (test)
   (set! server-trips 0)
