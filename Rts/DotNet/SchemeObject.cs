@@ -23,13 +23,16 @@ namespace Scheme.Rep {
         public static readonly int CompnumTag = Constants.COMP_SUBTAG >>2;
         public static readonly int BignumTag = Constants.BIG_SUBTAG >>2;
         public static readonly int FlonumTag = Constants.FLO_SUBTAG >>2;
-
     }
 
     // -------------------------------------------
     // Factory
     // -------------------------------------------
     public sealed class Factory {
+        public static readonly double PositiveInfinity = Double.PositiveInfinity;
+        public static readonly double NegativeInfinity = Double.NegativeInfinity;
+        public static readonly double Nan = Double.NaN;
+
         public static SImmediate makeBoolean(bool b) {
             return b ? SObject.True : SObject.False;
         }
