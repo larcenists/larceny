@@ -1,7 +1,7 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.5 1997/03/05 19:28:51 lth Exp lth $
+; $Id: makefile.sch,v 1.6 1997/05/15 00:42:10 lth Exp lth $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
@@ -121,6 +121,7 @@
     "reader"            ; Reader
     "env"               ; R5RS environments
     "load"              ; Loader
+    "syshooks"          ; System functions
     "go"                ; Driver
 
     ))
@@ -130,6 +131,7 @@
 (define eval-files
   '("Repl/reploop"      ; Read-eval-print loop
     "Eval/eval"         ; Simple eval procedure (interpreter)
+    "Eval/evalprim"     ; Primitives for interpreter
     "Eval/toplevel"     ; Top-level environment
     "Eval/macro-expand" ; Macro expander (for Eval)
     ))

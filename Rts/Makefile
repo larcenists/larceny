@@ -3,7 +3,7 @@
 # Rts/Makefile
 # Larceny -- the main Makefile
 #
-# $Id: Makefile,v 1.7 1997/02/27 16:44:36 lth Exp lth $
+# $Id: Makefile,v 1.8 1997/05/15 00:57:01 lth Exp lth $
 
 
 ############################################################################
@@ -44,6 +44,11 @@ SIMULATE_NEW_BARRIER=0
 STACK_UNDERFLOW_COUNTING=1
 
 
+# Set this to 0 at your own risk.
+
+NP_EXTRA_REMSET=1
+
+
 # Instruction cache flushing.
 #
 # In general, Larceny detects automatically whether cache flushing needs
@@ -60,6 +65,7 @@ STACK_UNDERFLOW_COUNTING=1
 # Currently all checking is explicit, so don't undefine this.
 
 DIVZ=-DCHECK_DIVISION_BY_ZERO
+
 
 
 ############################################################################
@@ -84,15 +90,14 @@ BUILD=Build
 # Defining DEBUG2 may or may not add a _lot_ of debugging output (old switch)
 
 CONFIG=-DSIMULATE_NEW_BARRIER=$(SIMULATE_NEW_BARRIER) \
-	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING)
+	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING) \
+	-DNP_EXTRA_REMSET=$(NP_EXTRA_REMSET)
 
-# The -g3 may allow some debuggers to deal with macros. 
-# Its use is experimental.
-DEBUGINFO=-g3
+DEBUGINFO=-g
 DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
 PROFILE=#-p
 # The -f... switches are gcc-specific.  Their use is experimental.
-OPTIMIZE=-DNDEBUG -O3 -funroll-loops -fexpensive-optimizations -frerun-cse-after-loop
+OPTIMIZE=-DNDEBUG -O3 # -funroll-loops -fexpensive-optimizations -frerun-cse-after-loop
 
 CC=gcc
 AS=as
@@ -116,11 +121,11 @@ ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
 COBJS=$(SYS)/larceny.o $(SYS)/remset.o $(SYS)/stack.o\
 	$(SYS)/cglue.o $(SYS)/heapio.o \
 	$(SYS)/stats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
-	$(SYS)/argv.o\
+	$(SYS)/argv.o $(SYS)/malloc.o \
 	$(MACH)/cache.o
 
 GSGC=$(SYS)/gc.o $(SYS)/memmgr.o \
-	$(SYS)/young-heap.o $(SYS)/old-heap.o \
+	$(SYS)/young-heap.o $(SYS)/old-heap.o $(SYS)/sc-heap.o \
 	$(SYS)/unix-alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
 	$(SYS)/barrier.o $(SYS)/np-sc-heap.o $(SYS)/static-heap.o
 

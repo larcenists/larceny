@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.6 1997/02/11 21:48:32 lth Exp lth $
+# $Id: Makefile,v 1.6 1997/02/11 21:48:32 lth Exp $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
@@ -42,7 +42,8 @@ HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
 # These exist only in this file
 MISCFILES=COPYRIGHTS Makefile nbuild larceny.1 README CHGLOG
-MISC2FILES=BUGS BUGS-0.25 PROBLEMS 
+BUGSFILES=BUGS BUGS-FIXED
+MISC2FILES=$(BUGSFILES) BUGS-0.25 PROBLEMS
 ASMFILES=$(ASM)/*.sch
 LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
@@ -51,14 +52,21 @@ TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
 TESTFILES=$(TEST)/*.sch $(TEST)/*.mal $(TEST)/README
 
-# Files for 'rtstar'
-RTSFILES=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Makefile \
+RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
-	$(HDRFILES) $(BUILD)/*.s $(UTIL)/*.sch
+	$(UTIL)/*.sch
+
+# Files for 'rtstar'
+RTSFILES=$(RTSFILES0) $(HDRFILES) $(BUILD)/*.s
+
 
 # Files for 'tar'
 ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
 	$(CHEZFILES) $(COMPFILES)
+
+# Files for 'distribution'
+DISTFILES=$(MISCFILES) $(BUGSFILES) $(RTSFILES0) $(ASMFILES) $(LIBFILES) \
+	$(AUXFILES) $(CHEZFILES) $(COMPFILES)
 
 # Files for 'bigtar'
 MOREFILES=$(RTS)/larceny larceny.heap $(RTS)/sclarceny larceny.eheap \
@@ -85,6 +93,7 @@ default:
 	@echo "  realclean  - remove everything, included generated headers"
 	@echo "  rtstar     - tar up all RTS sources"
 	@echo "  tar        - RTS and library sources"
+	@echo "  dist       - Distribution tar file"
 	@echo "  bigtar     - RTS and library sources; gsgc and scgc binaries;"
 	@echo "               gsgc and scgc heaps."
 	@echo "  hugetar    - Everything."
@@ -150,6 +159,11 @@ rtstar:
 
 tar:
 	tar cf $(TARFILE) $(ALLFILES)
+	if [ ! -b $(TARFILE) -a ! -c $(TARFILE) ]; then \
+		$(COMPRESS) $(TARFILE); fi
+
+dist:
+	tar cf $(TARFILE) $(DISTFILES)
 	if [ ! -b $(TARFILE) -a ! -c $(TARFILE) ]; then \
 		$(COMPRESS) $(TARFILE); fi
 

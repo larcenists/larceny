@@ -1,7 +1,7 @@
 /* Rts/Sys/cheney.c
  * Larceny run-time system -- copying garbage collector library.
  *
- * $Id: cheney.c,v 1.8 1997/02/27 17:33:47 lth Exp $
+ * $Id: cheney.c,v 1.10 1997/05/15 00:58:49 lth Exp lth $
  *
  * This file contains generic low-level procedures for standard copying
  * garbage collection.  There are five public procedures:
@@ -218,8 +218,6 @@
 
    NOTE!!! a tag VEC_TAG is used even when remembering procedures.
 
-   NOTE!!! T_obj_gen is actually constant throughout a scan and should
-   be precomputed.
 */
 
 #define scan_core_partial( ptr, dest, iflush, FORW, T_obj_gen ) \
@@ -252,7 +250,7 @@
           if (isptr(*ptr) && gclib_desc_g[pageof(*ptr)] < T_obj_gen) T_bit=1; \
 	  ptr++; \
 	} \
-        if (T_bit) remember_vec( tagptr( T_obj, VEC_TAG ), T_obj_gen ); \
+        if (T_bit) remember_vec( tagptr( T_obj, VEC_TAG ) ); \
 	if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */ \
       } \
     } \
@@ -264,19 +262,19 @@
       FORW; \
       if (isptr(*ptr) && gclib_desc_g[pageof(*ptr)] < T_obj_gen) T_bit=1; \
       ptr++; \
-      if (T_bit) remember_pair( tagptr( ptr-2, PAIR_TAG ), T_obj_gen ); \
+      if (T_bit) remember_pair( tagptr( ptr-2, PAIR_TAG ) ); \
     } \
   } while (0)
 
 
-#define remember_vec( w, gen ) \
- do {  *(ssbtopv[gen]++) = w; \
-       if (ssbtopv[gen] == ssblimv[gen]) { \
-         gc->compact_all_ssbs( gc ); \
+#define remember_vec( w ) \
+ do {  **ssbtop = w; *ssbtop = *ssbtop+1; \
+       if (*ssbtop == *ssblim) { \
+         gc->compact_np_ssb( gc ); \
        } \
  } while(0)
 
-#define remember_pair( w, gen ) remember_vec( w, gen )
+#define remember_pair( w ) remember_vec( w )
 
 
 
@@ -337,8 +335,8 @@ struct oflo_env {
   word *lim;
   semispace_t *tospace;
   gc_t *gc;
-  word **ssbtopv;
-  word **ssblimv;
+  word **ssbtop;
+  word **ssblim;
 };
 
 
@@ -402,6 +400,7 @@ gclib_copy_younger_into3( gc_t *gc, semispace_t *tospace, np_operation_t op )
 
 /* Copy all objects from fromspace and from any generation younger than
  * fromspace into tospace (growing twospace if necessary).
+ * FIXME: what is 'fromspace' (that parameter went away :-)
  */
 
 void
@@ -468,7 +467,7 @@ oldspace_copy( gc_t *gc, semispace_t *tospace,
   }
 
   e.gno = effective_generation;
-  wb_remset_ptrs( &e.ssbtopv, &e.ssblimv );
+  gc->np_remset_ptrs( gc, &e.ssbtop, &e.ssblim );
 
   if (op == ROOTS_ONLY || op == ROOTS_AND_SCAN) {
     gc->enumerate_roots( gc, root_scanner_oflo, (void*)&e );
@@ -584,8 +583,8 @@ scan_oflo1( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
   semispace_t *tospace = e->tospace;
   word *dest = e->dest;
   word *copylim = e->lim;
-  word **ssbtopv = e->ssbtopv;
-  word **ssblimv = e->ssblimv;
+  word **ssbtop = e->ssbtop;
+  word **ssblim = e->ssblim;
   gc_t *gc = e->gc;
 
   while (scanptr != dest) {
@@ -614,12 +613,12 @@ scan_oflo2( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
   semispace_t *tospace = e->tospace;
   word *dest = e->dest;
   word *copylim = e->lim;
-  word **ssbtopv = e->ssbtopv;
-  word **ssblimv = e->ssblimv;
+  word **ssbtop = e->ssbtop;
+  word **ssblim = e->ssblim;
   gc_t *gc = e->gc;
   unsigned T_obj_gen = gclib_desc_g[pageof(scanptr)];
 
-  wb_sync_ssbs();     /* HACK! */
+/*  wb_sync_ssbs();     /* HACK! */
 
   while (scanptr != dest) {
     while (scanptr != dest && scanptr < scanlim) {
@@ -635,7 +634,7 @@ scan_oflo2( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
     }
   }
 
-  wb_sync_remsets();  /* HACK! */
+/*  wb_sync_remsets();  /* HACK! */
 
   e->dest = dest;
   e->lim = copylim;

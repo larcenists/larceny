@@ -1,7 +1,7 @@
 ; Lib/stdio.sch
 ; Larceny -- standard Scheme I/O library
 ;
-; $Id: stdio.sch,v 1.2 1997/03/05 19:28:51 lth Exp lth $
+; $Id: stdio.sch,v 1.3 1997/05/15 00:42:10 lth Exp lth $
 ;
 ; Procedures we could add:
 ;   file-port?
@@ -28,7 +28,8 @@
 	 (let ((old *stdin*)
 	       (p   (car rest)))
 	   (if (input-port? p)
-	       (set! *stdin* p)
+	       (begin (set! *stdin* p)
+		      old)
 	       (begin (error "current-input-port: not an input port: " p)
 		      #t))))
 	(else
@@ -41,7 +42,8 @@
 	 (let ((old *stdout*)
 	       (p   (car rest)))
 	   (if (output-port? p)
-	       (set! *stdout* p)
+	       (begin (set! *stdout* p)
+		      old)
 	       (begin (error "current-output-port: not an output port: " p)
 		      #t))))
 	(else
@@ -176,8 +178,6 @@
 
 (define (close-open-files)
   (file-io/close-open-files))
-
-(define close-all-open-files close-open-files)   ; MIT Scheme's name for it.
 
 
 ; Useful extensions dealing with the file system.

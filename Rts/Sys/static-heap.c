@@ -1,7 +1,7 @@
 /* Rts/Sys/static-heap.c
  * Larceny run-time system -- static heap.
  *
- * $Id: static-heap.c,v 1.2 1997/02/27 16:40:26 lth Exp $
+ * $Id: static-heap.c,v 1.3 1997/04/30 16:01:41 lth Exp $
  */
 
 #define GC_INTERNAL

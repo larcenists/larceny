@@ -1,7 +1,7 @@
 ; Lib/conio.sch
 ; Larceny -- "console" I/O ports for Unix-like streams.
 ;
-; $Id: conio.sch,v 1.2 1997/03/05 19:28:51 lth Exp lth $
+; $Id: conio.sch,v 1.2 1997/03/05 19:28:51 lth Exp $
 ;
 ; The code in this file relies on the code in fileio.sch -- these console 
 ; ports are only slight variations on file ports.

@@ -1,0 +1,167 @@
+; -*- text -*-
+; ./BUGS
+; $Id: BUGS,v 1.4 1997/05/15 00:40:15 lth Exp lth $
+
+
+			 KNOWN BUGS IN LARCENY
+			 ---------------------
+
+Bugs are listed in the order recorded.  Fixed bugs have been moved to
+the file BUGS-FIXED.  An entry consists of an entry number, the version
+of Larceny in which the bug was discovered, the date it was recorded, a
+description of the problem, and any supporting documentation,
+information, test cases, and so on.
+
+
+002  (v0.26)
+
+     The exit status from larceny is some random number.
+
+003  (v0.26)
+
+     Singlestepping does not seem to work any longer.
+
+004  (v0.27e)
+
+     The following expression loops forever:
+
+       (rationalize (inexact->exact 0.1) 1/10000000000000000000000000000)
+
+     It hangs for more 0s as well.  According to Chez, the result should be
+     1801439850915747/18014398509157469.
+
+005  (v0.27e)
+
+     While the system can now grow the heap to any size (by growing the
+     descriptor tables), an attempt to start the system with more than 32MB
+     or so of initial heap will result in a segmentation fault.
+
+     The reason is that the size of the descriptor tables during startup
+     is limited to 32 MB.  A larger size will result in an attempt to grow
+     them, which results in a barrier function being called to install the
+     new tables.  But at this point the barrier has not yet been initialized,
+     so garbage is accessed.
+
+
+010  (v0.28)
+
+     Error in vector-ref
+
+     Symptom:
+	> (vector-ref (vector-ref (sys$get-resource-usage) 11) 3)
+	#<WEIRD OBJECT>
+
+     Another:
+	> (vector-ref '#(1 2 3) 3)
+	quote
+
+     Most likely the 'blu' below should be 'bleu' (code from 
+     Sparcasm/gen-prim.sch).
+
+	(define (emit-vector-like-ref! as r fault tag)
+	  (let ((r1 (force-hwreg! as r $r.argreg2)))
+	    (if (not (unsafe-code))
+		(begin
+		  (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
+		  (emit! as `(,$i.bne.a ,fault))
+		  (emit! as `(,$i.slot))
+		  (emit! as `(,$i.ldi ,$r.result (- ,tag) ,$r.tmp2))
+		  (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
+		  (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
+		  (emit! as `(,$i.blu ,fault))))
+	    (emit! as `(,$i.addi ,$r.result ,(- 4 tag) ,$r.tmp0))
+	    (emit! as `(,$i.ldr ,$r.tmp0 ,r1 ,$r.result))))
+
+     Note: fix this in the _new_ assembler.
+
+011  (v0.28)
+
+     Error reporting for vector-ref is broken:
+
+	> (vector-ref '#(1 2 3) 4)
+	Error: Exception-handler: confused about vector-ref: #(1 2 3) 2
+
+     This is a known problem: the value '2' is not the right value;
+     the generated code does not pass the right value to the fault handler.
+
+     Note: fix this in the _new_ assembler.
+
+012  (v0.28)  970507
+
+     Remembered-set size information from the command line is disregarded
+     when creating the remembered sets in the garbage collector.
+
+     See file Rts/Sys/memmgr.c
+
+013  (v0.28)  970507
+
+     Error reporting for bytevector-like-ref is broken:
+
+	(bytevector-like-ref "123" 4)
+	Error: Exception-handler: confused about bytevector-like-ref: 123 2
+
+     See bug 011 (same problem).
+
+     Note: fix this in the _new_ assembler.
+
+014  (v0.28)  970507
+
+     Error reporting for bytevector-ref is broken:
+
+	(bytevector-ref (make-bytevector 3) 4)
+	Error: Exception-handler: confused about bytevector-ref: 
+		#<BYTEVECTOR> 2
+
+     See bugs 011/013.
+
+     Note: fix this in the _new_ assembler.
+
+015  (v0.28)  970507
+
+     Error reporting for bytevector-set! is broken:
+
+	(bytevector-set! (make-bytevector 3) 4 27)
+	Error: bytevector-set!: 3 is not a valid index into bytevector
+
+     Note: fix this in the _new_ assembler.
+
+016  (v0.28)  970507
+
+     Error reporting for vector-set! is broken:
+
+	(vector-set! (vector 1 2 3) 4 0)
+	Error: vector-set!: 3 is not a valid index into vector
+
+     Note: fix this in the _new_ assembler.
+
+017  (v0.28)  970507
+
+     Must restore console i/o on error.  Consider:
+
+        (with-output-to-file "/dev/null" (lambda () (error)))
+
+     After this, the repl accepts and executes commands (try (exit)),
+     but output is still to /dev/null.
+
+018  (v0.28)  970507
+
+     Expt only takes exact integer powers:
+
+	(expt 2 1.5)
+	Error: expt: don't yet know how to deal with21.5
+
+019  (v0.28)  970507
+
+     In the generational collector, it is only possible to allocate objects
+     that fit in the youngest generation, and that generation is of a
+     fixed size.
+
+     This should be fixed by allowing objects to be allocated "on the side"
+     of the youngest generation; the current barrier system should be able
+     to deal with this.
+
+
+NEXT ENTRY: 019
+
+
+; eof

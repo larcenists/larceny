@@ -1,11 +1,40 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.4 1997/02/11 20:48:09 lth Exp lth $
+; $Id: CHGLOG,v 1.6 1997/05/15 00:40:15 lth Exp lth $
 
 
 ----------------------------------------------------------------------
-v0.27  Not yet released
+v0.28 not yet released
 
+MAJOR CHANGES
+* [Rts/Sys/sc-heap.c] Stop-and-copy garbage collector (w/o static area).
+
+RTS CHANGES
+* [Rts/Sys/{memmgr.h;memmgr.c;young-heap.c;gc.c}] There are now methods
+  on gc_t and young_heap_t called stack_overflow(): the latter is invoked
+  by the former in response to a stack overflow.  This is more well-
+  behaved than the previous implementation, which just called the collector
+  early on without letting the heap handle the overflow.
+* [Rts/Sys/*] Numerous bug fixes in and tuning of garbage collectors.
+
+EVALUATOR CHANGES
+* [Eval/eval.sch;evalprim.sch] Moved eval primitives out of eval.sch
+  and into the new file evalprim.sch, to remove clutter.
+
+BUG FIXES
+* [001] As a consequence of fixing [006], (inexact->exact 0.0) now works.
+* [006] [Rts/Sparc/generic.s] generic_integerp now works for 0.0 and -0.0.
+* [007] [Lib/num2str.sch] -0.0 now prints as -0.0.
+* [Eval/eval.sch] Fixed a bug in the new evaluator where uses of eq? and 
+  eqv? caused errors to be signalled.
+* [008] [Eval/eval.sch] An error in the evaluation of set! was fixed.
+
+
+----------------------------------------------------------------------
+v0.27e Released March 20, 1997 by lth
+
+MAJOR CHANGES
+* [Rts/Sys/np-sc-heap.c] Non-predictive garbage collector.
 
 FUNCTIONALITY CHANGES
 
@@ -17,7 +46,7 @@ Development environment
 
 Evaluator
 * [Eval/macro-expand.sch] (COND ((E) => E) ...) expansion is implemented.
-
+* [Eval/eval.sch] Completely rewritten -- much, much faster.
 
 BUG FIXES
 
@@ -50,7 +79,6 @@ RTS
 Evaluator
 * [Eval/eval.sch; Eval/toplevel.sch] 'Eval' now calls 'macro-expand' 
   rather than 'rewrite'.
-
 
 ----------------------------------------------------------------------
 v0.26  Created February 11, 1997 by lth

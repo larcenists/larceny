@@ -1,7 +1,7 @@
 /* Rts/Sys/cglue.c
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
- * $Id: cglue.c,v 1.7 1997/02/11 19:48:21 lth Exp $
+ * $Id: cglue.c,v 1.9 1997/05/15 00:58:49 lth Exp lth $
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are
@@ -17,9 +17,9 @@
 
 
 /* C_garbage_collect: perform a garbage collection */
-void C_garbage_collect( word type, word request_bytes )
+void C_garbage_collect( word type, word request_words )
 {
-  garbage_collect3( 0, 0, nativeint( request_bytes ) );
+  garbage_collect3( 0, 0, nativeint( request_words )*sizeof( word ) );
 }
 
 /* C_stack_overflow: overflow handling depends on stack */
@@ -52,6 +52,8 @@ void C_restore_frame( void )
 
 /* C_wb_compact: some SSB filled up, and must be compacted. */
 /* FIXME: this is a stopgap implementation */
+/* FIXME: when the generation is no longer ignored, watch out for the
+   magic generation resulting from the magic barrier */
 void C_wb_compact( int generation )
 {
   debugmsg( "[debug] wb_compact." );

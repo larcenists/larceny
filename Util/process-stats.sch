@@ -1,16 +1,20 @@
 ; Util/process-stats.sch
 ; Accessor procedures for the statistics dump output format
 ;
-; $Id: process-stats.sch,v 1.2 1997/02/11 21:53:13 lth Exp lth $
+; $Id: process-stats.sch,v 1.3 1997/05/15 00:56:19 lth Exp lth $
 ;
-; In addition to the accessor procedures, a sample procedure called 
-; process-dump is defined.  This procedure reads the dump and produces
-; human-readable, annotated output.
+; This file has two sections.
+; 
+; The first section defines accessors and predicates for all the entries
+; in a stats-dump vector, and a generic processing procedure called
+; process-stats that is parameterized by a procedure that accepts
+; a single record.
+;
+; The second section is a bunch of stats-dump processors built on the
+; procedures in the first section.
 
-(define (list-set! l n v)
-  (set-car! (list-tail l n) v))
 
-; Accessors
+; Section 1: Accessors
 
 (define (words-allocated x) (bignum (list-ref x 0) (list-ref x 1)))
 (define (words-reclaimed x) (bignum (list-ref x 2) (list-ref x 3)))
@@ -32,32 +36,43 @@
 (define (rem-list x)        (list-ref x 11))
 (define (remsets x)         (length (rem-list x)))
 
-(define (pool-words-allocated x rem) (list-ref (list-ref (rem-list x) rem) 0))
-(define (pool-words-used x rem) (list-ref (list-ref (rem-list x) rem) 1))
+; If rem is #f, return np-remset, otherwise return conventional remset #rem.
+
+(define (remset x rem)
+  (if (not rem)
+      (np-remset x)
+      (list-ref (rem-list x) rem)))
+
+(define (pool-words-allocated x rem)
+  (list-ref (remset x rem) 0))
+
+(define (pool-words-used x rem)
+  (list-ref (remset x rem) 1))
+
 (define (hash-entries-allocated x rem)
-  (list-ref (list-ref (rem-list x) rem) 2))
+  (list-ref (remset x rem) 2))
 
 (define (hash-entries-used x rem)
-  (list-ref (list-ref (rem-list x) rem) 3))
+  (list-ref (remset x rem) 3))
 
 (define (hash-entries-recorded x rem)
-  (let ((g (list-ref (rem-list x) rem)))
+  (let ((g (remset x rem)))
     (bignum (list-ref g 4) (list-ref g 5))))
 
 (define (hash-entries-removed x rem)
-  (let ((g (list-ref (rem-list x) rem)))
+  (let ((g (remset x rem)))
     (bignum (list-ref g 6) (list-ref g 7))))
 
 (define (hash-entries-scanned x rem)
-  (let ((g (list-ref (rem-list x) rem)))
+  (let ((g (remset x rem)))
     (bignum (list-ref g 8) (list-ref g 9))))
   
 (define (old-words-scanned x rem)
-  (let ((g (list-ref (rem-list x) rem)))
+  (let ((g (remset x rem)))
     (bignum (list-ref g 10) (list-ref g 11))))
 
 (define (ssb-transactions-recorded x rem)
-  (let ((g (list-ref (rem-list x) rem)))
+  (let ((g (remset x rem)))
     (bignum (list-ref g 12) (list-ref g 13))))
 
 (define (frames-flushed x) (bignum (list-ref x 12) (list-ref x 13)))
@@ -68,18 +83,44 @@
 (define (words-in-remsets x) (list-ref x 20))
 (define (words-in-rts x) (list-ref x 21))
 
-; simulated write barrier ("swb") numbers.
+(define (extra-assoc-list x) (list-tail x 22))
 
-(define (has-swb-data? x) (not (null? (list-tail x 22))))
 
-(define (swb-array-assignments x) (list-ref x 22))
-(define (swb-lhs-young-or-remembered x) (list-ref x 23))
-(define (swb-rhs-constant x) (list-ref x 24))
-(define (swb-cross-gen-check x) (list-ref x 25))
-(define (swb-vector-transactions x) (list-ref x 26))
+; Simulated write barrier ("swb") entries.
 
-; Produce human-readable output.  Optionally take the procedure to
-; apply to each record.
+(define (has-swb-data? x) 
+  (let ((probe (assq 'swb (extra-assoc-list x))))
+    (if probe
+	#t
+	#f)))
+
+(define (swb-data x)
+  (cdr (assq 'swb (extra-assoc-list x))))
+
+(define (swb-array-assignments x) (list-ref (swb-data x) 0))
+(define (swb-lhs-young-or-remembered x) (list-ref (swb-data x) 1))
+(define (swb-rhs-constant x) (list-ref (swb-data x) 2))
+(define (swb-cross-gen-check x) (list-ref (swb-data x) 3))
+(define (swb-vector-transactions x) (list-ref (swb-data x) 4))
+
+
+; Non-predictive remembered set ("np-remset") entries.
+; Use the same accessors as above with a remset index of '#f'.
+
+(define (has-np-remset-data? x)
+  (let ((probe (assq 'np-remset (extra-assoc-list x))))
+    (if probe
+	#t
+	#f)))
+
+(define (np-remset x)
+  (cdr (assq 'np-remset (extra-assoc-list x))))
+
+
+; Generic processing function.
+;
+; Optionally, it takes a procedure to be applied to each record.
+; The default behavior is to print each record in human-readable form.
 
 (define (process-stats filename . rest)
   (let ((process-record (if (null? rest)
@@ -92,47 +133,70 @@
 	      (begin (process-record x)
 		     (loop (read p)))))))))
 
+
 (define (readify-statsdump-record x)
-
-  (define (print . rest)
-    (for-each display rest)
-    (newline))
-
   (print "Words allocated: " (words-allocated x))
   (print "Words reclaimed: " (words-reclaimed x))
   (print "Words copied: " (words-copied x))
   (print "GC time: " (overall-gc-time x))
   (print "Words live: " (overall-words-live x))
   (print "Last gc: " (car (last-gc x)) " " (cdr (last-gc x)))
+
   (print "Generations:")
   (do ((i 0 (+ i 1)))
       ((= i (generations x)) #t)
     (print "  Generation " i)
-    (print "   Collections: " (collections x i))
-    (print "   Promotions: " (promotions x i))
-    (print "   GC time: " (gc-time x i))
-    (print "   Words live: " (words-live x i)))
+    (print-gen-data x i))
+
   (print "Remembered sets: ")
   (do ((i 0 (+ i 1)))
       ((= i (remsets x)) #t)
     (print "  Remset " i)
-    (print "   Words allocated to pool: "
-	   (pool-words-allocated x i))
-    (print "   Words used in pool: " (pool-words-used x i))
-    (print "   Hash entries allocated: " (hash-entries-allocated x i))
-    (print "   Hash entries used: " (hash-entries-used x i))
-    (print "   Hash entries recorded: " (hash-entries-recorded x i))
-    (print "   Hash entries removed: " (hash-entries-removed x i))
-    (print "   Hash entries scanned: " (hash-entries-scanned x i))
-    (print "   Words of oldspace scanned: " (old-words-scanned x i))
-    (print "   SSB transactions recorded: " (ssb-transactions-recorded x i)))
-  (print "Frames flushed: " (frames-flushed x))
-  (print "Words flushed: " (words-flushed x))
-  (print "Frames restored: " (frames-restored x))
-  (print "Stacks created: " (stacks-created x))
+    (print-remset-data x i))
+
+  (print-stack-data x)
+
   (print "Words allocated to heaps: " (words-in-heaps x))
   (print "Words allocated to remsets: " (words-in-remsets x))
   (print "Words allocated to RTS (other): " (words-in-rts x))
+
+  (print-swb-data x)
+
+  (if (has-np-remset-data? x)
+      (begin 
+	(print "  Non-predictive remembered set")
+	(print-remset-data x #f)))
+
+  (print "------------------------------------------------------------")
+  (print))
+
+; Fixme: should print indication of non-predictive generations.
+
+(define (print-gen-data x i)
+  (print "   Collections: " (collections x i))
+  (print "   Promotions: " (promotions x i))
+  (print "   GC time: " (gc-time x i))
+  (print "   Words live: " (words-live x i)))
+
+(define (print-remset-data x i)
+  (print "   Words allocated to pool: "
+	 (pool-words-allocated x i))
+  (print "   Words used in pool: " (pool-words-used x i))
+  (print "   Hash entries allocated: " (hash-entries-allocated x i))
+  (print "   Hash entries used: " (hash-entries-used x i))
+  (print "   Hash entries recorded: " (hash-entries-recorded x i))
+  (print "   Hash entries removed: " (hash-entries-removed x i))
+  (print "   Hash entries scanned: " (hash-entries-scanned x i))
+  (print "   Words of oldspace scanned: " (old-words-scanned x i))
+  (print "   SSB transactions recorded: " (ssb-transactions-recorded x i)))
+
+(define (print-stack-data x)
+  (print "Frames flushed: " (frames-flushed x))
+  (print "Words flushed: " (words-flushed x))
+  (print "Frames restored: " (frames-restored x))
+  (print "Stacks created: " (stacks-created x)))
+
+(define (print-swb-data x)
   (if (has-swb-data? x)
       (begin
 	(print "Simulated write barrier: ")
@@ -143,10 +207,10 @@
 	(print "  Old->young pointer was not created: " 
 	       (swb-cross-gen-check x))
 	(print "  Vector assignment transactions created: " 
-	       (swb-vector-transactions x))))
-  (print "------------------------------------------------------------")
-  (print))
+	       (swb-vector-transactions x)))))
 
+
+; Section 2: Processing functions
 
 ; Prints a profile of number of transactions recorded and the number of 
 ; hash table entries that resulted (excluding the simulated barrier).
@@ -173,7 +237,9 @@
 	  (set! previous-t current-t)
 	  (set! previous-h current-h))))))
 
-; This is not general; it works with a system that has an ephemeral
+; Remembered-set profile #1
+;
+; NOTE! This is not general; it works with a system that has an ephemeral
 ; heap and a 2-generational non-predictive heap.
 
 (define (remset-profile filename)
@@ -209,9 +275,87 @@ for that collection.
 	  (set! previous-w current-w)
 	  (set! previous-o current-o))))))
 
+
+; Remembered-set profile #2
+;
+; This is pretty general.
+
+(define (remset-profile2 filename)
+  (process-stats 
+   filename
+   (let ((prev #f)
+	 (enow  #f)
+	 (wnow  #f))
+     (lambda (r)
+       (if (not prev)
+	   (begin (set! prev r)
+		  (set! wnow (make-vector (remsets r)))
+		  (set! enow (make-vector (remsets r)))))
+       (do ((i 0 (+ i 1)))
+	   ((= i (remsets r)))
+	 (vector-set! enow i (- (hash-entries-scanned r i)
+				(hash-entries-scanned prev i)))
+	 (vector-set! wnow i (- (old-words-scanned r i)
+				(old-words-scanned prev i))))
+       (set! prev r)
+       (nprint "GC: " (last-gc r))
+       (do ((i 0 (+ i 1)))
+	   ((= i (remsets r)))
+	 (nprint " " ;" ("
+		 (field (vector-ref enow i) 5)
+		 ;";"
+		 ;(vector-ref wnow i)
+		 ;")"
+		 ))
+       (newline)))))
+
+
+; Gc profile:  for each record, print gc type and time spent in each
+; collector for that gc.  Try it -- it's a pretty picture.
+
+(define (gc-profile filename)
+  (let ((prev #f))
+    (process-stats
+     filename
+     (lambda (r)
+       (if (not prev)
+	   (set! prev r))
+       (nprint "GC: " (last-gc r))
+       (do ((i 0 (+ i 1)))
+	   ((= i (generations r)))
+	 (nprint " " (field (- (gc-time r i) (gc-time prev i)) 7)))
+       (set! prev r)
+       (newline)))
+    (nprint "Total time       ")
+    (do ((i 0 (+ i 1)))
+	((= i (generations prev)))
+      (nprint " " (field (gc-time prev i) 7)))
+    (newline)))
+
+
+(define (ssb-profile filename)
+  (let ((prev #f))
+    (process-stats
+     filename
+     (lambda (r)
+       (if (not prev)
+	   (set! prev r)
+	   (begin
+	     (nprint "GC: " (last-gc r))
+	     (do ((i 0 (+ i 1)))
+		 ((= i (remsets r)))
+	       (nprint " " (field (- (ssb-transactions-recorded r i)
+				     (ssb-transactions-recorded prev i)) 5)
+		       "," (field (- (hash-entries-scanned r i)
+				     (hash-entries-scanned prev i))
+				  5
+				  'right)))
+	     (newline)
+	     (set! prev r)))))))
+
 (define (swb-profile filename)
   (process-stats filename (lambda (r) 
-			    (display (list-tail r 22))
+			    (display (swb-data r))
 			    (newline))))
 
 (define (filter-times infile outfile)
@@ -231,11 +375,40 @@ for that collection.
 		       (loop (read in))))))))))
 
 
-; Internal
+; ---------------------------------------------------------------------------
+
+; Utility functions
 
 (define bignum
   (let ((two^29 (expt 2 29)))
     (lambda (x y)
       (+ (* x two^29) y))))
+
+(define (list-set! l n v)
+  (set-car! (list-tail l n) v))
+
+; Print a bunch of data and a newline.
+
+(define (print . rest)
+  (for-each display rest)
+  (newline))
+
+; Print a bunch of data but no newline.
+
+(define (nprint . rest)
+  (for-each display rest))
+
+; Format a number n in a field of width k, left-justified unless the
+; optional symbol argument 'right is also given, in which case it 
+; is right-justified.
+
+(define (field n k . attr)
+  (let loop ((s (number->string n)))
+    (if (< (string-length s) k)
+	(if (memq 'right attr)
+	    (loop (string-append s " "))
+	    (loop (string-append " " s)))
+	s)))
+	
 
 ; eof

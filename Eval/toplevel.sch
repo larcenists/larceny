@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.1 1997/03/20 16:44:10 lth Exp lth $
+; $Id: toplevel.sch,v 1.2 1997/05/15 00:50:19 lth Exp lth $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -321,10 +321,12 @@
   (extend-toplevel-env! 'flush-output-port flush-output-port)
   (extend-toplevel-env! 'eof-object eof-object)
   (extend-toplevel-env! 'delete-file delete-file)
-  (extend-toplevel-env! 'reset-iosystem reset-iosystem)
   (extend-toplevel-env! 'rename-file rename-file)
   (extend-toplevel-env! 'file-exists? file-exists?)
   (extend-toplevel-env! 'file-modification-time file-modification-time)
+  (extend-toplevel-env! 'close-open-files close-open-files)
+  (extend-toplevel-env! 'with-input-from-port with-input-from-port)
+  (extend-toplevel-env! 'with-output-to-port with-output-to-port)
 
   ;; general
 
@@ -390,17 +392,16 @@
   (extend-toplevel-env! '%append append)
   (extend-toplevel-env! '%make-promise %make-promise)
 
-  ;; system performance
+  ;; system performance and interface
 
   (extend-toplevel-env! 'run-with-stats run-with-stats)
   (extend-toplevel-env! 'run-benchmark run-benchmark)
   (extend-toplevel-env! 'display-memstats display-memstats) ; mostly obsolete
   (extend-toplevel-env! 'collect collect)
   (extend-toplevel-env! 'memstats memstats)
-  (extend-toplevel-env! 'sys$tracectl sys$tracectl)
-  (extend-toplevel-env! 'sys$trace sys$trace)
   (extend-toplevel-env! 'stats-dump-on stats-dump-on)
   (extend-toplevel-env! 'stats-dump-off stats-dump-off)
+  (extend-toplevel-env! 'system-function system-function)
 
   ;; environment interface
 

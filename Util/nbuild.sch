@@ -1,7 +1,7 @@
 ; Util/nbuild.sch
 ; Loader for Larceny development system; portable!
 ;
-; $Id: nbuild.sch,v 1.3 1997/02/11 21:53:13 lth Exp lth $
+; $Id: nbuild.sch,v 1.3 1997/02/11 21:53:13 lth Exp $
 ;
 ; This file assumes that the following variables are defined:
 ;

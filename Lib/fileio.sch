@@ -1,7 +1,7 @@
 ; Lib/fileio.sch
 ; Larceny -- file I/O
 ;
-; $Id: fileio.sch,v 1.2 1997/03/05 19:28:51 lth Exp lth $
+; $Id: fileio.sch,v 1.2 1997/03/05 19:28:51 lth Exp $
 
 (define *file-io/files* '())
 

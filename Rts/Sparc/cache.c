@@ -1,7 +1,7 @@
 /* Larceny RTS -- cache management for the SPARC
  *
  * lth@cs.uoregon.edu / August 24, 1995
- * $Id: cache.c,v 1.1 1997/01/21 20:03:54 lth Exp lth $
+ * $Id: cache.c,v 1.1 1997/01/21 20:03:54 lth Exp $
  */
 
 #include "larceny.h"

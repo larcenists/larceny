@@ -1,7 +1,7 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.5 1997/03/02 17:26:15 lth Exp $
+; $Id: unix.sch,v 1.6 1997/05/15 00:42:10 lth Exp lth $
 
 ; Various UNIX I/O parameters. The values are taken from header files
 ; for SunOS 4.1.1; at some point we need to find a scheme for generating
@@ -104,7 +104,8 @@
 
 (define (unix:stats-dump-on filename)
   (if (string? filename)
-      (syscall syscall:stats-dump-on filename)))
+      (syscall syscall:stats-dump-on filename)
+      -1))
 
 (define (unix:stats-dump-off)
   (syscall syscall:stats-dump-off))
@@ -250,8 +251,15 @@
 
 ; GC statistics dumping
 
-(define stats-dump-on unix:stats-dump-on)
-(define stats-dump-off unix:stats-dump-off)
+(define (stats-dump-on fn)
+  (if (< (unix:stats-dump-on fn) 0)
+      (error "stats-dump-on: I/O error."))
+  (unspecified))
+
+(define (stats-dump-off)
+  (if (< (unix:stats-dump-off) 0)
+      (error "stats-dump-off: I/O error."))
+  (unspecified))
 
 ; Dump a heap.
 

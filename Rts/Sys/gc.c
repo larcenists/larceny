@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.c
  * Larceny run-time system -- RTS/GC glue code for 0.26.alpha
  * 
- * $Id: gc.c,v 1.14 1997/02/27 16:40:26 lth Exp $
+ * $Id: gc.c,v 1.15 1997/04/30 16:01:41 lth Exp $
  *
  * The code in this file presents an interface to the new GC that looks
  * mostly like the interface to the old GC.  The purpose of the deception
@@ -18,19 +18,9 @@
 static gc_t *gc;
 static int  generations;
 
-int allocate_heap( unsigned esize, unsigned ewatermark,
-		   unsigned ssize,
-		   unsigned rhash, unsigned ssb,
-		   unsigned old_generations,
-		   old_param_t *old_info,
-		   int np_gc, unsigned np_steps, unsigned np_stepsize 
-		  )
+int allocate_heap( gc_param_t *params )
 {
-  gc = create_gc( esize, ewatermark, ssize, rhash, ssb, old_generations,
-		  old_info, 
-		  np_gc, np_steps, np_stepsize,
-		  globals,
-		  &generations );
+  gc = create_gc( params, &generations );
   gc->initialize( gc );
   return 1;
 }
@@ -86,20 +76,11 @@ void garbage_collect3( unsigned gen, unsigned type, unsigned request_bytes )
   }
 }
 
-word creg_get( void ) { return gc->creg_get( gc ); }
-void creg_set( word c ) { gc->creg_set( gc, c ); }
+word creg_get( void )        { return gc->creg_get( gc ); }
+void creg_set( word c )      { gc->creg_set( gc, c ); }
 void stack_underflow( void ) { gc->stack_underflow( gc ); }
-
-int compact_ssb( void )
-{
-  return gc->compact_all_ssbs( gc ); 
-}
-
-void stack_overflow( void ) 
-{
-  /* FIXME: this should really be made more abstract! */
-  garbage_collect3( 0, 0, 64 );
-}
+void stack_overflow( void )  { gc->stack_overflow( gc ); }
+int  compact_ssb( void )     { return gc->compact_all_ssbs( gc ); }
 
 void load_heap( void )
 {

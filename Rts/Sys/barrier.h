@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.h
  * Larceny run-time system -- write barrier interface.
  *
- * $Id: barrier.h,v 1.3 1997/02/24 01:01:34 lth Exp $
+ * $Id: barrier.h,v 1.5 1997/05/15 00:58:49 lth Exp lth $
  *
  * See Rts/Sys/barrier.c and Rts/Sparc/barrier.s for more information.
  */
@@ -16,14 +16,24 @@ typedef struct remset remset_t;
 typedef struct remset_stats remset_stats_t;
 #endif
 
-/* Initialize the write barrier */
+/* Initialize the write barrier for a generational system. */
 
-void wb_setup( remset_t **remsets,  /* one remset per generation */
-	       unsigned *genv,      /* map from page to generation */
+void wb_setup( unsigned *genv,      /* map from page to generation */
 	       unsigned pagebase,   /* fixed: address of lowest page */
 	       int generations,     /* fixed: number of generations */
-	       word *globals );     /* fixed: globals vector */
+	       word *globals,       /* fixed: globals vector */
+	       word **ssbtopv,      /* fixed: SSB top pointers */
+	       word **ssblimv,      /* fixed: SSB lim pointers */
+	       int  np_young_gen,
+	       int  np_ssbidx
+	      );
 
+
+/* Initialize the write barrier for a non-generational system 
+ * (also no static area.)
+ */
+
+void wb_setup0( void );
 
 /* If the descriptor tables change, notify the barrier */
 
@@ -54,7 +64,7 @@ void wb_compact( int gen );
 void wb_remset_ptrs( word ***top, word ***lim );
 
 
-/* Disable the write barrier millicode code. */
+/* Disable the write barrier millicode code. (Rts/Sparc/barrier.s) */
 
 void wb_disable( void );
 

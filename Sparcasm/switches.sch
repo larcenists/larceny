@@ -1,7 +1,7 @@
 ; Larceny -- Switches for the Sparc assembler
 ;
 ; lth@cs.uoregon.edu / August 25, 1995
-; $Id$
+; $Id: switches.sch,v 1.1 1997/05/15 00:54:42 lth Exp lth $
 ;
 ; FIXME: these switches need to be cleaned up. They should all be procedures
 ; which take no args to return the setting and take one boolean arg to

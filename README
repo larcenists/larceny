@@ -1,100 +1,28 @@
 % -*- text -*- 
-% $Id: README,v 1.1 1997/02/11 20:37:35 lth Exp lth $
+% $Id: README,v 1.2 1997/05/15 00:40:15 lth Exp lth $
 
 
-		  RELEASE NOTES and RUDIMENTARY MANUAL
-			 Larceny version 0.26
+		   Larceny version 0.28 release notes
 
 
 
 INSTALLING AND BUILDING LARCENY
 -------------------------------
 
-1. Create a directory for larceny to live in, below it's called 'LARCENY'.
-
-2. Move larceny-0.26.tar.Z into LARCENY
-
-3. Uncompress the distribution:
-	zcat larceny-0.26.tar.Z | tar xvf -
-
-4. Initialize the build directory. In LARCENY, execute
-	make setup
-
-5. Create the run-time system. First you should check Rts/Makefile to
-   make sure that the options are right for your system; select Solaris
-   or SunOS support at a minimum.  There are other switches you should
-   also look at.  Then, in the directory LARCENY:
-	make larceny
-
-6. Now create the basic heap image. You do this with the 'nbuild' command
-   in the LARCENY directory:
-	nbuild
-   This script loads Chez Scheme and the entire development environment.
-   To create the heap image, say
-	(make-larceny-heap)
-   This usually takes a while, and if your machine is low on memory it
-   takes a _very_ long while.  It creates the file 'larceny.heap'.
-
-7. To run larceny,
-	larceny larceny.heap
-
-8. (NOT AVAILABLE IN 0.26)
-   To create the stop-and-copy system, say 'make sclarceny', 
-   and (make-larceny-eheap).  The executable is called sclarceny and
-   the heap image is called 'larceny.eheap'.
-   (By convention, Sparc object files that do not use write barrier
-   checks at assignments have extension .elop, and the heap images
-   have extension .eheap.  These conventions are assumed by the
-   compilation system.)
-
-9. Also see the online manual at http://www.ccs.neu.edu/home/lth/larceny.
-
-
-CACHE FLUSH ISSUES
-------------------
-
-Some implementations of the Sparc architecture do not implement the
-cache flush instruction in hardware.  Larceny detects whether cache
-flushing is necessary on your machine.  
-
-You can also control this explicitly with a switch in Rts/Makefile.  Do
-not override the automatic detection lightly!  It has been observed that
-forcing cache flushes on some systems that do not have split caches,
-cause run times to increase noticeably in programs that allocate a lot
-(because cache flushing is performed during garbage collection).  Run
-times increase both in the user and system code.  For example, running
-on one particular machine with a non-hw or specialized flush
-instruction, the basic LL1 benchmark runs in 25.3+4.0 with cache
-flushing on and in 22.0+0.0 with cache flushing turned off (numbers for
-illustration only).
-
-The systems where this has so far been observed are
-
-- Sun 4/600 (Sparc-2 multiprocessor, 4 CPUs) SunOS 4.1.3_U1
-
-  I am surprised that the cache flush is slow on this one; it may be that
-  the IFLUSH means something special because it is a multiprocessor.
-
-
-CUSTOMIZATION
--------------
-
-Larceny versions since 0.24 has had a feature which allows code to be
-automatically loaded at startup time. If one of the files "./.larceny"
-or "$HOME/.larceny" exists, the first found (in the given order) will be
-assumed to contain either Scheme source code or compiled fasl-format
-code, and will be loaded before control is passed to the repl. If the
-load fails, the repl will still be run.
+Installation instructions may be found at
+	 http://www.ccs.neu.edu/home/lth/larceny/compiling.html.
+A full manual may be found at 
+	 http://www.ccs.neu.edu/home/lth/larceny
 
 
 AUXILIARY LIBRARIES
 -------------------
 
-Larceny 0.26 comes with many auxiliary functions which are not part of
-the basic heap image. These are located in the Auxlib subdirectory. You
-can load them all into a running system by compiling to fasl all the
-Scheme files in the Auxlib library (sorry, no automation yet) and
-loading the file "Auxlib/auxload.sch"; it will in turn load all these
+Larceny comes with many auxiliary functions which are not part of the
+basic heap image. These are located in the Auxlib subdirectory. You can
+load them all into a running system by compiling to fasl all the Scheme
+files in the Auxlib library (sorry, no automation yet) and loading the
+file "Auxlib/auxload.sch"; it will in turn load all these
 files. Typically you load this file from your .larceny file.
 
 Libraries included are:

@@ -1,19 +1,14 @@
 /* Rts/Sys/new-policy.c.
  * Larceny run-time system -- memory manager.
  *
- * $Id: memmgr.c,v 1.18 1997/03/02 17:09:52 lth Exp lth $
+ * $Id: memmgr.c,v 1.20 1997/05/15 00:58:49 lth Exp lth $
  *
  * This file contains procedures for memory allocatation and garbage 
  * collection policy.
  *
- * Some things to do (for various collectors):
- *   - use of madvise() is indicated but not implemented, below.
- *   - may be good to lock the ephemeral area, the ssb, and the remsets
- *     in memory to avoid paging them, using mlock().
- *   - may be good to set the protection for the static area to read-only.
- *   - may be good to have a read-only static area mmap()'d in from the
- *     heap file so as to allow the static area to be shared among processes
- *     using the same heap file.
+ * The algorithm for how policy decisions are made is described in memmgr.h.
+ *
+ * Dept. of Magic:
  *
  * On systems where the low-level allocator has some control over the
  * addresses being assigned to memory blocks (i.e., where we can guarantee
@@ -35,8 +30,7 @@
 #include "gclib.h"
 #include "assert.h"
 
-#define MAX_GENERATIONS       32
-#define STATIC_HEAP           1
+#define MAX_GENERATIONS (2*MAX_HEAPS)
 
 typedef struct gc_data gc_data_t;
 
@@ -66,18 +60,245 @@ struct gc_data {
   } old_gen[ MAX_GENERATIONS ];
 
   remset_t      *remsets[ MAX_GENERATIONS ];    /* [0..oldest_generation] */
+  word          **ssb_bot;                      /* ditto */
+  word          **ssb_top;                      /* ditto */
+  word          **ssb_lim;                      /* ditto */
 
-#if STATIC_HEAP
-  static_heap_t *static_heap;
-#endif
+  /* For non-predictive collector */
+  remset_t      *np_remset;                     /* Extra remset for NP heap */
+  int           np_heap_no;                     /* -1 or index of np heap */
+  int           np_gen_no;                      /* index of 'old' gen */
+  int           collecting_np_heap;             /* state variable */
+  int           np_ssbidx;
+/*
+  word          *np_ssbbot;
+  word          *np_ssbtop;
+  word          *np_ssblim;
+*/
+
+  static_heap_t *static_heap;                   /* Static heap or 0 */
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
 
+
+static void allocate_generational_system( gc_param_t *params, gc_t *gc );
+static void allocate_stopcopy_system( gc_param_t *params, gc_t *gc );
+static void allocate_young_heap( gc_param_t *params, gc_t *gc, int *gen_no );
+static void allocate_old_heaps( int number_of_old_heaps, gc_param_t *params, 
+			        gc_t *gc, int *gen_no, int *heap_no );
+static void allocate_static_heap( gc_param_t *params, gc_t *gc, int *gen_no, 
+				  int *heap_no );
+static void allocate_stopcopy_heap( gc_param_t *params, gc_t *gc, int *gen_no);
+static void allocate_ssb_pointers( gc_t *gc );
+static void allocate_remembered_sets(gc_param_t *params, gc_t *gc, int gen_no);
+static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals );
+static void collect_in( gc_t *gc, int generation );
+static char *compute_gc_ID( int number_of_old_heaps, gc_data_t *data );
+
+
+/* Intialize the garbage collector.
+ *
+ * Returns the collector structure, and the number of generations
+ * allocated through the _generations_ parameter.
+ */
+gc_t *
+create_gc( gc_param_t *params, int *generations )
+{
+  gc_t *gc;
+
+  assert( params->heaps > 0 && params->heaps <= MAX_HEAPS );
+  assert( params->use_static_heap || params->static_size == 0 );
+
+  /* HACK! FIXME!  Static area disabled for stop+copy system. */
+  assert( params->heaps > 1 || params->use_static_heap == 0 ); 
+
+  gclib_init();  /* Initialize underlying memory management */
+
+  gc = alloc_gc_structure( params->heaps-1, params->globals );
+  if (params->heaps > 1) 
+    allocate_generational_system( params, gc );
+  else
+    allocate_stopcopy_system( params, gc );
+  *generations = DATA(gc)->oldest_generation + 1;
+
+  gc->id = compute_gc_ID( params->heaps-1, DATA(gc) );
+
+  return gc;
+}
+
+
+static void
+allocate_generational_system( gc_param_t *params, gc_t *gc )
+{
+  int heap_no, gen_no;
+  gc_data_t *data = DATA(gc);
+
+  debugmsg( "Creating a generational system." );
+
+  gen_no = 0;
+  heap_no = 0;
+
+  /* BEGIN ORDER-CRITICAL SECTION */
+
+  allocate_young_heap( params, gc, &gen_no );
+  assert( gen_no == 1 );
+  allocate_old_heaps( params->heaps-1, params, gc, &gen_no, &heap_no );
+  allocate_static_heap( params, gc, &gen_no, &heap_no );
+
+  /* END ORDER-CRITICAL SECTION */
+
+  data->oldest_generation = data->oldest_collectable_generation = gen_no-1;
+  if (data->static_heap != 0)
+    data->oldest_collectable_generation -= 1;
+
+  allocate_ssb_pointers( gc );
+  allocate_remembered_sets( params, gc, gen_no );
+}
+
+static void
+allocate_stopcopy_system( gc_param_t *params, gc_t *gc )
+{
+  int gen_no;
+  gc_data_t *data = DATA(gc);
+
+  debugmsg( "Creating a stop-and-copy system." );
+
+  gen_no = 0;
+
+  allocate_stopcopy_heap( params, gc, &gen_no );
+  assert( gen_no == 1 );
+  data->oldest_generation = 0;
+  data->oldest_collectable_generation = 0;
+}
+
+
+static void
+allocate_stopcopy_heap( gc_param_t *params, gc_t *gc, int *gen_no )
+{
+  gc_data_t *data = DATA(gc);
+
+  data->young_heap =
+    create_sc_heap( gen_no, 0, 
+		   params->heap_info[0].size_bytes,
+		   params->heap_info[0].hi_mark,
+		   params->heap_info[0].lo_mark,
+		   params->globals );
+  data->young_heap->collector = gc;
+}
+
+static void
+allocate_young_heap( gc_param_t *params, gc_t *gc, int *gen_no )
+{
+  gc_data_t *data = DATA(gc);
+
+  data->young_heap =
+    create_young_heap( gen_no, 0,
+		       params->heap_info[0].size_bytes,
+		       params->heap_info[0].oflo_mark,
+		       params->globals );
+  data->young_heap->collector = gc;
+}
+
+
+static void
+allocate_old_heaps( int number_of_old_heaps, gc_param_t *params, gc_t *gc,
+		    int *gen_no, int *heap_no )
+{
+  gc_data_t *data = DATA(gc);
+  int h;
+
+  for ( h = 1 ; h <= number_of_old_heaps ; h++ ) {
+    int g = *gen_no;
+    int i;
+    if (h < number_of_old_heaps || !params->use_np_heap)
+      data->old_heaps[h] = 
+	create_old_heap( gen_no, h,
+			 params->heap_info[h].size_bytes,
+			 params->heap_info[h].hi_mark,
+			 params->heap_info[h].lo_mark,
+			 params->heap_info[h].oflo_mark );
+    else {
+      data->np_gen_no = *gen_no;
+      data->old_heaps[h] = 
+	create_old_np_sc_heap( gen_no, h,
+			       params->np_stepsize*params->np_steps,
+			       params->np_stepsize,
+			       params->heap_info[h].hi_mark,
+			       params->heap_info[h].lo_mark,
+			       params->heap_info[h].oflo_mark );
+      data->np_heap_no = h;
+    }
+    data->old_heaps[h]->collector = gc;
+    data->old_heaps[h]->oldest = 0;
+    for ( i = g ; i < *gen_no ; i++ )
+      data->old_gen[i].heap = data->old_heaps[h];
+  }
+  data->old_heaps[h-1]->oldest = 1;
+  *heap_no = h;
+}
+
+
+static void
+allocate_static_heap( gc_param_t *params, gc_t *gc, int *gen_no, int *heap_no )
+{
+  gc_data_t *data = DATA(gc);
+
+  if (params->use_static_heap) {
+    data->static_heap =
+      create_static_heap( *heap_no, *gen_no, params->static_size );
+    *heap_no = *heap_no + 1;
+    *gen_no = *gen_no + 1;
+  }
+  else
+    data->static_heap = 0;
+}
+
+
+static void
+allocate_ssb_pointers( gc_t *gc )
+{
+  gc_data_t *data = DATA( gc );
+  int ssbs = data->oldest_generation+1;  /* entry 0 is not used */
+
+#if NP_EXTRA_REMSET
+  data->np_ssbidx = data->oldest_generation+1;
+  ssbs += 1;
+#endif
+
+  data->ssb_bot = (word**)must_malloc( sizeof( word * )*ssbs );
+  data->ssb_top = (word**)must_malloc( sizeof( word * )*ssbs );
+  data->ssb_lim = (word**)must_malloc( sizeof( word * )*ssbs );
+}
+
+static void
+allocate_remembered_sets( gc_param_t *params, gc_t *gc, int gen_no )
+{
+  gc_data_t *data = DATA( gc );
+  int i;
+
+  /* FIXME: the creation call should pass better remset size info. */
+
+  for ( i = 1 ; i < gen_no ; i++ )
+    data->old_gen[i].remset =
+      data->remsets[i] =
+	create_remset( 0, 0, 0,
+		       &data->ssb_bot[i],
+		       &data->ssb_top[i],
+		       &data->ssb_lim[i] );
+
+#if NP_EXTRA_REMSET
+  if (data->np_heap_no != -1)
+    data->np_remset = create_remset( 0, 0, 0,
+				     &data->ssb_bot[data->np_ssbidx],
+				     &data->ssb_top[data->np_ssbidx],
+				     &data->ssb_lim[data->np_ssbidx] );
+#endif
+}
+
 static int  initialize( gc_t *gc );
 static word *alloc_from_heap( gc_t *gc, unsigned nbytes );
 static void collect( gc_t *gc, int gen, gc_type_t type, unsigned nbytes );
-static void collect_in( gc_t *gc, int generation );
 static void promote_out_of( gc_t *gc, int generation );
 static void before_promotion_all( gc_t *gc, int generation );
 static void after_promotion_all( gc_t *gc, int generation );
@@ -91,133 +312,49 @@ static void stats( gc_t *gc, int generation, heap_stats_t *stats );
 static word creg_get( gc_t *gc );
 static void creg_set( gc_t *gc, word k );
 static void stack_underflow( gc_t *gc );
+static void stack_overflow( gc_t *gc );
 static int  compact_all_ssbs( gc_t *gc );
 static void clear_remset( gc_t *gc, int generation );
 static int  isremembered( gc_t *gc, word w );
+static void compact_np_ssb( gc_t *gc );
+static void clear_np_remset( gc_t *gc );
+static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim );
+static void set_np_collection_flag( gc_t *gc );
+static void np_merge_and_clear_remset( gc_t *gc, int gen );
 
-
-/* 
- * Procedure to intialize garbage collector.  All sizes are in bytes. 
- */
-gc_t *
-create_gc( unsigned ephemeral_size,    /* size of espace; 0 = default */
-	   unsigned ewatermark,        /* watermark in %, 0 = default */
-	   unsigned static_size,       /* size of sspace; 0 = none */
-           unsigned rhash,             /* # elements in remset hash tbl */
-           unsigned ssb,               /* # elements in remset SSB */
-           unsigned old_generations,   /* # of old generations */
-           old_param_t *old_gen_info,  /* info about old generations */
-	   int      np_gc,             /* use non-predictive gc */
-	   unsigned np_steps,          /* number of steps */
-	   unsigned np_stepsize,       /* size of a step (bytes) */
-           word     *globals,          /* globals array */
-	   int      *generations       /* OUT: #generations */
-	  )
+static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
 {
-  int gen_no = 0;
-  int i, heap_no;
   gc_t *gc;
   gc_data_t *data;
   old_heap_t **old_heaps;
-  int number_of_old_heaps;
   int *prom_bits;
-  char buf[50];
+  
+  gc = (gc_t*)must_malloc( sizeof( gc_t ) );
+  data = (gc_data_t*)must_malloc( sizeof( gc_data_t ) );
 
-  if (np_gc)
-    number_of_old_heaps = max(old_generations-1,1);
-  else
-    number_of_old_heaps = old_generations;
-  if (number_of_old_heaps == 0) number_of_old_heaps = 1;   /* default */
+  /* The old_heaps[] and prom_bits[] arrays don't use element 0, but for
+   * simplicity it's allocated, hence the +1 on the two calls.
+   */
+  old_heaps =
+    (old_heap_t**)must_malloc( sizeof(old_heap_t*)*(number_of_old_heaps+1) );
 
-  assert( number_of_old_heaps < MAX_GENERATIONS );
-
-  gclib_init();
-
- again:
-  data = (gc_data_t*)malloc( sizeof( gc_data_t ) );
-  gc = (gc_t*)malloc( sizeof( gc_t ) );
-  old_heaps = (old_heap_t**)malloc(sizeof(old_heap_t*)*number_of_old_heaps+1);
-  prom_bits = (int*)malloc( sizeof(int)*number_of_old_heaps+1 );
-  if (gc == 0 || data == 0 || old_heaps == 0 || prom_bits == 0) {
-    if (gc) free( gc );
-    if (data) free( data );
-    if (old_heaps) free( old_heaps );
-    if (prom_bits) free( prom_bits );
-    memfail( MF_MALLOC, "Could not allocate gc metadata." );
-    goto again;
-  }
+  prom_bits = (int*)must_malloc( sizeof(int)*(number_of_old_heaps+1) );
+  memset( prom_bits, 0, sizeof(int)*(number_of_old_heaps+1) );
 
   data->number_of_old_heaps = number_of_old_heaps;
   data->old_heaps = old_heaps;
   data->prom_bits = prom_bits;
-
-  gen_no = 0;
-
-  /* BEGIN ORDER-CRITICAL SECTION */
-
-  data->young_heap = 
-    create_young_heap( &gen_no, 0, ephemeral_size, ewatermark, globals );
-  data->young_heap->collector = gc;
-
-  assert( gen_no == 1 );
-
-  for ( heap_no = 1 ; heap_no <= number_of_old_heaps ; heap_no++ ) {
-    int g = gen_no;
-    if (heap_no < number_of_old_heaps || !np_gc)
-      data->old_heaps[heap_no] = 
-	create_old_heap( &gen_no, heap_no,
-			old_gen_info[heap_no-1].size,
-			old_gen_info[heap_no-1].hiwatermark,
-			old_gen_info[heap_no-1].lowatermark );
-    else
-      data->old_heaps[heap_no] = 
-	create_old_np_sc_heap( &gen_no, heap_no,
-			       np_stepsize*np_steps, np_stepsize );
-    data->old_heaps[heap_no]->collector = gc;
-    data->old_heaps[heap_no]->oldest = 0;
-    for ( i = g ; i < gen_no ; i++ )
-      data->old_gen[i].heap = data->old_heaps[heap_no];
-  }
-  data->old_heaps[heap_no-1]->oldest = 1;
-
-#if STATIC_HEAP
-  if (static_size > 0) {
-    data->static_heap = create_static_heap( heap_no, gen_no, static_size );
-    heap_no++;
-    gen_no++;
-  }
-  else
-    data->static_heap = 0;
-#endif
-
-  /* END ORDER-CRITICAL SECTION */
+  data->np_heap_no = -1;
+  data->np_gen_no = -1;
+  data->np_remset = 0;
+  data->np_ssbidx = -1;
+  data->collecting_np_heap = 0;
+  data->critical_section = 0;
+  data->oldest_generation = 0;
+  data->oldest_collectable_generation = 0;
 
   data->globals = globals;
-  data->oldest_generation = data->oldest_collectable_generation = gen_no - 1;
-#if STATIC_HEAP
-  if (data->static_heap != 0)
-    data->oldest_collectable_generation -= 1;
-#endif  
-  memset( data->prom_bits, 0, sizeof( data->prom_bits ) );
-  data->critical_section = 0;
 
-  /* FIXME: the creation call should pass better remset size info. */
-
-  for ( i = 1 ; i < gen_no ; i++ )
-    data->old_gen[i].remset = data->remsets[i] = create_remset( 0, 0, 0 );
-
-  /* FIXME: does not allow old heaps of different types */
-  /* FIXME: does not take into account static heap */
-
-  if (number_of_old_heaps == 0)
-    strcpy( buf, data->young_heap->id );
-  else if (number_of_old_heaps == 1)
-    sprintf( buf, "%s+%s", data->young_heap->id, data->old_heaps[1]->id );
-  else
-    sprintf( buf, "%s+%d*%s", data->young_heap->id,
-	                      number_of_old_heaps,
-   	                      data->old_heaps[1]->id );
-  gc->id = strdup( buf );
   gc->initialize = initialize;
   gc->allocate = alloc_from_heap;
   gc->collect = collect;
@@ -233,26 +370,53 @@ create_gc( unsigned ephemeral_size,    /* size of espace; 0 = default */
   gc->creg_set = creg_set;
   gc->creg_get = creg_get;
   gc->stack_underflow = stack_underflow;
+  gc->stack_overflow = stack_overflow;
+
+  gc->compact_np_ssb = compact_np_ssb;
+  gc->clear_np_remset = clear_np_remset;
+  gc->np_remset_ptrs = np_remset_ptrs;
+  gc->set_np_collection_flag = set_np_collection_flag;
+  gc->np_merge_and_clear_remset = np_merge_and_clear_remset;
 
   gc->iflush = iflush;
   gc->stats = stats;
   gc->data = data;
 
-  *generations = data->oldest_generation + 1;
-
   return gc;
 }
 
+/* This procedure computes the ID string for the collector as a function
+ * of the ID strings of the individual heaps.
+ *
+ * FIXME: does not allow old heaps of different types.
+ */
+static char *
+compute_gc_ID( int number_of_old_heaps, gc_data_t *data )
+{ 
+  char buf[100];
+
+  if (number_of_old_heaps == 0)
+    strcpy( buf, data->young_heap->id );
+  else if (number_of_old_heaps == 1)
+    sprintf( buf, "%s+%s", data->young_heap->id, data->old_heaps[1]->id );
+  else
+    sprintf( buf, "%s+%d*%s", data->young_heap->id,
+	    number_of_old_heaps,
+	    data->old_heaps[1]->id );
+  if (data->static_heap != 0) {
+    strcat( buf, "+" );
+    strcat( buf, data->static_heap->id );
+  }
+  return strdup( buf );
+}
 
 static int initialize( gc_t *gc )
 {
   gc_data_t *data = DATA(gc);
   int i;
 
-#if STATIC_HEAP
   if (data->static_heap && !data->static_heap->initialize( data->static_heap ))
     return 0;
-#endif
 
   if (!data->young_heap->initialize( data->young_heap ))
     return 0;
@@ -261,8 +425,19 @@ static int initialize( gc_t *gc )
     if (!data->old_heaps[i]->initialize( data->old_heaps[i] ))
       return 0;
 
-  wb_setup( data->remsets, gclib_desc_g, gclib_pagebase,
- 	    data->oldest_generation+1, data->globals );
+  /* Setup the barrier if a generational system; disable it otherwise */
+  if (data->number_of_old_heaps > 0) {
+    wb_setup( gclib_desc_g, gclib_pagebase,
+	     data->oldest_generation+1, data->globals,
+	     data->ssb_top, data->ssb_lim, 
+	     data->np_gen_no+1,
+	     data->np_ssbidx
+	     );
+  }
+  else {
+    wb_setup0();
+    wb_disable();
+  }
 
   return 1;
 }
@@ -295,50 +470,58 @@ alloc_from_heap( gc_t *gc, unsigned n )
  * to collect in generation 0 (if one considers the nursery generation
  * to be 0 and the young generation to be 1).  In such cases, the next
  * 'bigger' collection is chosen.
+ *
+ * Furthermore, with multi-generational heaps (e.g. the NP heap), asking
+ * for a collection in any generation not the oldest in that heap is
+ * wrong, so we must 'normalize' the generation to overcome this.
  */
 static void 
 collect( gc_t *gc, int generation, gc_type_t type, unsigned request_bytes )
 {
-  young_heap_t *young_heap = DATA(gc)->young_heap;
+  gc_data_t *data = DATA(gc);
+  young_heap_t *young_heap = data->young_heap;
+
+  assert(!data->critical_section);
+  data->critical_section = 1;
 
   debugmsg( "[debug] ---------- Commencing gc." );
 
-  assert(!DATA(gc)->critical_section);
-  DATA(gc)->critical_section = 1;
-
   assert( generation >= 0 );
-  if (generation > DATA(gc)->oldest_collectable_generation)
-    generation = DATA(gc)->oldest_collectable_generation;
+  if (generation > data->oldest_collectable_generation)
+    generation = data->oldest_collectable_generation;
+
+  /* Normalize the generation */
+  while (generation > 0 &&
+	 data->old_gen[generation-1].heap == data->old_gen[generation].heap)
+    generation--;
 
   stats_before_gc();
-  wb_sync_remsets();
 
   /* Collection starting */
 
+  /* The collector must set collecting_np_heap if applicable */
+  data->collecting_np_heap = 0;
+
   if (generation == 0)
-    young_heap->collect( young_heap );
+    young_heap->collect( young_heap, request_bytes );
   else if (type == GC_PROMOTE)
     gc->promote_out_of( gc, generation-1 );
-  else {
+  else
     collect_in( gc, generation );
-  }
 
-  if (request_bytes > young_heap->free_space( young_heap )) {
-    debugmsg( "[debug] gc: Failed free-espace %d.", request_bytes );
+  /* This test succeeds iff the young generation can accomodate the object. 
+   * The young heap is at liberty to expand itself or indeed call another
+   * round of collections (promoting out, say).
+   */
+  young_heap->assert_free_space( young_heap, request_bytes );
 
-    gc->promote_out_of( gc, 0 );
-
-    if (request_bytes > young_heap->free_space( young_heap ))
-      panic( "Cannot allocate object of size %u bytes "
-	     "(object is too large for heap).", request_bytes );
-  }
+  data->collecting_np_heap = 0;
 
   /* Collection done */
 
-  wb_sync_ssbs();
   stats_after_gc();
 
-  DATA(gc)->critical_section = 0;
+  data->critical_section = 0;
 }
 
 
@@ -353,6 +536,7 @@ collect_in( gc_t *gc, int generation )
   assert( generation > 0 );
 
   old = DATA(gc)->old_gen[generation].heap;
+
   before_promotion_all( gc, generation-1 );
   old->collect( old );
   after_promotion_all( gc, generation-1 );
@@ -392,21 +576,21 @@ before_promotion_all( gc_t *gc, int generation )
 {
   gc_data_t *data = DATA(gc);
   struct old_gen *old_gen = data->old_gen;
-  old_heap_t *prev;
-  int i, j;
+  old_heap_t *prev_h;
+  int g, h;
 
   if (!data->prom_bits[0]) {
     data->young_heap->before_promotion( data->young_heap );
     data->prom_bits[0] = 1;
   }
-  for ( i=1, prev=0, j=1 ; i <= generation ; i++ ) {
-    if (!data->prom_bits[j]) {
-      if (data->old_heaps[j] != prev) {
-	data->old_heaps[j]->before_promotion( data->old_heaps[j] );
-	data->prom_bits[j] = 1;
-	prev = data->old_heaps[j];
-	j++;
+  for ( g=1, prev_h=0, h=1 ; g <= generation ; g++ ) {
+    if (data->old_gen[g].heap != prev_h) {
+      if (data->prom_bits[h] == 0) {
+	data->old_heaps[h]->before_promotion( data->old_heaps[h] );
+	data->prom_bits[h] = 1;
       }
+      prev_h = data->old_heaps[h];
+      h++;
     }
   }
 }
@@ -416,19 +600,19 @@ after_promotion_all( gc_t *gc, int generation )
 {
   gc_data_t *data = DATA(gc);
   struct old_gen *old_gen = data->old_gen;
-  old_heap_t *prev;
-  int i, j;
+  old_heap_t *prev_h;
+  int g, h;
 
-  for ( i=1, prev=0, j=1; i <= generation ; i++ ) {
-    if (data->prom_bits[i]) {
-      if (data->old_heaps[j] != prev) {
-	data->old_heaps[j]->after_promotion( data->old_heaps[j] );
-	data->prom_bits[j] = 0;
-	prev = data->old_heaps[j];
-	j++;
+  for ( g=1, prev_h=0, h=1; g <= generation ; g++ ) {
+    if (data->old_gen[g].heap != prev_h) {
+      if (data->prom_bits[h] == 1) {
+	data->old_heaps[h]->after_promotion( data->old_heaps[h] );
+	data->prom_bits[h] = 0;
       }
-      data->remsets[i+1]->clear( data->remsets[i+1] );
+      prev_h = data->old_heaps[h];
+      h++;
     }
+    data->remsets[g+1]->clear( data->remsets[g+1] );
   }
   if (data->prom_bits[0]) {
     data->young_heap->after_promotion( data->young_heap );
@@ -465,6 +649,12 @@ enumerate_remsets_older_than( gc_t *gc,
       remsets[i]->enumerate( remsets[i], f, fdata );
     }
   }
+#if NP_EXTRA_REMSET
+  if (data->collecting_np_heap) {
+    data->np_remset->compact( data->np_remset );
+    data->np_remset->enumerate( data->np_remset, f, fdata );
+  }
+#endif
 }
 
 
@@ -495,12 +685,9 @@ data_load_area( gc_t *gc, unsigned size_bytes )
 
   assert( size_bytes % 8 == 0 );
   
-#if STATIC_HEAP
   if (data->static_heap)
     return data->static_heap->data_load_area( data->static_heap, size_bytes );
-  else
-#endif
-  if (data->number_of_old_heaps)
+  else if (data->number_of_old_heaps)
     return data->old_heaps[data->number_of_old_heaps]
       ->data_load_area( data->old_heaps[data->number_of_old_heaps],
 		        size_bytes );
@@ -519,12 +706,11 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
 {
   gc_data_t *data = DATA(gc);
 
-  memset( stats, 0, sizeof( *stats ) );
+  memset( stats, 0, sizeof( heap_stats_t ) );
   
   if (generation == 0) {
     data->young_heap->stats( data->young_heap, stats );
   }
-#if STATIC_HEAP
   else if (data->static_heap && generation == data->oldest_generation) {
     remset_stats_t rs_stats;
 
@@ -536,7 +722,6 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
     stats->words_scanned = rs_stats.words_scanned;
     stats->hash_removed = rs_stats.hash_removed;
   }
-#endif
   else {
     remset_stats_t rs_stats;
     old_heap_t *heap;
@@ -549,6 +734,16 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
     stats->hash_scanned = rs_stats.hash_scanned;
     stats->words_scanned = rs_stats.words_scanned;
     stats->hash_removed = rs_stats.hash_removed;
+#if NP_EXTRA_REMSET
+    if (stats->np_young && data->np_remset != 0) {
+      data->np_remset->stats( data->np_remset, &rs_stats );
+      stats->np_ssb_recorded = rs_stats.ssb_recorded;
+      stats->np_hash_recorded = rs_stats.hash_recorded;
+      stats->np_hash_scanned = rs_stats.hash_scanned;
+      stats->np_words_scanned = rs_stats.words_scanned;
+      stats->np_hash_removed = rs_stats.hash_removed;
+    }
+#endif
   }
 }
 
@@ -567,16 +762,25 @@ static void stack_underflow( gc_t *gc )
   DATA(gc)->young_heap->stack_underflow( DATA(gc)->young_heap );
 }
 
+static void stack_overflow( gc_t *gc )
+{
+  DATA(gc)->young_heap->stack_overflow( DATA(gc)->young_heap );
+}
+
 static int compact_all_ssbs( gc_t *gc )
 {
   gc_data_t *data = DATA(gc);
   int overflowed, i;
 
   overflowed = 0;
-  wb_sync_remsets();
+/*  wb_sync_remsets(); */
   for ( i=1 ; i <= data->oldest_generation ; i++ )
     overflowed = data->remsets[i]->compact( data->remsets[i] ) || overflowed;
-  wb_sync_ssbs();
+/*  wb_sync_ssbs(); */
+#if NP_EXTRA_REMSET
+  if (data->np_remset)
+    overflowed = data->np_remset->compact( data->np_remset ) || overflowed;
+#endif
   return overflowed;
 }
 
@@ -590,6 +794,60 @@ static void clear_remset( gc_t *gc, int generation )
   data->remsets[generation]->clear( data->remsets[generation] );
 }
 
+
+static void compact_np_ssb( gc_t *gc )
+{
+#if NP_EXTRA_REMSET
+  if (DATA(gc)->np_remset)
+    DATA(gc)->np_remset->compact( DATA(gc)->np_remset );
+#else
+  remset_t *rs = DATA(gc)->remsets[DATA(gc)->np_gen_no+1];
+  rs->compact( rs );
+#endif
+}
+
+static void clear_np_remset( gc_t *gc )
+{
+#if NP_EXTRA_REMSET
+  if (DATA(gc)->np_remset)
+    DATA(gc)->np_remset->clear( DATA(gc)->np_remset );
+#else
+  remset_t *rs = DATA(gc)->remsets[DATA(gc)->np_gen_no+1];
+  rs->clear( rs );
+#endif
+}
+
+static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim )
+{
+#if NP_EXTRA_REMSET
+  if (DATA(gc)->np_remset) {
+    *ssbtop = &DATA(gc)->ssb_top[DATA(gc)->np_ssbidx];
+    *ssblim = &DATA(gc)->ssb_lim[DATA(gc)->np_ssbidx];
+  }
+  else {
+    *ssbtop = *ssblim = 0;
+  }
+#else
+  *ssbtop = &DATA(gc)->ssb_top[DATA(gc)->np_gen_no+1];
+  *ssblim = &DATA(gc)->ssb_lim[DATA(gc)->np_gen_no+1];
+#endif
+}
+
+static void set_np_collection_flag( gc_t *gc )
+{
+  DATA(gc)->collecting_np_heap = 1;
+}
+
+static void np_merge_and_clear_remset( gc_t *gc, int gen )
+{
+#if NP_EXTRA_REMSET
+  remset_t *r;
+
+  r = DATA(gc)->remsets[gen];
+  DATA(gc)->np_remset->assimilate( DATA(gc)->np_remset, r );
+  r->clear( r );
+#endif  
+}
 
 static int isremembered( gc_t *gc, word w )
 {

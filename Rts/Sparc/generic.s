@@ -1822,11 +1822,21 @@ Lintegerp_flo:
 	! Check to see if the real part is representable as an
 	! integer, and if so, return #t. Otherwise return #f.
 	!
-	! The real part is representible as an integer only if all the
-	! bits to the right of the binary point are zero.
+	! The real part is representible as an integer only if
+	! all the bits to the right of the binary point are zero.
+	!
+	! The algorithm used needs to special case 0.0 and -0.0
 
 	save	%sp, -96, %sp
 	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
+
+	! First test special cases.
+	set	0x80000000, %l2
+	andn	%l0, %l2, %l2				! toss sign bit
+	orcc	%l2, %l1, %g0
+	be,a	Lintegerp_exit2				! 0.0 or -0.0
+	mov	TRUE_CONST, %SAVED_RESULT
+
 	srl	%l0, 20, %l2				! get at expt
 	and	%l2, 0x7FF, %l2				! get it
 	subcc	%l2, 1023, %l2				! unbias

@@ -1,7 +1,7 @@
 /* Rts/Sys/gclib.h
  * Larceny run-time system -- garbage collector library
  *
- * $Id: gclib.h,v 1.6 1997/02/24 01:01:34 lth Exp $
+ * $Id: gclib.h,v 1.7 1997/05/15 00:58:49 lth Exp lth $
  *
  * This header defines the interface to the gc library, which provides 
  * the following services:
@@ -133,6 +133,7 @@ void gclib_set_gen_no( semispace_t *ss, int gen_no );
 
 void ss_expand( semispace_t *ss, unsigned bytes_needed );
 void ss_reset( semispace_t *ss );
+void ss_prune( semispace_t *ss );
 void ss_sync( semispace_t *ss );
 void ss_free( semispace_t *ss );
 

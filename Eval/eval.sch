@@ -1,7 +1,7 @@
 ; Eval/eval.sch
 ; Larceny -- fast interpreter.
 ;
-; $Id$
+; $Id: eval.sch,v 1.3 1997/05/15 00:50:19 lth Exp lth $
 ;
 ; Description
 ;   `Eval' takes an expression and optionally an R5RS environment and
@@ -30,26 +30,39 @@
 ; Features Needed or Deeply Desired
 ;   Optimizations:
 ;   * More primitives (we need macros before this is practical).  Notably,
-;     we need more predicates and both vector and string operations.
+;     we need more predicates and both vector and string operations.  See
+;     the file Eval/evalprim.sch.
+;
 ;   * If+predicate, for example, (if (< a b) ...) can be optimized to
-;     use no calls.
+;     use no calls.  (if (not (< a b)) ...) is more of a mess because
+;     `not' is a procedure that may have been redefined, also, but it's
+;     clearly doable.
+;
 ;   * Immediate optimization in primitives: if a primitive uses a constant,
 ;     then avoid the call by just closing over a variable that uses the
 ;     constant and let the primitive reference that variable.
+;
 ;   * Rib0 optimization in primitives: if a local is fetched in a primitive,
 ;     and that local is at rib0, then do the vector-ref in the primitive.
-;   * `Let' optimization akin to letrec optimization (avoids calls).
+;
+;   * `Let' optimization akin to letrec optimization.  This avoids calls,
+;     but payoff is smaller because an intermediate structure must be built
+;     to avoid problems with call/cc.
+;
 ;   * `Eval:benchmark-mode' switch that makes the interpreter skip the
 ;     global cache check for primitive names.  It's a bit of a joke, but
 ;     it might improve performance some.
+;
 ;   * We could unroll several cases for eval/setlex just as for eval/lexical.
+;
 ;   * We could have a special case for calling a global variable: the
-;     reference to the variable could be lifted out.
+;     reference to the variable could be lifted out, saving a call to get it.
 ;
 ;   Niceties:
 ;   * In general, it would be nice to be able to give better error messages
 ;     when calling a procedure that was fetched from a variable, rather than
 ;     just "#f is not a procedure".
+;
 ;   * Debuggability -- can the procedures be constructed so that they
 ;     contain the source code for the expression being evaluated?
 ;
@@ -60,7 +73,7 @@
 ;   at preprocessing time and generate code for setglbl that signals
 ;   an error if executed (and perhaps a warning during preprocessing).
 
-(define eval-version "0.3")
+(define eval-version "0.3.1")
 
 (define eval
   (let ()
@@ -253,17 +266,17 @@
     (vector-ref (cadddr env) offset)))
 
 (define (eval/lexical-n rib offset)
-  (lambda (env)
-    (let loop ((rib rib) (env env))
+  (lambda (env0)
+    (let loop ((rib rib) (env env0))
       (if (= rib 0)
 	  (vector-ref (car env) offset)
 	  (loop (- rib 1) (cdr env))))))
 
 (define (eval/setlex rib offset expr)
-  (lambda (env)
-    (let loop ((rib rib) (env env))
+  (lambda (env0)
+    (let loop ((rib rib) (env env0))
       (if (= rib 0)
-	  (vector-set! (car env) offset (expr env))
+	  (vector-set! (car env) offset (expr env0))
 	  (loop (- rib 1) (cdr env))))))
 
 (define (eval/const c)
@@ -306,108 +319,11 @@
 	     ((car exprs) env)
 	     (loop (cdr exprs)))))))
 
-; Invoking primitives that take 1 argument.  The primitive procedures
-; could usefully be defined using a macro.
-
 (define (eval/invoke-prim1 name a find-global)
   ((eval/primitive name 1) a (eval/prim-orig name) (find-global name)))
 
-(define (eval/invoke-prim1:- a orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (- (a env))
-	  (v (a env))))))
-
-(define (eval/invoke-prim1:car a orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (car (a env))
-	  (v (a env))))))
-
-(define (eval/invoke-prim1:cdr a orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (cdr (a env))
-	  (v (a env))))))
-
-; Invoking primitives that take 2 arguments.  The primitive procedures
-; could usefully be generated using a macro.
-
 (define (eval/invoke-prim2 name a b find-global)
   ((eval/primitive name 2) a b (eval/prim-orig name) (find-global name)))
-
-(define (eval/invoke-prim2:+ a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (+ (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:- a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (- (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:= a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (= (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:< a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (< (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:> a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (> (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:<= a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (<= (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:>= a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (>= (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:eq? a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (eq? (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:eqv? a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (eqv? (a env) (b env))
-	  (v (a env) (b env))))))
-
-(define (eval/invoke-prim2:cons a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (cons (a env) (b env))
-	  (v (a env) (b env))))))
 
 ; Call to a literal lambda expression where all the arguments are
 ; (quote #!unspecified).  Could be generalized to where all are the same
@@ -523,33 +439,5 @@
 	     (vector-set! v i args)
 	     (body (cons v env)))
 	  (vector-set! v i (car args)))))))
-
-; Primitive tables and lookup functions.
-
-(define eval/prim-table
-  `((+  ,+  (2 . ,eval/invoke-prim2:+))
-    (-  ,-  (1 . ,eval/invoke-prim1:-) (2 . ,eval/invoke-prim2:-))
-    (=  ,=  (2 . ,eval/invoke-prim2:=))
-    (<  ,<  (2 . ,eval/invoke-prim2:<))
-    (>  ,>  (2 . ,eval/invoke-prim2:>))
-    (<= ,<= (2 . ,eval/invoke-prim2:<=))
-    (>= ,>= (2 . ,eval/invoke-prim2:>=))
-    (eq? ,eq? (2 . eval/invoke-prim2:eq?))
-    (eqv? ,eqv? (2 . eval/invoke-prim2:eqv?))
-    (car ,car (1 . ,eval/invoke-prim1:car))
-    (cdr ,cdr (1 . ,eval/invoke-prim1:cdr))
-    (cons ,cons (2 . ,eval/invoke-prim2:cons))
-    ))
-
-(define (eval/primitive? name args)
-  (let ((probe (assq name eval/prim-table)))
-    (and probe
-	 (assv args (cddr probe)))))
-
-(define (eval/primitive name args)
-  (cdr (assv args (cddr (assq name eval/prim-table)))))
-
-(define (eval/prim-orig name)
-  (cadr (assq name eval/prim-table)))
 
 ; eof

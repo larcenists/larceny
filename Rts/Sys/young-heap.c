@@ -1,7 +1,7 @@
 /* Rts/Sys/young-heap.c
  * Larceny run-time system -- youngest heap.
  *
- * $Id: young-heap.c,v 1.9 1997/02/11 19:48:21 lth Exp $
+ * $Id: young-heap.c,v 1.11 1997/05/15 00:58:49 lth Exp lth $
  *
  * Contract
  *
@@ -35,22 +35,31 @@
 #include "gclib.h"
 #include "assert.h"
 
+/* Normally you want this to be 0.  Setting it to 1 forces the gc never
+ * to do a local copying collection, but always to promote immediately.
+ */
+#define PROMOTE_ALWAYS  0
 
 /* The "data" member of the heap structure points to a structure of 
  * this type.
  */
 typedef struct {
-  word     *espace1_bot; /* address of first word of espace 1 */
-  word     *espace1_lim; /* address of first word after espace 1 */
-  word     *espace2_bot; /* address of first word of espace 2 */
-  word     *espace2_lim; /* address of first word after espace 2 */
-  unsigned watermark;    /* ephemeral watermark, in bytes */
-  unsigned heapsize;     /* size of semispace in bytes */
-  int      gen_no;       /* generation number for this heap (should be 0) */
-  int      heap_no;      /* heap number for this heap (should be 0) */
-  word     *globals;     /* the globals vector */
-  int      must_promote; /* flag: 1 means promote next time */
-  int      just_promoted;/* flag: 1 means last cycle promoted */
+  word     *espace1_bot;    /* address of first word of espace 1 */
+  word     *espace1_lim;    /* address of first word after espace 1 */
+  word     *espace2_bot;    /* address of first word of espace 2 */
+  word     *espace2_lim;    /* address of first word after espace 2 */
+  unsigned heapsize;        /* size of semispace in bytes */
+  int      gen_no;          /* generation number for this heap (should be 0) */
+  int      heap_no;         /* heap number for this heap (should be 0) */
+  word     *globals;        /* the globals vector */
+
+  /* Collection policy */
+  unsigned watermark;       /* ephemeral watermark, in bytes */
+  int      must_promote;    /* flag: 1 means promote next time */
+  int      promote_always;  /* flag: 1 means to _never_ gc locally */
+  int      just_promoted;   /* flag: 1 means last cycle promoted */
+
+  /* Statistics */
   unsigned frames_flushed;  /* stack frames flushed */
   unsigned bytes_flushed;   /* bytes of stack flushed or copied */
   unsigned stacks_created;  /* number of stacks created */
@@ -61,24 +70,26 @@ typedef struct {
 
 /* Interface functions */
 static int initialize( young_heap_t *heap );
-static void collect( young_heap_t *heap );
+static void collect( young_heap_t *heap, unsigned request_bytes );
+static void stack_overflow( young_heap_t *heap );
 static word *allocate( young_heap_t *heap, unsigned n );
 static void before_promotion( young_heap_t *heap );
 static void after_promotion( young_heap_t *heap );
 static void stats( young_heap_t *heap, heap_stats_t * );
 static unsigned free_space( young_heap_t * );
 static word *data_load_area( young_heap_t *, unsigned );
-static int create_stack( young_heap_t *heap );
-static void clear_stack( young_heap_t *heap );
-static void flush_stack( young_heap_t *heap );
-static int restore_frame( young_heap_t *heap );
 static word creg_get( young_heap_t *heap );
 static void creg_set( young_heap_t *heap, word cont );
 static void do_restore_frame( young_heap_t *heap );
+static void assert_free_space( young_heap_t *heap, unsigned request_bytes );
 
 
 /* Private */
 static void flip( young_heap_t * );
+static int create_stack( young_heap_t *heap );
+static void clear_stack( young_heap_t *heap );
+static void flush_stack( young_heap_t *heap );
+static int restore_frame( young_heap_t *heap );
 
 
 young_heap_t *
@@ -106,18 +117,14 @@ create_young_heap( int *gen_no,
 
   heap->id = "sc/fixed";
   heap->initialize = initialize;
-#if 0
-  heap->create_stack = create_stack;
-  heap->clear_stack = clear_stack;
-  heap->flush_stack = flush_stack;
-  heap->restore_frame = restore_frame;
-#endif
   heap->creg_get = creg_get;
   heap->creg_set = creg_set;
   heap->stack_underflow = do_restore_frame;
+  heap->stack_overflow = stack_overflow;
 
   heap->collect = collect;
   heap->before_promotion = before_promotion;
+  heap->assert_free_space = assert_free_space;
   heap->after_promotion = after_promotion;
   heap->allocate = allocate;
   heap->stats = stats;
@@ -158,6 +165,7 @@ create_young_heap( int *gen_no,
   data->heapsize = size_bytes;
   data->must_promote = 0;
   data->just_promoted = 0;
+  data->promote_always = PROMOTE_ALWAYS;
 
   /* Setup heap pointers needed by RTS */
   globals[ G_EBOT ] = (word)(data->espace1_bot);
@@ -166,6 +174,7 @@ create_young_heap( int *gen_no,
 
   /* Must be set up before stack can be initialized */
   globals[ G_STKP ] = globals[ G_ELIM ];
+  globals[ G_STKUFLOW ] = 0;
 
   /* Now, don't move the call to create_stack() into the assert()... */
   { int r = create_stack( heap );
@@ -194,7 +203,7 @@ allocate( young_heap_t *heap, unsigned nbytes )
   if (globals[ G_ETOP ] + nbytes > globals[ G_STKP ])
     heap->collector->collect( heap->collector, 0, GC_COLLECT, nbytes );
 
-  /* Assumption: no gc hooks are run before collect() returns. */
+  assert( globals[ G_ETOP ] + nbytes <= globals[ G_STKP ] );
 
   p = globals[ G_ETOP ];
   globals[ G_ETOP ] += nbytes;
@@ -203,7 +212,7 @@ allocate( young_heap_t *heap, unsigned nbytes )
 
 
 static void
-collect( young_heap_t *heap )
+collect( young_heap_t *heap, unsigned request_bytes )
 {
   young_data_t *data = DATA(heap);
   word *globals = data->globals;
@@ -211,7 +220,7 @@ collect( young_heap_t *heap )
 
   flush_stack( heap );
 
-  if (data->must_promote) goto promote;
+  if (data->must_promote || data->promote_always) goto promote;
 
   debugmsg( "[debug] young heap: collecting." );
   stats_gc_type( 0, STATS_COLLECT );
@@ -237,6 +246,8 @@ collect( young_heap_t *heap )
     goto promote;
   }
 
+  if (free_space( heap ) < request_bytes) goto promote;
+
   debugmsg( "[debug] young heap: finished collecting." );
   return;
 
@@ -247,6 +258,31 @@ collect( young_heap_t *heap )
   heap->collector->promote_out_of( heap->collector, data->gen_no );
 }
 
+static void
+assert_free_space( young_heap_t *heap, unsigned request_bytes )
+{
+  if (request_bytes > free_space( heap )) {
+    if (!DATA(heap)->just_promoted)
+      heap->collector->promote_out_of( heap->collector, 0 );
+    
+    if (request_bytes > free_space( heap ))
+      panic( "Cannot allocate object of size %u bytes "
+	    "(object is too large for heap).", request_bytes );
+  }
+}
+
+static void
+stack_overflow( young_heap_t *heap )
+{
+  /* Notes: 
+   * - it would be wrong to call heap->collect() directly.
+   * - 1024 is not magic, because the frame allocation mechanism
+   *   must re-check when the overflow logic returns.  But it is large
+   *   enough to minimize the chance of a second overflow.
+   */
+  heap->collector
+    ->collect( heap->collector, DATA(heap)->gen_no, GC_COLLECT, 1024 );
+}
 
 static void
 flip( young_heap_t *heap )

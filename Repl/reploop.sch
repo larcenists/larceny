@@ -1,7 +1,7 @@
 ; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; $Id$
+; $Id: reploop.sch,v 1.1 1997/05/15 00:53:10 lth Exp lth $
 
 (define *reset-continuation* #f)    ; to jump to for error or reset
 (define *saved-continuation* #f)    ; saved on error
@@ -12,9 +12,9 @@
   *argv*)
 
 (define (main argv)
-  (display "; Evaluator version ")
-  (display eval-version)
-  (newline)
+;  (display "; Evaluator version ")
+;  (display eval-version)
+;  (newline)
   (reset-handler new-reset-handler)
   (error-handler (new-error-handler))
   (init-toplevel-environment)

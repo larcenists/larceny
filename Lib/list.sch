@@ -1,7 +1,7 @@
 ; Lib/list.sch
 ; Larceny library -- list procedures
 ;
-; $Id: list.sch,v 1.3 1997/03/02 17:26:15 lth Exp $
+; $Id: list.sch,v 1.4 1997/05/15 00:42:10 lth Exp lth $
 ;
 ; Copyright 1991 Lightship Software
 ;

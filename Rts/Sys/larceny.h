@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.12 1997/02/23 01:15:32 lth Exp $
+ * $Id: larceny.h,v 1.14 1997/05/15 00:58:49 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -30,6 +30,7 @@ extern word globals[];
 extern int  panic( const char *fmt, ... );
 extern int  panic_abort( const char *fmt, ... );
 extern void annoyingmsg( const char *fmt, ... );
+extern void supremely_annoyingmsg( const char *fmt, ... );
 extern void consolemsg( const char *fmt, ... );
 extern void hardconsolemsg( const char *fmt, ... );
 
@@ -47,15 +48,7 @@ extern int dump_heap_image( char *filename );
 /* In "Rts/Sys/gc.c" -- an old-looking front-end for the new collector */
 
 #ifndef GC_INTERNAL
-extern int  allocate_heap( unsigned esize, unsigned emark, 
-			   unsigned ssize, 
-			   unsigned rhash, unsigned ssb,
-			   unsigned oldgen,
-			   old_param_t *info,
-			   int np_gc,
-			   unsigned np_steps,
-			   unsigned np_stepsize 
-			  );
+extern int  allocate_heap( gc_param_t *params );
 extern word *alloc_from_heap( unsigned );
 extern void garbage_collect( int, unsigned );
 extern void garbage_collect3( unsigned, unsigned, unsigned );
@@ -167,6 +160,11 @@ extern char *osname;
 extern word allocate_argument_vector( int argc, char **argv );
 #endif
 
+/* In "Rts/Sys/malloc.c" */
+
+extern void *must_malloc( unsigned bytes );
+extern void *must_realloc( void *ptr, unsigned size );
+
 /* In "Rts/$MACHINE/glue.s" */
 
 #ifndef GC_INTERNAL
@@ -195,14 +193,33 @@ extern int memfail( int code, char *fmt, ... );
 #define DEFAULT_ESIZE (1024*1024)     /* default espace size = 1MB */
 #define DEFAULT_TSIZE (1024*1024*2)   /* default tspace size = 2MB */
 #define DEFAULT_SSIZE 0               /* default static size = 0 */
+#define DEFAULT_SC_SIZE (1024*1024*2)  /* default stop+copy size = 2MB */
+#define DEFAULT_NP_SIZE (1024*1024*2) /* default NP space size = 2MB */
+
+#define DEFAULT_STEPS              8  /* default number of NP steps */
 
 /* GC policy defaults (not tuned) */
 #define DEFAULT_EWATERMARK 50     /* espace > 50% full => tenure */
+#define DEFAULT_TOFLOWATERMARK 75 /* tspace > 75% full => promote */
 #define DEFAULT_THIWATERMARK 75   /* tspace > 75% full => expand */
 #define DEFAULT_TLOWATERMARK 50   /* tspace < 50% full => contract */
 #define DEFAULT_RWATERMARK 75     /* remset-pool > 75% full => tenure */
+#define DEFAULT_SC_HIWATERMARK 75  /* stop+copy high watermark */
+#define DEFAULT_SC_LOWATERMARK 30  /* stop+copy low watermark */
+#define DEFAULT_NP_HIWATERMARK    80    /* NP expansion watermark */
+#define DEFAULT_NP_LOWATERMARK    30    /* NP contraction watermark */
+#define DEFAULT_NP_OFLOWATERMARK  80    /* NP promotion watermark */
 
 #define OLDSPACE_EXPAND_BYTES   (1024*256)  /* 256KB chunks */
+
+/* STACK_ROOM is the number of bytes to add onto memory requests during
+ * GC to make sure there is also room for the stack after the collection.
+ * It needs to be large enough to accomodate a biggish frame, so that
+ * the likelyhood of failure is slight.  The collectors must still work
+ * correctly if the allocation double-faults because the frame is really
+ * huge.
+ */
+#define STACK_ROOM              1024
 
 /* Remembered set defaults (not tuned) */
 #define DEFAULT_REMSET_POOLSIZE   8192     /*  8K elements = 64KB */
@@ -215,6 +232,9 @@ extern int memfail( int code, char *fmt, ... );
 #define HL_TLIM 2
 #define HL_SBOT 3
 #define HL_STOP 4
+
+/* System-wide maximum number of non-static heaps */
+#define MAX_HEAPS  16
 
 /* debugmsg( char *fmt, ... ); */
 

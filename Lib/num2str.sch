@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: num2str.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: num2str.sch,v 1.3 1997/05/15 00:42:10 lth Exp lth $
 ;
 ;                                       16 April 1990
 ;
@@ -74,9 +74,11 @@
 		      (string-copy "+inf.0"))
 		     (else (string-copy "-inf.0"))))
 	      ((= radix 10)
-	       (string-append (if (negative? x) "-" "")
-			      (dragon (float-significand x)
-				      exp)))
+	       (if (= x 0.0)
+		   (string-copy (if (= (float-sign x) 0) "0.0" "-0.0"))
+		   (string-append (if (negative? x) "-" "")
+				  (dragon (float-significand x)
+					  exp))))
 	      ((= x 0.0)
 	       (string-copy "#i0"))
 	      (else

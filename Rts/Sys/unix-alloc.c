@@ -1,13 +1,13 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
- * $Id: unix-alloc.c,v 1.6 1997/02/24 01:01:34 lth Exp $
+ * $Id: unix-alloc.c,v 1.8 1997/05/15 00:58:49 lth Exp lth $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write
  * barrier.  All allocation is done in page-sized chunks on page
  * boundaries, and other allocators (e.g. malloc) can co-exist with 
- * this one, as long as those allocators can cope with code that manipulate
+ * this one, as long as those allocators can cope with code that manipulates
  * the program break independently of the allocators.
  *
  * It is expected that requests for memory will be large and infrequent; 
@@ -15,12 +15,11 @@
  *
  * There are two descriptor tables: gclib_desc_g maps page numbers to
  * generation numbers, and gclib_desc_b maps page numbers to attribute bits.
- * The "page number" of
- * an address is defined by the pageof() macro in gclib.h; it is the address
- * minus the value of the global gclib_pagebase, all shifted right to throw
- * away the low-order bits.
+ * The "page number" of an address is defined by the pageof() macro in 
+ * gclib.h; it is the address minus the value of the global gclib_pagebase, 
+ * all shifted right to throw away the low-order bits.
  *
- * There are three separate tables rather than one table of records in
+ * There are two separate tables rather than one table of records in
  * order to simplify manipulation from assembly language (i.e., in the
  * write barrier).
  *
@@ -88,17 +87,11 @@ gclib_init( void )
 
   descriptor_slots = 32*1024*1024 / PAGESIZE;   /* Slots to handle 32 MB */
 
- again:
   /* It's OK to be using malloc() here */
-  gclib_desc_g = (unsigned*)malloc( sizeof( unsigned ) * descriptor_slots );
-  gclib_desc_b = (unsigned*)malloc( sizeof( unsigned ) * descriptor_slots );
-
-  if (gclib_desc_g == 0 || gclib_desc_b == 0) {
-    if (gclib_desc_g) free( gclib_desc_g );
-    if (gclib_desc_b) free( gclib_desc_b );
-    memfail( MF_MALLOC, "gclib could not allocate descriptor tables." );
-    goto again;
-  }
+  gclib_desc_g =
+    (unsigned*)must_malloc( sizeof( unsigned ) * descriptor_slots );
+  gclib_desc_b =
+    (unsigned*)must_malloc( sizeof( unsigned ) * descriptor_slots );
 
   for ( i = 0 ; i < descriptor_slots ; i++ )
     gclib_desc_g[i] = gclib_desc_b[i] = 0;
@@ -242,6 +235,7 @@ static void *gclib_alloc( unsigned bytes )
     gclib_desc_g = desc_g;
     gclib_desc_b = desc_b;
     wb_re_setup( gclib_desc_g );  /* HACK! UGLY! FIXME! */
+                                  /* (would be method on "arena" object?) */
     goto again;
   }
 
@@ -364,8 +358,7 @@ void gclib_stats( word *wheap, word *wremset, word *wrts )
 }
 
 
-#ifdef GCLIB_DEBUG
-static void dump_freelist( void )
+void dump_freelist( void )
 {
   freelist_t *f = freelist;
 
@@ -376,7 +369,5 @@ static void dump_freelist( void )
     f = f->next;
   }
 }
-#endif  /* GCLIB_DEBUG */
-
 
 /* eof */

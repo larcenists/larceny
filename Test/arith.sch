@@ -125,6 +125,8 @@
    (test "(numberpred -1234567890/13)" (numberpred -1234567890/13) 
    	 '(#f #t #t #t))
    ; flonums
+   (test "(numberpred 0.0)" (numberpred 0.0) '(#t #t #t #t))
+   (test "(numberpred -0.0)" (numberpred -0.0) '(#t #t #t #t))
    (test "(numberpred 1.0)" (numberpred 1.0) '(#t #t #t #t))
    (test "(numberpred -1.0)" (numberpred -1.0) '(#t #t #t #t))
    (test "(numberpred 1.01)" (numberpred 1.01) '(#f #t #t #t))

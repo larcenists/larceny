@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.h
  * Larceny run-time system -- garbage collector interface (public)
  *
- * $Id: gc.h,v 1.9 1997/02/27 16:40:26 lth Exp $
+ * $Id: gc.h,v 1.11 1997/05/15 00:58:49 lth Exp lth $
  *
  * The procedure create_gc() returns a new garbage collector that manages
  * some number of heap areas.  It is implemented in "memmgr.c".
@@ -22,25 +22,54 @@
 #ifndef INCLUDED_GC_H
 #define INCLUDED_GC_H
 
+/* Information about each heap */
+
+typedef struct heap_info heap_info_t;
+struct heap_info {
+  int size_bytes;           /* requested heap size in bytes */
+  int hi_mark;              /* expansion watermark, % of size */
+  int lo_mark;              /* contraction watermark, % of size */
+  int oflo_mark;            /* overflow (promotion) watermark, % of size */
+};
+
+/* A structure that is used to pass parameters to the collector */
+
+typedef struct gc_param gc_param_t;
+struct gc_param {
+  int use_static_heap;        /* 1 if static heap is to be used */
+  int use_np_heap;            /* 1 if non-predictive heap is to be used */
+  int heaps;                  /* number of heaps to use (not counting static)*/
+
+  word *globals;              /* globals table used by collector */
+
+  /* For non-static heap and remembered-set information, a value of 0 
+   * means "default" 
+   */
+
+  /* Information about non-static heaps */
+  heap_info_t *heap_info;
+
+  /* If the last heap is nonpredictive, then these values take precedence
+   * over size_bytes, and oflo_mark is ignored.
+   */
+  unsigned np_steps;          /* number of steps */
+  unsigned np_stepsize;       /* size of a step (bytes) */
+  
+  /* Remembered-set values (could be set-by-set; are global) */
+  unsigned rhash;             /* # elements in each remset hash tbl */
+  unsigned ssb;               /* # elements in each remset SSB */
+  
+  /* Static area information */
+  unsigned static_size;       /* size of sspace (bytes) */
+};
+
 typedef struct gc gc_t;
 typedef struct heap_stats heap_stats_t;
 typedef struct old_param old_param_t;
 typedef enum { GC_COLLECT, GC_PROMOTE } gc_type_t;
 
 gc_t *
-create_gc( unsigned esize_bytes,
-	   unsigned ewatermark_percent,
-	   unsigned ssize_bytes,
-	   unsigned rhash,
-	   unsigned ssb,
-	   unsigned generations,
-	   old_param_t *old_gen_info,
-	   int np_gc,
-	   unsigned np_steps,
-	   unsigned np_stepsize_bytes,
-	   word *globals,
-	   int *actual_generations /* OUT */
-	  );
+create_gc( gc_param_t *params, int *actual_generations /* OUT */ );
 
 struct gc { 
   char *id;
@@ -58,6 +87,7 @@ struct gc {
   word (*creg_get)( gc_t *gc );
   void (*creg_set)( gc_t *gc, word continuation );
   void (*stack_underflow)( gc_t *gc );
+  void (*stack_overflow)( gc_t *gc );
 
   /* Cache flushing -- returns 1 if cache needs flushing. */
   int  (*iflush)( gc_t *gc, int generation );
@@ -71,6 +101,13 @@ struct gc {
 
   /* Support for simulated write barrier */
   int (*isremembered)( gc_t *gc, word w );
+
+  /* Support for non-predictive collector */
+  void (*compact_np_ssb)( gc_t *gc );
+  void (*clear_np_remset)( gc_t *gc );
+  void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim );
+  void (*set_np_collection_flag)( gc_t *gc );
+  void (*np_merge_and_clear_remset)( gc_t *gc, int gen );
 
   /* PRIVATE */
   /* Internal to the collector implementation. */
@@ -117,6 +154,20 @@ struct heap_stats {
   unsigned hash_scanned;    /* Hash table entries scanned */
   unsigned words_scanned;   /* Old object space words scanned */
   unsigned stacks_created;  /* Stacks created */
+
+  /* Special entries for non-predictive collector */
+  unsigned np_k;            /* Number of steps */
+  unsigned np_j;            /* Number of steps in 'young' generation */
+  unsigned np_young;        /* 1 iff NP young generation */
+  unsigned np_old;          /* 1 iff NP old generation */
+#if NP_EXTRA_REMSET
+  /* "Since last call" entries */
+  unsigned np_ssb_recorded;    /* SSB entries recorded */
+  unsigned np_hash_recorded;   /* Hash table entries recorded */
+  unsigned np_hash_removed;    /* Hash table entries removed */
+  unsigned np_hash_scanned;    /* Hash table entries scanned */
+  unsigned np_words_scanned;   /* Old object space words scanned */
+#endif
 };
 
 

@@ -1,11 +1,9 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.10 1997/02/27 16:40:26 lth Exp $
+ * $Id: larceny.c,v 1.12 1997/05/15 00:58:49 lth Exp lth $
  *
- * See the manual page file ``larceny.1'' for instructions about the 
- * format of the command line.  Alternatively, read the source for 
- * parse_options() below.
+ * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
 
 #include <stdio.h>
@@ -16,39 +14,30 @@
 #include "macros.h"
 #include "cdefs.h"
 
-#define MAX_OLD_GENERATIONS   32
-
 typedef struct opt opt_t;
 
 /* Argument parsing structure */
 struct opt {
-  unsigned esize;
-  unsigned rhash;
-  unsigned ssb;
-  unsigned ewatermark;
-  unsigned requested_old_generations;
-  old_param_t old_gen_info[ MAX_OLD_GENERATIONS ];
-  int         size_explicit[ MAX_OLD_GENERATIONS ];
-  int         himark_explicit[ MAX_OLD_GENERATIONS ];
-  int         lomark_explicit[ MAX_OLD_GENERATIONS ];
-  unsigned old_generations;
-  unsigned timerval;
-  unsigned enable_singlestep;
-  unsigned enable_breakpoints;
-  unsigned enable_timer;
-  unsigned show_heapstats;
-  char     *heapfile;
-  int      quiet;
-  int      annoying;
-  int      flush;
-  int      noflush;
-  int      np_gc;
-  int      np_steps;
-  int      np_stepsize;
-  int      use_static;
-  int      restc;
-  char     **restv;
-  char     *gc_debug_file;
+  unsigned   maxheaps;
+  gc_param_t gc_info;
+  int        size_explicit[ MAX_HEAPS ];
+  int        himark_explicit[ MAX_HEAPS ];
+  int        lomark_explicit[ MAX_HEAPS ];
+  int        oflomark_explicit[ MAX_HEAPS ];
+  unsigned   timerval;
+  unsigned   enable_singlestep;
+  unsigned   enable_breakpoints;
+  unsigned   enable_timer;
+  unsigned   show_heapstats;
+  char       *heapfile;
+  int        quiet;
+  int        annoying;
+  int        supremely_annoying;
+  int        flush;
+  int        noflush;
+  int        restc;
+  char       **restv;
+  char       *gc_debug_file;
 };
 
 static void invalid( char *s );
@@ -65,23 +54,26 @@ static int quiet = 0;
 
 /* 'annoying' controls annoying_msg() */
 static int annoying = 0;
+static int supremely_annoying = 0;
 
 /* Genesis. */
 int main( argc, argv )
 int argc;
 char **argv;
 {
-  unsigned ssize;
   opt_t o;
 
   memset( &o, 0, sizeof( o ) );
+  o.maxheaps = MAX_HEAPS;
   o.timerval = 0xFFFFFFFF;
   o.heapfile = 0;
   o.restv = 0;
-  o.gc_debug_file = 0;
-  o.requested_old_generations = 1;
-  o.use_static = 1;
-  o.old_generations = MAX_OLD_GENERATIONS;  /* really determined by GC */
+
+  o.gc_info.heaps = 2;   /* dual-heap generational collector */
+  o.gc_info.heap_info = (heap_info_t*)malloc( sizeof(heap_info_t)*MAX_HEAPS );
+  memset( o.gc_info.heap_info, 0, sizeof( heap_info_t )*MAX_HEAPS );
+  o.gc_info.use_static_heap = 1;
+  o.gc_info.globals = globals;
 
   cache_setup();
   consolemsg( "Larceny v%s (%s;%s) (%s/%s)",
@@ -94,37 +86,36 @@ char **argv;
   if (o.heapfile == 0)
     o.heapfile = "larceny.heap";
 
+  /* HACK! HACK! HACK! FIXME!
+   * Static area currently disabled with stop-and-copy system.
+   */
+  if (o.gc_info.heaps == 1) {
+    if (o.gc_info.use_static_heap) {
+      consolemsg( "The static area is disabled with the stop+copy gc." );
+      consolemsg( "Use -nostatic to disable this message." );
+      o.gc_info.use_static_heap = 0;
+    }
+  }
+
   quiet = o.quiet;
   annoying = o.annoying;
+  supremely_annoying = o.supremely_annoying;
+#ifdef DEBUG
+  annoying = supremely_annoying = 1;
+#endif
 
   if (o.flush)
     globals[ G_CACHE_FLUSH ] = 1;
   else if (o.noflush)
     globals[ G_CACHE_FLUSH ] = 0;
 
-#if 0
-  /* No longer available... */
-  if (o.gc_debug_file) {
-    gcdebug( o.gc_debug_file );
-    exit( 0 );
-  }
-#endif
-
   /* Load the heap */
   openheap( o.heapfile );
 
-  if (o.use_static)
-    ssize = heap_ssize() + heap_tsize();
-  else
-    ssize = 0;
+  if (o.gc_info.use_static_heap)
+    o.gc_info.static_size = heap_ssize() + heap_tsize();
 
-  /* This is getting messy. */
-  if (!allocate_heap( o.esize, o.ewatermark,
-		      ssize,
-		      o.rhash, o.ssb,
-		      o.requested_old_generations,
-		      o.old_gen_info,
-		      o.np_gc, o.np_steps, o.np_stepsize ))
+  if (!allocate_heap( &o.gc_info ))
     panic( "Unable to allocate heap/create garbage collector." );
 
   load_heap();
@@ -205,6 +196,20 @@ void annoyingmsg( const char *fmt, ... )
   va_list args;
 
   if (!annoying) return;
+
+  va_start( args, fmt );
+  if (!quiet) {
+    vfprintf( stderr, fmt, args );
+    fprintf( stderr, "\n" );
+  }
+  va_end( args );
+}
+
+void supremely_annoyingmsg( const char *fmt, ... )
+{
+  va_list args;
+
+  if (!supremely_annoying) return;
 
   va_start( args, fmt );
   if (!quiet) {
@@ -297,48 +302,64 @@ parse_options( int argc, char **argv, opt_t *o )
 
   while (--argc) {
     ++argv;
-    if (sizearg( "-old", &argc, &argv, &o->requested_old_generations )) {
-      if (o->requested_old_generations >= o->old_generations)
-	invalid( "-old" );
+    if (numbarg( "-heaps", &argc, &argv, &o->gc_info.heaps )) {
+      if (o->gc_info.heaps >= o->maxheaps || o->gc_info.heaps < 1)
+	invalid( "-heaps" );
     }
-    else if (sizearg( "-esize", &argc, &argv, &o->esize )) ;
-    else if (sizearg( "-rhash", &argc, &argv, &o->rhash )) ;
-    else if (sizearg( "-ssb", &argc, &argv, &o->ssb )) ;
-    else if (numbarg( "-emark", &argc, &argv, &o->ewatermark )) ;
+    else if (sizearg( "-rhash", &argc, &argv, &o->gc_info.rhash )) ;
+    else if (sizearg( "-ssb", &argc, &argv, &o->gc_info.ssb )) ;
     else if (numbarg( "-ticks", &argc, &argv, &o->timerval )) ;
-    else if (hsizearg( "-tsize", &argc, &argv, &val, &loc )) {
-      if (loc > 0) {
-	o->old_gen_info[loc-1].size = val;
+    else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
+      if (loc < 0 || loc > o->maxheaps)
+	invalid( "-size" );
+      else if (loc > 0) {
+	o->gc_info.heap_info[loc-1].size_bytes = val;
 	o->size_explicit[loc-1] = 1;
       }
       else 
-	for ( i=0 ; i < o->old_generations ; i++ )
-	  if (!o->size_explicit[i]) o->old_gen_info[i].size = val;
+	for ( i=0 ; i < o->maxheaps ; i++ )
+	  if (!o->size_explicit[i]) o->gc_info.heap_info[i].size_bytes = val;
     }
-    else if (hnumbarg( "-thimark", &argc, &argv, &val, &loc )) {
-      if (loc > 0) {
-	o->old_gen_info[loc-1].hiwatermark = val;
+    else if (hnumbarg( "-himark", &argc, &argv, &val, &loc )) {
+      if (loc < 0 || loc > o->maxheaps) 
+	invalid( "-himark" );
+      else if (loc > 0) {
+	o->gc_info.heap_info[loc-1].hi_mark = val;
 	o->himark_explicit[loc-1] = 1;
       }
       else 
-	for ( i=0 ; i < o->old_generations ; i++ )
-	  if (!o->himark_explicit[i])
-	    o->old_gen_info[i].hiwatermark = val;
+	for ( i=0 ; i < o->maxheaps ; i++ )
+	  if (!o->himark_explicit[i]) o->gc_info.heap_info[i].hi_mark = val;
     }
-    else if (hnumbarg( "-tlomark", &argc, &argv, &val, &loc )) {
-      if (loc > 0) {
-	o->old_gen_info[loc-1].lowatermark = val;
+    else if (hnumbarg( "-lomark", &argc, &argv, &val, &loc )) {
+      if (loc < 0 || loc > o->maxheaps)
+	invalid( "-lomark" );
+      else if (loc > 0) {
+	o->gc_info.heap_info[loc-1].lo_mark = val;
 	o->lomark_explicit[loc-1] = 1;
       }
       else 
-	for ( i=0 ; i < o->old_generations ; i++ )
-	  if (!o->lomark_explicit[i])
-	    o->old_gen_info[i].lowatermark = val;
+	for ( i=0 ; i < o->maxheaps ; i++ )
+	  if (!o->lomark_explicit[i]) o->gc_info.heap_info[i].lo_mark = val;
     }
-    else if (numbarg( "-np:steps", &argc, &argv, &o->np_steps ))
-      o->np_gc = 1;
-    else if (sizearg( "-np:size", &argc, &argv, &o->np_stepsize ))
-      o->np_gc = 1;
+    else if (hnumbarg( "-overflowmark", &argc, &argv, &val, &loc ) ||
+	     hnumbarg( "-oflomark", &argc, &argv, &val, &loc )) {
+      if (loc < 0 || loc > o->maxheaps) 
+	invalid( "-overflowmark" );
+      else if (loc > 0) {
+	o->gc_info.heap_info[loc-1].oflo_mark = val;
+	o->oflomark_explicit[loc-1] = 1;
+      }
+      else 
+	for ( i=0 ; i < o->maxheaps ; i++ )
+	  if (!o->oflomark_explicit[i]) o->gc_info.heap_info[i].oflo_mark=val;
+    }
+    else if (numbarg( "-steps", &argc, &argv, &o->gc_info.np_steps ))
+      o->gc_info.use_np_heap = 1;
+    else if (sizearg( "-stepsize", &argc, &argv, &o->gc_info.np_stepsize ))
+      o->gc_info.use_np_heap = 1;
+    else if (strcmp( *argv, "-np" ) == 0)
+      o->gc_info.use_np_heap = 1;
     else if (strcmp( *argv, "-break" ) == 0)
       o->enable_breakpoints = 1;
     else if (strcmp( *argv, "-step" ) == 0)
@@ -351,23 +372,20 @@ parse_options( int argc, char **argv, opt_t *o )
       o->quiet = 1;
     else if (strcmp( *argv, "-annoy-user" ) == 0)
       o->annoying = 1;
+    else if (strcmp( *argv, "-annoy-user-greatly" ) == 0) {
+      o->annoying = 1;
+      o->supremely_annoying = 1;
+    }
     else if (strcmp( *argv, "-flush" ) == 0)
       o->flush = 1;
     else if (strcmp( *argv, "-noflush" ) == 0)
       o->noflush = 1;
     else if (strcmp( *argv, "-nostatic" ) == 0)
-      o->use_static = 0;
+      o->gc_info.use_static_heap = 0;
     else if (strcmp( *argv, "-args" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
       break;
-    }
-    else if (strcmp( *argv, "-gcdebug" ) == 0) {
-      if (argc == 1)
-	invalid( "-gcdebug" );
-      o->gc_debug_file = *(argv+1);
-      ++argv;
-      --argc;
     }
     else if (**argv == '-') {
       consolemsg( "Error: Invalid option '%s'", *argv );
@@ -481,36 +499,38 @@ static void usage( void )
 
 static void help( void )
 {
-  consolemsg("Usage: larceny [ options ][ heapfile ][-args args-to-scheme]" );
+  consolemsg("Usage: larceny [ options ][ heapfile ][-args arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
-  consolemsg("\t-esize    nnnn  Ephemeral-area size in bytes" );
-  consolemsg("\t-emark    n     Ephemeral-area watermark in percent" );
+  consolemsg("\t-heaps    n     Number of non-static heaps." );
+  consolemsg("\t-size     nnnn  Per-heap size in bytes." );
+  consolemsg("\t-size#    nnnn  Heap number '#' size." );
+  consolemsg("\t-himark   n     Per-heap expansion watermark in percent." );
+  consolemsg("\t-himark#  n     Heap number '#' expansion watermark." );
+  consolemsg("\t-lomark   n     Per-heap contraction watermark in percent." );
+  consolemsg("\t-lomark#  n     Heap number '#' contraction watermark." );
+  consolemsg("\t-oflomark n     Per-heap promotion watermark in percent." );
+  consolemsg("\t-oflomark# n    Heap number '#' promotion watermark." );
+  consolemsg("\t-np       n     Use the non-predictive collector." );
+  consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
+  consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
+  consolemsg("\t-nostatic       Don't use the static area." );
+  consolemsg("\t-stats          Print startup memory statistics." );
+  consolemsg("\t-quiet          Suppress nonessential messages." );
+  consolemsg("\t-annoy-user     Print annoying messages." );
+  consolemsg("\t-annoy-user-greatly  Print very annoying messages." );
+  consolemsg("\t-help           Print this message." );
+  consolemsg("");
   consolemsg("\t-rhash    nnnn  Remembered-set hash table size, in elements");
   consolemsg("\t                 (The size must be a power of 2)");
   consolemsg("\t-ssb      nnnn  Remembered-set Sequential Store Buffer (SSB)");
   consolemsg("\t                 size in elements" );
-  consolemsg("\t-old      n     Number of old generations." );
-  consolemsg("\t-np:steps n     Number of steps in the non-predictive gc." );
-  consolemsg("\t-np:size  nnnn  Size of each step in non-predictive gc." );
-  consolemsg("\t-tsize    nnnn  Old-area size in bytes." );
-  consolemsg("\t-thimark  n     Old-area high watermark in percent" );
-  consolemsg("\t-tlomark  n     Old-area low watermark in percent" );
-  consolemsg("\t-tsize#   nnnn  Old-area number '#' size" );
-  consolemsg("\t-thimark# n     Old-area number '#' high watermark" );
-  consolemsg("\t-tlomark# n     Old-area number '#' low watermark" );
-  consolemsg("\t-nostatic       Don't use the static area" );
   consolemsg("\t-ticks    nnnn  Initial timer interval value" );
   consolemsg("\t-break          Enable breakpoints" );
   consolemsg("\t-step           Enable single-stepping" );
 /*
   consolemsg( "\t-timer          Enable timer interrupts at startup" ); 
 */
-  consolemsg("\t-stats          Print memory statistics" );
-  consolemsg("\t-quiet          Suppress nonessential messages" );
-  consolemsg("\t-annoy-user     Print annoying messages" );
-  consolemsg("\t-help           Print this message" );
-  consolemsg("\t-gcdebug file   GC debug mode (developers only!)" );
   consolemsg("" );
   consolemsg("Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed");
   consolemsg("with K (for KB) or M (for MB) when that makes sense." );

@@ -1,7 +1,7 @@
 /* Rts/Sys/gc-interface.h
  * Larceny run-time system -- garbage collector interface (internal).
  * 
- * $Id: memmgr.h,v 1.6 1997/02/27 16:40:26 lth Exp $
+ * $Id: memmgr.h,v 1.8 1997/05/15 00:58:49 lth Exp lth $
  *
  * A garbage collector is an ADT of type gc_t; see the file Rts/Sys/gc.h.
  * 
@@ -93,6 +93,18 @@
  * The garbage collector implementation makes use of a low-level library
  * that handles copying, memory allocation, and so on.  The interface to this
  * library is defined in the file Rts/Sys/gclib.h.
+ *
+ *
+ * Idea for an even better structure:
+ *
+ * Currently control-flow among collector modules is somewhat convoluted
+ * because individual collectors make policy decisions by calling back into
+ * the memmgr code to pass control to the collectors of older generations.
+ * A better structure would be the following: each collector has a method
+ * for policy decisions, and that method is called by the memmgr and gets
+ * to decide whether it wants to promote, collect, or pass the buck.  The
+ * memmgr can then just call the correct method in the pertinent heap after
+ * all the policy decisions have been made.
  */
 
 #ifndef INCLUDED_GC_INTERFACE_H
@@ -158,9 +170,12 @@ typedef struct remset_stats remset_stats_t;
  */
 
 young_heap_t *
-create_young_heap( int *gen_no, int heap_no, unsigned size_bytes,
-			                     unsigned watermark,
-			                     word *globals );
+create_young_heap( int *gen_no, int heap_no,
+		   unsigned size_bytes, unsigned watermark, word *globals );
+young_heap_t *
+create_sc_heap( int *gen_no, int heap_no, 
+	        unsigned size_bytes, unsigned himark, unsigned lomark,
+	        word *globals );
 
 struct young_heap {
   gc_t     *collector;
@@ -168,7 +183,8 @@ struct young_heap {
 
   int      (*initialize)( young_heap_t *heap );
   word     *(*allocate)( young_heap_t *heap, unsigned nbytes );
-  void     (*collect)( young_heap_t *heap );
+  void     (*collect)( young_heap_t *heap, unsigned nbytes );
+  void     (*assert_free_space)( young_heap_t *heap, unsigned nbytes );
   void     (*before_promotion)( young_heap_t *heap );
   void     (*after_promotion)( young_heap_t *heap );
 
@@ -183,6 +199,7 @@ struct young_heap {
   word     (*creg_get)( young_heap_t *heap );
   void     (*creg_set)( young_heap_t *heap, word k );
   void     (*stack_underflow)( young_heap_t *heap );
+  void     (*stack_overflow)( young_heap_t *heap );
 
   /* Private */
   void     *data;
@@ -237,11 +254,14 @@ old_heap_t *
 create_old_heap( int *gen_no, int heap_no,
 		unsigned size_bytes,
 		unsigned hiwatermark,
-		unsigned lowatermark );
+		unsigned lowatermark,
+		unsigned oflowatermark );
 
 old_heap_t *
 create_old_np_sc_heap( int *gen_no, int heap_no, 
-		       unsigned size_bytes, unsigned chunksize_bytes );
+		       unsigned size_bytes, unsigned chunksize_bytes,
+		       unsigned hi_mark, unsigned lo_mark, unsigned oflo_mark
+		      );
 
 struct old_heap {
   gc_t *collector;
@@ -335,7 +355,8 @@ struct remset_stats {
  */
 
 remset_t *
-create_remset( unsigned tbl_ent, unsigned pool_ent, unsigned ssb_ent );
+create_remset( unsigned tbl_ent, unsigned pool_ent, unsigned ssb_ent,
+	       word **ssb_bot_loc, word **ssb_top_loc, word **ssb_lim_loc );
 
 struct remset {
   void (*clear)( remset_t *remset );
@@ -345,11 +366,12 @@ struct remset {
   void (*stats)( remset_t *remset, remset_stats_t *stats );
   int  (*has_overflowed)( remset_t *remset );
   int  (*isremembered)( remset_t *remset, word w );
+  void (*assimilate)( remset_t *borg, remset_t *earth );
 
   /* For the write barrier. */
-  word *ssb_bot;
-  word *ssb_top;
-  word *ssb_lim;
+  word **ssb_bot;
+  word **ssb_top;
+  word **ssb_lim;
 
   /* Private */
   void *data;

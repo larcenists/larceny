@@ -1,7 +1,7 @@
 ; Lib/reader.sch
 ; Larceny -- Scheme reader
 ;
-; $Id: reader.sch,v 1.5 1997/03/05 19:28:51 lth Exp lth $
+; $Id: nreader.sch,v 1.1 1997/05/15 00:42:10 lth Exp lth $
 ;
 ; Copyright Lightship Software.
 ;

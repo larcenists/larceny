@@ -1,7 +1,7 @@
 ! Rts/Sparc/barrier.s
 ! Write barrier code to support new GC with the old remembered sets.
 !
-! $Id: barrier.s,v 1.5 1997/02/24 01:05:53 lth Exp $
+! $Id: barrier.s,v 1.7 1997/05/15 00:58:05 lth Exp lth $
 !
 ! Write barrier.
 !
@@ -40,6 +40,7 @@
 	.global EXTNAME(m_full_barrier)		! full write barrier
 	.global EXTNAME(mem_addtrans)		! alias for full barrier
 	.global EXTNAME(m_partial_barrier)	! partial write barrier
+	.global EXTNAME(wb_disable)		! disable barrier
 
 	.seg "text"
 
@@ -89,6 +90,10 @@ EXTNAME(mem_addtrans):
 !    gr = genv[page(rhs)];       /* gr: generation # of rhs */
 !    if (gl <= gr) return;  
 !  
+!    /* experiment */
+!    if (gr == gl-1 && gl == globals[ G_NP_YOUNG_GEN ]) {
+!      gl = globals[ G_NP_YOUNG_GEN_SSBIDX ];
+!    }
 !    ssbtopv = (word**)globals[ G_SSBTOPV ];
 !    ssblimv = (word**)globals[ G_SSBLIMV ];
 !    *ssbtopv[gl] = lhs;
@@ -112,9 +117,33 @@ EXTNAME(m_partial_barrier):
 	! %TMP2: dead
 	cmp	%TMP0, %TMP1
 	ble	9f
-	sll	%TMP0, 2, %TMP1			! gl shifted for indexing
+! begin experimental (yes, this is in the delay slot.  watch it.)
+#if NP_EXTRA_REMSET
+	add	%TMP1, 1, %TMP1
 
 	! Must record a transaction
+	! %TMP0: gl
+	! %TMP1: gr+1
+	! %TMP2: dead
+
+	ld	[%GLOBALS+G_NP_YOUNG_GEN], %TMP2	! scheduled
+	cmp	%TMP0, %TMP1				! gl==gr+1
+	bne	1f
+	nop
+
+	cmp	%TMP0, %TMP2				! gl==glob[YOUNG_GEN]
+	bne	1f
+	nop
+	ld	[%GLOBALS+G_NP_YOUNG_GEN_SSBIDX], %TMP0
+
+	! %TMP0: gl (possibly modified)
+	! %TMP1: dead
+	! %TMP2: dead
+1:
+#endif
+! end experimental
+	sll	%TMP0, 2, %TMP1			! gl shifted for indexing
+
 	! %TMP0: dead
 	! %TMP1: gl, shifted for indexing
 	! %TMP2: dead

@@ -1,0 +1,152 @@
+; -*- text -*-
+; ./BUGS-FIXED
+; $Id: BUGS-FIXED,v 1.1 1997/05/15 00:40:15 lth Exp lth $
+
+	       Known bugs in Larceny that have been fixed
+
+001  (v0.25) 
+
+     Discovered by arithmetic regression test ("test 6"):
+       (inexact->exact 0.0)
+     bombs with
+       Error: quotient:  division by zero: 8 0
+     Happens in both generational and stop+copy systems.  Also fails
+     for complexes where the real part is 0.0, e.g. (i->e 0.0+1.0i).
+
+     FIX: became fixed when 006 was fixed.
+
+006  (v0.27e)
+
+     (integer? 0.0) => #f
+     Note that (integer? 1.0) => #t and (integer? -1.0) => #t.
+
+     It appears that the algorithm used by generic_integerp in generic.s
+     is not correct for 0.0, because 0.0 is not represented like other 
+     numbers: its biased exponent is 0.
+
+     Since inexact->exact uses integer?, the problem with the former may
+     be a problem with the latter.
+
+     FIX: changed the implementation of generic_integerp in Sparc/generic.s.
+
+007  (v0.27e)
+
+     -0.0 prints without the leading `-'.  It reads as -0.0, however.
+     More specifically, (number->string -0.0) => "0.0".  This bug is present
+     because the implementation of number->string uses negative? to see
+     whether the output should be prefixed by `-' or not, but negative?
+     is not #t for -0.0 (just like positive? is not true for 0.0).
+
+     FIX: changed number->string.
+
+008 (v0.28)
+
+    The evaluator is buggy -- it does not run the remset-profile program
+    in Util/process-stats, but when given the command
+
+	(remset-profile "stats-std")
+
+    gives the error
+
+	Error: cdr: stats-std is not a pair.
+
+    I have preserved the source file as Bugs/process-stats.sch.
+
+    This is reproducible in the following smaller fragment:
+    > (define zz 
+        (lambda (x) 
+          (let ((a 33)) 
+            (do ((i 0 (+ i 1))) 
+                ((= i 10)) 
+              (display "A") 
+              (set! a (+ a x)) 
+              (display x)
+              (newline)))))
+    > (zz 1)
+    AError: cdr: () is not a pair.
+
+    That is, it fails in the set!.
+
+    FIX: Turned out that in eval/setlex, what is env0 below was called
+	 env, so the rhs was evaluated with the wrong environment.
+	
+	(define (eval/setlex rib offset expr)
+	  (lambda (env0)
+	    (let loop ((rib rib) (env env0))
+	      (if (= rib 0)
+		  (vector-set! (car env) offset (expr env0))
+		  (loop (- rib 1) (cdr env))))))
+
+
+009  (v0.28)  Fixed 970430 by lth.
+
+     Garbage collector bug, standard collector.
+
+     In binary delphi970426/bin/larceny.noprof with heap in that same
+     directory.
+
+     Parameters: -heaps 4 -size1 256K -size2 512K -size3 512K -size4 1536K 
+
+     Transcript
+
+	Larceny v0.28 (SunOS;split) (lth/Sat Apr 26 08:17:23 EDT 1997)
+
+	> (load "bin/dynamic.fasl")
+	> (collect)
+	> (dynamic-benchmark 50)
+
+	--------------------------------------------------------
+	dynamic
+	Error: cdr: 0 is not a pair.
+
+     The error is repeatable also in the current system:
+
+	Larceny v0.28 (SunOS;split) (lth/Tue Apr 29 17:46:45 EDT 1997)
+
+     with the heap file as used in the previous system.  However, that
+     heap is identical to the current heap.
+
+     Annoy-user transcript (for what it's worth):
+
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 2.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 3.
+	Contracting generation 3 by 315392 bytes; size=1257472.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 3.
+	Expanding generation 3 by 253952 bytes; size=1511424.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 3.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Error: cdr: 0 is not a pair.
+
+    Full debug transcript (>2300 lines) is in Bugs/gcbug-transcript.
+
+    Debug transcript shows that before_promotion and after_promotion
+    are not being called for old-heap(2,2) when promoting or collecting
+    into old-heap(3,3).  This is a bug.  This kind of collection
+    happens just before the crash (and also several times previously in
+    the run).
+
+    FIX:
+    This turned out to be three interacting bugs.
+    * First, the array of prom_bits was not initialized properly, although
+      it is likely that this was overcome rapidly (or worked by accident,
+      seeing as memory is usually allocated 0-initialized).
+    * Second, the algorithms used by before_promote_all and after_promote_all
+      were wrong.
+    * Third, a typo in after_promote_all made out-of-bounds array references
+      to prom-bits possible (although not in the current case).
+

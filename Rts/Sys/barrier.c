@@ -1,12 +1,17 @@
 /* Rts/Sys/barrier.c
  * Larceny run-time system -- write barrier for new collector
  *
- * $Id: barrier.c,v 1.4 1997/02/24 01:01:34 lth Exp $
+ * $Id: barrier.c,v 1.6 1997/05/15 00:58:49 lth Exp lth $
  *
- * The code in this file sets things up for the millicode write barrier: 
- * the values of pagebase, genv, ssbtopv, and ssblimv.  See the code 
- * for the millicode write barrier in Rts/Sparc/barrier.s for a deeper
- * understanding.
+ * Write barrier support code.
+ *
+ * wb_setup() sets up the write barrier in a generational system.
+ * wb_setup0() sets initializes the module in a non-generational system.
+ * wb_disable() disables the barrier (see file Rts/Sparc/barrier.s).
+ * wb_re_setup() is used by the low-level allocator to inform the
+ *    barrier about a new (reallocated) page table.  This is a hack.
+ *
+ * Also see Rts/Sparc/barrier.s.
  */
 
 #define GC_INTERNAL
@@ -25,51 +30,52 @@
  * will go away with the new WB.
  */
 
-static remset_t **wb_remsets;  /* [0..n-1] where [0] has unspecified value */
-static word **wb_ssbtopv;      /* ditto */
+static word **wb_ssbtopv;      /* [0..n] where 0 is invalid */
 static word **wb_ssblimv;      /* ditto */
 static int wb_generations;     /* the value 'n' */
-static word *wb_globals;
+static word *wb_globals;       /* the globals array */
 
-void wb_setup( remset_t **remsets, /* one remset per generation, except [0] */
-	       unsigned *genv,     /* maps page number to generation number */
+void wb_setup( unsigned *genv,     /* maps page number to generation number */
 	       unsigned pagebase,  /* address of lowest page in arena: fixed */
 	       int generations,    /* the value 'n': fixed */
-               word *globals       /* the globals vector */
+               word *globals,      /* the globals vector */
+	       word **ssbtopv,
+	       word **ssblimv,
+	       int  np_young_gen,  /* -1 or generation # for NP young */
+	       int  np_ssbidx      /* -1 or idx in vectors for magic remset */
              )
 {
-  wb_remsets = remsets;
   wb_generations = generations;
   wb_globals = globals;
+  wb_ssbtopv = ssbtopv;
+  wb_ssblimv = ssblimv;
 
   assert( generations > 1 );
-
- again:
-  wb_ssbtopv = (word**)malloc( generations*sizeof( word* ) );
-  wb_ssblimv = (word**)malloc( generations*sizeof( word* ) );
-  if (wb_ssbtopv == 0 || wb_ssblimv == 0) {
-    if (wb_ssbtopv) free( wb_ssbtopv );
-    if (wb_ssblimv) free( wb_ssblimv );
-    memfail( MF_MALLOC, "barrier: can't allocate metadata." );
-    goto again;
-  }
 
   globals[ G_SSBTOPV ] = (word)wb_ssbtopv;
   globals[ G_SSBLIMV ] = (word)wb_ssblimv;
   globals[ G_GENV ] = (word)genv;
   globals[ G_PGBASE ] = (word)pagebase;
-  wb_ssbtopv[0] = 0;
-  wb_ssblimv[0] = 0;
-  wb_sync_ssbs();
+  globals[ G_NP_YOUNG_GEN ] = (word)np_young_gen;
+  globals[ G_NP_YOUNG_GEN_SSBIDX ] = (word)np_ssbidx;
 }
 
 
-/* Ugh. */
+void wb_setup0( void )
+{
+  wb_generations = 0;
+}
+
 void
 wb_re_setup( unsigned *genv )
 {
-  wb_globals[ G_GENV ] = (word)genv;
+  if (wb_generations > 0)
+    wb_globals[ G_GENV ] = (word)genv;
 }
+
+
+/**********************************************************************/
+/* Obsolete code beyond this point. */
 
 
 /* Synchronize the barrier tables with values from the remembered sets. */
@@ -77,6 +83,7 @@ wb_re_setup( unsigned *genv )
 void
 wb_sync_ssbs( void )
 {
+#if 0
   int i;
 
   debug2msg( "   *** sync_ssbs" );
@@ -88,6 +95,9 @@ wb_sync_ssbs( void )
     wb_ssbtopv[i] = wb_remsets[i]->ssb_top;
     wb_ssblimv[i] = wb_remsets[i]->ssb_lim;
   }
+#else
+  panic( "wb_sync_ssbs" );
+#endif
 }
 
 
@@ -96,12 +106,16 @@ wb_sync_ssbs( void )
 void
 wb_sync_remsets( void )
 {
+#if 0
   int i;
 
   debug2msg( "   *** sync_remsets" );
 
   for ( i = 1 ; i < wb_generations ; i++ )
     wb_remsets[i]->ssb_top = wb_ssbtopv[i];
+#else
+  panic( "wb_sync_remsets: obsolete" );
+#endif
 }
 
 
@@ -114,7 +128,7 @@ wb_compact( int gen )
   assert( gen > 0 );
   wb_remsets[gen]->compact( wb_remsets[gen] );
 #else
-  panic_abort( "wb_compact" );
+  panic_abort( "wb_compact: obsolete" );
 #endif
 }
 
@@ -124,8 +138,12 @@ wb_compact( int gen )
 void
 wb_remset_ptrs( word ***top, word ***lim )
 {
+#if 0
   *top = wb_ssbtopv;
   *lim = wb_ssblimv;
+#else
+  panic( "wb_remset_ptrs: obsolete" );
+#endif
 }
 
 /* eof */

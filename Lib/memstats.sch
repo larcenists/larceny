@@ -1,7 +1,7 @@
 ; Lib/memstats.sch
 ; Larceny runtime library -- system statistics
 ;
-; $Id: memstats.sch,v 1.4 1997/02/11 19:50:57 lth Exp $
+; $Id: memstats.sch,v 1.5 1997/05/15 00:42:10 lth Exp lth $
 ;
 ; System statistics is maintained by the parts of the system written in C
 ; and are obtained by a call on the primitive sys$get-resource-usage (which
@@ -33,7 +33,19 @@
 		   (+ (* (vector-ref v n) two^29)
 		      (vector-ref v (+ n 1))))))
     (lambda ()
-      (let ((v (sys$get-resource-usage)))
+
+      (define (make-remset-stats r)
+	(vector (vector-ref r $mstat.r-apool)
+		(vector-ref r $mstat.r-upool)
+		(vector-ref r $mstat.r-ahash)
+		(vector-ref r $mstat.r-uhash)
+		(bignum r $mstat.r-hrec-hi)
+		(bignum r $mstat.r-hrem-hi)
+		(bignum r $mstat.r-hscan-hi)
+		(bignum r $mstat.r-wscan-hi)
+		(bignum r $mstat.r-ssbrec-hi)))
+
+      (define (make-basic-vector v)
 	(vector (bignum v $mstat.wallocated-hi)
 		(bignum v $mstat.wcollected-hi)
 		(bignum v $mstat.wcopied-hi)
@@ -42,21 +54,7 @@
 		(vector-ref v $mstat.gc-last-gen)
 		(vector-ref v $mstat.gc-last-type)
 		(vector-ref v $mstat.generations)
-		(let* ((l (vector-length (vector-ref v $mstat.remsets)))
-		       (w (make-vector l #f)))
-		  (do ((i 0 (+ i 1)))
-		      ((= i l) w)
-		    (let ((r (vector-ref (vector-ref v $mstat.remsets) i)))
-		      (vector-set! w i (vector
-					(vector-ref r $mstat.r-apool)
-					(vector-ref r $mstat.r-upool)
-					(vector-ref r $mstat.r-ahash)
-					(vector-ref r $mstat.r-uhash)
-					(bignum r $mstat.r-hrec-hi)
-					(bignum r $mstat.r-hrem-hi)
-					(bignum r $mstat.r-hscan-hi)
-					(bignum r $mstat.r-wscan-hi)
-					(bignum r $mstat.r-ssbrec-hi))))))
+		#f			; remembered-set information
 		(bignum v $mstat.fflushed-hi)
 		(bignum v $mstat.wflushed-hi)
 		(vector-ref v $mstat.stk-created)
@@ -73,7 +71,55 @@
 		(vector-ref v $mstat.stime)
 		(vector-ref v $mstat.utime)
 		(vector-ref v $mstat.minfaults)
-		(vector-ref v $mstat.majfaults))))))
+		(vector-ref v $mstat.majfaults)
+		#f			; non-predictive remembered sets
+		))
+
+      (define (count-remsets rv)
+	(let loop ((n 0) (i 0))
+	  (cond ((= i (vector-length rv))
+		 n)
+		((not (vector-ref (vector-ref rv i) $mstat.r-np-p))
+		 (loop (+ n 1) (+ i 1)))
+		(else
+		 (loop n (+ i 1))))))
+
+      (define (make-remset-vector remset-stats limit test)
+	(let ((r (make-vector limit #f)))
+	  (let loop ((i 0) (j 0))
+	    (if (= i (vector-length remset-stats))
+		r
+		(let ((rvec (vector-ref remset-stats i)))
+		  (if (eq? (vector-ref rvec $mstat.r-np-p) test)
+		      (begin (vector-set! r j (make-remset-stats rvec))
+			     (loop (+ i 1) (+ j 1)))
+		      (loop (+ i 1) j)))))))
+
+      (define (transform-gen-stats! gen-stats)
+	(do ((i 0 (+ i 1)))
+	    ((= i (vector-length gen-stats)))
+	  (let ((g (vector-ref gen-stats i)))
+	    (vector-set! g $mstat.g.np-youngp
+			 (= 1 (vector-ref g $mstat.g.np-youngp)))
+	    (vector-set! g $mstat.g.np-oldp
+			 (= 1 (vector-ref g $mstat.g.np-oldp))))))
+
+      (let* ((raw-stats      (sys$get-resource-usage))
+	     (remset-stats   (vector-ref raw-stats $mstat.remsets))
+	     (remset-len     (vector-length remset-stats))
+	     (std-remsets    (count-remsets remset-stats))
+	     (stats-vec      (make-basic-vector raw-stats))
+	     (has-np-remset? (vector-ref raw-stats $mstat.np-remsetp)))
+					  
+	(transform-gen-stats! (vector-ref raw-stats $mstat.generations))
+	(vector-set! stats-vec 8
+		     (make-remset-vector remset-stats std-remsets #f))
+	(if has-np-remset?
+	    (vector-set! stats-vec 26
+			 (make-remset-vector remset-stats
+					     (- remset-len std-remsets)
+					     #t)))
+	stats-vec))))
 
 
 ; I moved this out of display-memstats because I encountered some strange
@@ -81,6 +127,7 @@
 
 (define (mprint . rest)
   (for-each display rest) (newline))
+
 
 ; Takes a vector as returned from memstats and displays it with useful
 ; labels. 
@@ -95,7 +142,46 @@
     (define (gen i)
       (vector-ref (vector-ref v 7)i))
 
-    (define (print-all)
+    (define (print-generation g i)
+      (mprint "  Generation # " i)
+      (if (or (vector-ref g 4) (vector-ref g 5))
+	  (begin (if (vector-ref g 4)
+		     (mprint "    (Non-predictive young generation; "
+			     "j=" (vector-ref g 6)
+			     "; k=" (vector-ref g 7) ")")
+		     (mprint "    (Non-predictive old generation)"))))
+      (mprint "    Collections....: " (vector-ref g 0))
+      (mprint "    Promotions.....: " (vector-ref g 1))
+      (mprint "    GC time........: " (vector-ref g 2))
+      (mprint "    Words live.....: " (vector-ref g 3)))
+
+    (define (print-per-generation)
+      (mprint "Per-generation information")
+      (do ((i 0 (+ i 1)))
+	  ((= i (vector-length (vector-ref v 7))))
+	(print-generation (gen i) i)))
+
+    (define (print-remset r i)
+      (mprint "  Remembered set # " i)
+      (mprint "    Pool allocated.: " (vector-ref r 0))
+      (mprint "    Pool used......: " (vector-ref r 1))
+      (mprint "    Hash allocated.: " (vector-ref r 2))
+      (mprint "    Hash used......: " (vector-ref r 3))
+      (mprint "    Hash recorded..: " (vector-ref r 4))
+      (mprint "    Hash removed...: " (vector-ref r 5))
+      (mprint "    Objects scanned: " (vector-ref r 6))
+      (mprint "    Words scanned..: " (vector-ref r 7))
+      (mprint "    Transactions...: " (vector-ref r 8)))
+
+    (define (print-per-remset remsets banner)
+      (if full?
+	  (begin
+	    (mprint banner)
+	    (do ((i 0 (+ i 1)))
+		((= i (vector-length remsets)))
+	      (print-remset (vector-ref remsets i) i)))))
+
+    (define (print-overall)
       (mprint "Overall memory statistics")
       (mprint "  Generations....: " (vector-length (vector-ref v 7)))
       (mprint "  Words allocated: " (vector-ref v 0))
@@ -108,35 +194,16 @@
 	  (mprint "  Last GC........: Generation " (vector-ref v 5) 
 		  "; type " (if (zero? (vector-ref v 6))
 				"collection"
-				"promotion")))
-      (mprint "Per-generation information")
-      (do ((i 0 (+ i 1)))
-	  ((= i (vector-length (vector-ref v 7))))
-	(mprint "  Generation # " i)
-	(mprint "    Collections....: " (vector-ref (gen i) 0))
-	(mprint "    Promotions.....: " (vector-ref (gen i) 1))
-	(mprint "    GC time........: " (vector-ref (gen i) 2))
-	(mprint "    Words live.....: " (vector-ref (gen i) 3)))
-      (if full?
-	  (begin
-	    (mprint "Per-remembered-set information")
-	    (do ((i 0 (+ i 1)))
-		((= i (vector-length (vector-ref v 8))))
-	      (mprint "  Remembered set # " i)
-	      (mprint "    Pool allocated.: " (vector-ref (remset i) 0))
-	      (mprint "    Pool used......: " (vector-ref (remset i) 1))
-	      (mprint "    Hash allocated.: " (vector-ref (remset i) 2))
-	      (mprint "    Hash used......: " (vector-ref (remset i) 3))
-	      (mprint "    Hash recorded..: " (vector-ref (remset i) 4))
-	      (mprint "    Hash removed...: " (vector-ref (remset i) 5))
-	      (mprint "    Objects scanned: " (vector-ref (remset i) 6))
-	      (mprint "    Words scanned..: " (vector-ref (remset i) 7))
-	      (mprint "    Transactions...: " (vector-ref (remset i) 8)))))
+				"promotion"))))
+
+    (define (print-stack)
       (mprint "Stack information")
       (mprint "  Frames flushed.: " (vector-ref v 9))
       (mprint "  Words flushed..: " (vector-ref v 10))
       (mprint "  Frames restored: " (vector-ref v 12))
-      (mprint "  Stacks created.: " (vector-ref v 11))
+      (mprint "  Stacks created.: " (vector-ref v 11)))
+
+    (define (print-simulated-barrier)
       (if full?
 	  (begin
 	    (mprint "Simulated write barrier")
@@ -144,7 +211,9 @@
 	    (mprint "  LHS young/known: " (vector-ref v 17))
 	    (mprint "  RHS immediate..: " (vector-ref v 18))
 	    (mprint "  Not old->young.: " (vector-ref v 19))
-	    (mprint "  Transactions...: " (vector-ref v 20))))
+	    (mprint "  Transactions...: " (vector-ref v 20)))))
+
+    (define (print-misc)
       (mprint "Miscellaneous")
       (mprint "  Elapsed time...: " (vector-ref v 21))
       (if full?
@@ -158,6 +227,17 @@
 	  (begin 
 	    (mprint "  Minor faults...: " (vector-ref v 24))
 	    (mprint "  Major faults...: " (vector-ref v 25)))))
+
+    (define (print-all)
+      (print-overall)
+      (print-per-generation)
+      (print-per-remset (vector-ref v 8) "Per-remembered-set information")
+      (if (vector-ref v 26)
+	  (print-per-remset (vector-ref v 26)
+			    "Non-predictive remembered sets"))
+      (print-stack)
+      (print-simulated-barrier)
+      (print-misc))
 
     (define (print-minimal)
       (mprint "Words allocated: " (vector-ref v 0))

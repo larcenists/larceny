@@ -1,7 +1,7 @@
 /* Rts/Sys/remset.c.
  * Larceny run-time system -- remembered set implementation.
  *
- * $Id: remset.c,v 1.6 1997/02/23 01:15:32 lth Exp $
+ * $Id: remset.c,v 1.7 1997/04/30 16:01:41 lth Exp $
  *
  *
  * The remembered set is an ADT with a public interface as described
@@ -15,8 +15,8 @@
  *
  * There is a fixed-size sequential store buffer (SSB) in which the mutator
  * records references to tenured objects when intergenerational pointers
- * are created.  This buffer starts at remset->ssb_bot and extends to
- * remset->ssb_lim, traced by rs->ssb_top.  Its size is fixed.  When the
+ * are created.  This buffer starts at *remset->ssb_bot and extends to
+ * *remset->ssb_lim, traced by *rs->ssb_top.  Its size is fixed.  When the
  * SSB fills up, it is compacted into the hash table.
  *
  * Hash table.
@@ -136,6 +136,7 @@ static void enumerate_remset( remset_t *rs,
 static void get_stats( remset_t *rs, remset_stats_t *stats );
 static int  has_overflowed( remset_t *rs );
 static int  isremembered( remset_t *rs, word w );
+static void assimilate( remset_t *r1, remset_t *r2 );
 
 
 /* Internal */
@@ -152,7 +153,10 @@ static void hash_table_gc( remset_t *rs );
 remset_t *
 create_remset( unsigned tbl_entries,  /* size of hash table, 0 = default */
 	       unsigned pool_entries, /* size of remset, 0 = default */
-	       unsigned ssb_entries   /* size of ssb, 0 = default */
+	       unsigned ssb_entries,  /* size of ssb, 0 = default */
+	       word **ssb_bot_loc,    /* cell for ssb_bot */
+	       word **ssb_top_loc,    /* cell for ssb_top */
+	       word **ssb_lim_loc     /* cell for ssb_lim */
 	      )
 {
   word *heapptr;
@@ -191,9 +195,12 @@ create_remset( unsigned tbl_entries,  /* size of hash table, 0 = default */
   data->tbl_lim = heapptr;
 
   /* SSB: fixed size */
-  rs->ssb_bot = rs->ssb_top = heapptr;
+  rs->ssb_bot = ssb_bot_loc;
+  rs->ssb_top = ssb_top_loc;
+  rs->ssb_lim = ssb_lim_loc;
+  *rs->ssb_bot = *rs->ssb_top = heapptr;
   heapptr += ssb_entries;
-  rs->ssb_lim = heapptr;
+  *rs->ssb_lim = heapptr;
 
   p = allocate_pool_segment( pool_entries );
 
@@ -215,6 +222,7 @@ create_remset( unsigned tbl_entries,  /* size of hash table, 0 = default */
   rs->stats = get_stats;
   rs->has_overflowed = has_overflowed;
   rs->isremembered = isremembered;
+  rs->assimilate = assimilate;
 
   rs->data = data;
 
@@ -237,7 +245,7 @@ static void clear_remset( remset_t *rs )
   debugmsg( "[debug] clearing remset @0x%x.", (word)rs );
 
   /* Clear SSB */
-  rs->ssb_top = rs->ssb_bot;
+  *rs->ssb_top = *rs->ssb_bot;
 
   /* Clear hash table */
   for ( p = data->tbl_bot ; p < data->tbl_lim ; p++ )
@@ -269,11 +277,11 @@ static int compact_ssb( remset_t *rs )
   unsigned recorded;
   remset_data_t *data = DATA(rs);
 
-  debugmsg( "   *** compact SSB for remset @0x%p", rs );
-  data->ssb_recorded += rs->ssb_top - rs->ssb_bot;
+/*  debugmsg( "   *** compact SSB for remset @0x%p", rs ); */
+  data->ssb_recorded += *rs->ssb_top - *rs->ssb_bot;
 
-  p = rs->ssb_bot;
-  q = rs->ssb_top;
+  p = *rs->ssb_bot;
+  q = *rs->ssb_top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
@@ -331,7 +339,7 @@ static int compact_ssb( remset_t *rs )
   data->hash_recorded += recorded;
   data->live += recorded;
   data->curr_pool->top = pooltop;
-  rs->ssb_top = rs->ssb_bot;
+  *rs->ssb_top = *rs->ssb_bot;
 
   return data->has_overflowed;
 }
@@ -351,7 +359,7 @@ enumerate_remset( remset_t *rs, int (*scanner)( word, void*, unsigned* ),
   unsigned word_count = 0;
   unsigned removed_count=0;
 
-  assert( rs->ssb_top == rs->ssb_bot );
+  assert( *rs->ssb_top == *rs->ssb_bot );
 
   debugmsg( "[debug] Scanning remset @0x%x.", (word)rs );
 
@@ -376,6 +384,37 @@ enumerate_remset( remset_t *rs, int (*scanner)( word, void*, unsigned* ),
   DATA(rs)->garbage += removed_count;
   DATA(rs)->word_count += word_count;
   DATA(rs)->removed_count += removed_count;
+}
+
+
+/* Fold the entries of r2 into r1. */
+static void
+assimilate( remset_t *r1, remset_t *r2 )
+{
+  pool_t *ps;
+  word *p, *q;
+
+  r2->compact( r2 );
+
+  debugmsg( "[debug] Assimilating remset @0x%x into remset @0x%x.", 
+	    (word)r2, (word)r1 );
+
+  ps = DATA(r2)->first_pool;
+  while (1) {
+    p = ps->bot;
+    q = ps->top;
+    while (p < q) {
+      if (*p != 0) {
+	**r1->ssb_top = *p;
+	*r1->ssb_top = *r1->ssb_top + 1;
+	if (*r1->ssb_top == *r1->ssb_lim)
+	  r1->compact( r1 );
+      }
+      p += 2;
+    }
+    if (ps == DATA(r2)->curr_pool) break;
+    ps = ps->next;
+  }
 }
 
 
@@ -533,6 +572,10 @@ static int log2( unsigned n )
     return -1;
 }
 
+/*
+ * The following functions are not called from within the RTS, but
+ * from an interactive debugger.
+ */
 
 /* Remebered-set consistency check -- way useful for debugging. */
 
@@ -572,5 +615,63 @@ remset_consistency_check( remset_t *rs )
   consolemsg( "Null entries: %d", removed_nodes );
 }
 
+
+/* utility fn for remset_crossing_stats */
+
+static int remset_crossing_fn( word w, void *data, unsigned *ignored )
+{
+  unsigned *genv = (unsigned*)data;
+  unsigned tag;
+
+  tag = tagof( w );
+  if (tag == PAIR_TAG) {
+    word car = *ptrof(w);
+    word cdr = *(ptrof(w)+1);
+    if (isptr(car)) genv[gclib_desc_g[pageof(car)]]++;
+    if (isptr(cdr)) genv[gclib_desc_g[pageof(cdr)]]++;
+  }
+  else if (tag == VEC_TAG || tag == PROC_TAG) {
+    unsigned size = sizefield(*ptrof(w))/4;
+    word *p = ptrof(w)+1;
+    while (size-- > 0) {
+      word k = *p++;
+      if (isptr(k)) genv[gclib_desc_g[pageof(k)]]++;
+    }
+  }
+  else 
+    hardconsolemsg( "remset_crossing_fn: ouch!!" );
+
+  return 1;
+}
+
+/* Look at each remembered object and count pointers from those objects
+ * into each younger generation, finally producing a listing of how
+ * many pointers point into which generation
+ *
+ * WARNING! Compacts the remset before start; this may affect the
+ *          subsequent execution behavior.
+ *
+ * WARNING! Uses enumerate_remset, so it will skew the scanned statistics 
+ *          for the remset.
+ */
+
+/* For some reason gcc throws this function away if it's static */
+
+void remset_crossing_stats( remset_t *rs )
+{
+#define ASIZE 32
+  unsigned genv[ ASIZE  ];  /* FIXME */
+  int i, j;
+
+  for ( i=0 ; i<ASIZE ; i++) genv[i] = 0;
+
+  rs->compact( rs );
+  rs->enumerate( rs, remset_crossing_fn, genv );
+
+  for ( i=ASIZE-1 ; i >= 0 ; i-- )
+    if (genv[i] > 0) break;
+  for ( j=0 ; j <= i ; j++ )
+    consolemsg( "gen=%d: %u pointers", j, genv[j] );
+}
 
 /* eof */

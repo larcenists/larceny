@@ -1,7 +1,7 @@
 ;; -*- Scheme -*-
 ;; Larceny assembler (Sparc) -- emitting code for integrables.
 ;;
-;; $Id: gen-prim.sch,v 1.1 1995/08/01 04:40:34 lth Exp lth $
+;; $Id: gen-prim.sch,v 1.2 1997/05/15 00:54:42 lth Exp lth $
 ;;
 ;; History
 ;;   November 3, 1995 / lth (v0.25)
