@@ -72,8 +72,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Error handling.
-; Chez Scheme's 'error' is incompatible with the format of the error messages
-; used in Twobit.
 
 (define error
   (lambda (msg . irritants)
@@ -148,9 +146,6 @@
 
 ;; Note that under MzScheme, open-*-file defaults to Binary mode, not Text.
 
-;; We need opening a file for output which already exists to truncate it.
-;; I think, anyway.
-;
 ;(define (open-output-file file)
 ;  (mz:open-output-file file 'truncate/replace))
 ;
@@ -163,15 +158,9 @@
 ;    (begin0 (proc out)
 ;            (close-output-port out))))
 
-(define-syntax wrap1
-  (syntax-rules ()
-    ((wrap1 f)
-     (lambda (a)
-       (fprintf (current-error-port) "Calling ~s on ~s~n" 'f a)
-       (f a)))))
+(define open-binary-output-file open-output-file)
+(define open-binary-input-file open-input-file)
 
-(define open-binary-output-file (wrap1 open-output-file))
-(define open-binary-input-file (wrap1 open-input-file))
 (define call-with-binary-output-file call-with-output-file)
 (define call-with-binary-input-file call-with-input-file)
 (define with-binary-output-to-file with-output-to-file)
