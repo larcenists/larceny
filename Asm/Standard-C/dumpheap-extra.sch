@@ -29,23 +29,68 @@
 (define *seed* #f)
 (define *live-seeds* '())
 (define *entrypoints* '())
-(define *additional-files* '())
 (define *loadables* '())
 
-; Alternate entry point to the heap dumper.
-
-(define (build-extended-heap-image output-file input-files additional)
-  (set! *additional-files* additional)
-  (build-heap-image output-file input-files))
-
-(define (before-all-files heap output-file-name input-file-names)
+(define (init-variables)
   (set! *segment-number* 0)
   (set! *seed* #f)
   (set! *live-seeds* '())
   (set! *entrypoints* '())
   (set! *loadables* '())
-  (set! *already-compiled* '())
-  (for-each create-loadable-file *additional-files*))
+  (set! *already-compiled* '()))
+
+; Very Unix
+(define *petit-executable-src-name* "petit-larceny.c")
+(define *petit-executable-obj-name* "petit-larceny.o")
+(define *petit-executable-name* "petit-larceny")
+
+(define *petit-library-path* "")
+(define *petit-heap-library-name* "petit-larceny.so")
+(define *petit-rts-libraries* 
+  (list (string-append *petit-library-path* "libpetit.so")))
+(define *petit-executable-libraries* 
+  (append *petit-rts-libraries* 
+          (list (string-append *petit-library-path* "petit-larceny.so"))))
+
+; Build an _application_: an executable that contains additional object
+; files to load, and a set of FASL files that can be loaded to link 
+; the object code to Scheme procedures.
+;
+; FIXME: The use of ".exe" and ".o" here are pretty arbitrary and not
+; right on all (most) platforms; must parameterize.  The use of .exe
+; is OK on both Unix and Mac, however, as rewrite-file-type also matches
+; on the empty extension.
+  
+(define (build-application executable-name additional-files)
+  (let ((src-name (rewrite-file-type executable-name '(".exe") ".c"))
+        (obj-name (rewrite-file-type executable-name '(".exe") ".o")))
+    (init-variables)
+    (for-each create-loadable-file additional-files)
+    (dump-loadable-thunks src-name)
+    (c-compile-file src-name obj-name)
+    (c-link-executable executable-name
+                       (cons obj-name
+                             (map (lambda (x)
+                                    (rewrite-file-type x ".lop" ".o"))
+                                  additional-files))
+                       *petit-executable-libraries*)
+    executable-name))
+
+; Link all the files in Lib, Repl, Eval, and the macro expander
+; with HEAPDATA.o and create the (shared) library petit-larceny.so.
+
+(define (build-petit-library library-name input-file-names)
+  (c-link-library *petit-heap-library-name*
+                  (remove-duplicates
+                   (append (map (lambda (x)
+                                  (rewrite-file-type x ".lop" ".o"))
+                                input-file-names)
+                           (list (rewrite-file-type *temp-file* ".c" ".o")))
+                   string=?)
+                  *petit-rts-libraries*))
+
+(define (before-all-files heap output-file-name input-file-names)
+  (init-variables))
 
 (define (create-loadable-file filename)
 
@@ -105,17 +150,13 @@
               (set! *segment-number* (+ *segment-number* 1)))))))
     (after-dump-file #f filename)))
 
+; This is probably not the right thing, because the library may need
+; to be moved to its destination location before the executable is
+; built.
+
 (define (after-all-files heap output-file-name input-file-names)
-  (c-link-executable "petit-larceny"
-                     (remove-duplicates
-                      (append (map (lambda (x)
-                                     (rewrite-file-type x ".lop" ".o"))
-                                   input-file-names)
-                              (list (rewrite-file-type *temp-file* ".c" ".o"))
-                              (map (lambda (x)
-                                     (rewrite-file-type x ".lop" ".o"))
-                                   *additional-files*))
-                      string=?)))
+  (build-petit-library *petit-heap-library-name* input-file-names)
+  (build-application *petit-executable-name* '()))
 
 ; Returns a seed and an indication of whether the seed is new.
 
@@ -161,7 +202,7 @@
   (if *c-output*
       (close-output-port *c-output*))
   (let ((c-name (rewrite-file-type filename ".lop" ".c"))
-	(o-name (rewrite-file-type filename ".lop" ".o")))
+        (o-name (rewrite-file-type filename ".lop" ".o")))
     (if (not (and (file-exists? o-name)
                   (compat:file-newer? o-name c-name)))
         (c-compile-file c-name o-name))
@@ -208,12 +249,12 @@
        (emit-c-code "~%")
        entry)
     (let* ((fun (car funs))
-	   (name (fun.name fun))
-	   (definite? (fun.definite? fun))
-	   (entry? (fun.entry? fun)))
+           (name (fun.name fun))
+           (definite? (fun.definite? fun))
+           (entry? (fun.entry? fun)))
       (emit-c-code "static RTYPE ~a( CONT_PARAMS );~%" name)
       (if entry?
-	  (set! entry name)))))
+          (set! entry name)))))
 
 (define (dump-codevector! heap cv)
   (emit-c-code "~a~%" cv)
@@ -226,49 +267,28 @@
     (for-each (lambda (e)
                 (emit-c-code "extern void ~a( CONT_PARAMS );~%" e))
               (reverse *entrypoints*))
-    (emit-c-code "~%cont_t ~a[] = { ~%" *init-thunk-array-name*)
+    (emit-c-code "~%codeptr_t ~a[] = { ~%" *init-thunk-array-name*)
     (for-each (lambda (e)
                 (emit-c-code "  ~a,~%" e))
               (reverse *entrypoints*))
     (emit-c-code "};~%~%"))
 
+  ; The twobit_load_table is defined by the program that uses the
+  ; library that contains the startup heap.
+
   (define (dump-loadable-thunks)
-    (emit-c-code "~%/* Loadable segments' code */~%~%")
-    (let ((l (reverse *loadables*)))
-      ; Print prototypes
-      (do ((l l (cdr l)))
-          ((null? l))
-        (do ((f (cdar l) (cdr f)))
-            ((null? f))
-          (emit-c-code "extern void ~a( CONT_PARAMS );~%" (car f))))
-      ; Print inner tables
-      (do ((l l (cdr l))
-           (i 0 (+ i 1)))
-          ((null? l))
-        (emit-c-code "cont_t twobit_load_table~a[] = { ~%" i)
-        (do ((x (cdar l) (cdr x)))
-            ((null? x))
-          (emit-c-code "  ~a,~%" (car x)))
-        (emit-c-code "};~%~%"))
-      ; Print outer table
-      (emit-c-code "cont_t *twobit_load_table[] = { ~%")
-      (do ((l l (cdr l))
-           (i 0 (+ i 1)))
-          ((null? l))
-        (emit-c-code "  twobit_load_table~a,~%" i))
-      (emit-c-code 
-       "  0  /* The table may be empty; some compilers complain */~%};~%")))
+    (emit-c-code "extern codeptr_t *twobit_load_table[];~%"))
 
   (let ((r #f))
     (call-with-output-file *temp-file*
       (lambda (out)
-	(set! *c-output* out)
+        (set! *c-output* out)
         (emit-c-code "/* Generated heap bootstrap code */~%")
-	(emit-c-code "#include \"twobit.h\"~%~%")
-	(let ((thunks  (dump-list-spine! h (heap.thunks h)))
-	      (symbols (dump-list-spine! h (symbol-locations h))))
-	  (set! r (dump-segment! h
-				 (construct-startup-procedure symbols thunks)
+        (emit-c-code "#include \"twobit.h\"~%~%")
+        (let ((thunks  (dump-list-spine! h (heap.thunks h)))
+              (symbols (dump-list-spine! h (symbol-locations h))))
+          (set! r (dump-segment! h
+                                 (construct-startup-procedure symbols thunks)
                                  #t))
           (dump-init-thunks)
           (dump-loadable-thunks))))
@@ -277,6 +297,38 @@
     (if *delete-temp-files*
         (delete-file *temp-file*))
     r))
+
+(define (dump-loadable-thunks filename)
+  (call-with-output-file filename
+    (lambda (f)
+      (set! *c-output* f)
+      (emit-c-code "#include \"twobit.h\"~%~%")
+      (emit-c-code "~%/* Loadable segments' code */~%~%")
+      (let ((l (reverse *loadables*)))
+        ; Print prototypes
+        (do ((l l (cdr l)))
+            ((null? l))
+          (do ((f (cdar l) (cdr f)))
+              ((null? f))
+            (emit-c-code "extern void ~a( CONT_PARAMS );~%" (car f))))
+        ; Print inner tables
+        (do ((l l (cdr l))
+             (i 0 (+ i 1)))
+            ((null? l))
+          (emit-c-code "codeptr_t twobit_load_table~a[] = { ~%" i)
+          (do ((x (cdar l) (cdr x)))
+              ((null? x))
+            (emit-c-code "  ~a,~%" (car x)))
+          (emit-c-code "};~%~%"))
+        ; Print outer table
+        (emit-c-code "codeptr_t *twobit_load_table[] = { ~%")
+        (do ((l l (cdr l))
+             (i 0 (+ i 1)))
+            ((null? l))
+          (emit-c-code "  twobit_load_table~a,~%" i))
+        (emit-c-code 
+         "  0  /* The table may be empty; some compilers complain */~%};~%"))))
+  (set! *c-output* #f))
 
 (define (emit-c-code fmt . args)
   (if *c-output*
@@ -290,42 +342,42 @@
     (,$reg 1)
     (,$setreg 2)
     (,$const (thunks))
-    (,$op1 petit-patch-boot-code)	; Petit larceny
+    (,$op1 petit-patch-boot-code)       ; Petit larceny
     (,$setreg 1)
-    (,$.label 0)
+    (,$.label 1001)
     (,$reg 1)
-    (,$op1 null?)			; (null? l)
-    (,$branchf 2)
-    (,$const (symbols))			; dummy list of symbols
+    (,$op1 null?)                       ; (null? l)
+    (,$branchf 1003)
+    (,$const (symbols))                 ; dummy list of symbols
     (,$setreg 1)
     (,$global go)
-    (,$invoke 2)			; (go <list of symbols> argv)
-    (,$.label 2)
+    (,$invoke 2)                        ; (go <list of symbols> argv)
+    (,$.label 1003)
     (,$save 2)
     (,$store 0 0)
     (,$store 1 1)
     (,$store 2 2)
-    (,$setrtn 3)
+    (,$setrtn 1004)
     (,$reg 1)
     (,$op1 car)
-    (,$invoke 0)			; ((car l))
-    (,$.label 3)
+    (,$invoke 0)                        ; ((car l))
+    (,$.label 1004)
     (,$.cont)
     (,$restore 2)
     (,$pop 2)
     (,$reg 1)
     (,$op1 cdr)
     (,$setreg 1)
-    (,$branch 0)))			; (loop (cdr l))
+    (,$branch 1001)))                      ; (loop (cdr l))
 
 ; C compiler interface
 ;
 ; We shold move the definitions of *c-linker* and *c-compiler* to
 ; a compatibility library, and *petit-libraries* also.
 
-(define *petit-libraries* '("Rts/libpetit.so"))  ; List of file names
 (define *c-compiler* #f)                         ; Assigned below
 (define *c-linker* #f)                           ; Assigned below
+(define *c-library-linker* #f)                   ; Assigned below
 
 (define optimize-c-code
   (make-twobit-flag "optimize-c-code"))
@@ -333,8 +385,11 @@
 (define (c-compile-file c-name o-name)
   (*c-compiler* c-name o-name))
 
-(define (c-link-executable output-name object-files)
-  (*c-linker* output-name object-files))
+(define (c-link-library output-name object-files libraries)
+  (*c-library-linker* output-name object-files libraries))
+
+(define (c-link-executable output-name object-files libraries)
+  (*c-linker* output-name object-files libraries))
 
 (define (insert-space l)
   (cond ((null? l) l)
@@ -349,17 +404,23 @@
   
 (define (c-compiler:gcc-unix c-name o-name)
   (let ((cmd (twobit-format "gcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
-                            (if (optimize-c-code) "-O3 -DNDEBUG" "")
+                            (if (optimize-c-code) "-O -DNDEBUG" "")
                             o-name
                             c-name)))
     (execute cmd)))
 
-(define (c-linker:gcc-unix output-name object-files)
+(define (c-library-linker:gcc-unix output-name object-files libs)
+  (let ((cmd (twobit-format "gcc -g -shared -o ~a ~a ~a"
+                            output-name
+                            (apply string-append (insert-space object-files))
+                            (apply string-append (insert-space libs)))))
+    (execute cmd)))
+
+(define (c-linker:gcc-unix output-name object-files libs)
   (let ((cmd (twobit-format "gcc -g -o ~a ~a ~a"
                             output-name
-			    (apply string-append (insert-space object-files))
-			    (apply string-append 
-                                   (insert-space *petit-libraries*)))))
+                            (apply string-append (insert-space object-files))
+                            (apply string-append (insert-space libs)))))
     (execute cmd)))
 
 (define (c-compiler:lcc-unix c-name o-name)
@@ -369,15 +430,85 @@
                             c-name)))
     (execute cmd)))
 
-(define (c-linker:lcc-unix output-name object-files)
+(define (c-library-linker:lcc-unix output-name object-files)
+  (error "Must figure out how to create shared libraries with LCC."))
+
+(define (c-linker:lcc-unix output-name object-files libs)
   (let ((cmd (twobit-format "lcc -g -o ~a ~a ~a"
                             output-name
-			    (apply string-append (insert-space object-files))
-			    (apply string-append 
-                                   (insert-space *petit-libraries*)))))
+                            (apply string-append (insert-space object-files))
+                            (apply string-append (insert-space libs)))))
     (execute cmd)))
 
-(define *c-compiler* c-compiler:gcc-unix)
-(define *c-linker* c-linker:gcc-unix)
+(define (c-compiler:no-compiler c-name o-name)
+  (display ">>> MUST COMPILE ")
+  (display c-name)
+  (newline))
+
+(define (c-library-linker:no-linker output-name object-files libs)
+  (display ">>> MUST LINK LIBRARY ")
+  (display output-name)
+  (newline))
+
+(define (c-linker:no-linker output-name object-files libs)
+  (display ">>> MUST LINK EXECUTABLE ")
+  (display output-name)
+  (newline))
+
+
+; Somewhat general architecture for selecting compilers and linkers,
+; although I dread the day when all options for all operating systems
+; are included in this file.
+
+(define (select-compiler . rest)
+
+  (define compiler caddr)
+  (define lib-linker cadddr)
+  (define (linker x) (car (cddddr x)))
+  (define (append-cmd x) (cadr (cddddr x)))
+  
+  (define compilers
+    `((gcc-unix 
+       "GCC on Unix systems" 
+       ,c-compiler:gcc-unix 
+       ,c-library-linker:gcc-unix
+       ,c-linker:gcc-unix 
+       ,append-file-shell-command-unix)
+      (lcc-unix 
+       "LCC on Unix systems" 
+       ,c-compiler:lcc-unix 
+       ,c-library-linker:lcc-unix
+       ,c-linker:lcc-unix
+       ,append-file-shell-command-unix)
+      (none 
+       "No compiler at all" 
+       ,c-compiler:no-compiler 
+       ,c-library-linker:no-linker
+       ,c-linker:no-linker
+       ,append-file-shell-command-portable)))
+
+  (if (null? rest)
+      (begin (display "Select one of these: ")
+             (newline)
+             (for-each (lambda (x)
+                         (display "  ")
+                         (display (car x))
+                         (display 
+                          (make-string (- 12 (string-length 
+                                              (symbol->string (car x))))
+                                       #\space))
+                         (display (cadr x))
+                         (newline))
+                       compilers))
+      (let ((probe (assq (car rest) compilers)))
+        (if (not probe)
+            (select-compiler)
+            (begin (set! *c-compiler* (compiler probe))
+                   (set! *c-library-linker* (lib-linker probe))
+                   (set! *c-linker* (linker probe))
+                   (set! *append-file-shell-command* (append-cmd probe))
+                   (car probe))))))
+
+(select-compiler 'none)
 
 ; eof

@@ -122,7 +122,13 @@
     (add-function as name #t entrypoint?)
     (set! code-indentation "  ")))
 
+(define (add-compiled-scheme-function as label entrypoint? start?)
+  (let ((name (compiled-procedure as label start?)))
+    (if (not (assoc name (lookup-functions as)))
+        (add-function as name #t entrypoint?))))
+
 (define (end-compiled-scheme-function as)
+  (emit-text as "twobit_epilogue();")
   (set! code-indentation "")
   (emit-text as "}")
   (emit-text as ""))
@@ -162,13 +168,10 @@
 (define-instruction $.label
   (lambda (instruction as)
     (list-label instruction)
-    ;; This is not perfect -- only 'fallthrough' labels should
-    ;; be treated this way.  Fallthrough labels are exactly those
-    ;; not preceded by branch, skip, invoke, or return.
-    (emit-text as "twobit_skip( ~a );"
-	       (compiled-procedure as (operand1 instruction) #f))
-    (end-compiled-scheme-function as)
-    (begin-compiled-scheme-function as (operand1 instruction) #f #f)))
+    (add-compiled-scheme-function as (operand1 instruction) #f #f)
+    (emit-text as "twobit_label( ~a, ~a );"
+                  (operand1 instruction)
+                  (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $.proc
   (lambda (instruction as)
@@ -193,10 +196,15 @@
   (lambda (instruction as)
     (list-instruction "op1" instruction)
     (if (op1-implicit-continuation? (operand1 instruction))
-	(emit-text as "twobit_op1_~a( ~a ); /* ~a */"
-		   (op1-primcode (operand1 instruction))
-		   (add-function as (implicit-procedure as) #f #f)
-		   (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op1_~a( ~a, ~a ); /* ~a */"
+                          (op1-primcode (operand1 instruction))
+                          numeric
+                          symbolic
+                          (operand1 instruction))))
 	(emit-text as "twobit_op1_~a(); /* ~a */"
 		   (op1-primcode (operand1 instruction))
 		   (operand1 instruction)))))
@@ -205,11 +213,16 @@
   (lambda (instruction as)
     (list-instruction "op2" instruction)
     (if (op2-implicit-continuation? (operand1 instruction))
-	(emit-text as "twobit_op2_~a( ~a, ~a ); /* ~a */"
-		   (op2-primcode (operand1 instruction))
-		   (operand2 instruction)
-		   (add-function as (implicit-procedure as) #f #f)
-		   (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op2_~a( ~a, ~a, ~a ); /* ~a */"
+                          (op2-primcode (operand1 instruction))
+                          (operand2 instruction)
+                          numeric
+                          symbolic
+                          (operand1 instruction))))
 	(emit-text as "twobit_op2_~a( ~a ); /* ~a */"
 		   (op2-primcode (operand1 instruction))
 		   (operand2 instruction)
@@ -219,11 +232,16 @@
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
     (if (op2imm-implicit-continuation? (operand1 instruction))
-	(emit-text as "twobit_op2imm_~a( ~a, ~a ); /* ~a */"
-		   (op2imm-primcode (operand1 instruction))
-		   (constant-value (operand2 instruction))
-		   (add-function as (implicit-procedure as) #f #f)
-		   (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op2imm_~a( ~a, ~a, ~a ); /* ~a */"
+                          (op2imm-primcode (operand1 instruction))
+                          (constant-value (operand2 instruction))
+                          numeric
+                          symbolic
+                          (operand1 instruction))))
 	(emit-text as "twobit_op2imm_~a( ~a ); /* ~a */"
 		   (op2imm-primcode (operand1 instruction))
 		   (constant-value (operand2 instruction))
@@ -233,12 +251,17 @@
   (lambda (instruction as)
     (list-instruction "op3" instruction)
     (if (op3-implicit-continuation? (operand1 instruction))
-	(emit-text as "twobit_op3_~a( ~a, ~a, ~a ); /* ~a */"
-		   (op3-primcode (operand1 instruction))
-		   (operand2 instruction)
-		   (operand3 instruction)
-		   (add-function as (implicit-procedure as) #f #f)
-		   (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op3_~a( ~a, ~a, ~a, ~a ); /* ~a */"
+                          (op3-primcode (operand1 instruction))
+                          (operand2 instruction)
+                          (operand3 instruction)
+                          numeric
+                          symbolic
+                          (operand1 instruction))))
 	(emit-text as "twobit_op3_~a( ~a, ~a ); /* ~a */"
 		   (op3-primcode (operand1 instruction))
 		   (operand2 instruction)
@@ -406,7 +429,8 @@
 (define-instruction $setrtn
   (lambda (instruction as)
     (list-instruction "setrtn" instruction)
-    (emit-text as "twobit_setrtn( ~a );"
+    (emit-text as "twobit_setrtn( ~a, ~a );"
+                  (operand1 instruction)
 	       (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $apply
@@ -419,26 +443,30 @@
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
-    (emit-text as "twobit_jump( ~a, ~a );"
-	       (operand1 instruction)
+    (emit-text as "twobit_jump( ~a, ~a, ~a );"
+               (operand1 instruction)
+               (operand2 instruction)
 	       (compiled-procedure as (operand2 instruction) #f))))
 
 (define-instruction $skip
   (lambda (instruction as)
     (list-instruction "skip" instruction)
-    (emit-text as "twobit_skip( ~a );"
+    (emit-text as "twobit_skip( ~a, ~a );"
+               (operand1 instruction)
 	       (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $branch
   (lambda (instruction as)
     (list-instruction "branch" instruction)
-    (emit-text as "twobit_branch( ~a );"
+    (emit-text as "twobit_branch( ~a, ~a );"
+               (operand1 instruction)
 	       (compiled-procedure as (operand1 instruction) #f))))
 
 (define-instruction $branchf
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
-    (emit-text as "twobit_branchf( ~a );"
+    (emit-text as "twobit_branchf( ~a, ~a );"
+               (operand1 instruction)
 	       (compiled-procedure as (operand1 instruction) #f))))
 
 
@@ -454,9 +482,12 @@
 		     label)))
 
 (define (implicit-procedure as)
+  (let ((id (new-proc-id as)))
+    (values
+     id
   (twobit-format "compiled_temp_~a_~a" 
 		 (user-data.toplevel-counter (as-user as))
-		 (new-proc-id as)))
+                    id))))
 
 (define (immediate-constant? x)
   (or (fixnum? x)
@@ -475,14 +506,14 @@
   (define (char->immediate c)
     (+ (* (char->integer c) 65536) $imm.character))
 
-  (cond ((fixnum? x)	          (exact-int->fixnum x))
-	((eq? x #t)	          "TRUE_CONST")
-	((eq? x #f)	          "FALSE_CONST")
+  (cond ((fixnum? x)              (exact-int->fixnum x))
+        ((eq? x #t)               "TRUE_CONST")
+        ((eq? x #f)               "FALSE_CONST")
 	((equal? x (eof-object))  "EOF_CONST")
 	((equal? x (unspecified)) "UNSPECIFIED_CONST")
 	((equal? x (undefined))   "UNDEFINED_CONST")
-	((null? x)	          "NIL_CONST")
-	((char? x)	          (char->immediate x))
+        ((null? x)                "NIL_CONST")
+        ((char? x)                (char->immediate x))
 	(else ???)))
 
 (define (new-proc-id as)
