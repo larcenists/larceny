@@ -1,4 +1,8 @@
-; Heap dumper overriding code for standard-C back end.
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Heap dumper overriding code for Standard-C back end.
 
 ; Segments are lists: (code-vector constant-vector function-info).
 
