@@ -1,5 +1,5 @@
 ! -*- Fundamental -*-
-! $Id$
+! $Id: bench2.s,v 1.2 91/06/24 11:21:27 lth Exp Locker: lth $
 !
 ! Hand-compiled code for the following program:
 !
@@ -32,7 +32,7 @@ loop2:
 	nop
 	sub	%STKP, 16, %STKP			! allocate frame
 L1:
-	std	%R0, [ %STKP+8 ]			! save proc and arg 1
+	std	%REG0, [ %STKP+8 ]			! save proc and arg 1
 	cmp	%RESULT, 4				! check for 1 argument
 	mov	16, %g1					! frame size
 	beq	L2
@@ -43,18 +43,18 @@ L1:
 
 	! Real procedure starts here
 L2:
-	tsubcc	%R1, %g0, %g0				! (= n 0) ?
+	tsubcc	%REG1, %g0, %g0				! (= n 0) ?
 	bvc	L3
 	nop						! Can't fill this
 	! ...						! Generic case
 L3:
 	bne,a	L4
-	tsubcc	%R1, 4, %TMP0				! n - 1
+	tsubcc	%REG1, 4, %TMP0				! n - 1
 L5:
 	! 'True' case
 	! ...						! RESULT <-- 'done
 	ld 	[%STKP+16], %TMP0			! Fetch return address
-	jmp	%TMP0					! Return
+	jmp	%TMP0+8					! Return
 	add	%STKP, 16, %STKP			! Deallocate frame
 
 L4:	! 'False' case
