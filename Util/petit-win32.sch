@@ -135,12 +135,13 @@
     (system "del petit-lib.pdb")
     (system "del vc60.pdb")
     (for-each (lambda (ext)
-		(for-each (lambda (dir) (system (string-append "del " dir "*." ext))) 
-			  '("Lib\\Common\\"
-			    "Lib\\Standard-C\\"
-			    "Repl\\"
-			    "Interpreter\\"
-			    "Compiler\\")))
+		(for-each (lambda (dir) 
+			    (system (string-append "del " dir "*." ext))) 
+			  (list (nbuild-parameter 'common-source)
+				(nbuild-parameter 'machine-source)
+				(nbuild-parameter 'repl-source)
+				(nbuild-parameter 'interp-source)
+				(nbuild-parameter 'compiler))))
 	      ext)
     #t))
 

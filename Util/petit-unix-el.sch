@@ -1,4 +1,4 @@
-; 29 August 2003
+; $Id$
 ;
 ; General "script" for building Petit Larceny on little-endian Unix
 ; systems, under Larceny.
@@ -96,11 +96,11 @@
     (for-each (lambda (ext)
 		(for-each (lambda (dir) 
 			    (system (string-append "rm -f " dir "*." ext))) 
-			  '("Lib/Common/"
-			    "Lib/Standard-C/"
-			    "Repl/"
-			    "Interpreter/"
-			    "Twobit/")))
+			  (list (nbuild-parameter 'common-source)
+				(nbuild-parameter 'machine-source)
+				(nbuild-parameter 'repl-source)
+				(nbuild-parameter 'interp-source)
+				(nbuild-parameter 'compiler))))
 	      ext)
     #t))
 
