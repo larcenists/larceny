@@ -50,6 +50,12 @@ struct young_heap {
 	1 otherwise.
 	*/
 
+  void (*create_initial_stack)( young_heap_t *heap );
+     /* A method that creates the initial stack at system startup
+	time and performs other initialization related to stack
+	creation.
+	*/
+  
   word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc );
      /* A method that allocates `nbytes' bytes from the heap and returns
 	a pointer to the first words.  If `no_gc' == 1, then it is
@@ -151,6 +157,7 @@ young_heap_t *create_young_heap_t(
    char *id,
    word code,
    int  (*initialize)( young_heap_t *heap ),
+   void (*create_initial_stack)( young_heap_t *heap ),
    word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc ),
    void (*make_room)( young_heap_t *heap ),
    void (*collect)( young_heap_t *heap, int nbytes, int request ),
@@ -171,19 +178,20 @@ young_heap_t *create_young_heap_t(
 );
 
 #define yh_initialize( h )         ((h)->initialize( (h) ))
+#define yh_create_initial_stack(h) ((h)->create_initial_stack( (h) ))
 #define yh_allocate( h, n, f )     ((h)->allocate( (h), (n), (f) ))
-#define yh_make_room( h )          ((h)->make_room( h ))
+#define yh_make_room( h )          ((h)->make_room( (h) ))
 #define yh_collect( h, n, r )      ((h)->collect( (h), (n), (r) ))
 #define yh_before_collection( h )  ((h)->before_collection( (h) ))
 #define yh_after_collection( h )   ((h)->after_collection( (h) ))
-#define yh_set_policy( h, x, y )   ((h)->set_policy( h, x, y ))
-#define yh_free_space( h )         ((h)->free_space( h ))
-#define yh_stats( h )              ((h)->stats( h ))
-#define yh_data_load_area( h, n )  ((h)->data_load_area( h, n ))
-#define yh_creg_get( h )           ((h)->creg_get( h ))
-#define yh_creg_set( h, k )        ((h)->creg_set( h, k ))
-#define yh_stack_underflow( h )    ((h)->stack_underflow( h ))
-#define yh_stack_overflow( h )     ((h)->stack_overflow( h ))
+#define yh_set_policy( h, x, y )   ((h)->set_policy( (h), (x), (y) ))
+#define yh_free_space( h )         ((h)->free_space( (h) ))
+#define yh_stats( h )              ((h)->stats( (h) ))
+#define yh_data_load_area( h, n )  ((h)->data_load_area( (h), (n) ))
+#define yh_creg_get( h )           ((h)->creg_get( (h) ))
+#define yh_creg_set( h, k )        ((h)->creg_set( (h), (k) ))
+#define yh_stack_underflow( h )    ((h)->stack_underflow( (h) ))
+#define yh_stack_overflow( h )     ((h)->stack_overflow( (h) ))
 
 #endif   /* INCLUDED_YOUNG_HEAP_T_H */
 

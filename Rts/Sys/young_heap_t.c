@@ -16,6 +16,7 @@ young_heap_t *create_young_heap_t(
    char *id,
    word code,
    int  (*initialize)( young_heap_t *heap ),
+   void (*create_initial_stack)( young_heap_t *heap ),
    word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc ),
    void (*make_room)( young_heap_t *h ),
    void (*collect)( young_heap_t *heap, int nbytes, int request ),
@@ -43,6 +44,7 @@ young_heap_t *create_young_heap_t(
   heap->maximum = 0;
 
   heap->initialize = (initialize ? initialize : default_initialize );
+  heap->create_initial_stack = create_initial_stack;
   heap->allocate = allocate;
   heap->make_room = make_room;
   heap->collect = collect;

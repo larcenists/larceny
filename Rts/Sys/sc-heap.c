@@ -120,13 +120,18 @@ create_sc_heap( int gen_no,
 
   mode_ss_to_globals( heap );
 
-  globals[ G_STKUFLOW ] = 0;
-  must_create_stack( heap );
-
   heap->maximum = data->target_size;
   heap->allocated = 0;
 
   return heap;
+}
+
+static void create_initial_stack( young_heap_t *heap )
+{
+  word *globals = DATA(heap)->globals;
+  
+  globals[ G_STKUFLOW ] = 0;
+  must_create_stack( heap );
 }
 
 semispace_t *yhsc_data_area( young_heap_t *heap )
@@ -494,6 +499,7 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
   heap = create_young_heap_t( "sc/variable", 
                               HEAPCODE_YOUNG_2SPACE,
                               0,                 /* intialize */
+			      create_initial_stack,
                               allocate,
                               make_room,
                               collect,

@@ -120,12 +120,18 @@ create_nursery( int gen_no,
   globals[ G_STKP ] = globals[ G_ELIM ];
   globals[ G_STKUFLOW ] = 0;
 
-  must_create_stack( heap );
-
   heap->maximum = DATA(heap)->heapsize;
   heap->allocated = 0;
 
   return heap;
+}
+
+static void create_initial_stack( young_heap_t *heap )
+{
+  word *globals = DATA(heap)->globals;
+  
+  globals[ G_STKUFLOW ] = 0;
+  must_create_stack( heap );
 }
 
 static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
@@ -346,6 +352,7 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
   heap = create_young_heap_t( "nursery",
 			      HEAPCODE_YOUNG_1SPACE,
 			      0,                     /* initialize */
+			      create_initial_stack,
 			      allocate,
 			      make_room,
 			      collect,
