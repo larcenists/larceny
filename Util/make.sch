@@ -27,11 +27,15 @@
 ; files on which the target depends (computed from the dependencies).
 ; When called, the command must create the target file.
 ;
-; When make:make is called with a target name, a check is made that the
-; target is newer than all the files on which it transitively depends, and
-; if this is not the case, then the target is rebuilt.  The transitive
-; check may cause files on which the target depends to be rebuilt, and
-; so on.
+; When make:make is called with a target name, a check is made that
+; there is no (transitive) dependency that is newer than the target;
+; if there are any dependencies newer than the target, then the target
+; is rebuilt.  The transitive check may cause files on which the
+; target depends to be rebuilt, and so on.  (Observe that on fast
+; systems with only a one-second resolution on the file modification
+; time, this check is not the same as the check whether the target is
+; newer than all the dependencies, since target and dependencies may
+; have equal timestamps.)
 ; 
 ; A command specified as part of a _target_ takes precedence of a command
 ; specified as part of a _rule_.
@@ -331,10 +335,8 @@
   (define (make-target target cmd deps)  
     (make:debugmsg "make-target target=" target "; deps=" deps)
     (for-each make deps)
-    (cond ;((file-exists? target)
-	  ; (make:debugmsg "make-target target=" target ": already exists."))
-	  ((and (file-exists? target)
-		(every? (lambda (d) (newer-than? target d)) deps))
+    (cond ((and (file-exists? target)
+		(not (some? (lambda (d) (newer-than? d target)) deps)))
 	   (make:debugmsg "make-target target=" target ": all dependencies are older."))
 	  (else
 	   (make:debugmsg "make-target target=" target ": building.")
