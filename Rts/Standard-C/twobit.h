@@ -4,7 +4,15 @@
  *
  * Petit Larceny -- Twobit instruction and primitive macros.
  *
+ * The assembler defines the following to affect the code generated:
+ *   UNSAFE_CODE        omit all type checks
+ *   UNSAFE_GLOBALS     omit undefined-checks on globals
+ *   INLINE_ALLOCATION  inline all allocation
+ *   INLINE_ASSIGNMENT  inline the write barrier (at least partially)
+ *
  * BUGS/FIXME:
+ *  - There is only partial support for the defines mentioned above.
+ *
  *  - The code in this file makes some assumptions that are not 
  *    guaranteed by the ANSI/ISO C standard to be true, however 
  *    they are on most compilers:
@@ -26,8 +34,8 @@
 #define MC_DEBUG          0     /* Turn on some debugging code (slow) */
 
 #define USE_CACHED_STATE  1	/* Experimental; works.  Appears to pay off
-				   if peephole optimization is not very aggressive.
-				   */
+				   if peephole optimization is not very 
+				   aggressive. */
 #define MC_DEBUG_CACHED   0	/* Use this the first time around! */
 
 #include <string.h>
@@ -182,6 +190,7 @@ extern cont_t twobit_cont_label;
   setcc( tagof(x) == tag && (the_header( x, tag )&255) == hdr )
 
 /* make-vector, make-procedure */
+/* FIXME: INLINE_ALLOC */
 #define make_vectorish( header_words, excode, header, ptrtag, init ) \
    do { int n; word *p; \
         SECOND = init; \
@@ -283,16 +292,25 @@ extern cont_t twobit_cont_label;
 #define twobit_const( k ) \
   RESULT = get_const( k ); integrity_check( "const" )
 
+#if defined UNSAFE_CODE || defined UNSAFE_GLOBALS
+#define twobit_global( k ) \
+  do {  word cell = get_const( k ); \
+        RESULT = global_cell_ref( cell ); \
+        integrity_check( "global" ); \
+  } while(0)
+#else
 #define twobit_global( k ) \
   do {  word cell = get_const( k ), \
              x = RESULT = global_cell_ref( cell ); \
-        if (UNSAFE_FALSE( x == UNDEFINED_CONST)) { \
+        if (x == UNDEFINED_CONST) { \
 	  RESULT = cell; \
 	  FAIL( EX_UNDEF_GLOBAL ); \
 	} \
         integrity_check( "global" ); \
   } while(0)
+#endif
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_setglbl( k ) \
   do { word b=SECOND=RESULT; \
        word a=RESULT=get_const( k ); \
@@ -312,6 +330,7 @@ extern cont_t twobit_cont_label;
        RESULT = tagptr( p, PROC_TAG ); \
   } while(0)
 
+/* FIXME: INLINE_ALLOC */
 #define twobit_lambda( code_name, const_offs, n ) \
   do { int regs = n; word *p; \
        RESULT = fixnum( PROC_HEADER_WORDS+PROC_OVERHEAD+regs+1 ); \
@@ -324,6 +343,7 @@ extern cont_t twobit_cont_label;
        integrity_check( "lambda" ); \
   } while(0)
 
+/* FIXME: INLINE_ALLOC */
 #define twobit_lexes( n ) \
   do { int regs = n; word *p; \
        RESULT = fixnum( PROC_HEADER_WORDS+PROC_OVERHEAD+regs+1 ); \
@@ -380,6 +400,7 @@ extern cont_t twobit_cont_label;
        integrity_check( "lexical" ); \
   } while(0)
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_setlex( m, n ) \
   do { int i; word p=reg(0); \
        for ( i=m ; i > 0 ; i-- ) p=*proc_addr( p, IDX_PROC_REG0 ); \
@@ -744,6 +765,7 @@ extern cont_t twobit_cont_label;
         integrity_check( "bytevector-fill!" ); \
    } while(0)
 
+/* FIXME: INLINE_ALLOC */
 #define twobit_op1_46() /* make-bytevector */ \
    do { word a=RESULT, *p; \
         if (UNSAFE_TRUE(is_nonnegative_fixnum(a))) { \
@@ -775,6 +797,7 @@ extern cont_t twobit_cont_label;
 
 /* 51 missing */
 
+/* FIXME: INLINE_ALLOC */
 #define twobit_op1_52() /* make-cell */ \
    do { word *p; \
         THIRD = RESULT; \
@@ -800,6 +823,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_57( y, kn, k ) /* eqv? */ \
    implicit_label( SECOND = reg(y); mc_eqv( globals, CONT_LOCAL(kn,k) ), kn, k )
 
+/* FIXME: INLINE_ALLOC */
 #define twobit_op2_58( y ) /* cons */ \
    do { word *p; \
         THIRD = RESULT; \
@@ -812,6 +836,7 @@ extern cont_t twobit_cont_label;
         integrity_check( "cons" ); \
    } while(0)
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_59( y ) /* set-car! */ \
    do { word a=RESULT, b=SECOND=reg(y); \
 	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) { \
@@ -821,6 +846,7 @@ extern cont_t twobit_cont_label;
 	else { FAIL( EX_SETCAR ); } \
    } while(0)
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_60( y ) /* set-cdr! */ \
    do { word a=RESULT, b=SECOND=reg(y); \
 	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) { \
@@ -965,6 +991,7 @@ extern cont_t twobit_cont_label;
 	      FAIL( EX_PROCEDURE_REF ); } \
   } while(0)
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_84( y ) /* cell-set! */ \
   do { word b=SECOND=reg(y); \
        *car_addr( RESULT ) = b; \
@@ -996,6 +1023,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_90( y ) /* sys$partial-list->vector */ \
   SECOND = reg(y); WITH_SAVED_STATE( mc_partial_list2vector( globals ) )
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op3_91( y, z ) /* vector-set! */ \
   do { word a=RESULT, b=reg(y), c=reg(z), h; \
        if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
@@ -1020,6 +1048,7 @@ extern cont_t twobit_cont_label;
                FAIL( EX_BYTEVECTOR_SET ); } \
    } while(0)
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op3_93( y, z ) /* procedure-set! */ \
   do { word a=RESULT, b=reg(y), c=reg(z); \
        if (UNSAFE_TRUE(tagof( a ) == PROC_TAG && \
@@ -1073,6 +1102,7 @@ extern cont_t twobit_cont_label;
 	      FAIL( EX_VECTOR_LIKE_REF ); } \
   } while(0)
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op3_100( y, z ) /* vector-like-set! */ \
   do { word a=RESULT, b=reg(y), c=reg(z); \
        if (UNSAFE_TRUE(tagof( a ) == VEC_TAG && \
@@ -1119,6 +1149,7 @@ extern cont_t twobit_cont_label;
   RESULT = globals[ G_GC_CNT ]
 
 /* FIXME: wrong error code. */
+/* FIXME: INLINE_ALLOC */
 #define twobit_op2_109( y ) /* make-string */ \
    do { word a=RESULT, b=reg(y), *p; \
         if (UNSAFE_TRUE(is_nonnegative_fixnum(a) && is_char(b))) { \
@@ -1127,7 +1158,7 @@ extern cont_t twobit_cont_label;
 	  WITH_SAVED_STATE( mc_alloc_bv( globals ) ); \
           p =(word*)RESULT; \
           *p = mkheader( size, STR_HDR ); \
-          memset( (char*)p + sizeof(word), (b >> 16), size ); \
+          memset( (char*)p + sizeof(word), charcode(b), size ); \
 	  RESULT = tagptr( p, BVEC_TAG ); \
         } else { FAIL( EX_MKBVL ); } \
         integrity_check( "make-string" ); \
@@ -1334,6 +1365,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_402( y ) /* vector-ref:trusted */ \
   RESULT = vector_ref( RESULT, reg(y) >> 2 )
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op3_403( y, z ) /* vector-set!:trusted */	\
   do { word b=reg(y) >> 2, c=SECOND=reg(z);			\
        vector_set( RESULT, b, c );				\
@@ -1406,7 +1438,7 @@ extern cont_t twobit_cont_label;
 
 
 /* Introduced by peephole optimization */
-
+/* FIXME: INLINE_ALLOC */
 #define twobit_alloc_known_vector( k )		\
   do {						\
     word *p;					\
@@ -1417,22 +1449,24 @@ extern cont_t twobit_cont_label;
     RESULT = tagptr( p, VEC_TAG );		\
   } while(0)
 
-#define twobit_fxcmp_branchf( y, op, ex, L_numeric, L_symbolic )		\
-  do { word a = RESULT, b = y;							\
-       if (UNSAFE_TRUE(is_both_fixnums(a,b)))					\
-       {									\
-         if (!((s_word)a op (s_word)b)) twobit_branch( L_numeric, L_symbolic );	\
-       }									\
-       else { SECOND=b; FAIL( ex ); }						\
+#define twobit_fxcmp_branchf( y, op, ex, L_numeric, L_symbolic )	\
+  do { word a = RESULT, b = y;						\
+       if (UNSAFE_TRUE(is_both_fixnums(a,b)))				\
+       {								\
+         if (!((s_word)a op (s_word)b))                                 \
+                   twobit_branch( L_numeric, L_symbolic );	        \
+       }								\
+       else { SECOND=b; FAIL( ex ); }					\
   } while(0)
 
-#define twobit_fxcmp_imm_branchf( b, op, ex, L_numeric, L_symbolic )		\
-  do { word a = RESULT;								\
-       if (UNSAFE_TRUE(is_fixnum(a)))						\
-       {									\
-         if (!((s_word)a op (s_word)b)) twobit_branch( L_numeric, L_symbolic );	\
-       }									\
-       else { SECOND=b; FAIL( ex ); }						\
+#define twobit_fxcmp_imm_branchf( b, op, ex, L_numeric, L_symbolic )	\
+  do { word a = RESULT;							\
+       if (UNSAFE_TRUE(is_fixnum(a)))					\
+       {								\
+         if (!((s_word)a op (s_word)b))                                 \
+                   twobit_branch( L_numeric, L_symbolic );	        \
+       }								\
+       else { SECOND=b; FAIL( ex ); }					\
   } while(0)
 
 #define twobit_numcmp_branchf( x, y, op, generic, kn, k, L_numeric, L_symbolic )	\
@@ -1469,12 +1503,14 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_600( y ) /* make-vector:0 */	\
   twobit_alloc_known_vector( 0 )
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_601( y ) /* make-vector:1 */			\
   twobit_alloc_known_vector( 1 );				\
   SECOND = reg(y);						\
   *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS)) = SECOND;	\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_602( y ) /* make-vector:2 */				\
   twobit_alloc_known_vector( 2 );					\
   { word x;								\
@@ -1484,6 +1520,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_603( y ) /* make-vector:3 */				\
   twobit_alloc_known_vector( 3 );					\
   { word x;								\
@@ -1494,6 +1531,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_604( y ) /* make-vector:4 */				\
   twobit_alloc_known_vector( 4 );					\
   { word x;								\
@@ -1505,6 +1543,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_605( y ) /* make-vector:5 */				\
   twobit_alloc_known_vector( 5 );					\
   { word x;								\
@@ -1517,6 +1556,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_606( y ) /* make-vector:6 */				\
   twobit_alloc_known_vector( 6 );					\
   { word x;								\
@@ -1530,6 +1570,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_607( y ) /* make-vector:7 */				\
   twobit_alloc_known_vector( 7 );					\
   { word x;								\
@@ -1544,6 +1585,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_608( y ) /* make-vector:8 */				\
   twobit_alloc_known_vector( 8 );					\
   { word x;								\
@@ -1559,6 +1601,7 @@ extern cont_t twobit_cont_label;
   }									\
   WITH_SAVED_STATE( mc_full_barrier( globals ) );
 
+/* FIXME: INLINE_ASSIGNMENT */
 #define twobit_op2_609( y ) /* make-vector:9 */				\
   twobit_alloc_known_vector( 9 );					\
   { word x;								\
