@@ -1,6 +1,6 @@
-; -*- text -*-
-; ./BUGS-FIXED
-; $Id$
+Copyright 1998 Lars T Hansen.                -*- text -*-
+
+$Id$
 
 	       Known bugs in Larceny that have been fixed.
 
@@ -467,6 +467,15 @@
      FIX:
      But in read-symbol introduced during optimization.
 
+031  v0.28e (970708 / lth) Fixed 981202 by lth
+     Priority: medium.
+
+     Dynamic-wind must be made aware of timer interrupts [some parts must
+     be guarded by critical sections.]
+
+     FIX:
+     Added critical sections; revisit when we do threads for real.
+
 032  v0.28e (970715 / lth) Fixed 971023 by lth
 
      It appears that the error continuation grows longer and longer with
@@ -881,6 +890,23 @@
      FIX:
      Exported functions; added file Util/make-support.sch.
 
+043  v0.31 (971024 / lth)  Fixed 9811?? by lth
+     Priority: low
+
+     [Performance bug]
+     Make-string needs to be a primop.  I classify this as a bug because
+     the performance implications are potentially considerable, and
+     because the new pass3 wants to rely on make-string being a primop.
+     One possibility here is to expand (make-string n c) to
+       (let ((s (make-bytevector n)))
+         (bytevector-fill! s (char->integer c))
+         s)
+     since both make-bytevector, bytevector-fill!, and char->integer
+     are primops.
+
+     FIX:
+     Implemented make-string as a bona fide primop.
+
 045  v0.31 (971024 / lth)  Fixed 971030 by lth
 
      environment-gettable? needs to check for an undefined value.
@@ -895,6 +921,15 @@
 
      FIX:
      Added code to conio.sch and unix.sch to implement this.
+
+047  v0.31 (971029 / lth) Fixed 981203 by lth
+     Priority: low
+
+     `Round' does not properly round down to even (e.g., for 0.5, 2.5, 4.5)
+     as exposed by the test suite and as noted in comments in 
+     Sparc/generic.s; this is for flonums only (it rounds ratnums properly).
+
+     FIX: rewrote code in Sparc/generic.s to call the libm rint() routine.
 
 048  v0.31 (971031 / lth)  Fixed 9711?? by lth
 
@@ -974,6 +1009,56 @@
     FIX:
     Changed the contagion matrix for arithmetic.
 
+059 v0.32 (980423 / wdc) Fixed 981203 by lth
+    Priority: low
+
+    Brad Lucier noted a problem with the complex contagion rule in Common 
+    Lisp.  The mathematically ideal result for
+
+        (let ((z (make-rectangular +inf +inf))
+          (* 1. z))
+
+    is z itself.  Chez Scheme gets this right, but Larceny 0.32 gets it wrong.
+
+    Notes:
+    Produces +nan.0+nan.0i in 0.33 also.  Works for finite values in z.
+    The reason is that +inf.0 * 0 -> invalid operation in IEEE arithmetic.
+
+    The rule should be: a+bi * c = (make-rectangular (* a c) (* b c)).
+    Seems most reasonable to implement this in Lmul_comp2 in generic.s.
+
+    Also watch the case where it's (* 1 z) rather than (* 1. z).
+
+    FIX:
+    Implemented the new rule in Sparc/generic.s.
+
+060 v0.33 (980425 / lth) Fixed 981203 by lth
+    Priority: low
+
+    This is the same problem as for the (fixed) bug 058, but for complex
+    numbers:
+
+      (- (+ 1 (make-rectangular (expt 2 100) 1))
+         (make-rectangular (expt 2.0 100) 1.0))
+    => 0.0
+
+      (= (+ 1 (make-rectangular (expt 2 100) 1))
+         (make-rectangular (expt 2.0 100) 1.0))
+    => #t
+
+    Larceny could do better here (and return 1 in the first case, #f in the
+    second).  The first bug is in contagion; the second in econtagion.
+
+    The case is rectnum OP compnum where one of the components of the
+    rectnums is a bignum that is not exactly representable as a flonum.
+    Contagion coerces the rectnum to a compnum, but that's wrong, because
+    the compnum _is_ exactly representable as a rectnum.  So the right
+    thing to do is to convert the compnum to a rectnum if it is representable,
+    otherwise to convert the rectnum to a compnum.
+
+    FIX:
+    Changed the contagion matrices as required.
+
 061 v0.33 (980428 / lth)  Fixed 980428 by lth
 
     Logand, logior, logxor cannot cope with the largest negative fixnum,
@@ -1003,6 +1088,47 @@
 
     FIX: This was an off-by-one bug in emit-init-proc-slots! in gen-msi.sch.
 
+065 v0.34 (980518 / lth) Fixed 981202 by lth
+    Priority: low
+
+    This applies to Larceny.  See code from Will in Lib/mcode.sch,
+    and see item 066.
+
+    From: jlrubin@no_meat_byproducts.bway.net (Josh Rubin)
+    Subject: exact->inexact implementation question
+    Newsgroups: comp.lang.scheme
+    Date: Mon, 18 May 1998 11:27:38 GMT
+    Organization: ISPNews http://ispnews.com
+    
+    The Scheme standard requires that exact->inexact applied to a rational
+    number return the nearest representable inexact number. Assuming
+    inexact numbers are IEEE doubles, how does one do this
+    conversion?  The code I have seen for this conversion
+    ( the Gnu bignum package Rational.as_double() ) is buggy.
+    
+    Converting the numerator and denominator to double and then dividing
+    rounds  three times and doesn't always produce the closest result.
+    
+    The only way I can think of is to do a multi-precision integer
+    division to get (1 + mantissa length) bits of accuracy in the quotient
+    and then building a double "by hand". 
+    
+    Josh Rubin
+    jlrubin@no_meat_byproducts.bway.net    Remove spam blocker to reply.
+
+    FIX:
+    Adapted code from Will to do the right thing.
+
+066 v0.34 (980518 / wdc)  Fixed 981203 by lth
+    Priority: low
+
+    Test case: (exact->inexact 14285714285714285714285) should be
+    1.4285714285714286e22, not 1.4285714285714284e22.
+
+    [See also item 065.]
+
+    FIX: added to test suite.
+
 070 v0.34 (981006 / lth)  Fixed 981113 by lth
     Priority: low
 
@@ -1017,3 +1143,79 @@
 
     FIX: Implemented the necessary logic in Lib/print.sch, Lib/reader.sch,
     and Lib/unix.sch (character codes).
+
+073 v0.36 (981203 / lth) Fixed 981203 by lth
+    Priority: low
+
+    We lose precision someplace:
+
+	> (string->number (string-append "#b" (number->string (sqrt 2) 2)))
+	1.4142135623730954
+	> (sqrt 2)
+	1.4142135623730951
+
+    FIX: this was fixed when rounding was fixed (see bug 047).
+
+076 v0.36 (981207 / lth) Fixed 981207 by lth
+    Priority: high
+
+    Jaffer's test suite:
+
+	> (string->number "")
+	Error: car: () is not a pair.
+
+    [Should return #f.]
+
+    FIX:
+    parse-number in string->number expects a nonempty list of characters;
+    made sure that if input is empty, #f is returned straightaway.
+
+078 v0.36 (981207 / lth) Fixed 981207 by lth
+    Priority: high.
+
+    Jaffer's test suite:
+
+    Close-input-port on an already-closed input port fails.  This
+    is by design in Larceny but the R5RS clearly states that it's
+    ok to close an already-closed port.
+
+    FIX:
+    close-input-port and close-output-port work around the problem w/o
+    affecting the lower-level I/O system.  (Somewhat of a hack.)
+
+079 v0.36 (981207 / lth)  Fixed 981207 by lth
+    Priority: high.
+
+    Jaffer's test suite:
+
+	(#<PROCEDURE modulo> 33333333333333333333 -3)  ==> -3
+	 BUT EXPECTED 0
+	(#<PROCEDURE modulo> 2177452800 -86400)  ==> -86400
+	 BUT EXPECTED 0
+	(#<PROCEDURE modulo> -2177452800 -86400)  ==> -86400
+	 BUT EXPECTED 0
+
+    FIX: changed modulo in Lib/Common/number.sch.
+
+
+080 v0.36 (981207 / lth)  Fixed 981207 by lth
+    Priority: high
+
+    This isn't even remotely right
+	> (modulo  33333333333333333333 -3.0)
+	1362.0
+
+    Notes:
+    Note that
+	> (modulo  33333333333333333333.0 -3.0)
+	0.0
+    which is nearly the right answer (it should in principle be -0.0).
+
+    The problem seems to be in modulo: rather than using algorithm*, which
+    it should, it ends up doing mixed exact/inexact arithmetic with resulting
+    loss of accuracy.
+
+    FIX: made sure all computation happens using exact arithmetic.  It
+    still returns 0.0 rather than -0.0; this wouldn't be hard to fix but
+    await work to clean up IEEE arithmetic.
+
