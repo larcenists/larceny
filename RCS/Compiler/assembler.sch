@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.4 91/08/20 15:31:25 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.5 91/08/21 14:43:26 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -122,6 +122,22 @@
 
 (define (push-instruction as instruction)
   (as-source! as (cons instruction (as-source as))))
+
+; get the n'th previously emitted instruction (0-based)
+
+(define (previous-emitted-instruction n as)
+  (let loop ((n n) (code (as-code as)))
+    (if (zero? n)
+	(if (not (null? code))
+	    (car code)
+	    '(-1))
+	(loop (- n 1) (if (null? code) '() (cdr code))))))
+
+(define (discard-previous-instruction! as)
+  (let ((code (as-code as)))
+    (if (not (null? code))
+	(as-code! as (cdr code)))))
+
 
 ; The remaining procedures in this file are local to the assembler.
 
