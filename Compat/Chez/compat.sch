@@ -40,8 +40,6 @@
     (load (string-append hostdir "bytevec.ss"))
     (load (string-append hostdir "misc2bytevector.ss"))
     (load (string-append hostdir "logops.ss"))
-    (if (not (bound? 'values))
-	(load (string-append hostdir "values.ss")))
     (print-vector-length #f)
     (print-gensym #f)
     #t))
@@ -197,7 +195,13 @@
 
 (define write-fasl-datum write)
 
-(define twobit-format format)
+(define (twobit-format port fmt . args)
+  (cond ((port? port)
+         (display (apply format fmt args) port))
+        (port
+         (display (apply format fmt args)))
+        (else
+         (apply format fmt args))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
