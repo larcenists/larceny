@@ -3,6 +3,11 @@
  * $Id$
  *
  * Operating-system dependent functionality -- Unix-type systems.
+ *
+ * Portability issues:
+ *  poll           an X/OPENism; some systems have only "select"
+ *  mmap/munmap    not available everywhere; see comments
+ *  getrusage      not available everywhere?
  */
 
 #include "config.h"
@@ -14,12 +19,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <sys/mman.h>		/* For mmap() and munmap() */
 #include <unistd.h>
 #include <time.h>
 #include <poll.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #if defined(SUNOS4)		/* Not in any header file. */
 extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
@@ -29,6 +37,7 @@ extern int poll( struct pollfd *fds, unsigned long nfds, int timeout );
 #endif
 
 #include "larceny.h"
+#include "memmgr.h"		/* for GC_CHUNK_SIZE */
 
 static stat_time_t real_start;
 
@@ -167,7 +176,7 @@ word w_fd;
     globals[ G_RESULT ] = fixnum( r );
 }
 
-/* system() is actually in Standard C. (!) */
+/* system() is in ANSI/ISO C. */
 void osdep_system( word w_cmd )
 {
   char *cmd = string2asciiz( w_cmd );
@@ -182,9 +191,262 @@ void osdep_os_version( int *major, int *minor )
   sscanf( name.release, "%d.%d", major, minor );
 }
 
-/* Return the current time in milliseconds since initialization */
+/* Low level memory management */
 
-unsigned stats_rtclock( void )
+#if !USE_GENERIC_ALLOCATOR	/* in osdep-generic.c */
+/* mmap() and munmap() are not entirely portable, but work well where
+   available, in particular because munmap() allows memory to be
+   returned to the operating system.
+
+   The following code has been tested on Solaris 2.6.
+
+   4.4BSD, Linux, and DEC OSF/1 (X/OPEN) all have mmap()/munmap(), 
+   though there may be slight variations -- I haven't studied them 
+   in detail.
+   
+   4.3BSD and earlier do not have mmap()/munmap().
+   */
+
+#if RETURN_MEMORY_TO_OS
+/* Simple strategy to avoid calling mmap()/munmap() all the time:
+   keep a buffer of recently freed blocks and try to satisfy the
+   request from it, and if there's space, put a block there rather
+   than returning it right away.
+   */
+#define NUM_AVAILABLE 16	/* high for some, low for others? */
+static struct {
+  void *datum;			/* the block */
+  int  bytes;			/* 0 if slot is empty */
+} available[ NUM_AVAILABLE ];	/* free blocks not yet returned to OS */
+static int  nextvictim;		/* index of next to eject */
+#else
+#define KILOBYTE      1024
+#define NUM_AVAILABLE 4
+#define NUM_HIST      5
+/* Maintain quick lists of blocks of an integral number of 4K pages
+   up to 256KB, and an LRU cache of blocks larger than that.  A
+   request for a block from the size range of the quick list
+   will be satisfied from the quick list or a new block of the
+   right size will be allocated.  A request for a block from
+   the size range outside the quick list will be satisfied by
+   an exact match, if possible, or by a new block.
+
+   Two mechanisms are used to combat retaining too much memory.
+
+   Each quick list has a short history buffer associated with it: this
+   is the history of nonzero numbers of entries of that size allocated
+   between successive deallocations.  When presented with a
+   deallocation, the size of the quick list is bounded by the average of
+   the values in the history buffer; if more blocks than the bound are
+   freed, then they are released to the OS.
+   
+   The LRU cache keeps an age field for each entry, and the age field
+   is incremented on every allocation outside the range of the quick
+   lists.  If an entry ages to more than twice the size of the cache, 
+   it is evicted as being insufficiently often used.  
+   */
+static struct {
+  void *datum;			/* the block */
+  int  bytes;			/* 0 if slot is empty */
+  int  age;
+} available[ NUM_AVAILABLE ];	/* free blocks not yet returned to OS */
+
+static struct {
+  word *blocks;
+  int  size;
+  int  history[ NUM_HIST ];
+  int  numallocs;
+  int  bound;
+} quick[ 256/4 ];
+
+#endif
+static int  zero = -1;		/* file descriptor for /dev/zero */
+static int  pagesize;		/* operating system's page size */
+static void *addr_hint = 0;	/* address of the first returned block */
+static int  fragmentation;	/* current fragmentation */
+static int  initialized;
+
+static hrtime_t mmap_time;
+static hrtime_t munmap_time;
+
+static void* alloc_block( int bytes )
+{
+  void *addr;
+
+  if (zero == -1) {
+    pagesize = getpagesize();
+    zero = open( "/dev/zero", O_RDONLY );
+    if (zero == -1) 
+      panic( "mmap: %s: failed to open /dev/zero.", strerror( errno ) );
+  }
+
+  fragmentation += roundup( bytes, pagesize ) - bytes;
+again:
+  addr = mmap( addr_hint,
+	       bytes,
+	       (PROT_READ | PROT_WRITE | PROT_EXEC), 
+	       MAP_PRIVATE, 
+	       zero, 
+	       0 );
+  if (addr == MAP_FAILED) {
+    memfail( MF_HEAP, "mmap: %s: failed to map %d bytes.", 
+	     strerror( errno ), bytes );
+    goto again;
+  }
+  addr_hint = addr;
+  return addr;
+}
+
+static void free_block( void *block, int bytes )
+{
+  fragmentation -= roundup(bytes, pagesize) - bytes;
+  if (munmap( block, bytes ) == -1)
+    panic_abort( "munmap: %s: failed to unmap %d bytes.", 
+		 strerror(errno), bytes );
+}
+
+void *osdep_alloc_aligned( int bytes )
+{
+  void *addr;
+  int i;
+  hrtime_t now = gethrtime();
+  
+  assert( bytes % 4096 == 0 );
+
+  if (!initialized) {
+#if !RETURN_MEMORY_TO_OS
+    for ( i=0 ; i < sizeof(quick)/sizeof(quick[0]) ; i++ )
+      quick[i].blocks = 0;
+#endif
+    initialized = 1;
+  }
+
+#if RETURN_MEMORY_TO_OS
+  addr = 0;
+  for ( i=0 ; i < NUM_AVAILABLE && addr == 0 ; i++ )
+    if (available[i].bytes == bytes) {
+      available[i].bytes = 0;
+      addr = available[i].datum;
+    }
+  if (addr == 0)
+    addr = alloc_block( bytes );
+#else
+  if (bytes <= 256*KILOBYTE) {
+    i = (bytes / 4096)-1;
+    if (quick[i].blocks != 0) {
+      addr = (word*)quick[i].blocks;
+      quick[i].blocks = (void*)*(word*)quick[i].blocks;
+      quick[i].size--;
+    }
+    else
+      addr = alloc_block( bytes );
+    quick[i].numallocs++;
+  }
+  else {
+    int j;
+    
+    addr = 0;
+    for ( i=0 ; i < NUM_AVAILABLE && addr == 0 ; i++ )
+      if (available[i].bytes == bytes) {
+	addr = available[i].datum;
+	for ( j=i ; j < NUM_AVAILABLE-1 ; j++ )
+	  available[j] = available[j+1];
+	available[NUM_AVAILABLE-1].bytes = 0;
+      }
+    if (addr == 0)
+      addr = alloc_block( bytes );
+
+    /* Manipulate age counts, evict the old. */
+    i=0;
+    while (i < NUM_AVAILABLE) {
+      if (available[i].bytes > 0 && ++available[i].age >= NUM_AVAILABLE*2) {
+	free_block( available[i].datum, available[i].bytes );
+	for ( j=i ; j < NUM_AVAILABLE-1 ; j++ )
+	  available[j] = available[j+1];
+	available[NUM_AVAILABLE-1].bytes = 0;
+      }
+      else
+	i++;
+    }
+  }
+#endif
+  mmap_time += gethrtime() - now;
+  return addr;
+}
+
+void osdep_free_aligned( void *block, int bytes )
+{
+  int i;
+  hrtime_t now = gethrtime();
+ 
+  assert( bytes % 4096 == 0 );
+
+#if RETURN_MEMORY_TO_OS
+  if (bytes > GC_CHUNK_SIZE) 
+    free_block( block, bytes );
+  else {
+    for ( i=0 ; i < NUM_AVAILABLE && available[i].bytes > 0 ; i++ )
+      ;
+    if (i == NUM_AVAILABLE) {      /* Eject a block */
+      i = nextvictim;
+      nextvictim = (nextvictim+1) % NUM_AVAILABLE;
+      free_block( available[i].datum, available[i].bytes );
+    }
+    available[i].bytes = bytes;
+    available[i].datum = block;
+  }
+#else
+  if (bytes <= (256*KILOBYTE)) {
+    i=(bytes / 4096)-1;
+    if (quick[i].numallocs > 0) {
+      int sum = 0, j;
+      void *p;
+      
+      for ( j=0 ; j < NUM_HIST-1 ; j++ ) {
+	sum += quick[i].history[j];
+	quick[i].history[j] = quick[i].history[j+1];
+      }
+      quick[i].history[j] = quick[i].numallocs;
+      sum += quick[i].history[j];
+      quick[i].bound = sum/NUM_HIST;
+      quick[i].numallocs = 0;
+      while (quick[i].size > quick[i].bound) {
+	p = quick[i].blocks;
+	quick[i].blocks = (word*)*(word*)p;
+	free_block( p, bytes );
+	quick[i].size--;
+      }
+    }
+    if (quick[i].size < quick[i].bound) {
+      *(word*)block = (word)quick[i].blocks;
+      quick[i].blocks = block;
+      quick[i].size++;
+    }
+    else
+      free_block( block, bytes );
+  }
+  else {
+    if (available[NUM_AVAILABLE-1].bytes > 0)
+      free_block( available[NUM_AVAILABLE-1].datum,
+		  available[NUM_AVAILABLE-1].bytes );
+    for (i=NUM_AVAILABLE-1 ; i > 0 ; i-- )
+      available[i] = available[i-1];
+    available[0].bytes = bytes;
+    available[0].datum = block;
+    available[0].age = 0;
+  }
+#endif
+  munmap_time += gethrtime() - now;
+}
+
+int osdep_fragmentation( void )
+{
+  return fragmentation;
+}
+
+#endif /* !USE_GENERIC_ALLOCATOR */
+
+unsigned osdep_realclock( void )
 {
   stat_time_t now;
 
@@ -192,9 +454,30 @@ unsigned stats_rtclock( void )
   return now.sec * 1000 + now.usec / 1000;
 }
 
-/* Fill in the structures with real, user, system times. */
+
+/* How portable is getrusage()? */
+unsigned osdep_cpuclock( void )
+{
+  struct rusage buf;
+  int sec, usec;
+  
+  getrusage( RUSAGE_SELF, &buf );
+
+  sec = buf.ru_utime.tv_sec + buf.ru_stime.tv_sec;
+  usec = buf.ru_utime.tv_usec + buf.ru_stime.tv_usec;
+
+  if (usec > 1000000) {
+    usec -= 1000000;
+    sec += 1;
+  }
+
+  return sec*1000 + usec / 1000;
+}
+
+
+/* How portable is getrusage()? */
 void 
-stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
+osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
     get_rtclock( real );
@@ -215,7 +498,7 @@ stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
   }
 }
 
-void stats_pagefaults( unsigned *major, unsigned *minor )
+void osdep_pagefaults( unsigned *major, unsigned *minor )
 {
   struct rusage buf;
 
