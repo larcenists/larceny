@@ -1,10 +1,15 @@
 #!/bin/bash
+# Copyright 1998 Lars T Hansen.
+#
+# $Id$
+#
+# Shell script to summarize CVS log entries.
 #
 # Usage: summarize-changes date
 # where date is on form mm/dd/yy
 
 if [ "$1" = "" ]; then
-  echo "Usage: summarise-changes mm/dd/yy"
+  echo "Usage: summarize-changes mm/dd/yy"
   exit 1
 fi
 
