@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.7 92/03/31 12:30:23 lth Exp Locker: lth $
+# $Id: Makefile,v 1.8 1992/05/15 22:17:22 lth Exp lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -36,10 +36,10 @@ MGGC=	$(THESIS)/mg-gc
 SCGC=	$(THESIS)/sc-gc
 
 # PROFILE=-pg
-# DEBUG=-g
-# DFLAG=-DDEBUG
+DEBUG=-g
+DFLAG=-DDEBUG
 CC=cc
-OPTIMIZE=-O4
+# OPTIMIZE=-O4
 
 COMPILE=-c
 COUTPUT=$*.o

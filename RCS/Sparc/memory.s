@@ -4,7 +4,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.21 92/02/23 16:56:26 lth Exp Locker: lth $
+! $Id: memory.s,v 1.22 1992/05/15 22:18:32 lth Exp lth $
 !
 ! This file defines the following builtins:
 !
@@ -165,9 +165,26 @@ _mem_alloc:
 	nop
 
 Lalloc1:
+#ifdef DEBUG
+	ld	[ %GLOBALS + DEBUGLEVEL_OFFSET ], %TMP0
+	save	%sp, -96, %sp
+	cmp	%SAVED_TMP0, 3
+	blt	Lalloc2
+	nop
+	set	Lallocmsg, %o0
+	call	_printf
+	nop
+Lalloc2:
+	restore
+#endif
 	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up (down
 
+	.seg	"data"
+
+Lallocmsg:	.asciz "Allocating\n"
+
+	.seg	"text"
 
 ! _internal_alloc() is like _alloc(), but %TMP0 is a Scheme return
 ! address to be saved if a collection is triggered.

@@ -3,7 +3,7 @@
 ;; but rather compile them and load the compiled code. This works. But one
 ;; can also load interpretable code (raw scheme) and have it work.
 ;;
-;; $Id: eval.sch,v 1.1 1992/05/15 22:07:35 lth Exp lth $
+;; $Id: eval.sch,v 1.2 1992/05/15 22:19:04 lth Exp lth $
 ;;
 ;; 'Eval' takes an expression and evaluates the expression in the default
 ;; toplevel environment. It returns the result of the evaluation,
@@ -270,6 +270,13 @@
   (extend-toplevel-env! 'vector-length vector-length)
   (extend-toplevel-env! 'vector->list vector->list)
 
+  ;; vector-like
+
+  (extend-toplevel-env! 'vector-like? vector-like?)
+  (extend-toplevel-env! 'vector-like-ref vector-like-ref)
+  (extend-toplevel-env! 'vector-like-set! vector-like-set!)
+  (extend-toplevel-env! 'vector-like-length vector-like-length)
+
   ;; numbers
 
   (extend-toplevel-env! '+ +)
@@ -296,6 +303,13 @@
   (extend-toplevel-env! 'truncate truncate)
   (extend-toplevel-env! 'round round)
   (extend-toplevel-env! 'number->string number->string)
+  (extend-toplevel-env! 'exact? exact?)
+  (extend-toplevel-env! 'inexact? inexact?)
+  (extend-toplevel-env! 'exact->inexact exact->inexact)
+  (extend-toplevel-env! 'inexact->exact inexact->exact)
+  (extend-toplevel-env! 'gcd gcd)
+  (extend-toplevel-env! 'lcm lcm)
+  (extend-toplevel-env! 'random random)
 
   ;; strings
 
@@ -309,6 +323,20 @@
   (extend-toplevel-env! 'string-copy string-copy)
   (extend-toplevel-env! 'string->list string->list)
   (extend-toplevel-env! 'list->string list->string)
+
+  ;; bytevectors
+
+  (extend-toplevel-env! 'make-bytevector make-bytevector)
+  (extend-toplevel-env! 'bytevector? bytevector?)
+  (extend-toplevel-env! 'bytevector-ref bytevector-ref)
+  (extend-toplevel-env! 'bytevector-set! bytevector-set!)
+  (extend-toplevel-env! 'bytevector-length bytevector-length)
+  (extend-toplevel-env! 'bytevector-fill! bytevector-fill!)
+
+  (extend-toplevel-env! 'bytevector-like? bytevector-like?)
+  (extend-toplevel-env! 'bytevector-like-ref bytevector-like-ref)
+  (extend-toplevel-env! 'bytevector-like-set! bytevector-like-set!)
+  (extend-toplevel-env! 'bytevector-like-length bytevector-like-length)
 
   ;; i/o
 
@@ -331,7 +359,6 @@
 
   (extend-toplevel-env! 'rewrite rewrite)
   (extend-toplevel-env! 'run-with-stats run-with-stats)
-  (extend-toplevel-env! 'random random)
   (extend-toplevel-env! 'issue-warnings issue-warnings)
   (extend-toplevel-env! 'collect collect)
   (extend-toplevel-env! 'memstats memstats)

@@ -2,7 +2,7 @@
  * Larceny Runtime System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.13 92/02/23 16:56:38 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.14 1992/05/15 22:18:48 lth Exp lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -563,7 +563,7 @@ void C_restore_frame()
 
 #ifdef DEBUG
   if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
-    printf( "Frame @ %08x, header %08x, size %d\n", hframe, *hframe, 
+    printf( "Frame @ %08x, header %08x, size %d bytes\n", hframe, *hframe, 
 	   hframesize );
   }
 #endif
@@ -598,7 +598,7 @@ void C_restore_frame()
     *(sframe + STK_CONTSIZE) = sframesize;
   }
 #ifdef DEBUG
-  if (globals[ DEBUGLEVEL_OFFSET ] > 2) {
+  if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
     printf( "return address %08x\n", *(sframe + STK_RETADDR ) );
   }
 #endif
@@ -638,6 +638,10 @@ void C_flush_stack_cache()
     printf( "Flushing stack cache; base = %x, limit = %x, ptr = %x.\n",
 	   globals[ STK_START_OFFSET ], globals[ STK_LIMIT_OFFSET ],
 	   globals[ SP_OFFSET ]);
+  }
+  if (globals[ E_TOP_OFFSET ] > globals[ E_LIMIT_OFFSET ]) {
+    printf( "Internal error: Failed invariant in flush_stack_cache()\n" );
+    exit( 1 );
   }
 #endif
 
@@ -731,7 +735,12 @@ void C_flush_stack_cache()
   if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
     printf( "%d frames flushed.\n", framecount );
   }
+  if (globals[ E_TOP_OFFSET ] > globals[ E_MAX_OFFSET ]) {
+    printf( "Internal error: hard heap overflow!\n" );
+    exit( 1 );
+  }
 #endif
+
 }
 
 
