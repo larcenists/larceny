@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-21 November 2003 / lth
+27 January 2004 / lth
 
 
 HOW TO BUILD PETIT LARCENY AND USE THE BUILD ENVIRONMENT
@@ -29,7 +29,6 @@ be the Larceny source directory if necessary, and load the appropriate
 configuration file for your operating system, currently one of:
 
     Util/petit-win32.sch
-    Util/petit-macosx.sch
     Util/petit-unix-be.sch
     Util/petit-unix-el.sch
 

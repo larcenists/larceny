@@ -1,10 +1,11 @@
 Information about Petit Larceny on MacOS X
-21 August 2003 / lth
+27 January 2004 / lth
 
 
 HOW TO BUILD AND USE.
 
-See HOWTO-PETIT for information about this, there are no surprises.
+See HOWTO-PETIT for information about this.  The file to load is
+Util/petit-unix-be.sch; there are no surprises.
 
 The dynamic loading facility implemented by COMPILE-FILES does not
 work under MacOS X because the OS has an idiosyncratic dynamic loading
