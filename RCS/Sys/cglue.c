@@ -2,7 +2,7 @@
  * Scheme 313 run-time system.
  * Millicode in C.
  *
- * $Id: cglue.c,v 1.6 1992/05/15 22:18:35 lth Exp lth $
+ * $Id: cglue.c,v 1.7 1992/08/04 18:28:00 lth Exp lth $
  *
  * Millicode routines which are written in C and which do not warrant 
  * their own files go in here.
@@ -92,6 +92,9 @@ void C_varargs()
 /*
  * C-language exception handler (called from exception.s)
  * This is a temporary hack; eventually this procedure will not be needed.
+ *
+ * Low exception codes (the old ones) have names in the table; high exception
+ * coded (the new ones, above 5) do not.
  */
 void C_exception( i )
 int i;
@@ -102,10 +105,17 @@ int i;
 		       "Wrong Number of Arguments",
 		       "Wrong arguments to arithmetic operator",
 		       "Undefined global variable" };
-  printf( "Scheme 313 exception (PC=0x%08x) (%d): %s.\n\n", 
-	 globals[ SAVED_RETADDR_OFFSET ],
-	 i,
-	 s[ i ] );
+  if (i <= UNDEF_EXCEPTION) {
+    printf( "Scheme 313 exception (PC=0x%08x) (%d): %s.\n\n", 
+	   globals[ SAVED_RETADDR_OFFSET ],
+	   i,
+	   s[ i ] );
+  }
+  else {
+    printf( "Scheme 313 exception (PC=0x%08x) (%d)\n\n",
+	    globals[ SAVED_RETADDR_OFFSET ],
+	    i );
+  }
   C_localdebugger();
 }
 
