@@ -24,9 +24,9 @@
  * in other parts of the RTS (notably gc->stats() and gclib_stats()) to
  * obtain information about those parts.
  *
- * Scheme code makes a callout to UNIX_getresourceusage().  That call 
- * eventually ends up in stats_fillvector(), which returns a vector of
- * stats info.
+ * Scheme code makes a callout to primitive_get_stats(), passing a Scheme
+ * vector that is to be filled with resource data.  That call eventually
+ * ends up in stats_fillvector(), which performs the filling.
  *
  * There are some static data in this file, and in the longer term
  * a better solution must be found.  The statistics data don't really
@@ -42,48 +42,24 @@
  * - record/report low-level allocator free memory
  * - record/report peak memory usage (allocated) per generation & remset
  *
- * FIXME: this is poorly integrated with the conservative collector.
- *   Could split GC time into mark time and (lazy) sweep time.
- *
  * FIXME: the logic is too tangled.
+ * FIXME: integrate better with BDW collector.
  */
 
 #include "config.h"
-
-#include <sys/time.h>
-
-#if defined(SUNOS4) || defined(SUNOS5)   /* Works in 4.x, 5.5, 5.6 */
-/* For rusage() et al. */
-#include <sys/resource.h>
-#endif
-
-#if defined(SUNOS5_3)                   /* Worked in 5.3 */
-#include <sys/resource.h>
-#include <sys/rusage.h>
-#endif
-
-#if defined(SUNOS4)
-extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
-extern int getrusage( int who, struct rusage *rusage );
-#endif
 
 #if defined(BDW_GC)
 #include "../bdw-gc/include/gc.h"
 #endif
 
 #include <stdio.h>
-#include <memory.h>
+#include <string.h>
 #include "larceny.h"
 #include "gc.h"
 #include "gc_t.h"
 #include "memmgr.h"
 #include "gclib.h"
 #include "heap_stats_t.h"
-
-/* These are hardwired limits in the system. They should possibly be 
- * defined somewhere else.
- */
-#define MAX_GENERATIONS 32
 
 typedef struct {
   word hscanned_hi;      /* hash table */
@@ -163,16 +139,24 @@ typedef struct {
   word wallocated_remset;  /* words allocated to remembered sets */
   word wallocated_rts;     /* words allocated to RTS "other" */
 
-#if SIMULATE_NEW_BARRIER
-  simulated_barrier_stats_t swb;   /* simulated barrier statistics */
+#if defined(SIMULATE_NEW_BARRIER)
+  struct {
+    word total_assignments;
+    word array_assignments;
+    word lhs_young_or_remembered;
+    word rhs_constant;
+    word cross_gen_check;
+    word transactions;
+  } swb;
 #endif
   /* There Can Be Only One! */
   rem_stat_t np_remset;            /* Remembered-set statistics */
 } sys_stat_t;
 
+#define STATS_COLLECT   (fixnum(0)) /* Externally visible */
+#define STATS_PROMOTE   (fixnum(1)) /* Externally visible */
 
 static sys_stat_t   memstats;             /* statistics */
-static unsigned     rtstart;              /* time at startup (base time) */
 static int          generations;          /* number of generations in gc */
 
 static unsigned     allocated;            /* bytes alloc'd since last gc */
@@ -197,7 +181,7 @@ static void fill_remset_vector( word *rv, rem_stat_t *rs, int np_remset );
 static void dump_gen_stats( FILE *dumpfile, gen_stat_t *gs, word live );
 static void dump_remset_stats( FILE *dumpfile, rem_stat_t *rs );
 
-/* if we're using the Boehm collector and it was compiled with 
+/* If we're using the Boehm collector and it was compiled with 
  * REDIRECT_MALLOC (see bdw-gc/Makefile), then stats routines may
  * be called from the GC before initialization.  This flag lets us
  * ignore those calls.
@@ -212,15 +196,12 @@ static int initialized = 0;
  */
 
 void
-stats_init( gc_t *collector, int gen, int show_heapstats )
+stats_init( gc_t *collector, int gens, int show_heapstats )
 {
   int i;
 
-  assert( gen <= MAX_GENERATIONS );
-
   gc = collector;
-  rtstart = stats_rtclock();
-  generations = gen;
+  generations = gens;
 
   heapstats_before_gc = make_heapstats( 0 );
   heapstats_after_gc  = make_heapstats( 0 );
@@ -262,13 +243,11 @@ stats_before_gc( void )
  * Called by the actual collector code when the type and location of a 
  * collection has been determined.
  *
- * 'generation' is the generation number doing the copying.
- * 'type' is STATS_PROMOTE if it's a promotion, STATS_COLLECT if 
- * it's a collection.
+ * 'generation' is the generation number doing the collection.
  */
 
 void
-stats_gc_type( int generation, stats_gc_t type )
+stats_gc_type( int generation, gc_type_t type )
 {
   if (!initialized) return;
 
@@ -277,7 +256,8 @@ stats_gc_type( int generation, stats_gc_t type )
      remembered.
    */
   memstats.lastcollection_gen = fixnum(generation);
-  memstats.lastcollection_type = fixnum((word)type);
+  memstats.lastcollection_type = 
+    (type == GCTYPE_COLLECT ? STATS_COLLECT : STATS_PROMOTE);
 }
 
 
@@ -289,13 +269,13 @@ stats_after_gc( void )
   unsigned gen;
   unsigned time;
 
-  if (!initialized || memstats.lastcollection_type == fixnum(STATS_IGNORE))
+  if (!initialized)
     return;
 
   add( &memstats.wallocated_hi, &memstats.wallocated_lo,
       fixnum( allocated / sizeof(word) ) );
 
-  if (memstats.lastcollection_type == fixnum(STATS_COLLECT))
+  if (memstats.lastcollection_type == STATS_COLLECT)
     memstats.gen_stat[nativeint(memstats.lastcollection_gen)].collections
       += fixnum(1);
   else
@@ -317,7 +297,7 @@ stats_after_gc( void )
 
   memstats.gctime += fixnum( time );
   memstats.gen_stat[gen].gctime += fixnum( time );
-  if (memstats.lastcollection_type == fixnum(STATS_PROMOTE)) {
+  if (memstats.lastcollection_type == STATS_PROMOTE) {
     memstats.promtime += fixnum( time );
     memstats.gen_stat[gen].promtime += fixnum( time );
   }
@@ -332,20 +312,6 @@ void stats_add_gctime( long s, long ms )
   memstats.gctime += fixnum( time );
   memstats.gen_stat[0].gctime += fixnum( time );
 }
-
-/* Get the current time in milliseconds since initialization */
-
-unsigned
-stats_rtclock( void )
-{
-  struct timeval t;
-  struct timezone tz;
-
-  if (gettimeofday( &t, &tz ) == -1)
-    return -1;
-  return (t.tv_sec * 1000 + t.tv_usec / 1000) - rtstart;
-}
-
 
 /* Fill stats vector with the statistics. */
 
@@ -399,7 +365,7 @@ stats_fillvector( word w_buffer )
       fill_remset_vector( ptrof(r)+1, &ms.rem_stat[i], 0 );
   }
 
-  /* Useful as a hint only */
+  /* FIXME: Can do better here: if gc->np_remset == -1 then #f else #t. */
   vector_set( w_buffer, STAT_NPREMSET_P, TRUE_CONST );
 
   return w_buffer;
@@ -408,10 +374,8 @@ stats_fillvector( word w_buffer )
 static void
 fill_main_entries( word *vp, sys_stat_t *ms )
 {
-#if !defined(STDC_SOURCE)
-  struct rusage buf;
-#endif
-  unsigned usertime, systime, minflt, majflt;
+  stat_time_t user, system, real;
+  unsigned minflt, majflt;
 
   vp[ STAT_WALLOCATED_HI ] = ms->wallocated_hi;
   vp[ STAT_WALLOCATED_LO ] = ms->wallocated_lo;
@@ -428,9 +392,7 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   vp[ STAT_WLIVE ]         = ms->wlive;
   vp[ STAT_MAX_HEAP ]      = ms->wmax_heap;
   vp[ STAT_LAST_GEN ]      = ms->lastcollection_gen;
-  vp[ STAT_LAST_TYPE ]     = (ms->lastcollection_type == STATS_COLLECT 
-			       ? fixnum(0) 
-			       : fixnum(1));
+  vp[ STAT_LAST_TYPE ]     = ms->lastcollection_type;
   vp[ STAT_FFLUSHED_HI ]   = ms->fflushed_hi;
   vp[ STAT_FFLUSHED_LO ]   = ms->fflushed_lo;
   vp[ STAT_WFLUSHED_HI ]   = ms->wflushed_hi;
@@ -442,8 +404,9 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   vp[ STAT_WORDS_REMSET ]  = ms->wallocated_remset;
   vp[ STAT_WORDS_RTS ]     = ms->wallocated_rts;
 
-#if SIMULATE_NEW_BARRIER
+#if defined(SIMULATE_NEW_BARRIER)
   /* If we're not simulating the new barrier, the values will be 0 */
+  vp[ STAT_SWB_TOTAL ] = ms->swb.total_assignments;
   vp[ STAT_SWB_ASSIGN ] = ms->swb.array_assignments;
   vp[ STAT_SWB_LHS_OK ] = ms->swb.lhs_young_or_remembered;
   vp[ STAT_SWB_RHS_CONST ] = ms->swb.rhs_constant;
@@ -451,30 +414,14 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   vp[ STAT_SWB_TRANS ] = ms->swb.transactions;
 #endif
 
-#if !defined(STDC_SOURCE)
-  getrusage( RUSAGE_SELF, &buf );
+  stats_time_used( &real, &user, &system );
+  stats_pagefaults( &majflt, &minflt );
 
-#if defined(SUNOS4) || defined(SUNOS5)  /* 4.x, 5.5, 5.6 */
-  systime = fixnum( buf.ru_stime.tv_sec * 1000 + buf.ru_stime.tv_usec / 1000);
-  usertime = fixnum( buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000);
-#endif
-
-#if defined(SUNOS5_3)  /* 5.3 */
-  systime = fixnum( buf.ru_stime.tv_sec*1000 + buf.ru_stime.tv_nsec/1000000);
-  usertime = fixnum( buf.ru_utime.tv_sec*1000 + buf.ru_utime.tv_nsec/1000000);
-#endif
-
-  majflt = fixnum( buf.ru_majflt );
-  minflt = fixnum( buf.ru_minflt );
-#else
-  systime = usertime = minflt = majflt = 0;
-#endif
-
-  vp[ STAT_RTIME ]         = fixnum( stats_rtclock() );
-  vp[ STAT_STIME ]         = systime;
-  vp[ STAT_UTIME ]         = usertime;
-  vp[ STAT_MINFAULTS ]     = minflt;
-  vp[ STAT_MAJFAULTS ]     = majflt;
+  vp[ STAT_RTIME ]         = fixnum( real.sec * 1000 + real.usec / 1000 );
+  vp[ STAT_STIME ]         = fixnum( system.sec * 1000 + system.usec  / 1000 );
+  vp[ STAT_UTIME ]         = fixnum( user.sec * 1000 + user.usec / 1000);
+  vp[ STAT_MINFAULTS ]     = fixnum( minflt );
+  vp[ STAT_MAJFAULTS ]     = fixnum( majflt );
 }
 
 
@@ -636,18 +583,18 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 
   /* Print overall memory and GC information */
   fprintf( dumpfile, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %s ",
-	   nativeint( ms->wallocated_hi ),
-	   nativeint( ms->wallocated_lo ),
-	   nativeint( ms->wcollected_hi ),
-	   nativeint( ms->wcollected_lo ),
-	   nativeint( ms->wcopied_hi ),
-	   nativeint( ms->wcopied_lo ),
-	   nativeint( ms->gctime ),
-	   nativeint( ms->wlive ),
-	   nativeint( ms->lastcollection_gen ),
-	   nativeint( ms->lastcollection_type ) == STATS_COLLECT 
+	   nativeuint( ms->wallocated_hi ),
+	   nativeuint( ms->wallocated_lo ),
+	   nativeuint( ms->wcollected_hi ),
+	   nativeuint( ms->wcollected_lo ),
+	   nativeuint( ms->wcopied_hi ),
+	   nativeuint( ms->wcopied_lo ),
+	   nativeuint( ms->gctime ),
+	   nativeuint( ms->wlive ),
+	   nativeuint( ms->lastcollection_gen ),
+	   (ms->lastcollection_type == STATS_COLLECT 
 	     ? "collect"
-	     : "promote" );
+	     : "promote") );
 
 
   /* Print generations information */
@@ -669,31 +616,32 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
   /* Print stack information */
 
   fprintf( dumpfile, "%lu %lu %lu %lu %lu %lu %lu ",
-	   nativeint( ms->fflushed_hi ), 
-	   nativeint( ms->fflushed_lo ),
-	   nativeint( ms->wflushed_hi ),
-	   nativeint( ms->wflushed_lo ),
-	   nativeint( ms->stacks_created ),
-	   nativeint( ms->frestored_hi ),
-	   nativeint( ms->frestored_lo ) );
+	   nativeuint( ms->fflushed_hi ), 
+	   nativeuint( ms->fflushed_lo ),
+	   nativeuint( ms->wflushed_hi ),
+	   nativeuint( ms->wflushed_lo ),
+	   nativeuint( ms->stacks_created ),
+	   nativeuint( ms->frestored_hi ),
+	   nativeuint( ms->frestored_lo ) );
 
   /* Print overall heap information */
   fprintf( dumpfile, "%lu %lu %lu ",
-	   nativeint( ms->wallocated_heap ),
-	   nativeint( ms->wallocated_remset ),
-	   nativeint( ms->wallocated_rts ) );
+	   nativeuint( ms->wallocated_heap ),
+	   nativeuint( ms->wallocated_remset ),
+	   nativeuint( ms->wallocated_rts ) );
 
   /* New fields for v0.32 */
   fprintf( dumpfile, "%lu %lu ",
-	   nativeint( ms->wmoved_hi ), nativeint( ms->wmoved_lo ) );
+	   nativeuint( ms->wmoved_hi ), nativeuint( ms->wmoved_lo ) );
 
-#if SIMULATE_NEW_BARRIER
-  fprintf( dumpfile, "(swb . (%lu %lu %lu %lu %lu))",
-	   nativeint( ms->swb.array_assignments ),
-	   nativeint( ms->swb.lhs_young_or_remembered ),
-	   nativeint( ms->swb.rhs_constant ),
-	   nativeint( ms->swb.cross_gen_check ),
-	   nativeint( ms->swb.transactions ) );
+#if defined(SIMULATE_NEW_BARRIER)
+  fprintf( dumpfile, "(swb . (%lu %lu %lu %lu %lu %lu))",
+	   nativeuint( ms->swb.array_assignments ),
+	   nativeuint( ms->swb.lhs_young_or_remembered ),
+	   nativeuint( ms->swb.rhs_constant ),
+	   nativeuint( ms->swb.cross_gen_check ),
+	   nativeuint( ms->swb.transactions ),
+	   nativeuint( ms->swb.total_assignments ) );
 #endif
 
   /* FIXME: should depend on the presence or absence of the remset */
@@ -708,14 +656,14 @@ static void
 dump_gen_stats( FILE *dumpfile, gen_stat_t *gs, word live )
 {
   fprintf( dumpfile, "(%lu %lu %lu %lu %lu %lu %lu %lu) ",
-	  nativeint( gs->collections ),
-	  nativeint( gs->promotions ),
-	  nativeint( gs->gctime ),
+	  nativeuint( gs->collections ),
+	  nativeuint( gs->promotions ),
+	  nativeuint( gs->gctime ),
 	  live/4,
-	  nativeint( gs->np_young ),
-	  nativeint( gs->np_old ),
-	  nativeint( gs->np_j ),
-	  nativeint( gs->np_k ) 
+	  nativeuint( gs->np_young ),
+	  nativeuint( gs->np_old ),
+	  nativeuint( gs->np_j ),
+	  nativeuint( gs->np_k ) 
 	  );
 }
 
@@ -730,16 +678,16 @@ dump_remset_stats( FILE *dumpfile, rem_stat_t *rs )
 	  0			/* FIXME */
 	  );
   fprintf( dumpfile, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu) ",
-	  nativeint( rs->hrecorded_hi ),
-	  nativeint( rs->hrecorded_lo ),
-	  nativeint( rs->hremoved_hi ),
-	  nativeint( rs->hremoved_lo ),
-	  nativeint( rs->hscanned_hi ),
-	  nativeint( rs->hscanned_lo ),
-	  nativeint( rs->wscanned_hi ),
-	  nativeint( rs->wscanned_lo ),
-	  nativeint( rs->ssbrecorded_hi ),
-	  nativeint( rs->ssbrecorded_lo ) );
+	  nativeuint( rs->hrecorded_hi ),
+	  nativeuint( rs->hrecorded_lo ),
+	  nativeuint( rs->hremoved_hi ),
+	  nativeuint( rs->hremoved_lo ),
+	  nativeuint( rs->hscanned_hi ),
+	  nativeuint( rs->hscanned_lo ),
+	  nativeuint( rs->wscanned_hi ),
+	  nativeuint( rs->wscanned_lo ),
+	  nativeuint( rs->ssbrecorded_hi ),
+	  nativeuint( rs->ssbrecorded_lo ) );
 }
 
 
@@ -765,23 +713,23 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
   for ( i=0 ; i < generations ; i++ ) {
     gc->stats( gc, i, &stats[i] );
     bytes_live += stats[i].live;
-    ssb_recorded += stats[i].ssb_recorded;
-    hash_recorded += stats[i].hash_recorded;
-    hash_scanned += stats[i].hash_scanned;
+    ssb_recorded += stats[i].remset_data.ssb_recorded;
+    hash_recorded += stats[i].remset_data.hash_recorded;
+    hash_scanned += stats[i].remset_data.hash_scanned;
     frames_flushed += stats[i].frames_flushed;
     bytes_flushed += stats[i].bytes_flushed;
     stacks_created += stats[i].stacks_created;
     frames_restored += stats[i].frames_restored;
     add( &ms->rem_stat[i].hrecorded_hi, &ms->rem_stat[i].hrecorded_lo,
-	 fixnum( stats[i].hash_recorded ));
+	 fixnum( stats[i].remset_data.hash_recorded ));
     add( &ms->rem_stat[i].hscanned_hi, &ms->rem_stat[i].hscanned_lo,
-	 fixnum( stats[i].hash_scanned ));
+	 fixnum( stats[i].remset_data.hash_scanned ));
     add( &ms->rem_stat[i].hremoved_hi, &ms->rem_stat[i].hremoved_lo,
-	 fixnum( stats[i].hash_removed ));
+	 fixnum( stats[i].remset_data.hash_removed ));
     add( &ms->rem_stat[i].ssbrecorded_hi, &ms->rem_stat[i].ssbrecorded_lo,
-	 fixnum( stats[i].ssb_recorded ));
+	 fixnum( stats[i].remset_data.ssb_recorded ));
     add( &ms->rem_stat[i].wscanned_hi, &ms->rem_stat[i].wscanned_lo,
-	 fixnum( stats[i].words_scanned ));
+	 fixnum( stats[i].remset_data.words_scanned ));
     ms->rem_stat[i].cleared += fixnum(0);  /* FIXME */
 
     /* Non-predictive collector */
@@ -797,15 +745,15 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
 
     if (stats[i].np_young) {  /* Entries valid exactly when np_young==1 */
       add( &ms->np_remset.hrecorded_hi, &ms->np_remset.hrecorded_lo,
-	  fixnum( stats[i].np_hash_recorded ));
+	  fixnum( stats[i].np_remset_data.hash_recorded ));
       add( &ms->np_remset.hscanned_hi, &ms->np_remset.hscanned_lo,
-	  fixnum( stats[i].np_hash_scanned ));
+	  fixnum( stats[i].np_remset_data.hash_scanned ));
       add( &ms->np_remset.hremoved_hi, &ms->np_remset.hremoved_lo,
-	  fixnum( stats[i].np_hash_removed ));
+	  fixnum( stats[i].np_remset_data.hash_removed ));
       add( &ms->np_remset.ssbrecorded_hi, &ms->np_remset.ssbrecorded_lo,
-	  fixnum( stats[i].np_ssb_recorded ));
+	  fixnum( stats[i].np_remset_data.ssb_recorded ));
       add( &ms->np_remset.wscanned_hi, &ms->np_remset.wscanned_lo,
-	  fixnum( stats[i].np_words_scanned ));
+	  fixnum( stats[i].np_remset_data.words_scanned ));
       ms->np_remset.cleared += fixnum(0);  /* FIXME */
     }
   }
@@ -828,15 +776,26 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
     ms->wmax_heap = fixnum(max_heap);
   }
 
-#if SIMULATE_NEW_BARRIER
-  { simulated_barrier_stats_t s;
-    simulated_barrier_stats( &s );
-    ms->swb.array_assignments += fixnum(s.array_assignments);
-    ms->swb.lhs_young_or_remembered += fixnum(s.lhs_young_or_remembered);
-    ms->swb.rhs_constant += fixnum(s.rhs_constant);
-    ms->swb.cross_gen_check += fixnum(s.cross_gen_check);
-    ms->swb.transactions += fixnum(s.transactions);
-  }
+#if defined(SIMULATE_NEW_BARRIER)
+  { word total_assignments = 0,
+         array_assignments = 0,
+         lhs_young_or_remembered = 0,
+         rhs_constant = 0,
+         cross_gen_check = 0,
+         transactions = 0;
+    simulated_barrier_stats( &total_assignments,
+			     &array_assignments, 
+			     &lhs_young_or_remembered,
+			     &rhs_constant,
+			     &cross_gen_check,
+			     &transactions );
+    /* FIXME: chance that several of these fields will overflow. */
+    ms->swb.total_assignments += fixnum(total_assignments);
+    ms->swb.array_assignments += fixnum(array_assignments);
+    ms->swb.lhs_young_or_remembered += fixnum(lhs_young_or_remembered);
+    ms->swb.rhs_constant += fixnum(rhs_constant);
+    ms->swb.cross_gen_check += fixnum(cross_gen_check);
+    ms->swb.transactions += fixnum(transactions);
 #endif
 }
 
