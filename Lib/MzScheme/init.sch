@@ -22,8 +22,7 @@
 ;; *mzscheme-subsystem-init* : (listof (-> void))
 ;; A list of thunks to be called before starting the main program.
 ;; Will be called in order given (order matters!)
-(define *mzscheme-subsystem-init-procedures*
-  (list))
+(define *mzscheme-subsystem-init-procedures* '())
 
 ;; larceny-go : -> void
 ;; Initializes basic Larceny support.
@@ -39,11 +38,13 @@
 (define-syntax export
   (syntax-rules ()
     ((_ name ...)
-     (let ((old initialize-larceny-environment-target-specific))
-       (set! initialize-larceny-environment-target-specific
-             (lambda (larc)
-               (environment-set! larc 'name name) ...
-               (old larc)))))))
+     (set! *larceny-environment-extensions*
+           (append (list (cons 'name name) ...)
+                   *larceny-environment-extensions*)))))
+
+(define (export-syntax . macro-defs)
+  (set! *interactive-eval-list*
+        (append macro-defs *interactive-eval-list*)))
 
 ;; Exports
 
@@ -91,3 +92,11 @@
         struct-predicate-procedure?
         struct-constructor-procedure?
         )
+
+(export-syntax
+ '(define-syntax .javadot
+    (transformer
+     (lambda (exp rename compare)
+       (let ((exp (cadr exp)))
+         (display "inside .javadot: ") (write exp) (newline)
+         (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp)))))))

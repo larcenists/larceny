@@ -14,18 +14,27 @@
 
   ;; system performance and interface
 
-;  (environment-set! larc 'sys$C-ffi-apply sys$C-ffi-apply)
-;  (environment-set! larc 'sys$C-ffi-dlopen sys$C-ffi-dlopen)
-;  (environment-set! larc 'sys$C-ffi-dlsym sys$C-ffi-dlsym)
-;  (environment-set! larc 'peek-bytes peek-bytes)
-;  (environment-set! larc 'poke-bytes poke-bytes)
-
   ;; Support for loading compiled files as code-less FASL files with
   ;; the code vectors already linked into the executable or present
   ;; in dynamically loaded object files.
 
   (environment-set! larc '.common-patch-procedure .common-patch-procedure)
 
+  ;; Load extensions
+  (for-each (lambda (p) (environment-set! larc (car p) (cdr p)))
+            *larceny-environment-extensions*)
+  (set! *larceny-environment-extensions* (undefined))
+  
   larc)
+
+;; *larceny-environment-extensions* : (listof (cons symbol value))
+;; An alist of symbols and values to be added to the standard larceny
+;; environment (done by new 
+(define *larceny-environment-extensions* '())
+
+;; *interactive-eval-list* : (listof s-expr)
+;; A list of forms to be evaluated when the interpreter starts.
+(define *interactive-eval-list* '())
+
 
 ; eof
