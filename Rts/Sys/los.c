@@ -37,6 +37,7 @@ struct los_list {
 static los_list_t *make_los_list( void );
 static void remove( word *w );
 static void insert_at_end( word *w, los_list_t *list );
+static void set_generation_number( los_list_t *list, int gen_no, bool clear );
 static void append_and_clear( los_list_t *left, los_list_t *right );
 static void dump_list( los_list_t *l, char *tag, int nbytes );
 static void clear_list( los_list_t *l );
@@ -60,15 +61,27 @@ los_t *create_los( int generations )
   return los;
 }
 
+los_list_t *create_los_list(void)
+{
+  return make_los_list();
+}
+
+void los_free_list( los_list_t *list )
+{
+  clear_list( list );
+  free( list->header - HEADER_WORDS );
+  free( list );
+}
+
 int los_bytes_used( los_t *los, int gen_no )
 {
   assert( 0 <= gen_no && gen_no < los->generations 
 	  || gen_no == LOS_MARK1
 	  || gen_no == LOS_MARK2 );
 
-  if (gen_no == -2)
+  if (gen_no == LOS_MARK2)
     return los->mark2->bytes;
-  else if (gen_no == -1)
+  else if (gen_no == LOS_MARK1)
     return los->mark1->bytes;
   else
     return los->object_lists[gen_no]->bytes;
@@ -98,7 +111,6 @@ word *los_allocate( los_t *los, int nbytes, int gen_no )
 bool los_mark( los_t *los, los_list_t *marked, word *w, int gen_no )
 {
   word *p = prev( w );
-  word *n = next( w );
 
   /* assert( w is the address of a live large object ); */
 
@@ -135,26 +147,21 @@ void los_sweep( los_t *los, int gen_no )
   clear_list( los->object_lists[ gen_no ] );
 }
 
-/* Note that appending a mark list implies cleaning up the gc marks
-   (the prev() pointers), so we always do that.  It causes no harm if
-   the list is not a mark list.
+/* Appending a mark list implies cleaning up the gc marks (the prev() 
+   pointers), so we always do that.  It causes no harm if the list is
+   not a mark list.
    */
 void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen )
 {
-  word *h, *p, *pp;
-
   assert( 0 <= to_gen && to_gen < los->generations );
 
-  h = l->header;
-  p = next( h );
-  pp = h;
-  while (p != h) {
-    gclib_set_generation( p - HEADER_WORDS, size( p ), to_gen );
-    set_prev( p, pp );
-    pp = p;
-    p = next( p );
-  }
+  set_generation_number( l, to_gen, TRUE );
   append_and_clear( los->object_lists[ to_gen ], l );
+}
+
+void los_list_set_gen_no( los_list_t *list, int gen_no )
+{
+  set_generation_number( list, gen_no, FALSE );
 }
 
 word *los_walk_list( los_list_t *list, word *p )
@@ -211,6 +218,22 @@ static void insert_at_end( word *w, los_list_t *list )
   set_next( w, h );            /* add links from header */
   set_prev( h, w );
   list->bytes += size( w );
+}
+
+static void set_generation_number( los_list_t *list, int gen_no, bool clear )
+{
+  word *header, *this, *prev;
+
+  header = list->header;
+  this = next( header );
+  prev = header;
+  while (this != header) {
+    gclib_set_generation( this - HEADER_WORDS, size( this ), gen_no );
+    if (clear) 
+      set_prev( this, prev );
+    prev = this;
+    this = next( this );
+  }
 }
 
 static void append_and_clear( los_list_t *left, los_list_t *right )

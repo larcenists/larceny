@@ -47,6 +47,10 @@ los_t *create_los( int generations );
      generations > 0
      */
 
+los_list_t *create_los_list(void);
+  /* Create a free-standing LOS list.
+     */
+
 #define LOS_MARK1  -1		/* Secret value */
 #define LOS_MARK2  -2		/* Secret value */
 
@@ -92,6 +96,11 @@ void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen );
      0 <= to_gen < los.generations
      */
 
+void los_list_set_gen_no( los_list_t *list, int gen_no );
+  /* Set the generation number on the pages occupied by large objects
+     in the list to `gen_no'.
+     */
+
 word *los_walk_list( los_list_t *list, word *p );
   /* Given a pointer p to a block on the given list (or NULL for the first
      such block), return a pointer to the next block.  Returns NULL when
@@ -99,6 +108,10 @@ word *los_walk_list( los_list_t *list, word *p );
 
      p == 0 or p is the address of a large live object on the list.
      */
+
+void los_free_list( los_list_t *list );
+ /* Free the list.  Does not affect any objects on the list.
+    */
 
 /* eof */
 
