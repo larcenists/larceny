@@ -34,9 +34,11 @@
  * If the preprocessor macro GCLIB_LARGE_TABLE is not 0, then one page
  * table that covers the entire 4GB address range, with one byte entry
  * for each page, is allocated at the outset and is never grown or moved.
- * The table is called gclib_desc_g.  The low 7 bits maps the page number
- * to a generation number, and the high bit is an attribute bit: 1 means
- * that the page is allocated to the large-object space.
+ * The table is called gclib_desc_g.  The six low bits map the page number
+ * to a generation number, and the two high bits are attribute bit: 128
+ * means that the page is allocated to the large-object space, and 64 means
+ * that the page is allocated to the remembered set.  Generation numbers
+ * above 60 are used to store additional information.
  *
  * The single large table is expected to reduce the cost of the GC-time write
  * barrier; it is being evaluated.  By dispensing with gclib_pagebase and 
@@ -61,6 +63,16 @@
 #include "stats.h"
 #include "gclib.h"
 #include "barrier.h"
+
+#if GCLIB_LARGE_TABLE
+# define FOREIGN_PAGE       60
+# define UNALLOCATED_PAGE   61
+# define RTS_OWNED_PAGE     62
+#else
+# define FOREIGN_PAGE       ((gclib_desc_t)-1)    /* Unknown owner */
+# define UNALLOCATED_PAGE   ((gclib_desc_t)-2)    /* Larceny owns it */
+# define RTS_OWNED_PAGE     ((gclib_desc_t)-3)    /* Larceny owns it */
+#endif
 
 /* Public globals */
 
@@ -202,8 +214,10 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
   ptr = gclib_alloc( bytes );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
+#if GCLIB_LARGE_TABLE
+    gclib_desc_g[i] = (MB_MASK & attribute) | RTS_OWNED_PAGE;
+#else
     gclib_desc_g[i] = RTS_OWNED_PAGE;
-#if !GCLIB_LARGE_TABLE
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
 #endif
   }
@@ -391,8 +405,11 @@ void gclib_free( void *addr, int bytes )
    */
   if (pages > 0) {
 #if GCLIB_LARGE_TABLE
-    if (gclib_desc_g[pageno] == RTS_OWNED_PAGE)
-      data.rts_bytes -= bytes;
+    if ((gclib_desc_g[pageno] & ~MB_MASK) == RTS_OWNED_PAGE)
+      if (gclib_desc_g[pageno] & MB_REMSET)
+	data.remset_bytes -= bytes;
+      else
+	data.rts_bytes -= bytes;
     else
       data.heap_bytes -= bytes;
 #else
@@ -432,7 +449,7 @@ void gclib_set_generation( void *address, int nbytes, int generation )
 
   for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ ) {
 #if GCLIB_LARGE_TABLE
-    gclib_desc_g[p] = (gclib_desc_g[p] & MB_LARGE_OBJECT) | generation;
+    gclib_desc_g[p] = (gclib_desc_g[p] & MB_MASK) | generation;
 #else
     gclib_desc_g[p] = generation;
 #endif
@@ -444,7 +461,7 @@ void gclib_add_attribute( void *address, int nbytes, unsigned attr )
   int p;
 
 #if GCLIB_LARGE_TABLE
-  attr = attr & MB_LARGE_OBJECT;
+  attr = attr & MB_MASK;
 #endif
   
   for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ ) {
