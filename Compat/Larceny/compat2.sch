@@ -83,7 +83,12 @@
 ;    (apply format out fmt rest)
 ;    (get-output-string out)))
 
-(define twobit-format format)
+(define (twobit-format port fmt . rest)
+  (if (not port)
+      (let ((s (open-output-string)))
+        (apply format s fmt rest)
+        (get-output-string s))
+      (apply format port fmt rest)))
 
 ; This needs to be a random number in both a weaker and stronger sense
 ; than `random': it doesn't need to be a truly random number, so a sequence
