@@ -214,7 +214,7 @@ public class Instructions {
         int j = ((SFixnum)Reg.Result).value;
 
         if (j < n) {
-            Exn.fault(Constants.EX_ARGSGE, "args>= check failed");
+            Exn.faultVarArgCount(n);
         }
 
         if (n < Reg.NREGS - 2) {

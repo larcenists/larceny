@@ -80,6 +80,31 @@ namespace Scheme.RT {
             }
         }
 
+        /* faultGlobal
+         * Called when global faults
+         */
+        public static void faultGlobal(int global) {
+            Reg.Result = ((Procedure)Reg.register0).constants[global];
+            fault(Constants.EX_UNDEF_GLOBAL);
+        }
+        public static void faultArgCount(int expectedc) {
+            Reg.Second = Factory.wrap(expectedc);
+            Reg.Third = Reg.register0;
+            fault(Constants.EX_ARGSEQ);
+        }
+        public static void faultVarArgCount(int expectedc) {
+            Reg.Second = Factory.wrap(expectedc);
+            Reg.Third = Reg.register0;
+            fault(Constants.EX_ARGSGE);
+        }
+        public static void faultInvokeNonProc(int argc) {
+            fault(Constants.EX_NONPROC);
+        }
+        public static void faultApplyNonProc(int k1, int k2) {
+            Reg.Second = Reg.getRegister(k1);
+            fault(Constants.EX_APPLY);
+        }
+        
         /** checkSignals
          * Check for keyboard interrupt or other signal
          */

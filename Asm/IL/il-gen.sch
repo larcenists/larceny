@@ -517,6 +517,8 @@
    (il:call '() iltype-void il-exn "fault" (list iltype-int32))
    (il 'ret)))
 
+;; Specific Faults
+
 (define (il:fault/timer jump-index)
   (list 
    (il:flush-result-cache)
@@ -524,6 +526,33 @@
    ;; No tail call! See above.
    (il:call '() iltype-void il-exn "faultTimer" (list iltype-int32))
    (il 'ret)))
+
+(define (il:fault/invoke-nonproc argc)
+  (list (il 'ldc.i4 argc)
+        (il:call '() iltype-void il-exn "faultInvokeNonProc" (list iltype-int32))
+        (il 'ret)))
+
+(define (il:fault/apply-nonproc k1 k2)
+  (list (il 'ldc.i4 k1)
+        (il 'ldc.i4 k2)
+        (il:call '() iltype-void il-exn "faultApplyNonProc" 
+                 (list iltype-int32 iltype-int32))
+        (il 'ret)))
+
+(define (il:fault/undef-global index)
+  (list (il 'ldc.i4 index)
+        (il:call '() iltype-void il-exn "faultGlobal" (list iltype-int32))
+        (il 'ret)))
+
+(define (il:fault/argc expectedc)
+  (list (il 'ldc.i4 expectedc)
+        (il:call '() iltype-void il-exn "faultArgCount" (list iltype-int32))
+        (il 'ret)))
+
+(define (il:fault/vargc expectedc)
+  (list (il 'ldc.i4 expectedc)
+        (il:call '() iltype-void il-exn "faultVarArgCount" (list iltype-int32))
+        (il 'ret)))
 
 ;; =========================================================
 ;; FUEL (BRANCH / CALL)

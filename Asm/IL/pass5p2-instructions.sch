@@ -189,11 +189,7 @@
             (il:load-constant (undefined))
             (il:branch-s 'bne.un defined-label)
             (il 'pop)
-            (il:set-register 'result (il:load-global-cell global-index))
-            (il:fault-abort/message 
-             $ex.undef-global
-             (string-append "reference to unbound global: " 
-                            (symbol->string (operand1 instruction))))
+            (il:fault/undef-global global-index)
             (il:label defined-label)
             (il:set-register/pop 'result))))
   (lambda (instruction as)
@@ -267,9 +263,7 @@
             (rep:fixnum-value)
             (il 'ldc.i4 (operand1 instruction))
             (il:branch-s 'beq okay-label)
-            (il:fault-abort/message 
-             $ex.argc 
-             (string-append "args= " (number->string (operand1 instruction))))
+            (il:fault/argc (operand1 instruction))
             (il:label okay-label))))
   (instr-runtime-method 'argseq 1))
 
@@ -285,7 +279,7 @@
              (il:load-register 'result)
              (il:check-type
               iltype-procedure
-              (il:fault-abort $ex.nonproc))
+              (il:fault/invoke-nonproc (operand1 instruction)))
              (il 'stloc procedure-local)
              ;; Stack is empty
              (il:set-register 'second
@@ -312,7 +306,9 @@
              (il:load-register 'result)
              (il:check-type 
               iltype-procedure
-              (il:fault-abort $ex.nonproc))
+              (il:fault-apply-nonproc
+               (operand1 instruction)
+               (operand2 instruction)))
              (il 'stloc procedure-local)
              
              (il:set-register 'second
