@@ -2,7 +2,7 @@
 ## USER-CONFIGURABLE SECTION
 ##########################################
 
-# Uncomment the block corresponding to the platform 
+# Uncomment the block corresponding to the platform
 # you are building on.
 
 ## Win32 (.NET SDK)
@@ -40,8 +40,8 @@ SRCS =	Call.cs \
 	Load.cs \
 	FFI.cs
 
-DEBUG_OPT = /debug:full /d:DEBUG
-#DEBUG_OPT = 
+DEBUG_OPT = /warn:4 /debug:full /d:DEBUG
+#DEBUG_OPT =
 
 OUTFILE = Scheme.dll
 
@@ -54,7 +54,7 @@ Scheme.dll : $(SRCS)
 	$(CSC) $(INLINE_OPT) $(DEBUG_OPT) /target:library /out:Scheme.dll $(SRCS) $(ISH_SRC)
 
 DynLoad.exe : DynLoad.cs
-	$(CSC) /target:winexe $(INLINE_OPT) $(DEBUG_OPT) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs 
+	$(CSC) /target:winexe $(INLINE_OPT) $(DEBUG_OPT) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs
 
 SchemeObject.cs : SchemeObject.cs.cpp Ops.h Ops_SObject.inc Ops_SImmediate.inc Ops_SFixnum.inc Ops_SChar.inc Ops_SVL.inc Ops_SByteVL.inc Ops_SPair.inc Ops_Procedure.inc
 	cpp -P -C -nostdinc SchemeObject.cs.cpp -o SchemeObject.cs
