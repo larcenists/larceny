@@ -1,7 +1,9 @@
+; -*- Scheme -*-
+;
 ; Symbol table management for Larceny, based on same from MacScheme.
 ; Parts of this code is copyright 1991 lightship software
 ;
-; $Id: oblist.sch,v 1.1 91/09/12 21:07:08 lth Exp Locker: lth $
+; $Id: oblist.sch,v 1.2 92/02/10 03:17:10 lth Exp Locker: lth $
 ;
 ; symbol?
 ; symbol->string
@@ -50,6 +52,7 @@
 (define (symbol.hashname s) (vector-like-ref s 1))
 (define (symbol.proplist s) (vector-like-ref s 2))
 
+(define (symbol.hashname! s h) (vector-like-set! s 1 h))
 (define (symbol.proplist! s p) (vector-like-set! s 2 p))
 
 
@@ -65,22 +68,10 @@
 ; (define (symbol.proplist! s p) (vector-set! (->vector s) 3 p))
 
 ;-----------------------------------------------------------------------------
-
-
-; symbol? is integrable.
-; For MacScheme, it could have been written as
 ;
-; (define symbol?
-;   (lambda (x)
-;     (and (structure? x)
-;          (eq? (symbol-ref x 0) -16))))
-;
-; and for Larceny:
-;
-;  (define (symbol? x) (and (vector-like? x) 
-;                           (= (typetag x) sys$tag.symbol-typetag)))
+; COMMON
 
-(define (symbol? x) (symbol? x))
+(define (symbol? x) (symbol? x))   ; integrable
 
 (define symbol->string
   (lambda (symbol)
@@ -89,16 +80,15 @@
         (begin ; (break)
 	       (error "non-symbol -- symbol->string" symbol)))))
 
-; given a string, return a new uninterned symbol.
+; Given a string, return a new uninterned symbol.
 
 (define make-symbol
   (lambda (string)
     (if (string? string)
 	(make-symbol-structure (string-copy string) (string-hash string) '())
-        (begin ; (break)
-	       (error "non-string -- make-symbol" string)))))
+	(error "non-string -- make-symbol" string))))
 
-; with the following definitions,
+; With the following definitions,
 ;
 ;    (= (string-hash s) (symbol-hash (string->symbol s)))
 ;
@@ -123,95 +113,91 @@
   (lambda (symbol)
     (if (symbol? symbol)
         (symbol.hashname symbol)
-        0)))
-
-; these definitions can be commented out so this file can be loaded
-; into a running scheme system without breaking the reader.
+	(error "symbol-hash: " symbol " is not a symbol."))))
 
 (define string->symbol #f)
 (define namespace #f)
 (define namespace-set! #f)
 
+
+; The oblist is a list of symbols all with 0 as their hash value.
+
 (define (install-symbols oblist tablesize)
-  (let ((obvector (make-vector tablesize '())))
+
+  (define obvector #f)
       
-    ; given a string, interns it.
+  ; Given a string, interns it.
 
-    (define (intern s)
-;      (optimize speed)
-      (let ((h (string-hash s)))
-	(call-without-interrupts
-	 (lambda ()
-	   (or (search-bucket
-		s
-		h
-		(vector-ref obvector 
-			    (- h (* tablesize
-				    (quotient h tablesize)))))
-	       (install-symbol (make-symbol s) h obvector))))))
-         
-    (define (search-bucket s h bucket)
-;      (optimize speed)
-      (if (null? bucket)
-	  #f
-	  (let ((symbol (car bucket)))
-	    (if (and (eq? h (symbol-hash symbol))
-		     (string=? s (symbol->string symbol)))
-		symbol
-		(search-bucket s h (cdr bucket))))))
-         
-    ; given a symbol, adds it to the obvector, whether a symbol
-    ; with the same pname (or even the same symbol) is already
-    ; there or not.
-         
-    (define (install-symbol s h obvector)
-;      (optimize speed)
-      (let ((i (remainder h (vector-length obvector))))
-	(vector-set! obvector i (cons s (vector-ref obvector i)))
-	s))
-         
-    ; body of 'install-symbols'
+  (define (intern s)
+    (let ((h (string-hash s)))
+      (call-without-interrupts
+       (lambda ()
+	 (or (search-bucket
+	      s
+	      h
+	      (vector-ref obvector (remainder h (vector-length obvector))))
+	     (install-symbol (make-symbol s) h obvector))))))
 
-    (set! string->symbol (lambda (s) (intern s)))
+  (define (search-bucket s h bucket)
+    (if (null? bucket)
+	#f
+	(let ((symbol (car bucket)))
+	  (if (and (eq? h (symbol-hash symbol))
+		   (string=? s (symbol->string symbol)))
+	      symbol
+	      (search-bucket s h (cdr bucket))))))
          
-    ; Returns a list of all symbols in the obvector.
+  ; Given a symbol, adds it to the obvector, whether a symbol
+  ; with the same pname (or even the same symbol) is already
+  ; there or not.
+         
+  (define (install-symbol s h obvector)
+    (let ((i (remainder h (vector-length obvector))))
+      (symbol.hashname! s h)
+      (vector-set! obvector i (cons s (vector-ref obvector i)))
+      s))
+         
+  (define (%string->symbol s)
+    (if (string? s)
+	(intern s)
+	(error "String->symbol: " s " is not a string.")))
+         
+  (define (%namespace)
+    (letrec ((loop
+	      (lambda (i l)
+		(if (< i 0)
+		    l
+		    (loop (- i 1)
+			  (append (vector-ref obvector i) l))))))
+      (loop (- tablesize 1) '())))
         
-    (set! namespace
-	  (lambda ()
-;	    (optimize space)
-	    (letrec ((loop
-		      (lambda (i l)
-			(if (< i 0)
-			    l
-			    (loop (- i 1)
-				  (append (vector-ref obvector i) l))))))
-	      (loop (- tablesize 1) '()))))
-        
-    (set! namespace-set!
-	  (lambda (symbols new-tablesize)
-;	    (optimize space)
-	    (set! tablesize new-tablesize)
-	    (let ((v (make-vector tablesize '())))
-	      (for-each (lambda (s)
-			  (if (symbol? s)
-			      (install-symbol s (symbol-hash s) v)))
-			symbols)
-	      (set! obvector v)
-	      #t)))
-        
-    ; Initialize obvector
+  (define (%namespace-set! symbols new-tablesize)
+    (set! tablesize new-tablesize)
+    (let ((v (make-vector tablesize '())))
+      (for-each 
+       (lambda (s)
+	 (if (symbol? s)
+	     (install-symbol s (string-hash (symbol->string s)) v)
+	     (error "namespace-set!: " s " is not a symbol.")))
+       symbols)
+      (set! obvector v)
+      #t))
+
+  ; Initialize obvector
     
-    (namespace-set! oblist tablesize)
+  (%namespace-set! oblist tablesize)
 
-    ; Forget the oblist so the garbage collector can reclaim its storage.
-    ; (This is from the MacScheme code. Does it make sense at all?)
+  ; Globals
 
-    (set! oblist '())
+  (set! string->symbol %string->symbol)
+  (set! namespace %namespace)
+  (set! namespace-set! %namespace-set!)
 
-    ; This procedure now does not exist anymore.
+  ; Forget the oblist so the garbage collector can reclaim its storage.
 
-    (set! install-symbols #f)
+  (set! oblist '())
+  (set! install-symbols #f)
         
-    #t))
+  #t)
 
 

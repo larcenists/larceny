@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id$
+; $Id: number2string.sch,v 1.1 92/01/19 16:42:42 lth Exp Locker: lth $
 ;
 ;                                       16 April 1990
 ;
@@ -8,9 +8,6 @@
 ; Assumes a fixnum/bignum/flonum implementation using
 ; IEEE double precision flonums in a MacScheme-specific
 ; format.  Uses a MacScheme-specific routine for bignums.
-
-(begin (display "$Id$")
-       (newline))
 
 (define number->string
   
@@ -29,7 +26,7 @@
     (define (number2string x radix)
       (cond ((fixnum? x)
              (integer->string x radix))
-            ((exact? x)
+            ((bignum? x)
              (bignum->string x radix))
             ((= (float-exponent x) flonum:maxexponent)
              (cond ((not (= x x))
@@ -55,7 +52,8 @@
     (define flonum:infinity 1e500)
     (define flonum:maxexponent 972)
     (define flonum:minexponent -1023)
-    (define two^n-1 (expt 2 52))
+;    (define two^n-1 (expt 2 52))
+    (define two^n-1 4503599627370496)
     
     (define (integer->string n radix)
       (cond ((not (integer? n)) ???)

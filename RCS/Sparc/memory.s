@@ -4,7 +4,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.18 92/01/30 18:02:42 lth Exp Locker: lth $
+! $Id: memory.s,v 1.19 92/02/10 03:38:34 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -132,14 +132,9 @@
 !
 ! Note that the delayed roundup (i.e. done after test for overflow) makes
 ! sense because all allocations and limits are in an even number of words.
-!
-! _internal_alloc() is like _alloc(), but %TMP0 is a Scheme return address to
-! be saved if a collection is triggered.
 
 		
 _alloc:
-	mov	%o7, %TMP0
-_internal_alloc:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -148,15 +143,39 @@ _internal_alloc:
 
 	! Overflow; need to collect.
 
+	mov	%o7, %TMP0
 	call	gcstart				! deal with overflow
 	nop
 	jmp	%TMP0+8				! return to Scheme code
 	nop
 
 Lalloc1:
-	jmp	%TMP0+8
+	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up
 
+
+! _internal_alloc() is like _alloc(), but %TMP0 is a Scheme return
+! address to be saved if a collection is triggered.
+
+_internal_alloc:
+	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
+	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
+	cmp	%E_TOP, %E_LIMIT		! check for overflow
+	blt,a	Lialloc1				! skip of no overflow
+	sub	%E_TOP, %RESULT, %RESULT	! setup result
+
+	! Overflow; need to collect.
+
+	st	%o7, [ %GLOBALS + MEM_TMP1_OFFSET ]
+	call	gcstart				! deal with overflow
+	nop
+	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %o7
+	jmp	%o7+8				! return to Scheme code
+	nop
+
+Lialloc1:
+	jmp	%o7+8
+	add	%E_TOP, %TMP1, %E_TOP		! round up
 
 !-----------------------------------------------------------------------------
 ! '_alloci' takes two parameters, a fixnum which is the number of words to

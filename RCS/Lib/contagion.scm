@@ -3,16 +3,16 @@
 ; Scheme 313 runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.
 ;
-; $Id: contagion.scm,v 1.2 91/08/08 18:35:03 lth Exp Locker: lth $
+; $Id: contagion.scm,v 1.3 92/02/10 03:19:34 lth Exp Locker: lth $
 ;
 ; There are three main procedures: contagion, pcontagion, and econtagion.
 ; All take two numbers as arguments, and return a pair of the to numbers
 ; cast to the same representation. The representation is chosen according
 ; to the contagion matrices, at the end of the file.
 
-(define contagion)
-(define econtagion)
-(define pcontagion)
+(define contagion #f)
+(define econtagion #f)
+(define pcontagion #f)
 
 (let ()
 
@@ -28,48 +28,26 @@
   ; Return the type of a number as one of the above-defined symbolic
   ; constants, or signal an error if the argument is not a number.
 
-  (define (typeof x)
-    (cond ((fixnum? x) fixtype)
-	  ((bignum? x) bigtype)
-	  ((ratnum? x) rattype)
+  (define (number-type x)
+    (cond ((fixnum? x)  fixtype)
+	  ((bignum? x)  bigtype)
+	  ((ratnum? x)  rattype)
 	  ((rectnum? x) recttype)
-	  ((flonum? x) flotype)
+	  ((flonum? x)  flotype)
 	  ((compnum? x) comptype)
-	  (else
-	   (error 'generic-arithmetic
-		  "Non-numeric argument: ~a is not a number"
-		  x))))
-
-  ; contagion for arithmetic
-
-  (define (%contagion a b retry)
-    (do-contagion cmatrix a b retry))
-
-  ; contagion for predicates sans '='
-
-  (define (%pcontagion a b retry)
-    (do-contagion pmatrix a b retry))
-
-  ; contagion for '='
-
-  (define (%econtagion a b retry)
-    (do-contagion ematrix a b retry))
-
-  ; Where contagion really is. It's completely table driven: the matrix 
-  ; contains vectors of coercion procedures. A vector is chosen based on 
-  ; the types of the numbers; then a coercion procedure is extracted from 
-  ; the vector based on the type of an argument, and applied to that 
-  ; argument. Finally, retry with the new arguments.
+	  (else (error x " is not a number"))))
 
   (define (do-contagion matrix a b retry)
-    (let ((ta (typeof a))
-	  (tb (typeof b)))
-      (let ((v (vector-ref matrix (+ (* ta 6) tb))))
-	(retry ((vector-ref v ta) a) ((vector-ref v tb) b)))))
+    (display "In contagion!") (newline)
+    (let* ((ta (number-type a))
+	   (tb (number-type b))
+	   (d  (begin (display "gag!") (newline) 1))
+	   (v  (vector-ref (vector-ref matrix ta) tb))
+	   (e  (begin (display "barf!") (newline) 1))
+	   (t  (v a b)))
+      (display "lose!") (newline)
+      (retry (car t) (cdr t))))
 
-  ; Coercions galore. Also see the files "bignums.scm", "ratnums.scm", and
-  ; "rectnums.scm".
-  ;
   ; Many of the numbers created here violate various invariants in the system;
   ; this is how it should be.
 
@@ -79,14 +57,7 @@
   (define (fixnum->rectnum f)
     (make-rectnum f 0))
 
-  ; This is (usually) trivial at the assembly language level, and the millicode
-  ; should handle it. However, if it doesn't, we do it here.
-
-  (define (fixnum->flonum f)
-    (let ((n (abs f)) (e 0))
-      (if (zero? n)
-	  (make-float f e)
-	  (loop (quotient n 2) (+ e 1)))))
+  (define fixnum->flonum (lambda (x) (exact->inexact x)))
 
   (define (fixnum->compnum f)
     (make-compnum (fixnum->flonum f) 0.0))
@@ -110,82 +81,120 @@
     (make-compnum (ratnum->flonum f) 0.0))
 
   (define (rectnum->compnum f)
-
-    (define (->float x)
-      (cond ((fixnum? x)
-	     (fixnum->flonum x))
-	    ((bignum? x)
-	     (bignum->flonum x))
-	    ((ratnum? x)
-	     (ratnum->flonum x))
-	    ((flonum? x)		; really?
-	     x)
-	    (else
-	     (error 'generic-arithmetic "Fishy rectnum"))))
-
-    (make-compnum (->float (real-part f)) (->float (imag-part f))))
+    (make-compnum (exact->inexact (real-part f)) 
+		  (exact->inexact (imag-part f))))
 
   (define (flonum->compnum f)
     (make-compnum f 0.0))
 
-  (define (identity x) x)
+  (define (id x) x)
 
-  (define (noconv x)
-    (error 'generic-arithmetic "INTERNAL ERROR: Impossible coercion"))
-
-  (define (oops x)
+  (define (oops a b)
     (error 'generic-arithmetic
-	   "INTERNAL ERROR: same-representation arith. in contagion"))
+	   "INTERNAL ERROR in contagion: same-representation arithmetic."))
 
+  (define (fun f1 f2)
+    (lambda (a b)
+      (cons (f1 a) (f2 b))))
 
-  ; Coercion vectors. This may be elegant, but it is possibly much slower than
-  ; nested cond statements. 
+  (define (algorithm* a b)
+    (if (and (integer? a) (integer? b))
+	(cons (->int a) (->int b))
+	(cons (->flo a) (->flo b))))
 
-  (define ->big   (vector fixnum->bignum identity 
-			  noconv noconv noconv noconv))
-  (define ->rat   (vector fixnum->ratnum bignum->ratnum identity 
-			  noconv noconv noconv))
-  (define ->rect  (vector fixnum->rectnum bignum->rectnum ratnum->rectnum 
-			  identity noconv noconv))
-  (define ->float (vector fixnum->flonum bignum->flonum ratnum->flonum
-			  noconv identity noconv))
-  (define ->comp  (vector fixnum->compnum bignum->compnum ratnum->compnum
-			  rectnum->compnum flonum->compnum identity))
-  (define ->oops  (vector oops oops oops oops oops oops))
+  (define (->int a)
+    (error "contagion: ->int has not been implemented"))
 
+  (define (->flo a)
+    (error "contagion: ->flo has not been implemented"))
 
-  ; Contagion matrices
+  (define cmatrix #f)
+  (define ematrix #f)
+  (define pmatrix #f)
 
-  (define cmatrix
-    (vector ->oops  ->big   ->rat   ->rect  ->float  ->comp
-	    ->big   ->oops  ->rat   ->rect  ->float  ->comp
-	    ->rat   ->rat   ->oops  ->rect  ->float  ->comp
-	    ->rect  ->rect  ->rect  ->oops  ->comp   ->comp
-	    ->float ->float ->float ->comp  ->oops   ->comp
-	    ->comp  ->comp  ->comp  ->comp  ->comp   ->oops))
+  ; initialize things.
 
-  ; fixme
-  
-  (define pmatrix
-    (vector ->oops  ->big   ->rat   ->rect  ->float  ->comp
-	    ->big   ->oops  ->rat   ->rect  ->float  ->comp
-	    ->rat   ->rat   ->oops  ->rect  ->float  ->comp
-	    ->rect  ->rect  ->rect  ->oops  ->comp   ->comp
-	    ->float ->float ->float ->comp  ->oops   ->comp
-	    ->comp  ->comp  ->comp  ->comp  ->comp   ->oops))
+  ; Contagion matrices. They are completely symmetric with respect to the
+  ; final types, although the entries in the matrix are different across the
+  ; diagonal.
 
-  ; fixme
+  (set! cmatrix
+    (vector (vector oops (fun fixnum->bignum id) (fun fixnum->ratnum id) 
+		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
+		    (fun fixnum->compnum id))
+	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
+		    (fun bignum->rectnum id) (fun bignum->flonum id)
+		    (fun bignum->compnum id))
+	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
+		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
+		    (fun ratnum->compnum id))
+	    (vector (fun id fixnum->rectnum) (fun id bignum->rectnum)
+		    (fun id ratnum->rectnum) oops
+		    (fun rectnum->compnum flonum->compnum)
+		    (fun rectnum->compnum id))
+	    (vector (fun id fixnum->flonum) (fun id bignum->flonum) 
+		    (fun id ratnum->flonum) 
+		    (fun flonum->compnum rectnum->compnum)
+		    oops (fun flonum->compnum id))
+	    (vector (fun id fixnum->compnum) (fun id bignum->compnum) 
+		    (fun id ratnum->compnum) (fun id rectnum->compnum)
+		    (fun id flonum->compnum) oops)))
 
-  (define ematrix
-    (vector ->oops  ->big   ->rat   ->rect  ->float  ->comp
-	    ->big   ->oops  ->rat   ->rect  ->float  ->comp
-	    ->rat   ->rat   ->oops  ->rect  ->float  ->comp
-	    ->rect  ->rect  ->rect  ->oops  ->comp   ->comp
-	    ->float ->float ->float ->comp  ->oops   ->comp
-	    ->comp  ->comp  ->comp  ->comp  ->comp   ->oops))
+  ; FIXME
 
-  (set! contagion %contagion)
-  (set! econtagion %econtagion)
-  (set! pcontagion %pcontagion)
+  (set! pmatrix
+    (vector (vector oops (fun fixnum->bignum id) (fun fixnum->ratnum id) 
+		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
+		    (fun fixnum->compnum id))
+	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
+		    (fun bignum->rectnum id) algorithm*
+		    algorithm*)
+	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
+		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
+		    (fun ratnum->compnum id))
+	    (vector (fun id fixnum->rectnum) (fun id bignum->rectnum)
+		    (fun id ratnum->rectnum) oops
+		    (fun rectnum->compnum flonum->compnum)
+		    (fun rectnum->compnum id))
+	    (vector (fun id fixnum->flonum) algorithm*
+		    (fun id ratnum->flonum) 
+		    (fun flonum->compnum rectnum->compnum)
+		    oops (fun flonum->compnum id))
+	    (vector (fun id fixnum->compnum) algorithm*
+		    (fun id ratnum->compnum) (fun id rectnum->compnum)
+		    (fun id flonum->compnum) oops)))
+
+  ; FIXME
+
+  (set! ematrix
+    (vector (vector oops (fun fixnum->bignum id) (fun fixnum->ratnum id) 
+		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
+		    (fun fixnum->compnum id))
+	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
+		    (fun bignum->rectnum id) (fun bignum->flonum id)
+		    (fun bignum->compnum id))
+	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
+		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
+		    (fun ratnum->compnum id))
+	    (vector (fun id fixnum->rectnum) (fun id bignum->rectnum)
+		    (fun id ratnum->rectnum) oops
+		    (fun rectnum->compnum flonum->compnum)
+		    (fun rectnum->compnum id))
+	    (vector (fun id fixnum->flonum) (fun id bignum->flonum) 
+		    (fun id ratnum->flonum) 
+		    (fun flonum->compnum rectnum->compnum)
+		    oops (fun flonum->compnum id))
+	    (vector (fun id fixnum->compnum) (fun id bignum->compnum) 
+		    (fun id ratnum->compnum) (fun id rectnum->compnum)
+		    (fun id flonum->compnum) oops)))
+
+  (set! contagion (lambda (a b retry)
+		    (do-contagion cmatrix a b retry)))
+
+  (set! econtagion (lambda (a b retry)
+		     (do-contagion ematrix a b retry)))
+
+  (set! pcontagion (lambda (a b retry)
+		     (do-contagion pmatrix a b retry)))
 
   #t)

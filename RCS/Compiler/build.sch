@@ -11,6 +11,8 @@
 
 (display "Chez Scheme/MacScheme compatibility package...") (newline)
 (load "../Chez/compat.ss")
+(display "Make utility...") (newline)
+(load "make.sch")
 (display "Compiler proper...") (newline)
 (load "sets.sch")
 (load "pass1.imp.sch")
@@ -42,8 +44,6 @@
 (load "compile313.sch")
 (load "printlap.sch")
 (load "utils.sch")
-(display "Make utility...") (newline)
-(load "make.sch")
 (display "Make script for library...") (newline)
 (load "../Lib/makefile.sch")
 (set! listify? #f)

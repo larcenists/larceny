@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Procedures for rectnum arithmetic
 ;
-; $Id$
+; $Id: rectnums.scm,v 1.1 91/08/12 13:12:50 lth Exp Locker: lth $
 ;
 ; A rectnum is a pair of two exact real numbers (the "real" and "imaginary"
 ; parts) where the imaginary part is nonzero.
@@ -35,53 +35,33 @@
 ; etc. to access these objects.
 
 (define (make-rectnum a b)
-  (let ((v (vector a b)))
-    (vector-tag-set! v 'rectnum)
-    v))
+  (if (or (inexact? a) (inexact? b))
+      (error "Inexact argument(s) to make-rectnum.")
+      (let ((v (vector a b)))
+	(typetag-set! v sys$tag.rectnum-typetag)
+	v)))
+
+(define (rectnum? obj)
+  (and (vector-like? obj)
+       (= (typetag obj) sys$tag.rectnum-typetag)))
 
 (define (rectnum-real-part r)
-  (vector-ref r 0))
+  (if (rectnum? r)
+      (vector-like-ref r 0)
+      (error "Not a rectnum.")))
 
 (define (rectnum-imag-part r)
-  (vector-ref r 1))
+  (if (rectnum? r)
+      (vector-like-ref r 1)
+      (error "Not a rectnum.")))
 
 ; High-level stuff
 
-(define (rectnum-add a b)
-  (unimp 'rectnum-add))
+(define (rectnum-add a b) (error "Rectnum-add not implemented"))
+(define (rectnum-sub a b) (error "Rectnum-sub not implemented"))
+(define (rectnum-mul a b) (error "Rectnum-mul not implemented"))
+(define (rectnum-div a b) (error "Rectnum-div not implemented"))
+(define (rectnum-neg a)   (error "Rectnum-neg not implemented"))
+(define (rectnum=? a b)   (error "Rectnum=? not implemented"))
 
-(define (rectnum-subtract a b)
-  (unimp 'rectnum-subtract))
-
-(define (rectnum-multiply a b)
-  (unimp 'rectnum-multiply))
-
-(define (rectnum-divide a b)
-  (unimp 'rectnum-divide))
-
-(define (rectnum-zero? a)
-  (zero? (rectnum-real-part a)))
-
-(define (rectnum-positive? a)
-  (unimp 'rectnum-positive?))
-
-(define (rectnum-negative? a)
-  (unimp 'rectnum-negative?))
-
-(define (rectnum=? a b)
-  (unimp 'rectnum=?))
-
-(define (rectnum>? a b)
-  (unimp 'rectnum>?))
-
-(define (rectnum<? a b)
-  (unimp 'rectnum<?))
-
-(define (rectnum>=? a b)
-  (unimp 'rectnum>=?))
-
-(define (rectnum<=? a b)
-  (unimp 'rectnum<=?))
-
-(define (unimp x)
-  (error x "Unimplemented operation"))
+(display "rectnums") (newline)

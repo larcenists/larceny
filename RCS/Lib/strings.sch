@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id$
+; $Id: strings.sch,v 1.1 92/02/10 03:17:21 lth Exp Locker: lth $
 ;
 ; Library procedures for characters, strings, and bytevectors.
 ;
@@ -235,7 +235,7 @@
 (define (string>? a b)
   (string-compare positive? 'string>? a b))
 
-(define (string>? a b)
+(define (string>=? a b)
   (string-compare (lambda (x) (>= x 0)) 'string>=? a b))
 
 (define (string-compare pred name a b)
@@ -262,6 +262,6 @@
 	    (else
 	     (let ((x (- (bytevector-like-ref bv1 i)
 			 (bytevector-like-ref bv2 i))))
-	       (if (not (zero? i))
-		   i
+	       (if (not (zero? x))
+		   x
 		   (loop (+ i 1)))))))))

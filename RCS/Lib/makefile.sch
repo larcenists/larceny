@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.2 92/02/10 11:27:58 lth Exp Locker: lth $
+; $Id: makefile.sch,v 1.3 92/02/10 12:13:59 lth Exp Locker: lth $
 ;
 ; USAGE:
 ;
@@ -39,7 +39,7 @@
   (make-heap "../ctak.heap" 'global-symbols 'global-refs "../Lib/ctak.lop"))
 
 (define (make-test-heap)
-  (make-heap "../test.heap" 'global-symbols 'global-refs "../Lib/main.lop"))
+  (make-heap "../test.heap" 'global-refs "../Lib/main.lop"))
 
 (let ()
 
@@ -112,10 +112,16 @@
       (("../Lib/bignums.lap" "../Lib/bignums.scm") ,compile)
       (("../Lib/ratnums.lop" "../Lib/ratnums.lap") ,assemble)
       (("../Lib/ratnums.lap" "../Lib/ratnums.scm") ,compile)
+      (("../Lib/rectnums.lop" "../Lib/rectnums.lap") ,assemble)
+      (("../Lib/rectnums.lap" "../Lib/rectnums.scm") ,compile)
+      (("../Lib/contagion.lop" "../Lib/contagion.lap") ,assemble)
+      (("../Lib/contagion.lap" "../Lib/contagion.scm") ,compile)
       (("../Lib/number.lop" "../Lib/number.lap") ,assemble)
       (("../Lib/number.lap" "../Lib/number.sch") ,compile)
       (("../Lib/main.lop" "../Lib/main.lap") ,assemble)
       (("../Lib/main.lap" "../Lib/main.sch") ,compile)
+      (("../Lib/debug.lop" "../Lib/debug.lap") ,assemble)
+      (("../Lib/debug.lap" "../Lib/debug.sch") ,compile)
       ))
 
   ; Basic make command for a heap.
@@ -132,6 +138,7 @@
 	"../Lib/unixio.lop"
 	"../Lib/integrable-procs.lop"
 	"../Lib/rawapply.lop" 
+        "../Lib/Sparc/glue.lop"
 
 	; random stuff which supposedly works
 
@@ -144,7 +151,7 @@
 
 	; basic i/o
 
-	"../Lib/schemeio.lop"
+	"../Lib/schemeio.lop"     ; needs testing
 	"../Lib/print.lop"
 
 	; basic arithmetic
@@ -155,12 +162,14 @@
 
 	"../Lib/bignums.lop"
 	"../Lib/ratnums.lop"
+	"../Lib/rectnums.lop"
 	"../Lib/flonum-stuff.lop"
 	"../Lib/number2string.lop"
 ;;	"../Lib/bellerophon.lop"
 	"../Lib/numberparser.lop"
 	"../Lib/reader.lop"
-        "../Lib/Sparc/glue.lop"
+	"../Lib/contagion.lop"
+	"../Lib/debug.lop"
 
 	; other application files
 

@@ -2,7 +2,7 @@
  * Scheme 313 Run-Time System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.10 91/12/06 15:08:25 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.11 92/02/10 03:41:57 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -70,6 +70,8 @@ word n;
 
   if (n == fixnum( -1 ))
     local_collect( TENURING_COLLECTION );
+  else if (n == fixnum( -2 ))
+    local_collect( FULL_COLLECTION );
   else {
     local_collect( EPHEMERAL_COLLECTION );
 
@@ -227,6 +229,7 @@ int type;
 
 #ifdef DEBUG
   printf( "garbage collection commencing, type %d\n", type );
+  printf( "Tbase=%lu, Ttop=%lu, Ttrans=%lu, %Tmax=%lu\n", globals[ T_BASE_OFFSET ], globals[ T_TOP_OFFSET ], globals[ T_TRANS_OFFSET ], globals[ T_MAX_OFFSET ] );
   oldwords = globals[ WCOPIED_OFFSET ];
 #endif
 
@@ -243,6 +246,7 @@ int type;
   printf( "garbage collection done, type %d\n", realtype );
   printf( "words copied: %ld\n", globals[ WCOPIED_OFFSET ]-oldwords );
   printf( "Time spent collecting: %u milliseconds.\n", milliseconds );
+  printf( "Tbase=%lu, Ttop=%lu, Ttrans=%lu, %Tmax=%lu\n", globals[ T_BASE_OFFSET ], globals[ T_TOP_OFFSET ], globals[ T_TRANS_OFFSET ], globals[ T_MAX_OFFSET ] );
 #endif
 }
 

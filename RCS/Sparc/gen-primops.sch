@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id: gen-primops.scm,v 1.2 92/01/19 17:41:16 lth Exp Locker: lth $
+; $Id: gen-primops.sch,v 1.3 92/02/10 03:40:28 lth Exp Locker: lth $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a

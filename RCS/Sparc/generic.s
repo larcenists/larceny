@@ -3,7 +3,7 @@
 ! Scheme 313 Runtime System
 ! Millicode for Generic Arithmetic, SPARC.
 !
-! $Id: generic.s,v 1.5 92/01/30 18:02:30 lth Exp Locker: lth $
+! $Id: generic.s,v 1.6 92/02/10 03:38:21 lth Exp Locker: lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -90,8 +90,8 @@ _generic_add:
 	cmp	%TMP0, VEC_TAG
 	be,a	Ladd_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
 Ladd_bvec:
 	be,a	Ladd_bvec2
 	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
@@ -212,8 +212,8 @@ _generic_sub:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lsub_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_contagion
+	mov	MS_GENERIC_SUB, %TMP2
 Lsub_bvec:
 	be,a	Lsub_bvec2
 	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
@@ -334,8 +334,8 @@ _generic_mul:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lmul_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_contagion
+	mov	MS_GENERIC_MUL, %TMP2
 Lmul_bvec:
 	be,a	Lmul_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -441,9 +441,6 @@ Lmul_rect2:
 	b	_scheme_call
 	mov	MS_RECTNUM_MUL, %TMP2
 Lmul_fix:
-	! This code depends on %TMP0 being a global register.
-	! The %y hack below is necessary because other TMPs may not be
-	! global registers. Really, all TMPs ought to be global regs.
 
 	save	%sp, -96, %sp
 	mov	%SAVED_RESULT, %o0
@@ -467,8 +464,8 @@ Lmul_fix:
 	! Fits in two-word bignum. Mush together and box.
 	sll	%o1, 30, %o1
 	srl	%o0, 2, %o0
-	or	%o0, %o1, %TMP0
-	wr	%o2, %g0, %y
+	or	%o0, %o1, %SAVED_TMP0
+	mov	%o2, %SAVED_TMP1
 	b	_box_double_bignum
 	restore
 
@@ -476,7 +473,7 @@ Lmul_fix3:
 	! Fits in one-word bignum. Mush together and box.
 	sll	%o1, 30, %o1
 	srl	%o0, 2, %o0
-	or	%o0, %o1, %TMP0
+	or	%o0, %o1, %SAVED_TMP0
 	b	_box_single_bignum
 	restore
 
@@ -502,8 +499,8 @@ _generic_div:
 	cmp	%TMP0, VEC_TAG
 	be,a	Ldiv_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_contagion
+	mov	MS_GENERIC_DIV, %TMP2
 Ldiv_bvec:
 	be,a	Ldiv_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -908,7 +905,7 @@ Lzero_num:
 
 _generic_equalp:
 	and	%RESULT, TAGMASK, %TMP0
-	and	%ARGREG2, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lequal_bvec
 	cmp	%TMP1, BVEC_TAG
@@ -1703,20 +1700,21 @@ _generic_exact2inexact:
 	be,a	Le2i_maybe
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
 Le2i_noway:
-	! Not fixnum, not identity operation.
-	! Drop into scheme (in a tailcall)
 
-	jmp	%MILLICODE + M_NOT_SUPPORTED
-	nop
+	! Not fixnum, not identity operation. Drop into scheme.
+
+	mov	1, %TMP1
+	b	_scheme_call
+	mov	MS_GENERIC_EXACT2INEXACT, %TMP2
 
 Le2i_maybe:
-	! Could be flonum or compnum (neither of which is exact in the 
-	! first place).
-
 	cmp	%TMP0, FLONUM_HDR
 	be	Le2i_identity
+	nop
 	cmp	%TMP0, COMPNUM_HDR
-	bne	Le2i_noway
+	be	Le2i_identity
+	nop
+	b	Le2i_noway
 	nop
 Le2i_identity:
 	jmp	%o7+8
@@ -1727,8 +1725,8 @@ Lfixnum2flonum:
 	b	_box_flonum
 	fitod	%f2, %f2
 
-! Identity operations are handled in-line, as is the flonum->integer case.
-! The compnum->rectnum case drops into Scheme.
+! Identity operations are handled here. The rest is handled in scheme.
+! Really should handle flonum->integer here.
 !
 ! (define (inexact->exact a)
 !   (cond ((exact? a) a)
@@ -1739,26 +1737,31 @@ Lfixnum2flonum:
 _generic_inexact2exact:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bne	Li2e_identity
+	bne	Li2e_vec		! vector-like
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	andcc	%RESULT, 3, %g0
+	be	Li2e_identity		! fixnum
 	nop
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
-	cmp	%TMP0, FLONUM_HDR
-	bne	Li2e_noway
+	cmp	%TMP0, BIGNUM_HDR
+	be	Li2e_identity		! bignum
 	nop
 
-	! flonum->integer. Must distinguish between integers fitting in a
-	! fixnum and those fitting in a bignum (latter must be boxed and all
-	! that; should go to Scheme?).
+	! Flonum or compnum. Drop into Scheme.
+	! It would be desirable to handle flonum->integer here.
 
-	jmp	%MILLICODE + M_NOT_SUPPORTED
+	mov	1, %TMP1
+	b	_scheme_call
+	mov	MS_GENERIC_INEXACT2EXACT, %TMP2
+Li2e_vec:
+	cmp	%TMP0, RATNUM_HDR
+	be	Li2e_identity
 	nop
-
-Li2e_noway:
-	! Others. Drop into Scheme (tailcall).
-
-	jmp	%MILLICODE + M_NOT_SUPPORTED
+	cmp	%TMP0, RECTNUM_HDR
+	be	Li2e_identity
 	nop
-
+	b	_non_numeric1
+	nop
 Li2e_identity:
 	jmp	%o7+8
 	nop
@@ -2033,11 +2036,20 @@ _econtagion:
 Lcontagion:
 	ld	[ %GLOBALS + MILLICODE_SUPPORT_OFFSET ], %TMP1
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
+#ifdef DEBUG
+	cmp	%TMP1, UNSPECIFIED_CONST
+	be	Lnocontagion
+	nop
+#endif
 	add	%TMP1, 4 - VEC_TAG, %TMP1	! bump ptr
 	ld	[ %TMP1 + %TMP2 ], %ARGREG3	! scheme proc to retry
-	ld	[ %TMP1 + %TMP0 ], %TMP2	! contagion proc
+	mov	%TMP0, %TMP2			! contagion proc
 	b	_scheme_call
 	mov	3, %TMP1			! argument count
+Lnocontagion:
+	set	Lerrmsg4, %TMP0
+	b	Lerror
+	nop
 
 ! Various exception conditions.
 
@@ -2049,7 +2061,7 @@ _non_numeric2:
 
 _domain_error1:
 _domain_error2:
-	set	Lerrmsg3, %TMP0
+	set	Lerrmsg2, %TMP0
 	b	Lerror
 	nop
 
@@ -2058,14 +2070,17 @@ _domain_error2:
 
 Lerror:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
+	st	%TMP0, [ %GLOBALS + GEN_TMP1_OFFSET ]
 
 	call	_save_scheme_context
 	nop
 
+	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
+	st	%g0, [ %GLOBALS + GEN_TMP1_OFFSET ]
+
 	save	%sp, -96, %sp
-	mov	%TMP0, %o0
 	call	_printf
-	nop
+	mov	%SAVED_TMP0, %o0
 	call	_localdebugger
 	nop
 	restore
@@ -2088,12 +2103,11 @@ _box_flonum:
 	mov	%o7, %TMP0
 	call	_internal_alloc
 	mov	16, %RESULT
-	mov	%TMP0, %o7
 
 	std	%f2, [ %RESULT + 8 ]
-	set	(16 << 8) | FLONUM_HDR, %TMP0
-	st	%TMP0, [ %RESULT ]
-	jmp	%o7 + 8
+	set	(16 << 8) | FLONUM_HDR, %TMP1
+	st	%TMP1, [ %RESULT ]
+	jmp	%TMP0 + 8
 	add	%RESULT, BVEC_TAG, %RESULT
 
 
@@ -2126,11 +2140,11 @@ _box_single_bignum:
 	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
 
 	cmp	%TMP0, 0
-	bge	Lbox_s_fix2
-	set	(0 << 16) + 1, %TMP1		! sign + length FIXME?
+	bge	Lbox_s_big2
+	mov	(0 << 16) + 1, %TMP1		! sign + length
 	neg	%TMP0
 	set	(1 << 16) + 1, %TMP1		! ditto, negative
-Lbox_s_fix2:
+Lbox_s_big2:
 	st	%TMP1, [ %RESULT + 4 ]		! store sign, length
 	st	%TMP0, [ %RESULT + 8 ]		! store number
 	set	(8 << 8) | BIGNUM_HDR, %TMP0
@@ -2139,29 +2153,37 @@ Lbox_s_fix2:
 	or	%RESULT, BVEC_TAG, %RESULT
 
 ! Box an integer in a bignum with two digits. The integer is passed in
-! %TMP0 (low word) and %y (high word). [This is a hack but it works well.]
+! %TMP0 (low word) and %TMP1 (high word). If the high word has the sign
+! bit set, then we have to complement the whole thing and make the sign
+! negative before boxing.
 ! %o7 has the Scheme return address.
 
 _box_double_bignum:
 	st	%TMP0, [ %GLOBALS + GEN_TMP1_OFFSET ]
+	st	%TMP1, [ %GLOBALS + GEN_TMP2_OFFSET ]
 	mov	%o7, %TMP0
 	call	_internal_alloc
 	mov	16, %RESULT
 	mov	%TMP0, %o7
 	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
+	ld	[ %GLOBALS + GEN_TMP2_OFFSET ], %TMP1
 
-	/*SCAFFOLDING CODE*/
-	save	%sp, -96, %sp
-	set	Lerrmsg3, %o0
-	call	_printf
-	nop
-	call	_exit
-	mov	1, %o0
-	/*NOTREALLYREACHED*/
-	restore
-
+	cmp	%TMP1, 0
+	bge,a	Lbox_d_big2
+	mov	(0 << 16) + 2, %TMP2		! sign + length
+	not	%TMP0
+	not	%TMP1
+	add	%TMP0, 1, %TMP0
+	addx	%TMP1, 0, %TMP1
+	set	(1 << 16) + 2, %TMP2
+Lbox_d_big2:
+	st	%TMP2, [ %RESULT + 4 ]
+	st	%TMP0, [ %RESULT + 8 ]
+	st	%TMP1, [ %RESULT + 12 ]
+	set	(12 << 8) | BIGNUM_HDR, %TMP0
+	st	%TMP0, [ %RESULT ]
 	jmp	%o7+8
-	nop
+	or	%RESULT, BVEC_TAG, %RESULT
 
 ! Interesting data for the generic arithmetic system.
 
@@ -2172,6 +2194,8 @@ Lerrmsg2:
 	.asciz	"Domain error in operand(s) to arithmetic operation.\n"
 Lerrmsg3:
 	.asciz	"Can't box a double bignum (yet).\n"
+Lerrmsg4:
+	.asciz	"Contagion is not available at this point!.\n"
 
 	.align 8
 Ldhalf:

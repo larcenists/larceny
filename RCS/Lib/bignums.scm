@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.7 91/08/13 12:59:05 lth Exp Locker: lth $
+; $Id: bignums.scm,v 1.8 92/02/10 03:19:25 lth Exp Locker: lth $
 ;
 ; This file has four sections:
 ;
@@ -72,9 +72,8 @@
 ;         bignum-odd?
 ;         bignum->fixnum
 ;         fixnum->bignum
-;         bignum->flonum
-;         flonum->bignum
-;         bignum->string)
+;         bignum->string
+;         bignum?)
 
 
 ;-----------------------------------------------------------------------------
@@ -123,28 +122,30 @@
 (define max-bignum-bytes (* 65535 4))         ; a lot of digits
 (define bits-per-bigit 16)
 
-; The compiler had better make these into bignums! Debugging versions are
-; at the end of the file.
+; Some parameters, which have to be hardcoded to avoid using bignum
+; arithmetic at load time (sigh).
 
-(define smallest-positive-bignum (expt 2 30))
-(define largest-negative-bignum (- (+ (expt 2 30) 1)))
+; (define smallest-positive-bignum (expt 2 30))
+; (define largest-negative-bignum (- (+ (expt 2 30) 1)))
 
+(define smallest-positive-bignum 1073741824)
+(define largest-negative-bignum -1073741825)
 
 ; `Bignum-ref' does zero-based referencing of a bignum structure, returning
 ; a 16-bit digit (adjusted to be a fixnum) from the bignum. 
 
 (define (bignum-ref a i)
   (let ((base (+ (* i 2) (if (odd? i) 2 6))))
-    (+ (* byte-base (bytevector-ref a base))
-       (bytevector-ref a (+ base 1)))))
+    (+ (* byte-base (bytevector-like-ref a base))
+       (bytevector-like-ref a (+ base 1)))))
 
 
 ; Ditto for `bignum-set!'.
 
 (define (bignum-set! a i v)
   (let ((base (+ (* i 2) (if (odd? i) 2 6))))
-    (bytevector-set! a base (quotient v byte-base))
-    (bytevector-set! a (+ base 1) (remainder v byte-base))))
+    (bytevector-like-set! a base (quotient v byte-base))
+    (bytevector-like-set! a (+ base 1) (remainder v byte-base))))
 
 
 ; Allocate a bignum given the count of 16-bit digits.
@@ -155,7 +156,7 @@
 	(error 'generic-arithmetic "Bignum too large.")
 	(let ((v (make-bytevector (+ l 4))))
 	  (bytevector-fill! v 0)
-          (bytevector-tag-set! v 'bignum)
+          (typetag-set! v sys$tag.bignum-typetag)
 	  (bignum-length-set! v (quotient l 2))
 	  v))))
 
@@ -166,11 +167,11 @@
 ; onto 32-bit digits (or vice versa...).
 
 (define (bignum-length b)
-  (let ((l (* 2 (+ (* byte-base (bytevector-ref b 2))
-		   (bytevector-ref b 3)))))
-    (if (zero? (bignum-ref b (- l 1)))
-	(- l 1)
-	l)))
+  (let ((l (* 2 (+ (* byte-base (bytevector-like-ref b 2))
+		   (bytevector-like-ref b 3)))))
+    (cond ((zero? l) l)
+	  ((zero? (bignum-ref b (- l 1))) (- l 1))
+	  (else l))))
 
 
 ; Set the number of 16-bit digits. The number is converted to 32-bit digits,
@@ -182,20 +183,20 @@
 
 (define (bignum-length-set! b l)
   (let ((l (quotient (+ l 1) 2)))
-    (bytevector-set! b 2 (quotient l byte-base))
-    (bytevector-set! b 3 (remainder l byte-base))))
+    (bytevector-like-set! b 2 (quotient l byte-base))
+    (bytevector-like-set! b 3 (remainder l byte-base))))
 
 
 ; Get the sign.
 
 (define (bignum-sign b)
-  (bytevector-ref b 1))
+  (bytevector-like-ref b 1))
 
 
 ; Set the sign.
 
 (define (bignum-sign-set! b s)
-  (bytevector-set! b 1 s))
+  (bytevector-like-set! b 1 s))
 
 
 ; Copy.
@@ -206,73 +207,11 @@
 	(begin (bignum-set! to i (bignum-ref from i))
 	       (loop (- i 1))))))
 
-; THESE SHOULD DEFINITELY BE MOVED INTO "flonum-stuff.sch"!!!
-;
-; Create a boxed flonum from a bignum on a special format.
-;
-; Assumes big-endian representation of IEEE double.
-; Assumes knowledge of Scheme 313 bignum and flonum formats.
-;
-; `s' is 0 or 1, a fixnum.
-; `m', the mantissa (with the leading 1 present), is a bignum.
-; `e', the exponent (unbiased), is a fixnum.
-;
-; The parameters represent the number -1^s * m.0 * 2^e.
+; eventually a primop
 
-(define make-flonum
-
-  (let ((two^52 (expt 2 52))
-	(two^63 (expt 2 63)))
-
-    (lambda (s m e)
-      (let ((t (bignum-add (if (zero? s) 0 two^63)
-			   (bignum-multiply (fixnum->bignum (+ e (- 1023 53)))
-					    two^52)
-			   (bignum-remainder m two^52)))
-	    (f (make-bytevector 12)))
-	(bytevector-set! f 4  (bytevector-ref t 8))
-	(bytevector-set! f 5  (bytevector-ref t 9))
-	(bytevector-set! f 6  (bytevector-ref t 10))
-	(bytevector-set! f 7  (bytevector-ref t 11))
-	(bytevector-set! f 8  (bytevector-ref t 4))
-	(bytevector-set! f 9  (bytevector-ref t 5))
-	(bytevector-set! f 10 (bytevector-ref t 6))
-	(bytevector-set! f 11 (bytevector-ref t 7))
-	(bytevector-tag-set! f 'flonum)
-	f))))
-
-; Return a bignum representing the mantissa (all 53 bits) of the flonum.
-; Fairly straightforward.
-
-(define (flonum-mantissa f)
-  (let ((denormal? (= (exponent f) -1023)))
-    (let ((b (make-bytevector 12)))
-      (bytevector-set! b 4 (bytevector-ref f 8))
-      (bytevector-set! b 5 (bytevector-ref f 9))
-      (bytevector-set! b 6 (bytevector-ref f 10))
-      (bytevector-set! b 7 (bytevector-ref f 11))
-      (bytevector-set! b 8 0)
-      (bytevector-set! b 9 (+ (remainder (bytevector-ref f 5) 16)
-			      (if denormal? 0 16)))
-      (bytevector-set! b 10 (bytevector-ref f 6))
-      (bytevector-set! b 11 (bytevector-ref f 7))
-      (bignum-length-set! b 4)
-      (bignum-sign-set! b positive-sign)
-      b)))
-
-; Return a fixnum representing the unbiased exponent of the flonum.
-; Straightforward.
-
-(define (flonum-exponent f)
-  (- (quotient (+ (* (remainder (bytevector-ref f 4) 127) 256)
-		  (bytevector-ref f 5))
-	       16)
-     1023))
-
-; Return the sign of the flonum.
-
-(define (flonum-sign f)
-  (quotient (bytevector-ref f 4) 127))
+(define (bignum? x)
+  (and (bytevector-like? x)
+       (= (typetag x) sys$tag.bignum-typetag)))
 
 ; misc
 
@@ -356,16 +295,16 @@
 ;     (let ((base1 (+ (* i 2) (if (odd? i) 2 6)))
 ; 	  (base2 (+ (* j 2) (if (odd? j) 2 6)))
 ; 	  (base3 (+ (* i+j 2) (if (odd? i+j) 2 6))))
-;       (let ((adigit (+ (* byte-base (bytevector-ref a base1))
-; 		       (bytevector-ref a (+ base1 1))))
-; 	    (bdigit (+ (* byte-base (bytevector-ref b base2))
-; 		       (bytevector-ref b (+ base2 1))))
-; 	    (cdigit (+ (* byte-base (bytevector-ref c base3))
-; 		       (bytevector-ref c (+ base3 1)))))
+;       (let ((adigit (+ (* byte-base (bytevector-like-ref a base1))
+; 		       (bytevector-like-ref a (+ base1 1))))
+; 	    (bdigit (+ (* byte-base (bytevector-like-ref b base2))
+; 		       (bytevector-like-ref b (+ base2 1))))
+; 	    (cdigit (+ (* byte-base (bytevector-like-ref c base3))
+; 		       (bytevector-like-ref c (+ base3 1)))))
 ; 	(let ((r (+ (* adigit bdigit) cdigit carry)))
 ; 	  (let ((r (remainder r bignum-base)))
-; 	    (bytevector-set! c base3 (quotient r byte-base))
-; 	    (bytevector-set! c (+ base3 1) (remainder r byte-base)))
+; 	    (bytevector-like-set! c base3 (quotient r byte-base))
+; 	    (bytevector-like-set! c (+ base3 1) (remainder r byte-base)))
 ; 	  (quotient r bignum-base))))))
 
 
@@ -485,11 +424,14 @@
 (define (bignum-add a b)
   (let ((sa (bignum-sign a))
 	(sb (bignum-sign b)))
+    (break)
     (let ((c (if (= sa sb)
 		 (big-add-digits a b)
 		 (big-subtract-digits a b))))
+      (break)
       (if (sign-negative? sa)
 	  (flip-sign! c))
+      (break)
       (big-normalize! c))))
 
 
@@ -601,7 +543,9 @@
        (odd? (bignum-ref b 0))))
 
 (define (bignum-abs b)
-  (error "Bignum-abs is not implemented."))
+  (if (bignum-negative? b)
+      (bignum-negate b)
+      b))
 
 ; Coercions
 
@@ -616,6 +560,7 @@
 	(loop (- i 1) (+ (* bignum-base n) (bignum-ref b i))))))
 
 ; Can't use `big-normalize!' because it'd convert it back to a fixnum.
+; (Could use big-limited-normalize, though.)
 
 (define (fixnum->bignum f)
   (let ((b (bignum-alloc bignum-digits-in-a-fixnum)))
@@ -628,133 +573,29 @@
 	  (begin (bignum-set! b i (remainder n bignum-base))
 		 (loop (+ i 1) (quotient n bignum-base)))))))
 
-; Convert a bignum to an IEEE double precision number.
+; Takes a bignum and a radix and returns the string which is the printable
+; representation of the bignum in that radix.
 ;
-; Knows about range of IEEE double precision, but oblivious of bignum
-; representation.
+; Uses brute force with extreme prejudice.
 ;
-; Not tested (and not trusted).
-
-(define bignum->flonum
-  (let* ((two^53 (expt 2 53))
-	 (two^54 (* 2 two^53))
-	 (e1     (expt 2 bits-per-bigit))    ; 2^16 if bits-per-bigit = 16
-	 (e2     (* e1 e1))                  ; 2^32 ditto
-	 (e3     (* e1 e2))                  ; 2^48 ditto
-	 (e4     (* e2 e2)))                 ; 2^64 ditto
-
-    ; used for rounding
-
-    (define sticky #f)
-    (define non-zero-tail #f)
-
-;    ; Remove this one if the compiler knows about shifts of fixnums.
-;
-;    (define (rshift n) 
-;      (quotient n 2))
-
-    ; Count leading zeroes in a bigit by shifting right (there are
-    ; better ways, but this will do). `n' and `e' are always fixnums.
-
-    (define (leading-zeroes n e)
-      (if (zero? n)
-	  (- bits-per-bigit e)
-	  (leading-zeroes (rsha n 2) (+ e 1))))
-
-    ; `m' and `limit' are always bignums.
-
-    (define (adjust m limit)
-      (if (< m limit)
-	  m
-	  (begin (set! sticky (or sticky (bignum-odd? m)))
-		 (adjust (bignum-quotient m 2) limit))))
-
-    ; Rounds to nearest, and to even on ties.
-
-    (define (round m)
-      (if (odd? m)
-	  (if (or sticky non-zero-tail)
-	      (+ m 1)
-	      (if (>= (bignum-remainder m 4) 2)   ; ick.
-		  (+ m 1)
-		  m))
-	  m))
-
-    ; main
-
-    (lambda (b)
-      (if (bignum-zero? b)
-	  0.0
-	  (let* ((l  (bignum-length b))
-		 (d4 (bignum-ref b (- l 1)))
-		 (d3 (if (> l 1) (bignum-ref b (- l 2)) 0))
-		 (d2 (if (> l 2) (bignum-ref b (- l 3)) 0))
-		 (d1 (if (> l 3) (bignum-ref b (- l 4)) 0))
-		 (d0 (if (> l 4) (bignum-ref b (- l 5)) 0))
-		 (e  (- (* l bits-per-bigit)
-			(leading-zeroes d4 0)))
-		 (m  (+ (* d4 e4) (* d3 e3) (* d2 e2) (* d1 e1) d0)))
-	    (set! sticky #f)
-	    (set! non-zero-tail #f)
-
-	    ; figure out if the tail of the bignum is nonzero
-
-	    (let loop ((i (- l 6)))
-	      (if (>= i 0)
-		  (begin (set! non-zero-tail
-			       (or non-zero-tail
-				   (not (zero? (bignum-ref b i)))))
-			 (loop (- i 1)))))
-
-	    ; shift, round, convert
-
-	    (let ((m (round (adjust m two^54))))
-	      (make-flonum (if (bignum-negative? b) 1 0)
-			   (adjust m two^53)
-			   e)))))))
-
-; Convert a flonum to a bignum. If the flonum is not representable as an
-; integer, then the excess fraction is simply dropped.
-;
-; Knows about the representation of flonums as well as bignums.
-; Flonums are IEEE double, boxed as a bytevector.
-;
-; Not tested.
-
-(define (flonum->bignum f)
-
-  ; convert int to bignum
-
-  (define (->bignum x)
-    (if (fixnum? x)
-	(fixnum->bignum x)
-	x))
-
-  ; main
-
-  (let ((m (flonum-mantissa f))
-	(e (flonum-exponent f)))
-    (cond ((and (zero? m) (zero? e))
-	   (fixnum->bignum 0))
-	  ((= e 1024)
-	   (error 'flonum->bignum "Cannont convert NaN to bignum."))
-	  (else
-	   (let* ((e (- e 53))
-		  (q (cond ((= e 0)
-			    m)
-			   ((< e -53)
-			    (fixnum->bignum 0))
-			   ((< e 0)
-			    (bignum-quotient m (->bignum (expt 2 (abs e)))))
-			   (else
-			    (bignum-multiply m (->bignum (expt 2 e)))))))
-	     (bignum-limited-normalize! (if (not (zero? (flonum-sign f)))
-					    (bignum-negate! q)
-					    q)))))))
-
+; Note that the use of big-divide-digits guarantees that the resulting values
+; are bignums regardless of magnitude.
 
 (define (bignum->string b r)
-  (error "Bignum->string has not been implemented.\n"))
+  (if (bignum-zero? b)
+      "0"
+      (let ((r (fixnum->bignum r))
+	    (d "0123456789abcdef")
+	    (s (bignum-negative? b)))
+	(let loop ((b (bignum-abs b)) (l '()))
+	  (if (bignum-zero? b)
+	      (if s
+		  (list->string (cons #\- l))
+		  (list->string l))
+	      (let ((tmp (big-divide-digits b r)))
+		(loop (car tmp)
+		      (cons (string-ref d (bignum->fixnum (cdr tmp))) l))))))))
+
 
 ;-----------------------------------------------------------------------------
 ; Section 4.
@@ -865,10 +706,13 @@
 	    (let ((d (+ (* rem bignum-base) (bignum-ref a i))))
 	      (bignum-set! q i (quotient d b))
 	      (loop (remainder d b) (- i 1)))
-	    (cons q (fixnum->bignum rem))))))
+	    (begin (big-limited-normalize! q)
+		   (cons q (fixnum->bignum rem)))))))
 
   ; `a' and `b' are both bignums, with (length a) >= (length b) and
   ; (length b) > 1. Produces a pair of bignums.
+  ;
+  ; May need to normalize? FIXME.
 
   (define (slow-divide a b)
     (let* ((d  (quotient bignum-base

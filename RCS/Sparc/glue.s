@@ -3,13 +3,14 @@
 ! Scheme 313 Run-time system
 ! Miscellaneous assembly language "glue" and millicode.
 !
-! $Id: glue.s,v 1.5 92/01/30 18:02:35 lth Exp Locker: lth $
+! $Id: glue.s,v 1.6 92/02/10 03:38:30 lth Exp Locker: lth $
 
 #include "registers.s.h"
 #include "millicode.s.h"
 #include "offsets.s.h"
 #include "layouts.s.h"
 #include "exceptions.s.h"
+#include "milliprocs.s.h"
 
 
 	.seg	"text"
@@ -60,8 +61,7 @@ _schemestart:
 	nop
 
 ! Call application code: setup a minimal continuation and jump. The
-! continuation contains a dummy procedure field; the stack flusher
-! had better deal with this.
+! continuation contains a dummy procedure field.
 
 	set	L1-8, %TMP0		! this is ok since this code won't move
 	sub	%STKP, 16, %STKP	! allocate frame
@@ -76,7 +76,7 @@ L2:
 	beq	L0
 	nop
 	jmpl	%MILLICODE + M_PROC_EXCEPTION, %o7
-	add	%o7, (L2-(.-4))-8, %o7
+	add	%o7, (L2-(.-4))-8, %o7	! FIXME?
 L0:
 	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
 	jmp	%TMP0 + A_CODEOFFSET
@@ -108,6 +108,10 @@ L1:
 ! The second frame has a full set of saved registers, and its R0 is a pointer
 ! to the original caller. The return address is the return address in the
 ! original caller -- the point to which millicode should have returned.
+! When the scheme procedure which was called from millicode returns, it
+! will return into scheme2scheme-helper, which in turn pops *both* frames and
+! restores the original context before returning to the original Scheme
+! procedure.
 !
 !      +---------------+  <-- top of stack
 !      | (return addr) |
@@ -125,11 +129,11 @@ L1:
 !      |  (stuff)      |
 !
 ! This millicode procedure takes the following arguments:
-!  * %RESULT, %ARGREG1, and %ARGREG2 are used for arguments to be passed on
-!    to the Scheme procedure
+!  * %RESULT, %ARGREG1, %ARGREG2, and %TMP0 are used for arguments to be
+!    passed on to the Scheme procedure.
 !  * %o7 is the return address to the original caller (who is in %REG0).
-!  * %TMP0 is the argument count (0, 1, 2, or 3)
-!  * %TMP1 is the vector index into the global vector of Scheme procedures
+!  * %TMP1 is the argument count (0, 1, 2, 3, or 4).
+!  * %TMP2 is the vector index into the global vector of Scheme procedures
 !    callable from millicode. A pointer to a value cell which holds the
 !    vector pointer is in the root MILLICODE_SUPPORT.
 !
@@ -139,99 +143,120 @@ L1:
 
 ! Offset within bottom stack frame where REG0 is stored.
 
-#define REG0P	8
-
 _scheme_call:
-	
-	save	%sp, -96, %sp
-	set	Lemsg2, %o0
-	call	_printf
-	nop
-	call	_exit
-	mov	1, %o0
-	/*NOTREALLYREACHED*/
-	restore
 
-	! Save parameters which were passed in registers we need to use
+	! Save parameters which were passed in registers we need to use.
+	!
+	! We can't just store the return address, as a stack frame overflow
+	! may trigger a collection, which will change the procedure's
+	! location. So we store the offset into the procedure as a fixnum.
 
-	st	%o7,   [ %GLOBALS + GLUE_TMP1_OFFSET ]	! WRONG. Must calc offs
-	st	%TMP0, [ %GLOBALS + GLUE_TMP2_OFFSET ]
-	st	%TMP1, [ %GLOBALS + GLUE_TMP3_OFFSET ]
+	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]		! 4th arg
+	st	%TMP1, [ %GLOBALS + GLUE_TMP2_OFFSET ]		! argc
+	st	%TMP2, [ %GLOBALS + GLUE_TMP3_OFFSET ]		! proc
+	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
+	sub	%TMP0, BVEC_TAG, %TMP0
+	sub	%o7, %TMP0, %TMP0
+	st	%TMP0, [ %GLOBALS + GLUE_TMP4_OFFSET ]		! retaddr
 
 	! Check stack overflow
 
 	ld	[ %GLOBALS + STK_LIMIT_OFFSET ], %TMP0
 	cmp	%STKP, %TMP0
-	bge	scheme_call_1
+	bge	Lscheme_call_1
 	nop
 	jmpl	%MILLICODE + M_STKOFLOW, %o7
 	nop
 
 	! Allocate the stack frames, then save values.
 
-scheme_call_1:
-	sub	%STKP, 32*4+8, %STKP		! 
-	mov	32*4+8, %TMP0
-	st	%TMP0, [ %STKP + 4 ]
-	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
-	! recalc the real address
-	st	%TMP0, [ %STKP + 0 ]
+Lscheme_call_1:
+	sub	%STKP, (32*4+8)+(2*4+8), %STKP		! both frames at once.
 
+	! Do the top (small) frame
+
+	ld	[ %GLOBALS + MILLICODE_SUPPORT_OFFSET ], %TMP0
+	ld	[ %TMP0 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP0
+	add	%TMP0, 4 - VEC_TAG, %TMP0
+	ld	[ %GLOBALS + GLUE_TMP3_OFFSET ], %TMP2		! proc idx
+	ld	[ %TMP0 + %TMP2 ], %TMP2			! proc to call
+	st	%TMP2, [ %GLOBALS + GLUE_TMP3_OFFSET ]
+	ld	[ %TMP0 + MS_SCHEME2SCHEME ], %TMP0
+	ld	[ %TMP0 - PROC_TAG +  CODEVECTOR ], %TMP1
+	add	%TMP1, 4 - BVEC_TAG - 8, %TMP1			! adj retaddr
+	st	%TMP1, [ %STKP ]				! retaddr
+	mov	(2*4+4), %TMP1
+	st	%TMP1, [ %STKP+4 ]				! size
+	st	%TMP0, [ %STKP+8 ]				! proc
+
+	! Do the bottom (large) frame
 	
-	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
-	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %TMP1
-	sub	%TMP1, %TMP0, %TMP0
-	sub	%TMP0, BVEC_TAG - 4, %TMP0
-	st	%TMP0, [ %STKP + 16 ]
+#define BASE	16
 
-	std	%REG0, [ %STKP + 8*0 + REG0P ]
-	std	%REG2, [ %STKP + 8*1 + REG0P ]
-	std	%REG4, [ %STKP + 8*2 + REG0P ]
-	std	%REG6, [ %STKP + 8*3 + REG0P]
+	! This could be scheduled; unclear that it would make a difference.
+
+	ld	[ %GLOBALS + GLUE_TMP4_OFFSET ], %TMP0
+	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP1
+	sub	%TMP1, BVEC_TAG, %TMP1
+	add	%TMP1, %TMP0, %TMP1
+	st	%TMP1, [ %STKP + BASE ]		! return address
+	mov	32*4+8, %TMP0
+	st	%TMP0, [ %STKP + 4 + BASE ]	! size
+	std	%REG0, [ %STKP + 8*0 + 8 + BASE ]
+	std	%REG2, [ %STKP + 8*1 + 8 + BASE ]
+	std	%REG4, [ %STKP + 8*2 + 8 + BASE ]
+	std	%REG6, [ %STKP + 8*3 + 8 + BASE]
 	ld	[ %GLOBALS + REG8_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG9_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*4 + REG0P ]
+	std	%REG0, [ %STKP + 8*4 + 8 + BASE ]
 	ld	[ %GLOBALS + REG10_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG11_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*5 + REG0P ]
+	std	%REG0, [ %STKP + 8*5 + 8 + BASE ]
 	ld	[ %GLOBALS + REG12_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG13_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*6 + REG0P ]
+	std	%REG0, [ %STKP + 8*6 + 8 + BASE ]
 	ld	[ %GLOBALS + REG14_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG15_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*7 + REG0P ]
+	std	%REG0, [ %STKP + 8*7 + 8 + BASE ]
 	ld	[ %GLOBALS + REG16_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG17_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*8 + REG0P ]
+	std	%REG0, [ %STKP + 8*8 + 8 + BASE ]
 	ld	[ %GLOBALS + REG18_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG19_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*9 + REG0P ]
+	std	%REG0, [ %STKP + 8*9 + 8 + BASE ]
 	ld	[ %GLOBALS + REG20_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG21_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*10 + REG0P ]
+	std	%REG0, [ %STKP + 8*10 + 8 + BASE ]
 	ld	[ %GLOBALS + REG22_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG23_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*11 + REG0P ]
+	std	%REG0, [ %STKP + 8*11 + 8 + BASE ]
 	ld	[ %GLOBALS + REG24_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG25_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*12 + REG0P]
+	std	%REG0, [ %STKP + 8*12 + 8 + BASE]
 	ld	[ %GLOBALS + REG26_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG27_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*13 + REG0P ]
+	std	%REG0, [ %STKP + 8*13 + 8 + BASE ]
 	ld	[ %GLOBALS + REG28_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG29_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*14 + REG0P ]
+	std	%REG0, [ %STKP + 8*14 + 8 + BASE ]
 	ld	[ %GLOBALS + REG30_OFFSET ], %REG0
 	ld	[ %GLOBALS + REG31_OFFSET ], %REG1
-	std	%REG0, [ %STKP + 8*15 + REG0P ]
+	std	%REG0, [ %STKP + 8*15 + 8 + BASE ]
 
 	mov	%RESULT, %REG1
 	mov	%ARGREG2, %REG2
+	mov	%ARGREG3, %REG3
 	
-	ld	[ %ARGREG3 + A_CODEVECTOR ], %TMP0
-	mov	8, %RESULT
-	jmpl	%TMP0 + A_CODEOFFSET, %o7
-	st	%o7, [ %STKP ]
+	ld	[ %GLOBALS + GLUE_TMP2_OFFSET ], %TMP1		! argc
+	cmp	%TMP1, 4
+	be,a	.+8
+	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %REG4		! get 4th arg
+	ld	[ %GLOBALS + GLUE_TMP3_OFFSET ], %REG0		! proc
+	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
+	jmp	%TMP0 + A_CODEOFFSET
+	sll	%TMP1, 2, %RESULT
+
+#undef BASE
 
 
 ! I/O primitives -- these tap right into the OS.
@@ -250,10 +275,10 @@ scheme_call_1:
 _open_file:
 	save	%sp, -96, %sp
 
-	call	copystring
+	call	Lcopystring
 	nop
 
-	set	fnbuf, %o0
+	set	Lfnbuf, %o0
 	srl	%SAVED_ARGREG2, 2, %o1
 	call	_open
 	srl	%SAVED_ARGREG3, 2, %o2
@@ -267,10 +292,10 @@ _open_file:
 _unlink_file:
 	save	%sp, -96, %sp
 
-	call	copystring
+	call	Lcopystring
 	nop
 
-	set	fnbuf, %o0
+	set	Lfnbuf, %o0
 	call	_unlink
 	nop
 	sll	%o0, 2, %SAVED_RESULT
@@ -282,20 +307,20 @@ _unlink_file:
 ! terminating.
 ! This is not particularly efficient.
 
-copystring:
+Lcopystring:
 	ld	[ %SAVED_RESULT - BVEC_TAG ], %l0	! get hdr
 	srl	%l0, 8, %l0				! get length
 	andcc	%l0, 255, %l0				! truncate
-	set	fnbuf, %l2				! dest ptr
+	set	Lfnbuf, %l2				! dest ptr
 	stb	%g0, [ %l2 + %l0 ]			! terminator
-	b	Lopen1
+	b	Lcopy1
 	add	%SAVED_RESULT, 4 - BVEC_TAG, %l1	! src ptr
-Lopen0:
+Lcopy0:
 	ldub	[ %l1+%l0 ], %l3			! get
 	stb	%l3, [ %l2+%l0 ]			! put
-Lopen1:
+Lcopy1:
 	subcc	%l0, 1, %l0				! dec
-	bge	Lopen0					! again?
+	bge	Lcopy0					! again?
 	nop
 	
 	jmp	%o7+8
@@ -523,14 +548,13 @@ _typetag:
 	and	%RESULT, 7, %TMP0
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltypetag1
-	xorcc	%RESULT, VEC_TAG, %TMP0
+	ld	[ %RESULT - VEC_TAG ], %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Ltypetag1
-	xorcc	%RESULT, BVEC_TAG, %TMP0
+	ld	[ %RESULT - BVEC_TAG ], %TMP0
 	jmp	%MILLICODE + M_TYPE_EXCEPTION
 	nop
 Ltypetag1:
-	ld	[ %TMP0 ], %TMP0
 	jmp	%o7+8	
 	and	%TMP0, 0x1C, %RESULT
 
@@ -542,19 +566,18 @@ _typetag_set:
 	and	%RESULT, 7, %TMP0
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltypetagset1
-	xorcc	%RESULT, VEC_TAG, %TMP0
+	xor	%RESULT, VEC_TAG, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Ltypetagset1
-	xorcc	%RESULT, BVEC_TAG, %TMP0
+	xor	%RESULT, BVEC_TAG, %TMP0
 Ltypetagset0:
 	jmp	%MILLICODE + M_TYPE_EXCEPTION
 	nop
 Ltypetagset1:
-	mov	0xFFFFFFE3, %TMP1
-	andcc	%ARGREG2, %TMP1, %g0
+	ld	[ %TMP0 ], %TMP1
+	andncc	%ARGREG2, 0x1C, %g0
 	bne	Ltypetagset0
 	nop
-	ld	[ %TMP0 ], %TMP1
 	or	%TMP1, %ARGREG2, %TMP1
 	jmp	%o7 + 8
 	st	%TMP1, [ %TMP0 ]
@@ -735,37 +758,45 @@ _not_supported:
 ! "process" switching, and so we'll have to jump into Scheme if necessary.
 
 _timer_exception:
-	b	generic_exception
+	b	Lgeneric_exception
 	mov	TIMER_EXCEPTION, %TMP1
 
 !	jmp	%o7+8
 !	ld	[ %GLOBALS + INITIAL_TIMER_OFFSET ], %TIMER
 
 _type_exception:
-	b	generic_exception
+	b	Lgeneric_exception
 	mov	TYPE_EXCEPTION, %TMP1
 
 _proc_exception:
-	b	generic_exception
+	b	Lgeneric_exception
 	mov	PROC_EXCEPTION, %TMP1
 
 _arg_exception:
-	b	generic_exception
+	b	Lgeneric_exception
 	mov	ARG_EXCEPTION, %TMP1
 
 _arith_exception:
-	b	generic_exception
+	b	Lgeneric_exception
 	mov	ARITH_EXCEPTION, %TMP1
 
 _undef_exception:
-	b	generic_exception
-	mov	UNDEF_EXCEPTION, %TMP1	
+	ld	[ %GLOBALS + MILLICODE_SUPPORT_OFFSET ], %TMP0
+	ld	[ %TMP0 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP0
+	cmp	%TMP0, UNSPECIFIED_CONST
+	be,a	Lgeneric_exception
+	mov	UNDEF_EXCEPTION, %TMP1
+
+	mov	1, %TMP1
+	mov	MS_UNDEF_GLOBAL, %TMP2
+	b	_scheme_call
+	mov	%ARGREG2, %RESULT
 
 ! Generic exception handler for now. Jumps to the C exception handler.
 ! This handler will later be (re)written in Scheme. If the hander returns,
 ! we return to the caller and hope for the best.
 
-generic_exception:
+Lgeneric_exception:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 	call	_save_scheme_context
 	nop
@@ -786,8 +817,8 @@ generic_exception:
 
 	.seg	"data"
 
-fnbuf:	.skip	256
+Lfnbuf:	.skip	256
+Lfstr:	.asciz  "Retaddr=%x\n"
 Lemsg:	.asciz	"Unsupported millicode procedure at PC=%lX\n"
-Lemsg2:	.asciz	"In _schemecall (the buck stops here).\n"
 
 	! end of file
