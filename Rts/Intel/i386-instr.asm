@@ -2135,11 +2135,13 @@ t_label(%1):
 %endif
 %endmacro
 
-;;; OPTIMIZEME:	T_OP2_61 does tag checking that we do not need (but we do
-;;; need the overflow checking).
-	
 %macro T_OP2_501 1		; +:fix:fix
-	T_OP2_61 %1
+	loadr	TEMP, %1
+	add	RESULT, TEMP
+	jno short %%L2
+	sub	RESULT, TEMP
+%%L1:	mcall	M_ADD		; second is temp so 2nd arg is in place
+%%L2:
 %endmacro
 	
 %macro T_OP2_502 1		; -:idx:idx
@@ -2150,35 +2152,40 @@ t_label(%1):
 %endif
 %endmacro
 
-;;; OPTIMIZEME:	T_OP2_62 does tag checking that we do not need (but we do
-;;; need the overflow checking).
-	
 %macro T_OP2_503 1		; -:fix:fix
-	T_OP2_62 %1
+	loadr	TEMP, %1
+	sub	RESULT, TEMP
+	jno short %%L2
+	add	RESULT, TEMP
+%%L1:	mcall	M_SUB		; second is temp so 2nd arg is in place
+%%L2:
 %endmacro
 
 %macro T_OP2IMM_520 1		; +:idx:idx
 	add	RESULT, %1
 %endmacro
 
-;;; OPTIMIZEME:	T_OP2IMM_130 does tag checking that we do not need (but we do
-;;; need the overflow checking).
-	
 %macro T_OP2IMM_521 1		; +:fix:fix
-	T_OP2IMM_130 %1
+	add	RESULT, %1
+	jno short %%L2
+	sub	RESULT, %1
+%%L1:	mov	SECOND, %1
+	mcall	M_ADD
+%%L2:
 %endmacro
 
 %macro T_OP2IMM_522 1		; -:idx:idx
 	sub	RESULT, %1
 %endmacro
 
-;;; OPTIMIZEME:	T_OP2IMM_131 does tag checking that we do not need (but we do
-;;; need the overflow checking).
-	
 %macro T_OP2IMM_523 1		; -:fix:fix
-	T_OP2IMM_131 %1
+	sub	RESULT, %1
+	jno short %%L2
+	add	RESULT, %1
+%%L1:	mov	SECOND, %1
+	mcall	M_SUBTRACT
+%%L2:	
 %endmacro
-
 
 ;;; Experimental stuff below this line, we need more than this to support
 ;;; peephole optimization well.
