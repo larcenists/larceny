@@ -409,7 +409,9 @@
 		data))
 
     (define (table-heading)
-      (show '("#include \"asmmacro.h\"" #\newline
+      (show '("#define ASSEMBLER 1" #\newline
+              "#include \"../Sys/config.h\"" #\newline
+              "#include \"asmmacro.h\"" #\newline
 	      #\tab ".seg" #\tab "\"data\"" #\newline
 	      #\tab ".global EXTNAME(globals)" #\newline
 	      #\tab ".align 8" #\newline
