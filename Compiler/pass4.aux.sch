@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 17 December 1998
+; 19 December 1998
 
 ; Implements the following abstract data types.
 ;
@@ -371,8 +371,11 @@
   (let* ((stale (cgframe:slot.stale entry))
          (probe (assq #t stale)))
     (if probe
-        (begin (set-car! probe #f)
-               (cdr probe))
+        (let ((n (cdr probe)))
+          (if (zero? n)
+              (cgframe-used! frame))
+          (set-car! probe #f)
+          n)
         (let* ((cell (cgframe-size-cell frame))
                (n (+ 1 (car cell))))
           (set-car! cell n)
