@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 136, 137.
+HIGH PRIORITY BUGS: 136, 137, 147.
 
 
 005  (v0.27e)
@@ -197,20 +197,26 @@ HIGH PRIORITY BUGS: 136, 137.
     loading and linking, because that format will retain the tags.
 
 074 v0.36 (981207 / dougo)
+139 v0.46 (991023 / lth)
     Priority: medium.
-    Category: AUXLIB / correctness
+    Category: Pretty printer / correctness
 
-    Records (defined with make-record-type et al in Experimental/record.sch)
-    are no longer displayed with the record type printer; it just displays
-    "#<STRUCTURE>".
+    (1) Records (defined with make-record-type et al in Auxlib/record.sch)
+        are no longer displayed with the record type printer; it just displays
+        "#<STRUCTURE>".
 
-    Notes:
-    This is in the 0.36 "std.heap" with installed pretty printer.
+        The pretty printer does not use the structure printer to print 
+        structures.   Fixing this will probably require changing the semantics
+        of the structure printer, which now has no notion of "layout".
 
-    That's because the pretty printer (which is used for the repl printer) 
-    does not use the structure printer to print structures.   Fixing this
-    will probably require changing the semantics of the structure printer,
-    which now has no notion of "layout".
+    (2) The pretty printer does not format very well; in particular, it formats
+        things vertically that could be formatted horizontally.  Try:
+
+          (pretty-print ((system-function 'sys$get-resource-usage)))
+
+        for some pretty-line-length values; when I tried I could not get it to
+        print the remset entries horizontally even with line length 150 when 
+        all the lines fit on 100 characters.
 
 077 v0.36 (981207 / lth)
     Priority: low.
@@ -727,7 +733,6 @@ HIGH PRIORITY BUGS: 136, 137.
     but the expansion incorrectly uses an alpha-converted name for
     __super-secret-variable-name in the definition but not in later uses.
 
-
 137 v0.45 (991013 / lth)
     Priority: high
     Category: TWOBIT / correctness
@@ -793,28 +798,13 @@ HIGH PRIORITY BUGS: 136, 137.
     The bug should be fixed.  Fixing it will slow down the case when a
     pointer needs to be added to the SSB, probably not an issue in practice.
 
-
-139 v0.46 (991023 / lth)
-    Priority: low
-    Category: AUXLIB / correctness
-
-    The pretty printer does not format very well; in particular, it formats
-    things vertically that could be formatted horizontally.  Try:
-
-      (pretty-print ((system-function 'sys$get-resource-usage)))
-
-    for some pretty-line-length values; when I tried I could not get it to
-    print the remset entries horizontally even with line length 150 when 
-    all the lines fit on 100 characters.
-
-
 140 v0.47 (991117 / lth)
     Priority: low
     Category: LIB / correctness
 
     The console I/O code (Lib/Common/conio.sch) leaks file descriptors,
-    slowly.  See comments in that file.
-
+    slowly.  See comments in that file.  (The nonblocking I/O console
+    code in Experimental/nonblocking-console.sch also has this problem.)
 
 141 v0.47 (991121 / lth)
     Priority: low
@@ -830,7 +820,6 @@ HIGH PRIORITY BUGS: 136, 137.
 
     See Asm/Sparc/sparcprim-3b.sch: emit-make-vector-like!.
 
-
 142 v0.47 (991121 / lth)
     Priority: low
     Category: ASSEMBLER / correctness
@@ -845,7 +834,6 @@ HIGH PRIORITY BUGS: 136, 137.
 
     (This may be a feature actually.)
 
-
 143 v0.47 (991121 / lth)
     Priority: low
     Category: RTS / error handling
@@ -859,7 +847,6 @@ HIGH PRIORITY BUGS: 136, 137.
     would be nice if some reasonable error could be signalled like in
     the other cases.
 
-
 144 v0.47 (991121 / lth)
     Priority: low
     Category: RTS / error handling
@@ -871,7 +858,82 @@ HIGH PRIORITY BUGS: 136, 137.
 	Larceny Panic: Can't allocate an object of size -2147483648 bytes: \
 	\max is 16777215 bytes.
 
+145 v0.47 (991122 / lth)
+    Priority: low
+    Category: Solaris FFI / usefulness
 
-NEXT ENTRY: 145
+    Currently the FFI uses the RTLD_LOCAL flag to dlopen(); this seems
+    most reasonable.  However, some libraries mysteriously require
+    being linked with RTLD_GLOBAL, so far libjava.so has this problem.
+
+    The "bug" is probably that the FFI only has the ability to use one
+    or the other when loading a library; we could extend the FFI to
+    accept configuration flags to work around issues like these.
+
+146 v0.47 (991122 / lth)
+    Priority: medium
+    Category: TWOBIT / quality-of-implementation
+
+    The macro expander needs to be tuned.
+    The rest of Twobit needs to be tuned.
+
+147 v0.48 (991123 / lth)
+    Priority: medium
+    Category: TWOBIT / correctness
+
+    The macro expander barfs on an incorrect use of ASSV:
+	> (macro-expand '(assv x))
+
+	Error: car: () is not a pair.
+	Entering debugger; type "?" for help.
+	debug> b
+	=> compiled procedure debug/enter-debugger
+	   system continuation
+	   compiled procedure #f
+	   compiled procedure m-transcribe-low-level
+	   compiled procedure #f
+	...
+	debug> 2 d
+	compiled procedure #f
+	debug> c
+	(lambda (exp rename compare)
+	  (let ((arg1 (cadr exp)) (arg2 (caddr exp)))
+	    (if (or (boolean? arg1)
+	            (char? arg1)
+	            (and (pair? arg1)
+	                 (= (length arg1) 2)
+	                 (identifier? (car arg1))
+	                 (compare (car arg1) (rename 'quote))
+	                 (symbol? (cadr arg1)))
+	            (and (pair? arg2)
+	                 (= (length arg2) 2)
+	                 (identifier? (car arg2))
+	                 (compare (car arg2) (rename 'quote))
+	                 (every1?
+	                   (lambda (y)
+	                     (and (pair? y)
+	                          (let ((x (car y)))
+	                            (or (boolean? x) (char? x) (symbol? x)))))
+	                   (cadr arg2))))
+	        (cons (rename 'assq) (cdr exp))
+	        exp)))
+
+148 v0.48 (991123 / lth)
+    Priority: medium
+    Category: LIB / correctness
+
+    The I/O system is not thread-safe.
+
+
+149 v0.48 (991123 / lth)
+    Priority: low
+    Category: Language / consistency
+
+    LOGAND, LOGIOR, LOGNOT, and LOGXOR should probably be called
+    something like FXAND, FXIOR, FXNOT, and FXXOR for consistency with
+    other fixnum operators' naming.
+
+
+NEXT ENTRY: 150
 
 ; eof
