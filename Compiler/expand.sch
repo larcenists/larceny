@@ -25,10 +25,17 @@
 ; The outermost lambda allows known procedures to be lifted outside
 ; all local variables.
 
-(define (macro-expand def-or-exp syntaxenv)
+; macro-expand takes an optional second argument, for inline procedures.
+
+(define (macro-expand def-or-exp syntaxenv . rest)
   (call-with-current-continuation
    (lambda (k)
-     (parameterize ((global-syntactic-environment syntaxenv))
+     (parameterize ((global-syntactic-environment 
+                     syntaxenv)
+                    (global-inline-environment 
+                     (if (not (null? rest)) 
+                         (car rest)
+                         (make-minimal-syntactic-environment))))
        (set! m-quit k)
        (set! renaming-counter 0)
        (make-call
