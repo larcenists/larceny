@@ -10,10 +10,11 @@
 
 (define (compat:initialize . rest)
   (if (null? rest)
-      (begin (compat:load "Larceny/compat2.sch")
-	     (compat:load "Auxlib/misc.sch")
-	     (compat:load "Auxlib/sort.sch")
-	     (compat:load "Auxlib/pp.sch"))))
+      (let ((dir (nbuild-parameter 'compatibility)))
+        (compat:load (string-append dir "compat2.sch"))
+        (compat:load (string-append dir "../Auxlib/misc.sch"))
+        (compat:load (string-append dir "../Auxlib/sort.sch"))
+        (compat:load (string-append dir "../Auxlib/pp.sch")))))
 
 (define (with-optimization level thunk) 
   (thunk))

@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 17 May 1995.
+; 13 November 1998
 ;
 ; Second pass of the Twobit compiler, part 2:
 ;   single assignment elimination, assignment elimination,
@@ -454,11 +454,13 @@
                      (loop (- i 1) #t))))))
   (loop (- (vector-length v) 1) #f))
 
-; Hey, it's a prototype.
+
+; Given a lambda expression L2, its parent lambda expression
+; L (which may be the same as L2, or #f), and a list of the
+; lists of arguments that would need to be added to known
+; local procedures, returns #t iff lambda lifting should be done.
 ;
-; Reasonable heuristics to use eventually, on the assumption
-; that simple code generators will create a closure upon entry
-; to any lambda expression that contains internal definitions:
+; Here are some heuristics:
 ;
 ;   Don't lift if it means adding too many arguments.
 ;   Don't lift large groups of definitions.
@@ -466,8 +468,11 @@
 ;     lambda expression that already contains internal
 ;     definitions than to one that doesn't.
 ;   It is better not to lift if the body contains a lambda
-;     expression that has to be closed anyway.  This is the
-;     only heuristic used below.
+;     expression that has to be closed anyway.
 
 (define (POLICY:LIFT? L2 L args-to-add)
-  (not (lambda? (lambda.body L2))))
+  (and (lambda-optimizations)
+       (not (lambda? (lambda.body L2)))
+       (every? (lambda (addlist)
+                 (< (length addlist) 6))
+               args-to-add)))

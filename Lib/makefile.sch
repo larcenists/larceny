@@ -207,10 +207,10 @@
 ; Project for building all the files in the Compiler subdirectory.
 
 (define compiler-project (make:new-project "compiler.date"))
-(define compiler-files '("compile313" "help" "pass1.aux" "pass1" 
+(define compiler-files '("compile313" "help" "copy" "pass1.aux" "pass1" 
 			 "pass2.aux" "pass2p1" "pass2p2" "pass4.aux"
 			 "pass4p1" "pass4p2" "pass4p3" 
-			 "sets" "switches" "sparc.imp" "pass4patch"
+			 "sets" "switches" "sparc.imp" "patch0"
 			 "printlap"))
 
 (define comp-asm-files '("makefasl" "makefasl2" "dumpheap"))

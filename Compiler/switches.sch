@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 24 May 1995 (Larceny-specific)
+; 12 October 1998 (Larceny-specific)
 ;
 ; Compiler switches needed by Twobit.
 
@@ -28,11 +28,10 @@
              state)
             (else (twobit-warning))))))
 
-(define integrate-usual-procedures
-  (make-twobit-flag 'integrate-usual-procedures))
+; Debugging and convenience.
 
-(define benchmark-mode
-  (make-twobit-flag 'benchmark-mode))
+(define issue-warnings
+  (make-twobit-flag 'issue-warnings))
 
 (define include-source-code
   (make-twobit-flag 'include-source-code))
@@ -43,14 +42,43 @@
 (define include-procedure-names
   (make-twobit-flag 'include-procedure-names))
 
+; Semantics.
+; Is this still supported?  If so, then why?
+
 (define empty-list-is-true
   (make-twobit-flag 'empty-list-is-true))
+
+; Space efficiency.
+; This switch isn't fully implemented yet.  If it is false, then
+; Twobit will generate flat closures and will go to some trouble
+; to zero stale registers and stack slots.
+; Don't turn this switch off unless space is more important than speed.
+
+(define ignore-space-leaks
+  (make-twobit-flag 'ignore-space-leaks))
+
+; Major optimizations.
+
+(define integrate-usual-procedures
+  (make-twobit-flag 'integrate-usual-procedures))
+
+(define benchmark-mode
+  (make-twobit-flag 'benchmark-mode))
 
 (define local-optimizations
   (make-twobit-flag 'local-optimizations))
 
-(define issue-warnings
-  (make-twobit-flag 'issue-warnings))
+(define global-optimizations
+  (make-twobit-flag 'local-optimizations))
+
+(define representation-optimizations
+  (make-twobit-flag 'representation-optimizations))
+
+(define lambda-optimizations
+  (make-twobit-flag 'lambda-optimizations))
+
+(define parallel-assignment-optimization
+  (make-twobit-flag 'parallel-assignment-optimization))
 
 ; For bootstrap heap dumper
 
@@ -58,4 +86,3 @@
   (make-twobit-flag 'generate-global-symbols))
 
 ; eof
-

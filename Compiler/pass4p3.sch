@@ -1,5 +1,6 @@
 ; Local optimizations for MacScheme machine assembly code.
 ;
+; Suppress nop instructions.
 ; Suppress save, restore, and pop instructions whose operand is -1.
 ; Suppress redundant stores.
 ; Suppress definitions (primarily loads) of dead registers.
@@ -157,6 +158,13 @@
                       $.proc
                       $.cont
                       $.label)))
+    
+    (let ((proc (lambda (instructions filtered instruction)
+                  (forwards instructions filtered))))
+      
+      ; No operation.
+      
+      (vector-set! forward-table $nop proc))
     
     (let ((proc (lambda (instructions filtered instruction)
                   (if (negative? (instruction.arg1 instruction))

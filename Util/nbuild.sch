@@ -3,6 +3,8 @@
 ;
 ; $Id: nbuild.sch,v 1.6 1997/09/23 20:07:36 lth Exp lth $
 ;
+; Hacked 11 November 1998 by wdc for v0.35.
+;
 ; The only parameter to this module is a procedure "nbuild-parameter"
 ; that accepts a key and returns a value for the key.
 ;
@@ -44,6 +46,7 @@
   ((standard-C) (nbuild-load 'compiler "standard-C.imp.sch"))
   (else ???))
 
+(nbuild-load 'compiler "copy.sch")
 (nbuild-load 'compiler "pass1.sch")
 (nbuild-load 'compiler "pass2.aux.sch")
 (nbuild-load 'compiler "pass2p1.sch")
@@ -52,7 +55,6 @@
 (nbuild-load 'compiler "pass4p1.sch")
 (nbuild-load 'compiler "pass4p2.sch")
 (nbuild-load 'compiler "pass4p3.sch")
-(nbuild-load 'compiler "pass4patch.sch")
 
 (if (not (nbuild-parameter 'new-assembler?))
     (begin 
@@ -100,6 +102,8 @@
        (nbuild-load 'standard-C-asm "switches.sch"))
       (else
        ???))
+
+(nbuild-load 'compiler "patch0.sch")
 
 (case (nbuild-parameter 'target-machine)
   ((SPARC)

@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 16 May 1995.
+; 6 November 1998.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
@@ -70,6 +70,12 @@
 ;   *  If I is declared by an internal definition, then the right hand
 ;      side of the internal definition is a lambda expression and I
 ;      is referenced only in the procedure position of a call.
+;   *  Each R contains one entry for every identifier bound in the
+;      formal argument list and the internal definition list that
+;      precede it.  Each entry contains a list of pointers to all
+;      references to the identifier, a list of pointers to all
+;      assignments to the identifier, and a list of pointers to all
+;      calls to the identifier.
 ;   *  For each lambda expression, the associated F is a list of all
 ;      the identifiers that occur free in the body of that lambda
 ;      expression, and possibly a few extra identifiers that were
@@ -79,9 +85,16 @@
 ;      inner lambda expression that escapes, and possibly a few that
 ;      don't.  (Assignment-elimination does not calculate G exactly.)
 ;   *  Variables named IGNORED are neither referenced nor assigned.
+;   *  Except for constants, the expression does not share structure
+;      with the original input or itself, except that the references
+;      and assignments in R are guaranteed to share structure with
+;      the expression.  Thus the expression may be side effected, and
+;      side effects to references or assignments obtained through R
+;      are guaranteed to change the references or assignments pointed
+;      to by R.
 
 (define (pass2 exp)
-  (simplify exp (make-notepad #f)))
+  (copy-exp (simplify exp (make-notepad #f))))
 
 ; Given an expression and a "notepad" data structure that conveys
 ; inherited attributes, performs the appropriate optimizations and
@@ -125,10 +138,14 @@
     (lambda.body-set! exp (simplify body newnotepad))
     (lambda.F-set! exp (notepad-free-variables newnotepad))
     (lambda.G-set! exp (notepad-captured-variables newnotepad))
-    (for-each (lambda (L) (lambda-lifting L exp))
-              (notepad.lambdas newnotepad))
     (single-assignment-analysis exp newnotepad)
-    (single-assignment-elimination exp notepad))
+    (let ((known-lambdas (notepad.nonescaping newnotepad)))
+      (for-each (lambda (L)
+                  (if (memq L known-lambdas)
+                      (lambda-lifting L exp)
+                      (lambda-lifting L L)))
+                (notepad.lambdas newnotepad))))
+  (single-assignment-elimination exp notepad)
   (assignment-elimination exp)
   (if (not (notepad.parent notepad))
       ; This is an outermost lambda expression.
@@ -185,13 +202,11 @@
                    (make-begin (list (if.test test)
                                      (simplify (if.else exp) notepad)))
                    notepad))
-                 (else (if.then-set! exp (simplify (if.then test) notepad))
-                       (if.else-set! exp (simplify (if.else test) notepad))
-                       (if (not (constant.value (if.then test)))
+                 (else (if (not (constant.value (if.then test)))
                            (let ((temp (if.then exp)))
                              (if.then-set! exp (if.else exp))
                              (if.else-set! exp temp)))
-                       exp)))
+                       (loop (if.test test)))))
           ((begin? test)
            (let ((exprs (reverse (begin.exprs test))))
              (if.test-set! exp (car exprs))
@@ -354,22 +369,32 @@
                   (and (null? (R-entry.assignments Rinfo))
                        (= (length (R-entry.references Rinfo))
                           (length (R-entry.calls Rinfo))))))
-           (notepad-nonescaping-add! notepad (car actuals))
-           (lambda.defs-set! proc
-                             (cons (make-definition (car formals)
-                                                    (car actuals))
-                                   (lambda.defs proc)))
+           (let ((I (car formals))
+                 (L (car actuals)))
+             (notepad-nonescaping-add! notepad L)
+             (lambda.defs-set! proc
+               (cons (make-definition I L)
+                     (lambda.defs proc)))
+             (standardize-known-calls L
+                                      (R-entry.calls
+                                       (R-lookup (lambda.R proc) I)))
+             (lambda.F-set! proc (union (lambda.F proc)
+                                        (free-variables L)))
+             (lambda.G-set! proc (union (lambda.G proc) (lambda.G L))))
            (loop (cdr formals)
                  (cdr actuals)
                  processed-formals
                  processed-actuals
                  for-effect))
           ((and (constant? (car actuals)))
-           (let ((Rinfo (R-lookup (lambda.R proc) (car formals))))
+           (let* ((I (car formals))
+                  (Rinfo (R-lookup (lambda.R proc) I)))
              (for-each (lambda (ref)
                          (variable-set! ref (car actuals)))
                        (R-entry.references Rinfo))
              (lambda.R-set! proc (remq Rinfo (lambda.R proc)))
+             (lambda.F-set! proc (remq I (lambda.F proc)))
+             (lambda.G-set! proc (remq I (lambda.G proc)))
              (loop (cdr formals)
                    (cdr actuals)
                    processed-formals
@@ -387,7 +412,11 @@
     (call.args-set! exp (reverse actuals))
     (let ((exp (if (and (null? actuals)
                         (or (null? (lambda.defs proc))
-                            (notepad.parent notepad)))
+                            (and (notepad.parent notepad)
+                                 (POLICY:LIFT? proc
+                                               (notepad.parent notepad)
+                                               (map (lambda (def) '())
+                                                    (lambda.defs proc))))))
                    (begin (for-each (lambda (I)
                                       (notepad-var-add! notepad I))
                                     (lambda.F proc))
@@ -411,7 +440,7 @@
           exp
           (post-simplify-begin (make-begin (append for-effect (list exp)))
                                notepad))))
-  (notepad-nonescaping-add! notepad exp)
+  (notepad-nonescaping-add! notepad proc)
   (loop (lambda.args proc) (call.args exp) '() '() '()))
 
 ; Single assignment analysis performs the transformation
@@ -435,27 +464,38 @@
         (defs (lambda.defs L))
         (R (lambda.R L))
         (body (lambda.body L)))
+    (define (finish! exprs escapees)
+      (begin.exprs-set! body
+                        (append (reverse escapees)
+                                exprs))
+      (lambda.body-set! L (post-simplify-begin body '())))
     (if (begin? body)
-        (let ((first (car (begin.exprs body))))
-          (if (assignment? first)
-              (let ((I (assignment.lhs first))
-                    (rhs (assignment.rhs first)))
-                (if (and (lambda? rhs)
-                         (local? R I)
-                         (= 1 (length (assignments R I)))
-                         (= (length (calls R I))
-                            (length (references R I))))
-                    (begin (notepad-nonescaping-add! notepad rhs)
-                           (flag-as-ignored I L)
-                           (lambda.defs-set! L
-                             (cons (make-definition I rhs)
-                                   (lambda.defs L)))
-                           (assignments-set! R I '())
-                           (begin.exprs-set! body (cdr (begin.exprs body)))
-                           (lambda.body-set! L (post-simplify-begin body '()))
-                           (standardize-known-calls rhs
-                                                    (R-entry.calls (R-lookup R I)))
-                           (single-assignment-analysis L notepad)))))))))
+        (let loop ((exprs (begin.exprs body))
+                   (escapees '()))
+          (let ((first (car exprs)))
+            (if (and (assignment? first)
+                     (not (null? (cdr exprs))))
+                (let ((I (assignment.lhs first))
+                      (rhs (assignment.rhs first)))
+                  (if (and (lambda? rhs)
+                           (local? R I)
+                           (= 1 (length (assignments R I))))
+                      (if (= (length (calls R I))
+                             (length (references R I)))
+                          (begin (notepad-nonescaping-add! notepad rhs)
+                                 (flag-as-ignored I L)
+                                 (lambda.defs-set! L
+                                   (cons (make-definition I rhs)
+                                         (lambda.defs L)))
+                                 (assignments-set! R I '())
+                                 (standardize-known-calls
+                                  rhs
+                                  (R-entry.calls (R-lookup R I)))
+                                 (loop (cdr exprs) escapees))
+                          (loop (cdr exprs)
+                                (cons (car exprs) escapees)))
+                      (finish! exprs escapees)))
+                (finish! exprs escapees)))))))
 
 (define (standardize-known-calls L calls)
   (let ((formals (lambda.args L)))
@@ -478,4 +518,3 @@
                               (if (not (= (length (call.args call)) n))
                                   (pass2-error p2error:wna call)))
                             calls))))))
-
