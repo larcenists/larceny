@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 November 1998
+; 18 December 1998
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.
@@ -385,7 +385,8 @@
                  (gen! output $skip L (cgreg-live regs r)))
              (cg-defs output defs newenv)
              (if (not tail?)
-                 (gen! output $.label L))))
+                 (gen! output $.label L))
+             r))
           (else
            (let ((free (cg-sort-vars free regs frame env)))
              (cg-eval-vars output free regs frame env)
