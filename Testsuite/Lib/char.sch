@@ -1,5 +1,4 @@
-; Testsuite/Lib/char.sch
-; Larceny testsuite -- character operations
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 
@@ -136,13 +135,14 @@
 (define (char-conversion-tests x)
   (allof "integer->char, char->integer"
    (test "(char? (integer->char 44))" (char? (integer->char 44)) #t)
-   (let loop ((i 0 (+ i 1)))
+   (let loop ((i 0))
      (cond ((= i 256) #t)
 	   ((not (test "(char? (integer->char i))" 
 		       (char? (integer->char i))
 		       #t))
 	    #f)
-	   (else (loop (+ i 1)))))
+	   (else
+	    (loop (+ i 1)))))
    (test "(eqv? (char->integer x) 97)" (eqv? (char->integer x) 97) #t)
    (test "(char=? (integer->char (char->integer x)) x)"
 	 (char=? (integer->char (char->integer x)) x)
