@@ -172,10 +172,16 @@
   (newline))
 
 (define (debug/breakpoint toplevel-name args)
-  (display "Breakpoint: ")
-  (debug/print-call toplevel-name args)
-  (newline)
-  (debug-continuation-structure (current-continuation-structure) #f))
+  (if (debug/breakpoints-enable)
+      (begin
+        (display "Breakpoint: ")
+        (debug/print-call toplevel-name args)
+        (newline)
+        (debug-continuation-structure (current-continuation-structure) #f))
+      (begin
+        (display "Breakpoint in ") (display toplevel-name) 
+        (display " ignored.")
+        (newline))))
 
 (define (debug/print-call name args)
   (display "(")
