@@ -550,7 +550,7 @@
              '()
              '()
              #f
-             (implement-dispatch-fixnum prior name:n lists))))
+             (implement-dispatch-fixnum prior (make-variable name:n) lists))))
     (make-call L
                (make-call (make-variable name:CHAR->INTEGER)
                           (list ref0)))))
