@@ -10,21 +10,32 @@
 
 #include "remset_t.h"		/* For remset_stats_t */
 
-/* Heap statistics are returned from the collector by calling the stats()
- * member function with a generation number.  The returned structure contains
- * data from two broad categories: snapshot state and accumulated data.
- * The snapshot state says something about the dynamic state of the system:
- * the amount of memory allocated.  The accumulated data are counters that
- * are _cleared_ internally every time statistics are obtained, so at each
- * call the difference of the counters with respect to the previous call
- * is obtained.
+struct dof_stats {
+  int promotions;		/* Into the DOF area */
+  int collections;		/* Single-window collections */
+  int resets;			/* Window resets */
+  int repeats;			/* Repeat collections */
+  int full_collections;		/* Full marking collections */
+
+  int bytes_promoted_in;	/* By promotion from Ephemeral */
+
+  int objects_marked;		/* By full GC */
+  int pointers_traced;		/* By full GC */
+  int remset_entries_removed;	/* By full GC */
+};
+
+/* Heap statistics are returned from the collector by calling the
+ * stats() method.  The statistics are collected on a per-generation
+ * basis.  The structure is filled with data from two broad categories:
+ * snapshot state and accumulated data.  The accumulated data are
+ * counters that are _cleared_ internally every time statistics are
+ * obtained, so at each call the difference of the counters with respect
+ * to the previous call is obtained.
  *
  * Not all entries are meaningful for all heaps, and will be set to 0
  * if that is the case.  For example, only young heaps have stacks and
  * only old heaps can have remembered sets.
- *
- * The statistics are collected on a per-generation basis.
- */
+ * */
 
 struct heap_stats {
   /* Snapshot entries */
@@ -53,9 +64,12 @@ struct heap_stats {
 
   /* "Since last call" entries */
   remset_stats_t np_remset_data;
+
+  /* DOF collector "since last call" entries */
+  bool dof_generation;		/* TRUE if DOF subgeneration */
+  dof_stats_t dof;
 };
 
 #endif
 
 /* eof */
-
