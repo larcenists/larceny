@@ -18,6 +18,10 @@
 		(error "FFI: unsupported SunOS version " maj))))
 	    ((string=? os "Win32")
 	     'i386-win32)
+	    ((and (string=? os "Linux")
+		  (zero?
+		   (system "test \"`uname -m | grep 'i.86'`x\" != \"x\"")))
+	     'i386-linux)
 	    (else
 	     (error "FFI: unsupported operating system " os)))))
 
@@ -50,6 +54,13 @@
      (loadit "ffi-win32.sch")
      (values architecture
 	     ffi/i386-win32-C-callout-cdecl
+	     #f))
+    ((i386-linux)
+     (loadit "ffi-i386.sch")
+     (loadit "ffi-linux-x86.sch")
+     (ffi/libraries (list (ffi/x86-linux-libc)))
+     (values architecture
+	     ffi/i386-linux-C-callout-cdecl
 	     #f))
     (else
      (error "Unknown FFI architecture " *ffi-architecture*))))
