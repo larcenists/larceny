@@ -61,15 +61,21 @@
 
 
 # Petit Larceny on Debian Linux: gcc
+#O=o
+#CC=gcc
+#DEBUGINFO=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+
+
+# Native Larceny on Debian Linux: gcc + nasm
 O=o
 CC=gcc
 DEBUGINFO=-gstabs+
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+OPTIMIZE=#-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-LIBS=-lm
-#.c.o:
-#	$(CC) $(CFLAGS) -o $*.o $<
-
+AS=nasm
+ASFLAGS=-f elf -IIntel -IBuild -DLINUX
 
 # Petit Larceny on DEC Alpha OSF/1: DEC C compiler
 # Probably not up-to-date, has not been tested for some time!
@@ -102,11 +108,12 @@ COMMON_RTS_OBJECTS=\
 	Sys/syscall.$(O) Sys/util.$(O) Sys/version.$(O)
 
 PRECISE_GC_OBJECTS=\
-	Sys/alloc.$(O) Sys/cheney.$(O) Sys/dof-heap.$(O) Sys/gc.$(O) Sys/heapio.$(O) \
-	Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \
-	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) Sys/old_heap_t.$(O) \
-	Sys/old-heap.$(O) Sys/remset.$(O) Sys/sc-heap.$(O) Sys/semispace.$(O) \
-	Sys/static-heap.$(O) Sys/stats.$(O) Sys/young_heap_t.$(O)
+	Sys/alloc.$(O) Sys/cheney.$(O) Sys/dof-heap.$(O) Sys/gc.$(O) \
+	Sys/heapio.$(O) Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \
+	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \
+	Sys/old_heap_t.$(O) Sys/old-heap.$(O) Sys/remset.$(O) \
+	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \
+	Sys/stats.$(O) Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\
 	Sys/bdw-gc.$(O) Sys/bdw-stats.$(O) Sys/bdw-collector.$(O) \
@@ -120,8 +127,8 @@ BOEHM_GC_LIBRARIES=\
 
 COMMON_SPARC_OBJECTS=\
 	Sparc/barrier.$(O) Sparc/cache.$(O) Sparc/cache0.$(O) \
-	Sparc/glue.$(O) Sparc/mcode.$(O) Sparc/signals.$(O) Sparc/syscall2.$(O) \
-	Build/sparc-table.$(O) 
+	Sparc/glue.$(O) Sparc/mcode.$(O) Sparc/signals.$(O) \
+	Sparc/syscall2.$(O) Build/sparc-table.$(O) 
 
 SPARC_PRECISE_GC_OBJECTS=\
 	Sparc/memory.$(O) Sparc/generic.$(O) Sparc/cglue.$(O)
@@ -129,6 +136,11 @@ SPARC_PRECISE_GC_OBJECTS=\
 PETIT_OBJECTS=\
 	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \
 	Standard-C/multiply.$(O) Standard-C/syscall2.$(O) Build/c-table.$(O)
+
+X86_NASM_OBJECTS=\
+	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \
+	Intel/i386-driver.$(O) Intel/i386-millicode.$(O) \
+	Standard-C/multiply.$(O) Standard-C/syscall2.$(O) Build/nasm-table.$(O)
 
 # SPARC only
 LARCENY_OBJECTS=\
@@ -156,6 +168,14 @@ PETIT_LARCENY_OBJECTS=\
 	$(PRECISE_GC_OBJECTS) \
 	$(PETIT_OBJECTS)
 
+# Intel x86 with the NASM backend
+X86_NASM_LARCENY_OBJECTS=\
+	Sys/larceny.$(O) \
+	Standard-C/config.$(O) \
+	$(COMMON_RTS_OBJECTS) \
+	$(PRECISE_GC_OBJECTS) \
+	$(X86_NASM_OBJECTS)
+
 
 # Generated header files.
 # ACFG, CCFG, SCFG, and HDRFILES also exists in ../Makefile.  Watch it!
@@ -172,7 +192,7 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 #
 # Rules
 
-.SUFFIXES:	.cfg .ch .ah .sh .mac
+.SUFFIXES:	.cfg .ch .ah .sh .mac .asm
 
 .cfg.ch:
 	../build -config $<
@@ -189,6 +209,8 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 .s.o:
 	$(AS) $(ASFLAGS) -o $*.o $<
 
+.asm.o:
+	$(AS) $(ASFLAGS) -o $*.o $<
 
 
 ############################################################################
@@ -230,22 +252,31 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 #		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 #	/bin/rm -f Sys/version.o
 
-# MacOS X
-libpetit.so: $(PETIT_LARCENY_OBJECTS)
-	$(CC) -r -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS) \
-		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) -L/usr/lib -lc -lm
-	/bin/rm -f Sys/version.o
+# MacOS X shared object (not tested much)
+#libpetit.so: $(PETIT_LARCENY_OBJECTS)
+#	$(CC) -r -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS) \
+#		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) \
+#		-L/usr/lib -lc -lm
+#	/bin/rm -f Sys/version.o
 
+# Generic Unix
 libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a
 
+# Intel x86 with the NASM back-end, on Unix
+libx86.a: $(X86_NASM_LARCENY_OBJECTS)
+	ar -r libx86.a $(X86_NASM_LARCENY_OBJECTS)
+	ranlib libx86.a
+
 # Win32
 petit-rts.lib: $(PETIT_LARCENY_OBJECTS)
-	lib /libpath:Rts /name:petit-rts /out:petit-rts.lib $(PETIT_LARCENY_OBJECTS)
+	lib /libpath:Rts /name:petit-rts /out:petit-rts.lib \
+	   $(PETIT_LARCENY_OBJECTS)
 
 hsplit: Util/hsplit.o
-	$(CC) $(PROFILE) $(TCOV) $(DEBUGINFO) $(LDXFLAGS) -o hsplit Util/hsplit.o
+	$(CC) $(PROFILE) $(TCOV) $(DEBUGINFO) $(LDXFLAGS) -o hsplit \
+	   Util/hsplit.o
 
 Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
@@ -253,7 +284,8 @@ Util/hsplit.o: Util/hsplit.c
 clean:
 	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 	   Sys/*.$(O) Sparc/*.$(O) Build/*.$(O) Standard-C/*.$(O) Util/*.$(O) \
-	   petit-rts.lib petit-lib.lib libpetit.so libpetit.a Standard-C/arithmetic.c
+	   petit-rts.lib petit-lib.lib libpetit.so libpetit.a \
+	   Standard-C/arithmetic.c
 
 rtsclean: clean
 	rm -f Build/*.s Build/*.*h
