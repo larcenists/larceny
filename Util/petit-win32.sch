@@ -8,7 +8,10 @@
 
 (define nbuild-parameter #f)
 
-(define make-command "nmake")
+(define (make-command)
+  (if (eq? 'gcc-mingw (compiler-tag (current-compiler)))
+      "mingw32-make"
+      "nmake"))
 
 (define (win32-initialize)
   (load "Util\\sysdep-win32.sch")
@@ -17,7 +20,7 @@
 	(make-nbuild-parameter 'always-source? #f
                                'verbose-load? #t
                                'development? #t
-                               'machine-source "Lib/Standard-C/"
+                               'machine-source "Lib\\Standard-C\\"
                                'host-os 'win32
                                'host-endianness 'little
                                'target-machine 'standard-c
@@ -82,7 +85,7 @@
 (define (build-runtime)
   (execute-in-directory 
    "Rts" 
-   (string-append make-command " libpetit" (lib-suffix))))
+   (string-append (make-command) " libpetit" (lib-suffix))))
 
 (define build-runtime-system build-runtime) ; Old name
 
