@@ -107,7 +107,9 @@
             (bignum v $mstat.full-moved-hi)
             (bignum v $mstat.full-marked-hi)
             (bignum v $mstat.full-words-marked-hi)
-            (bignum v $mstat.full-pointers-traced-hi)
+            (bignum v $mstat.full-pointers-traced-hi) ;   # 40
+            (vector-ref v $mstat.words-mem)
+            (vector-ref v $mstat.words-mem-max)
             ))
 
   (define (make-remset-vector rems)
@@ -172,6 +174,8 @@
 (define (memstats-rts-allocated-max v) (vector-ref v 32))
 (define (memstats-heap-fragmentation-now v) (vector-ref v 30))
 (define (memstats-heap-fragmentation-max v) (vector-ref v 33))
+(define (memstats-mem-allocated-now v) (vector-ref v 41))
+(define (memstats-mem-allocated-max v) (vector-ref v 42))
 (define (memstats-generations v) (vector-ref v 7))
 (define (memstats-remsets v) (vector-ref v 8))
 (define (memstats-frames-flushed v) (vector-ref v 9))
