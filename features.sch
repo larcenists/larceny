@@ -10,9 +10,9 @@
 ; the instructions at the head of that section carefully.
 
 
-; TO DO
+; TODO / FIXME
 ; - could also generate Rts/Makefile
-
+; - we should get rid of all negative options, as they are too often confusing
 
 ; List of available features, with explanations.
 
@@ -33,14 +33,20 @@
  "EXPLICIT_DIVZ_CHECK"          ; Explicit check for integer division by zero.
 				; Some systems, like the PPC, do not trap
 				; integer division by zero.
- "FLUSH_ALWAYS"                 ; Set to 1 to force icache flushing
- "FLUSH_NEVER"                  ; Set to 1 to disable icache flushing
+ "FLUSH_ALWAYS"                 ; Instruction cache flushing is normally
+ "FLUSH_NEVER"                  ; handled by the run-time system and you don't
+                                ; need to select either of these.  But if the
+                                ; RTS cannot figure it out, then set FLUSH_ALWAYS
+                                ; to 1 to force flushing, and set FLUSH_NEVER to 1
+                                ; to disable it completely.  (The only system that
+                                ; is yet known to require these is the early SPARC
+                                ; multiprocessors running SunOS 4.)
  "HARDWARE_DIVISION"            ; Set to 1 to use hardware division even
 				; if that compromises backward compatibility.
 				; Some RISC systems implement HW division
 				; only in later architecture versions.
- "SPARCV9"                      ; Use SPARC v9 instructions
- "PENTIUM"                      ; Use Pentium instructions
+ "SPARCV9"                      ; Use SPARC v9 instructions (default is SPARC v8 only)
+ "PENTIUM"                      ; Use Pentium instructions (default is 386 only)
 
  ; Operating systems.  You need one of these.
 
@@ -72,19 +78,19 @@
 
  "DOF_COLLECTOR"
     ; When set, includes the deferred-older-first collector when
-    ; compiling the system.  For specially interested only.
+    ; compiling the system.
     ;
     ; Recommended setting is off.
 
  "ROF_COLLECTOR"
     ; When set, includes the renewal-older-first collector when
-    ; compiling the system.  For specially interested only.
+    ; compiling the system.
     ; 
     ; Recommended setting is off.
 
  "STACK_UNDERFLOW_COUNTING"
-    ; When set, enables stack underflow accounting.  The performance
-    ; impact is negligible.
+    ; When set, enables stack underflow accounting.  (The performance
+    ; impact of this is negligible.)
     ; 
     ; Recommended setting is on.
 
@@ -96,15 +102,15 @@
     ; mutator and in the garbage collector, and reduce the register
     ; pressure in the inner loops of the collector.
     ; 
-    ; Recommended setting: off, as it needs further evaluation.
+    ; Recommended setting is off, as it needs further evaluation.
 
  "RETURN_MEMORY_TO_OS"
     ; When set, the lowlevel memory manager eagerly returns memory
     ; blocks to the operating system when they are released by the
     ; garbage collector.
     ; 
-    ; Recommended setting is off, since it tends to increase
-    ; execution time due to added system overhead.  
+    ; Recommended setting is off, since it tends to increase execution
+    ; time due to added system overhead.
     ; 
     ; Even if off, the memory manager may return memory blocks to the
     ; operating system.  Even if on, the memory manager is not
@@ -124,7 +130,7 @@
     ; will slow down garbage collection, though I don't know by how
     ; much.
     ;
-    ; Recommended setting is off, even if you're doing GC research :-)
+    ; Recommended setting is off, even if you're doing GC research.
 
  "USE_GENERIC_ALLOCATOR"
     ; When set, use a generic malloc-based low-level memory allocator
@@ -140,6 +146,9 @@
     ; the appropriate operating system, unless the system is being
     ; compiled for a generic OS.  Normally there is no reason to worry
     ; about this as the Makefiles do the right thing.)
+    ;
+    ; Recommended setting is off, since the non-generic allocators are
+    ; generally better.
 
  "USE_GENERIC_IO"
     ; When set, use a generic stdio-based low-level I/O system rather
@@ -151,26 +160,34 @@
     ; operating system is GENERIC_OS.
     ; 
     ; Also see comments for USE_GENERIC_ALLOCATOR.
+    ;
+    ; Recommended setting is off, since the non-generic I/O is
+    ; generally better.
 
  "USE_GENERIC_FILESYSTEM"
     ; When set, use generic low-level file-system support rather than
     ; any OS-specific file-system support.  The functions selected are
     ; osdep_unlinkfile, osdep_mtime, osdep_access, and osdep_rename.
     ; 
-    ; The generic I/O system is selected automatically if the operating
-    ; system is GENERIC_OS.
+    ; The generic file system is selected automatically if the
+    ; operating system is GENERIC_OS.
     ;
     ; Also see comments for USE_GENERIC_ALLOCATOR.
+    ;
+    ; Recommended setting is off, since the non-generic file system is
+    ; generally better.
 
  "USE_STDIO"
     ; Console input is by default through stdin, and console output is 
     ; by default through stdout.  Used by generic I/O subsystem.
+    ;
+    ; Recommended setting is off.
 
- ; Petit Larceny options.  You do not need to select any of these if
- ; you don't have special needs.  The defaults (set in
- ; Rts/Standard-C/petit-config.h) are USE_RETURN_WITH_VALUE and
- ; USE_GOTOS_LOCALLY.  The defaults are OK for both portability and
- ; performance.
+ ; Petit Larceny options.  You do not need to select any of these
+ ; unless you have special needs or are doing research.  The defaults
+ ; (set in Rts/Standard-C/petit-config.h) are USE_RETURN_WITH_VALUE
+ ; and USE_GOTOS_LOCALLY.  The defaults are OK for both portability
+ ; and performance.
 
  "USE_LONGJUMP"
     ; Jump, invoke and return are implemented as calls; when the timer
@@ -195,6 +212,13 @@
     ; code size, makes register caching worthwhile, and reduces the number 
     ; of function pointers (which makes life easier on MacOS, at least).
 
+ "USE_CACHED_STATE"
+    ; If set, C functions generated by Petit Larceny will cache a few
+    ; virtual machine registers in local variables.  This will tend to
+    ; increase code size and performance.
+    ;
+    ; Recommended setting is on.
+
  ; Special system attributes -- for use of non-portable extensions or 
  ; bug workarounds, or other weirdness.
 
@@ -208,7 +232,11 @@
 
  "NO_ATOMIC_ALLOCATION"
     ; Boehm/Demers/Weiser conservative collector: do not allocate 
-    ; bytevectors specially (not recommended in general).
+    ; bytevectors as atomic data.
+    ;
+    ; Recommended setting is off, and turning it on can have severe
+    ; negative effects on GC overhead and heap size (as a result of
+    ; false pointers).
 
  "NO_SYNCHRONOUS_SIGNALS"
     ; Disable the use of longjump out of signal handlers.  This may
@@ -226,6 +254,8 @@
     ; Enable the simulation of Clinger's write barrier.  This will slow
     ; down execution substantially.  Useful for research only, and not
     ; supported by all the collectors.
+    ;
+    ; Recommended setting is off.
 
  ; Library/feature attributes.  These macros declare the existence of
  ; particular functions in the run-time library or as compiler
@@ -297,6 +327,7 @@
     "HAVE_POLL"
     "STACK_UNDERFLOW_COUNTING"
     "GC_HIRES_TIMERS"
+    "USE_CACHED_STATE"
     ))
 
 (define features-petit-macosx		; gcc and GNU libc
@@ -310,6 +341,7 @@
     "HAVE_SELECT"
     "STACK_UNDERFLOW_COUNTING"
     "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
+    "USE_CACHED_STATE"
     ))
 
 (define features-petit-win32-cw6	; cw=metrowerks codewarrior
@@ -326,6 +358,7 @@
     "HAVE_STAT"
     "HAVE_RINT"
     "HAVE_STRNCASECMP"
+    "USE_CACHED_STATE"
     ))
 
 (define features-petit-linux		; Debian GNU/Linux 3.0 (woody), x86
@@ -339,6 +372,7 @@
     "HAVE_POLL"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
+    "USE_CACHED_STATE"
     ))
 
 (define features-x86-nasm-linux		; Debian GNU/Linux 3.0 (woody), x86
