@@ -16,7 +16,6 @@
 	 "Auxlib/list.fasl"
 	 "Auxlib/string.fasl"
 	 "Auxlib/vector.fasl"
-	 "Auxlib/sort.fasl"
 	 "Auxlib/pp.fasl"
 	 "Auxlib/io.fasl"))
 
@@ -108,7 +107,6 @@
 	   (compiler include-procedure-names)
 	   (compiler include-source-code)
 	   (compiler include-variable-names)
-	   (compiler empty-list-is-true)
 	   (compiler ignore-space-leaks)
 	   (compiler integrate-usual-procedures)
 	   (compiler benchmark-mode)
