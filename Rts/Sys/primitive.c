@@ -119,6 +119,11 @@ void primitive_stats_dump_off( void )
   stats_closedump();
 }
 
+void primitive_stats_dump_stdout( void )
+{
+  stats_dumpstate_stdout();
+}
+
 void primitive_gcctl_np( word heap, word rator, word rand )
 {
   /* Heap# comes in as 1..n, but RTS uses 0..n-1 */
