@@ -124,13 +124,13 @@ libclean:
 	( cd Interpreter ; $(MAKE) clean )
 	( cd Repl ; $(MAKE) clean )
 	( cd Auxlib ; $(MAKE) clean )
-	( cd Compiler ; $(MAKE) libclean )
+	( cd Twobit ; $(MAKE) libclean )
 
 rtsclean:
 	( cd Rts ; $(MAKE) clean )
 
 compilerclean:
-	( cd Compiler ; $(MAKE) clean )
+	( cd Twobit ; $(MAKE) clean )
 
 realclean: tildeclean rejclean tcovclean
 	rm -f core
@@ -139,7 +139,7 @@ realclean: tildeclean rejclean tcovclean
 	( cd Interpreter ; $(MAKE) realclean )
 	( cd Repl ; $(MAKE) realclean )
 	( cd Auxlib ; $(MAKE) realclean )
-	( cd Compiler ; $(MAKE) realclean )
+	( cd Twobit ; $(MAKE) realclean )
 	( cd Compat ; $(MAKE) realclean )
 	( cd Rts ; $(MAKE) realclean )
 
