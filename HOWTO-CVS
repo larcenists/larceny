@@ -1,0 +1,114 @@
+$Id$
+
+
+This is the file ${LARCENY}/HOWTO-CVS.  It contains information about
+how to get started with CVS and how CVS is used to store Larceny source
+code, documentation, and other common 
+
+
+What CVS documentation to read.
+
+The best information on CVS is the Info page accessible from GNU Emacs.
+The Unix manual page is much inferior to the Info documentation.
+
+
+Your Emacs version.
+
+You should always use Emacs 19.  Emacs 18 is probably not going to be
+supported by CCS much longer.  I have an alias in my startup file:
+
+	alias emacs='emacs-19'
+
+(your syntax may vary depending on your shell) which happens to work on
+all CCS systems at present, and which gives me the latest stable version
+everywhere, currently 19.34 on SPARC systems and 19.29 on Alphas.
+
+
+Reading the CVS Info pages.
+
+The following instructions are for Emacs 19 and do not work in Emacs 18.
+
+1. Start emacs.
+
+2. To get to the Info reader, type `C-h i'. (To get help on the Info
+   reader, type `m info' after you have entered the info reader.)
+
+3. To open the CVS documentation, which unfortunately is not yet part of
+   the standard Info tree installed by systems, type `C-u C-h i'.  When
+   emacs asks for a filename, type `/arch/gnu/packages/cvs-1.9/info/cvs.info'.
+
+If you haven't already done so, you should start the info reader and
+read the introductory sections now.  Read at least parts of the sections
+'What is CVS?'  and 'Basic concepts', and 'A sample session'.
+
+The following alternative instructions are for users of Emacs 18.  (No
+further mention will be made in this HOWTO about how to use Emacs 18 or
+its info reader.)
+
+1 and 2. As above.
+
+3. Type 'g', and when Info asks for node, type
+      (/arch/gnu/packages/cvs-1.9/info/cvs.info)
+   including the parentheses.
+
+
+CVS and Larceny.
+
+The root directory for Larceny's CVS repository is currently
+
+	/proj/will/lth/cvs-archives
+
+You should set your CVSROOT environment variable to name that
+repository.
+
+The following is a list of the CVS modules is Larceny's repository:
+
+  larceny_src: Larceny's source code.
+  larceny_doc: Larceny's documentation.
+  larceny_bench: A growing benchmark suite (NOT YET CREATED).
+
+
+Quick reference.
+
+checkout: To checkout a module into a clean directory, go to the parent
+directory of the directory where you want the module checked out, then
+run checkout:
+
+	cvs checkout -d src larceny_src
+
+checks out the module larceny_src into the subdirectory src of the
+directory you are in.
+
+update: To checkout updates from the module to your working directory,
+go into the working directory (or a subdirectory of the working
+directory) where you want updates to take place and run update:
+
+	cvs -q update
+
+(The -q is not required; it just reduces nonessential messages.)  Say
+you want to update files in Lib/Common.  'cd' to Lib/Common, then run
+update as above.  A trick: to find out what files have changed without
+updating them, use the -n option to update:
+
+	cvs -n -q update
+
+add: To add a new file or directory to the module, create the file in
+your working directory, then go to the directory that contains the file
+and run add followed by commit:
+
+	cvs add -m "This file does that." myfile.c
+	cvs commit -m "Initial version." myfile.c
+
+commit: To commit changes to a file to the module in the repository,
+go to the directory that contains the file and run commit:
+
+	cvs commit -m "This is what I've done to the file." myfile.c
+
+remove: To remove a file from the module, go to the directory that contains
+the file, remove the file using rm, then run remove followed by commit:
+
+	rm myfile.c
+	cvs remove myfile.c
+	cvs commit -m "This file was removed because ..." myfile.c
+
+
