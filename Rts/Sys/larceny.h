@@ -257,7 +257,11 @@ extern int memfail( int code, char *fmt, ... );
 #define STACK_ROOM              1024
 
 /* Remembered set defaults (not tuned) */
+#if 0
 #define DEFAULT_REMSET_POOLSIZE   8192     /*  8K elements = 64KB */
+#else
+#define DEFAULT_REMSET_POOLSIZE   1024     /*  1K elements = 8KB */
+#endif
 #define DEFAULT_REMSET_TBLSIZE   16384     /* 16K elements = 64KB */
 #define DEFAULT_SSB_SIZE         16384     /* 16K elements = 64KB */
 
