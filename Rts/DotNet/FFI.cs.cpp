@@ -21,6 +21,7 @@ namespace Scheme.RT {
             SObject arg1 = Reg.register3;
             SObject arg2 = Reg.register4;
             SObject arg3 = Reg.register5;
+            SObject arg4 = Reg.register6;
 
             if (!scode.isFixnum()) {
                 Exn.error("ffi: expected code to be a fixnum", scode);
@@ -31,7 +32,7 @@ namespace Scheme.RT {
             case 0: // get type
             {
                 string name = ((SByteVL)arg1).asString();
-		// case insensitive lookup
+                // case insensitive lookup
                 Reg.Result = Factory.makeForeignF (Type.GetType (name, false, true));
                 return;
             }
@@ -332,12 +333,11 @@ namespace Scheme.RT {
                     }
                 }
                 case 5: { // int
-		    if (value is Enum) return Factory.makeNumber ((int) value);
+                    if (value is Enum) return Factory.makeNumber ((int) value);
                     if (value is int)  return Factory.makeNumber ((int) value);
                     if (value is long) return Factory.makeNumber ((long) value);
-		    Exn.error("foreign->datum (int): not an integer");
-		    return Factory.Impossible;
-                    }
+                    Exn.error("foreign->datum (int): not an integer");
+                    return Factory.Impossible;
                 }
                 case 6: { // float
                     if (value is float) {

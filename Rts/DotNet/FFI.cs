@@ -19,6 +19,7 @@ namespace Scheme.RT {
             SObject arg1 = Reg.register3;
             SObject arg2 = Reg.register4;
             SObject arg3 = Reg.register5;
+            SObject arg4 = Reg.register6;
 
             if (!scode.isFixnum()) {
                 Exn.error("ffi: expected code to be a fixnum", scode);
@@ -29,7 +30,7 @@ namespace Scheme.RT {
             case 0: // get type
             {
                 string name = ((SByteVL)arg1).asString();
-	        // case insensitive
+                // case insensitive lookup
                 Reg.Result = Factory.makeForeignF (Type.GetType (name, false, true));
                 return;
             }
@@ -179,7 +180,94 @@ namespace Scheme.RT {
                 }
                 return;
             }
-
+            case 14: // get-property-value
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                object result;
+                try {
+                    result = pi.GetValue (obj, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = wrapF (result);
+                return;
+            }
+            case 15: // set-property-value
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                object newval = unwrapF (arg3);
+                SObject[] sargv = ((SVL) arg4).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                try {
+                       pi.SetValue (obj, newval, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.Unspecified;
+                return;
+            }
+            case 16: // type-as-string
+            {
+                Reg.Result = Factory.makeString (((Foreign) arg1).value.GetType().ToString());
+                return;
+            }
+            case 17: // get-property-value-boolean
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                object result;
+                try {
+                    result = pi.GetValue (obj, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.makeBoolean ((bool)result != false);
+                return;
+            }
+            case 18: // get-property-value-int
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                object result;
+                try {
+                    result = pi.GetValue (obj, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.wrap((int)result);
+                return;
+            }
+            case 19: // array ref
+            {
+               Array ra = (Array)((Foreign) arg1).value;
+               int index = ((SFixnum) arg2).value;
+               Reg.Result = wrapF (ra.GetValue (index));
+               return;
+            }
             }
             Exn.error("bad ffi syscall code");
             return;
@@ -331,7 +419,7 @@ namespace Scheme.RT {
                 }
                 case 5: { // int
                     if (value is Enum) return Factory.makeNumber ((int) value);
-                    if (value is int) return Factory.makeNumber ((int) value);
+                    if (value is int)  return Factory.makeNumber ((int) value);
                     if (value is long) return Factory.makeNumber ((long) value);
                     Exn.error("foreign->datum (int): not an integer");
                     return Factory.Impossible;
@@ -361,26 +449,15 @@ namespace Scheme.RT {
         }
 
         public static SObject getMethod(Type type, string name, Type[] formals) {
-            MethodInfo m = type.GetMethod(name, formals);
-            return Factory.makeForeignF(m);
+            return Factory.makeForeignF (type.GetMethod(name, formals));
         }
 
         public static SObject getField(Type type, string name) {
-            FieldInfo f = type.GetField(name);
-            return Factory.makeForeignF(f);
+            return Factory.makeForeignF (type.GetField(name));
         }
 
         public static SObject getProperty(Type type, string name) {
-            PropertyInfo p = type.GetProperty(name);
-            if (p == null) {
-                Exn.internalError("no such property");
-                return null;
-            }
-            MethodInfo pget = p.GetGetMethod(false);
-            MethodInfo pset = p.GetSetMethod(false);
-            return Factory.makePair
-                (Factory.makeForeignF(pget),
-                 Factory.makeForeignF(pset));
+            return Factory.makeForeignF (type.GetProperty (name));
         }
 
         // Public Constants

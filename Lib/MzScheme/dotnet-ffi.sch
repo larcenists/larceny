@@ -5,7 +5,8 @@
     ((define-ffi name code ...)
      (define-syntax name
        (syntax-rules ()
-         ((name . args) (syscall code ... . args)))))))
+         ((name . args)
+          (syscall code ... . args)))))))
 
 (define-ffi ffi:%get-type          34 0)
 (define-ffi ffi:%get-method        34 1)
@@ -40,6 +41,12 @@
 (define-ffi ffi:%get-constructor       34 11)
 (define-ffi ffi:%invoke-constructor    34 12)
 (define-ffi ffi:%eq?                   34 13)
+(define-ffi ffi:%property-get          34 14)
+(define-ffi ffi:%property-set          34 15)
+(define-ffi ffi:%type-as-string        34 16)
+(define-ffi ffi:%property-get-bool     34 17)
+(define-ffi ffi:%property-get-int      34 18)
+(define-ffi ffi:%foreign-aref          34 19)
 
 (define array%        (ffi:%get-type "System.Array"))
 (define enum%         (ffi:%get-type "System.Enum"))
@@ -79,6 +86,8 @@
 (define (ffi:bool->foreign obj)   (if obj foreign-true foreign-false))
 (define (ffi:symbol->foreign obj) (ffi:%string->foreign (symbol->string obj)))
 (define (ffi:foreign->bool   obj) (not (ffi:%eq? obj foreign-false)))
+(define (ffi:foreign->double obj) (ffi:%foreign->double obj))
+(define (ffi:foreign->int    obj) (ffi:%foreign->int obj))
 (define (ffi:foreign->symbol obj) (string->symbol (ffi:%foreign->string obj)))
 
 (define (ffi:datum->foreign conversion obj)
@@ -214,11 +223,9 @@
   (let ((pi (ffi:%get-property type name)))
     (if (not pi)
         (error "clr-property->procedures: no such property"))
-    (let ((pg (car pi))
-          (ps (cdr pi)))
-      (cons
-       (and pg (lambda (obj) (ffi:invoke pg obj)))
-       (and ps (lambda (obj newval) (ffi:invoke ps obj newval)))))))
+    (cons
+     (lambda (obj . args) (ffi:%property-get pg obj (list->vector args)))
+     (lambda (obj newval . args) (ffi:%property-set ps obj newval (list->vector args))))))
 
 ;; ----
 
