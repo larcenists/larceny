@@ -124,16 +124,62 @@
 	  ((interpreted-expression? p) 'interpreted-expression)
 	  (else                        'compiled-procedure)))
 
+  (define (make-readable-variables vars)
+    (cond ((symbol? vars)
+	   (make-readable-variable var))
+	  ((pair? vars)
+	   (cons (make-readable-variable (car vars))
+		 (make-readable-variables (cdr vars))))))
+
+  (define (make-readable-variable var)
+    (let* ((s (symbol->string var))
+	   (l (string-length s)))
+      (let loop ((i (- l 1)) (x #f))
+	(cond ((< i 0) 
+	       (if (not x)
+		   var
+		   (string->symbol (substring s 1 x))))
+	      ((char=? (string-ref s i) #\|)
+	       (loop (- i 1) i))
+	      (else
+	       (loop (- i 1) x))))))
+
+  (define (make-readable expr)
+    (cond ((symbol? expr)
+	   (make-readable-variable expr))
+	  ((eq? 'quote (car expr))
+	   expr)
+	  ((eq? 'begin (car expr))
+	   (cons 'begin (map make-readable (cdr expr))))
+	  ((eq? 'set! (car expr))
+	   (list 'set! (cadr expr) (make-readable (caddr expr))))
+	  ((eq? 'if (car expr))
+	   (list 'if 
+		 (make-readable (cadr expr))
+		 (make-readable (caddr expr))
+		 (make-readable (cadddr expr))))
+	  ((eq? 'lambda (car expr))
+	   (list 'lambda 
+		 (make-readable-variables (cadr expr))
+		 (make-readable (caddr expr))))
+	  (else
+	   (map make-readable expr))))
+
   (lambda (command)
     (case command
       ((type)
        'code)
       ((class)
        class)
-      ((expression)
+      ((source-code)
        (if (eq? class 'system-procedure)
 	   #f
 	   (procedure-expression p)))
+      ((expression)
+       (if (interpreted-expression? p)
+	   (cond ((interpreted-expression-source p) => make-readable)
+		 (else #f))
+	   #f))
       ((procedure)
        p)
       (else

@@ -122,8 +122,11 @@
 	       (null? obj)
 	       (bytevector? obj)
 	       (port? obj))
-	   (display obj)
+	   (write obj)
 	   (set! limitation (- limitation 1)))
+	  ((and (list? obj) (eq? (car obj) 'quote) (null? (cddr obj)))
+	   (display #\')
+	   (display-limited (cadr obj)))
 	  ((pair? obj)
 	   (set! limitation (- limitation 1))
 	   (display "(")
@@ -225,7 +228,11 @@
   (loop (inspector 'clone)))
 
 (define (debug/examine-frame count inspector)
-  (let ((f (inspector 'get)))
+  (let* ((f (inspector 'get))
+	 (code (f 'code))
+	 (expr (code 'expression)))
+    (if expr
+	(pretty-print expr))
     (do ((i 0 (+ i 1)))
 	((= i (f 'slots)))
       (display "#")
@@ -235,7 +242,7 @@
       (newline))))
 
 (define (debug/code count inspector)
-  (let ((expr (((inspector 'get) 'code) 'expression)))
+  (let ((expr (((inspector 'get) 'code) 'source-code)))
     (if expr
 	(debug/print-code expr)
 	(format #t "No code.~%"))))
