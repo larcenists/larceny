@@ -9,32 +9,14 @@
 #
 # Compiler/assembler selection.  Uncomment one of these or hack up a new one.
 
-
-# Native Larceny on Solaris/SPARC: gcc
+# DEFAULT CONFIGURATION
 #
-# The assembler must be able to run the preprocessor; the Sun
-# assembler accepts -P to do this, but the GNU assembler does not.  If
-# you experience assembler errors, you most likely have the wrong
-# assembler.  On SunOS systems, try /bin/as.  gcc -E might work.  Or
-# hack up a shell script to run cpp.
-#O=o
-#CC=gcc
-#DEBUG=-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#PROFILE=#-pg
-#TCOV=#-a -g
-#BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
-#LDXFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
-#CFLAGS=-c -ISys -IBuild -IStandard-C \
-#	$(DEBUG) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
-#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-#AS=as
-#ASFLAGS=-P -ISparc -IBuild $(DEBUG)
-#LIBS=-lm -ldl
-#.c.o:
-#	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
-
+# Petit Larceny on generic Unix with gcc
+O=o
+CC=gcc
+DEBUGINFO=-gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
 # Petit Larceny on Win32: Metrowerks CodeWarrior 6
 #O=obj
@@ -60,23 +42,6 @@
 #	$(CC) $(CFLAGS) -o $*.o $<
 
 
-# Petit Larceny on generic Unix with gcc
-O=o
-CC=gcc
-DEBUGINFO=-gstabs+
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-
-
-# Native Larceny on Debian Linux: gcc + nasm (still debugging)
-#O=o
-#CC=gcc
-#DEBUGINFO=-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-#AS=nasm
-#ASFLAGS=-f elf -IIntel -IBuild -DLINUX
-
 # Petit Larceny on DEC Alpha OSF/1: DEC C compiler
 # Probably not up-to-date, has not been tested for some time!
 #CC=cc
@@ -94,6 +59,44 @@ CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 #CC=cl
 #.c.obj:
 # 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
+
+
+# Native Larceny on Solaris/SPARC: gcc
+#
+# The assembler must be able to run the preprocessor; the Sun
+# assembler accepts -P to do this, but the GNU assembler does not.  If
+# you experience assembler errors, you most likely have the wrong
+# assembler.  On SunOS systems, try /bin/as.  Or look at 
+# ../Util/gasmask.sh, which runs the preprocessor for you.
+
+#O=o
+#CC=gcc
+#DEBUG=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#PROFILE=#-pg
+#TCOV=#-a -g
+#BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
+#LDXFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
+#CFLAGS=-c -ISys -IBuild -IStandard-C \
+#	$(DEBUG) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
+#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
+#AS=../Util/gasmask.sh
+##These flags for the native Solaris assembler only
+##ASFLAGS=-P -ISparc -IBuild
+#LIBS=-lm -ldl
+#.c.o:
+#	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
+
+
+# Native Larceny on Debian Linux: gcc + nasm (still debugging)
+#O=o
+#CC=gcc
+#DEBUGINFO=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+#AS=nasm
+#ASFLAGS=-f elf -IIntel -IBuild -DLINUX
 
 
 ############################################################################
