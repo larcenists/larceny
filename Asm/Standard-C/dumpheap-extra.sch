@@ -44,7 +44,7 @@
 (define *petit-executable-obj-name* "petit-larceny.o")
 (define *petit-executable-name* "petit-larceny")
 
-(define *petit-library-path* "")
+(define *petit-library-path* "Rts/")
 (define *petit-heap-library-name* "petit-larceny.so")
 (define *petit-rts-libraries* 
   (list (string-append *petit-library-path* "libpetit.so")))
@@ -332,7 +332,7 @@
 
 (define (emit-c-code fmt . args)
   (if *c-output*
-      (display (apply twobit-format fmt args) *c-output*)))
+      (apply twobit-format *c-output* fmt args)))
 
 ; Startup procedure is same as standard except for the patch instruction.
 
@@ -403,28 +403,32 @@
       (error "COMMAND FAILED.")))
   
 (define (c-compiler:gcc-unix c-name o-name)
-  (let ((cmd (twobit-format "gcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+  (let ((cmd (twobit-format #f
+                            "gcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
                             (if (optimize-c-code) "-O -DNDEBUG" "")
                             o-name
                             c-name)))
     (execute cmd)))
 
 (define (c-library-linker:gcc-unix output-name object-files libs)
-  (let ((cmd (twobit-format "gcc -g -shared -o ~a ~a ~a"
+  (let ((cmd (twobit-format #f
+                            "gcc -g -shared -o ~a ~a ~a"
                             output-name
                             (apply string-append (insert-space object-files))
                             (apply string-append (insert-space libs)))))
     (execute cmd)))
 
 (define (c-linker:gcc-unix output-name object-files libs)
-  (let ((cmd (twobit-format "gcc -g -o ~a ~a ~a"
+  (let ((cmd (twobit-format #f
+                            "gcc -g -o ~a ~a ~a"
                             output-name
                             (apply string-append (insert-space object-files))
                             (apply string-append (insert-space libs)))))
     (execute cmd)))
 
 (define (c-compiler:lcc-unix c-name o-name)
-  (let ((cmd (twobit-format "lcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -DSTDC_SOURCE ~a -o ~a ~a"
+  (let ((cmd (twobit-format #f
+                            "lcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -DSTDC_SOURCE ~a -o ~a ~a"
                             (if (optimize-c-code) "-DNDEBUG" "")
                             o-name
                             c-name)))
@@ -434,7 +438,8 @@
   (error "Must figure out how to create shared libraries with LCC."))
 
 (define (c-linker:lcc-unix output-name object-files libs)
-  (let ((cmd (twobit-format "lcc -g -o ~a ~a ~a"
+  (let ((cmd (twobit-format #f
+                            "lcc -g -o ~a ~a ~a"
                             output-name
                             (apply string-append (insert-space object-files))
                             (apply string-append (insert-space libs)))))
