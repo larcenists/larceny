@@ -290,10 +290,10 @@ stats_after_gc( void )
 
   gen = nativeint(memstats.lastcollection_gen);
   add( &memstats.wcopied_hi, &memstats.wcopied_lo,
-      fixnum(heapstats_after_gc[gen].copied_last_gc) );
+      fixnum(heapstats_after_gc[gen].copied_last_gc / sizeof(word)) );
 
   add( &memstats.wmoved_hi, &memstats.wmoved_lo,
-      fixnum(heapstats_after_gc[gen].moved_last_gc) );
+      fixnum(heapstats_after_gc[gen].moved_last_gc / sizeof(word)) );
 
   memstats.gctime += fixnum( time );
   memstats.gen_stat[gen].gctime += fixnum( time );
