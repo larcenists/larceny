@@ -8,22 +8,23 @@
 #
 # Section 0: Programs
 #
+
 # You need an ANSI C compiler.
 #
 # The assembler must accept -P; the GNU assembler does not.  If you
 # experience assembler errors, you most likely have the wrong assembler.
 # On SunOS systems, try /bin/as.  gcc -E might work.
 
-# Solaris (native): GNU C compiler
+# Defaults (correct for building SPARC Larceny on Solaris)
 
+O=o
 CC=gcc
 CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-
-# Solaris (native): Solaris assembler
-
 AS=as
 ASXFLAGS=
+
+# Pick a compiler here!
 
 # DEC Alpha OSF/1 (Petit Larceny): DEC C compiler
 #
@@ -36,9 +37,10 @@ ASXFLAGS=
 #.c.o:
 #	$(CC) $(CFLAGS) -c $< -o $*.o
 
-#CC=lcc
-#CCXFLAGS=-DSTDC_SOURCE
+# Microsoft C/C++ with DOS shell on Win32
 
+O=obj
+CC=cl
 
 ############################################################################
 #
@@ -88,45 +90,45 @@ ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
 # Big bags of files
 
 COMMON_RTS_OBJECTS=\
-	Sys/argv.o Sys/barrier.o Sys/callback.o Sys/gc_t.o \
-	Sys/ldebug.o Sys/malloc.o Sys/osdep-generic.o \
-	Sys/osdep-macos.o Sys/osdep-unix.o Sys/osdep-win32.o \
-	Sys/primitive.o Sys/signals.o Sys/sro.o Sys/stack.o Sys/syscall.o \
-	Sys/util.o Sys/version.o
+	Sys/argv.$(O) Sys/barrier.$(O) Sys/callback.$(O) Sys/gc_t.$(O) \
+	Sys/ldebug.$(O) Sys/malloc.$(O) Sys/osdep-generic.$(O) \
+	Sys/osdep-macos.$(O) Sys/osdep-unix.$(O) Sys/osdep-win32.$(O) \
+	Sys/primitive.$(O) Sys/signals.$(O) Sys/sro.$(O) Sys/stack.$(O) \
+	Sys/syscall.$(O) Sys/util.$(O) Sys/version.$(O)
 
 PRECISE_GC_OBJECTS=\
-	Sys/alloc.o Sys/cheney.o Sys/dof-heap.o Sys/gc.o Sys/heapio.o \
-	Sys/los.o Sys/memmgr.o Sys/ffi.o \
-	Sys/msgc-core.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
-	Sys/old-heap.o Sys/remset.o Sys/sc-heap.o Sys/semispace.o \
-	Sys/static-heap.o Sys/stats.o Sys/young_heap_t.o
+	Sys/alloc.$(O) Sys/cheney.$(O) Sys/dof-heap.$(O) Sys/gc.$(O) Sys/heapio.$(O) \
+	Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \
+	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) Sys/old_heap_t.$(O) \
+	Sys/old-heap.$(O) Sys/remset.$(O) Sys/sc-heap.$(O) Sys/semispace.$(O) \
+	Sys/static-heap.$(O) Sys/stats.$(O) Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\
-	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o Sys/bdw-heapio.o \
-	Sys/bdw-ffi.o
+	Sys/bdw-gc.$(O) Sys/bdw-stats.$(O) Sys/bdw-collector.$(O) \
+	Sys/bdw-heapio.$(O) Sys/bdw-ffi.$(O)
 
 BOEHM_GC_SPARC_OBJECTS=\
-	Sparc/bdw-memory.o Sparc/bdw-generic.o Sparc/bdw-cglue.o
+	Sparc/bdw-memory.$(O) Sparc/bdw-generic.$(O) Sparc/bdw-cglue.$(O)
 
 BOEHM_GC_LIBRARIES=\
 	bdw-gc/gc.a
 
 COMMON_SPARC_OBJECTS=\
-	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o \
-	Sparc/glue.o Sparc/mcode.o Sparc/signals.o Sparc/syscall2.o \
-	Build/sparc-table.o 
+	Sparc/barrier.$(O) Sparc/cache.$(O) Sparc/cache0.$(O) \
+	Sparc/glue.$(O) Sparc/mcode.$(O) Sparc/signals.$(O) Sparc/syscall2.$(O) \
+	Build/sparc-table.$(O) 
 
 SPARC_PRECISE_GC_OBJECTS=\
-	Sparc/memory.o Sparc/generic.o Sparc/cglue.o
+	Sparc/memory.$(O) Sparc/generic.$(O) Sparc/cglue.$(O)
 
 PETIT_OBJECTS=\
-	Standard-C/arithmetic.o Standard-C/millicode.o Standard-C/multiply.o \
-	Standard-C/syscall2.o Build/c-table.o
+	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \
+	Standard-C/multiply.$(O) Standard-C/syscall2.$(O) Build/c-table.$(O)
 
 # SPARC only
 LARCENY_OBJECTS=\
-	Sys/larceny.o \
-	Sparc/config.o \
+	Sys/larceny.$(O) \
+	Sparc/config.$(O) \
 	$(COMMON_RTS_OBJECTS) \
 	$(COMMON_SPARC_OBJECTS) \
 	$(PRECISE_GC_OBJECTS) \
@@ -134,8 +136,8 @@ LARCENY_OBJECTS=\
 
 # SPARC only
 BDW_LARCENY_OBJECTS=\
-	Sys/bdw-larceny.o \
-	Sparc/config.o \
+	Sys/bdw-larceny.$(O) \
+	Sparc/config.$(O) \
 	$(COMMON_RTS_OBJECTS) \
 	$(COMMON_SPARC_OBJECTS) \
 	$(BOEHM_GC_OBJECTS) \
@@ -143,8 +145,8 @@ BDW_LARCENY_OBJECTS=\
 
 # Generic Unix
 PETIT_LARCENY_OBJECTS=\
-	Sys/larceny.o \
-	Standard-C/config.o \
+	Sys/larceny.$(O) \
+	Standard-C/config.$(O) \
 	$(COMMON_RTS_OBJECTS) \
 	$(PRECISE_GC_OBJECTS) \
 	$(PETIT_OBJECTS)
@@ -186,6 +188,10 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 .c.o:
 	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
 
+# Win32
+.c.obj:
+ 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
+
 ############################################################################
 #
 # Targets
@@ -225,6 +231,10 @@ libpetit.so: $(PETIT_LARCENY_OBJECTS)
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o
 
+# Win32
+petit-rts.lib: $(PETIT_LARCENY_OBJECTS)
+	lib /libpath:Rts /name:petit-rts /out:petit-rts.lib $(PETIT_LARCENY_OBJECTS)
+
 hsplit: Util/hsplit.o
 	$(CC) $(PROFILE) $(TCOV) $(DEBUGINFO) $(LDXFLAGS) -o hsplit Util/hsplit.o
 
@@ -232,9 +242,9 @@ Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
-		Sys/*.o Sparc/*.o Build/*.o Standard-C/*.o Util/*.o \
-		libpetit.so Standard-C/arithmetic.c
+	rm larceny.bin hsplit bdwlarceny.bin petit-larceny core \
+	   Sys/*.$(O) Sparc/*.$(O) Build/*.$(O) Standard-C/*.$(O) Util/*.$(O) \
+	   petit-rts.lib petit-lib.lib libpetit.so Standard-C/arithmetic.c
 
 rtsclean: clean
 	rm -f Build/*.s Build/*.*h
