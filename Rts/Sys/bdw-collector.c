@@ -236,6 +236,18 @@ void bdw_after_gc( void )
   stats_after_gc();
 }
 
+void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap )
+{
+  *wremset = *wrts = *wheap = *wmax_heap = 0;
+  /* These don't work because they depend on gc_priv.h which has
+     a definition of word that conflicts with that of Larceny.
+  */
+  /*
+  *wheap = GC_heapsize() / sizeof(word);
+  *wmax_heap = GC_max_heapsize() / sizeof(word);
+  */
+}
+
 static void no_op_warn()
 {
   hardconsolemsg( "bdw-heap: call to unsupported operation." );
