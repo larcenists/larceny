@@ -74,6 +74,9 @@
     (thunk1)
     (error-handler eh)))
 
+(define (call-without-interrupts thunk)
+  (thunk))
+
 (define (chez-new-extension fn ext)
   (let* ((l (string-length fn))
 	 (x (let loop ((i (- l 1)))
