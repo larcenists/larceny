@@ -181,7 +181,7 @@ run_chez() {
 
 run_larceny_bin() {
   EXEC=${LARCENY}/larceny.bin
-  HEAP=${LARCENY}/sparc.heap
+  HEAP=${BUILD_HEAP:-${LARCENY}/sparc.heap}
   $EXEC $HEAP $LARCENY_EXTRA -args $TMPFILE $ARGS
 }
 
