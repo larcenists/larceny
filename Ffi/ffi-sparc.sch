@@ -288,7 +288,7 @@
 	(at-end tr (subi %fp (* 4 (next-local tr)) (%l 1)))
 	(at-end tr (stdi (%l 2) 0 (%l 1)))
 	(at-end tr (sti (%l 1) (* 4 (next-slot tr)) %sp))
-	(at-end tr (addi (%l 0) 8 (% l 0)))
+	(at-end tr (addi (%l 0) 8 (%l 0)))
 	(set-next-slot! tr (+ 1 (next-slot tr))))
 
       (define (callback-done tr argc)
