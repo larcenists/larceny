@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: conventions.txt,v 1.8 91/06/28 10:27:23 lth Exp Locker: lth $
+; $Id: conventions.txt,v 1.9 91/07/22 15:21:59 lth Exp Locker: lth $
 
 	    Calling Conventions and Register Usage (SPARC)
 				   
@@ -110,20 +110,25 @@ tweaks.
 Here is the current mapping:
 
    REG0 ... REG7   -->  l0 ... l7
-   RESULT          -->  o3
-   ARGREG2         -->  o4
-   ARGREG3         -->  o5
-   STKP            -->  o2
-   E_TOP           -->  o0
-   E_LIMIT         -->  o1
+   RESULT          -->  o0
+   ARGREG2         -->  o1
+   ARGREG3         -->  o2
+   STKP            -->  o3
+   E_TOP           -->  o4
+   E_LIMIT         -->  o5
    GLOBALS         -->  i7
    MILLICODE       -->  i5
-   TIMER           -->  i0
+   TIMER           -->  i4
    TMP0            -->  g1
-   TMP1 ... TMP4   -->  i1 ... i4
+   TMP1            -->  i0
+   TMP2            -->  i1
 
-Note that %g1 is a temporary, and %TMP2/%TMP3 is a temporary-register
+Note that %g1 is a temporary, and %TMP1/%TMP2 is a temporary-register
 pair.
+
+The names SAVED_RESULT, SAVED_ARGREG2, SAVED_ARGREG3, and SAVED_STKP
+can be used to access the RESULT, ARGREG2, ARGREG3, and STKP registers
+after a "save" instruction has been executed.
 
 
 2. Continuations
@@ -134,10 +139,10 @@ instead, they are created on stack overflow or on the capture of a
 continuation, and restored into the stack on a stack underflow or the
 reinstatement of a continuation.
 
-Stack continuations have the following layout (memory addresses
-increasing going down the figure):
+Stack frames have the following layout (memory addresses increasing
+going down the figure):
 
-%STKP --> pppp pppp pppp pppp pppp pppp pppp pppp   return address slot
+%STKP --> pppp pppp pppp pppp pppp pppp pppp pp00   return address slot
           ssss ssss ssss ssss ssss ssss ssss ss00   continuation size (bytes)
           pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   argument  (saved REG1)
@@ -145,12 +150,12 @@ increasing going down the figure):
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   temporary (initially 0)
           ....
 
-The continuation size is the number of bytes used by the continuation,
-including the return address and size fields.  A continuation
+The frame size is the number of bytes used by the frame,
+including the return address and size fields.  A frame
 should always be an even number of words, but the size field should
 indicate the number of actually used words, i.e. less any padding
 words. This doubleword alignment of the stack lets us save some
-instructions as outlined below. The unused word of the continuation
+instructions as outlined below. The unused word of the frame
 should always be the highest word in the frame, and it may remain
 uninitialized, if desired: the stack flushing routine deals with it in
 a coherent way.
@@ -161,10 +166,10 @@ the heap. This allows the creation of frames which correspond to
 nonrelocatable code.
 
 When the stack cache is flushed into the heap, each frame is made into
-a vector-like structure with the following layout:
+a vector structure with the following layout:
 
       --> 0sss ssss ssss ssss ssss ss00 101x xx10   vector header word
-          llll llll llll llll llll llll llll llll   dynamic link or #f
+          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   dynamic link or #f
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xx00   return offset
           pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   argument  (saved REG1)
@@ -175,8 +180,8 @@ a vector-like structure with the following layout:
 The return offset is the offset into the code vector of the saved
 procedure to which point the return address pointed before the frame
 was flushed to the heap. The code vector is a byte vector; the offset
-is from the start of the bytevector header, not from the start of the
-first instuction. Note that all words in the heap continuation frame
+is from the start of the first byte of the bytevector, i.e. it is a
+bytevector index.  Note that all words in the heap continuation frame
 must be valid scheme objects; hence, if there is a chance that a frame
 is flushed before all temporaries are used, then the temporaries must
 be initialized by the procedure entry code.
@@ -192,23 +197,10 @@ header):
 
      --> 0sss ssss ssss ssss ssss ssss 1111 1110    header
          pppp pppp pppp pppp pppp pppp pppp p101    bytevector ptr (to code)
-         pppp pppp pppp pppp pppp pppp pppp p111    proc ptr (static link)
-         pppp pppp pppp pppp pppp pppp pppp p011    vector ptr (to constants)
          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx    data slot
          ....
 
-This layout has the advantage of letting several closures share a
-constant vector; however, it means a double dereference to get at a
-constant. An alternative is to put all constants in the procedure
-vector itself.
-
-Also, what goes into the data slots? Shold they hold the values of the
-local variables, or should they hold the values of the parent
-procedure (the one in which the closure is created) or should they
-simply hold pointers to all free variables in the code of the closure?
-
-[Since these decisions have little bearing on the discussion of the
-calling conventions, they will not be answered now.]
+It is up to the compiler to deal with the contents of the data slots.
 
 
 4. Calling conventions -- some prelimiaries
