@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Configure", "Configure\Conf
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bundle", "Bundle\Bundle.vcproj", "{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "WindowsInstall", "Msi\WindowsInstall.vdproj", "{EC5448DA-B563-420F-8CC5-B0CA6065E9A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfiguration) = preSolution
 		ConfigName.0 = Debug
@@ -40,6 +42,10 @@ Global
 		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Debug.Build.0 = Debug|Win32
 		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Release.ActiveCfg = Release|Win32
 		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Release.Build.0 = Release|Win32
+		{EC5448DA-B563-420F-8CC5-B0CA6065E9A3}.Debug.ActiveCfg = Debug
+		{EC5448DA-B563-420F-8CC5-B0CA6065E9A3}.Debug.Build.0 = Debug
+		{EC5448DA-B563-420F-8CC5-B0CA6065E9A3}.Release.ActiveCfg = Release
+		{EC5448DA-B563-420F-8CC5-B0CA6065E9A3}.Release.Build.0 = Release
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 	EndGlobalSection
