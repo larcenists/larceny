@@ -26,6 +26,7 @@
 	extern	mem_stkuflow
 	extern	return_from_scheme
 	extern	dispatch_loop_return
+	extern	gclib_pagebase
 	
 ;;; The return address of the bottommost frame in the stack cache points
 ;;; to i386_stack_underflow; all we do is call the C function that
@@ -132,8 +133,49 @@ EXTNAME(i386_scheme_jump):
 PUBLIC i386_alloc_bv
 	MCg	mc_alloc_bv
 PUBLIC i386_alloc
+	add	GLOBALS, 4
+	mov	TEMP, [GLOBALS+G_ETOP]
+	add	RESULT, 7
+	and	RESULT, 0xfffffff8
+	add	TEMP, RESULT
+	cmp	TEMP, CONT
+	jg	L1
+	mov	RESULT, [GLOBALS+G_ETOP]
+	mov	[GLOBALS+G_ETOP], TEMP
+	xor	TEMP, TEMP
+	sub	GLOBALS, 4
+	ret
+L1:	sub	GLOBALS, 4
+	xor	TEMP, TEMP
 	MCg	mc_alloc
 PUBLIC i386_alloci
+	add	GLOBALS, 4
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	[GLOBALS+G_REG1], REG1	; Free up ECX
+	mov	[GLOBALS+G_REG3], REG3	; Free up EDI
+	add	RESULT, 7
+	and	RESULT, 0xfffffff8
+	mov	ecx, RESULT		; Byte count for initialization
+	shr	ecx, 2			;   really want words
+	mov	TEMP, [GLOBALS+G_ETOP]
+	add	TEMP, RESULT
+	cmp	TEMP, CONT
+	jg	L2
+	mov	RESULT, [GLOBALS+G_ETOP]
+	mov	[GLOBALS+G_ETOP], TEMP
+	mov	eax, [ GLOBALS+G_SECOND ]
+	mov	edi, RESULT
+	cld
+	rep stosd
+	mov	REG1, [GLOBALS+G_REG1]
+	mov	REG3, [GLOBALS+G_REG3]
+	xor	SECOND, SECOND
+	sub	GLOBALS, 4
+	ret
+L2:	mov	SECOND, [GLOBALS+G_SECOND]
+	mov	REG1, [GLOBALS+G_REG1]
+	mov	REG3, [GLOBALS+G_REG3]
+	sub	GLOBALS, 4
 	MC2g	mc_alloci
 PUBLIC i386_morecore
 	MCg	mc_morecore
@@ -144,7 +186,51 @@ PUBLIC i386_capture_continuation
 PUBLIC i386_restore_continuation
 	MCg	mc_restore_continuation
 PUBLIC i386_full_barrier
-	MC2g	mc_full_barrier
+	;; The implementation requires that GCLIB_LARGE_TABLE is
+	;; disabled, this is not hard to fix.
+	test	SECOND, 1			; If rhs is ptr
+	jnz	L3				;   enter the barrier
+	ret					; Otherwise return
+L3:	add	GLOBALS, 4
+	cmp	dword [GLOBALS+G_GENV], 0	; Barrier is enabled
+	jne	L4				;   if generation map not 0
+	sub	GLOBALS, 4			; Otherwise
+	ret					;   return to scheme
+L4:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
+	mov	[GLOBALS+G_REG1], REG1		;   working registers
+	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
+	sub	RESULT, [gclib_pagebase]	; Load
+	shr	RESULT, 12			;   generation number
+	shl	RESULT, 2			;     (using byte offset)
+	mov	RESULT, [REG1+RESULT]		;       for lhs
+	sub	SECOND, [gclib_pagebase]	; Load
+	shr	SECOND, 12			;   generation number
+	shl	SECOND, 2			;     (using byte offset)
+	mov	SECOND, [REG1+SECOND]		;       for rhs
+	cmp	RESULT, SECOND			; Only store lhs in SSB
+	jg	L6				;   if gen(lhs) > gen(rhs)
+L5:	xor	RESULT, RESULT			; Clean
+	xor	SECOND, SECOND			;   state
+	mov	REG1, [GLOBALS+G_REG1]		;     and
+	sub	GLOBALS, 4			;       return
+	ret					;         to Scheme
+L6:	shl	RESULT, 2			; Gen(lhs) as byte offset
+	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
+	mov	SECOND, [GLOBALS+G_RESULT]	; The value to store (lhs)
+	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
+	mov	[REG1], SECOND			; Store lhs
+	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
+	add	REG1, 4				; Move SSB ptr
+	mov	[SECOND+RESULT], REG1		; Store moved ptr
+	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
+	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
+	cmp	REG1, SECOND			; If ptr!=limit
+	jne	L5				;   then no overflow, so done
+	xor	RESULT, RESULT			; Clean
+	xor	SECOND, SECOND			;   state
+	mov	REG1, [GLOBALS+G_REG1]		;     and
+	sub	GLOBALS, 4			;       handle
+	MCg	mc_compact_ssbs			;         overflow
 PUBLIC i386_break
 	MCg	mc_break
 PUBLIC i386_timer_exception

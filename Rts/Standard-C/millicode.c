@@ -716,6 +716,11 @@ void wb_lowlevel_disable_barrier( word *globals )
   globals[ G_GENV ] = 0;
 }
 
+void EXPORT mc_compact_ssbs( word *globals ) /* Used by inline barrier */
+{
+    gc_compact_all_ssbs( the_gc(globals) );
+}
+
 void EXPORT mc_partial_barrier( word *globals )
 {
   unsigned *genv, gl, gr;

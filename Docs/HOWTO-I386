@@ -37,25 +37,89 @@ and Larceny can boot this image.  Works at least in part:
     identical images!
 
 
-PERFORMANCE.
-
-Programs that do a lot of traps to millicode will likely be slower than they
-used to be, because there is more state to save and a more costly call protocol
-(one indirect and one direct jump, rather than just one direct jump).
-
-One benchmark is the time it takes to load the compiler from the
-interpreter (this should not vary much) and the time it takes to
-rebuild the system in the interpreter.
-
-
 TODO.
 
  - implement exception signalling in Rts/Intel/i386-millicode.asm (important)
  - a few FIXMEs in Rts/Intel/i386-instr.asm (unproblematic)
  - a few OPTIMIZEMEs ditto (ditto)
  - twobit needs to be set up with the right number of hardware registers
+ - performance (see next section)
+ - code size (see section after that)
  - test, test, test
 
+
+PERFORMANCE.
+
+Programs that do a lot of traps to millicode will likely be slower
+than they used to be, because there is more state to save and a more
+costly call protocol (one indirect and one direct jump, rather than
+just one direct jump).  The operations most likely to suffer adversely
+are allocation, the write barrier, and generic arithmetic.  (Of these,
+the interpreter heavily relies on allocation and assignment; these
+have been fixed and it helps a little, see below.)
+
+The next step would be to (a) compile with profiling, to see if much
+time is being spent in the RTS/millicode, and if so where, and (b)
+change the assembler to emit debug info that the profiler can use, at
+which point we can profile the entire system!
+
+One benchmark is the time it takes to load the compiler from the
+interpreter (this should not vary much) and the time it takes to
+rebuild the system in the interpreter.
+
+Time it takes to load compiler from source:
+
+Petit Larceny 0.51
+  Words allocated: 29204170
+  Words reclaimed: 0
+  Elapsed time...: 14616 ms (User: 14420 ms; System: 40 ms)
+  Elapsed GC time: 461 ms (CPU: 480 in 111 collections.)
+
+Larceny 0.53, with all millicode in C
+  Words allocated: 29222154
+  Words reclaimed: 0
+  Elapsed time...: 10158 ms (User: 9970 ms; System: 30 ms)
+  Elapsed GC time: 469 ms (CPU: 440 in 111 collections.)
+
+Larceny 0.53, with a fast pointer check in assembler
+  Words allocated: 29222154
+  Words reclaimed: 0
+  Elapsed time...: 9920 ms (User: 9690 ms; System: 60 ms)
+  Elapsed GC time: 466 ms (CPU: 450 in 111 collections.)
+
+Larceny 0.53, with pointer check and faster code for alloc (but not alloci)
+  Words allocated: 29222154
+  Words reclaimed: 0
+  Elapsed time...: 9821 ms (User: 9630 ms; System: 50 ms)
+  Elapsed GC time: 468 ms (CPU: 540 in 111 collections.)
+
+Larceny 0.53, as above but with alloci optimized too
+  Words allocated: 29222154
+  Words reclaimed: 0
+  Elapsed time...: 9805 ms (User: 9590 ms; System: 30 ms)
+  Elapsed GC time: 468 ms (CPU: 420 in 111 collections.)
+
+Larceny 0.53, as above but with the entire barrier in assembler
+  Words allocated: 29222154
+  Words reclaimed: 0
+  Elapsed time...: 9619 ms (User: 9350 ms; System: 50 ms)
+  Elapsed GC time: 461 ms (CPU: 420 in 111 collections.)
+
+
+CODE SIZE.
+
+ - it is possible that mapping GLOBALS to esp is wrong because all
+   loading via GLOBALS will generate a long-form instruction: there
+   is not an simple instruction format for esp-indirect fetches, it
+   also includes a scale factor (1).  This blows up code size if
+   fetching through globals is used much.  It may make sense to make
+   millicode calls larger instead.  We can measure the tradeoff.  
+   A more reasonable sequence would be to do map CONT to esp and then eg
+               mov [GLOBALS+CONT], CONT
+               mov CONT, GLOBALS
+               call [CONT+X]
+   where millicode would need to clean up CONT and not return by
+   means of ret but by jumping to the correct address.
 
 OTHER NOTES.
 
