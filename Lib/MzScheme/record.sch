@@ -139,7 +139,7 @@
                      ((<= 0 index (- num-fields 1))
                       (vector-like-ref obj (+ index
                                               record-overhead)))
-                     (else (error "slot index must be in [0, " (- num-fields 1) "]") )))))
+                     (else (error "slot index out of bounds"))))))
 
          (define (record-mutator rtd)
            (assert-rtd rtd)

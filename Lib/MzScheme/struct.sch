@@ -69,6 +69,8 @@
   (define stype-proc (record-accessor *std-type* 'proc))
   (define stype-immutable-k-list
     (record-accessor *std-type* 'immutable-k-list))
+  (define stype-init-field-k (record-accessor *std-type* 'init-field-k))
+  (define stype-auto-field-k (record-accessor *std-type* 'auto-field-k))
   (define stype? (record-predicate *std-type*))
 
   ;; Constructors / Accessors / Predicate for struct-type-property
@@ -152,7 +154,11 @@
   ;; struct-type * struct-predicate-procedure -> struct-accessor-procedure
   (define (struct-accessor stype instance-of-stype?)
     (let ((rec-index (record-indexer stype))
-          (proc-spec (stype-proc stype)))
+          (proc-spec (stype-proc stype))
+          (offset (let ((super (record-type-parent stype)))
+                    (if super
+                        (length (record-type-field-names super))
+                        0))))
       (let* ((throw-type-error (lambda (obj index)
                                  (raise-type-error
                                   (string->symbol
@@ -167,11 +173,11 @@
                   (lambda (struct-proc index)
                     (if (instance-of-stype? struct-proc)
                         (rec-index (struct-proc-extra struct-proc)
-                                   index)
+                                   (+ index offset))
                         (throw-type-error struct-proc index)))
                   (lambda (obj index)
                     (if (instance-of-stype? obj)
-                        (rec-index obj index)
+                        (rec-index obj (+ index offset))
                         (throw-type-error obj index))))))
         (make-struct-proc accessor
                           sys$tag.struct-accessor-procedure))))
@@ -184,7 +190,11 @@
   ;; struct-type * struct-predicate-procedure -> struct-mutator-procedure
   (define (struct-mutator stype instance-of-stype?)
     (let ((rec-set!  (record-mutator stype))
-          (proc-spec (stype-proc stype)))
+          (proc-spec (stype-proc stype))
+          (offset (let ((super (record-type-parent stype)))
+                    (if super
+                        (length (record-type-field-names super))
+                        0))))
       (let* ((throw-type-error (lambda (obj index new-val)
                                  (raise-type-error
                                   (string->symbol
@@ -199,13 +209,13 @@
                   (lambda (obj index new-value)
                     (if (instance-of-stype? obj)
                         (let ((instance (struct-proc-extra obj)))
-                          (rec-set! instance index new-value)
+                          (rec-set! instance (+ index offset) new-value)
                           (set-struct-proc-extra! obj instance)
                           obj)
                         (throw-type-error obj index new-value)))
                   (lambda (obj index new-value)
                     (if (instance-of-stype? obj)
-                        (rec-set! obj index new-value)
+                        (rec-set! obj (+ index offset) new-value)
                         (throw-type-error obj index new-value))))))
       (make-struct-proc mutator
                         sys$tag.struct-mutator-procedure))))
@@ -237,7 +247,19 @@
                 (immutable-k-list (vector-ref opts 4))
                 
                 (field-names
-                 (map offset->name
+                 (map (lambda (n)
+                        (let ((super-init-offset
+                               (if super
+                                   (stype-init-field-k super)
+                                   0))
+                              (super-auto-offset
+                               (if super
+                                   (stype-auto-field-k super)
+                                   0)))
+                          (offset->name (+ n
+                                           super-init-offset
+                                           super-auto-offset))))
+                                         
                       (nats-to (+ init-field-k auto-field-k)))))
             
             ;; Make a record-type, and then use accessors to transfer
