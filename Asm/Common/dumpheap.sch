@@ -510,6 +510,7 @@
     (,$reg 1)
     (,$op1 car)
     (,$invoke 0)                        ; ((car l))
+    (,$.align 4)
     (,$.label 3)
     (,$.cont)
     (,$restore 2)
