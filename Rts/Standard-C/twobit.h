@@ -1355,11 +1355,11 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_408( y ) /* <=:fix:fix */ \
   setcc((s_word)RESULT <= (s_word)reg(y))
 
-#define twobit_op2_409( y ) /* >:fix:fix */ \
-  setcc((s_word)RESULT > (s_word)reg(y))
-
-#define twobit_op2_410( y ) /* >=:fix:fix */ \
+#define twobit_op2_409( y ) /* >=:fix:fix */ \
   setcc((s_word)RESULT >= (s_word)reg(y))
+
+#define twobit_op2_410( y ) /* >:fix:fix */ \
+  setcc((s_word)RESULT > (s_word)reg(y))
 
 #define twobit_op2imm_450( k ) /* vector-ref:trusted */ \
   RESULT = vector_ref( RESULT, (k >> 2) )
