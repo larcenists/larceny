@@ -3,7 +3,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.13 91/07/05 15:15:22 lth Exp Locker: lth $
+! $Id: memory.s,v 1.14 91/07/10 10:19:03 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -657,6 +657,7 @@ restore_scheme_context:
 	ld	[ %GLOBALS+RESULT_OFFSET ], %RESULT
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
+	ld	[ %GLOBALS+TIMER_OFFSET ], %TIMER
 	jmp	%o7+8
 	ld	[ %GLOBALS+SP_OFFSET ], %STKP
 
@@ -681,6 +682,7 @@ save_scheme_context:
 	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
+	st	%TIMER, [ %GLOBALS+TIMER_OFFSET ]
 	jmp	%o7+8
 	nop
 
