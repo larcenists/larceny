@@ -2,8 +2,6 @@
 ;
 ; $Id$
 ;
-; 2000-09-26 / lth
-;
 ; File lists for nbuild et al.  Don't rearrange the lists -- order matters.
 
 (define (nbuild-files path-ident files)
@@ -69,11 +67,29 @@
 
 (define *nbuild:petitasm-files*
   (nbuild-files 'standard-C-asm
-		`("pass5p2.sch" "peepopt.sch" "asm-switches.sch" "dumpheap-extra.sch" "md5.sch"
+		`("pass5p2.sch" 
+		  "peepopt.sch" 
+		  "asm-switches.sch" 
+		  "dumpheap-extra.sch" 
+		  "md5.sch"
 		  ,@(case (nbuild-parameter 'host-os)
 		      ((macosx unix) '("dumpheap-unix.sch"))
 		      ((win32)       '("dumpheap-win32.sch"))
 		      (else          '())))))
+
+(define *nbuild:x86-nasm-files*
+  (append
+   (nbuild-files 'x86-nasm-asm
+		 `("pass5p2-nasm.sch"
+		   "dumpheap-extra.sch" 
+		  ,@(case (nbuild-parameter 'host-os)
+		      ((unix)  '("dumpheap-unix.sch"))
+		      ((win32) '("dumpheap-win32.sch"))
+		      (else    '()))))
+   (nbuild-files 'standard-C-asm
+		 '("peepopt.sch"
+		   "asm-switches.sch"
+		   "md5.sch"))))
 
 (define *nbuild:make-files*
   `(,@(nbuild-files 'util '("make.sch"))
@@ -97,6 +113,7 @@
 	  (case (nbuild-parameter 'target-machine)
 	    ((SPARC)      *nbuild:sparc/twobit-files*)
 	    ((Standard-C) *nbuild:petit/twobit-files*)
+	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
 	    (else (error "nbuild:twobit-files: bad architecture.")))
 	  *nbuild:twobit-files-2*))
 
@@ -112,12 +129,14 @@
   (case (nbuild-parameter 'target-machine)
     ((SPARC)      *nbuild:sparcasm-files*)
     ((Standard-C) *nbuild:petitasm-files*)
+    ((x86-nasm)   *nbuild:x86-nasm-files*)
     (else (error "nbuild:machine-asm-files: bad architecture."))))
 
 (define (nbuild:heap-dumper-files)
   (case (nbuild-parameter 'target-machine)
     ((SPARC)      *nbuild:sparc-heap-dumper-files*)
     ((standard-C) *nbuild:petit-heap-dumper-files*)
+    ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
     (else (error "nbuild:heap-dumper-files: bad architecture."))))
 
 (define (nbuild:utility-files)

@@ -1,18 +1,12 @@
-; -*- mode: scheme -*-
-;
-; 19 August 2003
+; 29 August 2003
 ;
 ; General "script" for building Petit Larceny on little-endian Unix
 ; systems, under Larceny.
 
 (define nbuild-parameter #f)
 
-(define *root-directory* "")
-(define *sysdep-file* 
-  (string-append *root-directory* "Util/sysdep-unix.sch"))
-
 (define (unix-initialize)
-  (load *sysdep-file*)
+  (load "Util/sysdep-unix.sch")
   (load "Util/Configurations/nbuild-param-C-el-unix.sch")
   (set! nbuild-parameter 
 	(make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
@@ -68,16 +62,18 @@
   (execute-in-directory "Rts" "make libpetit.a"))
 
 (define (build-executable)
-  (set! unix/petit-lib-library-platform '("/usr/lib/libm.a"))
   (build-application "petit" '()))
 
 (define (build-twobit)
   (make-petit-development-environment)
-  (set! unix/petit-lib-library-platform '("/usr/lib/libm.a"))
   (build-application "twobit" (petit-development-environment-lop-files)))
 
 (define (load-compiler)
-  (load (make-filename *root-directory* "Util" "nbuild.sch")))
+  (load (make-filename "" "Util" "nbuild.sch"))
+  ; This var is picked up by Asm/Standard-C/dumpheap-unix.sch
+  (set! unix/petit-lib-library-platform 
+	'("/usr/lib/libm.a" "/usr/lib/libdl.a"))
+  (unspecified))
 
 (define (remove-rts-objects)
   (system "rm -f Rts/libpetit.a")
@@ -112,12 +108,12 @@
 (define (execute-in-directory dir cmd)
   (system (string-append "( cd " dir "; " cmd " )" )))
 
-; I think this works, but dynamic loading does not work on MacOS X 10.1.5,
-; so I've been unable to test.
-
 (define (compile-files infilenames outfilename)
   (let ((user      (assembly-user-data))
 	(syntaxenv (syntactic-copy (the-usual-syntactic-environment)))
+	; Doesn't work in Petit Larceny (yet, anyway)
+	;(syntaxenv (syntactic-copy (environment-syntax-environment
+	;			    (interaction-environment))))
 	(segments  '())
 	(c-name    (rewrite-file-type outfilename ".fasl" ".c"))
 	(o-name    (rewrite-file-type outfilename ".fasl" ".o"))
@@ -131,39 +127,35 @@
 						     user) 
 					   segments))))))
 	      infilenames)
-    (set! segments (reverse segments))
-    (create-loadable-file outfilename segments so-name)
-    (c-link-shared-object so-name (list o-name) '())
-    (unspecified)))
+    (let ((segments (reverse segments)))
+      (delete-file c-name)
+      (delete-file o-name)
+      (delete-file so-name)
+      (create-loadable-file outfilename segments so-name)
+      (c-link-shared-object so-name (list o-name) '())
+      (unspecified))))
 
-; This is really the wrong thing because it creates one .c for all the files.
-; Doing that is fine as such but it destroys incremental compilation.  Perhaps
-; that's what we want...  We could generate LOP for all and then have a load
-; step at the end?
-
-'(define (compile-files infilenames so-name)
-  (begin-shared-object so-name (string-append "\"" so-name "\""))
-  (let ((user (assembly-user-data)))
-    (do ((infilenames infilenames (cdr infilenames)))
-	((null? infilenames))
-      (let ((infilename (car infilenames)))
-	(let ((syntaxenv   (syntactic-copy (the-usual-syntactic-environment)))
-	      (segments2   '())
-	      (outfilename (rewrite-file-type infilename ".sch" ".fasl")))
-	  (display "Compiling ")
-	  (display infilename)
-	  (newline)
-	  (call-with-input-file infilename
-	    (lambda (in)
-	      (do ((expr (read in) (read in)))
-		  ((eof-object? expr)
-		   (add-to-shared-object outfilename (reverse segments2)))
-		(set! segments2 (cons (assemble (compile expr syntaxenv) user) 
-				      segments2)))))))))
-  (end-shared-object)
-  (c-link-shared-object so-name 
-			(list (rewrite-file-type so-name ".dll" ".obj"))
-			'("Rts/petit-rts.lib"))
-  (unspecified))
+(define (install-twobit basedir)
+  (let ((incdir (make-filename basedir "include"))
+	(libdir (make-filename basedir "lib")))
+    (for-each (lambda (fn)
+		(system (string-append "cp " fn " " incdir)))
+	      '("Rts/Standard-C/twobit.h"
+		"Rts/Standard-C/millicode.h"
+		"Rts/Standard-C/petit-config.h"
+		"Rts/Standard-C/petit-hacks.h"
+		"Rts/Sys/larceny-types.h"
+		"Rts/Sys/macros.h"
+		"Rts/Sys/assert.h"
+		"Rts/Sys/config.h"
+		"Rts/Build/cdefs.h"))
+    (for-each (lambda (fn)
+		(system (string-append "cp " fn " " libdir)))
+	      '("Rts/libpetit.a"
+		"libheap.a"))
+    (set! unix/petit-include-path (string-append "-I" incdir))
+    (set! unix/petit-rts-library (string-append libdir "/libpetit.a"))
+    (set! unix/petit-lib-library (string-append libdir "/libheap.a"))
+    'installed))
 
 ; eof
