@@ -4,6 +4,8 @@
 ;
 ; Compatibility library for the new Twobit under Chez Scheme
 
+(optimize-level 1)                      ; Full opt.; no inlining; safe.
+
 (define ($$trace x) #t)
 
 (define host-system 'chez)
