@@ -9,7 +9,7 @@
 
 (define (arity-at-least? thing)
   (and (pair? thing)
-       (eq? (car thing) 'arity-at-least?)))
+       (eq? (car thing) 'arity-at-least)))
 
 (define arity-at-least-value cdr)
 
