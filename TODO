@@ -1,105 +1,45 @@
--*- Indented-Text -*-
+Copyright 1998 Lars T Hansen.                -*- Indented-Text -*-
+
 $Id$
 
-This is the Grand Unified To-do List for Larceny, and contains all known
-features and fixes I know of, except those that are listed in BUGS and
-TODO-RAINYDAY.
 
-High priority items are marked with **.
-Ultra-low priority items are marked with +.
-Priority is subjective, but items deemed desirable for the public release
-of the Sparc version have been given high priority.
+			Grand Unified TO-DO List
 
-	   **************************************************
 
-I've copied all the high-priority items up here:
- [FFI]
-   Standard FFI
-    - setup so that it re-selects the FFI implementation at heap restore
-      time; that way, a heap can be OS independent.
+This is the Grand Unified To-do List for Larceny, and lists all desired
+features and fixes I know of, except actual bugs (see the file BUGS) and
+large projects (see the file TODO-RAINYDAY).
+
+** = High priority.
+ * = Normal priority.
+ + = Ultra-low priority.
+
+
+FFI
+ ** Standard-FFI high priority
     - How to load e.g. the file socket-support.o that has unresolved
       external references?
     - Test (better) on SunOS 5.
     - Test on SunOS 4.
-
- [RTS]
-   In-system heap dumper for generational and conservative systems.
-
- [DEBUGGER]
-   Show source code, if available [the problem is local procedures].
-   Support for variable names and source file name, if available.
-
- [LIBRARY]
-   Top-level environments must also hold syntax definitions.
-
-   Move records, applyhooks to Auxlib (requires cleaning up and
-   documenting records).
-
-   R5RS compliance
-     - Check everything (sigh).
-
-   I/O system high priority
-    - Extensible I/O system (see Larceny Note).
-    - Performance [see fast-read-char.txt for details]
-      - peek-char should maybe be coded in MAL, like read-char and write-char.
-      - read-char, write-char, and peek-char should be compiler macros that
-        call fast-read-char et al and, if that fails, call the 'normal'
-        versions
-      - the normal versions of read-char, write-char, and peek-char should
-        manipulate the port directly rather than calling io/read-char 
-        and io/write-char; this avoids extra call overhead.
-
- [TESTING]
-   Regression test suite must be completed (massive undertaking).
-
-   GC test suite must be completed.
-     - test coverage automation
-     - additional tests to provide good coverage :-)
-
- [PERFORMANCE AND CODE GENERATION]
-   Code generation and millicode
-     - keep the return address in a register when possible
-     - use more HW registers on the SPARC
-     - use HW divide in-line
-     - use HW divide in millicode [done for quotient]
-
- [DOCUMENTATION]
-   Add Auxlib procedures to the documentation!
-   Check that function index has all the functions.
-   Clean up the concept index.
-   Clean up compilation etc documentation.
-   Document which features are in the basic image and which are
-    only available after loading Auxlib and the Debugger (or at
-    least document that some functionality may not be in the basic
-    heap image).
-   These sections need more documentation:
-    - control.html
-    - debugging.html
-    - io.html
-    - numbers.html
-    - parameters.html
-    - strings.html
-    - vectors.html
-
- [MISCELLANEOUS]
-   Copyright notice on all files.
-
-	   **************************************************
-
-
-FFI
- ** Test thoroughly
-  * larceny_call() must deal with stack overflow
-  * Problem with dynamic loader on SunOS 4 -- exits if the file is not found
-  * call/cc must work right (to handle errors correctly in callbacks)
-  * Std FFI
+    - Write guidelines for compiling C code for use with FFI.
+    - Should exit if errors are discovered in the relinking phase.
+    - Document!
+ ** larceny_call() must deal with stack overflow.
+  * Problem with dynamic loader on SunOS 4 -- exits if the file is not found!
+  * Callbacks
+    - finish implementation
+    - call/cc must work right (to handle errors correctly in callbacks)
+  * Performance
+    - Profile and see if it's worth getting rid of or optimizing some layers.
+  * Standard-FFI normal priority
     - Consider changing semantics so that foreign-file loads the file
       immediately -- gives better opportunities for error messages.
-    - Guidelines for compiling C code for use with FFI.
-    - Should exit if errors are discovered in the relinking phase.
+    - Setup so that it re-selects the FFI implementation at heap restore
+      time; that way, a heap can be OS independent.
 
-RTS
- ** In-system heap dumper for generational and conservative systems.
+Common RTS
+  * In-system heap dumper for generational system.
+  * In-system heap dumper for conservative system.
   * Garbage collector
     - Features
       - weak cells
@@ -108,40 +48,55 @@ RTS
       - Use madvise (maybe)
     - Implementation
       - consider building an allocator on top of memalign or mmap (maybe)
-    - Clean up roots/remset enumeration code in cheney.c -- but the remset
-      implementation must change, too.
   * Factor out larceny_init() from main().
-  * See if we can build larceny as a dynamic library.
+  * Will's new write barrier.
+  * Clean up pointer registry in posix-alloc.c (after profiling it).
+
+SPARC RTS
   * dzero should be in globals[].
-  * new write barrier
-  * cleanup mem_alloci
 
-Macros that work (temporary until new compiler)
-  * Bugs.
+Macros
   * Integrate macros with top-level environments.
-  * Add Macwork to the standard-distribution tar file.
-  * Document its existence and setup process.
-  * Document changes to eval-macro-expander.
 
-Solaris port
-  * Clean up pointer registry in posix-alloc.c (if profiling tells us that
-    it's worth it).
-
-Assembler
+SPARC Assembler
   * More singlestepping fixes:
-    - want to preserve labels
-    - want to show load with destination 0
+    - want to preserve labels.
+    - does not work well with peephole optimization.
+    - want to show load with destination 0.
   * Peephole optimization:
     - might want to use Will's peephole optimizer.
-  * Better delay slot filling and instruction scheduling.
+    - in any case get rid of all the internal: primitives and 
+      implement a faster strategy.
+  * Performance
+    - avoid extra pass during peephole optimizations
+    - is it possible to do more work before assembly by emitting
+      partially-completed instruction streams that are efficiently
+      cloned and patched?
+  * Better delay slot filling.
+  * Maybe instruction scheduling.
+  * General cleanup and streamlining.
 
-Evaluator (interpreter)
+Interpreter
+ ** Use .named-lambda on internal procedures too.
   * Debug support (via *evalhook* or some other mechanism), esp. environment
     display/change, and single-stepping of expressions.
 
-Debugger
- ** Show source code, if available.
+Debugging
+ ** Show source code, if available (how to do local procedures?)
  ** Support for variable names and source file name, if available.
+  * Support for source code location.
+    This is how to do it: install a reader macro for #\(.  This macro
+    does exactly what the current reader does, but when the datum has
+    been read, it installs a mapping from the datum to the source position
+    of the #\( in a map.  (The map can be cleared after every top-level
+    expression.)  When the macro expander wants to create documentation,
+    it takes its source expression and looks it up in the map to get
+    the source position (if any).  Probably an eq-hash table is best,
+    especially when doing block compilation.
+  * Graph printing and reading could vastly reduce the amount of 
+    source code emitted as part of the documentation, where code may now be
+    duplicated during writing and reading.  (Not a problem for in-memory
+    compilation.)
   * Better trace/break based on advise or similar functionality.
   * Support for interpreted code.
   * More generalized object inspector (a la Chez Scheme).
@@ -149,9 +104,12 @@ Debugger
 Library
  ** Top-level environments must also hold syntax definitions.
  ** R5RS compliance
-    - Dynamic-wind and multiple values, for sure.
+    - Multiple values, for sure.
     - Check everything else.
- ** I/O system high priority
+ ** Move Experimental functionality to Auxlib
+     - records (requires cleaning up and documenting records).
+     - applyhooks
+  * I/O system high priority
     - Extensible I/O system (see Larceny Note).
     - Performance [see fast-read-char.txt for details]
       - peek-char should maybe be coded in MAL, like read-char and write-char.
@@ -165,9 +123,9 @@ Library
     - Support non-blocking I/O (see Larceny Note).
     - Faster reader [faster read-char and better compiler will help].
     - Faster printer [maybe].
-    - Reader and pringer should be able to read and print graph structures.
+    - Reader and printer should be able to read and print graph structures.
     - Switch from Dragon4 to Dybvig's algorithm.
-    - Transcript I/O.
+    - Re-implement transcript I/O in terms of the extensible I/O system.
     - Re-implement string I/O in terms of the extensible I/O system.
     - Read tables (a la Interlisp where the read table can be an argument
       to 'read').
@@ -199,6 +157,7 @@ Library
       without traversing the entire structure, but a link map instead.
       Also, the link map makes 'un-linking' possible.
     - The FASL format will then change, and #^G will go away from the reader.
+    - Allows disassembling FASL files.
   * Implement a dump-handler (procedures run before a dump)
   * Implement a restore-handler (procedures run after restore -- partially
     exists already in the form of add-init-procedure!.)
@@ -217,15 +176,38 @@ Testing
     - additional tests to provide good coverage :-)
 
 Performance and code generation
- ** Code generation and millicode
+  * Speed
+    - keep the return address in a register when possible
+    - use more HW registers on the SPARC
     - use HW divide in-line
     - use HW divide in millicode [done for quotient]
-  * Code generation and millicode
     - open-code multiplication by simple constant (fixnum/fixnum case).
     - in-line boxing code for bignum boxing in generic.s
     - number? should check for fixnum in-line, ditto other predicates 
       and exact?
-  * Function cell
+    - Function cell
+    - Once-only globals checking
+  * Space
+    - Operation-specific error callouts, to avoid having to set up
+      the error code in-line.
+    - Pass register mask rather than register contents -- should
+      save instructions in most cases.  In particular, if we have no more
+      than 17 registers (plus RESULT, SECOND, THIRD) then the following
+      method can be used:
+       * One or two words of raw data follows the callout to the exception
+         handler.  The first word is the first and second argument, the
+         second word is the third and fourth (if present).
+       * The low half of the word is a bitmap for argument 1 (3), the high
+         half is a bitmap for argument 2 (4).
+       * If the low half is 0, then the argument is in RESULT (THIRD),
+         otherwise it is one of the registers R1..R16.
+       * If the high half is 0, then the argument is in SECOND (FOURTH),
+         otherwise it is one of the registers R1..R16.
+       * If the exception handler needs to return, it can skip over the
+         data as required.
+      The method can be used for other millicode calls, too, to reduce
+      code size, but it increases the number of instructions executed
+      because millicode must decode the masks.
   * Possible primops (RTS hooks)
     - sys$bvl-copy-into!
     - sys$bvl-fill!
@@ -238,10 +220,7 @@ Performance and code generation
     - Support flonum, compnum vectors.
   * Improve speed of context switching code.
   * Can we improve the speed of a syscall?
-  * Bignum speedups.
-  * Generic approach to implementing code generation strategies that
-    are now handled as ad-hoc peephole optimizations
-    - predicates for control
+  * Bignum speedups (patience, patience...)
   * Predicates that should be primops but aren't:
     [none currently]
   * Predicates for control that need to be but aren't:
@@ -252,7 +231,7 @@ Performance and code generation
 
 Auxiliary library (directory Auxlib)
   * Pretty printer should support structure printer.
-  * Printer/reader that can do circular structures.
+  * Printer/reader that can do circular structures (need eq? hashing).
   + Object pickler
 
 Development system & compiler
@@ -269,15 +248,17 @@ Development system & compiler
     but also coded in millicode (abs, positive?, negative?).
   * Performance
     - Cache global cells and symbols.
-  * Support a more sophisticated pluggable macro-expander (like the
-    interpreter)?  This would require changing pass1 to recognize
-    the magic keywords in the output from the auxiliary expander.
-  * nbuild, nbuild.sch, load-twobit.sch, load-twobit-C.sch have a number
-    of common values (directory names, esp.).  These are duplicated;
-    it would be better (but more complicated) to have them all in one
-    place.
   + R5RS macros [new compiler does this]
   + Real implementation of multiple values [new compiler does this]
+
+Documentation
+ ** Clean up the concept index.
+ ** Clean up compilation etc documentation.
+ ** These sections need more or better documentation:
+    - auxlib.html
+    - debugging.html
+    - fixnums.html
+    - repl.html
 
 Miscellaneous
  ** Copyright notice on all files.
@@ -285,7 +266,6 @@ Miscellaneous
   * We should perhaps define bytevector-set! so that it chops off 
     high bits; this makes code easier to write and is faster (but is 
     it slower on other kinds of architectures, e.g. Alpha?).
-  * CVS based version control archive.
 
 Bootstrap heap dumper (extremely low priority)
   + Speedups:
@@ -319,37 +299,3 @@ Must look at:
 
 * np-sc-heap.c:  contraction code (currently disabled).
 * sc-heap.c: contraction code (currently disabled).
-
-      ************************************************************
-
-PETIT LARCENY (first phase)
-
-Compilation LAP->LOP
-  Every procedure should take _globals_ as an argument (maybe).
-
-Header file twobit.h (primitives and MAL instructions)
-
-Heap dumping
-  Going from .c to .o
-  Naming in the startup name list
-  Startup code
-  Linking
-  
-RTS support
-  All the millicode
-    Create names G_SECOND, G_THIRD, G_FOURTH.
-    Create globals slot G_GC, and initialize it
-    Define LASTREG, NREGS
-  Stack flush code (code ptrs are not bytevectors)
-  Dispatch loop and that kind of support code
-    larceny_call must call petit_larceny_start when handed a C procedure.
-  Factor out OS-dependent from OS-independent code
-    Move syscall table out of syscall procedure??
-    Move larceny_syscall to some other place?  (larceny_call is in callback.c)
-
-Library support
-  primitives
-  factor out OS-dependent from OS-independent code
-
-FASL files
-  how to deal with (or not deal with?) .FASL files
