@@ -23,26 +23,37 @@
   (define ctrl-C (integer->char 3))
   (define ctrl-F (integer->char 6))
 
-  (define (print x p slashify)
-    (cond ((not (pair? x)) (patom x p slashify))
+  (define (print x p slashify level)
+    (cond ((zero? level) (printstr "..." p))
+          ((not (pair? x)) (patom x p slashify level))
 	  ((and (memq (car x) quoters)
 		(pair? (cdr x))
 		(null? (cddr x)))
-	   (print-quoted x p slashify))
-	  (else (write-char (string-ref "(" 0) p)
-		(print (car x) p slashify)
-		(print-cdr (cdr x) p slashify))))
+	   (print-quoted x p slashify level))
+          ((zero? (- level 1))
+           (printstr "(...)" p))
+          ((eqv? 0 (print-length))
+           (printstr "(...)" p))
+	  (else
+           (write-char (string-ref "(" 0) p)
+           (print (car x) p slashify (- level 1))
+           (print-cdr (cdr x) p slashify 
+                      (- level 1) 
+                      (- (or (print-length) 0) 1)))))
      
-  (define (print-cdr x p slashify)
-    (if (null? x)
-	(write-char (string-ref ")" 0) p)
-	(if (not (pair? x))
-	    (begin (printstr " . " p)
-		   (patom x p slashify)
-		   (write-char (string-ref ")" 0) p))
-	    (begin (write-char #\space p)
-		   (print (car x) p slashify)
-		   (print-cdr (cdr x) p slashify)))))
+  (define (print-cdr x p slashify level length)
+    (cond ((null? x)
+           (write-char (string-ref ")" 0) p))
+          ((zero? length)
+           (printstr " ...)" p))
+          ((not (pair? x))
+	   (printstr " . " p)
+           (patom x p slashify level)
+           (write-char (string-ref ")" 0) p))
+          (else
+	   (write-char #\space p)
+           (print (car x) p slashify level)
+           (print-cdr (cdr x) p slashify level (- length 1)))))
      
   (define (printstr s p)
 
@@ -77,7 +88,7 @@
 
     (loop s p 0 (bytevector-length s)))
      
-  (define (patom x p slashify)
+  (define (patom x p slashify level)
     (cond ((eq? x '())              (printstr "()" p))
 	  ((not x)                  (printstr "#f" p))
 	  ((eq? x #t)               (printstr "#t" p))
@@ -102,7 +113,7 @@
 		     p))
 	  ((vector? x)
 	   (begin (write-char #\# p)
-		  (print (vector->list x) p slashify)))
+		  (print (vector->list x) p slashify level)))
 	  ((procedure? x)           (printprocedure x p slashify))
 	  ((bytevector? x)          (printbytevector x p slashify))
 	  ((eof-object? x)          (printeof x p slashify))
@@ -174,12 +185,39 @@
   (define (printweird x p slashify)
     (printstr "#<WEIRD OBJECT>" p))
      
-  (define (print-quoted x p slashify)
+  (define (print-quoted x p slashify level)
     (printstr (cdr (assq (car x) quoter-strings)) p)
-    (print (cadr x) p slashify))
+    (print (cadr x) p slashify (- level 1)))
     
-  (print x p slashify))
+  (print x p slashify (+ (or (print-level) -2) 1)))
 
+(define print-length
+  (let ((*print-length* #f))
+    (lambda rest
+      (cond ((null? rest) *print-length*)
+            ((null? (cdr rest))
+             (let ((x (car rest)))
+               (if (not (or (not x)
+                            (and (fixnum? x) (>= x 0))))
+                   (error "Bad argument " x " to print-length."))
+               (set! *print-length* x)
+               x))
+            (else
+             (error "Wrong number of arguments to print-length."))))))
+
+(define print-level
+  (let ((*print-level* #f))
+    (lambda rest
+      (cond ((null? rest) *print-level*)
+            ((null? (cdr rest))
+             (let ((x (car rest)))
+               (if (not (or (not x)
+                            (and (fixnum? x) (>= x 0))))
+                   (error "Bad argument " x " to print-level."))
+               (set! *print-level* x)
+               x))
+            (else
+             (error "Wrong number of arguments to print-level."))))))
 
 (define **lowlevel** (list 0))   ; any unforgeable value
 
