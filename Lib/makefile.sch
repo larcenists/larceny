@@ -157,7 +157,7 @@
   '("Repl/reploop"          ; Read-eval-print loop
     "Eval/eval"             ; Simple eval procedure (interpreter)
     "Eval/evalprim"         ; Primitives for interpreter
-    "Eval/macro-expand"     ; Macro expander wrapper (for interpreter)
+    "Eval/switches"	    ; Switches for macro expander
     "Compiler/pass1"
     "Compiler/pass1.aux"
     "Compiler/pass2.aux"
@@ -167,6 +167,7 @@
     "Compiler/lowlevel"
     "Compiler/expand"
     "Compiler/usual"
+    "Eval/macro-expand"     ; Macro expander wrapper
     ))
 
 ; Files that hold system constants.
@@ -245,7 +246,7 @@
   (let ((compiler-files 
 	 (replace-extension ".fasl" (nbuild:twobit-files)))
 	(comp-util-files 
-	 '("make" "make-support" "init-comp")))
+	 '("make" "make-support" "init-comp" "compile-always")))
     (make:project "compiler.date"
       `(rules
 	(".fasl" ".sch" ,make-compile-file))
