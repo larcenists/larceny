@@ -3,7 +3,7 @@
 ; Scheme 313 Compiler
 ; Code to dump a bootstrap heap image from un-encoded scheme object files.
 ;
-; $Id: dumpheap.scm,v 1.1 91/08/16 02:33:04 lth Exp Locker: lth $
+; $Id: dumpheap.scm,v 1.2 91/08/17 23:23:29 lth Exp Locker: lth $
 ;
 ; Each input file consists of a pair, the car of which is a code vector and the
 ; cdr of which is a constant vector. The code vector is a regular vector,
@@ -295,6 +295,7 @@
 	  (,$reg 1)
 	  (,$op1 null?)
 	  (,$branchf 2)
+	  (,$reg 2)
 	  (,$return)
 	  (,$.label 2)
 	  (,$save 3 1)
@@ -304,6 +305,7 @@
 	  (,$.label 3)
 	  (,$.cont)
 	  (,$restore 1)
+	  (,$setreg 2)
 	  (,$pop 1)
 	  (,$reg 1)
 	  (,$op1 cdr)

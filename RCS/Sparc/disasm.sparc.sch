@@ -69,7 +69,6 @@
 		     $i.bvc.a)))
 
 	(lambda (ip instr)
-	  (display "class 0") (newline)
 	  (let ((op2 (op2field instr)))
 	    (cond ((= op2 #b100)
 		   (if (zero? (rdfield instr))
@@ -77,7 +76,7 @@
 		       `(,$i.sethi ,(imm22field instr))))
 		  ((= op2 #b010)
 		   `(,(vector-ref b-table (rdfield instr))
-		     ,(imm22field instr)))
+		     ,(* 4 (imm22field instr))))
 		  (else
 		   (error 'class00
 			  "Can't disassemble ~a at ip ~a with op2 ~a"
@@ -86,8 +85,7 @@
     ; Class 1 is the call instruction; there's no choice.
 
     (define (class01 ip instr)
-      (display "class 1") (newline)
-      `(,$i.call ,(imm30field instr)))
+      `(,$i.call ,(* 4 (imm30field instr))))
 
     ; Class 2 is for the ALU. Dispatch on op3 field.
 
@@ -159,7 +157,6 @@
 		(0          0))))
 
 	(lambda (ip instr)
-	  (display "class 2") (newline)
 	  (nice-instruction op3-table ip instr))))
 
 
@@ -231,10 +228,17 @@
 		(0          0))))
 
 	(lambda (ip instr)
-	  (display "class 3") (newline)
 	  (nice-instruction op3-table ip instr))))
 
     ; For classes 2 and 3
+
+    ; Ugly hack, but stores require twiddling the operands.
+
+    (define store?
+      (let ((slist `(,$i.str ,$i.sti ,$i.stbr ,$i.stbi ,$i.sthr ,$i.sthi
+			    ,$i.stdr ,$i.stdi ,$i.stdfr ,$i.stdfi)))
+	(lambda (i)
+	  (not (null? (memv i slist))))))
 
     (define (nice-instruction op3-table ip instr)
       (let* ((op3  (op3field instr))
@@ -244,10 +248,10 @@
 	     (src2 (if (zero? imm)
 		       (rs2field instr)
 		       (imm13field instr))))
-	`(,((if (zero? imm) car cadr) (vector-ref op3-table op3))
-	  ,rs1
-	  ,src2
-	  ,rd)))
+	(let ((op ((if (zero? imm) car cadr) (vector-ref op3-table op3))))
+	  (if (store? op)
+	      `(,op ,rd  ,src2 ,rs1)
+	      `(,op ,rs1 ,src2 ,rd)))))
 
     ; The following procedures pick apart an instruction
 

@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.2 91/08/15 10:48:41 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.3 91/08/17 04:34:24 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -315,6 +315,8 @@
 (define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
 (define $branch (make-mnemonic 'branch))         ; branch  L
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
+(define $optb2 (make-mnemonic 'optb2))           ; optb2   prim,L
+(defien $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
 
 (define $cons 'cons)
 
@@ -364,12 +366,10 @@
       (set! n (+ n 1))
       (string->symbol (string-append "L" (number->string n))))))
 
-; no-op on Sparc
-
 (define-instruction $.proc
   (lambda (instruction as)
     (list-instruction ".proc" instruction)
-    '()))
+    (emit-.proc! as)))
 
 ; no-op on Sparc
 
@@ -388,7 +388,7 @@
 ; Instructions.
 
 ; A hack to deal with the MacScheme macro expander's treatment of
-; 1+ and 1-.
+; 1+ and 1-, and some peephole optimization.
 
 (define-instruction $op1
   (lambda (instruction as)
@@ -396,6 +396,21 @@
 	   (push-instruction as (list $opx '+ 1)))
 	  ((eq? (operand1 instruction) (string->symbol "1-"))
 	   (push-instruction as (list $opx '- 1)))
+	  ((and (eq? (operand1 instruction) 'null?)
+		(eq? (operand0 (next-instruction as)) $branchf))
+	   (let ((i (next-instruction as)))
+	     (consume-next-instruction! as)
+	     (push-instruction as (list $optb 'bfnull? (operand1 i)))))
+	  ((and (eq? (operand1 instruction) 'zero?)
+		(eq? (operand0 (next-instruction as)) $branchf))
+	   (let ((i (next-instruction as)))
+	     (consume-next-instruction! as)
+	     (push-instruction as (list $optb 'bfzero? (operand1 i)))))
+	  ((and (eq? (operand1 instruction) 'pair?)
+		(eq? (operand0 (next-instruction as)) $branchf))
+	   (let ((i (next-instruction as)))
+	     (consume-next-instruction! as)
+	     (push-instruction as (list $optb2 'bfpair? (operand1 i)))))
 	  (else
 	   (list-instruction "op1" instruction)
 	   (emit-primop0! as (operand1 instruction))))))
@@ -403,11 +418,24 @@
 ; ($op2 prim k)
 
 (define-instruction $op2
-  (lambda (instruction as)
-    (list-instruction "op2" instruction)
-    (emit-primop1! as
-		   (operand1 instruction)
-		   (regname (operand2 instruction)))))
+
+  (let ((oplist '((= bf=) (< bf<) (> bf>) (<= bf<=) (>= bf>=))))
+
+    (lambda (instruction as)
+      (let ((op (assq (operand1 instruction) oplist)))
+	(if (and op
+		 (eq? (operand0 (next-instruction as)) $branchf))
+	    (let ((i (next-instruction as)))
+	      (consume-next-instruction! as)
+	      (push-instruction as (list $optb3
+					 (cdr op)
+					 (operand2 instruction)
+					 (operand1 i))))
+	    (begin
+	      (list-instruction "op2" instruction)
+	      (emit-primop1! as
+			     (operand1 instruction)
+			     (regname (operand2 instruction)))))))))
 
 ; ($op3 prim k1 k2)
 
@@ -429,6 +457,29 @@
     (emit-primop1! as
 		   (operand1 instruction)
 		   $r.argreg2)))
+
+; Test-and-branch-on-false; introduced by peephole optimization of
+; constructions of the form
+;   ($op1 test)
+;   ($bfalse label)
+; The name of the test has been changed to make it easier for the backend.
+;
+; ($optb2 test label)
+
+(define-instruction $optb
+  (lambda (instruction as)
+    (list-instruction "optb2" instruction)
+    (emit-primop1! as
+		   (operand1 instruction)
+		   (operand2 instruction))))
+
+(define-instruction $optb3
+  (lambda (instruction as r)
+    (list-instruction "optb3" instruction)
+    (emit-primop2! as
+		   (operand1 instruction)
+		   (regname (operand2 instruction))
+		   (operand3 instruction))))
 
 ; ($const foo)
 
