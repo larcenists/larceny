@@ -16,8 +16,13 @@
 
 top="."
 dirs=" 	${top}
-	${top}/DirA
-	${top}/DirB
+	${top}/Chez
+	${top}/Compiler
+	${top}/Lib
+	${top}/Lib/Sparc
+	${top}/Sparc
+	${top}/Sys
+	${top}/Text
 	"
 
 if [ "$#" -ge 1 ]; then
