@@ -191,6 +191,19 @@ One can imagine several fixes.
    compile the assembler code to object code.
 
 
+TODO.
+
+* FIXMEs in the Win32 support code (osdep-win32); nothing important,
+  mostly version number / time measurement.
+
+* Synchronous interrupts are disabled because longjmp out of signal
+  handler does not work on WinNT or Win2K; it would be nice to fix
+  this (or some blocking syscalls will not be interruptible).
+
+* Make it work under the MinGW shell "MSYS", looks like there could be
+  an I/O flushing issue in the generic-io package that needs to be
+  fixed.
+
 --- Local Variables: ---
 --- mode: text ---
 --- indent-tabs-mode: nil ---

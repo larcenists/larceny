@@ -1,36 +1,49 @@
 Information about Petit Larceny on MacOS X
-27 January 2004 / lth
+25 November 2004 / lth
 
 
 HOW TO BUILD AND USE.
 
-See HOWTO-PETIT for information about this.  The file to load is
-Util/petit-unix-be.sch; there are no surprises.
-
-The dynamic loading facility implemented by COMPILE-FILES does not
-work under MacOS X because the OS has an idiosyncratic dynamic loading
-facility that I have not yet done anything to understand.  Compiled
-code must be linked into the heap using the BUILD-APPLICATION
-facility.  BUILD-TWOBIT works.
+See HOWTO-BUILD and HOWTO-PETIT for information about this.  The file
+to load is Util/petit-unix-be.sch; there are no surprises.
 
 
-PERFORMANCE SKETCH (Larceny 0.50, fall 2002)
+COMPILING AND LOADING YOUR OWN PROGRAMS
 
-System:                    400MHz PowerBook G3, MacOS X 10.1.5
-Jump discipline:           Trampoline with gotos for local labels
-Compiled (fib 33):         2603ms, peephole opt. cuts this to 2435ms
-Interpreted (fib 30):      9181ms
-Compiled (even? 10000000): 2214ms (global functions even? and odd?), ie
-                           about 5,000,000 function calls per second
+If you want to use dynamic loading of files compiled with COMPILE-FILES
+then you must:
+
+  - Install the dlcompat package from the opendarwin project:
+	http://www.opendarwin.org/
+	http://www.opendarwin.org/projects/dlcompat/
+
+  - Make sure HAVE_DLFCN is defined in features.sch before you
+    evaluate BUILD-CONFIG-FILES
+
+If you do these two things then dynamic loading of files should
+generally work OK.
+
+
+USEFUL SITES
+
+The Fink project has some information about getting Unix programs
+to work on MacOS X:
+
+	http://fink.sourceforge.net/
+	http://fink.sourceforge.net/doc/porting/
 
 
 TODO.
 
-* Implement dynamic loading
 * Implement the foreign function interface
 * Implement polling input with select()
 * Problems with mmap -- function exists but Larceny gets a failure, appears
   to need extra magic on this platform (problem experienced with 10.1.5)
 * Performance investigation -- various jump disciplines, other
   build options.
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---
 

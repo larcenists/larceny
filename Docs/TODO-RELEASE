@@ -73,19 +73,15 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    no gap between the start label 0 and normal label, and no dead
    labels.)
 
- * Win32: FIXMEs in the Win32 support code (osdep-win32); nothing important,
-   mostly version number / time measurement.
+ * Cleanup: Probably get rid of support for compiling Larceny from
+  other Scheme systems.
 
- * Win32: Synchronous interrupts are disabled because longjmp out of
-   signal handler does not work on WinNT or Win2K; it would be nice to
-   fix this (or some blocking syscalls will not be interruptible).
+ * MacOS X TO-DO items: see section at the end of HOWTO-MACOSX.  Of
+   special interest:
+     - select() problem
+     - mmap() problem
 
- * Win32: Make it work under the MinGW shell "MSYS", looks like there could
-   be an I/O flushing issue in the generic-io package that needs to be
-   fixed.
-
- * Probably get rid of support for compiling Larceny from other Scheme
-   systems.
+ * Win32 TO-DO items: see section at the end of HOWTO-WIN32.
 
 
 Lower priority:
@@ -139,4 +135,7 @@ Release candidate 1 -> Release candidate 2
   Package libraries and scripts so that it is convenient to
   build apps without having a source tree available?
 
-
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---
