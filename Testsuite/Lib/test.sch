@@ -32,9 +32,8 @@
   (display "********** FAILURE *********") (newline)
   (display "  ") (display id) (display " did not pass test.")
   (newline)
-  (display "  Correct value  = ") (display correct) (newline)
   (display "  Returned value = ") (display ans) (newline)
-  )
+  (display "  Correct value  = ") (display correct) (newline))
 
 (define (failure-message-succeeded id)
   (display "********** FAILURE *********") (newline)
