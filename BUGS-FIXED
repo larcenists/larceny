@@ -1892,6 +1892,99 @@ $Id$
     Avoided changing GC interface by having cglue.c call a yh_ method
     directly.
 
+136 v0.45 (??? / lth)
+    Priority: high
+    Category: TWOBIT / correctness
+
+    Interaction of toplevel BEGINs with DEFINEs.  The macro
+    
+    (define-syntax define-values
+      (syntax-rules ()
+        ((define-values (?v1 ?v2 ...) ?expr)
+         (begin
+           (define __super-secret-variable-name
+             (call-with-values 
+              (lambda () ?expr)
+              (lambda values values)))
+           (define-values #t (?v1 ?v2 ...) __super-secret-variable-name 0)))
+        ((define-values #t () ?v ?n)
+         (set! ?v #f))
+        ((define-values #t (?v1 ?v2 ...) ?v ?n)
+         (begin
+           (define ?v1 (list-ref ?v ?n))
+           (define-values #t (?v2 ...) ?v (+ ?n 1))))))
+    
+    run on the code
+    
+    (define-values (a) (values 1))
+    
+    expands as 
+    
+    ((lambda ()
+       (begin
+         (begin
+           (set! .__super-secret-variable-name|1
+             (call-with-values
+               (lambda () (values '1))
+               (lambda .values|1|3 .values|1|3)))
+           '.__super-secret-variable-name|1)
+         (begin
+           (set! a
+             (list-ref __super-secret-variable-name '0))
+           'a)
+         (set! __super-secret-variable-name '#f))))
+    
+    but the expansion incorrectly uses an alpha-converted name for
+    __super-secret-variable-name in the definition but not in later uses.
+
+    This is clearly a bug, but it is not entirely obvious what the
+    correct behavior should be.  Consider
+
+        (define-syntax defv
+          (syntax-rules ()
+            ((defv ?var ?expr)
+             (begin (define ?var (lambda () secret))
+                    (define secret ?expr)))))
+
+        (define secret 1)
+        (define f1 (lambda () secret))
+        (defv f2 2)
+        (define secret 3)
+        (define f3 (lambda () secret))
+        (defv f4 4)
+
+    To what should (list (f1) (f2) (f3) (f4)) evaluate?
+
+        (3 3 3 3)    ; Chez Scheme v6.1
+        (3 2 3 4)    ; Scheme 48 0.36
+        (4 4 4 4)    ; Larceny after this bug was fixed
+
+    The third possibility was chosen for Larceny because that is
+    the result obtained when the DEFV macro is expanded by hand,
+    and because the semantics of Chez Scheme and Scheme 48 lead
+    to buggy expansions for slightly different examples.
+
+    FIX:  DESUGAR-DEFINE must macro-expand the defined variable
+    name before calling MAKE-TOPLEVEL-DEFINITION.
+
+137 v0.45 (991013 / lth)
+    Priority: high
+    Category: TWOBIT / correctness
+
+    This was illegal in R4RS but is legal in R5RS, cf sec 5.1.  Almost
+    certainly related to the logged bug #136.
+
+    > (begin (load "../Auxlib/list.fasl")
+             (define x (make-list 125000))
+             (do ((i 0 (+ i 1)) (y x (reverse y))) ((= i 100) #t)))
+    ERROR detected during macro expansion:
+    Definition out of context
+    (define x (make-list 125000))
+
+    FIX:  Removed logic that checks for R4RS restrictions.
+    (This bug was not related to bug #136, except that both bugs
+    were in the same procedure.)
+
 152 v0.47 (2000-01-26 / lth)  Fixed 2000-03-13 by lth
     Priority: high
     Category: Libraries / correctness
