@@ -7,7 +7,7 @@
 
 ; Overrides the procedures of the same name in Asm/Common/pass5p1.sch.
 
-(define (assembly-table) $ppc-nasm-assembly-table$)
+(define (assembly-table) $ppc-assembly-table$)
 
 (define (assembly-start as)
   (let ((u (as-user as)))
@@ -45,14 +45,14 @@
 
 (define listify? #f)
 
-(define $ppc-nasm-assembly-table$
+(define $ppc-assembly-table$
   (make-vector
    *number-of-mnemonics*
    (lambda (instruction as)
      (asm-error "Unrecognized mnemonic " instruction))))
 
 (define (define-instruction i proc)
-  (vector-set! $ppc-nasm-assembly-table$ i proc)
+  (vector-set! $ppc-assembly-table$ i proc)
   #t)
 
 (define (list-instruction name instruction)
@@ -102,12 +102,14 @@
 ; text is called:
 ;    @( ... ) is an expression to be evaluated
 ;    @ident   is an identifier to be evaluated; ident is a-z A-Z 0-9 _
-;    ~a
+;    ~a       denotes an argument to be inserted during code generation
 ;    .        following newline is ignored, as are all characters preceding it
 ;
 ; FIXME: would be better to use ~0 through ~9 so that we do not have
 ; to repeat arguments!  Or bits could even take a list of named arguments
 ; as the first parameter, and the macro would reference these.
+;
+; IDEA: allow &Ln to reference a local label n and &Ln: to define it.
 
 (define (bits s)
 
@@ -328,14 +330,14 @@
 	 (bits "    lwz    @RESULT, ~a(@TEMP)")))
     (lambda (instruction as)
       (list-instruction "lexical" instruction)
-      (if (zero? (operand1 instruction))
-	  (rib0 as (rib-offset (operand2 instruction)))
-	  (begin
-	    (firstrib as)
-	    (do ((i (operand1 instruction) (- i 1)))
-		((= i 1)
-		 (lastrib as (rib-offset (operand2 instruction))))
-	      (nextrib as (operand1 instruction))))))))
+      (cond ((zero? (operand1 instruction))
+	     (rib0 as (rib-offset (operand2 instruction))))
+	    (else
+	     (firstrib as)
+	     (do ((i (operand1 instruction) (- i 1)))
+		 ((= i 0)
+		  (lastrib as (rib-offset (operand2 instruction))))
+	       (nextrib as (operand1 instruction))))))))
 
 (define-instruction $reg
   (let ((hwreg
