@@ -8,7 +8,7 @@
 #include "config.h"
 
 int larceny_major_version = 0;
-int larceny_minor_version = 37;
+int larceny_minor_version = 38;
 
 char *date = DATE;
 char *user = USER;
