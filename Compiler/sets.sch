@@ -3,6 +3,8 @@
 ; $Id$
 ;
 ; Sets represented as lists.
+;
+; 5 April 1999.
 
 (define (empty-set) '())
 
