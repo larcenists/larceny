@@ -55,7 +55,7 @@
          (make-constant id))))
         
 (define (make-undefined)
-  (make-call (make-variable 'undefined) '()))
+  (make-call (make-variable '.undefined) '()))
 
 (define (make-unspecified)
-  (make-call (make-variable 'unspecified) '()))
+  (make-call (make-variable '.unspecified) '()))

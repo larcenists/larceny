@@ -4,7 +4,7 @@
 ;
 ; Larceny -- target-specific information for Twobit's Standard-C backend.
 
-; 2002-05-21 / lth
+; 2002-11-17 / lth
 ;
 ; Issues that need to be resolved at some point
 ; - Clean up table to pack it looser, group related operations, rename.  Makes it
@@ -184,12 +184,13 @@
     (.char->integer   1 char->integer    #f            37 ,:immortal ,:none #f)
     (.--              1 --               #f            32 ,:immortal ,:none #t)
 
-    ; FIXME: unspecified, undefined and -- should not be here with these names but 
-    ; are introduced by the compiler, macro expander, or standard macros.
+    ; FIXME: unspecified, undefined and -- should not be here with these 
+    ; names but are introduced by the compiler, macro expander, or standard 
+    ; macros.
 
-    (unspecified      0 unspecified      #f            -1 ,:dead     ,:none #f)
-    (undefined        0 undefined        #f             4 ,:dead     ,:none #t)
-    (--               1 --               #f            32 ,:immortal ,:none #t)
+;   (unspecified      0 unspecified      #f            -1 ,:dead     ,:none #f)
+;   (undefined        0 undefined        #f             4 ,:dead     ,:none #t)
+;   (--               1 --               #f            32 ,:immortal ,:none #t)
 
     ; Added for CSE, representation analysis.
 
@@ -501,13 +502,9 @@
     (#f               2 internal:check-range #f        661 _          _ #f)
     (#f               2 internal:check-vector?/vector-length:vec #f 662 _ _ #f)
     (#f               2 internal:check-string?/string-length:str #f 663 _ _ #f)
-
-    ;; Commented out because they are defined in $minimal-integrable-procedures$, for
-    ;; the time being (see comment there).
-
-;    (--               1 --               #f            32 ,:immortal ,:none #t)
-;    (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
-;    (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
+    (--               1 --               #f            32 ,:immortal ,:none #t)
+    (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
+    (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
 
     )
   $r5rs-integrable-procedures$)))

@@ -146,13 +146,6 @@
     (.char->integer   1 char->integer    #f          #x41 ,:immortal ,:none)
     (.--              1 --               #f          #x2d ,:immortal ,:none)
 
-    ; These should not be here with these names but are introduced by
-    ; the compiler, macro expander, or standard macros.
-
-    (unspecified      0 unspecified      #f            -1 ,:dead     ,:none)
-    (undefined        0 undefined        #f             8 ,:dead     ,:none)
-    (--               1 --               #f          #x2d ,:immortal ,:none)
-
     ; Added for CSE, representation analysis.
 
     (,name:CHECK!    -1 check!           #f            -1 ,:dead     ,:none)
@@ -300,6 +293,10 @@
     (creg             0 creg             #f             7 ,:dead     ,:all)
     (enable-interrupts 1 enable-interrupts #f          -1 ,:dead     ,:all)
     (disable-interrupts 0 disable-interrupts #f        -1 ,:dead     ,:all)
+
+    (unspecified      0 unspecified      #f            -1 ,:dead     ,:none)
+    (undefined        0 undefined        #f             8 ,:dead     ,:none)
+    (--               1 --               #f          #x2d ,:immortal ,:none)
 
     (typetag          1 typetag          #f          #x11 ,:dead     ,:none)
     (structure?       1 structure?       #f            -1 ,:dead     ,:none)
