@@ -44,224 +44,172 @@ namespace Scheme.Rep {
         }
 
         // Predicates
-        PREDF(isNumber)
-        PREDF(isFixnum)
-        PREDF(isFlonum)
-        PREDF(isBignum)
-        PREDF(isRatnum)
-        PREDF(isRectnum)
-        PREDF(isCompnum)
+        PREDICATE_VIRTUAL_FALSE(isNumber, numberp)
+        PREDICATE_VIRTUAL_FALSE(isFixnum, fixnump)
+        PREDICATE_VIRTUAL_FALSE(isFlonum, flonump)
+        PREDICATE_VIRTUAL_FALSE(isBignum, bignump)
+        PREDICATE_VIRTUAL_FALSE(isRatnum, ratnump)
+        PREDICATE_VIRTUAL_FALSE(isRectnum, rectnump)
+        PREDICATE_VIRTUAL_FALSE(isCompnum, compnump)
 
-        PREDF(isComplex)
-        PREDF(isReal)
-        PREDF(isRational)
-        PREDF(isInteger)
-        PREDF(isExact)
-        PREDF(isInexact)
+        PREDICATE_VIRTUAL_FALSE(isComplex, complexp)
+        PREDICATE_VIRTUAL_FALSE(isReal, realp)
+        PREDICATE_VIRTUAL_FALSE(isRational, rationalp)
+        PREDICATE_VIRTUAL_FALSE(isInteger, integerp)
+        CLR_PREDICATE_VIRTUAL_FALSE(isExact)
+        CLR_PREDICATE_VIRTUAL_FALSE(isInexact)
+        OP1_VIRTUAL_EXN(exactp, EX_EXACTP)
+        OP1_VIRTUAL_EXN(inexactp, EX_INEXACTP)
 
-        PREDF(isImmediate)
-        PREDF(isSymbol)
-        PREDF(isChar)
-        PREDF(isPair)
-        PREDF(isProcedure)
+        PREDICATE_VIRTUAL_FALSE(isImmediate, immediatep)
+        PREDICATE_VIRTUAL_FALSE(isSymbol, symbolp)
+        PREDICATE_VIRTUAL_FALSE(isChar, charp)
+        PREDICATE_VIRTUAL_FALSE(isPair, pairp)
+        PREDICATE_VIRTUAL_FALSE(isProcedure, procedurep)
 
-        PREDF(isVectorLike)
-        PREDF(isVector)
-        PREDF(isPort)
-        PREDF(isStructure)
-            
-        PREDF(isByteVectorLike)
-        PREDF(isByteVector)
-        PREDF(isString)
+        PREDICATE_VIRTUAL_FALSE(isVectorLike, vector_likep)
+        PREDICATE_VIRTUAL_FALSE(isVector, vectorp)
+        PREDICATE_VIRTUAL_FALSE(isPort, portp)
+        PREDICATE_VIRTUAL_FALSE(isStructure, structurep)
+
+        PREDICATE_VIRTUAL_FALSE(isByteVectorLike, bytevector_likep)
+        PREDICATE_VIRTUAL_FALSE(isByteVector, bytevectorp)
+        PREDICATE_VIRTUAL_FALSE(isString, stringp)
 
         // ===================
         //   Operations
         // ===================
 
-        // General Predicates
-        PREDSF(op_numberp)
-        PREDSF(op_fixnump)
-        PREDSF(op_flonump)
-        PREDSF(op_bignump)
-        PREDSF(op_ratnump)
-        PREDSF(op_rectnump)
-        PREDSF(op_compnump)
-
-        PREDSF(op_complexp)
-        PREDSF(op_realp)
-        PREDSF(op_rationalp)
-        PREDSF(op_integerp)
-
-        VEX1(op_exactp, EX_EXACTP)
-        VEX1(op_inexactp, EX_INEXACTP)
-
-        PREDSF(op_immediatep)
-        PREDSF(op_symbolp)
-        PREDSF(op_charp)
-        PREDSF(op_pairp)
-        PREDSF(op_procedurep)
-
-        PREDSF(op_vector_likep)
-        PREDSF(op_vectorp)
-        PREDSF(op_portp)
-        PREDSF(op_structurep)
-
-        PREDSF(op_bytevector_likep)
-        PREDSF(op_bytevectorp)
-        PREDSF(op_stringp)
-
-        public SObject op_eqp(SObject arg2) { return Factory.wrap(this == arg2); }
-        public SObject op_not() { return Factory.wrap(this != Factory.False); }
-        public SObject op_nullp() { return Factory.wrap(this == Factory.Null); }
-        public SObject op_eof_objectp() { return Factory.wrap(this == Factory.Eof); }
-        public SObject op_unspecifiedp() { 
-            return Factory.wrap(this == Factory.Unspecified); 
-        }
-        public SObject op_undefinedp() {
-            return Factory.wrap(this == Factory.Undefined);
-        }
+        OP2(eqp) { return Factory.wrap(this == arg2); }
+        OP1(not) { return Factory.wrap(this != Factory.False); }
+        OP1(nullp) { return Factory.wrap(this == Factory.Null); }
+        OP1(eof_objectp) { return Factory.wrap(this == Factory.Eof); }
+        OP1(unspecifiedp) { return Factory.wrap(this == Factory.Unspecified); }
+        OP1(undefinedp) { return Factory.wrap(this == Factory.Undefined); }
         
         // Misc
-        public SObject op_creg() {
-            return Cont.getCC();
-        }
-        public SObject op_creg_set() {
+        OP1(creg) { return Cont.getCC(); }
+        OP1(creg_set) {
             Cont.setCC(this);
             return Factory.Unspecified;
         }
-        public SObject op_break() {
-            Exn.fault(Constants.EX_BREAKPOINT);
-            return Factory.Impossible;
-        }
-        public SObject op_gc_counter() {
-            Exn.fault(Constants.EX_UNSUPPORTED);
-            return Factory.Impossible;
-        }
+        OP1_VIRTUAL_EXN(break, EX_BREAKPOINT)
+        OP1_VIRTUAL_EXN(gc_counter, EX_UNSUPPORTED)
 
         // Data
-        public SObject op_unspecified() {
-            return Factory.Unspecified;
-        }
-        public SObject op_undefined() {
-            return Factory.Undefined;
-        }
-        public SObject op_eof_object() {
-            return Factory.Eof;
-        }
+        OP1(unspecified) { return Factory.Unspecified; }
+        OP1(undefined) { return Factory.Undefined; }
+        OP1(eof_object) { return Factory.Eof; }
         
         // Chars
-        VEX2X(op_char_lt, EX_CHARLT, SChar)
-        VEX2X(op_char_le, EX_CHARLE, SChar)
-        VEX2X(op_char_ge, EX_CHARGE, SChar)
-        VEX2X(op_char_gt, EX_CHARGT, SChar)
-        VEX2X(op_char_equals, EX_CHAREQ, SChar)
+        OP2_VIRTUAL_EXN_PAIR(char_lt, EX_CHARLT, SChar)
+        OP2_VIRTUAL_EXN_PAIR(char_le, EX_CHARLE, SChar)
+        OP2_VIRTUAL_EXN_PAIR(char_ge, EX_CHARGE, SChar)
+        OP2_VIRTUAL_EXN_PAIR(char_gt, EX_CHARGT, SChar)
+        OP2_VIRTUAL_EXN_PAIR(char_equals, EX_CHAREQ, SChar)
 
-        VEX1(op_char2integer, EX_CHAR2INT)
-        VEX1(op_integer2char, EX_INT2CHAR)
+        OP1_VIRTUAL_EXN(char2integer, EX_CHAR2INT)
+        OP1_VIRTUAL_EXN(integer2char, EX_INT2CHAR)
 
         // Cell Operations
-        public SObject op_make_cell() { return Factory.makePair(this, Factory.False); }
-        VEX1(op_cell_ref, EX_CAR)
-        VEX2(op_cell_set, EX_SETCAR)
+        OP1(make_cell) { return Factory.makePair(this, Factory.False); }
+        OP1_VIRTUAL_EXN(cell_ref, EX_CAR)
+        OP2_VIRTUAL_EXN(cell_set, EX_SETCAR)
 
         // Pair Operations
-        public SObject op_cons(SObject arg2) { return Factory.makePair(this, arg2); }
-        VEX1(op_car, EX_CAR)
-        VEX1(op_car_pair, EX_CAR)
-        VEX1(op_cdr, EX_CDR)
-        VEX1(op_cdr_pair, EX_CDR)
+        OP2(cons) { return Factory.makePair(this, arg2); }
+        OP1_VIRTUAL_EXN(car, EX_CAR)
+        OP1_VIRTUAL_EXN(car_pair, EX_CAR)
+        OP1_VIRTUAL_EXN(cdr, EX_CDR)
+        OP1_VIRTUAL_EXN(cdr_pair, EX_CDR)
 
-        VEX2(op_set_car, EX_SETCAR)
-        VEX2(op_set_car_pair, EX_SETCAR)
-        VEX2(op_set_cdr, EX_SETCDR)
-        VEX2(op_set_cdr_pair, EX_SETCDR)
+        OP2_VIRTUAL_EXN(set_car, EX_SETCAR)
+        OP2_VIRTUAL_EXN(set_car_pair, EX_SETCAR)
+        OP2_VIRTUAL_EXN(set_cdr, EX_SETCDR)
+        OP2_VIRTUAL_EXN(set_cdr_pair, EX_SETCDR)
         
         // Typetag Operations
-        VEX1(op_typetag, EX_TYPETAG)
-        VEX2X(op_typetag_set, EX_TYPETAGSET, STagged)
+        OP1_VIRTUAL_EXN(typetag, EX_TYPETAG)
+        OP2_VIRTUAL_EXN_PAIR(typetag_set, EX_TYPETAGSET, STagged)
 
         // Vectorlike Operations
-        VEX1(op_vector_like_length, EX_VLLEN)
-        VEX2X(op_vector_like_ref, EX_VLREF, SVL)
-        VEX3X(op_vector_like_set, EX_VLSET, SVL)
+        OP1_VIRTUAL_EXN(vector_like_length, EX_VLLEN)
+        OP2_VIRTUAL_EXN_PAIR(vector_like_ref, EX_VLREF, SVL)
+        OP3_VIRTUAL_EXN_PAIR(vector_like_set, EX_VLSET, SVL)
 
         // Vector Operations
-        VEX2(op_make_vector, EX_MKVL)
-        VEX1(op_vector_length, EX_VECTOR_LENGTH)
-        VEX2X(op_vector_ref, EX_VECTOR_REF, SVL)
-            //        VEX2X(op_vector_ref_trusted, EX_VECTOR_REF, SVL)
-        VEX3X(op_vector_set, EX_VECTOR_SET, SVL)
-            //        VEX3X(op_vector_set_trusted, EX_VECTOR_SET, SVL)
+        OP2_VIRTUAL_EXN(make_vector, EX_MKVL)
+        OP1_VIRTUAL_EXN(vector_length, EX_VECTOR_LENGTH)
+        OP2_VIRTUAL_EXN_PAIR(vector_ref, EX_VECTOR_REF, SVL)
+            //        OP2_VIRTUAL_EXN_PAIR(vector_ref_trusted, EX_VECTOR_REF, SVL)
+        OP3_VIRTUAL_EXN_PAIR(vector_set, EX_VECTOR_SET, SVL)
+            //        OP3_VIRTUAL_EXN_PAIR(vector_set_trusted, EX_VECTOR_SET, SVL)
 
         // Procedure Operations
-        VEX1(op_procedure_length, EX_PROCEDURE_LENGTH)
-        VEX1(op_make_procedure, EX_MKVL)
-        VEX2X(op_procedure_ref, EX_PROCEDURE_REF, Procedure)
-        VEX3X(op_procedure_set, EX_PROCEDURE_SET, Procedure)
+        OP1_VIRTUAL_EXN(procedure_length, EX_PROCEDURE_LENGTH)
+        OP1_VIRTUAL_EXN(make_procedure, EX_MKVL)
+        OP2_VIRTUAL_EXN_PAIR(procedure_ref, EX_PROCEDURE_REF, Procedure)
+        OP3_VIRTUAL_EXN_PAIR(procedure_set, EX_PROCEDURE_SET, Procedure)
 
         // String Operations
-        VEX2X(op_make_string, EX_MKBVL, SFixnum)
-        VEX1(op_string_length, EX_STRING_LENGTH)
-        VEX2X(op_string_ref, EX_STRING_REF, SByteVL)
-            //        VEX2X(op_string_ref_trusted, EX_STRING_REF, SByteVL)
-        VEX3X(op_string_set, EX_STRING_SET, SByteVL)
-            //        VEX3X(op_string_set_trusted, EX_STRING_SET, SByteVL)
+        OP2_VIRTUAL_EXN_PAIR(make_string, EX_MKBVL, SFixnum)
+        OP1_VIRTUAL_EXN(string_length, EX_STRING_LENGTH)
+        OP2_VIRTUAL_EXN_PAIR(string_ref, EX_STRING_REF, SByteVL)
+            //        OP2_VIRTUAL_EXN_PAIR(string_ref_trusted, EX_STRING_REF, SByteVL)
+        OP3_VIRTUAL_EXN_PAIR(string_set, EX_STRING_SET, SByteVL)
+            //        OP3_VIRTUAL_EXN_PAIR(string_set_trusted, EX_STRING_SET, SByteVL)
 
         // Bytevector Operations
-        VEX1(op_make_bytevector, EX_MKBVL)
-        VEX1(op_bytevector_length, EX_BYTEVECTOR_LENGTH)
-        VEX2X(op_bytevector_ref, EX_BYTEVECTOR_REF, SByteVL)
-        VEX3X(op_bytevector_set, EX_BYTEVECTOR_SET, SByteVL)
-        VEX2X(op_bytevector_equal, EX_UNSUPPORTED, SByteVL)
-        VEX2X(op_bytevector_fill, EX_BVFILL, SByteVL)
+        OP1_VIRTUAL_EXN(make_bytevector, EX_MKBVL)
+        OP1_VIRTUAL_EXN(bytevector_length, EX_BYTEVECTOR_LENGTH)
+        OP2_VIRTUAL_EXN_PAIR(bytevector_ref, EX_BYTEVECTOR_REF, SByteVL)
+        OP3_VIRTUAL_EXN_PAIR(bytevector_set, EX_BYTEVECTOR_SET, SByteVL)
+        OP2_VIRTUAL_EXN_PAIR(bytevector_equal, EX_UNSUPPORTED, SByteVL)
+        OP2_VIRTUAL_EXN_PAIR(bytevector_fill, EX_BVFILL, SByteVL)
 
         // Bytevector-like Operations
-        VEX1(op_bytevector_like_length, EX_BVLLEN)
-        VEX2X(op_bytevector_like_ref, EX_BVLREF, SByteVL)
-        VEX3X(op_bytevector_like_set, EX_BVLSET, SByteVL)
-        VEX2X(op_sys_bvlcmp, EX_UNSUPPORTED, SByteVL)
+        OP1_VIRTUAL_EXN(bytevector_like_length, EX_BVLLEN)
+        OP2_VIRTUAL_EXN_PAIR(bytevector_like_ref, EX_BVLREF, SByteVL)
+        OP3_VIRTUAL_EXN_PAIR(bytevector_like_set, EX_BVLSET, SByteVL)
+        OP2_VIRTUAL_EXN_PAIR(sys_bvlcmp, EX_UNSUPPORTED, SByteVL)
 
         // Fixnum Operations
-        VEX1(op_fxzerop, EX_UNSUPPORTED)
-        VEX1(op_fxpositivep, EX_FXPOSITIVE)
-        VEX1(op_fxnegativep, EX_FXNEGATIVE)
-        VEX1(op_fxnegative, EX_FXNEG)
-        VEX2X(op_fxplus, EX_FXADD, SFixnum)
-        VEX2X(op_fxminus, EX_FXSUB, SFixnum)
-        VEX2X(op_fxmul, EX_FXMUL, SFixnum)
-        VEX2X(op_fxless, EX_FXLT, SFixnum)
-        VEX2X(op_fxgreater, EX_FXGT, SFixnum)
-        VEX2X(op_fxless_equal, EX_FXLE, SFixnum)
-        VEX2X(op_fxgreater_equal, EX_FXGE, SFixnum)
-        VEX2X(op_fxequal, EX_FXEQ, SFixnum)
+        OP1_VIRTUAL_EXN(fxzerop, EX_UNSUPPORTED)
+        OP1_VIRTUAL_EXN(fxpositivep, EX_FXPOSITIVE)
+        OP1_VIRTUAL_EXN(fxnegativep, EX_FXNEGATIVE)
+        OP1_VIRTUAL_EXN(fxnegative, EX_FXNEG)
+        OP2_VIRTUAL_EXN_PAIR(fxplus, EX_FXADD, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxminus, EX_FXSUB, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxmul, EX_FXMUL, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxless, EX_FXLT, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxgreater, EX_FXGT, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxless_equal, EX_FXLE, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxgreater_equal, EX_FXGE, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxequal, EX_FXEQ, SFixnum)
 
-        public SObject op_most_positive_fixnum() {
-            return Factory.makeFixnum(SFixnum.MAX);
-        }
-        public SObject op_most_negative_fixnum() {
-            return Factory.makeFixnum(SFixnum.MIN);
-        }
-            
+        OP1(most_positive_fixnum) { return Factory.makeFixnum(SFixnum.MAX); }
+        OP1(most_negative_fixnum) { return Factory.makeFixnum(SFixnum.MIN); }
+
         // Logical Operations
-        VEX1(op_lognot, EX_LOGNOT)
-        VEX2X(op_logand, EX_LOGAND, SFixnum)
-        VEX2X(op_logior, EX_LOGIOR, SFixnum)
-        VEX2X(op_logxor, EX_LOGXOR, SFixnum)
-        VEX2X(op_lsh, EX_LSH, SFixnum)
-        VEX2X(op_rsh, EX_RSHA, SFixnum)
-        VEX2X(op_rsha, EX_RSHA, SFixnum)
-        VEX2X(op_rshl, EX_RSHL, SFixnum)
+        OP1_VIRTUAL_EXN(lognot, EX_LOGNOT)
+        OP2_VIRTUAL_EXN_PAIR(logand, EX_LOGAND, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(logior, EX_LOGIOR, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(logxor, EX_LOGXOR, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(lsh, EX_LSH, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(rsh, EX_RSHA, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(rsha, EX_RSHA, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(rshl, EX_RSHL, SFixnum)
 
         // Arithmetic Operations
-        VEX1(op_real_part, EX_REALPART)
-        VEX1(op_imag_part, EX_IMAGPART)
+        OP1_VIRTUAL_EXN(real_part, EX_REALPART)
+        OP1_VIRTUAL_EXN(imag_part, EX_IMAGPART)
 
         // -------------------
         // Special Operations
         // -------------------
 
-        //SPECIALVEX1(op_enable_interrupts, EX_EINTR)
-        //public void op_disable_interrupts() {
+        //SPECIALOP1_VIRTUAL_EXN(enable_interrupts, EX_EINTR)
+        //public void disable_interrupts() {
         //    if (Reg.interruptsEnabled) {
         //        Reg.interruptsEnabled = false;
         //        Reg.Result = Factory.makeFixnum((int)Reg.timer);
@@ -271,27 +219,27 @@ namespace Scheme.Rep {
         //    Exn.checkSignals();
         //}
 
-        //SPECIALVEX1(op_syscall)
+        //SPECIALOP1_VIRTUAL_EXN(syscall)
         //
-        //SPECIALVEX1(op_zerop)
-        //SPECIALVEX2(op_eqvp)
-        //SPECIALVEX2(op_numeric_equals)
-        //SPECIALVEX2(op_less_than)
-        //SPECIALVEX2(op_greater_than)
-        //SPECIALVEX2(op_less_or_equal)
-        //SPECIALVEX2(op_greater_or_equal)
+        //SPECIALOP1_VIRTUAL_EXN(zerop)
+        //SPECIALOP2_VIRTUAL_EXN(eqvp)
+        //SPECIALOP2_VIRTUAL_EXN(numeric_equals)
+        //SPECIALOP2_VIRTUAL_EXN(less_than)
+        //SPECIALOP2_VIRTUAL_EXN(greater_than)
+        //SPECIALOP2_VIRTUAL_EXN(less_or_equal)
+        //SPECIALOP2_VIRTUAL_EXN(greater_or_equal)
 
-        //SPECIALARITH2(op_plus)  // Declares op_plus_2 for SFixum, SVL, SByteVL
-        //SPECIALARITH2(op_minus)
-        //SPECIALARITH2(op_multiply)
-        //SPECIALARITH2(op_divide)
-        //SPECIALARITH2(op_quotient)
-        //SPECIALARITH2(op_remainder)
-        //SPECIALVEX1(op_truncate)
-        //SPECIALVEX1(op_round)
-        //SPECIALVEX1(op_negative)
-        //SPECIALVEX1(op_exact2inexact)
-        //SPECIALVEX1(op_inexact2exact)
+        //SPECIALARITH2(plus)  // Declares plus_2 for SFixum, SVL, SByteVL
+        //SPECIALARITH2(minus)
+        //SPECIALARITH2(multiply)
+        //SPECIALARITH2(divide)
+        //SPECIALARITH2(quotient)
+        //SPECIALARITH2(remainder)
+        //SPECIALOP1_VIRTUAL_EXN(truncate)
+        //SPECIALOP1_VIRTUAL_EXN(round)
+        //SPECIALOP1_VIRTUAL_EXN(negative)
+        //SPECIALOP1_VIRTUAL_EXN(exact2inexact)
+        //SPECIALOP1_VIRTUAL_EXN(inexact2exact)
 
         // THE STUFF I WAS TOO LAZY TO PORT
         public SObject op_vector_length_vec() {
@@ -382,8 +330,7 @@ namespace Scheme.Rep {
         }
 
         // ------------------
-        public override bool isImmediate() { return true; }
-        public override SObject op_immediatep() { return Factory.True; }
+        PREDICATE_OVERRIDE_TRUE(isImmediate, immediatep)
     }
 
     // -------------------------------------------
@@ -417,35 +364,34 @@ namespace Scheme.Rep {
         }
 
         // ------------------
-        public override bool isChar() { return true; }
-        public override SObject op_charp() { return Factory.True; }
+        PREDICATE_OVERRIDE_TRUE(isChar, charp)
 
-        DISPATCH2(op_char_lt)
-        DISPATCH2(op_char_le)
-        DISPATCH2(op_char_gt)
-        DISPATCH2(op_char_ge)
-        DISPATCH2(op_char_equals)
-        OVERRIDE2X(op_char_lt, SChar) {
+        OP2_CHAIN(char_lt)
+        OP2_CHAIN(char_le)
+        OP2_CHAIN(char_gt)
+        OP2_CHAIN(char_ge)
+        OP2_CHAIN(char_equals)
+        OP2_OVERRIDE_REVERSED(char_lt, SChar) {
             return Factory.wrap(arg1.val < this.val);
         }
-        OVERRIDE2X(op_char_le, SChar) {
+        OP2_OVERRIDE_REVERSED(char_le, SChar) {
             return Factory.wrap(arg1.val <= this.val);
         }
-        OVERRIDE2X(op_char_gt, SChar) {
+        OP2_OVERRIDE_REVERSED(char_gt, SChar) {
             return Factory.wrap(arg1.val > this.val);
         }
-        OVERRIDE2X(op_char_ge, SChar) {
+        OP2_OVERRIDE_REVERSED(char_ge, SChar) {
             return Factory.wrap(arg1.val >= this.val);
         }
-        OVERRIDE2X(op_char_equals, SChar) {
+        OP2_OVERRIDE_REVERSED(char_equals, SChar) {
             return Factory.wrap(arg1.val == this.val);
         }
 
-        IMPL1(op_char2integer) {
+        OP1_OVERRIDE(char2integer) {
             return Factory.wrap(this.val);
         }
 
-        OVERRIDE2X(op_make_string, SFixnum) {
+        OP2_OVERRIDE_REVERSED(make_string, SFixnum) {
             return Factory.makeString(arg1.value, this.val);
         }
     }
@@ -506,31 +452,24 @@ namespace Scheme.Rep {
                 return new SFixnum(val);
         }
         // ----------------
-        
-        public override bool isNumber() { return true; }
-        public override bool isFixnum() { return true; }
-        public override bool isComplex() { return true; }
-        public override bool isReal() { return true; }
-        public override bool isRational() { return true; }
-        public override bool isInteger() { return true; }
-        public override bool isExact() { return true; }
 
-        public override SObject op_numberp() { return Factory.True; }
-        public override SObject op_fixnump() { return Factory.True; }
-        public override SObject op_complexp() { return Factory.True; }
-        public override SObject op_realp() { return Factory.True; }
-        public override SObject op_rationalp() { return Factory.True; }
-        public override SObject op_integerp() { return Factory.True; }
-        public override SObject op_exactp() { return Factory.True; }
+        PREDICATE_OVERRIDE_TRUE(isNumber, numberp)
+        PREDICATE_OVERRIDE_TRUE(isFixnum, fixnump)
+        PREDICATE_OVERRIDE_TRUE(isComplex, complexp)
+        PREDICATE_OVERRIDE_TRUE(isReal, realp)
+        PREDICATE_OVERRIDE_TRUE(isRational, rationalp)
+        PREDICATE_OVERRIDE_TRUE(isInteger, integerp)
+        PREDICATE_OVERRIDE_TRUE(isExact, exactp)
+        PREDICATE_OVERRIDE_FALSE(isInexact, inexactp)
 
-        IMPL1(op_integer2char) {
+        OP1_OVERRIDE(integer2char) {
             return Factory.makeChar(this.value);
         }
-        OVERRIDE2X(op_typetag_set, STagged) {
+        OP2_OVERRIDE_REVERSED(typetag_set, STagged) {
             arg1.tag = this.value;
             return Factory.Unspecified;
         }
-        OVERRIDE2X(op_vector_like_ref, SVL) {
+        OP2_OVERRIDE_REVERSED(vector_like_ref, SVL) {
             SObject[] elements = arg1.elements;
             int index = this.value;
             if (0 <= index && index < elements.Length) {
@@ -540,7 +479,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        OVERRIDE3X(op_vector_like_set, SVL) {
+        OP3_OVERRIDE_REVERSED(vector_like_set, SVL) {
             SObject[] elements = arg1.elements;
             int index = this.value;
             if (0 <= index && index < elements.Length) {
@@ -551,7 +490,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        IMPL2(op_make_vector) {
+        OP2_OVERRIDE(make_vector) {
             int length = this.value;
             if (0 <= length) {
                 return Factory.makeVector(this.value, arg2);
@@ -560,7 +499,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        OVERRIDE2X(op_vector_ref, SVL) {
+        OP2_OVERRIDE_REVERSED(vector_ref, SVL) {
             SObject[] elements = arg1.elements;
             int index = this.value;
             if (0 <= index && index < elements.Length) {
@@ -570,7 +509,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        OVERRIDE3X(op_vector_set, SVL) {
+        OP3_OVERRIDE_REVERSED(vector_set, SVL) {
             SObject[] elements = arg1.elements;
             int index = this.value;
             if (0 <= index && index < elements.Length) {
@@ -581,7 +520,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        IMPL1(op_make_procedure) {
+        OP1_OVERRIDE(make_procedure) {
             int a = this.value - 2;
             if (0 <= a) {
                 SObject[] env = new SObject[a];
@@ -597,7 +536,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        OVERRIDE2X(op_procedure_ref, Procedure) {
+        OP2_OVERRIDE_REVERSED(procedure_ref, Procedure) {
             Procedure p = arg1;
             int b = this.value;
             if (b == 0) {
@@ -615,7 +554,7 @@ namespace Scheme.Rep {
             Exn.fault(Constants.EX_PROCEDURE_REF, null, arg1, this);
             return Factory.Impossible;
         }
-        OVERRIDE3X(op_procedure_set, Procedure) {
+        OP3_OVERRIDE_REVERSED(procedure_set, Procedure) {
             Procedure p = arg1;
             int b = this.value;
             if (b == 0) {
@@ -642,12 +581,12 @@ namespace Scheme.Rep {
             return Factory.Impossible;
         }
 
-        DISPATCH2(op_make_string)
+        OP2_CHAIN(make_string)
 
-        IMPL1(op_make_bytevector) {
+        OP1_OVERRIDE(make_bytevector) {
             return Factory.makeByteVector(this.value, (byte)0);
         }
-        OVERRIDE2X(op_bytevector_ref, SByteVL) {
+        OP2_OVERRIDE_REVERSED(bytevector_ref, SByteVL) {
             byte[] bytes = arg1.elements;
             int index = this.value;
             if (0 <= index && index < bytes.Length) {
@@ -657,7 +596,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        OVERRIDE3X(op_bytevector_set, SByteVL) {
+        OP3_OVERRIDE_REVERSED(bytevector_set, SByteVL) {
             byte[] bytes = arg1.elements;
             int index = this.value;
             if (0 <= index && index < bytes.Length) {
@@ -669,7 +608,7 @@ namespace Scheme.Rep {
             Exn.fault(Constants.EX_BYTEVECTOR_SET, null, arg1, this, arg3);
             return Factory.Impossible;
         }
-        OVERRIDE2X(op_bytevector_fill, SByteVL) {
+        OP2_OVERRIDE_REVERSED(bytevector_fill, SByteVL) {
             byte[] bytes = arg1.elements;
             byte fill = (byte) this.value;
             for (int i = 0; i < bytes.Length; ++i) {
@@ -678,7 +617,7 @@ namespace Scheme.Rep {
             return Factory.Unspecified;
         }
         
-        OVERRIDE2X(op_bytevector_like_ref, SByteVL) {
+        OP2_OVERRIDE_REVERSED(bytevector_like_ref, SByteVL) {
             byte[] bytes = arg1.elements;
             int index = this.value;
             if (0 <= index && index < bytes.Length) {
@@ -688,7 +627,7 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        OVERRIDE3X(op_bytevector_like_set, SByteVL) {
+        OP3_OVERRIDE_REVERSED(bytevector_like_set, SByteVL) {
             byte[] bytes = arg1.elements;
             int index = this.value;
             if (0 <= index && index < bytes.Length) {
@@ -701,16 +640,16 @@ namespace Scheme.Rep {
             return Factory.Impossible;
         }
         
-        IMPL1(op_fxzerop) {
+        OP1_OVERRIDE(fxzerop) {
             return Factory.wrap(this.value == 0);
         }
-        IMPL1(op_fxpositivep) {
+        OP1_OVERRIDE(fxpositivep) {
             return Factory.wrap(this.value > 0);
         }
-        IMPL1(op_fxnegativep) {
+        OP1_OVERRIDE(fxnegativep) {
             return Factory.wrap(this.value < 0);
         }
-        IMPL1(op_fxnegative) {
+        OP1_OVERRIDE(fxnegative) {
             int a = - this.value;
             if (!SFixnum.inFixnumRange(-a)) {
                 Exn.fault(Constants.EX_FXNEG, "result not a fixnum", this);
@@ -718,16 +657,16 @@ namespace Scheme.Rep {
             }
             return Factory.wrap(a);
         }
-        DISPATCH2(op_fxplus)
-        DISPATCH2(op_fxminus)
-        DISPATCH2(op_fxmul)
-        DISPATCH2(op_fxless)
-        DISPATCH2(op_fxless_equal)
-        DISPATCH2(op_fxgreater)
-        DISPATCH2(op_fxgreater_equal)
-        DISPATCH2(op_fxequal)
+        OP2_CHAIN(fxplus)
+        OP2_CHAIN(fxminus)
+        OP2_CHAIN(fxmul)
+        OP2_CHAIN(fxless)
+        OP2_CHAIN(fxless_equal)
+        OP2_CHAIN(fxgreater)
+        OP2_CHAIN(fxgreater_equal)
+        OP2_CHAIN(fxequal)
 
-        OVERRIDE2X(op_fxplus, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxplus, SFixnum) {
             int a = arg1.value, b = this.value; 
             int r = a + b; 
             if (!SFixnum.inFixnumRange(r)) {
@@ -736,7 +675,7 @@ namespace Scheme.Rep {
             }
             return Factory.wrap(r);
         }
-        OVERRIDE2X(op_fxminus, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxminus, SFixnum) {
             int a = arg1.value, b = this.value; 
             int r = a - b; 
             if (!SFixnum.inFixnumRange(r)) {
@@ -745,7 +684,7 @@ namespace Scheme.Rep {
             }
             return Factory.wrap(r);
         }
-        OVERRIDE2X(op_fxmul, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxmul, SFixnum) {
             int a = arg1.value, b = this.value;
             long r = a * b;
             if (!SFixnum.inFixnumRange(r)) {
@@ -754,74 +693,74 @@ namespace Scheme.Rep {
             }
             return Factory.wrap((int)r);
         }
-        OVERRIDE2X(op_fxless, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxless, SFixnum) {
             return Factory.wrap(arg1.value < this.value);
         }
-        OVERRIDE2X(op_fxless_equal, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxless_equal, SFixnum) {
             return Factory.wrap(arg1.value <= this.value);
         }
-        OVERRIDE2X(op_fxgreater, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxgreater, SFixnum) {
             return Factory.wrap(arg1.value > this.value);
         }
-        OVERRIDE2X(op_fxgreater_equal, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxgreater_equal, SFixnum) {
             return Factory.wrap(arg1.value >= this.value);
         }
-        OVERRIDE2X(op_fxequal, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxequal, SFixnum) {
             return Factory.wrap(arg1.value == this.value);
         }
 
-        IMPL1(op_lognot) {
+        OP1_OVERRIDE(lognot) {
             return Factory.wrap(~this.value);
         }
-        DISPATCH2(op_logand)
-        DISPATCH2(op_logior)
-        DISPATCH2(op_logxor)
-        DISPATCH2(op_lsh)
-        DISPATCH2(op_rsh)
-        DISPATCH2(op_rsha)
-        DISPATCH2(op_rshl)
+        OP2_CHAIN(logand)
+        OP2_CHAIN(logior)
+        OP2_CHAIN(logxor)
+        OP2_CHAIN(lsh)
+        OP2_CHAIN(rsh)
+        OP2_CHAIN(rsha)
+        OP2_CHAIN(rshl)
 
-        OVERRIDE2X(op_logand, SFixnum) {
+        OP2_OVERRIDE_REVERSED(logand, SFixnum) {
             return Factory.wrap(arg1.value & this.value);
         }
-        OVERRIDE2X(op_logior, SFixnum) {
+        OP2_OVERRIDE_REVERSED(logior, SFixnum) {
             return Factory.wrap(arg1.value | this.value);
         }
-        OVERRIDE2X(op_logxor, SFixnum) {
+        OP2_OVERRIDE_REVERSED(logxor, SFixnum) {
             return Factory.wrap(arg1.value ^ this.value);
         }
-        OVERRIDE2X(op_lsh, SFixnum) {
+        OP2_OVERRIDE_REVERSED(lsh, SFixnum) {
             int r = arg1.value << this.value;
             r = (r << 2) >> 2; // mask out top bits (w/ sign extend)
             return Factory.wrap(r);
         }
-        OVERRIDE2X(op_rsh, SFixnum) {
+        OP2_OVERRIDE_REVERSED(rsh, SFixnum) {
             int r = arg1.value >> this.value;
             r = (r << 2) >> 2;
             return Factory.wrap(r);
         }
-        OVERRIDE2X(op_rsha, SFixnum) {
+        OP2_OVERRIDE_REVERSED(rsha, SFixnum) {
             int r = arg1.value >> this.value;
             r = (r << 2) >> 2;
             return Factory.wrap(r);
         }
-        OVERRIDE2X(op_rshl, SFixnum) {
+        OP2_OVERRIDE_REVERSED(rshl, SFixnum) {
             uint a = (uint)arg1.value << 2;
             int b = this.value;
             int r = (int)(a >> b) >> 2;
             return Factory.wrap((int)r);
         }
 
-        IMPL1(op_real_part) {
+        OP1_OVERRIDE(real_part) {
             return this;
         }
-        IMPL1(op_imag_part) {
+        OP1_OVERRIDE(imag_part) {
             return Factory.wrap(0);
         }
 
         // Special Operations
 
-        //SPECIALIMPL1(op_enable_interrupts) {
+        //SPECIALOP1_OVERRIDE(enable_interrupts) {
         //    int time = ((SFixnum)arg).value;
         //    if (time > 0) {
         //        Reg.interruptsEnabled = true;
@@ -832,76 +771,76 @@ namespace Scheme.Rep {
         //    Reg.Result = Factory.Unspecified;
         //    Exn.checkSignals();
         //}
-        //SPECIALIMPL1(op_syscall) {
+        //SPECIALOP1_OVERRIDE(syscall) {
         //    // subtract one 'cuz the first arg is just the value
         //    // to which we want to dispatch.
         //    int num_args = this.value - 1;
         //    Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
         //    Syscall.dispatch(num_args, num_syscall);
         //}
-        //SPECIALIMPL1(op_zerop) {
+        //SPECIALOP1_OVERRIDE(zerop) {
         //    Reg.Result = Factory.wrap(this.value == 0);
         //}
-        //SPECIALDISPATCH2(op_eqvp)
-        //SPECIALDISPATCH2(op_numeric_equals)
-        //SPECIALDISPATCH2(op_less_then)
-        //SPECIALDISPATCH2(op_less_or_equal)
-        //SPECIALDISPATCH2(op_greater_than)
-        //SPECIALDISPATCH2(op_greater_or_equal)
+        //SPECIALOP2_CHAIN(eqvp)
+        //SPECIALOP2_CHAIN(numeric_equals)
+        //SPECIALOP2_CHAIN(less_then)
+        //SPECIALOP2_CHAIN(less_or_equal)
+        //SPECIALOP2_CHAIN(greater_than)
+        //SPECIALOP2_CHAIN(greater_or_equal)
         //
-        //SPECIALDISPATCH2(op_plus)
-        //SPECIALDISPATCH2(op_minus)
-        //SPECIALDISPATCH2(op_multiply)
-        //SPECIALDISPATCH2(op_divide)
-        //SPECIALDISPATCH2(op_quotient)
-        //SPECIALDISPATCH2(op_remainder)
+        //SPECIALOP2_CHAIN(plus)
+        //SPECIALOP2_CHAIN(minus)
+        //SPECIALOP2_CHAIN(multiply)
+        //SPECIALOP2_CHAIN(divide)
+        //SPECIALOP2_CHAIN(quotient)
+        //SPECIALOP2_CHAIN(remainder)
 
-        //SPECIALIMPL1(op_truncate) {
+        //SPECIALOP1_OVERRIDE(truncate) {
         //    Reg.Result = this;
         //}
-        //SPECIALIMPL1(op_round) {
+        //SPECIALOP1_OVERRIDE(round) {
         //    Reg.Result = this;
         //}
-        //SPECIALIMPL1(op_negative) {
+        //SPECIALOP1_OVERRIDE(negative) {
         //    Reg.Result = Factory.wrap(-this.value);
         //}
-        //SPECIALIMPL1(op_exact2inexact) {
+        //SPECIALOP1_OVERRIDE(exact2inexact) {
         //    Reg.Result = Factory.makeFlonum((double)this.value);
         //}
-        //SPECIALIMPL1(op_inexact2exact) {
+        //SPECIALOP1_OVERRIDE(inexact2exact) {
         //    Reg.Result = this;
         //}
 
-        //SPECIALOVERRIDE2X(op_eqvp, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(eqvp, SFixnum) {
         //    Reg.Result = Factory.wrap(this.value == arg1.value);
         //}
-        //SPECIALOVERRIDE2X(op_numeric_equals, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(numeric_equals, SFixnum) {
         //    Reg.Result = Factory.wrap(this.value == arg1.value);
         //}
-        //SPECIALOVERRIDE2X(op_less_than, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(less_than, SFixnum) {
         //    Reg.Result = Factory.wrap(this.value < arg1.value);
         //}
-        //SPECIALOVERRIDE2X(op_less_or_equal, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(less_or_equal, SFixnum) {
         //    Reg.Result = Factory.wrap(this.value <= arg1.value);
         //}
-        //SPECIALOVERRIDE2X(op_greater_than, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(greater_than, SFixnum) {
         //    Reg.Result = Factory.wrap(this.value > arg1.value);
         //}
-        //SPECIALOVERRIDE2X(op_greater_or_equal, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(greater_or_equal, SFixnum) {
         //    Reg.Result = Factory.wrap(this.value >= arg1.value);
         //}
 
-        //SPECIALOVERRIDE2X(op_plus, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(plus, SFixnum) {
         //    Reg.Result = Factory.wrap(arg1.value + this.value);
         //}
-        //SPECIALOVERRIDE2X(op_minus, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(minus, SFixnum) {
         //    Reg.Result = Factory.wrap(arg1.value - this.value);
         //}
-        //SPECIALOVERRIDE2X(op_multiply, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(multiply, SFixnum) {
         //    long r = arg1.value * this.value;
         //    Reg.Result = Factory.wrap(r);
         //}
-        //SPECIALOVERRIDE2X(op_divide, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(divide, SFixnum) {
         //    int a = arg1.value, b = this.value;
         //    if (b == 0) {
         //        Exn.fault(Constants.EX_DIV, null, arg1, this);
@@ -917,7 +856,7 @@ namespace Scheme.Rep {
         //        }
         //    }
         //}
-        //SPECIALOVERRIDE2X(op_quotient, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(quotient, SFixnum) {
         //    int a = arg1.value, b = this.value;
         //    if (b == 0) {
         //        Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
@@ -927,7 +866,7 @@ namespace Scheme.Rep {
         //        return;
         //    }
         //}
-        //SPECIALOVERRIDE2X(op_remainder, SFixnum) {
+        //SPECIALOP2_OVERRIDE_REVERSED(remainder, SFixnum) {
         //    int a = arg1.value, b = this.value;
         //    if (b == 0) {
         //        Exn.fault(Constants.EX_REMAINDER, null, arg1, this);
@@ -944,13 +883,6 @@ namespace Scheme.Rep {
     // -------------------------------------------
     public class STagged : SObject {
         public int tag;
-        
-        public override SObject op_typetag() {
-            return Factory.wrap(this.tag);
-        }
-        public override SObject op_typetag_set(SObject arg2) {
-            return arg2.op_typetag_set_2(this);
-        }
 
         public void check_typetag(int tag, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this);
@@ -958,10 +890,13 @@ namespace Scheme.Rep {
         public void check_typetag(int tag, SObject arg2, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2);
         }
-        public void check_typetag(int tag, SObject arg2, 
-                                           SObject arg3, int excode) {
+        public void check_typetag(int tag, SObject arg2, SObject arg3, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2, arg3);
         }
+        // ----
+        OP1_OVERRIDE(typetag) { return Factory.wrap(this.tag); }
+        OP2_CHAIN(typetag_set)
+
     }
 
     // -------------------------------------------
@@ -1014,64 +949,16 @@ namespace Scheme.Rep {
 
         // -------------------
 
-        public override bool isNumber() {
-            return this.isRatnum() || this.isRectnum();
-        }
-        public override bool isRatnum() {
-            return this.tag == Tags.RatnumTag;
-        }
-        public override bool isRectnum() {
-            return this.tag == Tags.RectnumTag;
-        }
-        public override bool isComplex() {
-            return this.isRatnum() || this.isRectnum();
-        }
-        public override bool isReal() {
-            return this.isRatnum();
-        }
-        public override bool isRational() {
-            return this.isRatnum();
-        }
-        public override bool isExact() {
-            return this.isRatnum() || this.isRectnum();
-        }
-        
-        public override bool isVectorLike() {
-            return true;
-        }
-        public override bool isVector() {
-            return this.tag == Tags.VectorTag;
-        }
-        public override bool isPort() {
-            return this.tag == Tags.PortTag;
-        }
-        public override bool isStructure() {
-            return this.tag == Tags.StructureTag;
-        }
-        public override bool isSymbol() {
-            return this.tag == Tags.SymbolTag;
-        }
+        PREDICATE_OVERRIDE_EXPR(isNumber, numberp, this.isRatnum() || this.isRectnum())
+        PREDICATE_OVERRIDE_EXPR(isRatnum, ratnump, this.tag == Tags.RatnumTag)
+        PREDICATE_OVERRIDE_EXPR(isRectnum, rectnump, this.tag == Tags.RectnumTag)
+        PREDICATE_OVERRIDE_EXPR(isComplex, complexp, this.isRatnum() || this.isRectnum())
+        PREDICATE_OVERRIDE_EXPR(isReal, realp, this.isRatnum())
 
-        // -------------------
-        IMPL1(op_numberp) {
-            return Factory.wrap(this.isRatnum() || this.isRectnum());
-        }
-        IMPL1(op_ratnump) {
-            return Factory.wrap(this.tag == Tags.RatnumTag);
-        }
-        IMPL1(op_rectnump) {
-            return Factory.wrap(this.tag == Tags.RectnumTag);
-        }
-        IMPL1(op_complexp) {
-            return Factory.wrap(this.isRatnum() || this.isRectnum());
-        }
-        IMPL1(op_realp) {
-            return this.op_ratnump();
-        }
-        IMPL1(op_rationalp) {
-            return this.op_ratnump();
-        }
-        IMPL1(op_exactp) {
+        // FIXME!!!! exact?, inexact? should throw errors on non-numbers
+        CLR_PREDICATE_OVERRIDE_EXPR(isExact, this.isRatnum() || this.isRectnum())
+        CLR_PREDICATE_OVERRIDE_FALSE(isInexact)
+        OP1_OVERRIDE(exactp) {
             if (this.isNumber()) {
                 return Factory.wrap(this.isRatnum() || this.isRectnum());
             } else {
@@ -1079,38 +966,37 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
-        
-        IMPL1(op_vector_likep) {
-            return Factory.True;
-        }
-        IMPL1(op_vectorp) {
-            return Factory.wrap(this.tag == Tags.VectorTag);
-        }
-        IMPL1(op_portp) {
-            return Factory.wrap(this.tag == Tags.PortTag);
-        }
-        IMPL1(op_structurep) {
-            return Factory.wrap(this.tag == Tags.StructureTag);
-        }
-        IMPL1(op_symbolp) {
-            return Factory.wrap(this.tag == Tags.SymbolTag);
+        OP1_OVERRIDE(inexactp) {
+            if (this.isNumber()) {
+                return Factory.False;
+            } else {
+                Exn.fault(Constants.EX_INEXACTP, null, this);
+                return Factory.Impossible;
+            }
         }
 
-        IMPL1(op_vector_like_length) {
+        PREDICATE_OVERRIDE_TRUE(isVectorLike, vector_likep)
+        PREDICATE_OVERRIDE_EXPR(isVector, vectorp, this.tag == Tags.VectorTag)
+        PREDICATE_OVERRIDE_EXPR(isPort, portp, this.tag == Tags.PortTag)
+        PREDICATE_OVERRIDE_EXPR(isStructure, structurep, this.tag == Tags.StructureTag)
+        PREDICATE_OVERRIDE_EXPR(isSymbol, symbolp, this.tag == Tags.SymbolTag)
+
+        // -------------------
+        OP1_OVERRIDE(vector_like_length) {
             return Factory.wrap(elements.Length);
         }
-        DISPATCH2(op_vector_like_ref)
-        DISPATCH3(op_vector_like_set)
+        OP2_CHAIN(vector_like_ref)
+        OP3_CHAIN(vector_like_set)
 
-        IMPL1(op_vector_length) {
+        OP1_OVERRIDE(vector_length) {
             check_typetag(Tags.VectorTag, Constants.EX_VECTOR_LENGTH);
             return Factory.wrap(elements.Length);
         }
-        DISPATCH2_W_TAG(op_vector_ref, Tags.VectorTag, EX_VECTOR_REF)
-        DISPATCH3_W_TAG(op_vector_set, Tags.VectorTag, EX_VECTOR_SET)
+        OP2_CHAIN_CHECK_TAG(vector_ref, Tags.VectorTag, EX_VECTOR_REF)
+        OP3_CHAIN_CHECK_TAG(vector_set, Tags.VectorTag, EX_VECTOR_SET)
 
         // Special Operations
-        //SPECIALIMPL1(op_zerop) {
+        //SPECIALOP1_OVERRIDE(zerop) {
         //    if (this.tag == Tags.RectnumTag) {
         //        return Factory.False; // FIXME??
         //    } else if (this.tag == Tags.RatnumTag) {
@@ -1222,9 +1108,7 @@ namespace Scheme.Rep {
         // -----
         private bool isIntegralFlonum() {
             double v = this.unsafeAsDouble(0);
-            // Exn.debug.Write("Testing for integral double " + v);
             bool b = (Math.Ceiling(v) == Math.Floor(v));
-            // Exn.debug.WriteLine(b ? " yes" : " no");
             return b;
         }
 
@@ -1258,108 +1142,56 @@ namespace Scheme.Rep {
 
         // ----------------------
 
-        public override bool isNumber() {
-            return this.isBignum() || this.isFlonum() || this.isCompnum();
-        } 
-        public override bool isExact() {
-            return this.isBignum();
+        PREDICATE_OVERRIDE_EXPR(isNumber, numberp, this.isBignum() || this.isFlonum() || this.isCompnum())
+        CLR_PREDICATE_OVERRIDE_EXPR(isExact, this.isBignum())
+        CLR_PREDICATE_OVERRIDE_EXPR(isInexact, this.isFlonum() || this.isCompnum())
+        OP1_OVERRIDE(exactp) {
+            if (this.isNumber()) {
+                return Factory.wrap(this.isBignum());
+            } else {
+                Exn.fault(Constants.EX_EXACTP, null, this);
+                return Factory.Impossible;
+            }
         }
-        public override bool isInexact() {
-            return this.isFlonum() || this.isCompnum();
+        OP1_OVERRIDE(inexactp) {
+            if (this.isNumber()) {
+                return Factory.wrap(this.isFlonum() || this.isCompnum());
+            } else {
+                Exn.fault(Constants.EX_INEXACTP, null, this);
+                return Factory.Impossible;
+            }
         }
-        public override bool isBignum() {
-            return this.tag == Tags.BignumTag;
-        }
-        public override bool isFlonum() {
-            return this.tag == Tags.FlonumTag;
-        }
-        public override bool isCompnum() {
-            return this.tag == Tags.CompnumTag;
-        }
-        public override bool isComplex() {
-            return this.isBignum() || this.isFlonum() || this.isCompnum();
-        }
-        public override bool isReal() {
-            return this.isBignum() || this.isFlonum();
-        }
-        public override bool isRational() {
-            return this.isBignum() || this.isFlonum();
-        }
-        public override bool isInteger() {
-            return this.isBignum() || (this.isFlonum() && this.isIntegralFlonum());
-        }
-        public override bool isByteVectorLike() {
-            return true;
-        }
-        public override bool isByteVector() {
-            return this.tag == Tags.ByteVectorTag;
-        }
-        public override bool isString() {
-            return this.tag == Tags.StringTag;
-        }
-
+        PREDICATE_OVERRIDE_EXPR(isBignum, bignump, this.tag == Tags.BignumTag)
+        PREDICATE_OVERRIDE_EXPR(isFlonum, flonump, this.tag == Tags.FlonumTag)
+        PREDICATE_OVERRIDE_EXPR(isCompnum, compnump, this.tag == Tags.CompnumTag)
+        PREDICATE_OVERRIDE_EXPR(isComplex, complexp, this.isBignum() || this.isFlonum() || this.isCompnum())
+        PREDICATE_OVERRIDE_EXPR(isReal, realp, this.isBignum() || this.isFlonum())
+        PREDICATE_OVERRIDE_EXPR(isRational, rationalp, this.isBignum() || this.isFlonum())
+        PREDICATE_OVERRIDE_EXPR(isInteger, integerp, this.isBignum() || (this.isFlonum() && this.isIntegralFlonum()))
+        PREDICATE_OVERRIDE_TRUE(isByteVectorLike, bytevector_likep)
+        PREDICATE_OVERRIDE_EXPR(isByteVector, bytevectorp, this.tag == Tags.ByteVectorTag)
+        PREDICATE_OVERRIDE_EXPR(isString, stringp, this.tag == Tags.StringTag)
         // ----------------------
 
-        public override SObject op_numberp() {
-            return Factory.wrap(this.isBignum() || this.isFlonum() || this.isCompnum());
-        } 
-        public override SObject op_exactp() {
-            return this.op_bignump();
-        }
-        public override SObject op_inexactp() {
-            return Factory.wrap(this.isFlonum() || this.isCompnum());
-        }
-        public override SObject op_bignump() {
-            return Factory.wrap(this.tag == Tags.BignumTag);
-        }
-        public override SObject op_flonump() {
-            return Factory.wrap(this.tag == Tags.FlonumTag);
-        }
-        public override SObject op_compnump() {
-            return Factory.wrap(this.tag == Tags.CompnumTag);
-        }
-        public override SObject op_complexp() {
-            return Factory.wrap(this.isBignum() || this.isFlonum() || this.isCompnum());
-        }
-        public override SObject op_realp() {
-            return Factory.wrap(this.isBignum() || this.isFlonum());
-        }
-        public override SObject op_rationalp() {
-            return Factory.wrap(this.isBignum() || this.isFlonum());
-        }
-        public override SObject op_integerp() {
-            return Factory.wrap(this.isBignum() ||
-                                (this.isFlonum() && this.isIntegralFlonum()));
-        }
-        public override SObject op_bytevector_likep() {
-            return Factory.True;
-        }
-        public override SObject op_bytevectorp() {
-            return Factory.wrap(this.tag == Tags.ByteVectorTag);
-        }
-        public override SObject op_stringp() {
-            return Factory.wrap(this.tag == Tags.StringTag);
-        }
+        OP2_CHAIN_CHECK_TAG(string_ref, Tags.StringTag, EX_STRING_REF)
+        OP3_CHAIN_CHECK_TAG(string_set, Tags.StringTag, EX_STRING_SET)
 
-        DISPATCH2_W_TAG(op_string_ref, Tags.StringTag, EX_STRING_REF)
-        DISPATCH3_W_TAG(op_string_set, Tags.StringTag, EX_STRING_SET)
-
-        IMPL1_W_TAG(op_bytevector_length, Tags.ByteVectorTag, EX_BYTEVECTOR_LENGTH) {
+        OP1_OVERRIDE_CHECK_TAG(bytevector_length, Tags.ByteVectorTag, EX_BYTEVECTOR_LENGTH) {
             return Factory.wrap(this.elements.Length);
         }
-        DISPATCH2_W_TAG(op_bytevector_ref, Tags.ByteVectorTag, EX_BYTEVECTOR_REF)
-        DISPATCH3_W_TAG(op_bytevector_set, Tags.ByteVectorTag, EX_BYTEVECTOR_SET)
-        DISPATCH2_W_TAG(op_bytevector_equal, Tags.ByteVectorTag, EX_UNSUPPORTED)
-        DISPATCH2_W_TAG(op_bytevector_fill, Tags.ByteVectorTag, EX_BVFILL)
+        OP2_CHAIN_CHECK_TAG(bytevector_ref, Tags.ByteVectorTag, EX_BYTEVECTOR_REF)
+        OP3_CHAIN_CHECK_TAG(bytevector_set, Tags.ByteVectorTag, EX_BYTEVECTOR_SET)
+        OP2_CHAIN_CHECK_TAG(bytevector_equal, Tags.ByteVectorTag, EX_UNSUPPORTED)
+        OP2_CHAIN_CHECK_TAG(bytevector_fill, Tags.ByteVectorTag, EX_BVFILL)
 
-        IMPL1(op_bytevector_like_length) {
+        OP1_OVERRIDE(bytevector_like_length) {
             return Factory.wrap(this.elements.Length);
         }
-        DISPATCH2(op_bytevector_like_ref)
-        DISPATCH3(op_bytevector_like_set)
-        DISPATCH2(op_sys_bvlcmp)
+        OP2_CHAIN(bytevector_like_ref)
+        OP3_CHAIN(bytevector_like_set)
+        OP2_CHAIN(sys_bvlcmp)
 
-        OVERRIDE2X(op_sys_bvlcmp, SByteVL) {
+        OP2_OVERRIDE_REVERSED(sys_bvlcmp, SByteVL) {
             byte[] a = arg1.elements;
             byte[] b = this.elements;
             int upper = (a.Length < b.Length) ? a.Length : b.Length;
@@ -1425,23 +1257,21 @@ namespace Scheme.Rep {
         }
 
         // ------------------
-        public override bool isPair() { return true; }
-
-        public override SObject op_pairp() { return Factory.True; }
-        public override SObject op_cell_ref() { return this.first; }
-        public override SObject op_cell_set(SObject arg2) {
+        PREDICATE_OVERRIDE_TRUE(isPair, pairp)
+        OP1_OVERRIDE(cell_ref) { return this.first; }
+        OP2_OVERRIDE(cell_set) {
             this.first = arg2;
             return Factory.Unspecified;
         }
-        IMPL1(op_car) { return this.first; }
-        IMPL1(op_car_pair) { return this.first; }
-        IMPL1(op_cdr) { return this.rest; }
-        IMPL1(op_cdr_pair) { return this.rest; }
+        OP1_OVERRIDE(car) { return this.first; }
+        OP1_OVERRIDE(car_pair) { return this.first; }
+        OP1_OVERRIDE(cdr) { return this.rest; }
+        OP1_OVERRIDE(cdr_pair) { return this.rest; }
 
-        IMPL2(op_set_car) { this.first = arg2; return Factory.Unspecified; }
-        IMPL2(op_set_car_pair) { this.first = arg2; return Factory.Unspecified; }
-        IMPL2(op_set_cdr) { this.rest = arg2; return Factory.Unspecified; }
-        IMPL2(op_set_cdr_pair) { this.rest = arg2; return Factory.Unspecified; }
+        OP2_OVERRIDE(set_car) { this.first = arg2; return Factory.Unspecified; }
+        OP2_OVERRIDE(set_car_pair) { this.first = arg2; return Factory.Unspecified; }
+        OP2_OVERRIDE(set_cdr) { this.rest = arg2; return Factory.Unspecified; }
+        OP2_OVERRIDE(set_cdr_pair) { this.rest = arg2; return Factory.Unspecified; }
 
     }
     
@@ -1531,16 +1361,13 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
-        public override bool isProcedure() { return true; }
-        public override SObject op_procedurep() {
-            return Factory.True;
-        }
-
-        IMPL1(op_procedure_length) {
+        // ----
+        PREDICATE_OVERRIDE_TRUE(isProcedure, procedurep)
+        OP1_OVERRIDE(procedure_length) {
             return Factory.wrap(this.rib.Length + 2);
         }
-        DISPATCH2(op_procedure_ref)
-        DISPATCH3(op_procedure_set)
+        OP2_CHAIN(procedure_ref)
+        OP3_CHAIN(procedure_set)
     }
 
     // -------------------------------------------
