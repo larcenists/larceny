@@ -1,3 +1,5 @@
+;;; -*- Mode: Scheme; coding: iso-8859-1 -*-
+
 ;;; A demo of using dotnet to talk to Excel.
 ;;;
 ;;; To use this code, you must have Microsoft Excel installed.
