@@ -602,7 +602,7 @@ void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
   init_env( &e, gc, tospace, 0, tospace->gen_no, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
-  stats_add_gc_event_stats( &cheney );
+  stats_set_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
@@ -613,7 +613,7 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
   init_env( &e, gc, tospace, 0, tospace->gen_no+1, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
-  stats_add_gc_event_stats( &cheney );
+  stats_set_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
@@ -625,7 +625,7 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
             scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
-  stats_add_gc_event_stats( &cheney );
+  stats_set_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_promote_into_np( gc_t *gc,
@@ -644,7 +644,7 @@ void gclib_stopcopy_promote_into_np( gc_t *gc,
   oldspace_copy( &e );
   gc_compact_np_ssb( gc );
   sweep_large_objects( gc, old->gen_no-1, old->gen_no, young->gen_no );
-  stats_add_gc_event_stats( &cheney );
+  stats_set_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
@@ -656,7 +656,7 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
             scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
-  stats_add_gc_event_stats( &cheney );
+  stats_set_gc_event_stats( &cheney );
 }
 
 void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
