@@ -299,6 +299,16 @@
 	  (fx-- arg)
 	  (loop arg args)))))
 
+(define fx*
+  (letrec ((loop (lambda (prod args)
+		   (if (null? args)
+		       prod
+		       (loop (fx* prod (car args)) (cdr args))))))
+    (lambda args
+      (if (null? args)
+	  1
+	  (loop (car args) (cdr args))))))
+
 (define fx= 
   (letrec ((loop (lambda (first rest)
 		   (cond ((null? rest)
