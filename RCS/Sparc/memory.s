@@ -1,7 +1,7 @@
 ! Assembly-language millicode routines for allocation and mutation.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.3 91/06/21 15:16:39 lth Exp Locker: lth $
+! $Id: memory.s,v 1.4 91/06/24 01:55:40 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -33,18 +33,22 @@
 ! Arguments are always passed in registers RESULT, ARGREG2, and ARGREG3, all
 ! of which are rootable. The result, if any, is returned in register RESULT.
 ! If no result is required, RESULT is set to 0. ARGREG2 and ARGREG2 are
-! never destroyed by the call.
-! On entry, %o7 must contain the return address, and %R0 must contain the
-! pointer to the calling procedure.
+! never destroyed by the call. '_stkoflow' and '_stkuflow' never alter RESULT.
 !
-! Internal calling conventions are somewhat odd; before a call to 'addtrans'
-! or 'gcstart', the "external" return address must be saved in %TMP0, where
-! the internal procedures will expect to find it, in case it must be adjusted
-! due to a collection.
+! On entry to a millicode procedure, %o7 must contain the return address,
+! and %R0 must contain the pointer to the calling procedure. See the
+! file "conventions.txt" for calling convention details.
+!
+! Internal calling conventions are somewhat odd: before a call to 'addtrans'
+! or 'gcstart', the "external" (Scheme) return address must be saved in %TMP0,
+! where the internal procedures will expect to find it, in case it must be 
+! adjusted due to a collection.
 !
 ! Assemble with 'as -P'.
 
-#include "memory.s.h"
+#define ASSEMBLY
+#include "registers.s.h"
+#include "offsets.h"
 
 ! Adjusted offsets into data structures.
 ! For pairs, the offset adjusts for the tag alone; a pair tag is 1.
@@ -69,9 +73,6 @@
 ! '_alloc' takes one parameter, a fixnum which is the number of words to
 ! allocate. It returns an untagged pointer to this many words.
 !
-! Note that the delayed roundup (i.e. done after test for overflow) makes
-! sense because all allocations and limits are in an even number of words.
-!
 ! alloc( n )
 ! {
 !   p = E_TOP;
@@ -80,6 +81,9 @@
 !   if (E_TOP > E_LIMIT) p = gc( n );		; check for overflow
 !   return p;
 ! }
+!
+! Note that the delayed roundup (i.e. done after test for overflow) makes
+! sense because all allocations and limits are in an even number of words.
 
 _alloc:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
@@ -97,7 +101,7 @@ _alloc:
 	nop
 
 Lalloc1:
-	retl
+	jmp	%o7
 	add	%E_TOP, %TMP0, %E_TOP		! round up
 
 
@@ -155,7 +159,7 @@ Lalloci3:
 Lalloci2:
 	bne	Lalloci3
 	add	%TMP1, 0x04, %TMP1		! q += 4
-	retl
+	jmp	%o7
 	nop
 
 
@@ -185,8 +189,9 @@ _setcar:
 	nop
 
 Lsetcar1:
-	jmp	%TMP0+8
 	st	%ARGREG2, [%RESULT+CAR_OFFSET]	! CAR_OFFSET compensates right
+	jmp	%TMP0+8
+	mov	0, %RESULT
 
 
 !-----------------------------------------------------------------------------
@@ -213,8 +218,9 @@ _setcdr:
 	nop
 
 Lsetcdr1:
-	jmp	%TMP0+8
 	st	%ARGREG2, [%RESULT+CDR_OFFSET]	! CDR_OFFSET compensates right
+	jmp	%TMP0+8
+	mov	0, %RESULT
 
 
 !-----------------------------------------------------------------------------
@@ -246,9 +252,9 @@ Lvectorset1:
 	add	%RESULT, %ARGREG2, %TMP1	! pointer which does not
 						! compensate for header
 						! or tag
-	jmp	%TMP0+8
 	st	%ARGREG3, [%TMP1+VEC_OFFSET]	! VEC_OFFSET compensates
-
+	jmp	%TMP0+8
+	mov	0, %RESULT
 
 !-----------------------------------------------------------------------------
 ! '_gcstart' merely calls 'gcstart', with a bit of protocol.
@@ -286,6 +292,10 @@ _stkuflow:
 ! '_stkoflow' handles stack overflow. When the mutator detects stack overflow,
 ! then '_stkoflow' should be called. It flushes the stack cache and invokes
 ! the garbage collector if necessary, and then returns to its caller.
+!
+! '_stkoflow' can also be used to capture a continuation. After a call to
+! this procedure, a pointer to the current continuation is in the variable
+! "globals[ CONTINUATION_OFFSET ]". See the example in "memory.txt".
 
 _stkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
@@ -316,13 +326,14 @@ Lstkoflow1:
 ! 'gcstart'
 !
 ! On entry, %TMP0 has return address pointing to Scheme code, and %REG0 is
-! assumed to have a valid procedure pointer.
+! assumed to have a valid procedure pointer. %o7 must have the return address
+! to the millicode caller.
 !
 ! 'gcstart' saves the state and invokes the collector. It also takes an
 ! argument, a fixnum indicating the number of words that was attempted 
 ! allocated when the heap overflow occured. If the overflow was due to
-! an entry list overflow, this word must be 0xFFFFFFFC, and a tenuring
-! collection must be performed.
+! an entry list overflow, this word must be fixnum( -1 ) (i.e. 0xFFFFFFFC),
+! and a tenuring collection will be performed.
 !
 ! The return value from 'gcstart' is a pointer to the requested amount of
 ! memory (unless the argument was 0xFFFFFFFC).
@@ -338,9 +349,9 @@ gcstart:
 	sub	%STKP, 16, %STKP
 	st	%TMP0, [ %STKP+0 ]	! return address
 	mov	16, %TMP0
-	st	%TMP0, [ STKP+4 ]	! size
-	st	%R0, [ STKP+8 ]		! procedure
-	st	%g0, [ STKP+12 ]	! dummy
+	st	%TMP0, [ %STKP+4 ]	! size
+ 	st	%R0, [ %STKP+8 ]	! procedure
+	st	%g0, [ %STKP+12 ]	! dummy
 	
 	! Save context
 
@@ -357,6 +368,7 @@ gcstart:
 	st	%ARGREG3, [ %GLOBALS+ARGREG3_OFFSET ]
 	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
+	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
 	! C-language call
 
@@ -384,26 +396,29 @@ gcstart:
 	ld	[ %GLOBALS+RESULT_OFFSET ], %RESULT
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
+	ld	[ %GLOBALS+SP_OFFSET ], %STKP
 
 	! Must now allocate memory!
 
 	set	0xFFFFFFFC, %TMP0
 	cmp	%RESULT, %TMP0
-	beq	Lgcstart1
-	nop
+	beq,a	Lgcstart1
+	mov	0, %RESULT
 
 	! Allocate...
 
+	mov	%E_TOP, %TMP1
 	add	%E_TOP, %RESULT, %E_TOP
 	and	%RESULT, 0x04, %TMP0
 	add	%E_TOP, %TMP0, %E_TOP
-	
+	mov	%TMP1, %RESULT
+
 Lgcstart1:
 
 	! Destroy continuation and return
 
 	ld	[ %STKP+0 ], %TMP0		! restore return address
-	retl					! return to millicode
+	jmp	%o7				! return to millicode
 	add	%STKP, 16, %STKP		! deallocate frame
 
 	
@@ -422,20 +437,21 @@ addtrans:
 
 	! Get tenured-space limits and check for overflow
 
-	ld	[ %GLOBALS+T_ENTRIES_OFFSET ], %TMP1
+	ld	[ %GLOBALS+T_TRANS_OFFSET ], %TMP1
 	ld	[ %GLOBALS+T_TOP_OFFSET ], %TMP2
 	cmp	%TMP1, %TMP2
 	bgt	Laddtrans1
 	sub	%TMP1, 4, %TMP2
 
-	! We've lost. Go ahead and collect.
+	! We've lost. Go ahead and collect; never return to this
+	! procedure. (A millicode tail-call! Yeah!)
 
 	b	gcstart
 	set	0xFFFFFFFC, %RESULT
 
 Laddtrans1:
 	st	%RESULT, [ %TMP1 ]
-	retl
-	st	%TMP2, [ %GLOBALS+T_ENTRIES_OFFSET ]
+	jmp	%o7
+	st	%TMP2, [ %GLOBALS+T_TRANS_OFFSET ]
 
 	! end of file
