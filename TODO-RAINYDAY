@@ -11,11 +11,11 @@ Portable Graphical User Interface support
     Must run on Unix, Win32, and MacOS.  Would be nice if it runs
     on or can easily be ported to BeOS and QNX.
   We need to evaluate our options:
-  - vxWindows (need a C++ FFI)
-  - Tk (need a C FFI)
+  - vxWindows (need a C++ FFI) (mflatt says "don't do it")
+  - Tk (need a C FFI) (mflatt says "don't do it")
   - a Java-based interface.  Then we need a Java FFI, which is hard,
     unless the Scheme system is actually generating java code (see below).
-  - others?
+  - others?  (Shriram suggests Qt, but portability?)
   Tk is attractive because it's pervasive and supported; it's unattractive
   because it's pretty slow and (at least prior to version 8) had no
   GC support.
@@ -54,7 +54,9 @@ Bytecode code generator, libraries, and interpreter.
   is how to interact with compiled code.
 
 C Code generator (Petit Larceny)
-  Was operational, now is buggy (due to new compiler?)
+  Mostly operational on Mac, Unix, partly on Win32.  
+  - Much code still Unix-centric (relies on MetroWerks or Cygwin).
+  - Some portability issues currently ignored but visible.
 
 Generic functions (see Experimental/generic/*)
   We can build generic functions on top of the record system, the
@@ -72,6 +74,6 @@ Simple type-propagation Pass 3 (source not available).
   Stalled due to problems with lambda-lifting.
 
 Threads package (see Experimental/tasking for existing code).
-  General design is done.
+  General design is done, code works.
 
 ; eof

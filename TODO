@@ -351,6 +351,7 @@ Debugging
     it takes its source expression and looks it up in the map to get
     the source position (if any).  Probably an eq-hash table is best,
     especially when doing block compilation.
+    See Experimental/read-source.sch for an example implementation.
   * Print variable names
     - Trace-entry and break-entry can easily print parameter names
       (and their values) if parameter names or source code are present.
