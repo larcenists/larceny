@@ -210,12 +210,12 @@ void osdep_chdir( word w_cmd )
 void osdep_cwd( void )
 {
   char buf[FILENAME_MAX+1];
-  int k;
 
   if (getcwd( buf, sizeof(buf) ) == NULL)
     globals[G_RESULT] = FALSE_CONST;
   else
   {
+    int k = strlen( buf );
     int nwords = roundup4(k)/4;
     word *p = alloc_from_heap( (nwords+1)*sizeof(word) );
     *p = mkheader( k, STR_HDR );
