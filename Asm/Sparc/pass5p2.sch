@@ -317,8 +317,7 @@
 
 (define-instruction $nop
   (lambda (instruction as)
-    (list-instruction "nop" instruction)
-    (sparc.nop as)))
+    (list-instruction "nop" instruction)))
 
 (define-instruction $save
   (lambda (instruction as)
