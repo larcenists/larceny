@@ -40,8 +40,6 @@
 
 #define INVARIANT_CHECKING    0 /* Fairly inexpensive */
 #define EXPENSIVE_CHECKS_TOO  0 /* Quite expensive */
-#define FULL_GC_EVERY_PROM    0 /* Very expensive */
-#define FULL_GC_EVERY_GC      0 /* Sometimes expensive, sometimes not */
 #define REMSET_TRACE          0 /* Massive output */
 #define REMSET_TRACE_ALL      0 /* Even more massive output! */
 
@@ -257,8 +255,9 @@ struct dof_data {
   double free_after_collection; /* Controls gc completion */
   bool   use_shadow_remsets;     /* Use shadow sets */
   bool   fullgc_generational;   /* Use generational full GC */
-  bool   fullgc_on_collection;  /* Count collections, not resets */
   bool   fullgc_on_reset;       /* Count resets, not collections */
+  bool   fullgc_on_collection;  /* Count collections, not resets */
+  bool   fullgc_on_promotion;   /* Count promotions, not collections/resets */
   int    ephemeral_size;        /* Max amount that can be promoted in from
                                    the ephemeral areas */
   int    first_gen_no;          /* Generation number of lowest-numbered gen. */
@@ -1586,9 +1585,8 @@ static void promote_in( old_heap_t *heap )
   hrtime_t now;
 #endif
   
-#if FULL_GC_EVERY_PROM
-  full_collection( heap );
-#endif
+  if (data->fullgc_on_promotion)
+    full_collection( heap );
   
   annoyingmsg( " DOF promotion begins" );
 
@@ -1623,6 +1621,7 @@ static void promote_in( old_heap_t *heap )
   data->stats.words_moved += bytes2words( los_after - los_before );
 #if GC_EVENT_COUNTERS
   dof.copied_by_prom += bytes2words( live_after - live_before );
+  dof.moved_by_prom += bytes2words( los_after - los_before );
 #endif
   data->gen[ap_before]->stats.ms_promotion += stats_stop_timer( timer1 );
   data->gen[ap_before]->stats.ms_promotion_cpu += stats_stop_timer( timer2 );
@@ -1926,10 +1925,6 @@ static void perform_collection( old_heap_t *heap )
   hrtime_t now;
 #endif
   
-#if FULL_GC_EVERY_GC
-  full_collection( heap );
-#endif
-  
   annoyingmsg("  Collecting: AP=%d CP=%d RP=%d", data->ap, data->cp, data->rp);
 
   gc_signal_moving_collection( heap->collector );
@@ -1966,6 +1961,7 @@ static void perform_collection( old_heap_t *heap )
   data->stats.words_moved += bytes2words( los_after - los_before );
 #if GC_EVENT_COUNTERS
   dof.copied_by_gc += bytes2words( live_after - live_before );
+  dof.moved_by_gc += bytes2words( los_after - los_before );
 #endif
   data->gen[rp_before]->stats.collections++;
   data->gen[rp_before]->stats.ms_collection += stats_stop_timer( timer1 );
@@ -2013,7 +2009,7 @@ static int initialize( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
-  int esize, i;
+  int esize, dofsize, i;
 
   esize = gc->young_area->maximum;
   for ( i=0 ; i < gc->ephemeral_area_count ; i++ )
@@ -2021,8 +2017,13 @@ static int initialize( old_heap_t *heap )
 
   data->ephemeral_size = esize;
 
-  if (data->area_size < data->ephemeral_size) {
-    int growth = roundup( data->ephemeral_size - data->area_size, 
+  /* Establish the initial invariant: there is enough space in the DOF
+     area to promote from the ephemeral area even if the ephemeral area
+     is completely full of live data.
+     */
+  dofsize = data->s*(data->n-2); /* Actual space available */
+  if (dofsize < esize) {
+    int growth = roundup( (data->n-1)*(esize-dofsize)/(data->n-2), 
                           data->quantum );
     if (data->heap_limit && data->area_size + growth > data->heap_limit)
       panic( "DOF heap is too small to accomodate promotion." );
@@ -2167,7 +2168,7 @@ static void stats( old_heap_t *heap )
 
   /* overall */
   stats_add_gc_stats( &data->stats );
-  stats_add_gc_event_stats( &dof );
+  stats_set_gc_event_stats( &dof );
   memset( &data->stats, 0, sizeof( data->stats ) );
 }
 
@@ -2211,8 +2212,11 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   data->free_after_collection = info->free_after_collection;
   data->use_shadow_remsets = !info->no_shadow_remsets;
   data->fullgc_generational = info->fullgc_generational;
-  data->fullgc_on_collection = info->fullgc_on_collection;
-  data->fullgc_on_reset = !data->fullgc_on_collection;
+  data->fullgc_on_promotion = info->fullgc_on_promotion;
+  data->fullgc_on_collection = 
+    info->fullgc_on_collection && !info->fullgc_on_promotion;
+  data->fullgc_on_reset = 
+    !data->fullgc_on_collection && !info->fullgc_on_promotion;
   data->ephemeral_size = 0;     /* Will be set by initialize() */
   data->quantum = quantum = (BLOCK_SIZE * (generations+1));
   /* quantum is divisible by PAGESIZE if BLOCK_SIZE is. */
