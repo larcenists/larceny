@@ -23,6 +23,7 @@
 #define HEAPCODE_OLD_2SPACE      2     /* normal two-space */
 #define HEAPCODE_OLD_2SPACE_NP   3     /* non-predictive two-space */
 #define HEAPCODE_YOUNG_1SPACE    4     /* nursery */
+#define HEAPCODE_DOF             5     /* deferred-oldest-first */
 
 /* Policy codes (for set_policy()).  See also Lib/gcctl.sch. */
 
@@ -39,7 +40,7 @@
 
 /* In memmgr.c */
 
-int gc_compute_dynamic_size( int D, int S, int Q, double L, 
+int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L, 
 			     int lower_limit, int upper_limit );
 
 /* In nursery.c */
@@ -59,6 +60,11 @@ yhsc_data_area( young_heap_t *heap );
   /* Returns the current semispace structure for a stop-and-copy expandable
      young area.
      */
+
+/* In dof-heap.c */
+
+old_heap_t *
+create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info );
 
 /* In old-heap.c */
 
@@ -80,6 +86,6 @@ static_heap_t *
 create_static_area( int gen_no, gc_t *gc );
 
 
-#endif /* INCLUDED_GC_INTERFACE_H */
+#endif /* INCLUDED_MEMMGR_H */
 
 /* eof */
