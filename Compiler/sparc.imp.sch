@@ -4,7 +4,7 @@
 ;
 ; Larceny -- target-specific information for Twobit's SPARC backend.
 ;
-; 19 April 1999 / wdc
+; 11 June 1999 / wdc
 
 ; The maximum number of fixed arguments that may be followed by a rest
 ; argument.  This limitation is removed by the macro expander.
@@ -90,6 +90,7 @@
        (<= 0 x 7)))
 
 (define (fixnum-primitives) #t)
+(define (flonum-primitives) #t)
 
 ; The table of primitives has been extended with
 ; kill information used for commoning.
@@ -249,6 +250,17 @@
 	    (fxpositive?  1 fxpositive?  #f            -1 ,:immortal ,:none)
 	    (fxnegative?  1 fxnegative?  #f            -1 ,:immortal ,:none))
 	  '())
+    ,@(if (flonum-primitives)
+          `((fl+          2 +            #f            -1 ,:immortal ,:none)
+	    (fl-          2 -            #f            -1 ,:immortal ,:none)
+	    (fl--         1 --           #f            -1 ,:immortal ,:none)
+	    (fl*          2 *            #f            -1 ,:immortal ,:none)
+	    (fl=          2 =            #f            -1 ,:immortal ,:none)
+	    (fl<          2 <            #f            -1 ,:immortal ,:none)
+	    (fl<=         2 <=           #f            -1 ,:immortal ,:none)
+	    (fl>          2 >            #f            -1 ,:immortal ,:none)
+	    (fl>=         2 >=           #f            -1 ,:immortal ,:none))
+          '())
 
     ; Added for CSE, representation analysis.
 
