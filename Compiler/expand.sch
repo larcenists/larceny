@@ -46,6 +46,11 @@
 (define (desugar-definitions exp env make-toplevel-definition)
   (letrec
     
+    ; This loop flattens top-level BEGIN forms.
+    ; FIXME:  It isn't clear whether the environment needs to be carried
+    ; around this loop.  In any case the R5RS semantics should simplify
+    ; this code further.
+
     ((define-loop 
        (lambda (exp rest first env)
          (cond ((and (pair? exp)
@@ -69,12 +74,34 @@
                                 env)))))
                ((and (pair? exp)
                      (symbol? (car exp))
-                     (or (eq? (syntactic-lookup env (car exp))
-                              denotation-of-define-syntax)
-                         (eq? (syntactic-lookup env (car exp))
-                              denotation-of-define-inline))
-                     (null? first))
-                (define-syntax-loop exp rest env))
+                     (eq? (syntactic-lookup env (car exp))
+                          denotation-of-define-syntax))
+                (if (pair? (cdr exp))
+                    (redefinition (cadr exp)))
+                (let ((exp (m-define-syntax exp env)))
+                  (cond ((and (null? first) (null? rest))
+                         exp)
+                        ((null? rest)
+                         (make-begin (reverse (cons exp first))))
+                        (else (define-loop (car rest)
+                                           (cdr rest)
+                                           (cons exp first)
+                                           env)))))
+               ((and (pair? exp)
+                     (symbol? (car exp))
+                     (eq? (syntactic-lookup env (car exp))
+                          denotation-of-define-inline))
+                (if (pair? (cdr exp))
+                    (redefinition (cadr exp)))
+                (let ((exp (m-define-inline exp env)))
+                  (cond ((and (null? first) (null? rest))
+                         exp)
+                        ((null? rest)
+                         (make-begin (reverse (cons exp first))))
+                        (else (define-loop (car rest)
+                                           (cdr rest)
+                                           (cons exp first)
+                                           env)))))
                ((and (pair? exp)
                      (symbol? (car exp))
                      (macro-denotation? (syntactic-lookup env (car exp))))
@@ -86,56 +113,10 @@
                 (m-expand exp env))
                ((null? rest)
                 (make-begin (reverse (cons (m-expand exp env) first))))
-               (else (make-begin
-                      (append (reverse first)
-                              (map (lambda (exp) (m-expand exp env))
-                                   (cons exp rest))))))))
-     
-     (define-syntax-loop 
-       (lambda (exp rest env)
-         (cond ((and (pair? exp)
-                     (symbol? (car exp))
-                     (eq? (syntactic-lookup env (car exp))
-                          denotation-of-begin)
-                     (pair? (cdr exp)))
-                (define-syntax-loop (cadr exp) (append (cddr exp) rest) env))
-               ((and (pair? exp)
-                     (symbol? (car exp))
-                     (eq? (syntactic-lookup env (car exp))
-                          denotation-of-define-syntax))
-                (if (pair? (cdr exp))
-                    (redefinition (cadr exp)))
-                (if (null? rest)
-                    (m-define-syntax exp env)
-                    (begin (m-define-syntax exp env)
-                           (define-syntax-loop (car rest) (cdr rest) env))))
-               ((and (pair? exp)
-                     (symbol? (car exp))
-                     (eq? (syntactic-lookup env (car exp))
-                          denotation-of-define-inline))
-                (if (pair? (cdr exp))
-                    (redefinition (cadr exp)))
-                (if (null? rest)
-                    (m-define-inline exp env)
-                    (begin (m-define-inline exp env)
-                           (define-syntax-loop (car rest) (cdr rest) env))))
-               ((and (pair? exp)
-                     (symbol? (car exp))
-                     (macro-denotation? (syntactic-lookup env (car exp))))
-                (m-transcribe exp
-                              env
-                              (lambda (exp env)
-                                (define-syntax-loop exp rest env))))
-               ((and (pair? exp)
-                     (symbol? (car exp))
-                     (eq? (syntactic-lookup env (car exp))
-                          denotation-of-define))
-                (define-loop exp rest '() env))
-               ((null? rest)
-                (m-expand exp env))
-               (else (make-begin
-                      (map (lambda (exp) (m-expand exp env))
-                           (cons exp rest)))))))
+               (else (define-loop (car rest)
+                                  (cdr rest)
+                                  (cons (m-expand exp env) first)
+                                  env)))))
      
      (desugar-define
       (lambda (exp env)
@@ -148,8 +129,10 @@
                     (not (memq id pass1-block-inlines)))
                 (begin
                  (redefinition id)
-                 (syntactic-bind-globally! id (make-identifier-denotation id))))
-            (make-toplevel-definition id (make-undefined))))
+                 (syntactic-bind-globally! id
+                                           (make-identifier-denotation id))))
+            (make-toplevel-definition (variable.name (m-atom id env))
+                                      (make-undefined))))
          ((pair? (cadr exp))              
           (desugar-define
            (let* ((def (car exp))
@@ -174,8 +157,11 @@
                          (not (memq id pass1-block-inlines)))
                      (begin
                       (redefinition id)
-                      (syntactic-bind-globally! id (make-identifier-denotation id))))
-                 (make-toplevel-definition id (m-expand (caddr exp) env)))))))
+                      (syntactic-bind-globally!
+                       id
+                       (make-identifier-denotation id))))
+                 (make-toplevel-definition (variable.name (m-atom id env))
+                                           (m-expand (caddr exp) env)))))))
      
      (redefinition
       (lambda (id)
