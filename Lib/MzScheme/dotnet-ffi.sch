@@ -43,6 +43,7 @@
 (define-syscall clr/%flonum->foreign       34 2 6)
 (define-syscall clr/%double->foreign       34 2 7)
 ;(define-syscall clr/%void->foreign        34 2 8)
+(define-syscall clr/%procedure->message-filter 34 2 9)
 
 (define-syscall clr/%foreign->object       34 3 0)
 (define-syscall clr/%foreign->schemeobject 34 3 1)
@@ -71,6 +72,7 @@
 (define-syscall clr/%property-ref-int      34 18)
 (define-syscall clr/%foreign-aref          34 19)
 (define-syscall clr/%object-type           34 20)
+(define-syscall clr/test-syscall           34 21)
 
 ;;; Basic types needed to boostrap the rest of the dotnet interface.
 (define clr-type-handle/scheme-rt-ffi                   (clr/%get-type "Scheme.RT.FFI"))
@@ -238,7 +240,7 @@
             (loop (cons (proc (clr/%foreign-aref handle idx)) result)
                   (+ idx 1)
                   limit)))
-      (error "map-foreign-array: not a foreign array" handle)))
+      (error "map-clr-array: not a foreign array" handle)))
 
 ;;; Some bootstrap Enums
 (define clr/parse-enum
@@ -300,6 +302,9 @@
 
 (define-clr-method (clr-type/%get-element-type)
   clr-type-handle/system-type "GetElementType")
+
+(define-clr-method (clr-type/%get-interfaces)
+  clr-type-handle/system-type "GetInterfaces")
 
 ;;; Methods that have unusual calling sequences.
 
