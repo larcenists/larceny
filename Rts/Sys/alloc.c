@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "larceny.h"
+#include "stats.h"
 #include "gclib.h"
 #include "barrier.h"
 
@@ -51,15 +52,15 @@ caddr_t  gclib_pagebase;	/* page address of lowest known word */
 static struct {
   caddr_t    memtop;		/* address of highest known word */
   int        descriptor_slots;  /* number of allocated slots */
-  unsigned   heap_bytes_limit;	/* Maximum allowed heap allocation */
-  unsigned   heap_bytes;        /* bytes allocated to heap */
-  unsigned   max_heap_bytes;    /* max ditto */
-  unsigned   remset_bytes;      /* bytes allocated to remset */
-  unsigned   max_remset_bytes;  /* max ditto */
-  unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
-  unsigned   max_rts_bytes;     /* max ditto */
-  unsigned   wastage_bytes;	/* amount of wasted space */
-  unsigned   max_wastage_bytes;	/* max ditto */
+  int        heap_bytes_limit;	/* Maximum allowed heap allocation */
+  int        heap_bytes;        /* bytes allocated to heap */
+  int        max_heap_bytes;    /* max ditto */
+  int        remset_bytes;      /* bytes allocated to remset */
+  int        max_remset_bytes;  /* max ditto */
+  int        rts_bytes;         /* bytes allocated to RTS "other" */
+  int        max_rts_bytes;     /* max ditto */
+  int        wastage_bytes;	/* amount of wasted space */
+  int        max_wastage_bytes;	/* max ditto */
 } data;
 
 static byte *gclib_alloc( unsigned bytes );
@@ -339,14 +340,14 @@ void gclib_add_attribute( void *address, int nbytes, unsigned attr )
 
 void gclib_stats( gclib_stats_t *stats )
 {
-  stats->wheap = data.heap_bytes/sizeof(word);
-  stats->wheap_max = data.max_heap_bytes/sizeof(word);
-  stats->wremset = data.remset_bytes/sizeof(word);
-  stats->wremset_max = data.max_remset_bytes/sizeof(word);
-  stats->wrts = data.rts_bytes/sizeof(word);
-  stats->wrts_max = data.max_rts_bytes/sizeof(word);
-  stats->wastage = data.wastage_bytes/sizeof(word);
-  stats->wastage_max = data.max_wastage_bytes/sizeof(word);
+  stats->heap_allocated         = bytes2words( data.heap_bytes );
+  stats->heap_allocated_max     = bytes2words( data.max_heap_bytes );
+  stats->remset_allocated       = bytes2words( data.remset_bytes );
+  stats->remset_allocated_max   = bytes2words( data.max_remset_bytes );
+  stats->rts_allocated          = bytes2words( data.rts_bytes );
+  stats->rts_allocated_max      = bytes2words( data.max_rts_bytes );
+  stats->heap_fragmentation     = bytes2words( data.wastage_bytes );
+  stats->heap_fragmentation_max = bytes2words( data.max_wastage_bytes );
 }
 
 /* Pointer registry for mapping pointers returned from malloc to pointers
