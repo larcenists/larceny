@@ -4,7 +4,7 @@
 ; Machine-dependent part of the assembler, for Sparc.
 ; Machine-dependent code generation procedures.
 ;
-; $Id: asm.sparc.scm,v 1.5 91/08/20 15:31:02 lth Exp Locker: lth $
+; $Id: asm.sparc.scm,v 1.6 91/08/21 14:43:07 lth Exp Locker: lth $
 ;
 ; There are a lot of tables here that have values which must correspond to
 ; those in header files used by C and assembly. We should find a better way
@@ -101,6 +101,7 @@
 (define $i.jmpli     81)
 (define $i.label     82)
 (define $i.nop       83)
+(define $i.slot      84)
 (define $i.lddr      100)
 (define $i.ldr       101)
 (define $i.ldhr      102)
@@ -301,6 +302,18 @@
       (= r $r.tmp1)
       (= r $r.tmp2)))
 
+; Is an instruction a branch of some sort (including jumps and calls)
+; This should really be implemented with an attribute table rather than
+; depending on the ordinal values of the instructions!
+
+(define (branch-instr? i)
+  (and (>= (car i) 49) (<= (car i) 81)))
+
+(define (weird-instr? i)
+  (or (= (car i) $i.label)
+      (< (car i) 0)))
+
+
 ; Return the offset in the %GLOBALS table of the given memory-mapped register.
 
 (define (offsetof r)
@@ -394,16 +407,22 @@
 
     ; define a label corresponding to the current location.
 
-    (define (symtab.define-label! label)
+    (define (symtab.define-label! label insn)
       (let ((x (assq label symtab)))
 	(if (not x)
-	    (set! symtab (cons (cons label fptr) symtab)))))
+	    (set! symtab (cons (list label fptr insn) symtab)))))
 
     (define (symtab.lookup l)
       (let ((x (assq l symtab)))
 	(if x
-	    (cdr x)
+	    (cadr x)
 	    0)))
+
+    (define (symtab.target-insn l)
+      (let ((x (assq l symtab)))
+	(if x
+	    (caddr x)
+	    '(-1))))
 
     ; Bit Operations are not necessarily very pleasant in Scheme...
     
@@ -439,7 +458,29 @@
 		    (vector-ref etable (- 32 n)))
 	  (quotient m (vector-ref etable (- 32 n)))))
 
-      
+    ; Operations on code lists.
+    ; A code list is a mutable data structure with operations `next',
+    ; `push!', and `drop!'. The first returns the head of the code list.
+    ; The second puts a new one on the list. The last removes the first.
+
+    (define (make-codelist ilist)
+      (cons ilist '()))
+
+    (define (next cl)
+      (if (null? (car cl))
+	  '(-1)
+	  (caar cl)))
+
+    (define (push! cl i)
+      (set-car! cl (cons i (car cl))))
+
+    (define (drop! cl)
+      (set-car! cl (if (null? (car cl)) '() (cdar cl))))
+
+    (define (empty? cl)
+      (null? (car cl)))
+
+
     ; The instruction table.
 
     (define itable
@@ -453,7 +494,7 @@
 
 	(define (class-sethi i)
 	  (let ((i (shl i 22)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((n  (lobits (eval-expr (operand1 x)) 22))
 		    (rd (shl (operand2 x) 25)))
 		(+ rd i n)))))
@@ -462,37 +503,61 @@
 
 	(define (class-nop i)
 	  (let ((q (class-sethi i)))
-	    (lambda (x)
-	      (q `(dummy 0 ,$r.g0)))))
+	    (lambda (x cl)
+	      (q `(dummy 0 ,$r.g0) cl))))
 
 	; un-annulled branches
 
 	(define (class00b i)
 	  (let ((i    (shl i 25))
 		(code (shl #b010 22)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((offset (quotient
 			     (lobits (eval-expr `(- ,(operand1 x) $)) 24)
 			     4)))
 		(+ i code offset)))))
       
-	; annuled branches
+	; Annuled branches. Here we have to check for `slot' instructions
+	; afterwards, because they can be filled from the branch target.
+	;
+	; The instruction at the branch target is kept in the symbol table.
+	; The `slot' instruction will be replaced by the target and the
+	; target address will be adjusted if the target instruction is 
+	; suitable, i.e. if it is not a control transfer instruction.
+	;
+	; The target may not be available on the first pass through; this is
+	; no cause of concern, as it will be resolved on the second pass,
+	; and no decisions made here on the first pass are of interest in
+	; final code generation.
 
 	(define (class00a i)
 	  (let ((i    (shl i 25))
 		(code (shl #b010 22)))
-	    (lambda (x)
-	      (let ((offset (quotient
-			     (lobits (eval-expr `(- ,(operand1 x) $)) 24)
-			     4)))
-		(+ abit i code offset)))))
+	    (lambda (x cl)
+	      (let ((n (next cl))
+		    (t (symtab.target-insn (operand1 x))))
+		(if (and (= (car n) $i.slot)
+			 (not (branch-instr? t))
+			 (not (weird-instr? t)))
+		    (let ((offset
+			   (quotient
+			    (lobits (eval-expr `(+ (- ,(operand1 x) $) 4)) 24)
+			    4)))
+		      (drop! cl)
+		      (push! cl t)
+		      (+ abit i code offset))
+		    (let ((offset
+			   (quotient
+			    (lobits (eval-expr `(- ,(operand1 x) $)) 24)
+			    4)))
+		      (+ abit i code offset)))))))
   
 	; alu stuff and some others
 
 	(define (class10r i)
 	  (let ((i    (shl i 19))
 		(code (shl #b10 30)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((rs1 (shl (operand1 x) 14))
 		    (rs2 (operand2 x))
 		    (rd  (shl (operand3 x) 25)))
@@ -503,7 +568,7 @@
 	(define (class10i i)
 	  (let ((i    (shl i 19))
 		(code (shl #b10 30)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((rs1 (shl (operand1 x) 14))
 		    (imm (lobits (eval-expr (operand2 x)) 13))
 		    (rd  (shl (operand3 x) 25)))
@@ -514,7 +579,7 @@
 	(define (class11r i)
 	  (let ((i    (shl i 19))
 		(code (shl #b11 30)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((rs1 (shl (operand1 x) 14))
 		    (rs2 (operand2 x))
 		    (rd  (shl (operand3 x) 25)))
@@ -525,7 +590,7 @@
 	(define (class11i i)
 	  (let ((i    (shl i 19))
 		(code (shl #b11 30)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((rs1 (shl (operand1 x) 14))
 		    (imm (lobits (eval-expr (operand2 x)) 13))
 		    (rd  (shl (operand3 x) 25)))
@@ -538,46 +603,49 @@
 
 	(define (class11sr i)
 	  (let ((q (class11r i)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (q (list (car x)
 		       (cadddr x)
 		       (caddr x)
-		       (cadr x))))))
+		       (cadr x))
+		 cl))))
 
 	(define (class11si i)
 	  (let ((q (class11i i)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (q (list (car x)
 		       (cadddr x)
 		       (caddr x)
-		       (cadr x))))))
+		       (cadr x))
+		 cl))))
 
 	; call is a class all by itself
 
 	(define (class-call)
 	  (let ((code (shl #b01 30)))
-	    (lambda (x)
+	    (lambda (x cl)
 	      (let ((offset (quotient
 			     (lobits (eval-expr `(- ,(operand1 x) $)) 32)
 			     4)))
 		(+ code offset)))))
 
 	(define (class-label)
-	  (lambda (x)
-	    (symtab.define-label! (operand1 x))
-	    '()))
+	  (lambda (x cl)
+	    (let ((n (next cl)))
+	      (symtab.define-label! (operand1 x) (if (weird-instr? n) '(-1) n))
+	      '())))
 
 	; Multiplication and division are weird, since we want to call 
 	; library  routines on all current implementations of the 
 	; architecture.
 
 	(define (class-smul adj ccs)
-	  (lambda (x) (error 'class-smul
-			     "Unimplemented -- call millicode instead.")))
+	  (lambda (x cl)
+	    (error 'class-smul "Unimplemented -- call millicode instead.")))
 
 	(define (class-sdiv adj ccs)
-	  (lambda (x) (error 'class-sdiv
-			     "Unimplemented -- call millicode instead.")))
+	  (lambda (x cl)
+	    (error 'class-sdiv "Unimplemented -- call millicode instead.")))
 
 	; make the opcode vector
 
@@ -676,6 +744,7 @@
 	  (vector-set! v $i.jmpli   (class10i #b111000))
 	  (vector-set! v $i.label   (class-label))
 	  (vector-set! v $i.nop     (class-nop #b100))
+	  (vector-set! v $i.slot    (class-nop #b100))
 	  v)))
 
     ; Assembler, main loop.
@@ -687,7 +756,7 @@
     ; We make two passes over the list. The first pass calculates label 
     ; values. The second pass emits the code.
     
-    (define (assemble-codevector codelist symtab)
+    (define (assemble-codevector instructions symtab)
 
       (define f '())
 
@@ -704,24 +773,29 @@
 			 (bytevector-set! f (+ fptr 3) i4)))
 	      (set! fptr (+ fptr 4)))))
 
-      (define (assemble-instruction pass i)
-	(emit! (= pass 2) ((vector-ref itable (car i)) i)))
+      (define (assemble-instruction pass i cl)
+	(emit! (= pass 2) ((vector-ref itable (car i)) i cl)))
 
-      (if listify?
-	  (print-ilist codelist))
       (symtab.set! symtab)
       (set! fptr 0)
-      (let loop ((il codelist))
-	(if (not (null? il))
-	    (begin (assemble-instruction 1 (car il))
-		   (loop (cdr il)))
+
+      (let loop ((cl (make-codelist instructions)))
+	(if (not (empty? cl))
+	    (let ((i (next cl)))
+	      (drop! cl)
+	      (assemble-instruction 1 i cl)
+	      (loop cl))
 	    (begin (set! f (make-bytevector fptr))
 		   (set! fptr 0)
-		   (let loop ((il codelist))
-		     (if (not (null? il))
-			 (begin (assemble-instruction 2 (car il))
-				(loop (cdr il)))
-			 (cons f (symtab.get))))))))
+		   (let loop ((cl (make-codelist instructions)))
+		     (if (not (empty? cl))
+			 (let ((i (next cl)))
+			   (drop! cl)
+			   (assemble-instruction 2 i cl)
+			   (loop cl))
+			 (begin (if listify? 
+				    (print-ilist (disassemble f)))
+				(cons f (symtab.get)))))))))
 
     assemble-codevector))
 
@@ -809,8 +883,8 @@
 	(l2 (new-label)))
     (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.subicc ,$r.result ,(* n 4) ,$r.g0))
-    (emit! as `(,$i.be ,l2))
-    (emit! as `(,$i.nop))
+    (emit! as `(,$i.be.a ,l2))
+    (emit! as `(,$i.slot))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.arg-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l1 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l2))))
@@ -830,16 +904,16 @@
 	(l2 (new-label))
 	(m  (new-label)))
     (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
-    (emit! as `(,$i.bne.a ,l1))
+    (emit! as `(,$i.bne.a ,l2))
+    (emit! as `(,$i.slot))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.label ,l2))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-    (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure ,$r.g0))
-    (emit! as `(,$i.be ,m))
-    (emit! as `(,$i.nop))
+    (emit! as `(,$i.be.a ,m))
+    (emit! as `(,$i.slot))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.proc-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,m))
@@ -850,6 +924,10 @@
     (emit! as `(,$i.ori ,$r.g0 ,(* n 4) ,$r.result))))
 
 ; Create stack frame, then save
+;
+; Really want to use std/ldd here. This is easy for hardware-mapped registers
+; (although the boundaries are messy), less so for memory-mapped regs.
+; Also, we require some "nice" alignment of the registers in memory.
 
 (define (emit-save! as label n)
   (let* ((l         (new-label))
@@ -878,6 +956,8 @@
 	    (loop (+ i 1) (+ offset 4)))))))
 
 ; Restore registers from stack frame
+;
+; Use ldd/std here; see comments for emit-save!, above.
 
 (define (emit-restore! as n)
   (let loop ((i 0) (offset 8))
@@ -949,11 +1029,31 @@
 	    $r.tmp0))))
 
 ; And many hippo returns...
+;
+; Original code for emit-return.
+;
+; (define (emit-return! as)
+;   (emit! as `(,$i.ldi ,$r.stkp 0 ,$r.tmp0))
+;   (emit! as `(,$i.jmpli ,$r.tmp0 8 ,$r.g0))
+;   (emit! as `(,$i.nop)))
+;
+; This code peeps the previous instruction into the slot, if possible.
+; The condition is that the previous instruction is not a branch and that
+; it is not in the delay slot of some branch. It also has to be an 
+; instruction -- labels will not do.
 
 (define (emit-return! as)
-  (emit! as `(,$i.ldi ,$r.stkp 0 ,$r.tmp0))
-  (emit! as `(,$i.jmpli ,$r.tmp0 8 ,$r.g0))
-  (emit! as `(,$i.nop)))
+  (let ((p0 (previous-emitted-instruction 0 as))
+	(p1 (previous-emitted-instruction 1 as)))
+    (let ((slot (if (and (not (or (branch-instr? p0)
+				  (weird-instr? p0)))
+			 (not (branch-instr? p1)))
+		    (begin (discard-previous-instruction! as)
+			   p0)
+		    `(,$i.nop))))
+      (emit! as `(,$i.ldi ,$r.stkp 0 ,$r.tmp0))
+      (emit! as `(,$i.jmpli ,$r.tmp0 8 ,$r.g0))
+      (emit! as slot))))
 
 ; Multiple values are neat. But not neat enough to sweat them at this point.
 
@@ -1014,29 +1114,51 @@
 	      (error 'emit-init-proc-slots!
 		     "Can't deal with the linked list (yet)."))))))
 
+; The slot can usually be filled from the branch target. A brute-force
+; approach is to keep a list of label/instruction pairs, but this may require
+; an extra pass; perhaps we can make the assembler do this in some
+; automated fashion -- with a pseudo-op, for example:
+;
+;     `(,$i.b.a (+ ,label 4))
+;     `(,$i.instrof ,label)
+;
+; with the conditions that that instruction is "reasonable". But this requires
+; that an instuction is found (because we jump to +4), and so perhaps it would
+; be better to say something like
+;
+;     `(,$i.b.a ,label)
+;     `(,$i.slot)
+;
+; which would then fill it if possible and update the offset if necessary. This
+; is better than just having the assembler recognize the nop because there are
+; idioms in which the nop is required, like in the three-way branch chain used
+; in the test-and-branch primops (below).
+
 (define (emit-branch! as check-timer? label)
   (let ((label (make-label label)))
     (if check-timer?
 	(begin (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
-	       (emit! as `(,$i.bne ,label))
-	       (emit! as `(,$i.nop))
+	       (emit! as `(,$i.bne.a ,label))
+	       (emit! as `(,$i.slot))
 	       (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
 	       (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7)))
-	(begin (emit! as `(,$i.b ,label))
-	       (emit! as `(,$i.nop))))))
+	(begin (emit! as `(,$i.b.a ,label))
+	       (emit! as `(,$i.slot))))))
+
+; Ditto here.
 
 (define (emit-branchf! as label)
   (let ((label (make-label label)))
     (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
-    (emit! as `(,$i.be ,label))
-    (emit! as `(,$i.nop))))
+    (emit! as `(,$i.be.a ,label))
+    (emit! as `(,$i.slot))))
 
 (define (emit-jump! as m label)
   (let ((r     (emit-follow-chain! as m))
 	(label (make-label label)))
-    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.reg0))
-    (emit! as `(,$i.ldl ,$r.reg0 ,$p.codevector ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 (+ ,$p.codeoffset ,label) ,$r.g0))))
+    (emit! as `(,$i.ldl ,r ,$p.codevector ,$r.tmp0))
+    (emit! as `(,$i.jmpli ,$r.tmp0 (+ ,$p.codeoffset ,label) ,$r.g0))
+    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.reg0))))
 
 (define (emit-label! as l)
   (emit! as `(,$i.label ,l)))
@@ -1047,6 +1169,7 @@
   '())
 
 ; Primops.
+; THESE MUST ALL DEAL WITH MEMORY-MAPPED REGISTERS!
 
 (define (emit-primop0! as op)
   ((cdr (assq op primop-list)) as))
@@ -1058,7 +1181,8 @@
   ((cdr (assq op primop-list)) as r1 r2))
 
 ; Assoc list of primops with generating procedures.
-; This is getting long; a better ordering may be beneficial to performance.
+; This is getting long; a better ordering may be beneficial to performance,
+; if anyone cares.
 
 (define primop-list
   (list (cons 'zero?
@@ -1154,18 +1278,20 @@
 
 	; These are introduced by peephole optimization; they evaluate a 
 	; boolean expression for control only.
+	; Slots can be filled from the branch target (and use annulls!).
+	; See comments for 'branch', above.
 
 	(cons 'bfnull?
 	      (lambda (as label)
 		(emit! as `(,$i.subicc ,$r.result ,$imm.null ,$r.g0))
-		(emit! as `(,$i.bne ,(make-label label)))
-		(emit! as `(,$i.nop))))
+		(emit! as `(,$i.bne.a ,(make-label label)))
+		(emit! as `(,$i.slot))))
 	(cons 'bfpair?
 	      (lambda (as label)
 		(emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
 		(emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
-		(emit! as `(,$i.bne ,(make-label label)))
-		(emit! as `(,$i.nop))))
+		(emit! as `(,$i.bne.a ,(make-label label)))
+		(emit! as `(,$i.slot))))
 	(cons 'bfzero?
 	      (lambda (as label)
 		(emit-bcmp-primop! as $i.bne.a $r.g0 label $m.zerop)))
@@ -1206,6 +1332,8 @@
     (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
     (emit! as `(,$i.label ,l2))))
 
+; Possibly it would be better to unchain the branches and let slots be filled?
+
 (define (emit-bcmp-primop! as ntest r label generic)
   (let ((l1 (new-label))
 	(l2 (make-label label)))
@@ -1216,7 +1344,7 @@
     (emit! as `(,$i.jmpli ,$r.millicode ,generic ,$r.o7))
     (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))
     (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
-    (emit! as `(,$i.be.a ,l2))
+    (emit! as `(,$i.be ,l2))
     (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.nop))))
 
@@ -1240,4 +1368,5 @@
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))))
+
 
