@@ -1,2 +1,3 @@
-Compiler and assembler regression tests.  See comments in files for how
-to run; normally you want a working twobit.heap or similar.
+Compiler and assembler regression tests.  Compile the .sch files to
+.fasl, load ../Lib/test.sch, then load the fasl files.  If no errors are
+printed, you are OK.
