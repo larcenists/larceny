@@ -3,7 +3,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.14 91/07/10 10:19:03 lth Exp Locker: lth $
+! $Id: memory.s,v 1.15 91/07/12 03:15:27 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -73,10 +73,13 @@
 ! which do not have underscores prefixing their names), the external
 ! (Scheme) return address must be saved in %TMP0, where the internal
 ! procedure will expect to find it, in case it must be adjusted due to a
-! collection.
+! collection. In addition, since procedures like 'gcstart' and 'addtrans'
+! mangle %RESULT, it will have to be saved and restored (in the globals
+! slot SAVED_RESULT_OFFSET) as appropriate around calls to these subroutines.
 !
-! One could argue that this calling convention is a gross hack. You won't
-! get much debate from me.
+! One could argue that this calling convention is a gross hack. It is also
+! becoming increasingly difficult to program around it. A millicode stack
+! for saving millicode return addresses on would be better.
 !
 ! --
 !
@@ -218,8 +221,10 @@ _setcar:
 
 	! Must add transaction to list
 
+	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans			! add transaction to list
 	nop
+	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
 Lsetcar1:
 	st	%ARGREG2, [%RESULT+A_CAR_OFFSET]
@@ -247,8 +252,10 @@ _setcdr:
 	blt	Lsetcdr1
 	mov	%o7, %TMP0
 
+	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans			! add transaction to list
 	nop
+	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
 Lsetcdr1:
 	st	%ARGREG2, [%RESULT+A_CDR_OFFSET]
@@ -278,8 +285,10 @@ _vectorset:
 	blt	Lvectorset1			! not in tenured space
 	mov	%o7, %TMP0
 
+	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans
 	nop
+	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
 Lvectorset1:
 	add	%RESULT, %ARGREG2, %TMP1	! pointer which does not
