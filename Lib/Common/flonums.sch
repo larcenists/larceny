@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 18 December 1998 / wdc
+;
 ; Larceny -- low-level floating point code
 ;
 ; The procedures in this file all operate on IEEE flonums.  Formats of
@@ -35,11 +37,6 @@
 
   (define bits-per-bigit 16)		; depends on bignums.scm also!
 
-  (define e1 65536)			; 2^(bits-per-bigit)
-  (define e2 4294967296)		; 2^(bits-per-bigit*2)
-  (define e3 281474976710656)		; 2^(bits-per-bigit*3)
-  (define e4 18446744073709551616)	; 2^(bits-per-bigit*4)
-
   (define two^52 4503599627370496)
   (define two^53 9007199254740992)
   (define two^54 18014398509481984)
@@ -47,7 +44,9 @@
 
   (define flonum:minexponent    -1023)
   (define flonum:minexponent-51 -1074)
-  (define flonum:zero           0.0)
+  (define flonum:maxexponent     1023)
+  (define flonum:zero             0.0)
+  (define flonum:infinity      +inf.0)
   
   (define (flonum-infinity? x)
     (or (= x +inf.0) (= x -inf.0)))
@@ -148,119 +147,55 @@
 
 
   ; Convert a bignum to an IEEE double precision number.
-  ;
-  ; FIXME: This is sickeningly inefficient.
-  ;
-  ; FIXME: This is buggy:
-  ;
-  ;  ********** FAILURE *********
-  ;  (exact->inexact 14285714285714285714285) did not pass test.
-  ;  Returned value = 1.4285714285714284e22
-  ;  Correct value  = 1.4285714285714286e22
-  ;
-  ; exact->inexact:rational works around that problem, and this 
-  ; procedure is called only from within that to provide an approximation.
-  ;
-  ; Ideally we should use Algorithm Bellerophon for this (simply by
-  ; using (bellerophon b 0)), but it calls exact->inexact on its first
-  ; argument in some cases and I have yet to be convinced that we
-  ; won't loop.  [I haven't looked very hard yet -- it's a minor issue
-  ; at present.]
 
   (define (%bignum->flonum b)
-    (let ((sticky #f))   ; for rounding
-
-      (define (odd? x)
-	(cond ((fixnum? x) (zero? (logand x 1)))
-	      ((bignum? x) (zero? (logand (bignum-ref x 0) 1)))
-	      (else 
-	       (error "Impossible case in bignum->flonum: " x)
-	       #t)))
-	    
-      ; Divide m by 2 until it is less than the limit, setting the sticky
-      ; bit if a 1 bit is lost in the process. Return the new m.
-      ; `m' and `limit' always start as nonnegative bignums.
-      ;
-      ; FIXME: We can make this faster by simply doing bit ops.
-
-      (define (adjust m limit)
-	(if (< m limit)
-	    m
-	    (begin (set! sticky (or sticky (odd? m)))
-		   (adjust (quotient m 2) limit))))
-
-      ; 'Rounds' m to nearest, and to even on ties.
-      ; Rounding means adding 1 or not, and waiting for an eventual
-      ; division to lop off the least significant bit.
-      ;
-      ; FIXME: We can make this faster by operating on the representation.
-
-      (define (round m)
-	(if (odd? m)
-	    (if sticky
-		(+ m 1)
-		(if (>= (remainder m 4) 2)
-		    (+ m 1)
-		    m))
-	    m))
-
-      ; Figure out if the tail of the bignum (that is, those bigits which
-      ; will not figure explicitly in the flonum) has any non-zero bigit.
-      ; ***NOTE***: Knows that a bigit has 16 bits.
-      
-      (define (non-zero-tail? b)
-	(let loop ((i (- (bignum-length b) 6)))
-	  (cond ((negative? i) 
-		 #f)
-		((not (zero? (bignum-ref b i)))
-		 #t)
-		(else
-		 (loop (- i 1))))))
-
-      ; Count leading zeroes in a bigit by shifting right.
-      ; `n' and `e' are always nonnegative fixnums.
-
-      (define (leading-zeroes n e)
-	(if (zero? n)
-	    (- bits-per-bigit e)
-	    (leading-zeroes (rsha n 1) (+ e 1))))
     
-      ; Given a bignum, return a _new_ bignum which has enough significant
-      ; bits to represent the bignum as an IEEE double. Also return the number
-      ; of significant bits in the number.
-      ;
-      ; This procedure knows that a bigit is 16 bits.
-
-      (define (enough-bigits-for-a-flonum b)
-
-	; FIXME: Should probably use bytevector-like-set! and create a bignum.
-	(let* ((l  (bignum-length b))
-	       (d4 (bignum-ref b (- l 1)))
-	       (d3 (if (> l 1) (bignum-ref b (- l 2)) 0))
-	       (d2 (if (> l 2) (bignum-ref b (- l 3)) 0))
-	       (d1 (if (> l 3) (bignum-ref b (- l 4)) 0))
-	       (d0 (if (> l 4) (bignum-ref b (- l 5)) 0))
-	       (e  (- (* l bits-per-bigit) (leading-zeroes d4 0)))
-	       (v  (+ (* d4 e4) (* d3 e3) (* d2 e2) (* d1 e1) d0)))
-	  (cons v e)))
-
-      (define (convert)
-	(set! sticky (non-zero-tail? b))
-	(let* ((v  (enough-bigits-for-a-flonum b))
-	       (m1 (car v))
-	       (e  (cdr v))
-	       (m2 (adjust m1 two^54))
-	       (m3 (round m2)))
-	  (%make-flonum (if (negative? b) 1 0)
-			(adjust m3 two^53)
-			(- e 1))))
-
-      ; Bignums are not usually zero, but it happens in system code.
-
-      (if (zero? b)
-	  flonum:zero
-	  (convert))))
-
+    ; Count leading zeroes in a bigit by shifting right.
+    ; `n' and `e' are always nonnegative fixnums.
+    
+    (define (leading-zeroes n e)
+      (if (zero? n)
+          (- bits-per-bigit e)
+          (leading-zeroes (rsha n 1) (+ e 1))))
+    
+    ; Returns the greatest fixnum n such that (<= (expt 2 n) (abs b)).
+    
+    (define (floor-of-lg b)
+      (let* ((l (bignum-length b))
+             (v (bignum-ref b (- l 1))))
+        (- (* l bits-per-bigit) (leading-zeroes v 0) 1)))
+    
+    ; Given:  b0 and e0 such that
+    ;     2^52 <= b0 < 2^53 <= b0 * 2^{e0} <= b < (b0 + 1) * 2^{e0}
+    ; Returns:  Best flonum approximation to b.
+    
+    (define (convert-large b0 e0)
+      (if (> e0 flonum:maxexponent)
+          flonum:infinity
+          (let* ((x0 (%make-flonum 0 b0 e0))
+                 (x1 (%make-flonum 0 (+ b0 1) e0))
+                 (d0 (- b (%flonum->bignum x0)))
+                 (d1 (- (%flonum->bignum x1) b)))
+            (cond ((< d0 d1) x0)
+                  ((< d1 d0) x1)
+                  ((even? b0) x0)
+                  (else x1)))))
+    
+    ; Bignums are not usually zero, but it happens in system code.
+    
+    (cond ((negative? b)
+           (- (%bignum->flonum (- b))))
+          ((zero? b)
+           flonum:zero)
+          (else
+           (let* ((e (floor-of-lg b))
+                  (e-52 (- e 52)))
+             (if (<= e-52 0)
+                 (%make-flonum 0
+                               (* b (expt 2 (- e-52)))
+                               e)
+                 (convert-large (quotient b (expt 2 e-52))
+                                e))))))
 
   ; Convert an exact integer (fixnum or bignum) to a bignum
 
