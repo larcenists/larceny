@@ -24,7 +24,6 @@ gc_t
 	     void (*creg_set)( gc_t *gc, word k ),
 	     void (*stack_overflow)( gc_t *gc ),
 	     void (*stack_underflow)( gc_t *gc ),
-	     void (*stats)( gc_t *gc ), /* OBSOLETE */
 	     int  (*compact_all_ssbs)( gc_t *gc ),
 #if defined(SIMULATE_NEW_BARRIER)
 	     int (*isremembered)( gc_t *gc, word w ),
@@ -75,7 +74,6 @@ gc_t
   gc->creg_set = creg_set;
   gc->stack_overflow = stack_overflow;
   gc->stack_underflow = stack_underflow;
-  gc->stats = stats;
 
   gc->compact_all_ssbs = compact_all_ssbs;
 #if defined(SIMULATE_NEW_BARRIER)

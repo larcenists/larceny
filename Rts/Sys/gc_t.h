@@ -73,6 +73,11 @@ struct gc {
        during the allocation.  `nbytes' must not be larger than 
        LARGEST_OBJECT (defined in "larceny.h").
        Returns a pointer to the allocated object.
+
+       FIXME: a more self-documenting interface would take a single int
+       argument that would be the bitewise OR of e.g.
+          ALLOC_NO_GC
+	  ALLOC_ATOMIC_DATUM
        */
 
   word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic );
@@ -114,9 +119,6 @@ struct gc {
   void (*creg_set)( gc_t *gc, word k );
   void (*stack_overflow)( gc_t *gc );
   void (*stack_underflow)( gc_t *gc );
-
-  /* Statistics */
-  void (*stats)( gc_t *gc );	/* OBSOLETE */
 
   /* Remembered sets */
   int  (*compact_all_ssbs)( gc_t *gc );
@@ -182,7 +184,6 @@ struct gc {
 #define gc_creg_set( gc,k )           ((gc)->creg_set( gc, k ))
 #define gc_stack_overflow( gc )       ((gc)->stack_overflow( gc ))
 #define gc_stack_underflow( gc )      ((gc)->stack_underflow( gc ))
-#define gc_stats( gc )                ((gc)->stats( (gc) ))
 #define gc_compact_all_ssbs( gc )     ((gc)->compact_all_ssbs( gc ))
 #if defined(SIMULATE_NEW_BARRIER)
 #define gc_isremembered( gc, w )      ((gc)->isremembered( gc, w ))
@@ -215,7 +216,6 @@ gc_t
 	     void (*creg_set)( gc_t *gc, word k ),
 	     void (*stack_overflow)( gc_t *gc ),
 	     void (*stack_underflow)( gc_t *gc ),
-	     void (*stats)( gc_t *gc ),	/* OBSOLETE */
 	     int  (*compact_all_ssbs)( gc_t *gc ),
 #if defined(SIMULATE_NEW_BARRIER)
 	     int  (*isremembered)( gc_t *gc, word w ),
