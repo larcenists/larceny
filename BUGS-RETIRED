@@ -1,6 +1,6 @@
-; -*- text -*-
-; ./BUGS-RETIRED
-; $Id$
+Copyright 1998 Lars T Hansen.                -*- text -*-
+
+$Id$
 
 
 			  List of bugs retired
@@ -292,5 +292,21 @@ Program received signal SIGSEGV, Segmentation fault.
      does not accept the -P (preprocess) command-line switch.
 
      Reason for retiring: /bin/as isn't right on SunOS 5.
+
+
+068 v0.34 (ancient bug, maybe as old as v0.20)  Retired 981203 by lth
+    Priority: low
+
+    Float-significand and float-exponent, as visible in the interaction
+    environment, should be more discriminating about the types of their
+    arguments:
+
+	> (float-significand "123456789abc")
+	6253164108014179
+	> (float-exponent "123456789abc")
+	-224
+
+    Reason for retiring: removed float-significand and float-exponent
+    from the interaction environment.
 
 ; eof
