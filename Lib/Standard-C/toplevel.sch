@@ -284,10 +284,10 @@
     (environment-set! larc 'make-procedure make-procedure)
     (environment-set! larc 'enable-interrupts enable-interrupts)
     (environment-set! larc 'disable-interrupts disable-interrupts)
-;    (environment-set! larc 'interrupt-handler interrupt-handler)
     (environment-set! larc 'timer-interrupt-handler timer-interrupt-handler)
     (environment-set! larc 'keyboard-interrupt-handler 
                       keyboard-interrupt-handler)
+    (environment-set! larc 'break-handler break-handler)
     (environment-set! larc 'call-without-interrupts call-without-interrupts)
     (environment-set! larc 'standard-timeslice standard-timeslice)
     (environment-set! larc 'procedure-arity procedure-arity)
