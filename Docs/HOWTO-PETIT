@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-29 October 2002 / lth
+17 November 2002 / lth
 
 HOW TO BUILD AND USE.
 
@@ -18,7 +18,8 @@ currently this is one of:
 
 	Util/win32.sch
 	Util/macosx.sch
-	Util/unix.sch		; currently mythical
+	Util/unix-be.sch
+	Util/unix-el.sch		; currently mythical
 
 These programs sometimes invoke external programs and may place
 additional demands on your system; currently all systems need some
@@ -45,6 +46,11 @@ executable:
 	> (make-petit-heap)
 	> (build-runtime-system)
 	> (build-executable)
+
+NOTE.  Build-runtime-system currently invokes 'make' on your system,
+using Rts/Makefile for the rules.  It is probably necessary to configure
+that makefile for your system.  I'm working on fixing this by getting
+rid of Rts/Makefile altogether (replacing it with a Scheme version).
 
 Other useful commands are:
 
@@ -117,13 +123,32 @@ STATUS
 
 TODO / IN PROGRESS
 
+Petit Larceny on Sparc/Solaris and other big-endian Unix:
+ - have defined Util/unix-be.sch and Util/nbuild-param-C-be-unix.sch
+ - can load compiler
+ - can compile heap image
+ - can compile and link RTS
+ - RTS loads and runs in heap image
+ - above process is portable (enough)
+ - Must fix: Rts/Makefile is a mess because it has too many things 
+   in it that need configuring by hand; it is not nearly portable.  
+   Much can be done by requiring some non-basic Make system 
+   (GNU Make, say) but then Win32 may suffer?  Am working on using
+   Larceny for this, see Rts/makefile.sch.
+ - Must do: build and test twobit
+ - Must do: can we fix dynamic loading of compiled twobit?
+
+Petit Larceny on x86 Linux:
+ - Must test this (little endian)
+
 Compatibility packages:
   Must add call-with-binary-input-file and call-with-binary-output-file
   to the compatibility packages?  These are now used by the twobit
-  drivers and the heap dumper.
+  drivers and the heap dumper.  (Do we even care about building under
+  other systems any more?)
 
   Must clean up dumpheap-unix.sch so that it is usable; the rest of the
-  system may have diverged (again).
+  system may have diverged (again).  (Works OK on MacOS X and Solaris!)
 
 Primitives:
   - Some primitives (in the 500 series) must be implemented
