@@ -366,6 +366,32 @@ void UNIX_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 2, fixnum(ans[2]) ); /* parameter (maybe) */
     vector_set( v, 3, fixnum(ans[3]) ); /* parameter (maybe) */
     break;
+  case 6 : /* arch-name */
+    if (strcmp( larceny_architecture, "SPARC" ) == 0)
+      vector_set( v, 0, fixnum(0) );
+    else if (strcmp( larceny_architecture, "Standard-C" ) == 0)
+      vector_set( v, 0, fixnum(1) );
+    else
+      vector_set( v, 0, fixnum(-1) );
+    break;
+  case 7 : /* os-name */
+#if defined(SUNOS4) || defined(SUNOS5)
+    vector_set( v, 0, fixnum(0) );
+#elif defined(LINUX)
+    vector_set( v, 0, fixnum(1) );
+#else
+    vector_set( v0, 0, fixnum(-1) );
+#endif
+    break;
+  case 8 : /* endianness */
+#if defined(ENDIAN_BIG)
+    vector_set( v, 0, fixnum( 0 ) );
+#elif defined(ENDIAN_LITTLE)
+    vector_set( v, 0, fixnum( 1 ) );
+#else
+#error "No endianness."
+#endif
+    break;
   default : panic( "Unknown code %d passed to UNIX_sysfeature",
 		   nativeint( vector_ref( v, 0 ) ) );
   }
