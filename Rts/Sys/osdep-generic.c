@@ -35,6 +35,16 @@ void osdep_init( void )
   get_rtclock( &real_start );
 }
 
+void osdep_poll_events( word *globals )
+{
+  /* Nothing now. */
+}
+
+void osdep_poll_startup_events( void )
+{
+  /* Nothing now. */
+}
+
 /* Note: the Unix-dependent OS interface on the Scheme side in 1.0a1 and
    later does not match this interface well.  FIXME.
    */
