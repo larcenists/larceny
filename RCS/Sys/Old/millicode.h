@@ -1,9 +1,9 @@
 /* -*- Fundamental -*-
  *
- * Scheme Runtime System.
- * Millicode offsets.
+ * Scheme 313 Runtime System
+ * Millicode table offsets.
  *
- * $Id: millicode.h,v 1.2 91/06/26 13:30:02 lth Exp Locker: lth $
+ * $Id: millicode.h,v 1.3 91/06/27 15:33:55 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -13,7 +13,7 @@
 #endif
 
 /* Watch this! */
-#define LAST_MILLICODE	18
+#define LAST_MILLICODE	20
 
 #define MILLICODE_TABLE_SIZE	(LAST_MILLICODE+1)
 
@@ -36,3 +36,5 @@
 #define M_REM			(16*ADJUST)
 #define M_DIV			(17*ADJUST)
 #define M_NEG			(18*ADJUST)
+#define M_CAPTURE		(19*ADJUST)
+#define M_RESTORE		(20*ADJUST)
