@@ -184,9 +184,20 @@
 (define with-binary-output-to-file with-output-to-file)
 (define with-binary-input-from-file with-input-from-file)
 
+;;;;;;;;;;;;;;;;
+; JavaDot is now part of the larceny toplevel, and the compiler
+; expects these to be defined.  (Despite that they're useless unless
+; Twobit is running on top of Larceny... b/c the reader needs to know
+; about these too for them to be useful).
+
+(define recognize-javadot-symbols? (make-parameter #f boolean?))
+(define case-sensitive? (make-parameter #f boolean?))
+(define javadot-symbol? (lambda (x) #f))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Misc
+
 
 (define (cerror . irritants)
   (error 'error (apply string-append (map (lambda (x) (format "~s" x)) irritants))))
