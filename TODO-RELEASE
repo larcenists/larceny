@@ -5,6 +5,11 @@ The version of the first release will be 1.0-alpha1.
 
 ----------------------------------------------------------------------
 
+Currently testing
+  - GC benchmark suite with block compilation mode and (fast-safe-code), 
+    on Vega.  Nucleic2 is not included.
+  - GC benchmark suite with conservative system and split heap, on Mintaka.
+
 TOP PRIORITY
 
 - Really need to test (write-barrier #f) on applicable systems, with all 
@@ -13,23 +18,25 @@ TOP PRIORITY
 
 - Really need to run at least one test run with a split heap on 
   the conservative system.
+  - currently running autobuild w/reorganize, (fast-safe-code), on mintaka.
+
 
 ----------------------------------------------------------------------
 
 [Release]
-  * Test, test, test
   * Source freeze (in this order):
     - Move version number to 0.41
-    - Branch source tree as release-1-0-a1
-    - Move version number to 1.0a1
-  * Archives:
-    - Setup procedure
-      - cvs export on release-1-0-a1
+    - Branch source tree as branch-1-0-a1
+  * Source archive
+    - move version number on branch to 1.0a1
+    - iterate until it works:
+      - cvs export on branch-1-0-a1
       - run Scripts/release-1.0a1
       - run ( cd Rts; BUILD_HOST=chez make config ) 
-      - make archives
-      - install, rebuild, iterate until it works
-      - build binary distributions from the archive
+      - make source archive
+      - install, rebuild, run some simple tests.
+  * Archives:
+    - Get binary distributions from the source archive builds
     - Archive names and contents
       larceny-1.0a1-src.tar.gz               pruned src tree
       larceny-1.0a1-sunos4-bin.tar.gz        binary, heaps, Scripts/*
