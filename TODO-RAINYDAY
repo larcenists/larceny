@@ -31,7 +31,6 @@ Unicode support.
 A real debugger (the existing debugger should be scrapped).
 A profiler.
 Document the extensible I/O system.
-Transcript I/O ports.
 A faster reader (maybe).
 A faster printer (maybe).
 A garbage collector written mostly or entirely in Scheme.
