@@ -306,11 +306,18 @@
       (let ((n (string-length string)))
         (string-hash-loop string n 0 (logxor n #x5aa5))))
 
-    (do ((sti 0 (+ sti 1)))
+    ;; C is zero every fourth time
+    (do ((c    0 (if (= c 3) 0 (+ c 1)))
+         (sti  0 (+ sti 1))
+         (stip 0 (if (= c 3)
+                     (if (>= stip (- 65536 256 33))
+                         (- stip (- 65536 256 33))
+                         (+ stip 33))
+                     (if (>= stip (- 65536 256 32))
+                         (- stip (- 65536 256 32))
+                         (+ stip 32)))))
         ((>= sti 65536))
-      (vector-set! shift-table sti
-                   (remainder (+ (lsh sti 5) (rsha sti 2))
-                              (- 65536 256))))
+      (vector-set! shift-table sti stip))
 
     string-hash-internal))
 
