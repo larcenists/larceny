@@ -4,6 +4,8 @@
 ;
 ; 6 December 1998
 
+($$trace "expand.sch")
+
 ; This procedure sets the default scope of global macro definitions.
 
 (define define-syntax-scope
@@ -195,10 +197,14 @@
   (cond ((not (symbol? exp))
          ; Here exp ought to be a boolean, number, character, or string.
          ; I'll warn about other things but treat them as if quoted.
+	 ; @@LARS: added procedure, port, #!unspecified.
          (if (and (not (boolean? exp))
                   (not (number? exp))
                   (not (char? exp))
-                  (not (string? exp)))
+                  (not (string? exp))
+		  (not (procedure? exp))
+		  (not (port? exp))
+		  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))
          (make-constant exp))
         (else (let ((denotation (syntactic-lookup env exp)))
