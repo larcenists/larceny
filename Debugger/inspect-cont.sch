@@ -126,7 +126,7 @@
 
   (define (make-readable-variables vars)
     (cond ((symbol? vars)
-	   (make-readable-variable var))
+	   (make-readable-variable vars))
 	  ((pair? vars)
 	   (cons (make-readable-variable (car vars))
 		 (make-readable-variables (cdr vars))))))
