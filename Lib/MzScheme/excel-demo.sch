@@ -5,7 +5,7 @@
 
 (define *scheme-dynamic-assembly-name*
   (let ((name (System.Reflection.AssemblyName.)))
-    (set-.name$! name '|SchemeDynamicAssembly|)
+    (set-.name$! name "SchemeDynamicAssembly")
     name))
 
 (define *scheme-application-domain* #f)
@@ -32,32 +32,8 @@
   (or *scheme-dynamic-module*
       (begin
         (set! *scheme-dynamic-module*
-              (.DefineDynamicModule (scheme-dynamic-assembly) '|SchemeModule.dll| '|SchemeModule.dll|))
+              (.DefineDynamicModule (scheme-dynamic-assembly) '"SchemeModule.dll" '"SchemeModule.dll"))
         *scheme-dynamic-module*)))
-
-(define *system-drawing-assembly* #f)
-(define *system-windows-forms-assembly* #f)
-
-(define (system-drawing-assembly)
-  (or *system-drawing-assembly*
-      (begin (set! *system-drawing-assembly*
-                   (System.Reflection.Assembly.LoadWithPartialName 'System.Drawing))
-             *system-drawing-assembly*)))
-
-(define (system-windows-forms-assembly)
-  (or *system-windows-forms-assembly*
-      (begin (system-drawing-assembly)
-             (set! *system-windows-forms-assembly*
-                   (System.Reflection.Assembly.LoadWithPartialName 'System.Windows.Forms))
-             *system-windows-forms-assembly*)))
-
-(define (window-demo)
-  (system-windows-forms-assembly)
-  (System.Windows.Forms.Application.Run
-   (System.Windows.Forms.ApplicationContext.
-    (System.Windows.Forms.form.))))
-
-
 
 ;;; End of temp code
 
@@ -67,14 +43,14 @@
   (or *the-excel-assembly*
       (begin
         (set! *the-excel-assembly*
-              (System.Reflection.Assembly.LoadWithPartialName 'Microsoft.Office.Interop.Excel))
+              (System.Reflection.Assembly.LoadWithPartialName "Microsoft.Office.Interop.Excel"))
         ;; bootstrap excel types
         (for-each (lambda (sym)
                     (.GetType *the-excel-assembly* sym))
-                  (list '|Microsoft.Office.Interop.Excel.ApplicationClass|
-                          '|Microsoft.Office.Interop.Excel.WorkbookClass|
-                            '|Microsoft.Office.Interop.Excel.Sheets|
-                              '|Microsoft.Office.Interop.Excel._Worksheet|))
+                  (list '"Microsoft.Office.Interop.Excel.ApplicationClass"
+                          '"Microsoft.Office.Interop.Excel.WorkbookClass"
+                            '"Microsoft.Office.Interop.Excel.Sheets"
+                              '"Microsoft.Office.Interop.Excel._Worksheet"))
         *the-excel-assembly*)))
 
 (define *the-excel-application* #f)
@@ -162,9 +138,59 @@
          (comment-obj (.Comment$ rng)))
     (.Delete comment-obj)))
 
+(define (set-first-comment! cell comment-text)
+  (let* ((rng (cellref->rng cell))
+         (comment-obj (.Comment$ rng)))
+    (.AddComment rng comment-text)))
+
 (define (set-cell-comment! cell comment-text)
   (let* ((rng (cellref->rng cell))
          (comment-obj (.Comment$ rng)))
     (.Delete comment-obj)
     (.AddComment rng comment-text)))
 
+(define (set-cell-border! cell r g b)
+  (set-.color$! (.Borders$ cell)  (+ (* b #x660000)
+                                     (* g #x006600)
+                                     (* r #x000066))))
+
+(define (set-cell-color! cell r g b)
+  (set-.color$! (.Interior$ cell)  (+ (* b #x660000)
+                                     (* g #x006600)
+                                     (* r #x000066))))
+
+(define (set-color! row col r g b)
+  (let* ((cell (get-cell row col)))
+    (set-cell-color! cell r g b)
+    (set-cell-border! cell 4 4 4)))
+
+(define (whizbang-excel-demo)
+  (excel-assembly)
+  (excel-active-sheet)
+  (let* ((cella (get-cell 1 1))
+         (comment (.comment$ cella)))
+    (if (not (null? comment))
+        (.delete comment))
+    (.AddComment cella "This is the comment."))
+  (let rloop ((red 0))
+    (if (< red 6)
+        (let gloop ((green 0))
+          (if (< green 6)
+              (let bloop ((blue 0))
+                (if (< blue 6)
+                    (begin
+                      (set-color! (+ (* green 6) red 2) (+ blue 1) red green blue)
+                      (bloop (+ blue 1)))
+                    (gloop (+ green 1))))
+              (rloop (+ red 1))))))
+  (let rloop ((red 0))
+    (if (< red 6)
+        (let gloop ((green 0))
+          (if (< green 6)
+              (let bloop ((blue 0))
+                (if (< blue 6)
+                    (begin
+                      (set-color! (+ (* green 6) red 2) (+ blue 1) 5 5 5)
+                      (bloop (+ blue 1)))
+                    (gloop (+ green 1))))
+              (rloop (+ red 1)))))))
