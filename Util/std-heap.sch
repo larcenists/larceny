@@ -16,6 +16,8 @@
 
 (load "Util/sysdep-unix.sch")           ; Path name manipulation
 (load "Util/nbuild-param-sparc.sch")    ; Parameters for nbuild-files
+(define nbuild-parameter
+  (make-nbuild-parameter "" #f #f "Larceny" "Larceny"))
 (load "Util/nbuild-files.sch")          ; Development system files
 (load "Util/load-env.sch")              ; Used to load "modules.list"
 (load-environment "Util/modules.list"   ; Load development system
