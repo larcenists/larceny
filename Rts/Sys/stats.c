@@ -367,11 +367,10 @@ stats_fillvector( word w_buffer )
   gen_generations = generations;  /* # of generation vectors */
   rem_remsets = generations;	  /* np remset is last elt. */
 
-  assert( vector_length( w_buffer ) == STAT_VSIZE*sizeof(word) );
+  assert( vector_length( w_buffer ) >= STAT_VSIZE );
   assert( vector_length(vector_ref(w_buffer, STAT_GENERATIONS)) 
-	  == gen_generations*sizeof(word) );
-  assert( vector_length(vector_ref(w_buffer, STAT_REMSETS)) 
-	  == rem_remsets*sizeof(word) );
+	  >= gen_generations );
+  assert( vector_length(vector_ref(w_buffer, STAT_REMSETS)) >= rem_remsets );
 
   fill_main_entries( ptrof(w_buffer)+1, &ms );
 
@@ -381,7 +380,7 @@ stats_fillvector( word w_buffer )
   for ( i=0 ; i < gen_generations ; i++ ) {
     word g = vector_ref(genv,i);
 
-    assert( vector_length( g ) == STAT_G_SIZE*sizeof(word) );
+    assert( vector_length( g ) == STAT_G_SIZE );
     fill_gen_vector( ptrof(g)+1, &ms.gen_stat[i], hs[i].live);
   }
 
@@ -392,7 +391,7 @@ stats_fillvector( word w_buffer )
     int np_remset = 0;
     word r = vector_ref(remv,i-1);
 
-    assert( vector_length(r) == STAT_R_SIZE*sizeof(word) );
+    assert( vector_length(r) == STAT_R_SIZE );
     np_remset = i == rem_remsets;
     if (np_remset)
       fill_remset_vector( ptrof(r)+1, &ms.np_remset, 1 );
