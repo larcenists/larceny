@@ -33,11 +33,16 @@
 #include "static_heap_t.h"
 #include "msgc-core.h"
 
-#define INVARIANT_CHECKING    0 /* Fairly expensive */
+#if GCLIB_LARGE_TABLE
+# define MB_REMSET 0            /* Otherwise undefined */
+#endif
+
+#define INVARIANT_CHECKING    0 /* Fairly inexpensive */
 #define EXPENSIVE_CHECKS_TOO  0 /* Quite expensive */
 
 #define USE_DOF_REMSET        1 /* Generally desirable */
 #define SPLIT_REMSETS         1 /* Ditto */
+#define SHADOW_TABLE          1 /* Ditto */
 
 #define BLOCK_SIZE            (64*KILOBYTE)   /* Block granularity */
 #define DOF_REMSET_SIZE       (16*KILOBYTE)   /* Remset block */
@@ -186,7 +191,6 @@ static dof_pool_t *make_dof_pool( void )
 {
   dof_pool_t *p = must_malloc( sizeof( dof_pool_t ) );
 
-  /*  p->bot = must_malloc( sizeof( word )*DOF_REMSET_SIZE ); */
   p->bot = gclib_alloc_rts( words2bytes(DOF_REMSET_SIZE), MB_REMSET );
   p->top = p->bot;
   p->lim = p->bot + DOF_REMSET_SIZE;
@@ -210,7 +214,6 @@ static void free_dof_pools( dof_pool_t *p )
 {
   if (p != 0) {
     free_dof_pools( p->next );
-    /* free( p->bot ); */
     gclib_free( p->bot, words2bytes(DOF_REMSET_SIZE) );
     free( p );
   }
@@ -277,9 +280,9 @@ static void dof_remset_consistency_check( dof_remset_t *r, int gen_no )
     for ( slot=segment->bot ; slot < segment->top ; slot++ )
       if (*slot) {
         assert(isptr(*slot));
-        if (gclib_desc_g[pageof(*slot)] != gen_no)
+        if (gen_of(*slot) != gen_no)
           panic_abort( "dof_remset: Failed consistency check: want %d, got %d",
-                       gen_no, gclib_desc_g[ pageof(*slot) ] );
+                       gen_no, gen_of(*slot) );
       }
 }
 #endif
@@ -1360,24 +1363,32 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   assert( area_size > 0 );
   assert( generations > 0 );
   assert( load_factor >= 1.0 );
-
-  area_size = max( area_size, dynamic_min );
-
+  assert( BLOCK_SIZE % PAGESIZE == 0 );
+  
+  area_size = round_up_to_block_size(max( area_size, dynamic_min ));
+  heap_limit = round_up_to_block_size(heap_limit);
+  
   data = (dof_data_t*)must_malloc( sizeof( dof_data_t ) );
   memset( data, 0, sizeof( data ) );
-  data->area_size = area_size;
-  data->heap_limit = heap_limit;
   data->load_factor = load_factor;
   data->full_frequency = full_frequency;
   data->growth_divisor = growth_divisor;
   data->ephemeral_size = 0;     /* Will be set by initialize() */
   data->quantum = quantum = (BLOCK_SIZE * (generations+1));
+  /* quantum is divisible by PAGESIZE if BLOCK_SIZE is. */
+  data->heap_limit = (heap_limit / quantum) * quantum; /* Rounds */
   data->first_gen_no = gen_no;
 
+  if (heap_limit > 0)
+    area_size = min( area_size, heap_limit );
+  
   data->n = generations+2;
-  data->s = round_up_to_block_size(area_size / (data->n - 1));
-  data->heap_limit = (data->heap_limit / quantum) * quantum; /* Rounds */
+  data->s = round_down_to_block_size( area_size / (data->n - 1) );
+  data->area_size = data->s*(data->n-1);
 
+  assert( data->s > 0 );
+  assert( data->area_size > 0 );
+  
   data->gen = (gen_t**)must_malloc( data->n*sizeof( gen_t* ) );
   for ( i=0 ; i < data->n ; i++ ) {
     gen_t *g;
@@ -1395,6 +1406,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
         create_semispace_n( BLOCK_SIZE, 
                             (data->s / BLOCK_SIZE), 
                             gen_no+g->order );
+    memset( &g->stats, 0, sizeof( gen_stats_t ) );
 #if USE_DOF_REMSET
 # if SPLIT_REMSETS
     for ( j=0 ; j < data->n ; j++ )
@@ -1499,7 +1511,7 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
 
 #define forw_np( loc, forw_limit_gen, dest, lim, e )                          \
   do { word T_obj = *loc;                                                     \
-       if (isptr( T_obj ) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)){ \
+       if (isptr( T_obj ) && gen_of(T_obj) < (forw_limit_gen)){ \
           forw_core_np( T_obj, loc, dest, lim, e );                           \
        }                                                                      \
   } while( 0 )
@@ -1508,7 +1520,7 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
                         old_obj_gen, e )                                  \
   do { word T_obj = *loc;                                                 \
        if (isptr( T_obj )) {                                              \
-          unsigned T_obj_gen = gclib_desc_g[pageof(T_obj)];               \
+          unsigned T_obj_gen = gen_of(T_obj);               \
           if (T_obj_gen < (forw_limit_gen)) {                             \
             forw_core_np( T_obj, loc, dest, lim, e );                     \
           }                                                               \
@@ -1528,11 +1540,11 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           word T_g = gclib_desc_g[ pageof(T_obj) ];                    \
+           word T_g = gen_of(T_obj);                    \
            if (T_g < (forw_limit_gen)) {                                \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
              T_obj = *loc;                                              \
-             T_g = gclib_desc_g[ pageof(T_obj)];                        \
+             T_g = gen_of(T_obj);                        \
            }                                                            \
            if (T_g < (np_young_gen))                                    \
              must_add_to_extra = 1;                                     \
@@ -1543,11 +1555,11 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           word T_g = gclib_desc_g[ pageof(T_obj) ];                    \
+           word T_g = gen_of(T_obj);                    \
            if (T_g < (forw_limit_gen)) {                                \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
              T_obj = *loc;                                              \
-             T_g = gclib_desc_g[pageof(T_obj)];                         \
+             T_g = gen_of(T_obj);                         \
            }                                                            \
            if (T_g < (np_young_gen)) {                                  \
              extra_gen[T_g] = 1;                                        \
@@ -1692,6 +1704,7 @@ struct dof_env {
   int first;                    /* First generation number for gc barrier */
   int ngenerations;             /* Number of generations */
   int nspaces;                  /* Number of tospaces */
+  gclib_desc_t *gclib_desc_g;
   struct {                      /* One of these per tospace */
     int         gen_no;
     remset_t    *remset;
@@ -1846,6 +1859,7 @@ static int dof_copy_into_with_barrier( old_heap_t *heap,
   e.nspaces = i;
   e.first = data->first_gen_no;
   e.ngenerations = data->first_gen_no + data->n;
+  e.gclib_desc_g = gclib_desc_g;
   e.younger_than = younger_than;
   e.copy_idx = 0;
   e.scan_idx = 0;
@@ -1947,7 +1961,7 @@ static bool scan_from_remsets( word object, void *data, unsigned *count )
 {
   dof_env_t *e = (dof_env_t*)data;
   unsigned     forw_limit_gen = e->younger_than;
-  unsigned     old_obj_gen = gclib_desc_g[pageof(object)];
+  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
   SETUP_COPY_PTRS( e, dest, lim );
@@ -1972,6 +1986,9 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r )
   word         scanned = 0;
   word         objects = 0;
   SETUP_COPY_PTRS( e, dest, lim );
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
 
   for ( segment=r->first ; segment ; segment=segment->next ) {
     for ( slot=segment->bot, slotlim=segment->top ; slot < slotlim ; slot++ ) {
@@ -2036,7 +2053,10 @@ static void scan_small_objects( dof_env_t *e )
   word *scanptr = e->scan_ptr;
   word *scanlim = ss_lim2(scan_ss(e), e->scan_chunk_idx);
   int  extra_gen[ MAX_GENERATIONS ];
-
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
+  
   memset( extra_gen, 0, sizeof( extra_gen ) );
 
   /* FIXME: pass remtop, remlim to the macro! */
@@ -2076,7 +2096,10 @@ static bool scan_large_objects( dof_env_t *e, int gen )
   word *p;
   bool work = FALSE;
   int  extra_gen[ MAX_GENERATIONS ];
-
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desg_g = e->gclib_desc_g;
+#endif
+  
   memset( extra_gen, 0, sizeof( extra_gen ) );
 
   /* must_add_to_extra is a name used by the scanning and fwd macros as a 
@@ -2167,8 +2190,8 @@ static word forward_large_object( dof_env_t *e, word *ptr, int tag )
       break;
     }
 #endif
-  if (gclib_desc_b[pageof(ptr)] & MB_LARGE_OBJECT) {
-    los_mark( e->gc->los, copy_marked(e), ptr, gclib_desc_g[ pageof(ptr) ] );
+  if (attr_of(ptr) & MB_LARGE_OBJECT) {
+    los_mark( e->gc->los, copy_marked(e), ptr, gen_of(ptr) );
     return tagptr( ptr, tag );
   }
   else {
@@ -2179,11 +2202,11 @@ static word forward_large_object( dof_env_t *e, word *ptr, int tag )
     /* Copy it */
     hdr = *ptr;
     bytes = roundup8( sizefield( hdr ) + 4 );
-    new = los_allocate( e->gc->los, bytes, gclib_desc_g[ pageof( ptr ) ] );
+    new = los_allocate( e->gc->los, bytes, gen_of( ptr ) );
     memcpy( new, ptr, bytes );
     
     /* Mark it */
-    los_mark( e->gc->los, copy_marked(e), new, gclib_desc_g[ pageof( ptr ) ]);
+    los_mark( e->gc->los, copy_marked(e), new, gen_of( ptr ));
     
     /* Leave a forwarding pointer */
     check_address( ptr );
