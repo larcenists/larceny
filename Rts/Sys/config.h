@@ -3,9 +3,12 @@
  * $Id$
  *
  * You must define the attributes for the system you're compiling in the
- * "User Definition Section", below.  DON'T PANIC!  Useful sets of
- * attributes for many systems are defined in that section, just pick
- * the one appropriate to your system.
+ * "User Definition Section", below.  
+ *
+ *          DON'T PANIC!  
+ *
+ * Useful sets of attributes for many systems are defined in that 
+ * section, just pick the one appropriate to your system.
  *
  * Refer to the installation notes for more elaborate instructions, or
  * read the comments in this file carefully.
@@ -136,10 +139,11 @@
      The generic allocator is selected automatically if the operating
      system is GENERIC_OS.
 
-     The generic allocator is in osdep-generic.c, and that file must
+     (The generic allocator is in osdep-generic.c, and that file must
      be included in the compilation along with the osdep-* file for
      the appropriate operating system, unless the system is being
-     compiled for a generic OS.
+     compiled for a generic OS.  Normally there is no reason to worry
+     about this as the Makefiles do the right thing.)
      */
 
 #undef USE_GENERIC_IO
@@ -149,10 +153,11 @@
      The generic I/O system is selected automatically if the operating
      system is GENERIC_OS.
      
-     The generic I/O system is in osdep-generic.c, and that file must
+     (The generic I/O system is in osdep-generic.c, and that file must
      be included in the compilation along with the osdep-* file for
      the appropriate operating system, unless the system is being
-     compiled for a generic OS.
+     compiled for a generic OS.  Normally there is no reason to worry
+     about this as the Makefiles do the right thing.)
      */
 
 /* 
@@ -165,8 +170,8 @@
      */
 
 #undef DEC_ALPHA_32BIT		
-  /* DEC Alpha, in 32-bit mode.  Needed to cope with some mixed
-     word-length weirdness. 
+  /* DEC Alpha, in 32-bit mode.  This is needed to cope with some mixed
+     word-length weirdness on that machine.
      */
 
 #undef NO_ATOMIC_ALLOCATION
@@ -176,7 +181,8 @@
 
 #undef SIMULATE_NEW_BARRIER     
   /* Enable the simulation of Clinger's write barrier.  This will slow
-     down execution substantially.  Useful for research only.
+     down execution substantially.  Useful for research only, and not
+     supported by all the collectors.
      */
 
 
@@ -227,7 +233,7 @@
 #define STACK_UNDERFLOW_COUNTING  1
 #define GC_HIRES_TIMERS           1
 #define GC_EVENT_COUNTERS         0
-#define GCLIB_LARGE_TABLE         1
+#define GCLIB_LARGE_TABLE         0
 
 /* MacOS; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1
