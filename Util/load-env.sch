@@ -1,8 +1,8 @@
-; Util/load-env.sch
-; Compilation system loader file.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
+; Compilation system loader file.
 ; Usage: (load-environment module-file &opt 'verbose &opt basedir)
 
 ; See the file modules.list for an example of the input.
@@ -13,9 +13,45 @@
   (define verbose #f)
   (define basedir "")
 
+  (define (file-newer? f1 f2)
+    (let ((t1 (file-modification-time f1))
+	  (t2 (file-modification-time f2)))
+      (let loop ((i 0))
+	(cond ((= i (vector-length t1)) #f)
+	      ((= (vector-ref t1 i) (vector-ref t2 i))
+	       (loop (+ i 1)))
+	      (else
+	       (> (vector-ref t1 i) (vector-ref t2 i)))))))
+
+  (define (rewrite-file-type fn)
+    (let* ((j   (string-length fn))
+	   (ext ".sch")
+	   (new ".fasl")
+	   (l   (string-length ext)))
+      (if (file-type=? fn ext)
+	  (string-append (substring fn 0 (- j l)) new)
+	  fn)))
+
+  (define (file-type=? file-name type-name)
+    (let ((fl (string-length file-name))
+	  (tl (string-length type-name)))
+      (and (>= fl tl)
+	   (string-ci=? type-name
+			(substring file-name (- fl tl) fl)))))
+
+  (define (prefer-fasl fn)
+    (let ((x (rewrite-file-type fn)))
+      (if (or (and (not (file-exists? fn))
+		   (file-exists? x))
+	      (and (file-exists? fn)
+		   (file-exists? x)
+		   (file-newer? x fn)))
+	  x
+	  fn)))
+
   (define (loadf files env)
     (for-each (lambda (fn)
-		(let ((fn (string-append basedir fn)))
+		(let ((fn (prefer-fasl (string-append basedir fn))))
 		  (if verbose
 		      (begin (display fn)
 			     (newline)))
@@ -111,7 +147,7 @@
 	(cond ((lambda-expr? item)
 	       ((eval item) find-env))
 	      (else
-	       (process-item item))))))
+	       (process-item (eval item)))))))
 
   ; If there is a toplevel environment, become it.
 
