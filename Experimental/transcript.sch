@@ -11,12 +11,7 @@
 ; input or output, so I have chosen to have CLOSE on either port,
 ; when a transcript is in effect, signal an error.
 
-; FIXME: this isn't right.  the problem is that before writing output
-; to the output port, we must copy all pending input to the output port,
-; while allowing the user program to read it later.  So there's no way 
-; around it: this module must implement its own buffering.
-
-'(require 'iosys)
+(require 'experimental/iosys)
 
 (define transcript-on)
 (define transcript-off)
@@ -30,10 +25,32 @@
 
   (define cin #f)
   (define cout #f)
+  (define saved '())                    ; Never contains #!eof
+
+  (define (flush-console-input)
+    (let loop ((cs '()))
+      (if (char-ready? (cin))
+          (let ((c (peek-char (cin))))
+            (if (char? c)
+                (begin (write-char c transcript)
+                       (loop (cons (read-char (cin)) cs)))
+                (set! saved (append saved (reverse cs)))))
+          (set! saved (append saved (reverse cs))))))
+
+  (define (read-pending-char)
+    (if (null? saved)
+        #f
+        (let ((c (car saved)))
+          (set! saved (cdr saved))
+          c)))
+
+  (define (char-pending?)
+    (not (null? saved)))
 
   (define (start-transcript filename)
     (set! cin (console-input-port-factory))
     (set! cout (console-output-port-factory))
+    (set! saved '())
     (if reset-continuation
         (error "Transcript is already on."))
     (set! transcript (open-output-file filename))
@@ -43,15 +60,20 @@
              (case selector
                ((read)   
                 (lambda (datum buf)
-                  (let ((c (read-char (cin))))
-                    (if (eof-object? c)
-                        'eof
+                  (let ((c (read-pending-char)))
+                    (if c
                         (begin (string-set! buf 0 c)
-                               (write-char c transcript)
-                               1)))))
+                               1)
+                        (let ((c (read-char (cin))))
+                          (if (eof-object? c)
+                              'eof
+                              (begin (string-set! buf 0 c)
+                                     (write-char c transcript)
+                                     1)))))))
                ((ready?)
                 (lambda (datum)
-                  (char-ready? (cin))))
+                  (or (char-pending?)
+                      (char-ready? (cin)))))
                ((close)
                 (lambda (datum)
                   (error "The console input port may not be closed.")))
@@ -64,8 +86,9 @@
           (make-output-port
            (lambda (selector)
              (case selector
-               ((write) 
+               ((write)
                 (lambda (datum buf count)
+                  (flush-console-input)
                   (do ((i 0 (+ i 1)))
                       ((= i count))
                     (write-char (string-ref buf i) (cout))
