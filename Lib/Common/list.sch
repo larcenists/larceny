@@ -317,6 +317,33 @@
 	(else (cons (car l) (remq x (cdr l))))))
 
 
+(define (remq! key list)
+  (cond ((null? list) list)
+	((eq? key (car list))
+	 (remq! key (cdr list)))
+	(else
+	 (set-cdr! list (remq! key (cdr list)))
+	 list)))
+
+
+(define (remv! key list)
+  (cond ((null? list) list)
+	((eqv? key (car list))
+	 (remv! key (cdr list)))
+	(else
+	 (set-cdr! list (remv! key (cdr list)))
+	 list)))
+
+
+(define (remove! key list)
+  (cond ((null? list) list)
+	((equal? key (car list))
+	 (remove! key (cdr list)))
+	(else
+	 (set-cdr! list (remove! key (cdr list)))
+	 list)))
+
+
 (define (list? x)
   (define (loop slow fast)
     (if (null? fast)
