@@ -42,31 +42,16 @@
   (continuation-marks/structure
    (current-continuation-structure)))
 
+(define (continuation-mark-set->list markset key)
+  (let loop ((markset markset))
+    (cond ((null? markset) '())
+          ((assq key (car markset))
+           => (lambda (p) (cons (cdr p) (loop (cdr markset)))))
+          (else (loop (cdr markset))))))
+
 ;; The following doesn't work, probably because
 ;; call/cc has been redefined to be dynamic-wind-safe call/cc,
 ;; and no longer has the structure expected by 
 ;; sys$continuation-data-structure.
 ;;
-;;    (call-with-current-continuation continuation-marks))
-
-;; Initialization
-
-(let ((old-init initialize-larceny-environment-target-specific))
-  (set! initialize-larceny-environment-target-specific
-        (lambda (larc)
-          (environment-set! larc 
-                            'call-with-continuation-mark
-                            call-with-continuation-mark)
-          (environment-set! larc
-                            'current-continuation-marks
-                            current-continuation-marks)
-          (environment-set! larc
-                            'continuation-marks
-                            continuation-marks)
-          (environment-set! larc
-                            'continuation-marks/structure
-                            continuation-marks/structure)
-          (environment-set! larc
-                            'sys$continuation-data-structure
-                            sys$continuation-data-structure)
-          (old-init larc))))
+;;    (call-with-current-continuation continuation-marks)
