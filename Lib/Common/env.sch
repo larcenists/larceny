@@ -62,7 +62,7 @@
 ;
 ; The rule is that an identifier has one denotation: it's either a
 ; variable or a macro, and it can transition from one to the other
-; and back.  By default it is an identifier.
+; and back.  By default it is a variable.
 ;
 ; The problem is that the macro expander can remove and add macros
 ; behind the back of this interface, so we must check the macro env
@@ -199,19 +199,9 @@
 ; does not use LOAD.
 
 (define global-name-resolver
-  (let ((p (lambda (sym)
-             (error "GLOBAL-NAME-RESOLVER: not installed."))))
-    (lambda rest
-      (cond ((null? rest) p)
-	    ((and (null? (cdr rest))
-		  (procedure? (car rest)))
-	     (let ((old p))
-	       (set! p (car rest))
-	       old))
-	    (else
-	     (error "global-name-resolver: Wrong number of arguments: "
-		    rest)
-	     #t)))))
-
+  (make-parameter "global-name-resolver"
+		  (lambda (sym)
+		    (error "GLOBAL-NAME-RESOLVER: not installed."))
+		  procedure?))
      
 ; eof
