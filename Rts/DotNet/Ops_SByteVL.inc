@@ -40,7 +40,7 @@
             return Factory.makeNumber (this.elements.Length);
         }
         OP1_OVERRIDE(string_length_str) {
-            check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
+            // check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
             return Factory.makeNumber (this.elements.Length);
         }
 
