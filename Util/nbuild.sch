@@ -29,7 +29,8 @@
 ;
 ; There might be other keys used by the compatibility packages.
 
-(load "Util/nbuild-files.sch")		; File lists and procedures
+(load (make-relative-filename "Util" "nbuild-files.sch")) 
+; File lists and procedures
 
 (define (writeln . x)
   (for-each display x) (newline))
