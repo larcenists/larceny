@@ -125,21 +125,24 @@
 
 ; Compile a scheme source file to a LAP file.
 
-(define (compile313 file . rest)
-  (let ((outputfile
+(define (compile313 infilename . rest)
+  (let ((outfilename
          (if (not (null? rest))
              (car rest)
-             (rewrite-file-type file
+             (rewrite-file-type infilename
                                 *scheme-file-types* 
                                 *lap-file-type*))))
     (if (benchmark-block-mode)
         (process-file-block infilename
                             outfilename
-                            dump-fasl-segment-to-port
+			    (lambda (item port)
+			      (write item port)
+			      (newline port)
+			      (newline port))
                             (lambda (x)
                               (compile-block x)))
-        (process-file file
-                      outputfile
+        (process-file infilename
+                      outfilename
                       (lambda (item port)
                         (write item port)
                         (newline port)
