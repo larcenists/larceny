@@ -72,6 +72,10 @@ Note that a single C source file is generated from all the Scheme
 source files in the input list.  Be aware that some C compilers have
 problems with very large files at high optimization settings.
 
+*** NOTE *** Need info about "REQUIRE-DYNAMIC-RUNTIME!", which must be
+used at least on Solaris and MacOS X.  That info goes into HOWTO-UNIX
+but a forwarding ptr should be here.
+
 
 BOOTSTRAPPING
 
