@@ -29,13 +29,10 @@
   "twobit")
 
 (define (configure-system)
-  ; This var is picked up by Asm/Standard-C/dumpheap-unix.sch
   (set! unix/petit-lib-library-platform 
-	(list "/usr/lib/libm.a"))
-  (if (file-exists? "/usr/lib/libdl.a")  ; not for Cygwin, it doesn't
-      (set! unix/petit-lib-library-platform 
-	    (append unix/petit-lib-library-platform
-                    (list "/usr/lib/libdl.a")))))
+	(if (file-exists? "/usr/lib/libdl.a")  ; not for Cygwin, it doesn't
+	    '("-lm -ldl")
+	    '("-lm"))))
 
 (unix-initialize)
 

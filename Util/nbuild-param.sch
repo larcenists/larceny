@@ -66,6 +66,7 @@
     (apply-parameter-value 'interp-source (pathname-append dir "Interpreter"))
     (apply-parameter-value 'common-asm (pathname-append dir "Asm" "Common"))
     (apply-parameter-value 'sparc-asm (pathname-append dir "Asm" "Sparc"))
+    (apply-parameter-value 'x86-nasm-asm (pathname-append dir "Asm" "Intel"))
     (apply-parameter-value 'standard-C-asm (pathname-append dir "Asm" "Standard-C"))
     (apply-parameter-value 'compatibility (pathname-append dir "Compat" "Larceny"))
     (apply-parameter-value 'auxiliary (pathname-append dir "Auxlib"))
@@ -73,7 +74,8 @@
     (apply-parameter-value 'verbose-load? #t)
     (apply-parameter-value 'development? #t)
     (apply-parameter-value 'host-system "Larceny")
-    (apply-parameter-value 'word-size 32)))
+    (apply-parameter-value 'word-size 32)
+    (apply-parameter-value 'globals-table "globals.cfg")))
 
 (define (nbuild-parameter-template)
   (map (lambda (n) (cons n 'unknown))
@@ -87,6 +89,7 @@
          machine-source
          common-asm
          sparc-asm
+         x86-nasm-asm
          standard-c-asm
          always-source?
          verbose-load?
@@ -100,6 +103,7 @@
          target-machine
          target-os
          target-endianness
-         word-size)))
+         word-size
+         globals-table)))
 
 ; eof

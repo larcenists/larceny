@@ -23,8 +23,7 @@
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
-  (load (string-append (nbuild-parameter 'util) "config.sch"))
-  (set! config-path "Rts/Build/"))
+  (load (string-append (nbuild-parameter 'util) "config.sch")))
 
 (define (setup-directory-structure)
   (case (nbuild-parameter 'host-os)
@@ -35,14 +34,8 @@
 
 (define (build-config-files)
 
-  (define (catfiles input-files output-file)
-    (system (string-append "cat " 
-			   (apply string-append 
-				  (map (lambda (x) 
-					 (string-append x " "))
-				       input-files))
-			   " > " 
-			   output-file)))
+  (define (maybe-file fn)
+    (if (file-exists? fn) (list fn) '()))
 
   (case (nbuild-parameter 'host-os)
     ((unix)
@@ -50,10 +43,11 @@
     (else
      (error "Unknown host OS " (nbuild-parameter 'host-os))))
   (expand-file "Rts/Standard-C/arithmetic.mac" "Rts/Standard-C/arithmetic.c")
-  (config "Rts/Build/except.cfg")
-  (config "Rts/Build/layouts.cfg")
-  (config "Rts/Build/globals.cfg")
-  (config "Rts/Build/mprocs.cfg")
+  (config "Rts/Build/except.cfg" (nbuild-parameter 'target-machine))
+  (config "Rts/Build/layouts.cfg" (nbuild-parameter 'target-machine))
+  (config (string-append "Rts/Build/" (nbuild-parameter 'globals-table))
+	  (nbuild-parameter 'target-machine))
+  (config "Rts/Build/mprocs.cfg" (nbuild-parameter 'target-machine))
   (catfiles '("Rts/Build/globals.ch"
 	      "Rts/Build/except.ch"
 	      "Rts/Build/layouts.ch"
@@ -63,6 +57,10 @@
 	      "Rts/Build/except.sh" 
 	      "Rts/Build/layouts.sh")
 	    "Rts/Build/schdefs.h")
+  (catfiles (append (maybe-file "Rts/Build/globals.ah")
+		    (maybe-file "Rts/Build/except.ah")
+		    (maybe-file "Rts/Build/layouts.ah"))
+	    "Rts/Build/asmdefs.ah")
   (load "features.sch"))
 
 (define (build-heap . args)
@@ -72,8 +70,6 @@
   (if *requires-shared-runtime*
       (execute-in-directory "Rts" "make libpetit.so")
       (execute-in-directory "Rts" "make libpetit.a")))
-
-(define build-runtime-system build-runtime)  ; Old name
 
 (define (build-petit)
   (build-application (petit-application-name) '()))
@@ -97,10 +93,8 @@
   (system "rm -f Rts/Build/*.o")
   #t)
 
-(define remove-rts-objects remove-runtime-objects)  ; Old name
-
 (define (remove-heap-objects . extensions)
-  (let ((ext   '("o" "c" "lap" "lop"))
+  (let ((ext   '("o" "c" "lap" "lop" "asm"))
 	(names '(obj c lap lop)))
     (if (not (null? extensions))
 	(set! ext (apply append 
@@ -124,6 +118,17 @@
 (define (execute-in-directory dir cmd)
   (system (string-append "( cd " dir "; " cmd " )" )))
 
+(define (catfiles input-files output-file)
+  (if (not (null? input-files))
+      (system (string-append "cat " 
+			     (apply string-append 
+				    (map (lambda (x) 
+					   (string-append x " "))
+					 input-files))
+			     " > " 
+			     output-file))
+      (system (string-append "cat /dev/null > " output-file))))
+
 (define (compile-files infilenames outfilename)
   (let ((user      (assembly-user-data))
 	(syntaxenv (syntactic-copy (the-usual-syntactic-environment)))
@@ -140,16 +145,20 @@
 			    (cons (assemble (compile expr syntaxenv) user) 
 				  segments))))))
 	      infilenames)
-    (set! segments (reverse segments))
-    (create-loadable-file outfilename segments so-name)
-    (c-link-shared-object so-name (list o-name) '())
-    (unspecified)))
+    (let ((segments (reverse segments)))
+      (delete-file c-name)
+      (delete-file o-name)
+      (delete-file so-name)
+      (create-loadable-file outfilename segments so-name)
+      (c-link-shared-object so-name (list o-name) '())
+      (unspecified))))
 
 (define (install-twobit basedir)
   (let ((incdir (make-filename basedir "include"))
 	(libdir (make-filename basedir "lib")))
     (for-each (lambda (fn)
-		(system (string-append "cp " fn " " incdir)))
+		(if (file-exists? fn)
+		    (system (string-append "cp " fn " " incdir))))
 	      '("Rts/Standard-C/petit-instr.h"
 		"Rts/Standard-C/millicode.h"
 		"Rts/Standard-C/petit-config.h"
@@ -158,18 +167,23 @@
 		"Rts/Sys/macros.h"
 		"Rts/Sys/assert.h"
 		"Rts/Build/config.h"
-		"Rts/Build/cdefs.h"))
+		"Rts/Build/cdefs.h"
+		"Rts/Build/asmdefs.h"))
     (system (string-append "cp libheap.a " libdir))
     (if (file-exists? "Rts/libpetit.a")
         (system (string-append "cp Rts/libpetit.a " libdir)))
     (if (file-exists? "Rts/libpetit.so")
         (system (string-append "cp Rts/libpetit.so " libdir)))
+    (if (file-exists? "Rts/libpetit.dylib")
+        (system (string-append "cp Rts/libpetit.dylib " libdir)))
     (set! unix/petit-include-path (string-append "-I" incdir))
     ; Note order here, .so overrides .a
     (if (file-exists? "Rts/libpetit.a")
         (set! unix/petit-rts-library (string-append libdir "/libpetit.a")))
     (if (file-exists? "Rts/libpetit.so")
         (set! unix/petit-rts-library (string-append libdir "/libpetit.so")))
+    (if (file-exists? "Rts/libpetit.dylib")
+        (set! unix/petit-rts-library (string-append libdir "/libpetit.dylib")))
     (set! unix/petit-lib-library (string-append libdir "/libheap.a"))
     'installed))
 

@@ -27,7 +27,6 @@
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "config.sch"))
-  (set! config-path "Rts/Build/")
   #t)
 
 (define (setup-directory-structure)

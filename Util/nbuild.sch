@@ -73,7 +73,10 @@
 
 (compiler-switches 'default)
 (compiler-switches 'fast-safe)
-(initialize-help (nbuild-parameter 'compiler))
+(initialize-help (nbuild-parameter 'compiler) 
+		 (if (eq? 'sparc (nbuild-parameter 'target-machine))
+		     'native
+		     'petit))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)
 
