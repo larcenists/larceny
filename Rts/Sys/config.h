@@ -3,10 +3,9 @@
  * $Id$
  *
  * You must define the attributes for the system you're compiling in the
- * section for user definitions, below.
- *
- * Don't panic!  Useful sets of attributes for many systems are defined
- * below, just pick the one for your system.
+ * "User Definition Section", below.  DON'T PANIC!  Useful sets of
+ * attributes for many systems are defined in that section, just pick
+ * the one appropriate to your system.
  *
  * Refer to the installation notes for more elaborate instructions, or
  * read the comments in this file carefully.
@@ -27,14 +26,17 @@
 
 /* Undef all the preprocessor symbols that Larceny reserves */
 
-/* Architectures -- we could destinguish on models, but don't need to yet.
-   Select PETIT_LARCENY if that's what you're building.
-   */
+/* 
+ * Architectures -- we could destinguish on models, but don't need to yet.
+ * Select PETIT_LARCENY if that's what you're building.
+ */
 #undef SPARC			/* Native: SPARC v8 or later */
 #undef PETIT_LARCENY		/* Portable: Hardware is irrelevant */
 
 
-/* Architecture attributes. */
+/* 
+ * Architecture attributes. 
+ */
 #undef BITS_32			/* 32-bit words */
 #undef BITS_64			/* 64-bit words */
 #undef ENDIAN_LITTLE		/* Least significant byte at lowest address */
@@ -46,7 +48,9 @@
 #undef FLUSH_NEVER              /* Set to 1 to disable icache flushing */
 
 
-/* Operating systems. */
+/* 
+ * Operating systems. 
+ */
 #undef SUNOS4			/* SunOS 4.x */
 #undef SUNOS5			/* SunOS 5.x */
 #undef LINUX			/* Generic GNU/Linux */
@@ -61,7 +65,9 @@
 #undef UNIX			/* Synthesized */
 
 
-/* Operating system attributes */
+/* 
+ * Operating system attributes.
+ */
 #undef BSD_SIGNALS		/* sigvec, as described by Leffler et al */
 #undef STDC_SIGNALS		/* signal, as in ANSI/ISO C (weak) */
 #undef POSIX_SIGNALS		/* sigaction + sa_handler, as described 
@@ -69,47 +75,140 @@
 #undef XOPEN_SIGNALS		/* sigaction + sa_sigaction */
 
 
-/* Other configuration options */
-#undef STACK_UNDERFLOW_COUNTING /* Set to 1 to enable this (recommended) */
+/*
+ * Other configuration options.
+ */
+#undef STACK_UNDERFLOW_COUNTING 
+  /* When set, enables stack underflow accounting.  The performance
+     impact is negligible.  
+     
+     Recommended setting is 1.
+     */
+
+#undef GCLIB_LARGE_TABLE        
+  /* When set, preallocates a page table for the entire 4GB address space
+     rather than allocating it lazily.  The table uses one byte per 4KB
+     page, for a total of 1MB.  Enabling this option will probably reduce
+     the cost of the write barrier both in the mutator and in the garbage
+     collector, and reduce the register pressure in the inner loops of
+     the collector.
+     
+     Recommended setting: probably 0, as it needs further evaluation.
+     */
+
+#undef RETURN_MEMORY_TO_OS
+  /* When set, the lowlevel memory manager eagerly returns memory blocks
+     to the operating system when they are released by the garbage 
+     collector.  
+     
+     Recommended setting is 0 (or undefined), since it tends to increase
+     execution time due to added system overhead.  
+     
+     Even if 0 or undefined, the memory manager may return memory blocks
+     to the operating system.  Even if 1, the memory manager is not
+     guaranteed to release memory.  
+     */
+
+#undef GC_HIRES_TIMERS
+  /* When set, high-resolution timers for various parts of the garbage
+     collector are enabled.  Only effective if the platform has high
+     resolution timers.
+
+     Recommended setting is 0, unless you're doing GC research.
+     */
+
+#undef GC_EVENT_COUNTERS
+  /* When set, the garbage collector cores count the number of pointers
+     copied, the number of those pointers that hit the write barrier (if
+     applicable), and similar things.  Turning this on will slow down
+     garbage collection, though I don't know by how much.  
+  
+     Recommended setting is 0, even if you're doing GC research :-)
+     */
+
+#undef USE_GENERIC_ALLOCATOR
+  /* When set, use a generic malloc-based low-level memory allocator
+     rather than any OS-specific allocator.
+
+     The generic allocator is selected automatically if the operating
+     system is GENERIC_OS.
+
+     The generic allocator is in osdep-generic.c, and that file must
+     be included in the compilation along with the osdep-* file for
+     the appropriate operating system, unless the system is being
+     compiled for a generic OS.
+     */
+
+#undef USE_GENERIC_IO
+  /* When set, use a generic stdio-based low-level I/O system rather
+     than any OS-specific I/O system.
+     
+     The generic I/O system is selected automatically if the operating
+     system is GENERIC_OS.
+     
+     The generic I/O system is in osdep-generic.c, and that file must
+     be included in the compilation along with the osdep-* file for
+     the appropriate operating system, unless the system is being
+     compiled for a generic OS.
+     */
+
+/* 
+ * Special system attributes -- for use of non-portable extensions or 
+ * bug workarounds, or other weirdness.
+ */
+#undef CODEWARRIOR
+  /* Metrowerks Codewarrior extensions.  Currently this is required
+     for Petit Larceny on the Mac.
+     */
+
+#undef DEC_ALPHA_32BIT		
+  /* DEC Alpha, in 32-bit mode.  Needed to cope with some mixed
+     word-length weirdness. 
+     */
+
+#undef NO_ATOMIC_ALLOCATION
+  /* Boehm/Demers/Weiser conservative collector: do not allocate 
+     bytevectors specially (not recommended in general).
+     */
+
+#undef SIMULATE_NEW_BARRIER     
+  /* Enable the simulation of Clinger's write barrier.  This will slow
+     down execution substantially.  Useful for research only.
+     */
 
 
-/* Special system attributes -- for use of non-portable extensions or 
-   bug workarounds, or other weirdness.
-   */
-#undef CODEWARRIOR              /* Metrowerks Codewarrior extensions */
-#undef DEC_ALPHA_32BIT		/* DEC Alpha, in 32-bit mode.  Needed to cope
-				   with some mixed-word-length weirdness. */
-#undef NO_ATOMIC_ALLOCATION     /* BDW collector: do not allocate bytevectors
-				   specially (not recommended in general) */
-#undef GCLIB_LARGE_TABLE        /* Wizards only */
-#undef SIMULATE_NEW_BARRIER     /* Wizards only */
-
-
-/* Library attributes.  These macros declare the existence of particular
-   functions in the run-time library or as compiler intrinsics.
-   It's always OK to leave these macros undefined, as Larceny will
-   supply portable definitions.  It may be desirable for performance
-   reasons to define these macros below, if your library or compiler
-   supplies any of the functions.
-   */
+/*
+ * Library/feature attributes.  These macros declare the existence of
+ * particular functions in the run-time library or as compiler
+ * intrinsics.  It's always OK to leave these macros undefined, as
+ * Larceny will supply portable definitions.  It may be desirable for
+ * performance or functionality reasons to define these macros below, 
+ * if your library or compiler supplies any of the functions -- for
+ * example, the portable definition of gethrtime() always returns 0.
+ */
 #undef HAVE_RINT		/* Library has rint() -- round to even */
 #undef HAVE_AINT		/* Library has aint() -- round to zero */
 #undef HAVE_STRNCASECMP		/* Library has strncasecmp() */
 #undef HAVE_STRDUP		/* Library has strdup() */
+#undef HAVE_HRTIME_T            /* Library has hrtime_t and gethrtime(),
+				   and one can get hrtime_t by including
+				   <sys/time.h>
+				   */
 
 
 /* ------ USER DEFINITION SECTION ------- */
-/* Define those symbols from the above set that correspond to the 
-   system you're building.  You can define the type of signal handling 
-   facilities here, but if you don't, then the condition nest below will
-   make a guess based on the operating system you've selected.  
-
-   For Petit Larceny, selecting the precise operating system is not
-   crucial; for example, POSIX_UNIX or BSD_UNIX will work OK on
-   platforms that conform.  For native systems, you need to be 
-   more specific, so define SUNOS4/SUNOS5 as appropriate for the SPARC
-   native version.
-   */
+/*
+ * Define those symbols from the above set that correspond to the 
+ * system you're building.  You can define the type of signal handling 
+ * facilities here, but if you don't, then the condition nest below will
+ * make a guess based on the operating system you've selected.  
+ *
+ * For Petit Larceny, selecting the precise operating system is not
+ * crucial; for example, POSIX_UNIX or BSD_UNIX will work OK on
+ * platforms that conform.  For native systems, you need to be 
+ * more specific, so define SUNOS4/SUNOS5 as appropriate for the SPARC
+ * native version.
+ */
 
 /* Here are some sets of settings that work for me. */
 
@@ -121,8 +220,8 @@
 #define HAVE_RINT                 1
 #define HAVE_STRDUP               1
 #define HAVE_STRNCASECMP          1
+#define HAVE_HRTIME_T             1
 #define STACK_UNDERFLOW_COUNTING  1
-#define GCLIB_LARGE_TABLE         0 /* Experimental! */
 
 /* MacOS; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1
@@ -134,6 +233,7 @@
 #define CODEWARRIOR               1
 #define HAVE_RINT                 1
 #define STACK_UNDERFLOW_COUNTING  1
+#define USE_GENERIC_ALLOCATOR     1
 */
 
 /* DEC OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
@@ -204,11 +304,11 @@
 #endif
 
 #if !defined(DATE)		/* Defined by Makefile on some systems */
-#  define DATE "now"
+#  define DATE "1964-01-29"     /* Build date */
 #endif
 
 #if !defined(USER)		/* Defined by Makefile on some systems */
-#  define USER "user"
+#  define USER "stanley"        /* Build user */
 #endif
 
 #endif  /* INCLUDED_CONFIG_H */
