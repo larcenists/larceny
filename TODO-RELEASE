@@ -40,6 +40,7 @@ Remaining to-do items:
 [Debugging]
   See TODO for details.  The following are important for 1.0a2:
   * Document the debugger.
+  * Make error handler invoke debugger.
   * Trace/break procedures rather than names.               [done]
   * Print variable names where convenient.
   * Reasonable support for debugging interpreted code.
