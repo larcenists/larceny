@@ -11,8 +11,22 @@
 (define (test id ans correct)
   (if (not (equal? ans correct))
       (begin (failure-message-failed id ans correct)
+             (if (test-reporter) ((test-reporter) id ans correct))
 	     #f)
       #t))
+
+; A parameter whose value is a procedure that's called with id, answer, 
+; and correct result if the test fails.
+
+(define test-reporter
+  (let ((reporter #f))
+    (lambda rest
+      (cond ((null? rest) reporter)
+            ((null? (cdr rest)) 
+             (set! reporter (car rest))
+             reporter)
+            (else
+             (error "Test-reporter: too many arguments " rest))))))
 
 (define (failure-message-failed id ans correct)
   (display "********** FAILURE *********") (newline)
@@ -109,18 +123,6 @@
       (lambda args
 	(k token))
       thunk))))
-
-; Should really override the error handler (so that an error message
-; is not printed).  FIXME.
-
-;(define (mustfail id thunk)
-;  (let ((token (list 'token)))
-;    (let ((result (safely thunk token)))
-;      (if (not (eq? result token))
-;	  (begin (display id) (display " did not pass test.") (newline)
-;		 (display "It should have failed, but did not.") (newline)
-;		 #f)
-;	  #t))))
 
 (define (mustfail name p . args)
   (let ((eh #f))
