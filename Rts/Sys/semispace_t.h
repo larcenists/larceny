@@ -9,7 +9,7 @@
  * low-level memory allocator (gclib) when the semispace overflows during 
  * GC or promotion, and shrunk by the heap under direction of policy.
  *
- * A semispace_t `s' has invariants:
+ * A semispace_t `s' that has not been passed to ss_free() has invariants:
  *   -1 <= s.current < s.n
  *   s.allocated > 0 || s.current == -1
  *   s.chunks != NULL
@@ -20,11 +20,10 @@
  *   s.allocated is always accurate
  *   s.used is accurate only following a call to ss_sync()
  *
- * An ss_chunk_t `c' = s.chunks[i] where 0 <= i < s.n has invariants:
- *   if c.bytes == 0 then no other fields of c are valid
- *   if c.bytes != 0 then
- *     c.bot <= c.top <= c.lim
- *     c.bot <= p < c.lim are valid addresses
+ * An ss_chunk_t `c' = s.chunks[i] where -1 <= i < s.n has invariants:
+ *   c.bot <= c.top <= c.lim
+ *   c.bot <= p < c.lim are dereferencable addresses
+ *   c.bytes = (c.lim - c.top) * sizeof(word)
  */
 
 #ifndef INCLUDED_SEMISPACE_T_H
@@ -99,17 +98,27 @@ int ss_allocate_block_unconditionally( semispace_t *ss, int bytes );
 int ss_move_block_to_semispace( semispace_t *from, int i, semispace_t *to );
   /* Move the memory associated with chunk `i' in semispace `from' to 
      semispace `to'.  Change the generation number on the pages in the
-     block to correspond to its new home.  Return the new chunk index.
+     chunk to correspond to its new home.  Return the new chunk index.
 
      from->current remains unchanged unless that would leave it to point
-     past the last block with nonzero bytes, in which case it is decremented
-     to point to the last block, or to -1 if there are no such blocks.
+     to a chunk with nonzero bytes, in which case it is decremented
+     until it points to a chunk with nonzero bytes, or to chunk -1.
 
-     The block is moved to the first free slot past to->current.  If 
+     The chunk is moved to the first free slot past to->current.  If 
      to->current >= 0, then to->current remains unchanged, otherwise
      to->current is set to 0.
 
      0 <= i < from.n && from.chunks[i].bytes > 0
+     */
+
+void ss_free_block( semispace_t *ss, int i );
+  /* Free the memory associated with chunk `i' in semispace `ss'.
+     
+     ss->current remains unchanged unless that would leave it to point
+     to a chunk with nonzero bytes, in which case it is decremented
+     until it points to a chunk with nonzero bytes, or to chunk -1.
+     
+     0 <= i < ss.n && ss.chunks[i].bytes > 0
      */
 
 void ss_reset( semispace_t *ss );
@@ -122,6 +131,10 @@ void ss_prune( semispace_t *ss );
   /* Prune the semispace: 
        Free all chunk data except for chunk 0.
        Reset the semispace.
+     */
+
+void ss_free_unused_chunks( semispace_t *ss );
+  /* Free all unused chunks past ss->current. 
      */
 
 void ss_shrinkwrap( semispace_t *ss );

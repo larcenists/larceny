@@ -10,16 +10,23 @@
 #include "gclib.h"
 #include "semispace_t.h"
 
-/* Invariants that it's good to check every time */
+static word NOWHERE[1];
+  /* NOWHERE is a dummy word address that we use in the .bot, .top,
+     and .lim fields of empty chunks in place of null pointers, 
+     because ANSI/ISO C apparently does not allow two null pointers
+     to be subtracted (at least there is no language in K&R2 to permit
+     such subtraction). 
+     */
+
+/* Invariants that it's good to check every time. */
 #define ss_invariants( ss )                                             \
   do {                                                                  \
     assert( -1 <= ss->current && ss->current < ss->n );                 \
     assert( ss->chunks != 0 );                                          \
     assert( ss->current == -1 || ss->chunks[ss->current].bytes > 0 );   \
     assert( ss->allocated > 0 || ss->current == -1 );                   \
-    assert( (unsigned)(ss->chunks[-1].bot) == 0xDEADBEEF );             \
+    assert( ss->chunks[-1].bot == NOWHERE );                            \
   } while (0)
-
 
 static void extend_chunk_array( semispace_t *ss );
 static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes );
@@ -51,9 +58,10 @@ semispace_t *create_semispace_n( int bytes, int nchunks, int gen_no )
   n = max( 5, nchunks*2 );
 
   chunks = (ss_chunk_t*)must_malloc( sizeof( ss_chunk_t )*(n+1) );
-  for ( i = 0; i < n+1; i++ ) 
+  for ( i = 0; i < n+1; i++ ) {
     chunks[i].bytes = 0;
-  chunks[0].bot = (word*)0xDEADBEEF; /* Sanity check */
+    chunks[i].bot = chunks[i].top = chunks[i].lim = NOWHERE;
+  }
 
   ss = (semispace_t*)must_malloc( sizeof( semispace_t ) );
   ss->gen_no = gen_no;
@@ -139,6 +147,20 @@ void ss_prune( semispace_t *ss )
     if (ss->chunks[i].bytes > 0)
       free_chunk_memory( ss, i );
   ss_reset( ss );
+
+  ss_invariants( ss );
+}
+
+
+void ss_free_unused_chunks( semispace_t *ss )
+{
+  int i;
+
+  ss_invariants( ss );
+
+  for ( i = ss->current+1 ; i < ss->n ; i++ )
+    if (ss->chunks[i].bytes > 0) 
+      free_chunk_memory( ss, i );
 
   ss_invariants( ss );
 }
@@ -280,6 +302,26 @@ ss_move_block_to_semispace( semispace_t *from, int from_idx, semispace_t *to )
 }
 
 
+void ss_free_block( semispace_t *ss, int idx )
+{
+  int k;
+  
+  ss_invariants( ss );
+  assert( 0 <= idx && idx < ss->n );
+  assert( ss->chunks[idx].bytes > 0 );
+  
+  free_chunk_memory( ss, idx ); /* Adjusts ss->allocated */
+
+  /* Fill hole in `from': shift down, adjust current if necessary */
+  for ( k=idx ; k < ss->n - 1 ; k++ )
+    ss->chunks[k] = ss->chunks[k+1];
+  clear( ss, ss->n - 1 );
+  while (ss->chunks[ss->current].bytes == 0 && ss->current >= 0)
+    ss->current = ss->current - 1;
+
+  ss_invariants( ss );
+}
+
 void ss_set_gen_no( semispace_t *ss, int gen_no )
 {
   int i;
@@ -338,9 +380,7 @@ static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk )
 static void clear( semispace_t *ss, int i )
 {
   ss->chunks[i].bytes = 0;
-  ss->chunks[i].bot = (word*)0xDEADBEEF;
-  ss->chunks[i].top = (word*)0xDEADBEEF;
-  ss->chunks[i].lim = (word*)0xDEADBEEF;
+  ss->chunks[i].bot = ss->chunks[i].top = ss->chunks[i].lim = NOWHERE;
 }
 
 
