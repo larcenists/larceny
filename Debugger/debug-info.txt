@@ -20,24 +20,34 @@ Three situations:
 
 Having just (1) and (2) would be a major improvement and would require
 fairly modest effort and data space.  Let's shoot for just getting these
-and tackle (3) later.
+and tackle (3) later.  Also, it is sufficient for the first cut to
+consider all variables to be immutable.
 
 (1) It is sufficient for Twobit to put this information into the
     procedure's debugging information structure.  In the past I have
     had luck with adding the following to cg-lambda in pass4p1.sch,
     following the bindings of the LET*:
 
-	(doc.formals-set! (lambda.doc exp) free) 
+	(doc.formals-set! (lambda.doc exp) 
+		(map (lambda (v) (list free #f))))
 
-    That code reuses the formals slot (it was a quick hack), but
+    This appears to work well because Twobit packs the free variables
+    before creating the closure.  The #f is the mutability flag.
+
+    The code above reuses the formals slot (it was a quick hack), but
     we can add a new slot, e.g., doc.free-vars.
 
 (2) It is sufficient for Twobit to emit a new optional pseudo-op .cont-doc
     following a .cont, and for the documentation to be an association
-    list that maps names to stack slots, e.g, 
+    list that maps names to stack slots and mutability flags, e.g, 
 
-	.cont-doc ((a . 1) (b . 3))
+	.cont-doc ((a 1 #f) (b 3 #f))
 
     The assembler will process the information and put it into a
     suitable format, like it does now with the .proc-doc information
-    for internal procedures.
+    for internal procedures (where it maps the return address to
+    a documentation structure).
+
+Obvious guideline for mutability flag in the longer run: a variable is
+mutable if it exists only in a single location and if its representation
+has not been deduced and used by the compiler for optimization.
