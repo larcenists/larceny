@@ -51,7 +51,8 @@
 ;; Miscellaneous
 (export arity-at-least?
         arity-at-least-value
-        every
+        arity-plus
+        every-ct
         false-func
         getarg
         getargs
@@ -59,10 +60,7 @@
         keys/args
         keyword?
         make-arity-at-least
-        mapadd
-        mappend
-        mappend!
-        some)
+        mapadd)
 
 (export %instance)
 

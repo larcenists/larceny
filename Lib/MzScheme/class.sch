@@ -116,7 +116,7 @@
                                            so-far
                                            (cons (car sups) so-far))))))
                   (slots
-                   (apply append dslots (map %class-direct-slots (cdr cpl))))
+                   (append dslots (append-map %class-direct-slots (cdr cpl))))
                   ;(all-default-initargs
                   ; (apply append dinitargs (map %class-direct-default-initargs (cdr cpl))))
                   (nfields 0)
@@ -146,8 +146,9 @@
              (%set-class-name!               new name)
              (%set-class-serial-number!      new (get-serial-number))
              (%set-class-initializers!       new '()) ; no class inits now
-             (%set-class-valid-initargs!     new (mappend (lambda (slot) (getargs (cdr slot) :initarg))
-                                                          (%class-slots new)))
+             (%set-class-valid-initargs!     new (append-map
+                                                  (lambda (slot) (getargs (cdr slot) :initarg))
+                                                  (%class-slots new)))
              new))
           ((eq? class <generic>)
            (let ((new   (%entity/allocate class (length (%class-slots class)))))
@@ -465,7 +466,7 @@
 (%set-class-nfields!            <class> (length the-slots-of-a-class))
 (%set-class-serial-number!      <class> (get-serial-number))
 (%set-class-slots!              <class> the-slots-of-a-class)
-(%set-class-valid-initargs!     <class> (mappend
+(%set-class-valid-initargs!     <class> (append-map
                                          (lambda (slot) (getargs (cdr slot) :initarg))
                                          the-slots-of-a-class))
 
@@ -640,7 +641,7 @@
                      (length<? args required))
                  (error "wrong number of arguments to method"
                         (%method-name method)))
-                ((not (every instance-of? args specializers))
+                ((not (every-ct instance-of? args specializers))
                  (let loop ((args args) (specs specializers))
                    (if (instance-of? (car args) (car specs))
                        (loop (cdr args) (cdr specs))

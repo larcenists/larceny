@@ -282,7 +282,7 @@
      generic
      (cons method
            (filter (lambda (m)
-                     (not (and (every eq? (method-specializers m) specs)
+                     (not (and (every-ct eq? (method-specializers m) specs)
                                (eq? (%method-qualifier m) qualifier))))
                    (%generic-methods generic))))
     (%set-instance/procedure! generic (compute-apply-generic generic))))
@@ -388,7 +388,7 @@
                       (sort (filter
                              (lambda (m)
                                ;; Note that every only goes as far as the shortest list
-                               (every instance-of? args (%method-specializers m)))
+                               (every-ct instance-of? args (%method-specializers m)))
                              (%generic-methods generic))
                             (lambda (m1 m2) (more-specific? m1 m2 args)))))
                   method:compute-methods))))
@@ -754,13 +754,14 @@
                       (%set-class-getters-n-setters! class getters-n-setters))
                     (%set-class-initializers!
                      class (reverse
-                            (mappend
+                            (append-map
                              (lambda (c)
                                (if (instance-of? c <class>) (%class-initializers c) '()))
                              (cdr (%class-cpl class)))))
                     (%set-class-valid-initargs! ; for sanity checks
-                     class (mappend (lambda (slot) (getargs (cdr slot) :initarg))
-                                    (%class-slots class))))
+                     class (append-map
+                            (lambda (slot) (getargs (cdr slot) :initarg))
+                            (%class-slots class))))
                   method:initialize-instance))))
 
 (add-method initialize-instance
