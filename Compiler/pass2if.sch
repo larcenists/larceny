@@ -392,19 +392,19 @@
 
 (define (implement-clauses F ref0 default fix chr sym other constants)
   (let* ((name:n ((make-rename-procedure) 'n))
-         ; Referencing information is destroyed by pass 2.
-         (entry (make-R-entry name:n '() '() '()))
+         (ref1 (make-variable name:n))
+         (entry (make-R-entry name:n (list ref1) '() '()))
          (F (union (make-set (list name:n)) F))
          (L (make-lambda
              (list name:n)
              '()
-             '()  ; entry
+             (list entry)
              F
              '()
              '()
              #f
              (implement-case-dispatch
-              name:n
+              ref1
               (cons default
                     (map cadr
                          ; The order here must match the order
