@@ -1,5 +1,5 @@
 ! -*- Fundamental -*-
-! $Id: bench2.s,v 1.4 91/06/26 12:46:11 lth Exp Locker: lth $
+! $Id: bench2.s,v 1.5 91/06/29 16:13:10 lth Exp Locker: lth $
 !
 ! Hand-compiled code for the following program:
 !
@@ -13,11 +13,12 @@
 !       'done
 !       (loop2 (- n 1))))
 !
-! The analysis of the program is in RCS/bench.txt.
-!
 ! Since the loops are identical, the code for the second one is not very
 ! interesting once you've seen the code for the first. Hence it's been left
 ! out.
+!
+! Analysis:
+! - 27+X dynamic instructions per iteration (value of 'n'), ignoring base case
 
 	.word	....					! header
 loop2:
@@ -45,11 +46,13 @@ L2:
 	tsubcc	%REG1, %g0, %g0				! (= n 0) ?
 	bvc	L3
 	nop						! Can't fill this
+
 	! Generic case
 	ld	[ %MILLICODE + M_ZEROP ], %TMP0
 	jmpl	%TMP0, %o7
 	mov	%REG1, %RESULT
 	cmp	%RESULT, TRUE_CONST			! Set condition code
+
 L3:
 	bne,a	L4
 	tsubcc	%REG1, 4, %TMP0				! n - 1
@@ -63,6 +66,7 @@ L5:
 L4:	! 'False' case
 	bvc,a	L6
 	mov	%TMP0, %REG1				! setup argument
+
 	! Generic case
 	ld	[ %MILLICODE + M_SUB ], %TMP0
 	mov	%REG1, %RESULT
@@ -88,7 +92,7 @@ L9:
 	jmp	%TMP1+CODEOFFSET			! invoke procedure
 	add	%STKP, 16, %STKP			! deallocate frame
 
-! Exception handler for timer/non-procedure
+! Exception handler for timer/non-procedure/wrong-args
 
 Lexception:
 	ld	[ %MILLICODE+M_EXCEPTION ], %TMP0
