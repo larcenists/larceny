@@ -28,7 +28,7 @@
 	    (cdr probe)
 	    (error "Bad nbuild parameter key " key))))))
 
-(load "Larceny/compat.sch")
+(load "Compat/Larceny/compat.sch")
 (compat:initialize)
 (load "Util/nbuild.sch")
 
