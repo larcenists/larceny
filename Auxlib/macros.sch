@@ -64,31 +64,6 @@
 	(lambda ()
 	  (swap! t v) ...))))))
 
-; (parameterize ((p1 e1) ...) b1 b2 ...)
-; where each p1 is the name of a parameter (a procedure of 0 or 1 args).
-
-(define-syntax parameterize
-  (syntax-rules ()
-    ((_ ((p1 e1) ...) b1 b2 ...)
-     (parameterize "temps" () ((p1 e1) ...) b1 b2 ...))
-    ((_ "temps" (t ...) ((p1 e1) x ...) b1 b2 ...)
-     (let ((temp e1))
-       (parameterize "temps" ((temp e1 p1) t ...) (x ...) b1 b2 ...)))
-    ((_ "temps" ((t e p) ...) () b1 b2 ...)
-     (let-syntax ((swap!
-		   (syntax-rules ()
-		     ((swap! var param)
-		      (let ((tmp var))
-			(set! var (param))
-			(param tmp))))))
-       (dynamic-wind
-	(lambda ()
-	  (swap! t p) ...)
-	(lambda ()
-	  b1 b2 ...)
-	(lambda ()
-	  (swap! t p) ...))))))
-
 ; FIXME: does not consider syntax bindings.
 
 (define-syntax bound?
@@ -97,14 +72,6 @@
      (environment-gettable? (interaction-environment) (quote x)))
     ((bound? x env)
      (environment-gettable? env (quote x)))))
-
-(define-syntax let-values
-  (syntax-rules ()
-    ((let-values ((i1 ...) e0) e1 e2 ...)
-     (call-with-values
-      (lambda ()
-	e0)
-      (lambda (i1 ...) e1 e2 ...)))))
 
 (define-syntax time
   (syntax-rules ()
