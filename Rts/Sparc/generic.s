@@ -376,20 +376,38 @@ Lmul_comp:
 	b	_contagion
 	mov	MS_GENERIC_MUL, %TMP2
 Lmul_comp2:
-	! Needs scheduling. 
-	! After scheduling, move the first load into the slot above.
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f6
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f8
-	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f10
-	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f12
-	fmuld	%f6, %f10, %f14
-	fmuld	%f8, %f12, %f16
-	fsubd	%f14, %f16, %f2
-	fmuld	%f8, %f10, %f18
-	fmuld	%f6, %f12, %f20
-	faddd	%f18, %f20, %f4
-	b	_box_compnum
+	! Three cases: a+bi * c+di; a+bi * c+0i; a+0i * c+di.
+	! Can be scheduled some.
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f4
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f6
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f8
+	fcmpd	%f4, %f0
 	nop
+	fbe	Lmul_flo_comp
+	nop
+	fcmpd	%f8, %f0
+	nop
+	fbe	Lmul_comp_flo
+	nop
+	! both compnums w/o 0 imaginary part
+	fmuld	%f2, %f6, %f14
+	fmuld	%f4, %f8, %f16
+	fsubd	%f14, %f16, %f2
+	fmuld	%f4, %f6, %f18
+	fmuld	%f2, %f8, %f20
+	b	_box_compnum
+	faddd	%f18, %f20, %f4
+Lmul_comp_flo:
+	! compnum and compnum w/ 0 imaginary part
+	fmuld	%f2, %f6, %f2
+	b	_box_compnum
+	fmuld	%f4, %f6, %f4
+Lmul_flo_comp:
+	! compnum w/ 0 imaginary part and compnum
+	fmuld	%f2, %f6, %f2
+	b	_box_compnum
+	fmuld	%f2, %f8, %f4
 Lmul_big:
 	be,a	Lmul_big2
 	mov	2, %TMP1
@@ -2167,35 +2185,19 @@ EXTNAME(m_generic_truncate):
 
 Lround:
 	! Flonum is pointed to by %RESULT. Round it, box it, and return.
-	! The simple way to round is to add .5 and then truncate.
-	! The sign of the .5 must be the same as the sign of the number
-	! being rounded!
-	! We need to round to even here (which introduces a bit of hair);
-	! FIXME.
+	! RINT() never fails, so this always works fine.
 
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	set	Ldhalf, %TMP0 
-	ldd	[ %TMP0 ], %f4
-	fmovd	%f2, %f6
-#if defined(V8PLUS)
-	fabsd	%f2, %f2
-#else
-	fabss	%f2, %f2
-#endif
-	fcmpd	%f6, %f0
-	faddd	%f2, %f4, %f2
-	.empty
-	fbl,a	.+8
-#if defined(V8PLUS)
-	fnegd	%f2, %f2
-#else
-	fnegs	%f2, %f2
-#endif
-	std	%f2, [ %TMP0 + 8 ]
-	! FOREIGN SECTION
 	save	%sp, -96, %sp
-	b	Ltrunc2
-	ldd	[ %SAVED_TMP0 + 8 ], %l0
+	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %o0	! get number
+	call	EXTNAME(rint)				! round!
+	nop
+	restore
+	fmovs	%f0, %f2				! move to f2/f3
+	fmovs	%f1, %f3
+	sethi	%hi(dzero), %TMP1			! maintain invariant
+	ldd	[ %TMP1 + %lo(dzero) ], %f0		!   on %f0
+	b	_box_flonum				! box it!
+	nop
 
 Ltrunc:
 	! flonum is pointed to by %RESULT. Trunc it, box it, and return.
@@ -2244,6 +2246,7 @@ Ltrunc_moveback:
 	b	_box_flonum
 	restore
 	! END FOREIGN SECTION
+
 
 ! Generic code for rounding and truncation. Address of final procedure 
 ! is in %TMP1, exception code for specific operation is in %TMP2.
