@@ -1,10 +1,8 @@
-; Asm/C/pass5p2.sch
-; Larceny -- standard-C machine assembler
+; Copyright 1991 Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
-; Based on MacScheme machine assembler:
-;    Copyright 1991 Lightship Software, Incorporated.
+; Standard-C machine assembler
 ;
 ; Code generation strategy:
 ;   Each MAL basic block is compiled to a separate C procedure, with
