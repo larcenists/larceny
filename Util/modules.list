@@ -130,7 +130,7 @@
 	   (compiler write-barrier)
 	   (compiler fill-delay-slots)
 	   (compiler slow-code)
-	   (compiler default-code)
+	   (compiler standard-code)
 	   (compiler fast-safe-code)
 	   (compiler fast-unsafe-code)
 	   ; Make utility
