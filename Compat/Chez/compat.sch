@@ -255,4 +255,7 @@
   (newline)
   (reset))
 
+(define (environment-syntax-environment env)
+  usual-syntactic-environment)
+
 ; eof
