@@ -1,7 +1,8 @@
-/* Rts/Sys/larceny.h
- * Larceny run-time system -- main header file
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- main header file.
  */
 
 #ifndef INCLUDED_LARCENY_H

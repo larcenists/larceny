@@ -1,7 +1,8 @@
-/* Rts/Sys/unix.c.
- * Larceny Runtime System -- operating system specific services: Unix.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny Runtime System -- operating system specific services: Unix.
  *
  * RTS call-outs, for Unix.
  */

@@ -1,7 +1,8 @@
-/* Rts/Sys/heapio.h
- * Larceny run-time system -- heap I/O header file.
+/* Copyright 1998 Lars T Hansen
  *
  * $Id$
+ *
+ * Larceny run-time system -- heap I/O header file.
  */
 
 #ifndef INCLUDED_HEAPIO_H

@@ -1,7 +1,8 @@
-/* Rts/Sys/bdw-gc.c
- * Larceny run-time system -- wrapper for gc.c, with Boehm collector.
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny run-time system -- wrapper for gc.c, with Boehm collector.
  */
 
 #define BDW_GC

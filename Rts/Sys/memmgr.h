@@ -1,7 +1,8 @@
-/* Rts/Sys/memmgr.h
- * Larceny run-time system -- internal interfaces for precise GC.
- * 
+/* Copyright 1998 Lars T Hansen.
+ *
  * $Id$
+ * 
+ * Larceny run-time system -- internal interfaces for precise GC.
  */
 
 #ifndef INCLUDED_MEMMGR_H

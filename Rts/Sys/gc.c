@@ -1,8 +1,9 @@
-/* Rts/Sys/gc.c
- * Larceny -- RTS/GC glue code ("temporary" since the 0.26 rewrite (sigh))
- * 
+/* Copyright 1998 Lars T Hansen.
+ *
  * $Id$
  *
+ * Larceny -- RTS/GC glue code ("temporary" since the 0.26 rewrite (sigh))
+ * 
  * The code in this file presents an interface to the new GC that looks
  * mostly like the interface to the old GC.  The purpose of the deception
  * is to allow more gradual changes to the RTS overall.  Eventually, the

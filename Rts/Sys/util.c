@@ -1,7 +1,8 @@
-/* Rts/Sys/util.c
- * Larceny run-time system -- miscellaneous procedures.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- miscellaneous procedures.
  */
 
 #include <memory.h>

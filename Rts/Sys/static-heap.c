@@ -1,7 +1,8 @@
-/* Rts/Sys/static-heap.c
- * Larceny run-time system -- static heap.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- static heap.
  */
 
 #define GC_INTERNAL

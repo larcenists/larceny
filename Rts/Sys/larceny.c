@@ -1,8 +1,8 @@
-/* Rts/Sys/larceny.c.
- * Larceny run-time system (Unix) -- main file.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
  *
+ * Larceny run-time system (Unix) -- main file.
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
 

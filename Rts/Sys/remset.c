@@ -1,8 +1,8 @@
-/* Rts/Sys/remset.c.
- * Larceny run-time system -- remembered set implementation.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
  *
+ * Larceny run-time system -- remembered set implementation.
  *
  * The remembered set is an ADT with a public interface as described
  * in Rts/Sys/memmgr.h.

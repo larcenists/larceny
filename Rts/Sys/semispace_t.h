@@ -1,7 +1,8 @@
-/* Rts/Sys/semispace_t.h
- * Larceny run-time system -- semispace_t ADT
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- semispace_t ADT
  *
  * A semispace_t maintains a set of memory chunks of the same generation.
  * The set can grow and shrink as necessary; typically, it is grown by the

@@ -1,3 +1,8 @@
+/* Copyright 1998 Lars T Hansen.
+ *
+ * $Id$
+ */
+
 #include "config.h"
 
 #ifdef SUNOS4

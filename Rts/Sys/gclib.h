@@ -1,7 +1,8 @@
-/* Rts/Sys/gclib.h
- * Larceny run-time system -- garbage collector library
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny run-time system -- garbage collector library
  *
  * This header defines the interface to the gc library, which provides 
  * the following services:

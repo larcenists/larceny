@@ -1,7 +1,8 @@
-/* Rts/Sys/bdw.h
- * Larceny Run-time system -- statistics gathering for Boehm GC (experimental)
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny Run-time system -- statistics gathering for Boehm GC (experimental)
  *
  * This file is to be included from Rts/bdw-gc/alloc.c as the last of
  * the include files; use the line

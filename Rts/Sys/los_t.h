@@ -1,7 +1,8 @@
-/* Rts/Sys/los_t.h
- * Larceny run-time system -- Large Object Space data type.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- Large Object Space data type.
  *
  * How the Large Object Space is used:
  *

@@ -1,7 +1,8 @@
-/* Rts/Sys/young_heap_t.c
- * Larceny run-time system -- generic young heap operations
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- generic young heap operations
  */
 
 #include "larceny.h"

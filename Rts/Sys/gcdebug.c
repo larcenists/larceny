@@ -1,9 +1,9 @@
-/* Rts/Sys/gcdebug.c
- * Larceny run-time system -- gc debugging infrastructure
- * 
- * January 22, 1997
+/* Copyright 1997 Lars T Hansen.
+ *
  * $Id$
  *
+ * Larceny run-time system -- gc debugging infrastructure
+ * 
  * Pilfered from pre-0.14 code, and _not_ polished.  This code is as yet
  * only suitable for testing the two-generation copying collector.
  *

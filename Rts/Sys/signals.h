@@ -1,7 +1,8 @@
-/* Rts/Sys/signals.h
- * Larceny Run-time system -- Unix signal handling.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny Run-time system -- Unix signal handling.
  */
 
 #ifndef INCLUDED_SIGNALS_H

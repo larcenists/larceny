@@ -1,13 +1,14 @@
-/* Rts/Sys/version.c.
- * Larceny run-time system -- the version number :-)
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- the version number :-)
  */
 
 #include "config.h"
 
 int larceny_major_version = 0;
-int larceny_minor_version = 36;
+int larceny_minor_version = 37;
 
 char *date = DATE;
 char *user = USER;

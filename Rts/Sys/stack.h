@@ -1,7 +1,8 @@
-/* Rts/Sys/stack.h
- * Larceny run-time system -- run-time stack interface
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- run-time stack interface
  *
  * The stack is maintained by the young heap in a GC, but the details of
  * its layout are somewhat hidden by the stack interface functions.

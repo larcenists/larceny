@@ -1,7 +1,8 @@
-/* Rts/Sys/sycall.c
- * Larceny RTS -- syscall functionality.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny RTS -- syscall functionality.
  */
 
 #include "larceny.h"

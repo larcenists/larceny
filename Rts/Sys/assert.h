@@ -1,7 +1,8 @@
-/* Rts/Sys/assert.h
+/* Copyright 1998 Lars T Hansen.
+ *
+ * $Id$
+ *
  * Larceny run-time system -- assert() macro
- * 
- * January 10, 1997
  */
 
 #ifndef NDEBUG

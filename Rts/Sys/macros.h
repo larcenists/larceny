@@ -1,7 +1,8 @@
-/* Rts/Sys/macros.h
- * Larceny run-time system -- macros
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- macros
  *
  * Machine and representation dependent (and independent) macros,
  * including tag definitions and tag masks, and interesting constants.

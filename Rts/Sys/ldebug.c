@@ -1,7 +1,8 @@
-/* Rts/Sys/ldebug.c.
- * Larceny -- the run-time system debugger.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny -- the run-time system debugger.
  */
 
 #include <stdio.h>

@@ -1,4 +1,8 @@
-/* SRO -- 'standing room only'
+/* Copyright 1998 Lars T Hansen.
+ *
+ * $Id$
+ *
+ * SRO -- 'standing room only'
  *
  * word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit )
  *

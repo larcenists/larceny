@@ -1,7 +1,8 @@
-/* Rts/Sparc/ffi.c
- * Larceny -- Foreign-function interface
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny -- Foreign-function interface
  */
 
 #include "larceny.h"

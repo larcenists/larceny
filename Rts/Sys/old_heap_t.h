@@ -1,7 +1,8 @@
-/* Rts/Sys/old_heap_t.h
- * Larceny run-time system -- old heap data structure.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- old heap data structure.
  *
  * An `old_heap_t' represents an "old" heap -- an older generation in a
  * generational garbage collector.  Although objects can be allocated

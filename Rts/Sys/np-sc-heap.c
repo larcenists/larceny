@@ -1,7 +1,8 @@
-/* Rts/Sys/np-sc-heap.c
- * Larceny -- two-generation non-predictive copying dynamic area.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny -- two-generation non-predictive copying dynamic area.
  *
  * The collector sets up the 'old' areas as generation data->gen_no, and
  * the 'young' area as generation data->gen_no+1, to let the existing 

@@ -1,7 +1,8 @@
-/* Rts/Sys/signals.c
- * Larceny Run-time system -- Unix signal handling.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny Run-time system -- Unix signal handling.
  */
 
 #include "config.h"

@@ -1,8 +1,9 @@
-/* Rts/Sys/young_heap_t.h
- * Larceny run-time system -- young heap data structure.
- * 
+/* Copyright 1998 Lars T Hansen.
+ *
  * $Id$
  *
+ * Larceny run-time system -- young heap data structure.
+ * 
  * A `young_heap_t' represents a "young" heap -- the single heap in
  * a stop-and-copy system, or the youngest generation in a generational
  * system.  In a generational system, all objects are allocated in the

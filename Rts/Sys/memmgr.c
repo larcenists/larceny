@@ -1,7 +1,8 @@
-/* Rts/Sys/memmgr.c
- * Larceny  -- precise garbage collector, top level.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny  -- precise garbage collector, top level.
  */
 
 const char *larceny_gc_technology = "precise";

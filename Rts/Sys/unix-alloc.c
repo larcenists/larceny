@@ -1,10 +1,11 @@
-/* Rts/Sys/unix-alloc.c 
+/* Copyright 1998 Lars T Hansen.
+ *
+ * $Id$
+ *
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
  * NOTE: THIS FILE CURRENTLY NOT IN USE; sbrk() and malloc() cannot coexist.
  *       Should rewrite to use memalign(), which should work OK.
- *
- * $Id$
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write

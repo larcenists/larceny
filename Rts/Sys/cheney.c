@@ -1,7 +1,8 @@
-/* Rts/Sys/cheney.c
- * Larceny -- copying garbage collector library
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny -- copying garbage collector library
  *
  * Resist the temptation to shadow gclib_desc_g and gclib_pagebase
  * in locals in the scanning loops -- the low-level memory manager

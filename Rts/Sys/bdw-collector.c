@@ -1,7 +1,8 @@
-/* Rts/Sys/bdw-collector.c
- * Larceny -- the Boehm-Demers-Weiser conservative garbage collector.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Interface to the Boehm-Demers-Weiser conservative garbage collector.
  *
  * Allocation:
  *

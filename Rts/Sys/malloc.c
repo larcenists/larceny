@@ -1,7 +1,8 @@
-/* Rts/Sys/malloc.c
- * Larceny run-time system -- malloc wrappers
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- malloc wrappers
  */
 
 #include <stdlib.h>

@@ -1,7 +1,8 @@
-/* Rts/Sys/heap_stats_t.h
- * Larceny -- heap statistics structure definition
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny -- heap statistics structure definition
  */
 
 #ifndef INCLUDED_HEAP_STATS_T_H

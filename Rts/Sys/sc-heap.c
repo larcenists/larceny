@@ -1,7 +1,8 @@
-/* Rts/Sys/sc-heap.c
- * Larceny run-time system -- variable-sized stop-and-copy young heap.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- variable-sized stop-and-copy young heap.
  *
  * Contract:
  *  - The stack cache lives in the heap; the stack pointer is the

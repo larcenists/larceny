@@ -1,7 +1,8 @@
-/* Rts/Sys/gc_t.c
- * Larceny -- garbage collector structure constructor
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny -- garbage collector structure constructor
  */
 
 #include "larceny.h"

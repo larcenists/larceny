@@ -1,7 +1,8 @@
-/* Rts/Sys/larceny-types.h
- * Larceny run-time system -- Opaque type definitions.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- Opaque type definitions.
  */
 
 #ifndef INCLUDED_LARCENY_TYPES

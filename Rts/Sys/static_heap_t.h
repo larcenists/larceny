@@ -1,7 +1,8 @@
-/* Rts/Sys/static_heap_t.h
- * Larceny -- definition of static_heap_t ADT.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny -- definition of static_heap_t ADT.
  */
 
 #ifndef INCLUDED_STATIC_HEAP_T_H

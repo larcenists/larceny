@@ -1,7 +1,8 @@
-/* Rts/Sys/gc.h
- * Larceny -- public garbage collector interface
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny -- public garbage collector interface
  *
  * The procedure create_gc() returns a new garbage collector that manages
  * some number of heap areas.

@@ -1,7 +1,8 @@
-/* Rts/Sys/argv.c
- * Larceny run-time system (Unix) -- argument vector handling.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system (Unix) -- argument vector handling.
  *
  * The code in this file is reentrant.
  * The code in this file does not depend on word size.

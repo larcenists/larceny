@@ -1,7 +1,8 @@
-/* Rts/Sys/bdw-stats.c
- * Larceny run-time system -- wrapper for stats.c, with Boehm collector.
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny run-time system -- wrapper for stats.c, with Boehm collector.
  */
 
 #define BDW_GC

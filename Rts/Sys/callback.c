@@ -1,7 +1,8 @@
-/* Rts/Sys/callback.c
- * Larceny run-time-system -- call-in to Scheme mode
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny run-time-system -- call-in to Scheme mode
  */
 
 #include "larceny.h"

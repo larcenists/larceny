@@ -1,7 +1,8 @@
-/* Rts/Sys/stack.c.
- * Larceny run-time system (Unix) -- stack handling
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system (Unix) -- stack handling
  *
  * The stack lives at the high end of the current ephemeral area. There
  * are three major advantages to this:

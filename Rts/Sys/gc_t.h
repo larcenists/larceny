@@ -1,7 +1,8 @@
-/* Rts/Sys/gc_t.h
- * Larceny run-time system -- garbage collector data structure.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Larceny run-time system -- garbage collector data structure.
  */
 
 #ifndef INCLUDED_GC_T_H

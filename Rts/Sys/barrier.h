@@ -1,8 +1,8 @@
-/* Rts/Sys/barrier.h
- * Larceny run-time system -- write barrier interface.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
  *
+ * Larceny run-time system -- write barrier interface.
  * See Rts/Sys/barrier.c and Rts/Sparc/barrier.s for more information.
  */
 

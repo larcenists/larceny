@@ -1,7 +1,8 @@
-/* Rts/Sys/barrier.c
- * Larceny run-time system -- write barrier for new collector
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny run-time system -- write barrier for new collector
  *
  * Write barrier support code.
  *
