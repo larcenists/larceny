@@ -1,0 +1,155 @@
+; -*- mode: scheme indent-tabs-mode: nil -*-
+;
+; Generic operations coded in MAL to avoid rest args consing.
+; Currently an example only; relies on external Scheme code to
+; implement the general case.
+;
+; This is an example of code generation for case-lambda.  We could do
+; better if we didn't have to create the stack frame to free up a register,
+; but this is OK.
+;
+; Currently we do only + and -.
+;
+; Want: + - * / max min = > >= < <= fx+ fx- fx* fx= fx< fx<= fx> fx>=
+
+; External Scheme code (can be made faster):
+;
+; (define generic+ (let ((+ +)) (lambda (l) (apply + l))))
+; (define generic- (let ((- -)) (lambda (l) (apply - l))))
+
+; + takes 0 or more.
+
+`((,$lambda ((,$.proc)
+             (,$save 1)                 ; free up
+             (,$store 0 0)              ;   one 
+             (,$store 4 1)              ;     register
+             (,$setreg 4)               ; save argument count
+             (,$reg 4)
+             (,$op2imm eq? 2)           ; Common case first
+             (,$branchf 1003)
+             (,$pop 1)                  ; 2 args
+             (,$reg 1)
+             (,$op2 + 2)
+             (,$return)
+             (,$.label 1003)            ; != 2 args
+             (,$reg 4)
+             (,$op2imm eq? 0)
+             (,$branchf 1001)
+             (,$const 0)                ; 0 args
+             (,$pop 1)
+             (,$return)
+             (,$.label 1001)            ; > 0 args
+             (,$reg 4)
+             (,$op2imm eq? 1)
+             (,$branchf 1002)
+             (,$pop 1)                  ; 1 arg
+             (,$reg 1)
+             (,$return)
+             (,$.label 1002)            ; > 1 args
+             (,$reg 4)
+             (,$op2imm eq? 3)
+             (,$branchf 1004)
+             (,$pop 1)                  ; 3 args
+             (,$reg 1)
+             (,$op2 + 2)
+             (,$op2 + 3)
+             (,$return)
+             (,$.label 1004)            ; > 3 args
+             (,$reg 4)                  ; restore argument count
+             (,$load 1 4)               ; restore
+             (,$pop 1)                  ;   saved register
+             (,$args>= 0)               ; cons the arguments up into R1
+             (,$global generic+)        ; call the
+             (,$invoke 1))              ;   expensive operation
+            0
+            #(+ #f 0.0))
+  (,$setglbl +)
+  (,$const +)
+  (,$return))
+
+; - takes 1 or more.
+
+`((,$lambda ((,$.proc)
+             (,$save 1)
+             (,$store 0 0)
+             (,$store 4 1)
+             (,$setreg 4)
+             (,$reg 4)
+             (,$op2imm eq? 2)
+             (,$branchf 1003)
+             (,$pop 1)                  ; 2 args
+             (,$reg 1)
+             (,$op2 - 2)
+             (,$return)
+             (,$.label 1003)            ; > 2 args
+             (,$reg 4)
+             (,$op2imm eq? 1)
+             (,$branchf 1002)
+             (,$pop 1)                  ; 1 arg
+             (,$reg 1)
+             (,$return)
+             (,$.label 1002)            ; > 1 args
+             (,$reg 4)
+             (,$op2imm eq? 3)
+             (,$branchf 1004)
+             (,$pop 1)                  ; 3 args
+             (,$reg 1)
+             (,$op2 - 2)
+             (,$op2 - 3)
+             (,$return)
+             (,$.label 1004)            ; > 3 args
+             (,$reg 4)                  ; restore argument count
+             (,$load 1 4)               ; restore
+             (,$pop 1)                  ;   saved register
+             (,$args>= 0)               ; cons the arguments up into R1
+             (,$global generic-)        ; call the
+             (,$invoke 1))              ;   expensive operation
+            0
+            #(- #f 0.0))
+  (,$setglbl -)
+  (,$const -)
+  (,$return))
+
+; > takes 2 or more.
+
+`((,$lambda ((,$.proc)
+             (,$save 1)
+             (,$store 0 0)
+             (,$store 4 1)
+             (,$setreg 4)
+             (,$reg 4)
+             (,$op2imm eq? 2)
+             (,$branchf 1003)
+             (,$pop 1)                  ; 2 args
+             (,$reg 1)
+             (,$op2 > 2)
+             (,$return)
+             (,$.label 1003)            ; > 2 args
+             (,$reg 4)
+             (,$op2imm eq? 3)
+             (,$branchf 1004)
+             (,$pop 1)                  ; 3 args
+             (,$reg 1)
+             (,$op2 > 2)
+             (,$branchf 1005)
+             (,$reg 2)
+             (,$op2 > 3)
+             (,$return)
+             (,$.label 1004)            ; > 3 args, or failed
+             (,$reg 4)                  ; restore argument count
+             (,$load 1 4)               ; restore
+             (,$pop 1)                  ;   saved register
+             (,$args>= 0)               ; cons the arguments up into R1
+             (,$global generic>)        ; call the
+             (,$invoke 1)               ;   expensive operation
+             (,$.label 1005)
+             (,$const #f)
+             (,$pop 1)
+             (,$return))
+            0
+            #(> #f 0.0))
+  (,$setglbl >)
+  (,$const >)
+  (,$return))
+
+; eof
