@@ -5,10 +5,10 @@
 ; Useful string functions
 
 ; (substring-match s1 s2) => i iff 
-;     (string=? s2 (substring s1 i (+ i (string-length s2))))
-; (substring-match s1 s2) => #f otherwise
+;     (string=? s2 (substring s1 i (+ i (string-length s2))))
+; (substring-match s1 s2) => #f otherwise
 ; (substring-match s1 s2 k) => i >= k iff
-;     (string=? s2 (substring s1 i (+ i (string-length s2))))
+;     (string=? s2 (substring s1 i (+ i (string-length s2))))
 ; (substring-match s1 s2 k) => #f otherwise
 
 ; FIXME: this is a dumb implementation -- it conses more than it
@@ -61,5 +61,23 @@
 	 (n loc (+ n 1)))
 	((= i l) target)
       (string-set! target n (string-ref src i)))))
+
+(define (string-prefix=? s1 s2)
+  (and (>= (string-length s1) (string-length s2))
+       (string=? (substring s1 0 (string-length s2)) s2)))
+
+(define (string-split s constituent?)
+  (let ((limit (string-length s)))
+    (let loop ((i 0) (words '()))
+      (cond ((>= i limit) 
+             (reverse words))
+            ((constituent? (string-ref s i))
+             (let ((start i))
+               (let loop2 ((i (+ i 1)))
+                 (if (and (< i limit) (constituent? (string-ref s i)))
+                     (loop2 (+ i 1))
+                     (loop (+ i 1) (cons (substring s start i) words))))))
+            (else
+             (loop (+ i 1) words))))))
 
 ; eof
