@@ -21,9 +21,6 @@
 #define G_STKLIM          G_ETOP
 #define STK_FRAMESIZE     STK_CONTSIZE
 #define STK_RETURN        STK_RETADDR
-
-#define VEC_OVERHEAD      0
-
 /* End hacks */
 
 /* Exception codes */
@@ -41,16 +38,6 @@
 #define EX_MAKE_PROCEDURE         EX_MKVL
 /* End exception codes */
 
-#define FIXTAGMASK        3
-
-#define is_fixnum( x )        (((x) & FIXTAGMASK) == 0)
-#define nonnegative_fixnum( x )  (((x) & FIXTAGMASK) == 0 && (s_word)(x) >= 0)
-#define both_fixnums( x, y )  ((((x) | (y)) & FIXTAGMASK) == 0)
-
-#define is_char( x )          (((x) & 255) == IMM_CHAR)
-#define fixnum_to_char( x )        ((((x) & 1023) << 14) | IMM_CHAR)
-#define int_to_char( x )           ((((x) & 1023) << 16) | IMM_CHAR)
-#define charcode_as_fixnum( x )         ((x) >> 14)
-#define charcode( x )                   ((x) >> 16)
-
 #endif
+
+/* eof */
