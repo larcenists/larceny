@@ -149,7 +149,7 @@
 #define scan_core( ptr, iflush, FORW ) \
   do { \
     word T_w = *ptr; \
-    assert( T_w != FORWARD_HDR); \
+    assert2( T_w != FORWARD_HDR); \
     if (ishdr( T_w )) { \
       word T_h = header( T_w ); \
       if (T_h == BV_HDR) { \
@@ -368,7 +368,7 @@
 #define scan_core_partial( ptr, iflush, FORW, must_add_to_extra, e ) \
   do { \
     word T_w = *ptr; \
-    assert( T_w != FORWARD_HDR); \
+    assert2( T_w != FORWARD_HDR); \
     if (ishdr( T_w )) { \
       word T_h = header( T_w ); \
       if (T_h == BV_HDR) { \
@@ -773,7 +773,7 @@ static void scan_oflo_normal( cheney_env_t *e )
     while ((p = los_walk_list( e->los->mark1, los_p )) != 0) {
       los_p = p;
       morework = 1;
-      assert( ishdr( *p ) );
+      assert2( ishdr( *p ) );
       scan_core( p, e->iflush, forw_oflo( p, gno, dest, copylim, e ));
     }
   } while (morework);
@@ -873,7 +873,7 @@ static void scan_np_los_old( cheney_env_t *e, word **los_p )
 
   while ((p = los_walk_list( e->los->mark1, *los_p )) != 0) {
     *los_p = p;
-    assert( ishdr( *p ) );
+    assert2( ishdr( *p ) );
     scan_core( p, e->iflush,
 	       forw_np( p, forw_limit_gen, dest, copylim, e ));
   }
@@ -891,7 +891,7 @@ static void scan_np_los_young( cheney_env_t *e, word **los_p )
   /* must_add_to_extra is a name used by the scanning and fwd macros as a temp*/
   while ((p = los_walk_list( e->los->mark2, *los_p )) != 0) {
     *los_p = p;
-    assert( ishdr( *p ) );
+    assert2( ishdr( *p ) );
     scan_core_partial( p, e->iflush,
 		       forw_np_partial( p, forw_limit_gen, dest, copylim, \
 				        np_young_gen, must_add_extra, e ),
@@ -954,7 +954,7 @@ static word forward( word p, word **dest, cheney_env_t *e )
   p2 = ptr;
 
   hdr = *ptr;
-  assert( ishdr( hdr ) );
+  assert2( ishdr( hdr ) );
 
 #if FORW_BY_LOOP
   { unsigned words;
