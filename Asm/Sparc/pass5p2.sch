@@ -41,7 +41,7 @@
                             (write-char #\,)
                             (write (car operands)))))
              (newline)
-	     (flush-output-port))))
+             (flush-output-port))))
 
 (define (list-label instruction)
   (if listify?
@@ -178,15 +178,15 @@
   (lambda (instruction as)
     (list-instruction "global" instruction)
     (emit-global->register! as
-			    (emit-global as (operand1 instruction))
-			    $r.result)))
+                            (emit-global as (operand1 instruction))
+                            $r.result)))
 
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
     (emit-register->global! as
-			    $r.result
-			    (emit-global as (operand1 instruction)))))
+                            $r.result
+                            (emit-global as (operand1 instruction)))))
 
 ; FIXME: A problem is that the listing is messed up because of the delayed
 ; assembly; somehow we should fix this by putting an identifying label
@@ -195,21 +195,21 @@
 (define-instruction $lambda
   (lambda (instruction as)
     (let ((code-offset  #f)
-	  (const-offset #f))
+          (const-offset #f))
       (list-lambda-start instruction)
       (assemble-nested-lambda as
-			      (operand1 instruction)
-			      (operand3 instruction)   ; documentation
-			      (lambda (nested-as segment)
-				(set-constant! as code-offset (car segment))
-				(set-constant! as const-offset (cdr segment))))
+                              (operand1 instruction)
+                              (operand3 instruction)   ; documentation
+                              (lambda (nested-as segment)
+                                (set-constant! as code-offset (car segment))
+                                (set-constant! as const-offset (cdr segment))))
       (list-lambda-end)
       (set! code-offset  (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
       (emit-lambda! as
-		    code-offset
-		    const-offset
-		    (operand2 instruction)))))
+                    code-offset
+                    const-offset
+                    (operand2 instruction)))))
 
 (define-instruction $lexes
   (lambda (instruction as)
@@ -245,7 +245,7 @@
          (list-instruction "pop" instruction)
          (let ((next (next-instruction as)))
            (if (and (peephole-optimization)
-		    (eqv? $return (operand0 next)))
+                    (eqv? $return (operand0 next)))
                (begin (list-instruction "return" next)
                       (consume-next-instruction! as)
                       (emit-pop! as (operand1 instruction) #t))
@@ -295,8 +295,8 @@
   (lambda (instruction as)
     (list-instruction "movereg" instruction)
     (emit-register->register! as 
-			      (regname (operand1 instruction))
-			      (regname (operand2 instruction)))))
+                              (regname (operand1 instruction))
+                              (regname (operand2 instruction)))))
 
 (define-instruction $return
   (lambda (instruction as)
@@ -346,15 +346,15 @@
   (lambda (instruction as)
     (list-instruction "apply" instruction)
     (emit-apply! as
-		 (regname (operand1 instruction))
-		 (regname (operand2 instruction)))))
+                 (regname (operand1 instruction))
+                 (regname (operand2 instruction)))))
 
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
     (emit-jump! as
-		(operand1 instruction)
-		(make-asm-label as (operand2 instruction)))))
+                (operand1 instruction)
+                (make-asm-label as (operand2 instruction)))))
 
 (define-instruction $skip
   (lambda (instruction as)
@@ -409,27 +409,27 @@
   (lambda (instruction as)
     (list-instruction "reg/op1/branchf" instruction)
     (emit-primop.3arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (make-asm-label as (operand3 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (make-asm-label as (operand3 instruction)))))
 
 (define-instruction $reg/op2/branchf
   (lambda (instruction as)
     (list-instruction "reg/op2/branchf" instruction)
     (emit-primop.4arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (peep-regname (operand3 instruction))
-		       (make-asm-label as (operand4 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (peep-regname (operand3 instruction))
+                       (make-asm-label as (operand4 instruction)))))
 
 (define-instruction $reg/op2imm/branchf
   (lambda (instruction as)
     (list-instruction "reg/op2imm/branchf" instruction)
     (emit-primop.4arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (operand3 instruction)
-		       (make-asm-label as (operand4 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (operand3 instruction)
+                       (make-asm-label as (operand4 instruction)))))
 
 ; These three are like the corresponding branchf sequences except that
 ; there is a strong prediction that the branch will not be taken.
@@ -438,30 +438,30 @@
   (lambda (instruction as)
     (list-instruction "reg/op1/check" instruction)
     (emit-primop.4arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (make-asm-label as (operand3 instruction))
-         (map peep-regname (operand4 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (make-asm-label as (operand3 instruction))
+                       (map peep-regname (operand4 instruction)))))
 
 (define-instruction $reg/op2/check
   (lambda (instruction as)
     (list-instruction "reg/op2/check" instruction)
     (emit-primop.5arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (peep-regname (operand3 instruction))
-		       (make-asm-label as (operand4 instruction))
-         (map peep-regname (operand5 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (peep-regname (operand3 instruction))
+                       (make-asm-label as (operand4 instruction))
+                       (map peep-regname (operand5 instruction)))))
 
 (define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
     (emit-primop.5arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (operand3 instruction)
-		       (make-asm-label as (operand4 instruction))
-         (map peep-regname (operand5 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (operand3 instruction)
+                       (make-asm-label as (operand4 instruction))
+                       (map peep-regname (operand5 instruction)))))
 
 ;
 
@@ -469,43 +469,43 @@
   (lambda (instruction as)
     (list-instruction "reg/op1/setreg" instruction)
     (emit-primop.3arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (peep-regname (operand3 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (peep-regname (operand3 instruction)))))
 
 (define-instruction $reg/op2/setreg
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
     (emit-primop.4arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (peep-regname (operand3 instruction))
-		       (peep-regname (operand4 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (peep-regname (operand3 instruction))
+                       (peep-regname (operand4 instruction)))))
 
 (define-instruction $reg/op2imm/setreg
   (lambda (instruction as)
     (list-instruction "reg/op2imm/setreg" instruction)
     (emit-primop.4arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (operand3 instruction)
-		       (peep-regname (operand4 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (operand3 instruction)
+                       (peep-regname (operand4 instruction)))))
 
 (define-instruction $reg/op3 
   (lambda (instruction as)
     (list-instruction "reg/op3" instruction)
     (emit-primop.4arg! as
-		       (operand1 instruction)
-		       (peep-regname (operand2 instruction))
-		       (peep-regname (operand3 instruction))
-		       (peep-regname (operand4 instruction)))))
+                       (operand1 instruction)
+                       (peep-regname (operand2 instruction))
+                       (peep-regname (operand3 instruction))
+                       (peep-regname (operand4 instruction)))))
 
 (define-instruction $reg/branchf
   (lambda (instruction as)
     (list-instruction "reg/branchf" instruction)
     (emit-branchfreg! as 
-		      (regname (operand1 instruction))
-		      (make-asm-label as (operand2 instruction)))))
+                      (regname (operand1 instruction))
+                      (make-asm-label as (operand2 instruction)))))
 
 (define-instruction $setrtn/branch
   (lambda (instruction as)
@@ -521,23 +521,23 @@
   (lambda (instruction as)
     (list-instruction "global/setreg" instruction)
     (emit-global->register! as
-			    (emit-global as (operand1 instruction))
-			    (regname (operand2 instruction)))))
+                            (emit-global as (operand1 instruction))
+                            (regname (operand2 instruction)))))
 
 (define-instruction $global/invoke
   (lambda (instruction as)
     (list-instruction "global/invoke" instruction)
     (emit-load-global as
-		      (emit-global as (operand1 instruction))
-		      $r.result
-		      #f)
+                      (emit-global as (operand1 instruction))
+                      $r.result
+                      #f)
     (emit-invoke as (operand2 instruction) #f $m.global-invoke-ex)))
 
 (define-instruction $reg/setglbl
   (lambda (instruction as)
     (list-instruction "reg/setglbl" instruction)
     (emit-register->global! as
-			    (regname (operand1 instruction))
-			    (emit-global as (operand2 instruction)))))
+                            (regname (operand1 instruction))
+                            (emit-global as (operand2 instruction)))))
 
 ; eof
