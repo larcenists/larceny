@@ -84,6 +84,27 @@
 					/>
 			</FileConfiguration>
 		</File>
+		<File
+			RelativePath="bundletar.ss">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCustomBuildTool"
+                                        Description="Generating PLT SDK tgz"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+                                        Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
+					/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCustomBuildTool"
+                                        Description="Generating PLT SDK tgz"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+                                        Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
+					/>
+			</FileConfiguration>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
