@@ -5,28 +5,35 @@
  * Larceny run-time system -- the version number :-)
  *
  * Some nicknames to choose from:
- *  Burpelson                  1.0
+ *  'Bat' Guano
+ *  Big Board
+ *  Burpelson AFB               0.46
+ *  Captain Mandrake
+ *  CRM-114
+ *  de Sadesky
+ *  Dear John
  *  Doomsday Device
+ *  Dr Strangelove
  *  Fluoridation
- *  Guano
- *  Kissoff
- *  Kong
- *  Mandrake
- *  Muffley
+ *  General Ripper 
+ *  Hi There!
+ *  'King' Kong
+ *  Missile Complex at Laputa
  *  Operation Drop-Kick
+ *  Peace is our Profession
  *  Plan R
  *  Precious Bodily Fluids
- *  Ripper
- *  de Sadesky
- *  Strangelove
+ *  Premier Kissoff
+ *  President Muffley
  *  Turgidson
+ *  War Room
  */
 
 #include "config.h"
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 46;
-char *larceny_version_qualifier = " \"Burpelson\"";
+char *larceny_version_qualifier = " \"Burpelson AFB\"";
 
 char *date = DATE;
 char *user = USER;
