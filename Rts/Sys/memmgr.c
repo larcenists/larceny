@@ -49,7 +49,8 @@ struct gc_data {
   int  nhandles;               /* current array length */
   int  in_gc;                  /* a counter: > 0 means in gc */
   int  generations;            /* number of generations (incl. static) */
-
+  int  static_generation;	/* Generation number of static area */
+  bool have_stats;		/* For DOF collection */
   word **ssb_bot;
   word **ssb_top;
   word **ssb_lim;
@@ -58,7 +59,7 @@ struct gc_data {
 #define DATA(gc) ((gc_data_t*)(gc->data))
 
 
-static gc_t *alloc_gc_structure( word *globals );
+static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
@@ -81,7 +82,7 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   assert( info->is_generational_system || info->is_stopcopy_system );
 
   gclib_init();
-  gc = alloc_gc_structure( info->globals );
+  gc = alloc_gc_structure( info->globals, info );
 
   /* Number of generations includes static heap, if any */
   if (info->is_generational_system) 
@@ -194,7 +195,8 @@ void gc_parameters( gc_t *gc, int op, int *ans )
   }
   else {
     /* info about generation op-1
-       ans[0] = type: 0=nurs, 1=two-space, 2=np-old, 3=np-young, 4=static
+       ans[0] = type: 0=nursery, 1=two-space, 2=np-old, 3=np-young, 4=static,
+                      6=one-space-dof
        ans[1] = size in bytes [the 'maximum' field]
        ans[2] = parameter if appropriate for type
                    if np, then k
@@ -202,6 +204,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
        ans[3] = parameter if appropriate for type
                    if np, then j
        */
+    /* Can you recognize a mess when you see one? */
     op--;
     if (op == 0) {
       ans[1] = gc->young_area->maximum;
@@ -221,7 +224,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
       ans[1] = gc->ephemeral_area[op-1]->maximum;
       ans[2] = 0;
     }
-    else if (op-1 <= gc->ephemeral_area_count+1 &&
+    else if (op < data->static_generation &&
 	     gc->dynamic_area &&
 	     data->uses_np_collector) {
       int k, j;
@@ -239,6 +242,17 @@ void gc_parameters( gc_t *gc, int op, int *ans )
 	ans[0] = 3;
 	ans[1] = (gc->dynamic_area->maximum / k) * j;
       }
+    }
+    else if (op < data->static_generation &&
+	     gc->dynamic_area &&
+	     data->uses_dof_collector) {
+      /*  DOF area -- fixed number of same-size generations */
+      int size;
+
+      dof_gc_parameters( gc->dynamic_area, &size );
+      ans[0] = 6;
+      ans[1] = size;
+      ans[2] = 1;		/* Expandable */
     }
     else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
       /* Dynamic area */
@@ -362,17 +376,20 @@ static void permute_remembered_sets( gc_t *gc, int permutation[] )
 
 static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
+  word wheap, wremset, wrts, wmax_heap;
   gc_data_t *data = DATA(gc);
 
   assert( gen >= 0 );
   assert( gen > 0 || bytes_needed >= 0 );
 
+  assert( data->in_gc >= 0 );
+
   if (data->in_gc++ == 0) {
-    DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
-    if (DATA(gc)->globals[ G_GC_CNT ] == 0)
+    data->globals[ G_GC_CNT ] += fixnum(1);
+    if (data->globals[ G_GC_CNT ] == 0)
       hardconsolemsg( "Congratulations! "
 		      "You have survived 1,073,741,824 garbage collections!" );
-    /* Order is significant! */
+    /* Order is significant! */ /* Why?!? */
     stats_before_gc();
     before_collection( gc );
   }
@@ -386,13 +403,71 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   else
     yh_collect( gc->young_area, bytes_needed, request );
 
-  if (--data->in_gc == 0) {
-    word wheap, wremset, wrts, wmax_heap;
+  assert( data->in_gc > 0 );
 
-    /* Order is significant! */
+  if (--data->in_gc == 0) {
+    /* Order is significant! */ /* Why?!? */ 
     after_collection( gc );
     stats_after_gc();
 
+    gclib_stats( &wheap, &wremset, &wrts, &wmax_heap );
+    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
+		 wheap*sizeof(word), wremset*sizeof(word), wrts*sizeof(word) );
+    annoyingmsg( "  Max heap usage: %d bytes", 
+		 wmax_heap*sizeof(word) );
+  }
+}
+
+/* DOF collection is a little different. */
+/* hack */
+void gc_start_gc( gc_t *gc )
+{
+  gc_data_t *data = DATA(gc);
+
+  if (!data->have_stats) {
+    data->have_stats = TRUE;
+    data->globals[ G_GC_CNT ] += fixnum(1);
+    /* Order is significant! */ /* Why?!? */
+    stats_before_gc();
+    before_collection( gc );
+  }
+}
+
+void gc_end_gc( gc_t *gc )
+{
+  gc_data_t *data = DATA(gc);
+
+  if (data->have_stats) {
+    data->have_stats = FALSE;
+    /* Order is significant! */ /* Why?!? */ 
+    after_collection( gc );
+    stats_after_gc();
+  }
+}
+
+static void 
+dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
+{
+  gc_data_t *data = DATA(gc);
+  word wheap, wremset, wrts, wmax_heap;
+
+  assert( gen >= 0 );
+  assert( gen > 0 || bytes_needed >= 0 );
+
+  data->in_gc++;
+  gc_start_gc( gc );
+
+  if (gen == 0)
+    yh_collect( gc->young_area, bytes_needed, request );
+  else if (gen-1 < gc->ephemeral_area_count)
+    oh_collect( gc->ephemeral_area[ gen-1 ], request );
+  else if (gc->dynamic_area)
+    oh_collect( gc->dynamic_area, request );
+  else
+    yh_collect( gc->young_area, bytes_needed, request );
+
+  gc_end_gc( gc );
+  if (--data->in_gc == 0) {
     gclib_stats( &wheap, &wremset, &wrts, &wmax_heap );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
 		 wheap*sizeof(word), wremset*sizeof(word), wrts*sizeof(word) );
@@ -542,9 +617,8 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
   
   if (generation == 0)
     yh_stats( gc->young_area, stats );
-  else if (gc->static_area && !data->is_generational_system) {
+  else if (gc->static_area && !data->is_generational_system)
     sh_stats( gc->static_area, stats );	/* Stopcopy static area */
-  }
   else if (gc->static_area && generation == data->generations-1) {
     sh_stats( gc->static_area, stats );
     rs_stats( gc->remset[generation], &stats->remset_data );
@@ -558,7 +632,7 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
       heap = gc->dynamic_area;
     heap->stats( heap, generation, stats );
     rs_stats( gc->remset[generation], &stats->remset_data );
-    if (stats->np_young && gc->np_remset != -1) 
+    if (stats->np_young && gc->np_remset != -1)
       rs_stats( gc->remset[gc->np_remset], &stats->np_remset_data );
   }
 }
@@ -670,7 +744,7 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
 static void compact_all_areas( gc_t *gc )
 {
   /* This is a crock!  Compacts young heap only. */
-  collect( gc, 0, 0, GCTYPE_PROMOTE );
+  gc_collect( gc, 0, 0, GCTYPE_PROMOTE );
 }
 
 static void effect_heap_limits( gc_t *gc )
@@ -806,6 +880,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
      */
   if (info->use_static_area) {
     gc->static_area = create_static_area( gen_no, gc );
+    data->static_generation = gen_no;
     gen_no += 1;
     strcat( buf, "+" );
     strcat( buf, gc->static_area->id );
@@ -843,7 +918,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   return gen_no;
 }
 
-static gc_t *alloc_gc_structure( word *globals )
+static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
   
@@ -853,6 +928,7 @@ static gc_t *alloc_gc_structure( word *globals )
   data->is_generational_system = 0;
   data->shrink_heap = 0;
   data->in_gc = 0;
+  data->have_stats = 0;
   data->handles = (word*)must_malloc( sizeof(word)*10 );
   data->nhandles = 10;
   memset( data->handles, 0, sizeof(word)*data->nhandles );
@@ -869,7 +945,7 @@ static gc_t *alloc_gc_structure( word *globals )
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
-		 collect,
+		 (info->use_dof_collector ? dof_collect : collect),
 		 permute_remembered_sets,
 		 set_policy,
 		 data_load_area,
