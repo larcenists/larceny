@@ -21,6 +21,9 @@
 #define GC_INTERNAL
 
 #include "larceny.h"
+
+#if DOF_COLLECTOR
+
 #include "memmgr.h"
 #include "gc.h"
 #include "gclib.h"
@@ -3352,5 +3355,7 @@ expand_semispace_np( word **lim, word **dest, unsigned bytes, dof_env_t *e )
   *dest = copy_ss(e)->chunks[ copy_ss(e)->current ].bot;
   *lim = copy_ss(e)->chunks[ copy_ss(e)->current ].lim;
 }
+
+#endif /* DOF_COLLECTOR */
 
 /* eof */

@@ -85,6 +85,20 @@
 /*
  * Other configuration options.
  */
+#undef DOF_COLLECTOR
+  /* When set, makes the deferred-older-first collector to be compiled
+     into the system.  For specially interested only.
+     
+     Recommended setting is 0.
+     */
+
+#undef ROF_COLLECTOR
+  /* When set, makes the renewal-older-first collector to be compiled
+     into the system.  For specially interested only.
+     
+     Recommended setting is 0.
+     */
+
 #undef STACK_UNDERFLOW_COUNTING 
   /* When set, enables stack underflow accounting.  The performance
      impact is negligible.  
@@ -317,7 +331,7 @@
 #endif
 
 /* Debian Linux 3.0; gcc; GNU libc (Petit Larceny). */
-#if 1
+#if 0
 # define PETIT_LARCENY             1
 # define BITS_32                   1
 # define ENDIAN_LITTLE             1
@@ -331,7 +345,7 @@
 #endif
 
 /* Debian Linux 3.0; gcc+nasm; GNU libc (x86-nasm native). */
-#if 0
+#if 1
 # define X86_NASM                  1
 # define BITS_32                   1
 # define ENDIAN_LITTLE             1

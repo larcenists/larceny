@@ -29,6 +29,9 @@
 #include <stdlib.h>
 
 #include "larceny.h"
+
+#if ROF_COLLECTOR
+
 #include "memmgr.h"
 #include "gc.h"
 #include "gclib.h"
@@ -953,6 +956,8 @@ void full_collection( old_heap_t *heap )
   consolemsg( ">>> Full collection ends.  Marked=%d traced=%d removed=%d",
               marked, traced, removed );
 }
-#endif
+#endif /* FLOAT_REDUCTION */
+
+#endif /* ROF_COLLECTOR */
 
 /* eof */

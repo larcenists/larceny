@@ -236,6 +236,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     else if (op < data->static_generation &&
 	     gc->dynamic_area &&
 	     data->use_np_collector) {
+#if ROF_COLLECTOR
       int k, j;
 
       /* Non-predictive dynamic area */
@@ -251,10 +252,12 @@ void gc_parameters( gc_t *gc, int op, int *ans )
 	ans[0] = 3;
 	ans[1] = (gc->dynamic_area->maximum / k) * j;
       }
+#endif
     }
     else if (op < data->static_generation &&
 	     gc->dynamic_area &&
 	     data->use_dof_collector) {
+#if DOF_COLLECTOR
       /*  DOF area -- fixed number of same-size generations */
       int size;
 
@@ -262,6 +265,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
       ans[0] = 6;
       ans[1] = size;
       ans[2] = 1;		/* Expandable */
+#endif
     }
     else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
       /* Dynamic area */
@@ -882,18 +886,26 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   /* Create dynamic area.
      */
   if (info->use_non_predictive_collector) {
+#if ROF_COLLECTOR
     int gen_allocd;
 
     gc->dynamic_area = 
       create_np_dynamic_area( gen_no, &gen_allocd, gc, &info->dynamic_np_info);
     gen_no += gen_allocd;
+#else
+    panic_exit( "ROF collector not compiled in" );
+#endif
   }
   else if (info->use_dof_collector) {
+#if DOF_COLLECTOR
     int gen_allocd;
 
     gc->dynamic_area = 
       create_dof_area( gen_no, &gen_allocd, gc, &info->dynamic_dof_info );
     gen_no += gen_allocd;
+#else
+    panic_exit( "DOF collector not compiled in" );
+#endif
   }
   else {
     gc->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
