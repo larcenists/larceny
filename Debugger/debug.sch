@@ -429,7 +429,7 @@ activations; the default count for D and U is 1.
        (print-length #f)
        (print-level #f))
      (lambda ()
-       (pretty-pring expr (console-output-port)))
+       (pretty-print expr (console-output-port)))
      (lambda ()
        (print-length length)
        (print-level level)))))
