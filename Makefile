@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.2 91/12/06 15:02:37 lth Exp Locker: lth $
+# $Id: Makefile,v 1.3 92/02/10 03:30:23 lth Exp Locker: lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -55,6 +55,12 @@ clean:
 
 libclean:
 	rm $(LIB)/*.lap $(LIB)/*.lop
+
+# Support stuff for Chez hosted system.
+
+basicstuff: bits1 bits2
+bits1: Chez/bitpattern.o
+bits2: Compiler/mtime.o
 
 # sources
 $(SYS)/main.o:		$(SYS)/main.c $(CHDRS)
