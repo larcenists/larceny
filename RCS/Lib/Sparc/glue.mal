@@ -1,0 +1,53 @@
+; -*- Scheme -*-
+;
+; Miscellaneous machine-dependent glue in MAL and pseudo-MAL.
+;
+; $Id$
+;
+; The procedure "scheme2scheme-helper" is the return continuation for
+; a millicode call which had to fall through into Scheme system code,
+; like bignum addition. When this procedure is returned into (it is
+; never called directly), there are two frames on the stack:
+;
+;      +---------------+  <-- top of stack
+;      | (return addr) |
+;      | (frame size)  |
+;      | (proc ptr)    |
+;      | (unused)      |
+;      +---------------+
+;      | (return addr) |
+;      | (frame size)  |
+;      | (proc ptr)    |
+;      | (Reg1)        |
+;          :
+;      | (Reg31)       |
+;      +---------------+
+;      |  (stuff)      |
+;
+; The top frame has only a return address and procedure pointer to 
+; this procedure, and the return address points to the start of the
+; procedure. The second frame has a full saved register set, 
+; where the procedure pointer is the original scheme procedure 
+; (the one which fell into millicode) and the return address within that
+; procedure to which millicode should have returned. The millicode
+; for _scheme_call creates both these frames before it invokes
+; the desired scheme procedure.
+;
+; All we do here is to pop both frames and return to the procedure whose
+; return address is in the second frame, after restoring the registers
+; in the second frame. This extra bit of protocol is necessary because
+; we have a callee-saves dicipline, and the original scheme procedure
+; did not save any registers (because it called millicode).
+
+`((,$lambda
+   ((,$pop 0)
+    (,$restore 31)
+    (,$.asm (,$i.ldi ,$r.stkp 0 ,$r.o7))
+    (,$pop 31)
+    (,$.asm (,$i.jmpli ,$r.o7 8 ,$r.g0))
+    (,$.asm (,$i.nop)))
+   0
+   (#t))
+  (,$setglbl scheme2scheme-helper)
+  (,$const scheme2scheme-helper)
+  (,$return))
