@@ -46,6 +46,8 @@
 	 (lambda (count cmd)
 	   (cond ((eq? cmd 'done)
 		  'done)
+                 ((eq? cmd 'reset)
+                  'reset)
 		 (cmd
 		  (cmd count inspector)
 		  (loop inspector (not (current 'same? (inspector 'get)))))
@@ -61,9 +63,13 @@
 		      (lambda ()
 			(loop c display-frame?))
 		      reset-token)))
-	    (if (eq? res reset-token)
-		(begin (newline)
-		       (outer #f)))))))
+	    (cond ((eq? res reset-token)
+                   (newline)
+                   (outer #f))
+                  ((eq? res 'reset)
+                   (display "Reset")
+                   (newline)
+                   (reset)))))))
 
     (call-with-current-continuation
      (lambda (k)
@@ -269,6 +275,22 @@
 		 (format #t "Slot ~a does not contain a procedure.~%" n)
 		 (inspect-procedure obj)))))))
 
+; This parameter is set to #f whenever the debugger recursively calls
+; EVAL and can be used by other code (see e.g. trace.sch) to determine
+; whether breakpoints should be honored or not.  It makes debugging
+; EVAL easier.
+
+(define debug/breakpoints-enable 
+  (let ((enable #t))
+    (lambda rest
+      (cond ((null? rest) enable)
+            ((null? (cdr rest))
+             (set! enable (car rest))
+             enable)
+            (else
+             (error "Wrong number of arguments to debug/breakpoints-enable "
+                    rest))))))
+      
 (define (debug/evaluate count inspector)
 
   (define (valid-frame-slot? frame n)
@@ -278,7 +300,14 @@
     (let* ((token (list 'token))
 	   (proc  (debug/safely
 		   (lambda ()
-		     (eval expr (interaction-environment)))
+                     (let ((breakpt (debug/breakpoints-enable)))
+                       (dynamic-wind
+                        (lambda ()
+                          (debug/breakpoints-enable #f))
+                        (lambda ()
+                          (eval expr (interaction-environment)))
+                        (lambda ()
+                          (debug/breakpoints-enable breakpt)))))
 		   token)))
       (cond ((eq? proc token)
 	     (format #t "Expression caused a reset.~%"))
@@ -316,6 +345,7 @@
     (e . ,debug/evaluate)
     (i . ,debug/inspect)
     (q . done)
+    (r . reset)
     (s . ,debug/summarize-frame)
     (u . ,debug/up)
     (x . ,debug/examine-frame)
@@ -337,6 +367,7 @@
   I n         Inspect the procedure in slot n of the current activation record.
   I @         Inspect the active procedure.
   Q           Quit the debugger.
+  R           Reset: abort the computation, return to the top level.
   S           Summarize the contents of the current activation record.
   U           Up to the next activation record.
   X           Examine the contents of the current activation record.
