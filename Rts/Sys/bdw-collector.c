@@ -38,8 +38,6 @@
  * The code in this file does not depend on header size.
  */
 
-const char *larceny_gc_technology = "conservative";
-
 #define BDW_CLEAR_STACK 1
 #define BDW_DEBUG       1
 
@@ -57,6 +55,14 @@ const char *larceny_gc_technology = "conservative";
 #include "heap_stats_t.h"
 #include "stack.h"
 #include "../bdw-gc/include/gc.h"
+
+#if defined( NO_ATOMIC_ALLOCATION )
+const char *larceny_gc_technology = "conservative/noatomic";
+#  define GC_malloc_atomic GC_malloc
+#  define GC_malloc_atomic_ignore_off_page GC_malloc_ignore_off_page
+#else
+const char *larceny_gc_technology = "conservative";
+#endif
 
 typedef struct {
   word *globals;
@@ -76,6 +82,9 @@ static gc_t *allocate_area( word *globals );
 #if BDW_DEBUG
 static word *bdw_globals = 0;
 #endif
+
+extern double GC_load_factor;
+extern void GC_set_min_heap_size( int min_size_bytes );
 
 void bdw_before_gc( void );
 void bdw_after_gc( void );
@@ -99,8 +108,18 @@ create_bdw_gc( gc_param_t *params, int *generations )
   GC_register_displacement( 5 );
   GC_register_displacement( 7 );
   GC_oom_fn = bdw_out_of_memory_handler;
+
+  if (params->bdw_info.divisor > 0)
+    GC_free_space_divisor = params->bdw_info.divisor;
+  if (params->bdw_info.dynamic_max > 0) 
+    GC_set_max_heap_size( params->bdw_info.dynamic_max );
+  if (params->bdw_info.dynamic_min > 0)
+    GC_set_min_heap_size( params->bdw_info.dynamic_min );
+  if (params->bdw_info.load_factor > 0.0)
+    GC_load_factor = params->bdw_info.load_factor;
   if (params->use_incremental_bdw_collector)
     GC_enable_incremental();
+
   init_stack( gc );
   wb_disable_barrier( params->globals );
 
@@ -223,7 +242,7 @@ void bdw_before_gc( void )
 #endif
   slowpath_cancel = 1;
   stats_before_gc();
-  stats_gc_type( 0, 0 );
+  stats_gc_type( 0, STATS_COLLECT );
 }
 
 /* Hook run after gc (if gc has been set up to do it). */
@@ -277,8 +296,7 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
     p = GC_malloc_atomic( nbytes );
   else
     p = GC_malloc( nbytes );
-  if (p == 0)
-    panic( "GC_malloc failed for %u bytes.", nbytes );
+
   return (word*)p;
 }
 
@@ -296,8 +314,7 @@ static word *data_load_area( gc_t *gc, int nbytes )
 
   assert( anchor == 0 );
   anchor = GC_malloc_ignore_off_page( nbytes );
-  if (anchor == 0) 
-    panic( "GC_malloc failed for %u bytes.", nbytes );
+
   return (word*)anchor;
 }
 
@@ -310,8 +327,7 @@ static word *text_load_area( gc_t *gc, int nbytes )
 
   assert( anchor == 0 );
   anchor = GC_malloc_atomic_ignore_off_page( nbytes );
-  if (anchor == 0)
-    panic( "GC_malloc_atomic failed for %u bytes.", nbytes );
+
   return (word*)anchor;
 }
 
@@ -322,12 +338,23 @@ static int iflush( gc_t *gc, int generation )
 
 static void stats( gc_t *gc, int generation, heap_stats_t *stats )
 {
+  bdw_data_t *data = DATA(gc);
+
   /* The following functions are available:
      GC_word GC_no_gc                 -- # of collections
      size_t GC_get_heap_size()        -- bytes; heap memory (not overhead)
      size_t GC_get_bytes_since_gc()
    */
   stats->live = stats->semispace1 = GC_get_heap_size();
+  stats->frames_flushed = data->frames_flushed;
+  stats->bytes_flushed = data->bytes_flushed;
+  stats->stacks_created = data->stacks_created;
+  stats->frames_restored = data->globals[ G_STKUFLOW ];
+
+  data->frames_flushed = 0;
+  data->bytes_flushed = 0;
+  data->stacks_created = 0;
+  data->globals[ G_STKUFLOW ] = 0;
 }
 
 static void stack_underflow( gc_t *gc )
@@ -363,10 +390,8 @@ static void creg_set( gc_t *gc, word k )
 
 static GC_PTR bdw_out_of_memory_handler( size_t bytes_requested )
 {
-  static char message[] = "Out of memory.\n";
-
-  write( 2, message, sizeof( message )-1 );
-  exit( 1 );
+  memfail( MF_HEAP, "Heap limit exceeded." );
+  /* Not reached */
   return (GC_PTR)0;
 }
 
@@ -480,11 +505,7 @@ void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
 
 void *gclib_alloc_rts( int nbytes, unsigned attr )
 {
-  void *p;
-
-  p = GC_malloc_atomic_uncollectable( nbytes );
-  if (p == 0) panic( "GC_alloc_atomic_uncollectable returned 0!" );
-  return p;
+  return GC_malloc_atomic_uncollectable( nbytes );
 }
 
 void gclib_free( void *p, int nbytes )
