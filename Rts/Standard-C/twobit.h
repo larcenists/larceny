@@ -16,11 +16,12 @@
 #ifndef TWOBIT_H
 #define TWOBIT_H
 
-#define MC_DEBUG          0
+#define MC_DEBUG          0     /* Turn on some debugging code (slow) */
 
 #define USE_CACHED_STATE  0	/* Experimental; works; must benchmark. */
 #define MC_DEBUG_CACHED   0	/* Use this the first time around! */
 
+#include <string.h>
 #include "macros.h"
 #include "cdefs.h"
 #include "millicode.h"
@@ -31,16 +32,24 @@
 extern cont_t twobit_cont_label;
 #endif
 
-#define SECOND   globals[ G_SECOND ]
-#define THIRD    globals[ G_THIRD ]
-#define TIMER    globals[ G_TIMER ]
-#define STKP     globals[ G_STKP ]
-#define STKLIM   globals[ G_STKLIM ]
+#define SECOND                    globals[ G_SECOND ]
+#define THIRD                     globals[ G_THIRD ]
+#define TIMER                     globals[ G_TIMER ]
+#define STKP                      globals[ G_STKP ]
+#define STKLIM                    globals[ G_STKLIM ]
 
-#if USE_CACHED_STATE
-  /* Cache the value of RESULT */
-# if MC_DEBUG_CACHED
-   /* Keep a state of cached or not and check on every save and restore */
+#if USE_GOTOS_LOCALLY
+# define twobit_prologue()       switch (ENTRY_LABEL) {  case 0 :
+# define RESULT                  globals[ G_RESULT ]
+# define SAVE_STATE()            (void)0
+# define RESTORE_STATE()         (void)0
+# define twobit_epilogue() \
+      default: panic_abort( "Bad case: %d", ENTRY_LABEL ); \
+               RETURN_RTYPE(0); \
+      }
+#else
+#if USE_CACHED_STATE     /* Cache the value of RESULT */
+# if MC_DEBUG_CACHED     /* Keep cache state and check it */ 
    extern int twobit_cache_state;
 #  define twobit_prologue()       word RESULT_; RESTORE_STATE()
 #  define RESULT                  RESULT_
@@ -52,28 +61,41 @@ extern cont_t twobit_cont_label;
     do { assert( !twobit_cache_state ); RESULT_ = globals[ G_RESULT ]; \
          twobit_cache_state=1; \
     } while(0)
-# else
-   /* Fast, non-checking code */
+# else                   /* Fast, non-checking code */
 #  define twobit_prologue()       word RESULT_; RESTORE_STATE()
 #  define RESULT                  RESULT_
 #  define SAVE_STATE()            globals[ G_RESULT ] = RESULT_
 #  define RESTORE_STATE()         RESULT_ = globals[ G_RESULT ]
 # endif
-#else
-  /* Do not cache value of RESULT */
+#else                    /* Do not cache value of RESULT */
 # define twobit_prologue()       (void)0
 # define RESULT                  globals[ G_RESULT ]
 # define SAVE_STATE()            (void)0
 # define RESTORE_STATE()         (void)0
 #endif
+#define twobit_epilogue()        (void)0
+#endif
 
-#define WITH_SAVED_STATE( x ) \
+#define PASTE( x, y )  x ## y
+#define MKLABEL( n )   PASTE( L, n )
+
+/* Save and restore cached state across a call-out */
+#define WITH_SAVED_STATE( the_call ) \
   do { SAVE_STATE(); \
-       x; \
+       the_call; \
        RESTORE_STATE(); \
   } while(0)
 
-/* Helper macros */
+/* Define UNSAFE_CODE at the head of a file (before including twobit.h) 
+   to compile without type checks.
+   */
+#ifdef UNSAFE_CODE
+# define UNSAFE_TRUE( code )     1
+# define UNSAFE_FALSE( code )    0
+#else
+# define UNSAFE_TRUE( code )     code
+# define UNSAFE_FALSE( code )    code
+#endif
 
 #if MC_DEBUG
 # define integrity_check( name ) \
@@ -82,11 +104,11 @@ extern cont_t twobit_cont_label;
 # define integrity_check( name ) (void)0
 #endif
 
-#define reg( k )       globals[ G_REG0+(k) ]
-#define stack( k )     *((word*)STKP + (k))
-#define get_const( k ) *vec_addr( *proc_addr( reg(0), IDX_PROC_CONST ), k )
-#define setcc( cond )  RESULT = ((cond) ? TRUE_CONST : FALSE_CONST)
-#define framesize( n ) (n+2)	/* not STK_OVERHEAD -- counts header also */
+#define reg( k )            globals[ G_REG0+(k) ]
+#define stack( k )          *((word*)STKP + (k))
+#define get_const( k )      *vec_addr( *proc_addr( reg(0), IDX_PROC_CONST ), k )
+#define setcc( cond )       RESULT = ((cond) ? TRUE_CONST : FALSE_CONST)
+#define framesize( n )      (n+2) /* not STK_OVERHEAD -- counts header also */
 #define realframesize( n )  roundup_walign(framesize(n)+1)
 
 #define word_addr( x, tag, header_words, fixnum_offset ) \
@@ -95,8 +117,8 @@ extern cont_t twobit_cont_label;
 #define byte_addr( x, tag, header_words, fixnum_offset ) \
   ((byte*)(x)+((header_words)*sizeof(word)-(tag))+((fixnum_offset)>>2))
 
-#define car_addr( x )  word_addr( x, PAIR_TAG, 0, fixnum(0) )
-#define cdr_addr( x )  word_addr( x, PAIR_TAG, 0, fixnum(1) )
+#define car_addr( x )     word_addr( x, PAIR_TAG, 0, fixnum(0) )
+#define cdr_addr( x )     word_addr( x, PAIR_TAG, 0, fixnum(1) )
 #define vec_addr( x, y )  word_addr( x, VEC_TAG, VEC_HEADER_WORDS, fixnum(y) )
 #define proc_addr( x, y ) word_addr( x, PROC_TAG, PROC_HEADER_WORDS, fixnum(y))
 
@@ -112,7 +134,7 @@ extern cont_t twobit_cont_label;
 #define make_vectorish( header_words, excode, header, ptrtag, init ) \
    do { int n; word *p; \
         SECOND = init; \
-        if (nonnegative_fixnum( RESULT )) { \
+        if (UNSAFE_TRUE(nonnegative_fixnum( RESULT ))) { \
           n = RESULT; \
           RESULT = n + fixnum( header_words ); \
           WITH_SAVED_STATE( mc_alloci( globals ) ); \
@@ -122,13 +144,25 @@ extern cont_t twobit_cont_label;
         } else { SAVE_STATE(); mc_exception( globals, excode ); } \
    } while(0)
 
+#if USE_GOTOS_LOCALLY
+# define CONT_LOCAL( k_numeric, k_symbolic )  ((cont_t)k_numeric)
 
-#define implicit_label( e, k ) \
-   WITH_SAVED_STATE( e ); twobit_skip( k ); \
+# define twobit_label( k_numeric, k_symbolic ) \
+   case k_numeric : MKLABEL(k_numeric) :
+#else
+# define CONT_LOCAL( k_numeric, k_symbolic )  ((cont_t)k_symbolic)
+
+# define twobit_label( k_numeric, k_symbolic ) \
+   twobit_skip( k_numeric, k_symbolic ); \
    } /* END OF PROCEDURE */ \
    /* NOW START NEW PROCEDURE */ \
-   static RTYPE k( CONT_PARAMS ) { \
+   static RTYPE k_symbolic( CONT_PARAMS ) { \
      twobit_prologue(); 
+#endif
+
+#define implicit_label( e, k_numeric, k_symbolic ) \
+   WITH_SAVED_STATE( e ); \
+   twobit_label( k_numeric, k_symbolic ) 
 
 /* From MIPS R4000 manual: Signed add with overflow detection.
 
@@ -141,18 +175,18 @@ extern cont_t twobit_cont_label;
    bltz t3, L
 1:
 */
-#define twobit_add( x, y, k ) /* addition */ \
+#define twobit_add( x, y, kn, k ) /* addition */ \
    do { word a = x, b = y; \
         if (both_fixnums( a, b )) { \
           word res = a + b; \
           if ((s_word)(a ^ b) < 0 || (s_word)(res ^ a) >= 0) { \
             RESULT = res; \
-            twobit_skip(k); \
+            twobit_skip(kn,k); \
           } \
         } \
         SECOND = b; \
    } while(0); \
-   implicit_label( mc_add( globals, (cont_t)k ), k )
+   implicit_label( mc_add( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 /* From MIPS R4000 manual: Signed subtract with overflow detection.
 
@@ -165,29 +199,29 @@ extern cont_t twobit_cont_label;
    bltz t3, L
 1:
 */
-#define twobit_subtract( x, y, k ) /* subtraction */ \
+#define twobit_subtract( x, y, kn, k ) /* subtraction */ \
    do { word a = x, b = y; \
 	if (both_fixnums( a, b )) { \
           word res = a - b; \
           if ((s_word)(a ^ b) >= 0 || (s_word)(res ^ a) >= 0) { \
             RESULT = res; \
-            twobit_skip(k); \
+            twobit_skip(kn,k); \
           } \
         } \
         SECOND = b; \
    } while(0); \
-   implicit_label( mc_sub( globals, (cont_t)k ), k )
+   implicit_label( mc_sub( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 /* Comparison (=, <, <=, >, >=) */
-#define twobit_compare( x, y, op, generic, k ) /* numeric comparison */ \
+#define twobit_compare( x, y, op, generic, kn, k ) /* numeric comparison */ \
   do { word a = x, b = y; \
        if (both_fixnums( a, b )) { \
          setcc( (int)a op (int)b ); \
-         twobit_skip( k ); \
+         twobit_skip( kn, k ); \
        } \
        SECOND = b; \
   } while(0); \
-  implicit_label( generic( globals, (cont_t)k ), k )
+  implicit_label( generic( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 
 /* Twobit instructions */
@@ -199,7 +233,14 @@ extern cont_t twobit_cont_label;
   RESULT = get_const( k ); integrity_check( "const" )
 
 #define twobit_global( k ) \
-  RESULT = global_cell_ref( get_const( k ) ); integrity_check( "global" )
+  do {  word cell = get_const( k ), \
+             x = RESULT = global_cell_ref( cell ); \
+        if (UNSAFE_FALSE( x == UNDEFINED_CONST)) { \
+	  RESULT = cell; SAVE_STATE(); \
+	  mc_exception( globals, EX_UNDEF_GLOBAL ); \
+	} \
+        integrity_check( "global" ); \
+  } while(0)
 
 #define twobit_setglbl( k ) \
   do { word b=SECOND=RESULT; \
@@ -245,7 +286,7 @@ extern cont_t twobit_cont_label;
   } while(0)
 
 #define twobit_argseq( n ) \
-   do { if (RESULT != fixnum(n)) { \
+   do { if (UNSAFE_FALSE(RESULT != fixnum(n))) { \
           SAVE_STATE(); mc_exception( globals, EX_ARGSEQ ); \
         } \
         integrity_check( "argseq" ); \
@@ -253,7 +294,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_argsge( n ) \
    do { SECOND=fixnum(n); \
-        if (RESULT < fixnum(n)) { \
+        if (UNSAFE_FALSE(RESULT < fixnum(n))) { \
           SAVE_STATE(); mc_exception( globals, EX_ARGSGE ); \
         } \
         else WITH_SAVED_STATE( mc_restargs( globals ) ); \
@@ -319,14 +360,40 @@ extern cont_t twobit_cont_label;
        integrity_check( "save" ); \
   } while (0)
 
-#define twobit_setrtn( L )  \
-  do { stack( STK_RETURN ) = (word) L; \
-       integrity_check( "setrtn" ); \
-  } while(0)
+#if USE_GOTOS_LOCALLY
+# define twobit_setrtn( L_numeric, L_symbolic )  \
+   do { stack( STK_RETURN ) = ((word) L_numeric) << 2; \
+        integrity_check( "setrtn" ); \
+   } while(0)
+#else
+# define twobit_setrtn( L_numeric, L_symbolic )  \
+   do { stack( STK_RETURN ) = (word) L_symbolic; \
+        integrity_check( "setrtn" ); \
+   } while(0)
+#endif
 
-#define twobit_return()  twobit_skip( ((cont_t)stack( STK_RETURN )) )
+#if USE_GOTOS_LOCALLY
+# define twobit_return() \
+   reg(0) = (word)stack( STK_REG0 ); \
+   nonlocal_control_transfer( (cont_t)(stack( STK_RETURN ) >> 2) )
+#else
+# define twobit_return() \
+   twobit_skip( -1, ((cont_t)stack( STK_RETURN )) )
+#endif
 
-#define twobit_invoke( n ) \
+#if USE_GOTOS_LOCALLY
+# define twobit_invoke( n ) \
+   do { word a=RESULT; \
+        if (tagof(a) != PROC_TAG) { \
+          SAVE_STATE(); mc_exception( globals, EX_NONPROC ); \
+        } \
+        reg(0) = a; \
+        RESULT = fixnum(n); \
+        integrity_check( "invoke" ); \
+        nonlocal_control_transfer( 0 ); \
+   } while(0)
+#else 
+# define twobit_invoke( n ) \
   do { cont_t invL; word a=RESULT; \
        if (tagof(a) != PROC_TAG) { \
          SAVE_STATE(); mc_exception( globals, EX_NONPROC ); \
@@ -335,54 +402,101 @@ extern cont_t twobit_cont_label;
        reg(0) = a; \
        RESULT = fixnum(n); \
        integrity_check( "invoke" ); \
-       twobit_branch( invL ); \
-  } while(0)
+        twobit_branch( -1, invL ); \
+   } while(0)
+#endif
 
-#define twobit_apply( k, l ) \
+#if USE_GOTOS_LOCALLY
+# define twobit_apply( k, l ) \
+   do { SECOND=reg(k); THIRD=reg(l); \
+        WITH_SAVED_STATE( mc_apply( globals ) ); /* Sets up REG0 */ \
+        integrity_check( "apply" ); \
+        nonlocal_control_transfer( 0 ); \
+   } while (0)
+#else
+# define twobit_apply( k, l ) \
   do { cont_t appL = (cont_t)*proc_addr( RESULT, IDX_PROC_CODE ); \
        SECOND=reg(k); THIRD=reg(l); \
        WITH_SAVED_STATE( mc_apply( globals ) ); \
        integrity_check( "apply" ); \
-       twobit_branch( appL ); \
-  } while (0)
-
-#define twobit_jump( n, L ) \
-  do { int i; word p=reg(0); \
-       for ( i=n ; i > 0 ; i-- ) p=*proc_addr( p, IDX_PROC_REG0 );\
-       reg(0) = p; \
-       integrity_check( "jump" ); \
-       twobit_branch( L ); \
-  } while(0)
-
-/* Pure control transfer */
-#if USE_LONGJUMP
-# define twobit_skip( L ) \
-  do { if (--TIMER == 0) { \
-         WITH_SAVED_STATE( mc_timer_exception( globals, L ) ); \
-       } \
-       else { SAVE_STATE(); L( CONT_ACTUALS ); } \
-  } while (0)
-#elif USE_RETURN_WITH_VALUE
-# define twobit_skip( L ) \
-  do { SAVE_STATE(); return (cont_t)L; } while(0)
-#elif USE_RETURN_WITHOUT_VALUE 
-# define twobit_skip( L ) \
-  do { twobit_cont_label = (cont_t)L; SAVE_STATE(); return; } while(0)
+        twobit_branch( -1, appL ); \
+   } while (0)
 #endif
 
-#if USE_LONGJUMP
-# define twobit_branch( L )  twobit_skip( L )
+#if USE_GOTOS_LOCALLY
+# define twobit_jump( n, L_numeric, L_symbolic ) \
+   do { int i; word p=reg(0); \
+        for ( i=n ; i > 0 ; i-- ) p=*proc_addr( p, IDX_PROC_REG0 );\
+        reg(0) = p; \
+        integrity_check( "jump" ); \
+        nonlocal_control_transfer( L_numeric ); \
+   } while(0)
 #else
-# define twobit_branch( L ) \
+# define twobit_jump( n, L_numeric, L_symbolic ) \
+   do { int i; word p=reg(0); \
+        for ( i=n ; i > 0 ; i-- ) p=*proc_addr( p, IDX_PROC_REG0 );\
+        reg(0) = p; \
+        integrity_check( "jump" ); \
+        twobit_branch( L_numeric, L_symbolic ); \
+   } while(0)
+#endif
+
+#if USE_GOTOS_LOCALLY
+#  if USE_LONGJUMP
+#    define nonlocal_control_transfer( L ) \
   do { if (--TIMER == 0) \
          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
-       integrity_check( "branch" ); \
-       twobit_skip( L ); \
-  } while(0)
+            ((codeptr_t)(procedure_ref(reg(0),0)))( globals, L ); \
+       } while(0)
+#  elif USE_RETURN_WITH_VALUE
+#    define nonlocal_control_transfer( L ) \
+       do { SAVE_STATE(); return (cont_t)L; } while(0)
+#  elif USE_RETURN_WITHOUT_VALUE
+#    define nonlocal_control_transfer( L ) \
+       do { twobit_cont_label = (cont_t)L; SAVE_STATE(); return; } while(0)
+#  endif
 #endif
 
-#define twobit_branchf( L ) \
-  if (RESULT == FALSE_CONST) twobit_branch( L )
+#if USE_GOTOS_LOCALLY
+# define twobit_branch( L_numeric, L_symbolic ) \
+   do { integrity_check( "branch" ); \
+        if (--TIMER == 0) \
+          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_numeric ) ); \
+        goto MKLABEL( L_numeric ); \
+   } while(0)
+#else 
+# if USE_LONGJUMP
+#  define twobit_branch   twobit_skip
+# else
+# define twobit_branch( L_numeric, L_symbolic ) \
+   do { integrity_check( "branch" ); \
+        if (--TIMER == 0) \
+          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_symbolic ) ); \
+        twobit_skip( L_numeric, L_symbolic ); \
+   } while(0)
+# endif
+#endif
+
+#define twobit_branchf( L_numeric, L_symbolic ) \
+  if (RESULT == FALSE_CONST) twobit_branch( L_numeric, L_symbolic )
+
+#if USE_GOTOS_LOCALLY
+# define twobit_skip( L_numeric, L_symbolic )  goto MKLABEL( L_numeric )
+#else
+# if USE_LONGJUMP
+#  define twobit_skip( L_numeric, L_symbolic ) \
+    if (--TIMER == 0) \
+      WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_symbolic ) ); \
+    else \
+      L_symbolic( CONT_ACTUALS )
+# elif USE_RETURN_WITH_VALUE
+#  define twobit_skip( L_numeric, L_symbolic ) \
+    do { SAVE_STATE(); return (cont_t)L_symbolic; } while(0)
+# elif USE_RETURN_WITHOUT_VALUE 
+#  define twobit_skip( L_numeric, L_symbolic ) \
+    do { twobit_cont_label = (cont_t)L_symbolic; SAVE_STATE(); return; } while(0)
+# endif
+#endif
 
 
 /* Primitives */
@@ -399,11 +513,11 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_5() /* eof-object -- really 0 args */ \
    RESULT = EOF_CONST
 
-#define twobit_op1_6( k ) /* enable-interrupts */ \
-   implicit_label( mc_enable_interrupts( globals, (cont_t)k ), k )
+#define twobit_op1_6( kn, k ) /* enable-interrupts */ \
+   implicit_label( mc_enable_interrupts( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op1_7( k ) /* disable-interrupts -- really 0 args */ \
-   implicit_label( mc_disable_interrupts( globals, (cont_t)k ), k )
+#define twobit_op1_7( kn, k ) /* disable-interrupts -- really 0 args */ \
+   implicit_label( mc_disable_interrupts( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 #define twobit_op1_8() /* typetag */ \
    WITH_SAVED_STATE( mc_typetag( globals ) )
@@ -428,13 +542,15 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_15() /* car */ \
    do { word a=RESULT; \
-	if (tagof( a ) == PAIR_TAG) RESULT = *car_addr( a ); \
+	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) \
+	  RESULT = *car_addr( a ); \
         else { SAVE_STATE(); mc_exception( globals, EX_CAR ); } \
    } while(0)
 
 #define twobit_op1_16() /* cdr */ \
    do { word a=RESULT; \
-        if (tagof( a ) == PAIR_TAG) RESULT = *cdr_addr( a ); \
+        if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) \
+          RESULT = *cdr_addr( a ); \
         else { SAVE_STATE(); mc_exception( globals, EX_CDR ); } \
    } while(0)
 
@@ -471,28 +587,29 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_26() /* inexact? */ \
    WITH_SAVED_STATE( mc_inexactp( globals ) )
 
-#define twobit_op1_27( k ) /* exact->inexact */ \
-   implicit_label( mc_exact2inexact( globals, (cont_t)k ), k )
+#define twobit_op1_27( kn, k ) /* exact->inexact */ \
+   implicit_label( mc_exact2inexact( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op1_28( k ) /* inexact->exact */ \
-   implicit_label( mc_inexact2exact( globals, (cont_t)k ), k )
+#define twobit_op1_28( kn, k ) /* inexact->exact */ \
+   implicit_label( mc_inexact2exact( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op1_29( k ) /* round */ \
-   implicit_label( mc_round( globals, (cont_t)k ), k )
+#define twobit_op1_29( kn, k ) /* round */ \
+   implicit_label( mc_round( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op1_30( k ) /* truncate */ \
-   implicit_label( mc_truncate( globals, (cont_t)k ), k )
+#define twobit_op1_30( kn, k ) /* truncate */ \
+   implicit_label( mc_truncate( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 /* Note: label not actually used; millicode handles everything */
-#define twobit_op1_31( k ) /* zero? */ \
+#define twobit_op1_31( kn, k ) /* zero? */ \
    WITH_SAVED_STATE( mc_zerop( globals ) )
 
-#define twobit_op1_32( k ) /* -- */ \
-   implicit_label( mc_neg( globals, (cont_t)k ), k )
+#define twobit_op1_32( kn, k ) /* -- */ \
+   implicit_label( mc_neg( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 #define twobit_op1_33() /* lognot */ \
    do { word a=RESULT; \
-        if (is_fixnum(a)) RESULT = ~a & ~3; \
+        if (UNSAFE_TRUE(is_fixnum(a))) \
+          RESULT = ~a & ~3; \
         else { SAVE_STATE(); mc_exception( globals, EX_LOGNOT ); } \
    } while(0)
 
@@ -507,13 +624,15 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_37() /* char->integer */ \
    do { word a=RESULT; \
-        if (is_char(a)) RESULT = charcode_as_fixnum(a); \
+        if (UNSAFE_TRUE(is_char(a))) \
+          RESULT = charcode_as_fixnum(a); \
         else { SAVE_STATE(); mc_exception( globals, EX_CHAR2INT ); } \
    } while(0)
 
 #define twobit_op1_38() /* integer->char */ \
    do { word a=RESULT; \
-        if (is_fixnum(a)) RESULT = fixnum_to_char(a); \
+        if (UNSAFE_TRUE(is_fixnum(a))) \
+          RESULT = fixnum_to_char(a); \
         else { SAVE_STATE(); mc_exception( globals, EX_INT2CHAR ); } \
    } while(0)
 
@@ -522,7 +641,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_40() /* string-length */ \
    do { word h, a=RESULT; \
-        if (double_tag_test( a, BVEC_TAG, STR_HDR, h )) \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, STR_HDR, h ))) \
           RESULT = sizefield(h) << 2; \
         else { SAVE_STATE(); mc_exception( globals, EX_STRING_LENGTH ); }\
         integrity_check( "string-length" ); \
@@ -533,7 +652,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_42() /* vector-length */ \
    do { word h, a=RESULT; \
-        if (double_tag_test( a, VEC_TAG, VECTOR_HDR, h )) \
+        if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ))) \
           RESULT = h >> 8; \
         else { SAVE_STATE(); mc_exception( globals, EX_VECTOR_LENGTH ); }\
         integrity_check( "vector-length" ); \
@@ -544,7 +663,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_44() /* bytevector-length */ \
    do { word h, a=RESULT; \
-        if (double_tag_test( a, BVEC_TAG, BYTEVECTOR_HDR, h )) \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, BYTEVECTOR_HDR, h ))) \
           RESULT = fixnum(sizefield(h)); \
         else { SAVE_STATE(); \
 	       mc_exception( globals, EX_BYTEVECTOR_LENGTH ); } \
@@ -553,7 +672,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_45( y ) /* bytevector-fill! */ \
    do { word b=SECOND=reg(y); \
-        if (tagof( RESULT ) == BVEC_TAG && is_fixnum( b )) \
+        if (UNSAFE_TRUE(tagof( RESULT ) == BVEC_TAG && is_fixnum( b ))) \
           WITH_SAVED_STATE( mc_bytevector_like_fill( globals ) ); \
         else { SAVE_STATE(); mc_exception( globals, EX_BVFILL ); } \
         integrity_check( "bytevector-fill!" ); \
@@ -561,7 +680,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_46() /* make-bytevector */ \
    do { word a=RESULT, *p; \
-        if (nonnegative_fixnum(a)) { \
+        if (UNSAFE_TRUE(nonnegative_fixnum(a))) { \
           word size = a >> 2; \
 	  RESULT = a + fixnum(BVEC_HEADER_WORDS*sizeof( word )); \
 	  WITH_SAVED_STATE( mc_alloc_bv( globals ) ); \
@@ -577,7 +696,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_48() /* procedure-length */ \
    do { word a=RESULT; \
-        if (tagof( a ) == PROC_TAG) \
+        if (UNSAFE_TRUE(tagof( a ) == PROC_TAG)) \
           RESULT = sizefield(*striptag(a,PROC_TAG)) & ~3; \
         else { SAVE_STATE(); \
 	       mc_exception( globals, EX_PROCEDURE_LENGTH ); } \
@@ -613,8 +732,8 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_56( y ) /* eq? */ \
    setcc( RESULT == reg(y) )
 
-#define twobit_op2_57( y, k ) /* eqv? */ \
-   implicit_label( SECOND = reg(y); mc_eqv( globals, (cont_t)k ), k )
+#define twobit_op2_57( y, kn, k ) /* eqv? */ \
+   implicit_label( SECOND = reg(y); mc_eqv( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 #define twobit_op2_58( y ) /* cons */ \
    do { word *p; \
@@ -630,7 +749,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_59( y ) /* set-car! */ \
    do { word a=RESULT, b=SECOND=reg(y); \
-	if (tagof( a ) == PAIR_TAG) { \
+	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) { \
 	  *car_addr( a ) = b; \
 	  WITH_SAVED_STATE( mc_full_barrier( globals ) ); \
         } \
@@ -639,46 +758,46 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_60( y ) /* set-cdr! */ \
    do { word a=RESULT, b=SECOND=reg(y); \
-	if (tagof( a ) == PAIR_TAG) { \
+	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) { \
 	  *cdr_addr( a ) = b; \
 	  WITH_SAVED_STATE( mc_full_barrier( globals ) ); \
         } \
 	else { SAVE_STATE(); mc_exception( globals, EX_SETCDR ); } \
    } while(0)
 
-#define twobit_op2_61( y, k ) /* + */ \
-   twobit_add( RESULT, reg( y ), k )
+#define twobit_op2_61( y, kn, k ) /* + */ \
+   twobit_add( RESULT, reg( y ), kn, k )
 
-#define twobit_op2_62( y, k ) /* - */ \
-   twobit_subtract( RESULT, reg( y ), k )
+#define twobit_op2_62( y, kn, k ) /* - */ \
+   twobit_subtract( RESULT, reg( y ), kn, k )
 
-#define twobit_op2_63( y, k ) /* * */ \
-   implicit_label( SECOND = reg(y); mc_mul( globals, (cont_t)k ), k )
+#define twobit_op2_63( y, kn, k ) /* * */ \
+   implicit_label( SECOND = reg(y); mc_mul( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op2_64( y, k ) /* / */ \
-   implicit_label( SECOND = reg(y); mc_div( globals, (cont_t)k ), k )
+#define twobit_op2_64( y, kn, k ) /* / */ \
+   implicit_label( SECOND = reg(y); mc_div( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op2_65( y, k ) /* quotient */ \
-   implicit_label( SECOND = reg(y); mc_quo( globals, (cont_t)k ), k )
+#define twobit_op2_65( y, kn, k ) /* quotient */ \
+   implicit_label( SECOND = reg(y); mc_quo( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op2_66( y, k ) /* < */ \
-  twobit_compare( RESULT, reg(y), <, mc_lessp, k )
+#define twobit_op2_66( y, kn, k ) /* < */ \
+  twobit_compare( RESULT, reg(y), <, mc_lessp, kn, k )
 
-#define twobit_op2_67( y, k ) /* <= */ \
-  twobit_compare( RESULT, reg(y), <=, mc_less_or_equalp, k )
+#define twobit_op2_67( y, kn, k ) /* <= */ \
+  twobit_compare( RESULT, reg(y), <=, mc_less_or_equalp, kn, k )
 
-#define twobit_op2_68( y, k ) /* = */ \
-  twobit_compare( RESULT, reg(y), ==, mc_equalp, k )
+#define twobit_op2_68( y, kn, k ) /* = */ \
+  twobit_compare( RESULT, reg(y), ==, mc_equalp, kn, k )
 
-#define twobit_op2_69( y, k ) /* > */ \
-  twobit_compare( RESULT, reg(y), >, mc_greaterp, k )
+#define twobit_op2_69( y, kn, k ) /* > */ \
+  twobit_compare( RESULT, reg(y), >, mc_greaterp, kn, k )
 
-#define twobit_op2_70( y, k ) /* >= */ \
-  twobit_compare( RESULT, reg(y), >=, mc_greater_or_equalp, k )
+#define twobit_op2_70( y, kn, k ) /* >= */ \
+  twobit_compare( RESULT, reg(y), >=, mc_greater_or_equalp, kn, k )
 
 #define twobit_op2_71( y ) /* logand */ \
    do { word a=RESULT, b=reg(y); \
-        if (both_fixnums( a, b )) \
+        if (UNSAFE_TRUE(both_fixnums( a, b ))) \
           RESULT = (a & b); \
         else { SECOND=reg(y); \
 	       SAVE_STATE(); mc_exception( globals, EX_LOGAND ); } \
@@ -686,7 +805,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_72( y ) /* logior */ \
    do { word a=RESULT, b=reg(y); \
-        if (both_fixnums( a, b )) \
+        if (UNSAFE_TRUE(both_fixnums( a, b ))) \
           RESULT = (a | b); \
         else { SECOND=reg(y); \
 	       SAVE_STATE(); mc_exception( globals, EX_LOGIOR ); } \
@@ -694,7 +813,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_73( y ) /* logxor */ \
    do { word a=RESULT, b=reg(y); \
-        if (both_fixnums( a, b )) \
+        if (UNSAFE_TRUE(both_fixnums( a, b ))) \
           RESULT = (a ^ b); \
         else { SECOND=reg(y); \
 	       SAVE_STATE(); mc_exception( globals, EX_LOGXOR ); } \
@@ -702,7 +821,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_74( y ) /* lsh */ \
    do { word a=RESULT, b=reg(y); \
-        if (both_fixnums( a, b ) && b < fixnum(32)) \
+        if (UNSAFE_TRUE(both_fixnums( a, b ) && b < fixnum(32))) \
           RESULT = a << (b >> 2); \
         else { SECOND=b; \
 	       SAVE_STATE(); mc_exception( globals, EX_LSH ); } \
@@ -710,7 +829,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_75( y ) /* rsha */ \
    do { word a=RESULT, b=reg(y); \
-        if (both_fixnums( a, b ) && b < fixnum(32)) \
+        if (UNSAFE_TRUE(both_fixnums( a, b ) && b < fixnum(32))) \
           RESULT = ((s_word)a >> (b >> 2)) & ~3; \
         else { SECOND=b; \
                SAVE_STATE(); mc_exception( globals, EX_RSHL ); } \
@@ -718,7 +837,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_76( y ) /* rshl */ \
    do { word a=RESULT, b=reg(y); \
-        if (both_fixnums( a, b ) && b < fixnum(32)) \
+        if (UNSAFE_TRUE(both_fixnums( a, b ) && b < fixnum(32))) \
           RESULT = (a >> (b >> 2)) & ~3; \
         else { SECOND=b; \
                SAVE_STATE(); mc_exception( globals, EX_RSHL ); } \
@@ -729,9 +848,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_78( y ) /* string-ref */ \
    do { word a=RESULT, b=reg(y), h; \
-        if (double_tag_test( a, BVEC_TAG, STR_HDR, h ) && \
-	    is_fixnum(b) && \
-	    (b >> 2) < (h >> 8)) \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, STR_HDR, h ) && \
+	                is_fixnum(b) && \
+	                (b >> 2) < (h >> 8))) \
 	 RESULT = int_to_char(*byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b));\
         else { SECOND=b; \
                SAVE_STATE(); mc_exception( globals, EX_STRING_REF ); } \
@@ -739,10 +858,10 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_79( y, z ) /* string-set! */ \
    do { word a=RESULT, b=reg(y), c=reg(z), h; \
-        if (double_tag_test( a, BVEC_TAG, STR_HDR, h ) && \
-	    is_fixnum(b) && \
-	    (b >> 2) < (h >> 8) && \
-	    is_char( c )) \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, STR_HDR, h ) && \
+	               is_fixnum(b) && \
+	               (b >> 2) < (h >> 8) && \
+	               is_char( c ))) \
 	  *byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = charcode(c); \
         else { SECOND=b; THIRD=c; \
                SAVE_STATE(); mc_exception( globals, EX_STRING_SET ); } \
@@ -753,9 +872,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_81( y ) /* vector-ref */ \
   do { word a=RESULT, b=reg(y), h; \
-       if (double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
-           is_fixnum(b) && \
-           b < (h >> 8)) \
+       if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
+                       is_fixnum(b) && \
+                       b < (h >> 8))) \
          RESULT = *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ); \
        else { SECOND=b; SAVE_STATE(); \
 	      mc_exception( globals, EX_VECTOR_REF ); } \
@@ -763,9 +882,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_82( y ) /* bytevector-ref */ \
    do { word a=RESULT, b=reg( y ), h; \
-        if (double_tag_test( a, BVEC_TAG, BV_HDR, h ) && \
-	    is_fixnum(b) && \
-	    (b >> 2) < (h >> 8)) \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, BV_HDR, h ) && \
+	                is_fixnum(b) && \
+	                (b >> 2) < (h >> 8))) \
 	  RESULT = fixnum(*byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b )); \
         else { SECOND=b; SAVE_STATE(); \
 	       mc_exception( globals, EX_BYTEVECTOR_REF ); } \
@@ -773,9 +892,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_83( y ) /* procedure-ref */ \
   do { word a=RESULT, b=reg(y); \
-       if (tagof( a ) == PROC_TAG && \
-           is_fixnum(b) && \
-           (b < (the_header( a, PROC_TAG ) >> 8))) \
+       if (UNSAFE_TRUE(tagof( a ) == PROC_TAG && \
+                       is_fixnum(b) && \
+                       (b < (the_header( a, PROC_TAG ) >> 8)))) \
         RESULT = *word_addr( a, PROC_TAG, PROC_HEADER_WORDS, b);\
        else { SECOND=b; SAVE_STATE(); \
 	      mc_exception( globals, EX_PROCEDURE_REF ); } \
@@ -789,7 +908,7 @@ extern cont_t twobit_cont_label;
 
 #define charcmp( op, y, ex ) /* generic character comparison */ \
   do { word a=RESULT, b=SECOND=reg(y); \
-       if (is_char(a) && is_char(b)) \
+       if (UNSAFE_TRUE(is_char(a) && is_char(b))) \
 	 setcc( a op b ); \
        else { SAVE_STATE(); mc_exception( globals, ex ); } \
   } while(0)
@@ -814,9 +933,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_91( y, z ) /* vector-set! */ \
   do { word a=RESULT, b=reg(y), c=reg(z), h; \
-       if (double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
-           is_fixnum(b) && \
-           b < (h >> 8)) { \
+       if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
+                       is_fixnum(b) && \
+                       b < (h >> 8))) { \
          *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) = c; \
          SECOND = c; \
 	 WITH_SAVED_STATE( mc_full_barrier( globals ) ); \
@@ -827,20 +946,20 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_92( y, z ) /* bytevector-set! */ \
    do { word h, a=RESULT, b=reg( y ), c=reg( z ); \
-        if (double_tag_test( a, BVEC_TAG, BV_HDR, h ) && \
-	    both_fixnums( b, c ) && \
-            (b >> 2) < (h >> 8) && \
-	    c < fixnum(256)) \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, BV_HDR, h ) && \
+	                both_fixnums( b, c ) && \
+                        (b >> 2) < (h >> 8) && \
+	                c < fixnum(256))) \
 	  *byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = (c >> 2); \
         else { SECOND=b; THIRD=c; SAVE_STATE(); \
                mc_exception( globals, EX_BYTEVECTOR_SET ); } \
    } while(0)
 
 #define twobit_op3_93( y, z ) /* procedure-set! */ \
-  do { word a=RESULT, b=reg(y), c=reg(z), h; \
-       if (tagof( a ) == PROC_TAG && \
-           is_fixnum(b) && \
-           (b < (the_header( a, PROC_TAG ) >> 8))) { \
+  do { word a=RESULT, b=reg(y), c=reg(z); \
+       if (UNSAFE_TRUE(tagof( a ) == PROC_TAG && \
+                       is_fixnum(b) && \
+                       (b < (the_header( a, PROC_TAG ) >> 8)))) { \
          *word_addr(a, PROC_TAG, PROC_HEADER_WORDS, b) = c; \
          SECOND=c; \
 	 WITH_SAVED_STATE( mc_full_barrier( globals ) ); \
@@ -857,9 +976,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_96( y ) /* bytevector-like-ref */ \
    do { word a=RESULT, b=reg( y ); \
-        if (tagof( a ) == BVEC_TAG && \
-	    is_fixnum(b) && \
-	    ((b >> 2) < (the_header( a, BVEC_TAG ) >> 8))) \
+        if (UNSAFE_TRUE(tagof( a ) == BVEC_TAG && \
+	                is_fixnum(b) && \
+	                ((b >> 2) < (the_header( a, BVEC_TAG ) >> 8)))) \
 	  RESULT = fixnum(*byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b )); \
         else { SECOND=b; SAVE_STATE(); \
 	       mc_exception( globals, EX_BYTEVECTOR_LIKE_REF ); } \
@@ -867,10 +986,10 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_97( y, z ) /* bytevector-like-set! */ \
    do { word a=RESULT, b=reg( y ), c=reg( z ); \
-        if (tagof( a ) == BVEC_TAG && \
+        if (UNSAFE_TRUE(tagof( a ) == BVEC_TAG && \
 	    both_fixnums( b, c ) && \
 	    ((b >> 2) < (the_header( a, BVEC_TAG ) >> 8)) && \
-	    c < fixnum(256)) \
+	                c < fixnum(256))) \
 	  *byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = (c >> 2); \
         else { SECOND=b; THIRD=c; SAVE_STATE(); \
                mc_exception( globals, EX_BYTEVECTOR_LIKE_SET ); } \
@@ -881,9 +1000,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_99( y ) /* vector-like-ref */ \
   do { word a=RESULT, b=reg(y); \
-       if (tagof( a ) == VEC_TAG && \
-           is_fixnum(b) && \
-           (b < (the_header( a, VEC_TAG ) >> 8))) \
+       if (UNSAFE_TRUE(tagof( a ) == VEC_TAG && \
+                       is_fixnum(b) && \
+                       (b < (the_header( a, VEC_TAG ) >> 8)))) \
          RESULT = *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ); \
        else { SECOND=b; SAVE_STATE(); \
 	      mc_exception( globals, EX_VECTOR_LIKE_REF ); } \
@@ -891,9 +1010,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_100( y, z ) /* vector-like-set! */ \
   do { word a=RESULT, b=reg(y), c=reg(z); \
-       if (tagof( a ) == VEC_TAG && \
-           is_fixnum(b) && \
-           (b < (the_header( a, VEC_TAG ) >> 8))) { \
+       if (UNSAFE_TRUE(tagof( a ) == VEC_TAG && \
+                       is_fixnum(b) && \
+                       (b < (the_header( a, VEC_TAG ) >> 8)))) { \
          *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) = c; \
 	 SECOND=c; \
 	 WITH_SAVED_STATE( mc_full_barrier( globals ) ); \
@@ -904,7 +1023,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_101() /* vector-like-length */ \
    do { word a=RESULT; \
-        if (tagof(a) == VEC_TAG) \
+        if (UNSAFE_TRUE(tagof(a) == VEC_TAG)) \
           RESULT = sizefield( the_header( a, VEC_TAG ) ); \
         else { SAVE_STATE(); \
 	       mc_exception( globals, EX_VECTOR_LIKE_LENGTH ); } \
@@ -912,20 +1031,20 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_102() /* bytevector-like-length */ \
    do { word a=RESULT; \
-        if (tagof(a) == BVEC_TAG) \
+        if (UNSAFE_TRUE(tagof(a) == BVEC_TAG)) \
           RESULT = fixnum( sizefield( the_header( a, BVEC_TAG ) ) ); \
         else { SAVE_STATE(); \
 	       mc_exception( globals, EX_BYTEVECTOR_LIKE_LENGTH ); } \
    } while(0)
 
-#define twobit_op2_103( y, k ) /* remainder */ \
-   implicit_label( SECOND = reg(y); mc_rem( globals, (cont_t)k ), k )
+#define twobit_op2_103( y, kn, k ) /* remainder */ \
+   implicit_label( SECOND = reg(y); mc_rem( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 #define twobit_op1_104() /* petit-patch-boot-code */ \
    WITH_SAVED_STATE( mc_petit_patch_boot_code( globals ) )
 
-#define twobit_op1_105( k ) /* syscall */ \
-  implicit_label( mc_syscall( globals, (cont_t)k ), k )
+#define twobit_op1_105( kn, k ) /* syscall */ \
+  implicit_label( mc_syscall( globals, CONT_LOCAL(kn,k) ), kn, k )
 
 #define twobit_op1_106() /* creg -- really 0 args */ \
   WITH_SAVED_STATE( mc_capture_continuation( globals ) )
@@ -939,7 +1058,7 @@ extern cont_t twobit_cont_label;
 /* FIXME: wrong error code. */
 #define twobit_op2_109( y ) /* make-string */ \
    do { word a=RESULT, b=reg(y), *p; \
-        if (nonnegative_fixnum(a) && is_char(b)) { \
+        if (UNSAFE_TRUE(nonnegative_fixnum(a) && is_char(b))) { \
           word size = a >> 2; \
 	  RESULT = a + fixnum(BVEC_HEADER_WORDS*sizeof( word )); \
 	  WITH_SAVED_STATE( mc_alloc_bv( globals ) ); \
@@ -958,30 +1077,30 @@ extern cont_t twobit_cont_label;
 #define twobit_op2imm_129( y ) /* eq? */ \
   setcc( RESULT == y )
 
-#define twobit_op2imm_130( y, k ) /* + */ \
-  twobit_add( RESULT, y, k )
+#define twobit_op2imm_130( y, kn, k ) /* + */ \
+  twobit_add( RESULT, y, kn, k )
 
-#define twobit_op2imm_131( y, k ) /* -  */ \
-  twobit_subtract( RESULT, y, k )
+#define twobit_op2imm_131( y, kn, k ) /* -  */ \
+  twobit_subtract( RESULT, y, kn, k )
 
-#define twobit_op2imm_132( y, k ) /* < */ \
-  twobit_compare( RESULT, y, <, mc_lessp, k )
+#define twobit_op2imm_132( y, kn, k ) /* < */ \
+  twobit_compare( RESULT, y, <, mc_lessp, kn, k )
 
-#define twobit_op2imm_133( y, k ) /* <= */ \
-  twobit_compare( RESULT, y, <=, mc_less_or_equalp, k )
+#define twobit_op2imm_133( y, kn, k ) /* <= */ \
+  twobit_compare( RESULT, y, <=, mc_less_or_equalp, kn, k )
 
-#define twobit_op2imm_134( y, k ) /* = */ \
-  twobit_compare( RESULT, y, ==, mc_equalp, k )
+#define twobit_op2imm_134( y, kn, k ) /* = */ \
+  twobit_compare( RESULT, y, ==, mc_equalp, kn, k )
 
-#define twobit_op2imm_135( y, k ) /* > */ \
-  twobit_compare( RESULT, y, >, mc_greaterp, k )
+#define twobit_op2imm_135( y, kn, k ) /* > */ \
+  twobit_compare( RESULT, y, >, mc_greaterp, kn, k )
 
-#define twobit_op2imm_136( y, k ) /* >= */ \
-  twobit_compare( RESULT, y, >=, mc_greater_or_equalp, k )
+#define twobit_op2imm_136( y, kn, k ) /* >= */ \
+  twobit_compare( RESULT, y, >=, mc_greater_or_equalp, kn, k )
 
 #define charcmp_imm( op, y, ex ) /* generic character comparison */ \
   do { word a=RESULT, b=y; \
-       if (is_char(a)) \
+       if (UNSAFE_TRUE(is_char(a))) \
 	 setcc( a op b ); \
        else { SECOND = b; SAVE_STATE(); mc_exception( globals, ex ); } \
   } while(0)
