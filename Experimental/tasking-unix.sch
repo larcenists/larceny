@@ -4,14 +4,6 @@
 ;
 ; Tasking system extensions for Unix, supporting nonblocking I/O and 
 ; a nonblocking console.
-;
-; Bug in tasking system: if we kill a task that's in I/O wait, it should
-; be removed from the set of descriptors to poll on.  Ditto for an explicit
-; unblock of a task that's in I/O wait (a useful technique for implementing
-; things like Thread.AlertWait()).
-;
-; You must load tasking.sch first because this file captures and 
-; overrides some procedures from that file.
 
 (require 'experimental/poll)
 (require 'experimental/nonblocking-console)
@@ -52,6 +44,22 @@
       (console-output-port-factory *old-console-output-port-factory*)
       (end-tasking))))
 
+(define kill
+  (let ((kill kill))
+    (lambda (task)
+      (if (not *tasking-on*) (error "Tasking is not on."))
+      (if (not (task? task)) (error "KILL: " task " is not a task."))
+      (tasking/remove-from-ioblock-if-blocked task)
+      (kill task))))
+
+(define unblock
+  (let ((unblock unblock))
+    (lambda (task)
+      (if (not *tasking-on*) (error "Tasking is not on."))
+      (if (not (task? task)) (error "UNBLOCK: " task " is not a task."))
+      (tasking/remove-from-ioblock-if-blocked task)
+      (unblock task))))
+
 ; Called in critical section.
 
 (define tasks/scheduler
@@ -82,6 +90,15 @@
              (error "Internal error in tasks/poll-for-io: " (car ready)))))))
 
 ; May be called outside critical section.
+
+(define (tasking/remove-from-ioblock-if-blocked task)
+  (tasks/without-interrupts
+   (cond ((reverse-assq task *poll-input*)
+          => (lambda (x)
+               (set! *poll-input* (remq! x *poll-input*))))
+         ((reverse-assq task *poll-output*)
+          (lambda (x)
+            (set! *poll-output* (remq! x *poll-output*)))))))
 
 (define (unix-tasks/block-for-input fd)
   (tasks/without-interrupts
