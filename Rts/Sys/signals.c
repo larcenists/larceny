@@ -16,15 +16,18 @@
 #include "larceny.h"
 #include "signals.h"
 
+
 #if defined(SUNOS4)
 static void inthandler( int, int, struct sigcontext *, char * );
 static void fpehandler( int, int, struct sigcontext *, char * );
+static void address_exception( int, int, struct sigcontext *, char * );
 int syscall_mask = 0;
 #endif
 
 #if defined(SUNOS5)
 static void inthandler( int, siginfo_t *, void * );
 static void fpehandler( int, siginfo_t *, void * );
+static void address_exception( int, siginfo_t *, void * );
 sigset_t syscall_blocked_signals;
 #endif
 
@@ -128,6 +131,26 @@ static void fpehandler( int sig, siginfo_t *siginfo, void *context )
 #endif
   }
 }
+
+#if 0
+/* Addressing exception: for SIGSEGV and SIGBUS. */
+#if defined(SUNOS4)
+static void address_exception( int, int, struct sigcontext *, char * )
+#endif
+#if defined(SUNOS5)
+static void address_exception( int, siginfo_t *, void * )
+#endif
+{
+  /* This should be handled exactly as SIGFPE -- it's a synchronous
+     exception for which the action is to abort.  We should generalize
+     the sigfpe mechanism, which shouldn't be very hard.
+     */
+#if 0
+  /* e.g. */
+  signal_synchronous_exception( context, EX_ADDRESS_ERROR );
+#endif
+}
+#endif
 
 #if defined(SUNOS5)
 void block_all_signals( sigset_t *s )  /* s may be NULL */
