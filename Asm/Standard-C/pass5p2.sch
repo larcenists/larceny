@@ -274,7 +274,7 @@
     (if (immediate-constant? (operand1 instruction))
 	(emit-text as "twobit_imm_const( ~a ); /* ~a */"
 		   (constant-value (operand1 instruction))
-		   (operand1 instruction))
+                   (operand1 instruction))
 	(emit-text as "twobit_const( ~a );"
 		   (emit-datum as (operand1 instruction))))))
 
@@ -476,10 +476,11 @@
 (define-instruction $check
   (lambda (instruction as)
     (list-instruction "check" instruction)
-    (emit-text as "twobit_check( ~a, ~a, ~a, ~a );"
+    (emit-text as "twobit_check( ~a, ~a, ~a, ~a, ~a );"
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
+               (operand4 instruction)
                (compiled-procedure as (operand4 instruction) #f))))
 
 (define-instruction $trap
@@ -490,6 +491,18 @@
                (operand2 instruction)
                (operand3 instruction)
                (operand4 instruction))))
+
+(define-instruction $const/setreg
+  (lambda (instruction as)
+    (list-instruction "const/setreg" instruction)
+    (if (immediate-constant? (operand1 instruction))
+	(emit-text as "twobit_imm_const_setreg( ~a, ~a ); /* ~a */"
+		   (constant-value (operand1 instruction))
+		   (operand2 instruction)
+                   (operand1 instruction))
+	(emit-text as "twobit_const_setreg( ~a, ~a );"
+		   (emit-datum as (operand1 instruction))
+                   (operand2 instruction)))))
 
 ; Helper procedures.
 
