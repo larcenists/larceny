@@ -1730,3 +1730,45 @@ $Id$
 
     Fixed 990706 / lth: The problem was that emit-trap!, in sparcutil.sch,
     did not convert its exception code to a fixnum.
+
+131 v0.43 (990816 / lth)
+    Priority: medium
+    Category: ASSEMBLER, LIB / correctness
+
+    These are the wrong error messages:
+
+	> (fx* (expt 2 28) 4)
+	Error: set-cdr!: 268435456 is not a pair.
+
+	> (fx+ (expt 2 28) (expt 2 28))
+	Error: exception-handler: confused about fx+
+
+	> (fx- (expt 2 28) (- (expt 2 28)))
+	Error: exception-handler: confused about fx-
+
+	> (fx-- (expt 2 29))
+	Error: exception-handler: confused about fx--
+
+    (The ordering procedures and fxnegative?, fxpositive?, fxzero? get 
+    it right.)
+
+    Diagnosis.
+
+    The disassembled code for fx+, fx-, fx-- looks right (passes the
+    right codes), so it's probably decoding that gets it wrong.  Clearly, 
+    the fix-binop and fix-unop cases in Lib/Common/ehandler.sch do not 
+    deal with overflow, so that's where the 'confused' messages come
+    from.  Also, the assembler passes the arguments 0 X for (fx-- X),
+    which is confusing.
+
+    In the case of fx*, there are _two_ errors in the fixnum-arithmetic
+    case of emit-multiply-code in Asm/Sparc/sparcprim-part1.sch.  First,
+    $ex.mul is being passed native, not as a fixnum.  Second, it should
+    be $ex.fxmul (though this code does not yet exist), passed as a 
+    fixnum, and then the exception handler must be set up to deal with
+    that eventuality.
+
+    Fixed 990816 by lth
+
+    Hacked the assembler and the error handler as described above.
+
