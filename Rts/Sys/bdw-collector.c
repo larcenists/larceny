@@ -320,23 +320,24 @@ static void flush_stack( gc_t *gc )
   stk_flush( data->globals, &frames, &bytes );
   k2 = data->globals[ G_CONT ];                /* handle to first frame */
 
-  first = last = 0;
-  while (k2 != k1) {
-    new = copy_object( gc, k2 );
-    if (last != 0) {
-      *(ptrof(last)+HC_DYNLINK) = new;
-      last = new;
+  if (k1 != k2) {
+    first = last = 0;
+    while (k2 != k1) {
+      new = copy_object( gc, k2 );
+      if (last != 0) {
+	*(ptrof(last)+HC_DYNLINK) = new;
+	last = new;
+      }
+      else
+	first = last = new;
+      k2 = *(ptrof(k2)+HC_DYNLINK);
     }
-    else
-      first = last = new;
-    k2 = *(ptrof(k2)+HC_DYNLINK);
+    *(ptrof(last)+HC_DYNLINK) = k1;
+    data->globals[ G_CONT ] = first;
+
+    data->frames_flushed += frames;
+    data->bytes_flushed += bytes;
   }
-  *(ptrof(last)+HC_DYNLINK) = k1;
-  data->globals[ G_CONT ] = first;
-
-  data->frames_flushed += frames;
-  data->bytes_flushed += bytes;
-
   init_stack( gc );
 }
 
