@@ -1,16 +1,22 @@
 Information about Petit Larceny on Win32
-28 July 2003 / lth
+2 August 2004 / lth
 
 
 HOW TO BUILD
 
-See HOWTO-PETIT for information about how to build Petit Larceny for
-Win32.  The only compiler known to work well is Metrowerks
-Codewarrior; I've used version 6.0.  More information about using
-Codewarrior is included below.
+See HOWTO-PETIT for information about how to build Petit Larceny in
+general.  The configuration script you use depends on the compiler:
 
-The BUILD-EXECUTABLE command usually results in warnings during
-linking; it is safe to ignore them.
+  - If you are using a native Win32 compiler, such as CodeWarrior,
+    Visual C/C++, or MinGW, then the configuration script is
+    Util/petit-win32.sch.  
+
+  - If you are using Cygwin, then the configuration script is
+    Util/petit-unix-el.sch, and in general everything behaves as
+    if you are running Larceny under Unix.
+
+For some compilers the BUILD-EXECUTABLE command can result in warnings
+during linking; it is safe to ignore them.
 
 The COMPILE-FILES command works on this platform.
 
@@ -18,7 +24,7 @@ There is a working call-out Foreign-Function Interface (FFI) to C.
 It works even from the interpreter; no C compiler is required.
 
 
-STATUS
+STATUS (old/obsolete, to be replaced)
 
 Currently compiles, loads and runs, and seems to work OK:
  - Larceny can load scheme source files and run them interpreted

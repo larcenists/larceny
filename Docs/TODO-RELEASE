@@ -64,7 +64,8 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * FFI: Does the docs reflect how it works?
 
- * Update all documentation to reflect the actual state of the system
+ * Update all documentation to reflect the actual state of the system.
+   In general, HOWTO-WIN32 has a lot of old cruft.
 
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
    of bogus, cf recent discussion on SRFI-0 list.  Should probably
