@@ -87,12 +87,10 @@
 	   (experimental set-apply-hook-extra!)
 	   ; Debugging
 	   (debugger debug)
-	   (debugger backtrace)
 	   (debugger trace)
            (debugger trace-entry)
            (debugger trace-exit)
 	   (debugger untrace)
-           (debugger break-here)
 	   (debugger break-entry)
 	   (debugger unbreak)
            (debugger install-debugger)
