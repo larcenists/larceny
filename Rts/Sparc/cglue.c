@@ -148,7 +148,6 @@ void C_varargs( void )
   word j = nativeint( globals[ G_RESULT ] );
   word n = nativeint( globals[ G_ARGREG2 ] );
   word r = 31;			                  /* Highest register # */
-  word R = 32;			                  /* # of registers */
   word *p, *q, t;
   word k, limit;
   word bytes;
