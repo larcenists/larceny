@@ -13,12 +13,12 @@
 typedef unsigned word;
 typedef int s_word;
 typedef unsigned char byte;
-typedef int bool;
+typedef enum { FALSE, TRUE } bool;
 
 /* gc_t is elaborated in gc_t.h */
 
 typedef struct gc gc_t;
-typedef enum { GC_COLLECT, GC_PROMOTE } gc_type_t;
+typedef enum { GCTYPE_COLLECT, GCTYPE_PROMOTE } gc_type_t;
 
 /* young_heap_t is elaborated in young_heap_t.h */
 
@@ -47,6 +47,7 @@ typedef struct metadata_block_t metadata_block_t;
 typedef struct np_info np_info_t;
 typedef struct sc_info sc_info_t;
 typedef struct bdw_info bdw_info_t;
+typedef struct dof_info dof_info_t;
 typedef struct nursery_info nursery_info_t;
 typedef struct gc_param gc_param_t;
 typedef struct heap_stats heap_stats_t;
