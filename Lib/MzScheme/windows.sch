@@ -293,9 +293,9 @@
     (let ((lparam (%message/lparam-int message)))
       (generic-receiver (%message/handle message)
                         (case (logand #xFFF0 (%message/wparam-int message))
-                          ((#xF060) 'close)
-                          ((#xF100) 'keymenu)
-                          (else 'unrecognized))
+                          ((#xF060) ':close)
+                          ((#xF100) ':keymenu)
+                          (else ':unrecognized))
                         (lparam/xpos lparam)
                         (lparam/ypos lparam)))))
 
@@ -331,114 +331,114 @@
     ((define-windows-message msg-name code (arg0) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 1
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 1
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 1
-             'specializers (list <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0) #f)))
+             ':arity 1
+             ':specializers (list <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 2
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 2
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set!  *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 2
-             'specializers (list <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1) #f)))
+             ':arity 2
+             ':specializers (list <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 3
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 3
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 3
-             'specializers (list <top> <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1 arg2) #f)))
+             ':arity 3
+             ':specializers (list <top> <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1 arg2) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 4
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 4
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 4
-             'specializers (list <top> <top> <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1 arg2 arg3) #f)))
+             ':arity 4
+             ':specializers (list <top> <top> <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 5
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 5
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 5
-             'specializers (list <top> <top> <top> <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4) #f)))
+             ':arity 5
+             ':specializers (list <top> <top> <top> <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4 arg5) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 6
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 6
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 6
-             'specializers (list <top> <top> <top> <top> <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5) #f)))
+             ':arity 6
+             ':specializers (list <top> <top> <top> <top> <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4 arg5 arg6) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 7
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 7
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 7
-             'specializers (list <top> <top> <top> <top> <top> <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5 arg6) #f)))
+             ':arity 7
+             ':specializers (list <top> <top> <top> <top> <top> <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5 arg6) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7) decoder)
      (define msg-name
        (let ((generic (make <generic>
-                        'arity 8
-                        'combination generic-or-combination
-                        'name 'msg-name)))
+                        ':arity 8
+                        ':combination generic-or-combination
+                        ':name 'msg-name)))
          (vector-set! *windows-message-handlers* code (decoder generic))
          (add-method generic
            (make <method>
-             'arity 8
-             'specializers (list <top> <top> <top> <top> <top> <top> <top> <top>)
-             'qualifier 'primary
-             'procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7) #f)))
+             ':arity 8
+             ':specializers (list <top> <top> <top> <top> <top> <top> <top> <top>)
+             ':qualifier ':primary
+             ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7) #f)))
          generic)))))
 
 (define-windows-message WM_NULL                   #x0000 (hwnd)
@@ -774,7 +774,7 @@
 ;
 ; ;;
 (define-windows-message WM_NCMOUSEHOVER           #x02A0 (hwnd keycode xpos ypos)
-   decode-windows-message/mouse)
+  decode-windows-message/mouse)
 (define-windows-message WM_MOUSEHOVER             #x02A1 (hwnd keycode xpos ypos)
   decode-windows-message/mouse)
 (define-windows-message WM_NCMOUSELEAVE           #x02A2 (hwnd)
@@ -861,16 +861,16 @@
 (define *exit-count* 0)
 
 (let ((method
-         (make <method>
-           'arity 1
-           'specializers (list <top>)
-           'qualifier 'primary
-           'procedure (lambda (call-next-method hwnd)
-                         (newline)
-                         (display "Elvis has left the building. ")
-                         (display *exit-count*)
-                         (set! *exit-count* (+ *exit-count* 1))
-                         #f))))
-    (add-method WM_MOUSELEAVE method)
-    (add-method WM_NCMOUSELEAVE method))
+       (make <method>
+         ':arity 1
+         ':specializers (list <top>)
+         ':qualifier ':primary
+         ':procedure (lambda (call-next-method hwnd)
+                       (newline)
+                       (display "Elvis has left the building. ")
+                       (display *exit-count*)
+                       (set! *exit-count* (+ *exit-count* 1))
+                       #f))))
+  (add-method WM_MOUSELEAVE method)
+  (add-method WM_NCMOUSELEAVE method))
 

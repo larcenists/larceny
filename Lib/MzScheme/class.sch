@@ -61,13 +61,13 @@
     '(
       (cpl)                             ; (class ...)
       (default-initargs)
-      (direct-default-initargs initarg direct-default-initargs) ; ((name form thunk) ...)
-      (direct-slots initarg direct-slots)                    ; ((name . options) ...)
-      (direct-supers initarg direct-supers)                   ; (class ...)
+      (direct-default-initargs :initarg :direct-default-initargs) ; ((name form thunk) ...)
+      (direct-slots :initarg :direct-slots)                    ; ((name . options) ...)
+      (direct-supers :initarg :direct-supers)                   ; (class ...)
       (field-initializers)              ; (proc ...)
       (getters-n-setters)               ; ((slot-name getter setter) ...)
       (initializers)                    ; (proc ...)
-      (name initarg name initvalue -anonymous-)             ; a symbol
+      (name :initarg :name :initvalue -anonymous-)             ; a symbol
       (nfields)                         ; an integer
       (serial-number)                   ; a unique integer
       (slots)                           ; ((name . options) ...)
@@ -95,10 +95,10 @@
                  (eq? class <entity-class>))
              (let* ((new      (%make-instance class
                                               (make-vector class-slot-count (undefined))))
-                    (dinitargs (getarg initargs 'direct-default-initargs '()))
-                    (dslots    (getarg initargs 'direct-slots '()))
-                    (dsupers   (getarg initargs 'direct-supers '()))
-                    (name      (getarg initargs 'name '-anonymous-))
+                    (dinitargs (getarg initargs ':direct-default-initargs '()))
+                    (dslots    (getarg initargs ':direct-slots '()))
+                    (dsupers   (getarg initargs ':direct-supers '()))
+                    (name      (getarg initargs ':name '-anonymous-))
                     (cpl     (let loop ((sups dsupers) (so-far (list new)))
                                (if (pair? sups)
                                    (loop (append (cdr sups)
@@ -139,7 +139,7 @@
                (%set-class-serial-number!      new (get-serial-number))
                (%set-class-initializers!       new '()) ; no class inits now
                (%set-class-valid-initargs!     new (append-map
-                                                    (lambda (slot) (getargs (cdr slot) 'initarg))
+                                                    (lambda (slot) (getargs (cdr slot) ':initarg))
                                                     (%class-slots new)))
                new))
             ((eq? class <generic>)
@@ -147,19 +147,19 @@
                                         uninitialized-entity-procedure
                                         (make-vector (length (%class-slots class)) (undefined)))))
                (%set-generic-methods!     new '())
-               (%set-generic-arity!       new (getarg initargs 'arity #f))
-               (%set-generic-name!        new (getarg initargs 'name '-anonymous-generic-))
-               (%set-generic-combination! new (getarg initargs 'combination #f))
+               (%set-generic-arity!       new (getarg initargs ':arity #f))
+               (%set-generic-name!        new (getarg initargs ':name '-anonymous-generic-))
+               (%set-generic-combination! new (getarg initargs ':combination #f))
                new))
             ((eq? class <method>)
              (let ((new (%make-entity class
                                       uninitialized-entity-procedure
                                       (make-vector (length (%class-slots class)) (undefined)))))
-               (%set-method-specializers! new (getarg initargs 'specializers '()))
-               (%set-method-procedure!    new (getarg initargs 'procedure #f))
-               (%set-method-qualifier!    new (getarg initargs 'qualifier 'primary))
-               (%set-method-name!         new (getarg initargs 'name '-anonymous-method-))
-               (%set-method-arity!        new (getarg initargs 'arity
+               (%set-method-specializers! new (getarg initargs ':specializers '()))
+               (%set-method-procedure!    new (getarg initargs ':procedure #f))
+               (%set-method-qualifier!    new (getarg initargs ':qualifier ':primary))
+               (%set-method-name!         new (getarg initargs ':name '-anonymous-method-))
+               (%set-method-arity!        new (getarg initargs ':arity
                                                       (make-arity-at-least 0)))
                (%set-instance/procedure!  new (method:compute-apply-method #f new))
                new))))))
@@ -379,9 +379,9 @@
                             (else <struct>)))
                (this (parameterize ((*default-object-class* #f))
                        (make <primitive-class>
-                         'name name
-                         'direct-supers (list super)
-                         'direct-default-initargs '()))))
+                         ':name name
+                         ':direct-supers (list super)
+                         ':direct-default-initargs '()))))
           (hash-table-put! struct-to-class-table stype this)
           this))))))
 
@@ -477,20 +477,20 @@
 ;;>   `<top>' (including standard Scheme values).
 (define <top>
   (make <class>
-    'direct-default-initargs '()
-    'direct-supers '()
-    'direct-slots  '()
-    'name          '<top>))
+    ':direct-default-initargs '()
+    ':direct-supers '()
+    ':direct-slots  '()
+    ':name          '<top>))
 
 ;;>> <object>
 ;;>   This is the "mother of all objects": every Ripoff object is an
 ;;>   instance of `<object>'.
 (define <object>
   (make <class>
-    'direct-default-initargs '()
-    'direct-supers (list <top>)
-    'direct-slots  '()
-    'name          '<object>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <top>)
+    ':direct-slots  '()
+    ':name          '<object>))
 
 ;;; This cluster, together with the first cluster above that defines <class>
 ;;; and sets its class, have the effect of:
@@ -507,7 +507,7 @@
 (%set-class-direct-supers!      <class> (list <object>))
 (%set-class-direct-slots!       <class> the-slots-of-a-class)
 (%set-class-field-initializers! <class> (map (lambda (s)
-                                               (let ((initvalue (getarg (cdr s) 'initvalue (undefined))))
+                                               (let ((initvalue (getarg (cdr s) ':initvalue (undefined))))
                                                  (lambda args initvalue)))
                                              the-slots-of-a-class))
 (%set-class-initializers!       <class> '())
@@ -516,7 +516,7 @@
 (%set-class-serial-number!      <class> (get-serial-number))
 (%set-class-slots!              <class> the-slots-of-a-class)
 (%set-class-valid-initargs!     <class> (append-map
-                                         (lambda (slot) (getargs (cdr slot) 'initarg))
+                                         (lambda (slot) (getargs (cdr slot) ':initarg))
                                          the-slots-of-a-class))
 
 ;;; At this point <top>, <class>, and <object> have been created and initialized.
@@ -527,10 +527,10 @@
 ;;>   this is a class of *classes*).
 (define <procedure-class>
   (make <class>
-    'direct-default-initargs '()
-    'direct-supers (list <class>)
-    'direct-slots  '()
-    'name          '<procedure-class>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <class>)
+    ':direct-slots  '()
+    ':name          '<procedure-class>))
 
 ;;>> <entity-class>
 ;;>   The class of entity classes -- generic functions and methods.  An
@@ -539,19 +539,20 @@
 ;;>   class of entity *classes* not of entities themselves.
 (define <entity-class>
   (make <class>
-    'direct-default-initargs '()
-    'direct-supers (list <procedure-class>)
-    'direct-slots  '()
-    'name          '<entity-class>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <procedure-class>)
+    ':direct-slots  '()
+    ':name          '<entity-class>))
 
 ;;>> <function>
 ;;>   The class of all applicable values: methods, generic functions, and
 ;;>   standard closures.
 (define <function>
-  (make <class> 'direct-default-initargs '()
-        'direct-supers (list <top>)
-        'direct-slots  '()
-        'name          '<function>))
+  (make <class>
+    ':direct-default-initargs '()
+    ':direct-supers (list <top>)
+    ':direct-slots  '()
+    ':name          '<function>))
 
 ;;; The two extra slots below (app-cache and singletons-list) are used to
 ;;; optimize generic invocations: app-cache holds an 'equal hash-table that
@@ -584,16 +585,16 @@
 ;;>                  `make-generic-combination' below for details
 (define <generic>
   (make <entity-class>
-    'direct-default-initargs '()
-    'direct-supers (list <object> <function>)
-    'direct-slots  '((methods)
-                     (arity initarg arity)
-                     (name  initarg name
-                            initvalue -anonymous-generic-)
-                     (combination initarg combination)
-                     (app-cache)
-                     (singletons-list))
-    'name          '<generic>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <object> <function>)
+    ':direct-slots  '((methods)
+                      (arity :initarg :arity)
+                      (name  :initarg :name
+                             :initvalue -anonymous-generic-)
+                      (combination :initarg combination)
+                      (app-cache)
+                      (singletons-list))
+    ':name          '<generic>))
 
 ;;>> <method>
 ;;>   The class of methods: objects that are similar to Scheme closures,
@@ -608,16 +609,16 @@
 ;;>   * arity:        arity
 (define <method>
   (make <entity-class>
-    'direct-default-initargs '()
-    'direct-supers (list <object> <function>)
-    'direct-slots  '((specializers initarg specializers)
-                     (procedure    initarg procedure)
-                     (qualifier    initarg qualifier
-                                   initvalue primary)
-                     (name         initarg name
-                                   initvalue -anonymous-method-)
-                     (arity        initarg arity))
-    'name          '<method>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <object> <function>)
+    ':direct-slots  '((specializers :initarg :specializers)
+                      (procedure    :initarg :procedure)
+                      (qualifier    :initarg :qualifier
+                                    :initvalue :primary)
+                      (name         :initarg :name
+                                    :initvalue -anonymous-method-)
+                      (arity        :initarg :arity))
+    ':name          '<method>))
 
 ;; Do this since compute-apply-method relies on them not changing, as well as a
 ;; zillion other places.  A method should be very similar to a lambda.
@@ -681,8 +682,8 @@
 ;;>   only difference is that in Ripoff methods can be applied directly,
 ;;>   and if `call-next-method' is used, then `no-next-method' gets `#f' for
 ;;>   the generic argument.
-(define no-applicable-method (make <generic> 'name 'no-applicable-method))
-(define no-next-method       (make <generic> 'name 'no-next-method))
+(define no-applicable-method (make <generic> ':name 'no-applicable-method))
+(define no-next-method       (make <generic> ':name 'no-next-method))
 
 (define (method:wrong-type-argument method bad-argument expected-type)
   (error
@@ -755,19 +756,19 @@
 ;; allocate-instance to prevent that from happening.
 (define <primitive-class>
   (make <class>
-    'direct-default-initargs '()
-    'direct-supers (list <class>)
-    'direct-slots  '()
-    'name          '<primitive-class>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <class>)
+    ':direct-slots  '()
+    ':name          '<primitive-class>))
 
 ;;>> <builtin>
 ;;>   The superclass of all built-in classes.
 (define <builtin>
   (make <class>
-    'direct-default-initargs '()
-    'direct-supers (list <top>)
-    'direct-slots  '()
-    'name          '<builtin>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <top>)
+    ':direct-slots  '()
+    ':name          '<builtin>))
 
 ;;>> <struct>
 ;;>> <opaque-struct>
@@ -776,9 +777,10 @@
 ;;>   will get converted to appropriate Ripoff subclasses of `<struct>'.
 (define <struct>
   (make <primitive-class>
-    'direct-default-initargs '()
-    'direct-supers (list <builtin>)
-    'name '<struct>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <builtin>)
+    ':direct-slots  '()
+    ':name '<struct>))
 
 ;;>   `<opaque-struct>' is a class of structs that are hidden -- see the
 ;;>   documentation for `struct-info' and the `skipped?' result.  Note that
@@ -788,9 +790,10 @@
 ;;>   inherits from a struct which is not under the current inspector).
 (define <opaque-struct>
   (make <primitive-class>
-    'direct-default-initargs '()
-    'direct-supers (list <struct>)
-    'name '<opaque-struct>))
+    ':direct-default-initargs '()
+    ':direct-supers (list <struct>)
+    ':direct-slots  '()
+    ':name '<opaque-struct>))
 
 ;;>   Predicates for instances of <builtin>, <function>, <generic>, and
 ;;>   <method>.

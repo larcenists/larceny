@@ -32,7 +32,7 @@
   (or *scheme-dynamic-module*
       (begin
         (set! *scheme-dynamic-module*
-              (.DefineDynamicModule (scheme-dynamic-assembly) '"SchemeModule.dll" '"SchemeModule.dll"))
+              (.DefineDynamicModule (scheme-dynamic-assembly) "SchemeModule.dll" "SchemeModule.dll"))
         *scheme-dynamic-module*)))
 
 ;;; End of temp code
@@ -47,10 +47,10 @@
         ;; bootstrap excel types
         (for-each (lambda (sym)
                     (.GetType *the-excel-assembly* sym))
-                  (list '"Microsoft.Office.Interop.Excel.ApplicationClass"
-                          '"Microsoft.Office.Interop.Excel.WorkbookClass"
-                            '"Microsoft.Office.Interop.Excel.Sheets"
-                              '"Microsoft.Office.Interop.Excel._Worksheet"))
+                  (list "Microsoft.Office.Interop.Excel.ApplicationClass"
+                        "Microsoft.Office.Interop.Excel.WorkbookClass"
+                        "Microsoft.Office.Interop.Excel.Sheets"
+                        "Microsoft.Office.Interop.Excel._Worksheet"))
         *the-excel-assembly*)))
 
 (define *the-excel-application* #f)
