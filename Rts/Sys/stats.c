@@ -17,6 +17,7 @@
  *    stats_before_gc()      signals the start of a collection
  *    stats_gc_type()        reports the generation number and type
  *    stats_after_gc()       signals the end of a collection
+ *    stats_add_gctime()     add GC time outside GC region (eg lazy sweep)
  *
  * Currently, the listed procedures are the only such callbacks.
  * Second, procedures in the stats module will call on procedures
@@ -40,6 +41,9 @@
  * - record/report overall memory usage statistics
  * - record/report low-level allocator free memory
  * - record/report peak memory usage (allocated) per generation & remset
+ *
+ * FIXME: this is (very) poorly integrated with the conservative collector.
+ * FIXME: the logic is too tangled.
  */
 
 #include "config.h"
@@ -59,6 +63,10 @@
 #if defined(SUNOS4)
 extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
 extern int getrusage( int who, struct rusage *rusage );
+#endif
+
+#if defined(BDW_GC)
+#include "../bdw-gc/include/gc.h"
 #endif
 
 #include <stdio.h>
@@ -165,7 +173,7 @@ static sys_stat_t   memstats;             /* statistics */
 static unsigned     rtstart;              /* time at startup (base time) */
 static int          generations;          /* number of generations in gc */
 
-static unsigned     allocated;            /* words alloc'd since last gc */
+static unsigned     allocated;            /* bytes alloc'd since last gc */
 static unsigned     time_before_gc;       /* timestamp when starting gc */
 static unsigned     live_before_gc;       /* live when starting a gc */
 static heap_stats_t *heapstats_before_gc; /* stats before gc */
@@ -239,7 +247,11 @@ stats_before_gc( void )
   current_statistics( heapstats_before_gc, &memstats );
   live_before_gc = nativeint( memstats.wlive );
 
+#if !defined(BDW_GC)
   allocated = heapstats_before_gc[0].live-heapstats_after_gc[0].live;
+#else
+  allocated = GC_get_bytes_since_gc();
+#endif
 }
 
 
@@ -311,8 +323,15 @@ stats_after_gc( void )
   dump_stats( heapstats_after_gc, &memstats );
 }
 
+void stats_add_gctime( long s, long ms )
+{
+  unsigned time = (unsigned)s*1000 + (unsigned)ms;
 
-/* Get the current time in microseconds since initialization */
+  memstats.gctime += fixnum( time );
+  memstats.gen_stat[0].gctime += fixnum( time );
+}
+
+/* Get the current time in milliseconds since initialization */
 
 unsigned
 stats_rtclock( void )
@@ -331,6 +350,10 @@ stats_rtclock( void )
  *
  * This is pretty hairy because filling in Scheme data structures
  * from C is pretty hairy.
+ *
+ * The allocation code is wrong for the Boehm collector with 
+ * ALL_INTERIOR_POINTERS off, as we create pointers into objects 
+ * at unexpected locations.  (Where else do we use this trick? varargs?)
  */
 
 word
@@ -443,22 +466,16 @@ fill_main_entries( word *vp, sys_stat_t *ms )
 #endif
   unsigned usertime, systime, minflt, majflt;
 
-#ifndef BDW_GC
   vp[ STAT_WALLOCATED_HI ] = ms->wallocated_hi;
   vp[ STAT_WALLOCATED_LO ] = ms->wallocated_lo;
+#if !defined(BDW_GC)
   vp[ STAT_WCOLLECTED_HI ] = ms->wcollected_hi;
   vp[ STAT_WCOLLECTED_LO ] = ms->wcollected_lo;
-#else
-  /* FIXME */
-  vp[ STAT_WALLOCATED_HI ] = 0;
-  vp[ STAT_WALLOCATED_LO ] = 0;
-  vp[ STAT_WCOLLECTED_HI ] = 0;
-  vp[ STAT_WCOLLECTED_LO ] = 0;
-#endif
   vp[ STAT_WCOPIED_HI ]    = ms->wcopied_hi;
   vp[ STAT_WCOPIED_LO ]    = ms->wcopied_lo;
   vp[ STAT_WMOVED_HI ]     = ms->wmoved_hi;
   vp[ STAT_WMOVED_LO ]     = ms->wmoved_lo;
+#endif
   vp[ STAT_GCTIME ]        = ms->gctime;
   vp[ STAT_PROMTIME ]      = ms->promtime;
   vp[ STAT_WLIVE ]         = ms->wlive;
