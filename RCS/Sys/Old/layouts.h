@@ -1,13 +1,15 @@
-/*
+/* -*- Fundamental -*-
+ *
  * Layout of continuation and procedure data structures.
  * This file defines symbolic names for interesting fields of the
  * data structures.
  *
- * $Id$
+ * $Id: layouts.h,v 1.1 91/06/27 16:36:02 lth Exp Locker: lth $
  */
 
 /* Heap continuation offsets (from start of vector header) */
 
+#define HC_HEADER         0
 #define HC_DYNLINK        1
 #define HC_RETOFFSET      2
 #define HC_PROC           3
@@ -17,7 +19,7 @@
  * a saved value, so it's not overhead!
  */
 
-#define HC_OVERHEAD       2
+#define HC_OVERHEAD       3
 
 /* Stack continuation offsets (from stack pointer) */
 
