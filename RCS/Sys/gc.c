@@ -2,7 +2,7 @@
  * Ephemeral garbage collector (for Scheme).
  * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 1.4 91/06/21 15:13:35 lth Exp Locker: lth $
+ * $Id: gc.c,v 1.5 91/06/25 13:37:19 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -176,9 +176,9 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
 gc_trap( type )
 unsigned int type;
 {
-  if (type == 0)
+  if (type == EPHEMERAL_TRAP)
     panic( "GC: Memory overflow in ephemeral area." );
-  else if (type == 1)
+  else if (type == TENURED_TRAP)
     panic( "GC: Memory overflow in tenured area." );
   else
     panic( "GC: Invalid trap." );
@@ -193,30 +193,36 @@ unsigned int type;
 collect( type )
 unsigned int type;
 {
-  static unsigned int must_tenure = 0;     /* 1 if we need to do a major gc */
-  static unsigned words2;                  /* # words in use after last gc */
+  static unsigned must_tenure = 0;         /* 1 if we need to do a major gc */
+  static unsigned words2 = 0;              /* # words in use after last gc */
   unsigned words1;                         /* # words in use before this gc */
 
   e_top = (word *) globals[ E_TOP_OFFSET ];
   t_top = (word *) globals[ T_TOP_OFFSET ];     /* enables heap loading */
   t_trans = (word *) globals[ T_TRANS_OFFSET ];
 
-  if (type == 1) 
-    ecollections++;
-  else
-    tcollections++;
-
   words1 = words_used();
-  words_allocated += words2 - words1;
+  words_allocated += words1 - words2;
 
-  if (must_tenure || type != 1) {
+  if (must_tenure || type != EPHEMERAL_COLLECTION) {
+#ifdef DEBUG
+    printf( "Tenuring collection commences...\n" );
+#endif
     tenuring_collection();
+    tcollections++;
     must_tenure = 0;
   }
   else {
+#ifdef DEBUG
+    printf( "Ephemeral collection commences...\n" );
+#endif
     ephemeral_collection();
+    ecollections++;
     must_tenure = e_top > e_mark;
   }
+#ifdef DEBUG
+  printf( "Done collecting.\n" );
+#endif
 
   words2 = words_used();
   words_collected += words1 - words2;
@@ -267,9 +273,8 @@ static ephemeral_collection()
   dest = e_new_base;
 
   /*
-   * Do roots. All roots are in an array somewhere, and the first root is
-   * pointed to by 'roots'. 'rootcnt' is the number of roots. They must all
-   * be consecutive.
+   * Do roots. All roots are in the globals array, between FIRST_ROOT
+   * and LAST_ROOT, inclusive.
    */
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     globals[ i ] = forward( globals[ i ], e_base, e_max, &dest );
@@ -375,8 +380,12 @@ static tenuring_collection()
     }
     else {
       if (isptr( *p )) {
-	if (ptrof( *p ) <= e_max)
-	  *p = forward( *p, e_base, e_max, &dest );
+	if (ptrof( *p ) <= e_max) {
+	  word tmp;
+
+	  tmp = forward( *p, e_base, e_max, &dest );
+	  *p = tmp;
+	}
 	else
 	  *p = forward( *p, t_base, t_max, &dest );
       }
