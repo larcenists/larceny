@@ -261,15 +261,21 @@
                        ((unix macosx) "sys-unix.manifest")
                        ((win32) "sys-win32.manifest")))
          (dotnet-heap-files
-          (objects "Lib/Common/"
+          (objects (nbuild-parameter 'common-source)
                    ".manifest"
                    common-heap-files
-                   `((primops . "Lib/IL/primops.manifest")
-                     (toplevel-target . "Lib/IL/toplevel-target.manifest")
-                     (flonum-endian . ,(common-endian "flonums" ".manifest"))
-                     (bignum-endian . ,(common-endian "bignums" ".manifest"))
-                     (osdep . ,(common-relative osdep-file))
-                     (extra  . "Lib/IL/loadable.manifest"))))
+                   `((primops 
+                      . ,(make-filename "Lib" "IL" "primops.manifest"))
+                     (toplevel-target 
+                      . ,(make-filename "Lib" "IL" "toplevel-target.manifest"))
+                     (flonum-endian 
+                      . ,(common-endian "flonums" ".manifest"))
+                     (bignum-endian 
+                      . ,(common-endian "bignums" ".manifest"))
+                     (osdep 
+                      . ,(common-relative osdep-file))
+                     (extra  
+                      . ,(make-filename "Lib" "IL" "loadable.manifest")))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files)))
     
@@ -359,7 +365,8 @@
     `(dependencies                    ; Order matters [why??!]
       ("petit.heap" ,petit-heap-files)
       ("petit.heap" ,petit-eval-files)
-      (,(common-relative "ecodes.sch") ,(nbuild-files 'build '("except.sh")))
+      (,(common-relative "ecodes.sch")
+        ,(nbuild-files 'build '("except.sh")))
       (,(common-relative "globals.sch")
        ,(nbuild-files 'build '("globals.sh"))))))
 
