@@ -624,6 +624,45 @@ HIGH PRIORITY BUGS: 088, 105.
     I don't know whether the compiler or the assembler should be responsible
     for cleaning this up.
 
-NEXT ENTRY: 107
+107 v1.0a1 (990122 / lth)
+    Priority: high.
+
+    The macro for CASE is wrong -- it generates incorrect code for CASE
+    without an ELSE:
+
+	> (make-readable 
+	    (macro-expand 
+	      '(lambda (x)
+	         (case (car x)
+	           ((codevector)
+	            (dump-codevector! #f (cadr x)))
+	           ((constantvector)
+	            (dump-constants (cadr x)))))))
+	((lambda ()
+	   (lambda (.x|1)
+	     ((lambda (.temp|2|5)
+	        (if (memv .temp|2|5 '(codevector))
+		  (dump-codevector! '#f (car (cdr .x|1)))
+	          (dump-constants (car (cdr .x|1)))))
+	      (car .x|1)))))
+
+    The reason appears to be that ELSE is missing from the keyword list in
+    the nested letrec-syntax in the definition of CASE in usual.sch.
+
+108 v1.0a1 (990208 / lth)
+    Priority: medium.
+
+    Very large fixnums that result in address wrap-around make some 
+    allocation primitives crash the system:
+
+	> (make-vector (- (expt 2 29) 4))
+
+	Process scheme segmentation violation (core dumped)
+
+	> (make-bytevector (- (expt 2 29) 4))
+
+	Process scheme segmentation violation (core dumped)
+
+NEXT ENTRY: 109
 
 ; eof
