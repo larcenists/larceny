@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# checkin [dirs ...]
+#   For each listed directory, or the default set if there are none
+#   on the command line, do an RCS check-in of each file that is
+#   checked out and locked.
+#
+#   Warnings:
+#     This forces a check-in, whether it has been updated or not.
+#     This script must be run in the root directory of the tree.
+#     
+#   Potential bugs:
+#     If more than one person has a file locked, the current "check
+#     for locks" won't work.
+
+
+top="."
+dirs=" 	${top}
+	${top}/DirA
+	${top}/DirB
+	"
+
+if [ "$#" -ge 1 ]; then
+	dirs="$@"
+fi
+
+basedir=`pwd`
+for dir in ${dirs}; do
+
+  cd ${basedir}/${dir}
+ 
+  filelist=`echo RCS/*,v`
+  if [ "${filelist}" = 'RCS/*,v' ]; then
+    filelist=""
+  fi
+
+  for rcsfile in ${filelist}; do
+    file=`basename ${rcsfile} ,v`
+    locks=`rlog ${file} | egrep '^locks:' | awk '{print $2}'` &&
+      if [ "${locks}" = "${USER}:" ]; then
+        echo "Checking in ${dir}/${file}"
+        ci -u -f "-mChecked in by checkin script" ${file}
+      fi
+  done
+done
+
+
+	
