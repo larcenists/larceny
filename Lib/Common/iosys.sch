@@ -48,9 +48,12 @@
 	   (vector-like-set! p port.error? #t)
 	   (error "Read error on port " p)
 	   #t)
-	  (else
+	  ((and (fixnum? r) (>= r 0))
 	   (vector-like-set! p port.rd-ptr 0)
-	   (vector-like-set! p port.rd-lim r)))))
+	   (vector-like-set! p port.rd-lim r))
+	  (else
+	   (vector-like-set! p port.error? #t)
+	   (error "io/fill-buffer: bad value " r " on " p)))))
 
 (define (io/flush-buffer p)
   (if (> (vector-like-ref p port.wr-ptr) 0)
@@ -65,7 +68,9 @@
 	       (error "Write error on port " p)
 	       #t)
 	      (else
-	       ???)))))
+	       (vector-like-set! p port.error? #t)
+	       (error "io/flush-buffer: bad value " r " on " p)
+	       #t)))))
 
 
 ;;; Public low-level interface
