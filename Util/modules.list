@@ -108,6 +108,9 @@
 	   (compiler disassemble)
 	   ; Compiler and assembler switches
 	   (compiler compiler-switches)
+           (compiler compiler-flags)
+           (compiler global-optimization-flags)
+           (compiler runtime-safety-flags)
 	   (compiler issue-warnings)
 	   (compiler include-procedure-names)
 	   (compiler include-source-code)
@@ -117,7 +120,7 @@
 	   (compiler write-barrier)
            (compiler runtime-safety-checking)
 	   (compiler catch-undefined-globals)
-	   (compiler integrate-usual-procedures)
+	   (compiler integrate-procedures)
            (compiler control-optimization)
 	   (compiler parallel-assignment-optimization)
 	   (compiler lambda-optimization)
