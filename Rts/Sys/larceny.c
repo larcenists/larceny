@@ -225,6 +225,9 @@ int main( int argc, char **os_argv )
     larceny_call( globals[ G_STARTUP ], 1, args, &res );
     consolemsg( "Startup procedure returned with value %08lx", (long)res );
   }
+
+  /* Not usually reached */
+  return 0;
 }
 
 
@@ -382,8 +385,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.use_non_predictive_collector = 1;
     }
     else if (numbarg( "-dof", &argc, &argv, 
-		      &o->gc_info.dynamic_dof_info.steps )) {
-      init_generational( o, 3, "-dof" );
+		      &o->gc_info.dynamic_dof_info.generations )) {
+      o->gc_info.is_generational_system = 1;
       o->gc_info.use_dof_collector = 1;
     }
     else if (strcmp( *argv, "-nostatic" ) == 0)
@@ -569,10 +572,10 @@ parse_options( int argc, char **argv, opt_t *o )
 	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
 	if (dynamic_min) size = max( dynamic_min, size );
 	if (dynamic_max) size = min( dynamic_max, size );
-	o->gc_info.dynamic_dof_info.size_bytes = size;
+	o->gc_info.dynamic_dof_info.area_size = size;
       }
       else
-	o->gc_info.dynamic_dof_info.size_bytes = o->size[n];
+	o->gc_info.dynamic_dof_info.area_size = o->size[n];
     }
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
