@@ -26,7 +26,7 @@ configuration file for your operating system, currently one of:
 	Util/petit-win32.sch
 	Util/petit-macosx.sch
 	Util/petit-unix-be.sch
-	Util/petit-unix-el.sch		; currently mythical
+	Util/petit-unix-el.sch
 
 These programs sometimes invoke external programs and may place
 additional demands on your host system.  Currently all systems need

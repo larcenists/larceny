@@ -268,21 +268,6 @@
 # define GCLIB_LARGE_TABLE         0
 #endif
 
-/* Sun/SPARC Debian Linux; gcc; native.
-   Note, this is old and may not be completely adequate. */
-#if 0
-# define SPARC                     1
-# define LINUX                     1
-# define DEBIAN_SPARC              1
-# define BITS_32                   1
-# define BIG_ENDIAN                1
-# define HAVE_RINT                 1
-# define HAVE_STRDUP               1
-# define HAVE_STRNCASECMP          1
-# define STACK_UNDERFLOW_COUNTING  1
-# define XOPEN_SIGNALS             1
-#endif
-
 /* Sun/SPARC Solaris (2.5 and better, at least), Petit Larceny */ 
 #if 0
 # define PETIT_LARCENY             1
@@ -300,20 +285,6 @@
 # define GCLIB_LARGE_TABLE         0
 #endif
 
-/* MacOS 8 or 9; Metrowerks codewarrior (Petit Larceny). */
-#if 0
-# define PETIT_LARCENY             1
-# define MACOS                     1
-# define BITS_32                   1
-# define BIG_ENDIAN                1
-# define EXPLICIT_DIVZ_CHECK       1
-# define STDC_SIGNALS              1
-# define CODEWARRIOR               1
-# define HAVE_RINT                 1
-# define STACK_UNDERFLOW_COUNTING  1
-# define USE_GENERIC_ALLOCATOR     1
-#endif
-
 /* MacOS X; gcc; GNU libc (Petit Larceny). */
 #if 0
 # define PETIT_LARCENY             1
@@ -328,20 +299,8 @@
 # define USE_GENERIC_ALLOCATOR     1     /* Weirdness with mmap */
 #endif
 
-/* DEC OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
-   running in 32-bit mode on 64-bit platform.  These defs
-   are probably out of date. */
-#if 0
-# define PETIT_LARCENY             1
-# define BITS_32                   1
-# define ENDIAN_LITTLE             1
-# define XOPEN_UNIX                1
-# define DEC_ALPHA_32BIT           1
-# define STACK_UNDERFLOW_COUNTING  1
-#endif
-
 /* Windows 2000 on x86; MetroWerks Codewarrior Pro 6; (Petit Larceny). */
-#if 1
+#if 0
 # define PETIT_LARCENY             1
 # define WIN32                     1
 # define BITS_32                   1
@@ -357,6 +316,20 @@
 # define HAVE_STRNCASECMP          1
 #endif
 
+/* Debian Linux 3.0; gcc; GNU libc (Petit Larceny). */
+#if 1
+# define DEBIAN_STRDUP_WEIRDNESS   1
+# define PETIT_LARCENY             1
+# define BITS_32                   1
+# define ENDIAN_LITTLE             1
+# define LINUX                     1
+# define HAVE_RINT                 1
+# define HAVE_STRNCASECMP          1
+# define HAVE_STRDUP               1
+# define HAVE_POLL                 1
+# define STACK_UNDERFLOW_COUNTING  1
+#endif
+
 /* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny). */
 #if 0
 # define PETIT_LARCENY             1
@@ -367,6 +340,52 @@
 # define HAVE_STRNCASECMP          1
 # define HAVE_STRDUP               1
 # define HAVE_POLL                 1
+# define STACK_UNDERFLOW_COUNTING  1
+#endif
+
+/* Sun/SPARC Debian Linux; gcc; native.
+   Note, this is old and may not be completely adequate. */
+#if 0
+# define SPARC                     1
+# define LINUX                     1
+# define DEBIAN_SPARC              1
+# define DEBIAN_STRDUP_WEIRDNESS   1
+# define BITS_32                   1
+# define BIG_ENDIAN                1
+# define HAVE_RINT                 1
+# define HAVE_STRDUP               1
+# define HAVE_STRNCASECMP          1
+# define STACK_UNDERFLOW_COUNTING  1
+# define XOPEN_SIGNALS             1
+#endif
+
+/* MacOS 8 or 9; Metrowerks codewarrior (Petit Larceny). 
+   This worked once upon a time around Larceny 0.48, possibly
+   with CodeWarrior Pro 3.
+   */
+#if 0
+# define PETIT_LARCENY             1
+# define MACOS                     1
+# define BITS_32                   1
+# define BIG_ENDIAN                1
+# define EXPLICIT_DIVZ_CHECK       1
+# define STDC_SIGNALS              1
+# define CODEWARRIOR               1
+# define HAVE_RINT                 1
+# define STACK_UNDERFLOW_COUNTING  1
+# define USE_GENERIC_ALLOCATOR     1
+#endif
+
+/* DEC OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
+   running in 32-bit mode on 64-bit platform.  These defs
+   are probably out of date.
+   */
+#if 0
+# define PETIT_LARCENY             1
+# define BITS_32                   1
+# define ENDIAN_LITTLE             1
+# define XOPEN_UNIX                1
+# define DEC_ALPHA_32BIT           1
 # define STACK_UNDERFLOW_COUNTING  1
 #endif
 

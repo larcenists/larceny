@@ -4,15 +4,19 @@
 #
 # This is Rts/Makefile.
 
+
 ###########################################################################
 #
 # Compiler/assembler selection.  Uncomment one of these or hack up a new one.
 
+
 # Native Larceny on Solaris/SPARC: gcc
-# The assembler must be able to run the preprocessor; the Sun assembler accepts
-# -P to do this,; the GNU assembler does not.  If you experience assembler
-# errors, you most likely have the wrong assembler.  On SunOS systems, 
-# try /bin/as.  gcc -E might work.  Or hack up a shell script.
+#
+# The assembler must be able to run the preprocessor; the Sun
+# assembler accepts -P to do this, but the GNU assembler does not.  If
+# you experience assembler errors, you most likely have the wrong
+# assembler.  On SunOS systems, try /bin/as.  gcc -E might work.  Or
+# hack up a shell script to run cpp.
 #O=o
 #CC=gcc
 #DEBUG=-gstabs+
@@ -42,17 +46,29 @@
 #.c.obj:
 #	$(CC) -c $(CFLAGS) -o $*.obj $<
 
+
 # Petit Larceny on MacOS X: gcc disguised as cc
+#O=o
+#CC=cc
+#DEBUG=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
+#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUG) $(OPTIMIZE) $(CCXFLAGS)
+#LIBS=-lm
+#.c.o:
+#	$(CC) $(CFLAGS) -o $*.o $<
+
+
+# Petit Larceny on Debian Linux: gcc
 O=o
-CC=cc
-DEBUG=-gstabs+
+CC=gcc
+DEBUGINFO=-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUG) $(OPTIMIZE) $(CCXFLAGS)
+CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 LIBS=-lm
-.c.o:
-	$(CC) $(CFLAGS) -o $*.o $<
+#.c.o:
+#	$(CC) $(CFLAGS) -o $*.o $<
 
 
 # Petit Larceny on DEC Alpha OSF/1: DEC C compiler
