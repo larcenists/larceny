@@ -19,10 +19,9 @@ extern cont_t twobit_start_procedures[];
      mc_petit_patch_boot_code (qv).
      */
 
-extern cont_t twobit_start( CONT_PARAMS );
+extern RTYPE twobit_start( CONT_PARAMS );
   /* Heap initialization procedure.
      */
-
 
 /* The following millicode procedures are in millicode.c */
 
