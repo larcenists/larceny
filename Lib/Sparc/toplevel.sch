@@ -433,6 +433,9 @@
     (environment-set! null '.cdr .cdr)
     (environment-set! null '.append .append)
     (environment-set! null '.make-promise .make-promise)
+    (environment-set! null '.make-cell .make-cell)
+    (environment-set! null '.cell-ref .cell-ref)
+    (environment-set! null '.cell-set! .cell-set!)
 
     ;; system performance and interface
 
