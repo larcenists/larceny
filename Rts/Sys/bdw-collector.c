@@ -33,9 +33,8 @@
  * The code in this file does not depend on object header size.
  */
 
-#define BDW_CLEAR_STACK 1
-#define BDW_DEBUG       1
-#define USE_HR_TIMER    1	/* Nanosecond timer; SunOS 5.6 (at least) */
+#define BDW_CLEAR_STACK 1	/* Clear stack cache before GC */
+#define USE_HR_TIMER    0	/* Nanosecond timer; SunOS 5.6 (at least) */
 
 #define GC_INTERNAL
 
@@ -82,9 +81,19 @@ static void flush_stack( gc_t *gc );
 static gc_t *allocate_area( word *globals );
 static void do_stats_after_gc( void );
 
+/* A special version of the BDW collector supports policy control
+   similar to the other collectors -- based on load factor and 
+   min/max heap size.  Those extensions are disabled by default
+   in this file because the special version of the BDW collector
+   is not (yet) distributed with Larceny.  If you're using that
+   version, then -DBDW_LARCENY_EXTENSIONS 1 in the Makefile or
+   other suitable place.
+   */
+#if BDW_LARCENY_EXTENSIONS
 extern double GC_load_factor;
 extern void GC_set_min_heap_size( int min_size_bytes );
 extern int GC_allow_contraction;
+#endif
 
 void bdw_before_gc( void );
 void bdw_after_gc( void );
@@ -113,8 +122,10 @@ create_bdw_gc( gc_param_t *params, int *generations )
     GC_free_space_divisor = params->bdw_info.divisor;
   if (params->bdw_info.dynamic_max > 0) 
     GC_set_max_heap_size( params->bdw_info.dynamic_max );
-  if (params->bdw_info.dynamic_min > 0)
+#if BDW_LARCENY_EXTENSIONS
+  if (params->bdw_info.dynamic_min > 0) {
     GC_set_min_heap_size( params->bdw_info.dynamic_min );
+  }
   if (params->bdw_info.load_factor > 0.0) {
     GC_load_factor = params->bdw_info.load_factor;
     GC_allow_contraction = 1;
@@ -123,6 +134,7 @@ create_bdw_gc( gc_param_t *params, int *generations )
     GC_load_factor = params->bdw_info.expansion_factor;
     GC_allow_contraction = 0;
   }
+#endif
   if (params->use_incremental_bdw_collector)
     GC_enable_incremental();
 
@@ -145,7 +157,8 @@ void gc_parameters( gc_t *gc, int op, int *ans )
   }
 }
 
-/* Fast hooks to run before/after lazy sweep */
+/* Fast hooks to run before and after lazy sweep */
+/* Requires specially instrumented version of the BDW collector. */
 
 void bdw_before_gc_slowpath( void )
 {
@@ -192,7 +205,6 @@ void bdw_after_gc_slowpath( void )
 
 void bdw_before_gc( void )
 {
-#if BDW_DEBUG
   word *p = 0, *lim = 0;
   int n, s;
 
@@ -203,7 +215,7 @@ void bdw_before_gc( void )
   if (bdw_state.globals[G_ETOP] != bdw_state.globals[G_EBOT])
     panic( "Foo!  In-line allocation has taken place!  Aborting." );
 
-# if BDW_CLEAR_STACK
+#if BDW_CLEAR_STACK
   /* Clear out the unused portion of the stack cache.  Ideally,
    * it would be better to tell the collector to just ignore that
    * region.
@@ -223,7 +235,6 @@ void bdw_before_gc( void )
     p += n;
   }
 
-# endif
 #endif
 
 #if USE_HR_TIMER
@@ -257,7 +268,11 @@ void gclib_stats( gclib_stats_t *stats )
 {
   memset( stats, 0, sizeof( gclib_stats_t ) );
   stats->heap_allocated = bytes2words( GC_get_heap_size() );
+#if BDW_LARCENY_EXTENSIONS
   stats->heap_allocated_max = bytes2words( GC_get_max_heap_size() );
+#else
+  stats->heap_allocated_max = bytes2words( 0 );
+#endif
 }
 
 static void no_op_warn()
