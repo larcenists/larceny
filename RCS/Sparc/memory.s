@@ -1,7 +1,7 @@
 ! Assembly-language millicode routines for allocation and mutation.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.9 91/06/30 00:02:45 lth Exp Locker: lth $
+! $Id: memory.s,v 1.10 91/07/01 17:51:06 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -56,24 +56,11 @@
 #define ASSEMBLY
 #include "registers.s.h"
 #include "offsets.h"
+#include "layouts.s.h"
 
-! Adjusted offsets into data structures.
-! For pairs, the offset adjusts for the tag alone; a pair tag is 1.
-! For vectors, the offset adjusts for the tag and for the header word;
-! the tag is 3 and the size of the header word is 4.
+! Macros
 
-#define CAR_OFFSET	-1
-#define CDR_OFFSET	3
-#define VEC_OFFSET	1
-
-! Pointer tags
-
-#define TAG_PAIR	0x01
-#define TAG_VEC		0x03
-
-! Constants
-
-#define FALSE_CONST	0x00000002
+#define fixnum( x )	((x) << 2)
 
 	.global _alloc, _alloci, _setcar, _setcdr, _vectorset, _gcstart
 	.global _stkoflow, _stkuflow
@@ -190,7 +177,7 @@ Lalloci2:
 
 _setcar:
 	ld	[ %GLOBALS+T_BASE_OFFSET ], %TMP0	! fetch tenured base
-	xor	%RESULT, TAG_PAIR, %TMP1	! strip tag
+	xor	%RESULT, PAIR_TAG, %TMP1	! strip tag
 	cmp	%TMP1, %TMP0
 	blt	Lsetcar1
 	mov	%o7, %TMP0
@@ -201,7 +188,7 @@ _setcar:
 	nop
 
 Lsetcar1:
-	st	%ARGREG2, [%RESULT+CAR_OFFSET]	! CAR_OFFSET compensates right
+	st	%ARGREG2, [%RESULT+A_CAR_OFFSET]
 	jmp	%TMP0+8
 	mov	0, %RESULT
 
@@ -221,7 +208,7 @@ Lsetcar1:
 
 _setcdr:
 	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
-	xor	%RESULT, TAG_PAIR, %TMP1	! strip tag
+	xor	%RESULT, PAIR_TAG, %TMP1	! strip tag
 	cmp	%TMP1, %TMP0
 	blt	Lsetcdr1
 	mov	%o7, %TMP0
@@ -230,7 +217,7 @@ _setcdr:
 	nop
 
 Lsetcdr1:
-	st	%ARGREG2, [%RESULT+CDR_OFFSET]	! CDR_OFFSET compensates right
+	st	%ARGREG2, [%RESULT+A_CDR_OFFSET]
 	jmp	%TMP0+8
 	mov	0, %RESULT
 
@@ -252,7 +239,7 @@ Lsetcdr1:
 
 _vectorset:
 	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
-	xor	%RESULT, TAG_VEC, %TMP1		! strip tag
+	xor	%RESULT, VEC_TAG, %TMP1		! strip tag
 	cmp	%TMP1, %TMP0
 	blt	Lvectorset1			! not in tenured space
 	mov	%o7, %TMP0
@@ -264,7 +251,7 @@ Lvectorset1:
 	add	%RESULT, %ARGREG2, %TMP1	! pointer which does not
 						! compensate for header
 						! or tag
-	st	%ARGREG3, [%TMP1+VEC_OFFSET]	! VEC_OFFSET compensates
+	st	%ARGREG3, [%TMP1+A_VEC_OFFSET]	! VEC_OFFSET compensates
 	jmp	%TMP0+8
 	mov	0, %RESULT
 
@@ -338,8 +325,9 @@ _stkoflow:
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 
 	mov	%o7, %TMP0
+	set	fixnum( -1 ), %RESULT
 	call	gcstart
-	mov	0xFFFFFFFC, %RESULT
+	nop
 
 	jmp	%TMP0+8
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
@@ -408,16 +396,16 @@ _save_scheme_context:
 ! 'gcstart' saves the state and invokes the collector. It also takes an
 ! argument, a fixnum indicating the number of words that was attempted 
 ! allocated when the heap overflow occured. If the overflow was due to
-! an entry list overflow, this word must be fixnum( -1 ) (i.e. 0xFFFFFFFC),
+! an entry list overflow, this word must be fixnum( -1 )
 ! and a tenuring collection will be performed.
 !
 ! The return value from 'gcstart' is a pointer to the requested amount of
-! memory (unless the argument was 0xFFFFFFFC).
+! memory (unless the argument was fixnum( -1 )).
 !
 ! 'gcstart' saves the state which is kept in registers and then calls
 ! the C-language routine '_gcstart2' with the number of words to allocate
 ! as a parameter. When '_gcstart2' returns, the number of words indicated
-! (if not 0xFFFFFFFC) can safely be allocated.
+! (if not fixum( -1 )) can safely be allocated.
 !
 ! There's a bit of hair associated with the stack, as it will be flushed
 ! during a collection, but it must have a coherent (i.e. non-empty) state
@@ -445,7 +433,7 @@ gcstart:
 	! C-language call
 
 	mov	%RESULT, %g1		! %RESULT not valid after save...
-	save	%sp, -64, %sp
+	save	%sp, -72, %sp
 	call	_gcstart2		! This *will* flush the stack!
 	mov	%g1, %o0
 	call	_restore_frame		! Restore our frame
@@ -460,7 +448,7 @@ gcstart:
 
 	! Must now allocate memory!
 
-	set	0xFFFFFFFC, %TMP0
+	set	fixnum( -1 ), %TMP0
 	cmp	%RESULT, %TMP0
 	beq,a	Lgcstart1
 	mov	0, %RESULT
@@ -534,7 +522,7 @@ addtrans:
 	! procedure. (A millicode tail-call! Yeah!)
 
 	b	gcstart
-	set	0xFFFFFFFC, %RESULT
+	set	fixnum( -1 ), %RESULT
 
 Laddtrans1:
 	st	%RESULT, [ %TMP1 ]
@@ -594,13 +582,5 @@ save_scheme_context:
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 	jmp	%o7+8
 	nop
-
-! Local data
-
-	.seg	"bss"
-
-	.align	4
-	.reserve	mstk, 20		! millicode stack -- 5 words
-mstke:
 
 	! end of file
