@@ -29,7 +29,7 @@
             (newline)
             (display "Performance is likely to be poor.")
             (newline)))
-      (let ((syntaxenv (syntactic-copy usual-syntactic-environment)))
+      (let ((syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
         (if (benchmark-block-mode)
             (process-file-block infilename
                                 outfilename
@@ -63,10 +63,7 @@
            (write item port)
            (newline port)
            (newline port))))
-    (let ((syntaxenv
-           (syntactic-copy
-            (environment-syntax-environment
-             (interaction-environment)))))
+    (let ((syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
       (if (benchmark-block-mode)
           (process-file-block infilename outfilename write-lap 
                               (lambda (x)
@@ -108,10 +105,7 @@
                                 *lop-file-type*)))
         (user
          (assembly-user-data)))
-    (let ((syntaxenv
-           (syntactic-copy
-            (environment-syntax-environment
-             (interaction-environment)))))
+    (let ((syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
       (if (benchmark-block-mode)
           (process-file-block input-file
                               output-file
