@@ -1,0 +1,137 @@
+\input{larceny.sty}
+\title{Larceny Note \#21: \\
+       The Larceny Development Environment}
+\author{R\'{e}my Evard}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+The Larceny development environment is a collection of directories
+populated with files related to the Larceny project.  Most are used
+to build either the larceny executable or the larceny heap, while others
+are documentation.  This document describes how to work in this
+environment.
+
+\section{The Environment}
+
+As there are multiple people working on the project, some form of file
+synchronization must be used.  This is done using 
+RCS, the Revision Control System. There is a central directory of RCS files 
+which contains the real files.
+Each person working on the project has their own mirror of this hierarchy.
+To read a file, they ``check out'' the file, to write the file, they ``lock''
+it, and when they have completed it, they ``check in'' the file.  Only
+files which have been checked in are available to other people on the
+project. This minimizes confusion caused by having multiple authors.
+
+Each person has their own larceny tree - the root of that tree is where
+most of the work is done, and thus has a special name: $\sim$larceny.
+The larceny executable, the heap, and most of the utilities are located
+in $\sim$larceny.
+
+The actual directories and files are subject to frequent change.
+Each directory contains a file called {\tt Index}, which describes 
+each file in that directory.  The Index in $\sim$larceny also
+describes each directory in the project.
+
+\section{Getting Started}
+
+To create a larceny directory tree, first create the root directory,
+which will be your $\sim$larceny.  Currently, the conventional name
+for this directory is {\tt /research/owyhee/$<$user$>$/scheme313}.
+Make this directory your current working directory (i.e. cd into it).
+Now run the script {\tt make-larceny-tree}.  Since you don't currently
+have a copy of this program, you will need to run someone else's.  
+This will create the directory tree for you, and fill in the RCS links.
+Finally, run the script {\tt checkout}.  Again, you will need
+to run someone else's copy (or check it out directly first).  This
+script will populate your directory with the files that are part of
+the larceny development environment.
+
+The steps to do this are:
+\begin{verbatim}
+  % cd /research/owyhee/<user>
+  % mkdir scheme313
+  % cd scheme313
+  % ../../lth/scheme313/make-larceny-tree
+  % co checkout
+  % checkout
+\end{verbatim}
+
+\section{Building larceny}
+
+To make the larceny executable, make sure you are in $\sim$larceny,
+then type {\tt make}.   This will compile and assemble the correct
+files (assuming you have them checked out), and produce a file called
+{\tt larceny} in $\sim$larceny.
+
+\section{Building the heap}
+
+To build the larceny heap, make sure you are iin $\sim$larceny, 
+then type {\tt build}.  This will start a Chez Scheme process running
+the make utilties.  It will load several packages, then end at
+the Chez prompt.
+
+To create the heap, say {\tt (make-larceny-heap)}.  It will compile
+and assemble the necessary files, then load each file that is part
+of the runtime environment, and then create a file called larceny.heap, 
+which will be located in $\sim$larceny.
+
+It is possible to create heaps in other ways - Larceny Note \#5 details
+some of them.
+
+\section{Active editing}
+
+Initially, all the files that you checked out will be read-only - you 
+will not be able to edit them.  This is part of using RCS.  Only 
+the source files are read-only.  The files which you produce: larceny,
+.o files, and so on. are all readable and writeable by you.
+
+Once you decide you would like to edit a file, you need to check out the
+file and lock it.  This keeps other people from editing the file while
+you are working on it.  (It is possible to use some forms of revision
+software which allow multiple people to edit the same file, but that
+hasn't really been needed as yet.)  To lock a file, you say 
+{\tt co -l $<$file$>$}.  
+
+Once you have completed editing it and you would like to make the new
+version available o other people, you check it in.  This is done by
+saying {\tt ci $<$file$>$}.
+
+If you have checked out a lot of files (a common occurence), you can
+check them all in again by going to $\sim$larceny and running the
+{\tt checkin} script.
+
+If other people have checked in a lot of files (another common
+occurence), and you would like to get the newest versions of all those
+files, you can run the {\tt checkout} script.  Again, this must be
+run while in $\sim$larceny.
+
+\section{Creating a new file}
+
+If you create a new file to add to the Larceny environment, you must
+do an initial check-in.  This is done by saying {\tt ci $<$file$>$}.
+RCS will ask you for a description of the file - type whatever you'd
+like.  
+
+At this point, you should add an entry to the {\tt Index} in the current
+directory, describing a bit about the file.  You will have to lock the
+Index to edit it. 
+
+You may also want to consider whether or not you have introduced some
+new concepts which should be mentioned in the Glarceny (Larceny Note #\666}.
+
+\section{Adding a primop}
+Follow these instructions:
+\begin{enumerate}
+\item Find Lars.
+\item Take him to Fall Street Cafe.
+\item Mention that you would like to add a primop.
+\item Take careful notes, and enjoy thoroughly.
+\item Add the primop.
+\item Get Lars to fix whatever broke...
+\end{enumerate}
+
+\end{document}
