@@ -417,15 +417,6 @@ HIGH PRIORITY BUGS: 136, 137.
     -- either these should be the procedures (.unspecified) and (.undefined),
     in which case see Bug 090, or they should be the correct constants.
 
-094 v0.41 (981221 / lth)
-    Priority: medium.
-    Category: TWOBIT / correctness
-
-    Block compiler and primitive definitions interact poorly.  The following
-    hangs:
-
-       (define car (lambda (x) (car x)))
-
 095 v1.0a1 (981221 / lth)
     Priority: low
     Category: BUILD / correctness
@@ -682,16 +673,6 @@ HIGH PRIORITY BUGS: 136, 137.
     make-string
     Error: Wrong number of arguments to integrable procedure(make-string .x|1)
 
-132 v0.43 (990715 / lth)
-    Priority: medium
-    Category: RTS / space usage
-
-    It would appear, according to output from -annoy-user, that the space
-    assigned to remembered sets grows monotonically, which is not what
-    we would like -- space should be returned to the common pool
-    whereever possible.  Most reasonably, pool memory should be freed
-    when a remset is cleared.
-
 133 v0.43 (990903 / lth)
     Priority: low
     Category: TWOBIT, probably / IEEE FP std compliance
@@ -706,7 +687,7 @@ HIGH PRIORITY BUGS: 136, 137.
 	0.0
 
     This came up on comp.lang.functional.  David McClain clamed that
-    (+ 0.0 -0.0) => 0.0 and my *inference* was that the IEEE std mandates
+    (+ 0.0 -0.0) => 0.0 and my *inference* is that the IEEE std mandates
     this, in which case Twobit improperly constant-folds the first
     expression above.
 
@@ -828,6 +809,28 @@ HIGH PRIORITY BUGS: 136, 137.
     pointer needs to be added to the SSB, probably not an issue in practice.
 
 
-NEXT ENTRY: 139
+139 v0.46 (991023 / lth)
+    Priority: low
+    Category: AUXLIB / correctness
+
+    The pretty printer does not format very well; in particular, it formats
+    things vertically that could be formatted horizontally.  Try:
+
+      (pretty-print ((system-function 'sys$get-resource-usage)))
+
+    for some pretty-line-length values; when I tried I could not get it to
+    print the remset entries horizontally even with line length 150 when 
+    all the lines fit on 100 characters.
+
+
+140 v0.47 (991117 / lth)
+    Priority: low
+    Category: LIB / correctness
+
+    The console I/O code (Lib/Common/conio.sch) leaks file descriptors,
+    slowly.  See comments in that file.
+
+
+NEXT ENTRY: 141
 
 ; eof
