@@ -309,6 +309,15 @@ Program received signal SIGSEGV, Segmentation fault.
     Reason for retiring: removed float-significand and float-exponent
     from the interaction environment.
 
+094 v0.41 (981221 / lth)  Retired 991117 by lth
+    Priority: medium.
+    Category: TWOBIT / correctness
+
+    Block compiler and primitive definitions interact poorly.  The following
+    hangs:
+
+       (define car (lambda (x) (car x)))
+
 123 v1.0a1 (990421 / lth)  Retired 990818 by lth
     Priority: low
     Category: TWOBIT / performance
