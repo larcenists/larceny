@@ -875,6 +875,9 @@
     (System.Windows.Forms.Application.Run context)
     (System.Windows.Forms.Application.RemoveMessageFilter standard-message-filter)))
 
+;; For typos
+(define windows-demo window-demo)
+
 (define (preload)
   (system-windows-forms-assembly)
   #f)
