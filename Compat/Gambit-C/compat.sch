@@ -116,5 +116,14 @@
 	  (else
 	   (error "Too many params to make-parameter.")))))
 
+(define-macro (parameterize params . body)
+  (let* ((ps (map car params))
+         (vs (map cadr params))
+         (saves (map gensym ps)))
+    `(let ,@(map (lambda (s p) `(,s (,p))) saves ps)
+       (begin ,@(map (lambda (p v) `(,p ,v)) ps vs))
+       (begin ,@ body)
+       (begin ,@(map (lambda (p s) `(,p ,s)) ps saves)))))
+
 
 ; eof
