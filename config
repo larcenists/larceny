@@ -1,0 +1,11 @@
+#!/bin/sh
+rm -f tmp.config
+echo "(load \"Config/config.sch\")" >> tmp.config
+echo "(main " >> tmp.config
+for i
+do
+	echo \"$i\" >> tmp.config
+done
+echo ")" >> tmp.config
+echo "(exit)" >> tmp.config
+scheme tmp.config
