@@ -174,43 +174,21 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace );
      'young' area.
      */
 
-void gclib_stopcopy_promote_into_dof( gc_t *gc,
-				      semispace_t **dest_areas,
-				      int *sizes,
-				      int *last_used,
-				      int dynamic_gen );
-  /* Deferred-oldest-first promotion:  Promote all objects from the nursery
-     (generation 0) into the areas referenced by dest_areas[] and sizes[].
-     The dest_areas[] and sizes[] arrays are terminated by 0 entries.
-     Return the index in dest_areas[] of the last area used in last_used.
-     The parameter dynamic_gen is the generation number of the dynamic generation.
+int gclib_copy_into_with_barrier( gc_t *gc, int younger_than, 
+				  semispace_t **tospaces, gc_type_t type );
+  /* Copy objects from generations younger than `younger_than' into the
+     areas of `tospaces', filling the areas in strict order and never
+     extending an area (overflow is a fatal error).  Large objects are
+     not counted in the calculation of area usage.  There is a traditional
+     write barrier on the areas of `tospaces'.
      
-     This collector has a complex write barrier: an object promoted into an
-     area is added to the area's remembered set if it references any younger
-     generation or if it references the dynamic generation.
-     */
-     
-void gclib_stopcopy_promote_into_selective( gc_t *gc, 
-                                            semispace_t *tospace,
-                                            int *fromspaces );
-  /* Promote all live objects from the generations named by 0-terminated
-     array FROMSPACES into unbounded semispace TOSPACE, adding to the
-     remembered set of TOSPACE all those objects promoted that still
-     reference objects in younger generations not part of FROMSPACES.
-     */
+     All tospaces but the first must be empty.
 
-void gclib_stopcopy_collect_selective( gc_t *gc,
-                                       semispace_t *tospace,
-                                       int *fromspaces );
-  /* Collect the generation of TOSPACE while promoting all live objects 
-     from the generations named by 0-terminated array FROMSPACES into 
-     TOSPACE.  Add to the remembered set of TOSPACE all those objects
-     that still reference objects in younger generations not part of
-     FROMSPACES.
-     
-     Clear the remembered set of TOSPACE before calling this function.
-     */
+     Returns the index of the last tospace used.
 
+     Experimental; for the DOF dynamic-area collector.
+     */
+     
 void gclib_stopcopy_split_heap( gc_t *gc,
 			        semispace_t *data, semispace_t *text );
   /* Copy all live data into the two static-area semispaces provided. 
@@ -218,6 +196,19 @@ void gclib_stopcopy_split_heap( gc_t *gc,
      generation numbers than any other areas.
      */
 
+void gclib_check_object( word obj );
+  /* Obj must be a tagged pointer.  Check that the object it points to is
+     consistent, and signal an error if not.
+     */
+
+void gclib_check_memory_validity( word *p, int n );
+  /* P must point to a pointerfull object of length n words (to the header 
+     if the object has a header).  The object is checked that it is 
+     consistent: that every constituent word is formatted properly and, 
+     if a pointer, points to a valid word.  Signals an error with 
+     conditional_abort() if any invalid data are found.
+     */
+     
 #endif /* INCLUDED_GCLIB_H */
 
 /* eof */
