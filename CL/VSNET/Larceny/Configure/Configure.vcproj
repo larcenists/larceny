@@ -49,7 +49,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating config files"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Rts\DotNet\Constants.cs"
 					/>
 			</FileConfiguration>
@@ -58,7 +58,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating config files"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Rts\DotNet\Constants.cs"
 					/>
 			</FileConfiguration>

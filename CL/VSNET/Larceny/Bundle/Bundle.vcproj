@@ -49,7 +49,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating PLT SDK"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
 					/>
 			</FileConfiguration>
@@ -58,7 +58,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating PLT SDK"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
 					/>
 			</FileConfiguration>
@@ -70,7 +70,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating PLT SDK zip"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
 					/>
 			</FileConfiguration>
@@ -79,7 +79,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating PLT SDK zip"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
 					/>
 			</FileConfiguration>
@@ -91,7 +91,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating PLT SDK tgz"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
 					/>
 			</FileConfiguration>
@@ -100,7 +100,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
                                         Description="Generating PLT SDK tgz"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
                                         Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
 					/>
 			</FileConfiguration>

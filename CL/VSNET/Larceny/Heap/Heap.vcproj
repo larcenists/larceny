@@ -48,14 +48,14 @@
 				Name="Debug|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
 					Outputs="..\..\..\..\dotnet.heap.exe"/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)"
 					Outputs="..\..\..\..\dotnet.heap.exe"/>
 			</FileConfiguration>
 		</File>
