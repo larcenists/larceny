@@ -58,7 +58,7 @@
     ; FIXME:  It isn't clear whether the environment needs to be carried
     ; around this loop.  In any case the R5RS semantics should simplify
     ; this code further.
-
+      
     ((define-loop 
        (lambda (exp rest first env)
          (cond ((and (pair? exp)
@@ -214,6 +214,7 @@
              ((macro) (m-macro exp env))
              ((inline) (m-inline exp env))
              ((identifier) (m-application exp env))
+             ((javadot) (m-application exp env))
              (else (m-bug "Bug detected in m-expand" exp)))))))
 
 (define (m-atom exp env)
@@ -247,6 +248,13 @@
                       R-entry
                       (cons var (R-entry.references R-entry)))
                      var))
+                  ((javadot)
+                   (let* ((dot-javadot '.javadot)
+                          (id exp)
+                          (new-exp `(,dot-javadot ,id)))
+                     (display ">> ") (display new-exp) (newline)
+                     (m-expand new-exp
+                              env)))
                   (else (m-bug "Bug detected by m-atom" exp env)))))))
 
 (define (m-quote exp)
@@ -334,7 +342,7 @@
                                (loop (cons exp (cdr body))
                                      env
                                      defs))))
-              ((inline identifier)
+              ((inline identifier javadot)
                (finalize-body body env defs))
               (else (m-bug "Bug detected in m-body" body env))))
           (finalize-body body env defs))))
@@ -417,7 +425,8 @@
             (let* ((x (variable.name lhs))
                    (assignment (make-assignment x rhs))
                    (denotation (syntactic-lookup env x)))
-              (if (identifier-denotation? denotation)
+              (if (or (identifier-denotation? denotation)
+                      (javadot-denotation?    denotation))
                   (let ((R-entry (identifier-R-entry denotation)))
                     (R-entry.references-set!
                      R-entry

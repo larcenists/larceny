@@ -158,9 +158,11 @@
     (if entry
         (cdr entry)
         (let ((inline-entry (assq id (global-inline-environment))))
-          (if inline-entry
-              (cdr inline-entry)
-              (make-identifier-denotation id))))))
+          (cond (inline-entry (cdr inline-entry))
+                ((and (recognize-javadot-symbols?)
+                      (javadot-symbol? id))
+                 (make-javadot-denotation id))
+                (else (make-identifier-denotation id)))))))
 
 (define (syntactic-assign! env id denotation)
   (let ((entry (assq id env)))
@@ -184,6 +186,9 @@
 (define (identifier-denotation? denotation)
   (eq? (denotation-class denotation) 'identifier))
 
+(define (javadot-denotation? denotation)
+  (eq? (denotation-class denotation) 'javadot))
+
 (define (make-macro-denotation rules env)
   (list 'macro rules env))
 
@@ -192,6 +197,9 @@
 
 (define (make-identifier-denotation id)
   (list 'identifier id '() '() '()))
+
+(define (make-javadot-denotation id)
+  (list 'javadot id '() '() '()))
 
 (define macro-rules        cadr)
 (define macro-env          caddr)
@@ -203,12 +211,18 @@
 (define identifier-name    cadr)
 (define identifier-R-entry cdr)
 
+(define javadot-name       cadr)
+
 (define (same-denotation? d1 d2)
   (or (eq? d1 d2)
       (and (identifier-denotation? d1)
            (identifier-denotation? d2)
            (eq? (identifier-name d1)
-                (identifier-name d2)))))
+                (identifier-name d2)))
+      (and (javadot-denotation? d1)
+           (javadot-denotation d2)
+           (eq? (javadot-name d1)
+                (javadot-name d2)))))
 
 (define denotation-of-quote
   (syntactic-lookup standard-syntactic-environment 'quote))
