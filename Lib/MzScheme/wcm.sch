@@ -50,6 +50,16 @@
            => (lambda (p) (cons (cdr p) (loop (cdr markset)))))
           (else (loop (cdr markset))))))
 
+(define (continuation-mark-set-first markset key)
+  (if markset
+      (let loop ((markset markset))
+        (cond ((null? markset) #f)
+              ((assq key (car markset)) => cdr)
+              (else (loop (cdr markset)))))
+      (continuation-mark-set-first (current-continuation-marks) key)))
+
+;; continuation-mark-set? : value -> boolean
+
 ;; The following doesn't work, probably because
 ;; call/cc has been redefined to be dynamic-wind-safe call/cc,
 ;; and no longer has the structure expected by 
