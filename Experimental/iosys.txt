@@ -1,5 +1,5 @@
 Experimental generic I/O system for Larceny
-991011 / lth
+991018 / lth
 
 $Id$
 
@@ -287,5 +287,16 @@ Caveats.
 
 The underlying I/O system may not be thread safe; this must be checked,
 and fixed if necessary.
+
+
+Weaknesses.
+
+* There is no way for the port-handler to ignore a CLOSE operation, but
+  sometimes it would be reasonable for it to be able to do so.
+
+* There is no way to signal a sophisticated error condition; the symbol
+  ERROR does not carry enough information.  The error handling needs to
+  be revisited when we have an exception system.
+
 
 ; eof
