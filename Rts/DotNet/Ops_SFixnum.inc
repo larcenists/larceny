@@ -392,7 +392,7 @@
         // Special Operations
 
         SPECIALOP1_OVERRIDE(enable_interrupts) {
-            int time = ((SFixnum)this).value;
+            int time = this.value;
             if (time > 0) {
                 Reg.interruptsEnabled = true;
                 Reg.timer = time;
