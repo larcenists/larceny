@@ -207,6 +207,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum(1) );
 #elif defined(MACOS)
     vector_set( v, 0, fixnum(2) );
+#elif defined(WIN32)
+    vector_set( v, 0, fixnum(3) );
 #else
 #error "Unknown operating system."
 #endif
