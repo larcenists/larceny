@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 8 April 1999
+; 24 April 1999
 ;
 ; Compiler switches needed by Twobit.
 
@@ -147,10 +147,12 @@
      (common-subexpression-elimination #t)
      (representation-inference #t)
      (local-optimization #t))
-    ((fast-safe) 
-     (set-compiler-flags! 'standard)
-     (integrate-usual-procedures #t)
-     (benchmark-mode #t))
+    ((fast-safe)
+     (let ((bbmode (benchmark-block-mode)))
+       (set-compiler-flags! 'standard)
+       (integrate-usual-procedures #t)
+       (benchmark-mode #t)
+       (benchmark-block-mode bbmode)))
     ((fast-unsafe) 
      (set-compiler-flags! 'fast-safe)
      (runtime-safety-checking #f))

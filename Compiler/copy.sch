@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 2 April 1999
+; 25 April 1999
 ;
 ; Given an expression in the subset of Scheme used as an intermediate language
 ; by Twobit, returns a newly allocated copy of the expression in which the
@@ -13,7 +13,7 @@
   
   (define special-names (cons name:IGNORED argument-registers))
   
-  (define original-names '())
+  (define original-names (make-hashtable symbol-hash assq))
   
   (define renaming-counter 0)
   
@@ -22,10 +22,10 @@
       (map (lambda (var)
              (cond ((memq var special-names)
                     var)
-                   ((memq var original-names)
+                   ((hashtable-get original-names var)
                     (rename var))
                    (else
-                    (set! original-names (cons var original-names))
+                    (hashtable-put! original-names var #t)
                     var)))
            vars)))
   
@@ -40,6 +40,39 @@
                       (rename-formals (cdr formals)
                                       (cdr newnames))))))
   
+  ; Environments that map symbols to arbitrary information.
+  ; This data type is mutable, and uses the shallow binding technique.
+  
+  (define (make-env) (make-hashtable symbol-hash assq))
+  
+  (define (env-bind! env sym info)
+    (let ((stack (hashtable-get env sym)))
+      (hashtable-put! env sym (cons info stack))))
+  
+  (define (env-unbind! env sym)
+    (let ((stack (hashtable-get env sym)))
+      (hashtable-put! env sym (cdr stack))))
+  
+  (define (env-lookup env sym default)
+    (let ((stack (hashtable-get env sym)))
+      (if stack
+          (car stack)
+          default)))
+  
+  (define (env-bind-multiple! env symbols infos)
+    (for-each (lambda (sym info) (env-bind! env sym info))
+              symbols
+              infos))
+  
+  (define (env-unbind-multiple! env symbols)
+    (for-each (lambda (sym) (env-unbind! env sym))
+              symbols))
+  
+  ;
+  
+  (define (lexical-lookup R-table name)
+    (assq name R-table))
+  
   (define (copy exp env notepad R-table)
     (cond ((constant? exp) exp)
           ((lambda? exp)
@@ -50,9 +83,6 @@
                   (refinfo (map (lambda (var)
                                   (make-R-entry var '() '() '()))
                                 (append newnames newprocnames)))
-                  (R-table (append refinfo R-table))
-                  (newenv (append (map cons procnames newprocnames)
-                                  (append (map cons bvl newnames) env)))
                   (newexp
                    (make-lambda
                     (rename-formals (lambda.args exp) newnames)
@@ -63,6 +93,11 @@
                     (lambda.decls exp)
                     (lambda.doc exp)
                     (lambda.body exp))))
+             (env-bind-multiple! env procnames newprocnames)
+             (env-bind-multiple! env bvl newnames)
+             (for-each (lambda (entry)
+                         (env-bind! R-table (R-entry.name entry) entry))
+                       refinfo)
              (notepad-lambda-add! notepad newexp)
              (let ((newnotepad (make-notepad notepad)))
                (for-each (lambda (name rhs)
@@ -70,22 +105,26 @@
                              newexp
                              (cons (make-definition
                                     name
-                                    (copy rhs newenv newnotepad R-table))
+                                    (copy rhs env newnotepad R-table))
                                    (lambda.defs newexp))))
                          (reverse newprocnames)
                          (map def.rhs
                               (reverse (lambda.defs exp))))
                (lambda.body-set!
                  newexp
-                 (copy (lambda.body exp) newenv newnotepad R-table))
+                 (copy (lambda.body exp) env newnotepad R-table))
                (lambda.F-set! newexp (notepad-free-variables newnotepad))
                (lambda.G-set! newexp (notepad-captured-variables newnotepad)))
+             (env-unbind-multiple! env procnames)
+             (env-unbind-multiple! env bvl)
+             (for-each (lambda (entry)
+                         (env-unbind! R-table (R-entry.name entry)))
+                       refinfo)
              newexp))
           ((assignment? exp)
-           (let* ((name (let* ((I (assignment.lhs exp))
-                               (x (assq I env)))
-                          (if x (cdr x) I)))
-                  (varinfo (lexical-lookup R-table name))
+           (let* ((oldname (assignment.lhs exp))
+                  (name (env-lookup env oldname oldname))
+                  (varinfo (env-lookup R-table name #f))
                   (newexp
                    (make-assignment name
                                     (copy (assignment.rhs exp) env notepad R-table))))
@@ -103,10 +142,9 @@
            (make-begin (map (lambda (exp) (copy exp env notepad R-table))
                             (begin.exprs exp))))
           ((variable? exp)
-           (let* ((name (let* ((I (assignment.lhs exp))
-                               (x (assq I env)))
-                          (if x (cdr x) I)))
-                  (varinfo (lexical-lookup R-table name))
+           (let* ((oldname (variable.name exp))
+                  (name (env-lookup env oldname oldname))
+                  (varinfo (env-lookup R-table name #f))
                   (newexp (make-variable name)))
              (notepad-var-add! notepad name)
              (if varinfo
@@ -121,9 +159,10 @@
                                          (call.args exp)))))
              (if (variable? (call.proc newexp))
                  (let ((varinfo
-                        (lexical-lookup R-table
-                                        (variable.name
-                                         (call.proc newexp)))))
+                        (env-lookup R-table
+                                    (variable.name
+                                     (call.proc newexp))
+                                    #f)))
                    (if varinfo
                        (R-entry.calls-set!
                         varinfo
@@ -132,9 +171,8 @@
                  (notepad-nonescaping-add! notepad (call.proc newexp)))
              newexp))
           (else ???)))
-  (define (lexical-lookup R-table name)
-    (assq name R-table))
-  (copy exp '() (make-notepad #f) '()))
+  
+  (copy exp (make-env) (make-notepad #f) (make-env)))
 
 ; For debugging.
 ; Given an expression, traverses the expression to confirm
@@ -253,3 +291,147 @@
     (check exp '())))
 
 
+; Calculating the free variable information for an expression
+; as output by pass 2.  This should be faster than computing both
+; the free variables and the referencing information.
+
+(define (compute-free-variables! exp)
+  
+  (define empty-set (make-set '()))
+  
+  (define (singleton x) (list x))
+  
+  (define (union2 x y) (union x y))
+  (define (union3 x y z) (union x y z))
+  
+  (define (set->list set) set)
+  
+  (define (free exp)
+    (cond ((constant? exp) empty-set)
+          ((lambda? exp)
+           (let* ((defs (lambda.defs exp))
+                  (formals (make-set
+                            (make-null-terminated (lambda.args exp))))
+                  (defined (make-set (map def.lhs defs)))
+                  (Fdefs
+                   (apply-union
+                    (map (lambda (def)
+                           (free (def.rhs def)))
+                         defs)))
+                  (Fbody (free (lambda.body exp)))
+                  (F (union2 Fdefs Fbody)))
+             (lambda.F-set! exp (set->list F))
+             (lambda.G-set! exp (set->list F))
+             (difference F (union2 formals defined))))
+          ((assignment? exp)
+           (union2 (make-set (list (assignment.lhs exp)))
+                   (free (assignment.rhs exp))))
+          ((conditional? exp)
+           (union3 (free (if.test exp))
+                   (free (if.then exp))
+                   (free (if.else exp))))
+          ((begin? exp)
+           (apply-union
+            (map (lambda (exp) (free exp))
+                 (begin.exprs exp))))
+          ((variable? exp)
+           (singleton (variable.name exp)))
+          ((call? exp)
+           (union2 (free (call.proc exp))
+                   (apply-union
+                    (map (lambda (exp) (free exp))
+                         (call.args exp)))))
+          (else ???)))
+  
+  (free exp))
+
+; As above, but representing sets as hashtrees.
+; This is commented out because it is much slower than the implementation
+; above.  Because the set of free variables is represented as a list
+; within a lambda expression, this implementation must convert the
+; representation for every lambda expression, which is quite expensive
+; for A-normal form.
+
+(begin
+'
+(define (compute-free-variables! exp)
+  
+  (define empty-set (make-hashtree symbol-hash assq))
+  
+  (define (singleton x)
+    (hashtree-put empty-set x #t))
+  
+  (define (make-set values)
+    (if (null? values)
+        empty-set
+        (hashtree-put (make-set (cdr values))
+                      (car values)
+                      #t)))
+  
+  (define (union2 x y)
+    (hashtree-for-each (lambda (key val)
+                         (set! x (hashtree-put x key #t)))
+                       y)
+    x)
+  
+  (define (union3 x y z)
+    (union2 (union2 x y) z))
+  
+  (define (apply-union sets)
+    (cond ((null? sets)
+           (make-set '()))
+          ((null? (cdr sets))
+           (car sets))
+          (else
+           (union2 (car sets)
+                   (apply-union (cdr sets))))))
+  
+  (define (difference x y)
+    (hashtree-for-each (lambda (key val)
+                         (set! x (hashtree-remove x key)))
+                       y)
+    x)
+  
+  (define (set->list set)
+    (hashtree-map (lambda (sym val) sym) set))
+  
+  (define (free exp)
+    (cond ((constant? exp) empty-set)
+          ((lambda? exp)
+           (let* ((defs (lambda.defs exp))
+                  (formals (make-set
+                            (make-null-terminated (lambda.args exp))))
+                  (defined (make-set (map def.lhs defs)))
+                  (Fdefs
+                   (apply-union
+                    (map (lambda (def)
+                           (free (def.rhs def)))
+                         defs)))
+                  (Fbody (free (lambda.body exp)))
+                  (F (union2 Fdefs Fbody)))
+             (lambda.F-set! exp (set->list F))
+             (lambda.G-set! exp (set->list F))
+             (difference F (union2 formals defined))))
+          ((assignment? exp)
+           (union2 (make-set (list (assignment.lhs exp)))
+                   (free (assignment.rhs exp))))
+          ((conditional? exp)
+           (union3 (free (if.test exp))
+                   (free (if.then exp))
+                   (free (if.else exp))))
+          ((begin? exp)
+           (apply-union
+            (map (lambda (exp) (free exp))
+                 (begin.exprs exp))))
+          ((variable? exp)
+           (singleton (variable.name exp)))
+          ((call? exp)
+           (union2 (free (call.proc exp))
+                   (apply-union
+                    (map (lambda (exp) (free exp))
+                         (call.args exp)))))
+          (else ???)))
+  
+  (hashtree-map (lambda (sym val) sym)
+                (free exp)))
+#t)

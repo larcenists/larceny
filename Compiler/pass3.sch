@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 13 April 1999.
+; 29 April 1999.
 ;
 ; The third "pass" of the Twobit compiler actually consists of several
 ; passes, which are related by the common theme of flow analysis:
@@ -52,15 +52,7 @@
 ;   *  If I is declared by an internal definition, then the right hand
 ;      side of the internal definition is a lambda expression and I
 ;      is referenced only in the procedure position of a call.
-;   *  R is garbage.
-;   *  For each lambda expression, the associated F is a list of all
-;      the identifiers that occur free in the body of that lambda
-;      expression, and possibly a few extra identifiers that were
-;      once free but have been removed by optimization.
-;   *  For each lambda expression, the associated G is a subset of F
-;      that contains every identifier that occurs free within some
-;      inner lambda expression that escapes, and possibly a few that
-;      don't.  (Assignment-elimination does not calculate G exactly.)
+;   *  R, F, and G are garbage.
 ;   *  Variables named IGNORED are neither referenced nor assigned.
 ;   *  The expression does not share structure with the original input,
 ;      but might share structure with itself.
@@ -82,11 +74,8 @@
 ; Inlining               ignores R,   ignores F,  destroys R,  destroys F.
 ; Constant propagation      uses R,   ignores F, preserves R, preserves F.
 ; Conversion to ANF      ignores R,   ignores F,  destroys R,  destroys F.
-; Commoning                 uses R,      uses F,  destroys R,  computes F.
-; Register targeting        uses R,      uses F,  destroys R,  computes F.
-
-; Common subexpression elimination is turned off because of a bug
-; that shows up when compiling Compiler/expand.sch.
+; Commoning              ignores R,   ignores F,  destroys R,  computes F.
+; Register targeting     ignores R,   ignores F,  destroys R,  computes F.
 
 (define (pass3 exp)
   
@@ -104,26 +93,20 @@
   
   (define (phase3 exp)
     (if (common-subexpression-elimination)
-        (begin
-         '(copy-exp
-           (intraprocedural-commoning
-            (copy-exp
-             (intraprocedural-commoning
-              (copy-exp (a-normal-form exp))
-              'commoning))
-            'target-registers))
-         (intraprocedural-commoning (copy-exp (a-normal-form exp))))
+        ; Must alpha-convert unless that was done in phase 2.
+        (let ((exp (if (interprocedural-constant-propagation)
+                       exp
+                       (copy-exp exp))))
+          (intraprocedural-commoning (a-normal-form exp)))
         exp))
   
   (define (phase4 exp)
     exp)
   
   (define (finish exp)
-    (if (and (interprocedural-inlining)
-             (not (interprocedural-constant-propagation))
-             (not (common-subexpression-elimination)))
-        (copy-exp exp)
-        exp))
+    (if (not (common-subexpression-elimination))
+        (compute-free-variables! exp))
+    exp)
   
   (define (verify exp)
     (check-referencing-invariants exp 'free)
@@ -131,4 +114,5 @@
   
   (if (global-optimization)
       (verify (finish (phase4 (phase3 (phase2 (phase1 exp))))))
-      exp))
+      (begin (compute-free-variables! exp)
+             (verify exp))))

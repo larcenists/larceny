@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 12 April 1999.
+; 25 April 1999.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
@@ -94,7 +94,7 @@
 ;      to by R.
 
 (define (pass2 exp)
-  (copy-exp (simplify exp (make-notepad #f))))
+  (simplify exp (make-notepad #f)))
 
 ; Given an expression and a "notepad" data structure that conveys
 ; inherited attributes, performs the appropriate optimizations and

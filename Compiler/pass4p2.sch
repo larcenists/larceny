@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 April 1999.
+; 23 April 1999.
 
 ; Procedure calls.
 
@@ -289,8 +289,10 @@
                           (gen! output $return)
                           'result)
                    (cg-move output frame regs 'result target)))
-        (error "Wrong number of arguments to integrable procedure"
-               (make-readable exp)))))
+        (if (negative? (entry.arity entry))
+            (cg-special output exp target regs frame env tail?)
+            (error "Wrong number of arguments to integrable procedure"
+                   (make-readable exp))))))
 
 (define (cg-integrable-call2 output entry args regs frame env)
   (let ((op (entry.op entry)))
@@ -376,6 +378,111 @@
           (begin (cgreg-release! regs r3)
                  (cgframe-release! frame t3)))))
   'result)
+
+; Given a short list of expressions that can be evaluated in any order,
+; evaluates the first into the result register and the others into any
+; register, and returns an ordered list of the registers that contain
+; the arguments that follow the first.
+; The number of expressions must be less than the number of argument
+; registers.
+
+(define (cg-primop-args output args regs frame env)
+  
+  ; Given a list of expressions to evaluate, a list of variables
+  ; and temporary names for arguments that have already been
+  ; evaluated, in reverse order, and a mask of booleans that
+  ; indicate which temporaries should be released before returning,
+  ; returns the correct result.
+  
+  (define (eval-loop args temps mask)
+    (if (null? args)
+        (eval-first-into-result temps mask)
+        (let ((reg (cg0 output (car args) #f regs frame env #f)))
+          (if (eq? reg 'result)
+              (let* ((r (choose-register regs frame))
+                     (t (newtemp)))
+                (gen! output $setreg r)
+                (cgreg-bind! regs r t)
+                (gen-store! output frame r t)
+                (eval-loop (cdr args)
+                           (cons t temps)
+                           (cons #t mask)))
+              (eval-loop (cdr args)
+                         (cons (cgreg-lookup-reg regs reg) temps)
+                         (cons #f mask))))))
+  
+  (define (eval-first-into-result temps mask)
+    (cg0 output (car args) 'result regs frame env #f)
+    (finish-loop (choose-registers regs frame (length temps))
+                 temps
+                 mask
+                 '()))
+  
+  ; Given a sufficient number of disjoint registers, a list of
+  ; variable and temporary names that may need to be loaded into
+  ; registers, a mask of booleans that indicates which temporaries
+  ; should be released, and a list of registers in forward order,
+  ; returns the correct result.
+  
+  (define (finish-loop disjoint temps mask registers)
+    (if (null? temps)
+        registers
+        (let* ((t (car temps))
+               (entry (cgreg-lookup regs t)))
+          (if entry
+              (let ((r (entry.regnum entry)))
+                (if (car mask)
+                    (begin (cgreg-release! regs r)
+                           (cgframe-release! frame t)))
+                (finish-loop disjoint
+                             (cdr temps)
+                             (cdr mask)
+                             (cons r registers)))
+              (let ((r (car disjoint)))
+                (if (memv r registers)
+                    (finish-loop (cdr disjoint) temps mask registers)
+                    (begin (gen-load! output frame r t)
+                           (cgreg-bind! regs r t)
+                           (if (car mask)
+                               (begin (cgreg-release! regs r)
+                                      (cgframe-release! frame t)))
+                           (finish-loop disjoint
+                                        (cdr temps)
+                                        (cdr mask)
+                                        (cons r registers)))))))))
+  
+  (if (< (length args) *nregs*)
+      (eval-loop (cdr args) '() '())
+      (error "Bug detected by cg-primop-args" args)))
+
+; Special primitives are used to generate runtime safety checks,
+; efficient code for call-with-values, and other weird things.
+
+(define (cg-special output exp target regs frame env tail?)
+  (let ((name (variable.name (call.proc exp))))
+    (case name
+      ((.check!)   (cg-check output exp target regs frame env tail?))
+      (else
+       (error "Bug in cg-special" exp)))))
+
+(define (cg-check output exp target regs frame env tail?)
+  (let* ((args (call.args exp))
+         (nargs (length args)))
+    (if (and (<= 2 nargs 5)
+             (constant? (cadr args)))
+        (let ((exn (constant.value (cadr args)))
+              (regs (cg-primop-args output
+                                    (cons (car args) (cddr args))
+                                    regs frame env)))
+          (case nargs
+            ((2) (gen! output $check 0 0 0 exn))
+            ((3) (gen! output $check (car regs) 0 0 exn))
+            ((4) (gen! output $check (car regs) (cadr regs) 0 exn))
+            ((5) (gen! output $check (car regs)
+                                     (cadr regs)
+                                     (caddr regs)
+                                     exn))))
+        (error "Bug in runtime check" (make-readable exp)))))
 
 
 ; Parallel assignment.

@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 14 April 1999.
+; 23 April 1999.
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.
@@ -97,6 +97,7 @@
         (frame (cgframe-initial))
         (regs (cgreg-initial))
         (t0 (newtemp)))
+    (assembly-stream-info! output (make-hashtable equal-hash assoc))
     (cgreg-bind! regs 0 t0)
     (gen-save! output frame t0)
     (cg0 output
@@ -106,7 +107,13 @@
          frame
          (cgenv-initial integrable)
          #t)
-    (assembly-stream-code output)))
+    (pass4-code output)))
+
+(define (pass4-code output)
+  (hashtable-for-each (lambda (situation label)
+                        (cg-trap output situation label))
+                      (assembly-stream-info output))
+  (assembly-stream-code output))
 
 ; Given:
 ;    an assembly stream into which instructions should be emitted
@@ -168,6 +175,7 @@
          (free (cg-sort-vars free regs frame env))
          (newenv (cgenv-extend env (cons #t free) '()))
          (newoutput (make-assembly-stream)))
+    (assembly-stream-info! newoutput (make-hashtable equal-hash assoc))
     (gen! newoutput $.proc)
     (if (list? args)
         (gen! newoutput $args= (length args))
@@ -182,7 +190,7 @@
                (gen! output $setreg 0)))
     (gen! output
           $lambda
-          (assembly-stream-code newoutput)
+          (pass4-code newoutput)
           (length free)
           (lambda.doc exp))
     ; FIXME
@@ -351,6 +359,7 @@
                   (args (lambda.args exp))
                   (vars (make-null-terminated args))
                   (newoutput (make-assembly-stream)))
+             (assembly-stream-info! newoutput (make-hashtable equal-hash assoc))
              (gen! newoutput $.proc)
              (if (list? args)
                  (gen! newoutput $args= (length args))
@@ -360,7 +369,7 @@
              (cg-eval-vars output free regs frame env)
              (gen! output
                    $lambda
-                   (assembly-stream-code newoutput)
+                   (pass4-code newoutput)
                    (length free)
                    (lambda.doc exp))
              (if tail?

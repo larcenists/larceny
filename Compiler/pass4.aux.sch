@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 12 April 1999
+; 29 April 1999
 
 ; Implements the following abstract data types.
 ;
@@ -98,28 +98,43 @@
 ;    a flag indicating whether the expression is in tail position
 
 ; Assembly streams, into which instructions are emitted by side effect.
-; Represented as a pair whose car is a nonempty list whose cdr is a
-; possibly empty list of MacScheme machine assembly instructions,
-; and whose cdr is the last pair of the car.
+; Represented as a list of two things:
+;
+;     Assembly code, represented as a pair whose car is a nonempty list
+;     whose cdr is a possibly empty list of MacScheme machine assembly
+;     instructions, and whose cdr is the last pair of the car.
+;
+;     Any Scheme object that the code generator wants to associate with
+;     this code.
 
 (define (make-assembly-stream)
-  (let ((stream (list (list 0))))
-    (set-cdr! stream (car stream))
-    stream))
+  (let ((code (list (list 0))))
+    (set-cdr! code (car code))
+    (list code #f)))
 
 (define (assembly-stream-code output)
   (if (local-optimizations)
-      (filter-basic-blocks (cdar output))
-      (cdar output)))
+      (filter-basic-blocks (cdar (car output)))
+      (cdar (car output))))
+
+(define (assembly-stream-info output)
+  (cadr output))
+
+(define (assembly-stream-info! output x)
+  (set-car! (cdr output) x)
+  #f)
+
+(define (gen-instruction! output instruction)
+  (let ((pair (list instruction))
+        (code (car output)))
+    (set-cdr! (cdr code) pair)
+    (set-cdr! code pair)
+    output))
+
+;
 
 (define (gen! output . instruction)
   (gen-instruction! output instruction))
-
-(define (gen-instruction! output instruction)
-  (let ((pair (list instruction)))
-    (set-cdr! (cdr output) pair)
-    (set-cdr! output pair)
-    output))
 
 (define (gen-save! output frame t0)
   (let ((size (cgframe-size-cell frame)))

@@ -1,4 +1,19 @@
-; Support for intraprocedural value numbering.
+; Copyright 1999 William D Clinger.
+;
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful noncommercial purpose, and to redistribute
+; this software is granted subject to the restriction that all copies
+; made of this software must include this copyright notice in full.
+;
+; I also request that you send me a copy of any improvements that you
+; make to this software so that they may be incorporated within it to
+; the benefit of the Scheme community.
+;
+; 18 April 1999.
+;
+; Support for intraprocedural value numbering:
+;     set of available expressions
+;     miscellaneous
 ;
 ; The set of available expressions is represented as a
 ; mutable abstract data type Available with these operations:
@@ -151,3 +166,131 @@
 
 (define (available:killer-combine k1 k2)
   (logior k1 k2))
+
+; Miscellaneous.
+
+; A real call is a call whose procedure expression is
+; neither a lambda expression nor a primop.
+
+(define (real-call? E)
+  (and (call? E)
+       (let ((proc (call.proc E)))
+         (and (not (lambda? proc))
+              (or (not (variable? proc))
+                  (let ((f (variable.name proc)))
+                    (or (not (integrate-usual-procedures))
+                        (not (prim-entry f)))))))))
+
+(define (prim-call E)
+  (and (call? E)
+       (let ((proc (call.proc E)))
+         (and (variable? proc)
+              (integrate-usual-procedures)
+              (prim-entry (variable.name proc))))))
+
+(define (no-side-effects? E)
+  (or (constant? E)
+      (variable? E)
+      (lambda? E)
+      (and (conditional? E)
+           (no-side-effects? (if.test E))
+           (no-side-effects? (if.then E))
+           (no-side-effects? (if.else E)))
+      (and (call? E)
+           (let ((proc (call.proc E)))
+             (and (variable? proc)
+                  (integrate-usual-procedures)
+                  (let ((entry (prim-entry (variable.name proc))))
+                    (and entry
+                         (not (eq? available:killer:dead
+                                   (prim-lives-until entry))))))))))
+
+; Given a local variable, the expression within its scope, and
+; a list of local variables that are known to be used only once,
+; returns #t if the variable is used only once.
+;
+; The purpose of this routine is to recognize temporaries that
+; may once have had two or more uses because of CSE, but now have
+; only one use because of further CSE followed by dead code elimination.
+
+(define (temporary-used-once? T E used-once)
+  (cond ((call? E)
+         (let ((proc (call.proc E))
+               (args (call.args E)))
+           (or (and (lambda? proc)
+                    (not (memq T (lambda.F proc)))
+                    (and (pair? args)
+                         (null? (cdr args))
+                         (temporary-used-once? T (car args) used-once)))
+               (do ((exprs (cons proc (call.args E))
+                           (cdr exprs))
+                    (n     0
+                           (let ((exp (car exprs)))
+                             (cond ((constant? exp)
+                                    n)
+                                   ((variable? exp)
+                                    (if (eq? T (variable.name exp))
+                                        (+ n 1)
+                                        n))
+                                   (else
+                                    ; Terminate the loop and return #f.
+                                    2)))))
+                   ((or (null? exprs)
+                        (> n 1))
+                    (= n 1))))))
+        (else
+         (memq T used-once))))
+
+; Register bindings.
+
+(define (make-regbinding lhs rhs use)
+  (list lhs rhs use))
+
+(define (regbinding.lhs x) (car x))
+(define (regbinding.rhs x) (cadr x))
+(define (regbinding.use x) (caddr x))
+
+; Given a list of register bindings, an expression E and its free variables F,
+; returns two values:
+;     E with the register bindings wrapped around it
+;     the free variables of the wrapped expression
+
+(define (wrap-with-register-bindings regbindings E F)
+  (if (null? regbindings)
+      (values E F)
+      (let* ((regbinding (car regbindings))
+             (R (regbinding.lhs regbinding))
+             (x (regbinding.rhs regbinding)))
+        (wrap-with-register-bindings
+         (cdr regbindings)
+         (make-call (make-lambda (list R) '() '() F F '() #f E)
+                    (list (make-variable x)))
+         (union (list x)
+                (difference F (list R)))))))
+
+; Returns two values:
+;   the subset of regbindings that have x as their right hand side
+;   the rest of regbindings
+
+(define (register-bindings regbindings x)
+  (define (loop regbindings to-x others)
+    (cond ((null? regbindings)
+           (values to-x others))
+          ((eq? x (regbinding.rhs (car regbindings)))
+           (loop (cdr regbindings)
+                 (cons (car regbindings) to-x)
+                 others))
+          (else
+           (loop (cdr regbindings)
+                 to-x
+                 (cons (car regbindings) others)))))
+  (loop regbindings '() '()))
+
+; This procedure is called when the compiler can tell that an assertion
+; is never true.
+
+(define (declaration-error E)
+  (if (issue-warnings)
+      (begin (display "WARNING: Assertion is false: ")
+             (write (make-readable E #t))
+             (newline))))

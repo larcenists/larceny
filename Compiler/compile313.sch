@@ -2,7 +2,7 @@
 ; 
 ; $Id$
 ;
-; 14 April 1999
+; 28 April 1999
 ;
 ; compile313 -- compilation parameters and driver procedures.
 
@@ -341,6 +341,7 @@
              factory-settings)   (fast-safe-code)
                                  (include-source-code #t)
                                  (benchmark-mode #f)
+                                 (benchmark-block-mode #f)
                                  (common-subexpression-elimination #f)
                                  (representation-inference #f))
            (else 

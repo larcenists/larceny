@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 19 December 1998
+; 24 April 1999
 ;
 ; First pass of the Twobit compiler:
 ;   macro expansion, syntax checking, alpha conversion,
@@ -177,7 +177,8 @@
                        (m-error "Inconsistent macro expansion"
                                 (make-readable exp)))))
               (make-assignment id exp))))
-      (let ((bmode (benchmark-mode))
+      (let ((env0 (syntactic-copy global-syntactic-environment))
+            (bmode (benchmark-mode))
             (wmode (issue-warnings)))
         (issue-warnings #f)
         (for-each (lambda (pair)
@@ -207,6 +208,7 @@
                    ((null? forms)
                     (reverse newforms)))))
           (benchmark-mode bmode)
+          (set! global-syntactic-environment env0)
           (part3 alist definitions0 definitions1 forms)))))
   
   (define (part3 alist definitions0 definitions1 forms)

@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 21 April 1999.
+;
 ; Local optimizations for MacScheme machine assembly code.
 ;
 ; Branch tensioning.
@@ -32,17 +34,18 @@
          (forward:nop                      1)
          (forward:ends-block               2)
          (forward:interesting              3)
-         (forward:nop-if-arg1-is-negative  4)
+         (forward:kills-all-registers      4)
+         (forward:nop-if-arg1-is-negative  5)
          
-         (backward:normal                 0)
-         (backward:ends-block             1)
-         (backward:begins-block           2)
-         (backward:uses-arg1              4)
-         (backward:uses-arg2              8)
-         (backward:uses-arg3             16)
-         (backward:kills-arg1            32)
-         (backward:kills-arg2            64)
-         (backward:uses-many            128)
+         (backward:normal                  0)
+         (backward:ends-block              1)
+         (backward:begins-block            2)
+         (backward:uses-arg1               4)
+         (backward:uses-arg2               8)
+         (backward:uses-arg3              16)
+         (backward:kills-arg1             32)
+         (backward:kills-arg2             64)
+         (backward:uses-many             128)
          
          ; largest mnemonic + 1
          
@@ -61,6 +64,8 @@
         (bytevector-set! forward-table i forward:normal)
         (bytevector-set! backward-table i backward:normal))
     
+    (bytevector-set! forward-table $nop     forward:nop)
+    
     (bytevector-set! forward-table $invoke  forward:ends-block)
     (bytevector-set! forward-table $return  forward:ends-block)
     (bytevector-set! forward-table $skip    forward:ends-block)
@@ -72,24 +77,21 @@
     (bytevector-set! forward-table $.cont   forward:ends-block)
     (bytevector-set! forward-table $.label  forward:ends-block)
     
-    (bytevector-set! forward-table $nop     forward:nop)
-    
-    ; The instructions that are nops if their first operand is -1
-    ; are also the instructions that kill all registers, so args>=
-    ; is regarded as one of them.
-    (bytevector-set! forward-table $save    forward:nop-if-arg1-is-negative)
-    (bytevector-set! forward-table $restore forward:nop-if-arg1-is-negative)
-    (bytevector-set! forward-table $pop     forward:nop-if-arg1-is-negative)
-    ;FIXME
-    ;(bytevector-set! forward-table $popstk  forward:kills-all-regs)
-    (bytevector-set! forward-table $args>=  forward:nop-if-arg1-is-negative)
-    
     (bytevector-set! forward-table $store   forward:interesting)
     (bytevector-set! forward-table $load    forward:interesting)
     (bytevector-set! forward-table $setstk  forward:interesting)
     (bytevector-set! forward-table $setreg  forward:interesting)
     (bytevector-set! forward-table $movereg forward:interesting)
     
+    (bytevector-set! forward-table $args>=  forward:kills-all-registers)
+    (bytevector-set! forward-table $popstk  forward:kills-all-registers)
+    
+    ; These instructions also kill all registers.
+    
+    (bytevector-set! forward-table $save    forward:nop-if-arg1-is-negative)
+    (bytevector-set! forward-table $restore forward:nop-if-arg1-is-negative)
+    (bytevector-set! forward-table $pop     forward:nop-if-arg1-is-negative)
+  
     (bytevector-set! backward-table $invoke  backward:ends-block)
     (bytevector-set! backward-table $return  backward:ends-block)
     (bytevector-set! backward-table $skip    backward:ends-block)
@@ -105,6 +107,14 @@
     (bytevector-set! backward-table $op2     backward:uses-arg2)
     (bytevector-set! backward-table $op3     (logior backward:uses-arg2
                                                      backward:uses-arg3))
+    (bytevector-set! backward-table $check   (logior
+                                              backward:uses-arg1
+                                              (logior backward:uses-arg2
+                                                      backward:uses-arg3)))
+    (bytevector-set! backward-table $trap    (logior
+                                              backward:uses-arg1
+                                              (logior backward:uses-arg2
+                                                      backward:uses-arg3)))
     (bytevector-set! backward-table $store   backward:uses-arg1)
     (bytevector-set! backward-table $reg     backward:uses-arg1)
     (bytevector-set! backward-table $load    backward:kills-arg1)
@@ -194,6 +204,10 @@
                            (begin (vector-fill! registers #f)
                                   (forwards instructions
                                             (cons instruction filtered)))))
+                      ((eqv? flags forward:kills-all-registers)
+                       (vector-fill! registers #f)
+                       (forwards instructions
+                                 (cons instruction filtered)))
                       ((eqv? flags forward:ends-block)
                        (vector-fill! registers #f)
                        (if (eqv? op $.label)

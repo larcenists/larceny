@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 12 April 1999
+; 22 April 1999
 
 ($$trace "expand")
 
@@ -182,7 +182,8 @@
         (if (symbol? id)
             (if (not (identifier-denotation?
                       (syntactic-lookup global-syntactic-environment id)))
-                (m-warn "Redefining " id))
+                (if (issue-warnings)
+                    (m-warn "Redefining " id)))
             (m-error "Malformed variable or keyword" id)))))
     
     ; body of letrec
