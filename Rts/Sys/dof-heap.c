@@ -7,6 +7,20 @@
  * TODO
  *   Must incorporate information about other areas when recomputing
  *   heap size (can we use gc_compute_dynamic_size()?).
+ *
+ *   Test a _lot_ more (entire suite).
+ *
+ *   Add support for memstats so we can start tuning.
+ *
+ *   Fix remset stats to report remset size, which memstats always
+ *   reports as 0.
+ *
+ *   Consider whether there are special measurements to make for this GC
+ *   to add to stats (eg mark/cons ratio; distinguish between promotion,
+ *   minor gc, major (full) gc; repeat collections; resets)
+ *
+ *   Support DOF collector in system-features, and in code that depends
+ *   on system-features.
  */
 
 #include <math.h>
@@ -27,8 +41,10 @@
 #include "heap_stats_t.h"
 #include "remset_t.h"
 #include "static_heap_t.h"
+#include "msgc-core.h"
 
-#define BLOCK_SIZE       (64*KILOBYTE)   /* Block granularity */
+#define INVARIANTS_CHECKING   1
+#define BLOCK_SIZE            (64*KILOBYTE)   /* Block granularity */
 
 typedef struct gen gen_t;
 typedef struct dof_data dof_data_t;
@@ -39,7 +55,8 @@ struct gen {
   int claim;                    /* Bytes of memory allotted */
   int order;                    /* Generation number (for barrier/remset) */
   semispace_t *live;            /* The data */
-  remset_t *remset;             /* The remembered set -- for checking */
+  remset_t *remset;             /* The remembered set -- for checking only */
+  los_list_t *los;              /* The LOS list -- for checking only */
 };
 
 struct dof_data {
@@ -282,7 +299,10 @@ static int inv93( old_heap_t *heap )  /* remset-content */
          i > data->cp && i < data->rp ||
          i == data->rp && gen_used( data->gen[i] ) == 0)) {
       rs_compact( data->gen[i]->remset );
-      if (data->gen[i]->remset->live != 0) return 0;
+      if (data->gen[i]->remset->live != 0) {
+        hardconsolemsg( "inv93: %d", i );
+        return 0;
+      }
     }
   return 1;
 }
@@ -293,13 +313,33 @@ static int inv94( old_heap_t *heap )  /* remset-data */
 
   int i;
 
+#if 0                           /* Quite slow */
   for ( i=0 ; i < data->n ; i++ )
     if (data->gen[i]->remset != 0)
       /* rs_consistency check signals the error */
       rs_consistency_check( data->gen[i]->remset, 
                             data->gen[i]->order + data->first_gen_no );
+#endif
   return 1;
 }
+
+static int inv95( old_heap_t *heap )  /* los-list-order */
+{
+  dof_data_t *data = DATA(heap);
+  gc_t *gc = heap->collector;
+
+  int i;
+
+  for ( i=0 ; i < data->n ; i++ )
+    if (data->gen[i]->los != 0 &&
+        data->gen[i]->los != 
+          gc->los->object_lists[data->first_gen_no+data->gen[i]->order]) {
+      hardconsolemsg( "inv95: %d", i );
+      return 0;
+    }
+  return 1;
+}
+
 
 static void print_generation_stats( dof_data_t *data )
 {
@@ -324,6 +364,7 @@ static int fail_inv( dof_data_t *data, char *token )
 
 static void check_invariants( old_heap_t *heap, bool can_allocate )
 {
+#if INVARIANTS_CHECKING
   if (! inv1( DATA(heap) )) fail_inv( DATA(heap), "all-same-size" );
   if (! inv2( DATA(heap) )) fail_inv( DATA(heap), "no-overuse" );
   if (! inv3( DATA(heap) )) fail_inv( DATA(heap), "no-overflow" );
@@ -346,6 +387,8 @@ static void check_invariants( old_heap_t *heap, bool can_allocate )
   if (!inv92( heap )) fail_inv( DATA(heap), "remset-order" );
   if (!inv93( heap )) fail_inv( DATA(heap), "remset-content" );
   if (!inv94( heap )) fail_inv( DATA(heap), "remset-data" );
+  if (!inv95( heap )) fail_inv( DATA(heap), "los-list-order" );
+#endif
 }
 
 static int heap_free_space( old_heap_t *heap )
@@ -381,36 +424,32 @@ static void init_permutation( int permutation[] )
      - sets page table bits according to new order number
    - Shuffles remembered sets according to new order numbers
   */
-static void reorder_generations( old_heap_t *heap, int permutation[] )
+static void 
+reorder_generations( old_heap_t *heap, int permutation[] )
 {
   dof_data_t *data = DATA(heap);
-  gc_t *gc = heap->collector;
   gen_t *oldgen[ MAX_GENERATIONS ], *g;
-  los_list_t *oldlos[ MAX_GENERATIONS ], *l;
   int i, id, k, remset_perm[ MAX_GENERATIONS ], old_order;
 
   init_permutation( remset_perm );
 
-  for ( i=0 ; i < data->n ; i++ ) {
+  for ( i=0 ; i < data->n ; i++ )
     oldgen[i] = data->gen[i];
-    oldlos[i] = gc->los->object_lists[i + data->first_gen_no];
-  }
 
   for ( i=0 ; i < data->n ; i++ ) {
     k = permutation[ i + data->first_gen_no ];
     data->gen[ k - data->first_gen_no ] = g = oldgen[i];
-    gc->los->object_lists[k] = l = oldlos[i];
     g->id = id = k - data->first_gen_no;
     old_order = g->order;
     g->order = (id <= data->cp ? 
                 data->cp - id : 
                 data->n - id + data->cp);
-    remset_perm[old_order + data->first_gen_no ] = g->order+data->first_gen_no;
     ss_set_gen_no( g->live, g->order + data->first_gen_no );
-    los_list_set_gen_no( l, g->order + data->first_gen_no );
+    remset_perm[old_order + data->first_gen_no ] = g->order+data->first_gen_no;
   }
 
   gc_permute_remembered_sets( heap->collector, remset_perm );
+  los_permute_object_lists( heap->collector->los, remset_perm );
 }
 
 static void rotate_0_to_CP( old_heap_t *heap )
@@ -460,6 +499,8 @@ static void move_memory( gen_t *g_from, gen_t *g_to, int amount )
   semispace_t *from, *to;
   int i, k, amt;
 
+  if (amount == 0) return;
+
   from = g_from->live;
   to = g_to->live;
 
@@ -484,9 +525,33 @@ static void move_memory( gen_t *g_from, gen_t *g_to, int amount )
   g_to->claim += amount;
 }
 
+/* FIXME: double fn call is doubly gratuitous. */
+static bool fullgc_should_keep_p( word loc, void *data, unsigned *stats )
+{
+  /* Keep only marked objects */
+  return msgc_object_marked_p( (msgc_context_t*)data, loc );
+}
+
+static void sweep_remembered_sets( old_heap_t *heap, msgc_context_t *context )
+{
+  int i;
+
+  for ( i=1 ; i < heap->collector->remset_count ; i++ )
+    rs_enumerate( heap->collector->remset[i],
+		  fullgc_should_keep_p,
+		  context );
+}
+
 static void full_collection( old_heap_t *heap )
 {
-  hardconsolemsg( "WARNING: DOF gc: full collection not yet implemented." );
+  msgc_context_t *context;
+
+  hardconsolemsg( " Beginning full collection" );
+  context = msgc_begin( heap->collector );
+  msgc_mark_from_roots( context );
+  sweep_remembered_sets( heap, context );
+  msgc_end( context );
+  hardconsolemsg( " Finished full collection" );
 }
 
 static void promote_in( old_heap_t *heap )
@@ -509,14 +574,11 @@ static void promote_in( old_heap_t *heap )
     gclib_copy_into_with_barrier(heap->collector, data->first_gen_no, targets,
                                  GCTYPE_PROMOTE );
   assert( data->ap >= 0 );
-#if 0
-  /* This is wrong.  The clearing should only be partial: only those entries
-     pointing into GEN 0.  But those entries should have been taken care of
-     by */
-  for ( i=0 ; i < data->n ; i++ )
-    if (data->gen[i]->order <= data->gen[ap_before]->order )
-      rs_clear( heap->collector->remset[ data->gen[i]->order + data->first_gen_no ] );
-#endif
+  /* Is this rs_clear() redundant?  Normal remset removal might have cleared 
+     the remset already.  Might be better to avoid remset removal on the set 
+     because wholesale clearing is potentially faster (but is it?).
+     */
+  rs_clear( heap->collector->remset[ data->first_gen_no ] );
 
   live_after = 0;
   for ( i=ap_before ; i >= data->ap ; i-- )
@@ -732,6 +794,7 @@ static void perform_collection( old_heap_t *heap )
     gclib_copy_into_with_barrier(heap->collector, data->first_gen_no+1, 
                                  targets,
                                  GCTYPE_PROMOTE );
+  /* See comments about rs_clear() in promote_in(). */
   rs_clear( heap->collector->remset[ data->first_gen_no ] );
   rs_clear( heap->collector->remset[ data->first_gen_no+1 ] );
 
@@ -753,6 +816,11 @@ static void maybe_collect( old_heap_t *heap )
     annoyingmsg( " DOF collection begins" );
     if (repeating) 
       data->repeat_collections++;
+    if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
+      full_collection( heap );
+      check_invariants( heap, FALSE );
+      data->gc_counter = 0;
+    }
     marking_before = data->marking + data->total_marking;
     perform_collection( heap );
     check_invariants( heap, FALSE );
@@ -775,8 +843,10 @@ static int initialize( old_heap_t *heap )
 
   DATA(heap)->ephemeral_size = esize;
 
-  for ( i=0 ; i < data->n ; i++ )
+  for ( i=0 ; i < data->n ; i++ ) {
     data->gen[i]->remset = gc->remset[data->first_gen_no+data->gen[i]->order];
+    data->gen[i]->los = gc->los->object_lists[data->first_gen_no+data->gen[i]->order];
+  }
   return 1;
 }
 
@@ -787,16 +857,8 @@ static void collect( old_heap_t *heap, gc_type_t request )
   annoyingmsg( "DOF collection cycle begins: AP=%d CP=%d RP=%d",
                data->ap, data->cp, data->rp );
   check_invariants( heap, FALSE );
-  gc_compact_all_ssbs( heap->collector );
-  check_invariants( heap, FALSE );
   promote_in( heap );
-  gc_compact_all_ssbs( heap->collector );
   check_invariants( heap, FALSE );
-  if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
-    full_collection( heap );
-    check_invariants( heap, FALSE );
-    data->gc_counter = 0;
-  }
   maybe_collect( heap );
   check_invariants( heap, TRUE );
   annoyingmsg( "DOF collection cycle ends",
@@ -872,6 +934,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
                             (data->s / BLOCK_SIZE), 
                             gen_no+g->order );
     g->remset = 0;
+    g->los = 0;
   }
 
   data->ap = data->n - 2;
@@ -933,7 +996,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
    */
 #define FORWARD_HDR      0xFFFFFFFE
 
-#define CHECK_EVERY_WORD 1
+#define CHECK_EVERY_WORD 0
 
 #if CHECK_EVERY_WORD
 # define check_memory( ptr, nwords )            \
