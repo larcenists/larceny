@@ -202,7 +202,7 @@
 	(bytevector-fill! s (char->integer c))
 	(begin (error "string-fill!: bad operands: " s " " c)
 	       #t))))
- 
+
 (define substring-fill!
   (lambda (s start end c)
     (do ((i start (+ i 1)))
@@ -221,7 +221,7 @@
 (define list->string
   (letrec ((loop
              (lambda (s i l)
-               (if (not (null? l))
+               (if (pair? l)
                    (begin (string-set! s i (car l))
                           (loop s (+ i 1) (cdr l)))
                    s))))
@@ -237,48 +237,112 @@
     (lambda (bv)
       (loop bv (- (string-length bv) 1) '()))))
 
+;;; String hash based on
+;;;
+;;; @inproceedings{ ramakrishna97performance,
+;;;     author = "M. V. Ramakrishna and Justin Zobel",
+;;;     title = "Performance in Practice of String Hashing Functions",
+;;;     booktitle = "Database Systems for Advanced Applications",
+;;;     pages = "215-224",
+;;;     year = "1997",
+;;;     url = "citeseer.ist.psu.edu/article/ramakrishna97performance.html" }
+
+;;; Note, the stepping function is this:
+;;;   hash_n+1 <- (logxor hash_n (+ (shift-left hash_n 5)
+;;;                                 (shift-right hash_n 2)
+;;;                                 (string-ref string index)))
+;;;
+;;; But the speed limiting factor (under dotnet) is not memory access,
+;;; but number of primitive operations per step.  Thus we precompute
+;;;  (+ (shift-left hash 5) (shift-right hash 2)) for the possible
+;;; hash codes and just fetch them from a table.
+;;;
+;;; Additionally, we want the hash code to be in the range [0 2^16).
+;;; To avoid a masking step, we limit the table entries to
+;;; [0 (2^16 - 256)) so that adding in a byte from the string always
+;;; leaves us with at most 16 bits.
+
+;;; The end result is a > 25% speedup in hashing, and a better
+;;; distribution of hash values.  (Hashing a set of words from a
+;;; dictionary showed fewer empty buckets, more buckets with exactly
+;;; one entry and fewer buckets with three or more entries.)
+
 ; Returns a value in the range 0 .. 2^16-1 (a fixnum in Larceny).
 
-(define (string-hash string)
-  (define (loop s i h)
-    (if (< i 0)
-	h
-	(loop s
-	      (- i 1)
-	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
-  (let ((n (string-length string)))
-    (loop string (- n 1) n)))
+(define string-hash
+  (let ((shift-table (make-vector 65536 0)))
 
-(define (string-downcase! s)
-  (do ((i (- (string-length s) 1) (- i 1)))
-      ((< i 0) s)
-    (let ((x (bytevector-like-ref s i)))
-      (if (= 1 (bytevector-ref *char-table* x))
-	  (bytevector-like-set! s i (+ x 32))))))
+    (define (string-hash-loop string limit i code)
+      (if (= i limit)
+          code
+          (string-hash-loop
+           string limit (+ i 1)
+           (logxor code
+                   (+ (vector-ref shift-table code)
+                      (bytevector-like-ref string i))))))
 
-(define (string-upcase! s)
-  (do ((i (- (string-length s) 1) (- i 1)))
-      ((< i 0) s)
-    (let ((x (bytevector-like-ref s i)))
-      (if (= 2 (bytevector-ref *char-table* x))
-	  (bytevector-like-set! s i (- x 32))))))
+    (define (string-hash-internal string)
+      (let ((n (string-length string)))
+        (string-hash-loop string n 0 (logxor n #x5aa5))))
 
-(define (string-downcase s)
-  (string-downcase! (string-copy s)))
+    (do ((sti 0 (+ sti 1)))
+        ((>= sti 65536))
+      (vector-set! shift-table sti
+                   (remainder (+ (lsh sti 5) (rsha sti 2))
+                              (- 65536 256))))
 
-(define (string-upcase s)
-  (string-upcase! (string-copy s)))
+    string-hash-internal))
+
+;(define (string-hash string)
+;  (define (loop s i h)
+;    (if (< i 0)
+;	h
+;	(loop s
+;	      (- i 1)
+;	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+;  (let ((n (string-length string)))
+;    (loop string (- n 1) n)))
+
+(define (%string-downcase! src dest)
+  (do ((i (- (string-length src) 1) (- i 1)))
+      ((< i 0) dest)
+    (let ((x (bytevector-like-ref src i)))
+      (bytevector-like-set! dest i
+                            (if (= 1 (bytevector-ref *char-table* x))
+                                (+ x 32)
+                                x)))))
+
+(define (string-downcase! string)
+  (%string-downcase! string string))
+
+(define (string-downcase string)
+  (%string-downcase! string (make-string (string-length string))))
+
+(define (%string-upcase! src dest)
+  (do ((i (- (string-length src) 1) (- i 1)))
+      ((< i 0) dest)
+    (let ((x (bytevector-like-ref src i)))
+      (bytevector-like-set! dest i
+                            (if (= 2 (bytevector-ref *char-table* x))
+                                (- x 32)
+                                x)))))
+
+(define (string-upcase! string)
+  (%string-upcase! string string))
+
+(define (string-upcase string)
+  (%string-upcase! string (make-string (string-length string))))
 
 (define list->bytevector
   (letrec ((loop
              (lambda (bv i l)
-               (if (not (null? l))
+               (if (pair? l)
                    (begin (bytevector-set! bv i (car l))
                           (loop bv (+ i 1) (cdr l)))
                    bv))))
     (lambda (l)
       (loop (make-bytevector (length l)) 0 l))))
- 
+
 (define bytevector->list
   (letrec ((loop
              (lambda (bv i l)
