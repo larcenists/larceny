@@ -32,10 +32,20 @@
    (if (not (eq? x (unspecified)))
        (pretty-print x))))
 
-; FFI not included in 1.0a1
-;
-;(load "Auxlib/std-ffi.sch")
-;(load "Auxlib/unix-functions.sch")
+; Common syntactic abstractions
+(load "Auxlib/macros.sch")
+
+; Records
+
+(load "Experimental/record.sch")        ; Record package
+(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
+
+; Foreign-function interface
+
+(load "Auxlib/std-ffi.sch")
+(load "Auxlib/unix-functions.sch")
+
+; Improved definitions 
 
 (define apropos
   (let ((apropos apropos))
