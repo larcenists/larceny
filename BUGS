@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 136, 137, 147, 152.
+HIGH PRIORITY BUGS: 136, 137, 147.
 
 
 005  (v0.27e)
@@ -950,31 +950,6 @@ HIGH PRIORITY BUGS: 136, 137, 147, 152.
     Twobit generates the primop $const/setreg, which is not in the core
     instruction set.
 
-152 v0.47 (2000-01-26 / lth)
-    Priority: high
-    Category: Libraries / correctness
-
-	Larceny v0.47 "'Bat' Guano" (precise:SunOS5:split) (lth 18-Nov-99 13:22:00)
-
-	> (/ 3975757967 1e6)
-	-319.209329		        ;; This is wrong, obviously
-	> (/ 3975757967 10)
-	-319209329/10			;; Ratnum arithmetic is broken
-	
-	Not an obvious optimizer bug:
-	
-	> (define a 3975757967)
-	a
-	> (define b 1e6)
-	b
-	> (/ a b)
-	-319.209329
-	
-	Bug also present in 1.0a1.
-	
-	ratnum-div seems to do the right thing when handed the arguments, so
-	what we're seeing might be ratnum-div being handed a wrongly converted
-	fixnum by contagion.
 
 NEXT ENTRY: 153
 
