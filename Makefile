@@ -20,7 +20,7 @@ default:
 	@echo "  tildeclean     - remove all *~ files"
 	@echo "  faslclean      - remove all .FASL files"
 
-clean: libclean rtsclean compilerclean
+clean: libclean rtsclean compilerclean faslclean
 	rm -f core
 
 libclean:
