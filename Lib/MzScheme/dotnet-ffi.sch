@@ -229,7 +229,7 @@
   clr-type-handle/system-type "IsEnum")
 
 (define (map-clr-array proc handle)
-  (if (%clr-array? handle clr-type-handle/system-array)
+  (if (%clr-array? handle)
       (let loop ((result '())
                  (idx     0)
                  (limit  (clr-array/length handle)))
