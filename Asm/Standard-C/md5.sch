@@ -60,7 +60,7 @@
 ;    word:  32 bit unsigned integer
 ;    byte:   8 bit unsigned integer
 
-(define md5)
+(define md5 #f)
 
 (let ()
   (let-syntax ((mod32
