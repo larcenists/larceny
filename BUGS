@@ -577,12 +577,6 @@ HIGH PRIORITY BUGS: 088, 109, 111, 121.
 	> (+ 1 2)
 	(1 . 2)
 
-104 v1.0a1 (990107 / wdc)
-    Priority: medium
-
-    Twobit is generating executable code for calls to UNSPECIFIED
-    in command positions.
-
 106 v1.0a1 (990108 / lth)
     Priority: medium.
 
@@ -608,66 +602,11 @@ HIGH PRIORITY BUGS: 088, 109, 111, 121.
 
 	Process scheme segmentation violation (core dumped)
 
-109 v1.0a1 (990317 / lth; wdc)
-    Priority: high.
-
-    Twobit fails to detect bugs like
-
-	(lambda (x x) ...)
-
-    This can cause the system to crash with a segmentation fault;
-    consider this test case:
-
-	(define (exhibit-bug)
-
-	  (define internal-name #f)
-
-	  (define (goto x . inputs)
-	    (apply x inputs))
-
-	  (define (internal-name random-input)
-	    (set! internal-name #f)
-	    (goto internal-name 'something))
-
-	  (goto internal-name 'something))
-
-110 v1.0a1 (990317 / lth)
-    Priority: medium.
-
-    The macro-expansion of DO is not the best possible: if there are no
-    expressions in the test, then the test is evaluated for its value and
-    that value is returned.  This results in slower code for the test and is
-    not required by the Report.  Eg.
-
-	(do ((i 0 (+ i 1)))
-	    ((= i 100))
-          ...)
-
-    appears to get expanded as 
-
-	(letrec ((loop (lambda (i)
-                         (let ((i (= i 100)))
-                           (if i i (begin ... (loop (+ i 1))))))))
-          (loop 0))
-
-    when it could be expanded as
-
-	(letrec ((loop (lambda (i)
-                         (if (= i 100) 
-                             #!unspecified
-	                     (begin ... (loop (+ i 1)))))))
-          (loop 0))
-
-    or indeed as
-
-	(letrec ((loop (lambda (i)
-                         (if (not (= i 100))
-	                     (begin ... (loop (+ i 1)))))))
-          (loop 0))
-
-   
 111 v1.0a1 (990317 / lth)
     Priority: high
+
+    [This may have been fixed when bug 109 was fixed, but I haven't
+    yet checked. - wdc]
 
     Message-Id: <199903171640.LAA27566@vega.ccs.neu.edu>
     To: will@ccs.neu.edu
