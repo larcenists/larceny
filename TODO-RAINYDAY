@@ -1,7 +1,10 @@
+Copyright 1998 Lars T Hansen.               -*- Text -*-
+
 $Id$
 
-Rainy day projects for the Larceny hacker
------------------------------------------
+
+	       Rainy day projects for the Larceny hacker
+
 
 Portable Graphical User Interface support
   Requirements: 
@@ -24,7 +27,6 @@ Garbage collector that segregates non-scannable data.
 Exception system.
 Module system.
 Java code generator and libraries.
-C code generator and libraries.
 Unicode support.
 A real debugger (the existing debugger should be scrapped).
 A profiler.
@@ -52,13 +54,16 @@ Bytecode code generator, libraries, and interpreter.
   coding remains to be done.  The big unknown that must be resolved
   is how to interact with compiled code.
 
+C Code generator (Petit Larceny)
+  Was operational, now is buggy (due to new compiler?)
+
 Generic functions (see Experimental/generic/*)
   We can build generic functions on top of the record system, the
   apply hooks, and a simple type facility.  Much of this code exists.
 
 Record system (see Experimental/record.*).
-  We need to add inheritance, tune the code, and consider a name-hiding
-  facility for partial opacity.
+  We need to tune the code, and consider a name-hiding facility for
+  partial opacity.
 
 FFI (see Ffi/*).
   Primarily call-backs and GC issues remain to be resolved -- the hard
