@@ -62,20 +62,6 @@
 #define RTS_OWNED_PAGE     ((unsigned)-3)    /* Larceny owns it */
 
 
-/* Types */
-
-struct gclib_stats {
-  word wheap;			/* words currently allocated to heap areas */
-  word wheap_max;		/* max of wheap over time */
-  word wremset;			/* words allocated to remembered sets */
-  word wremset_max;		/* max of wremset over time */
-  word wrts;			/* words allocated to run-time systems */
-  word wrts_max;		/* max of wrts over time */
-  word wastage;			/* words of fragmentation in heap areas */
-  word wastage_max;		/* max of wastage over time */
-};
-
-
 /* Global variables */
 
 extern unsigned *gclib_desc_g;           /* generation owner */
