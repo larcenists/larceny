@@ -165,22 +165,24 @@
                                        "Rts"
                                        (string-append f ".cfg")))
                  cfg-names))
-  
-  (catfiles
-   (map (lambda (f) (make-filename *larceny-root*
-                              "Rts"
-                              "Build"
-                              (string-append f ".ch")))
-        cfg-names)
-   (make-filename *larceny-root* "Rts" "Build" "cdefs.h"))
+  (unless (file-exists? (make-filename *larceny-root* "Rts" "Build" "cdefs.h"))
+    (catfiles
+     (map (lambda (f) (make-filename *larceny-root*
+                                "Rts"
+                                "Build"
+                                (string-append f ".ch")))
+          cfg-names)
+     (make-filename *larceny-root* "Rts" "Build" "cdefs.h")))
 
-  (catfiles
-   (map (lambda (f) (make-filename *larceny-root*
-                              "Rts"
-                              "Build"
-                              (string-append f ".sh")))
-        (remove "mprocs" cfg-names))
-   (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))
+  (unless (file-exists? (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))
+    (catfiles
+     (map (lambda (f) (make-filename *larceny-root*
+                                "Rts"
+                                "Build"
+                                (string-append f ".sh")))
+          (remove "mprocs" cfg-names))
+     (make-filename *larceny-root* "Rts" "Build" "schdefs.h")))
+  
   (display " -- Running C# config...")(newline)
   (run-csharp-config))
 
