@@ -17,21 +17,16 @@
 (define (petit-application-name)
   "petit")
 
-; A hack.
+; classify-unix-system is in Asm/Standard-C/dumpheap-unix.sch
 
-(define is-macosx?
-  (let ((isit 'dontknow))
-    (lambda ()
-      (if (eq? isit 'dontknow)
-	  (set! isit (and (string=? "BSD Unix" (cdr (assq 'os-name (system-features))))
-			  (file-exists? "/Desktop"))))
-      isit)))
+(define (is-macosx?)
+  (eq? 'macosx (classify-unix-system)))
 
 (define (dlcompat-available?)
   (file-exists? "/usr/local/include/dlfcn.h"))
 
 (define (is-sunos?)
-  (string=? "SunOS" (cdr (assq 'os-name (system-features)))))
+  (eq? 'sunos (classify-unix-system)))
 
 ;; Twobit.app on MacOS X because MacOS X can't distinguish "Twobit"
 ;; (the directory) and "twobit" (the program).  Unix?  I think not.

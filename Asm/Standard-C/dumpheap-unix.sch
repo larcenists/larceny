@@ -53,19 +53,27 @@
                          ,@unix/petit-lib-library-platform))
     executable-name))
 
-; Compiler definitions
+; General classification of a Unix system, a little more fine grained than 
+; SYSTEM-FEATURES currently provides.  A hack, really.
 
-(define gcc-name
-  (case (nbuild-parameter 'host-os)
-    ((macosx) "cc")     ; Apple brain damage
-    (else     "gcc")))
+(define (classify-unix-system)
+  (cond ((and (string=? "BSD Unix" (cdr (assq 'os-name (system-features))))
+	      (file-exists? "/Desktop"))
+	 'macosx)
+	((string=? "SunOS" (cdr (assq 'os-name (system-features))))
+	 'sunos)
+	((zero? (system "test \"`uname`\" = \"Linux\""))
+	 'linux)
+	(else
+	 'generic)))
+  
+; Compiler definitions
 
 (define (c-compiler:gcc-unix c-name o-name)
   (execute
    (twobit-format 
     #f
-    "~a -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
-    gcc-name
+    "gcc -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")
@@ -85,8 +93,7 @@
   (execute
    (twobit-format 
     #f
-    "~a ~a -rdynamic -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -rdynamic -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -96,8 +103,7 @@
   (execute
    (twobit-format 
     #f
-    "~a ~a -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -107,19 +113,19 @@
   (execute
    (twobit-format 
     #f
-    "~a ~a -shared -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -shared -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
 
+; Known to work with 10.2.8
+
 (define (c-so-linker:gcc-macosx output-name object-files libs)
   (execute
    (twobit-format 
     #f
-    "~a ~a -r -shared -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -129,10 +135,7 @@
   "GCC under Unix"
   'gcc
   ".o"
-  (let ((host-os (nbuild-parameter 'host-os)))
-    (if (eq? host-os 'unix)
-	(if (zero? (system "test \"`uname`\" = \"Linux\""))
-	    (set! host-os 'linux)))
+  (let ((host-os (classify-unix-system)))
     `((compile            . ,c-compiler:gcc-unix)
       (link-library       . ,c-library-linker:gcc-unix)
       (link-executable    . ,(case host-os
