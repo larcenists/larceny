@@ -4,6 +4,11 @@
 #
 # This is Rts/Makefile.
 
+# Other definitions you might add to CCFLAGS and ASXFLAGS:
+#   -DSIMULATE_NEW_BARRIER  for the simulated write barrier
+#   -DNO_ATOMIC_ALLOCATION  to not distinguish atomic and nonatomic object
+#                           allocation in the conservative collector.
+
 ###########################################################################
 #
 # Section 0: Programs
@@ -12,16 +17,23 @@
 #
 # The assembler must accept -P; the GNU assembler does not.  If you
 # experience assembler errors, you most likely have the wrong assembler.
-# On SunOS systems, try /bin/as.
+# On SunOS systems, try /bin/as.  gcc -E might work.
 
 CC=gcc
 CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit
+
+# DEC Alpha C compiler on DEC OSF/1 (for Petit Larceny)
+#
+# CC=cc
+# CCFLAGS=-g3 -taso -xtaso_short
+# LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so -lm -lc -all
+
 #CC=lcc
 #CCFLAGS=-DSTDC_SOURCE
 
 AS=as
-
+ASXFLAGS=
 
 ############################################################################
 #
@@ -83,7 +95,6 @@ PROFILE=#-p
 TCOV=#-a -g -DNDEBUG2 -DNDEBUG
 LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-ARCHINFO=-DENDIAN_BIG -DBITS_32
 
 # You typically want this to remain on, unless you want multiple collectors
 # in the same process (beyond the realm of the possible, at the moment).  
@@ -93,7 +104,7 @@ BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 
 CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(CONFIG) \
 	-ISys -IBuild -IStandard-C $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) \
-	$(ARCHINFO) $(BDW_DEBUG) $(CCFLAGS)
+	$(BDW_DEBUG) $(CCFLAGS)
 
 SPARC_ASFLAGS= -P -ISparc -IBuild $(CONFIG) $(DEBUGFLAGS) \
 	$(IFLUSH) $(DIVZ) $(ASXFLAGS)
@@ -105,11 +116,14 @@ SPARC_ASFLAGS= -P -ISparc -IBuild $(CONFIG) $(DEBUGFLAGS) \
 
 COMMON_RTS_OBJECTS=\
 	Sys/argv.o Sys/barrier.o Sys/callback.o Sys/ffi.o Sys/gc_t.o \
-	Sys/ldebug.o Sys/malloc.o Sys/signals.o Sys/sro.o \
-	Sys/stack.o Sys/syscall.o Sys/unix.o Sys/util.o Sys/version.o
+	Sys/ldebug.o Sys/malloc.o Sys/osdep-generic.o \
+	Sys/osdep-macos.o Sys/osdep-unix.o Sys/osdep-win32.o \
+	Sys/primitive.o Sys/signals.o Sys/sro.o Sys/stack.o Sys/syscall.o \
+	Sys/util.o Sys/version.o
 
 PRECISE_GC_OBJECTS=\
-	Sys/alloc.o Sys/cheney.o Sys/gc.o Sys/heapio.o Sys/los.o \
+	Sys/alloc.o Sys/cheney.o Sys/dof-heap.o Sys/gc.o Sys/heapio.o \
+	Sys/los.o \
 	Sys/memmgr.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
 	Sys/old-heap.o Sys/remset.o Sys/sc-heap.o Sys/semispace.o \
 	Sys/static-heap.o Sys/stats.o Sys/young_heap_t.o
@@ -125,7 +139,7 @@ BOEHM_GC_LIBRARIES=\
 
 COMMON_SPARC_OBJECTS=\
 	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o \
-	Sparc/glue.o Sparc/mcode.o Sparc/signals.o Sparc/syscall.o \
+	Sparc/glue.o Sparc/mcode.o Sparc/signals.o Sparc/syscall2.o \
 	Build/sparc-table.o 
 
 SPARC_PRECISE_GC_OBJECTS=\
@@ -133,7 +147,7 @@ SPARC_PRECISE_GC_OBJECTS=\
 
 PETIT_OBJECTS=\
 	Standard-C/arithmetic.o Standard-C/millicode.o Standard-C/multiply.o \
-	Standard-C/syscall.o Build/c-table.o
+	Standard-C/syscall2.o Build/c-table.o
 
 # SPARC only
 LARCENY_OBJECTS=\
@@ -218,6 +232,7 @@ config:
 	$(MAKE) Build/schdefs.h
 	$(MAKE) Build/sparc-table.s
 	$(MAKE) Build/c-table.c
+	$(MAKE) Standard-C/arithmetic.c
 
 larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \
@@ -293,7 +308,7 @@ Standard-C/arithmetic.o: $(LARCENY_H) $(PETIT_H)
 Standard-C/millicode.o: $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \
 	Sys/stack.h
 Standard-C/multiply.o: $(LARCENY_H) $(PETIT_H)
-Standard-C/syscall.o: $(LARCENY_H) $(PETIT_H)
+Standard-C/syscall2.o: $(LARCENY_H) $(PETIT_H)
 
 Sparc/barrier.o: $(SPARC_ASM_H)
 Sparc/bdw-memory.o: Sparc/memory.s $(SPARC_ASM_H)
@@ -307,7 +322,7 @@ Sparc/glue.o: $(SPARC_ASM_H)
 Sparc/mcode.o: $(SPARC_ASM_H)
 Sparc/memory.o: $(SPARC_ASM_H)
 Sparc/signals.o: $(LARCENY_H)
-Sparc/syscall.o: $(LARCENY_H)
+Sparc/syscall2.o: $(LARCENY_H)
 
 Sys/alloc.o: $(LARCENY_H) Sys/barrier.h Sys/gclib.h Sys/semispace_t.h
 Sys/argv.o: $(LARCENY_H)
@@ -345,6 +360,7 @@ Sys/old_heap_t.o: $(LARCENY_H) Sys/old_heap_t.h
 Sys/old-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
 	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
 	Sys/remset_t.h Sys/semispace_t.h Sys/static_heap_t.h Sys/young_heap_t.h
+Sys/osdep.o: $(LARCENY_H)
 Sys/remset.o: $(LARCENY_H) Sys/gclib.h Sys/memmgr.h Sys/remset_t.h
 Sys/sc-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
 	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h \
@@ -359,7 +375,10 @@ Sys/static-heap.o: $(LARCENY_H) Sys/gc.h Sys/gclib.h Sys/heap_stats_t.h \
 Sys/stats.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
 	Sys/heap_stats_t.h Sys/memmgr.h
 Sys/syscall.o: $(LARCENY_H) Sys/signals.h
-Sys/unix.o: $(LARCENY_H)
+Sys/primitive.o: $(LARCENY_H)  Sys/signals.h
+Sys/osdep-unix.o: $(LARCENY_H)
+Sys/osdep-win32.o: $(LARCENY_H)
+Sys/osdep-generic.o: $(LARCENY_H)
 Sys/util.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h
 Sys/version.o: Sys/config.h
 Sys/young_heap_t.o: $(LARCENY_H) Sys/young_heap_t.h
