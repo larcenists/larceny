@@ -107,7 +107,6 @@ typedef struct {
 
   /* GC stuff - snapshot */
   word wlive;              /* current words live */
-  word wmax_heap;          /* max words allocated to heap ever */
   word lastcollection_gen; /* generation of last collection */
   word lastcollection_type;/* type of last collection */
 
@@ -125,8 +124,13 @@ typedef struct {
 
   /* RTS memory use - snapshot */
   word wallocated_heap;    /* words allocated to heap areas */
+  word wheap_max;          /* max words allocated to heap ever */
   word wallocated_remset;  /* words allocated to remembered sets */
+  word wremset_max;	   /* max words allocated to remset ever */
   word wallocated_rts;     /* words allocated to RTS "other" */
+  word wrts_max;	   /* max words allocated to rts ever */
+  word wastage;		   /* words of external heap framgentation */
+  word wastage_max;	   /* max words of external heap fragmentation ever */
 
 #if defined(SIMULATE_NEW_BARRIER)
   struct {
@@ -315,6 +319,7 @@ stats_after_gc( void )
   add( &memstats.wcollected_hi, &memstats.wcollected_lo,
        fixnum( live_before_gc - nativeint(memstats.wlive) ) );
 
+  /* FIXME -- broken by DOF collector */
   add( &memstats.wcopied_hi, &memstats.wcopied_lo,
       fixnum(heapstats_after_gc[gen].copied_last_gc / sizeof(word)) );
 
@@ -416,7 +421,6 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   vp[ STAT_GCTIME ]        = ms->gctime;
   vp[ STAT_PROMTIME ]      = ms->promtime;
   vp[ STAT_WLIVE ]         = ms->wlive;
-  vp[ STAT_MAX_HEAP ]      = ms->wmax_heap;
   vp[ STAT_LAST_GEN ]      = ms->lastcollection_gen;
   vp[ STAT_LAST_TYPE ]     = ms->lastcollection_type;
   vp[ STAT_FFLUSHED_HI ]   = ms->fflushed_hi;
@@ -427,8 +431,13 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   vp[ STAT_FRESTORED_HI ]  = ms->frestored_hi;
   vp[ STAT_FRESTORED_LO ]  = ms->frestored_lo;
   vp[ STAT_WORDS_HEAP ]    = ms->wallocated_heap;
+  vp[ STAT_HEAP_MAX ]      = ms->wheap_max;
   vp[ STAT_WORDS_REMSET ]  = ms->wallocated_remset;
+  vp[ STAT_REMSET_MAX ]    = ms->wremset_max;
   vp[ STAT_WORDS_RTS ]     = ms->wallocated_rts;
+  vp[ STAT_RTS_MAX ]       = ms->wrts_max;
+  vp[ STAT_WORDS_WASTAGE ] = ms->wastage;
+  vp[ STAT_WASTAGE_MAX ]   = ms->wastage_max;
 
 #if defined(SIMULATE_NEW_BARRIER)
   /* If we're not simulating the new barrier, the values will be 0 */
@@ -572,8 +581,9 @@ static char *dump_banner =
 ";\n"
 ";   words-allocated-heap words-allocated-remset words-allocated-rts-other\n"
 ";\n"
-"; Then there are some fields added in v0.32 that belong somewhere else:\n"
-";   words-moved-hi words-moved-lo\n"
+"; Then there are some fields added later that belong somewhere else:\n"
+";   words-moved-hi words-moved-lo words-heap-fragmentation\n"
+";   words-heap-max words-remset-max words-rts-max words-fragmentation-max\n"
 ";\n"
 "; The tail of the list is an association list, where the entries that\n"
 "; are dumped depend on how the system was compiled.  Each entry is a list\n"
@@ -627,7 +637,7 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 {
   bool has_dofgc = FALSE;
   bool has_npgc = FALSE;
-  char *type;
+  char *type = 0;
   int i;
 
   if (dumpfile == 0) return;
@@ -690,9 +700,15 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 	   nativeuint( ms->wallocated_remset ),
 	   nativeuint( ms->wallocated_rts ) );
 
-  /* New fields for v0.32 */
-  fprintf( dumpfile, "%lu %lu ",
-	   nativeuint( ms->wmoved_hi ), nativeuint( ms->wmoved_lo ) );
+  /* New fields for v0.32, 0.47 */
+  fprintf( dumpfile, "%lu %lu %lu %lu %lu %lu %lu ",
+	   nativeuint( ms->wmoved_hi ), 
+	   nativeuint( ms->wmoved_lo ),
+	   nativeuint( ms->wastage ),
+	   nativeuint( ms->wheap_max ),
+	   nativeuint( ms->wremset_max ),
+	   nativeuint( ms->wrts_max ),
+	   nativeuint( ms->wastage_max ));
 
 #if defined(SIMULATE_NEW_BARRIER)
   fprintf( dumpfile, "(swb . (%lu %lu %lu %lu %lu %lu))",
@@ -828,8 +844,13 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
   word frames_restored = 0;
   word bytes_flushed = 0;
   word stacks_created = 0;
+  gclib_stats_t rts_stats;
 
   for ( j=0 ; j < generations ; j++ ) {
+    /* I'm not sure this is right for the DOF collector -- check if any
+       other parts of this module depend on position rather than
+       identity.
+       */
     stats[j].remset_data.identity = 0;
     gc_stats( gc, j, &stats[j] );
 
@@ -866,14 +887,16 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
   add( &ms->wflushed_hi, &ms->wflushed_lo, fixnum(bytes_flushed/sizeof(word)));
   add( &ms->frestored_hi, &ms->frestored_lo, fixnum( frames_restored ) );
   ms->stacks_created += fixnum( stacks_created );
-  { unsigned heap, remset, rts, max_heap;
 
-    gclib_stats( &heap, &remset, &rts, &max_heap );
-    ms->wallocated_heap = fixnum(heap);
-    ms->wallocated_remset = fixnum(remset);
-    ms->wallocated_rts = fixnum(rts);
-    ms->wmax_heap = fixnum(max_heap);
-  }
+  gclib_stats( &rts_stats );
+  ms->wallocated_heap = fixnum(rts_stats.wheap);
+  ms->wheap_max = fixnum(rts_stats.wheap_max);
+  ms->wallocated_remset = fixnum(rts_stats.wremset);
+  ms->wremset_max = fixnum(rts_stats.wremset_max);
+  ms->wallocated_rts = fixnum(rts_stats.wrts);
+  ms->wrts_max = fixnum(rts_stats.wrts_max);
+  ms->wastage = fixnum(rts_stats.wastage);
+  ms->wastage_max = fixnum(rts_stats.wastage_max);
 
 #if defined(SIMULATE_NEW_BARRIER)
   { word total_assignments = 0,
