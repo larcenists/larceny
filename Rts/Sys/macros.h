@@ -19,6 +19,7 @@
 #define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
 #define HDR_SIGN	0x00000082	/* header signature */
 #define HDR_MASK	0x000000E3	/* Mask to extract header info */
+#define FIXTAGMASK               3      /* FIXME: move to layouts.cfg */
 
 /* Convert integer to fixnum */
 #define fixnum( x )  ((x) << 2)
@@ -55,10 +56,12 @@
 #define mkheader( size, tag )  (((word) (size) << 8) | (tag))
 
 /* a word is a pointer if the low bit is set */
-#define isptr( w )          ((word)(w) & 0x01)
+#define isptr(w)            is_ptr(w)    /* isptr old name */
+#define is_ptr(w)           ((word)(w) & 0x01)
 
 /* a word is a header if it has a header mask layout */
-#define ishdr( w )          (((word)(w) & ISHDR_MASK) == HDR_SIGN)
+#define ishdr(w)            is_hdr(w)    /* ishdr is old name */
+#define is_hdr(w)           (((word)(w) & ISHDR_MASK) == HDR_SIGN)
 
 /* Extract size field from a header word. Hi bit is always 0. */
 #define sizefield( w )      ((w) >> 8)
@@ -84,12 +87,20 @@
 #define roundup_walign(a)   roundup2( a )   /* Word alignment: 2 words */
 #define roundup_balign(a)   roundup8( a )   /* Byte alignment: 8 bytes */
 
-#define the_gc( globals )      (gc_t*)globals[ G_GC ]
+#define the_gc( globals )      ((gc_t*)globals[ G_GC ])
 
 #define bytes2words(x)      ((x) / sizeof(word))
 #define words2bytes(x)      ((x) * sizeof(word))
 
 /* Macros for manipulating Scheme data types. */
+
+#define is_pair( ptr )          (tagof(ptr) == PAIR_TAG)
+#define is_char( x )            (((word)(x) & 255) == IMM_CHAR)
+#define is_fixnum( x )          (((word)(x) & FIXTAGMASK) == 0)
+#define is_nonnegative_fixnum( x ) \
+  (((x) & FIXTAGMASK) == 0 && (s_word)(x) >= 0)
+#define is_both_fixnums( x, y ) \
+  ((((x) | (y)) & FIXTAGMASK) == 0)
 
 #define pair_car( ptr )        (*ptrof( ptr ))
 #define pair_cdr( ptr )        (*(ptrof( ptr )+1))
@@ -118,6 +129,11 @@
 
 #define global_cell_ref( cp )  (pair_car( cp ))
 #define global_cell_set( x, y ) (pair_car( x ) = (y))
+
+#define fixnum_to_char( x )     ((((x) & 1023) << 14) | IMM_CHAR)
+#define int_to_char( x )        ((((x) & 1023) << 16) | IMM_CHAR)
+#define charcode_as_fixnum( x ) ((x) >> 14)
+#define charcode( x )           ((x) >> 16)
 
 #endif
 
