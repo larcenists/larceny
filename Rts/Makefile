@@ -270,6 +270,7 @@ clean:
 	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \
 	   Sys/*.$(O) Util/*.$(O) \
 	   libpetit.lib libheap.lib libpetit.so libpetit.dylib libpetit.a \
+	   libpetit.dll libx86.a \
 	   Standard-C/arithmetic.c
 
 rtsclean: clean
