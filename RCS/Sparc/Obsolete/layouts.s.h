@@ -1,6 +1,6 @@
 ! -*-Fundamental -*-
 !
-! $Id: layouts.s.h,v 1.1 91/07/02 12:27:50 lth Exp Locker: lth $
+! $Id: layouts.s.h,v 1.2 91/07/12 03:11:47 lth Exp Locker: lth $
 
 #define TAGMASK			0x07
 
@@ -55,6 +55,10 @@
 #define A_VEC_OFFSET	1
 
 ! Procedure layout stuff
+
+! Adjusts for tag and skips header
+
+#define A_PROC_OFFSET	-3
 
 ! codevector offset in procedure struct
 
