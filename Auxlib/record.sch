@@ -278,7 +278,8 @@
 
          (define (assert-record-of-type obj rtd)
            (if (not (record-with-type? obj rtd))
-               (error "Object is not record of type: " rtd ": " obj)))
+               (error "Object is not record of type: " (rtd-name rtd) 
+                      ": " obj)))
 
          (list 
           (lambda (name field-names . rest) 
