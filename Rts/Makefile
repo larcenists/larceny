@@ -26,8 +26,11 @@ CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 # DEC Alpha C compiler on DEC OSF/1 (for Petit Larceny)
 #
 # CC=cc
-# CCFLAGS=-g3 -taso -xtaso_short
+# CCFLAGS=-g3 -taso -xtaso_short -ieee
 # LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so -lm -lc -all
+## Needed because make leaves the -o off.
+#.c.o:
+#	$(CC) $(CFLAGS) -c $< -o $*.o
 
 #CC=lcc
 #CCFLAGS=-DSTDC_SOURCE
