@@ -5,7 +5,7 @@
  * Definitions and types for the garbage collection system;
  * procedures exported by the collector.
  *
- * $Id: gcinterface.h,v 1.2 91/06/21 15:18:16 lth Exp Locker: lth $
+ * $Id: gcinterface.h,v 1.3 91/06/26 16:50:36 lth Exp Locker: lth $
  */
 
 #ifndef GCINTERFACE
@@ -15,6 +15,7 @@
 
 #define EPHEMERAL_COLLECTION	1
 #define TENURING_COLLECTION	2
+#define FULL_COLLECTION		3
 
 /* Memory trap types */
 
