@@ -1,5 +1,5 @@
 ! -*- Fundamental -*-
-! $Id: bench2.s,v 1.3 91/06/24 13:04:52 lth Exp Locker: lth $
+! $Id: bench2.s,v 1.4 91/06/26 12:46:11 lth Exp Locker: lth $
 !
 ! Hand-compiled code for the following program:
 !
@@ -23,7 +23,7 @@
 loop2:
 	! Prologue
 
-	ld	[ %GLOBALS+SP_LIMIT_OFFSET ], %g1
+	ld	[ %GLOBALS+STK_LIMIT_OFFSET ], %g1
 	cmp	%STKP, %g1				! Overflow?
 	bgt,a	L1
 	sub	%STKP, 16, %STKP			! allocate frame
