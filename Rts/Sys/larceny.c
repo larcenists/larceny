@@ -367,6 +367,7 @@ parse_options( int argc, char **argv, opt_t *o )
   double feeling_lucky = 0.0;                 /* Not lucky at all. */
   double phase_detection = -1.0;              /* No detection. */
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
+  int full_frequency = 0;
   int dynamic_max = 0;
   int dynamic_min = 0;
   int val;
@@ -417,6 +418,10 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
+    else if (numbarg( "-full-frequency", &argc, &argv, &full_frequency )) {
+      if (full_frequency < 0)
+	param_error( "Full GC frequency must be nonnegative." );
+    }
     else 
 #endif
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
@@ -568,6 +573,7 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_dof_info.load_factor = load_factor;
       o->gc_info.dynamic_dof_info.dynamic_max = dynamic_max;
       o->gc_info.dynamic_dof_info.dynamic_min = dynamic_min;
+      o->gc_info.dynamic_dof_info.full_frequency = full_frequency;
       if (o->size[n] == 0) {
 	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
 	if (dynamic_min) size = max( dynamic_min, size );
@@ -955,6 +961,9 @@ static char *helptext[] = {
   "     young area to the old area and to clear the remembered set.  By",
   "     default, the limit is infinity.  This parameter does not select",
   "     anything else, not even the nonpredictive GC.",
+  "  -full-frequency n",
+  "     The frequency of full garbage collections in the DOF collector.",
+  "     The default value is 0 (never), which is the right thing right now.",
   "  -rhash nnnn",
   "     Set the remembered-set hash table size, in elements.  The size must",
   "     be a power of 2.",
