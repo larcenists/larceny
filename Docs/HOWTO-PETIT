@@ -43,8 +43,9 @@ A facility built on BUILD-APPLICATION is called BUILD-TWOBIT:
     > (build-twobit)
 
 The BUILD-TWOBIT command compiles all the Twobit source files and
-creates an executable "twobit" (or "twobit.exe") that contains the
-code for Twobit, as well as FASL files for all these files.
+creates an executable "twobit" ("twobit.exe" on Windows; "twobit.app"
+on MacOS X) that contains the code for Twobit, as well as FASL files
+for all these files.
 
 If you build Twobit using BUILD-TWOBIT, and then start "twobit" and
 follow the directions above (loading "Util/petit-unix-el.sch", say, and

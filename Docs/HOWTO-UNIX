@@ -17,10 +17,10 @@ Bonuses:
    Larceny to find the shared object.  On Linux my LD_LIBRARY_PATH
    contains "." for this purpose.
 
- - On some systems (known: Solaris and MacOS X) you must compile the
-   Larceny run-time system as a shared library in order for dynamic
-   linking of .FASL files to work.  To make the build environment do this,
-   evaluate
+ - On some systems (Solaris seems to require it; Linux and MacOS X do
+   not) you must compile the Larceny run-time system as a shared
+   library in order for dynamic linking of .FASL files to work.  To
+   make the build environment do this, evaluate
       (REQUIRE-SHARED-RUNTIME!)
    and then
       (BUILD-RUNTIME)
