@@ -80,7 +80,7 @@
 	 (limit (vector-length ta)))
     (let loop ((i 0))
       (cond ((= i limit)
-	     #f)
+	     #t)
 	    ((= (vector-ref ta i) (vector-ref tb i))
 	     (loop (+ i 1)))
 	    (else
