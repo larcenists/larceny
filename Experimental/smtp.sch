@@ -1,15 +1,12 @@
-; Some SMTP stuff
+; Copyright 1999 Lars T Hansen
+;
 ; $Id$
+;
+; Some SMTP test code for sockets.
 
-'(begin (load "Auxlib/macros.sch")
-        (load "Auxlib/std-ffi.sch")
-        (load "Auxlib/record.sch")
-        (load "Experimental/define-record.sch")
-        (load "Experimental/unix.sch")
-        (load "Experimental/socket.sch")
-        (load "Experimental/iosys.sch")
-        (load "Experimental/unix-descriptor.sch")
-        (load "Experimental/poll.sch"))
+(require 'experimental/unix)
+(require 'experimental/socket)
+(require 'experimental/unix-descriptor)
 
 ; Example
 
