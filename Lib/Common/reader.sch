@@ -194,42 +194,44 @@
 
        (read-symbol
         (lambda (c p l)
-          (let ((char-downcase (if (case-sensitive?)
-                                   (lambda (x) x)
-                                   char-downcase))
-                (s (make-string 16)))   ; seems like a good length.
+          (let* ((char-downcase (if (case-sensitive?)
+                                    (lambda (x) x)
+                                    char-downcase))
+                 (read-symbol2 (make-read-symbol2 char-downcase))
+                 (s (make-string 16)))   ; seems like a good length.
             ; Initial hackery to be compatible with read-symbol consumers.
             (if (null? l)
                 (read-symbol2 c p s 0 (string-length s))
                 (begin (string-set! s 0 (char-downcase (car l)))
                        (read-symbol2 c p s 1 (string-length s)))))))
 
-       (read-symbol2
-        (lambda (c p s n k)
-          (let ((char-downcase (if (case-sensitive?)
-                                 (lambda (x) x)
-                                 char-downcase)))
-            (cond ((not (char? c)) (string->symbol (substring s 0 n)))
-                  ((separator? c)  (string->symbol (substring s 0 n)))
-                  ((< n k)
-                   (string-set! s n (char-downcase c))
-                   (read-symbol2 (tyinext p) p s (+ n 1) k))
-                  (else
-                   (let ((s (string-append s s)))
-                     (string-set! s n (char-downcase c))
-                     (read-symbol2 (tyinext p) p s (+ n 1) (+ k k))))))))
+       (make-read-symbol2
+        (lambda (char-downcase)
+          (letrec
+              ((rs2
+                (lambda (c p s n k)
+                  (cond ((not (char? c)) (string->symbol (substring s 0 n)))
+                        ((separator? c)  (string->symbol (substring s 0 n)))
+                        ((< n k)
+                         (string-set! s n (char-downcase c))
+                         (rs2 (tyinext p) p s (+ n 1) k))
+                        (else
+                         (let ((s (string-append s s)))
+                           (string-set! s n (char-downcase c))
+                           (rs2 (tyinext p) p s (+ n 1) (+ k k))))))))
+            rs2)))
 
        ; Similar to read-symbol, but reads a number or symbol.
        ; If it parses as a number, it's a number.  Otherwise it's a symbol.
        ; c has not been consumed.
        ;
        ; FIXME: conses a lot.
-
+       
        (read-atom
         (lambda (c p l)
           (let ((string-downcase! (if (case-sensitive?)
-                                    (lambda (x) x)
-                                    string-downcase!)))
+                                      (lambda (x) x)
+                                      string-downcase!)))
             (if (or (not (char? c)) (separator? c))
                 (let* ((r (reverse l))
                        (x (parse-number r)))
