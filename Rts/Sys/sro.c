@@ -4,7 +4,7 @@
  *
  * SRO -- 'standing room only'
  *
- * word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit )
+ * word sro( gc_t *gc, int p_tag, int h_tag, int limit )
  *
  * `p_tag' is -1 a valid pointer tag (PAIR_TAG, VEC_TAG, BVEC_TAG, PROC_TAG)
  * `h_tag' is -1 or a valid header subtag (a number in the range 0..7)
@@ -14,9 +14,9 @@
  * all live objects of the type indicated by the p_tag/h_tag combination,
  * where the object has at least 1 and no more than `limit' references to
  * it from live objects.  Each such object will appear once in the vector.
- * A p_tag -1 implies 'any object'.
- * A h_tag -1 implies 'any object subject to pointertag constraints'.
- * A limit -1 implies 'no limit'.
+ * A p_tag -1 denotes 'any object'.
+ * A h_tag -1 denotes 'any object subject to pointertag constraints'.
+ * A limit -1 denotes 'no limit'.
  *
  * If not enough memory can be allocated to hold the resulting vector,
  * then #f is returned (at least in principle -- the low-level allocator
@@ -36,11 +36,8 @@
 
 #include <string.h>
 #include "larceny.h"
-#include "gc.h"			/* For prototype for sro() */
 #include "gc_t.h"
-#include "memmgr.h"
 #include "gclib.h"
-#include "heapio.h"
 
 /* Using smaller pages may increase performance (or not). */
 #define SMALLER_PAGES   1
@@ -60,6 +57,7 @@
 
 typedef struct sro_w_t sro_w_t;	/* A workspace node */
 typedef struct sro_t sro_t;	/* The top-level table structure */
+typedef struct sro_stack_t sro_stack_t;  /* A stack segment */
 
 struct sro_w_t {
   char *memory;			/* Raw memory block */
@@ -72,18 +70,35 @@ struct sro_t {
   word **buckets;		/* Single array of buckets */
   char *freep;			/* A pointer into a workspace block */
   int free;		        /* Free bytes in that block */
+  sro_stack_t *stack;           /* Current stack segment */
+  word *stkp;                   /* First free element */
+  word *stkbot;                 /* Current stack segment lower limit */
+  word *stklim;                 /* Current stack segment upper limit */
 };
 
-static void sro_traverse( sro_t *tbl, word w );
+#define STACKSIZE  32767        /* Arbitrary */
+
+struct sro_stack_t {
+  word stack[ STACKSIZE ];
+  sro_stack_t *prev;            /* Previous segment (older) */
+  sro_stack_t *next;            /* Next segment (younger) */
+};
+
+static void sro_traverse( sro_t *tbl );
 static int sro_mark( sro_t *tbl, word w );
 static int sro_ok( word w, int n, int p_tag, int h_tag, int limit );
 static void *sro_alloc( sro_t *tbl, unsigned n_bytes );
 static void sro_free_all( sro_w_t *w );
+static void sro_push( sro_t *tbl, word w );
+static bool sro_pop( sro_t *tbl, word *wp );
+static void sro_push_segment( sro_t *tbl );
+static bool sro_pop_segment( sro_t *tbl );
+static void sro_push_root( word *loc, void *data );
 
 /* Makes this module independent of gclib */
 static caddr_t sro_pagebase;
 
-word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit )
+word sro( gc_t *gc, int p_tag, int h_tag, int limit )
 {
   sro_t tbl;
   word *b;
@@ -91,7 +106,9 @@ word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit )
   word *p, *x;
   caddr_t lowest, highest;
 
-  if (h_tag != -1) h_tag = h_tag << 2;  /* matches value of typetag() */
+  if (h_tag != -1) h_tag = h_tag << 2;  /* Matches value of typetag() */
+
+  gc_creg_set( gc, gc_creg_get( gc ) ); /* Flush the stack! */
 
   /* Setup workspace */
   gclib_memory_range( &lowest, &highest );
@@ -103,10 +120,12 @@ word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit )
   tbl.buckets = (word**)sro_alloc( &tbl, pages*sizeof(word*) );
   for ( i=0 ; i < pages ; i++ )
     tbl.buckets[i] = 0;
-
-  /* Phase 1: mark everything */
-  for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) 
-    sro_traverse( &tbl, globals[i] );
+  tbl.stack = 0;
+  sro_push_segment( &tbl );
+  
+  /* Phase 1: mark */
+  gc_enumerate_roots( gc, sro_push_root, (void*)&tbl );
+  sro_traverse( &tbl );
 
   /* Phase 2: filter and count */
   cnt = 0;
@@ -137,52 +156,89 @@ word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit )
   return tagptr( x, VEC_TAG );
 }
 
-/* FIXME
-   The traversal is not robust because of the recursion: on many Unix 
-   systems, the pre-set stack limit is 8MB, but this is easily exhausted on 
-   really deep structures, especially on the SPARC where each frame is at 
-   least 96 bytes.  That's why the tail recursion in the pair traversal 
-   is explicit.  Even if the stack is unlimited, such large frames exhausts
-   real memory quickly.
+static void sro_push_root( word *loc, void *data )
+{
+  sro_push( (sro_t*)data, *loc );
+}
 
-   In general, we need to use an explicit stack.
- */
-static void sro_traverse( sro_t *tbl, word w )
+static void sro_traverse( sro_t *tbl )
 {
   unsigned n, i;
+  word w;
 
- start:
-  if (!isptr( w ))
-    return;			/* Only do pointers. */
-  n = sro_mark( tbl, w );
-  if (n > 1) 
-    return;			/* Object was marked previously. */
+  while (sro_pop( tbl, &w )) {
+    if (sro_mark( tbl, w ) > 1) continue;  /* marked previously */
+
   switch (tagof( w )) {
   case PAIR_TAG :
-    sro_traverse( tbl, pair_car( w ) );
-#if C_COMPILER_IMPLEMENTS_TAIL_RECURSION_EVEN_A_LITTLE_BIT
-    sro_traverse( tbl, pair_cdr( w ) );
-    break;
-#else
-    w = pair_cdr( w );
-    goto start;
-#endif
+      sro_push( tbl, pair_cdr( w ) );
+      sro_push( tbl, pair_car( w ) );
+      break;
   case VEC_TAG :
   case PROC_TAG :
     n = sizefield( *ptrof(w) ) / sizeof(word);
     for ( i=0 ; i < n ; i++ )
-      sro_traverse( tbl, vector_ref( w, i ) );
+        sro_push( tbl, vector_ref( w, i ) );
     break;
   case BVEC_TAG :
     break;
   }
 }
+}
+
+static void sro_push( sro_t *tbl, word w )
+{
+  if (!isptr( w )) return;
+  
+  if (tbl->stkp == tbl->stklim)
+    sro_push_segment( tbl );
+  *(tbl->stkp++) = w;
+}
+
+static bool sro_pop( sro_t *tbl, word *wp )
+{
+  if (tbl->stkp == tbl->stkbot)
+    if (!sro_pop_segment( tbl )) return 0;
+
+  *wp = *--tbl->stkp;
+  return 1;
+}
+
+static void sro_push_segment( sro_t *tbl )
+{
+  sro_stack_t *sp;
+  
+  if (tbl->stack != 0 && tbl->stack->next != 0)
+    sp = tbl->stack->next;
+  else {
+    sp = (sro_stack_t*)sro_alloc( tbl, sizeof(sro_stack_t) );
+    sp->prev = tbl->stack;
+    sp->next = 0;
+  }
+  
+  tbl->stack = sp;
+  tbl->stkbot = tbl->stack->stack;
+  tbl->stklim = tbl->stack->stack+STACKSIZE;
+  tbl->stkp = tbl->stkbot;
+}
+
+static bool sro_pop_segment( sro_t *tbl )
+{
+  if (tbl->stack->prev == 0) return 0;
+  
+  tbl->stack = tbl->stack->prev;
+  tbl->stkbot = tbl->stack->stack;
+  tbl->stklim = tbl->stack->stack+STACKSIZE;
+  tbl->stkp = tbl->stklim;
+  
+  return 1;
+}
 
 static int sro_mark( sro_t *tbl, word w )
 {
-  int n, i;
+  int i;
   unsigned page, offs;
-  word *b, *last, *t;
+  word *t;
 
   page = pageof_pb( w, sro_pagebase );
   if (tbl->buckets[page] == 0) {
