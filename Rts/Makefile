@@ -206,6 +206,15 @@ setup:
 	if [ ! -d Build ]; then mkdir Build; fi
 	-(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
+# The 'config' target is used before shipping so that a working Scheme
+# system is not required to build larceny.bin.
+config:
+	$(MAKE) Build/cdefs.h
+	$(MAKE) Build/asmdefs.h
+	$(MAKE) Build/schdefs.h
+	$(MAKE) Build/sparc-table.s
+	$(MAKE) Build/c-table.c
+
 larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) $(LDYFLAGS)
