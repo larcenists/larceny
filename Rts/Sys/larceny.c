@@ -53,7 +53,7 @@ struct opt {
 static void param_error( char *s );
 static void invalid( char *s );
 static void usage( void );
-static void help( void );
+static void help(int wizardp);
 static void parse_options( int argc, char **argv, opt_t *opt );
 static int  getsize( char *s, int *p );
 static void dump_options( opt_t *o );
@@ -342,6 +342,7 @@ void hardconsolemsg( const char *fmt, ... )
  * Command line parsing.
  */
 
+static int hstrcmp( const char *s1, const char* s2 );
 static int sizearg( char *str, int *argc, char ***argv, int *var );
 static int hsizearg( char *str, int *argc, char ***argv, int *var, int *loc );
 static int doublearg( char *str, int *argc, char ***argv, double *var );
@@ -392,15 +393,15 @@ parse_options( int argc, char **argv, opt_t *o )
   while (--argc) {
     ++argv;
 #if !defined( BDW_GC )
-    if (strcmp( *argv, "-stopcopy" ) == 0)
+    if (hstrcmp( *argv, "-stopcopy" ) == 0)
       o->gc_info.is_stopcopy_system = 1;
     else if (numbarg( "-areas", &argc, &argv, &areas ))
       init_generational( o, areas, "-areas" );
-    else if (strcmp( *argv, "-gen" ) == 0)
+    else if (hstrcmp( *argv, "-gen" ) == 0)
       init_generational( o, areas, "-gen" );
-    else if (strcmp( *argv, "-nostatic" ) == 0)
+    else if (hstrcmp( *argv, "-nostatic" ) == 0)
       o->gc_info.use_static_area = 0;
-    else if (strcmp( *argv, "-nocontract" ) == 0)
+    else if (hstrcmp( *argv, "-nocontract" ) == 0)
       o->gc_info.dont_shrink_heap = 1;
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1) o->gc_info.is_generational_system = 1;
@@ -430,7 +431,7 @@ parse_options( int argc, char **argv, opt_t *o )
 #endif
     }
 #if ROF_COLLECTOR
-    else if (strcmp( *argv, "-np" ) == 0 || strcmp( *argv, "-rof" ) == 0) {
+    else if (hstrcmp( *argv, "-np" ) == 0 || hstrcmp( *argv, "-rof" ) == 0) {
       o->gc_info.is_generational_system = 1;
       o->gc_info.use_non_predictive_collector = 1;
     }
@@ -485,42 +486,44 @@ parse_options( int argc, char **argv, opt_t *o )
         param_error( "-dof-free-after-collection out of range: "
                      "must have d > 0.0." );
     }
-    else if (strcmp( *argv, "-dof-no-shadow-remsets" ) == 0)
+    else if (hstrcmp( *argv, "-dof-no-shadow-remsets" ) == 0)
       o->gc_info.dynamic_dof_info.no_shadow_remsets = TRUE;
-    else if (strcmp( *argv, "-dof-fullgc-generational" ) == 0)
+    else if (hstrcmp( *argv, "-dof-fullgc-generational" ) == 0)
       o->gc_info.dynamic_dof_info.fullgc_generational = TRUE;
-    else if (strcmp( *argv, "-dof-fullgc-on-collection" ) == 0)
+    else if (hstrcmp( *argv, "-dof-fullgc-on-collection" ) == 0)
       o->gc_info.dynamic_dof_info.fullgc_on_collection = TRUE;
-    else if (strcmp( *argv, "-dof-fullgc-on-promotion" ) == 0)
+    else if (hstrcmp( *argv, "-dof-fullgc-on-promotion" ) == 0)
       o->gc_info.dynamic_dof_info.fullgc_on_promotion = TRUE;
 #endif /* DOF_COLLECTOR */
-    else if (strcmp( *argv, "-nobreak" ) == 0)
+    else if (hstrcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
-    else if (strcmp( *argv, "-step" ) == 0)
+    else if (hstrcmp( *argv, "-step" ) == 0)
       o->enable_singlestep = 1;
-    else if (strcmp( *argv, "-stats" ) == 0)
+    else if (hstrcmp( *argv, "-stats" ) == 0)
       o->show_heapstats = 1;
     else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
       ;
     else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
       ;
-    else if (strcmp( *argv, "-help" ) == 0 || strcmp( *argv, "-h" ) == 0)
-      help();
-    else if (strcmp( *argv, "-quiet" ) == 0) 
+    else if (hstrcmp( *argv, "-help" ) == 0 || strcmp( *argv, "-h" ) == 0)
+      help(0);
+    else if (hstrcmp( *argv, "-wizard" ) == 0)
+      help(1);
+    else if (hstrcmp( *argv, "-quiet" ) == 0) 
       o->quiet = 1;
-    else if (strcmp( *argv, "-annoy-user" ) == 0)
+    else if (hstrcmp( *argv, "-annoy-user" ) == 0)
       o->annoying = 1;
-    else if (strcmp( *argv, "-annoy-user-greatly" ) == 0) {
+    else if (hstrcmp( *argv, "-annoy-user-greatly" ) == 0) {
       o->annoying = 1;
       o->supremely_annoying = 1;
     }
-    else if (strcmp( *argv, "-flush" ) == 0)
+    else if (hstrcmp( *argv, "-flush" ) == 0)
       o->flush = 1;
-    else if (strcmp( *argv, "-noflush" ) == 0)
+    else if (hstrcmp( *argv, "-noflush" ) == 0)
       o->noflush = 1;
-    else if (strcmp( *argv, "-reorganize-and-dump" ) == 0)
+    else if (hstrcmp( *argv, "-reorganize-and-dump" ) == 0)
       o->reorganize_and_dump = 1;
-    else if (strcmp( *argv, "-args" ) == 0) {
+    else if (hstrcmp( *argv, "-args" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
       break;
@@ -728,7 +731,7 @@ static void compute_np_parameters( opt_t *o, int suggested_size )
 /* Takes a positive integer only, suffixes K and M are accepted. */
 static int sizearg( char *str, int *argc, char ***argv, int *loc ) 
 {
-  if (strcmp( **argv, str ) == 0) {
+  if (hstrcmp( **argv, str ) == 0) {
     if (*argc == 1 || !getsize( *(*argv+1), loc ) || *loc <= 0) {
       char buf[ 128 ];
       sprintf( buf, "%s requires a positive integer.", str );
@@ -763,7 +766,7 @@ hsizearg( char *str, int *argc, char ***argv, int *var, int *loc )
 static int 
 numbarg( char *str, int *argc, char ***argv, int *loc )
 {
-  if (strcmp( **argv, str ) == 0) {
+  if (hstrcmp( **argv, str ) == 0) {
     if (*argc == 1 || sscanf( *(*argv+1), "%d", loc ) != 1 ) invalid( str );
     ++*argv; --*argc;
     return 1;
@@ -775,7 +778,7 @@ numbarg( char *str, int *argc, char ***argv, int *loc )
 static int 
 doublearg( char *str, int *argc, char ***argv, double *loc )
 {
-  if (strcmp( **argv, str ) == 0) {
+  if (hstrcmp( **argv, str ) == 0) {
     if (*argc == 1 || sscanf( *(*argv+1), "%lf", loc ) != 1 ) invalid( str );
     ++*argv; --*argc;
     return 1;
@@ -821,6 +824,15 @@ static int getsize( char *s, int *p )
     return 1;
   }
   return 0;
+}
+
+static int hstrcmp( const char *s1, const char *s2 )
+{
+    /* Treat --foo as equivalent to -foo; --foo is standard (in other programs) */
+    if (s1[0] == '-' && s1[1] == '-')
+        return strcmp( s1+1, s2 );
+    else
+        return strcmp( s1, s2 );
 }
 
 static void dump_options( opt_t *o )
@@ -1019,7 +1031,12 @@ static char *helptext[] = {
   "     Suppress nonessential messages.",
   "  -help",
   "     Print this message.",
+  "  -wizard",
+  "     Print this message as well as help on wizard options.",
   "",
+  0 };
+
+static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
 #if !defined(BDW_GC)
   "  -annoy-user",
@@ -1144,7 +1161,7 @@ static char *helptext[] = {
   "",
   0 };
 
-static void help( void )
+static void help(int wizardp)
 {
   int i;
 
@@ -1153,6 +1170,10 @@ static void help( void )
   consolemsg("Options:" );
   for (i=0 ; helptext[i] != 0 ; i++ )
     consolemsg( helptext[i] );
+  if (wizardp) {
+      for (i=0 ; wizardhelptext[i] != 0 ; i++ )
+          consolemsg( wizardhelptext[i] );
+  }
   consolemsg("The Larceny User's Manual is available on the web at");
   consolemsg("  http://www.ccs.neu.edu/home/will/Larceny/manual/index.html");
   exit( 0 );
