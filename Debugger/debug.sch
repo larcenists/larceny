@@ -20,6 +20,11 @@
 ;
 ; FIXME: It may be that interactive EOF should work as R rather than Q,
 ;        which is the case now (holdover from waybackwhen).
+;
+; FIXME: When stopped in a breakpoint, or at an error, it really 
+;        should set the current frame to the proc where the breakpt
+;        occured, not past the system-continuation/enter-debugger
+;        thing.
 
 '(require 'pretty-print)                ; Auxlib/pp.sch
 '(require 'inspect-cont)                ; Debugger/inspect-cont.sch
@@ -41,18 +46,9 @@
    (lambda the-error
      (error-continuation (current-continuation-structure))
      (debug/displayln)
-     (let ((length (print-length))
-           (level  (print-level)))
-       ; FIXME: use parameterize
-       (dynamic-wind
-        (lambda ()
-          (print-length *debug-print-length*)
-          (print-level *debug-print-level*))
-        (lambda ()
-          (decode-error the-error (console-output-port)))
-        (lambda ()
-          (print-length length)
-          (print-level level))))
+     (parameterize ((print-length *debug-print-length*)
+                    (print-level *debug-print-level*))
+       (decode-error the-error (console-output-port)))
      (debug/enter-debugger #f)))
 
   ; Install a keyboard interrupt handler that invokes the debugger so
@@ -296,13 +292,8 @@
                     rest))))))
 
 (define (debug/call-with-breakpoints-disabled thunk)
-  (let ((outside (debug/breakpoints-enable)))
-    (dynamic-wind
-     (lambda ()
-       (debug/breakpoints-enable #f))
-     thunk
-     (lambda ()
-       (debug/breakpoints-enable outside)))))
+  (parameterize ((debug/breakpoints-enable #f))
+    (thunk)))
   
 (define (debug/evaluate count inspector)
 
@@ -313,14 +304,8 @@
     (let* ((token (list 'token))
 	   (proc  (debug/safely
 		   (lambda ()
-                     (let ((breakpt (debug/breakpoints-enable)))
-                       (dynamic-wind
-                        (lambda ()
-                          (debug/breakpoints-enable #f))
-                        (lambda ()
-                          (eval expr (interaction-environment)))
-                        (lambda ()
-                          (debug/breakpoints-enable breakpt)))))
+                     (parameterize ((debug/breakpoints-enable #f))
+                       (eval expr (interaction-environment))))
 		   token)))
       (cond ((eq? proc token)
 	     (debug/displayln "Expression caused a reset."))
@@ -404,34 +389,14 @@ activations; the default count for D and U is 1.
 (define (debug/read)
   (read (console-input-port)))
 
-; FIXME: Use parameterize.
-
 (define (debug/print-object obj)
-  (let ((length (print-length))
-        (level  (print-level)))
-    (dynamic-wind 
-     (lambda ()
-       (print-length *debug-print-length*)
-       (print-level *debug-print-level*))
-     (lambda () 
-       (write obj (console-output-port)))
-     (lambda () 
-       (print-length length)
-       (print-level level)))))
-
-; FIXME: Use parameterize.
+  (parameterize ((print-length *debug-print-length*)
+                 (print-level *debug-print-level*))
+    (write obj (console-output-port))))
 
 (define (debug/print-code expr)
-  (let ((length (print-length))
-        (level  (print-level)))
-    (dynamic-wind 
-     (lambda ()
-       (print-length #f)
-       (print-level #f))
-     (lambda ()
-       (pretty-print expr (console-output-port)))
-     (lambda ()
-       (print-length length)
-       (print-level level)))))
+  (parameterize ((print-length #f)
+                 (print-level #f))
+    (pretty-print expr (console-output-port))))
 
 ; eof
