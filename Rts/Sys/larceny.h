@@ -39,6 +39,7 @@ extern void annoyingmsg( const char *fmt, ... );
 extern void supremely_annoyingmsg( const char *fmt, ... );
 extern void consolemsg( const char *fmt, ... );
 extern void hardconsolemsg( const char *fmt, ... );
+extern void conditional_abort( void );
 
 /* In "Rts/Sys/heapio.c" */
 
@@ -165,6 +166,7 @@ extern char *date;
 extern char *osname;
 extern char *larceny_system_name;
 extern char *larceny_heap_name;
+extern char *larceny_architecture;
 #endif
 
 /* In "Rts/Sys/argv.c" */
@@ -226,6 +228,7 @@ extern void cache_setup( void );
 #endif
 
 /* Out-of-memory exception handling */
+/* In Rts/Sys/larceny.c */
 
 extern int memfail( int code, char *fmt, ... );
 
