@@ -5,6 +5,7 @@
  * Larceny run-time system -- assert() macro
  */
 
+#undef assert
 #ifndef NDEBUG
 extern int panic_abort( const char *fmt, ... );
 #define assert( expr ) \
