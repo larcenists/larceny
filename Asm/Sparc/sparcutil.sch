@@ -220,7 +220,7 @@
       (emit-move2hwreg! as rs2 $r.argreg2))
   (if (not (= rs1 $r.reg0))
       (emit-move2hwreg! as rs1 $r.result))
-  (millicode-call/numarg-in-reg as $m.exception exn $r.tmp0))
+  (millicode-call/numarg-in-reg as $m.exception (thefixnum exn) $r.tmp0))
 
 ; Given:
 ;     an annulled conditional branch that branches
