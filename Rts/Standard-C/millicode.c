@@ -496,9 +496,12 @@ void mc_restargs( word *globals )
   word j = nativeuint( globals[ G_RESULT ] );
   word n = nativeuint( globals[ G_SECOND ] );
   word r = LASTREG;
-  word *p, *q, t;
+  word *p, *first, *prev, t;
   word k, limit;
   word words;
+#if !defined(BDW_GC)
+  word *allocptr;
+#endif
 
   words = 2*(j-n);
 
@@ -509,18 +512,31 @@ void mc_restargs( word *globals )
 
   /* At least one vararg to cons up. */
 
+  /* Optimized allocation for precise GC; conservative GC calls
+     allocator each time.
+     */
+#if !defined(BDW_GC)
   globals[ G_RESULT ] = fixnum( words );
   mc_alloc( globals );
-  q = p = (word*)globals[ G_RESULT ];
+  allocptr = (word*)globals[ G_RESULT ];
+# define alloc_one_pair(p) (p = allocptr, allocptr+=2)
+#else
+# define alloc_one_pair(p) (p = (word*)alloc_from_heap(2*sizeof(word)) )
+#endif
   globals[ G_RESULT ] = FALSE_CONST;              /* Sane value */
 
+  first = prev = 0;
   k = n + 1;
   limit = min( j, r-1 );
 
   while ( k <= limit ) {
+    alloc_one_pair(p);
     *p = globals[ G_REG0 + k ];
-    *(p+1) = tagptr( (p+2), PAIR_TAG );
-    p += 2;
+    if (prev) 
+      *(prev+1) = tagptr( p, PAIR_TAG ); 
+    else
+      first = p;
+    prev = p;
     k++;
   }
 
@@ -530,15 +546,19 @@ void mc_restargs( word *globals )
     /* Copy the list in t into the memory pointed to by p. */
 
     while ((word) t != NIL_CONST) {
+      alloc_one_pair(p);
       *p = pair_car( t );
-      *(p+1) = tagptr( (p+2), PAIR_TAG );
-      p += 2;
+      if (prev) 
+	*(prev+1) = tagptr( p, PAIR_TAG ); 
+      else 
+	first = p;
+      prev = p;
       t = pair_cdr( t );
     }
   }
 
-  *(p-1) = NIL_CONST;
-  globals[ G_REG0+n+1 ] = tagptr( q, PAIR_TAG );
+  *(prev+1) = NIL_CONST;
+  globals[ G_REG0+n+1 ] = tagptr( first, PAIR_TAG );
 }
 
 void mc_syscall( word *globals, cont_t k )
