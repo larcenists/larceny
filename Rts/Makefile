@@ -16,11 +16,14 @@
 # Petit Larceny: Unix: gcc
 # Petit Larceny: Win32: gcc under cygwin or mingw
 # Petit Larceny: MacOS X: gcc (not building a shared library)
+# Petit Larceny with x86 back-end: Unix: NASM macro assembler
 O=o
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+AS=nasm
+ASFLAGS=-f elf -IIntel -IBuild -DLINUX
 
 # Petit Larceny: MacOS X: gcc (building a shared library)
 #O=o
@@ -85,15 +88,6 @@ CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 # runs the preprocessor for us and the gasmask script is not required.
 #AS=as
 #ASFLAGS=-P -ISparc -IBuild
-
-# Linux: x86-native Larceny: gcc and NASM (still debugging)
-#O=o
-#CC=gcc
-#DEBUGINFO=-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-#AS=nasm
-#ASFLAGS=-f elf -IIntel -IBuild -DLINUX
 
 
 ############################################################################
@@ -254,9 +248,9 @@ libpetit.lib: $(PETIT_LARCENY_OBJECTS)
 	   $(PETIT_LARCENY_OBJECTS)
 
 # Unix: Intel x86 with the NASM back-end
-libx86.a: $(X86_NASM_LARCENY_OBJECTS)
-	ar -r libx86.a $(X86_NASM_LARCENY_OBJECTS)
-	ranlib libx86.a
+#libpetit.a: $(X86_NASM_LARCENY_OBJECTS)
+#	ar -r libpetit.a $(X86_NASM_LARCENY_OBJECTS)
+#	ranlib libpetit.a
 
 hsplit: Util/hsplit.o
 	$(CC) $(PROFILE) $(TCOV) $(DEBUGINFO) $(LDXFLAGS) -o hsplit \
@@ -269,8 +263,7 @@ clean:
 	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \
 	   Sys/*.$(O) Util/*.$(O) \
-	   libpetit.lib libheap.lib libpetit.so libpetit.dylib libpetit.a \
-	   libpetit.dll libx86.a \
+	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \
 	   Standard-C/arithmetic.c
 
 rtsclean: clean
