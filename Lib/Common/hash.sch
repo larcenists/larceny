@@ -1,3 +1,7 @@
+; Copyright 1999 William Clinger.
+;
+; $Id$
+;
 ; Reasonably portable hashing on EQ?, EQV?, EQUAL?.
 ; Requires bignums, SYMBOL-HASH.
 ;
@@ -120,3 +124,5 @@
   (set! equal-hash
         (lambda (x)
           (hash-on-equal x budget0))))
+
+; eof
