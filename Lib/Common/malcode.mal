@@ -23,6 +23,40 @@
   (,$return))
 
 
+; trampoline-template
+;
+; An environment-less procedure that accepts any number of arguments 
+; and invokes a procedure stored in its constant vector with those 
+; arguments.  
+;
+; The constant vector of the procedure contains a symbol DUMMY as a 
+; placeholder for the procedure.  TRAMPOLINE-TEMPLATE must always be 
+; deep-copied before being patched an used.
+;
+; It is not possible to create a procedure with a shorter procedure 
+; structure than that of a trampoline.  That fact may be relied on: 
+; a trampoline can be patched into any other procedure.
+;
+; (Even in MAL this procedure is painful because argument counts are
+; hardcoded in the INVOKE instruction.  Thus we must use rest args
+; and APPLY.  We can do much better than this by extending the 
+; instruction set a little, and if performance matters, then we should
+; do that.  For the time being, this procedure is used only for debugging
+; and performance is unimportant.)
+
+`((,$lambda ((,$args>= 0)
+             (,$movereg 1 2)
+             (,$const dummy)
+             (,$setreg 1)
+             (,$global apply)
+             (,$invoke 2))
+            0
+            #f)
+  (,$setglbl trampoline-template)
+  (,$const trampoline-template)
+  (,$return))
+
+
 ; call-with-current-continuation
 ;
 ; Call-with-current-continuation has to be written in mal to 
@@ -30,26 +64,26 @@
 ; the creg/creg-set! primitives need predictable stack behavior.
 
 `((,$lambda ((,$.proc)
-	     (,$args=   1)
-	     (,$op1     creg)
-	     (,$setreg  2)
-	     (,$lambda  ((,$.proc)
-			 (,$args>=  0)
-			 (,$movereg 1 2)
-			 (,$global  values)
-			 (,$setreg  1)
-			 (,$lexical 0 2)
-			 (,$op1     creg-set!)
-			 (,$global  apply)
-			 (,$invoke  2))        ; (apply values args)
-			2
-			#f)
-	     (,$setreg  3)
-	     (,$reg     1)
-	     (,$movereg 3 1)
-	     (,$invoke  1))
-	    0
-	    #f)
+             (,$args=   1)
+             (,$op1     creg)
+             (,$setreg  2)
+             (,$lambda  ((,$.proc)
+                         (,$args>=  0)
+                         (,$movereg 1 2)
+                         (,$global  values)
+                         (,$setreg  1)
+                         (,$lexical 0 2)
+                         (,$op1     creg-set!)
+                         (,$global  apply)
+                         (,$invoke  2))        ; (apply values args)
+                        2
+                        #f)
+             (,$setreg  3)
+             (,$reg     1)
+             (,$movereg 3 1)
+             (,$invoke  1))
+            0
+            #f)
   (,$setglbl call-with-current-continuation)
   (,$const   call-with-current-continuation)
   (,$return))
@@ -69,14 +103,14 @@
 ; to keep it in sync that way.
 
 `((,$lambda ((,$.proc)
-	     (,$args=   1)
-	     (,$const   4)  ; Lexical slot 2 is procedure slot 4.
-	     (,$setreg  2)
-	     (,$reg     1)
-	     (,$op2     procedure-ref 2)
-	     (,$return))
-	    0
-	    #f)
+             (,$args=   1)
+             (,$const   4)  ; Lexical slot 2 is procedure slot 4.
+             (,$setreg  2)
+             (,$reg     1)
+             (,$op2     procedure-ref 2)
+             (,$return))
+            0
+            #f)
   (,$setglbl sys$continuation-data-structure)
   (,$const   sys$continuation-data-structure)
   (,$return))
@@ -91,10 +125,10 @@
 ; arguments, and the arguments are passed in registers as usual.
 
 `((,$lambda ((,$.proc)
-	     (,$op1 syscall)
-	     (,$return))
-	    0
-	    #f)
+             (,$op1 syscall)
+             (,$return))
+            0
+            #f)
   (,$setglbl syscall)
   (,$const   syscall)
   (,$return))
@@ -114,35 +148,35 @@
 ; and case-lambda is a better solution than MAL :-)
 
 `((,$lambda ((,$setreg 2)
-	     (,$reg 2)
-	     (,$op2imm eq? 1)
-	     (,$branchf 1001)
-	     (,$global io/read-char)	; One argument: pass it on.
-	     (,$invoke 1)
-	     (,$.label 1001)
-	     (,$reg 2)
-	     (,$op2imm eq? 0)
-	     (,$branchf 1002)
-	     (,$save 0)			; Zero arguments: get the port
-	     (,$store 0 0)
-	     (,$global current-input-port)
-	     (,$setrtn 1003)
-	     (,$invoke 0)
-	     (,$.align 4)
-	     (,$.label 1003)
-	     (,$.cont)
-	     (,$load 0 0)
-	     (,$setreg 1)
-	     (,$pop 0)
-	     (,$global io/read-char)
-	     (,$invoke 1)
-	     (,$.label 1002)		; Other cases: an error.
-	     (,$const "read-char: Too many arguments.")
-	     (,$setreg 1)
-	     (,$global error)
-	     (,$invoke 1))
-	    0
-	    #f)
+             (,$reg 2)
+             (,$op2imm eq? 1)
+             (,$branchf 1001)
+             (,$global io/read-char)    ; One argument: pass it on.
+             (,$invoke 1)
+             (,$.label 1001)
+             (,$reg 2)
+             (,$op2imm eq? 0)
+             (,$branchf 1002)
+             (,$save 0)                 ; Zero arguments: get the port
+             (,$store 0 0)
+             (,$global current-input-port)
+             (,$setrtn 1003)
+             (,$invoke 0)
+             (,$.align 4)
+             (,$.label 1003)
+             (,$.cont)
+             (,$load 0 0)
+             (,$setreg 1)
+             (,$pop 0)
+             (,$global io/read-char)
+             (,$invoke 1)
+             (,$.label 1002)            ; Other cases: an error.
+             (,$const "read-char: Too many arguments.")
+             (,$setreg 1)
+             (,$global error)
+             (,$invoke 1))
+            0
+            #f)
   (,$setglbl read-char)
   (,$const read-char)
   (,$return))
@@ -153,37 +187,37 @@
 ; read-char, above.
 
 `((,$lambda ((,$setreg 3)
-	     (,$reg 3)
-	     (,$op2imm eq? 2)
-	     (,$branchf 1001)
-	     (,$global io/write-char)	; Two arguments: pass them on
-	     (,$invoke 2)
-	     (,$.label 1001)
-	     (,$reg 3)
-	     (,$op2imm eq? 1)
-	     (,$branchf 1002)
-	     (,$save 1)			; One argument: get the port
-	     (,$store 0 0)
-	     (,$store 1 1)
-	     (,$global current-output-port)
-	     (,$setrtn 1003)
-	     (,$invoke 0)
-	     (,$.align 4)
-	     (,$.label 1003)
-	     (,$.cont)
-	     (,$load 0 0)
-	     (,$load 1 1)
-	     (,$setreg 2)
-	     (,$pop 1)
-	     (,$global io/write-char)
-	     (,$invoke 2)
-	     (,$.label 1002)		; Other cases: an error.
-	     (,$const "write-char: wrong number of arguments.")
-	     (,$setreg 1)
-	     (,$global error)
-	     (,$invoke 1))
-	    0
-	    #f)
+             (,$reg 3)
+             (,$op2imm eq? 2)
+             (,$branchf 1001)
+             (,$global io/write-char)   ; Two arguments: pass them on
+             (,$invoke 2)
+             (,$.label 1001)
+             (,$reg 3)
+             (,$op2imm eq? 1)
+             (,$branchf 1002)
+             (,$save 1)                 ; One argument: get the port
+             (,$store 0 0)
+             (,$store 1 1)
+             (,$global current-output-port)
+             (,$setrtn 1003)
+             (,$invoke 0)
+             (,$.align 4)
+             (,$.label 1003)
+             (,$.cont)
+             (,$load 0 0)
+             (,$load 1 1)
+             (,$setreg 2)
+             (,$pop 1)
+             (,$global io/write-char)
+             (,$invoke 2)
+             (,$.label 1002)            ; Other cases: an error.
+             (,$const "write-char: wrong number of arguments.")
+             (,$setreg 1)
+             (,$global error)
+             (,$invoke 1))
+            0
+            #f)
   (,$setglbl write-char)
   (,$const write-char)
   (,$return))
