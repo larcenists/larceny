@@ -91,7 +91,7 @@
 
 (define (constant-propagation-using-callgraph g)
   (let ((debugging? #f)
-        (folding? (integrate-usual-procedures))
+        (folding? #t)
         (known (make-hashtable))
         (variables (make-hashtable))
         (counter 0))
@@ -342,7 +342,7 @@
         (msg1 "    Propagating constant value for ")
         (msg2 "    Folding: ")
         (msg3 " ==> ")
-        (folding? (integrate-usual-procedures))
+        (folding? #t)
         (changed? #f))
     
     ; Given a known lambda expression L, its original formal parameters,

@@ -15,7 +15,7 @@
 
 (define (representation-analysis exp)
   (let* ((debugging? #f)
-         (integrate-usual? (integrate-usual-procedures))
+         (integrate-usual? #t)
          (known (make-hashtable symbol-hash assq))
          (types (make-hashtable symbol-hash assq))
          (g (callgraph exp))

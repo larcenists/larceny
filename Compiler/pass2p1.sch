@@ -245,7 +245,6 @@
                        (entry
                         (and (not (null? args))
                              (constant? (car args))
-                             (integrate-usual-procedures)
                              (every? constant? args)
                              (let ((entry (constant-folding-entry procname)))
                                (and entry

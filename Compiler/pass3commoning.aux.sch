@@ -187,14 +187,12 @@
          (and (not (lambda? proc))
               (or (not (variable? proc))
                   (let ((f (variable.name proc)))
-                    (or (not (integrate-usual-procedures))
-                        (not (prim-entry f)))))))))
+                    (not (prim-entry f))))))))
 
 (define (prim-call E)
   (and (call? E)
        (let ((proc (call.proc E)))
          (and (variable? proc)
-              (integrate-usual-procedures)
               (prim-entry (variable.name proc))))))
 
 (define (no-side-effects? E)
@@ -208,7 +206,6 @@
       (and (call? E)
            (let ((proc (call.proc E)))
              (and (variable? proc)
-                  (integrate-usual-procedures)
                   (let ((entry (prim-entry (variable.name proc))))
                     (and entry
                          (not (eq? available:killer:dead

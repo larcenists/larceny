@@ -356,8 +356,7 @@
                                 (unpermute names pi))
                      bindings))))))
             
-            ((and (integrate-usual-procedures)
-                  (prim-entry (variable.name proc)))
+            ((prim-entry (variable.name proc))
              (let ((pi (anf-order-of-evaluation args regvars #t)))
                (call-with-values
                 (lambda () (loop (permute args pi) bindings '() #t))
@@ -548,7 +547,6 @@
                                      (begin.exprs exp))))
               (else       (let ((proc (call.proc exp)))
                             (if (and (variable? proc)
-                                     (integrate-usual-procedures)
                                      (prim-entry (variable.name proc)))
                                 (some? complicated?
                                        (call.args exp))
