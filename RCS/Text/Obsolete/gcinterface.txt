@@ -1,4 +1,4 @@
-; $Id: gcinterface.txt,v 1.2 91/06/20 19:15:20 lth Exp Locker: lth $
+; $Id: gcinterface.txt,v 1.3 91/06/24 01:54:10 lth Exp Locker: lth $
 
                   Garbage Collector Interface Definition 
 
@@ -8,22 +8,27 @@
 0. Scope of this Document
 -------------------------
 This document describes the conventions that must be followed by an
-application using the garbage collector (henceforth called 'the mutator').
-There are specifications for collector initialization, space allocation,
-data formats, and invariants that must be upheld by the mutator.
+application using the garbage collector (henceforth called "the
+mutator").  There are specifications for collector initialization,
+space allocation, data formats, and invariants that must be upheld by
+the mutator.
+
+For the compiler writer, the only really interesting sections are the
+ones dealing with data formats, memory layout, and memory allocation.
+(Sections 2, 3, 5, and 6.)
 
 This document does not describe the internal workings of the garbage 
 collector.
 
-Other relevant documents are "memory.txt", which describes the higher-level
-interface to the memory management system, and "gc.txt", which describes
-the implementation of the garbage collector.
+Other relevant documents are "memory.txt", which describes the
+higher-level interface to the memory management system, and "gc.txt",
+which describes the implementation of the garbage collector.
 
 
 1. General Conventions
 ----------------------
 All global variables defined by the collector are kept in the "globals"
-table. They must have their correct values when the 'collect()' procedure
+table. They must have their correct values when the "collect()" procedure
 is called.  However, the mutator may keep these variables in registers
 between calls to the collector.
 
@@ -59,23 +64,24 @@ The following are the immediate formats.
   0sss ssss  ssss ssss  ssss ssss  110x xx10   bytevector-like header
   0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
 
-The 'xxx' bits in the low byte of a header can be used by the mutator to
+The "xxx" bits in the low byte of a header can be used by the mutator to
 distinguish between different subtypes of structures; they are neither
 used nor examined by the collector.
 
-The 's' bits must contain the size of the data structure in bytes, not
+The "s" bits must contain the size of the data structure in bytes, not
 including the header word, and not including padding (see below). The
-collector will correctly round "bytevector" and "reserved" lengths up to a
-word boundary. Hence, for these structures, the 's' bits gives the correct
-length of the datum, like the length of a string. For vectors and
-procedures the s field must be evenly divisible by 4 (low two bits are 0).
+collector will correctly round "bytevector" and "reserved" lengths up
+to a word boundary. Hence, for these structures, the "s" bits give the
+correct length of the datum, like the length of a string. For vectors
+and procedures the s field must be evenly divisible by 4 (low two bits
+are 0).
 
-Since all pointers are doubleword-aligned, some vectors, bytevectors, and
-procedures will have to be padded out to an even number of words.  The
-mutator must allocate the extra word but may choose to leave it
-uninitialized; the collector will take the size of the vector into account
-and skip the padding. If the word is initialized, it may or may not be
-copied along with the structure during a collection.
+Since all pointers are doubleword-aligned, some vectors, bytevectors,
+and procedures will have to be padded out to an even number of words.
+The mutator must allocate the extra word but may choose to leave it
+uninitialized; the collector will take the size of the vector into
+account and skip the padding. If the word is initialized, it may or
+may not be copied along with the structure during a collection.
 
 The structure layouts are these:
 
@@ -169,25 +175,28 @@ STK_MAX_OFFSET  A pointer to the last word of the Stack space.
 LOMEM_OFFSET    A pointer to the first word used by the collector.
 HIMEM_OFFSET    A pointer to the last word used by the collector.
 
-The mutator may only change T_TRANS_OFFSET; all other values are to be
-considered read-only to the mutator. All Tenured and Ephemeral pointers
-are subject to change after a collection.
+The mutator may only change T_TRANS_OFFSET, T_TOP_OFFSET, and
+E_TOP_OFFSET; all other values are to be considered read-only to the
+mutator. All Tenured and Ephemeral pointers are subject to change
+after a collection. [T_TOP_OFFSET is not normally changed, but if we
+load a heap into the tenured area, it will have to be.]
 
-All pointers into all spaces are comparable. The Ephemeral area pointers
-always compare less than the Static area pointers, which in turn compare
-less than the Tenured area pointers.  Stack area pointers compare less than
-Ephemeral area pointers.
+All pointers into all spaces are comparable. The Ephemeral area
+pointers always compare less than the Static area pointers, which in
+turn compare less than the Tenured area pointers.  Stack area pointers
+compare less than Ephemeral area pointers.
 
-The LOMEM and HIMEM values are made available for use by a system-dependent
-initialization procedure which needs to give advise to the virtual memory
-system about the usage patterns of the newly-allocated memory; if this is
-not done, there will be some initial thrashing until the system stabilizes.
-However, the use of LOMEM and HIMEM implicitly assumes that all memory
-allocated is in one chunk, which, while true at the moment, may not be the
-case in the future. Hence a better solution should be looked for. (Since
-the spaces are each in one chunk, we could use the space limits as
-indicators, but this does not deal with the "new" spaces, since they are
-internal to the collector module.)
+The LOMEM and HIMEM values are made available for use by a
+system-dependent initialization procedure which needs to give advise
+to the virtual memory system about the usage patterns of the
+newly-allocated memory; if this is not done, there will be some
+initial thrashing until the system stabilizes.  However, the use of
+LOMEM and HIMEM implicitly assumes that all memory allocated is in one
+chunk, which, while true at the moment, may not be the case in the
+future. Hence a better solution should be looked for. (Since the
+spaces are each in one chunk, we could use the space limits as
+indicators, but this does not deal with the "new" spaces, since they
+are internal to the collector module.) [See also section 12.]
 
 
 4. Initializing the collector
@@ -317,7 +326,7 @@ this:
      flush_stack_cache();
      flush_instruction_cache();
 
-     collect( 1 );
+     collect( EPHEMERAL_COLLECTION );
 
      R0 = globals[ R0_OFFSET ];
      R1 = globals[ R1_OFFSET ];
@@ -353,8 +362,8 @@ equivalent to flush newspace (after the collection); and don't forget that
 we must flush the icache after a 'define' (I think...).
 
 The collector is then called. The entry point of the collector is the
-'collect()' procedure; the argument '1' means "do a minor collection".
-(To do a major collection, pass the argument '2'.)
+'collect()' procedure; the constants "EPHEMERAL_COLLECTION" and
+"TENURING_COLLECTION" are defined in the file "gcinterface.h")
 
 Finally, when the collector has finished, each element of the 'globals'
 array is copied out to where they came from (they may all have changed).
@@ -420,20 +429,20 @@ adequately explain the restrictions.
 The collector module exports three names: 'collect', 'init_collector',
 and 'gc_trap', all of which are procedures. 
 
-'collect()' takes a single argument, which must be an integer. The value
-'1' means "do an ephemeral collection", the value '2' means "do a tenuring
-collection". Other values cause undefined behavior.
+'collect()' takes a single argument, which must be an integer. The
+values "EPHEMERAL_COLLECTION" and "TENURING_COLLECTION" are defined in
+"gcinterface.h". Other valued cause undefined behavior.
 
 'init_collector()' takes five arguments, all unsigned integers, as outlined
 above.
 
 'gc_trap()' takes one argument, an integer. 
 
-- If the argument is 0, it means that the ephemeral area overflowed.
-  Typically this happens if one tries to allocate a data structure 
-  larger than the ephemeral area. 
+- If the argument is EPHEMERAL_TRAP, it means that the ephemeral area 
+  overflowed. Typically this happens if one tries to allocate a data 
+  structure larger than the ephemeral area. 
 
-- If the argument is 1, it means that the tenured area overflowed.
+- If the argument is TENURED_TRAP, it means that the tenured area overflowed.
   This could happen if there are too many tenured objects (i.e.
   during a collection).
 
@@ -445,3 +454,16 @@ It should be noted that 'gc_trap()' currently calls 'panic()' with some
 appropriate error message, and that its interface to the surrounding
 world may be too simple for realistic cases. It may therefore be considered
 "experimental".
+
+The symbolic arguments to "gc_trap()" are defined in "gcinterface.h".
+
+
+12. Notes
+---------
+- The HIMEM and LOMEM offsets will go away; instead, the "globals" table will
+  hold min and max pointers to all spaces, including unused (old) spaces.
+
+- The initialization routine will take an additional argument which is the
+  alignment to use in allocating memory for the spaces. On many systems, the 
+  alignment will be on a page boundary; this is interesting because we have
+  to set access privileges on some of the spaces.
