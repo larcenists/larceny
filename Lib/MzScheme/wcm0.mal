@@ -1,57 +1,20 @@
+;; $Id$
 
-;; PROBLEM: this is going to totally fail when we
-;;   try to coalesce frames in interpreted code.
+;; MAL code for call-with-continuation-mark, which requires 
+;; very careful stack handling. Not at all optimized for speed.
 
-;; call-with-continuation-mark : mark (-> 'a) -> 'a
+;; call-with-continuation-mark : key mark (-> 'a) -> 'a
 ;; Installs a frame with known structure on the continuation stack
 ;; and invokes thunk.
 
 ;; Mark Frame structure
-;; +----------------------+
-;; | RA | up | ENV | mark |
-;; +----------------------+
-;;   --   --  slot0  slot1
+;; +----------------------------+
+;; | RA | up | ENV | mark-alist |
+;; +----------------------------+
+;;   --   --  slot0    slot1
 ;;
 ;; On a mark frame, ENV will always be 'call-with-continuation-mark',
-;; so we can test for that and just pluck the value out.
-
-
-;`((,$lambda ((,$.proc)
-;             (,$args= 2)
-;             
-;             ;; Before we save, is the *current frame* a mark frame?
-;             ;; It's a mark frame iff it's ENV slot is CALL/CM, 
-;             ;; that is, the currently executing procedure.
-;             (,$load 31 0)      ;; Get the current frame's ENV slot => reg31
-;             (,$reg 0)         ;; Load self (call/cm) to Result
-;             (,$op2 eq? 31)    ;; Compare
-;             (,$branchf 1002)  ;; If different, save and invoke.
-;                               ;; Otherwise, fall though to overwrite.
-;             
-;             ;; Overwrite and invoke.
-;             ;; It's a mark frame, so it's okay to write on it, even
-;             ;; though we didn't create it.
-;             (,$store 1 1)     ;; Write the mark to slot 1 of the frame.
-;             (,$reg 2)
-;             (,$invoke 0)      ;; Invoke thunk, keeping old mark frame.
-;             
-;             ;; Save and invoke.
-;             (,$.label 1002)
-;             (,$save 1)        ;; Create a new mark frame.
-;             (,$store 0 0)     ;; (unnecessary?!)
-;             (,$store 1 1)     ;; Store the mark in slot 1 of the frame
-;             (,$reg 2)
-;             (,$setrtn 1001)
-;             (,$invoke 0)    ;; Invoke thunk... mark frame remains!
-;             
-;             (,$.label 1001)
-;             (,$pop 1)       ;; Remove mark frame.
-;             (,$return))
-;            0
-;            #f)
-;  (,$setglbl call-with-continuation-mark)
-;  (,$const   call-with-continuation-mark)
-;  (,$return))
+;; so we can test for that and just pluck the alist out.
 
  `((,$lambda ((,$.proc)
              (,$args= 3)
