@@ -39,11 +39,11 @@ setup:
 	ln -s Rts/bdwlarceny.bin
 	ln -s Rts/hsplit
 	ln -s Rts/Build
-	mv nbuild nbuild.safe
-	sed "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" < nbuild.safe > nbuild || \
-	   ( echo "nbuild hack failed!"; mv nbuild.safe nbuild; exit 1 )
-	rm nbuild.safe
-	chmod a+x nbuild
+	mv build build.safe
+	sed "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" < build.safe > build || \
+	   ( echo "build hack failed!"; mv build.safe build; exit 1 )
+	rm build.safe
+	chmod a+x build
 	(cd Rts ; $(MAKE) setup)
 	$(MAKE) chezstuff
 
@@ -103,12 +103,12 @@ faslclean:
 
 rtsclean:
 	rm -f *.map
-	rm -f larceny petit-larceny Build hsplit
+	rm -f larceny.bin petit-larceny.bin Build hsplit bdwlarceny.bin
 	rm -f Compat/Chez/*.o
 	( cd Rts ; $(MAKE) rtsclean )
 
 realclean: clean libclean tildeclean rejclean soclean tcovclean faslclean
-	rm -f larceny.bin Build hsplit bdwlarceny.bin *.heap 
+	rm -f *.heap 
 	rm -f Compat/Chez/*.o
 	rm -f Testsuite/GC/bb.out*
 	( cd Rts ; $(MAKE) realclean )
