@@ -3,7 +3,7 @@
 ! Scheme 313 Runtime System
 ! Millicode for Generic Arithmetic, SPARC.
 !
-! $Id: generic.s,v 1.6 92/02/10 03:38:21 lth Exp Locker: lth $
+! $Id: generic.s,v 1.7 92/02/17 18:27:24 lth Exp Locker: lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -70,6 +70,9 @@
 	.global	_generic_truncate		! (truncate x)
 	.global	_generic_negativep		! (negative? x)
 	.global	_generic_positivep		! (positive? x)
+
+	.global	_mul_tag
+	.global	_grok
 
 	.seg	"text"
 
@@ -441,42 +444,64 @@ Lmul_rect2:
 	b	_scheme_call
 	mov	MS_RECTNUM_MUL, %TMP2
 Lmul_fix:
-
+_mul_tag:
+	! Have to shift both operands to avoid disasters with signs.
 	save	%sp, -96, %sp
-	mov	%SAVED_RESULT, %o0
+	sra	%SAVED_RESULT, 2, %o0
 	call	.mul
 	sra	%SAVED_ARGREG2, 2, %o1
 
-	cmp	%o1, 0				! fit in a fixnum?
-	be,a	Lmul_fix2			! yes
-	mov	%o0, %SAVED_RESULT
-	cmp	%o1, -1
-	be,a	Lmul_fix2			! ditto
-	mov	%o0, %SAVED_RESULT
-	sra	%o1, 2, %o2
-	cmp	%o2, 0				! fit in a one-word bignum?
-	be,a	Lmul_fix3			! yes
+	! Check to see if it will fit in a fixnum (tentatively)
+	cmp	%o1, 0
+	be	Lmul_fix1
 	nop
-	cmp	%o2, -1
-	be,a	Lmul_fix3			! yes
+	cmp	%o1, -1
+	be	Lmul_fix4
 	nop
 
-	! Fits in two-word bignum. Mush together and box.
-	sll	%o1, 30, %o1
-	srl	%o0, 2, %o0
-	or	%o0, %o1, %SAVED_TMP0
-	mov	%o2, %SAVED_TMP1
-	b	_box_double_bignum
+Lmul_fixy:
+	! Won't fit in a fixnum
+	cmp	%o1, 0
+	bge	Lmul_fixx
+	mov	0, %SAVED_TMP2
+	not	%o0, %o0
+	not	%o1, %o1
+	addcc	%o0, 1, %o0
+	addx	%o1, 0, %o1
+	mov	1, %SAVED_TMP2
+Lmul_fixx:
+	cmp	%o1, 0				! fit in a one-word bignum?
+	bne	Lmul_fix3			! yes
+	nop
+
+	! Fits in one-word bignum. Mush together and box.
+	mov	%o0, %SAVED_TMP0
+	b	_box_single_positive_bignum
 	restore
 
 Lmul_fix3:
-	! Fits in one-word bignum. Mush together and box.
-	sll	%o1, 30, %o1
-	srl	%o0, 2, %o0
-	or	%o0, %o1, %SAVED_TMP0
-	b	_box_single_bignum
+	! Fits in two-word bignum. Mush together and box.
+	mov	%o1, %SAVED_TMP1
+	mov	%o0, %SAVED_TMP0
+	b	_box_double_positive_bignum
 	restore
 
+Lmul_fix1:
+	! Might fit in a fixnum.
+	set	0xE0000000, %o2
+	andcc	%o0, %o2, %o3
+	be,a	Lmul_fix2			! fits in a fixnum.
+	sll	%o0, 2, %SAVED_RESULT
+	b	Lmul_fixy
+	nop
+Lmul_fix4:
+	set	0xE0000000, %o2
+	andcc	%o0, %o2, %o3
+	cmp	%o3, %o2
+	be,a	Lmul_fix2			! ditto (negative)
+	sll	%o0, 2, %SAVED_RESULT
+	b	Lmul_fixy			! must box
+	nop
 Lmul_fix2:
 	jmp	%i7+8
 	restore
@@ -912,8 +937,8 @@ _generic_equalp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lequal_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
 Lequal_bvec:
 	be,a	Lequal_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -1007,7 +1032,7 @@ Lequal_vec2:
 	nop
 Lequal_rat:
 	be,a	Lequal_rat2
-	mov	2, %TMP2
+	mov	2, %TMP1
 	b	_econtagion
 	mov	MS_GENERIC_EQUAL, %TMP2
 Lequal_rat2:
@@ -1015,7 +1040,7 @@ Lequal_rat2:
 	mov	MS_RATNUM_EQUAL, %TMP2
 Lequal_rect:
 	be,a	Lequal_rect2
-	mov	2, %TMP2
+	mov	2, %TMP1
 	b	_econtagion
 	mov	MS_GENERIC_EQUAL, %TMP2
 Lequal_rect2:
@@ -1036,8 +1061,8 @@ _generic_lessp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lless_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
 Lless_bvec:
 	be,a	Lless_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -1073,7 +1098,7 @@ Lless_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
 	mov	FALSE_CONST, %RESULT
-	blt,a	.+8
+	fbl,a	.+8
 	mov	TRUE_CONST, %RESULT
 	jmp	%o7+8
 	nop
@@ -1152,8 +1177,8 @@ _generic_less_or_equalp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Llesseq_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
 Llesseq_bvec:
 	be,a	Llesseq_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -1189,7 +1214,7 @@ Llesseq_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
 	mov	FALSE_CONST, %RESULT
-	ble,a	.+8
+	fble,a	.+8
 	mov	TRUE_CONST, %RESULT
 	jmp	%o7+8
 	nop
@@ -1268,8 +1293,8 @@ _generic_greaterp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lgreater_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
 Lgreater_bvec:
 	be,a	Lgreater_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -1305,7 +1330,7 @@ Lgreater_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
 	mov	FALSE_CONST, %RESULT
-	bgt,a	.+8
+	fbg,a	.+8
 	mov	TRUE_CONST, %RESULT
 	jmp	%o7+8
 	nop
@@ -1384,8 +1409,8 @@ _generic_greater_or_equalp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lgreatereq_vec
 	cmp	%TMP1, VEC_TAG
-	b	_non_numeric2
-	nop
+	b	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
 Lgreatereq_bvec:
 	be,a	Lgreatereq_bvec2
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
@@ -1421,7 +1446,7 @@ Lgreatereq_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
 	mov	FALSE_CONST, %RESULT
-	bge,a	.+8
+	fbge,a	.+8
 	mov	TRUE_CONST, %RESULT
 	jmp	%o7+8
 	nop
@@ -1498,66 +1523,62 @@ Lgreatereq_rat2:
 _generic_complexp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bne	Lcomplexp1
-	nop
+	be,a	Lcomplexp_bvec
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Lcomplexp_vec
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	Lintegerp_fix
+	nop
+Lcomplexp_bvec:
 	cmp	%TMP0, COMPNUM_HDR
-	bne	_generic_realp_b			! other bytevector-like
+	bne	Lrealp_bvec			! other bytevector-like
 	nop
 	jmp	%o7+8
 	mov	TRUE_CONST, %RESULT
-Lcomplexp1:
-	cmp	%TMP0, VEC_TAG
-	bne	_generic_integerp_f			! got to be fixnum
-	nop
-	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+Lcomplexp_vec:
 	cmp	%TMP0, RECTNUM_HDR
-	bne	_generic_rationalp_v			! other vector-like
+	bne	Lrationalp_vec			! other vector-like
 	nop
 	jmp	%o7+8
 	mov	TRUE_CONST, %RESULT
 
-! (define (real? x)
-!   (or (and (compnum? x) (= (imag-part x) 0.0)) (flonum? x) (rational? x)))
+! (define (real? x) 
+!   (rational? x))
+!
+! (define (rational? x)
+!   (or (and (compnum? x) (= (imag-part x) 0.0))
+!       (flonum? x) (rational? x)
+!       (ratnum? x)
+!       (integer? x)))
 
 _generic_realp:
+_generic_rationalp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bne	Lrealp1
-	nop
+	be,a	Lrealp_bvec
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
-_generic_realp_b:
+	cmp	%TMP0, VEC_TAG
+	be,a	Lrationalp_vec
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_generic_integerp	
+	nop
+Lrealp_bvec:
 	cmp	%TMP0, FLONUM_HDR
-	be,a	Lrealp0
+	be,a	Lrealp_exit
 	mov	TRUE_CONST, %RESULT
 	cmp	%TMP0, COMPNUM_HDR
-	bne	_generic_integerp_b			! got to be bignum
+	bne	Lintegerp_bvec
 	nop
 	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
 	fcmpd	%f0, %f2
 	mov	TRUE_CONST, %RESULT
-	fbne,a	Lrealp0
+	fbne,a	.+8
 	mov	FALSE_CONST, %RESULT
-Lrealp0:
+Lrealp_exit:
 	jmp	%o7+8
 	nop
-Lrealp1:
-	cmp	%TMP1, VEC_TAG
-	bne	_generic_integerp_f			! got to be fixnum
-	nop
-	b	_generic_rationalp_v			! vector-like
-	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-
-! (define (rational? x)
-!   (or (ratnum? x) (integer? x)))
-
-_generic_rationalp:
-	and	%RESULT, TAGMASK, %TMP0
-	cmp	%TMP0, VEC_TAG
-	bne	_generic_integerp
-	nop
-	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-_generic_rationalp_v:
+Lrationalp_vec:
 	cmp	%TMP0, RATNUM_HDR
 	mov	TRUE_CONST, %RESULT
 	bne,a	.+8
@@ -1576,49 +1597,105 @@ _generic_rationalp_v:
 _generic_integerp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bne	_generic_integerp_f
-	nop
+	be,a	Lintegerp_bvec
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
-_generic_integerp_b:
-	cmp	%TMP0, BIGNUM_HDR
-	bne	Lintegerp1
+	cmp	%TMP0, VEC_TAG
+	be,a	Lintegerp_exit
+	mov	FALSE_CONST, %RESULT
+	b	Lintegerp_fix
 	nop
-	jmp	%o7+8
+Lintegerp_bvec:
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lintegerp_exit
 	mov	TRUE_CONST, %RESULT
-Lintegerp1:
-	! It is a bytevector, and it is not a bignum. Ergo, it is a flonum or
-	! a compnum. Check to see if the real part is representable as an
-	! integer. If so, jump to `real?' for the final test (this test could
-	! be done in-line for greater efficiency). Otherwise, return #f.
-	!
-	! The real part is representable as an integer if the magnitude of
-	! the unbiased exponent is <= the number of bits in the mantissa 
-	! (including the hidden bit):
-	!
-	! (define (representable-as-integer? x)
-	!   (let ((e (- (exponent x) bias)))
-	!     (and (>= x 0) (<= x 53))))
 
-	ld	[ %RESULT - BVEC_TAG + 8 ], %TMP1	! get hi word
-	srl	%TMP1, 20, %TMP1
-	and	%TMP1, 0x7FF, %TMP1			! now has biased expt
-	cmp	%TMP1, 1023
-	blt	Lintegerp2				! < 0
+	! It is a bytevector, and it is not a bignum. Ergo, it may be a
+	! flonum or a compnum, or not a number at all.
+
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lintegerp_flo
+	nop
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lintegerp_comp
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	jmp	%o7+8
 	mov	FALSE_CONST, %RESULT
-	cmp	%TMP1, 1023+53
-	bgt	Lintegerp2				! > 53
+
+Lintegerp_comp:
+	fcmpd	%f0, %f2
+	nop
+	fbne,a	Lintegerp_exit
 	mov	FALSE_CONST, %RESULT
-	b	_generic_realp_b
-	nop	
-_generic_integerp_f:
+
+Lintegerp_flo:
+	
+	! Check to see if the real part is representable as an
+	! integer, and if so, return #t. Otherwise return #f.
+	!
+	! The real part is representible as an integer only if all the
+	! bits to the right of the binary point are zero.
+
+	save	%sp, -96, %sp
+	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
+	srl	%l0, 20, %l2				! get at expt
+	and	%l2, 0x7FF, %l2				! get it
+	subcc	%l2, 1023, %l2				! unbias
+
+	! easy cases
+
+	blt,a	Lintegerp_exit2				! e < 0
+	mov	FALSE_CONST, %SAVED_RESULT
+	cmp	%l2, 52
+	bgt,a	Lintegerp_exit2				! e > 52
+	mov	TRUE_CONST, %SAVED_RESULT
+
+	! determine which word to play with
+
+	cmp	%l2, 20
+	ble,a	Lintegerp_hi				! 0 <= e <= 20: hi word
+	nop
+
+	! The low word is the interesting one. However, if the shift count
+	! (after subtracting 20) is exactly 32, then the shift will not happen
+	! beacuse shift counts are all mod 32. So we have to make this a
+	! special case.
+
+	sub	%l2, 20, %l2
+	cmp	%l2, 32
+	be,a	Lintegerp_exit2
+	mov	TRUE_CONST, %SAVED_RESULT
+	! %l2 < 32
+	sll	%l1, %l2, %l1
+	cmp	%l1, 0
+	be,a	Lintegerp_exit2
+	mov	TRUE_CONST, %SAVED_RESULT
+	b	Lintegerp_exit2
+	mov	FALSE_CONST, %SAVED_RESULT
+Lintegerp_hi:
+	! the high word is the interesting one; low word must be 0.
+
+	tst	%l1
+	bne,a	Lintegerp_exit2
+	mov	FALSE_CONST, %SAVED_RESULT
+
+	sll	%l0, 12, %l0
+	sll	%l0, %l2, %l0
+	cmp	%l0, 0
+	mov	FALSE_CONST, %SAVED_RESULT
+	be,a	.+8
+	mov	TRUE_CONST, %SAVED_RESULT
+Lintegerp_exit2:
+	jmp	%i7+8
+	restore
+
+Lintegerp_fix:
 	andcc	%RESULT, 3, %g0
 	mov	TRUE_CONST, %RESULT
 	bne,a	.+8
 	mov	FALSE_CONST, %RESULT
-Lintegerp2:
+Lintegerp_exit:
 	jmp	%o7+8
 	nop
-
 
 ! Exactness maps trivially to representation (or the other way around.)
 
@@ -1694,7 +1771,7 @@ _generic_inexactp:
 _generic_exact2inexact:
 	andcc	%RESULT, 3, %g0
 	be,a	Lfixnum2flonum
-	st	%RESULT, [ %GLOBALS + RESULT_OFFSET ]
+	sra	%RESULT, 2, %TMP0
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Le2i_maybe
@@ -1720,8 +1797,12 @@ Le2i_identity:
 	jmp	%o7+8
 	nop
 
+! %TMP0 has the raw bits for the fixnum, shifted to an integer.
+
 Lfixnum2flonum:
-	ld	[ %GLOBALS + RESULT_OFFSET ], %f2
+	set	Le2itmp, %TMP1
+	st	%TMP0, [ %TMP1 ]
+	ld	[ %TMP1 ], %f2
 	b	_box_flonum
 	fitod	%f2, %f2
 
@@ -1903,21 +1984,28 @@ _generic_truncate:
 Lround:
 	! Flonum is pointed to by %RESULT. Round it, box it, and return.
 	! The simple way to round is to add .5 and then truncate.
-	! [There ought to be a way to move stuff from flonum regs to int regs
-	!  short of pushing it thru memory. >groan<]
+	! The sign of the .5 must be the same as the sign of the number
+	! being rounded!
 
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	set	Ldhalf, %TMP0 
 	ldd	[ %TMP0 ], %f4
+	fmovd	%f2, %f6
+	fabsd	%f2, %f2
+	fcmpd	%f6, %f0
 	faddd	%f2, %f4, %f2
+	.empty				! shit...
+	fbl,a	.+8
+	fnegd	%f2, %f2
 	std	%f2, [ %TMP0 + 8 ]
 	save	%sp, -96, %sp
 	b	Ltrunc2
-	ldd	[ %TMP0 + 8 ], %l0
+	ldd	[ %SAVED_TMP0 + 8 ], %l0
 
 Ltrunc:
 	! flonum is pointed to by %RESULT. Trunc it, box it, and return.
 
+	set	Ldhalf, %TMP0 
 	save	%sp, -96, %sp
 	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
 Ltrunc2:
@@ -1955,8 +2043,8 @@ Ltrunc2zero:
 Ltrunc_moveback:
 	! move back into fp regs
 
-	std	%l0, [ %TMP0 + 2 ]
-	ldd	[ %TMP0 + 2 ], %f2
+	std	%l0, [ %SAVED_TMP0 + 8 ]
+	ldd	[ %SAVED_TMP0 + 8 ], %f2
 	b	_box_flonum
 	restore
 
@@ -1973,7 +2061,7 @@ Lgeneric_trund:
 	nop
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltrund_vec
-	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
 	b	_non_numeric1
 	nop
 Ltrund_bvec:
@@ -2132,19 +2220,25 @@ _box_compnum:
 ! %o7 has the Scheme return address.
 
 _box_single_bignum:
-	st	%TMP0, [ %GLOBALS + GEN_TMP1_OFFSET ]
+	cmp	%TMP0, 0
+	bge,a	_box_single_positive_bignum
+	mov	0, %TMP2
+	mov	1, %TMP2
+	neg	%TMP0
+
+! Sign (0 or 1) is in %TMP2, untagged, positive number in %TMP0.
+
+_box_single_positive_bignum:
+	st	%TMP0, [ %GLOBALS + GEN_NRTMP1_OFFSET ]
+	st	%TMP2, [ %GLOBALS + GEN_NRTMP2_OFFSET ]
 	mov	%o7, %TMP0
 	call	_internal_alloc
 	mov	12, %RESULT
 	mov	%TMP0, %o7
-	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
-
-	cmp	%TMP0, 0
-	bge	Lbox_s_big2
-	mov	(0 << 16) + 1, %TMP1		! sign + length
-	neg	%TMP0
-	set	(1 << 16) + 1, %TMP1		! ditto, negative
-Lbox_s_big2:
+	ld	[ %GLOBALS + GEN_NRTMP1_OFFSET ], %TMP0
+	ld	[ %GLOBALS + GEN_NRTMP2_OFFSET ], %TMP2
+	sll	%TMP2, 16, %TMP2
+	add	%TMP2, 1, %TMP1
 	st	%TMP1, [ %RESULT + 4 ]		! store sign, length
 	st	%TMP0, [ %RESULT + 8 ]		! store number
 	set	(8 << 8) | BIGNUM_HDR, %TMP0
@@ -2158,25 +2252,19 @@ Lbox_s_big2:
 ! negative before boxing.
 ! %o7 has the Scheme return address.
 
-_box_double_bignum:
-	st	%TMP0, [ %GLOBALS + GEN_TMP1_OFFSET ]
-	st	%TMP1, [ %GLOBALS + GEN_TMP2_OFFSET ]
+_box_double_positive_bignum:
+	st	%TMP0, [ %GLOBALS + GEN_NRTMP1_OFFSET ]
+	st	%TMP1, [ %GLOBALS + GEN_NRTMP2_OFFSET ]
+	st	%TMP2, [ %GLOBALS + GEN_NRTMP3_OFFSET ]
 	mov	%o7, %TMP0
 	call	_internal_alloc
 	mov	16, %RESULT
 	mov	%TMP0, %o7
-	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
-	ld	[ %GLOBALS + GEN_TMP2_OFFSET ], %TMP1
-
-	cmp	%TMP1, 0
-	bge,a	Lbox_d_big2
-	mov	(0 << 16) + 2, %TMP2		! sign + length
-	not	%TMP0
-	not	%TMP1
-	add	%TMP0, 1, %TMP0
-	addx	%TMP1, 0, %TMP1
-	set	(1 << 16) + 2, %TMP2
-Lbox_d_big2:
+	ld	[ %GLOBALS + GEN_NRTMP1_OFFSET ], %TMP0
+	ld	[ %GLOBALS + GEN_NRTMP2_OFFSET ], %TMP1
+	ld	[ %GLOBALS + GEN_NRTMP3_OFFSET ], %TMP2
+	sll	%TMP2, 16, %TMP2
+	add	%TMP2, 2, %TMP2
 	st	%TMP2, [ %RESULT + 4 ]
 	st	%TMP0, [ %RESULT + 8 ]
 	st	%TMP1, [ %RESULT + 12 ]
@@ -2184,6 +2272,22 @@ Lbox_d_big2:
 	st	%TMP0, [ %RESULT ]
 	jmp	%o7+8
 	or	%RESULT, BVEC_TAG, %RESULT
+
+! Debug stuff
+
+_grok:
+	save	%sp, -96, %sp
+	set	_globals, %g1
+	st	%i0, [ %g1 + GEN_TMP1_OFFSET ]
+	st	%i1, [ %g1 + GEN_TMP2_OFFSET ]
+	call	_restore_scheme_context
+	nop
+	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %RESULT
+	ld	[ %GLOBALS + GEN_TMP2_OFFSET ], %ARGREG2
+	call	_mul_tag
+	nop
+	ret
+	restore
 
 ! Interesting data for the generic arithmetic system.
 
@@ -2201,5 +2305,7 @@ Lerrmsg4:
 Ldhalf:
 	.double	0r0.5		! 0.5; leave it here.
 	.double 0r0.0		! this is a temp and DON'T MOVE IT!!
+Le2itmp:
+	.word	0		! temporary nonroot
 
 	! end

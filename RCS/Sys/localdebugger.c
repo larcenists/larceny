@@ -1,6 +1,6 @@
 /* The local debugger. A marvel of technological standstill. */
 
-/* $Id: localdebugger.c,v 1.1 91/12/06 15:06:13 lth Exp Locker: lth $ */
+/* $Id: localdebugger.c,v 1.2 92/02/10 03:41:46 lth Exp Locker: lth $ */
 
 #include <stdio.h>
 #include "machine.h"
@@ -35,6 +35,7 @@ localdebugger()
 	case 'p' : dumpproc(); break;
 	case 'c' : dumpcodevec(); break;
 	case 'X' : examine( cmd ); break;
+        case 'z' : step( cmd ); break;
 	case '?' : help(); break;
 	default : printf( "Nah.\n" );
       }
@@ -43,6 +44,19 @@ localdebugger()
       printf( "Nah.\n" );
   }
 }
+
+
+static step( cmd )
+char *cmd;
+{
+  if (cmd[ 1 ] == '+') 
+    globals[ SINGLESTEP_OFFSET ] = TRUE_CONST;
+  else if (cmd[ 1 ] == '-')
+    globals[ SINGLESTEP_OFFSET ] = FALSE_CONST;
+  else
+    printf( "Nah.\n" );
+}
+
 
 /*
  * Go back thru the stack and continuation chain and print those procedure
@@ -116,6 +130,7 @@ static help()
   printf( "r - return to running program\n" );
   printf( "p - dump the current procedure (if possible)\n" );
   printf( "Xx <loc> <count> - examine memory; x is w(ord),b(yte),c(har)\n" );
+  printf( "z{+|-}  - manipulate single stepping status.\n" );
   printf( "c - dump the current code vector (symbolic) to /tmp/larceny.\n" );
   printf( "= <reg> <val> --  set register\n" );
   printf( "\n" );

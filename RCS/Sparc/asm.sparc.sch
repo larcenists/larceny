@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent part of the assembler, for Sparc.
 ;
-; $Id: asm.sparc.scm,v 1.9 92/01/19 17:40:16 lth Exp Locker: lth $
+; $Id: asm.sparc.sch,v 1.10 92/02/10 03:40:12 lth Exp Locker: lth $
 ;
 ;             The meek shall inherit the earth.
 ;             The meek shall also inherit the assembler.
@@ -112,6 +112,10 @@
 (define $i.orni      86)
 (define $i.ornrcc    87)
 (define $i.ornicc    88)
+(define $i.andnr     89)
+(define $i.andni     90)
+(define $i.andnrcc   91)
+(define $i.andnicc   92)
 (define $i.lddr      100)
 (define $i.ldr       101)
 (define $i.ldhr      102)
@@ -638,6 +642,10 @@
 	    (vector-set! v $i.orni    (class10i #b000110))
 	    (vector-set! v $i.ornrcc  (class10r #b010110))
 	    (vector-set! v $i.ornicc  (class10i #b010110))
+	    (vector-set! v $i.andni   (class10i #b000101))
+	    (vector-set! v $i.andnr   (class10r #b000101))
+	    (vector-set! v $i.andnicc (class10i #b010101))
+	    (vector-set! v $i.andnrcc (class10r #b010101))
 	    (vector-set! v $i.ceai    (class-ceai))
 	    v)))
 

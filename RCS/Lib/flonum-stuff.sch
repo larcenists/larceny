@@ -1,6 +1,6 @@
 ; *Way* low-level floating point stuff.
 ;
-; $Id: flonum-stuff.sch,v 1.3 92/02/17 18:26:56 lth Exp Locker: lth $
+; $Id: flonum-stuff.sch,v 1.4 92/02/24 17:24:45 lth Exp Locker: lth $
 ;
 ; The procedures in this file all operate on IEEE flonums.
 ; Formats of flonums and bignums and operations used are all specific
@@ -51,8 +51,6 @@
   (define two^54 18014398509481984)
   (define two^63 9223372036854775808)
 
-  (define minexponent -1023)
-
   ; Is it a flonum?
 
   (define (%flonum? x)
@@ -76,23 +74,28 @@
       (bytevector-set! n 9 (logior 16 (logand 15 (bytevector-like-ref x 5))))
       (bytevector-set! n 10 (bytevector-like-ref x 6))
       (bytevector-set! n 11 (bytevector-like-ref x 7))
-        
-      ; subtract hidden bit if x is denormalized
-        
+
+      ; subtract hidden bit if x is denormalized or zero
+
       (typetag-set! n sys$tag.bignum-typetag)
       (if (and (zero? (logand 127 (bytevector-like-ref x 4)))
 	       (zero? (logand -16 (bytevector-like-ref x 5))))
 	  (- n two^52)
 	  n)))
 
-  ; Rip out the exponent and return it as a fixnum.
+  ; Rip out the exponent and return it unbiased as a fixnum.
 
   (define (%float-exponent x)
     (let ((e (logior (lsh (logand 127 (bytevector-like-ref x 4)) 4)
 		     (rshl (bytevector-like-ref x 5) 4))))
-      (if (zero? e)
-	  (- minexponent 51)           ; no hidden bit
-	  (- e (+ 1023 52)))))
+      (- e 1023)))
+
+; What manner of weirdness was this!?
+;      (if (zero? e)
+;	  (- minexponent 51)           ; no hidden bit
+;	  (- e (+ 1023 52)))))
+;  (define minexponent -1023)
+
 
 
   ; Create a boxed flonum from a bignum on a special format.
@@ -110,21 +113,21 @@
 					    two^52)
 			   (bignum-remainder m two^52)))
 	    (f (make-bytevector 12)))
-	(bytevector-set! f 4  (bytevector-ref t 8))
-	(bytevector-set! f 5  (bytevector-ref t 9))
-	(bytevector-set! f 6  (bytevector-ref t 10))
-	(bytevector-set! f 7  (bytevector-ref t 11))
-	(bytevector-set! f 8  (bytevector-ref t 4))
-	(bytevector-set! f 9  (bytevector-ref t 5))
-	(bytevector-set! f 10 (bytevector-ref t 6))
-	(bytevector-set! f 11 (bytevector-ref t 7))
-	(typetag-set! f 'flonum)
+	(bytevector-set! f 4  (bytevector-like-ref t 8))
+	(bytevector-set! f 5  (bytevector-like-ref t 9))
+	(bytevector-set! f 6  (bytevector-like-ref t 10))
+	(bytevector-set! f 7  (bytevector-like-ref t 11))
+	(bytevector-set! f 8  (bytevector-like-ref t 4))
+	(bytevector-set! f 9  (bytevector-like-ref t 5))
+	(bytevector-set! f 10 (bytevector-like-ref t 6))
+	(bytevector-set! f 11 (bytevector-like-ref t 7))
+	(typetag-set! f sys$tag.flonum-typetag)
 	f)))
 
   ; Return the sign of the flonum.
 
   (define (%float-sign f)
-    (quotient (bytevector-ref f 4) 127))
+    (quotient (bytevector-like-ref f 4) 127))
 
 
   ; Convert a bignum to an IEEE double precision number.
@@ -203,49 +206,38 @@
 			     (adjust m two^53)
 			     e)))))))
 
-  ; Convert a flonum to a bignum. If the flonum is not representable as an
-  ; integer, then the excess fraction is simply dropped.
-  ;
-  ; Knows about the representation of flonums as well as bignums.
-  ; Flonums are IEEE double, boxed as a bytevector.
-  ;
-  ; Not tested.
+  ; Convert an integer to a bignum
+
+  (define (->bignum x)
+    (if (fixnum? x) (fixnum->bignum x) x))
+
+  ; Convert a flonum to a bignum.
 
   (define (%flonum->bignum f)
-
-    ; convert int to bignum
-
-    (define (->bignum x)
-      (if (fixnum? x)
-	  (fixnum->bignum x)
-	  x))
-
-    ; main
-
-    (let ((m (flonum-mantissa f))
-	  (e (flonum-exponent f)))
-      (cond ((and (zero? m) (zero? e))
-	     (fixnum->bignum 0))
-	    ((= e 1024)
-	     (error 'flonum->bignum "Cannot convert NaN to bignum."))
-	    (else
-	     (let* ((e (- e 53))
-		    (q (cond ((= e 0)
-			      m)
-			     ((< e -53)
-			      (fixnum->bignum 0))
-			     ((< e 0)
-			      (bignum-quotient m (->bignum (expt 2 (abs e)))))
-			     (else
-			      (bignum-multiply m (->bignum (expt 2 e)))))))
-	       (bignum-limited-normalize! (if (not (zero? (flonum-sign f)))
-					      (bignum-negate! q)
-					      q)))))))
-
-
+    (let ((q (let* ((f (round f))
+		    (m (%float-significand f))
+		    (e (%float-exponent f)))
+	       (cond ((= e 52)
+		      m)
+		     ((> e 52)
+		      (bignum-multiply m (->bignum (expt 2 (- e 52)))))
+		     ((< e 0)
+		      (fixnum->bignum 0))
+		     (else
+		      (let ((divisor (->bignum (expt 2 (abs (- e 52))))))
+			(display e) (newline)
+			(display (- e 52)) (newline)
+			(display (abs (- e 52))) (newline)
+			(display (expt 2 (abs (- e 52)))) (newline)
+			(display divisor) (newline)
+			(bignum-quotient m divisor)))))))
+      (big-limited-normalize! 
+       (if (not (zero? (%float-sign f)))
+	   (flip-sign! q)
+	   q))))
 
   (define (%flonum->integer a)
-    (bignum-normalize! (%flonum->bignum a)))
+    (big-normalize! (%flonum->bignum a)))
 
   (define (%compnum? obj)
     (and (bytevector-like? obj)

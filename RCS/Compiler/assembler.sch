@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.8 91/09/20 16:50:42 lth Exp Locker: lth $
+; $Id: assembler.sch,v 1.9 92/02/10 03:35:30 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -34,6 +34,9 @@
 ; The table can be changed by redefining the following procedure.
 
 (define (assembly-table) $bytecode-assembly-table$)
+
+(define enable-singlestep? #f) ; Single stepping switch
+(define enable-peephole? #t)   ; peephole optimization switch
 
 ; The main entry point.
 
@@ -202,6 +205,8 @@
         (if (null? source)
             (finalize as)
             (begin (as-source! as (cdr source))
+		   (if enable-singlestep?
+		       (emit-singlestep! as (car source)))
                    ((vector-ref assembly-table (caar source))
                     (car source)
                     as)
@@ -374,17 +379,20 @@
 	   (push-instruction as (list $op2imm '+ 1)))
 	  ((eq? (operand1 instruction) (string->symbol "1-"))
 	   (push-instruction as (list $op2imm '- 1)))
-	  ((and (eq? (operand1 instruction) 'null?)
+	  ((and enable-peephole?
+		(eq? (operand1 instruction) 'null?)
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
 	     (consume-next-instruction! as)
 	     (push-instruction as (list $optb2 'bfnull? (operand1 i)))))
-	  ((and (eq? (operand1 instruction) 'zero?)
+	  ((and enable-peephole?
+		(eq? (operand1 instruction) 'zero?)
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
 	     (consume-next-instruction! as)
 	     (push-instruction as (list $optb2 'bfzero? (operand1 i)))))
-	  ((and (eq? (operand1 instruction) 'pair?)
+	  ((and enable-peephole?
+		(eq? (operand1 instruction) 'pair?)
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
 	     (consume-next-instruction! as)
@@ -401,7 +409,8 @@
 
     (lambda (instruction as)
       (let ((op (assq (operand1 instruction) oplist)))
-	(if (and op
+	(if (and enable-peephole?
+		 op
 		 (eq? (operand0 (next-instruction as)) $branchf))
 	    (let ((i (next-instruction as)))
 	      (consume-next-instruction! as)
@@ -464,7 +473,8 @@
 (define-instruction $const
   (lambda (instruction as)
     (let ((next (next-instruction as)))
-      (cond ((= (operand0 next) $setreg)
+      (cond ((and enable-peephole? 
+		  (= (operand0 next) $setreg))
 	     (consume-next-instruction! as)
 	     (list-instruction "const2reg" (list '()
 						 (operand1 instruction)
@@ -563,7 +573,7 @@
 (define-instruction $setlex
   (lambda (instruction as)
     (list-instruction "setlex" instruction)
-    (emit-lexical! as (operand1 instruction) (operand2 instruction))))
+    (emit-setlex! as (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $reg
   (lambda (instruction as)
@@ -658,3 +668,21 @@
 	 (emit-immediate->register! as (char->immediate opd) r))
 	(else
 	 (emit-const->register! as (emit-constant as opd) r))))
+
+; Chez Scheme specific!!
+; Could be made portable with a little bit of effort.
+
+(define (emit-singlestep! as instr)
+  (if (not (memq (car instr) `(,$.label ,$.proc ,$.cont ,$.align)))
+      (let ((p (open-output-string))
+	    (f (= (car instr) $restore)))
+	(display (if (= (car instr) $lambda)
+		     (list 'lambda '(...) (caddr instr) (cadddr instr))
+		     (car (readify-lap (list instr))))
+		 p)
+	(let* ((s (get-output-string p))
+	       (o (emit-constant as s)))
+	  (emit-singlestep-instr! as f 0 o)
+;	  (display o) (display ": ") (display s) (newline)
+	  (close-output-port p)))))
+

@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.8 92/02/10 03:19:25 lth Exp Locker: lth $
+; $Id: bignums.scm,v 1.9 92/02/17 18:26:52 lth Exp Locker: lth $
 ;
 ; This file has four sections:
 ;
@@ -116,6 +116,7 @@
 
 (define byte-base 256)                         ; range of a byte
 (define bignum-base (* byte-base byte-base))   ; range of a bignum digit
+
 (define negative-sign 1)                       ; the sign of a negative bignum
 (define positive-sign 0)                       ; ditto of a positive one
 (define bignum-digits-in-a-fixnum 2)
@@ -125,11 +126,11 @@
 ; Some parameters, which have to be hardcoded to avoid using bignum
 ; arithmetic at load time (sigh).
 
-; (define smallest-positive-bignum (expt 2 30))
-; (define largest-negative-bignum (- (+ (expt 2 30) 1)))
+; (define smallest-positive-bignum (expt 2 29))
+; (define largest-negative-bignum (- (+ (expt 2 29) 1)))
 
-(define smallest-positive-bignum 1073741824)
-(define largest-negative-bignum -1073741825)
+(define smallest-positive-bignum 536870912)
+(define largest-negative-bignum -536870913)
 
 ; `Bignum-ref' does zero-based referencing of a bignum structure, returning
 ; a 16-bit digit (adjusted to be a fixnum) from the bignum. 
@@ -157,7 +158,7 @@
 	(let ((v (make-bytevector (+ l 4))))
 	  (bytevector-fill! v 0)
           (typetag-set! v sys$tag.bignum-typetag)
-	  (bignum-length-set! v (quotient l 2))
+	  (bignum-length-set! v (+ (quotient l 2) (remainder l 2)))
 	  v))))
 
 
@@ -199,10 +200,10 @@
   (bytevector-like-set! b 1 s))
 
 
-; Copy.
+; Copy. Should be expressed in terms of bytevector-like-copy. FIXME.
 
 (define (big-copy! from to)
-  (let loop ((i (- (bignum-length from))))
+  (let loop ((i (- (bignum-length from) 1)))
     (if (>= i 0)
 	(begin (bignum-set! to i (bignum-ref from i))
 	       (loop (- i 1))))))
@@ -277,15 +278,30 @@
 ; this procedure may overflow the fixnum and invoke the bignum routines
 ; recursively (unless caught by the daisy-chain in the millicode, which will
 ; happen in the Sparc implementation). This is ugly, but well-defined.
-; The machine implementation of this procedure will be able to do
+; The machine-dependent implementation of this procedure will be able to do
 ; significantly better.
+;
+; If the intermediate result is a bignum, then it has two or three bigits.
 
 (define (big2*+ a b c i j carry)
-  (let ((r (+ (* (bignum-ref a i) (bignum-ref b j))
-	      (bignum-ref c (+ i j))
-	      carry)))
-    (bignum-set! c (+ i j) (remainder r bignum-base))
-    (quotient r bignum-base)))
+
+  (define (rem r)
+    (if (fixnum? r) (remainder r bignum-base) (bignum-ref r 0)))
+
+  (define (quo r)
+    (if (fixnum? r)
+	(quotient r bignum-base)
+	(cond ((= (bignum-length r) 2)
+	       (bignum-ref r 1))
+	      ((= (bignum-length r) 3)
+	       (+ (* (bignum-ref r 2) bignum-base) (bignum-ref r 1)))
+	      (else
+	       (fixnum->bignum 0)))))
+
+  (let ((p (* (bignum-ref a i) (bignum-ref b j))))
+    (let ((r (+ p (bignum-ref c (+ i j)) carry)))
+      (bignum-set! c (+ i j) (rem r))
+      (quo r))))
 
 ; This is potentially faster, but "machine-dependent"; for benchmarking only.
 ; It should pay off if procedure calls are expensive.
@@ -325,8 +341,7 @@
 
     (define (toobig? ~q)
       (let ((a (* ~q v2))
-	    (b (+ (- (+ (* uj bignum-base) uj+1)
-		     (* ~q v1))
+	    (b (+ (* (- (+ (* uj bignum-base) uj+1) (* ~q v1)) bignum-base)
 		  uj+2)))
 	(> a b)))
 
@@ -337,9 +352,11 @@
 		    v1)))
 
     (let loop2 ((~q (approximate)))
+      (display "foo")
       (if (toobig? ~q)
 	  (loop2 (- ~q 1))
-	  ~q))))
+	  (begin (display "fum")
+		 ~q)))))
 
 
 ; step D4: multiply and subtract, returning borrow
@@ -424,14 +441,11 @@
 (define (bignum-add a b)
   (let ((sa (bignum-sign a))
 	(sb (bignum-sign b)))
-    (break)
     (let ((c (if (= sa sb)
 		 (big-add-digits a b)
 		 (big-subtract-digits a b))))
-      (break)
       (if (sign-negative? sa)
 	  (flip-sign! c))
-      (break)
       (big-normalize! c))))
 
 
@@ -475,6 +489,10 @@
 
 
 ; Divide bignum `a' by bignum `b', returning the remainder.
+;
+; This is wrong; handling of the sign needs to be different, and if the
+; sign of the remainder is negative, then the remainder needs to be
+; adjusted.
 
 (define (bignum-remainder a b)
   (let ((sa (bignum-sign a))
@@ -554,15 +572,19 @@
 (define (bignum->fixnum b)
   (let loop ((i (- (bignum-length b) 1)) (n 0))
     (if (negative? i)
-	(if (sign-negative? (bignum-sign b))
-	    (- n)
-	    n)
+	(begin (if (not (fixnum? n))
+		   (error "bignum->fixnum: disaster."))
+	       (if (sign-negative? (bignum-sign b))
+		   (- n)
+		   n))
 	(loop (- i 1) (+ (* bignum-base n) (bignum-ref b i))))))
 
 ; Can't use `big-normalize!' because it'd convert it back to a fixnum.
 ; (Could use big-limited-normalize, though.)
 
 (define (fixnum->bignum f)
+  (if (not (fixnum? f))
+      (error "fixnum->bignum:" f "not a fixnum."))
   (let ((b (bignum-alloc bignum-digits-in-a-fixnum)))
     (let loop ((i 0) (n (abs f)))
       (if (zero? n)
@@ -623,20 +645,26 @@
 	 (lmin (min la lb))
 	 (c    (bignum-alloc (+ lmax 1))))
 
-      ; add common segments
+    ;; add common segments
 
-      (let loop ((i 0) (carry 0))
-	(if (< i lmin)
-	    (loop (+ i 1) (big2+ a b c i carry))
+;    (bigdump a)
+;    (bigdump b)
+;    (display "-----------------") (newline)
+    (let loop ((i 0) (carry 0))
+      (bigdump c)
+      (if (< i lmin)
+	  (loop (+ i 1) (big2+ a b c i carry))
 	    
-	    ; add carry thru longest number
+	  ;; add carry thru longest number
 
-	    (let ((rest (if (= i la) b a)))
-	      (let loop ((i i) (carry carry))
-		(if (< i lmax)
-		    (loop (+ i 1) (big1+ rest c i carry))
-		    (begin (bignum-set! c i carry)
-			   c))))))))
+	  (let ((rest (if (= i la) b a)))
+	    (let loop ((i i) (carry carry))
+;	      (bigdump c)
+	      (if (< i lmax)
+		  (loop (+ i 1) (big1+ rest c i carry))
+		  (begin (bignum-set! c i carry)
+;			 (bigdump c)
+			 c))))))))
 
 
 ; Subtract the digits of bignum b from the digits of bignum a, producing 
@@ -675,15 +703,17 @@
 (define (big-multiply-digits a b)
   (let* ((la (bignum-length a))
 	 (lb (bignum-length b))
-	 (lmax (max la lb))
-	 (lmin (min la lb))
-	 (c    (bignum-alloc (+ la lb))))
+	 (c  (bignum-alloc (+ la lb))))
+    (bigdump a)
+    (bigdump b)
     (let loop1 ((ai 0))
       (if (< ai la)
 	  (let loop2 ((bi 0) (carry 0))
+	    (bigdump c)
 	    (if (< bi lb)
 		(loop2 (+ bi 1) (big2*+ a b c ai bi carry))
 		(begin (bignum-set! c (+ ai bi) carry)
+		       (bigdump c)
 		       (loop1 (+ ai 1)))))
 	  c))))
 
@@ -698,14 +728,36 @@
 
   ; `a' is a bignum, `b' is a fixnum. Produces a pair of bignums, even if the
   ; remainder is always a fixnum.
+  ;
+  ; A bit of hair associated with dowing the quotient in here.
+  ; The problem is that 'rem' can be as large as (- b 1), and b can be
+  ; as large as bignum-base. This, in turn, can make 'd' a bignum.
+  ; This means that we can get into a loop trying to calculate (quotient d b).
+  ;
+  ; This gets *much* simpler once we move into assembly.
 
   (define (fast-divide a b)
+
+    ; Turns out that if you have a two-bigit bignum and a single-bigit
+    ; fixnum, then the following will calculate the quotient.
+
+    (define (b2fquot d b)
+      (let ((q1 (quotient bignum-base b))
+	    (q2 (quotient (bignum-ref d 0) b)))
+	(let ((r1 (- bignum-base (* q1 b)))
+	      (r2 (- (bignum-ref d 0) (* q2 b))))
+	  (+ (* (bignum-ref d 1) q1) q2 (if (>= (+ r1 r2) b) 1 0)))))
+
     (let ((q (bignum-alloc (bignum-length a))))
       (let loop ((rem 0) (i (- (bignum-length a) 1)))
 	(if (>= i 0)
-	    (let ((d (+ (* rem bignum-base) (bignum-ref a i))))
-	      (bignum-set! q i (quotient d b))
-	      (loop (remainder d b) (- i 1)))
+	    (let* ((d (+ (* rem bignum-base) (bignum-ref a i)))
+		   (quot (if (fixnum? d) 
+			     (quotient d b)
+			     (b2fquot d b)))
+		   (remd (- d (* quot b))))
+	      (bignum-set! q i quot)
+	      (loop remd (- i 1)))
 	    (begin (big-limited-normalize! q)
 		   (cons q (fixnum->bignum rem)))))))
 
@@ -724,7 +776,7 @@
 	   (lu (bignum-length u))
 	   (lv (bignum-length v))
 	   (q  (bignum-alloc (- lu lv)))
-	   (lq (bignum-length q)))
+	   (lq (- lu lv)))                ; don't use (bignum-length q)
       (let loop1 ((j (- lu 1)) (p (- lq 1)))
 	(if (>= p 0)
 	    (let ((~q (big~q u v j)))
@@ -734,7 +786,7 @@
 		    (begin (bignum-set! q p (- (bignum-ref q p) 1))
 			   (big-addback u v j)))
 		(loop1 (- j 1) (- p 1))))
-	    (cons q (car (fast-divide u d)))))))
+	    (cons q (car (fast-divide u d)))))))  ; wrong U
 
   ; maintain some invariants and catch the easy cases.
 
@@ -747,8 +799,8 @@
 	       (lb (bignum-length b)))
 	   (cond ((> lb la)
 		  (let ((r (bignum-copy b)))
-		    (bignum-sign-set! b positive-sign)
-		    (cons (fixnum->bignum 0) b)))
+		    (bignum-sign-set! r positive-sign)
+		    (cons (fixnum->bignum 0) r)))
 		 ((= lb 1)
 		  (fast-divide a (bignum-ref b 0)))
 		 (else
@@ -817,7 +869,35 @@
 ; For debugging under Chez.
 ;
 ;(display "; redefining debugging values") (newline)
-;
-;(set! smallest-positive-bignum (integer->bytevector smallest-positive-bignum))
-;(set! largest-negative-bignum (integer->bytevector largest-negative-bignum))
+;(set! smallest-positive-bignum
+;  (integer->bytevector smallest-positive-bignum))
+;(set! largest-negative-bignum
+;  (integer->bytevector largest-negative-bignum))
+
+; For debugging in general
+
+(define (bigdump bignum)
+
+  (define (pr n)
+    (let ((s (number->string n 16)))
+      (let loop ((i (- 4 (string-length s))))
+	(if (> i 0)
+	    (begin (display "0")
+		   (loop (- i 1)))
+	    (display s)))))
+
+  (if dump-is-on
+      (let loop ((i (- (bignum-length bignum) 1)))
+	(if (>= i 0)
+	    (begin (pr (bignum-ref bignum i))
+		   (loop (- i 1)))
+	    (newline)))))
+
+(define dump-is-on #f)
+
+(define (dumpon)
+  (set! dump-is-on #t))
+
+(define (dumpoff)
+  (set! dump-is-on #f))
 

@@ -4,7 +4,7 @@
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
 ;
-; $Id: misc2bytevector.ss,v 1.1 92/01/31 16:47:04 lth Exp Locker: lth $
+; $Id: misc2bytevector.ss,v 1.2 92/02/10 03:31:18 lth Exp Locker: lth $
 
 ; Generic.
 
@@ -76,6 +76,20 @@
 ;	|                                 |
 ;	+---------------------------------+
 ;
+; Compnums are similar:
+;
+;	+------------------------+--------+
+;	|      length            | header |
+;	+------------------------+--------+
+;	|      unused                     |
+;	+---------------------------------+
+;	|      (real part)                |
+;	|      IEEE double precision      |
+;	+---------------------------------+
+;	|      (imaginary part)           |
+;	|      IEEE double precision      |
+;	+---------------------------------+
+;
 ; An IEEE number, in turn, is represented as follows (64 bits)
 ;
 ;       +-+----------+--------------------+
@@ -99,21 +113,26 @@
 ; There is no provision for denormals here.
 
 (define (flonum->bytevector f)
+  (list->bytevector (append '(0 0 0 0) (flonum-bits f))))
 
-  (define nan 
-    (list->bytevector '(0 0 0 0 #x7f #xff #xff #xff #xff #xff #xff #xff)))
+(define (compnum->bytevector c)
+  (let ((f1 (flonum-bits (real-part c)))
+	(f2 (flonum-bits (imag-part c))))
+    (list->bytevector (append '(0 0 0 0) f1 f2))))
 
-  (define infinity+
-    (list->bytevector '(0 0 0 0 #x7f #xf8 #x00 #x00 #x00 #x00 #x00 #x00)))
+; Return a list of byte values representing an IEEE double precision number.
 
-  (define infinity-
-    (list->bytevector '(0 0 0 0 #xff #xf8 #x00 #x00 #x00 #x00 #x00 #x00)))
+(define (flonum-bits f)
 
-  (define zero+
-    (list->bytevector '(0 0 0 0 #x00 #x00 #x00 #x00 #x00 #x00 #x00 #x00)))
+  (define nan '(#x7f #xff #xff #xff #xff #xff #xff #xff))
 
-  (define zero-
-    (list->bytevector '(0 0 0 0 #x80 #x00 #x00 #x00 #x00 #x00 #x00 #x00)))
+  (define infinity+ '(#x7f #xf8 #x00 #x00 #x00 #x00 #x00 #x00))
+
+  (define infinity- '(#xff #xf8 #x00 #x00 #x00 #x00 #x00 #x00))
+
+  (define zero+ '(#x00 #x00 #x00 #x00 #x00 #x00 #x00 #x00))
+
+  (define zero- '(#x80 #x00 #x00 #x00 #x00 #x00 #x00 #x00))
 
   ; I'm sure there are portable ways of figuring out the bit patterns of the
   ; fraction and the exponent. For now we'll just observe that Chez Scheme
@@ -132,7 +151,7 @@
 	((equal? f -inf.0)
 	 infinity-)
 	(else
-	 (list->bytevector (append '(0 0 0 0) (bitpattern f))))))
+	 (bitpattern f))))
 
 ; Begin gross hack.
 

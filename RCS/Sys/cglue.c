@@ -2,7 +2,7 @@
  * Scheme 313 run-time system.
  * Millicode in C.
  *
- * $Id: cglue.c,v 1.3 91/12/06 15:04:07 lth Exp Locker: lth $
+ * $Id: cglue.c,v 1.4 92/02/10 03:41:32 lth Exp Locker: lth $
  *
  * Millicode routines which are written in C and which do not warrant 
  * their own files go in here.
@@ -129,6 +129,26 @@ C_break()
 
   if (do_break || break_always)
     localdebugger();
+}
+
+C_singlestep( s )
+word s;
+{
+  word *p;
+  char buf[ 300 ];
+  int length;
+  
+  if (tagof( s ) != BVEC_TAG)
+    printf( "Internal: Bad arg to C_singlestep().\n" );
+  else {
+    p = ptrof( s );
+    length = sizefield( *p );
+    if (length > 299) length = 299;
+    strncpy( buf, (char *)(p+1), length );
+    buf[ length ] = 0;
+    printf( "Step: %s\n", buf );
+  }
+  localdebugger();
 }
 
 

@@ -5,7 +5,7 @@
 ;
 ; Second major version.
 ;
-; $Id: dumpheap.sch,v 1.7 92/02/17 18:26:41 lth Exp Locker: lth $
+; $Id: dumpheap.sch,v 1.8 92/02/23 16:55:50 lth Exp Locker: lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular
@@ -163,13 +163,13 @@
 	    ((bignum? datum)
 	     (dump-bignum! h datum))
 	    ((ratnum? datum)
-	     (error "Don't know how to dump ratnums (yet)."))
+	     (dump-ratnum! h datum))
 	    ((flonum? datum)
 	     (dump-flonum! h datum))
 	    ((compnum? datum)
-	     (error "Don't know how to dump compnums (yet)."))
+	     (dump-compnum! h datum))
 	    ((rectnum? datum)
-	     (error "Don't know how to dump rectnums (yet)."))
+	     (dump-rectnum! h datum))
 	    ((char? datum)
 	     (make-char datum))
 	    ((null? datum)
@@ -226,8 +226,12 @@
 	   (exact? x)
 	   (not (real? x))))
 
+    ; returns the two's complement representation as a positive number.
+
     (define (make-fixnum f)
-      (* 4 f))
+      (if (negative? f)
+	  (- #x100000000 (* (abs f) 4))
+	  (* 4 f)))
 
     (define (make-char c)
       (+ (* (char->integer c) twofiftysix^2) $imm.character))
@@ -237,8 +241,21 @@
     (define (dump-bignum! h b)
       (dump-bytevector! h (bignum->bytevector b) $tag.bignum-typetag))
 
+    (define (dump-ratnum! h r)
+      (dump-vector! h 
+		    (vector (numerator r) (denominator r)) 
+		    $tag.ratnum-typetag))
+
     (define (dump-flonum! h f)
       (dump-bytevector! h (flonum->bytevector f) $tag.flonum-typetag))
+
+    (define (dump-compnum! h c)
+      (dump-bytevector! h (compnum->bytevector c) $tag.compnum-typetag))
+
+    (define (dump-rectnum! h r)
+      (dump-vector! h
+		    (vector (real-part r) (imag-part r))
+		    $tag.rectnum-typetag))
 
     (define (dump-string! h s)
       (dump-bytevector! h (string->bytevector s) $tag.string-typetag))
@@ -471,12 +488,15 @@
       ; traverses the list and calls each in turn.
 
       (display "Assembling final procedure") (newline)
-      (let* ((l       (dump-list! h (reverse inits)))
-	     (m       (dump-list! h (symbol-names)))
-	     (segment (assemble (init-proc))))
-	(patch-constant-vector! (cdr segment) '(data (1)) `(bits ,l))
-	(patch-constant-vector! (cdr segment) '(data (2)) `(bits ,m))
-	(dump-segment! h segment)))
+      (let ((e enable-singlestep?))
+	(set! enable-singlestep? #f)
+	(let* ((l       (dump-list! h (reverse inits)))
+	       (m       (dump-list! h (symbol-names)))
+	       (segment (assemble (init-proc))))
+	  (set! enable-singlestep? e)
+	  (patch-constant-vector! (cdr segment) '(data (1)) `(bits ,l))
+	  (patch-constant-vector! (cdr segment) '(data (2)) `(bits ,m))
+	  (dump-segment! h segment))))
 
     ; Write to the output file.
 
@@ -540,9 +560,6 @@
 		     (heap.global! heap
 				   'millicode-support
 				   (dump-global! heap 'millicode-support))
-		     (heap.global! heap
-				   'mem-tmp2
-				   (dump-global! heap 'number->string))
 		     (dump-heap-to-file! heap outputfile)
 		     (load-map))))))
 

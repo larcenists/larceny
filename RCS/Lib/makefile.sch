@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.3 92/02/10 12:13:59 lth Exp Locker: lth $
+; $Id: makefile.sch,v 1.4 92/02/17 18:27:03 lth Exp Locker: lth $
 ;
 ; USAGE:
 ;
@@ -39,7 +39,7 @@
   (make-heap "../ctak.heap" 'global-symbols 'global-refs "../Lib/ctak.lop"))
 
 (define (make-test-heap)
-  (make-heap "../test.heap" 'global-refs "../Lib/main.lop"))
+  (make-heap "../test.heap" 'global-refs 'global-symbols "../Lib/testmain.lop"))
 
 (let ()
 
@@ -120,8 +120,12 @@
       (("../Lib/number.lap" "../Lib/number.sch") ,compile)
       (("../Lib/main.lop" "../Lib/main.lap") ,assemble)
       (("../Lib/main.lap" "../Lib/main.sch") ,compile)
+      (("../Lib/testmain.lop" "../Lib/testmain.lap") ,assemble)
+      (("../Lib/testmain.lap" "../Lib/testmain.sch") ,compile)
       (("../Lib/debug.lop" "../Lib/debug.lap") ,assemble)
       (("../Lib/debug.lap" "../Lib/debug.sch") ,compile)
+      (("../Lib/preds.lop" "../Lib/preds.lap") ,assemble)
+      (("../Lib/preds.lap" "../Lib/preds.sch") ,compile)
       ))
 
   ; Basic make command for a heap.
@@ -145,6 +149,7 @@
 	"../Lib/xlib.lop"
 	"../Lib/strings.lop"
 	"../Lib/library.lop"
+	"../Lib/preds.lop"
 	"../Lib/oblist.lop"
 	"../Lib/millicode-support.lop"
 	"../Lib/millicode-support-dummies.lop"

@@ -3,7 +3,7 @@
 ! Scheme 313 Run-time system
 ! Miscellaneous assembly language "glue" and millicode.
 !
-! $Id: glue.s,v 1.6 92/02/10 03:38:30 lth Exp Locker: lth $
+! $Id: glue.s,v 1.7 92/02/17 18:27:27 lth Exp Locker: lth $
 
 #include "registers.s.h"
 #include "millicode.s.h"
@@ -32,6 +32,7 @@
 	.global	_m_reset
 	.global	_m_exit
 	.global	_m_break
+	.global _m_singlestep
 	.global	_not_supported
 	.global	_type_exception
 	.global	_timer_exception
@@ -587,10 +588,9 @@ Ltypetagset1:
 ! only concern ourselves with larger structures here.
 
 _eqv:
-	and	%RESULT, TAGMASK, %TMP0
-	xor	%ARGREG2, %TMP0, %TMP0
+	xor	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, TAGMASK, %g0
-	bne,a	Leqv1
+	bne,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
 	! Tags are equal, but addresses are not (they are not eq?). This
@@ -599,43 +599,51 @@ _eqv:
 
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, PAIR_TAG
-	be,a	Leqv1
+	be,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 	cmp	%TMP0, PROC_TAG
-	be,a	Leqv1
+	be,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 	cmp	%TMP0, BVEC_TAG
-	bne	Leqv2
+	be	Leqv_bvec
 	nop
+	cmp	%TMP0, VEC_TAG
+	be	Leqv_vec
+	nop
+	b	Leqv_done
+	mov	FALSE_CONST, %RESULT
+
+Leqv_bvec:
+	! Bytevector-like
 
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
 	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
 
 	cmp	%TMP0, BIGNUM_HDR
-	be,a	Leqv3
+	be,a	Leqv_bvec2
 	mov	0, %TMP0
 	cmp	%TMP0, FLONUM_HDR
-	be,a	Leqv3
+	be,a	Leqv_bvec2
 	mov	1, %TMP0
 	cmp	%TMP0, COMPNUM_HDR
-	be,a	Leqv3
+	be,a	Leqv_bvec2
 	mov	1,%TMP0
-	b	Leqv1
+	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
-Leqv3:
+Leqv_bvec2:
 	cmp	%TMP1, BIGNUM_HDR
-	be,a	Leqv4
+	be,a	Leqv_number
 	mov	0, %TMP1
 	cmp	%TMP1, FLONUM_HDR
-	be,a	Leqv4
+	be,a	Leqv_number
 	mov	1, %TMP1
 	cmp	%TMP1, COMPNUM_HDR
-	be,a	Leqv4
+	be,a	Leqv_number
 	mov	1, %TMP1
-	b	Leqv1
+	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
-Leqv2:
+Leqv_vec:
 	! We know it has a vector tag here. The header tags must be the same,
 	! and both must be either ratnum or rectnum.
 
@@ -643,26 +651,26 @@ Leqv2:
 	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
 
 	cmp	%TMP0, %TMP1
-	bne,a	Leqv1
+	bne,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
 	mov	0, %TMP1
 	cmp	%TMP0, RATNUM_HDR
-	be,a	Leqv4
+	be,a	Leqv_number
 	mov	0, %TMP0
 	cmp	%TMP0, RECTNUM_HDR
-	be,a	Leqv4
+	be,a	Leqv_number
 	mov	0, %TMP0
-	b	Leqv1
+	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
-Leqv4:
+Leqv_number:
 	! Numbers. They are eqv if they are of the same exactness and they
 	! test #t with `='. The exactness is encoded in TMP0 and TMP1: 0s
 	! mean exact, 1s mean inexact.
 
 	cmp	%TMP0, %TMP1
-	bne,a	Leqv1
+	bne,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
 	! Same exactness. Test for equality.
@@ -670,7 +678,7 @@ Leqv4:
 	jmp	%MILLICODE + M_NUMEQ
 	nop
 
-Leqv1:
+Leqv_done:
 	jmp	%o7+8
 	nop
 
@@ -714,6 +722,32 @@ _m_break:
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
 	jmp	%o7+8
+	nop
+
+! Ditto single step handler.
+
+_m_singlestep:
+	ld	[ %GLOBALS + SINGLESTEP_OFFSET ], %TMP1
+	cmp	%TMP1, TRUE_CONST
+	be,a	Lsinglestep1
+	nop
+	jmp	%o7+8
+	nop
+Lsinglestep1:
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
+	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]
+	call	_save_scheme_context
+	nop
+	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
+	ld	[ %REG0 - PROC_TAG + CONSTVECTOR ], %TMP1
+	sub	%TMP1, VEC_TAG, %TMP1
+	ld	[ %TMP1 + %TMP0 ], %o0            ! tagged string ptr
+	call	_C_singlestep
+	nop
+	call	_restore_scheme_context
+	nop
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
+	jmp	%o7 + 8
 	nop
 
 ! Print an error message detailing the program counter, then enter the
@@ -820,5 +854,7 @@ Lgeneric_exception:
 Lfnbuf:	.skip	256
 Lfstr:	.asciz  "Retaddr=%x\n"
 Lemsg:	.asciz	"Unsupported millicode procedure at PC=%lX\n"
+Lsinglestep_msg:
+	.asciz	"Singlestep break at %s\n"
 
 	! end of file

@@ -1,4 +1,4 @@
-$Id: BUGLIST,v 1.2 92/01/31 16:17:31 lth Exp Locker: lth $
+$Id: BUGLIST,v 1.3 92/02/10 03:28:17 lth Exp Locker: lth $
 
 		    Larceny  --  Official Bug List
 			   (and wish list)
@@ -10,6 +10,9 @@ $Id: BUGLIST,v 1.2 92/01/31 16:17:31 lth Exp Locker: lth $
 
    A lot of bugs which are fixed on the fly never end up in here; this
    list are for things that have been put off for various reasons.
+
+   Suggested performance improvements also go in here; see near the
+   bottom.
 
 Front end
 ---------
@@ -34,13 +37,14 @@ Disassembler
 3. Disassembling millicode calls should cause the millicode name to be 
    printed in a comment next to the jmpli.
 
+
 Assembler/basic code generator
 ------------------------------
 *1. 'srli' is (apparently) assembled as 'slli'; at least, that's what adb
     says. [See also disassembler bug #2.]
     May just be confusion due to disassembler; appears correct now.
 
-2. A couple of instructions need to call setcar but don't; look for FIXMEs.
+*2. A couple of instructions need to call setcar but don't; look for FIXMEs.
 
 3. When a NOT is for control, its argument is also for control. This may be
    used to improve code quality. [e.g. (not (char? x))]
@@ -52,7 +56,6 @@ Assembler/basic code generator
    time, the work is unnecessary, as the address would fit in an immediate.
    The assembler must fix this up.
 
-6. op2imm for control peeps.
 
 Primops
 -------
@@ -62,13 +65,17 @@ Primops
 2. Check that (byte)vector-{ref,set!} are using correct range checking;
    should it be bleu rather than blu?
 
-3. Get rid of the branch chain idiom in the arithmetic comparisons.
+3. Get rid of the branch chain idiom in the arithmetic comparisons; it is
+   illegal according to the V8 spec.
+
 
 Performance
 -----------
 1. Need to keep return address in a register; this makes SAVE more expensive
    but is reasonable in leaves; in general a win. This means that context 
-   switch must take pains to save this register on a GC.
+   switch must take pains to save this register on a GC. There are a few
+   parts of the system which must change when we do this; I have a list
+   somewhere. This list will eventually make it into Larceny Not #14.
 
 2. Need to implement function cell hack for global variables.
 
@@ -80,6 +87,18 @@ Performance
 
 5. Schedule the instructions in the compnum floating point code in "generic.s".
 
+6. Keep stack limit in a register rather than in %GLOBALS. This saved
+   200 ms on (fib 30), non-shrink-wrapped version. Saves 3 cycles per call
+   (value is always in cache, but there's a dependency). Saves 80-100 ms
+   on shrink-wrapped version.
+
+7. Fix vector instructions so that they do not load the header twice!
+
+8. Peep op2imm for control.
+
+9. In general, *lots* of peephole optimization is needed. In particular, we
+   should clean up some of the simple generic arithmetic.
+
 Misc
 ----
 1. Investigate use of trap instruction for breakpoints?
@@ -89,6 +108,7 @@ Misc
     the fact that Scheme may be called here.]
 
 3. Redesign the internal calling stuff in millicode. It's a mess.
+   [Although it is improving.]
 
 4. "exit" must flush all output streams before actually exiting.
 
@@ -97,6 +117,16 @@ Misc
 
 6. Generate millicode call for large LEXES/LAMBDA instructions.
    This saves code space.
+
+7. Add a profiler. We want to do something like the one described by 
+   Appel/Duba/MacQueen for SML/NJ; should probably put this into the
+   compiler, but it could go into the first pass of the assembler without
+   messing up any machine dependent code generators or constant vector
+   layouts.
+
+8. Merge the "GLOBALS" and "MILLICODE" registers and tables. Saves a register
+   which we can use for other fun stuff.
+
 
 Libraries
 ---------

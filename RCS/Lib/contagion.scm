@@ -3,12 +3,9 @@
 ; Scheme 313 runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.
 ;
-; $Id: contagion.scm,v 1.3 92/02/10 03:19:34 lth Exp Locker: lth $
+; $Id: contagion.scm,v 1.4 92/02/17 18:26:54 lth Exp Locker: lth $
 ;
 ; There are three main procedures: contagion, pcontagion, and econtagion.
-; All take two numbers as arguments, and return a pair of the to numbers
-; cast to the same representation. The representation is chosen according
-; to the contagion matrices, at the end of the file.
 
 (define contagion #f)
 (define econtagion #f)
@@ -38,14 +35,11 @@
 	  (else (error x " is not a number"))))
 
   (define (do-contagion matrix a b retry)
-    (display "In contagion!") (newline)
+;   (display "In contagion: ") (display a) (display ",") (display b) (newline)
     (let* ((ta (number-type a))
 	   (tb (number-type b))
-	   (d  (begin (display "gag!") (newline) 1))
 	   (v  (vector-ref (vector-ref matrix ta) tb))
-	   (e  (begin (display "barf!") (newline) 1))
 	   (t  (v a b)))
-      (display "lose!") (newline)
       (retry (car t) (cdr t))))
 
   ; Many of the numbers created here violate various invariants in the system;

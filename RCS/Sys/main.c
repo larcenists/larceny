@@ -1,7 +1,7 @@
 /*
  * Larceny -- A run-time system for IEEE/R4RS Scheme on the Sun Sparcstation.
  *
- * $Id: main.c,v 1.7 92/02/10 03:41:54 lth Exp Locker: lth $
+ * $Id: main.c,v 1.8 92/02/23 16:56:35 lth Exp Locker: lth $
  *
  * Exports the procedures C_exception() and panic().
  * Accepts the following options from the command line:
@@ -18,12 +18,13 @@
  *    -d         Raise the level of debugging output by one.
  *               This has an effect only when the programming is compiled with
  *               DEBUG defined.
+ *    -z         Turn on single-stepping.
  *
  * BUGS
  *  The '-h' should be implicit.
  */
 
-#define VERSION "0.10"
+#define VERSION "0.11"
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -36,6 +37,7 @@
 #include "millicode.h"
 #include "macros.h"
 #include "exceptions.h"
+#include "layouts.h"
 
 static void invalid(), setup_interrupts();
 void panic();
@@ -62,6 +64,7 @@ char **argv, **envp;
   struct rusage r1, r2;
   char *heapfile = NULL;
   FILE *heap;
+  int singlestep = 0;
 
   printf( "Larceny version %s (Compiled by %s on %s)\n", VERSION, USER, DATE );
   while (--argc) {
@@ -90,6 +93,9 @@ char **argv, **envp;
 	  break;
 	case 'd' :
 	  debuglevel++;
+	  break;
+	case 'z' :
+	  singlestep = 1;
 	  break;
 	case 'I' :
 	  if (argc == 1 || sscanf( *(argv+1), "%u", &ifreq ) != 1)
@@ -153,8 +159,8 @@ char **argv, **envp;
 
   globals[ TIMER_OFFSET ] = globals[ INITIAL_TIMER_OFFSET ];
   globals[ INITIAL_TIMER_OFFSET ] = (ifreq == 0 ? 1 : ifreq);
-
   globals[ RESULT_OFFSET ] = fixnum( 0 );  /* No arguments */
+  globals[ SINGLESTEP_OFFSET ] = (singlestep ? TRUE_CONST : FALSE_CONST);
 
   schemestart();  /* Typically doesn't return. */
   exit( 0 );

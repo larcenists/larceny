@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system.
 ; Scheme code for ratnum arithmetic.
 ;
-; $Id: ratnums.scm,v 1.2 91/08/20 15:32:58 lth Exp Locker: lth $
+; $Id: ratnums.scm,v 1.3 92/02/10 03:19:50 lth Exp Locker: lth $
 ;
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
@@ -46,6 +46,10 @@
 ; LOW-LEVEL USER STUFF
 ;
 ; Ratnums look like vectors.
+
+(define (ratnum? x)
+  (and (vector-like? x)
+       (= (typetag x) sys$tag.ratnum-typetag)))
 
 (define (numerator ratnum)
   (cond ((ratnum? ratnum)

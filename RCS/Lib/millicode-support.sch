@@ -4,7 +4,7 @@
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
 ;
-; $Id: millicode-support.sch,v 1.2 92/02/17 18:27:06 lth Exp Locker: lth $
+; $Id: millicode-support.sch,v 1.3 92/02/23 16:56:09 lth Exp Locker: lth $
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
@@ -50,6 +50,33 @@
 			   (flonum->integer (imag-part a))))
 	(else ???)))
 
+(define (heavy-quotient a b)
+  (cond ((and (bignum? a) (bignum? b))
+	 (bignum-quotient a b))
+	((and (integer? a) (integer? b))
+	 (let ((a (cond ((flonum? a) (inexact->exact a))
+			((compnum? a) (inexact->exact (real-part a)))
+			(else a)))
+	       (b (cond ((flonum? b) (inexact->exact b))
+			((compnum? b) (inexact->exact (real-part b)))
+			(else b))))
+	   (contagion a b quotient)))
+	(else
+	 (error "quotient: arguments must be integers: " a b))))
+
+(define (heavy-remainder a b)
+  (cond ((and (bignum? a) (bignum? b))
+	 (bignum-remainder a b))
+	((and (integer? a) (integer? b))
+	 (let ((a (cond ((flonum? a) (inexact->exact a))
+			((compnum? a) (inexact->exact (real-part a)))
+			(else a)))
+	       (b (cond ((flonum? b) (inexact->exact b))
+			((compnum? b) (inexact->exact (real-part b)))
+			(else b))))
+	   (contagion a b remainder)))
+	(else
+	 (error "remainder: arguments must be integers: " a b))))
 
 ; "install-millicode-support" makes a vector of *all* scheme procedures
 ; which are callable from millicode and puts this vector in the global
@@ -142,8 +169,8 @@
 		   heavy-modulo
 		   =
 		   <
-		   >			; loc 80
-		   <=
+		   <=			; loc 80
+		   >
 		   >=
 		   contagion
 		   pcontagion

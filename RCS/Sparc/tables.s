@@ -1,7 +1,7 @@
 ! Scheme 313 runtime system
 ! Global table for millicode calls.
 !
-! $Id: tables.s,v 1.4 92/01/30 18:02:47 lth Exp Locker: lth $
+! $Id: tables.s,v 1.5 92/02/10 03:38:36 lth Exp Locker: lth $
 
 	.global	_millicode
 
@@ -215,6 +215,9 @@ _millicode:
 	nop
 	! #64: M_UNDEF_EXCEPTION
 	b	_undef_exception
+	nop
+	! #65: M_SINGLESTEP
+	b	_m_singlestep
 	nop
 
 	! end of millicode table

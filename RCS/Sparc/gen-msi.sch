@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent code generation procedures.
 ;
-; $Id: gen-msi.sch,v 1.2 92/02/10 03:40:26 lth Exp Locker: lth $
+; $Id: gen-msi.sch,v 1.3 92/02/23 16:56:23 lth Exp Locker: lth $
 ;
 ; (used to be part of asm.sparc.scm).
 
@@ -50,6 +50,17 @@
 	(emit! as `(,$i.ldi ,$r.tmp0 ,cvlabel ,r))
 	(begin (emit! as `(,$i.ldi ,$r.tmp0 ,cvlabel ,$r.tmp0))
 	       (emit! as `(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals))))))
+
+; Single step: jump to millicode; pass index of documentation string in
+; %TMP0. Some instructions execute when reg0 is not a valid pointer to
+; the current procedure (because this is just after returning); in this
+; case we restore reg0 from the stack location given by 'funkyloc'.
+
+(define (emit-singlestep-instr! as funky? funkyloc cvlabel)
+  (if funky?
+      (emit! as `(,$i.ldi ,$r.stkp ,(+ (* 4 funkyloc) 8) ,$r.reg0)))
+  (emit! as `(,$i.jmpli ,$r.millicode ,$m.singlestep ,$r.o7))
+  (emit! as `(,$i.ori ,$r.g0 ,(* cvlabel 4) ,$r.tmp0)))
 
 ; Store a register in a global. Assumes a value cell is a pair.
 ; ("setglbl" instruction).
@@ -285,14 +296,16 @@
 			,$r.result))))
 
 ; This use of vector-set is well-defined!
+;
+; The adjustment of n is necessary because m_vectorset adjusts for the header,
+; as does slotoffset. In general, slotoffset does the wrong thing (sort of).
 
 (define (emit-setlex! as m n)
-  (display "setlex!!") (newline)
   (let ((base (emit-follow-chain! as m)))
     (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg3))
     (emit! as `(,$i.orr ,base ,$r.g0 ,$r.result))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
-    (emit! as `(,$i.orr ,$r.g0 ,(slotoffset n) ,$r.argreg2))))
+    (emit! as `(,$i.ori ,$r.g0 ,(slotoffset (- n 1)) ,$r.argreg2))))
 
 
 ; Follow static links.

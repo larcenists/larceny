@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id: gen-primops.sch,v 1.3 92/02/10 03:40:28 lth Exp Locker: lth $
+; $Id: gen-primops.sch,v 1.4 92/02/17 18:27:21 lth Exp Locker: lth $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -192,7 +192,7 @@
 			  (emit-load-reg! as x $r.tmp1))))
 	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
 	     (emit-assert-fixnum! as $r.tmp0)
-	     (emit! as `(,$i.andr ,$r.result ,x ,$r.result)))))
+	     (emit! as `(,$i.andr ,$r.result ,tmp ,$r.result)))))
 
    ; fixnums only
 
@@ -203,7 +203,7 @@
 			  (emit-load-reg! as x $r.tmp1))))
 	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
 	     (emit-assert-fixnum! as $r.tmp0)
-	     (emit! as `(,$i.orr ,$r.result ,x ,$r.result)))))
+	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.result)))))
 
    ; fixnums only
 
@@ -217,19 +217,20 @@
 	     (emit! as `(,$i.xorr ,$r.result ,tmp ,$r.result)))))
 
    ; fixnums only, and only positive shifts are meaningful.
+   ; Really ought to reuse fault handler (requires rewrite of asserts).
 
    (cons 'lsh
 	 (lambda (as x)
 	   (let ((tmp (if (hardware-mapped? x)
 			  x
 			  (emit-load-reg! as x $r.tmp1))))
-	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
-	     (emit-assert-positive-fixnum! as $r.tmp0)
-	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
+	     (emit-assert-fixnum! as $r.result)
+	     (emit-assert-positive-fixnum! as tmp)
+	     (emit! as `(,$i.srai ,tmp 2 ,$r.tmp1))
 	     (emit! as `(,$i.sllr ,$r.result ,$r.tmp1 ,$r.result)))))
 
-   ; fixnums only, and only positive shifts are meaningful.
-   ; watch the semantics of the shift instruction! we have to do the
+   ; Fixnums only, and only positive shifts are meaningful.
+   ; Watch the semantics of the shift instruction! We have to do the
    ; original shift first and *then* adjust; no combination is possible
    ; in general.
 
@@ -238,12 +239,11 @@
 	   (let ((tmp (if (hardware-mapped? x)
 			  x
 			  (emit-load-reg! as x $r.tmp1))))
-	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
-	     (emit-assert-positive-fixnum! as $r.tmp0)
-	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
+	     (emit-assert-fixnum! as $r.result)
+	     (emit-assert-positive-fixnum! as tmp)
+	     (emit! as `(,$i.srai ,tmp 2 ,$r.tmp1))
 	     (emit! as `(,$i.srlr ,$r.result ,$r.tmp1 ,$r.result))
-	     (emit! as `(,$i.srli ,$r.result 2 ,$r.result))
-	     (emit! as `(,$i.slli ,$r.result 2 ,$r.result)))))
+	     (emit! as `(,$i.andni ,$r.result 3 ,$r.result)))))
 
    ; fixnums only, and only positive shifts are meaningful.
 
@@ -252,12 +252,11 @@
 	   (let ((tmp (if (hardware-mapped? x)
 			  x
 			  (emit-load-reg! as x $r.tmp1))))
-	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
-	     (emit-assert-positive-fixnum! as $r.tmp0)
-	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
+	     (emit-assert-fixnum! as $r.result)
+	     (emit-assert-positive-fixnum! as tmp)
+	     (emit! as `(,$i.srai ,tmp 2 ,$r.tmp1))
 	     (emit! as `(,$i.srar ,$r.result ,$r.tmp1 ,$r.result))
-	     (emit! as `(,$i.srli ,$r.result 2 ,$r.result))
-	     (emit! as `(,$i.slli ,$r.result 2 ,$r.result)))))
+	     (emit! as `(,$i.andni ,$r.result 3 ,$r.result)))))
 
    ; fixnums only
 
@@ -907,22 +906,22 @@
     l0))
 
 ; This is more expensive than what is good for it (5 cycles in the usual case),
-; but there does not seem to be a better way. One could use tsubcc reg, g0, g0
-; but the resulting branch chain is no better than what we have.
+; but there does not seem to be a better way.
 
 (define (emit-assert-positive-fixnum! as reg)
   (let ((l1 (new-label))
-	(l2 (new-label)))
+	(l2 (new-label))
+	(l3 (new-label))) 
     (emit! as `(,$i.label ,l2))
-    (emit! as `(,$i.sethi (hi #x80000003) ,$r.tmp0))
-    (emit! as `(,$i.ori ,$r.tmp0 (lo #x80000003) ,$r.tmp0))
-    (emit! as `(,$i.andrcc ,$r.result ,$r.tmp0 ,$r.g0))
-    (emit! as `(,$i.be.a ,l1))
-    (emit! as `(,$i.slot))
+    (emit! as `(,$i.tsubrcc ,reg ,$r.g0 ,$r.g0))
+    (emit! as `(,$i.bvc ,l1))
+    (emit! as `(,$i.nop))
+    (emit! as `(,$i.label ,l3))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
-    (emit! as `(,$i.label ,l1))))
-
+    (emit! as `(,$i.label ,l1))
+    (emit! as `(,$i.bl ,l3))
+    (emit! as `(,$i.nop))))
 
 ; Emit code which performs a comparison operation on %result and another
 ; register and which returns a boolean in %result.

@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.5 92/02/17 14:57:31 lth Exp Locker: lth $
+# $Id: Makefile,v 1.6 92/02/23 16:55:39 lth Exp Locker: lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -26,10 +26,10 @@ OBJS=	$(SYS)/main.o \
 	$(MACH)/generic.o
 
 # PROFILE=-pg
-# DEBUG=-g
-# DFLAG=-DDEBUG
+DEBUG=-g
+DFLAG=-DDEBUG
 CC=cc
-OPTIMIZE=-O4
+# OPTIMIZE=-O4
 
 COMPILE=-c
 COUTPUT=$*.o
@@ -45,6 +45,10 @@ CFLAGS=	$(COMPILE) $(PREPROCESS) $(OPTIMIZE) $(PROFILE) $(DEBUG) -I$(SYS)\
 	as -P $(DFLAG) -DASSEMBLY -I$(MACH) -o $*.o $<
 .c.o:
 	$(CC) $(CFLAGS) -DUSER=\"$$USER\" -DDATE="\"`date`\"" -o $(COUTPUT) $<
+
+dummy:
+	rm -f $(SYS)/main.o		# to get the version number right
+	make larceny
 
 larceny: $(OBJS)
 	$(CC) $(PROFILE) -o larceny $(OBJS)

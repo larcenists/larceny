@@ -106,47 +106,6 @@
 ;   (lambda (n modulus)
 ;     (- n (* modulus (quotient n modulus)))))
 
-; from preds.sch (go figure!)
-
-(define reverse
-  (letrec ((reverse-loop
-             (lambda (l1 l2)
-               (if (null? l1)
-                   l2
-                   (reverse-loop (cdr l1) (cons (car l1) l2))))))
-    (lambda (l)
-      (reverse-loop l '()))))
-
-(define append
-  (letrec ((append2
-             (lambda (x y)
-               (if (null? x)
-                   y
-                   (cons (car x) (append2 (cdr x) y)))))
-           (append
-             (lambda args
-               (cond ((null? args) '())
-                     ((null? (cdr args)) (car args))
-                     ((null? (cddr args)) (apply append2 args))
-                     (else (append2 (car args)
-                                    (apply append (cdr args))))))))
-    append))
-
-(define list?
-  (letrec
-    ((loop (lambda (fast slow)
-             (cond ((null? fast) #t)
-                   ((not (pair? fast)) #f)
-                   ((eq? fast slow) #f)
-                   (else (let ((fast (cdr fast)))
-                           (cond ((null? fast) #t)
-                                 ((not (pair? fast)) #f)
-                                 (else (loop (cdr fast) (cdr slow))))))))))
-    (lambda (x)
-      (if (pair? x)
-          (loop (cdr x) x)
-          (null? x)))))
-
 ; from misc.sch
 ; @raw-apply@ is written in mal (MacScheme assembly language)
 ; in another file.  It takes exactly two arguments and does
