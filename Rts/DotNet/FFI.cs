@@ -688,7 +688,21 @@ namespace Scheme.RT {
                     }
                 }
                 case 5: { // int
-                    if (value is Enum)   return Factory.makeNumber ((int)    value);
+                    if (value is Enum) {
+                       Type enum_type = value.GetType ();
+                       Type underlying_type = Enum.GetUnderlyingType (enum_type);
+                       if (underlying_type == typeof (Byte))   return Factory.makeFixnum ((byte)   value);
+                       if (underlying_type == typeof (SByte))  return Factory.makeFixnum ((sbyte)  value);
+                       if (underlying_type == typeof (char))   return Factory.makeFixnum ((char)   value);
+                       if (underlying_type == typeof (short))  return Factory.makeFixnum ((short)  value);
+                       if (underlying_type == typeof (int))    return Factory.makeNumber ((int)    value);
+                       if (underlying_type == typeof (long))   return Factory.makeNumber ((long)   value);
+                       if (underlying_type == typeof (ushort)) return Factory.makeFixnum ((ushort) value);
+                       if (underlying_type == typeof (uint))   return Factory.makeNumber ((uint)   value);
+                       if (underlying_type == typeof (ulong))  return Factory.makeNumber ((ulong)  value);
+                       Exn.error ("foreign->datum (enum): not an integer");
+                       return Factory.Impossible;
+                      }
                     if (value is Byte)   return Factory.makeFixnum ((byte)   value);
                     if (value is SByte)  return Factory.makeFixnum ((sbyte)  value);
                     if (value is char)   return Factory.makeFixnum ((char)   value);
