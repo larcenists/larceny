@@ -540,7 +540,7 @@
   (environment-set! larc 'quit-handler quit-handler)
   (environment-set! larc 'sort sort)
   (environment-set! larc 'sort! sort!)
-  (environment-set! larc 'make-parameter system-parameter)
+  (environment-set! larc 'make-parameter make-parameter)
 
   ;; debugging.
 
@@ -791,6 +791,28 @@
   (environment-set! larc 'unspecified unspecified)
   (environment-set! larc 'undefined undefined)
   (environment-set! larc 'sys$codevector-iflush sys$codevector-iflush)
+
+  ;; macro expander internals
+
+  (environment-set! larc '.pass1:define-syntax-scope define-syntax-scope)
+  (environment-set! larc '.pass1:identifier? identifier?)
+  (environment-set! larc '.pass1:identifier->symbol identifier->symbol)
+  (environment-set! larc '.pass1:m-quit m-quit)
+  (environment-set! larc '.pass1:macro-expand macro-expand)
+  (environment-set! larc '.pass1:make-minimal-syntactic-environment
+                    make-minimal-syntactic-environment)
+  (environment-set! larc '.pass1:make-rename-procedure make-rename-procedure)
+  (environment-set! larc '.pass1:make-unspecified make-unspecified)
+  (environment-set! larc '.pass1:make-undefined make-undefined)
+  (environment-set! larc '.pass1:pass1 pass1)
+  (environment-set! larc '.pass1:pass1-block pass1-block)
+  (environment-set! larc '.pass1:syntactic-environment-names 
+                    syntactic-environment-names)
+  (environment-set! larc '.pass1:syntactic-copy syntactic-copy)
+  (environment-set! larc '.pass1:syntactic-extend syntactic-extend)
+  (environment-set! larc '.pass1:syntactic-lookup syntactic-lookup)
+  (environment-set! larc '.pass1:the-usual-syntactic-environment
+                    the-usual-syntactic-environment)
 
   larc)
 
