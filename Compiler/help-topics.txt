@@ -10,7 +10,7 @@
 ;   <text> ::= ((<selector> ...) <string>)
 ;   <selector> ::= brief | full
 ;
-; 21 january 1999
+; 22 january 1999
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
@@ -137,7 +137,7 @@ Heap files usually have the extension .heap.
 ((full)
 "A bootstrap heap image is created with the dump-heap procedure:
 
-  (build-heap-image <heapname> <object-file> ...)
+  (build-heap-image <heapname> <object-file-list>)
 
 This creates a bootstrap heap image containing all the given objects.
 However, it is not usually called directly; the following procedure
