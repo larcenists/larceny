@@ -266,6 +266,9 @@
     (string-append (substring fn 0 (- (string-length fn) (string-length old)))
 		   new))
 
+  ; FIXME: use FILE-NEWER?, and make that procedure the porting interface,
+  ; not file-modification-time.
+
   (define (newer-than? a b)
     (let ((ta (file-modification-time a))
 	  (tb (file-modification-time b)))
