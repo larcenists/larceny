@@ -51,6 +51,7 @@ namespace Scheme.RT {
 
       public static void InitializePerformanceCounters ()
       {
+#if PERFORMANCE_COUNTERS
         if (PerformanceCounterCategory.Exists ("Scheme")) {
             // If the counters exist, get a hold of them.
             // If not, no big deal.
@@ -73,6 +74,7 @@ namespace Scheme.RT {
                 Cont.stackReloadCounter = new PerformanceCounter ("Scheme", "Stack Reloads", false);
                 } catch (Exception) {}
             }
+#endif
       }
 
       // MainHelper takes the argument vector, executes the body of the caller's
@@ -81,6 +83,7 @@ namespace Scheme.RT {
       public static void MainHelper (string[] args)
       {
         Debug.Listeners.Add (new TextWriterTraceListener (Console.Out));
+	//        Debug.WriteLine ("CLR Version:  {0}", System.Environment.Version);
         Debug.WriteLine ("DEBUG version of Scheme runtime.");
 
         // Mono throws a not implemented exception here.

@@ -8,10 +8,12 @@ namespace Scheme.RT {
     // Uses exception classes defined in Exn
 
     public class Call {
+#if PERFORMANCE_COUNTERS
         public static PerformanceCounter applySetupCounter;
         public static PerformanceCounter bounceCounter;
         public static PerformanceCounter schemeCallCounter;
         public static PerformanceCounter millicodeSupportCallCounter;
+#endif
 
         /* Utility Methods */
 
@@ -23,7 +25,9 @@ namespace Scheme.RT {
          * Called by inlined IL of apply
          */
         public static int applySetup(int k1, int k2) {
+#if PERFORMANCE_COUNTERS
             if (applySetupCounter != null) applySetupCounter.Increment();
+#endif
             int n = ((SFixnum)Reg.getRegister(k2)).value;
             if (n < Reg.NREGS-1) {
                 // Load registers 1 through n with elts of list in k1
@@ -50,12 +54,16 @@ namespace Scheme.RT {
 
         // call
         public static void call(CodeVector code, int jumpIndex) {
+#if PERFORMANCE_COUNTERS
            if (Call.bounceCounter != null) Call.bounceCounter.Increment();
+#endif
            throw new BounceException(code, jumpIndex);
         }
 
         public static void call(Procedure p, int argc) {
+#if PERFORMANCE_COUNTERS
            if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
+#endif
            throw new SchemeCallException(p, argc);
         }
 
@@ -206,7 +214,9 @@ namespace Scheme.RT {
 
         public static void callMillicodeSupport3(int procIndex, SObject a,
                                                  SObject b, SObject c) {
+#if PERFORMANCE_COUNTERS
             if (millicodeSupportCallCounter != null) millicodeSupportCallCounter.Increment();
+#endif
             saveContext(false);
             Reg.setRegister(1, a);
             Reg.setRegister(2, b);
@@ -216,7 +226,9 @@ namespace Scheme.RT {
 
         public static void callMillicodeSupport2(int procIndex, SObject a,
                                                  SObject b) {
+#if PERFORMANCE_COUNTERS
             if (millicodeSupportCallCounter != null) millicodeSupportCallCounter.Increment();
+#endif
             saveContext(false);
             Reg.setRegister(1, a);
             Reg.setRegister(2, b);
@@ -224,7 +236,9 @@ namespace Scheme.RT {
         }
 
         public static void callMillicodeSupport1(int procIndex, SObject a) {
+#if PERFORMANCE_COUNTERS
             if (millicodeSupportCallCounter != null) millicodeSupportCallCounter.Increment();
+#endif
             saveContext(false);
             Reg.setRegister(1, a);
             call(getSupportProcedure(procIndex), 1);

@@ -4,7 +4,7 @@ using System;
 using System.Reflection;
 using Scheme.RT;
 using Scheme.Rep;
-using System.Windows.Forms;
+// using System.Windows.Forms;
 
 namespace Scheme.RT {
 
@@ -12,6 +12,7 @@ namespace Scheme.RT {
   // This wrapper is for the callback from the Windows message pump
   // which for some reason is not a delegate like every other callback.
 
+#if 0
     public class FFI_message_filter : IMessageFilter
     {
         Procedure scheme_filter;
@@ -26,6 +27,7 @@ namespace Scheme.RT {
             return Call.callback (scheme_filter, Factory.makeForeignBox (m)) != Factory.False;
         }
     }
+#endif
 
     public class FFI {
 
@@ -551,10 +553,12 @@ namespace Scheme.RT {
                     return Factory.makeForeignBox ((Int32) ((SFixnum)obj).value);
                 }
 
+#if 0
                 case 8: // message filter
                 {
                     return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
                 }
+#endif
 #if 0
 
                 case 0: // object
