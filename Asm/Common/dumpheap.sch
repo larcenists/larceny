@@ -4,7 +4,7 @@
 ;
 ; Bootstrap heap dumper.
 ;
-; Usage: (build-heap-image outputfile inputfile ... )
+; Usage: (build-heap-image outputfile inputfile-list)
 ;
 ; Each input file is a sequence of segments, the structure of which 
 ; depends on the target architecture, but at least segment.code and 
@@ -50,9 +50,9 @@
     reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 
     cont startup callouts schcall-arg4 alloci-tmp))
     
-(define (build-heap-image output-file . input-files)
+(define (build-heap-image output-file input-files)
 
-  (define tmp-file "HEAPDATA")
+  (define tmp-file "HEAPDATA.dat")
 
   (define (process-input-files heap)
     (let loop ((files input-files) (inits '()))
