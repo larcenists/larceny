@@ -33,8 +33,8 @@ struct npsc_data {
 
   /* Parameters. */
   int size_bytes;             /* Original size */
-  int k;                      /* k = current number of steps */
-  int j;                      /* j = dividing point */
+  int k;                      /* k = current number of steps; k > 0 */
+  int j;                      /* j = dividing point; 0 <= j < k */
   int stepsize;               /* bytes */
 
   /* Policy: j is calculated either as a percentage of free steps, or it's 
@@ -45,6 +45,7 @@ struct npsc_data {
   int j_percent;              /* -1 or percentage for calculating j */
   int j_pin;                  /* -1 or value at which to pin j */
   double load_factor;
+  double luck;		      /* 0.0 .. 1.0 */
   int lower_limit;            /* 0 or lower limit on the non-predictive area */
   int upper_limit;	      /* 0 or upper limit on the non-predictive area */
   semispace_t *old;	      /* 'old' generation */
@@ -73,26 +74,38 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
 {
   old_heap_t *heap;
   npsc_data_t *data;
+  int target_size;
 
   heap = allocate_heap( gen_no, gc );
   data = DATA(heap);
 
   *gen_allocd = 2;
 
+  /* We have that size_bytes = stepsize*steps */
   data->size_bytes = roundup_page( info->size_bytes );
   data->stepsize = info->stepsize;
-  data->k = info->steps;
+
   data->j_pin = -1;
   data->j_percent = 50;
   data->load_factor = info->load_factor;
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
+  data->luck = info->luck;
+
+  /* Assume size/L live (steady state) for initial k */
+  target_size = 
+    compute_dynamic_size( heap,
+			  data->size_bytes / data->load_factor,
+			  0 );
+  data->k = ceildiv( target_size, info->stepsize );
 
   /* This is an OK initial j if the heap is empty.  If the heap is used
      to load the heap image into, then data_load_area(), below,
      computes a more appropriate j.
      */
-  data->j = ceildiv( info->steps, 3 );
+  data->j = ceildiv( data->k, 3 );
+
+  annoyingmsg( "NP collector: k=%d j=%d", data->k, data->j );
 
   data->old = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no );
   data->young = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no+1 );
@@ -117,6 +130,7 @@ static void collect( old_heap_t *heap )
   int old_before_gc, old_los_before_gc, young_before_gc, young_los_before_gc;
   int type;
 
+  annoyingmsg( "" );
   annoyingmsg( "Non-predictive dynamic area: garbage collection. " );
   annoyingmsg( "  Live old: %d   Live young: %d  k: %d  j: %d",
 	       used_old( heap ), used_young( heap ), data->k, data->j );
@@ -235,55 +249,111 @@ static void perform_promote_to_both( old_heap_t *heap )
   x = used_old( heap );
   while ((data->k - data->j)*data->stepsize < x)
     data->j--;
-  if (data->j < 0) {		/* Should never happen */
-    hardconsolemsg( "*** Something bad happened in the non-predictive gc." );
+
+  if (data->j < 0) {
+    data->k = ceildiv( x, data->stepsize );
     data->j = 0;
+    annoyingmsg( "Extending NP area to accomodate large object overflow: "
+		 "k=%d, j=%d.",
+		 data->k, data->j );
   }
 }
 
 static void perform_collect( old_heap_t *heap )
 {
-  npsc_data_t *d = DATA(heap);
+  npsc_data_t *data = DATA(heap);
   los_t *los = heap->collector->los;
   gc_t *gc = heap->collector;
-  int free_steps, target_size;
+  int free_steps, target_size, young_before, young_los_before, luck_steps;
+
+  ss_sync( data->young );
+  young_before = data->young->used;
+  young_los_before = los_bytes_used( los, data->gen_no+1 );
 
   annoyingmsg( "  Full garbage collection." );
-  stats_gc_type( d->gen_no, STATS_COLLECT );
+  stats_gc_type( data->gen_no, STATS_COLLECT );
 
-  gclib_stopcopy_collect_np( gc, d->young );
-  rs_clear( gc->remset[ d->gen_no ] );
-  rs_clear( gc->remset[ d->gen_no+1 ] );
+  gclib_stopcopy_collect_np( gc, data->young );
+  rs_clear( gc->remset[ data->gen_no ] );
+  rs_clear( gc->remset[ data->gen_no+1 ] );
   rs_clear( gc->remset[ gc->np_remset ] );
 
   /* Manipulate the semispaces: young becomes old, old is deallocated */
-  ss_free( d->old );
-  d->old = d->young;
+  ss_free( data->old );
+  data->old = data->young;
 
-  ss_set_gen_no( d->old, d->gen_no );
-  assert( los_bytes_used( los, d->gen_no ) == 0 );
-  los_append_and_clear_list( los, los->object_lists[ d->gen_no+1 ], d->gen_no);
+  ss_set_gen_no( data->old, data->gen_no );
+  assert( los_bytes_used( los, data->gen_no ) == 0 );
+  los_append_and_clear_list( los, 
+			     los->object_lists[ data->gen_no+1 ], 
+			     data->gen_no);
 
-  d->young = create_semispace( GC_CHUNK_SIZE, d->gen_no, d->gen_no+1 );
+  data->young = create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1);
 
   /* Compute new k and j, and other policy parameters */
-  ss_sync( d->old );
+  /* Young is empty */
+  /* What should the new k be?
+   *
+   * At the time of the next gc, whatever's in 1..j will not be copied,
+   * so no space need be set aside for it.  
+   *
+   * However, when the new heap size is computed, only the load factor
+   * L is taken into account, so space is reserved for the live storage
+   * from 1..j.  The amount of space so reserved is j*stepsize (because
+   * we assume that all of 1..j is live).  If j is not close to 0, this can
+   * be a considerable amount of space.  Also, assuming that 1..j is live,
+   * then as 1..j approaches heapsize/L, live data in j+1..k will approach 0,
+   * requiring copyspace that also approaches 0, whereas reserved copyspace
+   * approaches heapsize/L.
+   *
+   * We can use the space in two ways:
+   *  - Keep it as part of copyspace, effectively reducing L.  Since
+   *    efficiency is improved as L increases, this is an undesirable
+   *    solution, but it's easy.
+   *  - Split the space among the steps j+1..k and copyspace in a
+   *    proportion based on L; i.e., increase k.  This uses memory
+   *    appropriately, but is harder to implement because the choices
+   *    of j, k, and heap size are interdependent.
+   *
+   * Below, I use the former method, for simplicity, but note the use
+   * of the luck parameter to adjust k, below.
+   */
+  ss_sync( data->old );
   target_size =
     compute_dynamic_size( heap,
-			  d->old->used,
-			  los_bytes_used( los, d->gen_no ) );
-  d->k = ceildiv( target_size, d->stepsize );
-  free_steps = (d->k * d->stepsize - used_old( heap )) / d->stepsize;
-  if (d->j_percent >= 0)
-    d->j = (free_steps * d->j_percent) / 100;
-  else if (free_steps >= d->j_pin)
-    d->j = d->j_pin;
-  else {
-    d->j = free_steps / 2;
-    supremely_annoyingmsg( "  Could not pin j at %d; chose %d instead",
-			   d->j_pin, d->j );
+			  data->old->used,
+			  los_bytes_used( los, data->gen_no ) );
+  data->k = ceildiv( target_size, data->stepsize );
+
+  free_steps = (data->k * data->stepsize - used_old( heap )) / data->stepsize;
+  if (free_steps < 0) {
+    /* Soft overflow in a fixed heap. */
+    /* It might be more reasonable to give up at this point. */
+    free_steps = 0;
   }
-  assert( d->j > 0 );
+
+  if (data->j_percent >= 0)
+    data->j = (free_steps * data->j_percent) / 100;
+  else if (free_steps >= data->j_pin)
+    data->j = data->j_pin;
+  else {
+    data->j = free_steps / 2;
+    supremely_annoyingmsg( "  Could not pin j at %d; chose %d instead",
+			   data->j_pin, data->j );
+  }
+
+  /* I know what you're thinking, punk. You're thinking, did he fire six 
+     shots or only five?  Well in all the excitement I've forgotten myself.
+     So you have to ask yourself, do I feel lucky?  Well, do you, punk?
+
+     (Thanks to Arthur for the quote.)
+     */
+  luck_steps = (int)(data->j*data->luck);
+  data->k += luck_steps;
+
+  annoyingmsg( "  Adjusting parameters: k=%d j=%d, luck=%d", 
+	       data->k, data->j, luck_steps );
+  assert( data->j >= 0 );
 }
 
 static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
@@ -336,10 +406,12 @@ static void after_collection( old_heap_t *heap )
 
   annoyingmsg( "  Generation %d (non-predictive old):  Size=%d, Live=%d, "
 	       "Remset live=%d",
+	       data->old->gen_no,
 	       data->stepsize * (data->k - data->j), used_old( heap ),
 	       gc->remset[ data->old->gen_no ]->live );
   annoyingmsg( "  Generation %d (non-predictive young):  Size=%d, Live=%d, "
 	       "Remset live=%d",
+	       data->young->gen_no,
 	       data->stepsize * data->j, used_young( heap ),
 	       gc->remset[ data->young->gen_no ]->live );
   annoyingmsg( "  Non-predictive parameters: k=%d, j=%d, Remset live=%d",
@@ -392,6 +464,10 @@ static int used_old( old_heap_t *heap )
    data->old->used + los_bytes_used( heap->collector->los, data->gen_no );
 }
 
+/* Given the amount of live collectable small data (D) and large data (Q),
+   return the total amount of memory that may be allocated (including
+   that which is currently allocated) before the next collection.
+   */
 static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
 {
   static_heap_t *s = heap->collector->static_area;
