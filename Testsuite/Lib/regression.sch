@@ -7,6 +7,8 @@
 ; FIXME:  If the compiler is sufficiently clever, some of these cases
 ; may not test anything but the host system.
 
+(define (hide x) x)
+
 (define (run-regression-tests)
   (display "Regression") (newline)
   (allof "Past error cases"
@@ -138,6 +140,9 @@
                ((constantvector) (set! ans #f))))
            ans)
          #t)
+   (test "Error case #26"		; Bug in Larceny through 0.51
+	 (remainder (hide #xc6450c30) (hide #x100000000))
+	 #xc6450c30)
    ))
 
 (define (bug-105-test1)
