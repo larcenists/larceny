@@ -202,3 +202,10 @@
     (else
      (error "Unknown operating system: " (nbuild-paramter 'host-os)))))
 
+
+;; Convenience
+(define (load-debugger)
+  (load (make-filename *larceny-root* "Debugger" "trace.sch"))
+  (load (make-filename *larceny-root* "Debugger" "inspect-cont.sch"))
+  (load (make-filename *larceny-root* "Debugger" "debug.sch"))
+  (install-debugger))
