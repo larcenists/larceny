@@ -160,9 +160,9 @@ clean:
 	rm -f *.map
 
 lopclean:
-	rm -f   $(LIB)/*.*lop \
-		$(EVAL)/*.*lop \
-		$(REPL)/*.*lop \
+	rm -f   $(LIB)/*.*lop $(LIB)/*.c \
+		$(EVAL)/*.*lop $(EVAL)/*.c \
+		$(REPL)/*.*lop $(REPL)/*.c \
 		$(AUXLIB)/*.*lop \
 		$(TEST)/Lib/*.*lop
 
