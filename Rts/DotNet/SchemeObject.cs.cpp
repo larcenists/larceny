@@ -247,8 +247,8 @@ namespace Scheme.Rep {
         public byte getByte(int index) {
            return elements[index];
         }
-        public void setByte(int index, int b) {
-           elements [index] = (byte)b;
+        public void setByte(int index, byte b) {
+           elements [index] = b;
         }
 
         public void fill(byte b) {
@@ -262,8 +262,8 @@ namespace Scheme.Rep {
         public short getInt16(int index) {
             return System.BitConverter.ToInt16(elements, index*2);
         }
-        public void setInt16(int index, int s) {
-            byte[] bytes = System.BitConverter.GetBytes((short)s);
+        public void setInt16(int index, short s) {
+            byte[] bytes = System.BitConverter.GetBytes(s);
             elements[index*2] = bytes[0];
             elements[index*2 + 1] = bytes[1];
         }
@@ -271,8 +271,8 @@ namespace Scheme.Rep {
         public ushort getUInt16(int index) {
             return System.BitConverter.ToUInt16(elements, index*2);
         }
-        public void setUInt16(int index, int s) {
-            byte[] bytes = System.BitConverter.GetBytes((ushort)s);
+        public void setUInt16(int index, ushort s) {
+            byte[] bytes = System.BitConverter.GetBytes(s);
             elements[index*2] = bytes[0];
             elements[index*2 + 1] = bytes[1];
         }

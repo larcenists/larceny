@@ -453,7 +453,7 @@
                 return;
             } else if (bv > 0 &&
                        Number.getBignumLength(arg1) == 1 &&
-                       Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
+                       Number.getBignumSign(arg1)) {
                 uint av = arg1.getUInt32(1);
                 uint result = av / (uint)bv;
                 // Exn.debug.WriteLine("  / {0}; {1}", av, bv);
@@ -475,7 +475,7 @@
             int bv = this.value;
             if (bv > 0 &&
                 Number.getBignumLength(arg1) == 1 &&
-                Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
+                Number.getBignumSign(arg1)) {
                 uint av = arg1.getUInt32(1);
                 uint result = av % (uint)bv;
                 Reg.Result = Factory.makeNumber(result);
