@@ -2,22 +2,24 @@
  *
  * $Id$
  *
- * Petit Larceny -- common configuration header file
+ * Petit Larceny control-flow discipline configuration.
  */
 
 #ifndef PETIT_CONFIG_H
 #define PETIT_CONFIG_H
 
+#include "larceny-types.h"
+
 /* Jump discipline.  Exactly one of these three should be true */
 
-#define USE_LONGJUMP               0
+#define USE_LONGJUMP               1
    /* Jump, invoke and return are implemented as calls; when the timer
       expires, a longjump is performed to prune the stack.  The extern 
       variable 'twobit_cont_label' holds the address to jump to following 
       the longjump.
       */
 
-#define USE_RETURN_WITHOUT_VALUE   1
+#define USE_RETURN_WITHOUT_VALUE   0
   /* Jump, invoke, and return are implemented as returns to a dispatch 
      loop.  The extern variable 'twobit_cont_label' holds the address 
      to jump to following the longjmp.
@@ -42,7 +44,7 @@
 
      This local control transfer discipline improves performance, reduces
      code size, makes register caching worthwhile, and reduces the number 
-     of function pointers, which makes life easier on MacOS. 
+     of function pointers (which makes life easier on MacOS, at least).
 
      A code address is a pair: function pointer and address within the 
      function.  The address within the function is of type cont_t; in a
