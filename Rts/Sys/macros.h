@@ -91,6 +91,7 @@
 #define string_length( x )     sizefield( *ptrof( x ) )
 #define string_data( x )       ((char*)ptrof( x )+4)
 
+#define vector_length( vp )    (sizefield(*ptrof(vp)))
 #define vector_ref( vp, i )    (ptrof( vp )[ VEC_HEADER_WORDS+(i) ])
 #define vector_set( vp, i, v ) (ptrof( vp )[ VEC_HEADER_WORDS+(i) ] = (v))
 
