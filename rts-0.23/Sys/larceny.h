@@ -11,20 +11,6 @@
 #ifndef INCLUDED_LARCENY_H
 #define INCLUDED_LARCENY_H
 
-/* Configuration options, not used anywhere at the moment. */
-
-#define SPARC         1        /* SPARC1/SPARC2; only architecture supported */
-#define SPARC10       0        /* architecture we want to support */
-
-#define SUNOS         1        /* only OS supported */
-#define SYSV          0        /* OS we need to support (Solaris, etc) */
-
-#define WORLD32       1        /* all we can do is 32 bits */
-#define WORLD64       0        /* 64-bit world not supported yet */
-
-#define ENDIAN_BIG    1        /* We do big-endian */
-#define ENDIAN_LITTLE 0        /* But not little-endian */
-
 /* basic data type */
 
 typedef unsigned word;
@@ -107,6 +93,7 @@ extern void C_varargs();
 extern void C_exception( /* fixnum code */ );
 extern void C_break();
 extern void C_singlestep( /* word s */ );
+extern void C_syscall();
 
 /* In "Sys/unix.c", called only from millicode */
 
@@ -138,6 +125,7 @@ extern void memstat_fillvector( /* word *vp */ );
 extern char *version;
 extern char *user;
 extern char *date;
+extern char *osname;
 
 /* In "$MACHINE/glue.s" */
 

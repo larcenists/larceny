@@ -4,6 +4,9 @@
  * Larceny run-time system -- the garbage collector.
  *
  * History:
+ *  December 12, 1994 / lth (v0.23)
+ *    Instruction cache flush logic added.
+ *
  *  June 27 - July 14, 1994 / lth (v0.20)
  *    Massively rewritten.
  *
@@ -34,6 +37,7 @@
  * tagged pointer into newspace.
  */
 
+/*DEBUG*/#include <stdio.h>
 #include <memory.h>   /* for memcpy() */
 #include "larceny.h"
 #include "macros.h"
@@ -41,16 +45,17 @@
 
 /* static void forw( word *p, word *oldlo, word *oldhi, word *dest ) */
 /* assumes that all params are simple names! */
+#define FORWARD_PTR 0xFFFFFFFE
 #define forw( p, oldlo, oldhi, dest ) \
   do { word TMP2 = *p; \
        if (isptr( TMP2 ) && (word*)TMP2 >= oldlo && (word*)TMP2 < oldhi) { \
            word *TMP_P = ptrof( TMP2 ); \
-           if (*TMP_P == 0xFFFFFFFE) \
+           if (*TMP_P == FORWARD_PTR) \
 	     *p = *(TMP_P+1); \
 	   else if (tagof( TMP2 ) == PAIR_TAG) { \
              *dest = *TMP_P; \
 	     *(dest+1) = *(TMP_P+1); \
-             *TMP_P = 0xFFFFFFFE; \
+             *TMP_P = FORWARD_PTR; \
 	     *(TMP_P+1) = *p = (word)tagptr(dest, PAIR_TAG); \
              dest += 2; \
 	   } \
@@ -169,10 +174,21 @@ word *ptr, *oldlo, *oldhi, **d;
     if (ishdr( w )) {
       h = header( w );
       if (h == BV_HDR) {
-	/* bytevector: skip it */
+	/* bytevector: skip it, and flush the icache if code */
+#ifdef IFLUSH
+	word *oldptr = ptr;
+#endif
 	bytes = roundup4( sizefield( w ) );
 	ptr = (word *) ((word) ptr + (bytes + 4));  /* doesn't skip padding */
 	if (!(bytes & 4)) ptr++;                    /* skip padding */
+#ifdef IFLUSH
+	/* Only code vectors typically use a plain bytevector typetag,
+	 * so almost any bytevector will be a code vector which must 
+         * be flushed.
+	 */
+	if (typetag( h ) == BVEC_SUBTAG)
+	  mem_icache_flush( oldptr, ptr );
+#endif
       }
       else {
 	/* vector or procedure: scan in a tight loop */
@@ -192,7 +208,6 @@ word *ptr, *oldlo, *oldhi, **d;
       ptr++;
     }
   }
-
   *d = dest;
 }
 
@@ -200,7 +215,8 @@ word *ptr, *oldlo, *oldhi, **d;
  * "p" is a tagged pointer into oldspace;
  * "*dest" is a pointer into newspace, the destination of the next object.
  *
- * Forward() returns the forwarding value of "ptr".
+ * Forward() returns the forwarding value of "ptr"; it does this by
+ * copying the object and returning the new address.
  */
 static word forward( p, dest )
 word p, **dest;
@@ -249,7 +265,7 @@ word p, **dest;
   newptr = (word) tagptr( newptr, tag );
 
   /* leave forwarding pointer */
-  *ptr = 0xFFFFFFFE;
+  *ptr = FORWARD_PTR;
   *(ptr+1) = newptr;
 
   return newptr;

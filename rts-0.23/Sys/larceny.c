@@ -4,6 +4,9 @@
  * Larceny run-time system (Unix) -- main file.
  *
  * History
+ *   February 16, 1995 / lth (v0.23)
+ *     Added -help option.
+ *
  *   June 29 - July 1, 1994 / lth (v0.20)
  *     Cleaned up a bit.
  *
@@ -20,6 +23,8 @@
 static void invalid();
 static void handle_signals();
 static void usage();
+static void usage2();
+static void help();
 static void parse_options();
 static int getsize();
 
@@ -47,8 +52,8 @@ char **argv;
   char *heapfile = NULL;
   unsigned q = 0;
 
-  consolemsg( "Larceny version %s (%s) (Compiled by %s on %s)",
-	      version, gctype, user, date );
+  consolemsg( "Larceny version %s for %s (%s) (%s/%s)",
+	      version, osname, gctype, user, date );
 
   parse_options( argc, argv,
 		 &esize,
@@ -260,21 +265,23 @@ char **heapfile;
     else if (strcmp( *argv, "-memstats" ) == 0) {
       *show_heapstats = 1;
     }
+    else if (strcmp( *argv, "-help" ) == 0 || strcmp( *argv, "-h" ) == 0)
+      help();
     else if (strcmp( *argv, "-quiet" ) == 0) 
       *quiet = 1;
     else if (**argv == '-') {
-      consolemsg( "Invalid option '%s'", *argv );
-      usage();
+      consolemsg( "Error: Invalid option '%s'", *argv );
+      usage2();
     }
     else if (*heapfile != NULL) {
-      consolemsg( "Only one heap file allowed." );
+      consolemsg( "Error: Only one heap file allowed." );
       usage();
     }
     else
       *heapfile = *argv;
   }
   if (*heapfile == 0) {
-    consolemsg( "Heap file not specified." );
+    consolemsg( "Error: Heap file not specified." );
     usage();
   }
 }
@@ -283,30 +290,47 @@ static int getsize( s, p )
 char *s;
 unsigned *p;
 {
-  if (sscanf( s, "%iM%*c", p ) == 1)
+  int r;
+  char c, d;
+
+  r = sscanf( s, "%i%c%c", p, &c, &d );
+  if (r == 0) return 0;
+  if (r == 1) return 1;
+  if (r == 3) return 0;
+  if (c == 'M' || c == 'm') {
     *p *= 1024*1024;
-  else if (sscanf( s, "%iK%*c", p ) == 1)
+    return 1;
+  }
+  if (c == 'K' || c == 'k') {
     *p *= 1024;
-  else if (sscanf( s, "%im%*c", p ) == 1)
-    *p *= 1024*1024;
-  else if (sscanf( s, "%ik%*c", p ) == 1)
-    *p *= 1024;
-  else if (sscanf( s, "%i%*c", p ) != 1)
-    return 0;
-  return 1;
+    return 1;
+  }
+  return 0;
 }
 
 static void invalid( s )
 char *s;
 {
-  consolemsg( "Invalid argument to option '%s'", s );
-  usage();
+  consolemsg( "Error: Invalid argument to option '%s'", s );
+  usage2();
 }
 
 static void usage()
 {
   consolemsg( "" );
   consolemsg( "Usage: larceny [ options ] heapfile" );
+  usage2();
+}
+
+static void usage2()
+{
+  consolemsg( "Type \"larceny -help\" for help." );
+  exit( 1 );
+}
+
+static void help()
+{
+  consolemsg( "" );
   consolemsg( "Options:" );
   consolemsg( "\t-tsize   nnnn   Initial tenured area size in bytes" );
   consolemsg( "\t-esize   nnnn   Ephemeral area size in bytes" );
@@ -322,10 +346,11 @@ static void usage()
   consolemsg( "\t-timer          Disable timer interrupts" );
   consolemsg( "\t-memstats       Print memory statistics" );
   consolemsg( "\t-quiet          Suppress nonessential messages" );
+  consolemsg( "\t-help           Print this message" );
   consolemsg( "" );
   consolemsg( "Values can be in decimal, octal (0nnn), hex (0xnnn), or suffixed" );
   consolemsg( "by K (for KB) or M (for MB) when that makes sense." );
-  exit( 1 );
+  exit( 0 );
 }
 
 

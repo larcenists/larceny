@@ -4,6 +4,9 @@
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
  * History
+ *   January 19, 1995 / lth (v0.23)
+ *     Added C_syscall and the syscall table.
+ *
  *   June 29 - July 13, 1994 / lth (v0.20)
  *     Cleaned up.
  *
@@ -226,6 +229,47 @@ word cidx;
   buf[ l ] = 0;
   hardconsolemsg( "Step: %s", buf );
   localdebugger();
+}
+
+/*
+ * Syscall primitive.
+ *
+ * RESULT has number of arguments.
+ * R1 has index of primitive to call.
+ * Arguments are in R2 .. R31.
+ */
+void C_syscall()
+{
+#if 1
+  panic( "Syscall not implemented." );
+#else
+  typedef (void(*)()) fptr;
+
+  static fptr syscall_table[] = { (fptr)UNIX_openfile,
+				  (fptr)UNIX_unlinkfile,
+				  (fptr)UNIX_closefile,
+				  (fptr)UNIX_readfile,
+				  (fptr)UNIX_writefile,
+				  (fptr)UNIX_getresourceusage,
+				  (fptr)UNIX_dumpheap };
+  fptr proc;
+  int nargs, nproc;
+
+  nargs = nativeint( roots[ R_RESULT ] );
+  nproc = nativeint( roots[ R_R1 ] );
+  if (nproc < 0 || nproc >= sizeof( syscall_table )/sizeof( fptr ))
+    panic( "syscall: index out of range: %d.", nproc );
+
+  proc = syscall_table[ nproc ];
+
+  switch (nargs) {
+    case 0 : proc(); break;
+    case 1 : proc( roots[ R_R2 ] ); break;
+    case 2 : proc( roots[ R_R2 ], roots[ R_R3 ] ); break;
+    case 3 : proc( roots[ R_R2 ], roots[ R_R3 ], roots[ R_R4 ] ); break;
+    default: panic( "syscall: Too many arguments." ); break;
+  }
+#endif
 }
 
 /* eof */

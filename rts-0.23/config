@@ -1,6 +1,6 @@
 #!/bin/sh
 rm -f tmp.config
-echo "(load \"Compiler/config.sch\")" >> tmp.config
+echo "(load \"../Compiler/config.sch\")" >> tmp.config
 echo "(config " >> tmp.config
 for i
 do

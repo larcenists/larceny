@@ -4,23 +4,31 @@
 ! Larceny run-time system (SPARC) -- miscellaneous primitives.
 !
 ! History
+!   January 19, 1994 / lth (v0.23)
+!     Added _m_syscall for SYSCALL primitive.
+!
+!   December 6, 1994 / lth (v0.23)
+!     Solaris port.
+!
 !   June 27 - July 1, 1994 / lth (v0.20)
 !     Moved procedures to this file from Sparc/glue.s.
 
 #include "asmdefs.h"
+#include "asmmacro.h"
 
 	.seg	"text"
 
-	.global _m_apply
-	.global _m_varargs
-	.global	_m_typetag
-	.global	_m_typetag_set
-	.global	_m_eqv
-	.global _m_partial_list2vector
-	.global	_m_break
-	.global _m_singlestep
-	.global	_m_timer_exception
-	.global _m_exception
+	.global EXTNAME(m_apply)	
+	.global EXTNAME(m_varargs)
+	.global EXTNAME(m_syscall)
+	.global	EXTNAME(m_typetag)
+	.global	EXTNAME(m_typetag_set)
+	.global	EXTNAME(m_eqv)
+	.global EXTNAME(m_partial_list2vector)
+	.global	EXTNAME(m_break)
+	.global EXTNAME(m_singlestep)
+	.global	EXTNAME(m_timer_exception)
+	.global EXTNAME(m_exception)
 
 	
 ! _m_apply: millicode for the 'apply' instruction
@@ -42,7 +50,7 @@
 !  - Move RESULT to REG0, set RESULT to the length of the list, and invoke
 !    the procedure in REG0.
 
-_m_apply:
+EXTNAME(m_apply):
 	mov	30, %TMP0				! counter -- 30 regs
 	add	%GLOBALS, G_REG1, %TMP1			! register to store
 Lapply3:
@@ -85,17 +93,34 @@ Lapply5:
 ! are 0 extra arguments and less arguments than registers, that's
 ! easy enough.
 
-_m_varargs:
+EXTNAME(m_varargs):
 	cmp	%RESULT, %ARGREG2
 	bge	Lvararg2
 	nop
 	jmp	%MILLICODE + M_EXCEPTION
 	mov	EX_VARGC, %TMP0
 Lvararg2:
-	set	_C_varargs, %TMP0
+	set	EXTNAME(C_varargs), %TMP0
 	b	callout_to_C
 	nop
 	
+
+! _m_syscall: implementation of the syscall primitive
+!
+! Call from: Scheme
+! Input:     RESULT has number of arguments.
+!            Arguments to C code passed in registers R1-R31; the C procedure
+!            must read the memory register file.
+! Output:    C procedure must setup RESULT.
+! Destroys:  Temporaries.
+
+EXTNAME(m_syscall):
+	set	EXTNAME(C_syscall), %TMP0
+	set	0, %TMP1
+	set	0, %TMP2
+	b	callout_to_C
+	nop
+
 
 ! _m_typetag: extract typetag from structured non-pair object.
 !
@@ -104,7 +129,7 @@ Lvararg2:
 ! Output:    RESULT = fixnum: typetag
 ! Destroys:  Temporaries, RESULT.
 
-_m_typetag:
+EXTNAME(m_typetag):
 	and	%RESULT, 7, %TMP0
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltypetag1
@@ -129,7 +154,7 @@ Ltypetag1:
 !
 ! The tag must be a fixnum in the range 0-8, appropriately shifted.
 
-_m_typetag_set:
+EXTNAME(m_typetag_set):
 	and	%RESULT, 7, %TMP0
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltypetagset1
@@ -163,7 +188,7 @@ Ltypetagset1:
 ! Note that fixnums and immediates are always eq? if they are eqv?, so we need
 ! only concern ourselves with larger structures here.
 
-_m_eqv:
+EXTNAME(m_eqv):
 	! Do fixnums first to get them out of the way completely.
 	! If operands are fixnums, then they are not eqv?.
 
@@ -283,10 +308,10 @@ Leqv_done:
 ! The correctness of this code depends on the vector being allocated in
 ! the ephemeral space.
 
-_m_partial_list2vector:
+EXTNAME(m_partial_list2vector):
 	st	%o7, [ %GLOBALS + G_RETADDR ]	! save return address
 	mov	%RESULT, %ARGREG3		! save for later
-	call	_mem_internal_alloc
+	call	EXTNAME(mem_internal_alloc)
 	add	%ARGREG2, 4, %RESULT		! length of vector
 	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore retaddr
 
@@ -318,7 +343,7 @@ Ll2v_1:
 ! Output:    Nothing
 ! Destroys:  Temporaries
 
-_m_break:
+EXTNAME(m_break):
 	ld	[ %GLOBALS + G_BREAKPT_ENABLE ], %TMP0
 	cmp	%TMP0, TRUE_CONST
 	be,a	Lbreak1
@@ -326,7 +351,7 @@ _m_break:
 	jmp	%o7+8
 	nop
 Lbreak1:
-	set	_C_break, %TMP0
+	set	EXTNAME(C_break), %TMP0
 	b	callout_to_C
 	nop
 
@@ -342,7 +367,7 @@ Lbreak1:
 ! be the printable representation of the MacScheme instruction to be executed 
 ! next.
 
-_m_singlestep:
+EXTNAME(m_singlestep):
 	ld	[ %GLOBALS + G_SINGLESTEP_ENABLE ], %TMP0
 	cmp	%TMP0, TRUE_CONST
 	be,a	Lsinglestep1
@@ -350,7 +375,7 @@ _m_singlestep:
 	jmp	%o7+8
 	nop
 Lsinglestep1:
-	set	_C_singlestep, %TMP0
+	set	EXTNAME(C_singlestep), %TMP0
 	b	callout_to_C
 	mov	%ARGREG2, %TMP1
 
@@ -362,10 +387,10 @@ Lsinglestep1:
 ! Output:    Nothing
 ! Destroys:  Temporaries
 
-_m_timer_exception:
+EXTNAME(m_timer_exception):
 	ld	[ %GLOBALS + G_TIMER_ENABLE ], %TMP0
 	cmp	%TMP0, TRUE_CONST
-	be,a	_m_exception
+	be,a	EXTNAME(m_exception)
 	mov	EX_TIMER, %TMP0
 	jmp	%o7+8
 	nop
@@ -383,7 +408,7 @@ _m_timer_exception:
 ! returned to if the operation had succeeded, i.e., the exception handler
 ! must repair the error if the program is to continue.
 
-_m_exception:
+EXTNAME(m_exception):
 	ld	[ %GLOBALS + G_CALLOUTS ], %TMP1
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
 	cmp	%TMP1, UNSPECIFIED_CONST
@@ -395,7 +420,7 @@ _m_exception:
 	! never returns
 Lexception:
 	mov	%TMP0, %TMP1
-	set	_C_exception, %TMP0
+	set	EXTNAME(C_exception), %TMP0
 	b	callout_to_C
 	nop
 

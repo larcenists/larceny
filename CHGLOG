@@ -1,21 +1,16 @@
-List of changes to Larceny
+List of changes to Larceny (rudimentary release notes)
 
 ----------------------------------------------------------------------
-v0.20 created July 19, 1994 by lth.
+v0.23 created March 7, 1995 by lth
 
-Major changes to Compiler/compile313: much cleaned up. make-fasl is now
-a part of this file, which contains all drivers.
-
-Make-fasl moved out of Compiler/makefasl.sch; there is now only one
-procedure, dump-fasl-segment-to-port, in this file.
-
-
-----------------------------------------------------------------------
-v0.21 created July 29, 1994 by lth
-
-Speeded up the garbage collector by redesigning scan() and by removing
-a level of indirection in forw(). Nice payoff, ~8% on Boyer.
-
+- Implemented instruction cache flush code.
+- Basic support for new SAVE instruction (one-arg) in assembler.
+- Inline generation-check for setcar/setcdr implemented in assembler.
+- Larceny now compiles and runs under Solaris as well.
+- New directory structure.
+- New Makefiles.
+- Fixed sundry bugs in command line parsing.
+- Cleaned up some of the Chez development system.
 
 ----------------------------------------------------------------------
 v0.22 created August 20, 1994 by lth
@@ -31,4 +26,17 @@ Whether this affects the performance of "real" programs is unknown. It
 was more ment as an experiment to see how fast stack handling can go.
 It can't go much faster than this...
 
+----------------------------------------------------------------------
+v0.21 created July 29, 1994 by lth
 
+Speeded up the garbage collector by redesigning scan() and by removing
+a level of indirection in forw(). Nice payoff, ~8% on Boyer.
+
+----------------------------------------------------------------------
+v0.20 created July 19, 1994 by lth.
+
+Major changes to Compiler/compile313: much cleaned up. make-fasl is now
+a part of this file, which contains all drivers.
+
+Make-fasl moved out of Compiler/makefasl.sch; there is now only one
+procedure, dump-fasl-segment-to-port, in this file.

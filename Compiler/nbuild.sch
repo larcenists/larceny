@@ -20,7 +20,7 @@
 ;;  "chezdir" is the absolute name of the directory which has the chez
 ;;  Scheme support and compatibility files; it ends with a "/".
 
-(print-vector-length #f)          ; a curse on dybvig!
+(print-vector-length #f)          ; a curse on Dybvig!
 
 (define (loadfile path file)
   (load (string-append path file)))

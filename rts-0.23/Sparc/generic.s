@@ -4,6 +4,9 @@
 ! Larceny run-time system (Sparc) -- Millicode for Generic Arithmetic.
 !
 ! History
+!   December 6, 1994 / lth (v0.23)
+!     Solaris port.
+!
 !   July 1, 1994 / lth (v0.20)
 !     Slightly altered for the new run-time system
 !
@@ -40,38 +43,39 @@
 !   a zero divisor.
 
 #include "asmdefs.h"
+#include "asmmacro.h"
 
-	.global	_m_generic_add			! (+ a b)
-	.global	_m_generic_sub			! (- a b)
-	.global	_m_generic_mul			! (* a b)
-	.global	_m_generic_div			! (/ a b)
-	.global	_m_generic_quo			! (quotient a b)
-	.global	_m_generic_rem			! (remainder a b)
-	.global	_m_generic_mod			! (modulo a b)
-	.global	_m_generic_neg			! (- a)
-	.global	_m_generic_abs			! (abs x)
-	.global	_m_generic_zerop		! (zero? a)
-	.global	_m_generic_equalp		! (= a b)
-	.global	_m_generic_lessp		! (< a b)
-	.global	_m_generic_less_or_equalp	! (<= a b)
-	.global	_m_generic_greaterp		! (> a b)
-	.global	_m_generic_greater_or_equalp	! (>= a b)
-	.global	_m_generic_complexp		! (complex? a)
-	.global	_m_generic_realp		! (real? a)
-	.global	_m_generic_rationalp		! (rational? a)
-	.global	_m_generic_integerp		! (integer? a)
-	.global	_m_generic_exactp		! (exact? a)
-	.global	_m_generic_inexactp		! (inexact? a)
-	.global	_m_generic_exact2inexact	! (exact->inexact a)
-	.global	_m_generic_inexact2exact	! (inexact->exact a)
-	.global _m_generic_make_rectangular	! (make-rectangular a b)
-	.global	_m_generic_real_part		! (real-part z)
-	.global	_m_generic_imag_part		! (imag-part z)
-	.global	_m_generic_sqrt			! (sqrt z)
-	.global	_m_generic_round		! (round x)
-	.global	_m_generic_truncate		! (truncate x)
-	.global	_m_generic_negativep		! (negative? x)
-	.global	_m_generic_positivep		! (positive? x)
+	.global	EXTNAME(m_generic_add)		! (+ a b)
+	.global	EXTNAME(m_generic_sub)		! (- a b)
+	.global	EXTNAME(m_generic_mul)		! (* a b)
+	.global	EXTNAME(m_generic_div)		! (/ a b)
+	.global	EXTNAME(m_generic_quo)		! (quotient a b)
+	.global	EXTNAME(m_generic_rem)		! (remainder a b)
+	.global	EXTNAME(m_generic_mod)		! (modulo a b)
+	.global	EXTNAME(m_generic_neg)		! (- a)
+	.global	EXTNAME(m_generic_abs)		! (abs x)
+	.global	EXTNAME(m_generic_zerop)	! (zero? a)
+	.global	EXTNAME(m_generic_equalp)	! (= a b)
+	.global	EXTNAME(m_generic_lessp)	! (< a b)
+	.global	EXTNAME(m_generic_less_or_equalp)! (<= a b)
+	.global	EXTNAME(m_generic_greaterp)	! (> a b)
+	.global	EXTNAME(m_generic_greater_or_equalp)! (>= a b)
+	.global	EXTNAME(m_generic_complexp)	! (complex? a)
+	.global	EXTNAME(m_generic_realp)	! (real? a)
+	.global	EXTNAME(m_generic_rationalp)	! (rational? a)
+	.global	EXTNAME(m_generic_integerp)	! (integer? a)
+	.global	EXTNAME(m_generic_exactp)	! (exact? a)
+	.global	EXTNAME(m_generic_inexactp)	! (inexact? a)
+	.global	EXTNAME(m_generic_exact2inexact)! (exact->inexact a)
+	.global	EXTNAME(m_generic_inexact2exact)! (inexact->exact a)
+	.global EXTNAME(m_generic_make_rectangular)! (make-rectangular a b)
+	.global	EXTNAME(m_generic_real_part)	! (real-part z)
+	.global	EXTNAME(m_generic_imag_part)	! (imag-part z)
+	.global	EXTNAME(m_generic_sqrt)		! (sqrt z)
+	.global	EXTNAME(m_generic_round)	! (round x)
+	.global	EXTNAME(m_generic_truncate)	! (truncate x)
+	.global	EXTNAME(m_generic_negativep)	! (negative? x)
+	.global	EXTNAME(m_generic_positivep)	! (positive? x)
 
 	.seg	"text"
 
@@ -79,7 +83,7 @@
 ! The fixnum case is done in line, so if the operands are fixnums, we had
 ! an overflow and must box the result in a bignum.
 
-_m_generic_add:
+EXTNAME(m_generic_add):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -201,7 +205,7 @@ Ladd_fix:
 ! had an underflow (negative result too large in magnitude) and must box
 ! the result in a bignum.
 
-_m_generic_sub:
+EXTNAME(m_generic_sub):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -323,7 +327,7 @@ Lsub_fix:
 ! hardware multiply on the target implementation); either way we must redo the
 ! operation here and check for the fixnum->bignum case.
 
-_m_generic_mul:
+EXTNAME(m_generic_mul):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -511,7 +515,7 @@ Lmul_fix2:
 ! of hardware divide on the target architecture); either way we have to redo
 ! the operation here and check for the fixnum->bignum case.
 
-_m_generic_div:
+EXTNAME(m_generic_div):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -698,7 +702,7 @@ Ldiv_fix2:
 ! sanity, only fixnums are dealt with in millicode; all other arguments are 
 ! passed to the "generic-quotient" procedure (in Scheme).
 
-_m_generic_quo:
+EXTNAME(m_generic_quo):
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
 	bne	Lquotient1
@@ -722,7 +726,7 @@ Lquotient1:
 !
 ! The .rem procedure produces the correct signs and values for "remainder".
 
-_m_generic_rem:
+EXTNAME(m_generic_rem):
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
 	bne	Lremainder1
@@ -747,7 +751,7 @@ Lremainder1:
 ! The .rem procedure does not produce the correct sign and value for "modulo"
 ! and hence we have to adjust the result.
 
-_m_generic_mod:
+EXTNAME(m_generic_mod):
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
 	bne	Lmodulo1
@@ -777,7 +781,7 @@ Lmodulo1:
 ! Negation
 ! The fixnum case is always handled in line.
 
-_m_generic_neg:
+EXTNAME(m_generic_neg):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lneg_bvec
@@ -830,7 +834,7 @@ Lneg_rect:
 ! The fixnum case is always handled in line.
 ! Probably untested; the compiler expands (abs x) in-line.
 
-_m_generic_abs:
+EXTNAME(m_generic_abs):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Labs_bvec
@@ -882,7 +886,7 @@ Labs_rat:
 ! However, we do not go all the way; a 0 rectnum has to have 0 fixnums in
 ! both slots.
 
-_m_generic_zerop:
+EXTNAME(m_generic_zerop):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lzero_bvec
@@ -940,7 +944,7 @@ Lzero_big:
 	nop
 Lzero_vec:
 	cmp	%TMP0, RATNUM_HDR
-	be,a	_m_generic_zerop
+	be,a	EXTNAME(m_generic_zerop)
 	ld	[ %RESULT - VEC_TAG + 4 ], %RESULT
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Lzero_rect
@@ -963,7 +967,7 @@ Lzero_num:
 ! Equality.
 ! The fixnum case is handled in line.
 
-_m_generic_equalp:
+EXTNAME(m_generic_equalp):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1087,7 +1091,7 @@ Lequal_rect2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_m_generic_lessp:
+EXTNAME(m_generic_lessp):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1200,7 +1204,7 @@ Lless_rat2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_m_generic_less_or_equalp:
+EXTNAME(m_generic_less_or_equalp):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1313,7 +1317,7 @@ Llesseq_rat2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_m_generic_greaterp:
+EXTNAME(m_generic_greaterp):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1426,7 +1430,7 @@ Lgreater_rat2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_m_generic_greater_or_equalp:
+EXTNAME(m_generic_greater_or_equalp):
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1543,7 +1547,7 @@ Lgreatereq_rat2:
 ! (define (complex? x)
 !   (or (compnum? x) (rectnum? x) (real? x)))
 
-_m_generic_complexp:
+EXTNAME(m_generic_complexp):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lcomplexp_bvec
@@ -1575,8 +1579,8 @@ Lcomplexp_vec:
 !       (ratnum? x)
 !       (integer? x)))
 
-_m_generic_realp:
-_m_generic_rationalp:
+EXTNAME(m_generic_realp):
+EXTNAME(m_generic_rationalp):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lrealp_bvec
@@ -1584,7 +1588,7 @@ _m_generic_rationalp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lrationalp_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	_m_generic_integerp	
+	b	EXTNAME(m_generic_integerp)
 	nop
 Lrealp_bvec:
 	cmp	%TMP0, FLONUM_HDR
@@ -1617,7 +1621,7 @@ Lrationalp_vec:
 !                (= (imag-part x) 0.0)
 !                (representable-as-int? (real-part x))))))
 
-_m_generic_integerp:
+EXTNAME(m_generic_integerp):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lintegerp_bvec
@@ -1727,10 +1731,10 @@ Lintegerp_exit:
 !         ((or (compnum? x) (flonum? x)) #f)
 !         (else (error ...))))
 
-_m_generic_exactp:
+EXTNAME(m_generic_exactp):
 	mov	TRUE_CONST, %ARGREG2
 	mov	FALSE_CONST, %ARGREG3
-_m_generic_exactness_test:
+EXTNAME(m_generic_exactness_test):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, VEC_TAG
 	bne	Lexactp1
@@ -1774,9 +1778,9 @@ Lexactp98:
 !         ((or (fixnum? x) (flonum? x) (ratnum? x) (rectnum? x)) #f)
 !         (else (error ...))))
 
-_m_generic_inexactp:
+EXTNAME(m_generic_inexactp):
 	mov	FALSE_CONST, %ARGREG2
-	b	_m_generic_exactness_test
+	b	EXTNAME(m_generic_exactness_test)
 	mov	TRUE_CONST, %ARGREG3
 
 
@@ -1791,7 +1795,7 @@ _m_generic_inexactp:
 !         ((fixnum? a)  (fixnum->flonum a))
 !         (else ???)))
 
-_m_generic_exact2inexact:
+EXTNAME(m_generic_exact2inexact):
 	andcc	%RESULT, 3, %g0
 	be,a	Lfixnum2flonum
 	sra	%RESULT, 2, %TMP0
@@ -1838,7 +1842,7 @@ Lfixnum2flonum:
 !         ((compnum? a) (compnum->rectnum a))
 !         (else ???)))
 
-_m_generic_inexact2exact:
+EXTNAME(m_generic_inexact2exact):
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Li2e_bvec		! vector-like
@@ -1900,7 +1904,7 @@ Li2e_identity:
 !       (error ...)
 !       (box-compnum (exact->inexact a) (exact->inexact b))))
 
-_m_generic_make_rectangular:
+EXTNAME(m_generic_make_rectangular):
 	mov	2, %TMP1
 	b	internal_scheme_call
 	mov	MS_GENERIC_MAKE_RECTANGULAR, %TMP2
@@ -1914,7 +1918,7 @@ _m_generic_make_rectangular:
 !         ((number? z) z)
 !         (else (error ...))))
 
-_m_generic_real_part:
+EXTNAME(m_generic_real_part):
 	mov	8-BVEC_TAG, %TMP1
 	mov	0-VEC_TAG, %TMP2
 	set	Lgeneric_realpart2, %ARGREG2
@@ -1985,7 +1989,7 @@ Lreal_imag_return:
 !         ((number? z) (if (exact? z) #e0 #i0))
 !         (else (error ...))))
 
-_m_generic_imag_part:
+EXTNAME(m_generic_imag_part):
 	set	Limag_part2, %ARGREG2
 	mov	EX_IMAGPART, %ARGREG3
 	mov	16-BVEC_TAG, %TMP1
@@ -2007,12 +2011,12 @@ Limag_part2:
 ! will return a new number in the case of a flonum (or compnum with 0i);
 ! and will give a domain error for compnums with non-0i and rectnums.
 
-_m_generic_round:
+EXTNAME(m_generic_round):
 	set	Lround, %TMP1
 	b	Lgeneric_trund
 	mov	EX_ROUND, %TMP2
 
-_m_generic_truncate:
+EXTNAME(m_generic_truncate):
 	set	Ltrunc, %TMP1
 	b	Lgeneric_trund
 	mov	EX_TRUNC, %TMP2
@@ -2136,9 +2140,9 @@ Ltrund_def:
 
 ! Not yet done in millicode.
 
-_m_generic_negativep:
-_m_generic_positivep:
-_m_generic_sqrt:
+EXTNAME(m_generic_negativep):
+EXTNAME(m_generic_positivep):
+EXTNAME(m_generic_sqrt):
 	jmp	%MILLICODE + M_EXCEPTION
 	mov	EX_UNSUPPORTED, %TMP0
 
@@ -2191,7 +2195,7 @@ Lnumeric_error:
 
 _box_flonum:
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	_mem_internal_alloc
+	call	EXTNAME(mem_internal_alloc)
 	mov	16, %RESULT
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	std	%f2, [ %RESULT + 8 ]
@@ -2207,7 +2211,7 @@ _box_flonum:
 
 _box_compnum:
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	_mem_internal_alloc
+	call	EXTNAME(mem_internal_alloc)
 	mov	24, %RESULT
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	std	%f2, [ %RESULT + 8 ]
@@ -2233,7 +2237,7 @@ _box_single_positive_bignum:
 	st	%TMP0, [ %GLOBALS + G_GENERIC_NRTMP1 ]
 	st	%TMP2, [ %GLOBALS + G_GENERIC_NRTMP2 ]
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	_mem_internal_alloc
+	call	EXTNAME(mem_internal_alloc)
 	mov	12, %RESULT
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0
@@ -2259,7 +2263,7 @@ _box_double_positive_bignum:
 	st	%TMP1, [ %GLOBALS + G_GENERIC_NRTMP2 ]
 	st	%TMP2, [ %GLOBALS + G_GENERIC_NRTMP3 ]
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	_mem_internal_alloc
+	call	EXTNAME(mem_internal_alloc)
 	mov	16, %RESULT
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0

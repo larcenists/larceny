@@ -10,16 +10,20 @@
 ! I suppose one could say that this file deals with context switching.
 !
 ! History
+!   December 6, 1994 / lth (v0.23)
+!     Solaris port.
+!
 !   June 27 - July 1, 1994 / lth (v0.20)
 !     Pruned from the original glue.s, extensively rewritten.
 
 #include "asmdefs.h"
+#include "asmmacro.h"
 
 	.seg	"text"
 
 	! Scheme entry point
 
-	.global	_scheme_start
+	.global	EXTNAME(scheme_start)
 
 	! Runtime-system internal procedures
 
@@ -56,13 +60,13 @@
 ! touching the registers here. (If there are no arguments, the startup
 ! must set %RESULT to 0, at least).
 
-_scheme_start:
+EXTNAME(scheme_start):
 	save	%sp, -96, %sp			! Standard stack frame
 	st	%i7, [ %fp + 0x44 ]		! Save caller's retaddr
 
 	! Enter Scheme mode
 
-	set	_globals, %l0
+	set	EXTNAME(globals), %l0
 	st	%g0, [ %l0 + G_REG0 ]
 	st	%g0, [ %l0 + G_RETADDR ]
 	call	internal_restore_scheme_context
@@ -103,7 +107,7 @@ L1:
 ! Startup slot does not have a procedure; just print an error and exit.
 
 Lstartup_bad:
-	set	_C_panic, %TMP0
+	set	EXTNAME(C_panic), %TMP0
 	set	Lnonproc, %TMP1
 	b	callout_to_C
 	nop
@@ -111,7 +115,7 @@ Lstartup_bad:
 ! No stack space available (should never happen).
 
 Lstartup_stack:
-	set	_C_panic, %TMP0
+	set	EXTNAME(C_panic), %TMP0
 	set	Lbadstack, %TMP1
 	b	callout_to_C
 	nop
@@ -161,6 +165,10 @@ Lbadstack:
 !     | ...                                            |
 !     | (saved R31)                                    |
 !     +------------------------------------------------+
+!
+! If we knew which registers were live, we could get away with saving only
+! some; the payoff is probably only slight, however, since context switches
+! are not expected to be frequent in practice.
 
 ! REALFRAMESIZE is what we bump stkp by: full header plus pad word
 #define S2S_REALFRAMESIZE	(5+32)*4+4
@@ -230,7 +238,7 @@ Ls2s3:	set	S2S_FRAMESIZE, %TMP0			! store
 ! Error: no millicode vector present.
 Ls2s5:
 	set	Ls2serror, %TMP1
-	set	_C_panic, %TMP0
+	set	EXTNAME(C_panic), %TMP0
 	b	internal_callout_to_C
 	nop
 	! never returns
@@ -308,7 +316,7 @@ internal_scheme_return:
 	bne	Ls2srtn2
 	nop
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	set	_C_restore_frame, %TMP0
+	set	EXTNAME(C_restore_frame), %TMP0
 	call	internal_callout_to_C
 	nop
 	ld	[ %GLOBALS + G_RETADDR ], %o7
@@ -396,7 +404,7 @@ internal_callout_to_C:
 ! Destroys : Temporaries
 
 internal_restore_scheme_context:
-	set	_globals, %GLOBALS
+	set	EXTNAME(globals), %GLOBALS
 	
 	! this is the body of internal_restore_globals, in-line.
 	set	dzero, %TMP1

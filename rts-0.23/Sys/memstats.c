@@ -10,7 +10,18 @@
  */
 
 #include <sys/time.h>
+
+#ifdef SUNOS
+/* For rusage() et al. */
 #include <sys/resource.h>
+#endif
+
+#ifdef SOLARIS
+/* For rusage() et al, which are obsolete. */
+#include <sys/resource.h>
+#include <sys/rusage.h>
+#endif
+
 #include <stdio.h>
 #include "larceny.h"
 #include "macros.h"
@@ -133,8 +144,15 @@ word *vp;
 
   getrusage( RUSAGE_SELF, &buf );
 
+#ifdef SUNOS
   systime = fixnum( buf.ru_stime.tv_sec * 1000 + buf.ru_stime.tv_usec / 1000);
   usertime = fixnum( buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000);
+#endif
+
+#ifdef SOLARIS
+  systime = fixnum( buf.ru_stime.tv_sec * 1000 + buf.ru_stime.tv_nsec / 1000000);
+  usertime = fixnum( buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_nsec / 1000000);
+#endif
   majflt = fixnum( buf.ru_majflt );
   minflt = fixnum( buf.ru_minflt );
 

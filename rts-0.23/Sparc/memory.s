@@ -4,10 +4,16 @@
 ! Larceny run-time system (SPARC)  --  memory management primitives.
 !
 ! History:
-!   June 24 - July 1, 1994 / lth
+!   December 12, 1994 - Jan 19, 1995 / lth (v0.23)
+!     Implemented cache flush code.
+!
+!   December 4, 1994 / lth (v0.23)
+!     Changes to accomodate Solaris naming conventions.
+!
+!   June 24 - July 1, 1994 / lth (v0.20)
 !     _Major_ rewrite and clean-up. Internal conventions were cleaned
 !     up, a number of entry points were removed, and the rest were
-!     made comprehensible. Old lies were refuted and new thruths were
+!     made comprehensible. Old lies were refuted and new truths were
 !     postulated. Massive improvement in documentation and calling
 !     conventions.
 !
@@ -35,18 +41,22 @@
 !   - the ephemeral space lives below the tenured space
 
 #include "asmdefs.h"
+#include "asmmacro.h"
 
-	.global _mem_alloc				! allocate raw RAM
-	.global _mem_alloci				! allocate cooked RAM
-	.global	_mem_internal_alloc			! allocate raw RAM
-	.global _mem_garbage_collect			! do a GC
-	.global _mem_internal_collect			! do a GC
-	.global _mem_addtrans				! remember object
-	.global _mem_stkoflow				! handle stack oflow
-	.global	_mem_internal_stkoflow			! handle stack oflow
-	.global _mem_stkuflow				! handle stack uflow
-	.global _mem_capture_continuation		! creg-get
-	.global _mem_restore_continuation		! creg-set!
+	.global EXTNAME(mem_alloc)			! allocate raw RAM
+	.global EXTNAME(mem_alloci)			! allocate cooked RAM
+	.global	EXTNAME(mem_internal_alloc)		! allocate raw RAM
+	.global EXTNAME(mem_garbage_collect)		! do a GC
+	.global EXTNAME(mem_internal_collect)		! do a GC
+	.global EXTNAME(mem_addtrans)			! remember object
+	.global EXTNAME(mem_stkoflow)			! handle stack oflow
+	.global	EXTNAME(mem_internal_stkoflow)		! handle stack oflow
+	.global EXTNAME(mem_stkuflow)			! handle stack uflow
+	.global EXTNAME(mem_capture_continuation)	! creg-get
+	.global EXTNAME(mem_restore_continuation)	! creg-set!
+#if defined( IFLUSH )
+	.global EXTNAME(mem_icache_flush)		! flush some icache
+#endif /* defined IFLUSH */
 
 	.seg "text"
 
@@ -62,7 +72,8 @@
 ! This procedure could call _mem_internal_alloc, but does its work
 ! in-line for performance reasons.
 
-_mem_alloc:
+EXTNAME(mem_alloc):
+Lalloc0:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -74,7 +85,7 @@ _mem_alloc:
 	st	%o7, [ %GLOBALS + G_RETADDR ]	! save scheme return address
 	call	heap_overflow			! deal with overflow
 	sub	%E_TOP, %RESULT, %E_TOP		! recover
-	b	_mem_alloc			! redo operation
+	b	Lalloc0				! redo operation
 	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore return address
 
 Lalloc1:
@@ -94,11 +105,11 @@ Lalloc1:
 ! Output   : RESULT = untagged ptr to uninitialized structure
 ! Destroys : RESULT, Temporaries
 
-_mem_alloci:
+EXTNAME(mem_alloci):
 	st	%o7, [ %GLOBALS + G_RETADDR ]	! save Scheme retaddr
 	st	%ARGREG3, [ %GLOBALS + G_ALLOCI_TMP ]
 
-	call	_mem_internal_alloc		! allocate memory
+	call	EXTNAME(mem_internal_alloc)	! allocate memory
 	mov	%RESULT, %ARGREG3		! save size for later
 	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore Scheme retaddr
 
@@ -125,7 +136,7 @@ Lalloci2:
 ! Output   : RESULT = untagged ptr to uninitialized memory
 ! Destroys : RESULT, Temporaries
 
-_mem_internal_alloc:
+EXTNAME(mem_internal_alloc):
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -143,7 +154,7 @@ _mem_internal_alloc:
 
 	call	internal_pop			! restore retaddr
 	nop
-	b	_mem_internal_alloc		! do it again
+	b	EXTNAME(mem_internal_alloc)	! do it again
 	mov	%TMP0, %o7
 
 Lialloc1:
@@ -163,7 +174,7 @@ Lialloc1:
 heap_overflow:
 	set	EPHEMERAL_COLLECTION, %TMP1	! type of collection
 	mov	%RESULT, %TMP2			! words requested
-	set	_C_garbage_collect, %TMP0
+	set	EXTNAME(C_garbage_collect), %TMP0
 	b	internal_callout_to_C
 	nop
 
@@ -175,9 +186,9 @@ heap_overflow:
 ! Output   : Nothing
 ! Destroys : Temporaries
 
-_mem_garbage_collect:
+EXTNAME(mem_garbage_collect):
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	_mem_internal_collect
+	call	EXTNAME(mem_internal_collect)
 	nop
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	jmp	%o7+8
@@ -192,10 +203,10 @@ _mem_garbage_collect:
 ! Output   : nothing
 ! Destroys : Temporaries
 
-_mem_internal_collect:
+EXTNAME(mem_internal_collect):
 	mov	%RESULT, %TMP1			! gc type
 	set	0, %TMP2			! words requested
-	set	_C_garbage_collect, %TMP0
+	set	EXTNAME(C_garbage_collect), %TMP0
 	b	internal_callout_to_C
 	nop
 	
@@ -220,7 +231,7 @@ _mem_internal_collect:
 ! 
 ! In-line code may validly use the conservative limits.
 
-_mem_addtrans:
+EXTNAME(mem_addtrans):
 #if 0
 	! This code is for the experimental collector (exgc).
 	ld	[ %GLOBALS + G_TBRK ], %TMP0	! limit of espace
@@ -252,7 +263,7 @@ _mem_addtrans:
 
 	! Filled the SSB; deal with it on a higher level, return to Scheme.
 
-	set	_C_compact_ssb, %TMP0
+	set	EXTNAME(C_compact_ssb), %TMP0
 	b	callout_to_C
 	nop
 	! never returns
@@ -273,7 +284,7 @@ Laddtrans_exit:
 ! It _can_ be called from scheme, and is, in the current implementation,
 ! due to the compiler bug with spill frames.
 
-_mem_stkuflow:
+EXTNAME(mem_stkuflow):
 	! This is where it starts when called
 	b	Lstkuflow1
 	nop
@@ -285,7 +296,7 @@ _mem_stkuflow:
 	! By moving it in-line we save two context switches, a very
 	! significant part of the cost since it is incurred on
 	! every underflow. On deeply recursive code (like append-rec)
-	! this fix pays off with a speedup of 15-50%
+	! this fix pays off with a speedup of 15-50%.
 	!
 	! If you change this code, be sure to check the C code as well!
 	! The code is in an #if ... #endif so that it can be turned off
@@ -347,7 +358,7 @@ _mem_stkuflow:
 	! the C version and let it deal with it.
 1:
 #endif
-	set	_C_restore_frame, %TMP0
+	set	EXTNAME(C_restore_frame), %TMP0
 	mov	0, %REG0			! procedure no longer valid...
 	call	internal_callout_to_C
 	nop
@@ -356,7 +367,7 @@ _mem_stkuflow:
 	nop
 	! This code goes away when the compiler is fixed.
 Lstkuflow1:
-	set	_C_restore_frame, %TMP0
+	set	EXTNAME(C_restore_frame), %TMP0
 	st	%o7, [ %GLOBALS + G_RETADDR ]
 	call	internal_callout_to_C
 	nop
@@ -371,8 +382,8 @@ Lstkuflow1:
 ! Output   : Nothing
 ! Destroys : Temporaries
 
-_mem_stkoflow:
-	set	_C_stack_overflow, %TMP0
+EXTNAME(mem_stkoflow):
+	set	EXTNAME(C_stack_overflow), %TMP0
 	b	callout_to_C
 	nop
 
@@ -384,8 +395,8 @@ _mem_stkoflow:
 ! Output   : Nothing
 ! Destroys : Temporaries
 
-_mem_internal_stkoflow:
-	set	_C_stack_overflow, %TMP0
+EXTNAME(mem_internal_stkoflow):
+	set	EXTNAME(C_stack_overflow), %TMP0
 	b	internal_callout_to_C
 	nop
 
@@ -397,8 +408,8 @@ _mem_internal_stkoflow:
 ! Output   : RESULT = obj: continuation object
 ! Destroys : Temporaries, RESULT
 
-_mem_capture_continuation:
-	set	_C_creg_get, %TMP0
+EXTNAME(mem_capture_continuation):
+	set	EXTNAME(C_creg_get), %TMP0
 	b	callout_to_C
 	nop
 
@@ -410,10 +421,90 @@ _mem_capture_continuation:
 ! Output   : Nothing
 ! Destroys : Temporaries
 
-_mem_restore_continuation:
-	set	_C_creg_set, %TMP0
+EXTNAME(mem_restore_continuation):
+	set	EXTNAME(C_creg_set), %TMP0
 	b	callout_to_C
 	nop
 
+
+#if defined( IFLUSH )
+! _mem_icache_flush: flush instructions in given range from the icache.
+!
+! Call from: C
+! Prototype: extern void mem_icache_flush( void *start, void *end );
+!
+! Flushes all instructions in the address range from start (inclusive)
+! through end (exclusive) from the instruction cache. It may flush some
+! instructions outside this range.
+!
+! Remarks
+!  In the best of all worlds this should be done as part of the copy loop
+!  to avoid the extra loop overhead. But that would mean writing the copy
+!  loop in assembly, which seems like overkill.
+!
+! Assumptions: 
+!  The iflush instruction is implemented in hardware and executes in
+!  one cycle. By definition, it flushes 8 bytes at a time and does not
+!  trap even if given an address outside the address space of the executing
+!  process.
+!
+!  The caller is required to execute at least 2 instructions before it
+!  executes newly-flushed code.
+!
+!  Based on simulations of the flushing cost on a large heap image,
+!  a loop unrolling factor of 24 has the best performance, flushing
+!  192 bytes per iteration. The simulation should be rerun if the code
+!  generator becomes better at generating tight code (or starts generating
+!  larger code :-)
+!
+! Implementation:
+!  Start and ending addresses are rounded down to nearest 8-byte boundary 
+!  before the loop; an extra iflush at the ending address is always 
+!  performed after the loop to catch the last word.
+!
+!  Another option is to unroll the loop massively (say, 1000 times) and
+!  use Duff's device; this will very nearly always be a win.
+!
+! Cost:
+!  Roughly 3+(u+3)*ceil(n/(u*8))+3 cycles for n bytes of code and an 
+!  unrolling factor of u. The exact cost depends on the cost of branches
+!  in the processor implementation. In addition, the cost of a procedure
+!  call and a return.
+
+EXTNAME(mem_icache_flush):
+	andn	%o0, 0x07, %o0		! round start down to 8-boundary
+	b	1f
+	andn	%o1, 0x07, %o1		! ditto for end
+0:	iflush	%o0+8
+	iflush	%o0+16
+	iflush	%o0+24
+	iflush	%o0+32
+	iflush	%o0+40
+	iflush  %o0+48
+	iflush	%o0+56
+	iflush	%o0+64
+	iflush	%o0+72
+	iflush	%o0+80
+	iflush	%o0+88
+	iflush	%o0+96
+	iflush	%o0+104
+	iflush	%o0+112
+	iflush	%o0+120
+	iflush	%o0+128
+	iflush	%o0+136
+	iflush	%o0+144
+	iflush	%o0+152
+	iflush	%o0+160
+	iflush	%o0+168
+	iflush	%o0+176
+	iflush	%o0+184
+	add	%o0, 192, %o0
+1:	cmp	%o0, %o1
+	blt	0b			! no annull!
+	iflush	%o0+0			! must be in slot
+	retl
+	nop
+
+#endif /* defined(IFLUSH) */
 
 	! end of file

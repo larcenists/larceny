@@ -1,69 +1,25 @@
-############################################################################
-#                        Makefile for Larceny v0.20                        #
-############################################################################
+# Emacs: please stick to -*- fundamental -*- mode, will you?
+#
+# Makefile for Larceny, version 0.23
+#
+# This is the top-level makefile. The Makefile for building the runtime,
+# as well as configuration options, is Rts/Makefile.
 
-# Architecture-independent stuff
-SYS=Sys
+# It is important to keep the version number correct.
+VERSION=0.23
 
-# Subdirectory for machine-dependent stuff.
-MACH=Sparc
-
-# Build directory
-BUILD=Build
-
-# Where the Scheme libraries live
+# Directories
+RTS=rts-$(VERSION)
+SYS=$(RTS)/Sys
+MACH=$(RTS)/Sparc
+BUILD=$(RTS)/Build
+ASM=Sparcasm
 LIB=Lib
-
-# Where the Compiler lives
 COMP=Compiler
-
-# Where the documentation lives
 TEXT=Text
 
-############################################################################
-#
-# Compiler flags
-#
-# The flag DEBUG adds some debugging output.
-# The flag DEBUG2 adds a _lot_ of debugging output.
-#
-# There are also some #define's in larceny.h (architecture and OS selection)
-# which should probably be moved into the makefile. It is not currently
-# a problems since we support only one arch. and OS. (duh.)
-
-# PROFILE=-pg
-#DEBUG=-g
-#DFLAGS=-DDEBUG # -DDEBUG2
-OPTIMIZE=-O2
-CC=gcc
-AS=as
-
-CFLAGS=	-c $(DEBUG) $(OPTIMIZE) $(PROFILE) -I$(SYS) -I$(BUILD) $(DFLAGS)
-
-ASFLAGS= -P -I$(MACH) -I$(BUILD) $(DFLAGS)
-
-
-############################################################################
-#
-# Big bags of files
-#
-# GSGC_OBJS are the object files to link for a generation-scavenging collector.
-# SCGC_OBJS are the object files to link for a stop-and-copy collector.
-# EXGC_OBJS are the object files to link for the experimental collector.
-
-COBJS=$(SYS)/larceny.o $(SYS)/remset.o $(SYS)/stack.o\
-	$(SYS)/cglue.o $(SYS)/heapio.o $(SYS)/malloc.o\
-	$(SYS)/memstats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o
-
-ASMOBJS=$(MACH)/mcode.o $(MACH)/memory.o $(MACH)/glue.o $(BUILD)/table.o \
-	$(MACH)/generic.o $(MACH)/unix.o
-
-GSGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/policy.o $(SYS)/gc.o
-
-SCGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/scpolicy.o $(SYS)/gc.o
-
-EXGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/expolicy.o
-
+# Lists of files
+# CCFG, ACFG, SCFG, and HDRFILES also exist in $(RTS)/Makefile. Watch it!
 CCFG=$(BUILD)/globals.ch $(BUILD)/except.ch $(BUILD)/layouts.ch
 
 ACFG=$(BUILD)/globals.ah $(BUILD)/regs.ah $(BUILD)/except.ah \
@@ -72,48 +28,67 @@ ACFG=$(BUILD)/globals.ah $(BUILD)/regs.ah $(BUILD)/except.ah \
 SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 	$(BUILD)/layouts.sh 
 
+HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
-############################################################################
-#
-# Rules
+# These exist only in this file
+MISCFILES=CHGLOG BUGS WISHLIST Makefile nbuild larceny.1 \
+	loadcompiler.sch rewrite
+ASMFILES=$(ASM)/*.sch
+LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(LIB)/Eval/*.sch
+CHEZFILES=Chez/*.c Chez/*.ss Chez.*.h
+COMPFILES=$(COMP)/*.sch
+TEXTFILES=$(TEXT)/*.tex
 
-.SUFFIXES:	.cfg .ch .ah .sh
+# Files for 'rtstar'
+RTSFILES=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Makefile \
+	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(HDRFILES) $(BUILD)/*.s
 
-.cfg.ch:
-	./config $<
-.cfg.ah:
-	./config $<
-.cfg.sh:
-	./config $<
-.cfg.s:
-	./config $<
-.s.o:
-	$(AS) $(ASFLAGS) -o $*.o $<
-.c.o:
-	$(CC) $(CFLAGS) -DUSER=\"$$USER\" -DDATE="\"`date`\"" -o $*.o $<
+# Files for 'tar'
+ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) \
+	$(CHEZFILES) $(COMPFILES) $(TEXTFILES)
 
+# Files for 'bigtar'
+MOREFILES=$(RTS)/larceny larceny.heap $(RTS)/sclarceny larceny.eheap
 
-############################################################################
-#
 # Targets
-
 default:
 	@echo "Make what?"
+	@echo "Your options are:"
+	@echo "  setup      - initialize system"
+	@echo "  larceny    - build standard generational system"
+	@echo "  sclarceny  - build stop-and-copy system"
+	@echo "  exlarceny  - build experimental generational system"
+	@echo "  clean      - remove executables and objects"
+	@echo "  lopclean   - remove all .LOP files"
+	@echo "  libclean   - remove all .LAP and .LOP files"
+	@echo "  realclean  - remove everything, included generated headers"
+	@echo "  rtstar     - tar up all RTS sources"
+	@echo "  tar        - RTS and library sources"
+	@echo "  bigtar     - RTS and library sources; gsgc and scgc binaries;"
+	@echo "               gsgc and scgc heaps."
 
-larceny: $(GSGC_OBJS)
-	$(CC) $(PROFILE) -o larceny $(GSGC_OBJS)
-	/bin/rm -f $(SYS)/version.o
+setup:
+	rm -f larceny exlarceny sclarceny Rts Build
+	ln -s Rts/larceny
+	ln -s Rts/exlarceny
+	ln -s Rts/sclarceny
+	ln -s $(RTS) Rts
+	ln -s $(RTS)/Build Build
+	(cd Rts ; $(MAKE) setup)
+	$(MAKE) chezstuff
 
-sclarceny: $(SCGC_OBJS)
-	$(CC) $(PROFILE) -o sclarceny $(SCGC_OBJS)
-	/bin/rm -f $(SYS)/version.o
+larceny: 
+	(cd $(RTS) ; $(MAKE) VERSION=$(VERSION) larceny)
 
-exlarceny: $(EXGC_OBJS)
-	$(CC) $(PROFILE) -o exlarceny $(EXGC_OBJS)
-	/bin/rm -f $(SYS)/version.o
+sclarceny:
+	(cd $(RTS) ; $(MAKE) VERSION=$(VERSION) sclarceny)
+
+exlarceny:
+	(cd $(RTS) ; $(MAKE) VERSION=$(VERSION) exlarceny)
 
 clean:
-	rm -f larceny sclarceny exlarceny $(GSGC_OBJS) $(SCGC_OBJS) $(EXGC_OBJS)
+	(cd $(RTS) ; $(MAKE) clean)
+	rm -f *.map
 
 lopclean:
 	rm -f $(LIB)/*.lop $(LIB)/Eval/*.lop
@@ -123,43 +98,28 @@ libclean:
 	rm -f $(LIB)/Eval/*.lap $(LIB)/Eval/*.lop
 
 realclean: clean libclean
-	rm -f $(BUILD)/*.ch $(BUILD)/*.ah $(BUILD)/*.sh $(BUILD)/*.h
+	rm -f larceny sclarceny exlarceny Build Rts
+	rm -f Chez/*.o
+	(cd $(RTS) ; $(MAKE) realclean)
+
+rtstar:
+	tar cvf larceny-rts.tar $(RTSFILES)
+	compress larceny-rts.tar
 
 tar:
-	tar cvf larceny.tar Makefile CHGLOG BUGS WISHLIST *.cfg nbuild \
-		config larceny.1 loadcompiler.sch rewrite $(SYS)/*.c \
-		$(SYS)/*.h $(MACH)/*.s $(LIB)/*.sch $(LIB)/*.mal \
-		$(LIB)/Eval/*.sch Chez/*.c Chez/*.ss Chez/*.h \
-		$(COMP)/*.sch $(TEXT)/*.tex
+	tar cvf larceny.tar $(ALLFILES)
 	compress larceny.tar
 
+bigtar:
+	tar cvf larceny-all.tar $(ALLFILES) $(MOREFILES)
+	compress larceny-all.tar
 
-###########################################################################
-#
-# Support stuff for Chez hosted system.
+Build/schdefs.h:
+	( cd Rts ; $(MAKE) Build/schdefs.h )
 
-basicstuff: bits1 bits2
-bits1: Chez/bitpattern.o
-bits2: Compiler/mtime.o
+# For Chez-hosted system
 
-
-###########################################################################
-#
-# sources
-
-$(BUILD)/cdefs.h:	$(CCFG)
-	cat $(CCFG) > $(BUILD)/cdefs.h
-
-$(BUILD)/asmdefs.h:	$(ACFG)
-	cat $(ACFG) > $(BUILD)/asmdefs.h
-
-$(BUILD)/schdefs.h:	$(SCFG)
-	cat $(SCFG) > $(BUILD)/schdefs.h
-
-$(COBJS): $(SYS)/larceny.h $(SYS)/macros.h $(BUILD)/cdefs.h
-
-$(ASMOBJS): $(BUILD)/asmdefs.h
-
+chezstuff: 
+	(cd Chez ; $(CC) -c bitpattern.c mtime.c)
 
 # eof
-

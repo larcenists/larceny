@@ -16,7 +16,7 @@ echo "(define sourcedir \"$DIR/Lib/\")" >> $TMPFILE
 echo "(define targetdir \"$DIR/Lib/\")" >> $TMPFILE
 echo "(define configdir \"$DIR/\")" >> $TMPFILE
 echo "(define chezdir \"$DIR/Chez/\")" >> $TMPFILE
-echo "(define sparcdir \"$DIR/Sparc/\")" >> $TMPFILE
+echo "(define sparcdir \"$DIR/Sparcasm/\")" >> $TMPFILE
 echo "(define compilerdir \"$DIR/Compiler/\")" >> $TMPFILE
 echo "(define builddir \"$DIR/Build/\")" >> $TMPFILE
 echo "(load (string-append compilerdir \"nbuild.sch\"))" >> $TMPFILE

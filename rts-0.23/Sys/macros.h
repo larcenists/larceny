@@ -36,8 +36,11 @@
 /* Given pointer and tag, return tagged pointer */
 #define tagptr( w, tag )    (word *)((word)(w) | (tag))
 
-/* extract header tag from a header word */
+/* extract header tag (i.e. sans typetag) from a header word */
 #define header( w )         ((word)(w) & HDR_MASK)
+
+/* extract type tag from a header word */
+#define typetag( w )	    ((word)(w) & TYPETAG_MASK)
 
 /* Create a header given integer (not fixnum!) size (in bytes), and tag. */
 #define mkheader( size, tag )  (((word) (size) << 8) | (tag))

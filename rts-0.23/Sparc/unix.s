@@ -4,6 +4,9 @@
 ! Larceny run-time system (SPARC) -- trampolines for Unix-related primitives.
 !
 ! History:
+!   December 4, 1994 / lth (v0.23)
+!     Changes to accomodate Solaris naming conventions.
+!
 !   June 26 - July 1, 1994 / lth (v0.20)
 !     Taken out of "glue.s" and cleaned up.
 !
@@ -11,15 +14,16 @@
 ! away and be replaced by something using that mechaninsm.
 
 #include "asmdefs.h"
+#include "asmmacro.h"
 
-	.global	_m_open_file
-	.global	_m_close_file
-	.global	_m_unlink_file
-	.global	_m_read_file
-	.global	_m_write_file
-	.global _m_resource_usage
-	.global _m_exit
-	.global	_m_dumpheap
+	.global	EXTNAME(m_open_file)
+	.global	EXTNAME(m_close_file)
+	.global	EXTNAME(m_unlink_file)
+	.global	EXTNAME(m_read_file)
+	.global	EXTNAME(m_write_file)
+	.global EXTNAME(m_resource_usage)
+	.global EXTNAME(m_exit)
+	.global	EXTNAME(m_dumpheap)
 
 
 ! _m_open_file: open a file, return the file descriptor or -1
@@ -31,8 +35,8 @@
 ! Output:    RESULT = fixnum: file descriptor or -1
 ! Destroys:  Temporaries, RESULT
 
-_m_open_file:
-	set	_UNIX_openfile, %TMP0
+EXTNAME(m_open_file):
+	set	EXTNAME(UNIX_openfile), %TMP0
 	b	callout_to_C
 	nop
 
@@ -44,8 +48,8 @@ _m_open_file:
 ! Output:    RESULT = fixnum: return code from Unix
 ! Destroys:  Temporaries, RESULT
 
-_m_unlink_file:
-	set	_UNIX_unlinkfile, %TMP0
+EXTNAME(m_unlink_file):
+	set	EXTNAME(UNIX_unlinkfile), %TMP0
 	b	callout_to_C
 	nop
 
@@ -57,8 +61,8 @@ _m_unlink_file:
 ! Output   : RESULT = fixnum: return code from Unix
 ! Destroys : Temporaries, RESULT
 
-_m_close_file:
-	set	_UNIX_closefile, %TMP0
+EXTNAME(m_close_file):
+	set	EXTNAME(UNIX_closefile), %TMP0
 	b	callout_to_C
 	nop
 
@@ -72,8 +76,8 @@ _m_close_file:
 ! Output   : RESULT = fixnum: bytes actually read, or -1.
 ! Destroys : Temporaries, RESULT
 
-_m_read_file:
-	set	_UNIX_readfile, %TMP0
+EXTNAME(m_read_file):
+	set	EXTNAME(UNIX_readfile), %TMP0
 	b	callout_to_C
 	nop
 
@@ -87,8 +91,8 @@ _m_read_file:
 ! Output   : RESULT = fixnum: bytes actually written, or -1.
 ! Destroys : Temporaries, RESULT
 
-_m_write_file:
-	set	_UNIX_writefile, %TMP0
+EXTNAME(m_write_file):
+	set	EXTNAME(UNIX_writefile), %TMP0
 	b	callout_to_C
 	nop
 
@@ -100,8 +104,8 @@ _m_write_file:
 ! Output:    Nothing
 ! Destroys:  Temporaries
 
-_m_resource_usage:
-	set	_UNIX_getresourceusage, %TMP0
+EXTNAME(m_resource_usage):
+	set	EXTNAME(UNIX_getresourceusage), %TMP0
 	b	callout_to_C
 	nop
 
@@ -118,8 +122,8 @@ _m_resource_usage:
 !
 ! Possibly this should not go directly to _exit; hardly a problem right now.
 
-_m_exit:
-	set	_exit, %TMP0
+EXTNAME(m_exit):
+	set	EXTNAME(exit), %TMP0
 	b	callout_to_C
 	set	0, %TMP1
 
@@ -134,8 +138,8 @@ _m_exit:
 ! Output   : RESULT = boolean: success of operation
 ! Destroys : Temporaries
 
-_m_dumpheap:
-	set	_UNIX_dumpheap, %TMP0
+EXTNAME(m_dumpheap):
+	set	EXTNAME(UNIX_dumpheap), %TMP0
 	b	callout_to_C
 	nop
 

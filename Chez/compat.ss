@@ -43,19 +43,46 @@
       (set! n (+ n 1))
       (string->uninterned-symbol (format "~a~a" x n)))))
 
-; More or less fixes chez scheme v3.0 "write" bug.
+(define write-codelist write)
 
-(define (write-codelist x p)
-  (if (list? x)
-      (begin (write-char #\( p)
-	     (for-each (lambda (x)
-			 (write x p)
-			 (display #\space p))
-		       x)
-	     (write-char #\) p))
-      (write x p)))
+; More or less fixes chez scheme v3.0 "write" bug.
+;
+;(define (write-codelist x p)
+;  (if (list? x)
+;      (begin (write-char #\( p)
+;	     (for-each (lambda (x)
+;			 (write x p)
+;			 (display #\space p))
+;		       x)
+;	     (write-char #\) p))
+;      (write x p)))
 
 ; Uncomment if using version 3
 ;
 ;(define (list? x)
 ;  (or (null? x) (and (pair? x) (list? (cdr x)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; UNIX interface to support 'make'. Defines two procedures:
+;
+;  (file-exists? string)
+;     returns #t if the file exists and #f if not
+;
+;  (file-modification-time string)
+;     returns a timestamp for the file
+
+(load-foreign (string-append chezdir "mtime.o"))
+
+(define file-exists?
+  (let ((access
+	 ; Using 'access' system call.
+	 (foreign-procedure "access" (string integer-32) integer-32)))
+    (lambda (f)
+      (not (= (access f 0) -1)))))
+
+(define file-modification-time
+  ; Using 'mtime' procedure defined in mtime.c.
+  (foreign-procedure "mtime" (string) unsigned-32))
+
+; eof
