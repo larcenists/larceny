@@ -133,9 +133,13 @@
 
 (define values
   (lambda vals
-    (cond ((null? vals) *values0*)
-          ((null? (cdr vals)) (car vals))
-          (else (cons *multiple-values* vals)))))
+    (cond ((pair? vals) (if (null? (cdr vals))
+                            (car vals)
+                            (cons *multiple-values* vals)))
+          ((null? vals) *values0*)
+          ;; presumably impossible
+          (else (error "values: Improper list " vals)
+                #t))))
 
 ;; (value-list elements) = (apply values elements)
 ;; Avoids redundant consing, though.
@@ -144,14 +148,44 @@
                           (car vals)
                           (cons *multiple-values* vals)))
         ((null? vals) *values0*)
-        (else (error "VALUES-LIST: Improper list." vals))))
+        (else (error "values-list: Improper list " vals)
+              #t)))
 
 (define call-with-values
   (lambda (producer consumer)
     (let ((vals (producer)))
+      ;; Handle most common case of up to four values
       (if (and (pair? vals)
                (eq? (car vals) *multiple-values*))
-          (apply consumer (cdr vals))
+          (let ((tail0 (cdr vals)))
+            (cond ((pair? tail0)
+                   (let ((val0  (car tail0))
+                         (tail1 (cdr tail0)))
+                     (if (pair? tail1)
+                         (let ((val1  (car tail1))
+                               (tail2 (cdr tail1)))
+                           (cond ((pair? tail2)
+                                  (let ((val2  (car tail2))
+                                        (tail3 (cdr tail2)))
+                                    (cond ((pair? tail3)
+                                           (let ((val3  (car tail3))
+                                                 (tail4 (cdr tail3)))
+                                             (if (null? tail4)
+                                                 (consumer val0 val1 val2 val3)
+                                                 (apply consumer tail0))))
+                                          ((null? tail3) (consumer val0 val1 val2))
+                                          (else (error
+                                                 "call-with-values: bad values "
+                                                 tail0)
+                                                #t))))
+                                 ((null? tail2) (consumer val0 val1))
+                                 (else (error "call-with-values: bad values " tail0)
+                                       #t)))
+                         ;; single value shouldn't have values tag.
+                         (error "call-with-values: bad values " tail0))))
+                  ((null? tail0) (consumer))
+                  (else (error "call-with-values: bad values " tail0)
+                        #t)))
           (consumer vals)))))
 
 
@@ -183,7 +217,7 @@
     (call-with-values during
       (lambda results
         (reroot! here)
-        (apply values results)))))
+        (values-list results)))))
 
 (define (reroot! there)
 
