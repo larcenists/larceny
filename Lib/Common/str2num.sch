@@ -467,7 +467,9 @@
     (set! string->number
           (lambda (string . rest)
             (let ((input (string->list string)))
-              (cond ((null? rest)
+              (cond ((null? input)
+		     #f)
+		    ((null? rest)
                      (parse-number input))
                     ((null? (cdr rest))
 		     (if (memv (car rest) '(2 8 10 16))
