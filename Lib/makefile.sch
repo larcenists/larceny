@@ -285,6 +285,7 @@
             (let* ((manifest-files (append dotnet-heap-files
                                            dotnet-eval-files))
                    (all-files
+                    (cons "dotnet.heap.asm-il"
                     (apply append
                            (cons manifest-files
                                  (map
@@ -296,7 +297,7 @@
                                         '(".manifest")
                                         ext))
                                      manifest-files))
-                                  '(".fasl" ".lap" ".lop" ".code-il"))))))
+                                  '(".fasl" ".lap" ".lop" ".code-il")))))))
               
               (for-each (lambda (f) (if (file-exists? f) (delete-file f)))
                         all-files))))
