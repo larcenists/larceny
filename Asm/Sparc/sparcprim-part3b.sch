@@ -144,30 +144,41 @@
 
 
 ; Allocate a bytevector, leave untagged pointer in RESULT.
+;
+; FIXME: The overflow checking code could be merged with tag
+;        checking, moved into millicode, or moved into the RTS
+;        to get it off the fast path?
 
 (define (emit-allocate-bytevector as hdr preserved-result)
 
   ; Preserve the length field, then calculate the number of words
   ; to allocate.  The value `28' is an adjustment of 3 (for rounding 
   ; up) plus another 4 bytes for the header, all represented as a fixnum.
+  ;
+  ; The adjustment may overflow the size field.  In that case,
+  ; we pass the number unadjusted and let the RTS clean it up -- 
+  ; the size is in any case too large, and the system will panic.
 
-  (if (not preserved-result)
-      (sparc.move as $r.result $r.argreg2))
-  (sparc.addi as $r.result 28 $r.result)
-  (sparc.andi as $r.result (asm:signed #xFFFFFFF0) $r.result)
+  (let ((Lok (new-label)))
+    (if (not preserved-result)
+        (sparc.move as $r.result $r.argreg2))
+    (sparc.addicc as $r.result 28 $r.tmp0)
+    (sparc.bvc.a  as Lok)
+    (sparc.andi   as $r.tmp0 (asm:signed #xFFFFFFF0) $r.result)
+    (sparc.label  as Lok)
 
-  ; Allocate space
+    ; Allocate space
 
-  (sparc.jmpli as $r.millicode $m.alloc-bv $r.o7)
-  (sparc.srai  as $r.result 2 $r.result)
+    (sparc.jmpli as $r.millicode $m.alloc-bv $r.o7)
+    (sparc.srai  as $r.result 2 $r.result)
   
-  ; Setup the header.
-
-  (if (not preserved-result)
-      (sparc.slli as $r.argreg2 6 $r.tmp0)
-      (sparc.slli as preserved-result 6 $r.tmp0))
-  (sparc.addi as $r.tmp0 hdr $r.tmp0)
-  (sparc.sti  as $r.tmp0 0 $r.result))
+    ; Setup the header.
+    
+    (if (not preserved-result)
+        (sparc.slli as $r.argreg2 6 $r.tmp0)
+        (sparc.slli as preserved-result 6 $r.tmp0))
+    (sparc.addi as $r.tmp0 hdr $r.tmp0)
+    (sparc.sti  as $r.tmp0 0 $r.result)))
 
 
 ; Given a nativeint count, a pointer to the first element of a 
@@ -265,8 +276,6 @@
 ; 'Fault' is the address of the error code iff (unsafe-code) = #f
 ;
 ; FIXME: 
-;   - Argument values passed to error handler appear to be bogus 
-;     (error message is very strange).
 ;   - There's no check that the value actually fits in a byte.
 ;   - Uses ARGREG3 and and TMP2.
 
@@ -342,6 +351,7 @@
 ; VECTORS and PROCEDURES
 
 ; Allocate short vectors of known length; faster than the general case.
+;
 ; FIXME: can also allocate in-line.
 
 (define (make-vector-n as length r)
@@ -360,13 +370,19 @@
 
 
 ; emit-make-vector-like! assumes argreg3 is not destroyed by alloci.
-; FIXME: bug: $ex.mkvl is not right if the operation is make-procedure
+;
+; BUG 141: $ex.mkvl is not right if the operation is make-procedure
 ; or make-vector.
+;
+; FIXME: The overflow handling code could move into millicode or be
+;        merged with the tag checking?
 
 (define (emit-make-vector-like! as r hdr ptrtag)
   (let ((FAULT (emit-assert-positive-fixnum! as $r.result $ex.mkvl)))
-    (sparc.move  as $r.result $r.argreg3)
-    (sparc.addi  as $r.result 4 $r.result)
+    (sparc.move   as $r.result $r.argreg3)
+    (sparc.addicc as $r.result 4 $r.result)
+    (sparc.bvs.a  as (+ (here as) 8))         ; Overflowed
+    (sparc.subi   as $r.result 4 $r.result)   ;   so undo
     (sparc.jmpli as $r.millicode $m.alloci $r.o7)
     (if (null? r)
         (sparc.set as $imm.null $r.argreg2)
