@@ -38,7 +38,6 @@ struct opt {
   bool       enable_singlestep;         /* enable/disable single stepping */
   bool       enable_breakpoints;        /* enable/disable breakpoints */
   bool       enable_timer;              /* enable/disable timer */
-  bool       show_heapstats;            /* unparse this structure */
   char       *heapfile;                 /* name of heap file */
   bool       quiet;                     /* do not print informative msgs */
   bool       annoying;                  /* print many informative msgs */
@@ -499,8 +498,6 @@ parse_options( int argc, char **argv, opt_t *o )
       o->enable_breakpoints = 0;
     else if (hstrcmp( *argv, "-step" ) == 0)
       o->enable_singlestep = 1;
-    else if (hstrcmp( *argv, "-stats" ) == 0)
-      o->show_heapstats = 1;
     else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
       ;
     else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
@@ -1025,8 +1022,6 @@ static char *helptext[] = {
   "     parameter).  The -expansion and -load parameters are mutually",
   "     exclusive.",
 #endif
-  "  -stats",
-  "     Print some data about heap allocation at startup." ,
   "  -quiet",
   "     Suppress nonessential messages.",
   "  -help",

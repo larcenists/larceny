@@ -235,18 +235,27 @@ static void get_rtclock( stat_time_t *real )
 word
 osdep_dlopen( char *path )
 {
+#ifdef DYNAMIC_LOADING
   HINSTANCE dll;
 
   dll = LoadLibrary(path);
   if (dll == 0) 
     hardconsolemsg( "dlopen error" );
   return (word)dll;
+#else
+  hardconsolemsg( "Larceny configured without DYNAMIC_LOADING" );
+  return 0;
+#endif
 }
 
 word
 osdep_dlsym( word handle, char *sym )
 {
+#ifdef DYNAMIC_LOADING
   return (word)GetProcAddress( (HINSTANCE)handle, sym );
+#else
+  return 0;
+#endif
 }
 
 #endif /* defined( WIN32 ) */

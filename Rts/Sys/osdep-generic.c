@@ -113,6 +113,9 @@ static void get_rtclock( stat_time_t *real )
 word
 osdep_dlopen( char *path )
 {
+#ifndef DYNAMIC_LOADING
+  hardconsolemsg( "Larceny configured without DYNAMIC_LOADING" );
+#endif
   return 0;
 }
 

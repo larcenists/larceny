@@ -587,7 +587,7 @@ static void get_rtclock( stat_time_t *real )
 word
 osdep_dlopen( char *path )
 {
-#ifdef HAVE_DLFCN
+#if defined DYNAMIC_LOADING && defined HAVE_DLFCN
 # if defined(SUNOS4)
   int mode = 1;
 # elif defined(CYGWIN)
@@ -600,6 +600,9 @@ osdep_dlopen( char *path )
     hardconsolemsg( "dlopen error: %s", dlerror() );
   return (word)desc;
 #else
+# ifndef DYNAMIC_LOADING
+  hardconsolemsg( "Larceny configured without DYNAMIC_LOADING" );
+# endif
   return 0;
 #endif
 }
@@ -607,7 +610,7 @@ osdep_dlopen( char *path )
 word
 osdep_dlsym( word handle, char *sym )
 {
-#ifdef HAVE_DLFCN
+#if defined DYNAMIC_LOADING && defined HAVE_DLFCN
   return (word)dlsym( (void*)handle, sym );
 #else
   return 0;

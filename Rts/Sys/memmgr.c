@@ -437,6 +437,7 @@ void gc_signal_moving_collection( gc_t *gc )
 		    "You have survived 1,073,741,824 garbage collections!\n" );
 }
 
+#if DOF_COLLECTOR
 /* DOF collection is a little different. */
 /* hack */
 static void gc_start_gc( gc_t *gc )
@@ -493,6 +494,7 @@ dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 		 stats.heap_allocated_max );
   }
 }
+#endif /* DOF_COLLECTOR */
 
 static void before_collection( gc_t *gc )
 {
@@ -983,7 +985,11 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
+#if DOF_COLLECTOR
 		 (info->use_dof_collector ? dof_collect : collect),
+#else
+		 collect,
+#endif
 		 permute_remembered_sets,
 		 set_policy,
 		 data_load_area,
