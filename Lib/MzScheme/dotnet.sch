@@ -1,4 +1,4 @@
-;; -*-Scheme; coding: iso-8859-1 -*-
+;; -*-Mode: Scheme; coding: iso-8859-1 -*-
 ;; Port of dotnet.ss to larceny
 
 ;; NOTE:  This file requires that dotnet-ffi.sch has been loaded.
