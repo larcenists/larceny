@@ -1,6 +1,9 @@
-/* A bunch of random hacks that belong elsewhere; here for the time being.
-   $Id$
-*/
+/* Copyright 1998 Lars T Hansen.
+ *
+ * $Id$
+ *
+ * A bunch of random hacks that belong elsewhere; here for the time being.
+ */
 
 #ifndef PETIT_HACKS_H
 #define PETIT_HACKS_H

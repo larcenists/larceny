@@ -1,7 +1,8 @@
-/* Rts/Standard-C/millicode.c
- * Petit Larceny -- run-time support implementation, except for arithmetic.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Petit Larceny -- run-time support implementation, except for arithmetic.
  */
 
 #define NOGLOBALS

@@ -1,7 +1,8 @@
-/* Rts/Standard-C/petit-config.h
- * Petit Larceny -- common configuration header file
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Petit Larceny -- common configuration header file
  */
 
 #ifndef PETIT_CONFIG_H

@@ -1,8 +1,8 @@
-/* hsplit.c -- program that shuffles code into the static area
+/* Copyright 1998 Lars T Hansen
+ *
  * $Id$
  *
- * Lars Thomas Hansen [lth@cs.uoregon.edu]
- * May 28, 1996
+ * hsplit.c -- program that shuffles code into the static area.
  *
  * DESCRIPTION
  *   The input is a single or split heap image; the output is a split

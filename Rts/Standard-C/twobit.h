@@ -1,7 +1,8 @@
-/* Rts/Standard-C/twobit.h
- * Petit Larceny -- Twobit instruction and primitive macros.
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Petit Larceny -- Twobit instruction and primitive macros.
  *
  * The code in this file makes some assumptions that are not guaranteed
  * by the ANSI/ISO C standard to be true, however they are on most

@@ -1,6 +1,7 @@
 /* Copyright 1998 Lars T Hansen
  *
  * $Id$
+ *
  * config.c -- configuration-dependent values.
  */
 

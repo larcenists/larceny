@@ -1,8 +1,8 @@
-; -*- mode: scheme -*-
-; Rts/Standard-C/arithmetic.mac
-; Petit Larceny -- templates for generic arithmetic code.
+; Copyright 1998 Lars T Hansen.              -*- mode: scheme -*-
 ;
 ; $Id$
+;
+; Petit Larceny -- templates for generic arithmetic code.
 ;
 ; This file should be processed with the expansion program "expander.sch",
 ; in a way documented below (in the C file header).  The output of that

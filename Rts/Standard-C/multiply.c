@@ -1,7 +1,8 @@
-/* Rts/Standard-C/multiply.c
- * Petit Larceny -- portable extended-precision multiplication code.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$ 
+ *
+ * Petit Larceny -- portable extended-precision multiplication code.
  */
 
 #include "larceny-types.h"

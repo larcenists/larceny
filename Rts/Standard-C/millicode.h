@@ -1,7 +1,8 @@
-/* Rts/Standard-C/millicode.h
- * Petit Larceny -- run-time-support prototypes.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Petit Larceny -- run-time-support prototypes.
  */
 
 #ifndef MILLICODE_H

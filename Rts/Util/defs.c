@@ -1,3 +1,11 @@
+/* Copyright 1998 Lars T Hansen
+ *
+ * $Id$
+ *
+ * Print out machine-type definitions to use on a command line.
+ * Used by the make system for the assembly-language files.
+ */
+
 #include <stdio.h>
 #include "../Sys/config.h"
 
