@@ -2,7 +2,7 @@
 ; 
 ; $Id$
 ;
-; 18 December 1998
+; 8 February 1999
 ;
 ; compile313 -- compilation parameters and driver procedures.
 
@@ -15,58 +15,67 @@
 (define *lop-file-type*     ".lop")
 (define *fasl-file-type*    ".fasl")
 
-;;; Driver procedurs
-
 ; Compile and assemble a scheme source file and produce a fastload file.
 
 (define (compile-file infilename . rest)
-  (let ((outfilename
-         (if (not (null? rest))
-             (car rest)
-             (rewrite-file-type infilename
-                                *scheme-file-types*
-                                *fasl-file-type*)))
-        (user
-         (assembly-user-data)))
-    (if (not (integrate-usual-procedures))
-        (begin 
-          (display "WARNING from compiler: ")
-          (display "integrate-usual-procedures is turned off")
-          (newline)
-          (display "Performance is likely to be poor.")
-          (newline)))
-    (if (benchmark-block-mode)
-        (process-file-block infilename
-                            outfilename
-                            dump-fasl-segment-to-port
-                            (lambda (forms)
-                              (assemble (compile-block forms) user)))
-        (process-file infilename
-                      outfilename
-                      dump-fasl-segment-to-port
-                      (lambda (expr)
-                        (assemble (compile expr) user))))
-    (unspecified)))
+
+  (define (doit)
+    (let ((outfilename
+           (if (not (null? rest))
+               (car rest)
+               (rewrite-file-type infilename
+                                  *scheme-file-types*
+                                  *fasl-file-type*)))
+          (user
+           (assembly-user-data)))
+      (if (not (integrate-usual-procedures))
+          (begin 
+            (display "WARNING from compiler: ")
+            (display "integrate-usual-procedures is turned off")
+            (newline)
+            (display "Performance is likely to be poor.")
+            (newline)))
+      (if (benchmark-block-mode)
+          (process-file-block infilename
+                              outfilename
+                              dump-fasl-segment-to-port
+                              (lambda (forms)
+                                (assemble (compile-block forms) user)))
+          (process-file infilename
+                        outfilename
+                        dump-fasl-segment-to-port
+                        (lambda (expr)
+                          (assemble (compile expr) user))))
+      (unspecified)))
+
+  (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
+      (error "Compile-file not supported on this target architecture.")
+      (doit)))
 
 
 ; Assemble a MAL or LOP file and produce a FASL file.
 
 (define (assemble-file infilename . rest)
-  (let ((outfilename
-         (if (not (null? rest))
-             (car rest)
-             (rewrite-file-type infilename 
-                                (list *lap-file-type* *mal-file-type*)
-                                *fasl-file-type*)))
-        (malfile?
-         (file-type=? infilename *mal-file-type*))
-        (user
-         (assembly-user-data)))
-    (process-file infilename
-                  outfilename
-                  dump-fasl-segment-to-port
-                  (lambda (x) (assemble (if malfile? (eval x) x) user)))
-    (unspecified)))
+  (define (doit)
+    (let ((outfilename
+           (if (not (null? rest))
+               (car rest)
+               (rewrite-file-type infilename 
+                                  (list *lap-file-type* *mal-file-type*)
+                                  *fasl-file-type*)))
+          (malfile?
+           (file-type=? infilename *mal-file-type*))
+          (user
+           (assembly-user-data)))
+      (process-file infilename
+                    outfilename
+                    dump-fasl-segment-to-port
+                    (lambda (x) (assemble (if malfile? (eval x) x) user)))
+      (unspecified)))
+  
+  (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
+      (error "Assemble-file not supported on this target architecture.")
+      (doit)))
 
 
 ; Compile and assemble a single expression; return the LOP segment.
@@ -184,17 +193,22 @@
 ; Convert a LOP file to a FASL file.
 
 (define (make-fasl infilename . rest)
-  (let ((outfilename
-         (if (not (null? rest))
-             (car rest)
-             (rewrite-file-type infilename
-                                *lop-file-type*
-                                *fasl-file-type*))))
-    (process-file infilename
-                  outfilename
-                  dump-fasl-segment-to-port
-                  (lambda (x) x))
-    (unspecified)))
+  (define (doit)
+    (let ((outfilename
+           (if (not (null? rest))
+               (car rest)
+               (rewrite-file-type infilename
+                                  *lop-file-type*
+                                  *fasl-file-type*))))
+      (process-file infilename
+                    outfilename
+                    dump-fasl-segment-to-port
+                    (lambda (x) x))
+      (unspecified)))
+
+  (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
+      (error "Make-fasl not supported on this target architecture.")
+      (doit)))
 
 
 ; Disassemble a procedure's code vector.
