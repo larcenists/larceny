@@ -109,12 +109,13 @@ namespace Scheme.RT {
         }
 
         public static void error(string msg) {
+            debug.WriteLine("** called Exn.error(string)");
             Call.callExceptionHandler
-                (new SObject[] {Factory.Null, Factory.wrap(msg)});
+                (new SObject[] {Factory.wrap(msg), Factory.False, Factory.False, Factory.Null});
         }
         public static void error(string msg, SObject value) {
             Call.callExceptionHandler
-                (new SObject[] {Factory.Null, Factory.wrap(msg), value});
+                (new SObject[] {Factory.wrap(msg), value, Factory.False, Factory.Null});
         }
 
         // =================================================
