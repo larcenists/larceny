@@ -704,12 +704,12 @@
   (cdr (procedure-ref proc (- (procedure-length proc) 1))))
 
 
-; Interpreted-expression takes any procedure and a documentation
-; structure (currently anything) and returns a new procedure that is
-; identical to the old except that the it is one element longer and has
-; typetag 0.  
+; Interpreted-expression takes any procedure and the source code
+; and returns a new procedure that is identical to the old except 
+; that the it is one element longer and has typetag 0.  
+;
 ; The new, last element contains the pair ($evalproc . <doc>) where <doc>
-; is the documentation structure.
+; is the source code.
 
 (define (interpreted-expression proc doc)
   (let* ((l (procedure-length proc))
@@ -753,46 +753,20 @@
 	      (eq? (car last) '$evalprim)))))
 
 
-; Augmentations to procedures defined in Lib/procinfo.sch to deal
-; with interpreted procedures.
+; Augments the definition in Lib/procinfo.sch to deal with interpreted
+; procedures.
 
-(define procedure-arity
-  (let ((procedure-arity procedure-arity))
-    (lambda (proc)
-      (if (interpreted-procedure? proc)
-	  (vector-ref (interpreted-procedure-documentation proc) 2)
-	  (procedure-arity proc)))))
-
-(define procedure-name
-  (let ((procedure-name procedure-name))
-    (lambda (proc)
+(define procedure-documentation 
+  (let ((procedure-documentation procedure-documentation))
+    (lambda (proc . rest)
       (cond ((interpreted-procedure? proc)
-	     (vector-ref (interpreted-procedure-documentation proc) 0))
-	    (else
-	     (procedure-name proc))))))
-
-(define procedure-expression 
-  (let ((procedure-expression procedure-expression))
-    (lambda (proc)
-      (cond ((interpreted-procedure? proc)
-	     (vector-ref (interpreted-procedure-documentation proc) 1))
-	    ((interpreted-expression? proc)
 	     (interpreted-procedure-documentation proc))
+	    ((interpreted-expression? proc)
+	     (vector #f (interpreted-procedure-documentation proc)))
 	    ((interpreted-primitive? proc)
-	     (car (interpreted-procedure-documentation proc)))
+	     (let ((x (interpreted-procedure-documentation proc)))
+	       (vector (car x) #f (cadr x))))
 	    (else
-	     (procedure-expression proc))))))
-
-(define procedure-formals
-  (let ((procedure-formals procedure-formals))
-    (lambda (proc)
-      (cond ((interpreted-procedure? proc)
-	     (let ((src (procedure-expression proc)))
-	       (if (and src (pair? src))
-		   (cond ((eq? (car src) kwd:lambda) (cadr src))
-			 ((eq? (car src) kwd:named-lambda) (caddr src))
-			 (else #f)))))
-	    (else
-	     (procedure-formals proc))))))
+	     (apply procedure-documentation proc rest))))))
 
 ; eof
