@@ -256,17 +256,20 @@
 	     (finish body)))))
 
 (define (stcov-if expr)
-  (let* ((then-id (next-stcov-ident))
-	 (else-id (next-stcov-ident))
-	 (E1 (stcov-expr (cadr expr)))
-	 (E2 (stcov-expr (caddr expr))))
-    (if (null? (cdddr expr))
-	`(if ,E1
-	     (begin ,(stcov-annotation then-id) ,E2))
-	`(if ,E1
-	     (begin ,(stcov-annotation then-id) ,E2)
-	     (begin ,(stcov-annotation else-id)
-		    ,(stcov-expr (cadddr expr)))))))
+  (if (null? (cdddr expr))
+    (let* ((then-id (next-stcov-ident))
+           (E1 (stcov-expr (cadr expr)))
+           (E2 (stcov-expr (caddr expr))))
+      `(if ,E1
+         (begin ,(stcov-annotation then-id) ,E2)))
+    (let* ((then-id (next-stcov-ident))
+           (else-id (next-stcov-ident))
+           (E1 (stcov-expr (cadr expr)))
+           (E2 (stcov-expr (caddr expr))))
+      `(if ,E1
+         (begin ,(stcov-annotation then-id) ,E2)
+         (begin ,(stcov-annotation else-id)
+                ,(stcov-expr (cadddr expr)))))))
 
 (define (stcov-lambda expr)
   `(lambda ,(cadr expr)
@@ -292,8 +295,7 @@
 	((null? (cddr expr))
 	 `(,(car expr) ,(stcov-expr (cadr expr))))
 	(else
-	 (let* ((id (next-stcov-ident))
-		(first (stcov-expr (cadr expr)))
+	 (let* ((first (stcov-expr (cadr expr)))
 		(rest (map-l-r (lambda (x)
 				 (let ((id (next-stcov-ident)))
 				   `(begin ,(stcov-annotation id)
