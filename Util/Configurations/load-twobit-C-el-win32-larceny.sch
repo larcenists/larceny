@@ -15,8 +15,7 @@
 
 (load (make-filename *root-directory* "Util" "Configurations" "nbuild-param-C-el-win32.sch"))
 (define nbuild-parameter
-  (make-nbuild-parameter *root-directory* #t #f #t 
-			 "Larceny" "Petit Larceny"))
+  (make-nbuild-parameter *root-directory* #f #t #t "Larceny" "Petit Larceny"))
 
 (load (make-filename *root-directory* "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
