@@ -26,7 +26,7 @@
   (make-parameter
    "weird-printer"
    (lambda (weirdo port slashify)
-     (print "#<WEIRD OBJECT>" #f))))
+     (print "#<WEIRD OBJECT>" port #f))))
 
 (define (print x p slashify)
 
