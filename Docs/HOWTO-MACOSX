@@ -1,67 +1,35 @@
 Information about Petit Larceny on MacOS X
-29 October 2002 / lth
+21 August 2003 / lth
+
 
 HOW TO BUILD AND USE.
 
 See HOWTO-PETIT for information about this, there are no surprises.
 
 The dynamic loading facility implemented by COMPILE-FILES does not
-work under MacOS X 10.1.5 because this version of the OS does not have
-dlopen/dlsym, and I have not investigated alternatives yet.  Compiled
+work under MacOS X because the OS has an idiosyncratic dynamic loading
+facility that I have not yet done anything to understand.  Compiled
 code must be linked into the heap using the BUILD-APPLICATION
-facility.
+facility.  BUILD-TWOBIT works.
 
 
-STATUS.
-
-Currently compiles, loads and runs, and seems to work OK:
- - Can load scheme files and run them
- - Self-hosting works: have rebuilt entire system from within the
-   interpreter; heap images are bitwise identical (the executables
-   are not, though they are the same size)
- - Compiling FIB.SCH to a code-less FASL, linking the code statically
-   into the executable with BUILD-APPLICATION, loading the FASL, and 
-   running FIB now works.
- - Can compile Twobit and create an executable that contains Twobit;
-   with this executable, can load the FASL files for the compiler 
-   and rebuild the heap.
- - Dynamic linking through COMPILE-FILES does *not* work because
-   dlopen and dlsym are missing from the libraries on MacOS X 10.1.5,
-   though they are documented.
-
-
-WORKING ON
- - Cleaning up for checkin.
-
-
-NOT WORKING ON
- - Dynamic loading will have to wait until I upgrade to 10.2
- - FFI will have to wait until dynamic loading works and I have
-   a PPC manual
-
-
-PERFORMANCE (Larceny 0.50)
+PERFORMANCE SKETCH (Larceny 0.50, fall 2002)
 
 System:                    400MHz PowerBook G3, MacOS X 10.1.5
 Jump discipline:           Trampoline with gotos for local labels
 Compiled (fib 33):         2603ms, peephole opt. cuts this to 2435ms
 Interpreted (fib 30):      9181ms
-Compiled (even? 10000000): 2214ms (global functions even? and odd?), ie about 5,000,000 function calls per second
+Compiled (even? 10000000): 2214ms (global functions even? and odd?), ie
+                           about 5,000,000 function calls per second
 
 
 TODO.
 
-Implement the FFI, as for the Win32 version.
-Implement polling input with select()
-Problems with mmap -- function exists but we get a failure, appears
-  to need extra magic on this platform.
-Performance investigation -- various jump disciplines, other
+* Implement dynamic loading
+* Implement the foreign function interface
+* Implement polling input with select()
+* Problems with mmap -- function exists but Larceny gets a failure, appears
+  to need extra magic on this platform (problem experienced with 10.1.5)
+* Performance investigation -- various jump disciplines, other
   build options.
-
-
-TO INVESTIGATE
- - Even though file-modification-time works on MacOSX, some heap files
-   are run through Assembly and recompilation even when not needed.  (This
-   is probably a problem with the seed mechanism and therefore generic?
-   Or a problem with the seed files copied from Win32?)
 

@@ -1,3 +1,14 @@
+Problem with GC killing the system:
+
+- G_RETADDR is not handled correctly, it is not saved on the
+  stack when the system does a scheme2scheme call.  The code
+  takes an argument k to save but this is always 0, not the right
+  value to save.  Don't know how this could interact with the gc
+  to kill the system, though.
+
+
+----------------------------------------------------------------------
+
 Notes on an i386 native version of Larceny.
 
 VM registers that need space:

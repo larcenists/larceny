@@ -39,7 +39,13 @@ Release candidate 1 -> Release candidate 2
 
   Web site documentation -- make sure it doesn't drool
 
- 
+  Peephole optimization -- test more
+
+  Test heap dumping everywhere?
+
+  Package libraries and scripts so that it is convenient to
+  build apps without having a source tree available?
+
 
 **********************************************************************
 
