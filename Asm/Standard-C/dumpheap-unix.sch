@@ -101,9 +101,6 @@
     (apply string-append (insert-space libs)))))
 
 (define (c-so-linker:gcc-unix output-name object-files libs)
-  (error "Don't know how to build a shared object under generic unix"))
-
-(define (c-so-linker:gcc-linux output-name object-files libs)
   (execute
    (twobit-format 
     #f
@@ -138,7 +135,6 @@
 			       (else    c-linker:gcc-unix)))
       (link-shared-object . ,(case host-os
 			       ((macosx) c-so-linker:gcc-macosx)
-			       ((linux)  c-so-linker:gcc-linux)
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix))))
 
