@@ -2,8 +2,6 @@
 ;
 ; $Id$
 ;
-; 15 April 1999 / lth.
-;
 ; Hygienic implementation of define-record syntax.
 ;
 ;    (define-record name (f1 ...))
@@ -15,7 +13,6 @@
 ;    )
 ;
 ; Requires larceny's macro system (explicit renaming).
-; Requires the record package (record.sch).
 ;
 ; The define-record syntax can be used at the top level only.  The 
 ; problem is that the define nest that results from macro expansion is
@@ -29,6 +26,8 @@
 ;  - allow use of the inheritance feature
 ;  - allow use of the record printer feature
 ;  - define let-record or find another solution for internal records
+
+'(require 'record)                      ; record package
 
 (define-syntax define-record
   (transformer

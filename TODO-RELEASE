@@ -23,7 +23,7 @@ Remaining to-do items:
 [Twobit]
   * Pass 3.
   * Macro expander performance.
-  * SRFI-0, if finalized early enough (unlikely).
+  * SRFI-0
 
 [Run-time system]
   * Must deal with more signals on Unix systems.  See TODO for details.
@@ -39,8 +39,8 @@ Remaining to-do items:
 
 [Debugging]
   See TODO for details.  The following are important for 1.0a2:
-  * Document the debugger
-  * Trace/break procedures rather than names.
+  * Document the debugger.
+  * Trace/break procedures rather than names.               [done]
   * Print variable names where convenient.
   * Reasonable support for debugging interpreted code.
 

@@ -2,11 +2,9 @@
 ;
 ; $Id$
 ;
-; 7 March 1999 / lth
-;
-; Non I/O-aware multitasking for Larceny.
+; Non-I/O-aware multitasking for Larceny.
 
-; This module uses "define-record"; import it first.
+'(require 'define-record)               ; DEFINE-RECORD syntax
 
 ; Interface
 
