@@ -37,15 +37,16 @@ Remaining to-do items:
 
 [Twobit]
   * Handling primitives correctly
+  * Better debug information
   * Macro expander performance issues?  [Not a priority]
   * Compiler performance issues?        [Not a priority]
 
 [Run-time system]
-  * Must deal with more signals on Unix systems (important for buggy 
-    foreign code)
   * Provide more accurate data to memstats: it is possible to provide
     up-to-date data for allocation volume and currently allocated heap,
     not just data accurate to the last GC.
+  * Must deal with more signals on Unix systems (important for buggy 
+    foreign code)
 
 [Library]
   * Top-level environments must hold syntax definitions, and the hacks
@@ -54,18 +55,42 @@ Remaining to-do items:
 
 [SRFI]
   * Definite: SRFI 0, SRFI 6 (string I/O), SRFI 11 (LET-VALUES)
-  * Probable: SRFI 12 (Exceptions), 
+  * Probable: SRFI 12 (Exceptions; pending exception hierarchy definition)
   * Possible: SRFI 7 (configuration language), SRFI 9 (define-record syntax)
 
 [FFI]
   * Add foreign-function-pointer, probably
-  * Change 'unsigned' to 'uint' various places, for consistency.
+  * Change 'unsigned' to 'uint' in various places, for consistency.
   * Fix the RTLD_LOCAL / RTLD_GLOBAL bug in calls to dlopen
 
 [Debugging]
   * Print variable names where convenient.
   * Add a command to enter a nested REPL.
   * Debugger bugs -- see FIXMEs in the files.
+    bug: when stopped in a breakpoint, it really should
+         set the current frame to the proc where the breakpt
+         occured, not past the system-continuation/enter-debugger
+         thing.
+
+[General clean-up]
+  * Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
+    constants, accessors, and setters for the documentation slot.
+    This information should exist in only one place, and it has to
+    be part of the development environment.
+
+[Standard builds]
+  * Need to hide the nbuild internals in Util/std-heap.sch
+  * Need to hide the FFI internals in Util/std-heap.sch
+  * Need to avoid loading FFI source so we don't include the source code.
+  * Need to not load Experimental/exception.sch in std-heap.sch, as it
+    will be replaced by SRFI 12.
+  * [discussion item]
+    Rename `r5rs.heap' as `interpreter.heap' (since it's more than R5RS).
+    Consider making a `r5rs.heap' that contains only r5rs procedures.
+  * The debugger needs to be part of interpreter.heap.
+  * Should create scripts that setup correct compiler switches before
+    compiling all files for standard heaps; automate the entire process
+    of building the heaps.  Eg., Scripts/build-larceny-heap.
 
 [Documentation]
   * Go thru toplevel.sch and make sure every non-R4RS procedure is
@@ -126,22 +151,6 @@ Remaining to-do items:
          support inside the (modified) collector.  How to deal with that?
      - manual/concept.html:
        - needs some cleanup (see the file).
-
-[General clean-up]
-  * From Will:
-     >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
-     >constants, accessors, and setters for the documentation slot.
-     >This information should exist in only one place, and it has to
-     >be part of the development environment.
-
-[Standard builds]
-  * [discussion item]
-    Rename `r5rs.heap' as `interpreter.heap' (since it's more than R5RS).
-    Consider making a `r5rs.heap' that contains only r5rs procedures.
-  * The debugger needs to be part of interpreter.heap.
-  * Should create scripts that setup correct compiler switches before
-    compiling all files for standard heaps; automate the entire process
-    of building the heaps.  Eg., Scripts/build-larceny-heap.
 
 ----------------------------------------------------------------------
 
