@@ -103,7 +103,7 @@ extern void UNIX_unlinkfile( word );
 extern void UNIX_closefile( word );
 extern void UNIX_readfile( word, word, word );
 extern void UNIX_writefile( word, word, word, word );
-extern void UNIX_getresourceusage( void );
+extern void UNIX_getresourceusage( word );
 extern void UNIX_dumpheap( word, word );
 extern void UNIX_exit( word );
 extern void UNIX_mtime( word, word );
@@ -146,7 +146,7 @@ typedef enum { STATS_PROMOTE, STATS_COLLECT, STATS_IGNORE } stats_gc_t;
 
 #ifndef GC_INTERNAL
 extern void stats_init( gc_t *gc, int generations, int show_heapstats );
-extern word stats_fillvector( void );
+extern word stats_fillvector( word w_buf );
 extern int  stats_opendump( const char *filename );
 extern void stats_closedump( void );
 #endif
