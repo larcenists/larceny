@@ -4,7 +4,8 @@ Information about Petit Larceny on Unix systems
 
 HOW TO BUILD AND USE.
 
-See HOWTO-PETIT for information about this, there are no surprises.
+See HOWTO-BUILD and HOWTO-PETIT for information about this, there are few
+surprises.
 
 Bonuses:
  - BUILD-TWOBIT works as described in HOWTO-PETIT.
@@ -14,6 +15,19 @@ Bonuses:
  - On some systems you need to set LD_LIBRARY_PATH in order for
    Larceny to find the shared object.  On Linux my LD_LIBRARY_PATH
    contains "." for this purpose.
+
+ - On some systems (known: Solaris and MacOS X) you must compile the
+   Larceny run-time system as a shared library in order for dynamic
+   linking of .FASL files to work.  To make the build environment do this,
+   evaluate
+      (REQUIRE-SHARED-RUNTIME!)
+   and then
+      (BUILD-RUNTIME)
+   to build Rts/libpetit.so.  When you install a version of Petit Larceny
+   built with a shared run-time system, you must be sure to copy the .so
+   file along with the executable and the heap image, and your shell
+   script needs to add the correct directory to LD_LIBRARY_PATH on some
+   systems.
 
  - Heap dumping works as for native Larceny: DUMP-HEAP and
    DUMP-INTERACTIVE-HEAP are both defined.

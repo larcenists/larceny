@@ -19,6 +19,11 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    known to that code whether the code pointer has to be adjusted or
    not!
 
+ * Bug: HOWTO-SPARC is incomplete.
+
+ * Quality: the HOWTO documentation needs to be HTML, it is becoming
+   increasingly cross-referenced.
+
  * Quality: wizard options help should be available with -wizardhelp
    only
 
@@ -31,7 +36,8 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * Quality: Implement and document REMOVE-TWOBIT-OBJECTS.
 
- * Quality: BUILD-EXECUTABLE should perhaps be called BUILD-PETIT
+ * Quality: BUILD-EXECUTABLE should perhaps be called BUILD-PETIT,
+   esp since it is not needed for the native system.
 
  * For most people it is most reasonable that Twobit share the macro
    definitions between the interpreter and compiler, so that loading
