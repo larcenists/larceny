@@ -1399,3 +1399,64 @@ $Id$
     FIX:
     Copied the procedure over from the Larceny compatibility library.
 
+105 v1.0a1 (990107 / wdc)
+    Priority: high
+
+    Twobit is generating very poor code for named LET.
+
+    Test case:
+
+	> (define (test1)
+	    (do ((i 0 (+ i 1))
+		 (j 0 (+ j 1)))
+		((= i 100000000) j)))
+	test1
+	> (define (test2)
+	    (let loop ((i 0) (j 0))
+	      (if (= i 100000000)
+		  j
+		  (loop (+ i 1) (+ j 1)))))
+	test2
+	> (time (test1))
+	Words allocated: 474
+	Words reclaimed: 0
+	Elapsed time...: 4280 ms (User: 4270 ms; System: 0 ms)
+	Elapsed GC time: 0 ms (in 0 collections.)
+	100000000
+	> (time (test2))
+	Words allocated: 482
+	Words reclaimed: 0
+	Elapsed time...: 15787 ms (User: 15650 ms; System: 0 ms)
+	Elapsed GC time: 0 ms (in 0 collections.)
+	100000000
+
+    Fixed 990312 / wdc: changed the macro for named LET in Compiler/usual.sch
+    by introducing a preliminary let and not returning a procedure.
+
+107 v1.0a1 (990122 / lth)
+    Priority: high.
+
+    The macro for CASE is wrong -- it generates incorrect code for CASE
+    without an ELSE:
+
+	> (make-readable 
+	    (macro-expand 
+	      '(lambda (x)
+	         (case (car x)
+	           ((codevector)
+	            (dump-codevector! #f (cadr x)))
+	           ((constantvector)
+	            (dump-constants (cadr x)))))))
+	((lambda ()
+	   (lambda (.x|1)
+	     ((lambda (.temp|2|5)
+	        (if (memv .temp|2|5 '(codevector))
+		  (dump-codevector! '#f (car (cdr .x|1)))
+	          (dump-constants (car (cdr .x|1)))))
+	      (car .x|1)))))
+
+    The reason appears to be that ELSE is missing from the keyword list in
+    the nested letrec-syntax in the definition of CASE in usual.sch.
+
+    Fixed 990312 / wdc: changed macro for CASE in Compiler/usual.sch by
+    adding ELSE to the keyword list of nested macro.
