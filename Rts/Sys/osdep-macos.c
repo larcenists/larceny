@@ -200,6 +200,12 @@ void osdep_system( word w_cmd )  /* FIXME */
   globals[ G_RESULT ] = fixnum( 1 );
 }
 
+void osdep_chdir ( word w_cmd )
+{
+  hardconsolemsg( "CHDIR primitive not implemented on this platform." );
+  globals[ G_RESULT ] = fixnum(-1);
+}
+
 word osdep_dlopen( const char *path )
 {
   OSErr r;
