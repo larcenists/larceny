@@ -562,8 +562,8 @@
              (set! @special-forms@ (cons keyword @special-forms@))
              keyword)))
 
-(for-each (lambda (x) (install-macro (car x) (cadr x)))
-          **macros**)
+; (for-each (lambda (x) (install-macro (car x) (cadr x)))
+;          **macros**)
 
 (extend-syntax (define-macro)
   ((define-macro boing-keyword boing-transformer)
@@ -585,6 +585,22 @@
           (else (let ((temp (gensym "T")))
                   `(let ((,temp ,(cadr l)))
                         (if ,temp ,temp (or ,@(cddr l)))))))))
+
+(define-macro and
+  (lambda (l)
+    (cond ((null? (cdr l)) #t)
+	  ((null? (cddr l)) (cadr l))
+	  (else (let ((temp (gensym "T")))
+		  `(let ((,temp ,(cadr l)))
+		     (if ,temp (and ,@(cddr l)) #f)))))))
+
+(define-macro case
+  (lambda (l)
+    (error "Case not implemented.")))
+
+(define-macro let*
+  (lambda (l)
+    (error "let* not implemented.")))
 
 (define-macro cond
   (lambda (l)
@@ -609,7 +625,7 @@
                               (list 'lambda
                                     '()
                                     (cons 'cond (cdr (cdr l)))))
-                        (error "Malformed cond clause" l))                                   
+                        (error "Malformed cond clause" l))
                     (list 'if
                           (car (car (cdr l)))
                           (cons 'begin (cdr (car (cdr l))))
@@ -679,6 +695,35 @@
                                             (cons 'begin (cdddr l))
                                             (cons loop (map caddr bindings)))))))
               (cons loop (map cadr bindings)))))))
+
+; (define-macro caar (lambda (l) `(car (car ,(cadr l)))))
+; (define-macro cadr (lambda (l) `(car (cdr ,(cadr l)))))
+; (define-macro cdar (lambda (l) `(cdr (car ,(cadr l)))))
+; (define-macro cddr (lambda (l) `(cdr (cdr ,(cadr l)))))
+; (define-macro caaar (lambda (l) `(car (car (car ,(cadr l))))))
+; (define-macro caadr (lambda (l) `(car (car (cdr ,(cadr l))))))
+; (define-macro cadar (lambda (l) `(car (cdr (car ,(cadr l))))))
+; (define-macro caddr (lambda (l) `(car (cdr (cdr ,(cadr l))))))
+; (define-macro cdaar (lambda (l) `(cdr (car (car ,(cadr l))))))
+; (define-macro cdadr (lambda (l) `(cdr (car (cdr ,(cadr l))))))
+; (define-macro cddar (lambda (l) `(cdr (cdr (car ,(cadr l))))))
+; (define-macro cdddr (lambda (l) `(cdr (cdr (cdr ,(cadr l))))))
+; (define-macro caaaar (lambda (l) `(car (car (car (car ,(cadr l)))))))
+; (define-macro caaadr (lambda (l) `(car (car (car (cdr ,(cadr l)))))))
+; (define-macro caadar (lambda (l) `(car (car (cdr (car ,(cadr l)))))))
+; (define-macro caaddr (lambda (l) `(car (car (cdr (cdr ,(cadr l)))))))
+; (define-macro cadaar (lambda (l) `(car (cdr (car (car ,(cadr l)))))))
+; (define-macro cadadr (lambda (l) `(car (cdr (car (cdr ,(cadr l)))))))
+; (define-macro caddar (lambda (l) `(car (cdr (cdr (car ,(cadr l)))))))
+; (define-macro cadddr (lambda (l) `(car (cdr (cdr (cdr ,(cadr l)))))))
+; (define-macro cdaaar (lambda (l) `(cdr (car (car (car ,(cadr l)))))))
+; (define-macro cdaadr (lambda (l) `(cdr (car (car (cdr ,(cadr l)))))))
+; (define-macro cdadar (lambda (l) `(cdr (car (cdr (car ,(cadr l)))))))
+; (define-macro cdaddr (lambda (l) `(cdr (car (cdr (cdr ,(cadr l)))))))
+; (define-macro cddaar (lambda (l) `(cdr (cdr (car (car ,(cadr l)))))))
+; (define-macro cddadr (lambda (l) `(cdr (cdr (car (cdr ,(cadr l)))))))
+; (define-macro cdddar (lambda (l) `(cdr (cdr (cdr (car ,(cadr l)))))))
+; (define-macro cddddr (lambda (l) `(cdr (cdr (cdr (cdr ,(cadr l)))))))
 
 ; For testing.
 
