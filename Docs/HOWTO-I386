@@ -24,17 +24,13 @@ files in Rts/Intel.
 
 STATUS.
 
-Operational but not complete.  Twobit running in the interpreter
-creates an executable and heap image identical to those it creates
-when running in Petit Larceny's interpreter.
-
-Major missing piece is millicode support for exception handling; right
-now the exception handler executes HLT and crashes the program.
+Operational and pretty much complete.  Twobit running in the
+interpreter creates an executable and heap image identical to those it
+creates when running in Petit Larceny's interpreter.
 
 
 TODO.
 
- - implement exception signalling in Rts/Intel/i386-millicode.asm (important)
  - a few FIXMEs in Rts/Intel/i386-instr.asm (unproblematic)
  - a few OPTIMIZEMEs ditto (ditto)
  - performance (see next section)
