@@ -97,8 +97,8 @@ namespace Scheme.Rep {
         public readonly int value;
         public static readonly SFixnum[] pool;
       // NOTE THE COMPILER KNOWS ABOUT THESE CONSTANTS
-        public const int minPreAlloc = -32768;
-        public const int maxPreAlloc = 65536;
+        public const int minPreAlloc = -128;
+        public const int maxPreAlloc = 255;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
@@ -107,7 +107,7 @@ namespace Scheme.Rep {
         //          0 -> (maxPreAlloc - minPreAlloc + 1)
         // minPreAlloc -> maxPreAlloc
         static SFixnum() {
-	    pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
+            pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
             for (int i = 0; i < pool.Length ; i++)
                 pool[i] = new SFixnum(i + minPreAlloc);
         }
@@ -233,7 +233,11 @@ namespace Scheme.Rep {
         public SByteVL(int tag, int size, byte fill) {
             this.tag = tag;
             this.elements = new byte[size];
-            for (int i = 0; i < size; ++i) {elements[i] = fill;}
+            if (fill == 0)
+                Array.Clear (this.elements, 0, size);
+            else {
+                for (int i = 0; i < size; i++) elements[i] = fill;
+                }
         }
 
         public int length() {
@@ -248,9 +252,11 @@ namespace Scheme.Rep {
         }
 
         public void fill(byte b) {
-            for (int i = 0; i < elements.Length; ++i) {
-                elements[i] = b;
-            }
+            if (b == 0)
+                Array.Clear (this.elements, 0, this.elements.Length);
+            else {
+                for (int i = 0; i < this.elements.Length; i++) elements[i] = b;
+                }
         }
 
         public short getInt16(int index) {
@@ -914,14 +920,21 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // CodeVectors and ConstantVectors
     // -------------------------------------------
-    public abstract class CodeVector : SObject {
+
+    // This should be abstract, but it causes Scheme to be an order of magnitude
+    // slower when starting.
+    public /* abstract */ class CodeVector : SObject {
         public static readonly CodeVector NoCode = new DataCodeVector(Factory.False);
 
         /** call
          * Given a jump index (0 for entry point, NOT the same as label number),
          * start executing at the label corresponding to that code.
          */
-        public abstract void call(int jump_index);
+        // This should be abstract, but see above.
+        // public abstract void call(int jump_index);
+        public virtual void call (int jump_index) {
+          throw new Exception ("Subclass of CodeVector did not override call method.");
+          }
 
         public virtual int id() { return 0; }
         public string name() {
