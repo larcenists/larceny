@@ -33,7 +33,7 @@
   (init-toplevel-environment)
   (interaction-environment (larceny-environment))
   (setup-error-handlers)
-  (repl-evaluator eval)
+  (evaluator interpret)
   (rep-loop-bootstrap argv))
 
 
@@ -139,7 +139,7 @@
 		      (write-char #\space))))
 
 (define repl-evaluator
-  (system-parameter "repl-evaluator" #f))
+  (system-parameter "repl-evaluator" eval))
 
 (define repl-printer
   (system-parameter "repl-printer" default-repl-printer))
