@@ -1,16 +1,22 @@
-; File: "pp.scm"   (c) 1991, Marc Feeley
+; Copyright (c) 1991, Marc Feeley.              -*- mode: scheme -*-
+; 
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful purpose, and to redistribute this software
+; is hereby granted.
 ; 
 ; $Id$
 ;
-; Pretty printer.  [From the Scheme Repository, August 5, 1995.]
+; Pretty printer.  
+; [From the Scheme Repository, August 5, 1995.  Since modified.]
 ;
-;  (pretty-print obj [port])        => unspecified
-;  (pretty-line-length [length])    => length
+; (pretty-print obj [output-port])    => unspecified
+; (pretty-line-length [length])       => length
 ;
 ; FIXME:
-;  - does not support all the control characters supported by the
-;    reader (return, linefeed, page, backspace)
-;
+;  - does not support all the control characters supported by the reader 
+;    (return, linefeed, page, backspace).
+;  - %generic-write is not hidden.
+;  - does not support structures.
 ;
 ; '%generic-write' is a procedure that transforms a Scheme data value (or
 ; Scheme program expression) into its textual representation.  The interface
@@ -319,11 +325,12 @@
 
 (define (pretty-print obj . opt)
   (let ((port (if (pair? opt) (car opt) (current-output-port))))
-    (%generic-write obj #f
-		   (pretty-line-length)
-		   (lambda (s)
-		     (display s port)
-		     #t))
+    (%generic-write obj
+		    #f
+		    (pretty-line-length)
+		    (lambda (s)
+		      (display s port)
+		      #t))
     (unspecified)))
 
 ; The name 'pretty-line-length' is from Chez Scheme.
