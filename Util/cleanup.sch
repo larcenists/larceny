@@ -16,16 +16,19 @@
 (define rm-command)
 (define rmdir-command)
 (define pathsep)
+(define exe-suffix)
 
-(case (cdr (assq 'os-name (system-features)))
-  ((win32) 
-   (set! rm-command "del")
-   (set! rmdir-command "rmdir")
-   (set! pathsep "\\"))
-  (else
-   (set! rm-command "rm -f")
-   (set! rmdir-command "rmdir")
-   (set! pathsep "/")))
+(let ((os (cdr (assq 'os-name (system-features)))))
+  (cond ((equal? os "Win32")
+	 (set! exe-suffix ".exe")
+	 (set! rm-command "del")
+	 (set! rmdir-command "rmdir")
+	 (set! pathsep "\\"))
+	(else
+	 (set! exe-suffix "")		; Except MacOS X, fixme!
+	 (set! rm-command "rm -f")
+	 (set! rmdir-command "rmdir")
+	 (set! pathsep "/"))))
 
 (define *schemedirs*
   '(("Lib")
@@ -67,14 +70,20 @@
   '((".")
     ("Rts")))
 
+; There are exceptions to every rule...
+(define *exceptions*
+  '(("Experimental" "*.c")
+    ("Testsuite" "FFI" "*.c")))
+
 (define (cleanup-file pattern)
   (cleanup-exec (string-append rm-command " " pattern)))
 
 (define (cleanup-files pattern dirs)
   (for-each (lambda (dir)
-	      (with-current-directory (construct-path dir)
-	       (lambda ()
-		 (cleanup-file pattern))))
+	      (if (not (member (append dir (list pattern)) *exceptions*))
+		  (with-current-directory (construct-path dir)
+		    (lambda ()
+		      (cleanup-file pattern)))))
 	    dirs))
 
 (define (cleanup-directory dirspec)
@@ -118,10 +127,10 @@
   (clean-lop)
   (clean-fasl)
   (for-each cleanup-file
-	    '("core" 
-	      "petit" "petit.exe" "petit.c" "petit.o" "petit.obj" 
-	      "twobit" "twobit.exe" "twobit.app" "twobit.c" "twobit.o"
-	      "twobit.obj" "*.heap" "HEAPDATA.*" "*.fasl"))
+	    `("core" 
+	      ,(string-append "petit" exe-suffix) "petit.c" "petit.o" "petit.obj" 
+	      ,(string-append "twobit" exe-suffix) "twobit.c" "twobit.o" "twobit.obj"
+	      "*.heap" "HEAPDATA.*" "*.fasl"))
   (cleanup-files "arithmetic.c" '(("Rts" "Standard-C")))
   (cleanup-directory '("Rts" "Build"))
   (unspecified))
