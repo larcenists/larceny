@@ -8,7 +8,7 @@
  * The roots must be contiguous and between FIRST_ROOT and LAST_ROOT,
  * inclusive.
  *
- * $Id: offsets.h,v 1.8 91/07/24 12:13:44 lth Exp Locker: lth $
+ * $Id: offsets.h,v 1.9 91/09/13 03:01:04 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -19,7 +19,7 @@
 
 /* Be careful with these! */
 #define FIRST_ROOT		20
-#define LAST_ROOT		58
+#define LAST_ROOT		57
 #define LAST_GLOBAL             86
 
 /* Table size */
@@ -90,7 +90,6 @@
 #define SAVED_RESULT_OFFSET	(56*ADJUST)
 /* More roots */
 #define SCHEME_ENTRY_OFFSET     (57*ADJUST)
-#define SYMTAB_OFFSET           (58*ADJUST)
 
 /* More nonroots */
 #define LOMEM_OFFSET            (70*ADJUST)
