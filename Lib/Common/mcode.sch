@@ -27,7 +27,7 @@
 	 #t)))
 
 ; Date: Mon, 18 May 1998 13:41:40 -0400
-; From: William D Clinger <will@ccs.neu.edu>
+; From: William D Clinger <will@ccs.neu.edu>  [since modified]
 ;
 ; What EXACT->INEXACT should do when given an exact rational.
 ;
@@ -101,11 +101,20 @@
           (- (exact->inexact:rational (- r)))
           (let* ((p (numerator r))
                  (q (denominator r))
-		 (x (/ (exact->inexact-internal p)
-		       (exact->inexact-internal q))))
+		 (a (exact->inexact-internal p))
+		 (b (exact->inexact-internal q))
+		 (x (/ a b)))
             (cond ((and (<= p two^n)
 			(<= q two^n))
 		   x)
+		  ((or (= a +inf.0) (= a -inf.0))
+		   (if (or (= b +inf.0) (= b -inf.0))
+		       +nan.0
+		       a))
+		  ((or (= b +inf.0) (= b -inf.0))
+		   (if (or (= a +inf.0) (= a -inf.0))
+		       +nan.0
+		       b))
 		  (else
 		   (hard-case p q x))))))))
 
