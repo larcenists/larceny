@@ -302,6 +302,17 @@ HIGH PRIORITY BUGS: 064, 082.
     [This fails for 171 -- at that point, the number is not representable
      as a flonum.]
 
-NEXT ENTRY: 083
+083 v0.38 (981215 / lth)
+    Priority: low
+
+    Bugs w.r.t. R4RS, R5RS, or the IEEE standard:
+
+    * some top-level names are reserved by the macro expander:
+      lambda, define, quote, begin, if, set!
+
+    * some top-level names are reserved by the quasiquote macro:
+      lambda, define, quote, begin, if, set!
+
+NEXT ENTRY: 084
 	
 ; eof
