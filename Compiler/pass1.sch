@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 19 December 1998
 ;
 ; First pass of the Twobit compiler:
 ;   macro expansion, syntax checking, alpha conversion,
@@ -183,14 +183,14 @@
         (for-each (lambda (pair)
                     (let ((id0 (car pair))
                           (id1 (cdr pair)))
-                      (m-define-inline
-                       `
-                       (define-inline ,id0
-                         (transformer
-                          (lambda (exp rename compare)
-                            ; Deliberately non-hygienic!
-                            (cons ',id1 (cdr exp)))))
-                       global-syntactic-environment)
+                      (syntactic-bind-globally!
+                       id0
+                       (make-inline-denotation
+                        id0
+                        (lambda (exp rename compare)
+                          ; Deliberately non-hygienic!
+                          (cons id1 (cdr exp)))
+                        global-syntactic-environment))
                       (set! pass1-block-inlines
                             (cons id0 pass1-block-inlines))))
                   alist)
