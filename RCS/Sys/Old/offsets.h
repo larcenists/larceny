@@ -8,7 +8,7 @@
  * The roots must be contiguous and between FIRST_ROOT and LAST_ROOT,
  * inclusive.
  *
- * $Id: offsets.h,v 1.4 91/06/26 16:44:26 lth Exp Locker: lth $
+ * $Id: offsets.h,v 1.5 91/07/01 17:52:49 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -80,7 +80,7 @@
 #define REG27_OFFSET		(47*ADJUST)
 #define REG28_OFFSET		(48*ADJUST)
 #define REG29_OFFSET		(49*ADJUST)
-#define REG30_OFFSET		(40*ADJUST)
+#define REG30_OFFSET		(50*ADJUST)
 #define REG31_OFFSET		(51*ADJUST)
 #define ARGREG2_OFFSET		(52*ADJUST)
 #define ARGREG3_OFFSET		(53*ADJUST)
