@@ -48,30 +48,6 @@
 
 EXTNAME(mem_alloc):
 EXTNAME(mem_alloc_bv):
-#if 0
-	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
-	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
-	cmp	%E_TOP, %E_LIMIT		! check for overflow
-	blt,a	Lalloc1				! skip of no overflow
-	sub	%E_TOP, %RESULT, %RESULT	! setup result
-
-	! Heap overflow. %RESULT still has the number of words to alloc.
-
-	st	%o7, [ %GLOBALS + G_RETADDR ]	! save scheme return address
-	call	heap_overflow
-	sub	%E_TOP, %RESULT, %E_TOP		! recover
-	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore return address
-	jmp	%o7+8
-	nop
-
-Lalloc1:
-	jmp	%o7+8
-	add	%E_TOP, %TMP1, %E_TOP		! Round up. We can round
-						! without checking for
-						! overflow because everything
-						! is 8-byte aligned.
-
-#else
 	sub	%E_LIMIT, %E_TOP, %TMP0		! Compute space
 	and	%RESULT, 0x04, %TMP1		! Get odd bit
 	cmp	%RESULT, %TMP0			! Space?
@@ -94,7 +70,6 @@ Lalloc1:
 						! without checking for
 						! overflow because everything
 						! is 8-byte aligned.
-#endif
 	
 ! _mem_alloci: allocate initialized memory
 !
@@ -172,23 +147,6 @@ Lalloci2:
 
 EXTNAME(mem_internal_alloc):
 EXTNAME(mem_internal_alloc_bv):
-#if 0
-	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
-	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
-	cmp	%E_TOP, %E_LIMIT		! check for overflow
-	blt,a	Lialloc1			! skip of no overflow
-	sub	%E_TOP, %RESULT, %RESULT	! setup result
-
-	! Heap overflow.
-
-	b	heap_overflow			! returns to caller
-	sub	%E_TOP, %RESULT, %E_TOP		! restore heap ptr
-
-Lialloc1:
-	jmp	%o7+8
-	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
-						! in code for _mem_alloc.
-#else
 	sub	%E_LIMIT, %E_TOP, %TMP0		! Compute space
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%RESULT, %TMP0			! Space?
@@ -205,7 +163,6 @@ Lialloc1:
 	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
 						! in code for _mem_alloc.
-#endif
 
 ! heap_overflow: Heap overflow handler for allocation primitives.
 ! ETOP must point to first free word in ephemeral area.
