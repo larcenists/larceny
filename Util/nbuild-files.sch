@@ -30,7 +30,12 @@
 
 ;; FIXME:  This needs to be a list of files in the Twobit directory
 ;;         that are dotNet specific.
-(define *nbuild:dotNet/twobit-files* '())
+(define *nbuild:dotNet/twobit-files*
+  (append 
+   (nbuild-files 'compiler
+                 '("common.imp.sch"))
+   (nbuild-files 'il-asm
+                 '("il.imp.sch" "il.imp2.sch"))))
 
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler

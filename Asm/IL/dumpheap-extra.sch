@@ -359,7 +359,6 @@
              (loop (cdr funs) 
                    (if entry? id entry)))))))
 
-
 ;; ===============================================
 ;; Helpers for building programs
 
@@ -373,6 +372,11 @@
           (create-assembly app-exe src-manifests)))
     (ilasm app-exe (cons assembly-il ordered-il-files))
     app-exe))
+
+;; Override Asm/Common/dumpheap.sch's definition so
+;; the make-system will do the right thing
+(define (build-heap-image output-file input-files)
+  (create-application output-file input-files))
 
 ;(define (concatenate-files target sources)
 ;  (with-output-to-file target

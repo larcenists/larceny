@@ -7,6 +7,7 @@
 ; Procedures to call:
 ;  make-sparc-heap
 ;  make-petit-heap
+;  make-dotnet-heap
 ;  make-extended-petit-heap
 ;  make-auxlib
 ;  make-petit-auxlib
@@ -103,13 +104,15 @@
 (define (auxlib-relative x)
   (string-append (nbuild-parameter 'auxiliary) x))
 
-(define (common-endian x)
+(define (common-endian x . rest)
   (string-append (nbuild-parameter 'common-source) 
                  x
                  (if (eq? (nbuild-parameter 'endianness) 'little) 
                      "-el" 
                      "-be")
-                 ".lop"))
+                 (if (null? rest)
+                     ".lop"
+                     (car rest))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -244,7 +247,69 @@
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny))
     (make:make sparc-heap-project "sparc.heap")))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Project for building the dotNet-larceny heap image
 
+;; set within def. of dotnet-heap-project because that's where
+;; the filenames are available with the least effort.
+(define (make-dotnet-heap/clean) #f)
+
+(define dotnet-heap-project
+  (let* ((osdep-file (case (nbuild-parameter 'target-os)
+                       ((unix macosx) "sys-unix.manifest")
+                       ((win32) "sys-win32.manifest")))
+         (dotnet-heap-files
+          (objects "Lib/Common/"
+                   ".manifest"
+                   common-heap-files
+                   `((primops . "Lib/IL/primops.manifest")
+                     (toplevel-target . "Lib/IL/toplevel-target.manifest")
+                     (flonum-endian . ,(common-endian "flonums" ".manifest"))
+                     (bignum-endian . ,(common-endian "bignums" ".manifest"))
+                     (osdep . ,(common-relative osdep-file))
+                     (extra . #f))))
+         (dotnet-eval-files
+          (objects "" ".manifest" eval-files)))
+    
+    ;; a handy procedure to delete all the intermediate files
+    (set! make-dotnet-heap/clean
+          (lambda ()
+            (let* ((manifest-files (append dotnet-heap-files
+                                           dotnet-eval-files))
+                   (all-files
+                    (apply append
+                           (cons manifest-files
+                                 (map
+                                  (lambda (ext)
+                                    (map
+                                     (lambda (f)
+                                       (rewrite-file-type
+                                        f
+                                        '(".manifest")
+                                        ext))
+                                     manifest-files))
+                                  '(".fasl" ".lap" ".lop" ".code-il"))))))
+              
+              (for-each (lambda (f) (if (file-exists? f) (delete-file f)))
+                        all-files))))
+    (make:project "dotnet.heap"
+      `(rules
+        (".manifest" ".mal" ,(lambda (tgt deps) (mal->il (car deps))))
+        (".manifest" ".sch" ,(lambda (tgt deps) (sch->il (car deps))))
+        (".sch" ".sh"  ,make-copy))
+      `(targets 
+        ("dotnet.heap" ,make-dumpheap))
+      `(dependencies                    ; Order matters.  [Why??!]
+        ("dotnet.heap" ,dotnet-heap-files)
+        ("dotnet.heap" ,dotnet-eval-files)
+        (,(common-relative "ecodes.sch") ,(nbuild-files 'build '("except.sh")))
+        (,(common-relative "globals.sch") ,(nbuild-files 'build '("globals.sh")))))))
+
+(define (make-dotnet-heap . rest)
+  (make:pretend (not (null? rest)))
+  (parameterize ((integrate-procedures 'larceny))
+    (make:make dotnet-heap-project "dotnet.heap")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -204,9 +204,9 @@
     (printf "Building config files~n")
     (build-config-files)))
 
+;; These files are in *larceny-root*/Lib/Common
 (define (lib-files)
-  `[("primops" 
-     ,(if (eq? option:os 'win32) "sys-win32" "sys-unix") 
+  `[(,(if (eq? option:os 'win32) "sys-win32" "sys-unix") 
      "list" "except.sh" "globals.sh" "malcode" 
      ;; "arith"  ;; Arith introduces generic+, which is not defined anywhere
      "sysparam" "vector")
@@ -214,19 +214,21 @@
      ,(if (system-big-endian?) "bignums-be" "bignums-el")
      "bignums" "command-line" "conio" "contag" 
      "control" "dump" "ehandler" "env" "error0" "error" "eval" "exit"
-     "fileio" 
+     "fileio"
      ,(if (system-big-endian?) "flonums-be" "flonums-el") 
      "flonums" "format" "gcctl" "go" "hash" "hashtable"
-     "load" "memstats" "num2str" "number" "oblist" "preds" "print" 
+     "load" "memstats" "num2str" "number" "oblist" "preds" "print"
      "procinfo" "profile" "ratnums" "reader" "rectnums" "secret" "sort"
      "str2num" "string" "stringio" "struct" "syscall-id" 
      "syshooks" "system-interface" "timer" "toplevel"
      "transio" "typetags")
     ("iosys" "stdio" "ioboot" "mcode")])
-
+;; These are in *larceny-root*/Lib/IL
 (define (lib-il-files)
-  '("loadable" "toplevel-target"))
+  '("primops" "loadable" "toplevel-target"))
 
+;; FIXME:  These used to be in larceny-csharp/More...
+;;         What about now?
 (define (repl-files)
   '("main" "reploop" "interp" "interp-prim" "switches" 
     "pass1" "pass1.aux" "pass2.aux" "prefs" 
