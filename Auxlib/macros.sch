@@ -64,14 +64,15 @@
 	(lambda ()
 	  (swap! t v) ...))))))
 
-; FIXME: does not consider syntax bindings.
-
 (define-syntax bound?
   (syntax-rules ()
     ((bound? x)
-     (environment-gettable? (interaction-environment) (quote x)))
-    ((bound? x env)
-     (environment-gettable? env (quote x)))))
+     (bound? x (interaction-environment)))
+    ((bound? ?x ?env)
+     (let ((env ?env)
+           (name (quote ?x)))
+       (or (environment-variable? env name)
+           (environment-macro? env name))))))
 
 (define-syntax time
   (syntax-rules ()
