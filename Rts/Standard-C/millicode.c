@@ -59,13 +59,13 @@ int already_running = 0;
 #ifdef PETIT_LARCENY
 void scheme_init( word *globals )
 {
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
   gc_t *gc = the_gc( globals );
-#endif
+# endif /* USE_GOTOS_LOCALLY */
   
   initialize_generic_arithmetic();
 
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
   /* Create some system procedures used for control flow. */
   dispatch_loop_return_procedure = 
     make_system_procedure( gc, dispatch_loop_return );
@@ -73,10 +73,10 @@ void scheme_init( word *globals )
     make_system_procedure( gc, return_from_scheme );
   stack_underflow_procedure = 
     make_system_procedure( gc, mem_stkuflow );
-#endif
+# endif /* USE_GOTOS_LOCALLY */
 }
 
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
 static word *make_system_procedure( gc_t *gc, codeptr_t f )
 {
   word *p;
@@ -89,7 +89,7 @@ static word *make_system_procedure( gc_t *gc, codeptr_t f )
 
   return gc_make_handle( gc, tagptr( p, PROC_TAG ) );
 }
-#endif
+# endif /* USE_GOTOS_LOCALLY */
 
 void scheme_start( word *globals )
 {
@@ -106,17 +106,17 @@ void scheme_start( word *globals )
     procedure_set( globals[ G_REG0 ], IDX_PROC_CODE, (word)twobit_start );
 
   /* Return address for bottom-most frame */
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
   stkp[ STK_RETADDR ] = 0;
   stkp[ STK_REG0 ] = *dispatch_loop_return_procedure;
-#else
+# else
   stkp[ STK_RETADDR ] = (word)dispatch_loop_return;
   stkp[ STK_REG0 ] = 0;
-#endif
+# endif
 
-#if USE_LONGJUMP
+# if USE_LONGJUMP
   globals[ G_TIMER ] = TIMER_STEP;
-#endif
+# endif
 
   /* The dispatch loop is a doubly-nested quasi-loop.  
 
@@ -141,20 +141,20 @@ void scheme_start( word *globals )
   switch (x = setjmp( dispatch_jump_buffer )) {
   case 0 :
   case DISPATCH_CALL_R0 :
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
     f = 0;
-#else
+# else
     f = (cont_t)(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
-#endif
+# endif
     break;
   case DISPATCH_CALL_AGAIN :
-#if USE_LONGJUMP
+# if USE_LONGJUMP
     /* A longjump has pruned the stack; now continue. */
     f = twobit_cont_label;
     break;
-#else
+# else
     panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN case in scheme_start()" );
-#endif
+# endif
   case DISPATCH_EXIT:
     already_running = 0;
     return;
@@ -168,7 +168,7 @@ void scheme_start( word *globals )
     handle_sigfpe( globals );
     panic_exit( "handle_sigfpe() returned." );
   case DISPATCH_TIMER :
-#if USE_LONGJUMP
+# if USE_LONGJUMP
     /* The first-level timer expired.  The longjmp has pruned the stack; now
        handle the timer expiration (and re-setup the timer).  The call to 
        timer_exception returns unless TIMER2==0 or an interrupt is pending.
@@ -176,15 +176,15 @@ void scheme_start( word *globals )
     timer_exception( globals, twobit_cont_label );
     f = twobit_cont_label;
     break;
-#else
+# else
     panic_exit( "Unexpected entry to DISPATCH_TIMER case in scheme_start()" );
-#endif
+# endif
   default :
     panic_exit( "Unexpected value %d from setjmp in scheme_start()", x );
   }
 
   /* Inner loop */
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
    /* INVARIANT: f is an entry point within the code of the procedure in REG0. */
 #  if USE_RETURN_WITH_VALUE
    while (1)
@@ -197,7 +197,7 @@ void scheme_start( word *globals )
 #  elif USE_LONGJUMP
    ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, f );
 #  endif
-#else
+# else
 #  if USE_RETURN_WITH_VALUE
    while (1)
      f = ((codeptr_t)f)( globals );
@@ -209,7 +209,7 @@ void scheme_start( word *globals )
    ((codeptr_t)f)( globals );
   panic_exit( "Unexpected return from procedure in scheme_start()" );
 #  endif
-#endif
+# endif
 }
 
 void twobit_integrity_check( word *globals, const char *name )
@@ -281,13 +281,13 @@ static int valid_datum( word x )
 
 void stk_initialize_underflow_frame( word *stkp )
 {
-#if USE_GOTOS_LOCALLY
+# if USE_GOTOS_LOCALLY
   stkp[ STK_RETADDR ] = 0;
   stkp[ STK_REG0 ] = *stack_underflow_procedure;
-#else
+# else
   stkp[ STK_RETADDR ] = (word)mem_stkuflow;
   stkp[ STK_REG0 ] = 0;
-#endif
+# endif
 }
 #endif /* PETIT_LARCENY */
 
