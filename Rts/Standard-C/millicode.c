@@ -14,49 +14,49 @@
 #include "gclib.h"              /* For pageof() */
 #include "stack.h"
 #include "millicode.h"
-#include "petit-hacks.h"        /* Temporary grossness */
+#include "petit-hacks.h"        /* Sane aliases for old, insane names */
 #include "signals.h"
 #include "assert.h"
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
 
-int twobit_cache_state = 0;     /* For twobit.h debug code */
-#if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
-cont_t twobit_cont_label = 0;   /* Label to jump to */
-#endif
-
 static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, 
                               int preserve );
 static void setup_timer( word *globals, int timer, cont_t k );
 static void check_signals( word *globals, cont_t k );
-static cont_t restore_context( word *globals );
-static RTYPE dispatch_loop_return( CONT_PARAMS );
-static RTYPE return_from_scheme( CONT_PARAMS );
-static void handle_sigfpe( word *globals );
-static cont_t refill_stack_cache( word *globals );
-static int valid_datum( word x );
 
-#if USE_GOTOS_LOCALLY
+/* Also visible to native systems based on Petit Larceny */
+void handle_sigfpe( word *globals );
+cont_t refill_stack_cache( word *globals );
+cont_t restore_context( word *globals );
+RTYPE dispatch_loop_return( CONT_PARAMS );
+RTYPE return_from_scheme( CONT_PARAMS );
+
+#ifdef X86_NASM
+extern void i386_return_from_scheme();
+#endif
+
+#ifdef PETIT_LARCENY
+int twobit_cache_state = 0;     /* For twobit.h debug code */
+# if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
+cont_t twobit_cont_label = 0;   /* Label to jump to */
+# endif
+static int valid_datum( word x );
+# if USE_GOTOS_LOCALLY
 static word *make_system_procedure( gc_t *gc, codeptr_t f );
 static word *dispatch_loop_return_procedure;
 static word *return_from_scheme_procedure;
 static word *stack_underflow_procedure;
-#endif
+# endif
+#endif /* PETIT_LARCENY */
 
 /* These could go in the globals vector, too */
-static jmp_buf dispatch_jump_buffer;
-static int already_running = 0;
+jmp_buf dispatch_jump_buffer;
+int already_running = 0;
 
-#define DISPATCH_CALL_AGAIN             1 /* Call twobit_cont_label */
-#define DISPATCH_EXIT                   2 /* Return from scheme_start() */
-#define DISPATCH_RETURN_FROM_S2S_CALL   3 /* Return from scheme->scheme call */
-#define DISPATCH_STKUFLOW               4 /* Handle stack underflow */
-#define DISPATCH_SIGFPE                 5 /* Handle synchronous signal */
-#define DISPATCH_TIMER                  6 /* Handle timer interrupt */
-#define DISPATCH_CALL_R0                7 /* Call proc in R0 */
-
+#ifdef PETIT_LARCENY
 void scheme_init( word *globals )
 {
 #if USE_GOTOS_LOCALLY
@@ -121,7 +121,7 @@ void scheme_start( word *globals )
   /* The dispatch loop is a doubly-nested quasi-loop.  
 
      The outer loop uses setjmp/longjmp for control and is entered but 
-     rarely; most of the time is spent in the innter loop.  The job of
+     rarely; most of the time is spent in the inner loop.  The job of
      the outer loop is to provide the inner loop with the address of
      the first block to execute.
 
@@ -279,6 +279,23 @@ static int valid_datum( word x )
          x == EOF_CONST;
 }
 
+void stk_initialize_underflow_frame( word *stkp )
+{
+#if USE_GOTOS_LOCALLY
+  stkp[ STK_RETADDR ] = 0;
+  stkp[ STK_REG0 ] = *stack_underflow_procedure;
+#else
+  stkp[ STK_RETADDR ] = (word)mem_stkuflow;
+  stkp[ STK_REG0 ] = 0;
+#endif
+}
+#endif /* PETIT_LARCENY */
+
+RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
+{
+  longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
+}
+
 void EXPORT mc_alloc_bv( word *globals )
 {
   assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
@@ -331,7 +348,9 @@ void EXPORT mc_alloc( word *globals )
     globals[ G_RESULT ] =
       (word)gc_allocate( the_gc( globals ), nwords*sizeof( word ), 0, 0 );
   }
+#if !GCLIB_LARGE_TABLE
   assert2( globals[ G_RESULT ] >= (word)gclib_pagebase );
+#endif
 #endif
 }
 
@@ -350,20 +369,9 @@ void EXPORT mc_alloci( word *globals )
     *p++ = init;
 }
 
-void stk_initialize_underflow_frame( word *stkp )
+void EXPORT mc_morecore( word *globals )
 {
-#if USE_GOTOS_LOCALLY
-  stkp[ STK_RETADDR ] = 0;
-  stkp[ STK_REG0 ] = *stack_underflow_procedure;
-#else
-  stkp[ STK_RETADDR ] = (word)mem_stkuflow;
-  stkp[ STK_REG0 ] = 0;
-#endif
-}
-
-RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
-{
-  longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
+  gc_collect(the_gc(globals), 0, 0, GCTYPE_COLLECT);
 }
 
 void EXPORT mc_stack_overflow( word *globals )
@@ -389,7 +397,7 @@ void EXPORT mc_break( word *globals )
 
 void EXPORT mc_timer_exception( word *globals, cont_t k )
 {
-#if USE_LONGJUMP
+#if defined PETIT_LARCENY && USE_LONGJUMP
   twobit_cont_label = k;
   longjmp( dispatch_jump_buffer, DISPATCH_TIMER );
 #else
@@ -425,7 +433,7 @@ void EXPORT mc_enable_interrupts( word *globals, cont_t k )
   else
     signal_exception( globals, EX_EINTR, 0, 0 ); /* Never returns */
   check_signals( globals, k );                   /* Thus, redundant */
-#if USE_LONGJUMP
+#if defined PETIT_LARCENY && USE_LONGJUMP
   /* For now: prune the stack */
   twobit_cont_label = k;
   longjmp( dispatch_jump_buffer, DISPATCH_CALL_AGAIN );
@@ -740,13 +748,13 @@ void EXPORT mc_full_barrier( word *globals )
 
 /* Stack underflow handler. */
 
-static cont_t refill_stack_cache( word *globals )
+cont_t refill_stack_cache( word *globals )
 {
   word *stkp;
 
   gc_stack_underflow( the_gc( globals ) );
   stkp = (word*)globals[ G_STKP ];
-#if USE_GOTOS_LOCALLY
+#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
   globals[ G_REG0 ] = stkp[ STK_REG0 ];
   return (cont_t)nativeuint( stkp[ STK_RETADDR ] );
 #else
@@ -779,7 +787,7 @@ void execute_sigfpe_magic( void *context )
   longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
 }
 
-static void handle_sigfpe( word *globals )
+void handle_sigfpe( word *globals )
 {
   /* FPE error code is in globals[ G_FPE_CODE ]. */
   globals[ G_THIRD ] = globals[ G_FPE_CODE ];
@@ -799,7 +807,6 @@ signal_exception( word *globals, word exception, cont_t k, int preserve )
   globals[ G_FOURTH ] = fixnum( exception );
   mc_scheme_callout( globals, MS_EXCEPTION_HANDLER, 4, k, preserve );
 }
-
 
 static void setup_timer( word *globals, int timer, cont_t k )
 {
@@ -908,10 +915,14 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   /* Initialize frame */
   stkp[ STK_CONTSIZE ] = (word)S2S_FRAMESIZE;
   stkp[ STK_DYNLINK ] = 0;
-#if USE_GOTOS_LOCALLY
+#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
   stkp[ STK_RETADDR ] = 0;
   stkp[ STK_REG0 ] = *return_from_scheme_procedure;
   stkp[ 4 ] = fixnum((word)k);
+#elif defined X86_NASM
+  stkp[ STK_RETADDR ] = (word)i386_return_from_scheme;
+  stkp[ STK_REG0 ] = 0;
+  stkp[ 4 ] = (word)k;
 #else
   stkp[ STK_RETADDR ] = (word)return_from_scheme;
   stkp[ STK_REG0 ] = 0;
@@ -940,7 +951,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 
 /* Return address for scheme-to-scheme call frame. 
    */
-static RTYPE return_from_scheme( CONT_PARAMS )
+RTYPE return_from_scheme( CONT_PARAMS )
 {
   longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
 }
@@ -949,14 +960,14 @@ static RTYPE return_from_scheme( CONT_PARAMS )
    Pop the big frame, check for underflow!
    Return continuation to dispatch loop.
    */
-static cont_t restore_context( word *globals )
+cont_t restore_context( word *globals )
 {
   word *stkp;
   cont_t k;
   int i;
 
   stkp = (word*)globals[ G_STKP ];
-#if USE_GOTOS_LOCALLY
+#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
   k = (cont_t)nativeint(stkp[ 4 ]);
 #else
   k = (cont_t)stkp[ 4 ];
@@ -971,7 +982,7 @@ static cont_t restore_context( word *globals )
   return k;
 }
 
-static RTYPE dispatch_loop_return( CONT_PARAMS )
+RTYPE dispatch_loop_return( CONT_PARAMS )
 {
   longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
 }

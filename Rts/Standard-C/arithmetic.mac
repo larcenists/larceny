@@ -71,8 +71,10 @@ void initialize_generic_arithmetic( void )
 {
 }
 
-#define G_SECOND G_ARGREG2
-#define G_THIRD  G_ARGREG3
+#ifndef G_SECOND
+# define G_SECOND G_ARGREG2
+# define G_THIRD  G_ARGREG3
+#endif
 "
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -8,10 +8,11 @@
 #ifndef PETIT_HACKS_H
 #define PETIT_HACKS_H
 
-/* Gag.  FIXME! */
-#define G_SECOND          G_ARGREG2
-#define G_THIRD           G_ARGREG3
-#define G_FOURTH          G_SCHCALL_ARG4
+#ifndef G_SECOND
+# define G_SECOND         G_ARGREG2
+# define G_THIRD          G_ARGREG3
+# define G_FOURTH         G_SCHCALL_ARG4
+#endif
 #define LASTREG           31
 #define NREGS             32
 

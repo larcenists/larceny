@@ -8,14 +8,36 @@
 #ifndef MILLICODE_H
 #define MILLICODE_H
 
+#include <setjmp.h>
 #include "larceny-types.h"
-#include "petit-config.h"
+#ifdef PETIT_LARCENY
+#  include "petit-config.h"
+#else
+typedef word codeptr_t;
+typedef word cont_t;
+#  define RTYPE           cont_t
+#  define CONT_PARAMS     word *globals
+#  define CONT_ACTUALS    globals
+#  define TEMPORARY_FUEL  100
+#  define TIMER_STEP      12500
+#endif
 
 #ifdef WIN32
 #  define EXPORT __declspec(dllexport)
 #else
 #  define EXPORT
 #endif
+
+#define DISPATCH_CALL_AGAIN             1 /* Call twobit_cont_label */
+#define DISPATCH_EXIT                   2 /* Return from scheme_start() */
+#define DISPATCH_RETURN_FROM_S2S_CALL   3 /* Return from scheme->scheme call */
+#define DISPATCH_STKUFLOW               4 /* Handle stack underflow */
+#define DISPATCH_SIGFPE                 5 /* Handle synchronous signal */
+#define DISPATCH_TIMER                  6 /* Handle timer interrupt */
+#define DISPATCH_CALL_R0                7 /* Call proc in R0 */
+
+extern jmp_buf dispatch_jump_buffer;
+extern int already_running;
 
 /* The following must be exported by compiled Scheme code. */
 
@@ -58,6 +80,13 @@ void EXPORT mc_alloci( word *globals );
      Input:  RESULT = number of words to allocate (fixnum).
              SECOND = object to initialize vector with (any object).
      Output: RESULT = raw pointer to allocated memory.
+     */
+
+void EXPORT mc_morecore( word *globals );
+  /* Free up enough memory to satisfy a "small" allocation request.
+
+     Input:  nothing.
+     Output: nothing.
      */
 
 RTYPE EXPORT mem_stkuflow( CONT_PARAMS );
