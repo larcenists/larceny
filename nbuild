@@ -1,25 +1,66 @@
 #!/bin/sh
+# $Id: nbuild,v 1.2 1995/08/01 04:36:02 lth Exp lth $
 #
 # This script starts up the development environment with correct paths set.
-# $Id: nbuild,v 1.2 1995/08/01 04:36:02 lth Exp lth $
 #
 # The advantage of having this script is that it can be cloned and specialized
 # for different object (or source) directories.
 
+# Temporary command file
 TMPFILE=/tmp/larceny.build.`whoami`.$$
-USER=lth
+
+# Working directory
 DIR=`pwd`
 
-make Build/schdefs.h
+# Default host system for building is Chez Scheme.
+L_HOST=Chez
 
-echo "(define topleveldir \"$DIR/\")" >> $TMPFILE
-echo "(define sourcedir \"$DIR/Lib/\")" >> $TMPFILE
-echo "(define targetdir \"$DIR/Lib/\")" >> $TMPFILE
-echo "(define configdir \"$DIR/\")" >> $TMPFILE
-echo "(define chezdir \"$DIR/Chez/\")" >> $TMPFILE
-echo "(define sparcdir \"$DIR/Sparcasm/\")" >> $TMPFILE
-echo "(define compilerdir \"$DIR/Compiler/\")" >> $TMPFILE
-echo "(define builddir \"$DIR/Build/\")" >> $TMPFILE
-echo "(load (string-append compilerdir \"nbuild.sch\"))" >> $TMPFILE
-scheme $TMPFILE
+case "$1" in
+  -larceny | -l)   L_HOST=Larceny; L_HOSTNAME="Larceny" ;;
+  -chez | -c | "") L_HOST=Chez; L_HOSTNAME="Chez Scheme" ;;
+  *)               echo "Unknown host system: $1"
+                   echo "Usage: $0 [ -larceny | -l | -chez | -c ]"
+                   exit 1
+                   ;;
+esac
+
+cat > $TMPFILE <<END
+(define host-system-name "$L_HOSTNAME")
+(define host-system '$L_HOST)
+(define hostdir "$DIR/$L_HOST/")
+(define topleveldir "$DIR/")
+(define sourcedir "$DIR/Lib/")
+(define targetdir "$DIR/Lib/")
+(define configdir "$DIR/")
+(define sparcdir "$DIR/Sparcasm/")
+(define compilerdir "$DIR/Compiler/")
+(define builddir "$DIR/Build/")
+(define evaldir "$DIR/Eval/")
+(define repldir "$DIR/Repl/")
+(display "Twobit/Larceny development environment running under ")
+(display host-system-name)
+(display ".")
+(newline)
+(newline)
+(display "Loading $L_HOSTNAME compatibility package.") (newline)
+(load (string-append hostdir "compat.sch"))
+(display "Loading build file.") (newline)
+(load (string-append compilerdir "nbuild.sch"))
+END
+
+# Make the scheme header file; it may have changed.
+
+( cd Rts; make Build/schdefs.h ; exit $? ) || exit $?
+
+# Run the development environment.
+
+case $L_HOST in
+  Chez)    scheme $TMPFILE ;;
+  Larceny) larceny larceny.heap -args $TMPFILE ;;
+  *)       echo "Internal error in build script."; exit 1 ;;
+esac
+
 rm $TMPFILE
+exit 0
+
+# eof

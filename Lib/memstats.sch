@@ -2,7 +2,7 @@
 ; This is the file Lib/memstats.sch.
 ; Larceny runtime library -- Memory management statistics.
 ;
-; $Id$
+; $Id: memstats.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; History
 ;   July 1, 1995 / lth

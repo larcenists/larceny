@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Procedures for rectnum arithmetic
 ;
-; $Id: rectnums.scm,v 1.5 1992/06/18 02:11:22 remy Exp $
+; $Id: rectnums.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; A rectnum is a pair of two exact real numbers (the "real" and "imaginary"
 ; parts) where the imaginary part is nonzero.

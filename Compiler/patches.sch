@@ -1,5 +1,8 @@
 ; Temporary patches to use the new (May 1995) version of Twobit.
 
+
+#ERROR-THIS-FILE-NO-LONGER-IN-USE
+
 ; Someone has already redefined Chez Scheme's sort procedure.
 
 (define (twobit-sort p? x) (sort x p?))

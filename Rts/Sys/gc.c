@@ -39,7 +39,7 @@
  * tagged pointer into newspace.
  */
 
-/*DEBUG*/#include <stdio.h>
+#include <stdio.h>    /*DEBUG*/
 #include <memory.h>   /* for memcpy() */
 #include "larceny.h"
 #include "macros.h"
@@ -105,7 +105,8 @@ word *oldlo, *oldhi, *newlo;
   consolemsg( "[debug] Major collection %08lx %08lx %08lx.",
 	     oldlo, oldhi, newlo );
 #else
-  consolemsg( "Major collection." );
+  /* Way annoying in stop+copy collector */
+  if (size_tspace() > 0) consolemsg( "; Major collection." );
 #endif
   g_oldlo = oldlo;
   g_oldhi = oldhi;
@@ -168,6 +169,7 @@ word *ptr, *oldlo, *oldhi, **d;
 {
   word w, bytes, words, h;
   word *dest;
+  int iflush = (globals[ G_CACHE_FLUSH ] != 0);
 
   dest = *d;
 
@@ -184,20 +186,18 @@ word *ptr, *oldlo, *oldhi, **d;
       h = header( w );
       if (h == BV_HDR) {
 	/* bytevector: skip it, and flush the icache if code */
-#ifdef IFLUSH
 	word *oldptr = ptr;
-#endif
+
 	bytes = roundup4( sizefield( w ) );
 	ptr = (word *) ((word) ptr + (bytes + 4));  /* doesn't skip padding */
-	if (!(bytes & 4)) ptr++;                    /* skip padding */
-#ifdef IFLUSH
+	if (!(bytes & 4)) *ptr++ = 0;               /* pad. */
+
 	/* Only code vectors typically use a plain bytevector typetag,
 	 * so almost any bytevector will be a code vector which must 
          * be flushed.
 	 */
-	if (typetag( h ) == BVEC_SUBTAG)
+	if (iflush && typetag( h ) == BVEC_SUBTAG)
 	  mem_icache_flush( oldptr, ptr );
-#endif
       }
       else {
 	/* vector or procedure: scan in a tight loop */
@@ -207,7 +207,7 @@ word *ptr, *oldlo, *oldhi, **d;
 	  forw( ptr, oldlo, oldhi, dest );
 	  ptr++;
 	}
-	if (!(sizefield( w ) & 4)) ptr++;           /* skip padding */
+	if (!(sizefield( w ) & 4)) *ptr++ = 0;      /* pad. */
       }
     }
     else {

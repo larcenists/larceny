@@ -2,6 +2,8 @@
 ;
 ; We simulate bytevectors with vectors. It's so easy...
 
+; The primitives should be macros!
+
 (define make-bytevector make-vector)
 (define bytevector-ref vector-ref)
 (define bytevector-set! vector-set!)
@@ -33,3 +35,4 @@
 	      (- f)
 	      f)))))
 
+; eof

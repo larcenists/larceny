@@ -3,7 +3,7 @@
 ; Symbol table management for Larceny, based on same from MacScheme.
 ; Parts of this code is copyright 1991 lightship software
 ;
-; $Id: oblist.sch,v 1.4 1992/05/15 22:18:12 lth Exp $
+; $Id: oblist.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; symbol?
 ; symbol->string
@@ -11,6 +11,7 @@
 ; make-symbol
 ; string-hash
 ; symbol-hash
+; gensym
 ; namespace
 ; namespace-set!
 ; install-symbols (used only for bootstrapping)
@@ -88,6 +89,7 @@
       (error "make-symbol: not a string: " string)))
 
 ; Property lists. What we don't do for some backward compatibility.
+; FIXME. These should run with interrupts turned off.
 
 (define (putprop sym name value)
   (if (not (symbol? sym))
@@ -133,6 +135,11 @@
 (define namespace #f)
 (define namespace-set! #f)
 
+(define gensym
+  (let ((n 1000))
+    (lambda (x)
+      (set! n (+ n 1))
+      (make-symbol (string-append x (number->string n))))))
 
 ; The oblist is a list of symbols all with 0 as their hash value.
 

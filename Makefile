@@ -13,9 +13,18 @@ MACH=$(RTS)/Sparc
 BUILD=$(RTS)/Build
 ASM=Sparcasm
 LIB=Lib
-EVAL=Lib/Eval
+EVAL=Eval
+REPL=Repl
+AUXLIB=Auxlib
+TEST=Test
 COMP=Compiler
 TEXT=Text
+
+# Programs
+#COMPRESS=compress
+#Z=Z
+COMPRESS=gzip
+Z=gz
 
 # Lists of files
 # CCFG, ACFG, SCFG, and HDRFILES also exist in $(RTS)/Makefile. Watch it!
@@ -30,24 +39,33 @@ SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
 # These exist only in this file
-MISCFILES=COPYRIGHTS CHGLOG Makefile nbuild larceny.1 \
-	loadcompiler.sch rewrite
+MISCFILES=COPYRIGHTS CHGLOG BUGS BUGS-0.25 PROBLEMS Makefile nbuild larceny.1 \
+	bootcomp.sch rewrite README
 ASMFILES=$(ASM)/*.sch
-LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch
-CHEZFILES=Chez/*.c Chez/*.ss Chez.*.h
+LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
+CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
 COMPFILES=$(COMP)/*.sch
 TEXTFILES=$(TEXT)/*.tex
+AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
+TESTFILES=$(TEST)/*.sch $(TEST)/*.mal $(TEST)/README
 
 # Files for 'rtstar'
 RTSFILES=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Makefile \
-	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(HDRFILES) $(BUILD)/*.s
+	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
+	$(HDRFILES) $(BUILD)/*.s
 
 # Files for 'tar'
-ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) \
-	$(CHEZFILES) $(COMPFILES) $(TEXTFILES)
+ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
+	$(CHEZFILES) $(COMPFILES) $(TEXTFILES) $(TESTFILES)
 
 # Files for 'bigtar'
 MOREFILES=$(RTS)/larceny larceny.heap $(RTS)/sclarceny larceny.eheap
+
+# Tar file names; can be overridden when running make.
+RTSTAR=larceny-rts.tar
+TARFILE=larceny.tar
+ALLTAR=larceny-all.tar
+HUGETAR=larceny-huge.tar
 
 # Targets
 default:
@@ -57,6 +75,7 @@ default:
 	@echo "  larceny    - build standard generational system"
 	@echo "  sclarceny  - build stop-and-copy system"
 	@echo "  exlarceny  - build experimental generational system"
+	@echo "  hsplit     - build heap splitter"
 	@echo "  clean      - remove executables and objects"
 	@echo "  lopclean   - remove all .LOP files"
 	@echo "  libclean   - remove all .LAP and .LOP files"
@@ -65,12 +84,14 @@ default:
 	@echo "  tar        - RTS and library sources"
 	@echo "  bigtar     - RTS and library sources; gsgc and scgc binaries;"
 	@echo "               gsgc and scgc heaps."
+	@echo "  hugetar    - Everything."
 
 setup:
 	rm -f larceny exlarceny sclarceny Build
 	ln -s $(RTS)/larceny
 	ln -s $(RTS)/exlarceny
 	ln -s $(RTS)/sclarceny
+	ln -s $(RTS)/hsplit
 	ln -s $(RTS)/Build
 	(cd $(RTS) ; $(MAKE) setup)
 	$(MAKE) chezstuff
@@ -87,6 +108,10 @@ exlarceny: target_exlarceny
 target_exlarceny:
 	( cd $(RTS) ; $(MAKE) exlarceny )
 
+hsplit: target_hsplit
+target_hsplit:
+	( cd $(RTS) ; $(MAKE) hsplit )
+
 clean:
 	( cd $(RTS) ; $(MAKE) clean )
 	rm -f *.map
@@ -97,23 +122,42 @@ lopclean:
 libclean:
 	rm -f $(LIB)/*.lap $(LIB)/*.lop 
 	rm -f $(EVAL)/*.lap $(EVAL)/*.lop
+	rm -f $(REPL)/*.lap $(REPL)/*.lop
+	rm -f $(AUXLIB)/*.lap $(AUXLIB)/*.lop
+	rm -f $(TEST)/*.lap $(TEST)/*.lop
 
 realclean: clean libclean
-	rm -f larceny sclarceny exlarceny Build
+	rm -f larceny sclarceny exlarceny Build hsplit
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) realclean )
 
 rtstar:
-	tar cvf larceny-rts.tar $(RTSFILES)
-	compress larceny-rts.tar
+	tar cvf $(RTSTAR) $(RTSFILES)
+	if [ ! -b $(RTSTAR) -a ! -c $(RTSTAR) ]; then \
+		$(COMPRESS) $(RTSTAR); fi
 
 tar:
-	tar cvf larceny.tar $(ALLFILES)
-	compress larceny.tar
+	tar cvf $(TARFILE) $(ALLFILES)
+	if [ ! -b $(TARFILE) -a ! -c $(TARFILE) ]; then \
+		$(COMPRESS) $(TARFILE); fi
 
 bigtar:
-	tar cvf larceny-all.tar $(ALLFILES) $(MOREFILES)
-	compress larceny-all.tar
+	tar cvf $(ALLTAR) $(ALLFILES) $(MOREFILES)
+	if [ ! -b $(ALLTAR) -a ! -c $(ALLTAR) ]; then \
+		$(COMPRESS) $(ALLTAR); fi
+
+hugetar:
+	if [ ! -b $(HUGETAR) -a ! -c $(HUGETAR) ]; then \
+		rm -f $(HUGETAR) $(HUGETAR).$(Z) ; fi
+	tar cvf $(HUGETAR) .
+	if [ ! -b $(HUGETAR) -a ! -c $(HUGETAR) ]; then \
+		$(COMPRESS) $(HUGETAR); fi
+
+backup:
+	$(MAKE) tar
+	ls -l $(TARFILE).$(Z)
+	tar cf /dev/fd0 $(TARFILE).$(Z)
+	rm $(TARFILE).$(Z)
 
 Build/schdefs.h:
 	@( cd $(RTS) ; $(MAKE) Build/schdefs.h )

@@ -13,9 +13,7 @@
 ;
 ; Target-specific information for Larceny on the SPARC architecture.
 
-; Someone has already redefined Chez Scheme's sort procedure.
-
-(define (twobit-sort p? x) (sort x p?))
+(define twobit-sort compat:sort)  ; (sort less? list)
 
 (define renaming-prefix ".")
 
@@ -105,21 +103,17 @@
        (<= 0 x)
        (< x 256)))
 
-(define hash-bang-unspecified '#&(a))
+; (define hash-bang-unspecified '#&(a))
 
 (define $usual-integrable-procedures$
-  `(;(debugvsm 0 debugvsm #f 0)
-    ;(sys$reset 0 sys$reset #f 1)
-    ;(sys$exit 0 sys$exit #f 2)
-    (break 0 break #f 3)
-    ;(sys$dumpheap 2 sys$dumpheap #f 6) ; takes two args in larceny
+  `((break 0 break #f 3)
     (creg 0 creg #f 7)
-    ;(sys$resource-usage! 1 sys$resource-usage! #f -1)
-    ;(sys$gc 1 sys$gc #f 5)
     (unspecified 0 unspecified #f -1)
     (undefined 0 undefined #f 8)
+    (eof-object 0 eof-object #f -1)
+    (enable-interrupts 1 enable-interrupts #f -1)
+    (disable-interrupts 0 disable-interrupts #f -1)
 
-    ;(**identity** 1 identity #f #x10)
     (typetag 1 typetag #f #x11)
     (not 1 not #f #x18)
     (null? 1 null? #f #x19)
@@ -133,6 +127,7 @@
     (rational? 1 rational? #f #x21)
     (integer? 1 integer? #f #x22)
     (fixnum? 1 fixnum? #f #x23)
+    (flonum? 1 flonum? #f -1)
     (exact? 1 exact? #f #x24)
     (inexact? 1 inexact? #f #x25)
     (exact->inexact 1 exact->inexact #f #x26)
@@ -142,7 +137,6 @@
     (zero? 1 zero? #f #x2c)
     (-- 1 -- #f #x2d)
     (lognot 1 lognot #f #x2f)
-;    (sqrt 1 sqrt #f #x38)
     (real-part 1 real-part #f #x3e)
     (imag-part 1 imag-part #f #x3f)
     (char? 1 char? #f #x40)
@@ -268,18 +262,16 @@
 
 ; END code snarfed from Larceny/Compiler/pass1.imp.sch.
 
+; These values are used in Chez/compat.ss and in any other compat libraries
+; where the hosting compiler does not support (unspecified) and (undefined).
+; The extra level of quoting removes any dependence on these values being
+; self-quoting or not.
 
-; The definitions for undefined and unspecified are a temporary crock.
-; THIS IS WRONG!! --lars
+(define-inline 'undefined
+  (lambda (exp env) (list 'quote (undefined))))
 
-(define *undefined-expression* ''*undefined*)
-(define *unspecified-expression* ''*unspecified*)
-
-;(define-inline 'undefined
-;  (lambda (exp env) *undefined-expression*))
-
-;(define-inline 'unspecified
-;  (lambda (exp env) *unspecified-expression*))
+(define-inline 'unspecified
+  (lambda (exp env) (list 'quote (unspecified))))
 
 ; Bugs: Many of these should be checking env but aren't.
 ; These bugs should disappear when this is rewritten to coexist

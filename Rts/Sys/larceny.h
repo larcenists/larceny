@@ -21,7 +21,7 @@ extern word globals[];
 
 /* In "Sys/larceny.c" */
 
-extern void panic( /* char *fmt, ... */ );
+extern int  panic( /* char *fmt, ... */ );
 extern void consolemsg( /* char *fmt, ... */ );
 extern void hardconsolemsg( /* char *fmt, ... */ );
 
@@ -40,6 +40,7 @@ extern int  used_espace();
 extern int  free_tspace();
 extern int  size_tspace();
 extern int  used_tspace();
+extern int  size_sspace();
 extern word *getheaplimit( /* int which */ );
 extern void setheaplimit( /* int which, word *p */ );
 extern word *alloc_from_heap( /* int nbytes */ );
@@ -63,6 +64,7 @@ extern void remset_update_memstats();
 
 extern void openheap( /* char *filename */ );
 extern unsigned heap_ssize();
+extern unsigned heap_tsize();
 extern void load_heap();
 extern void closeheap();
 extern int dump_heap( /* char *filename */ );
@@ -111,6 +113,16 @@ extern void UNIX_rename();
 extern void UNIX_pollinput();
 extern void UNIX_getenv();
 extern void UNIX_garbage_collect();
+extern void UNIX_flonum_exp();
+extern void UNIX_flonum_log();
+extern void UNIX_flonum_sin();
+extern void UNIX_flonum_cos();
+extern void UNIX_flonum_tan();
+extern void UNIX_flonum_asin();
+extern void UNIX_flonum_acos();
+extern void UNIX_flonum_atan();
+extern void UNIX_flonum_atan2();
+extern void UNIX_flonum_sqrt();
 
 /* In "Sys/ldebug.c" */
 
@@ -138,6 +150,14 @@ extern char *osname;
 
 extern void scheme_start();
 
+/* In "$MACHINE/cache.c" */
+
+extern void cache_setup();
+
+/* In "Sys/argv.c" */
+
+extern word allocate_argument_vector(/* int argc, char **argv */);
+
 /* Defaults */
 
 /* Heap defaults (appropriate for compiler-less heap) */
@@ -160,9 +180,9 @@ extern void scheme_start();
 #define HL_TBOT 0
 #define HL_TTOP 1
 #define HL_TLIM 2
+#define HL_SBOT 3
+#define HL_STOP 4
 
 #endif /* if INCLUDED_LARCENY_H */
 
 /* eof */
-
-

@@ -17,10 +17,20 @@ EXTRALIBPATH=
 #EXTRALIBS=-lucb
 #EXTRALIBPATH=-L/usr/ucblib
 
-# Uncomment the following line to include instruction cache flush code.
-# Cache flushing is needed for correct operation on Sparc10 and Sparc20
-# machines, at least.
-IFLUSH=-DIFLUSH
+# Instruction cache flushing.
+# In general, Larceny detects automatically whether cache flushing needs
+# to be performed on the architecture Larceny is running on. You can,
+# however, override this behaviour by uncommenting one of the following
+# lines and recompiling Rts/$(MACH)/cache.c and relinking.
+#
+# IFLUSH=-DFLUSH_ALWAYS
+# IFLUSH=-DFLUSH_NEVER
+
+# Division by zero handling.
+# Currently all checking is explicit, so don't undefine this.
+
+DIVZ=-DCHECK_DIVISION_BY_ZERO
+
 
 ############################################################################
 #
@@ -46,13 +56,13 @@ BUILD=Build
 #PROFILE=-pg
 DEBUG=-g
 #DFLAGS=-DDEBUG # -DDEBUG2
-OPTIMIZE=-O2
+OPTIMIZE=-O2 -traditional
 CC=gcc
 AS=as
 
-CFLAGS=	-c $(DEBUG) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) -I$(SYS) -I$(BUILD) $(DFLAGS) $(IFLUSH)
+CFLAGS=	-c $(DEBUG) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) -I$(SYS) -I$(BUILD) $(DFLAGS) $(IFLUSH) $(DIVZ)
 
-ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(DFLAGS) $(IFLUSH)
+ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(DFLAGS) $(IFLUSH) $(DIVZ)
 
 
 ############################################################################
@@ -64,11 +74,13 @@ ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(DFLAGS) $(IFLUSH)
 # EXGC_OBJS are the object files to link for the experimental collector.
 
 COBJS=$(SYS)/larceny.o $(SYS)/remset.o $(SYS)/stack.o\
-	$(SYS)/cglue.o $(SYS)/heapio.o $(SYS)/malloc.o\
-	$(SYS)/memstats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o
+	$(SYS)/cglue.o $(SYS)/heapio.o $(SYS)/malloc.o \
+	$(SYS)/memstats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
+	$(SYS)/argv.o\
+	$(MACH)/cache.o
 
 ASMOBJS=$(MACH)/mcode.o $(MACH)/memory.o $(MACH)/glue.o $(BUILD)/table.o \
-	$(MACH)/generic.o 
+	$(MACH)/generic.o $(MACH)/cache0.o
 
 GSGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/policy.o $(SYS)/gc.o
 
@@ -117,19 +129,23 @@ setup:
 	(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
 larceny: $(GSGC_OBJS)
-	$(CC) $(PROFILE) -o larceny $(GSGC_OBJS) $(EXTRALIBS) $(EXTRALIBPATH) 
+	$(CC) $(PROFILE) -o larceny $(GSGC_OBJS) -lm $(EXTRALIBS) $(EXTRALIBPATH) 
 	/bin/rm -f $(SYS)/version.o
 
 sclarceny: $(SCGC_OBJS)
-	$(CC) $(PROFILE) -o sclarceny $(SCGC_OBJS) $(EXTRALIBS) $(EXTRALIBPATH)
+	$(CC) $(PROFILE) -o sclarceny $(SCGC_OBJS) -lm $(EXTRALIBS) $(EXTRALIBPATH)
 	/bin/rm -f $(SYS)/version.o
 
 exlarceny: $(EXGC_OBJS)
-	$(CC) $(PROFILE) -o exlarceny $(EXGC_OBJS) $(EXTRALIBS) $(EXTRALIBPATH)
+	$(CC) $(PROFILE) -o exlarceny $(EXGC_OBJS) -lm $(EXTRALIBS) $(EXTRALIBPATH)
 	/bin/rm -f $(SYS)/version.o
 
+hsplit: $(SYS)/hsplit.o
+	$(CC) $(PROFILE) $(DEBUG) -o hsplit $(SYS)/hsplit.o
+$(SYS)/hsplit.o: $(SYS)/hsplit.c
+	$(CC) -g -o $(SYS)/hsplit.o -I$(BUILD) -I$(SYS) -c $(SYS)/hsplit.c
 clean:
-	rm -f larceny sclarceny exlarceny 
+	rm -f larceny sclarceny exlarceny hsplit
 	rm -f $(GSGC_OBJS) $(SCGC_OBJS) $(EXGC_OBJS)
 
 realclean:

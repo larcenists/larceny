@@ -3,18 +3,17 @@
 % $Id: 16:extensions.tex,v 1.1 1992/06/13 08:23:22 lth Exp $
 
 \input{larceny.sty}
-\title{Larceny Note \#16: Extensions to Scheme \\
-	{\tenrm (Full of holes\ldots)}}
+\title{Larceny Note \#16: Extensions to Scheme}
 \author{Lars Thomas Hansen}
+\date{June 13 1992 \\ Revised January 8, 1996}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This document attempts to catalogue some of the low-level extensions to Scheme
+This document catalogue Larceny's low-level extensions to Scheme
 which we use in order to write as much of the system as possible in Scheme
-itself. The fact that these extensions is documented is not a license to use
-them in user code; in fact, they may not even be available on the user level.
+itself. Not all of these extensions are available to user code.
 \end{abstract}
 
 \section{Particular Data Types}
@@ -22,6 +21,7 @@ them in user code; in fact, they may not even be available on the user level.
 \begin{description}
 
 \item[Bytevector] objects are string-like objects which hold byte quantities.
+A byte is always 8 bits, and it is unsigned.
 
 \item[Bytevector-like] objects are generic string-like objects which hold
 byte quantities; in fact, bytevectors, strings, bignums, flonums, and

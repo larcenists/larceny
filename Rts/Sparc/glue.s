@@ -1,5 +1,6 @@
 ! -*- Fundamental -*-
 ! This is the file Sparc/glue.s.
+! $Id$
 !
 ! Larceny Run-time System (SPARC) -- glue procedures.
 !
@@ -10,6 +11,10 @@
 ! I suppose one could say that this file deals with context switching.
 !
 ! History
+!   January 9, 1996 / lth (v0.25)
+!     internal_scheme_call now optionally saves and restores RESULT,
+!     to accomodate the timer interrupt mechanism.
+!
 !   June 17, 1995 / lth (v0.24)
 !     Fixed bug in copyregs which caused only the first 16 registers
 !     to be saved and caused the gc to crash with a scheme2scheme frame
@@ -140,8 +145,9 @@ Lbadstack:
 !            TMP1 = argument count (0..4)
 !            TMP2 = vector index into CALLOUTS
 !            o7 = scheme return address
+!            globals[ G_RESULT ] = #!unspecified or not (RESULT save flag)
 ! Outputs  : Unspecified
-! Destroys : Temporaries, RESULT, ARGREG2, ARGREG3
+! Destroys : Temporaries, (RESULT), ARGREG2, ARGREG3, (G_RESULT)
 !
 ! Note that the calling conventions briefly violates the VM invariant
 ! by keeping a root in TMP0. It's OK.
@@ -153,6 +159,10 @@ Lbadstack:
 ! the new Scheme procedure is invoked. This context must also be restored
 ! before control is returned to the original caller, and, again, the original
 ! caller will not do this. So we must arrange for it to happen.
+!
+! To accomodate the timer interrupt, RESULT is saved and restored iff
+! G_RESULT == #!undefined on entry to this procedure.  If so, G_RESULT
+! is cleared.
 !
 ! We handle this by creating a special stack frame, shown below. The frame's
 ! return address points to the millicode procedure internal_scheme_return
@@ -169,6 +179,8 @@ Lbadstack:
 !     | (saved R1)                                     |
 !     | ...                                            |
 !     | (saved R31)                                    |
+!     | (saved RESULT)                                 |
+!     | (saved RESULT restore flag)                    |
 !     +------------------------------------------------+
 !
 ! If we knew which registers were live, we could get away with saving only
@@ -176,10 +188,10 @@ Lbadstack:
 ! are not expected to be frequent in practice.
 
 ! REALFRAMESIZE is what we bump stkp by: full header plus pad word
-#define S2S_REALFRAMESIZE	(5+32)*4+4
+#define S2S_REALFRAMESIZE	(5+34)*4+4
 
 ! FRAMESIZE is what we store in the frame: sans header or pad word
-#define S2S_FRAMESIZE		(4+32)*4
+#define S2S_FRAMESIZE		(4+34)*4
 
 ! BASE is the offset of REG0 in the stack frame
 #define S2S_BASE		20
@@ -216,6 +228,17 @@ Ls2s3:	set	S2S_FRAMESIZE, %TMP0			! store
 	call	copyregs				! save all registers
 	add	%STKP, S2S_BASE, %TMP1			! dest ptr
 
+	! If G_RESULT is #!undefined, then save RESULT and clear G_RESULT
+
+	st	%RESULT, [ %STKP+S2S_BASE+(32*4) ]	! save RESULT always
+	ld	[ %GLOBALS + G_RESULT ], %TMP2
+	cmp	%TMP2, UNDEFINED_CONST
+	set	TRUE_CONST, %TMP2
+	bne,a	1f
+	set	FALSE_CONST, %TMP2
+	st	%TMP2, [ %GLOBALS + G_RESULT ]		! clear G_RESULT
+1:	st	%TMP2, [ %STKP+S2S_BASE+(33*4) ]	! save restore flag
+
 	! set up arguments
 
 	mov	%RESULT, %REG1
@@ -231,7 +254,7 @@ Ls2s3:	set	S2S_FRAMESIZE, %TMP0			! store
 	ld	[ %GLOBALS + G_SCHCALL_PROCIDX ], %TMP0
 	ld	[ %GLOBALS + G_CALLOUTS ], %TMP1
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
-	cmp	%TMP1, UNSPECIFIED_CONST
+	cmp	%TMP1, UNDEFINED_CONST
 	be	Ls2s5
 	nop
 	add	%TMP1, 4 - VEC_TAG, %TMP1
@@ -261,7 +284,8 @@ Ls2serror:
 ! Output:   Nothing
 ! Destroys: TMP0, TMP1, TMP2
 !
-! Copies 32 words (the VM registers) as quickly as possible.
+! Copies 32 words (the VM registers) as quickly as possible. 
+! FIXME: Should unroll fully.
 
 copyregs:
 	mov	8, %TMP2			! counter
@@ -307,6 +331,12 @@ internal_scheme_return:
 	add	%GLOBALS, G_REG0, %TMP1		! dest ptr
 	call	internal_restore_vm_regs
 	nop
+
+	! Deal with conditionally restoring the value of RESULT
+	ld	[ %STKP+S2S_BASE+(33*4) ], %TMP0
+	cmp	%TMP0, TRUE_CONST
+	be,a	.+8
+	ld	[ %STKP+S2S_BASE+(32*4) ], %RESULT
 
 	call	internal_fixnum2retaddr		! get return address
 	ld	[ %STKP + 16 ], %TMP0

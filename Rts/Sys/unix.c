@@ -21,6 +21,8 @@ static char *getfilename();
 #include <limits.h>
 #include <poll.h>
 #include <stdlib.h>
+#include <math.h>
+#include <sys/fcntlcom.h>
 #include "larceny.h"
 #include "macros.h"
 #include "cdefs.h"
@@ -31,12 +33,19 @@ word w_fn, w_flags, w_mode;
   char *fn = getfilename( w_fn );
   int flags = nativeint( w_flags );
   int mode = nativeint( w_mode );
+  int newflags = 0;
+
+  if (flags & 0x01) newflags |= O_RDONLY;
+  if (flags & 0x02) newflags |= O_WRONLY;
+  if (flags & 0x04) newflags |= O_APPEND;
+  if (flags & 0x08) newflags |= O_CREAT;
+  if (flags & 0x10) newflags |= O_TRUNC;
 
   if (fn == 0) {
     globals[ G_RESULT ] = fixnum( -1 );
     return;
   }
-  globals[ G_RESULT ] = fixnum( open( fn, flags, mode ) );
+  globals[ G_RESULT ] = fixnum( open( fn, newflags, mode ) );
 }
 
 void UNIX_unlinkfile( w_fn )
@@ -64,11 +73,11 @@ word w_fd, w_buf, w_cnt;
 				    nativeint( w_cnt ) ) );
 }
 
-void UNIX_writefile( w_fd, w_buf, w_cnt )
-word w_fd, w_buf, w_cnt;
+void UNIX_writefile( w_fd, w_buf, w_cnt, w_offset )
+word w_fd, w_buf, w_cnt, w_offset;
 {
   globals[ G_RESULT ] = fixnum( write( nativeint( w_fd ),
-				     string_data( w_buf ),
+				     string_data(w_buf)+nativeint(w_offset),
 				     nativeint( w_cnt ) ) );
 }
 
@@ -106,10 +115,6 @@ word w_fn, w_buf;
     globals[ G_RESULT ] = fixnum( -1 );
     return;
   }
-  /* NOTES
-   * -This is not right -- it produces GMT, for some reason.
-   * -If the TZ variable is broken, localtime() may segfault.
-   */
   tm = localtime( &buf.st_mtime );
   vector_set( w_buf, 0, fixnum( tm->tm_year + 1900 ) );
   vector_set( w_buf, 1, fixnum( tm->tm_mon + 1 ) );
@@ -123,7 +128,14 @@ word w_fn, w_buf;
 void UNIX_access( w_fn, w_bits )
 word w_fn, w_bits;
 {
-  globals[ G_RESULT ] = fixnum(access(getfilename(w_fn), nativeint(w_bits)));
+  int bits = nativeint( w_bits );
+  int newbits = 0;
+
+  if (bits & 0x01) newbits |= F_OK;
+  if (bits & 0x02) newbits |= R_OK;
+  if (bits & 0x04) newbits |= W_OK;
+  if (bits & 0x08) newbits |= X_OK;
+  globals[ G_RESULT ] = fixnum(access(getfilename(w_fn), newbits ));
 }
 
 void UNIX_rename( w_from, w_to )
@@ -189,5 +201,37 @@ word w_str;
   fnbuf[ l ] = 0;
   return fnbuf;
 }
+
+/* Floating-point operations */
+
+#define flonum_val( p )    (*(double*)((char*)(p)-5+8))
+#define box_flonum( p, v ) (*(double*)((char*)(p)-5+8) = (v))
+
+/* One-argument math operations */
+#define numeric_onearg( name, op ) \
+  void name( w_flonum, w_result ) \
+  word w_flonum, w_result; \
+  { \
+    box_flonum( w_result, op( flonum_val( w_flonum ) ) ); \
+    globals[ G_RESULT ] = w_result; \
+  }
+
+numeric_onearg( UNIX_flonum_log, log )
+numeric_onearg( UNIX_flonum_exp, exp )
+numeric_onearg( UNIX_flonum_sin, sin )
+numeric_onearg( UNIX_flonum_cos, cos )
+numeric_onearg( UNIX_flonum_tan, tan )
+numeric_onearg( UNIX_flonum_asin, asin )
+numeric_onearg( UNIX_flonum_acos, acos )
+numeric_onearg( UNIX_flonum_atan, atan )
+
+void UNIX_flonum_atan2( w_flonum1, w_flonum2, w_result )
+word w_flonum1, w_flonum2, w_result;
+{
+  box_flonum( w_result, atan2(flonum_val(w_flonum1), flonum_val(w_flonum2)) );
+  globals[ G_RESULT ] = w_result;
+}
+
+numeric_onearg( UNIX_flonum_sqrt, sqrt )
 
 /* eof */

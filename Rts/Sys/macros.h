@@ -62,10 +62,19 @@
 /* miscellaneous */
 #define max( a, b )         ((a) > (b) ? (a) : (b))
 #define min( a, b )         ((a) < (b) ? (a) : (b))
+
+#define roundup( a, m )     ((((a)+((m)-1)) / (m))*(m))
+#define roundup2( a )       (((a) + 1) & ~0x01)
 #define roundup4( a )       (((a) + 3) & ~0x03)
 #define roundup8( a )       (((a) + 7) & ~0x07)
+
+/* The following true on 32-bit machines */
 #define roundup_word( a )   roundup4( a )
 #define roundup_dword( a )  roundup8( a )
+
+/* Rounding macros for wordsize-independence */
+#define roundup_walign(a)   roundup2( a )   /* Word alignment: 2 words */
+#define roundup_balign(a)   roundup8( a )   /* Byte alignment: 8 bytes */
 
 /* Manipulating 'traced' bit in vector headers */
 /* OBSOLETE
@@ -85,5 +94,6 @@
 #define vector_ref( vp, i )    (*(ptrof( vp )+1+(i)))
 #define vector_set( vp, i, v ) (*(ptrof( vp )+1+(i)) = (v))
 
+#define MEGABYTE  (1024*1024)
 
 /* eof */

@@ -103,6 +103,7 @@
 #define G_SINGLESTEP_ENABLE 78
 #define G_BREAKPT_ENABLE 79
 #define G_TIMER_ENABLE 80
+#define G_CACHE_FLUSH 87
 #define M_ALLOC 256
 #define M_ALLOCI 258
 #define M_GC 260
@@ -150,3 +151,5 @@
 #define M_SINGLESTEP 348
 #define M_SYSCALL 350
 #define M_BVLCMP 352
+#define M_EINTR 354
+#define M_DINTR 356

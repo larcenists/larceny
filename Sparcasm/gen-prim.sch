@@ -4,6 +4,13 @@
 ;; $Id: gen-prim.sch,v 1.1 1995/08/01 04:40:34 lth Exp lth $
 ;;
 ;; History
+;;   November 3, 1995 / lth (v0.25)
+;;     - Minor fixes of cosmetic art; introduced fixnum?.
+;;
+;;   August 2, 1995 / lth (v0.25)
+;;     - Fixed some bugs in assertion routines where the value was not
+;;       passed to the error handler if it was not already in RESULT.
+;;
 ;;   July 16, 1995 / lth (v0.24)
 ;;     - Added string-set!
 ;;
@@ -56,12 +63,6 @@
 ;;   like here.
 ;; - Attempt to make do with tmp0, tmp1, argreg2, and argreg3, so that
 ;;   tmp2 can be freed up for general use.
-
-; This switch controls the code generated for primops which side-effect
-; data structures. Typically, it is set to #t, but for the systems where we
-; use the simpler collector(s), it should be set to #f.
-
-(define register-transactions-for-side-effects #t)
 
 ;; these are a bit obsolete but too much effort to rename right now...
 
@@ -117,17 +118,25 @@
 ;---------------------------------------------------------------------------
 ; Primops
 
-; I think that this could legally do nothing at all.
-
 (define-primop 'unspecified
   (lambda (as)
-    (emit! as `(,$i.ori ,$r.g0 ,$imm.unspecified ,$r.result))))
-
-; Right now, undefined==unspecified. Needs to be fixed.
+    (emit-immediate->register! as $imm.unspecified $r.result)))
 
 (define-primop 'undefined
   (lambda (as)
-    (emit! as `(,$i.ori ,$r.g0 ,$imm.unspecified ,$r.result))))
+    (emit-immediate->register! as $imm.undefined $r.result)))
+
+(define-primop 'eof-object
+  (lambda (as)
+    (emit-immediate->register! as $imm.eof $r.result)))
+
+(define-primop 'enable-interrupts
+  (lambda (as)
+    (millicode-call/0arg as $m.enable-interrupts)))
+
+(define-primop 'disable-interrupts
+  (lambda (as)
+    (millicode-call/0arg as $m.disable-interrupts)))
 
 ; Number predicates
 
@@ -212,11 +221,6 @@
   (lambda (as r)
     (millicode-call/1arg as $m.remainder r)))
 
-(define-primop 'modulo
-  (lambda (as r)
-    (display "OBSOLETE MILLICODE CALL $m.modulo") (newline)
-    (millicode-call/1arg as $m.modulo r)))
-
 ; FIXME: can speed up the common case.
 (define-primop '--
   (lambda (as)
@@ -235,28 +239,29 @@
   (lambda (as)
     (millicode-call/0arg as $m.truncate)))
 
-(define-primop 'sqrt
-  (lambda (as)
-    (silly 'sqrt)))
-
 ; fixnums only
 
 (define-primop 'lognot
   (lambda (as)
     (emit-assert-fixnum! as $r.result $ex.lognot)
-    (emit! as `(,$i.ornr ,$r.result ,$r.g0 ,$r.result))
+    (emit! as `(,$i.ornr ,$r.g0 ,$r.result ,$r.result)) ; order matters.
     (emit! as `(,$i.xori ,$r.result 3 ,$r.result))))
 
 ; fixnums only
 
 (define-primop 'logand
   (lambda (as x)
-    (let ((tmp (force-hwreg! as x $r.tmp1)))
-      (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
-      (emit-assert-fixnum! as $r.tmp0 $ex.logand)
-      (emit! as `(,$i.andr ,$r.result ,tmp ,$r.result)))))
+    (let ((tmp (force-hwreg! as x $r.tmp1))
+	  (L1  (new-label)))
+      (emit! as `(,$i.tsubrcc ,$r.result ,tmp ,$r.g0))
+      (emit! as `(,$i.bvc.a ,L1))
+      (emit! as `(,$i.andr ,$r.result ,tmp ,$r.result))
+      (emit! as `(,$i.ori ,$r.g0 ,$ex.logand ,$r.tmp0))
+      (millicode-call/1arg as $m.exception tmp)
+      (emit! as `(,$i.label ,L1)))))
 
 ; fixnums only
+; Can do better tagcheck using tsubrcc
 
 (define-primop 'logior
   (lambda (as x)
@@ -266,6 +271,7 @@
       (emit! as `(,$i.orr ,$r.result ,tmp ,$r.result)))))
 
 ; fixnums only
+; FIXME: can do better tag check using tsubrcc
 
 (define-primop 'logxor
   (lambda (as x)
@@ -276,7 +282,7 @@
 
 ; Fixnums only, and only positive shifts are meaningful.
 ; FIXME: This is incompatible with MacScheme and MIT Scheme.
-; Really ought to reuse fault handler (requires rewrite of asserts).
+; FIXME: Really ought to reuse fault handler (requires rewrite of asserts).
 
 (define-primop 'lsh
   (lambda (as x)
@@ -316,18 +322,26 @@
 
 (define-primop 'rot
   (lambda (as x)
-    (silly 'rot)))
+    (error "Sparcasm: ROT primop is not implemented.")))
 
 ; Various type predicates
 
 (define-primop 'null?
   (lambda (as)
-    (emit! as `(,$i.xoricc ,$r.result ,$imm.null ,$r.g0))
+    (sparc.cmpi as $r.result $imm.null)
     (emit-set-boolean! as)))
 
 (define-primop 'pair?
   (lambda (as)
     (emit-single-tagcheck->bool! as $tag.pair-tag)))
+
+; Tests the specific representation, not 'flonum or compnum with 0i'.
+
+(define-primop 'flonum?
+  (lambda (as)
+    (emit-double-tagcheck->bool! as $tag.bytevector-tag
+				 (+ $imm.bytevector-header
+				    $tag.flonum-typetag))))
 
 (define-primop 'symbol?
   (lambda (as)
@@ -393,18 +407,18 @@
 
 (define-primop 'set-car!
   (lambda (as x)
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(emit-single-tagcheck-assert! as $tag.pair-tag $ex.car))
     (emit-setcar/setcdr! as x 0)))
 
 (define-primop 'set-cdr!
   (lambda (as x)
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(emit-single-tagcheck-assert! as $tag.pair-tag $ex.cdr))
     (emit-setcar/setcdr! as x 4)))
 
-   ; Cells are internal data structures, represented using pairs.
-   ; No error checking is done on cell references.
+; Cells are internal data structures, represented using pairs.
+; No error checking is done on cell references.
 
 (define-primop 'make-cell
   (lambda (as)
@@ -427,24 +441,6 @@
 (define-primop 'break
   (lambda (as)
     (millicode-call/0arg as $m.break)))
-
-; FIXME: soon-to-be obsolete. Implement as syscall.
-(define-primop 'sys$gc
-  (lambda (as)
-    (display "*****Obsolete primitive $m.gc") (newline)
-    (millicode-call/0arg as $m.gc)))
-
-; obsolete
-(define-primop 'sys$exit
-  (lambda (as)
-    (display "*****Obsolete primitive $m.exit") (newline)
-    (millicode-call/0arg as $m.exit)))
-
-; obsolete
-(define-primop 'sys$dumpheap 
-  (lambda (as r)
-    (display "*****Obsolete primitive $m.dumpheap") (newline)
-    (millicode-call/1arg as $m.dumpheap r)))
 
 ; Continuations. FIXME: Should implement as syscalls.
 
@@ -502,7 +498,7 @@
 
 (define-primop 'not
   (lambda (as)
-    (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
+    (sparc.cmpi as $r.result $imm.false)
     (emit-set-boolean! as)))
 
 (define-primop 'eq?
@@ -555,7 +551,7 @@
 
 (define-primop 'string-ref
 	 (lambda (as r)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-double-tagcheck-assert! 
 			     as
 			     $tag.bytevector-tag
@@ -566,7 +562,7 @@
 
 (define-primop 'bytevector-ref
 	 (lambda (as r)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-double-tagcheck-assert!
 			     as
 			     $tag.bytevector-tag
@@ -577,7 +573,7 @@
 
 (define-primop 'bytevector-like-ref
 	 (lambda (as r)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-single-tagcheck-assert! as
 							  $tag.bytevector-tag
 							  $ex.bvlref)
@@ -586,7 +582,7 @@
 
 (define-primop 'bytevector-like-set!
   (lambda (as x y)
-    (let ((fault (if (not unsafe-mode)
+    (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.bytevector-tag
 						   $ex.bvlset)
@@ -595,7 +591,7 @@
 
 (define-primop 'bytevector-set!
   (lambda (as x y)
-    (let ((fault (if (not unsafe-mode)
+    (let ((fault (if (not (unsafe-code))
 		     (emit-double-tagcheck-assert!
 		      as
 		      $tag.bytevector-tag
@@ -618,7 +614,7 @@
   (lambda (as r1 r2)
     (let ((fault  (new-label)))
       ; First check tags of lhs
-      (if (not unsafe-mode)
+      (if (not (unsafe-code))
 	  (let ((again  (new-label))
 		(next1  (new-label))
 		(ptrtag $tag.bytevector-tag)
@@ -644,15 +640,16 @@
       ; Header is in tmp0; tmp1 and tmp2 are free.
       (let ((r1 (force-hwreg! as r1 $r.tmp2))
 	    (r2 (force-hwreg! as r2 $r.tmp1)))
-	(if (not unsafe-mode)
+	(if (not (unsafe-code))
 	    (begin
+	      ; Can we combine these tests using tsubcc?
 	      ; r1 should be fixnum
 	      (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
 	      (emit! as `(,$i.bne ,fault))
 	      (emit! as `(,$i.nop))
 	      ; index must be valid; header is in tmp0
 	      (emit! as `(,$i.srli ,$r.tmp0 8 ,$r.tmp0))
-	      (emit! as `(,$i.srai ,r1 2 ,$r.tmp2))
+	      (emit! as `(,$i.srai ,r1 2 ,$r.tmp2))     ; should be fixed.
 	      (emit! as `(,$i.subrcc ,$r.tmp2 ,$r.tmp0 ,$r.g0))
 	      (emit! as `(,$i.bgeu ,fault))
 	      (emit! as `(,$i.nop))
@@ -709,7 +706,7 @@
 
 (define-primop 'vector-ref
 	 (lambda (as r)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-double-tagcheck-assert!
 			     as
 			     $tag.vector-tag
@@ -720,7 +717,7 @@
 
 (define-primop 'vector-like-ref
 	 (lambda (as r)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-single-tagcheck-assert! as
 							  $tag.vector-tag
 							  $ex.vlref)
@@ -729,7 +726,7 @@
 
 (define-primop 'procedure-ref
 	 (lambda (as r)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-single-tagcheck-assert! as
 							  $tag.procedure-tag
 							  $ex.pref)
@@ -738,7 +735,7 @@
 
 (define-primop 'vector-set!
 	 (lambda (as r1 r2)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-double-tagcheck-assert!
 			     as
 			     $tag.vector-tag
@@ -749,7 +746,7 @@
 
 (define-primop 'vector-like-set!
 	 (lambda (as r1 r2)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-single-tagcheck-assert! as
 							  $tag.vector-tag
 							  $ex.vlset)
@@ -758,303 +755,309 @@
 
 (define-primop 'procedure-set!
 	 (lambda (as r1 r2)
-	   (let ((fault (if (not unsafe-mode)
+	   (let ((fault (if (not (unsafe-code))
 			    (emit-single-tagcheck-assert! as
 							  $tag.procedure-tag
 							  $ex.pset)
 			    #f)))
 	     (emit-vector-like-set! as r1 r2 fault $tag.procedure-tag))))
 
-   ; -----------------------------------------------------------------
+; -----------------------------------------------------------------
 
-   ; Character predicates
+; Character predicates
 
 (define-primop 'char<?
-	 (lambda (as x)
-	   (emit-char-cmp as x $i.bl.a $ex.char<?)))
+  (lambda (as x)
+    (emit-char-cmp as x $i.bl.a $ex.char<?)))
 
 (define-primop 'char<=?
-	 (lambda (as x)
-	   (emit-char-cmp as x $i.ble.a $ex.char<=?)))
+  (lambda (as x)
+    (emit-char-cmp as x $i.ble.a $ex.char<=?)))
 
 (define-primop 'char=?
-	 (lambda (as x)
-	   (emit-char-cmp as x $i.be.a $ex.char=?)))
+  (lambda (as x)
+    (emit-char-cmp as x $i.be.a $ex.char=?)))
 
 (define-primop 'char>?
-	 (lambda (as x)
-	   (emit-char-cmp as x $i.bg.a $ex.char>?)))
+  (lambda (as x)
+    (emit-char-cmp as x $i.bg.a $ex.char>?)))
 
 (define-primop 'char>=?
-	 (lambda (as x)
-	   (emit-char-cmp as x $i.bge.a $ex.char>=?)))
+  (lambda (as x)
+    (emit-char-cmp as x $i.bge.a $ex.char>=?)))
 
-   ;-----------------------------------------------------------------
+;-----------------------------------------------------------------
    
-   ; These are introduced by peephole optimization. Old (obsolete but still
-   ; used, by old code) names are not prefixed by internal: whereas new
-   ; procedures are. Old code usually calls new code. Other code (above)
-   ; also uses the internal versions.
+; These are introduced by peephole optimization. Old (obsolete but still
+; used, by old code) names are not prefixed by internal: whereas new
+; procedures are. Old code usually calls new code. Other code (above)
+; also uses the internal versions.
 
 (define-primop 'internal:car2reg
-	 (lambda (as src1 dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:car2reg: reg is not HW"))
-	   (if (not unsafe-mode)
-	       (emit-single-tagcheck-assert-reg! as
-						 $tag.pair-tag src1 $ex.car))
-	   (emit! as `(,$i.ldi ,src1 ,(- 0 $tag.pair-tag) ,dest))))
+  (lambda (as src1 dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:car2reg: reg is not HW"))
+    (if (not (unsafe-code))
+	(emit-single-tagcheck-assert-reg! as
+					  $tag.pair-tag src1 $ex.car))
+    (emit! as `(,$i.ldi ,src1 ,(- 0 $tag.pair-tag) ,dest))))
 
 (define-primop 'internal:cdr2reg
-	 (lambda (as src1 dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:cdr2reg: reg is not HW"))
-	   (if (not unsafe-mode)
-	       (emit-single-tagcheck-assert-reg! as
-						 $tag.pair-tag src1 $ex.cdr))
-	   (emit! as `(,$i.ldi ,src1 ,(- 4 $tag.pair-tag) ,dest))))
+  (lambda (as src1 dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:cdr2reg: reg is not HW"))
+    (if (not (unsafe-code))
+	(emit-single-tagcheck-assert-reg! as
+					  $tag.pair-tag src1 $ex.cdr))
+    (emit! as `(,$i.ldi ,src1 ,(- 4 $tag.pair-tag) ,dest))))
 
 (define-primop 'internal:cellref2reg
-	 (lambda (as src1 dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:cellref2reg: reg is not HW"))
-	   (emit! as `(,$i.ldi ,src1 ,(- $tag.pair-tag) ,dest))))
+  (lambda (as src1 dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:cellref2reg: reg is not HW"))
+    (emit! as `(,$i.ldi ,src1 ,(- $tag.pair-tag) ,dest))))
 
 (define-primop 'internal:cons2reg
-	 (lambda (as src1 src2 dest)
+  (lambda (as src1 src2 dest)
 
-	   (define (emit-common-case cont)
-	     (if (eqv? src1 $r.result)
-		 (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2)))
-	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
-	     (emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
-	     (if (eqv? src1 $r.result)
-		 (emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
-		 (emit! as `(,$i.sti ,src1 0 ,$r.result)))
-	     (let ((src2 (force-hwreg! as src2 $r.tmp1)))
-	       (emit! as `(,$i.sti ,src2 4 ,$r.result))
-	       (if cont
-		   (emit! as `(,$i.b ,cont)))
-	       (emit! as `(,$i.addi ,$r.result 1 ,dest))))
+    (define (emit-common-case cont)
+      (if (eqv? src1 $r.result)
+	  (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2)))
+      (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
+      (emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
+      (if (eqv? src1 $r.result)
+	  (emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
+	  (emit! as `(,$i.sti ,src1 0 ,$r.result)))
+      (let ((src2 (force-hwreg! as src2 $r.tmp1)))
+	(emit! as `(,$i.sti ,src2 4 ,$r.result))
+	(if cont
+	    (emit! as `(,$i.b ,cont)))
+	(emit! as `(,$i.addi ,$r.result 1 ,dest))))
 
-	   ; lights-camera-action!
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:cons2reg: reg is not HW"))
-	   (if inline-cons
-	       (let ((l1 (new-label))
-		     (l2 (new-label)))
-		 (emit! as `(,$i.addi ,$r.e-top 8 ,$r.e-top))
-		 (emit! as `(,$i.subrcc ,$r.e-top ,$r.e-limit ,$r.g0))
-		 (emit! as `(,$i.ble.a ,l1))
-		 (emit! as `(,$i.sti ,src1 -8 ,$r.e-top))
+					; lights-camera-action!
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:cons2reg: reg is not HW"))
+    (if (inline-cons)
+	(let ((l1 (new-label))
+	      (l2 (new-label)))
+	  (emit! as `(,$i.addi ,$r.e-top 8 ,$r.e-top))
+	  (emit! as `(,$i.subrcc ,$r.e-top ,$r.e-limit ,$r.g0))
+	  (emit! as `(,$i.ble.a ,l1))
+	  (emit! as `(,$i.sti ,src1 -8 ,$r.e-top))
 
-		 ; overflow: just do an 'alloc' to trigger the correct gc
-		 (emit! as `(,$i.subi ,$r.e-top 8 ,$r.e-top))
-		 (emit-common-case l2)
+	  ; overflow: just do an 'alloc' to trigger the correct gc
+	  (emit! as `(,$i.subi ,$r.e-top 8 ,$r.e-top))
+	  (emit-common-case l2)
 
-		 ; fast case again
-		 (emit! as `(,$i.label ,l1))
-		 (let ((src2 (force-hwreg! as src2 $r.tmp1)))
-		   (if (= src2 dest)
-		       (begin (emit! as `(,$i.sti ,src2 -4 ,$r.e-top))
-			      (emit! as `(,$i.subi ,$r.e-top 7 ,dest)))
-		       (begin (emit! as `(,$i.subi ,$r.e-top 7 ,dest))
-			      (emit! as `(,$i.sti ,src2 -4 ,$r.e-top))))
-		   (emit! as `(,$i.label ,l2))))
-	       (begin
-		 (emit-common-case #f)))))
+					; fast case again
+	  (emit! as `(,$i.label ,l1))
+	  (let ((src2 (force-hwreg! as src2 $r.tmp1)))
+	    (if (= src2 dest)
+		(begin (emit! as `(,$i.sti ,src2 -4 ,$r.e-top))
+		       (emit! as `(,$i.subi ,$r.e-top 7 ,dest)))
+		(begin (emit! as `(,$i.subi ,$r.e-top 7 ,dest))
+		       (emit! as `(,$i.sti ,src2 -4 ,$r.e-top))))
+	    (emit! as `(,$i.label ,l2))))
+	(begin
+	  (emit-common-case #f)))))
 
 (define-primop 'internal:+2reg
-	 (lambda (as src1 src2 dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:+2reg: reg is not HW"))
-	   (emit-arith-primop!
-	    as $i.taddrcc $i.subr $m.add src1 src2 dest #t)))
+  (lambda (as src1 src2 dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:+2reg: reg is not HW"))
+    (emit-arith-primop! as $i.taddrcc $i.subr $m.add src1 src2 dest #t)))
 
 (define-primop 'internal:-2reg
-	 (lambda (as src1 src2 dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler:internal:-2reg: reg is not HW"))
-	   (emit-arith-primop!
-	    as $i.tsubrcc $i.addr $m.subtract src1 src2 dest #t)))
+  (lambda (as src1 src2 dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler:internal:-2reg: reg is not HW"))
+    (emit-arith-primop! as $i.tsubrcc $i.addr $m.subtract src1 src2 dest #t)))
 
 (define-primop 'internal:+imm2reg
-	  (lambda (as src1 imm dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:+imm2reg: reg is not HW"))
-	   (emit-arith-primop!
-	    as $i.taddicc $i.subi $m.add src1 imm dest #f)))
+  (lambda (as src1 imm dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:+imm2reg: reg is not HW"))
+    (emit-arith-primop! as $i.taddicc $i.subi $m.add src1 imm dest #f)))
 
 (define-primop 'internal:-imm2reg
-	  (lambda (as src1 imm dest)
-	   (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
-	       (error "Assembler: internal:-imm2reg: reg is not HW"))
-	   (emit-arith-primop!
-	    as $i.tsubicc $i.addi $m.subtract src1 imm dest #f)))
+  (lambda (as src1 imm dest)
+    (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
+	(error "Assembler: internal:-imm2reg: reg is not HW"))
+    (emit-arith-primop! as $i.tsubicc $i.addi $m.subtract src1 imm dest #f)))
 
 (define-primop 'internal:bfnull?
-	 (lambda (as reg label)
-	   (if (not (hardware-mapped? reg))
-	       (error "Assembler: internal:bfnull?: reg is not HW"))
-	   (emit! as `(,$i.subicc ,reg ,$imm.null ,$r.g0))
-	   (emit! as `(,$i.bne.a ,(make-asm-label label)))
-	   (emit! as `(,$i.slot))))
+  (lambda (as reg label)
+    (if (not (hardware-mapped? reg))
+	(error "Assembler: internal:bfnull?: reg is not HW"))
+    (emit! as `(,$i.subicc ,reg ,$imm.null ,$r.g0))
+    (emit! as `(,$i.bne.a ,(make-asm-label label)))
+    (emit! as `(,$i.slot))))
 
 (define-primop 'internal:bfpair?
-	 (lambda (as reg label)
-	   (if (not (hardware-mapped? reg))
-	       (error "Assembler: internal:bfpair?: reg is not HW"))
-	   (emit! as `(,$i.andi ,reg ,$tag.tagmask ,$r.tmp0))
-	   (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair-tag ,$r.g0))
-	   (emit! as `(,$i.bne.a ,(make-asm-label label)))
-	   (emit! as `(,$i.slot))))
+  (lambda (as reg label)
+    (if (not (hardware-mapped? reg))
+	(error "Assembler: internal:bfpair?: reg is not HW"))
+    (emit! as `(,$i.andi ,reg ,$tag.tagmask ,$r.tmp0))
+    (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair-tag ,$r.g0))
+    (emit! as `(,$i.bne.a ,(make-asm-label label)))
+    (emit! as `(,$i.slot))))
 
 (define-primop 'internal:bfzero?
-	 (lambda (as reg label)
-	   (if (not (hardware-mapped? reg))
-	       (error "Assembler: internal:bfzero?: reg is not HW"))
-	   (emit-bcmp-primop! as $i.bne.a reg $r.g0 label $m.zerop #t)))
+  (lambda (as reg label)
+    (if (not (hardware-mapped? reg))
+	(error "Assembler: internal:bfzero?: reg is not HW"))
+    (emit-bcmp-primop! as $i.bne.a reg $r.g0 label $m.zerop #t)))
 
 (define-primop 'internal:bf=
-	 (lambda (as src1 src2 label)
-	   (emit-bcmp-primop! as $i.bne.a src1 src2 label $m.numeq #t)))
+  (lambda (as src1 src2 label)
+    (emit-bcmp-primop! as $i.bne.a src1 src2 label $m.numeq #t)))
 
 (define-primop 'internal:bf<
-	 (lambda (as src1 src2 label)
-	   (emit-bcmp-primop! as $i.bge.a src1 src2 label $m.numlt #t)))
+  (lambda (as src1 src2 label)
+    (emit-bcmp-primop! as $i.bge.a src1 src2 label $m.numlt #t)))
 
 (define-primop 'internal:bf<=
-	 (lambda (as src1 src2 label)
-	   (emit-bcmp-primop! as $i.bg.a src1 src2 label $m.numle #t)))
+  (lambda (as src1 src2 label)
+    (emit-bcmp-primop! as $i.bg.a src1 src2 label $m.numle #t)))
 
 (define-primop 'internal:bf>
-	 (lambda (as src1 src2 label)
-	   (emit-bcmp-primop! as $i.ble.a src1 src2 label $m.numgt #t)))
+  (lambda (as src1 src2 label)
+    (emit-bcmp-primop! as $i.ble.a src1 src2 label $m.numgt #t)))
 
 (define-primop 'internal:bf>=
-	 (lambda (as src1 src2 label)
-	   (emit-bcmp-primop! as $i.bl.a src1 src2 label $m.numge #t)))
+  (lambda (as src1 src2 label)
+    (emit-bcmp-primop! as $i.bl.a src1 src2 label $m.numge #t)))
 
 (define-primop 'internal:bf=imm
-	 (lambda (as src1 imm label)
-	   (emit-bcmp-primop! as $i.bne.a src1 imm label $m.numeq #f)))
+  (lambda (as src1 imm label)
+    (emit-bcmp-primop! as $i.bne.a src1 imm label $m.numeq #f)))
 
 (define-primop 'internal:bf<imm
-	 (lambda (as src1 imm label)
-	   (emit-bcmp-primop! as $i.bge.a src1 imm label $m.numlt #f)))
+  (lambda (as src1 imm label)
+    (emit-bcmp-primop! as $i.bge.a src1 imm label $m.numlt #f)))
 
 (define-primop 'internal:bf<=imm
-	 (lambda (as src1 imm label)
-	   (emit-bcmp-primop! as $i.bg.a src1 imm label $m.numle #f)))
+  (lambda (as src1 imm label)
+    (emit-bcmp-primop! as $i.bg.a src1 imm label $m.numle #f)))
 
 (define-primop 'internal:bf>imm
-	 (lambda (as src1 imm label)
-	   (emit-bcmp-primop! as $i.ble.a src1 imm label $m.numgt #f)))
+  (lambda (as src1 imm label)
+    (emit-bcmp-primop! as $i.ble.a src1 imm label $m.numgt #f)))
 
 (define-primop 'internal:bf>=imm
-	 (lambda (as src1 imm label)
-	   (emit-bcmp-primop! as $i.bl.a src1 imm label $m.numge #f)))
+  (lambda (as src1 imm label)
+    (emit-bcmp-primop! as $i.bl.a src1 imm label $m.numge #f)))
 
 (define-primop 'internal:bfchar=?
-	 (lambda (as src1 src2 label)
-	   (emit-char-bcmp-primop! as $i.bne.a src1 src2 label $ex.char=?)))
+  (lambda (as src1 src2 label)
+    (emit-char-bcmp-primop! as $i.bne.a src1 src2 label $ex.char=?)))
 
 (define-primop 'internal:bfchar<=?
-	 (lambda (as src1 src2 label)
- 	   (emit-char-bcmp-primop! as $i.bg.a src1 src2 label $ex.char<=?)))
+  (lambda (as src1 src2 label)
+    (emit-char-bcmp-primop! as $i.bg.a src1 src2 label $ex.char<=?)))
 
 (define-primop 'internal:bfchar<?
-	 (lambda (as src1 src2 label)
- 	   (emit-char-bcmp-primop! as $i.bge.a src1 src2 label $ex.char<?)))
+  (lambda (as src1 src2 label)
+    (emit-char-bcmp-primop! as $i.bge.a src1 src2 label $ex.char<?)))
 
 (define-primop 'internal:bfchar>=?
-	 (lambda (as src1 src2 label)
- 	   (emit-char-bcmp-primop! as $i.bl.a src1 src2 label $ex.char>=?)))
+  (lambda (as src1 src2 label)
+    (emit-char-bcmp-primop! as $i.bl.a src1 src2 label $ex.char>=?)))
 
 (define-primop 'internal:bfchar>?
-	 (lambda (as src1 src2 label)
- 	   (emit-char-bcmp-primop! as $i.ble.a src1 src2 label $ex.char>?)))
+  (lambda (as src1 src2 label)
+    (emit-char-bcmp-primop! as $i.ble.a src1 src2 label $ex.char>?)))
 
 (define-primop 'internal:bfchar=?imm
-	 (lambda (as src imm label)
-	   (emit-char-bcmp-primop! as $i.bne.a src imm label $ex.char=?)))
+  (lambda (as src imm label)
+    (emit-char-bcmp-primop! as $i.bne.a src imm label $ex.char=?)))
 
 (define-primop 'internal:bfchar>=?imm
-	 (lambda (as src imm label)
-	   (emit-char-bcmp-primop! as $i.bl.a src imm label $ex.char>=?)))
+  (lambda (as src imm label)
+    (emit-char-bcmp-primop! as $i.bl.a src imm label $ex.char>=?)))
 
 (define-primop 'internal:bfchar>?imm
-	 (lambda (as src imm label)
-	   (emit-char-bcmp-primop! as $i.ble.a src imm label $ex.char>?)))
+  (lambda (as src imm label)
+    (emit-char-bcmp-primop! as $i.ble.a src imm label $ex.char>?)))
 
 (define-primop 'internal:bfchar<=?imm
-	 (lambda (as src imm label)
-	   (emit-char-bcmp-primop! as $i.bg.a src imm label $ex.char<=?)))
+  (lambda (as src imm label)
+    (emit-char-bcmp-primop! as $i.bg.a src imm label $ex.char<=?)))
 
 (define-primop 'internal:bfchar<?imm
-	 (lambda (as src imm label)
-	   (emit-char-bcmp-primop! as $i.bge.a src imm label $ex.char<?)))
+  (lambda (as src imm label)
+    (emit-char-bcmp-primop! as $i.bge.a src imm label $ex.char<?)))
 
 (define-primop 'internal:eq2reg
-	 (lambda (as src1 src2 dest)
-	   (let ((tmp (force-hwreg! as src2 $r.tmp0)))
-	     (emit! as `(,$i.subrcc ,src1 ,tmp ,$r.g0))
-	     (emit-set-boolean-reg! as dest))))
+  (lambda (as src1 src2 dest)
+    (let ((tmp (force-hwreg! as src2 $r.tmp0)))
+      (emit! as `(,$i.subrcc ,src1 ,tmp ,$r.g0))
+      (emit-set-boolean-reg! as dest))))
 
 (define-primop 'internal:bfeq?
-	 (lambda (as src1 src2 label)
-	   (emit! as `(,$i.subrcc ,src1 ,src2 ,$r.g0))
-	   (emit! as `(,$i.bne.a ,(make-asm-label label)))
-	   (emit! as `(,$i.slot))))
+  (lambda (as src1 src2 label)
+    (emit! as `(,$i.subrcc ,src1 ,src2 ,$r.g0))
+    (emit! as `(,$i.bne.a ,(make-asm-label label)))
+    (emit! as `(,$i.slot))))
 
 (define-primop 'internal:bfeq?imm
-	 (lambda (as src1 imm label)
-	   (emit! as `(,$i.subicc ,src1 ,(thefixnum imm) ,$r.g0))
-	   (emit! as `(,$i.bne.a ,(make-asm-label label)))
-	   (emit! as `(,$i.slot))))
+  (lambda (as src1 imm label)
+    (emit! as `(,$i.subicc ,src1 ,(thefixnum imm) ,$r.g0))
+    (emit! as `(,$i.bne.a ,(make-asm-label label)))
+    (emit! as `(,$i.slot))))
 
 
 ;; old ones; remove when new versions are mature.
 
 (define-primop '+imm
-	 (lambda (as imm)
-	   (emit-primop.4arg! as 'internal:+imm2reg $r.result imm $r.result)))
+  (lambda (as imm)
+    (display "*****Obsolete primitive +imm") (newline)
+    (emit-primop.4arg! as 'internal:+imm2reg $r.result imm $r.result)))
 
 (define-primop '-imm
-	 (lambda (as imm)
-	   (emit-primop.4arg! as 'internal:-imm2reg $r.result imm $r.result)))
+  (lambda (as imm)
+    (display "*****Obsolete primitive -imm") (newline)
+    (emit-primop.4arg! as 'internal:-imm2reg $r.result imm $r.result)))
 
 (define-primop 'bfnull?
-	 (lambda (as label)
-	   (emit-primop.3arg! as 'internal:bfnull? $r.result label)))
+  (lambda (as label)
+    (display "*****Obsolete primitive bfnull?") (newline)
+    (emit-primop.3arg! as 'internal:bfnull? $r.result label)))
 
 (define-primop 'bfpair?
-	 (lambda (as label)
-	   (emit-primop.3arg! as 'internal:bfpair? $r.result label)))
+  (lambda (as label)
+    (display "*****Obsolete primitive bfpair?") (newline)
+    (emit-primop.3arg! as 'internal:bfpair? $r.result label)))
 
 (define-primop 'bfzero?
-	 (lambda (as label)
-	   (emit-primop.3arg! as 'internal:bfzero? $r.result label)))
+  (lambda (as label)
+    (display "*****Obsolete primitive bfzero?") (newline)
+    (emit-primop.3arg! as 'internal:bfzero? $r.result label)))
 
 (define-primop 'bf=
-	 (lambda (as r label)
-	   (emit-primop.4arg! as 'internal:bf= $r.result r label)))
+  (lambda (as r label)
+    (display "*****Obsolete primitive bf=") (newline)
+    (emit-primop.4arg! as 'internal:bf= $r.result r label)))
 
 (define-primop 'bf<
-	 (lambda (as r label)
-	   (emit-primop.4arg! as 'internal:bf< $r.result r label)))
+  (lambda (as r label)
+    (display "*****Obsolete primitive bf<") (newline)
+    (emit-primop.4arg! as 'internal:bf< $r.result r label)))
 
 (define-primop 'bf<=
-	 (lambda (as r label)
-	   (emit-primop.4arg! as 'internal:bf<= $r.result r label)))
+  (lambda (as r label)
+    (display "*****Obsolete primitive bf<=") (newline)
+    (emit-primop.4arg! as 'internal:bf<= $r.result r label)))
 
 (define-primop 'bf>
-	 (lambda (as r label)
-	   (emit-primop.4arg! as 'internal:bf> $r.result r label)))
+  (lambda (as r label)
+    (display "*****Obsolete primitive bf>") (newline)
+    (emit-primop.4arg! as 'internal:bf> $r.result r label)))
 
 (define-primop 'bf>=
-	 (lambda (as r label)
-	   (emit-primop.4arg! as 'internal:bf>= $r.result r label)))
+  (lambda (as r label)
+    (display "*****Obsolete primitive bf>=") (newline)
+    (emit-primop.4arg! as 'internal:bf>= $r.result r label)))
 
 ;-----------------------------------------------------------------
 
@@ -1062,7 +1065,7 @@
 ; actually generated by the compiler (they should not figure in the
 ; integrables table!)
 ;
-; For the most part obsolete, supplanted by syscalls.
+; Obsolete, supplanted by syscalls.
 
 (define-primop 'open-file
   (lambda (as r1 r2)
@@ -1098,13 +1101,32 @@
     (display "*****Obsolete primitive $m.resource-file") (newline)
     (millicode-call/0arg as $m.resource-usage)))
 
+(define-primop 'modulo
+  (lambda (as r)
+    (display "OBSOLETE MILLICODE CALL $m.modulo") (newline)
+    (millicode-call/1arg as $m.modulo r)))
+
+; obsolete
+(define-primop 'sys$gc
+  (lambda (as)
+    (display "*****Obsolete primitive $m.gc") (newline)
+    (millicode-call/0arg as $m.gc)))
+
+; obsolete
+(define-primop 'sys$exit
+  (lambda (as)
+    (display "*****Obsolete primitive $m.exit") (newline)
+    (millicode-call/0arg as $m.exit)))
+
+; obsolete
+(define-primop 'sys$dumpheap 
+  (lambda (as r)
+    (display "*****Obsolete primitive $m.dumpheap") (newline)
+    (millicode-call/1arg as $m.dumpheap r)))
+
+
 (setup-primops)
 
-
-; quite temporary
-
-(define (silly name)
-  (error 'silly "Silly, silly. (undefined integrable ~a)." name))
 
 ; Millicode calling
 
@@ -1133,9 +1155,9 @@
 (define (emit-setcar/setcdr! as x offs)
   (let ((x (force-hwreg! as x $r.argreg2)))
     (emit! as `(,$i.sti ,x ,(- offs $tag.pair-tag) ,$r.result))
-    (if register-transactions-for-side-effects
+    (if (write-barrier)
 	(let ((l (new-label)))
-	  (if inline-assignment
+	  (if (inline-assignment)
 	      (begin
 		(emit! as `(,$i.subrcc ,$r.result ,$r.e-top ,$r.g0))
 		(emit! as `(,$i.ble.a ,l))
@@ -1143,7 +1165,7 @@
 	  (millicode-call/1arg as $m.addtrans x)
 ;	  (emit! as `(,$i.jmpli ,$r.millicode ,$m.addtrans ,$r.o7))
 ;	  (emit! as `(,$i.orr ,x ,$r.g0 ,$r.argreg2))
-	  (if inline-assignment
+	  (if (inline-assignment)
 	      (emit! as `(,$i.label ,l)))))))
 
 (define (emit-set-boolean! as)
@@ -1207,6 +1229,8 @@
     (emit! as `(,$i.be.a ,l1))
     (emit! as `(,$i.slot))
     (emit! as `(,$i.label ,l2))
+    (if (not (= reg $r.result))
+	(emit! as `(,$i.orr ,$r.g0 ,reg ,$r.result)))
     (emit! as `(,$i.ori ,$r.g0 ,(thefixnum excode) ,$r.tmp0))
     (millicode-call/ret as $m.exception l0)
 ;    (emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.o7))
@@ -1226,10 +1250,10 @@
     (emit! as `(,$i.be.a ,l1))
     (emit! as `(,$i.slot))
     (emit! as `(,$i.label ,l0))
+    (if (not (= reg $r.result))
+	(emit! as `(,$i.orr ,$r.g0 ,reg ,$r.result)))
     (emit! as `(,$i.ori ,$r.g0 ,(thefixnum excode) ,$r.tmp0))
     (millicode-call/ret as $m.exception l2)
-;    (emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.o7))
-;    (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))
     l0))
 
@@ -1269,6 +1293,8 @@
     (emit! as `(,$i.bvc ,l1))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.label ,l3))
+    (if (not (= reg $r.result))
+	(emit! as `(,$i.orr ,$r.g0 ,reg ,$r.result)))
     (emit! as `(,$i.ori ,$r.g0 ,(thefixnum excode) ,$r.tmp0))
     (millicode-call/ret as $m.exception l2)
 ;    (emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.o7))
@@ -1377,7 +1403,7 @@
 ; included.
 
 (define (emit-get-length! as tag1 tag2 excode)
-  (if (not unsafe-mode)
+  (if (not (unsafe-code))
       (if tag2
 	  (emit-double-tagcheck-assert! as tag1 tag2 excode)
 	  (emit-single-tagcheck-assert! as tag1 excode)))
@@ -1451,11 +1477,11 @@
 ; element. If the header has been loaded before, it will be loaded again.
 ; This must be fixed (later).
 ;
-; fault is defined iff unsafe-mode = #f
+; fault is defined iff (unsafe-code) = #f
 
 (define (emit-bytevector-like-ref! as x fault charize?)
   (let ((r (force-hwreg! as x $r.tmp1)))
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(begin
 	  ; check that index is fixnum
 	  (emit! as `(,$i.andicc ,r 3 ,$r.g0))
@@ -1478,12 +1504,14 @@
 	       (emit! as `(,$i.ori ,$r.result ,$imm.character ,$r.result))))))
 
 
-; fault is valid iff unsafe-mode = #f
+; fault is valid iff (unsafe-code) = #f
+; FIXME: values passed to error handler appear to be bogus (error message
+; is very strange.)
 
 (define (emit-bytevector-like-set! as x y fault)
   (let ((r1 (force-hwreg! as x $r.tmp0))
 	(r2 (force-hwreg! as y $r.tmp1)))
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(begin
 	  ; both should be fixnums
 	  (emit! as `(,$i.orr ,r1 ,r2 ,$r.tmp2))
@@ -1524,11 +1552,11 @@
 ;
 ; Pointer must be valid; header may be reloaded unnecessarily. Fix later.
 
-; fault is valid iff unsafe-mode = #f
+; fault is valid iff (unsafe-code) = #f
 
 (define (emit-vector-like-ref! as r fault tag)
   (let ((r1 (force-hwreg! as r $r.argreg2)))
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(begin
 	  (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
 	  (emit! as `(,$i.bne.a ,fault))
@@ -1552,11 +1580,11 @@
 ;
 ; The use of vector-set is ok even if it is a procedure.
 
-; fault is valid iff unsafe-mode = #f
+; fault is valid iff (unsafe-code) = #f
 
 (define (emit-vector-like-set! as x y fault tag)
   (let ((r1 (force-hwreg! as x $r.argreg2)))
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(begin
 	  (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
 	  (emit! as `(,$i.bne.a ,fault))
@@ -1569,8 +1597,8 @@
     (let ((y (force-hwreg! as y $r.argreg3)))
       (emit! as `(,$i.addr ,$r.result ,r1 ,$r.tmp0))
       (emit! as `(,$i.sti ,y ,(- 4 tag) ,$r.tmp0))
-      (if register-transactions-for-side-effects
-	  (if inline-assignment
+      (if (write-barrier)
+	  (if (inline-assignment)
 	      (let ((l (new-label)))
 		(emit! as `(,$i.subrcc ,$r.result ,$r.e-top ,$r.g0))
 		(emit! as `(,$i.ble.a ,l))
@@ -1615,7 +1643,7 @@
 
 ; We check the tags of both by xoring them and seeing if the low byte is 0.
 ; If so, then we can subtract one from the other (tag and all) and check the
-; condition codes.
+; condition codes.  FIXME. That's not right, consider (char=? 1 1).
 ;
 ; The branch-on-true instruction must have the annull bit set.
 ;
@@ -1626,7 +1654,7 @@
   (let ((op2 (if (char? op2)
 		 op2
 		 (force-hwreg! as op2 $r.argreg2))))
-    (cond ((not unsafe-mode)
+    (cond ((not (unsafe-code))
 	   (let ((l0 (new-label))
 		 (l1 (new-label)))
 	     (sparc.label as l0)

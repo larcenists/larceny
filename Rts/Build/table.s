@@ -91,7 +91,7 @@ EXTNAME(globals):
 	.word	0	! G_CALLOUT_TMP0
 	.word	0	! G_CALLOUT_TMP1
 	.word	0	! G_CALLOUT_TMP2
-	.word	0	! padding
+	.word	0	! G_CACHE_FLUSH
 	.word	0	! padding
 	.word	0	! padding
 	.word	0	! padding
@@ -357,4 +357,8 @@ EXTNAME(globals):
 	b	EXTNAME(m_syscall)
 	nop
 	b	EXTNAME(m_bvlcmp)
+	nop
+	b	EXTNAME(m_enable_interrupts)
+	nop
+	b	EXTNAME(m_disable_interrupts)
 	nop

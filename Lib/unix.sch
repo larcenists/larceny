@@ -1,6 +1,6 @@
 ; Larceny library -- Some Unix primitives
 ;
-; $Id$
+; $Id: unix.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; History
 ;   July 15, 1995 / lth
@@ -17,20 +17,33 @@
 ; these values automatically (unless the values are POSIX-mandated).
 
 ; sys/fcntlcom.h
+; Obsolete: the ones below are portable.
+;(define unix:O_RDONLY 0)             ; mode for opening a file for read
+;(define unix:O_WRONLY 1)             ; ditto for write
+;(define unix:O_RDWR   2)             ; ditto for both
+;(define unix:O_CREAT  #x200)         ; create file if !existing (output)
+;(define unix:O_TRUNC  #x400)         ; truncate if existing (output)
 
-(define unix:O_RDONLY 0)             ; mode for opening a file for read
-(define unix:O_WRONLY 1)             ; ditto for write
-(define unix:O_RDWR   2)             ; ditto for both
-(define unix:O_CREAT  #x200)         ; create file if !existing (output)
-(define unix:O_TRUNC  #x400)         ; truncate if existing (output)
-(define unix:create-mode #o666)      ; default mode for new files
+; Parameters for unix:open.
+
+(define unix:open-read  #x01)         ; open for read
+(define unix:open-write #x02)         ; open for write
+(define unix:open-append #x04)        ; position at end (writing)
+(define unix:open-create #x08)        ; create if not existing (writing)
+(define unix:open-trunc  #x10)        ; truncate if existing (writing)
+(define unix:create-mode #o666)       ; default mode for new files
 
 ; unistd.h
+; Obsolete: the ones below are portable.
+;(define unix:R_OK 4)                 ; access for reading
+;(define unix:W_OK 2)                 ; access for writing
+;(define unix:X_OK 1)                 ; access for execution
+;(define unix:F_OK 0)                 ; path searchable, file exists
 
-(define unix:R_OK 4)                 ; access for reading
-(define unix:W_OK 2)                 ; access for writing
-(define unix:X_OK 1)                 ; access for execution
-(define unix:F_OK 0)                 ; path searchable, file exists
+(define unix:access-exists  #x01)     ; path searchable, file exists
+(define unix:access-read    #x02)     ; file readable
+(define unix:access-write   #x04)     ; file writable
+(define unix:access-execute #x08)     ; file executable
 
 ; Standard Unix file descriptors
 
@@ -57,6 +70,16 @@
 (define syscall:pollinput 11)
 (define syscall:getenv 12)
 (define syscall:gc 13)
+(define syscall:flonum-log 14)
+(define syscall:flonum-exp 15)
+(define syscall:flonum-sin 16)
+(define syscall:flonum-cos 17)
+(define syscall:flonum-tan 18)
+(define syscall:flonum-asin 19)
+(define syscall:flonum-acos 20)
+(define syscall:flonum-atan 21)
+(define syscall:flonum-atan2 22)
+(define syscall:flonum-sqrt 23)
 
 ; Wrappers
 
@@ -69,8 +92,8 @@
 (define (unix:read fd buffer nbytes)
   (syscall syscall:read fd buffer nbytes))
 
-(define (unix:write fd buffer nbytes)
-  (syscall syscall:write fd buffer nbytes))
+(define (unix:write fd buffer nbytes offset)
+  (syscall syscall:write fd buffer nbytes offset))
 
 (define (unix:unlink filename)
   (syscall syscall:unlink filename))
@@ -123,6 +146,39 @@
 (define (unix:gc type)
   (syscall syscall:gc type))
 
+; Transcendentals and square root are supported by callouts to C,
+; for now.
+
+(define (unix:flonum-log x)
+  (syscall syscall:flonum-log x (make-raw-flonum)))
+
+(define (unix:flonum-exp x)
+  (syscall syscall:flonum-exp x (make-raw-flonum)))
+
+(define (unix:flonum-sin x)
+  (syscall syscall:flonum-sin x (make-raw-flonum)))
+
+(define (unix:flonum-cos x)
+  (syscall syscall:flonum-cos x (make-raw-flonum)))
+
+(define (unix:flonum-tan x)
+  (syscall syscall:flonum-tan x (make-raw-flonum)))
+
+(define (unix:flonum-asin x)
+  (syscall syscall:flonum-asin x (make-raw-flonum)))
+
+(define (unix:flonum-acos x)
+  (syscall syscall:flonum-acos x (make-raw-flonum)))
+
+(define (unix:flonum-atan x)
+  (syscall syscall:flonum-atan x (make-raw-flonum)))
+
+(define (unix:flonum-atan2 x y)
+  (syscall syscall:flonum-atan2 x y (make-raw-flonum)))
+
+(define (unix:flonum-sqrt x)
+  (syscall syscall:flonum-sqrt x (make-raw-flonum)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -148,10 +204,10 @@
 
 (define (sys$open-file fn mode)
   (cond ((eq? mode 'input)
-	 (unix:open fn unix:O_RDONLY 0))
+	 (unix:open fn unix:open-read 0))
 	((eq? mode 'output)
 	 (unix:open fn 
-		    (+ unix:O_WRONLY unix:O_CREAT unix:O_TRUNC)
+		    (+ unix:open-write unix:open-create unix:open-trunc)
 		    unix:create-mode))
 	(else
 	 ???open-file)))
@@ -159,25 +215,26 @@
 (define sys$close-file unix:close)
 (define sys$delete-file unix:unlink)
 (define sys$read-file unix:read)
-(define sys$write-file unix:write)
+(define (sys$write-file fd buf k) (unix:write fd buf k 0))
+(define sys$write-file4 unix:write)
 (define sys$rename-file unix:rename)
 (define sys$file-modification-time unix:file-modification-time)
-(define (sys$file-exists? fn) (unix:access fn unix:F_OK))
+(define (sys$file-exists? fn) (unix:access fn unix:access-exists))
 (define sys$char-ready? unix:pollinput)
 
 (define sys$gc unix:gc)
 
 ; Dump a heap.
 
-(define (dumpheap filename proc)
+(define (dump-heap filename proc)
   (cond ((not (string? filename))
 	 (error "Bad filename argument to dumpheap: " filename))
 	((not (procedure? proc))
 	 (error "Bad procedure argument to dumpheap: " proc))
 	(else
-	 (display "Dumping heap...") (newline)
+	 (display "; Dumping heap...") (newline)
 	 (unix:dump-heap filename proc)
-	 (display "Done.")
+	 (display "; Done.")
 	 (newline))))
 
 ; Clean up and exit.
@@ -196,5 +253,21 @@
 	(else
 	 (error "getenv: not a valid name: " name))))
 
+; Numbers
+
+(define flonum:sin unix:flonum-sin)
+(define flonum:cos unix:flonum-cos)
+(define flonum:tan unix:flonum-tan)
+(define flonum:asin unix:flonum-asin)
+(define flonum:acos unix:flonum-acos)
+(define flonum:atan unix:flonum-atan)
+(define flonum:atan2 unix:flonum-atan2)
+(define flonum:exp unix:flonum-exp)
+(define flonum:log unix:flonum-log)
+(define flonum:sqrt unix:flonum-sqrt)
+
+; System-dependent character values.
+
+(define **newline** 10)
 
 ; eof

@@ -94,6 +94,11 @@ unsigned tlowatermark;      /* heap contraction threshold in % */
   return 1;
 }
 
+int used_estack()
+{
+  return 0;  /* FIXME */
+}
+
 int free_espace()
 { return globals[ G_STKP ] - globals[ G_ETOP ]; }
 
@@ -112,6 +117,9 @@ int size_tspace()
 int used_tspace()
 { return size_tspace() - free_tspace(); }
 
+int size_sspace()
+{ return globals[ G_STATIC_TOP ] - globals[ G_STATIC_BOT ]; }
+
 word *getheaplimit( which )
 int which;
 { 
@@ -119,6 +127,8 @@ int which;
     case HL_TBOT : return (word*)globals[ G_EBOT ];
     case HL_TTOP : return (word*)globals[ G_ETOP ];
     case HL_TLIM : return (word*)globals[ G_ELIM ];
+    case HL_SBOT : return (word*)globals[ G_STATIC_BOT ];
+    case HL_STOP : return (word*)globals[ G_STATIC_TOP ];
     default      : panic( "Bad argument to getheaplimit()." );
   }
   /*NOTREACHED*/
@@ -133,6 +143,7 @@ word *p;
     case HL_TBOT : globals[ G_EBOT ] = (word)p; break;
     case HL_TTOP : globals[ G_ETOP ] = (word)p; break;
     case HL_TLIM : globals[ G_ELIM ] = (word)p; break;
+    case HL_STOP : globals[ G_STATIC_TOP ] = (word)p; break;
     default      : panic( "Bad argument to setheaplimit()." );
   }
 }

@@ -3,7 +3,7 @@
 ; Arithmetic functions for MacScheme.
 ; Augmented and changed for Larceny, which has a different set of primops.
 ;
-; $Id: number.sch,v 1.3 1992/06/10 09:05:29 lth Exp $
+; $Id: number.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 
 (define positive? (lambda (x) (> x 0)))
  
@@ -181,36 +181,48 @@
 ; The following are not present in the MacScheme version of this library.
 ; Some used to be in flonums.sch, which ceased to exist.
 
-; Natural logarithm of x.
-
-(define (log x)
-  (if (< x 0)
-      (error "log: Domain error:" x)
-      (begin (display "Warning: log not implemented; returning e.")
-	     (newline)
-	     2.7182)))
-
 ; Floor of x.
+; A little contorted to avoid generic arithmetic in flonum case.
 
 (define (floor x)
-  (if (< x 0)
-      (let ((g (truncate x)))
-	(if (not (= g x))
-	    (- g 1)
-	    g))
-      (truncate x)))
+  (cond ((or (flonum? x)
+	     (and (compnum? x)
+		  (= (imag-part x) 0.0)))
+	 (if (< x 0.0)
+	     (let ((g (truncate x)))
+	       (if (not (= g x))
+		   (- g 1.0)
+		   g))
+	     (truncate x)))
+	((< x 0)
+	 (let ((g (truncate x)))
+	   (if (not (= g x))
+	       (- g 1)
+	       g)))
+	(else
+	 (truncate x))))
 
 ; Ceiling of x.
-   
+; A little contorted to avoid generic arithmetic in flonum case.
+  
 (define (ceiling x)
-  (if (< x 0)
-      (truncate x)
-      (let ((g (truncate x)))
-	(if (not (= g x))
-	    (+ g 1)
-	    g))))
+  (cond ((or (flonum? x)
+	     (and (compnum? x) (= (imag-part x) 0.)))
+	 (if (< x 0.0)
+	     (truncate x)
+	     (let ((g (truncate x)))
+	       (if (not (= g x))
+		   (+ g 1.0)
+		   g))))
+	((< x 0)
+	 (truncate x))
+	(else
+	 (let ((g (truncate x)))
+	   (if (not (= g x))
+	       (+ g 1)
+	       g)))))
 
-;
+; Odd and even -- these could be much faster.
 
 (define (even? n)
   (zero? (remainder n 2)))
@@ -231,30 +243,96 @@
 	(i (imag-part c)))
     (sqrt (+ (* r r) (i i)))))
 
+; The procedures flonum:{sin,cos,tan,asin,acos,atan,exp,log,sqrt} have
+; system-specific implementations; if they are not primops they may
+; be found in the OS file (Lib/unix.sch, for example) or in the
+; flonum file (Lib/flonums.sch).
+
+; Square root
+
+(define (sqrt z)
+  (cond ((flonum? z)
+	 (flonum:sqrt z))
+	((not (real? z))
+	 (error "SQRT not implemented for complexes yet."))
+	(else
+	 (flonum:sqrt (exact->inexact z)))))
+
 ; Trancendentals
 
 (define (sin z)
-  (error "SIN not implemented."))
+  (cond ((flonum? z)
+	 (flonum:sin z))
+	((not (real? z))
+	 (error "SIN not implemented for complexes yet."))
+	(else
+	 (flonum:sin (exact->inexact z)))))
 
 (define (cos z)
-  (error "COS not implemented."))
+  (cond ((flonum? z)
+	 (flonum:cos z))
+	((not (real? z))
+	 (error "COS not implemented for complexes yet."))
+	(else
+	 (flonum:cos (exact->inexact z)))))
 
 (define (tan z)
-  (error "TAN not implemented."))
+  (cond ((flonum? z)
+	 (flonum:tan z))
+	((not (real? z))
+	 (error "TAN not implemented for complexes yet."))
+	(else
+	 (flonum:tan (exact->inexact z)))))
 
 (define (asin z)
-  (error "ASIN not implemented."))
+  (cond ((flonum? z)
+	 (flonum:asin z))
+	((not (real? z))
+	 (error "ASIN not implemented for complexes yet."))
+	(else
+	 (flonum:asin (exact->inexact z)))))
 
 (define (acos z)
-  (error "ACOS not implemented."))
+  (cond ((flonum? z)
+	 (flonum:acos z))
+	((not (real? z))
+	 (error "ACOS not implemented for complexes yet."))
+	(else
+	 (flonum:acos (exact->inexact z)))))
 
 (define (atan z . rest)
-  (error "ATAN not implemented"))
-
-(define (exp z)
-  (error "EXP not implemented."))
+  (if (null? rest)
+      (cond ((flonum? z)
+	     (flonum:atan z))
+	    ((not (real? z))
+	     (error "ATAN not implemented for complexes yet."))
+	    (else
+	     (flonum:atan (exact->inexact z))))
+      (let ((x z)
+	    (y (car rest)))
+	(cond ((and (flonum? x) (flonum? y))
+	       (flonum:atan2 x y))
+	      ((not (and (real? x) (real? y)))
+	       (error "ATAN: domain error: " x " " y))
+	      (else
+	       (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
 
 (define (log z)
-  (error "LOG not implemented."))
+  (cond ((flonum? z)
+	 (flonum:log z))
+	((not (real? z))
+	 (error "log: can't handle complexes yet."))
+	((<= z 0)
+	 (error "log: Domain error: " z))
+	(else
+	 (flonum:log (exact->inexact z)))))
+
+(define (exp z)
+  (cond ((flonum? z)
+	 (flonum:exp z))
+	((not (real? z))
+	 (error "EXP not implemented for complexes yet."))
+	(else
+	 (flonum:exp (exact->inexact z)))))
 
 ; eof

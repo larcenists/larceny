@@ -35,12 +35,11 @@
 
 (define (assembly-table) $bytecode-assembly-table$)
 
-; Compiler switches
+; Generic assembler switches -- independent of target assembler.
 
 (define enable-singlestep? #f) ; Single stepping switch
 (define enable-peephole? #t)   ; peephole optimization switch
 (define listify? #f)           ; produce listing
-(define emit-undef-check? #t)  ; check references to globals
 
 ; The main entry point.
 
@@ -363,10 +362,12 @@
     (list-instruction ".asm" instruction)
     (emit! as (cadr instruction))))
 
+; no-op on Sparc
+
 (define-instruction $.proc
   (lambda (instruction as)
     (list-instruction ".proc" instruction)
-    (emit-.proc! as)))
+    '()))
 
 ; no-op on Sparc
 
@@ -844,8 +845,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Helpers
 
-(define **eof** (lambda (x) x))
-
 (define (emit-constant->register as opd r)
 
   (define (fixnum-range? x)
@@ -862,11 +861,12 @@
 					$imm.true
 					$imm.false)
 				    r))
-	; is this correct?
-	((eq? opd **eof**)
+	((equal? opd (eof-object))
 	 (emit-immediate->register! as $imm.eof r))
-	((equal? opd hash-bang-unspecified)
+	((equal? opd (unspecified))
 	 (emit-immediate->register! as $imm.unspecified r))
+	((equal? opd (undefined))
+	 (emit-immediate->register! as $imm.undefined r))
 	((null? opd)
 	 (emit-immediate->register! as $imm.null r))
 	((char? opd)

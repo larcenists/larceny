@@ -6,6 +6,10 @@
  * Larceny run-time system (Unix) -- memory manager.
  *
  * History
+ *   Fabruary 1996 / lth (v0.25)
+ *     Fixed bug: heap overflow limit was incorrectly calculated during
+ *     full collection, causing segmentation fault.
+ *
  *   June 17, 1995 / lth (v0.24)
  *     Changed expand_tspace() to account for overflow data.
  *
@@ -29,15 +33,19 @@
  *   (program break)
  *
  * The stack lives at the high end of the ephemeral area, growing down.
- * The only procedure in here which "knows" this is the one which uses
- * the stack pointer to calculate free ephemeral space. However, if the
- * stack lived outside of the heap and would have to be copied into it
+ * The only procedures in here which "knows" this are the ones which use
+ * the stack pointer to calculate free and used ephemeral space. However, if 
+ * the stack lived outside of the heap and would have to be copied into it
  * on a gc, some changes would have to be made in this file.
  *
  * Some things to do:
  *   - use of madvise() is indicated but not implemented, below.
  *   - may be good to lock the ephemeral area, the ssb, and the remset
  *     in memory to avoid paging them, using mlock().
+ *   - may be good to set the protection for the static area to read-only.
+ *   - may be good to have a read-only static area mmap()'d in from the
+ *     heap file so as to allow the static area to be shared among processes
+ *     using the same heap file.
  *
  * Points to ponder:
  *   It is not clear that having watermarks in percent of the heap size is
@@ -46,8 +54,6 @@
  *   better would be to use an absolute amount for calculating expansion
  *   and contraction, too, e.g., if less than one espace free after major GC
  *   then expand; if more than two espaces free after major GC then contract.
- *
- *   The use of GC_SURV is not very nice.
  */
 
 #include <sys/types.h>
@@ -60,32 +66,8 @@ char *gctype = "gsgc";
 caddr_t sbrk();
 int brk();
 
-/* The value GC_SURV is the number n s.t. 1/n is a 'typical' survival
- * ratio after a minor garbage collection. It is a fudge factor used
- * by the garbage collector to determine whether to do a tenuring or
- * a full collection. We usually want to do as many tenuring collections
- * as possible (since they are quick); however, the heap must be expanded
- * to accomodate them. When the heap is expanded, VM usage goes up, and
- * after a while the system starts thrashing. The problem is to find some
- * sort of 'happy medium'; to put a lid on the heap size when it is
- * large enough to accomodate all live data. GC_SURV is used for this 
- * (see the comments in the implementation, below).
- *
- * If GC_SURV = 1, there will be essentially no tenuring collections; all
- * collections will be ephemeral or full.
- *
- * The ratio of tenuring collections to full collections raises with
- * the value of GC_SURV; however, so does the number of heap expansions.
- * The number of ephemeral collections is not directly affected by this
- * parameter.
- *
- * The value of GC_SURV has been determined empirically using the 10perm8
- * benchmark. A value between 3 and 5 seems to work fine for this benchmark
- * in 16 MB of real memory. The problem with this benchmark is that it is
- * somewhat atypical: it holds on to a lot of memory at a time. Some more
- * benchmarking should be done, with other programs.
- */
-#define GC_SURV  3
+static unsigned estksize = 0;
+static int estack_get_real = 1;
 
 
 /***************************************************************************
@@ -164,7 +146,26 @@ unsigned tlowatermark;      /* heap contraction threshold in % */
   if (!create_stack())
     panic( "Unable to create initial stack (you miser)." );
 
+  estack_get_real = 1;
   return 1;
+}
+
+/* This is ugly.  Somehow the stack size must be accounted for when
+ * GC stats are recorded.  But when memstats_before_gc() is called,
+ * the stack has been flushed so just calculating the stack size then
+ * is meaningless.  Therefore, before a flush_stack call in the collector,
+ * the stack size is recorded in estksize and estack_get_real is set
+ * to 0.  When the gc is finished, estack_get_real is set to 1.
+ * A client module can call used_estack() to get the stack size regardless.
+ *
+ * Returned stack size is in bytes.
+ */
+int used_estack()
+{ 
+  if (estack_get_real)
+    return globals[ G_STKBOT ] - globals[ G_STKP ]; 
+  else
+    return estksize;
 }
 
 int free_espace()
@@ -185,6 +186,9 @@ int size_tspace()
 int used_tspace()
 { return size_tspace() - free_tspace(); }
 
+int size_sspace()
+{ return globals[ G_STATIC_TOP ] - globals[ G_STATIC_BOT ]; }
+
 word *getheaplimit( which )
 int which;
 { 
@@ -192,6 +196,8 @@ int which;
     case HL_TBOT : return (word*)globals[ G_TBOT ];
     case HL_TTOP : return (word*)globals[ G_TTOP ];
     case HL_TLIM : return (word*)globals[ G_TLIM ];
+    case HL_SBOT : return (word*)globals[ G_STATIC_BOT ];
+    case HL_STOP : return (word*)globals[ G_STATIC_TOP ];
     default      : panic( "Bad argument to getheaplimit()." );
   }
   /*NOTREACHED*/
@@ -206,6 +212,7 @@ word *p;
     case HL_TBOT : globals[ G_TBOT ] = (word)p; break;
     case HL_TTOP : globals[ G_TTOP ] = (word)p; break;
     case HL_TLIM : globals[ G_TLIM ] = (word)p; break;
+    case HL_STOP : globals[ G_STATIC_TOP ] = (word)p; break;
     default      : panic( "Bad argument to setheaplimit()." );
   }
 }
@@ -237,7 +244,7 @@ static void expand_tspace()
   globals[ G_TSPACE2_LIM ] += 2*esize;
   globals[ G_TLIM ] += esize;
 
-  consolemsg( "Expanding tspace; new size = %dKB.", size_tspace()/1024 );
+  consolemsg( "; Expanding tspace; new size = %dKB.", size_tspace()/1024 );
 }
 
 /*
@@ -264,7 +271,7 @@ static void contract_tspace()
   globals[ G_TSPACE2_LIM ] -= 2*esize;
   globals[ G_TLIM ] -= esize;
     
-  consolemsg( "Contracting tspace; new size = %dKB.", size_tspace()/1024 );
+  consolemsg( "; Contracting tspace; new size = %dKB.", size_tspace()/1024 );
 }
 
 /***************************************************************************
@@ -315,8 +322,10 @@ int request;    /* words requested */
 }
 
 /*
- * A simple experiment with an ML-style collector; every minor collection
+ * A simple experiment with an SML/NJ-style collector; every minor collection
  * is a tenuring collection.
+ *
+ * Not very good; stay away.
  */
 static void mlgc( type, request )
 int type;
@@ -345,12 +354,14 @@ int request;
   /* We flush the stack on each iteration in this procedure so that
    * any restored frames get put back on the chain properly.
    */
+  estksize = used_estack();
+  estack_get_real = 0;
   flush_stack();
 
   if (type == TENURING_COLLECTION) {
     if (globals[ G_TBOT ] == globals[ G_TSPACE1_BOT ]) {
       /* Tspace A has data */
-      if (free_tspace() <= 0) {
+      if (free_tspace() - used_espace() <= 0) {
 	/* Tspace A has overflowed, so expand and do a full collection */
 	expand_tspace();
 	type = FULL_COLLECTION;
@@ -366,33 +377,18 @@ int request;
 	type = FULL_COLLECTION;
       }
     }
-
-#if 0
-    if (type == TENURING_COLLECTION
-     && used_tspace()+used_espace() < size_tspace()) {
-      /* Maybe we should do a major collection w/o expansion? 
-       * If the next tenuring collection would likely cause a full collection
-       * (most tenuring collections will report that the espace is 'full'
-       * before the collection) we do the full collection now, as a full
-       * collection later would cause heap expansion.
-       *
-       * The point of this adjustment is to prevent premature expansion,
-       * since too large a heap may cause VM thrashing. This calculation
-       * appears to be quite effective at putting a 'lid' on the heap size.
-       */
-      if (used_tspace()+used_espace() > size_tspace()-size_espace()/GC_SURV)
-	type = FULL_COLLECTION;
-    }
-#endif
   }
 
   if (type == FULL_COLLECTION) {
     if (globals[ G_TBOT ] == globals[ G_TSPACE1_BOT ]) {
       /* collecting from A to B */
-      if (free_tspace() <= 0) {
+      if (free_tspace() - used_espace() <= 0) {
 	/* A has overflowed: expand. */
 	expand_tspace();
       }
+    }
+    else {
+      /* Collecting from B to A -- do nothing, everything should be OK */
     }
   }
 
@@ -459,6 +455,7 @@ int request;
   }
 
   if (type != EPHEMERAL_COLLECTION) clear_remset();
+  estack_get_real = 1;
 }
 
 /* This procedure is used by the low-level garbage collector */

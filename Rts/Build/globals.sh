@@ -96,3 +96,5 @@
 (define $m.singlestep 1392)
 (define $m.syscall 1400)
 (define $m.bvlcmp 1408)
+(define $m.enable-interrupts 1416)
+(define $m.disable-interrupts 1424)

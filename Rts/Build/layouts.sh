@@ -13,6 +13,7 @@
 (define $imm.null 10)
 (define $imm.unspecified 278)
 (define $imm.eof 534)
+(define $imm.undefined 790)
 (define $imm.character 38)
 (define $tag.vector-typetag 0)
 (define $tag.rectnum-typetag 4)

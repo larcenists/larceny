@@ -252,7 +252,7 @@ void C_syscall()
 			{ (fptr)UNIX_unlinkfile, 1 },
 			{ (fptr)UNIX_closefile, 1 },
 			{ (fptr)UNIX_readfile, 3 },
-			{ (fptr)UNIX_writefile, 3 },
+			{ (fptr)UNIX_writefile, 4 },
 			{ (fptr)UNIX_getresourceusage, 1 },
 			{ (fptr)UNIX_dumpheap, 2 },
 			{ (fptr)exit, 0 },
@@ -262,6 +262,16 @@ void C_syscall()
 			{ (fptr)UNIX_pollinput, 1 },
 			{ (fptr)UNIX_getenv, 1 },
 			{ (fptr)UNIX_garbage_collect, 1 },
+			{ (fptr)UNIX_flonum_log, 2 },
+		        { (fptr)UNIX_flonum_exp, 2 },
+			{ (fptr)UNIX_flonum_sin, 2 },
+			{ (fptr)UNIX_flonum_cos, 2 },
+			{ (fptr)UNIX_flonum_tan, 2 },
+			{ (fptr)UNIX_flonum_asin, 2 },
+			{ (fptr)UNIX_flonum_acos, 2 },
+			{ (fptr)UNIX_flonum_atan, 2 },
+			{ (fptr)UNIX_flonum_atan2, 3 },
+			{ (fptr)UNIX_flonum_sqrt, 2 },
 		      };
   fptr proc;
   int nargs, nproc;
@@ -282,6 +292,8 @@ void C_syscall()
     case 2 : proc( globals[ G_REG2 ], globals[ G_REG3 ] ); break;
     case 3 : proc( globals[ G_REG2 ], globals[ G_REG3 ], 
 		   globals[ G_REG4 ] ); break;
+    case 4 : proc( globals[ G_REG2 ], globals[ G_REG3 ], 
+		   globals[ G_REG4 ], globals[ G_REG5 ] ); break;
     default: panic( "syscall: Too many arguments." ); break;
   }
 }

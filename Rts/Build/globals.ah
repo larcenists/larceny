@@ -65,6 +65,7 @@
 #define G_CALLOUT_TMP0 336
 #define G_CALLOUT_TMP1 340
 #define G_CALLOUT_TMP2 344
+#define G_CACHE_FLUSH 348
 #define M_ALLOC 1024
 #define M_ALLOCI 1032
 #define M_GC 1040
@@ -113,3 +114,5 @@
 #define M_SINGLESTEP 1392
 #define M_SYSCALL 1400
 #define M_BVLCMP 1408
+#define M_EINTR 1416
+#define M_DINTR 1424

@@ -4,7 +4,7 @@
 ;;
 ;; History
 ;;   July 17, 1995 / lth (v0.24)
-;;     INVOKE and ARGS= are sensitive to unsafe-mode.
+;;     INVOKE and ARGS= are sensitive to (unsafe-code).
 ;;
 ;;   July 5, 1994 / lth (v0.20)
 ;;     Slightly changed to deal with new millicode procedures and new
@@ -123,7 +123,7 @@
 (define (emit-result-register->global! as offset)
   (emit-const->register! as offset $r.tmp0)
   (emit! as `(,$i.sti ,$r.result ,(- $tag.pair-tag) ,$r.tmp0))
-  (if register-transactions-for-side-effects
+  (if (write-barrier)
       (begin
 	(emit! as `(,$i.orr ,$r.g0 ,$r.result ,$r.argreg2))
 	(emit! as `(,$i.jmpli ,$r.millicode ,$m.addtrans ,$r.o7))
@@ -133,16 +133,16 @@
 ; GLOBAL
 ;
 ; If the global variable emit-undef-check? is true, then code will be
-; emitted to check whether the global is not #!unspecified when loaded.
+; emitted to check whether the global is not #!undefined when loaded.
 ; If it is, an exception will be taken, with the global in question in
 ; $r.result.
 
 (define (emit-global->register! as offset r)
 
   (define (emit-undef-check! as r)
-    (if emit-undef-check?
+    (if (catch-undefined-globals)
 	(let ((l1 (new-label)))
-	  (emit! as `(,$i.subicc ,r ,$imm.unspecified ,$r.g0))
+	  (emit! as `(,$i.subicc ,r ,$imm.undefined ,$r.g0))
 	  (emit! as `(,$i.bne.a ,l1))
 	  (emit! as `(,$i.slot))
 	  (emit! as `(,$i.orr ,$r.tmp1 ,$r.g0 ,$r.result))
@@ -182,7 +182,7 @@
 ; FIXME: better use of the delay slot possible.
 
 (define (emit-args=! as n)
-  (if (not unsafe-mode)
+  (if (not (unsafe-code))
       (let ((l2 (new-label)))
 	(emit! as `(,$i.subicc ,$r.result ,(* n 4) ,$r.g0))
 	(emit! as `(,$i.be ,l2))
@@ -230,13 +230,13 @@
     (emit! as `(,$i.label ,l0))
     (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
     (emit! as `(,$i.bne.a ,l2))
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
 	(emit! as `(,$i.ldi ,$r.result ,$p.codevector ,$r.tmp0)))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l0 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l2))
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(begin ; tmp0 has tag of RESULT
 	       (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure-tag ,$r.g0))
 	       (emit! as `(,$i.be.a ,l3))
@@ -246,7 +246,7 @@
 	       (emit! as `(,$i.ldi ,$r.stkp 4 ,$r.o7))))
     ; tmp0 has code vector
     ; result has procedure
-    (if (not unsafe-mode)
+    (if (not (unsafe-code))
 	(emit! as `(,$i.label ,l3)))
     (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.reg0))
     (emit! as `(,$i.jmpli ,$r.tmp0 ,$p.codeoffset ,$r.g0))
@@ -489,7 +489,7 @@
     (emit! as `(,$i.sti ,$r.result
 			,(- (slotoffset n) $tag.procedure-tag)
 			,base))
-    (if register-transactions-for-side-effects
+    (if (write-barrier)
 	(begin
 	  (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
 	  (emit! as `(,$i.jmpli ,$r.millicode ,$m.addtrans ,$r.o7))
@@ -618,6 +618,9 @@
 			(loop (+ i 1) (+ offset 4)))))))))))
 
 ; BRANCH
+;
+; FIXME: the use of label in the slot of the millicode call may cause
+;        an undetected overflow in long code vectors.
 
 (define (emit-branch! as check-timer? label)
   (let ((label (make-asm-label label)))

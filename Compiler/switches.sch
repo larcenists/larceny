@@ -49,3 +49,11 @@
 (define local-optimizations
   (make-twobit-flag 'local-optimizations))
 
+(define issue-warnings
+  (make-twobit-flag 'issue-warnings))
+
+; For bootstrap heap dumper
+
+(define generate-global-symbols
+  (make-twobit-flag 'generate-global-symbols))
+

@@ -9,6 +9,9 @@
  * too much about which library procedures call malloc etc.
  *
  * History
+ *   January 23, 1996 (!)
+ *     Fixed serious bug: object was not unlinked from free list.
+ *
  *   June 27 - July 1, 1994 / lth (v0.20)
  *     Created.
  */
@@ -18,6 +21,8 @@
 
 #define SIGNATURE 0xDEADBEEF
 
+/*FIXME: No proof that arena[] has correct initial alignment */
+
 static char arena[ 65536 ];
 static char *aptr = arena;
 static char *alimit = arena + sizeof( arena );
@@ -26,17 +31,27 @@ static unsigned long *freelist = 0;
 char *malloc( bytes )
 size_t bytes;
 {
-  unsigned long *q;
+  unsigned long *q, *prev;
 
   bytes = ((bytes + 7) & ~7) + 8;
   q = freelist;
-  while (q != 0 && *(q+1) < bytes)       /* first-fit */
+  prev = 0;
+  while (q != 0 && *(q+1) < bytes) {       /* first-fit */
+    prev = q;
     q = (unsigned long *)*q;
+  }
   if (q == 0) {
-    if (aptr + bytes > alimit) return 0;
+    if (aptr + bytes > alimit) { write( 1, "MALLOCFAIL", 10 ); return 0; }
     q = (unsigned long *)aptr;
     *(q+1) = (unsigned long)bytes;
     aptr += bytes;
+  }
+  else {
+    /* Unlink q from free list */
+    if (prev != 0)
+      *prev = *q;
+    else
+      freelist = (unsigned long *)*q;
   }
   *q = SIGNATURE;
   return (char *)(q + 2);
@@ -47,8 +62,7 @@ char *obj;
 {
   unsigned long *q;
 
-  q = (unsigned long *)obj;
-  q -= 2;
+  q = (unsigned long *)obj - 2;
   if (*q != SIGNATURE) return;
   *q = (unsigned long)freelist;
   freelist = q;
@@ -79,7 +93,7 @@ size_t newsize;
   }
   p = malloc( newsize );
   if (p != 0 && obj != 0) {
-    memcpy( p, obj, newsize );
+    memcpy( p, obj, newsize <= *(q+1) ? newsize : (size_t)*(q+1) );
     free( obj );
   }
   return p;

@@ -4,6 +4,14 @@
  * Larceny run-time system (Unix) -- run-time statistics module.
  *
  * History
+ *   November 5, 1995 / lth (v0.25)
+ *     Fixed bug: not all arguments to add() were fixnums.
+ *     Made change: all entries in memstats[] are now fixnums.
+ *
+ *   Summer 1995 / lth (v0.25)
+ *     Module remembers status at last statistics gathering call (fillvector)
+ *     rather than at last gc, for heap and transaction numbers.
+ *
  *   June 28 - July 1, 1994 / lth (v0.20)
  *     Copied to this file from memsupport.c, massively rewritten.
  *
@@ -56,49 +64,51 @@ static unsigned time_before,          /* for gc stats */
 void memstat_init( show_heapstats )
 int show_heapstats;
 {
-  heap_after = used_espace() + used_tspace();
+  heap_after = used_espace() + used_tspace() - used_estack();
   rtstart = memstat_rtclock();
+  alloc_accounted_for = 0;
 
-#if 0
   if (show_heapstats) {
-    consolemsg( "Heap statistics:\n");
-    consolemsg( "  Size of ephemeral area: %lu bytes\n", size_espace() );
-    consolemsg( "  Size of tenured area: %lu bytes\n", size_tspace() );
-    consolemsg( "  Live ephemeral data: %lu bytes\n", used_espace() );
-    consolemsg( "  Live tenured data: %lu bytes\n", used_tspace() );
+    consolemsg( "Heap statistics:");
+    consolemsg( "  Size of ephemeral semispace: %lu bytes", size_espace() );
+    consolemsg( "  Size of tenured semispace: %lu bytes", size_tspace() );
+    consolemsg( "  Size of static area: %lu bytes", size_sspace() );
+    consolemsg( "  Live ephemeral data: %lu bytes", used_espace() );
+    consolemsg( "  Live tenured data: %lu bytes", used_tspace() );
   }
-#endif
 }
 
 void memstat_before_gc( type )
 int type;
 {
   time_before = memstat_rtclock();
-  heap_before = used_espace() + used_tspace();
+  heap_before = used_espace() + used_tspace() - used_estack();
 
   switch (type) {
-    case EPHEMERAL_COLLECTION : memstats[ MS_ECOLLECTIONS ]++; break;
-    case TENURING_COLLECTION  : memstats[ MS_TCOLLECTIONS ]++; break;
-    case FULL_COLLECTION      : memstats[ MS_FCOLLECTIONS ]++; break;
+    case EPHEMERAL_COLLECTION : memstats[ MS_ECOLLECTIONS ]+=fixnum(1); break;
+    case TENURING_COLLECTION  : memstats[ MS_TCOLLECTIONS ]+=fixnum(1); break;
+    case FULL_COLLECTION      : memstats[ MS_FCOLLECTIONS ]+=fixnum(1); break;
   }
 
   add( &memstats[ MS_WALLOCATED_HI ],
        &memstats[ MS_WALLOCATED_LO ],
-       (heap_before - heap_after - alloc_accounted_for) / sizeof( word ) );
+       fixnum( (heap_before - heap_after - alloc_accounted_for)
+	       / sizeof( word ) ) );
   alloc_accounted_for = heap_before - heap_after;
 }
 
+/* We get the stack size here to (dis-)account for copied frames */
 void memstat_after_gc()
 {
   unsigned time_after;
 
   time_after = memstat_rtclock();
-  heap_after = used_espace() + used_tspace();
+  heap_after = used_espace() + used_tspace() - used_estack();
   
-  memstats[ MS_GCTIME ] += time_after - time_before;
+  memstats[ MS_GCTIME ] += fixnum( time_after - time_before );
   add( &memstats[ MS_WCOLLECTED_HI ],
        &memstats[ MS_WCOLLECTED_LO ],
-       (heap_before - heap_after) / sizeof( word ) );
+       fixnum( (heap_before - heap_after) / sizeof( word ) ) );
   alloc_accounted_for = 0;
 }
 
@@ -108,7 +118,7 @@ unsigned n;
 #ifdef DEBUG
   consolemsg( "[debug] Frames flushed: %u.", n );
 #endif
-  memstats[ MS_FRAMESFLUSHED ] += n;
+  memstats[ MS_FRAMESFLUSHED ] += fixnum( n );
 }
 
 void memstat_transactions_allocated( n )
@@ -117,7 +127,8 @@ unsigned n;
 #ifdef DEBUG
   consolemsg( "[debug] Transactions allocated: %u.", n );
 #endif
-  add( &memstats[ MS_TALLOCATED_HI ], &memstats[ MS_TALLOCATED_LO ], n );
+  add( &memstats[ MS_TALLOCATED_HI ], &memstats[ MS_TALLOCATED_LO ], 
+       fixnum( n ) );
 }
 
 void memstat_transactions_scanned( n )
@@ -126,7 +137,8 @@ unsigned n;
 #ifdef DEBUG
   consolemsg( "[debug] Transactions scanned: %u.", n );
 #endif
-  add( &memstats[ MS_TSCANNED_HI ], &memstats[ MS_TSCANNED_LO ], n );
+  add( &memstats[ MS_TSCANNED_HI ], &memstats[ MS_TSCANNED_LO ], 
+       fixnum( n ) );
 }
 
 unsigned memstat_rtclock()
@@ -168,19 +180,19 @@ word *vp;
   vp[ STAT_UTIME ] = usertime;
   vp[ STAT_MINFAULTS ] = minflt;
   vp[ STAT_MAJFAULTS ] = majflt;
-  vp[ STAT_WCOLLECTED_HI ] = fixnum( memstats[ MS_WCOLLECTED_HI ] );
-  vp[ STAT_WCOLLECTED_LO ] = fixnum( memstats[ MS_WCOLLECTED_LO ] );
-  vp[ STAT_WALLOCATED_HI ] = fixnum( memstats[ MS_WALLOCATED_HI ] );
-  vp[ STAT_WALLOCATED_LO ] = fixnum( memstats[ MS_WALLOCATED_LO ] );
-  vp[ STAT_TSCANNED_HI ] = fixnum( memstats[ MS_TSCANNED_HI ] );
-  vp[ STAT_TSCANNED_LO ] = fixnum( memstats[ MS_TSCANNED_LO ] );
-  vp[ STAT_ECOLLECTIONS ] = fixnum( memstats[ MS_ECOLLECTIONS ] );
-  vp[ STAT_TCOLLECTIONS ] = fixnum( memstats[ MS_TCOLLECTIONS ] );
-  vp[ STAT_FCOLLECTIONS ] = fixnum( memstats[ MS_FCOLLECTIONS ] );
-  vp[ STAT_FRAMESFLUSHED ] = fixnum( memstats[ MS_FRAMESFLUSHED ] );
-  vp[ STAT_GCTIME ] = fixnum( memstats[ MS_GCTIME ] );
-  vp[ STAT_TALLOCATED_HI ] = fixnum( memstats[ MS_TALLOCATED_HI ] );
-  vp[ STAT_TALLOCATED_LO ] = fixnum( memstats[ MS_TALLOCATED_LO ] );
+  vp[ STAT_WCOLLECTED_HI ] = memstats[ MS_WCOLLECTED_HI ];
+  vp[ STAT_WCOLLECTED_LO ] = memstats[ MS_WCOLLECTED_LO ];
+  vp[ STAT_WALLOCATED_HI ] = memstats[ MS_WALLOCATED_HI ];
+  vp[ STAT_WALLOCATED_LO ] = memstats[ MS_WALLOCATED_LO ];
+  vp[ STAT_TSCANNED_HI ] = memstats[ MS_TSCANNED_HI ];
+  vp[ STAT_TSCANNED_LO ] = memstats[ MS_TSCANNED_LO ];
+  vp[ STAT_ECOLLECTIONS ] = memstats[ MS_ECOLLECTIONS ];
+  vp[ STAT_TCOLLECTIONS ] = memstats[ MS_TCOLLECTIONS ];
+  vp[ STAT_FCOLLECTIONS ] = memstats[ MS_FCOLLECTIONS ];
+  vp[ STAT_FRAMESFLUSHED ] = memstats[ MS_FRAMESFLUSHED ];
+  vp[ STAT_GCTIME ] = memstats[ MS_GCTIME ];
+  vp[ STAT_TALLOCATED_HI ] = memstats[ MS_TALLOCATED_HI ];
+  vp[ STAT_TALLOCATED_LO ] = memstats[ MS_TALLOCATED_LO ];
 }
 
 
@@ -195,8 +207,10 @@ word *vp;
 static void add( hi, lo, x )
 unsigned *hi, *lo, x;
 {
+  if (x & 3) panic( "MEMSTATS:ADD" );
   *lo += x;
   if (*lo > LARGEST_FIXNUM) {
+    printf( "OVERFLOW IN ADD\n" );
     *lo -= LARGEST_FIXNUM;
     *hi += 4;
   }

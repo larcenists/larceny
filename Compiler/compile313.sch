@@ -1,8 +1,8 @@
-;; Larceny run-time environment -- compiler drivers.
-;;
-;; History
-;;   July 19, 1994 / lth (v0.20)
-;;     Cleaned up.
+; Larceny run-time environment -- compiler drivers.
+;
+; History
+;   July 19, 1994 / lth (v0.20)
+;     Cleaned up.
 
 ; We operate with several different file formats.
 ;
@@ -18,8 +18,9 @@
 ;   a ".lap" expression when evaluated by "eval". (Yeah, this is a hack.)
 ;   These files are processed with the command "assemble313".
 ;
-; - Files with extension ".lop" (Lisp Object Program) are tokenized files
-;   in the target architecture's instruction set. In this representation,
+; - Files with extension ".lop" (Lisp Object Program) or ".elop" are 
+;   tokenized files in the target architecture's instruction set (elop files
+;   are compiled without write barrier checks). In this representation,
 ;   all procedures are represented by a segment, the car of which is the
 ;   code vector (a sequence of raw opcode bytes) and the cdr of which is the
 ;   constant vector (in symbolic form, still). Segments are transformed into
@@ -38,7 +39,7 @@
 	     (car rest)
 	     (rewrite-file-type infilename
 				'(".sch" ".scm")
-				(if register-transactions-for-side-effects
+				(if (write-barrier)
 				    ".fasl"
 				    ".efasl")))))
     (process-file infilename
@@ -59,7 +60,7 @@
     (process-file file
 		  outputfile
 		  (lambda (item port)
-		    (write-codelist item port)
+		    (write item port)
 		    (newline port)
 		    (newline port))
 		  compile)
@@ -69,13 +70,18 @@
 ;; Assemble a ".lap" or ".mal" file to a ".lop" file.
 
 (define (assemble313 file . rest)
-  (let ((outputfile (if (not (null? rest))
-			(car rest)
-			(rewrite-file-type file ".lap" ".lop")))
-	(n          (string-length file)))
+  (let ((outputfile
+	 (if (not (null? rest))
+	     (car rest)
+	     (rewrite-file-type file
+				".lap"
+				(if (write-barrier)
+				    ".lop"
+				    ".elop"))))
+	(n (string-length file)))
     (process-file file
 		  outputfile
-		  write
+		  write-lop
 		  (if (and (> n 4)
 			   (string-ci=? ".mal" (substring file (- n 4) n)))
 		      (lambda (x) (assemble (eval x)))
@@ -93,7 +99,7 @@
 	     (rewrite-file-type
 	      infilename
 	      ".lop"
-	      (if register-transactions-for-side-effects
+	      (if (write-barrier)
 		  ".fasl"
 		  ".efasl")))))
     (process-file infilename

@@ -232,12 +232,12 @@ static int remset_old_stats = 0;
  */
 void remset_update_memstats()
 {
-  word *p, *q;
+  word *bot, *top;
 
-  p = (word*)globals[ G_SSBBOT ];
-  q = (word*)globals[ G_SSBTOP ];
-  memstat_transactions_allocated( q - p - remset_old_stats );
-  remset_old_stats = q - p;
+  bot = (word*)globals[ G_SSBBOT ];
+  top = (word*)globals[ G_SSBTOP ];
+  memstat_transactions_allocated( top - bot - remset_old_stats );
+  remset_old_stats = top - bot;
 }
 
 void remset_clear_memstats()

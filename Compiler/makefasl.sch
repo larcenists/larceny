@@ -1,42 +1,55 @@
-;; Larceny run-time environment -- procedure to create loadable file.
-;;
-;; This file exports the procedure 'dump-fasl-segment-to-port'. It takes
-;; a segment and an output port as arguments. It is way slow.
-;;
-;; History
-;;   July 19, 1994 / lth (v0.20)
-;;     The procedure 'make-fasl' is no longer in this file, but in the
-;;     driver file.
-;;
-;;   Long time ago / lth
-;;     Created.
-;;
-;; The format of the fastload file is one of a sequence of expressions.
-;; Procedures, bytevectors, and references to global variables can be
-;; embedded directly in the file via magic syntax.
-;;
-;; Magic syntax:
-;;  - A procedure is a list prefixed by #^P.
-;;  - A code vector is a string prefixed by #^B. The string may contain 
-;;    control characters; \ and " must be quoted as usual. There are some
-;;    subtle dependencies here on Unix I/O semantics: no control characters
-;;    are translated on output or input.
-;;  - A global variable cell is a symbol prefixed by #^G. On reading, the
-;;    reference is replaced by (a pointer to) the actual cell, with the 
-;;    context being the current top-level environment.
+; -*- scheme -*-
+; $Id$
+;
+; Larceny compilation system -- procedure to create fastload segments.
+;
+; Lars Thomas Hansen / January 24, 1996
+;
+; The procedure 'dump-fasl-segment-to-port' takes a segment and an output
+; port as arguments and dumps the segment in fastload format on that port.
+;
+; The global variable host-system must be set to the name of the host
+; system for the compilation, 'chez or 'larceny.
+;
+; A fastload segment looks like a Scheme expression, and in fact, 
+; fastload files can mix compiled and uncompiled expressions.  A compiled
+; expression (as created by dump-fasl-segment-to-port) is a list with
+; a literal procedure in the operator position and no arguments.
+;
+; A literal procedure is a three-element list prefixed by #^P.  The three
+; elements are code (a bytevector), constants (a regular vector), and
+; R0/static link slot (always #f).  
+;
+; A bytevector is a string prefixed by #^B. The string may contain 
+; control characters; \ and " must be quoted as usual. There are some
+; subtle dependencies here on Unix I/O semantics: no control characters
+; are translated on output or input.
+;
+; A global variable reference in the constant vector is a symbol prefixed
+; by #^G.  On reading, the reference is replaced by (a pointer to) the 
+; actual cell.
+;
+; BUGS
+;  - Probably quite slow, but serious improvement requires cooperation
+;    of the I/O system for block transfers.
 
 (define (dump-fasl-segment-to-port segment outp)
   (let* ((controllify
 	  (lambda (char)
 	    (integer->char (- (char->integer char) (char->integer #\@)))))
-	 (CTRLP (controllify #\P))
-	 (CTRLB (controllify #\B))
-	 (CTRLG (controllify #\G)))
+	 (CTRLP       (controllify #\P))
+	 (CTRLB       (controllify #\B))
+	 (CTRLG       (controllify #\G))
+	 (DOUBLEQUOTE (char->integer #\"))
+	 (BACKSLASH   (char->integer #\\)))
 
-    ;; Everyone calls putc/puts/putd; these can then be optimized.
+    ; Everyone calls putc/puts/putd/putb; these can then be optimized.
 
     (define (putc c)
       (write-char c outp))
+
+    (define (putb b)
+      (write-char (integer->char b) outp))
 
     (define (puts s)
       (for-each (lambda (c)
@@ -46,9 +59,16 @@
     (define (putd d)
       (write d outp))
 
-    ;; Should use bytevectors; optimized for Chez.
-
     (define (dump-codevec bv)
+      (cond ((eq? host-system 'chez)
+	     (dump-codevec-chez bv))
+	    ((eq? host-system 'larceny)
+	     (dump-codevec-larceny bv))
+	    (else (error "makefasl: unknown host: " host-system))))
+
+    ; Under Chez Scheme, byte vectors are really vectors of integers.
+
+    (define (dump-codevec-chez bv)
       (putc #\#)
       (putc CTRLB)
       (putc #\")
@@ -61,6 +81,19 @@
 	      (loop (+ i 1) m))))
       (putc #\")
       (putc #\newline))
+
+    (define (dump-codevec-larceny bv)
+      (putc #\#)
+      (putc CTRLB)
+      (putc #\")
+      (let ((limit (bytevector-length bv)))
+	(do ((i 0 (+ i 1)))
+	    ((= i limit) (putc #\")
+			 (putc #\newline))
+	  (let ((c (bytevector-ref bv i)))
+	    (cond ((= c DOUBLEQUOTE) (putc #\\))
+		  ((= c BACKSLASH)   (putc #\\)))
+	    (putb c)))))
 
     (define (dump-constvec cv)
       (puts "#(")
@@ -78,7 +111,7 @@
 		     (putc CTRLG)
 		     (putd (cadr const)))
 		    ((bits)
-		     (error "The BITS attribute is not supported in fasl files."))
+		     (error "BITS attribute is not supported in fasl files."))
 		    (else
 		     (error "Faulty .lop file."))))
 		(vector->list cv))

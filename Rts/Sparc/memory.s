@@ -1,5 +1,6 @@
 ! -*- Fundamental -*-
 ! This is the file Sparc/memory.s.
+! $Id$
 !
 ! Larceny run-time system (SPARC)  --  memory management primitives.
 !
@@ -54,9 +55,7 @@
 	.global EXTNAME(mem_stkuflow)			! handle stack uflow
 	.global EXTNAME(mem_capture_continuation)	! creg-get
 	.global EXTNAME(mem_restore_continuation)	! creg-set!
-#if defined( IFLUSH )
 	.global EXTNAME(mem_icache_flush)		! flush some icache
-#endif /* defined IFLUSH */
 
 	.seg "text"
 
@@ -179,6 +178,7 @@ heap_overflow:
 	nop
 
 
+! OBSOLETE
 ! _mem_garbage_collect: perform a garbage collection
 !
 ! Call from: Scheme
@@ -427,7 +427,6 @@ EXTNAME(mem_restore_continuation):
 	nop
 
 
-#if defined( IFLUSH )
 ! _mem_icache_flush: flush instructions in given range from the icache.
 !
 ! Call from: C
@@ -504,7 +503,5 @@ EXTNAME(mem_icache_flush):
 	iflush	%o0+0			! must be in slot
 	retl
 	nop
-
-#endif /* defined(IFLUSH) */
 
 	! end of file

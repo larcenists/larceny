@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: reader.sch,v 1.6 1992/08/04 18:27:36 lth Exp $
+; $Id: reader.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; Scheme reader.                        17 April 1990
 ; Modified for the new system by lth.   16 January 1992
@@ -15,7 +15,7 @@
 ;
 ; The read procedure takes one argument, a port, and returns an
 ; object read from that port. On end of file the reader returns the
-; value of the global variable **eof**.
+; eof-object.
 ;
 ; The readtable-ref procedure takes one argument, a character, and returns
 ; a list of three elements: the car is the fixnum character class of the
@@ -35,7 +35,6 @@
 (define install-reader
   (lambda ()
 ;    (optimize space)
-;    (define parsenumber parse-number)
     (letrec
       (
  
@@ -219,8 +218,6 @@
               (begin (tyi p)
                      (parse-number-loop (tyipeek p) p (cons c l))))))
  
-;       (parse-number parsenumber)
-       
        (peculiar-identifier?
         (lambda (x)
           (or (memq x '(+ - -- -1+ ... 1+ 1-))
@@ -268,7 +265,7 @@
  
        (read-eof
          (lambda (p)
-           **eof**))
+           (eof-object)))
  
        ; Handles end of file encountered within a list or string etc.
  
@@ -311,7 +308,7 @@
        (warn
         (lambda (msg . args)
 ;          (optimize space)
-          (if (issue-warnings)
+          (if #f ; (issue-warnings)
               (begin (newline)
                      (display "WARNING: ")
                      (display msg)
@@ -410,26 +407,28 @@
                        ((false) #f)
                        ((true)  #t)
                        ((unspecified) (unspecified))
-                       ((fasl) **fasl**)
+		       ((undefined) (undefined))
+                       ; ((fasl) **fasl**)
                        (else  (error "Malformed #! syntax" x)))))
                   ((char=? c #\()
                    (list->vector (read-list (tyi p) p)))
-                  ; Control-B is used for bytevectors by compile-file.
-		  ; The syntax is #^B"..."
+                  ;; Control-B is used for bytevectors by compile-file.
+		  ;; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
                    (tyi p) ; consume double quote
 		   (let ((s (read-string (tyi p) p '())))
 		     (typetag-set! s sys$tag.bytevector-typetag)
 		     s))
-		  ; Control-P is used for procedures by compile-file.
-		  ; The syntax is #^P(...)
+		  ;; Control-P is used for procedures by compile-file.
+		  ;; The syntax is #^P(...)
 		  ((char=? c (integer->char 16))
 		   (tyi p) ; consume left paren
 		   (list->procedure (read-list (tyi p) p)))
 		  ;; Control-G is used for global references by compile-file.
-		  ;; The syntax is #^Gsymbol
+		  ;; The syntax is #^Gsymbol; it evaluates to a value which
+		  ;; is a global cell.
 		  ((char=? c (integer->char 7))
-		   (toplevel-cell (read-symbol (tyipeek p) p '())))
+		   ((global-name-resolver) (read-symbol (tyipeek p) p '())))
                   ((char=? c #\e)
                    (parse-prefixed-number p #\e))
                   ((char=? c #\i)
@@ -756,12 +755,12 @@
       ; Assign variables.
 
       (set! read
-	    (let ((%conin (current-input-port)))
-	      (lambda p
-;                (optimize speed)
-		(let ((p (if (not (null? p)) (car p) %conin)))
-		  (read-dispatch (tyi p) p)))))
- 
+	    (lambda p
+	      (let ((p (if (not (null? p))
+			   (car p)
+			   (current-input-port))))
+		(read-dispatch (tyi p) p))))
+    
       (set! readtable-ref
             (lambda (char)
               (let ((char (char->integer char)))

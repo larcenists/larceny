@@ -1,12 +1,12 @@
 ; -*- Scheme -*-
 ; Larceny run-time system -- generic I/O system.
 ;
-; $Id: schemeio.scm,v 1.5 1992/06/10 09:05:37 lth Exp $
+; $Id: schemeio.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; Ports are represented using vectors. A port can be either for input or for
 ; output, and it can be in one of three states: open, closed, or at 
-; end-of-file (output ports are never at eof). En eof object is represented
-; as a port in the eof state.
+; end-of-file (output ports are never at eof). An eof object is the
+; primitive object returned by the integrable 'eof-object'.
 
 ; This I/O system is not very fast; it should be replaced by something
 ; akin to the I/O system of Modula-3.
@@ -107,6 +107,9 @@
 	     1024
 	     name))
 
+; FIXME: The loop in write-bytes should really be isolated in a system-
+; dependent library.
+
 (define (make-output-port fd linebuffered? name)
   (make-port 'output
 	     fd
@@ -116,13 +119,20 @@
 		 (lambda (self c)
 		   #f))
 	     (lambda (self)
-	       (let ((bytes (sys$write-file (port.fd self)
-					    (port.buffer self)
-					    (port.ptr self))))
-		 (if (< bytes (port.ptr self))
-		     ((port.error self) 'port-output "Error during write.")
-		     (begin (port.ptr! self 0)
-			    (port.count! self (port.size self))))))
+	       (define (write-bytes fd buffer n offset)
+		 (let ((k (sys$write-file4 fd buffer n offset)))
+		   (cond ((<= k 0)
+			  ((port.error self) 'port-output
+					     "Error during write."))
+			 ((< k n)
+			  (write-bytes fd buffer (- n k) (+ offset k))))))
+	       (if (not (zero? (port.ptr self)))
+		   (begin (write-bytes (port.fd self) 
+				       (port.buffer self) 
+				       (port.ptr self)
+				       0)
+			  (port.ptr! self 0)
+			  (port.count! self (port.size self)))))
 	     1024
 	     name))
 
@@ -139,27 +149,25 @@
        (eq? (port.direction p) 'output)))
 
 (define (eof-object? p)
-  (and (port? p)
-       (eq? (port.status p) 'eof)))
+  (eq? p (eof-object)))
 
 (define (open-input-file filename)
   (let ((fd (sys$open-file filename 'input)))
     (if (negative? fd)
-	(error 'open-input-file "Unable to open file ~a for input." filename)
+	(error "Open-input-file: Unable to open file for input: " filename)
 	(make-input-port fd #f filename))))
 
 (define (open-output-file filename)
   (let ((fd (sys$open-file filename 'output)))
     (if (negative? fd)
-	(error 'open-output-file 
-	       "Unable to open file ~a for output." filename)
+	(error "Open-output-file: unable to open file for output: " filename)
 	(make-output-port fd #f filename))))
 
 (define (close-port direction p)
   (cond ((or (not (port? p)) (not (eq? (port.direction p) direction)))
-	 (error 'close "Not an ~a port." direction))
+	 (error "Close: not an " direction " port."))
 	((eq? (port.status p) 'closed)
-	 (error 'close "Port already closed."))
+	 (error "Close: port already closed:" p))
 	(else
 	 (if (eq? direction 'output)
 	     (flush-output-port p))
@@ -180,7 +188,7 @@
       (cond ((not (input-port? p))
 	     ((port.error p) 'read-char "Not an input port."))
 	    ((eq? (port.status p) 'eof)
-	     p)
+	     (eof-object))
 	    ((not (eq? (port.status p) 'open))
 	     ((port.error p) 'read-char "Port is not open."))
 	    (else
@@ -188,7 +196,7 @@
 		 ((port.handle p) p))
 	     (if (zero? (port.count p))
 		 (begin (port.status! p 'eof)
-			p)
+			(eof-object))
 		 (port.snarf! p)))))
 
     (cond ((null? p)
@@ -196,7 +204,7 @@
 	  ((and (not (null? p))
 		(or (not (null? (cdr p)))
 		    (not (port? (car p)))))
-	   (error 'read-char "Invalid argument."))
+	   (error "Read-char: invalid argument: " p))
 	  (else
 	   (do-read-char (car p))))))
 
@@ -206,8 +214,8 @@
     (define (do-peek-char p)
       (cond ((not (input-port? p))
 	     ((port.error p) 'peek-char "Not an input port."))
-	    ((eq? (port.status p) 'efo)
-	     p)
+	    ((eq? (port.status p) 'eof)
+	     (eof-object))
 	    ((not (eq? (port.status p) 'open))
 	     ((port.error p) 'peek-char "Port is not open."))
 	    (else
@@ -215,7 +223,7 @@
 		 ((port.handle p) p))
 	     (if (zero? (port.count p))
 		 (begin (port.status! p 'eof)
-			p)
+			(eof-object))
 		 (port.snarf p)))))
 
     (cond ((null? p)
@@ -223,7 +231,7 @@
 	  ((and (not (null? p))
 		(or (not (null? (cdr p)))
 		    (not (port? (car p)))))
-	   (error 'peek-char "Invalid argument."))
+	   (error "Peek-char: invalid argument: " p))
 	  (else
 	   (do-peek-char (car p))))))
 
@@ -243,13 +251,13 @@
 	     #t)))
 
     (cond ((not (char? c))
-	   (error 'write-char "Not a character."))
+	   (error "Write-char: not a character: " c))
 	  ((null? p)
 	   (do-write-char c stdout))
 	  ((and (not (null? p))
 		(or (not (null? (cdr p)))
 		    (not (port? (car p)))))
-	   (error 'write-char "Invalid argument."))
+	   (error "Write-char: invalid argument: " p))
 	  (else
 	   (do-write-char c (car p))))))
 
@@ -282,7 +290,7 @@
 	  ((and (not (null? p))
 		(or (not (null? (cdr p)))
 		    (not (port? (car p)))))
-	   (error 'flush-output-port "Invalid argument."))
+	   (error "Flush-output-port: invalid argument: " p))
 	  (else
 	   (do-flush-output (car p))))))
 
@@ -330,11 +338,6 @@
 (define (current-input-port) stdin)
 
 (define (current-output-port) stdout)
-
-(define **eof**
-  (let ((eof (make-input-port -1 #f "(**eof**)")))
-    (port.status! eof 'eof)
-    eof))
 
 (define stdin (make-input-port (sys$open-terminal 'input) #t "(stdin)"))
 (define stdout (make-output-port (sys$open-terminal 'output) #t "(stdout)"))

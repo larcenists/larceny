@@ -73,7 +73,7 @@
 	  (string? expr)
 	  (procedure? expr)
 	  (null? expr)
-	  (eq? expr (unspecified))      ; NONPORTABLE. For Larceny.
+	  (equal? expr (unspecified))      ; NONPORTABLE. For Larceny.
 	  ))
 
     ;; Rewrite any old expression. This is a recursive process, and the base 

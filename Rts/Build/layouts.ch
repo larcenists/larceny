@@ -18,6 +18,7 @@
 #define FALSE_CONST 2
 #define NIL_CONST 10
 #define UNSPECIFIED_CONST 278
+#define UNDEFINED_CONST 790
 #define VEC_SUBTAG 0
 #define CONT_SUBTAG 0
 #define RECT_SUBTAG 4

@@ -6,6 +6,9 @@
 ! Larceny run-time system (SPARC) -- miscellaneous primitives.
 !
 ! History
+!   January 8, 1996 / lth (v0.25)
+!     Added m_enable_interrupts and m_disable_interrupts.
+!
 !   January 19, 1995 / lth (v0.23)
 !     Added _m_syscall for SYSCALL primitive.
 !
@@ -30,6 +33,8 @@
 	.global	EXTNAME(m_break)
 	.global EXTNAME(m_singlestep)
 	.global	EXTNAME(m_timer_exception)
+	.global EXTNAME(m_enable_interrupts)
+	.global EXTNAME(m_disable_interrupts)
 	.global EXTNAME(m_exception)
 	.global EXTNAME(m_bvlcmp)
 
@@ -456,14 +461,77 @@ Lsinglestep1:
 ! Call from: Scheme
 ! Input:     Nothing
 ! Output:    Nothing
-! Destroys:  Temporaries
+! Destroys:  Temporaries, ARGREG2, ARGREG3
 
 EXTNAME(m_timer_exception):
 	ld	[ %GLOBALS + G_TIMER_ENABLE ], %TMP0
 	cmp	%TMP0, TRUE_CONST
-	be,a	EXTNAME(m_exception)
-	mov	EX_TIMER, %TMP0
+	be,a	handle_timer
+	nop
 	jmp	%o7+8
+	mov	5, %TIMER	! add a little time (_must_ be > 1).
+
+	! Handle timer interrupt.
+	! Turn off interrupts and give the timer something to run on
+	! so we won't take a detour thru here on every iteration in
+	! the scheduler.
+	!
+	! %RESULT is preserved by the exception mechanism when the global
+	! G_RESULT is set to #!undefined.
+handle_timer:
+	set	UNDEFINED_CONST, %TMP0
+	st	%TMP0, [ %GLOBALS + G_RESULT ]
+	mov	FALSE_CONST, %TMP0
+	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]
+	set	100000, %TIMER
+	b	EXTNAME(m_exception)
+	mov	EX_TIMER, %TMP0
+
+
+! _m_enable_interrupts: enable interrupts, set countdown timer
+!
+! Call from: Scheme
+! Input:     RESULT = positive fixnum: new countdown
+! Output:    Nothing
+! Destroys:  Temporaries
+
+EXTNAME(m_enable_interrupts):
+	! Check for fixnum
+	andcc	%RESULT, 3, %g0
+	bne,a	EXTNAME(m_exception)
+	mov	EX_EINTR, %TMP0
+
+	! Check that fixnum is > 0
+	cmp	%RESULT, 0
+	ble,a	EXTNAME(m_exception)
+	mov	EX_EINTR, %TMP0
+
+	! Setup count, then enable interrupts.
+	! Timer is in native format, so convert.
+	srl	%RESULT, 2, %TIMER
+	mov	TRUE_CONST, %TMP0
+	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]
+	jmp	%o7+8
+	nop
+
+
+! _m_disable_interrupts: disable interrupts, return current timer if it
+! was enabled and #f if it was not.
+!
+! Call from: Scheme
+! Input:     Nothing
+! Output:    RESULT = current value of countdown timer or #f
+! Destroys:  Temporaries
+
+EXTNAME(m_disable_interrupts):
+	ld	[ %GLOBALS + G_TIMER_ENABLE ], %TMP0
+	cmp	%TMP0, TRUE_CONST
+	bne,a	1f
+	mov	FALSE_CONST, %RESULT
+	mov	FALSE_CONST, %TMP0
+	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]
+	sll	%TIMER, 2, %RESULT
+1:	jmp	%o7+8
 	nop
 
 
@@ -478,11 +546,13 @@ EXTNAME(m_timer_exception):
 ! The return address must point to the instruction which would have been
 ! returned to if the operation had succeeded, i.e., the exception handler
 ! must repair the error if the program is to continue.
+!
+! FIXME: Should we disable interrupts here?
 
 EXTNAME(m_exception):
 	ld	[ %GLOBALS + G_CALLOUTS ], %TMP1
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
-	cmp	%TMP1, UNSPECIFIED_CONST
+	cmp	%TMP1, UNDEFINED_CONST
 	be	Lexception
 	nop
 	mov	4, %TMP1

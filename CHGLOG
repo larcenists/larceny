@@ -1,8 +1,186 @@
-; List of changes to Larceny (rudimentary release notes)
+; List of changes to Larceny.
+;
 ; $Id: CHGLOG,v 1.2 1995/08/01 04:36:02 lth Exp lth $
 
 ----------------------------------------------------------------------
-v0.24 as of yet unreleased
+v0.25 as of yet unreleased
+
+General reorganization, cleanup, and so on.
+- [Compiler/dumpheap.sch] Now much faster, requires much less memory, but
+  depends on the Chez system() procedure.  No big loss; the benefits are
+  real.
+- [Eval/toplevel.sch;Repl/reploop.sch] The procedure 'rep-loop' is no
+  longer visible in the dumped heap.  Instead there exists an abstraction
+  'dump-interactive-heap' which dumps a heap with the standard reploop
+  as the startup procedure (init file loading and all).
+- [./nbuild; Compiler/nbuild.sch; Chez/compat.sch; Larceny/compat.sch]
+  The nbuild script can now be used to run the development environment
+  under both Chez and Larceny and should generalize to other systems
+  as well.  Compiler/nbuild.sch is now system-independent.
+- [misc] Assembler switches have been cleaned up:
+  - 'Register-transactions-for-side-effects' is now a switch procedure 
+    called 'write-barrier', defaults to #t.
+  - 'Inline-cons' is now a switch procedure, default #f.
+  - 'Inline-assignment' is now a switch procedure, default #f.
+  - 'emit-undef-check?' is now a switch procedure called 
+    'catch-undefined-globals', default #t.
+  - 'unsafe-mode' is now a switch procedure called 'unsafe-code',
+    default #f.
+- [misc] The heap dumper switch 'generate-global-symbols?' is now
+  a switch procedure called 'generate-global-symbols' defaulting to #t.
+- [Repl; Repl/reploop.sch] Realizing that the repl is independent of
+  both the evaluator and the library, a new subdirectory Repl holds
+  all the common repl and user interface code.
+- [Lib/load.sch; Lib/makefile.sch] Lib/load.sch is new; it contains the 
+  loader.
+- [Eval; Lib/makefile.sch; nbuild] Lib/Eval is now called Eval, on
+  the top level. Changes to the makefile and nbuild to accomodate this.
+- [Lib/*; Lib/makefile.sch] Files renamed and removed; all file names now 
+  fit an 8+3 format for transportability to DOS.
+- [Lib/*; Lib/makefile.sch] Library.sch discontinued; created list.sch,
+  vector.sch, control.sch. Moved many things from preds.sch to other
+  files.
+- [Auxlib] Created the directory Auxlib to hold 'add-on' libraries; see
+  the section for features below.
+- [Test] Created the directory Test to hold distributed test files (like
+  regression tests).
+- [Benchmarks] Created the directory Benchmarks to hold standard benchmark
+  program, for testing and benchmarking. Programs in the Test suite may
+  rely on these being present.
+
+Bug fixes in library.
+- [Lib/bignums.sch] fixnum->bignum did not handle most negative fixnum.
+- [Lib/load.sch] Now performs a gc after a load to flush the icache.
+- [Lib/schemeio.sch; Rts/Sys/unix.sch; Rts/Sys/cglue.c] Output ports 
+  now handle legal situations where the write system call does not write 
+  all bytes at once correctly; implemented new procedure sys$write-file4
+  which takes additional argument which is offset into buffer.
+- [Lib/primops.sch] make-vector required the fill argument, which is wrong.
+- [Lib/unix.sch; Repl/reploop.sch] **newline** has been moved to unix.sch
+  (because it is OS-dependent) and is set to 10, formerly 13.
+- [Lib/schemeio.sch] A bad test for eof in peek-char was corrected.
+- [Lib/num2str.sch] Now does compnums.
+- [Lib/flonums.sch] Make-compnum used wrong indices into flonums and compnum 
+  when copying.
+- [Lib/mcode.sch] generic-make-rectangular was too simplistic and crashed
+  when it called make-compnum with an exact number.
+- [Lib/bignums.sch] Tuned bignum-ref, bignum-set!, for considerable speedup
+  on em benchmark.
+- [Lib/contag.sch] Tuned contagion somewhat by avoiding some consing and
+  doing CPS instead.
+- [Lib/makefile.sch] Now turns off generation checking before starting
+  make-larceny-eheap, and turned it on before starting make-larceny-heap.
+- [Lib/schemeio.sch] Cleaned up many error messages.
+- [Lib/ratnums.sch] Fixed the implementations of round and truncate,
+  which were (very) incorrect. This also fixes rationalize.
+- [Lib/reader.sch] Fixed bug in 'read' where it would always read from
+  the terminal when not given a port argument, regardless of what the
+  current input port was.
+
+Bug fixes/changes in Sparc assembler.
+- [Sparcasm/gen-prim.sch] Fixed implementation of lognot, which 
+  had arguments reversed to a machine instruction (ornr is not commutative).
+- [Sparcasm/asmutil.sch] This file is new. It contains helpful definitions
+  common to the assembler modules.
+- [Sparcasm/switches.sch] This file is new. It contains definitions of all
+  the switches used by the Sparc assembler.
+- [Sparcasm/gen-prim.sch] Fixed bug in emit-single-tagcheck-assert-reg! 
+  which caused error-causing value not to be passed to error handler if
+  it was not already in RESULT (as is often the case with optimized code).
+  Fixed ditto bugs in emit-assert-fixnum! and emit-assert-positive-fixnum!.
+
+Bug fixes in run-time system
+- [Lib/generic.s] Unary minus (m_generic_neg) was wrong for the most
+  negative fixnum, a case which causes overflow in the in-line code and
+  which must therefore be handled specially.
+- [Rts/Sys/gc.c] The collector now zeroes all pad words; this simplifies
+  the heap dumper quite a bit and should simplify other tools (hsplit)
+  which work on heap images which have been through the collector at least
+  once.
+- [Rts/Sys/gc.c, Rts/Sys/policy.c] Heap overflow limit was incorrectly
+  calculated during full garbage collection, causing segmentation faults
+  under certain heap-full conditions.
+- [Lib/generic.s] Obscure overflow cases in =, <, <=, >, >= were fixed.
+  Happened when the difference of the operands overflowed, e.g. when a
+  is a small negative number and b is a positive number close to the 
+  fixnum limit (specific case -32 and 2^29-1).
+- [Lib/generic.s] Real-part and imag-part were very wrong.
+
+Bug fixes in compiler.
+- [Compiler/switches.sch] Added issue-warnings, used by the macro expander
+  and previously defined in Lib/Eval/reploop.sch. On the other hand, this
+  seems to be global in MacScheme?
+
+Bug fixes in development system.
+- [nbuild] Nbuild did not actually detect whether schdefs.h needed to be
+  updated.
+
+Features
+- [Lib/reader.sch,Lib/control.sch,Lib/load.sch,Eval/eval.sch] Implemented 
+  and used global-name-resolver for dealing with name lookup in global
+  environments.
+- [Lib/env.sch] Placeholders for R5RS environments.
+- [Lib/control.sch] Implemented dynamic-wind.
+- [Rts/Sys/policy.c,memstats.c] -memstats argument now causes static
+  area size to be printed.
+- [Lib/str2num.sch;Lib/num2str.sch] There is now read and print syntax
+  for infinite flonums (+inf.0 and -inf.0) and NANs (+nan.0 and -nan.0,
+  although these are the same number) and their usual complex combinations.
+  The syntax is consistent with Chez Scheme; it was needed in order for
+  Larceny to support its own development, as there are literal infinite
+  numbers and NANs in the object files.
+- [misc] There is now a distinguished eof-object, and it is returned by
+  a call to the integrable 'eof-object'.
+- [Repl/reploop.sch] If command line arguments are present, then the first
+  one is interpreted as a file name and attempted loaded if the file exists.
+  The others are ignored.  This change makes Larceny usable with nbuild.
+- [Rts/Sys/larceny.c, argv.c; Compiler/dumpheap.sch; Lib/go.sch; 
+   Repl/reploop.sch] The startup procedure now gets passed a vector
+   containing the command line strings following the -args argument
+   (which is new).  This way, the program can access the command line.
+- [Rts/Sparc/mcode.s, Lib/error.sch] Implemented timer interrupt.
+- [misc] Distinguishes #!unspecified and #!undefined; globals now initialized
+  as #!undefined.
+- [Rts/Sparc/generic.s; Lib/ehandler.sch] Now checks for division by 
+  zero (albeit the hard way).
+- [Rts/Sys/heapio.sch] Now dumps split heaps.
+- [Lib/str2num.sch] Now supports complex numbers.
+- [Lib/num2str.sch] Now supports compnums.
+- [Lib/mcode.sch] Millicode table now has two-argument versions of common
+  multi-argument procedures (+,-, and so on) allowing them not to cons
+  up varargs.
+- [Lib/number.sch] Tuned floor and ceiling by special-casing flonums,
+  avoiding mixed-representation arithmetic.
+- [Compiler;Sparcasm/gen-prim.sch;Lib/{number.sch,flonums.sch}] Made flonum?
+  a primop.
+- [Lib/unix.sch,number.sch;Rts/Sys/unix.c,cglue.c] Added log, exp, sin, cos,
+  tan, asin, acos, atan, sqrt (although not for complexes yet).
+- [Compiler/nmake.sch;Lib/nmkfile.sch] This is a new make system and
+  associated make file much improved. The files Lib/makefile.sch and
+  Compiler/make.sch are obsolete and will be removed in a future release.
+- [Lib/error.sch; Lib/ehandler.sch; Repl/reploop.sch] There is now a
+  procedure reset which is more basic than error. There is also support
+  for installable error and reset handlers with the error-handler and
+  reset-handler procedures. There is a new file Lib/error.sch.
+- [Compiler/compile313.sch] Object files compiled without write barrier 
+  checks now have extension .elop, to match the .eheap heap files. This
+  makes it possible to build both types of heaps at the same time. It
+  also reduces the opportunity for error. [Still to FIX: Should have fasl
+  and efasl.]
+- [Rts/Sparc/cache.c;Rts/Sparc/cache0.s;Rts/Sys/gc.c] Larceny now detects
+  automatically whether the icache needs to be flushed or not.
+- [Auxlib/auxload.sch] This file will load all the auxiliary library
+  files.
+- [Auxlib/sort.sch] Added sort procedures for lists and vectors (based on
+  the permsort code).
+- [Auxlib/pp.sch] Added Marc Feeley's pretty printer (from the Scheme
+  repository).
+- [Auxlib/misc.sch] Added several useful procedures: some?, every?.
+- [Rts/Sys/hsplit.c; ~/hsplit] Created standalone program 'hsplit' to 
+  split heaps into a static and a dynamic area.
+
+----------------------------------------------------------------------
+v0.24 created August 1, 1995 by lth
 
 NOTE: COMPILED FILES FROM EARLIER VERSIONS ARE NO LONGER COMPATIBLE.
 

@@ -1,11 +1,14 @@
 ; -*- scheme -*-
 ;
-; $Id$
+; $Id: malcode.mal,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; malcode.mal -- all MacScheme assembly language to support Larceny.
 ;
 ; June 27, 1995 / lth
 ;   Created (by merging some older files).
+;
+; January 17, 1996 / lth
+;   Added sys$continuation-data-structure
 
 ; @raw-apply@
 ;
@@ -51,6 +54,33 @@
 	    (#t))
   (,$setglbl call-with-current-continuation)
   (,$const   call-with-current-continuation)
+  (,$return))
+
+
+; sys$continuation-data-structure
+;
+; This procedure knows about the layout of the procedure created by
+; call-with-current-continuation (above), and given such a procedure
+; it returns the actual continuation structure stored in the environment
+; of that procedure.  There is currently no way to distinguish a 
+; continuation procedure from another procedure (we could do this by
+; embedding a magic cookie in the procedure at a known spot) so
+; use with extreme care.
+;
+; This procedure does not need to be written in MAL but it's easier
+; to keep it in sync that way.
+
+`((,$lambda ((,$.proc)
+	     (,$args=   1)
+	     (,$const   4)  ; Lexical slot 2 is procedure slot 4.
+	     (,$setreg  2)
+	     (,$reg     1)
+	     (,$op2     procedure-ref 2)
+	     (,$return))
+	    0
+	    (#t))
+  (,$setglbl sys$continuation-data-structure)
+  (,$const   sys$continuation-data-structure)
   (,$return))
 
 

@@ -159,7 +159,10 @@
     (gen! output
           $lambda
           (assembly-stream-code newoutput)
-          (cgreg-tos regs) regvars)))
+          (cgreg-tos regs) 
+	  ;regvars
+	  (lambda.doc exp) ; @@ Lars
+	  )))
 
 ; Lambda expressions that appear on the rhs of a definition are
 ; compiled here.  They don't need an args= instruction at their head.
@@ -222,7 +225,9 @@
                  $lambda
                  (assembly-stream-code newoutput)
                  (cgreg-tos regs)
-                 (cgreg-vars regs))
+                 ;(cgreg-vars regs)
+		 (lambda.doc exp) ; @@ Lars
+		 )
            (if tail?
                (begin (gen-pop! output frame)
                       (gen! output $return)

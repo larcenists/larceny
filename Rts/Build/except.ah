@@ -63,3 +63,4 @@
 #define EX_DUMPFAIL 432
 #define EX_TIMER 436
 #define EX_UNSUPPORTED 440
+#define EX_EINTR 484

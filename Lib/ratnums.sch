@@ -1,9 +1,9 @@
-; -*- Scheme -*-
+; Copyright Lars Thomas Hansen.
 ;
-; Scheme 313 runtime system.
-; Scheme code for ratnum arithmetic.
+; Larceny library  -  Scheme code for ratnum arithmetic.
+; Originally written by Remy Evard; extensively modified by Lars Hansen.
 ;
-; $Id: ratnums.scm,v 1.5 1992/05/25 04:38:06 remy Exp $
+; $Id: ratnums.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
 ;
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
@@ -180,8 +180,14 @@
      (exact->inexact (denominator a))))
 
 (define (ratnum-round a)
-  (inexact->exact (round (ratnum->flonum a))))
-
+  (if (< a 0)
+      (- (ratnum-round (- a)))
+      (let ((g (- a 1/2)))
+	(cond ((not (integer? g)) (truncate (+ a 1/2)))
+	      ((odd? g)           (+ g 1))
+	      (else               g)))))
+	      
 (define (ratnum-truncate a)
-  (inexact->exact (truncate (ratnum->flonum a))))
+  (quotient (numerator a) (denominator a)))
 
+; eof

@@ -4,6 +4,10 @@
 ! Larceny run-time system (Sparc) -- Millicode for Generic Arithmetic.
 !
 ! History
+!   January 20, 1996 / lth (v0.25)
+!     Calling conventions for contagion changed; now takes index rather
+!     than procedure.
+!
 !   April/May 1995 / lth (v0.24)
 !     Cases added to quotient and remainder to handle division of nonnegative
 !     32-bit bignum by nonnegative fixnum; this vastly simplifies the
@@ -46,6 +50,8 @@
 !
 ! - Division code (and quotient, remainder, modulus) do not check for 
 !   a zero divisor.
+!
+! - A big win would be to do mixed flonum/fixnum in-line.
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -679,6 +685,14 @@ Ldiv_fix:
 	! expected; otherwise, the operation will generate a ratnum and the
 	! whole thing is pushed into Scheme.
 
+#ifdef CHECK_DIVISION_BY_ZERO
+	cmp	%ARGREG2, 0
+	bne,a	1f
+	nop
+	b	Lnumeric_error
+	mov	EX_DIV, %TMP0
+1:
+#endif
 	save	%sp, -104, %sp
 	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
@@ -724,6 +738,14 @@ EXTNAME(m_generic_quo):
 	! Should probably conditionalize this on whether the machine has
 	! hardware divide or not; should save us some cycles. In fact,
 	! the fixnum case will then be small enough to move in-line.
+#ifdef CHECK_DIVISION_BY_ZERO
+	cmp	%ARGREG2, 0
+	bne,a	1f
+	nop
+	b	Lnumeric_error
+	mov	EX_QUOTIENT, %TMP0
+1:
+#endif
 	save	%sp, -104, %sp
 	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
@@ -821,6 +843,14 @@ EXTNAME(m_generic_rem):
 	bne	Lremainder1
 	nop
 
+#ifdef CHECK_DIVISION_BY_ZERO
+	cmp	%ARGREG2, 0
+	bne,a	1f
+	nop
+	b	Lnumeric_error
+	mov	EX_REMAINDER, %TMP0
+1:
+#endif
 	! Both fixnums
 	save	%sp, -104, %sp
 	!st	%STKLIM, [ %fp-4 ]
@@ -845,7 +875,8 @@ EXTNAME(m_generic_mod):
 
 
 ! Negation
-! The fixnum case is always handled in line.
+! The fixnum case is always handled in line, except when the number is
+! the largest negative fixnum.
 
 EXTNAME(m_generic_neg):
 	and	%RESULT, TAGMASK, %TMP0
@@ -855,8 +886,13 @@ EXTNAME(m_generic_neg):
 	cmp	%TMP0, VEC_TAG
 	be,a	Lneg_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	Lnumeric_error
+	andcc	%RESULT, 3, %g0
+	bne,a	Lnumeric_error
 	mov	EX_NEG, %TMP0
+	! fixnum: subtract from 0.
+	mov	%RESULT, %ARGREG2
+	b	EXTNAME(m_generic_sub)
+	mov	0, %RESULT
 Lneg_bvec:
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Lneg_flo
@@ -1031,7 +1067,8 @@ Lzero_num:
 	nop
 
 ! Equality.
-! The fixnum case is handled in line.
+! The fixnum case is handled in line, _but_ may have overflowed, so must
+! be handled again.
 
 EXTNAME(m_generic_equalp):
 	and	%RESULT, TAGMASK, %TMP0
@@ -1042,6 +1079,18 @@ EXTNAME(m_generic_equalp):
 	cmp	%TMP0, VEC_TAG
 	be,a	Lequal_vec
 	cmp	%TMP1, VEC_TAG
+! fixnum case
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	bne	Lequal_generic
+	subcc	%RESULT, %ARGREG2, %g0
+	mov	FALSE_CONST, %RESULT
+	be,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+! generic
+Lequal_generic:
 	b	_econtagion
 	mov	MS_GENERIC_EQUAL, %TMP2
 Lequal_bvec:
@@ -1166,6 +1215,18 @@ EXTNAME(m_generic_lessp):
 	cmp	%TMP0, VEC_TAG
 	be,a	Lless_vec
 	cmp	%TMP1, VEC_TAG
+! fixnum case
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	bne	Lless_generic
+	subcc	%RESULT, %ARGREG2, %g0
+	mov	FALSE_CONST, %RESULT
+	bl,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+! generic
+Lless_generic:
 	b	_pcontagion
 	mov	MS_GENERIC_LESS, %TMP2
 Lless_bvec:
@@ -1279,6 +1340,18 @@ EXTNAME(m_generic_less_or_equalp):
 	cmp	%TMP0, VEC_TAG
 	be,a	Llesseq_vec
 	cmp	%TMP1, VEC_TAG
+! fixnum case
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	bne	Llesseq_generic
+	subcc	%RESULT, %ARGREG2, %g0
+	mov	FALSE_CONST, %RESULT
+	ble,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+! generic
+Llesseq_generic:
 	b	_pcontagion
 	mov	MS_GENERIC_LESSEQ, %TMP2
 Llesseq_bvec:
@@ -1392,6 +1465,18 @@ EXTNAME(m_generic_greaterp):
 	cmp	%TMP0, VEC_TAG
 	be,a	Lgreater_vec
 	cmp	%TMP1, VEC_TAG
+! fixnum case
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	bne	Lgreater_generic
+	subcc	%RESULT, %ARGREG2, %g0
+	mov	FALSE_CONST, %RESULT
+	bg,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+! generic
+Lgreater_generic:
 	b	_pcontagion
 	mov	MS_GENERIC_GREATER, %TMP2
 Lgreater_bvec:
@@ -1505,6 +1590,18 @@ EXTNAME(m_generic_greater_or_equalp):
 	cmp	%TMP0, VEC_TAG
 	be,a	Lgreatereq_vec
 	cmp	%TMP1, VEC_TAG
+! fixnum case
+	or	%RESULT, %ARGREG2, %TMP0
+	andcc	%TMP0, 3, %g0
+	bne	Lgreatereq_generic
+	subcc	%RESULT, %ARGREG2, %g0
+	mov	FALSE_CONST, %RESULT
+	bge,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+! generic
+Lgreatereq_generic:
 	b	_pcontagion
 	mov	MS_GENERIC_GREATEREQ, %TMP2
 Lgreatereq_bvec:
@@ -1986,7 +2083,7 @@ EXTNAME(m_generic_make_rectangular):
 
 EXTNAME(m_generic_real_part):
 	mov	8-BVEC_TAG, %TMP1
-	mov	0-VEC_TAG, %TMP2
+	mov	4-VEC_TAG, %TMP2
 	set	Lgeneric_realpart2, %ARGREG2
 	b	Lreal_imag0
 	mov	EX_REALPART, %ARGREG3
@@ -1994,18 +2091,19 @@ Lgeneric_realpart2:
 	jmp	%o7+8
 	nop
 
-	! Given fixnum indices into compnums and rectnums in TMP1 and 
-	! TMP2, and a pointer to a resolution routine for non-complex 
-	! numbers in ARGREG2, do real_part/imag_part in one piece of code.
-	! ARGREG3 has the exception code (fixnum) in the low 31 bits, and
-	! an exactness bit in the high bit: 0=exact, 1=inexact (initially 0).
+! Given fixnum byte indices into compnums and rectnums in TMP1 and 
+! TMP2, and a pointer to a resolution routine for non-complex 
+! numbers in ARGREG2, do real_part/imag_part in one piece of code.
+! ARGREG3 has the exception code (fixnum) in the low 31 bits, and
+! an exactness bit in the high bit: 0=exact, 1=inexact (initially 0).
+
 Lreal_imag0:
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%RESULT, BVEC_TAG
-	be	Lreal_imag_bvec
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lreal_imag_bvec
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
-	cmp	%RESULT, VEC_TAG
-	be	Lreal_imag_vec
+	cmp	%TMP0, VEC_TAG
+	be,a	Lreal_imag_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
 	b	Lreal_imag_others
 	nop
@@ -2060,7 +2158,7 @@ EXTNAME(m_generic_imag_part):
 	mov	EX_IMAGPART, %ARGREG3
 	mov	16-BVEC_TAG, %TMP1
 	b	Lreal_imag0
-	mov	4-VEC_TAG, %TMP2
+	mov	8-VEC_TAG, %TMP2
 
 Limag_part2:
 	! Getting the imag part from a non-complex: return 0, with the
@@ -2158,8 +2256,6 @@ Ltrunc_moveback:
 
 ! Generic code for rounding and truncation. Address of final procedure 
 ! is in %TMP1, exception code for specific operation is in %TMP2.
-!
-! FIXME: does not do ratnums (among other things).
 
 Lgeneric_trund:
 	and	%RESULT, TAGMASK, %TMP0
@@ -2224,7 +2320,7 @@ EXTNAME(m_generic_sqrt):
 ! '_contagion' implements the coercion matrix for arithmetic operations.
 ! It assumes that the two operands are passed in %RESULT and %ARGREG2 and
 ! that the scheme return address is in %o7.
-! In addition, %TMP2 has the index into the millicode support vector
+! In addition, %TMP2 has the fixnum index into the millicode support vector
 ! of the procedure which is to be called on to retry the operation.
 !
 _contagion:
@@ -2239,7 +2335,7 @@ Lcontagion:
 	ld	[ %GLOBALS + G_CALLOUTS ], %TMP1
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
 !#ifdef DEBUG
-	cmp	%TMP1, UNSPECIFIED_CONST
+	cmp	%TMP1, UNDEFINED_CONST
 	bne	Lcontagion2
 	nop
 	set	EXTNAME(C_panic), %TMP0

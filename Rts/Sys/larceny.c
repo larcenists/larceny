@@ -1,5 +1,6 @@
 /*
- * This is the file Sys/larceny.c.
+ * This is the file Rts/Sys/larceny.c.
+ * $Id$
  *
  * Larceny run-time system (Unix) -- main file.
  *
@@ -47,13 +48,20 @@ char **argv;
   unsigned timerval = 0xFFFFFFFF;
   unsigned enable_singlestep = 0;
   unsigned enable_breakpoints = 0;
-  unsigned enable_timer = 1;
+  unsigned enable_timer = 0;           /* timer off at startup */
   unsigned show_heapstats = 0;
   char *heapfile = NULL;
   unsigned q = 0;
+  int restc = 0;
+  char **restv = 0;
+  word av;
 
-  consolemsg( "Larceny version %s for %s (%s) (%s/%s)",
-	      version, osname, gctype, user, date );
+  cache_setup();
+  consolemsg( "Larceny v%s (%s;%s;%s) (%s/%s)",
+	      version, 
+	      osname, gctype, 
+	      (globals[ G_CACHE_FLUSH ] ? "flush" : "noflush"),
+	      user, date );
 
   parse_options( argc, argv,
 		 &esize,
@@ -70,7 +78,9 @@ char **argv;
 		 &enable_timer,
                  &show_heapstats,
                  &heapfile,
-                 &q );
+                 &q,
+		 &restc,
+		 &restv );
 
   quiet = q;
 
@@ -81,9 +91,11 @@ char **argv;
   /* Load the heap */
   openheap( heapfile );
 
+  /* The tenured area will never be smaller than a half megabyte */
+  tsize = max( tsize, roundup( heap_tsize(), MEGABYTE/2 ) );
   if (!allocate_heap( esize, tsize, heap_ssize(), ewatermark,
 		      thiwatermark, tlowatermark ))
-    panic( "Unable to create heap." );
+    panic( "Unable to allocate heap." );
 
   load_heap();
   closeheap();
@@ -101,6 +113,11 @@ char **argv;
   handle_signals();
   memstat_init( show_heapstats );
 
+  /* Allocate vector of command line arguments and pass it as an
+   * argument to the startup procedure.
+   */
+  globals[ G_REG1 ] = allocate_argument_vector( restc, restv );
+  globals[ G_RESULT ] = fixnum( 1 );
   scheme_start();
 
   /* control does not usually reach this point */
@@ -116,7 +133,7 @@ char **argv;
  *
  */
 
-void panic( va_alist )
+int panic( va_alist )
 va_dcl
 {
   static int in_panic = 0;
@@ -133,6 +150,7 @@ va_dcl
   if (in_panic) _exit( 1 );
   in_panic = 1;
   exit( 1 );
+  /* Never returns. Return type is 'int' to facilitate an idiom. */
 }
 
 void consolemsg( va_alist )
@@ -203,9 +221,10 @@ static
 void parse_options( argc, argv,
                    esize, tsize, rpool, rhash, ssb, emark, thimark, tlomark,
 		   ticks, enable_singlestep, enable_break, 
-		   enable_timer, show_heapstats, heapfile, quiet )
-int argc;
-char **argv;
+		   enable_timer, show_heapstats, heapfile, quiet, 
+		   restc, restv )
+int argc, *restc;
+char **argv, ***restv;
 unsigned *esize, *tsize, *rpool, *rhash, *ssb, *emark, *thimark, *tlomark,
          *ticks, *enable_singlestep, *enable_break, *enable_timer, 
          *show_heapstats, *quiet;
@@ -259,9 +278,11 @@ char **heapfile;
     else if (strcmp( *argv, "-step" ) == 0) {
       *enable_singlestep = 1;
     }
+/*
     else if (strcmp( *argv, "-timer" ) == 0) {
-      *enable_timer = 0;
+      *enable_timer = 1;
     }
+*/
     else if (strcmp( *argv, "-memstats" ) == 0) {
       *show_heapstats = 1;
     }
@@ -269,6 +290,20 @@ char **heapfile;
       help();
     else if (strcmp( *argv, "-quiet" ) == 0) 
       *quiet = 1;
+    else if (strcmp( *argv, "-args" ) == 0) {
+      *restc = argc-1;
+      *restv = argv+1;
+      argc=1;
+    }
+    else if (strcmp( *argv, "-heap" ) == 0) {
+      if (*heapfile != 0) {
+	consolemsg( "Error: Only one heap file allowed." );
+	usage();
+      }
+      argc--;
+      argv++;
+      *heapfile = *argv;
+    }
     else if (**argv == '-') {
       consolemsg( "Error: Invalid option '%s'", *argv );
       usage2();
@@ -318,7 +353,7 @@ char *s;
 static void usage()
 {
   consolemsg( "" );
-  consolemsg( "Usage: larceny [ options ] heapfile" );
+  consolemsg( "Usage: larceny [ options ] heapfile [-args arguments]" );
   usage2();
 }
 
@@ -330,6 +365,7 @@ static void usage2()
 
 static void help()
 {
+  consolemsg( "Usage: larceny [ options ] heapfile [-args arguments]" );
   consolemsg( "" );
   consolemsg( "Options:" );
   consolemsg( "\t-tsize   nnnn   Initial tenured area size in bytes" );
@@ -343,7 +379,7 @@ static void help()
   consolemsg( "\t-ticks   nnnn   Initial timer interval value" );
   consolemsg( "\t-break          Enable breakpoints" );
   consolemsg( "\t-step           Enable single-stepping" );
-  consolemsg( "\t-timer          Disable timer interrupts" );
+/*   consolemsg( "\t-timer          Enable timer interrupts at startup" ); */
   consolemsg( "\t-memstats       Print memory statistics" );
   consolemsg( "\t-quiet          Suppress nonessential messages" );
   consolemsg( "\t-help           Print this message" );

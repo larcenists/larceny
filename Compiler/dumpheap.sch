@@ -1,9 +1,9 @@
 ; -*- Scheme -*-
 ;
-; Scheme 313 compiler
+; Larceny -- heap dumper.
 ; Code to dump a bootstrap heap image from un-encoded scheme object files.
 ;
-; Second major version.
+; Second major version, for Chez Scheme.
 ;
 ; $Id: dumpheap.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
 ;
@@ -38,16 +38,11 @@
 ; Otherwise, the cdr of the global value cell is given an ordinal number
 ; which can be found later in the map file.
 
-(define generate-global-symbols? #f)
-
 ;
 
-(define dump-heap
+(define build-heap-image
 
   (let ()
-
-    (define **unspecified** (string->symbol "**UNSPECIFIED**"))
-    (define **eof** (string->symbol "**EOF**"))
 
     ; Neat constants.
 
@@ -74,15 +69,19 @@
     ; heap. `Top' is the address of the next byte in the heap.
 
     (define (make-new-heap)
-      (vector '() '() 0))
+      (vector '() '() 0 #f #f))
 
     (define (heap.bytes h) (vector-ref h 0))
     (define (heap.globals h) (vector-ref h 1))
     (define (heap.top h) (vector-ref h 2))
+    (define (heap.datafile h) (vector-ref h 3))
+    (define (heap.infofile h) (vector-ref h 4))
 
     (define (heap.bytes! h b) (vector-set! h 0 b))
     (define (heap.globals! h g) (vector-set! h 1 g))
     (define (heap.top! h t) (vector-set! h 2 t))
+    (define (heap.datafile! h f) (vector-set! h 3 f))
+    (define (heap.infofile! h f) (vector-set! h 4 f))
 
     (define make-global cons)
     (define global.value cadr)
@@ -107,9 +106,8 @@
     ; Put a byte on the heap.
 
     (define (heap.byte! h b)
-      (if (inexact? b)
-	  (error 'heap.byte! "Boinga!"))
-      (heap.bytes! h (cons b (heap.bytes h)))
+;      (heap.bytes! h (cons b (heap.bytes h)))
+      (display (integer->char b) (heap.datafile h))
       (heap.top! h (+ 1 (heap.top h))))
 
     ; Adjust the heap up to an 8-byte boundary.
@@ -178,10 +176,12 @@
 	     $imm.true)
 	    ((eq? datum #f)
 	     $imm.false)
-	    ((eq? datum **unspecified**)
+	    ((equal? datum (unspecified))
 	     $imm.unspecified)
-	    ((eq? datum **eof**)
-	     $imm.eof)
+	    ((equal? datum (undefined))
+	     $imm.undefined)
+;	    ((equal? datum (eof-object))
+;	     $imm.eof)
 	    ((vector? datum)
 	     (dump-vector! h datum $tag.vector-typetag))
 	    ((bytevector? datum)
@@ -368,8 +368,8 @@
 
     (define (create-cell! h s)
       (let* ((n cell-number)
-	     (p (dump-pair! h (cons **unspecified**
-				    (if generate-global-symbols?
+	     (p (dump-pair! h (cons (undefined)
+				    (if (generate-global-symbols)
 					s
 					n)))))
 	(set! cell-number (+ cell-number 1))
@@ -427,16 +427,18 @@
       ; the constant vector after the procedure has been assembled but before
       ; it is dumped into the heap. See below.
       ;
-      ; (define (init-proc)
+      ; (define (init-proc argv)
       ;   (let loop ((l <list-of-thunks>))
       ;     (if (null? l)
-      ;         (go <list-of-symbols>)
+      ;         (go <list-of-symbols> argv)
       ;         (begin ((car l))
       ;                (loop (cdr l))))))
 
       (define (init-proc)
 	`((,$.proc)
-	  (,$args= 0)
+	  (,$args= 1)
+	  (,$reg 1)              ; argv into
+	  (,$setreg 2)           ;   register 2
 	  (,$const (1))          ; dummy list of thunks.
 	  (,$setreg 1)
 	  (,$.label 0)
@@ -447,20 +449,21 @@
 	  (,$setreg 1)
 	  (,$global go)
 	  (,$op1 break)
-	  (,$invoke 1)           ; (go <list of symbols>)
+	  (,$invoke 2)           ; (go <list of symbols> argv)
 	  (,$.label 2)
 ;	  (,$save 3 1)                                           ; @@ Will
-          (,$save 1)                                             ; @@ Will
+          (,$save 2)                                             ; @@ Will
           (,$store 0 0)                                          ; @@ Will
           (,$store 1 1)                                          ; @@ Will
+	  (,$store 2 2)
           (,$setrtn 3)                                           ; @@ Will
 	  (,$reg 1)
 	  (,$op1 car)
 	  (,$invoke 0)           ; ((car l))
 	  (,$.label 3)
 	  (,$.cont)
-	  (,$restore 1)
-	  (,$pop 1)
+	  (,$restore 2)
+	  (,$pop 2)
 	  (,$reg 1)
 	  (,$op1 cdr)
 	  (,$setreg 1)
@@ -541,20 +544,23 @@
 	  bytes))
 
       (display "Dumping to file") (newline)
+      (delete-file filename)
       (with-output-to-file filename
 	(lambda ()
 	  (write-version-number)
 	  (write-roots (heap.globals h))
-	  (write-word (quotient (length (heap.bytes h)) 4))
-	  (write-bytes (reverse (heap.bytes h))))))
+	  (write-word (quotient (heap.top h) 4))
+;	  (write-bytes (reverse (heap.bytes h)))
+	  )))
 
     ; Main loop.
 
-    (define (build-bootstrap-heap outputfile . inputfiles)
-      (delete-file outputfile)
+    (define (build-heap-image outputfile . inputfiles)
       (set! cell-number 0)
       (set! symbol-table '())
       (let ((heap (make-new-heap)))
+	(delete-file "HEAPDATA")
+	(heap.datafile! heap (open-output-file "HEAPDATA"))
 	(let loop ((files inputfiles) (inits '()))
 	  (if (not (null? files))
 	      (loop (cdr files)
@@ -566,6 +572,25 @@
 				   'callouts
 				   (dump-global! heap 'millicode-support))
 		     (dump-heap-to-file! heap outputfile)
+		     (close-output-port (heap.datafile heap))
+		     (cond ((eq? host-system 'chez)
+			    (if (zero? (system (string-append 
+						"cat HEAPDATA >> "
+						outputfile)))
+				(delete-file "HEAPDATA")
+				(begin (display "Concatenation failed!")
+				       (newline)
+				       (dump-heap-to-file! heap outputfile))))
+			   ((eq? host-system 'larceny)
+			    (display "You must execute the command")
+			    (newline)
+			    (display "  cat HEAPDATA >> ")
+			    (display outputfile)
+			    (newline)
+			    (display "to create the final heap image.")
+			    (newline))
+			   (else
+			    ???))
 		     (load-map))))))
 
-    build-bootstrap-heap))
+    build-heap-image))
