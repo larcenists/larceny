@@ -626,19 +626,20 @@ namespace Scheme.Rep {
     public sealed class SFixnum : SObject {
         public readonly int value;
         public static readonly SFixnum[] pool;
-      // NOTE THE COMPILER KNOWS ABOUT THIS CONSTANT
-        public const int maxPreAlloc = 16000;
+      // NOTE THE COMPILER KNOWS ABOUT THESE CONSTANTS
+        public const int minPreAlloc = -32768;
+        public const int maxPreAlloc = 65536;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
 
-        // Stores numbers -maxPreAlloc to +maxPreAlloc
-        //          0 -> maxPreAlloc
-        // -maxPreAlloc -> 0
+        // Stores numbers minPreAlloc to maxPreAlloc
+        //          0 -> (maxPreAlloc - minPreAlloc + 1)
+        // minPreAlloc -> maxPreAlloc
         static SFixnum() {
-            pool = new SFixnum[2 * maxPreAlloc + 1];
-            for (int i = -maxPreAlloc; i <= maxPreAlloc; i++)
-                pool[i + maxPreAlloc] = new SFixnum(i);
+	    pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
+            for (int i = 0; i < pool.Length ; i++)
+                pool[i] = new SFixnum(i + minPreAlloc);
         }
         private SFixnum(int value) {
             this.value = value;
@@ -668,8 +669,8 @@ namespace Scheme.Rep {
             return n <= ((ulong)MAX);
         }
         public static SFixnum makeFixnum(int val) {
-            if (val >= -maxPreAlloc && val <= maxPreAlloc)
-                return pool[val + maxPreAlloc];
+            if (val >= minPreAlloc && val <= maxPreAlloc)
+                return pool[val - minPreAlloc];
             else
                 return new SFixnum(val);
         }
@@ -1176,7 +1177,7 @@ namespace Scheme.Rep {
         public override void op_inexact2exact() {
             Reg.Result = this;
         }
-#line 148 "SchemeObject.cs.cpp"
+#line 149 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -1201,7 +1202,7 @@ namespace Scheme.Rep {
         public override SObject op_typetag() { return Factory.makeFixnum (this.tag); }
         public override SObject op_typetag_set(SObject arg2) { return arg2.op_reversed_typetag_set(this); }
 
-#line 167 "SchemeObject.cs.cpp"
+#line 168 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -1388,7 +1389,7 @@ namespace Scheme.Rep {
                 base.op_truncate();
             }
         }
-#line 218 "SchemeObject.cs.cpp"
+#line 219 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -1771,7 +1772,7 @@ namespace Scheme.Rep {
                 base.op_inexact2exact();
             }
         }
-#line 345 "SchemeObject.cs.cpp"
+#line 346 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -1842,7 +1843,7 @@ namespace Scheme.Rep {
         public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
-#line 398 "SchemeObject.cs.cpp"
+#line 399 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -2353,7 +2354,7 @@ namespace Scheme.Rep {
 
 
 
-#line 909 "SchemeObject.cs.cpp"
+#line 910 "SchemeObject.cs.cpp"
 
 #line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_Procedure.inc"
 // Ops for Procedure
@@ -2364,7 +2365,7 @@ namespace Scheme.Rep {
         }
         public override SObject op_procedure_ref(SObject arg2) { return arg2.op_reversed_procedure_ref(this); }
         public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_reversed_procedure_set(this, arg3); }
-#line 911 "SchemeObject.cs.cpp"
+#line 912 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -2419,7 +2420,7 @@ namespace Scheme.Rep {
         }
 
        public override string ToString() {
-	 return this.value.ToString();
+         return this.value.ToString();
        }
 
     }
