@@ -295,7 +295,7 @@
 (define (process-file-block infilename outfilename writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
-			      (eq? 'binary) (cadr outfilename))
+			      (eq? 'binary (cadr outfilename)))
 			 call-with-binary-output-file
 			 call-with-output-file))
 	(infilename  (if (pair? infilename) (car infilename) infilename))
