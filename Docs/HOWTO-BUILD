@@ -1,0 +1,124 @@
+Building and using Larceny and Petit Larceny
+23 November 2004 / lth
+
+
+HOW TO BUILD LARCENY AND USE THE BUILD ENVIRONMENT
+
+These instructions tell you how to build minimal versions of Larceny or
+Petit Larceny for your system.  If you run into trouble or think you
+need more information, look at the files HOWTO-PETIT and HOWTO-SPARC.
+
+For the most part Larceny and Petit Larceny are built by tools written
+in Scheme, so you need a working host Scheme system; any recent version
+of Larceny with just the interpreter is sufficient.  See the section
+BOOTSTRAPPING in HOWTO-PETIT if you don't have a working Scheme system.
+
+First things first:
+
+  * You must inspect features.sch and choose the configuration you are
+    building.
+
+  * You will probably need to edit Rts/Makefile to make it fit your
+    system -- "make" is used to build the run-time system.
+
+Then start your host Scheme system, change your working directory to be
+the Larceny source directory if it isn't already, and load the
+appropriate configuration file for your operating system:
+
+Native Larceny:
+
+    Util/sparc-unix.sch		   (SPARC/Solaris and probably SPARC/Linux)
+
+Petit Larceny:
+
+    Util/petit-unix-be.sch         (Big-endian Unix, including MacOS X)
+    Util/petit-unix-el.sch         (Little-endian Unix, including Cygwin)
+    Util/petit-win32.sch           (Microsoft Windows)
+
+These programs sometimes invoke external programs and may place
+additional demands on your host system.  Currently all host systems need
+some version of "make" to be able to build the run-time system, and will
+need access to a command interpreter.
+
+The first time you run the build environment you must evaluate:
+
+    > (setup-directory-structure)
+
+Whenever you have altered ~/features.sch or any of the Rts/*.cfg, or
+the first time you run the build environment, you will want to
+evaluate:
+
+    > (build-config-files)
+
+Most of the time you will just load Twobit (you can't load Twobit
+until after you have created the directory structure and config files,
+which is why it is a separate step):
+
+    > (load-compiler)
+
+and then build the heap image, the runtime system, and finally the
+executable:
+
+    > (build-heap)
+    > (build-runtime)
+    > (build-executable)        ; not necessary for SPARC-native Larceny
+
+Other useful commands are:
+
+    > (remove-heap-objects)     ; removes generated files (LAP, LOP, C, OBJ, FASL)
+    > (remove-runtime-objects)  ; removes OBJ files in the Rts/ tree
+
+
+BUILDING AN APPLICATION
+
+It is possible to create an application that contains more compiled code
+than the standard heap image.  The method whereby this is done differs
+between native Larceny and Petit Larceny; see HOWTO-SPARC and
+HOWTO-PETIT for more information.
+
+
+COMPILING TWOBIT
+
+The method for building Twobit also depends on whether you are running
+SPARC-native Larceny or Petit Larceny.  See HOWTO-SPARC and HOWTO-PETIT
+for more information.
+
+
+COMPILING AND LOADING YOUR OWN PROGRAMS
+
+On some systems it is possible to load compiled Scheme code dynamically.
+The method for compiling loadable code also depends on whether you are
+running SPARC-native Larceny or Petit Larceny.  See HOWTO-SPARC and
+HOWTO-PETIT for more information.
+
+
+INSTALLING LARCENY ON YOUR SYSTEM
+
+Installing Larceny without Twobit is simple:
+
+  (1) Create a suitable directory for Larceny's files, say,
+      /usr/lib/larceny
+
+  (2) Copy the Larceny executable and the heap image (petit.heap or
+      sparc.heap) to that directory
+
+  (3) Create an executable script called 'larceny' in another suitable 
+      directory to run Larceny, usually it contains something like this:
+        /usr/lib/larceny/petit /usr/lib/larceny/petit.heap
+      or 
+        /usr/lib/larceny/larceny.bin /usr/lib/larceny/sparc.heap
+
+Now type 'larceny' anywhere and you're up and running.
+
+
+INSTALLING TWOBIT ON YOUR SYSTEM
+
+Installing Twobit outside the Larceny build directory is more
+complicated, see HOWTO-SPARC and HOWTO-PETIT.
+
+
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---
