@@ -1,4 +1,4 @@
-;; This code depends on Auxlib/record.sch and MzScheme/inspector.sch
+;; This code depends on Auxlib/record.sch and Lib/XSMzScheme/inspector.sch
 
 ;; http://download.plt-scheme.org/doc/207/html/mzscheme/mzscheme-Z-H-4.html#node_chap_4
 
@@ -54,7 +54,7 @@
         ;; no opt-lambda, sorry...
         (let* ((defaults '(#f ;; auto-fill value
                            () ;; property value list
-                           (sys$.inspector->superior (current-inspector))
+                           ($sys.inspector->superior (current-inspector))
                            #f ;; structure procedure
                            ())) ;; list of immutable field indices
                (opts (append rest

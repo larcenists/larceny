@@ -11,7 +11,7 @@
 (define current-inspector (undefined))
 ;; This isn't supposed to be visible to MzScheme, but structs need
 ;; it to get the default opacity.
-(define sys$.inspector->superior (undefined))
+(define $sys.inspector->superior (undefined))
 
 ;; release_2 of larceny uses the MzScheme-like let-values syntax.
 ;; The one installed in /proj/will/Larceny requires one less pair of parens
@@ -44,4 +44,4 @@
   (set! make-inspector construct)
   (set! inspector? predicate)
   (set! current-inspector current)
-  (set! sys$.inspector->superior ->superior))
+  (set! $sys.inspector->superior ->superior))
