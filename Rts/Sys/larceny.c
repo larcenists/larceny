@@ -76,10 +76,11 @@ char **argv;
 #endif
 
   cache_setup();
-  consolemsg( "%s v%d.%d (%s:%s:%s) (%s %s)",
+  consolemsg( "%s v%d.%d%s (%s:%s:%s) (%s %s)",
 	      larceny_system_name,
 	      larceny_major_version, 
 	      larceny_minor_version,
+	      larceny_version_qualifier,
 	      larceny_gc_technology,
 	      osname, 
 	      (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
@@ -240,10 +241,10 @@ void consolemsg( const char *fmt, ... )
   if (quiet) return;
 
   va_start( args, fmt );
-  vfprintf( stderr, fmt, args );
-  fprintf( stderr, "\n" );
+  vfprintf( stdout, fmt, args );
+  fprintf( stdout, "\n" );
   va_end( args );
-  fflush( stderr );
+  fflush( stdout );
 }
 
 void hardconsolemsg( const char *fmt, ... )

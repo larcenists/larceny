@@ -159,6 +159,7 @@ extern unsigned stats_rtclock( void );
 #ifndef GC_INTERNAL
 extern int  larceny_major_version;
 extern int  larceny_minor_version;
+extern char *larceny_version_qualifier;
 extern char *user;
 extern char *date;
 extern char *osname;
