@@ -5,6 +5,9 @@
 ! Cache flush test code.
 ! [lth@cs.uoregon.edu / August 24, 1995 (Death to Windows 95!)]
 
+#define ASSEMBLER 1
+#include "../Sys/config.h"
+
 #include "asmdefs.h"
 #include "asmmacro.h"
 

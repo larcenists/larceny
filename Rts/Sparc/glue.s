@@ -10,6 +10,9 @@
 ! * The globals argument passed to scheme_start should be used always
 !   (it's currently ignored).
 
+#define ASSEMBLER 1
+#include "../Sys/config.h"
+
 #include "asmdefs.h"
 #include "asmmacro.h"
 

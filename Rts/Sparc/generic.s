@@ -26,6 +26,9 @@
 !   is currently the case). Fixed in most places by referring to SAVED_TMP0;
 !   the entire file should be checked and the rest fixed.
 
+#define ASSEMBLER  1
+#include "../Sys/config.h"
+
 #include "asmdefs.h"
 #include "asmmacro.h"
 

@@ -24,6 +24,9 @@
 ! Notes
 !   It's a lot of code.  It would have been a lot less with a macro-assembler.
 
+#define ASSEMBLER 1
+#include "../Sys/config.h"
+
 #include "asmdefs.h"
 #include "asmmacro.h"
 
