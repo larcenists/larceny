@@ -1,7 +1,17 @@
-;; Jump to a compiled Scheme procedure.
-;; 
-;; First parameter:  address to jump to
-;; Second parameter: globals ptr
+;;; PowerPC millicode entry points and millicode jump vector initialization.
+;;;
+;;; $Id$
+;;;
+;;; Most millicode entry points just jump to the C implementation.
+;;; Performance critical routines need to be hand-coded in assembler
+;;; or inlined.
+;;;
+;;; For more information about the PowerPC back-end, see ppc-machine.ah.
+	
+;;; Jump to a compiled Scheme procedure.
+;;; 
+;;; First parameter:  address to jump to
+;;; Second parameter: globals ptr
 
 EXTNAME(ppc_scheme_jump):
 
