@@ -3,6 +3,7 @@
 ; $Id$
 ;
 ; Script to dump r5rs.heap -- the small heap image.
+; For SPARC Larceny only.
 
 (load "Auxlib/pp.fasl")
 (repl-printer

@@ -57,46 +57,58 @@
   (nbuild-files 'build '("schdefs.h")))
 
 (define *nbuild:sparcasm-files*
-  (nbuild-files 'sparc-asm
-		'("pass5p2.sch" "peepopt.sch" "sparcutil.sch" "sparcasm.sch"
-                  "sparcasm2.sch"
-		  "gen-msi.sch" "sparcprim-part1.sch" "sparcprim-part2.sch"
-		  "sparcprim-part3a.sch" "sparcprim-part3b.sch"
-                  "sparcprim-part4.sch"
-                  "switches.sch" "sparcdis.sch")))
+  (if (eq? 'SPARC (nbuild-parameter 'target-machine))
+      (nbuild-files 'sparc-asm
+                    '("pass5p2.sch" 
+                      "peepopt.sch"
+                      "sparcutil.sch"
+                      "sparcasm.sch"
+                      "sparcasm2.sch"
+                      "gen-msi.sch"
+                      "sparcprim-part1.sch"
+                      "sparcprim-part2.sch"
+                      "sparcprim-part3a.sch"
+                      "sparcprim-part3b.sch"
+                      "sparcprim-part4.sch"
+                      "switches.sch"
+                      "sparcdis.sch"))))
 
 (define *nbuild:petitasm-files*
-  (append
-   (nbuild-files 'common-asm
-		 '("external-assembler.sch"))
-   (nbuild-files 'standard-C-asm
-		 `("pass5p2.sch" 
-		   "peepopt.sch" 
-		   "asm-switches.sch" 
-		   "dumpheap-overrides.sch" 
-		   "petit-init-proc.sch"
-		   "md5.sch"
-		   ,@(case (nbuild-parameter 'host-os)
-		       ((macosx unix) '("dumpheap-unix.sch"))
-		       ((win32)       '("dumpheap-win32.sch"))
-		       (else          '()))))))
+  (if (eq? 'Standard-C (nbuild-parameter 'target-machine))
+      (append
+       (nbuild-files 'common-asm
+                     '("external-assembler.sch"))
+       (nbuild-files 'standard-C-asm
+                     `("pass5p2.sch" 
+                       "peepopt.sch" 
+                       "asm-switches.sch" 
+                       "dumpheap-overrides.sch" 
+                       "petit-init-proc.sch"
+                       "md5.sch"
+                       ,@(case (nbuild-parameter 'host-os)
+                           ((macosx unix) '("dumpheap-unix.sch"))
+                           ((win32)       '("dumpheap-win32.sch"))
+                           (else          '())))))
+      '()))
 
 (define *nbuild:x86-nasm-files*
-  (append
-   (nbuild-files 'common-asm
-		 '("external-assembler.sch"))
-   (nbuild-files 'x86-nasm-asm
-		 `("pass5p2-nasm.sch"
-		   "peepopt.sch"
-		   "dumpheap-overrides.sch" 
-		   ,@(case (nbuild-parameter 'host-os)
-		      ((unix)  '("dumpheap-unix.sch"))
-		      ((win32) '("dumpheap-win32.sch"))
-		      (else    '()))))
-   (nbuild-files 'standard-C-asm
-		 '("asm-switches.sch"
-		   "petit-init-proc.sch"
-		   "md5.sch"))))
+  (if (eq? 'x86-nasm (nbuild-parameter 'target-machine))
+      (append
+       (nbuild-files 'common-asm
+                     '("external-assembler.sch"))
+       (nbuild-files 'x86-nasm-asm
+                     `("pass5p2-nasm.sch"
+                       "peepopt.sch"
+                       "dumpheap-overrides.sch" 
+                       ,@(case (nbuild-parameter 'host-os)
+                           ((unix)  '("dumpheap-unix.sch"))
+                           ((win32) '("dumpheap-win32.sch"))
+                           (else    '()))))
+       (nbuild-files 'standard-C-asm
+                     '("asm-switches.sch"
+                       "petit-init-proc.sch"
+                       "md5.sch")))
+      '()))
 
 (define *nbuild:make-files*
   `(,@(nbuild-files 'util '("make.sch"))
@@ -111,7 +123,9 @@
   '())
 
 (define *nbuild:petit-heap-dumper-files*
-  (nbuild-files 'standard-C-asm '()))
+  (if (eq? 'Standard-C (nbuild-parameter 'target-machine))
+      (nbuild-files 'standard-C-asm '())
+      '()))
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*

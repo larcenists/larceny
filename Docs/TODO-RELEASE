@@ -19,15 +19,7 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    known to that code whether the code pointer has to be adjusted or
    not!
 
- * Bug: HOWTO-SPARC is incomplete.
-
- * Quality: the HOWTO documentation needs to be HTML, it is becoming
-   increasingly cross-referenced.
-
- * Quality: Implement and document REMOVE-TWOBIT-OBJECTS.
-
- * Update all documentation to reflect the actual state of the system.
-   In general, HOWTO-WIN32 has a lot of old cruft.
+ * Quality: Clean up HOWTO-WIN32.
 
  * Quality: wizard options help should be available with -wizardhelp
    only
@@ -38,6 +30,7 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * Quality: Get rid of Auxlib/ altogether.  Stuff that must be available
    for twobit goes into Lib; the rest moves to the external library.
+   Note, this affects std-heap.sch, especially.
 
  * Quality: Online help not quite right for Petit Larceny
 
@@ -75,6 +68,17 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
    of bogus, cf recent discussion on SRFI-0 list.  Should probably
    fix this both in SRFI code as well as in test code.
+
+
+Lower priority:
+
+ * Quality: the HOWTO documentation needs to be HTML, it is becoming
+   increasingly cross-referenced.
+
+
+QA:
+
+  * Go over all docs to make sure they are at least mostly relevant
 
 
 Release candidate 1 -> Release candidate 2

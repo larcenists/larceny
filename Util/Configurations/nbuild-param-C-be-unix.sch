@@ -23,9 +23,9 @@
            (auxiliary      . ,(pathname-append dir "Auxlib"))
            (root           . ,dir)
            (host-system    . ,hostname)
+           (host-os        . unix)
            (target-machine . Standard-C)
            (target-os      . unix)
-           (host-os        . unix)
            (endianness     . big)
            (target-endianness . big)  ; same as "endianness"
            (host-endianness . big)

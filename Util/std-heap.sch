@@ -14,7 +14,6 @@
 
 (define ($$trace x) #f)                 ; Some code uses this
 
-(define nbuild-parameter)
 (define toplevel-macro-expand #f)       ; A hack for the benefit of 
                                         ; init-toplevel-environment
 
@@ -70,24 +69,8 @@
 		  (load fn)))
 	      files))
 
-  (load "Util/sysdep-unix.sch")
-  (load "Util/nbuild-param-sparc.sch")
-
-  (set! nbuild-parameter 
-        (make-nbuild-parameter "" #f #f #f "Larceny" "Larceny"))
-
-  (load "Util/nbuild-files.sch")      ; Development system files
-
-  (loadf `("Compat/Larceny/compat2.fasl"
-           "Auxlib/list.fasl"
-           ,@(nbuild:twobit-files)
-           ,@(nbuild:common-asm-files)
-           "Asm/Common/link-lop.fasl"
-           ,@(nbuild:machine-asm-files)
-           ,@(nbuild:utility-files)
-           "Util/make-support.fasl"
-           "Util/init-comp.fasl"))
-
+  (load "Util/sparc-unix.sch")
+  (load-compiler 'release)
   (load "Asm/Common/link-lop.fasl")
 
   (let ((interaction-environment interaction-environment)
@@ -107,7 +90,8 @@
 
   ; Replace and populate the top-level environment
   
-  (load "Lib/Sparc/toplevel.fasl")
+  (load "Lib/Common/toplevel.fasl")
+  (load "Lib/Sparc/toplevel-target.fasl")
 
   (let ((e (interaction-environment)))
     (letrec ((install-procedures 
@@ -244,13 +228,13 @@
 
 (load "Auxlib/macros.sch")
 (load "Auxlib/record.sch")              ; Record package
-(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
-(load "Experimental/exception.sch")
+;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
+;(load "Experimental/exception.sch")
 (load "Auxlib/std-ffi.sch")
 (load "Auxlib/unix-functions.sch")
 (load "Experimental/system-stuff.fasl")
-(load "Experimental/applyhook0.fasl")
-(load "Experimental/applyhook.fasl")
+;(load "Experimental/applyhook0.fasl")
+;(load "Experimental/applyhook.fasl")
 
 ;;; Improve some definitions
 

@@ -27,12 +27,19 @@
            (target-machine . SPARC)
            (target-os      . unix)
            (endianness     . big)
+           (target-endianness . big)  ; same as "endianness"
+           (host-endianness . big)
            (word-size      . 32)
            )))
-    (lambda (key)
+    (lambda (key . rest)
       (let ((probe (assq key parameters)))
-        (if probe 
-            (cdr probe)
-            #f)))))
+        (if (not probe)
+            (error "nbuild-parameter: Unknown key: " key))
+        (cond ((null? rest)
+               (cdr probe))
+              ((null? (cdr rest))
+               (set-cdr! probe (car rest)))
+              (else
+               (error "Too many parameters to nbuild-parameter")))))))
 
 ; eof

@@ -6,28 +6,19 @@ how to get started with CVS and how CVS is used to store Larceny source
 code, documentation, and other common 
 
 
-What CVS documentation to read.
+QUICK START FOR REMOTE CVS (ccs users only).
+
+	export CVS_RSH=ssh
+	export CVSROOT=:ext:user@login.ccs.neu.edu:/proj/will/lth/cvs-archives
+
+
+WHAT CVS DOCUMENTATION TO READ.
 
 The best information on CVS is the Info page accessible from GNU Emacs.
 The Unix manual page is much inferior to the Info documentation.
 
 
-Your Emacs version.
-
-You should always use Emacs 19.  Emacs 18 is probably not going to be
-supported by CCS much longer.  I have an alias in my startup file:
-
-	alias emacs='emacs-19'
-
-(your syntax may vary depending on your shell) which happens to work on
-all CCS systems at present, and which gives me the latest stable version
-everywhere, currently 19.34 on SPARC systems and 19.29 on Alphas.
-
-(In fact, as of 990707, 19.34.1 is available everywhere and is the
-version that you get when you type "emacs" anywhere.)
-
-
-Reading the CVS Info pages.
+READING THE CVS INFO PAGES.
 
 The following instructions are for Emacs 19 and do not work in Emacs 18.
 
@@ -55,7 +46,7 @@ its info reader.)
    including the parentheses.
 
 
-CVS and Larceny.
+CVS AND LARCENY.
 
 The root directory for Larceny's CVS repository is currently
 
@@ -72,7 +63,7 @@ The following is a list of the CVS modules is Larceny's repository:
   radioactive99: Repository for 1999 revision of 1997 PLDI paper.
 
 
-Quick reference.
+QUICK REFERENCE.
 
 checkout: To checkout a module into a clean directory, go to the parent
 directory of the directory where you want the module checked out, then

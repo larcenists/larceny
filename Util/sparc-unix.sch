@@ -69,38 +69,38 @@
   (apply make-sparc-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
+  (delete-file "larceny.bin")
   (execute-in-directory "Rts" "make larceny.bin")
-  (newline)
-  (display "The program is Rts/larceny.bin")
-  (newline))
+  (if (file-exists "Rts/larceny.bin")
+      (system "cp Rts/larceny.bin .")))
 
 (define (build-twobit)
-  (error "Not yet implemented")
-  (make-development-environment)
-  (build-application "twobit"
-		     (petit-development-environment-lop-files)))
+  (make-development-environment))
 
-(define (load-compiler)
+(define (load-compiler . rest)
+  (if (and (not (null? rest)) (eq? (car rest) 'release))
+      (begin
+        (nbuild-parameter 'always-source? #f)
+        (nbuild-parameter 'verbose-load? #f)
+        (nbuild-parameter 'development? #f)))
   (load (make-filename "" "Util" "nbuild.sch")))
 
 (define (remove-runtime-objects)
   (system "rm -f Rts/Sys/*.o")
   (system "rm -f Rts/Sparc/*.o")
   (system "rm -f Rts/Build/*.o")
-  #t)
-
-(define remove-rts-objects remove-runtime-objects)  ; Old name
+  (unspecified))
 
 (define (remove-heap-objects . extensions)
-  (let ((ext   '("lap" "lop"))
-	(names '(lap lop)))
+  (let ((ext   '("lap" "lop" "fasl"))
+	(names '(lap lop fasl)))
     (if (not (null? extensions))
 	(set! ext (apply append 
 			 (map (lambda (n ext)
 				(if (memq n extensions) (list ext) '()))
 			      names
 			      ext))))
-    (system "rm -f Rts/larceny.bin sparc.heap")
+    (system "rm -f larceny.bin Rts/larceny.bin sparc.heap")
     (for-each (lambda (ext)
 		(for-each (lambda (dir) 
 			    (system (string-append "rm -f " dir "*." ext))) 
@@ -108,9 +108,10 @@
 				(nbuild-parameter 'machine-source)
 				(nbuild-parameter 'repl-source)
 				(nbuild-parameter 'interp-source)
-				(nbuild-parameter 'compiler))))
+				(nbuild-parameter 'compiler)
+                                (nbuild-parameter 'auxiliary))))
 	      ext)
-    #t))
+    (unspecified)))
 
 (unix-initialize)
 

@@ -118,7 +118,8 @@
 				(nbuild-parameter 'machine-source)
 				(nbuild-parameter 'repl-source)
 				(nbuild-parameter 'interp-source)
-				(nbuild-parameter 'compiler))))
+				(nbuild-parameter 'compiler)
+                                (nbuild-parameter 'auxiliary))))
 	      ext)
     #t))
 

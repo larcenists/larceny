@@ -334,6 +334,9 @@
          (replace-extension file-type (nbuild:utility-files)))
         (other-util-files
          (append 
+          (objects (nbuild-parameter 'common-source)
+                   file-type
+                   '("toplevel"))
           (objects (nbuild-parameter 'machine-source)
                    file-type
                    '("toplevel-target"))

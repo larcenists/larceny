@@ -1,23 +1,34 @@
 Building and using SPARC-native Larceny
-23 November 2004 / lth
-
-
-                   *** THIS FILE IS NOT YET COMPLETE ***
+24 November 2004 / lth
 
 
 HOW TO BUILD LARCENY AND USE THE BUILD ENVIRONMENT
 
-General build instructions are in the file HOWTO-BUILD.
+General build instructions are in HOWTO-BUILD.  The larceny executable
+is called larceny.bin and the heap image is called sparc.heap.  Both
+are deposited in the top-level directory if the build succeeds.
+
+
+COMPILING AND LOADING YOUR OWN PROGRAMS
+
+It is possible to load compiled Scheme code dynamically.  The procedure
+COMPILE-FILE compiles a Scheme source file into a compiled .FASL format
+file:
+
+    > (compile-file "fib.sch")
+    > (load "fib.fasl")
+    > (fib 10)
+    55
 
 
 BUILDING AN APPLICATION
 
-Larceny supports loading of arbitrary dynamic code and heap dumping, so
-in order to build an "application" you compile the files you want to
-include in the application using COMPILE-FILE, then load the resulting
-.FASL files using LOAD, and dump the new heap image using
-DUMP-INTERACTIVE-HEAP.  See the user's manual for more information on
-these procedures.
+Since Larceny supports loading of arbitrary dynamic code and heap
+dumping, there is no "application" concept as such.  You simply compile
+the files you want to include in the application using COMPILE-FILE,
+then load the resulting .FASL files using LOAD, and dump the new heap
+image using DUMP-INTERACTIVE-HEAP (or even DUMP-HEAP).  See the user's
+manual for more information on these procedures.
 
 
 COMPILING TWOBIT
@@ -26,85 +37,65 @@ A simple abstraction in Util/sparc-unix.sch is called BUILD-TWOBIT:
 
     > (build-twobit)
 
-The BUILD-TWOBIT command compiles all the Twobit source files.  To
-dump a heap image containing the compiled development environment,
-...
+The BUILD-TWOBIT command compiles all the Twobit source files.  To dump
+a heap image containing the compiled development environment, first
+compile twobit, then quit Larceny and restart it, using larceny.bin and
+sparc.heap and requesting the nongenerational garbage collector:
 
-If you build Twobit using BUILD-TWOBIT, and then start "twobit" and
-follow the directions above (loading "Util/petit-unix-el.sch", say, and
-then running LOAD-COMPILER), you will have a development environment
-with a compiled compiler, suitable mainly for compiler development.
+    $ ./larceny.bin -stopcopy ./sparc.heap
+
+Then load the following script to load the compiler and dump a suitable
+heap image:
+
+    > (load "Util/twobit-heap.sch")
+
+This leaves the heap image twobit.heap in the current directory,
+containing the compiler and debugger.  This heap image is suitable
+mainly for compiler development.
 
 See a later section for how to turn Twobit into a standalone compiler
 for other kinds of development.
 
 
-COMPILING AND LOADING YOUR OWN PROGRAMS
+STANDARD HEAP IMAGES
 
-On some systems it is possible to load compiled Scheme code
-dynamically.  A driver routine called COMPILE-FILES compiles a group
-of Scheme files into a single shared object and a group of code-less
-FASL files.  Loading the FASL files with LOAD will load and link the
-shared object:
+Similarly to Util/twobit-heap.sch there are two other scripts that
+create standard heap images.  Both must be loaded on top of sparc.heap
+as outlined above.
 
-    > (compile-files '("fib.sch") "fib.fasl")
-    > (load "fib.fasl")
-    > (fib 10)
-    55
+Util/r5rs-heap.sch
+  Creates a minimal heap image called r5rs.heap: like the heap generated
+  by BUILD-HEAP but with a pretty-printer installed.
 
-Note that a single C source file is generated from all the Scheme
-source files in the input list.  Be aware that some C compilers have
-problems with very large files at high optimization settings.
+  To set up for this script, evaluate
 
+    > (compile-file "Auxlib/pp.sch")
 
-BOOTSTRAPPING
+  in the development environment to compile the pretty-printer.
 
-There is an *example* Makefile called 'bootstrap.mak' that you can use
-to build Petit Larceny from C sources.  This requires that you cross
-compile to C on some other host.  Cross compilation is supported in
-the same build environment as described above; for example, the file
-"Util/petit-macosx-on-win32.sch" was used to cross-compile to C for
-MacOS X from a Win32 system.
+Util/std-heap.sch
+  Creates a maximal heap image called larceny.heap: it contains the compiler, 
+  installed in such a way that every source file loaded will be compiled as 
+  it is loaded, many useful procedures and macros, the debugger, the pretty
+  printer, and a foreign function interface.
+
+  To set up for this script, evaluate
+
+    > (build-twobit)
+
+  in the development environment to compile the compiler; once it has
+  been loaded by the script it takes care of compiling everything else.
 
 
 INSTALLING TWOBIT ON YOUR SYSTEM
 
-Installing Twobit outside the Larceny build directory is complicated,
-and it requires that Petit Larceny be able to dump a heap image on your
-system, which generally means that a program must always be loaded at
-the same address every time it is executed.  Systems that do not obey
-this rule include the old MacOS and probably most operating systems on
-machines without paged memory support -- handhelds, phones, and other
-embedded-type devices.
+The larceny executable and the heap images are generally completely
+moveable, so installing Larceny is simply a matter of copying these
+files and setting up a script that runs Larceny with the desired
+parameters.
 
-Anyway, to create a standalone compiler do the following:
-
-  (1) Create directories /usr/lib/larceny/include and /usr/lib/larceny/lib
-  (2) In the development directory, start twobit:
-         ./twobit -stopcopy
-      and load the development environment in the normal manner
-      with LOAD-COMPILER.
-  (3) Incant
-         > (install-twobit "/usr/lib/larceny")
-         > (dump-interactive-heap "twobit.heap")
-      This copies a bunch of files to your new directories and creates
-      a heap image containing twobit, but also changes some global
-      settings internally about where twobit will look for include files
-      and libraries
-      [Hint: you need write access to that directory.]
-  (4) Exit.  There should be a file twobit.heap in the current
-      directory.
-  (5) Test it by starting the twobit executable with twobit.heap
-      as its argument, then evaluate
-         > COMPILE313
-      The REPL should print #<PROCEDURE compile313>.
-  (6) Exit.  Copy the twobit executable and twobit.heap to /usr/lib/larceny,
-      then create another script in /usr/bin called "twobit" which
-      contains
-        /usr/lib/larceny/twobit /usr/lib/larceny/twobit.heap
-      You should now be able to type 'twobit' anywhere, and you should
-      be able both to compile to FASL and to create entire applications
-      using BUILD-APPLICATION.
+The Scripts directory contains two scripts, "larceny" and "twobit",
+that are suitable.
 
 
 --- Local Variables: ---
