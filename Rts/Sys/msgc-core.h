@@ -15,10 +15,11 @@ extern msgc_context_t *msgc_begin( gc_t *gc );
      */
 
 extern void msgc_mark_objects_from_roots( msgc_context_t *context, 
-                                          int *marked, int *traced );
+                                          int *marked, int *traced,
+                                          int *words_marked );
   /* Mark the entire heap from roots, marking only objects (not interior
-     locations).  Return number of objects marked in *marked and number
-     of pointers traced in *traced.
+     locations).  Return number of objects marked in *marked, number of
+     words marked in *words_marked, and number of pointers traced in *traced.
      */
 
 extern bool msgc_object_marked_p( msgc_context_t *context, word obj );
