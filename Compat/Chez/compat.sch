@@ -4,6 +4,8 @@
 ;
 ; Compatibility library for the new Twobit under Chez Scheme
 
+(define ($$trace x) #t)
+
 (define host-system 'chez)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
