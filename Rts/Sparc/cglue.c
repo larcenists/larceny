@@ -245,10 +245,8 @@ void C_exception( word i, word pc )
   in_noninterruptible_syscall = 0;
 }
 
-/* This is for debugging the run-time system; should be replaced by a
- * more general facility which hooks into Scheme.
- */
-void C_break( void )
+/* This is for debugging the run-time system. */
+void C_debugvsm( void )
 {
   in_noninterruptible_syscall = 1;
   localdebugger();

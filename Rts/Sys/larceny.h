@@ -77,7 +77,7 @@ extern void C_restore_frame( void );
 extern void C_panic( char *fmt, ... );
 extern void C_varargs( void );
 extern void C_exception( word code, word pc );
-extern void C_break( void );
+extern void C_debugvsm( void );
 extern void C_singlestep( word s );
 extern void C_syscall( void );
 extern void C_wb_compact( int generation );
