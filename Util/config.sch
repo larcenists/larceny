@@ -92,7 +92,7 @@
 
   (define (select-target target)
     (case target
-      ((sparc)
+      ((sparc standard-c)
        (set! asm-table-generator sparc-table)
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))
@@ -100,8 +100,6 @@
        (set! asm-table-generator x86-nasm-table)
        (set! asm-comment-template "; ~a")
        (set! asm-define-template  "%define ~a ~a~%"))
-      ((standard-c)
-       #t)
       (else
        (error "Unknown target in config.sch: " target)))
     (set! target-name target)
