@@ -2,7 +2,7 @@
  * Scheme Run-Time System.
  * Memory management system workhorses.
  *
- * $Id: memsupport.c,v 1.5 91/07/03 16:36:43 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.6 91/07/10 10:19:08 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -23,8 +23,12 @@
 #include "macros.h"
 #include "main.h"
 #include "millicode.h"
-
+#ifdef DEBUG
+#include <stdio.h>
+extern FILE *ofp;
+#else
 #define NULL       0
+#endif
 
 /* Calculate free bytes in ephemeral space. Can be negative! */
 #define free_ephem_space()   ((long) globals[E_LIMIT_OFFSET] - (long) globals[E_TOP_OFFSET])
@@ -80,9 +84,7 @@ word n;
   else {
     collect( EPHEMERAL_COLLECTION );
     setup_memory_limits();
-#ifdef DEBUG
-    pointers();
-#endif
+
     if (n_bytes > free_ephem_space()) {
       collect( TENURING_COLLECTION );
       setup_memory_limits();
@@ -191,7 +193,7 @@ void restore_frame()
     /* Get heap continuation */
 
     hframe = ptrof( globals[ CONTINUATION_OFFSET ] );
-    hframesize = sizefield( *hframe );
+    hframesize = sizefield( *hframe ) + 4;
 
     /* Allocate stack frame and bump saved stack pointer */
 
@@ -287,7 +289,7 @@ flush_stack_cache()
 
     /* Setup heap continuation header */
 
-    *hframe = mkheader( hframesize, VEC_HDR | CONT_SUBTAG );
+    *hframe = mkheader( hframesize-4, VEC_HDR | CONT_SUBTAG );
     *(hframe + HC_DYNLINK) = FALSE_CONST;
     if ((word) procptr != 0) {
       codeptr = *(procptr + PROC_CODEPTR);            /* raw word value */
