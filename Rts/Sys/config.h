@@ -15,19 +15,26 @@
  */
 
 /* This trick is brittle and depends on the contents of system-supplied
-   header files; in particular, it doesn't work with LCC. 
+   header files.  In particular, it does not work with LCC, because LCC 
+   cannot be relied on to parse system header files (in particular,
+   SunOS 5.6 /usr/include/stdio.h is not standard-conforming in any real 
+   sense); thus, using only system header files rather than LCC header
+   files is not a useful alternative.
    */
 
-#if !defined(INCLUDED_CONFIG_H)
-#define INCLUDED_CONFIG_H
-# if defined(sun) &&(defined(sparc) || defined(__sparc))
-#  define SPARC
-     /* Test for SunOS 5.x */
-#    include <errno.h>
-#    ifdef ECHRNG
-#      define SUNOS5
-#    else
-#      define SUNOS4
+#if !defined(STDC_SOURCE)
+#  if !defined(INCLUDED_CONFIG_H)
+#    define INCLUDED_CONFIG_H
+#    if defined(sun) &&(defined(sparc) || defined(__sparc))
+#      define SPARC
+       /* Test for SunOS 5.x */
+#      include <errno.h>
+#      ifdef ECHRNG
+#        define SUNOS5
+#      else
+#        define SUNOS4
+#      endif
 #    endif
-# endif
+#  endif
 #endif
+
