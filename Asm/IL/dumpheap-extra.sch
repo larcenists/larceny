@@ -465,34 +465,50 @@
 ;; -----------------------------------------------
 
 (define *scheme-suffixes* '(".sch" ".scm" ".ss" ".mal"))
+(define *manifest-file-type* ".manifest")
 
+;; build-application : string (listof string) -> void
+;; Given an application name and a list of LOP files, creates
+;; an EXE file and a FASL file (each LOP file must have a corresponding
+;; MANIFEST file).
+(define (build-application app lopfiles)
+  (for-each create-loadable-file lopfiles)
+  (create-application
+   app
+   (map (lambda (f) (rewrite-file-type f *lop-file-type* *manifest-file-type*))
+        lopfiles)
+   #t))
+
+;; compile-application : string (listof string) -> void
+;; Given an application name and a list of scheme source files, creates
+;; an EXE file and a FASL file.
 (define (compile-application app files)
   (for-each scheme->il files)
   (create-application 
    app
-   (map (lambda (f) (rewrite-file-type f *scheme-suffixes* ".manifest"))
+   (map (lambda (f) (rewrite-file-type f *scheme-suffixes* *manifest-file-type*))
         files)
    #t)
   (twobit-format #t "  Application created (fasl + exe)~%"))
 
 (define (scheme->app file)
-  (let ((base (rewrite-file-type file '(".sch" ".scm" ".mal") "")))
+  (let ((base (rewrite-file-type file *scheme-suffixes* "")))
     (scheme->il file)
     (let ((app (create-application 
                 base
-                (list (string-append base ".manifest"))
+                (list (string-append base *manifest-file-type*))
                 #t)))
       (twobit-format (current-output-port)
                      "  application file -> ~s~%" app))))
 
 (define (scheme->il filename)
   (twobit-format (current-output-port) "Source file: ~s~%" filename)
-  (if (file-type=? filename ".mal")
+  (if (file-type=? filename *mal-file-type*)
       (mal->il filename)
       (sch->il filename)))
 
 (define (sch->il filename)
-  (let ((lap-name (rewrite-file-type filename '(".scm" ".sch") ".lap")))
+  (let ((lap-name (rewrite-file-type filename *scheme-file-types* *lap-file-type*)))
     (compile313 filename)
     (twobit-format (current-output-port) "  compiled -> ~s~%" lap-name)
     (mal->il lap-name)))
@@ -500,7 +516,7 @@
 (define (mal->il filename)
   (let* ((base (rewrite-file-type filename '(".lap" ".mal") ""))
 	 (listing-name (rewrite-file-type base "" ".list"))
-	 (lop-name (rewrite-file-type base "" ".lop"))
+	 (lop-name (rewrite-file-type base "" *lop-file-type*))
 	 (il-name (rewrite-file-type base "" ".code-il")))
     (if (codegen-option 'listify-write-list-file)
 	(begin (listify-reset)
