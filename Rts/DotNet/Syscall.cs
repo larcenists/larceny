@@ -318,16 +318,22 @@ namespace Scheme.RT {
                 Reg.Result = Factory.wrap(-1);
             }
         }
-                
+
         // file exists?
         private static void access() {
             string file = ((SByteVL)Reg.register2).asString();
-    	    int result = 2;
-            if (File.Exists(file)) {
-                result = 0;
-            } else {
-                result = -1;
-            }
+            int operation = ((SFixnum)Reg.register3).value;
+      	    int result = 2; // WHY?
+      	    if (operation == 0x01) { // FILE EXISTS?
+      	        if (File.Exists(file) || Directory.Exists(file)) {
+      	            result = 0;
+      	        } else {
+      	            result = -1;
+      	        }
+      	    } else {
+      	        Exn.internalError("access: read/write/execute checking not supported");
+      	        return;
+      	    }
     	    Reg.Result = Factory.wrap(result);
         }
                 
