@@ -37,9 +37,9 @@ static RTYPE return_from_scheme( CONT_PARAMS );
 static void handle_sigfpe( word *globals );
 static cont_t refill_stack_cache( word *globals );
 static int valid_datum( word x );
-static word *make_system_procedure( gc_t *gc, codeptr_t f );
 
 #if USE_GOTOS_LOCALLY
+static word *make_system_procedure( gc_t *gc, codeptr_t f );
 static word *dispatch_loop_return_procedure;
 static word *return_from_scheme_procedure;
 static word *stack_underflow_procedure;
@@ -59,8 +59,10 @@ static int already_running = 0;
 
 void scheme_init( word *globals )
 {
+#if USE_GOTOS_LOCALLY
   gc_t *gc = the_gc( globals );
-
+#endif
+  
   initialize_generic_arithmetic();
 
 #if USE_GOTOS_LOCALLY
@@ -74,20 +76,24 @@ void scheme_init( word *globals )
 #endif
 }
 
+#if USE_GOTOS_LOCALLY
 static word *make_system_procedure( gc_t *gc, codeptr_t f )
 {
   word *p;
 
-  p = alloc_from_heap( sizeof(word)*4 );
-  p[0] = mkheader( 12, PROC_HDR );
-  p[1] = (word)f;
-  p[2] = p[3] = 0;
+  p = alloc_from_heap( sizeof(word)*(PROC_HEADER_WORDS+3) );
+  p[0] = mkheader( sizeof(word)*3, PROC_HDR );
+  p[PROC_HEADER_WORDS+IDX_PROC_CODE] = (word)f;
+  p[PROC_HEADER_WORDS+IDX_PROC_CONST] = 0;
+  p[PROC_HEADER_WORDS+IDX_PROC_REG0] = 0;
+
   return gc_make_handle( gc, tagptr( p, PROC_TAG ) );
 }
+#endif
 
 void scheme_start( word *globals )
 {
-  cont_t f;
+  cont_t f = 0;
   word *stkp = (word*)globals[ G_STKP ];
   int x;
 
@@ -101,11 +107,11 @@ void scheme_start( word *globals )
 
   /* Return address for bottom-most frame */
 #if USE_GOTOS_LOCALLY
-  stkp[ 1 ] = 0;
-  stkp[ 3 ] = *dispatch_loop_return_procedure;
+  stkp[ STK_RETADDR ] = 0;
+  stkp[ STK_REG0 ] = *dispatch_loop_return_procedure;
 #else
-  stkp[ 1 ] = (word)dispatch_loop_return;
-  stkp[ 3 ] = 0;
+  stkp[ STK_RETADDR ] = (word)dispatch_loop_return;
+  stkp[ STK_REG0 ] = 0;
 #endif
 
 #if USE_LONGJUMP
@@ -212,6 +218,7 @@ void twobit_integrity_check( word *globals, const char *name )
   word *stkp, *etop, *elim, *ebot, *stkbot, *frame;
 
   /* Check that roots contain only valid values */
+  /* Fixme: should check handles too */
   for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     if (!valid_datum( globals[i] ))
       panic_abort( "Invalid value 0x%08x found in global %d\n", 
@@ -244,11 +251,11 @@ void twobit_integrity_check( word *globals, const char *name )
   while (frame < stkbot) {
     word size = frame[ STK_FRAMESIZE ];
     word retaddr = frame[ STK_RETADDR ];
-    if (size % 4 != 0 || (s_word)size < 12)
+    if (!is_fixnum(size) || (s_word)size < 12)
       panic_abort( "Invalid stack frame size %u\n", size );
-    if (retaddr % 4 != 0)
+    if (!is_fixnum(retaddr))
       panic_abort( "Invalid return address 0x%08x\n", retaddr );
-    for ( i=STK_REG0 ; i <= size/4 ; i++ )
+    for ( i=STK_REG0 ; i <= nativeint(size) ; i++ )
       if (!valid_datum( frame[i] ))
         panic_abort( "Invalid datum in stack frame: 0x%08x\n", frame[i] );
     frame = frame + roundup_walign( size/4+1 );
@@ -274,6 +281,8 @@ static int valid_datum( word x )
 
 void mc_alloc_bv( word *globals )
 {
+  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+
 #if defined( BDW_GC )
 #error "This must be changed because RESULT is size in bytes"
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
@@ -281,7 +290,7 @@ void mc_alloc_bv( word *globals )
 
   nwords = roundup_walign( nwords );
   p = GC_malloc_atomic( nwords*sizeof(word) );
-  assert( p != 0 );
+  assert2( p != 0 );
   globals[ G_RESULT ] = (word)p;
 #else
   globals[ G_RESULT ] = roundup4( globals[ G_RESULT ] >> 2 );
@@ -295,6 +304,8 @@ void mc_alloc( word *globals )
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
   word *p;
 
+  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+
   nwords = roundup_walign( nwords );
   p = GC_malloc( nwords*sizeof(word) );
   assert (p != 0);
@@ -305,9 +316,9 @@ void mc_alloc( word *globals )
   word *elim = (word*)globals[ G_STKP ];
   word *p;
 
-  /* Debug code */
-  assert(((word)etop & 7) == 0);
-  assert(((word)elim & 7) == 0);
+  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2(((word)etop & 7) == 0);
+  assert2(((word)elim & 7) == 0);
 
   nwords = roundup_walign( nwords );
   p = etop;
@@ -320,7 +331,7 @@ void mc_alloc( word *globals )
     globals[ G_RESULT ] =
       (word)gc_allocate( the_gc( globals ), nwords*sizeof( word ), 0, 0 );
   }
-  assert( globals[ G_RESULT ] >= (word)gclib_pagebase );
+  assert2( globals[ G_RESULT ] >= (word)gclib_pagebase );
 #endif
 }
 
@@ -330,6 +341,8 @@ void mc_alloci( word *globals )
   word *p;
   word init;
 
+  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+
   mc_alloc( globals );
   p = (word*)globals[ G_RESULT ];
   init = globals[ G_SECOND ];
@@ -337,14 +350,14 @@ void mc_alloci( word *globals )
     *p++ = init;
 }
 
-void stk_initialize_underflow_frame( word *stktop )
+void stk_initialize_underflow_frame( word *stkp )
 {
 #if USE_GOTOS_LOCALLY
-  *(stktop+1) = 0;                                    /* retaddr: uflow handler */
-  *(stktop+3) = *stack_underflow_procedure;           /* saved procedure */
+  stkp[ STK_RETADDR ] = 0;
+  stkp[ STK_REG0 ] = *stack_underflow_procedure;
 #else
-  *(stktop+1) = (word)mem_stkuflow;                   /* retaddr: uflow handler */
-  *(stktop+3) = 0;                                    /* saved procedure */
+  stkp[ STK_RETADDR ] = (word)mem_stkuflow;
+  stkp[ STK_REG0 ] = 0;
 #endif
 }
 
@@ -366,23 +379,6 @@ void mc_capture_continuation( word *globals )
 void mc_restore_continuation( word *globals )
 {
   gc_creg_set( the_gc( globals ), globals[ G_RESULT ] );
-}
-
-/* Every problem in computer science ... */
-static void normal_partial_barrier( word * );
-static void dof_partial_barrier( word * );
-
-static void (*partial_barrier)(word*) = normal_partial_barrier;
-
-void mc_full_barrier( word *globals )
-{
-  if (isptr( globals[ G_SECOND ] ))
-    (*partial_barrier)( globals );
-}
-
-void mc_partial_barrier( word *globals )
-{
-  (*partial_barrier)( globals );
 }
 
 void mc_break( word *globals )
@@ -411,8 +407,11 @@ static void timer_exception( word *globals, cont_t k )
     osdep_poll_events( globals );
     setup_timer( globals, globals[ G_TIMER2 ], k );
   }
-  else
+  else {
+    /* Timer interrupts are taken with timer interrupts disabled */
+    globals[ G_TIMER_ENABLE ] = FALSE_CONST;
     signal_exception( globals, EX_TIMER, k, 1 );
+  }
 }
 
 void mc_enable_interrupts( word *globals, cont_t k )
@@ -497,7 +496,6 @@ void mc_restargs( word *globals )
   word j = nativeuint( globals[ G_RESULT ] );
   word n = nativeuint( globals[ G_SECOND ] );
   word r = LASTREG;
-  word R = NREGS;
   word *p, *q, t;
   word k, limit;
   word words;
@@ -678,7 +676,7 @@ void mc_petit_patch_boot_code( word *globals )
   }
 }
 
-/* Write barrier support */
+/* Write barrier */
 
 void wb_lowlevel_enable_barrier( word *globals )
 {
@@ -690,11 +688,7 @@ void wb_lowlevel_disable_barrier( word *globals )
   globals[ G_GENV ] = 0;
 }
 
-void wb_install_dof_barrier( void )
-{partial_barrier = dof_partial_barrier;
-}
-
-static void normal_partial_barrier( word *globals )
+void mc_partial_barrier( word *globals )
 {
   unsigned *genv, gl, gr;
   word **ssbtopv, **ssblimv;
@@ -710,17 +704,6 @@ static void normal_partial_barrier( word *globals )
   gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
   if (gl <= gr) return;  
   
-#if 0
-  /* Experimental code.  If the store creates a pointer from NP young to NP old
-     then add the barrier to the NP young's remset.  This code works, but 
-     (1) slows down the normal collector's barrier, and (2) won't work with the
-     new barrier.  So I've taken it out, for the time being, cf. Sparc/barrier.s.
-     */
-  if (gr == gl-1 && gl == globals[ G_NP_YOUNG_GEN ]) {
-    gl = globals[ G_NP_YOUNG_GEN_SSBIDX ];
-  }
-#endif
-
   ssbtopv = (word**)globals[ G_SSBTOPV ];
   ssblimv = (word**)globals[ G_SSBLIMV ];
   *ssbtopv[gl] = lhs;
@@ -729,30 +712,11 @@ static void normal_partial_barrier( word *globals )
     gc_compact_all_ssbs( the_gc(globals) );
 }
 
-static void dof_partial_barrier( word *globals )
+void mc_full_barrier( word *globals )
 {
-  unsigned *genv, gl, gr;
-  word **ssbtopv, **ssblimv;
-  word lhs, rhs;
-
-  genv = (unsigned*)globals[ G_GENV ];
-  if (genv == 0) return;        /* Barrier disabled */
-
-  lhs = globals[ G_RESULT ];
-  rhs = globals[ G_SECOND ];
-
-  gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
-  gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
-  if (gl > gr || gl < gr && gr == globals[ G_DYNAMIC_GEN ]) {
-    ssbtopv = (word**)globals[ G_SSBTOPV ];
-    ssblimv = (word**)globals[ G_SSBLIMV ];
-    *ssbtopv[gl] = lhs;
-    ssbtopv[gl] = ssbtopv[gl]+1;
-    if (ssbtopv[gl] == ssblimv[gl]) 
-      gc_compact_all_ssbs( the_gc(globals) );
-  }
+  if (isptr( globals[ G_SECOND ] ))
+    mc_partial_barrier( globals );
 }
-
 
 /* Stack underflow handler. */
 
@@ -764,8 +728,10 @@ static cont_t refill_stack_cache( word *globals )
   stkp = (word*)globals[ G_STKP ];
 #if USE_GOTOS_LOCALLY
   globals[ G_REG0 ] = stkp[ STK_REG0 ];
+  return (cont_t)nativeuint( stkp[ STK_RETADDR ] );
+#else
+  return (cont_t)(stkp[ STK_RETADDR ]);
 #endif
-  return ((cont_t)stkp[ STK_RETADDR ]) >> 2;
 }
 
 /* Cache flushing */
@@ -920,16 +886,17 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_STKP ] = (word)stkp;
 
   /* Initialize frame */
-  stkp[ 0 ] = (word)S2S_FRAMESIZE;
-  stkp[ 2 ] = 0;
+  stkp[ STK_CONTSIZE ] = (word)S2S_FRAMESIZE;
+  stkp[ STK_DYNLINK ] = 0;
 #if USE_GOTOS_LOCALLY
-  stkp[ 1 ] = 0;
-  stkp[ 3 ] = *return_from_scheme_procedure;
+  stkp[ STK_RETADDR ] = 0;
+  stkp[ STK_REG0 ] = *return_from_scheme_procedure;
+  stkp[ 4 ] = fixnum((word)k);
 #else
-  stkp[ 1 ] = (word)return_from_scheme;
-  stkp[ 3 ] = 0;
-#endif
+  stkp[ STK_RETADDR ] = (word)return_from_scheme;
+  stkp[ STK_REG0 ] = 0;
   stkp[ 4 ] = (word)k;
+#endif
   for ( i=0 ; i < NREGS ; i++ )
     stkp[ 5+i ] = globals[ G_REG0+i ];
   stkp[ 5+NREGS ] = globals[ G_RESULT ];
@@ -969,14 +936,18 @@ static cont_t restore_context( word *globals )
   int i;
 
   stkp = (word*)globals[ G_STKP ];
+#if USE_GOTOS_LOCALLY
+  k = (cont_t)nativeint(stkp[ 4 ]);
+#else
   k = (cont_t)stkp[ 4 ];
+#endif
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
   if (stkp[ 5+NREGS+1 ] == TRUE_CONST)
     globals[ G_RESULT ] = stkp[ 5+NREGS ];
   globals[ G_STKP ] = (word)(stkp + S2S_REALFRAMESIZE);
   if (globals[ G_STKP ] == globals[ G_STKBOT ])
-    refill_stack_cache( globals );
+    gc_stack_underflow( the_gc( globals ) );
   return k;
 }
 
