@@ -31,18 +31,26 @@
            (return #f))
          s)))))
 
-(define (wait-for-connection-on-server-socket s)
-  (let ((addr    (make-sockaddr_in))
-	(addrlen (make-bytevector sizeof:int)))
+(define (wait-for-connection-on-server-socket s . flags)
+  (let ((addr         (make-sockaddr_in))
+	(addrlen      (make-bytevector sizeof:int))
+        (nonblocking? (memq 'nonblocking flags)))
     (sockaddr_in.sin_family-set! addr unix/AF_INET)
     (%set-int addrlen 0 (bytevector-length addr))
+    (if (and nonblocking?
+             (null? (poll-descriptors (list s) '() 0)))
+        (unix-tasks/block-for-input s))
     (let ((ns (unix/accept s addr addrlen)))
       (if (= ns -1)
 	  (begin (unix/perror "accept")
 		 (values #f #f))
 	  (values ns addr)))))
 
-(define (client-socket host port)
+; FIXME: We can support asynchronous connect by setting O_NONBLOCK
+; before the connect and then doing the POLL thing afterwards if connect
+; returns -1 and errno is EINPROGRESS, cf connect(3XN).
+
+(define (client-socket host port . flags)
   (let ((ip-number
 	 (cond ((list? host)
 		(apply make-ip-addr host))
@@ -72,7 +80,7 @@
 (define (get-host-by-name hostname)
   (let ((ptr (unix/gethostbyname hostname))
 	(buf (make-hostent)))
-    (if (ffi/null-pointer? ptr)
+    (if (foreign-null-pointer? ptr)
         (let ((h_errno (get-h-errno)))
 	  (display "gethostbyname: ")
           (display (strerror h_errno))
@@ -87,7 +95,7 @@
 (define (get-service-by-name name . rest)
   (let ((ptr (unix/getservbyname name (if (null? rest) #f (car rest))))
 	(buf (make-servent)))
-    (if (ffi/null-pointer? ptr)
+    (if (foreign-null-pointer? ptr)
 	(begin 
 	  (display "get-service-by-name: ")
 	  (display name)
@@ -178,13 +186,13 @@
 (define (make-sockaddr_in)
   (make-bytevector 16))
 
-(define (sockaddr_in.sin_family x) (%get-short x 0))
-(define (sockaddr_in.sin_port x)   (%get-short x 2))
-(define (sockaddr_in.sin_addr x)   (%get-int x 4))
+(define (sockaddr_in.sin_family x) (%get-ushort x 0))
+(define (sockaddr_in.sin_port x)   (%get-ushort x 2))
+(define (sockaddr_in.sin_addr x)   (%get-uint x 4))
 
-(define (sockaddr_in.sin_family-set! x fam) (%set-short x 0 fam))
-(define (sockaddr_in.sin_port-set! x port)  (%set-short x 2 port))
-(define (sockaddr_in.sin_addr-set! x addr)  (%set-int x 4 addr))
+(define (sockaddr_in.sin_family-set! x fam) (%set-ushort x 0 fam))
+(define (sockaddr_in.sin_port-set! x port)  (%set-ushort x 2 port))
+(define (sockaddr_in.sin_addr-set! x addr)  (%set-uint x 4 addr))
 
 ; From <netdb.h>
 
