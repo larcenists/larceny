@@ -4,7 +4,7 @@
 ;
 ; NBUILD parameters for SPARC Larceny, 32-bit, Unix OS.
 
-(define (make-nbuild-parameter dir source? verbose? hostdir hostname)
+(define (make-nbuild-parameter dir source? verbose? development? hostdir hostname)
   (let ((parameters 
          `((compiler       . ,(pathname-append dir "Compiler"))
            (util           . ,(pathname-append dir "Util"))
@@ -18,6 +18,7 @@
            (sparc-asm      . ,(pathname-append dir "Asm" "Sparc"))
            (always-source? . ,source?)
            (verbose-load?  . ,verbose?)
+           (development?   . ,development?)
            (compatibility  . ,(pathname-append dir "Compat" hostdir))
            (auxiliary      . ,(pathname-append dir "Auxlib"))
            (root           . ,dir)
