@@ -6,16 +6,11 @@
 
 ($$trace "toplevel")
 
-(define *null-environment*)
-(define *r4rs-environment*)
-(define *r5rs-environment*)
-(define *larceny-environment*)
-
 (define (init-toplevel-environment)
-  (let* ((null (make-environment "<null-basis>" #f))
-	 (r4rs (make-environment "<r4rs-basis>" null))
-	 (r5rs (make-environment "<r5rs-basis>" r4rs))
-	 (larc (make-environment "<larceny-basis>" r5rs)))
+  (let* ((null (make-environment "null-environment" #f))
+	 (r4rs (make-environment "report-environment-4" null))
+	 (r5rs (make-environment "report-environment-5" r4rs))
+	 (larc (make-environment "interaction-environment" r5rs)))
 
     ;; booleans
 
@@ -84,6 +79,9 @@
     (environment-set! larc 'remq remq)
     (environment-set! larc 'remv remv)
     (environment-set! larc 'remove remove)
+    (environment-set! larc 'remq! remq!)
+    (environment-set! larc 'remv! remv!)
+    (environment-set! larc 'remove! remove!)
     (environment-set! larc 'append! append!)
     (environment-set! larc 'reverse! reverse!)
     (environment-set! larc 'some? some?)
@@ -117,7 +115,7 @@
     (environment-set! larc 'environment-get-cell environment-get-cell)
     (environment-set! larc 'environment-set! environment-set!)
     (environment-set! larc 'environment-reify environment-reify)
-    (environment-set! larc 'larceny-environment larceny-environment)
+    (environment-set! larc 'environment-tag environment-tag)
 
     ;; numbers
 
@@ -275,6 +273,7 @@
     (environment-set! r5rs 'values values)
     (environment-set! r5rs 'call-with-values call-with-values)
     ;; not in R4RS:
+    (environment-set! larc 'evaluator evaluator)
     (environment-set! larc 'procedure-length procedure-length)
     (environment-set! larc 'procedure-ref procedure-ref)
     (environment-set! larc 'procedure-set! procedure-set!)
@@ -297,6 +296,8 @@
     (environment-set! larc 'interpreted-procedure? interpreted-procedure?)
     (environment-set! larc 'interpreted-expression? interpreted-expression?)
     (environment-set! larc 'interpreted-primitive? interpreted-primitive?)
+    (environment-set! larc 'interpreted-expression-source 
+		      interpreted-expression-source)
 
     ;; i/o
 
@@ -321,10 +322,13 @@
     (environment-set! r4rs 'display display)
     (environment-set! r4rs 'newline newline)
     (environment-set! r4rs 'write-char write-char)
+    (environment-set! r4rs 'transcript-on transcript-on)
+    (environment-set! r4rs 'transcript-off transcript-off)
     ;; not in R4RS:
     (environment-set! larc 'open-input-string open-input-string)
     (environment-set! larc 'open-output-string open-output-string)
     (environment-set! larc 'get-output-string get-output-string)
+    (environment-set! larc 'reset-output-string reset-output-string)
     (environment-set! larc 'format format)
     (environment-set! larc 'port? port?)
     (environment-set! larc 'port-name port-name)
@@ -339,6 +343,9 @@
     (environment-set! larc 'with-output-to-port with-output-to-port)
     (environment-set! larc 'write-bytevector-like write-bytevector-like)
     (environment-set! larc 'lowlevel-write lowlevel-write)
+    (environment-set! larc 'port-position port-position)
+    (environment-set! larc 'readtable-ref readtable-ref)
+    (environment-set! larc 'readtable-set! readtable-set!)
 
     ;; general
 
@@ -357,6 +364,8 @@
     (environment-set! larc 'exit exit)
     (environment-set! larc 'add-exit-procedure! add-exit-procedure!)
     (environment-set! larc 'add-init-procedure! add-init-procedure!)
+    (environment-set! larc 'sort sort)
+    (environment-set! larc 'sort! sort!)
 
     ;; debugging.
 
@@ -403,14 +412,23 @@
     (environment-set! larc 'structure-printer structure-printer)
     (environment-set! larc 'structure-comparator structure-comparator)
 
-    ;; Support for rewriter and for macro expansion.
+    ;; Support for or hooks into the interpreter.
 
-    (environment-set! larc 'macro-expand (lambda (e) (macro-expand e #f)))
+    (environment-set! larc 'macro-expand toplevel-macro-expand)
     (environment-set! null '.list .list)
     (environment-set! null '.list->vector .list->vector)
     (environment-set! null '.cons .cons)
+    (environment-set! null '.car .car)
+    (environment-set! null '.cdr .cdr)
     (environment-set! null '.append .append)
     (environment-set! null '.make-promise .make-promise)
+    (environment-set! null '.make-cell .make-cell)
+    (environment-set! null '.cell-ref .cell-ref)
+    (environment-set! null '.cell-set! .cell-set!)
+
+    ;; Loading compiled code
+
+    (environment-set! null '.petit-patch-procedure .petit-patch-procedure)
 
     ;; system performance and interface
 
@@ -447,33 +465,14 @@
     (environment-set! larc 'repl-evaluator repl-evaluator)
     (environment-set! larc 'repl-prompt repl-prompt)
     (environment-set! larc 'herald herald)
-    (environment-set! larc 'eval-macro-expander eval-macro-expander)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
     (environment-set! larc 'typetag-set! typetag-set!)
-    (environment-set! larc '**newline** **newline**)
+    (environment-set! larc '**newline** **newline**) ; Who uses this???
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
-    ;; Backwards compatibility
-    (environment-set! larc 'repl-eval-procedure repl-evaluator)
-    (environment-set! larc 'repl-display-procedure repl-printer)
 
-    ;; bignum debugging
-
-    (environment-set! larc 'bigdump bigdump)
-    (environment-set! larc 'bigdump* bigdump*)
-    (environment-set! larc 'big-divide-digits big-divide-digits)
-
-    ;; flonum debugging
-
-    (environment-set! larc 'float-significand float-significand)
-    (environment-set! larc 'float-exponent float-exponent)
-
-    (set! *null-environment* null)
-    (set! *r4rs-environment* r4rs)
-    (set! *r5rs-environment* r5rs)
-    (set! *larceny-environment* larc)
-
+    (initialize-environments null r4rs r5rs larc)
     #t))
 
 ; eof
