@@ -139,14 +139,16 @@
 		     (cond ((null? results)
 			    (display "; No values.") (newline))
 			   ((null? (cdr results))
-			    ((repl-printer) (car results)))
+			    ((repl-printer) (car results) 
+                                            (current-output-port)))
 			   (else
 			    (display "; ")
 			    (display (length results))
 			    (display " values") (newline)
 			    (do ((results results (cdr results)))
 				((null? results))
-			      ((repl-printer) (car results)))))))))))
+			      ((repl-printer) (car results)
+                                              (current-output-port)))))))))))
       (dynamic-wind
        (lambda ()
 	 (load-evaluator new-ev))
