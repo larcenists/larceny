@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent code generation procedures.
 ;
-; $Id$
+; $Id: gen-msi.sch,v 1.1 92/01/19 17:40:50 lth Exp Locker: lth $
 ;
 ; (used to be part of asm.sparc.scm).
 
@@ -52,26 +52,49 @@
 	       (emit! as `(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals))))))
 
 ; Store a register in a global. Assumes a value cell is a pair.
+; ("setglbl" instruction).
 ;
-; Must use M_SETCAR. FIXME.
+; The delay slot could be filled if we didn't call 'emit-const->register'
+; here; as it is, it stays a nop.
 
-(define (emit-register->global! as offset r)
-;  (emit! as `(,$i.jmpli ,$r.millicode ,$m.break ,$r.o7))
-;  (emit! as `(,$i.nop))
-  (emit-const->register! as offset $r.tmp1)
-  (if (hardware-mapped? r)
-      (emit! as `(,$i.sti ,r ,(- $tag.pair-tag) ,$r.tmp1))
-      (begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp0))
-	     (emit! as `(,$i.sti ,$r.tmp0 ,(- $tag.pair-tag) ,$r.tmp1)))))
+(define (emit-result-register->global! as offset)
+  (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
+  (emit-const->register! as offset $r.result)         ; fetches ptr to cell
+  (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
+  (emit! as `(,$i.nop)))
+
+; "global" instruction.
+;
+; If the global variable emit-undef-check? is true, then code will be
+; emitted to check whether the global is not #!unspecified when loaded.
+; If it is, an exception will be taken, with the global in question in
+; $r.argreg2.
 
 (define (emit-global->register! as offset r)
-  (emit-const->register! as offset $r.tmp1)
-  (if (hardware-mapped? r)
-      (emit! as `(,$i.ldi ,$r.tmp1 ,(- $tag.pair-tag) ,r))
-      (begin (emit! as `(,$i.ldi ,$r.tmp1 ,(- $tag.pair-tag) ,$r.tmp0))
-	     (emit! as `(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals)))))
+  (let ((l0 (new-label)))
+
+    (define (emit-undef-check! as r l0)
+      (if emit-undef-check?
+	  (let ((l1 (new-label)))
+	    (emit! as `(,$i.subicc ,r ,$imm.unspecified ,$r.g0))
+	    (emit! as `(,$i.bne.a ,l1))
+	    (emit! as `(,$i.slot))
+	    (emit! as `(,$i.orr ,$r.tmp1 ,$r.g0 ,$r.argreg2))
+	    (emit! as `(,$i.jmpli ,$r.millicode ,$m.undef-exception ,$r.o7))
+	    (emit! as `(,$i.addi ,$r.o7 (- ,l0 (- $ 4) 8) ,$r.o7))
+	    (emit! as `(,$i.label ,l1)))))
+
+    (emit-const->register! as offset $r.tmp1)
+    (emit! as `(,$i.label ,l0))
+    (if (hardware-mapped? r)
+	(begin (emit! as `(,$i.ldi ,$r.tmp1 ,(- $tag.pair-tag) ,r))
+	       (emit-undef-check! as r l0))
+	(begin (emit! as `(,$i.ldi ,$r.tmp1 ,(- $tag.pair-tag) ,$r.tmp0))
+	       (emit! as `(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals))
+	       (emit-undef-check! $r.tmp0 l0)))))
 
 ; Move one register to another.
+; "movereg" instruction.
 
 (define (emit-register->register! as from to)
   (cond ((and (hardware-mapped? from) (hardware-mapped? to))
@@ -144,6 +167,10 @@
 ; extra slots are used for registers spills. In reality, there should be an
 ; instruction to allocate a stack frame for this purpose, since SAVE is not
 ; what is desired. This may get fixed later.
+;
+; Notice the heavy calculation of the effective return address; this is so
+; because in some pathological cases, the target is too far away to keep
+; in an immediate.
 
 (define (emit-save! as label n)
   (let* ((l         (new-label))
@@ -158,8 +185,12 @@
     (emit! as `(,$i.nop))
     (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
     (emit! as `(,$i.label ,l))
-    (emit! as `(,$i.call (+ $ 8)))
-    (emit! as `(,$i.addi ,$r.o7 (- ,(make-asm-label label) (- $ 4) 8) ,$r.o7))
+; old (wrong) code
+;    (emit! as `(,$i.call (+ $ 8)))
+;    (emit! as `(,$i.addi ,$r.o7 (- ,(make-asm-label label) (- $ 4) 8) ,$r.o7))
+; new (correct) code
+    (emit-effective-address! as `(- ,(make-asm-label label) 8))
+;
     (emit! as `(,$i.sti ,$r.o7 0 ,$r.stkp))
     (emit! as `(,$i.ori ,$r.g0 ,framesize ,$r.tmp0))
     (emit! as `(,$i.sti ,$r.tmp0 4 ,$r.stkp))
@@ -178,6 +209,12 @@
 	    (else
 	     #t)))))
 
+(define (emit-effective-address! as expr)
+  (emit! as `(,$i.sethi (hi (- ,expr (+ $ 8))) ,$r.tmp0))
+  (emit! as `(,$i.ori ,$r.tmp0 (lo (- ,expr (+ $ 4))) ,$r.tmp0))
+  (emit! as `(,$i.call (+ $ 8)))
+  (emit! as `(,$i.addr ,$r.o7 ,$r.tmp0 ,$r.o7)))
+
 ; Restore registers from stack frame
 ;
 ; Use ldd/std here; see comments for emit-save!, above.
@@ -194,18 +231,25 @@
 		       (emit! as `(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals))))
 	    (loop (+ i 1) (+ offset 4)))))))
 
-; Pop frame.
+; Pop frame. Checking for underflow is pretty cheap.
 
 (define (emit-pop! as n)
   (let* ((framesize (+ 8 (* (+ n 1) 4)))
-	 (realsize  (* 8 (quotient (+ framesize 7) 8))))
-    (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp))))
+	 (realsize  (* 8 (quotient (+ framesize 7) 8)))
+	 (l1        (new-label)))
+    (emit! as `(,$i.ldi ,$r.globals ,$g.stk-start ,$r.tmp0))
+    (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp))
+    (emit! as `(,$i.subrcc ,$r.stkp, $r.tmp0, $r.g0))
+    (emit! as `(,$i.ble.a ,l1))
+    (emit! as `(,$i.slot))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.restore-frame ,$r.o7))
+    (emit! as `(,$i.nop))
+    (emit! as `(,$i.label ,l1))))
 
 ; Change the return address in the stack frame.
 
-(define (emit-setrtn as label)
-  (emit! as `(,$i.call (+ $ 8)))
-  (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7))
+(define (emit-setrtn! as label)
+  (emit-effective-address! as `(- ,(make-asm-label label) 8))
   (emit! as `(,$i.sti ,$r.o7 0 ,$r.stkp)))
 
 ; `apply' falls into millicode
@@ -236,13 +280,17 @@
 
 (define (emit-lexical! as m n)
   (let ((base (emit-follow-chain! as m)))
-    (emit! as `(,$i.ldi ,base ,(slotoffset n) ,$r.result))))
+    (emit! as `(,$i.ldi ,base 
+			,(- (slotoffset n) $tag.procedure-tag) 
+			,$r.result))))
 
-; Should use M_SETCAR (I think). FIXME!
+; This use of vector-set is well-defined!
 
 (define (emit-setlex! as m n)
   (let ((base (emit-follow-chain! as m)))
-    (emit! as `(,$i.sti ,$r.result ,(slotoffset n) ,base))))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
+    (emit! as `(,$i.orr ,$r.g0 ,(slotoffset n) ,$r.argreg2))))
+
 
 ; Follow static links.
 

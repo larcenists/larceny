@@ -1,12 +1,13 @@
 ; Opcode table.
 ;
-; $Id: pass4.imp.sch,v 1.1 91/10/13 21:18:19 lth Exp Locker: lth $
+; $Id: pass4.imp.sch,v 1.2 91/12/06 15:18:10 lth Exp Locker: lth $
 
 (define $.linearize -1)
 (define $.label 63)
 (define $.proc 62)        ; entry point for procedure
 (define $.cont 61)        ; return point
 (define $.align 60)
+(define $.asm 59)         ; in-line native assembly instruction
 
 (define make-mnemonic
   (let ((count 0))

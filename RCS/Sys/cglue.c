@@ -2,7 +2,7 @@
  * Scheme 313 run-time system.
  * Millicode in C.
  *
- * $Id: cglue.c,v 1.2 91/09/13 03:00:25 lth Exp Locker: lth $
+ * $Id: cglue.c,v 1.3 91/12/06 15:04:07 lth Exp Locker: lth $
  *
  * Millicode routines which are written in C and which do not warrant 
  * their own files go in here.
@@ -10,10 +10,14 @@
  * Currently exports:
  *   void C_scheme_varargs( void )
  *   word *C_alloc( int nbytes )
+ *   word C_getrusage( void )
  */
 
+#include <sys/time.h>
+#include <sys/resource.h>
 #include "offsets.h"
 #include "gcinterface.h"
+#include "layouts.h"
 #include "macros.h"
 #include "main.h"
 
@@ -126,3 +130,19 @@ C_break()
   if (do_break || break_always)
     localdebugger();
 }
+
+
+/*
+ * Get the system time field from the rusage structure and return it as
+ * a number of milliseconds.
+ */
+word C_getrusage()
+{
+  struct rusage buf;
+
+  if (getrusage( RUSAGE_SELF, &buf ) == -1)
+    return -1;
+  else
+    return buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000;
+}
+

@@ -1,21 +1,52 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id$
+; $Id: pass1.imp.sch,v 1.1 91/10/13 21:17:21 lth Exp Locker: lth $
+
+(define (byte? x)
+  (and (fixnum? x)
+       (<= 0 x)
+       (< x 256)))
 
 (define hash-bang-unspecified '#&(a))
 
 (define **macros**
-  `((and ,(lambda (l)
-	    (cond ((null? (cdr l)) #t)
-		  ((null? (cddr l)) (cadr l))
-		  (else (let ((temp (gensym "T")))
-			  `(let ((,temp ,(cadr l)))
-			     (if ,temp (and ,@(cddr l)) #f)))))))
-    (case ,(lambda (l)
-	     (error "Case not implemented.")))
-    (let* ,(lambda (l)
-	     (error "let* not implemented.")))))
+  `((and 
+     ,(lambda (l)
+	(cond ((null? (cdr l)) #t)
+	      ((null? (cddr l)) (cadr l))
+	      (else (let ((temp (gensym "T")))
+		      `(let ((,temp ,(cadr l)))
+			 (if ,temp (and ,@(cddr l)) #f)))))))
+
+    (case
+	,(lambda (l)
+	   (let ((s (gensym "T")))
+	     `(let ((,s ,(cadr l)))
+		(cond
+		 ,@(let loop ((q (cddr l)) (r '()))
+		     (cond ((null? q) (reverse r))
+			   ((eq? (caar q) 'else)
+			    (reverse (cons (car q) r)))
+			   (else
+			    (loop (cdr q)
+				  (cons 
+				   (let ((x (car q)))
+				     (cons (cons 'or
+						 (map (lambda (z)
+							`(eqv? ,s (quote ,z)))
+						      (car x)))
+					   (cdr x)))
+				   r))))))))))
+
+    (let*
+	,(lambda (l)
+	   (cond ((null? (cadr l))
+		  `(begin ,@(cddr l)))
+		 (else
+		  `(let (,(caadr l))
+		     (let* ,(cdadr l)
+		       ,@(cddr l)))))))))
 
 ; What about these?
 ;
@@ -49,8 +80,8 @@
 ; (define-macro cddddr (lambda (l) `(cdr (cdr (cdr (cdr ,(cadr l)))))))
 
 (extend-syntax (define-macro)
-  ((define-macro boing-keyword boing-transformer)
-   (install-macro (quote boing-keyword) boing-transformer)))
+  ((define-macro macro-keyword macro-transformer)
+   (install-macro (quote macro-keyword) macro-transformer)))
 
 (define $usual-integrable-procedures$
   `((debugvsm 0 debugvsm #f 0)
@@ -62,7 +93,8 @@
     (dumpheap 0 dumpheap #f 6)
     (creg 0 creg #f 7)
     (undefined 0 undefined #f 8)
-    
+    (getrusage 0 getrusage #f -1)
+
     ;(**identity** 1 identity #f #x10)
     (typetag 1 typetag #f #x11)
     (not 1 not #f #x18)
@@ -70,7 +102,6 @@
     (pair? 1 pair? #f #x1a)
     (car 1 car #f #x1b)
     (cdr 1 cdr #f #x1c)
-    ;(length 1 length #f #x1d)
     (symbol? 1 symbol? #f #x1f)
     (number? 1 complex? #f #x20)
     (complex? 1 complex? #f #x20)
@@ -99,6 +130,7 @@
     (vector-length 1 vector-length #f #x53)
     (bytevector? 1 bytevector? #f #x54)
     (bytevector-length 1 bytevector-length #f #x55)
+    (bytevector-fill! 2 bytevector-fill! #f -1)
     (make-bytevector 1 make-bytevector #f #x56)
     (procedure? 1 procedure? #f #x58)
     (procedure-length 1 procedure-length #f #x59)
@@ -110,7 +142,8 @@
     (,(string->symbol "CELL-REF") 1 cell-ref #f #x7f)
     
     ; These next few entries are for the disassembler only.
-    
+    ; [Not used by the Larceny disassembler.]
+
     (#f 2 typetag-set! #f #x80)
     (#f 2 eq? #f #x81)
     (#f 2 + #f #x82)
@@ -138,8 +171,6 @@
     (cons 2 cons #f #xa8)
     (set-car! 2 set-car! #f #xa9)
     (set-cdr! 2 set-cdr! #f #xaa)
-    ;(memq 2 memq #f #xab)
-    ;(assq 2 assq #f #xac)
     (+ 2 + ,byte? #xb0)
     (- 2 - ,byte? #xb1)
     (* 2 * ,byte? #xb2)
@@ -154,6 +185,8 @@
     (logior 2 logior #f #xc1)
     (logxor 2 logxor #f #xc2)
     (lsh 2 lsh #f #xc3)
+    (rsha 2 rsha #f -1)
+    (rshl 2 rshl #f -1)
     (rot 2 rot #f #xc4)
     (make-rectangular 2 make-rectangular #f #xcf)
     (string-ref 2 string-ref ,byte? #xd1)

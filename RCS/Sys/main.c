@@ -2,7 +2,7 @@
  * Scheme 313 run-time system
  * C-language procedures for system initialization (Berkeley UNIX)
  *
- * $Id: main.c,v 1.5 91/09/13 03:00:53 lth Exp Locker: lth $
+ * $Id: main.c,v 1.6 91/12/06 15:07:14 lth Exp Locker: lth $
  *
  * Exports the procedures C_init() and panic().
  * Accepts the following options from the command line:
@@ -201,7 +201,9 @@ void C_exception( i )
   static char *s[] = { "Timer Expired", 
 		       "Wrong Type",
 		       "Not a Procedure",
-		       "Wrong Number of Arguments" };
+		       "Wrong Number of Arguments",
+		       "Wrong arguments to arithmetic operator",
+		       "Undefined global variable" };
   printf( "Scheme 313 exception (PC=0x%08x) (%d): %s.\n\n", 
 	 globals[ SAVED_RETADDR_OFFSET ],
 	 i,
@@ -215,10 +217,6 @@ void C_exception( i )
  * Eventually, we will here move the first instruction of each millicode
  * procedure into the jump table and adjust the branch offset. For now,
  * do nothing.
- *
- * Under SunOS, we have to set the writeable attribute on the page with the
- * table before we mess with it. It would be simpler to put the page in the
- * data segment.
  */
 static init_millicode()
 {

@@ -50,6 +50,11 @@
   (set! cg-label-counter 1000)
   (cg-make-linear (cg0 exp (cgenv-initial integrable) #t)))
 
+(define (idisplay x)
+  (display x) 
+  (newline))
+
+
 ; Given an expression, a compile-time environment, and a flag
 ; indicating whether the expression is in tail-recursive position,
 ; returns a tree of MacScheme assembly instructions in reverse order.
@@ -167,7 +172,8 @@
                  (cg0 exp newenv1 #t)
                  (cg-defs defs newenv2)))
                (cg-linearize
-                (cg-ops (cg-op $save L k)
+                (cg-ops (begin (if (> k 31) (idisplay "foo (1)!"))
+			       (cg-op $save L k))
                         (cg-op $lexes k (cgenv-regvars env))
                         (cg-op $setreg 0))
                 (cg-linearize
@@ -307,7 +313,8 @@
                  (let ((L (make-label))
                        (k (cgenv-tos env)))
                    (cg-linearize
-                    (cg-ops (cg-op $save L k))
+                    (cg-ops (begin (if (> k 31) (idisplay "foo (2)!"))
+				   (cg-op $save L k)))
                     (cg-linearize
                      code
                      (cg-ops (cg-op $.align 4)
@@ -324,7 +331,8 @@
            (let ((L (make-label))
                  (k (cgenv-tos env)))
              (cg-linearize
-              (cg-ops (cg-op $save L k))
+              (cg-ops (begin (if (> k 31) (idisplay "foo (3)!"))
+			     (cg-op $save L k)))
               (cg-linearize
                (cg-known-call exp env #t)
                (cg-ops (cg-op $.align 4)
@@ -408,7 +416,8 @@
     (define (thecall)
       (let ((L (make-label)))
         (cg-linearize
-         (cg-ops (cg-op $save L n+1))
+         (cg-ops (begin (if (> n+1 31) (idisplay "foo (4)!"))
+			(cg-op $save L n+1)))
          (cg-linearize
           (if entry
               '()
@@ -440,7 +449,8 @@
         (thecall)
         (let ((L (make-label)))
           (cg-linearize
-           (cg-ops (cg-op $save L k))
+           (cg-ops (begin (if (> k 31) (idisplay "foo (5)!"))
+			  (cg-op $save L k)))
            (cg-linearize
             (thecall)
             (cg-ops (cg-op $.align 4)

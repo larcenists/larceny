@@ -5,7 +5,7 @@
 ;
 ; Second major version.
 ;
-; $Id: dumpheap.scm,v 1.4 91/09/15 17:44:41 lth Exp Locker: lth $
+; $Id: dumpheap.scm,v 1.5 91/09/20 16:51:01 lth Exp Locker: lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular
@@ -33,9 +33,21 @@
 ;
 ; Usage: (dump-heap outputfile inputfile ... )
 
+; When this switch is set, the cdr of the global value cell is initialized
+; to the symbol which has the same printname as the name of the cell.
+; Otherwise, the cdr of the global value cell is given an ordinal number
+; which can be found later in the map file.
+
+(define generate-global-symbols? #f)
+
+;
+
 (define dump-heap
 
   (let ()
+
+    (define **unspecified** (string->symbol "**UNSPECIFIED**"))
+    (define **eof** (string->symbol "**EOF**"))
 
     ; Neat constants.
 
@@ -46,13 +58,14 @@
     (define largest-fixnum (- (expt 2 29) 1))
     (define smallest-fixnum (- (expt 2 29)))
 
-    (define heap-version 1)
+    (define heap-version 3)
 
     (define roots
       '(reg0 reg1 reg2 reg3 reg3 reg5 reg6 reg7 reg8 reg9 reg10 reg11 reg12
 	reg13 reg14 reg15 reg16 reg17 reg18 reg19 reg20 reg21 reg22 reg23
 	reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 argreg2 argreg3
-	result continuation saved-result startproc))
+	result continuation scheme-entry millicode-support saved-result 
+        glue-tmp1 glue-tmp2 glue-tmp3 gen-tmp1))
     
     ; A heap is represented internally as a vector of three elements,
     ; denoted the `bytes', `globals', and `top'. `Bytes' is a list
@@ -71,12 +84,16 @@
     (define (heap.globals! h g) (vector-set! h 1 g))
     (define (heap.top! h t) (vector-set! h 2 t))
 
+    (define make-global cons)
+    (define global.value cadr)
+    (define (global.value! g v) (set-car! (cdr g) v))
+
     ; Get the value of a global.
 
     (define (heap.global h g)
       (let ((x (assq g (heap.globals h))))
 	(if x
-	    (cdr x)
+	    (global.value x)
 	    '())))
 
     ; Set the value of a global.
@@ -84,12 +101,14 @@
     (define (heap.global! h g v)
       (let ((x (assq g (heap.globals h))))
 	(if x
-	    (set-cdr! x v)
-	    (heap.globals! h (cons (cons g v) (heap.globals h))))))
+	    (global.value! x v)
+	    (heap.globals! h (cons (make-global g v) (heap.globals h))))))
 
     ; Put a byte on the heap.
 
     (define (heap.byte! h b)
+      (if (inexact? b)
+	  (error 'heap.byte! "Boinga!"))
       (heap.bytes! h (cons b (heap.bytes h)))
       (heap.top! h (+ 1 (heap.top h))))
 
@@ -141,10 +160,16 @@
     (define (dump-data! h datum)
       (cond ((fixnum? datum)
 	     (make-fixnum datum))
-	    ((integer? datum)
+	    ((bignum? datum)
 	     (dump-bignum! h datum))
-	    ((real? datum)
+	    ((ratnum? datum)
+	     (error "Don't know how to dump ratnums (yet)."))
+	    ((flonum? datum)
 	     (dump-flonum! h datum))
+	    ((compnum? datum)
+	     (error "Don't know how to dump compnums (yet)."))
+	    ((rectnum? datum)
+	     (error "Don't know how to dump rectnums (yet)."))
 	    ((char? datum)
 	     (make-char datum))
 	    ((null? datum)
@@ -153,6 +178,10 @@
 	     $imm.true)
 	    ((eq? datum #f)
 	     $imm.false)
+	    ((eq? datum **unspecified**)
+	     $imm.unspecified)
+	    ((eq? datum **eof**)
+	     $imm.eof)
 	    ((vector? datum)
 	     (dump-vector! h datum $tag.vector-typetag))
 	    ((bytevector? datum)
@@ -168,8 +197,34 @@
 
     (define (fixnum? x)
       (and (integer? x)
+	   (exact? x)
 	   (<= x largest-fixnum)
 	   (>= x smallest-fixnum)))
+
+    (define (bignum? x)
+      (and (integer? x)
+	   (exact? x)
+	   (or (> x largest-fixnum)
+	       (< x smallest-fixnum))))
+
+    (define (ratnum? x)
+      (and (rational? x)
+	   (exact? x)
+	   (not (integer? x))))
+
+    (define (flonum? x)
+      (and (real? x)
+	   (inexact? x)))
+
+    (define (compnum? x)
+      (and (complex? x)
+	   (inexact? x)
+	   (not (real? x))))
+
+    (define (rectnum? x)
+      (and (complex? x)
+	   (exact? x)
+	   (not (real? x))))
 
     (define (make-fixnum f)
       (* 4 f))
@@ -230,8 +285,9 @@
     ;
     ; Currently, we simply maintain a list of the locations of symbols
     ; and value cells in the heap -- no fancy hash table (yet).
-    ; The symbol table is a table of triples: symbol, symbol location, and
-    ; value cell location. Both of the latter may be null.
+    ; The symbol table is a table of quadruples: symbol, symbol location, 
+    ; value cell location, and the value cell ordinal number. All of the
+    ; last three may be null.
 
     (define symbol-table '())
     (define cell-number 0)
@@ -252,7 +308,7 @@
 
     (define (symbol-cell s)
       (let ((x (assq s symbol-table)))
-	(if (null? x)
+	(if (not x)
 	    (let ((p (make-symcell s)))
 	      (set! symbol-table (cons p symbol-table))
 	      p)
@@ -293,9 +349,12 @@
     ; Stuff a value cell into the heap, return a pair of its location
     ; and its cell number.
 
-    (define (create-cell! h)
+    (define (create-cell! h s)
       (let* ((n cell-number)
-	     (p (dump-pair! h (cons '() n))))
+	     (p (dump-pair! h (cons **unspecified**
+				    (if generate-global-symbols?
+					s
+					n)))))
 	(set! cell-number (+ cell-number 1))
 	(cons p n)))
 
@@ -308,7 +367,7 @@
     (define (dump-global! h g)
       (let ((x (symbol-cell g)))
 	(if (null? (symcell.valloc x))
-	    (let ((cell (create-cell! h)))
+	    (let ((cell (create-cell! h g)))
 	      (symcell.valloc! x (car cell))
 	      (symcell.valno! x (cdr cell))))
 	(symcell.valloc x)))
@@ -370,13 +429,11 @@
 	  (,$const (2))          ; dummy list of symbols
 	  (,$setreg 1)
 	  (,$global go)
-	  (,$op1 reset)
 	  (,$invoke 1)           ; (go <list of symbols>)
 	  (,$.label 2)
 	  (,$save 3 1)
 	  (,$reg 1)
 	  (,$op1 car)
-	  (,$op1 break)
 	  (,$invoke 0)           ; ((car l))
 	  (,$.label 3)
 	  (,$.cont)
@@ -437,15 +494,19 @@
       (define (write-version-number)
 	(write-word heap-version))
 
-      (define (write-global x globals)
-	(let ((q (assq x globals)))
+      ; This is just way obscure. Basically, we can define a global with 
+      ; the name of a root, and the root will be initialized to the value 
+      ; of that global. See the construct down below in the mainline code.
+
+      (define (write-root root globals)
+	(let ((q (assq root globals)))
 	  (if q
 	      (write-word (cdr q))
 	      (write-word $imm.false))))
 
-      (define (write-globals globals)
+      (define (write-roots globals)
 	(for-each
-	 (lambda (x) (write-global x globals))
+	 (lambda (x) (write-root x globals))
 	 roots))
 
       (define (write-bytes bytes)
@@ -458,7 +519,7 @@
       (with-output-to-file filename
 	(lambda ()
 	  (write-version-number)
-	  (write-globals (heap.globals h))
+	  (write-roots (heap.globals h))
 	  (write-word (quotient (length (heap.bytes h)) 4))
 	  (write-bytes (reverse (heap.bytes h))))))
 
@@ -474,8 +535,11 @@
 	      (loop (cdr files)
 		    (append (load-file-into-heap! heap (car files)) inits))
 	      (begin (heap.global! heap
-				   'startproc
+				   'scheme-entry
 				   (create-init-proc! heap inits))
+		     (heap.global! heap
+				   'millicode-support
+				   (dump-global! heap 'millicode-support))
 		     (dump-heap-to-file! heap outputfile)
 		     (load-map))))))
 

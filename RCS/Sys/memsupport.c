@@ -2,7 +2,7 @@
  * Scheme 313 Run-Time System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.9 91/08/21 14:42:10 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.10 91/12/06 15:08:25 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -20,9 +20,6 @@
 #include "macros.h"
 #include "main.h"
 #include "millicode.h"
-
-/* Heap format version */
-#define CURRENT_MAGIC_NUMBER 1
 
 /* Calculate free bytes in ephemeral space. Can be negative! */
 #define free_e_space() ((long)globals[E_LIMIT_OFFSET] - (long)globals[E_TOP_OFFSET])
@@ -112,7 +109,7 @@ FILE *fp;
 
   base = globals[ T_BASE_OFFSET ];
   magic = getword( fp );
-  if (magic != CURRENT_MAGIC_NUMBER)
+  if (magic != HEAP_VERSION)
     panic( "Wrong version heap image." );
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
@@ -168,7 +165,7 @@ FILE *fp;
 
   base = globals[ T_BASE_OFFSET ];
   top  = globals[ T_TOP_OFFSET ];
-  if (putword( CURRENT_MAGIC_NUMBER, fp ) == EOF)
+  if (putword( HEAP_VERSION, fp ) == EOF)
     return EOF;
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
@@ -280,10 +277,12 @@ static setup_stack()
   *stktop = 0x81726354;                                /* dummy magic # */
   *(stktop-1) = 0;                                     /* saved proc */
   *(stktop-2) = 16;                                    /* continuation size */
-  *(stktop-3) = (word) millicode[ M_STKUFLOW ];        /* underflow handler */
+  *(stktop-3) = (word) millicode[ M_STKUFLOW+1 ];      /* underflow handler */
   globals[ STK_START_OFFSET ] = (word) (stktop-4);
   globals[ SP_OFFSET ] = (word) (stktop-3);
-
+#ifdef DEBUG
+  printf( "Initial stack pointer is %08x\n", globals[ SP_OFFSET ] );
+#endif
   /* 
    * Need to calculate max continuation size in order to find the
    * lower stack limit. We'll just gratuitiously assume that 100 words is
@@ -327,61 +326,74 @@ void restore_frame()
   word *sframe, *hframe;
   unsigned sframesize, hframesize;
 
-  printf( "Restoring stack frame.\n" );
-
-  if (globals[ SP_OFFSET ] % 8 != 0)
-    panic( "restore_frame: botched stack pointer!" );
-
+#ifdef DEBUG
+  printf( "Restoring stack frame; stkptr is %08x.\n", globals[ SP_OFFSET ] );
   if (globals[ CONTINUATION_OFFSET ] == FALSE_CONST)
     panic( "restore_frame: no more continuation frames!" );
-  else {
-    /* Get heap continuation */
 
-    hframe = ptrof( globals[ CONTINUATION_OFFSET ] );
-    hframesize = sizefield( *hframe ) + 4;
-
-    /* Allocate stack frame and bump saved stack pointer */
-
-    sframesize = hframesize - HC_OVERHEAD*4 + STK_OVERHEAD*4;
-    if (sframesize % 8 != 0) sframesize += 4;
-    sframe = (word *) globals[ SP_OFFSET ] - sframesize / 4;
-    globals[ SP_OFFSET ] = (word) sframe;
-
-    /* Follow continuation chain. */
-
-    globals[ CONTINUATION_OFFSET ] = *(hframe + HC_DYNLINK);
-
-    /* Setup stack frame header. Special case for procedures with value 0. 
-     * Also note that since the offset in the heap frame is a bytevector
-     * index (rather than an offset from the bytevector header), then
-     * 4 have to be added.
-     * Observe the inverse code in flush_stack_cache(), below.
-     */
-
-    { word *procptr, *codeptr;
-
-      procptr = ptrof( *(hframe + HC_PROC) );
-      if ((word) procptr != 0) {
-	codeptr = ptrof( *(procptr + PROC_CODEPTR) );
-	*(sframe + STK_RETADDR) = (word)(codeptr + *(hframe+HC_RETOFFSET) + 4);
-      }
-      else
-	*(sframe + STK_RETADDR) = *(hframe + HC_RETOFFSET);
-      *(sframe + STK_CONTSIZE) = sframesize;
-    }
-
-    /* Copy the generic "saved slots" */
-
-    { word *src, *dest;
-      unsigned count;
-
-      count = hframesize / 4 - HC_OVERHEAD;
-      src = hframe + HC_SAVED;
-      dest = sframe + STK_SAVED;
-      while (count-- > 0)
-	*dest++ = *src++;
-    }
+  if (globals[ SP_OFFSET ] % 8 != 0) {
+    printf( "restore_frame: botched stack pointer %08x!\n", 
+	   globals[ SP_OFFSET ] );
+    dumpchain();
+    localdebugger();
+    panic( "Not possible to continue. Goodbye." );
   }
+#endif
+
+  /* Get heap continuation */
+
+  hframe = ptrof( globals[ CONTINUATION_OFFSET ] );
+  hframesize = sizefield( *hframe ) + 4;
+
+#ifdef DEBUG
+  printf( "Frame @ %08x, header %08x, size %d\n", hframe, *hframe, hframesize );
+#endif
+
+  /* Allocate stack frame and bump saved stack pointer */
+
+  sframesize = hframesize - HC_OVERHEAD*4 + STK_OVERHEAD*4;
+  if (sframesize % 8 != 0) sframesize += 4;
+  sframe = (word *) globals[ SP_OFFSET ] - sframesize / 4;
+  globals[ SP_OFFSET ] = (word) sframe;
+
+  /* Follow continuation chain. */
+
+  globals[ CONTINUATION_OFFSET ] = *(hframe + HC_DYNLINK);
+
+  /* Setup stack frame header. Special case for procedures with value 0. 
+   * Also note that since the offset in the heap frame is a bytevector
+   * index (rather than an offset from the bytevector header), then
+   * 4 have to be added.
+   * Observe the inverse code in flush_stack_cache(), below.
+   */
+
+  { word *procptr, codeptr;
+
+    procptr = ptrof( *(hframe + HC_PROC) );
+    if ((word) procptr != 0) {
+      codeptr = (word) ptrof( *(procptr + PROC_CODEPTR) );
+      *(sframe + STK_RETADDR) = (codeptr + *(hframe+HC_RETOFFSET) + 4);
+    }
+    else
+      *(sframe + STK_RETADDR) = *(hframe + HC_RETOFFSET);
+    *(sframe + STK_CONTSIZE) = sframesize;
+  }
+#ifdef DEBUG
+  printf( "return address %08x\n", *(sframe + STK_RETADDR ) );
+#endif
+
+  /* Copy the generic "saved slots" */
+
+  { word *src, *dest;
+    unsigned count;
+
+    count = hframesize / 4 - HC_OVERHEAD;
+    src = hframe + HC_SAVED;
+    dest = sframe + STK_SAVED;
+    while (count-- > 0)
+      *dest++ = *src++;
+  }
+
   if (globals[ SP_OFFSET ] % 8 != 0)
     panic( "restore_frame(2): botched stack pointer!" );
 }
@@ -422,6 +434,10 @@ flush_stack_cache()
     retaddr = *(sframe + STK_RETADDR);       /* unadjusted return address */
     procptr = ptrof( *(sframe + STK_PROC) ); /* pointer to the procedure */
 
+#ifdef DEBUG
+    printf( "return address %08x\n", retaddr );
+#endif
+
     /* Move stack pointer */
 
     sp += sframesize / 4;
@@ -442,7 +458,7 @@ flush_stack_cache()
     *hframe = mkheader( hframesize-4, VEC_HDR | CONT_SUBTAG );
     *(hframe + HC_DYNLINK) = FALSE_CONST;
     if ((word) procptr != 0) {
-      codeptr = *(procptr + PROC_CODEPTR);               /* raw word value */
+      codeptr = (word) ptrof( *(procptr + PROC_CODEPTR));
       *(hframe + HC_RETOFFSET) = retaddr - codeptr - 4;  /* offset is bv idx */
     }
     else
@@ -490,4 +506,16 @@ flush_stack_cache()
 }
 
 
+
+#ifdef DEBUG
+dumpchain()
+{
+  word w, *p;
+  int i;
+
+  p = ptrof( globals[ CONTINUATION_OFFSET ] );
+  for (i = 0 ; i < 5 ; i++ ) 
+    printf( "%08x\n", *p++ );
+}
+#endif
 

@@ -334,10 +334,9 @@
 
     (define rtable
       '#($r.g0 $r.tmp0 $r.g2 $r.g3 $r.g4 $r.g5 $r.g6 $r.g7
-         $r.result $r.argreg2 $r.argreg3 $r.stkp $r.e-top $r.e-limit $r.o6 
-	 $r.o7
+         $r.result $r.argreg2 $r.argreg3 $r.stkp $r.tmp1 $r.tmp2 $r.o6 $r.o7
 	 $r.reg0 $r.reg1 $r.reg2 $r.reg3 $r.reg4 $r.reg5 $r.reg6 $r.reg7
-	 $r.tmp1 $r.tmp2 $r.i2 $r.i3 $r.timer $r.millicode $r.i6 $r.globals))
+	 $r.e-top $r.e-limit $r.i2 $r.i3 $r.timer $r.millicode $r.i6 $r.globals))
 
     (define itable
       (let* ((freg (lambda (r a)

@@ -4,10 +4,11 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.17 91/09/13 03:02:34 lth Exp Locker: lth $
+! $Id: memory.s,v 1.18 92/01/30 18:02:42 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
+!   _internal_alloc( n )
 !   _alloc( n )		  Allocate n uninitialized words.
 !   _alloci( n, v )	  Allocate n words initialized to v.
 !   _setcar( p, v )	  Set to v the car field of the pair pointed to by p.
@@ -87,7 +88,7 @@
 ! Assemble with 'as -P -DASSEMBLY'
 
 #include "registers.s.h"
-#include "offsets.h"
+#include "offsets.s.h"
 #include "layouts.s.h"
 
 ! Macros
@@ -95,6 +96,7 @@
 #define fixnum( x )	((x) << 2)
 
 	.global _alloc
+	.global	_internal_alloc
 	.global _alloci
 	.global _setcar
 	.global _setcdr
@@ -130,25 +132,30 @@
 !
 ! Note that the delayed roundup (i.e. done after test for overflow) makes
 ! sense because all allocations and limits are in an even number of words.
+!
+! _internal_alloc() is like _alloc(), but %TMP0 is a Scheme return address to
+! be saved if a collection is triggered.
 
+		
 _alloc:
+	mov	%o7, %TMP0
+_internal_alloc:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
-	and	%RESULT, 0x04, %TMP0		! get 'odd' bit
+	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
 	blt,a	Lalloc1				! skip of no overflow
 	sub	%E_TOP, %RESULT, %RESULT	! setup result
 
 	! Overflow; need to collect.
 
-	mov	%o7, %TMP0			! Save old return address
 	call	gcstart				! deal with overflow
 	nop
 	jmp	%TMP0+8				! return to Scheme code
 	nop
 
 Lalloc1:
-	jmp	%o7+8
-	add	%E_TOP, %TMP0, %E_TOP		! round up
+	jmp	%TMP0+8
+	add	%E_TOP, %TMP1, %E_TOP		! round up
 
 
 !-----------------------------------------------------------------------------

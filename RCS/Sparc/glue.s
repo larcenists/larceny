@@ -3,13 +3,13 @@
 ! Scheme 313 Run-time system
 ! Miscellaneous assembly language "glue" and millicode.
 !
-! $Id: glue.s,v 1.4 91/09/13 03:02:27 lth Exp Locker: lth $
+! $Id: glue.s,v 1.5 92/01/30 18:02:35 lth Exp Locker: lth $
 
 #include "registers.s.h"
-#include "millicode.h"
-#include "offsets.h"
+#include "millicode.s.h"
+#include "offsets.s.h"
 #include "layouts.s.h"
-#include "exceptions.h"
+#include "exceptions.s.h"
 
 
 	.seg	"text"
@@ -36,7 +36,8 @@
 	.global	_timer_exception
 	.global	_proc_exception
 	.global _arg_exception
-
+	.global	_arith_exception
+	.global	_undef_exception
 
 ! The procedure _schemestart is called from the C-language initialization
 ! code. _schemestart sets up the virtual machine and then calls the
@@ -142,6 +143,15 @@ L1:
 
 _scheme_call:
 	
+	save	%sp, -96, %sp
+	set	Lemsg2, %o0
+	call	_printf
+	nop
+	call	_exit
+	mov	1, %o0
+	/*NOTREALLYREACHED*/
+	restore
+
 	! Save parameters which were passed in registers we need to use
 
 	st	%o7,   [ %GLOBALS + GLUE_TMP1_OFFSET ]	! WRONG. Must calc offs
@@ -335,7 +345,7 @@ _write_file:
 	jmp	%i7+8
 	restore
 
-! GETRUSAGE: there are no arguments. The result is the system time field from
+! GETRUSAGE: there are no arguments. The result is the user time field from
 !            the rusage struct converted to milliseconds, as a fixnum.
 
 _m_getrusage:
@@ -692,7 +702,7 @@ _not_supported:
 	call	_save_scheme_context
 	nop
 	save	%sp, -96, %sp
-	set	emsg, %o0
+	set	Lemsg, %o0
 	call	_printf
 	mov	%o7, %o1
 	call	_localdebugger
@@ -743,6 +753,13 @@ _arg_exception:
 	b	generic_exception
 	mov	ARG_EXCEPTION, %TMP1
 
+_arith_exception:
+	b	generic_exception
+	mov	ARITH_EXCEPTION, %TMP1
+
+_undef_exception:
+	b	generic_exception
+	mov	UNDEF_EXCEPTION, %TMP1	
 
 ! Generic exception handler for now. Jumps to the C exception handler.
 ! This handler will later be (re)written in Scheme. If the hander returns,
@@ -770,6 +787,7 @@ generic_exception:
 	.seg	"data"
 
 fnbuf:	.skip	256
-emsg:	.asciz	"Unsupported millicode procedure at PC=%lX\n"
+Lemsg:	.asciz	"Unsupported millicode procedure at PC=%lX\n"
+Lemsg2:	.asciz	"In _schemecall (the buck stops here).\n"
 
 	! end of file

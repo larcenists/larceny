@@ -1,6 +1,6 @@
 /* The local debugger. A marvel of technological standstill. */
 
-/* $Id$ */
+/* $Id: localdebugger.c,v 1.1 91/12/06 15:06:13 lth Exp Locker: lth $ */
 
 #include <stdio.h>
 #include "machine.h"
@@ -8,6 +8,7 @@
 #include "offsets.h"
 #include "main.h"
 #include "millicode.h"
+#include "layouts.h"
 #include "macros.h"
 #include "exceptions.h"
 
@@ -69,7 +70,7 @@ static backtrace()
       w = *(word *) (w - 3 + 4);  /* get slot 0, the procedure name */
       printf( "%08x  ", w );
       if ((w & TAG_MASK) == VEC_TAG) {  /* may be symbol! */
-	if ((*(word *) (w - 3) & 0xFF) == SYMBOL_HDRTAG) { /* Yes!! */
+	if ((*(word *) (w - 3) & 0xFF) == SYMBOL_HDR) { /* Yes!! */
 	  w = *(word *) (w - 3 + 4) & ~TAG_MASK;  /* get bv ptr */
 	  len = *(word *) w >> 8;
 	  w += 4;

@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id: integrables.scm,v 1.1 91/09/09 18:58:58 lth Exp Locker: lth $
+; $Id: gen-primops.scm,v 1.2 92/01/19 17:41:16 lth Exp Locker: lth $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -154,7 +154,7 @@
    (cons '--
 	 (lambda (as)
 	   (let ((l1 (new-label)))
-	     (emit! as `(,$i.tsubrcc ,$r.g0 ,$r.result, $r.tmp0))
+	     (emit! as `(,$i.tsubrcc ,$r.g0 ,$r.result ,$r.tmp0))
 	     (emit! as `(,$i.bvc.a ,l1))
 	     (emit! as `(,$i.orr ,$r.g0 ,$r.tmp0 ,$r.result))
 	     (emit! as `(,$i.jmpli ,$r.millicode ,$m.negate ,$r.o7))
@@ -163,11 +163,13 @@
 
    (cons 'round
 	 (lambda (as)
-	   (silly 'round)))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.round ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
    (cons 'truncate
 	 (lambda (as)
-	   (silly 'truncate)))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.truncate ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
    (cons 'sqrt
 	 (lambda (as)
@@ -221,7 +223,7 @@
 	   (let ((tmp (if (hardware-mapped? x)
 			  x
 			  (emit-load-reg! as x $r.tmp1))))
-	     (emit! as `(,$i.orr, $r.result ,tmp ,$r.tmp0))
+	     (emit! as `(,$i.orr ,$r.result ,tmp ,$r.tmp0))
 	     (emit-assert-positive-fixnum! as $r.tmp0)
 	     (emit! as `(,$i.srar ,tmp 2 ,$r.tmp1))
 	     (emit! as `(,$i.sllr ,$r.result ,$r.tmp1 ,$r.result)))))
@@ -464,23 +466,25 @@
 
    (cons 'exact->inexact
 	 (lambda (as)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.exact->inexact ,$r.g0))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.exact->inexact ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
    (cons 'inexact->exact
 	 (lambda (as)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.inexact->exact ,$r.g0))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.inexact->exact ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
    ; These have to work on both compnums and rectnums.
 
    (cons 'real-part
 	 (lambda (as)
-	   (silly 'real-part)))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.real-part ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
    (cons 'imag-part
 	 (lambda (as)
-	   (silly 'imag-part)))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.imag-part ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
    (cons 'char->integer
 	 (lambda (as)
@@ -496,7 +500,8 @@
 
    (cons 'make-rectangular
 	 (lambda (as x)
-	   (silly 'make-rectangular)))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.make-rectangular ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
    (cons 'not
 	 (lambda (as)
@@ -781,6 +786,14 @@
 	   (if (hardware-mapped? r2)
 	       (emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))
 	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r2) ,$r.argreg3)))))
+
+   ; This one is used to get resource data.
+   ; It returns a fixnum indicating system time used in milliseconds.
+
+   (cons 'getrusage
+	 (lambda (as)
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.getrusage ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
    ))
 
@@ -1138,6 +1151,8 @@
 ;
 ; If the header was already loaded, it is loaded again. This is wasteful and
 ; must be fixed, but it *works* for now.
+;
+; The use of vector-set is ok even if it is a procedure.
 
 (define (emit-vector-like-set! as x y fault tag)
   (let ((r1 (if (hardware-mapped? x)

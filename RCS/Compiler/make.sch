@@ -1,41 +1,55 @@
 ; -*- Scheme -*-
 ;
-; A "make" facility for Chez Scheme.
+; $Id: make.sch,v 1.1 92/01/16 13:27:49 lth Exp Locker: lth $
 ;
-; $Id$
+; DESCRIPTION
+;   A "make" facility for Chez Scheme.
 ;
-; The input to the "make" procedure is a target and a list of dependencies
-; and associated make commands. The modification dates on the files are 
-; checked, and the necessary files are rebuilt using the supplied procedures.
+;   The input to the "make" procedure is a target and a list of dependencies
+;   and associated make commands. The modification dates on the files are 
+;   checked, and the necessary files are rebuilt using the supplied 
+;   procedures.
 ;
-; A dependency is a list of file names. The first element of the list is the
-; target, the rest are the sources. If any of the sources are newer than the
-; target, the list of sources is passed to the make command associated with
-; the dependency. 
+;   A dependency is a list of file names. The first element of the list is 
+;   the target, the rest are the sources. If any of the sources are newer 
+;   than the target, the list of sources is passed to the make command 
+;   associated with the dependency. 
 ;
-; A make command is a procedure of one argument: the list of sources.
+;   A make command is a procedure of one argument: the list of sources.
 ;
-; GRAMMAR
+; GRAMMAR FOR DEPENDENCY LIST
 ;   make  -->  ( <spec> ... )
 ;   spec  -->  ( <dep> <cmd> )
 ;   dep   -->  ( <file> <file> ... )
 ;   cmd   -->  <procedure-of-one-arg>
 ;
 ; EXAMPLE
-;  > (make "../Lib/reader.lop"
-;           `((("../Lib/reader.lap" "../Lib/reader.sch")
-;              ,(lambda (x) (compile313 x)))
-;             (("../Lib/reader.lop" "../Lib/reader.lap")
-;              ,(lambda (x) (assemble313 x)))))
+;   > (make "../Lib/reader.lop"
+;            `((("../Lib/reader.lap" "../Lib/reader.sch")
+;               ,(lambda (x) (compile313 x)))
+;              (("../Lib/reader.lop" "../Lib/reader.lap")
+;               ,(lambda (x) (assemble313 x)))))
+;
+; AUTHOR
+;   Lars Thomas Hansen
+;
+; FILES
+;   make.sch      This file.
+;   mtime.o       Object file for the mtime procedure which returns 
+;                 the modification time of a file.
+;   mtime.c       Source for mtime.o
 ;
 ; BUGS
-;  - It is possible that the make command should also be given the name of
-;    the target as an argument.
+;   Depends a little on the Chez Scheme foreign-function facility, and is
+;   consequently nonportable. This is not a major issue; there's no
+;   way to make it portable anyway.
 ;
 ; COMMENTS
-;  - Only the UNIX interface is specific to Chez Scheme.
-;  - No generic patterns (like ".c.o: ..." in UNIX make) are available.
-;    They would be nice to have.
+;   Only the UNIX interface is specific to Chez Scheme.
+;
+;   No generic patterns (like suffixes in UNIX make) are available.
+;   They would be nice to have, but can be implemented on a higher level.
+
 
 ; Load path for the auxiliary object files for this program.
 ; Must end in a slash.
@@ -45,7 +59,7 @@
 
 ; The make command proper.
 
-(define (make target dependencies . args)
+(define (make target dependencies)
 
   (define mtime unix$mtime)
 
@@ -61,7 +75,7 @@
   (define (make target)
     (let ((dep (find-target target)))
       (cond ((and (not dep) (= (unix$access target 0) -1))
-	     (error "Don't know how to make ~a" target))
+	     (error 'make "Don't know how to make ~a" target))
 	    ((not dep)
 	     #t)
 	    (else

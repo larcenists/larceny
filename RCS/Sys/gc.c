@@ -2,7 +2,7 @@
  * Scheme 313 Runtime System.
  * Garbage collector.
  *
- * $Id: gc.c,v 3.3 91/07/17 17:02:33 lth Exp Locker: lth $
+ * $Id: gc.c,v 3.4 91/07/24 11:49:34 lth Exp Locker: lth $
  *
  * THE COLLECTOR
  *   There are two kinds of spaces: the tenured space and the ephemeral space.
@@ -102,6 +102,7 @@
 #include "gcinterface.h"
 #include "main.h"
 #include "gc.h"
+#include "layouts.h"
 #include "macros.h"
 #include "offsets.h"
 

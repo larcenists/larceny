@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.7 91/09/15 17:44:04 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.8 91/09/20 16:50:42 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -47,10 +47,14 @@
 ; The assembly source for nested lambda expressions should be
 ; assembled by calling this procedure.  This allows an inner
 ; lambda to refer to labels defined by outer lambdas.
+;
+; The name is the name of the procedure; it may be any data object
+; meaningful to the runtime system.
 
-(define (assemble-nested-lambda as source)
+(define (assemble-nested-lambda as source name)
   (let ((nested-as (make-assembly-structure source)))
     (as-nested! as (cons nested-as (as-nested as)))
+    (emit-constant nested-as name)
     (assemble1 nested-as (lambda (as) (cons (reverse! (as-code as))
 					    (reverse! (as-constants as)))))))
 
@@ -98,6 +102,9 @@
 ; with any others, and will occupy consecutive positions
 ; in the constant vector.  Returns the index of the first
 ; constant.
+;
+; Is this right? Should not all things be tagged?
+; [Nodody uses this.]
 
 (define (emit-constants as x . rest)
   (let* ((constants (as-constants as))
@@ -206,24 +213,50 @@
 
 (define (assemble-finalize! as)
 
+  ; Descend into a constant vector and assemble the nested code vectors.
+  ; "constlist" is the constant vector in a tagged list form. "labels" is the
+  ; collected symbol table (as an assoc list) of all outer procedures.
+  ; The return value is an actual vector with each slot tagged.
+  ;
+  ; The traversal must be done breadth-first in order to know all labels for
+  ; the nested procedures.
+
   (define (traverse-constvector constlist labels)
-    (define l '())
-    (list->vector
+
+    ; Traverse constant list. Return pair of constant list and new symbol
+    ; table.
+    ; Due to the nature of labels, it is correct to keep passing in the 
+    ; accumulated symbol table to procedures on the same level.
+
+    (define (do-codevectors clist labels)
+      (cons (map (lambda (x)
+		   (case (car x)
+		     ((codevector)
+		      (let ((segment (assemble-codevector (cadr x) labels)))
+			(set! labels (cdr segment))
+			(list 'codevector (car segment))))
+		     (else
+		      x)))
+		 clist)
+	    labels))
+
+    ; Descend into constant vectors. Return the constant list.
+
+    (define (do-constvectors clist labels)
       (map (lambda (x)
 	     (case (car x)
-	       ((codevector)
-		(let ((segment (assemble-codevector (cadr x) labels)))
-		  (set! l (append (cdr segment) labels))
-		  (list 'codevector (car segment))))
 	       ((constantvector)
-		(list 'constantvector (traverse-constvector (cadr x) l)))
-	       ((data)
-		x)
-	       ((global)
-		x)
+		(list 'constantvector (traverse-constvector (cadr x) labels)))
 	       (else
-		(error 'assembler "Funky constant slot ~a" (car x)))))
-	   constlist)))
+		x)))
+	   clist))
+
+    ;
+    
+    (let ((s (do-codevectors constlist labels)))
+      (list->vector (do-constvectors (car s) (cdr s)))))
+
+  ; assemble-finalize!
 
   (let ((code  (reverse! (as-code as)))
 	(const (reverse! (as-constants as))))
@@ -282,7 +315,8 @@
 
 (define list-indentation "")
 
-(define listify? #t)
+(define listify? #f)
+(define emit-undef-check? #f)
 
 ; Pseudo-instructions.
 
@@ -304,6 +338,11 @@
     (lambda ()
       (set! n (+ n 1))
       (string->symbol (string-append "L" (number->string n))))))
+
+(define-instruction $.asm
+  (lambda (instruction as)
+    (list-instruction ".asm" instruction)
+    (emit! as (cadr instruction))))
 
 (define-instruction $.proc
   (lambda (instruction as)
@@ -447,14 +486,15 @@
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
-    (emit-register->global! as
-			    (emit-global as (operand1 instruction))
-			    $r.result)))
+    (emit-result-register->global! as
+			    (emit-global as (operand1 instruction)))))
 
 (define-instruction $lambda
   (lambda (instruction as)
     (list-lambda-start instruction)
-    (let ((segment (assemble-nested-lambda as (operand1 instruction))))
+    (let ((segment (assemble-nested-lambda as 
+					   (operand1 instruction)
+					   (operand3 instruction))))
       (list-lambda-end)
       (let ((code-offset  (emit-codevector as (car segment)))
 	    (const-offset (emit-constantvector as (cdr segment))))
@@ -467,7 +507,8 @@
 (define-instruction $lexes
   (lambda (instruction as)
     (list-instruction "lexes" instruction)
-    (emit-lexes! (operand1 instruction) (operand2 instruction))))
+    (emit-lexes! as (operand1 instruction)
+		    (operand2 instruction)))) 
 
 (define-instruction $args=
   (lambda (instruction as)
@@ -595,42 +636,25 @@
   (define (fixnum-range? x)
     (and (>= x (- (expt 2 29)))
 	 (<= x (- (expt 2 29) 1))))
-	     
-  (cond ((integer? opd)
+
+  (cond ((and (integer? opd) (exact? opd))
 	 (if (fixnum-range? opd)	
 	     (emit-fixnum->register! as opd r)
 	     (emit-const->register! as (emit-constant as opd) r)))
-	((rational? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
-; actually (and (complex? x) (exact? x))
-;	((rectangular? opd)
-;	 (emit-const->register! as (emit-constant as opd) r))
-	((real? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
-	((complex? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
-	((string? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
-	((char? opd)
-	 (emit-immediate->register! as (char->immediate opd) r))
-	((pair? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
 	((boolean? opd)
 	 (emit-immediate->register! as
 				    (if (eq? opd #t)
 					$imm.true
 					$imm.false)
 				    r))
-	((null? opd)
-	 (emit-immediate->register! as $imm.null r))
-	((symbol? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
-	((vector? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
+	; is this correct?
 	((eq? opd **eof**)
 	 (emit-immediate->register! as $imm.eof r))
 	((equal? opd hash-bang-unspecified)
 	 (emit-immediate->register! as $imm.unspecified r))
+	((null? opd)
+	 (emit-immediate->register! as $imm.null r))
+	((char? opd)
+	 (emit-immediate->register! as (char->immediate opd) r))
 	(else
-	 (error 'assemble "Unknown datatype as arg to `$const'" opd))))
-
+	 (emit-const->register! as (emit-constant as opd) r))))

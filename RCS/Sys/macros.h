@@ -6,50 +6,10 @@
  *
  * For C-language routines.
  *
- * $Id: macros.h,v 1.3 91/06/26 16:44:44 lth Exp Locker: lth $
+ * $Id: macros.h,v 1.4 91/12/06 15:06:43 lth Exp Locker: lth $
  */
-
-/* Type tags as found at the low end of a scheme object pointer/value */
-#define FIX1_TAG            0x0		/* fixnum */
-#define FIX2_TAG            0x4		/* fixnum */
-#define IMM1_TAG            0x2		/* immediate */
-#define IMM2_TAG            0x6		/* immediate */
-#define PAIR_TAG            0x1		/* pair pointer */
-#define VEC_TAG             0x3		/* vector pointer */
-#define BVEC_TAG            0x5		/* bytevector pointer */
-#define PROC_TAG            0x7		/* procedure pointer */
-
-/* Header tags */
-#define RES_HDR             0x82	/* reserved */
-#define VEC_HDR             0xA2	/* vector-like */
-#define BV_HDR              0xC2	/* bytevector-like */
-#define PROC_HDR            0xFE	/* procedure */
-
-/* Subtags go in the 'xxx' fields in the low bytes of a vector or bytevector
- * header, and are picked from the following set of values:
- *
- *     0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x18, 0x1C
- */
-
-/* Subtags for vector headers. */
-#define VEC_SUBTAG	0x00		/* vector */
-#define CONT_SUBTAG	0x04		/* continuation frame */
-#define SYM_SUBTAG      0x0C            /* symbol */
-
-/* Subtags for bytevector headers. */
-#define STR_SUBTAG	0x00		/* string */
-#define BVEC_SUBTAG	0x04		/* bytevector */
-
-/* Made-up headers */
-#define SYMBOL_HDRTAG   (VEC_HDR | SYM_SUBTAG)
-
-/* Constants */
-#define TRUE_CONST	0x00000006
-#define FALSE_CONST	0x00000002
-#define NIL_CONST	0x0000000A
 
 /* Various masks. Change BIT_MASK if your word is not 32 bits long. */
-#define TAG_MASK	0x00000007	/* extract bits 2, 1, and 0 */
 #define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
 #define HDR_SIGN	0x00000082	/* header signature */
 #define HDR_MASK	0x000000E3	/* Mask to extract header info */

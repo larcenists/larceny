@@ -30,11 +30,6 @@
 (define (prim-primcode entry)
   (car (cddddr entry)))
 
-(define (byte? x)
-  (and (fixnum? x)
-       (<= 0 x)
-       (< x 256)))
-
 ; Procedure-specific source code transformations.
 ; The transformer is passed a source code expression and a predicate
 ; and returns one of:
@@ -210,11 +205,11 @@
                            (list (m-scan (cadr exp) env)))))))
 
 (define-inline 'char->integer
-  (lambda (exp bound?)
+  (lambda (exp env)
     (cond ((not (= 2 (length exp))) (inline-error exp))
           ((char? (cadr exp))
            (make-constant (char->integer (cadr exp))))
-          (else (make-call (make-variable 'integer->char)
+          (else (make-call (make-variable 'char->integer)
                            (list (m-scan (cadr exp) env)))))))
 
 (define-inline '=

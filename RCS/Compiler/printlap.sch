@@ -1,6 +1,6 @@
 ; Program to print .LAP files in some readable manner.
 ;
-; $Id$
+; $Id: printlap.sch,v 1.1 91/09/20 16:52:18 lth Exp Locker: lth $
 
 (define readify-lap
   (let ((ilist `((,$.linearize .linearize)
