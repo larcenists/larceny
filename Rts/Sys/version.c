@@ -14,12 +14,14 @@ char *larceny_version_qualifier = "";
 char *date = DATE;
 char *user = USER;
 
-#ifdef SUNOS5
+#if defined(SUNOS5)
   char *osname = "SunOS5";
-#endif
-
-#ifdef SUNOS4
+#elif defined(SUNOS4)
   char *osname = "SunOS4";
+#elif defined(STDC_SOURCE)
+  char *osname = "Generic";
+#else
+# error "Can't defined OSNAME."
 #endif
 
 /* eof */
