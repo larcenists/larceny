@@ -443,6 +443,7 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeNumber((int)result);
                 return;
             }
+#if HAS_WINDOWS_FORMS
             case 23: // get-property-value-native-window
             {
                 SObject arg1 = Reg.register3;
@@ -463,6 +464,13 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeForeignBox (System.Windows.Forms.NativeWindow.FromHandle ((IntPtr)result));
                 return;
             }
+#else
+	    case 23:
+            {
+               Exn.error ("ffi:invoke property-value as native-window not supported in this version");
+               return;
+            }
+#endif
             case 24: // get-property-value-intptr
             {
                 SObject arg1 = Reg.register3;
