@@ -4,7 +4,7 @@
 ; Machine-dependent part of the assembler, for Sparc.
 ; Machine-dependent code generation procedures.
 ;
-; $Id: asm.sparc.scm,v 1.6 91/08/21 14:43:07 lth Exp Locker: lth $
+; $Id: asm.sparc.scm,v 1.7 91/08/21 19:38:31 lth Exp Locker: lth $
 ;
 ; There are a lot of tables here that have values which must correspond to
 ; those in header files used by C and assembly. We should find a better way
@@ -264,6 +264,7 @@
 (define $m.numge               240)   ; generic >=
 (define $m.add                 96)    ; generic +
 (define $m.subtract            104)   ; generic -
+(define $m.multiply            112)   ; generic *
 (define $m.type-exception      80)    ; generic type exception (bletch)
 
 ; Various byte offsets into globals[]
@@ -1169,7 +1170,17 @@
   '())
 
 ; Primops.
-; THESE MUST ALL DEAL WITH MEMORY-MAPPED REGISTERS!
+;
+; THESE MUST ALL DEAL WITH MEMORY-MAPPED REGISTERS (some do already).
+;
+; Temp-register allocation here is completely out of hand. We have to come
+; up with a coherent strategy for allocating temporary registers, e.g. a
+; set of registers to pick from when one is needed.
+; Also, too many implicit registers are assumed (this is definitely related
+; to the allocation mess) and should rather be passed/returned as appropriate.
+; The key problem is to never load a memory-mapped register or a datum more
+; than once. Remember that calling a subroutine which returns a register may
+; return a temp which cannot subsequently be allocated.
 
 (define (emit-primop0! as op)
   ((cdr (assq op primop-list)) as))
@@ -1188,30 +1199,42 @@
   (list (cons 'zero?
 	      (lambda (as)
 		(emit-cmp-primop! as $i.tsubrcc $i.beq.a $m.zero? $r.g0)))
+
 	(cons '=
 	      (lambda (as r)
 		(emit-cmp-primop! as $i.tsubrcc $i.beq.a $m.numeq r)))
+
 	(cons '<
 	      (lambda (as r)
 		(emit-cmp-primop! as $i.tsubrcc $i.bl.a $m.numlt r)))
+
 	(cons '<=
 	      (lambda (as r)
 		(emit-cmp-primop! as $i.tsubrcc $i.ble.a $m.numle r)))
+
 	(cons '>
 	      (lambda (as r)
 		(emit-cmp-primop! as $i.tsubrcc $i.bg.a $m.numgt r)))
+
 	(cons '>=
 	      (lambda (as r)
 		(emit-cmp-primop! as $i.tsubrcc $i.bge.a $m.numge r)))
+
 	(cons '+
 	      (lambda (as r)
 		(emit-arith-primop! as $i.taddrcc $m.add r)))
+
 	(cons '-
 	      (lambda (as r)
 		(emit-arith-primop! as $i.tsubrcc $m.subtract r)))
+
 	(cons '*
+	      ; Whenever common Sparc chips get a multiply instruction in
+	      ; hardware, this should be changed to use that.
 	      (lambda (as r)
-		(error '() "No multiplication (yet).")))
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.multiply ,$r.o7))
+		(emit! as `(,$i.nop))))
+
 	(cons 'null?
 	      (lambda (as)
 		(let ((l (new-label)))
@@ -1220,6 +1243,7 @@
 		  (emit! as `(,$i.bne.a ,l))
 		  (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
 		  (emit! as `(,$i.label ,l)))))
+
 	(cons 'pair?
 	      (lambda (as)
 		(let ((l (new-label)))
@@ -1229,6 +1253,7 @@
 		  (emit! as `(,$i.bne.a ,l))
 		  (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
 		  (emit! as `(,$i.label ,l)))))
+
 	(cons 'cons
 	      ; really should be open-coded
 	      (lambda (as r)
@@ -1238,24 +1263,74 @@
 		(emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 		(emit! as `(,$i.sti ,r 4 ,$r.result))
 		(emit! as `(,$i.addi ,$r.result ,$tag.pair ,$r.result))))
+
 	(cons 'car
 	      (lambda (as)
 		(emit-pair-op! as 0)))
+
 	(cons 'cdr
 	      (lambda (as)
 		(emit-pair-op! as 4)))
+
 	(cons 'make-vector
 	      (lambda (as r)
-		'()))
+		(let ((l1 (new-label))
+		      (l2 (new-label)))
+		  (emit! as `(,$i.label ,l2))
+		  (emit! as `(,$i.sethi (hi #x80000003) ,$r.tmp0))
+		  (emit! as `(,$i.ori ,$r.tmp0 (lo #x80000003) ,$r.tmp0))
+		  (emit! as `(,$i.andrcc ,$r.result ,$r.tmp0 ,$r.g0))
+		  (emit! as `(,$i.be ,l1))
+		  (emit! as `(,$i.nop))
+		  (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception
+					,$r.o7))
+		  (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
+		  (emit! as `(,$i.label ,l1))
+		  (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloci ,$r.o7))
+		  (emit! as `(,$i.orr ,r ,$r.g0 ,$r.result)))))
+
 	(cons 'vector-length
 	      (lambda (as)
-		'()))
+		(emit-vector-op-setup! as)
+		(emit! as `(,$i.srli ,$r.tmp0 8 ,$r.result))))
+
 	(cons 'vector-ref
 	      (lambda (as r)
-		'()))
+		(let* ((fault (emit-vector-op-setup! as))
+		       (r (if (not (hardware-mapped? r))
+			      (begin
+				(emit! as `(,$i.ldi ,$r.globals
+						    ,(offsetof r)
+						    ,$r.tmp1))
+				$r.tmp1)
+			      r)))
+		  (emit-vector-reference-setup! as r fault)
+		  (emit! as `(,$i.addi ,$r.result (- 4 ,$tag.vector)
+				       ,$r.result))
+		  (emit! as `(,$i.ldr ,$r.result ,r ,$r.result)))))
+
 	(cons 'vector-set!
 	      (lambda (as r1 r2)
-		'()))
+		(let* ((fault (emit-vector-op-setup! as))
+		       (r1 (if (not (hardware-mapped? r1))
+			      (begin
+				(emit! as `(,$i.ldi ,$r.globals
+						    ,(offsetof r1)
+						    ,$r.tmp1))
+				$r.tmp1)
+			      r1)))
+		  (emit-vector-reference-setup! as r1 fault)
+		  (emit! as `(,$i.addi ,$r.result (- 4 ,$tag.vector)
+				       ,$r.result))
+		  (if (not (hardware-mapped? r2))
+		      (begin (emit! as `(,$i.ldi ,$r.globals
+						 ,(offsetof r2)
+						 ,$r.tmp0))
+			     (emit! as `(,$i.str ,$r.tmp0
+						 ,r1
+						 ,$r.result)))
+		      (emit! as `(,$i.str ,r2 ,r1 ,$result))))))
+
 
 	; Cells are internal data structures, represented using pairs.
 	; No error checking is done on cell references.
@@ -1269,9 +1344,11 @@
 		(emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 		(emit! as `(,$i.sti ,$r.g0 4 ,$r.result))
 		(emit! as `(,$i.addi ,$r.result ,$tag.pair ,$r.result))))
+
 	(cons 'cell-ref
 	      (lambda (as)
 		(emit! as `(,$i.ldi ,$r.result ,(- $tag.pair) ,$r.result))))
+
 	(cons 'cell-set!
 	      (lambda (as r)
 		(emit! as `(,$i.sti ,r ,(- $tag.pair) ,$r.result))))
@@ -1286,30 +1363,69 @@
 		(emit! as `(,$i.subicc ,$r.result ,$imm.null ,$r.g0))
 		(emit! as `(,$i.bne.a ,(make-label label)))
 		(emit! as `(,$i.slot))))
+
 	(cons 'bfpair?
 	      (lambda (as label)
 		(emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
 		(emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
 		(emit! as `(,$i.bne.a ,(make-label label)))
 		(emit! as `(,$i.slot))))
+
 	(cons 'bfzero?
 	      (lambda (as label)
 		(emit-bcmp-primop! as $i.bne.a $r.g0 label $m.zerop)))
+
 	(cons 'bf=
 	      (lambda (as r label)
 		(emit-bcmp-primop! as $i.bne.a r label $m.numeq)))
+
 	(cons 'bf<
 	      (lambda (as r label)
 		(emit-bcmp-primop! as $i.bge.a r label $m.numlt)))
+
 	(cons 'bf<=
 	      (lambda (as r label)
 		(emit-bcmp-primop! as $i.bg.a r label $m.numle)))
+
 	(cons 'bf>
 	      (lambda (as r label)
 		(emit-bcmp-primop! as $i.ble.a r label $m.numgt)))
+
 	(cons 'bf>=
 	      (lambda (as r label)
-		(emit-bcmp-primop! as $i.bl.a r label $m.numge)))))
+		(emit-bcmp-primop! as $i.bl.a r label $m.numge)))
+
+	(cons 'open-file
+	      (lambda (as r)
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.open-file ,$r.o7))
+		(emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))))
+
+	(cons 'close-file
+	      (lambda (as)
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.close-file ,$r.o7))
+		(emit! as `(,$i.nop))))
+
+	(cons 'create-file
+	      (lambda (as r)
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.create-file ,$r.o7))
+		(emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))))
+
+	(cons 'unlink-file
+	      (lambda (as)
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.unlink-file ,$r.o7))
+		(emit! as `(,$i.nop))))
+
+	(cons 'read-file
+	      (lambda (as r1 r2)
+		(emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.read-file ,$r.o7))
+		(emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))))
+
+	(cons 'write-file
+	      (lambda (as r1 r2)
+		(emit! as `(,$i.orr ,r1 ,$r.g0 ,$r.argreg2))
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.write-file ,$r.o7))
+		(emit! as `(,$i.orr ,r2 ,$r.g0 ,$r.argreg3))))))
 
 
 ; Emit code which performs a comparison operation on %result and another
@@ -1320,7 +1436,11 @@
 
 (define (emit-cmp-primop! as cmp test generic r)
   (let ((l1 (new-label))
-	(l2 (new-label)))
+	(l2 (new-label))
+	(r  (if (not (hardware-mapped? r))
+	        (begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp1))
+		       $r.tmp1)
+		r)))
     (emit! as `(,cmp ,$r.result ,r ,$r.g0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
@@ -1336,7 +1456,11 @@
 
 (define (emit-bcmp-primop! as ntest r label generic)
   (let ((l1 (new-label))
-	(l2 (make-label label)))
+	(l2 (make-label label))
+	(r  (if (not (hardware-mapped? r))
+		(begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp1))
+		       $r.tmp1)
+		r)))
     (emit! as `(,$i.tsubrcc ,$r.result ,r ,$r.g0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,ntest ,l2))
@@ -1349,7 +1473,11 @@
     (emit! as `(,$i.nop))))
 
 (define (emit-arith-primop! as i generic r)
-  (let ((l1 (new-label)))
+  (let ((l1 (new-label))
+	(r  (if (not (hardware-mapped? r))
+		(begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp1))
+		       $r.tmp1)
+		r)))
     (emit! as `(,i ,$r.result ,r ,$r.tmp0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,$i.orr ,$r.tmp0 ,$r.g0 ,$r.result))
@@ -1369,4 +1497,43 @@
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))))
 
+; When this returns, there is a vector pointer in $r.result and the header
+; of that vector is in $r.tmp0. Furthermore, we know that it is a vector.
+; This procedure returns the label of the error handling code.
 
+(define (emit-vector-op-setup! as)
+  (let ((l1 (new-label))
+	(l2 (new-label))
+	(l3 (new-label)))
+    (emit! as `(,$i.label ,l2))
+    (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
+    (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.vector ,$r.g0))
+    (emit! as `(,$i.be.a ,l1))
+    (emit! as `(,$i.slot))
+    (emit! as `(,$i.label ,l3))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
+    (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
+    (emit! as `(,$i.label ,l1))
+    (emit! as `(,$i.ldi ,$r.result (- ,$tag.vector) ,$r.tmp0))
+    (emit! as `(,$i.andi ,$r.tmp0 #xFF ,$r.tmp1))
+    (emit! as `(,$i.xoricc ,$r.tmp1
+			   (or ,$imm.vector-header $tag.vector-hdrtag)
+			   ,$r.g0))
+    (emit! as `(,$i.bne ,l3))
+    (emit! as `(,$i.nop))
+    l3))
+
+
+; Check that the index (in r, which is either hardware-mapped GPR or $r.tmp1)
+; is a fixnum in the correct range.
+; We know that the vector header is in $r.tmp0 on entry; the length is in
+; $r.tmp0 on exit.
+
+(define (emit-vector-reference-setup! as r fault)		  
+  (emit! as `(,$i.andicc ,r 3 ,$r.g0))
+  (emit! as `(,$i.bne ,fault))
+  (emit! as `(,$i.nop))
+  (emit! as `(,$i.srli ,$r.tmp0 8 ,$r.tmp0))
+  (emit! as `(,$i.subrcc ,r ,$r.tmp0 ,$r.g0))
+  (emit! as `(,$i.bgeu ,fault))
+  (emit! as `(,$i.nop)))
