@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 23 April 1999 / wdc
+;
 ; Asm/Sparc/pass5p2.sch -- Sparc machine assembler, top level
 
 ; Overrides the procedure of the same name in Asm/Common/pass5p1.sch.
@@ -153,23 +155,28 @@
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
     (let ((op (case (operand1 instruction)
-		((+)    'internal:+/imm)
-		((-)    'internal:-/imm)
-		((fx+)  'internal:fx+/imm)
-		((fx-)  'internal:fx-/imm)
-		((fx=)  'internal:fx=/imm)
-		((fx<)  'internal:fx</imm)
-		((fx<=) 'internal:fx<=/imm)
-		((fx>)  'internal:fx>/imm)
-		((fx>=) 'internal:fx>=/imm)
-		(else #f))))
+                ((+)    'internal:+/imm)
+                ((-)    'internal:-/imm)
+                ((fx+)  'internal:fx+/imm)
+                ((fx-)  'internal:fx-/imm)
+                ((fx=)  'internal:fx=/imm)
+                ((fx<)  'internal:fx</imm)
+                ((fx<=) 'internal:fx<=/imm)
+                ((fx>)  'internal:fx>/imm)
+                ((fx>=) 'internal:fx>=/imm)
+                ((=:fix:fix)  'internal:=:fix:fix)
+                ((<:fix:fix)  'internal:<:fix:fix)
+                ((<=:fix:fix) 'internal:<=:fix:fix)
+                ((>:fix:fix)  'internal:>:fix:fix)
+                ((>=:fix:fix) 'internal:>=:fix:fix)
+                (else #f))))
       (if op
-	  (emit-primop.4arg! as op $r.result (operand2 instruction) $r.result)
-	  (begin
-	    (emit-constant->register as (operand2 instruction) $r.argreg2)
-	    (emit-primop.2arg! as
-			       (operand1 instruction)
-			       $r.argreg2))))))
+          (emit-primop.4arg! as op $r.result (operand2 instruction) $r.result)
+          (begin
+           (emit-constant->register as (operand2 instruction) $r.argreg2)
+           (emit-primop.2arg! as
+                              (operand1 instruction)
+                              $r.argreg2))))))
 
 (define-instruction $const
   (lambda (instruction as)
@@ -373,6 +380,21 @@
     (list-instruction "branchf" instruction)
     (emit-branchf! as (make-asm-label as (operand1 instruction)))))
 
+(define-instruction $check
+  (lambda (instruction as)
+    (list-instruction "check" instruction)
+    (if (not (unsafe-code))
+        (emit-check! as $r.result
+                        (make-asm-label as (operand4 instruction))))))
+
+(define-instruction $trap
+  (lambda (instruction as)
+    (list-instruction "trap" instruction)
+    (emit-trap! as
+                (regname (operand1 instruction))
+                (regname (operand2 instruction))
+                (regname (operand3 instruction))
+                (operand4 instruction))))
 
 ; Operations introduced by the peephole optimizer.
 
@@ -404,6 +426,37 @@
 		       (peep-regname (operand2 instruction))
 		       (operand3 instruction)
 		       (make-asm-label as (operand4 instruction)))))
+
+; These three are like the corresponding branchf sequences except that
+; there is a strong prediction that the branch will not be taken.
+
+(define-instruction $reg/op1/check
+  (lambda (instruction as)
+    (list-instruction "reg/op1/check" instruction)
+    (emit-primop.3arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (make-asm-label as (operand3 instruction)))))
+
+(define-instruction $reg/op2/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2/check" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (peep-regname (operand3 instruction))
+		       (make-asm-label as (operand4 instruction)))))
+
+(define-instruction $reg/op2imm/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/check" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (operand3 instruction)
+		       (make-asm-label as (operand4 instruction)))))
+
+;
 
 (define-instruction $reg/op1/setreg
   (lambda (instruction as)

@@ -2,6 +2,8 @@
 ; 
 ; $Id$
 ;
+; 23 April 1999 / wdc
+;
 ; SPARC code generation macros for primitives, part 2:
 ;   primitives introduced by peephole optimization.
 
@@ -77,6 +79,18 @@
 	  (sparc.sti as (force-hwreg! as rs2 $r.tmp1) 4 $r.result)
 	  (sparc.addi as $r.result $tag.pair-tag rd)))))
 
+(define-primop 'internal:car:pair
+  (lambda (as src1 dest)
+    (internal-primop-invariant2 'internal:car src1 dest)
+    (sparc.ldi as src1 (- $tag.pair-tag) dest)))
+
+(define-primop 'internal:cdr:pair
+  (lambda (as src1 dest)
+    (internal-primop-invariant2 'internal:cdr src1 dest)
+    (sparc.ldi as src1 (- 4 $tag.pair-tag) dest)))
+
+; Vector operations.
+
 (define-primop 'internal:vector-length
   (lambda (as rs rd)
     (internal-primop-invariant2 'internal:vector-length rs rd)
@@ -125,6 +139,21 @@
 		      rs2
 		      $ex.vset))))
       (emit-vector-like-set! as rs1 rs2 rs3 fault $tag.vector-tag #t))))
+
+(define-primop 'internal:vector-length:vec
+  (lambda (as rs1 dst)
+    (internal-primop-invariant2 'internal:vector-length:vec rs1 dst)
+    (emit-get-length-trusted! as $tag.vector-tag rs1 dst)))
+
+(define-primop 'internal:vector-ref:trusted
+  (lambda (as rs1 rs2 dst)
+    (emit-vector-like-ref-trusted! as rs1 rs2 dst $tag.vector-tag)))
+
+(define-primop 'internal:vector-set!:trusted
+  (lambda (as rs1 rs2 rs3)
+    (emit-vector-like-ref-trusted! as rs1 rs2 rs3 $tag.vector-tag)))
+
+; Strings.
 
 (define-primop 'internal:string-length
   (lambda (as rs rd)
@@ -371,6 +400,43 @@
 	  (else ???))
     (sparc.bne.a as label)
     (sparc.slot  as)))
+
+; Unary predicates followed by a check.
+
+(define-primop 'internal:check-fixnum?
+  (lambda (as src L1)
+    (sparc.btsti   as src 3)
+    (emit-checkcc! as sparc.bne L1)))
+
+(define-primop 'internal:check-pair?
+  (lambda (as src L1)
+    (sparc.andi    as src $tag.tagmask $r.tmp0)
+    (sparc.cmpi    as $r.tmp0 $tag.pair-tag)
+    (emit-checkcc! as sparc.bne L1)))
+
+(define-primop 'internal:check-vector?
+  (lambda (as src L1)
+    (sparc.andi    as src $tag.tagmask $r.tmp0)
+    (sparc.cmpi    as $r.tmp0 $tag.vector-tag)
+    (sparc.bne     as L1)
+    (sparc.nop     as)
+    (sparc.ldi     as src (- $tag.vector-tag) $r.tmp0)
+    (sparc.andi    as $r.tmp0 255 $r.tmp1)
+    (sparc.cmpi    as $r.tmp1 $imm.vector-header)
+    (emit-checkcc! as sparc.bne L1)))
+
+(define-primop 'internal:check-vector?/vector-length:vec
+  (lambda (as src dst L1)
+    (sparc.andi    as src     $tag.tagmask        $r.tmp0)
+    (sparc.cmpi    as $r.tmp0 $tag.vector-tag)
+    (sparc.bne     as L1)
+    (sparc.nop     as)
+    (sparc.ldi     as src     (- $tag.vector-tag) $r.tmp0)
+    (sparc.andi    as $r.tmp0 255                 $r.tmp1)
+    (sparc.cmpi    as $r.tmp1 $imm.vector-header)
+    (sparc.bne     as L1)
+    (sparc.nop     as)
+    (sparc.srli    as $r.tmp0 8 dst)))
 
 (define (internal-primop-invariant2 name a b)
     (if (not (and (hardware-mapped? a) (hardware-mapped? b)))

@@ -2,8 +2,22 @@
 ; 
 ; $Id$
 ;
+; 22 April 1999 / wdc
+;
 ; SPARC code generation macros for primitives, part 1:
 ;   primitives defined in Compiler/sparc.imp.sch.
+
+; These extend Asm/Common/pass5p1.sch.
+
+(define (operand5 instruction)
+  (car (cddddr (cdr instruction))))
+
+(define (operand6 instruction)
+  (cadr (cddddr (cdr instruction))))
+
+(define (operand7 instruction)
+  (caddr (cddddr (cdr instruction))))
+
 
 ; Primop emitters.
 
@@ -18,6 +32,15 @@
 
 (define (emit-primop.4arg! as a1 a2 a3 a4)
   ((find-primop a1) as a2 a3 a4))
+
+(define (emit-primop.5arg! as a1 a2 a3 a4 a5)
+  ((find-primop a1) as a2 a3 a4 a5))
+
+(define (emit-primop.6arg! as a1 a2 a3 a4 a5 a6)
+  ((find-primop a1) as a2 a3 a4 a5 a6))
+
+(define (emit-primop.7arg! as a1 a2 a3 a4 a5 a6 a7)
+  ((find-primop a1) as a2 a3 a4 a5 a6 a7))
 
 
 ; Hash table of primops
@@ -327,6 +350,14 @@
   (lambda (as)
     (emit-primop.3arg! as 'internal:cdr $r.result $r.result)))
 
+(define-primop 'car:pair
+  (lambda (as)
+    (sparc.ldi as $r.result (- $tag.pair-tag) $r.result)))
+
+(define-primop 'cdr:pair
+  (lambda (as)
+    (sparc.ldi as $r.result (- 4 $tag.pair-tag) $r.result)))
+
 (define-primop 'set-car!
   (lambda (as x)
     (if (not (unsafe-code))
@@ -627,6 +658,10 @@
   (lambda (as)
     (emit-get-length! as $tag.vector-tag #f $ex.vllen $r.result $r.result)))
 
+(define-primop 'vector-length:vec
+  (lambda (as)
+    (emit-get-length-trusted! as $tag.vector-tag $r.result $r.result)))
+
 (define-primop 'procedure-length
   (lambda (as)
     (emit-get-length! as $tag.procedure-tag #f $ex.plen $r.result $r.result)))
@@ -645,6 +680,11 @@
 		     #f)))
       (emit-vector-like-ref!
        as $r.result r $r.result fault $tag.vector-tag #f))))
+
+(define-primop 'vector-ref:trusted
+  (lambda (as rs2)
+    (emit-vector-like-ref-trusted!
+     as $r.result rs2 $r.result $tag.vector-tag)))
 
 (define-primop 'procedure-ref
   (lambda (as r)
@@ -670,6 +710,10 @@
 						   r1)
 		     #f)))
       (emit-vector-like-set! as $r.result r1 r2 fault $tag.vector-tag #f))))
+
+(define-primop 'vector-set!:trusted
+  (lambda (as rs2 rs3)
+    (emit-vector-like-set-trusted! as $r.result rs2 rs3 $tag.vector-tag)))
 
 (define-primop 'procedure-set!
   (lambda (as r1 r2)
