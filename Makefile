@@ -35,7 +35,7 @@ rtsclean:
 	  rm -f Makefile larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \
 	   Build/*.o Intel/*.o Sparc/*.o Standard-C/*.o Sys/*.o Util/*.o \
-	   Build/*.obj Intel/*.obj Sparc/*.obj Standard-C/*.obj Sys/*.obj Util/*.obj \
+	   Build/*.obj Intel/*.obj Sparc/*.obj Standard-C/*.obj Sys/*.obj Util/*.obj ; \
 	  if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi )
 
 compilerclean:
