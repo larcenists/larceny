@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-17 November 2002 / lth
+18 November 2002 / lth
 
 HOW TO BUILD AND USE.
 
@@ -16,10 +16,10 @@ Start your Scheme system, change to the Larceny source directory if
 necessary, and load the appropriate file for your operating system,
 currently this is one of:
 
-	Util/win32.sch
-	Util/macosx.sch
-	Util/unix-be.sch
-	Util/unix-el.sch		; currently mythical
+	Util/petit-win32.sch
+	Util/petit-macosx.sch
+	Util/petit-unix-be.sch
+	Util/petit-unix-el.sch		; currently mythical
 
 These programs sometimes invoke external programs and may place
 additional demands on your system; currently all systems need some
@@ -130,6 +130,7 @@ Petit Larceny on Sparc/Solaris and other big-endian Unix:
  - can compile and link RTS
  - RTS loads and runs in heap image
  - above process is portable (enough)
+ - can rebuild itself in the interpreter
  - Must fix: Rts/Makefile is a mess because it has too many things 
    in it that need configuring by hand; it is not nearly portable.  
    Much can be done by requiring some non-basic Make system 

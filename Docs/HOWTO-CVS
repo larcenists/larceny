@@ -115,4 +115,18 @@ the file, remove the file using rm, then run remove followed by commit:
 	cvs remove myfile.c
 	cvs commit -m "This file was removed because ..." myfile.c
 
+log: To see changes to a file, use the log subcommand:
 
+	cvs log myfile.c
+
+Alas that provides too much info, try instead
+
+	cvs -r release_2 -N myfile.c 
+
+(info on the given branch) or 
+
+	cvs -r release_2 -N -d '2001-01-01 < 2002-11-17' myfile.c
+
+(info in the given date range).  Unfortunately log does not work at all
+on directories, as far as I can tell, so getting useful information for
+eg recent changes requires a shell script.
