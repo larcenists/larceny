@@ -9,6 +9,8 @@
  * is to allow more gradual changes to the RTS overall.  Eventually, the
  * RTS will be modified to deal with the new GC, and much or all of this file
  * will go away.
+ *
+ * (Much of this file _has_ gone away.  990608 / lth)
  */
 
 #include "larceny.h"
@@ -21,7 +23,7 @@
 static gc_t *gc;
 static int  generations;
 
-int create_memory_manager( gc_param_t *params )
+int create_memory_manager( gc_param_t *params, int *gens )
 {
 #if !defined( BDW_GC )
   gc = create_gc( params, &generations );
@@ -31,37 +33,13 @@ int create_memory_manager( gc_param_t *params )
   gc_initialize( gc );
   globals[ G_GC ] = (word)gc;
   globals[ G_GC_CNT ] = fixnum(0);
+  *gens = generations;
   return 1;
-}
-
-char *gctype( void )
-{
-  return gc->id;
-}
-
-void policy_control( int heap, int op, unsigned arg )
-{
-  gc_set_policy( gc, heap, op, arg );
-}
-
-void init_stats( int show_stats )
-{
-  stats_init( gc, generations, show_stats );
 }
 
 word *alloc_from_heap( int bytes )
 {
   return gc_allocate( gc, bytes, 0, 0 );
-}
-
-word *alloc_bv_from_heap( int bytes )
-{
-  return gc_allocate( gc, bytes, 0, 1 );
-}
-
-word standing_room_only( int p_tag, int h_tag, int limit )
-{
-  return sro( gc, p_tag, h_tag, limit );
 }
 
 /* For vectors and pairs, the length is number of words.
@@ -103,25 +81,6 @@ word allocate_nonmoving( int length, int tag )
   }
   /*NOTREACHED*/
   return 0;
-}
-
-void garbage_collect3( int gen, int request_bytes )
-{
-  gc_collect( gc, gen, request_bytes );
-}
-
-word creg_get( void )        { return gc_creg_get( gc ); }
-void creg_set( word c )      { gc_creg_set( gc, c ); }
-void stack_underflow( void ) { gc_stack_underflow( gc ); }
-void stack_overflow( void )  { gc_stack_overflow( gc ); }
-
-void compact_ssb( void )     
-{ 
-  if (gc_compact_all_ssbs( gc )) {
-    /* At least one remembered set overflowed. */
-    /* FIXME: this probably should be under direct memmgr control */
-    garbage_collect3( 1, 0 );
-  }
 }
 
 static char *heapio_msg[] =
@@ -171,7 +130,7 @@ int load_heap_image_from_file( const char *filename )
   return 1;
 
  fail:
-  hardconsolemsg( "Heap open failure: %s.", heapio_msg[-r] );
+  hardconsolemsg( "Heap open failure: %s: %s.", filename, heapio_msg[-r] );
  fail2:
   hio_close( heap );
   return 0;
@@ -179,6 +138,10 @@ int load_heap_image_from_file( const char *filename )
 
 /* Dump_heap_image_to_file() just defers to the collector, because different
    collector types dump different heap images.
+   
+   FIXME: referenced only from primitive.c; could move this function to that 
+   file.  That would allow error reporting to be consistent with the other
+   primitives.
    */
 int dump_heap_image_to_file( const char *filename )
 {
@@ -200,7 +163,6 @@ int reorganize_and_dump_static_heap( const char *filename )
   return 0;
 #else
   semispace_t *data, *text;
-  heapio_t *heap;
   int r;
 
   consolemsg( "Reorganizing." );
