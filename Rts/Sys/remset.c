@@ -372,9 +372,11 @@ void rs_enumerate( remset_t *rs,
   unsigned removed_count=0;
 
   assert( WORDS_PER_POOL_ENTRY == 2 );
-  assert( *rs->ssb_top == *rs->ssb_bot );
 
   supremely_annoyingmsg( "REMSET @0x%p: scan", (void*)rs );
+
+  if ( *rs->ssb_top != *rs->ssb_bot )
+    rs_compact( rs );
 
   ps = DATA(rs)->first_pool;
   while (1) {
