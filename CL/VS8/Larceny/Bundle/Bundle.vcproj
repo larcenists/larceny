@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="Bundle"
+	ProjectGUID="{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}"
+	Keyword="Win32Proj"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="Debug"
+			IntermediateDirectory="Debug"
+			ConfigurationType="10"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="Release"
+			IntermediateDirectory="Release"
+			ConfigurationType="10"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<File
+			RelativePath="bundleplt.ss"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="bundletar.ss"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK tgz"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK tgz"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="bundlezip.ss"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK zip"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK zip"
+					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
+				/>
+			</FileConfiguration>
+		</File>
+	</Files>
+</VisualStudioProject>
