@@ -1830,6 +1830,18 @@ $Id$
 
     Hacked the assembler and the error handler as described above.
 
+132 v0.43 (990715 / lth)
+    Priority: medium
+    Category: RTS / space usage
+
+    It would appear, according to output from -annoy-user, that the space
+    assigned to remembered sets grows monotonically, which is not what
+    we would like -- space should be returned to the common pool
+    whereever possible.  Most reasonably, pool memory should be freed
+    when a remset is cleared.
+
+    Fixed 991022 by lth in post-v0.46.
+
 134 v0.45 and all earlier (990915 / lth)  Fixed 990928 by lth
     Priority: medium
     Category: RTS measurements / correctness
