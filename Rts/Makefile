@@ -94,7 +94,7 @@ LIBS=-lm -ldl
 
 DEBUGINFO=-g3
 DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
-PROFILE=#-p
+PROFILE=#-pg
 TCOV=#-a -g -DNDEBUG2 -DNDEBUG
 LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
@@ -331,16 +331,19 @@ Sys/alloc.o: $(LARCENY_H) Sys/barrier.h Sys/gclib.h Sys/semispace_t.h
 Sys/argv.o: $(LARCENY_H)
 Sys/barrier.o: $(LARCENY_H) Sys/memmgr.h Sys/barrier.h
 Sys/bdw-collector.o: $(LARCENY_H) Sys/barrier.h Sys/gc.h Sys/gc_t.h \
-	Sys/gclib.h Sys/heap_stats_t.h Sys/memmgr.h Sys/stack.h \
+	Sys/gclib.h Sys/stats.h Sys/memmgr.h Sys/stack.h \
 	bdw-gc/include/gc.h
 Sys/bdw-gc.o: Sys/gc.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h \
 	Sys/static_heap_t.h
 Sys/bdw-larceny.o: Sys/larceny.c $(LARCENY_H) Sys/gc.h
 Sys/bdw-stats.o: Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/memmgr.h
+	Sys/stats.h Sys/memmgr.h
 Sys/callback.o: $(LARCENY_H)
 Sys/cheney.o: $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \
 	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+Sys/dof-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
+	Sys/remset_t.h Sys/semispace_t.h Sys/young_heap_t.h
 Sys/ffi.o: $(LARCENY_H)
 Sys/gc.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/semispace_t.h \
 	Sys/static_heap_t.h
@@ -351,32 +354,32 @@ Sys/ldebug.o: $(LARCENY_H) Sys/macros.h
 Sys/los.o: $(LARCENY_H) Sys/gclib.h Sys/los_t.h
 Sys/malloc.o: $(LARCENY_H)
 Sys/memmgr.o: $(LARCENY_H) Sys/barrier.h Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/heapio.h Sys/los_t.h Sys/memmgr.h \
+	Sys/stats.h Sys/heapio.h Sys/los_t.h Sys/memmgr.h \
 	Sys/old_heap_t.h Sys/remset_t.h Sys/static_heap_t.h Sys/young_heap_t.h 
 Sys/np-sc-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
+	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
 	Sys/remset_t.h Sys/semispace_t.h Sys/young_heap_t.h
 Sys/nursery.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/stack.h \
+	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/stack.h \
 	Sys/young_heap_t.h
 Sys/old_heap_t.o: $(LARCENY_H) Sys/old_heap_t.h
 Sys/old-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
+	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
 	Sys/remset_t.h Sys/semispace_t.h Sys/static_heap_t.h Sys/young_heap_t.h
 Sys/osdep.o: $(LARCENY_H)
 Sys/remset.o: $(LARCENY_H) Sys/gclib.h Sys/memmgr.h Sys/remset_t.h
 Sys/sc-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h \
+	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h \
 	Sys/stack.h Sys/static_heap_t.h Sys/young_heap_t.h
 Sys/semispace.o: $(LARCENY_H) Sys/gclib.h Sys/semispace_t.h
 Sys/signals.o: $(LARCENY_H) Sys/signals.h
 Sys/sro.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h Sys/heapio.h \
 	Sys/memmgr.h
 Sys/stack.o: $(LARCENY_H) Sys/stack.h
-Sys/static-heap.o: $(LARCENY_H) Sys/gc.h Sys/gclib.h Sys/heap_stats_t.h \
+Sys/static-heap.o: $(LARCENY_H) Sys/gc.h Sys/gclib.h Sys/stats.h \
 	Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
 Sys/stats.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
-	Sys/heap_stats_t.h Sys/memmgr.h
+	Sys/stats.h Sys/memmgr.h
 Sys/syscall.o: $(LARCENY_H) Sys/signals.h
 Sys/primitive.o: $(LARCENY_H)  Sys/signals.h
 Sys/osdep-unix.o: $(LARCENY_H)
