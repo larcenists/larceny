@@ -3,12 +3,18 @@
 ; $Id$
 ;
 ; Help topics for development environment's help system
-; Entry format: (<tag> <descriptor string> <text>)
+; Entry format: 
+;   <entry> ::= (<tag> <descriptor> <text> ...)
+;   <tag> ::= <symbol>
+;   <descriptor> ::= <string>
+;   <text> ::= ((<selector> ...) <string>)
+;   <selector> ::= brief | full
 ;
 ; 16 December 1998
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
+((brief full)
 "(compile-file <schemefile>)
 (compile-file <schemefile> <outputfile>)
   Compile the Scheme source file and produce a .fasl file.
@@ -16,8 +22,9 @@
 (assemble-file <asm-file>)
 (assemble-file <asm-file> <outputfile>)
   Assemble the .lap or .mal source file and produce a .fasl file.
-  This command is context sensitive in the same way compile-file is.
-
+")
+((full)
+"
 (compile313 <schemefile> &opt <outputfile>)
   Compile the Scheme source file and produce a .lap file.
 
@@ -26,11 +33,11 @@
 
 (make-fasl <lopfile> &opt <outputfile>)
   Create a fast-load file (.fasl) from the object file.
-  This command is context sensitive in the same way compile-file is.
-")
+"))
 
 (compiler-switches
 "  compiler-switches  Info about a slew of compiler switches."
+((brief full)
 "
 There are a number of compiler and assembler switches.  The
 command (compiler-switches) lists all switches and their current
@@ -62,31 +69,30 @@ Documentation switches:
 Assembler switches:
   peephole-optimization      Perform peephole optimization.
   catch-undefined-globals    Check references to global variables.
-  generate-global-symbols    Let each global cell contain its name.
   inline-allocation          Generate in-line code for some allocation.
   write-barrier              Generate code for generational GC.
-  fast-write-barrier         Generate fast in-line write barrier code.
   unsafe-code                Turn off type checking for many primitives.
-
+")
+((full)
+"
 Internal (development) switches:
   listify?                   Produce listing of MAL code.  (NOTE: a variable)
   single-stepping            Insert singlestepping support code.
   fill-delay-slots           Fill SPARC branch delay slots.
-
+")
+((brief full)
+"
 All switches except the meta-switches can be set to #t to enable the
 effect explained above, or to #f to disable the effect.  If the switch
 is a variable, its value can be set by an assignment.  If the switch is
 a procedure, it can be set by passing an argument as in (benchmark-mode #f).
 
 The meta-switches can only be called without any arguments.
-
-The architecture switch must be passed a symbol that denotes one of the
-supported architectures.  The list of supported architectures can be
-gotten by evaluating (target-architecture 'query).
-")
+"))
 
 (disassembling
 "  disassembling      Disassembling compiled code."
+((brief full)
 "(disassemble <procedure>)
   Disassemble the code vector of the procedure, printing the instructions
   to the current output port.
@@ -96,10 +102,11 @@ gotten by evaluating (target-architecture 'query).
   Disassemble all code and constant vectors of the <inputfile>, which
   must be a .fasl or .lop format file, and print the disassembly listing
   on the current output port or to the given <outputfile>.
-")
+"))
   
 (general
 "  general            General information about file types etc."
+((brief full)
 "Scheme source files have extension .sch or .scm; these extensions
 are treated specially by the compiler. You may compile source files
 with extensions other than these, but the compiler will not replace
@@ -111,10 +118,10 @@ Assembly Program\". Again, you can use others at the risk of having
 to type a lot.
 
 MacScheme assembly language files in symbolic form have extension
-.mal (for MacScheme Assembly Language).
+.mal (for \"MacScheme Assembly Language\").
 
 Assembled files containing machine code segments have extension
-.lop (for \"Lisp Object Program\".
+.lop (for \"Lisp Object Program\").
 
 Fast-load files containing machine code have extension .fasl, for
 \"Fast-Load\". These files contains special syntax which allow
@@ -122,10 +129,11 @@ them to be read by Larceny's reader like any other file; there is
 no magic about the extension.
 
 Heap files usually have the extension .heap.
-")
+"))
 
 (heaps
 "  heaps              Dumping heap images."
+((full)
 "A bootstrap heap image is created with the dump-heap procedure:
 
   (build-heap-image <heapname> <object-file> ...)
@@ -146,6 +154,6 @@ you should 'make libclean' from the Unix shell to remove both LAP and
 LOP files.
 
 For details, see the file Lib/makefile.sch.
-")
+"))
 
 ; eof
