@@ -1,10 +1,10 @@
-; 1 August 2004
+; 25 November 2004
 ;
 ; General "script" for building Petit Larceny on Win32 systems, using
 ; Win32-native C compilers like MinGW, CodeWarrior and Visual C/C++,
 ; and hosting the build under Larceny.
 ;
-; See Docs/HOWTO-PETIT for more information.
+; See Docs/HOWTO-BUILD and Docs/HOWTO-PETIT for more information.
 
 (define nbuild-parameter #f)
 
@@ -74,7 +74,7 @@
 (define (build-runtime)
   (execute-in-directory 
    "Rts" 
-   (string-append make-command " petit-rts" (lib-suffix))))
+   (string-append make-command " libpetit" (lib-suffix))))
 
 (define build-runtime-system build-runtime) ; Old name
 
@@ -104,8 +104,8 @@
 
 (define (load-compiler)
   (load "Util\\nbuild.sch")
-  (set! win32/petit-rts-library (string-append "Rts\\petit-rts" (lib-suffix)))
-  (set! win32/petit-lib-library (string-append "petit-lib" (lib-suffix)))
+  (set! win32/petit-rts-library (string-append "Rts\\libpetit" (lib-suffix)))
+  (set! win32/petit-lib-library (string-append "libheap" (lib-suffix)))
   (unspecified))
 
 (define (lib-suffix)
@@ -114,14 +114,12 @@
       ".lib"))
 
 (define (remove-runtime-objects)
-  (system (string-append "del Rts\\petit-rts" (lib-suffix)))
+  (system (string-append "del Rts\\libpetit" (lib-suffix)))
   (system "del Rts\\vc60.pdb")
   (system (string-append "del Rts\\Sys\\*" (obj-suffix)))
   (system (string-append "del Rts\\Standard-C\\*" (obj-suffix)))
   (system (string-append "del Rts\\Build\\*" (obj-suffix)))
   #t)
-
-(define remove-rts-objects remove-runtime-objects) ; Old name
 
 (define (remove-heap-objects . extensions)
   (let ((ext   '("obj" "o" "c" "lap" "lop"))
@@ -136,8 +134,8 @@
     (system (string-append "del petit" (obj-suffix)))
     (system "del petit.pdb")
     (system "del petit.heap")
-    (system (string-append "del petit-lib" (lib-suffix)))
-    (system "del petit-lib.pdb")
+    (system (string-append "del libpetit" (lib-suffix)))
+    (system "del libpetit.pdb")
     (system "del vc60.pdb")
     (for-each (lambda (ext)
 		(for-each (lambda (dir) 
@@ -189,7 +187,7 @@
     (create-loadable-file outfilename segments so-name)
     (c-link-shared-object so-name 
 			  (list o-name) 
-			  (list (string-append "Rts/petit-rts" (lib-suffix))))
+			  (list (string-append "Rts/libpetit" (lib-suffix))))
     (unspecified)))
 
 ; eof
