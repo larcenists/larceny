@@ -347,7 +347,7 @@ static void grow_table( byte *new_bot, byte *new_top )
           new_top >= data.memtop );
 
   slots = max( pageof_pb( new_top, new_bot ), data.descriptor_slots*2 );
-  /*annoyingmsg*/consolemsg( "Growing page tables -- new slots=%d.", slots );
+  annoyingmsg( "Growing page tables -- new slots=%d.", slots );
 
   desc_g = (gclib_desc_t*)must_malloc( sizeof( gclib_desc_t ) * slots );
   desc_b = (gclib_desc_t*)must_malloc( sizeof( gclib_desc_t ) * slots );
