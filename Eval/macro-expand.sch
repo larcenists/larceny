@@ -14,21 +14,14 @@
   global-syntactic-environment)
 
 
-; Used by the interpreter -- this will eventually change so that
-; the interpreter core can use the procedure documentation structure.
-
-(define (interpreter-macro-expand expr . rest)
-  (apply toplevel-macro-expand expr rest))
-
-
-; Exported to the user environment.
+; Used by the interpreter.
 ;
 ; The use of *all-macros* in the 'else' case is really wrong -- 
 ; it is technically an error.  However, it is correct for correct
 ; code, and it allows std-heap.sch to be used until we fix this
 ; properly.
 
-(define (toplevel-macro-expand expr . rest)
+(define (interpreter-macro-expand expr . rest)
   (let* ((env
 	  (if (null? rest) (interaction-environment) (car rest)))
 	 (syntax-env
@@ -41,10 +34,15 @@
        (lambda ()
 	 (set! global-syntactic-environment syntax-env))
        (lambda ()
-	 (make-readable
-	  (macro-expand expr)))
+	 (macro-expand expr))
        (lambda ()
 	 (set! global-syntactic-environment current-env))))))
+
+
+; Exported to the user environment.
+
+(define (toplevel-macro-expand expr . rest)
+  (make-readable (apply interpreter-macro-expand expr rest)))
 
 
 ; `Twobit-sort' is used by Twobit's macro expander.
