@@ -22,6 +22,10 @@
   (every? (lambda (x) (member x y))
           x))
 
+; To get around MacScheme's limit on the number of arguments.
+
+(define apply-union)
+
 (define union
   (letrec ((union2
             (lambda (x y)
@@ -29,6 +33,14 @@
                     ((member (car x) y)
                      (union2 (cdr x) y))
                     (else (union2 (cdr x) (cons (car x) y)))))))
+    
+    (set! apply-union
+          (lambda (sets)
+            (do ((sets sets (cdr sets))
+                 (result '() (union2 (car sets) result)))
+                ((null? sets)
+                 result))))
+    
     (lambda args
       (cond ((null? args) '())
             ((null? (cdr args)) (car args))

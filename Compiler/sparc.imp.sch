@@ -4,7 +4,7 @@
 ;
 ; Larceny -- target-specific information for Twobit's SPARC backend.
 ;
-; 18 December 1998 / wdc
+; 5 April 1999 / wdc
 
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
@@ -304,6 +304,7 @@
       
       (integer->char (,charcode?) ,integer->char)
       (char->integer (,char?) ,char->integer)
+      (zero? (,ratnum?) ,zero?)
       (< (,ratnum? ,ratnum?) ,<)
       (<= (,ratnum? ,ratnum?) ,<=)
       (= (,ratnum? ,ratnum?) ,=)

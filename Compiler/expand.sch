@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 29 March 1999
+; 5 April 1999
 
 ($$trace "expand")
 
@@ -267,6 +267,11 @@
              (alist (rename-vars formals))
              (env (syntactic-rename env alist))
              (body (cddr exp)))
+        
+        (do ((alist alist (cdr alist)))
+            ((null? alist))
+            (if (assq (caar alist) (cdr alist))
+                (m-error "Malformed parameter list" formals)))
         
         ; To simplify the run-time system, there's a limit on how many
         ; fixed arguments can be followed by a rest argument.

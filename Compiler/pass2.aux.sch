@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 5 April 1999
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
@@ -225,12 +225,12 @@
 
 (define (notepad-captured-variables np)
   (let ((nonescaping (notepad.nonescaping np)))
-    (apply union
-           (map (lambda (L)
-                  (if (memq L nonescaping)
-                      (lambda.G L)
-                      (lambda.F L)))
-                (notepad.lambdas np)))))
+    (apply-union
+     (map (lambda (L)
+            (if (memq L nonescaping)
+                (lambda.G L)
+                (lambda.F L)))
+          (notepad.lambdas np)))))
 
 ; Given a notepad, returns a list of free variables computed
 ; as the union of the immediate free variables with the free

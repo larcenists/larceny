@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 November 1998.
+; 5 April 1999.
 
 ; Procedure calls.
 
@@ -605,13 +605,13 @@
                       ((eq? keyword 'lambda)
                        (let ((env (append (make-null-terminated (cadr exp))
                                           env)))
-                         (apply union
-                                (map (lambda (x) (freevars2 x env))
-                                     (cddr exp)))))
+                         (apply-union
+                          (map (lambda (x) (freevars2 x env))
+                               (cddr exp)))))
                       ((memq keyword '(if set! begin))
-                       (apply union
-                              (map (lambda (x) (freevars2 x env))
-                                   (cdr exp))))
-                      (else (apply union
-                                   (map (lambda (x) (freevars2 x env))
-                                        exp))))))))
+                       (apply-union
+                        (map (lambda (x) (freevars2 x env))
+                             (cdr exp))))
+                      (else (apply-union
+                             (map (lambda (x) (freevars2 x env))
+                                  exp))))))))

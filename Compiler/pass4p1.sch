@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 18 December 1998
+; 5 April 1999
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.
@@ -330,7 +330,7 @@
 (define (cg-body output L target regs frame env tail?)
   (let* ((exp (lambda.body L))
          (defs (lambda.defs L))
-         (free (apply union
+         (free (apply-union
                       (map (lambda (def)
                              (let ((L (def.rhs def)))
                                (difference (lambda.F L)

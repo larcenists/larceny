@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 13 December 1998.
+; 5 April 1999.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
@@ -248,30 +248,33 @@
 ; may remain on the notepad when it shouldn't.
 
 (define (post-simplify-begin exp notepad)
-  ; (flatten exprs '()) returns the flattened exprs in reverse order.
-  (define (flatten exprs flattened)
-    (cond ((null? exprs) flattened)
-          ((begin? (car exprs))
-           (flatten (cdr exprs)
-                    (flatten (begin.exprs (car exprs)) flattened)))
-          (else (flatten (cdr exprs) (cons (car exprs) flattened)))))
-  (define (filter exprs filtered)
-    (if (null? exprs)
-        filtered
-        (let ((exp (car exprs)))
-          (cond ((constant? exp) (filter (cdr exprs) filtered))
-                ((variable? exp) (filter (cdr exprs) filtered))
-                ((lambda? exp)
-                 (notepad.lambdas-set!
-                  notepad
-                  (remq exp (notepad.lambdas notepad)))
-                 (filter (cdr exprs) filtered))
-                (else (filter (cdr exprs) (cons exp filtered)))))))
-  (let ((exprs (flatten (begin.exprs exp) '())))
-    (begin.exprs-set! exp (filter (cdr exprs) (list (car exprs))))
-    (if (null? (cdr (begin.exprs exp)))
-        (car (begin.exprs exp))
-        exp)))
+  (let ((unspecified-expression (make-unspecified)))
+    ; (flatten exprs '()) returns the flattened exprs in reverse order.
+    (define (flatten exprs flattened)
+      (cond ((null? exprs) flattened)
+            ((begin? (car exprs))
+             (flatten (cdr exprs)
+                      (flatten (begin.exprs (car exprs)) flattened)))
+            (else (flatten (cdr exprs) (cons (car exprs) flattened)))))
+    (define (filter exprs filtered)
+      (if (null? exprs)
+          filtered
+          (let ((exp (car exprs)))
+            (cond ((constant? exp) (filter (cdr exprs) filtered))
+                  ((variable? exp) (filter (cdr exprs) filtered))
+                  ((lambda? exp)
+                   (notepad.lambdas-set!
+                    notepad
+                    (remq exp (notepad.lambdas notepad)))
+                   (filter (cdr exprs) filtered))
+                  ((equal? exp unspecified-expression)
+                   (filter (cdr exprs) filtered))
+                  (else (filter (cdr exprs) (cons exp filtered)))))))
+    (let ((exprs (flatten (begin.exprs exp) '())))
+      (begin.exprs-set! exp (filter (cdr exprs) (list (car exprs))))
+      (if (null? (cdr (begin.exprs exp)))
+          (car (begin.exprs exp))
+          exp))))
 
 ; SIMPLIFY-CALL performs this transformation:
 ;

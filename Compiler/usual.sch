@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 12 March 1999
+; 5 April 1999
 
 ($$trace "usual")
 
@@ -108,6 +108,8 @@
 
 (define-syntax do
   (syntax-rules ()
+    ((do (?bindings0 ...) (?test) ?body0 ...)
+     (do (?bindings0 ...) (?test (if #f #f)) ?body0 ...))
     ((do (?bindings0 ...) ?clause0 ?body0 ...)
      (letrec-syntax
        ((do-aux
