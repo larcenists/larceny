@@ -42,7 +42,7 @@ static void invalid( char *s );
 static void usage( void );
 static void help( void );
 static void parse_options( int argc, char **argv, opt_t *opt );
-static int  getsize( char *s, unsigned *p );
+static int  getsize( char *s, int *p );
 void dump_options( opt_t *o );
 
 static bool quiet = 0;
@@ -163,7 +163,7 @@ char **argv;
 #endif
 
  end:
-  exit( 0 );
+  return 0;
 }
 
 
@@ -188,6 +188,7 @@ int panic( const char *fmt, ... )
   in_panic = 1;
   exit( 1 );
   /* Never returns. Return type is 'int' to facilitate an idiom. */
+  return 0;
 }
 
 int panic_abort( const char *fmt, ... )
@@ -205,6 +206,7 @@ int panic_abort( const char *fmt, ... )
   in_panic = 1;
   abort();
   /* Never returns. Return type is 'int' to facilitate an idiom. */
+  return 0;
 }
 
 void annoyingmsg( const char *fmt, ... )
@@ -263,13 +265,11 @@ void hardconsolemsg( const char *fmt, ... )
  * Command line parsing.
  */
 
-static int sizearg( char *str, int *argc, char ***argv, unsigned *var );
-static int hsizearg( char *str, int *argc, char ***argv, unsigned *var,
-		    int *loc );
+static int sizearg( char *str, int *argc, char ***argv, int *var );
+static int hsizearg( char *str, int *argc, char ***argv, int *var, int *loc );
 static int doublearg( char *str, int *argc, char ***argv, double *var );
-static int numbarg( char *str, int *argc, char ***argv, unsigned *var );
-static int hnumbarg( char *str, int *argc, char ***argv, unsigned *var,
-		    int *loc );
+static int numbarg( char *str, int *argc, char ***argv, int *var );
+static int hnumbarg( char *str, int *argc, char ***argv, int *var, int *loc );
 static void compute_np_parameters( opt_t *o, int suggested_size );
 
 static void init_generational( opt_t *o, int areas, char *name )
@@ -295,7 +295,7 @@ parse_options( int argc, char **argv, opt_t *o )
   int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
   double load_factor = DEFAULT_LOAD_FACTOR;
   int dynamic_max = 0;
-  unsigned val;
+  int val;
 
   while (--argc) {
     ++argv;
@@ -336,13 +336,13 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.is_generational_system = 1;
       o->gc_info.use_non_predictive_collector = 1;
     }
-    else if (sizearg( "-rhash", &argc, &argv, &o->gc_info.rhash ))
+    else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
-    else if (sizearg( "-ssb", &argc, &argv, &o->gc_info.ssb ))
+    else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
     else 
 #endif
-      if (numbarg( "-ticks", &argc, &argv, &o->timerval ))
+      if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
     else if (strcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
@@ -481,7 +481,7 @@ static void compute_np_parameters( opt_t *o, int suggested_size )
 }
 
 static int 
-sizearg( char *str, int *argc, char ***argv, unsigned *loc ) 
+sizearg( char *str, int *argc, char ***argv, int *loc ) 
 {
   if (strcmp( **argv, str ) == 0) {
     if (*argc == 1 || !getsize( *(*argv+1), loc )) invalid( str );
@@ -493,7 +493,7 @@ sizearg( char *str, int *argc, char ***argv, unsigned *loc )
 }
 
 static int 
-hsizearg( char *str, int *argc, char ***argv, unsigned *var, int *loc ) 
+hsizearg( char *str, int *argc, char ***argv, int *var, int *loc ) 
 {
   int l = strlen(str);
 
@@ -512,7 +512,7 @@ hsizearg( char *str, int *argc, char ***argv, unsigned *var, int *loc )
 }
 
 static int 
-numbarg( char *str, int *argc, char ***argv, unsigned *loc )
+numbarg( char *str, int *argc, char ***argv, int *loc )
 {
   if (strcmp( **argv, str ) == 0) {
     if (*argc == 1 || sscanf( *(*argv+1), "%d", loc ) != 1 ) invalid( str );
@@ -536,7 +536,7 @@ doublearg( char *str, int *argc, char ***argv, double *loc )
 }
 
 static int 
-hnumbarg( char *str, int *argc, char ***argv, unsigned *var, int *loc )
+hnumbarg( char *str, int *argc, char ***argv, int *var, int *loc )
 {
   int l = strlen(str);
 
@@ -554,7 +554,7 @@ hnumbarg( char *str, int *argc, char ***argv, unsigned *var, int *loc )
     return 0;
 }
 
-static int getsize( char *s, unsigned *p )
+static int getsize( char *s, int *p )
 {
   int r;
   char c, d;
@@ -715,6 +715,8 @@ int memfail( int code, char *fmt, ... )
   vfprintf( stderr, fmt, args );
   va_end( args );
   abort();
+  /* Never returns; return type is `int' to facilitate an idiom. */
+  return 0;
 }
 
 void conditional_abort( void )
