@@ -50,18 +50,9 @@
 (define error-handler
   (system-parameter "error-handler" 
                     (lambda args 
-                      ; FIXME: use PARAMETERIZE.
-                      (let ((length (print-length))
-                            (level  (print-level)))
-                        (dynamic-wind
-                         (lambda ()
-                           (print-length 7) ; OK to hardwire these since
-                           (print-level 7)) ;   debugger installs new handler.
-                         (lambda ()
-                           (decode-error args))
-                         (lambda ()
-                           (print-length length)
-                           (print-level level))))
+                      (parameterize ((print-length 7)
+                                     (print-level 7))
+                        (decode-error args))
                       (reset))))
 
 ; The reset handler is called by the RESET procedure.  It takes no arguments.
@@ -505,7 +496,7 @@
 ; FIXME: OS-dependent, belongs in its own file.
 
 (define (interpret-arithmetic-exception-code code)
-  (let ((os-name  (cdr (assq 'operating-system-name (system-features))))
+  (let ((os-name  (cdr (assq 'os-name (system-features))))
         (os-major (cdr (assq 'os-major-version (system-features)))))
     (if (string=? os-name "SunOS")
         (case os-major
