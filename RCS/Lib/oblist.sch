@@ -1,7 +1,7 @@
 ; Symbol table management for Larceny, based on same from MacScheme.
 ; Parts of this code is copyright 1991 lightship software
 ;
-; $Id$
+; $Id: oblist.sch,v 1.1 91/09/12 21:07:08 lth Exp Locker: lth $
 ;
 ; symbol?
 ; symbol->string
@@ -41,11 +41,9 @@
 
 ; These are for Larceny.
 
-(define symbol-typetag ???)
-
 (define (make-symbol-structure string hash props)
-  (let ((v (make-vector string hash props)))
-    (typetag-set! v symbol-typetag)
+  (let ((v (vector string hash props)))
+    (typetag-set! v sys$tag.symbol-typetag)
     v))
 
 (define (symbol.printname s) (vector-like-ref s 0))
@@ -79,15 +77,17 @@
 ;
 ; and for Larceny:
 ;
-;  (define (symbol? x) (and (vector-like? x) (= (typetag x) symbol-typetag)))
+;  (define (symbol? x) (and (vector-like? x) 
+;                           (= (typetag x) sys$tag.symbol-typetag)))
 
-(define (symbol? x) (symbol? x)))
+(define (symbol? x) (symbol? x))
 
 (define symbol->string
   (lambda (symbol)
     (if (symbol? symbol)
         (symbol.printname symbol)
-        (error "non-symbol -- symbol->string" symbol))))
+        (begin ; (break)
+	       (error "non-symbol -- symbol->string" symbol)))))
 
 ; given a string, return a new uninterned symbol.
 
@@ -95,7 +95,8 @@
   (lambda (string)
     (if (string? string)
 	(make-symbol-structure (string-copy string) (string-hash string) '())
-        (error "non-string -- make-symbol" string))))
+        (begin ; (break)
+	       (error "non-string -- make-symbol" string)))))
 
 ; with the following definitions,
 ;
@@ -134,87 +135,83 @@
 (define (install-symbols oblist tablesize)
   (let ((obvector (make-vector tablesize '())))
       
-    (letrec
-        (
+    ; given a string, interns it.
+
+    (define (intern s)
+;      (optimize speed)
+      (let ((h (string-hash s)))
+	(call-without-interrupts
+	 (lambda ()
+	   (or (search-bucket
+		s
+		h
+		(vector-ref obvector 
+			    (- h (* tablesize
+				    (quotient h tablesize)))))
+	       (install-symbol (make-symbol s) h obvector))))))
          
-	 ; given a string, interns it.
+    (define (search-bucket s h bucket)
+;      (optimize speed)
+      (if (null? bucket)
+	  #f
+	  (let ((symbol (car bucket)))
+	    (if (and (eq? h (symbol-hash symbol))
+		     (string=? s (symbol->string symbol)))
+		symbol
+		(search-bucket s h (cdr bucket))))))
          
-         (intern
-          (lambda (s)
-            (optimize speed)
-            (let ((h (string-hash s)))
-              (call-without-interrupts
-               (lambda ()
-                 (or (search-bucket
-                      s
-                      h
-                      (vector-ref obvector 
-                                  (- h (* tablesize
-                                          (quotient h tablesize)))))
-                     (install-symbol (make-symbol s) h obvector)))))))
+    ; given a symbol, adds it to the obvector, whether a symbol
+    ; with the same pname (or even the same symbol) is already
+    ; there or not.
          
-         (search-bucket
-          (lambda (s h bucket)
-            (optimize speed)
-            (if (null? bucket)
-                #f
-                (let ((symbol (car bucket)))
-                  (if (and (eq? h (symbol-hash symbol))
-                           (string=? s (symbol->string symbol)))
-                      symbol
-                      (search-bucket s h (cdr bucket)))))))
+    (define (install-symbol s h obvector)
+;      (optimize speed)
+      (let ((i (remainder h (vector-length obvector))))
+	(vector-set! obvector i (cons s (vector-ref obvector i)))
+	s))
          
-	 ; given a symbol, adds it to the obvector, whether a symbol
-	 ; with the same pname (or even the same symbol) is already
-	 ; there or not.
+    ; body of 'install-symbols'
+
+    (set! string->symbol (lambda (s) (intern s)))
          
-         (install-symbol
-          (lambda (s h obvector)
-            (optimize speed)
-            (let ((i (remainder h (vector-length obvector))))
-              (vector-set! obvector i (cons s (vector-ref obvector i)))
-              s)))
-         
-         )
+    ; Returns a list of all symbols in the obvector.
         
-      (set! string->symbol
-	    (lambda (s) (intern s)))
-         
-      ; Returns a list of all symbols in the obvector.
+    (set! namespace
+	  (lambda ()
+;	    (optimize space)
+	    (letrec ((loop
+		      (lambda (i l)
+			(if (< i 0)
+			    l
+			    (loop (- i 1)
+				  (append (vector-ref obvector i) l))))))
+	      (loop (- tablesize 1) '()))))
         
-      (set! namespace
-	    (lambda ()
-	      (optimize space)
-	      (letrec ((loop
-			(lambda (i l)
-			  (if (< i 0)
-			      l
-			      (loop (- i 1)
-				    (append (vector-ref obvector i) l))))))
-		(loop (- tablesize 1) '()))))
+    (set! namespace-set!
+	  (lambda (symbols new-tablesize)
+;	    (optimize space)
+	    (set! tablesize new-tablesize)
+	    (let ((v (make-vector tablesize '())))
+	      (for-each (lambda (s)
+			  (if (symbol? s)
+			      (install-symbol s (symbol-hash s) v)))
+			symbols)
+	      (set! obvector v)
+	      #t)))
         
-      (set! namespace-set!
-	    (lambda (symbols new-tablesize)
-	      (optimize space)
-	      (set! tablesize new-tablesize)
-	      (let ((v (make-vector tablesize '())))
-		(for-each (lambda (s)
-			    (if (symbol? s)
-				(install-symbol s (symbol-hash s) v)))
-			  symbols)
-		(set! obvector v)
-		#t)))
+    ; Initialize obvector
+    
+    (namespace-set! oblist tablesize)
+
+    ; Forget the oblist so the garbage collector can reclaim its storage.
+    ; (This is from the MacScheme code. Does it make sense at all?)
+
+    (set! oblist '())
+
+    ; This procedure now does not exist anymore.
+
+    (set! install-symbols #f)
         
-      ; Initialize obvector
-        
-      (namespace-set! oblist tablesize)
-      
-      ; Forget the oblist so the garbage collector can reclaim
-      ; its storage.
-        
-      (set! oblist '())
-        
-      (set! install-symbols #f)
-        
-      #t))))
+    #t))
+
 

@@ -1,11 +1,11 @@
 ; Print procedures for Larceny, based on same for MacScheme.
 ; Copyright 1991 Lightship Software
 ;
-; $Id$
+; $Id: print.sch,v 1.1 91/09/12 21:07:19 lth Exp Locker: lth $
 ;
 ; Differences from MacScheme version: 
-;  * printslashed now accepts both bytevectors and strings; bytevector elements
-;    are just cast to characters before use.
+;  * printslashed now accepts both bytevectors and strings; bytevector 
+;    elements are just cast to characters before use.
 ;  * printbytevector does not cast its argument to a string before passing 
 ;    it to printslashed.
 
@@ -73,7 +73,7 @@
       (lambda (x p slashify)
         (cond ((eq? x '())              (printstr "()" p))
               ((not x)                  (printstr "#f" p))
-              ((eq? x #!true)           (printstr "#t" p))
+              ((eq? x #t)               (printstr "#t" p))
               ((symbol? x)              (printstr (symbol->string x) p))
               ((number? x)              (printnumber x p))
               ((char? x)
@@ -93,7 +93,7 @@
               ((bytevector? x)          (printbytevector x p slashify))
               ((port? x)                (printport x p slashify))
               ((eof-object? x)          (printeof x p slashify))
-              ((eq? x #!unspecified)    (printstr "#!unspecified" p))
+              ((eq? x hash-bang-unspecified)    (printstr "#!unspecified" p))
               (else                     (printweird x p slashify)))))
      
      (printnumber
@@ -136,14 +136,11 @@
       (lambda (x p slashify)
         (printstr "#<EOF>" p)))
      
+     ; Probably not Larceny-compatible. FIXME.
+
      (printweird
       (lambda (x p slashify)
-        (printstr (string-append "#<WEIRD OBJECT "
-                                 (number->string (typetag x))
-                                 "@"
-                                 (number->string (typetag-set! x 0))
-                                 ">")
-                  p)))
+	(printstr "#<WEIRD OBJECT>" p)))
      
      (proc-id
       (lambda (x)
@@ -176,52 +173,59 @@
 
 (define **lowlevel** (list 0))   ; any unforgeable value
 
-(define **nonprinting-value** (string->symbol ""))
+; This one is a problem due to circularity in the initialization.
+;
+; (define **nonprinting-value** (string->symbol ""))
+
+(define **nonprinting-value** '())
   
 (define write
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (print x p #t)
-      (if (eq? p (current-output-port)) (flush-output p))
+      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 (define display
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (print x p #f)
-      (if (eq? p (current-output-port)) (flush-output p))
+      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 (define lowlevel-write
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (print x p **lowlevel**)
-      (if (eq? p (current-output-port)) (flush-output p))
+      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 (define newline
   (lambda rest
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (write-char #\newline p)
-      (if (eq? p (current-output-port)) (flush-output p))
+      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
-(define flush-output
-  (lambda (p)
-    (write-char #\page p)))
- 
- 
+; This is defined as "flush-output-port" in "schemeio.scm"; all references to
+; "flush-output" have been removed from the printer.
+;
+; (define flush-output
+;   (lambda (p)
+;     (write-char #\page p)))
+;  
+
 ; number->string is separate so it can be redefined when bignums and flonums
 ; are added later.
 ; The optional radix argument is ignored for now.
- 
-(define number->string
-  (lambda (n . format)
-    (letrec ((loop (lambda (n)                ; nonnegative n only
-                     (if (< n 10)
-                         (list (integer->char (+ (char->integer #\0) n)))
-                         (cons (integer->char (+ (char->integer #\0) (remainder n 10)))
-                               (loop (quotient n 10)))))))
-      (if (negative? n)
-          (list->string (cons #\- (reverse (loop (-- n)))))
-          (list->string (reverse (loop n)))))))
+;
+; (define number->string
+;  (lambda (n . format)
+;    (letrec ((loop (lambda (n)                ; nonnegative n only
+;                     (if (< n 10)
+;                         (list (integer->char (+ (char->integer #\0) n)))
+;                         (cons (integer->char (+ (char->integer #\0) (remainder n 10)))
+;                               (loop (quotient n 10)))))))
+;      (if (negative? n)
+;          (list->string (cons #\- (reverse (loop (-- n)))))
+;          (list->string (reverse (loop n)))))))

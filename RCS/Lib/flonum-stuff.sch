@@ -4,7 +4,7 @@
 ; Formats of flonums and bignums and operations used are all specific
 ; to Larceny.
 ;
-; $Id$
+; $Id: flonum-stuff.sch,v 1.1 92/01/19 16:42:56 lth Exp Locker: lth $
 ;
 ; Based on code from MacScheme. Copyright Lightship Software.
 ;
@@ -17,12 +17,18 @@
 ;
 ; See the documentation for details.
 
+(begin
+  (display "$RCSfile: flonum-stuff.sch,v$ $Revision: 1.1$")
+  (newline))
+
+; Is it a flonum?
+
+(define (flonum? x)
+  (and (bytevector-like? x)
+       (= (typetag x) sys$tag.flonum-typetag)))
+
 ; Rip out the fraction and stuff it into a bignum.
 ; The fraction is always positive.
-
-(begin
-  (display "$Id$")
-  (newline))
 
 (define float-significand
   (let ((two^n-1 (expt 2 52)))
@@ -43,7 +49,7 @@
         
 	; subtract hidden bit if x is denormalized
         
-	(typetag-set! n sys$bignum-typetag)
+	(typetag-set! n sys$tag.bignum-typetag)
 	(if (and (zero? (logand 127 (bytevector-like-ref x 4)))
 		 (zero? (logand -16 (bytevector-like-ref x 5))))
 	    (- n two^n-1)

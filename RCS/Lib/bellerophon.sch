@@ -1,13 +1,10 @@
 ; Copyright Lightship Software
 ;
-; $Id$
+; $Id: bellerophon.sch,v 1.1 92/01/19 16:42:29 lth Exp Locker: lth $
 ;
 ; A version of Algorithm Bellerophon for implementations
 ; of Scheme that support IEEE double precision arithmetic
 ; and exact integer arithmetic of unlimited precision.
-
-(begin (display "$Id$")
-       (newline))
 
 (define bellerophon
   
@@ -146,6 +143,7 @@
                                ((zero? (remainder q 2)) q)
                                (else (+ q 1)))
                          n)))
+      (display "in slow-ten-to-e") (newline)
       (if (negative? e)
           (loop3 1 (expt 10 (- e)) 0)
           (let ((10^e (expt 10 e)))
@@ -376,6 +374,7 @@
 ;            (- e (+ 1023 52)))))
 
 
+    (display "Yikes!") (newline)
     (set! ten^-216 (slow-ten-to-e -216))
     (set! ten^-108 (slow-ten-to-e -108))
     (set! ten^-54  (slow-ten-to-e -54))
@@ -385,4 +384,6 @@
     (set! ten^108  (slow-ten-to-e 108))
     (set! ten^216  (slow-ten-to-e 216))
     
-    bellerophon))
+    (begin (display "done") (newline)
+	   bellerophon)))
+

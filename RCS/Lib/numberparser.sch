@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id$
+; $Id: numberparser.sch,v 1.1 92/01/19 16:43:20 lth Exp Locker: lth $
 ;
 ;                                      16 April 1990
 ;
@@ -65,8 +65,11 @@
 ;       (lambda (l)
 ;         (list '- (list 'char->integer (cadr l)) '48)))
 
-(begin (display "$Id$")
+(begin (display "$Id: numberparser.sch,v 1.1 92/01/19 16:43:20 lth Exp Locker: lth $")
        (newline))
+
+(define (bellerophon . s)
+  (error "Bellerophon not included."))
 
 (define string->number)
 
@@ -86,11 +89,8 @@
 
     (define (parse-number input)
 ;      (optimize speed)
-      (display "In parse-number ") (write input) (newline)
       (let ((c (car input)))
         (cond ((decimal-digit? c)
-	       (display "decimal digit ") (display c) (newline)
-;	       (break)
                (parse-decimal (cdr input) (decimal-value c) 1))
               ((char=? c (ascii "-"))
                (parse-ureal (cdr input) #f 10 -1))
@@ -212,7 +212,6 @@
     
     (define (parse-decimal input m s)
 ;      (optimize speed)
-      (display "In parse-decimal") (newline)
       (if (null? input)
           (create-number 'e s m 1 0)
           (let ((c (car input)))
@@ -391,7 +390,6 @@
     
     (set! string->number
           (lambda (string . rest)
-	    (display "In string->number")
 ;            (optimize space)
             (let ((input (string->list string)))
               (cond ((null? rest)

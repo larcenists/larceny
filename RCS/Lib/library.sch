@@ -5,31 +5,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                                                              ;
-; Non-portable code.                                           ;
-;                                                              ;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; from ioprocs.sch
-
-(define current-input-port (lambda () @conin@))
-(define current-output-port (lambda () @conout@))
-
-(define @conin@
-  (typetag-set! #x01000000 #b00001))
-
-(define @conout@
-  (typetag-set! #x01000010 #b00001))
-
-; from syntax.sch (but completely rewritten)
-
-(define (eof-object? x)
-  (eq? x @eof@))
-
-(define @eof@
-  (typetag-set! #x00fffffd #b10101))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;                                                              ;
 ; Portable code.                                               ;
 ;                                                              ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,17 +75,13 @@
               (apply for-each0 (cons f (cons l1 rest))))))
   #t)
 
-; from strings.sch
-
-(define string-copy
-  (lambda (x)
-    (string-append x "")))
-
 ; from vector.sch
 
 (define vector
   (lambda l
-    (list->vector l)))
+    (let ((q (list->vector l)))
+      (break)
+      q)))
 
 (define list->vector
   (letrec ((loop
@@ -131,48 +102,11 @@
     (lambda (v)
       (loop v (- (vector-length v) 1) '()))))
 
-(define list->string
-  (letrec ((loop
-             (lambda (s i l)
-               (if (not (null? l))
-                   (begin (string-set! s i (car l))
-                          (loop s (+ i 1) (cdr l)))
-                   s))))
-    (lambda (l)
-      (loop (make-string (length l)) 0 l))))
-
-(define string->list
-  (lambda (s)
-    (map integer->char (bytevector->list (->bytevector s)))))
-
-(define string-append
-  (lambda args
-    (list->string (apply append (map string->list args)))))
- 
-(define list->bytevector
-  (letrec ((loop
-             (lambda (bv i l)
-               (if (not (null? l))
-                   (begin (bytevector-set! bv i (car l))
-                          (loop bv (+ i 1) (cdr l)))
-                   bv))))
-    (lambda (l)
-      (loop (make-bytevector (length l)) 0 l))))
- 
-(define bytevector->list
-  (letrec ((loop
-             (lambda (bv i l)
-               (if (< i 0)
-                   l
-                   (loop bv (- i 1) (cons (bytevector-ref bv i) l))))))
-    (lambda (bv)
-      (loop bv (- (bytevector-length bv) 1) '()))))
-
 ; from number.sch
 
-(define remainder
-  (lambda (n modulus)
-    (- n (* modulus (quotient n modulus)))))
+; (define remainder
+;   (lambda (n modulus)
+;     (- n (* modulus (quotient n modulus)))))
 
 ; from preds.sch (go figure!)
 
@@ -215,22 +149,6 @@
           (loop (cdr x) x)
           (null? x)))))
 
-(define string=?
-  (lambda (s1 s2)
-    (bytevector-equal? (->bytevector s1) (->bytevector s2))))
-
-(define bytevector-equal?
-  (letrec ((bv-equal-loop
-            (lambda (bv1 bv2 i)
-              (cond ((< i 0) #t)
-                    ((= (bytevector-ref bv1 i) (bytevector-ref bv2 i))
-                     (bv-equal-loop bv1 bv2 (- i 1)))
-                    (else #f)))))
-    (lambda (bv1 bv2)
-      (if (= (bytevector-length bv1) (bytevector-length bv2))
-          (bv-equal-loop bv1 bv2 (- (bytevector-length bv1) 1))
-          #f))))
-
 ; from misc.sch
 ; @raw-apply@ is written in mal (MacScheme assembly language)
 ; in another file.  It takes exactly two arguments and does
@@ -267,4 +185,8 @@
 
 (define error
   (lambda args
+    (display "error.") (newline)
+    (for-each (lambda (x) (display x) (display " ")) args)
+    (newline)
+    (display "entering debugger.") (newline)
     (debugvsm)))
