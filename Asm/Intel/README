@@ -1,5 +1,4 @@
-(Ignore the file i386asm.sch, it is old work-in-progress on a native
-in-system assembler.)
+Larceny NASM back-end.
 
 This directory contains an assembler (pass5p2-nasm.sch) for Larceny
 that generates macros for the x86 macro assembler NASM, in the same
@@ -15,32 +14,7 @@ Larceny infrastructure.
 Based on some experiments we can expect a 2x performance improvement.
 Code size is expected to drop, unknown by how much.
 
-This, too, is a work in progress.
+See Docs/HOWTO-I386 and Rts/Intel/README for more information.
 
-What is done:
- - pass5p2 generates code that looks right for fib.sch
- - the instruction macros are mostly written, certainly enough to
-   do some simple performance experiments (fib, odd/even)
- - there exists a load script, Util/nasm-unix.sch, and associated nbuild-script
- - the assembler support code works well enough to generate a .asm for fib.sch
-   that looks correct (but has not yet been run thru nasm :-)
- - the config system generates the right syntax for nasm
- - builds RTS with all the correct asm files (Makefile fixes)
- - assembles all the compiled files for the interpreter heap image
- - everything links!  (But it doesn't run, as many things are missing)
- - millicode hooks are written and complete (except for exception stuff)
-   but are untested
-
-What has yet to be done:
- - plenty of FIXMEs in Rts/Intel/i386-instr.asm
- - twobit needs to be set up with the right number of hardware registers
-
-Future ideas:
- - put most-used millicode procs at negative offsets from GLOBALS, so that
-   short offsets are generated in calling them.  This reduces code size.
- - nasm can generate .bin format files, ie, raw code.  We can use this to 
-   create a system with on-line compilation: just dump the code to an asm 
-   file in /tmp, assemble it to a .bin, and slurp the object code into a
-   code vector in the heap.  There should be very little extra work involved 
-   in getting this done, once the rest works.
- 
+(Ignore the file i386asm.sch, it is old work-in-progress on a native
+in-system assembler.)
