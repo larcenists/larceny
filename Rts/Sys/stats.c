@@ -661,9 +661,9 @@ static void add( word *hi, word *lo, int x )
 
 /* Dumping */
 
-static const char *dump_banner; /* defined below */
 static void dump_gen_stats( FILE *f, gen_memstat_t *gs );
 static void dump_remset_stats( FILE *f, remset_memstat_t *rs );
+static void stats_dump_state_now( FILE *f );
 
 bool stats_opendump( const char *filename )
 {
@@ -673,7 +673,8 @@ bool stats_opendump( const char *filename )
   stats_state.dump_file = fopen( filename, "w" );
 
   if (stats_state.dump_file) {
-    fprintf( stats_state.dump_file, dump_banner,
+    fprintf( stats_state.dump_file, 
+             "; RTS statistics, dumped by Larceny version %d.%d%s\n\n",
 	     larceny_major_version, 
 	     larceny_minor_version,
 	     larceny_version_qualifier );
@@ -693,29 +694,84 @@ void stats_closedump( void )
 
 void stats_dumpstate( void )
 {
-  FILE *f = stats_state.dump_file;
+  if (stats_state.dump_file != 0) {
+    stats_dump_state_now( stats_state.dump_file );
+    fprintf( stats_state.dump_file, "\n" );
+  }
+}
 
-  if (f == 0) return;
+void stats_dumpstate_stdout( void )
+{
+  stats_dump_state_now( stdout );
+}
 
-  fprintf( f, "(" );
+#define PRINT_DWORD( f, s, fld ) \
+  fprintf( f, "%lu %lu ", \
+           nativeuint( s->PASTE(fld,_hi) ), nativeuint( s->PASTE(fld,_lo) ) )
 
-  /* Print overall memory and GC information */
+#define PRINT_WORD( f, s, fld ) \
+  fprintf( f, "%lu ", nativeuint( s->fld ) )
+
+static void stats_dump_state_now( FILE *f )
+{
+  assert( f != 0 );
+
+  fprintf( f, "#(%d.%d ", larceny_major_version, larceny_minor_version );
+
+  { stat_time_t user, system, real;
+    unsigned minflt, majflt;
+
+    osdep_time_used( &real, &user, &system );
+    osdep_pagefaults( &majflt, &minflt );
+
+    fprintf( f, "#(system_overall %lu %lu %lu %lu %lu) ",
+             (unsigned long)(real.sec * 1000 + real.usec / 1000),
+             (unsigned long)(system.sec * 1000 + system.usec  / 1000),
+             (unsigned long)(user.sec * 1000 + user.usec / 1000),
+             (unsigned long)minflt,
+             (unsigned long)majflt );
+  }
+  
   { gc_memstat_t *s = &stats_state.gc_stats;
 
-    fprintf( f, "%lu %lu %lu %lu %lu %lu ",
-	     nativeuint( s->allocated_hi ),
-	     nativeuint( s->allocated_lo ),
-	     nativeuint( s->reclaimed_hi ),
-	     nativeuint( s->reclaimed_lo ),
-	     nativeuint( s->words_copied_hi ),
-	     nativeuint( s->words_copied_lo )
-	     );
+    fprintf( f, "#(gc_memstat_t " );
+    PRINT_DWORD( f, s, allocated );
+    PRINT_DWORD( f, s, reclaimed );
+    PRINT_DWORD( f, s, objects_copied );
+    PRINT_DWORD( f, s, words_copied );
+    PRINT_DWORD( f, s, objects_moved );
+    PRINT_DWORD( f, s, words_moved );
+    PRINT_WORD( f, s, np_k );
+    PRINT_WORD( f, s, np_j );
+    PRINT_WORD( f, s, full_collections );
+    PRINT_WORD( f, s, full_ms_collection );
+    PRINT_WORD( f, s, full_ms_collection_cpu );
+    PRINT_DWORD( f, s, full_objects_marked );
+    PRINT_DWORD( f, s, full_words_marked );
+    PRINT_DWORD( f, s, full_pointers_traced );
+    fprintf( f, ") " );
+  }
+
+  { gclib_memstat_t *s = &stats_state.gclib_stats;
+
+    fprintf( f, "#(gclib_memstat_t " );
+    PRINT_WORD( f, s, heap_allocated );
+    PRINT_WORD( f, s, heap_allocated_max );
+    PRINT_WORD( f, s, remset_allocated );
+    PRINT_WORD( f, s, remset_allocated_max );
+    PRINT_WORD( f, s, rts_allocated );
+    PRINT_WORD( f, s, rts_allocated_max );
+    PRINT_WORD( f, s, heap_fragmentation );
+    PRINT_WORD( f, s, heap_fragmentation_max );
+    PRINT_WORD( f, s, mem_allocated );
+    PRINT_WORD( f, s, mem_allocated_max );
+    fprintf( f, ") " );
   }
 
   /* Print generations information */
   { int i;
 
-    fprintf( f, "(" );
+    fprintf( f, "#(" );
     for ( i=0 ; i < stats_state.generations ; i++ )
       dump_gen_stats( f, &stats_state.gen_stats[i] );
     fprintf( f, ") " );
@@ -724,164 +780,110 @@ void stats_dumpstate( void )
   /* Print remembered sets information */
   { int i;
 
-    fprintf( f, "(" );
+    fprintf( f, "#(" );
     for ( i = 0 ; i < stats_state.remsets ; i++ )
       dump_remset_stats( f, &stats_state.remset_stats[i] );
     fprintf( f, ") " );
   }
 
-  /* Print stack information */
   { stack_memstat_t *s = &stats_state.stack_stats;
 
-    fprintf( f, "%lu %lu %lu %lu %lu %lu %lu ",
-	     nativeuint( s->frames_flushed_hi ), 
-	     nativeuint( s->frames_flushed_lo ),
-	     nativeuint( s->words_flushed_hi ),
-	     nativeuint( s->words_flushed_lo ),
-	     nativeuint( s->stacks_created ),
-	     nativeuint( s->frames_restored_hi ),
-	     nativeuint( s->frames_restored_lo ) );
-  }
-
-  /* Print overall heap information */
-  { gc_memstat_t *s1 = &stats_state.gc_stats;
-    gclib_memstat_t *s2 = &stats_state.gclib_stats;
-
-    fprintf( f, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu "
-	        "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu ",
-	     nativeuint( s2->heap_allocated ),
-	     nativeuint( s2->remset_allocated ),
-	     nativeuint( s2->rts_allocated ),
-	     nativeuint( s1->words_moved_hi ), 
-	     nativeuint( s1->words_moved_lo ),
-	     nativeuint( s2->heap_fragmentation ),
-	     nativeuint( s2->heap_allocated_max ),
-	     nativeuint( s2->remset_allocated_max ),
-	     nativeuint( s2->rts_allocated_max ),
-	     nativeuint( s2->heap_fragmentation_max ),
-	     nativeuint( s1->np_k ),
-	     nativeuint( s1->np_j ),
-	     nativeuint( s1->resets ),
-	     nativeuint( s1->repeats ),
-	     nativeuint( s1->full_collections ),
-	     nativeuint( s1->full_ms_collection ),
-	     nativeuint( s1->full_objects_marked_hi ),
-	     nativeuint( s1->full_objects_marked_lo ),
-	     nativeuint( s1->full_pointers_traced_hi ),
-	     nativeuint( s1->full_pointers_traced_lo ),
-	     nativeuint( s2->mem_allocated ),
-	     nativeuint( s2->mem_allocated_max )
-	     );
+    fprintf( f, "#(stack_memstat_t " );
+    PRINT_WORD( f, s, stacks_created );
+    PRINT_DWORD( f, s, words_flushed );
+    PRINT_DWORD( f, s, frames_flushed );
+    PRINT_DWORD( f, s, frames_restored );
+    fprintf( f, ") " );
   }
 
 #if defined(SIMULATE_NEW_BARRIER)
   { swb_memstat_t *s = &stats_state.swb_stats;
-    fprintf( f, "(swb . (%lu %lu %lu %lu %lu %lu))",
-	     nativeuint( s->array_assignments ),
-	     nativeuint( s->lhs_young_or_remembered ),
-	     nativeuint( s->rhs_constant ),
-	     nativeuint( s->cross_gen_check ),
-	     nativeuint( s->transactions ),
-	     nativeuint( s->total_assignments ) );
+
+    fprintf( f, "#(swb_memstat_t " );
+    PRINT_WORD( f, s, total_assignments );
+    PRINT_WORD( f, s, array_assignments );
+    PRINT_WORD( f, s, lhs_young_or_remembered );
+    PRINT_WORD( f, s, rhs_constant );
+    PRINT_WORD( f, s, cross_gen_check );
+    PRINT_WORD( f, s, transactions );
+    fprintf( f, ") " );
   }
+#else
+  fprintf( f, "#(swb_memstat_t 0 0 0 0 0 0) " );
 #endif
    
-  fprintf( f, ")\n" );
+  { gc_event_memstat_t *s = &stats_state.gc_event_stats;
+  
+    fprintf( f, "#(gc_event_memstat_t " );
+    PRINT_DWORD( f, s, gctime );
+    PRINT_DWORD( f, s, promtime );
+    PRINT_DWORD( f, s, free_unused );
+    PRINT_DWORD( f, s, root_scan_gc );
+    PRINT_DWORD( f, s, root_scan_prom );
+    PRINT_DWORD( f, s, los_sweep_gc );
+    PRINT_DWORD( f, s, los_sweep_prom );
+    PRINT_DWORD( f, s, remset_scan_gc );
+    PRINT_DWORD( f, s, remset_scan_prom );
+    PRINT_DWORD( f, s, tospace_scan_gc );
+    PRINT_DWORD( f, s, tospace_scan_prom );
+    PRINT_DWORD( f, s, reset_after_gc );
+    PRINT_DWORD( f, s, decrement_after_gc );
+    PRINT_DWORD( f, s, dof_remset_scan );
+    PRINT_DWORD( f, s, sweep_shadow );
+    PRINT_DWORD( f, s, msgc_mark );
+    PRINT_DWORD( f, s, sweep_dof_sets );
+    PRINT_DWORD( f, s, sweep_remset );
+    PRINT_DWORD( f, s, sweep_los );
+    PRINT_DWORD( f, s, assimilate_prom );
+    PRINT_DWORD( f, s, assimilate_gc );
+    PRINT_WORD( f, s, copied_by_gc );
+    PRINT_WORD( f, s, copied_by_prom );
+    PRINT_WORD( f, s, words_forwarded );
+    PRINT_WORD( f, s, ptrs_forwarded );
+    PRINT_WORD( f, s, gc_barrier_hit );
+    PRINT_WORD( f, s, remset_large_objs_scanned );
+    PRINT_WORD( f, s, remset_large_obj_words_scanned );
+    fprintf( f, ") " );
+  }
+  fprintf( f, ")" );
+  fflush( f );
 }
 
-static void dump_gen_stats( FILE *f, gen_memstat_t *gs )
+static void dump_gen_stats( FILE *f, gen_memstat_t *s )
 {
-  fprintf( f, "(%lu %lu %lu %lu %lu %lu %lu %lu %lu) ",
-	   nativeuint( gs->major_id ),
-	   nativeuint( gs->minor_id ),
-	   nativeuint( gs->target ),
-	   nativeuint( gs->allocated ),
-	   nativeuint( gs->used ),
-	   nativeuint( gs->promotions ),
-	   nativeuint( gs->collections ),
-	   nativeuint( gs->ms_promotion ),
-	   nativeuint( gs->ms_collection ) );
+  fprintf( f, "#(gen_memstat_t " );
+  PRINT_WORD( f, s, major_id );
+  PRINT_WORD( f, s, minor_id );
+  PRINT_WORD( f, s, target );
+  PRINT_WORD( f, s, allocated );
+  PRINT_WORD( f, s, used );
+  PRINT_WORD( f, s, promotions );
+  PRINT_WORD( f, s, collections );
+  PRINT_WORD( f, s, ms_promotion );
+  PRINT_WORD( f, s, ms_promotion_cpu );
+  PRINT_WORD( f, s, ms_collection );
+  PRINT_WORD( f, s, ms_collection_cpu );
+  fprintf( f, ") " );
 }
 
-static void dump_remset_stats( FILE *f, remset_memstat_t *rs )
+static void dump_remset_stats( FILE *f, remset_memstat_t *s )
 {
-  fprintf( f, "(%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu "
-	      "%lu %lu %lu %lu %lu %lu) ",
-	   nativeuint( rs->major_id ),
-	   nativeuint( rs->minor_id ),
-	   nativeuint( rs->allocated ),
-	   nativeuint( rs->max_allocated ),
-	   nativeuint( rs->used ),
-	   nativeuint( rs->live ),
-	   nativeuint( rs->recorded_hi ),
-	   nativeuint( rs->recorded_lo ),
-	   nativeuint( rs->removed_hi ),
-	   nativeuint( rs->removed_lo ),
-	   nativeuint( rs->objs_scanned_hi ),
-	   nativeuint( rs->objs_scanned_lo ),
-	   nativeuint( rs->words_scanned_hi ),
-	   nativeuint( rs->words_scanned_lo ),
-	   nativeuint( rs->ssb_recorded_hi ),
-	   nativeuint( rs->ssb_recorded_lo ),
-	   nativeuint( rs->cleared ),
-	   nativeuint( rs->scanned ),
-	   nativeuint( rs->compacted ) );
+  fprintf( f, "#(remset_memstat_t " );
+  PRINT_WORD( f, s, major_id );  
+  PRINT_WORD( f, s, minor_id );
+  PRINT_WORD( f, s, allocated );
+  PRINT_WORD( f, s, max_allocated );
+  PRINT_WORD( f, s, used );
+  PRINT_WORD( f, s, live );
+  PRINT_DWORD( f, s, ssb_recorded );
+  PRINT_DWORD( f, s, recorded );
+  PRINT_DWORD( f, s, objs_scanned );
+  PRINT_DWORD( f, s, words_scanned );
+  PRINT_DWORD( f, s, removed );
+  PRINT_WORD( f, s, cleared );
+  PRINT_WORD( f, s, scanned );
+  PRINT_WORD( f, s, compacted );
+  fprintf( f, ") " );
 }
-
-static const char *dump_banner =
-"; RTS statistics, dumped by Larceny version %d.%d%s\n"
-";\n"
-"; The output is an s-expression, one following each GC.  When an entry\n"
-"; is advertised as xxx-hi and xxx-lo, then the -hi is the high 29 bits\n"
-"; and the -lo is the low 29 bits of a 58-bit unsigned integer.\n"
-"; Times are in milliseconds, volumes and sizes are in words.\n"
-";\n"
-"; First some general data (running totals):\n"
-";\n"
-";  (words-allocated-hi words-allocated-lo\n"
-";   words-reclaimed-hi words-reclaimed-lo\n"
-";   words-copied-hi    words-copied-lo\n"
-";\n"
-"; Then follows a list of sublists of generation data, in no particular\n"
-"; order:\n"
-";\n"
-";   ((major-id minor-id target-size allocated-size used-size\n"
-";     promotions collections time-promotion time-collection) ...\n"
-";\n"
-"; Then follows a list of sublists of remembered set data, in no particular\n"
-"; order:\n"
-";\n"
-";   ((major-id minor-id allocated-size max-size used-size live-size\n"
-";     entries-recorded-hi entries-recorded-lo\n"
-";     entries-removed-hi entries-removed-lo\n"
-";     entries-scanned-hi entries-scanned-lo\n"
-";     object-words-scanned-hi object-words-scanned-lo\n"
-";     ssb-entries-recorded-hi ssb-entries-recorded-lo\n"
-";     times-cleared times-scanned times-compacted) ...)\n"
-";\n"
-"; Then follow data about the stack cache:\n"
-";\n"
-";   frames-flushed-hi frames-flushed-lo words-flushed-hi words-flushed-lo\n"
-";   stacks-created frames-restored-hi frames-restored-lo\n"
-";\n"
-"; Then there are more data about overall memory use:\n"
-";\n"
-";   words-allocated-heap words-allocated-remset words-allocated-rts-other\n"
-";   words-moved-hi words-moved-lo words-heap-fragmentation\n"
-";   words-heap-max words-remset-max words-rts-max words-fragmentation-max\n"
-";   np-k np-j dof-resets dof-repeats full-collections time-full-collections\n"
-";   full-objects-marked-hi full-objects-marked-lo\n"
-";   full-pointers-traced-hi full-objects-traced-lo\n"
-";   mem-allocated mem-allocated-max\n"
-";\n"
-"; The tail of the list is an association list, where the entries that\n"
-"; are dumped depend on how the system was compiled.  Each entry is a list\n"
-"; where the car is the tag and the cdr is a list of data, as shown.\n"
-";\n"
-"; Tag=`swb': simulated write barrier profile data\n;\n"
-";   (swb . (array-assignments\n"
-";           lhs-young-or-remembered rhs-constant not-cross-gen\n"
-";           array-transactions))\n"
-"\n";
 
 /* eof */
