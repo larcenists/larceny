@@ -316,6 +316,8 @@
     (environment-set! larc 'interpreted-procedure? interpreted-procedure?)
     (environment-set! larc 'interpreted-expression? interpreted-expression?)
     (environment-set! larc 'interpreted-primitive? interpreted-primitive?)
+    (environment-set! larc 'interpreted-expression-source 
+		      interpreted-expression-source)
 
     ;; i/o
 
@@ -479,6 +481,8 @@
     (environment-set! larc '**newline** **newline**) ; Who uses this???
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
+
+    (environment-set! larc 'bignum->flonum bignum->flonum)
 
     (set! *null-environment* null)
     (set! *r4rs-environment* r4rs)
