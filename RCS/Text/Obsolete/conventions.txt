@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: conventions.txt,v 1.4 91/06/24 14:45:52 lth Exp Locker: lth $
+; $Id: conventions.txt,v 1.5 91/06/25 21:33:27 lth Exp Locker: lth $
 
 		Calling Conventions and Register Usage
 				   
@@ -446,13 +446,11 @@ guarantee. The compiler will have to be somewhat sophisticated,
 anyway, to use the argument registers as temps.]
 
 Every millicode procedure requires that the return address is set up
-in register %o7 when the procedure is entered, and that the topmost
-continuation on the stack has information about the procedure that
-called the millicode procedure.  [It would not be unreasonable for the
-millicode to require the return address to be stored in the
-continuation, but using %o7 saves both one instruction and a store,
-and so is probably well worth it, even if it requires some (usually
-trivial) interface code for millicode that is written in C or Scheme.]
+in register %o7 when the procedure is entered, and that REG0 has a
+pointer to the procedure that called the millicode procedure.  [It
+would be unreasonable for the millicode to require the return address
+to be stored in the continuation, because the continuation may not
+exist.]
 
 To call a millicode procedure, then, we have the following code
 snippets. First, assumeing we're returning the the instruction
