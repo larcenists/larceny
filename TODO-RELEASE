@@ -5,47 +5,19 @@ The following items are _important_ to fix or include for the first
 release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
 
 
-Current task
-------------
-
-Signatures from Mitch on proposal sheet!
-
-
-To-do list
-----------
-
- - Copyright on pretty printer                [followup II sent to marc]
+[General tasks]
+ - Copyright on pretty printer   [Followup II sent to Marc around 12/2.]
  - Investigate stop+copy collector: larceny -stats and display-memstats
    only report one heap area, even with a split heap.  There should be
    two!  Either this is a bug in the reporting code or there's an RTS bug.
- - Move over more files from pre-0.36 directory
-	Experimental
-	???
- - A graph printer is highly desirable for including source code in compiled
-   files -- the unpreprocessed source code as emitted to the heap image
-   takes over twice the space of the fully-commented, fully-indented source 
-   files.  That's not adequate.
-
-
-Important Changes to announce
------------------------------
-
-Lib now has subdirectories.
-Make-larceny-heap has been renamed as make-sparc-heap.
-Removed backward-compatible names repl-eval-procedure, repl-display-procedure.
-nbuild is now build.
-Larceny is default host for build -- MUST have 'larceny' in path.
-larceny.bin, not larceny.
-sparc.heap, not larceny.heap.
-
-
-Tasks
------
 
 [New version of Twobit]
   * Hygienic macros.
     - In compiler.            [done]
     - In interpreter.
+      - Use macro expander
+      - Grab source code from macro expanded expression to use for
+        debug info.
     - In environments, somehow.
   * Must react to include-procedure-name, etc.
   * I don't understand why load-environment complains about every1? 
@@ -55,33 +27,15 @@ Tasks
     COMPILER has been loaded (see 'check' in load-env.sch).
 
 [Debugger]
-  * Interpreter integration.  It would be better if the interpreter
-    kept track of two pieces of debugging info: both the current
-    expression (which one would get from the summary, maybe) and
-    the current interpreted procedure, so that 'C' could print the
-    code for the entire procedure, not just the expression.  Debugger
-    need not change for this -- it's the interpreter that must be fixed.
-    [And while we're at it, WIBNI it kept track of the original source,
-     not the macro-expanded source?]
-    Wait for new pass1 and use its conventions.
+  * Interpreted procedures have two pieces of code: the procedure and
+    the expression.  Exploit this fact (the debugger handles this
+    currently, if the interpreter sets things up right).
 
-[SPARC assembler]  [Both]
-  * Test cases:
-
-    (and (unsafe-code) (write-barrier))             ; fast, generational
-    (and (not (unsafe-code)) (write-barrier))       ; safe, generational
-    (and (unsafe-code) (not (write-barrier)))       ; fast, stop+copy
-    (and (not (unsafe-code)) (not (write-barrier))) ; safe, stop+copy
-
-  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
-    Remaining tasks:
-      - optimize fx+ and fx- when it's possible to undo.
-      - fxquotient, fxremainder
-      - pass1 modifications (see the mentioned file)  [will]
-      - document it!  We have fx+, fx-, fx--, fx*, fxzero?, fxpositive?,
-        fxnegative?, fx=, fx<, fx<=, fx>, fx>=.
-      - more testing, but looks OK.
-
+[SPARC assembler]
+  * Fixnum-only arithmetic
+    - optimize fx+ and fx- when it's possible to undo.
+    - macro expander modifications (multi-argument, constant folding)
+    - more testing, but looks OK.
 
 [FFI]
   * Sundry bugs must be fixed (see the TODO file).
@@ -103,23 +57,37 @@ Tasks
       developing.html
       bdw.html
 
+[Testing]
+  * Test cases:
+    (and (unsafe-code) (write-barrier))             ; fast, generational
+    (and (not (unsafe-code)) (write-barrier))       ; safe, generational
+    (and (unsafe-code) (not (write-barrier)))       ; fast, stop+copy
+    (and (not (unsafe-code)) (not (write-barrier))) ; safe, stop+copy
+
 [Bugs]
   * Fix all BUGS with medium or high priority.
 
 [Misc]
+  * Must update compiler help file with new switches, change from
+    make-larceny-heap to make-sparc-heap.
   * Further use of nbuild-files in Lib/makefile.sch.
   * At release time: change home page.
   * Release procedure.
     - decide what's needed in a release, create shell script to strip or
       extract.
     - decide on test procedures.
-    - make sure that Build files are included in distribution (this is
-      required for a host-less build on a system that can't run the
-      precompiled binaries).
+    - make sure to do ( cd Rts; BUILD_HOST=chez make config ) before making 
+      the archive.
 
 
-If time permits
----------------
+If time permits (it won't)
+--------------------------
+
+[To-do]
+ - A graph printer is highly desirable for including source code in compiled
+   files -- the unpreprocessed source code as emitted to the heap image
+   takes over twice the space of the fully-commented, fully-indented source 
+   files.  That's not adequate.
 
 [Testing]
   * Clean up test suite in general -- include programs from the
@@ -140,6 +108,9 @@ If time permits
     costly to generate a character constant (2 instructions).  Still
     I expect most operations to work on operands in register, so the
     peephole optimizer will take care of it.
+  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
+    Remaining tasks:
+      - fxquotient, fxremainder
 
   * Peephole optimizations
       Unimplemented peephole operations
@@ -166,87 +137,3 @@ If time permits
 [Dev. env]
   * Would be possible to just have one procedure 'make-larceny-heap' that
     would build for the correct target.  This would be a real improvement.
-
-
-Tasks completed
----------------
-
-[New version of Twobit]
-  * Code generator.
-  * Bug fixes.
-
-[SPARC assembler]
-   * Redundant header load
-   * Use HW divide in millicode  [quotient only; some speedup seen]
-   * Peephole optimization extensions and bugfixes
-      reasonable names for the peepholed operations!
-        dresop2imm, etc -- use eg. 'reg/op2imm/setreg' instead
-        translate primitive names 'car' -> 'internal:car' in peephole opt.
-      boolean evaluation for control:
-        numeric comparisons
-        character comparisons
-        eq?
-        null?
-        eof-object?
-        fixnum?
-        char?
-      unimplemented peephole optimizations:
-        vector operations
-          vector-length
-          vector-ref    (also op2imm)
-          vector-set!
-        string operations
-          string-length
-          string-ref    (also op2imm)
-          string-set!
-        others
-          reg _; op2 set-car!,_ or set-cdr!,_, or cell-set!
-          global _ ; setreg _
-          reg ; setglbl _
-          const _ ; return (when _ fits in instr (sm. fixnum, bool, null))
-	  global _; invoke _            (remove redundant check)
-          global _; setrtn _; invoke _  (remove redundant check)
-          reg _ ; op1 --; setreg _ 
-          reg _ ; op1 --
-          op1 --; setreg _ 
-        misc
-          op2imm eq?,x   where x is #t, #f, (), fixnum [also for control]
-   * Unsafe-mode should turn off _all_ typechecking
-      lognot, logand, logior, logxor
-      char->integer
-      integer->char
-      make-bytevector
-      bytevector-fill!
-   * It's worthwhile to introduce millicode call for some primitive
-     exceptions, encoding the exception code (and possibly other arguments)
-     in the handler rather than passing them as arguments; this saves 
-     instructions at every call site.
-       invoke         -- no need for ex. code
-       global         -- cell is in ARGREG2, no need for ex. code
-       global/invoke  -- cell is in ARGREG2, no need for ex. code
-       argc           -- no need for ex. code or PROC pointer
-  * Needless code BLOAT!
-    - lsh, rshl, rsha both have two copies of error code -- fixed
-    - Inline CONS -- 5 instructions out-of-line, 13 in-line.
-      Results in about 19KB of extra code in the basic heap image,
-      i.e., 2.5KB per instruction we can squeeze from the in-line
-      version.  New code 8 instructions.
-  * Make-string should be a primitive.
-  * Shifts now check shift count.
-
-[Interpreter]  [Lars]
-  * Include debugging support on the level of compiled code (which is not
-    impressive, but better).
-
-[Libraries]
-  * Dynamic-wind must be made compatible with multiple values.
-    [This was already done!]
-  * Make run-benchmark compatible with Gambit-C:
-      (run-benchmark "name" iterations thunk result-tester)
-    Make the new version be compatible with both Gambit and Larceny
-    but print a warning if Larceny semantics are being used.
-
-[Development system]
-  * Clean up compile313.sch
-    - split compiler switches and assembler switches
-    - remove twobit-target-architecture, if possible
