@@ -1,0 +1,10 @@
+#!/bin/sh
+rm -f tmp.rewrite
+echo "(load \"/home/systems/lth/lib/rewrite.sch\")" >> tmp.rewrite
+# compatibility stuff
+echo "(define (unspecified) '(unspecified))" >> tmp.rewrite
+echo "(define gensym (let ((q gensym)) (lambda (x) (q))))" >> tmp.rewrite
+echo "(rewrite-file \"$1\" \"$1.rew\")" >> tmp.rewrite
+echo "(exit)" >> tmp.rewrite
+scheme tmp.rewrite | tail +4		# skips Chez drivel.
+rm tmp.rewrite
