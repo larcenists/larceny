@@ -992,17 +992,6 @@ HIGH PRIORITY BUGS: 136, 137, 159, 162.
 	\.text-extending-right|2) ((begin *) (begin .xunit|16) '0.5) \
 	\((begin *) (begin .yunit|19) ((begin -) (begin .i|4) '0.5)))
 
-155 v0.48 (2000-05-21 / lth)
-    Priority: medium
-    Category: DOCUMENTATION
-
-    MSIE 5.0 on the Macintosh does not display most documents in the
-    user manual correctly.  For example, in Low-level functionality
-    the first entry is displayed correctly but the remaining entries
-    are displayed indented relative to the first.  It could be a bug
-    in how MSIE renders <DL>...</DL> or it could be a bug in how
-    the Larceny pages uses the HTML.
-
 158 v0.48 (2000-05-17 / lth)
     Priority: medium
     Category: TWOBIT / user-friendliness
