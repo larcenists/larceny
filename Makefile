@@ -1,20 +1,19 @@
-# Emacs: please stick to -*- fundamental -*- mode, will you?
+# Emacs: just stick to -*- fundamental -*- mode, will you?
 #
-# Makefile for Larceny, version 0.23
+# Makefile for Larceny
+# $Id: Makefile,v 1.2 1995/08/01 04:36:02 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
 
-# It is important to keep the version number correct.
-VERSION=0.23
-
 # Directories
-RTS=rts-$(VERSION)
+RTS=Rts
 SYS=$(RTS)/Sys
 MACH=$(RTS)/Sparc
 BUILD=$(RTS)/Build
 ASM=Sparcasm
 LIB=Lib
+EVAL=Lib/Eval
 COMP=Compiler
 TEXT=Text
 
@@ -31,10 +30,10 @@ SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
 # These exist only in this file
-MISCFILES=CHGLOG BUGS WISHLIST Makefile nbuild larceny.1 \
+MISCFILES=COPYRIGHTS CHGLOG Makefile nbuild larceny.1 \
 	loadcompiler.sch rewrite
 ASMFILES=$(ASM)/*.sch
-LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(LIB)/Eval/*.sch
+LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez.*.h
 COMPFILES=$(COMP)/*.sch
 TEXTFILES=$(TEXT)/*.tex
@@ -68,39 +67,41 @@ default:
 	@echo "               gsgc and scgc heaps."
 
 setup:
-	rm -f larceny exlarceny sclarceny Rts Build
-	ln -s Rts/larceny
-	ln -s Rts/exlarceny
-	ln -s Rts/sclarceny
-	ln -s $(RTS) Rts
-	ln -s $(RTS)/Build Build
-	(cd Rts ; $(MAKE) setup)
+	rm -f larceny exlarceny sclarceny Build
+	ln -s $(RTS)/larceny
+	ln -s $(RTS)/exlarceny
+	ln -s $(RTS)/sclarceny
+	ln -s $(RTS)/Build
+	(cd $(RTS) ; $(MAKE) setup)
 	$(MAKE) chezstuff
 
-larceny: 
-	(cd $(RTS) ; $(MAKE) VERSION=$(VERSION) larceny)
+larceny: target_larceny
+target_larceny:
+	( cd $(RTS) ; $(MAKE) larceny )
 
-sclarceny:
-	(cd $(RTS) ; $(MAKE) VERSION=$(VERSION) sclarceny)
+sclarceny: target_sclarceny
+target_sclarceny:
+	( cd $(RTS) ; $(MAKE) sclarceny )
 
-exlarceny:
-	(cd $(RTS) ; $(MAKE) VERSION=$(VERSION) exlarceny)
+exlarceny: target_exlarceny
+target_exlarceny:
+	( cd $(RTS) ; $(MAKE) exlarceny )
 
 clean:
-	(cd $(RTS) ; $(MAKE) clean)
+	( cd $(RTS) ; $(MAKE) clean )
 	rm -f *.map
 
 lopclean:
-	rm -f $(LIB)/*.lop $(LIB)/Eval/*.lop
+	rm -f $(LIB)/*.lop $(EVAL)/*.lop
 
 libclean:
 	rm -f $(LIB)/*.lap $(LIB)/*.lop 
-	rm -f $(LIB)/Eval/*.lap $(LIB)/Eval/*.lop
+	rm -f $(EVAL)/*.lap $(EVAL)/*.lop
 
 realclean: clean libclean
-	rm -f larceny sclarceny exlarceny Build Rts
+	rm -f larceny sclarceny exlarceny Build
 	rm -f Chez/*.o
-	(cd $(RTS) ; $(MAKE) realclean)
+	( cd $(RTS) ; $(MAKE) realclean )
 
 rtstar:
 	tar cvf larceny-rts.tar $(RTSFILES)
@@ -115,11 +116,11 @@ bigtar:
 	compress larceny-all.tar
 
 Build/schdefs.h:
-	( cd Rts ; $(MAKE) Build/schdefs.h )
+	@( cd $(RTS) ; $(MAKE) Build/schdefs.h )
 
 # For Chez-hosted system
 
 chezstuff: 
-	(cd Chez ; $(CC) -c bitpattern.c mtime.c)
+	( cd Chez ; $(CC) -c bitpattern.c mtime.c )
 
 # eof

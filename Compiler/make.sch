@@ -1,6 +1,6 @@
 ; -*- Scheme -*-
 ;
-; $Id: make.sch,v 1.3 1992/06/10 09:05:07 lth Exp lth $
+; $Id: make.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
 ;
 ; DESCRIPTION
 ;   A "make" facility for Chez Scheme.

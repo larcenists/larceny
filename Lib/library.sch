@@ -41,6 +41,8 @@
 (set! cddddr (lambda (x) (cdr (cdr (cdr (cdr x))))))
  
 (set! list (lambda x x))
+
+(set! %list list)
  
 ; from control.sch
 
@@ -75,6 +77,26 @@
               (apply for-each0 (cons f (cons l1 rest))))))
   #t)
 
+; Used by 'delay'.
+
+(define %make-promise
+  (lambda (proc)
+    (let ((result-ready? #f)
+	  (result        #f))
+      (lambda ()
+	(if result-ready?
+	    result
+	    (let ((x (proc)))
+	      (if result-ready?
+		  result
+		  (begin (set! result-ready? #t)
+			 (set! result x)
+			 result))))))))
+
+(define force
+  (lambda (proc)
+    (proc)))
+
 ; from vector.sch
 
 (define vector
@@ -92,6 +114,7 @@
   (lambda (l)
     (sys$partial-list->vector l (length l))))
 
+(define %list->vector list->vector)
 
 (define vector->list
   (letrec ((loop
@@ -101,6 +124,14 @@
                    (loop v (- i 1) (cons (vector-ref v i) l))))))
     (lambda (v)
       (loop v (- (vector-length v) 1) '()))))
+
+(define (vector-fill! v o)
+  (define (loop k)
+    (if (< k 0)
+	#t
+	(begin (vector-set! v k o)
+	       (loop (- k 1)))))
+  (loop (- (vector-length v) 1)))
 
 ; from number.sch
 
@@ -148,11 +179,14 @@
     (thunk)))
 
 ; from error.sch (but completely rewritten!)
+; Any reasonable heap would override this.
 
 (define error
   (lambda args
     (display "error.") (newline)
     (for-each (lambda (x) (display x) (display " ")) args)
     (newline)
-    (display "entering debugger.") (newline)
-    (debugvsm)))
+;    (display "entering debugger.") (newline)
+;    (debugvsm)
+    (display "exiting.") (newline)
+    (exit)))

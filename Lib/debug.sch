@@ -1,6 +1,6 @@
 ; Bits and pieces of the Larceny debugger
 ;
-; $Id: debug.sch,v 1.2 1992/05/15 22:18:00 lth Exp $
+; $Id: debug.sch,v 1.1 1995/08/01 04:45:56 lth Exp lth $
 
 ; Called by the exception handler for undefined globals.
 ;
@@ -38,3 +38,32 @@
 
   (display "Enter ? for help.") (newline)
   (loop))
+
+; simple, slow trace facility
+
+(define sys$enabled #f)
+(define sys$traces '())
+
+(define (sys$tracectl type)
+  (cond ((eq? type 'get)
+	 sys$traces)
+	((eq? type 'start)
+	 (set! sys$enabled #t))
+	((eq? type 'stop)
+	 (set! sys$enabled #f))
+	((eq? type 'clear)
+	 (set! sys$traces '()))
+	(else
+	 (error "sys$tracectl: unknown: " type))))
+
+(define (sys$trace item)
+  (if sys$enabled
+      (let* ((probe (assq item sys$traces))
+	     (i     (if probe
+			probe
+			(let ((p (cons item 0)))
+			  (set! sys$traces (cons p sys$traces))
+			  p))))
+	(set-cdr! i (+ (cdr i) 1)))))
+
+; eof

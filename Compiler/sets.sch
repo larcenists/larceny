@@ -1,83 +1,66 @@
-; Standard operations on finite sets.
+; Copyright 1991 Wiliam Clinger.
 ;
-; $Id: sets.sch,v 1.2 92/02/10 03:36:55 lth Exp $
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful noncommercial purpose, and to redistribute
+; this software is granted subject to the restriction that all copies
+; made of this software must include this copyright notice in full.
+; 
+; I also request that you send me a copy of any improvements that you
+; make to this software so that they may be incorporated within it to
+; the benefit of the Scheme community.
 ;
-; Definition
-;   Sets are known to be represented as lists, and the empty set is 
-;   represented as the empty list, but nothing else is know.
-;
-; Operations
-;   union
-;   intersection
-;   difference
-;   adjoin
-;   set-equal?
-;
-; Implementation
-;   The lists are kept unsorted; the implementation is trivial.
+; Sets represented as lists.
 
-; (union set ...)  -->  set
+(define (empty-set) '())
 
-(define (union . b)
+(define (empty-set? x) (null? x))
 
-  (define (simple-union a b)
-    (let loop ((s b) (a a))
-      (cond ((null? a)
-	     s)
-	    ((not (member (car a) b))
-	     (loop (cons (car a) s) (cdr a)))
-	    (else
-	     (loop s (cdr a))))))
+(define (make-set x)
+  (define (loop x y)
+    (cond ((null? x) y)
+          ((member (car x) y) (loop (cdr x) y))
+          (else (loop (cdr x) (cons (car x) y)))))
+  (loop x '()))
 
-  (let loop ((a '()) (b b))
-    (if (null? b)
-	a
-	(loop (simple-union a (car b)) (cdr b)))))
-      
+(define (set-equal? x y)
+  (and (subset? x y) (subset? y x)))
 
-; (intersection set ...)  -->  set
+(define (subset? x y)
+  (every? (lambda (x) (member x y))
+          x))
 
-(define (intersection . b)
+(define union
+  (letrec ((union2
+            (lambda (x y)
+              (cond ((null? x) y)
+                    ((member (car x) y)
+                     (union2 (cdr x) y))
+                    (else (union2 (cdr x) (cons (car x) y)))))))
+    (lambda args
+      (cond ((null? args) '())
+            ((null? (cdr args)) (car args))
+            ((null? (cddr args)) (union2 (car args) (cadr args)))
+            (else (union2 (union2 (car args)
+                                  (cadr args))
+                          (apply union (cddr args))))))))
 
-  (define (simple-intersection a b)
-    (let loop ((s '()) (a a))
-      (cond ((null? a)
-	     s)
-	    ((member (car a) b)
-	     (loop (cons (car a) s) (cdr a)))
-	    (else
-	     (loop s (cdr a))))))
+(define intersection
+  (letrec ((intersection2
+            (lambda (x y)
+              (cond ((null? x) '())
+                    ((member (car x) y)
+                     (cons (car x) (intersection2 (cdr x) y)))
+                    (else (intersection2 (cdr x) y))))))
+    (lambda args
+      (cond ((null? args) '())
+            ((null? (cdr args)) (car args))
+            ((null? (cddr args)) (intersection2 (car args) (cadr args)))
+            (else (intersection2 (intersection2 (car args)
+                                                (cadr args))
+                                 (apply intersection (cddr args))))))))
 
-  (if (null? b)
-      '()
-      (let loop ((a (car b)) (b (cdr b)))
-	(if (null? b)
-	    a
-	    (loop (simple-intersection a (car b)) (cdr b))))))
-
-
-; (difference set set)  -->  set
-
-(define (difference a b)
-  (let loop ((s '()) (a a))
-    (cond ((null? a)
-	   s)
-	  ((member (car a) b)
-	   (loop s (cdr a)))
-	  (else
-	   (loop (cons (car a) s) (cdr a))))))
-
-; (adjoin obj set)   -->  set
-
-(define (adjoin a b)
-  (if (member a b)
-      b
-      (cons a b)))
-
-; (set-equal? set set)   -->  boolean
-
-(define (set-equal? a b)
-  (and (null? (difference a b))
-       (null? (difference b a))))
-
-; eof
+(define (difference x y)
+  (cond ((null? x) '())
+        ((member (car x) y)
+         (difference (cdr x) y))
+        (else (cons (car x) (difference (cdr x) y)))))

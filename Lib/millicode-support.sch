@@ -40,27 +40,29 @@
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
 ; Identity operations are handled by the millicode.
-; We have to do is to handle the cases flonum->rational and compnum->rectnum.
+; We have to handle the cases flonum->rational and compnum->rectnum.
 
 (define (generic-inexact->exact a)
   (cond ((flonum? a)
-	 (flonum->integer a))
+	 (if (integer? a)
+	     (flonum->integer a)
+	     (flonum->ratnum a)))
 	((compnum? a)
-	 (make-rectangular (flonum->integer (real-part a))
-			   (flonum->integer (imag-part a))))
-	(else ???)))
+	 (make-rectangular (inexact->exact (real-part a))
+			   (inexact->exact (imag-part a))))
+	(else
+	 (error "generic-inexact->exact: internal error: " a))))
 
 (define (heavy-quotient a b)
   (cond ((and (bignum? a) (bignum? b))
 	 (bignum-quotient a b))
 	((and (integer? a) (integer? b))
-	 (let ((a (cond ((flonum? a) (inexact->exact a))
-			((compnum? a) (inexact->exact (real-part a)))
-			(else a)))
-	       (b (cond ((flonum? b) (inexact->exact b))
-			((compnum? b) (inexact->exact (real-part b)))
-			(else b))))
-	   (contagion a b quotient)))
+	 (cond ((and (flonum? a) (flonum? b))
+		(truncate (/ a b)))
+	       ((and (compnum? a) (compnum? b))
+		(truncate (/ (real-part a) (real-part b))))
+	       (else
+		(contagion a b quotient))))
 	(else
 	 (error "quotient: arguments must be integers: " a b))))
 
@@ -68,13 +70,7 @@
   (cond ((and (bignum? a) (bignum? b))
 	 (bignum-remainder a b))
 	((and (integer? a) (integer? b))
-	 (let ((a (cond ((flonum? a) (inexact->exact a))
-			((compnum? a) (inexact->exact (real-part a)))
-			(else a)))
-	       (b (cond ((flonum? b) (inexact->exact b))
-			((compnum? b) (inexact->exact (real-part b)))
-			(else b))))
-	   (contagion a b remainder)))
+	 (- a (* (quotient a b) b)))
 	(else
 	 (error "remainder: arguments must be integers: " a b))))
 
@@ -142,8 +138,8 @@
 		   ratnum<=?
 		   ratnum>?
 		   ratnum>=?		; loc 40
-		   #f
-		   #f
+		   ratnum-round
+		   ratnum-truncate
 		   #f
 		   #f
 		   #f
@@ -178,7 +174,7 @@
 		   fixnum2ratnum-div
 		   heavy-quotient
 		   heavy-remainder
-		   heavy-modulo
+		   #f ; heavy-modulo ; no longer in millicode
 		   =
 		   <
 		   <=			; loc 80

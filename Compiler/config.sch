@@ -223,7 +223,7 @@
 	       (loop (read inp) i)))
 	    ((define-mproc? item)
 	     (display "	b	" table-file)
-	     (display (list-ref item 4) table-file)
+	     (display (extname (list-ref item 4)) table-file)
 	     (newline table-file)
 	     (display "	nop" table-file)
 	     (newline table-file)
@@ -253,10 +253,11 @@
     (delete-file (cadr item))
     (set! table-file (open-output-file (cadr item)))
     (display (cadr comments) table-file) (newline table-file)
+    (display "#include \"asmmacro.h\"" table-file) (newline table-file)
     (display "	.seg	\"data\"" table-file) (newline table-file)
-    (display "	.global	_globals" table-file) (newline table-file)
+    (display "	.global	EXTNAME(globals)" table-file) (newline table-file)
     (display "	.align 8" table-file) (newline table-file)
-    (display "_globals:" table-file) (newline table-file)
+    (display "EXTNAME(globals):" table-file) (newline table-file)
     (set! table-counter 0)
     #t)
 
@@ -368,3 +369,8 @@
     (if table-file (close-output-port table-file)))
 
   (for-each run-configure argv))
+
+(define (extname str)
+  (string-append "EXTNAME(" str ")"))
+
+; eof

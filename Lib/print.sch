@@ -91,8 +91,8 @@
                       (print (vector->list x) p slashify)))
               ((procedure? x)           (printprocedure x p slashify))
               ((bytevector? x)          (printbytevector x p slashify))
-              ((port? x)                (printport x p slashify))
               ((eof-object? x)          (printeof x p slashify))
+              ((port? x)                (printport x p slashify))
               ((eq? x (unspecified))    (printstr "#!unspecified" p))
               (else                     (printweird x p slashify)))))
      
@@ -130,7 +130,12 @@
      
      (printport
       (lambda (x p slashify)
-        (printstr "#<PORT>" p)))
+        (printstr (string-append "#<" (if (input-port? x)
+					  "INPUT PORT "
+					  "OUTPUT PORT ")
+				 (port-name x)
+				 ">")
+		  p)))
      
      (printeof
       (lambda (x p slashify)

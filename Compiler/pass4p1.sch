@@ -1,7 +1,9 @@
-; Copyright 1991 Lightship Software, Incorporated.
+; Copyright 1991 William Clinger
 ;
-; Fourth pass of the Scheme 313 compiler:
-;   byte code generation.
+; 26 May 1995
+;
+; Fourth pass of the Twobit compiler:
+;   code generation for the MacScheme machine.
 ;
 ; This pass operates on input expressions described by the
 ; following grammar and the invariants that follow it.
@@ -10,11 +12,11 @@
 ;
 ; L  -->  (lambda (I_1 ...)
 ;           (begin D ...)
-;           (quote <info>)
+;           (quote (R F G <decls> <doc>)
 ;           E)
 ;      |  (lambda (I_1 ... . I_rest)
 ;           (begin D ...)
-;           (quote <info>)
+;           (quote (R F G <decls> <doc>))
 ;           E)
 ; D  -->  (define I L)
 ; E  -->  (quote K)                        ; constants
@@ -26,9 +28,9 @@
 ;      |  (begin E0 E1 E2 ...)             ; sequential expressions
 ; I  -->  <identifier>
 ;
-; <info>  -->  (T F)
-; T  -->  <see below>
+; R  -->  ((I <references> <assignments> <calls>) ...)
 ; F  -->  (I ...)
+; G  -->  (I ...)
 ;
 ; Invariants that hold for the input
 ;   *  There are no assignments except to global variables.
@@ -36,673 +38,665 @@
 ;      side of the internal definition is a lambda expression and I
 ;      is referenced only in the procedure position of a call.
 ;   *  Every procedure defined by an internal definition takes a
-;      fixed number of arguments.  (Not implemented yet!!!!!)
+;      fixed number of arguments.
 ;   *  Every call to a procedure defined by an internal definition
-;      passes the correct number of arguments.  (Not implemented yet!!!!!)
+;      passes the correct number of arguments.
 ;   *  For each lambda expression, the associated F is a list of all
 ;      the identifiers that occur free in the body of that lambda
 ;      expression, and possibly a few extra identifiers that were
 ;      once free but have been removed by optimization.
+;   *  For each lambda expression, the associated G is a subset of F
+;      that contains every identifier that occurs free within some
+;      inner lambda expression that escapes, and possibly a few that
+;      don't.  (Assignment-elimination does not calculate G exactly.)
 ;   *  Variables named IGNORED are neither referenced nor assigned.
-;   *  The T field is garbage or can be ignored.
+;
+; Stack frames.
+; The assembler ignores instructions of the following forms:
+; 
+;         save    -1
+;         restore -1
+;         pop     -1
+; 
+; A "save -1" instruction is generated:
+; 
+;     *  at the beginning of each lambda body
+;     *  at the beginning of the code for each arm of a conditional,
+;        provided:
+;          the conditional is in a tail position
+;          the frame size is -1 after the test code has been generated
+; 
+; The operand of a save instruction, and the operands of its matching
+; restore and pop instructions, are side effected when a non-tail call
+; is compiled or when a frame temporary is allocated.
+; 
+; The code generated to return from a procedure is
+; 
+;         pop     n
+;         return
+; 
+; The code generated for a tail call is
+; 
+;         pop     n
+;         invoke  ...
+
 
 (define (pass4 exp integrable)
   (set! cg-label-counter 1000)
-  (cg-make-linear (cg0 exp (cgenv-initial integrable) #t)))
+  (let ((output (make-assembly-stream))
+        (frame (cgframe-initial)))
+    (gen-save! output frame)
+    (cg0 output
+         exp
+         'result
+         (cgreg-initial)
+         frame
+         (cgenv-initial integrable)
+         #t)
+    (assembly-stream-code output)))
 
-(define (idisplay x)
-  (display x) 
-  (newline))
+; Given:
+;    an assembly stream into which instructions should be emitted
+;    an expression
+;    the target register
+;      ('result, a register number, or '#f; tail position implies 'result)
+;    a register environment [cgreg]
+;    a stack-frame environment [cgframe]
+;      contains size of frame, current top of frame
+;    a compile-time environment [cgenv]
+;    a flag indicating whether the expression is in tail position
+; Returns:
+;    the target register ('result or a register number)
+; Side effects:
+;    may increase the size of the stack frame
+;    writes instructions to the assembly stream
 
-
-; Given an expression, a compile-time environment, and a flag
-; indicating whether the expression is in tail-recursive position,
-; returns a tree of MacScheme assembly instructions in reverse order.
-
-(define (cg0 exp env tail?)
+(define (cg0 output exp target regs frame env tail?)
   (case (car exp)
-    ((quote)    (cg-return (cg-ops (cg-op $const (constant.value exp)))
-                           tail?))
-    ((lambda)   (cg-return (cg-lambda exp env) tail?))
-    ((set!)     (cg-return (cg-linearize
-                            (cg0 (assignment.rhs exp) env #f)
-                            (cg-ops (cg-op $setglbl (assignment.lhs exp))))
-                           tail?))
-    ((if)       (cg-if exp env tail?))
+    ((quote)    (gen! output $const (constant.value exp))
+                (if tail?
+                    (begin (gen-pop! output frame)
+                           (gen! output $return)
+                           'result)
+                    (cg-move output 'result target)))
+    ((lambda)   (cg-lambda output exp regs frame env)
+                (if tail?
+                    (begin (gen-pop! output frame)
+                           (gen! output $return)
+                           'result)
+                    (cg-move output 'result target)))
+    ((set!)     (cg0 output (assignment.rhs exp) 'result regs frame env #f)
+                (gen! output $setglbl (assignment.lhs exp))
+                (if tail?
+                    (begin (gen-pop! output frame)
+                           (gen! output $return)
+                           'result)
+                    (cg-move output 'result target)))
+    ((if)       (cg-if output exp target regs frame env tail?))
     ((begin)    (if (variable? exp)
-                    (cg-variable exp env tail?)
-                    (cg-sequential exp env tail?)))
-    (else       (cg-call exp env tail?))))
+                    (cg-variable output exp target regs frame env tail?)
+                    (cg-sequential output exp target regs frame env tail?)))
+    (else       (cg-call output exp target regs frame env tail?))))
 
 ; For the moment a lambda expression will close over all
 ; live registers, regardless of whether the registers contain
 ; variables or temporaries and regardless of whether the
 ; variables occur free in the lambda expression.
+;
+; Returns: nothing.
 
-(define (cg-lambda exp env)
+(define (cg-lambda output exp regs frame env)
   (let* ((args (lambda.args exp))
          (vars (make-null-terminated args))
-         (newenv (cgenv-pop
-                  (cgenv-extend env (cgenv-regvars env) '())
-                  (cgenv-tos env)))
-         (code (cg-linearize
-                (cg-ops (cg-op $.proc)
-                        (if (list? args)
-                            (cg-op $args= (length args))
-                            (cg-op $args>= (- (length vars) 1))))
-                (cg-known-lambda exp newenv))))
-    (cg-ops (cg-op $lambda
-                   (cg-make-linear code)
-                   (cgenv-tos env)
-                   (cgenv-regvars env)))))
+         (regvars (cgreg-vars regs))
+         (newenv (cgenv-extend env regvars '()))
+         (newoutput (make-assembly-stream)))
+    (gen! newoutput $.proc)
+    (if (list? args)
+        (gen! newoutput $args= (length args))
+        (gen! newoutput $args>= (- (length vars) 1)))
+    (cg-known-lambda newoutput exp newenv)
+    (gen! output
+          $lambda
+          (assembly-stream-code newoutput)
+          (cgreg-tos regs) regvars)))
 
 ; Lambda expressions that appear on the rhs of a definition are
 ; compiled here.  They don't need an args= instruction at their head.
+;
+; Returns: nothing.
 
-(define (cg-known-lambda exp env)
+(define (cg-known-lambda output exp env)
   (let* ((vars (make-null-terminated (lambda.args exp)))
          (defs (lambda.defs exp))
-         (body (lambda.body exp)))
+         (body (lambda.body exp))
+         (frame (cgframe-initial)))
     (if (> (length vars) *fullregs*)
-        (cg-linearize
-         (cg-ops (cg-op $lexes (length vars) (cons #t vars))
-                 (cg-op $setreg 0))
-         (cg-body body
-                  defs
-                  (cgenv-extend env
-                                (cons '#t vars) '()) #t))
-        (cg-body body defs (cgenv-bindregs env vars) #t))))
+        (begin (gen! output $lexes (length vars) (cons #t vars))
+               (gen! output $setreg 0)
+               (gen-save! output frame)
+               (cg-body output
+                        body
+                        defs
+                        'result
+                        (cgreg-initial)
+                        frame
+                        (cgenv-extend env
+                                      (cons '#t vars)
+                                      '())
+                        #t))
+        (begin (gen-save! output frame)
+               (cg-body output
+                        body
+                        defs
+                        'result
+                        (cgreg-bindregs (cgreg-initial) vars)
+                        frame
+                        env
+                        #t)))))
 
-; Compiles a let or lambda body.
+; Compiles a let or lambda body.
 ; The problem here is that the free variables of an internal
 ; definition must be in a heap-allocated environment, so any
 ; such variables in registers must be copied to the heap.
+;
+; Returns: destination register.
 
-(define (cg-body exp defs env tail?)
+(define (cg-body output exp defs target regs frame env tail?)
   (cond ((or (null? defs) (constant? exp) (variable? exp))
-         (cg0 exp env tail?))
+         (cg0 output exp target regs frame env tail?))
         ((lambda? exp)
-         (let* ((newenv1 (cgenv-pop
-                          (cgenv-extend env
-                                        (cgenv-regvars env)
-                                        (map def.lhs defs))
-                          (cgenv-tos env)))
+         (let* ((newenv1 (cgenv-extend env
+                                       (cgreg-vars regs)
+                                       (map def.lhs defs)))
                 (args (lambda.args exp))
                 (vars (make-null-terminated args))
-                (code
-                 (cg-linearize
-                  (cg-ops (cg-op $.proc)
-                          (if (list? args)
-                              (cg-op $args= (length args))
-                              (cg-op $args>= (- (length vars) 1))))
-                  (cg-linearize
-                   (cg-known-lambda exp newenv1)
-                   (cg-defs defs newenv1)))))
-           (cg-return (cg-ops (cg-op $lambda
-                                     (cg-make-linear code)
-                                     (cgenv-tos env)
-                                     (cgenv-regvars env)))
-                      tail?)))
-        ((zero? (cgenv-tos env))
+                (newoutput (make-assembly-stream)))
+           (gen! newoutput $.proc)
+           (if (list? args)
+               (gen! newoutput $args= (length args))
+               (gen! newoutput $args>= (- (length vars) 1)))
+           (cg-known-lambda newoutput exp newenv1)
+           (cg-defs newoutput defs newenv1)
+           (gen! output
+                 $lambda
+                 (assembly-stream-code newoutput)
+                 (cgreg-tos regs)
+                 (cgreg-vars regs))
+           (if tail?
+               (begin (gen-pop! output frame)
+                      (gen! output $return)
+                      'result)
+               (cg-move output 'result target))))
+        ((zero? (cgreg-tos regs))
          (let ((newenv (cgenv-bindprocs env (map def.lhs defs)))
                (L (make-label)))
            (if tail?
-               (cg-linearize
-                (cg0 exp newenv #t)
-                (cg-defs defs newenv))
-               (cg-linearize
-                (cg-linearize
-                 (cg0 exp newenv #f)
-                 (cg-ops (cg-op $skip L)))
-                (cg-linearize
-                 (cg-defs defs newenv)
-                 (cg-ops (cg-op $.label L)))))))
+               (begin
+                (cg0 output exp 'result regs frame newenv #t)
+                (cg-defs output defs newenv)
+                'result)
+               (begin
+                (let ((r (cg0 output exp target regs frame newenv #f)))
+                  (gen! output $skip L (cgreg-live regs r))
+                  (cg-defs output defs newenv)
+                  (gen! output $.label L)
+                  (cg-move output r target))))))
         (else
-         (let* ((k (cgenv-tos env))
-                (newenv1 (cgenv-extend env
-                                       (cgenv-regvars env)
-                                       (map def.lhs defs)))
-                (newenv2 (cgenv-pop newenv1 k))
+         (let* ((k (cgreg-tos regs))
+                (newenv (cgenv-extend env
+                                      (cgreg-vars regs)
+                                      (map def.lhs defs)))
                 (L (make-label)))
            (if tail?
-               (cg-linearize
-                (cg-ops (cg-op $lexes k (cgenv-regvars env))
-                        (cg-op $setreg 0))
-                (cg-linearize
-                 (cg0 exp newenv1 #t)
-                 (cg-defs defs newenv2)))
-               (cg-linearize
-                (cg-ops (begin (if (> k 31) (idisplay "foo (1)!"))
-			       (cg-op $save L k))
-                        (cg-op $lexes k (cgenv-regvars env))
-                        (cg-op $setreg 0))
-                (cg-linearize
-                 (cg-linearize
-                  (cg0 exp newenv1 #f)
-                  (cg-ops (cg-op $skip L)))
-                 (cg-linearize
-                  (cg-defs defs newenv2)
-                  (cg-ops (cg-op $.align 4)
-                          (cg-op $.label L)
-                          (cg-op $restore k)
-                          (cg-op $pop k))))))))))
+               (begin (gen! output $lexes k (cgreg-vars regs))
+                      (gen! output $setreg 0)
+                      (cg0 output exp 'result regs frame newenv #t)
+                      (cg-defs output defs newenv)
+                      'result)
+               (call-with-values
+                (lambda () (cgframe-newtemp frame))
+                (lambda (t1 frame)
+                  (gen! output $store 0 t1)
+                  (gen! output $lexes k (cgreg-vars regs))
+                  (gen! output $setreg 0)
+                  (cg0 output exp 'result regs frame newenv #f)
+                  (gen! output $skip L (cgreg-tos regs))
+                  (cg-defs output defs newenv2)
+                  (gen! output $.label L)
+                  (gen! output $load 0 t1)
+                  (cg-move output 'result target))))))))
 
-(define (cg-defs defs env)
-  (do ((code '()
-             (cg-linearize
-              code
-              (cg-linearize
-               (cg-ops (cg-op $.align 4)
-                       (cg-op $.label
-                              (entry.label
-                               (cgenv-lookup env (def.lhs (car defs)))))
-                       (cg-op $.proc))
-               (cg-known-lambda
-                (def.rhs (car defs))
-                env))))
-       (defs defs (cdr defs)))
-      ((null? defs) code)))
+(define (cg-defs output defs env)
+  (for-each (lambda (def)
+              (gen! output $.align 4)
+              (gen! output $.label
+                           (entry.label
+                            (cgenv-lookup env (def.lhs def))))
+              (gen! output $.proc)
+              (cg-known-lambda output
+                               (def.rhs def)
+                               env))
+            defs))
 
-(define (cg-if exp env tail?)
-  (let ((code0 (cg0 (if.test exp) env #f))
-        (code1 (cg0 (if.then exp) env tail?))
-        (code2 (cg0 (if.else exp) env tail?))
-        (L1 (make-label))
+(define (cg-if output exp target regs frame env tail?)
+  (let ((L1 (make-label))
         (L2 (make-label)))
-    (cg-linearize
-     (cg-linearize
-      code0
-      (cg-ops (cg-op $branchf L1)))
-     (cg-linearize
-      (if tail?
-          code1
-          (cg-linearize
-           code1
-           (cg-ops (cg-op $skip L2))))
-      (if tail?
-          (cg-linearize (cg-ops (cg-op $.label L1)) code2)
-          (cg-linearize
-           (cg-linearize (cg-ops (cg-op $.label L1)) code2)
-           (cg-ops (cg-op $.label L2))))))))
+    (cg0 output (if.test exp) 'result regs frame env #f)
+    (gen! output $branchf L1 (cgreg-tos regs))
+    (let ((newframe (if (and tail?
+                             (negative? (cgframe-size frame)))
+                        (cgframe-initial)
+                        frame)))
+      (if (not (eq? frame newframe))
+          (gen-save! output newframe))
+      (let ((r (cg0 output (if.then exp) target regs newframe env tail?)))
+        (if (not tail?)
+            (gen! output $skip L2 (cgreg-live regs r)))
+        (gen! output $.label L1)
+        (let ((newframe (if (and tail?
+                                 (negative? (cgframe-size frame)))
+                            (cgframe-initial)
+                            frame)))
+          (if (not (eq? frame newframe))
+              (gen-save! output newframe))
+          (cg0 output (if.else exp) r regs newframe env tail?))
+        (if (not tail?)
+            (gen! output $.label L2))
+        r))))
 
-(define (cg-variable exp env tail?)
-  (cg-return
-   (let* ((id (variable.name exp))
-          (entry (cgenv-lookup env id)))
-     (case (entry.kind entry)
-       ((global integrable) (cg-ops (cg-op $global id)))
-       ((lexical) (cg-ops (cg-op $lexical (entry.rib entry)
-                                          (entry.offset entry)
-                                          id)))
-       ((procedure) ???)
-       ((register) (cg-ops (cg-op $reg (entry.regnum entry) id)))
-       (else ???)))
-   tail?))
+(define (cg-variable output exp target regs frame env tail?)
+  (define (return)
+    (if tail?
+        (begin (gen-pop! output frame)
+               (gen! output $return)
+               'result)
+        (cg-move output 'result target)))
+  (let* ((id (variable.name exp))
+         (entry (var-lookup id regs frame env)))
+    (case (entry.kind entry)
+      ((global integrable)
+       (gen! output $global id)
+       (return))
+      ((lexical)
+       (gen! output $lexical (entry.rib entry) (entry.offset entry) id)
+       (return))
+      ((procedure) (error "Bug in cg-variable" exp))
+      ((register)
+       (let ((r (entry.regnum entry)))
+         (if (and target (not (eqv? target r)))
+             (begin (gen! output $reg (entry.regnum entry) id)
+                    (return))
+             r)))
+      (else (error "Bug in cg-variable" exp)))))
 
-(define (cg-sequential exp env tail?)
-  (cg-sequential-loop (begin.exprs exp) env tail?))
+(define (cg-sequential output exp target regs frame env tail?)
+  (cg-sequential-loop output (begin.exprs exp) target regs frame env tail?))
 
-(define (cg-sequential-loop exprs env tail?)
+(define (cg-sequential-loop output exprs target regs frame env tail?)
   (cond ((null? exprs)
-         (cg-return (cg-op $const hash-bang-unspecified) tail?))
+         (gen! output $const unspecified)
+         (if tail?
+             (begin (gen-pop! output frame)
+                    (gen! output $return)
+                    'result)
+             (cg-move output 'result target)))
         ((null? (cdr exprs))
-         (cg0 (car exprs) env tail?))
-        (else (cg-linearize
-               (cg0 (car exprs) env #f)
-               (cg-sequential-loop (cdr exprs) env tail?)))))
+         (cg0 output (car exprs) target regs frame env tail?))
+        (else (cg0 output (car exprs) #f regs frame env #f)
+              (cg-sequential-loop output
+                                  (cdr exprs)
+                                  target regs frame env tail?))))
 
-(define (cg-call exp env tail?)
+(define (cg-call output exp target regs frame env tail?)
   (let ((proc (call.proc exp)))
     (cond ((lambda? proc)
-           (cg-let exp env tail?))
+           (cg-let output exp target regs frame env tail?))
           ((not (variable? proc))
-           (cg-unknown-call exp env tail?))
-          (else (let ((entry (cgenv-lookup env (variable.name proc))))
+           (cg-unknown-call output exp target regs frame env tail?))
+          (else (let ((entry
+                       (var-lookup (variable.name proc) regs frame env)))
                   (case (entry.kind entry)
                     ((global lexical register)
-                     (cg-unknown-call exp env tail?))
+                     (cg-unknown-call output
+                                      exp
+                                      target regs frame env tail?))
                     ((integrable)
-                     (cg-integrable-call exp env tail?))
+                     (cg-integrable-call output
+                                         exp
+                                         target regs frame env tail?))
                     ((procedure)
-                     (cg-known-call exp env tail?))
-                    (else ???)))))))
+                     (cg-known-call output
+                                    exp
+                                    target regs frame env tail?))
+                    (else (error "Bug in cg-call" exp))))))))
 
-(define (cg-let exp env tail?)
+(define (cg-let output exp target regs frame env tail?)
   (let* ((proc (call.proc exp))
          (args (call.args exp))
          (n (length args))
-         (liveregs (cgenv-liveregs env)))
+         (liveregs (cgreg-liveregs regs)))
     (cond ((>= n *lastreg*)
-           (cg-unknown-call exp env tail?))
+           (cg-unknown-call output exp target regs frame env tail?))
           ((>= (+ n liveregs) *nregs*)
-           (cg-spill exp env tail?))
+           (cg-unknown-call output exp target regs frame env tail?))
           (else
-           (cg-linearize
-            (cg-pushargs args env)
-            (cg-body (lambda.body proc)
-                     (lambda.defs proc)
-                     (cgenv-bindregs env (lambda.args proc))
-                     tail?))))))
+           (cg-pushargs output args regs frame env)
+           (cg-body output
+                    (lambda.body proc)
+                    (lambda.defs proc)
+                    target
+                    (cgreg-bindregs regs (lambda.args proc))
+                    frame
+                    env
+                    tail?)))))
 
-(define (cg-unknown-call exp env tail?)
+(define (cg-pushargs output args regs frame env)
+  (if (not (null? args))
+      (let* ((newregs (cgreg-push regs 1))
+             (r (cgreg-tos newregs)))
+        (cg0 output (car args) r regs frame env #f)
+        (cg-pushargs output (cdr args) newregs frame env))))
+
+(define (cg-unknown-call output exp target regs frame env tail?)
   (let* ((proc (call.proc exp))
          (args (call.args exp))
-         (n (length args)))
+         (n (length args))
+         (L (make-label)))
     (cond ((>= (+ n 1) *lastreg*)
-           (cg-big-call exp env tail?))
+           (cg-big-call output exp target regs frame env tail?))
           (else
-           (let ((code
-                  (if (and (variable? proc)
-                           (not (eq? (entry.kind
-                                      (cgenv-lookup env
-                                                    (variable.name proc)))
-                                     'register)))
-                      (cg-linearize
-                       (cg-arguments (iota1 n) args env)
-                       (cg-linearize
-                        (cg0 proc env #f)
-                        (cg-ops (cg-op $invoke n))))
-                      (cg-linearize
-                       (cg-arguments (iota1 (+ n 1))
-                                     (append args (list proc))
-                                     env)
-                       (cg-ops (cg-op $reg (+ n 1))
-                               (cg-op $invoke n))))))
-             (if tail?
-                 code
-                 (let ((L (make-label))
-                       (k (cgenv-tos env)))
-                   (cg-linearize
-                    (cg-ops (begin (if (> k 31) (idisplay "foo (2)!"))
-				   (cg-op $save L k)))
-                    (cg-linearize
-                     code
-                     (cg-ops (cg-op $.align 4)
-                             (cg-op $.label L)
-                             (cg-op $.cont)
-                             (cg-op $restore k)
-                             (cg-op $pop k)))))))))))
+           (call-with-values
+            (lambda ()
+              (cgframe-newtemps frame (if tail? 0 (+ (cgreg-tos regs) 1))))
+            (lambda (temps frame)
+              (if (not tail?)
+                  (cg-saveregs output (cgreg-tos regs) temps))
+              (if (and (variable? proc)
+                       (not (eq? (entry.kind
+                                  (var-lookup (variable.name proc)
+                                              regs
+                                              frame
+                                              env))
+                                 'register)))
+                  (begin (cg-arguments output
+                                       (iota1 n)
+                                       args
+                                       regs frame env)
+                         (cg0 output proc 'result regs frame env #f)
+                         (if tail?
+                             (gen-pop! output frame)
+                             (begin (cgframe-used! frame)
+                                    (gen! output $setrtn L)))
+                         (gen! output $invoke n))
+                  (begin (cg-arguments output
+                                       (iota1 (+ n 1))
+                                       (append args (list proc))
+                                       regs frame env)
+                         (if tail?
+                             (gen-pop! output frame)
+                             (begin (cgframe-used! frame)
+                                    (gen! output $setrtn L)))
+                         (gen! output $reg (+ n 1))
+                         (gen! output $invoke n)))
+              (if tail?
+                  'result
+                  (begin (gen! output $.align 4)
+                         (gen! output $.label L)
+                         (gen! output $.cont)
+                         (cg-restoreregs output (cgreg-tos regs) temps)
+                         (cg-move output 'result target)))))))))
 
-(define (cg-known-call exp env tail?)
-  (let ((n (length (call.args exp))))
-    (cond ((>= n *lastreg*)
-           (cg-big-call exp env tail?))
-          ((not tail?)
-           (let ((L (make-label))
-                 (k (cgenv-tos env)))
-             (cg-linearize
-              (cg-ops (begin (if (> k 31) (idisplay "foo (3)!"))
-			     (cg-op $save L k)))
-              (cg-linearize
-               (cg-known-call exp env #t)
-               (cg-ops (cg-op $.align 4)
-                       (cg-op $.label L)
-                       (cg-op $.cont)
-                       (cg-op $restore k)
-                       (cg-op $pop k))))))
+(define (cg-known-call output exp target regs frame env tail?)
+  (let* ((args (call.args exp))
+         (n (length args))
+         (L (make-label)))
+    (cond ((>= (+ n 1) *lastreg*)
+           (cg-big-call output exp target regs frame env tail?))
           (else
-           (let* ((entry (cgenv-lookup env (variable.name (call.proc exp))))
-                  (label (entry.label entry))
-                  (m (entry.rib entry))
-                  (args (call.args exp)))
-             (cg-linearize
-              (cg-arguments (iota1 n) args env)
-              (cg-ops (if (zero? m)
-                          (cg-op $branch label)
-                          (cg-op $jump m label)))))))))
+           (call-with-values
+            (lambda ()
+              (cgframe-newtemps frame (if tail? 0 (+ (cgreg-tos regs) 1))))
+            (lambda (temps frame)
+              (if (not tail?)
+                  (cg-saveregs output (cgreg-tos regs) temps))
+              (cg-arguments output (iota1 n) args regs frame env)
+              (if tail?
+                  (gen-pop! output frame)
+                  (begin (cgframe-used! frame)
+                         (gen! output $setrtn L)))
+              (let* ((entry (cgenv-lookup env (variable.name (call.proc exp))))
+                     (label (entry.label entry))
+                     (m (entry.rib entry)))
+                (if (zero? m)
+                    (gen! output $branch label n)
+                    (gen! output $jump m label n)))
+              (if tail?
+                  'result
+                  (begin (gen! output $.align 4)
+                         (gen! output $.label L)
+                         (gen! output $.cont)
+                         (cg-restoreregs output (cgreg-tos regs) temps)
+                         (cg-move output 'result target)))))))))
 
-; Any call can be compiled as follows, even if there are no free registers:
+; Any call can be compiled as follows, even if there are no free registers.
 ;
-;     save    L,n+1
+; Let T0, T1, ..., Tn be newly allocated stack temporaries.
+;
 ;     <arg0>
-;     setstk  n+1
+;     setstk  T0
 ;     <arg1>             -|
-;     setstk  1           |
+;     setstk  T1          |
 ;     ...                 |- evaluate args into stack frame
 ;     <argn>              |
-;     setstk  n          -|
+;     setstk  Tn         -|
 ;     const   ()
 ;     setreg  R-1
-;     stack   n          -|
+;     stack   Tn         -|
 ;     op2     cons,R-1    |
 ;     setreg  R-1         |
 ;     ...                 |- cons up overflow args
-;     stack   R-1         |
+;     stack   T_{R-1}     |
 ;     op2     cons,R-1    |
 ;     setreg  R-1        -|
-;     stack   R-2          -|
+;     stack   T_{R-2}      -|
 ;     setreg  R-2           |
 ;     ...                   |- pop remaining args into registers
-;     stack   1             |
+;     stack   T1            |
 ;     setreg  1            -|
-;     stack   n+1
-; L:  pop     n+1
+;     stack   T0
 ;     invoke  n
 
-(define (cg-big-call exp env tail?)
+(define (cg-big-call output exp target regs frame env tail?)
   (let* ((proc (call.proc exp))
          (args (call.args exp))
          (n (length args))
-         (n+1 (+ n 1))
          (R-1 (- *nregs* 1))
          (entry (if (variable? proc)
                     (let ((entry
-                           (cgenv-lookup env (variable.name proc))))
+                           (var-lookup (variable.name proc)
+                                       regs frame env)))
                       (if (eq? (entry.kind entry) 'procedure)
                           entry
                           #f))
                     #f))
-         (k (cgenv-tos env)))
-    (define (evalargs i args)
-      (if (> i n)
-          '()
-          (cg-linearize
-           (cons (cg-op $setstk i)
-                 (cg0 (car args) env #f))
-           (evalargs (+ i 1) (cdr args)))))
-    (define (consup i)
-      (if (<= i n)
-          (cons (cg-op $setreg R-1)
-                (cons (cg-op $op2 $cons R-1)
-                      (cons (cg-op $stack i)
-                            (consup (+ i 1)))))
-          '()))
-    (define (popargs i)
-      (if (= i R-1)
-          '()
-          (cons (cg-op $setreg i)
-                (cons (cg-op $stack i)
-                      (popargs (+ i 1))))))
-    (define (thecall)
-      (let ((L (make-label)))
-        (cg-linearize
-         (cg-ops (begin (if (> n+1 31) (idisplay "foo (4)!"))
-			(cg-op $save L n+1)))
-         (cg-linearize
-          (if entry
-              '()
-              (cons (cg-op $setstk n+1)
-                    (cg0 proc env #f)))
-          (cg-linearize
-           (evalargs 1 args)
-           (cg-linearize
-            (cg-linearize
-             (cg-ops (cg-op $const '())
-                     (cg-op $setreg R-1))
-             (consup *lastreg*))
-            (cg-linearize
-             (popargs 1)
+         (L (make-label)))
+    (call-with-values
+     (lambda ()
+       (cgframe-newtemps frame (if tail? 0 (+ (cgreg-tos regs) 1))))
+     (lambda (temps frame)
+       (call-with-values
+        (lambda ()
+          (cgframe-newtemps frame n))
+        (lambda (argslots frame)
+          (call-with-values
+           (lambda ()
+             (cgframe-newtemps frame (if entry 0 1)))
+           (lambda (procslots frame)
+             (if (not tail?)
+                 (cg-saveregs output (cgreg-tos regs) temps))
+             (if (not entry)
+                 (begin
+                  (cg0 output proc 'result regs frame env #f)
+                  (gen! output $setstk (car procslots))))
+             (for-each (lambda (arg argslot)
+                         (cg0 output arg 'result regs frame env #f)
+                         (gen! output $setstk argslot))
+                       args
+                       argslots)
+             (gen! output $const '())
+             (gen! output $setreg R-1)
+             (do ((i n (- i 1))
+                  (slots (reverse argslots) (cdr slots)))
+                 ((zero? i))
+                 (if (< i R-1)
+                     (gen! output $load i (car slots))
+                     (begin (gen! output $stack (car slots))
+                            (gen! output $op2 $cons R-1)
+                            (gen! output $setreg R-1))))
+             (if (not entry)
+                 (gen! output $stack (car procslots)))
+             (if tail?
+                 (gen-pop! output frame)
+                 (begin (cgframe-used! frame)
+                        (gen! output $setrtn L)))
              (if entry
-                 (cg-ops (cg-op $.align 4)
-                         (cg-op $.label L)
-                         (cg-op $pop n+1)
-                         (let ((m (entry.rib entry)))
-                           (if (zero? m)
-                               (cg-op $branch (entry.label entry))
-                               (cg-op $jump m (entry.label entry)))))
-                 (cg-ops (cg-op $stack n+1)
-                         (cg-op $.align 4)
-                         (cg-op $.label L)
-                         (cg-op $pop n+1)
-                         (cg-op $invoke n))))))))))
-    (if tail?
-        (thecall)
-        (let ((L (make-label)))
-          (cg-linearize
-           (cg-ops (begin (if (> k 31) (idisplay "foo (5)!"))
-			  (cg-op $save L k)))
-           (cg-linearize
-            (thecall)
-            (cg-ops (cg-op $.align 4)
-                    (cg-op $.label L)
-                    (cg-op $.cont)
-                    (cg-op $restore k)
-                    (cg-op $pop k))))))))
+                 (let ((label (entry.label entry))
+                       (m (entry.rib entry)))
+                   (if (zero? m)
+                       (gen! output $branch label n)
+                       (gen! output $jump m label n)))
+                 (gen! output $invoke n))
+             (if (not tail?)
+                 (begin (gen! output $.align 4)
+                        (gen! output $.label L)
+                        (gen! output $.cont)
+                        (cg-restoreregs output (cgreg-tos regs) temps)
+                        (cg-move output 'result target)))))))))))
 
-(define (cg-integrable-call exp env tail?)
+(define (cg-integrable-call output exp target regs frame env tail?)
   (let ((args (call.args exp))
-        (entry (cgenv-lookup env (variable.name (call.proc exp)))))
+        (entry (var-lookup (variable.name (call.proc exp)) regs frame env)))
     (if (= (entry.arity entry) (length args))
-        (cg-return
-         (case (entry.arity entry)
-           ((0) (cg-ops (cg-op $op1 (entry.op entry))))
-           ((1) (cg-linearize
-                 (cg0 (car args) env #f)
-                 (cg-ops (cg-op $op1 (entry.op entry)))))
-           ((2) (cg-integrable-call2 entry args env))
-           ((3) (cg-integrable-call3 entry args env))
-           (else ???))
-         tail?)
-        ???)))
+        (begin (case (entry.arity entry)
+                 ((0) (gen! output $op1 (entry.op entry)))
+                 ((1) (cg0 output (car args) 'result regs frame env #f)
+                      (gen! output $op1 (entry.op entry)))
+                 ((2) (cg-integrable-call2 output
+                                           entry
+                                           args
+                                           regs frame env))
+                 ((3) (cg-integrable-call3 output
+                                           entry
+                                           args
+                                           regs frame env))
+                 (else (error "Bug detected by cg-integrable-call"
+                              (make-readable exp))))
+               (if tail?
+                   (begin (gen-pop! output frame)
+                          (gen! output $return)
+                          'result)
+                   (cg-move output 'result target)))
+        (error "Wrong number of arguments to integrable procedure"
+               (make-readable exp)))))
 
-(define (cg-integrable-call2 entry args env)
-  (let ((reg2 (if (variable? (cadr args))
-                  (let ((entry2
-                         (cgenv-lookup env (variable.name (cadr args)))))
-                    (if (eq? (entry.kind entry2) 'register)
-                        (entry.regnum entry2)
-                        #f))
-                  #f)))
-    (cond (reg2
-           (cg-linearize
-            (cg0 (car args) env #f)
-            (cg-ops (cg-op $op2 (entry.op entry) reg2))))
-          ((= (cgenv-tos env) *lastreg*)
-           (let ((L (make-label)))
-             (cg-linearize
-              (cg-ops (cg-op $save L 2))
-              (cg-linearize
-               (cg-linearize
-                (cg0 (cadr args) env #f)
-                (cg-ops (cg-op $setstk 2)))
-               (cg-linearize
-                (cg0 (car args) env #f)
-                (cg-ops (cg-op $load 2 1)
-                        (cg-op $op2 (entry.op entry) 1)
-                        (cg-op $.align 4)
-                        (cg-op $.label L)
-                        (cg-op $restore 1)
-                        (cg-op $pop 2)))))))
-          ((and (entry.imm entry)
-                (constant? (cadr args))
-                ((entry.imm entry) (constant.value (cadr args))))
-           (cg-linearize
-            (cg0 (car args) env #f)
-            (cg-ops (cg-op $op2imm (entry.name entry) (constant.value (cadr args))))))
-          (else
-           (let ((newenv (cgenv-push env 1)))
-             (cg-linearize
-              (cg-linearize
-               (cg0 (cadr args) env #f)
-               (cg-ops (cg-op $setreg (cgenv-tos newenv))))
-              (cg-linearize
-               (cg0 (car args) newenv #f)
-               (cg-ops (cg-op $op2 (entry.op entry) (cgenv-tos newenv))))))))))
+(define (cg-integrable-call2 output entry args regs frame env)
+  (let ((op (entry.op entry)))
+    (if (and (entry.imm entry)
+             (constant? (cadr args))
+             ((entry.imm entry) (constant.value (cadr args))))
+        (begin (cg0 output (car args) 'result regs frame env #f)
+               (gen! output $op2imm
+                            op
+                            (constant.value (cadr args))))
+        (let ((reg2 (cg0 output (cadr args) #f regs frame env #f)))
+          (cond ((not (eq? reg2 'result))
+                 (cg0 output (car args) 'result regs frame env #f)
+                 (gen! output $op2 op reg2))
+                ((not (= (cgreg-tos regs) *lastreg*))
+                 (let* ((regs (cgreg-push regs 1))
+                        (r (cgreg-tos regs)))
+                   (gen! output $setreg r)
+                   (cg0 output (car args) 'result regs frame env #f)
+                   (gen! output $op2 op r)))
+                (else
+                 ; This generates poor code, but shouldn't happen often.
+                 (call-with-values
+                  (lambda () (cgframe-newtemps frame 2))
+                  (lambda (temps frame)
+                    (let ((s1 (car temps))
+                          (t2 (cadr temps)))
+                      (gen! output $setstk t2)
+                      (cg0 output (car args) 'result regs frame env #f)
+                      (gen! output $store 1 s1)
+                      (gen! output $load 1 t2)
+                      (gen! output $op2 op 1)
+                      (gen! output $load 1 s1)))))))))
+  'result)
 
-; Any expression can be compiled by spilling registers to the heap.
+(define (cg-integrable-call3 output entry args regs frame env)
+  (define (evalarg arg regs)
+    (let ((r (cg0 output arg #f regs frame env #f)))
+      (if (eq? r 'result)
+          (let* ((regs (cgreg-push regs 1))
+                 (r (cgreg-tos regs)))
+            (cg-move output 'result r)
+            (values r regs))
+          (values r regs))))
+  (if (< (cgreg-tos regs) (- *lastreg* 1))
+      (call-with-values
+       (lambda () (evalarg (caddr args) regs))
+       (lambda (r3 regs)
+         (call-with-values
+          (lambda () (evalarg (cadr args) regs))
+          (lambda (r2 regs)
+            (cg0 output (car args) 'result regs frame env #f)
+            (gen! output $op3 (entry.op entry) r2 r3)))))
+      (call-with-values
+       (lambda () (cgframe-newtemps frame 4))
+       (lambda (temps frame)
+         (define (worstcase s1 s2 t2 t3)
+           (cg0 output (caddr args) 'result regs frame env #f)
+           (gen! output $setstk t3)
+           (cg0 output (cadr args) 'result regs frame env #f)
+           (gen! output $setstk t2)
+           (cg0 output (car args) 'result regs frame env #f)
+           (gen! output $store 1 s1)
+           (gen! output $store 2 s2)
+           (gen! output $load 1 t2)
+           (gen! output $load 2 t3)
+           (gen! output $op3 (entry.op entry) 1 2)
+           (gen! output $load 1 s1)
+           (gen! output $load 2 s2))
+         (apply worstcase temps)))))
 
-(define (cg-spill exp env tail?)
-  (let* ((k (cgenv-tos env))
-         (newenv
-          (cgenv-pop (cgenv-extend env (cgenv-regvars env) '())
-                     k)))
-    (if tail?
-        (cg-linearize
-         (cg-ops (cg-op $lexes k (cgenv-regvars env))
-                 (cg-op $setreg 0))
-         (cg0 exp newenv #t))
-        (let ((L (make-label)))
-          (cg-linearize
-           (cg-ops (cg-op $save L 0)
-                   (cg-op $lexes k (cgenv-regvars env))
-                   (cg-op $setreg 0))
-           (cg-linearize
-            (cg0 exp newenv #f)
-            (cg-ops (cg-op $.align 4)
-                    (cg-op $.label L)
-                    (cg-op $restore 0)
-                    (cg-op $pop 0))))))))
+(define (cg-saveregs output k temps)
+  (do ((i 0 (+ i 1))
+       (temps temps (cdr temps)))
+      ((> i k))
+      (gen! output $store i (car temps))))
 
-(define (cg-integrable-call3 entry args env)
-   (let ((reg2 (if (variable? (cadr args))
-                   (let ((entry2
-                          (cgenv-lookup env (variable.name (cadr args)))))
-                     (if (eq? (entry.kind entry2) 'register)
-                         (entry.regnum entry2)
-                         #f))
-                   #f))
-         (reg3 (if (variable? (caddr args))
-                   (let ((entry3
-                          (cgenv-lookup env (variable.name (caddr args)))))
-                     (if (eq? (entry.kind entry3) 'register)
-                         (entry.regnum entry3)
-                         #f))
-                   #f)))
-     (cond ((and reg2 reg3)
-            (cg-linearize
-             (cg0 (car args) env #f)
-             (cg-ops (cg-op $op3 (entry.op entry) reg2 reg3))))
-           ; wasting one register here if (or reg2 reg3)
-           ((>= (cgenv-tos env) (- *lastreg* 1))
-            (let ((L (make-label)))
-              (cg-linearize
-               (cg-ops (cg-op $save L 4))
-               (cg-linearize
-                (cg-linearize
-                 (cg0 (caddr args) env #f)
-                 (cg-ops (cg-op $setstk 4)))
-                (cg-linearize
-                 (cg-linearize
-                  (cg0 (cadr args) env #f)
-                  (cg-ops (cg-op $setstk 3)))
-                 (cg-linearize
-                  (cg0 (car args) env #f)
-                  (cg-ops (cg-op $load 4 2)
-                          (cg-op $load 3 1)
-                          (cg-op $op3 (entry.op entry) 1 2)
-                          (cg-op $.align 4)
-                          (cg-op $.label L)
-                          (cg-op $restore 2)
-                          (cg-op $pop 4))))))))
-           (reg2
-            (let ((newenv (cgenv-push env 1)))
-              (cg-linearize
-               (cg-linearize
-                (cg-linearize
-                 (cg0 (caddr args) env #f)
-                 (cg-ops (cg-op $setreg (cgenv-tos newenv))))
-                (cg0 (car args) newenv #f))
-               (cg-ops (cg-op $op3 (entry.op entry) reg2 (cgenv-tos newenv))))))
-           (reg3
-            (let ((newenv (cgenv-push env 1)))
-              (cg-linearize
-               (cg-linearize
-                (cg-linearize
-                 (cg0 (cadr args) env #f)
-                 (cg-ops (cg-op $setreg (cgenv-tos newenv))))
-                (cg0 (car args) newenv #f))
-               (cg-ops (cg-op $op3 (entry.op entry) (cgenv-tos newenv) reg3)))))
-           (else
-            (let ((newenv1 (cgenv-push env 1))
-                  (newenv2 (cgenv-push env 2)))
-              (cg-linearize
-               (cg-linearize
-                (cg0 (caddr args) env #f)
-                (cg-ops (cg-op $setreg (cgenv-tos newenv1))))
-               (cg-linearize
-                (cg-linearize
-                 (cg0 (cadr args) newenv1 #f)
-                 (cg-ops (cg-op $setreg (cgenv-tos newenv2))))
-                (cg-linearize
-                 (cg0 (car args) newenv2 #f)
-                 (cg-ops (cg-op $op3 (entry.op entry)
-                                     (cgenv-tos newenv2)
-                                     (cgenv-tos newenv1)))))))))))
+(define (cg-restoreregs output k temps)
+  (do ((i 0 (+ i 1))
+       (temps temps (cdr temps)))
+      ((> i k))
+      (gen! output $load i (car temps))))
 
-(define (cg-return tree tail?)
-  (if tail?
-      (cg-linearize
-       tree
-       (cg-ops (cg-op $return)))
-      tree))
-
-; Parallel assignment.
-
-; Given a list of target registers, a list of expressions, and a
-; compile-time environment, returns code to evaluate the expressions
-; into the registers.
-; Evaluates directly into the target registers if possible, otherwise
-; pushes all arguments and then pops into the target registers.  It
-; ought to degrade more gracefully.
-; Another shortcoming is that it reserves all registers through the
-; last target register while evaluating the arguments.
-
-(define (cg-arguments regs args env)
-  (cond ((null? regs) '())
+(define (cg-move output src dst)
+  (cond ((not dst)
+         src)
+        ((eqv? src dst)
+         dst)
+        ((eq? src 'result)
+         (gen! output $setreg dst)
+         dst)
+        ((eq? dst 'result)
+         (gen! output $reg src)
+         dst)
+        ((and (not (zero? src))
+              (not (zero? dst)))
+         (gen! output $movereg src dst))
         (else
-         (let ((para (let* ((regvars (map (lambda (reg)
-                                            (cgenv-lookup-reg env reg))
-                                          regs)))
-                       (parallel-assignment regs
-                                            (map cons regvars regs)
-                                            args))))
-           (if para
-               (do ((regs para (cdr regs))
-                    (args (cg-permute args regs para) (cdr args))
-                    (env env
-                         (let ((reg (car regs))
-                               (tos (cgenv-tos env)))
-                           (if (> reg tos)
-                               (cgenv-push env (- reg tos))
-                               env)))
-                    (code '()
-                          (if (and (variable? (car args))
-                                   (eq? (variable.name (car args))
-                                        (cgenv-lookup-reg env (car regs))))
-                              code
-                              (cg-linearize
-                               code
-                               (cg-linearize
-                                (cg0 (car args) env #f)
-                                (cg-ops (cg-op $setreg (car regs))))))))
-                   ((null? regs) code))
-               (cg-linearize
-                (cg-pushargs args env)
-                (cg-popargs regs (+ (cgenv-tos env) 1))))))))
-
-; Pushes arguments from left to right.
-
-(define (cg-pushargs args env)
-  (do ((code '()
-             (cg-linearize
-              code
-              (cg-linearize
-               (cg0 (car args) env #f)
-               (cg-ops (cg-op $setreg (+ (cgenv-tos env) 1))))))
-       (args args (cdr args))
-       (env env (cgenv-push env 1)))
-      ((null? args) code)))
-
-; Given a list of n target registers, moves REGk through REG{k+n-1}
-; to the target registers.
-
-(define (cg-popargs regs k)
-  (do ((regs regs (cdr regs))
-       (k k (+ k 1))
-       (code '()
-             (cg-linearize
-              code
-              (cg-ops (cg-op $movereg k (car regs))))))
-      ((null? regs) code)))
-
-; Returns a permutation of the src list, permuted the same way the
-; key list was permuted to obtain newkey.
-
-(define (cg-permute src key newkey)
-  (let ((alist (map cons key (iota (length key)))))
-    (do ((newkey newkey (cdr newkey))
-         (dest '()
-               (cons (list-ref src (cdr (assq (car newkey) alist)))
-                     dest)))
-        ((null? newkey) (reverse dest)))))
-
+         (gen! output $reg src)
+         (gen! output $setreg dst)
+         dst)))

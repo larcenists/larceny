@@ -69,7 +69,7 @@
     
     (define (integer->string n radix)
 ;      (break)
-      (cond ((not (integer? n)) ???)
+      (cond ((not (integer? n)) ???number2string)
             ((not (exact? n))
              (string-append "#i" (integer->string (inexact->exact n) radix)))
             ((not (fixnum? n)) (bignum->string n radix))

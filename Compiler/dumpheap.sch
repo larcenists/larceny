@@ -5,7 +5,7 @@
 ;
 ; Second major version.
 ;
-; $Id: dumpheap.sch,v 1.10 1992/05/15 22:17:46 lth Exp $
+; $Id: dumpheap.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular
@@ -449,7 +449,11 @@
 	  (,$op1 break)
 	  (,$invoke 1)           ; (go <list of symbols>)
 	  (,$.label 2)
-	  (,$save 3 1)
+;	  (,$save 3 1)                                           ; @@ Will
+          (,$save 1)                                             ; @@ Will
+          (,$store 0 0)                                          ; @@ Will
+          (,$store 1 1)                                          ; @@ Will
+          (,$setrtn 3)                                           ; @@ Will
 	  (,$reg 1)
 	  (,$op1 car)
 	  (,$invoke 0)           ; ((car l))

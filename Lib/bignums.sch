@@ -1,54 +1,73 @@
 ; -*- Scheme -*-
 ;
-; Scheme 313 runtime system
+; Larceny runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.11 1992/05/15 22:17:56 lth Exp $
+; FILE OVERVIEW
+;  This file has four sections:
 ;
-; This file has four sections:
+;  The first section contains bignum creators, accessors, and mutators,
+;  which are machine-dependent in the sense that they `know' the
+;  endianness of a particular architecture and the layout of a bignum;
+;  bignums, as seen by these routines, are implemented in terms of bytevectors.
+;  At some point we probably want the compiler to know about these, but it is
+;  not vital for performance -- these procedures are called mostly from
+;  the procedures in section 2.
 ;
-; The first section contains bignum creators, accessors, and mutators,
-; which are machine-dependent in the sense that they `know' the
-; endianness of a particular architecture and the layout of a bignum;
-; bignums, as seen by these routines, are implemented in terms of bytevectors.
-; At some point we probably want the compiler to know about these, but it is
-; not vital for performance -- these procedures are called mostly from
-; the procedures in section 2.
+;  The second section contains machine-independent procedures which do
+;  basic operations on parts of bignums, like adding two digits and a
+;  carry to produce a third digit and a carry. At some level of sophistication,
+;  the compiler will replace calls to these procedures with an optimized
+;  sequence of machine instructions at the point of the call.
 ;
-; The second section contains machine-independent procedures which do
-; basic operations on parts of bignums, like adding two digits and a
-; carry to produce a third digit and a carry. At some level of sophistication,
-; the compiler will replace calls to these procedures with an optimized
-; sequence of machine instructions at the point of the call.
+;  The third section contains the basic bignum operations as viewed from
+;  the outside of this module; the procedures defined in this section are
+;  listed in the `export' list below.
 ;
-; The third section contains the basic bignum operations as viewed from
-; the outside of this module; the procedures defined in this section are
-; listed in the `export' list below.
+;  The fourth section contains helper procedures for the procedures in
+;  section 3.
 ;
-; The fourth section contains helper procedures for the procedures in
-; section 3.
+; REPRESENTATION and IMPLEMENTATION
+;  Logically, a bignum consists of a sign, a digit count, and a number of
+;  digits. The representation of the sign is abstracted in the variables
+;  `negative-sign' and `positive-sign'; the signs are fixnum quantities.
+;  The size (and hence base) of each digit is abstracted in the variable
+;  `bignum-base'. 
 ;
-; Logically, a bignum consists of a sign, a digit count, and a number of
-; digits. The representation of the sign is abstracted in the variables
-; `negative-sign' and `positive-sign'; the signs are fixnum quantities.
-; The size (and hence base) of each digit is abstracted in the variable
-; `bignum-base'. 
+;  Internally, bignums are created using `bignum-alloc', which allocates
+;  a bignum of the requested number of digits with a positive sign and a
+;  value of all-0-digits. The length is extracted using `bignum-length',
+;  and the sign ditto using `bignum-sign'. The sign can be set using
+;  `bignum-sign-set!', and the length can be set (and hence bignums can be
+;  truncated) using `bignum-length-set!'. It is an error to extend a bignum
+;  beyond its allocated space. Bignum digits are accessed using `bignum-ref'
+;  and set using `bignum-set!'.
 ;
-; Internally, bignums are created using `bignum-alloc', which allocates
-; a bignum of the requested number of digits with a positive sign and a
-; value of all-0-digits. The length is extracted using `bignum-length',
-; and the sign ditto using `bignum-sign'. The sign can be set using
-; `bignum-sign-set!', and the length can be set (and hence bignums can be
-; truncated) using `bignum-length-set!'. It is an error to extend a bignum
-; beyond its allocated space. Bignum digits are accessed using `bignum-ref'
-; and set using `bignum-set!'.
+;  The implementation uses the "classical" algorithms from Knuth, vol II, 2nd
+;  edition, section 4.3.1, and was also inspired by the techniques discussed
+;  in a paper by Jon L White: "Reconfigurable, Retargetable Bignums: A Case
+;  Study in Efficient, Portable Lisp System Building", Proceedings of the ACM
+;  conference on Lisp & FP, 1986.
 ;
-; The implementation uses the "classical" algorithms from Knuth, vol II, 2nd
-; edition, section 4.3.1, and was also inspired by the techniques discussed
-; in a paper by Jon L White: "Reconfigurable, Retargetable Bignums: A Case
-; Study in Efficient, Portable Lisp System Building", Proceedings of the ACM
-; conference on Lisp & FP, 1986.
+; IMPORTANT INVARIANTS
+;  Knuth describes three primitive operations, named a0, b0, and c0:
+;   a0 - addition or subtraction of one-place integers, giving a 
+;        one-place answer and a carry
+;   b0 - multiplication of a one-place integer by another one-place
+;        integer, giving a two-place answer
+;   c0 - division of a two-place integer by a one-place integer, provided
+;        that the quotient is a one-place integer, and yielding also a 
+;        one-place remainder.
+;     
+;  These must be implemented by the assembler or the millicode, i.e.,
+;  if the representation of a bigit uses 16 bits, then a 16-by-16
+;  multiplication yielding a more-than-29-bit number (i.e., a bignum)
+;  must be created as a bignum by the primitive * operation without 
+;  entering the bignum code to do this, and division by a 2-bigit bignum 
+;  by a fixnum must also be transparently handled.
 
+; INTERFACE
+;
 ; Here's the list of what procedures which are conceptually exported from
 ; this module. They do *not* check the types of their arguments!
 ;
@@ -86,10 +105,11 @@
 ; of which the Sparc is one example. On such an architecture, the layout of
 ; a bignum is this:
 ;
+;     high                         low
 ;    +------------------------+--------+
 ;    |   bytevector length    | hdrtag |
 ;    +----------------+-------+--------+
-;    |   sign         |   digitcount   |
+;    |   digitcount   |     sign       |
 ;    +----------------+----------------+
 ;    |   digit 1      |   digit 0      |
 ;    +----------------+----------------+
@@ -122,6 +142,7 @@
 (define bignum-digits-in-a-fixnum 2)
 (define max-bignum-bytes (* 65535 4))         ; a lot of digits
 (define bits-per-bigit 16)
+(define bytes-per-bigit 2)
 
 ; Some parameters, which have to be hardcoded to avoid using bignum
 ; arithmetic at load time (sigh).
@@ -158,7 +179,7 @@
 	(let ((v (make-bytevector (+ l 4))))
 	  (bytevector-fill! v 0)
           (typetag-set! v sys$tag.bignum-typetag)
-	  (bignum-length-set! v (+ (quotient l 2) (remainder l 2)))
+	  (bignum-length-set! v digits)
 	  v))))
 
 
@@ -187,28 +208,50 @@
     (bytevector-like-set! b 2 (quotient l byte-base))
     (bytevector-like-set! b 3 (remainder l byte-base))))
 
+; This is like bignum-length-set!, except that it works also when the
+; length is odd and the most significant half of the 32-bit bigit is not 
+; zero, i.e., in that case, normalize would not work properly unless said
+; half is zeroed out.
+
+(define (bignum-truncate-length! b ln)
+  (let ((l (quotient (+ ln 1) 2)))
+    (bytevector-like-set! b 2 (quotient l byte-base))
+    (bytevector-like-set! b 3 (remainder l byte-base))
+    (if (not (= ln (+ l l)))
+	(bignum-set! b ln 0))))
 
 ; Get the sign.
 
 (define (bignum-sign b)
   (bytevector-like-ref b 1))
 
-
 ; Set the sign.
 
 (define (bignum-sign-set! b s)
   (bytevector-like-set! b 1 s))
 
-
-; Copy. Should be expressed in terms of bytevector-like-copy. FIXME.
+; Copy a bignum. 
+; FIXME: Should be expressed in terms of bytevector-like-copy-into!,
+;        which can be bummed for this kind of copying.
+;
+; The use of 'min' is necessary since the two structures may not have
+; the same physical length (but equal bignum lengths). Alternatively we
+; could bignum-length, bytes-per-bignum, and so on.
+;
+; MIN should be a primop optimized for fixnums...
 
 (define (big-copy! from to)
-  (let loop ((i (- (bignum-length from) 1)))
-    (if (>= i 0)
-	(begin (bignum-set! to i (bignum-ref from i))
-	       (loop (- i 1))))))
 
-; eventually a primop
+  (define (loop i)
+    (if (>= i 0)
+	(begin (bytevector-like-set! to i (bytevector-like-ref from i))
+	       (loop (- i 1)))))
+
+  (loop (- (min (bytevector-like-length from) (bytevector-like-length to))
+	   1)))
+
+; Is it a bignum?
+; FIXME: Eventually a primop.
 
 (define (bignum? x)
   (and (bytevector-like? x)
@@ -273,55 +316,13 @@
 ; Given bignums a, b, c, indices i, j, and a carry, compute
 ;   c[ i+j ] = (a[i]*b[j]+c[i+j]+carry) mod bignum-base
 ; and return (a[i]*b[j]+c[i+j]+carry) div bignum-base
-;
-; Since 16bits * 16bits -> 32bits, the straight Scheme implementation of
-; this procedure may overflow the fixnum and invoke the bignum routines
-; recursively (unless caught by the daisy-chain in the millicode, which will
-; happen in the Sparc implementation). This is ugly, but well-defined.
-; The machine-dependent implementation of this procedure will be able to do
-; significantly better.
-;
-; If the intermediate result is a bignum, then it has two or three bigits.
 
 (define (big2*+ a b c i j carry)
-
-  (define (rem r)
-    (if (fixnum? r) (remainder r bignum-base) (bignum-ref r 0)))
-
-  (define (quo r)
-    (if (fixnum? r)
-	(quotient r bignum-base)
-	(cond ((= (bignum-length r) 2)
-	       (bignum-ref r 1))
-	      ((= (bignum-length r) 3)
-	       (+ (* (bignum-ref r 2) bignum-base) (bignum-ref r 1)))
-	      (else
-	       (fixnum->bignum 0)))))
-
-  (let ((p (* (bignum-ref a i) (bignum-ref b j))))
-    (let ((r (+ p (bignum-ref c (+ i j)) carry)))
-      (bignum-set! c (+ i j) (rem r))
-      (quo r))))
-
-; This is potentially faster, but "machine-dependent"; for benchmarking only.
-; It should pay off if procedure calls are expensive.
-;
-; (define (big2*+ a b c i j carry)
-;   (let ((i+j (+ i j)))
-;     (let ((base1 (+ (* i 2) (if (odd? i) 2 6)))
-; 	  (base2 (+ (* j 2) (if (odd? j) 2 6)))
-; 	  (base3 (+ (* i+j 2) (if (odd? i+j) 2 6))))
-;       (let ((adigit (+ (* byte-base (bytevector-like-ref a base1))
-; 		       (bytevector-like-ref a (+ base1 1))))
-; 	    (bdigit (+ (* byte-base (bytevector-like-ref b base2))
-; 		       (bytevector-like-ref b (+ base2 1))))
-; 	    (cdigit (+ (* byte-base (bytevector-like-ref c base3))
-; 		       (bytevector-like-ref c (+ base3 1)))))
-; 	(let ((r (+ (* adigit bdigit) cdigit carry)))
-; 	  (let ((r (remainder r bignum-base)))
-; 	    (bytevector-like-set! c base3 (quotient r byte-base))
-; 	    (bytevector-like-set! c (+ base3 1) (remainder r byte-base)))
-; 	  (quotient r bignum-base))))))
+  (let ((t (+ (* (bignum-ref a i) (bignum-ref b j))
+	      (bignum-ref c (+ i j))
+	      carry)))
+    (bignum-set! c (+ i j) (remainder t bignum-base))
+    (quotient t bignum-base)))
 
 
 ; DIVISION
@@ -330,40 +331,37 @@
 ; are to Algorithm D in Knuth vol II, 2nd ed, pp 257-258.
 
 ; Step D3: calculate an approximation to q_j, then adjust it if necessary.
+;
+; Here, uj, uj+1, and uj+2 are the current most significant bigits of
+; the dividend, and v1 and v2 are the two most significant bigits of the
+; divisor.
 
-(define (big~q u v j)
-  (let* ((lv   (bignum-length v))
-	 (v1   (bignum-ref v (- lv 1)))
-	 (v2   (bignum-ref v (- lv 2)))
-	 (uj   (bignum-ref u j))
-	 (uj+1 (bignum-ref u (- j 1)))
-	 (uj+2 (bignum-ref u (- j 2))))
+(define (big~q uj uj+1 uj+2 v1 v2)
 
-    (define (toobig? ~q)
-      (let ((a (* ~q v2))
-	    (b (+ (* (- (+ (* uj bignum-base) uj+1) (* ~q v1)) bignum-base)
-		  uj+2)))
-	(> a b)))
+  (define (loop ~q)
+    (if (> (* v2 ~q)
+	   (+ (* (- (+ (* uj bignum-base) uj+1) (* ~q v1))
+		 bignum-base)
+	      uj+2))
+	(loop (- ~q 1))
+	~q))
 
-    (define (approximate)
-      (if (= uj v1)
-	  (- bignum-base 1)
-	  (quotient (+ (* uj bignum-base) uj+1)
-		    v1)))
-
-    (let loop2 ((~q (approximate)))
-      (display "foo")
-      (if (toobig? ~q)
-	  (loop2 (- ~q 1))
-	  (begin (display "fum")
-		 ~q)))))
+  (loop (if (= uj v1)
+	    (- bignum-base 1)
+	    (quotient (+ (* uj bignum-base) uj+1)
+		      v1))))
 
 
-; step D4: multiply and subtract, returning borrow
+; Step D4: multiply and subtract, returning borrow.
+;
+; Subtle: newv may be longer than v. Ignore high digit, and do not use
+; (bignum-length newv) for (bignum-length v). [Justification for ignoring?]
+;
+; FIXME: move calculation of 'r' inside the 'if'.
 
 (define (big*- u v j ~q)
   (let ((newv (big-multiply-through-by v ~q)))
-    (let loop ((i (- j (bignum-length newv))) (k 0) (borrow 0))
+    (let loop ((i (- j (bignum-length v))) (k 0) (borrow 0))
       (if (<= i j)
 	  (let ((r (- (bignum-ref u i) (bignum-ref newv k) borrow)))
 	    (bignum-set! u i (remainder (+ r bignum-base) bignum-base))
@@ -373,25 +371,33 @@
 	  borrow))))
 
 
-; step D6: add back
+; Step D6: add back.
+;
+; This procedure is called only with very low probability. It will be
+; invoked if the two arguments to quotient are e.g.
+; 299999999999999999999999 and 100000000000000000000000, and also
+; for any even multiple of that first argument, with the second argument.
+; (I discovered this by accident.)
+; Another way is to feed 0.9999...9 to the reader, for more than 19 9s.
 
 (define (big-addback u v j)
-  (let loop ((i (- j (+ (bignum-length v) 1))) (k 0) (carry 0))
+  (let loop ((i (- j (bignum-length v))) (k 0) (carry 0))
     (cond ((< i j)
 	   (let ((r (+ (bignum-ref u i) (bignum-ref v k) carry)))
-	     (bignum-set! u (remainder r bignum-base))
+	     (bignum-set! u i (remainder r bignum-base))
 	     (loop (+ i 1) (+ k 1) (quotient r bignum-base))))
 	  ((= i j)
 	   (let ((r (+ (bignum-ref u i) carry)))
-	     (bignum-set! u (remainder r bignum-base))))
+	     (bignum-set! u i (remainder r bignum-base))))
 	  (else
 	   '()))))
 
-; Mutliply through by a fixnum.
-; Must normalize here, since division algorithm depends on the high digit
-; being non-zero (take it from someone who knows...)
-; Also, it is not safe to use the standard normalizer, because the number
-; might fit in a fixnum, something we cannot afford.
+
+; Multiply through by a fixnum < bignum-base, producing new bignum.
+;
+; Must normalize here, since division algorithm depends on the high 
+; digit being non-zero (length field must be valid). But must also
+; not produce fixnum.
 
 (define (big-multiply-through-by b f)
   (let* ((l (bignum-length b))
@@ -403,15 +409,6 @@
 	    (loop (+ i 1) (quotient r bignum-base)))
 	  (begin (bignum-set! q i carry)
 		 (big-limited-normalize! q))))))
-
-
-; copy bignum with an extra 0 as the most significant digit.
-
-(define (big-extend-with-zero b)
-  (let ((c (bignum-alloc (+ (bignum-length b) 1))))
-    (big-copy! b c)
-    (bignum-sign-set! c (bignum-sign b))
-    c))
 
 
 ; Copy a bignum
@@ -490,6 +487,7 @@
 
 ; Divide bignum `a' by bignum `b', returning the remainder.
 ;
+; FIXME
 ; This is wrong; handling of the sign needs to be different, and if the
 ; sign of the remainder is negative, then the remainder needs to be
 ; adjusted.
@@ -503,17 +501,24 @@
       (big-normalize! c))))
 
 
-; Divide bignum `a' by bignum `b', returning an integer if the remainder is 1,
-; and a ratnum otherwise.
+; Divide bignum `a' by bignum `b', returning an integer if the 
+; remainder is 0, and a ratnum otherwise.
 
 (define (bignum-divide a b)
   (let ((sa (bignum-sign a))
 	(sb (bignum-sign b)))
-    (let ((c (big-divide-digits a b)))
-      (if (not (= sa sb))
-	  (bignum-sign-set! (car c) negative-sign))
-      (make-reduced-ratnum (big-normalize! (car c))
-			   (big-normalize! (cdr c))))))
+    (let* ((c (big-divide-digits a b))
+	   (q (big-normalize! (car c)))
+	   (r (big-normalize! (cdr c))))
+      (if (zero? r)
+	  (if (not (= sa sb))
+	      (if (bignum? q)
+		  (begin (bignum-sign-set! q negative-sign)
+			 q)
+		  (- q))
+	      q)
+	  (make-reduced-ratnum a b)))))
+
 
 ; Return the negation of the argument (a new bignum).
 
@@ -583,6 +588,7 @@
 ; (Could use big-limited-normalize, though.)
 
 (define (fixnum->bignum f)
+;  (bntrace "fixnum->bignum: " f)
   (if (not (fixnum? f))
       (error "fixnum->bignum:" f "not a fixnum."))
   (let ((b (bignum-alloc bignum-digits-in-a-fixnum)))
@@ -605,7 +611,7 @@
 
 (define (bignum->string b r)
   (if (bignum-zero? b)
-      "0"
+      (string-copy "0")
       (let ((r (fixnum->bignum r))
 	    (d "0123456789abcdef")
 	    (s (bignum-negative? b)))
@@ -647,11 +653,7 @@
 
     ;; add common segments
 
-;    (bigdump a)
-;    (bigdump b)
-;    (display "-----------------") (newline)
     (let loop ((i 0) (carry 0))
-;      (bigdump c)
       (if (< i lmin)
 	  (loop (+ i 1) (big2+ a b c i carry))
 	    
@@ -659,11 +661,9 @@
 
 	  (let ((rest (if (= i la) b a)))
 	    (let loop ((i i) (carry carry))
-;	      (bigdump c)
 	      (if (< i lmax)
 		  (loop (+ i 1) (big1+ rest c i carry))
 		  (begin (bignum-set! c i carry)
-;			 (bigdump c)
 			 c))))))))
 
 
@@ -704,16 +704,12 @@
   (let* ((la (bignum-length a))
 	 (lb (bignum-length b))
 	 (c  (bignum-alloc (+ la lb))))
-;    (bigdump a)
-;    (bigdump b)
     (let loop1 ((ai 0))
       (if (< ai la)
 	  (let loop2 ((bi 0) (carry 0))
-;	    (bigdump c)
 	    (if (< bi lb)
 		(loop2 (+ bi 1) (big2*+ a b c ai bi carry))
 		(begin (bignum-set! c (+ ai bi) carry)
-;		       (bigdump c)
 		       (loop1 (+ ai 1)))))
 	  c))))
 
@@ -721,50 +717,40 @@
 ; Divide two positive bignums, producing a pair, both elements of which are 
 ; bignums, the car being the quotient and the cdr being the remainder.
 ;
-; See Knuth vol II, 2nd ed, p 257,258. There's extra hair here, however,
-; due to the different indexing scheme.
+; The arguments may be signed, but the signs will be ignored.
 
 (define (big-divide-digits a b)
 
-  ; `a' is a bignum, `b' is a fixnum. Produces a pair of bignums, even if the
-  ; remainder is always a fixnum.
-  ;
-  ; A bit of hair associated with dowing the quotient in here.
-  ; The problem is that 'rem' can be as large as (- b 1), and b can be
-  ; as large as bignum-base. This, in turn, can make 'd' a bignum.
-  ; This means that we can get into a loop trying to calculate (quotient d b).
-  ;
-  ; This gets *much* simpler once we move into assembly.
+  ; Copy bignum with an extra 0 as the most significant digit.
+  ; Notice that this invalidates the length field, and the length
+  ; of the resulting bignum cannot be taken without first 
+  ; normalizing!
+
+  (define (big-extend-with-zero b)
+    (let ((c (bignum-alloc (+ (bignum-length b) 1))))
+      (big-copy! b c)
+      (bignum-sign-set! c (bignum-sign b))
+      c))
+
+  ; `a' is a bignum, `b' is a fixnum < bignum-base. Produces a pair
+  ; of bignums, even if the remainder is always a fixnum.
 
   (define (fast-divide a b)
-
-    ; Turns out that if you have a two-bigit bignum and a single-bigit
-    ; fixnum, then the following will calculate the quotient.
-
-    (define (b2fquot d b)
-      (let ((q1 (quotient bignum-base b))
-	    (q2 (quotient (bignum-ref d 0) b)))
-	(let ((r1 (- bignum-base (* q1 b)))
-	      (r2 (- (bignum-ref d 0) (* q2 b))))
-	  (+ (* (bignum-ref d 1) q1) q2 (if (>= (+ r1 r2) b) 1 0)))))
-
     (let ((q (bignum-alloc (bignum-length a))))
       (let loop ((rem 0) (i (- (bignum-length a) 1)))
 	(if (>= i 0)
-	    (let* ((d (+ (* rem bignum-base) (bignum-ref a i)))
-		   (quot (if (fixnum? d) 
-			     (quotient d b)
-			     (b2fquot d b)))
+	    (let* ((d    (+ (* rem bignum-base) (bignum-ref a i)))
+		   (quot (quotient d b))
 		   (remd (- d (* quot b))))
 	      (bignum-set! q i quot)
 	      (loop remd (- i 1)))
 	    (begin (big-limited-normalize! q)
-		   (cons q (fixnum->bignum rem)))))))
+		   (cons q (if (fixnum? rem)
+			       (fixnum->bignum rem)
+			       (error "fast-divide: impossible: " rem))))))))
 
   ; `a' and `b' are both bignums, with (length a) >= (length b) and
   ; (length b) > 1. Produces a pair of bignums.
-  ;
-  ; May need to normalize? FIXME.
 
   (define (slow-divide a b)
     (let* ((d  (quotient bignum-base
@@ -773,22 +759,40 @@
 		   (big-extend-with-zero a)
 		   (big-multiply-through-by a d)))
 	   (v  (big-multiply-through-by b d))
-	   (lu (bignum-length u))
+	   (lu (+ (bignum-length a) 1))       ; may not take length of u
 	   (lv (bignum-length v))
-	   (q  (bignum-alloc (- lu lv)))
-	   (lq (- lu lv)))                ; don't use (bignum-length q)
-      (let loop1 ((j (- lu 1)) (p (- lq 1)))
+	   (v1 (bignum-ref v (- lv 1)))
+	   (v2 (bignum-ref v (- lv 2)))
+	   (lq (- lu lv))
+	   (q  (bignum-alloc lq)))
+
+      ; - Uj+1 and Uj+2 can be reused in future iterations, but the
+      ;   time is spent other places, so it hardly matters.
+
+      (define (loop j p)
 	(if (>= p 0)
-	    (let ((~q (big~q u v j)))
-	      (let ((borrow (big*- u v j ~q)))
+	    (let* ((uj   (bignum-ref u j))
+		   (uj+1 (bignum-ref u (- j 1)))
+		   (uj+2 (bignum-ref u (- j 2))))
+	      (let* ((~q     (big~q uj uj+1 uj+2 v1 v2))
+		     (borrow (big*- u v j ~q)))
 		(bignum-set! q p ~q)
 		(if (not (zero? borrow))
-		    (begin (bignum-set! q p (- (bignum-ref q p) 1))
+		    (begin ;(display "slow-divide: addback") (newline)
+			   ;(display "arg 1: ") (display a) (newline)
+			   ;(display "arg 2: ") (display b) (newline)
+			   (bignum-set! q p (- ~q 1))
 			   (big-addback u v j)))
-		(loop1 (- j 1) (- p 1))))
-	    (cons q (car (fast-divide u d)))))))  ; wrong U
+		(loop (- j 1) (- p 1))))))
 
-  ; maintain some invariants and catch the easy cases.
+      (loop (- lu 1) (- lq 1))
+      (big-limited-normalize! q)
+      (bignum-truncate-length! u lv)
+;      (bignum-length-set! u lv)
+      (big-limited-normalize! u)
+      (cons q (car (fast-divide u d)))))
+
+  ; Maintain some invariants and catch the easy cases.
 
   (cond ((bignum-zero? b)
 	 (error 'generic-arithmetic "Bignum division by zero"))
@@ -799,7 +803,7 @@
 	       (lb (bignum-length b)))
 	   (cond ((> lb la)
 		  (let ((r (bignum-copy b)))
-		    (bignum-sign-set! r positive-sign)
+		    (bignum-sign-set! r positive-sign) ; b may be signed
 		    (cons (fixnum->bignum 0) r)))
 		 ((= lb 1)
 		  (fast-divide a (bignum-ref b 0)))
@@ -866,15 +870,11 @@
 	   (bignum-length-set! b (+ i 1))
 	   b))))
 
-; For debugging under Chez.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-;(display "; redefining debugging values") (newline)
-;(set! smallest-positive-bignum
-;  (integer->bytevector smallest-positive-bignum))
-;(set! largest-negative-bignum
-;  (integer->bytevector largest-negative-bignum))
+; Debugging code
 
-; For debugging in general
+; Dump a bignum in Hex; requires a 'sane' bignum.
 
 (define (bigdump bignum)
 
@@ -886,18 +886,35 @@
 		   (loop (- i 1)))
 	    (display s)))))
 
-  (if dump-is-on
-      (let loop ((i (- (bignum-length bignum) 1)))
-	(if (>= i 0)
-	    (begin (pr (bignum-ref bignum i))
-		   (loop (- i 1)))
-	    (newline)))))
+  (let loop ((i (- (bignum-length bignum) 1)))
+    (if (>= i 0)
+	(begin (pr (bignum-ref bignum i))
+	       (loop (- i 1)))
+	(newline))))
 
-(define dump-is-on #f)
+; Dump the bytevector, anything goes. Very useful for debugging.
 
-(define (dumpon)
-  (set! dump-is-on #t))
+(define (bigdump* bignum)
+  (let ((l (bytevector-like-length bignum))
+	(v "0123456789abcdef"))
+    (if (zero? l)
+	(display "0")
+	(let loop ((i 0))
+	  (if (< i l)
+	      (let ((n (bytevector-like-ref bignum i)))
+		(if (and (zero? (remainder i 4))
+			 (not (zero? i)))
+		    (display " "))
+		(display (string-ref v (quotient n 16)))
+		(display (string-ref v (remainder n 16)))
+		(loop (+ i 1))))))))
 
-(define (dumpoff)
-  (set! dump-is-on #f))
+; In production code, remove all calls to bntrace from the bignum code.
 
+(define bn-trace-enabled #t)
+(define (bntrace . args)
+  (if bn-trace-enabled
+      (begin (for-each display args)
+	     (newline))))
+
+; eof

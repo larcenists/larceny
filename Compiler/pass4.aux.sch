@@ -1,67 +1,4 @@
 ; Copyright 1991 Lightship Software, Incorporated.
-;
-; Parameters determined by the target machine.
-
-;(define *nregs* 8)
-(define *nregs* 32)
-(define *lastreg* (- *nregs* 1))
-(define *fullregs* (quotient *nregs* 2))
-
-; Procedures for fetching parts of assembly instructions.
-
-(define instruction.op car)
-(define instruction.arg1 cadr)
-(define instruction.arg2 caddr)
-(define instruction.arg3 cadddr)
-
-; Procedures for emitting instructions.
-;
-; To save consing, instructions are accumulated as a list in
-; reverse order.  Lists may be embedded using the cg-ops and
-; cg-linearize procedures, which insert *ops and *linearize
-; as indicators:
-;
-;    (... *ops (x1 ... xk) ...) is equivalent to
-;    (... xk ... x1 ...)
-; and
-;    (... *linearize (x1 ... xk) ...) is equivalent to
-;    (... x1 ... xk ...).
-;
-; These procedures ought to be macros so they can perform
-; the following transformations:
-;
-;    (cg-linearize
-;     (cg-ops E1 .... Ek)
-;     E)
-;    =>
-;    (cons Ek (cons ... (cons E1 E)))
-; and
-;    (cg-ops E1 ... Ek) => (list Ek ... E1)
-
-(define $.ops '*ops)
-(define $.linearize '*linearize)
-
-(define cg-op list)
-
-(define (cg-ops . ops)               ; this oughta be a macro
-  (cond ((null? ops) ops)
-        ((null? (cdr ops)) ops)
-        (else (cons $.ops ops))))
-
-(define (cg-linearize t1 t2)
-  (list $.linearize t1 t2))
-
-(define (cg-make-linear tree)
-  (define (f tree code)
-    (cond ((null? tree) code)
-          ((eq? (car tree) $.linearize)
-           (f (cadr tree)
-              (f (caddr tree)
-                 code)))
-          ((eq? (car tree) $.ops)
-           (append (cdr tree) code))
-          (else (f (cdr tree) (cons (car tree) code)))))
-  (f tree '()))
 
 (define (make-label)
   (set! cg-label-counter (+ cg-label-counter 1))
@@ -69,51 +6,161 @@
 
 (define cg-label-counter 1000)
 
-; Instructions and pseudo-instructions.
+;    an assembly stream into which instructions should be emitted
+;    an expression
+;    the desired target register ('result, a register number, or '#f)
+;    a register environment [cgreg]
+;    a stack-frame environment [cgframe]
+;      contains size of frame, current top of frame
+;    a compile-time environment [cgenv]
+;    a flag indicating whether the expression is in tail position
 
-; (define (make-mnemonic symbol)
-;   (let ((s (symbol->string symbol)))
-;     (string->symbol
-;      (string-append
-;       "    "
-;       s
-;       (make-string (max 0 (- 8 (string-length s)))
-;                    #\space)))))
-; 
-; (define $.label (string->symbol "L"))
-; 
-; (define $op1 (make-mnemonic 'op1))               ; op      prim
-; (define $op2 (make-mnemonic 'op2))               ; op2     prim,k
-; (define $op3 (make-mnemonic 'op3))               ; op3     prim,k1,k2
-; (define $op2imm (make-mnemonic 'opx))            ; op2imm  prim,x
-; (define $const (make-mnemonic 'const))           ; const   x
-; (define $global (make-mnemonic 'global))         ; global  x
-; (define $setglbl (make-mnemonic 'setglbl))       ; setglbl x
-; (define $lexical (make-mnemonic 'lexical))       ; lexical m,n
-; ;(define $setlex (make-mnemonic 'setlex))         ; setlex  m,n
-; (define $stack (make-mnemonic 'stack))           ; stack   n
-; (define $setstk (make-mnemonic 'setstk))         ; setstk  n
-; (define $reg (make-mnemonic 'reg))               ; reg     k
-; (define $setreg (make-mnemonic 'setreg))         ; setreg  k
-; (define $movereg (make-mnemonic 'movereg))       ; movereg k1,k2
-; (define $lambda (make-mnemonic 'lambda))         ; lambda  x,k
-; (define $lexes (make-mnemonic 'lexes))           ; lexes   k
-; (define $chain (make-mnemonic 'chain))           ; chain   m
-; (define $args= (make-mnemonic 'args=))           ; args=   k
-; (define $args>= (make-mnemonic 'args>=))         ; args>=  k
-; (define $invoke (make-mnemonic 'invoke))         ; invoke  k
-; (define $save (make-mnemonic 'save))             ; save    L,k
-; ;(define $setrtn (make-mnemonic 'setrtn))         ; setrtn  L
-; (define $restore (make-mnemonic 'restore))       ; restore k
-; (define $pop (make-mnemonic 'pop))               ; pop     k
-; (define $return (make-mnemonic 'return))         ; return
-; ;(define $mvrtn (make-mnemonic 'mvrtn))           ; mvrtn
-; ;(define $apply (make-mnemonic 'apply))           ; apply
-; (define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
-; (define $branch (make-mnemonic 'branch))         ; branch  L
-; (define $branchf (make-mnemonic 'branchf))       ; branchf L
-; 
-; (define $cons 'cons)
+; Assembly streams, into which instructions are emitted by side effect.
+; Represented as a pair whose car is a nonempty list whose cdr is a
+; possibly empty list of MacScheme machine assembly instructions,
+; and whose cdr is the last pair of the car.
+
+(define (make-assembly-stream)
+  (let ((stream (list (list 0))))
+    (set-cdr! stream (car stream))
+    stream))
+
+(define (assembly-stream-code output)
+  (if (local-optimizations)
+      (filter-basic-blocks (cdar output))
+      (cdar output)))
+
+(define (gen! output . instruction)
+  (let ((pair (list instruction)))
+    (set-cdr! (cdr output) pair)
+    (set-cdr! output pair)
+    output))
+
+(define (gen-save! output frame)
+  (let ((size (cgframe-size-cell frame)))
+    (let ((pair (list (cons $save size))))
+      (set-cdr! (cdr output) pair)
+      (set-cdr! output pair)
+      output)))
+
+(define (gen-restore! output frame)
+  (let ((pair (list (cons $restore (cgframe-size-cell frame)))))
+    (set-cdr! (cdr output) pair)
+    (set-cdr! output pair)
+    output))
+
+(define (gen-pop! output frame)
+  (let ((pair (list (cons $pop (cgframe-size-cell frame)))))
+    (set-cdr! (cdr output) pair)
+    (set-cdr! output pair)
+    output))
+
+; Register environments.
+; Represented as an association list whose entries are of the form
+;
+;    (n . contents)
+;
+; where contents is one of
+;
+;    #f  (the register is dead)
+;    #t  (the register is live)
+;    a variable name
+;      (the register is live and contains the value of that variable)
+;    a Scheme expression (other than a variable) in standard form
+;      (the register is live and contains the value of that expression)
+;
+; For the moment, the registers must be used as a stack.
+
+(define (cgreg-initial)
+  '((0 . #t)))
+
+(define (cgreg-tos regs)
+  (car (car regs)))
+
+(define (cgreg-liveregs regs)
+  (length regs))
+
+(define (cgreg-live regs r)
+  (if (eq? r 'result)
+      (cgreg-tos regs)
+      (max r (cgreg-tos regs))))
+
+(define (cgreg-push1 regs)
+  (cons (cons (+ (cgreg-tos regs) 1) #t) regs))
+
+(define (cgreg-push regs n)
+  (if (zero? n)
+      regs
+      (cgreg-push (cgreg-push1 regs) (- n 1))))
+
+(define (cgreg-vars regs)
+  (map (lambda (entry)
+         (let ((contents (cdr entry)))
+           (cond ((symbol? contents) contents)
+                 ((and (pair? contents)
+                       (variable? contents))
+                  (variable.name contents))
+                 (else #t))))
+       (reverse regs)))
+
+(define (cgreg-bindregs regs vars)
+  (do ((regs regs (cons (cons n (car vars)) regs))
+       (vars vars (cdr vars))
+       (n (+ (cgreg-tos regs) 1) (+ n 1)))
+      ((null? vars) regs)))
+
+(define (cgreg-lookup regs var)
+  (cond ((null? regs) #f)
+        ((eq? (cdr (car regs)) var)
+         (list var 'register (caar regs) '(object)))
+        (else (cgreg-lookup (cdr regs) var))))
+
+(define (cgreg-lookup-reg regs reg)
+  (let* ((n (length regs)))
+    (if (>= reg n)
+        #t
+        (cdr (list-ref regs (- n reg 1))))))
+
+; Stack-frame environments.
+; Represented as a list containing
+;    number of highest slot currently allocated
+;    size of frame (can be increased by side effect)
+
+(define (cgframe-initial)
+  (list -1 -1))
+
+(define (cgframe-top frame)
+  (car frame))
+
+(define (cgframe-size-cell frame)
+  (cdr frame))
+
+(define (cgframe-size frame)
+  (car (cgframe-size-cell frame)))
+
+(define (cgframe-used! frame)
+  (if (negative? (cgframe-size frame))
+      (set-car! (cgframe-size-cell frame) 0)))
+
+; Returns both a slot number and a new description of the frame.
+
+(define (cgframe-newtemp frame)
+  (let ((n (+ (cgframe-top frame) 1))
+        (size (cgframe-size-cell frame)))
+    (if (> n (car size))
+        (set-car! size n))
+    (values n (cons n size))))
+
+(define (cgframe-newtemps frame n)
+  (if (zero? n)
+      (values '() frame)
+      (call-with-values
+       (lambda () (cgframe-newtemp frame))
+       (lambda (t frame)
+         (call-with-values
+          (lambda () (cgframe-newtemps frame (- n 1)))
+          (lambda (temps frame)
+            (values (cons t temps) frame)))))))
 
 ; Environments.
 ;
@@ -129,12 +176,10 @@
 ;
 ; An environment is represented as a list of the form
 ;
-;    ((<name-or-#t> ...)                     ; registers
-;     (<entry> ...)                          ; lexical rib
+;    ((<entry> ...)                          ; lexical rib
 ;     ...)
 ;
-; where each <name-or-#t> is either an identifier or #t,
-; and where each <entry> has one of the forms
+; where each <entry> has one of the forms
 ;
 ;    (<name> procedure <rib> <label> (object))
 ;    (<name> lexical <offset> (object))
@@ -151,8 +196,7 @@
 (define (entry.imm entry) (car (cddddr entry)))
 
 (define (cgenv-initial integrable)
-  (list '((#t register 0 (object)))
-        (map (lambda (x)
+  (list (map (lambda (x)
                (list (car x)
                      'integrable
                      (cadr x)
@@ -160,13 +204,6 @@
                      (cadddr x)
                      '((object))))
              integrable)))
-
-(define (cgenv-lookup-reg env reg)
-  (let* ((registers (car env))
-         (n (length registers)))
-    (if (>= reg n)
-        #t
-        (entry.name (list-ref registers (- n reg 1))))))
 
 (define (cgenv-lookup env id)
   (define (loop ribs m)
@@ -184,71 +221,28 @@
                 ((integrable) x)
                 (else ???))
               (loop (cdr ribs) (+ m 1))))))
-  (let ((x (assq id (car env))))
-    (if x
-        x
-        (loop (cdr env) 0))))
+  (loop env 0))
 
 (define (cgenv-extend env vars procs)
-  (cons (car env)
-        (cons (do ((n 0 (+ n 1))
-                   (vars vars (cdr vars))
-                   (rib (map (lambda (id)
-                               (list id 'procedure (make-label) '(object)))
-                             procs)
-                        (cons (list (car vars) 'lexical n '(object)) rib)))
-                  ((null? vars) rib))
-              (cdr env))))
-
-(define (cgenv-bindreg env var)
-  (cgenv-bindregs env (list var)))
-
-(define (cgenv-bindregs env vars)
-  (cons (do ((k (length (car env)) (+ k 1))
+  (cons (do ((n 0 (+ n 1))
              (vars vars (cdr vars))
-             (regs (car env)
-                   (cons (list (car vars) 'register k '(object))
-                         regs)))
-            ((null? vars) regs))
-        (cdr env)))
+             (rib (map (lambda (id)
+                         (list id 'procedure (make-label) '(object)))
+                       procs)
+                  (cons (list (car vars) 'lexical n '(object)) rib)))
+            ((null? vars) rib))
+        env))
 
 (define (cgenv-bindprocs env procs)
-  (cons (car env)
-        (cons (append (map (lambda (id)
-                             (list id 'procedure (make-label) '(object)))
-                           procs)
-                      (cadr env))
-              (cddr env))))
+  (cons (append (map (lambda (id)
+                       (list id 'procedure (make-label) '(object)))
+                     procs)
+                (car env))
+        (cdr env)))
 
-(define (cgenv-tos env)
-  (- (length (car env)) 1))
-
-(define (cgenv-tos-1 env)
-  (- (length (car env)) 2))
-
-(define (cgenv-push env n)
-  (if (zero? n)
-      env
-      (cgenv-push
-       (cons (cons (list #t 'register (length (car env)) '(object))
-                   (car env))
-             (cdr env))
-       (- n 1))))
-
-(define (cgenv-pop env n)
-  (if (zero? n)
-      env
-      (cgenv-pop (cons (cdr (car env))
-                       (cdr env))
-                 (- n 1))))
-
-(define (cgenv-regvars env)
-  (do ((rib (car env) (cdr rib))
-       (vars '() (cons (car (car rib)) vars)))
-      ((null? rib) vars)))
-
-(define (cgenv-liveregs env)
-  (length (car env)))
+(define (var-lookup var regs frame env)
+  (or (cgreg-lookup regs var)
+      (cgenv-lookup env var)))
 
 ; For testing.
 

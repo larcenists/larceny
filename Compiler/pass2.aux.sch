@@ -1,4 +1,15 @@
-; Copyright 1991 Lightship Software, Incorporated.
+; Copyright 1991 William D Clinger.
+;
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful noncommercial purpose, and to redistribute
+; this software is granted subject to the restriction that all copies
+; made of this software must include this copyright notice in full.
+; 
+; I also request that you send me a copy of any improvements that you
+; make to this software so that they may be incorporated within it to
+; the benefit of the Scheme community.
+;
+; 16 May 1995
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
@@ -16,16 +27,19 @@
 
 (define (make-constant value) (list 'quote value))
 (define (make-variable name) (list 'begin name))
-(define (make-lambda formals defs R F decls doc body)
+(define (make-lambda formals defs R F G decls doc body)
   (list 'lambda
         formals
         (cons 'begin defs)
-        (list 'quote (list R F decls doc))
+        (list 'quote (list R F G decls doc))
         body))
 (define (make-call proc args) (cons proc (append args '())))
 (define (make-assignment lhs rhs) (list 'set! lhs rhs))
 (define (make-conditional e0 e1 e2) (list 'if e0 e1 e2))
-(define (make-begin exprs) (cons 'begin (append exprs '())))
+(define (make-begin exprs)
+  (if (null? (cdr exprs))
+      (car exprs)
+      (cons 'begin (append exprs '()))))
 (define (make-definition lhs rhs) (list 'define lhs rhs))
 
 (define (constant.value exp) (cadr exp))
@@ -34,8 +48,9 @@
 (define (lambda.defs exp) (cdr (caddr exp)))
 (define (lambda.R exp) (car (cadr (cadddr exp))))
 (define (lambda.F exp) (cadr (cadr (cadddr exp))))
-(define (lambda.decls exp) (caddr (cadr (cadddr exp))))
-(define (lambda.doc exp) (cadddr (cadr (cadddr exp))))
+(define (lambda.G exp) (caddr (cadr (cadddr exp))))
+(define (lambda.decls exp) (cadddr (cadr (cadddr exp))))
+(define (lambda.doc exp) (car (cddddr (cadr (cadddr exp)))))
 (define (lambda.body exp) (car (cddddr exp)))
 (define (call.proc exp) (car exp))
 (define (call.args exp) (cdr exp))
@@ -48,10 +63,16 @@
 (define (def.lhs exp) (cadr exp))
 (define (def.rhs exp) (caddr exp))
 
+(define (variable-set! exp newexp)
+  (set-car! exp (car newexp))
+  (set-cdr! exp (append (cdr newexp) '())))
 (define (lambda.args-set! exp args) (set-car! (cdr exp) args))
 (define (lambda.defs-set! exp defs) (set-cdr! (caddr exp) defs))
 (define (lambda.R-set! exp R) (set-car! (cadr (cadddr exp)) R))
 (define (lambda.F-set! exp F) (set-car! (cdr (cadr (cadddr exp))) F))
+(define (lambda.G-set! exp G) (set-car! (cddr (cadr (cadddr exp))) G))
+(define (lambda.decls-set! exp decls) (set-car! (cdddr (cadr (cadddr exp))) decls))
+(define (lambda.doc-set! exp doc) (set-car! (cddddr (cadr (cadddr exp))) doc))
 (define (lambda.body-set! exp exp0) (set-car! (cddddr exp) exp0))
 (define (call.proc-set! exp exp0) (set-car! exp exp0))
 (define (call.args-set! exp exprs) (set-cdr! exp exprs))
@@ -61,12 +82,6 @@
 (define (if.else-set! exp exp0) (set-car! (cdddr exp) exp0))
 (define (begin.exprs-set! exp exprs) (set-cdr! exp exprs))
 
-(define name:IGNORED (string->symbol "IGNORED"))
-(define name:CONS (string->symbol "CONS"))
-(define name:MAKE-CELL (string->symbol "MAKE-CELL"))
-(define name:CELL-REF (string->symbol "CELL-REF"))
-(define name:CELL-SET! (string->symbol "CELL-SET!"))
-
 (define (ignored? name) (eq? name name:IGNORED))
 
 ; Fairly harmless bug: rest arguments aren't getting flagged.
@@ -75,8 +90,8 @@
   (define (loop name formals)
     (cond ((null? formals)
            ;(pass2-error p2error:violation-of-invariant name formals)
-           hash-bang-unspecified)
-          ((symbol? formals) hash-bang-unspecified)
+           #t)
+          ((symbol? formals) #t)
           ((eq? name (car formals))
            (set-car! formals name:IGNORED)
            (if (not (local? (lambda.R L) name:IGNORED))
@@ -103,9 +118,10 @@
 
 (define (make-call-to-LIST args)
   (cond ((null? args) (make-constant '()))
-        (else (make-call (make-variable name:CONS)
-                         (list (car args)
-                               (make-call-to-list (cdr args)))))))
+        ((null? (cdr args))
+         (make-call (make-variable name:CONS)
+                    (list (car args) (make-constant '()))))
+        (else (make-call (make-variable name:LIST) args))))
 
 (define (pass2-error i . etc)
   (apply cerror (cons (vector-ref pass2-error-messages i) etc)))
@@ -159,31 +175,49 @@
 (define (calls-set! R I X)
   (set-car! (cdddr (R-lookup R I)) X))
 
-; A notepad is a list of the form (L0 (L1 ...) (I ...)),
-; where the first component is a parent lambda expression
-; (or #f if there is no enclosing parent, or we want to
-; pretend that there isn't),
-; the second component is a list of lambda expressions that
-; the parent lambda expression encloses immediately,
-; and the third component is a list of free variables.
+; A notepad is a vector of the form #(L0 (L1 ...) (L2 ...) (I ...)),
+; where the components are:
+;    element 0: a parent lambda expression (or #f if there is no enclosing
+;               parent, or we want to pretend that there isn't).
+;    element 1: a list of lambda expressions that the parent lambda
+;               expression encloses immediately.
+;    element 2: a subset of that list that does not escape.
+;    element 3: a list of free variables.
 
 (define (make-notepad L)
-  (list L '() '()))
+  (vector L '() '() '()))
 
-(define (notepad.parent np) (car np))
-(define (notepad.lambdas np) (cadr np))
-(define (notepad.vars np) (caddr np))
+(define (notepad.parent np)      (vector-ref np 0))
+(define (notepad.lambdas np)     (vector-ref np 1))
+(define (notepad.nonescaping np) (vector-ref np 2))
+(define (notepad.vars np)        (vector-ref np 3))
 
-(define (notepad.lambdas-set! np x) (set-car! (cdr np) x))
-(define (notepad.vars-set! np x) (set-car! (cddr np) x))
+(define (notepad.lambdas-set! np x)     (vector-set! np 1 x))
+(define (notepad.nonescaping-set! np x) (vector-set! np 2 x))
+(define (notepad.vars-set! np x)        (vector-set! np 3 x))
 
 (define (notepad-lambda-add! np L)
   (notepad.lambdas-set! np (cons L (notepad.lambdas np))))
+
+(define (notepad-nonescaping-add! np L)
+  (notepad.nonescaping-set! np (cons L (notepad.nonescaping np))))
 
 (define (notepad-var-add! np I)
   (let ((vars (notepad.vars np)))
     (if (not (memq I vars))
         (notepad.vars-set! np (cons I vars)))))
+
+; Given a notepad, returns the list of variables that are closed
+; over by some nested lambda expression that escapes.
+
+(define (notepad-captured-variables np)
+  (let ((nonescaping (notepad.nonescaping np)))
+    (apply union
+           (map (lambda (L)
+                  (if (memq L nonescaping)
+                      (lambda.G L)
+                      (lambda.F L)))
+                (notepad.lambdas np)))))
 
 ; Given a notepad, returns a list of free variables computed
 ; as the union of the immediate free variables with the free

@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # This script starts up the development environment with correct paths set.
+# $Id: nbuild,v 1.2 1995/08/01 04:36:02 lth Exp lth $
 #
 # The advantage of having this script is that it can be cloned and specialized
 # for different object (or source) directories.

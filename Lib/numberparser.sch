@@ -65,8 +65,8 @@
 ;       (lambda (l)
 ;         (list '- (list 'char->integer (cadr l)) '48)))
 
-(define (bellerophon . s)
-  (error "Bellerophon not included."))
+;(define (bellerophon . s)
+;  (error "Bellerophon not included."))
 
 (define string->number)
 

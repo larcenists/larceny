@@ -52,28 +52,35 @@
       (* a (expt a (- b 1)))
       a))
 
-(define (call-with-current-continuation proc)
-  (let ((k (creg)))
-    (proc (lambda (v) 
-	    (if (not (vector-like? k))
-		(begin (display "Bogus continuation!") (newline)
-		       (debug)))
-	    (creg-set! k)
-	    v))))
+; Obsolete. Current version in Lib/malcode.mal.
+;
+;(define (call-with-current-continuation proc)
+;  (let ((k (creg)))
+;    (proc (lambda (v) 
+;	    ;You may not have any code here which causes the compiler
+;	    ;to mess with the stack after the creg-set!.
+;	    ;(if (not (vector-like? k))
+;	    ;    (begin (display "Bogus continuation!") (newline)
+;	    ;           (debug)))
+;	    (creg-set! k)
+;	    v))))
 
-; a continuation is a vector; we print it in a slightly more palatable
+; Belongs in DEBUG.SCH.
+; A continuation is a vector; we print it in a slightly more palatable
 ; format by avoiding printing all the saved data slots.
 
 (define (print-continuation k)
+  (define dynlink 1)
+
   (let loop ((l (vector-length k)) (i 0))
     (if (= i l)
-	(if (vector-ref k 0)
+	(if (vector-ref k dynlink)
 	    (begin (newline)
-		   (print-continuation (vector-ref k 0))))
+		   (print-continuation (vector-ref k dynlink))))
 	(let ((x (vector-ref k i)))
 	  (if (not (or (vector? x) (pair? x)))
 	      (begin (display x) (newline))
 	      (begin (display "#<complex>") (newline)))
 	  (loop l (+ i 1))))))
 
-
+; eof

@@ -4,15 +4,35 @@
   (display "Larceny top level; evaluator version ")
   (display eval-version)
   (newline)
-  (newline)
   (init-toplevel-environment)
+  (if (not (call-with-current-continuation
+	    (lambda (k)
+	      (set! error-continuation k)
+	      (load-init-file)
+	      #t)))
+      (begin (display "Init file load failed.")
+	     (newline)))
   (call-with-current-continuation
    (lambda (k)
      (set! error-continuation k)))
+  (newline)
   (rep-loop))
 
+(define (load-init-file)
+  (let ((home (getenv "HOME")))
+    (cond ((file-exists? ".larceny")
+	   (display "[Loading \".larceny\"]")
+	   (newline)
+	   (load ".larceny"))
+	  (home
+	   (let ((fn (string-append home "/.larceny")))
+	     (if (file-exists? fn)
+		 (begin (display "[Loading \"~/.larceny\"]")
+			(newline)
+			(load fn))))))))
+
 (define (rep-loop)
-  (display "]> ")
+  (display "> ")
   (flush-output-port)
   (let ((expr   (read)))
     (if (not (eof-object? expr))
@@ -24,6 +44,7 @@
 	       (exit)))))
 
 (define error-continuation #f)
+(define *saved-continuation* #f)
 
 (define (error . args)
   (set! in-error #t)
@@ -31,10 +52,14 @@
   (for-each (lambda (x) (display " ") (display x)) args)
   (newline)
   (if error-continuation
-      (error-continuation #f)
+      (display (set! *saved-continuation* (creg))
+	       (error-continuation #f))
       (begin 
 	(display "No error continuation! Bye...") (newline)
 	(exit))))
+
+(define (error-continuation)
+  *saved-continuation*)
 
 (define issue-warnings? #f)
 

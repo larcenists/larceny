@@ -25,21 +25,33 @@
 
 ; SYSTEM CODE
 
-; both arguments must be exact integers, and the denominator must be positive.
+; Both arguments must be exact integers, and the denominator `b' must 
+; be positive. No check is made for this.
+;
+; Make-ratnum should in principle be called from within this module
+; only; other modules should all call either make-reduced-ratnum or
+; make-unreduced-ratnum.
 
 (define (make-ratnum a b)
   (let ((c (vector a b)))
     (typetag-set! c sys$tag.ratnum-typetag)
     c))
 
-; ditto 
+; Both arguments must be exact integers, and the denominator `b' must 
+; be positive. If the reduced ratnum a'/b' has b'=1 then a' is returned
+; as an exact integer.
 
 (define (make-reduced-ratnum a b)
   (let ((gcd (gcd a b)))
-    (make-ratnum (/ a gcd) (/ b gcd))))
+    (let ((newa (quotient a gcd))
+	  (newb (quotient b gcd)))
+      (if (= newb 1)
+	  newa
+	  (make-ratnum newa newb)))))
 
-; ditto
- 
+; Both arguments must be exact integers, and the denominator `b' must 
+; be positive and greater than 1.
+
 (define (make-unreduced-ratnum a b)
   (make-ratnum a b))
 
@@ -56,6 +68,10 @@
 	 (vector-like-ref ratnum 0))
 	((integer? ratnum)
 	 ratnum)
+	((or (flonum? ratnum)
+	     (and (compnum? ratnum)
+		  (zero? (imag-part ratnum))))
+	 (exact->inexact (numerator (inexact->exact ratnum))))
 	(else
 	 (error "numerator: not a rational" ratnum))))
 
@@ -66,6 +82,10 @@
 	 (if (exact? ratnum)
 	     1
 	     1.0))
+	((or (flonum? ratnum)
+	     (and (compnum? ratnum)
+		  (zero? (imag-part ratnum))))
+	 (exact->inexact (denominator (inexact->exact ratnum))))
 	(else
 	 (error "denominator: not a rational" ratnum))))
 
@@ -158,3 +178,10 @@
 (define (ratnum->flonum a)
   (/ (exact->inexact (numerator a))
      (exact->inexact (denominator a))))
+
+(define (ratnum-round a)
+  (inexact->exact (round (ratnum->flonum a))))
+
+(define (ratnum-truncate a)
+  (inexact->exact (truncate (ratnum->flonum a))))
+

@@ -1,49 +1,34 @@
 ; Copyright Lightship Software.
 ;
+; Modified 950711 / lth:
+;    Added reverse!, append!.
+;
+; Modified 950611 / lth:
+;    Memq now uses eq? (rather than eqv?).
+;
+; Modified 950528 / lth: 
+;    Added IEEE-compliant list?, and last-pair.
+;
+; Modified 15 March by Will Clinger:
+;    added list-tail, list-ref
+;
 ; CHAPTER.  Predicates.
 ;  (load "predicates.sch")
-;(define eqv? eq?)
  
 (define (boolean? x)
   (or (eq? x #t) (eq? x #f)))
-
-; (eq? E K) compiles as (eq? K E),
-; and (eq? E I) as (eq? I E), to make peephole optimization easier.
- 
-; (define-varying eq?
-;   (lambda (l f)
-;     (if (= (length l) 2)
-;         (let ((e1 (cadr l))
-;               (e2 (caddr l)))
-;           (cond ((and (atom? e1)
-;                       (not (symbol? e1)))
-;                  l)
-;                 ((and (atom? e2)
-;                       (not (symbol? e2)))
-;                  (list 'eq? e2 e1))
-;                 ((symbol? e1) l)
-;                 ((symbol? e2) (list 'eq? e2 e1))
-;                 (else l)))
-;         l))
-;   (lambda (x y) (eq? x y)))
 
 (define (equal? x y)
   (cond ((eqv? x y) #t)
 	((and (pair? x) (pair? y))
 	 (and (equal? (car x) (car y)) (equal? (cdr x) (cdr y))))
 	((and (string? x) (string? y))
-	 (string-equal? x y))
+	 (string=? x y))
 	((and (vector? x) (vector? y))
 	 (vector-equal? x y))
 	((and (bytevector? x) (bytevector? y))
 	 (bytevector-equal? x y))
 	(else #f)))
- 
-; Defined elsewhere for Larceny
-;
-;(define string=?
-;  (lambda (s1 s2)
-;    (bytevector-equal? (->bytevector s1) (->bytevector s2))))
  
 (define string-equal? string=?)       ; for backward compatibility
  
@@ -59,20 +44,6 @@
           (v-equal-loop v1 v2 (1- (vector-length v1)))
           #f))))
  
-; Defined elsewhere for Larceny.
-;
-; (define bytevector-equal?
-;   (letrec ((bv-equal-loop
-;              (lambda (bv1 bv2 i)
-;                (cond ((<? i 0) #!true)
-;                      ((=? (bytevector-ref bv1 i) (bytevector-ref bv2 i))
-;                       (bv-equal-loop bv1 bv2 (1- i)))
-;                      (else #!false)))))
-;     (lambda (bv1 bv2)
-;       (if (=? (bytevector-length bv1) (bytevector-length bv2))
-;           (bv-equal-loop bv1 bv2 (1- (bytevector-length bv1)))
-;           #!false))))
-  
 ; List structure.
  
 (define reverse
@@ -83,7 +54,30 @@
 		  (reverse-loop (cdr l1) (cons (car l1) l2))))))
     (lambda (l)
       (reverse-loop l '()))))
- 
+
+(define (reverse! l)
+  (define (loop0 prev curr next)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop1 (cdr next) curr next)))
+  (define (loop1 next prev curr)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop2 next (cdr next) curr)))
+  (define (loop2 curr next prev)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop0 curr next (cdr next))))
+  (if (null? l)
+      '()
+      (loop0 '() l (cdr l))))
+
+
+; Slow; should use a better algorithm.
+
 (define append
   (letrec ((append2
 	    (lambda (x y)
@@ -94,15 +88,51 @@
 	    (lambda args
 	      (cond ((null? args) '())
 		    ((null? (cdr args)) (car args))
-		    ((null? (cddr args)) (apply append2 args))
-		    (else (append2 (car args)
-				   (apply append (cdr args))))))))
+		    ((null? (cddr args)) (append2 (car args) (cadr args)))
+		    (else (append2 (car args) (apply append (cdr args))))))))
     append))
- 
-; This is not true for Larceny.
-; (define memv memq)
-; (define assv assq)
- 
+
+; For macro expander.
+
+(define %append append)
+
+
+(define (append! . args)
+
+  (define (loop rest tail)
+    (cond ((null? rest)
+	   tail)
+	  ((null? (car rest))
+	   (loop (cdr rest) tail))
+	  (else
+	   (loop (cdr rest)
+		 (begin (set-cdr! (last-pair (car rest)) tail)
+			(car rest))))))
+
+  (if (null? args)
+      '()
+      (let ((a (reverse! args)))
+	(loop (cdr a) (car a)))))
+
+
+(define list-tail
+  (letrec ((list-tail
+             (lambda (x k)
+               (if (zero? k)
+                   x
+                   (list-tail (cdr x) (- k 1))))))
+    (lambda (x k)
+      (list-tail x k))))
+
+(define list-ref
+  (lambda (x k)
+    (car (list-tail x k))))
+
+(define (last-pair l)
+  (if (null? (cdr l))
+      l
+      (last-pair (cdr l))))
+
 (define member
   (letrec ((member (lambda (x l)
                      (cond ((null? l) #f)
@@ -124,7 +154,7 @@
 
 (define (memq x l)
   (cond ((null? l) #f)
-	((eqv? (car l) x) l)
+	((eq? (car l) x) l)
 	(else (memq x (cdr l)))))
 
 (define assoc
@@ -166,27 +196,22 @@
 	((eq? x (car l)) (remq x (cdr l)))
 	(else (cons (car l) (remq x (cdr l))))))
 
-; The current compiler hiccups on this.
-
-; (define list?
-;   (letrec ((loop (lambda (fast slow)
-; 		   (cond ((null? fast) #t)
-; 			 ((atom? fast) #f)
-; 			 ((eq? fast slow) #f)
-; 			 ((begin (set! fast (cdr fast))
-; 				 (null? fast))
-; 			  #t)
-; 			 ((atom? fast) #f)
-; 			 (else (loop (cdr fast) (cdr slow)))))))
-;     (lambda (x)
-;       (if (pair? x)
-;           (loop (cdr x) x)
-;           (null? x)))))
-
-; (define proper-list? list?)
-
-; Not IEEE
-
 (define (list? x)
+  (define (loop slow fast)
+    (if (null? fast)
+	#t
+	(if (not (pair? fast))
+	    #f
+	    (if (eq? fast slow)
+		#f
+		(let ((fast (cdr fast)))
+		  (if (null? fast)
+		      #t
+		      (if (not (pair? fast))
+			  #f
+			  (loop (cdr slow) (cdr fast)))))))))
   (or (null? x)
-      (and (pair? x) (list? (cdr x)))))
+      (and (pair? x)
+	   (loop x (cdr x)))))
+
+; eof

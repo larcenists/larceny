@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent part of the assembler, for Sparc.
 ;
-; $Id: asm.sparc.sch,v 1.13 1992/06/10 09:05:45 lth Exp $
+; $Id: sparcasm.sch,v 1.1 1995/08/01 04:40:34 lth Exp lth $
 ;
 ;             The meek shall inherit the earth.
 ;             The meek shall also inherit the assembler.

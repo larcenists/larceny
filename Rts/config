@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# Usage: config ostype filename ...
+
+if [ $# -lt 2 ]; then
+  echo "usage: config ostype filename ..."
+  exit 1
+fi
+rm -f tmp.config
+echo "(define ostype '$1)" >> tmp.config
+echo "(load \"../Compiler/config.sch\")" >> tmp.config
+echo "(config " >> tmp.config
+shift
+for i
+do
+	echo \"$i\" >> tmp.config
+done
+echo ")" >> tmp.config
+echo "(exit)" >> tmp.config
+scheme tmp.config | tail +4		# skips Chez startup msg.
+rm tmp.config
+

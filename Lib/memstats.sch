@@ -1,65 +1,71 @@
-;; This is the file Lib/memstats.sch.
-;;
-;; Larceny runtime library -- Memory management statistics.
-;;
-;; History
-;;   July 13, 1994 / lth
-;;     Massively rewritten for v0.20, which maintains memory statistics in
-;;     a manner much different from earlier versions.
-;;
-;; Memory statistics is maintained by the parts of the system written in C
-;; and are obtained by a call on the primitive sys$resource-usage!. This
-;; primitive takes as an argument a vector (containing arbitrary values); the
-;; primitive changes the vector to reflect the resources consumed by
-;; Larceny.
-;;
-;; The fields of the vector and their offsets are defined by constants which
-;; are defined in globals.cfg. Currently, they are:
-;;
-;;  $mstat.rtime           real time of execution (from RUSAGE syscall)
-;;  $mstat.stime           system time of execution (ditto)
-;;  $mstat.utime           user time of execution (ditto)
-;;  $mstat.minfaults       minor page faults (ditto)
-;;  $mstat.majfaults       major page faults (ditto)
-;;  $mstat.wcollected-hi   words of data garbage collected (high 29 bits)
-;;  $mstat.wcollected-lo   words of data garbage collected (low 29 bits)
-;;  $mstat.wallocated-hi   words of data allocated (high 29 bits)
-;;  $mstat.wallocated-lo   words of data allocated (low 29 bits)
-;;  $mstat.tscanned-hi     transactions scanned during gc (high 29 bits)
-;;  $mstat.tscanned-lo     transactions scanned during gc (low 29 bits)
-;;  $mstat.ecollections    number of ephemeral collections
-;;  $mstat.tcollections    number of tenuring collections
-;;  $mstat.fcollections    number of full collections
-;;  $mstat.framesflushed   number of stack frames flushed
-;;  $mstat.gctime          time spent in garbage collection
-;;  $mstat.tallocated-hi   transactions stored in SSB (high 29 bits)
-;;  $mstat.tallocated-lo   transactions stored in SSB (low 29 bits)
-;;
-;; The size of the vector (in # of elements) is given by $mstat.vsize.
-;;
-;; All times are in milliseconds.
-;;
-;; Some entries have a high and a low part so that the low levels of the system
-;; do not have to use bignums to keep the counts. Arguably, the time fields 
-;; should also be split, as they will overflow after 149 hours or so. For
-;; most of these fields, though, more than 29 bits is really overkill...
+; -*- scheme -*-
+; This is the file Lib/memstats.sch.
+; Larceny runtime library -- Memory management statistics.
+;
+; $Id$
+;
+; History
+;   July 1, 1995 / lth
+;     Updated to use unix:get-resource-usage rather than sys$resource-usage!.
+;
+;   July 13, 1994 / lth
+;     Massively rewritten for v0.20, which maintains memory statistics in
+;     a manner much different from earlier versions.
+;
+; Memory statistics is maintained by the parts of the system written in C
+; and are obtained by a call on the primitive get-resource-usage (which
+; will vary from OS to OS). This
+; primitive takes as an argument a vector (containing arbitrary values); the
+; primitive changes the vector to reflect the resources consumed by
+; Larceny.
+;
+; The fields of the vector and their offsets are defined by constants which
+; are defined in globals.cfg. Currently, they are:
+;
+;  $mstat.rtime           real time of execution (from RUSAGE syscall)
+;  $mstat.stime           system time of execution (ditto)
+;  $mstat.utime           user time of execution (ditto)
+;  $mstat.minfaults       minor page faults (ditto)
+;  $mstat.majfaults       major page faults (ditto)
+;  $mstat.wcollected-hi   words of data garbage collected (high 29 bits)
+;  $mstat.wcollected-lo   words of data garbage collected (low 29 bits)
+;  $mstat.wallocated-hi   words of data allocated (high 29 bits)
+;  $mstat.wallocated-lo   words of data allocated (low 29 bits)
+;  $mstat.tscanned-hi     transactions scanned during gc (high 29 bits)
+;  $mstat.tscanned-lo     transactions scanned during gc (low 29 bits)
+;  $mstat.ecollections    number of ephemeral collections
+;  $mstat.tcollections    number of tenuring collections
+;  $mstat.fcollections    number of full collections
+;  $mstat.framesflushed   number of stack frames flushed
+;  $mstat.gctime          time spent in garbage collection
+;  $mstat.tallocated-hi   transactions stored in SSB (high 29 bits)
+;  $mstat.tallocated-lo   transactions stored in SSB (low 29 bits)
+;
+; The size of the vector (in # of elements) is given by $mstat.vsize.
+;
+; All times are in milliseconds.
+;
+; Some entries have a high and a low part so that the low levels of the system
+; do not have to use bignums to keep the counts. Arguably, the time fields 
+; should also be split, as they will overflow after 149 hours or so. For
+; most of these fields, though, more than 29 bits is really overkill...
 
 
-;; This procedure is the only reasonable way to access the memstats vector. 
-;; It coalesces the split values in the vector and returns a vector with
-;; counts of collections, counts of words, and time spent collecting.
-;;
-;; This vector is backward compatible with pre-v0.20 code in a rudimentary
-;; manner: the fields which are still supported are in the same locations in
-;; the returned vector, and the fields which are no longer supported are 0.
-;; However, the returned vector is longer than the vector in older code,
-;; since there are new fields.
+; This procedure is the only reasonable way to access the memstats vector. 
+; It coalesces the split values in the vector and returns a vector with
+; counts of collections, counts of words, and time spent collecting.
+;
+; This vector is backward compatible with pre-v0.20 code in a rudimentary
+; manner: the fields which are still supported are in the same locations in
+; the returned vector, and the fields which are no longer supported are 0.
+; However, the returned vector is longer than the vector in older code,
+; since there are new fields.
 
 (define memstats
   (let ((two^29 536870912))  ; (expt 2 29)
     (lambda ()
       (let ((v (make-vector $mstat.vsize 0)))
-	(sys$resource-usage! v)
+	(unix:get-resource-usage v)
 	(vector (vector-ref v $mstat.ecollections)
 		(vector-ref v $mstat.tcollections)
 		(vector-ref v $mstat.fcollections)
@@ -83,9 +89,9 @@
 		(vector-ref v $mstat.majfaults))))))
 
 
-;; "label-memstats" takes a vector as returned from "memstats" and returns
-;; a list of lists. Each sublist has a label and the correct value from the
-;; memstats vector.
+; "label-memstats" takes a vector as returned from "memstats" and returns
+; a list of lists. Each sublist has a label and the correct value from the
+; memstats vector.
 
 (define (label-memstats v)
 
@@ -117,8 +123,8 @@
 	old)))
 
 
-;; Takes a vector as returned from memstats and displays it with useful
-;; labels. 
+; Takes a vector as returned from memstats and displays it with useful
+; labels. 
 
 (define (display-memstats v)
   (display "Ephemeral collections: ") (display (vector-ref v 0)) (newline)
@@ -152,13 +158,13 @@
   #t)
 
 
-;; Run a thunk and print out stats afterwards about how long it took and
-;; how much memory was used. This is accurate only if a collection is performed
-;; immediately prior to calling this procedure, and in fact a collection should
-;; be performed after the thunk returns as well to get a completely accurate
-;; picture. See comments in the code.
-;;
-;; Returns the result of the thunk.
+; Run a thunk and print out stats afterwards about how long it took and
+; how much memory was used. This is accurate only if a collection is performed
+; immediately prior to calling this procedure, and in fact a collection should
+; be performed after the thunk returns as well to get a completely accurate
+; picture. See comments in the code.
+;
+; Returns the result of the thunk.
 
 (define (run-with-stats thunk)
 
@@ -188,7 +194,7 @@
     r))
 
 
-;; Nice procedure to have around.
+; Nice procedure to have around.
 
 (define (run-benchmark name thunk . rest)
   (let ((n (if (null? rest) 1 (car rest))))
@@ -207,20 +213,24 @@
     (run-with-stats (lambda () (loop n)))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; Old stuff
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Old stuff (amazing how this changes)
 
-;; Return resource parameters in a vector. Obsolete.
+; Return resource parameters in a vector. Obsolete.
 
 (define (resource-usage)
   (error "The procedure memstats:resource-usage is no longer supported."))
 
-;; Return elapsed time. Very obsolete.
+; Return elapsed time. Very obsolete.
 
 (define (getrusage)
   (error "The procedure memstats:getrusage is no longer supported."))
 
+; Put resource data in resouce vector. Supplanted by OS-specific stuff.
 
+(define sys$resource-usage!
+  (lambda (x)
+    (error "The primitive sys$resource-usage! is no longer supported.")))
 
 ; eof

@@ -44,8 +44,8 @@
   (make-heap (string-append topleveldir "test.heap")
 	     'global-refs
 	     'global-symbols 
-	     (string-append targetdir "testmain.lop")
-	     (string-append targetdir "sort.lop")))
+	     ;(string-append targetdir "sort.lop")
+	     (string-append targetdir "testmain.lop")))
 
 (define (make-larceny-heap)
   (set! targetdir internaltargetdir)
@@ -132,12 +132,21 @@
   ;; Some shorthands would be lovely.
 
   (define (makedeps sourcedir targetdir configdir builddir)
-    `(((,(targetdir "unixio.lop")
-	,(sourcedir "unixio.mal"))
+    `(((,(targetdir "malcode.lop")
+	,(sourcedir "malcode.mal"))
        ,assemble)
-      ((,(targetdir "rawapply.lop") 
-	,(sourcedir "rawapply.mal"))
+;      ((,(targetdir "unixio.lop")
+;	,(sourcedir "unixio.mal"))
+;       ,assemble)
+;      ((,(targetdir "rawapply.lop") 
+;	,(sourcedir "rawapply.mal"))
+;       ,assemble)
+      ((,(targetdir "unix.lop")
+	,(targetdir "unix.lap"))
        ,assemble)
+      ((,(targetdir "unix.lap")
+	,(sourcedir "unix.sch"))
+       ,compile)
       ((,(targetdir "integrable-procs.lop") 
 	,(targetdir "integrable-procs.lap"))
        ,assemble)
@@ -363,10 +372,13 @@
 
 	; fundamental 
 
-	,(targetdir "unixio.lop")
+	,(targetdir "malcode.lop")           ; real basic things
+	,(targetdir "unix.lop")              ; OS primitives for Unix
 	,(targetdir "integrable-procs.lop")
-	,(targetdir "rawapply.lop" )
-;        ,(targetdir "Sparc/glue.lop")
+; Some obsolete files
+;	,(targetdir "unixio.lop")
+;	,(targetdir "rawapply.lop" )
+;       ,(targetdir "Sparc/glue.lop")
 
 	; random stuff which supposedly works
 
@@ -376,7 +388,8 @@
 	,(targetdir "preds.lop")
 	,(targetdir "oblist.lop")
 	,(targetdir "millicode-support.lop")
-	,(targetdir "millicode-support-dummies.lop")
+; Again, obsolete.
+;	,(targetdir "millicode-support-dummies.lop")
 	,(targetdir "memstats.lop")
 	,(targetdir "except.lop")
 	,(targetdir "globals.lop")
@@ -391,18 +404,20 @@
 
 	,(targetdir "number.lop")
 
-	; stuff which is not at all trusted
+	; Stuff which is not at all trusted
+	; It's important for bellerophon to be loaded as late as possible
+	; because it depends on much of the rest of the system.
 
+	,(targetdir "debug.lop")
 	,(targetdir "bignums.lop")
 	,(targetdir "ratnums.lop")
 	,(targetdir "rectnums.lop")
 	,(targetdir "flonum-stuff.lop")
+	,(targetdir "contagion.lop")
 	,(targetdir "number2string.lop")
-;;	,(targetdir "bellerophon.lop")
+	,(targetdir "bellerophon.lop")
 	,(targetdir "numberparser.lop")
 	,(targetdir "reader.lop")
-	,(targetdir "contagion.lop")
-	,(targetdir "debug.lop")
 
 	; other application files
 

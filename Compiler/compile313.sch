@@ -71,7 +71,7 @@
 (define (assemble313 file . rest)
   (let ((outputfile (if (not (null? rest))
 			(car rest)
-			(rewrite-file-type file ".lap" ".mal")))
+			(rewrite-file-type file ".lap" ".lop")))
 	(n          (string-length file)))
     (process-file file
 		  outputfile

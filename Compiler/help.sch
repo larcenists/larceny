@@ -63,11 +63,14 @@
      "chaos in how they are used. The command (compiler-switches) lists"
      "all switches and their current settings. The switches are:"
      ""
-     "  (benchmark-mode)         Generate in-line code for many primitives."
+     ; @@ Will (the next three lines were updated)
+     "  (integrate-usual-procedures)  Generate in-line code for primitives."
+     "  (local-optimizations)    Suppress redundant instructions."
+     "  (benchmark-mode)         Makes global self-recursion faster."
      "  unsafe-mode              Turn off type checking for many primitives."
      "  inline-cons              Allocate pairs in-line."
      "  listify?                 Produce listing of MAL code (obsolete)."
-     "  fast-pop                 Do not check for stack underflow."
+;     "  fast-pop                 Do not check for stack underflow." ; @@ Will
      "  inline-assignment        Generate in-line generation check."
      "  register-transactions-for-side-effects   Generate code for gen. gc."
      "  enable-peephole?         Perform peephole optimization."
@@ -76,12 +79,14 @@
      "  emit-undef-check?        Check references to global variables."
      "  generate-global-symbols? Let each global cell contain its name."
      ""
-     "All switches except benchmark-mode are variables and can be set! to"
-     "#t to enable the effect explained above, or to #f to disable the"
-     "effect. Please note that fast-pop and assume-short-distance-to-call"
-     "are not always safe due to compiler and assembler bugs, respectively."
-     "They are ok for all benchmark programs but not for the libraries."
-     "Bug: you cannot turn off benchmark-mode."
+     ; @@ Will (the next paragraph was updated)
+     "All switches can be set to #t to enable the effect explained above,"
+     "or to #f to disable the effect.  If the switch is a variable, its"
+     "value can be set by an assignment.  If the switch is a procedure,"
+     "it can be set by passing an argument as in (benchmark-mode #f)."
+     "Please note that assume-short-distance-to-call is not always safe"
+     "due to assembler bugs.  It is probably ok for benchmarks, but not"
+     "for the libraries."
      )
     (general
      "Scheme source files have extension .sch or .scm; these extensions"

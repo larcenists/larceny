@@ -1,13 +1,30 @@
 ; Copyright Lightship Software
 ;
-; $Id: bellerophon.sch,v 1.2 92/02/10 03:15:15 lth Exp $
+; $Id: bellerophon.sch,v 1.1 1995/08/01 04:45:56 lth Exp lth $
 ;
 ; A version of Algorithm Bellerophon for implementations
 ; of Scheme that support IEEE double precision arithmetic
 ; and exact integer arithmetic of unlimited precision.
+;
+; FIXME:
+;  - use of install-millicode-support (see comment below)
+;  - larceny doesn't have 'log' yet, so log5-of-two^n is precomputed
+;  - slow-ten-to-e is _really_ slow for large negative arguments;
+;    (slow-ten-to-e -216) takes roughly 10 seconds on a Sparc 10!
+;    It would be better, for the time being, to just precompute those
+;    values.
+
+; FIXME
+; Hack to resolve load order problem: loading this module results in
+; calls to contagion, but contagion is not usually installed when this
+; procedure is run. The call to install-millicode-support deals with
+; this (for now).
+
+(install-millicode-support)
+
+; Real stuff here
 
 (define bellerophon
-  
   (let ()
     
     (define (bellerophon f e)
@@ -63,7 +80,7 @@
     (define ten^216  0)
     
     (define (ten-to-e e)
-      (cond ((< e -432) ???)
+      (cond ((< e -432) ???bellerophon1)
             ((< e -216)
              (extended-multiply ten^-216
                                 (extended-multiply ten^-216
@@ -85,12 +102,13 @@
              (extended-multiply ten^108 (ten-to-e (- e 108))))
             ((<= e 324)
              (extended-multiply ten^216 (ten-to-e (- e 216))))
-            (else ???)))
+            (else ???bellerophon2)))
     
     ; These slop factors assume that f can be represented exactly
     ; as an extended precision number, so the slop factor is exactly
     ; twice the maximum error in the approximation to 10^e.
     
+;    (define dummy1 (begin (display "Bellerophon init 1") (newline)))
     (define slop-216 45)
     (define slop-108  9)
     (define slop-54   3)
@@ -102,6 +120,7 @@
     (define slop216   9)
     (define slop324  21)
     
+;    (define dummy2 (begin (display "Bellerophon init 2") (newline)))
     (define n         53)
     (define two^n-1   (expt 2 (- n 1)))
     (define two^n     (expt 2 n))
@@ -111,6 +130,7 @@
     (define two^p-n-1 (expt 2 (- p n 1)))
     (define two^p-n   (expt 2 (- p n)))
     
+;    (define dummy3 (begin (display "Bellerophon init 3") (newline)))
     (define flonum:zero 0.0)
     (define flonum:infinity 1e500)
     (define flonum:minexponent -1023)
@@ -118,8 +138,10 @@
     (define bellerophon:big-f (expt 2 64))
     (define bellerophon:small-e -306)
     (define bellerophon:big-e 309)
-    (define log5-of-two^n
-      (inexact->exact (ceiling (/ (log two^n) (log 5)))))
+;    (define dummy4 (begin (display "Bellerophon init 4") (newline)))
+; FIXME: don't have LOG yet
+;    (define log5-of-two^n (inexact->exact (ceiling (/ (log two^n) (log 5)))))
+    (define log5-of-two^n 23)
     
     (define (slow-ten-to-e e)
       (define (loop1 y s guardbit)
@@ -143,7 +165,7 @@
                                ((zero? (remainder q 2)) q)
                                (else (+ q 1)))
                          n)))
-      (display "in slow-ten-to-e") (newline)
+;      (display "in slow-ten-to-e") (newline)
       (if (negative? e)
           (loop3 1 (expt 10 (- e)) 0)
           (let ((10^e (expt 10 e)))
@@ -176,6 +198,7 @@
     ; This flag is set by some operations to indicate whether
     ; any accuracy was lost during the operation.
     
+;    (define dummy5 (begin (display "Bellerophon init 5") (newline)))
     (define inexact-flag #f)
     
     (define two^2p-1 (expt 2 (- (* 2 p) 1)))
@@ -374,16 +397,27 @@
 ;            (- e (+ 1023 52)))))
 
 
-    (display "Yikes!") (newline)
-    (set! ten^-216 (slow-ten-to-e -216))
-    (set! ten^-108 (slow-ten-to-e -108))
-    (set! ten^-54  (slow-ten-to-e -54))
-    (set! ten^-27  (slow-ten-to-e -27))
-    (set! ten^27   (slow-ten-to-e 27))
-    (set! ten^54   (slow-ten-to-e 54))
-    (set! ten^108  (slow-ten-to-e 108))
-    (set! ten^216  (slow-ten-to-e 216))
+;    (display "Bellerophon init 6") (newline)
+
+;    (set! ten^-216 (slow-ten-to-e -216))
+;    (set! ten^-108 (slow-ten-to-e -108))
+;    (set! ten^-54  (slow-ten-to-e -54))
+;    (set! ten^-27  (slow-ten-to-e -27))
+;    (set! ten^27   (slow-ten-to-e 27))
+;    (set! ten^54   (slow-ten-to-e 54))
+;    (set! ten^108  (slow-ten-to-e 108))
+;    (set! ten^216  (slow-ten-to-e 216))
+
+    ; precomputed by slow-ten-to-e
+    (set! ten^-216 '(12718228212127407597 -781))
+    (set! ten^-108 '(10830740992659433045 -422))
+    (set! ten^-54  '(14134776518227074637 -243))
+    (set! ten^-27  '(11417981541647679048 -153))
+    (set! ten^27   '(14901161193847656250 26))
+    (set! ten^54   '(12037062152420224082 116))
+    (set! ten^108  '(15709099088952724970 295))
+    (set! ten^216  '(13377742608693866209 654))
     
-    (begin (display "done") (newline)
-	   bellerophon)))
+;    (display "Bellerophon init done") (newline)
+    bellerophon))
 

@@ -1,6 +1,17 @@
-; Copyright 1991 Lightship Software, Incorporated.
+; Copyright 1991 William Clinger
 ;
-; First pass of the Scheme 313 compiler:
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful noncommercial purpose, and to redistribute
+; this software is granted subject to the restriction that all copies
+; made of this software must include this copyright notice in full.
+; 
+; I also request that you send me a copy of any improvements that you
+; make to this software so that they may be incorporated within it to
+; the benefit of the Scheme community.
+;
+; 14 December 1994
+;
+; First pass of the Twobit compiler:
 ;   macro expansion, syntax checking, alpha conversion,
 ;   preliminary annotation.
 ;
@@ -16,7 +27,7 @@
 ;
 ; L  -->  (lambda (I_1 ...)
 ;           (begin D ...)
-;           (quote (R F <decls> <doc>)
+;           (quote (R F G <decls> <doc>)
 ;           E)
 ;      |  (lambda (I_1 ... . I_rest)
 ;           (begin D ...)
@@ -34,6 +45,7 @@
 ;
 ; R  -->  ((I <references> <assignments> <calls>) ...)
 ; F  -->  (I ...)
+; G  -->  (I ...)
 ;
 ; Invariants that hold for the output:
 ;   *  There are no internal definitions.
@@ -53,7 +65,7 @@
 ;      side effects to references or assignments obtained through R
 ;      are guaranteed to change the references or assignments pointed
 ;      to by R.
-;   *  F is garbage.
+;   *  F and G are garbage.
 
 (define (pass1 def-or-exp)
   (set! renaming-counter 0)
@@ -102,10 +114,10 @@
                                      ,@(cddr exp)))))
          ((> (length exp) 3) (complain exp))
          (else exp))))
-
+     
      (complain (lambda (exp)
                  (error "Malformed definition" exp))))
-
+    
     ; body of letrec
     
     (define-loop exp '() '())))
@@ -131,7 +143,7 @@
   (let ((s (string-append "_" (number->string renaming-counter))))
     (map (lambda (var)
            (string->symbol
-            (string-append "." (symbol->string var) s)))
+            (string-append renaming-prefix (symbol->string var) s)))
          vars)))
 
 (define (rename-formals formals newnames)
@@ -162,11 +174,10 @@
          (if (and (not (boolean? exp))
                   (not (number? exp))
                   (not (char? exp))
-                  (not (string? exp))
-                  (not (equal? exp hash-bang-unspecified)))
+                  (not (string? exp)))
              (static-warning 21 exp))
          (make-constant exp))
-        ((memq exp **special-forms**)   ; Can't use keywords
+        ((memq exp @special-forms@)     ; Can't use keywords
          (static-warning 1 exp)         ; as variables.
          (make-constant #t))
         (else (let ((probe (assq exp env)))
@@ -243,6 +254,7 @@
          '()
          refinfo
          '()
+         '()
          declarations
          (cond ((and (include-source-code)
                      (include-procedure-names)
@@ -271,13 +283,16 @@
 (define (m-if-help e0 e1 e2 env)
   (if (empty-list-is-true)
       (make-conditional e0 e1 e2)
-      (make-conditional
-       (make-call (m-scan '(lambda (t) (if t (not (null? t)) #f))
-                          '())
-                  (list e0))
-       e1
-       e2
-       env)))
+      (let ((proc (begin (empty-list-is-true #t)
+                         (m-scan '(lambda (t) (if t (not (null? t)) #f))
+                                 '()))))
+        (empty-list-is-true #f)
+        (make-conditional
+         (make-call proc
+                    (list e0))
+         e1
+         e2
+         env))))
 
 (define (m-set exp env)
   (if (and (pair? (cdr exp))
@@ -357,11 +372,7 @@
   (cond ((not (= (prim-arity prim) (length (cdr exp))))
          (static-error 9 exp))    ; wrong # of args
         (else
-         (make-call (if (and (eq? prim 'not)
-                             (integrate-usual-procedures)
-                             (not (empty-list-is-true)))
-                        (m-scan '(lambda (t) (if t (null? t) #f)) '())
-                        (make-variable (prim-opcodename prim)))
+         (make-call (make-variable (prim-opcodename prim))
                     (map (lambda (x) (m-scan x env))
                          (cdr exp))))))
 

@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.
 ;
-; $Id: contagion.scm,v 1.6 1992/05/15 22:17:58 lth Exp $
+; $Id: contagion.sch,v 1.1 1995/08/01 04:45:56 lth Exp lth $
 ;
 ; There are three main procedures: contagion, pcontagion, and econtagion.
 
@@ -39,7 +39,7 @@
 	   (tb (number-type b))
 	   (v  (vector-ref (vector-ref matrix ta) tb))
 	   (t  (v a b)))
-      (retry (car t) (cdr t))))
+      (retry (car t) (cdr t)))) ; CPS would be better...
 
   ; Many of the numbers created here violate various invariants in the system;
   ; this is how it should be.
@@ -181,14 +181,6 @@
 		    (fun id flonum->compnum) oops)))
 
   (set! contagion (lambda (a b retry)
-		    (if dump-is-on
-			(begin (display "contagion: ")
-			       (display a) 
-			       (display "(") (display (number-type a)) (display ")")
-			       (display " ")
-			       (display b)
-			       (display "(") (display (number-type b)) (display ")")
-			       (newline)))
 		    (do-contagion cmatrix a b retry)))
 
   (set! econtagion (lambda (a b retry)

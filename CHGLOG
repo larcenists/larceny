@@ -1,4 +1,143 @@
-List of changes to Larceny (rudimentary release notes)
+; List of changes to Larceny (rudimentary release notes)
+; $Id: CHGLOG,v 1.2 1995/08/01 04:36:02 lth Exp lth $
+
+----------------------------------------------------------------------
+v0.24 as of yet unreleased
+
+NOTE: COMPILED FILES FROM EARLIER VERSIONS ARE NO LONGER COMPATIBLE.
+
+Bug fixes in the compiler
+- [twobit.imp.sch] removed define-inline of undefined and unspecified,
+  because they are wrong (and interfere with global-var-checking). One
+  day we need to get this right. However, this may have had an adverse
+  effect on code generation: there seems to be more SAVEing going on
+  than previously.
+- [pass4p2.sch] a call to cgframe-newtemp with two arguments (in the
+  procedure cg-evalargs) where the second argument was 1 was changed
+  to a call to cgframe-newtemp with the second argument removed.
+- [Compiler/twobit.imp.sch; Lib/integrable-procs] 'Undefined' is now
+  a bona fide primop.
+- [Compiler/pass1.aux.sch] Uses %make-promise rather than make-promise
+  for the expansion of 'delay'.
+
+Bug fixes in the RTS and Libraries
+- [Rts/Sys/memstats.c; others] Statistics are now updated when collected
+  by the user program, rather than only at GC time.
+- [Lib/unix.sch] Sys$gc is now a procedure (a syscall) rather than a primop.
+- [Lib/ratnums.sch] Lots of bugs fixed.
+- [Lib/print.sch] Swapped the order of port and eof-object because an
+  eof-object is also a port (in the current implementation).
+- [Lib/millicode-support.sch] Quotient, remainder should now work with
+  non-exact integers.
+- [Lib/number.sch] floor and ceiling now work.
+- [Rts/Sparc/generic.s; Lib/number.sch; Lib/integrable-procs.sch; 
+   Compiler/twobit.imp.sch; Sparcasm/gen-prim.sch] Modulo is no longer
+   a primop, and should now work.
+- [Lib/schemeio.sch; Lib/print.sch] Port is not printed with direction
+  and file name.
+- [Lib/schemeio.sch; Lib/unix.sch] Moved all OS-dependencies in the I/O
+  system into the Unix-specific file.
+- [Rts/Sparc/mcode.s; Sparcasm/gen-primop.sch; Compiler/twobit.imp.sch;
+   Lib/integrable-procs.sch; Lib/strings.sch] Implemented new millicode 
+   subroutine m_bvlcmp (aka sys$bvlcmp) for comparing bytevector-like 
+   structures lexicographically. Wrote it in assembly language because
+   the context switch time would dominate for most arguments.
+- [Rts/Sparc/unix.s] Superseded by syscall. File moved to Rts/Sparc/Old.
+- [Lib/malcode.mal] New file for all MAL in the system. Notably, contains
+  code for call-with-current-continuation and syscall.
+- [Lib/xlib.sch] Code for call-with-current-continuation is no longer here.
+- [Lib/rawapply.mal, Lib/unixio.mal] merged into Lib/malcode.mal; files
+  moved to Lib/Old.
+- [Rts/Sys/policy.c] code for expand_tspace did not take into account
+  data in the overflow area, resulting in a memory overrun and a 
+  segmentation fault.
+- [Rts/Sparc/glue.s] code for copyregs saved only the first 16 registers,
+  causing the garbage collector to crash (and probably also other bugs,
+  but the programs usually did not get that far).
+- [Lib/preds.sch] memq actually used eqv? for comparison.
+- [Compiler/config.sch; Rts/config] Changes to accomodate Solaris;
+  some odds and ends were not properly ported for 0.23.
+- [Lib/bignums.sch] Many, many changes in bignum code to make it work.
+- [Lib/flonum-stuff.sch] Several changes in flonum code to make it work.
+- [Lib/ratnums.sch] Changed make-reduced-ratnum, which did not deal with
+  cases where the reduced number was x/1.
+- [Rts/Sparc/generic.s] Fixed two bugs where the length of flonum and compnum
+  structures were incorrectly set to 4 bytes larger than actual length.
+- [Sparcasm/gen-prim.sch] Fixed bug in exception handling code for character 
+  comparisons: the second operand would not be passed to the handler correctly.
+- [Sparcasm/gen-prim.sch] Fixed bug where the wrong exception code was passed
+  for bytevector-like-set!.
+- [Lib/preds.sch] [Will] Added list-tail, list-ref.
+- [Lib/preds.sch] Added IEEE compliant list?, and last-pair.
+- [Rts/Sys/cglue.c; Rts/Sparc/glue.s] Fixed bug in C_exception(): it did not 
+  pass the correct number of arguments to the print routine, resulting in 
+  bogus error messages. It also did not receive more than one argument from 
+  the millicode handler, but now receives two (code and pc).
+- [Lib/ratnums.sch; Lib/millicode-support-vector.sch; Rts/Sparc/generic.s] 
+  Added ratnum-round, ratnum-truncate; generic.s now has code which handles
+  round and truncate for ratnums.
+- [Rts/Sys/ldebug.c] Now possible to name RESULT, ARGREG2, ARGREG3 in the 
+  RTS debugger.
+- [Compiler/compile313.sch] Fixed error where assemble313 would assign
+  ".mal" as the extension of the output if the output name was not
+  explicitly given (should be ".lop"). Error was probably introduced during
+  cleanup for v0.23, as it used to work.
+- [Various] Added definitions for %LIST, %LIST->VECTOR, %CONS, and %APPEND 
+  to the libraries to support the macro expander.
+- [Chez/misc2bytevector.ss] Fixed the definition of +/- infinity; the old
+  bit patterns actually represented NANs.
+
+Features
+- [Lib/number.sch; Lib/Eval/eval.sch] Added 'rationalize' (from MacScheme).
+- [Sparcasm/gen-msi.sch] INVOKE and ARGS= now affected by unsafe-mode.
+- [Lib/Eval/reploop.sch] Now loads .larceny or ~/.larceny if possible.
+- [Compiler/nbuild.sch; Chez/values.ss] Now handles both Chez 5.0 and 4.1.
+- [Lib/strings.sch] Implemented bytevector-like-equal?; general cleanup.
+- [Compiler/pass1.aux.sch; Lib/library.sch] delay now uses the 'hidden'
+  definition %make-promise; also implemented this (and force).
+- [Lib/library.sch; Lib/strings.sch; Lib/Eval/eval.sch] Added definitions
+  of string-fill! and vector-fill!.
+- [Lib/schemeio.sch; Lib/unix.sch; Rts/Sys/cglue.c; Rts/Sys/unix.c; 
+   Lib/Eval/eval.sch]
+  Implemented hooks for char-ready?, file-modification-time, file-exists?,
+  rename-file, and getenv. Then implemented those procedures.
+- [Lib/schemeio.sch; Lib/unix.sch] 'exit' now flushes open files.
+- [Lib/schemeio.sch; Lib/Eval/eval.sch] with-input-from-file, 
+  with-output-to-file, and reset-iosystem implemented and made public.
+- [Lib/preds.sch] added append!, reverse!.
+- [Lib/Eval/eval.sch] added string-hash, symbol-hash to environment.
+- [Lib/xlib.sch;Lib/Eval/eval.sch] updated print-continuation; 'error' now
+  stores the raw continuation in a global variable for inspection. The
+  raw continuation (a vector structure) can be accessed with the procedure
+  'error-continuation'.
+- [Compiler/*] [Will] New compiler. Note, in particular, changes to
+  the assembler [assembler.sch] to accomodate new SAVE in a reasonable
+  way.
+- [Rts/Sparc/generic.s] quotient and remainder now handle 
+  32-bit-nonnegative-bignum by nonnegative-fixnum case in millicode; this 
+  to better support the portable bignum code.
+- [Sparcasm/gen-prim.sch] Character comparison predicates now take into 
+  account unsafe-mode.
+- [Compiler/peepopt.sch; Compiler/assembler.sch; Sparcasm/gen-prim.sch]
+  Implemented optimization of boolean expressions for control in expressions
+  involving character predicates.
+- [Compiler/peepopt.sch; Compiler/assembler.sch; Sparcasm/gen-msi.sch;
+   Compiler/twobit.imp.sch]
+  Implemented peephole optimization of reg n ; branchf L when n is a
+  hardware register (no payoff when it is not).
+- [Lib/Eval/eval.sch] Added predicates for testing number representation to 
+  top-level environment in evaluator.
+- [Lib/makefile.sch; Lib/bellerophon.sch] Added bellerophon to the default
+  heap image and shuffled the load order a little to make this work. 
+  Bellerophon does not presently call slow-ten-to-e during initialization; 
+  those values are precomputed for acceptable load-time performance. This 
+  should be ok.
+- [Rts/Sparc/glue.s; Rts/Sys/cglue.c] Added syscall primitive. Rewrote
+  a number of procedures (I/O, exit, resource-usage) to use syscall instead.
+
+Various changes
+- [Sparcasm/gen-prim.sch] internal changes to clean it up.
+- [Lib/Eval/eval.sch] [Will] Cleanup of the toplevel environment.
 
 ----------------------------------------------------------------------
 v0.23 created March 7, 1995 by lth
@@ -35,8 +174,12 @@ a level of indirection in forw(). Nice payoff, ~8% on Boyer.
 ----------------------------------------------------------------------
 v0.20 created July 19, 1994 by lth.
 
+Major rewrite of run-time system.
+
 Major changes to Compiler/compile313: much cleaned up. make-fasl is now
 a part of this file, which contains all drivers.
 
 Make-fasl moved out of Compiler/makefasl.sch; there is now only one
 procedure, dump-fasl-segment-to-port, in this file.
+
+; eof

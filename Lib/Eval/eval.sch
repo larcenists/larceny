@@ -1,7 +1,11 @@
+;; -*- scheme -*-
+;;
+;; Larceny -- Evaluator
+;;
 ;; Small Scheme evaluator which provides a minimal interface to Larceny.
 ;; Typically one does not want to write programs at the interpreter prompt
 ;; but rather compile them and load the compiled code. This works. But one
-;; can also load interpretable code (raw scheme) and have it work.
+;; can also load interpretable code (raw scheme) and have it work, slowly.
 ;;
 ;; $Id: eval.sch,v 1.7 1992/08/04 18:27:43 lth Exp $
 ;;
@@ -176,74 +180,25 @@
 
 (define (init-toplevel-environment)
 
-  ;; general
+  ;; booleans
+
+  (extend-toplevel-env! 'not not)
+  (extend-toplevel-env! 'boolean? boolean?)
+
+  ;; equivalence predicates
 
   (extend-toplevel-env! 'eq? eq?)
   (extend-toplevel-env! 'eqv? eqv?)
   (extend-toplevel-env! 'equal? equal?)
-  (extend-toplevel-env! 'not not)
-  (extend-toplevel-env! 'load load)
-  (extend-toplevel-env! 'apply apply)
-  (extend-toplevel-env! 'error error)
-  (extend-toplevel-env! 'null? null?)
-  (extend-toplevel-env! 'load-noisily (lambda () 
-					 (set! load-noise-level #t)))
-  (extend-toplevel-env! 'load-quietly (lambda () 
-					(set! load-noise-level #f)))
-  (extend-toplevel-env! 'exit exit)
-  (extend-toplevel-env! 'symbol? symbol?)
-  (extend-toplevel-env! 'boolean? boolean?)
-  (extend-toplevel-env! 'getprop getprop)
-  (extend-toplevel-env! 'putprop putprop)
-  (extend-toplevel-env! 'remprop remprop)
-  (extend-toplevel-env! 'procedure? procedure?)
-  (extend-toplevel-env! 'unspecified unspecified)
-
-  ;; Characters
-
-  (extend-toplevel-env! 'char? char?)
-  (extend-toplevel-env! 'char=? char=?)
-  (extend-toplevel-env! 'char<? char<?)
-  (extend-toplevel-env! 'char>? char>?)
-  (extend-toplevel-env! 'char<=? char<=?)
-  (extend-toplevel-env! 'char>=? char>=?)
-  (extend-toplevel-env! 'char-ci=? char-ci=?)
-  (extend-toplevel-env! 'char-ci<? char-ci<?)
-  (extend-toplevel-env! 'char-ci>? char-ci>?)
-  (extend-toplevel-env! 'char-ci<=? char-ci<=?)
-  (extend-toplevel-env! 'char-ci>=? char-ci>=?)
-  (extend-toplevel-env! 'integer->char integer->char)
-  (extend-toplevel-env! 'char->integer char->integer)
-
-  ;; Support for rewriter
-
-  (extend-toplevel-env! '%list list)
-  (extend-toplevel-env! '%list->vector list->vector)
-  (extend-toplevel-env! '%cons cons)
-  (extend-toplevel-env! '%append append)
 
   ;; pairs and lists
 
-  (extend-toplevel-env! 'reverse reverse)
-  (extend-toplevel-env! 'append append)
-  (extend-toplevel-env! 'assq assq)
-  (extend-toplevel-env! 'assv assv)
-  (extend-toplevel-env! 'assoc assoc)
-  (extend-toplevel-env! 'remq remq)
-  (extend-toplevel-env! 'remv remv)
-  (extend-toplevel-env! 'remove remove)
-  (extend-toplevel-env! 'map map)
-  (extend-toplevel-env! 'for-each for-each)
-  (extend-toplevel-env! 'memq memq)
-  (extend-toplevel-env! 'memv memv)
-  (extend-toplevel-env! 'member member)
-  (extend-toplevel-env! 'length length)
-  (extend-toplevel-env! 'list list)
-  (extend-toplevel-env! 'list? list?)
   (extend-toplevel-env! 'pair? pair?)
   (extend-toplevel-env! 'cons cons)
   (extend-toplevel-env! 'car car)
   (extend-toplevel-env! 'cdr cdr)
+  (extend-toplevel-env! 'set-car! set-car!)
+  (extend-toplevel-env! 'set-cdr! set-cdr!)
   (extend-toplevel-env! 'caar caar)
   (extend-toplevel-env! 'cadr cadr)
   (extend-toplevel-env! 'cdar cdar)
@@ -272,78 +227,128 @@
   (extend-toplevel-env! 'cddadr cddadr)
   (extend-toplevel-env! 'cdddar cdddar)
   (extend-toplevel-env! 'cddddr cddddr)
-  (extend-toplevel-env! 'set-car! set-car!)
-  (extend-toplevel-env! 'set-cdr! set-cdr!)
-  (extend-toplevel-env! 'list->vector list->vector)
-  (extend-toplevel-env! 'list->string list->string)
-  (extend-toplevel-env! 'list->procedure list->procedure)
+  (extend-toplevel-env! 'null? null?)
+  (extend-toplevel-env! 'list? list?)
+  (extend-toplevel-env! 'list list)
+  (extend-toplevel-env! 'length length)
+  (extend-toplevel-env! 'append append)
+  (extend-toplevel-env! 'reverse reverse)
+  (extend-toplevel-env! 'list-tail list-tail)
+  (extend-toplevel-env! 'list-ref list-ref)
+  (extend-toplevel-env! 'memq memq)
+  (extend-toplevel-env! 'memv memv)
+  (extend-toplevel-env! 'member member)
+  (extend-toplevel-env! 'assq assq)
+  (extend-toplevel-env! 'assv assv)
+  (extend-toplevel-env! 'assoc assoc)
+  ;; not in R4RS:
+  (extend-toplevel-env! 'last-pair last-pair)
+  (extend-toplevel-env! 'remq remq)
+  (extend-toplevel-env! 'remv remv)
+  (extend-toplevel-env! 'remove remove)
+  (extend-toplevel-env! 'append! append!)
+  (extend-toplevel-env! 'reverse! reverse!)
 
-  ;; vectors
+  ;; symbols
 
-  (extend-toplevel-env! 'vector vector)
-  (extend-toplevel-env! 'vector? vector?)
-  (extend-toplevel-env! 'make-vector make-vector)
-  (extend-toplevel-env! 'vector-ref vector-ref)
-  (extend-toplevel-env! 'vector-set! vector-set!)
-  (extend-toplevel-env! 'vector-length vector-length)
-  (extend-toplevel-env! 'vector->list vector->list)
-
-  ;; vector-like
-
-  (extend-toplevel-env! 'vector-like? vector-like?)
-  (extend-toplevel-env! 'vector-like-ref vector-like-ref)
-  (extend-toplevel-env! 'vector-like-set! vector-like-set!)
-  (extend-toplevel-env! 'vector-like-length vector-like-length)
+  (extend-toplevel-env! 'symbol? symbol?)
+  (extend-toplevel-env! 'symbol->string symbol->string)
+  (extend-toplevel-env! 'string->symbol string->symbol)
+  ;; not in R4RS:
+  (extend-toplevel-env! 'symbol-hash symbol-hash)
+  (extend-toplevel-env! 'gensym gensym)
 
   ;; numbers
 
-  (extend-toplevel-env! '+ +)
-  (extend-toplevel-env! '- -)
-  (extend-toplevel-env! '* *)
-  (extend-toplevel-env! '/ /)
-  (extend-toplevel-env! 'quotient quotient)
-  (extend-toplevel-env! 'remainder remainder)
-  (extend-toplevel-env! 'integer? integer?)
-  (extend-toplevel-env! 'rational? rational?)
-  (extend-toplevel-env! 'real? real?)
-  (extend-toplevel-env! 'complex? complex?)
   (extend-toplevel-env! 'number? number?)
+  (extend-toplevel-env! 'complex? complex?)
+  (extend-toplevel-env! 'real? real?)
+  (extend-toplevel-env! 'rational? rational?)
+  (extend-toplevel-env! 'integer? integer?)
+  (extend-toplevel-env! 'exact? exact?)
+  (extend-toplevel-env! 'inexact? inexact?)
   (extend-toplevel-env! '= =)
   (extend-toplevel-env! '< <)
   (extend-toplevel-env! '> >)
   (extend-toplevel-env! '<= <=)
   (extend-toplevel-env! '>= >=)
   (extend-toplevel-env! 'zero? zero?)
+  (extend-toplevel-env! 'positive? positive?)
   (extend-toplevel-env! 'negative? negative?)
-  (extend-toplevel-env! 'postive? positive?)
-  (extend-toplevel-env! 'expt expt)
-  (extend-toplevel-env! 'abs abs)
-  (extend-toplevel-env! 'truncate truncate)
-  (extend-toplevel-env! 'round round)
-  (extend-toplevel-env! 'number->string number->string)
-  (extend-toplevel-env! 'exact? exact?)
-  (extend-toplevel-env! 'inexact? inexact?)
-  (extend-toplevel-env! 'exact->inexact exact->inexact)
-  (extend-toplevel-env! 'inexact->exact inexact->exact)
-  (extend-toplevel-env! 'gcd gcd)
-  (extend-toplevel-env! 'lcm lcm)
-  (extend-toplevel-env! 'random random)
+  (extend-toplevel-env! 'odd? odd?)
+  (extend-toplevel-env! 'even? even?)
   (extend-toplevel-env! 'max max)
   (extend-toplevel-env! 'min min)
+  (extend-toplevel-env! '+ +)
+  (extend-toplevel-env! '* *)
+  (extend-toplevel-env! '- -)
+  (extend-toplevel-env! '/ /)
+  (extend-toplevel-env! 'abs abs)
+  (extend-toplevel-env! 'quotient quotient)
+  (extend-toplevel-env! 'remainder remainder)
+  (extend-toplevel-env! 'modulo modulo)
+  (extend-toplevel-env! 'gcd gcd)
+  (extend-toplevel-env! 'lcm lcm)
+  (extend-toplevel-env! 'numerator numerator)
+  (extend-toplevel-env! 'denominator denominator)
+  (extend-toplevel-env! 'floor floor)
+  (extend-toplevel-env! 'ceiling ceiling)
+  (extend-toplevel-env! 'truncate truncate)
+  (extend-toplevel-env! 'round round)
+  (extend-toplevel-env! 'rationalize rationalize)
+  ;; exp, log, sin, cos, tan, asin, acos, atan
+  ;; (extend-toplevel-env! 'sqrt sqrt)
+  (extend-toplevel-env! 'expt expt)
   (extend-toplevel-env! 'make-rectangular make-rectangular)
+  (extend-toplevel-env! 'real-part real-part)
+  (extend-toplevel-env! 'imag-part imag-part)
+  ;; make-polar
+  ;; magnitude
+  ;; angle
+  (extend-toplevel-env! 'exact->inexact exact->inexact)
+  (extend-toplevel-env! 'inexact->exact inexact->exact)
+  (extend-toplevel-env! 'number->string number->string)
+  (extend-toplevel-env! 'string->number string->number)
+  ;; not in R4RS:
+  (extend-toplevel-env! 'random random)
+  (extend-toplevel-env! 'fixnum? fixnum?)
+  (extend-toplevel-env! 'bignum? bignum?)
+  (extend-toplevel-env! 'ratnum? ratnum?)
+  (extend-toplevel-env! 'flonum? flonum?)
+  (extend-toplevel-env! 'compnum? compnum?)
+  (extend-toplevel-env! 'rectnum? rectnum?)
+
+  ;; Characters
+
+  (extend-toplevel-env! 'char? char?)
+  (extend-toplevel-env! 'char=? char=?)
+  (extend-toplevel-env! 'char<? char<?)
+  (extend-toplevel-env! 'char>? char>?)
+  (extend-toplevel-env! 'char<=? char<=?)
+  (extend-toplevel-env! 'char>=? char>=?)
+  (extend-toplevel-env! 'char-ci=? char-ci=?)
+  (extend-toplevel-env! 'char-ci<? char-ci<?)
+  (extend-toplevel-env! 'char-ci>? char-ci>?)
+  (extend-toplevel-env! 'char-ci<=? char-ci<=?)
+  (extend-toplevel-env! 'char-ci>=? char-ci>=?)
+  (extend-toplevel-env! 'char-alphabetic? char-alphabetic?)
+  (extend-toplevel-env! 'char-numeric? char-numeric?)
+  (extend-toplevel-env! 'char-whitespace? char-whitespace?)
+  (extend-toplevel-env! 'char-upper-case? char-upper-case?)
+  (extend-toplevel-env! 'char-lower-case? char-lower-case?)
+  (extend-toplevel-env! 'char->integer char->integer)
+  (extend-toplevel-env! 'integer->char integer->char)
+  (extend-toplevel-env! 'char-upcase char-upcase)
+  (extend-toplevel-env! 'char-downcase char-downcase)
 
   ;; strings
 
   (extend-toplevel-env! 'string? string?)
-  (extend-toplevel-env! 'string string)
   (extend-toplevel-env! 'make-string make-string)
+  (extend-toplevel-env! 'string string)
+  (extend-toplevel-env! 'string-length string-length)
   (extend-toplevel-env! 'string-ref string-ref)
   (extend-toplevel-env! 'string-set! string-set!)
-  (extend-toplevel-env! 'string-length string-length)
-  (extend-toplevel-env! 'string-append string-append)
-  (extend-toplevel-env! 'string-copy string-copy)
-  (extend-toplevel-env! 'string->list string->list)
-  (extend-toplevel-env! 'list->string list->string)
   (extend-toplevel-env! 'string=? string=?)
   (extend-toplevel-env! 'string<? string<?)
   (extend-toplevel-env! 'string>? string>?)
@@ -354,66 +359,163 @@
   (extend-toplevel-env! 'string-ci>? string-ci>?)
   (extend-toplevel-env! 'string-ci<=? string-ci<=?)
   (extend-toplevel-env! 'string-ci>=? string-ci>=?)
-  (extend-toplevel-env! 'string->symbol string->symbol)
-  (extend-toplevel-env! 'symbol->string symbol->string)
-  (extend-toplevel-env! 'gensym gensym)
   (extend-toplevel-env! 'substring substring)
+  (extend-toplevel-env! 'string-append string-append)
+  (extend-toplevel-env! 'string->list string->list)
+  (extend-toplevel-env! 'list->string list->string)
+  (extend-toplevel-env! 'string-copy string-copy)
+  (extend-toplevel-env! 'string-fill! string-fill!)
+  ;; not in R4RS:
+  (extend-toplevel-env! 'string-hash string-hash)
+  (extend-toplevel-env! 'substring-fill! substring-fill!)
 
-  ;; bytevectors
+  ;; vectors
 
-  (extend-toplevel-env! 'make-bytevector make-bytevector)
-  (extend-toplevel-env! 'bytevector? bytevector?)
-  (extend-toplevel-env! 'bytevector-ref bytevector-ref)
-  (extend-toplevel-env! 'bytevector-set! bytevector-set!)
-  (extend-toplevel-env! 'bytevector-length bytevector-length)
-  (extend-toplevel-env! 'bytevector-fill! bytevector-fill!)
-  (extend-toplevel-env! 'bytevector-equal? bytevector-equal?)
+  (extend-toplevel-env! 'vector? vector?)
+  (extend-toplevel-env! 'make-vector make-vector)
+  (extend-toplevel-env! 'vector vector)
+  (extend-toplevel-env! 'vector-length vector-length)
+  (extend-toplevel-env! 'vector-ref vector-ref)
+  (extend-toplevel-env! 'vector-set! vector-set!)
+  (extend-toplevel-env! 'vector->list vector->list)
+  (extend-toplevel-env! 'list->vector list->vector)
+  (extend-toplevel-env! 'vector-fill! vector-fill!)
 
-  (extend-toplevel-env! 'bytevector-like? bytevector-like?)
-  (extend-toplevel-env! 'bytevector-like-ref bytevector-like-ref)
-  (extend-toplevel-env! 'bytevector-like-set! bytevector-like-set!)
-  (extend-toplevel-env! 'bytevector-like-length bytevector-like-length)
-;  (extend-toplevel-env! 'bytevector-like-equal? bytevector-like-equal?)
+  ;; control features
 
+  (extend-toplevel-env! 'procedure? procedure?)
+  (extend-toplevel-env! 'apply apply)
+  (extend-toplevel-env! 'map map)
+  (extend-toplevel-env! 'for-each for-each)
+  (extend-toplevel-env! 'force 'force)
+  (extend-toplevel-env! 'call-with-current-continuation
+                        call-with-current-continuation)
+  ;; not in R4RS:
+  (extend-toplevel-env! 'call/cc call-with-current-continuation)
+  (extend-toplevel-env! 'list->procedure list->procedure)
+  
   ;; i/o
 
-  (extend-toplevel-env! 'display display)
-  (extend-toplevel-env! 'newline newline)
-  (extend-toplevel-env! 'read read)
-  (extend-toplevel-env! 'read-char read-char)
-  (extend-toplevel-env! 'write write)
-  (extend-toplevel-env! 'eof-object? eof-object?)
-  (extend-toplevel-env! 'open-input-file open-input-file)
-  (extend-toplevel-env! 'open-output-file open-output-file)
-  (extend-toplevel-env! 'close-input-port close-input-port)
-  (extend-toplevel-env! 'close-output-port close-output-port)
-  (extend-toplevel-env! 'call-with-output-file call-with-output-file)
   (extend-toplevel-env! 'call-with-input-file call-with-input-file)
+  (extend-toplevel-env! 'call-with-output-file call-with-output-file)
   (extend-toplevel-env! 'input-port? input-port?)
   (extend-toplevel-env! 'output-port? output-port?)
   (extend-toplevel-env! 'current-input-port current-input-port)
   (extend-toplevel-env! 'current-output-port current-output-port)
+  (extend-toplevel-env! 'with-input-from-file with-input-from-file)
+  (extend-toplevel-env! 'with-output-to-file with-output-to-file)
+  (extend-toplevel-env! 'open-input-file open-input-file)
+  (extend-toplevel-env! 'open-output-file open-output-file)
+  (extend-toplevel-env! 'close-input-port close-input-port)
+  (extend-toplevel-env! 'close-output-port close-output-port)
+  (extend-toplevel-env! 'read read)
+  (extend-toplevel-env! 'read-char read-char)
+  (extend-toplevel-env! 'peek-char peek-char)
+  (extend-toplevel-env! 'eof-object? eof-object?)
+  (extend-toplevel-env! 'char-ready? char-ready?)
+  (extend-toplevel-env! 'write write)
+  (extend-toplevel-env! 'display display)
+  (extend-toplevel-env! 'newline newline)
+  (extend-toplevel-env! 'write-char write-char)
+  ;; not in R4RS:
   (extend-toplevel-env! 'port? port?)
   (extend-toplevel-env! 'flush-output-port flush-output-port)
   (extend-toplevel-env! '**eof** **eof**)
+  (extend-toplevel-env! 'delete-file delete-file)
+  (extend-toplevel-env! 'reset-iosystem reset-iosystem)
+  (extend-toplevel-env! 'rename-file rename-file)
+  (extend-toplevel-env! 'file-exists? file-exists?)
+  (extend-toplevel-env! 'file-modification-time file-modification-time)
 
-  ;; misc
+  ;; general
+
+  (extend-toplevel-env! 'load load)
+  ;; transcript-on, transcript-off (optional)
+
+  ;; common extensions to R4RS
+
+  (extend-toplevel-env! 'error error)
+  (extend-toplevel-env! 'exit exit)
+  (extend-toplevel-env! 'eval eval)
+
+  ;; property lists
+
+  (extend-toplevel-env! 'getprop getprop)
+  (extend-toplevel-env! 'putprop putprop)
+  (extend-toplevel-env! 'remprop remprop)
+
+  ;; vector-like
+
+  (extend-toplevel-env! 'vector-like? vector-like?)
+  (extend-toplevel-env! 'vector-like-length vector-like-length)
+  (extend-toplevel-env! 'vector-like-ref vector-like-ref)
+  (extend-toplevel-env! 'vector-like-set! vector-like-set!)
+
+  ;; bytevectors
+
+  (extend-toplevel-env! 'bytevector? bytevector?)
+  (extend-toplevel-env! 'bytevector-length bytevector-length)
+  (extend-toplevel-env! 'make-bytevector make-bytevector)
+  (extend-toplevel-env! 'bytevector-ref bytevector-ref)
+  (extend-toplevel-env! 'bytevector-set! bytevector-set!)
+  (extend-toplevel-env! 'bytevector-equal? bytevector-equal?)
+  (extend-toplevel-env! 'bytevector-fill! bytevector-fill!)
+
+  (extend-toplevel-env! 'bytevector-like? bytevector-like?)
+  (extend-toplevel-env! 'bytevector-like-length bytevector-like-length)
+  (extend-toplevel-env! 'bytevector-like-ref bytevector-like-ref)
+  (extend-toplevel-env! 'bytevector-like-set! bytevector-like-set!)
+  (extend-toplevel-env! 'bytevector-like-equal? bytevector-like-equal?)
+
+  ;; Support for rewriter and for macro expansion.
 
   (extend-toplevel-env! 'rewrite rewrite)
+  (extend-toplevel-env! '%list list)
+  (extend-toplevel-env! '%list->vector list->vector)
+  (extend-toplevel-env! '%cons cons)
+  (extend-toplevel-env! '%append append)
+  (extend-toplevel-env! '%make-promise %make-promise)
+
+  ;; system performance
+
   (extend-toplevel-env! 'run-with-stats run-with-stats)
   (extend-toplevel-env! 'run-benchmark run-benchmark)
   (extend-toplevel-env! 'display-memstats display-memstats) ; mostly obsolete
-  (extend-toplevel-env! 'issue-warnings issue-warnings)
   (extend-toplevel-env! 'collect collect)
   (extend-toplevel-env! 'memstats memstats)
+
+  ;; error handling
+
+  (extend-toplevel-env! 'print-continuation print-continuation)
+  (extend-toplevel-env! 'error-continuation error-continuation)
+
+  ;; miscellaneous extensions
+
+  (extend-toplevel-env! 'rep-loop rep-loop)
+  (extend-toplevel-env! 'issue-warnings issue-warnings)
+  (extend-toplevel-env! 'load-noisily
+                        (lambda () (set! load-noise-level #t)))
+  (extend-toplevel-env! 'load-quietly
+                        (lambda () (set! load-noise-level #f)))
   (extend-toplevel-env! 'typetag typetag)
   (extend-toplevel-env! 'typetag-set! typetag-set!)
   (extend-toplevel-env! '**newline** **newline**)
+  (extend-toplevel-env! 'unspecified unspecified)
   (extend-toplevel-env! 'dumpheap dumpheap)
-  (extend-toplevel-env! 'rep-loop rep-loop)
-  (extend-toplevel-env! 'call-with-current-continuation call-with-current-continuation)
-  (extend-toplevel-env! 'call/cc call-with-current-continuation)
-  (extend-toplevel-env! 'eval eval)
+  (extend-toplevel-env! 'sys$tracectl sys$tracectl)
+  (extend-toplevel-env! 'sys$trace sys$trace)
+  (extend-toplevel-env! 'getenv getenv)
+
+  ;; bignum debugging
+
+  (extend-toplevel-env! 'bigdump bigdump)
+  (extend-toplevel-env! 'bigdump* bigdump*)
+  (extend-toplevel-env! 'big-divide-digits big-divide-digits)
+
+  ;; flonum debugging
+
+  (extend-toplevel-env! 'float-significand float-significand)
+  (extend-toplevel-env! 'float-exponent float-exponent)
 
   #t)
 

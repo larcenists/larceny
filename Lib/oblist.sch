@@ -15,6 +15,7 @@
 ; namespace-set!
 ; install-symbols (used only for bootstrapping)
 ;
+; -----
 ; In macscheme, symbols are represented as vector-like structures
 ; with a structure tag of -16:
 ;
@@ -23,6 +24,7 @@
 ;             2    fixnum (hash code)
 ;             3    list (property list, unused by macscheme)
 ;
+; -----
 ; In larceny, a symbol is a vector-like structure with a typetag given by
 ; the value of `symbol-typetag' (below).
 ;
@@ -73,22 +75,19 @@
 
 (define symbol? (lambda (x) (symbol? x)))   ; integrable
 
-(define symbol->string
-  (lambda (symbol)
-    (if (symbol? symbol)
-        (symbol.printname symbol)
-        (begin ; (break)
-	       (error "non-symbol -- symbol->string" symbol)))))
+(define (symbol->string sym)
+  (if (symbol? sym)
+      (symbol.printname sym)
+      (error "symbol->string: not a symbol: " sym)))
 
 ; Given a string, return a new uninterned symbol.
 
-(define make-symbol
-  (lambda (string)
-    (if (string? string)
-	(make-symbol-structure (string-copy string) (string-hash string) '())
-	(error "non-string -- make-symbol" string))))
+(define (make-symbol string)
+  (if (string? string)
+      (make-symbol-structure (string-copy string) (string-hash string) '())
+      (error "make-symbol: not a string: " string)))
 
-;; Property lists. What we don't do for some backward compatibility.
+; Property lists. What we don't do for some backward compatibility.
 
 (define (putprop sym name value)
   (if (not (symbol? sym))
@@ -113,33 +112,22 @@
       (error "remprop:" sym "is not a symbol.")
       (symbol.proplist! sym (remq name (symbol.proplist sym)))))
 
+; Returns a value in the range 0 .. 2^16-1 (a fixnum in Larceny).
 
-; With the following definitions,
-;
-;    (= (string-hash s) (symbol-hash (string->symbol s)))
-;
-; is always true.  this is convenient for the string->symbol
-; procedure, but is it otherwise desirable?
+(define (string-hash string)
+  (define (loop s i h)
+    (if (negative? i)
+	h
+	(loop s
+	      (- i 1)
+	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+  (let ((n (string-length string)))
+    (loop string (- n 1) n)))
 
-(define string-hash
-  (letrec ((loop (lambda (s i h)
-                   (if (negative? i)
-                       h
-                       (loop s
-                             (- i 1)
-                             (logand 65535
-                                     (+ (char->integer
-                                         (string-ref s i))
-                                        h h h)))))))
-    (lambda (string)
-      (let ((n (string-length string)))
-        (loop string (- n 1) n)))))
-
-(define symbol-hash
-  (lambda (symbol)
-    (if (symbol? symbol)
-        (symbol.hashname symbol)
-	(error "symbol-hash: " symbol " is not a symbol."))))
+(define (symbol-hash sym)
+  (if (symbol? sym)
+      (symbol.hashname sym)
+      (error "symbol-hash: " sym " is not a symbol.")))
 
 (define string->symbol #f)
 (define namespace #f)
@@ -152,8 +140,6 @@
 
   (define obvector #f)
       
-  ; Given a string, interns it.
-
   (define (intern s)
     (let ((h (string-hash s)))
       (call-without-interrupts
@@ -164,12 +150,13 @@
 	      (vector-ref obvector (remainder h (vector-length obvector))))
 	     (install-symbol (make-symbol s) h obvector))))))
 
+  ; Given a string, interns it.
+
   (define (search-bucket s h bucket)
     (if (null? bucket)
 	#f
 	(let ((symbol (car bucket)))
-	  (if (and (eq? h (symbol-hash symbol))
-		   (string=? s (symbol->string symbol)))
+	  (if (string=? s (symbol.printname symbol))
 	      symbol
 	      (search-bucket s h (cdr bucket))))))
          
@@ -189,25 +176,29 @@
 	(error "String->symbol: " s " is not a string.")))
          
   (define (%namespace)
-    (letrec ((loop
-	      (lambda (i l)
-		(if (< i 0)
-		    l
-		    (loop (- i 1)
-			  (append (vector-ref obvector i) l))))))
-      (loop (- tablesize 1) '())))
-        
+    (call-without-interrupts
+     (lambda ()
+       (letrec ((loop
+		 (lambda (i l)
+		   (if (< i 0)
+		       l
+		       (loop (- i 1)
+			     (append (vector-ref obvector i) l))))))
+	 (loop (- tablesize 1) '())))))
+      
   (define (%namespace-set! symbols new-tablesize)
-    (set! tablesize new-tablesize)
-    (let ((v (make-vector tablesize '())))
-      (for-each 
-       (lambda (s)
-	 (if (symbol? s)
-	     (install-symbol s (string-hash (symbol->string s)) v)
-	     (error "namespace-set!: " s " is not a symbol.")))
-       symbols)
-      (set! obvector v)
-      #t))
+    (call-without-interrupts
+     (lambda ()
+       (set! tablesize new-tablesize)
+       (let ((v (make-vector tablesize '())))
+	 (for-each 
+	  (lambda (s)
+	    (if (symbol? s)
+		(install-symbol s (string-hash (symbol.printname s)) v)
+		(error "namespace-set!: " s " is not a symbol.")))
+	  symbols)
+	 (set! obvector v)
+	 #t))))
 
   ; Initialize obvector
     
@@ -226,4 +217,4 @@
         
   #t)
 
-
+; eof

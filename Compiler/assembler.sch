@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.sch,v 1.12 1992/06/10 09:05:01 lth Exp lth $
+; $Id: assembler.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -40,7 +40,7 @@
 (define enable-singlestep? #f) ; Single stepping switch
 (define enable-peephole? #t)   ; peephole optimization switch
 (define listify? #f)           ; produce listing
-(define emit-undef-check? #f)  ; check references to globals
+(define emit-undef-check? #t)  ; check references to globals
 
 ; The main entry point.
 
@@ -490,13 +490,40 @@
 
 (define-instruction $restore
   (lambda (instruction as)
-    (list-instruction "restore" instruction)
-    (emit-restore! as (operand1 instruction))))
+    (if (not (negative? (operand1 instruction)))        ; @@ Will
+        (begin                                          ; @@ Will
+         (list-instruction "restore" instruction)
+         (emit-restore! as (operand1 instruction))))))
+
+; begin @@ Will
+; The previous-instruction peephole optimization for return
+; in gen-msi.sch generates incorrect code for
+;
+;    pop     n
+;    return
+;
+; This peephole optimization patches that bug, and generates
+; better code for the above sequence.  This peephole optimization
+; cannot be turned off because it patches a bug in emit-return!.
+
+;(define-instruction $pop
+;  (lambda (instruction as)
+;    (list-instruction "pop" instruction)
+;    (emit-pop! as (operand1 instruction))))
 
 (define-instruction $pop
   (lambda (instruction as)
-    (list-instruction "pop" instruction)
-    (emit-pop! as (operand1 instruction))))
+    (if (not (negative? (operand1 instruction)))
+        (begin
+         (list-instruction "pop" instruction)
+         (let ((next (next-instruction as)))
+           (if (eq? $return (operand0 next))
+               (begin (list-instruction "return" next)
+                      (consume-next-instruction! as)
+                      (emit-pop! as (operand1 instruction) #t))
+               (emit-pop! as (operand1 instruction) #f)))))))
+
+; end @@ Will
 
 (define-instruction $stack
   (lambda (instruction as)
@@ -508,10 +535,21 @@
     (list-instruction "setstk" instruction)
     (emit-store! as $r.result (operand1 instruction))))
 
+; begin @@ Will
+; The load instruction now takes the register to be loaded as its
+; first operand, and the stack slot from which to load as the second.
+
+;(define-instruction $load
+;  (lambda (instruction as)
+;    (list-instruction "load" instruction)
+;    (emit-load! as (operand1 instruction) (regname (operand2 instruction)))))
+
 (define-instruction $load
   (lambda (instruction as)
     (list-instruction "load" instruction)
-    (emit-load! as (operand1 instruction) (regname (operand2 instruction)))))
+    (emit-load! as (operand2 instruction) (regname (operand1 instruction)))))
+
+; end @@ Will
 
 (define-instruction $store
   (lambda (instruction as)
@@ -555,10 +593,38 @@
     (list-instruction "nop" instruction)
     (emit-nop! as)))
 
+; begin @@ Will
+; The save instruction now takes just one operand.
+; A save instruction is typically followed by several store instructions,
+; so initializing the new frame to zero is often partially redundant.
+; A peephole optimization works nicely here.
+
+;(define-instruction $save
+;  (lambda (instruction as)
+;    (list-instruction "save" instruction)
+;    (emit-save! as (operand1 instruction) (operand2 instruction))))
+
 (define-instruction $save
   (lambda (instruction as)
-    (list-instruction "save" instruction)
-    (emit-save! as (operand1 instruction) (operand2 instruction))))
+    (if (not (negative? (operand1 instruction)))
+        (begin
+         (list-instruction "save" instruction)
+         (let* ((n (operand1 instruction))
+                (v (make-vector (+ n 1) #t)))
+           (emit-save0! as n)
+           (if enable-peephole?
+               (let loop ((instruction (next-instruction as)))
+                 (if (eq? $store (operand0 instruction))
+                     (begin (list-instruction "store" instruction)
+                            (emit-store! as
+                                         (regname (operand1 instruction))
+                                         (operand2 instruction))
+                            (consume-next-instruction! as)
+                            (vector-set! v (operand2 instruction) #f)
+                            (loop (next-instruction as))))))
+           (emit-save1! as v))))))
+
+; end @@ Will
 
 (define-instruction $setrtn
   (lambda (instruction as)
@@ -630,12 +696,17 @@
 ; Test two registers and branch if false to label.
 
 (define-instruction $optbreg2
-  (let ((names '((<   . internal:bf<)
-		 (>   . internal:bf>)
-		 (<=  . internal:bf<=)
-		 (>=  . internal:bf>=)
-		 (=   . internal:bf=)
-		 (eq? . internal:bfeq?))))
+   (let ((names '((<       . internal:bf<)
+ 		 (>       . internal:bf>)
+ 		 (<=      . internal:bf<=)
+ 		 (>=      . internal:bf>=)
+ 		 (=       . internal:bf=)
+ 		 (char=?  . internal:bfchar=?)
+ 		 (char<=? . internal:bfchar<=?)
+ 		 (char<?  . internal:bfchar<?)
+ 		 (char>=? . internal:bfchar>=?)
+ 		 (char>?  . internal:bfchar>?)
+ 		 (eq?     . internal:bfeq?))))
     (lambda (instruction as)
       (list-instruction "optb2reg" instruction)
       (let ((op (assq (operand1 instruction) names)))
@@ -658,11 +729,16 @@
 ; Dubious use of argreg2?
  
 (define-instruction $optbreg2imm
-  (let ((names '((<  . internal:bf<imm)
-		 (>  . internal:bf>imm)
-		 (<= . internal:bf<=imm)
-		 (>= . internal:bf>=imm)
-		 (=  . internal:bf=imm)
+   (let ((names '((<       . internal:bf<imm)
+ 		 (>       . internal:bf>imm)
+ 		 (<=      . internal:bf<=imm)
+ 		 (>=      . internal:bf>=imm)
+ 		 (=       . internal:bf=imm)
+ 		 (char=?  . internal:bfchar=?imm)
+ 		 (char>=? . internal:bfchar>=?imm)
+ 		 (char>?  . internal:bfchar>?imm)
+ 		 (char<=? . internal:bfchar<=?imm)
+ 		 (char<?  . internal:bfchar<?imm)
 		 (eq? . internal:bfeq?imm))))
     (lambda (instruction as)
       (list-instruction "optbreg2imm" instruction)
@@ -755,6 +831,16 @@
 			     (regname (operand2 instruction)))))
 
 
+; ($branchfreg reg label)
+; branch to label if reg is false.
+
+(define-instruction $branchfreg
+  (lambda (instruction as)
+    (list-instruction "branchfreg" instruction)
+    (emit-branchfreg! as 
+		      (regname (operand1 instruction))
+		      (operand2 instruction))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Helpers
 
@@ -792,7 +878,10 @@
 ; Could be made portable with a little bit of effort.
 
 (define (emit-singlestep! as instr)
-  (if (not (memq (car instr) (list $.label $.proc $.cont $.align)))
+  (if (and (not (memq (operand0 instr)
+                      (list $.label $.proc $.cont $.align)))
+           (not (and (eq? (operand0 instr) $load)
+                     (zero? (operand1 instr)))))
       (let ((p (open-output-string))
 	    (f (= (car instr) $restore)))
 	(display (if (= (car instr) $lambda)
@@ -805,3 +894,4 @@
 ;	  (display o) (display ": ") (display s) (newline)
 	  (close-output-port p)))))
 
+; eof

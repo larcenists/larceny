@@ -1,7 +1,7 @@
 ; Larceny run-time library
 ; Your Basic Exception Handler in a Massive Case Statement (YBEHMCS).
 ;
-; $Id: exception-handler.sch,v 1.2 1992/06/10 09:05:21 lth Exp $
+; $Id: exception-handler.sch,v 1.1 1995/08/01 04:45:56 lth Exp lth $
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, ARGREG2, and
 ; ARGREG3, and an exception code as arguments. It dispatches on the code and
@@ -82,9 +82,10 @@
 	     (if print-object?
 		 (error name arg2 "is not a valid index into" thing)
 		 (error name "invalid index into" thing)))
-	     
 	    (else
-	     (error "Exception-handler: confused about" name)))))
+	     (if (bignum? arg1)
+		 (begin (display "BIG: ") (bigdump* arg1) (newline)))
+	     (error "Exception-handler: confused about" name arg1 arg2)))))
 
 
   (define (handler arg1 arg2 arg3 code)
@@ -220,6 +221,22 @@
 
       ((= code $ex.bvllen)
        (error "bytevector-like-length:" arg1 "is not a bytevector-like."))
+
+      ;; Characters
+
+      ((= code $ex.char2int)
+       (error "char->integer: " arg1 " is not a character."))
+
+      ((= code $ex.int2char)
+       (error "integer->char: " arg1 " is not an exact nonnegative integer."))
+
+      ; PTF
+      ((or (= code $ex.char<?)
+	   (= code $ex.char<=?)
+	   (= code $ex.char=?)
+	   (= code $ex.char>?)
+	   (= code $ex.char>=?))
+       (error "(character comparison, code " code "): " arg1 " " arg2))
 
       ;; Others
 

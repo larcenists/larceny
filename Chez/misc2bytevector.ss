@@ -4,7 +4,7 @@
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
 ;
-; $Id: misc2bytevector.ss,v 1.4 1992/06/10 09:04:59 lth Exp $
+; $Id: misc2bytevector.ss,v 1.1 1995/08/01 04:41:38 lth Exp lth $
 
 ; Generic.
 
@@ -126,9 +126,9 @@
 
   (define nan '(#x7f #xff #xff #xff #xff #xff #xff #xff))
 
-  (define infinity+ '(#x7f #xf8 #x00 #x00 #x00 #x00 #x00 #x00))
+  (define infinity+ '(#x7f #xf0 #x00 #x00 #x00 #x00 #x00 #x00))
 
-  (define infinity- '(#xff #xf8 #x00 #x00 #x00 #x00 #x00 #x00))
+  (define infinity- '(#xff #xf0 #x00 #x00 #x00 #x00 #x00 #x00))
 
   (define zero+ '(#x00 #x00 #x00 #x00 #x00 #x00 #x00 #x00))
 

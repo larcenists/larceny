@@ -3,6 +3,9 @@
 ;; Larceny assembler (Sparc) -- code emitters for MacScheme instructions.
 ;;
 ;; History
+;;   July 17, 1995 / lth (v0.24)
+;;     INVOKE and ARGS= are sensitive to unsafe-mode.
+;;
 ;;   July 5, 1994 / lth (v0.20)
 ;;     Slightly changed to deal with new millicode procedures and new
 ;;     stack frame layouts.
@@ -176,17 +179,18 @@
 ; ARGS=
 ;
 ; Argument check. If the args don't match, drop to the exception handler.
+; FIXME: better use of the delay slot possible.
 
 (define (emit-args=! as n)
-  (let ((l2 (new-label)))
-    (emit! as `(,$i.subicc ,$r.result ,(* n 4) ,$r.g0))
-    (emit! as `(,$i.be ,l2))
-    (emit! as `(,$i.ori ,$r.g0 ,(* n 4) ,$r.argreg2))
-    (emit! as `(,$i.orr ,$r.reg0 ,$r.g0 ,$r.argreg3))
-    (emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.o7))
-    (emit! as `(,$i.ori ,$r.g0 ,(thefixnum $ex.argc) ,$r.tmp0))
-    (emit! as `(,$i.label ,l2))))
-
+  (if (not unsafe-mode)
+      (let ((l2 (new-label)))
+	(emit! as `(,$i.subicc ,$r.result ,(* n 4) ,$r.g0))
+	(emit! as `(,$i.be ,l2))
+	(emit! as `(,$i.ori ,$r.g0 ,(* n 4) ,$r.argreg2))
+	(emit! as `(,$i.orr ,$r.reg0 ,$r.g0 ,$r.argreg3))
+	(emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.o7))
+	(emit! as `(,$i.ori ,$r.g0 ,(thefixnum $ex.argc) ,$r.tmp0))
+	(emit! as `(,$i.label ,l2)))))
 
 ; ARGS>=
 ;
@@ -214,6 +218,9 @@
 ; a bit of magic: the return address generated in %o7 is the return address
 ; which is in the topmost frame on the stack. (Can't be right. FIXME.)
 ;
+; Note: must setup argument count even in unsafe mode, because we may be
+; calling code which was not compiled safe.
+;
 ; This code takes 10 cycles on a call if the load hits the cache (SS1).
 
 (define (emit-invoke! as n)
@@ -223,23 +230,30 @@
     (emit! as `(,$i.label ,l0))
     (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
     (emit! as `(,$i.bne.a ,l2))
-    (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
+    (if (not unsafe-mode)
+	(emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
+	(emit! as `(,$i.ldi ,$r.result ,$p.codevector ,$r.tmp0)))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l0 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l2))
-    (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure-tag ,$r.g0))
-    (emit! as `(,$i.be.a ,l3))
-    (emit! as `(,$i.ldi ,$r.result ,$p.codevector ,$r.tmp0))
-    (emit! as `(,$i.ori ,$r.g0 ,(thefixnum $ex.nonproc) ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.g0))
-    (emit! as `(,$i.ldi ,$r.stkp 4 ,$r.o7)) 
-    (emit! as `(,$i.label ,l3))
+    (if (not unsafe-mode)
+	(begin ; tmp0 has tag of RESULT
+	       (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure-tag ,$r.g0))
+	       (emit! as `(,$i.be.a ,l3))
+	       (emit! as `(,$i.ldi ,$r.result ,$p.codevector ,$r.tmp0))
+	       (emit! as `(,$i.ori ,$r.g0 ,(thefixnum $ex.nonproc) ,$r.tmp0))
+	       (emit! as `(,$i.jmpli ,$r.millicode ,$m.exception ,$r.g0))
+	       (emit! as `(,$i.ldi ,$r.stkp 4 ,$r.o7))))
+    ; tmp0 has code vector
+    ; result has procedure
+    (if (not unsafe-mode)
+	(emit! as `(,$i.label ,l3)))
     (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.reg0))
     (emit! as `(,$i.jmpli ,$r.tmp0 ,$p.codeoffset ,$r.g0))
     (emit! as `(,$i.ori ,$r.g0 ,(* n 4) ,$r.result))))
 
 
-; SAVE
+; SAVE -- for old compiler
 ;
 ; Create stack frame, then save registers.
 ;
@@ -295,6 +309,46 @@
 	    (else
 	     #t)))))
 
+; SAVE -- for new compiler
+;
+; Create stack frame.  To avoid confusing the garbage collector, the
+; slots must be initialized to something definite unless they will
+; immediately be initialized by a MacScheme machine store instruction.
+; The creation is done by emit-save0!, and the initialization is done
+; by emit-save1!.
+
+(define (emit-save0! as n)
+  (let* ((l         (new-label))
+	 (l0        (new-label))
+	 (framesize (+ 8 (* (+ n 1) 4)))
+	 (realsize  (roundup8 (+ framesize 4))))
+    (emit! as `(,$i.label ,l0))
+    (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
+    (emit! as `(,$i.subrcc ,$r.stklim ,$r.stkp ,$r.g0))
+    (emit! as `(,$i.ble.a ,l))
+    (emit! as `(,$i.ori ,$r.g0 ,framesize ,$r.tmp0))
+    (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.stkoflow ,$r.o7))
+    (emit! as `(,$i.subi ,$r.o7 (+ (- $ ,l0) 4) ,$r.o7))
+    (emit! as `(,$i.label ,l))
+    ; initialize size and return fields of stack frame
+    (emit! as `(,$i.sti ,$r.tmp0 0 ,$r.stkp))
+    (emit! as `(,$i.sti ,$r.g0 4 ,$r.stkp))))
+
+; Given a vector v of booleans, initializes slot i of the stack frame
+; if and only if (vector-ref v i).
+
+(define (emit-save1! as v)
+  (let ((n (vector-length v)))
+    (let loop ((i 0) (offset 12))
+      (cond ((= i n)
+             #t)
+            ((vector-ref v i)
+	     (emit! as `(,$i.sti ,$r.g0 ,offset ,$r.stkp))
+	     (loop (+ i 1) (+ offset 4)))
+	    (else
+	     (loop (+ i 1) (+ offset 4)))))))
+
 (define (emit-effective-address! as label)
   (if assume-short-distance-to-call
       (let ((expr `(- ,(make-asm-label label) (- $ 4) 8)))
@@ -325,14 +379,30 @@
 		  (emit-store-reg! as $r.tmp0 r)))
 	    (loop (+ i 1) (+ offset 4)))))))
 
-; POP
+; POP -- for new compiler
+;
+; Pop frame.
+; If returning?, then emit the return as well and put the pop
+; in its delay slot.
+
+(define (emit-pop! as n returning?)
+  (let* ((framesize (+ 8 (* (+ n 1) 4)))
+	 (realsize  (roundup8 (+ framesize 4))))
+    (if returning?
+        (begin (emit! as `(,$i.ldi ,$r.stkp ,(+ realsize 4) ,$r.o7))
+               (emit! as `(,$i.jmpli ,$r.o7 8 ,$r.g0))
+               (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp)))
+        (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp)))))
+
+
+; POP -- for old compiler
 ;
 ; Pop frame. Checking for underflow is pretty cheap, yet too expensive.
 ; If the switch fast-pop is turned on, a much faster pop is used.
 ; Using this switch is a guarantee from the programmer that the compiler
 ; will not generate code which creates spill frames...
 
-(define (emit-pop! as n)
+(define (old-emit-pop! as n)
   (let* ((framesize (+ 8 (* (+ n 1) 4)))
 	 (realsize  (roundup8 (+ framesize 4)))
 	 (l1        (new-label)))
@@ -563,11 +633,15 @@
 ; BRANCHF
 
 (define (emit-branchf! as label)
+  (emit-branchfreg! as $r.result label))
+
+; BRANCHFREG -- introduced by peephole optimization.
+; 
+(define (emit-branchfreg! as hwreg label)
   (let ((label (make-asm-label label)))
-    (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
+    (emit! as `(,$i.subicc ,hwreg ,$imm.false ,$r.g0))
     (emit! as `(,$i.be.a ,label))
     (emit! as `(,$i.slot))))
-
 
 ; JUMP
 ;

@@ -5,7 +5,6 @@
 ;
 ; $Id: number.sch,v 1.3 1992/06/10 09:05:29 lth Exp $
 
- 
 (define positive? (lambda (x) (> x 0)))
  
 (define negative? (lambda (x) (< x 0)))
@@ -67,12 +66,6 @@
           (random14 n)
           (loop n (random14 16384) n)))))
  
-; This is a primop in Larceny
-;
-;(define remainder
-;  (lambda (n modulus)
-;    (- n (* modulus (quotient n modulus)))))
- 
 (define gcd
   (letrec ((loop (lambda (x y)
                    (cond ((or (zero? x) (zero? y)) (+ x y))
@@ -106,33 +99,82 @@
                      (cons (lcm (car args) (cadr args))
                            (cddr args))))))
 
-; This is a primop in Larceny
-;
-;(define modulo
-;  (lambda (x y)
-;    (let* ((q (quotient x y))
-;           (r (- x (* q y))))
-;      (if (negative? r)
-;          (if (negative? y)
-;              r
-;              (+ r y))
-;          (if (negative? y)
-;              (+ r y)
-;              r)))))
+(define modulo
+  (lambda (x y)
+    (let* ((q (quotient x y))
+           (r (- x (* q y))))
+      (if (negative? r)
+          (if (negative? y)
+              r
+              (+ r y))
+          (if (negative? y)
+              (+ r y)
+              r)))))
 
-; Takes only nonnegative integer powers for now. The full gory version should
+; Takes only exact integer powers for now. The full gory version should
 ; go here, as a bootstrap version is loaded early.
 
 (define (expt x y)
 
-  (define (expt x y)
-    (if (zero? y)
-        1
-        (* x (expt x (- y 1)))))
+  (define (e x y)
+    (cond ((= y 0)
+	   1)
+	  ((odd? y)
+	   (* x (e x (- y 1))))
+	  (else 
+	   (let ((v (e x (quotient y 2))))
+	     (* v v)))))
 
-  (if (negative? y)
-      (error "Negative argument to expt.")
-      (expt x y)))
+  (cond ((and (exact? x) (zero? x))
+	 1)
+	((and (exact? y) (integer? y))
+	 (if (negative? y)
+	     (/ (expt x (abs y)))
+	     (e x y)))
+	(else
+	 (error "expt: don't yet know how to deal with" x y))))
+
+; From MacScheme.
+;
+; This code was written by Alan Bawden.
+; Its copyright status is unknown to me [i.e., to Will. --lars]
+
+(define (rationalize x e)
+  (define (simplest-rational x y)
+    (define (simplest-rational-internal x y)      ; assumes 0 < X < Y
+      (let ((fx (floor x))        ; [X] <= X < [X]+1
+            (fy (floor y)))       ; [Y] <= Y < [Y]+1, also [X] <= [Y]
+        (cond ((not (< fx x))
+               ;; X is an integer so X is the answer:
+               fx)
+              ((= fx fy)
+               ;; [Y] = [X] < X < Y so expand the next term in the continued
+               ;; fraction:
+               (+ fx (/ (simplest-rational-internal
+			 (/ (- y fy)) (/ (- x fx))))))
+              (else
+               ;; [X] < X < [X]+1 <= [Y] <= Y so [X]+1 is the answer:
+               (+ 1 fx)))))
+    (cond ((< y x)
+           ;; Y < X so swap and try again:
+           (simplest-rational y x))
+          ((not (< x y))
+           ;; X = Y so if either is a rational that is the answer, otherwise
+           ;; I don't know of anything implementation independent we can do.
+           (cond ((rational? x) x)
+                 ((rational? y) y)
+                 (else (error "What should we do in this case? " x y))))
+          ((positive? x) 
+           ;; 0 < X < Y which is what SIMPLEST-RATIONAL-INTERNAL expects:
+           (simplest-rational-internal x y))
+          ((negative? y)
+           ;; X < Y < 0 so 0 < -Y < -X and we negate the answer:
+           (- (simplest-rational-internal (- y) (- x))))
+          (else
+           ;; X <= 0 <= Y so zero is the answer:
+           0)))
+  (simplest-rational (- x e) (+ x e)))
+
 
 ;---------------------------------------------------------------------------
 
@@ -143,7 +185,7 @@
 
 (define (log x)
   (if (< x 0)
-      (error 'log "Can't deal with nonnegative numbers.")
+      (error "log: Domain error:" x)
       (begin (display "Warning: log not implemented; returning e.")
 	     (newline)
 	     2.7182)))
@@ -151,23 +193,22 @@
 ; Floor of x.
 
 (define (floor x)
-  (if (flonum? x)
-      (if (negative? x)
-	  (let ((z (truncate x)))
-	    (if (< x z)
-		(- z 1)
-		z))
-	  (truncate x))
+  (if (< x 0)
+      (let ((g (truncate x)))
+	(if (not (= g x))
+	    (- g 1)
+	    g))
       (truncate x)))
 
 ; Ceiling of x.
    
 (define (ceiling x)
-  (if (flonum? x)
-      (if (negative? x)
-	  (truncate x)
-	  (- (floor (- 0.0 x))))
-      (truncate x)))
+  (if (< x 0)
+      (truncate x)
+      (let ((g (truncate x)))
+	(if (not (= g x))
+	    (+ g 1)
+	    g))))
 
 ;
 
@@ -176,3 +217,44 @@
 
 (define (odd? n)
   (not (zero? (remainder n 2))))
+
+; Polar numbers
+
+(define (make-polar a b)
+  (make-rectangular (* b (cos a)) (* b (sin a))))
+
+(define (angle c)
+  (atan (imag-part c) (real-part c)))
+
+(define (magnitude c)
+  (let ((r (real-part c))
+	(i (imag-part c)))
+    (sqrt (+ (* r r) (i i)))))
+
+; Trancendentals
+
+(define (sin z)
+  (error "SIN not implemented."))
+
+(define (cos z)
+  (error "COS not implemented."))
+
+(define (tan z)
+  (error "TAN not implemented."))
+
+(define (asin z)
+  (error "ASIN not implemented."))
+
+(define (acos z)
+  (error "ACOS not implemented."))
+
+(define (atan z . rest)
+  (error "ATAN not implemented"))
+
+(define (exp z)
+  (error "EXP not implemented."))
+
+(define (log z)
+  (error "LOG not implemented."))
+
+; eof

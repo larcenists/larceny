@@ -1,0 +1,75 @@
+; -*- scheme -*-
+;
+; $Id$
+;
+; malcode.mal -- all MacScheme assembly language to support Larceny.
+;
+; June 27, 1995 / lth
+;   Created (by merging some older files).
+
+; @raw-apply@
+;
+; The raw apply procedure has to be written in mal
+; (MacScheme assembly language) because the compiler
+; never emits an apply instruction.
+
+`((,$lambda ((,$.proc)
+             (,$args= 3)
+             (,$reg 1)
+             (,$apply 2 3)
+             (,$.label 1001)
+             (,$branch 1001))  ; just a precaution
+            0
+            (#t))
+  (,$setglbl @raw-apply@)
+  (,$const @raw-apply@)
+  (,$return))
+
+
+; call-with-current-continuation
+;
+; Call-with-current-continuation has to be written in mal to 
+; make sure that the compiler does not mess with the stack frames;
+; the creg/creg-set! primitives need predictable stack behavior.
+
+`((,$lambda ((,$.proc)
+	     (,$args=   1)
+	     (,$op1     creg)
+	     (,$setreg  2)
+	     (,$lambda  ((,$.proc)
+			 (,$lexical 0 2)
+			 (,$op1     creg-set!)
+			 (,$reg     1)
+			 (,$return))
+			2
+			(#t))
+	     (,$setreg  3)
+	     (,$reg     1)
+	     (,$movereg 3 1)
+	     (,$invoke  1))
+	    0
+	    (#t))
+  (,$setglbl call-with-current-continuation)
+  (,$const   call-with-current-continuation)
+  (,$return))
+
+
+; syscall
+;
+; Syscall is written in mal because the arguments are passed in a
+; non-standard way and because the compiler cannot handle a primitive
+; with a variable, large, number of parameters. Syscall is simply a
+; trampoline into a millicode procedure. RESULT has the number of 
+; arguments, and the arguments are passed in registers as usual.
+
+`((,$lambda ((,$.proc)
+	     (,$op1 syscall)
+	     (,$return))
+	    0
+	    (#t))
+  (,$setglbl syscall)
+  (,$const   syscall)
+  (,$return))
+
+
+; eof

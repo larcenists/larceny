@@ -1,8 +1,13 @@
-; The application "main" file; in this case for testing.
+; Larceny
+; Test cases
 ;
-; $Id: main.sch,v 1.3 92/02/23 16:56:07 lth Exp $
-
-; Test menu
+; lth@cs.uoregon.edu / updated 950526
+;
+; This file can be loaded dynamically iff the reader is ok, since there
+; is all sorts of syntax in here. Perhaps better to dump as part of a heap;
+; the procedure main is run as the main loop of that heap. There is a
+; special clause in the scheme makefile, make-test-heap, which does more
+; or less the right thing.
 
 (define (main)
   (display "       1  generic arithmetic regression test") (newline)
@@ -14,39 +19,43 @@
   (display "       7  sort test") (newline)
   (display "       8  append test") (newline)
   (display "       9  ephemeral collection") (newline)
+  (display "       a  character procedures test") (newline)
   (display "       0  exit") (newline)
   (newline)
   (display "       > ")
   (flush-output-port)
   (let ((choice (read)))
-    (cond ((or (eof-object? choice) (= choice 0))
+    (cond ((or (eof-object? choice) (eqv? choice 0))
 	   #t)
-	  ((= choice 1) 
+	  ((eqv? choice 1) 
 	   (gentest) (main))
-	  ((= choice 2)
+	  ((eqv? choice 2)
 	   (iotest) (main))
-	  ((= choice 3)
+	  ((eqv? choice 3)
 	   (display (run-with-stats (lambda () (ctak 18 12 6)))) (newline)
 	   (main))
-	  ((= choice 4)
+	  ((eqv? choice 4)
 	   (display "tail-recursive: ") (newline)
 	   (run-with-stats (lambda () (rtest1)))
 	   (display "side-effecting: ") (newline)
 	   (run-with-stats (lambda () (rtest2)))
 	   (main))
-	  ((= choice 5)
+	  ((eqv? choice 5)
 	   (display-memstats (memstats)) (newline) (main))
-	  ((= choice 6)
+	  ((eqv? choice 6)
 	   (testprint)
 	   (main))
-	  ((= choice 7)
+	  ((eqv? choice 7)
 	   (sorttest)
 	   (main))
-	  ((= choice 8)
+	  ((eqv? choice 8)
 	   (append-test)
 	   (main))
-	  ((= choice 9)
+	  ((eqv? choice 9)
 	   (gc 0)
+	   (main))
+	  ((eqv? choice 'a)
+	   (char-tests)
 	   (main))
 	  (else
 	   (main)))))
@@ -59,6 +68,8 @@
     (if (zero? n) 
 	l
 	(loop (- n 1) (cons (random 2048) l)))))
+
+; Requires the sorting code to be loaded.
 
 (define (sorttest)
   (let ((complex-sort  (module-access sort-module 'complex-sort))
@@ -201,60 +212,6 @@
       (k "hello, world")
       "goodbye, world"))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; File:         ctak.sch
-; Description:  The ctak benchmark
-; Author:       Richard Gabriel
-; Created:      5-Apr-85
-; Modified:     10-Apr-85 14:53:02 (Bob Shaw)
-;               24-Jul-87 (Will Clinger)
-; Language:     Scheme
-; Status:       Public Domain
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; The original version of this benchmark used a continuation mechanism that
-; is less powerful than call-with-current-continuation and also relied on
-; dynamic binding, which is not provided in standard Scheme.  Since the
-; intent of the benchmark seemed to be to test non-local exits, the dynamic
-; binding has been replaced here by lexical binding.
-
-; For Scheme the comment that follows should read:
-;;; CTAK -- A version of the TAK procedure that uses continuations.
-
-;;; CTAK -- A version of the TAK function that uses the CATCH/THROW facility.
-
-;;; call: (ctak 18 12 6)
-
-(define (ctak x y z)
-  (call-with-current-continuation
-   (lambda (k)
-     (ctak-aux k x y z))))
-
-(define (ctak-aux k x y z)
-  (if (not (< y x))			;xy
-      (k z)
-      (call-with-current-continuation
-       (ctak-aux
-	k
-	(call-with-current-continuation
-	 (lambda (k)
-	   (ctak-aux k
-		     (- x 1)
-		     y
-		     z)))
-	(call-with-current-continuation
-	 (lambda (k)
-	   (ctak-aux k
-		     (- y 1)
-		     z
-		     x)))
-	(call-with-current-continuation
-	 (lambda (k)
-	   (ctak-aux k
-		     (- z 1)
-		     x
-		     y)))))))
-
 ; jumps back in; supposed to print '33'.
 
 (define (ctest2)
@@ -328,6 +285,7 @@
     (cond ((null? l) #t)
 	  ((not (car l)) #f)
 	  (else (loop (cdr l))))))
+
 
 ; Tests the generic arithmetic system in an automated fashion.
 ; Each subtest returns #t if all tests were passed, and #f if not.
@@ -553,7 +511,7 @@
 	 '(#f #f #t #f #t))
    (test "(= 2/3 2/3)" (= 2/3 2/3) #t)
    (test "(= 1/3 2/3)" (= 1/3 2/3) #f)
-;   (test "(p 2/3 2/3)" (p 2/3 p 2/3) '(#t #f #f #t #t))
+   (test "(p 2/3 2/3)" (p 2/3 2/3) '(#t #f #f #t #t))
    (test "(p 1.0 1.0)" (p 1.0 1.0) '(#t #f #f #t #t))
    (test "(p 1.01 1.01)" (p 1.01 1.01) '(#t #f #f #t #t))
    (test "(p -1.5 -1.5)" (p -1.5 -1.5) '(#t #f #f #t #t))
@@ -614,7 +572,13 @@
   (let* ((a 12345)
 	 (-a (- a))
 	 (b 3145)
-	 (-b (- b)))
+	 (-b (- b))
+	 (q (lambda (x) (- x)))
+	 (two^28 268435456)
+	 (two^29 536870912)
+	 (two^30 1073741824)
+	 (two^31 2147483648)
+	 (two^32-1 4294967295))
     (allof
      (test "(- a)" (- a) -a)
      (test "(- -a)" (- -a) a)
@@ -668,11 +632,11 @@
 
      ; Belongs in bignum tests, but are necessary to report errors here.
 
-     (test "(bignum-negate 288230375077969921)" 
-	   (bignum-negate 288230375077969921)
+     (test "(- 288230375077969921)" 
+	   (q 288230375077969921)
 	   -288230375077969921)
-     (test "(bignum-negate -288230375077969921)" 
-	   (bignum-negate -288230375077969921)
+     (test "(- -288230375077969921)" 
+	   (q -288230375077969921)
 	   288230375077969921)
 
      ; some bignums will be generated from fixnums
@@ -688,55 +652,59 @@
      (test "(n1 -536870911 536870911)" (n1 -536870911 536870911)
 	   '(0 -1073741822 -288230375077969921))
 
+     ; 32-bit unsigned-bignum-by-unsigned-fixnum division (in millicode)
+
+     (test "(quotient 2^29 10)" (quotient two^29 10) 53687091)
+     (test "(quotient 2^30 10)" (quotient two^30 10) 107374182)
+     (test "(quotient 2^31 10)" (quotient two^31 10) 214748364)
+     (test "(quotient 2^32-1 10)" (quotient two^32-1 10) 429496729)
      )))
 
 (define (basic-bignum-arithmetic-test)
   (let ((a 1234567890)
-	(b 3141598765))
+	(b 3141598765)
+	(add (lambda (a b) (+ a b)))
+	(sub (lambda (a b) (- a b)))
+	(mul (lambda (a b) (* a b)))
+	(div (lambda (a b) (quotient a b)))
+	(mod (lambda (a b) (remainder a b))))
     (begin
 
-     (test "(string=? (bignum->string 1234567890 10) \"1234567890\")"
-	   (string=? (bignum->string 1234567890 10) "1234567890")
+     (test "(string=? (number->string 1234567890 10) \"1234567890\")"
+	   (string=? (number->string 1234567890 10) "1234567890")
 	   #t)
 
      (display "add/sub") (newline)
-     (test "(bignum-add a b)" (bignum-add a b) 4376166655)
-     (test "(bignum-add b a)" (bignum-add b a) 4376166655)
-     (test "(bignum-subtract a b)" (bignum-subtract a b) -1907030875)
-     (test "(bignum-subtract b a)" (bignum-subtract b a) 1907030875)
-     (test "(bignum-subtract a a)" (bignum-subtract a a) 0)
+     (test "(bignum-add a b)" (add a b) 4376166655)
+     (test "(bignum-add b a)" (add b a) 4376166655)
+     (test "(bignum-subtract a b)" (sub a b) -1907030875)
+     (test "(bignum-subtract b a)" (sub b a) 1907030875)
+     (test "(bignum-subtract a a)" (sub a a) 0)
 
      ; tests contagion: fixnum * bignum
 
      (display "fix * big") (newline)
-     (test "(* 42 a)" (* 42 a) 51851851380)
-     (test "(* a 42)" (* a 42) 51851851380)
-     (test "(* -42 a)" (* -42 a) -51851851380)
-     (test "(* a -42)" (* a -42) -51851851380)
+     (test "(* 42 a)" (mul 42 a) 51851851380)
+     (test "(* a 42)" (mul a 42) 51851851380)
+     (test "(* -42 a)" (mul -42 a) -51851851380)
+     (test "(* a -42)" (mul a -42) -51851851380)
 
      ; heavier stuff (already bignums)
 
-     (display "big * big") (newline)
-     (test "(bignum-multiply a a)" (bignum-multiply a a) 1524157875019052100)
-     (test "(bignum-multiply b b)" (bignum-multiply b b) 9869642800249525225)
-     (test "(bignum-multiply a b)" (bignum-multiply a b) 3878516958532655850)
-     (test "(bignum-multiply b a)" (bignum-multiply b a) 3878516958532655850)
+     (display "bignum multiply") (newline)
+     (test "(bignum-multiply a a)" (mul a a) 1524157875019052100)
+     (test "(bignum-multiply b b)" (mul b b) 9869642800249525225)
+     (test "(bignum-multiply a b)" (mul a b) 3878516958532655850)
+     (test "(bignum-multiply b a)" (mul b a) 3878516958532655850)
 
-     (dumpon)
-     (display "heavy stuff") (newline)
-     (test "(bignum-quotient a b)" (bignum-quotient a b) 0)
-     (display "*")
-     (test "(bignum-quotient b a)" (bignum-quotient b a) 2)
-     (display "*")
-     (test "(bignum-quotient a a)" (bignum-quotient a a) 1)
-     (display "*")
+     (display "bignum division") (newline)
+     (test "(bignum-quotient a b)" (div a b) 0)
+     (test "(bignum-quotient b a)" (div b a) 2)
+     (test "(bignum-quotient a a)" (div a a) 1)
 
-     (test "(bignum-remainder a b)" (bignum-remainder a b) a)
-     (display "*")
-     (test "(bignum-remainder b a)" (bignum-remainder b a) 672462985)
-     (display "*")
-     (test "(bignum-remainder a a)" (bignum-remainder a a) 0)
-     (display "*")
+     (test "(bignum-remainder a b)" (mod a b) a)
+     (test "(bignum-remainder b a)" (mod b a) 672462985)
+     (test "(bignum-remainder a a)" (mod a a) 0)
 
      )))
 
@@ -762,5 +730,160 @@
    (test "(q 12345678901234567890)" (q 12345678901234567890) '(#f #f #t))
    (test "(q -12345678901234567890)" (q -12345678901234567890) '(#f #t #f))
    ))
+
+
+; Character predicate tests.
+
+(define (char-tests)
+  (and (begin (display "char test 0") (newline)
+	      (char-test-0))
+       (begin (display "char test 1") (newline)
+	      (char-test-1 #\a))
+       (begin (display "char test 2") (newline)
+	      (char-test-2))
+       (begin (display "char test 3") (newline)
+	      (char-test-3 #\a))
+       (begin (display "char test 4") (newline)
+	      (char-test-4 #\a))))
+
+; Simple character comparisons (both constants)
+
+(define (char-test-0)
+  (allof
+   (test "(char=? #\a #\a)" (char=? #\a #\a) #t)
+   (test "(char=? #\a #\b)" (char=? #\a #\b) #f)
+   (test "(char>? #\a #\a)" (char>? #\a #\a) #f)
+   (test "(char>? #\a #\b)" (char>? #\a #\b) #f)
+   (test "(char>? #\b #\a)" (char>? #\b #\a) #t)
+   (test "(char>=? #\a #\a)" (char>=? #\a #\a) #t)
+   (test "(char>=? #\a #\b)" (char>=? #\a #\b) #f)
+   (test "(char>=? #\b #\a)" (char>=? #\b #\a) #t)
+   (test "(char<? #\a #\a)" (char<? #\a #\a) #f)
+   (test "(char<? #\a #\b)" (char<? #\a #\b) #t)
+   (test "(char<? #\b #\a)" (char<? #\b #\a) #f)
+   (test "(char<=? #\a #\a)" (char<=? #\a #\a) #t)
+   (test "(char<=? #\a #\b)" (char<=? #\a #\b) #t)
+   (test "(char<=? #\b #\a)" (char<=? #\b #\a) #f)))
+
+; Simple character comparisons (one constant, one variable)
+; X is known to have value #\a.
+
+(define (char-test-1 x)
+  (allof
+   (test "(char=? #\a x)" (char=? #\a x) #t)
+   (test "(char=? #\a x)" (char=? #\b x) #f)
+   (test "(char>? #\a x)" (char>? #\a x) #f)
+   (test "(char>? #\b x)" (char>? #\b x) #t)
+   (test "(char>=? #\a x)" (char>=? #\a x) #t)
+   (test "(char>=? #\b x)" (char>=? #\b x) #t)
+   (test "(char<? #\a x)" (char<? #\a x) #f)
+   (test "(char<? #\b x)" (char<? #\b x) #f)
+   (test "(char<=? #\a x)" (char<=? #\a x) #t)
+   (test "(char<=? #\b x)" (char<=? #\b x) #f)))
+
+; Character comparison for control, very basic (the compiler should
+; really be able to grok these, so peephole opt. should kick in).
+; (If the compiler is too smart and does constant folding, we lose.)
+
+(define (char-test-2)
+  (allof
+   (test "(if (char=? #\a #\b) 0 1)" (if (char=? #\a #\b) 0 1) 1)
+   (test "(if (char=? #\a #\a) 0 1)" (if (char=? #\a #\a) 0 1) 0)
+   (test "(if (char>? #\a #\b) 0 1)" (if (char>? #\a #\b) 0 1) 1)
+   (test "(if (char>? #\a #\a) 0 1)" (if (char>? #\a #\a) 0 1) 1)
+   (test "(if (char>? #\b #\a) 0 1)" (if (char>? #\b #\a) 0 1) 0)
+   (test "(if (char>=? #\a #\b) 0 1)" (if (char>=? #\a #\b) 0 1) 1)
+   (test "(if (char>=? #\a #\a) 0 1)" (if (char>=? #\a #\a) 0 1) 0)
+   (test "(if (char>=? #\b #\a) 0 1)" (if (char>=? #\b #\a) 0 1) 0)
+   (test "(if (char<? #\a #\b) 0 1)" (if (char<? #\a #\b) 0 1) 0)
+   (test "(if (char<? #\a #\a) 0 1)" (if (char<? #\a #\a) 0 1) 1)
+   (test "(if (char<? #\b #\a) 0 1)" (if (char<? #\b #\a) 0 1) 1)
+   (test "(if (char<=? #\a #\b) 0 1)" (if (char<=? #\a #\b) 0 1) 0)
+   (test "(if (char<=? #\a #\a) 0 1)" (if (char<=? #\a #\a) 0 1) 0)
+   (test "(if (char<=? #\b #\a) 0 1)" (if (char<=? #\b #\a) 0 1) 1)))
+
+; More test for control, with one variable.
+; x is known to be #\a
+
+(define (char-test-3 x)
+  (allof
+   (test "(if (char=? x #\b) 0 1)" (if (char=? x #\b) 0 1) 1)
+   (test "(if (char=? x #\a) 0 1)" (if (char=? x #\a) 0 1) 0)
+   (test "(if (char>? x #\b) 0 1)" (if (char>? x #\b) 0 1) 1)
+   (test "(if (char>? x #\a) 0 1)" (if (char>? x #\a) 0 1) 1)
+   (test "(if (char>? #\b x) 0 1)" (if (char>? #\b x) 0 1) 0)
+   (test "(if (char>=? x #\b) 0 1)" (if (char>=? x #\b) 0 1) 1)
+   (test "(if (char>=? x #\a) 0 1)" (if (char>=? x #\a) 0 1) 0)
+   (test "(if (char>=? #\b x) 0 1)" (if (char>=? #\b x) 0 1) 0)
+   (test "(if (char<? x #\b) 0 1)" (if (char<? x #\b) 0 1) 0)
+   (test "(if (char<? x #\a) 0 1)" (if (char<? x #\a) 0 1) 1)
+   (test "(if (char<? #\b x) 0 1)" (if (char<? #\b x) 0 1) 1)
+   (test "(if (char<=? x #\b) 0 1)" (if (char<=? x #\b) 0 1) 0)
+   (test "(if (char<=? x #\a) 0 1)" (if (char<=? x #\a) 0 1) 0)
+   (test "(if (char<=? #\b x) 0 1)" (if (char<=? #\b x) 0 1) 1)))
+
+; x is known to be #\a
+
+(define (char-test-4 x)
+  (allof
+   (test "(= (char->integer x) 97)" (= (char->integer x) 97) #t)
+   (test "(char=? (integer->char (char->integer x)) x)"
+	 (char=? (integer->char (char->integer x)) x)
+	 #t)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; File:         ctak.sch
+; Description:  The ctak benchmark
+; Author:       Richard Gabriel
+; Created:      5-Apr-85
+; Modified:     10-Apr-85 14:53:02 (Bob Shaw)
+;               24-Jul-87 (Will Clinger)
+; Language:     Scheme
+; Status:       Public Domain
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; The original version of this benchmark used a continuation mechanism that
+; is less powerful than call-with-current-continuation and also relied on
+; dynamic binding, which is not provided in standard Scheme.  Since the
+; intent of the benchmark seemed to be to test non-local exits, the dynamic
+; binding has been replaced here by lexical binding.
+
+; For Scheme the comment that follows should read:
+;;; CTAK -- A version of the TAK procedure that uses continuations.
+
+;;; CTAK -- A version of the TAK function that uses the CATCH/THROW facility.
+
+;;; call: (ctak 18 12 6)
+
+(define (ctak x y z)
+  (call-with-current-continuation
+   (lambda (k)
+     (ctak-aux k x y z))))
+
+(define (ctak-aux k x y z)
+  (if (not (< y x))			;xy
+      (k z)
+      (call-with-current-continuation
+       (ctak-aux
+	k
+	(call-with-current-continuation
+	 (lambda (k)
+	   (ctak-aux k
+		     (- x 1)
+		     y
+		     z)))
+	(call-with-current-continuation
+	 (lambda (k)
+	   (ctak-aux k
+		     (- y 1)
+		     z
+		     x)))
+	(call-with-current-continuation
+	 (lambda (k)
+	   (ctak-aux k
+		     (- z 1)
+		     x
+		     y)))))))
 
 ; eof

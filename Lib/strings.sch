@@ -1,19 +1,11 @@
-; Copyright Lightship Software.
+; Larceny library: characters, strings, and bytevectors.
+; Parts of this code Copyright Lightship Software.
 ;
 ; $Id: strings.sch,v 1.2 92/02/17 18:27:16 lth Exp $
 ;
-; Library procedures for characters, strings, and bytevectors.
-;
-; Some of these procedures have been modified for larceny. In particular,
-; there is some use of the integrables bytevector-like-<whatever> to
-; operate on both strings and bytevectors.
-;
-; In principle, these can be defined in macscheme thusly:
-;
-;  (define (bytevector-like-ref x i)
-;    (bytevector-ref (->bytevector x) i))
-;
-; and similarly for other operations.
+; FIXME: 
+;  - many character procedures should be table driven.
+;  - see FIXMEs in the code for other issues.
 
 ; Upper- and lower-case predicates and conversions
 ; for both characters and strings.
@@ -52,9 +44,9 @@
 
 (define char-whitespace?
   (lambda (x)
-    (or (char=? x #\space)
-        (char=? x #\newline)
-        (char=? x (integer->char 10))      ; line feed
+    (or (char=? x #\space)                 ; space
+        (char=? x #\newline)               ; UNIX: a line feed
+        (char=? x (integer->char 13))      ; return
         (char=? x (integer->char 9))       ; tab
         (char=? x (integer->char 12)))))   ; form feed
 
@@ -83,6 +75,8 @@
                           (- (char->integer #\a)
                              (char->integer #\A))))
         x)))
+
+; Ugly, but contains no procedure calls.
 
 (define string-ci=?
   (letrec ((loop
@@ -144,10 +138,12 @@
   (lambda chars
     (list->string chars)))
 
+; FIXME: slow. Use sys$bvl-copy-into! when available.
 (define string-append
   (lambda args
     (list->string (apply append (map string->list args)))))
  
+; FIXME: slow. Use sys$bvl-copy-into! when available.
 (define substring
   (let ((tag sys$tag.string-typetag))
     (lambda (s m n)
@@ -162,8 +158,11 @@
  
 (define string-fill!
   (lambda (s c)
-    (substring-fill! s 0 (string-length s) c)))
+    (if (and (string? s) (char? c))
+	(bytevector-fill! s (char->integer c))
+	(error "string-fill!: bad operands: " s c))))
  
+; FIXME: should there be a bytevector-like-subfill! primop?
 (define substring-fill!
   (lambda (s start end c)
     (do ((i start (+ i 1)))
@@ -173,17 +172,14 @@
 ; Make-string is in Scheme for simplicity.
 ; This does *not* need to be varargs because the macro expansion pass
 ; gives us a default if it is not given by the programmer.
+;
+; FIXME: is that done also if benchmark-mode is not on?
 
 (define (make-string n init)
   (let ((s (make-bytevector n)))
     (bytevector-fill! s (char->integer init))
     (typetag-set! s sys$tag.string-typetag)
     s))
-
-; Ditto for string-set!; this should really be integrable.
-
-(define (string-set! s i x)
-  (bytevector-like-set! s i (char->integer x)))
 
 (define list->string
   (letrec ((loop
@@ -224,44 +220,64 @@
       (loop bv (- (bytevector-length bv) 1) '()))))
 
 (define (string=? a b)
-  (string-compare zero? 'string=? a b))
+  (= (string-compare 'string=? a b) 0))
 
 (define (string<? a b)
-  (string-compare negative? 'string<? a b))
+  (< (string-compare 'string<? a b) 0))
 
 (define (string<=? a b)
-  (string-compare (lambda (x) (<= x 0)) 'string<=? a b))
+  (<= (string-compare 'string<=? a b) 0))
 
 (define (string>? a b)
-  (string-compare positive? 'string>? a b))
+  (> (string-compare 'string>? a b) 0))
 
 (define (string>=? a b)
-  (string-compare (lambda (x) (>= x 0)) 'string>=? a b))
+  (>= (string-compare 'string>=? a b) 0))
 
-(define (string-compare pred name a b)
+(define (string-compare name a b)
   (if (not (and (string? a) (string? b)))
       (error name "Operands must be strings.")
-      (pred (bytevector-like-compare a b))))
+      (sys$bvlcmp a b)))
 
-(define bytevector-equal?
-  (lambda (bv1 bv2)
-    (if (not (and (bytevector? bv1) (bytevector? bv2)))
-	(error 'bytevector-equal? "Not a bytevector.")
-	(zero? (bytevector-like-compare bv1 bv2)))))
+(define (bytevector-equal? b1 b2)
+  (if (not (bytevector? b1))
+      (error "bytevector-equal?: not a bytevector: " b1))
+  (if (not (bytevector? b2))
+      (error "bytevector-equal?: not a bytevector: " b2))
+  (zero? (sys$bvlcmp bv1 bv2)))
 
+(define (bytevector-like-equal? b1 b2)
+  (if (not (bytevector-like? b1))
+      (error "bytevector-like-equal?: not a bytevector-like: " b1))
+  (if (not (bytevector-like? b2))
+      (error "bytevector-like-equal?: not a bytevector-like: " b2))
+  (zero? (sys$bvlcmp b1 b2)))
+
+
+; OBSOLETE -- comment out.
+;
 ; Compare bytevector-like objects and return a code for how they compare:
 ; -1 if the former is less than the latter; 0 if they are equal; and
 ; 1 if the former is greater than the latter.
+;
+; This should probably be a primop hooking into a millicode proc.
 
 (define (bytevector-like-compare bv1 bv2)
-  (let ((limit (min (bytevector-like-length bv1) 
-		    (bytevector-like-length bv2))))
-    (let loop ((i 0))
-      (cond ((= i limit)
-	     (- (bytevector-like-length bv1) (bytevector-like-length bv2)))
-	    (else
-	     (let ((x (- (bytevector-like-ref bv1 i)
-			 (bytevector-like-ref bv2 i))))
-	       (if (not (zero? x))
-		   x
-		   (loop (+ i 1)))))))))
+  (display "WARNING: calling obsolete bytevector-like-compare.")
+  (newline)
+  (let* ((la    (bytevector-like-length bv1))
+	 (lb    (bytevector-like-length bv2))
+	 (limit (if (< la lb) la lb)))
+    (letrec ((loop 
+	      (lambda (i)
+		(if (= i limit)
+		    (- (bytevector-like-length bv1)
+		       (bytevector-like-length bv2))
+		    (let ((x (- (bytevector-like-ref bv1 i)
+				(bytevector-like-ref bv2 i))))
+		      (if (not (zero? x))
+			  x
+			  (loop (+ i 1))))))))
+      (loop 0))))
+
+; eof

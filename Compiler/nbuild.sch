@@ -34,21 +34,26 @@
 (load-foreign (string-append chezdir "bitpattern.o"))
 (loadfile chezdir "bytevec.ss")
 (loadfile chezdir "misc2bytevector.ss")
-
+(if (not (bound? 'values))
+    (loadfile chezdir "values.ss"))
 (display "Loading make utility...") (newline)
 (loadfile compilerdir "make.sch")
 
 (display "Loading compiler proper...") (newline)
 (loadfile compilerdir "sets.sch")
-(loadfile compilerdir "pass1.imp.sch")
+(loadfile compilerdir "switches.sch")    ; @@ Will
+;(loadfile compilerdir "pass1.imp.sch")  ; @@ Will
 (loadfile compilerdir "pass1.aux.sch")
+(loadfile compilerdir "twobit.imp.sch")  ; @@ Will
 (loadfile compilerdir "pass1.sch")
 (loadfile compilerdir "pass2.aux.sch")
-(loadfile compilerdir "pass2.sch")
-(loadfile compilerdir "pass4.imp.sch")
+(loadfile compilerdir "pass2p1.sch")     ; @@ Will
+(loadfile compilerdir "pass2p2.sch")     ; @@ Will
+;(loadfile compilerdir "pass4.imp.sch")  ; @@ Will
 (loadfile compilerdir "pass4.aux.sch")
 (loadfile compilerdir "pass4p1.sch")
 (loadfile compilerdir "pass4p2.sch")
+(loadfile compilerdir "pass4p3.sch")     ; @@ Will
 
 (display "Loading generic assembler...") (newline)
 (parameterize ((optimize-level 2))
@@ -63,6 +68,8 @@
   (loadfile sparcdir "sparcasm.sch"))
 (loadfile sparcdir "gen-msi.sch")
 (loadfile sparcdir "gen-prim.sch")
+;Patches have been folded into the code 950729 / lth
+;(loadfile compilerdir "patches.sch")     ; @@ Will
 
 (display "Loading SPARC disassembler...") (newline)
 (loadfile sparcdir "sparcdis.sch")
@@ -92,7 +99,8 @@
 
 (define unsafe-mode #f)         ; turn off checking on a lot of primitives
 (define inline-cons #f)         ; inline CONS 
-(define fast-pop #f)            ; assumes no spill frames
+; @@ Will -- fast-pop is obsolete (see patches.sch)
+;(define fast-pop #f)            ; assumes no spill frames
 (define inline-assignment #f)   ; inline gen. check in assignments
 (define assume-short-distance-to-call #f)  ; faster SAVE/SETRTN
 (set!   emit-undef-check? #t)   ; undefined globals are caught
@@ -118,11 +126,15 @@
     (newline))
 
   (display "Summary of compiler switches:" ) (newline)
+  (display-switch "Integrate-usual-procedures"                    ; @@ Will
+                  (integrate-usual-procedures))                   ; @@ Will
+  (display-switch "Local-optimizations"                           ; @@ Will
+                  (local-optimizations))                          ; @@ Will
   (display-switch "Benchmark-mode" (benchmark-mode))
   (display-switch "Unsafe-mode" unsafe-mode)
   (display-switch "Inline-cons" inline-cons) 
   (display-switch "Listify?" listify?)
-  (display-switch "Fast-pop (not always safe)" fast-pop)
+;  (display-switch "Fast-pop (not always safe)" fast-pop)         ; @@ Will
   (display-switch "Inline-assignment" inline-assignment)
   (display-switch "Register-transactions-for-side-effects"
 		  register-transactions-for-side-effects)

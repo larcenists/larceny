@@ -1,7 +1,7 @@
 /* 
  * Return modification time of a file.
  *
- * $Id: mtime.c,v 1.2 92/02/10 03:37:49 lth Exp $
+ * $Id: mtime.c,v 1.1 1995/08/01 04:41:38 lth Exp lth $
  */
 
 #include <sys/types.h>
