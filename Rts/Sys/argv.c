@@ -12,38 +12,40 @@
 #include <stdlib.h>
 #include <string.h>
 #include "larceny.h"
+#include "gc_t.h"
 
 /* Return a vector of length argc containing strings which represent
  * the command line arguments passed after the -args argument.
  */
-word allocate_argument_vector( int argc, char **argv )
+word allocate_argument_vector( gc_t *gc, int argc, char **argv )
 {
-  int bytes, i, l;
-  word *w, *p;
+  int i, l;
+  word w, *p, *argvec;
+  
+  /* Allocate outer vector */
+  p = alloc_from_heap( (argc+VEC_HEADER_WORDS)*sizeof(word) );
+  *p = mkheader( argc*sizeof(word), VECTOR_HDR );
+  for ( i=1 ; i < argc+VEC_HEADER_WORDS ; i++ )
+    p[i] = 0;
+  argvec = gc_make_handle(gc, tagptr(p,VEC_TAG));
 
-  bytes = roundup_balign( (argc+VEC_HEADER_WORDS)*sizeof(word) );
-  for ( i = 0 ; i < argc ; i++ )
-    bytes += roundup_balign(  strlen( argv[i] ) + BVEC_HEADER_BYTES );
-  w = alloc_from_heap( bytes );
-
-  *w = mkheader( argc*sizeof(word), VECTOR_HDR );
-  p = w + roundup_walign( argc + VEC_HEADER_WORDS );
+  /* Allocate strings for arguments */
   for ( i=0 ; i < argc ; i++ ) {
     l = strlen( argv[i] );
+    p = alloc_from_heap( l + BVEC_HEADER_BYTES );
     *p = mkheader( l, STR_HDR );
     memcpy( p + BVEC_HEADER_WORDS, argv[i], l );
-    w[ i+VEC_HEADER_WORDS ] = (word)tagptr( p, BVEC_TAG );
-    p = (word*)roundup_balign( (word)p + BVEC_HEADER_BYTES + l );
+    ptrof(*argvec)[ i+VEC_HEADER_WORDS ] = (word)tagptr( p, BVEC_TAG );
   }
 
   /* Clear any pad words (shouldn't have to do this...) */
-  i=argc+VEC_HEADER_WORDS;
-  while ( i < roundup_walign( argc+VEC_HEADER_WORDS ) ) {
-    w[i] = 0;
-    i++;
-  }
+  p = ptrof(*argvec);
+  for ( i=argc+VEC_HEADER_WORDS; i<roundup_walign(argc+VEC_HEADER_WORDS); i++ )
+    p[i] = 0;
 
-  return (word)tagptr( w, VEC_TAG );
+  w = *argvec;
+  gc_free_handle( gc, argvec );
+  return w;
 }
 
 /* eof */
