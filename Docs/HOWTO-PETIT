@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-28 July 2003 / lth
+15 August 2003 / lth
 
 
 HOW TO BUILD PETIT LARCENY AND USE THE BUILD ENVIRONMENT
@@ -42,9 +42,9 @@ run the build environment, you will want to evaluate:
 
 	> (build-config-files)
 
-Most of the time you will just load Twobit (you have to load Twobit
-*after* you create the directory structure and config files, which is
-why it is a separate step):
+Most of the time you will just load Twobit (you can't load Twobit
+until after you have created the directory structure and config files,
+which is why it is a separate step):
 
 	> (load-compiler)
 
@@ -81,9 +81,9 @@ A facility built on BUILD-APPLICATION is called BUILD-TWOBIT:
 
 	> (build-twobit)
 
-BUILD-TWOBIT command compiles all the Twobit source files and creates
-an executable "twobit" (or "twobit.exe") that contains the code for
-Twobit, as well as FASL files for all these files.
+The BUILD-TWOBIT command compiles all the Twobit source files and
+creates an executable "twobit" (or "twobit.exe") that contains the
+code for Twobit, as well as FASL files for all these files.
 
 If you build Twobit using BUILD-TWOBIT, and then start "twobit" and
 follow the directions above (loading "Util/petit-macosx.sch", say, and
