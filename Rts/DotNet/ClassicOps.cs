@@ -358,7 +358,7 @@ public class Ops {
                 arg2.isFixnum(), arg2,
                 Constants.EX_VLREF);
         rangeCheckVL(arg1, arg2, Constants.EX_VLREF);
-        return ((SVL)arg1).elementAt(((SFixnum)arg2).value);
+        return ((SVL)arg1).elements[((SFixnum)arg2).value];
     }
 
     public static SObject op3_vector_like_set(SObject arg1, SObject arg2,
@@ -367,7 +367,7 @@ public class Ops {
                 arg2.isFixnum(), arg2,
                 Constants.EX_VLSET);
         rangeCheckVL(arg1, arg2, Constants.EX_VLSET);
-        ((SVL)arg1).setElementAt(((SFixnum)arg2).value, arg3);
+        ((SVL)arg1).elements[((SFixnum)arg2).value] = arg3;
         return Factory.Unspecified;
     }
 
@@ -390,20 +390,20 @@ public class Ops {
     public static SObject op2_vector_ref(SObject arg1, SObject arg2) {
         expect2(arg1.isVector(), arg1, arg2.isFixnum(), arg2, Constants.EX_VECTOR_REF);
         rangeCheckVL(arg1, arg2, Constants.EX_VLREF);
-        return ((SVL)arg1).elementAt(((SFixnum)arg2).value);;
+        return ((SVL)arg1).elements[((SFixnum)arg2).value];
     }
     public static SObject op2_vector_ref_trusted(SObject arg1, SObject arg2) {
-        return ((SVL)arg1).elementAt(((SFixnum)arg2).value);;
+        return ((SVL)arg1).elements[((SFixnum)arg2).value];
     }
 
     public static SObject op3_vector_set(SObject arg1, SObject arg2, SObject arg3) {
         expect3(arg1.isVector(), arg1, arg2.isFixnum(), arg2, true, arg3, Constants.EX_VECTOR_SET);
         rangeCheckVL(arg1, arg2, arg3, Constants.EX_VLSET);
-        ((SVL)arg1).setElementAt(((SFixnum)arg2).value, arg3);
+        ((SVL)arg1).elements[((SFixnum)arg2).value] = arg3;
         return Factory.Unspecified;
     }
     public static SObject op3_vector_set_trusted(SObject arg1, SObject arg2, SObject arg3) {
-        ((SVL)arg1).setElementAt(((SFixnum)arg2).value, arg3);
+        ((SVL)arg1).elements[((SFixnum)arg2).value] = arg3;
         return Factory.Unspecified;
     }
 
@@ -550,16 +550,14 @@ public class Ops {
     public static SObject op2_bytevector_ref(SObject arg1, SObject arg2) {
         expect2(arg1.isByteVector(), arg1, arg2.isFixnum(), arg2, Constants.EX_BYTEVECTOR_REF);
         rangeCheckBVL(arg1, arg2, Constants.EX_BYTEVECTOR_REF);
-        return ((SByteVL)arg1).elementAt(((SFixnum)arg2).value);
+        return Factory.wrap(((SByteVL)arg1).elements[((SFixnum)arg2).value]);
     }
     public static SObject op3_bytevector_set(SObject arg1, SObject arg2,
                                           SObject arg3) {
         expect3(arg1.isByteVector(), arg1, arg2.isFixnum(), arg2, arg3.isFixnum(), arg3, 
                 Constants.EX_BYTEVECTOR_SET);
         rangeCheckBVL(arg1, arg2, arg3, Constants.EX_BYTEVECTOR_SET);
-        ((SByteVL)arg1).setElementAt
-            (((SFixnum)arg2).value,
-             ((SFixnum)arg3).value);
+        ((SByteVL)arg1).elements[((SFixnum)arg2).value] = (byte)((SFixnum)arg3).value;
         return Factory.Unspecified;
     }
     public static SObject op2_bytevector_equal(SObject arg1, SObject arg2) {
@@ -590,15 +588,13 @@ public class Ops {
     public static SObject op2_bytevector_like_ref(SObject arg1, SObject arg2) {
         expect2(arg1.isByteVectorLike(), arg1, arg2.isFixnum(), arg2, Constants.EX_BVLREF);
         rangeCheckBVL(arg1, arg2, Constants.EX_BVLREF);
-        return ((SByteVL)arg1).elementAt(((SFixnum)arg2).value);
+        return Factory.wrap(((SByteVL)arg1).elements[((SFixnum)arg2).value]);
     }
     public static SObject op3_bytevector_like_set(SObject arg1, SObject arg2, SObject arg3) {
         expect3(arg1.isByteVectorLike(), arg1, arg2.isFixnum(), arg2, arg3.isFixnum(), arg3,
                 Constants.EX_BVLSET);
         rangeCheckBVL(arg1, arg2, arg3, Constants.EX_BVLSET);
-        ((SByteVL)arg1).setElementAt
-            (((SFixnum)arg2).value,
-             ((SFixnum)arg3).value);
+        ((SByteVL)arg1).elements[((SFixnum)arg2).value] = (byte)((SFixnum)arg3).value;
         return Factory.Unspecified;
     }
     public static SObject op2_sys_bvlcmp(SObject arg1, SObject arg2) {
