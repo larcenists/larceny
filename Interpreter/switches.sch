@@ -12,7 +12,7 @@
 (define (include-source-code) #t)
 (define (include-procedure-names) #t)
 (define (include-variable-names) #t)
-(define (integrate-procedures . ignored) 'larceny)
+(define (integrate-procedures . ignored) 'none)
 (define (benchmark-mode) #f)
 (define (constant-folding-entry x) #f)
 
