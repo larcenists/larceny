@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.3 92/02/10 03:30:23 lth Exp Locker: lth $
+# $Id: Makefile,v 1.4 92/02/10 12:24:18 lth Exp Locker: lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -70,8 +70,9 @@ $(SYS)/version.o:	$(SYS)/version.c
 $(SYS)/memsupport.o:	$(SYS)/memsupport.c $(CHDRS)
 $(SYS)/localdebugger.o:	$(SYS)/localdebugger.c $(CHDRS)
 $(MACH)/memory.o:	$(MACH)/memory.s $(AHDRS)
-$(MACH)/tables.o:	$(MACH)/tables.s $(MACH)/memory.o
-$(MACH)/glue.o:		$(MACH)/glue.s $(AHDRS)
+$(MACH)/tables.o:	$(MACH)/tables.s $(MACH)/memory.o $(MACH)/glue.o \
+			$(MACH)/generic.o
+$(MACH)/glue.o:		$(MACH)/glue.s $(AHDRS) $(MACH)/milliprocs.s.h
 $(MACH)/generic.o:	$(MACH)/generic.s $(AHDRS) $(MACH)/milliprocs.s.h
 
 # headers to build from config files.
