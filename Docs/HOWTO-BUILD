@@ -100,7 +100,7 @@ Installing Larceny without Twobit is simple:
       /usr/lib/larceny
 
   (2) Copy the Larceny executable and the heap image (petit.heap or
-      sparc.heap) to that directory
+      sparc.heap) to that directory.
 
   (3) Create an executable script called 'larceny' in another suitable 
       directory to run Larceny, usually it contains something like this:
