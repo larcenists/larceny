@@ -5,6 +5,8 @@
 ; Load script for twobit with Standard-C assembler, endian-little, 
 ; Win32 host/target, Petit Larceny host.
 
+(error "*** THIS FILE (load-twobit-C-el-win32-larceny.sch) IS OBSOLETE!")
+
 (define *root-directory* "")                               ; Win32
 (define *sysdep-file* 
   (string-append *root-directory* "Util\\sysdep-win32.sch"))
@@ -15,7 +17,7 @@
 
 (load (make-filename *root-directory* "Util" "Configurations" "nbuild-param-C-el-win32.sch"))
 (define nbuild-parameter
-  (make-nbuild-parameter *root-directory* #f #t #t "Larceny" "Petit Larceny"))
+  (make-nbuild-parameter *root-directory* #t #t #t "Larceny" "Petit Larceny"))
 
 (load (make-filename *root-directory* "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
