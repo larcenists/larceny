@@ -1,0 +1,1019 @@
+; -*- text -*-
+; ./BUGS-FIXED
+; $Id$
+
+	       Known bugs in Larceny that have been fixed.
+
+	 Bugs are listed in the order recorded, with fix dates and
+				the fix.
+
+
+001  (v0.25) 
+
+     Discovered by arithmetic regression test ("test 6"):
+       (inexact->exact 0.0)
+     bombs with
+       Error: quotient:  division by zero: 8 0
+     Happens in both generational and stop+copy systems.  Also fails
+     for complexes where the real part is 0.0, e.g. (i->e 0.0+1.0i).
+
+     FIX: became fixed when 006 was fixed.
+
+002  (v0.26)  Fixed 970624 by lth
+
+     The exit status from larceny is some random number.
+
+     FIX:
+     Wrote the required code to make this work :-)
+
+003  (v0.26)   Fixed 970716 by lth (new assembler only!)
+
+     Singlestepping does not seem to work any longer.
+
+     FIX:
+     Rewrote the required bits.
+
+004  (v0.27e)  Fixed 970701 by lth
+
+     The following expression loops forever:
+
+       (rationalize (inexact->exact 0.1) 1/10000000000000000000000000000)
+
+     It hangs for more 0s as well.  According to Chez, the result should be
+     1801439850915747/18014398509157469.
+
+     Furthermore, when the source from Larceny is plugged into Chez, then
+     it gives the same answer as the Chez built-in rationalize.
+
+     This appears to be a bug in ratnum<?, which in turn is a bug in 
+     ratnum-sub, which in turn is a bug in ratnum-add-or-sub 
+     (all in Lib/ratnums.sch).  Consider:
+
+  (ratnum-add-or-sub 
+    134217728000000007450580597058045853/1342177280000000000000000000000000000 
+    134217728000000007450580596789610397/1342177280000000000000000000000000000 
+    -)
+
+     and
+
+  (ratnum-add-or-sub 
+    134217728000000007450580596789610397/1342177280000000000000000000000000000
+    134217728000000007450580597058045853/1342177280000000000000000000000000000 
+    -)
+
+     which both evaluate to 1/5000000000000000000000000000, but in the latter
+     case the sign is wrong (although the magnitude is right): it should
+     be negative.
+
+     This in turn turns out to be a bug in bignum subtraction: the numerator
+     of the smaller minus the numerator of the larger is positive!
+
+     FIX:
+     In the last instance: this was a bug in bignum->fixnum, which did not
+     preserve the sign of a negative bignum.
+
+006  (v0.27e)
+
+     (integer? 0.0) => #f
+     Note that (integer? 1.0) => #t and (integer? -1.0) => #t.
+
+     It appears that the algorithm used by generic_integerp in generic.s
+     is not correct for 0.0, because 0.0 is not represented like other 
+     numbers: its biased exponent is 0.
+
+     Since inexact->exact uses integer?, the problem with the former may
+     be a problem with the latter.
+
+     FIX: changed the implementation of generic_integerp in Sparc/generic.s.
+
+007  (v0.27e)
+
+     -0.0 prints without the leading `-'.  It reads as -0.0, however.
+     More specifically, (number->string -0.0) => "0.0".  This bug is present
+     because the implementation of number->string uses negative? to see
+     whether the output should be prefixed by `-' or not, but negative?
+     is not #t for -0.0 (just like positive? is not true for 0.0).
+
+     FIX: changed number->string.
+
+008 (v0.28)
+
+    The evaluator is buggy -- it does not run the remset-profile program
+    in Util/process-stats, but when given the command
+
+	(remset-profile "stats-std")
+
+    gives the error
+
+	Error: cdr: stats-std is not a pair.
+
+    I have preserved the source file as Bugs/process-stats.sch.
+
+    This is reproducible in the following smaller fragment:
+    > (define zz 
+        (lambda (x) 
+          (let ((a 33)) 
+            (do ((i 0 (+ i 1))) 
+                ((= i 10)) 
+              (display "A") 
+              (set! a (+ a x)) 
+              (display x)
+              (newline)))))
+    > (zz 1)
+    AError: cdr: () is not a pair.
+
+    That is, it fails in the set!.
+
+    FIX: Turned out that in eval/setlex, what is env0 below was called
+	 env, so the rhs was evaluated with the wrong environment.
+	
+	(define (eval/setlex rib offset expr)
+	  (lambda (env0)
+	    (let loop ((rib rib) (env env0))
+	      (if (= rib 0)
+		  (vector-set! (car env) offset (expr env0))
+		  (loop (- rib 1) (cdr env))))))
+
+
+009  (v0.28)  Fixed 970430 by lth.
+
+     Garbage collector bug, standard collector.
+
+     In binary delphi970426/bin/larceny.noprof with heap in that same
+     directory.
+
+     Parameters: -heaps 4 -size1 256K -size2 512K -size3 512K -size4 1536K 
+
+     Transcript
+
+	Larceny v0.28 (SunOS;split) (lth/Sat Apr 26 08:17:23 EDT 1997)
+
+	> (load "bin/dynamic.fasl")
+	> (collect)
+	> (dynamic-benchmark 50)
+
+	--------------------------------------------------------
+	dynamic
+	Error: cdr: 0 is not a pair.
+
+     The error is repeatable also in the current system:
+
+	Larceny v0.28 (SunOS;split) (lth/Tue Apr 29 17:46:45 EDT 1997)
+
+     with the heap file as used in the previous system.  However, that
+     heap is identical to the current heap.
+
+     Annoy-user transcript (for what it's worth):
+
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 2.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 3.
+	Contracting generation 3 by 315392 bytes; size=1257472.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 3.
+	Expanding generation 3 by 253952 bytes; size=1511424.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Garbage collecting generation 3.
+	Garbage collecting generation 1.
+	Garbage collecting generation 1.
+	Error: cdr: 0 is not a pair.
+
+    Full debug transcript (>2300 lines) is in Bugs/gcbug-transcript.
+
+    Debug transcript shows that before_promotion and after_promotion
+    are not being called for old-heap(2,2) when promoting or collecting
+    into old-heap(3,3).  This is a bug.  This kind of collection
+    happens just before the crash (and also several times previously in
+    the run).
+
+    FIX:
+    This turned out to be three interacting bugs.
+    * First, the array of prom_bits was not initialized properly, although
+      it is likely that this was overcome rapidly (or worked by accident,
+      seeing as memory is usually allocated 0-initialized).
+    * Second, the algorithms used by before_promote_all and after_promote_all
+      were wrong.
+    * Third, a typo in after_promote_all made out-of-bounds array references
+      to prom-bits possible (although not in the current case).
+
+
+010  (v0.28) Fixed 970716 by lth
+
+     Error in vector-ref
+
+     Symptom:
+	> (vector-ref (vector-ref (sys$get-resource-usage) 11) 3)
+	#<WEIRD OBJECT>
+
+     Another:
+	> (vector-ref '#(1 2 3) 3)
+	quote
+
+     Most likely the 'blu' below should be 'bleu' (code from 
+     Sparcasm/gen-prim.sch).
+
+	(define (emit-vector-like-ref! as r fault tag)
+	  (let ((r1 (force-hwreg! as r $r.argreg2)))
+	    (if (not (unsafe-code))
+		(begin
+		  (emit! as `(,$i.andicc ,r1 3 ,$r.g0))
+		  (emit! as `(,$i.bne.a ,fault))
+		  (emit! as `(,$i.slot))
+		  (emit! as `(,$i.ldi ,$r.result (- ,tag) ,$r.tmp2))
+		  (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
+		  (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
+		  (emit! as `(,$i.blu ,fault))))
+	    (emit! as `(,$i.addi ,$r.result ,(- 4 tag) ,$r.tmp0))
+	    (emit! as `(,$i.ldr ,$r.tmp0 ,r1 ,$r.result))))
+
+     Note: fix this in the _new_ assembler.
+
+     FIX:
+     Changed the instruction to bleu.
+
+011  (v0.28) Fixed 970727 by lth
+
+     Error reporting for vector-ref is broken:
+
+	> (vector-ref '#(1 2 3) 4)
+	Error: Exception-handler: confused about vector-ref: #(1 2 3) 2
+
+     This is a known problem: the value '2' is not the right value;
+     the generated code does not pass the right value to the fault handler.
+
+     Fix this in the _new_ assembler only.
+
+     Consolidated bugs: [013,015,014,016].  This is really a problem with
+     the way emit-double-tagcheck-assert! and emit-single-tagcheck-assert!
+     are implemented in the assembler.  Tag checking code needs to be
+     revisited anyway, which is why I haven't implemented a quick fix.
+     --lars
+
+     [013] Error reporting for bytevector-like-ref is broken:
+
+	(bytevector-like-ref "123" 4)
+	Error: Exception-handler: confused about bytevector-like-ref: 123 2
+
+     [014] Error reporting for bytevector-ref is broken:
+
+	(bytevector-ref (make-bytevector 3) 4)
+	Error: Exception-handler: confused about bytevector-ref: 
+		#<BYTEVECTOR> 2
+
+     [015] Error reporting for bytevector-set! is broken:
+
+	(bytevector-set! (make-bytevector 3) 4 27)
+	Error: bytevector-set!: 3 is not a valid index into bytevector
+
+     [016] Error reporting for vector-set! is broken:
+
+	(vector-set! (vector 1 2 3) 4 0)
+	Error: vector-set!: 3 is not a valid index into vector
+
+     FIX: Implemented the necessary changes in Asm/Sparc/gen-prim.sch.
+
+
+017  (v0.28)  970507  Fixed 970625 by lth
+
+     Must restore console i/o on error.  Consider:
+
+        (with-output-to-file "/dev/null" (lambda () (error)))
+
+     After this, the repl accepts and executes commands (try (exit)),
+     but output is still to /dev/null.
+
+     FIX:
+     Wrote the necessary code in the Repl and its error handlers to do this.
+
+018  (v0.28)  970507  Fixed June(?) 1997 by lth
+
+     Expt only takes exact integer powers:
+
+	(expt 2 1.5)
+	Error: expt: don't yet know how to deal with21.5
+
+     FIX: Apparently, I've since written the code.
+
+019  (v0.28)  970507  Fixed 971030 by lth
+
+     With the generational collector, it is only possible to allocate objects
+     that fit in the youngest generation, and that generation is of a
+     fixed size.  This should not be a problem with the stop-and-copy (heaps=1)
+     or conservative collectors.
+
+     This should be fixed by allowing objects to be allocated "on the side"
+     of the youngest generation; the current barrier system should be able
+     to deal with this.
+
+020  (v0.28b) 970527  Fixed 970624 by lth
+
+     Transcript:
+
+	everest(8) % larceny ../larceny.heap
+	Larceny v0.28b/precise (SunOS;split) (lth/Tue May 27 20:03:53 EDT 1997)
+
+	> (load "dynamic.sch")
+	> (dynamic-benchmark 10)
+
+	--------------------------------------------------------
+	dynamic
+	Error: dynamic-parse-expressionsIllegal expression list: ~srest
+
+     Apparently a bug in the interpreter.
+
+     FIX:
+     Turned out to be an error in the rewriting of certain quasiquotations,
+     which caused the macro expander to generate erroneous code for CASE
+     expressions.  This error did not show up in compiled code because the
+     compiler uses a different macro expander for CASE.  However, the
+     compiler uses a copy of the same quasiquotation rewriter, so that had 
+     to be fixed too.
+
+021  (v0.28b) 970528  Fixed 980115 by lth
+
+     Free list coalescing is not done properly in unix-alloc.c.  This is 
+     a benign problem with the current GC structure, but should be fixed.
+     - free list should be address ordered (for coalescing, and also so
+       that we can return memory to the OS).
+     - a new free block can merge two previously separated blocks so that
+       all three blocks become one.
+
+     FIX:
+     Reimplemented free list management.
+
+022  (v0.28d) 970625  Fixed 970701 by lth
+
+     The following functions do not accept complex arguments:
+	SQRT, SIN, COS, TAN, ASIN, ACOS, ATAN, LOG, EXP
+
+023  (v0.28d) 970701  Fixed 970701 by lth
+
+     'Magnitude' is broken:
+
+     > (magnitude 3+2i)
+     Error: Attempt to apply 2, which is not a procedure.
+
+     FIX:
+     Simple typo in the implementation.
+
+
+024  (v0.28d) 970701  Fixed 970101 by lth
+
+     Make-polar is broken:
+
+     > (make-polar 3.605551275463989 0.5880026035475675)
+     -0.5258437067537658-0.2631263153813724i
+
+     But the correct answer is approx. 3+2i.  The code is very wrong --
+     it's not even _close_ to correct.
+
+     FIX (970701) / lth:
+     Rewritten.
+
+
+025  (v0.28d) 970701  Fixed 970701 by lth
+
+     Flonum/compnum multiplication is broken:
+
+      > (* 1.0 0.8320502943378437+0.554700196225229i)
+      0.0
+
+     FIX: was typo in compnum/compnum multiplication in generic.s.
+
+
+026  (v0.28d) 970701  Fixed 970716 by lth
+
+     LOG does not accept negative arguments.
+
+028  (v0.28c) 970611  Fixed 970702 by lth
+
+     Message-ID: <339EF37B.5361@ccs.neu.edu>
+     Date: Wed, 11 Jun 1997 13:51:04 -0500
+     From: William D Clinger <will@ccs.neu.edu>
+     To: lth@ccs.neu.edu
+     Subject: Minor bug report (segmentation fault)
+     
+     This bug is so minor that I'm not going to fix it right now.
+     I'll just let you add it to the list of things to fix later.
+     
+     You seem to get a segmentation fault if you call gcctl on the
+     young part of the non-predictive heap.
+     
+     Will
+     
+     ----
+     
+     [Benchmarks]% larc2 -calibrate
+     Calibration run using non-predictive collector
+     Larceny v0.28c/precise (SunOS;split) (will/Wed Jun 11 13:36:01 EDT 1997)
+     Non-predictive hi_mark=80, lo_mark=0, oflo_mark=80.
+     GC type: sc/fixed+2*sc/variable+static
+     
+     Heap statistics:
+     Generation 0
+       Size of semispace 1: 262144 bytes
+       Size of semispace 2: 262144 bytes
+       Live data: 0 bytes
+       Live stack: 0 bytes
+     Generation 1
+       Size of semispace 1: 524288 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 0 bytes
+     Generation 2
+       Size of semispace 1: 2097152 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 0 bytes
+     Generation 3
+       Size of semispace 1: 0 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 0 bytes
+     Generation 4
+       Size of semispace 1: 825344 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 825344 bytes
+     
+     > (gcctl 4 'j-fixed 0) ; should be (gcctl 3 'j-fixed 0)
+     Segmentation fault
+     
+     FIX:
+     The code for set_policy in memmgr.c did perform a range check on
+     the heap number, but it compared it against the maximum generation 
+     number.  The code was fixed to compare agains the index of the
+     oldest old heap.
+
+030  v0.28e (970708 / lth)  Fixed 970716 by lth
+
+     Reader bug: initial capital letters are not folded to lowercase:
+
+	> 'Loadfile
+	Loadfile
+	> 'loadfile
+	loadfile
+	> 'loAdfile
+	loadfile
+	> 
+
+     FIX:
+     But in read-symbol introduced during optimization.
+
+032  v0.28e (970715 / lth) Fixed 971023 by lth
+
+     It appears that the error continuation grows longer and longer with
+     each error.  This is an error.
+
+     This is easily seen with the backtrace walker: for each error,
+     or at least for most errors, the backtrace structure gets longer and
+     longer.  Interestingly it looks like this:
+
+	> (walk (error-continuation))
+	#(#f #f 0.0 #f #f)   72
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(#f #f 1 #f #f)   67
+	#(#f #f 1 #f #f)   36
+	#f   377
+	SYSTEM PROCEDURE   10062
+	Error: >=: #f is not a real number.
+
+     where we also see that not only does it look strange, but it
+     terminates in an unexpected way.  This gets more interesting as we
+     just print out the continuation: notice the reader error at the 
+     end!  Something bad is lurking there...
+
+	#(72 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(6898 #(7032 #(10143 #(188 #(54 #(54 #(54 #(54 #(54 #(54 #(10143 #(59 #(377 #(10062 Error: Bogus display procedure; reverting to default.
+
+     Here's a more extensive trace:
+
+	everest(4) % larceny
+	Larceny v0.31 (precise;SunOS;split) (lth/Wed Oct 15 15:47:02 EDT 1997)
+	
+	> (load "oddeven.fasl")
+	> (load "walk.sch")
+	> (even? '(1 2 3 . 4))
+	Error: cdr: 4 is not a pair.
+	
+	> (walk2 (error-continuation))
+	Frame length 4
+	Return offset 72
+	dynamic link is valid
+	procedure information: #(#f #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (1 4 #<PROCEDURE> #<PROCEDURE>)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (1 4 #<PROCEDURE> #<PROCEDURE>)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (1 4 #<PROCEDURE> #<PROCEDURE>)
+	Frame length 38
+	Return offset 10143
+	dynamic link is valid
+	procedure information: system procedure
+	reg1 = 43
+	reg2 = #<PROCEDURE>
+	reg3 = 4
+	reg4 = #<PROCEDURE even?>
+	reg5 = #!undefined
+	reg6 = 1
+	reg7 = ()
+	reg8 = #<PROCEDURE>
+	reg9 = (#<PROCEDURE>)
+	reg10 = 1
+	reg11 = #<PROCEDURE>
+	reg12 = (#<PROCEDURE>)
+	reg13 = even?
+	reg14 = 1
+	reg15 = ()
+	reg16 = #<PROCEDURE>
+	reg17 = (4)
+	reg18 = #f
+	reg19 = 10
+	reg20 = -1
+	reg21 = (#<PROCEDURE read-string> . 0)
+	reg22 = (#<PROCEDURE read-symbol> . 0)
+	reg23 = (#<PROCEDURE read-symbol2> . 0)
+	reg24 = (#<PROCEDURE read-atom> . 0)
+	reg25 = (#<PROCEDURE parse-prefixed-number> . 0)
+	reg26 = (#<PROCEDURE parse-number-loop> . 0)
+	reg27 = (#<PROCEDURE peculiar-identifier?> . 0)
+	reg28 = (#<PROCEDURE flush-comment> . 0)
+	reg29 = (#<PROCEDURE flush-comment-and-read> . 0)
+	reg30 = (#<PROCEDURE flush-comment-and-read-list> . 0)
+	reg31 = (#<PROCEDURE read-eof> . 0)
+	reg32 = (#<PROCEDURE read-unexpected-eof> . 0)
+	reg33 = (#<PROCEDURE char-downcase> (#<PROCEDURE warn> . 0) (#<PROCEDURE read-illegal> . 0) (#<PROCEDURE read-dispatch-whitespace> . 0) (#<PROCEDURE read-dispatch-extra-paren> . 0) (#<PROCEDURE read-dispatch-symbol-starter> . 0) (#<PROCEDURE read-dispatch-parse> . 0) (#<PROCEDURE read-dispatch-reserved> . 0) (#<PROCEDURE read-list-whitespace> . 0) (#!undefined . 0))
+	reg34 = 4
+	reg35 = 0
+	Frame length 4
+	Return offset -102637
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = 4
+	Frame length 4
+	Return offset 100
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = (3 . 4)
+	Frame length 4
+	Return offset 60
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = (2 3 . 4)
+	Frame length 4
+	Return offset 100
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = (1 2 3 . 4)
+	Frame length 7
+	Return offset 377
+	dynamic link is valid
+	procedure information: #f
+	reg1 = (even? '(1 2 3 . 4))
+	reg2 = #<PROCEDURE>
+	reg3 = (even? '(1 2 3 . 4))
+	reg4 = #<ENVIRONMENT larceny-environment>
+	Frame length 3
+	Return offset 10062
+	dynamic link is valid
+	procedure information: system procedure
+	Frame length #f
+	Return offset -4194305
+	Error: >=: #f is not a real number.
+
+     Notice the invalid frame size!
+
+     The plot is thickening: here's a backtrace of the current 
+     continuation structure in a clean heap:
+
+	everest(5) % larceny
+	Larceny v0.31 (precise;SunOS;split) (lth/Wed Oct 15 15:47:02 EDT 1997)
+	
+	> (load "walk.sch")
+	> (walk2 (current-continuation-structure))
+	
+	Frame length 5
+	Return offset 59
+	dynamic link is valid
+	procedure information: #(#f #f 1 #f #f)
+	#1 = ()
+	#2 = #<PROCEDURE>
+	
+	Frame length 7
+	Return offset 377
+	dynamic link is valid
+	procedure information: #f
+	#1 = (walk2 (current-continuation-structure))
+	#2 = #<PROCEDURE>
+	#3 = (walk2 (current-continuation-structure))
+	#4 = #<ENVIRONMENT larceny-environment>
+	
+	Frame length 3
+	Return offset 10062
+	dynamic link is valid
+	procedure information: system procedure
+	
+	Frame length #f
+	Return offset -4194305
+	Error: >=: #f is not a real number.
+
+     FIX:
+     Error in continuation structure turned out to be a bug in callout.c.
+
+     Aggregation of frames turned out to be the wrapping of handler
+     procedures in error handler installation -- don't do that!
+
+033  v0.28f (970717 / lth)  Fixed 970727 byt lth
+
+     (This is an old error.)
+     The typechecking of character comparisons is not correct, it only
+     checks that the objects have the same low 8 bits:
+
+	> (char=? 1 1)
+	#t
+	> (char<? 1 1)
+	#f
+
+     The error is in Asm/Sparc/gen-prim.sch, in the procedure emit-charcmp!.
+
+     FIX: rewrote emit-charcmp! in the obvious way.
+
+035  v0.28f (970812 / lth)  Fixed 980409 by lth
+
+     The macro expander (and Twobit?) rely on some global variables called
+     %list, %list->vector, %cons, %append, and %make-promise.  
+
+     These dependencies should be removed completely, probably by using
+     magic global names (more magic than the above...) that the linker
+     treats specially, possibly by having all environments inherit
+     from an environment where they are bound.
+
+     Also NOTE that those names are not present in the null environment, 
+     so some code that should run in that environment (notably code with
+     quasiquotations, but perhaps other code as well) will not in fact run.
+     The same fix applies.
+
+     FIX: implemented magic names.  Magic names start with . and may contain
+     no underscores (for reasons of possibly ugly interaction with the 
+     compiler).
+
+037  v0.28f (970915 / lth)  Fixed 970716 by lth
+
+     Negation of a bignum does not work correctly if the resulting number
+     is the most negative fixnum:
+
+       > (fixnum? (- (expt 2 29)))
+       #f
+       > (fixnum? (- (+ (- (expt 2 29)) 1) 1))
+       #t
+       > (fixnum? (+ (- (- (expt 2 29)) 1) 1))
+       #f
+
+     The resulting number should be represented as a fixnum.
+
+     Note that the third expression is _also_ an error, possibly related.
+
+     Actually, it seems to go deeper: this is very wrong:
+
+	> (- (expt 2 29))
+	536870912
+	> (- 0 (expt 2 29))
+	536870912
+
+     FIX: 
+     Turned out to be bignum->fixnum, once again, that did not handle
+     the most negative fixnum correctly.
+
+
+038  v0.29a (970917 / lth)  Fixed 971030 by lth
+
+     Typetag-set! gives a strange error message when it's not the structure
+     but the typetag that is bad:
+
+	> (typetag-set! (make-vector 3) 20)
+	Error: typetag-set!: #(#f #f #f) is not typetag-settable.
+
+     FIX:
+     Added code to ehandler.sch to discover this.
+
+
+039  v0.30 (970924 / lth)  SunOS
+
+     The following crashes with 'Illegal instruction':
+
+	(let ((x (inexact->exact (log -1.3))))
+	  (make-rectangular (rationalize (real-part x) 1/1000) 
+                            (rationalize (imag-part x) 1/1000)))
+
+     It appears that an illtrap 0 appears in the middle of an
+     otherwise fine-looking instruction stream, in place of a
+     conditional branch:
+
+	(gdb) x/20i $pc-40
+	0x512ac0 <end+5182368>:	cmp  %o0, 0x316
+	0x512ac4 <end+5182372>:	bne,a   0x512ad8 <end+5182392>
+	0x512ac8 <end+5182376>:	nop 
+	0x512acc <end+5182380>:	mov  %o4, %o0
+	0x512ad0 <end+5182384>:	call  %i7 + 0x568
+	0x512ad4 <end+5182388>:	mov  0x1a8, %g1
+	0x512ad8 <end+5182392>:	call  0x512ae0 <end+5182400>
+	0x512adc <end+5182396>:	add  %o7, 0x40, %o7
+	0x512ae0 <end+5182400>:	st  %o7, [ %o3 + 4 ]
+	0x512ae4 <end+5182404>:	deccc  %i4
+	0x512ae8 <end+5182408>:	illtrap  0
+	0x512aec <end+5182412>:	and  %o0, 7, %g1
+	0x512af0 <end+5182416>:	call  %i7 + 0x560
+	0x512af4 <end+5182420>:	add  %o7, -20, %o7
+	0x512af8 <end+5182424>:	and  %o0, 7, %g1
+	0x512afc <end+5182428>:	cmp  %g1, 7
+	0x512b00 <end+5182432>:	be,a   0x512b14 <end+5182452>
+	0x512b04 <end+5182436>:	ld  [ %o0 + -3 ], %g1
+	0x512b08 <end+5182440>:	mov  0x1a4, %g1
+	0x512b0c <end+5182444>:	jmp  %i7 + 0x568
+	(gdb) x/x $pc
+	0x512ae8 <end+5182408>:	0x00000000
+
+     The instruction is intact when the program starts (at that address,
+     which should be in the static area).
+
+     Furthermore, the problem happens in the call to rationalize (either
+     one); real-part and imag-part seem to work fine.  
+
+     Here's the last part of a syscall trace:
+
+	generic_lessp: 5851d 0
+	internal_scheme_call: 150
+	generic_lessp: 5851d 586fd
+	internal_scheme_call: 44
+	internal_scheme_return: 2
+	internal_scheme_return: 2
+	generic_equalp: 5851d 0
+	internal_scheme_call: 154
+	generic_equalp: 5851d 5870d
+	internal_scheme_call: 40
+	internal_scheme_return: 2
+	internal_scheme_return: 2
+	internal_scheme_call: 14c
+	internal_scheme_call: 34
+	internal_scheme_return: 5872d
+	internal_scheme_return: 5872d
+	internal_scheme_call: 14c
+	internal_scheme_call: 30
+	internal_scheme_return: 58765
+	internal_scheme_return: 58765
+	internal_scheme_call: 14c
+	internal_scheme_call: 34
+	internal_scheme_return: 5878d
+	internal_scheme_return: 5878d
+	internal_scheme_call: 14c
+	internal_scheme_call: 30
+	internal_scheme_return: 587c5
+	internal_scheme_return: 587c5
+	
+	#x14c/4 = 83 = contagion
+	#x30/4 = 12 = bignum-multiply
+	#x34/4 = 13 = bignum-divide 
+
+     So far, it appears that some code is clobbering the code stream,
+     probably with a wild assignment.
+
+     Here's the transcript:
+
+	> (define x (inexact->exact (log -1.3)))
+	(gdb) x/i 0x512ae8
+	0x512ae8 <end+5182408>:	bne,a   0x512afc <end+5182428>
+	> (define a (real-part x))
+	(gdb) x/i 0x512ae8
+	0x512ae8 <end+5182408>:	bne,a   0x512afc <end+5182428>
+	> (rationalize a 1/1000)
+	Program received signal SIGILL, Illegal instruction.
+	0x512ae8 in ?? ()
+	(gdb) x/i 0x512ae8
+	0x512ae8 <end+5182408>:	illtrap  0
+
+     After some grubbing around in the code for rationalize, we have
+     that the same error is provoked by the less mysterious
+
+	> (/ 147135000507969563/562949953421312000)
+
+     and also by (/ 1 ...), as expected, and also by:
+
+	> (define one (make-ratnum 1 1))
+	> one
+	1/1
+	> (/ one 147135000507969563/562949953421312000)
+
+     So it seems ratnum-div is at fault, somehow (not contagion).
+
+     Rebuilding the heap didn't seem to make any difference (i.e., 
+     the heap is probably OK).
+
+     Expanding syshooks with two functions preserves the error...
+
+     This provokes the same error:
+
+	((system-function 'ratnum-div)
+         ((system-function 'make-ratnum) 1 1)
+         147135000507969563/562949953421312000)
+
+     Interestingly, so does this:
+        ((system-function 'ratnum-div)
+         147135000507969563/562949953421312000
+         ((system-function 'make-ratnum) 1 1))
+     but it overwrites a slightly different address (512a50 rather 
+     than 512ae8).
+
+     Also fails with protect_static() in place...
+
+     FIX:
+     Turned out to be an error in generic.s where %GLOBALS was used in
+     a section between save and restore.
+
+     Thanks to Johan who suggested write protecting the static area,
+     thereby quickly finding the offending instruction.
+
+040  v0.31 (9710xx / lth)  Fixed 9761030 by lth
+
+     The _make_ utility uses call-with-error-control but this is not loaded
+     with the load-development-environment system.  
+
+     In general, call-with-error-control, call-with-error-handler, 
+     call-with-reset-handler should be exposed in the default 
+     interaction environment.
+
+     FIX:
+     Exported functions; added file Util/make-support.sch.
+
+045  v0.31 (971024 / lth)  Fixed 971030 by lth
+
+     environment-gettable? needs to check for an undefined value.
+
+     FIX:
+     Implemented obvious fix.
+
+046  v0.31 (971024 / lth)  Fixed 971031 by lth
+
+     The console I/O system must do the right thing when asked to open
+     and close.  See comments in code.
+
+     FIX:
+     Added code to conio.sch and unix.sch to implement this.
+
+048  v0.31 (971031 / lth)  Fixed 9711?? by lth
+
+     Consider the following scenario:
+
+     > (read)
+     #<EOF>
+     >
+
+     everest%
+
+     I.e., if the user types the end-of-file character in a program while
+     the program is reading from the standard input port, then the REPL
+     interprets that EOF as an exit signal.  Instead, EOF encountered during
+     an evaluation should maybe be treated differently, e.g., by always
+     reestablishing the I/O ports after an evaluation, and requiring another
+     EOF.  Chez Scheme does it this way, and it seems much cleaner.
+
+     FIX:
+     Presumably the code to handle this was written?
+
+049  v0.31 (971031 / lth)  Fixed 980107 by lth
+
+     [Performance bug]
+     port? needs to be a primop; see Lib/iosys.sch.
+
+     FIX:
+     Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
+     Asm/Sparc/gen-prim.sch to implement this.
+
+050  v0.31 (971031 / lth)  Fixed 980107 by lth
+
+     [Performance bug]
+     structure? needs to be a primop; see Lib/struct.sch.
+
+     FIX:
+     Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
+     Asm/Sparc/gen-prim.sch to implement this.
+
+051  v0.31 (971031 / lth)  Fixed 980107 by lth
+
+     [Performance bug]
+     eof-object? needs to be a primop.
+
+     FIX:
+     Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
+     Asm/Sparc/gen-prim.sch to implement this.
+
+055 v0.32 (980116 / lth)  Fixed 980116 by lth
+
+    I/O redirection at the shell seems to be overridden by Larceny; this
+    may have something to do with how I/O ports are handled?
+
+    FIX:
+    Turned out that in conio.sch, there was a single global variable
+    to record 'first time through' and thereby allow the use of the
+    standard i/o streams; there should be one variable for input and
+    one for output.  This was implemented, and redirection now works
+    correctly.
+
+058 v0.32 (980423 / will)  Fixed 980424 by lth
+
+    Since -1.0 is the mathematically ideal result of
+    (- (expt 2. 100) (+ (expt 2 100) 1)), the R5RS says that
+
+        (zero? (- (expt 2. 100) (+ (expt 2 100) 1)))
+
+    should evaluate to #f, not to #t.  Scheme48 gets this right, but it is
+    the only implementation I have found that does.  This is probably a
+    common bug in implementations of Scheme.
+
+    [This is curious, because it is the case in Larceny that
+     (= (inexact->exact (expt 2.0 100)) (expt 2 100)).  One notes that
+     (- (expt 2.0 100) (+ (expt 2 100) 1)) => 0.0, which is wrong, hence
+     some contagion rule gets it wrong here. --lars]
+
+    FIX:
+    Changed the contagion matrix for arithmetic.
+
+061 v0.33 (980428 / lth)  Fixed 980428 by lth
+
+    Logand, logior, logxor cannot cope with the largest negative fixnum,
+    and exhibit the following behavior:
+	
+	> (logand -536870912 1)
+	Error: exception-handler: confused about logand
+
+    The reason for the bug is the tag check used in the implementation:
+
+      (sparc.tsubrcc as $r.result tmp $r.g0)
+      (sparc.bvc.a   as L1)
+
+    Of course, the overflow flag will _also_ be set if there was a true
+    overflow from the subtraction!
+
+    FIX: Implemented the correct tag checking code.
+
+063 v0.34 (980511 / lth)  Fixed 980511 by lth
+
+    The definition of 'vector' in sparc.imp.sch is either buggy (not likely)
+    or provokes a bug, e.g. in the call to vector in mcode.sch (more likely).
+    In any event, if enabled then Larceny fails during startup during the 
+    first call to environment-set! with the error 
+
+	Error: Wrong number of arguments to procedure #<PROCEDURE>
+
+    FIX: This was an off-by-one bug in emit-init-proc-slots! in gen-msi.sch.
+
+070 v0.34 (981006 / lth)  Fixed 981113 by lth
+    Priority: low
+
+    Writer: should print all the special names accepted by the reader:
+
+	> #\tab
+	#\	
+	> #\space
+	#\space
+
+    Here the bug is in the printing of a tab character.
+
+    FIX: Implemented the necessary logic in Lib/print.sch, Lib/reader.sch,
+    and Lib/unix.sch (character codes).

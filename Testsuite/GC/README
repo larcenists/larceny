@@ -1,0 +1,39 @@
+$Id$
+
+Testing the garbage collector.
+
+The test programs in this directory exercise Larceny's garbage
+collector.  Each benchmark should be compiled, loaded into a fresh
+Scheme system, and then run several times in succession.  The
+configurations, parameters, and number of runs used is currently as
+follows:
+
+Executable/settings
+
+larceny
+  (no switches)         Default configuration
+  -nonursery            Old default configuration
+  -np                   Default with non-predictive collector
+  -heaps 1              Stop-and-copy system
+  -np -heaps 3 -size2 1M -size3 2M    Reasonable generational system
+
+bdwlarceny
+  (no switches)         Default configuration
+
+
+Program   Parameter   Number of runs
+
+dynamic      50             3  
+nbody                       3
+nucleic2                    3
+lattice                     2
+nboyer        2             3
+sboyer        4             2
+gcbench0                    2
+gcbench1                    2
+
+
+A fast machine is better -- some of these programs take a while.  Also,
+plenty of real memory is a plus, since the heap size can grow over 30MB
+for some programs.
+

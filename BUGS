@@ -1,0 +1,364 @@
+; -*- text -*-
+; ./BUGS
+; $Id$
+
+
+			 KNOWN BUGS IN LARCENY
+			 ---------------------
+
+These are bugs that are or may be visible to the Scheme programmer.
+Outright compiler bugs are generally only known to Will.
+
+Bugs are listed in the order recorded.  Fixed bugs have been moved to
+the file BUGS-FIXED.  Each entry consists of an entry number, the
+version of Larceny in which the bug was discovered, the date it was
+recorded and who found it, a description of the problem, and any
+supporting documentation, information, test cases, and so on.
+
+
+005  (v0.27e)
+     Priority: low.
+
+     While the system can now grow the heap to any size (by growing the
+     descriptor tables), an attempt to start the system with more than 32MB
+     or so of initial heap will result in a segmentation fault.
+
+     The reason is that the size of the descriptor tables during startup
+     is limited to 32 MB.  A larger size will result in an attempt to grow
+     them, which results in a barrier function being called to install the
+     new tables.  But at this point the barrier has not yet been initialized,
+     so garbage is accessed.
+
+     This is generally no longer a problem, since heaps are allocated
+     lazily.  It will become a problem when someone tries to load a heap
+     image of about 32MB or more.
+
+012  (v0.28)  970507
+     Priority: low.
+
+     Remembered-set size information from the command line is disregarded
+     when creating the remembered sets in the garbage collector.
+
+     See file Rts/Sys/memmgr.c
+
+031  v0.28e (970708 / lth)
+     Priority: low.
+
+     Dynamic-wind must be made aware of timer interrupts [some parts must
+     be guarded by critical sections.]
+
+034  v0.28f (970723 / lth)
+     Priority: low.
+
+     (This is true both in the old and new assembler.)
+     The number of arguments to a procedure is limited to 1023.  This is due
+     to the way the argument count is set up during INVOKE and the way it
+     is compared during ARGS=, ARGS>=.
+
+     Note that things like (apply + massively-long-list) still work,
+     because + takes 0 or more arguments (so the comparison is with 0), and
+     apply computes the correct length of the list.
+
+     This is easy to fix, but before doing so, check that the compiler 
+     does not in fact compile these kinds of procedures and calls specially.
+
+036  v0.28f (970826 / lth -- old bug)
+053  v0.32 (971107 / lth)
+     Priority: low.
+
+     Reader bugs
+
+   * The reader accepts \ as an initial character in symbols, but not
+     as a subsequent, and when it is an initial character, it is not
+     an escape character.
+
+     I think the right behavior for \ is to work as an escape character
+     in symbols and be valid everywhere in a symbol; \c should then mean
+     literally c everywhere (notably preserving case, but also allowing
+     spaces, control characters, and non-standard characters).  In 
+     particular, if a symbol starts with \c, then even if symbols may not
+     usually start with c, the interpretation should be a symbol.
+
+   * Another reader problem:
+
+	(symbol->string '|#x) => ""
+	(symbol->string '|#x|) => "|#x"
+
+     On the whole, the dark corners of the input syntax are indeed dark.
+
+041  v0.31 (9710xx / dougo)
+     Priority: should not be fixed.
+
+     The macro-expander and evaluator are not robust and produce strange 
+     error messages when handed syntactically incorrect programs.  Consider,
+
+	> (if)
+	Error: car: () is not a pair.
+
+     [Editorial: we should toss the macro-expander and switch to the
+      hygienic macro package. -- lars]
+
+042  v0.31 (971024 / lth)
+     Priority: should not be fixed.
+
+     > (+ 'a)
+     a
+     > (* 'a)
+     a
+
+     [Thanks to Galen, who did not report this but who told me of this
+      bug in the free version of Allegro Common Lisp for Windows(!).]
+
+043  v0.31 (971024 / lth)
+     Priority: low
+
+     [Performance bug]
+     Make-string needs to be a primop.  I classify this as a bug because
+     the performance implications are potentially considerable, and
+     because the new pass3 wants to rely on make-string being a primop.
+     One possibility here is to expand (make-string n c) to
+       (let ((s (make-bytevector n)))
+         (bytevector-fill! s (char->integer c))
+         s)
+     since both make-bytevector, bytevector-fill!, and char->integer
+     are primops.
+
+047  v0.31 (971029 / lth)
+     Priority: low
+
+     `Round' does not properly round down to even (e.g., for 0.5, 2.5, 4.5)
+     as exposed by the test suite and as noted in comments in 
+     Sparc/generic.s; this is for flonums only (it rounds ratnums properly).
+
+052  v0.32 (971103 / lth)
+     Priority: low
+
+     [Performance bug]
+     bignum->flonum is very, very slow.  The fix for this exists but
+     needs to be implemented and tested.
+
+054 v0.32 (971107 / lth)
+    Priority: medium.  Await new compiler before fixing.
+
+    [Macros that work]
+    When a syntactic keyword is used as a variable, e.g.,
+
+	> repeat
+
+    then the macro expander gives an error and returns the syntactic
+    environment, which is massive.  This is _not_ useful.  On the whole,
+    macro expander errors should be mapped onto regular errors?
+
+056 v0.32 (980126 / lth)
+    Priority: low
+
+    Chez Scheme development environment:
+
+	; Just finished make-larceny-heap
+	> (inline-barrier)
+
+	*** Error encountered!
+	Deleting target file: larceny.heap
+
+	Error: variable inline-barrier is not bound.
+	Type (debug) to enter the debugger.
+
+    In this case, it should not delete the previous target!  This did not
+    happen on a subsequent try.
+
+057 v0.32 (980403 / lth)
+    Priority: low
+
+    display-memstats:
+    * Does not distinguish information about the static area as being
+      about the static area (calls it Generation#n rather than Static).
+    * Displays information about the non-predictive remembered set even
+      though it is not in use.
+
+059 v0.32 (980423 / wdc)
+    Priority: low
+
+    Brad Lucier noted a problem with the complex contagion rule in Common 
+    Lisp.  The mathematically ideal result for
+
+        (let ((z (make-rectangular +inf +inf))
+          (* 1. z))
+
+    is z itself.  Chez Scheme gets this right, but Larceny 0.32 gets it wrong.
+
+    [Produces +nan.0+nan.0i in 0.33 also.  Works for finite values in z.
+     The reason is that +inf.0 * 0 -> invalid operation in IEEE arithmetic.
+     --lars]
+
+060 v0.33 (980425 / lth)
+    Priority: low
+
+    This is the same problem as for the (fixed) bug 058, but for complex
+    numbers:
+
+      (- (+ 1 (make-rectangular (expt 2 100) 1))
+         (make-rectangular (expt 2.0 100) 1.0))
+    => 0.0
+
+      (= (+ 1 (make-rectangular (expt 2 100) 1))
+         (make-rectangular (expt 2.0 100) 1.0))
+    => #t
+
+    Larceny could do better here (and return 1 in the first case, #f in the
+    second).  The first bug is in contagion; the second in econtagion.
+
+062 v0.33 (980430 / wdc)
+    Priority: low
+
+    [Performance bug]
+    Floating point output is very, very slow.  The Dragon4 algorithm, which
+    uses (slow) bignums, should be replaced by Dybvig's algorithm.
+
+064 v0.34 (980514 / lth)
+    Priority: medium.  Await new compiler before fixing.
+
+    From: comp.lang.scheme
+      1) STk way
+         (call-with-current-continuation (lambda (exit) (exit (values 1 2))))
+         ==>                                            ^^^^^^^^
+           1
+           2
+
+     2) SCSH way
+        (call-with-current-continuation (lambda (exit) (exit 1 2)))
+         ==>
+           ; 2 values
+           1
+           2
+
+    As far as I understand r5rs, it says nothing about the issue, but
+    my gut feeling is that the SCSH way is more elegant.
+
+    BTW, SCSH's `values' also checks its arguments for not being 
+    multiple-valued.
+
+    In Larceny 0.34, we have:
+      >(call-with-values 
+         (lambda () 
+           (call-with-current-continuation (lambda (k) (values 1 2 3)))) 
+         (lambda (a b c) 
+           (list a b c)))
+     (1 2 3)
+     > (call-with-values 
+         (lambda () 
+           (call-with-current-continuation 
+             (lambda (k) (k 1 2 3)))) 
+           (lambda (a b c) 
+             (list a b c)))
+     Error: Wrong number of arguments to procedure #<PROCEDURE>
+
+   And it appears the last one is probably wrong: k should take 3
+   arguments, but apparently receives only one, which can be seen
+   from:
+
+    > (call-with-values 
+        (lambda ()
+          (call-with-current-continuation 
+            (lambda (k) (k 1 2 3)))) 
+        (lambda a a))
+    (1)
+
+   (Arguably, there's a bug in Lib/malcode.mal because the closure
+   passed as k does not check the number of arguments it receives!)
+
+065 v0.34 (980518 / lth)
+    Priority: low
+
+    This applies to Larceny.  See code from Will in Lib/mcode.sch,
+    and see item 066.
+
+    From: jlrubin@no_meat_byproducts.bway.net (Josh Rubin)
+    Subject: exact->inexact implementation question
+    Newsgroups: comp.lang.scheme
+    Date: Mon, 18 May 1998 11:27:38 GMT
+    Organization: ISPNews http://ispnews.com
+    
+    The Scheme standard requires that exact->inexact applied to a rational
+    number return the nearest representable inexact number. Assuming
+    inexact numbers are IEEE doubles, how does one do this
+    conversion?  The code I have seen for this conversion
+    ( the Gnu bignum package Rational.as_double() ) is buggy.
+    
+    Converting the numerator and denominator to double and then dividing
+    rounds  three times and doesn't always produce the closest result.
+    
+    The only way I can think of is to do a multi-precision integer
+    division to get (1 + mantissa length) bits of accuracy in the quotient
+    and then building a double "by hand". 
+    
+    Josh Rubin
+    jlrubin@no_meat_byproducts.bway.net    Remove spam blocker to reply.
+
+066 v0.34 (980518 / wdc)
+    Priority: low
+
+    Test case: (exact->inexact 14285714285714285714285) should be
+    1.4285714285714286e22, not 1.4285714285714284e22.
+
+    [See also item 065.]
+
+067 v0.34 (980603 / lth)
+    Priority: low
+
+    I think this is wrong:
+
+	> (char-upcase #\ÿ)
+	#\ß
+	> (char-downcase #\ß)
+	#\ÿ
+
+    because it's not intuitive to me that these letters are upper/lower
+    case variants of each other.  Presumably this is defined somewhere.
+    This example presents a slight problem for existing character 
+    processing code if an alphabetical is both upper and lower case,
+    but character processing code is character set dependent anyway,
+    so it must be fixed.
+
+    [Must fix this both in the reader and in Lib/string.sch.]
+
+068 v0.34 (ancient bug, maybe as old as v0.20)
+    Priority: low
+
+    Float-significand and float-exponent, as visible in the interaction
+    environment, should be more discriminating about the types of their
+    arguments:
+
+	> (float-significand "123456789abc")
+	6253164108014179
+	> (float-exponent "123456789abc")
+	-224
+
+069 v0.34 (980611 / lth)
+    Priority: low
+
+    Writer: this is weird but mostly benign because "read" discards the
+    backslashes properly:
+
+	> (write "a;b;c")
+	"a\;b\;c"
+
+    It's not benign when code parsing text created with write does not
+    expect the backslashes; it should probably be fixed.  (On the other 
+    hand it's no worse that quoting symbols with vertical bars.)
+
+071  v0.34 (981016 / wdc)
+     Priority: low
+
+     DISASSEMBLE-FILE does not work on .fasl files.
+
+072  v0.34 (981113 / lth)
+     Priority: low
+
+     The (break) procedure always invokes the RTS debugger.  It would be
+     more useful if it would invoke the user-installable breakpoint handler,
+     if that has been installed.
+     Chez Scheme uses a parameter 'break-handler'; we should too.
+
+NEXT ENTRY: 073
+	
+; eof

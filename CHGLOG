@@ -1,0 +1,1363 @@
+; List of changes to Larceny.
+;
+; $Id$
+
+
+----------------------------------------------------------------------
+v0.34b 
+
+FEATURES
+  * Added 'ptrtag', 'boxed?', 'object-representation' to 
+    Experimental/system-stuff.sch.
+
+BUG FIXES
+  * Fixed implementation of the scheme-system procedure; it displayed
+    part of the string and returned part of it, instead of returning
+    all of it.
+  * Exposed the filter and find procedures from Auxlib in the heap 
+    created with Util/std-heap.sch.
+  * Changed export of "force" in toplevel.sch: it exported 'force as
+    a value rather than the "force" procedure!  [Not tested]
+
+----------------------------------------------------------------------
+v0.34 released 980605 by lth
+
+FEATURES
+  * RTS improvements (performance/correctness/maintainability)
+    - Generic "*" now handles fixnums in-line, using the multiply instruction.
+    - Flonum and compnum boxing [in millicode] now perform in-line allocation
+      except when running with the Boehm-Weiser collector.
+    - Millicode fixnum multiplication code has been cleaned up.
+    - Branch-to-next-instruction MAL peephole implemented.
+    - Compiler patch that avoids a JUMP integrated.
+
+  * Implemented a procedure gc-counter : () -> fixnum that returns
+    the number of garbage collections.  (This procedure is a primitive
+    and compiles to a single load instruction.  It can be on the critical
+    path of a hash table implementation, for example.)
+
+  * Implemented magic syntax for flonum and compnum constants in fasl
+    files, and changed the printer to print these values when appropriate,
+    and the reader to read them.
+
+  * In Util/load-env.sch, the procedure load-environment now checks for
+    undefined global varables after loading all files.
+
+  * String I/O ports.  Interface: open-input-string, open-output-string,
+    get-output-string.  See the manual (section Input and Output) for
+    details.
+
+  * Standard Foreign-Function Interface for C callouts.  See the v0.34 
+    manual for details.
+
+  * New 'system-features' procedure that returns an association list of
+    system features.
+
+  * Changed character and string routines to correctly deal with
+    the 8-bit ISO-latin-1 character set; changed character predicates
+    to be table driven.  Of course, this must all change again when 
+    we go to Unicode, but it's now possible to write Scheme programs
+    that use national character sets and expect them to work:
+
+      (define (flasker-øl-på-hylla øl)
+        (cond ((= øl 0)
+               (display "Ingen flere flasker øl på hylla.") (newline))
+              ((= øl 1)
+               (display "Én flaske øl på hylla.") (newline)
+               (flasker-øl-på-hylla (- øl 1)))
+              (else
+               (display øl)
+               (display " flasker øl på hylla.") (newline)
+               (flasker-øl-på-hylla (- øl 1)))))
+
+  * Added a compiler macro for "vector".
+
+  * Many small changes.
+
+BUGS FIXED
+  * Changed the implementation of append: append was quadratic in
+    time and _live_ storage in its number of arguments.  Normally 
+    this isn't noticeable but it matters a lot in cases where you do
+    things like (apply append rather-long-list). (Doug found this one :-)
+  * Fixed a bug in Lib/print.sch where lowlevel-write would barf on a
+    bytevector (silly bug).
+  * Fixed an off-by-one bug in emit-init-proc-slots! in 
+    Asm/Sparc/gen-msi.sch, where the wrong value was used for slot
+    (- *nregs* 1).  The bug affected uses of LEXES and LAMBDA for
+    a sufficiently large number of values saved (>= *lastregs*).
+  * When a dumped heap was loaded, the roots were not cleared (notably
+    G_CONT).  This wasn't really a problem, but would be confusing at
+    times, esp. since G_CONT is visible from the debugger.  Also, it
+    is technically a storage leak.
+  * In Compiler/pass2.aux.sch, there was a reference to the undefined
+    procedure 'cerror'.  Cerror has been added to the compatibility
+    libraries.
+  * In Asm/Sparc/sparcasm.sch, dep-call-offset! referred to 'imm' rather
+    than 'offs' in its last case.
+  * In Lib/env.sch, two references to cell-ref should be to global-cell-ref;
+    this prevents at least environment-variables from working.  (This probably
+    worked in 0.32 and 0.33 prerelease because cell-ref was a user-visible
+    primop (!) until about 24 hrs before release.)  This problem impacts
+    at least Experimental/apropos.sch and Debugger/countcalls.sch.
+  * In Util/modules.list, there were many unresolved cross-module
+    name references.  The file has been restructured.
+  * In Compiler/help-topics.txt, 'inline-allocation' was still named 
+    'inline-cons'.
+  * In Util/modules.list, the reference to 'inline-cons' should have
+    been to 'inline-allocation'.
+  * The FFI substrate now accepts fixnum(0) for 'pointer', meaning 
+    'null pointer'.
+  * Fixed bugs in Sys/gc.c:allocate_nonmoving and Sys/static-heap.c:allocate
+    that caused segmentation faults during heap dumping with foreign
+    functions loaded.
+
+----------------------------------------------------------------------
+v0.33 released 980430 by lth
+
+NOTEWORTHY
+  * All code should be recompiled due to some non-backwardly compatible 
+    changes.  Sorry.
+
+FEATURES and CHANGES
+  * Non-predictive collector has been rewritten and works again.
+  * The -reorganize-and-dump command line switch works again.
+  * The FFI call-outs now works on SunOS 5.
+  * Dynamic heap upper limit can be specified with the -max switch.
+  * It's now possible to use Twobit as the evaluator in the REPL.
+  * Several code generation improvements have been implemented.
+  * The inline-cons switch has been renamed inline-allocation.
+
+BUG FIXES
+  * Fixed a bug in the Sparc target specification where name:CONS was not
+    recognized as a primop, resulting in all sorts of problems.  This 
+    problem shows up when calling internal definitions that take a rest
+    argument.
+  * Fixed bug in Sparc assembler that caused constants divisible by 512 but
+    not by 1024 to be assembled incorrectly.
+  * Fixed bug in Sparc assembler that generated incorrect tag checking code
+    for bitwise operations on fixnums.
+  * Fixed bug in flonum code that allowed +/-inf.0 and +nan.0 as arguments
+    to inexact->exact.
+  * Fixed two bugs in `even?' [cut-and-paste-o].
+  * Fixed bug in contagion rules that did not properly handle bignum/flonum
+    arithmetic as well as could be expected.
+
+CHANGES
+[Asm/Sparc/gen-msi.sch]
+  - Support for branch-with-setrtn and invoke-with-setrtn.
+  - Fixed bug in logical-op that generated incorrect tag checking code.
+
+[Asm/Sparc/pass5p2.sch]
+  - Support for branch-with-setrtn and invoke-with-setrtn.
+
+[Asm/Sparc/sparcutil.sch]
+  - Fixed an assembler bug that occasionally generated incorrect code for
+    constants; for example, the constant 10000000 was generated as 
+    9999872 because emit-immediate->register divided by 512 rather than 
+    1024 in a test.
+
+[Compiler/compile313.sch]
+  - fixed bug in assemble-file.
+
+[Compiler/sparc.imp.sch]
+  - Support for branch-with-setrtn and invoke-with-setrtn.
+  - Cleaned up mnemonic definition a little.
+
+[Compiler/printlap.sch]
+  - Now gets mnemonic names from the mnemonic table in the *.imp.sch file.
+
+[Ffi/loadffi.sch]
+  - Implemented load path.
+  - Fixed a load order bug.
+  - Cleaned up for OS dependencies.
+
+[Lib/contag.sch]
+  - [058] Fixed one bug in contagion that didn't use Algorithm* for
+    bignum/flonum arithmetic.
+
+[Lib/flonums.sch]
+  - Removed compnum? -- it's now a primop.
+  - Added code in flonum->integer that checks for infinity and NaN.
+
+[Lib/primops.sch]
+  - Compnum? is a primop.
+
+[Lib/secret.sch; Eval/macro-expand.sch; Eval/toplevel.sch;
+ Compiler/pass1.aux.sch; Compiler/*.imp.sch]
+  - [035] Secret names used by macro expanders are now illegal names and
+    cannot be confused with user-defined names.
+
+[Rts/Sys/cheney.c]
+  - Massively changed and rearranged to accomodate the new non-predictive
+    collector; the result is a larger but nicer program.
+
+[Rts/Sys/gc.c] 
+  - Bug fixed in reorganize_and_dump_heap_image.
+
+[Rts/Sys/larceny.c]
+  - Accepts -max switch.
+
+[Rts/Sys/np-sc-heap.c]
+  - Non-predictive collector rewritten.
+
+[Rts/Sys/old-heap.c]
+  - Used dynamic_max parameter.
+
+[Rts/Sys/sc-heap.c]
+  - Used dynamic_max parameter.
+
+[Rts/Sys/ffi.c]
+  - Implemented sunos5 support for FFI.
+
+PERFORMANCE
+  * Peephole-optimizations for the pattern
+	setrtn Lx
+	branch Ly
+	.align whatever
+	.label Lx
+    and ditto for invoke; these now utilize the SPARC's generated
+    return address as part of the call or jmpl instruction rather than
+    doing the setrtn and then the jump.  
+    Yield: 8% speedup on doubly recursive (fib 35) [branch case]
+    Note: the 'invoke' case has been disabled because it slows the
+    program down; see comments in Asm/Sparc/peepopt.sch.
+
+----------------------------------------------------------------------
+v0.32 released 980406 by lth
+
+FEATURES
+  * New garbage collector! (again)
+  * Has SRO.
+  * stop-and-copy collector has static heap
+  * Several performance improvements
+    - I/O
+    - rest arguments
+  * Support for Macros that Work.
+  * Support for multiple values (rudimentary).
+  * Many bug fixes and minor improvements.
+
+COMPATIBILITY NOTE
+All programs should be recompiled.  Sorry.
+
+DETAILED CHANGES
+[Asm/Sparc/gen-msi.sch]
+  - The code generated for args>= now does the cases for 0 and 1 rest
+    arguments in-line.
+
+[Asm/Sparc/gen-prim.sch]
+  - Added a primop definition for eof-object?.
+  - Added a primop definition for port?.
+  - Added a primop definition for structure?.
+  - Removed the primop definition for make-rectangular.
+
+[Auxlib/load.sch; Auxlib/util.sch]
+  - A more sophisticated loader.
+  - Added full definitions of load-noisily and load-quietly.
+  - Load-noisily now handles multiple values.
+
+[Compiler/twobit.imp.sch]
+  - Added a primop definition for eof-object?.
+  - Added a primop definition for port?.
+  - Added a primop definition for structure?.
+  - Removed the primop definition for make-rectangular.
+
+[Eval/eval.sch]
+  - The signature and meaning of eval-macro-expander has changed.  It now
+    requires the installed macro-expander to take two arguments (namely,
+    the expression and the syntactic environment), and allows the user
+    to specify the keywords used by the macro expander in its output.
+    Together these changes accomodate Clinger's "Macros that work" package.
+    See the manual for details.
+  - Fixed a bug: () is now considered self-evaluating.  This was
+    discovered because the new macro expander does not wrap all constants
+    in a QUOTE.
+
+[Eval/toplevel.sch]
+  - Added values and call-with-values to the r5rs environment.
+  - Added repl and repl-prompt to larceny environment.
+
+[Lib/conio.sch]
+  - [055] Fixed a bug in conio which prevented I/O redirection at the shell
+    from working correctly.
+
+[Lib/control.sch]
+  - Added values and call-with-values (temporary but correct definitions,
+    modulo some call/cc interaction).
+
+[Lib/iosys.sch]
+  - Added io/port-at-eof?.
+  - Commented out port? -- it is now integrable.
+  - Removed reset-iosystem -- it was obsolete.
+
+[Lib/load.sch]
+  - If the environment argument to 'load' is omitted (indicating that the
+    interaction environment should be used), then interaction-environment
+    is called to get the environment for each expression evaluated.  This
+    modification lets loaded files change the setting of the interaction
+    environment and have that change visible to subsequent evaluations
+    during the loading.  Previously, the environment was computed before
+    the first evaluation and not changed throughout.
+  - removed load-noisily and load-quietly and moved them to Auxlib/load.sch.
+
+[Lib/malcode.mal]
+  - Added definitions for read-char and write-char.
+
+[Lib/mcode.sch]
+  - generic-make-rectangular now signals an error if called; make-rectangular
+    is no longer integrable.
+
+[Lib/number.sch]
+  - Implemented make-rectangular.
+
+[Lib/primops.sch]
+  - Added eof-object?.
+  - Added structure?.
+  - Added port?.
+  - Removed make-rectangular.
+
+[Lib/stdio.sch]
+  - Commented out eof-object?, which is now integrable.
+  - Commented out read-char and write-char, which are now written in MAL.
+
+[Lib/struct.sch]
+  - Commented out structure?, which is now integrable.
+
+[Macwork/*]
+  - This is Will Clinger's "Macros that work" package (dated 13 April 1993,
+    fetched from the Scheme repository) and one additional file, load.sch,
+    that allows the macro expander to be installed conveniently under
+    Larceny (UTSL).  The macro package is not yet integrated with Larceny's
+    top-level environments, but it's coming.
+
+[Repl/reploop.sch]
+  - The REPL now handles multiple values returned from the evaluated
+    expression, and prints them intelligently.
+  - There is now an installable REPL prompt printer, in the parameter
+    repl-prompt.  The prompt printer is a procedure of one argument
+    that receives the current REPL nesting level (1=outermost).
+  - REPL can be nested; ^D at the REPL prompt now exits the current level
+    of REPL only.  Ditto, ^D when reading during an expression evaluation
+    will not have the effect of terminating the program when control
+    returns to the REPL, but will just signal ^D to the application.
+
+[Rts/Sparc/generic.s]
+  - Disabled m_generic_make_rectangular.
+
+[Rts/Sys/*]
+  - Implemented SRO.
+
+[Rts/Sys/cheney.c]
+  - Folded in the bug fix from v0.29e (q.v.).
+
+[Rts/Sys/unix-alloc.c]
+  - [021] Changed free-list management.
+
+[Util/load-env.sch]
+  - Supports @interaction-environment@ as a target environment.
+
+[Util/modules.list]
+  - Now side-effects the interaction environment rather than redefining
+    it.  This change makes non-interactive use of load-environment behave
+    in the expected way; with the previous setup we got predictable but 
+    very weird behavior.  Essentially, bindings that were created in the 
+    new interaction environment were not visible to running code.
+
+
+----------------------------------------------------------------------
+v0.31 released 971031 by lth
+
+FEATURES
+  * Now allows the allocation of large objects in the generational
+    collector.  Also, the object size limit (16 MB) is enforced.
+  * Some debugger support has been implemented.
+  * Increased user-configurability in the form of installable macro
+    expanders (eval-macro-expander) and installable evaluators
+    (repl-eval-procedure).  Some of this support will change as it is
+    further cleaned up.
+  * Support for structure comparison with `structure-comparator'.
+  * Some experimental software is packaged with the distribution in the
+    directory Experimental:
+    - a rudimentary debugger (debug.sch)
+    - a record package (record.sch and record.doc)
+    - a generalized procedure facility (applyhook.sch and applyhook0.mal)
+
+DETAILED CHANGES
+[Asm/Common/pass5p1.sch; Asm/Sparc/pass5p2.sch; Asm/Sparc-old/assembler.sch]
+  Supports debug information for internal definitions.
+
+[Compiler/compile313.sch]
+  Implemented 'twobit-auxiliary-expander'.
+  Driver procedures now return #!unspecified rather than #t.
+
+[Compiler/pass1.sch]
+  'Pass1' takes optional file name and file position (for documentation).
+  Implemented the new documentation slot format.
+
+[Compiler/pass4p1.sch; Compiler/twobit.imp.sch]
+  Now emits debug information for internal definitions.
+
+[Eval/eval.sch]
+  Implemented 'eval-macro-expander'.
+  Fixed eval so that a top-level "begin" with definitions is handled
+  correctly.
+
+[Eval/macro-expand.sch]
+  A top-level BEGIN with all definitions inside is now handled correctly.
+
+[Eval/toplevel.sch]
+  Added the following procedures to larceny-environment:
+    eval-macro-expander
+    all procedure-information procedures
+    repl-eval-procedure
+    call-with-error-handler, call-with-reset-handler, call-without-errors
+    structure-comparator
+
+[Lib/conio.sch]
+  [046] Added code that allows the console I/O ports to be reopened correctly
+  after an I/O error.
+
+[Lib/ehandler.sch]
+  [038] Fixed bug in system-error-handler where an incorrect error message
+  was printed when an invalid typetag was passed to typetag-set!.
+
+[Lib/env.sch]
+  [045] Fixed bug in environment-gettable?, where it would return #t
+  if the cell existed with value #!undefined.
+
+[Lib/error.sch]
+  - [032] Fixed bug in error-handler that resulted in ever-longer error 
+    continuations due to an inadvertent stacking of error handlers.
+  - Rewrote error-handler and reset-handler in terms of system-parameter.
+
+[Lib/load.sch]
+  - Cleaned up.
+  - Implemented load-evaluator.
+
+[Lib/makefile.sch]
+  Added Lib/procinfo.sch.
+
+[Lib/malcode.mal]
+  Changed (#t) to #f in the documentation slots of all these procedures.
+
+[Lib/number.sch]
+  Fixed bugs in 'odd?' and 'even?' causing 'undefined global variable x'.
+  [022] ACOS and ASIN now deal correctly with arguments outside [-1,1].
+
+[Lib/preds.sch]
+  equal? now uses structure-comparator to compare structures.
+
+[Lib/print.sch]
+  Uses 'procedure-name' rather than the internal ad-hoc 'proc-id' to
+  get a procedure's name.
+
+[Lib/procinfo.sch]
+  New file that defines procedures for heuristic information extraction
+  from procedures.
+
+[Lib/struct.sch]
+  Implemented structure-comparator.
+
+[Lib/sysparam.sch]
+  New file.
+
+[Lib/unix.sch]
+  Added error checking to all the syscall abstractions.  This fixes numerous
+  previously unknown bugs.  (Try (load-quietly #t) in v0.29 to see what
+  I mean.)
+  Added code to allow console I/O ports to be correctly opened and closed.
+
+[Makefile]
+  Now removes bdwlarceny and hsplit in 'setup' target.
+
+[Repl/reploop.sch]
+  - Added repl-evaluator; repl now used the installed evaluator (if any)
+    to evaluate expressions.
+  - Renamed repl-display-procedure to repl-printer and rewrote it in terms
+    of system-parameter.
+
+[Rts/Makefile]
+  Now has a user-configurable section 0; "programs".
+
+[Rts/*/*]
+  [019] Now supports large-object allocation; this fixes a long-standing bug.
+
+[Rts/Sparc/generic.s]
+  Replaced fabsd with fabss and fnegd with fnegs so that it will run on
+  more Solaris machines.
+
+[Util/load-env.sch]
+  Defined the 'standard-installations' procedure that will install
+  more sophisticated procedures for the defaults (REPL printer, evaluator).
+
+  load-environment now takes an optional directory name argument that
+  specifies the base directory from which to load the development 
+  environment.
+
+[Util/make-support.fasl]
+  [040] Support code for the make system when running standalone.
+
+[Util/modules.list]
+  Exports twobit-auxiliary-expander.
+  Loads Util/make-support.fasl.
+
+----------------------------------------------------------------------
+v0.30 released 970925 by lth
+
+MAJOR FEATURES
+* Works on Solaris (at least on v5.6)
+* There is a 'structure' data type
+* The new assembler is now the default for both Chez Scheme and Larceny.
+
+
+[Lib/print.sch; Lib/struct.sch; Lib/toplevel.sch; Lib/makefile.sch]
+  We have structures!
+  Structures are handled specially by calling the structure printer.
+
+[Compiler/compile313.sch]
+  - Added an 'assemble-file' procedure that takes .mal or .lap to .fasl.
+  - Fixed a bug in 'assemble313' where a .mal file was assembled to a file
+    with type .mal.lop rather than .lop.
+  - Cleaned up.
+
+[Asm/Sparc/sparcdis.sch; Asm/Sparc-old/sparcdis.sch; Compiler/compile313.sch]
+  - The name 'disassemble' is no longer in use; everyone agrees on the
+    name 'disassemble-codevector'.  This change was made to make it possible
+    to use the name 'disassemble' somewhere else.
+  - The name 'print-ilist' is no longer in use; everyone agrees on the
+    name 'print-instructions'.
+  - There is a new procedure 'disassemble' that disassembles a procedure
+    in a running system.
+
+----------------------------------------------------------------------
+v0.29e released 971103 by lth
+
+[Rts/Sys/cheney.c]
+  Fixed a bug in scan_oflo() and scan_oflo_partial() that resulted in
+  excessive instruction cache flushing -- once for every bytevector-like,
+  rather than for every bytevector.  The problem was that in these two
+  macros, the test for flushing used T_h rather than T_w.  Subtle.
+
+----------------------------------------------------------------------
+v0.29d released 971030 by lth
+
+[Rts/*/*]
+  Now supports large-object allocation; this fixes (for this version)
+  a long-standing bug.
+
+[Lib/number.sch]
+  Fixed bugs in odd? and even? resulting in "undefined global variable x".
+
+----------------------------------------------------------------------
+v0.29c released 971006 by lth
+
+[Lib/vector.sch]
+  Fixed a bug in vector-equal? where holdover code from MacScheme still
+  used =? and <?; this bug was then encountered by the assembler,
+  presumably because multiple vectors ended up in the same constant
+  vector (yahoo).
+
+----------------------------------------------------------------------
+v0.29b released 970924 by lth
+
+[Rts/Sparc/generic.s]
+  Fixed another bug in m_generic_div introduced by fp exception handling.
+
+----------------------------------------------------------------------
+v0.29a released 970917 by lth
+
+[Rts/Sparc/generic.s]
+  Fixed a bug in m_generic_div introduced by fp exception handling.
+
+----------------------------------------------------------------------
+v0.29 released 970917 by lth
+
+MAJOR FEATURES:
+* System is now self-hosting.
+* New, fast SPARC assembler.
+* Keyboard interrupt handling -- ^C no longer aborts Larceny, but
+  returns to the top level.  There is an installable interrupt handler.
+* Arithmetic exceptions are handled and no longer abort larceny.
+* Timer interrupts have been tested extensively and are working.
+* First-class top-level environments.
+* Compiler load script (see manual) uses top-level environments for
+  namespace control.
+* Changes to garbage collector: a "nursery" (always-promoting) youngest
+  generation is the default; this can be disabled with -nonursery.
+  This facility is in its infancy.
+
+
+[misc Rts]
+  Garbage collector defaults have changed.  The default now is to always
+  promote out of the youngest heap (thereby emulating a nursery); the
+  old behavior can be had with the command line switch -nonursery.
+  Also, a new command line switch -nocontract can be given to disable all
+  heap contraction; this is useful for some benchmarking purposes.
+
+[Lib/unix.sch; Lib/toplevel.sch; 
+  Rts/Sys/unix.c; Rts/Sys/cglue.c; Rts/Sys/larceny.h]
+  Implemented `system' procedure.
+
+[Compiler/dumpheap.sch; Util/nbuild.sch]
+  Dumpheap moved to Asm/Common; build script updated.
+
+[Compiler/makefasl.sch; Util/nbuild.sch]
+  Makefasl moved to Asm/Common; build script updated.
+
+[Compiler/make.sch; Util/nbuild.sch; ./nbuild]
+  Scheme files moved to Util; build script updated.
+
+[Compiler/freevars.sch]
+  Moved to Util.
+
+[Asm/Sparc/gen-prim.sch]
+  [011] Fixed bugs in the way error reporting code was generated; error
+  messages should now be correct.
+  [033] char=? is now less liberal in the types it accepts.
+
+[Rts/Sparc/mcode.s, Rts/Sparc/glue.s, Rts/Sys/signals.c, Rts/Sys/cglue.c]
+  Keyboard interrupts now work!  They are not particularly sophisticated,
+  and not restartable, and must be redesigned when we get threads, but
+  it's a big improvement over what we had (i.e., nothing).
+
+[Rts/Sparc/mcode.s, Rts/Sparc/generic.s, Rts/Sys/signals.c]
+  Division by zero is now handled without testing!  Also, general arithmetic
+  exception handling is in place, even though it has not been tested
+  extensively.
+
+[Lib/env.sch; Eval/toplevel.sch]
+  We now have proper first-class toplevel environments, and R5RS environments
+  are properly supported in terms of these.
+
+[Rts/Sparc/glue.s]
+  Fixed several serious bugs in internal_scheme_call where context would 
+  be destroyed if a stack overflow happened in internal_scheme_call.
+
+[Asm/Sparc-old/gen-msi.sch]
+  Fixed a bug in the calculation of the return address when taking a timer
+  interrupt in a branch (obscure but important).
+
+[Lib/bignums.sch]
+  [037] Fixed yet another bug in bignum->fixnum.
+
+
+----------------------------------------------------------------------
+v0.28e released 970717 by lth
+
+The following qualify as maintenance fixes:
+
+[Chez/compat.sch]
+  Turned off echoing when loading .so files (much too annoying).
+
+[Lib/oblist.sch]
+  Removed the printing of an informative message when rehashing the 
+  symbol table.
+
+[Lib/oblist.sch]
+  All symbol table procedures that have side effects are now protected
+  by critical sections.
+
+[Lib/timer.sch]
+  Re-implemented call-without-interrupts to behave properly in the presence
+  of escape from and re-entry into the critical section by using dynamic-wind.
+
+[Eval/macro-expand.sch]
+  Added support for (define variable) syntax.
+  Fixed bug in expansion of let* that caused internal definitions not 
+  to be handled.
+  Fixed bug in expansion of cond => (forgot an unquote).
+
+[Eval/eval.sch]
+  Evaluator now knows about #!undefined (so that it can deal with the
+  expansion of (define variable), see directly above).
+
+[Lib/number.sch]
+  Changed make-polar (again), simplifying the implementation.
+
+[Lib/reader.sch]
+  Fixed a serious error in the reader whereby character constants could
+  not be read; seems to have crept in between revisions 1.6 and 1.7.
+
+[Lib/string.sch]
+  Fixed two typos in bytevector-copy (n should have been v, and ! was missing).
+
+[nbuild; Util/nbuild.sch]
+  Changes to accomodate builds with larceny and to choose among new and old
+  assembler.
+
+[Larceny/compat.sch]
+  Fixed some bugs resulting from not maintaining this code.
+
+[Compiler/compile313.sch]
+  Removed incompatible use of 'format' from disassemble313 procedure.
+
+[Rts/Sparc/mcode.s]
+  Procedures can now be arguments to typetag and typetag-set!.
+
+[Rts/Sys/ldebug.c]
+  Added prototypes (and fixed a bug unseen by the compiler because the file
+  did not have prototypes).
+  Added b+/b- operation.
+
+[new assembler]
+  [Bug 003] Singlestepping works.
+  [Bug 010] Vector-ref range checking works.
+
+[Lib/reader.sch]
+  [Bug 030] Initial-capital letter problem fixed.
+
+[Compiler/assembler.sch; Compiler/peepopt.sch; Sparcasm/*; Util/nbuild.sch]
+  Moved the assembler files to Asm/Sparc-old/ and changed the build script
+  correspondingly.
+
+
+----------------------------------------------------------------------
+v0.28d released 970707 by lth
+
+STATUS
+* Timer interrupts have been tested and seem to be working correctly.
+* Interpreter runs non-trivial programs.
+
+
+MINOR FEATURES
+
+[Lib/unix.sch; Lib/exit.sch]
+  The `exit' procedure now takes an optional exit status argument (a fixnum).
+  `Exit' has been moved into Lib/exit.sch, and additional functionality in
+  the form of exit procedures has been added.
+
+[Lib/exit.sch]
+  It is now possible to register init procedures, which are run when a dumped
+  heap image is loaded.
+
+[Lib/dump.sch]
+  The heap dumper startup procedure now calls run-init-procedures before
+  calling the user-supplied startup procedure.
+
+[Lib/format.sch; Eval/toplevel.sch]
+  Added a simple `format' procedure.
+
+[Lib/control.sch]
+  Improved the implementation of call-without-interrupts -- it now does
+  what it's supposed to do (was previously a no-op).
+
+[Lib/reader.sch]
+  String escape characters \n and \t have been implemented.
+
+[Repl/reploop.sch]
+  Printer for repl is now installable through 'repl-display-procedure'.
+
+[Util/memstats.sch]
+  Added this file, which contains accessors for the structure returned from
+  the memstats procedure.
+
+
+CLEANUP
+
+[Lib/*.sch]
+  All calls to error are now in a non-tail-recursive position.
+
+[Lib/timer.sch; Lib/error.sch]
+  Moved timer interrupt code from error.sch to timer.sch (a new file).
+
+[Lib/unix.sch; Lib/dump.sch]
+  Moved heap dumping code from unix.sch to dump.sch (a new file).
+
+[Repl/reploop.sch]
+  Cleaned up the code considerably.
+
+[Lib/oblist.sch; Lib/string.sch; Lib/go.sch]
+  Cleaned up oblist and symbol management code (considerably).
+  Symbol table now performs rehashing when the table becomes too large.
+  Moved string-hash to string.sch.
+
+[Eval/toplevel.sch]
+  Added call-without-interrupts to the default initial environment.
+
+
+BUGS FIXED
+
+[Lib/unix.sch; Rts/Sys/unix.c; Rts/Sys/cglue.c]
+  [002] The exit status now defaults to 0, but can also be passed
+  explicitly to `exit'.
+
+[Lib/bignums.sch]
+  [004] Bignum->fixnum did not preserve the sign for negative bignums,
+  causing bignum-subtract to fail for some numbers.
+
+[Repl/reploop.sch]
+  [017] Added code to reestablish the console i/o ports after errors and 
+  after evaluations.
+
+[Lib/macro-expand.sch; Compiler/pass1.aux.sch]  
+  [020] Fixed a bug in the rewriting of quasiquotations where rewriting was
+  erroneously not performed in (QUOTE x).  This caused bad code to be
+  generated for CASE in the interpreter (although not in the compiler,
+  which rewrites CASE in a different way).
+
+[Lib/number.sch]
+  [023] Fixed bug in 'magnitude'.
+  [024] Fixed bug in 'make-polar'.
+
+[Rts/Sparc/generic.s]
+  [025] Fixed bug in compnum/compnum multiplication.
+
+[Eval/eval.sch]
+  Fixed an error in the interpreter where rest arguments were incorrectly
+  handled.
+
+[Eval/eval.sch]
+  Commented out code in the interpreter which incorrectly interpreted letrec;
+  this code should eventually be repaired.
+
+[Compiler/make.sch]
+  Fixed long-standing make bug where files were not correctly copied from
+  the Build directory after changes to the configuration files.
+
+[Rts/Sys/*]
+  Numerous fixes to GC policy code from Will.
+
+
+----------------------------------------------------------------------
+v0.28c released piecemeal by lth during benchmarking for PLDI '97 paper
+
+* MINOR FEATURES
+  [bdw-collector.c] Now clears the stack cache before use, to make sure
+  it's 0-initialized (defensive coding).
+ 
+* BUGS FIXED
+  [Lib/string.sch] make-string now requires only one argument (used to
+    be two), making the second argument optional.
+  [young-heap.c] Bugs involving the use of the watermark were fixed.
+  [sc-heap.c] Fixed several bugs that caused an infinite loop if stack 
+    failed to be allocated.
+  [sc-heap.c] Fixed bug whereby not enough room were requested after GC,
+    causing infinite GC loop.
+  [np-sc-heap.c] Fixed bug that incorrectly calculated the number of words
+    copied when promoting into the young generation.
+
+
+----------------------------------------------------------------------
+v0.28b released 970530 by lth
+
+MAJOR FEATURES
+* Supports Boehm's conservative garbage collector.
+* New command line switch ``-reorganize-and-dump'' and new static-heap 
+  architecture allow creation of (primitive) split heaps.  (More to
+  come here when new heap dumper has been implemented.)
+* Added library procedure ``gcctl'' to control garbage collector
+  policy (currently only for NP collector); see manual for details.
+
+
+MINOR FEATURES
+* Added a number of statistics fields to the statistics structure.
+  These fields are reflected in the memstats vector and are also printed 
+  by display-memstats.  They are:
+   - overall GC time is split into total time and promotion time
+   - overall heap allocation is reported as three numbers:
+     - maximum heap allocation ever
+     - current heap memory allocated to all spaces in all heaps.
+     - current heap memory in use by Scheme objects.
+   - per-generation GC time is also split into total time and promotion time
+   - per-generation heap allocation is also reported as three numbers:
+     - generation size, which is the _desired_ maximum size.  This is policy.
+     - current heap memory allocated to the generation (both semispaces!)
+     - current heap memory in use by Scheme objects.
+  See the manual section for memstats for more information.
+  NOTE: that these new fields are _not yet_ dumped as part of the stats-dump.
+
+
+BUGS FIXED
+* [larceny.c] Did not accept -lomark (without heap number argument).
+* [old-heap.c] Fixed bug in old-heap promotion policy (introduced in 0.28, 
+  not-quite-fixed in 0.28a).
+* [unix-alloc.c] Fixed bug in heap allocation stats that incorrectly
+  calculated heap usage stats when pages were freed.
+* [np-sc-heap.c] Fixed probable bug in internal_promote where the old
+  semispace was not synced before a decision was made about which
+  semispace to promote into.
+* [np-sc-heap.c] Fixed bug that caused initial settings of the
+  non-predictive heap size to be calculated incorrectly, because -steps
+  and -stepsize were ignored unless both were specified, and there might
+  have been other strange interactions too.  One can now use -steps,
+  -stepsize, and -size_ independently, and things work pretty much as
+  expected.  See the manual section on heap allocation options for the NP
+  collector for more details.
+* [sc-heap.c] Fixed bug in overflow calculation that would expand the heap
+  much more aggressively (and silently!) than what was desired.
+* [sc-heap.c] Fixed bug in expansion policy that caused "can't allocate"
+  panic under some circumstances where the heap was overfull after GC.
+* [many places] Should now calculate words copied correctly.
+
+
+----------------------------------------------------------------------
+v0.28a Released May 15 by lth
+
+MAJOR CHANGES
+* [Rts/Sys/sc-heap.c] Stop-and-copy garbage collector (w/o static area).
+
+RTS CHANGES
+* [Rts/Sys/{memmgr.h;memmgr.c;young-heap.c;gc.c}] There are now methods
+  on gc_t and young_heap_t called stack_overflow(): the latter is invoked
+  by the former in response to a stack overflow.  This is more well-
+  behaved than the previous implementation, which just called the collector
+  early on without letting the heap handle the overflow.
+* [Rts/Sys/*] Numerous bug fixes in and tuning of garbage collectors.
+
+EVALUATOR CHANGES
+* [Eval/eval.sch;evalprim.sch] Moved eval primitives out of eval.sch
+  and into the new file evalprim.sch, to remove clutter.
+
+BUG FIXES
+* [001] As a consequence of fixing [006], (inexact->exact 0.0) now works.
+* [006] [Rts/Sparc/generic.s] generic_integerp now works for 0.0 and -0.0.
+* [007] [Lib/num2str.sch] -0.0 now prints as -0.0.
+* [Eval/eval.sch] Fixed a bug in the new evaluator where uses of eq? and 
+  eqv? caused errors to be signalled.
+* [008] [Eval/eval.sch] An error in the evaluation of set! was fixed.
+
+
+----------------------------------------------------------------------
+v0.27e Released March 20, 1997 by lth
+
+MAJOR CHANGES
+* [Rts/Sys/np-sc-heap.c] Non-predictive garbage collector.
+
+FUNCTIONALITY CHANGES
+
+Development environment
+* [Chez/compat.sch] Now has a procedure chez-compile-files that compiles
+  all the scheme files in the development environment to Chez object files,
+  and now loads object files automatically if they exist and are newer than
+  corresponding Scheme files.  See manual.
+
+Evaluator
+* [Eval/macro-expand.sch] (COND ((E) => E) ...) expansion is implemented.
+* [Eval/eval.sch] Completely rewritten -- much, much faster.
+
+BUG FIXES
+
+Evaluator
+* [Eval/macro-expand.sch] OR expansion is now correct.
+* [Eval/macro-expand.sch] (COND ((E)) ...) expansion is now correct.
+* [Eval/macro-expand.sch] Named LET expansion is now correct.
+
+
+STRUCTURAL CHANGES
+
+Cleanup
+* [nbuild] Now gets nbuild.sch from Util rather than from Compiler.
+* [Rts/config] Now gets config.sch from ../Util rather than from ../Compiler.
+* [Util/nbuild.sch] Moved here from Compiler.
+* [Util/config.sch] Moved here from Compiler.
+* [Makefile] realclean should now really clean up
+* [Rts/Makefile] distinguishes rtsclean and realclean.
+* [Eval/macro-expand.sch] This file is the old Compiler/rewrite.sch.
+
+Development environment
+* [Util/nbuild.sch] Now parcels out the load work to compat:load.
+
+
+MISC CHANGES
+
+RTS
+* [Rts/Sys/larceny.c] Now prints GC type only if -stats option is given.
+
+Evaluator
+* [Eval/eval.sch; Eval/toplevel.sch] 'Eval' now calls 'macro-expand' 
+  rather than 'rewrite'.
+
+----------------------------------------------------------------------
+v0.26  Created February 11, 1997 by lth
+
+Noteworthy
+* This version contains major changes from previous versions.
+* Most compiled code continues to work, although old heap images do 
+  not work, due to changes in the basic library.  Also, old code that
+  relies on the interface to the 'collect' procedure or on the return
+  value of the 'memstats' procedure will no longer work.
+* Heap dumping is currently _not_ possible.
+
+Major changes
+* [RTS] Entirely new memory management subsystem.
+* [RTS] Entirely new heap statistics code.
+* [RTS] Full use of ANSI C prototypes throughout; system no longer compiles
+  with the SunOS bundled C compiler ('cc').
+
+Minor changes
+* New GC and statistics interface from Scheme; see manual.
+* New command line switches; see manual.
+* [Lib/memstats.sch] Completely rewritten.
+* [Lib/load.sch] No longer performs a GC after loading.
+* [Lib/reader.sch] Flushes the icache when loading code vectors.
+* [Lib/print.sch] The unprintable object is now #!unspecified.
+* [Repl/reploop.sch] The REPL does not print #!unspecified.
+* Text subdirectory is no longer part of the standard distribution
+
+... and lots of others, I'm sure -- I lost track of them all.
+
+----------------------------------------------------------------------
+v0.25b Created October 16, 1996 by lth
+
+Bugs
+- [Makefile] README was not included in the tar file
+- [Makefile] Chez/compat.sch was not included in the tar file
+
+----------------------------------------------------------------------
+v0.25a Created September 1996 by lth
+
+General reorganization, cleanup, and so on.
+- [Compiler/dumpheap.sch] Now much faster, requires much less memory, but
+  depends on the Chez system() procedure.  No big loss; the benefits are
+  real.
+- [Eval/toplevel.sch;Repl/reploop.sch] The procedure 'rep-loop' is no
+  longer visible in the dumped heap.  Instead there exists an abstraction
+  'dump-interactive-heap' which dumps a heap with the standard reploop
+  as the startup procedure (init file loading and all).
+- [./nbuild; Compiler/nbuild.sch; Chez/compat.sch; Larceny/compat.sch]
+  The nbuild script can now be used to run the development environment
+  under both Chez and Larceny and should generalize to other systems
+  as well.  Compiler/nbuild.sch is now system-independent.
+- [misc] Assembler switches have been cleaned up:
+  - 'Register-transactions-for-side-effects' is now a switch procedure 
+    called 'write-barrier', defaults to #t.
+  - 'Inline-cons' is now a switch procedure, default #f.
+  - 'Inline-assignment' is now a switch procedure, default #f.
+  - 'emit-undef-check?' is now a switch procedure called 
+    'catch-undefined-globals', default #t.
+  - 'unsafe-mode' is now a switch procedure called 'unsafe-code',
+    default #f.
+- [misc] The heap dumper switch 'generate-global-symbols?' is now
+  a switch procedure called 'generate-global-symbols' defaulting to #t.
+- [Repl; Repl/reploop.sch] Realizing that the repl is independent of
+  both the evaluator and the library, a new subdirectory Repl holds
+  all the common repl and user interface code.
+- [Lib/load.sch; Lib/makefile.sch] Lib/load.sch is new; it contains the 
+  loader.
+- [Eval; Lib/makefile.sch; nbuild] Lib/Eval is now called Eval, on
+  the top level. Changes to the makefile and nbuild to accomodate this.
+- [Lib/*; Lib/makefile.sch] Files renamed and removed; all file names now 
+  fit an 8+3 format for transportability to DOS.
+- [Lib/*; Lib/makefile.sch] Library.sch discontinued; created list.sch,
+  vector.sch, control.sch. Moved many things from preds.sch to other
+  files.
+- [Auxlib] Created the directory Auxlib to hold 'add-on' libraries; see
+  the section for features below.
+- [Test] Created the directory Test to hold distributed test files (like
+  regression tests).
+- [Benchmarks] Created the directory Benchmarks to hold standard benchmark
+  program, for testing and benchmarking. Programs in the Test suite may
+  rely on these being present.
+
+Bug fixes in library.
+- [Lib/bignums.sch] fixnum->bignum did not handle most negative fixnum.
+- [Lib/load.sch] Now performs a gc after a load to flush the icache.
+- [Lib/schemeio.sch; Rts/Sys/unix.sch; Rts/Sys/cglue.c] Output ports 
+  now handle legal situations where the write system call does not write 
+  all bytes at once correctly; implemented new procedure sys$write-file4
+  which takes additional argument which is offset into buffer.
+- [Lib/primops.sch] make-vector required the fill argument, which is wrong.
+- [Lib/unix.sch; Repl/reploop.sch] **newline** has been moved to unix.sch
+  (because it is OS-dependent) and is set to 10, formerly 13.
+- [Lib/schemeio.sch] A bad test for eof in peek-char was corrected.
+- [Lib/num2str.sch] Now does compnums.
+- [Lib/flonums.sch] Make-compnum used wrong indices into flonums and compnum 
+  when copying.
+- [Lib/mcode.sch] generic-make-rectangular was too simplistic and crashed
+  when it called make-compnum with an exact number.
+- [Lib/bignums.sch] Tuned bignum-ref, bignum-set!, for considerable speedup
+  on em benchmark.
+- [Lib/contag.sch] Tuned contagion somewhat by avoiding some consing and
+  doing CPS instead.
+- [Lib/makefile.sch] Now turns off generation checking before starting
+  make-larceny-eheap, and turned it on before starting make-larceny-heap.
+- [Lib/schemeio.sch] Cleaned up many error messages.
+- [Lib/ratnums.sch] Fixed the implementations of round and truncate,
+  which were (very) incorrect. This also fixes rationalize.
+- [Lib/reader.sch] Fixed bug in 'read' where it would always read from
+  the terminal when not given a port argument, regardless of what the
+  current input port was.
+
+Bug fixes/changes in Sparc assembler.
+- [Sparcasm/gen-prim.sch] Fixed implementation of lognot, which 
+  had arguments reversed to a machine instruction (ornr is not commutative).
+- [Sparcasm/asmutil.sch] This file is new. It contains helpful definitions
+  common to the assembler modules.
+- [Sparcasm/switches.sch] This file is new. It contains definitions of all
+  the switches used by the Sparc assembler.
+- [Sparcasm/gen-prim.sch] Fixed bug in emit-single-tagcheck-assert-reg! 
+  which caused error-causing value not to be passed to error handler if
+  it was not already in RESULT (as is often the case with optimized code).
+  Fixed ditto bugs in emit-assert-fixnum! and emit-assert-positive-fixnum!.
+
+Bug fixes in run-time system
+- [Lib/generic.s] Unary minus (m_generic_neg) was wrong for the most
+  negative fixnum, a case which causes overflow in the in-line code and
+  which must therefore be handled specially.
+- [Rts/Sys/gc.c] The collector now zeroes all pad words; this simplifies
+  the heap dumper quite a bit and should simplify other tools (hsplit)
+  which work on heap images which have been through the collector at least
+  once.
+- [Rts/Sys/gc.c, Rts/Sys/policy.c] Heap overflow limit was incorrectly
+  calculated during full garbage collection, causing segmentation faults
+  under certain heap-full conditions.
+- [Lib/generic.s] Obscure overflow cases in =, <, <=, >, >= were fixed.
+  Happened when the difference of the operands overflowed, e.g. when a
+  is a small negative number and b is a positive number close to the 
+  fixnum limit (specific case -32 and 2^29-1).
+- [Lib/generic.s] Real-part and imag-part were very wrong.
+
+Bug fixes in compiler.
+- [Compiler/switches.sch] Added issue-warnings, used by the macro expander
+  and previously defined in Lib/Eval/reploop.sch. On the other hand, this
+  seems to be global in MacScheme?
+
+Bug fixes in development system.
+- [nbuild] Nbuild did not actually detect whether schdefs.h needed to be
+  updated.
+
+Features
+- [Lib/reader.sch,Lib/control.sch,Lib/load.sch,Eval/eval.sch] Implemented 
+  and used global-name-resolver for dealing with name lookup in global
+  environments.
+- [Lib/env.sch] Placeholders for R5RS environments.
+- [Lib/control.sch] Implemented dynamic-wind.
+- [Rts/Sys/policy.c,memstats.c] -memstats argument now causes static
+  area size to be printed.
+- [Lib/str2num.sch;Lib/num2str.sch] There is now read and print syntax
+  for infinite flonums (+inf.0 and -inf.0) and NANs (+nan.0 and -nan.0,
+  although these are the same number) and their usual complex combinations.
+  The syntax is consistent with Chez Scheme; it was needed in order for
+  Larceny to support its own development, as there are literal infinite
+  numbers and NANs in the object files.
+- [misc] There is now a distinguished eof-object, and it is returned by
+  a call to the integrable 'eof-object'.
+- [Repl/reploop.sch] If command line arguments are present, then the first
+  one is interpreted as a file name and attempted loaded if the file exists.
+  The others are ignored.  This change makes Larceny usable with nbuild.
+- [Rts/Sys/larceny.c, argv.c; Compiler/dumpheap.sch; Lib/go.sch; 
+   Repl/reploop.sch] The startup procedure now gets passed a vector
+   containing the command line strings following the -args argument
+   (which is new).  This way, the program can access the command line.
+- [Rts/Sparc/mcode.s, Lib/error.sch] Implemented timer interrupt.
+- [misc] Distinguishes #!unspecified and #!undefined; globals now initialized
+  as #!undefined.
+- [Rts/Sparc/generic.s; Lib/ehandler.sch] Now checks for division by 
+  zero (albeit the hard way).
+- [Rts/Sys/heapio.sch] Now dumps split heaps.
+- [Lib/str2num.sch] Now supports complex numbers.
+- [Lib/num2str.sch] Now supports compnums.
+- [Lib/mcode.sch] Millicode table now has two-argument versions of common
+  multi-argument procedures (+,-, and so on) allowing them not to cons
+  up varargs.
+- [Lib/number.sch] Tuned floor and ceiling by special-casing flonums,
+  avoiding mixed-representation arithmetic.
+- [Compiler;Sparcasm/gen-prim.sch;Lib/{number.sch,flonums.sch}] Made flonum?
+  a primop.
+- [Lib/unix.sch,number.sch;Rts/Sys/unix.c,cglue.c] Added log, exp, sin, cos,
+  tan, asin, acos, atan, sqrt (although not for complexes yet).
+- [Compiler/nmake.sch;Lib/nmkfile.sch] This is a new make system and
+  associated make file much improved. The files Lib/makefile.sch and
+  Compiler/make.sch are obsolete and will be removed in a future release.
+- [Lib/error.sch; Lib/ehandler.sch; Repl/reploop.sch] There is now a
+  procedure reset which is more basic than error. There is also support
+  for installable error and reset handlers with the error-handler and
+  reset-handler procedures. There is a new file Lib/error.sch.
+- [Compiler/compile313.sch] Object files compiled without write barrier 
+  checks now have extension .elop, to match the .eheap heap files. This
+  makes it possible to build both types of heaps at the same time. It
+  also reduces the opportunity for error. [Still to FIX: Should have fasl
+  and efasl.]
+- [Rts/Sparc/cache.c;Rts/Sparc/cache0.s;Rts/Sys/gc.c] Larceny now detects
+  automatically whether the icache needs to be flushed or not.
+- [Auxlib/auxload.sch] This file will load all the auxiliary library
+  files.
+- [Auxlib/sort.sch] Added sort procedures for lists and vectors (based on
+  the permsort code).
+- [Auxlib/pp.sch] Added Marc Feeley's pretty printer (from the Scheme
+  repository).
+- [Auxlib/misc.sch] Added several useful procedures: some?, every?.
+- [Rts/Sys/hsplit.c; ~/hsplit] Created standalone program 'hsplit' to 
+  split heaps into a static and a dynamic area.
+
+----------------------------------------------------------------------
+v0.24 created August 1, 1995 by lth
+
+NOTE: COMPILED FILES FROM EARLIER VERSIONS ARE NO LONGER COMPATIBLE.
+
+Bug fixes in the compiler
+- [twobit.imp.sch] removed define-inline of undefined and unspecified,
+  because they are wrong (and interfere with global-var-checking). One
+  day we need to get this right. However, this may have had an adverse
+  effect on code generation: there seems to be more SAVEing going on
+  than previously.
+- [pass4p2.sch] a call to cgframe-newtemp with two arguments (in the
+  procedure cg-evalargs) where the second argument was 1 was changed
+  to a call to cgframe-newtemp with the second argument removed.
+- [Compiler/twobit.imp.sch; Lib/integrable-procs] 'Undefined' is now
+  a bona fide primop.
+- [Compiler/pass1.aux.sch] Uses %make-promise rather than make-promise
+  for the expansion of 'delay'.
+
+Bug fixes in the RTS and Libraries
+- [Rts/Sys/memstats.c; others] Statistics are now updated when collected
+  by the user program, rather than only at GC time.
+- [Lib/unix.sch] Sys$gc is now a procedure (a syscall) rather than a primop.
+- [Lib/ratnums.sch] Lots of bugs fixed.
+- [Lib/print.sch] Swapped the order of port and eof-object because an
+  eof-object is also a port (in the current implementation).
+- [Lib/millicode-support.sch] Quotient, remainder should now work with
+  non-exact integers.
+- [Lib/number.sch] floor and ceiling now work.
+- [Rts/Sparc/generic.s; Lib/number.sch; Lib/integrable-procs.sch; 
+   Compiler/twobit.imp.sch; Sparcasm/gen-prim.sch] Modulo is no longer
+   a primop, and should now work.
+- [Lib/schemeio.sch; Lib/print.sch] Port is not printed with direction
+  and file name.
+- [Lib/schemeio.sch; Lib/unix.sch] Moved all OS-dependencies in the I/O
+  system into the Unix-specific file.
+- [Rts/Sparc/mcode.s; Sparcasm/gen-primop.sch; Compiler/twobit.imp.sch;
+   Lib/integrable-procs.sch; Lib/strings.sch] Implemented new millicode 
+   subroutine m_bvlcmp (aka sys$bvlcmp) for comparing bytevector-like 
+   structures lexicographically. Wrote it in assembly language because
+   the context switch time would dominate for most arguments.
+- [Rts/Sparc/unix.s] Superseded by syscall. File moved to Rts/Sparc/Old.
+- [Lib/malcode.mal] New file for all MAL in the system. Notably, contains
+  code for call-with-current-continuation and syscall.
+- [Lib/xlib.sch] Code for call-with-current-continuation is no longer here.
+- [Lib/rawapply.mal, Lib/unixio.mal] merged into Lib/malcode.mal; files
+  moved to Lib/Old.
+- [Rts/Sys/policy.c] code for expand_tspace did not take into account
+  data in the overflow area, resulting in a memory overrun and a 
+  segmentation fault.
+- [Rts/Sparc/glue.s] code for copyregs saved only the first 16 registers,
+  causing the garbage collector to crash (and probably also other bugs,
+  but the programs usually did not get that far).
+- [Lib/preds.sch] memq actually used eqv? for comparison.
+- [Compiler/config.sch; Rts/config] Changes to accomodate Solaris;
+  some odds and ends were not properly ported for 0.23.
+- [Lib/bignums.sch] Many, many changes in bignum code to make it work.
+- [Lib/flonum-stuff.sch] Several changes in flonum code to make it work.
+- [Lib/ratnums.sch] Changed make-reduced-ratnum, which did not deal with
+  cases where the reduced number was x/1.
+- [Rts/Sparc/generic.s] Fixed two bugs where the length of flonum and compnum
+  structures were incorrectly set to 4 bytes larger than actual length.
+- [Sparcasm/gen-prim.sch] Fixed bug in exception handling code for character 
+  comparisons: the second operand would not be passed to the handler correctly.
+- [Sparcasm/gen-prim.sch] Fixed bug where the wrong exception code was passed
+  for bytevector-like-set!.
+- [Lib/preds.sch] [Will] Added list-tail, list-ref.
+- [Lib/preds.sch] Added IEEE compliant list?, and last-pair.
+- [Rts/Sys/cglue.c; Rts/Sparc/glue.s] Fixed bug in C_exception(): it did not 
+  pass the correct number of arguments to the print routine, resulting in 
+  bogus error messages. It also did not receive more than one argument from 
+  the millicode handler, but now receives two (code and pc).
+- [Lib/ratnums.sch; Lib/millicode-support-vector.sch; Rts/Sparc/generic.s] 
+  Added ratnum-round, ratnum-truncate; generic.s now has code which handles
+  round and truncate for ratnums.
+- [Rts/Sys/ldebug.c] Now possible to name RESULT, ARGREG2, ARGREG3 in the 
+  RTS debugger.
+- [Compiler/compile313.sch] Fixed error where assemble313 would assign
+  ".mal" as the extension of the output if the output name was not
+  explicitly given (should be ".lop"). Error was probably introduced during
+  cleanup for v0.23, as it used to work.
+- [Various] Added definitions for %LIST, %LIST->VECTOR, %CONS, and %APPEND 
+  to the libraries to support the macro expander.
+- [Chez/misc2bytevector.ss] Fixed the definition of +/- infinity; the old
+  bit patterns actually represented NANs.
+
+Features
+- [Lib/number.sch; Lib/Eval/eval.sch] Added 'rationalize' (from MacScheme).
+- [Sparcasm/gen-msi.sch] INVOKE and ARGS= now affected by unsafe-mode.
+- [Lib/Eval/reploop.sch] Now loads .larceny or ~/.larceny if possible.
+- [Compiler/nbuild.sch; Chez/values.ss] Now handles both Chez 5.0 and 4.1.
+- [Lib/strings.sch] Implemented bytevector-like-equal?; general cleanup.
+- [Compiler/pass1.aux.sch; Lib/library.sch] delay now uses the 'hidden'
+  definition %make-promise; also implemented this (and force).
+- [Lib/library.sch; Lib/strings.sch; Lib/Eval/eval.sch] Added definitions
+  of string-fill! and vector-fill!.
+- [Lib/schemeio.sch; Lib/unix.sch; Rts/Sys/cglue.c; Rts/Sys/unix.c; 
+   Lib/Eval/eval.sch]
+  Implemented hooks for char-ready?, file-modification-time, file-exists?,
+  rename-file, and getenv. Then implemented those procedures.
+- [Lib/schemeio.sch; Lib/unix.sch] 'exit' now flushes open files.
+- [Lib/schemeio.sch; Lib/Eval/eval.sch] with-input-from-file, 
+  with-output-to-file, and reset-iosystem implemented and made public.
+- [Lib/preds.sch] added append!, reverse!.
+- [Lib/Eval/eval.sch] added string-hash, symbol-hash to environment.
+- [Lib/xlib.sch;Lib/Eval/eval.sch] updated print-continuation; 'error' now
+  stores the raw continuation in a global variable for inspection. The
+  raw continuation (a vector structure) can be accessed with the procedure
+  'error-continuation'.
+- [Compiler/*] [Will] New compiler. Note, in particular, changes to
+  the assembler [assembler.sch] to accomodate new SAVE in a reasonable
+  way.
+- [Rts/Sparc/generic.s] quotient and remainder now handle 
+  32-bit-nonnegative-bignum by nonnegative-fixnum case in millicode; this 
+  to better support the portable bignum code.
+- [Sparcasm/gen-prim.sch] Character comparison predicates now take into 
+  account unsafe-mode.
+- [Compiler/peepopt.sch; Compiler/assembler.sch; Sparcasm/gen-prim.sch]
+  Implemented optimization of boolean expressions for control in expressions
+  involving character predicates.
+- [Compiler/peepopt.sch; Compiler/assembler.sch; Sparcasm/gen-msi.sch;
+   Compiler/twobit.imp.sch]
+  Implemented peephole optimization of reg n ; branchf L when n is a
+  hardware register (no payoff when it is not).
+- [Lib/Eval/eval.sch] Added predicates for testing number representation to 
+  top-level environment in evaluator.
+- [Lib/makefile.sch; Lib/bellerophon.sch] Added bellerophon to the default
+  heap image and shuffled the load order a little to make this work. 
+  Bellerophon does not presently call slow-ten-to-e during initialization; 
+  those values are precomputed for acceptable load-time performance. This 
+  should be ok.
+- [Rts/Sparc/glue.s; Rts/Sys/cglue.c] Added syscall primitive. Rewrote
+  a number of procedures (I/O, exit, resource-usage) to use syscall instead.
+
+Various changes
+- [Sparcasm/gen-prim.sch] internal changes to clean it up.
+- [Lib/Eval/eval.sch] [Will] Cleanup of the toplevel environment.
+
+----------------------------------------------------------------------
+v0.23 created March 7, 1995 by lth
+
+- Implemented instruction cache flush code.
+- Basic support for new SAVE instruction (one-arg) in assembler.
+- Inline generation-check for setcar/setcdr implemented in assembler.
+- Larceny now compiles and runs under Solaris as well.
+- New directory structure.
+- New Makefiles.
+- Fixed sundry bugs in command line parsing.
+- Cleaned up some of the Chez development system.
+
+----------------------------------------------------------------------
+v0.22 created August 20, 1994 by lth
+
+Speeded up stack underflow by recoding restore_frame directly in the
+underflow handler, saving two full context switches on every frame restore.
+On code like the deeply recursive append there is a nice speedup (esp. on
+owyhee, for some reason, less on the ELC) in the range 15-50%, so it
+is worth it for code like that; the handler gets pretty big though, so
+there's extra complexity to deal with.
+
+Whether this affects the performance of "real" programs is unknown. It
+was more ment as an experiment to see how fast stack handling can go.
+It can't go much faster than this...
+
+----------------------------------------------------------------------
+v0.21 created July 29, 1994 by lth
+
+Speeded up the garbage collector by redesigning scan() and by removing
+a level of indirection in forw(). Nice payoff, ~8% on Boyer.
+
+----------------------------------------------------------------------
+v0.20 created July 19, 1994 by lth.
+
+Major rewrite of run-time system.
+
+Major changes to Compiler/compile313: much cleaned up. make-fasl is now
+a part of this file, which contains all drivers.
+
+Make-fasl moved out of Compiler/makefasl.sch; there is now only one
+procedure, dump-fasl-segment-to-port, in this file.
+
+; eof

@@ -1,0 +1,166 @@
+#!/bin/sh
+# nbuild -- development system load script
+#
+# $Id$
+#
+# Usage:
+#   nbuild [ nbuild options ] [ -a host system argument ... ]
+#
+# The advantage of having this script is that it can be cloned and 
+# specialized for different object (or source) directories.
+
+# Temporary command file
+TMPFILE=/tmp/larceny.build.`whoami`.$$
+
+# Working directory
+DIR=`pwd`
+
+# New assembler or not?
+NEW_ASM="#t"
+
+# Target (choices: "SPARC", "standard-C")
+TARGET="SPARC"
+
+# Use Larceny to build
+#L_HOST=larceny
+#L_HOSTDIR=Larceny
+#L_HOSTNAME="Larceny"
+
+# Use Chez Scheme to build
+L_HOST=chez
+L_HOSTDIR=Chez
+L_HOSTNAME="Chez Scheme"
+
+ARGS=""
+INTERP="#f"
+VERBOSE="#f"
+EXECUTABLE=""
+ENDIAN=big
+
+while [ "$1" != "" ]; do 
+  case $1 in
+    -a | -arguments)
+       shift
+       ARGS=$*
+       break
+       ;;
+    -be | -big)
+       shift
+       ENDIAN=big
+       ;;
+    -chez | -c)
+       L_HOST=chez
+       L_HOSTDIR=Chez
+       L_HOSTNAME="Chez Scheme" 
+       ;;
+    -e | -executable)
+       shift
+       EXECUTABLE=$1
+       ;;
+    -el | -little)
+       shift
+       ENDIAN=little
+       ;;
+    -i | -interpreted)
+       INTERP="#t"
+       ;;
+    -larceny | -l)
+       L_HOST=larceny
+       L_HOSTDIR=Larceny
+       L_HOSTNAME="Larceny" 
+       NEW_ASM="#t"
+       ;;
+    -Larceny | -L)
+       L_HOST=Larceny
+       L_HOSTDIR=Larceny
+       L_HOSTNAME="Larceny" 
+       ;;
+    -old | -o)
+       NEW_ASM="#f"
+       ;;
+    -new | -n)
+       ;;
+    -sparc)
+       TARGET="SPARC"
+       ;;
+    -standard-C | -petit)
+       TARGET="standard-C"
+       ;;
+    -v | -verbose)
+       VERBOSE="#t"
+       ;;
+    *) echo "Unknown host system: $1"
+       echo "Usage: $0 [ -c | -i | -l | -o | -n | -v ] [ -a args ]"
+       echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
+       exit 1
+       ;;
+  esac
+  shift
+done
+
+cat > $TMPFILE <<END
+(define nbuild-parameter
+  (let ((parameters '((compiler       . "$DIR/Compiler/")
+		      (util           . "$DIR/Util/")
+		      (build          . "$DIR/Build/")
+		      (source         . "$DIR/Lib/")
+		      (common-asm     . "$DIR/Asm/Common/")
+		      (sparc-old      . "$DIR/Asm/Sparc-old/")
+		      (sparc-asm      . "$DIR/Asm/Sparc/")
+		      (standard-C-asm . "$DIR/Asm/Standard-C/")
+		      (endianness     . $ENDIAN)
+		      (target-machine . $TARGET)
+		      (new-assembler? . $NEW_ASM)
+		      (always-source? . $INTERP)
+		      (verbose-load?  . $VERBOSE)
+		      (compatibility  . "$DIR/Compat/$L_HOSTDIR/")
+		      (host-system    . "$L_HOSTNAME")
+		      )))
+    (lambda (key)
+      (let ((probe (assq key parameters)))
+	(if probe 
+	    (cdr probe)
+	    (error "Bad nbuild parameter key " path-ident))))))
+
+(display "Twobit/Larceny development environment running under ")
+(display (nbuild-parameter 'host-system))
+(display ".")
+(newline)
+(newline)
+(display "Loading ")
+(display (nbuild-parameter 'host-system))
+(display " compatibility package.")
+(newline)
+(load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
+(compat:initialize)
+
+;;;
+
+(load (string-append (nbuild-parameter 'util) "nbuild.sch"))
+END
+
+# Make the scheme header file; it may have changed.
+
+( cd Rts; make Build/schdefs.h ; exit $? ) || exit $?
+
+# Run the development environment.
+
+if [ "$EXECUTABLE" = "" ]; then
+  case $L_HOST in
+    chez) EXECUTABLE="scheme" ;;
+    larceny) EXECUTABLE="larceny" ;;
+    Larceny) EXECUTABLE="Larceny" ;;
+  esac
+fi
+
+case $L_HOST in
+  chez)    $EXECUTABLE $ARGS $TMPFILE ;;
+  larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
+  Larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
+  *)       echo "Internal error in build script."; exit 1 ;;
+esac
+
+rm $TMPFILE
+exit 0
+
+# eof
