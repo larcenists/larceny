@@ -72,8 +72,12 @@
 	(op-check     as rs1 rs2 $r.tmp0)
 	(sparc.bvc.a  as L1)
 	(sparc.move   as $r.tmp0 rd)
-	(if (not (= rs1 $r.result)) (sparc.move as rs1 $r.result))
-	(if (not (= rs2 $r.argreg2)) (sparc.move as rs2 $r.argreg2))
+        (if (not (= exn $ex.fx--))
+            (begin
+              (if (not (= rs1 $r.result)) (sparc.move as rs1 $r.result))
+              (if (not (= rs2 $r.argreg2)) (sparc.move as rs2 $r.argreg2)))
+            (begin
+              (if (not (= rs2 $r.result)) (sparc.move as rs2 $r.result))))
 	(sparc.set    as (thefixnum exn) $r.tmp0)
 	(millicode-call/ret as $m.exception L0)
 	(sparc.label  as L1))))
