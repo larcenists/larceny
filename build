@@ -10,9 +10,9 @@
 #
 # Configuration section
 
-# Valid values for $HOST: chez, larceny, Larceny.  Add others by 
+# Valid values for $HOST: chez, larceny, larceny.bin.  Add others by 
 # editing the code.
-HOST=chez
+HOST=larceny
 
 # Path of build directory.
 # Do _NOT_ remove the LARCENY_DEF tag.  It is used by `make setup' to
@@ -37,24 +37,27 @@ ENDIAN=big
 # Functions
 
 usage() {
-  echo "Usage: nbuild [ options ] [ -a host system argument ... ]"
+  echo "Usage: build [ options ] [ -a host system argument ... ]"
   echo ""
   echo "Options are:"
-  echo "  -build             run development environment (default)"
-  echo "  -config file       run config on the file"
-  echo "  -expand file       run expand on the file"
+  echo "  -build             run development environment"
+  echo "  -config FILE       run config on FILE"
+  echo "  -expand FILE       run expand on FILE"
   echo ""
-  echo "  -big               big endian (Standard-C target)"
-  echo "  -chez, -c          use Chez Scheme (default)"
+  echo "  -big               big endian (implies -petit)"
+  echo "  -chez, -c          use Chez Scheme"
   echo "  -interpreted, -i   use interpreter (do not load compiled files)"
-  echo "  -larceny, -l       use larceny (in the build directory)"
-  echo "  -Larceny, -L       use Larceny (in the PATH)"
-  echo "  -little            little endian (Standard-C target)"
-  echo "  -sparc             SPARC target (default)"
-  echo "  -petit             Standard-C target"
+  echo "  -larceny, -l       use larceny"
+  echo "  -larceny.bin, -lb  use larceny.bin in development directory"
+  echo "  -little            little endian (implies -petit)"
+  echo "  -sparc             SPARC back-end"
+  echo "  -petit             ANSI/ISO C back-end"
   echo "  -verbose, -v       be verbose"
+  ehco ""
+  echo "Default options are -build -larceny -sparc"
+  echo ""
   echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
-  exit 1
+  exit $1
 }
 
 run_development_environment() {
@@ -71,7 +74,7 @@ run_development_environment() {
       L_HOSTDIR="Chez"
       L_HOSTNAME="Chez Scheme"
       ;;
-    larceny | Larceny)
+    larceny | larceny.bin)
       L_HOSTDIR=Larceny
       L_HOSTNAME="Larceny"
       ;;
@@ -130,7 +133,7 @@ run_scheme() {
   case $HOST in
     chez)    run_chez ;;
     larceny) run_larceny ;;
-    Larceny) run_Larceny ;;
+    larceny.bin) run_larceny_bin ;;
     *)       echo "Unknown host tag $HOST"; exit 1 ;;
   esac
 }
@@ -139,14 +142,14 @@ run_chez() {
   scheme $TMPFILE $ARGS | tail +4
 }
 
-run_larceny() {
-  EXEC=${LARCENY}/larceny
-  HEAP=${LARCENY}/larceny.heap
+run_larceny_bin() {
+  EXEC=${LARCENY}/larceny.bin
+  HEAP=${LARCENY}/sparc.heap
   $EXEC $HEAP -args $TMPFILE $ARGS | tail +1
 }
 
-run_Larceny() {
-  Larceny $TMPFILE $ARGS | tail +1
+run_larceny() {
+  larceny $TMPFILE $ARGS | tail +1
 }
 
 # Main
@@ -158,11 +161,11 @@ while [ "$1" != "" ]; do
       ;;
     -config)
       ACTION=config; shift
-      if [ "$1" != "" ]; then FILE=$1; shift ; else usage; fi
+      if [ "$1" != "" ]; then FILE=$1; shift ; else usage 1; fi
       ;;
     -expand)  
       ACTION=expand; shift
-      if [ "$1" != "" ]; then FILE=$1; shift ; else usage; fi
+      if [ "$1" != "" ]; then FILE=$1; shift ; else usage 1; fi
       ;;
     -a | -arguments)
       shift
@@ -177,6 +180,9 @@ while [ "$1" != "" ]; do
     -chez | -c)
       HOST=chez; shift 
       ;;
+    -help | -h)
+      usage 0
+      ;;
     -interpreted | -i)
       INTERP="#t"
       shift
@@ -189,8 +195,8 @@ while [ "$1" != "" ]; do
     -larceny | -l)
       HOST=larceny; shift
       ;;
-    -Larceny | -L) 
-      HOST=Larceny; shift 
+    -larceny.bin | -lb) 
+      HOST=larceny.bin; shift 
       ;;
     -sparc)
       TARGET="sparc"
@@ -206,7 +212,7 @@ while [ "$1" != "" ]; do
       ;;
     *)
       echo "Unrecognized option: $1"
-      usage 
+      usage 1
       ;;
   esac
 done
