@@ -75,16 +75,24 @@
 
 (define (objects path ext files . rest)
   (let ((substitutions (if (null? rest) '() (car rest))))
-    (map (lambda (n)
-	   (cond ((string? n)
-		  (string-append path n ext))
-		 ((symbol? n) 
-		  (let ((probe (assq n substitutions)))
-		    (if probe
-			(cdr probe)
-			(error "objects: No substitution found for " n))))
-		 (else ???)))
-	 files)))
+    (define (loop files)
+      (cond ((null? files) 
+             '())
+            ((string? (car files))
+             (cons (string-append path (car files) ext)
+                   (loop (cdr files))))
+            ((symbol? (car files))
+             (let ((probe (assq (car files) substitutions)))
+               (cond ((not probe)
+                      (error "objects: No substitutions found for " 
+                             (car files)))
+                     ((not (cdr probe))
+                      (loop (cdr files)))
+                     (else
+                      (cons (cdr probe) (loop (cdr files)))))))
+            (else
+             ???)))
+    (loop files)))
 
 (define (replace-extension ext files)
   (map (lambda (file)
@@ -193,7 +201,7 @@
                   common-heap-files
 		  '((primops . "Lib/Sparc/primops.lop")
 		    (toplevel . "Lib/Sparc/toplevel.lop")
-                    (extra . ()))))
+                    (extra . #f))))
 	(sparc-eval-files
 	 (objects "" ".lop" eval-files)))
     (make:project "sparc.heap"
