@@ -28,7 +28,7 @@ export BUILD_HOST
 # Do _NOT_ remove the LARCENY_DEF tag.  It is used by `make setup' to
 # initialize the definition of the working directory.
 
-LARCENY=/proj/will/lth/larceny/src #@LARCENY_DEF@
+LARCENY=/proj/will/Larceny #@LARCENY_DEF@
 
 #
 ######################################################################

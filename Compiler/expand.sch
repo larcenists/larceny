@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 18 December 1998
+; 29 March 1999
 
 ($$trace "expand")
 
@@ -421,7 +421,7 @@
                   (let ((R-entry (identifier-R-entry denotation)))
                     (R-entry.references-set!
                      R-entry
-                     (remq! lhs (R-entry.references R-entry)))
+                     (remq lhs (R-entry.references R-entry)))
                     (R-entry.assignments-set!
                      R-entry
                      (cons assignment (R-entry.assignments R-entry)))))

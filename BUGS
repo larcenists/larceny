@@ -724,7 +724,6 @@ HIGH PRIORITY BUGS: 088, 109, 111, 121.
     generates a const/return operation, but the assembler emits incorrect
     code for the operation.
 
-
-NEXT ENTRY: 122
+NEXT ENTRY: 123
 
 ; eof

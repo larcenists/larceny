@@ -1518,3 +1518,21 @@ $Id$
 
     FIX:
     SIMPLIFY-LET now calls STANDARDIZE-KNOWN-CALLS.
+
+122 v1.0a1 (990329 / wdc)
+    Priority: high
+
+    Pass 1 of Twobit sometimes computes the referencing information
+    incorrectly because m-set is calling remq! for its result.  This
+    reduces the effectiveness of closure analysis and probably causes
+    incorrect code to be generated also (although I have no test case
+    to show this).  Test case:
+
+    (let ()
+      (define (make-ht hashfun searcher size) 0)
+      (define (substitute1 x y z) (substitute1 1 2 3))
+      (define (put! ht key val) 0)
+      (put! 0 0 0))
+
+    Fixed 990329 / wdc: Changed use of remq! to a use of remq.
+
