@@ -1,0 +1,57 @@
+; -*- Scheme -*-
+;
+; Scheme 313 run-time system
+; MacScheme Assembly language glue for generic unix i/o calls.
+;
+; $Id$
+;
+; You want to load this file into a scheme system (after the assembler has
+; been loaded) and assemble the value of the variable `unix-io' into a file.
+;
+; Requires integrables `open-file', `close-file', `create-file', `unlink-file',
+; `read-file', and `write-file'.
+
+(define unix-io
+  `((,$lambda
+     ((,$args= 2)
+      (,$reg 1)
+      (,$op2 open-file 2)
+      (,$return))
+     0)
+    (,$setglbl unix$io:open)
+    (,$lambda
+     ((,$args= 1)
+      (,$reg 1)
+      (,$op1 close-file)
+      (,$return))
+     0)
+    (,$setglbl unix$io:close)
+    (,$lambda
+     ((,$args= 2)
+      (,$reg 1)
+      (,$op2 create-file 2)
+      (,$return))
+     0)
+    (,$setglbl unix$io:creat)
+    (,$lambda
+     ((,$args= 1)
+      (,$reg 1)
+      (,$op1 unlink-file)
+      (,$return))
+     0)
+    (,$setglbl unix$io:unlink)
+    (,$lambda
+     ((,$args= 3)
+      (,$reg 1)
+      (,$op3 read-file 2 3)
+      (,$return))
+     0)
+    (,$setglbl unix$io:read)
+    (,$lambda
+     ((,$args= 3)
+      (,$reg 1)
+      (,$op3 write-file 2 3)
+      (,$return))
+     0)
+    (,$setglbl unix$io:write)
+    (,$return)))
