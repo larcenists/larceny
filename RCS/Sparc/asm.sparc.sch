@@ -4,7 +4,7 @@
 ; Machine-dependent part of the assembler, for Sparc.
 ; Machine-dependent code generation procedures.
 ;
-; $Id: asm.sparc.scm,v 1.4 91/08/17 04:33:54 lth Exp Locker: lth $
+; $Id: asm.sparc.scm,v 1.5 91/08/20 15:31:02 lth Exp Locker: lth $
 ;
 ; There are a lot of tables here that have values which must correspond to
 ; those in header files used by C and assembly. We should find a better way
@@ -247,23 +247,23 @@
 ; Millicode indices, as defined in "millicode.h". These are byte offsets from
 ; the start of the table.
 
-(define $m.timer-exception     84)    ; timer expired
-(define $m.proc-exception      88)    ; non-procedure in call
-(define $m.arg-exception       92)    ; wrong # of arguments
-(define $m.varargs             96)    ; handle varargs
+(define $m.timer-exception     168)   ; timer expired
+(define $m.proc-exception      176)   ; non-procedure in call
+(define $m.arg-exception       184)   ; wrong # of arguments
+(define $m.varargs             192)   ; handle varargs
 (define $m.stkoflow            0)     ; stack cache overflow
-(define $m.apply               100)   ; handle the 'apply' instruction
-(define $m.alloc               8)     ; allocate memory
-(define $m.alloci              12)    ; ditto with initialization
-(define $m.zero?               44)    ; generic zero?
-(define $m.numeq               104)   ; generic =
-(define $m.numlt               108)   ; generic <
-(define $m.numgt               116)   ; generic >
-(define $m.numle               112)   ; generic <=
-(define $m.numge               120)   ; generic >=
-(define $m.add                 48)    ; generic +
-(define $m.subtract            52)    ; generic -
-(define $m.type-exception      124)   ; generic type exception (bletch)
+(define $m.apply               200)   ; handle the 'apply' instruction
+(define $m.alloc               16)    ; allocate memory
+(define $m.alloci              24)    ; ditto with initialization
+(define $m.zero?               88)    ; generic zero?
+(define $m.numeq               208)   ; generic =
+(define $m.numlt               216)   ; generic <
+(define $m.numgt               232)   ; generic >
+(define $m.numle               224)   ; generic <=
+(define $m.numge               240)   ; generic >=
+(define $m.add                 96)    ; generic +
+(define $m.subtract            104)   ; generic -
+(define $m.type-exception      80)    ; generic type exception (bletch)
 
 ; Various byte offsets into globals[]
 
@@ -725,6 +725,7 @@
 
     assemble-codevector))
 
+
 ;-----------------------------------------------------------------------------
 ; Implementation-specific data conversion.
 
@@ -777,14 +778,14 @@
   (if (hardware-mapped? r)
       (emit! as `(,$i.sti ,r ,(- $tag.pair) ,$r.tmp1))
       (begin (emit! as `(,$i.ldi ,$r.globals ,(offsetof r) ,$r.tmp0))
-	     (emit! as '(,$i.sti ,$r.tmp0 ,(- $tag.pair) ,$r.tmp1)))))
+	     (emit! as `(,$i.sti ,$r.tmp0 ,(- $tag.pair) ,$r.tmp1)))))
 
 (define (emit-global->register! as offset r)
   (emit-const->register! as offset $r.tmp1)
   (if (hardware-mapped? r)
       (emit! as `(,$i.ldi ,$r.tmp1 ,(- $tag.pair) ,r))
       (begin (emit! as `(,$i.ldi ,$r.tmp1 ,(- $tag.pair) ,$r.tmp0))
-	     (emit! as '(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals)))))
+	     (emit! as `(,$i.sti ,$r.tmp0 ,(offsetof r) ,$r.globals)))))
 
 ; Move one register to another.
 
@@ -810,8 +811,7 @@
     (emit! as `(,$i.subicc ,$r.result ,(* n 4) ,$r.g0))
     (emit! as `(,$i.be ,l2))
     (emit! as `(,$i.nop))
-    (emit! as `(,$i.ldi ,$r.millicode ,$m.arg-exception ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.arg-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l1 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l2))))
 
@@ -819,8 +819,7 @@
 ; Variable-length argument list check drops into millicode automatically.
 
 (define (emit-args>=! as n)
-  (emit! as `(,$i.ldi ,$r.millicode ,$m.varargs ,$r.tmp0))
-  (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+  (emit! as `(,$i.jmpli ,$r.millicode ,$m.varargs ,$r.o7))
   (emit! as `(,$i.nop)))
 
 
@@ -833,8 +832,7 @@
     (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
     (emit! as `(,$i.bne.a ,l1))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-    (emit! as `(,$i.ldi ,$r.millicode ,$m.timer-exception ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.label ,l2))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
@@ -842,8 +840,7 @@
     (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure ,$r.g0))
     (emit! as `(,$i.be ,m))
     (emit! as `(,$i.nop))
-    (emit! as `(,$i.ldi ,$r.millicode ,$m.proc-exception ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.proc-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,m))
 ;    (emit! as `(,$i.orr ,$r.reg0 ,$r.g0 ,$r.argreg2))
@@ -851,7 +848,6 @@
     (emit! as `(,$i.ldi ,$r.reg0 ,$p.codevector ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 ,$p.codeoffset ,$r.g0))
     (emit! as `(,$i.ori ,$r.g0 ,(* n 4) ,$r.result))))
-
 
 ; Create stack frame, then save
 
@@ -863,8 +859,7 @@
     (emit! as `(,$i.subrcc ,$r.tmp0 ,$r.stkp ,$r.g0))
     (emit! as `(,$i.ble.a ,l))
     (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
-    (emit! as `(,$i.ldi ,$r.millicode ,$m.stkoflow ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.stkoflow ,$r.o7))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
     (emit! as `(,$i.label ,l))
@@ -911,8 +906,7 @@
 ; `apply' falls into millicode
 
 (define (emit-apply! as)
-  (emit! as `(,$i.ldi ,$r.millicode ,$m.apply ,$r.tmp0))
-  (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+  (emit! as `(,$i.jmpli ,$r.millicode ,$m.apply ,$r.o7))
   (emit! as `(,$i.nop)))
 
 ; a nop is a nop is a nop.
@@ -995,8 +989,7 @@
 ; allocate procedure with room for n register slots; return tagged pointer.
 
 (define (emit-alloc-proc! as n)
-  (emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
-  (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+  (emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
   (emit! as `(,$i.ori ,$r.g0 ,(* (+ n 4) 4) ,$r.result))
   (emit! as `(,$i.ori ,$r.g0
 		      ,(+ (* (* (+ n 3) 4) 256) $imm.procedure-header)
@@ -1027,8 +1020,7 @@
 	(begin (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
 	       (emit! as `(,$i.bne ,label))
 	       (emit! as `(,$i.nop))
-	       (emit! as `(,$i.ldi ,$r.millicode ,$m.timer-exception ,$r.tmp0))
-	       (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+	       (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
 	       (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7)))
 	(begin (emit! as `(,$i.b ,label))
 	       (emit! as `(,$i.nop))))))
@@ -1116,9 +1108,8 @@
 	(cons 'cons
 	      ; really should be open-coded
 	      (lambda (as r)
-		(emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
 		(emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
-		(emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
 		(emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
 		(emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 		(emit! as `(,$i.sti ,r 4 ,$r.result))
@@ -1148,9 +1139,8 @@
 	(cons 'make-cell
 	      ; this really should be open-coded.
 	      (lambda (as)
-		(emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
 		(emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
-		(emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+		(emit! as `(,$i.jmpli ,$r.millicode ,$m.alloc ,$r.o7))
 		(emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
 		(emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 		(emit! as `(,$i.sti ,$r.g0 4 ,$r.result))
@@ -1191,7 +1181,7 @@
 	(cons 'bf>
 	      (lambda (as r label)
 		(emit-bcmp-primop! as $i.ble.a r label $m.numgt)))
-	(cond 'bf>=
+	(cons 'bf>=
 	      (lambda (as r label)
 		(emit-bcmp-primop! as $i.bl.a r label $m.numge)))))
 
@@ -1208,9 +1198,8 @@
     (emit! as `(,cmp ,$r.result ,r ,$r.g0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
-    (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
-    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.result))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))
+    (emit! as `(,$i.jmpli ,$r.millicode ,generic ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))
     (emit! as `(,test ,l2))
@@ -1220,14 +1209,13 @@
 (define (emit-bcmp-primop! as ntest r label generic)
   (let ((l1 (new-label))
 	(l2 (make-label label)))
-    (emit! as `(,$i.subrcc ,$r.result ,r ,$r.g0))
+    (emit! as `(,$i.tsubrcc ,$r.result ,r ,$r.g0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,ntest ,l2))
     (emit! as `(,$i.nop))
-    (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-    (emit! as `(,$i.nop))
-    (emit! as `(,$i.subicc ,$r.result ,$imm.false $r.g0))
+    (emit! as `(,$i.jmpli ,$r.millicode ,generic ,$r.o7))
+    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))
+    (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
     (emit! as `(,$i.be.a ,l2))
     (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.nop))))
@@ -1237,8 +1225,7 @@
     (emit! as `(,i ,$r.result ,r ,$r.tmp0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,$i.orr ,$r.tmp0 ,$r.g0 ,$r.result))
-    (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,generic ,$r.o7))
     (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))
     (emit! as `(,$i.label ,l1))))
 
@@ -1250,8 +1237,7 @@
     (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
     (emit! as `(,$i.be.a ,l1))
     (emit! as `(,$i.ldi ,$r.result ,(- offset $tag.pair) ,$r.result))
-    (emit! as `(,$i.ldi ,$r.millicode ,$m.type-exception ,$r.tmp0))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.jmpli ,$r.millicode ,$m.type-exception ,$r.o7))
     (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,l1))))
 
