@@ -18,13 +18,13 @@
 ; handled by generalized signal handling.
 
 (define (exception-handler arg1 arg2 arg3 code)
-  (cond ((= code $ex.timer)              ; Interrupt state is OFF
+  (cond ((eqv? code $ex.timer)              ; Interrupt state is OFF
          ((timer-interrupt-handler)))
-        ((= code $ex.keyboard-interrupt) ; Interrupt state is unknown
+        ((eqv? code $ex.keyboard-interrupt) ; Interrupt state is unknown
          ((keyboard-interrupt-handler)))
-        ((= code $ex.breakpoint)         ; Interrupt state is unknown
+        ((eqv? code $ex.breakpoint)         ; Interrupt state is unknown
          ((break-handler) arg1 arg2))
-        ((= code $ex.signal)             ; Interrupt state is unknown
+        ((eqv? code $ex.signal)             ; Interrupt state is unknown
          ((system-signal-handler) arg1))
         (else                            ; Interrupt state is unknown
          ((error-handler) code arg1 arg2 arg3))))
