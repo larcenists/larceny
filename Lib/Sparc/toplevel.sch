@@ -433,6 +433,8 @@
     (environment-set! null '.cons .cons)
     (environment-set! null '.append .append)
     (environment-set! null '.make-promise .make-promise)
+    (environment-set! null '.car .car)
+    (environment-set! null '.cdr .cdr)
 
     ;; system performance and interface
 
