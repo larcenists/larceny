@@ -15,8 +15,11 @@ version of Larceny in which the bug was discovered, the date it was
 recorded and who found it, a description of the problem, and any
 supporting documentation, information, test cases, and so on.
 
-HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096, 
-  098, 099, 103.
+Priority high: "Must be fixed ASAP"
+Priority medium: "Should be fixed ASAP"
+Priority low: "Fix whenever."
+
+HIGH PRIORITY BUGS: 088, 091, 096, 105.
 
 
 005  (v0.27e)
@@ -180,7 +183,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     loading and linking, because that format will retain the tags.
 
 072 v0.34 (981113 / lth)
-    Priority: high.
+    Priority: medium.
 
     The (break) procedure always invokes the RTS debugger.  It would be
     more useful if it would invoke the user-installable breakpoint handler,
@@ -188,7 +191,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     Chez Scheme uses a parameter 'break-handler'; we should too.
 
 074 v0.36 (981207 / dougo)
-    Priority: high.
+    Priority: medium.
 
     Records (defined with make-record-type et al in Experimental/record.sch)
     are no longer displayed with the record type printer; it just displays
@@ -225,7 +228,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     similar "bugs" in the number parser, see comments in the code.)
 
 083 v0.38 (981215 / lth)
-    Priority: high.
+    Priority: medium.
 
     Bugs w.r.t. R4RS, R5RS, or the IEEE standard:
 
@@ -377,7 +380,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     at optimize-level 1.
 
 089 v0.40 (981219 / lth)
-    Priority: high.
+    Priority: medium.
 
     RTS error.
 
@@ -385,7 +388,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     cause a core dump.
 
 090 v0.40 (981219 / lth )
-    Priority: high.
+    Priority: medium.
 
     Compiler error.
 
@@ -410,7 +413,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     in which case see Bug 090, or they should be the correct constants.
 
 092 v0.40 (981219 / lth)
-    Priority: high.
+    Priority: medium.
 
     SPARC Assembler error.
 
@@ -471,7 +474,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
 
 
 094 v0.41 (981221 / lth)
-    Priority: high.
+    Priority: medium.
 
     Compiler error.
 
@@ -501,12 +504,12 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     For example,  (system very-long-command) fails.
 
 098 v1.0a1 (981221 / wdc)
-    Priority: high.
+    Priority: medium.
 
     Define-inline works in larceny.heap but not in r5rs.heap.
 
 099 v1.0a1 (990104 / lth)
-    Priority: high.
+    Priority: medium.
 
     define-inline is available in scheme-report-environment and 
     null-environment but should not be:
@@ -551,7 +554,7 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
     catch (some) errors signalled by READ.
 
 103 v1.0a1 (990104 / lth)
-    Priority: high.
+    Priority: medium.
 
     Macro expander bug.
 
@@ -576,7 +579,17 @@ HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096,
 	> (+ 1 2)
 	(1 . 2)
 
+104 v1.0a1 (990107 / wdc)
+    Priority: medium
 
-NEXT ENTRY: 104
+    Twobit is generating executable code for calls to UNSPECIFIED
+    in command positions.
+
+105 v1.0a1 (990107 / wdc)
+    Priority: high
+
+    Twobit is generating very poor code for named LET.
+
+NEXT ENTRY: 106
 
 ; eof
