@@ -46,6 +46,7 @@ typedef struct metadata_block_t metadata_block_t;
 
 typedef struct np_info np_info_t;
 typedef struct sc_info sc_info_t;
+typedef struct bdw_info bdw_info_t;
 typedef struct nursery_info nursery_info_t;
 typedef struct gc_param gc_param_t;
 typedef struct heap_stats heap_stats_t;
