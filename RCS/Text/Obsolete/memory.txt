@@ -1,4 +1,5 @@
-$Header$
+; $Id$
+
 
 0. Scope
 --------
@@ -13,12 +14,12 @@ The compiled code should call only the procedures exported from "memory.s",
 all of which are listed below. All procedures in "memory.s" may invoke the
 garbage collector.
 
-Procedures in "memory.s" take arguments in the millicode registers ARGREG1,
+Procedures in "memory.s" take arguments in the millicode registers RESULT,
 ARGREG2, and ARGREG3, from leftmost to rightmost argument.  Results are
-returned in the RETURN register. Argument registers are never changed
-by these procedures, with the exception of address changes due to garbage
-collection. Hence, the millicode argument registers can be used as 
-rootable temporary registers even across millicode calls.
+returned in the RETURN register. Argument registers ARGREG2 and ARGREG3 are
+never changed by these procedures, with the exception of address changes
+due to garbage collection. Hence, the millicode argument registers can be
+used as rootable temporary registers even across millicode calls.
 
 The procedures in "memory.s" use the "globals" array. The offsets of
 variables within this array as well as the mappings from logical register
@@ -61,7 +62,7 @@ void vectorset( word p, word i, word v )
   if i is not a valid index into the vector pointed to by p, then the effect
   of calling vectorset() is undefined. The argument i must be a fixnum.
 
-word *gcstart( word n )
+word *gcstart( word n )
   If n is the fixnum representing -1 (namely, 0xFFFFFFFC) then the garbage
   collector is invoked to do a tenuring collection, and the value of RESULT
   is unchanged (modulo address updates). Otherwise, the garbage collector is
@@ -72,7 +73,21 @@ void vectorset( word p, word i, word v )
   internal state of the collector.
   The parameter n must be a fixnum.
 
-(At some point all of these procedures will be assigned slots in the 
+void stkuflow( void )
+  'Stkuflow 'retrieves a continuation frame from the heap and puts it at the
+  top of the stack cache (growing down). Typically, there will be a dummy
+  continuation at the top of the stack cache. This continuation contains a
+  return address which points to 'stkuflow'; when underflow occurs, stkuflow
+  is invoked and handles the underflow, returning to the instruction that
+  caused it to be invoked, and hence causing the program to be resumed.
+  A stack underflow will never cause a garbage collection.
+
+void stkoflow( void )
+  'Stkoflow' should be invoked from the compiled application to flush the
+  stack cache. The flush may cause a garbage collection.
+
+
+(At some point all of these procedures will probably be assigned slots in the 
 millicode table.)
 
 
@@ -85,23 +100,37 @@ millicode table.)
 ! to be left in RESULT
 
 	call	alloc
-	set	#8, %ARGREG1			! #8 == fixnum( #2 )
-	st	%R1, CAR_OFFSET[ %RESULT ]
-	st	%R2, CDR_OFFSET[ %RESULT ]
-
+	set	8, %RESULT			! #8 == fixnum( #2 )
+	st	%R1, [ %RESULT+CAR_OFFSET ]
+	st	%R2, [ %RESULT+CDR_OFFSET ]
+	or	%RESULT, PAIR_TAG, %RESULT
 
 ! Open-coded CONS, same assumptions as above.
 !
-! 8 cycles in the common case (I think: check what happens on cache misses,
+! 9 cycles in the common case (I think: check what happens on cache misses,
 ! the depth of the write buffer, and the timings of the store instructions),
-! and only 8 instructions total.
+! and only 9 instructions total.
 
-	add	%E_TOP, #8, %E_TOP		! allocate optimistically
+	add	%E_TOP, 8, %E_TOP		! allocate optimistically
 	cmp	%E_TOP, %E_LIMIT		! overflow?
 	ble,a	L1				! jump if not
-	sub	%E_TOP, #8, %RESULT		! setup pointer if ok
+	sub	%E_TOP, 8, %RESULT		! setup pointer if ok
 	call	gcstart				! collect and allocate
-	set	#8, %ARGREG1			! argument for gcstart
+	set	8, %RESULT			! argument for gcstart
 L1:
-	st	%R1, CAR_OFFSET[ %RESULT ]
-	st	%R2, CDR_OFFSET[ %RESULT ]
+	st	%R1, [ %RESULT+CAR_OFFSET ]
+	st	%R2, [ %RESULT+CDR_OFFSET ]
+	or	%RESULT, PAIR_TAG, %RESULT
+
+[Can we get better performance by moving the tagset between the stores and
+ using an adjusted offset in the second store?]
+
+
+3. Specific Implementation Restrictions
+---------------------------------------
+
+SPARC version:
+
+The procedures require that the GLOBALS register is not allocated to an 
+output (%o) register.
+
