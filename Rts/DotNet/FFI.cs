@@ -1,3 +1,14 @@
+#line 1 "FFI.cs.cpp"
+#line 1 "c:\\home\\jrm\\pltexp\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Macros.h"
+
+
+
+
+
+
+
+#line 2 "FFI.cs.cpp"
+
 using System;
 using System.Reflection;
 using Scheme.RT;
@@ -18,7 +29,6 @@ namespace Scheme.RT {
             return Call.callback (scheme_filter, Factory.makeForeign (m)) != Factory.False;
         }
     }
-
 
     public class FFI {
 
@@ -260,7 +270,7 @@ namespace Scheme.RT {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
                     return;
                    }
-                Reg.Result =  ((bool)result != false) ? Factory.True : Factory.False;
+                Reg.Result = Factory.makeBoolean ((bool)result != false);
                 return;
             }
             case 18: // get-property-value-int
@@ -279,7 +289,7 @@ namespace Scheme.RT {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
                     return;
                    }
-                Reg.Result = Factory.makeNumber ((int)result);
+                Reg.Result = Factory.makeNumber((int)result);
                 return;
             }
             case 19: // array ref
@@ -292,11 +302,6 @@ namespace Scheme.RT {
             case 20: // object-type
             {
               Reg.Result = Factory.makeForeign (unwrapF (arg1).GetType());
-              return;
-            }
-            case 21: // callback test
-            {
-              Reg.Result = Call.callback ((Procedure)arg1, Factory.makeString ("foo"));
               return;
             }
             }
@@ -409,6 +414,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                         }
                 }
+
             }
             Exn.error("datum->foreign: unknown conversion");
             return Factory.Impossible;
@@ -474,7 +480,7 @@ namespace Scheme.RT {
                 }
                 case 6: { // float
                     if (value is float) {
-                        return Factory.makeFlonum ((float)value);
+                        return Factory.makeFlonum((float)value);
                     } else {
                         Exn.error("foreign->datum (float): not a float");
                         return Factory.Impossible;
@@ -482,7 +488,7 @@ namespace Scheme.RT {
                 }
                 case 7: { // double
                     if (value is double) {
-                        return Factory.makeFlonum ((double)value);
+                        return Factory.makeFlonum((double)value);
                     } else {
                         Exn.error("foreign->datum (double): not a double");
                         return Factory.Impossible;
@@ -507,6 +513,5 @@ namespace Scheme.RT {
         public static SObject getProperty(Type type, string name) {
             return Factory.makeForeignF (type.GetProperty (name));
         }
-
     }
 }

@@ -4,6 +4,7 @@ using System;
 using System.Reflection;
 using Scheme.RT;
 using Scheme.Rep;
+using System.Windows.Forms;
 
 namespace Scheme.RT {
     public class FFI_message_filter : IMessageFilter {
