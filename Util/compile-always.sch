@@ -2,38 +2,30 @@
 ;
 ; $Id$
 ;
-; Setup the REPL and the loader to use Twobit for all evaluation, so that
-; each expression will be compiled and then evaluated, and change EVAL to
-; compile also.
+; Install an evaluator that uses Twobit for all evaluation, so that
+; each expression will be compiled and then evaluated.
 
 (if (file-exists? "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.sch"))
 
-(let ((interaction-environment interaction-environment)
-      (link-lop-segment link-lop-segment)
-      (compile-and-assemble-expression compile-and-assemble-expression))
+(let ()
 
-  ; The repl evaluator always takes two arguments, but eval takes one or two.
-
-  (define twobit-repl-eval
+  (define twobit-eval
     (lambda (expr . rest)
       (let ((env (if (null? rest)
 		     (interaction-environment)
 		     (car rest))))
-	((link-lop-segment (compile-and-assemble-expression expr) env)))))
+	((link-lop-segment (compile-expression expr env) env)))))
 
-  ; The load evaluator always takes two arguments.
+  (evaluator twobit-eval)
 
-  (define twobit-load-eval
-    (lambda (expr env)
-      (if (procedure? expr)
-	  (expr)
-	  ((link-lop-segment (compile-and-assemble-expression expr) env)))))
-
-  (repl-evaluator twobit-repl-eval)
-  (load-evaluator twobit-load-eval)
-  (set! eval twobit-repl-eval)
+  (set! macro-expand
+	(lambda (expr . rest)
+	  (let ((env (if (null? rest)
+			 (interaction-environment)
+			 (car rest))))
+	    (macro-expand-expression expr env))))
   #t)
 
 ; eof
