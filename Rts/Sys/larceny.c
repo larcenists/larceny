@@ -297,11 +297,11 @@ parse_options( int argc, char **argv, opt_t *o )
   int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
 #if !defined( BDW_GC )
   double load_factor = DEFAULT_LOAD_FACTOR;
+#else
+  double load_factor = 0.0;	/* Ignore it. */
+#endif
   double feeling_lucky = 0.0;
   double phase_detection = -1.0;
-#else
-  double load_factor = 1.25;	/* Compatible */
-#endif
   int dynamic_max = 0;
   int dynamic_min = 0;
   int divisor = 0;
@@ -346,15 +346,15 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
+    else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
+      ;
+    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
+      ;
     else 
 #endif
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
     else if (doublearg( "-load", &argc, &argv, &load_factor ))
-      ;
-    else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
-      ;
-    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
       ;
     else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
       ;
