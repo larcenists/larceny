@@ -54,6 +54,8 @@ struct young_data {
   unsigned frames_flushed;  /* stack frames flushed */
   unsigned bytes_flushed;   /* bytes of stack flushed or copied */
   unsigned stacks_created;  /* number of stacks created */
+
+  int nbytes_wanted;        /* bytes wanted during last gc */
 };
 
 #define DATA( heap )  ((young_data_t*)((heap)->data))
@@ -141,7 +143,7 @@ static void collect( young_heap_t *heap, int nbytes )
 			 (nbytes == 0 ? " [stack overflow]" : "" ) );
 
   gc_collect( heap->collector, data->gen_no+1, 0 );
-  assert( nbytes > GC_LARGE_OBJECT_LIMIT || free_space( heap ) >= nbytes );
+  data->nbytes_wanted = nbytes;  /* For use in after_collection() */
 }
 
 static void before_collection( young_heap_t *heap )
@@ -153,13 +155,16 @@ static void before_collection( young_heap_t *heap )
 
 static void after_collection( young_heap_t *heap )
 {
-  word *globals = DATA(heap)->globals;
+  young_data_t *data = DATA(heap);
+  word *globals = data->globals;
 
   globals[ G_ETOP ] = globals[ G_EBOT ];
   globals[ G_STKP ] = globals[ G_ELIM ];
 
   must_create_stack( heap );
   must_restore_frame( heap );
+  assert( data->nbytes_wanted > GC_LARGE_OBJECT_LIMIT || 
+	  free_space( heap ) >= data->nbytes_wanted );
 }
 
 static int free_space( young_heap_t *heap )
