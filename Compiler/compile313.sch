@@ -28,6 +28,13 @@
                                 *fasl-file-type*)))
         (user
          (assembly-user-data)))
+    (if (not (integrate-usual-procedures))
+        (begin 
+          (display "WARNING from compiler: ")
+          (display "integrate-usual-procedures is turned off")
+          (newline)
+          (display "Performance is likely to be poor.")
+          (newline)))
     (if (benchmark-block-mode)
         (process-file-block infilename
                             outfilename
@@ -119,24 +126,15 @@
              (car rest)
              (rewrite-file-type infilename
                                 *scheme-file-types* 
-                                *lap-file-type*))))
+                                *lap-file-type*)))
+        (write-lap
+         (lambda (item port)
+           (write item port)
+           (newline port)
+           (newline port))))
     (if (benchmark-block-mode)
-        (process-file-block infilename
-                            outfilename
-			    (lambda (item port)
-			      (write item port)
-			      (newline port)
-			      (newline port))
-                            (lambda (x)
-                              (compile-block x)))
-        (process-file infilename
-                      outfilename
-                      (lambda (item port)
-                        (write item port)
-                        (newline port)
-                        (newline port))
-                      (lambda (x)
-                        (compile x))))
+        (process-file-block infilename outfilename write-lap compile-block)
+        (process-file infilename outfilename write-lap compile))
     (unspecified)))
 
 
@@ -158,6 +156,30 @@
                   write-lop
                   (lambda (x) (assemble (if malfile? (eval x) x) user)))
     (unspecified)))
+
+
+; Compile and assemble a Scheme source file to a LOP file.
+
+(define (compile-and-assemble313 input-file . rest)
+  (let ((output-file
+         (if (not (null? rest))
+             (car rest)
+             (rewrite-file-type input-file 
+                                *scheme-file-types*
+                                *lop-file-type*)))
+        (user
+         (assembly-user-data)))
+    (if (benchmark-block-mode)
+        (process-file-block input-file
+                            output-file
+                            write-lop
+                            (lambda (x) (assemble (compile-block x) user)))
+        (process-file input-file
+                      output-file
+                      write-lop
+                      (lambda (x) (assemble (compile x) user))))
+    (unspecified)))
+
 
 ; Convert a LOP file to a FASL file.
 
