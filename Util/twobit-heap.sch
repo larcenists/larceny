@@ -25,6 +25,7 @@
 (load "Debugger/debug.fasl")
 (load "Debugger/inspect-cont.fasl")
 (load "Debugger/trace.fasl")
+(install-debugger)
 
 (repl-printer
  (lambda (x)
