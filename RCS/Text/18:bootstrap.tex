@@ -1,0 +1,64 @@
+\input{larceny.sty}
+\title{Larceny Note \#18: \\
+       Bootstrapping, Startup, and Magic Variables \\
+       {\tenrm (just so we know what's going on)}}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+When the ``larceny'' executable is invoked with (at least) a heap name as
+an argument, the following things happen.
+
+\begin{enumerate}
+
+\item
+The memory manager is initalized with default or given parameters, allocating
+space for the heaps and stuffing pointers to the heaps into the globals table.
+
+\item 
+The heap image is loaded. This involves setting up all Scheme globals from the
+ones supplied in the heap image, and then loading the image into the heap.
+As described in note \#6, heaps are single or split, and with the -E switch
+one can force the non-static part of a heap image to be loaded into the 
+ephemeral heap rather than the tenured heap. If the image is too big, Larceny
+will panic and exit.
+
+\item
+The procedure {\tt schemestart()} (which is written in assembly language) is
+called. It fetches the pointer to the startup out of the global cell at {\tt
+SCHEME\_ENTRY\_OFFSET}, creates a stack frame, and calls that procedure.
+
+\item
+If this is a bootstrap heap image, then the procedure in the entry slot is
+initialization loop described in note \#5. When the loop has finished,
+control is passed to the {\tt go} scheme procedure.
+
+\item
+{\tt Go} initializes two other global cells, which can also be found in the
+globals table at offsets {\tt MILLICODE\_SUPPORT\_OFFSET} and {\tt
+MEMSTATS\_VECTOR\_OFFSET}. The former cell is given a vector of scheme
+procedures which need to be called from millicode. The latter is given a
+vector of memory statistics slots, all of which are used by the memory
+management system to keep statistics and to make policy decisions.
+
+\end{enumerate}
+
+In summary, Larceny has several slots in the globals table containing
+pointers to global value cells. The cells are put there by the heap dumper,
+so they are always there. The contents of the cells are initialized by
+Scheme code, however, so during the bootstrap phase they are not available
+to Scheme code.  This is only a minor hassle.
+
+Currently there are only three such magic global variables, the ones
+listed above.
+
+When a heap has been initialized in this way, a new heap can be dumped from
+the current core image. Since a heap image can only have two spaces at the
+most, it is necessary to perform at least a tenuring collection before
+dumping the heap, and heap dumping must be a primop (which makes sense
+anyway, as Scheme code has no notion of memory addresses as such). This new
+image has a new startup procedure in the {\tt SCHEME\_ENTRY} slot, which
+will be invoked when the new image is loaded.
+
+\end{document}
