@@ -284,4 +284,13 @@ Program received signal SIGSEGV, Segmentation fault.
      still in place, so the memory behavior should be pretty different in
      0.28b vs. later versions.
 
+
+044  v0.31 (971024 / lth)  Retired 971030
+
+     In Rts/Makefile, 'as' should probably be '/bin/as' always, because
+     at CCS, some people's path points to the GNU directories, and gas
+     does not accept the -P (preprocess) command-line switch.
+
+     Reason for retiring: /bin/as isn't right on SunOS 5.
+
 ; eof

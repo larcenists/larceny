@@ -18,17 +18,18 @@
 ; to the name in the environment will get the new cell.
 ;
 ; There are at least three alternative ways to view inheritance.  
-; (1) All entries in the parent are eagerly duplicated in the new environment
-; when it is created.  Hence, all values in the new environment are definitely
-; those of the parent at the time of creation.  The disadvantage here is
-; the potential blowup in the size of environments, but it is a clean model.
-; (2) No entries are duplicated in the new environment; cells are shared with
-; the parent environment.  This is also clean, but defeats one important 
-; use of environments, namely as namespaces.
+; (1) All entries in the parent are eagerly duplicated in the new 
+;     environment when it is created.  Hence, all values in the new 
+;     environment are definitely those of the parent at the time of 
+;     creation.  The disadvantage here is the potential blowup in the 
+;     size of environments, but it is a clean model.
+; (2) No entries are duplicated in the new environment; cells are shared 
+;     with the parent environment.  This is also clean, but defeats one
+;     important use of environments, namely as namespaces.
 ; (3) Cells are duplicated in the child environment only on assignment or
-; when a reference to the cell (as opposed to its value) escapes, not on
-; a reference that only gets the value.  I don't like this model, since it
-; makes it possible to observe when the shadow copy is made.
+;     when a reference to the cell (as opposed to its value) escapes, not on
+;     a reference that only gets the value.  I don't like this model, since it
+;     makes it possible to observe when the shadow copy is made.
 
 
 ($$trace "env")
@@ -41,7 +42,7 @@
 
 
 ; Environments are represented as vectors with a magic tag.
-; FIXME: an environment should be a record.
+; FIXME: an environment should be a record (or structure).
 
 (define (make-environment name parent . rest)
   (let ((size (if (null? rest) 10 (car rest))))
@@ -82,10 +83,8 @@
          (error "environment-gettable: " env " is not an environment.")
          #t)
         (else
-         (let ((probe (env/lookup* env name)))
-           (if probe
-               #t
-               #f)))))
+	 (let ((probe (env/lookup* env name)))
+	   (and probe (not (eq? (global-cell-ref probe) (undefined))))))))
 
 (define (environment-settable? env name)
   (cond ((not env) #f)
@@ -217,7 +216,7 @@
 
 (define (env/enumerate-bindings env proc)
   (env/enumerate-cells env (lambda (name cell)
-                             (proc (name (cell-ref cell))))))
+                             (proc name (cell-ref cell)))))
 
 ; The returned list may contain duplicates.
 
@@ -227,7 +226,7 @@
         (loop (cons (env/enumerate-cells 
                       env 
                       (lambda (name cell)
-                        (proc (name (cell-ref cell)))))
+                        (proc name (cell-ref cell))))
                     l)
               (env.parent env))
         (apply append! l))))
@@ -287,5 +286,26 @@
     (env.hashtable! env (env.hashtable new-env))
     (env.count! env (env.count new-env))
     env))
+
+
+; Backwards compatible -- loader and reader still uses this.
+;
+; Install procedure which resolves global names in LOAD and EVAL.
+
+(define global-name-resolver
+  (let ((p (lambda (sym)
+	     (environment-get-cell (interaction-environment) sym))))
+    (lambda rest
+      (cond ((null? rest) p)
+	    ((and (null? (cdr rest))
+		  (procedure? (car rest)))
+	     (let ((old p))
+	       (set! p (car rest))
+	       old))
+	    (else
+	     (error "global-name-resolver: Wrong number of arguments: "
+		    rest)
+	     #t)))))
+
      
 ; eof

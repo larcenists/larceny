@@ -13,7 +13,7 @@
 ;
 ; Target-specific information for Larceny on the SPARC architecture.
 
-(define twobit-sort compat:sort)  ; (sort less? list)
+(define twobit-sort (lambda (less? list) (compat:sort list less?)))
 
 (define renaming-prefix ".")
 
@@ -677,6 +677,7 @@
 (define $.cont 61)        ; return point
 (define $.align 60)
 (define $.asm 59)         ; in-line native assembly instruction
+(define $.proc-doc 58)    ; internal definition procedure info
 
 (define make-mnemonic
   (let ((count 0))

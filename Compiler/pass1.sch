@@ -67,7 +67,16 @@
 ;      to by R.
 ;   *  F and G are garbage.
 
-(define (pass1 def-or-exp)
+(define source-file-name)                                     ; @@ Lars
+(define source-file-position)                                 ; @@ Lars
+
+(define (pass1 def-or-exp . rest)                             ; @@ Lars
+  (set! source-file-name #f)                                  ; @@ Lars
+  (set! source-file-position #f)                              ; @@ Lars
+  (if (not (null? rest))                                      ; @@ Lars
+      (begin (set! source-file-name (car rest))               ; @@ Lars
+	     (if (not (null? (cdr rest)))                     ; @@ Lars
+		 (set! source-file-position (cadr rest)))))   ; @@ Lars
   (set! renaming-counter 0)
   (m-scan `((lambda () ,(desugar-definitions def-or-exp)))
           '()))
@@ -256,13 +265,26 @@
          '()
          '()
          declarations
-         (cond ((and (include-source-code)
-                     (include-procedure-names)
-                     proc-id)
-                (cons proc-id (cdr original-exp)))
-               ((include-source-code) original-exp)
-               ((include-procedure-names) proc-id)
-               (else #f))
+; @@ Lars   New documentation slot format:
+; @@ Lars      #(proc-id source arity filename source-pos)
+	 (vector (if (and (include-procedure-names) proc-id)
+		     proc-id
+		     #f)
+		 (if (include-source-code)
+		     original-exp
+		     #f)
+		 (if (list? formals)
+		     (length bvl)
+		     (exact->inexact (- (length bvl) 1)))
+		 #f
+		 #f)
+;         (cond ((and (include-source-code)
+;                     (include-procedure-names)
+;                     proc-id)
+;                (cons proc-id (cdr original-exp)))
+;               ((include-source-code) original-exp)
+;               ((include-procedure-names) proc-id)
+;               (else #f))
          (m-scan (cons 'begin (cddr exp)) newenv)))))))
 
 (define (m-if exp env)

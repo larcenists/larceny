@@ -8,6 +8,7 @@
 
 These are bugs that are or may be visible to the Scheme programmer.
 Bugs internal to the development system are in the file BUGS-DEV.
+Outright compiler bugs are generally only known to Will.
 
 Bugs are listed in the order recorded.  Fixed bugs have been moved to
 the file BUGS-FIXED.  Each entry consists of an entry number, the
@@ -35,17 +36,6 @@ supporting documentation, information, test cases, and so on.
 
      See file Rts/Sys/memmgr.c
 
-019  (v0.28)  970507
-
-     With the generational collector, it is only possible to allocate objects
-     that fit in the youngest generation, and that generation is of a
-     fixed size.  This should not be a problem with the stop-and-copy (heaps=1)
-     or conservative collectors.
-
-     This should be fixed by allowing objects to be allocated "on the side"
-     of the youngest generation; the current barrier system should be able
-     to deal with this.
-
 021  (v0.28b) 970528
 
      Free list coalescing is not done properly in unix-alloc.c.  This is 
@@ -55,29 +45,9 @@ supporting documentation, information, test cases, and so on.
      - a new free block can merge two previously separated blocks so that
        all three blocks become one.
 
-022  (v0.28d) 970625
-
-     The following functions do not accept complex arguments:
-	SQRT, SIN, COS, TAN, ASIN, ACOS, ATAN, LOG, EXP
-
-     [970701: Actually, I've implemented these, but testing remains. 
-      At the very least, ASIN and ACOS for values outside [1,1] must
-      do something different from what they do now.  --lars]
-
-026  (v0.28d) 970701
-
-     LOG does not accept negative arguments.
-
-     [970716: Actually, I've implemented this, but testing remains. --lars]
-
 031  v0.28e (970708 / lth)
 
      Dynamic-wind must be made aware of timer interrupts.
-
-032  v0.28e (970715 / lth)
-
-     It appears that the error continuation grows longer and longer with
-     each error.  This is an error.
 
 034  v0.28f (970723 / lth)
 
@@ -100,7 +70,8 @@ supporting documentation, information, test cases, and so on.
 
      These dependencies should be removed completely, probably by using
      magic global names (more magic than the above...) that the linker
-     treats specially.
+     treats specially, possibly by having all environments inherit
+     from an environment where they are bound.
 
      Also NOTE that those names are not present in the null environment, 
      so some code that should run in that environment (notably code with
@@ -120,6 +91,72 @@ supporting documentation, information, test cases, and so on.
      particular, if a symbol starts with \c, then even if symbols may not
      usually start with c, the interpretation should be a symbol.
 
-NEXT ENTRY: 038.
+041  v0.31 (9710xx / dougo)
 
+     Macro-expander and evaluator are not robust and produce strange error
+     messages when handed syntactically incorrect programs.  Consider,
+
+	> (if)
+	Error: car: () is not a pair.
+
+     [Editorial: we should toss the macro-expander and switch to the
+      hygienic macro package. -- lars]
+
+042  v0.31 (971024 / lth)
+
+     > (+ 'a)
+     a
+     > (* 'a)
+     a
+
+     [Thanks to Galen, who did not report this but who told me of this
+      bug in the free version of Allegro Common Lisp for Windows(!).]
+
+043  v0.31 (971024 / lth)
+
+     [Performance bug]
+     Make-string needs to be a primop.  I classify this as a bug because
+     the performance implications are potentially considerable, and
+     because the new pass3 wants to rely on make-string being a primop.
+
+047  v0.31 (971029 / lth)
+
+     round does not properly round down to even (e.g., for 0.5, 2.5, 4.5)
+     as exposed by the test suite and as noted in comments in 
+     Sparc/generic.s.
+
+048  v0.31 (971031 / lth)
+
+     Consider the following scenario:
+
+     > (read)
+     #<EOF>
+     >
+
+     everest%
+
+     I.e., if the user types the end-of-file character in a program while
+     the program is reading from the standard input port, then the REPL
+     interprets that EOF as an exit signal.  Instead, EOF encountered during
+     an evaluation should maybe be treated differently, e.g., by always
+     reestablishing the I/O ports after an evaluation, and requiring another
+     EOF.  Chez Scheme does it this way, and it seems much cleaner.
+
+049  v0.31 (971031 / lth)
+
+     [Performance bug]
+     port? needs to be a primop; see Lib/iosys.sch.
+
+050  v0.31 (971031 / lth)
+
+     [Performance bug]
+     structure? needs to be a primop; see Lib/struct.sch.
+
+051  v0.31 (971031 / lth)
+
+     [Performance bug]
+     eof-object? needs to be a primop.
+
+NEXT ENTRY: 052.
+	
 ; eof

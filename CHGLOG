@@ -4,7 +4,172 @@
 
 
 ----------------------------------------------------------------------
-v0.29d 
+v0.31 in development
+
+FEATURES
+  * Now allows the allocation of large objects in the generational
+    collector.  Also, the object size limit (16 MB) is enforced.
+  * Some debugger support has been implemented.
+  * Increased user-configurability in the form of installable macro
+    expanders (eval-macro-expander) and installable evaluators
+    (repl-eval-procedure).  Some of this support will change as it is
+    further cleaned up.
+  * Support for structure comparison with `structure-comparator'.
+  * Some experimental software is packaged with the distribution in the
+    directory Experimental:
+    - a rudimentary debugger (debug.sch)
+    - a record package (record.sch and record.doc)
+    - a generalized procedure facility (applyhook.sch and applyhook0.mal)
+
+DETAILED CHANGES
+[Asm/Common/pass5p1.sch; Asm/Sparc/pass5p2.sch; Asm/Sparc-old/assembler.sch]
+  Supports debug information for internal definitions.
+
+[Compiler/compile313.sch]
+  Implemented 'twobit-auxiliary-expander'.
+  Driver procedures now return #!unspecified rather than #t.
+
+[Compiler/pass1.sch]
+  'Pass1' takes optional file name and file position (for documentation).
+  Implemented the new documentation slot format.
+
+[Compiler/pass4p1.sch; Compiler/twobit.imp.sch]
+  Now emits debug information for internal definitions.
+
+[Eval/eval.sch]
+  Implemented 'eval-macro-expander'.
+  Fixed eval so that a top-level "begin" with definitions is handled
+  correctly.
+
+[Eval/macro-expand.sch]
+  A top-level BEGIN with all definitions inside is now handled correctly.
+
+[Eval/toplevel.sch]
+  Added the following procedures to larceny-environment:
+    eval-macro-expander
+    all procedure-information procedures
+    repl-eval-procedure
+    call-with-error-handler, call-with-reset-handler, call-without-errors
+    structure-comparator
+
+[Lib/conio.sch]
+  [046] Added code that allows the console I/O ports to be reopened correctly
+  after an I/O error.
+
+[Lib/ehandler.sch]
+  [038] Fixed bug in system-error-handler where an incorrect error message
+  was printed when an invalid typetag was passed to typetag-set!.
+
+[Lib/env.sch]
+  [045] Fixed bug in environment-gettable?, where it would return #t
+  if the cell existed with value #!undefined.
+
+[Lib/error.sch]
+  - [032] Fixed bug in error-handler that resulted in ever-longer error 
+    continuations due to an inadvertent stacking of error handlers.
+  - Rewrote error-handler and reset-handler in terms of system-parameter.
+
+[Lib/load.sch]
+  - Cleaned up.
+  - Implemented load-evaluator.
+
+[Lib/makefile.sch]
+  Added Lib/procinfo.sch.
+
+[Lib/malcode.mal]
+  Changed (#t) to #f in the documentation slots of all these procedures.
+
+[Lib/number.sch]
+  Fixed bugs in 'odd?' and 'even?' causing 'undefined global variable x'.
+  [022] ACOS and ASIN now deal correctly with arguments outside [-1,1].
+
+[Lib/preds.sch]
+  equal? now uses structure-comparator to compare structures.
+
+[Lib/print.sch]
+  Uses 'procedure-name' rather than the internal ad-hoc 'proc-id' to
+  get a procedure's name.
+
+[Lib/procinfo.sch]
+  New file that defines procedures for heuristic information extraction
+  from procedures.
+
+[Lib/struct.sch]
+  Implemented structure-comparator.
+
+[Lib/sysparam.sch]
+  New file.
+
+[Lib/unix.sch]
+  Added error checking to all the syscall abstractions.  This fixes numerous
+  previously unknown bugs.  (Try (load-quietly #t) in v0.29 to see what
+  I mean.)
+  Added code to allow console I/O ports to be correctly opened and closed.
+
+[Makefile]
+  Now removes bdwlarceny and hsplit in 'setup' target.
+
+[Repl/reploop.sch]
+  - Added repl-evaluator; repl now used the installed evaluator (if any)
+    to evaluate expressions.
+  - Renamed repl-display-procedure to repl-printer and rewrote it in terms
+    of system-parameter.
+
+[Rts/Makefile]
+  Now has a user-configurable section 0; "programs".
+
+[Rts/*/*]
+  [019] Now supports large-object allocation; this fixes a long-standing bug.
+
+[Rts/Sparc/generic.s]
+  Replaced fabsd with fabss and fnegd with fnegs so that it will run on
+  more Solaris machines.
+
+[Util/load-env.sch]
+  Defined the 'standard-installations' procedure that will install
+  more sophisticated procedures for the defaults (REPL printer, evaluator).
+
+  load-environment now takes an optional directory name argument that
+  specifies the base directory from which to load the development 
+  environment.
+
+[Util/make-support.fasl]
+  [040] Support code for the make system when running standalone.
+
+[Util/modules.list]
+  Exports twobit-auxiliary-expander.
+  Loads Util/make-support.fasl.
+
+----------------------------------------------------------------------
+v0.30 released 970925 by lth
+
+MAJOR FEATURES
+* Works on Solaris (at least on v5.6)
+* There is a 'structure' data type
+* The new assembler is now the default for both Chez Scheme and Larceny.
+
+
+[Lib/print.sch; Lib/struct.sch; Lib/toplevel.sch; Lib/makefile.sch]
+  We have structures!
+  Structures are handled specially by calling the structure printer.
+
+[Compiler/compile313.sch]
+  - Added an 'assemble-file' procedure that takes .mal or .lap to .fasl.
+  - Fixed a bug in 'assemble313' where a .mal file was assembled to a file
+    with type .mal.lop rather than .lop.
+  - Cleaned up.
+
+[Asm/Sparc/sparcdis.sch; Asm/Sparc-old/sparcdis.sch; Compiler/compile313.sch]
+  - The name 'disassemble' is no longer in use; everyone agrees on the
+    name 'disassemble-codevector'.  This change was made to make it possible
+    to use the name 'disassemble' somewhere else.
+  - The name 'print-ilist' is no longer in use; everyone agrees on the
+    name 'print-instructions'.
+  - There is a new procedure 'disassemble' that disassembles a procedure
+    in a running system.
+
+----------------------------------------------------------------------
+v0.29d released 971030 by lth
 
 [Rts/*/*]
   Now supports large-object allocation; this fixes (for this version)

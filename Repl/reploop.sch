@@ -1,7 +1,7 @@
 ; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; $Id: reploop.sch,v 1.5 1997/09/17 15:14:58 lth Exp lth $
+; $Id: reploop.sch,v 1.5 1997/09/17 15:14:58 lth Exp $
 
 ($$trace "reploop")
 
@@ -16,6 +16,7 @@
   (init-toplevel-environment)
   (interaction-environment (larceny-environment))
   (setup-error-handlers)
+  (repl-evaluator eval)
   (rep-loop-bootstrap argv))
 
 
@@ -35,15 +36,15 @@
 
 (define (rep-loop)
 
-  (define (loop)
+  (define (rep-loop)
     (display "> ")
     (flush-output-port)
-    (let ((expr   (read)))
+    (let ((expr (read)))
       (if (not (eof-object? expr))
-	  (let ((result (eval expr)))
+	  (let ((result ((repl-evaluator) expr (interaction-environment))))
 	    (reestablish-console-io)
 	    (repl-display result)
-	    (loop))
+	    (rep-loop))
 	  (begin (newline)
 		 (exit)))))
 
@@ -53,48 +54,41 @@
    (lambda (k)
      (set! *reset-continuation* k)))
   (newline)
-  (loop))
+  (rep-loop))
+
+
+;;; Read-eval-print loop evaluator.
+
+(define repl-evaluator
+  (system-parameter "repl-evaluator" #f))
+
 
 ;;; Read-eval-print loop printer.  The print procedure defaults to a simple
 ;;; wrapper around 'display', but the procedure is installable, so that
 ;;; higher-level code can install e.g. a pretty-printer as the default
 ;;; print procedure.
 
-; Default
-
-(define default-repl-display-proc
+(define default-repl-printer
   (lambda (result)
     (if (not (eq? result (unspecified)))
 	(begin (display result)
 	       (newline)))))
 
-; Install hook
+(define repl-printer
+  (system-parameter "repl-printer" default-repl-printer))
 
-(define repl-display-procedure
-  (let ((proc default-repl-display-proc))
-    (lambda rest
-      (cond ((null? rest) proc)
-	    ((null? (cdr rest))
-	     (let ((old proc))
-	       (if (not (car rest))
-		   (set! proc default-repl-display-proc)
-		   (set! proc (car rest)))
-	       old))
-	    (else
-	     (error "repl-display-proc: too many arguments.")
-	     #t)))))
 
-; Called by repl.
+; Called by repl and by loader.
 
 (define (repl-display result)
   (call-with-error-handler
    (lambda (who . args)
      (reestablish-console-io)
      (format #t "Error: Bogus display procedure; reverting to default.")
-     (repl-display-procedure default-repl-display-proc)
+     (repl-printer default-repl-printer)
      (reset))
    (lambda ()
-     ((repl-display-procedure) result))))
+     ((repl-printer) result))))
 
 
 ;;; Console i/o handling -- after an error, console i/o must be reset.

@@ -49,57 +49,26 @@
 ; If the keyword is null, it is ignored.  Otherwise it is printed with the
 ; rest of the arguments.  Installed error handlers should obey this logic
 ; as far as reasonable.
-;
-; Error messages from system primitives come fully laid out with spaces,
-; so the error handler does not need to add any.
 
-(define *error-handler*
-  (lambda (who . args)
-    (if (number? who)
-	(apply system-error-handler who args)
-	(begin (display "Error: ")
-	       (if (not (null? who))
-		   (begin (display who)
-			  (display ": ")))
-	       (for-each display args)
-	       (newline)
-	       (reset)))))
+(define error-handler
+  (system-parameter "error-handler" 
+		    (lambda (who . args)
+		      (if (number? who)
+			  (begin (apply system-error-handler who args)
+				 (display "FATAL: Error handler returned.")
+				 (newline)
+				 (exit))
+			  (begin (display "Error: ")
+				 (if (not (null? who))
+				     (begin (display who)
+					    (display ": ")))
+				 (for-each display args)
+				 (newline)
+				 (reset))))))
 
-(define (error-handler . args)
-  (cond ((null? args)
-	 *error-handler*)
-	((and (null? (cdr args))
-	      (procedure? (car args)))
-	 (let ((old *error-handler*))
-	   (set! *error-handler* (lambda a
-				   (apply (car args) a)
-				   (display "FATAL: Error handler returned.")
-				   (newline)
-				   (exit)))
-	   old))
-	(else
-	 (display "Error: Error-handler: Invalid argument: ")
-	 (display args)
-	 (newline))))
-
-(define *reset-handler*
-  (lambda ()
-    (exit)))
-
-(define (reset-handler . args)
-  (cond ((null? args)
-	 *reset-handler*)
-	((and (null? (cdr args))
-	      (procedure? (car args)))
-	 (let ((old *reset-handler*))
-	   (set! *reset-handler*
-		 (lambda ()
-		   ((car args))
-		   (display "FATAL: Reset handler returned.")
-		   (newline)
-		   (exit)))
-	   old))
-	(else
-	 (display "Error: Reset-handler: Invalid argument: " args))))
+(define reset-handler
+  (system-parameter "reset-handler" 
+		    (lambda ignored
+		      (exit))))
 
 ; eof

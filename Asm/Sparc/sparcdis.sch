@@ -1,13 +1,14 @@
 ; Asm/Sparc/sparcdis.sch
 ; Larceny back-end -- SPARC disassembler
 ;
-; $Id: sparcdis.sch,v 1.2 1997/07/18 13:43:13 lth Exp $
+; $Id: sparcdis.sch,v 1.3 1997/09/23 20:02:38 lth Exp lth $
 ;
 ; Interface.
-;  (disassemble-codevector codevector)              => decoded-instruction-list
+;  (disassemble-codevector codevector)             => decoded-instruction-list
 ;  (disassemble-instruction instruction address)    => decoded-instruction
 ;  (print-instructions decoded-instruction-list)    => unspecified
-;  (format-instruction decoded-instruction address) => string
+;      Also takes an optional port and optionally the symbol "native-names".
+;  (format-instruction decoded-instruction address larceny-names?) => string
 ; 
 ; A `decoded-instruction' is a list where the car is a mnemonic (see below)
 ; and the operands are appropriate for that mnemonic.
@@ -27,9 +28,6 @@
   (loop (- (bytevector-length cv) 4) '()))
 
 (define disassemble-instruction)	    ; Defined below.
-
-(define disassemble disassemble-codevector) ; An alias used in compile313.sch.
-
 
 ; Mnemonics
 
@@ -181,7 +179,7 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
-	      (0          0)
+	      (0          0)                              ; 10
 	      (,(mnemonic 'smul)  ,(mnemonic 'smul 'i))
 	      (0          0)
 	      (0          0)
@@ -191,7 +189,7 @@
 	      (,(mnemonic 'andcc) ,(mnemonic 'andcc 'i))
 	      (,(mnemonic 'orcc)  ,(mnemonic 'orcc 'i))
 	      (,(mnemonic 'xorcc) ,(mnemonic 'xorcc 'i))
-	      (,(mnemonic 'subcc) ,(mnemonic 'subcc 'i))
+	      (,(mnemonic 'subcc) ,(mnemonic 'subcc 'i))  ; 20
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -201,7 +199,7 @@
 	      (,(mnemonic 'smulcc) ,(mnemonic 'smulcc 'i))
 	      (0          0)
 	      (0          0)
-	      (0          0)
+	      (0          0)                               ; 30
 	      (,(mnemonic 'sdivcc) ,(mnemonic 'sdivcc 'i))
 	      (,(mnemonic 'taddcc) ,(mnemonic 'taddcc 'i))
 	      (,(mnemonic 'tsubcc) ,(mnemonic 'tsubcc 'i))
@@ -211,6 +209,7 @@
 	      (,(mnemonic 'sll)   ,(mnemonic 'sll 'i))
 	      (,(mnemonic 'srl)   ,(mnemonic 'srl 'i))
 	      (,(mnemonic 'sra)   ,(mnemonic 'sra 'i))
+	      (0          0)                               ; 40
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -220,8 +219,7 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
-	      (0          0)
-	      (0          0)
+	      (0          0)                               ; 50
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -231,8 +229,8 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
-	      (0          0)
-	      (0          0)
+	      (,(mnemonic 'save)  ,(mnemonic 'save 'i))   ; 60
+	      (,(mnemonic 'restore) ,(mnemonic 'restore 'i))
 	      (0          0)
 	      (0          0))))
 
@@ -254,6 +252,7 @@
 	      (,(mnemonic 'std 's)   ,(mnemonic 'std 'i 's))
 	      (0          0)
 	      (0          0)
+	      (0          0)		; 10
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -263,6 +262,7 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
+	      (0          0)		; 20
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -272,24 +272,17 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
+	      (0          0)		; 30
+	      (0          0)
+	      (,(mnemonic 'ldf 'f 'l) ,(mnemonic 'ldf 'i 'f 'l))
 	      (0          0)
 	      (0          0)
+	      (,(mnemonic 'lddf 'f 'l) ,(mnemonic 'lddf 'i 'f 'l))
+	      (,(mnemonic 'stf 'f 's)  ,(mnemonic 'stf 'i 'f 's))
 	      (0          0)
 	      (0          0)
-	      (0          0)
-	      (0          0)
-	      (,(mnemonic 'ldd 'f)  ,(mnemonic 'ldd 'i 'f))
-	      (0          0)
-	      (0          0)
-	      (0          0)
-	      (,(mnemonic 'std 'f)  ,(mnemonic 'std 'i 'f))
-	      (0          0)
-	      (0          0)
-	      (0          0)
-	      (0          0)
-	      (0          0)
-	      (0          0)
-	      (0          0)
+	      (,(mnemonic 'stdf 'f 's) ,(mnemonic 'stdf 'i 'f 's))
+	      (0          0)		; 40
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -299,10 +292,17 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
+	      (0          0)		; 50
 	      (0          0)
 	      (0          0)
 	      (0          0)
 	      (0          0)
+	      (0          0)
+	      (0          0)
+	      (0          0)
+	      (0          0)
+	      (0          0)
+	      (0          0)		; 60
 	      (0          0)
 	      (0          0)
 	      (0          0))))
@@ -373,20 +373,31 @@
 ;
 ; It assumes that the first instruction comes from address 0, and prints
 ; addresses (and relative addresses) based on that assumption.
+;
+; If the optional symbol native-names is supplied, then SPARC register
+; names is used, and millicode calls are not annotated with millicode names.
 
 (define (print-instructions ilist . rest)
-  (let ((port (if (null? rest) (current-output-port) (car rest))))
-  
-    (define (print-ilist ilist a)
-      (if (null? ilist)
-	  '()
-	  (begin (display (format-instruction (car ilist) a) port)
-		 (newline port)
-		 (print-ilist (cdr ilist) (+ a 4)))))
-  
-    (print-ilist ilist 0)))
 
-(define print-ilist print-instructions)	    ; Alias used in compile313.sch.
+  (define port (current-output-port))
+  (define larceny-names? #t)
+
+  (define (print-ilist ilist a)
+    (if (null? ilist)
+	'()
+	(begin (display (format-instruction (car ilist) a larceny-names?)
+			port)
+	       (newline port)
+	       (print-ilist (cdr ilist) (+ a 4)))))
+  
+  (do ((rest rest (cdr rest)))
+      ((null? rest))
+    (cond ((port? (car rest))
+	   (set! port (car rest)))
+	  ((eq? (car rest) 'native-names)
+	   (set! larceny-names? #f))))
+  
+  (print-ilist ilist 0))
 
 (define format-instruction)		    ; Defined below
 
@@ -395,6 +406,8 @@
 ; Instruction formatter.
 
 (let ()
+
+  (define use-larceny-registers #t)
 
   (define sparc-register-table 
     (vector "%g0" "%g1" "%g2" "%g3" "%g4" "%g5" "%g6" "%g7"
@@ -407,7 +420,8 @@
 
   (define (larceny-register-name reg . rest)
     (if (null? rest)
-	(or (vector-ref larceny-register-table reg)
+	(or (and use-larceny-registers
+		 (vector-ref larceny-register-table reg))
 	    (vector-ref sparc-register-table reg))
 	(vector-set! larceny-register-table reg (car rest))))
 
@@ -497,7 +511,8 @@
     (string-append (larceny-register-name (op1 instr)) 
 		   (plus/minus (op2 instr)) ", "
 		   (larceny-register-name (op3 instr))
-		   (if (= (op1 instr) $r.globals)
+		   (if (and (= (op1 instr) $r.globals)
+			    use-larceny-registers)
 		       (millicode-call (op2 instr))
 		       (heximm (op2 instr)))))
 
@@ -513,7 +528,8 @@
   ;; the structure of this procedure must change, because as it is,
   ;; the printing of the name is independent of the operand values.
 
-  (define (format-instr i a)
+  (define (format-instr i a larceny-names?)
+    (set! use-larceny-registers larceny-names?)
     (let ((m (car i)))
       (string-append (number->string a)
 		     tabstring

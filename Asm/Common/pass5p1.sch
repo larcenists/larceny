@@ -1,7 +1,7 @@
 ; Asm/Common/pass5p1.sch
 ; Larceny -- the assembler, target-independent code.
 ;
-; $Id: pass5p1.sch,v 1.4 1997/09/17 15:03:53 lth Exp lth $
+; $Id: pass5p1.sch,v 1.4 1997/09/17 15:03:53 lth Exp $
 ;
 ; Based on MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.
@@ -227,6 +227,27 @@
     (if probe
 	(set-cdr! probe value)
 	(as-values! as (cons (cons key value) (as-values as))))))
+
+; For documentation.
+;
+; The value must be a documentation structure (a vector).
+
+(define (add-documentation as doc)
+  (let* ((existing-constants (cadr (car (as-constants as))))
+;	 (dummy (begin (display existing-constants) (newline)))
+	 (new-constants 
+	  (twobit-sort
+	   (lambda (a b)
+	     (< (car a) (car b)))
+	   (cond ((not existing-constants)
+		  (list (cons (here as) doc)))
+		 ((pair? existing-constants)
+		  (cons (cons (here as) doc)
+			existing-constants))
+		 (else
+		  (list (cons (here as) doc)
+			(cons 0 existing-constants)))))))
+    (set-car! (cdar (as-constants as)) new-constants)))
 
 ; This is called when a value is too large to be handled by the assembler.
 ; Info is a string, expr an assembler expression, and val the resulting

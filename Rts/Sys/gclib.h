@@ -1,7 +1,7 @@
 /* Rts/Sys/gclib.h
  * Larceny run-time system -- garbage collector library
  *
- * $Id: gclib.h,v 1.9 1997/05/31 01:38:14 lth Exp $
+ * $Id: gclib.h,v 1.10 1997/09/23 19:57:44 lth Exp lth $
  *
  * This header defines the interface to the gc library, which provides 
  * the following services:
@@ -32,7 +32,7 @@
 
 #define roundup_page( n )  (((word)(n)+PAGEMASK)&~PAGEMASK)
 #define pageof( n )        (((word)(n)-(word)gclib_pagebase) >> (PAGESHIFT))
-
+#define pageof_pb( n, pb ) (((word)(n)-(word)(pb)) >> (PAGESHIFT))
 
 /* Descriptor table bits */
 

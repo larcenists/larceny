@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.18 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: larceny.h,v 1.19 1997/09/23 19:57:44 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -16,6 +16,8 @@
 /* Fundamental data type. */
 
 typedef unsigned word;
+typedef int s_word;
+typedef unsigned char byte;
 
 #ifndef GC_INTERNAL
 #include "gc.h"
@@ -61,7 +63,8 @@ extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 
 #ifndef GC_INTERNAL
 extern int  allocate_heap( gc_param_t *params );
-extern word *alloc_from_heap( unsigned );
+extern word *alloc_from_heap( unsigned nbytes );
+extern word gc_allocate_nonmoving( int length, int tag );
 #if 0
 extern void garbage_collect( int, unsigned );
 #endif
@@ -145,6 +148,8 @@ extern void UNIX_block_signals();
 extern void UNIX_flonum_sinh();
 extern void UNIX_flonum_cosh();
 extern void UNIX_system();
+extern void UNIX_allocate_nonmoving();
+extern void UNIX_object_to_address();
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -191,6 +196,33 @@ extern void *must_realloc( void *ptr, unsigned size );
 /* In "Rts/Sys/signals.c" */
 
 void setup_signal_handlers( void );
+
+/* In "Rts/Sys/ffi.c" */
+
+void larceny_C_ffi_apply( word trampoline_bytevector,
+			  word argument_descriptor,
+			  word return_descriptor,
+		          word actuals );
+void larceny_C_ffi_dlopen( word w_path );
+void larceny_C_ffi_dlsym( word w_handle, word w_sym );
+void larceny_C_ffi_getaddr( word w_key );
+void larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
+				    word *adesc, int rdesc, int argc );
+
+/* In Rts/Sys/callback.c */
+
+void larceny_call( word proc, int argc, word *argv, word *result );
+
+/* In "Rts/Sys/util.c" */
+
+#ifndef GC_INTERNAL
+word copy_object( gc_t *gc, word obj );
+word box_double( double d );
+word box_int( int i );
+word box_uint( unsigned u );
+unsigned unbox_uint( word w );
+int unbox_int( word w );
+#endif
 
 /* In "Rts/$MACHINE/glue.s" */
 

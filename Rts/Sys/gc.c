@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.c
  * Larceny run-time system -- RTS/GC glue code for 0.26.alpha
  * 
- * $Id: gc.c,v 1.19 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: gc.c,v 1.19 1997/09/17 15:17:26 lth Exp $
  *
  * The code in this file presents an interface to the new GC that looks
  * mostly like the interface to the old GC.  The purpose of the deception
@@ -48,6 +48,39 @@ void init_stats( int show_stats )
 word *alloc_from_heap( unsigned bytes )
 {
   return gc->allocate( gc, bytes );
+}
+
+word gc_allocate_nonmoving( int length, int tag )
+{
+  int i;
+  word *obj;
+
+  switch( tag ) {
+  case PAIR_TAG :
+  case VEC_TAG :
+    length = sizeof(word)*length;
+    break;
+  case BVEC_TAG :
+    break;
+  default :
+    panic( "Bad case in UNIX_allocate_nonmoving: %d", tag );
+  }
+
+  obj = gc->allocate_nonmoving( gc, length );
+  switch (tag) {
+  case PAIR_TAG :
+    obj[0] = FALSE_CONST;
+    obj[1] = FALSE_CONST;
+    return tagptr( obj, PAIR_TAG );
+  case VEC_TAG :
+    obj[0] = mkheader( length, VECTOR_HDR );
+    for ( i=1 ; i < length/sizeof(word) ; i++ )
+      obj[i] = FALSE_CONST;
+    return tagptr( obj, VEC_TAG );
+  case BVEC_TAG :
+    obj[0] = mkheader( length, BYTEVECTOR_HDR );
+    return tagptr( obj, BVEC_TAG );
+  }
 }
 
 #if 0

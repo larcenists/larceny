@@ -23,7 +23,7 @@
              (,$.label 1001)
              (,$branch 1001))  ; just a precaution
             0
-            (#t))
+            #f)
   (,$setglbl @raw-apply@)
   (,$const @raw-apply@)
   (,$return))
@@ -45,13 +45,13 @@
 			 (,$reg     1)
 			 (,$return))
 			2
-			(#t))
+			#f)
 	     (,$setreg  3)
 	     (,$reg     1)
 	     (,$movereg 3 1)
 	     (,$invoke  1))
 	    0
-	    (#t))
+	    #f)
   (,$setglbl call-with-current-continuation)
   (,$const   call-with-current-continuation)
   (,$return))
@@ -78,7 +78,7 @@
 	     (,$op2     procedure-ref 2)
 	     (,$return))
 	    0
-	    (#t))
+	    #f)
   (,$setglbl sys$continuation-data-structure)
   (,$const   sys$continuation-data-structure)
   (,$return))
@@ -96,7 +96,7 @@
 	     (,$op1 syscall)
 	     (,$return))
 	    0
-	    (#t))
+	    #f)
   (,$setglbl syscall)
   (,$const   syscall)
   (,$return))

@@ -1,13 +1,27 @@
+; Util/load-env.sch
+; Larceny compilation environment -- compilation system loader file
+;
+; $Id: load-env.sch,v 1.2 1997/09/23 20:07:36 lth Exp lth $
+;
+; Usage: (load-environment module-file &opt 'verbose &opt basedir)
+;
+; Usage: (standard-installations)
+
 ; See the file modules.list for an example of the input.
 
-(define (load-environment module-file)
+(define (load-environment module-file . rest)
 
   (define envs '())
+  (define verbose #f)
+  (define basedir "")
 
   (define (loadf files env)
     (for-each (lambda (fn)
-		(format #t "~a...~%" fn)
-		(load fn env))
+		(let ((fn (string-append basedir fn)))
+		  (if verbose
+		      (begin (display fn)
+			     (newline)))
+		  (load fn env)))
 	      files))
 
   (define (get name item failure list?)
@@ -57,7 +71,7 @@
 	    (let ((from (car imp))
 		  (impname (cadr imp)))
 	      (let ((from-env (find-env from)))
-		;		(format #t "resolving ~a in ~a~%" impname from)
+;		(format #t "resolving ~a in ~a~%" impname from)
 		(environment-set! env impname
 				  (environment-get from-env impname)))))
 	  imports)))
@@ -65,6 +79,24 @@
 
   (define (lambda-expr? x)
     (and (pair? x) (eq? (car x) 'lambda)))
+
+  ; Parse arguments
+
+  (do ((rest rest (cdr rest)))
+      ((null? rest))
+    (cond ((eq? (car rest) 'verbose)
+	   (set! verbose #t))
+	  ((string? (car rest))
+	   (set! basedir (car rest)))))
+
+  ; Make sure base directory path is OK
+
+  (if (and (not (= (string-length basedir) 0))
+	   (not (char=? (string-ref basedir (- (string-length basedir) 1))
+			#\/)))
+      (set! basedir (string-append basedir "/")))
+
+  ; Warn if init file exists and may have been loaded
 
   (if (or (file-exists? ".larceny")
 	  (file-exists? (string-append (getenv "HOME") "/" ".larceny")))
@@ -82,6 +114,11 @@
   ; Become the new toplevel environment.
 
   (interaction-environment (find-env '@toplevel@))
-  #!unspecified)
+  (unspecified))
+
+(define (standard-installations)
+  (repl-display-procedure pretty-print)
+  ; FIXME: Install compile+link as evaluator.
+  (unspecified))
 
 ; eof

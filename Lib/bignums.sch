@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id: bignums.sch,v 1.5 1997/09/17 15:13:23 lth Exp lth $
+; $Id: bignums.sch,v 1.5 1997/09/17 15:13:23 lth Exp $
 ;
 ; Larceny runtime system.
 ; Scheme code for bignum arithmetic.
@@ -121,6 +121,9 @@
 ; The procedures in Section 1 work on a 32-bit-word, big-endian architecture,
 ; of which the Sparc is one example. On such an architecture, the layout of
 ; a bignum is this:
+;
+; FIXME: this figure corresponds neither to the code nor to the documentation
+; on the web page!!
 ;
 ;     high                         low
 ;    +------------------------+--------+

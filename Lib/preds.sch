@@ -23,6 +23,8 @@
 	 (vector-equal? x y))
 	((and (bytevector? x) (bytevector? y))
 	 (bytevector-equal? x y))
+	((and (structure? x) (structure? y))
+	 ((structure-comparator) x y))
 	(else #f)))
  
 ; eof

@@ -305,6 +305,17 @@
 
      FIX: Apparently, I've since written the code.
 
+019  (v0.28)  970507  Fixed 971030 by lth
+
+     With the generational collector, it is only possible to allocate objects
+     that fit in the youngest generation, and that generation is of a
+     fixed size.  This should not be a problem with the stop-and-copy (heaps=1)
+     or conservative collectors.
+
+     This should be fixed by allowing objects to be allocated "on the side"
+     of the youngest generation; the current barrier system should be able
+     to deal with this.
+
 020  (v0.28b) 970527  Fixed 970624 by lth
 
      Transcript:
@@ -329,6 +340,10 @@
      compiler uses a copy of the same quasiquotation rewriter, so that had 
      to be fixed too.
 
+022  (v0.28d) 970625  Fixed 970701 by lth
+
+     The following functions do not accept complex arguments:
+	SQRT, SIN, COS, TAN, ASIN, ACOS, ATAN, LOG, EXP
 
 023  (v0.28d) 970701  Fixed 970701 by lth
 
@@ -364,6 +379,10 @@
 
      FIX: was typo in compnum/compnum multiplication in generic.s.
 
+
+026  (v0.28d) 970701  Fixed 970716 by lth
+
+     LOG does not accept negative arguments.
 
 028  (v0.28c) 970611  Fixed 970702 by lth
 
@@ -436,6 +455,199 @@
      FIX:
      But in read-symbol introduced during optimization.
 
+032  v0.28e (970715 / lth) Fixed 971023 by lth
+
+     It appears that the error continuation grows longer and longer with
+     each error.  This is an error.
+
+     This is easily seen with the backtrace walker: for each error,
+     or at least for most errors, the backtrace structure gets longer and
+     longer.  Interestingly it looks like this:
+
+	> (walk (error-continuation))
+	#(#f #f 0.0 #f #f)   72
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(*error-handler* #f 0.0 #f #f)   54
+	#(#f #f 1 #f #f)   67
+	#(#f #f 1 #f #f)   36
+	#f   377
+	SYSTEM PROCEDURE   10062
+	Error: >=: #f is not a real number.
+
+     where we also see that not only does it look strange, but it
+     terminates in an unexpected way.  This gets more interesting as we
+     just print out the continuation: notice the reader error at the 
+     end!  Something bad is lurking there...
+
+	#(72 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(54 #(6898 #(7032 #(10143 #(188 #(54 #(54 #(54 #(54 #(54 #(54 #(10143 #(59 #(377 #(10062 Error: Bogus display procedure; reverting to default.
+
+     Here's a more extensive trace:
+
+	everest(4) % larceny
+	Larceny v0.31 (precise;SunOS;split) (lth/Wed Oct 15 15:47:02 EDT 1997)
+	
+	> (load "oddeven.fasl")
+	> (load "walk.sch")
+	> (even? '(1 2 3 . 4))
+	Error: cdr: 4 is not a pair.
+	
+	> (walk2 (error-continuation))
+	Frame length 4
+	Return offset 72
+	dynamic link is valid
+	procedure information: #(#f #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (() cdr :  4  is not a pair.)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (1 4 #<PROCEDURE> #<PROCEDURE>)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (1 4 #<PROCEDURE> #<PROCEDURE>)
+	Frame length 4
+	Return offset 54
+	dynamic link is valid
+	procedure information: #(*error-handler* #f 0.0 #f #f)
+	reg1 = (1 4 #<PROCEDURE> #<PROCEDURE>)
+	Frame length 38
+	Return offset 10143
+	dynamic link is valid
+	procedure information: system procedure
+	reg1 = 43
+	reg2 = #<PROCEDURE>
+	reg3 = 4
+	reg4 = #<PROCEDURE even?>
+	reg5 = #!undefined
+	reg6 = 1
+	reg7 = ()
+	reg8 = #<PROCEDURE>
+	reg9 = (#<PROCEDURE>)
+	reg10 = 1
+	reg11 = #<PROCEDURE>
+	reg12 = (#<PROCEDURE>)
+	reg13 = even?
+	reg14 = 1
+	reg15 = ()
+	reg16 = #<PROCEDURE>
+	reg17 = (4)
+	reg18 = #f
+	reg19 = 10
+	reg20 = -1
+	reg21 = (#<PROCEDURE read-string> . 0)
+	reg22 = (#<PROCEDURE read-symbol> . 0)
+	reg23 = (#<PROCEDURE read-symbol2> . 0)
+	reg24 = (#<PROCEDURE read-atom> . 0)
+	reg25 = (#<PROCEDURE parse-prefixed-number> . 0)
+	reg26 = (#<PROCEDURE parse-number-loop> . 0)
+	reg27 = (#<PROCEDURE peculiar-identifier?> . 0)
+	reg28 = (#<PROCEDURE flush-comment> . 0)
+	reg29 = (#<PROCEDURE flush-comment-and-read> . 0)
+	reg30 = (#<PROCEDURE flush-comment-and-read-list> . 0)
+	reg31 = (#<PROCEDURE read-eof> . 0)
+	reg32 = (#<PROCEDURE read-unexpected-eof> . 0)
+	reg33 = (#<PROCEDURE char-downcase> (#<PROCEDURE warn> . 0) (#<PROCEDURE read-illegal> . 0) (#<PROCEDURE read-dispatch-whitespace> . 0) (#<PROCEDURE read-dispatch-extra-paren> . 0) (#<PROCEDURE read-dispatch-symbol-starter> . 0) (#<PROCEDURE read-dispatch-parse> . 0) (#<PROCEDURE read-dispatch-reserved> . 0) (#<PROCEDURE read-list-whitespace> . 0) (#!undefined . 0))
+	reg34 = 4
+	reg35 = 0
+	Frame length 4
+	Return offset -102637
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = 4
+	Frame length 4
+	Return offset 100
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = (3 . 4)
+	Frame length 4
+	Return offset 60
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = (2 3 . 4)
+	Frame length 4
+	Return offset 100
+	dynamic link is valid
+	procedure information: ((88 . #(even? #f 1 #f #f)) (108 . #(odd? #f 1 #f #f)) (268 . #(even? #f 1 #f #f)))
+	reg1 = (1 2 3 . 4)
+	Frame length 7
+	Return offset 377
+	dynamic link is valid
+	procedure information: #f
+	reg1 = (even? '(1 2 3 . 4))
+	reg2 = #<PROCEDURE>
+	reg3 = (even? '(1 2 3 . 4))
+	reg4 = #<ENVIRONMENT larceny-environment>
+	Frame length 3
+	Return offset 10062
+	dynamic link is valid
+	procedure information: system procedure
+	Frame length #f
+	Return offset -4194305
+	Error: >=: #f is not a real number.
+
+     Notice the invalid frame size!
+
+     The plot is thickening: here's a backtrace of the current 
+     continuation structure in a clean heap:
+
+	everest(5) % larceny
+	Larceny v0.31 (precise;SunOS;split) (lth/Wed Oct 15 15:47:02 EDT 1997)
+	
+	> (load "walk.sch")
+	> (walk2 (current-continuation-structure))
+	
+	Frame length 5
+	Return offset 59
+	dynamic link is valid
+	procedure information: #(#f #f 1 #f #f)
+	#1 = ()
+	#2 = #<PROCEDURE>
+	
+	Frame length 7
+	Return offset 377
+	dynamic link is valid
+	procedure information: #f
+	#1 = (walk2 (current-continuation-structure))
+	#2 = #<PROCEDURE>
+	#3 = (walk2 (current-continuation-structure))
+	#4 = #<ENVIRONMENT larceny-environment>
+	
+	Frame length 3
+	Return offset 10062
+	dynamic link is valid
+	procedure information: system procedure
+	
+	Frame length #f
+	Return offset -4194305
+	Error: >=: #f is not a real number.
+
+     FIX:
+     Error in continuation structure turned out to be a bug in callout.c.
+
+     Aggregation of frames turned out to be the wrapping of handler
+     procedures in error handler installation -- don't do that!
+
 033  v0.28f (970717 / lth)  Fixed 970727 byt lth
 
      (This is an old error.)
@@ -477,4 +689,179 @@
      FIX: 
      Turned out to be bignum->fixnum, once again, that did not handle
      the most negative fixnum correctly.
+
+
+038  v0.29a (970917 / lth)  Fixed 971030 by lth
+
+     Typetag-set! gives a strange error message when it's not the structure
+     but the typetag that is bad:
+
+	> (typetag-set! (make-vector 3) 20)
+	Error: typetag-set!: #(#f #f #f) is not typetag-settable.
+
+     FIX:
+     Added code to ehandler.sch to discover this.
+
+
+039  v0.30 (970924 / lth)  SunOS
+
+     The following crashes with 'Illegal instruction':
+
+	(let ((x (inexact->exact (log -1.3))))
+	  (make-rectangular (rationalize (real-part x) 1/1000) 
+                            (rationalize (imag-part x) 1/1000)))
+
+     It appears that an illtrap 0 appears in the middle of an
+     otherwise fine-looking instruction stream, in place of a
+     conditional branch:
+
+	(gdb) x/20i $pc-40
+	0x512ac0 <end+5182368>:	cmp  %o0, 0x316
+	0x512ac4 <end+5182372>:	bne,a   0x512ad8 <end+5182392>
+	0x512ac8 <end+5182376>:	nop 
+	0x512acc <end+5182380>:	mov  %o4, %o0
+	0x512ad0 <end+5182384>:	call  %i7 + 0x568
+	0x512ad4 <end+5182388>:	mov  0x1a8, %g1
+	0x512ad8 <end+5182392>:	call  0x512ae0 <end+5182400>
+	0x512adc <end+5182396>:	add  %o7, 0x40, %o7
+	0x512ae0 <end+5182400>:	st  %o7, [ %o3 + 4 ]
+	0x512ae4 <end+5182404>:	deccc  %i4
+	0x512ae8 <end+5182408>:	illtrap  0
+	0x512aec <end+5182412>:	and  %o0, 7, %g1
+	0x512af0 <end+5182416>:	call  %i7 + 0x560
+	0x512af4 <end+5182420>:	add  %o7, -20, %o7
+	0x512af8 <end+5182424>:	and  %o0, 7, %g1
+	0x512afc <end+5182428>:	cmp  %g1, 7
+	0x512b00 <end+5182432>:	be,a   0x512b14 <end+5182452>
+	0x512b04 <end+5182436>:	ld  [ %o0 + -3 ], %g1
+	0x512b08 <end+5182440>:	mov  0x1a4, %g1
+	0x512b0c <end+5182444>:	jmp  %i7 + 0x568
+	(gdb) x/x $pc
+	0x512ae8 <end+5182408>:	0x00000000
+
+     The instruction is intact when the program starts (at that address,
+     which should be in the static area).
+
+     Furthermore, the problem happens in the call to rationalize (either
+     one); real-part and imag-part seem to work fine.  
+
+     Here's the last part of a syscall trace:
+
+	generic_lessp: 5851d 0
+	internal_scheme_call: 150
+	generic_lessp: 5851d 586fd
+	internal_scheme_call: 44
+	internal_scheme_return: 2
+	internal_scheme_return: 2
+	generic_equalp: 5851d 0
+	internal_scheme_call: 154
+	generic_equalp: 5851d 5870d
+	internal_scheme_call: 40
+	internal_scheme_return: 2
+	internal_scheme_return: 2
+	internal_scheme_call: 14c
+	internal_scheme_call: 34
+	internal_scheme_return: 5872d
+	internal_scheme_return: 5872d
+	internal_scheme_call: 14c
+	internal_scheme_call: 30
+	internal_scheme_return: 58765
+	internal_scheme_return: 58765
+	internal_scheme_call: 14c
+	internal_scheme_call: 34
+	internal_scheme_return: 5878d
+	internal_scheme_return: 5878d
+	internal_scheme_call: 14c
+	internal_scheme_call: 30
+	internal_scheme_return: 587c5
+	internal_scheme_return: 587c5
+	
+	#x14c/4 = 83 = contagion
+	#x30/4 = 12 = bignum-multiply
+	#x34/4 = 13 = bignum-divide 
+
+     So far, it appears that some code is clobbering the code stream,
+     probably with a wild assignment.
+
+     Here's the transcript:
+
+	> (define x (inexact->exact (log -1.3)))
+	(gdb) x/i 0x512ae8
+	0x512ae8 <end+5182408>:	bne,a   0x512afc <end+5182428>
+	> (define a (real-part x))
+	(gdb) x/i 0x512ae8
+	0x512ae8 <end+5182408>:	bne,a   0x512afc <end+5182428>
+	> (rationalize a 1/1000)
+	Program received signal SIGILL, Illegal instruction.
+	0x512ae8 in ?? ()
+	(gdb) x/i 0x512ae8
+	0x512ae8 <end+5182408>:	illtrap  0
+
+     After some grubbing around in the code for rationalize, we have
+     that the same error is provoked by the less mysterious
+
+	> (/ 147135000507969563/562949953421312000)
+
+     and also by (/ 1 ...), as expected, and also by:
+
+	> (define one (make-ratnum 1 1))
+	> one
+	1/1
+	> (/ one 147135000507969563/562949953421312000)
+
+     So it seems ratnum-div is at fault, somehow (not contagion).
+
+     Rebuilding the heap didn't seem to make any difference (i.e., 
+     the heap is probably OK).
+
+     Expanding syshooks with two functions preserves the error...
+
+     This provokes the same error:
+
+	((system-function 'ratnum-div)
+         ((system-function 'make-ratnum) 1 1)
+         147135000507969563/562949953421312000)
+
+     Interestingly, so does this:
+        ((system-function 'ratnum-div)
+         147135000507969563/562949953421312000
+         ((system-function 'make-ratnum) 1 1))
+     but it overwrites a slightly different address (512a50 rather 
+     than 512ae8).
+
+     Also fails with protect_static() in place...
+
+     FIX:
+     Turned out to be an error in generic.s where %GLOBALS was used in
+     a section between save and restore.
+
+     Thanks to Johan who suggested write protecting the static area,
+     thereby quickly finding the offending instruction.
+
+040  v0.31 (9710xx / lth)  Fixed 9761030 by lth
+
+     The _make_ utility uses call-with-error-control but this is not loaded
+     with the load-development-environment system.  
+
+     In general, call-with-error-control, call-with-error-handler, 
+     call-with-reset-handler should be exposed in the default 
+     interaction environment.
+
+     FIX:
+     Exported functions; added file Util/make-support.sch.
+
+045  v0.31 (971024 / lth)  Fixed 971030 by lth
+
+     environment-gettable? needs to check for an undefined value.
+
+     FIX:
+     Implemented obvious fix.
+
+046  v0.31 (971024 / lth)  Fixed 971031 by lth
+
+     The console I/O system must do the right thing when asked to open
+     and close.  See comments in code.
+
+     FIX:
+     Added code to conio.sch and unix.sch to implement this.
 

@@ -8,6 +8,7 @@
 		 (,$.proc      .proc)
 		 (,$.cont      .cont)
 		 (,$.align     .align)
+		 (,$.proc-doc  .proc-doc)
 		 (,$op1        op1)
 		 (,$op2        op2)
 		 (,$op3        op3)

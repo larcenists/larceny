@@ -319,20 +319,24 @@
 	 (flonum:tan (exact->inexact z)))))
 
 (define (asin z)
-  (cond ((flonum? z)
+  (cond ((and (flonum? z)
+	      (<= -1.0 z 1.0))
 	 (flonum:asin z))
-	((not (real? z))
-	 (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))
+	((and (real? z)
+	      (<= -1.0 z 1.0))
+	 (flonum:asin (exact->inexact z)))
 	(else
-	 (flonum:asin (exact->inexact z)))))
+	 (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))))
 
 (define (acos z)
-  (cond ((flonum? z)
+  (cond ((and (flonum? z)
+	      (<= -1.0 z 1.0))
 	 (flonum:acos z))
-	((not (real? z))
-	 (- (/ *pi* 2) (asin z)))
+	((and (real? z)
+	      (<= -1.0 z 1.0))
+	 (flonum:acos (exact->inexact z)))
 	(else
-	 (flonum:acos (exact->inexact z)))))
+	 (- (/ *pi* 2) (asin z)))))
 
 (define (atan z . rest)
   (if (null? rest)

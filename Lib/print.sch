@@ -1,7 +1,7 @@
 ; Lib/print.sch
 ; Larceny -- Print procedures 
 ;
-; $Id: print.sch,v 1.6 1997/08/22 21:05:14 lth Exp $
+; $Id: print.sch,v 1.7 1997/09/23 20:08:39 lth Exp lth $
 ;
 ; Copyright 1991 Lightship Software
 
@@ -88,6 +88,8 @@
                           (printslashed x p)
                           (write-char #\" p))
                    (printstr x p)))
+	      ((structure? x)
+	       ((structure-printer) x p slashify))
 	      ((environment? x)
 	       (printstr (string-append "#<ENVIRONMENT "
 					(environment-name x)
@@ -119,7 +121,7 @@
      (printprocedure
       (lambda (x p slashify)
         (printstr (string-append "#<PROCEDURE"
-                                 (let ((doc (proc-id x)))
+                                 (let ((doc (procedure-name x)))
                                    (if doc
                                        (string-append " " (symbol->string doc))
                                        ""))
@@ -154,14 +156,6 @@
      (printweird
       (lambda (x p slashify)
 	(printstr "#<WEIRD OBJECT>" p)))
-     
-     (proc-id
-      (lambda (x)
-        (let ((x (vector-ref (procedure-ref x 1) 0)))
-          (cond ((symbol? x) x)
-                ((and (pair? x) (symbol? (car x)) (not (eq? (car x) 'lambda)))
-                 (car x))
-                (else #f)))))
      
      (print-quoted
       (lambda (x p slashify)

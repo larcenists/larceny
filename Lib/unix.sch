@@ -62,6 +62,12 @@
 (define syscall:flonum-sinh 29)
 (define syscall:flonum-cosh 30)
 (define syscall:system 31)
+(define syscall:C-ffi-apply 32)
+(define syscall:C-ffi-dlopen 33)
+(define syscall:C-ffi-dlsym 34)
+(define syscall:make-nonrelocatable 35)
+(define syscall:object->address 36)
+(define syscall:ffi-getaddr 37)
 
 ; Syscall wrappers.
 
@@ -105,8 +111,7 @@
 (define (unix:system commandline)
   (syscall syscall:system commandline))
 
-; Get resource usage data into given vector.
-; Returns nothing.
+; Returns a resource usage vector.
 
 (define (unix:get-resource-usage)
   (syscall syscall:get-resource-usage))
@@ -114,9 +119,7 @@
 ; Turn on and off GC statistics dumping to a file.
 
 (define (unix:stats-dump-on filename)
-  (if (string? filename)
-      (syscall syscall:stats-dump-on filename)
-      -1))
+  (syscall syscall:stats-dump-on filename))
 
 (define (unix:stats-dump-off)
   (syscall syscall:stats-dump-off))
@@ -203,6 +206,9 @@
 ;
 ; High-level interface
 ;
+; As a general rule, these procedures should check their argument to
+; the extent necessary for the low-level procedures not to crash
+; the system.
 
 ; Support for the portable I/O system.
 ;
@@ -216,24 +222,29 @@
 ; Open the 'terminal' and return file descriptors for input and output
 ; on it.
 ;
-; FIXME: must be more sophisticated and reopen the terminal after EOF.
+; The first time through, we use file descriptors inherited from the parent
+; process.  Later, we open /dev/tty.
 
-(define (sys$open-terminal mode)
-  (cond ((eq? mode 'input)  unix:stdin)
-	((eq? mode 'output) unix:stdout)
-	(else (error "sys$open-terminal: invalid mode: " mode)
-	      #t)))
-
-; FIXME: should actually close it when asked to do so.
+(define (sys$open-terminal mode firsttime?)
+  (if (not (or (eq? mode 'input) (eq? mode 'output)))
+      (begin (error "sys$open-terminal: invalid mode: " mode)
+	     #t))
+  (if firsttime?
+      (case mode
+	((input) unix:stdin)
+	((output) unix:stdout))
+      (case mode
+	((input) (unix:open "/dev/tty" unix:open-read 0))
+	((output) (unix:open "/dev/tty" unix:open-write unix:create-mode)))))
 
 (define (sys$close-terminal fd)
-  (cond ((equal? fd unix:stdin) 0)
-	((equal? fd unix:stdout) 0)
-	(else (error "sys$close-terminal: invalid descriptor: " fd)
-	      #t)))
+  (sys$close-file fd))
 
 (define (sys$open-file fn mode)
-  (cond ((eq? mode 'input)
+  (cond ((not (string? fn))
+	 (error "sys$open-file: invalid filename " fn)
+	 #t)
+	((eq? mode 'input)
 	 (unix:open fn unix:open-read 0))
 	((eq? mode 'output)
 	 (unix:open fn 
@@ -243,18 +254,85 @@
 	 ???open-file)))
 
 (define sys$get-resource-usage unix:get-resource-usage)
-(define sys$close-file unix:close)
-(define sys$delete-file unix:unlink)
-(define sys$read-file unix:read)
-(define (sys$write-file fd buf k) (unix:write fd buf k 0))
-(define sys$write-file4 unix:write)
-(define sys$rename-file unix:rename)
-(define sys$file-modification-time unix:file-modification-time)
-(define (sys$file-exists? fn) (unix:access fn unix:access-exists))
-(define sys$char-ready? unix:pollinput)
 
-(define sys$gc unix:gc)
-(define sys$codevector-iflush unix:iflush)
+(define (sys$close-file fd)
+  (if (not (fixnum? fd))
+      (begin (error "sys$close-file: invalid file descriptor " fd)
+	     #t)
+      (unix:close fd)))
+
+(define (sys$delete-file fn)
+  (if (not (string? fn))
+      (begin (error "sys$delete-file: invalid filename " fn)
+	     #t)
+      (unix:unlink fn)))
+
+(define (sys$read-file fd buffer nbytes)
+  (cond ((not (fixnum? fd))
+	 (error "sys$read-file: invalid descriptor " fd) #t)
+	((not (bytevector-like? buffer))
+	 (error "sys$read-file: invalid buffer " buffer) #t)
+	((not (and (fixnum? nbytes) (>= nbytes 0)))
+	 (error "sys$read-file: invalid byte count " nbytes) #t)
+	(else
+	 (unix:read fd buffer nbytes))))
+
+(define (sys$write-file fd buf k)
+  (sys$write-file4 fd buf k 0))
+
+(define (sys$write-file4 fd buf k offset)
+  (cond ((not (fixnum? fd))
+	 (error "sys$write-file4: invalid descriptor " fd) #t)
+	((not (bytevector-like? buf))
+	 (error "sys$write-file4: invalid buffer " buf) #t)
+	((not (and (fixnum? k) (>= k 0)))
+	 (error "sys$write-file4: invalid byte count " k) #t)
+	((not (and (>= offset 0)
+		   (<= (+ offset k) (bytevector-like-length buf))))
+	 (error "sys$write-file4: invalid byte count or offset "
+		k "/" offset) #t)
+	(else
+	 (unix:write fd buf k offset))))
+
+(define (sys$rename-file old new)
+  (cond ((not (string? old))
+	 (error "sys$write-file4: bad file name " old) #t)
+	((not (string? new))
+	 (error "sys$write-file4: bad file name " new) #t)
+	(else
+	 (unix:rename old new))))
+
+(define (sys$file-modification-time fn)
+  (cond ((not (string? fn))
+	 (error "sys$file-modification-time: bad file name " fn) #t)
+	(else
+	 (unix:file-modification-time fn))))
+
+(define (sys$file-exists? fn)
+  (cond ((not (string? fn))
+	 (error "sys$file-exists?: bad file name " fn) #t)
+	(else
+	 (unix:access fn unix:access-exists))))
+
+(define (sys$char-ready? fd)
+  (cond ((not (fixnum? fd))
+	 (error "sys$char-ready?: bad descriptor " fd) #t)
+	(else
+	 (unix:pollinput fd))))
+
+(define (sys$gc gen type)
+  (cond ((not (fixnum? gen))
+	 (error "sys$gc: bad generation " gen) #t)
+	((not (fixnum? type))
+	 (error "sys$gc: bad type " type) #t)
+	(else
+	 (unix:gc gen type))))
+
+(define (sys$codevector-iflush bv)
+  (cond ((not (bytevector-like? bv))
+	 (error "sys$codevector-iflush: not a bytevector-like: " bv) #t)
+	(else 
+	 (unix:iflush bv))))
 
 (define (sys$gcctl heap rator rand)
   (if (not (and (fixnum? heap) (fixnum? rator) (fixnum? rand)))
@@ -265,8 +343,10 @@
 ; GC statistics dumping
 
 (define (stats-dump-on fn)
-  (if (< (unix:stats-dump-on fn) 0)
-      (error "stats-dump-on: I/O error."))
+  (cond ((not (string? fn))
+	 (error "stats-dump-on: invalid filename " fn))
+	((< (unix:stats-dump-on fn) 0)
+	 (error "stats-dump-on: I/O error.")))
   (unspecified))
 
 (define (stats-dump-off)
@@ -274,8 +354,20 @@
       (error "stats-dump-off: I/O error."))
   (unspecified))
 
-(define sys$dump-heap unix:dump-heap)
-(define sys$exit unix:exit)
+(define (sys$dump-heap fn proc)
+  (cond ((not (string? fn))
+	 (error "sys$dump-heap: bad file name " fn) #t)
+	((not (procedure? proc))
+	 (error "sys$dump-heap: not a procedure " proc) #t)
+	(else
+	 (unix:dump-heap fn proc))))
+
+(define (sys$exit code)
+  (cond ((not (fixnum? code))
+	 (error "sys$exit: bad code " code)
+	 (unix:exit 1))
+	(else
+	 (unix:exit code))))
 
 ; Get the value of an environment variable.
 
@@ -288,7 +380,7 @@
 	 (error "getenv: not a valid name: " name)
 	 #t)))
 
-; Numbers
+; Numbers -- not error checked yet.  (FIXME?)
 
 (define flonum:sin unix:flonum-sin)
 (define flonum:cos unix:flonum-cos)
@@ -304,9 +396,10 @@
 ; Subprocess
 
 (define (system cmd)
-  (if (not (string? cmd))
-      (error "system: " cmd " is not a string.")
-      (unix:system cmd)))
+  (cond ((not (string? cmd))
+	 (error "system: " cmd " is not a string.") #t)
+	(else
+	 (unix:system cmd))))
 
 ; System-dependent character values.
 
@@ -372,5 +465,24 @@
 	(syscall syscall:block-signals 0)
 	r))))
 
+
+; Foreign-function interface.
+
+(define (sys$C-ffi-apply trampoline arg-encoding ret-encoding actuals)
+  (syscall syscall:C-ffi-apply trampoline arg-encoding ret-encoding actuals))
+
+(define (sys$C-ffi-dlopen path)
+  (cond ((not (bytevector? path))	; 0-terminated bytevector
+	 (error "sys$C-ffi-dlopen: bad path.") #t)
+	(else
+	 (syscall syscall:C-ffi-dlopen path))))
+
+(define (sys$C-ffi-dlsym handle sym)
+  (cond ((not (and (integer? handle) (exact? handle)))
+	 (error "sys$C-ffi-dlsym: bad handle " handle) #t)
+	((not (bytevector? sym))
+	 (error "sys$C-ffi-dlsym: bad symbol " sym) #t)
+	(else
+	 (syscall syscall:C-ffi-dlsym handle sym))))
 
 ; eof

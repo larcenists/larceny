@@ -154,23 +154,4 @@
 	       (before)))))
 
 
-; Install procedure which resolves global names in LOAD and EVAL.
-
-(define global-name-resolver
-  (let ((p (lambda (sym)
-	     (error "global-name-resolver: not installed.")
-	     #t)))
-    (lambda rest
-      (cond ((null? rest) p)
-	    ((and (null? (cdr rest))
-		  (procedure? (car rest)))
-	     (let ((old p))
-	       (set! p (car rest))
-	       old))
-	    (else
-	     (error "global-name-resolver: Wrong number of arguments: "
-		    rest)
-	     #t)))))
-
-
 ; eof

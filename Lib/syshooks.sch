@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: syshooks.sch,v 1.5 1997/09/17 15:13:23 lth Exp lth $
+; $Id: syshooks.sch,v 1.5 1997/09/17 15:13:23 lth Exp $
 ;
 ; Larceny run-time system -- interface to system functions
 ;
@@ -24,16 +24,10 @@
     ((sys$codevector-iflush) sys$codevector-iflush)
     ((sys$tracectl) sys$tracectl)
     ((sys$trace) sys$trace)
-    ((sys$gcctl) sys$gcctl)
     ((sys$get-pending-asynch-signal) sys$get-pending-asynch-signal)
     ((io/read-char) io/read-char)
-    ((big-normalize!) big-normalize!)
-    ((big-fits-in-fix?) big-fits-in-fix?)
-    ((bignum->fixnum) bignum->fixnum)
-    ((bignum-length) bignum-length)
-    ((bignum-ref) bignum-ref)
-    ((bigdump*) bigdump*)
-    ((big-subtract-digits) big-subtract-digits)
+    ((syscall) syscall)
+    ((iflush) sys$codevector-iflush)
     (else ???)))
 
 ; eof

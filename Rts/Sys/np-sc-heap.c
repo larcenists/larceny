@@ -1,7 +1,7 @@
 /* Rts/Sys/np-sc-heap.c
  * Larceny run-time system -- non-predictive copying collector.
  *
- * $Id: np-sc-heap.c,v 1.12 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: np-sc-heap.c,v 1.12 1997/09/17 15:17:26 lth Exp $
  *
  * The collector divides the heap into two generations.  Each generation
  * is represented by one semispace_t data type: one for the old generation,

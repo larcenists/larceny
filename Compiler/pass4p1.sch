@@ -279,6 +279,7 @@
                            (entry.label
                             (cgenv-lookup env (def.lhs def))))
               (gen! output $.proc)
+	      (gen! output $.proc-doc (lambda.doc (def.rhs def))) ; @@ Lars
               (cg-known-lambda output
                                (def.rhs def)
                                env))

@@ -4,8 +4,6 @@
 ! $Id: glue.s,v 1.2 1997/08/22 21:12:21 lth Exp $
 !
 ! To fix:
-! * The amount of assembly code in scheme_start can be considerably reduced --
-!   much of the work can be done in C.
 ! * The register save/restore code used in scheme-to-scheme calls needs to
 !   be faster.
 
@@ -34,92 +32,42 @@
 	.global internal_fixnum2retaddr		! make retaddr absolute
 	.global internal_check_signals		! check Unix signals
 
-! _scheme_start: Scheme entry point.
+! _scheme_start: Scheme VM entry point.
 !
 ! Call from: C
-! Input    : Nothing
-! Output   : Nothing
-! Destroys : Nothing
+! Input    : globals[]
+! Output   : globals[]
+! Destroys : Caller's %o and %g caller-save registers.
 !
-! _scheme_start is called from the C-language initialization code. It
-! sets up the virtual machine and then calls the application specific
-! startup procedure in the globals slot 'STARTUP'.
-! If that procedure returns, then _scheme_start returns to its caller.
+! _scheme_start is called from the larceny_call().  It sets up the virtual
+! machine and then calls the procedure in globals[ G_REG0 ].  If that
+! procedure returns, then _scheme_start returns to its caller.
 ! 
-! Note that if the startup procedure returns, Scheme I/O buffers will not
-! be flushed, nor will any other exit procedures be called.
-!
-! If the C startup wishes to pass arguments to STARTUP, it should 
-! intialize the appropriate register save areas in globals[], as we avoid
-! touching the registers here. (If there are no arguments, the startup
-! must set %RESULT to 0, at least).
+! Larceny_call() must allocate a stack frame and must also place arguments
+! in the register save area in globals[], and must set up the argument
+! count in globals[ G_RESULT ].
 
 EXTNAME(scheme_start):
 	save	%sp, -96, %sp			! Standard stack frame
-	st	%i7, [ %fp + 0x44 ]		! Save caller's retaddr
+	st	%i7, [ %i6-4 ]			! Save return address
 
-	! Enter Scheme mode
+	set	EXTNAME(globals), %l0		! Pointer to globals[]
+	call	internal_restore_scheme_context	! Enter Scheme mode
+	clr	[ %l0 + G_RETADDR ]		! Return offset 0 for sanity
 
-	set	EXTNAME(globals), %l0
-	st	%g0, [ %l0 + G_REG0 ]
-	st	%g0, [ %l0 + G_RETADDR ]
-	call	internal_restore_scheme_context
-	nop
+	set	L1-8, %TMP0			! Store the return
+	st	%TMP0, [ %STKP+4 ]		!   address in the frame
 
-	! Call application code: setup a minimal continuation and jump.
-
-	sub	%STKP, 16, %STKP
-	cmp	%STKP, %STKLIM
-	blt	Lstartup_stack
-	nop
-
-	set	12, %TMP0		! frame
-	st	%TMP0, [ %STKP ]	!   size
-	set	L1-8, %TMP0		! return
-	st	%TMP0, [ %STKP+4 ]	!   address
-	st	%g0, [ %STKP + 8 ]	! dynlink
-	st	%g0, [ %STKP+12 ]	! procedure (fixed)
-
-	ld	[ %GLOBALS + G_STARTUP ], %REG0
-	and	%REG0, TAGMASK, %TMP0
-	cmp	%TMP0, PROC_TAG
-	bne	Lstartup_bad
-	nop
 	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
-	jmp	%TMP0 - BVEC_TAG + CODEOFFSET
+	jmp	%TMP0 - BVEC_TAG + CODEOFFSET	! Call Scheme procedure
 	nop
 
-	! Return to C code
-L1:
-	call	internal_save_scheme_context
+L1:	call	internal_save_scheme_context	! Enter C mode
 	nop
 
-	ld	[ %fp + 0x44 ], %i7
+	ld	[ %i6-4 ], %i7			! Restore return address
 	ret
 	restore
-
-! Startup slot does not have a procedure; just print an error and exit.
-
-Lstartup_bad:
-	set	EXTNAME(C_panic), %TMP0
-	set	Lnonproc, %TMP1
-	b	callout_to_C
-	nop
-
-! No stack space available (should never happen).
-
-Lstartup_stack:
-	set	EXTNAME(C_panic), %TMP0
-	set	Lbadstack, %TMP1
-	b	callout_to_C
-	nop
-
-	.seg	"data"
-Lnonproc:
-	.asciz	"Startup slot does not have a procedure."
-Lbadstack:
-	.asciz	"Could not allocate initial stack frame."
-	.seg	"text"
 
 
 ! internal_scheme_call: call Scheme from millicode, return to Scheme.
@@ -588,12 +536,17 @@ internal_check_signals:
 	cmp	%TMP0, 0
 	bne	1f
 	nop
-! FIXME: This is absolutely not right!
-!	ld	[ %GLOBALS + G_FPE_CODE ], %TMP0
-!	cmp	%TMP0, 0
-!	bne	EXTNAME(m_fpe_handler)
-!	nop
-	jmp	%o7 + 8
+
+	ld	[ %GLOBALS + G_FPE_CODE ], %TMP0
+	tst	%TMP0
+	bz	3f
+	nop
+	mov	%TMP0, %ARGREG3
+	mov	EX_FPE, %TMP0
+	b	EXTNAME(m_exception)
+	clr	[ %GLOBALS + G_FPE_CODE ]
+
+3:	jmp	%o7 + 8
 	nop
 
 1:	ld	[ %GLOBALS + G_SIGINT ], %TMP0

@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp lth $
+# $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
@@ -11,17 +11,15 @@
 #
 # User configuration
 
-
 # Boehm-Demers-Weiser garbage collector
 
 BDW_DIST=bdw-gc-4.11.tar.gz
 
-
-# Programs
+# Programs (note also setup in Rts/Makefile).
 
 COMPRESS=gzip
 Z=gz
-
+CC=gcc
 
 # End user configuration
 #
@@ -29,6 +27,8 @@ Z=gz
 
 # Directories
 
+FFI=Ffi
+EXPERIMENTAL=Experimental
 RTS=Rts
 SYS=$(RTS)/Sys
 MACH=$(RTS)/Sparc
@@ -39,7 +39,7 @@ LIB=Lib
 EVAL=Eval
 REPL=Repl
 AUXLIB=Auxlib
-TEST=Test
+TEST=Testsuite
 COMP=Compiler
 TEXT=Text
 HTML=HTML
@@ -64,14 +64,21 @@ MISCFILES=COPYRIGHTS README CHGLOG Makefile nbuild
 BUGSFILES=BUGS BUGS-FIXED BUGS-RETIRED
 ASMFILES=$(ASM)/Common/*.sch $(ASM)/Sparc-old/*.sch $(ASM)/Sparc/*.sch \
 	$(ASM)/MacScheme/*.sch
-LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
+LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch \
+	$(TEST)/Lib/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
 LARCFILES=Larceny/*.sch
-COMPFILES=$(COMP)/*.sch
+COMPFILES=$(COMP)/*.sch $(COMP)/help-topics.txt
 TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
-TESTFILES=$(TEST)/*.sch $(TEST)/*.mal $(TEST)/README
+TESTFILES=$(TEST)/Lib/*.sch $(TEST)/Lib/*.mal $(TEST)/Lib/README \
+	$(TEST)/GC/*.sch $(TEST)/GC/README
 HTMLFILES=$(HTML)/*.html
+FFIFILES=$(FFI)/*.sch $(FFI)/*.txt
+# Only a subset of experimental code is distributed.
+EXPERIMENTALFILES=$(EXPERIMENTAL)/record.sch $(EXPERIMENTAL)/record.doc \
+	$(EXPERIMENTAL)/debug.sch $(EXPERIMENTAL)/applyhook.sch \
+	$(EXPERIMENTAL)/applyhook0.mal
 
 RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
@@ -88,7 +95,8 @@ ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
 
 # Files for 'distribution'
 DISTFILES=$(MISCFILES) $(BUGSFILES) $(RTSFILES0) $(ASMFILES) $(LIBFILES) \
-	$(AUXFILES) $(CHEZFILES) $(LARCFILES) $(COMPFILES)
+	$(AUXFILES) $(CHEZFILES) $(LARCFILES) $(COMPFILES) \
+	$(HDRFILES) $(BUILD)/table.s $(FFIFILES) $(EXPERIMENTALFILES)
 
 # Files for 'bigtar'
 MOREFILES=$(RTS)/larceny larceny.heap larceny.eheap \
@@ -105,12 +113,14 @@ default:
 	@echo "Make what?"
 	@echo "Your options are:"
 	@echo "  setup      - initialize system"
-	@echp "  bdw_setup  - unpack Boehm-Demers-Weiser collector"
+	@echo "  bdw_setup  - unpack Boehm-Demers-Weiser collector"
 	@echo "  larceny    - build standard generational system"
+	@echo "  bdwlarceny - build conservative collector system"
 	@echo "  hsplit     - build heap splitter"
 	@echo "  clean      - remove executables and objects"
 	@echo "  lopclean   - remove all .LOP files"
 	@echo "  libclean   - remove all .LAP and .LOP files"
+	@echo "  faslclean  - remove all .FASL files"
 	@echo "  realclean  - remove everything, included generated headers"
 	@echo "  rtstar     - tar up all RTS sources"
 	@echo "  tar        - RTS and library sources"
@@ -120,7 +130,7 @@ default:
 	@echo "  hugetar    - Everything."
 
 setup:
-	rm -f larceny Build
+	rm -f bdwlarceny hsplit larceny Build
 	ln -s $(RTS)/larceny
 	ln -s $(RTS)/bdwlarceny
 	ln -s $(RTS)/hsplit
@@ -152,14 +162,14 @@ lopclean:
 		$(EVAL)/*.*lop \
 		$(REPL)/*.*lop \
 		$(AUXLIB)/*.*lop \
-		$(TEST)/*.*lop
+		$(TEST)/Lib/*.*lop
 
 libclean: lopclean
 	rm -f   $(LIB)/*.lap \
 		$(EVAL)/*.lap \
 		$(REPL)/*.lap \
 		$(AUXLIB)/*.lap \
-		$(TEST)/*.lap
+		$(TEST)/Lib/*.lap
 
 faslclean:
 	rm -f $(COMP)/*.fasl
@@ -168,6 +178,8 @@ faslclean:
 	rm -f Util/*.fasl
 	rm -f Lib/makefile.fasl
 	rm -f $(AUXLIB)/*.fasl
+	rm -f $(TEST)/GC/*.fasl
+	rm -f $(TEST)/Lib/*.fasl
 
 rtsclean: clean
 	rm -f larceny Build hsplit
@@ -175,7 +187,7 @@ rtsclean: clean
 	( cd $(RTS) ; $(MAKE) rtsclean )
 
 realclean: clean libclean
-	rm -f larceny Build hsplit
+	rm -f larceny Build hsplit bdwlarceny
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) realclean )
 
@@ -190,7 +202,7 @@ tar:
 		$(COMPRESS) $(TARFILE); fi
 
 dist:
-	tar cf $(TARFILE) $(DISTFILES)
+	-tar cf $(TARFILE) $(DISTFILES)
 	if [ ! -b $(TARFILE) -a ! -c $(TARFILE) ]; then \
 		$(COMPRESS) $(TARFILE); fi
 

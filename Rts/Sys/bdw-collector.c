@@ -199,8 +199,17 @@ static void collect( gc_t *gc, int gen, gc_type_t type, unsigned nbytes )
 
 static word *allocate( gc_t *gc, unsigned nbytes )
 {
-  void *p = GC_malloc( nbytes );
-  if (p == 0) panic( "GC_malloc failed for %u bytes.", nbytes );
+  void *p;
+
+  if (nbytes > LARGEST_OBJECT) {
+    /* FIXME: should really raise an exception */
+    panic( "\nSorry, an object of size %d bytes is too much for me; max is %d."
+	   "\nSee you in 64-bit-land...\n",
+	   nbytes, LARGEST_OBJECT );
+  }
+  p = GC_malloc( nbytes );
+  if (p == 0)
+    panic( "GC_malloc failed for %u bytes.", nbytes );
   return (word*)p;
 }
 

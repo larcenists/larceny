@@ -599,8 +599,13 @@ Ldiv_comp2:
 	ldd	[ %RESULT - BVEC_TAG + 16 ], %f8
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f10
 	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f12
+#if defined(V8PLUS)
 	fabsd	%f10, %f14
 	fabsd	%f12, %f16
+#else
+	fabss	%f10, %f14
+	fabss	%f12, %f16
+#endif
 	fcmpd	%f14, %f16
 	nop
 	fbl	Ldiv_comp3
@@ -918,12 +923,24 @@ Lneg_bvec:
 	mov	EX_NEG, %TMP0
 Lneg_flo:
 	b	_box_flonum
+#if defined(V8PLUS)
 	fnegd	%f2, %f2
+#else
+	fnegs	%f2, %f2
+#endif
 Lneg_comp:
 	ldd	[ %RESULT - BVEC_TAG + 16 ], %f4
+#if defined(V8PLUS)
 	fnegd	%f2, %f2
+#else
+	fnegs	%f2, %f2
+#endif
 	b	_box_compnum
+#if defined(V8PLUS)
 	fnegd	%f4, %f4
+#else
+	fnegs	%f4, %f4
+#endif
 Lneg_big:
 	b	internal_scheme_call
 	mov	MS_BIGNUM_NEGATE, %TMP2	
@@ -971,7 +988,11 @@ Labs_bvec:
 	mov	EX_ABS, %TMP0
 Labs_flo:
 	b	_box_flonum
+#if defined(V8PLUS)
 	fabsd	%f2, %f2
+#else
+	fabss	%f2, %f2
+#endif
 Labs_comp:
 	b	Lnumeric_error
 	mov	EX_ABS, %TMP0
@@ -2220,12 +2241,20 @@ Lround:
 	set	Ldhalf, %TMP0 
 	ldd	[ %TMP0 ], %f4
 	fmovd	%f2, %f6
+#if defined(V8PLUS)
 	fabsd	%f2, %f2
+#else
+	fabss	%f2, %f2
+#endif
 	fcmpd	%f6, %f0
 	faddd	%f2, %f4, %f2
 	.empty
 	fbl,a	.+8
+#if defined(V8PLUS)
 	fnegd	%f2, %f2
+#else
+	fnegs	%f2, %f2
+#endif
 	std	%f2, [ %TMP0 + 8 ]
 	! FOREIGN SECTION
 	save	%sp, -96, %sp

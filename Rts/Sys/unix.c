@@ -1,7 +1,7 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.9 1997/08/25 13:07:31 lth Exp $
+ * $Id: unix.c,v 1.10 1997/09/23 19:57:44 lth Exp lth $
  *
  * RTS call-outs, for Unix.
  */
@@ -15,7 +15,7 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <math.h>
-#include <sys/fcntlcom.h>
+#include <fcntl.h>
 #include <signal.h>
 
 #include "larceny.h"
@@ -276,7 +276,24 @@ void UNIX_block_signals( word code )
 void UNIX_system( word w_cmd )
 {
   char *cmd = getstring( w_cmd );
-  globals[ G_RESULT ] = system( cmd );
+  globals[ G_RESULT ] = fixnum(system( cmd ));
+}
+
+void UNIX_allocate_nonmoving( word w_length, word w_tag )
+{
+  globals[ G_RESULT ] = 
+    gc_allocate_nonmoving( nativeint( w_length ), nativeint( w_tag ) );
+}
+
+void UNIX_object_to_address( word w_obj )
+{
+  /* Invariant: the pointer _must_ point to nonrelocatable memory,
+   * or the result may be completely invalid.
+   */
+  if (isptr(w_obj))
+    globals[ G_RESULT ] = box_uint( (word)ptrof( w_obj ) );
+  else
+    globals[ G_RESULT ] = w_obj;
 }
 
 /* eof */

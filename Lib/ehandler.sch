@@ -307,8 +307,8 @@
        ((= code $ex.typetag)
 	(error "typetag: " arg1 " does not have a typetag."))
        ((= code $ex.typetagset)
-	;; FIXME: Tag range?
-	(if (not (fixnum? arg2))
+	(if (not (and (fixnum? arg2)
+		      (<= 0 arg2 7)))
 	    (error "typetag-set!: " arg2 " is an invalid typetag.")
 	    (error "typetag-set!: " arg1 " is not typetag-settable.")))
 

@@ -1,6 +1,8 @@
 ; Larceny auxiliary library -- miscellaneous
 ; $Id: misc.sch,v 1.2 1997/08/22 20:58:12 lth Exp $
 
+(define *pi* 3.14159265358979323846)           ; from <math.h>
+
 ; Names used by older code.
 
 (define some some?)

@@ -1,10 +1,10 @@
 /* Rts/Sys/version.c.
  * Larceny run-time system -- the version number :-)
  *
- * $Id: version.c,v 1.9 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: version.c,v 1.10 1997/09/23 19:57:44 lth Exp lth $
  */
 
-char *version = "0.29d";
+char *version = "0.31";
 char *date = DATE;
 char *user = USER;
 

@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.7 1997/09/17 15:09:26 lth Exp lth $
+; $Id: toplevel.sch,v 1.8 1997/09/23 20:10:16 lth Exp lth $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -275,6 +275,16 @@
     (environment-set! larc 'interrupt-handler interrupt-handler)
     (environment-set! larc 'call-without-interrupts call-without-interrupts)
     (environment-set! larc 'standard-timeslice standard-timeslice)
+    (environment-set! larc 'procedure-arity procedure-arity)
+    (environment-set! larc 'procedure-formals procedure-formals)
+    (environment-set! larc 'procedure-documentation-string 
+		      procedure-documentation-string)
+    (environment-set! larc 'procedure-name procedure-name)
+    (environment-set! larc 'procedure-source-file procedure-source-file)
+    (environment-set! larc 'procedure-source-position 
+		      procedure-source-position)
+    (environment-set! larc 'procedure-expression procedure-expression)
+    (environment-set! larc 'procedure-environment procedure-environment)
 
     ;; i/o
 
@@ -322,8 +332,11 @@
 
     (environment-set! larc 'error error)
     (environment-set! larc 'error-handler error-handler)
+    (environment-set! larc 'call-with-error-handler call-with-error-handler)
+    (environment-set! larc 'call-without-errors call-without-errors)
     (environment-set! larc 'reset reset)
     (environment-set! larc 'reset-handler reset-handler)
+    (environment-set! larc 'call-with-reset-handler call-with-reset-handler)
     (environment-set! larc 'exit exit)
     (environment-set! larc 'add-exit-procedure! add-exit-procedure!)
     (environment-set! larc 'add-init-procedure! add-init-procedure!)
@@ -364,6 +377,13 @@
     (environment-set! larc 'bytevector-like-equal? bytevector-like-equal?)
     (environment-set! larc 'bytevector-like-copy bytevector-like-copy)
 
+    ;; structures
+
+    (environment-set! larc 'make-structure make-structure)
+    (environment-set! larc 'structure? structure?)
+    (environment-set! larc 'structure-printer structure-printer)
+    (environment-set! larc 'structure-comparator structure-comparator)
+
     ;; Support for rewriter and for macro expansion.
     ;; The %* names are hacks and should be fixed.
 
@@ -385,6 +405,9 @@
     (environment-set! larc 'stats-dump-on stats-dump-on)
     (environment-set! larc 'stats-dump-off stats-dump-off)
     (environment-set! larc 'system-function system-function)
+    (environment-set! larc 'sys$C-ffi-apply sys$C-ffi-apply)
+    (environment-set! larc 'sys$C-ffi-dlopen sys$C-ffi-dlopen)
+    (environment-set! larc 'sys$C-ffi-dlsym sys$C-ffi-dlsym)
 
     ;; environment interface
 
@@ -396,16 +419,20 @@
 
     ;; miscellaneous extensions
 
-    ;  (environment-set! 'rep-loop rep-loop)
-    ;  (environment-set! 'rep-loop-startup rep-loop-startup)
-    (environment-set! larc 'repl-display-procedure repl-display-procedure)
+    (environment-set! larc 'repl-printer repl-printer)
+    (environment-set! larc 'repl-evaluator repl-evaluator)
+    (environment-set! larc 'eval-macro-expander eval-macro-expander)
     (environment-set! larc 'load-noisily load-noisily)
     (environment-set! larc 'load-quietly load-quietly)
+    (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
     (environment-set! larc 'typetag-set! typetag-set!)
     (environment-set! larc '**newline** **newline**)
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
+    ;; Backwards compatibility
+    (environment-set! larc 'repl-eval-procedure repl-evaluator)
+    (environment-set! larc 'repl-display-procedure repl-printer)
 
     ;; bignum debugging
 

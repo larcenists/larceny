@@ -1,7 +1,7 @@
 /* Rts/Sys/static-heap.c
  * Larceny run-time system -- static heap.
  *
- * $Id: static-heap.c,v 1.6 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: static-heap.c,v 1.6 1997/09/17 15:17:26 lth Exp $
  */
 
 #define GC_INTERNAL
@@ -13,21 +13,13 @@
 #include "gclib.h"
 #include "assert.h"
 
-#define OLD_STATIC  0
-
 typedef struct static_data static_data_t;
 
 struct static_data {
   int      gen_no;
   int      heap_no;
-#if OLD_STATIC
-  word     *bot;
-  word     *top;
-  word     *lim;
-#else
   semispace_t *text;
   semispace_t *data;
-#endif
   unsigned size;         /* bytes allocated */
 };
 
@@ -47,26 +39,29 @@ create_static_heap( int heap_no,          /* given */
   heap = allocate_static_heap( gen_no, heap_no );
   data = DATA(heap);
 
-#if OLD_STATIC
-  size_bytes = roundup_page( size_bytes );
-
- again:
-  data->bot = gclib_alloc_heap( size_bytes, gen_no, heap_no );
-  if (data->bot == 0) {
-    memfail( MF_HEAP, "Could not allocate static heap." );
-    goto again;
-  }
-
-  data->size = size_bytes;
-  data->top = data->bot;
-  data->lim = data->bot + size_bytes/sizeof(word);
-#endif
-
   return heap;
 }
 
+#if defined(SUNOS)
+/* Debug code, for the time being */
+#include <sys/mman.h>
+
+void protect_static( static_heap_t *heap )
+{
+  static_data_t *data = DATA(heap);
+  int i;
+
+  for ( i=0 ; i <= data->text->current ; i++ ) {
+    if (mprotect( (void*)(data->text->chunks[i].bot),
+		 data->text->chunks[i].bytes,
+		 PROT_READ | PROT_EXEC ) == -1)
+      consolemsg( "mprotect failed." );
+  }
+}
+#endif
 
 static int  initialize( static_heap_t *heap );
+static word *allocate( static_heap_t *, unsigned nbytes );
 static void reorganize( static_heap_t *heap );
 static void stats( static_heap_t *heap, heap_stats_t *s );
 static word *data_load_area( static_heap_t *heap, unsigned nbytes );
@@ -87,6 +82,7 @@ allocate_static_heap( int gen_no, int heap_no )
 
   heap->data = data;
   heap->initialize = initialize;
+  heap->allocate = allocate;
   heap->stats = stats;
   heap->data_load_area = data_load_area;
   heap->text_load_area = text_load_area;
@@ -97,11 +93,7 @@ allocate_static_heap( int gen_no, int heap_no )
   data->heap_no = heap_no;
 
   data->size = 0;
-#if OLD_STATIC
-  data->top = data->lim = 0;
-#else
   data->data = data->text = 0;
-#endif
 
   return heap;
 }
@@ -114,15 +106,28 @@ static int initialize( static_heap_t *heap )
 }
 
 
+static word *
+allocate( static_heap_t *heap, unsigned nbytes )
+{
+  /* allocate in the data area */
+  word *p;
+  semispace_t *ss = DATA(heap)->data;
+
+  nbytes = roundup8( nbytes );
+  if (ss->chunks[ ss->current ].top + nbytes >= ss->chunks[ ss->current ].lim)
+    ss_expand( ss, max( nbytes, OLDSPACE_EXPAND_BYTES ) ); 
+  p = ss->chunks[ ss->current ].top;
+  ss->chunks[ ss->current ].top += nbytes;
+  DATA(heap)->size += nbytes;
+  return p;
+}
+
+
 static void get_data_areas( static_heap_t *heap,
 			    semispace_t **data, semispace_t **text )
 {
-#if OLD_STATIC
-  panic( "get_data_areas" );
-#else
   *data = DATA(heap)->data;
   *text = DATA(heap)->text;
-#endif
 }
 
 
@@ -137,9 +142,6 @@ static void reorganize( static_heap_t *heap )
   semispace_t *text, *data;
   unsigned textsize, datasize;
 
-#if OLD_STATIC
-  panic( "reorganize" );
-#else
   /* HACK!  We create both semispaces large enough to receive all of
      the data from the current static area.  When just doing a static
      area reorg, each piece will have only one chunk.  We can then
@@ -157,7 +159,6 @@ static void reorganize( static_heap_t *heap )
   ss_shrinkwrap( data ); ss_sync( data );
   if (text->used > 0) s_data->text = text; else ss_free( text );
   if (data->used > 0) s_data->data = data; else ss_free( data );
-#endif
 }
 
 static void stats( static_heap_t *heap, heap_stats_t *s )
@@ -169,15 +170,7 @@ static void stats( static_heap_t *heap, heap_stats_t *s )
 static word *data_load_area( static_heap_t *heap, unsigned nbytes )
 {
   static_data_t *data = DATA(heap);
-#if OLD_STATIC
-  word *p;
-  
-  if ((data->lim - data->top)*sizeof(word) < nbytes)
-    return 0;
-  p = data->top;
-  data->top += nbytes/sizeof(word);
-  return p;
-#else
+
   if (data->data)
     ss_expand( data->data, nbytes ); 
   else
@@ -185,16 +178,12 @@ static word *data_load_area( static_heap_t *heap, unsigned nbytes )
   data->data->chunks[ data->data->current ].top += nbytes;
   data->size += nbytes;
   return data->data->chunks[ data->data->current ].bot;
-#endif
 }
 
 static word *text_load_area( static_heap_t *heap, unsigned nbytes )
 {
   static_data_t *data = DATA(heap);
 
-#if OLD_STATIC
-  panic( "text_load_area" ); return 0;
-#else
   if (data->text)
     ss_expand( data->text, nbytes ); 
   else
@@ -202,7 +191,6 @@ static word *text_load_area( static_heap_t *heap, unsigned nbytes )
   data->text->chunks[ data->text->current ].top += nbytes;
   data->size += nbytes;
   return data->text->chunks[ data->text->current ].bot;
-#endif
 }
 
 /* eof */

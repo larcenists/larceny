@@ -374,6 +374,13 @@
     (list-instruction ".proc" instruction)
     '()))
 
+; no-op in this version of the assembler!
+
+(define-instruction $.proc-doc
+  (lambda (instruction as)
+    (list-instruction ".proc-doc" instruction)
+    '()))
+
 ; no-op on Sparc
 
 (define-instruction $.cont

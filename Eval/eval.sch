@@ -75,18 +75,67 @@
 
 ($$trace "eval")
 
+(define *eval-macro-expander* #f)
+
+(define (eval-macro-expander . rest)
+  (cond ((null? rest)
+	 (if (not *eval-macro-expander*)
+	     macro-expand		; In macro-expand.sch
+	     *eval-macro-expander*))
+	((null? (cdr rest))
+	 (set! *eval-macro-expander* (car rest))
+	 *eval-macro-expander*)
+	(else
+	 (error "Too many arguments to eval-macro-expander."))))
+
 (define eval
   (let ()
 
+    (define (definition? x) (and (pair? x) (eq? (car x) 'define)))
+    (define (begin? x) (and (pair? x) (eq? (car x) 'begin)))
+
+    (define (all-definitions? elist)
+      (if (null? elist)
+	  #t
+	  (let ((expr (car elist)))
+	    (or (and (definition? expr)
+		     (all-definitions? (cdr elist)))
+		(and (begin? expr)
+		     (all-definitions? (cdr expr))
+		     (all-definitions? (cdr elist)))))))
+
+    (define (rewrite-begin-nest elist)
+      (if (null? elist)
+	  (list (unspecified))
+	  (let ((expr (car elist)))
+	    (cond ((definition? expr)
+		   (cons `(set! ,(cadr expr) ,(caddr expr))
+			 (rewrite-begin-nest (cdr elist))))
+		  ((begin? expr)
+		   (append (rewrite-begin-nest (cdr expr))
+			   (rewrite-begin-nest (cdr elist))))
+		  (else
+		   ???)))))
+
     (define (toplevel-preprocess expr env)
-      (let ((expr (if (and (pair? expr) (eq? (car expr) 'define))
-		      `(begin (set! ,(cadr expr) ,(caddr expr))
-			      ,(unspecified))
-		      expr)))
-	(eval/preprocess expr 
-			 '() 
-			 (lambda (sym)
-			   (environment-lookup-binding env sym)))))
+      (cond ((definition? expr)
+	     (really-preprocess `(begin (set! ,(cadr expr) ,(caddr expr))
+					,(unspecified))
+				env))
+	    ((begin? expr)
+	     (if (all-definitions? (cdr expr))
+		 (really-preprocess (cons 'begin
+					  (rewrite-begin-nest (cdr expr)))
+				    env)
+		 (really-preprocess expr env)))
+	    (else
+	     (really-preprocess expr env))))
+
+    (define (really-preprocess expr env)
+      (eval/preprocess expr 
+		       '() 
+		       (lambda (sym)
+			 (environment-lookup-binding env sym))))
 
     (define (eval expr . rest)
       (let ((env (cond ((null? rest)
@@ -97,7 +146,7 @@
 		       (else
 			(error "Eval: bad arguments: " rest)
 			#t)))
-	    (expr (macro-expand expr)))
+	    (expr ((eval-macro-expander) expr)))
 	((toplevel-preprocess expr env) '())))
 
     eval))

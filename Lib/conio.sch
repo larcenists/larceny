@@ -8,8 +8,10 @@
 
 ($$trace "conio")
 
+(define *conio-firsttime* #t)
+
 (define (console-io/initialize)
-  ; nothing, for now
+  (set! *conio-firsttime* #t)
   #t)
 
 (define (console-io/ioproc op)
@@ -35,13 +37,15 @@
      #t)))
 
 (define (console-io/open-input-console)
-  (let ((fd (sys$open-terminal 'input)))
+  (let ((fd (sys$open-terminal 'input *conio-firsttime*)))
+    (set! *conio-firsttime* #f)
     (io/make-port console-io/ioproc
 		  (file-io/data fd "*console-input*")
 		  'input)))
 
 (define (console-io/open-output-console)
-  (let ((fd (sys$open-terminal 'output)))
+  (let ((fd (sys$open-terminal 'output *conio-firsttime*)))
+    (set! *conio-firsttime* #f)
     (io/make-port console-io/ioproc
 		  (file-io/data fd "*console-output*")
 		  'output

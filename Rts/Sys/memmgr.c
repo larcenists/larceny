@@ -1,7 +1,7 @@
 /* Rts/Sys/new-policy.c.
  * Larceny run-time system -- memory manager.
  *
- * $Id: memmgr.c,v 1.24 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: memmgr.c,v 1.24 1997/09/17 15:17:26 lth Exp $
  *
  * This file contains procedures for memory allocatation and garbage 
  * collection policy.
@@ -314,6 +314,7 @@ allocate_remembered_sets( gc_param_t *params, gc_t *gc, int gen_no )
 
 static int  initialize( gc_t *gc );
 static word *alloc_from_heap( gc_t *gc, unsigned nbytes );
+static word *alloc_nonmoving_from_heap( gc_t *gc, unsigned nbytes );
 static void collect( gc_t *gc, int gen, gc_type_t type, unsigned nbytes );
 static void promote_out_of( gc_t *gc, int generation );
 static void before_promotion_all( gc_t *gc, int generation );
@@ -377,6 +378,7 @@ static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
 
   gc->initialize = initialize;
   gc->allocate = alloc_from_heap;
+  gc->allocate_nonmoving = alloc_nonmoving_from_heap;
   gc->collect = collect;
   gc->data_load_area = data_load_area;
   gc->text_load_area = text_load_area;
@@ -479,7 +481,7 @@ set_policy( gc_t *gc, int heap, int op, unsigned value )
     data->old_heaps[heap]->set_policy( data->old_heaps[heap], op, value );
 }
 
-/* Allocate a chunk of ephemeral memory. `n' is a number of bytes.
+/* Allocate a chunk of ephemeral memory.
  *
  * NOTE: a raw pointer is stored in the SSB.  This is kosher; see the
  * comments preceding compact_ssb() in remset.c.
@@ -493,7 +495,7 @@ alloc_from_heap( gc_t *gc, unsigned nbytes )
   word *p;
   int i, g;
   remset_t *r;
-
+  
   nbytes = roundup8( nbytes );
   if (nbytes > LARGEST_OBJECT) {
     /* FIXME: should really raise an exception */
@@ -542,6 +544,17 @@ alloc_from_heap( gc_t *gc, unsigned nbytes )
     data->ssb_top[g] += 1;
   }
   return p;
+}
+
+
+static word *
+alloc_nonmoving_from_heap( gc_t *gc, unsigned nbytes )
+{
+  static_heap_t *static_heap = DATA(gc)->static_heap;
+
+  if (static_heap == 0)
+    panic( "Can only allocate nonmoving in a system with a static heap." );
+  return static_heap->allocate( static_heap, nbytes );
 }
 
 

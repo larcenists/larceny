@@ -1,63 +1,34 @@
-; Tests the generic arithmetic system in an automated fashion.
-; Each subtest returns #t if all tests were passed, and #f if not.
-
-; FIXME: These are nowhere near comprehensive.
-
+; Test/arith.sch
+; Larceny test suite -- numerical operations
+;
+; $Id$
+;
+; The test scaffolding is in test.sch, which should be loaded first.
+;
 ; While there is a notion here that later tests depend on earlier tests, this
 ; is only partially so, as some innocent primitives invoke very heavy machinery
 ; indeed behind the programmer's back, and hence we have difficulty doing
 ; proper incremental testing.
+;
+; For best results, one would run this code in both compiled and interpreted
+; modes.  Some code has a very contorted look in order to defy compiler
+; optimizations; it's unclear how effective (and necessary) this is.
 
-(define (arith-test)
-  (and (begin (display "test 0") (newline)
-	      (generic-arithmetic-test-0))
-       (begin (display "test 1") (newline)
-	      (generic-arithmetic-test-1))
-       (begin (display "test 2") (newline)
-	      (generic-arithmetic-test-2))
-       (begin (display "test 3") (newline)
-	      (predicate-test-0))
-       (begin (display "test 4") (newline)
-	      (generic-arithmetic-test-3))
-       (begin (display "basic-arithmetic-test") (newline)
-	      (basic-arithmetic-test))
-       (begin (display "equality predicates") (newline)
-	      (basic-generic-equality-test))
-       (begin (display "basic-bignum-test") (newline)
-	      (basic-bignum-arithmetic-test))
-       (begin (display "test 5") (newline)
-	      (generic-arithmetic-test-4))
-       (begin (display "test 6") (newline)
-	      (generic-arithmetic-test-5))
-       ))
+(define (test-numerical-operations)
+  (and (test-number-representation-predicates)
+       (test-number-type-predicates)
+       (test-number-ordering-predicates/same-representation)
+       (test-eqv?-on-numbers)
+       (test-basic-arithmetic)
+       (test-round-and-truncate)
+       (test-bit-operations)
+       (test-bignum-arithmetic)
+       (test-exactness-predicates)
+       (test-exactness-conversion)
+       ; (test-number-ordering-predicates/mixed-representation)
+       (test-odd-even)))
 
-; We're trying to defeat the optimizations in the front end here. Really.
-
-(define (basic-generic-equality-test)
-  (let ((zero 0)
-	(one 1) 
-	(xone 1)
-	(two 2)
-	(a 'a)
-	(b 'b))
-    (allof
-     (test "(eq? a 'a)" (eq? a 'a) #t)
-     (test "(eq? a b)" (eq? a b) #f)
-     (test "(eq? one xone)" (eq? one xone) #t)
-     (test "(eq? zero one)" (eq? zero one) #f)
-     (test "(eqv? a 'a)" (eqv? a 'a) #t)
-     (test "(eqv? a b)" (eqv? a b) #f)
-     (test "(eqv? one xone)" (eqv? one xone) #t)
-     (test "(eqv? zero one)" (eqv? zero one) #f)
-     (test "(equal? a 'a)" (equal? a 'a) #t)
-     (test "(equal? a b)" (equal? a b) #f)
-     (test "(equal? xone one)" (equal? xone one) #t)
-     (test "(equal? zero one)" (equal? zero one) #f)
-     )))
-
-; Tests representation predicates; some are in millicode and some are not.
-
-(define (generic-arithmetic-test-0)
+(define (test-number-representation-predicates)
 
   (define (rpred n)
     (list (fixnum? n)
@@ -67,6 +38,9 @@
 	  (compnum? n)
 	  (rectnum? n)))
 
+  (display "----------------------------------------") (newline)
+  (display "Testing fixnum?, bignum?, ratnum?, flonum?, compnum?, rectnum?")
+  (newline)
   (allof
    (test "(rpred 1)" (rpred 1) '(#t #f #f #f #f #f))
    (test "(rpred -1)" (rpred -1) '(#t #f #f #f #f #f))
@@ -96,13 +70,13 @@
    (test "(rpred 1234567890+33i)" (rpred 1234567890+33i) '(#f #f #f #f #f #t))
    ))
 
-; Tests the numeric tower classification predicates millicode.
-
-(define (generic-arithmetic-test-1)
+(define (test-number-type-predicates)
 
   (define (numberpred n)
     (list (integer? n) (rational? n) (real? n) (complex? n)))
 
+  (display "----------------------------------------") (newline)
+  (display "Testing integer?, rational?, real?, complex?") (newline)
   (allof
    ; fixnums
    (test "(numberpred 1)" (numberpred 1) '(#t #t #t #t))
@@ -152,54 +126,7 @@
    (test "(numberpred 'fum)" (numberpred 'fum) '(#f #f #f #f))
    ))
 
-; Test misc. other stuff in the generic arithmetic system.
-
-(define (generic-arithmetic-test-2)
-
-  (define (etest n)
-    (list (exact? n) (inexact? n)))
-
-  (allof
-   ; constructors
-
-   (test "(complex? (make-rectangular 1 1))"
-	 (complex? (make-rectangular 1 1)) 
-	 #t)
-
-   ; exactness predicates
-
-   (test "(etest 1)" (etest 1) '(#t #f))
-   (test "(etest -1)" (etest -1) '(#t #f))
-   (test "(etest 1234567890)" (etest 1234567890) '(#t #f))
-   (test "(etest -1234567890)" (etest -1234567890) '(#t #f))
-   (test "(etest 2/3)" (etest 2/3) '(#t #f))
-   (test "(etest 1234567890/13)" (etest 1234567890/13) '(#t #f))
-   (test "(etest 1.0)" (etest 1.0) '(#f #t))
-   (test "(etest -1.0)" (etest -1.0) '(#f #t))
-   (test "(etest 1.0+3i)" (etest 1.0+3i) '(#f #t))
-   (test "(etest 1+1i)" (etest 1+1i) '(#t #f))
-   ))
-
-; Tests eq? and eqv?, first time around (basic stuff, no numbers.)
-
-(define (predicate-test-0)
-
-  (define (e a b)
-    (list (eq? a b) (eqv? a b)))
-
-  (let ((a "string1")
-	(b (lambda (x) x)))
-    (allof
-     (test "(e '() '())" (e '() '()) '(#t #t))
-     (test "(e #t #f)" (e #t #f) '(#f #f))
-     (test "(e a a)" (e a a) '(#t #t))
-     (test "(e b b)" (e b b) '(#t #t))
-     (test "(e 'foo 'foo)" (e 'foo 'foo) '(#t #t))
-     )))
-
-; Tests comparison predicates.
-
-(define (generic-arithmetic-test-3)
+(define (test-number-ordering-predicates/same-representation)
 
   (define (p m n)
     (list (= m n) (> m n) (< m n) (>= m n) (<= m n)))
@@ -207,6 +134,8 @@
   (define (q m)
     (list (zero? m) (negative? m) (positive? m)))
 
+  (display "----------------------------------------") (newline)
+  (display "Testing =, >, <, >=, <=, zero?, negative?, positive?") (newline)
   (allof
    (test "(p 1 1)" (p 1 1) '(#t #f #f #t #t))
    (test "(p -1 -1)" (p -1 -1) '(#t #f #f #t #t))
@@ -240,46 +169,30 @@
    (test "(= 0.0 -0.0)" (= 0.0 -0.0) #t)
    ))
 
-; Difficulter stuff.
+(define (test-eqv?-on-numbers)
+  (display "----------------------------------------") (newline)
+  (display "Testing eqv? on numbers") (newline)
+  (test-eqv?-on-numbers-helper 0 1 -1 0.0 1.0 -1.0 1/2 0.5 1+1i 1.0+1.0i))
 
-(define (generic-arithmetic-test-4)
-
-  (define (q m)
-    (list (zero? m) (negative? m) (positive? m)))
-
+(define (test-eqv?-on-numbers-helper exact-zero exact-one exact-neg-one
+				     inexact-zero inexact-one inexact-neg-one
+				     exact-one-half inexact-one-half
+				     exact-1+1i inexact-1+1i)
   (allof
-   ; need harder tests to make sure it rounds to even.
-   (test "(= (round 1.4) 1.0)" (= (round 1.4) 1.0) #t)
-   (test "(= (round 1.0) 1.0)" (= (round 1.0) 1.0) #t)
-   (test "(= (round 1.4) 1.4)" (= (round 1.4) 1.4) #f)
-   (test "(= (round -1.5) -1.0)" (= (round -1.5) -1.0) #f)
-   (test "(= (round 1.5) 2.0)" (= (round 1.5) 2.0) #t)
-   (test "(= (round -1.5) -2.0)" (= (round -1.5) -2.0) #t)
-
-   (test "(= (truncate 1.5) 1.0)" (= (truncate 1.5) 1.0) #t)
-   (test "(= (truncate 1.0) 1.0)" (= (truncate 1.0) 1.0) #t)
-   (test "(= (truncate -1.5) -1.0)" (= (truncate -1.5) -1.0) #t)
-
-   (test "(= (logior 3 5) 7)" (= (logior 3 5) 7) #t)
-   (test "(= (logand #x33 #x55) #x11)" (= (logand #x33 #x55) #x11) #t)
-   (test "(= (lsh #x44 2) #x110)" (= (lsh #x44 2) #x110) #t)
-   (test "(= (lsh #x44 4) #x440)" (= (lsh #x44 4) #x440) #t)
-   (test "(= (rshl #x44 2) #x11)" (= (rshl #x44 2) #x11) #t)
-   (test "(= (rshl #x44 7) 0)" (= (rshl #x44 7) 0) #t)
-   (test "(= (rsha -1 4) -1)" (= (rsha -1 4) -1) #t)
-   (test "(= (rshl #x-20000000 4) #x2000000)"
-	 (= (rshl #x-20000000 4) #x2000000)
-	 #t)
-; Test 'lognot' also.
-; Test 'logxor' also.
-; Test 'rot' also.
+   (test "(eqv? 0 1)" (eqv? exact-zero exact-one) #f)
+   (test "(eqv? 1 1)" (eqv? exact-one exact-one) #t) ; A smart compiler...
+   (test "(eqv? 0.0 1.0)" (eqv? inexact-zero inexact-one) #f)
+   (test "(eqv? 1.0 1.0)" (eqv? inexact-one inexact-one) #f)
+   (test "(eqv? 1 1.0)" (eqv? exact-one inexact-one) #f)
+   (test "(eqv? 0 0.0)" (eqv? exact-zero inexact-zero) #f)
+   (test "(eqv? 1/2 0.5)" (eqv? exact-one-half inexact-one-half) #f)
+   (test "(eqv? 1/2 1/2)" (eqv? exact-one-hald exact-one-hald) #t)
+   (test "(eqv? 1+1i 1.0+1.0i)" (eqv? exact-1+1i inexact-1+1i) #f)
+   (test "(eqv? 1+1i 1+1i)" (eqv? exact-1+1i exact-1+1i) #t)
+   (test "(eqv? 1.0+1.0i 1.0+1.0i)" (eqv? inexact-1+1i inexact-1+1i) #t)
    ))
 
-
-; Much of this is preempted by the fact that we are able to run this 
-; test program, but is here for the sake of providing a fire wall.
-
-(define (basic-arithmetic-test)
+(define (test-basic-arithmetic)
 
   (define (n1 x y)
     (list (+ x y) (- x y) (* x y)))
@@ -294,6 +207,9 @@
 	 (two^30 1073741824)
 	 (two^31 2147483648)
 	 (two^32-1 4294967295))
+    (display "----------------------------------------") (newline)
+    (display "Basic arithmetic") (newline)
+
     (allof
      (test "(- a)" (- a) -a)
      (test "(- -a)" (- -a) a)
@@ -375,7 +291,43 @@
      (test "(quotient 2^32-1 10)" (quotient two^32-1 10) 429496729)
      )))
 
-(define (basic-bignum-arithmetic-test)
+(define (test-round-and-truncate)
+  (display "----------------------------------------") (newline)
+  (display "Testing round, truncate") (newline)
+  (allof
+   ; Use eqv? since it takes exactness into account.
+   (test "(= (round 1.4) 1.0)" (eqv? (round 1.4) 1.0) #t)
+   (test "(= (round 1.0) 1.0)" (eqv? (round 1.0) 1.0) #t)
+   (test "(= (round 1.4) 1.4)" (eqv? (round 1.4) 1.4) #f)
+   (test "(= (round -1.5) -1.0)" (eqv? (round -1.5) -1.0) #f)
+   (test "(= (round 1.5) 2.0)" (eqv? (round 1.5) 2.0) #t)
+   (test "(= (round -1.5) -2.0)" (eqv? (round -1.5) -2.0) #t)
+   (test "(= (truncate 1.5) 1.0)" (eqv? (truncate 1.5) 1.0) #t)
+   (test "(= (truncate 1.0) 1.0)" (eqv? (truncate 1.0) 1.0) #t)
+   (test "(= (truncate -1.5) -1.0)" (eqv? (truncate -1.5) -1.0) #t)
+   ))
+
+(define (test-bit-operations)
+  (display "----------------------------------------") (newline)
+  (display "Testing bit operations") (newline)
+  (allof
+   (test "(= (logior 3 5) 7)" (= (logior 3 5) 7) #t)
+   (test "(= (logand #x33 #x55) #x11)" (= (logand #x33 #x55) #x11) #t)
+   (test "(= (lsh #x44 2) #x110)" (= (lsh #x44 2) #x110) #t)
+   (test "(= (lsh #x44 4) #x440)" (= (lsh #x44 4) #x440) #t)
+   (test "(= (rshl #x44 2) #x11)" (= (rshl #x44 2) #x11) #t)
+   (test "(= (rshl #x44 7) 0)" (= (rshl #x44 7) 0) #t)
+   (test "(= (rsha -1 4) -1)" (= (rsha -1 4) -1) #t)
+   (test "(= (rshl #x-20000000 4) #x2000000)"
+	 (= (rshl #x-20000000 4) #x2000000)
+	 #t)
+; FIXME
+; Test 'lognot' also.
+; Test 'logxor' also.
+; Test 'rot' also.
+   ))
+
+(define (test-bignum-arithmetic)
   (let ((a 1234567890)
 	(b 3141598765)
 	(add (lambda (a b) (+ a b)))
@@ -423,27 +375,120 @@
 
      )))
 
-; Tests inexact->exact, exact->inexact, and some related stuff.
- 
-(define (generic-arithmetic-test-5)
+(define (test-exactness-predicates)
 
-  (define (q m)
-    (list (zero? m) (negative? m) (positive? m)))
+  (define (etest n)
+    (list (exact? n) (inexact? n)))
 
+  (display "----------------------------------------") (newline)
+  (display "Test exact?, inexact?") (newline)
   (allof
-   (test "(= 0.0 (exact->inexact 0))" (= 0.0 (exact->inexact 0)) #t)
-   (test "(= 1.0 (exact->inexact 1))" (= 1.0 (exact->inexact 1)) #t)
-   (test "(= 0 (inexact->exact 0.0))" (= 0 (inexact->exact 0.0)) #t)
-   (test "(= 1 (inexact->exact 1.0))" (= 1 (inexact->exact 1.0)) #t)
+   (test "(etest 1)" (etest 1) '(#t #f))
+   (test "(etest -1)" (etest -1) '(#t #f))
+   (test "(etest 1234567890)" (etest 1234567890) '(#t #f))
+   (test "(etest -1234567890)" (etest -1234567890) '(#t #f))
+   (test "(etest 2/3)" (etest 2/3) '(#t #f))
+   (test "(etest 1234567890/13)" (etest 1234567890/13) '(#t #f))
+   (test "(etest 1.0)" (etest 1.0) '(#f #t))
+   (test "(etest -1.0)" (etest -1.0) '(#f #t))
+   (test "(etest 1.0+3i)" (etest 1.0+3i) '(#f #t))
+   (test "(etest 1+1i)" (etest 1+1i) '(#t #f))
+   ))
 
-   ; these will use contagion because negative? and positive? are 
-   ; expanded to comparisons with zero.
 
+(define (test-exactness-conversion)
+  (display "----------------------------------------") (newline)
+  (display "Testing exact->inexact, inexact->exact") (newline)
+  (allof
+   (test "(eqv? 0.0 (exact->inexact 0))" (eqv? 0.0 (exact->inexact 0)) #t)
+   (test "(eqv? 1.0 (exact->inexact 1))" (eqv? 1.0 (exact->inexact 1)) #t)
+   (test "(eqv? 0 (inexact->exact 0.0))" (eqv? 0 (inexact->exact 0.0)) #t)
+   (test "(eqv? 1 (inexact->exact 1.0))" (eqv? 1 (inexact->exact 1.0)) #t)
+   (test "(eqv? 1.0+1.0i (exact->inexact 1+1i))" 
+	 (eqv? 1.0+1.0i (exact->inexact 1+1i)) #t)
+   (test "(eqv? 1+1i (inexact->exact 1.0+1.0i))"
+	 (eqv? 1+1i (inexact->exact 1.0+1.0i)) #t)
+   (test "(eqv? 0.5 (exact->inexact 1/2))" (eqv? 0.5 (exact->inexact 1/2)) #t)
+   (test "(eqv? 1/2 (inexact->exact 0.5))" (eqv? 1/2 (inexact->exact 0.5)) #t)
+   ))
+
+
+; FIXME
+(define (test-number-constructors)
+  (test "(complex? (make-rectangular 1 1))"
+	(complex? (make-rectangular 1 1)) 
+	#t))
+
+
+; FIXME
+(define (test-number-ordering-predicates/mixed-representation)
+  (allof
    (test "(q 0.0)" (q 0.0) '(#t #f #f))
    (test "(q -0.0)" (q -0.0) '(#t #f #f))
    (test "(q 10.5)" (q 10.5) '(#f #f #t))
    (test "(q 12345678901234567890)" (q 12345678901234567890) '(#f #f #t))
    (test "(q -12345678901234567890)" (q -12345678901234567890) '(#f #t #f))
+   ))
+
+
+(define (test-odd-even)
+  (display "----------------------------------------") (newline)
+  (display "Testing odd?, even?") (newline)
+  (allof
+   ; easy cases
+   (test "(even? 0)" (even? 0) #t)
+   (test "(even? 1)" (even? 1) #f)
+   (test "(even? 2)" (even? 2) #t)
+   (test "(even? -1)" (even? -1) #f)
+   (test "(even? -2)" (even? -2) #t)
+   ; fixnum limits
+   (test "(even? 536870911)" (even? 536870911) #f)
+   (test "(even? -536870912)" (even? -536870912) #t)
+   ; bignums
+   (test "(even? 536870912)" (even? 536870912) #t)
+   (test "(even? 536870913)" (even? 536870913) #f)
+   ; flonums
+   (test "(even? 0.0)" (even? 0.0) #t)
+   (test "(even? 1.0)" (even? 1.0) #f)
+   (test "(even? 2.0)" (even? 2.0) #t)
+   (test "(even? -1.0)" (even? -1.0) #f)
+   (test "(even? -2.0)" (even? -2.0) #t)
+   ; other -- invalid arguments
+   (shouldfail "(even? 3/4)" (lambda () (even? 3/4)))
+   (shouldfail "(odd? 3/4)" (lambda () (odd? 3/4)))
+   (shouldfail "(even? 1.1)" (lambda () (even? 1.1)))
+   (shouldfail "(odd? 1.1)" (lambda () (odd? 1.1)))
+   (shouldfail "(even? 1+3i)" (lambda () (even? 1+3i)))
+   (shouldfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
+   (shouldfail "(even? 'foo)" (lambda () (even? 'foo)))
+   (shouldfail "(odd? 'foo)" (lambda () (odd? 'foo)))
+   ; easy cases
+   (test "(odd? 0)" (odd? 0) #f)
+   (test "(odd? 1)" (odd? 1) #t)
+   (test "(odd? 2)" (odd? 2) #f)
+   (test "(odd? -1)" (odd? -1) #t)
+   (test "(odd? -2)" (odd? -2) #f)
+   ; fixnum limits
+   (test "(odd? 536870911)" (odd? 536870911) #t)
+   (test "(odd? -536870912)" (odd? -536870912) #f)
+   ; bignums
+   (test "(odd? 536870912)" (odd? 536870912) #f)
+   (test "(odd? 536870913)" (odd? 536870913) #t)
+   ; flonums
+   (test "(odd? 0.0)" (odd? 0.0) #f)
+   (test "(odd? 1.0)" (odd? 1.0) #t)
+   (test "(odd? 2.0)" (odd? 2.0) #f)
+   (test "(odd? -1.0)" (odd? -1.0) #t)
+   (test "(odd? -2.0)" (odd? -2.0) #f)
+   ; other -- invalid arguments
+   (shouldfail "(odd? 3/4)" (lambda () (odd? 3/4)))
+   (shouldfail "(odd? 3/4)" (lambda () (odd? 3/4)))
+   (shouldfail "(odd? 1.1)" (lambda () (odd? 1.1)))
+   (shouldfail "(odd? 1.1)" (lambda () (odd? 1.1)))
+   (shouldfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
+   (shouldfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
+   (shouldfail "(odd? 'foo)" (lambda () (odd? 'foo)))
+   (shouldfail "(odd? 'foo)" (lambda () (odd? 'foo)))
    ))
 
 ; eof

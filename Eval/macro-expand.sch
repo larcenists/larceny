@@ -19,16 +19,14 @@
 ;   User-defined macros are not supported.
 ;
 ; KNOWN BUGS
-; * Should expand (begin (define x ...) ...) to the corresponding sequence
-;   of definitions; is now expanded to a letrec with an empty body, which
-;   is wrong.
+; * Should expand internal definitions of the form 
+;       (begin (define x ...) ...) 
+;   to the corresponding sequence of definitions.
 ; * DELAY is not supported.
 ;
 ; MISFEATURES
 ; * Could use constants a lot more in quasiquotation rewrites.
 ; * These procedures are fragile and bad syntax will break many of them.
-; * Would be nice to flatten BEGINs to get rid of some interpretation
-;   overhead.
 
 ($$trace "macro-expand")
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.h
  * Larceny run-time system -- write barrier interface.
  *
- * $Id: barrier.h,v 1.5 1997/05/15 00:58:49 lth Exp $
+ * $Id: barrier.h,v 1.6 1997/09/23 19:57:44 lth Exp lth $
  *
  * See Rts/Sys/barrier.c and Rts/Sparc/barrier.s for more information.
  */
@@ -37,7 +37,7 @@ void wb_setup0( void );
 
 /* If the descriptor tables change, notify the barrier */
 
-void wb_re_setup( unsigned *genv );
+void wb_re_setup( void *pagebase, unsigned *genv );
 
 
 /* Syncronize the write barrier internal tables with values from the

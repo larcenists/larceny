@@ -248,6 +248,12 @@ void C_syscall( void )
 			{ (fptr)UNIX_flonum_sinh, 2, 0 },
 			{ (fptr)UNIX_flonum_cosh, 2, 0 },
 			{ (fptr)UNIX_system, 1, 1 },
+			{ (fptr)larceny_C_ffi_apply, 4, 1 },
+			{ (fptr)larceny_C_ffi_dlopen, 1, 0 },
+			{ (fptr)larceny_C_ffi_dlsym, 2, 0 },
+			{ (fptr)UNIX_allocate_nonmoving, 2, 0 },
+			{ (fptr)UNIX_object_to_address, 1, 0 },
+			{ (fptr)larceny_C_ffi_getaddr, 1, 0 },
 		      };
   fptr proc;
   int nargs, nproc;

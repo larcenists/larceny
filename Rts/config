@@ -7,12 +7,29 @@
 #
 # Usage: config ostype filename ...
 
+# Chez Scheme host
+SCHEME=scheme
+ARGS=
+GRUB='| tail +4'
+HOST=chez
+
+# Larceny host
+# The heap file name must be the *absolute* path name of the heap file,
+# and if the larceny executable is not in your path, then you must 
+# use the absolute path name here too.
+#HEAP=/proj/will/lth/larceny/bin/larceny.heap
+#SCHEME="/proj/will/lth/larceny/bin/larceny $HEAP"
+#ARGS=-args
+#GRUB='| tail +1'
+#HOST=larceny
+
 if [ $# -lt 2 ]; then
   echo "usage: config ostype filename ..."
   exit 1
 fi
 rm -f tmp.config
 echo "(define ostype '$1)" >> tmp.config
+echo "(define host '$HOST)" >> tmp.config
 echo "(load \"../Util/config.sch\")" >> tmp.config
 echo "(config " >> tmp.config
 shift
@@ -22,6 +39,5 @@ do
 done
 echo ")" >> tmp.config
 echo "(exit)" >> tmp.config
-scheme tmp.config | tail +4		# skips Chez startup msg.
+eval $SCHEME $ARGS tmp.config $GRUB
 rm tmp.config
-
