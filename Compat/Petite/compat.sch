@@ -208,6 +208,11 @@
         (else
          (apply format fmt args))))
 
+(define call-with-binary-input-file call-with-input-file)
+(define call-with-binary-output-file call-with-output-file)
+(define with-binary-input-from-file with-input-from-file)
+(define with-binary-output-from-file with-input-from-file)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; UNIX interface to support 'make'.
