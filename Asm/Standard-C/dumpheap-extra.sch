@@ -39,55 +39,12 @@
   (set! *loadables* '())
   (set! *already-compiled* '()))
 
-; Very Unix
-(define *petit-executable-src-name* "petit-larceny.c")
-(define *petit-executable-obj-name* "petit-larceny.o")
-(define *petit-executable-name* "petit-larceny")
+; Given a list of the LOP files (with directory names) that have been dumped into
+; the heap given by output-filename, this procedure must create an executable for
+; Petit Larceny.  See dumpheap-unix.sch, dumpheap-win32.sch, etc.
 
-(define *petit-library-path* "Rts/")
-(define *petit-heap-library-name* "petit-larceny.so")
-(define *petit-rts-libraries* 
-  (list (string-append *petit-library-path* "libpetit.so")))
-(define *petit-executable-libraries* 
-  (append *petit-rts-libraries* 
-          (list (string-append *petit-library-path* "petit-larceny.so"))))
-
-; Build an _application_: an executable that contains additional object
-; files to load, and a set of FASL files that can be loaded to link 
-; the object code to Scheme procedures.
-;
-; FIXME: The use of ".exe" and ".o" here are pretty arbitrary and not
-; right on all (most) platforms; must parameterize.  The use of .exe
-; is OK on both Unix and Mac, however, as rewrite-file-type also matches
-; on the empty extension.
-  
-(define (build-application executable-name additional-files)
-  (let ((src-name (rewrite-file-type executable-name '(".exe") ".c"))
-        (obj-name (rewrite-file-type executable-name '(".exe") ".o")))
-    (init-variables)
-    (for-each create-loadable-file additional-files)
-    (dump-loadable-thunks src-name)
-    (c-compile-file src-name obj-name)
-    (c-link-executable executable-name
-                       (cons obj-name
-                             (map (lambda (x)
-                                    (rewrite-file-type x ".lop" ".o"))
-                                  additional-files))
-                       *petit-executable-libraries*)
-    executable-name))
-
-; Link all the files in Lib, Repl, Eval, and the macro expander
-; with HEAPDATA.o and create the (shared) library petit-larceny.so.
-
-(define (build-petit-library library-name input-file-names)
-  (c-link-library *petit-heap-library-name*
-                  (remove-duplicates
-                   (append (map (lambda (x)
-                                  (rewrite-file-type x ".lop" ".o"))
-                                input-file-names)
-                           (list (rewrite-file-type *temp-file* ".c" ".o")))
-                   string=?)
-                  *petit-rts-libraries*))
+(define (build-petit-larceny heap output-file-name input-file-names)
+  (error "You must load a target-dependent file that redefines BUILD-PETIT-LARCENY"))
 
 (define (before-all-files heap output-file-name input-file-names)
   (init-variables))
@@ -135,6 +92,7 @@
   (let ((entrypoints '())
         (fasl-file (rewrite-file-type filename ".lop" ".fasl")))
     (before-dump-file #f filename)
+    (delete-file fasl-file)
     (call-with-output-file fasl-file
       (lambda (out)
         (call-with-input-file filename
@@ -155,8 +113,7 @@
 ; built.
 
 (define (after-all-files heap output-file-name input-file-names)
-  (build-petit-library *petit-heap-library-name* input-file-names)
-  (build-application *petit-executable-name* '()))
+  (build-petit-larceny heap output-file-name input-file-names))
 
 ; Returns a seed and an indication of whether the seed is new.
 
@@ -167,6 +124,7 @@
   (define (adjust-seed seed n)
     (cond ((not (memv seed *live-seeds*))
            (set! *live-seeds* (cons seed *live-seeds*))
+	   (delete-file seed-name)
            (call-with-output-file seed-name
              (lambda (out)
                (write seed out)))
@@ -202,7 +160,7 @@
   (if *c-output*
       (close-output-port *c-output*))
   (let ((c-name (rewrite-file-type filename ".lop" ".c"))
-        (o-name (rewrite-file-type filename ".lop" ".o")))
+        (o-name (rewrite-file-type filename ".lop" (obj-suffix))))
     (if (not (and (file-exists? o-name)
                   (compat:file-newer? o-name c-name)))
         (c-compile-file c-name o-name))
@@ -265,7 +223,7 @@
   (define (dump-init-thunks)
     (emit-c-code "~%~%/* File init procedures */~%~%")
     (for-each (lambda (e)
-                (emit-c-code "extern void ~a( CONT_PARAMS );~%" e))
+                (emit-c-code "extern RTYPE ~a( CONT_PARAMS );~%" e))
               (reverse *entrypoints*))
     (emit-c-code "~%codeptr_t ~a[] = { ~%" *init-thunk-array-name*)
     (for-each (lambda (e)
@@ -280,6 +238,7 @@
     (emit-c-code "extern codeptr_t *twobit_load_table[];~%"))
 
   (let ((r #f))
+    (delete-file *temp-file*)
     (call-with-output-file *temp-file*
       (lambda (out)
         (set! *c-output* out)
@@ -293,16 +252,19 @@
           (dump-init-thunks)
           (dump-loadable-thunks))))
     (set! *c-output* #f)
-    (c-compile-file *temp-file* (rewrite-file-type *temp-file* ".c" ".o"))
+    (c-compile-file *temp-file* (rewrite-file-type *temp-file* ".c" (obj-suffix)))
     (if *delete-temp-files*
         (delete-file *temp-file*))
     r))
 
 (define (dump-loadable-thunks filename)
+  (delete-file filename)
   (call-with-output-file filename
     (lambda (f)
       (set! *c-output* f)
       (emit-c-code "#include \"twobit.h\"~%~%")
+      (emit-c-code "int main( int argc, char **argv )~%")
+      (emit-c-code "{ return larceny_main( argc, argv ); }~%~%")
       (emit-c-code "~%/* Loadable segments' code */~%~%")
       (let ((l (reverse *loadables*)))
         ; Print prototypes
@@ -310,7 +272,7 @@
             ((null? l))
           (do ((f (cdar l) (cdr f)))
               ((null? f))
-            (emit-c-code "extern void ~a( CONT_PARAMS );~%" (car f))))
+            (emit-c-code "extern RTYPE ~a( CONT_PARAMS );~%" (car f))))
         ; Print inner tables
         (do ((l l (cdr l))
              (i 0 (+ i 1)))
@@ -378,6 +340,7 @@
 (define *c-compiler* #f)                         ; Assigned below
 (define *c-linker* #f)                           ; Assigned below
 (define *c-library-linker* #f)                   ; Assigned below
+(define *obj-suffix* #f)                         ; Assigned below
 
 (define optimize-c-code
   (make-twobit-flag "optimize-c-code"))
@@ -390,6 +353,9 @@
 
 (define (c-link-executable output-name object-files libraries)
   (*c-linker* output-name object-files libraries))
+
+(define (obj-suffix)
+  *obj-suffix*)
 
 (define (insert-space l)
   (cond ((null? l) l)
@@ -434,7 +400,7 @@
                             c-name)))
     (execute cmd)))
 
-(define (c-library-linker:lcc-unix output-name object-files)
+(define (c-library-linker:lcc-unix output-name object-files libs)
   (error "Must figure out how to create shared libraries with LCC."))
 
 (define (c-linker:lcc-unix output-name object-files libs)
@@ -467,30 +433,28 @@
 
 (define (select-compiler . rest)
 
-  (define compiler caddr)
-  (define lib-linker cadddr)
-  (define (linker x) (car (cddddr x)))
-  (define (append-cmd x) (cadr (cddddr x)))
-  
   (define compilers
     `((gcc-unix 
        "GCC on Unix systems" 
        ,c-compiler:gcc-unix 
        ,c-library-linker:gcc-unix
        ,c-linker:gcc-unix 
-       ,append-file-shell-command-unix)
+       ,append-file-shell-command-unix
+       ".o")
       (lcc-unix 
        "LCC on Unix systems" 
        ,c-compiler:lcc-unix 
        ,c-library-linker:lcc-unix
        ,c-linker:lcc-unix
-       ,append-file-shell-command-unix)
+       ,append-file-shell-command-unix
+       ".o")
       (none 
        "No compiler at all" 
        ,c-compiler:no-compiler 
        ,c-library-linker:no-linker
        ,c-linker:no-linker
-       ,append-file-shell-command-portable)))
+       ,append-file-shell-command-portable
+       ".o")))
 
   (if (null? rest)
       (begin (display "Select one of these: ")
@@ -508,11 +472,18 @@
       (let ((probe (assq (car rest) compilers)))
         (if (not probe)
             (select-compiler)
-            (begin (set! *c-compiler* (compiler probe))
-                   (set! *c-library-linker* (lib-linker probe))
-                   (set! *c-linker* (linker probe))
-                   (set! *append-file-shell-command* (append-cmd probe))
-                   (car probe))))))
+	    (apply set-compiler! (cdr probe))))))
+
+(define (set-compiler! name compiler lib-linker linker append-cmd obj-suffix)
+  (set! *c-compiler* compiler)
+  (set! *c-library-linker* lib-linker)
+  (set! *c-linker* linker)
+  (set! *append-file-shell-command* append-cmd)
+  (set! *obj-suffix* obj-suffix)
+  (newline)
+  (display "Selecting compiler: ")
+  (display name)
+  (newline))
 
 (select-compiler 'none)
 
