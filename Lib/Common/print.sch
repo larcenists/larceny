@@ -21,6 +21,13 @@
             port
             #f))))
 
+;; Hook this, too.  CLR objects have print methods we can invoke.
+(define weird-printer
+  (make-parameter
+   "weird-printer"
+   (lambda (weirdo port slashify)
+     (print "#<WEIRD OBJECT>" #f))))
+
 (define (print x p slashify)
 
   (define write-char io/write-char)
@@ -192,7 +199,7 @@
     (printstr "#<EOF>" p))
 
   (define (printweird x p slashify)
-    (printstr "#<WEIRD OBJECT>" p))
+    ((weird-printer) x p slashify))
 
   (define (print-quoted x p slashify level)
     (printstr (cdr (assq (car x) quoter-strings)) p)
@@ -234,28 +241,28 @@
 
 (define write
   (lambda (x . rest)
-    (let ((p (if (null? rest) (current-output-port) (car rest))))
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (print x p #t)
       (io/discretionary-flush p)
       **nonprinting-value**)))
 
 (define display
   (lambda (x . rest)
-    (let ((p (if (null? rest) (current-output-port) (car rest))))
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (print x p #f)
       (io/discretionary-flush p)
       **nonprinting-value**)))
 
 (define lowlevel-write
   (lambda (x . rest)
-    (let ((p (if (null? rest) (current-output-port) (car rest))))
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (print x p **lowlevel**)
       (io/discretionary-flush p)
       **nonprinting-value**)))
 
 (define newline
   (lambda rest
-    (let ((p (if (null? rest) (current-output-port) (car rest))))
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (write-char #\newline p)
       (io/discretionary-flush p)
       **nonprinting-value**)))
