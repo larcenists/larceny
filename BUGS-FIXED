@@ -1565,6 +1565,26 @@ $Id$
     Fixed 990312 / wdc: changed macro for CASE in Compiler/usual.sch by
     adding ELSE to the keyword list of nested macro.
 
+108 v1.0a1 (990208 / lth)
+    Priority: medium.
+    Category: RTS / correctness
+
+    Very large fixnums that result in address wrap-around make some 
+    allocation primitives crash the system:
+
+	> (make-vector (- (expt 2 29) 4))
+
+	Process scheme segmentation violation (core dumped)
+
+	> (make-bytevector (- (expt 2 29) 4))
+
+	Process scheme segmentation violation (core dumped)
+
+    Fixed 991121 by lth: Hacked the millicode to check correctly
+    for available space.  Hacked the assembler to emit code that deals
+    with overflow during size calculations.  Introduced several
+    low-priority bugs to document aspects not handled by the fixes.
+
 109 v1.0a1 (990317 / lth; wdc)
     Priority: high.
 
