@@ -18,8 +18,8 @@ BOOTSTRAPPING if you don't have a working Scheme system.
 
 First things first:
 
-  * You must inspect Rts/Sys/config.h and choose the configuration
-    you are building.
+  * You must inspect features.sch and choose the configuration you are
+    building.
 
   * You will probably need to edit Rts/Makefile to make it fit your
     system -- "make" is used to build the run-time system.
@@ -35,14 +35,15 @@ configuration file for your operating system, currently one of:
 These programs sometimes invoke external programs and may place
 additional demands on your host system.  Currently all systems need
 some version of "make" to be able to build the run-time system, and
-will need access to a command interepreter.
+will need access to a command interpreter.
 
 The first time you run the build environment you will want to evaluate:
 
     > (setup-directory-structure)
 
-Whenever you have altered any of the Rts/*.cfg, or the first time you
-run the build environment, you will want to evaluate:
+Whenever you have altered ~/features.sch or any of the Rts/*.cfg, or
+the first time you run the build environment, you will want to
+evaluate:
 
     > (build-config-files)
 
