@@ -64,14 +64,17 @@
             (vector-ref g $mstat.g-promtime)
             (vector-ref g $mstat.g-major-id) ; new field
             (vector-ref g $mstat.g-minor-id) ; new field
+            (+ (vector-ref g $mstat.g-gctime-cpu)
+               (vector-ref g $mstat.g-promtime-cpu))
+            (vector-ref g $mstat.g-promtime-cpu)
             ))
 
   (define (make-basic-vector v)
     (vector (bignum v $mstat.wallocated-hi)
             (bignum v $mstat.wcollected-hi)
             (bignum v $mstat.wcopied-hi)
-            0                           ; removed: total gc time
-            0                           ; removed: words live
+            0                           ; total gc elapsed time
+            0                           ; words live
             0                           ; removed: generation of last gc
             0                           ; removed: type of last gc
             #f                          ; generation information
@@ -95,7 +98,7 @@
             (vector-ref v $mstat.majfaults)
             #f                          ; removed: np remembered set
             (vector-ref v $mstat.heap-max)
-            0                           ; removed: promotion time
+            0                           ; total promotion elapsed time
             (vector-ref v $mstat.swb-total)
             (vector-ref v $mstat.wastage) ; new fields    #30
             (vector-ref v $mstat.remset-max)
@@ -110,7 +113,43 @@
             (bignum v $mstat.full-pointers-traced-hi) ;   # 40
             (vector-ref v $mstat.words-mem)
             (vector-ref v $mstat.words-mem-max)
+            (vector-ref v $mstat.full-gctime-cpu)
+            0                           ; total gc cpu time
+            0                           ; total promotion cpu time
+            (vector-ref v $mstat.dof-resets)
+            (vector-ref v $mstat.dof-repeats)
+            0                           ; GC event counters
             ))
+
+  (define (make-gc-event-vector v)
+    (vector (bignum v $mstat.gce-gctime-hi)
+            (bignum v $mstat.gce-promtime-hi)
+            (bignum v $mstat.gce-free-unused-hi)
+            (bignum v $mstat.gce-root-scan-gc-hi)
+            (bignum v $mstat.gce-root-scan-prom-hi)
+            (bignum v $mstat.gce-los-sweep-gc-hi)
+            (bignum v $mstat.gce-los-sweep-prom-hi)
+            (bignum v $mstat.gce-remset-scan-gc-hi)
+            (bignum v $mstat.gce-remset-scan-prom-hi)
+            (bignum v $mstat.gce-tospace-scan-gc-hi)
+            (bignum v $mstat.gce-tospace-scan-prom-hi) ;    #10
+            (bignum v $mstat.gce-reset-after-gc-hi)
+            (bignum v $mstat.gce-decrement-after-gc-hi)
+            (bignum v $mstat.gce-dof-remset-scan-hi)
+            (bignum v $mstat.gce-sweep-shadow-hi)
+            (bignum v $mstat.gce-msgc-mark-hi)
+            (bignum v $mstat.gce-sweep-dof-sets-hi)
+            (bignum v $mstat.gce-sweep-remset-hi)
+            (bignum v $mstat.gce-sweep-los-hi)
+            (bignum v $mstat.gce-assimilate-prom-hi)
+            (bignum v $mstat.gce-assimilate-gc-hi) ;    #20
+            (vector-ref v $mstat.gce-copied-by-gc)
+            (vector-ref v $mstat.gce-copied-by-prom)
+            (vector-ref v $mstat.gce-words-forwarded)
+            (vector-ref v $mstat.gce-ptrs-forwarded)
+            (vector-ref v $mstat.gce-gc-barrier-hit)
+            (vector-ref v $mstat.gce-remset-lo-scanned)
+            (vector-ref v $mstat.gce-remset-low-scanned)))
 
   (define (make-remset-vector rems)
     (let* ((len (vector-length rems))
@@ -129,23 +168,29 @@
         (vector-set! g i (make-generation-stats (vector-ref gens i))))))
 
   ; Fill in some of the removed fields:
-  ;   - total gc+promotion time for slot 3
+  ;   - total elapsed gc+promotion time for slot 3
+  ;   - total cpu gc+promotion time for slot 44
   ;   - total words live for slot 4
   ;   - total promotion time for slot 28
+  ;   - total promotion time for slot 45
 
   (define (compute-useful-data v)
-    (let ((gens (vector-ref v 7)))
-      (let loop ((gctime 0) (promtime 0) (live 0) (i 0))
-        (cond ((= i (vector-length gens))
-               (vector-set! v 3 (+ gctime (memstats-fullgc-elapsed-time v)))
-               (vector-set! v 4 live)
-               (vector-set! v 28 promtime))
-              (else
-               (let ((g (vector-ref gens i)))
-                 (loop (+ gctime (vector-ref g 2))
-                       (+ promtime (vector-ref g 10))
-                       (+ live (vector-ref g 3))
-                       (+ i 1))))))))
+    (define generations (vector-ref v 7))
+    (define (g i) 
+      (vector-ref generations i))
+
+    (do ((i        0 (+ i 1))
+         (gcreal   0 (+ gcreal (memstats-gen-total-elapsed-time (g i))))
+         (promreal 0 (+ promreal (memstats-gen-promotion-elapsed-time (g i))))
+         (gccpu    0 (+ gccpu (memstats-gen-total-cpu-time (g i))))
+         (promcpu  0 (+ promcpu (memstats-gen-promotion-cpu-time (g i))))
+         (live     0 (+ live (memstats-gen-live-now (g i)))))
+        ((= i (vector-length generations))
+         (vector-set! v 3 (+ gcreal (memstats-fullgc-elapsed-time v)))
+         (vector-set! v 44 (+ gccpu (memstats-fullgc-cpu-time v)))
+         (vector-set! v 4 live)
+         (vector-set! v 28 promreal)
+         (vector-set! v 45 promcpu))))
 
   (let* ((raw-stats      (sys$get-resource-usage))
          (stats-vec      (make-basic-vector raw-stats)))
@@ -155,6 +200,8 @@
     (vector-set! stats-vec 8
                  (make-remset-vector 
                   (vector-ref raw-stats $mstat.remsets)))
+    (vector-set! stats-vec 48
+                 (make-gc-event-vector raw-stats))
     (compute-useful-data stats-vec)
     stats-vec))
 
@@ -164,7 +211,9 @@
 (define (memstats-gc-reclaimed v) (vector-ref v 1))
 (define (memstats-gc-copied v) (vector-ref v 2))
 (define (memstats-gc-total-elapsed-time v) (vector-ref v 3))
+(define (memstats-gc-total-cpu-time v) (vector-ref v 44))
 (define (memstats-gc-promotion-elapsed-time v) (vector-ref v 28))
+(define (memstats-gc-promotion-cpu-time v) (vector-ref v 45))
 (define (memstats-heap-allocated-now v) (vector-ref v 13))
 (define (memstats-heap-allocated-max v) (vector-ref v 27))
 (define (memstats-heap-live-now v) (vector-ref v 4))
@@ -195,11 +244,46 @@
 (define (memstats-major-faults v) (vector-ref v 25))
 (define (memstats-fullgc-collections v) (vector-ref v 34))
 (define (memstats-fullgc-elapsed-time v) (vector-ref v 35))
+(define (memstats-fullgc-cpu-time v) (vector-ref v 43))
 (define (memstats-fullgc-copied v) (vector-ref v 36))
 (define (memstats-fullgc-moved v) (vector-ref v 37))
 (define (memstats-fullgc-marked v) (vector-ref v 38))
 (define (memstats-fullgc-words-marked v) (vector-ref v 39))
 (define (memstats-fullgc-traced v) (vector-ref v 40))
+(define (memstats-dofgc-resets v) (vector-ref v 46))
+(define (memstats-dofgc-repeats v) (vector-ref v 47))
+(define (memstats-gc-accounting v) (vector-ref v 48))
+
+; Accessors for GC accounting substructure
+
+(define (memstats-acc-gc v) (vector-ref v 0))
+(define (memstats-acc-promotion v) (vector-ref v 1))
+(define (memstats-acc-free-unused v) (vector-ref v 2))
+(define (memstats-acc-root-scan-gc v) (vector-ref v 3))
+(define (memstats-acc-root-scan-promotion v) (vector-ref v 4))
+(define (memstats-acc-los-sweep-gc v) (vector-ref v 5))
+(define (memstats-acc-los-sweep-promotion v) (vector-ref v 6))
+(define (memstats-acc-remset-scan-gc v) (vector-ref v 7))
+(define (memstats-acc-remset-scan-promotion v) (vector-ref v 8))
+(define (memstats-acc-tospace-scan-gc v) (vector-ref v 9))
+(define (memstats-acc-tospace-scan-promotion v) (vector-ref v 10))
+(define (memstats-acc-reset-after-gc v) (vector-ref v 11))
+(define (memstats-acc-decrement-after-gc v) (vector-ref v 12))
+(define (memstats-acc-dof-remset-scan v) (vector-ref v 13))
+(define (memstats-acc-sweep-shadow v) (vector-ref v 14))
+(define (memstats-acc-msgc-mark v) (vector-ref v 15))
+(define (memstats-acc-sweep-dof-sets v) (vector-ref v 16))
+(define (memstats-acc-sweep-remset v) (vector-ref v 17))
+(define (memstats-acc-sweep-los v) (vector-ref v 18))
+(define (memstats-acc-assimilate-promotion v) (vector-ref v 19))
+(define (memstats-acc-assimilate-gc v) (vector-ref v 20))
+(define (memstats-acc-words-copied-by-gc v) (vector-ref v 21))
+(define (memstats-acc-words-copied-by-promotion v) (vector-ref v 22))
+(define (memstats-acc-words-forwarded v) (vector-ref v 23))
+(define (memstats-acc-pointers-forwarded v) (vector-ref v 24))
+(define (memstats-acc-gc-barrier-hits v) (vector-ref v 25))
+(define (memstats-acc-remset-large-objects-scanned v) (vector-ref v 26))
+(define (memstats-acc-remset-large-object-words-scanned v) (vector-ref v 27))
 
 ; Accessors for generation substructures
 
@@ -208,7 +292,9 @@
 (define (memstats-gen-collections v) (vector-ref v 0))
 (define (memstats-gen-promotions v) (vector-ref v 1))
 (define (memstats-gen-total-elapsed-time v) (vector-ref v 2))
+(define (memstats-gen-total-cpu-time v) (vector-ref v 13))
 (define (memstats-gen-promotion-elapsed-time v) (vector-ref v 10))
+(define (memstats-gen-promotion-cpu-time v) (vector-ref v 14))
 (define (memstats-gen-target-size-now v) (vector-ref v 9))
 (define (memstats-gen-allocated-now v) (vector-ref v 8))
 (define (memstats-gen-live-now v) (vector-ref v 3))
@@ -253,11 +339,17 @@
             (memstats-gen-major-id g) "," (memstats-gen-minor-id g))
     (mprint "    Collections....: " (memstats-gen-collections g))
     (mprint "    Promotions.....: " (memstats-gen-promotions g))
-    (mprint "    GC time (ms)...: " (memstats-gen-total-elapsed-time g))
-    (mprint "      promotion....: " (memstats-gen-promotion-elapsed-time g))
+    (mprint "    GC time (ms)...: " 
+            (memstats-gen-total-elapsed-time g) " real, " 
+            (memstats-gen-total-cpu-time g) " cpu")
+    (mprint "      promotion....: " 
+            (memstats-gen-promotion-elapsed-time g) " real, "
+            (memstats-gen-promotion-cpu-time g) " cpu")
     (mprint "      collection...: " 
             (- (memstats-gen-total-elapsed-time g)
-               (memstats-gen-promotion-elapsed-time g)))
+               (memstats-gen-promotion-elapsed-time g)) " real, "
+            (- (memstats-gen-total-cpu-time g)
+               (memstats-gen-promotion-cpu-time g)) " cpu")
     (mprint "    Generation size: " (memstats-gen-target-size-now g))
     (mprint "      allocated....: " (memstats-gen-allocated-now g))
     (mprint "      in use.......: " (memstats-gen-live-now g)))
@@ -300,11 +392,22 @@
     (mprint "  Words allocated: " (memstats-allocated v))
     (mprint "  Words reclaimed: " (memstats-gc-reclaimed v))
     (mprint "  Words copied...: " (memstats-gc-copied v))
-    (mprint "  GC time (ms)...: " (memstats-gc-total-elapsed-time v))
-    (mprint "    promotion....: " (memstats-gc-promotion-elapsed-time v))
-    (mprint "    collection...: " (- (memstats-gc-total-elapsed-time v)
-                                     (memstats-gc-promotion-elapsed-time v)))
-    (mprint "    full gc......: " (memstats-fullgc-elapsed-time v))
+    (mprint "  GC time (ms)...: " 
+            (memstats-gc-total-elapsed-time v) " real, "
+            (memstats-gc-total-cpu-time v) " cpu")
+    (mprint "    promotion....: " 
+            (memstats-gc-promotion-elapsed-time v) " real, "
+            (memstats-gc-promotion-cpu-time v) " cpu")
+    (mprint "    collection...: " 
+            (- (memstats-gc-total-elapsed-time v)
+               (memstats-fullgc-elapsed-time v)
+               (memstats-gc-promotion-elapsed-time v)) " real, "
+            (- (memstats-gc-total-cpu-time v)
+               (memstats-fullgc-cpu-time v)
+               (memstats-gc-promotion-cpu-time v)) " cpu")
+    (mprint "    full gc......: " 
+            (memstats-fullgc-elapsed-time v) " real, "
+            (memstats-fullgc-cpu-time v) " cpu")
     (mprint "  Heap allocation")
     (mprint "    maximum......: " (memstats-heap-allocated-max v))
     (mprint "    current......: " (memstats-heap-allocated-now v))
@@ -318,6 +421,9 @@
     (mprint "  Other RTS allocation")
     (mprint "    maximum......: " (memstats-rts-allocated-max v))
     (mprint "    current......: " (memstats-rts-allocated-now v))
+    (mprint "  Total allocation")
+    (mprint "    maximum......: " (memstats-mem-allocated-max v))
+    (mprint "    current......: " (memstats-mem-allocated-now v))
     (mprint "  Full collection")
     (mprint "    collections..: " (memstats-fullgc-collections v))
     (mprint "    objs marked..: " (memstats-fullgc-marked v))
@@ -370,7 +476,7 @@
     (mprint "Words allocated: " (memstats-allocated v))
     (mprint "Words reclaimed: " (memstats-gc-reclaimed v))
     (mprint "Elapsed time...: " (memstats-elapsed-time v)
-            "(User: " (memstats-user-time v)
+            " (User: " (memstats-user-time v)
             "; System: " (memstats-system-time v) ")")
     (let ((gcs 0))
       (do ((i 0 (+ i 1)))
@@ -378,8 +484,9 @@
         (let ((x (vector-ref (memstats-generations v) i)))
           (set! gcs (+ gcs (memstats-gen-collections x)))
           (set! gcs (+ gcs (memstats-gen-promotions x)))))
-      (mprint "Elapsed GC time: " (memstats-gc-elapsed-time-total v) 
-              " ms (in " gcs " collections.)")))
+      (mprint "Elapsed GC time: " (memstats-gc-total-elapsed-time v) 
+              " ms (CPU: " (memstats-gc-total-cpu-time v)
+              " ms, in " gcs " collections.)")))
 
   (if minimal?
       (print-minimal)
@@ -401,12 +508,13 @@
   (define (mprint . rest)
     (for-each display rest) (newline))
 
-  (define (pr allocated reclaimed elapsed user system gcs gctime)
+  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu)
     (mprint "Words allocated: " allocated)
     (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
 	   " ms (User: " user " ms; System: " system " ms)")
-    (mprint "Elapsed GC time: " gctime " ms (in " gcs " collections.)"))
+    (mprint "Elapsed GC time: " gctime " ms (CPU: " gccpu 
+            " in " gcs " collections.)"))
 
   (define (print-stats s1 s2)
     (pr (- (memstats-allocated s2) (memstats-allocated s1))
@@ -429,6 +537,8 @@
                             (memstats-gen-promotions x1))))))
 	(- (memstats-gc-total-elapsed-time s2) 
            (memstats-gc-total-elapsed-time s1))
+        (- (memstats-gc-total-cpu-time s2)
+           (memstats-gc-total-cpu-time s1))
 	))
   
   (let* ((s1 (memstats))
