@@ -13,7 +13,7 @@
 #define KILOBYTE                     1024
 #define MEGABYTE                     (KILOBYTE*KILOBYTE)
 
-#define MAX_GENERATIONS              128               /* Why not? */
+#define MAX_GENERATIONS              64  /* If GCLIB_LARGE_TABLE is set */
 #define DEFAULT_AREAS                3
 #define DEFAULT_NURSERY_SIZE         MEGABYTE
 #define DEFAULT_STOPCOPY_SIZE        (2*MEGABYTE)
@@ -70,6 +70,7 @@ struct dof_info {               /* Deferred-oldest-first intermediate area */
   bool   no_shadow_remsets;     /* Disable shadow sets */
   bool   fullgc_generational;   /* Use generational full GC */
   bool   fullgc_on_collection;  /* Count collections, not resets */
+  bool   fullgc_on_promotion;   /* Count promotions, not collections/resets */
 };
 
 struct gc_param {               /* Parameter structure passed to create_gc() */
