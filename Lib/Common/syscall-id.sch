@@ -3,9 +3,9 @@
 ; $Id$
 ;
 ; Syscall ID definitions.
+; Values correspond to the table ordering in Rts/Sys/syscall.c.
 ;
 ; FIXME: These values (may) belong in a configuration file.
-; NOTE:  Values correspond to the table ordering in Rts/Sys/cglue.c.
 
 (define syscall:open 0)
 (define syscall:unlink 1)
@@ -50,5 +50,6 @@
 (define syscall:peek-bytes 40)
 (define syscall:poke-bytes 41)
 (define syscall:segment-code-address 42) ; Petit Larceny only
+(define syscall:stats-dump-stdout 43)
 
 ; eof
