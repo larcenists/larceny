@@ -86,6 +86,7 @@
 (define feature$endianness        8)
 (define feature$stats-generations 9)
 (define feature$stats-remsets     10)
+(define feature$codevec           11)
 
 (define (sys$system-feature name)
 
@@ -98,24 +99,25 @@
     (vector-set! v 0 feature)
     (sysfeature v)
     (vector-ref v 0))
-    
+
   (case name
     ((larceny-major)
      (get-feature feature$larceny-major))
-    ((larceny-minor) 
+    ((larceny-minor)
      (get-feature feature$larceny-minor))
     ((arch-name)
      (let ((arch (get-feature feature$arch-name)))
        (case arch
          ((0) "SPARC")
          ((1) "Standard-C")
+         ((2) "X86-NASM")
          (else "Unknown"))))
     ((endian)
      (let ((end (get-feature feature$endianness)))
        (case end
          ((0) 'big)
          ((1) 'little)
-         (else (error "Illegal endianness identifier " 
+         (else (error "Illegal endianness identifier "
                       end
                       " gotten from RTS.")))))
     ((os-name)
@@ -128,13 +130,20 @@
          ((4) "OSF")
          ((5) "Unix")
          ((6) "Generic")
-	 ((7) "BSD Unix")
-	 ((8) "MacOS X")
+         ((7) "BSD Unix")
+         ((8) "MacOS X")
          (else "Unknown"))))
     ((os-major)
      (get-feature feature$os-major))
     ((os-minor)
      (get-feature feature$os-minor))
+    ((codevec)
+     (case (get-feature feature$codevec)
+       ((0) 'bytevector)
+       ((1) 'address)
+       ((2) 'address-shifted-1)
+       ((3) 'address-shifted-2)
+       (else 'unknown)))
     ((gc-tech)
      (vector-set! v 0 feature$gc-info)
      (sysfeature v)
@@ -145,7 +154,7 @@
            ((= i gc-gens))
          (vector-set! v 0 feature$gen-info)
          (vector-set! v 1 (+ i 1))
-         (sysfeature v) 
+         (sysfeature v)
          (let* ((type (case (vector-ref v 0)
                         ((0) 'nursery)
                         ((1) 'two-space)
@@ -177,7 +186,7 @@
      (get-feature feature$stats-generations))
     ((stats-remembered-sets)
      (get-feature feature$stats-remsets))
-    (else 
+    (else
      (error "sys$system-feature: " name " is not a system feature name"))))
 
 ; Get the value of an environment variable.
@@ -199,7 +208,17 @@
   (syscall syscall:sro ptr hdr limit))
 
 (define (system cmd)
-  (osdep/system cmd))
+  (if (not (string? cmd))
+      (error "system: " cmd " is not a string."))
+  (syscall syscall:system cmd))
+
+(define (current-directory . rest)
+  (if (null? rest)
+      (syscall syscall:cwd)
+      (let ((path (car rest)))
+        (if (not (string? path))
+            (error "current-directory: " path " is not a string."))
+        (syscall syscall:chdir path))))
 
 (define (sys$C-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:C-ffi-apply trampoline arg-encoding ret-encoding actuals))

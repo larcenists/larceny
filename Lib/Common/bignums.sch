@@ -7,7 +7,7 @@
 ; The bignum code consists of four sections.
 ;
 ; The first section contains bignum creators, accessors, and mutators.
-; These procedures depend on the byte-level layout of a bignum, in 
+; These procedures depend on the byte-level layout of a bignum, in
 ; particular on word size and endianness.  Therefore, the procedures
 ; are broken out into two other files: bignums-be.sch and bignums-el.sch.
 ;
@@ -29,7 +29,7 @@
 ; The representation of the sign is abstracted in the variables
 ; `negative-sign' and `positive-sign'; the signs are fixnum quantities.
 ; The size (and hence base) of each digit is abstracted in the variable
-; `bignum-base'. 
+; `bignum-base'.
 ;
 ; Implementation.
 ;
@@ -52,24 +52,24 @@
 ;
 ; Knuth describes three primitive operations, named a0, b0, and c0:
 ;
-;   a0 - addition or subtraction of one-place integers, giving a 
+;   a0 - addition or subtraction of one-place integers, giving a
 ;        one-place answer and a carry
 ;   b0 - multiplication of a one-place integer by another one-place
 ;        integer, giving a two-place answer
 ;   c0 - division of a two-place integer by a one-place integer, provided
-;        that the quotient is a one-place integer, and yielding also a 
+;        that the quotient is a one-place integer, and yielding also a
 ;        one-place remainder.
-;     
+;
 ; These must be implemented by the assembler or the millicode, i.e.,
 ; if the representation of a bigit uses 16 bits, then a 16-by-16
 ; multiplication yielding a more-than-29-bit number (i.e., a bignum)
-; must be created as a bignum by the primitive * operation without 
-; entering the bignum code to do this, and division by a 2-bigit bignum 
+; must be created as a bignum by the primitive * operation without
+; entering the bignum code to do this, and division by a 2-bigit bignum
 ; by a fixnum must also be transparently handled.
 
 ($$trace "bignums")
 
-; Here is the list of procedures that are exported by this module. 
+; Here is the list of procedures that are exported by this module.
 ;
 ;  bignum-add, bignum-subtract, bignum-multiply, bignum-quotient,
 ;  bignum-remainder, bignum-divide, bignum-negate, bignum-abs,
@@ -93,11 +93,11 @@
 
 
 ;-----------------------------------------------------------------------------
-; Section 1. 
+; Section 1.
 ;
-; Representation-dependent stuff.  
+; Representation-dependent stuff.
 ;
-; Most of this section is defined in bignums-be.sch and bignums-el.sch.  
+; Most of this section is defined in bignums-be.sch and bignums-el.sch.
 ; Procedures and variables defined there are:
 ;
 ;    bignum-base
@@ -287,7 +287,7 @@
 ; FIXME: get rid of quotient, remainder
 
 (define (big-addback u v j)
-  (letrec ((loop 
+  (letrec ((loop
 	    (lambda (i k carry)
 	      (cond ((< i j)
 		     (let ((r (+ (bignum-ref u i) (bignum-ref v k) carry)))
@@ -303,7 +303,7 @@
 
 ; Multiply through by a fixnum < bignum-base, producing new bignum.
 ;
-; Must normalize here, since division algorithm depends on the high 
+; Must normalize here, since division algorithm depends on the high
 ; digit being non-zero (length field must be valid). But must also
 ; not produce fixnum.
 
@@ -370,7 +370,7 @@
 	(let ((a (bignum-copy a)))
 	  (bignum-sign-set! a negative-sign)
 	  a)
-	(begin 
+	(begin
 	  (if (zero? f)
 	      (bignum-length-set! b 0)
 	      (begin
@@ -456,7 +456,7 @@
       (big-normalize! c))))
 
 
-; Divide bignum `a' by bignum `b', returning an integer if the 
+; Divide bignum `a' by bignum `b', returning an integer if the
 ; remainder is 0, and a ratnum otherwise.
 
 (define (bignum-divide a b)
@@ -598,9 +598,9 @@
 		    (loop (+ i 1) (big2+ a b c i carry))
 
 		    ;; add carry thru longest number
-		    
+
 		    (let ((rest (if (= i la) b a)))
-		      (letrec ((loop2 
+		      (letrec ((loop2
 				(lambda (i carry)
 				  (if (< i lmax)
 				      (loop2 (+ i 1) (big1+ rest c i carry))
@@ -609,7 +609,7 @@
 			(loop2 i carry)))))))
       (loop 0 0))))
 
-; Subtract the digits of bignum b from the digits of bignum a, producing 
+; Subtract the digits of bignum b from the digits of bignum a, producing
 ; a third, possibly negative, bignum c.
 
 (define (big-subtract-digits a b)
@@ -638,7 +638,7 @@
 	      (begin (if (negative? x)
 			 (big-flip-sign! c))
 		     c)))
-	  
+
 	(loop-common 0 0)))))
 
 
@@ -663,7 +663,7 @@
       (loop1 0))))
 
 
-; Divide two positive bignums, producing a pair, both elements of which are 
+; Divide two positive bignums, producing a pair, both elements of which are
 ; bignums, the car being the quotient and the cdr being the remainder.
 ;
 ; The arguments may be signed, but the signs will be ignored.
@@ -672,7 +672,7 @@
 
   ; Copy bignum with an extra 0 as the most significant digit.
   ; Notice that this invalidates the length field, and the length
-  ; of the resulting bignum cannot be taken without first 
+  ; of the resulting bignum cannot be taken without first
   ; normalizing!
 
   (define (big-extend-with-zero b)
@@ -751,8 +751,8 @@
 	 (let ((la (bignum-length a))
 	       (lb (bignum-length b)))
 	   (cond ((> lb la)
-		  (let ((r (bignum-copy b)))
-		    (bignum-sign-set! r positive-sign) ; b may be signed
+		  (let ((r (bignum-copy a)))
+		    (bignum-sign-set! r positive-sign) ; a may be signed
 		    (cons (fixnum->bignum 0) r)))
 		 ((= lb 1)
 		  (fast-divide a (bignum-ref b 0)))
@@ -795,7 +795,7 @@
 			  (else
 			   (- (bignum-ref a i) (bignum-ref b i)))))))
 	  (loop (- la 1))))))
-    
+
 ; Normalize a bignum -- this involves removing leading zeroes, and, if the
 ; number is small enough to fit in a fixnum, converting it to a fixum.
 

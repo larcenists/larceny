@@ -22,32 +22,32 @@
 
 (define (interaction-environment . rest)
   (cond ((null? rest)
-	 *interaction-environment*)
-	((and (null? (cdr rest)))
-	 (if (and (environment? (car rest))
-		  (env.mutable (car rest)))
-	     (set! *interaction-environment* (car rest))
-	     (error "interaction-environment: " (car rest) 
-		    " is not a mutable environment."))
-	 (unspecified))
-	(else
-	 (error "interaction-environment: too many arguments.")
-	 #t)))
+         *interaction-environment*)
+        ((and (null? (cdr rest)))
+         (if (and (environment? (car rest))
+                  (env.mutable (car rest)))
+             (set! *interaction-environment* (car rest))
+             (error "interaction-environment: " (car rest)
+                    " is not a mutable environment."))
+         (unspecified))
+        (else
+         (error "interaction-environment: too many arguments.")
+         #t)))
 
 (define (scheme-report-environment version)
   (case version
     ((4)  *r4rs-environment*)
     ((5)  *r5rs-environment*)
     (else (error "scheme-report-environment: " version
-		 " is not an accepted version number.")
-	  #t)))
+                 " is not an accepted version number.")
+          #t)))
 
 (define (null-environment version)
   (case version
     ((4 5) *null-environment*)
-    (else  (error "null-environment: " version 
-		  " is not an accepted version number.")
-	   #t)))
+    (else  (error "null-environment: " version
+                  " is not an accepted version number.")
+           #t)))
 
 
 ; Global cells are represented as pairs, for now.  The compiler
@@ -62,7 +62,7 @@
 ;
 ; The rule is that an identifier has one denotation: it's either a
 ; variable or a macro, and it can transition from one to the other
-; and back.  By default it is an identifier.
+; and back.  By default it is a variable.
 ;
 ; The problem is that the macro expander can remove and add macros
 ; behind the back of this interface, so we must check the macro env
@@ -99,7 +99,7 @@
   (check-environment env 'environment-variables)
   (let ((macros (environment-macros env))
         (variables '()))
-    (hashtable-for-each (lambda (id cell) 
+    (hashtable-for-each (lambda (id cell)
                           (if (not (memq id macros))
                               (set! variables (cons id variables))))
                         (env.hashtable env))
@@ -112,7 +112,7 @@
     (and (not probe2)
          probe1
          (not (eq? (global-cell-ref probe1) (undefined))))))
-  
+
 (define (environment-get env name)
   (check-environment env 'environment-get)
   (if (not (environment-macro? env name))
@@ -131,7 +131,7 @@
           (let ((cell (make-global-cell (undefined) name)))
             (hashtable-put! (env.hashtable env) name cell)
             cell))
-      (begin 
+      (begin
         (error "environment-get-cell: denotes a macro: " name)
         #t)))
 
@@ -166,7 +166,7 @@
           (environment-set! new (car vs) (environment-get env (car vs)))))
     (do ((ms macros (cdr ms)))
         ((null? ms))
-      (environment-set-macro! new (car ms) 
+      (environment-set-macro! new (car ms)
                               (environment-get-macro env (car ms))))
     new))
 
@@ -185,7 +185,7 @@
 
 (define (environment-macro? env id)
   (check-environment env 'environment-macro?)
-  (not (not (syntactic-environment-get (environment-syntax-environment env) 
+  (not (not (syntactic-environment-get (environment-syntax-environment env)
                                        id))))
 
 (define (check-environment env tag)
@@ -199,19 +199,9 @@
 ; does not use LOAD.
 
 (define global-name-resolver
-  (let ((p (lambda (sym)
-             (error "GLOBAL-NAME-RESOLVER: not installed."))))
-    (lambda rest
-      (cond ((null? rest) p)
-	    ((and (null? (cdr rest))
-		  (procedure? (car rest)))
-	     (let ((old p))
-	       (set! p (car rest))
-	       old))
-	    (else
-	     (error "global-name-resolver: Wrong number of arguments: "
-		    rest)
-	     #t)))))
+  (make-parameter "global-name-resolver"
+                  (lambda (sym)
+                    (error "GLOBAL-NAME-RESOLVER: not installed."))
+                  procedure?))
 
-     
 ; eof

@@ -66,12 +66,12 @@
 
 (define (osdep/open-console io-mode)
   (case io-mode
-    ((input) 
-     (if *conio-input-firsttime* 
+    ((input)
+     (if *conio-input-firsttime*
          (begin (set! *conio-input-firsttime* #f)
                 unix:stdin)
          (unix:open "CON:" unix:open-read 0)))
-    ((output) 
+    ((output)
      (if *conio-output-firsttime*
          (begin (set! *conio-output-firsttime* #f)
                 unix:stdout)
@@ -102,7 +102,7 @@
     (cond ((eq? io-mode 'input)
            (unix:open fn (+ unix:open-read binary-mode) 0))
           ((eq? io-mode 'output)
-           (unix:open fn 
+           (unix:open fn
                       (+ unix:open-write unix:open-create unix:open-trunc
                          binary-mode)
                       unix:create-mode))
@@ -167,17 +167,12 @@
 
 ; Other system hooks
 
-(define (osdep/system cmd)
-  (if (not (string? cmd))
-      (error "osdep/system: " cmd " is not a string."))
-  (syscall syscall:system cmd))
-
 (define (osdep/find-init-file)
   (let ((init-file-name ".larceny"))
     (cond ((file-exists? init-file-name)
            init-file-name)
           ((getenv "HOME")
-           => 
+           =>
            (lambda (home)
              (let ((fn (string-append home "/" init-file-name)))
                (if (file-exists? fn)
@@ -188,7 +183,7 @@
 
 ; RTS debugging utility function
 
-; $$debugmsg and $$trace are guaranteed to make a 'best reasonable' effort 
+; $$debugmsg and $$trace are guaranteed to make a 'best reasonable' effort
 ; to print the error and never to signal an error.
 
 (define ($$debugmsg msg)
@@ -200,9 +195,9 @@
 
 ; For releases (and when we get tired of seeing all the startup msgs).
 
-'(define ($$trace msg)
+(define ($$trace msg)
   #f)
 
-($$trace "Done loading sys-unix.")
+($$trace "Done loading sys-win32")
 
 ; eof
