@@ -24,6 +24,8 @@
 #include "larceny.h"
 #include "gc.h"
 #include "stats.h"        /* for stats_init() */
+#include "gc_t.h"
+#include "young_heap_t.h"
 
 /* Argument parsing structure */
 
@@ -68,7 +70,11 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
+#ifdef PETIT_LARCENY
+int larceny_main( int argc, char **os_argv )
+#else
 int main( int argc, char **os_argv )
+#endif
 {
   opt_t o;
   int generations;
@@ -205,6 +211,14 @@ int main( int argc, char **os_argv )
   setup_signal_handlers();
   stats_init( the_gc(globals) );
   scheme_init( globals );
+
+  /* The initial stack can't be created when the garbage collector
+     is created because stack creation depends on certain data
+     structures allocated by scheme_init() in Petit Larceny when
+     the system is compiled with USE_GOTOS_LOCALLY.  So we create
+     the stack here.
+     */
+  yh_create_initial_stack( the_gc(globals)->young_area );
 
   /* Allocate vector of command line arguments and pass it as an
    * argument to the startup procedure.

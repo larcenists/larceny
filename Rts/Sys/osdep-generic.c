@@ -19,16 +19,14 @@
 #include <stdlib.h>
 #include <time.h>
 
-#if GENERIC_OS
-
 #include "larceny.h"
 #include "assert.h"
+
+#if GENERIC_OS
 
 static stat_time_t real_start;
 
 static void get_rtclock( stat_time_t *real );
-static void register_pointer( byte *derived, byte *original );
-static byte *find_and_free_pointer( byte *p );
 
 void osdep_init( void )
 {
@@ -61,18 +59,9 @@ void osdep_os_version( int *major, int *minor )
   *minor = 0;
 }
 
-/* Return the current time in milliseconds since initialization */
-unsigned stats_rtclock( void )
-{
-  stat_time_t now;
-
-  get_rtclock( &now );
-  return now.sec * 1000 + now.usec / 1000;
-}
-
 /* Fill in the structures with real, user, system times. */
 void 
-stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
+osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
     get_rtclock( real );
@@ -91,7 +80,7 @@ stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
   }
 }
 
-void stats_pagefaults( unsigned *major, unsigned *minor )
+void osdep_pagefaults( unsigned *major, unsigned *minor )
 {
   *major = 0;
   *minor = 0;
@@ -103,8 +92,12 @@ static void get_rtclock( stat_time_t *real )
   real->usec = 0;
 }
 
+#endif /* GENERIC_OS */
+
+#if USE_GENERIC_FILESYSTEM || GENERIC_OS
+
 /* remove() is in Standard C */
-void osdep_removefile( w_fn )
+void osdep_unlinkfile( word w_fn )
 {
   char *fn = string2asciiz( w_fn );
   if (fn == 0) {
@@ -118,7 +111,7 @@ void osdep_removefile( w_fn )
    a file.  Return a vector containing midnight, January 1, 1970 always.  
    This is consistent with the result returned by osdep_access(), below.
    */
-void osdep_mtime( w_fn, w_buf )
+void osdep_mtime( word w_fn, word w_buf )
 {
   vector_set( w_buf, 0, fixnum( 1970 ) );
   vector_set( w_buf, 1, fixnum( 1 ) );
@@ -130,135 +123,216 @@ void osdep_mtime( w_fn, w_buf )
 }
 
 /* Standard C does not have a procedure to check whether a file exists. 
-   Return 1 always to indicate that file exists. 
+   Try to open the file in read mode to find out if it exists; this is
+   usually OK (not always).  Ignores the mode parameter.
 */
-void osdep_access( w_fn, w_buf )
+void osdep_access( word w_fn, word mode )
 {
-  globals[ G_RESULT ] = fixnum(1);
+  char fnbuf[ 1024 ];
+  FILE *fp;
+
+  strcpy( fnbuf, string2asciiz( w_fn ) );
+  if ((fp = fopen( fnbuf, "r" )) != 0)
+  {
+    fclose( fp );
+    globals[ G_RESULT ] = fixnum(0);
+  }
+  else
+    globals[ G_RESULT ] = fixnum(-1);
 }
 
 /* Rename is in Standard C. */
-void osdep_rename( w_from, w_to )
+void osdep_rename( word w_from, word w_to )
 {
   char fnbuf[ 1024 ];
 
   strcpy( fnbuf, string2asciiz( w_from ) );
   globals[ G_RESULT ] = fixnum( rename( fnbuf, string2asciiz( w_to ) ) );
 }
-
-#endif /* GENERIC_OS */
+#endif /* USE_GENERIC_FILESYSTEM || GENERIC_OS */
 
 #if USE_GENERIC_IO || GENERIC_OS
 
-/* I/O system.
+struct finfo {
+  FILE *fp;
+  int  mode;
+};
 
-   FIXME FIXME FIXME
-   - This system is not complete, notice the #error tags.
-   - This system needs to be integrated with the new Scheme-side I/O.
-   */
-static FILE **fdarray = 0;
+static const int MODE_TEXT = 1;
+static const int MODE_BINARY = 2;
+static const int MODE_APPEND = 4;
+static const int MODE_READ = 8;
+static const int MODE_WRITE = 16;
+
+static struct finfo *fdarray = 0;
 static int num_fds = 0;
 
-void osdep_openfile( w_fn, w_flags, w_mode ) /* w_mode not used */
+#ifdef USE_STDIO
+static void check_standard_filedes()
+{
+  if (fdarray == 0)
+  {
+    fdarray = (struct finfo*)must_malloc( sizeof(struct finfo)*3 );
+    num_fds = 3;
+    fdarray[0].fp = stdin;
+    fdarray[0].mode = MODE_TEXT | MODE_READ;
+    fdarray[1].fp = stdout;
+    fdarray[1].mode = MODE_TEXT | MODE_WRITE;
+    fdarray[2].fp = stderr;
+    fdarray[2].mode = MODE_TEXT | MODE_WRITE;
+  }
+}
+#endif
+
+void osdep_openfile( word w_fn, word w_flags, word w_mode )
 {
   char *fn = string2asciiz( w_fn );
   int i, flags = nativeint( w_flags );
   char newflags[5];
-  char p = newflags;
+  char *p = newflags;
+  int mode = 0;
+  FILE *fp;
+
+#ifdef USE_STDIO
+  check_standard_filedes();
+#endif
 
   /* This is a real thin pipe for the semantics ... */
-  if (flags & 0x01) *p++ = 'r';
-  if (flags & 0x02) *p++ = 'w';
+  if (flags & 0x01) { *p++ = 'r'; mode |= MODE_READ; }
+  if (flags & 0x02) { *p++ = 'w'; mode |= MODE_WRITE; }
   if (flags & 0x04) *p++ = '+';
-  if (flags & 0x20) *p++ = 'b';
+  if (flags & 0x20) { *p++ = 'b'; mode |= MODE_BINARY; }
   *p = '\0';
+
+  if (!(mode & MODE_BINARY))
+    mode |= MODE_TEXT;
 
   if (fn == 0) {
     globals[ G_RESULT ] = fixnum( -1 );
     return;
   }
-  fp = fopen( fn, p );
+  fp = fopen( fn, newflags );
   if (fp == NULL) {
     globals[ G_RESULT ] = fixnum( -1 );
     return;
   }
 
   /* Now register the file and return the table index. */
-  for ( i=0 ; i < num_fds && fdarray[i] != 0 ; i++ )
+  for ( i=0 ; i < num_fds && fdarray[i].fp != 0 ; i++ )
     ;
   if (i == num_fds) {
-    int n = 2*num_fds;
-    FILE **narray = (FILE**)must_malloc( sizeof(FILE*)*n );
+    int n = max(2*num_fds,5);
+    struct finfo *narray = (struct finfo*)must_malloc( sizeof(struct finfo)*n );
     if (fdarray != 0)
-      memcpy( narray, fdarray, sizeof(FILE*)*num_fds );
+      memcpy( narray, fdarray, sizeof(struct finfo)*num_fds );
     for ( i=num_fds ; i < n ; i++ )
-      narray[i] = 0;
+    {
+      narray[i].fp = 0;
+      narray[i].mode = 0;
+    }
     i = num_fds;
     num_fds = n;
     if (fdarray != 0)
       free( fdarray );
     fdarray = narray;
   }
-  fdarray[i] = fp;
-  return i;
+  fdarray[i].fp = fp;
+  fdarray[i].mode = mode;
+  globals[ G_RESULT ] = fixnum(i);
 }
 
-void osdep_closefile( w_fd )
+void osdep_closefile( word w_fd )
 {
   int fd = nativeint( w_fd );
 
+#ifdef USE_STDIO
+  check_standard_filedes();
+#endif
+
   assert( fd >= 0 && fd < num_fds );
 
-  if (fdarray[fd] == 0)
+  if (fdarray[fd].fp == 0)
     globals[ G_RESULT ] = fixnum(-1);
-  else if (fclose( fdarray[fd] ) == EOF)
+  else if (fclose( fdarray[fd].fp ) == EOF)
     globals[ G_RESULT ] = fixnum(-1);
-  else {
-    fdarray[fd] = 0;
+  else 
     globals[ G_RESULT ] = fixnum(0);
-  }
+  fdarray[fd].fp = 0;
+  fdarray[fd].mode = 0;
 }
 
-void osdep_readfile( w_fd, w_buf, w_cnt )
+void osdep_readfile( word w_fd, word w_buf, word w_cnt )
 {
   int fd = nativeint( w_fd );
   FILE *fp;
+  char *buf, *resp;
+  size_t nbytes, res;
+
+#ifdef USE_STDIO
+  check_standard_filedes();
+#endif
 
   assert( fd >= 0 && fd < num_fds );
 
-  if (fdarray[fd] == 0) {
+  if (fdarray[fd].fp == 0) {
     globals[ G_RESULT ] = fixnum(-1);
     return;
   }
-  fp = fdarray[fd];
-
-#error "The generic OS interface has not been completed."
-
+  fp = fdarray[fd].fp;
+  buf = string_data(w_buf);
+  nbytes = nativeint(w_cnt);
+  if (fdarray[fd].mode & MODE_TEXT)
+  {
+    // On some platforms, certainly Win32, fread() is not line buffered.
+    resp = fgets( buf, nbytes, fp );
+    res = (resp == 0 ? 0 : strlen(buf));
+  }
+  else
+    res = fread( buf, 1, nbytes, fp );
+  if (res == 0 && ferror(fp))
+    globals[G_RESULT] = fixnum(-1);
+  else
+    globals[G_RESULT]= fixnum(res);
 }
 
-void osdep_writefile( w_fd, w_buf, w_cnt, w_offset )
+void osdep_writefile( word w_fd, word w_buf, word w_cnt, word w_offset )
 {
   int fd = nativeint( w_fd );
   FILE *fp;
+  char *buf;
+  size_t nbytes, res, offset;
+
+#ifdef USE_STDIO
+  check_standard_filedes();
+#endif
 
   assert( fd >= 0 && fd < num_fds );
 
-  if (fdarray[fd] == 0) {
+  if (fdarray[fd].fp == 0) {
     globals[ G_RESULT ] = fixnum(-1);
     return;
   }
-  fp = fdarray[fd];
-
-#error "The generic OS interface has not been completed."
-
+  fp = fdarray[fd].fp;
+  buf = string_data(w_buf);
+  nbytes = nativeint(w_cnt);
+  offset = nativeint(w_offset);
+  res = fwrite( buf+offset, 1, nbytes, fp );
+  if (res < nbytes && ferror(fp))
+    globals[G_RESULT] = fixnum(-1);
+  else
+    globals[G_RESULT] = fixnum(res);
 }
 
 /* Standard C does not have a procedure to check for input-ready.
    Return 1 always to indicate input ready.  This is correct for disk 
-   files, although not for intermittent input sources (console, etc).
+   files, but not for intermittent input sources (console, etc).
    */
-void osdep_pollinput( w_fd )
+void osdep_pollinput( word w_fd )
 {
+#ifdef USE_STDIO
+  check_standard_filedes();
+#endif
+
   globals[ G_RESULT ] = fixnum(1);
 }
 #endif /* if USE_GENERIC_IO || GENERIC_OS */
@@ -291,6 +365,9 @@ void osdep_pollinput( w_fd )
        first block that can accomodate the required alignment
    */
 
+static void register_pointer( byte *derived, byte *original );
+static byte *find_and_free_pointer( byte *p );
+
 struct regentry {
   byte *original;
   byte *derived;
@@ -311,7 +388,7 @@ again:
     memfail( MF_MALLOC, "Failed to allocate %d bytes heap memory.", bytes );
     goto again;
   }
-  q = (byte*)roundup( p, 4096 );
+  q = (byte*)roundup( (word)p, 4096 );
   fragmentation += 4096;
   register_pointer( q, p );
   return q;

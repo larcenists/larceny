@@ -227,6 +227,50 @@ extern void osdep_system( word command );
      FIXME: there is no way to distinguish between errors.
      */
 
+extern word osdep_dlopen( const char *path );
+  /* 'path' is an untagged pointer to a string.
+      
+      'Path' represents the name of a shared object in the
+      system.  osdep_dlopen() attempts to load that object,
+      and if it is successful, returns a nonzero handle to it.
+      If the load failed, 0 is returned.  (Some systems
+      choose to crash if dlopen fails.  Sorry.)
+      
+      The string uses the operating system's native string 
+      representation -- `asciiz' on Unix, 'pascal' on MacOS.
+      
+      The mapping from the name of the shared object as specified
+      by path and an actual shared object in the system is
+      entirely os-dependent.  UTSL.
+      */
+
+extern word osdep_dlsym( word handle, const char *symbol );
+  /* 'handle' is a non-zero value returned by osdep_dlopen(),
+     representing a loaded shared object.
+     'symbol' is an untagged pointer to a string.
+     
+     The string represents a symbol in the shared object's symbol
+     table.  osdep_dlopen() returns the address of the symbol,
+     or 0 if the symbol is not in the object or another error
+     occured.
+
+     The string uses the operating system's native string 
+     representation -- `asciiz' on Unix, 'pascal' on MacOS.      
+     */
+
+extern void osdep_open_shared_object( word params, word results );
+  /* 'params' is a tagged pointer to a vector of parameters.
+     'results' is a tagged pointer to a vector of length 2.
+     
+     The parameters specify a shared object in the system.  If the
+     object can be found then the results vector is initialized with
+     a pointer to a vector of code pointers and a pointer to a string
+     representing program data, both obtained from the shared object,
+     and the procedure returns #t.  If the object cannot be found, or
+     it does not contain the expected data, then the procedure returns
+     #f and leaves results unchanged.
+     */
+
 #endif /* !defined(INCLUDED_OSDEP_H) */
 
 /* eof */

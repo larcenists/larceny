@@ -5,8 +5,15 @@
  * Operating system specific services: Macintosh Operating System.
  * The interface is specified in osdep.h.
  *
- * This implementation depends on Codewarrior because it uses Codewarrior's
- * Unix emulation libraries for some tasks.  FIXME.
+ * FIXME/BUGS
+ *  - This implementation depends on Codewarrior because it uses 
+ *    Codewarrior's Unix emulation libraries for some tasks.
+ *  - File creator code is hardwired.
+ *  - osdep_poll_startup_events implementation seems like a hack.
+ *  - osdep_access implementation is a hack.
+ *  - osdep_poll_input is not right.
+ *  - osdep_system is not right, but we need a strategy for that one.
+ *  - osdep_open_shared_object is not right, but we need a strategy for that one.
  */
 
 #include "config.h"
@@ -16,6 +23,8 @@
 #if !CODEWARRIOR
 #  error "The file :Rts:Sys:osdep-macos.c is Codewarrior-dependent."
 #endif
+
+#include "gc_t.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -40,7 +49,7 @@ static void get_rtclock( stat_time_t *real );
 void osdep_init( void )
 {
   /* Set the creator for files to 'Plth': Petit Larceny.
-     It would be better to get the creator code from the application file. 
+     FIXME: It would be better to get the creator code from the application file. 
      */
   _fcreator = 'Plth';
   real_start.sec = 0;
@@ -68,6 +77,10 @@ void osdep_poll_startup_events( void )
   }
 }
 
+/* Must handle an event if there is one, and periodically must call out to the
+   event handling mechanism in any case, to handle such tasks as blinking the
+   cursor.
+   */
 void osdep_poll_events( word *globals )
 {
   SIOUXHandleOneEvent( (EventRecord*)0 );
@@ -149,7 +162,7 @@ word w_fn, w_buf;
   globals[ G_RESULT ] = fixnum( 0 );
 }
 
-
+/* FSpFGetInfo() may or may not be the right function here. */
 void osdep_access( w_fn, w_bits )
 word w_fn, w_bits;
 {
@@ -187,11 +200,87 @@ void osdep_system( word w_cmd )  /* FIXME */
   globals[ G_RESULT ] = fixnum( 1 );
 }
 
+word osdep_dlopen( const char *path )
+{
+  OSErr r;
+  CFragConnectionID connID;
+  Str255 errName;
+  Ptr mainAddr;
+
+  r = GetSharedLibrary( (unsigned char *)path, 
+  			kPowerPCCFragArch, kLoadCFrag, &connID, &mainAddr, errName );
+  if (r < 0) {
+    hardconsolemsg( "GetSharedLibrary error: %#s: %#s (%d)\n", path, errName, r );
+    return (word)0;
+  }
+  else
+    return (word)connID;
+}
+
+word osdep_dlsym( word handle, const char *symbol )
+{
+  OSErr r;
+  CFragConnectionID connID = (CFragConnectionID)handle;
+  CFragSymbolClass symClass;
+  Ptr symAddr;
+
+  r = FindSymbol( connID, (const unsigned char*)symbol, &symAddr, &symClass );
+  if (r < 0)
+    return 0;
+  else
+    return (word)symAddr;
+}
+
+/* Note, the parameter must be a `pascal' string! */
+void osdep_open_shared_object( word w_param, word results )
+{
+  char *path = (char *)(ptrof( vector_ref( w_param, 0 ) )+1);
+  word desc;
+  void *tbl, *ntbl;
+  void *data, *ndata;
+  gc_t *gc = the_gc( globals );
+  word *rh = gc_make_handle( gc, results );
+  word *hdata;
+  int tbl_bytes, data_bytes;
+  
+  desc = osdep_dlopen( path );
+  if (desc == 0) 
+    return;
+  tbl = (void*)osdep_dlsym( desc, (char*)"\ptwobit_entry_table" );
+  if (tbl == 0)
+    return;
+  data = (void*)osdep_dlsym( desc, (char*)"\ptwobit_data" );
+  if (data == 0)
+    return;
+  
+  /* It's illegal to have tagged pointers to outside the heap,
+     so copy the data into heap-allocated data structures.
+     */
+  tbl_bytes = sizefield(*(word*)tbl)+sizeof(word)*VEC_HEADER_WORDS;
+  data_bytes = sizefield(*(word*)data)+sizeof(word);
+
+  ndata = gc_allocate( gc, data_bytes, FALSE, TRUE );
+  memcpy( ndata, data, data_bytes );
+  hdata = gc_make_handle( gc, tagptr( ndata, BVEC_TAG ) );  /* Another alloc coming... */
+  
+  ntbl = gc_allocate( gc, tbl_bytes, FALSE, FALSE );
+  memcpy( ntbl, tbl, tbl_bytes );
+ 
+  vector_set( *rh, 0, tagptr( ntbl, VEC_TAG ) );
+  vector_set( *rh, 1, *hdata );
+
+  gc_free_handle( gc, rh );
+}
+
 void osdep_os_version( int *major, int *minor )
 {
-  /* FIXME: this is wrong */
-  *major = 0;
-  *minor = 0;
+  long response;
+  
+  *major = *minor = 0;
+  if (Gestalt( gestaltSystemVersion, &response ) == 0) {
+    *major = (response & 0x0F00) >> 8;
+    *minor = (response & 0xF0) >> 4;
+  }
 }
 
 /* Return the current time in milliseconds since initialization */
@@ -203,9 +292,13 @@ unsigned osdep_realclock( void )
   return now.sec * 1000 + now.usec / 1000;
 }
 
+unsigned osdep_cpuclock( void )
+{
+  return clock() * 1000 / CLOCKS_PER_SEC;
+}
+
 /* Fill in the structures with real, user, system times. */
-void 
-osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
+void osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
     get_rtclock( real );
@@ -232,12 +325,14 @@ void osdep_pagefaults( unsigned *major, unsigned *minor )
 
 static void get_rtclock( stat_time_t *real )
 {
-  struct timeval t;
+  UnsignedWide now;
+  long long t;
   int usec, sec;
 
-  gettimeofday( &t, (struct timezone *)0 );
-  usec = t.tv_usec - real_start.usec;
-  sec = t.tv_sec - real_start.sec;
+  Microseconds( &now );
+  t = ((long long)now.hi << 32) + now.lo;
+  sec = (t / 1000000) - real_start.sec;
+  usec = (t % 1000000) - real_start.usec;
   if (usec < 0) {
     usec += 1000000;
     sec -= 1;
@@ -246,47 +341,6 @@ static void get_rtclock( stat_time_t *real )
   real->usec = usec;
 }
 
-/* e_gettimeofday.c */
-/* 18Oct95  e   -- from runtime.c */
-/* From Moscow ML 1.43, copyright status unknown.  Author Doug Currie. */
-
-/* NOTE! This does not have adequate resolution for modern machines;
-   is is perfectly conceivable that a garbage collection can complete
-   in (much) less than one tick, for example.  We need a better timer.
-   FIXME.  --lars
-   */
-  
-#define TICKS_PER_SEC 60
-
-static long tod_offset;
-
-void gettimeofday ( struct timeval *t, struct timezone *tz )
-{
-  #pragma unused ( tz )
-  unsigned long now, ticks, secs;
-  long offs;
-  now = LMGetTime();    // get Mac Time
-  ticks = LMGetTicks(); // get Mac Ticks
-  // convert ticks to timeofday
-  secs = ticks / TICKS_PER_SEC;  // floor
-  ticks -= secs * TICKS_PER_SEC; // mod
-  secs += tod_offset;            // offset
-  ticks = (ticks * 1000000) / TICKS_PER_SEC; // ticks -> usecs
-  // see if the Mac clock was changed
-  offs = secs - now;
-  if( offs != 0 && offs != 1 && offs != -1)
-  { // off by one second is OK
-    tod_offset -= offs;
-    secs -= offs;        // rts - (rts - now) => now
-  }
-#if ( __MWERKS__ >= 0x1100 )
-  /* seconds between 1/1/1900 and 1/1/1904 */
-  t->tv_sec = secs + (365L * 4L) * 24L * 60L * 60L;
-#else
-  t->tv_sec = secs;
-#endif
-  t->tv_usec = ticks;
-}
 
 #endif /* if MACOS */
 

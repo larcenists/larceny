@@ -9,16 +9,21 @@
 
 #if defined( WIN32 )		/* This file is in effect only on Win32 */
 
-#error "The WIN32 OS interface has not been completed."
+#if !USE_GENERIC_IO
+#  error "The WIN32 OS interface has not been completed: IO is missing"
+#endif
+
+#if !USE_GENERIC_ALLOCATOR
+#  error "The WIN32 OS interface has not been completed: memory management is missing"
+#endif
+
+#if !USE_GENERIC_FILESYSTEM
+#  error "The WIN32 OS interface has not been completed: File system is missing"
+#endif
 
 #include <stdio.h>
 #include <time.h>
 #include <io.h>
-
-#define F_OK 1
-#define R_OK 2
-#define W_OK 4
-#define X_OK 8
 
 #include "larceny.h"
 
@@ -33,64 +38,34 @@ void osdep_init( void )
   get_rtclock( &real_start );
 }
 
-void osdep_openfile( w_fn, w_flags, w_mode )
+void osdep_poll_events( word *globals )
 {
-  FIXME
+  /* Nothing now; eventually this is the place to check for
+     signals and other asynchronous events.
+     */
 }
 
-void osdep_removefile( w_fn )
+void osdep_poll_startup_events( void )
 {
-  FIXME
+  /* Nothing now. */
 }
 
-void osdep_closefile( w_fd )
-{
-  FIXME
-}
-
-void osdep_readfile( w_fd, w_buf, w_cnt )
-{
-  FIXME
-}
-
-void osdep_writefile( w_fd, w_buf, w_cnt, w_offset )
-{
-  FIXME
-}
-
-void osdep_mtime( w_fn, w_buf )
-{
-  FIXME
-}
-
-void osdep_access( w_fn, w_buf )
-{
-  FIXME
-}
-
-void osdep_rename( w_from, w_to )
-{
-  FIXME
-}
-
-void osdep_pollinput( w_fd )
-{
-  globals[ G_RESULT ] = fixnum(1); /* close enough */
-}
-
+/* system() is in ANSI/ISO C. */
 void osdep_system( word w_cmd )
 {
-  FIXME
+  char *cmd = string2asciiz( w_cmd );
+  globals[ G_RESULT ] = fixnum(system( cmd ));
 }
 
 void osdep_os_version( int *major, int *minor )
 {
+  // FIXME: wrong
   *major = 0;
   *minor = 95;
 }
 
 /* Return the current time in milliseconds since initialization */
-unsigned stats_rtclock( void )
+unsigned osdep_realclock( void )
 {
   stat_time_t now;
 
@@ -98,9 +73,23 @@ unsigned stats_rtclock( void )
   return now.sec * 1000 + now.usec / 1000;
 }
 
+void osdep_pagefaults( unsigned *major, unsigned *minor )
+{
+  // FIXME: Unimplemented
+  *major = 0;
+  *minor = 0;
+}
+
+unsigned osdep_cpuclock( void )
+{
+  // FIXME: It's wrong to return 0 here, because 0 means something magic
+  // to the client, but the client needs to change.
+  return max(1,(unsigned)((double)clock()*1000/CLOCKS_PER_SEC));
+}
+
 /* Fill in the structures with real, user, system times. */
 void 
-stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
+osdep_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
 {
   if (real != 0)
     get_rtclock( real );
@@ -113,22 +102,22 @@ stats_time_used( stat_time_t *real, stat_time_t *user, stat_time_t *system )
       user->usec = ((t - (user->sec * CLOCKS_PER_SEC))*1000000)/CLOCKS_PER_SEC;
     }
     if (system != 0) {
+      // FIXME: missing
       system->sec = 0;
       system->usec = 0;
     }
   }
 }
 
-void stats_pagefaults( unsigned *major, unsigned *minor )
-{
-  *major = 0;
-  *minor = 0;
-}
-
 static void get_rtclock( stat_time_t *real )
 {
-  real->sec = 0;
-  real->usec = 0;
+  // It's wrong to return 0 here.
+
+  // FIXME: this is CPU time, not real time.
+  unsigned x = max(1,(unsigned)((double)clock()*1000/CLOCKS_PER_SEC));
+
+  real->sec = x / 1000 ;
+  real->usec = x % 1000 * 1000;
 }
 
 #endif /* defined( WIN32 ) */
