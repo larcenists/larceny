@@ -100,10 +100,11 @@
                               (display (rep->symbol type0))
                               (display " to ")
                               (display (rep->symbol type1))
-                              (newline)))
+                              (newline)
+                              (display-all-types)))
                    #t))))
     
-    ; GIven the name of a known local procedure, returns its code.
+    ; Given the name of a known local procedure, returns its code.
     
     (define (lookup-code name)
       (callgraphnode.code (assq name g)))
@@ -285,6 +286,12 @@
               ((and mutate? (rep-specific? op argtypes))
                =>
                (lambda (newop)
+                 (if debugging?
+                     (begin (display "  ")
+                            (write op)
+                            (display " becomes ")
+                            (write newop)
+                            (newline)))
                  (call.proc-set! exp (make-variable newop)))))
         (or type rep:object)))
     
