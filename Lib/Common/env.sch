@@ -3,195 +3,22 @@
 ; $Id$
 ;
 ; Larceny library -- environments.
-;
-; An `environment' is a map from names (symbols) to locations (global cells).
-;
-; Environments in Larceny are hierarchical: when an environment is created,
-; it can be given a parent environment, and the contents of the parent
-; environment are inherited in the new environment (transitively).  
-;
-; Inheritance works as follows.  When a new environment is created, it 
-; contains only a reference to its parent environment.  When a name is
-; referenced in the new environment, and there is not a binding for that
-; name in the environment but there is one in the parent, then a new
-; cell is created for the name in the environment with the current value
-; from the entry in the parent environment, and all subsequent references
-; to the name in the environment will get the new cell.
-;
-; There are at least three ways to view inheritance.  
-; (1) All entries in the parent are eagerly duplicated in the new 
-;     environment when it is created.  Hence, all values in the new 
-;     environment are definitely those of the parent at the time of 
-;     creation.  The disadvantage here is the potential blowup in the 
-;     size of environments, but it is a clean model.
-; (2) No entries are duplicated in the new environment; cells are shared 
-;     with the parent environment.  This is also clean, but defeats one
-;     important use of environments, namely as namespaces.
-; (3) Cells are duplicated in the child environment only on assignment or
-;     when a reference to the cell (as opposed to its value) escapes, not on
-;     a reference that only gets the value.  I don't like this model, since it
-;     makes it possible to observe when the shadow copy is made.
-;
-; BUGS
-;  - Logically, environments contain many more things than just global
-;    variable bindings.  At least, there are:
-;      - a syntax environment
-;      - compiler-primitive and compiler-macro tables
-;    It seems reasonable to be able to find out what a name denotes and
-;    to get, set, add and remove denoted values, within certain limits.
-;
-;  - There are perhaps groups of parameters, like compiler switches,
-;    that use and change information in the environment and that might
-;    be per-environment, though I don't know...  It may be that _all_
-;    parameters should be relative to the environment and that switching
-;    environments automatically switches all parameter values to the
-;    ones stored in the new environment.  That is, parameter lookup
-;    actually looks up parameter values in the current environment.
-;    Doing so is fairly clean, and corresponds to the use of environments
-;    as per-user namespaces, but prohibits communicating among users
-;    by setting and getting parameters.  If we do this, then the syntax
-;    environment and compiler tables could just be parameters too,
-;    and everything would work OK.
-;
-;  - Implementation should use record package and hash table package and
-;    not duplicate the functionality here.
 
 ($$trace "env")
 
-; Global cells are represented as pairs.
-
-(define make-global-cell (lambda (value name) (cons value name)))
-(define global-cell-ref  (lambda (cell) (car cell)))
-(define global-cell-set! (lambda (cell value) (set-car! cell value)))
-
-; Environments are represented as vectors with a magic tag.
-; FIXME: an environment should be a record (or structure).
-; FIXME: use the new hash-tables here.
-
-(define (make-environment name parent . rest)
-  (let ((size (if (null? rest) 10 (car rest))))
-    (vector *environment-key*                ; secret key
-            (make-vector size '())           ; hash table
-            0                                ; count
-            #t                               ; mutability flag
-            name                             ; printable environment name
-            parent                           ; parent environment or #f
-	    -1                               ; tag
-            )))
-
-(define (environment-tag env)
-  (if (environment? env)
-      (env.tag env)
-      (begin 
-	(error "environment-tag: " env " is not an environment.")
-	#t)))
-
-(define (environment? obj)
-  (and (vector? obj)
-       (> (vector-length obj) 0)
-       (eq? *environment-key* (vector-ref obj 0))))
-
-(define (environment-name env)
-  (cond ((not (environment? env))
-	 (error "environment-name: " env " is not an environment.")
-	 #t)
-	(else
-	 (env.name env))))
-
-(define (environment-variables env)
-  (cond ((not env) '())
-        ((not (environment? env))
-         (error "environment-variables: " env " is not an environment.")
-         #t)
-        (else
-         (let ((l '()))
-           (env/enumerate-bindings* env (lambda (name value)
-					  (if (not (memq name l))
-					      (set! l (cons name l)))))
-           l))))
-
-(define (environment-gettable? env name)
-  (cond ((not env) #f)
-        ((not (environment? env))
-         (error "environment-gettable: " env " is not an environment.")
-         #t)
-        (else
-	 (let ((probe (env/lookup* env name)))
-	   (and probe (not (eq? (global-cell-ref probe) (undefined))))))))
-
-(define (environment-settable? env name)
-  (cond ((not env) #f)
-        ((not (environment? env))
-         (error "environment-settable?: " env " is not an environment.")
-         #t)
-        (else 
-         (env.mutable env))))
-
-(define (environment-get env name)
-  (cond ((not env) #f)
-        ((not (environment? env))
-         (error "environment-get: " env " is not an environment.")
-         #t)
-        (else
-	 (let ((probe (environment-get-cell env name)))
-	   (if (and probe (not (eq? (global-cell-ref probe) (undefined))))
-	       (global-cell-ref probe)
-	       (begin (error "environment-get: " name " is not defined.")
-		      #t))))))
-
-(define (environment-get-cell env name)
-  (cond ((not env) #f)
-        ((not (environment? env))
-         (error "environment-get-cell: " env " is not an environment.")
-         #t)
-        (else
-	 (let ((probe (env/lookup env name)))
-	   (if (not probe)
-	       (let ((probe2 (env/lookup* env name)))
-		 (set! probe (env/define! env name))
-		 (if probe2
-		     (global-cell-set! probe (global-cell-ref probe2))
-		     (global-cell-set! probe (undefined)))))
-	   probe))))
-
-(define (environment-set! env name value)
-  (cond ((not env) #f)
-        ((not (environment? env))
-         (error "environment-set!: " env " is not an environment.")
-         #t)
-        ((not (symbol? name))
-         (error "environment-set!: " name " is not a valid name.")
-         #t)
-        ((not (env.mutable env))
-         (error "environment-set!: environment is not mutable: "
-                (env.name env))
-         #t)
-        (else
-         (let ((probe (env/lookup env name)))
-           (if (not probe)
-               (set! probe (env/define! env name)))
-           (global-cell-set! probe value)
-           (unspecified)))))
-
-(define (environment-reify env)
-  (cond ((not (environment? env))
-         (error "environment-reify: " env " is not an environment.")
-         #t)
-        (else
-         env)))
-
-; Environment operations as defined in the R5RS, somewhat extended.
+; R5RS environment operations, somewhat extended.
 
 (define *null-environment*)
 (define *r4rs-environment*)
 (define *r5rs-environment*)
 (define *interaction-environment*)
 
-(define (initialize-environments null r4rs r5rs larc)
-  (set! *null-environment* (tag-environment (env/flatten null) 0))
-  (set! *r4rs-environment* (tag-environment (env/flatten r4rs) 1))
-  (set! *r5rs-environment* (tag-environment (env/flatten r5rs) 1))
-  (set! *interaction-environment* (tag-environment (env/flatten larc) 2)))
+(define (install-environments! null r4rs r5rs larceny)
+  (set! *null-environment* null)
+  (set! *r4rs-environment* r4rs)
+  (set! *r5rs-environment* r5rs)
+  (set! *interaction-environment* larceny)
+  (unspecified))
 
 (define (interaction-environment . rest)
   (cond ((null? rest)
@@ -222,113 +49,148 @@
 		  " is not an accepted version number.")
 	   #t)))
 
-(define (tag-environment env tag)
-  (env.tag! env tag)
-  env)
+
+; Global cells are represented as pairs, for now.  The compiler
+; knows this, don't change it willy-nilly.
+
+(define make-global-cell (lambda (value name) (cons value name)))
+(define global-cell-ref  (lambda (cell) (car cell)))
+(define global-cell-set! (lambda (cell value) (set-car! cell value)))
 
 
-; Internal
-
-; Environments are represented using hash tables, keyed on symbols.
-; We keep the load factor high since environment lookup rarely is on
-; the truly critical path.
+; Environment operations
 ;
-; Procedures named '...*' extract information from the parent chain as
-; well as from the given object; the others do not.
+; The rule is that an identifier has one denotation: it's either a
+; variable or a macro, and it can transition from one to the other
+; and back.  By default it is an identifier.
+;
+; The problem is that the macro expander can remove and add macros
+; behind the back of this interface, so we must check the macro env
+; every time.
 
 (define *environment-key* (vector 'environment))
-(define *environment-load* 0.75)             ; load factor at which to rehash
-(define *new-size* 1.5)                      ; > 1, please.
 
-(define (env.hashtable env) (vector-ref env 1))
-(define (env.count env) (vector-ref env 2))
-(define (env.mutable env) (vector-ref env 3))
-(define (env.name env) (vector-ref env 4))
-(define (env.parent env) (vector-ref env 5))
-(define (env.tag env) (vector-ref env 6))
-
-(define (env.hashtable! env ht) (vector-set! env 1 ht))
-(define (env.count! env cnt) (vector-set! env 2 cnt))
-(define (env.mutable! env flag) (vector-set! env 3 flag))
-(define (env.parent! env parent) (vector-set! env 5 parent))
-(define (env.tag! env tag) (vector-set! env 6 tag))
-
-(define (env/enumerate-bindings env proc)
-  (env/enumerate-cells env (lambda (name cell)
-                             (proc name (global-cell-ref cell)))))
-
-(define (env/enumerate-bindings* env proc)
-  (if env
-      (begin 
-	(env/enumerate-cells env 
-			     (lambda (name cell)
-			       (proc name (global-cell-ref cell))))
-	(env/enumerate-bindings* (env.parent env) proc))))
-
-(define (env/enumerate-cells env proc)
-  (let ((ht (env.hashtable env)))
-    (do ((i (- (vector-length ht) 1) (- i 1)))
-        ((< i 0))
-      (do ((l (vector-ref ht i) (cdr l)))
-          ((null? l))
-        (proc (caar l) (cdar l))))))
-
-(define (env/lookup env name)
-  (let* ((ht (env.hashtable env))
-         (l  (vector-length ht))
-         (h  (remainder (symbol-hash name) l)))
-    (let ((probe (assq name (vector-ref ht h))))
-      (if probe
-          (cdr probe)
-          #f))))
-
-(define (env/lookup* env name)
-  (cond ((env/lookup env name))
-        ((env.parent env)
-         (env/lookup* (env.parent env) name))
-        (else
-         #f)))
-
-(define (env/add-cell! env name cell)
-  (let* ((ht (env.hashtable env))
-         (l  (vector-length ht))
-         (h  (remainder (symbol-hash name) l)))
-    (env.count! env (+ (env.count env) 1))
-    (vector-set! ht h (cons (cons name cell) (vector-ref ht h)))))
-            
-(define (env/define! env name)
-  (let* ((ht    (env.hashtable env))
-         (l     (vector-length ht))
-         (h     (remainder (symbol-hash name) l))
-         (probe (assq name (vector-ref ht h))))
-    (if probe
-        (cdr probe)
-        (let ((cell (make-global-cell (undefined) name)))
-          (env/add-cell! env name cell)
-          (if (> (exact->inexact (env.count env)) (* l *environment-load*))
-              (env/grow-and-rehash env))
-          cell))))
-
-(define (env/grow-and-rehash env)
-  (let* ((old-size (vector-length (env.hashtable env)))
-         (new-env  (make-environment "*tmp*"
-                                     (env.parent env)
-                                     (inexact->exact
-                                       (ceiling (* old-size *new-size*))))))
-    (env/enumerate-cells env (lambda (name cell)
-                               (env/add-cell! new-env name cell)))
-    (env.hashtable! env (env.hashtable new-env))
-    (env.count! env (env.count new-env))
+(define (make-environment name)
+  (let ((env (make-structure 5)))
+    (vector-like-set! env 0 *environment-key*)
+    (vector-like-set! env 1 (make-hashtable symbol-hash assq))
+    (vector-like-set! env 2 #t)
+    (vector-like-set! env 3 name)
+    (vector-like-set! env 4 (make-minimal-syntactic-environment))
     env))
 
-(define (env/flatten env)
-  (let ((new-env (make-environment (env.name env) #f))
-	(vars (environment-variables env)))
-    (do ((vars vars (cdr vars)))
-	((null? vars) new-env)
-      (if (environment-gettable? env (car vars))
-	  (let ((val (environment-get env (car vars))))
-	    (environment-set! new-env (car vars) val))))))
+(define (env.hashtable env) (vector-like-ref env 1))
+(define (env.mutable env) (vector-like-ref env 2))
+(define (env.name env) (vector-like-ref env 3))
+(define (env.syntaxenv env) (vector-like-ref env 4))
+
+(define (env.mutable! env flag) (vector-like-set! env 2 flag))
+
+(define (environment? obj)
+  (and (structure? obj)
+       (> (vector-like-length obj) 0)
+       (eq? *environment-key* (vector-like-ref obj 0))))
+
+(define (environment-name env)
+  (check-environment env 'environment-name)
+  (env.name env))
+
+(define (environment-variables env)
+  (check-environment env 'environment-variables)
+  (let ((macros (environment-macros env))
+        (variables '()))
+    (hashtable-for-each (lambda (id cell) 
+                          (if (not (memq id macros))
+                              (set! variables (cons id variables))))
+                        (env.hashtable env))
+    variables))
+
+(define (environment-variable? env name)
+  (check-environment env 'environment-variable?)
+  (let ((probe1 (hashtable-get (env.hashtable env) name))
+        (probe2 (environment-macro? env name)))
+    (and (not probe2)
+         probe1
+         (not (eq? (global-cell-ref probe1) (undefined))))))
+  
+(define (environment-get env name)
+  (check-environment env 'environment-get)
+  (if (environment-variable? env name)
+      (let ((probe (environment-get-cell env name)))
+        (if (not (eq? (global-cell-ref probe) (undefined)))
+            (global-cell-ref probe)
+            (begin (error "environment-get: not defined: " name)
+                   #t)))
+      (begin (error "environment-get: denotes a macro: " name)
+             #t)))
+
+(define (environment-get-cell env name)
+  (check-environment env 'environment-get-cell)
+  (if (not (environment-macro? env name))
+      (or (hashtable-get (env.hashtable env) name)
+          (let ((cell (make-global-cell (undefined) name)))
+            (hashtable-put! (env.hashtable env) name cell)
+            cell))
+      (begin 
+        (error "environment-get-cell: denotes a macro: " name)
+        #t)))
+
+(define (environment-set! env name value)
+  (check-environment env 'environment-set!)
+  (cond ((not (env.mutable env))
+         (error "environment-set!: environment is not mutable: "
+                (env.name env))
+         #t)
+        ((environment-macro? env name)
+         (syntactic-environment-remove! (environment-syntax-environment env)
+                                        name)
+         (environment-set! env name value))
+        (else
+         (let ((cell (environment-get-cell env name)))
+           (global-cell-set! cell value)
+           (unspecified)))))
+
+(define (environment-syntax-environment env)
+  (check-environment env 'environment-syntax-environment)
+  (env.syntaxenv env))
+
+(define (environment-copy env . rest)
+  (check-environment env 'environment-copy)
+  (let* ((name      (if (null? rest) (environment-name env) (car rest)))
+         (new       (make-environment name))
+         (variables (environment-variables env))
+         (macros    (environment-macros env)))
+    (do ((vs variables (cdr vs)))
+        ((null? vs))
+      (environment-set! new (car vs) (environment-get env (car vs))))
+    (do ((ms macros (cdr ms)))
+        ((null? ms))
+      (environment-set-macro! new (car ms) 
+                              (environment-get-macro env (car ms))))
+    new))
+
+(define (environment-macros env)
+  (check-environment env 'environment-macros)
+  (syntactic-environment-names (environment-syntax-environment env)))
+
+(define (environment-get-macro env id)
+  (check-environment env 'environment-get-macro)
+  (syntactic-environment-get (environment-syntax-environment env) id))
+
+(define (environment-set-macro! env id macro)
+  (check-environment env 'environment-set-macro!)
+  (if (environment-variable? env id)
+      (hashtable-remove! (env.hashtable env) id))
+  (syntactic-environment-set! (environment-syntax-environment env) id macro))
+
+(define (environment-macro? env id)
+  (check-environment env 'environment-macro?)
+  (not (not (syntactic-environment-get (environment-syntax-environment env) 
+                                       id))))
+
+(define (check-environment env tag)
+  (if (not (environment? env))
+      (error tag ": not an environment: " env)))
 
 ; LOAD still uses this (though READ).
 ;
