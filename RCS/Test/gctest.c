@@ -2,6 +2,8 @@
  * Test program for garbage collector.
  * Version 3.
  *
+ * $Id$
+ *
  * Usage:
  *   gctest <inheap> <outheap>
  *
@@ -83,12 +85,11 @@
 #include <stdio.h>
 #include <ctype.h>
 #include "gcinterface.h"
+#include "offsets.h"
 
-#define MAXROOTS     20
-
-word rootcnt;
-word rootarray[ MAXROOTS ];
-word *roots = &rootarray[0];
+word globals[ GLOBALS_TABLE_SIZE ];
+word *roots = &globals[ FIRST_ROOT ];
+word rootcnt = 0;
 word vararray[ 100 ];
 
 #define isptr( x )      ((word) (x) & 0x01)
@@ -118,8 +119,7 @@ char **argv;
     panic( "usage: %s <inheap> <outheap>\n", argv[ 0 ] );
 
   printf( "Initializing\n" );
-  if (!init_collector( 1024*1024, 1024*1024, 1024*1024, 1024*512,
-		       1024*8, 1024*6 ))
+  if (!init_collector( 1024*1024, 1024*1024, 1024*1024, 1024*512, 1024*8 ))
     panic( "Unable to initialize!" );
 
   printf( "Init done; running...\n" );
@@ -145,16 +145,16 @@ char **argv;
 
 load_ephemeral()
 {
-  load( e_base, &e_top );
+  load( globals[ E_BASE_OFFSET ], &globals[ E_TOP_OFFSET ] );
 }
 
 load_tenured()
 {
-  load( t_base, &t_top );
+  load( globals[ T_BASE_OFFSET ], &globals[ T_TOP_OFFSET ] );
 }
 
-/* This has to be loaded from higher toward lower addresses since we don't know
-   how large it is before we've read it all. */
+/* This has to be loaded from higher toward lower addresses since we don't 
+   know how large it is before we've read it all. */
 load_entrylist()
 {
   char s[ 200 ];
@@ -166,7 +166,7 @@ load_entrylist()
       ungetline( s );
       return;
     }
-    *t_entries-- = getword( s );
+    *((word *)globals[ T_TRANS_OFFSET ])-- = getword( s );
   }
 }
 
@@ -181,7 +181,8 @@ load_roots()
       ungetline( s );
       return;
     }
-    rootarray[ rootcnt++ ] = getword( s );
+    *(roots+rootcnt) = getword( s );
+    rootcnt++;
   }
 }
 
@@ -193,9 +194,9 @@ char *s;
   if (sscanf( s+1, "%lx", &tmp ) != 1)
     panic( "Unable to get word" );
   if (*s == 'E')
-    return tmp + (word) e_base;
+    return tmp + (word) globals[ E_BASE_OFFSET ];
   else if (*s == 'T')
-    return tmp + (word) t_base;
+    return tmp + (word) globals[ T_BASE_OFFSET ];
   else if (*s == 'C')
     return tmp;
   else
@@ -216,12 +217,12 @@ e_collect()
 
 e_dump()
 {
-  dump( "ephemeral area", e_base, e_top );
+  dump( "ephemeral area", globals[ E_BASE_OFFSET ], globals[ E_TOP_OFFSET ] );
 }
 
 t_dump()
 {
-  dump( "tenured area", t_base, t_top );
+  dump( "tenured area", globals[ T_BASE_OFFSET ], globals[ T_TOP_OFFSET ] );
 }
 
 r_dump()
@@ -229,39 +230,35 @@ r_dump()
   int i;
 
   fprintf( ofp, "; roots\n" );
-  for (i = 0 ; i < rootcnt ; i++ )
-    dumpword( rootarray[ i ] );
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    dumpword( globals[ i ] );
 }
 
 y_dump()
 {
-  word *p = t_limit;
+  word *p = (word *) globals[ T_MAX_OFFSET ];
 
   fprintf( ofp, "; entry list\n" );
-  while (p > t_entries)
+  while (p > (word *) globals[ T_TRANS_OFFSET ])
     dumpword( *p-- );
 }
 
 pointers()
 {
-#ifdef __STDC__
-#define outit( x )  fprintf( ofp, "; %-20s %08lX\n", #x ":", (word) x )
-#else
-#define outit( x )  fprintf( ofp, "; %-20s %08lX\n", "x :", (word) x )
-#endif
-  outit( e_base );
-  outit( e_top );
-  outit( e_limit );
-  outit( e_mark );
-  outit( t_base );
-  outit( t_top );
-  outit( t_limit );
-  outit( stack_base );
-  outit( stack_limit );
-  outit( stack_mark );
-  outit( s_base );
-  outit( s_limit );
-  outit( s_top );
+#define outit( s, x )  fprintf( ofp, "; %-20s %08lX\n", s, (word) x )
+  outit( "e_base", globals[ E_BASE_OFFSET ] );
+  outit( "e_top", globals[ E_TOP_OFFSET ] );
+  outit( "e_limit", globals[ E_LIMIT_OFFSET ] );
+  outit( "e_mark", globals[ E_MARK_OFFSET ] );
+  outit( "e_max", globals[ E_MAX_OFFSET ] );
+  outit( "t_base", globals[ T_BASE_OFFSET ] );
+  outit( "t_top", globals[ T_TOP_OFFSET ] );
+  outit( "t_trans", globals[ T_TRANS_OFFSET ] );
+  outit( "t_max", globals[ T_MAX_OFFSET ] );
+  outit( "stack_base", globals[ STK_BASE_OFFSET ] );
+  outit( "stack_max", globals[ STK_MAX_OFFSET ] );
+  outit( "s_base", globals[ S_BASE_OFFSET ] );
+  outit( "s_max", globals[ S_MAX_OFFSET ] );
 #undef outit
 }
 
@@ -347,9 +344,9 @@ char *s;
     case ' '  : break;
     case '\t' : break;
     case '\n' : break;
-    case 'E'  : stkchk(1); stk[ sp ] = stk[ sp ] / 4 + (word) e_base; break;
-    case 'T'  : stkchk(1); stk[ sp ] = stk[ sp ] / 4 + (word) t_base; break;
-    case 'R'  : stkchk(1); stk[ sp ] = stk[ sp ] / 4 + (word) rootarray; break;
+    case 'E'  : stkchk(1); stk[ sp ] = stk[ sp ] / 4 + globals[ E_BASE_OFFSET ]; break;
+    case 'T'  : stkchk(1); stk[ sp ] = stk[ sp ] / 4 + globals[ T_BASE_OFFSET ]; break;
+    case 'R'  : stkchk(1); stk[ sp ] = stk[ sp ] / 4 + (word) roots; break;
     case '='  : stkchk(2); *(word *)(stk[ sp-1 ]) = stk[ sp ]; sp -= 2; break;
     case '@'  : stkchk(1); stk[ sp ] = *(word *)(stk[ sp ]); break;
     case 'C'  : break;
@@ -437,10 +434,10 @@ word x;
   
   if (isptr( x )) {
     p = (word *) ptrof( x );
-    if (p >= e_base && p <= e_limit )
-      fprintf( ofp, "E %08lX\n", x - (word) e_base );
-    else if (p >= t_base && p <= t_limit)
-      fprintf( ofp, "T %08lX\n", x - (word) t_base );
+    if (p >= (word *) globals[ E_BASE_OFFSET ] && p <= (word *) globals[ E_MAX_OFFSET ] )
+      fprintf( ofp, "E %08lX\n", x - globals[ E_BASE_OFFSET ] );
+    else if (p >= (word *) globals[ T_BASE_OFFSET ] && p <= (word *) globals[ T_MAX_OFFSET ])
+      fprintf( ofp, "T %08lX\n", x - globals[ T_BASE_OFFSET ] );
     else
       fprintf( ofp, "W %08lX\n", x );    /* "weird" */
   }
