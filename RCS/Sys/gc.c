@@ -2,7 +2,7 @@
  * Ephemeral garbage collector (for Scheme).
  * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 2.1 91/07/09 16:23:30 lth Exp Locker: lth $
+ * $Id: gc.c,v 2.2 91/07/10 00:03:32 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -477,7 +477,7 @@ word w, *base, *limit, **dest;
   if (tag == PAIR_TAG) {
     *newptr = *ptr++;
     *(newptr+1) = *ptr++;
-    **dest += 2;
+    *dest += 2;
 #ifdef DEBUG
     pairs_copied++;
 #endif
