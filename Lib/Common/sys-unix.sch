@@ -187,6 +187,9 @@
 
 ; RTS debugging utility function
 
+; $$debugmsg and $$trace are guaranteed to make a 'best reasonable' effort 
+; to print the error and never to signal an error.
+
 (define ($$debugmsg msg)
   (let ((nl (make-string 1 #\newline)))   ; make-string is primitive.
     (osdep/write-file4 1 msg (string-length msg) 0)
