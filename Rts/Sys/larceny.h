@@ -198,6 +198,10 @@ void larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
 void larceny_peek_bytes( word w_addr, word w_bytevector, word w_count );
 void larceny_poke_bytes( word w_addr, word w_bytevector, word w_count );
 
+/* In Rts/$MACHINE/syscall.c */
+
+void larceny_segment_code_address( word w_id, word w_number );
+
 /* In Rts/Sys/syscall.c */
 
 void larceny_syscall( int nargs, int nproc, word *args );
