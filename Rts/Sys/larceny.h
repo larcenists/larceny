@@ -127,27 +127,6 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 extern void localdebugger( void );
 extern void debugvsm( void );
 
-/* In "Rts/Sys/stats.c" */
-
-#ifndef GC_INTERNAL
-extern void stats_init( gc_t *gc, int generations, int show_heapstats );
-extern word stats_fillvector( word w_buffer );
-extern int  stats_opendump( const char *filename );
-extern void stats_closedump( void );
-#endif
-extern void stats_before_gc( void );
-extern void stats_gc_type( int gen, gc_type_t type );
-extern void stats_after_gc( void );
-extern void stats_add_gctime( long s, long ms );
-#if defined(SIMULATE_NEW_BARRIER)
-extern void simulated_barrier_stats( word *total_assignments,
-				     word *array_assignments, 
-				     word *lhs_young_or_remembered,
-				     word *rhs_constant,
-				     word *cross_gen_check,
-				     word *transactions );
-#endif
-
 /* In Rts/Sys/osdep-*.c */
 
 #include "osdep.h"
