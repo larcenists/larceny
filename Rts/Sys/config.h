@@ -227,6 +227,7 @@
 #define STACK_UNDERFLOW_COUNTING  1
 #define GC_HIRES_TIMERS           1
 #define GC_EVENT_COUNTERS         0
+#define GCLIB_LARGE_TABLE         1
 
 /* MacOS; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1
