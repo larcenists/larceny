@@ -47,7 +47,6 @@
 
 int stk_create( word *globals )
 {
-  extern void mem_stkuflow();
   word *stktop;
 
   assert(    globals[G_STKP] >= globals[ G_ETOP ]
@@ -61,9 +60,10 @@ int stk_create( word *globals )
   }
   
   *(stktop+0) = fixnum(3);                      /* header/size field */
-  *(stktop+1) = (word)mem_stkuflow;             /* retaddr: uflow handler */
+  *(stktop+1) = 0xDEADBEEF;                     /* retaddr: uflow handler */
   *(stktop+2) = 0xDEADBEEF;                     /* dynamic link field */
-  *(stktop+3) = 0;                              /* saved procedure */
+  *(stktop+3) = 0xDEADBEEF;                     /* saved procedure */
+  stk_initialize_underflow_frame( stktop );     /* In client space */
 
   globals[ G_STKP ] = (word)stktop;
   globals[ G_STKBOT ] = (word)stktop;
@@ -80,7 +80,7 @@ void
 stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
 {
   word *stktop, *stkbot, *first, *prev;
-  word retaddr, codeaddr, proc, size;
+  word retaddr, codeaddr, codeptr, proc, size;
   unsigned framecount;
 
   stktop = (word*)globals[ G_STKP ];
@@ -104,8 +104,11 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
     proc = *(stktop+STK_REG0);
     if (proc != 0) {
       retaddr = *(stktop+STK_RETADDR);
-      codeaddr = (word)ptrof( *(ptrof( proc )+PROC_CODEPTR) );
-      *(stktop+STK_RETADDR) = retaddr-(codeaddr+4);
+      codeptr = *(ptrof( proc )+PROC_CODEPTR);
+      if (tagof( codeptr ) == BVEC_TAG) {
+        codeaddr = (word)ptrof( codeptr );
+        *(stktop+STK_RETADDR) = retaddr-(codeaddr+4);
+      }
     }
 
     /* chain things together */
@@ -136,7 +139,7 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
 int stk_restore_frame( word *globals )
 {
   word *stktop, *hframe, *p;
-  word retoffs, proc, codeaddr;
+  word retoffs, proc, codeaddr, codeptr;
   unsigned size;
 
   assert(globals[ G_STKP ] == globals[ G_STKBOT ]);
@@ -174,8 +177,11 @@ int stk_restore_frame( word *globals )
   proc = *(stktop+STK_REG0);
   if (proc != 0) {
     retoffs = *(stktop+STK_RETADDR);
-    codeaddr = (word)ptrof( *(ptrof( proc )+PROC_CODEPTR) );
-    *(stktop+STK_RETADDR) = (codeaddr+4)+retoffs;
+    codeptr = *(ptrof( proc )+PROC_CODEPTR);
+    if (tagof( codeptr ) == BVEC_TAG) {
+      codeaddr = (word)ptrof( codeptr );
+      *(stktop+STK_RETADDR) = (codeaddr+4)+retoffs;
+    }
   }
 
   return 1;
