@@ -797,6 +797,7 @@
   (environment-set! larc '.pass1:define-syntax-scope define-syntax-scope)
   (environment-set! larc '.pass1:identifier? identifier?)
   (environment-set! larc '.pass1:identifier->symbol identifier->symbol)
+  (environment-set! larc '.pass1:integrate-procedures integrate-procedures)
   (environment-set! larc '.pass1:m-quit m-quit)
   (environment-set! larc '.pass1:macro-expand macro-expand)
   (environment-set! larc '.pass1:make-minimal-syntactic-environment

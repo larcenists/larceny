@@ -749,26 +749,23 @@
   (lambda (x . rest)
     (let ((syntaxenv (if (null? rest)
                          (the-usual-syntactic-environment)
-                         (car rest)))
-          (inlineenv (compiler-macros)))
-      (pass4 (pass3 (pass2 (pass1 x syntaxenv inlineenv)))
+                         (car rest))))
+      (pass4 (pass3 (pass2 (pass1 x syntaxenv)))
              (twobit-integrable-procedures)))))
 
 (define expand
   (lambda (x . rest)
     (let ((syntaxenv (if (null? rest)
                          (the-usual-syntactic-environment)
-                         (car rest)))
-          (inlineenv (compiler-macros)))
-      (pass1 x syntaxenv inlineenv))))
+                         (car rest))))
+      (pass1 x syntaxenv))))
 
 (define compile-block
   (lambda (x . rest)
     (let ((syntaxenv (if (null? rest)
                          (the-usual-syntactic-environment)
-                         (car rest)))
-          (inlineenv (compiler-macros)))
-      (pass4 (pass3 (pass2 (pass1-block x syntaxenv inlineenv)))
+                         (car rest))))
+      (pass4 (pass3 (pass2 (pass1-block x syntaxenv)))
              (twobit-integrable-procedures)))))
 
 ; Find the smallest number of registers such that

@@ -2,7 +2,7 @@
 ;
 ; Relatively target-independent information for Twobit's backend.
 ;
-; 25 September 2000 / wdc
+; 28 September 2000 / wdc
 ;
 ; Most of the definitions in this file can be extended or overridden by
 ; target-specific definitions.
@@ -30,6 +30,7 @@
 (define name:MAKE-CELL '.make-cell)
 (define name:CELL-REF '.cell-ref)
 (define name:CELL-SET! '.cell-set!)
+(define name:CALL '.call)
 (define name:IGNORED (string->symbol "IGNORED"))
 
 ;(begin (eval `(define ,name:CONS cons))
@@ -74,13 +75,27 @@
 (define constant-folding-predicates cadr)
 (define constant-folding-folder caddr)
 
-; FIXME: add more of these.
+; FIXME: This table should hold more of the procedures that
+; Twobit inserts prior to constant folding.
 
 (define $minimal-constant-folding-procedures$
-  (let ((smallint? (lambda (n) (smallint? n))))
+  (let ((always? (lambda (x) #t))
+        (smallint? (lambda (n) (smallint? n)))
+        (ratnum? (lambda (n)
+                   (and (number? n)
+                        (exact? n)
+                        (rational? n)))))
     `(
-      ; This makes some assumptions about the host system.
+      ; This makes some assumptions about the host system,
+      ; notably that its char->integer procedure is compatible.
       
+      (.fixnum? (,smallint?) ,smallint?)
+      (.char? (,always?) ,char?)
+      (.symbol? (,always?) ,symbol?)
+
+      (.+:idx:idx  (,smallint? ,smallint?) ,+)
+      (.-:idx:idx  (,smallint? ,smallint?) ,-)
+
       (.=:fix:fix  (,smallint? ,smallint?) ,=)
       (.<:fix:fix  (,smallint? ,smallint?) ,<)
       (.<=:fix:fix (,smallint? ,smallint?) ,<=)
@@ -88,7 +103,11 @@
       (.>=:fix:fix (,smallint? ,smallint?) ,>=)
 
       (.-- (,ratnum?) ,(lambda (x) (- 0 x)))
-      (.fixnum? (,smallint?) ,smallint?)
+
+      (.char->integer:chr (,char?) ,char->integer)
+
+      (.car:pair   (,pair?) ,car)
+      (.cdr:pair   (,pair?) ,cdr)
       )))
 
 (define $usual-constant-folding-procedures$
@@ -133,12 +152,6 @@
         (fixnum? (,smallint?) ,smallint?)       ; FIXME: Larceny-specific
         ))))
 
-(begin '
-       (define (.check! flag exn . args)
-         (if (not flag)
-             (apply error "Runtime check exception: " exn args)))
-       #t)
-
 ; Compiler macros.
 ;
 ; Order matters.  If f and g are both inlined, and the definition of g
@@ -151,9 +164,11 @@
 ; procedures have their usual values, but cannot assume that non-R4RS
 ; procedures are intact.
 
+'
 (define inline-syntactic-environment
   (syntactic-copy (the-usual-syntactic-environment)))
 
+'
 (define non-inline-names
   (syntactic-environment-names (the-usual-syntactic-environment)))
 
@@ -169,6 +184,9 @@
 ; When the .CALL macro is implemented much of this cruft will probably
 ; go away, because inlines will be defined using a different mechanism.
 
+; The definition of COMPILER-MACROS has been commented out.
+
+'
 (define (compiler-macros)
   (let ((names (if (eq? (integrate-procedures) 'none)
                    '()
@@ -182,44 +200,132 @@
                            names))))
 
 (for-each (lambda (x) 
-            (pass1 x inline-syntactic-environment))
+            (pass1 x (the-usual-syntactic-environment)))
 `(
 
-(define-inline car
-  (syntax-rules ()
-   ((car x0)
+(define-syntax .rewrite-eqv?
+  (transformer
+   (lambda (exp rename compare)
+     (let ((exp (cadr exp)))
+       (if (= (length exp) 3)
+           (let ((arg1 (cadr exp))
+                 (arg2 (caddr exp)))
+             (define (constant? exp)
+               (or (boolean? exp)
+                   (char? exp)
+                   (and (pair? exp)
+                        (= (length exp) 2)
+                        (identifier? (car exp))
+                        (compare (car exp) (rename 'quote))
+                        (symbol? (cadr exp)))))
+             (if (or (constant? arg1)
+                     (constant? arg2))
+                 (cons (rename 'eq?) (cdr exp))
+                 exp))
+           exp)))))
+
+(define-syntax .rewrite-memv
+  (transformer
+   (lambda (exp rename compare)
+     (let ((exp (cadr exp)))
+       (if (= (length exp) 3)
+           (let ((arg1 (cadr exp))
+                 (arg2 (caddr exp)))
+             (if (or (boolean? arg1)
+                     (fixnum? arg1)
+                     (char? arg1)
+                     (and (pair? arg1)
+                          (= (length arg1) 2)
+                          (identifier? (car arg1))
+                          (compare (car arg1) (rename 'quote))
+                          (symbol? (cadr arg1)))
+                     (and (pair? arg2)
+                          (= (length arg2) 2)
+                          (identifier? (car arg2))
+                          (compare (car arg2) (rename 'quote))
+                          (every1? (lambda (x)
+                                     (or (boolean? x)
+                                         (fixnum? x)
+                                         (char? x)
+                                         (symbol? x)))
+                                   (cadr arg2))))
+                 (cons (rename 'memq) (cdr exp))
+                 exp))
+           exp)))))
+
+(define-syntax .rewrite-assv
+  (transformer
+   (lambda (exp rename compare)
+     (let ((exp (cadr exp)))
+       (if (= (length exp) 3)
+           (let ((arg1 (cadr exp))
+                 (arg2 (caddr exp)))
+             (if (or (boolean? arg1)
+                     (char? arg1)
+                     (and (pair? arg1)
+                          (= (length arg1) 2)
+                          (identifier? (car arg1))
+                          (compare (car arg1) (rename 'quote))
+                          (symbol? (cadr arg1)))
+                     (and (pair? arg2)
+                          (= (length arg2) 2)
+                          (identifier? (car arg2))
+                          (compare (car arg2) (rename 'quote))
+                          (every1? (lambda (y)
+                                     (and (pair? y)
+                                          (let ((x (car y)))
+                                            (or (boolean? x)
+                                                (char? x)
+                                                (symbol? x)))))
+                                   (cadr arg2))))
+                 (cons (rename 'assq) (cdr exp))
+                 exp))
+           exp)))))
+
+(define-syntax ,name:CALL
+  (syntax-rules (r4rs r5rs larceny quote lambda
+                 car cdr
+                 vector-length vector-ref vector-set!
+                 string-length string-ref string-set!
+                 list vector
+                 cadddr cddddr cdddr caddr cddr cdar cadr caar
+                 make-vector make-string
+                 = < > <= >= + * - /
+                 abs negative? positive?
+                 eqv? memv assv memq
+                 map for-each)
+
+   ((,name:CALL r4rs ?proc ?exp)
+    (,name:CALL r5rs ?proc ?exp))
+
+   ((,name:CALL r5rs ?proc ?exp)
+    (,name:CALL larceny ?proc ?exp))
+
+   ((_ larceny car (car x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.car x)
-      (.car:pair x)))))
+      (.car:pair x)))
    
-(define-inline cdr
-  (syntax-rules ()
-   ((car x0)
+   ((_ larceny cdr (cdr x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.cdr x)
-      (.cdr:pair x)))))
+      (.cdr:pair x)))
 
-(define-inline vector-length
-  (syntax-rules ()
-   ((vector-length v0)
+   ((_ larceny vector-length (vector-length v0))
     (let ((v v0))
       (.check! (vector? v) ,$ex.vlen v)
-      (.vector-length:vec v)))))
+      (.vector-length:vec v)))
    
-(define-inline vector-ref
-  (syntax-rules ()
-   ((vector-ref v0 i0)
+   ((_ larceny vector-ref (vector-ref v0 i0))
     (let ((v v0)
           (i i0))
       (.check! (.fixnum? i) ,$ex.vref v i)
       (.check! (vector? v) ,$ex.vref v i)
       (.check! (.<:fix:fix i (.vector-length:vec v)) ,$ex.vref v i)
       (.check! (.>=:fix:fix i 0) ,$ex.vref  v i)
-      (.vector-ref:trusted v i)))))
+      (.vector-ref:trusted v i)))
    
-(define-inline vector-set!
-  (syntax-rules ()
-   ((vector-set! v0 i0 x0)
+   ((_ larceny vector-set! (vector-set! v0 i0 x0))
     (let ((v v0)
           (i i0)
           (x x0))
@@ -227,29 +333,23 @@
       (.check! (vector? v) ,$ex.vset v i x)
       (.check! (.<:fix:fix i (.vector-length:vec v)) ,$ex.vset v i x)
       (.check! (.>=:fix:fix i 0) ,$ex.vset v i x)
-      (.vector-set!:trusted v i x)))))
+      (.vector-set!:trusted v i x)))
    
-(define-inline string-length
-  (syntax-rules ()
-   ((string-length v0)
+   ((_ larceny string-length (string-length v0))
     (let ((v v0))
       (.check! (string? v) ,$ex.slen v)
-      (.string-length:str v)))))
+      (.string-length:str v)))
    
-(define-inline string-ref
-  (syntax-rules ()
-   ((string-ref v0 i0)
+   ((_ larceny string-ref (string-ref v0 i0))
     (let ((v v0)
           (i i0))
       (.check! (.fixnum? i) ,$ex.sref v i)
       (.check! (string? v) ,$ex.sref v i)
       (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sref v i)
       (.check! (.>=:fix:fix i 0) ,$ex.sref  v i)
-      (.string-ref:trusted v i)))))
+      (.string-ref:trusted v i)))
    
-(define-inline string-set!
-  (syntax-rules ()
-   ((string-set! v0 i0 x0)
+   ((_ larceny string-set! (string-set! v0 i0 x0))
     (let ((v v0)
           (i i0)
           (x x0))
@@ -257,32 +357,28 @@
       (.check! (string? v) ,$ex.sset v i x)
       (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sset v i x)
       (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
-      (.string-set!:trusted v i x)))))
+      (.string-set!:trusted v i x)))
    
 ; This transformation must make sure the entire list is freshly
 ; allocated when an argument to LIST returns more than once.
 
-(define-inline list
-  (syntax-rules ()
-   ((list)
+   ((_ larceny list (list))
     '())
-   ((list ?e)
+   ((_ larceny list (list ?e))
     (cons ?e '()))
-   ((list ?e1 ?e2 ...)
+   ((_ larceny list (list ?e1 ?e2 ...))
     (let* ((t1 ?e1)
            (t2 (list ?e2 ...)))
-      (cons t1 t2)))))
+      (cons t1 t2)))
 
 ; This transformation must make sure the entire vector is freshly
 ; allocated when an argument to VECTOR returns more than once.
 
-(define-inline vector
-  (syntax-rules ()
-   ((vector)
+   ((_ larceny vector (vector))
     '#())
-   ((vector ?e)
+   ((_ larceny vector (vector ?e))
     (make-vector 1 ?e))
-   ((vector ?e1 ?e2 ...)
+   ((_ larceny vector (vector ?e1 ?e2 ...))
     (letrec-syntax
       ((vector-aux1
         (... (syntax-rules ()
@@ -304,166 +400,111 @@
                  (.vector-set!:trusted v ?n2 ?t2)
                  ...
                  v))))))
-      (vector-aux1 (?e1 ?e2 ...) 0 () () ())))))
+      (vector-aux1 (?e1 ?e2 ...) 0 () () ())))
 
-(define-inline cadddr
-  (syntax-rules ()
-   ((cadddr ?e)
-    (car (cdr (cdr (cdr ?e)))))))
+   ((_ larceny cadddr (cadddr ?e))
+    (car (cdr (cdr (cdr ?e)))))
 
-(define-inline cddddr
-  (syntax-rules ()
-   ((cddddr ?e)
-    (cdr (cdr (cdr (cdr ?e)))))))
+   ((_ larceny cddddr (cddddr ?e))
+    (cdr (cdr (cdr (cdr ?e)))))
 
-(define-inline cdddr
-  (syntax-rules ()
-   ((cdddr ?e)
-    (cdr (cdr (cdr ?e))))))
+   ((_ larceny cdddr (cdddr ?e))
+    (cdr (cdr (cdr ?e))))
 
-(define-inline caddr
-  (syntax-rules ()
-   ((caddr ?e)
-    (car (cdr (cdr ?e))))))
+   ((_ larceny caddr (caddr ?e))
+    (car (cdr (cdr ?e))))
 
-(define-inline cddr
-  (syntax-rules ()
-   ((cddr ?e)
-    (cdr (cdr ?e)))))
+   ((_ larceny cddr (cddr ?e))
+    (cdr (cdr ?e)))
 
-(define-inline cdar
-  (syntax-rules ()
-   ((cdar ?e)
-    (cdr (car ?e)))))
+   ((_ larceny cdar (cdar ?e))
+    (cdr (car ?e)))
 
-(define-inline cadr
-  (syntax-rules ()
-   ((cadr ?e)
-    (car (cdr ?e)))))
+   ((_ larceny cadr (cadr ?e))
+    (car (cdr ?e)))
 
-(define-inline caar
-  (syntax-rules ()
-   ((caar ?e)
-    (car (car ?e)))))
+   ((_ larceny caar (caar ?e))
+    (car (car ?e)))
 
-(define-inline make-vector
-  (syntax-rules ()
-   ((make-vector ?n)
-    (make-vector ?n '()))))
+   ((_ larceny make-vector (make-vector ?n))
+    (make-vector ?n '()))
 
-(define-inline make-string
-  (syntax-rules ()
-   ((make-string ?n)
-    (make-string ?n #\space))))
+   ((_ larceny make-string (make-string ?n))
+    (make-string ?n #\space))
 
-(define-inline =
-  (syntax-rules ()
-   ((= ?e1 ?e2 ?e3 ?e4 ...)
+   ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))
       (and (= ?e1 t)
-           (= t ?e3 ?e4 ...))))))
+           (= t ?e3 ?e4 ...))))
 
-(define-inline <
-  (syntax-rules ()
-   ((< ?e1 ?e2 ?e3 ?e4 ...)
+   ((_ larceny < (< ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))
       (and (< ?e1 t)
-           (< t ?e3 ?e4 ...))))))
+           (< t ?e3 ?e4 ...))))
 
-(define-inline >
-  (syntax-rules ()
-   ((> ?e1 ?e2 ?e3 ?e4 ...)
+   ((_ larceny > (> ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))
       (and (> ?e1 t)
-           (> t ?e3 ?e4 ...))))))
+           (> t ?e3 ?e4 ...))))
 
-(define-inline <=
-  (syntax-rules ()
-   ((<= ?e1 ?e2 ?e3 ?e4 ...)
+   ((_ larceny <= (<= ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))
       (and (<= ?e1 t)
-           (<= t ?e3 ?e4 ...))))))
+           (<= t ?e3 ?e4 ...))))
 
-(define-inline >=
-  (syntax-rules ()
-   ((>= ?e1 ?e2 ?e3 ?e4 ...)
+   ((_ larceny >= (>= ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))
       (and (>= ?e1 t)
-           (>= t ?e3 ?e4 ...))))))
+           (>= t ?e3 ?e4 ...))))
 
-(define-inline +
-  (syntax-rules ()
-   ((+)
+   ((_ larceny + (+))
     0)
-   ((+ ?e)
+   ((_ larceny + (+ ?e))
     (+ ?e 0))
-   ((+ ?e1 ?e2 ?e3 ?e4 ...)
-    (+ (+ ?e1 ?e2) ?e3 ?e4 ...))))
+   ((_ larceny + (+ ?e1 ?e2 ?e3 ?e4 ...))
+    (+ (+ ?e1 ?e2) ?e3 ?e4 ...))
 
-(define-inline *
-  (syntax-rules ()
-   ((*)
+   ((_ larceny * (*))
     1)
-   ((* ?e)
+   ((_ larceny * (* ?e))
     (+ ?e 0))
-   ((* ?e1 ?e2 ?e3 ?e4 ...)
-    (* (* ?e1 ?e2) ?e3 ?e4 ...))))
+   ((_ larceny * (* ?e1 ?e2 ?e3 ?e4 ...))
+    (* (* ?e1 ?e2) ?e3 ?e4 ...))
 
-(define-inline -
-  (syntax-rules ()
-   ((- ?e)
+   ((_ larceny - (- ?e))
     (- 0 ?e))
-   ((- ?e1 ?e2 ?e3 ?e4 ...)
-    (- (- ?e1 ?e2) ?e3 ?e4 ...))))
+   ((_ larceny - (- ?e1 ?e2 ?e3 ?e4 ...))
+    (- (- ?e1 ?e2) ?e3 ?e4 ...))
 
-(define-inline /
-  (syntax-rules ()
-   ((/ ?e)
+   ((_ larceny / (/ ?e))
     (/ 1 ?e))
-   ((/ ?e1 ?e2 ?e3 ?e4 ...)
-    (/ (/ ?e1 ?e2) ?e3 ?e4 ...))))
+   ((_ larceny / (/ ?e1 ?e2 ?e3 ?e4 ...))
+    (/ (/ ?e1 ?e2) ?e3 ?e4 ...))
 
-(define-inline abs
-  (syntax-rules ()
-   ((abs ?z)
+   ((_ larceny abs (abs ?z))
     (let ((temp ?z))
       (if (< temp 0)
           (.-- temp)
-          temp)))))
+          temp)))
 
-(define-inline negative?
-  (syntax-rules ()
-   ((negative? ?x)
-    (< ?x 0))))
+   ((_ larceny negative? (negative? ?x))
+    (< ?x 0))
 
-(define-inline positive?
-  (syntax-rules ()
-   ((positive? ?x)
-    (> ?x 0))))
+   ((_ larceny positive? (positive? ?x))
+    (> ?x 0))
 
-(define-inline eqv?
-  (transformer
-   (lambda (exp rename compare)
-     (if (= (length exp) 3)
-         (let ((arg1 (cadr exp))
-               (arg2 (caddr exp)))
-           (define (constant? exp)
-             (or (boolean? exp)
-                 (char? exp)
-                 (and (pair? exp)
-                      (= (length exp) 2)
-                      (identifier? (car exp))
-                      (compare (car exp) (rename 'quote))
-                      (symbol? (cadr exp)))))
-           (if (or (constant? arg1)
-                   (constant? arg2))
-               (cons (rename 'eq?) (cdr exp))
-               exp))
-         exp))))
+   ; These three compiler macros cannot be expressed using SYNTAX-RULES.
 
-(define-inline memq
-  (syntax-rules (quote)
-   ((memq ?expr '(?datum ...))
+;   ((_ larceny eqv? exp)
+;    (.rewrite-eqv? exp))
+
+;   ((_ larceny memv exp)
+;    (.rewrite-memv exp))
+
+;   ((_ larceny assv exp)
+;    (.rewrite-assv exp))
+
+   ((_ larceny memq (memq ?expr '(?datum ...)))
     (letrec-syntax
       ((memq0
         (... (syntax-rules (quote)
@@ -483,67 +524,9 @@
                    ?t1
                    (let ((?t1 (cdr ?t1)))
                      (memq1 ?t0 ?t1 (?d2 ...)))))))))
-      (memq0 ?expr '(?datum ...))))))
+      (memq0 ?expr '(?datum ...))))
 
-(define-inline memv
-  (transformer
-   (lambda (exp rename compare)
-     (if (= (length exp) 3)
-         (let ((arg1 (cadr exp))
-               (arg2 (caddr exp)))
-           (if (or (boolean? arg1)
-                   (fixnum? arg1)
-                   (char? arg1)
-                   (and (pair? arg1)
-                        (= (length arg1) 2)
-                        (identifier? (car arg1))
-                        (compare (car arg1) (rename 'quote))
-                        (symbol? (cadr arg1)))
-                   (and (pair? arg2)
-                        (= (length arg2) 2)
-                        (identifier? (car arg2))
-                        (compare (car arg2) (rename 'quote))
-                        (every1? (lambda (x)
-                                   (or (boolean? x)
-                                       (fixnum? x)
-                                       (char? x)
-                                       (symbol? x)))
-                                 (cadr arg2))))
-               (cons (rename 'memq) (cdr exp))
-               exp))
-         exp))))
-
-(define-inline assv
-  (transformer
-   (lambda (exp rename compare)
-     (if (= (length exp) 3)
-         (let ((arg1 (cadr exp))
-               (arg2 (caddr exp)))
-           (if (or (boolean? arg1)
-                   (char? arg1)
-                   (and (pair? arg1)
-                        (= (length arg1) 2)
-                        (identifier? (car arg1))
-                        (compare (car arg1) (rename 'quote))
-                        (symbol? (cadr arg1)))
-                   (and (pair? arg2)
-                        (= (length arg2) 2)
-                        (identifier? (car arg2))
-                        (compare (car arg2) (rename 'quote))
-                        (every1? (lambda (y)
-                                   (and (pair? y)
-                                        (let ((x (car y)))
-                                          (or (boolean? x)
-                                              (char? x)
-                                              (symbol? x)))))
-                                 (cadr arg2))))
-               (cons (rename 'assq) (cdr exp))
-               exp))
-         exp))))
-
-(define-inline map
-  (syntax-rules (lambda)
-   ((map ?proc ?exp1 ?exp2 ...)
+   ((_ larceny map (map ?proc ?exp1 ?exp2 ...))
     (letrec-syntax
       ((loop
         (... (syntax-rules (lambda)
@@ -570,11 +553,9 @@
                    ((or (null? ?y1) (null? ?y2) ...)
                     (reverse results))))))))
       
-      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
+      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
 
-(define-inline for-each
-  (syntax-rules (lambda)
-   ((for-each ?proc ?exp1 ?exp2 ...)
+   ((_ larceny for-each (for-each ?proc ?exp1 ?exp2 ...))
     (letrec-syntax
       ((loop
         (... (syntax-rules (lambda)
@@ -600,7 +581,14 @@
                     (if #f #f))
                    (?f (car ?y1) (car ?y2) ...)))))))
       
-      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
+      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
+
+   ; Default case: expand into the original expression.
+
+   ((_ ?anything ?proc ?exp)
+    ?exp)
+
+   ))
 
 ))
 

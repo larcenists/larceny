@@ -25,8 +25,7 @@
 (define define-syntax-scope             .pass1:define-syntax-scope)
 (define identifier?                     .pass1:identifier?)
 (define identifier->symbol              .pass1:identifier->symbol)
-(define pass1                           .pass1:pass1)
-(define pass1-block                     .pass1:pass1-block)
+(define integrate-procedures            .pass1:integrate-procedures)
 (define m-quit                          .pass1:m-quit)
 (define macro-expand                    .pass1:macro-expand)
 (define make-minimal-syntactic-environment 
@@ -34,6 +33,8 @@
 (define make-rename-procedure           .pass1:make-rename-procedure)
 (define make-unspecified                .pass1:make-unspecified)
 (define make-undefined                  .pass1:make-undefined)
+(define pass1                           .pass1:pass1)
+(define pass1-block                     .pass1:pass1-block)
 (define syntactic-copy                  .pass1:syntactic-copy)
 (define syntactic-extend                .pass1:syntactic-extend)
 (define syntactic-lookup                .pass1:syntactic-lookup)

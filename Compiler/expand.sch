@@ -445,44 +445,71 @@
         (else
          (m-error "Malformed begin expression" exp))))
 
+; This code implements a hook for compiler macros.
+
 (define (m-application exp env)
   (if (> (safe-length exp) 0)
-      (let* ((proc (m-expand (car exp) env))
-             (args (map (lambda (exp) (m-expand exp env))
-                        (cdr exp)))
-             (call (make-call proc args)))
+      (let ((proc (m-expand (car exp) env))
+            (args (cdr exp)))
         (if (variable? proc)
-            (let* ((procname (variable.name proc))
-                   (entry
-                    (and (not (null? args))
-                         (constant? (car args))
-                         (every1? constant? args)
-                         (let ((entry (constant-folding-entry procname)))
-                           (and entry
-                                (let ((predicates
-                                       (constant-folding-predicates entry)))
-                                  (and (= (length args)
-                                          (length predicates))
-                                       (let loop ((args args)
-                                                  (predicates predicates))
-                                         (cond ((null? args) entry)
-                                               (((car predicates)
-                                                 (constant.value (car args)))
-                                                (loop (cdr args)
-                                                      (cdr predicates)))
-                                               (else #f))))))))))
-              (if entry
-                  (make-constant (apply (constant-folding-folder entry)
-                                        (map constant.value args)))
-                  (let ((denotation (syntactic-lookup env procname)))
-                    (if (identifier-denotation? denotation)
-                        (let ((R-entry (identifier-R-entry denotation)))
-                          (R-entry.calls-set!
-                           R-entry
-                           (cons call (R-entry.calls R-entry)))))
-                    call)))
-            call))
-      (m-error "Malformed application" exp)))
+            (let ((procname (variable.name proc)))
+;(display "Expanding call to ")
+;(write procname)
+;(newline)
+              (if (macro-denotation? (syntactic-lookup env name:CALL))
+                  (m-transcribe
+                   `(,name:CALL ,(integrate-procedures) ,procname ,exp)
+                   env
+                   (lambda (newexp newenv)
+                     (if (eq? newexp exp)
+                         (m-application-args proc args env)
+;(begin
+;  (display "Re-expanding ")
+;  (write newexp)
+;  (newline)
+                         (m-expand newexp newenv))))
+;)
+                  (m-application-args proc args env)))
+            (m-application-args proc args env)))
+      (m-application-args proc args env)))
+
+; The proc expression has already been macro-expanded.
+        
+(define (m-application-args proc args env)
+  (let* ((args (map (lambda (exp) (m-expand exp env))
+                    args))
+         (call (make-call proc args)))
+    (if (variable? proc)
+        (let* ((procname (variable.name proc))
+               (entry
+                (and (not (null? args))
+                     (constant? (car args))
+                     (every1? constant? args)
+                     (let ((entry (constant-folding-entry procname)))
+                       (and entry
+                            (let ((predicates
+                                   (constant-folding-predicates entry)))
+                              (and (= (length args)
+                                      (length predicates))
+                                   (let loop ((args args)
+                                              (predicates predicates))
+                                     (cond ((null? args) entry)
+                                           (((car predicates)
+                                             (constant.value (car args)))
+                                            (loop (cdr args)
+                                                  (cdr predicates)))
+                                           (else #f))))))))))
+          (if entry
+              (make-constant (apply (constant-folding-folder entry)
+                                    (map constant.value args)))
+              (let ((denotation (syntactic-lookup env procname)))
+                (if (identifier-denotation? denotation)
+                    (let ((R-entry (identifier-R-entry denotation)))
+                      (R-entry.calls-set!
+                       R-entry
+                       (cons call (R-entry.calls R-entry)))))
+                call)))
+        call)))
 
 ; The environment argument should always be global here.
 
@@ -610,6 +637,8 @@
                 (lambda (exp env)
                   (m-expand exp env))))
 
+; Inline denotations are now used only for block compilation.
+
 (define (m-inline exp env)
   (m-transcribe-inline exp
                        env
@@ -622,7 +651,7 @@
   (lambda (v) v))
 
 ; To do:
-; Clean up alist hacking et cetera.
+; Clean up alist hacking et cetera.  (?)
 ; Declarations.
-; Integrable procedures.
 ; New semantics for body of LET-SYNTAX and LETREC-SYNTAX.
+; Modules.
