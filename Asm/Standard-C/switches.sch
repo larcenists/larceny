@@ -37,7 +37,7 @@
      (peephole-optimization #f)
      (unsafe-code #f))
     ((fast-unsafe)
-     (set-assembler-flags! default)
+     (set-assembler-flags! 'default)
      (unsafe-code #t)
      (catch-undefined-globals #f))
     (else ???)))
