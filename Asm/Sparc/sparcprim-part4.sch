@@ -13,7 +13,7 @@
 ; RD is a general hardware register or RESULT.
 
 ; FIXME
-;   Missing fx*, fxquotient, fxremainder
+;   Missing fxquotient, fxremainder
 ;   When new pass1 in place:
 ;     Must add code to pass1 to allow n-ary calls to be rewritten as binary
 ;     Must add compiler macro for fxabs.
@@ -76,6 +76,11 @@
 	(millicode-call/ret as $m.exception L0)
 	(sparc.label  as L1))))
 
+; fx* w/o immediate
+
+(define-primop 'fx*
+  (lambda (as rs2)
+    (emit-multiply-code as rs2 #t)))
 
 ; fx+, fx- w/immediates
 
