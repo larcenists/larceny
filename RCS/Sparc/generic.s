@@ -2,7 +2,7 @@
 !
 ! Larceny -- Millicode for Generic Arithmetic on SPARC.
 !
-! $Id: generic.s,v 1.8 92/03/31 12:31:30 lth Exp Locker: lth $
+! $Id: generic.s,v 1.9 1992/05/15 22:18:28 lth Exp lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -808,10 +808,10 @@ Lneg_big:
 	mov	MS_BIGNUM_NEGATE, %TMP2	
 Lneg_vec:
 	cmp	%TMP0, RATNUM_HDR
-	be	Lneg_rat
+	be,a	Lneg_rat
 	mov	1, %TMP1
 	cmp	%TMP0, RECTNUM_HDR
-	be	Lneg_rect
+	be,a	Lneg_rect
 	mov	1, %TMP1
 	b	Lnumeric_error
 	mov	EX_NEG, %TMP0
@@ -858,19 +858,13 @@ Labs_big:
 	mov	MS_BIGNUM_ABS, %TMP2	
 Labs_vec:
 	cmp	%TMP0, RATNUM_HDR
-	be	Labs_rat
-	mov	1, %TMP1
-	cmp	%TMP0, RECTNUM_HDR
-	be	Labs_rect
+	be,a	Labs_rat
 	mov	1, %TMP1
 	b	Lnumeric_error
 	mov	EX_ABS, %TMP0
 Labs_rat:
 	b	_scheme_call
 	mov	MS_RATNUM_ABS, %TMP2
-Labs_rect:
-	b	Lnumeric_error
-	mov	EX_ABS, %TMP0
 
 ! Test for zero.
 ! The fixnum case is always handled in line.
@@ -1832,12 +1826,20 @@ Lfixnum2flonum:
 _m_generic_inexact2exact:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bne	Li2e_vec		! vector-like
-	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	be,a	Li2e_bvec		! vector-like
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
 	andcc	%RESULT, 3, %g0
 	be	Li2e_identity		! fixnum
 	nop
-	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Li2e_vec
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	Lnumeric_error
+	mov	EX_I2E, %TMP0
+
+! Isa bytevector; header in TMP0
+	
+Li2e_bvec:
 	cmp	%TMP0, BIGNUM_HDR
 	be	Li2e_identity		! bignum
 	nop
