@@ -30,6 +30,22 @@
       (loop (current-input-port) '() 0)
       (loop (car rest) '() 0)))
 
+
+; Read the entire file and return it as a string.
+
+(define (read-file filename)
+  (call-with-input-file filename
+    (lambda (in)
+      (let loop ((strings '()))
+        (let ((s (make-string 1024)))
+          (let ((k (read-substring s 0 (string-length s) in)))
+            (cond ((eof-object? k)
+                   (apply string-append (reverse strings)))
+                  ((< k (string-length s))
+                   (loop (cons (substring s 0 k) strings)))
+                  (else
+                   (loop (cons s strings))))))))))
+
 ; Read characters into the string 'buf' to fill [start..end) and return
 ; the number of characters read.  If eof was reached before any
 ; characters were read, return #<eof>.
