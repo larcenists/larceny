@@ -510,12 +510,13 @@
     (environment-set! larc 'dump-interactive-heap dump-interactive-heap)
     (environment-set! larc 'system system)
 
-    ;; miscellaneous extensions
+    ;; miscellaneous extensions and hacks
 
     (environment-set! larc 'repl repl)
     (environment-set! larc 'repl-printer repl-printer)
     (environment-set! larc 'repl-evaluator repl-evaluator)
     (environment-set! larc 'repl-prompt repl-prompt)
+    (environment-set! larc 'reestablish-console reestablish-console-io)
     (environment-set! larc 'herald herald)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
