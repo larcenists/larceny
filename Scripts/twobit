@@ -41,10 +41,3 @@ while [ "$1" != "" ]; do
   esac
 done
 exec $LARCENY_PATH/larceny.bin $LARGS $LARCENY_PATH/twobit.heap $PARGS
-
-#!/bin/sh
-LARCENY_PATH=/home/lth/net/lth/lib/sparc-sunos5/larceny
-if [ $# -gt 0 ]; then
-  ARGS="-args"
-fi
-exec $LARCENY_PATH/larceny.bin $LARCENY_PATH/twobit.heap $ARGS $@
