@@ -2,6 +2,6 @@
 # Repl/Makefile
 
 clean realclean:
-	rm -f *.lap *.lop *.seed *.fasl *.c *.o
+	rm -f *.lap *.lop *.seed *.fasl *.c *.asm *.o
 
 # eof
