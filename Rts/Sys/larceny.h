@@ -108,6 +108,7 @@ extern void primitive_flonum_cosh( word, word );
 extern void primitive_flonum_atan2( word, word, word );
 extern void primitive_stats_dump_on( word );
 extern void primitive_stats_dump_off( void );
+extern void primitive_stats_dump_stdout( void );
 extern void primitive_gcctl_np( word, word, word );
 extern void primitive_block_signals( word );
 extern void primitive_allocate_nonmoving( word, word );
