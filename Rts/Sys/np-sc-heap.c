@@ -1,12 +1,43 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.         -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
- * Larceny -- two-generation non-predictive copying dynamic area.
+ * Two-generation non-predictive (ROF) copying dynamic area.
  *
- * The collector sets up the 'old' areas as generation data->gen_no, and
- * the 'young' area as generation data->gen_no+1, to let the existing 
- * write barrier and scanning machinery work.
+ * General strategy (how it should be)
+ *  The available memory is k*stepsize; the memory that is part of the
+ *  reserve is not reflected in k.  When data are promoted into
+ *  the dynamic area the amount of large object data are taken into
+ *  account: a large object promoted into a generation reduces the
+ *  available space in that generation.  (In practice, the code in
+ *  cheney.c probably follows this rule only approximately.)
+ *
+ *  It is possible for large-object promotion to overflow the available
+ *  space in the dynamic area.  In that case, j will go negative, which
+ *  is unreasonable.  So k can be increased (risking later failure because
+ *  the reserve is effectively smaller) or the program can be aborted.
+ *
+ *  When j is reduced by the phase behavior detector, it is possible for it
+ *  to go below zero, because the dynamic area may be in an overflow state.
+ *  (An overflow does not trigger an immediate collection.)
+ *
+ * BUGS/FIXME:
+ *  Though GC_CHUNK_SIZE is everywhere used for heap allocation, 
+ *  no steps are taken to ensure that the available space fits in
+ *  an integral number of blocks of this size.  (Large objects
+ *  make that hard in any case but one can at least try.)
+ *
+ *  Generally, the collector rounds up space usage freely and 
+ *  makes no attempt to stay within a fixed heap limit except
+ *  when it computes the target size.  Thus, it will probably be
+ *  less reliable than it could have been.
+ *
+ *  The heap size computation is a mess.  Some parts of the system
+ *  take large objects into account, others don't.
+ *
+ *  Note that generally the size of the young generation is not 
+ *  j*stepsize but j*stepsize plus the amount of large data 
+ *  currently allocated.
  */
 
 #define GC_INTERNAL
@@ -28,52 +59,52 @@
 
 enum action { PROMOTE_TO_OLD, PROMOTE_TO_BOTH, PROMOTE_TO_YOUNG, COLLECT };
 
-#define PHASE_WINDOW 3		/* how much do we take into account? */
-#define PHASE_BUFSIZ (2*PHASE_WINDOW) /* history, too */
-
-typedef struct {
-  int remset_size;		/* remset size */
-  int j;			/* value of j for that size */
+/* Phase detection mechanism: the window size is PHASE_WINDOW,
+   and the buffer has space for two windows (most recent, and
+   history).
+   */
+typedef struct {                /* Phase detection data */
+  int remset_size;              /* remset size */
+  int j;                        /* value of j for that size */
 } phase_t;
+
+#define PHASE_WINDOW   3
+#define PHASE_BUFSIZ   (2*PHASE_WINDOW)
 
 typedef struct npsc_data npsc_data_t;
 
 struct npsc_data {
-  stats_id_t self_young;	/* Identity of 'young' generation */
-  stats_id_t self_old;		/* Identity of 'old' generation */
-  int        gen_no;		/* Generation number of 'old' generation */
+  /* The generations */
+  int         gen_no;           /* Generation number of 'old' generation */
+  stats_id_t  self_young;       /* Identity of 'young' generation */
+  stats_id_t  self_old;         /* Identity of 'old' generation */
+  semispace_t *old;             /* 'old' generation */
+  semispace_t *young;           /* 'young' generation */
 
   /* Parameters. */
-  int size_bytes;             /* Original size */
-  int k;                      /* k = current number of steps; k > 0 */
-  int j;                      /* j = dividing point; 0 <= j < k */
-  int stepsize;               /* bytes */
+  int         k;                /* Current number of steps; k > 0 */
+  int         j;                /* Number of young steps; 0 <= j < k */
+  int         stepsize;         /* Step size in bytes */
 
-  /* Policy: j is calculated either as a percentage of free steps, or it's 
-     pinned at some value (if possible).  For example, if pin_value == 1
-     and there is at least one empty step, then j is set to 1.  
-     j_percent and j_pin can't both be -1 at the same time.
-     */
-  int j_percent;              /* -1 or percentage for calculating j */
-  int j_pin;                  /* -1 or value at which to pin j */
-  double load_factor;
-  double luck;		      /* 0.0 .. 1.0 */
-  int remset_limit;	      /* 0 .. INT_MAX */
-  int lower_limit;            /* 0 or lower limit on the non-predictive area */
-  int upper_limit;	      /* 0 or upper limit on the non-predictive area */
-  semispace_t *old;	      /* 'old' generation */
-  semispace_t *young;	      /* 'young' generation */
+  /* Policy */
+  int         j_percent;        /* -1 or percentage for calculating j */
+  int         j_pin;            /* -1 or value at which to pin j */
+  double      load_factor;      /* Really L, the inverse load */
+  double      luck;             /* 0.0 .. 1.0 */
+  int         remset_limit;     /* 0 .. INT_MAX, the extra remset limit */
+  int         lower_limit;      /* 0 or lower limit on the dynamic area */
+  int         upper_limit;      /* 0 or upper limit on the dynamic area */
+  double      phase_detection;  /* -1.0 or 0.0 .. 1.0 */
+  int         phase_idx;        /* Next index in phase_buf */
+  phase_t     phase_buf[ PHASE_BUFSIZ ];  /* Phase detection data */
 
-  double  phase_detection;    /* -1.0 or 0.0 .. 1.0 */
-  phase_t phase_buf[ PHASE_BUFSIZ ];  /* phase detection data */
-  int     phase_idx;	      /* next index in phase_buf */
-
-  gen_stats_t gen_stats_old;
-  gen_stats_t gen_stats_young;
-  gc_stats_t  gc_stats;
+  /* Stats */
+  gen_stats_t gen_stats_old;    /* Stats structure for 'old' generation */
+  gen_stats_t gen_stats_young;  /* Stats structure for 'young' generation */
+  gc_stats_t  gc_stats;         /* Stats structure for the dynamic area */
 };
 
-#define DATA(x)             ((npsc_data_t*)((x)->data))
+#define DATA(x) ((npsc_data_t*)((x)->data))
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc );
 static void perform_promote_to_old( old_heap_t *heap );
@@ -89,15 +120,14 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
 {
   old_heap_t *heap;
   npsc_data_t *data;
-  int target_size;
+  int target_size, size_bytes;
 
   heap = allocate_heap( gen_no, gc );
   data = DATA(heap);
 
   *gen_allocd = 2;
 
-  /* We have that size_bytes = stepsize*steps */
-  data->size_bytes = roundup_page( info->size_bytes );
+  size_bytes = roundup_page( info->size_bytes );
   data->stepsize = info->stepsize;
 
   data->j_pin = -1;
@@ -112,14 +142,11 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   /* Assume size/L live (steady state) for initial k */
   target_size = 
     compute_dynamic_size( heap,
-			  data->size_bytes / data->load_factor,
-			  0 );
+                          size_bytes / data->load_factor,
+                          0 );
   data->k = ceildiv( target_size, info->stepsize );
 
-  /* This is an OK initial j if the heap is empty.  If the heap is used
-     to load the heap image into, then data_load_area(), below,
-     computes a more appropriate j.
-     */
+  /* This is an OK initial j (if the static area is separate). */
   data->j = ceildiv( data->k, 3 );
 
   annoyingmsg( "NP collector: k=%d j=%d", data->k, data->j );
@@ -139,9 +166,6 @@ void np_gc_parameters( old_heap_t *heap, int *k, int *j )
   *j = DATA(heap)->j;
 }
 
-/* Update gc stats
-   Update gen stats
-*/
 static void collect( old_heap_t *heap, gc_type_t request )
 {
   npsc_data_t *data = DATA(heap);
@@ -154,7 +178,7 @@ static void collect( old_heap_t *heap, gc_type_t request )
   annoyingmsg( "" );
   annoyingmsg( "Non-predictive dynamic area: garbage collection. " );
   annoyingmsg( "  Live old: %d   Live young: %d  k: %d  j: %d",
-	       used_old( heap ), used_young( heap ), data->k, data->j );
+               used_old( heap ), used_young( heap ), data->k, data->j );
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
   timer2 = stats_start_timer( TIMER_CPU );
@@ -226,7 +250,7 @@ static void collect( old_heap_t *heap, gc_type_t request )
   }
 
   annoyingmsg( "Non-predictive dynamic area: collection finished, k=%d j=%d",
-	      data->k, data->j );
+              data->k, data->j );
 }
 
 /* Cautious strategy: 
@@ -285,10 +309,10 @@ static int run_phase_detector( old_heap_t *heap )
   do {
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
-      return 0;			/* shrank */
+      return 0;                 /* shrank */
     k = data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
     if (data->phase_buf[j].remset_size <= k)
-      return 0;			/* grown too little */
+      return 0;                 /* grown too little */
     prev = j;
     i = i+1;
   } while (i < PHASE_WINDOW);
@@ -299,17 +323,17 @@ static int run_phase_detector( old_heap_t *heap )
   young = (data->phase_idx+PHASE_WINDOW) % PHASE_BUFSIZ;
 
   if (data->phase_buf[j].remset_size > data->phase_buf[young].remset_size)
-    return 0;			/* shrank */
+    return 0;                   /* shrank */
 
   prev = j = young;
   i = 1;
   do {
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
-      return 0;			/* shrank */
+      return 0;                 /* shrank */
     k = data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
     if (data->phase_buf[j].remset_size > k)
-      return 0;			/* grown too much */
+      return 0;                 /* grown too much */
     prev = j;
     i = i+1;
   } while (i < PHASE_WINDOW);
@@ -320,13 +344,13 @@ static int run_phase_detector( old_heap_t *heap )
   young_before = used_young( heap );
 
   annoyingmsg( "Phase detection decided to adjust j "
-	       "(old k=%d, old j=%d, used_old=%d, used_young=%d).",
-	       data->k, data->j, used_old(heap), young_before );
+               "(old k=%d, old j=%d, used_old=%d, used_young=%d).",
+               data->k, data->j, used_old(heap), young_before );
   annoyingmsg( "Buffer contents (oldest first):" );
   for ( i=0, j=data->phase_idx; i < PHASE_BUFSIZ ; i++, j=(j+1)%PHASE_BUFSIZ )
     annoyingmsg( "  remset_size=%d   j=%d",
-		 data->phase_buf[j].remset_size,
-		 data->phase_buf[j].j );
+                 data->phase_buf[j].remset_size,
+                 data->phase_buf[j].j );
   return 1;
 }
 
@@ -344,7 +368,8 @@ static void update_phase_data( old_heap_t *heap )
 }
 
 /* If the extra remset is fuller than allowed by the limit, then
-   adjust j and clear the remset.
+   adjust j and clear the remset.  (The default limit is INT_MAX,
+   ie roughly infinite.)
    */
 static int check_for_remset_overflow( old_heap_t *heap )
 {
@@ -359,22 +384,47 @@ static int check_for_remset_overflow( old_heap_t *heap )
      If occ is large (heap nearly empty), then do not try to adjust.
      */
   occ = size/(used+1);
-  if (occ > 20.0)		/* < 5% full */
+  if (occ > 20.0)               /* < 5% full */
     return 0;
   else if (occ*entries > data->remset_limit) {
     annoyingmsg( "NP remembered set overflow: j will be adjusted.\n"
-		 "  size=%g used=%g entries=%g occ=%g",
-		 size, used, entries, occ );
+                 "  size=%g used=%g entries=%g occ=%g",
+                 size, used, entries, occ );
     return 1;
   }
   else
     return 0;
 }
 
+/* If the amount of data in 'old' is larger than the amount of space in
+   'old', then reduce j until that is no longer the case.  In certain
+   configurations, all the data may be in 'old' and may be larger than
+   the amount of available space (due to large object promotion).  If
+   overflow is detected, just increase k and let the collector fail
+   (or not) later.
+  */
+static void adjust_j_below_old_data( old_heap_t *heap )
+{
+  npsc_data_t *data = DATA(heap);
+  int used, need;
+
+  used = used_old( heap );
+  need = ceildiv( used, data->stepsize );
+  if (data->k - need >= 0)
+    data->j = data->k - need;
+  else {
+    /* Area was in an overflow state */
+    data->k = need;
+    data->j = 0;
+    annoyingmsg( "Extending NP area for overflow: k=%d, j=%d.", need, 0 );
+  }
+  assert( data->j >= 0 );
+}
+
 static void adjust_j( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int i, young_before = used_young( heap );
+  int i;
   los_t* los = heap->collector->los;
 
   /* Adjust data->j. */
@@ -395,24 +445,24 @@ static void adjust_j( old_heap_t *heap )
   for ( i=data->young->current ; i >= 0 ; i-- )
     ss_move_block_to_semispace( data->young, i, data->old );
   los_append_and_clear_list( los, 
-			     los->object_lists[ data->gen_no+1 ], 
-			     data->gen_no);
+                             los->object_lists[ data->gen_no+1 ], 
+                             data->gen_no);
 
-  /* Nuke young space, recreate */
+  /* Nuke young space (now empty), then recreate */
   ss_free( data->young );
   data->young = 
     create_semispace( GC_CHUNK_SIZE, data->gen_no+1 );
 
-  /* Clear or move remset contents */
-  rs_assimilate( heap->collector->remset[ data->gen_no ], 
-		 heap->collector->remset[ data->gen_no+1 ] );
+  /* Clear or move remset contents. Can't clear all three sets 
+     because adjust_j() can be called while there's still live 
+     data in the ephemeral area.
+     */
+  rs_assimilate_and_clear( heap->collector->remset[ data->gen_no ], 
+                           heap->collector->remset[ data->gen_no+1 ] );
   rs_clear( heap->collector->remset[ heap->collector->np_remset ] );
-  rs_clear( heap->collector->remset[ data->gen_no+1 ] );
 
-  /* Adjust j */
-  data->j = (data->j*data->stepsize - young_before) / data->stepsize;
-  assert( data->j >= 0 );
-
+  adjust_j_below_old_data( heap );
+      
   annoyingmsg( "Phase-adjusted value of j=%d", data->j );
 }
 
@@ -430,7 +480,7 @@ static void perform_promote_to_old( old_heap_t *heap )
 static void perform_promote_to_both( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int x, young_available, old_available;
+  int young_available, old_available;
 
   annoyingmsg( "  Promoting to both old and young." );
 
@@ -441,34 +491,19 @@ static void perform_promote_to_both( old_heap_t *heap )
   old_available = (data->k-data->j)*data->stepsize - used_old( heap );
 
   gclib_stopcopy_promote_into_np( heap->collector,
-				  data->old,
-				  data->young,
-				  old_available,
-				  young_available);
+                                  data->old,
+                                  data->young,
+                                  old_available,
+                                  young_available);
 
   rs_clear( heap->collector->remset[ data->gen_no ] );
-  rs_assimilate( heap->collector->remset[ heap->collector->np_remset ],
-		 heap->collector->remset[ data->gen_no+1 ] );
-  rs_clear( heap->collector->remset[ data->gen_no+1 ] );
+  rs_assimilate_and_clear( heap->collector->remset[heap->collector->np_remset],
+                           heap->collector->remset[ data->gen_no+1 ] );
 
-  /* This adjustment is only required when a large object has been promoted
-     into the 'old' space and overflowed it.
-
-     Here it's ok to just adjust j without shuffling any data from one
-     area to the other, because we're just accomodating data that's in 
-     the old area in any case.
+  /* This adjustment is only required when a large object has been 
+     promoted into the 'old' space and overflowed it.
      */
-  x = used_old( heap );
-  while ((data->k - data->j)*data->stepsize < x)
-    data->j--;
-
-  if (data->j < 0) {
-    data->k = ceildiv( x, data->stepsize );
-    data->j = 0;
-    annoyingmsg( "Extending NP area to accomodate large object overflow: "
-		 "k=%d, j=%d.",
-		 data->k, data->j );
-  }
+  adjust_j_below_old_data( heap );
 
   if (check_for_remset_overflow( heap ))
     adjust_j( heap );
@@ -503,8 +538,8 @@ static void perform_collect( old_heap_t *heap )
   ss_set_gen_no( data->old, data->gen_no );
   assert( los_bytes_used( los, data->gen_no ) == 0 );
   los_append_and_clear_list( los, 
-			     los->object_lists[ data->gen_no+1 ], 
-			     data->gen_no);
+                             los->object_lists[ data->gen_no+1 ], 
+                             data->gen_no);
 
   data->young = create_semispace( GC_CHUNK_SIZE, data->gen_no+1);
 
@@ -539,8 +574,8 @@ static void perform_collect( old_heap_t *heap )
   ss_sync( data->old );
   target_size =
     compute_dynamic_size( heap,
-			  data->old->used,
-			  los_bytes_used( los, data->gen_no ) );
+                          data->old->used,
+                          los_bytes_used( los, data->gen_no ) );
   data->k = ceildiv( target_size, data->stepsize );
 
   free_steps = (data->k * data->stepsize - used_old( heap )) / data->stepsize;
@@ -550,6 +585,11 @@ static void perform_collect( old_heap_t *heap )
     free_steps = 0;
   }
 
+  /* Policy: j is calculated either as a percentage of free steps, or it's 
+     pinned at some value (if possible).  For example, if pin_value == 1
+     and there is at least one empty step, then j is set to 1.  
+     */
+  assert( data->j_percent >= 0 || data->j_pin >= 0 );
   if (data->j_percent >= 0)
     data->j = (free_steps * data->j_percent) / 100;
   else if (free_steps >= data->j_pin)
@@ -557,7 +597,7 @@ static void perform_collect( old_heap_t *heap )
   else {
     data->j = free_steps / 2;
     supremely_annoyingmsg( "  Could not pin j at %d; chose %d instead",
-			   data->j_pin, data->j );
+                           data->j_pin, data->j );
   }
 
   /* I know what you're thinking, punk. You're thinking, did he fire six 
@@ -570,7 +610,7 @@ static void perform_collect( old_heap_t *heap )
   data->k += luck_steps;
 
   annoyingmsg( "  Adjusting parameters: k=%d j=%d, luck=%d", 
-	       data->k, data->j, luck_steps );
+               data->k, data->j, luck_steps );
   assert( data->j >= 0 );
   assert( data->k >= 0 );
 
@@ -623,17 +663,17 @@ static void after_collection( old_heap_t *heap )
   heap->maximum = data->stepsize * data->k;
 
   annoyingmsg( "  Generation %d (non-predictive old):  Size=%d, Live=%d, "
-	       "Remset live=%d",
-	       data->old->gen_no,
-	       data->stepsize * (data->k - data->j), used_old( heap ),
-	       gc->remset[ data->old->gen_no ]->live );
+               "Remset live=%d",
+               data->old->gen_no,
+               data->stepsize * (data->k - data->j), used_old( heap ),
+               gc->remset[ data->old->gen_no ]->live );
   annoyingmsg( "  Generation %d (non-predictive young):  Size=%d, Live=%d, "
-	       "Remset live=%d",
-	       data->young->gen_no,
-	       data->stepsize * data->j, used_young( heap ),
-	       gc->remset[ data->young->gen_no ]->live );
+               "Remset live=%d",
+               data->young->gen_no,
+               data->stepsize * data->j, used_young( heap ),
+               gc->remset[ data->young->gen_no ]->live );
   annoyingmsg( "  Non-predictive parameters: k=%d, j=%d, Remset live=%d",
-	       data->k, data->j, gc->remset[ gc->np_remset ]->live );
+               data->k, data->j, gc->remset[ gc->np_remset ]->live );
 }
 
 static void set_policy( old_heap_t *heap, int op, int value )
@@ -642,6 +682,7 @@ static void set_policy( old_heap_t *heap, int op, int value )
 
   switch (op) {
   case GCCTL_J_FIXED : /* j-fixed */
+    data->j_percent = -1;
     data->j_pin = value;
     if (data->j > value) data->j = value;  /* Hack. */
     break;
@@ -695,7 +736,7 @@ static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
   int lower_limit = DATA(heap)->lower_limit;
 
   return gc_compute_dynamic_size( heap->collector,
-				  D, S, Q, L, lower_limit, upper_limit );
+                                  D, S, Q, L, lower_limit, upper_limit );
 }
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
@@ -706,18 +747,18 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 
   data = (npsc_data_t*)must_malloc( sizeof( npsc_data_t ) );
   heap = create_old_heap_t( "npsc/2/variable",
-			    HEAPCODE_OLD_2SPACE_NP,
-			    0,               /* initialize */
-			    collect,
-			    before_collection,
-			    after_collection,
-			    stats,
-			    data_load_area,
-			    0,               /* FIXME: load_prepare */
-			    0,               /* FIXME: load_data */
-			    set_policy,
-			    data
-			   );
+                            HEAPCODE_OLD_2SPACE_NP,
+                            0,               /* initialize */
+                            collect,
+                            before_collection,
+                            after_collection,
+                            stats,
+                            data_load_area,
+                            0,               /* FIXME: load_prepare */
+                            0,               /* FIXME: load_data */
+                            set_policy,
+                            data
+                           );
   heap->collector = gc;
 
   data->self_old = stats_new_generation( gen_no, 0 );
