@@ -186,6 +186,7 @@
     "num2str"           ; Number printer
     "belle"             ; Algorithm bellerophon
     "str2num"           ; Number parser
+    "javadot-symbol"    ; reader depends on this
     "reader"            ; Reader
     "env"               ; R5RS environments
     "procinfo"          ; Heuristic procedure information
