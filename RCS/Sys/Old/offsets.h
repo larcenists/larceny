@@ -8,7 +8,7 @@
  * The roots must be contiguous and between FIRST_ROOT and LAST_ROOT,
  * inclusive.
  *
- * $Id: offsets.h,v 1.2 91/06/21 15:16:00 lth Exp Locker: lth $
+ * $Id: offsets.h,v 1.3 91/06/25 15:34:00 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -20,7 +20,7 @@
 /* Be careful with these! */
 #define FIRST_ROOT		20
 #define LAST_ROOT		55
-#define LAST_GLOBAL             71
+#define LAST_GLOBAL             72
 
 /* Table size */
 #define GLOBALS_TABLE_SIZE	(LAST_GLOBAL + 1)
@@ -90,3 +90,4 @@
 /* More nonroots */
 #define LOMEM_OFFSET            (70*ADJUST)
 #define HIMEM_OFFSET            (71*ADJUST)
+#define SP_OFFSET		(72*ADJUST)
