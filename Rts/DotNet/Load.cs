@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Scheme.RT {
     public class Load {
-        public static readonly bool reportResult = false;
+        public const bool reportResult = false;
         public static string[] librarySearchPaths;
 
         static Load() {
@@ -94,7 +94,7 @@ namespace Scheme.RT {
             }
             return keepRunning;
         }
-        
+
         public static bool handleProcedure(Procedure command, SObject[] args) {
             bool keepRunning = true;
             bool errorOccurred = true;
@@ -115,12 +115,12 @@ namespace Scheme.RT {
             } finally {
                 if (errorOccurred) Exn.fullCoreDump();
             }
-            if (reportResult) {
-                Exn.msg.WriteLine("  {0}", Reg.Result);
-            }
+//            if (reportResult) {
+//                Exn.msg.WriteLine("  {0}", Reg.Result);
+//            }
             return keepRunning;
         }
-        
+
         public static void handleGo(string[] args) {
             Procedure go;
             try {
@@ -136,8 +136,8 @@ namespace Scheme.RT {
                 return;
             }
             Exn.msg.WriteLine("Executing (go ...)");
-            handleProcedure(go, 
-                            new SObject[] {Factory.stopSymbolInterning(), 
+            handleProcedure(go,
+                            new SObject[] {Factory.stopSymbolInterning(),
                                            makeArgv(args)});
         }
 
@@ -148,7 +148,7 @@ namespace Scheme.RT {
             }
             return Factory.makeVector(argv);
         }
-        
+
         public static SObject findCode(string module, string ns, int id, int number) {
             CodeVector cv = null;
             // First look in programAssembly
