@@ -1809,6 +1809,25 @@ $Id$
     Fixed 990706 / lth: The problem was that emit-trap!, in sparcutil.sch,
     did not convert its exception code to a fixnum.
 
+128 v0.43 (990701 / lth)  Fixed 2000-09-12 by lth
+    Priority: medium
+    Category: RTS / correctness
+
+    When we use the conservative collector with ALL_INTERIOR_POINTERS=0,
+    then some tricky code in the RTS that allocates a single chunk of 
+    memory and splits it into multiple objects won't work.  The places
+    where this occurs are _at_least_ the following (I have not scanned
+    the sources completely):
+
+       Rts/Sys/stats.c, for memstats structure
+       Rts/Sparc/cglue.c, for rest args
+       Rts/Sys/argv.c, for arg vector and strings
+       Rts/Standard-C/millicode.c, for rest args
+       Rts/Sys/ffi.c, for args to Scheme callbacks
+
+    Impact: current fixes are enough to allow benchmarking, but the
+    others must be fixed.
+
 131 v0.43 (990816 / lth)
     Priority: medium
     Category: ASSEMBLER, LIB / correctness

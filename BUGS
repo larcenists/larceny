@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 136, 137, 159, 162.
+HIGH PRIORITY BUGS: 159, 162.
 
 
 005  (v0.27e)
@@ -618,25 +618,6 @@ HIGH PRIORITY BUGS: 136, 137, 159, 162.
     and not #f or the current timer value.  If it turns out that we
     need to be able to read the timer, we can introduce a timer-get
     procedure later.
-
-128 v0.43 (990701 / lth)
-    Priority: medium
-    Category: RTS / correctness
-
-    When we use the conservative collector with ALL_INTERIOR_POINTERS=0,
-    then some tricky code in the RTS that allocates a single chunk of 
-    memory and splits it into multiple objects won't work.  The places
-    where this occurs are _at_least_ the following (I have not scanned
-    the sources completely):
-
-       Rts/Sys/stats.c, for memstats structure    [ this has been fixed ]
-       Rts/Sparc/cglue.c, for rest args           [ this has been fixed ]
-       Rts/Sys/argv.c, for arg vector and strings
-       Rts/Standard-C/millicode.c, for rest args 
-       Rts/Sys/ffi.c, for args to Scheme callbacks
-
-    Impact: current fixes are enough to allow benchmarking, but the
-    others must be fixed.
 
 129 v0.43 (990709 / lth)
     Priority: low
