@@ -44,7 +44,7 @@ public class Ops {
         SByteVL bv = (SByteVL) arg1;
         int index = ((SFixnum) arg2).value;
         if (index >= 0 && index < bv.elements.Length) {
-            
+
         } else {
             Exn.fault(blame, "index out of range", arg1, arg2);
         }
@@ -54,7 +54,7 @@ public class Ops {
         SByteVL bv = (SByteVL) arg1;
         int index = ((SFixnum) arg2).value;
         if (index >= 0 && index < bv.elements.Length) {
-            
+
         } else {
             Exn.fault(blame, "index out of range", arg1, arg2, arg3);
         }
@@ -64,7 +64,7 @@ public class Ops {
         SVL bv = (SVL) arg1;
         int index = ((SFixnum) arg2).value;
         if (index >= 0 && index < bv.elements.Length) {
-            
+
         } else {
             Exn.fault(blame, "index out of range", arg1, arg2);
         }
@@ -74,7 +74,7 @@ public class Ops {
         SVL bv = (SVL) arg1;
         int index = ((SFixnum) arg2).value;
         if (index >= 0 && index < bv.elements.Length) {
-            
+
         } else {
             Exn.fault(blame, "index out of range", arg1, arg2, arg3);
         }
@@ -102,16 +102,16 @@ public class Ops {
         Exn.fault(Constants.EX_BREAKPOINT);
         return Factory.Impossible;
     }
-    
+
     public static SObject op1_gc_counter(SObject arg) {
         Exn.fault(Constants.EX_UNSUPPORTED);
         return Factory.Unspecified;
     }
 
     public static SObject op1_not(SObject arg) {
-        return Factory.makeBoolean(Reg.Result == Factory.False);
+        return (Reg.Result == Factory.False) ? Factory.True : Factory.False;
     }
-        
+
     /* ===================================================== */
     /*   Predicates                                          */
     /* ===================================================== */
@@ -142,7 +142,7 @@ public class Ops {
     /* ------------------ */
 
     public static SObject op2_eqp(SObject arg1, SObject arg2) {
-        return Factory.makeBoolean(arg1 == arg2);
+        return (arg1 == arg2) ? Factory.True : Factory.False;
     }
 
     public static SObject op1_fixnump(SObject arg) {
@@ -450,7 +450,7 @@ public class Ops {
     public static SObject op2_sys_bvlcmp(SObject arg1, SObject arg2) {
         return arg1.op_sys_bvlcmp(arg2);
     }
-    
+
     /* Fixnum Ops                */
     /* ------------------------- */
 
@@ -472,9 +472,9 @@ public class Ops {
     public static SObject op2_fxminus(SObject arg1, SObject arg2) {
         return arg1.op_fxminus(arg2);
     }
-	public static SObject op2_fxmul(SObject arg1, SObject arg2) {
-	    return arg1.op_fxmul(arg2);
-	}
+        public static SObject op2_fxmul(SObject arg1, SObject arg2) {
+            return arg1.op_fxmul(arg2);
+        }
     public static SObject op2_fxless(SObject arg1, SObject arg2) {
         return arg1.op_fxless(arg2);
     }
@@ -500,7 +500,7 @@ public class Ops {
 
     /* Logical (aka Bitwise) Ops */
     /* ------------------------- */
-        
+
     /* Logical operations operate on fixnums
      * What about bignums? See SRFI... ?
      */
@@ -547,29 +547,29 @@ public class Ops {
     }
 
     public static SObject op2_minus_idx_idx(SObject arg1, SObject arg2) {
-        return Factory.makeNumber 
+        return Factory.makeNumber
             (((SFixnum)arg1).value - ((SFixnum)arg2).value);
     }
 
     public static SObject op2_equal_fix_fix(SObject arg1, SObject arg2) {
-        return Factory.makeBoolean
-            (((SFixnum)arg1).value == ((SFixnum)arg2).value);
+        return
+            (((SFixnum)arg1).value == ((SFixnum)arg2).value) ? Factory.True : Factory.False;
     }
     public static SObject op2_less_fix_fix(SObject arg1, SObject arg2) {
-        return Factory.makeBoolean
-            (((SFixnum)arg1).value < ((SFixnum)arg2).value);
+        return
+            (((SFixnum)arg1).value < ((SFixnum)arg2).value) ? Factory.True : Factory.False;
     }
     public static SObject op2_lessequal_fix_fix(SObject arg1, SObject arg2) {
-        return Factory.makeBoolean
-            (((SFixnum)arg1).value <= ((SFixnum)arg2).value);
+        return
+            (((SFixnum)arg1).value <= ((SFixnum)arg2).value) ? Factory.True : Factory.False;
     }
     public static SObject op2_greater_fix_fix(SObject arg1, SObject arg2) {
-        return Factory.makeBoolean
-            (((SFixnum)arg1).value > ((SFixnum)arg2).value);
+        return
+            (((SFixnum)arg1).value > ((SFixnum)arg2).value) ? Factory.True : Factory.False;
     }
     public static SObject op2_greaterequal_fix_fix(SObject arg1, SObject arg2) {
-        return Factory.makeBoolean
-            (((SFixnum)arg1).value >= ((SFixnum)arg2).value);
+        return
+            (((SFixnum)arg1).value >= ((SFixnum)arg2).value) ? Factory.True : Factory.False;
     }
 
 }
