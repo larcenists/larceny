@@ -135,7 +135,12 @@
 	     #t)))
 
 ; Given a string, interns it in the current obvector, updating the
-; count of symbols in the vector.
+; count of symbols in the vector.  Returns the symbol.
+;
+; Note: symbols are _NOT_ interned if the obvector has not been 
+; initialized.  This allows string->symbol to be used during 
+; initialization in cases where it doesn't matter if the symbols are 
+; interned.
 
 (define (intern s)
 
@@ -147,20 +152,27 @@
 	      symbol
 	      (search-bucket (cdr bucket))))))
 
-  (call-without-interrupts
-    (lambda ()
-      (let* ((h     (string-hash s))
-	     (probe (search-bucket
-		     (vector-ref *obvector*
-				 (remainder h (vector-length *obvector*))))))
-	(if probe
-	    probe
-	    (let ((s (install-symbol (make-symbol (string-copy s) h '())
-				     *obvector*)))
-	      (set! *symbol-count* (+ *symbol-count* 1))
-	      (if (> *symbol-count* *oblist-watermark*)
-		  (oblist-set! (oblist) (* (vector-length *obvector*) 2)))
-	      s))))))
+  (if *obvector*
+      (call-without-interrupts
+	(lambda ()
+	  (let* ((h     (string-hash s))
+		 (probe (search-bucket
+			 (vector-ref *obvector*
+				     (remainder h
+						(vector-length *obvector*))))))
+	    (if probe
+		probe
+		(let ((s (install-symbol (make-symbol (string-copy s) h '())
+					 *obvector*)))
+		  (set! *symbol-count* (+ *symbol-count* 1))
+		  (if (> *symbol-count* *oblist-watermark*)
+		      (oblist-set! (oblist) (* (vector-length *obvector*) 2)))
+		  s)))))
+      (begin
+	(display "WARNING: string->symbol: not interned: ")
+	(display s)
+	(newline)
+	(make-symbol (string-copy s) 0 '()))))
 
 
 ; Given a symbol, adds it to the given obvector, whether a symbol with the 
