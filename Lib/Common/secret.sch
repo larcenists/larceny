@@ -25,8 +25,9 @@
 (define .append append)			; In Lib/list.sch
 (define .list list)			; In Lib/list.sch
 (define .list->vector list->vector)	; In Lib/vector.sch
-(define .cons cons)			; In Lib/primops.sch
-(define .car car)                       ; In Lib/primops.sch
-(define .cdr cdr)                       ; In Lib/primops.sch
+(define .cons cons)			; In Lib/machine/primops.sch
+(define .car car)                       ; In Lib/machine/primops.sch
+(define .cdr cdr)                       ; In Lib/machine/primops.sch
+; .make-cell, .cell-ref, and .cell-set! are already defined in primops.sch.
 
 ; eof
