@@ -1,34 +1,42 @@
-#!/bin/sh
+#!/bin/sh                                 -*- indent-tabs-mode: nil -*-
 #
 # Copyright 1998 Lars T Hansen
 #
 # $Id$
 #
-# Development system shell script.
+# Development system shell script -- Unix.
 
 ######################################################################
 #
 # Configuration section
 
 # Valid values for $BUILD_HOST: 
-#   chez         Executable 'scheme' in the path (Chez Scheme v5)
-#   larceny      Executable 'larceny' in path (Larceny)
-#   larceny.bin  Executable 'larceny.bin' and heap 'sparc.heap' in
-#                directory defined by LARCENY_PATH.
+#   bdwlarceny.bin  Executable 'bdwlarceny.bin' and heap 'sparc.heap'
+#                     in the development directory (LARCENY_PATH)
+#   chez            Executable 'scheme' in the path (Chez Scheme v5 or later)
+#   larceny         Executable 'larceny' in the path (Larceny)
+#   petit.bin       Executable 'petit.bin' and heap 'petit.heap' in
+#                     the development directory (LARCENY_PATH)
+#   larceny.bin     Executable 'larceny.bin' and heap 'sparc.heap' in
+#                     the development directory (LARCENY_PATH)
+#   gambit          Executable 'gsc' in the path (Gambit-C v3.0)
+#
 # You can add others by editing the code in this script (each host must
 # have custom code).  
 #
-# The ${BUILD_HOST:-<host>} construction allows recursive uses of build,
-# as when called from Rts/Makefile, to pick up the right host system.
 
-BUILD_HOST=${BUILD_HOST:-larceny}
+# Initialized values Don't remove tags -- used by `make setup'.
+
+LARCENY=/proj/will/lth/larceny/src #@LARCENY_DEF@
+DEFAULT_BUILD_HOST=larceny #@BUILD_HOST_DEF@
+export LARCENY
+export DEFAULT_BUILD_HOST
+
+# Make it available to subprocesses that call build (eg to run config).
+
+BUILD_HOST=${BUILD_HOST:-${DEFAULT_BUILD_HOST}}
 export BUILD_HOST
 
-# Path of build directory.
-# Do _NOT_ remove the LARCENY_DEF tag.  It is used by `make setup' to
-# initialize the definition of the working directory.
-
-LARCENY=/proj/will/Larceny #@LARCENY_DEF@
 
 #
 ######################################################################
@@ -40,6 +48,7 @@ UTIL=${LARCENY}/Util
 ACTION=build
 FILE=
 TARGET="sparc"
+OS="unix"
 ARGS=""
 INTERP="#f"
 VERBOSE="#f"
@@ -56,46 +65,34 @@ usage() {
   echo "  -config FILE       run config on FILE"
   echo "  -expand FILE       run expand on FILE"
   echo ""
-  echo "  -big               big endian (implies -petit)"
-  echo "  -chez, -c          use Chez Scheme"
-  echo "  -interpreted, -i   use interpreter (do not load compiled files)"
-  echo "  -larceny, -l       use larceny"
-  echo "  -larceny.bin, -lb  use larceny.bin in development directory"
-  echo "  -little            little endian (implies -petit)"
-  echo "  -sparc             SPARC back-end"
-  echo "  -petit             ANSI/ISO C back-end"
   echo "  -verbose, -v       be verbose"
+  echo "  -interpreted, -i   use interpreter (do not load compiled files)"
   echo ""
-  echo "Default options are -build -larceny -sparc"
+  echo "  -bdw               use bdwlarceny.bin host (in development directory)"
+  echo "  -chez, -c          use Chez Scheme host"
+  echo "  -gambit            use Gambit-C host"
+  echo "  -larceny, -l       use Larceny host"
+  echo "  -larceny.bin, -lb  use larceny.bin host (in development directory)"
+  echo "  -petit.bin, -pb    use petit.bin host (in development directory)"
   echo ""
-  echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
+  echo "  -big               big endian (implies -petit)"
+  echo "  -little            little endian (implies -petit)"
+  echo "  -sparc             generate SPARC code (implies -unix)"
+  echo "  -petit             generate ANSI/ISO C code"
+  echo "  -generic           generic OS"
+  echo "  -unix              Unix"
+  ehco "  -macos             MacOS"
+  echo ""
+  echo "Default options are -build -larceny -sparc -unix"
+  echo ""
+  echo "WARNING: cross-compilation to a different endianness does not yet"
+  echo "         work well; UTSL."
+  echo ""
+  echo "See also http://www.ccs.neu.edu/home/will/Larceny/developing.html"
   exit $1
 }
 
 run_development_environment() {
-  if [ $TARGET = "standard-C" ]; then
-    if [ $ENDIAN = "big" ]; then
-      TARGET="C-be"
-    else
-      TARGET="C-el"
-    fi
-  fi
-
-  case $BUILD_HOST in
-    chez)
-      L_HOSTDIR="Chez"
-      L_HOSTNAME="Chez Scheme"
-      ;;
-    larceny | larceny.bin | bdwlarceny.bin)
-      L_HOSTDIR=Larceny
-      L_HOSTNAME="Larceny"
-      ;;
-    *)
-      echo "Error: bad host $BUILD_HOST in run_development_environment."
-      exit 1
-      ;;
-  esac
-
 cat > $TMPFILE <<END
   (load "${UTIL}/sysdep-unix.sch")
   (load "${UTIL}/nbuild-param-${TARGET}.sch")
@@ -126,19 +123,43 @@ END
 }
 
 expand_file() {
-  TARGET=`dirname $FILE`/`basename $FILE .mac`.c
-  echo "(define host '${BUILD_HOST})" >> $TMPFILE
-  echo "(load \"${UTIL}/expander.sch\")" >> $TMPFILE
-  echo "(expand-file \"${FILE}\" \"${TARGET}\")" >> $TMPFILE
-  echo "(exit)" >> $TMPFILE
+cat > $TMPFILE <<END
+  (load "${UTIL}/sysdep-unix.sch")
+  (load "${UTIL}/nbuild-param-${TARGET}.sch")
+  (define nbuild-parameter 
+    (make-nbuild-parameter 
+      "${LARCENY}/" $INTERP $VERBOSE "$L_HOSTDIR" "$L_HOSTNAME"))
+  (display "Loading ")
+  (display (nbuild-parameter 'host-system))
+  (display " compatibility package.")
+  (newline)
+  (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
+  (compat:initialize)
+  (load (string-append (nbuild-parameter 'util) "expander.sch"))
+  (expand-file "${FILE}" "`dirname $FILE`/`basename $FILE .mac`.c")
+  (exit)
+END
   run_scheme
 }
 
 config_file() {
-  echo "(define host '${BUILD_HOST})" >> $TMPFILE
-  echo "(load \"${UTIL}/config.sch\")" >> $TMPFILE
-  echo "(config \"${FILE}\")" >> $TMPFILE
-  echo "(exit)" >> $TMPFILE
+cat > $TMPFILE <<END
+  (load "${UTIL}/sysdep-unix.sch")
+  (load "${UTIL}/nbuild-param-${TARGET}.sch")
+  (define nbuild-parameter 
+    (make-nbuild-parameter 
+      "${LARCENY}/" $INTERP $VERBOSE "$L_HOSTDIR" "$L_HOSTNAME"))
+  (display "Loading ")
+  (display (nbuild-parameter 'host-system))
+  (display " compatibility package.")
+  (newline)
+  (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
+  (compat:initialize)
+  (load (string-append (nbuild-parameter 'util) "config.sch"))
+  (define config-path "Build/")
+  (config "${FILE}")
+  (exit)
+END
   run_scheme
 }
 
@@ -147,6 +168,8 @@ run_scheme() {
     chez)    run_chez ;;
     larceny) run_larceny ;;
     larceny.bin) run_larceny_bin ;;
+    petit.bin)   run_petit_bin ;;
+    gambit)      run_gambit ;;
     bdwlarceny.bin) run_bdwlarceny_bin ;;
     *)       echo "Unknown host tag $BUILD_HOST"; exit 1 ;;
   esac
@@ -162,6 +185,12 @@ run_larceny_bin() {
   $EXEC $HEAP $LARCENY_EXTRA -args $TMPFILE $ARGS
 }
 
+run_petit_bin() {
+  EXEC=${LARCENY}/petit.bin
+  HEAP=${LARCENY}/petit.heap
+  $EXEC $HEAP $LARCENY_EXTRA -args $TMPFILE $ARGS
+}
+
 run_bdwlarceny_bin() {
   EXEC=${LARCENY}/bdwlarceny.bin
   HEAP=${LARCENY}/sparc.heap
@@ -172,7 +201,15 @@ run_larceny() {
   larceny $LARCENY_EXTRA $TMPFILE $ARGS
 }
 
-# Main
+run_gambit() {
+  gsc -:s,t,c -i -e "(load \"$TMPFILE\")"
+}
+
+######################################################################
+#
+# Main program
+
+# Parse command line arguments.
 
 while [ "$1" != "" ]; do 
   case $1 in
@@ -203,6 +240,9 @@ while [ "$1" != "" ]; do
     -chez | -c)
       BUILD_HOST=chez; shift 
       ;;
+    -gambit)
+      BUILD_HOST=gambit; shift
+      ;;
     -help | -h)
       usage 0
       ;;
@@ -221,15 +261,31 @@ while [ "$1" != "" ]; do
     -larceny.bin | -lb) 
       BUILD_HOST=larceny.bin; shift 
       ;;
+    -petit.bin | -pb) 
+      BUILD_HOST=petit.bin; shift 
+      ;;
     @stopcopy)
       LARCENY_EXTRA="$LARCENY_EXTRA -stopcopy"; shift
       ;;
     -sparc)
       TARGET="sparc"
+      OS="unix"
       shift
       ;;
     -petit)
       TARGET="standard-C"
+      shift
+      ;;
+    -generic)
+      OS="generic"
+      shift
+      ;;
+    -unix)
+      OS="unix"
+      shift
+      ;;
+    -macos)
+      OS="macos"
       shift
       ;;
     -verbose | -v)
@@ -242,6 +298,49 @@ while [ "$1" != "" ]; do
       ;;
   esac
 done
+
+# Set up L_HOSTDIR (name of compatibility library directory) 
+# and L_HOSTNAME (name of host system).
+
+case $BUILD_HOST in
+  chez)
+    L_HOSTDIR="Chez"
+    L_HOSTNAME="Chez Scheme"
+    ;;
+  larceny | larceny.bin | petit.bin)
+    L_HOSTDIR=Larceny
+    L_HOSTNAME="Larceny"
+    ;;
+  gambit)
+    L_HOSTDIR="Gambit-C"
+    L_HOSTNAME="Gambit-C interpreter"
+    ;;
+  *)
+    echo "Error: unrecognized host system $BUILD_HOST."
+    exit 1
+    ;;
+esac
+
+# Set up TARGET.
+
+case $OS in
+  unix)    OS=-unix ;;
+  generic) OS="" ;;
+  macos)   OS=-macos ;;
+  *) echo "Error: Unknown OS: $OS"
+     exit 1
+     ;;
+esac
+
+if [ $TARGET = "standard-C" ]; then
+  if [ $ENDIAN = "big" ]; then
+    TARGET="C-be${OS}"
+  else
+    TARGET="C-el${OS}"
+  fi
+fi
+
+# Perform the requested action.
 
 rm -f $TMPFILE
 case $ACTION in
