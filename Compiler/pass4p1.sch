@@ -497,12 +497,7 @@
            (t0 (cgreg-lookup-reg regs 0)))
       (if (not (eq? frame frame1))
           (let ((live (cgframe-livevars frame)))
-
-            ; FIXME: Isn't live always empty in tail position?
-
-            (if (not (null? live))
-                (begin (display "***** ") (write live) (newline)))
-
+            ; Must be in tail position, so live is either #f or ().
             (cgframe-livevars-set! frame1 live)
             (cgframe-livevars-set! frame2 live)
             (gen-save! output frame1 t0)
