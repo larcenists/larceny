@@ -591,7 +591,7 @@
                       (arity :initarg :arity)
                       (name  :initarg :name
                              :initvalue -anonymous-generic-)
-                      (combination :initarg combination)
+                      (combination :initarg :combination)
                       (app-cache)
                       (singletons-list))
     ':name          '<generic>))
