@@ -106,7 +106,7 @@
 (define (common-endian x)
   (string-append (nbuild-parameter 'common-source) 
                  x
-                 (if (eq? (nbuild-parameter 'endianness) 'little) 
+                 (if (eq? (nbuild-parameter 'target-endianness) 'little) 
                      "-el" 
                      "-be")
                  ".lop"))
