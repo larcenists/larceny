@@ -54,7 +54,6 @@
 (load "utils.sch")
 (display "Make script for library...") (newline)
 (load "../Lib/makefile.sch")
-(load "../Thesis/Lib/makefile.sch")
 (set! listify? #f)
 (display "Listing is off") (newline)
 (newline)

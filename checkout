@@ -18,10 +18,10 @@ dirs=" 	${top}
 	${top}/Compiler
 	${top}/Lib
 	${top}/Lib/Sparc
+	${top}/Lib/Eval
 	${top}/Sparc
 	${top}/Sys
 	${top}/Text
-	${top}/Eval
 	"
 
 if [ "$#" -ge 1 ]; then

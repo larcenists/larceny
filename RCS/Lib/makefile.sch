@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.5 92/03/31 12:31:07 lth Exp Locker: lth $
+; $Id: makefile.sch,v 1.6 1992/05/15 22:18:06 lth Exp lth $
 ;
 ; USAGE:
 ;
@@ -45,9 +45,9 @@
   (make-heap "../larceny.heap"
 	     'global-refs
 	     'global-symbols
-	     "../Eval/reploop.lop"
-	     "../Eval/eval.lop"
-	     "../Eval/rewrite.lop"))
+	     "../Lib/Eval/reploop.lop"
+	     "../Lib/Eval/eval.lop"
+	     "../Lib/Eval/rewrite.lop"))
 
 (let ()
 
@@ -71,6 +71,10 @@
 
   (define (compile x)
     (compile313 (car x)))
+
+  ;; This does not work right since the paths in the config script get all
+  ;; confused; they depend on being run in the previous directory. But
+  ;; we can't just cd .. either, since the path in the target gets confused.
 
   (define (config x)
     (system (string-append "../config " (car x))))
@@ -147,15 +151,17 @@
       (("../Lib/debug.lap" "../Lib/debug.sch") ,compile)
       (("../Lib/preds.lop" "../Lib/preds.lap") ,assemble)
       (("../Lib/preds.lap" "../Lib/preds.sch") ,compile)
-      (("../Eval/eval.lop" "../Eval/eval.lap") ,assemble)
-      (("../Eval/eval.lap" "../Eval/eval.sch") ,compile)
-      (("../Eval/reploop.lop" "../Eval/reploop.lap") ,assemble)
-      (("../Eval/reploop.lap" "../Eval/reploop.sch") ,compile)
-      (("../Eval/rewrite.lop" "../Eval/rewrite.lap") ,assemble)
-      (("../Eval/rewrite.lap" "../Eval/rewrite.sch") ,compile)
-      (("../Eval/rewrite.sch" "../Eval/rewrite.raw") ,preprocess)
-      (("../Lib/exception-handler.lop" "../Lib/exception-handler.lap") ,assemble)
-      (("../Lib/exception-handler.lap" "../Lib/exception-handler.sch") ,compile)
+      (("../Lib/Eval/eval.lop" "../Lib/Eval/eval.lap") ,assemble)
+      (("../Lib/Eval/eval.lap" "../Lib/Eval/eval.sch") ,compile)
+      (("../Lib/Eval/reploop.lop" "../Lib/Eval/reploop.lap") ,assemble)
+      (("../Lib/Eval/reploop.lap" "../Lib/Eval/reploop.sch") ,compile)
+      (("../Lib/Eval/rewrite.lop" "../Lib/Eval/rewrite.lap") ,assemble)
+      (("../Lib/Eval/rewrite.lap" "../Lib/Eval/rewrite.sch") ,compile)
+      (("../Lib/Eval/rewrite.sch" "../Lib/Eval/rewrite.raw") ,preprocess)
+      (("../Lib/exception-handler.lop" "../Lib/exception-handler.lap") 
+       ,assemble)
+      (("../Lib/exception-handler.lap" "../Lib/exception-handler.sch") 
+       ,compile)
       (("../Lib/exceptions.lop" "../Lib/exceptions.lap") ,assemble)
       (("../Lib/exceptions.lap" "../Lib/exceptions.sch") ,compile)
       (("../Lib/exceptions.sch" "../exceptions.cfg") ,config)
