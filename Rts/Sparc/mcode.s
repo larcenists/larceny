@@ -5,7 +5,7 @@
 ! SPARC -- miscellaneous primitives.
 
 #define ASSEMBLER 1
-#include "../Sys/config.h
+#include "../Sys/config.h"
 
 #include "asmdefs.h"
 #include "asmmacro.h"
