@@ -33,6 +33,16 @@ word copy_object( gc_t *gc, word obj )
   return tagptr( p, tagof( obj ) );
 }
 
+/* To be called interactively from GDB.
+ * When will the GNU project adopt a programmable debugger!?
+ */
+word *search_memory( word *from, word *limit, word datum )
+{
+  while (from < limit && *from != datum)
+    from++;
+  return (from < limit ? from : 0);
+}
+
 word box_int( int n )
 {
   if (n >= MOST_NEGATIVE_FIXNUM && n <= MOST_POSITIVE_FIXNUM)
