@@ -17,21 +17,24 @@
 	((eq? key (car list))
 	 (remq! key (cdr list)))
 	(else
-	 (set-cdr! list (remq! key (cdr list))))))
+	 (set-cdr! list (remq! key (cdr list)))
+	 list)))
 
 (define (remv! key list)
   (cond ((null? list) list)
 	((eqv? key (car list))
 	 (remv! key (cdr list)))
 	(else
-	 (set-cdr! list (remv! key (cdr list))))))
+	 (set-cdr! list (remv! key (cdr list)))
+	 list)))
 
 (define (remove! key list)
   (cond ((null? list) list)
 	((equal? key (car list))
 	 (remove! key (cdr list)))
 	(else
-	 (set-cdr! list (remove! key (cdr list))))))
+	 (set-cdr! list (remove! key (cdr list)))
+	 list)))
 
 ; Destructively remove all associations whose key matches `key' from `alist'.
 
@@ -40,21 +43,24 @@
 	((eq? key (caar alist))
 	 (aremq! key (cdr alist)))
 	(else
-	 (set-cdr! alist (aremq! key (cdr alist))))))
+	 (set-cdr! alist (aremq! key (cdr alist)))
+	 alist)))
 
 (define (aremv! key alist)
   (cond ((null? alist) alist)
 	((eqv? key (caar alist))
 	 (aremv! key (cdr alist)))
 	(else
-	 (set-cdr! alist (aremv! key (cdr alist))))))
+	 (set-cdr! alist (aremv! key (cdr alist)))
+	 alist)))
 
 (define (aremove! key alist)
   (cond ((null? alist) alist)
 	((equal? key (caar alist))
 	 (aremove! key (cdr alist)))
 	(else
-	 (set-cdr! alist (aremove! key (cdr alist))))))
+	 (set-cdr! alist (aremove! key (cdr alist)))
+	 alist)))
 
 ; Return a list of elements of `list' selected by the predicate.
 
