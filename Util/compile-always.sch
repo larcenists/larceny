@@ -5,6 +5,10 @@
 ; Install an evaluator that uses Twobit for all evaluation, so that
 ; each expression will be compiled and then evaluated.
 
+; Note, this _only_ makes sense if twobit has been loaded in a sealed
+; environment; if not, the clobbering of macro-expand below is going
+; to make a mess of things.
+
 (if (file-exists? "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.sch"))
