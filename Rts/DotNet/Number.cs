@@ -66,6 +66,7 @@ public class Number {
         return b;
     }
 
+    // getBignumLength returns the number of data words in the bignum
     public static int getBignumLength(SByteVL b) {
         int bigitc = b.getUInt16(BIGNUM_LENGTH_OFFSET);
         return bigitc;

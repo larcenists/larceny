@@ -248,7 +248,9 @@ namespace Scheme.Rep {
             }
             return new SByteVL(Tags.StringTag, chars);
         }
-
+        public static SByteVL makeString(byte[] elements) {
+            return new SByteVL(Tags.StringTag, elements);
+        }
         public static SByteVL makeByteVector(int size, int fill) {
             return new SByteVL
                 (Tags.ByteVectorTag, size, (byte)fill);

@@ -362,74 +362,74 @@ namespace Scheme.RT {
 		private static void flonum_log() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Log(arg));
+            dst.unsafeSetDouble(0, Math.Log(arg));
             Reg.Result = dst;
         }
 		private static void flonum_exp() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Exp(arg));
+            dst.unsafeSetDouble(0, Math.Exp(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_sin() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Sin(arg));
+            dst.unsafeSetDouble(0, Math.Sin(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_cos() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Cos(arg));
+            dst.unsafeSetDouble(0, Math.Cos(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_tan() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Tan(arg));
+            dst.unsafeSetDouble(0, Math.Tan(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_asin() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Asin(arg));
+            dst.unsafeSetDouble(0, Math.Asin(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_acos() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Acos(arg));
+            dst.unsafeSetDouble(0, Math.Acos(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_atan() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Atan(arg));
+            dst.unsafeSetDouble(0, Math.Atan(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_atan2() {
 			double arg1 = ((SByteVL)Reg.register2).unsafeAsDouble(0);
 			double arg2 = ((SByteVL)Reg.register3).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register4;
-            dst.unsafeSetDouble(Math.Atan2(arg1, arg2));
+            dst.unsafeSetDouble(0, Math.Atan2(arg1, arg2));
             Reg.Result = dst;
 		}
 		private static void flonum_sqrt() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Sqrt(arg));
+            dst.unsafeSetDouble(0, Math.Sqrt(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_sinh() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Sinh(arg));
+            dst.unsafeSetDouble(0, Math.Sinh(arg));
             Reg.Result = dst;
 		}
 		private static void flonum_cosh() {
 			double arg = ((SByteVL)Reg.register2).unsafeAsDouble(0);
             SByteVL dst = (SByteVL)Reg.register3;
-            dst.unsafeSetDouble(Math.Cosh(arg));
+            dst.unsafeSetDouble(0, Math.Cosh(arg));
             Reg.Result = dst;
 		}
 		
