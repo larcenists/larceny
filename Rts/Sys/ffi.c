@@ -271,6 +271,10 @@ larceny_C_ffi_dlopen( word w_path )
   path = (char*)(ptrof(w_path)+1);
   /* One can debate whether this mode is the right one.
      Perhaps the mode should be a parameter to this function.
+
+     Note: libjava.so requires RTLD_GLOBAL; currently that is
+     hacked around in Scheme code.  RTLD_GLOBAL does not
+     strike me as a reasonable default mode.  --lars
      */
   desc = dlopen( path, RTLD_LAZY | RTLD_LOCAL );
   if (desc == 0) 
