@@ -13,59 +13,81 @@
 #define USE_LONGJUMP               0
    /* Calls and returns are implemented as calls; when the timer expires, a
       longjump is performed to prune the stack.  The extern variable 
-      'c_label' holds the address to jump to following the longjump.
+      'twobit_cont_label' holds the address to jump to following the longjump.
       */
 
-#define USE_RETURN_WITHOUT_VALUE   0 
+#define USE_RETURN_WITHOUT_VALUE   1
   /* Calls are implemented as returns to a dispatch loop, as are
-     returns.  The extern variable 'c_label' holds the address to jump
-     to following the longjmp.
+     returns.  The extern variable 'twobit_cont_label' holds the address 
+     to jump to following the longjmp.
      */
 
-#define USE_RETURN_WITH_VALUE      1
+#define USE_RETURN_WITH_VALUE      0
   /* Calls are implemented as returns to a dispatch loop, as are returns.
      The address to jump to is returned to the dispatch loop rather than
      being stored in a global.
      */
 
 
-/* Return type of all compiled procedures. */
+/* Return type of all compiled procedures, and an expression to
+   return the value of an expression of that type. */
 
 #if USE_LONGJUMP
 # define RTYPE void
+# define RETURN_RTYPE( expr ) (void)(expr)
 #elif USE_RETURN_WITHOUT_VALUE
 # define RTYPE void
+# define RETURN_RTYPE( expr ) (void)(expr)
 #elif USE_RETURN_WITH_VALUE
 # define RTYPE cont_t
+# define RETURN_RTYPE( expr ) return (expr)
 #else
 # error "No suitable call/return dicipline has been selected."
 #endif
 
-// #define CONT_PARAMS     void
 #define CONT_PARAMS     word *globals /* For argument lists */
 #define CONT_ACTUALS    globals	      /* Call in trampoline */
-  /* Parameter list of all compiled procedures. 
+  /* Parameter list of all compiled procedures.  By setting CONTY_PARAMS
+     to 'void' and CONT_ACTUALS to the empty string, the procedures will
+     pick up the global 'globals' variable.  Usually you don't want to
+     do that.
      */
 
 typedef void (*cont_t)( CONT_PARAMS );
    /* cont_t is the approximate type of a Twobit label. 
-      (It's really typedef cont_t (*cont_t)( CONT_PARAMS ), but try telling
+      (It's really typedef RTYPE (*cont_t)( CONT_PARAMS ), but try telling
       a C compiler that.)
       */
 
 
 /* Timer ticks */
 
-#define TEMPORARY_FUEL  1000
+#if USE_LONGJUMP
+# define STACK_SIZE 262144	            /* 64 KB */
+# define FRAME_SIZE 96		            /* For SPARC */
+# define TIMER_STEP (STACK_SIZE/FRAME_SIZE)
+#else
+# define TIMER_STEP 12500
+#endif
+  /* TIMER_STEP is the number of ticks on the short-term timer -- the
+     number of ticks between each interrupt check.
+
+     When the jump discipline is USE_LONGJUMP then this should not be
+     set too high -- if it is, then the stack will grow unreasonably,
+     resulting in cache and virtual memory thrashing or stack overflow.
+     A reasonable value is stack-size / frame-size, where stack-size is 
+     the amount of memory you're willing to dedicate to the C stack,
+     and frame-size is the expected stack frame size.  Be conservative
+     in your estimate of available stack size -- frames may be larger
+     than you expect, and the run-time system uses some stack also.
+     */
+
+#define TEMPORARY_FUEL 100
    /* TEMPORARY_FUEL is the number of ticks that the timer receives if
       the timer expires while interrupts are disabled.  It allows the
       program to continue at full speed for a little while, so that
       it can finish the critical work and be preempted again soon.
       */
 
-#define TIMER_STEP      50000
-  /* TIMER_STEP is the number of ticks on the short-term timer -- the
-     number of ticks between each interrupt check.
-     */
 
 #endif /* ifndef PETIT_CONFIG_H */
