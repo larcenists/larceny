@@ -26,15 +26,13 @@
 (define *c-output* #f)
 (define *segment-number* 0)
 (define *already-compiled* '())
-(define *seed* #f)
-(define *live-seeds* '())
+(define *unique-id* #f)
 (define *entrypoints* '())
 (define *loadables* '())
 
 (define (init-variables)
   (set! *segment-number* 0)
-  (set! *seed* #f)
-  (set! *live-seeds* '())
+  (set! *unique-id* #f)
   (set! *entrypoints* '())
   (set! *loadables* '())
   (set! *already-compiled* '()))
@@ -67,7 +65,7 @@
       (dump-codevector! #f (segment.code segment))
       (dump-constants (segment.constants segment))
       (let ((name (string-append "twobit_thunk_"
-                                 *seed*
+                                 *unique-id*
                                  "_"
                                  (number->string *segment-number*))))
         (emit-c-code 
@@ -100,14 +98,14 @@
 				    ((eof-object? segment)
 				     (reverse segments)))))
 			    #f)))
-	(set! *loadables* (cons (cons *seed* (reverse entrypoints))
+	(set! *loadables* (cons (cons *unique-id* (reverse entrypoints))
 				*loadables*)))))
 
   (define (dump-segments bootstrap-id fasl-file segments so-name)
     (before-dump-file #f filename)
     (delete-file fasl-file)
     (let ((entrypoints '())
-	  (bootstrap-id (or bootstrap-id (string-append ".petit-bootstrap-id-" *seed*))))
+	  (bootstrap-id (or bootstrap-id (string-append ".petit-bootstrap-id-" *unique-id*))))
       (call-with-output-file fasl-file
 	(lambda (out)
 	  (if so-name
@@ -159,17 +157,15 @@
   (set! *shared-object-o-name* (rewrite-file-type so-name '(".dll" ".so") (obj-suffix)))
   (set! *segment-number* 0)
   (set! *shared-object-entrypoints* '())
-  (call-with-values 
-    (lambda () (compute-seed *shared-object-c-name*))
-    (lambda (seed updated?)
-      (set! *seed* seed)
-      (delete-file *shared-object-c-name*)
-      (delete-file *shared-object-o-name*)
-      (delete-file *shared-object-so-name*)
-      (let ((c-file (open-output-file *shared-object-c-name*)))
-	(set! *c-output* c-file)
-	(emit-c-code "#include \"twobit.h\"~%~%")
-	#t))))
+  (let ((id (compute-unique-id *shared-object-c-name*)))
+    (set! *unique-id* id)
+    (delete-file *shared-object-c-name*)
+    (delete-file *shared-object-o-name*)
+    (delete-file *shared-object-so-name*)
+    (let ((c-file (open-output-file *shared-object-c-name*)))
+      (set! *c-output* c-file)
+      (emit-c-code "#include \"twobit.h\"~%~%")
+      #t)))
 
 (define (add-to-shared-object fasl-name segments)
 
@@ -179,7 +175,7 @@
     (newline out)
     (newline out))
 
-  (let ((file-unique-id (string-append ".petit-bootstrap-id-" *seed*)))
+  (let ((file-unique-id (string-append ".petit-bootstrap-id-" *unique-id*)))
     (delete-file fasl-name)
     (call-with-output-file fasl-name
       (lambda (out)
@@ -188,7 +184,7 @@
 	    ((null? segments))
 	  (let ((segment (car segments))
 		(segment-unique-id (string-append "twobit_thunk_"
-						  *seed*
+						  *unique-id*
 						  "_"
 						  (number->string *segment-number*))))
 	    (petit-dump-fasl-segment segment
@@ -248,46 +244,22 @@
 (define (after-all-files heap output-file-name input-file-names)
   (build-petit-larceny heap output-file-name input-file-names))
 
-; Returns a seed and an indication of whether the seed is new.
-
-(define (compute-seed c-name)
-
-  (define seed-name (rewrite-file-type c-name ".c" ".seed"))
-
-  (define (adjust-seed seed n)
-    (cond ((not (memv seed *live-seeds*))
-           (set! *live-seeds* (cons seed *live-seeds*))
-	   (delete-file seed-name)
-           (call-with-output-file seed-name
-             (lambda (out)
-               (write seed out)))
-           (values (number->string seed 16) (positive? n)))
-          ((member c-name *already-compiled*)
-           (values (number->string seed 16) #f))
-          (else
-           (adjust-seed (remainder (+ seed (an-arbitrary-number)) 65536)
-                        (+ n 1)))))
-
-  (if (file-exists? seed-name)
-      (adjust-seed (call-with-input-file seed-name read) 0)
-      (adjust-seed (remainder (string-hash c-name) 65536) 1)))
+(define (compute-unique-id c-name)
+  (md5 c-name))
 
 (define (before-dump-file h filename)
   (set! *segment-number* 0)
-  (let ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".c")))
-    (call-with-values 
-     (lambda () (compute-seed c-name))
-     (lambda (seed updated?)
-       (set! *seed* seed)
-       (set! *already-compiled* (cons c-name *already-compiled*))
-       (if (and (not updated?)
-                (file-exists? c-name)
-                (compat:file-newer? c-name filename))
-           (set! *c-output* #f)
-           (let ((c-file (open-output-file c-name)))
-             (set! *c-output* c-file)
-             (emit-c-code "/* Generated from ~a */~%" filename)
-             (emit-c-code "#include \"twobit.h\"~%~%")))))))
+  (let* ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".c"))
+	 (id (compute-unique-id c-name)))
+    (set! *unique-id* id)
+    (set! *already-compiled* (cons c-name *already-compiled*))
+    (if (and (file-exists? c-name)
+	     (compat:file-newer? c-name filename))
+	(set! *c-output* #f)
+	(let ((c-file (open-output-file c-name)))
+	  (set! *c-output* c-file)
+	  (emit-c-code "/* Generated from ~a */~%" filename)
+	  (emit-c-code "#include \"twobit.h\"~%~%")))))
 
 (define (after-dump-file h filename)
   (if *c-output*
@@ -318,7 +290,7 @@
             (if (not startup?)
                 (let ((name
                        (string-append "twobit_thunk_"
-                                      *seed*
+                                      *unique-id*
                                       "_"
                                       (number->string *segment-number*))))
                   (emit-c-code template name entrypoint)
