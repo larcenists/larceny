@@ -312,6 +312,7 @@ static void after_collection( old_heap_t *heap )
       create_semispace( GC_CHUNK_SIZE, data->gen_no );
   }
   if (data->must_clear_remset) 
+    /* FIXME: not accounted for in GC time measurement.  */
     rs_clear( heap->collector->remset[ data->gen_no ] );
 
   annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
