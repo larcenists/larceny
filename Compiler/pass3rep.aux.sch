@@ -472,7 +472,7 @@
                              (loop type K cs (cons c2 newcs))))
                         (else
                          (loop type3
-                               (available:kill-combine K K2)
+                               (available:killer-combine K K2)
                                cs
                                (cons c2 newcs)))))
                 (let* ((op (variable.name (call.proc E2)))
