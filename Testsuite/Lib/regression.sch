@@ -105,6 +105,53 @@
    (test "Error case #23"               ; Bug 082
          (exact->inexact 14285714285714285714285)
          1.4285714285714286e22)
+   ; NOTE!  This test can fail because it computes a ratio of execution
+   ; times of two identical programs, but the programs are not the sole
+   ; determinant of how fast they run...  I have observed a factor-of-two
+   ; difference on _identical_ binary code running in the _same_ process,
+   ; where the only difference between the two was where in memory the
+   ; code was located.
+   (test "Error case #24"               ; Bug 105
+         (let* ((t0 (memstats))
+                (d0 (bug-105-test1))
+                (t1 (memstats))
+                (d1 (bug-105-test2))
+                (t2 (memstats)))
+           (let ((alloc 0)              ; words allocated
+                 (user 23))             ; user time
+             ; Test that allocation is the same and that execution time
+             ; ratio is within reason.
+             (cons 
+              (= (- (vector-ref t1 alloc) (vector-ref t0 alloc))
+                 (- (vector-ref t2 alloc) (vector-ref t1 alloc)))
+              (let ((time1 (- (vector-ref t1 user) (vector-ref t2 user)))
+                    (time2 (- (vector-ref t2 user) (vector-ref t1 user))))
+                (if (> time1 time2)
+                    (>= (/ time2 time1) 0.9)
+                    (>= (/ time1 time2) 0.9))))))
+         '(#t #t))
+   (test "Error case #25"               ; Bug 107
+         (let ((ans #t))
+           (let ((x (bug-107-datum)))
+             (case (car x)
+               ((codevector) (set! ans #f))
+               ((constantvector) (set! ans #f))))
+           ans)
+         #t)
    ))
+
+(define (bug-105-test1)
+  (do ((i 0 (+ i 1))
+       (j 0 (+ j 1)))
+      ((= i 100000000) j)))
+
+(define (bug-105-test2)
+  (let loop ((i 0) (j 0))
+    (if (= i 100000000)
+        j
+        (loop (+ i 1) (+ j 1)))))
+
+(define (bug-107-datum)
+  '(foobar))
 
 ; eof
