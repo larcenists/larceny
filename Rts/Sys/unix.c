@@ -30,7 +30,6 @@
 /* Why these aren't in the system's header files I don't know */
 #if defined(SUNOS4)
 extern int rename( const char *oldname, const char *newname );
-extern int sigsetmask( int mask );
 extern int poll( struct pollfd *fds, unsigned long nfds, int timeout );
 #endif
 
@@ -284,29 +283,15 @@ void UNIX_exit( word code )
   exit( nativeint( code ) );
 }
 
-#if defined(SUNOS4)
 void UNIX_block_signals( word code )
 {
-  static int old_mask = 0;
-
-  if (code == fixnum(1))
-    old_mask = sigsetmask( -1 );
-  else if (code == fixnum(0))
-    sigsetmask( old_mask );
-}
-#endif
-
-#if defined(SUNOS5)
-void UNIX_block_signals( word code )
-{
-  static sigset_t old_mask;
+  static signal_set_t old_mask;
 
   if (code == fixnum(1))
     block_all_signals( &old_mask );
   else if (code == fixnum(0))
     unblock_signals( &old_mask );
 }
-#endif
 
 void UNIX_system( word w_cmd )
 {
@@ -380,7 +365,7 @@ void UNIX_sysfeature( word v /* a vector of sufficient length */ )
 #elif defined(LINUX)
     vector_set( v, 0, fixnum(1) );
 #else
-    vector_set( v0, 0, fixnum(-1) );
+    vector_set( v, 0, fixnum(-1) );
 #endif
     break;
   case 8 : /* endianness */
