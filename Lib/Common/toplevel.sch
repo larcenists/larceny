@@ -360,7 +360,7 @@
   (environment-set! larc
                     'recognize-javadot-symbols?
                     recognize-javadot-symbols?)
-  (environment-set! larc 'recognize-keywords? recognize-keywords?)
+  ;(environment-set! larc 'recognize-keywords? recognize-keywords?)
   (environment-set! larc 'javadot-symbol? javadot-symbol?)
   (environment-set! larc 'javadot-symbol->symbol javadot-symbol->symbol)
   (environment-set! larc 'symbol->javadot-symbol symbol->javadot-symbol)

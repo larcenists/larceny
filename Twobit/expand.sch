@@ -223,7 +223,7 @@
              (else (m-bug "Bug detected in m-expand" exp)))))))
 
 ;; If #t, symbols beginning with : are self-quoting.
-(define recognize-keywords? (make-parameter "recognize-keywords?" #t boolean?))
+;; (define recognize-keywords? (make-parameter "recognize-keywords?" #t boolean?))
 
 (define (colon-prefix? symbol)
   (let ((str (symbol->string symbol)))
@@ -246,8 +246,7 @@
 		  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))
          (make-constant exp))
-        ((and (recognize-keywords?)
-              (colon-prefix? exp))
+        ((colon-prefix? exp)
          (make-constant exp))
         (else (let ((denotation (syntactic-lookup env exp)))
                 (case (denotation-class denotation)
