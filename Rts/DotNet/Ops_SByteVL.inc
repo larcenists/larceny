@@ -1,12 +1,12 @@
 // Ops for SByteVL
 
-        PREDICATE_OVERRIDE_EXPR(isNumber, numberp, 
+        PREDICATE_OVERRIDE_EXPR(isNumber, numberp,
                                 this.isBignum() || this.isFlonum() || this.isCompnum())
         CLR_PREDICATE_OVERRIDE_EXPR(isExact, this.isBignum())
         CLR_PREDICATE_OVERRIDE_EXPR(isInexact, this.isFlonum() || this.isCompnum())
         OP1_OVERRIDE(exactp) {
             if (this.isNumber()) {
-                return Factory.wrap(this.isBignum());
+                return this.isBignum() ? Factory.True : Factory.False;
             } else {
                 Exn.fault(Constants.EX_EXACTP, null, this);
                 return Factory.Impossible;
@@ -14,7 +14,7 @@
         }
         OP1_OVERRIDE(inexactp) {
             if (this.isNumber()) {
-                return Factory.wrap(this.isFlonum() || this.isCompnum());
+                return (this.isFlonum() || this.isCompnum()) ? Factory.True : Factory.False;
             } else {
                 Exn.fault(Constants.EX_INEXACTP, null, this);
                 return Factory.Impossible;
@@ -27,8 +27,8 @@
                                 this.isBignum() || this.isFlonum() || this.isCompnum())
         PREDICATE_OVERRIDE_EXPR(isReal, realp, this.isBignum() || this.isFlonum())
         PREDICATE_OVERRIDE_EXPR(isRational, rationalp, this.isBignum() || this.isFlonum())
-        PREDICATE_OVERRIDE_EXPR(isInteger, integerp, 
-                                this.isBignum() 
+        PREDICATE_OVERRIDE_EXPR(isInteger, integerp,
+                                this.isBignum()
                                 || (this.isFlonum() && this.isIntegralFlonum()))
         PREDICATE_OVERRIDE_TRUE(isByteVectorLike, bytevector_likep)
         PREDICATE_OVERRIDE_EXPR(isByteVector, bytevectorp, this.tag == Tags.ByteVectorTag)
@@ -37,11 +37,11 @@
 
         OP1_OVERRIDE(string_length) {
             check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
-            return Factory.wrap(this.elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
         OP1_OVERRIDE(string_length_str) {
             check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
-            return Factory.wrap(this.elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
 
         OP2_CHAIN_CHECK_TAG(string_ref, Tags.StringTag, EX_STRING_REF)
@@ -50,7 +50,7 @@
         OP3_CHAIN(string_set_trusted)
 
         OP1_OVERRIDE_CHECK_TAG(bytevector_length, Tags.ByteVectorTag, EX_BYTEVECTOR_LENGTH) {
-            return Factory.wrap(this.elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
         OP2_CHAIN_CHECK_TAG(bytevector_ref, Tags.ByteVectorTag, EX_BYTEVECTOR_REF)
         OP3_CHAIN_CHECK_TAG(bytevector_set, Tags.ByteVectorTag, EX_BYTEVECTOR_SET)
@@ -58,7 +58,7 @@
         OP2_CHAIN_CHECK_TAG(bytevector_fill, Tags.ByteVectorTag, EX_BVFILL)
 
         OP1_OVERRIDE(bytevector_like_length) {
-            return Factory.wrap(this.elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
         OP2_CHAIN(bytevector_like_ref)
         OP3_CHAIN(bytevector_like_set)
@@ -82,12 +82,12 @@
 
         SPECIALOP1_OVERRIDE(zerop) {
             if (this.tag == Tags.BignumTag) {
-                Reg.Result = Factory.wrap(Number.getBignumLength(this) == 0);
+                Reg.Result = (Number.getBignumLength(this) == 0) ? Factory.True : Factory.False;
             } else if (this.tag == Tags.FlonumTag) {
-                Reg.Result = Factory.wrap(this.unsafeAsDouble(0) == 0.0);
+                Reg.Result = (this.unsafeAsDouble(0) == 0.0) ? Factory.True : Factory.False;
             } else if (this.tag == Tags.CompnumTag) {
-                Reg.Result = Factory.wrap(this.unsafeAsDouble(0) == 0.0 &&
-                                           this.unsafeAsDouble(1) == 0.0);
+                Reg.Result = (this.unsafeAsDouble(0) == 0.0 &&
+                              this.unsafeAsDouble(1) == 0.0) ? Factory.True : Factory.False;
             } else {
                 base.op_zerop();
             }
@@ -108,17 +108,17 @@
         SPECIALOP2_CHAIN_SByteVL(remainder)
 
         // Bignums
-        SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, bignum, SByteVL, BignumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, bignum, SByteVL, BignumTag,
                                    MS_BIGNUM_EQUAL)
-        SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, bignum, SByteVL, BignumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, bignum, SByteVL, BignumTag,
                                    MS_BIGNUM_EQUAL)
-        SPECIALOP2_OVERRIDE_REV_MS(less_than, bignum, SByteVL, BignumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(less_than, bignum, SByteVL, BignumTag,
                                    MS_BIGNUM_LESS)
-        SPECIALOP2_OVERRIDE_REV_MS(less_or_equal, bignum, SByteVL, BignumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(less_or_equal, bignum, SByteVL, BignumTag,
                                    MS_BIGNUM_LESSEQ)
-        SPECIALOP2_OVERRIDE_REV_MS(greater_than, bignum, SByteVL, BignumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(greater_than, bignum, SByteVL, BignumTag,
                                    MS_BIGNUM_GREATER)
-        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, bignum, SByteVL, BignumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, bignum, SByteVL, BignumTag,
                                    MS_BIGNUM_GREATEREQ)
 
         SPECIALOP2_OVERRIDE_REV_MS(plus, bignum, SByteVL, BignumTag, MS_BIGNUM_ADD)
@@ -128,47 +128,47 @@
 
         // Flonums
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0));
+          Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0));
+            Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(less_than, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) < this.unsafeAsDouble(0));
+            Reg.Result = (arg1.unsafeAsDouble(0) < this.unsafeAsDouble(0))  ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(less_or_equal, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) <= this.unsafeAsDouble(0));
+            Reg.Result = (arg1.unsafeAsDouble(0) <= this.unsafeAsDouble(0))  ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(greater_than, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) > this.unsafeAsDouble(0));
+            Reg.Result = (arg1.unsafeAsDouble(0) > this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(greater_or_equal, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) >= this.unsafeAsDouble(0));
+            Reg.Result = (arg1.unsafeAsDouble(0) >= this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
         }
 
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(plus, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) + this.unsafeAsDouble(0));
+            Reg.Result = Factory.makeFlonum (arg1.unsafeAsDouble(0) + this.unsafeAsDouble(0));
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(minus, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) - this.unsafeAsDouble(0));
+            Reg.Result = Factory.makeFlonum (arg1.unsafeAsDouble(0) - this.unsafeAsDouble(0));
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(multiply, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) * this.unsafeAsDouble(0));
+            Reg.Result = Factory.makeFlonum (arg1.unsafeAsDouble(0) * this.unsafeAsDouble(0));
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(divide, flonum, SByteVL, FlonumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) / this.unsafeAsDouble(0));
+            Reg.Result = Factory.makeFlonum (arg1.unsafeAsDouble(0) / this.unsafeAsDouble(0));
         }
 
         // Compnums
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, compnum, SByteVL, CompnumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
-                                      &&
-                                      arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1));
+            Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
+                          &&
+                          arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1)) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, compnum, SByteVL, CompnumTag) {
-            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
-                                      &&
-                                      arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1));
+            Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
+                          &&
+                          arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1)) ? Factory.True : Factory.False;
         }
 
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(plus, compnum, SByteVL, CompnumTag) {
@@ -202,7 +202,7 @@
                 ((ar * br + ai * bi) / denom,
                  (ai * br - ar * bi) / denom);
         }
-    
+
         SPECIALOP1_OVERRIDE(truncate) {
             if (this.tag == Tags.BignumTag) {
                 Reg.Result = this;

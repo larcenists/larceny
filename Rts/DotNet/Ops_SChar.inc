@@ -8,23 +8,23 @@
         OP2_CHAIN(char_ge)
         OP2_CHAIN(char_equals)
         OP2_OVERRIDE_REVERSED(char_lt, SChar) {
-            return Factory.wrap(arg1.val < this.val);
+            return (arg1.val < this.val) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(char_le, SChar) {
-            return Factory.wrap(arg1.val <= this.val);
+            return (arg1.val <= this.val) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(char_gt, SChar) {
-            return Factory.wrap(arg1.val > this.val);
+            return (arg1.val > this.val) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(char_ge, SChar) {
-            return Factory.wrap(arg1.val >= this.val);
+            return (arg1.val >= this.val) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(char_equals, SChar) {
-            return Factory.wrap(arg1.val == this.val);
+            return (arg1.val == this.val) ? Factory.True : Factory.False;
         }
 
         OP1_OVERRIDE(char2integer) {
-            return Factory.wrap(this.val);
+            return Factory.makeNumber (this.val);
         }
 
         OP2_OVERRIDE_REVERSED(make_string, SFixnum) {
@@ -33,5 +33,5 @@
 
         // Special Operations
         SPECIALOP2_OVERRIDE_REVERSED_CASE(eqvp_not_eq, char, SChar) {
-            Reg.Result = Factory.wrap(arg1.val == this.val);
+            Reg.Result = (arg1.val == this.val) ? Factory.True : Factory.False;
         }
