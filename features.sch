@@ -1,14 +1,14 @@
 ; Larceny configuration.
 ;
-; You must define the attributes for the system you're compiling in
-; the "User Definition Section", below.
+; You must define an attribute set that describes the platform for
+; which you are building Larceny.  The definition appears in the "User
+; Definition Section", below.
 ;
 ;          DON'T PANIC! 
 ;
 ; Useful sets of attributes for many systems are defined in that
-; section, just pick the one appropriate to your system.  Read
-; the instructions at the head of that section carefully.
-
+; section, just pick the one appropriate to your system.  Read the
+; instructions at the head of that section carefully.
 
 ; TODO / FIXME
 ; - could also generate Rts/Makefile
@@ -22,6 +22,7 @@
 
  "SPARC" 			; Native: SPARC v8 or later
  "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
+ "PPC_GAS"                      ; Native: PowerPC using GNU 'as'
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
 
  ; Architecture attributes.  You need bits and endianness at least.
@@ -30,23 +31,26 @@
  "BITS_64"			; 64-bit words
  "ENDIAN_LITTLE"		; Least significant byte at lowest address
  "BIG_ENDIAN"		        ; Most significant byte at lowest address
- "EXPLICIT_DIVZ_CHECK"          ; Explicit check for integer division by zero.
+ "EXPLICIT_DIVZ_CHECK"          ; Explicitly check for integer division by zero
 				; Some systems, like the PPC, do not trap
-				; integer division by zero.
+				; integer division by zero
  "FLUSH_ALWAYS"                 ; Instruction cache flushing is normally
  "FLUSH_NEVER"                  ; handled by the run-time system and you don't
                                 ; need to select either of these.  But if the
-                                ; RTS cannot figure it out, then set FLUSH_ALWAYS
-                                ; to 1 to force flushing, and set FLUSH_NEVER to 1
-                                ; to disable it completely.  (The only system that
-                                ; is yet known to require these is the early SPARC
+                                ; RTS cannot figure it out, then set 
+				; FLUSH_ALWAYS to 1 to force flushing, and set
+                                ; FLUSH_NEVER to 1 to disable it completely.
+                                ; (The only system that is yet known to 
+                                ; require these is the early SPARC
                                 ; multiprocessors running SunOS 4.)
  "HARDWARE_DIVISION"            ; Set to 1 to use hardware division even
 				; if that compromises backward compatibility.
 				; Some RISC systems implement HW division
-				; only in later architecture versions.
- "SPARCV9"                      ; Use SPARC v9 instructions (default is SPARC v8 only)
- "PENTIUM"                      ; Use Pentium instructions (default is 386 only)
+				; only in later architecture versions
+ "SPARCV9"                      ; Use SPARC v9 instructions (default is SPARC 
+                                ; v8 only)
+ "PENTIUM"                      ; Use Pentium instructions (default is 386
+                                ; only)
 
  ; Operating systems.  You need one of these.
 
@@ -56,6 +60,7 @@
  "BSD_UNIX"			; Generic BSD (4.3ish) Unix, also MacOS X
  "POSIX_UNIX"		        ; Generic POSIX-standard Unix
  "XOPEN_UNIX"		        ; Generic XOPEN-standard Unix
+ "CYGWIN"                       ; Generic Unix with some twists
  "WIN32"			; Generic Windows 32-bit
  "MACOS"			; Generic Macintosh OS 9.x or earlier
  "GENERIC_OS"		        ; Anything else
@@ -222,6 +227,17 @@
  ; Special system attributes -- for use of non-portable extensions or 
  ; bug workarounds, or other weirdness.
 
+ "CODEPTR_SHIFT1"
+    ; Petit Larceny: C procedure addresses are aligned to 2-byte
+    ; boundaries, so must be shifted left 1 bit when stored in
+    ; Scheme data structures.  Depends on the high bit of a procedure
+    ; address always being 0.
+
+ "CODEPTR_SHIFT2"
+    ; Petit Larceny: C procedure addresses are unaligned, so must be 
+    ; shifted left 2 bits when stored in Scheme data structures.  Depends
+    ; on the two high bits of a procedure address always being 0.
+
  "CODEWARRIOR"
     ; Metrowerks Codewarrior extensions.  Currently this is required
     ; for Petit Larceny on the Mac (MacOS 9 and earlier).
@@ -287,11 +303,12 @@
 ; Choose an existing feature set, or make your own.
 ;
 ; Then change the value of the variable SELECTED-FEATURE-SET, below,
-; to reference your feature set.
+; to reference your preferred feature set.
 ;
-; If you make your own, you can choose from the features in the list
-; above.  If you do not define the type of signal handling you want,
-; then I will attempt to guess based on your operating system.
+; If you make your own feature set, you can choose from the features
+; in the list above.  If you do not define the type of signal handling
+; you want, then the script will attempt to guess based on your
+; operating system.
 ;
 ; For Petit Larceny, selecting the precise operating system is not
 ; crucial; for example, POSIX_UNIX or BSD_UNIX will work OK on
@@ -344,7 +361,9 @@
     "USE_CACHED_STATE"
     ))
 
-(define features-petit-win32-cw6	; cw=metrowerks codewarrior
+(define features-petit-win32		; works for Mingw; believed to work
+                                        ; for CodeWarrior 6, and probably
+                                        ; for Microsoft Visual C/C++ 6
   '("PETIT_LARCENY"
     "WIN32"
     "BITS_32"
@@ -359,6 +378,7 @@
     "HAVE_RINT"
     "HAVE_STRNCASECMP"
     "USE_CACHED_STATE"
+    "CODEPTR_SHIFT2"
     ))
 
 (define features-petit-linux		; Debian GNU/Linux 3.0 (woody), x86
@@ -366,6 +386,20 @@
     "BITS_32"
     "ENDIAN_LITTLE"
     "LINUX"
+    "HAVE_RINT"
+    "HAVE_STRNCASECMP"
+    "HAVE_STRDUP"
+    "HAVE_POLL"
+    "STACK_UNDERFLOW_COUNTING"
+    "DEBIAN_STRDUP_WEIRDNESS"
+    "USE_CACHED_STATE"
+    ))
+
+(define features-petit-cygwin		; Tested with cygwin 1.5.10 (May 2004)
+  '("PETIT_LARCENY"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "CYGWIN"
     "HAVE_RINT"
     "HAVE_STRNCASECMP"
     "HAVE_STRDUP"
@@ -435,7 +469,7 @@
     "DEC_ALPHA_32BIT"
     "STACK_UNDERFLOW_COUNTING"))
 
-(define selected-feature-set features-petit-linux)
+(define selected-feature-set features-petit-win32)
 
 ; ------ END USER DEFINITION SECTION ------
 
@@ -539,6 +573,7 @@
 		 fs))
 	 (fs (if (or (member "SUNOS" fs) 
 		     (member "LINUX" fs)
+		     (member "CYGWIN" fs)
 		     (member "BSD_UNIX" fs)
 		     (member "POSIX_UNIX" fs)
 		     (member "XOPEN_UNIX" fs))
@@ -554,6 +589,7 @@
 			    (member "BSD_UNIX" fs))
 			(extend "BSD_SIGNALS" fs))
 		       ((or (member "LINUX" fs)
+			    (member "CYGWIN" fs)
 			    (member "POSIX_UNIX" fs))
 			(extend "POSIX_SIGNALS" fs))
 		       ((or (member "XOPEN_UNIX" fs)
