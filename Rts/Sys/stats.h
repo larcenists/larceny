@@ -7,6 +7,9 @@
 
 #include "config.h"
 #include "larceny-types.h"
+#if HAVE_HRTIME_T
+# include <sys/time.h>
+#endif
 
 struct gclib_stats {
   /* Snapshot */
@@ -46,6 +49,7 @@ struct gc_stats {
   int full_words_marked;	/* ditto */
   int full_pointers_traced;	/* ditto */
   int full_ms_collection;	/* ditto */
+  int full_ms_collection_cpu;	/* ditto */
 };
 
 struct gen_stats {
@@ -56,7 +60,9 @@ struct gen_stats {
 
   /* For accumulation */
   int ms_promotion;		/* Milliseconds doing promotion into area */
+  int ms_promotion_cpu;		/* Ditto, CPU time */
   int ms_collection;		/* Milliseconds doing collection in area */
+  int ms_collection_cpu;	/* Ditto, CPU time */
   int promotions;		/* Promotions into area */
   int collections;		/* Copying collections in area */
 };
@@ -98,6 +104,42 @@ struct swb_stats {
 };
 #endif
 
+/* Ad-hoc instrumentation structure */
+struct gc_event_stats {
+  /* GC_HIRES_TIMERS */
+  /* Generic */
+  hrtime_t gctime;
+  hrtime_t promtime;
+  hrtime_t free_unused;
+  hrtime_t root_scan_gc;
+  hrtime_t root_scan_prom;
+  hrtime_t los_sweep_gc;
+  hrtime_t los_sweep_prom;
+  hrtime_t remset_scan_gc;
+  hrtime_t remset_scan_prom;
+  hrtime_t tospace_scan_gc;
+  hrtime_t tospace_scan_prom;
+  /* DOF GC */
+  hrtime_t reset_after_gc;
+  hrtime_t decrement_after_gc;
+  hrtime_t dof_remset_scan;
+  hrtime_t sweep_shadow;
+  hrtime_t msgc_mark;
+  hrtime_t sweep_dof_sets;
+  hrtime_t sweep_remset;
+  hrtime_t sweep_los;
+  hrtime_t assimilate_prom;
+  hrtime_t assimilate_gc;
+
+  /* GC_EVENT_COUNTERS */
+  int copied_by_gc;             /* One way of counting */
+  int copied_by_prom;           /* One way of counting */
+  int words_forwarded;          /* Another way of counting */
+  int ptrs_forwarded;
+  int gc_barrier_hit;		/* DOF/ROF GC */
+  int remset_large_objs_scanned;
+  int remset_large_obj_words_scanned;
+};
 
 typedef int stats_id_t;		
   /* General purpose identifer type that does not allow one to
@@ -121,8 +163,8 @@ stats_id_t stats_new_remembered_set( int major_id, int minor_id );
      associate the identifiers major_id and minor_id with it.
      */
 
-stats_id_t stats_start_timer( void );
-  /* Start a new timer and return its identifier.
+stats_id_t stats_start_timer( stats_timer_t t );
+  /* Start a new timer of the specified type and return its identifier.
      */
 
 int stats_stop_timer( stats_id_t timer );
@@ -155,6 +197,9 @@ void stats_add_swb_stats( swb_stats_t *stats );
      */
 #endif
 
+void stats_add_gc_event_stats( gc_event_stats_t *stats );
+  /* Add the GC event statistics to the statistics variables.
+     */
 
 /* Scheme-side interface -- in stats.c */
 

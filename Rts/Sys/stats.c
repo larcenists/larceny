@@ -1,9 +1,19 @@
-/* Copyright 1998, 1999 Lars T Hansen
+/* Copyright 1998, 1999, 2000 Lars T Hansen    -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
  * In the data structures in this module, all "word" entries are tagged
  * Scheme data; most are nonnegative integers represented as fixnums.
+ *
+ * FIXME: There is a level of buffering going on here that isn't very
+ * elegant.  The rest of the RTS operates on native data, which are
+ * buffered in Scheme representations in the static variable stats_state
+ * in this module, and then copied into a Scheme data structure when the
+ * Scheme system makes a callout to get accounting data.  It would be
+ * better if the data were placed directly into the Scheme data
+ * structure as it comes in from the rest of the RTS.  All that's
+ * necessary is for the Scheme library to register a buffer with this
+ * module into which data can be accumulated.  
  */
 
 #include <stdio.h>
@@ -14,6 +24,33 @@
 #define MAX_TIMERS     20	      /* Should be plenty */
 #define LARGEST_FIXNUM (2147483644L)  /* ((2^29)-1)*4 */
 
+#define FIXNUM_MASK    536870911L     /* 2^29-1 */
+#define FIXNUM_SHIFT   29
+
+#define PASTE(name,x)  name##x
+#define PASTE3(x,y,z)  x##y##z
+
+#define DWORD(name)       \
+  word PASTE(name,_hi);   \
+  word PASTE(name,_lo)
+
+#define ADD_DWORD( src, target, field ) \
+  add( &target->PASTE( field, _hi ), &target->PASTE( field, _lo ), src->field )
+
+#define ADD_WORD( src, target, field ) \
+  target->field += fixnum( src->field )
+
+/* Put a 58-bit int into two fixnum fields */
+#define PUTBIG_DWORD( src, target, field )				\
+  do { target->PASTE(field,_lo) = fixnum( src->field & FIXNUM_MASK );	\
+       target->PASTE(field,_hi) =					\
+         fixnum( (src->field >> FIXNUM_SHIFT) & FIXNUM_MASK );		\
+  } while(0) 
+
+#define PUT_WORD( src, target, field ) 		\
+  target->field = fixnum( src->field )
+     
+
 typedef struct gc_memstat gc_memstat_t;
 typedef struct gclib_memstat gclib_memstat_t;
 typedef struct stack_memstat stack_memstat_t;
@@ -22,6 +59,7 @@ typedef struct remset_memstat remset_memstat_t;
 #if defined(SIMULATE_NEW_BARRIER)
 typedef struct swb_remstat swb_remstat_t;
 #endif
+typedef struct gc_event_memstat gc_event_memstat_t;
 
 struct gclib_memstat {
   word heap_allocated;		/* words allocated to heap areas */
@@ -37,18 +75,12 @@ struct gclib_memstat {
 };
 
 struct gc_memstat {
-  word allocated_hi;		/* total words */
-  word allocated_lo;		/*  allocated */
-  word reclaimed_hi;		/* total words */
-  word reclaimed_lo;		/*  reclaimed */
-  word objects_copied_hi;	/* by copying collection */
-  word objects_copied_lo;
-  word words_copied_hi;		/* ditto */
-  word words_copied_lo;
-  word objects_moved_hi;	/* ditto */
-  word objects_moved_lo;
-  word words_moved_hi;		/* ditto */
-  word words_moved_lo;
+  DWORD( allocated );		/* total words allocated */
+  DWORD( reclaimed );		/* total words reclaimed */
+  DWORD( objects_copied );	/* by copying collection */
+  DWORD( words_copied );	/* ditto */
+  DWORD( objects_moved );	/* ditto */
+  DWORD( words_moved );		/* ditto */
 
   /* NP (ROF) collector, when applicable */
   word np_k;			/* Number of steps (old+young together) */
@@ -61,22 +93,17 @@ struct gc_memstat {
   /* Full mark/sweep collections */
   word full_collections;
   word full_ms_collection;
-  word full_objects_marked_hi;
-  word full_objects_marked_lo;
-  word full_words_marked_hi;
-  word full_words_marked_lo;
-  word full_pointers_traced_hi;
-  word full_pointers_traced_lo;
+  word full_ms_collection_cpu;
+  DWORD( full_objects_marked );
+  DWORD( full_words_marked );
+  DWORD( full_pointers_traced );
 };
 
 struct stack_memstat {
   word stacks_created;		/* number of stacks created */
-  word words_flushed_hi;	/* words of stack */
-  word words_flushed_lo;	/*   frames flushed or copied */
-  word frames_flushed_hi;	/* number of stack */
-  word frames_flushed_lo;	/*   frames flushed */
-  word frames_restored_hi;	/* number of stack */
-  word frames_restored_lo;	/*   frames restored */
+  DWORD( words_flushed );	/* words of stack frames flushed or copied */
+  DWORD( frames_flushed );	/* number of stack frames flushed */
+  DWORD( frames_restored );	/* number of stack frames restored */
 };
 
 struct gen_memstat {
@@ -90,7 +117,9 @@ struct gen_memstat {
   word promotions;		/* Promotions into this heap */
   word collections;		/* Collections in this heap */
   word ms_promotion;		/* Total promotion time in ms */
-  word ms_collection;		/* Total gc time in ms (including promotion) */
+  word ms_promotion_cpu;	/* Ditto cpu time */
+  word ms_collection;		/* Total gc time in ms (excluding promotion) */
+  word ms_collection_cpu;	/* Ditto cpu time */
 };
 
 struct remset_memstat {
@@ -104,16 +133,11 @@ struct remset_memstat {
   word live;			/* Words live in node pool */
 
   /* For accumulation */
-  word ssb_recorded_hi;		/* SSB transactions */
-  word ssb_recorded_lo;		/*   recorded */
-  word scanned_hi;		/* remset table */
-  word scanned_lo;		/*   entries scanned */
-  word recorded_hi;		/* remset table */
-  word recorded_lo;		/*   entries recorded */
-  word removed_hi;		/* remset table */
-  word removed_lo;		/*   entries removed */
-  word words_scanned_hi;	/* Words of old */
-  word words_scanned_lo;	/*   objects scanned */
+  DWORD( ssb_recorded );	/* SSB transactions recorded */
+  DWORD( recorded );		/* remset table entries recorded */
+  DWORD( objs_scanned );	/* remset table entries scanned */
+  DWORD( words_scanned );	/* Words of old objects scanned */
+  DWORD( removed );		/* remset table entries removed */
   word cleared;			/* Number of times remset was cleared */
   word scanned;			/* Number of times remset was scanned */
   word compacted;		/* Number of times SSB was compacted */
@@ -131,6 +155,40 @@ struct swb_memstat {
 };
 #endif
 
+struct gc_event_memstat {
+  /* Generic */
+  DWORD( gctime );
+  DWORD( promtime );
+  DWORD( free_unused );
+  DWORD( root_scan_gc );
+  DWORD( root_scan_prom );
+  DWORD( los_sweep_gc );
+  DWORD( los_sweep_prom );
+  DWORD( remset_scan_gc );
+  DWORD( remset_scan_prom );
+  DWORD( tospace_scan_gc );
+  DWORD( tospace_scan_prom );
+  /* DOF */
+  DWORD( reset_after_gc );
+  DWORD( decrement_after_gc );
+  DWORD( dof_remset_scan );
+  DWORD( sweep_shadow );
+  DWORD( msgc_mark );
+  DWORD( sweep_dof_sets );
+  DWORD( sweep_remset );
+  DWORD( sweep_los );
+  DWORD( assimilate_prom );
+  DWORD( assimilate_gc );
+
+  word copied_by_gc;
+  word copied_by_prom;
+  word words_forwarded;
+  word ptrs_forwarded;
+  word gc_barrier_hit;
+  word remset_large_objs_scanned;
+  word remset_large_obj_words_scanned;
+};
+
 static struct {
   /* Statistics */
   gc_memstat_t     gc_stats;
@@ -141,13 +199,17 @@ static struct {
 #if defined(SIMULATE_NEW_BARRIER)
   swb_remstat_t    swb_stats;
 #endif
+  gc_event_memstat_t gc_event_stats;
   
   /* Other state variables */
   gc_t *gc;
   int  generations;		/* Number of generation entries */
   int  remsets;			/* Number of remset entries */
   bool initialized;
-  int  timers[ MAX_TIMERS ];
+  struct {
+    int           timer;	/* Base measurement */
+    stats_timer_t type;		/* What are we measuring? */
+  } timers[ MAX_TIMERS ];
   FILE *dump_file;
 } stats_state;
 
@@ -184,15 +246,25 @@ stats_id_t stats_new_remembered_set( int major_id, int minor_id )
   return i;
 }
 
-stats_id_t stats_start_timer( void )
+stats_id_t stats_start_timer( stats_timer_t type )
 {
   int i;
 
-  for ( i=0 ; i < MAX_TIMERS && stats_state.timers[i] > 0 ; i++ )
+  for ( i=0 ; i < MAX_TIMERS && stats_state.timers[i].timer > 0 ; i++ )
     ;
   assert(i < MAX_TIMERS);
 
-  stats_state.timers[i] = stats_rtclock();
+  stats_state.timers[i].type = type;
+  switch (type) {
+    case TIMER_ELAPSED : 
+      stats_state.timers[i].timer = osdep_realclock();
+      break;
+    case TIMER_CPU : 
+      stats_state.timers[i].timer = osdep_cpuclock();
+      break;
+    default :
+      assert(0);
+  }
   return i;
 }
 
@@ -200,67 +272,75 @@ int stats_stop_timer( stats_id_t timer )
 {
   int then;
 
-  assert( 0 <= timer && timer < MAX_TIMERS && stats_state.timers[timer] != 0 );
+  assert( 0 <= timer && 
+	  timer < MAX_TIMERS && 
+	  stats_state.timers[timer].timer != 0 );
 
-  then = stats_state.timers[timer];
-  stats_state.timers[timer] = 0;
-  return stats_rtclock() - then;
+  then = stats_state.timers[timer].timer;
+  stats_state.timers[timer].timer = 0;
+  switch (stats_state.timers[timer].type) {
+    case TIMER_ELAPSED :
+      return osdep_realclock() - then;
+    case TIMER_CPU :
+      return osdep_cpuclock() - then;
+    default :
+      assert(0);
+      return 0;
+  }
 }
 
 void stats_add_gclib_stats( gclib_stats_t *stats )
 {
   gclib_memstat_t *s = &stats_state.gclib_stats;
 
-  s->heap_allocated = fixnum( stats->heap_allocated );
-  s->heap_allocated_max = fixnum( stats->heap_allocated_max );
-  s->remset_allocated = fixnum( stats->remset_allocated );
-  s->remset_allocated_max = fixnum( stats->remset_allocated_max );
-  s->rts_allocated = fixnum( stats->rts_allocated );
-  s->rts_allocated_max = fixnum( stats->rts_allocated );
-  s->heap_fragmentation = fixnum( stats->heap_fragmentation );
-  s->heap_fragmentation_max = fixnum( stats->heap_fragmentation_max );
-  s->mem_allocated = fixnum( stats->mem_allocated );
-  s->mem_allocated_max = fixnum( stats->mem_allocated_max );
+  PUT_WORD( stats, s, heap_allocated );
+  PUT_WORD( stats, s, heap_allocated_max );
+  PUT_WORD( stats, s, remset_allocated );
+  PUT_WORD( stats, s, remset_allocated_max );
+  PUT_WORD( stats, s, rts_allocated );
+  PUT_WORD( stats, s, rts_allocated_max );
+  PUT_WORD( stats, s, heap_fragmentation );
+  PUT_WORD( stats, s, heap_fragmentation_max );
+  PUT_WORD( stats, s, mem_allocated );
+  PUT_WORD( stats, s, mem_allocated_max );
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
 {
   gc_memstat_t *s = &stats_state.gc_stats;
 
-  add( &s->allocated_hi, &s->allocated_lo, stats->allocated );
-  add( &s->reclaimed_hi, &s->reclaimed_lo, stats->reclaimed );
-  add( &s->objects_copied_hi, &s->objects_copied_lo, stats->objects_copied );
-  add( &s->words_copied_hi, &s->words_copied_lo, stats->words_copied );
-  add( &s->objects_moved_hi, &s->objects_moved_lo, stats->objects_moved );
-  add( &s->words_moved_hi, &s->words_moved_lo, stats->words_moved );
+  ADD_DWORD( stats, s, allocated );
+  ADD_DWORD( stats, s, reclaimed );
+  ADD_DWORD( stats, s, objects_copied );
+  ADD_DWORD( stats, s, words_copied );
+  ADD_DWORD( stats, s, objects_moved );
+  ADD_DWORD( stats, s, words_moved );
 
   /* NP (ROF) collector */
-  s->np_k = fixnum( stats->np_k );
-  s->np_j = fixnum( stats->np_j );
+  PUT_WORD( stats, s, np_k );
+  PUT_WORD( stats, s, np_j );
 
   /* DOF collector */
-  s->resets += fixnum( stats->resets );
-  s->repeats += fixnum( stats->repeats );
+  ADD_WORD( stats, s, resets );
+  ADD_WORD( stats, s, repeats );
 
   /* Full mark/sweep backup collector */
-  s->full_collections += fixnum( stats->full_collections );
-  s->full_ms_collection += fixnum( stats->full_ms_collection );
-  add( &s->full_objects_marked_hi, &s->full_objects_marked_lo, 
-       stats->full_objects_marked );
-  add( &s->full_words_marked_hi, &s->full_words_marked_lo, 
-       stats->full_words_marked );
-  add( &s->full_pointers_traced_hi, &s->full_pointers_traced_lo,
-       stats->full_pointers_traced );
+  ADD_WORD( stats, s, full_collections );
+  ADD_WORD( stats, s, full_ms_collection );
+  ADD_WORD( stats, s, full_ms_collection_cpu );
+  ADD_DWORD( stats, s, full_objects_marked );
+  ADD_DWORD( stats, s, full_words_marked );
+  ADD_DWORD( stats, s, full_pointers_traced );
 }
 
 void stats_add_stack_stats( stack_stats_t *stats )
 {
   stack_memstat_t *s = &stats_state.stack_stats;
 
-  s->stacks_created += fixnum( stats->stacks_created );
-  add( &s->words_flushed_hi, &s->words_flushed_lo, stats->words_flushed );
-  add( &s->frames_flushed_hi, &s->frames_flushed_lo, stats->frames_flushed );
-  add( &s->frames_restored_hi, &s->frames_restored_lo, stats->frames_restored);
+  ADD_WORD( stats, s, stacks_created );
+  ADD_DWORD( stats, s, words_flushed );
+  ADD_DWORD( stats, s, frames_flushed );
+  ADD_DWORD( stats, s, frames_restored );
 }
 
 void stats_add_gen_stats( stats_id_t generation, gen_stats_t *stats )
@@ -271,14 +351,16 @@ void stats_add_gen_stats( stats_id_t generation, gen_stats_t *stats )
 
   s = &stats_state.gen_stats[ generation ];
 
-  s->target = fixnum( stats->target );
-  s->allocated = fixnum( stats->allocated );
-  s->used = fixnum( stats->used );
+  PUT_WORD( stats, s, target );
+  PUT_WORD( stats, s, allocated );
+  PUT_WORD( stats, s, used );
 
-  s->promotions += fixnum( stats->promotions );
-  s->collections += fixnum( stats->collections );
-  s->ms_promotion += fixnum( stats->ms_promotion );
-  s->ms_collection += fixnum( stats->ms_collection );
+  ADD_WORD( stats, s, promotions );
+  ADD_WORD( stats, s, collections );
+  ADD_WORD( stats, s, ms_promotion );
+  ADD_WORD( stats, s, ms_promotion_cpu );
+  ADD_WORD( stats, s, ms_collection );
+  ADD_WORD( stats, s, ms_collection_cpu );
 }
 
 void stats_add_remset_stats( stats_id_t remset, remset_stats_t *stats )
@@ -289,19 +371,20 @@ void stats_add_remset_stats( stats_id_t remset, remset_stats_t *stats )
 
   s = &stats_state.remset_stats[ remset ];
 
-  s->allocated = fixnum( stats->allocated );
+  PUT_WORD( stats, s, allocated );
   s->max_allocated = max( s->max_allocated, fixnum(stats->allocated) );
-  s->used = fixnum( stats->used );
-  s->live = fixnum( stats->live );
+  PUT_WORD( stats, s, used );
+  PUT_WORD( stats, s, live );
 
-  add( &s->ssb_recorded_hi, &s->ssb_recorded_lo, stats->ssb_recorded );
-  add( &s->scanned_hi, &s->scanned_lo, stats->objs_scanned );
-  add( &s->recorded_hi, &s->recorded_lo, stats->recorded );
-  add( &s->words_scanned_hi, &s->words_scanned_lo, stats->words_scanned );
-  add( &s->removed_hi, &s->removed_lo, stats->removed );
-  s->cleared += fixnum( stats->cleared );
-  s->scanned += fixnum( stats->scanned );
-  s->compacted += fixnum( stats->compacted );
+  ADD_DWORD( stats, s, ssb_recorded );
+  ADD_DWORD( stats, s, objs_scanned );
+  ADD_DWORD( stats, s, recorded );
+  ADD_DWORD( stats, s, words_scanned );
+  ADD_DWORD( stats, s, removed );
+
+  ADD_WORD( stats, s, cleared );
+  ADD_WORD( stats, s, scanned );
+  ADD_WORD( stats, s, compacted );
 }
 
 #if defined(SIMULATE_NEW_BARRIER)
@@ -309,14 +392,49 @@ void stats_add_swb_stats( swb_stats_t *stats )
 {
   swb_memstat_t *s = &stats_state.swb_stats;
 
-  s->total_assignments += fixnum( stats->total_assignments );
-  s->array_assignments += fixnum( stats->array_assignments );
-  s->lhs_young_or_remembered += fixnum( stats->lhs_young_or_remembered );
-  s->rhs_constant += fixnum( stats->rhs_constant );
-  s->cross_gen_check += fixnum( stats->cross_gen_check );
-  s->transactions += fixnum( stats->transactions );
+  ADD_WORD( stats, s, total_assignments );
+  ADD_WORD( stats, s, array_assignments );
+  ADD_WORD( stats, s, lhs_young_or_remembered );
+  ADD_WORD( stats, s, rhs_constant );
+  ADD_WORD( stats, s, cross_gen_check );
+  ADD_WORD( stats, s, transactions );
 }
 #endif
+
+void stats_add_gc_event_stats( gc_event_stats_t *stats )
+{
+  gc_event_memstat_t *s = &stats_state.gc_event_stats;
+
+  PUTBIG_DWORD( stats, s, gctime );
+  PUTBIG_DWORD( stats, s, promtime );
+  PUTBIG_DWORD( stats, s, free_unused );
+  PUTBIG_DWORD( stats, s, root_scan_gc );
+  PUTBIG_DWORD( stats, s, root_scan_prom );
+  PUTBIG_DWORD( stats, s, los_sweep_gc );
+  PUTBIG_DWORD( stats, s, los_sweep_prom );
+  PUTBIG_DWORD( stats, s, remset_scan_gc );
+  PUTBIG_DWORD( stats, s, remset_scan_prom );
+  PUTBIG_DWORD( stats, s, tospace_scan_gc );
+  PUTBIG_DWORD( stats, s, tospace_scan_prom );
+  PUTBIG_DWORD( stats, s, reset_after_gc );
+  PUTBIG_DWORD( stats, s, decrement_after_gc );
+  PUTBIG_DWORD( stats, s, dof_remset_scan );
+  PUTBIG_DWORD( stats, s, sweep_shadow );
+  PUTBIG_DWORD( stats, s, msgc_mark );
+  PUTBIG_DWORD( stats, s, sweep_dof_sets );
+  PUTBIG_DWORD( stats, s, sweep_remset );
+  PUTBIG_DWORD( stats, s, sweep_los );
+  PUTBIG_DWORD( stats, s, assimilate_prom );
+  PUTBIG_DWORD( stats, s, assimilate_gc );
+
+  PUT_WORD( stats, s, copied_by_gc );
+  PUT_WORD( stats, s, copied_by_prom );
+  PUT_WORD( stats, s, words_forwarded );
+  PUT_WORD( stats, s, ptrs_forwarded );
+  PUT_WORD( stats, s, gc_barrier_hit );
+  PUT_WORD( stats, s, remset_large_objs_scanned );
+  PUT_WORD( stats, s, remset_large_obj_words_scanned );
+}
 
 int stats_parameter( int key )
 {
@@ -366,6 +484,14 @@ word stats_fillvector( word w_buffer )
   return w_buffer;
 }
 
+#define STAT_PUT_DWORD( vp, tag, src, field )			\
+  do { vp[ PASTE3(STAT_,tag,_HI) ] = src->PASTE(field,_hi);	\
+       vp[ PASTE3(STAT_,tag,_LO) ] = src->PASTE(field,_lo);	\
+  } while(0)
+
+#define STAT_PUT_WORD( vp, tag, src, field ) \
+  vp[ PASTE(STAT_,tag) ] = src->field
+
 static void fill_main_entries( word *vp )
 {
   stat_time_t user, system, real;
@@ -376,7 +502,8 @@ static void fill_main_entries( word *vp )
 #if defined(SIMULATE_NEW_BARRIER)
   swb_memstat_t *swb = &stats_state.swb_stats;
 #endif
-
+  gc_event_memstat_t *gce = &stats_state.gc_event_stats;
+  
   /* gclib */
   vp[ STAT_WORDS_HEAP ]    = gclib->heap_allocated;
   vp[ STAT_HEAP_MAX ]      = gclib->heap_allocated_max;
@@ -404,6 +531,7 @@ static void fill_main_entries( word *vp )
   vp[ STAT_DOF_REPEATS ]   = gc->repeats;
   vp[ STAT_FULL_GCS ]      = gc->full_collections;
   vp[ STAT_FULL_GCTIME ]   = gc->full_ms_collection;
+  vp[ STAT_FULL_GCTIME_CPU ] = gc->full_ms_collection_cpu;
   vp[ STAT_FULL_COPIED_HI ] = 0; /* unused at present */
   vp[ STAT_FULL_COPIED_LO ] = 0;
   vp[ STAT_FULL_MOVED_HI ]  = 0;
@@ -434,9 +562,40 @@ static void fill_main_entries( word *vp )
   vp[ STAT_SWB_TRANS ] = swb->transactions;
 #endif
 
+  /* GC event counters */
+  STAT_PUT_DWORD( vp, GCE_GCTIME, gce, gctime );
+  STAT_PUT_DWORD( vp, GCE_PROMTIME, gce, promtime );
+  STAT_PUT_DWORD( vp, GCE_FREE_UNUSED, gce, free_unused );
+  STAT_PUT_DWORD( vp, GCE_ROOT_SCAN_GC, gce, root_scan_gc );
+  STAT_PUT_DWORD( vp, GCE_ROOT_SCAN_PROM, gce, root_scan_prom );
+  STAT_PUT_DWORD( vp, GCE_LOS_SWEEP_GC, gce, los_sweep_gc );
+  STAT_PUT_DWORD( vp, GCE_LOS_SWEEP_PROM, gce, los_sweep_prom );
+  STAT_PUT_DWORD( vp, GCE_REMSET_SCAN_GC, gce, remset_scan_gc );
+  STAT_PUT_DWORD( vp, GCE_REMSET_SCAN_PROM, gce, remset_scan_prom );
+  STAT_PUT_DWORD( vp, GCE_TOSPACE_SCAN_GC, gce, tospace_scan_gc );
+  STAT_PUT_DWORD( vp, GCE_TOSPACE_SCAN_PROM, gce, tospace_scan_prom );
+  STAT_PUT_DWORD( vp, GCE_RESET_AFTER_GC, gce, reset_after_gc );
+  STAT_PUT_DWORD( vp, GCE_DECREMENT_AFTER_GC, gce, decrement_after_gc );
+  STAT_PUT_DWORD( vp, GCE_DOF_REMSET_SCAN, gce, dof_remset_scan );
+  STAT_PUT_DWORD( vp, GCE_SWEEP_SHADOW, gce, sweep_shadow );
+  STAT_PUT_DWORD( vp, GCE_MSGC_MARK, gce, msgc_mark );
+  STAT_PUT_DWORD( vp, GCE_SWEEP_DOF_SETS, gce, sweep_dof_sets );
+  STAT_PUT_DWORD( vp, GCE_SWEEP_REMSET, gce, sweep_remset );
+  STAT_PUT_DWORD( vp, GCE_SWEEP_LOS, gce, sweep_los );
+  STAT_PUT_DWORD( vp, GCE_ASSIMILATE_PROM, gce, assimilate_prom );
+  STAT_PUT_DWORD( vp, GCE_ASSIMILATE_GC, gce, assimilate_gc );
+  STAT_PUT_WORD(  vp, GCE_COPIED_BY_GC, gce, copied_by_gc );
+  STAT_PUT_WORD(  vp, GCE_COPIED_BY_PROM, gce, copied_by_prom );
+  STAT_PUT_WORD(  vp, GCE_WORDS_FORWARDED, gce, words_forwarded );
+  STAT_PUT_WORD(  vp, GCE_PTRS_FORWARDED, gce, ptrs_forwarded );
+  STAT_PUT_WORD(  vp, GCE_GC_BARRIER_HIT, gce, gc_barrier_hit );
+  STAT_PUT_WORD(  vp, GCE_REMSET_LO_SCANNED, gce, remset_large_objs_scanned );
+  STAT_PUT_WORD(  vp, GCE_REMSET_LOW_SCANNED, gce, 
+		  remset_large_obj_words_scanned );
+  
   /* overall system stats */
-  stats_time_used( &real, &user, &system );
-  stats_pagefaults( &majflt, &minflt );
+  osdep_time_used( &real, &user, &system );
+  osdep_pagefaults( &majflt, &minflt );
 
   vp[ STAT_RTIME ]         = fixnum( real.sec * 1000 + real.usec / 1000 );
   vp[ STAT_STIME ]         = fixnum( system.sec * 1000 + system.usec  / 1000 );
@@ -457,7 +616,9 @@ static void fill_gen_vector( word *gv, gen_memstat_t *gs )
   gv[ STAT_G_PROM_COUNT ] = gs->promotions;
   gv[ STAT_G_GC_COUNT ] = gs->collections;
   gv[ STAT_G_PROMTIME ] = gs->ms_promotion;
+  gv[ STAT_G_PROMTIME_CPU ] = gs->ms_promotion_cpu;
   gv[ STAT_G_GCTIME ] = gs->ms_collection;
+  gv[ STAT_G_GCTIME_CPU ] = gs->ms_collection_cpu;
 }
 
 static void fill_remset_vector( word *rv, remset_memstat_t *rs )
@@ -472,8 +633,8 @@ static void fill_remset_vector( word *rv, remset_memstat_t *rs )
 
   rv[ STAT_R_SSBREC_HI ] = rs->ssb_recorded_hi;
   rv[ STAT_R_SSBREC_LO ] = rs->ssb_recorded_lo;
-  rv[ STAT_R_HSCAN_HI ] = rs->scanned_hi;
-  rv[ STAT_R_HSCAN_LO ] = rs->scanned_lo;
+  rv[ STAT_R_HSCAN_HI ] = rs->objs_scanned_hi;
+  rv[ STAT_R_HSCAN_LO ] = rs->objs_scanned_lo;
   rv[ STAT_R_HREC_HI ] = rs->recorded_hi;
   rv[ STAT_R_HREC_LO ] = rs->recorded_lo;
   rv[ STAT_R_HREM_HI ] = rs->removed_hi;
@@ -656,8 +817,8 @@ static void dump_remset_stats( FILE *f, remset_memstat_t *rs )
 	   nativeuint( rs->recorded_lo ),
 	   nativeuint( rs->removed_hi ),
 	   nativeuint( rs->removed_lo ),
-	   nativeuint( rs->scanned_hi ),
-	   nativeuint( rs->scanned_lo ),
+	   nativeuint( rs->objs_scanned_hi ),
+	   nativeuint( rs->objs_scanned_lo ),
 	   nativeuint( rs->words_scanned_hi ),
 	   nativeuint( rs->words_scanned_lo ),
 	   nativeuint( rs->ssb_recorded_hi ),
