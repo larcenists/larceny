@@ -17,25 +17,6 @@
 #include "config.h"
 #include "larceny-types.h"
 
-struct remset_stats {
-  int      identity;            /* Identity of the remembered set */
-
-  /* Snapshot entries */
-  unsigned hash_allocated;	/* Hash table entries allocated */
-  unsigned pool_allocated;	/* Pool words allocated */
-  unsigned pool_used;		/* Pool words in use */
-  unsigned pool_live;		/* Nonzero pool words in use */
-  /* "Since last call" entries */
-  unsigned ssb_recorded;	/* SSB entries recorded */
-  unsigned hash_recorded;	/* Hash table entries recorded */
-  unsigned hash_scanned;	/* Hash table entries scanned */
-  unsigned words_scanned;	/* Words of objects scanned for pointers */
-  unsigned hash_removed;	/* Hash table entries removed */
-  unsigned cleared;		/* Number of times cleared */
-  unsigned scanned;		/* Number of times scanned */
-  unsigned compacted;		/* Number of times compacted */
-};
-
 struct remset {
   int identity;
     /* A positive integer that identifies this set uniquely.
@@ -116,9 +97,8 @@ void rs_enumerate( remset_t *remset,
      retained in the set, otherwise it is removed.
      */
 
-void rs_stats( remset_t *remset, remset_stats_t *stats );
-  /* Fills the statistics structure with statistics about remembered set
-     behavior.
+void rs_stats( remset_t *remset );
+  /* Add current counters to the global accumulators.
      */
 
 void rs_assimilate( remset_t *borg, remset_t *human );
