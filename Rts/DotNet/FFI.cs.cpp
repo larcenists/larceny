@@ -182,7 +182,99 @@ namespace Scheme.RT {
                 }
                 return;
             }
-
+            case 14: // get-property-value
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                object result;
+                try {
+                    result = pi.GetValue (obj, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = wrapF (result);
+                return;
+            }
+            case 15: // set-property-value
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                object newval = unwrapF (arg3);
+                SObject[] sargv = ((SVL) arg4).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                try {
+                       pi.SetValue (obj, newval, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.Unspecified;
+                return;
+            }
+            case 16: // to-string
+            {
+                Reg.Result = Factory.wrap (unwrapF (arg1).ToString());
+                return;
+            }
+            case 17: // get-property-value-boolean
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                object result;
+                try {
+                    result = pi.GetValue (obj, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.makeBoolean ((bool)result != false);
+                return;
+            }
+            case 18: // get-property-value-int
+            {
+                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
+                object obj = unwrapF (arg2);
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = unwrapF (sargv[i]);
+                object result;
+                try {
+                    result = pi.GetValue (obj, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.wrap((int)result);
+                return;
+            }
+            case 19: // array ref
+            {
+               Array ra = (Array)((Foreign) arg1).value;
+               int index = ((SFixnum) arg2).value;
+               Reg.Result = wrapF (ra.GetValue (index));
+               return;
+            }
+            case 20: // object-type
+            {
+              Reg.Result = Factory.makeForeign (unwrapF (arg1).GetType());
+              return;
+            }
             }
             Exn.error("bad ffi syscall code");
             return;

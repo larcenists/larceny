@@ -218,9 +218,9 @@ namespace Scheme.RT {
                 Reg.Result = Factory.Unspecified;
                 return;
             }
-            case 16: // type-as-string
+            case 16: // to-string
             {
-                Reg.Result = Factory.makeString (((Foreign) arg1).value.GetType().ToString());
+                Reg.Result = Factory.wrap (unwrapF (arg1).ToString());
                 return;
             }
             case 17: // get-property-value-boolean
@@ -267,6 +267,11 @@ namespace Scheme.RT {
                int index = ((SFixnum) arg2).value;
                Reg.Result = wrapF (ra.GetValue (index));
                return;
+            }
+            case 20: // object-type
+            {
+              Reg.Result = Factory.makeForeign (unwrapF (arg1).GetType());
+              return;
             }
             }
             Exn.error("bad ffi syscall code");
