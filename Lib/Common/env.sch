@@ -306,13 +306,15 @@
 	  (let ((val (environment-get env (car vars))))
 	    (environment-set! new-env (car vars) val))))))
 
-; Backwards compatible -- loader and reader still uses this.
+; LOAD still uses this (though READ).
 ;
-; Install procedure which resolves global names in LOAD and EVAL.
+; The initial environment is undefined, to avoid capturing a lot of
+; global bindings if the reader is included in a dumped heap that
+; does not use LOAD.
 
 (define global-name-resolver
   (let ((p (lambda (sym)
-	     (environment-get-cell (interaction-environment) sym))))
+             (error "GLOBAL-NAME-RESOLVER: not installed."))))
     (lambda rest
       (cond ((null? rest) p)
 	    ((and (null? (cdr rest))
