@@ -42,7 +42,7 @@
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
   (case option:os
-    ((win32) (load "Util\sysdep-win32.sch"))
+    ((win32) (load "Util\\sysdep-win32.sch"))
     ((unix macosx) (load "Util/sysdep-unix.sch"))
     (else
      (begin (display "Host = ") (display host)
