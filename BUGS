@@ -728,6 +728,16 @@ HIGH PRIORITY BUGS: 88, 111.
     make-string
     Error: Wrong number of arguments to integrable procedure(make-string .x|1)
 
-NEXT ENTRY: 132
+132 v0.43 (990715 / lth)
+    Priority: medium
+    Category: RTS / space usage
+
+    It would appear, according to output from -annoy-user, that the space
+    assigned to remembered sets grows monotonically, which is not what
+    we would like -- space should be returned to the common pool
+    whereever possible.  Most reasonably, pool memory should be freed
+    when a remset is cleared.
+
+NEXT ENTRY: 133
 
 ; eof
