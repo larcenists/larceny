@@ -528,13 +528,15 @@
            (cons (rename 'eq?) (cdr exp))
            exp)))))
 
-(define-inline memq
-  (syntax-rules (quote)
-   ((memq '?x '(?d ...))
-    (or (eq? '?x '?d) ...))
-   ((memq ?e '(?d ...))
-    (let ((t ?e))
-      (or (eq? t '?d) ...)))))
+; This is wrong, see mail message.
+;
+;(define-inline memq
+;  (syntax-rules (quote)
+;   ((memq '?x '(?d ...))
+;    (or (eq? '?x '?d) ...))
+;   ((memq ?e '(?d ...))
+;    (let ((t ?e))
+;      (or (eq? t '?d) ...)))))
 
 (define-inline memv
   (transformer
