@@ -385,7 +385,7 @@
          (if (codegen-option 'ilasm-debug)
              "/nologo /quiet /debug"
              "/nologo /quiet")))
-    (system (twobit-format #f "~a ~a/output:~a ~a" 
+    (system (twobit-format #f "~a ~a /output:~a ~a" 
                            ilasm-executable
                            options
                            exe-file
