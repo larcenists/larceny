@@ -67,10 +67,18 @@ void gclib_init( void );
   /* Initialize the low-level memory allocator.
      */
 
+void gclib_set_heap_limit( int bytes );
+  /* Set the maximum number of bytes that may be allocated to the
+     heap to `bytes'.  If bytes==0, remove the limit.
+     */
+
 void *gclib_alloc_heap( int bytes, int gen_no );
-  /* Allocate `bytes' bytes of heap memory with the given
-     generation attribute, and return a pointer to the block.  
-     The memory is allocated starting on a page boundary.
+  /* Allocate `bytes' bytes of heap memory with the given generation
+     attribute, and return a pointer to the block.  The memory is
+     allocated starting on a page boundary.  If a heap limit is in
+     effect, and if the request cannot be satisfied without exceeding
+     the limit, memfail() is called to signal that the limit is
+     exceeded.
      */
 
 void *gclib_alloc_rts( int bytes, unsigned attribute );
