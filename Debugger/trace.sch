@@ -14,6 +14,12 @@
 ; (break-entry <proc>)          Break on entry to <proc>
 ; (unbreak <proc> ...)          Disable breaking for <procs>
 ; (unbreak)                     Disable breaking for all broken <procs>
+;
+; Experimental:
+; (trace <symbol>)              Trace the value now in global <symbol>
+; (trace-entry <symbol>)        Trace the value in global <symbol> at entry
+; (trace-exit <symbol>)         Trace the value in global <symbol> at exit
+;
 
 ; Requires:
 ;  (debug/print-object obj)     Print the object safely
@@ -31,6 +37,19 @@
 ;        to accept an optional name by which to identify the traced
 ;        procedure, since anonymous procedures are otherwise hard to
 ;        tell apart (other than by their code).
+;
+; FIXME: It is possible for BREAK-HERE and BREAK-ENTRY to take an
+;        additional argument which is a procedure that takes an environment
+;        (the environment in which formals are bound to the values)
+;        and is called when the breakpoint is encountered.  The procedure
+;        returns #t if the breakpoint should trigger, #f if not.
+;        The environment can be something as simple as an assoc list.
+;        If formal names aren't available, one can use positional
+;        parameters as the keys, or identifiers like _1, and _2.
+;        In fact, with identifiers like that it is also possible to
+;        pass an _expression_ that will be evaluated in that environment.
+
+'(require 'debug)
 
 (define *trace-level* 0)
 (define *traced* '())
@@ -42,11 +61,11 @@
 ; Install an evaluator that resets the trace level each time a top-level 
 ; expression is evaluated. (This isn't ideal but it's OK.)
 
-(let ((old-evaluator (repl-evaluator)))
-  (repl-evaluator (lambda (expr env)
-                    (set! *trace-level* 0)
-                    (old-evaluator expr env))))
-
+(define (initialize-trace-and-break)
+  (let ((old-evaluator (repl-evaluator)))
+    (repl-evaluator (lambda (expr env)
+                      (set! *trace-level* 0)
+                      (old-evaluator expr env)))))
 
 (define (trace p)       (debug/trace-it p #t #t))
 (define (trace-entry p) (debug/trace-it p #t #f))
@@ -55,8 +74,14 @@
 (define (debug/trace-it p enter? exit?)
   (cond ((assq p *traced*)
          p)
+        ((symbol? p)
+         (if (not (environment-gettable? (interaction-environment) p))
+             (format #t "TRACE: variable ~a is unbound.~%" p)
+             (debug/trace-it (environment-get (interaction-environment) p)
+                             enter?
+                             exit?)))
         ((not (procedure? p))
-         (error "Cannot trace non-procedure " p))
+         (format #t "TRACE: ignoring non-procedure ~a~%" p))
         (else
          (let* ((name 
                  (or (procedure-name p) "anonymous"))
@@ -66,28 +91,40 @@
                  (debug/wrap-procedure
                   p
                   (lambda (compute)
+
+                    (define (trace-both)
+                      (debug/trace-enter-msg name expr args)
+                      (call-with-values
+                       (lambda ()
+                         (set! *trace-level* (+ *trace-level* 1))
+                         (apply compute args))
+                       (lambda results
+                         (set! *trace-level* (- *trace-level* 1))
+                         (with-console-i/o
+                          (lambda ()
+                            (debug/trace-exit-msg name expr args results)))
+                         (apply values results))))
+
+                    (define (trace-entry)
+                      (with-console-i/o
+                       (lambda ()
+                         (debug/trace-enter-msg name expr args)))
+                      (apply compute args))
+
+                    (define (trace-exit)
+                      (call-with-values
+                       (lambda () (apply compute args))
+                       (lambda results
+                         (with-console-i/o
+                          (lambda ()
+                            (debug/trace-exit-msg name expr args results)))
+                         (apply values results))))
+
                     (lambda args
-                      (cond ((and enter? exit?)
-                             (debug/trace-enter-msg name expr args)
-                             (call-with-values
-                               (lambda ()
-                                 (set! *trace-level* (+ *trace-level* 1))
-                                 (apply compute args))
-                               (lambda results
-                                 (set! *trace-level* (- *trace-level* 1))
-                                 (debug/trace-exit-msg name expr args results)
-                                 (apply values results))))
-                            (enter?
-                             (debug/trace-enter-msg name expr args)
-                             (apply compute args))
-                            (exit?
-                             (call-with-values
-                               (lambda () (apply compute args))
-                               (lambda results
-                                 (debug/trace-exit-msg name expr args results)
-                                 (apply values results))))
-                            (else
-                             ???)))))))
+                      (cond ((and enter? exit?) (trace-both))
+                            (enter?             (trace-entry))
+                            (exit?              (trace-exit))
+                            (else               ???)))))))
            (set! *traced* (cons (cons p wrap-info) *traced*))
            p))))
 
@@ -141,15 +178,19 @@
 (define (debug/breakpoint p args)  ; args is a list or #f
   (cond ((not *breakpoints-enabled*))
         ((and p args)
-         (display "Breakpoint: ")
-         (debug/trace-enter-msg (or (procedure-name p) "anonymous")
-                                (procedure-expression p)
-                                args)
-         (debug/enter-debugger #t))
+         (with-console-i/o
+          (lambda ()
+            (display "Breakpoint: ")
+            (debug/trace-enter-msg (or (procedure-name p) "anonymous")
+                                   (procedure-expression p)
+                                   args)
+            (debug/enter-debugger #t))))
         (else
-         (display "Breakpoint.")
-         (newline)
-         (debug/enter-debugger #t))))
+         (with-console-i/o
+          (lambda ()
+            (display "Breakpoint.")
+            (newline)
+            (debug/enter-debugger #t))))))
 
 (define (debug/call-with-breakpoints-disabled thunk)
   (let ((outside *breakpoints-enabled*))
@@ -232,7 +273,10 @@
 ; here is portable across architectures, given the simple MAKE-TRAMPOLINE 
 ; primitive (whose implementation in MAL is also portable).
 ;
-; PROC is an arbitrary procedure.  WRAPPER-CREATOR is a procedure of one
+; Given a procedure PROC, we wish to intercept calls to PROC and divert
+; them to another procedure.
+;
+; PROC is an arbitrary procedure. WRAPPER-CREATOR is a procedure of one
 ; argument, a procedure.  WRAPPER-CREATOR is called with a procedure
 ; that represents the computation of PROC; WRAPPER-CREATOR should return 
 ; a procedure that is compatible with the interface of PROC.  When PROC 
