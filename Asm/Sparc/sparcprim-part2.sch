@@ -48,25 +48,24 @@
 ; CONS
 ;
 ; One instruction reduced here translates into about 2.5KB reduction in the
-; size of the basic heap image.  
+; size of the basic heap image. :-)
+;
+; In the out-of-line case, if rd != RESULT then a garbage value is left 
+; in RESULT, but it always looks like a fixnum, so it's OK.
 
-; This is better code than the version below -- 8 instructions in the inline
-; case rather than 13 -- but I need to implement $m.gc first!  
-; (Code untested, looks alright.)
-
-'(define-primop 'internal:cons
+(define-primop 'internal:cons
   (lambda (as rs1 rs2 rd)
     (if (inline-allocation)
 	(let ((ENOUGH-MEMORY (new-label))
 	      (START (new-label)))
 	  (sparc.label   as START)
 	  (sparc.addi    as $r.e-top 8 $r.e-top)
-	  (sparc.cmpr    as $r.tmp0 $r.e-limit)
+	  (sparc.cmpr    as $r.e-top $r.e-limit)
 	  (sparc.ble.a   as ENOUGH-MEMORY)
 	  (sparc.sti     as rs1 -8 $r.e-top)
 	  (millicode-call/ret as $m.gc START)
 	  (sparc.label   as ENOUGH-MEMORY)
-	  (sparc.sti     as (force-hwreg! as rs2 $r.tmp0) rs2 -4 $r.e-top)
+	  (sparc.sti     as (force-hwreg! as rs2 $r.tmp0) -4 $r.e-top)
 	  (sparc.subi    as $r.e-top (- 8 $tag.pair-tag) rd))
 	(begin
 	  (if (= rs1 $r.result)
@@ -77,42 +76,6 @@
 	      (sparc.sti as rs1 0 $r.result))
 	  (sparc.sti as (force-hwreg! as rs2 $r.tmp1) 4 $r.result)
 	  (sparc.addi as $r.result $tag.pair-tag rd)))))
-
-(define-primop 'internal:cons
-  (lambda (as src1 src2 dest)
-
-    (define (emit-common-case cont)
-      (let ((src1 (if (eqv? src1 $r.result)
-		      (begin (sparc.move as $r.result $r.argreg2)
-			     $r.argreg2)
-		      src1)))
-	(millicode-call/numarg-in-result as $m.alloc 8)
-	(sparc.sti as src1 0 $r.result)
-	(sparc.sti as (force-hwreg! as src2 $r.tmp1) 4 $r.result)
-	(if cont (sparc.b as cont))
-	(sparc.addi as $r.result $tag.pair-tag dest)))
-
-    (internal-primop-invariant2 'internal:cons src1 dest)
-    (if (inline-allocation)
-	(let ((L1 (new-label))
-	      (L2 (new-label)))
-	  ; Fast path.
-	  (sparc.addi  as $r.e-top 8 $r.e-top)
-	  (sparc.cmpr  as $r.e-top $r.e-limit)
-	  (sparc.ble.a as L1)
-	  (sparc.sti   as src1 -8 $r.e-top)
-
-	  ; Overflow: just do an 'alloc' to trigger the correct gc.
-	  (sparc.subi as $r.e-top 8 $r.e-top)
-	  (emit-common-case L2)
-
-	  ; Fast path again.
-	  (sparc.label as L1)
-	  (let ((src2 (force-hwreg! as src2 $r.tmp1)))
-	    (sparc.sti   as src2 -4 $r.e-top)
-	    (sparc.subi  as $r.e-top 7 dest)     ; FIXME: evil tag spec
-	    (sparc.label as L2)))
-	(emit-common-case #f))))
 
 (define-primop 'internal:vector-length
   (lambda (as rs rd)
