@@ -82,10 +82,6 @@
 
 #define WORDS_PER_POOL_ENTRY     2
 
-#if GCLIB_LARGE_TABLE
-# define MB_REMSET 0		/* Otherwise undefined */
-#endif
-
 typedef struct pool pool_t;
 typedef struct remset_data remset_data_t;
 
@@ -453,6 +449,15 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
     ps = ps->next;
   }
   rs_compact( r1 );
+}
+
+int rs_size( remset_t *rs )
+{
+  remset_data_t *data = DATA(rs);
+  
+  return (  data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY
+          + data->tbl_lim - data->tbl_bot
+	  + *rs->ssb_lim - *rs->ssb_bot ) * sizeof(word);
 }
 
 void rs_stats( remset_t *rs )
