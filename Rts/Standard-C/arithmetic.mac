@@ -683,7 +683,7 @@ static void generic_unary_operation( word *globals, int op, cont_t k )
   mc_scheme_callout( globals, op, 1, k, 0 );
 }
 
-#if SIXTYFOUR_BIT
+#if !BITS_32
   /* The following procedures are 32-bit specific */
 # error \"Still a few bugs in the system.\"
 #endif
