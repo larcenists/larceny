@@ -391,7 +391,7 @@
        (read-dispatch-symbol-starter
          (lambda (c p)
            (let ((sym (read-symbol (tyipeek p) p (cons c '()))))
-             (if (and (recognize-javadot-syntax?)
+             (if (and (recognize-javadot-symbols?)
                       (javadot-syntax? sym))
                  (symbol->javadot-symbol sym)
                  sym))))
