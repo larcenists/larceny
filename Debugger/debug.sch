@@ -8,15 +8,15 @@
 ; or (debug) at the prompt.
 ;
 ; FIXME: When using nested debuggers, and using the Q command to pop out
-; of one level to the next level, the mysterious message "Procedure call
-; caused a reset." is printed, hardly what the user would expect.
+;        of one level to the next level, the mysterious message "Procedure 
+;        call caused a reset." is printed, hardly what the user would expect.
 ;
-; FIXME: when using nested debuggers, there is a difference between
-; popping out one level and popping out all the way to the top level;
-; currently the latter is not possible.
+; FIXME: When using nested debuggers, there is a difference between
+;        popping out one level and popping out all the way to the top level;
+;        currently the latter is not possible.
 ;
-; FIXME: debug/print-object must be able to deal with structures; right now
-; it only prints #<WEIRD>, which is useless.
+; FIXME: Debug/print-object must be able to deal with structures; right now
+;        it only prints #<WEIRD>, which is useless.
 
 '(require 'pretty-print)
 '(require 'inspect-cont)
@@ -26,6 +26,53 @@
 
 (define *debug-print-length* 10)
 (define *debug-level* 0)
+
+(define (install-debugger)
+
+  ; Install an error handler that invokes the debugger.
+
+  (error-handler 
+   (lambda the-error
+     (with-console-i/o
+      (lambda ()
+        (newline)
+        (decode-error the-error)
+        (debug/enter-debugger #f)))))
+
+  ; Install a keyboard interrupt handler that invokes the debugger so
+  ; that keyboard interrupts can be handled and the computation can also
+  ; be continued.
+
+  (keyboard-interrupt-handler
+   (lambda ()
+     (let ((enabled? (disable-interrupts)))
+       (with-console-i/o
+        (lambda ()
+          (display "Keyboard interrupt.") 
+          (newline)
+          (debug/enter-debugger #t)
+          (if enabled? 
+              (enable-interrupts (standard-timeslice))))))))
+
+  ; Initialize the trace and breakpoint package.
+
+  (initialize-trace-and-break)
+
+  #t)
+
+; This is at least roughly right.  Divert current-input-port and 
+; current-output-port to the console in the dynamic extent of thunk.
+
+(define (with-console-i/o thunk)
+  (let ((conin  (current-input-port))
+        (conout (current-output-port)))
+    (dynamic-wind
+     (lambda ()
+       (reestablish-console))
+     thunk
+     (lambda ()
+       (current-input-port conin)
+       (current-output-port conout)))))
 
 (define (debug)
   (format #t "Entering debugger; ? for help.~%")
