@@ -4,7 +4,7 @@
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
 ;
-; $Id: millicode-support.sch,v 1.3 92/02/23 16:56:09 lth Exp Locker: lth $
+; $Id: millicode-support.sch,v 1.4 1992/03/31 12:31:10 lth Exp lth $
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
@@ -91,7 +91,7 @@
 (define (install-millicode-support)
   (let ((v (vector scheme2scheme-helper
 		   undefined-global-exception
-		   #f
+		   exception-handler
 		   #f
 		   #f
 		   #f

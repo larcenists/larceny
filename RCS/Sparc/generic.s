@@ -1,9 +1,8 @@
 ! -*- Fundamental -*-
 !
-! Scheme 313 Runtime System
-! Millicode for Generic Arithmetic, SPARC.
+! Larceny -- Millicode for Generic Arithmetic on SPARC.
 !
-! $Id: generic.s,v 1.7 92/02/17 18:27:24 lth Exp Locker: lth $
+! $Id: generic.s,v 1.8 92/03/31 12:31:30 lth Exp Locker: lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -29,7 +28,9 @@
 !
 ! BUGS
 ! - Some of this code depends on TMP0 being a global register (which 
-!   is currently the case).
+!   is currently the case). Fixed in most places by referring to SAVED_TMP0;
+!   the entire file should be checked and the rest fixed.
+!
 ! - Division code (and quotient, remainder, modulus) do not check for 
 !   a zero divisor.
 
@@ -38,41 +39,44 @@
 #include "millicode.s.h"
 #include "offsets.s.h"
 #include "layouts.s.h"
+#include "exceptions.s.h"
 
-	.global	_generic_add			! (+ a b)
-	.global	_generic_sub			! (- a b)
-	.global	_generic_mul			! (* a b)
-	.global	_generic_div			! (/ a b)
-	.global	_generic_quo			! (quotient a b)
-	.global	_generic_rem			! (remainder a b)
-	.global	_generic_mod			! (modulo a b)
-	.global	_generic_neg			! (- a)
-	.global	_generic_abs			! (abs x)
-	.global	_generic_zerop			! (zero? a)
-	.global	_generic_equalp			! (= a b)
-	.global	_generic_lessp			! (< a b)
-	.global	_generic_less_or_equalp		! (<= a b)
-	.global	_generic_greaterp		! (> a b)
-	.global	_generic_greater_or_equalp	! (>= a b)
-	.global	_generic_complexp		! (complex? a)
-	.global	_generic_realp			! (real? a)
-	.global	_generic_rationalp		! (rational? a)
-	.global	_generic_integerp		! (integer? a)
-	.global	_generic_exactp			! (exact? a)
-	.global	_generic_inexactp		! (inexact? a)
-	.global	_generic_exact2inexact		! (exact->inexact a)
-	.global	_generic_inexact2exact		! (inexact->exact a)
-	.global _generic_make_rectangular	! (make-rectangular a b)
-	.global	_generic_real_part		! (real-part z)
-	.global	_generic_imag_part		! (imag-part z)
-	.global	_generic_sqrt			! (sqrt z)
-	.global	_generic_round			! (round x)
-	.global	_generic_truncate		! (truncate x)
-	.global	_generic_negativep		! (negative? x)
-	.global	_generic_positivep		! (positive? x)
+	.global	_m_generic_add			! (+ a b)
+	.global	_m_generic_sub			! (- a b)
+	.global	_m_generic_mul			! (* a b)
+	.global	_m_generic_div			! (/ a b)
+	.global	_m_generic_quo			! (quotient a b)
+	.global	_m_generic_rem			! (remainder a b)
+	.global	_m_generic_mod			! (modulo a b)
+	.global	_m_generic_neg			! (- a)
+	.global	_m_generic_abs			! (abs x)
+	.global	_m_generic_zerop		! (zero? a)
+	.global	_m_generic_equalp		! (= a b)
+	.global	_m_generic_lessp		! (< a b)
+	.global	_m_generic_less_or_equalp	! (<= a b)
+	.global	_m_generic_greaterp		! (> a b)
+	.global	_m_generic_greater_or_equalp	! (>= a b)
+	.global	_m_generic_complexp		! (complex? a)
+	.global	_m_generic_realp		! (real? a)
+	.global	_m_generic_rationalp		! (rational? a)
+	.global	_m_generic_integerp		! (integer? a)
+	.global	_m_generic_exactp		! (exact? a)
+	.global	_m_generic_inexactp		! (inexact? a)
+	.global	_m_generic_exact2inexact	! (exact->inexact a)
+	.global	_m_generic_inexact2exact	! (inexact->exact a)
+	.global _m_generic_make_rectangular	! (make-rectangular a b)
+	.global	_m_generic_real_part		! (real-part z)
+	.global	_m_generic_imag_part		! (imag-part z)
+	.global	_m_generic_sqrt			! (sqrt z)
+	.global	_m_generic_round		! (round x)
+	.global	_m_generic_truncate		! (truncate x)
+	.global	_m_generic_negativep		! (negative? x)
+	.global	_m_generic_positivep		! (positive? x)
 
+#ifdef DEBUG
 	.global	_mul_tag
 	.global	_grok
+#endif
 
 	.seg	"text"
 
@@ -80,7 +84,7 @@
 ! The fixnum case is done in line, so if the operands are fixnums, we had
 ! an overflow and must box the result in a bignum.
 
-_generic_add:
+_m_generic_add:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -111,8 +115,8 @@ Ladd_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Ladd_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_ADD, %TMP0
 Ladd_flo:
 	be,a	Ladd_flo2
 	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
@@ -173,8 +177,8 @@ Ladd_vec2:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Ladd_rect
 	cmp	%TMP1, RECTNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_ADD, %TMP0
 Ladd_rat:
 	be,a	Ladd_rat2
 	mov	2, %TMP1
@@ -202,7 +206,7 @@ Ladd_fix:
 ! had an underflow (negative result too large in magnitude) and must box
 ! the result in a bignum.
 
-_generic_sub:
+_m_generic_sub:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -233,8 +237,8 @@ Lsub_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lsub_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_SUB, %TMP0
 Lsub_flo:
 	be,a	Lsub_flo2
 	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
@@ -295,8 +299,8 @@ Lsub_vec2:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Lsub_rect
 	cmp	%TMP1, RECTNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_SUB, %TMP0
 Lsub_rat:
 	be,a	Lsub_rat2
 	mov	2, %TMP1
@@ -324,7 +328,7 @@ Lsub_fix:
 ! hardware multiply on the target implementation); either way we must redo the
 ! operation here and check for the fixnum->bignum case.
 
-_generic_mul:
+_m_generic_mul:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -425,8 +429,8 @@ Lmul_vec2:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Lmul_rect
 	cmp	%TMP1, RECTNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_MUL, %TMP0
 Lmul_rat:
 	be,a	Lmul_rat2
 	mov	2, %TMP1
@@ -444,7 +448,9 @@ Lmul_rect2:
 	b	_scheme_call
 	mov	MS_RECTNUM_MUL, %TMP2
 Lmul_fix:
+#ifdef DEBUG
 _mul_tag:
+#endif
 	! Have to shift both operands to avoid disasters with signs.
 	save	%sp, -96, %sp
 	sra	%SAVED_RESULT, 2, %o0
@@ -511,7 +517,7 @@ Lmul_fix2:
 ! of hardware divide on the target architecture); either way we have to redo
 ! the operation here and check for the fixnum->bignum case.
 
-_generic_div:
+_m_generic_div:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -646,8 +652,8 @@ Ldiv_vec2:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Ldiv_rect
 	cmp	%TMP1, RECTNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_DIV, %TMP0
 Ldiv_rat:
 	be,a	Ldiv_rat2
 	mov	2, %TMP1
@@ -694,7 +700,7 @@ Ldiv_fix2:
 ! sanity, only fixnums are dealt with in millicode; all other arguments are 
 ! passed to the "generic-quotient" procedure (in Scheme).
 
-_generic_quo:
+_m_generic_quo:
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
 	bne	Lquotient1
@@ -716,7 +722,7 @@ Lquotient1:
 !
 ! The .rem procedure produces the correct signs and values for "remainder".
 
-_generic_rem:
+_m_generic_rem:
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
 	bne	Lremainder1
@@ -739,7 +745,7 @@ Lremainder1:
 ! The .rem procedure does not produce the correct sign and value for "modulo"
 ! and hence we have to adjust the result.
 
-_generic_mod:
+_m_generic_mod:
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
 	bne	Lmodulo1
@@ -767,7 +773,7 @@ Lmodulo1:
 ! Negation
 ! The fixnum case is always handled in line.
 
-_generic_neg:
+_m_generic_neg:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lneg_bvec
@@ -775,8 +781,8 @@ _generic_neg:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lneg_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_NEG, %TMP0
 Lneg_bvec:
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Lneg_flo
@@ -787,8 +793,8 @@ Lneg_bvec:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lneg_big
 	mov	1, %TMP1
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_NEG, %TMP0
 Lneg_flo:
 	b	_box_flonum
 	fnegd	%f2, %f2
@@ -807,8 +813,8 @@ Lneg_vec:
 	cmp	%TMP0, RECTNUM_HDR
 	be	Lneg_rect
 	mov	1, %TMP1
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_NEG, %TMP0
 Lneg_rat:
 	b	_scheme_call
 	mov	MS_RATNUM_NEGATE, %TMP2
@@ -819,7 +825,7 @@ Lneg_rect:
 ! Absolute value.
 ! The fixnum case is always handled in line.
 
-_generic_abs:
+_m_generic_abs:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Labs_bvec
@@ -827,8 +833,8 @@ _generic_abs:
 	cmp	%TMP0, VEC_TAG
 	be,a	Labs_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_ABS, %TMP0
 Labs_bvec:
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Labs_flo
@@ -839,14 +845,14 @@ Labs_bvec:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Labs_big
 	mov	1, %TMP1
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_ABS, %TMP0
 Labs_flo:
 	b	_box_flonum
 	fabsd	%f2, %f2
 Labs_comp:
-	b	_domain_error1
-	nop
+	b	Lnumeric_error
+	mov	EX_ABS, %TMP0
 Labs_big:
 	b	_scheme_call
 	mov	MS_BIGNUM_ABS, %TMP2	
@@ -857,21 +863,24 @@ Labs_vec:
 	cmp	%TMP0, RECTNUM_HDR
 	be	Labs_rect
 	mov	1, %TMP1
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_ABS, %TMP0
 Labs_rat:
 	b	_scheme_call
 	mov	MS_RATNUM_ABS, %TMP2
 Labs_rect:
-	b	_domain_error1
-	nop
+	b	Lnumeric_error
+	mov	EX_ABS, %TMP0
 
 ! Test for zero.
-! The fixnum case is always handled in line. Furthermore, there are no 
-! bignums, rectnums, or ratnums which are zero, but we must check for
-! these types anyway, so that we can signal non-numeric exceptions.
+! The fixnum case is always handled in line.
+! In principle, there are no  bignums, rectnums, or ratnums which are zero.
+! However, parts of the libraries temporarily invalidate this assumption,
+! and it's convenient to support that here. Hence some extra complexity.
+! However, we do not go all the way; a 0 rectnum has to have 0 fixnums in
+! both slots.
 
-_generic_zerop:
+_m_generic_zerop:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lzero_bvec
@@ -879,8 +888,8 @@ _generic_zerop:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lzero_vec
 	ldub	[ %RESULT + 3 - VEC_TAG ], %TMP0
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_ZEROP, %TMP0
 Lzero_bvec:
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Lzero_flo
@@ -889,10 +898,10 @@ Lzero_bvec:
 	be,a	Lzero_comp
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	cmp	%TMP0, BIGNUM_HDR
-	be,a	Lzero_num
-	mov	FALSE_CONST, %RESULT
-	b	_non_numeric1
-	nop
+	be,a	Lzero_big
+	ld	[ %RESULT - BVEC_TAG + 4 ], %TMP0
+	b	Lnumeric_error
+	mov	EX_ZEROP, %TMP0
 Lzero_flo:
 	fcmpd	%f0, %f2
 	mov	FALSE_CONST, %RESULT
@@ -912,15 +921,32 @@ Lzero_comp:
 	mov	TRUE_CONST, %RESULT
 	jmp	%o7+8
 	nop
+Lzero_big:
+	set	0xFFFF, %TMP1
+	andcc	%TMP0, %TMP1, %g0	! get digitcount
+	mov	TRUE_CONST, %RESULT
+	bne,a	.+8
+	mov	FALSE_CONST, %RESULT
+	jmp	%o7+8
+	nop
 Lzero_vec:
 	cmp	%TMP0, RATNUM_HDR
-	be,a	Lzero_num
-	mov	FALSE_CONST, %RESULT
+	be,a	_m_generic_zerop
+	ld	[ %RESULT - VEC_TAG + 4 ], %RESULT
 	cmp	%TMP0, RECTNUM_HDR
-	be,a	Lzero_num
+	be,a	Lzero_rect
+	ld	[ %RESULT - VEC_TAG + 4 ], %RESULT
+	b	Lnumeric_error
+	mov	EX_ZEROP, %TMP0
+Lzero_rect:
+	cmp	%TMP0, 0
+	bne,a	Lzero_num
 	mov	FALSE_CONST, %RESULT
-	b	_non_numeric1
-	nop
+	ld	[ %RESULT - VEC_TAG + 8 ], %TMP0
+	cmp	%TMP0, 0
+	bne,a	Lzero_num
+	mov	FALSE_CONST, %RESULT
+	mov	TRUE_CONST, %RESULT	
 Lzero_num:
 	jmp	%o7+8
 	nop
@@ -928,7 +954,7 @@ Lzero_num:
 ! Equality.
 ! The fixnum case is handled in line.
 
-_generic_equalp:
+_m_generic_equalp:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -955,8 +981,8 @@ Lequal_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lequal_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_EQUALP, %TMP0
 Lequal_flo:
 	be,a	Lequal_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
@@ -1028,8 +1054,8 @@ Lequal_vec2:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Lequal_rect
 	cmp	%TMP1, RECTNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_EQUALP, %TMP0
 Lequal_rat:
 	be,a	Lequal_rat2
 	mov	2, %TMP1
@@ -1052,7 +1078,7 @@ Lequal_rect2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_generic_lessp:
+_m_generic_lessp:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1079,8 +1105,8 @@ Lless_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lless_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_LESSP, %TMP0
 Lless_flo:
 	be,a	Lless_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
@@ -1114,8 +1140,8 @@ Lless_comp:
 	fcmpd	%f0, %f2
 	be,a	Lless_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_domain_error2
-	nop
+	b	Lnumeric_error
+	mov	EX_LESSP, %TMP0
 Lless_comp2:
 	! op1 and op2 were both compnums; if they both have 0i, then
 	! we're fine.
@@ -1123,12 +1149,12 @@ Lless_comp2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
 	fcmpd	%f0, %f2
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_LESSP, %TMP0
 	fcmpd	%f0, %f4
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_LESSP, %TMP0
 	b	Lless_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Lless_big:
@@ -1149,11 +1175,8 @@ Lless_vec2:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Lless_rat
 	cmp	%TMP1, RATNUM_HDR
-	cmp	%TMP0, RECTNUM_HDR
-	be,a	_domain_error2
-	nop
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_LESSP, %TMP0
 Lless_rat:
 	be,a	Lless_rat2
 	mov	2, %TMP1
@@ -1168,7 +1191,7 @@ Lless_rat2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_generic_less_or_equalp:
+_m_generic_less_or_equalp:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1195,8 +1218,8 @@ Llesseq_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Llesseq_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_LESSEQP, %TMP0
 Llesseq_flo:
 	be,a	Llesseq_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
@@ -1230,8 +1253,8 @@ Llesseq_comp:
 	fcmpd	%f0, %f2
 	be,a	Llesseq_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_domain_error2
-	nop
+	b	Lnumeric_error
+	mov	EX_LESSEQP, %TMP0
 Llesseq_comp2:
 	! op1 and op2 were both compnums; if they both have 0i, then
 	! we're fine.
@@ -1239,12 +1262,12 @@ Llesseq_comp2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
 	fcmpd	%f0, %f2
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_LESSEQP, %TMP0
 	fcmpd	%f0, %f4
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_LESSEQP, %TMP0
 	b	Llesseq_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Llesseq_big:
@@ -1265,11 +1288,8 @@ Llesseq_vec2:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Llesseq_rat
 	cmp	%TMP1, RATNUM_HDR
-	cmp	%TMP0, RECTNUM_HDR
-	be,a	_domain_error2
-	nop
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_LESSEQP, %TMP0
 Llesseq_rat:
 	be,a	Lless_rat2
 	mov	2, %TMP1
@@ -1284,7 +1304,7 @@ Llesseq_rat2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_generic_greaterp:
+_m_generic_greaterp:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1311,8 +1331,8 @@ Lgreater_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lgreater_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_GREATERP, %TMP0
 Lgreater_flo:
 	be,a	Lgreater_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
@@ -1346,8 +1366,8 @@ Lgreater_comp:
 	fcmpd	%f0, %f2
 	be,a	Lgreater_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_domain_error2
-	nop
+	b	Lnumeric_error
+	mov	EX_GREATERP, %TMP0
 Lgreater_comp2:
 	! op1 and op2 were both compnums; if they both have 0i, then
 	! we're fine.
@@ -1355,12 +1375,12 @@ Lgreater_comp2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
 	fcmpd	%f0, %f2
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_GREATERP, %TMP0
 	fcmpd	%f0, %f4
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_GREATERP, %TMP0
 	b	Lgreater_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Lgreater_big:
@@ -1381,11 +1401,8 @@ Lgreater_vec2:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Lgreater_rat
 	cmp	%TMP1, RATNUM_HDR
-	cmp	%TMP0, RECTNUM_HDR
-	be,a	_domain_error2
-	nop
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_GREATERP, %TMP0
 Lgreater_rat:
 	be,a	Lgreater_rat2
 	mov	2, %TMP1
@@ -1400,7 +1417,7 @@ Lgreater_rat2:
 ! Compnums and rectnums are not in the domain of this function, but compnums
 ! with a 0 imaginary part are and have to be handled specially.
 
-_generic_greater_or_equalp:
+_m_generic_greater_or_equalp:
 	and	%RESULT, TAGMASK, %TMP0
 	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
@@ -1427,8 +1444,8 @@ Lgreatereq_bvec2:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lgreatereq_big
 	cmp	%TMP1, BIGNUM_HDR
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_GREATEREQP, %TMP0
 Lgreatereq_flo:
 	be,a	Lgreatereq_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
@@ -1462,8 +1479,8 @@ Lgreatereq_comp:
 	fcmpd	%f0, %f2
 	be,a	Lgreatereq_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_domain_error2
-	nop
+	b	Lnumeric_error
+	mov	EX_GREATEREQP, %TMP0
 Lgreatereq_comp2:
 	! op1 and op2 were both compnums; if they both have 0i, then
 	! we're fine.
@@ -1471,12 +1488,12 @@ Lgreatereq_comp2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
 	fcmpd	%f0, %f2
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_GREATEREQP, %TMP0
 	fcmpd	%f0, %f4
 	nop
-	fbne	_domain_error2
-	nop
+	fbne,a	Lnumeric_error
+	mov	EX_GREATEREQP, %TMP0
 	b	Lgreatereq_flo2
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Lgreatereq_big:
@@ -1497,11 +1514,8 @@ Lgreatereq_vec2:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Lgreatereq_rat
 	cmp	%TMP1, RATNUM_HDR
-	cmp	%TMP0, RECTNUM_HDR
-	be,a	_domain_error2
-	nop
-	b	_non_numeric2
-	nop
+	b	Lnumeric_error
+	mov	EX_GREATEREQP, %TMP0
 Lgreatereq_rat:
 	be,a	Lgreatereq_rat2
 	mov	2, %TMP1
@@ -1520,7 +1534,7 @@ Lgreatereq_rat2:
 ! (define (complex? x)
 !   (or (compnum? x) (rectnum? x) (real? x)))
 
-_generic_complexp:
+_m_generic_complexp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lcomplexp_bvec
@@ -1552,8 +1566,8 @@ Lcomplexp_vec:
 !       (ratnum? x)
 !       (integer? x)))
 
-_generic_realp:
-_generic_rationalp:
+_m_generic_realp:
+_m_generic_rationalp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lrealp_bvec
@@ -1561,7 +1575,7 @@ _generic_rationalp:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lrationalp_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	_generic_integerp	
+	b	_m_generic_integerp	
 	nop
 Lrealp_bvec:
 	cmp	%TMP0, FLONUM_HDR
@@ -1594,7 +1608,7 @@ Lrationalp_vec:
 !                (= (imag-part x) 0.0)
 !                (representable-as-int? (real-part x))))))
 
-_generic_integerp:
+_m_generic_integerp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	be,a	Lintegerp_bvec
@@ -1704,10 +1718,10 @@ Lintegerp_exit:
 !         ((or (compnum? x) (flonum? x)) #f)
 !         (else (error ...))))
 
-_generic_exactp:
+_m_generic_exactp:
 	mov	TRUE_CONST, %ARGREG2
 	mov	FALSE_CONST, %ARGREG3
-_generic_exactness_test:
+_m_generic_exactness_test:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, VEC_TAG
 	bne	Lexactp1
@@ -1719,8 +1733,8 @@ _generic_exactness_test:
 	cmp	%TMP0, RECTNUM_HDR
 	be	Lexactp99
 	nop
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_EXACTP, %TMP0
 Lexactp1:
 	cmp	%TMP0, BVEC_TAG
 	bne	Lexactp2
@@ -1733,12 +1747,12 @@ Lexactp1:
 	cmp	%TMP0, COMPNUM_HDR
 	be	Lexactp98
 	nop
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_EXACTP, %TMP0
 Lexactp2:
 	andcc	%RESULT, 3, %g0
-	bne	_non_numeric1
-	nop
+	bne	Lnumeric_error
+	mov	EX_EXACTP, %TMP0
 Lexactp99:
 	jmp	%o7+8
 	mov	%ARGREG2, %RESULT
@@ -1751,9 +1765,9 @@ Lexactp98:
 !         ((or (fixnum? x) (flonum? x) (ratnum? x) (rectnum? x)) #f)
 !         (else (error ...))))
 
-_generic_inexactp:
+_m_generic_inexactp:
 	mov	FALSE_CONST, %ARGREG2
-	b	_generic_exactness_test
+	b	_m_generic_exactness_test
 	mov	TRUE_CONST, %ARGREG3
 
 
@@ -1768,7 +1782,7 @@ _generic_inexactp:
 !         ((fixnum? a)  (fixnum->flonum a))
 !         (else ???)))
 
-_generic_exact2inexact:
+_m_generic_exact2inexact:
 	andcc	%RESULT, 3, %g0
 	be,a	Lfixnum2flonum
 	sra	%RESULT, 2, %TMP0
@@ -1815,7 +1829,7 @@ Lfixnum2flonum:
 !         ((compnum? a) (compnum->rectnum a))
 !         (else ???)))
 
-_generic_inexact2exact:
+_m_generic_inexact2exact:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
 	bne	Li2e_vec		! vector-like
@@ -1841,8 +1855,8 @@ Li2e_vec:
 	cmp	%TMP0, RECTNUM_HDR
 	be	Li2e_identity
 	nop
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	EX_I2E, %TMP0
 Li2e_identity:
 	jmp	%o7+8
 	nop
@@ -1869,7 +1883,7 @@ Li2e_identity:
 !       (error ...)
 !       (box-compnum (exact->inexact a) (exact->inexact b))))
 
-_generic_make_rectangular:
+_m_generic_make_rectangular:
 	mov	2, %TMP1
 	b	_scheme_call
 	mov	MS_GENERIC_MAKE_RECTANGULAR, %TMP2
@@ -1883,66 +1897,69 @@ _generic_make_rectangular:
 !         ((number? z) z)
 !         (else (error ...))))
 
-_generic_real_part:
+_m_generic_real_part:
 	mov	8-BVEC_TAG, %TMP1
 	mov	0-VEC_TAG, %TMP2
-	set	Lcompop4, %ARGREG2
+	set	Lgeneric_realpart2, %ARGREG2
+	b	Lreal_imag0
+	mov	EX_REALPART, %ARGREG3
+Lgeneric_realpart2:
+	jmp	%o7+8
+	nop
 
-Lcompop0:
 	! Given fixnum indices into compnums and rectnums in TMP1 and 
 	! TMP2, and a pointer to a resolution routine for non-complex 
 	! numbers in ARGREG2, do real_part/imag_part in one piece of code.
-	! The exactness is kept track of in ARGREG3: 0=exact, 4=inexact.
-
+	! ARGREG3 has the exception code (fixnum) in the low 31 bits, and
+	! an exactness bit in the high bit: 0=exact, 1=inexact (initially 0).
+Lreal_imag0:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%RESULT, BVEC_TAG
-	be	Lcompop1
+	be	Lreal_imag_bvec
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
 	cmp	%RESULT, VEC_TAG
-	be	Lcompop2
+	be	Lreal_imag_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	Lcompop3
+	b	Lreal_imag_others
 	nop
 
-Lcompop1:
-	! It is a bytevector
+	! It is a bytevector. The header tag byte is in %TMP0.
+Lreal_imag_bvec:
 	cmp	%TMP0, COMPNUM_HDR
 	be,a	_box_flonum
 	ldd	[ %RESULT + %TMP1 ], %f2
 	cmp	%TMP0, BIGNUM_HDR
-	be	Lgoto
-	mov	0, %ARGREG3
-	cmp	%TMP0, FLONUM_HDR
-	be	Lgoto
-	mov	4, %ARGREG3
-	b	_non_numeric1
+	be,a	Lreal_imag_resolve
 	nop
+	cmp	%TMP0, FLONUM_HDR
+	sethi   %hi(0x80000000), %TMP0
+	be,a	Lreal_imag_resolve
+	or	%ARGREG3, %TMP0, %ARGREG3
+	b	Lnumeric_error
+	mov	%ARGREG3, %TMP0
 
-Lcompop2:
-	! It is a vector
+	! It is a vector. The header tag byte is in %TMP0.
+Lreal_imag_vec:
 	cmp	%TMP0, RECTNUM_HDR
-	be,a	Lcompop4
+	be,a	Lreal_imag_return
 	ld	[ %RESULT + %TMP2 ], %RESULT
 	cmp	%TMP0, RATNUM_HDR
-	be	Lgoto
-	mov	0, %ARGREG3
-	b	_non_numeric1
+	be,a	Lreal_imag_resolve
 	nop
-
-Lcompop3:
+	b	Lnumeric_error
+	mov	%ARGREG3, %TMP0
 	! It is neither bytevector nor vector.
+Lreal_imag_others:
 	andcc	%RESULT, 3, %g0
-	be	Lgoto
-	mov	0, %ARGREG3
-	b	_non_numeric1
+	be,a	Lreal_imag_resolve
 	nop
-
-Lcompop4:
-	jmp	%o7+8
-	nop
-
-Lgoto:
+	b	Lnumeric_error
+	mov	%ARGREG3, %TMP0
+Lreal_imag_resolve:
 	jmp	%ARGREG2
+	nop
+Lreal_imag_return:
+	jmp	%o7+8
 	nop
 
 ! (define (imag-part z)
@@ -1951,18 +1968,20 @@ Lgoto:
 !         ((number? z) (if (exact? z) #e0 #i0))
 !         (else (error ...))))
 
-_generic_imag_part:
+_m_generic_imag_part:
 	set	Limag_part2, %ARGREG2
+	mov	EX_IMAGPART, %ARGREG3
 	mov	16-BVEC_TAG, %TMP1
-	b	Lcompop0
+	b	Lreal_imag0
 	mov	4-VEC_TAG, %TMP2
 
 Limag_part2:
 	! Getting the imag part from a non-complex: return 0, with the
-	! correct exactness. Recall that the exactness spec is in ARGREG3.
+	! correct exactness. Recall that the exactness spec is in the
+	! high bit of ARGREG3; if negative, then inexact.
 
 	tst	%ARGREG3
-	bne,a	_box_flonum
+	blt,a	_box_flonum
 	fmovd	%f0, %f2
 	jmp	%o7+8
 	mov	%g0, %RESULT
@@ -1971,21 +1990,23 @@ Limag_part2:
 ! will return a new number in the case of a flonum (or compnum with 0i);
 ! and will give a domain error for compnums with non-0i and rectnums.
 
-_generic_round:
+_m_generic_round:
 	set	Lround, %TMP1
 	b	Lgeneric_trund
-	nop
+	mov	EX_ROUND, %TMP2
 
-_generic_truncate:
+_m_generic_truncate:
 	set	Ltrunc, %TMP1
 	b	Lgeneric_trund
-	nop
+	mov	EX_TRUNC, %TMP2
 
 Lround:
 	! Flonum is pointed to by %RESULT. Round it, box it, and return.
 	! The simple way to round is to add .5 and then truncate.
 	! The sign of the .5 must be the same as the sign of the number
 	! being rounded!
+	! We need to round to even here (which introduces a bit of hair);
+	! FIXME.
 
 	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	set	Ldhalf, %TMP0 
@@ -2049,7 +2070,7 @@ Ltrunc_moveback:
 	restore
 
 ! Generic code for rounding and truncation. Address of final procedure 
-! is in %TMP1.
+! is in %TMP1, exception code for specific operation is in %TMP2.
 
 Lgeneric_trund:
 	and	%RESULT, TAGMASK, %TMP0
@@ -2062,8 +2083,8 @@ Lgeneric_trund:
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltrund_vec
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	%TMP2, %TMP0
 Ltrund_bvec:
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Ltrund_flo
@@ -2074,35 +2095,33 @@ Ltrund_bvec:
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Ltrund_def
 	nop
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	%TMP2, %TMP0
 Ltrund_flo:
 	jmp	%TMP1
 	nop
 Ltrund_comp:
 	fcmpd	%f0, %f2
 	nop
-	fbne,a	_domain_error1
-	nop
+	fbne,a	Lnumeric_error
+	mov	%TMP2, %TMP0
 	jmp	%TMP1
 	nop
 Ltrund_vec:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Ltrund_def
 	nop
-	cmp	%TMP0, RECTNUM_HDR
-	be,a	_domain_error1
-	nop
-	b	_non_numeric1
-	nop
+	b	Lnumeric_error
+	mov	%TMP2, %TMP0
 Ltrund_def:
 	jmp	%o7+8
 	nop
+
 ! Not yet done in millicode.
 
-_generic_negativep:
-_generic_positivep:
-_generic_sqrt:
+_m_generic_negativep:
+_m_generic_positivep:
+_m_generic_sqrt:
 	jmp	%MILLICODE + M_NOT_SUPPORTED
 	nop
 
@@ -2126,60 +2145,27 @@ Lcontagion:
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
 #ifdef DEBUG
 	cmp	%TMP1, UNSPECIFIED_CONST
-	be	Lnocontagion
+	bne	Lcontagion2
 	nop
+	set	Lnoc, %o0
+	call	_printf
+	nop
+	call	_exit
+	mov	1, %o0
 #endif
+Lcontagion2:
 	add	%TMP1, 4 - VEC_TAG, %TMP1	! bump ptr
 	ld	[ %TMP1 + %TMP2 ], %ARGREG3	! scheme proc to retry
 	mov	%TMP0, %TMP2			! contagion proc
 	b	_scheme_call
 	mov	3, %TMP1			! argument count
-Lnocontagion:
-	set	Lerrmsg4, %TMP0
-	b	Lerror
+
+! All errors cause a branch to this point; we jump to the error hander.
+
+Lnumeric_error:
+	set	_m_generic_exception, %TMP1
+	jmp	%TMP1
 	nop
-
-! Various exception conditions.
-
-_non_numeric1:
-_non_numeric2:
-	set	Lerrmsg1, %TMP0
-	b	Lerror
-	nop
-
-_domain_error1:
-_domain_error2:
-	set	Lerrmsg2, %TMP0
-	b	Lerror
-	nop
-
-! Generic error handler for now.
-! The procedure localdebugger() must not call Scheme!
-
-Lerror:
-	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	st	%TMP0, [ %GLOBALS + GEN_TMP1_OFFSET ]
-
-	call	_save_scheme_context
-	nop
-
-	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %TMP0
-	st	%g0, [ %GLOBALS + GEN_TMP1_OFFSET ]
-
-	save	%sp, -96, %sp
-	call	_printf
-	mov	%SAVED_TMP0, %o0
-	call	_localdebugger
-	nop
-	restore
-
-	call	_restore_scheme_context
-	nop
-
-	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
-	jmp	%o7 + 8
-	nop
-
 
 !-----------------------------------------------------------------------------
 ! Box various numbers.
@@ -2189,7 +2175,7 @@ Lerror:
 
 _box_flonum:
 	mov	%o7, %TMP0
-	call	_internal_alloc
+	call	_mem_internal_alloc
 	mov	16, %RESULT
 
 	std	%f2, [ %RESULT + 8 ]
@@ -2205,7 +2191,7 @@ _box_flonum:
 
 _box_compnum:
 	mov	%o7, %TMP0
-	call	_internal_alloc
+	call	_mem_internal_alloc
 	mov	24, %RESULT
 	mov	%TMP0, %o7
 
@@ -2232,7 +2218,7 @@ _box_single_positive_bignum:
 	st	%TMP0, [ %GLOBALS + GEN_NRTMP1_OFFSET ]
 	st	%TMP2, [ %GLOBALS + GEN_NRTMP2_OFFSET ]
 	mov	%o7, %TMP0
-	call	_internal_alloc
+	call	_mem_internal_alloc
 	mov	12, %RESULT
 	mov	%TMP0, %o7
 	ld	[ %GLOBALS + GEN_NRTMP1_OFFSET ], %TMP0
@@ -2251,13 +2237,14 @@ _box_single_positive_bignum:
 ! bit set, then we have to complement the whole thing and make the sign
 ! negative before boxing.
 ! %o7 has the Scheme return address.
+! Sign bit is the low bit of %TMP2.
 
 _box_double_positive_bignum:
 	st	%TMP0, [ %GLOBALS + GEN_NRTMP1_OFFSET ]
 	st	%TMP1, [ %GLOBALS + GEN_NRTMP2_OFFSET ]
 	st	%TMP2, [ %GLOBALS + GEN_NRTMP3_OFFSET ]
 	mov	%o7, %TMP0
-	call	_internal_alloc
+	call	_mem_internal_alloc
 	mov	16, %RESULT
 	mov	%TMP0, %o7
 	ld	[ %GLOBALS + GEN_NRTMP1_OFFSET ], %TMP0
@@ -2273,14 +2260,17 @@ _box_double_positive_bignum:
 	jmp	%o7+8
 	or	%RESULT, BVEC_TAG, %RESULT
 
-! Debug stuff
+#ifdef DEBUG
+
+! Debug stuff. C code can call _grok with two arguments to perform a fixnum
+! multiplication. Magic...
 
 _grok:
 	save	%sp, -96, %sp
 	set	_globals, %g1
 	st	%i0, [ %g1 + GEN_TMP1_OFFSET ]
 	st	%i1, [ %g1 + GEN_TMP2_OFFSET ]
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %RESULT
 	ld	[ %GLOBALS + GEN_TMP2_OFFSET ], %ARGREG2
@@ -2289,17 +2279,12 @@ _grok:
 	ret
 	restore
 
+#endif
+
 ! Interesting data for the generic arithmetic system.
 
 	.seg	"data"
-Lerrmsg1:
-	.asciz	"Non-numeric operand(s) to arithmetic operation.\n"
-Lerrmsg2:
-	.asciz	"Domain error in operand(s) to arithmetic operation.\n"
-Lerrmsg3:
-	.asciz	"Can't box a double bignum (yet).\n"
-Lerrmsg4:
-	.asciz	"Contagion is not available at this point!.\n"
+Lnoc:	.asciz 	"No contagion procedure defined."
 
 	.align 8
 Ldhalf:

@@ -5,7 +5,7 @@
  * Definitions and types for the garbage collection system;
  * procedures exported by the collector.
  *
- * $Id: gcinterface.h,v 1.3 91/06/26 16:50:36 lth Exp Locker: lth $
+ * $Id: gcinterface.h,v 1.4 1991/07/24 11:50:54 lth Exp lth $
  */
 
 #ifndef GCINTERFACE
@@ -25,7 +25,10 @@
 #define STACK_TRAP		4
 
 /* Fundamental data type */
+#ifndef _D_WORD
+#define _D_WORD
 typedef unsigned long word;
+#endif
 
 /* Initializes collector */
 extern init_collector(/* s_size, t_size, e_size, e_lim, stack_size */);

@@ -1,23 +1,22 @@
 /*
- * Scheme 313 Runtime System.
+ * Larceny Runtime System.
  * Garbage collector.
  *
- * $Id: gc.c,v 3.5 92/02/10 03:41:39 lth Exp Locker: lth $
+ * $Id: gc.c,v 3.6 92/02/23 16:56:30 lth Exp Locker: lth $
  *
  * THE COLLECTOR
  *   There are two kinds of spaces: the tenured space and the ephemeral space.
  *   All objects are created in the ephemeral space. When the ephemeral area
  *   fills up (see below), live objects are copied into the tenured area.
+ *   There may also be other spaces, so the collector can't assume that 
+ *   anything not in one space is in the other.
  *
  *   There are three kinds of collections: ephemeral, tenuring, and full.
  *
  *   Ephemeral collection
  *   --------------------
  *   When the ephemeral area fills up with new objects, all reachable objects
- *   are copied into the new ephemeral space. If, after the copy, the new
- *   ephemeral space is fuller than what is specified by the watermark E_MARK,
- *   then the switch MUST_TENURE is set, and the next collection will be a
- *   tenuring collection.
+ *   are copied into the new ephemeral space.
  *
  *   Tenuring collection
  *   -------------------
@@ -31,8 +30,8 @@
  *   Full collection
  *   ---------------
  *   During a full collection both the tenured area and the ephemeral area are
- *   copied into the tenured newspace. [This requires a considerable amount of
- *   extra memory and should be changed.]
+ *   copied into the tenured newspace. [The tenured area should then be shifted
+ *   back into the old tenured area with a block move.]
  *
  *   The transaction list
  *   --------------------
@@ -41,6 +40,12 @@
  *   maintained at the high end of the tenured area, and is known as the
  *   transaction list. All entries in the transaction list *must* be tagged
  *   pointers into the tenured area. There may be duplicates.
+ *
+ *   Policy
+ *   ------
+ *   Except for the aforementioned switch from a tenuring to a full collection,
+ *   all policy decisions are external to the collector and a call to collect()
+ *   must supply appropriate parameters.
  *
  * IMPLEMENTATION
  *   We use "old" C; this has the virtue of letting us use 'lint' on the code
@@ -94,10 +99,15 @@
  * - It is possible that a certain flexibility with the entries in the
  *   transaction list is desirable, since it could simplify (speed up) the
  *   mutators.
+ * - If the transaction list was below the tenured area, and the tenured area
+ *   is at top of the memory, and malloc is not used but rather sbrk (and we
+ *   provide a non-intrusive malloc for those who need it), then the tenured
+ *   area may grow as much as we wish without triggering a full collection,
+ *   and full collections can be completely user-determined.
  */
 
+#include "larceny.h"
 #include "gcinterface.h"
-#include "main.h"
 #include "gc.h"
 #include "layouts.h"
 #include "macros.h"
@@ -262,25 +272,26 @@ gc_trap( type )
 unsigned int type;
 {
   if (type == EPHEMERAL_TRAP)
-    panic( "GC: Memory overflow in ephemeral area." );
+    C_panic( "GC: Memory overflow in ephemeral area." );
   else if (type == TENURED_TRAP)
-    panic( "GC: Memory overflow in tenured area." );
+    C_panic( "GC: Memory overflow in tenured area." );
   else
-    panic( "GC: Invalid trap." );
+    C_panic( "GC: Invalid trap." );
 }
 
 
 /*
  * We invoke different collections based on the effect of the last collection
  * and depending on the parameter given.
- * The internal state overrides the parameter.
+ *
+ * There is not much policy here.
+ *
+ * Returns the collection type performed.
  */
 int collect( type )
 int type;
 {
-  word must_tenure;
-  word words_copied, collection_type;
-  word words_collected, words_allocated;
+  int collection_type;
 
   e_base = (word *) globals[ E_BASE_OFFSET ];
   e_top = (word *) globals[ E_TOP_OFFSET ];
@@ -295,48 +306,22 @@ int type;
   t_new_base = (word *) globals[ T_NEW_BASE_OFFSET ];
   t_new_max = (word *) globals[ T_NEW_MAX_OFFSET ];
 
-  words_collected = words_allocated = 0;
-
-  must_tenure = globals[ MUST_TENURE_OFFSET ] || type == TENURING_COLLECTION;
-
   if (type == FULL_COLLECTION || 
-      must_tenure && free_t_space() < esize()) {
-#ifdef DEBUG
-    printf( "Full collection.\n" );
-#endif
+      type == TENURING_COLLECTION && free_t_space() < esize()) {
     full_collection();
-    globals[ F_COLLECTIONS_OFFSET ]++;
-    must_tenure = 0;
-    words_copied = t_top - t_base;
     collection_type = FULL_COLLECTION;
   }
-  else if (must_tenure) {
-    word *old_t_top = t_top;
-
-#ifdef DEBUG
-    printf( "Tenuring collection.\n" );
-#endif
+  else if (type == TENURING_COLLECTION) {
     tenuring_collection();
-    globals[ T_COLLECTIONS_OFFSET ]++;
-    must_tenure = 0;
-    words_copied = t_top - old_t_top;
     collection_type = TENURING_COLLECTION;
   }
   else if (type == EPHEMERAL_COLLECTION) {
-#ifdef DEBUG
-    printf( "Ephemeral collection.\n" );
-#endif
     ephemeral_collection();
-    globals[ E_COLLECTIONS_OFFSET ]++;
-    must_tenure = e_top > e_base + globals[ E_MARK_OFFSET ];
-    words_copied = e_top - e_base;
     collection_type = EPHEMERAL_COLLECTION;
   }
   else {
-    panic( "collect(): Invalid collection type." );
+    C_panic( "collect(): Invalid collection type." );
   }
-
-  globals[ MUST_TENURE_OFFSET ] = must_tenure;
 
   globals[ E_BASE_OFFSET ] = (word) e_base;
   globals[ E_TOP_OFFSET ] = (word) e_top;
@@ -350,12 +335,6 @@ int type;
   globals[ T_TRANS_OFFSET ] = (word) t_trans;
   globals[ T_NEW_BASE_OFFSET ] = (word) t_new_base;
   globals[ T_NEW_MAX_OFFSET ] = (word) t_new_max;
-
-  globals[ WCOPIED_OFFSET ]    += words_copied;
-
-  /* Fixme -- these need to be maintained somehow. */
-  globals[ WCOLLECTED_OFFSET ] += words_collected;
-  globals[ WALLOCATED_OFFSET ] += words_allocated;
 
   return collection_type;
 }
@@ -448,7 +427,7 @@ word *top;
     }
     else {
       /* it's possible that we should just ignore this */
-      panic( "Failed invariant in fast_collection().\n" );
+      C_panic( "Failed invariant in fast_collection().\n" );
     }
   }
   t_trans = tail;

@@ -1,35 +1,35 @@
 /* The local debugger. A marvel of technological standstill. */
 
-/* $Id: localdebugger.c,v 1.2 92/02/10 03:41:46 lth Exp Locker: lth $ */
+/* $Id: localdebugger.c,v 1.3 1992/03/31 12:31:42 lth Exp lth $ */
 
 #include <stdio.h>
+#include "larceny.h"
 #include "machine.h"
 #include "gcinterface.h"
 #include "offsets.h"
-#include "main.h"
 #include "millicode.h"
 #include "layouts.h"
 #include "macros.h"
 #include "exceptions.h"
 
-localdebugger()
+void C_localdebugger()
 {
+  printf( "[runtime system debugger; type '?' for help]\n" );
   while (1) {
     char cmd[ 80 ], cmdl[ 80 ];
     word val;
     int regno;
-    extern int break_counter;
 
     printf( "> " ); fflush( stdout );
     if (fgets( cmd, 80, stdin ) == NULL) {
-      printf( "\n<EOF>\n" );
+      printf( "\n" );
       exit( 1 );
     }
     else if (sscanf( cmd, "%s", cmdl ) == 1) {
       switch (*cmdl) {
         case '=' : setreg( cmd ); break;
         case 'B' : backtrace(); break;
-        case 'b' : printf( "break count: %d\n", break_counter ); break;
+/*         case 'b' : printf( "break count: %d\n", break_counter ); break; */
         case 'd' : dumpregs(); break;
         case 'r' : return;
 	case 'p' : dumpproc(); break;
@@ -125,7 +125,7 @@ char *cmd;
 static help()
 {
   printf( "d - dump regs\n" );
-  printf( "b - break count\n" );
+/*   printf( "b - break count\n" ); */
   printf( "B - stack backtrace\n" );
   printf( "r - return to running program\n" );
   printf( "p - dump the current procedure (if possible)\n" );
@@ -250,3 +250,5 @@ static dumpcodevec()
   fprintf( fp, ") . #())" );
   fclose( fp );
 }
+
+/* eof */

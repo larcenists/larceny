@@ -1,42 +1,52 @@
 /*
- * Scheme 313 Run-Time System.
+ * Larceny Runtime System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.12 92/02/17 18:27:38 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.13 92/02/23 16:56:38 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
  * They are likely a bit dependent upon calling conventions etc, although
  * I've tried to keep most such nasties confined to the file "layouts.h".
- *
- * THIS FILE SUFFERS FROM BIT ROT!
  */
 
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdio.h>
+#include "larceny.h"
 #include "machine.h"
 #include "gcinterface.h"
 #include "layouts.h"
 #include "offsets.h"
 #include "macros.h"
-#include "main.h"
+/* #include "main.h" */
 #include "millicode.h"
+#include "memstats.h"
+
+#define GLOBALCELLREF( cp )  (*(word *) ((word)(cp) & ~TAG_MASK))
+#define VECTORREF( vp, i )   (*((word *)((word)(vp) & ~TAG_MASK)+(i)+1))
+#define VECTORSET( vp, i, v) (*((word *)((word)(vp) & ~TAG_MASK)+(i)+1)=(v))
+
+#define LARGEST_FIXNUM (2147483644L)  /* ((2^29)-1)*4 */
 
 /* Calculate free bytes in ephemeral space. Can be negative! */
-#define free_e_space() ((long)globals[E_LIMIT_OFFSET] - (long)globals[E_TOP_OFFSET])
+#define free_e_space() \
+            ((long)globals[E_LIMIT_OFFSET] - (long)globals[E_TOP_OFFSET])
 
-static local_collect(),
-       setup_memory_limits(),
-       setup_stack();
+/* Ditto used bytes, although never negative. */
+#define used_e_space() \
+            ((long)globals[ E_TOP_OFFSET ] - (long) globals[ E_BASE_OFFSET ])
 
-unsigned restored_since_collection;
+static int local_collect(),
+           setup_memory_limits(),
+           setup_stack();
+static unsigned long resourcenow();
 
 /*
  * Initialize memory management system. Allocate spaces, setup limits,
  * and initialize fake continuation in stack cache.
  */
-init_mem( e_size, t_size, s_size, stk_size, e_lim )
+C_init_mem( e_size, t_size, s_size, stk_size, e_lim )
 unsigned e_size, t_size, s_size, stk_size, e_lim;
 {
   if (init_collector( s_size, t_size, e_size, stk_size ) == 0)
@@ -47,6 +57,26 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
   globals[ E_MARK_OFFSET ] = roundup8( e_lim );
   setup_memory_limits();
   setup_stack();
+  return 1;
+}
+
+
+/*
+ * Allocate a chunk of memory. `n' is a number of bytes.
+ */
+word *C_alloc( n )
+int n;
+{
+  word p;
+
+  n = roundup8( n );
+
+  if (globals[ E_TOP_OFFSET ] + n > globals[ E_LIMIT_OFFSET ])
+    C_gcstart2( n );
+
+  p = globals[ E_TOP_OFFSET ];
+  globals[ E_TOP_OFFSET ] += n;
+  return (word *)p;
 }
 
 
@@ -66,13 +96,15 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
  * in the hope that it will figure out what to do. When gc_trap() returns,
  * we repeat the process. Otherwise, we return.
  */
-gcstart2( n )
+word C_gcstart2( n )
 word n;
 {
+  long before, after;
   long n_bytes = nativeint( n ) * 4;
 
-  flush_stack_cache();
+  before = resourcenow();
 
+  C_flush_stack_cache();
   if (n == fixnum( -1 ))
     local_collect( TENURING_COLLECTION );
   else if (n == fixnum( -2 ))
@@ -81,56 +113,119 @@ word n;
     local_collect( EPHEMERAL_COLLECTION );
 
     if (n_bytes > free_e_space()) {
+      /* 
+       * We only get here if the object to be allocated is bigger than the
+       * free space in the ephemeral area after a collection.
+       */
       local_collect( TENURING_COLLECTION );
 
       while (n_bytes > free_e_space()) {
-	printf( "attempting to allocate %lu bytes\n", n_bytes );
+	/* 
+	 * This loop should only be entered when the program is attempting to
+	 * allocate an object larger than the ephemeral area. Don't expect
+	 * any solution to this problem soon.
+	 */
 	gc_trap( EPHEMERAL_TRAP );
 	setup_memory_limits();
       }
     }
   }
 
-  restored_since_collection = 0;
   flush_icache();
+
+  after = resourcenow();
+  set_memstat( MEMSTAT_TIME_SPENT_COLLECTING, 
+	       memstat( MEMSTAT_TIME_SPENT_COLLECTING ) 
+	     + fixnum( after - before ) );
 }
 
 
 /*
- * Load a heap into the tenured area. The heap has the following format:
- *  - the first word is a version number.
- *  - then follow all the rootables that go into the globals table.
- *  - then follows a word count (for the heap area).
- *  - then follows the heap area.
- * All pointers in the roots or in the heap are from some base 0. They
+ * Load a heap image into memory. There are two kinds of heaps, single and
+ * split. Both have a version number as the first word followed by the
+ * roots. The high 16 bits of the version number is the heap type; 0=single,
+ * 1=split. The low 16 bits is the version proper.
+ *
+ * Single heaps are loaded into the tenured or ephemeral area depending on
+ * the "which_heap" parameter; 0=ephemeral, 1=tenured. Split heaps are
+ * loaded into the static area and the tenured or ephemeral area.
+ *
+ * Single heap format:
+ *  - version number (1 word)
+ *  - roots (n words; depends on version)
+ *  - word count for the heap data
+ *  - heap data
+ * All pointers in the roots or in the heap are from base 0. They
  * are adjusted as the heap is read in.
+ *
+ * Split heap format (WRONG! Cannot have pointers from vheap to sheap!)
+ *  - version number (1 word)
+ *  - roots (n words; depends on version)
+ *  - word count for the static heap data
+ *  - word count for the tenured or ephemeral heap data
+ *  - static heap data
+ *  - tenured or ephemeral data
  *
  * All words are stored in big-endian format.
  *
  * Returns 0 if everything went fine; -1 otherwise.
  */
-load_heap( fp )
+C_load_heap( fp, which_heap )
 FILE *fp;
+int which_heap;
 {
-  word base, magic, count, *p, w;
+  word base, magic, limit, scount, hcount, *p, w;
+  static word *loadit();
   unsigned i;
 
-  base = globals[ T_BASE_OFFSET ];
+  if (which_heap == 0) {
+    base = globals[ E_BASE_OFFSET ];
+    limit = globals[ E_MAX_OFFSET ];
+  }
+  else {
+    base = globals[ T_BASE_OFFSET ];
+    limit = globals[ T_MAX_OFFSET ];
+  }
   magic = getword( fp );
-  if (magic != HEAP_VERSION)
-    panic( "Wrong version heap image." );
+  if ((magic & 0xFFFF) != HEAP_VERSION)
+    C_panic( "Wrong version heap image." );
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
     w = getword( fp );
     globals[ i ] = (isptr( w ) ? w + base : w);
   }
 
-  count = getword( fp );
-  if (globals[ T_BASE_OFFSET ] + count*4 > globals[ T_MAX_OFFSET ])
-    panic( "Heap image will not fit in tenured heap.");
+  if ((magic & 0xFFFF0000) == 1) {
+    C_panic( "Can't do split heaps!!" );
+    scount = getword( fp );
+    hcount = getword( fp );
+    loadit( fp, globals[ S_BASE_OFFSET ], globals[ S_MAX_OFFSET ], scount );
+    p = loadit( fp, base, limit, hcount );
+  }
+  else {
+    hcount = getword( fp );
+    p = loadit( fp, base, limit, hcount );
+  }
+  if (which_heap == 0)
+    globals[ E_TOP_OFFSET ] = (word) p;
+  else
+    globals[ T_TOP_OFFSET ] = (word) p;
+  return 0;
+}
+
+static word *loadit( fp, base, limit, count )
+FILE *fp;
+word base, limit;
+unsigned count;
+{
+  word *p, w;
+  unsigned i;
+
+  if (base + count*4 > limit)
+    C_panic( "Heap image will not fit in heap.");
 
   if (fread( (word *) base, 4, count, fp ) < count)
-    return -1;
+    C_panic( "Corrupt heap file!" );
   p = (word *) base;
   while (count > 0) {
     w = *p;
@@ -138,14 +233,12 @@ FILE *fp;
     if (isptr( w ))
       *p = w + base;
     p++;
-    if (header( w ) == BV_HDR) {             /* is well-defined on non-hdrs */
+    if (header( w ) == BV_HDR) { /* is well-defined on non-hdrs */
       i = roundup4( sizefield( w ) ) / 4;
       p += i; count -= i;
     }
   }
-
-  globals[ T_TOP_OFFSET ] = (word) p;
-  return 0;
+  return p;
 }
 
 
@@ -171,7 +264,7 @@ FILE *fp;
  *
  * UNTESTED!!
  */
-dump_heap( fp )
+C_dump_heap( fp )
 FILE *fp;
 {
   word base, top, count, w, *p;
@@ -226,41 +319,148 @@ FILE *fp;
 
 
 /*
- * Do a collection and gather some statistics.
+ * Do a collection and gather collection statistics.
  *
- * HOW TO LIE WITH STATISTICS: The times here do not include the time it
- * takes to do a stack or cache flush, nore any overhead incurred by 
- * gc_trap() in the case of an ephemeral space overflow.
+ * The words allocated since the last collection is the difference in E_TOP
+ * between then and now. The old value is stored in the MEMSTATS_VECTOR global
+ * at offset MEMSTAT_ESIZE_AFTER_LAST.
+ *
+ * Note the overloading of heap sizes here: in the tables they are in words,
+ * as fixnums, here they are calculated in bytes. The representations are 
+ * trivially convertable: A fixnum count of words is a native count of bytes
+ * (if aligned on 4 or 8 byte boundary, which heap sizes and heaps are).
+ *
+ * For the sake of sanity it would perhaps be better to explicitly convert.
  */
-static local_collect( type )
-int type;
+static local_collect( requested_type )
+int requested_type;
 {
-  int realtype;
-  unsigned int milliseconds, oldwords;
-  struct rusage r1, r2;
+  int performed_type, must_tenure;
+  word before, after, tsize, esize, tsize2, esize2, copied, allocated;
+  word collected, allocated_hi, allocated_lo, collected_hi, collected_lo;
+  word copied_hi, copied_lo;
+  word old_e_size;
 
-#ifdef DEBUG
-  if (debuglevel) {
-    printf( "garbage collection commencing, type %d\n", type );
-    oldwords = globals[ WCOPIED_OFFSET ];
+  if (globals[ DEBUGLEVEL_OFFSET ]) {
+    printf( "garbage collection commencing, requested type %d\n", 
+	    requested_type );
+    before = resourcenow();
   }
-#endif
 
-  getrusage( RUSAGE_SELF, &r1 );
+  must_tenure = memstat( MEMSTAT_MUST_TENURE ) == TRUE_CONST;
+  old_e_size = memstat( MEMSTAT_ESIZE_AFTER_LAST );
+  tsize = globals[ T_TOP_OFFSET ] - globals[ T_BASE_OFFSET ];
+  esize = globals[ E_TOP_OFFSET ] - globals[ E_BASE_OFFSET ];
 
-  realtype = collect( type );
+  if (requested_type == EPHEMERAL_COLLECTION && must_tenure)
+    performed_type = collect( TENURING_COLLECTION );
+  else 
+    performed_type = collect( requested_type );
   setup_memory_limits();
 
-  getrusage( RUSAGE_SELF, &r2 );
-  milliseconds = ((r2.ru_utime.tv_sec - r1.ru_utime.tv_sec)*1000
-		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
+  tsize2 = globals[ T_TOP_OFFSET ] - globals[ T_BASE_OFFSET ];
+  esize2 = globals[ E_TOP_OFFSET ] - globals[ E_BASE_OFFSET ];
 
-#ifdef DEBUG
-  if (debuglevel) {
-    printf( "Done. Words copied: %ld in %u milliseconds\n", 
-	   globals[ WCOPIED_OFFSET ]-oldwords, milliseconds );
+  if (performed_type == EPHEMERAL_COLLECTION)
+    copied = esize2;
+  else if (performed_type == TENURING_COLLECTION)
+    copied = tsize2 - tsize;
+  else
+    copied = tsize2;
+
+  if (globals[ DEBUGLEVEL_OFFSET ]) {
+    printf( "garbage collection done, performed type %d\n", performed_type );
+    after = resourcenow();
+    printf( "bytes copied: %ld in %u milliseconds\n", copied, after-before );
   }
-#endif
+
+  collected = (tsize + esize) - (tsize2 + esize2);
+  allocated = esize - old_e_size;
+  
+  allocated_hi = memstat( MEMSTAT_WORDS_ALLOCATED_HI );
+  allocated_lo = memstat( MEMSTAT_WORDS_ALLOCATED_LO );
+  collected_hi = memstat( MEMSTAT_WORDS_COLLECTED_HI );
+  collected_lo = memstat( MEMSTAT_WORDS_COLLECTED_LO );
+  copied_hi = memstat( MEMSTAT_WORDS_COPIED_HI );
+  copied_lo = memstat( MEMSTAT_WORDS_COPIED_LO );
+
+  add( &allocated_hi, &allocated_lo, allocated );
+  add( &collected_hi, &collected_lo, collected );
+  add( &copied_hi, &copied_lo, copied );
+
+  if (performed_type == EPHEMERAL_COLLECTION) {
+    set_memstat( MEMSTAT_EPHEMERAL_COLLECTIONS,
+		 memstat( MEMSTAT_EPHEMERAL_COLLECTIONS ) + fixnum( 1 ) );
+  }
+  else if (performed_type == TENURING_COLLECTION ) {
+    set_memstat( MEMSTAT_TENURING_COLLECTIONS,
+		 memstat( MEMSTAT_TENURING_COLLECTIONS ) + fixnum( 1 ) );
+  }
+  else {
+    set_memstat( MEMSTAT_FULL_COLLECTIONS,
+		memstat( MEMSTAT_FULL_COLLECTIONS ) + fixnum( 1 ) );
+  }
+  set_memstat( MEMSTAT_WORDS_ALLOCATED_HI, allocated_hi );
+  set_memstat( MEMSTAT_WORDS_ALLOCATED_LO, allocated_lo );
+  set_memstat( MEMSTAT_WORDS_COLLECTED_HI, collected_hi );
+  set_memstat( MEMSTAT_WORDS_COLLECTED_LO, collected_lo );
+  set_memstat( MEMSTAT_WORDS_COPIED_HI, copied_hi );
+  set_memstat( MEMSTAT_WORDS_COPIED_LO, copied_lo );
+  set_memstat( MEMSTAT_ESIZE_AFTER_LAST, esize2 );
+
+  if (used_e_space() > globals[ E_MARK_OFFSET ])
+    set_memstat( MEMSTAT_MUST_TENURE, TRUE_CONST );
+  else
+    set_memstat( MEMSTAT_MUST_TENURE, FALSE_CONST );
+
+}
+
+
+/*
+ * Adds a word to a doubleword with carry propagation and stuff, both
+ * parts of the doubleword are independently represented as fixnums, as is
+ * 'x'. [ i.e. all operands better be congruent to 0 mod 4. ]
+ */
+static add( hi, lo, x )
+unsigned *hi, *lo, x;
+{
+  *lo += x;
+  if (*lo > LARGEST_FIXNUM) {
+    *lo -= LARGEST_FIXNUM;
+    *hi += 4;
+  }
+}
+
+static unsigned long resourcenow()
+{
+  struct rusage r1;
+
+  getrusage( RUSAGE_SELF, &r1 );
+  return r1.ru_utime.tv_sec * 1000 + r1.ru_utime.tv_usec / 1000;
+}
+
+static memstat( i )
+int i;
+{
+  word cell;
+
+  cell = globals[ MEMSTATS_VECTOR_OFFSET ];
+  if (GLOBALCELLREF( cell ) == UNSPECIFIED_CONST)
+    return 0;
+  else
+    return VECTORREF( GLOBALCELLREF( cell ), i );
+}
+
+
+static set_memstat( i, v )
+{
+  word cell;
+
+  cell = globals[ MEMSTATS_VECTOR_OFFSET ];
+  if (GLOBALCELLREF( cell ) == UNSPECIFIED_CONST)
+    return 0;
+  else
+    return VECTORSET( GLOBALCELLREF( cell ), i, v );
 }
 
 
@@ -336,23 +536,23 @@ static flush_icache()
  * 
  * Refer to "conventions.txt" for an explanation of the continuation layouts.
  */
-void restore_frame()
+void C_restore_frame()
 {
   word *sframe, *hframe;
   unsigned sframesize, hframesize;
 
 #ifdef DEBUG
-  if (debuglevel > 1) {
+  if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
     printf( "Restoring stack frame; stkptr is %08x.\n", globals[ SP_OFFSET ] );
     if (globals[ CONTINUATION_OFFSET ] == FALSE_CONST)
-      panic( "restore_frame: no more continuation frames!" );
+      C_panic( "restore_frame: no more continuation frames!" );
 
   }
   if (globals[ SP_OFFSET ] % 8 != 0) {
     printf( "restore_frame: botched stack pointer %08x!\n", 
 	   globals[ SP_OFFSET ] );
-    localdebugger();
-    panic( "Not possible to continue. Goodbye." );
+    C_localdebugger();
+    C_panic( "Not possible to continue. Goodbye." );
   }
 #endif
 
@@ -362,7 +562,7 @@ void restore_frame()
   hframesize = sizefield( *hframe ) + 4;
 
 #ifdef DEBUG
-  if (debuglevel > 1) {
+  if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
     printf( "Frame @ %08x, header %08x, size %d\n", hframe, *hframe, 
 	   hframesize );
   }
@@ -398,7 +598,7 @@ void restore_frame()
     *(sframe + STK_CONTSIZE) = sframesize;
   }
 #ifdef DEBUG
-  if (debuglevel > 1) {
+  if (globals[ DEBUGLEVEL_OFFSET ] > 2) {
     printf( "return address %08x\n", *(sframe + STK_RETADDR ) );
   }
 #endif
@@ -415,9 +615,8 @@ void restore_frame()
       *dest++ = *src++;
   }
 
-  restored_since_collection++;
   if (globals[ SP_OFFSET ] % 8 != 0)
-    panic( "restore_frame(2): botched stack pointer!" );
+    C_panic( "restore_frame(2): botched stack pointer!" );
 }
 
   
@@ -427,7 +626,7 @@ void restore_frame()
  * Due to the setup of and rules for allocating space in the ephemeral
  * area, we are guaranteed that there will be room for the flush.
  */
-flush_stack_cache()
+void C_flush_stack_cache()
 {
   word *sp, *first_cont, *e_top, *prev_cont, *stk_start;
 #ifdef DEBUG
@@ -435,7 +634,7 @@ flush_stack_cache()
 #endif
 
 #ifdef DEBUG
-  if (debuglevel > 1) {
+  if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
     printf( "Flushing stack cache; base = %x, limit = %x, ptr = %x.\n",
 	   globals[ STK_START_OFFSET ], globals[ STK_LIMIT_OFFSET ],
 	   globals[ SP_OFFSET ]);
@@ -459,7 +658,7 @@ flush_stack_cache()
     procptr = ptrof( *(sframe + STK_PROC) ); /* pointer to the procedure */
 
 #ifdef DEBUG
-    if (debuglevel > 1) {
+    if (globals[ DEBUGLEVEL_OFFSET ] > 2) {
       printf( "return address %08x\n", retaddr );
     }
 #endif
@@ -529,12 +728,11 @@ flush_stack_cache()
     globals[ CONTINUATION_OFFSET ] = (word) tagptr( first_cont, VEC_TAG );
 
 #ifdef DEBUG
-  if (debuglevel > 1) {
+  if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
     printf( "%d frames flushed.\n", framecount );
   }
 #endif
 }
-
 
 
 #ifdef DEBUG
@@ -549,3 +747,5 @@ dumpchain()
 }
 #endif
 
+
+/* eof */

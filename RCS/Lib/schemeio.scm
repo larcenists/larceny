@@ -3,7 +3,7 @@
 ; Scheme 313 run-time system
 ; Basic i/o primitives for generic UNIX
 ;
-; $Id: schemeio.scm,v 1.2 91/08/26 15:51:02 lth Exp Locker: lth $
+; $Id: schemeio.scm,v 1.3 92/02/10 03:19:58 lth Exp Locker: lth $
 ;
 ; The following procedures must be either integrable or coded up at some lower
 ; level (currently they are written in MacScheme assembly language):
@@ -360,6 +360,10 @@
 	      port-list))
 
   ; Setup all the globals
+
+  (let ((eof (make-input-port -1 #f "(**eof**)")))
+    (port.status! eof 'eof)
+    (set! **eof** eof))
 
   (set! stdin (make-input-port unix$io:stdin #t "(stdin)"))
   (set! stdout (make-output-port unix$io:stdout #t "(stdout)"))

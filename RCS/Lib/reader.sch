@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: reader.sch,v 1.2 92/02/10 03:18:00 lth Exp Locker: lth $
+; $Id: reader.sch,v 1.3 92/02/24 17:24:54 lth Exp Locker: lth $
 ;
 ; Scheme reader.                        17 April 1990
 ; Modified for the new system by lth.   16 January 1992
@@ -414,11 +414,22 @@
                        (else  (error "Malformed #! syntax" x)))))
                   ((char=? c (ascii "("))
                    (list->vector (read-list (tyi p) p)))
-                  ; control-B is used for bytevectors by compile-file
+                  ; Control-B is used for bytevectors by compile-file.
+		  ; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
                    (tyi p) ; consume double quote
-                   (typetag-set! (read-string (tyi p) p '()) 
-				 sys$tag.bytevector-typetag))
+		   (let ((s (read-string (tyi p) p '())))
+		     (typetag-set! s sys$tag.bytevector-typetag)
+		     s))
+		  ; Control-P is used for procedures by compile-file.
+		  ; The syntax is #^P(...)
+		  ((char=? c (integer->char 16))
+		   (tyi p) ; consume left paren
+		   (list->procedure (read-list (tyi p) p)))
+		  ;; Control-G is used for global references by compile-file.
+		  ;; The syntax is #^Gsymbol
+		  ((char=? c (integer->char 7))
+		   (toplevel-cell (read-symbol (tyipeek p) p '())))
                   ((char=? c (ascii "e"))
                    (parse-prefixed-number p (ascii "e")))
                   ((char=? c (ascii "i"))

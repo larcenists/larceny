@@ -1,7 +1,7 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: pass1.imp.sch,v 1.1 91/10/13 21:17:21 lth Exp Locker: lth $
+; $Id: pass1.imp.sch,v 1.2 92/02/10 03:36:07 lth Exp Locker: lth $
 
 (define (byte? x)
   (and (fixnum? x)
@@ -85,15 +85,15 @@
 
 (define $usual-integrable-procedures$
   `((debugvsm 0 debugvsm #f 0)
-    (reset 0 reset #f 1)
-    (exit 0 exit #f 2)
+    (sys$reset 0 sys$reset #f 1)
+    (sys$exit 0 sys$exit #f 2)
     (break 0 break #f 3)
-    (time 0 time #f 4)
-    (gc 1 gc #f 5)
-    (dumpheap 0 dumpheap #f 6)
+    (sys$dumpheap 0 sys$dumpheap #f 6)
     (creg 0 creg #f 7)
-    (undefined 0 undefined #f 8)
+;    (undefined 0 undefined #f 8)
     (getrusage 0 getrusage #f -1)
+    (sys$gc 1 sys$gc #f 5)
+    (unspecified 0 unspecified #f -1)
 
     ;(**identity** 1 identity #f #x10)
     (typetag 1 typetag #f #x11)

@@ -1,49 +1,67 @@
 /*
  * Larceny -- A run-time system for IEEE/R4RS Scheme on the Sun Sparcstation.
  *
- * $Id: main.c,v 1.8 92/02/23 16:56:35 lth Exp Locker: lth $
+ * $Id: main.c,v 1.9 92/03/31 12:31:45 lth Exp Locker: lth $
  *
- * Exports the procedures C_exception() and panic().
- * Accepts the following options from the command line:
+ * LARCENY (1)
+ *
+ * NAME
+ *   larceny -- local scheme system
+ *
+ * SYNOPSIS
+ *   larceny [ options ] heapfile
+ *
+ * DESCRIPTION
+ *   Larceny accepts zero or more options are a heap image file. It reads the
+ *   heap image into memory and transfers control to the startup procedure in
+ *   the heap image, which in an interactive setting is the Scheme REP-loop.
+ *
+ * OPTIONS
+ *   Accepts the following options from the command line:
  *
  *    -t nnnn    Tenured heap size in bytes (decimal)
  *    -e nnnn    Ephemeral heap size in bytes (decimal)
  *    -l nnnn    Ephemeral->tenuring collection limit in bytes (decimal)
  *    -s nnnn    Stack cache size in bytes (decimal)
  *    -I nnnn    The initial value of the timer.
- *    -h file    Tenured-area heap file. Mandatory.
- *    -H file    Static-area heap file. Optional. (Unimplemented)
- *    -b #       breakpoint stop number (for debugging).
- *    -B         stop at every breakpoint
- *    -d         Raise the level of debugging output by one.
- *               This has an effect only when the programming is compiled with
- *               DEBUG defined.
- *    -z         Turn on single-stepping.
+ *    -E         Load non-static part of heap into ephemeral area.
+ *    -d         Raise the level of diagnostic output by one.
+ *    -B         stop at every breakpoint (not much use any more).
+ *    -z         Turn on single-stepping (ditto).
+ *
+ * AUTHORS
+ *   Lars Thomas Hansen (runtime system and some libraries);
+ *   Will Clinger (compiler and many libraries).
  *
  * BUGS
- *  The '-h' should be implicit.
+ *   Lots. 
+ *
+ * SEE ALSO
+ *   "Revised^4 Report on Algorithmic Language Scheme"
+ *   Larceny Reference Manual (forthcoming).
+ *   The on-line manual page (which is an expanded version of this).
+ *
+ * Exports the procedures C_exception() and C_panic().
  */
 
-#define VERSION "0.11"
 
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <signal.h>
+#include "larceny.h"
 #include "machine.h"
 #include "gcinterface.h"
 #include "offsets.h"
-#include "main.h"
 #include "millicode.h"
 #include "macros.h"
 #include "exceptions.h"
 #include "layouts.h"
 
 static void invalid(), setup_interrupts();
-void panic();
+void C_panic();
 
-word globals[ GLOBALS_TABLE_SIZE ];         /* All system globals */
-int  debuglevel = 0;                        /* Except this */
+word globals[ GLOBALS_TABLE_SIZE ];    /* All system globals */
 
 /*
  * Parse command line and initialize runtime system components, then
@@ -55,7 +73,7 @@ char **argv, **envp;
 {
   unsigned long tsize = 1024*1024, 
                 esize = 1024*1024, 
-                elimit = 1024*700, 
+                elimit = 1024*500,
                 ssize = 1024*64, 
                 Ssize = 0;
   unsigned ifreq = 0xFFFFFFFF;
@@ -65,8 +83,10 @@ char **argv, **envp;
   char *heapfile = NULL;
   FILE *heap;
   int singlestep = 0;
+  int which_heap = 1; /* default tenured */
+  extern char *version, *user, *date;
 
-  printf( "Larceny version %s (Compiled by %s on %s)\n", VERSION, USER, DATE );
+  printf( "Larceny version %s (Compiled by %s on %s)\n", version, user, date );
   while (--argc) {
     ++argv;
     if (**argv == '-') {
@@ -92,7 +112,7 @@ char **argv, **envp;
 	  ++argv; --argc;
 	  break;
 	case 'd' :
-	  debuglevel++;
+	  globals[ DEBUGLEVEL_OFFSET ]++;
 	  break;
 	case 'z' :
 	  singlestep = 1;
@@ -102,37 +122,25 @@ char **argv, **envp;
 	    invalid( "-I" );
 	  ++argv; --argc;
 	  break;
-	case 'h' :
-	  if (argc == 1)
-	    invalid( "-h" );
-	  heapfile = *++argv; --argc;
-	  break;
-	case 'H' :
-	  fprintf( stderr, "Don't know about -H yetb.\n" );
-	  break;
-	case 'b' :
-	  { int tmp;
-	    extern int break_list[], break_count;
-
-	    if (argc == 1 || sscanf( *(argv+1), "%lu", &tmp ) != 1)
-	      invalid( "-e" );
-	    break_list[ break_count++ ] = tmp;
-	    ++argv; --argc;
-	  }
-	  break;
 	case 'B' :
-	  { extern int break_always;
-	    break_always = 1;
-	  }
+	  globals[ BREAKP_OFFSET ] = 1;
+	  break;
+	case 'E' :
+	  which_heap = 0;
 	  break;
 	default :
 	  fprintf( stderr, "Invalid option '%s'\n", *argv );
+	  usage();
 	  exit( 1 );
       }
     }
     else {
-      fprintf( stderr, "Invalid option '%s'\n", *argv );
-      exit( 1 );
+      if (heapfile != NULL) {
+	fprintf( stderr, "You've already specified a heap file.\n" );
+	usage();
+	exit( 1 );
+      }
+      heapfile = *argv;
     }
   }
 
@@ -140,17 +148,19 @@ char **argv, **envp;
   init_millicode();
 
   /* Allocate memory and set up stack. */
-  if (init_mem( esize, tsize, Ssize, ssize , elimit ) == 0)
-    panic( "Unable to initialize memory!" );
+  if (C_init_mem( esize, tsize, Ssize, ssize , elimit ) == 0)
+    C_panic( "Unable to initialize memory!" );
 
-  if (heapfile == NULL)
-    panic( "Not without a heap file, you don't." );
+  if (heapfile == NULL) {
+    usage();
+    exit( 1 );
+  }
 
   if ((heap = fopen( heapfile, "r" )) == NULL)
-    panic( "Unable to open heap file." );
+    C_panic( "Unable to open heap file." );
 
-  if (load_heap( heap ) == -1)
-    panic( "Error in loading heap file!" );
+  if (C_load_heap( heap, which_heap ) == -1)
+    C_panic( "Error in loading heap file!" );
 
   fclose( heap );
 
@@ -162,41 +172,21 @@ char **argv, **envp;
   globals[ RESULT_OFFSET ] = fixnum( 0 );  /* No arguments */
   globals[ SINGLESTEP_OFFSET ] = (singlestep ? TRUE_CONST : FALSE_CONST);
 
-  schemestart();  /* Typically doesn't return. */
+  schemestart();
   exit( 0 );
 }
 
 
 /*
  * Used by all sorts of run-time procedures.
+ * Should make it more like printf().
  */
-void panic( s )
+void C_panic( s )
 char *s;
 {
-  fprintf( stderr, "Scheme Panic: %s\n", s );
+  fprintf( stderr, "Larceny Panic: %s\n", s );
   exit( 1 );
 }
-
-
-/*
- * C-language exception handler (called from exception.s)
- * This is a temporary hack; eventually this procedure will not be needed.
- */
-void C_exception( i )
-{
-  static char *s[] = { "Timer Expired", 
-		       "Wrong Type",
-		       "Not a Procedure",
-		       "Wrong Number of Arguments",
-		       "Wrong arguments to arithmetic operator",
-		       "Undefined global variable" };
-  printf( "Scheme 313 exception (PC=0x%08x) (%d): %s.\n\n", 
-	 globals[ SAVED_RETADDR_OFFSET ],
-	 i,
-	 s[ i ] );
-  localdebugger();
-}
-
 
 
 /*
@@ -239,5 +229,24 @@ static void invalid( s )
 char *s;
 {
   fprintf( stderr, "Invalid argument to option '%s'\n", s );
+  usage();
   exit( 1 );
 }
+
+static usage()
+{
+  printf( "Usage: larceny [ options ] heapfilename\n\n" );
+  printf( "Options:\n" );
+  printf( "\t-t nnnn   Tenured heap size in bytes (decimal)\n" );
+  printf( "\t-e nnnn   Ephemeral heap size in bytes (decimal)\n" );
+  printf( "\t-l nnnn   Ephemeral area watermark in bytes (decimal)\n" );
+  printf( "\t-s nnnn   Stack cache size in bytes (decimal)\n" );
+  printf( "\t-I nnnn   Initial timer interval value (decimal)\n" );
+  printf( "\t-E        Load non-static part of heap image into ephemeral area.\n" );
+  printf( "\t-d        Raise the level of diagnostic output by one\n" );
+  printf( "Mostly obsolete options:\n" );
+  printf( "\t-B        Stop at all breakpoints\n" );
+  printf( "\t-z        Turn on single-stepping\n" );
+}
+
+/* eof */

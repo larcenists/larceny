@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.
 ;
-; $Id: contagion.scm,v 1.4 92/02/17 18:26:54 lth Exp Locker: lth $
+; $Id: contagion.scm,v 1.5 1992/03/31 12:30:58 lth Exp lth $
 ;
 ; There are three main procedures: contagion, pcontagion, and econtagion.
 
@@ -32,10 +32,9 @@
 	  ((rectnum? x) recttype)
 	  ((flonum? x)  flotype)
 	  ((compnum? x) comptype)
-	  (else (error x " is not a number"))))
+	  (else (error "Contagion:" x "is not a number."))))
 
   (define (do-contagion matrix a b retry)
-;   (display "In contagion: ") (display a) (display ",") (display b) (newline)
     (let* ((ta (number-type a))
 	   (tb (number-type b))
 	   (v  (vector-ref (vector-ref matrix ta) tb))
@@ -84,8 +83,7 @@
   (define (id x) x)
 
   (define (oops a b)
-    (error 'generic-arithmetic
-	   "INTERNAL ERROR in contagion: same-representation arithmetic."))
+    (error "contagion: internal error: same-representation arithmetic."))
 
   (define (fun f1 f2)
     (lambda (a b)
@@ -183,6 +181,14 @@
 		    (fun id flonum->compnum) oops)))
 
   (set! contagion (lambda (a b retry)
+		    (if dump-is-on
+			(begin (display "contagion: ")
+			       (display a) 
+			       (display "(") (display (number-type a)) (display ")")
+			       (display " ")
+			       (display b)
+			       (display "(") (display (number-type b)) (display ")")
+			       (newline)))
 		    (do-contagion cmatrix a b retry)))
 
   (set! econtagion (lambda (a b retry)

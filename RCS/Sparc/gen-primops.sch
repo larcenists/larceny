@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id: gen-primops.sch,v 1.4 92/02/17 18:27:21 lth Exp Locker: lth $
+; $Id: gen-primops.sch,v 1.5 92/03/31 12:31:27 lth Exp Locker: lth $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -21,6 +21,14 @@
 ; - Some operations do too much work; for example, vector-ref will load the
 ;   vector header twice.
 
+; This switch controls the code generated for primops which side-effect
+; data structures. Typically, it is set to #t, but for the systems where we
+; use the simpler collector(s), it should be set to #f.
+
+(define register-transactions-for-side-effects #t)
+
+;;
+
 (define (emit-primop0! as op)
   ((cdr (assq op primop-list)) as))
 
@@ -37,6 +45,10 @@
 
 (define primop-list
   (list 
+
+   (cons 'unspecified
+	 (lambda (as)
+	   (emit! as `(,$i.ori ,$r.g0 ,$imm.unspecified ,$r.result))))
 
    ; Number predicates
 
@@ -352,18 +364,30 @@
    (cons 'set-car!
 	 (lambda (as x)
 	   (emit-single-tagcheck-assert! as $tag.pair-tag)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
-	   (if (hardware-mapped? x)
-	       (emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2))
-	       (emit-load-reg as x $r.argreg2))))
+	   (if register-transactions-for-side-effects
+	       (begin
+		 (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
+		 (if (hardware-mapped? x)
+		     (emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2))
+		     (emit-load-reg as x $r.argreg2)))
+	       (let ((x (if (hardware-mapped? x)
+			    x
+			    (emit-load-reg! as x $r.argreg2))))
+		 (emit! as `(,$i.sti ,x ,(- 0 $tag.pair-tag) ,$r.result))))))
 
    (cons 'set-cdr!
 	 (lambda (as x)
 	   (emit-single-tagcheck-assert! as $tag.pair-tag)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcdr ,$r.o7))
-	   (if (hardware-mapped? x)
-	       (emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2))
-	       (emit-load-reg! as x $r.argreg2))))
+	   (if register-transactions-for-side-effects
+	       (begin
+		 (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcdr ,$r.o7))
+		 (if (hardware-mapped? x)
+		     (emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2))
+		     (emit-load-reg! as x $r.argreg2)))
+	       (let ((x (if (hardware-mapped? x)
+			    x
+			    (emit-load-reg! as x $r.argreg2))))
+		 (emit! as `(,$i.sti ,x ,(- 4 $tag.pair-tag) ,$r.result))))))
 
    ; Cells are internal data structures, represented using pairs.
    ; No error checking is done on cell references.
@@ -384,26 +408,34 @@
 
    (cons 'cell-set!
 	 (lambda (as r)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
-	   (if (hardware-mapped? r)
-	       (emit! as `(,$i.orr ,$r.g0 ,r ,$r.argreg2))
-	       (emit-load-reg! as r $r.argreg2))))
+	   (if register-transactions-for-side-effects
+	       (begin
+		 (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
+		 (if (hardware-mapped? r)
+		     (emit! as `(,$i.orr ,$r.g0 ,r ,$r.argreg2))
+		     (emit-load-reg! as r $r.argreg2)))
+	       (let ((r (if (hardware-mapped? r)
+			    r
+			    (emit-load-reg! as r $r.argreg2))))
+		 (emit! as `(,$i.sti ,r ,(- 0 $tag.pair-tag) ,$r.result))))))
 
    ;-----------------------------------------------------------------
 
    ; Hooks to various system services
+
+   ;; This should arguably not be a primop.
 
    (cons 'debugvsm
 	 (lambda (as)
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.debug ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
-   (cons 'reset
+   (cons 'sys$reset
 	 (lambda (as)
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.reset ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
-   (cons 'exit
+   (cons 'sys$exit
 	 (lambda (as)
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.exit ,$r.o7))
 	   (emit! as `(,$i.nop))))
@@ -413,15 +445,12 @@
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.break ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
-   (cons 'time
+   (cons 'sys$gc
 	 (lambda (as)
-	   (silly 'time)))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.gcstart ,$r.o7))
+	   (emit! as `(,$i.nop))))
 
-   (cons 'gc
-	 (lambda (as)
-	   (silly 'gc)))
-
-   (cons 'dumpheap 
+   (cons 'sys$dumpheap 
 	 (lambda (as)
 	   (silly 'dumpheap)))
 
@@ -472,8 +501,6 @@
 	 (lambda (as)
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.inexact->exact ,$r.o7))
 	   (emit! as `(,$i.nop))))
-
-   ; These have to work on both compnums and rectnums.
 
    (cons 'real-part
 	 (lambda (as)
@@ -1068,7 +1095,8 @@
     (emit! as `(,$i.bne ,fault))
     (emit! as `(,$i.ldi ,$r.result (- ,$tag.bytevector-tag) ,$r.tmp0))
     (emit! as `(,$i.srli ,$r.tmp0 8 ,$r.tmp0))
-    (emit! as `(,$i.srli ,r 2 ,$r.tmp1))
+    (emit! as `(,$i.srai ,r 2 ,$r.tmp1))
+;    (emit! as `(,$i.srli ,r 2 ,$r.tmp1))
     (emit! as `(,$i.subrcc ,$r.tmp1 ,$r.tmp0 ,$r.g0))
     (emit! as `(,$i.bgeu.a ,fault))
     (emit! as `(,$i.slot))
@@ -1094,7 +1122,8 @@
     (emit! as `(,$i.bne ,fault))
     (emit! as `(,$i.ldi ,$r.result (- ,$tag.bytevector-tag) ,$r.tmp2))
     (emit! as `(,$i.srli ,$r.tmp2 8 ,$r.tmp2))
-    (emit! as `(,$i.srli ,r1 2 ,$r.tmp0))
+    (emit! as `(,$i.srai ,r1 2 ,$r.tmp0))
+;    (emit! as `(,$i.srli ,r1 2 ,$r.tmp0))
     (emit! as `(,$i.subrcc ,$r.tmp0 ,$r.tmp2 ,$r.g0))
     (emit! as `(,$i.bgeu ,fault))	       
     (emit! as `(,$i.srli ,r2 2 ,$r.tmp1))
@@ -1165,12 +1194,19 @@
     (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
     (emit! as `(,$i.blu.a ,fault))
     (emit! as `(,$i.slot))
-    (if (hardware-mapped? x)
-	(emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2)))
-    (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
-    (if (hardware-mapped? y)
-	(emit! as `(,$i.orr ,$r.g0 ,y ,$r.argreg3))
-	(emit-load-reg! as y $r.argreg3))))
+    (if register-transactions-for-side-effects
+	(begin
+	  (if (hardware-mapped? x)
+	      (emit! as `(,$i.orr ,$r.g0 ,x ,$r.argreg2)))
+	  (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
+	  (if (hardware-mapped? y)
+	      (emit! as `(,$i.orr ,$r.g0 ,y ,$r.argreg3))
+	      (emit-load-reg! as y $r.argreg3)))
+	(let ((y (if (hardware-mapped? y)
+		     y
+		     (emit-load-reg! as y $r.argreg3))))
+	  (emit! as `(,$i.addr ,$r.result ,r1 ,$r.tmp0))
+	  (emit! as `(,$i.sti ,y ,(- 4 $tag.vector-tag) ,$r.tmp0))))))
 
 ; We check the tags of both by xoring them and seeing if the low byte is 0.
 ; If so, then we can subtract one from the other (tag and all) and check the

@@ -1,7 +1,7 @@
 ;; Given the name of a .lop file, creates a .fasl file.
 ;; This program to run under systems which do not have bytevectors, like Chez.
 ;;
-;; $Id$
+;; $Id: chez-makefasl.sch,v 1.1 1992/05/15 22:07:35 lth Exp lth $
 ;;
 ;; The format of the fastload file is one of a sequence of expressions.
 ;; Procedures, bytevectors, and references to global variables can be

@@ -1,26 +1,30 @@
+; -*- Scheme -*-
+;
 ; Larceny run-time system
 ; Global procedure definitions for integrable procedures.
 ;
-; $Id: integrable-procs.scm,v 1.1 91/09/14 01:18:48 lth Exp Locker: lth $
+; $Id: integrable-procs.scm,v 1.2 92/02/10 03:19:42 lth Exp Locker: lth $
 
 (define debugvsm (lambda () (debugvsm)))
-(define reset (lambda () (reset)))
-(define exit (lambda () (exit)))
+(define reset (lambda () (sys$reset)))
+;; exit should also flush output buffers, etc, etc.
+(define exit (lambda () (sys$exit)))
 (define break (lambda () (break)))
-; (define time (lambda () (time)))
-; (define gc (lambda (x) (gc x)))
-; (define dumpheap (lambda () (dumpheap)))
+(define gc (lambda (x) (sys$gc x)))
+; (define dumpheap (lambda () (sys$dumpheap)))
 (define creg (lambda () (creg)))
 ; (define undefined (lambda () (undefined)))
+(define unspecified (lambda () (unspecified)))
 (define typetag (lambda (x) (typetag x)))
 (define not (lambda (x) (not x)))
 (define null? (lambda (x) (null? x)))
 (define pair? (lambda (x) (pair? x)))
 (define car (lambda (x) (car x)))
 (define cdr (lambda (x) (cdr x)))
-(define length (lambda (x) (length x)))
-(define symbol? (lambda (x) (symbol? x)))
+; (define symbol? (lambda (x) (symbol? x)))
+(define number? (lambda (x) (number? x)))
 (define complex? (lambda (x) (complex? x)))
+(define real? (lambda (x) (real? x)))
 (define rational? (lambda (x) (rational? x)))
 (define integer? (lambda (x) (integer? x)))
 (define fixnum? (lambda (x) (fixnum? x)))
@@ -46,7 +50,7 @@
 (define bytevector? (lambda (x) (bytevector? x)))
 (define bytevector-length (lambda (x) (bytevector-length x)))
 (define make-bytevector (lambda (x) (make-bytevector x)))
-(define structure? (lambda (x) (structure? x)))
+; (define structure? (lambda (x) (structure? x)))
 (define procedure? (lambda (x) (procedure? x)))
 (define procedure-length (lambda (x) (procedure-length x)))
 (define make-procedure (lambda (x) (make-procedure x)))
@@ -59,8 +63,6 @@
 (define cons (lambda (x y) (cons x y)))
 (define set-car! (lambda (x y) (set-car! x y)))
 (define set-cdr! (lambda (x y) (set-cdr! x y)))
-(define memq (lambda (x y) (memq x y)))
-(define assq (lambda (x y) (assq x y)))
 (define quotient (lambda (x y) (quotient x y)))
 (define logand (lambda (x y) (logand x y)))
 (define logior (lambda (x y) (logior x y)))
@@ -95,11 +97,28 @@
 (define modulo (lambda (x y) (modulo x y)))
 (define bytevector-fill! (lambda (x y) (bytevector-fill! x y)))
 
+(define +
+  (lambda args
+    (if (null? args)
+	0
+	(let loop ((sum (car args)) (args (cdr args)))
+	  (if (null? args)
+	       sum
+	       (loop (+ sum (car args)) (cdr args)))))))
+
+(define - 
+  (lambda (arg . args)
+    (if (null? args)
+	(-- arg)
+	(let loop ((n arg) (args args))
+	  (if (null? args)
+	      n
+	      (loop (- n (car args)) (cdr args)))))))
+
 ; The following procedures actually take a variable number
 ; of arguments.  These definitions might do for the moment.
+; See note of bug above.
 
-(define + (lambda (x y) (+ x y)))
-(define - (lambda (x y) (- x y)))
 (define * (lambda (x y) (* x y)))
 (define / (lambda (x y) (/ x y)))
 

@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent part of the assembler, for Sparc.
 ;
-; $Id: asm.sparc.sch,v 1.10 92/02/10 03:40:12 lth Exp Locker: lth $
+; $Id: asm.sparc.sch,v 1.11 92/03/31 12:31:22 lth Exp Locker: lth $
 ;
 ;             The meek shall inherit the earth.
 ;             The meek shall also inherit the assembler.
@@ -283,7 +283,9 @@
 	(if x
 	    (cadr x)
 	    (begin (if (= asm-pass 2)
-		       (display (format "Undefined label ~a~%" l)))
+		       (begin (display (format "Undefined label ~a~%" l))
+			      (display symtab) (newline)
+			      ))
 		   0))))
 
     (define (symtab.target-insn l)

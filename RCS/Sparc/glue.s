@@ -3,7 +3,7 @@
 ! Scheme 313 Run-time system
 ! Miscellaneous assembly language "glue" and millicode.
 !
-! $Id: glue.s,v 1.7 92/02/17 18:27:27 lth Exp Locker: lth $
+! $Id: glue.s,v 1.8 92/03/31 12:31:33 lth Exp Locker: lth $
 
 #include "registers.s.h"
 #include "millicode.s.h"
@@ -15,24 +15,47 @@
 
 	.seg	"text"
 
+	! Runtime-system internal procedures
+
 	.global	_schemestart
 	.global	_scheme_call
-	.global	_open_file
-	.global	_close_file
-	.global	_unlink_file
-	.global	_read_file
-	.global	_write_file
+
+	! Millicode procs
+
+	.global	_m_open_file
+	.global	_m_close_file
+	.global	_m_unlink_file
+	.global	_m_read_file
+	.global	_m_write_file
 	.global _m_getrusage
-	.global _apply
-	.global _scheme_varargs
-	.global	_typetag
-	.global	_typetag_set
-	.global	_eqv
+	.global _m_apply
+	.global _m_varargs
+	.global	_m_typetag
+	.global	_m_typetag_set
+	.global	_m_eqv
 	.global	_m_debug
 	.global	_m_reset
 	.global	_m_exit
 	.global	_m_break
+	.global _m_dump
 	.global _m_singlestep
+	.global _m_generic_exception
+
+! These need to appear.
+!
+!	.global _m_vector_ref
+!	.global _m_vector_set
+!	.global _m_vector_like_ref
+!	.global _m_vector_like_set
+!	.global _m_procedure_ref
+!	.global _m_procedure_set
+!	.global _m_bytevector_ref
+!	.global _m_bytevector_set
+!	.global _m_bytevector_like_ref
+!	.global _m_bytevector_like_set
+
+	! Mostly obsolete exception handlers
+
 	.global	_not_supported
 	.global	_type_exception
 	.global	_timer_exception
@@ -58,7 +81,7 @@ _schemestart:
 	save	%sp, -96, %sp			! Standard stack frame
 	st	%i7, [ %fp + 0x44 ]
 
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 
 ! Call application code: setup a minimal continuation and jump. The
@@ -76,8 +99,19 @@ L2:
 	cmp	%TMP0, PROC_TAG
 	beq	L0
 	nop
-	jmpl	%MILLICODE + M_PROC_EXCEPTION, %o7
-	add	%o7, (L2-(.-4))-8, %o7	! FIXME?
+
+	! Startup slot does not have a procedure; just print an error and exit.
+	! This should never happen unless the user has manually hacked the
+	! heap image (as we can check that we get a procedure at dump time),
+	! and frankly, I couldn't care if ze shoots zemself in the foot.
+
+	set	Lnonproc, %o0
+	call	_printf
+	nop
+	call	_exit
+	mov	1, %o0
+
+	! Everything is fine.
 L0:
 	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
 	jmp	%TMP0 + A_CODEOFFSET
@@ -85,12 +119,17 @@ L0:
 
 	! Return to C code
 L1:
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	nop
 
 	ld	[ %fp + 0x44 ], %i7
 	ret
 	restore
+
+	.seg	"data"
+Lnonproc:	.asciz	"Startup slot does not have a procedure!\n"
+
+	.seg	"text"
 
 ! `_scheme_call'
 !
@@ -142,8 +181,6 @@ L1:
 ! scheme procedure, which returns through the helper procedure in the top
 ! stack frame. This procedure never returns to its caller.
 
-! Offset within bottom stack frame where REG0 is stored.
-
 _scheme_call:
 
 	! Save parameters which were passed in registers we need to use.
@@ -192,6 +229,7 @@ Lscheme_call_1:
 
 	! Do the bottom (large) frame
 	
+! Offset within bottom stack frame where REG0 is stored.
 #define BASE	16
 
 	! This could be scheduled; unclear that it would make a difference.
@@ -267,13 +305,16 @@ Lscheme_call_1:
 
 ! Open and unlink require a null-terminated string for the filename
 ! argument. Since the argument in is not on that form (rather, it has a length
-! byte), we have to convert it.
+! field), we have to convert it.
+!
+! When we get generalized Scheme-to-C calling, these should go away and be
+! replaced by something using that mechaninsm [I think].
 
 ! OPEN: filename (string) in RESULT.
 !       flags (fixnum) in ARGREG2.
 !       mode (fixnum) in ARGREG3.
 
-_open_file:
+_m_open_file:
 	save	%sp, -96, %sp
 
 	call	Lcopystring
@@ -290,7 +331,7 @@ _open_file:
 
 ! UNLINK: filename (string) in RESULT.
 
-_unlink_file:
+_m_unlink_file:
 	save	%sp, -96, %sp
 
 	call	Lcopystring
@@ -329,7 +370,7 @@ Lcopy1:
 
 ! CLOSE: file descriptor (fixnum) in RESULT.
 
-_close_file:
+_m_close_file:
 	save	%sp, -96, %sp
 
 	call	_close
@@ -343,7 +384,7 @@ _close_file:
 !       buffer (string) in ARGREG2.
 !       byte count (fixnum) in ARGREG3.
 
-_read_file:
+_m_read_file:
 	save	%sp, -96, %sp
 
 	srl	%SAVED_RESULT, 2, %o0			! file descriptor
@@ -359,7 +400,7 @@ _read_file:
 !        buffer (string) in ARGREG2.
 !        byte count (fixnum) in ARGREG3.
 
-_write_file:
+_m_write_file:
 	save	%sp, -96, %sp
 
 	srl	%SAVED_RESULT, 2, %o0			! file descriptor
@@ -396,34 +437,27 @@ _m_getrusage:
 ! 4. Move RESULT to REG0, set RESULT to the length of the list, and invoke
 !    the procedure in REG0.
 !
-! If there are any exceptions in here, the return address is set up to be that
-! of the instruction which called this procedure; i.e. the operation is
-! retried rather than returning into the millicode. While the latter would
-! probably work, it is conceptually simpler to never have any exceptions
-! return into the millicode -- the exception handler can be simpler, for
-! example.
+! The Scheme and MAL code which precedes the millicode in a call to apply
+! check for a proper procedure and a non-list argument.
 !
-! It is likely that the Scheme/MAL wrapper takes care of some of the
-! grudge, like checking for a proper list. If so, we may be able to clean
-! things up a bit here. FIXME.
+! We still check for those here, but these tests could/should go away.
+! Old code.
 
-_apply:
+_m_apply:
 	! Is the value of %RESULT a procedure? If not, we must signal an
-	! exception. However, where do we return to? The `best' way is to
-	! set it up so that we return to the call to this procedure,
-	! i.e. we use the return address already in %o7, -8, as the return
-	! address.
+	! exception.
 
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, PROC_TAG
 	be	Lapply1
 	nop
-	jmp	%MILLICODE + M_PROC_EXCEPTION		! *NOT* jmpl
-	sub	%o7, 8, %o7
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_APPLY, %TMP0
 
 Lapply1:
 	! Decrement timer, check for expiration. Returns back into the Scheme
-	! code, for consistency.
+	! code, for consistency. This is not really an exception, and we
+	! adjust the return address to pretend nothing happened.
 
 	subcc	%TIMER, 1, %TIMER
 	bne	Lapply2
@@ -505,12 +539,12 @@ Lapply5:
 
 Lapply9:
 	! The list was not proper. We have an error that must be handled.
-	! We take a 'type' exception for now and setup the return address
-	! to be in the Scheme code.
+	! This code depends on %RESULT and %ARGREG2 still having their
+	! original values.
 
 	restore
-	jmp	%MILLICODE + M_TYPE_EXCEPTION		! *NOT* jmpl
-	sub	%o7, 8, %o7
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_APPLY, %TMP0
 
 
 ! Millicode for the 'args>=' instruction.
@@ -519,24 +553,24 @@ Lapply9:
 !
 ! The 0-extra-args case ought to be handled here for efficiency.
 
-_scheme_varargs:
+_m_varargs:
 	cmp	%RESULT, %ARGREG2
 	bge	Lvararg2
 	nop
-	jmp	%MILLICODE + M_ARG_EXCEPTION		! *NOT* jmpl
-	sub	%o7, 8, %o7				! retry
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_VARGC, %TMP0
 
 Lvararg2:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	nop
 
 	save	%sp, -96, %sp
-	call	_C_scheme_varargs			! Can't fail.
+	call	_C_varargs			! Can't fail.
 	nop
 	restore
 
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
 
@@ -545,7 +579,7 @@ Lvararg2:
 
 ! Extract typetag from vector or bytevector header, given a pointer to either.
 
-_typetag:
+_m_typetag:
 	and	%RESULT, 7, %TMP0
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltypetag1
@@ -553,17 +587,17 @@ _typetag:
 	cmp	%TMP0, BVEC_TAG
 	be,a	Ltypetag1
 	ld	[ %RESULT - BVEC_TAG ], %TMP0
-	jmp	%MILLICODE + M_TYPE_EXCEPTION
-	nop
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_TYPETAG, %TMP0
 Ltypetag1:
-	jmp	%o7+8	
+	jmp	%o7+8
 	and	%TMP0, 0x1C, %RESULT
 
 ! Set the typetag of a vector or bytevector header. The pointer to the 
 ! structure is passed in %RESULT. The new tag is in %ARGREG2. That tag must
 ! be a fixnum in the range 0-8 (appropriately shifted).
 
-_typetag_set:
+_m_typetag_set:
 	and	%RESULT, 7, %TMP0
 	cmp	%TMP0, VEC_TAG
 	be,a	Ltypetagset1
@@ -572,8 +606,8 @@ _typetag_set:
 	be,a	Ltypetagset1
 	xor	%RESULT, BVEC_TAG, %TMP0
 Ltypetagset0:
-	jmp	%MILLICODE + M_TYPE_EXCEPTION
-	nop
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_TYPETAGSET, %TMP0
 Ltypetagset1:
 	ld	[ %TMP0 ], %TMP1
 	andncc	%ARGREG2, 0x1C, %g0
@@ -587,15 +621,23 @@ Ltypetagset1:
 ! Note that fixnums and immediates are always eq? if they are eqv?, so we need
 ! only concern ourselves with larger structures here.
 
-_eqv:
+_m_eqv:
+	! Do fixnums first to get them out of the way completely.
+	! If operands are fixnums, then they are not eqv?.
+
+	tsubcc	%RESULT, %ARGREG2, %g0
+	bvs,a	Leqv_others
 	xor	%RESULT, %ARGREG2, %TMP0
+	b	Leqv_done
+	mov	FALSE_CONST, %RESULT
+
+Leqv_others:
 	andcc	%TMP0, TAGMASK, %g0
 	bne,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
 	! Tags are equal, but addresses are not (they are not eq?). This
-	! gets rid of pairs, strings, procedures, vectors, and symbols, and
-	! leaves only numbers (below).
+	! lets us get rid of all non-numeric types.
 
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, PAIR_TAG
@@ -682,9 +724,13 @@ Leqv_done:
 	jmp	%o7+8
 	nop
 
-! Debugger entry point.
+! Debugger entry point. Probably does not make sense in Larceny.
 
 _m_debug:
+	b	_not_supported
+	nop
+
+_m_reset:
 	b	_not_supported
 	nop
 
@@ -695,13 +741,15 @@ _m_debug:
 
 _m_exit:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	call	_exit
 	mov	0, %o0
 
-! Reset the system.
+! Reset the system. Should arguably be written entirely in Scheme.
 
-_m_reset:
+! Dump the heap to a file.
+
+_m_dump:
 	b	_not_supported
 	nop
 
@@ -710,21 +758,23 @@ _m_reset:
 !
 ! This breakpoint handler is only for breakpoints entered with the call to
 ! the "break" procedure. Breakpoints entered through the trap instruction
-! are handled below in _break_trap.
+! are handled below (?) in _break_trap.
 
 _m_break:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	nop
 	call	_C_break
 	nop
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
 	jmp	%o7+8
 	nop
 
-! Ditto single step handler.
+! Ditto single step handler. Single stepping was added to support CIS 561,
+! and single steps on the granularity of MacScheme assembly language 
+! instructions, with some compiler support.
 
 _m_singlestep:
 	ld	[ %GLOBALS + SINGLESTEP_OFFSET ], %TMP1
@@ -736,7 +786,7 @@ _m_singlestep:
 Lsinglestep1:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	nop
 	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
 	ld	[ %REG0 - PROC_TAG + CONSTVECTOR ], %TMP1
@@ -744,10 +794,38 @@ Lsinglestep1:
 	ld	[ %TMP1 + %TMP0 ], %o0            ! tagged string ptr
 	call	_C_singlestep
 	nop
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
 	jmp	%o7 + 8
+	nop
+
+! Exception handler entry point.
+!
+! This exception handler attempts to find the Scheme exception handler in
+! the support routines. If it can, it calls that handler with the exception
+! code and other arguments. If not, it jumps to Lgeneric_exception, below,
+! which enters the default debugging environment (primitive).
+!
+! Arguments to this procedure:
+!  - %TMP0 has the exception code
+!  - %o7 has a valid return address to Scheme code. The return address must
+!    point to the instruction which would have been returned to if the
+!    operation had succeeded (minus the usual 8 bytes), i.e. jumping to %o7+8
+!    with the correct(ed) result in %RESULT will continue the computation.
+!    The return address may not, under any circumstances, point into millicode.
+!  - %RESULT, %ARGREG2, and %ARGREG3 has the arguments of the operation that
+!    faulted.
+
+_m_generic_exception:
+	ld	[ %GLOBALS + MILLICODE_SUPPORT_OFFSET ], %TMP1
+	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
+	cmp	%TMP1, UNSPECIFIED_CONST
+	be	Lgeneric_exception
+	nop
+	mov	4, %TMP1
+	mov	MS_EXCEPTION_HANDLER, %TMP2
+	b	_scheme_call
 	nop
 
 ! Print an error message detailing the program counter, then enter the
@@ -756,21 +834,23 @@ Lsinglestep1:
 
 _not_supported:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	nop
 	save	%sp, -96, %sp
 	set	Lemsg, %o0
 	call	_printf
 	mov	%o7, %o1
-	call	_localdebugger
+	call	_C_localdebugger
 	nop
 	restore
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET  ], %o7
 	jmp	%o7 + 8
 	nop
 
+! Most of the exception handlers are now obsolete.
+!
 ! Exception handlers. A coherent protocol for passing of information needs
 ! to be designed here.
 !
@@ -814,6 +894,8 @@ _arith_exception:
 	b	Lgeneric_exception
 	mov	ARITH_EXCEPTION, %TMP1
 
+! This is obsolete, too.
+
 _undef_exception:
 	ld	[ %GLOBALS + MILLICODE_SUPPORT_OFFSET ], %TMP0
 	ld	[ %TMP0 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP0
@@ -826,13 +908,17 @@ _undef_exception:
 	b	_scheme_call
 	mov	%ARGREG2, %RESULT
 
-! Generic exception handler for now. Jumps to the C exception handler.
-! This handler will later be (re)written in Scheme. If the hander returns,
-! we return to the caller and hope for the best.
+! Very basic exception handler; calls the C exception handler.
+! If the hander returns, we return to the caller and hope for the best.
+! This handler is usually only used during bootstrapping failures,
+! as the Scheme exception handler is otherwise used.
+!
+! THIS PROCEDURE IS NOT REENTRANT! The C exception handler may not
+! re-invoke Scheme code and later return to this handler.
 
 Lgeneric_exception:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-	call	_save_scheme_context
+	call	_mem_save_scheme_context
 	nop
 	mov	%TMP1, %g1
 
@@ -841,7 +927,7 @@ Lgeneric_exception:
 	mov	%g1, %o0
 	restore
 
-	call	_restore_scheme_context
+	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
 	jmp	%o7+8

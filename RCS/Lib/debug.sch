@@ -1,6 +1,6 @@
 ; Bits and pieces of the Larceny debugger
 ;
-; $Id$
+; $Id: debug.sch,v 1.1 92/02/17 18:42:14 lth Exp Locker: lth $
 
 ; Called by the exception handler for undefined globals.
 ;
@@ -23,17 +23,18 @@
     (display "*> ")
     (flush-output-port)
     (let ((cmd (read)))
-      (case cmd
-	((exit) (exit))
-	((return) #t)
-	((help ?)
-	 (display "exit      -- leave Larceny") (newline)
-	 (display "return    -- return to the running program") (newline)
-	 (loop))
-	(else 
-	 (display "Nah.")
-	 (newline) 
-	 (loop)))))
+      (if (not (eof-object? cmd))
+	  (case cmd
+	    ((exit) (exit))
+	    ((return) #t)
+	    ((help ?)
+	     (display "exit      -- leave Larceny") (newline)
+	     (display "return    -- return to the running program") (newline)
+	     (loop))
+	    (else 
+	     (display "Nah.")
+	     (newline) 
+	     (loop))))))
 
   (display "Enter ? for help.") (newline)
   (loop))

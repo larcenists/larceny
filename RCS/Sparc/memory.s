@@ -4,70 +4,85 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.20 92/02/17 18:27:30 lth Exp Locker: lth $
+! $Id: memory.s,v 1.21 92/02/23 16:56:26 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
-!   _internal_alloc( n )
-!   _alloc( n )		  Allocate n uninitialized words.
-!   _alloci( n, v )	  Allocate n words initialized to v.
-!   _setcar( p, v )	  Set to v the car field of the pair pointed to by p.
-!   _setcdr( p, v )	  Set to v the cdr field of the pair pointed to by p.
-!   _vectorset( p, i, v ) Set to v the ith slot of the vector pointed to by p.
-!   _gcstart( n )	  Performs a garbage collection, allocates n words,
-!			  and returns a pointer to the allocated words.
-!			  'n' is a fixnum.
-!			  IT IS LEGAL FOR THE VALUE OF "E_TOP" TO BE INVALID 
-!			  UPON ENTRY TO THIS PROCEDURE.
-!   _garbage_collect( n ) Initiate a garbage collection. The argument is a
-!			  fixnum specifying the type of collection: 0 for
-!			  an ephemeral collection, -1 for a tenuring 
-!			  collection, -2 for a full collection.
-!   _stkuflow()		  Procedure to be called on a stack cache underflow.
-!			  It will restore a single continuation frame from
-!			  the heap-based continuations, if there are any.
-!			  After restoring the frame, it will branch to the
-!			  return address in the frame.
-!   _stkoflow()		  Procedure to be called on a stack cache overflow.
-!			  It will flush the stack cache to memory and setup
-!			  the continuation pointer, and return to its caller.
-!   _save_scheme_context()  Saves all machine-mapped virtual machine registers
-!			  in the "globals" table.
-!   _restore_scheme_context()  Restores all machine-mapped virtual machine
-!			  registers from the "globals" table.
-!   _capture_continuation()  Capture the current continuation and return a
-!			  pointer to the continuation structure.
-!   _restore_continuation() Reinstate the given continuation, discarding the
-!			  current one.
-!   _m_restore_frame()    Restore a frame from the continuation chain.
+!   _mem_internal_alloc( n )
+!   _mem_alloc( n )
+!     Allocate n uninitialized words.
 !
-! '_gcstart' is made public for use by open-coded 'cons' calls.
+!   _mem_alloci( n, v )
+!     Allocate n words initialized to v.
 !
-! '_save_scheme_context' and '_restore_scheme_context' are useful in
-! inter-language calls.
+!   _mem_setcar( p, v )
+!     Set to v the car field of the pair pointed to by p.
 !
-! '_capture_continuation' and '_restore_continuation' can be used to implement
-! the Scheme procedure 'call-with-current-continuation'.
+!   _mem_setcdr( p, v )
+!     Set to v the cdr field of the pair pointed to by p.
 !
-! Arguments are always passed in registers RESULT, ARGREG2, and ARGREG3, all
-! of which are rootable. The result, if any, is returned in register RESULT.
-! If no result is required, RESULT is set to 0. ARGREG2 and ARGREG2 are
-! never destroyed by the call. '_stkoflow' and '_stkuflow' never alter RESULT.
+!   _mem_vectorset( p, i, v )
+!     Set to v the ith slot of the vector or procedure pointed to by p.
+!
+!   _mem_gcstart( n )
+!     Perform a garbage collection, allocate n words, and return a pointer
+!     to the allocated words. 'n' is a fixnum.
+!     IT IS LEGAL FOR THE VALUE OF "E_TOP" TO BE INVALID UPON ENTRY TO
+!     THIS PROCEDURE.
+!
+!   _mem_garbage_collect( n )
+!     Initiate a garbage collection. The argument is a fixnum specifying
+!     the type of collection: 0 for an ephemeral collection, -1 for a tenuring 
+!     collection, -2 for a full collection.
+!
+!   _mem_stkuflow()
+!     Procedure to be called on a stack cache underflow. It will restore
+!     a single continuation frame from the heap-based continuations, if 
+!     there are any. After restoring the frame, it will branch to the
+!     return address in the newly restored frame.
+!
+!   _mem_stkoflow()
+!     Procedure to be called on a stack cache overflow. It will flush the
+!     stack cache to memory and setup the continuation pointer, and return
+!     to its caller.
+!
+!   _mem_save_scheme_context()
+!     Saves all machine-mapped virtual machine registers in the "globals"
+!     table.
+!
+!   _mem_restore_scheme_context()
+!     Restores all machine-mapped virtual machine registers from the "globals"
+!     table.
+!
+!   _mem_capture_continuation()
+!     Capture the current continuation and return a pointer to the 
+!     continuation structure.
+!
+!   _mem_restore_continuation()
+!     Reinstate the given continuation, discarding the current one.
+!
+!   _mem_restore_frame()
+!     Restore a frame from the continuation chain.
+!
+! Arguments are always passed in registers RESULT, ARGREG2, and ARGREG3.
+! The result, if any, is returned in register RESULT. If no result is
+! returned, RESULT is set to 0. ARGREG2 and ARGREG3 are never destroyed
+! by the call. 
+!
+! '_mem_stkoflow' and '_mem_stkuflow' never alter RESULT.
 !
 ! On entry to a millicode procedure, %o7 must contain the return address,
-! and %REG0 must contain the pointer to the calling procedure. See the
-! file "conventions.txt" for calling convention details.
+! and %REG0 must contain the pointer to the calling procedure.
 !
-! --
-! [This paragraph is confusing.]
-!
-! The user program may enter '_gcstart' with a value in E_TOP which
+! The user program may enter "_mem_gcstart" with a value in E_TOP which
 ! is invalid in the sense that it is greater than or equal to E_LIMIT.
-! '_gcstart' will correct this error, if necessary, since user code may
-! under no circumstances allocate space above E_LIMIT. However, millicode may
-! violate this requirement (that is what the overflow area between E_LIMIT and
-! E_MAX is for). It follows that millicode which interfaces with user code
-! must check (and possibly adjust) E_TOP before proceeding.
+! User code may under no circumstances write into memory above E_LIMIT,
+! but E_TOP may still be moved above E_LIMIT (during an optimistic
+! allocation, for example). "_mem_gcstart" corrects this error.
+!
+! There is an overflow area above E_LIMIT, below E_MAX, which is used by
+! millicode as a spill area for the stack. User code may not assume that
+! this area exists.
 !
 ! --
 !
@@ -82,10 +97,6 @@
 ! One could argue that this calling convention is a gross hack. It is also
 ! becoming increasingly difficult to program around it. A millicode stack
 ! for saving millicode return addresses on would be better.
-!
-! --
-!
-! Assemble with 'as -P -DASSEMBLY'
 
 #include "registers.s.h"
 #include "offsets.s.h"
@@ -95,21 +106,21 @@
 
 #define fixnum( x )	((x) << 2)
 
-	.global _alloc
-	.global	_internal_alloc
-	.global _alloci
-	.global _setcar
-	.global _setcdr
-	.global _vectorset
-	.global _gcstart
-	.global _garbage_collect
-	.global _stkoflow
-	.global _stkuflow
-	.global _save_scheme_context
-	.global _restore_scheme_context
-	.global _capture_continuation
-	.global _restore_continuation
-	.global	_m_restore_frame
+	.global _mem_alloc
+	.global	_mem_internal_alloc
+	.global _mem_alloci
+	.global _mem_setcar
+	.global _mem_setcdr
+	.global _mem_vectorset
+	.global _mem_gcstart
+	.global _mem_garbage_collect
+	.global _mem_stkoflow
+	.global _mem_stkuflow
+	.global _mem_save_scheme_context
+	.global _mem_restore_scheme_context
+	.global _mem_capture_continuation
+	.global _mem_restore_continuation
+	.global	_mem_restore_frame
 
 #ifdef DEBUG
 	.global	gcstart, addtrans
@@ -118,10 +129,10 @@
 	.seg "text"
 
 !-----------------------------------------------------------------------------
-! '_alloc' takes one parameter, a fixnum which is the number of words to
+! '_mem_alloc' takes one parameter, a fixnum which is the number of words to
 ! allocate. It returns an untagged pointer to this many words.
 !
-! alloc( n )
+! mem_alloc( n )
 ! {
 !   p = E_TOP;
 !   E_TOP += n;					; increment heap
@@ -133,8 +144,7 @@
 ! Note that the delayed roundup (i.e. done after test for overflow) makes
 ! sense because all allocations and limits are in an even number of words.
 
-		
-_alloc:
+_mem_alloc:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -151,7 +161,7 @@ _alloc:
 	nop
 	restore
 #endif
-	b	_gcstart			! deal with overflow
+	b	_mem_gcstart			! deal with overflow
 	nop
 
 Lalloc1:
@@ -162,11 +172,11 @@ Lalloc1:
 ! _internal_alloc() is like _alloc(), but %TMP0 is a Scheme return
 ! address to be saved if a collection is triggered.
 
-_internal_alloc:
+_mem_internal_alloc:
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
-	blt,a	Lialloc1				! skip of no overflow
+	blt,a	Lialloc1			! skip of no overflow
 	sub	%E_TOP, %RESULT, %RESULT	! setup result
 
 	! Overflow; need to collect.
@@ -192,11 +202,11 @@ Lialloc1:
 	add	%E_TOP, %TMP1, %E_TOP		! round up
 
 !-----------------------------------------------------------------------------
-! '_alloci' takes two parameters, a fixnum which is the number of words to
+! '_mem_alloci' takes two parameters, a fixnum which is the number of words to
 ! allocate, and the value (a word) with which to initialize the memory.
 ! It returns an untagged pointer to the requested number of words.
 !
-! alloci( n, v )
+! mem_alloci( n, v )
 ! {
 !   p = E_TOP;
 !   E_TOP += n;					; increment heap
@@ -211,7 +221,7 @@ Lialloc1:
 !   return p;
 ! }
 
-_alloci:
+_mem_alloci:
 	mov	%RESULT, %TMP0			! count into TMP0
 	mov	%E_TOP, %RESULT			! resulting pointer
 	add	%E_TOP, %TMP0, %E_TOP		! allocate optimistically
@@ -259,19 +269,20 @@ Lalloci2:
 
 
 !-----------------------------------------------------------------------------
-! '_setcar' takes two parameters: a tagged pointer, which is assumed to point
-! to a pair, and a value, and sets the 'car' cell of the pair to the value.
+! '_mem_setcar' takes two parameters: a tagged pointer, which is assumed 
+! to point to a pair, and a value, and sets the 'car' cell of the pair 
+! to the value.
 !
 ! If the pair is in the tenured space, then a transaction must be added
 ! to the transaction list.
 !
-! setcar( p, v )
+! mem_setcar( p, v )
 ! {
 !   if (ptrof( p ) >= T_BASE) addtrans( p );     ; add transaction to list
 !   *ptrof( p ) = v;
 ! }
 
-_setcar:
+_mem_setcar:
 	ld	[ %GLOBALS+T_BASE_OFFSET ], %TMP0	! fetch tenured base
 	xor	%RESULT, PAIR_TAG, %TMP1	! strip tag
 	cmp	%TMP1, %TMP0
@@ -292,19 +303,20 @@ Lsetcar1:
 
 
 !-----------------------------------------------------------------------------
-! '_setcdr' takes two parameters: a tagged pointer, which is assumed to point
-! to a pair, and a value, and sets the 'cdr' cell of the pair to the value.
+! '_mem_setcdr' takes two parameters: a tagged pointer, which is assumed 
+! to point to a pair, and a value, and sets the 'cdr' cell of the pair 
+! to the value.
 !
 ! If the pair is in the tenured space, then a transaction must be added
 ! to the transaction list.
 !
-! setcdr( p, v )
+! mem_setcdr( p, v )
 ! {
 !   if (ptrof( p ) >= T_BASE) addtrans( p );     ; add transaction to list
 !   *(ptrof( p )+4) = v;
 ! }
 
-_setcdr:
+_mem_setcdr:
 	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
 	xor	%RESULT, PAIR_TAG, %TMP1	! strip tag
 	cmp	%TMP1, %TMP0
@@ -323,10 +335,11 @@ Lsetcdr1:
 
 
 !-----------------------------------------------------------------------------
-! '_vectorset' takes three parameters: a tagged pointer, which is assumed to
-! point to a structure of vector semblance (meaning vector-like or procedure),
-! a fixnum index, which is assumed to be valid for the given structure, and a
-! value, and sets the specified slot of the structure to the value.
+! '_mem_vectorset' takes three parameters: a tagged pointer, which is 
+! assumed to point to a structure of vector semblance (meaning vector-like
+! or procedure), a fixnum index, which is assumed to be valid for the given
+! structure, and a value, and sets the specified slot of the structure to 
+! the value.
 ! The index is the untranslated fixnum indicating the slot in the structure,
 ! e.g. fixnum( 0 ) for the first slot or fixnum( 4 ) for the second slot.
 !
@@ -337,17 +350,16 @@ Lsetcdr1:
 ! the generality is nice (we'd save only 1 cycle in the case where a 
 ! transaction is not needed).
 !
-! vectorset( p, i, v )
+! mem_vectorset( p, i, v )
 ! {
 !   if (ptrof( p ) >= T_BASE) addtrans( p );	; add transaction?
 !   *(ptrof( p )+i+4) = v;			; compensate for header
 ! }
 
-_vectorset:
+_mem_vectorset:
 	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
 	! strip tag
-	sra     %RESULT, 3, %TMP1
-	sll	%TMP1, 3, %TMP1
+	andn	%RESULT, 0x7, %TMP1
 	!
 	cmp	%TMP1, %TMP0
 	ble,a	Lvectorset1			! not in tenured space
@@ -370,7 +382,7 @@ Lvectorset1:
 
 
 !-----------------------------------------------------------------------------
-! '_gcstart' merely calls 'gcstart', with a bit of protocol. We *must* make
+! '_mem_gcstart' merely calls 'gcstart', with a bit of protocol. We *must* make
 ! sure that E_TOP, as passed to 'gcstart', has a sensible value, something it
 ! may not have, coming from user code.
 !
@@ -380,12 +392,11 @@ Lvectorset1:
 !   return gcstart( n );
 ! }
 
-_gcstart:
+_mem_gcstart:
 	cmp	%E_TOP, %E_LIMIT
 	ble	L_gcstart1
 	nop
 	mov	%E_LIMIT, %E_TOP
-
 L_gcstart1:
 	mov	%o7, %TMP0
 	call	gcstart
@@ -393,19 +404,18 @@ L_gcstart1:
 	jmp	%TMP0+8
 	nop
 
-
 !-----------------------------------------------------------------------------
-! '_garbage_collect' initiates a garbage collection of the specified type.
+! '_mem_garbage_collect' initiates a garbage collection of the specified type.
 ! The type is a fixnum and may be either 0 for an ephemeral collection, 
 ! -1 for a tenuring collection, or -2 for a full collection. Other values
 ! are invalid.
 !
-! _garbage_collect( n )
+! mem_garbage_collect( n )
 ! {
 !   return gcstart( n );
 ! }
 
-_garbage_collect:
+_mem_garbage_collect:
 	mov	%o7, %TMP0
 	call	gcstart
 	nop
@@ -414,21 +424,23 @@ _garbage_collect:
 
 
 !-----------------------------------------------------------------------------
-! '_stkuflow' is designed to be returned through on a stack cache underflow.
-! The address of '_stkuflow' should be in a dummy continuation at the bottom
-! of the stack (top of the stack cache). On a return which underflows the
-! stack cache, '_stkuflow' is entered. It restores a single continuation frame
-! and jumps to the return address in the newly restored frame.
+! '_mem_stkuflow' is designed to be returned through on a stack cache 
+! underflow.
+! The address of '_mem_stkuflow' should be in a dummy continuation at the 
+! bottom of the stack (top of the stack cache). On a return which 
+! underflows the stack cache, '_mem_stkuflow' is entered. It restores a 
+! single continuation frame and jumps to the return address in the 
+! newly restored frame.
 !
 ! We are assuming that the stack pointer is pointing to the initial
 ! word of the dummy continuation on entry to this handler; given the 
 ! calling conventions, this is reasonable.
 
-_stkuflow:
+_mem_stkuflow:
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
 	save	%sp, -96, %sp
-	call	_restore_frame
+	call	_C_restore_frame
 	nop
 	restore
 
@@ -439,16 +451,17 @@ _stkuflow:
 
 
 !-----------------------------------------------------------------------------
-! '_stkoflow' handles stack overflow. When the mutator detects stack overflow,
-! then '_stkoflow' should be called. It flushes the stack cache and invokes
-! the garbage collector if necessary, and then returns to its caller.
+! '_mem_stkoflow' handles stack overflow. When the mutator detects 
+! stack overflow, then '_mem_stkoflow' should be called. It flushes 
+! the stack cache and invokes the garbage collector if necessary, and 
+! then returns to its caller.
 
-_stkoflow:
+_mem_stkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
 	save	%sp, -96, %sp
-	call	_flush_stack_cache
+	call	_C_flush_stack_cache
 	nop
 	restore
 
@@ -489,7 +502,7 @@ Lstkoflow1:
 
 	st	%STKP, [ %GLOBALS + SP_OFFSET ]
 	save	%sp, -96, %sp
-	call	_restore_frame
+	call	_C_restore_frame
 	nop
 	restore
 	ld	[ %GLOBALS + SP_OFFSET ], %STKP
@@ -500,12 +513,12 @@ Lstkoflow2:
 
 
 !-----------------------------------------------------------------------------
-! '_restore_scheme_context' is a null wrapper which simply calls 
+! '_mem_restore_scheme_context' is a null wrapper which simply calls 
 ! 'restore_scheme_context' before returning.
 !
 ! Use in inter-language calls.
 
-_restore_scheme_context:
+_mem_restore_scheme_context:
 	mov	%o7, %TMP0
 	call	restore_scheme_context
 	nop
@@ -514,12 +527,12 @@ _restore_scheme_context:
 
 
 !-----------------------------------------------------------------------------
-! '_save_scheme_context' is a null wrapper which simply calls 
+! '_mem_save_scheme_context' is a null wrapper which simply calls 
 ! 'save_scheme_context' before returning.
 !
 ! Use in inter-language calls.
 
-_save_scheme_context:
+_mem_save_scheme_context:
 	mov	%o7, %TMP0
 	call	save_scheme_context
 	nop
@@ -528,13 +541,13 @@ _save_scheme_context:
 
 
 !-----------------------------------------------------------------------------
-! '_capture_continuation' flushes the stack, performs a collection if 
+! '_mem_capture_continuation' flushes the stack, performs a collection if 
 ! necessary, and returns a pointer to the continuation which was current
 ! at the time of the call to this procedure.
 !
 ! DO WE NEED TO RESTORE A FRAME AFTER FLUSHING THE STACK?
 !
-! _capture_continuation()
+! mem_capture_continuation()
 ! {
 !   flush_stack_cache();
 !   if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ])
@@ -542,12 +555,12 @@ _save_scheme_context:
 !   return globals[ CONTINUATION_OFFSET ];
 ! }
 
-_capture_continuation:
+_mem_capture_continuation:
 	st	%STKP, [ %GLOBALS + SP_OFFSET ]
 	st	%E_TOP, [ %GLOBALS + E_TOP_OFFSET ]
 
 	save	%sp, -96, %sp
-	call	_flush_stack_cache
+	call	_C_flush_stack_cache
 	nop
 	restore
 
@@ -576,7 +589,7 @@ _capture_continuation:
 
 Lcapture_cont1:
 	save	%sp, -96, %sp
-	call	_restore_frame
+	call	_C_restore_frame
 	nop
 	restore
 
@@ -588,11 +601,11 @@ Lcapture_cont1:
 
 
 !-----------------------------------------------------------------------------
-! '_restore_continuation' throws away the current continuation (by bumping
+! '_mem_restore_continuation' throws away the current continuation (by bumping
 ! the stack pointer and resetting the value of globals[ CONTINUATION_OFFSET ])
 ! and reinstates the continuation which is an argument to this procedure.
 !
-! _restore_continuation( k )
+! mem_restore_continuation( k )
 ! {
 !   globals[ SP_OFFSET ] = globals[ STK_START_OFFSET ];
 !   globals[ CONTINUATION_OFFSET ] = k;
@@ -601,7 +614,7 @@ Lcapture_cont1:
 !   return 0;
 ! }
 
-_restore_continuation:
+_mem_restore_continuation:
 	! Why do we have to adjust the stack start to get the stack pointer?
 	! Because the stack start is the first free word, whereas the stack
 	! pointer must point to the top (used) word of the stack, one word
@@ -619,7 +632,7 @@ _restore_continuation:
 	! restore a frame
 
 	save	%sp, -96, %sp
-	call	_restore_frame
+	call	_C_restore_frame
 	nop
 	restore
 
@@ -628,12 +641,12 @@ Lrestore_cont2:
 	ld	[ %GLOBALS + SP_OFFSET ], %STKP
 
 !-----------------------------------------------------------------------------
-! '_m_restore_frame'
+! '_mem_restore_frame'
 !
 ! Simply restore a frame from the continuation chain and return to the caller.
 ! If there is no frame, skip it.
 
-_m_restore_frame:
+_mem_restore_frame:
 	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %TMP0
 	cmp	%TMP0, FALSE_CONST
 	bne,a	Lrestore_frame1
@@ -644,7 +657,7 @@ _m_restore_frame:
 
 Lrestore_frame1:
 	save	%sp, -96, %sp
-	call	_restore_frame
+	call	_C_restore_frame
 	nop
 	restore
 
@@ -701,9 +714,9 @@ gcstart:
 	! C-language call
 
 	save	%sp, -96, %sp
-	call	_gcstart2		! This *will* flush the stack!
+	call	_C_gcstart2		! This *will* flush the stack!
 	mov	%SAVED_RESULT, %o0
-	call	_restore_frame		! Restore our frame
+	call	_C_restore_frame	! Restore our frame
 	nop
 	restore
 	!-----------
@@ -737,7 +750,7 @@ Lgcstart1:
 	! However, we can only restore a frame if one exists!
 
 	st	%RESULT, [ %GLOBALS + RESULT_OFFSET ]	! save %RESULT for now
-	ld	[ %STKP+0 ], %RESULT			! get Scheme return address
+	ld	[ %STKP+0 ], %RESULT			! get Scheme retaddr
 	add	%STKP, 16, %STKP			! deallocate our frame
 
 	! Is there another frame?
@@ -751,7 +764,7 @@ Lgcstart1:
 
 	st	%STKP, [ %GLOBALS + SP_OFFSET ]
 	save	%sp, -96, %sp				! get a frame
-	call	_restore_frame
+	call	_C_restore_frame
 	nop
 	restore
 	ld	[ %GLOBALS + SP_OFFSET ], %STKP
@@ -761,7 +774,7 @@ Lgcstart2:
 	jmp	%o7+8					! return to millicode
 	ld	[ %GLOBALS + RESULT_OFFSET ], %RESULT	! result
 
-	
+
 !-----------------------------------------------------------------------------
 ! 'addtrans' takes one parameter, which must be a tagged pointer, and adds it
 ! to the transaction list. If the transaction list is full (i.e. there is
@@ -795,8 +808,6 @@ Laddtrans1:
 	jmp	%o7+8
 	st	%TMP2, [ %GLOBALS+T_TRANS_OFFSET ]
 
-	! end of file
-
 
 !-----------------------------------------------------------------------------
 ! 'restore_scheme_context' restores the Scheme context from the saved state
@@ -823,10 +834,6 @@ restore_scheme_context:
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
 	ld	[ %GLOBALS+TIMER_OFFSET ], %TIMER
-	ld	[ %GLOBALS + SAVED_F2_OFFSET ], %f2
-	ld	[ %GLOBALS + SAVED_F3_OFFSET ], %f3
-	ld	[ %GLOBALS + SAVED_F4_OFFSET ], %f4
-	ld	[ %GLOBALS + SAVED_F5_OFFSET ], %f5
 	set	dzero, %TMP1
 	ldd	[ %TMP1 ], %f0
 	jmp	%o7+8
@@ -853,10 +860,6 @@ save_scheme_context:
 	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
-	st	%f2, [ %GLOBALS + SAVED_F2_OFFSET ]
-	st	%f3, [ %GLOBALS + SAVED_F3_OFFSET ]
-	st	%f4, [ %GLOBALS + SAVED_F4_OFFSET ]
-	st	%f5, [ %GLOBALS + SAVED_F5_OFFSET ]
 	jmp	%o7+8
 	st	%TIMER, [ %GLOBALS+TIMER_OFFSET ]
 

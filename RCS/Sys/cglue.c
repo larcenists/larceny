@@ -2,26 +2,20 @@
  * Scheme 313 run-time system.
  * Millicode in C.
  *
- * $Id: cglue.c,v 1.4 92/02/10 03:41:32 lth Exp Locker: lth $
+ * $Id: cglue.c,v 1.5 1992/03/31 12:31:38 lth Exp lth $
  *
  * Millicode routines which are written in C and which do not warrant 
  * their own files go in here.
- *
- * Currently exports:
- *   void C_scheme_varargs( void )
- *   word *C_alloc( int nbytes )
- *   word C_getrusage( void )
  */
 
 #include <sys/time.h>
 #include <sys/resource.h>
+#include "larceny.h"
 #include "offsets.h"
 #include "gcinterface.h"
 #include "layouts.h"
 #include "macros.h"
-#include "main.h"
 
-word *C_alloc();
 
 /*
  * Millicode to deal with variable-length argument lists.
@@ -46,7 +40,7 @@ word *C_alloc();
  *   (set! REGn+1 (append! (list REGn+1 ... REGr-1) (copylist REGr)))
  */
 
-void C_scheme_varargs()
+void C_varargs()
 {
   word j = globals[ RESULT_OFFSET ] / 4;          /* Convert from fixnum */
   word n = globals[ ARGREG2_OFFSET ] / 4;         /* Ditto */
@@ -96,42 +90,42 @@ void C_scheme_varargs()
 
 
 /*
- * Allocate a chunk of memory. `n' is a number of bytes.
+ * C-language exception handler (called from exception.s)
+ * This is a temporary hack; eventually this procedure will not be needed.
  */
-static word *C_alloc( n )
+void C_exception( i )
+int i;
 {
-  word p;
-
-  n = roundup8( n );
-
-  if (globals[ E_TOP_OFFSET ] + n > globals[ E_LIMIT_OFFSET ])
-    gcstart2( n );
-
-  p = globals[ E_TOP_OFFSET ];
-  globals[ E_TOP_OFFSET ] += n;
-  return (word *)p;
+  static char *s[] = { "Timer Expired", 
+		       "Wrong Type",
+		       "Not a Procedure",
+		       "Wrong Number of Arguments",
+		       "Wrong arguments to arithmetic operator",
+		       "Undefined global variable" };
+  printf( "Scheme 313 exception (PC=0x%08x) (%d): %s.\n\n", 
+	 globals[ SAVED_RETADDR_OFFSET ],
+	 i,
+	 s[ i ] );
+  C_localdebugger();
 }
 
-/* This is for debugging the run-time system (mostly) */
 
-int break_counter = 0;
-int break_count = 0;
-int break_list[ 10 ];
-int break_always = 0;
 
-C_break()
+/*
+ * This is for debugging the run-time system; should be replaced by a
+ * more general facility which hooks into Scheme.
+ */
+void C_break()
 {
-  int i, do_break = 0;
-
-  break_counter++;
-  for (i = 0 ; i < break_count ; i++ )
-    if (break_list[ i ] == break_counter) do_break = 1;
-
-  if (do_break || break_always)
-    localdebugger();
+  if (globals[ BREAKP_OFFSET ]) C_localdebugger();
 }
 
-C_singlestep( s )
+
+/*
+ * Single stepping is rather obsolete; not used for much except the
+ * compiler class.
+ */
+void C_singlestep( s )
 word s;
 {
   word *p;
@@ -148,7 +142,7 @@ word s;
     buf[ length ] = 0;
     printf( "Step: %s\n", buf );
   }
-  localdebugger();
+  C_localdebugger();
 }
 
 
@@ -161,7 +155,7 @@ word C_getrusage()
   struct rusage buf;
 
   if (getrusage( RUSAGE_SELF, &buf ) == -1)
-    return -1;
+    return -1;  /* sort of nonsensical, since "word" is unsigned. */
   else
     return buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000;
 }

@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.4 92/02/17 18:27:03 lth Exp Locker: lth $
+; $Id: makefile.sch,v 1.5 92/03/31 12:31:07 lth Exp Locker: lth $
 ;
 ; USAGE:
 ;
@@ -35,11 +35,19 @@
 
 ; useful aliases
 
-(define (make-ctak-heap)
-  (make-heap "../ctak.heap" 'global-symbols 'global-refs "../Lib/ctak.lop"))
-
 (define (make-test-heap)
-  (make-heap "../test.heap" 'global-refs 'global-symbols "../Lib/testmain.lop"))
+  (make-heap "../test.heap" 
+	     'global-refs 'global-symbols 
+	     "../Lib/testmain.lop"
+	     "../Lib/sort.lop"))
+
+(define (make-larceny-heap)
+  (make-heap "../larceny.heap"
+	     'global-refs
+	     'global-symbols
+	     "../Eval/reploop.lop"
+	     "../Eval/eval.lop"
+	     "../Eval/rewrite.lop"))
 
 (let ()
 
@@ -52,11 +60,20 @@
 	    (collect)
 	    (pretty-print q p))))))
 
+  ;; Magic stuff to expand quasiqotations in a file so as to make it
+  ;; possible for the current twobit to compile the resulting file.
+
+  (define (preprocess x)
+    (expand313 (car x)))
+
   (define (assemble x)
     (assemble313 (car x)))
 
   (define (compile x)
     (compile313 (car x)))
+
+  (define (config x)
+    (system (string-append "../config " (car x))))
 
   ; *All* simple file dependencies go here.
   ; Some shorthands would be lovely.
@@ -108,6 +125,8 @@
 	"../Lib/millicode-support-dummies.lap") ,assemble)
       (("../Lib/millicode-support-dummies.lap" 
 	"../Lib/millicode-support-dummies.sch") ,compile)
+      (("../Lib/memstats.lop" "../Lib/memstats.lap") ,assemble)
+      (("../Lib/memstats.lap" "../Lib/memstats.sch") ,compile)
       (("../Lib/bignums.lop" "../Lib/bignums.lap") ,assemble)
       (("../Lib/bignums.lap" "../Lib/bignums.scm") ,compile)
       (("../Lib/ratnums.lop" "../Lib/ratnums.lap") ,assemble)
@@ -122,10 +141,24 @@
       (("../Lib/main.lap" "../Lib/main.sch") ,compile)
       (("../Lib/testmain.lop" "../Lib/testmain.lap") ,assemble)
       (("../Lib/testmain.lap" "../Lib/testmain.sch") ,compile)
+      (("../Lib/sort.lop" "../Lib/sort.lap") ,assemble)
+      (("../Lib/sort.lap" "../Lib/sort.sch") ,compile)
       (("../Lib/debug.lop" "../Lib/debug.lap") ,assemble)
       (("../Lib/debug.lap" "../Lib/debug.sch") ,compile)
       (("../Lib/preds.lop" "../Lib/preds.lap") ,assemble)
       (("../Lib/preds.lap" "../Lib/preds.sch") ,compile)
+      (("../Eval/eval.lop" "../Eval/eval.lap") ,assemble)
+      (("../Eval/eval.lap" "../Eval/eval.sch") ,compile)
+      (("../Eval/reploop.lop" "../Eval/reploop.lap") ,assemble)
+      (("../Eval/reploop.lap" "../Eval/reploop.sch") ,compile)
+      (("../Eval/rewrite.lop" "../Eval/rewrite.lap") ,assemble)
+      (("../Eval/rewrite.lap" "../Eval/rewrite.sch") ,compile)
+      (("../Eval/rewrite.sch" "../Eval/rewrite.raw") ,preprocess)
+      (("../Lib/exception-handler.lop" "../Lib/exception-handler.lap") ,assemble)
+      (("../Lib/exception-handler.lap" "../Lib/exception-handler.sch") ,compile)
+      (("../Lib/exceptions.lop" "../Lib/exceptions.lap") ,assemble)
+      (("../Lib/exceptions.lap" "../Lib/exceptions.sch") ,compile)
+      (("../Lib/exceptions.sch" "../exceptions.cfg") ,config)
       ))
 
   ; Basic make command for a heap.
@@ -153,6 +186,9 @@
 	"../Lib/oblist.lop"
 	"../Lib/millicode-support.lop"
 	"../Lib/millicode-support-dummies.lop"
+	"../Lib/memstats.lop"
+	"../Lib/exceptions.lop"
+	"../Lib/exception-handler.lop"
 
 	; basic i/o
 
@@ -193,6 +229,7 @@
 	  (set! listify? #f)
 	  (set! generate-global-symbols? #f)
 	  (set! emit-undef-check? #f)
+	  (set! register-transactions-for-side-effects #t)  ; sanity...
 
 	  (let loop ((switches switches) (others '()))
 	    (cond ((null? switches) 

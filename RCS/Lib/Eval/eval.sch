@@ -3,7 +3,7 @@
 ;; but rather compile them and load the compiled code. This works. But one
 ;; can also load interpretable code (raw scheme) and have it work.
 ;;
-;; $Id$
+;; $Id: eval.sch,v 1.1 1992/05/15 22:07:35 lth Exp lth $
 ;;
 ;; 'Eval' takes an expression and evaluates the expression in the default
 ;; toplevel environment. It returns the result of the evaluation,

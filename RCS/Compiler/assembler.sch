@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.sch,v 1.9 92/02/10 03:35:30 lth Exp Locker: lth $
+; $Id: assembler.sch,v 1.10 92/03/31 12:30:36 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -234,16 +234,17 @@
     ; accumulated symbol table to procedures on the same level.
 
     (define (do-codevectors clist labels)
-      (cons (map (lambda (x)
-		   (case (car x)
-		     ((codevector)
-		      (let ((segment (assemble-codevector (cadr x) labels)))
-			(set! labels (cdr segment))
-			(list 'codevector (car segment))))
-		     (else
-		      x)))
-		 clist)
-	    labels))
+      (let ((new-clist
+	     (map (lambda (x)
+		    (case (car x)
+		      ((codevector)
+		       (let ((segment (assemble-codevector (cadr x) labels)))
+			 (set! labels (cdr segment))
+			 (list 'codevector (car segment))))
+		      (else
+		       x)))
+		  clist)))
+	(cons new-clist labels)))
 
     ; Descend into constant vectors. Return the constant list.
 

@@ -3,7 +3,7 @@
 ; Symbol table management for Larceny, based on same from MacScheme.
 ; Parts of this code is copyright 1991 lightship software
 ;
-; $Id: oblist.sch,v 1.2 92/02/10 03:17:10 lth Exp Locker: lth $
+; $Id: oblist.sch,v 1.3 1992/02/17 18:27:10 lth Exp lth $
 ;
 ; symbol?
 ; symbol->string
@@ -71,7 +71,7 @@
 ;
 ; COMMON
 
-(define (symbol? x) (symbol? x))   ; integrable
+(define symbol? (lambda (x) (symbol? x)))   ; integrable
 
 (define symbol->string
   (lambda (symbol)
@@ -87,6 +87,32 @@
     (if (string? string)
 	(make-symbol-structure (string-copy string) (string-hash string) '())
 	(error "non-string -- make-symbol" string))))
+
+;; Property lists. What we don't do for some backward compatibility.
+
+(define (putprop sym name value)
+  (if (not (symbol? sym))
+      (error "putprop:" sym "is not a symbol.")
+      (let ((plist (symbol.proplist sym)))
+	(let ((probe (assq name plist)))
+	  (if probe
+	      (set-cdr! probe value)
+	      (symbol.proplist! sym (cons (cons name value) plist)))))))
+
+(define (getprop sym name)
+  (if (not (symbol? sym))
+      (error "getprop:" sym "is not a symbol.")
+      (let ((plist (symbol.proplist sym)))
+	(let ((probe (assq name plist)))
+	  (if probe 
+	      (cdr probe) 
+	      #f)))))
+
+(define (remprop sym name)
+  (if (not (symbol? sym))
+      (error "remprop:" sym "is not a symbol.")
+      (symbol.proplist! sym (remq name (symbol.proplist sym)))))
+
 
 ; With the following definitions,
 ;

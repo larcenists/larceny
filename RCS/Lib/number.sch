@@ -3,21 +3,19 @@
 ; Arithmetic functions for MacScheme.
 ; Augmented and changed for Larceny, which has a different set of primops.
 ;
-; $Id$
+; $Id: number.sch,v 1.1 1992/02/10 03:16:36 lth Exp lth $
 
  
 (define positive? (lambda (x) (> x 0)))
  
 (define negative? (lambda (x) (< x 0)))
  
-; This is a primop in Larceny.
-;
-; (define abs
-;  (lambda (n)
-;    (if (< n 0)
-;        (-- n)
-;        n)))
- 
+(define abs
+ (lambda (n)
+   (if (< n 0)
+       (-- n)
+       n)))
+
 (define min
   (letrec ((min (lambda (x . y) (loop y x (exact? x))))
            (loop (lambda (y x exact)

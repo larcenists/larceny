@@ -1,7 +1,9 @@
 ! Scheme 313 runtime system
 ! Global table for millicode calls.
 !
-! $Id: tables.s,v 1.5 92/02/10 03:38:36 lth Exp Locker: lth $
+! $Id: tables.s,v 1.6 92/03/31 12:31:36 lth Exp Locker: lth $
+!
+! Needs to be sorted into a more logical order, I think.
 
 	.global	_millicode
 
@@ -19,70 +21,70 @@
 
 _millicode:
 	! #0: M_STKOFLOW
-	b	_stkoflow
+	b	_mem_stkoflow
 	nop
 	! #1: M_STKUFLOW is weird. It is *not* a branch instruction, rather,
 	! the first word is an unimplemented instruction and the second word
 	! is the address of the stack underflow routine - 8. This value is
 	! put in the dummy stack frame at the bottom of the stack.
 	unimp	0
-	.word	_stkuflow - 8
+	.word	_mem_stkuflow - 8
 	! #2: M_ALLOC
-	b	_alloc
+	b	_mem_alloc
 	nop
 	! #3: M_ALLOCI
-	b	_alloci
+	b	_mem_alloci
 	nop
 	! #4: M_SETCAR
-	b	_setcar
+	b	_mem_setcar
 	nop
 	! #5: M_SETCDR
-	b	_setcdr
+	b	_mem_setcdr
 	nop
 	! #6: M_VECTORSET
-	b	_vectorset
+	b	_mem_vectorset
 	nop
 	! #7: M_GCSTART
-	b	_gcstart
+	b	_mem_gcstart
 	nop
 	! #8: M_SAVE_CONTEXT
-	b	_save_scheme_context
+	b	_mem_save_scheme_context
 	nop
 	! #9: M_RESTORE_CONTEXT
-	b	_restore_scheme_context
+	b	_mem_restore_scheme_context
 	nop
 	! #10: M_TYPE_EXCEPTION
 	b	_type_exception
 	nop
 	! #11: M_ZEROP
-	b	_generic_zerop
+	b	_m_generic_zerop
 	nop
 	! #12: M_ADD
-	b	_generic_add
+	b	_m_generic_add
 	nop
 	! #13: M_SUB
-	b	_generic_sub
+	b	_m_generic_sub
 	nop
 	! #14: M_MUL
-	b	_generic_mul
+	b	_m_generic_mul
 	nop
 	! #15: M_QUOT
-	b	_generic_quo
+	b	_m_generic_quo
 	nop
 	! #16: M_REM
-	b	_generic_rem
+	b	_m_generic_rem
 	nop
 	! #17: M_DIV
-	b	_generic_div
+	b	_m_generic_div
 	nop
 	! #18: M_NEG
-	b	_generic_neg
+	b	_m_generic_neg
 	nop
 	! #19: M_CAPTURE
-	b	_capture_continuation
+	b	_mem_capture_continuation
 	nop
 	! #20: M_RESTORE
-	b	_restore_continuation
+	b	_mem_restore_continuation
 	nop
 	! #21: M_TIMER_EXCEPTION
 	b	_timer_exception
@@ -94,91 +96,91 @@ _millicode:
 	b	_arg_exception
 	nop
 	! #24: M_VARARGS
-	b	_scheme_varargs
+	b	_m_varargs
 	nop
 	! #25: M_APPLY
-	b	_apply
+	b	_m_apply
 	nop
 	! #26: M_NUMEQ
-	b	_generic_equalp
+	b	_m_generic_equalp
 	nop
 	! #27: M_NUMLT
-	b	_generic_lessp
+	b	_m_generic_lessp
 	nop
 	! #28: M_NUMLE
-	b	_generic_less_or_equalp
+	b	_m_generic_less_or_equalp
 	nop
 	! #29: M_NUMGT
-	b	_generic_greaterp
+	b	_m_generic_greaterp
 	nop
 	! #30: M_NUMGE
-	b	_generic_greater_or_equalp
+	b	_m_generic_greater_or_equalp
 	nop
 	! #31: M_GARBAGE_COLLECT
-	b	_garbage_collect
+	b	_mem_garbage_collect
 	nop
 	! #32: M_OPEN_FILE
-	b	_open_file
+	b	_m_open_file
 	nop
 	! #33: M_CLOSE_FILE
-	b	_close_file
+	b	_m_close_file
 	nop
 	! #34: M_CREATE_FILE		/* OBSOLETE */
 	unimp	0
 	nop
 	! #35: M_UNLINK_FILE
-	b	_unlink_file
+	b	_m_unlink_file
 	nop
 	! #36: M_READ_FILE
-	b	_read_file
+	b	_m_read_file
 	nop
 	! #37: M_WRITE_FILE
-	b	_write_file
+	b	_m_write_file
 	nop
 	! #38: M_MOD
-	b	_generic_mod
+	b	_m_generic_mod
 	nop
 	! #39: M_COMPLEXP
-	b	_generic_complexp
+	b	_m_generic_complexp
 	nop
 	! #40: M_REALP
-	b	_generic_realp
+	b	_m_generic_realp
 	nop
 	! #41: M_RATIONALP
-	b	_generic_rationalp
+	b	_m_generic_rationalp
 	nop
 	! #42: M_INTEGERP
-	b	_generic_integerp
+	b	_m_generic_integerp
 	nop
 	! #43: M_EXACTP
-	b	_generic_exactp
+	b	_m_generic_exactp
 	nop
 	! #44: M_INEXACTP
-	b	_generic_inexactp
+	b	_m_generic_inexactp
 	nop
 	! #45: M_EXACT2INEXACT
-	b	_generic_exact2inexact
+	b	_m_generic_exact2inexact
 	nop
 	! #46: M_INEXACT2EXACT
-	b	_generic_inexact2exact
+	b	_m_generic_inexact2exact
 	nop
 	! #47: M_MAKE_RECTANGULAR
-	b	_generic_make_rectangular
+	b	_m_generic_make_rectangular
 	nop
 	! #48: M_REAL_PART
-	b	_generic_real_part
+	b	_m_generic_real_part
 	nop
 	! #49: M_IMAG_PART
-	b	_generic_imag_part
+	b	_m_generic_imag_part
 	nop
 	! #50: M_SQRT
-	b	_generic_sqrt
+	b	_m_generic_sqrt
 	nop
 	! #51: M_ROUND
-	b	_generic_round
+	b	_m_generic_round
 	nop
 	! #52: M_TRUNCATE
-	b	_generic_truncate
+	b	_m_generic_truncate
 	nop
 	! #53: M_NOT_SUPPORTED
 	b	_not_supported
@@ -196,19 +198,19 @@ _millicode:
 	b	_m_break
 	nop
 	! #58: M_TYPETAG
-	b	_typetag
+	b	_m_typetag
 	nop
 	! #59: M_TYPETAGSET
-	b	_typetag_set
+	b	_m_typetag_set
 	nop
 	! #60: M_EQV
-	b	_eqv
+	b	_m_eqv
 	nop
 	! #61: M_GETRUSAGE
 	b	_m_getrusage
 	nop
 	! #62: M_RESTORE_FRAME
-	b	_m_restore_frame
+	b	_mem_restore_frame
 	nop
 	! #63: M_ARITH_EXCEPTION
 	b	_arith_exception
@@ -218,6 +220,9 @@ _millicode:
 	nop
 	! #65: M_SINGLESTEP
 	b	_m_singlestep
+	nop
+	! #66: M_GENERIC_EXCEPTION
+	b	_m_generic_exception
 	nop
 
 	! end of millicode table

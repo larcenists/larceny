@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.9 92/02/17 18:26:52 lth Exp Locker: lth $
+; $Id: bignums.scm,v 1.10 1992/03/31 12:30:56 lth Exp lth $
 ;
 ; This file has four sections:
 ;
@@ -651,7 +651,7 @@
 ;    (bigdump b)
 ;    (display "-----------------") (newline)
     (let loop ((i 0) (carry 0))
-      (bigdump c)
+;      (bigdump c)
       (if (< i lmin)
 	  (loop (+ i 1) (big2+ a b c i carry))
 	    
@@ -704,16 +704,16 @@
   (let* ((la (bignum-length a))
 	 (lb (bignum-length b))
 	 (c  (bignum-alloc (+ la lb))))
-    (bigdump a)
-    (bigdump b)
+;    (bigdump a)
+;    (bigdump b)
     (let loop1 ((ai 0))
       (if (< ai la)
 	  (let loop2 ((bi 0) (carry 0))
-	    (bigdump c)
+;	    (bigdump c)
 	    (if (< bi lb)
 		(loop2 (+ bi 1) (big2*+ a b c ai bi carry))
 		(begin (bignum-set! c (+ ai bi) carry)
-		       (bigdump c)
+;		       (bigdump c)
 		       (loop1 (+ ai 1)))))
 	  c))))
 
