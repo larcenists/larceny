@@ -1,7 +1,7 @@
 ; -*- Text -*-
-; $Id: conventions.txt,v 1.7 91/06/27 14:44:23 lth Exp Locker: lth $
+; $Id: conventions.txt,v 1.8 91/06/28 10:27:23 lth Exp Locker: lth $
 
-		Calling Conventions and Register Usage
+	    Calling Conventions and Register Usage (SPARC)
 				   
 			    --------------
 
@@ -11,7 +11,7 @@
 This document discusses the mapping of virtual-to physical registers
 on the Sparc, the use of non-mapped Sparc registers, the use of stacks
 for Scheme and C, the calling conventions for Scheme and C procedures
-on the Sparc, the layout of continuation (both in the stack and on the
+on the Sparc, the layout of continuations (both in the stack and on the
 heap), and the layout of procedures (closures). Finally, we discuss the
 calling conventions for millicode procedures and the calling conventions
 for inter-language (C to Scheme and Scheme to C) calls.
@@ -40,17 +40,17 @@ reserve %o7 for this use.
 Likewise, we will want two stacks: one for C and one for Scheme. This
 choice lets us tailor the Scheme calling conventions without having to
 worry about interrupts and related messes, which reqire a specific
-stack layout. The C stack follows these conventions. Since the C stack
-pointer must at all times be in register %o6, we cannot use
-this register for Scheme. 
+stack layout. The C stack follows the conventions necessary to deal
+with asynchronous events. Since the C stack pointer must at all times
+be in register %o6, we cannot use this register for Scheme.
 
 Since the operating system window overflow trap handler uses the stack
 pointers of previous windows (i.e. the %i6 after a save), the %i6
 register cannot be used by Scheme, either.  
 
 Although %i7 holds the return address of the previous procedure in the
-C calling conventions, we can simply save it on the stack, so %i7 is
-available.
+C calling conventions, we can simply save it somewhere (typically on
+the C stack), so %i7 is available.
 
 Hence we are left with 22 registers available to Scheme: %g1, %i0-%i5, %i7,
 %l0-%l7, and %o0-%o5. We have the following virtual and work register
@@ -63,35 +63,35 @@ REG0 ... REGn, for some n.
   Rootable.
 
 RESULT
-  The register in which we return a value. Rootable.
+  The register in which we return a value and pass argument counts. Also used
+  to pass the first argument to millicode procedures. Rootable.
 
 ARGREG2
-  Second argument to a millicode call. Rootable.
+  Second argument to a millicode procedure. Rootable.
 
 ARGREG3
-  Third argument to a millicode call. Rootable.
+  Third argument to a millicode procedure. Also suggested as the register in
+  which to pass a procedure return address. Rootable (the return address 
+  always looks like a fixnum on a SPARC).
 
 STKP
   Scheme stack pointer. Nonrootable.
 
-E_TOP, E_LIMIT, and others
+E_TOP, E_LIMIT, and others (perhaps STK_LIMIT)
   Heap pointers. Nonrootable.
 
 GLOBALS
-  A register pointing to a set of global variables. Nonrootable.
+  A register pointing to an array of global variables. Nonrootable.
 
 MILLICODE
-  A register pointing to a set of millicode procedure addresses. 
-  Nonrootable. (?)
+  A register pointing to a vector of pointers to millicode procedures. 
+  Nonrootable.
 
 TIMER
   The countdown timer register. Nonrootable.
 
 TMP0 ... TMPm, for some m
-  Temporary registers. Nonrootable, I think. [Or a mixture of rootable
-  an nonrootable. The current memory management millicode assumes that
-  TMP0, TMP1, and TMP2 are nonrootable, but it does not take much to
-  change that.]
+  Temporary registers. Nonrootable.
 
 It is convenient for the purposes of code generation to have
 even-numbered general-purpose registers mapped to even-numbered
@@ -118,7 +118,7 @@ Here is the current mapping:
    E_LIMIT         -->  o1
    GLOBALS         -->  i7
    MILLICODE       -->  i5
-   TIMER           -->  l0
+   TIMER           -->  i0
    TMP0            -->  g1
    TMP1 ... TMP4   -->  i1 ... i4
 
@@ -132,23 +132,23 @@ There are two continuation layouts: in the stack and on the heap. Heap
 continuations are never manipulated directly by compiled Scheme code;
 instead, they are created on stack overflow or on the capture of a
 continuation, and restored into the stack on a stack underflow or the
-application of a continuation.
+reinstatement of a continuation.
 
 Stack continuations have the following layout (memory addresses
 increasing going down the figure):
 
-%STKP --> pppp pppp pppp pppp pppp pppp pppp pppp   return address
-          ssss ssss ssss ssss ssss ssss ssss ss00   continuation size
+%STKP --> pppp pppp pppp pppp pppp pppp pppp pppp   return address slot
+          ssss ssss ssss ssss ssss ssss ssss ss00   continuation size (bytes)
           pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   argument  (saved REG1)
           ....
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   temporary (initially 0)
           ....
 
-The continuation size is the number of bytes used by the continuation
-including the return address and the size field.  A continuation
+The continuation size is the number of bytes used by the continuation,
+including the return address and size fields.  A continuation
 should always be an even number of words, but the size field should
-indicate the number of used actually words, i.e. less any padding
+indicate the number of actually used words, i.e. less any padding
 words. This doubleword alignment of the stack lets us save some
 instructions as outlined below. The unused word of the continuation
 should always be the highest word in the frame, and it may remain
@@ -158,12 +158,10 @@ a coherent way.
 As a special case the procedure word may be all 0's, in which case the
 return address will not be adjusted when the stack frame is flushed to
 the heap. This allows the creation of frames which correspond to
-nonrelocatable code. [Whether such frames will be necessary is another
-question, but at some point it seemed that they might. The current version
-of "schemestart.s" creates such a continuation.]
+nonrelocatable code.
 
 When the stack cache is flushed into the heap, each frame is made into
-a vector-like structure with the following structure:
+a vector-like structure with the following layout:
 
       --> 0sss ssss ssss ssss ssss ss00 101x xx10   vector header word
           llll llll llll llll llll llll llll llll   dynamic link or #f
@@ -187,8 +185,8 @@ The tags of the headers which distinguish continuations from other
 vector types are defined in the file "datatypes.txt".
 
 
-3. Procedures (Preliminary)
----------------------------
+3. Procedures (Preliminary, not very interesting, and probably wrong)
+---------------------------------------------------------------------
 A procedure looks much like a vector (although it has a distinguished
 header):
 
@@ -218,7 +216,7 @@ calling conventions, they will not be answered now.]
 The discussion of procedure calls separates into several parts:
 Procedure entry; setting up for a call; doing a tail call; doing a
 non-tail call; and returning from a procedure. Each has several
-variations, but for now we'll treat the most general case for each.
+variations.
 
 One operation which is used quite a bit is the equivalent of the "lea"
 (load effective address) instruction on the mc68000. It calculates the
@@ -226,7 +224,7 @@ effective address of some location based on the current PC.  However,
 the Sparc has no "lea" instruction, nor is the PC available to other
 instructions than the "call" instruction. On the other hand, since the
 "call" instruction is PC-relative, we can use it to extract the PC and
-calculate an effective address from there! So assume we want to say
+calculate an effective address from there. So assume we want to say
 
 	lea	L2, %TMP0		! compute effective address into %TMP0
 
@@ -236,11 +234,12 @@ then we really say
 	add	%o7, (L2-(.-4)), %TMP0
 
 This setup is reasonable as long as %o7 is not used in compiled Scheme
-code, which it isn't. It is also fast -- a call completes in 1 cycle,
-so the entire operation takes only 2 cycles and 2 instructions.
+code, which it isn't. (One of the reasons why %o7 should not be used
+for the return address is because it is needed as a work register for
+"lea".)  The above construct is also fast -- a call completes in 1
+cycle, so the entire operation takes only 2 cycles and 2 instructions.
 Furthermore, by manipulating the branch address of the call, we can do
-a branch and "lea" all-in-one. [I admit that I'm a little proud of
-this construction.]
+a branch and "lea" all-in-one.
 
 It is worth noting that all exceptions cause a millicode procedure to be
 called. The millicode calling conventions are discussed in a subsequent
@@ -248,18 +247,23 @@ section; for now, assume that calling a millicode routine consists
 of loading the return address into register %o7, getting the millicode
 address from the millicode table, and branching to that code. This simple
 protocol suffices for exception handling within the procedure prologue
-and the call.
+and the call. (This is the second reason why %o7 should not be used for
+return addresses -- it is used for the millicode return address.)
 
 
 5. Procedure entry
-------------------
-The code for procedure entry (the "prologue") must allocate a stack
-frame (flushing the stack if it overflows), initialize temporaries,
-copy arguments to slots in the frame, and initialize the book-keeping
-information in the frame (the size and the return value).
+------------------ 
 
-The procedure entry code looks like this (explanations are in-line and
-follow the code):
+The code for procedure entry (the "prologue") must in general save the
+passed stack pointer, allocate a stack frame (flushing the stack if it
+overflows), initialize temporaries which will not be initialized by
+the code before the frame may be flushed to the heap, copy arguments
+from registers to slots in the frame, and initialize the book-keeping
+information in the frame (the size, at least: it is at the moment
+unclear whether the return value slot should be initialized).
+
+The most general procedure entry code looks like this (explanations
+are in-line and follow the code):
 
 ! Assume frame size FSIZE (in bytes, rounded up to nearest 8)
 ! and argument count ACOUNT (encoded as a fixnum).
@@ -268,14 +272,15 @@ follow the code):
 ! exception causes return to the next instruction, as it is not
 ! an error per se.
 
+    st      %ARGREG3, [ %STKP ]                ! store r.addr in caller's frame
     ld      [ %GLOBALS+SP_LIMIT_OFFSET ], %g1  ! Get stack limit
-    cmp     %STKP, %g1
+    cmp     %STKP, %g1                         ! check stack pointer
     bgt,a   L1                                 ! Skip if no overflow
-    sub     %STKP, FSIZE, %STKP                ! Allocate frame (in slot)
+    sub     %STKP, A_FSIZE, %STKP              ! Allocate frame (in delay slot)
     ld      [ %MILLICODE+M_STKOFLOW ], %g1     ! Stack overflow code
     jmpl    %g1, %o7
     nop
-    sub     %STKP, FSIZE, %STKP                ! Alloc frame (after trap)
+    sub     %STKP, A_FSIZE, %STKP              ! Alloc frame (after trap)
 
 ! We now have a frame. Now must set it up. For arguments passed in the
 ! machine-mapped registers, do a "store double" (std) for each
@@ -291,7 +296,7 @@ L1:
     std     %TMP2, [ %STKP+40 ]                ! save args 8 and 9
       :
     cmp     %RESULT, ACOUNT                    ! check for 1 argument
-    mov     FSIZE, %g1                         ! frame size
+    mov     FSIZE, %g1                         ! real frame size
     beq     L2                                 ! correct args?
     std     %g0, [ %STKP+0 ]                   ! save retaddr and frame size
     call    Lexception                         ! invoke exception handler
@@ -309,6 +314,9 @@ The exception handler can deal with timer expirations, wrong argument
 counts, and non-procedure applications without being given explicit
 information. Details are given in a later section.
 
+The "adjusted frame size" A_FSIZE is the real frame size rounded up to
+a doubleword.
+
 Notice the adjustment of "-8" on the effective address calculations.
 The adjustment is necessary because a standard return jumps to the
 instruction at (return address + 8).  Since there is no sense in
@@ -318,7 +326,7 @@ rid of the adjusted ones easily, we will use them everywhere.
 The number of dynamic instructions in the procedure entry code, with n
 arguments, assuming no stack overflow, is given by the formula:
 
-    8 + ceiling( n+1 / 2 ) + max( 0, ceiling( n-7 / 2 ) )
+    9 + ceiling( n+1 / 2 ) + max( 0, ceiling( n-7 / 2 ) )
 
 where the first term accounts for various setup instructions, the
 second for the argument storing instructions, and the third for extra
@@ -334,10 +342,24 @@ etc. This assumes that the first temporary is doubleword aligned. If
 that is not the case, then a single store will have to be used at some
 point; similarly if the last temporary is the first in a doubleword.
 
+The number of instructions is of little actual interest because the time
+is dominated totally by the memory accesses, even with a small frame.
+
 Note that because %g1 is known to be a temporary, we can use it to
 tweak the code some; the register pair %g0/%g1 can be used as the
 source of some doubleword stores to initialize temporaries and
 book-keeping information.
+
+For leaf procedures, the stack setup and return address save can both
+be omitted, resulting in the somewhat simpler code:
+
+L0:
+    cmp     %RESULT, 4                            ! 1 argument?
+    bne     L1                                    ! skip if ok
+    nop
+    call    Lexception                            ! exception handler
+    add     %o7, (L0-(.-4))-8, %o7
+L1:
 
 
 6. Calling a procedure
@@ -354,14 +376,6 @@ and then the call must be performed. In addition the timer must be
 decremented; if the timer reaches 0, then a timer interrupt must be
 handled. 
 
-[It turns out that decrementing and testing the timer is nearly free;
-if we were to use the UNIX interval timer it would be rather more
-expensive, since the interrupt handler for the timer would not have
-access to the register in which we keep the timer, and we'd have to do
-a load. On the other hand, if there are other interrupts to handle
-(can't offhand think of any, at least under UNIX), we'd have to fall
-back on the set-and-test-a-variable strategy.]
-
 Now, assuming arguments are set up with the presumed procedure in %REG0,
 a tail call looks like the following:
 
@@ -370,7 +384,7 @@ a tail call looks like the following:
     beq,a    L3                                 ! skip if procedure
     deccc    %TIMER                             ! Count down timer, set CC
 
-! Non-procedure exception. L1 is a convenient return point
+! Non-procedure exception. L1 is any convenient return point
 ! within this procedure for a non-procedure error (perhaps
 ! just before the procedure position of the call was evaluated?)
 
@@ -379,33 +393,42 @@ a tail call looks like the following:
 
 L3:
     bne      L4                                  ! Timer zero?
-    mov      4, %RESULT                          ! setup arg count
+    mov      4, %RESULT                          ! setup arg count (1 arg)
 
 ! Timer expired exception. We later return to L4 since
 ! argument count is already set up.
 
     call     Lexception
-    add      %o7, (L4-(.-4))-8, %o7
+    nop                                          ! no reason for an LEA here
 
 L4:
-    ld       [ %REG0+CODEVECTOR ], %TMP0         ! get code vector
-    jmp      %TMP0+CODEOFFSET                    ! invoke procedure
+    ld       [ %REG0+A_CODEVECTOR ], %TMP0       ! get code vector
+    jmp      %TMP0+A_CODEOFFSET                  ! invoke procedure
     add      %SP, 16, %SP                        ! deallocate frame
 
+(A_CODEVECTOR and A_CODEOFFSET are offsets into the procedure and
+bytevector structures, respectively, which adjust for tags. Defined in
+"layouts.s.h".)
 
 After seeing all this, non-tail calls are not much different; in fact,
-only the last basic block changes. (In the code below the delay slot
-in the call has been used for the load, thereby avoiding a dependency
-between the load and the jump, saving a cycle; this means that we must
-adjust somewhat the constants in the add that calculates the effective
-address.)
+only the last basic block changes.
 
 L4:
+    ld       [ %REG0+A_CODEVECTOR ], %TMP0       ! Get code vector
     call     .+8                                 ! Get PC into %o7
-    ld       [ %REG0+CODEVECTOR ], %TMP0         ! Get code vector
-    add      %o7, (.+4-L4), %o7                  ! Calculate address of "jmp"
-    jmp      %TMP0+CODEOFFSET                    ! Invoke procedure
-    st       %o7, [ %STKP ]                      ! Save return address
+    add      %o7, (L5-(.-4))-8, %ARGREG3         ! Return address
+    jmp      %TMP0+A_CODEOFFSET                  ! Invoke procedure
+    nop                                          ! can usually be filled
+L5:
+
+A trivial optimization is to note that if we return to the instruction
+after the jump's branch delay slot (like here), we can do rather better:
+
+L4:
+   ld        [ %REG0 + A_CODEVECTOR ], %TMP0
+   jmpl      %TMP0 + A_CODEOFFSET, %ARGREG3
+   nop
+L5:
 
 
 7. Returning from a procedure
@@ -427,13 +450,22 @@ Assuming the existence of such a procedure, then, we get the following
 code for the return, assuming that the return value has been stored
 into the RESULT register:
 
-    ld      [ %STKP + FSIZE ], %TMP0   ! get return address of previous frame
+    ld      [ %STKP + A_FSIZE ], %TMP0 ! get return address of previous frame
     jmp     %TMP0+8                    ! return
-    add     %STKP, FSIZE, %STKP        ! deallocate frame
+    add     %STKP, A_FSIZE, %STKP      ! deallocate frame
 
 The running time of this code can be improved somewhat if an
 instruction can be inserted between the load and the jump, since there
 is a dependency between the two resulting in a stall.
+
+In a leaf procedure the return address is usually kept in a register, and
+so returning is simpler:
+
+    jmp     %ARGREG3+8
+    nop
+
+where the slot typically can be filled with something useful like setting up
+the return value.
 
 
 8. Calling millicode
@@ -455,14 +487,14 @@ guarantee. The compiler will have to be somewhat sophisticated,
 anyway, to use the argument registers as temps.]
 
 Every millicode procedure requires that the return address is set up
-in register %o7 when the procedure is entered, and that REG0 has a
+in register %o7 when the procedure is entered, and that %REG0 has a
 pointer to the procedure that called the millicode procedure.  [It
 would be unreasonable for the millicode to require the return address
 to be stored in the continuation, because the continuation may not
 exist.]
 
 To call a millicode procedure, then, we have the following code
-snippets. First, assuming we're returning the the instruction
+snippets. First, assuming we're returning to the instruction
 following the call:
 
     ld      [ %MILLICODE + M_<something> ], %TMP0
@@ -472,20 +504,19 @@ following the call:
 Second, assuming we're returning to some other place (within the same
 code vector!), in this case "L2":
 
-    call    .+8
     ld      [ %MILLICODE + M_<something> ], %TMP0
-    add     %o7, (L2-(.-8)), %o7
+    call    .+8
+    add     %o7, (L2-(.-4))-8, %o7
     jmp     %TMP0
     nop
 
 The unfilled delay slots can usually be used for setting up a millicode
-argument.
+argument; in the worst case the "load" can go in the call's slot and
+the "add" can go in the jump's slot.
 
 
 9. Calling Scheme procedures from C (preliminary)
 -------------------------------------------------
-
-[There is code in memtest2.s which does more or less this.]
 
 Inter-language calls are relatively "heavy", as there is a significant
 amount of protocol that has to be taken care of in the call. The steps can
@@ -520,7 +551,7 @@ specific stack layout on the C stack (pointed to by %o6, also known as
 area for spilling register windows into (64 bytes), and one area for
 spilling and passing arguments in (typically 32 bytes). The stack
 pointer of the previous window (%i6, also known as %fp) always points
-to end of the highest- addressed word in this frame, and is used by
+to end of the highest-addressed word in this frame, and is used by
 the trap handler to locate the memory in which to spill the previous
 window, if necessary. Hence:
 
@@ -537,23 +568,24 @@ window, if necessary. Hence:
               |                    |
   %sp  -->    +--------------------+     (low address)
 
-If more (or less!) space is needed on the stack, the callee can simply 
-adjust the allocated amount accordingly; in fact, the conversion routine
-typically does not need to allocate more than a couple of words of argument
-save area on the stack.
+One important point is that the argument save area set up by a particular
+procedure is not for use by that procedure itself, but rather by the
+procedures called by that procedure. Hence, a procedure saves its arguments
+in the previous frame, at a positive offset from %fp.
 
 To save the current C context and allocate space, one must allocate a
 new window and stack space, and save whatever critical values that are
 in the %i (and %g, if any) registers after the allocation. If there
 was one argument passed, then the code may look like this:
 
-        save    %sp, -72, %sp                   ! allocate 18 words
-        st      %i0, [ %fp-8 ]                  ! save the argument
-        st      %i7, [ %fp-4 ]                  ! save the return address
+        save    %sp, -96, %sp                   ! allocate 24 words
+        st      %i0, [ %fp+0x40 ]               ! save the argument
+        st      %i7, [ %fp+0x44 ]               ! save the return address
 
 Saving the return address is vital, as the Scheme code uses register %i7.
 Note that at the time of the "save", %sp must point to an even-addressed
-word, otherwise an alignment error will occur.
+word, otherwise an alignment error will occur. This is automatically true
+if all stack frames have an even number of words.
 
 
 2) Setting up the Scheme context
@@ -563,7 +595,7 @@ initialized. The values that need to be restored to virtual machine
 registers are all in the "globals" array. Of course, the registers
 %GLOBALS and %MILLICODE also need to be set up.  The procedure
 "_restore_scheme_context", defined in "memory.s", does exactly these
-tasks. It should simply be called, either directly (from non-relocated
+tasks. It should simply be called, either directly (from non-relocatable
 code) or indirectly, through the millicode table. In the former case
 it is simple:
 
@@ -589,7 +621,7 @@ Typically, this involves copying arguments from the argument save area which
 was set up in part (1), above, to the Scheme argument registers. In the case
 of our 1-argument procedure, we have something like
 
-        ld      [ %fp-8 ], %REG1
+        ld      [ %fp+0x40 ], %REG1
 
 
 4) Calling the Scheme code
@@ -598,7 +630,7 @@ This has been covered in the preceding sections; since the machine is
 now in Scheme mode, we simply use the standard Scheme calling
 conventions: set up a continuation (with the calling procedure being
 set to 0 if it is non-relocatable), set up the argument count, save the
-return address in the continuation, and jump to the callee.
+return address in a registers, and jump to the callee.
 
 
 5) Saving the new Scheme context
@@ -632,7 +664,7 @@ save area. We will need to restore the return address, however, and whatever
 global registers were used for global register variables. So typically,
 we'll have this:
 
-        ld      [ %fp-4 ], %i7
+        ld      [ %fp+0x44 ], %i7
 
 
 8) Returning to the C code
@@ -646,11 +678,45 @@ from a C procedure:
 
 10. Calling C procedures from Scheme (preliminary)
 --------------------------------------------------
-This is mostly the reverse of the previous section. Details are currently
-sketchy.
+A C procedure cannot be called directly from a Scheme procedure because 
+the latter may be moved by the garbage collector before the C procedure
+returns (in the general case). The call therefore has to go via a
+piece of non-relocatable code. Assume, therefore, that there is a 
+millicode procedure
 
-The procedures in "memory.s" show some examples of inter-language
-calling, both in limited cases (like '_stkuflow' calling
-'_restore_frame') and in the most general case ('gcstart' calling
-'_gcstart2'). The mechanism used in 'gcstart' can (and should) be
-factored out to be useable by other procedures as well.
+    void C_call( void (*func)() )
+
+which performs the call for some C procedure "func". The rest of this
+section describes what C_call() has to look like. [If func() takes
+arguments, we must find some way of passing them; the millicode
+procedure could take a list of arguments as its second argument.]
+
+These are the steps that C_call() must go trough:
+
+1) set up continuation frame; save return address in this frame
+2) save scheme context
+3) setup C continuation
+4) call C procedure
+5) pop C continuation
+6) restore scheme context
+7) restore return address; pop the continuation frame
+8) If the caller's continuation frame has been flushed to the heap, it
+   must be restored.
+9) return to caller
+
+If we were guaranteed that the caller sets up a frame (and we can
+probably force this to be true) then it would be rather simpler:
+
+1) save return address in caller's frame
+2) save Scheme context
+3) setup C continuation
+4) call C procedure
+5) pop C continuation
+6) restore Scheme context
+7) restore return address
+8) return to caller
+
+The last step will automagically bring the caller's frame into the
+stack, if necessary.
+
+I won't cover these steps in detail (yet).
