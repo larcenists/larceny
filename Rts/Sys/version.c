@@ -7,7 +7,8 @@
  * Some nicknames to choose from:
  *  Burpelson AFB               0.46
  *  'Bat' Guano                 0.47
- *  Big Board
+ *  Big Board                   0.48
+ *  'Buck' Turgidson
  *  CRM-114
  *  de Sadesky
  *  Dear John
@@ -18,7 +19,6 @@
  *  'King' Kong
  *  Kissoff
  *  Mandrake
- *  Merkwurdigliebe
  *  Missile Complex at Laputa
  *  Muffley
  *  Operation Drop-Kick
@@ -26,15 +26,14 @@
  *  Plan R
  *  Precious Bodily Fluids
  *  Strangelove
- *  'Buck' Turgidson
  *  War Room
  */
 
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 47;
-char *larceny_version_qualifier = " \"'Bat' Guano\"";
+int  larceny_minor_version = 48;
+char *larceny_version_qualifier = " \"Big Board\"";
 
 char *date = DATE;
 char *user = USER;
