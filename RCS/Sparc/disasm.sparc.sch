@@ -437,6 +437,7 @@
 	  (defi $i.sthr 'sthr     rrr)
 	  (defi $i.stbr 'stbr     rrr)
 	  (defi $i.stdfr 'stfr     rrr)
+	  (defi $i.slot 'slot      '())
 	  v))
     
     (define (print-i i)
