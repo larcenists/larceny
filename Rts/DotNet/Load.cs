@@ -49,43 +49,48 @@ namespace Scheme.RT {
             return null;
         }
 
-        public static void InitializePerformanceCounters () {
-           if (PerformanceCounterCategory.Exists("Scheme")) {
-	       // If the counters exist, get a hold of them.
-	       // If not, no big deal.
-	       try {
-		   Call.applySetupCounter = new PerformanceCounter ("Scheme", "Apply Setup", false);
-	       } catch (Exception) {}
-	       try {
-		   Call.bounceCounter = new PerformanceCounter ("Scheme", "Trampoline Bounces", false);
-	       } catch (Exception) {}
-	       try {
-		   Call.schemeCallCounter = new PerformanceCounter ("Scheme", "Scheme Call Exceptions", false);
-	       } catch (Exception) {}
-	       try {
-		   Call.millicodeSupportCallCounter = new PerformanceCounter ("Scheme", "Millicode Support Calls", false);
-	       } catch (Exception) {}
-	       try {
-		   Cont.stackFlushCounter = new PerformanceCounter ("Scheme", "Stack Flushes", false);
-	       } catch (Exception) {}
-	       try {
-		   Cont.stackReloadCounter = new PerformanceCounter ("Scheme", "Stack Reloads", false);
-	       } catch (Exception) {}
-	       }
-        }
-
-        // MainHelper takes the argument vector, executes the body of the caller's
-        // assembly (should be the assembly corresponding to the compiled scheme code)
-        // and then executes the "go" procedure, if available.
-        public static void MainHelper(string[] args) {
-            // Mono throws a not implemented exception here.
+      public static void InitializePerformanceCounters ()
+      {
+        if (PerformanceCounterCategory.Exists ("Scheme")) {
+            // If the counters exist, get a hold of them.
+            // If not, no big deal.
             try {
-                InitializePerformanceCounters();
-                } catch (Exception) {};
-            Reg.programAssembly = Assembly.GetCallingAssembly();
-            bool keepRunning = handleAssembly(Reg.programAssembly);
-            if (keepRunning) handleGo(args);
-        }
+                Call.applySetupCounter = new PerformanceCounter ("Scheme", "Apply Setup", false);
+                } catch (Exception) {}
+            try {
+                Call.bounceCounter = new PerformanceCounter ("Scheme", "Trampoline Bounces", false);
+                } catch (Exception) {}
+            try {
+                Call.schemeCallCounter = new PerformanceCounter ("Scheme", "Scheme Call Exceptions", false);
+                } catch (Exception) {}
+            try {
+                Call.millicodeSupportCallCounter = new PerformanceCounter ("Scheme", "Millicode Support Calls", false);
+                } catch (Exception) {}
+            try {
+                Cont.stackFlushCounter = new PerformanceCounter ("Scheme", "Stack Flushes", false);
+                } catch (Exception) {}
+            try {
+                Cont.stackReloadCounter = new PerformanceCounter ("Scheme", "Stack Reloads", false);
+                } catch (Exception) {}
+            }
+      }
+
+      // MainHelper takes the argument vector, executes the body of the caller's
+      // assembly (should be the assembly corresponding to the compiled scheme code)
+      // and then executes the "go" procedure, if available.
+      public static void MainHelper (string[] args)
+      {
+        Debug.Listeners.Add (new TextWriterTraceListener (Console.Out));
+        Debug.WriteLine ("DEBUG version of Scheme runtime.");
+
+        // Mono throws a not implemented exception here.
+        try {
+            InitializePerformanceCounters();
+            } catch (Exception) {};
+        Reg.programAssembly = Assembly.GetCallingAssembly();
+        bool keepRunning = handleAssembly (Reg.programAssembly);
+        if (keepRunning) handleGo (args);
+      }
 
         public static bool handleAssembly(Assembly asm) {
             bool keepRunning = true;
