@@ -1,17 +1,12 @@
-; Debugger/countcalls.sch
-; Larceny -- call count profiling of top-level named procedures.
+; Copyright 1998 William D Clinger.
 ;
-; Written for MacScheme by Will Clinger
+; $Id$
 ;
-; 22 April 1998 / lth
-;
-; NOTE: you must load Auxlib/sort.sch before using this in Larceny.
-;
-; NOTE: this code _must_ be compiled, and it must be compiled with
-;       integrate-usual-procedures set to #t.
-;
-; The profiler can be made more efficient by using applyhooks
-; rather than apply.
+; Call count profiling of top-level named procedures.
+; This code must be compiled, with integrate-usual-procedures set to #t.
+
+; Requires
+;    Auxlib/sort.sch        [ sort procedure ]
 
 (define begin-countcalls)
 (define (end-countcalls) #f) ; assigned by begin-countcalls
@@ -24,9 +19,11 @@
        (environment-get-cell environment-get-cell)
        (interaction-environment interaction-environment)
        (symeval   (lambda (sym)
-		    (car (environment-get-cell (interaction-environment) sym))))
+		    (car (environment-get-cell
+			  (interaction-environment) sym))))
        (symset!   (lambda (sym x)
-		    (set-car! (environment-get-cell (interaction-environment) sym) x))))
+		    (set-car! (environment-get-cell
+			       (interaction-environment) sym) x))))
   (define (filter-loop p? x y)
     (cond ((null? x) y)
           ((p? (car x))
@@ -64,17 +61,18 @@
                                  (make-string (- n (string-length s))
                                               #\space)))
                             (display s)))
-                        (let ((indexes (sort (iota n)
-                                             (lambda (i j)
-                                               (let ((ci (vector-ref calls i))
-                                                     (cj (vector-ref calls j)))
-                                                 (or (> ci cj)
-                                                     (and (= ci cj)
-                                                          (string<?
-                                                           (symbol->string
-                                                            (vector-ref variables i))
-                                                           (symbol->string
-                                                            (vector-ref variables j)))))))))
+                        (let ((indexes
+			       (sort (iota n)
+				     (lambda (i j)
+				       (let ((ci (vector-ref calls i))
+					     (cj (vector-ref calls j)))
+					 (or (> ci cj)
+					     (and (= ci cj)
+						  (string<?
+						   (symbol->string
+						    (vector-ref variables i))
+						   (symbol->string
+						    (vector-ref variables j)))))))))
                               (total (do ((i 0 (+ i 1))
                                           (total 0 (+ total
                                                       (vector-ref calls i))))
