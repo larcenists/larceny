@@ -2,7 +2,7 @@
  * Scheme 313 run-time system
  * C-language procedures for system initialization (Berkeley UNIX)
  *
- * $Id: main.c,v 1.4 91/08/21 14:44:35 lth Exp Locker: lth $
+ * $Id: main.c,v 1.5 91/09/13 03:00:53 lth Exp Locker: lth $
  *
  * Exports the procedures C_init() and panic().
  * Accepts the following options from the command line:
@@ -15,6 +15,8 @@
  *    -I nnnn    The initial value of the timer.
  *    -h file    Tenured-area heap file. Mandatory.
  *    -H file    Static-area heap file. Optional.
+ *    -b #       breakpoint stop number (for debugging).
+ *    -B         stop at every breakpoint
  *
  * Hack options (for benchmarks...)
  *
@@ -55,7 +57,9 @@ char **argv, **envp;
   int argcount = 0, i;
   char *heapfile = NULL;
   FILE *heap;
+  extern char *version;
 
+  printf( "%s\n", version );
   while (--argc) {
     ++argv;
     if (**argv == '-') {
@@ -104,6 +108,21 @@ char **argv, **envp;
 	case 'H' :
 	  fprintf( stderr, "Don't know about -H yetb.\n" );
 	  exit( 1 );
+	case 'b' :
+	  { int tmp;
+	    extern int break_list[], break_count;
+
+	    if (argc == 1 || sscanf( *(argv+1), "%lu", &tmp ) != 1)
+	      invalid( "-e" );
+	    break_list[ break_count++ ] = tmp;
+	    ++argv; --argc;
+	  }
+	  break;
+	case 'B' :
+	  { extern int break_always;
+	    break_always = 1;
+	  }
+	  break;
 	default :
 	  fprintf( stderr, "Invalid option '%s'\n", *argv );
 	  exit( 1 );
@@ -179,11 +198,17 @@ char *s;
  */
 void C_exception( i )
 {
-  static char *s[] = { "Timer", "Type", "Procedure", "Argument" };
-
-  printf( "exception: %s\n.", s[ i ] );
-  exit( 1 );
+  static char *s[] = { "Timer Expired", 
+		       "Wrong Type",
+		       "Not a Procedure",
+		       "Wrong Number of Arguments" };
+  printf( "Scheme 313 exception (PC=0x%08x) (%d): %s.\n\n", 
+	 globals[ SAVED_RETADDR_OFFSET ],
+	 i,
+	 s[ i ] );
+  localdebugger();
 }
+
 
 
 /*
