@@ -48,6 +48,8 @@
 
 ;; Exports
 
+(export weird-printer)
+
 ;; Miscellaneous
 (export arity-at-least?
         arity-at-least-value
@@ -454,15 +456,24 @@
                  (char=? (string-ref string (- length 2)) #\#)
                  (char=? (string-ref string (- length 1)) #\!))))
 
+        (define (trailing-suffix? suffix other)
+          (let ((suffix-length (string-length suffix))
+                (other-length (string-length other)))
+            (and (> other-length suffix-length)
+                 (char=? (string-ref other (- other-length suffix-length 1)) #\.)
+                 (let loop ((suffix-scan 0)
+                            (other-scan (- other-length suffix-length)))
+                   (cond ((= suffix-scan suffix-length) #t)
+                         ((char=? (char-downcase (string-ref suffix suffix-scan))
+                                  (char-downcase (string-ref other other-scan)))
+                          (loop (1+ suffix-scan) (1+ other-scan)))
+                         (else #f))))))
+
         (define (trailing-dot-class? string)
-          (let ((length (string-length string)))
-            (and (> length 6)
-                 (char=? (string-ref string (- length 6)) #\.)
-                 (char=? (string-ref string (- length 5)) #\c)
-                 (char=? (string-ref string (- length 4)) #\l)
-                 (char=? (string-ref string (- length 3)) #\a)
-                 (char=? (string-ref string (- length 2)) #\s)
-                 (char=? (string-ref string (- length 1)) #\s))))
+          (trailing-suffix? (javadot-type-suffix) string))
+
+        (define (trailing-dot-generic? string)
+          (trailing-suffix? (javadot-generic-suffix) string))
 
         (define (split-on-dots string)
           (let loop ((scan 0)
@@ -576,7 +587,12 @@
                   ((trailing-dot-class? text)
                    `(,(rename 'clr/find-class)
                      (,(rename 'quote)
-                      ,(string->symbol (trim "" text ".class")))))
+                      ,(string->symbol (trim "" text (javadot-type-suffix))))))
+
+                  ((trailing-dot-generic? text)
+                   `(,(rename 'clr/find-parameterized-class)
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "" text (javadot-generic-suffix))))))
 
                   ((embedded-dot? text)
                    (if (trailing-sharp? text)
