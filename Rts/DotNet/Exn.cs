@@ -111,8 +111,9 @@ namespace Scheme.RT {
 
         public static void error(string msg) {
             debug.WriteLine("** called Exn.error(string)");
+            SObject string0 = Factory.wrap("");
             Call.callExceptionHandler
-                (new SObject[] {Factory.wrap(msg), Factory.False, Factory.False, Factory.Null});
+                (new SObject[] {Factory.wrap(msg), string0, string0, Factory.Null});
         }
         public static void error(string msg, SObject value) {
             Call.callExceptionHandler

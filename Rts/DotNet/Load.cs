@@ -156,10 +156,16 @@ namespace Scheme.RT {
             if (cv != null) return cv;
 
             // Then look in external Assembly via module in name
-            Assembly moduleAssembly = Assembly.LoadFrom(module + ".exe");
+            Assembly moduleAssembly;
+            try {
+                moduleAssembly = Assembly.LoadFrom(module + ".exe");
+            } catch {
+                Exn.error("code not found (no EXE file): " + module);
+                return Factory.Impossible;
+            }
             cv = findCodeInAssembly(moduleAssembly, ns, number);
             if (cv != null) return cv;
-            Exn.internalError("code not found: " + module + " " + ns + " " + number);
+            Exn.error("code not found: " + module + " " + ns + " " + number);
             return Factory.False;
         }
 

@@ -1715,11 +1715,11 @@ namespace Scheme.Rep {
                 }
             }
             if (rib != null && rib.Length > 0) {
-                return ((Procedure)rib[0]).getName();
-            } else {
-                return "<unknown>";
+                if (rib[0] is Procedure) {
+                    return ((Procedure)rib[0]).getName();
+                }
             }
-
+            return "<unknown>";
         }
         public override void write(TextWriter w) {
             w.Write("#<PROCEDURE: ");
