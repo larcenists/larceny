@@ -2,15 +2,19 @@
 ;
 ; $Id$
 ;
-; Load script for building the full heap image on SPARC.
+; Load script for building the full heap image.
+; SPARC Larceny only.
 ;
 ; Before you use this script, you must compile the development environment
-; and the debugger.  The easiest way to do that is to run 'build' and then
-; evaluate
-;   (make-development-environment)
+; and the debugger.  The easiest way to do that is to load the development
+; as usual and evaluate
+;
+;   (build-twobit)
 ;
 ; BUGS:
 ; - The FFI and record package internals are not hidden.
+; - Some files that are no longer in Auxlib and Experimental (they
+;   have been moved to an external library) are not loaded
 
 (define ($$trace x) #f)                 ; Some code uses this
 
