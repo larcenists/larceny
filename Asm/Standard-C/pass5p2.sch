@@ -30,6 +30,16 @@
 
 (define (assembly-start as)
   (let ((u (as-user as)))
+    (if (zero? (user-data.toplevel-counter u))
+	(begin
+	  (if (not (runtime-safety-checking))
+	      (emit-string! as "#define UNSAFE_CODE\n"))
+	  (if (not (catch-undefined-globals))
+	      (emit-string! as "#define UNSAFE_GLOBALS\n"))
+	  (if (inline-allocation)
+	      (emit-string! as "#define INLINE_ALLOCATION\n"))
+	  (if (inline-assignment)
+	      (emit-string! as "#define INLINE_ASSIGNMENT\n"))))
     (user-data.proc-counter! u 0)
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
   (let ((e (new-proc-id as)))
@@ -661,10 +671,10 @@
 (define (constant-value x)
 
   (define (exact-int->fixnum x)
-    (* x 4))
+    (string-append "fixnum(" (number->string x) ")"))
 
   (define (char->immediate c)
-    (+ (* (char->integer c) 65536) $imm.character))
+    (string-append "int_to_char(" (number->string (char->integer c)) ")"))
 
   (cond ((fixnum? x)              (exact-int->fixnum x))
         ((eq? x #t)               "TRUE_CONST")
