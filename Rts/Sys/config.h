@@ -14,9 +14,12 @@
  * modified is included with the above copyright notice.
  */
 
+/* This trick is brittle and depends on the contents of system-supplied
+   header files; in particular, it doesn't work with LCC. 
+   */
+
 #if !defined(INCLUDED_CONFIG_H)
 #define INCLUDED_CONFIG_H
-
 # if defined(sun) &&(defined(sparc) || defined(__sparc))
 #  define SPARC
      /* Test for SunOS 5.x */
@@ -27,5 +30,4 @@
 #      define SUNOS4
 #    endif
 # endif
-
 #endif
