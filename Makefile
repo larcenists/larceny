@@ -1,8 +1,8 @@
-# -*- fundamental -*- 
-#
-# Larceny -- top-level Makefile
+# Copyright 1998 Lars T Hansen.          -*- fundamental -*- 
 #
 # $Id$
+#
+# Larceny -- top-level Makefile
 
 
 ###########################################################################
@@ -39,6 +39,9 @@ setup:
 	ln -s Rts/bdwlarceny
 	ln -s Rts/hsplit
 	ln -s Rts/Build
+	mv nbuild nbuild.safe
+	sed "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" < nbuild.safe > nbuild || \
+	   ( echo "nbuild hack failed!"; mv nbuild.safe nbuild; exit 1 )
 	(cd Rts ; $(MAKE) setup)
 	$(MAKE) chezstuff
 
@@ -94,6 +97,7 @@ faslclean:
 	rm -f Debugger/*.fasl
 	rm -f Testsuite/GC/*.fasl
 	rm -f Testsuite/Lib/*.fasl
+	rm -f Ffi/*.fasl
 
 rtsclean:
 	rm -f *.map
