@@ -2,7 +2,7 @@
  *
  * $Id$
  *
- * Larceny Run-Time System  --  low-level memory allocator (Posix).
+ * Low-level memory allocator (portable).
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write
@@ -13,11 +13,16 @@
  * It is expected that requests for memory will be large and infrequent; 
  * this allocator is not intended to be a replacement for malloc and friends.
  *
- * There are two descriptor tables: gclib_desc_g maps page numbers to
- * generation numbers, and gclib_desc_b maps page numbers to attribute bits.
- * The "page number" of an address is defined by the pageof() macro in 
- * gclib.h; it is the address minus the value of the global gclib_pagebase, 
- * all shifted right to throw away the low-order bits.
+ * The allocator can be compiled in one of two modes.  
+ *
+ * If the preprocessor macro GCLIB_LARGE_TABLE is 0, then two page
+ * tables that cover 32MB, each with word entries, are allocated at the
+ * outset and grown as necessary.  The table gclib_desc_g maps page
+ * numbers to generation numbers; the table gclib_desc_b maps page
+ * numbers to attribute bits.  The "page number" of an address is
+ * defined by the pageof() macro in gclib.h; it is the address minus the
+ * value of the global gclib_pagebase, all shifted right to throw away
+ * the low-order bits.
  *
  * There are two separate tables rather than one table of records in
  * order to simplify manipulation from assembly language (i.e., in the
@@ -26,11 +31,26 @@
  * The low 16 bits of the attribute bits are reserved by the allocator;
  * the rest of the RTS can use the high bits.
  *
- * This code is not reentrant.
+ * If the preprocessor macro GCLIB_LARGE_TABLE is not 0, then one page
+ * table that covers the entire 4GB address range, with one byte entry
+ * for each page, is allocated at the outset and is never grown or moved.
+ * The table is called gclib_desc_g.  The low 7 bits maps the page number
+ * to a generation number, and the high bit is an attribute bit: 1 means
+ * that the page is allocated to the large-object space.
  *
- * FIXME: uses of caddr_t should be replaced by uses of byte*, but the
- *   effects are nonlocal so don't do it yet.
- */  
+ * The single large table is expected to reduce the cost of the GC-time write
+ * barrier; it is being evaluated.  By dispensing with gclib_pagebase and 
+ * by never changing the value of gclib_desc_g, the page number computation
+ * can be sped up.  This also improves the normal write barrier slightly.
+ *
+ * Client should  use the gen_of() and attr_of() macros to access the tables.
+ *
+ * The value of GCLIB_LARGE_OBJECT is selected in Sys/config.h.
+ *
+ * FIXME: This code is not reentrant.
+ *
+ * FIXME: Uses of caddr_t should be replaced by uses of byte*, but the
+ *   effects are nonlocal so don't do it yet.  */
 
 #define GC_INTERNAL
 
@@ -46,7 +66,7 @@
 gclib_desc_t *gclib_desc_g;	/* generation owner */
 #if !GCLIB_LARGE_TABLE
 gclib_desc_t *gclib_desc_b;	/* attribute bits */
-caddr_t  gclib_pagebase;	/* page address of lowest known word */
+caddr_t      gclib_pagebase;	/* page address of lowest known word */
 #endif
 
 /* Private globals */
@@ -64,6 +84,8 @@ static struct {
   int     max_rts_bytes;	/* max ditto */
   int     wastage_bytes;	/* amount of wasted space */
   int     max_wastage_bytes;	/* max ditto */
+  int     mem_bytes;		/* amount of heap + remset + RTS + frag */
+  int     max_mem_bytes;	/* max ditto */
 } data;
 
 static byte *gclib_alloc( unsigned bytes );
@@ -73,6 +95,7 @@ static void grow_table( byte *new_bot, byte *new_top );
 static byte *alloc_aligned( unsigned bytes );
 static void register_pointer( byte *derived, byte *original );
 static byte *find_and_free_pointer( byte *x );
+static void update_mem_bytes( void );
 
 #define FREE_ALIGNED( x, bytes ) free( find_and_free_pointer( x ) )
 
@@ -91,9 +114,11 @@ gclib_init( void )
   
   gclib_desc_g =
     (gclib_desc_t*)must_malloc( sizeof(gclib_desc_t) * data.descriptor_slots );
+  data.rts_bytes += sizeof(gclib_desc_t)*data.descriptor_slots;
 #if !GCLIB_LARGE_TABLE
   gclib_desc_b =
     (gclib_desc_t*)must_malloc( sizeof(gclib_desc_t) * data.descriptor_slots );
+  data.rts_bytes += sizeof(gclib_desc_t)*data.descriptor_slots;
 #endif
   
   for ( i = 0 ; i < data.descriptor_slots ; i++ ) {
@@ -164,6 +189,7 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%d addr=%p",
 			 gen_no, bytes, (void*)ptr );
 
+  update_mem_bytes();
   return (void*)ptr;
 }
 
@@ -192,7 +218,17 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
     data.rts_bytes += bytes;
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
+
+  update_mem_bytes();
   return (void*)ptr;
+}
+
+/* Approximate but very close */
+static void update_mem_bytes( void )
+{
+  data.mem_bytes = 
+    data.heap_bytes + data.remset_bytes + data.rts_bytes + data.wastage_bytes;
+  data.max_mem_bytes = max( data.max_mem_bytes, data.mem_bytes );
 }
 
 /* The descriptor tables have to be expanded only when the allocated
@@ -204,9 +240,11 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
 static byte *gclib_alloc( unsigned bytes )
 {
   byte *ptr, *top;
+#if !GCLIB_LARGE_TABLE
   int i;
   caddr_t old_pagebase, old_memtop;
-
+#endif
+  
   assert( ( bytes % PAGESIZE) == 0 );
   ptr = alloc_aligned( bytes );
   top = ptr+bytes;
@@ -267,7 +305,7 @@ static byte *gclib_alloc( unsigned bytes )
 #if !GCLIB_LARGE_TABLE
 static void grow_table( byte *new_bot, byte *new_top )
 {
-  unsigned *desc_g, *desc_b;
+  gclib_desc_t *desc_g, *desc_b;
   int slots, dest;
 
   assert( (word)new_bot % PAGESIZE == 0 &&
@@ -278,8 +316,9 @@ static void grow_table( byte *new_bot, byte *new_top )
   slots = max( pageof_pb( new_top, new_bot ), data.descriptor_slots*2 );
   annoyingmsg( "Growing page tables -- new slots=%d.", slots );
 
-  desc_g = (unsigned*)must_malloc( sizeof( unsigned ) * slots );
-  desc_b = (unsigned*)must_malloc( sizeof( unsigned ) * slots );
+  desc_g = (gclib_desc_t*)must_malloc( sizeof( gclib_desc_t ) * slots );
+  desc_b = (gclib_desc_t*)must_malloc( sizeof( gclib_desc_t ) * slots );
+  data.mem_bytes += sizeof(gclib_desc_t)*slots*2;
 
   /* The slot in the new table at which to start copying the old table */
   dest = pageof_pb( gclib_pagebase, new_bot );
@@ -287,14 +326,18 @@ static void grow_table( byte *new_bot, byte *new_top )
   assert( dest < slots && 
           dest+data.descriptor_slots-1 < slots );
 
-  memset( desc_b, 0, sizeof(unsigned)*slots );
-  memcpy( desc_b+dest, gclib_desc_b, sizeof(unsigned)*data.descriptor_slots );
+  memset( desc_b, 0, sizeof(gclib_desc_t)*slots );
+  memcpy( desc_b+dest, gclib_desc_b, 
+	  sizeof(gclib_desc_t)*data.descriptor_slots );
   free( gclib_desc_b );
+  data.mem_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   gclib_desc_b = desc_b;
 
-  memset( desc_g, 0, sizeof(unsigned)*slots );
-  memcpy( desc_g+dest, gclib_desc_g, sizeof(unsigned)*data.descriptor_slots );
+  memset( desc_g, 0, sizeof(gclib_desc_t)*slots );
+  memcpy( desc_g+dest, gclib_desc_g,
+	  sizeof(gclib_desc_t)*data.descriptor_slots );
   free( gclib_desc_g );
+  data.mem_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   gclib_desc_g = desc_g;
 
   data.descriptor_slots = slots;
@@ -361,6 +404,8 @@ void gclib_free( void *addr, int bytes )
     pageno++;
     pages--;
   }
+
+  update_mem_bytes();
 }
 
 void gclib_shrink_block( void *p, int oldsize, int newsize )
@@ -410,6 +455,9 @@ void gclib_stats( gclib_stats_t *stats )
   stats->rts_allocated_max      = bytes2words( data.max_rts_bytes );
   stats->heap_fragmentation     = bytes2words( data.wastage_bytes );
   stats->heap_fragmentation_max = bytes2words( data.max_wastage_bytes );
+  stats->mem_allocated          = bytes2words( data.mem_bytes );
+  stats->mem_allocated_max      = bytes2words( data.max_mem_bytes );
+  stats->heap_limit             = bytes2words( data.heap_bytes_limit );
 }
 
 /* Pointer registry for mapping pointers returned from malloc to pointers
