@@ -257,11 +257,11 @@ void bdw_after_gc( void )
   stats_after_gc();
 }
 
-void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap )
+void gclib_stats( gclib_stats_t *stats )
 {
-  *wremset = *wrts = 0;
-  *wheap = GC_get_heap_size() / sizeof( word );
-  *wmax_heap = GC_get_max_heap_size() / sizeof( word );
+  memset( stats, 0, sizeof( gclib_stats_t ) );
+  stats->wheap = GC_get_heap_size() / sizeof( word );
+  stats->wmax_heap = GC_get_max_heap_size() / sizeof( word );
 }
 
 static void no_op_warn()
