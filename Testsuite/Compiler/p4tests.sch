@@ -1,8 +1,12 @@
+; Copyright 1998 William Clinger
+;
+; $Id$
+;
 ; Compiler tests, designed to exercise Twobit's pass 4.
 ; These tests should be run at all levels of optimization,
 ; with all possible settings of compiler switches.
 ;
-; Requires Lib/test.sch.
+; Requires Testsuite/Lib/test.sch.
 ; Test coverage should be confirmed using Util/stcov.sch.
 
 
