@@ -236,7 +236,7 @@ Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core defs \
+	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 		Sys/*.o Sparc/*.o Build/*.o Standard-C/*.o Util/*.o \
 		libpetit.so Standard-C/arithmetic.c
 
@@ -246,9 +246,6 @@ rtsclean: clean
 realclean: clean
 	if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi
 	rm -rf Build
-
-defs: Util/defs.c
-	$(CC) -o defs Util/defs.c
 
 ###########################################################################
 #
@@ -277,7 +274,7 @@ Build/c-table.c: Build/globals.cfg
 
 LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \
 	  Build/cdefs.h Sys/config.h
-SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h defs
+SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h
 PETIT_H=Standard-C/millicode.h Standard-C/petit-config.h \
 	Standard-C/petit-hacks.h
 
