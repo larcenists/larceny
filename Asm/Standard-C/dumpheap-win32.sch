@@ -102,7 +102,7 @@
    (twobit-format 
     #f
     "mwcc -g -c ~a -IRts\\Sys -IRts\\Standard-C -IRts\\Build -DSTDC_SOURCE ~a -o ~a ~a"
-    (if (optimize-c-code) "-opt full" "")  ; or -opt on
+    (if (optimize-c-code) "-opt on" "")  ; mwcc can't compile Larceny with -opt full
     (if (optimize-c-code) "-DNDEBUG" "")
     o-name
     c-name)))
@@ -113,6 +113,14 @@
    (twobit-format #f
 		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.lib"
 		  output-name)))
+
+(define (c-linker:mwld-win32 output-name object-files libs)
+  (create-indirect-file "petit-objs.lnk" object-files)
+  (execute
+   (twobit-format #f
+		  "mwld.exe -g -export sym=mc_alloc -o ~a @petit-objs.lnk ~a"
+		  output-name
+		  (apply string-append (insert-space libs)))))
 
 (define-compiler 
   "Microsoft Visual C/C++ 6.0 on Win32" 
@@ -130,7 +138,7 @@
   ".obj"
   `((compile            . ,c-compiler:mwcc-win32)
     (link-library       . ,c-library-linker:msvc-win32)
-    (link-executable    . ,c-linker:msvc-win32)
+    (link-executable    . ,c-linker:mwld-win32)
     (link-shared-object . ,c-dll-linker:mwcc-win32)
     (append-files       . ,append-file-shell-command-msdos)))
 
