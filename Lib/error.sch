@@ -1,7 +1,7 @@
 ; Lib/error.sch
 ; Larceny library -- error system
 ;
-; $Id: error.sch,v 1.1.1.1 1998/11/19 21:52:05 lth Exp $
+; $Id$
 ;
 ; Documented behavior:
 ;  The default error handler prints all its arguments and then calls reset.

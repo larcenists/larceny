@@ -1,7 +1,7 @@
 /* Rts/Sys/stack.c.
  * Larceny run-time system (Unix) -- stack handling
  *
- * $Id: stack.c,v 1.1.1.1 1998/11/19 21:51:43 lth Exp $
+ * $Id$
  *
  * The stack lives at the high end of the current ephemeral area. There
  * are three major advantages to this:

@@ -3,7 +3,7 @@
 ! Larceny RTS -- cache flush test code.
 !
 ! lth@cs.uoregon.edu / August 24, 1995 (Death to Windows 95!)
-! $Id: cache0.s,v 1.1.1.1 1998/11/19 21:51:49 lth Exp $
+! $Id$
 
 #include "asmdefs.h"
 #include "asmmacro.h"

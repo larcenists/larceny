@@ -1,5 +1,5 @@
 ; More useful procedures.
-; $Id: misc2.sch,v 1.1.1.1 1998/11/19 21:52:18 lth Exp $
+; $Id$
 
 ; Read-substring and write-substring can be optimized by plugging into 
 ; the I/O system; for now, they are useful abstractions.

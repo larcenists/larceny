@@ -1,7 +1,7 @@
 /* Rts/Sparc/cglue.c
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
- * $Id: cglue.c,v 1.1.1.1 1998/11/19 21:51:50 lth Exp $
+ * $Id$
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are

@@ -1,7 +1,7 @@
 #!/bin/sh
 # nbuild -- development system load script
 #
-# $Id: nbuild,v 1.1.1.1 1998/11/19 21:51:35 lth Exp $
+# $Id$
 #
 # Usage:
 #   nbuild [ nbuild options ] [ -a host system argument ... ]

@@ -2,7 +2,7 @@
 ; Rts/Standard-C/arithmetic.mac
 ; Petit Larceny -- templates for generic arithmetic code.
 ;
-; $Id: arithmetic.mac,v 1.1.1.1 1998/11/19 21:51:51 lth Exp $
+; $Id$
 ;
 ; This file should be processed with the expansion program "expander.sch",
 ; in a way documented below (in the C file header).  The output of that
@@ -14,7 +14,7 @@
 /* Rts/Standard-C/arithmetic.c
  * Petit Larceny -- generic arithmetic millicode.
  *
- * $Id: arithmetic.mac,v 1.1.1.1 1998/11/19 21:51:51 lth Exp $
+ * $Id$
  *
  * WARNING: This code has been auto-generated.  Edit 
  * Rts/Standard-C/arithmetic.mac instead and rerun the expander by 

@@ -1,7 +1,7 @@
 ; Auxlib/osdep-macos.sch
 ; Operating-system-dependent functionality for Auxlib -- Macintosh
 ;
-; $Id: osdep-macos.sch,v 1.1.1.1 1998/11/19 21:52:18 lth Exp $
+; $Id$
 
 ; A "file name" is a string of length > 0.
 ; A "directory name" is a string of length > 0.

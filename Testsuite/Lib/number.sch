@@ -1,7 +1,7 @@
 ; Testsuite/Lib/number.sch
 ; Larceny test suite -- numerical operations
 ;
-; $Id: number.sch,v 1.1.1.1 1998/11/19 21:52:34 lth Exp $
+; $Id$
 ;
 ; The test scaffolding is in test.sch, which should be loaded first.
 ;

@@ -1,7 +1,7 @@
 /* Rts/Sys/argv.c
  * Larceny run-time system (Unix) -- argument vector handling.
  *
- * $Id: argv.c,v 1.1.1.1 1998/11/19 21:51:38 lth Exp $
+ * $Id$
  *
  * The code in this file is reentrant.
  * The code in this file does not depend on word size.

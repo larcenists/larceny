@@ -1,7 +1,7 @@
 /* Rts/Sys/gc_t.h
  * Larceny run-time system -- garbage collector data structure.
  *
- * $Id: gc_t.h,v 1.1.1.1 1998/11/19 21:51:45 lth Exp $
+ * $Id$
  */
 
 #ifndef INCLUDED_GC_T_H

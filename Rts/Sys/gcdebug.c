@@ -2,7 +2,7 @@
  * Larceny run-time system -- gc debugging infrastructure
  * 
  * January 22, 1997
- * $Id: gcdebug.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
+ * $Id$
  *
  * Pilfered from pre-0.14 code, and _not_ polished.  This code is as yet
  * only suitable for testing the two-generation copying collector.

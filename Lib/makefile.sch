@@ -1,7 +1,7 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.2 1998/11/20 13:10:57 lth Exp $
+; $Id$
 ;
 ; Procedures to call:
 ;  make-larceny-heap

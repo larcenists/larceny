@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id: contag.sch,v 1.1.1.1 1998/11/19 21:52:03 lth Exp $
+; $Id$
 ;
 ; Larceny runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.

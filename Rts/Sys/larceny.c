@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
+ * $Id$
  *
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */

@@ -1,7 +1,7 @@
 ; Util/std-heap.sch
 ; Load script for building the full heap image
 ;
-; $Id: std-heap.sch,v 1.1.1.1 1998/11/19 21:51:55 lth Exp $
+; $Id$
 ;
 ; BUGS:
 ; - The FFI internals are not hidden.

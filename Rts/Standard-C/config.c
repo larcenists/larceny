@@ -1,6 +1,6 @@
 /* Copyright 1998 Lars T Hansen
  *
- * $Id: config.c,v 1.1.1.1 1998/11/19 21:51:51 lth Exp $
+ * $Id$
  * config.c -- configuration-dependent values.
  */
 

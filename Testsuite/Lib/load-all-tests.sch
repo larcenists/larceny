@@ -1,7 +1,7 @@
 ; Testsuite/Lib/load-all-tests.sch
 ; Larceny test suite -- load script for Library test suite.
 ;
-; $Id: load-all-tests.sch,v 1.1.1.1 1998/11/19 21:52:33 lth Exp $
+; $Id$
 
 (load "test.fasl")			; Scaffolding
 (load "fib.fasl")			; Fibonacci test

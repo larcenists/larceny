@@ -1,7 +1,7 @@
 /* Rts/Sys/los.c
  * Larceny run-time system -- large object space.
  *
- * $Id: los.c,v 1.1.1.1 1998/11/19 21:51:41 lth Exp $
+ * $Id$
  *
  * A large object is a Scheme object that is allocated in a dedicated set
  * of pages.  Large objects have a pre-header consisting of the four words

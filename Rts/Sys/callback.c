@@ -1,7 +1,7 @@
 /* Rts/Sys/callback.c
  * Larceny run-time-system -- call-in to Scheme mode
  *
- * $Id: callback.c,v 1.1.1.1 1998/11/19 21:51:39 lth Exp $
+ * $Id$
  */
 
 #include "larceny.h"

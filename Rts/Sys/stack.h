@@ -1,7 +1,7 @@
 /* Rts/Sys/stack.h
  * Larceny run-time system -- run-time stack interface
  *
- * $Id: stack.h,v 1.1.1.1 1998/11/19 21:51:48 lth Exp $
+ * $Id$
  *
  * The stack is maintained by the young heap in a GC, but the details of
  * its layout are somewhat hidden by the stack interface functions.

@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcasm.sch
 ; Larceny -- SPARC machine assembler
 ;
-; $Id: sparcasm.sch,v 1.1.1.1 1998/11/19 21:51:59 lth Exp $
+; $Id$
 ;
 ; The procedure `sparc-instruction' takes an instruction class keyword and
 ; some operands and returns an assembler procedure for the instruction

@@ -1,7 +1,7 @@
 ; Auxlib/io.sch
 ; Extra I/O procedures
 ;
-; $Id: io.sch,v 1.1.1.1 1998/11/19 21:52:17 lth Exp $
+; $Id$
 
 (define (read-line . rest)
 

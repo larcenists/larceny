@@ -1,7 +1,7 @@
 ! Rts/Sparc/glue.s
 ! Larceny Run-time System (SPARC) -- context switching and glue code.
 !
-! $Id: glue.s,v 1.1.1.1 1998/11/19 21:51:49 lth Exp $
+! $Id$
 !
 ! To fix:
 ! * The register save/restore code used in scheme-to-scheme calls needs to

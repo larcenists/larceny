@@ -1,7 +1,7 @@
 /* Rts/Sys/old-heap.c
  * Larceny run-time system -- stop-and-copy varsized old heap.
  *
- * $Id: old-heap.c,v 1.1.1.1 1998/11/19 21:51:42 lth Exp $
+ * $Id$
  *
  * The code in this file implements stop-and-copy older areas both for
  * ephemeral and dynamic generations.  The only real difference are the 

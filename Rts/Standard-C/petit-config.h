@@ -1,7 +1,7 @@
 /* Rts/Standard-C/petit-config.h
  * Petit Larceny -- common configuration header file
  *
- * $Id: petit-config.h,v 1.1.1.1 1998/11/19 21:51:51 lth Exp $
+ * $Id$
  */
 
 #ifndef PETIT_CONFIG_H

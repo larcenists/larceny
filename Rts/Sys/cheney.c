@@ -1,7 +1,7 @@
 /* Rts/Sys/cheney.c
  * Larceny -- copying garbage collector library
  *
- * $Id: cheney.c,v 1.1.1.1 1998/11/19 21:51:39 lth Exp $
+ * $Id$
  *
  * Resist the temptation to shadow gclib_desc_g and gclib_pagebase
  * in locals in the scanning loops -- the low-level memory manager

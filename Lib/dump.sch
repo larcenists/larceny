@@ -1,7 +1,7 @@
 ; Lib/dump.sch
 ; Larceny library -- heap dumping
 ;
-; $Id: dump.sch,v 1.1.1.1 1998/11/19 21:52:04 lth Exp $
+; $Id$
 
 ($$trace "dump")
 

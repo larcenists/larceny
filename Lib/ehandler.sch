@@ -1,7 +1,7 @@
 ; Lib/ehandler.sch
 ; Larceny library -- system exception handler.
 ;
-; $Id: ehandler.sch,v 1.1.1.1 1998/11/19 21:52:04 lth Exp $
+; $Id$
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, 
 ; ARGREG2, and ARGREG3, and an exception code as arguments. It 

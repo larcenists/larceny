@@ -1,7 +1,7 @@
 /* Rts/Standard-C/millicode.c
  * Petit Larceny -- run-time support implementation, except for arithmetic.
  *
- * $Id: millicode.c,v 1.1.1.1 1998/11/19 21:51:52 lth Exp $
+ * $Id$
  */
 
 #define NOGLOBALS

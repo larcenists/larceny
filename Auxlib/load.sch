@@ -1,7 +1,7 @@
 ; Auxlib/load.sch
 ; Larceny auxiliary library -- a smart-but-not-intelligent 'load' procedure.
 ;
-; $Id: load.sch,v 1.1.1.1 1998/11/19 21:52:17 lth Exp $
+; $Id$
 ;
 ; Exported procedures:
 ;   (load filename)

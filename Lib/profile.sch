@@ -1,6 +1,6 @@
 ; Larceny library -- profiling support.
 ;
-; $Id: profile.sch,v 1.1.1.1 1998/11/19 21:52:10 lth Exp $
+; $Id$
 
 ($$trace "profile")
 

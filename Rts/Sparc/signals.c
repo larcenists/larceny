@@ -1,7 +1,7 @@
 /* Rts/Sparc/signals.c
  * Larceny run-time system -- SPARC low-level signal-handling code.
  *
- * $Id: signals.c,v 1.1.1.1 1998/11/19 21:51:50 lth Exp $
+ * $Id$
  *
  * jump_to_millicode_exception_handler() sets the return address in the
  * exception structure to point to the millicode exception handler,

@@ -1,7 +1,7 @@
 /* Rts/Standard-C/millicode.h
  * Petit Larceny -- run-time-support prototypes.
  *
- * $Id: millicode.h,v 1.1.1.1 1998/11/19 21:51:50 lth Exp $
+ * $Id$
  */
 
 #ifndef MILLICODE_H

@@ -1,7 +1,7 @@
 ; Lib/procinfo.sch
 ; Larceny library -- heuristic procedure information
 ;
-; $Id: procinfo.sch,v 1.1.1.1 1998/11/19 21:52:10 lth Exp $
+; $Id$
 ;
 ; Based on a proposal by Will Clinger to the rrrs-authors mailing list,
 ; with one addition proposed by Aubrey Jaffer.

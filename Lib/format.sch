@@ -1,7 +1,7 @@
 ; Lib/format.sch
 ; Larceny library -- primitive 'format' procedure.
 ; 
-; $Id: format.sch,v 1.1.1.1 1998/11/19 21:52:06 lth Exp $
+; $Id$
 ;
 ; Usage:
 ;   (format <port> <format-string> <arg> ...)

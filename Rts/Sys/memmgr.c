@@ -1,7 +1,7 @@
 /* Rts/Sys/memmgr.c
  * Larceny  -- precise garbage collector, top level.
  *
- * $Id: memmgr.c,v 1.1.1.1 1998/11/19 21:51:41 lth Exp $
+ * $Id$
  */
 
 const char *larceny_gc_technology = "precise";

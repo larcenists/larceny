@@ -1,7 +1,7 @@
 ; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; $Id: reploop.sch,v 1.1.1.1 1998/11/19 21:52:16 lth Exp $
+; $Id$
 
 ; User-accessible parameter procedures:
 ;

@@ -1,7 +1,7 @@
 ; Lib/error0.sch
 ; Larceny -- Boot-time error procedure! 
 ;
-; $Id: error0.sch,v 1.1.1.1 1998/11/19 21:52:05 lth Exp $
+; $Id$
 
 ($$trace "error0")
 

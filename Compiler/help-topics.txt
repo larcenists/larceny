@@ -1,7 +1,7 @@
 ; Compiler/help-topics.txt
 ; Larceny -- help topics for development environment's help system
 ;
-; $Id: help-topics.txt,v 1.1.1.1 1998/11/19 21:52:26 lth Exp $
+; $Id$
 ;
 ; Entry format: (<tag> <descriptor string> <text>)
 

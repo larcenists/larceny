@@ -1,7 +1,7 @@
 ; Util/load-twobit-C-el.sch
 ; Load Twobit with the standard-C back-end, little-endian.
 ;
-; $Id: load-twobit-C-el.sch,v 1.2 1998/11/20 13:12:00 lth Exp $
+; $Id$
 ;
 ; If you load this file into Larceny, you get almost the same setup
 ; that nbuild gives you.  The only difference is that the path names

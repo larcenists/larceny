@@ -1,7 +1,7 @@
 ; Asm/Common/pass5p1.sch
 ; Larceny -- the assembler, target-independent code.
 ;
-; $Id: pass5p1.sch,v 1.1.1.1 1998/11/19 21:51:58 lth Exp $
+; $Id$
 ;
 ; Based on the MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.

@@ -1,5 +1,5 @@
 /* A bunch of random hacks that belong elsewhere; here for the time being.
-   $Id: petit-hacks.h,v 1.1.1.1 1998/11/19 21:51:51 lth Exp $
+   $Id$
 */
 
 #ifndef PETIT_HACKS_H

@@ -1,7 +1,7 @@
 ; Util/load-env.sch
 ; Compilation system loader file.
 ;
-; $Id: load-env.sch,v 1.1.1.1 1998/11/19 21:51:54 lth Exp $
+; $Id$
 ;
 ; Usage: (load-environment module-file &opt 'verbose &opt basedir)
 

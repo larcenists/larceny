@@ -1,7 +1,7 @@
 ; Auxlib/list.sch
 ; Larceny auxiliary library -- list functions.
 ;
-; $Id: list.sch,v 1.1.1.1 1998/11/19 21:52:17 lth Exp $
+; $Id$
 ;
 ; Compatibility notes:
 ; * Make-list, reduce, reduce-right, fold-right, fold-left are

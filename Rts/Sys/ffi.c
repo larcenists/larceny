@@ -1,7 +1,7 @@
 /* Rts/Sparc/ffi.c
  * Larceny -- Foreign-function interface
  *
- * $Id: ffi.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
+ * $Id$
  */
 
 #include "larceny.h"

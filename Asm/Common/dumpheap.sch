@@ -1,7 +1,7 @@
 ; Asm/Common/dumpheap.sch
 ; Larceny -- bootstrap heap dumper.
 ;
-; $Id: dumpheap.sch,v 1.1.1.1 1998/11/19 21:51:57 lth Exp $
+; $Id$
 ;
 ; Usage: (build-heap-image outputfile inputfile ... )
 ;

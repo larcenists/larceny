@@ -1,7 +1,7 @@
 /* Rts/Sys/bdw.h
  * Larceny Run-time system -- statistics gathering for Boehm GC (experimental)
  *
- * $Id: bdw.h,v 1.1.1.1 1998/11/19 21:51:45 lth Exp $
+ * $Id$
  *
  * This file is to be included from Rts/bdw-gc/alloc.c as the last of
  * the include files; use the line

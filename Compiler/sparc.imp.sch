@@ -1,7 +1,7 @@
 ; Compiler/sparc.imp.sch
 ; Larceny -- target-specific information for Twobit's SPARC backend.
 ;
-; $Id: sparc.imp.sch,v 1.1.1.1 1998/11/19 21:52:25 lth Exp $
+; $Id$
 ;
 ; Copyright 1991 William Clinger
 ;
@@ -100,7 +100,7 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: sparc.imp.sch,v 1.1.1.1 1998/11/19 21:52:25 lth Exp $
+; $Id$
 ;
 
 (define (sparc-imm? x)

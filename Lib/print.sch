@@ -1,7 +1,7 @@
 ; Lib/print.sch
 ; Larceny -- Print procedures 
 ;
-; $Id: print.sch,v 1.1.1.1 1998/11/19 21:52:09 lth Exp $
+; $Id$
 ;
 ; Copyright 1991 Lightship Software
 

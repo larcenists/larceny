@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen.
 ;
-; $Id: switches.sch,v 1.1.1.1 1998/11/19 21:52:02 lth Exp $
+; $Id$
 ; switches -- Switches for the standard-C assembler
 
 (define unsafe-code

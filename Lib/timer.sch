@@ -1,7 +1,7 @@
 ; Lib/timer.sch
 ; Larceny library -- timer interrupts
 ;
-; $Id: timer.sch,v 1.1.1.1 1998/11/19 21:52:13 lth Exp $
+; $Id$
 
 ($$trace "timer")
 

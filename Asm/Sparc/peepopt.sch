@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen and William D Clinger.
 ;
-; $Id: peepopt.sch,v 1.1.1.1 1998/11/19 21:51:59 lth Exp $
+; $Id$
 ;
 ; Asm/Sparc/peepopt.sch -- MAL peephole optimizer, for the SPARC assembler.
 ;

@@ -1,7 +1,7 @@
 ; Chez/compat.sch
 ; Compatibility library for the new Twobit under Chez Scheme
 ;
-; $Id: compat.sch,v 1.1.1.1 1998/11/19 21:52:44 lth Exp $
+; $Id$
 
 (define host-system 'chez)
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/remset_t.h
  * Larceny run-time system -- remembered-set data structure.
  *
- * $Id: remset_t.h,v 1.1.1.1 1998/11/19 21:51:47 lth Exp $
+ * $Id$
  *
  * Remembered sets are objects with operations encoded as
  * function pointers in the instance.  

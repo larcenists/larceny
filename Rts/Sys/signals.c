@@ -1,7 +1,7 @@
 /* Rts/Sys/signals.c
  * Larceny Run-time system -- Unix signal handling.
  *
- * $Id: signals.c,v 1.1.1.1 1998/11/19 21:51:43 lth Exp $
+ * $Id$
  */
 
 #include "config.h"

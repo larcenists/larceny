@@ -1,6 +1,6 @@
 ; -*- scheme -*-
 ;
-; $Id: modules.list,v 1.1.1.1 1998/11/19 21:51:56 lth Exp $
+; $Id$
 ;
 ; Experimental setup for loading compiled systems into environments.
 ; Each for defines an environment in terms of parent environment, files

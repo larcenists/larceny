@@ -1,7 +1,7 @@
 ; Util/expander.sch
 ; Simple string substitution facility used to convert .mac to .c (for now).
 ;
-; $Id: expander.sch,v 1.1.1.1 1998/11/19 21:51:53 lth Exp $
+; $Id$
 
 (define *templates* '())
 (define *input* #f)

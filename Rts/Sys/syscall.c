@@ -1,7 +1,7 @@
 /* Rts/Sys/sycall.c
  * Larceny RTS -- syscall functionality.
  *
- * $Id: syscall.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
+ * $Id$
  */
 
 #include "larceny.h"

@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen.
 ;
-; $Id: inspect-cont.sch,v 1.1.1.1 1998/11/19 21:52:31 lth Exp $
+; $Id$
 ;
 ; Debugger/inspect-cont.sch -- continuation and frame inspector.
 

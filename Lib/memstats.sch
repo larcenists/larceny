@@ -1,7 +1,7 @@
 ; Lib/memstats.sch
 ; Larceny runtime library -- system statistics
 ;
-; $Id: memstats.sch,v 1.1.1.1 1998/11/19 21:52:08 lth Exp $
+; $Id$
 ;
 ; System statistics is maintained by the parts of the system written in C
 ; and are obtained by a call on the primitive sys$get-resource-usage (which

@@ -1,7 +1,7 @@
 ; Lib/primops.sch
 ; Larceny library -- global procedure definitions for integrable procedures.
 ;
-; $Id: primops.sch,v 1.1.1.1 1998/11/19 21:52:09 lth Exp $
+; $Id$
 ;
 ; This file _must_ be compiled with integrate-usual-procedures on.
 

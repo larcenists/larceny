@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.c
  * Larceny run-time system -- write barrier for new collector
  *
- * $Id: barrier.c,v 1.1.1.1 1998/11/19 21:51:38 lth Exp $
+ * $Id$
  *
  * Write barrier support code.
  *

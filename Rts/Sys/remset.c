@@ -1,7 +1,7 @@
 /* Rts/Sys/remset.c.
  * Larceny run-time system -- remembered set implementation.
  *
- * $Id: remset.c,v 1.1.1.1 1998/11/19 21:51:42 lth Exp $
+ * $Id$
  *
  *
  * The remembered set is an ADT with a public interface as described

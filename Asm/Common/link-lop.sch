@@ -1,7 +1,7 @@
 ; Asm/Common/link-lop.sch
 ; Larceny -- lop segment linker
 ;
-; $Id: link-lop.sch,v 1.1.1.1 1998/11/19 21:51:57 lth Exp $
+; $Id$
 ;
 ; Given a lop segment, return a thunk.  Calling the thunk runs the code
 ; represented by the segment.  This procedure is useful for bypassing the

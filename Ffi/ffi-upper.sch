@@ -1,7 +1,7 @@
 ; Ffi/ffi-upper.sch
 ; Larceny FFI -- upper level of generic C ffi.
 ;
-; $Id: ffi-upper.sch,v 1.1.1.1 1998/11/19 21:52:28 lth Exp $
+; $Id$
 ;
 ; FIXME: *ffi/linked-procedures* needs to hold the procedures weakly.
 

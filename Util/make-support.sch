@@ -1,7 +1,7 @@
 ; Util/make-support.sch
 ; Larceny -- make utility
 ;
-; $Id: make-support.sch,v 1.1.1.1 1998/11/19 21:51:54 lth Exp $
+; $Id$
 ;
 ; Support code for the make utility when loaded separately from nbuild.
 

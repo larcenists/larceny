@@ -1,7 +1,7 @@
 ; Eval/macro-expand.sch
 ; Larceny -- interpreter's macro expander
 ;
-; $Id: macro-expand.sch,v 1.1.1.1 1998/11/19 21:52:15 lth Exp $
+; $Id$
 ;
 ; USAGE
 ;   (macro-expand <expr>)

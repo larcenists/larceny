@@ -1,6 +1,6 @@
 ; Copyright 1988 Lars T Hansen
 ;
-; $Id: debug.sch,v 1.1.1.1 1998/11/19 21:52:30 lth Exp $
+; $Id$
 ;
 ; Debugger/debug.sch -- bare-bones *prototype* debugger.
 ;

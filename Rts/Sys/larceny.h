@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.1.1.1 1998/11/19 21:51:46 lth Exp $
+ * $Id$
  */
 
 #ifndef INCLUDED_LARCENY_H

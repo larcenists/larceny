@@ -2,7 +2,7 @@
 ; Setup the REPL and the loader to use Twobit for all evaluation, so that
 ; each expression will be compiled and then evaluated.
 ;
-; $Id: compile-always.sch,v 1.1.1.1 1998/11/19 21:51:53 lth Exp $
+; $Id$
 
 (if (file-exists? "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.fasl")

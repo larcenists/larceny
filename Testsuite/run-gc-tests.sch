@@ -1,7 +1,7 @@
 ; Testsuite/run-gc-tests.sch
 ; Larceny -- GC testsuite autorun script.
 ;
-; $Id: run-gc-tests.sch,v 1.1.1.1 1998/11/19 21:52:32 lth Exp $
+; $Id$
 ;
 ; Load this in a Larceny system, then call run-gc-tests with the 
 ; following parameters:

@@ -1,7 +1,7 @@
 ; Auxlib/common-ffi-functions.sch
 ; Load script for FFI and common FFI-based functions; experimental.
 ;
-; $Id: ffi-functions.sch,v 1.1.1.1 1998/11/19 21:52:16 lth Exp $
+; $Id$
 
 ; CD and PWD
 ; Simulate a directory stack in 'dirs' to keep Emacs happy.  HACK!!

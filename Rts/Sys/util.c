@@ -1,7 +1,7 @@
 /* Rts/Sys/util.c
  * Larceny run-time system -- miscellaneous procedures.
  *
- * $Id: util.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
+ * $Id$
  */
 
 #include <memory.h>

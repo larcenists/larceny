@@ -1,7 +1,7 @@
 /* Rts/Sys/ldebug.c.
  * Larceny -- the run-time system debugger.
  *
- * $Id: ldebug.c,v 1.1.1.1 1998/11/19 21:51:41 lth Exp $
+ * $Id$
  */
 
 #include <stdio.h>

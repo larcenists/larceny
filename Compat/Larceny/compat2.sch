@@ -1,7 +1,7 @@
 ; Larceny/compat2.sch
 ; Larceny -- second part of compatibility code
 ;
-; $Id: compat2.sch,v 1.1.1.1 1998/11/19 21:52:44 lth Exp $
+; $Id$
 ;
 ; This file ought to be compiled.
 

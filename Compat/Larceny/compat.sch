@@ -1,7 +1,7 @@
 ; Larceny/compat.sch
 ; Larceny -- compatibility library for Twobit running under Larceny.
 ;
-; $Id: compat.sch,v 1.2 1998/11/20 13:09:28 lth Exp $
+; $Id$
 
 (define host-system 'larceny)
 

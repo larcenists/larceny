@@ -1,7 +1,7 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.1.1.1 1998/11/19 21:52:14 lth Exp $
+; $Id$
 
 ; Parameters for unix:open; the magic numbers are portable.
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/macros.h
  * Larceny run-time system -- macros
  *
- * $Id: macros.h,v 1.1.1.1 1998/11/19 21:51:47 lth Exp $
+ * $Id$
  *
  * Machine and representation dependent (and independent) macros,
  * including tag definitions and tag masks, and interesting constants.

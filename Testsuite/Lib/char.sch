@@ -1,7 +1,7 @@
 ; Testsuite/Lib/char.sch
 ; Larceny testsuite -- character operations
 ;
-; $Id: char.sch,v 1.1.1.1 1998/11/19 21:52:32 lth Exp $
+; $Id$
 
 (define (run-char-tests)
   (char-predicate-test)

@@ -1,7 +1,7 @@
 ; Lib/string.sch
 ; Larceny library --  characters, strings, and bytevectors.
 ;
-; $Id: string.sch,v 1.1.1.1 1998/11/19 21:52:12 lth Exp $
+; $Id$
 ;
 ; Parts of this code Copyright Lightship Software.
 ;

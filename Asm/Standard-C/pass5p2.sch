@@ -1,7 +1,7 @@
 ; Asm/C/pass5p2.sch
 ; Larceny -- standard-C machine assembler
 ;
-; $Id: pass5p2.sch,v 1.1.1.1 1998/11/19 21:52:01 lth Exp $
+; $Id$
 ;
 ; Based on MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.

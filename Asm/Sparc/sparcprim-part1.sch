@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen and William D Clinger.
 ; 
-; $Id: sparcprim-part1.sch,v 1.1.1.1 1998/11/19 21:52:00 lth Exp $
+; $Id$
 ;
 ; Asm/Sparc/sparcprim-part1.sch -- SPARC primitives, part 1.
 ; Primitives defined in Compiler/sparc.imp.sch.

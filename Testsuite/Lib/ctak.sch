@@ -1,7 +1,7 @@
 ; Testsuite/Lib/ctak.sch
 ; Larceny test suite -- TAK with continuations
 ;
-; $Id: ctak.sch,v 1.1.1.1 1998/11/19 21:52:33 lth Exp $
+; $Id$
 ;
 ; Partially tests call-with-current-continuation.
 

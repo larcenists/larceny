@@ -1,6 +1,6 @@
 ; Auxlib/optimize-level.sch
 ;
-; $Id: optimize-level.sch,v 1.1.1.1 1998/11/19 21:52:18 lth Exp $
+; $Id$
 ;
 ; Set compiler switches to useful defaults and then define the system
 ; parameter 'optimize-level'.

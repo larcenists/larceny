@@ -1,7 +1,7 @@
 ; Lib/number.sch
 ; Larceny library -- arithmetic functions.
 ;
-; $Id: number.sch,v 1.1.1.1 1998/11/19 21:52:08 lth Exp $
+; $Id$
 ; 
 ; Parts of this file is Copyright Lightship Software.
 ; Additional code and modifications by Lars Hansen.

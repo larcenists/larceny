@@ -1,6 +1,6 @@
 ; Copyright 1998 William D Clinger and Lars T Hansen.
 ; 
-; $Id: compile313.sch,v 1.1.1.1 1998/11/19 21:52:20 lth Exp $
+; $Id$
 ; compile313 -- compilation parameters and driver procedures.
 
 ; File types -- these may differ between operating systems.

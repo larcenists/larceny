@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen
 ;
-; $Id: nbuild.sch,v 1.1.1.1 1998/11/19 21:51:55 lth Exp $
+; $Id$
 ;
 ; Util/nbuild.sch -- host-independent loader for Larceny development system.
 ;

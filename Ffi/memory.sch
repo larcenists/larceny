@@ -2,7 +2,7 @@
 ; Larceny Foreign function interface -- memory management details,
 ;  for the non-conservative collectors.
 ;
-; $Id: memory.sch,v 1.1.1.1 1998/11/19 21:52:28 lth Exp $
+; $Id$
 ;
 ; PROTOTYPE CODE!!
 

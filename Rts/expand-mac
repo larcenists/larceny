@@ -3,7 +3,7 @@
 # Rts/expand-mac
 # Larceny -- script to create .c files from macro (.mac) files
 #
-# $Id: expand-mac,v 1.1.1.1 1998/11/19 21:51:37 lth Exp $
+# $Id$
 #
 # Usage: expand-mac input-file
 

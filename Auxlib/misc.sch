@@ -1,7 +1,7 @@
 ; Auxlib/misc.sch
 ; Larceny auxiliary library -- miscellaneous functions and constants.
 ;
-; $Id: misc.sch,v 1.1.1.1 1998/11/19 21:52:18 lth Exp $
+; $Id$
 
 ;;; System information procedures.
 

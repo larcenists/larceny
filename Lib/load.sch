@@ -1,7 +1,7 @@
 ; Lib/load.sch
 ; Larceny -- the 'load' procedure.
 ;
-; $Id: load.sch,v 1.1.1.1 1998/11/19 21:52:07 lth Exp $
+; $Id$
 ;
 ; Not entirely robust, but ok for now.
 ;

@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 20 November 1998
+; 6 November 1998
 ;
 ; Compiler switches needed by Twobit.
 
@@ -103,6 +103,8 @@
   (case how
     ((no-optimization)
      (set-compiler-flags! 'default)
+     (integrate-usual-procedures #f)
+     (benchmark-mode #f)
      (local-optimizations #f)
      (global-optimizations #f)
      (representation-optimizations #f)
@@ -113,8 +115,6 @@
      (include-source-code #f)
      (include-procedure-names #t)
      (include-variable-names #t)
-     (integrate-usual-procedures #f)
-     (benchmark-mode #f)
      (local-optimizations #t)
      (global-optimizations #t)
      (representation-optimizations #t)

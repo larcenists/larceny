@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcutil.sch
 ; Larceny -- SPARC assembler machine parameters & utility procedures
 ;
-; $Id: sparcutil.sch,v 1.1.1.1 1998/11/19 21:52:00 lth Exp $
+; $Id$
 
 ; Round up to nearest 8.
 

@@ -1,7 +1,7 @@
 ; Experimental/record.sch
 ; Larceny library -- Record Package
 ;
-; $Id: record.sch,v 1.1.1.1 1998/11/19 21:52:29 lth Exp $
+; $Id$
 ;
 ; Record package as proposed by RRRS authors but never made part 
 ; of the report.  Based on a proposal posted to rrrs-authors on 

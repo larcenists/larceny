@@ -1,7 +1,7 @@
 /* Rts/Sys/version.c.
  * Larceny run-time system -- the version number :-)
  *
- * $Id: version.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
+ * $Id$
  */
 
 #include "config.h"

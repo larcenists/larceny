@@ -1,7 +1,7 @@
 ; Auxlib/macros.sch
 ; A collection of useful and common macros.
 ;
-; $Id: macros.sch,v 1.1.1.1 1998/11/19 21:52:18 lth Exp $
+; $Id$
 
 (define-syntax when
   (syntax-rules ()

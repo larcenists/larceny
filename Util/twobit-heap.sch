@@ -1,7 +1,7 @@
 ; Util/twobit-heap.sch
 ; Load script for building a heap image with all compiler names exposed.
 ;
-; $Id: twobit-heap.sch,v 1.1.1.1 1998/11/19 21:51:56 lth Exp $
+; $Id$
 
 (load "Util/load-twobit.sch")
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny-types.h
  * Larceny run-time system -- Opaque type definitions.
  *
- * $Id: larceny-types.h,v 1.1.1.1 1998/11/19 21:51:46 lth Exp $
+ * $Id$
  */
 
 #ifndef INCLUDED_LARCENY_TYPES

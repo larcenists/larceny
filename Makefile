@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.2 1998/11/20 13:10:17 lth Exp $
+# $Id$
 
 
 ###########################################################################
@@ -155,13 +155,14 @@ hsplit: target_hsplit
 target_hsplit:
 	( cd $(RTS) ; $(MAKE) hsplit )
 
-clean: libclean rtsclean
+clean:
 	( cd $(RTS) ; $(MAKE) clean )
+	rm -f *.map
 
 lopclean:
-	rm -f   $(LIB)/*.*lop $(LIB)/*.c $(LIB)/*.o \
-		$(EVAL)/*.*lop $(EVAL)/*.c $(EVAL)/*.o \
-		$(REPL)/*.*lop $(REPL)/*.c $(REPL)/*.o \
+	rm -f   $(LIB)/*.*lop $(LIB)/*.c \
+		$(EVAL)/*.*lop $(EVAL)/*.c \
+		$(REPL)/*.*lop $(REPL)/*.c \
 		$(AUXLIB)/*.*lop \
 		$(TEST)/Lib/*.*lop
 
@@ -186,13 +187,11 @@ faslclean:
 	rm -f Util/*.fasl
 	rm -f Lib/makefile.fasl Lib/globals.sch Lib/ecodes.sch
 	rm -f Auxlib/*.fasl
-	rm -f Debugger/*.fasl
 	rm -f Testsuite/GC/*.fasl
 	rm -f Testsuite/Lib/*.fasl
 
-rtsclean:
-	rm -f *.map
-	rm -f larceny petit-larceny Build hsplit
+rtsclean: clean
+	rm -f larceny Build hsplit
 	rm -f Compat/Chez/*.o
 	( cd $(RTS) ; $(MAKE) rtsclean )
 

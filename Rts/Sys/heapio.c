@@ -1,7 +1,7 @@
 /* Rts/Sys/heapio.c
  * Larceny run-time system -- heap I/O procedures
  *
- * $Id: heapio.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
+ * $Id$
  *
  * There are three major kinds of heaps: bootstrap single, bootstrap split,
  * and dumped.

@@ -1,7 +1,7 @@
 ; Lib/mcode.sch
 ; Larceny library -- millicode support code
 ;
-; $Id: mcode.sch,v 1.1.1.1 1998/11/19 21:52:08 lth Exp $
+; $Id$
 ; 
 ; This file contains architecture-independent procedures which set up
 ; the Scheme-level support for millicode, like the vector of millicode-

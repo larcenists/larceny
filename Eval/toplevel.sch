@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.1.1.1 1998/11/19 21:52:15 lth Exp $
+; $Id$
 ;
 ; Larceny run-time system: The top-level environment.
 

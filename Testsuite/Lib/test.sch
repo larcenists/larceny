@@ -1,7 +1,7 @@
 ; Test/test.sch
 ; Larceny test suite -- test scaffolding
 ;
-; $Id: test.sch,v 1.1.1.1 1998/11/19 21:52:35 lth Exp $
+; $Id$
 
 ; Generic test procedure; compares answer to expected answer.
 ; It requires that the answer and the expected answer are represented in

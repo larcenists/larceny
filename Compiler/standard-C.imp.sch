@@ -1,7 +1,7 @@
 ; Compiler/sparc.imp.sch
 ; Larceny -- target-specific information for Twobit's standard-C backend.
 ;
-; $Id: standard-C.imp.sch,v 1.1.1.1 1998/11/19 21:52:25 lth Exp $
+; $Id$
 ;
 ; Copyright 1991 William Clinger
 ;

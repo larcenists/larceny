@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen and William D Clinger.
 ; 
-; $Id: sparcprim-part2.sch,v 1.1.1.1 1998/11/19 21:52:00 lth Exp $
+; $Id$
 ;
 ; Asm/Sparc/sparcprim-part2.sch -- SPARC primitives, part 2.
 ; Primitives introduced by peephole optimization.

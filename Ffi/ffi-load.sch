@@ -1,7 +1,7 @@
 ; Ffi/ffi-load.sch
 ; Larceny FFI -- simple load script
 ;
-; $Id: ffi-load.sch,v 1.1.1.1 1998/11/19 21:52:27 lth Exp $
+; $Id$
 
 (define (load-ffi path)
 

@@ -1,7 +1,7 @@
 ; Experimental/system-stuff.sch
 ; Sundry system-level code
 ;
-; $Id: system-stuff.sch,v 1.1.1.1 1998/11/19 21:52:30 lth Exp $
+; $Id$
 
 (define (ptrtag obj)
   (cond ((pair? obj) 1)

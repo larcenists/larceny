@@ -1,7 +1,7 @@
 /* Rts/Sys/stats.c.
  * Larceny run-time system -- run-time statistics.
  *
- * $Id: stats.c,v 1.1.1.1 1998/11/19 21:51:43 lth Exp $
+ * $Id$
  *
  * The stats module maintains run-time statistics.  Mainly, these are
  * statistics on memory use (bytes allocated and collected, amount of 

@@ -1,7 +1,7 @@
 ; Auxlib/string.sch
 ; Larceny auxiliary library -- string functions
 
-; $Id: string.sch,v 1.1.1.1 1998/11/19 21:52:20 lth Exp $
+; $Id$
 
 ; (substring-match s1 s2) => i iff 
 ;     (string=? s2 (substring s1 i (+ i (string-length s2))))

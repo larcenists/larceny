@@ -1,7 +1,7 @@
 ; Lib/secret.sch
 ; Larceny -- secret names for the macro expanders.
 ;
-; $Id: secret.sch,v 1.1.1.1 1998/11/19 21:52:11 lth Exp $
+; $Id$
 ;
 ; These names _must_ be synchronized in exactly five places:
 ;

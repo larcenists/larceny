@@ -1,7 +1,7 @@
 ; Ffi/test-ffi.sch
 ; Simple FFI test code.
 ;
-; $Id: test-ffi.sch,v 1.1.1.1 1998/11/19 21:52:28 lth Exp $
+; $Id$
 
 (load "Ffi/ffi-load.sch")
 

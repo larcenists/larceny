@@ -1,7 +1,7 @@
 /* Rts/Sys/heapio.h
  * Larceny run-time system -- heap I/O header file.
  *
- * $Id: heapio.h,v 1.1.1.1 1998/11/19 21:51:46 lth Exp $
+ * $Id$
  */
 
 #ifndef INCLUDED_HEAPIO_H

@@ -1,7 +1,7 @@
 ; Asm/Sparc/gen-msi.sch
 ; Larceny -- SPARC assembler code emitters for core MacScheme instructions
 ;
-; $Id: gen-msi.sch,v 1.1.1.1 1998/11/19 21:51:58 lth Exp $
+; $Id$
 
 
 ; SETGLBL

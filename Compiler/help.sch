@@ -1,7 +1,7 @@
 ; Compiler/help.sch
 ; Larceny -- simple help system for the development environment
 ;
-; $Id: help.sch,v 1.1.1.1 1998/11/19 21:52:21 lth Exp $
+; $Id$
 
 (define *help-topics*)
 

@@ -4,7 +4,7 @@
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
 ;
-; $Id: misc2bytevector.ss,v 1.1.1.1 1998/11/19 21:52:43 lth Exp $
+; $Id$
 
 ; Generic.
 

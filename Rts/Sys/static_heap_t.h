@@ -1,7 +1,7 @@
 /* Rts/Sys/static_heap_t.h
  * Larceny -- definition of static_heap_t ADT.
  *
- * $Id: static_heap_t.h,v 1.1.1.1 1998/11/19 21:51:48 lth Exp $
+ * $Id$
  */
 
 #ifndef INCLUDED_STATIC_HEAP_T_H

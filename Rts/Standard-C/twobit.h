@@ -1,7 +1,7 @@
 /* Rts/Standard-C/twobit.h
  * Petit Larceny -- Twobit instruction and primitive macros.
  *
- * $Id: twobit.h,v 1.1.1.1 1998/11/19 21:51:51 lth Exp $
+ * $Id$
  *
  * The code in this file makes some assumptions that are not guaranteed
  * by the ANSI/ISO C standard to be true, however they are on most

@@ -1,7 +1,7 @@
 ; Experimental/applyhook.sch
 ; Larceny library -- application hooks: generalized procedures
 ;
-; $Id: applyhook.sch,v 1.1.1.1 1998/11/19 21:52:30 lth Exp $
+; $Id$
 ;
 ; The concept comes from MIT Scheme (at least in my universe), as do the
 ; names.  An "apply hook" is an object that can be applied like a procedure.
