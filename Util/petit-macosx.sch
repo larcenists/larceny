@@ -69,9 +69,11 @@
 (define (build-executable)
   (build-application "petit" '()))
 
+; Twobit.app because macosx can't distinguish "Twobit" (the directory) and "twobit" (the program).  Gag!
+
 (define (build-twobit)
   (make-petit-development-environment)
-  (build-application "twobit" (petit-development-environment-lop-files)))
+  (build-application "twobit.app" (petit-development-environment-lop-files)))
 
 (define (load-compiler)
   (load (make-filename *root-directory* "Util" "nbuild.sch")))
