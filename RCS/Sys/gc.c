@@ -2,7 +2,7 @@
  * Scheme 313 Runtime System.
  * Garbage collector.
  *
- * $Id: gc.c,v 3.2 91/07/16 13:25:47 lth Exp Locker: lth $
+ * $Id: gc.c,v 3.3 91/07/17 17:02:33 lth Exp Locker: lth $
  *
  * THE COLLECTOR
  *   There are two kinds of spaces: the tenured space and the ephemeral space.
@@ -59,15 +59,13 @@
  * - UNIX-style malloc() must be provided.
  *
  * BUGS
- * - Does not detect overflow of tenured space during collection.
  * - Does not remove transactions with no pointers into the ephemeral space
  *   from the transaction list.
  * - init_collector() should take an additional argument specifying alignment
  *   of the spaces, and align spaces accordingly. This way, we can force e.g.
- *   page alignment, which can be useful for advising the VM system.
+ *   page alignment, which can be useful for advising the VM system (I think).
  *
  * POSSIBLE FUTURE ENHANCEMENTS
- * - Detect tenured overflow by passing a limit to forward().
  * - gc_trap() should expand area(s) when called, particularly the tenured
  *   area.
  * - Instead of taking a word and returning the forwarded word, forward()
@@ -86,7 +84,7 @@
  *   the ephemeral areas are never reallocated (they must remain below the
  *   tenured areas!), there are no problems with allocating tenured areas
  *   separately (except VM overflow).
- * - A different tenuring strategy: initially, there is ony the two e-spaces.
+ * - A different tenuring strategy: initially, there is only the two e-spaces.
  *   When it becomes time to tenure, simply rename the current e-space and
  *   call it a t-space (some trickery here to keep the space relationship
  *   right?). Do this a few times until we have "enough" t-spaces. Then do
@@ -113,7 +111,7 @@ extern char *malloc();
 #define NULL                0
 
 /* Useful macros compute sizes in WORDS */
-#define e_size()        (e_max - e_base + 1)
+#define esize()         (e_max - e_base + 1)
 #define free_t_space()  (t_trans - t_top + 1)
 #define words_used      ((e_top-e_base) + (t_top-t_base) + (t_max-t_trans))
 
@@ -127,16 +125,11 @@ static word *e_new_base, *e_new_max;
 static word *t_base, *t_max, *t_top, *t_trans;
 static word *t_new_base, *t_new_max;
 
-#ifdef DEBUG
-static unsigned pairs_copied;
-static unsigned vectors_copied;
-#endif
-
 static word forward();
 static ephemeral_collection(),
        tenuring_collection(),
-       full_collection(),
-       fast_collection();
+       full_collection();
+static word *fast_collection();
 
 /*
  * Procedure to intialize garbage collector.
@@ -283,39 +276,35 @@ int type;
   t_top = (word *) globals[ T_TOP_OFFSET ];
   t_trans = (word *) globals[ T_TRANS_OFFSET ];
   t_max = (word *) globals[ T_MAX_OFFSET ];
-  t_new_base = (word *) globals[ T_NEW_BASE ];
-  t_new_max = (word *) globals[ T_NEW_MAX ];
+  t_new_base = (word *) globals[ T_NEW_BASE_OFFSET ];
+  t_new_max = (word *) globals[ T_NEW_MAX_OFFSET ];
 
-#ifdef DEBUG
-  pairs_copied = vectors_copied = 0;
-#endif
   words_collected = words_allocated = 0;
-
 
   must_tenure = globals[ MUST_TENURE_OFFSET ] || type == TENURING_COLLECTION;
 
   if (type == FULL_COLLECTION || 
-      must_tenure && free_t_space() < e_size()) {
+      must_tenure && free_t_space() < esize()) {
     full_collection();
     globals[ F_COLLECTIONS_OFFSET ]++;
     must_tenure = 0;
-    words_copied = (word) t_top - (word) t_base;
+    words_copied = t_top - t_base;
     collection_type = FULL_COLLECTION;
   }
   else if (must_tenure) {
-    word old_t_top = (word) t_top;
+    word *old_t_top = t_top;
 
     tenuring_collection();
     globals[ T_COLLECTIONS_OFFSET ]++;
     must_tenure = 0;
-    words_copied = (word) t_top - old_t_top;
+    words_copied = t_top - old_t_top;
     collection_type = TENURING_COLLECTION;
   }
   else if (type == EPHEMERAL_COLLECTION) {
     ephemeral_collection();
     globals[ E_COLLECTIONS_OFFSET ]++;
     must_tenure = e_top > e_base + globals[ E_MARK_OFFSET ];
-    words_copied = (word) e_top - (word) e_base;
+    words_copied = e_top - e_base;
     collection_type = EPHEMERAL_COLLECTION;
   }
   else {
@@ -338,6 +327,8 @@ int type;
   globals[ T_NEW_MAX_OFFSET ] = (word) t_new_max;
 
   globals[ WCOPIED_OFFSET ]    += words_copied;
+
+  /* Fixme -- these need to be maintained somehow. */
   globals[ WCOLLECTED_OFFSET ] += words_collected;
   globals[ WALLOCATED_OFFSET ] += words_allocated;
 
@@ -380,10 +371,13 @@ static tenuring_collection()
  *  - it is reachable from the set of root pointers in `roots', or
  *  - it is reachable from the transaction list, or
  *  - it is reacable from a reachable object.
+ *
+ * It returns the pointer to the first free word of the new area after the
+ * collection.
  */
-static fast_collection( base, max )
+static word *fast_collection( base, top )
 word *base;
-word *max;
+word *top;
 {
   word *dest, *ptr, *head, *tail;
   unsigned int i, tag, size;
@@ -395,7 +389,13 @@ word *max;
    * and LAST_ROOT, inclusive.
    */
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
-    globals[ i ] = forward( globals[ i ], e_base, e_max, &dest );
+    globals[ i ] = forward( globals[ i ], e_base, e_max, &dest, top );
+
+#ifdef DEBUG
+  if (t_max != t_trans) {
+    printf( "Doing transaction list: max = %lx, trans = %lx\n", t_max, t_trans );
+  }
+#endif
 
   /*
    * Do entry list. The entry list is in the tenured area between t_max
@@ -413,18 +413,18 @@ word *max;
 	  size = sizefield( *ptr ) / 4;
 	  set_bit( *ptr );
 	  for (i = 0, ++ptr ; i < size ; i++, ptr++ )
-	    *ptr = forward( *ptr, my_e_base, my_e_max, &dest );
+	    *ptr = forward( *ptr, my_e_base, my_e_max, &dest, top );
 	  *tail-- = *head;
 	}
       }
       else if (tag == PAIR_TAG) {
 	/* have done pair if either word is pointer into neswpace! */
-	if (pointsto( *ptr, base, max ) || pointsto( *(ptr+1), base, max )) {
+	if (pointsto( *ptr, base, top ) || pointsto( *(ptr+1), base, top )) {
 	  /* nothing */
 	}
 	else {
-	  *ptr = forward( *ptr, my_e_base, my_e_max, &dest );
-	  *(ptr+1) = forward( *(ptr+1), my_e_base, my_e_max, &dest );
+	  *ptr = forward( *ptr, my_e_base, my_e_max, &dest, top );
+	  *(ptr+1) = forward( *(ptr+1), my_e_base, my_e_max, &dest, top );
 	  *tail-- = *head;
 	}
       }
@@ -461,13 +461,15 @@ word *max;
 	ptr = (word *) ((word) ptr + (size + 4));
       }
       else if isptr( *ptr ) {
-	*ptr = forward( *ptr, my_e_base, my_e_max, &dest );
+	*ptr = forward( *ptr, my_e_base, my_e_max, &dest, top );
 	ptr++;
       }
       else
 	ptr++;
     }
   }
+
+  return dest;
 }
 
 
@@ -490,10 +492,10 @@ static full_collection()
    * Do the roots. Scan twice to get both spaces.
    */
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
-    globals[ i ] = forward( globals[ i ], t_base, t_max, &dest );
+    globals[ i ] = forward( globals[ i ], t_base, t_max, &dest, t_new_max );
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
-    globals[ i ] = forward( globals[ i ], e_base, e_max, &dest );
+    globals[ i ] = forward( globals[ i ], e_base, e_max, &dest, t_new_max );
 
   /*
    * Do the copied objects until there are no more.
@@ -504,8 +506,8 @@ static full_collection()
     word *my_e_max = e_max;
     word *my_t_base = t_base;
     word *my_t_max = t_max;
-    word *p =  t_new_base;
     word *my_t_new_max = t_new_max;
+    word *p =  t_new_base;
     unsigned size;
 
     while (p < dest) {
@@ -516,9 +518,9 @@ static full_collection()
       else {
 	if (isptr( *p )) {
 	  if (ptrof( *p ) <= my_e_max)
-	    *p = forward( *p, my_e_base, my_e_max, &dest );
+	    *p = forward( *p, my_e_base, my_e_max, &dest, my_t_new_max );
 	  else
-	    *p = forward( *p, my_t_base, my_t_max, &dest );
+	    *p = forward( *p, my_t_base, my_t_max, &dest, my_t_new_max );
 	}
 	p++;
       }
@@ -536,8 +538,10 @@ static full_collection()
 
 
 /*
- * "forward()" takes a word "w", the limits "base" and "max" of oldspace,
- * and a pointer to a pointer into newspace, "dest".
+ * "forward()" takes a word "w", the limits "base" and "limit" of oldspace,
+ * and a pointer to a pointer into newspace, "dest", and the limit of
+ * newspace, "oflo".
+ *
  * "forward()" returns the forwarding value of w, which is:
  *  - w if w is not a pointer
  *  - w if w is a pointer not into oldspace
@@ -549,11 +553,12 @@ static full_collection()
  * forwarding pointer is indistinguishable from a pointer which is to a space
  * different from oldspace. 
  */
-static word forward( w, base, limit, dest )
-word w, *base, *limit, **dest;
+static word forward( w, base, limit, dest, oflo )
+word w, *base, *limit, **dest, *oflo;
 {
   word tag, q, forw;
   word *ptr, *ptr2, *newptr;
+  unsigned size;
 
   if (!isptr( w )) return w;
 
@@ -570,24 +575,22 @@ word w, *base, *limit, **dest;
   /*
    * At this point we know that w is a pointer into oldspace. We must copy
    * the structure into newspace and then pad out the structure if necessary.
+   *
+   * Old version had special case code for pairs to speed up that (common)
+   * case; may want to go back to that. Should measure.
    */
   tag = tagof( w );
   newptr = *dest;
-  if (tag == PAIR_TAG) {
-    *newptr = *ptr++;
-    *(newptr+1) = *ptr++;
-    *dest += 2;
-#ifdef DEBUG
-    pairs_copied++;
-#endif
-  }
-  else {    /* vector-like (bytevector, vector, procedure) */
-    unsigned size;
-    word *p1, *p3;
-
-    /* The size is the number of bytes in the body and then the header. */
-
+  if (tag == PAIR_TAG)
+    size = 8;
+  else
     size = roundup4( sizefield( q ) ) + 4;
+
+
+  /* Do the copy; check for overflow. */
+
+  {
+    word *p1, *p3;
 
     /* We can unroll the loop because everything is doubleword-aligned.
      * While this causes an unneeded store occasionally, it may help the 
@@ -595,6 +598,10 @@ word w, *base, *limit, **dest;
      */
     p1 = *dest;
     p3 = (word *) ((word) *dest + size);
+
+    if (p3 > oflo)
+      gc_trap( TENURED_TRAP );
+
     while (p1 < p3) {
       *p1++ = *ptr++;
       *p1++ = *ptr++;
@@ -606,10 +613,6 @@ word w, *base, *limit, **dest;
 
     if (size % 8 != 0)
       *(p1-1) = (word) 0;
-
-#ifdef DEBUG
-    vectors_copied++;
-#endif
   }
 
   forw = (word) tagptr( newptr, tag );
