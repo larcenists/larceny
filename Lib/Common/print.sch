@@ -104,8 +104,6 @@
 		      (print-slashed-string x p)
 		      (write-char #\" p))
 	       (printstr x p)))
-	  ((structure? x)
-	   ((structure-printer) x p slashify))
 	  ((environment? x)
 	   (printstr (string-append "#<ENVIRONMENT "
 				    (environment-name x)
@@ -120,6 +118,8 @@
 	  ((port? x)                (printport x p slashify))
 	  ((eq? x (unspecified))    (printstr "#!unspecified" p))
 	  ((eq? x (undefined))      (printstr "#!undefined" p))
+	  ((structure? x)
+	   ((structure-printer) x p slashify))
 	  (else                     (printweird x p slashify))))
      
   (define (printnumber n p slashify)
