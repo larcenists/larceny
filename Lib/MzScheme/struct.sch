@@ -171,7 +171,7 @@
                         (throw-type-error struct-proc index)))
                   (lambda (obj index)
                     (if (instance-of-stype? obj)
-                        (rec-index obj)
+                        (rec-index obj index)
                         (throw-type-error obj index))))))
         (make-struct-proc accessor
                           sys$tag.struct-accessor-procedure))))
