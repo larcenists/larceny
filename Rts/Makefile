@@ -68,11 +68,11 @@ OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
 
-# Native Larceny on Debian Linux: gcc + nasm
+# Native Larceny on Debian Linux: gcc + nasm (still debugging)
 #O=o
 #CC=gcc
 #DEBUGINFO=-gstabs+
-#OPTIMIZE=#-O3 -DNDEBUG2 # -DNDEBUG
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 #CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 #AS=nasm
 #ASFLAGS=-f elf -IIntel -IBuild -DLINUX
@@ -283,7 +283,8 @@ Util/hsplit.o: Util/hsplit.c
 
 clean:
 	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
-	   Sys/*.$(O) Sparc/*.$(O) Build/*.$(O) Standard-C/*.$(O) Util/*.$(O) \
+	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \
+	   Sys/*.$(O) Util/*.$(O) \
 	   petit-rts.lib petit-lib.lib libpetit.so libpetit.a \
 	   Standard-C/arithmetic.c
 
