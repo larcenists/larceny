@@ -825,7 +825,7 @@ namespace Scheme.Rep {
         // Special Operations
 
         public override void op_enable_interrupts() {
-            int time = ((SFixnum)this).value;
+            int time = this.value;
             if (time > 0) {
                 Reg.interruptsEnabled = true;
                 Reg.timer = time;
@@ -1694,18 +1694,27 @@ namespace Scheme.Rep {
             rib[slot] = newValue;
         }
 
-        public override void write(TextWriter w) {
-            w.Write("#<PROCEDURE: ");
+        private string getName() {
             if (this.constants.Length >= 1) {
                 SObject d = this.constants[0];
                 if (d is SVL) {
                     SVL dd = (SVL) d;
                     if (dd.elements != null && dd.elements.Length >= 1) {
-                        w.Write(((SVL)d).elements[0]);
-                        w.Write("=");
+                        return dd.elements[0].ToString();
                     }
                 }
             }
+            if (rib != null && rib.Length > 0) {
+                return ((Procedure)rib[0]).getName();
+            } else {
+                return "<unknown>";
+            }
+
+        }
+        public override void write(TextWriter w) {
+            w.Write("#<PROCEDURE: ");
+            w.Write(getName());
+            w.Write(" = ");
             w.Write(entrypoint.name());
             w.Write(">");
         }
