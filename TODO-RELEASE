@@ -26,7 +26,6 @@ Remaining to-do items:
                integrate-usual-procedures off.
      103: [wdc] spurious errors about redefinition of primitives with
           integrate-usual-procedures off (verified present in 0.46).
-     108: [lth] make-vector bug
      130: [wdc] macro expander confused about multiple uses of variable-arity
           primitives in same scope (verified present in 0.46).
 
@@ -37,7 +36,9 @@ Remaining to-do items:
 
 [Twobit]
   * Handling primitives correctly
+     - depends on syntax environment bug fix
   * Better debug information
+     - lth must write spec first
   * Macro expander performance issues?  [Not a priority]
   * Compiler performance issues?        [Not a priority]
 
@@ -54,9 +55,12 @@ Remaining to-do items:
     must be removed.
 
 [SRFI]
-  * Definite: SRFI 0, SRFI 6 (string I/O), SRFI 11 (LET-VALUES)
+  * Definite: SRFI 0  (basic)
+              SRFI 6  (string I/O)
+              SRFI 11 (LET-VALUES)
   * Probable: SRFI 12 (Exceptions; pending exception hierarchy definition)
-  * Possible: SRFI 7 (configuration language), SRFI 9 (define-record syntax)
+              SRFI 9  (DEFINE-RECORD-TYPE syntax)
+  * Possible: SRFI 7  (Program-based configuration language)
 
 [FFI]
   * Add foreign-function-pointer, probably
@@ -67,7 +71,7 @@ Remaining to-do items:
   * Print variable names where convenient.
   * Add a command to enter a nested REPL.
   * Debugger bugs -- see FIXMEs in the files.
-    bug: when stopped in a breakpoint, it really should
+  * BUG: when stopped in a breakpoint, it really should
          set the current frame to the proc where the breakpt
          occured, not past the system-continuation/enter-debugger
          thing.
@@ -77,6 +81,25 @@ Remaining to-do items:
     constants, accessors, and setters for the documentation slot.
     This information should exist in only one place, and it has to
     be part of the development environment.
+
+[Scripts/options]
+  * Scripts may have to be aware of the new command line arguments,
+    because the scripts process command line arguments too.
+  * The help printed by larceny is pertinent to running the binary
+    directly but not to running the shell script (which accepts 
+    -small, does not accept heap file, adds -args implicitly, and
+    accepts files to load (because the heap runs the REPL)).  Perhaps
+    we should have the script print an appropriate help text that is
+    independent of the binary's (and shorter, not mentioning all the
+    GC options).
+  * Really do need a -noinit file that avoids loading .larceny.
+    The messy part of this is that the REPL does that loading but
+    the binary interprets the options... so the -noinit must be
+    passed _after_ -args, which is just not intuitive.  Instead the
+    binary could recognize that -noinit needs to be passed as
+    an argument to the Scheme program, when it is run, but that 
+    is a mess also.  The best seems to be for the script to pass
+    -noinit after -args.
 
 [Standard builds]
   * Need to hide the nbuild internals in Util/std-heap.sch
