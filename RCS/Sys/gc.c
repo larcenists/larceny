@@ -4,7 +4,7 @@
  *
  * Full internals documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 2.4 91/07/10 18:14:02 lth Exp Locker: lth $
+ * $Id: gc.c,v 2.5 91/07/11 00:44:55 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  *   We use "old" C; this has the virtue of letting us use 'lint' on the code
@@ -59,6 +59,15 @@
  *   the ephemeral areas are never reallocated (they must remain below the
  *   tenured areas!), there are no problems with allocating tenured areas
  *   separately (except VM overflow).
+ * - We should have two different kinds of tenuring collections: If there is
+ *   at least as much space left in the tenured area as the size of the
+ *   ephemeral area at the time the tenuring collection is invoked, then
+ *   we should merely tenure all objects in the ephemeral space. If, on the
+ *   other hand, there is less space left in the tenured area than the size
+ *   of the ephemeral area, then we should perform an actual tenuring
+ *   collection and copy all objects into the new tenured space. This is
+ *   and *easy* modification, and excluding paging behavior, it should
+ *   always be a win.
  */
 
 #ifdef __STDC__
