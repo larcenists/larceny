@@ -284,6 +284,19 @@ $Id$
      FIX: Implemented the necessary changes in Asm/Sparc/gen-prim.sch.
 
 
+012  (v0.28)  970507
+     Priority: low.
+     Category: RTS / correctness
+
+     Remembered-set size information from the command line is disregarded
+     when creating the remembered sets in the garbage collector.
+
+     See file Rts/Sys/memmgr.c
+
+     Fixed 9909** by lth by implementing it as part of cleanup for
+     revision of radioactive decay paper.
+
+
 017  (v0.28)  970507  Fixed 970625 by lth
 
      Must restore console i/o on error.  Consider:
@@ -1772,3 +1785,22 @@ $Id$
 
     Hacked the assembler and the error handler as described above.
 
+135 v0.45 and many earlier (990920 / lth)
+    Priority: high
+    Category: RTS / correctness
+
+    The millicode call $m.gc always triggers a garbage collection.  This
+    is wrong, because $m.gc is called from the inline allocator due to
+    storage exhaustion, but the correct remedy is not always to collect --
+    in the stop/copy collector, the correct remedy is to move to the
+    next chunk.  In the current system it always collects, leading to
+    excessively high collection times for the stop+copy system.
+
+    Has been fixed in the radioactive99 system; the fix (involving memory.s, 
+    cglue.c, gc.c, gc_t.h, gc_t.c, young_heap_t.h, young_heap_t.c, sc-heap.c,
+    nursery.c, bdw-collector.c) must be ported.
+
+    Fixed 990928 by lth by renaming M_GC as M_MORECORE and implementing
+    code in memory.s, cglue.c, young_heap_t.*, sc-heap.c, nursery.c.
+    Avoided changing GC interface by having cglue.c call a yh_ method
+    directly.
