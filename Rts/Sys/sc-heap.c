@@ -161,6 +161,14 @@ static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
   return p;
 }
 
+static void make_room( young_heap_t *heap )
+{
+  if (free_current_chunk( heap ) < 4*KILOBYTE) {
+    collect_if_no_room( heap, 4*KILOBYTE );
+    make_space_for( heap, 4*KILOBYTE, 1 );
+  }
+}
+
 /* Request is ignored -- doesn't make sense in stop/copy heap. */
 static void collect( young_heap_t *heap, int request_bytes, int request )
 {
@@ -488,6 +496,7 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
 			      HEAPCODE_YOUNG_2SPACE,
 			      0,                 /* intialize */
 			      allocate,
+			      make_room,
 			      collect,
 			      before_collection,
 			      after_collection,

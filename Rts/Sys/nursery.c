@@ -134,6 +134,11 @@ static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
   return p;
 }
 
+static void make_room( young_heap_t *heap )
+{
+  collect_if_no_room( heap, 4*KILOBYTE );
+}
+
 /* Request is ignored -- doesn't make sense in nursery. */
 static void collect( young_heap_t *heap, int nbytes, int request )
 {
@@ -290,23 +295,24 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 
   data = (young_data_t*)must_malloc( sizeof( young_data_t ) );
   heap = create_young_heap_t( "nursery",
-			     HEAPCODE_YOUNG_1SPACE,
-			     0,	                      /* initialize */
-			     allocate,
-			     collect,
-			     before_collection,
-			     after_collection,
-			     0,                       /* set_policy */
-			     free_space,
-			     stats,
-			     data_load_area,
-			     0,
-			     0,
-			     creg_get,
-			     creg_set,
-			     stack_underflow,
-			     stack_overflow,
-			     data );
+			      HEAPCODE_YOUNG_1SPACE,
+			      0,                     /* initialize */
+			      allocate,
+			      make_room,
+			      collect,
+			      before_collection,
+			      after_collection,
+			      0,                       /* set_policy */
+			      free_space,
+			      stats,
+			      data_load_area,
+			      0,
+			      0,
+			      creg_get,
+			      creg_set,
+			      stack_underflow,
+			      stack_overflow,
+			      data );
   heap->collector = gc;
 
   data->gen_no = gen_no;
