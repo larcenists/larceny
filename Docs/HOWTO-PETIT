@@ -1,10 +1,15 @@
 Building and using Petit Larceny
-06 November 2003 / lth
+21 November 2003 / lth
 
 
 HOW TO BUILD PETIT LARCENY AND USE THE BUILD ENVIRONMENT
 
 If you haven't read the build instructions on the web page, do so now.
+
+There may also be platform specific instructions for your platform.
+Have a look at the files HOWTO-WIN32, HOWTO-MACOSX, and HOWTO-UNIX for
+status on the various ports and special instructions for building on
+specific systems.
 
 For the most part Petit Larceny is built by tools written in Scheme,
 so you need a working host Scheme system; a version of Petit Larceny
@@ -23,10 +28,10 @@ Then start your host Scheme system, change your working directory to
 be the Larceny source directory if necessary, and load the appropriate
 configuration file for your operating system, currently one of:
 
-	Util/petit-win32.sch
-	Util/petit-macosx.sch
-	Util/petit-unix-be.sch
-	Util/petit-unix-el.sch
+    Util/petit-win32.sch
+    Util/petit-macosx.sch
+    Util/petit-unix-be.sch
+    Util/petit-unix-el.sch
 
 These programs sometimes invoke external programs and may place
 additional demands on your host system.  Currently all systems need
@@ -35,30 +40,30 @@ will need access to a command interepreter.
 
 The first time you run the build environment you will want to evaluate:
 
-	> (setup-directory-structure)
+    > (setup-directory-structure)
 
 Whenever you have altered any of the Rts/*.cfg, or the first time you
 run the build environment, you will want to evaluate:
 
-	> (build-config-files)
+    > (build-config-files)
 
 Most of the time you will just load Twobit (you can't load Twobit
 until after you have created the directory structure and config files,
 which is why it is a separate step):
 
-	> (load-compiler)
+    > (load-compiler)
 
 and then build the heap image, the runtime system, and finally the
 executable:
 
-	> (make-petit-heap)
-	> (build-runtime-system)
-	> (build-executable)
+    > (make-petit-heap)
+    > (build-runtime-system)
+    > (build-executable)
 
 Other useful commands are:
 
-	> (remove-heap-objects)   ; removes generated files (LAP, LOP, C, OBJ)
-	> (remove-rts-objects)    ; removes OBJ files in the Rts tree
+    > (remove-heap-objects)   ; removes generated files (LAP, LOP, C, OBJ)
+    > (remove-rts-objects)    ; removes OBJ files in the Rts tree
 
 It is also possible to create an application that contains more
 compiled code than the standard heap image.  In this case, the object
@@ -68,7 +73,7 @@ the native Larceny.  This may seem a little strange and unnecessary
 but it simplifies things overall, because scripts for native Larceny
 will work unaltered in Petit Larceny.
 
-	> (build-application "petit" <list-of-lop-files>)
+    > (build-application "petit" <list-of-lop-files>)
 
 (On Win32 the executable name would be "petit.exe".)  The command
 above generates an executable called "petit" and a bunch of FASL
@@ -89,7 +94,7 @@ COMPILING TWOBIT
 
 A facility built on BUILD-APPLICATION is called BUILD-TWOBIT:
 
-	> (build-twobit)
+    > (build-twobit)
 
 The BUILD-TWOBIT command compiles all the Twobit source files and
 creates an executable "twobit" (or "twobit.exe") that contains the
@@ -112,21 +117,14 @@ of Scheme files into a single shared object and a group of code-less
 FASL files.  Loading the FASL files with LOAD will load and link the
 shared object:
 
-	> (compile-files '("fib.sch") "fib.fasl")
-	> (load "fib.fasl")
-	> (fib 10)
-	55
+    > (compile-files '("fib.sch") "fib.fasl")
+    > (load "fib.fasl")
+    > (fib 10)
+    55
 
 Note that a single C source file is generated from all the Scheme
 source files in the input list.  Be aware that some C compilers have
 problems with very large files at high optimization settings.
-
-
-PLATFORM SPECIFICS
-
-Read the files HOWTO-WIN32, HOWTO-MACOSX, and HOWTO-UNIX for status on
-the various ports and special instructions for building on specific
-systems.
 
 
 BOOTSTRAPPING
@@ -163,7 +161,7 @@ Anyway, to create a standalone compiler do the following:
 
   (1) Create directories /usr/lib/larceny/include and /usr/lib/larceny/lib
   (2) In the development directory, start twobit:
-	./twobit -stopcopy
+         ./twobit -stopcopy
       and load the development environment in the normal manner
       with LOAD-COMPILER.
   (3) Incant
@@ -187,3 +185,9 @@ Anyway, to create a standalone compiler do the following:
       You should now be able to type 'twobit' anywhere, and you should
       be able both to compile to FASL and to create entire applications
       using BUILD-APPLICATION.
+
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---

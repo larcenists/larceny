@@ -1,5 +1,5 @@
-Information about Petit Larceny on Linux
-29 August 2003 / lth
+Information about Petit Larceny on Unix systems
+15 November 2003 / lth
 
 
 HOW TO BUILD AND USE.
@@ -10,9 +10,10 @@ Bonuses:
  - BUILD-TWOBIT works as described in HOWTO-PETIT.
 
  - COMPILE-FILES and dynamic loading work as described in HOWTO-PETIT.
-   (Note that on some systems you may have to set LD_LIBRARY_PATH for
+
+ - On some systems you need to set LD_LIBRARY_PATH in order for
    Larceny to find the shared object.  On Linux my LD_LIBRARY_PATH
-   contains "." for this purpose.)
+   contains "." for this purpose.
 
  - Heap dumping works as for native Larceny: DUMP-HEAP and
    DUMP-INTERACTIVE-HEAP are both defined.
@@ -69,4 +70,9 @@ However, the compiled code for REMOVE-DUPLICATES looked fine, and the
 problem did not reappear when I restarted Twobit and tried creating
 the heap once more.
 
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---
 
