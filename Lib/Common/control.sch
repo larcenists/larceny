@@ -37,7 +37,7 @@
             ((null? (cddr l)) (f (car l) (cadr l)))
             ((null? (cdddr l)) (f (car l) (cadr l) (caddr l)))
             ((null? (cddddr l)) (f (car l) (cadr l) (caddr l) (cadddr l)))
-            ((not (list? l)) 
+            ((not (list? l))
              (error "apply: not a list: " l)
              #t)
             (else (raw-apply f l (length l)))))
@@ -49,10 +49,10 @@
 ;
 ; MAKE-TRAMPOLINE takes a procedure P and returns an environment-less
 ; procedure that takes any number of arguments and tail-calls P with those
-; arguments.  
+; arguments.
 ;
-; It is not possible to create a procedure with a shorter procedure 
-; structure than that of a trampoline.  That fact may be relied on: 
+; It is not possible to create a procedure with a shorter procedure
+; structure than that of a trampoline.  That fact may be relied on:
 ; a trampoline can be patched into any other procedure.
 ;
 ; This procedure depends on the representation of procedures.
@@ -125,7 +125,7 @@
 ; Returning multiple values to a continuation that does not expect them
 ; (an error) will not be detected.
 ;
-; We need to replace these definitions when Larceny gets compiler 
+; We need to replace these definitions when Larceny gets compiler
 ; support for them.
 
 (define *multiple-values* (list '*multiple-values*))
@@ -136,6 +136,15 @@
     (cond ((null? vals) *values0*)
           ((null? (cdr vals)) (car vals))
           (else (cons *multiple-values* vals)))))
+
+;; (value-list elements) = (apply values elements)
+;; Avoids redundant consing, though.
+(define (values-list vals)
+  (cond ((pair? vals) (if (null? (cdr vals))
+                          (car vals)
+                          (cons *multiple-values* vals)))
+        ((null? vals) *values0*)
+        (else (error "VALUES-LIST: Improper list." vals))))
 
 (define call-with-values
   (lambda (producer consumer)
@@ -158,7 +167,7 @@
 
 (define *here* (list #f))
 
-(define call-with-current-continuation 
+(define call-with-current-continuation
   (let ((call-with-current-continuation call-with-current-continuation))
     (lambda (proc)
       (let ((here *here*))
@@ -167,7 +176,7 @@
            (proc (lambda results
                    (reroot! here)
                    (apply cont results)))))))))
-    
+
 (define (dynamic-wind before during after)
   (let ((here *here*))
     (reroot! (cons (cons before after) here))
