@@ -5,7 +5,7 @@
 ;
 ; Second major version.
 ;
-; $Id: dumpheap.scm,v 1.3 91/08/20 15:31:37 lth Exp Locker: lth $
+; $Id: dumpheap.scm,v 1.4 91/09/15 17:44:41 lth Exp Locker: lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular
@@ -121,7 +121,7 @@
     (define (dump-item! h item)
       (case (car item)
 	((codevector)
-	 (dump-bytevector! h (cadr item) $tag.bytevec-typetag))
+	 (dump-bytevector! h (cadr item) $tag.bytevector-typetag))
 	((constantvector)
 	 (dump-constantvector! h (cadr item)))
 	((data)
@@ -156,7 +156,7 @@
 	    ((vector? datum)
 	     (dump-vector! h datum $tag.vector-typetag))
 	    ((bytevector? datum)
-	     (dump-bytevector! h datum $tag.bytevec-typetag))
+	     (dump-bytevector! h datum $tag.bytevector-typetag))
 	    ((pair? datum)
 	     (dump-pair! h datum))
 	    ((string? datum)
@@ -183,10 +183,10 @@
       (dump-bytevector! h (bignum->bytevector b) $tag.bignum-typetag))
 
     (define (dump-flonum! h f)
-      (dump-bytevector! h (flonum->bytevector b) $tag.flonum-typetag))
+      (dump-bytevector! h (flonum->bytevector f) $tag.flonum-typetag))
 
     (define (dump-string! h s)
-      (dump-bytevector! h (string->bytevector b) $tag.string-typetag))
+      (dump-bytevector! h (string->bytevector s) $tag.string-typetag))
 
     (define (dump-pair! h p)
       (let ((the-car (dump-data! h (car p)))
@@ -234,52 +234,91 @@
     ; value cell location. Both of the latter may be null.
 
     (define symbol-table '())
+    (define cell-number 0)
+
+    (define (make-symcell s)
+      (list s '() '() '()))
+
+    (define symcell.name car)                   ; name
+    (define symcell.symloc cadr)                ; symbol location (if any)
+    (define symcell.valloc caddr)               ; value cell location (ditto)
+    (define symcell.valno cadddr)               ; value cell number (ditto)
+
+    (define (symcell.symloc! x y) (set-car! (cdr x) y))
+    (define (symcell.valloc! x y) (set-car! (cddr x) y))
+    (define (symcell.valno! x y) (set-car! (cdddr x) y))
+
+    ; Find a symcell in the table, or make a new one if there's none.
 
     (define (symbol-cell s)
       (let ((x (assq s symbol-table)))
 	(if (null? x)
-	    (let ((p (list s '() '())))
+	    (let ((p (make-symcell s)))
 	      (set! symbol-table (cons p symbol-table))
 	      p)
 	    x)))
 
-    ; Return list of symbol locations.
+    ; Return list of symbol locations for symbols in the heap.
 
     (define (symbol-names)
-      (map cadr symbol-table))
+      (let loop ((t symbol-table) (l '()))
+	(if (null? t)
+	    (reverse l)
+	    (if (not (null? (symcell.symloc (car t))))
+		(loop (cdr t) (cons (symcell.symloc (car t)) l))
+		(loop (cdr t) l)))))
+
+    ; Return list of variable name to cell number mappings for global vars.
+
+    (define (load-map)
+      (let loop ((t symbol-table) (l '()))
+	(if (null? t)
+	    (reverse l)
+	    (if (not (null? (symcell.valloc (car t))))
+		(loop (cdr t) (cons (cons (symcell.name (car t))
+					  (symcell.valno (car t)))
+				    l))
+		(loop (cdr t) l)))))
 
     ; Stuff a new symbol into the heap, return its location.
 
     (define (create-symbol! h s)
-      (dump-vector! h 
-		    (vector `(bits ,(dump-string! h (symbol->string s)))
-			    0
-			    '())
-		    $tag.symbol-typetag))
+      (dump-vector-like! h 
+			 (vector `(bits ,(dump-string! h (symbol->string s)))
+				 '(data 0)
+				 '(data ()))
+			 dump-item!
+			 $tag.symbol-typetag))
 
-    ; Stuff a value cell into the heap, return its location.
+    ; Stuff a value cell into the heap, return a pair of its location
+    ; and its cell number.
 
     (define (create-cell! h)
-      (dump-pair! h (cons '() '())))
+      (let* ((n cell-number)
+	     (p (dump-pair! h (cons '() n))))
+	(set! cell-number (+ cell-number 1))
+	(cons p n)))
 
     (define (dump-symbol! h s)
       (let ((x (symbol-cell s)))
-	(if (null? (cadr x))
-	    (set-car! (cdr x) (create-symbol! h s)))
-	(cadr x)))
+	(if (null? (symcell.symloc x))
+	    (symcell.symloc! x (create-symbol! h s)))
+	(symcell.symloc x)))
 
     (define (dump-global! h g)
       (let ((x (symbol-cell g)))
-	(if (null? (caddr x))
-	    (set-car! (cddr x) (create-cell! h)))
-	(caddr x)))
+	(if (null? (symcell.valloc x))
+	    (let ((cell (create-cell! h)))
+	      (symcell.valloc! x (car cell))
+	      (symcell.valno! x (cdr cell))))
+	(symcell.valloc x)))
 
     ; Given a pair of code vector and constant vector, dump a thunk.
 
     (define (dump-segment! h segment)
       (let* ((the-code   (dump-bytevector! h
 					  (car segment)
-					  $tag.bytevec-typetag))
+					  $tag.bytevector-typetag))
 	     (the-consts (dump-constantvector! h (cdr segment))))
 	(let ((base (heap.top h)))
 	  (dump-header-word! h $imm.procedure-header 8)
@@ -296,8 +335,10 @@
       (display "Loading ") (display filename) (newline)
       (with-input-from-file filename
 	(lambda ()
-	  (let ((segment (read)))
-	    (dump-segment! h segment)))))
+	  (let loop ((segment (read)) (thunks '()))
+	    (if (eof-object? segment)
+		thunks    ; must not reverse here.
+		(loop (read) (cons (dump-segment! h segment) thunks)))))))
 
     ; Given a heap and a list of heap pointers to thunks, create a thunk
     ; in the heap which runs each thunk in turn. The list is assumed to be
@@ -329,11 +370,13 @@
 	  (,$const (2))          ; dummy list of symbols
 	  (,$setreg 1)
 	  (,$global go)
+	  (,$op1 reset)
 	  (,$invoke 1)           ; (go <list of symbols>)
 	  (,$.label 2)
 	  (,$save 3 1)
 	  (,$reg 1)
 	  (,$op1 car)
+	  (,$op1 break)
 	  (,$invoke 0)           ; ((car l))
 	  (,$.label 3)
 	  (,$.cont)
@@ -371,9 +414,9 @@
       ; traverses the list and calls each in turn.
 
       (display "Assembling final procedure") (newline)
-      (let ((l       (dump-list! h (reverse inits)))
-	    (m       (dump-list! h (symbol-names)))
-	    (segment (assemble (init-proc))))
+      (let* ((l       (dump-list! h (reverse inits)))
+	     (m       (dump-list! h (symbol-names)))
+	     (segment (assemble (init-proc))))
 	(patch-constant-vector! (cdr segment) '(data (1)) `(bits ,l))
 	(patch-constant-vector! (cdr segment) '(data (2)) `(bits ,m))
 	(dump-segment! h segment)))
@@ -423,14 +466,17 @@
 
     (define (build-bootstrap-heap outputfile . inputfiles)
       (delete-file outputfile)
+      (set! cell-number 0)
+      (set! symbol-table '())
       (let ((heap (make-new-heap)))
 	(let loop ((files inputfiles) (inits '()))
 	  (if (not (null? files))
 	      (loop (cdr files)
-		    (cons (load-file-into-heap! heap (car files)) inits))
+		    (append (load-file-into-heap! heap (car files)) inits))
 	      (begin (heap.global! heap
 				   'startproc
 				   (create-init-proc! heap inits))
-		     (dump-heap-to-file! heap outputfile))))))
+		     (dump-heap-to-file! heap outputfile)
+		     (load-map))))))
 
     build-bootstrap-heap))

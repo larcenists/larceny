@@ -30,21 +30,24 @@
          (outputfile
           (string-append
            (if (and (> n 4)
-                    (string-ci=? ".lap" (substring file (- n 4) n)))
+                    (or (string-ci=? ".lap" (substring file (- n 4) n))
+			(string-ci=? ".mal" (substring file (- n 4) n))))
                (substring file 0 (- n 4))
                file)
            ".lop")))
-    (assemble-file file outputfile)))
+    (if (and (> n 4) (string-ci=? ".mal" (substring file (- n 4) n)))
+	(assemble-file eval file outputfile)
+	(assemble-file (lambda (x) x) file outputfile))))
 
-(define (assemble-file infile outfile)
+(define (assemble-file filter infile outfile)
   (delete-file outfile)
   (let ((p (open-output-file outfile)))
-    (file-for-each (lambda (x) (write (assemble x) p)) infile)
+    (file-for-each (lambda (x) (write (assemble (filter x)) p)) infile)
     (close-output-port p)
     #t))
 
 (define (file-for-each proc filename)
-  (call-with-input-file infile
+  (call-with-input-file filename
     (lambda (p)
       (let loop ((x (read p)))
 	(if (eof-object? x)

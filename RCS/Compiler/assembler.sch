@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.6 91/08/21 19:39:16 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.7 91/09/15 17:44:04 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -561,6 +561,11 @@
     (list-instruction "setrtn" instruction)
     (emit-setrtn! as (operand1 instruction))))
 
+(define-instruction $apply
+  (lambda (instruction as)
+    (list-instruction "apply" instruction)
+    (emit-apply! as)))
+
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
@@ -622,10 +627,10 @@
 	 (emit-const->register! as (emit-constant as opd) r))
 	((vector? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
-	((eq? opd hash-bang-unspecified)
-	 (emit-immediate->register! as $imm.unspecified r))
 	((eq? opd **eof**)
 	 (emit-immediate->register! as $imm.eof r))
+	((equal? opd hash-bang-unspecified)
+	 (emit-immediate->register! as $imm.unspecified r))
 	(else
-	 (error 'assemble "Unknown datatype as arg to `$const'"))))
+	 (error 'assemble "Unknown datatype as arg to `$const'" opd))))
 
