@@ -329,7 +329,11 @@
 
 (define (make-compiler-project file-type)
   (let ((compiler-files 
-         (replace-extension file-type (nbuild:twobit-files)))
+         (append
+          (replace-extension file-type (nbuild:twobit-files))
+          (objects (nbuild-parameter 'compiler)
+                   file-type
+                   '("driver-larceny"))))
         (comp-util-files 
          (replace-extension file-type (nbuild:utility-files)))
         (other-util-files
