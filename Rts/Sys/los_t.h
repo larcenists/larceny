@@ -7,7 +7,7 @@
  * How the Large Object Space is used:
  *
  * A large object is allocated with los_allocate() and is added to a
- * data structure for the generation it's allocated in.  During a garbage
+ * data structure for the generation it is allocated in.  During a garbage
  * collection in that or an older generation, the collector moves the large
  * objects from the generation's data structure to the common marked list
  * with a call to los_mark().  The marked list can be walked during the scan
@@ -47,12 +47,16 @@ los_t *create_los( int generations );
      generations > 0
      */
 
+#define LOS_MARK1  -1		/* Secret value */
+#define LOS_MARK2  -2		/* Secret value */
+
 int los_bytes_used( los_t *los, int gen_no );
   /* Returns the number of bytes allocated to large objects in generation
-     `gen_no'.  The magic values -1 and -2 denote the first and second mark
-     list, respectively.
+     `gen_no' or on one of the mark lists.
 
-     -2 <= gen_no < los.generations
+     0 <= gen_no < los.generations 
+  or gen_no == LOS_MARK1 
+  or gen_no == LOS_MARK2
      */
 
 word *los_allocate( los_t *los, int nbytes, int gen_no );
@@ -65,11 +69,11 @@ word *los_allocate( los_t *los, int nbytes, int gen_no );
      0 <= gen_no < los.generations
      */
 
-int los_mark( los_t *los, los_list_t *marked, word *w, int gen_no );
+bool los_mark( los_t *los, los_list_t *marked, word *w, int gen_no );
   /* Mark the block by moving it to the end of the 'marked' list, which
      should be a mark list, if it is not already on a mark list.  Returns
-     1 if the object was already marked, 0 if not.  Gen_no is the generation
-     number of the object being moved.
+     true if the object was already marked, false if not.  Gen_no is the 
+     generation number of the object being moved.
 
      w must be the address of a live large object.
      */
