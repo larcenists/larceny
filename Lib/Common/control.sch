@@ -2,12 +2,11 @@
 ;
 ; $Id$
 ;
-; Larceny library -- various control procedures
+; Larceny library -- some control procedures.
 ;
-; 'Member', 'assq', and so on may be found in Lib/list.sch.
-; 'Call-with-current-continuation' is in Lib/malcode.mal.
-; 'Exit' is OS-specific (see e.g. Lib/unix.sch)
-; 'Call-without-interrupts' is in Lib/timer.sch.
+; 'Call-with-current-continuation' is in malcode.mal.
+; 'Exit' is OS-specific (see e.g. unix.sch)
+; 'Call-without-interrupts' is in timer.sch.
 
 ($$trace "control")
 
@@ -142,8 +141,10 @@
 ; Snarfed from Lisp Pointers, V(4), October-December 1992, p45.
 ; Written by Jonathan Rees.
 ;
-; FIXME: this code is not thread-aware.
-; FIXME: this may not correspond to the R5RS specification.
+; Modification:  We would like reroot! to be atomic wrt timer interrupts.
+; While it is not desirable to disable interrupts while rerooting, since
+; buggy user code can then hang the system, I have chosen to do for the
+; time being.  Revisit when we start worrying about threads for real.
 
 (define *here* (list #f))
 
@@ -166,15 +167,21 @@
 	(apply values results)))))
 
 (define (reroot! there)
-  (if (not (eq? *here* there))
-      (begin (reroot! (cdr there))
-	     (let ((before (caar there))
-		   (after  (cdar there)))
-	       (set-car! *here* (cons after before))
-	       (set-cdr! *here* there)
-	       (set-car! there #f)
-	       (set-cdr! there '())
-	       (set! *here* there)
-	       (before)))))
+
+  (define (reroot-loop there)
+    (if (not (eq? *here* there))
+	(begin (reroot-loop (cdr there))
+	       (let ((before (caar there))
+		     (after  (cdar there)))
+		 (set-car! *here* (cons after before))
+		 (set-cdr! *here* there)
+		 (set-car! there #f)
+		 (set-cdr! there '())
+		 (set! *here* there)
+		 (before)))))
+
+  (let ((ticks (disable-interrupts)))
+    (reroot-loop there)
+    (if ticks (enable-interrupts ticks))))
 
 ; eof
