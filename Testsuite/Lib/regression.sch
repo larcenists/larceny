@@ -86,6 +86,25 @@
 	    (call-with-current-continuation (lambda (k) (k 1 2 3)))) 
 	  (lambda a a))
 	 '(1 2 3))
+   (test "Error case #21"               ; Bug 082
+         (let ()
+           (define (fact n)
+             (if (< n 2)
+                 1
+                 (* n (fact (- n 1)))))
+           (exact->inexact (fact 171)))
+         +inf.0)
+   (test "Error case #22"               ; Bug 082
+         (let ()
+           (define (fact n)
+             (if (< n 2)
+                 1
+                 (* n (fact (- n 1)))))
+           (= +inf.0 (exact->inexact (fact 170))))
+         #f)
+   (test "Error case #23"               ; Bug 082
+         (exact->inexact 14285714285714285714285)
+         1.4285714285714286e22)
    ))
 
 ; eof
