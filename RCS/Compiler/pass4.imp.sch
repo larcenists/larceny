@@ -1,6 +1,6 @@
 ; Opcode table.
 ;
-; $Id$
+; $Id: pass4.imp.sch,v 1.1 91/10/13 21:18:19 lth Exp Locker: lth $
 
 (define $.linearize -1)
 (define $.label 63)
@@ -50,3 +50,4 @@
 (define $optb2 (make-mnemonic 'optb2))           ; optb2   prim,L
 (define $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
 
+(define $cons 'cons)
