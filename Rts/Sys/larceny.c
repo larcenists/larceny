@@ -2,19 +2,26 @@
  *
  * $Id$
  *
- * Larceny run-time system (Unix) -- main file.
- * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
+ * Larceny run-time system -- main file.
+ * On-line manual available at http://www.ccs.neu.edu/home/will/Larceny/.
  */
 
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
+#include <limits.h>
 
 #include "config.h"
 #include "larceny.h"
 #include "gc.h"
+#include "millicode.h"    /* for scheme_init() */
+#if defined(MACOS) && defined(CODEWARRIOR)
+# include <SIOUX.h>
+# include <console.h>
+  long os_get_next_event( EventRecord *e );
+  long os_handle_event( EventRecord *e );
+#endif
 
 /* Argument parsing structure */
 
@@ -59,11 +66,29 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
-int main( argc, argv )
-int argc;
-char **argv;
+int main( int argc, char **os_argv )
 {
   opt_t o;
+  int generations;
+  char **argv;
+
+#if defined(DEC_ALPHA_32BIT)
+  /* I know this looks weird.  When running Petit Larceny on the Alpha
+     in 32-bit mode, pointers are 32-bit, but the interface to main() is
+     64-bit (for reasons I do not understand yet).  The following
+     seemingly unnecessary loop moves the argument vector into 32-bit
+     space.  Presumably there's a better way, as this must be a common
+     problem.
+     */
+  argv = (char**)malloc( sizeof( char* )*(argc+1) );
+  for ( i=0 ; i < argc ; i++ ) {
+    argv[i] = (char*)malloc( strlen( os_argv[i] )+1 );
+    strcpy( argv[i], os_argv[i] );
+  }
+  argv[i] = 0;
+#else
+  argv = os_argv;
+#endif
 
   memset( &o, 0, sizeof( o ) );
   o.maxheaps = MAX_HEAPS;
@@ -89,7 +114,51 @@ char **argv;
 	      (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
 	      user, date );
 
+#if !defined(MACOS)
   parse_options( argc, argv, &o );
+#else
+# if defined(CODEWARRIOR)
+  SIOUXSettings.asktosaveonclose = 0;
+  SIOUXSettings.autocloseonquit = 1;
+  SIOUXSetTitle( "\pPetit Larceny Transcript" );
+# endif  
+  { /* Look for the file "larceny.args" in the application's home directory. */
+    int argc, maxargs = 100;
+    char *argv[100], buf[256], *p;
+    char *args_filename = "larceny.args"; /* fixme: don't hardwire file name */
+    FILE *fp;
+
+    argv[0] = "Petit Larceny";  	  /* fixme: get application name */
+    argc = 1;
+    if ((fp = fopen( args_filename, "r")) != 0) {
+    	while (fgets( buf, sizeof(buf), fp ) != 0) {
+    		p = strtok( buf, " \t\n\r" );
+    		while (p != 0 && argc < maxargs-1) {
+    			argv[argc++] = strdup( p );
+    			p = strtok( 0, " \t\n\r" );
+    		}
+    	}
+    	fclose( fp );
+    }
+    argv[argc] = 0;
+    parse_options( argc, argv, &o );
+  }
+#endif
+
+#if defined( MACOS )
+  /* Is there a principled way to do this?
+     Loop for a while to process OpenDocument Apple Event to get the 
+     heap file, if any.
+     */
+  { EventRecord event; 
+    int i;
+    for ( i=0 ; i < 10 ; i++ ) {
+    	os_get_next_event( &event );
+    	os_handle_event( &event );
+   	}
+  }
+#endif
+
   if (o.heapfile == 0)
     o.heapfile = larceny_heap_name;
 
@@ -116,19 +185,19 @@ char **argv;
     o.gc_info.sc_info.load_factor = DEFAULT_LOAD_FACTOR;
   }
 
-  if (!create_memory_manager( &o.gc_info ))
+  if (!create_memory_manager( &o.gc_info, &generations ))
     panic( "Unable to set up the garbage collector." );
 
   if (!load_heap_image_from_file( o.heapfile ))
     panic( "Unable to load the heap image." );
 
   if (o.reorganize_and_dump) {
-    char buf[ PATH_MAX ];
+    char buf[ FILENAME_MAX ];	/* Standard C */
 
     sprintf( buf, "%s.split", o.heapfile );
     if (!reorganize_and_dump_static_heap( buf ))
       panic( "Failed heap reorganization." );
-    goto end;
+    return 0;
   }
 
   /* initialize some policy globals */
@@ -143,29 +212,19 @@ char **argv;
   globals[ G_RESULT ] = fixnum( 0 );  /* No arguments */
 
   setup_signal_handlers();
-  init_stats( o.show_heapstats );
+  osdep_init();
+  stats_init( the_gc(globals), generations, o.show_heapstats );
+  scheme_init( globals );
 
   /* Allocate vector of command line arguments and pass it as an
    * argument to the startup procedure.
    */
-#if 0
-  globals[ G_REG1 ] = allocate_argument_vector( o.restc, o.restv );
-  globals[ G_RESULT ] = fixnum( 1 );
-  scheme_start();
-  /* control does not usually reach this point */
-
-  consolemsg( "Scheme_start() returned with value %08lx", globals[ G_RESULT ]);
-#else
   { word args[1], res;
 
     args[0] = allocate_argument_vector( o.restc, o.restv );
     larceny_call( globals[ G_STARTUP ], 1, args, &res );
     consolemsg( "Startup procedure returned with value %08lx", (long)res );
   }
-#endif
-
- end:
-  return 0;
 }
 
 
@@ -186,7 +245,7 @@ int panic( const char *fmt, ... )
   va_end( args );
   fprintf( stderr, "\n" );
 
-  if (in_panic) _exit( 1 );
+  if (in_panic) abort();
   in_panic = 1;
   exit( 1 );
   /* Never returns. Return type is 'int' to facilitate an idiom. */
@@ -204,7 +263,7 @@ int panic_abort( const char *fmt, ... )
   va_end( args );
   fprintf( stderr, "\n" );
 
-  if (in_panic) _exit( 1 );
+  if (in_panic) abort();
   in_panic = 1;
   abort();
   /* Never returns. Return type is 'int' to facilitate an idiom. */
@@ -295,16 +354,18 @@ static void
 parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
-#if !defined( BDW_GC )
-  double load_factor = DEFAULT_LOAD_FACTOR;
+#if defined( BDW_GC )
+  double load_factor = 0.0;	              /* Ignore it. */
 #else
-  double load_factor = 0.0;	/* Ignore it. */
+  double load_factor = DEFAULT_LOAD_FACTOR;
 #endif
-  double feeling_lucky = 0.0;
-  double phase_detection = -1.0;
+  double expansion = 0.0;	              /* Ignore it. */
+  int divisor = 0;		              /* Ignore it. */
+  double feeling_lucky = 0.0;                 /* Not lucky at all. */
+  double phase_detection = -1.0;              /* No detection. */
+  int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
   int dynamic_max = 0;
   int dynamic_min = 0;
-  int divisor = 0;
   int val;
 
   while (--argc) {
@@ -316,12 +377,19 @@ parse_options( int argc, char **argv, opt_t *o )
       init_generational( o, areas, "-areas" );
     else if (strcmp( *argv, "-gen" ) == 0)
       init_generational( o, areas, "-gen" );
-    else if (strcmp( *argv, "-np" ) == 0) {
+    else if (strcmp( *argv, "-np" ) == 0 || strcmp( *argv, "-rof" ) == 0) {
       o->gc_info.is_generational_system = 1;
       o->gc_info.use_non_predictive_collector = 1;
     }
+    else if (numbarg( "-dof", &argc, &argv, 
+		      &o->gc_info.dynamic_dof_info.steps )) {
+      init_generational( o, 3, "-dof" );
+      o->gc_info.use_dof_collector = 1;
+    }
     else if (strcmp( *argv, "-nostatic" ) == 0)
       o->gc_info.use_static_area = 0;
+    else if (strcmp( *argv, "-nocontract" ) == 0)
+      o->gc_info.dont_shrink_heap = 1;
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1) o->gc_info.is_generational_system = 1;
       if (loc < 0 || loc > o->maxheaps)
@@ -346,15 +414,24 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
-    else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
-      ;
-    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
-      ;
     else 
 #endif
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
-    else if (doublearg( "-load", &argc, &argv, &load_factor ))
+    else if (doublearg( "-load", &argc, &argv, &load_factor )) {
+#if defined(BDW_GC)
+      if (load_factor < 1.0 && load_factor != 0.0)
+	param_error( "Load factor must be at least 1.0" );
+#else
+      if (load_factor < 2.0)
+	param_error( "Load factor must be at least 2.0" );
+#endif
+    }
+    else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
+      ;
+    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
+      ;
+    else if (numbarg( "-np-remset-limit", &argc, &argv, &np_remset_limit )) 
       ;
     else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
       ;
@@ -388,8 +465,14 @@ parse_options( int argc, char **argv, opt_t *o )
       break;
     }
 #if defined(BDW_GC)
-    else if (numbarg( "-divisor", &argc, &argv, &divisor ))
-      ;
+    else if (numbarg( "-divisor", &argc, &argv, &divisor )) {
+      if (divisor < 1)
+	param_error( "Divisor must be at least 1." );
+    }
+    else if (doublearg( "-expansion", &argc, &argv, &expansion )) {
+      if (expansion < 1.0)
+	param_error( "Expansion factor must be at least 1.0" );
+    }
 #endif
     else if (**argv == '-') {
       consolemsg( "Error: Invalid option '%s'", *argv );
@@ -446,7 +529,13 @@ parse_options( int argc, char **argv, opt_t *o )
     }
 
     /* Dynamic generation */
-    if (o->gc_info.use_non_predictive_collector) {
+    if (o->gc_info.use_dof_collector && 
+	o->gc_info.use_non_predictive_collector) {
+      consolemsg( "Error: Both nonpredictive (ROF) and DOF gc selected." );
+      consolemsg( "Type \"larceny -help\" for help." );
+      exit( 1 );
+    }
+    else if (o->gc_info.use_non_predictive_collector) {
       int size;
 
       o->gc_info.dynamic_np_info.load_factor = load_factor;
@@ -467,6 +556,23 @@ parse_options( int argc, char **argv, opt_t *o )
 	param_error( "NP phase detection paramater out of range." );
       else
 	o->gc_info.dynamic_np_info.phase_detection = phase_detection;
+      if (np_remset_limit < 0)
+	param_error( "NP remset limit must be nonnegative." );
+      else
+	o->gc_info.dynamic_np_info.extra_remset_limit = np_remset_limit;
+    }
+    else if (o->gc_info.use_dof_collector) {
+      o->gc_info.dynamic_dof_info.load_factor = load_factor;
+      o->gc_info.dynamic_dof_info.dynamic_max = dynamic_max;
+      o->gc_info.dynamic_dof_info.dynamic_min = dynamic_min;
+      if (o->size[n] == 0) {
+	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+	if (dynamic_min) size = max( dynamic_min, size );
+	if (dynamic_max) size = min( dynamic_max, size );
+	o->gc_info.dynamic_dof_info.size_bytes = size;
+      }
+      else
+	o->gc_info.dynamic_dof_info.size_bytes = o->size[n];
     }
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
@@ -497,7 +603,10 @@ parse_options( int argc, char **argv, opt_t *o )
     o->gc_info.sc_info.dynamic_max = dynamic_max;
   }
   else if (o->gc_info.is_conservative_system) {
+    if (load_factor > 0.0 && expansion > 0.0)
+      param_error( "-load and -expansion are mutually exclusive." );
     o->gc_info.bdw_info.load_factor = load_factor;
+    o->gc_info.bdw_info.expansion_factor = expansion;
     o->gc_info.bdw_info.divisor = divisor;
     o->gc_info.bdw_info.dynamic_min = dynamic_min;
     o->gc_info.bdw_info.dynamic_max = dynamic_max;
@@ -656,6 +765,8 @@ static void dump_options( opt_t *o )
     consolemsg( "Using conservative garbage collector." );
     consolemsg( "  Incremental: %d", o->gc_info.use_incremental_bdw_collector);
     consolemsg( "  Inverse load factor: %f", o->gc_info.bdw_info.load_factor );
+    consolemsg( "  Inverse expansion factor: %f", 
+		o->gc_info.bdw_info.expansion_factor );
     consolemsg( "  Divisor: %d", o->gc_info.bdw_info.divisor );
     consolemsg( "  Min size: %d", o->gc_info.bdw_info.dynamic_min );
     consolemsg( "  Max size: %d", o->gc_info.bdw_info.dynamic_max );
@@ -728,61 +839,153 @@ static void usage( void )
   exit( 1 );
 }
 
+
+#define STR(x) STR2(x)
+#define STR2(x) #x
+
+static char *helptext[] = {
+#if !defined(BDW_GC)
+  "  -stopcopy",
+  "     Select the stop-and-copy collector." ,
+  "  -gen",
+  "     Select the standard generational collector, with "
+        STR(DEFAULT_AREAS) 
+        " heap areas.  This is",
+  "     the collection type selected by default.",
+  "  -areas n",
+  "     Select generational collection, with n heap areas." ,
+  "  -np",
+  "  -rof",
+  "     Select generational collection with the renewal-oldest-first",
+  "     dynamic area (radioactive decay non-predictive collection).",
+  "  -dof n",
+  "     Select generational collection with the deferred-oldest-first",
+  "     dynamic area, using n chunks (default 4).",
+  "  -size# nnnn",
+  "     Heap area number '#' is given size 'nnnn' bytes.",
+  "     This selects generational collection if # > 1.",
+#endif
+  "  -min nnnn",
+  "     Set the lower limit on the size of the expandable (\"dynamic\") area.",
+  "  -max nnnn",
+  "     Set the upper limit on the size of the expandable (\"dynamic\") area.",
+  "  -load d",
+  "     Use inverse load factor d to control allocation and collection.",
+  "     After a major garbage collection, the collector will resize the heap",
+  "     and attempt to keep memory consumption below d*live, where live data",
+  "     is computed (sometimes estimated) following the major collection.",
+#if !defined(BDW_GC)
+  "     In a copying collector, d must be at least 2.0; the default value",
+  "     is 3.0.",
+#else
+  "     In the conservative collector, d must be at least 1.0; no default is",
+  "     set, as the conservative collector by default manages heap growth",
+  "     using the heap space divisor (see -divisor parameter).  The -load",
+  "     and -expansion parameters are mutually exclusive.",
+#endif
+#if defined(BDW_GC)
+  "  -divisor n",
+  "     The divisor controls collection frequency: at least heapsize/n bytes",
+  "     are allocated between one collection and the next. The default value",
+  "     is 4, and n=1 effectively disables GC.  The divisor is the",
+  "     conservative collector's default allocation and expansion control.",
+  "  -expansion d",
+  "     Use expansion factor d to control heap expansion.  Following garbage",
+  "     collection the heap size is set to max(live*d,heapsize).  No",
+  "     expansion factor is set by default, as the conservative collector",
+  "     manages heap growth using the heap space divisor (see -divisor",
+  "     parameter).  The -expansion and -load parameters are mutually",
+  "     exclusive.",
+#endif
+  "  -stats",
+  "     Print some data about heap allocation at startup." ,
+  "  -quiet",
+  "     Suppress nonessential messages.",
+  "  -help",
+  "     Print this message.",
+  "",
+  "  (Wizard options below this point.)",
+#if !defined(BDW_GC)
+  "  -annoy-user",
+  "     Print a bunch of annoying debug messages, usually about GC.",
+  "  -annoy-user-greatly",
+  "     Print a great deal of very annoying debug messages, usually about GC.",
+  "  -nostatic",
+  "     Do not use the static area, but load the heap image into the",
+  "     garbage-collected heap." ,
+  "  -nocontract",
+  "     Do not contract the dynamic area according to the load factor, but",
+  "     always use all the memory that has been allocated.",
+  "  -steps n",
+  "     Select the initial number of steps in the non-predictive collector.",
+  "     This selects generational collection and the non-predictive GC.",
+  "  -stepsize nnnn",
+  "     Select the size of each step in the non-predictive collector.",
+  "     This selects generational collection and the non-predictive GC.",
+  "  -phase-detection d",
+  "     A fudge factor for the non-predictive collector, 0.0 <= d <= 1.0.",
+  "     If the non-predictive remembered set has grown by a factor of more ",
+  "     than d for some (short) time, and then has grown by a factor of ",
+  "     less than d for the same amount of time, then the collector is ",
+  "     allowed to decide that a growth phase has ended and that any data",
+  "     in the non-predictive young area may be shuffled into the old area",
+  "     by adjusting j.  This parameter is sometimes very effective at",
+  "     reducing float.  It does not select anything else, not even the",
+  "     nonpredictive GC.  By default, phase detection is off.",
+  "     Time is measured in the number of promotions into the young area.",
+  "  -feeling-lucky d",
+  "     A fudge factor for the non-predictive collector, 0.0 <= d <= 1.0.",
+  "     After a non-predictive collection and selection of j and k, d*j steps",
+  "     are added to k to adjust for the fact that the collector probably",
+  "     over-estimates the amount of live storage.  This probably only makes",
+  "     sense in a fixed-heap setting, where under-estimation may cause",
+  "     failure, so you have to ask yourself, do I feel lucky?  Well, do you?",
+  "     The default value is 0.0.  This does not select anything else, not",
+  "     even the nonpredictive GC.",
+  "  -np-remset-limit n",
+  "     A fudge factor for the non-predictive collector, n >= 0.",
+  "     If, after a promotion into the non-predictive young area, the number",
+  "     of entries in the remembered set that tracks pointers from the",
+  "     non-predictive young area to the non-predictive old area, extrapolated",
+  "     to the point when the young area is full, exceeds n, then the",
+  "     collector is allowed to shuffle the entire contents of the",
+  "     young area to the old area and to clear the remembered set.  By",
+  "     default, the limit is infinity.  This parameter does not select",
+  "     anything else, not even the nonpredictive GC.",
+  "  -rhash nnnn",
+  "     Set the remembered-set hash table size, in elements.  The size must",
+  "     be a power of 2.",
+  "  -ssb nnnn",
+  "     Set the remembered-set Sequential Store Buffer (SSB) size, in "
+        "elements.",
+#endif
+  "  -ticks nnnn",
+  "     Set the initial countdown timer interval value.",
+  "  -nobreak",
+  "     Disable breakpoints." ,
+  "  -step",
+  "     Enable MAL-level single-stepping." ,
+#if !defined(BDW_GC)
+  "  -reorganize-and-dump",
+  "     Split a heap image into text and data, and save the split heap in a",
+  "     file. If Larceny is started with foo.heap, this command will create",
+  "     foo.heap.split.  The heap image is not executed.",
+#endif
+  "" ,
+  "Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed",
+  "with K (for KB) or M (for MB) when that makes sense." ,
+  "",
+  0 };
+
 static void help( void )
 {
+  int i;
+
   consolemsg("Usage: larceny [options][heapfile][-args arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
-#ifndef BDW_GC
-  consolemsg("\t-stopcopy       Select stop-and-copy collector." );
-  consolemsg("\t-areas    n     Select generational collector with n areas." );
-  consolemsg("\t-gen            Select generational collector with %d areas.",
-	     DEFAULT_AREAS );
-  consolemsg("\t                  (This is the default selection)." );
-  consolemsg("\t-nostatic       Don't use the static area." );
-  consolemsg("\t-size#    nnnn  Area number '#' is given size 'nnnn' bytes." );
-  consolemsg("\t                  (Selects generational collector if # > 1.)");
-  consolemsg("\t-np             Use the non-predictive dynamic area." );
-  consolemsg("\t                  (Selects generational collector.)" );
-  consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
-  consolemsg("\t                  (Selects generational collector.)" );
-  consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
-  consolemsg("\t                  (Selects generational collector.)" );
-#endif
-  consolemsg("\t-min      nnnn  Lower limit on the expandable area." );
-  consolemsg("\t-max      nnnn  Upper limit on the expandable area." );
-  consolemsg("\t-load     d     Use inverse load factor d for dynamic area");
-  consolemsg("\t                  or for stop-and-copy heap." );
-  consolemsg("\t-feeling-lucky d  NP gc fudge factor 0.0..1.0.  Default=0.0");
-  consolemsg("\t                  (Doesn't select anything else.)");
-  consolemsg("\t-phase-detection d  NP gc remset growth factor 0.0..1.0.");
-  consolemsg("\t                    Off by default.  Selects nothing else.");
-#ifdef BDW_GC
-  consolemsg("\t-divisor  n     Allocation divisor s.t. live/n bytes are" );
-  consolemsg("\t                 allocated before next GC." );
-#endif
-  consolemsg("\t-stats          Print startup memory statistics." );
-  consolemsg("\t-quiet          Suppress nonessential messages." );
-  consolemsg("\t-annoy-user     Print annoying messages." );
-  consolemsg("\t-annoy-user-greatly  Print very annoying messages." );
-  consolemsg("\t-help           Print this message." );
-  consolemsg("");
-#ifndef BDW_GC
-  consolemsg("\t-rhash    nnnn  Remembered-set hash table size, in elements");
-  consolemsg("\t                 (The size must be a power of 2)");
-  consolemsg("\t-ssb      nnnn  Remembered-set Sequential Store Buffer (SSB)");
-  consolemsg("\t                 size in elements" );
-#endif
-  consolemsg("\t-ticks    nnnn  Initial timer interval value" );
-  consolemsg("\t-nobreak        Disable breakpoints" );
-  consolemsg("\t-step           Enable single-stepping" );
-#ifndef BDW_GC
-  consolemsg("\t-reorganize-and-dump  Split static heap." );
-#endif
-  consolemsg("" );
-  consolemsg("Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed");
-  consolemsg("with K (for KB) or M (for MB) when that makes sense." );
-  consolemsg("");
+  for (i=0 ; helptext[i] != 0 ; i++ )
+    consolemsg( helptext[i] );
   consolemsg("The Larceny User's Manual is available on the web at");
   consolemsg("  http://www.ccs.neu.edu/home/lth/larceny/manual.html");
   exit( 0 );
@@ -802,10 +1005,6 @@ int memfail( int code, char *fmt, ... )
   /* Never returns; return type is `int' to facilitate an idiom. */
   return 0;
 }
-
-#if defined(SUNOS4)
-int strncasecmp( char*, char*, int ); /* should be in string.h but isn't */
-#endif
 
 void conditional_abort( void )
 {
