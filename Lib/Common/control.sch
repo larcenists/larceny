@@ -19,31 +19,86 @@
 ; if performance is a problem here.
 
 (define apply
-  (let ((raw-apply @raw-apply@))              ; see above
+  (let ((raw-apply @raw-apply@))        ; see above
 
-    (define (collect-arguments l)
-      (if (null? (cdr l))
-          (car l)
-          (cons (car l) (collect-arguments (cdr l)))))
+    (define (improper-list l)
+      (error "Apply: improper list: " l)
+      #t)
 
-    (define (apply f l . rest)
+    ;; Since we are cdring down the list anyway, we can do the small
+    ;; number of argument cases without even going through raw-apply.
+    ;; Twobit is nice enough to inline all of these subfunctions.
+    (define (xapply7 f a0 a1 a2 a3 a4 a5 a6 an)
+      (cond ((pair? an) (raw-apply f
+                                   (cons a0 (cons a1 (cons a2 (cons a3 (cons a4 (cons a5 (cons a6 an)))))))
+                                   (+ (length an) 7)))
+            ((null? an) (f a0 a1 a2 a3 a4 a5 a6))
+            (else (improper-list an))))
+
+    (define (xapply6 f a0 a1 a2 a3 a4 a5 an)
+      (cond ((pair? an) (xapply7 f a0 a1 a2 a3 a4 a5 (car an) (cdr an)))
+            ((null? an) (f a0 a1 a2 a3 a4 a5))
+            (else (improper-list an))))
+
+    (define (xapply5 f a0 a1 a2 a3 a4 an)
+      (cond ((pair? an) (xapply6 f a0 a1 a2 a3 a4 (car an) (cdr an)))
+            ((null? an) (f a0 a1 a2 a3 a4))
+            (else (improper-list an))))
+
+    (define (xapply4 f a0 a1 a2 a3 an)
+      (cond ((pair? an) (xapply5 f a0 a1 a2 a3 (car an) (cdr an)))
+            ((null? an) (f a0 a1 a2 a3))
+            (else (improper-list an))))
+
+    (define (xapply3 f a0 a1 a2 an)
+      (cond ((pair? an) (xapply4 f a0 a1 a2 (car an) (cdr an)))
+            ((null? an) (f a0 a1 a2))
+            (else (improper-list an))))
+
+    (define (xapply2 f a0 a1 an)
+      (cond ((pair? an) (xapply3 f a0 a1 (car an) (cdr an)))
+            ((null? an) (f a0 a1))
+            (else (improper-list an))))
+
+    (define (xapply1 f a0 an)
+      (cond ((pair? an) (xapply2 f a0 (car an) (cdr an)))
+            ((null? an) (f a0))
+            (else (improper-list an))))
+
+    (define (xapply0 f an)
+      (cond ((pair? an) (xapply1 f (car an) (cdr an)))
+            ((null? an) (f))
+            (else (improper-list an))))
+
+    ;; This flattens the tail of the arglist
+    ;; (foo (bar) (baz quux)) => (foo (bar) baz quux)
+    (define (collect-arguments a l)
+      (if (pair? l)
+          (cons a (collect-arguments (car l) (cdr l)))
+          a))
+
+    ;; Apply is rarely called with more than 4 arguments.
+
+    (define (apply f a0 . rest)
       (cond ((not (procedure? f))
              (error "apply: not a procedure: " f)
              #t)
-            ((not (null? rest))
-             (apply f (cons l (collect-arguments rest))))
-            ((null? l) (f))
-            ((null? (cdr l)) (f (car l)))
-            ((null? (cddr l)) (f (car l) (cadr l)))
-            ((null? (cdddr l)) (f (car l) (cadr l) (caddr l)))
-            ((null? (cddddr l)) (f (car l) (cadr l) (caddr l) (cadddr l)))
-            ((not (list? l))
-             (error "apply: not a list: " l)
-             #t)
-            (else (raw-apply f l (length l)))))
-
+             ;; The last argument to apply is a list of arguments.
+             ;; If it is the third, fourth or fifth argument, rather than cons a
+             ;; list just to destructure it again, we directly invoke the appropriate routine.
+            ((pair? rest)
+             (let ((a1 (car rest))
+                   (at1 (cdr rest)))
+               (cond ((pair? at1)
+                      (let ((a2  (car at1))
+                            (at2 (cdr at1)))
+                        (cond ((pair? at2) (xapply3 f a0 a1 a2 (collect-arguments (car at2) (cdr at2))))
+                              ((null? at2) (xapply2 f a0 a1 a2))
+                              (else        (improper-list at2)))))
+                     ((null? at1) (xapply1 f a0 a1))
+                     (else        (improper-list at1)))))
+            (else (xapply0 f a0))))
     apply))
-
 
 ; MAKE-TRAMPOLINE
 ;
@@ -198,6 +253,9 @@
 ; While it is not desirable to disable interrupts while rerooting, since
 ; buggy user code can then hang the system, I have chosen to do for the
 ; time being.  Revisit when we start worrying about threads for real.
+; (If it is not atomic, though, non-buggy user code cannot be made race-free!
+; Better to make it possible to write correct code than to make it easy
+; to debug code that cannot be fixed.)
 
 (define *here* (list #f))
 
@@ -209,7 +267,11 @@
          (lambda (cont)
            (proc (lambda results
                    (reroot! here)
-                   (apply cont results)))))))))
+                   ;; Handle extremely common case.
+                   (if (and (pair? results)
+                            (null? (cdr results)))
+                       (cont (car results))
+                       (apply cont results))))))))))
 
 (define (dynamic-wind before during after)
   (let ((here *here*))
