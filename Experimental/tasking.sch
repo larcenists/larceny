@@ -53,26 +53,21 @@
              (newline)
              (kill (tasks/current-task)))))))
 
-  ; Always called with interrupts turned off.
-  (define tasking-interrupt-handler
-    (lambda (type)
-      (if (eq? type 'timer)
-          (tasks/switch #t #f)
-          (*saved-interrupt-handler* type))))
-
   (if *tasking-on* (error "Tasking is already on."))
   (set! *tasking-on* #t)
   (set! *saved-reset-handler* (reset-handler))
   (reset-handler tasking-reset-handler)
-  (set! *saved-interrupt-handler* (interrupt-handler))
-  (interrupt-handler tasking-interrupt-handler)
+  (set! *saved-interrupt-handler* (timer-interrupt-handler))
+  (timer-interrupt-handler 
+   (lambda ()
+     (tasks/switch #t #f)))
   (tasks/initialize-scheduler))
 
 (define (end-tasking)
   (if (not *tasking-on*) (error "Tasking is not on."))
   (tasks/without-interrupts
    (set! *tasking-on* #f)
-   (interrupt-handler *saved-interrupt-handler*)
+   (timer-interrupt-handler *saved-interrupt-handler*)
    (reset-handler *saved-reset-handler*)
    (enable-interrupts (standard-timeslice))
    ; Kill whatever thread we're running and reenter the REPL.
