@@ -84,6 +84,6 @@
 	    ((= (vector-ref ta i) (vector-ref tb i))
 	     (loop (+ i 1)))
 	    (else
-	     (> (vector-ref ta i) (vector-ref tb i)))))))
+	     (>= (vector-ref ta i) (vector-ref tb i)))))))
 
 ; eof
