@@ -32,13 +32,13 @@
       (let ((syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
         (if (benchmark-block-mode)
             (process-file-block infilename
-                                outfilename
+                                `(,outfilename binary)
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
                                   (assemble (compile-block forms syntaxenv) 
                                             user)))
             (process-file infilename
-                          outfilename
+                          `(,outfilename binary)
                           dump-fasl-segment-to-port
                           (lambda (expr)
                             (assemble (compile expr syntaxenv) user)))))
@@ -65,12 +65,16 @@
            (newline port))))
     (let ((syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
       (if (benchmark-block-mode)
-          (process-file-block infilename outfilename write-lap 
+          (process-file-block infilename 
+			      outfilename 
+			      write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
-          (process-file infilename outfilename write-lap 
-                        (lambda (x)
-                          (compile x syntaxenv)))))
+          (process-file infilename 
+			outfilename 
+			write-lap 
+                        (lambda (x) 
+			  (compile x syntaxenv)))))
     (unspecified)))
 
 
@@ -88,9 +92,10 @@
         (user
          (assembly-user-data)))
     (process-file file
-                  outputfile
+                  `(,outputfile binary)
                   write-lop
-                  (lambda (x) (assemble (if malfile? (eval x) x) user)))
+                  (lambda (x) 
+		    (assemble (if malfile? (eval x) x) user)))
     (unspecified)))
 
 
@@ -108,14 +113,15 @@
     (let ((syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
       (if (benchmark-block-mode)
           (process-file-block input-file
-                              output-file
+                              `(,output-file binary)
                               write-lop
-                              (lambda (x) (assemble (compile-block x syntaxenv)
-                                                    user)))
+                              (lambda (x)
+				(assemble (compile-block x syntaxenv) user)))
           (process-file input-file
-                        output-file
+                        `(,output-file binary)
                         write-lop
-                        (lambda (x) (assemble (compile x syntaxenv) user)))))
+                        (lambda (x) 
+			  (assemble (compile x syntaxenv) user)))))
     (unspecified)))
 
 
@@ -129,8 +135,8 @@
                (rewrite-file-type infilename
                                   *lop-file-type*
                                   *fasl-file-type*))))
-      (process-file infilename
-                    outfilename
+      (process-file `(,infilename binary)
+                    `(,outfilename binary)
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

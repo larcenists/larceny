@@ -35,7 +35,7 @@
 (define *lop-file-type*     ".lop")
 (define *fasl-file-type*    ".fasl")
 
-; Assemble a MAL or LOP file and produce a FASL file.
+; Assemble a MAL or LAP file and produce a FASL file.
 
 (define (assemble-file infilename . rest)
   (define (doit)
@@ -50,7 +50,7 @@
           (user
            (assembly-user-data)))
       (process-file infilename
-                    outfilename
+                    `(,outfilename binary)
                     dump-fasl-segment-to-port
                     (lambda (x) (assemble (if malfile? (eval x) x) user)))
       (unspecified)))
@@ -262,18 +262,30 @@
 
 
 ; Read and process one file, producing another.
+; Filenames can be simple strings or list (filename mode) where mode
+; is a symbol, "text" or "binary".
 
 (define (process-file infilename outfilename writer processer)
-  (delete-file outfilename)
-  (call-with-output-file outfilename
-    (lambda (outport)
-      (call-with-input-file infilename
-        (lambda (inport)
-          (let loop ((x (read inport)))
-            (if (eof-object? x)
-                #t
-                (begin (writer (processer x) outport)
-                       (loop (read inport))))))))))
+  (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
+	(outfilefn   (if (and (pair? outfilename) 
+			      (eq? 'binary (cadr outfilename)))
+			 call-with-binary-output-file
+			 call-with-output-file))
+	(infilename  (if (pair? infilename) (car infilename) infilename))
+	(infilefn    (if (and (pair? infilename)
+			      (eq? 'binary (cadr infilename)))
+			 call-with-binary-input-file
+			 call-with-input-file)))
+    (delete-file outfilename)
+    (outfilefn outfilename
+      (lambda (outport)
+	(infilefn infilename
+	  (lambda (inport)
+	    (let loop ((x (read inport)))
+	      (if (eof-object? x)
+		  #t
+		  (begin (writer (processer x) outport)
+			 (loop (read inport)))))))))))
 
 ; Same as above, but passes a list of the entire file's contents
 ; to the processer.
@@ -281,15 +293,25 @@
 ; Shouldn't it be left alone if the input file can't be opened?
 
 (define (process-file-block infilename outfilename writer processer)
-  (delete-file outfilename)
-  (call-with-output-file outfilename
-    (lambda (outport)
-      (call-with-input-file infilename
-        (lambda (inport)
-          (do ((x (read inport) (read inport))
-               (forms '() (cons x forms)))
-              ((eof-object? x)
-               (writer (processer (reverse forms)) outport))))))))
+  (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
+	(outfilefn   (if (and (pair? outfilename) 
+			      (eq? 'binary) (cadr outfilename))
+			 call-with-binary-output-file
+			 call-with-output-file))
+	(infilename  (if (pair? infilename) (car infilename) infilename))
+	(infilefn    (if (and (pair? infilename)
+			      (eq? 'binary (cadr infilename)))
+			 call-with-binary-input-file
+			 call-with-input-file)))
+    (delete-file outfilename)
+    (outfilefn outfilename
+      (lambda (outport)
+        (infilefn infilename
+          (lambda (inport)
+	    (do ((x (read inport) (read inport))
+		 (forms '() (cons x forms)))
+		((eof-object? x)
+		 (writer (processer (reverse forms)) outport)))))))))
 
 ; Given a file name with some type, produce another with some other type.
 

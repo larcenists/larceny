@@ -35,13 +35,13 @@
                (interaction-environment)))))
         (if (benchmark-block-mode)
             (process-file-block infilename
-                                outfilename
+                                `(,outfilename binary)
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
                                   (assemble (compile-block forms syntaxenv) 
                                             user)))
             (process-file infilename
-                          outfilename
+                          `(,outfilename binary)
                           dump-fasl-segment-to-port
                           (lambda (expr)
                             (assemble (compile expr syntaxenv) user)))))
