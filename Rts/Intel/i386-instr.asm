@@ -457,7 +457,7 @@ t_label(%1):
 	init_closure %3
 %endmacro
 	
-%macro T_LEXES 2
+%macro T_LEXES 1
 	;; argument is n
 	const2regf RESULT, fixnum(PROC_HEADER_WORDS+PROC_OVERHEAD_WORDS+%1+1)
 	alloc
@@ -536,11 +536,12 @@ t_label(%1):
 	T_INVOKE %2
 %else
 	loadc	RESULT, %1		; global cell
-	mov	TEMP, [RESULT-PAIR_TAG]	;   dereference
+%%L2:	mov	TEMP, [RESULT-PAIR_TAG]	;   dereference
 	inc	TEMP			; really TEMP += PROC_TAG-8
 	test	TEMP_LOW, tag_mask	; tag test
 	jz short %%L0
 %%L1:	mcall	M_GLOBAL_INVOKE_EX	; RESULT has global cell (always)
+	jmp	short %%L2		; Since TEMP is dead following timer interrupt
 %%L0:	dec	dword [GLOBALS+G_TIMER]	; timer
 	jz short %%L1			;   test
 	dec	TEMP			; undo ptr adjustment
@@ -2139,10 +2140,10 @@ t_label(%1):
 %macro T_OP2_501 1		; +:fix:fix
 	loadr	TEMP, %1
 	add	RESULT, TEMP
-	jno short %%L2
+	jno short %%L1
 	sub	RESULT, TEMP
-%%L1:	mcall	M_ADD		; second is temp so 2nd arg is in place
-%%L2:
+	mcall	M_ADD		; second is temp so 2nd arg is in place
+%%L1:
 %endmacro
 	
 %macro T_OP2_502 1		; -:idx:idx
@@ -2156,10 +2157,10 @@ t_label(%1):
 %macro T_OP2_503 1		; -:fix:fix
 	loadr	TEMP, %1
 	sub	RESULT, TEMP
-	jno short %%L2
+	jno short %%L1
 	add	RESULT, TEMP
-%%L1:	mcall	M_SUB		; second is temp so 2nd arg is in place
-%%L2:
+	mcall	M_SUBTRACT	; second is temp so 2nd arg is in place
+%%L1:
 %endmacro
 
 %macro T_OP2IMM_520 1		; +:idx:idx
@@ -2168,11 +2169,11 @@ t_label(%1):
 
 %macro T_OP2IMM_521 1		; +:fix:fix
 	add	RESULT, %1
-	jno short %%L2
+	jno short %%L1
 	sub	RESULT, %1
-%%L1:	mov	SECOND, %1
+	mov	SECOND, %1
 	mcall	M_ADD
-%%L2:
+%%L1:
 %endmacro
 
 %macro T_OP2IMM_522 1		; -:idx:idx
@@ -2181,11 +2182,11 @@ t_label(%1):
 
 %macro T_OP2IMM_523 1		; -:fix:fix
 	sub	RESULT, %1
-	jno short %%L2
+	jno short %%L1
 	add	RESULT, %1
-%%L1:	mov	SECOND, %1
+	mov	SECOND, %1
 	mcall	M_SUBTRACT
-%%L2:	
+%%L1:
 %endmacro
 
 ;;; Experimental stuff below this line, we need more than this to support
