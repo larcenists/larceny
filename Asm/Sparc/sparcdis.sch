@@ -44,10 +44,14 @@
 (define *asm-load* 8)
 (define *asm-branch* 16)
 (define *asm-freg* 32)
+(define *asm-fpop* 64)
+(define *asm-no-op2* 128)
+(define *asm-no-op3* 256)
 
 (define *asm-bits*
   `((a . ,*asm-annul*) (i . ,*asm-immed*) (s . ,*asm-store*)
-    (l . ,*asm-load*) (b . ,*asm-branch*) (f . ,*asm-freg*)))
+    (l . ,*asm-load*) (b . ,*asm-branch*) (f . ,*asm-freg*)
+    (fpop . ,*asm-fpop*) (no-op2 . ,*asm-no-op2*) (no-op3 . ,*asm-no-op3*)))
 
 (define *asm-mnemonic-table* '())
 
@@ -83,12 +87,19 @@
   (lambda (mnemonic)
     (not (zero? (logand mnemonic bit)))))
 
+(define (mnemonic:test-not bit)
+  (lambda (mnemonic)
+    (zero? (logand mnemonic bit))))
+
 (define mnemonic:annul? (mnemonic:test *asm-annul*))
 (define mnemonic:immediate? (mnemonic:test *asm-immed*))
 (define mnemonic:store? (mnemonic:test *asm-store*))
 (define mnemonic:load? (mnemonic:test *asm-load*))
 (define mnemonic:branch? (mnemonic:test *asm-branch*))
 (define mnemonic:freg? (mnemonic:test *asm-freg*))
+(define mnemonic:fpop? (mnemonic:test *asm-fpop*))
+(define mnemonic:op2? (mnemonic:test-not *asm-no-op2*))
+(define mnemonic:op3? (mnemonic:test-not *asm-no-op3*))
 
 ; Instruction disassembler.
 
@@ -100,6 +111,7 @@
   (define two^5 (expt 2 5))
   (define two^6 (expt 2 6))
   (define two^8 (expt 2 8))
+  (define two^9 (expt 2 9))
   (define two^12 (expt 2 12))
   (define two^13 (expt 2 13))
   (define two^14 (expt 2 14))
@@ -150,6 +162,39 @@
 		   (mnemonic 'bcc 'a 'b)
 		   (mnemonic 'bpos 'a 'b)
 		   (mnemonic 'bvc 'a 'b)))
+	  (fb-table
+	   (vector (mnemonic 'fbn 'b)
+		   (mnemonic 'fbne 'b)
+		   (mnemonic 'fblg 'b)
+		   (mnemonic 'fbul 'b)
+		   (mnemonic 'fbl 'b)
+		   (mnemonic 'fbug 'b)
+		   (mnemonic 'fbg 'b)
+		   (mnemonic 'fbu 'b)
+		   (mnemonic 'fba 'b)
+		   (mnemonic 'fbe 'b)
+		   (mnemonic 'fbue 'b)
+		   (mnemonic 'fbge 'b)
+		   (mnemonic 'fbuge 'b)
+		   (mnemonic 'fble 'b)
+		   (mnemonic 'fbule 'b)
+		   (mnemonic 'fbo 'b)
+		   (mnemonic 'fbn 'a 'b)
+		   (mnemonic 'fbne 'a 'b)
+		   (mnemonic 'fblg 'a 'b)
+		   (mnemonic 'fbul 'a 'b)
+		   (mnemonic 'fbl 'a 'b)
+		   (mnemonic 'fbug 'a 'b)
+		   (mnemonic 'fbg 'a 'b)
+		   (mnemonic 'fbu 'a 'b)
+		   (mnemonic 'fba 'a 'b)
+		   (mnemonic 'fbe 'a 'b)
+		   (mnemonic 'fbue 'a 'b)
+		   (mnemonic 'fbge 'a 'b)
+		   (mnemonic 'fbuge 'a 'b)
+		   (mnemonic 'fble 'a 'b)
+		   (mnemonic 'fbule 'a 'b)
+		   (mnemonic 'fbo 'a 'b)))
 	  (nop (mnemonic 'nop))
 	  (sethi (mnemonic 'sethi)))
 
@@ -161,6 +206,9 @@
 		     `(,sethi ,(imm22field instr) ,(rdfield instr))))
 		((= op2 #b010)
 		 `(,(vector-ref b-table (rdfield instr))
+		   ,(* 4 (imm22field instr))))
+		((= op2 #b110)
+		 `(,(vector-ref fb-table (rdfield instr))
 		   ,(* 4 (imm22field instr))))
 		(else
 		 (disasm-error "Can't disassemble " (number->string instr 16)
@@ -242,7 +290,10 @@
 	      (0          0))))
 
       (lambda (ip instr)
-	(nice-instruction op3-table ip instr))))
+	(let ((op3 (op3field instr)))
+	  (if (or (= op3 #b110100) (= op3 #b110101))
+	      (fpop-instruction ip instr)
+	      (nice-instruction op3-table ip instr))))))
 
 
   ;; Class 3 is memory stuff.
@@ -330,6 +381,26 @@
       (let ((op ((if (zero? imm) car cadr) (vector-ref op3-table op3))))
 	`(,op ,rs1 ,src2 ,rd))))
 
+  ;; Floating-point operate instructions
+
+  (define (fpop-instruction ip instr)
+    (let ((rd  (rdfield instr))
+	  (rs1 (rs1field instr))
+	  (rs2 (rs2field instr))
+	  (fpop (fpop-field instr)))
+      `(,(cdr (assv fpop fpop-names)) ,rs1 ,rs2 ,rd)))
+
+  (define fpop-names
+    `((#b000000001 . ,(mnemonic 'fmovs 'fpop 'no-op2))
+      (#b000000101 . ,(mnemonic 'fnegs 'fpop 'no-op2))
+      (#b000001001 . ,(mnemonic 'fabss 'fpop 'no-op2))
+      (#b001000010 . ,(mnemonic 'faddd 'fpop))
+      (#b001000110 . ,(mnemonic 'fsubd 'fpop))
+      (#b001001010 . ,(mnemonic 'fmuld 'fpop))
+      (#b001001110 . ,(mnemonic 'fdivd 'fpop))
+      (#b001010010 . ,(mnemonic 'fcmpd 'fpop 'no-op3))))
+      
+
   ;; The following procedures pick apart an instruction
 
   (define (op2field instr)
@@ -367,6 +438,9 @@
       (if (not (zero? (quotient x two^29)))
 	  (- x two^30)
 	  x)))
+
+  (define (fpop-field instr)
+    (remainder (quotient instr two^5) two^9))
 
   (set! disassemble-instruction
 	(let ((class-table (vector class00 class01 class10 class11)))
@@ -448,9 +522,6 @@
 	(string-append tabstring "! 0x" (number->string n 16))
 	""))
 
-  (define (pcrel n)
-    (string-append "." (if (>= n 0) "+" "") (number->string n)))
-
   (define (millicode-name offset . rest)
     (if (null? rest)
 	(let ((probe (assv offset millicode-procs)))
@@ -528,9 +599,6 @@
 		   (larceny-register-name (op2 instr)) ", "
 		   (larceny-register-name (op3 instr))))
 
-;  (define (call instr a)
-;    (pcrel (op1 instr)))
-
   (define (call instr addr)
     (string-append "#" (number->string (+ (op1 instr) addr))))
 
@@ -544,6 +612,17 @@
 		       (larceny-register-name (op3 instr)))
 	(string-append (larceny-register-name (op1 instr)) ", "
 		       (larceny-register-name (op2 instr)) ", %y")))
+
+  (define (fpop instr op2-used? op3-used?)
+    (string-append (float-register-name (op1 instr)) ", "
+		   (cond ((and op2-used? op3-used?)
+			  (string-append
+			   (float-register-name (op2 instr)) ", "
+			   (float-register-name (op3 instr))))
+			 (op2-used?
+			  (float-register-name (op2 instr)))
+			 (else
+			  (float-register-name (op3 instr))))))
 
   ;; If we want to handle instruction aliases (clr, mov, etc) then
   ;; the structure of this procedure must change, because as it is,
@@ -561,6 +640,8 @@
 			    (if (mnemonic:immediate? m) (sir i) (srr i)))
 			   ((mnemonic:load? m)
 			    (if (mnemonic:immediate? m) (lir i) (lrr i)))
+			   ((mnemonic:fpop? m)
+			    (fpop i (mnemonic:op2? m) (mnemonic:op3? m)))
 			   ((mnemonic:branch? m) (bimm i a))
 			   ((mnemonic=? m 'sethi) (sethi i))
 			   ((mnemonic=? m 'nop) "")

@@ -2,15 +2,14 @@
 ;
 ; $Id$
 ;
-; Sparc machine assembler test code.
+; Sparc machine assembler test code -- not completed.
 
 (define (sparcasm-test)
 
   ; Format as hex, with leading zeroes.
 
   (define (format-instr instr)
-    (let ((s (number->string (asm:bv->int instr) 16)))
-      (string-insert! s (- 8 (string-length s)) (make-string 8 #\0))))
+    (format-right-justified (number->string (asm:bv->int instr) 16) 8 #\0))
 
   ; An 'answer' of #f means that the assembly should fail with a call
   ; to asm-error (tests error handling).  An 'answer' of #t means that
@@ -65,16 +64,18 @@
   #t)
 
 
-; Belongs elsewhere.
-
-(define (string-insert! src loc target)
-  (let ((l (string-length src)))
-    (do ((i 0 (+ i 1))
-	 (n loc (+ n 1)))
-	((= i l) target)
-      (string-set! target n (string-ref src i)))))
+(define (sparcasm-floating-point-test)
+  (test-asm (lambda (as)
+	      (sparc.lddfi as $r.reg6 3 2)
+	      (sparc.lddfr as $r.reg6 $r.tmp0 2)
+	      (sparc.fnegd as 2 2)
+	      (sparc.fnegd as 2 4)
+	      (sparc.fmovd as 2 4)
+	      (sparc.fabsd as 2 2)
+	      (sparc.fabsd as 2 4)
+	      (sparc.fcmpd as 2 4)
+	      (sparc.nop   as)
+	      (sparc.fbne.a as 0)
+	      (sparc.slot  as))))
 
 ; eof
-
-
-

@@ -288,15 +288,16 @@
       (lambda (as)
 	(instr as 0 $r.g0))))
 
-  ; Un-annulled branches.
 
-  (define (class00b i) (branch i zero))
+  ; Branches
 
-  ; Annulled branches.
+  (define (class00b i) (branch #b010 i zero))    ; Un-annulled IU branches.
+  (define (class00a i) (branch #b010 i abit))    ; Annulled IU branches.
+  (define (classf00b i) (branch #b110 i zero))   ; Un-annulled FP branches.
+  (define (classf00a i) (branch #b110 i abit))   ; Annulled FP branches.
 
-  (define (class00a i) (branch i abit))
-
-  ; Branches in general.  
+  ; The `type' parameter is #b010 for IU branches, #b110 for FP branches.
+  ; The `bits' parameter is the bits for the cond field.
   ; The `annul' parameter is either `zero' or `abit' (see top of file).
   ;
   ; Annuled branches require special treatement for delay slot
@@ -313,8 +314,8 @@
   ; because a slot instruction is always directly preceded by an annulled
   ; branch (which will always set the cache).
 
-  (define (branch bits annul)
-    (let ((bits (asm:logior (asm:lsh bits 25) (asm:lsh #b010 22) annul)))
+  (define (branch type bits annul)
+    (let ((bits (asm:logior (asm:lsh bits 25) (asm:lsh type 22) annul)))
       (lambda (as target0)
 	(let ((target `(- ,target0 ,(here as))))
 
@@ -520,6 +521,25 @@
     (lambda (as label)
       (emit-label! as label)))
 
+  ; FP operation, don't set CC.
+
+  (define (class-fpop1 i) (fpop #b110100 i))
+
+  ; FP operation, set CC
+
+  (define (class-fpop2 i) (fpop #b110101 i))
+
+  (define (fpop type opf)
+    (let ((bits (asm:logior (asm:lsh #b10 30)
+			    (asm:lsh type 19)
+			    (asm:lsh opf 5))))
+      (lambda (as rs1 rs2 rd)
+	(let ((bits (copy bits)))
+	  (dep-rs1! bits 0 rs1)
+	  (dep-rs2! bits 0 rs2)
+	  (dep-rd! bits 0 rd)
+	  (emit! as bits)))))
+
   (set! sparc-instruction
 	(lambda (kwd . ops)
 	  (case kwd
@@ -536,6 +556,10 @@
 	    ((label) (apply class-label ops))
 	    ((nop)   (apply class-nop ops))
 	    ((slot)  (apply class-slot ops))
+	    ((fb00)  (apply classf00b ops))
+	    ((fa00)  (apply classf00a ops))
+	    ((fp)    (apply class-fpop1 ops))
+	    ((fpcc)  (apply class-fpop2 ops))
 	    (else
 	     (asm-error "sparc-instruction: unrecognized class: " kwd)))))
   'sparc-instruction)
@@ -550,8 +574,8 @@
 (define sparc.ldhr    (sparc-instruction 'r11 #b000010))
 (define sparc.ldbi    (sparc-instruction 'i11 #b000001))
 (define sparc.ldbr    (sparc-instruction 'r11 #b000001))
-(define sparc.lddfi   (sparc-instruction 'i11 #b100001))
-(define sparc.lddfr   (sparc-instruction 'r11 #b100001))
+(define sparc.lddfi   (sparc-instruction 'i11 #b100011))
+(define sparc.lddfr   (sparc-instruction 'r11 #b100011))
 (define sparc.stdi    (sparc-instruction 'si11 #b000111))
 (define sparc.stdr    (sparc-instruction 'sr11 #b000111))
 (define sparc.sti     (sparc-instruction 'si11 #b000100))
@@ -646,6 +670,46 @@
 (define sparc.rdy     (sparc-instruction 'r10 #b101000 'rdy))
 (define sparc.wryr    (sparc-instruction 'r10 #b110000 'wry))
 (define sparc.wryi    (sparc-instruction 'i10 #b110000 'wry))
+(define sparc.fb      (sparc-instruction 'fb00 #b1000))
+(define sparc.fb.a    (sparc-instruction 'fa00 #b1000))
+(define sparc.fbn     (sparc-instruction 'fb00 #b0000))
+(define sparc.fbn.a   (sparc-instruction 'fa00 #b0000))
+(define sparc.fbu     (sparc-instruction 'fb00 #b0111))
+(define sparc.fbu.a   (sparc-instruction 'fa00 #b0111))
+(define sparc.fbg     (sparc-instruction 'fb00 #b0110))
+(define sparc.fbg.a   (sparc-instruction 'fa00 #b0110))
+(define sparc.fbug    (sparc-instruction 'fb00 #b0101))
+(define sparc.fbug.a  (sparc-instruction 'fa00 #b0101))
+(define sparc.fbl     (sparc-instruction 'fb00 #b0100))
+(define sparc.fbl.a   (sparc-instruction 'fa00 #b0100))
+(define sparc.fbul    (sparc-instruction 'fb00 #b0011))
+(define sparc.fbul.a  (sparc-instruction 'fa00 #b0011))
+(define sparc.fblg    (sparc-instruction 'fb00 #b0010))
+(define sparc.fblg.a  (sparc-instruction 'fa00 #b0010))
+(define sparc.fbne    (sparc-instruction 'fb00 #b0001))
+(define sparc.fbne.a  (sparc-instruction 'fa00 #b0001))
+(define sparc.fbe     (sparc-instruction 'fb00 #b1001))
+(define sparc.fbe.a   (sparc-instruction 'fa00 #b1001))
+(define sparc.fbue    (sparc-instruction 'fb00 #b1010))
+(define sparc.fbue.a  (sparc-instruction 'fa00 #b1010))
+(define sparc.fbge    (sparc-instruction 'fb00 #b1011))
+(define sparc.fbge.a  (sparc-instruction 'fa00 #b1011))
+(define sparc.fbuge   (sparc-instruction 'fb00 #b1100))
+(define sparc.fbuge.a (sparc-instruction 'fa00 #b1100))
+(define sparc.fble    (sparc-instruction 'fb00 #b1101))
+(define sparc.fble.a  (sparc-instruction 'fa00 #b1101))
+(define sparc.fbule   (sparc-instruction 'fb00 #b1110))
+(define sparc.fbule.a (sparc-instruction 'fa00 #b1110))
+(define sparc.fbo     (sparc-instruction 'fb00 #b1111))
+(define sparc.fbo.a   (sparc-instruction 'fa00 #b1111))
+(define sparc.faddd   (sparc-instruction 'fp   #b001000010))
+(define sparc.fsubd   (sparc-instruction 'fp   #b001000110))
+(define sparc.fmuld   (sparc-instruction 'fp   #b001001010))
+(define sparc.fdivd   (sparc-instruction 'fp   #b001001110))
+(define sparc%fnegs   (sparc-instruction 'fp   #b000000101)) ; See below
+(define sparc%fmovs   (sparc-instruction 'fp   #b000000001)) ; See below
+(define sparc%fabss   (sparc-instruction 'fp   #b000001001)) ; See below
+(define sparc%fcmpdcc (sparc-instruction 'fpcc #b001010010)) ; See below
 
 ; Strange instructions.
 
@@ -677,5 +741,28 @@
 		 ((null? (cdr rest)) (car rest))
 		 (else (asm-error "sparc.deccc: too many operands: " rest)))))
     (sparc.subicc as rs k rs)))
+
+; Floating-point abstractions
+;
+; For fmovd, fnegd, and fabsd, we must synthesize the instruction from
+; fmovs, fnegs, and fabss -- SPARC V8 has only the latter.  (SPARC V9 add
+; the former.)
+
+(define (sparc.fmovd as rs rd)
+  (sparc%fmovs as rs 0 rd)
+  (sparc%fmovs as (+ rs 1) 0 (+ rd 1)))
+
+(define (sparc.fnegd as rs rd)
+  (sparc%fnegs as rs 0 rd)
+  (if (not (= rs rd))
+      (sparc%fmovs as (+ rs 1) 0 (+ rd 1))))
+
+(define (sparc.fabsd as rs rd)
+  (sparc%fabss as rs 0 rd)
+  (if (not (= rs rd))
+      (sparc%fmovs as (+ rs 1) 0 (+ rd 1))))
+
+(define (sparc.fcmpd as rs1 rs2)
+  (sparc%fcmpdcc as rs1 rs2 0))
 
 ; eof
