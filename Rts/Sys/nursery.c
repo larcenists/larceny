@@ -59,8 +59,8 @@ struct young_data {
 #define DATA( heap )  ((young_data_t*)((heap)->data))
 
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc );
-static int must_create_stack( young_heap_t *heap );
-static int must_restore_frame( young_heap_t *heap );
+static void must_create_stack( young_heap_t *heap );
+static void must_restore_frame( young_heap_t *heap );
 static void flush_stack( young_heap_t *heap );
 static int free_space( young_heap_t *heap );
 static void collect_if_no_room( young_heap_t *heap, int room );
@@ -208,13 +208,13 @@ static word *data_load_area( young_heap_t *heap, int nbytes )
     return 0;
 }
 
-static int must_create_stack( young_heap_t *heap )
+static void must_create_stack( young_heap_t *heap )
 {
   stk_create( DATA(heap)->globals ) || panic( "nursery: create_stack" );
   DATA(heap)->stacks_created += 1;
 }
 
-static int must_restore_frame( young_heap_t *heap )
+static void must_restore_frame( young_heap_t *heap )
 {
   stk_restore_frame( DATA(heap)->globals ) || panic( "nursery: restore_frame");
 }
