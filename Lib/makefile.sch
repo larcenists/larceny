@@ -285,7 +285,10 @@
 ; Project for building all the files in the standard-C assembler.
 
 (define petit-asm-project
-  (let ((petit-asm-files
+  (let ((common-asm-files
+	 '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "asmutil32el" 
+           "link-lop"))
+	(petit-asm-files
 	 '("pass5p2" "switches" "dumpheap-extra")))
     (make:project "petitasm.date"
       `(rules
@@ -293,8 +296,12 @@
       `(targets
 	("petitasm.date" ,(lambda args #t)))
       `(dependencies
+	("petitasm.date" ,(objects "Asm/Common/" ".fasl" common-asm-files))
 	("petitasm.date" ,(objects "Asm/Standard-C/" ".fasl"
 				   petit-asm-files))))))
+
+(define (standard-C-present?)
+  (file-exists? "Asm/Standard-C"))
 
 (define (make-petitasm . rest)
   (make:pretend (not (null? rest)))
@@ -397,7 +404,8 @@
   (apply make-auxlib rest)
   (apply make-compiler rest)
   (apply make-sparcasm rest)
-  (apply make-petitasm rest)
+  (if (standard-C-present?)
+      (apply make-petitasm rest))
   (apply make-compat rest)
   (compile-file "Lib/makefile.sch"))
 
