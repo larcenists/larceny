@@ -15,7 +15,7 @@ version of Larceny in which the bug was discovered, the date it was
 recorded and who found it, a description of the problem, and any
 supporting documentation, information, test cases, and so on.
 
-HIGH PRIORITY BUGS: 082.
+HIGH PRIORITY BUGS: None.
 
 
 005  (v0.27e)
@@ -96,21 +96,10 @@ HIGH PRIORITY BUGS: 082.
     [Thanks to Galen, who did not report this but who told me of this
      bug in the free version of Allegro Common Lisp for Windows(!).]
 
-052 v0.32 (971103 / lth)
+056 v0.32 (980126 / lth); v0.40 (981217 / lth)
     Priority: low
 
-    [Performance bug]
-    bignum->flonum is very, very slow.  The fix for this exists but
-    needs to be implemented and tested.  See comments in 
-    Lib/Common/flonums.sch.
-
-    (Bignum->flonum is also very, very buggy.  See eg. bug 082, and 
-     comments in the code.)
-
-056 v0.32 (980126 / lth)
-    Priority: low
-
-    Chez Scheme development environment:
+    The development environment (both Chez Scheme and Larceny hosts):
 
 	; Just finished make-larceny-heap
 	> (inline-barrier)
@@ -122,7 +111,14 @@ HIGH PRIORITY BUGS: 082.
 	Type (debug) to enter the debugger.
 
     In this case, it should not delete the previous target!  This did not
-    happen on a subsequent try.
+    happen on a subsequent try.  
+
+    Notes:
+    Looks like an error handler is not being taken down.
+
+    In fact, it only appears to happen after a ^C has interrupted 
+    a previous command; could it be that the interrupt handler does not
+    interact properly with the error system?
 
 057 v0.32 (980403 / lth)
     Priority: low
@@ -226,24 +222,6 @@ HIGH PRIORITY BUGS: 082.
     The problem is that the number syntax in the Report requires an 
     explicit sign if a complex has no real part.  (There are plenty of
     similar "bugs" in the number parser, see comments in the code.)
-
-082 v0.37 + new compiler (981214 / lth)
-    Priority: high.
-
-	> (log (fact 256))
-	Error: <: -364.0037127757854+4.532360141827194i is not a real number.
-
-    In fact: 
-
-	> (exact->inexact (fact 180))
-	Error: log: Domain error: 0.0
-
-    And furthermore, we see that bignum->flonum is again the culprit:
-
-	(bignum->flonum (fact 180))
-	-6.216419369289196e-288
-
-    Here, it should have returned +inf.0.
 
 083 v0.38 (981215 / lth)
     Priority: low

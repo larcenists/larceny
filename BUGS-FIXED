@@ -992,6 +992,20 @@ $Id$
      Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
      Asm/Sparc/gen-prim.sch to implement this.
 
+052 v0.32 (971103 / lth)  Fixed 981218 by wdc
+    Priority: low
+
+    [Performance bug]
+    bignum->flonum is very, very slow.  The fix for this exists but
+    needs to be implemented and tested.  See comments in 
+    Lib/Common/flonums.sch.
+
+    (Bignum->flonum is also very, very buggy.  See eg. bug 082, and 
+     comments in the code.)
+
+    FIX:
+    Reimplemented bignum->flonum.
+
 054 v0.32 (971107 / lth) Fixed 981214 by lth
     Priority: high.  Await new compiler before fixing.
 
@@ -1338,3 +1352,23 @@ $Id$
 
     FIX: New macro expander took care of it.
 
+082 v0.37 + new compiler (981214 / lth) Fixed 981218 by wdc
+    Priority: high.
+
+	> (log (fact 256))
+	Error: <: -364.0037127757854+4.532360141827194i is not a real number.
+
+    In fact: 
+
+	> (exact->inexact (fact 180))
+	Error: log: Domain error: 0.0
+
+    And furthermore, we see that bignum->flonum is again the culprit:
+
+	(bignum->flonum (fact 180))
+	-6.216419369289196e-288
+
+    Here, it should have returned +inf.0.
+
+    FIX: 
+    Re-implemented bignum->flonum.
