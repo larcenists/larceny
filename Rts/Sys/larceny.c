@@ -3,6 +3,15 @@
  * $Id$
  *
  * Larceny run-time system -- main file.
+ *
+ * FIXME: Over-complex.  A gazillion parameters are supported, which 
+ * introduces:
+ *   - parsing and error checking
+ *   - text into the usage message
+ *   - value printing if parameter value printing is on
+ * Since various GCs have various parameters, factor this cruft out
+ * into a spec that can be handled by the GC, via function pointers or
+ * whatever.
  */
 
 #include <stdio.h>
@@ -350,6 +359,9 @@ parse_options( int argc, char **argv, opt_t *o )
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
   int full_frequency = 0;
   double growth_divisor = 1.0;
+  double dof_free_before_collection = 1.0;
+  double dof_free_before_promotion = 1.0;
+  double dof_free_after_collection = 1.0;
   int dynamic_max = 0;
   int dynamic_min = 0;
   int val;
@@ -400,11 +412,11 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
-    else if (numbarg( "-full-frequency", &argc, &argv, &full_frequency )) {
+    else if (numbarg( "-dof-fullgc-frequency", &argc, &argv, &full_frequency)){
       if (full_frequency < 0)
         param_error( "Full GC frequency must be nonnegative." );
     }
-    else if (doublearg( "-growth-divisor", &argc, &argv, &growth_divisor )) {
+    else if (doublearg( "-dof-growth-divisor", &argc, &argv, &growth_divisor)){
       if (growth_divisor <= 0.0)
         param_error( "Growth divisor must be positive." );
     }
@@ -423,6 +435,26 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
       ;
+    else if (doublearg( "-dof-free-before-promotion", &argc, &argv,
+                        &dof_free_before_promotion )) {
+      if (dof_free_before_promotion <= 0.0 ||
+          dof_free_before_promotion > 1.0)
+        param_error( "-dof-free-before-promotion out of range: "
+                     "must have 0.0 < d <= 1.0. " );
+    }
+    else if (doublearg( "-dof-free-before-collection", &argc, &argv,
+                        &dof_free_before_collection )) {
+      if (dof_free_before_collection <= 0.0 ||
+          dof_free_before_collection > 1.0)
+        param_error( "-dof-free-before-collection out of range: "
+                     "must have 0.0 < d <= 1.0." );
+    }
+    else if (doublearg( "-dof-free-after-collection", &argc, &argv, 
+                        &dof_free_after_collection )) {
+      if (dof_free_after_collection <= 0.0)
+        param_error( "-dof-free-after-collection out of range: "
+                     "must have d > 0.0." );
+    }
     else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
       ;
     else if (numbarg( "-np-remset-limit", &argc, &argv, &np_remset_limit )) 
@@ -431,6 +463,12 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
       ;
+    else if (strcmp( *argv, "-dof-no-shadow-remsets" ) == 0)
+      o->gc_info.dynamic_dof_info.no_shadow_remsets = TRUE;
+    else if (strcmp( *argv, "-dof-fullgc-generational" ) == 0)
+      o->gc_info.dynamic_dof_info.fullgc_generational = TRUE;
+    else if (strcmp( *argv, "-dof-fullgc-on-collection" ) == 0)
+      o->gc_info.dynamic_dof_info.fullgc_on_collection = TRUE;
     else if (strcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
     else if (strcmp( *argv, "-step" ) == 0)
@@ -561,6 +599,12 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_dof_info.dynamic_min = dynamic_min;
       o->gc_info.dynamic_dof_info.full_frequency = full_frequency;
       o->gc_info.dynamic_dof_info.growth_divisor = growth_divisor;
+      o->gc_info.dynamic_dof_info.free_before_promotion = 
+        dof_free_before_promotion;
+      o->gc_info.dynamic_dof_info.free_before_collection = 
+        dof_free_before_collection;
+      o->gc_info.dynamic_dof_info.free_after_collection = 
+        dof_free_after_collection;
       if (o->size[n] == 0) {
         int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
         if (dynamic_min) size = max( dynamic_min, size );
@@ -799,6 +843,29 @@ static void dump_options( opt_t *o )
       consolemsg( "    Max size: %d", i->dynamic_max );
       consolemsg( "    Luck: %f", i->luck );
     }
+    else if (o->gc_info.use_dof_collector) {
+      dof_info_t *i = &o->gc_info.dynamic_dof_info;
+      consolemsg( "  Dynamic area (deferred-older-first copying)" );
+      consolemsg( "    Generations: %d", i->generations );
+      consolemsg( "    Size (bytes): %d", i->area_size );
+      consolemsg( "    Min size: %d", i->dynamic_min );
+      consolemsg( "    Max size: %d", i->dynamic_max );
+      consolemsg( "    Inverse load factor: %f", i->load_factor );
+      consolemsg( "    FullGC frequency: %d", i->full_frequency );
+      consolemsg( "    Growth divisor: %f", i->growth_divisor );
+      consolemsg( "    Free before promotion (relative to ephemeral size): %f",
+                  i->free_before_promotion );
+      consolemsg( "    Free before collection (relative to window size): %f",
+                  i->free_before_collection );
+      consolemsg( "    Free after collection (relative to ephemeral size): %f",
+                  i->free_after_collection );
+      consolemsg( "    Shadow remsets? %s", 
+                  (i->no_shadow_remsets ? "no" : "yes" ));
+      consolemsg( "    Generational full GC? %s",
+                  (i->fullgc_generational ? "yes" : "no" ));
+      consolemsg( "    Full gc policy counts: %s",
+                  (i->fullgc_on_collection ? "collections" : "window resets"));
+    }
     else {
       sc_info_t *i = &o->gc_info.dynamic_sc_info;
       consolemsg( "  Dynamic area (normal copying)" );
@@ -849,13 +916,13 @@ static char *helptext[] = {
   "  -stopcopy",
   "     Select the stop-and-copy collector." ,
   "  -gen",
-  "     Select generational collection with the standard generational"
-  "     collector.  This is the default collector."
+  "     Select generational collection with the standard generational",
+  "     collector.  This is the default collector.",
   "  -areas n",
   "     Select generational collection, with n heap areas.  The default" ,
   "     number of heap areas is "
         STR(DEFAULT_AREAS) 
-        "."
+        ".",
   "  -np",
   "  -rof",
   "     Select generational collection with the renewal-oldest-first",
@@ -954,13 +1021,49 @@ static char *helptext[] = {
   "     young area to the old area and to clear the remembered set.  By",
   "     default, the limit is infinity.  This parameter does not select",
   "     anything else, not even the nonpredictive GC.",
-  "  -full-frequency n",
-  "     The frequency of full garbage collections in the DOF collector.",
+  "  -dof-fullgc-frequency n",
+  "     The frequency of policy-triggered full garbage collections in ",
+  "     the DOF collector, in terms of the number of collection window",
+  "     resets since the last full collection.  Full GC occurs after the",
+  "     window reset, so a value of `1' means `every reset'.",
   "     The default value is 0 (never), which is the right thing right now.",
-  "  -growth-divisor d",
+  "  -dof-fullgc-on-collection",
+  "     The DOF collector should count DOF collections, rather than window",
+  "     resets, when deciding when to trigger the full collector.",
+  "  -dof-fullgc-generational",
+  "     Use generational techniques to attempt to speed up the full",
+  "     collector.  This may reduce the effectiveness of the collector,",
+  "     since some garbage cells are likely to be considered to be live.",
+  "  -dof-growth-divisor d",
   "     The speed with which the heap is expanded in the DOF collector.",
   "     The default value is 1.0, which lets the heap grow exactly as",
   "     determined by the computed live size.  Larger numbers slow growth.",
+  "  -dof-free-before-promotion d",
+  "     A fudge factor for the DOF collector, 0.0 < d <= 1.0.  Before",
+  "     a promotion into the DOF area, a full collection will be triggered",
+  "     if the amount of free memory is less than d times the size of",
+  "     the ephemeral area.  The default value is 1.0, which ensures that",
+  "     a promotion can never fail, but it is probably pessimistic:",
+  "     survival rates out of the ephemeral generations are usually much",
+  "     lower, and choosing a lower value may reduce the frequency of DOF",
+  "     collections.",
+  "  -dof-free-before-collection d",
+  "     A fudge factor for the DOF collector, 0.0 < d <= 1.0.  Before",
+  "     a DOF collector, a full collection will be triggered if the",
+  "     amount of free memory is less than d times the size of the DOF",
+  "     collection window.  The default value is 1.0, which ensures that",
+  "     a collection can never fail, but it is probably pessimistic:",
+  "     survival rates out of the DOF window are usually much lower, and",
+  "     choosing a lower value may reduce the frequency of DOF collections.",
+  "  -dof-free-after-collection d",
+  "     A fudge factor for the DOF collector, d > 0.0.  After a DOF ",
+  "     collection, another collection is triggered unless the amount ",
+  "     of free memory is at least d times the size of the ephemeral",
+  "     area.  Values larger than 1.0 may be helpful in increasing the",
+  "     collector's robustness when running in fixed memory and in reducing",
+  "     the number of full collections triggered as a result of too little",
+  "     memory being available before GC.  Values of d smaller than 1.0",
+  "     are probably dangerous.  The default value is 1.0.",
   "  -rhash nnnn",
   "     Set the remembered-set hash table size, in elements.  The size must",
   "     be a power of 2.",
