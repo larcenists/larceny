@@ -3,85 +3,69 @@
 ; $Id$
 ;
 ; Larceny library -- heuristic procedure information.
+; Based on a proposal by Will Clinger to the rrrs-authors mailing list.
 ;
-; Based on a proposal by Will Clinger to the rrrs-authors mailing list,
-; with one addition proposed by Aubrey Jaffer.
+; Documentation format is documented in Larceny Note #12.
+; Summary:  documentation structure is a vector:
 ;
-; Old documentation format (pre-v0.31)  [Time to retire this!]
-;   The documentation slot contains either
-;     a symbol -- the procedure name.
-;     a list beginning with 'lambda' -- the procedure source code.
-;     a list beginning with a symbol -- the procedure name followed by
-;       the source code without 'lambda'.
-;     a list beginning with something else -- don't know.
-;     something else -- don't know.
+;   #(procedure-name source-code arity file-name file-position)
 ;
-; New documentation format (v0.31)
-;   a vector --  #(procedure-name source-code arity file-name file-position)
-;     Any of the entries can be #f.
-;   something else -- either old-format (still supported) or don't know.
+; Any of the entries can be #f, and if the tail of the vector is all #f,
+; then it may be omitted.
 
 ($$trace "procinfo")
 
-(define (procedure-arity proc)
-  (let ((doc (vector-ref (procedure-ref proc 1) 0)))
-    (cond ((and (pair? doc) (symbol? (car doc)))
-	   (let loop ((i 0) (p (cadr doc)))
-	     (cond ((pair? p)
-		    (loop (+ i 1) (cdr p)))
-		   ((symbol? p)
-		    (exact->inexact i))
-		   (else
-		    #f))))
-	  ((vector? doc) (vector-ref doc 2))
-	  (else
-	   #f))))
+(define doc.procedure-name 0)
+(define doc.source-code 1)
+(define doc.arity 2)
+(define doc.file-name 3)
+(define doc.file-position 4)
 
-(define (procedure-formals proc)
-  (let ((doc (vector-ref (procedure-ref proc 1) 0)))
-    (cond ((and (pair? doc) (symbol? (car doc)))
-	   (cadr doc))
-	  ((and (vector? doc) (vector-ref doc 1))
-	   (cadr (vector-ref doc 1)))
-	  (else
-	   #f))))
+; PROC[1] is the constant vector.
+; CV[0] is the documentation slot.
+;
+; The documentation slot contains either a single vector, a list 
+; of pairs, or #f.  If a single vector or #f, that is the documentation.
+; Otherwise, the list is sorted in ascending order on the car of the 
+; pairs, which represent starting code vector addresses for internal
+; procedures; each cdr is the documentation for one internal procedure.
+
+(define (procedure-documentation p . rest)
+  (let ((pc (if (null? rest) 0 (car rest)))
+        (ds (vector-ref (procedure-ref p 1) 0)))
+    (if (pair? ds)
+	(let loop ((dsl ds) (this (car ds)))
+	  (if (null? (cdr dsl))
+	      (if (<= (car this) pc)
+		  this
+		  #f)
+	      (let ((next (cadr dsl)))
+		(cond ((and (<= (car this) pc) (< pc (car next)))
+		       (cdr this))
+		      ((>= pc (car next))
+		       (loop (cdr dsl) next))
+		      (else
+		       (cdr this))))))
+	ds)))
+
+(define (doc-accessor x)
+  (lambda (proc)
+    (cond ((procedure? proc)
+	   (let ((doc (procedure-documentation proc)))
+	     (if (and (vector? doc) (< x (vector-length doc)))
+		 (vector-ref doc x)
+		 #f)))
+	  ((not proc) proc)
+	  (else (error "doc-accessor: " proc " is not a procedure or #f.")))))
+
+(define procedure-arity (doc-accessor doc.arity))
+(define procedure-name (doc-accessor doc.procedure-name))
+(define procedure-source-file (doc-accessor doc.file-name))
+(define procedure-source-position (doc-accessor doc.file-position))
+(define procedure-expression (doc-accessor doc.source-code))
 
 (define (procedure-documentation-string proc)
   #f)
-
-(define (procedure-name proc)
-  (let ((x (vector-ref (procedure-ref proc 1) 0)))
-    (cond ((symbol? x) x)
-	  ((and (pair? x) (symbol? (car x)) (not (eq? (car x) 'lambda)))
-	   (car x))
-	  ((vector? x)
-	   (vector-ref x 0))
-	  (else #f))))
-     
-(define (procedure-source-file proc)
-  (let ((doc (vector-ref (procedure-ref proc 1) 0)))
-    (cond ((vector? doc)
-	   (vector-ref doc 3))
-	  (else
-	   #f))))
-
-(define (procedure-source-position proc)
-  (let ((doc (vector-ref (procedure-ref proc 1) 0)))
-    (cond ((vector? doc)
-	   (vector-ref doc 4))
-	  (else
-	   #f))))
-
-(define (procedure-expression proc)
-  (let ((doc (vector-ref (procedure-ref proc 1) 0)))
-    (cond ((and (pair? doc) (symbol? (car doc)))
-	   (if (eq? (car doc) 'lambda)
-	       doc
-	       (cons 'lambda (cdr doc))))
-	  ((vector? doc)
-	   (vector-ref doc 1))
-	  (else
-	   #f))))
 
 (define (procedure-environment proc)
   #f)
