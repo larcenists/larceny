@@ -279,7 +279,9 @@
       (lambda (outport)
 	(for-each
 	 (lambda (infilename)
-	   (let ((infilename  (if (pair? infilename) (car infilename) infilename))
+	   (let ((infilename  (if (pair? infilename) 
+				  (car infilename) 
+				  infilename))
 		 (infilefn    (if (and (pair? infilename)
 				       (eq? 'binary (cadr infilename)))
 				  call-with-binary-input-file
@@ -313,7 +315,9 @@
       (lambda (outport)
 	(for-each
 	 (lambda (infilename)
-	   (let ((infilename  (if (pair? infilename) (car infilename) infilename))
+	   (let ((infilename  (if (pair? infilename) 
+				  (car infilename)
+				  infilename))
 		 (infilefn    (if (and (pair? infilename)
 				       (eq? 'binary (cadr infilename)))
 				  call-with-binary-input-file
@@ -323,7 +327,8 @@
 			 (do ((x (read inport) (read inport))
 			      (forms '() (cons x forms)))
 			     ((eof-object? x)
-			      (writer (processer (reverse forms)) outport)))))))
+			      (writer (processer (reverse forms)) 
+				      outport)))))))
 	 infilenames)))))
 
 ; Given a file name with some type, produce another with some other type.
