@@ -62,11 +62,9 @@
                   (lambda ()
                     (repl-reset-continuation #f)))
                  (quit-handler
-                  (if (= (repl-level) 0)
-                      exit
-                      (lambda ()
-                        (set! done #t)
-                        (repl-reset-continuation #f)))))
+                  (lambda ()
+                    (set! done #t)
+                    (repl-reset-continuation #f))))
     (let ((repl-continuation #f))
       (call-with-current-continuation
        (lambda (k)
