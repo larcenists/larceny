@@ -4,6 +4,8 @@
 ;
 ; 21 November 1998 / wdc
 
+($$trace "pass1.aux")
+
 ;***************************************************************
 ;
 ; Each definition in this section should be overridden by an assignment

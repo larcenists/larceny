@@ -6,6 +6,8 @@
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
+($$trace "pass2.aux")
+
 (define (constant? exp) (eq? (car exp) 'quote))
 (define (variable? exp)
   (and (eq? (car exp) 'begin)

@@ -6,6 +6,8 @@
 ; William D Clinger. Hygienic macros through explicit renaming.
 ; In Lisp Pointers IV(4), 25-28, December 1991.
 
+($$trace "lowlevel")
+
 (define (m-transcribe-low-level exp env-use k transformer env-def)
   (let ((rename0 (make-rename-procedure))
         (renamed '())

@@ -35,6 +35,8 @@
 ; The standard syntactic environment should not include any
 ; identifier denotations; space leaks will result if it does.
 
+($$trace "syntaxenv")
+
 (define standard-syntactic-environment
   `((quote         . (special quote))
     (lambda        . (special lambda))

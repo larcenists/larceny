@@ -150,6 +150,8 @@
 ; or inserted identifiers, then the big chunk will be copied unnecessarily.
 ; That shouldn't matter very often.
 
+($$trace "syntaxrules")
+
 (define pattern-variable-flag (list 'v))
 (define ellipsis-pattern-flag (list 'e))
 (define ellipsis-template-flag ellipsis-pattern-flag)

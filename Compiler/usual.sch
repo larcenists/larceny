@@ -4,6 +4,8 @@
 ;
 ; 10 December 1998
 
+($$trace "usual")
+
 ; The usual macros, adapted from Jonathan's Version 2 implementation.
 ; DEFINE is handled primitively, since top-level DEFINE has a side
 ; effect on the global syntactic environment, and internal definitions

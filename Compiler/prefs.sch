@@ -11,6 +11,8 @@
 ; output need to be represented by data that cannot appear in the
 ; input.  This file defines those data.
 
+($$trace "prefs")
+
 ; FIXME: The following definitions are currently ignored.
 
 ; The following definitions assume that identifiers of mixed case
@@ -55,7 +57,6 @@
 
 (define (make-unspecified)
   (make-constant 'unspecified))
-
 
 (define name:CAR (string->symbol "CAR"))
 (define name:CDR (string->symbol "CDR"))
