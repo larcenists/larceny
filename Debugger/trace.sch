@@ -20,6 +20,10 @@
 ; (trace-entry <symbol>)        Trace the value in global <symbol> at entry
 ; (trace-exit <symbol>)         Trace the value in global <symbol> at exit
 ;
+; FIXME: Must disable breakpoints when printing trace msgs because
+;        the trace package may need to call traced functions; that is
+;        a mess.
+;
 ; FIXME: It is probably a bug that
 ;           (begin (trace-entry x) (trace-exit x))
 ;        is not the same as
