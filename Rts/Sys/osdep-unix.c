@@ -281,6 +281,8 @@ static void* alloc_block( int bytes )
   }
 
   fragmentation += roundup( bytes, pagesize ) - bytes;
+  assert( fragmentation >= 0 );
+
 again:
   addr = mmap( addr_hint,
 	       bytes,
@@ -299,7 +301,9 @@ again:
 
 static void free_block( void *block, int bytes )
 {
-  fragmentation -= roundup(bytes, pagesize) - bytes;
+  fragmentation -= roundup( bytes, pagesize ) - bytes;
+  assert( fragmentation >= 0 );
+
   if (munmap( block, bytes ) == -1)
     panic_abort( "munmap: %s: failed to unmap %d bytes.", 
 		 strerror(errno), bytes );
