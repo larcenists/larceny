@@ -67,10 +67,10 @@ void larceny_syscall( int nargs, int nproc, word *args )
   fptr proc;
 
   if (nproc < 0 || nproc >= sizeof( syscall_table )/sizeof( fptr ))
-    panic( "syscall: index out of range: %d.", nproc );
+    panic_exit( "syscall: index out of range: %d.", nproc );
 
   if (nargs != syscall_table[ nproc ].nargs)
-    panic( "syscall: wrong number of arguments to #%d\n", nproc );
+    panic_exit( "syscall: wrong number of arguments to #%d\n", nproc );
 
   proc = syscall_table[ nproc ].proc;
 
@@ -85,7 +85,7 @@ void larceny_syscall( int nargs, int nproc, word *args )
     case 2 : proc( args[0], args[1] ); break;
     case 3 : proc( args[0], args[1], args[2] ); break;
     case 4 : proc( args[0], args[1], args[2], args[3] ); break;
-    default: panic( "syscall: Too many arguments." ); break;
+    default: panic_exit( "syscall: Too many arguments." ); break;
   }
 
   if (syscall_table[ nproc ].interruptible)
