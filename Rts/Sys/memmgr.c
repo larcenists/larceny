@@ -13,7 +13,7 @@ const char *larceny_gc_technology = "precise";
 #include "larceny.h"
 #include "gc.h"
 #include "gc_t.h"
-#include "heap_stats_t.h"
+#include "stats.h"
 #include "memmgr.h"
 #include "young_heap_t.h"
 #include "old_heap_t.h"
@@ -24,6 +24,7 @@ const char *larceny_gc_technology = "precise";
 #include "gclib.h"
 #include "heapio.h"
 #include "barrier.h"
+#include "stack.h"
 
 typedef struct gc_data gc_data_t;
 
@@ -65,6 +66,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
 static void before_collection( gc_t *gc );
 static void after_collection( gc_t *gc );
+static void stats_following_gc( gc_t *gc );
 #if defined(SIMULATE_NEW_BARRIER)
 static int isremembered( gc_t *gc, word w );
 #endif
@@ -166,7 +168,7 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
     gclib_stats_t stats;
 
     gclib_stats( &stats );
-    M = max( M, stats.wheap_max ); /* use no less than before */
+    M = max( M, stats.heap_allocated_max ); /* use no less than before */
   }
 
   if (upper_limit > 0) {
@@ -389,8 +391,6 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
     if (data->globals[ G_GC_CNT ] == 0)
       hardconsolemsg( "Congratulations! "
 		      "You have survived 1,073,741,824 garbage collections!" );
-    /* Order is significant! */ /* Why?!? */
-    stats_before_gc();
     before_collection( gc );
   }
 
@@ -406,16 +406,14 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   assert( data->in_gc > 0 );
 
   if (--data->in_gc == 0) {
-    /* Order is significant! */ /* Why?!? */ 
     after_collection( gc );
-    stats_after_gc();
+    stats_following_gc( gc );
 
     gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
-		 stats.wheap*sizeof(word), stats.wremset*sizeof(word), 
-		 stats.wrts*sizeof(word) );
-    annoyingmsg( "  Max heap usage: %d bytes", 
-		 stats.wheap_max*sizeof(word) );
+    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+		 stats.heap_allocated, stats.remset_allocated, 
+		 stats.rts_allocated );
+    annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
   }
 }
 
@@ -428,8 +426,6 @@ void gc_start_gc( gc_t *gc )
   if (!data->have_stats) {
     data->have_stats = TRUE;
     data->globals[ G_GC_CNT ] += fixnum(1);
-    /* Order is significant! */ /* Why?!? */
-    stats_before_gc();
     before_collection( gc );
   }
 }
@@ -440,9 +436,7 @@ void gc_end_gc( gc_t *gc )
 
   if (data->have_stats) {
     data->have_stats = FALSE;
-    /* Order is significant! */ /* Why?!? */ 
     after_collection( gc );
-    stats_after_gc();
   }
 }
 
@@ -469,12 +463,14 @@ dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 
   gc_end_gc( gc );
   if (--data->in_gc == 0) {
+    stats_following_gc( gc );
+
     gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
-		 stats.wheap*sizeof(word), stats.wremset*sizeof(word), 
-		 stats.wrts*sizeof(word) );
-    annoyingmsg( "  Max heap usage: %d bytes", 
-		 stats.wheap_max*sizeof(word) );
+    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+		 stats.heap_allocated, stats.remset_allocated,
+		 stats.rts_allocated );
+    annoyingmsg( "  Max heap usage: %d words", 
+		 stats.heap_allocated_max );
   }
 }
 
@@ -610,33 +606,47 @@ static int isremembered( gc_t *gc, word w )
 }
 #endif
 
-static void
-stats( gc_t *gc, int generation, heap_stats_t *stats )
+/* Not a method anymore */
+static void stats( gc_t *gc )
+{
+  assert( 0 );
+}
+
+/* Strategy: generations report the data for themselves and their 
+   remembered sets.  Everything else is handled here.
+   */
+static void stats_following_gc( gc_t *gc )
 {
   gc_data_t *data = DATA(gc);
+  stack_stats_t stats_stack;
+  gclib_stats_t stats_gclib;
+  int i;
 
-  memset( stats, 0, sizeof( heap_stats_t ) );
-  
-  if (generation == 0)
-    yh_stats( gc->young_area, stats );
-  else if (gc->static_area && !data->is_generational_system)
-    sh_stats( gc->static_area, stats );	/* Stopcopy static area */
-  else if (gc->static_area && generation == data->generations-1) {
-    sh_stats( gc->static_area, stats );
-    rs_stats( gc->remset[generation], &stats->remset_data );
-  }
-  else {
-    old_heap_t *heap;
+  yh_stats( gc->young_area );
 
-    if (generation <= gc->ephemeral_area_count)
-      heap = gc->ephemeral_area[ generation-1 ];
-    else 
-      heap = gc->dynamic_area;
-    heap->stats( heap, generation, stats );
-    rs_stats( gc->remset[generation], &stats->remset_data );
-    if (stats->np_young && gc->np_remset != -1)
-      rs_stats( gc->remset[gc->np_remset], &stats->np_remset_data );
-  }
+  for ( i=0 ; i < gc->ephemeral_area_count ; i++ )
+    oh_stats( gc->ephemeral_area[i] );
+
+  if (gc->dynamic_area)
+    oh_stats( gc->dynamic_area );
+
+  if (gc->static_area)
+    sh_stats( gc->static_area );
+
+  memset( &stats_stack, 0, sizeof( stack_stats_t ) );
+  stk_stats( data->globals, &stats_stack );
+  stats_add_stack_stats( &stats_stack );
+
+#if defined(SIMULATE_NEW_BARRIER)
+  swb_stats( ... );
+  stats_add_swb_stats( ... );
+#endif
+
+  memset( &stats_gclib, 0, sizeof( gclib_stats_t ) );
+  gclib_stats( &stats_gclib );
+  stats_add_gclib_stats( &stats_gclib );
+
+  stats_dumpstate();		/* Dumps stats state if dumping is on */
 }
 
 static int compact_all_ssbs( gc_t *gc )
@@ -729,7 +739,7 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
   p = 0;
   while ((p = los_walk_list ( gc->los->object_lists[0], p )) != 0) {
     r = hio_dump_segment( heap, DATA_SEGMENT,
-			  p, p + sizefield(*ptrof(p))/sizeof(word) + 1 );
+			  p, p + bytes2words(sizefield(*ptrof(p))) + 1 );
     if (r < 0) goto fail;
   }
 
@@ -766,9 +776,9 @@ static word *make_handle( gc_t *gc, word obj )
   for ( i=0 ; i < data->nhandles && data->handles[i] != 0 ; i++ )
     ;
   if ( i == data->nhandles ) {  /* table full */
-    word *h = must_malloc( sizeof(word)*data->nhandles*2 );
-    memcpy( h, data->handles, sizeof(word)*data->nhandles );
-    memset( h+data->nhandles, 0, sizeof(word)*data->nhandles );
+    word *h = must_malloc( words2bytes(data->nhandles*2) );
+    memcpy( h, data->handles, words2bytes(data->nhandles) );
+    memset( h+data->nhandles, 0, words2bytes(data->nhandles) );
     data->handles = h;
     data->nhandles *= 2;
   }
