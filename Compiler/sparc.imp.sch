@@ -4,7 +4,7 @@
 ;
 ; Larceny -- target-specific information for Twobit's SPARC backend.
 ;
-; 13 December 1998 / wdc
+; 18 December 1998 / wdc
 
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
@@ -528,15 +528,29 @@
            (cons (rename 'eq?) (cdr exp))
            exp)))))
 
-; This is wrong, see mail message.
-;
-;(define-inline memq
-;  (syntax-rules (quote)
-;   ((memq '?x '(?d ...))
-;    (or (eq? '?x '?d) ...))
-;   ((memq ?e '(?d ...))
-;    (let ((t ?e))
-;      (or (eq? t '?d) ...)))))
+(define-inline memq
+  (syntax-rules (quote)
+   ((memq ?expr '(?datum ...))
+    (letrec-syntax
+      ((memq0
+        (... (syntax-rules (quote)
+              ((memq0 '?xx '(?d ...))
+               (let ((t1 '(?d ...)))
+                 (memq1 '?xx t1 (?d ...))))
+              ((memq0 ?e '(?d ...))
+               (let ((t0 ?e)
+                     (t1 '(?d ...)))
+                 (memq1 t0 t1 (?d ...)))))))
+       (memq1
+        (... (syntax-rules ()
+              ((memq1 ?t0 ?t1 ())
+               #f)
+              ((memq1 ?t0 ?t1 (?d1 ?d2 ...))
+               (if (eq? ?t0 '?d1)
+                   ?t1
+                   (let ((?t1 (cdr ?t1)))
+                     (memq1 ?t0 ?t1 (?d2 ...)))))))))
+      (memq0 ?expr '(?datum ...))))))
 
 (define-inline memv
   (transformer
@@ -544,6 +558,7 @@
      (let ((arg1 (cadr exp))
            (arg2 (caddr exp)))
        (if (or (boolean? arg1)
+               (fixnum? arg1)
                (char? arg1)
                (and (pair? arg1)
                     (= (length arg1) 2)
@@ -556,6 +571,7 @@
                     (compare (car arg2) (rename 'quote))
                     (every1? (lambda (x)
                                (or (boolean? x)
+                                   (fixnum? x)
                                    (char? x)
                                    (symbol? x)))
                              (cadr arg2))))
