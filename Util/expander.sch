@@ -1,7 +1,8 @@
-; Util/expander.sch
-; Simple string substitution facility used to convert .mac to .c (for now).
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Simple string substitution facility used to convert .mac to .c (for now).
 
 (define *templates* '())
 (define *input* #f)

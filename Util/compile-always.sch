@@ -1,8 +1,10 @@
-; Util/compile-always.sch
-; Setup the REPL and the loader to use Twobit for all evaluation, so that
-; each expression will be compiled and then evaluated.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Setup the REPL and the loader to use Twobit for all evaluation, so that
+; each expression will be compiled and then evaluated, and change EVAL to
+; compile also.
 
 (if (file-exists? "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.fasl")

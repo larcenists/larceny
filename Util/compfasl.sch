@@ -1,4 +1,10 @@
-; Fixme: this needs to install a global-name-resolver that mimics
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Compare FASL files.
+;
+; FIXME: this needs to install a global-name-resolver that mimics
 ; the real one but does not in fact link.
 
 (define (compare-fasl-files f1 f2)
@@ -26,6 +32,3 @@
        (global-name-resolver old-resolver)))))
 
 ; eof
-
-
-	 

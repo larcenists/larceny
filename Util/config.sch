@@ -1,4 +1,6 @@
-; -*- Scheme -*-
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
 ;
 ; Multi-lingual autoconfiguration program, version 2.
 ; Viciously hacked to accomodate v0.20, needs cleaning up. It's a mess.
