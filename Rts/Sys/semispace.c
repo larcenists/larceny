@@ -266,8 +266,8 @@ ss_move_block_to_semispace( semispace_t *from, int from_idx, semispace_t *to )
     from->current = from->current - 1;
 
   /* Update statistics */
-  to->allocated += to->chunks[to->current].bytes;
-  from->allocated -= to->chunks[to->current].bytes;
+  to->allocated += to->chunks[slot].bytes;
+  from->allocated -= to->chunks[slot].bytes;
 
   /* Set generation number on moved memory */
   gclib_set_generation( to->chunks[slot].bot, to->chunks[slot].bytes, 
