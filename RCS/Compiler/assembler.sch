@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: pass5p1.generic.scm,v 1.1 91/08/15 02:50:06 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.2 91/08/15 10:48:41 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -40,7 +40,7 @@
 (define (assemble source)
   (assemble1 (make-assembly-structure source)
              (lambda (as)
-	       (assemble-finalize! as '()))))
+	       (assemble-finalize! as))))
 
 ; The following procedures are to be called by table routines.
 ;
@@ -196,17 +196,17 @@
       (map (lambda (x)
 	     (case (car x)
 	       ((codevector)
-		(let ((segment (assemble-codevector (cdr x) labels)))
+		(let ((segment (assemble-codevector (cadr x) labels)))
 		  (set! l (append (cdr segment) labels))
-		  (list 'data (car segment))))
-	       ((constvector)
-		(list 'constvector (traverse-constvector (cdr x) l)))
+		  (list 'codevector (car segment))))
+	       ((constantvector)
+		(list 'constantvector (traverse-constvector (cadr x) l)))
 	       ((data)
 		x)
 	       ((global)
 		x)
 	       (else
-		(error 'assembler "Funky constant slot"))))
+		(error 'assembler "Funky constant slot ~a" (car x)))))
 	   constlist)))
 
   (let ((code  (reverse! (as-code as)))
@@ -328,8 +328,8 @@
     (+ 2 + #t)
     (- 2 - #t)
     (* 2 * #t)
-    (1+ 1 1+ #f)        ; MacScheme
-    (1- 1 1- #f)        ; MacScheme
+    (,(string->symbol "1+") 1 ,(string->symbol "1+") #f)        ; MacScheme
+    (,(string->symbol "1-") 1 ,(string->symbol "1-") #f)        ; MacScheme
     (null? 1 null? #f)
     (pair? 1 pair? #f)
     (cons 2 cons #f)
@@ -392,10 +392,10 @@
 
 (define-instruction $op1
   (lambda (instruction as)
-    (cond ((eq? (operand1 instruction) '1+)
-	   (push-instruction as (cg-op $opx '+ 1)))
-	  ((eq? (operand1 instruction) '1-)
-	   (push-instruction as (cg-op $opx '- 1)))
+    (cond ((eq? (operand1 instruction) (string->symbol "1+"))
+	   (push-instruction as (list $opx '+ 1)))
+	  ((eq? (operand1 instruction) (string->symbol "1-"))
+	   (push-instruction as (list $opx '- 1)))
 	  (else
 	   (list-instruction "op1" instruction)
 	   (emit-primop0! as (operand1 instruction))))))
@@ -435,7 +435,7 @@
 (define-instruction $const
   (lambda (instruction as)
     (list-instruction "const" instruction)
-    (emit-constant as (operand1 instruction))))
+    (emit-constant->register as (operand1 instruction) $r.result)))
 
 (define-instruction $global
   (lambda (instruction as)
@@ -586,22 +586,27 @@
 (define **eof** (lambda (x) x))
 (define **unspecified** (lambda (y) y))
 
-(define (emit-constant->register opd r)
+(define (emit-constant->register as opd r)
+
+  (define (fixnum-range? x)
+    (and (>= x (- (expt 2 29)))
+	 (<= x (- (expt 2 29) 1))))
+	     
   (cond ((integer? opd)
 	 (if (fixnum-range? opd)	
 	     (emit-fixnum->register! as opd r)
 	     (emit-const->register! as (emit-constant as opd) r)))
 	((rational? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
-	((rectangular? opd)
-	 (emit-const->register! as (emit-constant as opd) r))
+;	((rectangular? opd)
+;	 (emit-const->register! as (emit-constant as opd) r))
 	((real? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
 	((complex? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
 	((string? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
-	((character? opd)
+	((char? opd)
 	 (emit-immediate->register! as (char->immediate opd) r))
 	((pair? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
