@@ -11,7 +11,7 @@
         CLR_PREDICATE_OVERRIDE_FALSE(isInexact)
         OP1_OVERRIDE(exactp) {
             if (this.isNumber()) {
-                return Factory.wrap(this.isRatnum() || this.isRectnum());
+                return (this.isRatnum() || this.isRectnum()) ? Factory.True : Factory.False;
             } else {
                 Exn.fault(Constants.EX_EXACTP, null, this);
                 return Factory.Impossible;
@@ -34,17 +34,17 @@
 
         // -------------------
         OP1_OVERRIDE(vector_like_length) {
-            return Factory.wrap(elements.Length);
+            return Factory.makeNumber (elements.Length);
         }
         OP2_CHAIN(vector_like_ref)
         OP3_CHAIN(vector_like_set)
 
         OP1_OVERRIDE(vector_length) {
             check_typetag(Tags.VectorTag, Constants.EX_VECTOR_LENGTH);
-            return Factory.wrap(elements.Length);
+            return Factory.makeNumber (elements.Length);
         }
         OP1_OVERRIDE(vector_length_vec) {
-            return Factory.wrap(elements.Length);
+            return Factory.makeNumber (elements.Length);
         }
 
         OP2_CHAIN_CHECK_TAG(vector_ref, Tags.VectorTag, EX_VECTOR_REF)
@@ -84,7 +84,7 @@
         SPECIALOP2_OVERRIDE_REV_MS(less_than, ratnum, SVL, RatnumTag, MS_RATNUM_LESS)
         SPECIALOP2_OVERRIDE_REV_MS(less_or_equal, ratnum, SVL, RatnumTag, MS_RATNUM_LESSEQ)
         SPECIALOP2_OVERRIDE_REV_MS(greater_than, ratnum, SVL, RatnumTag, MS_RATNUM_GREATER)
-        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, ratnum, SVL, RatnumTag, 
+        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, ratnum, SVL, RatnumTag,
                                    MS_RATNUM_GREATEREQ)
 
         SPECIALOP2_OVERRIDE_REV_MS(plus, ratnum, SVL, RatnumTag, MS_RATNUM_ADD)

@@ -38,13 +38,13 @@
         //   Operations
         // ===================
 
-        OP2(eqp) { return Factory.wrap(this == arg2); }
-        OP1(not) { return Factory.wrap(this != Factory.False); }
-        OP1(nullp) { return Factory.wrap(this == Factory.Null); }
-        OP1(eof_objectp) { return Factory.wrap(this == Factory.Eof); }
-        OP1(unspecifiedp) { return Factory.wrap(this == Factory.Unspecified); }
-        OP1(undefinedp) { return Factory.wrap(this == Factory.Undefined); }
-        
+        OP2(eqp) { return (this == arg2) ? Factory.True : Factory.False; }
+        OP1(not) { return (this == Factory.False) ? Factory.True : Factory.False; }
+        OP1(nullp) { return (this == Factory.Null) ? Factory.True : Factory.False; }
+        OP1(eof_objectp) { return (this == Factory.Eof) ? Factory.True : Factory.False; }
+        OP1(unspecifiedp) { return (this == Factory.Unspecified) ? Factory.True : Factory.False; }
+        OP1(undefinedp) { return (this == Factory.Undefined) ? Factory.True : Factory.False; }
+
         // Misc
         OP1(creg) { return Cont.getCC(); }
         OP1(creg_set) {
@@ -58,7 +58,7 @@
         OP1(unspecified) { return Factory.Unspecified; }
         OP1(undefined) { return Factory.Undefined; }
         OP1(eof_object) { return Factory.Eof; }
-        
+
         // Chars
         OP2_VIRTUAL_EXN_PAIR(char_lt, EX_CHARLT, SChar)
         OP2_VIRTUAL_EXN_PAIR(char_le, EX_CHARLE, SChar)
@@ -85,7 +85,7 @@
         OP2_VIRTUAL_EXN(set_car_pair, EX_SETCAR)
         OP2_VIRTUAL_EXN(set_cdr, EX_SETCDR)
         OP2_VIRTUAL_EXN(set_cdr_pair, EX_SETCDR)
-        
+
         // Typetag Operations
         OP1_VIRTUAL_EXN(typetag, EX_TYPETAG)
         OP2_VIRTUAL_EXN_PAIR(typetag_set, EX_TYPETAGSET, STagged)
@@ -194,12 +194,12 @@
                         Reg.interruptsEnabled = false;
                         Reg.Result = Factory.makeFixnum((int)Reg.timer);
             } else {
-                Reg.Result = Factory.makeBoolean(false);
+                Reg.Result = Factory.False;
             }
             Exn.checkSignals();
         }
         SPECIALOP1_VIRTUAL_EXN(syscall, EX_UNSUPPORTED)
-        
+
         SPECIALOP1_VIRTUAL_EXN(zerop, EX_ZEROP)
         SPECIALOP2(eqvp) {
             if (this == arg2) {
@@ -227,10 +227,10 @@
         SPECIALOP2_NUMERIC_SET(minus, contagion, MS_GENERIC_SUB)
         SPECIALOP2_NUMERIC_SET(multiply, contagion, MS_GENERIC_MUL)
         SPECIALOP2_NUMERIC_SET(divide, contagion, MS_GENERIC_DIV)
-        
+
         SPECIALOP2_NUMERIC_SET_NC(quotient, MS_HEAVY_QUOTIENT)
         SPECIALOP2_NUMERIC_SET_NC(remainder, MS_HEAVY_REMAINDER)
-        
+
         SPECIALOP1_VIRTUAL_EXN(truncate, EX_TRUNC)
         SPECIALOP1_VIRTUAL_EXN(round, EX_ROUND)
         SPECIALOP1_VIRTUAL_EXN(negative, EX_NEG)
