@@ -53,6 +53,21 @@
 	((selected? (car list)) (car list))
 	(else (find selected? (cdr list)))))
 
+; Return a list with all duplicates (according to predicate) removed.
+
+(define (remove-duplicates list same?)
+
+  (define (member? x list)
+    (cond ((null? list) #f)
+          ((same? x (car list)) #t)
+          (else (member? x (cdr list)))))
+
+  (cond ((null? list) list)
+        ((member? (car list) (cdr list))
+         (remove-duplicates (cdr list) same?))
+        (else
+         (cons (car list) (remove-duplicates (cdr list) same?)))))
+
 ; Return the least element of `list' according to some total order.
 
 (define (least less? list)
