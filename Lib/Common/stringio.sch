@@ -2,17 +2,7 @@
 ;
 ; $Id$
 ;
-; Larceny -- string I/O ports.
-;
-; Compatibility notes:
-;
-; Our procedures are largely compatible with Chez Scheme, except
-; that Chez Scheme resets the string to empty after get-output-string,
-; and I don't really see any reason for doing that.
-;
-; The MIT Scheme string output functions can mostly be implemented in
-; terms of ours.
-
+; MacScheme-compatible string I/O ports.
 
 ; Offsets in the string port data structure.
 
@@ -42,6 +32,14 @@
 	   (let ((x (apply string-append s)))
 	     (vector-set! data string-io.s (list x))
 	     x)))))
+
+(define (string-io/reset-output-string port)
+  (if (not (string-output-port? port))
+      (error "reset-output-string: " port " is not a string output port."))
+  (flush-output-port port)
+  (let ((data (vector-like-ref port port.iodata)))
+    (vector-like-set! data string-io.s '())
+    (unspecified)))
 
 (define (string-io/ioproc op)
   (case op
