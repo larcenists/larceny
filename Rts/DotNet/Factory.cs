@@ -66,16 +66,16 @@ namespace Scheme.Rep {
         //   Numbers
         // ===================
       public static SFixnum makeFixnum (sbyte num) {
-	return SFixnum.makeFixnum (num);
+        return SFixnum.makeFixnum (num);
       }
       public static SFixnum makeFixnum (byte num) {
-	return SFixnum.makeFixnum (num);
+        return SFixnum.makeFixnum (num);
       }
       public static SFixnum makeFixnum (short num) {
-	return SFixnum.makeFixnum (num);
+        return SFixnum.makeFixnum (num);
       }
       public static SFixnum makeFixnum (ushort num) {
-	return SFixnum.makeFixnum (num);
+        return SFixnum.makeFixnum (num);
       }
 
         public static SFixnum makeFixnum(int num) {
@@ -88,7 +88,7 @@ namespace Scheme.Rep {
                : (SObject) makeBignum ((ulong) num, true);
         }
         public static SObject makeNumber (uint num) {
-	    return SFixnum.inFixnumRange (num)
+            return SFixnum.inFixnumRange (num)
                ? SFixnum.makeFixnum ((int) num)
                : (SObject) makeBignum ((ulong) num, true);
         }
@@ -98,16 +98,16 @@ namespace Scheme.Rep {
             : (SObject) makeBignum ((ulong) num, true);
         }
 
-	public static SObject makeNumber (ulong num) {
-	    return SFixnum.inFixnumRange (num)
+        public static SObject makeNumber (ulong num) {
+            return SFixnum.inFixnumRange (num)
                ? SFixnum.makeFixnum ((int) num)
                : (SObject) makeBignum (num, true);
         }
 
         public static SByteVL makeBignum(int num) {
             return (num < 0)
-        	? Number.makeBignum((ulong)-num, false)
-	        : Number.makeBignum((ulong)num, true);
+                ? Number.makeBignum((ulong)-num, false)
+                : Number.makeBignum((ulong)num, true);
         }
         public static SByteVL makeBignum(ulong value, bool positive) {
             return Number.makeBignum(value, positive);
@@ -300,16 +300,10 @@ namespace Scheme.Rep {
             return list;
         }
 
-        public static SObject makeForeign(object value) {
-            return new Foreign(value);
-        }
-        public static SObject makeForeignF(object value) {
-            if (value == null) {
-                return Factory.False;
-            } else {
-                return new Foreign(value);
-            }
-        }
+       public static SObject makeForeignBox (object x) {
+           return new ForeignBox (x);
+       }
+
         // =================================================
         // Quick and Simple... and slow
         // =================================================
