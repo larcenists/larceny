@@ -429,6 +429,12 @@
 	 (save-list      *lastreg* n (+ $p.reg0 (* *lastreg* 4))))))
 
 ; BRANCH
+; 
+; The 'nop' can be changed to a 'slot' but it has no effect because of
+; an assembler peculiarity.  (Namely, sparc.slot is effective only in the
+; slot of an annulled branch, and sparc.b is not annulled.  Also, sparc.b.a
+; does not mean what you think, so don't try.  This should all be fixed
+; when the assembler gets smart about delay slot filling.)
 
 (define (emit-branch! as check-timer? label)
   (if check-timer?
