@@ -40,8 +40,8 @@
     (sockaddr_in.sin_family-set! addr unix/AF_INET)
     (%set-int addrlen 0 (bytevector-length addr))
     (if (and nonblocking?
-             (null? (poll-descriptors (list s) '() 0)))
-        (unix-tasks/block-for-input s))
+             (null? (poll-descriptors (list s) '() #f)))
+        (input-not-ready-handler s))
     (let ((ns (unix/accept s addr addrlen)))
       (if (= ns -1)
 	  (begin (unix/perror "accept")

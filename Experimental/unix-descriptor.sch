@@ -67,7 +67,7 @@
 (define (descio/read data buf)
   (if (and (descio-nonblocking? data)
            (not (descio/ready-input? data)))
-      (unix-tasks/block-for-input (descio-fd data)))
+      (input-not-ready-handler (descio-fd data)))
   (let ((result (unix/read (descio-fd data) buf (string-length buf))))
     (cond ((< result 0) 'error)
           ((= result 0) 'eof)
@@ -89,17 +89,17 @@
                  'error
                  (loop (+ idx written) (- count written)))))
           (else
-           (unix-tasks/block-for-output (descio-fd data))
+           (output-not-ready-handler (descio-fd data))
            (loop idx count))))
 
   (loop 0 count))
 
 (define (descio/ready-input? data)
-  (let ((ready (poll-descriptors (list (descio-fd data)) '() 0)))
+  (let ((ready (poll-descriptors (list (descio-fd data)) '() #f)))
     (not (null? ready))))
 
 (define (descio/ready-output? data)
-  (let ((ready (poll-descriptors '() (list (descio-fd data)) 0)))
+  (let ((ready (poll-descriptors '() (list (descio-fd data)) #f)))
     (not (null? ready))))
 
 (define (descio/close data)
