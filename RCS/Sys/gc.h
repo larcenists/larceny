@@ -1,7 +1,7 @@
 /*
  * User-defined parameters for garbage collector.
  *
- * $Id: gc.h,v 1.4 91/07/03 20:53:40 lth Exp Locker: lth $
+ * $Id: gc.h,v 1.5 1992/05/15 22:18:39 lth Exp lth $
  * 
  * Whoever writes the program that interfaces to the collector must define
  * the desired defaults in this file for the garbage collector to use.
@@ -22,6 +22,6 @@
  * MIN_E_SIZE a function or macro w/ argument...
  */
 #define MIN_S_SIZE          0                /* Minimum size of static area */
-#define MIN_T_SIZE          (1024*1024)     /* Minimum size of tenured area */
+#define MIN_T_SIZE          0     /* Minimum size of tenured area */
 #define MIN_E_SIZE          0             /* Minimum size of ephemeral area */
 #define MIN_STK_SIZE        0                /* Minimum size of stack cahce */

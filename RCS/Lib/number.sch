@@ -3,7 +3,7 @@
 ; Arithmetic functions for MacScheme.
 ; Augmented and changed for Larceny, which has a different set of primops.
 ;
-; $Id: number.sch,v 1.1 1992/02/10 03:16:36 lth Exp lth $
+; $Id: number.sch,v 1.2 1992/05/15 22:18:09 lth Exp lth $
 
  
 (define positive? (lambda (x) (> x 0)))

@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent part of the assembler, for Sparc.
 ;
-; $Id: asm.sparc.sch,v 1.11 92/03/31 12:31:22 lth Exp Locker: lth $
+; $Id: asm.sparc.sch,v 1.12 1992/05/15 22:18:22 lth Exp lth $
 ;
 ;             The meek shall inherit the earth.
 ;             The meek shall also inherit the assembler.
@@ -378,7 +378,7 @@
 	  (define (class-nop i)
 	    (let ((q (class-sethi i)))
 	      (lambda (x cl)
-		(q `(dummy 0 ,$r.g0) cl))))
+		(q (list 'dummy 0 $r.g0) cl))))
 
 	  ; un-annulled branches
 
@@ -387,7 +387,7 @@
 		  (code (shl #b010 22)))
 	      (lambda (x cl)
 		(let ((offset (quotient
-			       (lobits (eval-expr `(- ,(operand1 x) $)) 24)
+			       (lobits (eval-expr (list '- (operand1 x) '$)) 24)
 			       4)))
 		  (+ i code offset)))))
       
@@ -415,14 +415,14 @@
 			   (not (weird-instr? t)))
 		      (let ((offset
 			     (quotient
-			      (lobits (eval-expr `(+ (- ,(operand1 x) $) 4)) 24)
+			      (lobits (eval-expr (list '+ (list '- (operand1 x) '$) 4)) 24)
 			      4)))
 			(drop! cl)
 			(push! cl t)
 			(+ abit i code offset))
 		      (let ((offset
 			     (quotient
-			      (lobits (eval-expr `(- ,(operand1 x) $)) 24)
+			      (lobits (eval-expr (list '- (operand1 x) '$)) 24)
 			      4)))
 			(+ abit i code offset)))))))
   
@@ -499,7 +499,7 @@
 	    (let ((code (shl #b01 30)))
 	      (lambda (x cl)
 		(let ((offset (quotient
-			       (lobits (eval-expr `(- ,(operand1 x) $)) 32)
+			       (lobits (eval-expr (list '- (operand1 x) '$)) 32)
 			       4)))
 		  (+ code offset)))))
 

@@ -57,6 +57,3 @@
 ;
 ;(define (list? x)
 ;  (or (null? x) (and (pair? x) (list? (cdr x)))))
-
-(load "../Chez/bytevec.ss")
-(load "../Chez/misc2bytevector.ss")

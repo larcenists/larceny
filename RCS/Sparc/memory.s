@@ -4,7 +4,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.22 1992/05/15 22:18:32 lth Exp lth $
+! $Id: memory.s,v 1.23 1992/05/18 05:11:21 lth Exp lth $
 !
 ! This file defines the following builtins:
 !
@@ -31,6 +31,7 @@
 !     THIS PROCEDURE.
 !
 !   _mem_garbage_collect( n )
+!   _mem_internal_collect( n )
 !     Initiate a garbage collection. The argument is a fixnum specifying
 !     the type of collection: 0 for an ephemeral collection, -1 for a tenuring 
 !     collection, -2 for a full collection.
@@ -41,6 +42,7 @@
 !     there are any. After restoring the frame, it will branch to the
 !     return address in the newly restored frame.
 !
+!   _mem_internal_stkoflow()
 !   _mem_stkoflow()
 !     Procedure to be called on a stack cache overflow. It will flush the
 !     stack cache to memory and setup the continuation pointer, and return
@@ -97,6 +99,9 @@
 ! One could argue that this calling convention is a gross hack. It is also
 ! becoming increasingly difficult to program around it. A millicode stack
 ! for saving millicode return addresses on would be better.
+!
+! Other millicode procedures may only call memory millicode procedures in here
+! if the names of the latter start with _mem_internal.
 
 #include "registers.s.h"
 #include "offsets.s.h"
@@ -114,7 +119,9 @@
 	.global _mem_vectorset
 	.global _mem_gcstart
 	.global _mem_garbage_collect
+	.global _mem_internal_collect
 	.global _mem_stkoflow
+	.global	_mem_internal_stkoflow
 	.global _mem_stkuflow
 	.global _mem_save_scheme_context
 	.global _mem_restore_scheme_context
@@ -308,10 +315,17 @@ _mem_setcar:
 
 	! Must add transaction to list
 
+!#if ! defined( NONE )
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans			! add transaction to list
+#if defined( REFERENCE ) || defined( CARDMARKING )
+	add	%RESULT, A_CAR_OFFSET, %TMP1
+#else
+	nop
+#endif
 	nop
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
+!#endif
 
 Lsetcar1:
 	st	%ARGREG2, [%RESULT+A_CAR_OFFSET]
@@ -340,10 +354,16 @@ _mem_setcdr:
 	blt	Lsetcdr1
 	mov	%o7, %TMP0
 
+!#if ! defined( NONE )
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans			! add transaction to list
+#if defined( REFERENCE ) || defined( CARDMARKING )
+	add	%RESULT, A_CDR_OFFSET, %TMP1
+#else
 	nop
+#endif
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
+!#endif
 
 Lsetcdr1:
 	st	%ARGREG2, [%RESULT+A_CDR_OFFSET]
@@ -379,19 +399,23 @@ _mem_vectorset:
 	andn	%RESULT, 0x7, %TMP1
 	!
 	cmp	%TMP1, %TMP0
-	ble,a	Lvectorset1			! not in tenured space
+	ble	Lvectorset1			! not in tenured space
 	add	%TMP1, %ARGREG2, %TMP1
 
 	! add  transaction
-
+!#if !defined( NONE )
 	mov	%o7, %TMP0
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans
+#if defined( REFERENCE ) || defined( CARDMARKING )
+	add	%TMP1, 4, %TMP1
+#else
 	nop
+#endif
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 	mov	%TMP0, %o7
-	sra     %RESULT, 3, %TMP1
-	sll	%TMP1, 3, %TMP1
+	andn	%RESULT, 0x7, %TMP1
+!#endif
 	add	%TMP1, %ARGREG2, %TMP1
 Lvectorset1:
 	jmp	%o7+8
@@ -439,6 +463,12 @@ _mem_garbage_collect:
 	jmp	%TMP0+8
 	nop
 
+! Assumes Scheme return address is in %TMP0; return address to millicode
+! caller is in %o7. The type is in %RESULT.
+
+_mem_internal_collect:
+	b	gcstart
+	nop
 
 !-----------------------------------------------------------------------------
 ! '_mem_stkuflow' is designed to be returned through on a stack cache 
@@ -474,6 +504,12 @@ _mem_stkuflow:
 ! then returns to its caller.
 
 _mem_stkoflow:
+	b	Lstkoflow
+	st	%g0, [ %GLOBALS + MEM_TMP1_OFFSET ]
+_mem_internal_stkoflow:
+	mov	1, %TMP0
+	st	%TMP0, [ %GLOBALS + MEM_TMP1_OFFSET ]
+Lstkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
@@ -496,11 +532,16 @@ _mem_stkoflow:
 	! stkoflow will not alter it.
 
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 
 	mov	%o7, %TMP0
 	call	gcstart
 	set	fixnum( 0 ), %RESULT
 
+	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %TMP1
+	tst	%TMP1
+	bne,a	.+8
+	ld	[ %RESULT + SAVED_RETADDR_OFFSET ], %TMP0
 	jmp	%TMP0+8
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
@@ -796,15 +837,36 @@ Lgcstart2:
 ! 'addtrans' takes one parameter, which must be a tagged pointer, and adds it
 ! to the transaction list. If the transaction list is full (i.e. there is
 ! an overflow of tenured space (shudder)) then 'addtrans' will simply perform
-! a tenuring collection.
+! a full collection.
 ! 
 ! A more sophisticated approach would be to attempt to compact the transaction
 ! list before resorting to collection; this should probably be investigated
 ! at some point.
 !
-! On entry, the "external" return address is in %TMP0.
+! On entry, the "external" return address is in %TMP0. If we are recording
+! an object, that object is in %RESULT. If we are recording a location, that
+! location is in %TMP1.
+!
+! The exact code of this procedure depends on which of the four symbols
+! NONE, REGULAR, REFERENCE, and CARDMARKING is defined.
 
 addtrans:
+
+#if defined( REFERENCE )
+
+! Reference-recording scheme; records assigned-to location.
+! The location is passed in TMP1. However, there's a register crunch and
+! extra magic is required. We know that we can destroy RESULT and that an
+! address looks like a fixnum, so we use RESULT as a tmp. Then we fall
+! thru to the next case.
+
+	mov	%TMP1, %RESULT
+#endif
+
+#if defined( REGULAR ) || defined( REFERENCE )
+
+! Regular generation-scavenging policy: record the object which was assigned
+! into (passed in RESULT). If the list overflows, do a full collection.
 
 	! Get tenured-space limits and check for overflow
 
@@ -824,6 +886,32 @@ Laddtrans1:
 	st	%RESULT, [ %TMP1 ]
 	jmp	%o7+8
 	st	%TMP2, [ %GLOBALS+T_TRANS_OFFSET ]
+
+#elif defined( CARDMARKING )
+
+! A card marking scheme. The card being assigned into is flagged as dirty.
+! The location being assigned into is passed in TMP1. No collection can
+! ever be triggered in this scheme.
+
+	mov	%TMP1, %RESULT
+	ld	[ %GLOBALS + T_DIRTY_OFFSET ], %TMP1
+	
+#else
+
+! No transactions are to be recorded, ever.
+! Simply flags the error and exits to the OS.
+
+	set	Lnotrans, %o0
+	call	_printf
+	nop
+	call	_exit
+	mov	1, %o0
+
+Lnotrans:
+	.asciz	"Cannot register a transaction in this version!\n"
+	.align	8
+
+#endif
 
 
 !-----------------------------------------------------------------------------

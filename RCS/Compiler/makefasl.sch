@@ -1,6 +1,6 @@
 ;; Given the name of a .lop file, creates a .fasl file.
 ;;
-;; $Id$
+;; $Id: makefasl.sch,v 1.1 1992/06/10 09:02:36 lth Exp lth $
 ;;
 ;; The format of the fastload file is one of a sequence of expressions.
 ;; Procedures, bytevectors, and references to global variables can be

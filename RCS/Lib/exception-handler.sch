@@ -1,7 +1,7 @@
 ; Larceny run-time library
 ; Your Basic Exception Handler in a Massive Case Statement (YBEHMCS).
 ;
-; $Id$
+; $Id: exception-handler.sch,v 1.1 1992/05/15 22:30:18 lth Exp lth $
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, ARGREG2, and
 ; ARGREG3, and an exception code as arguments. It dispatches on the code and
@@ -229,7 +229,12 @@
        (error "wrong number of arguments to procedure" arg3))
 
       ((= code $ex.apply)
-       (error "Apply: kaboom."))
+       (cond ((not (procedure? arg1))
+	      (error "Apply: non-procedure (ex):" arg1))
+	     ((not (list? arg2))
+	      (error "Apply: not a proper list:" arg2))
+	     (else
+	      (error "Apply: I'm sooo confused..."))))
 
       ((= code $ex.typetag)
        (error "typetag:" arg1 "does not have a typetag."))
@@ -253,6 +258,19 @@
        (if (pair? arg1)
 	   (error "Undefined global variable" (cdr arg1))
 	   (error "Undefined global variable (doesn't look like a cell).")))
+
+      ;; Created by the sys$dump primop.
+
+      ((= code $ex.dump)
+       (cond ((not (procedure? arg2))
+	      (error "sys$dump:" arg2 "is not a procedure."))
+	     ((not (string? arg1))
+	      (error "sys$dump:" arg1 "is not a string."))
+	     (else
+	      (error "sys$dump: filename too long:" arg1))))
+
+      ((= code $ex.dumpfail)
+       (error "sys$dump: dump failed."))
 
       (else
        (error "exception-handler: Unhandled code" code))))

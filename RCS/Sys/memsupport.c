@@ -2,7 +2,7 @@
  * Larceny Runtime System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.14 1992/05/15 22:18:48 lth Exp lth $
+ * $Id: memsupport.c,v 1.15 1992/05/18 05:11:30 lth Exp lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -158,17 +158,20 @@ word n;
  * All pointers in the roots or in the heap are from base 0. They
  * are adjusted as the heap is read in.
  *
- * Split heap format (WRONG! Cannot have pointers from vheap to sheap!)
+ * Split heap format:
  *  - version number (1 word)
  *  - roots (n words; depends on version)
  *  - word count for the static heap data
  *  - word count for the tenured or ephemeral heap data
  *  - static heap data
  *  - tenured or ephemeral data
+ * Intergenerational pointers (tenured -> static) have high bit set. All 
+ * pointers are adjusted relative to 0 of the heap they point to.
  *
  * All words are stored in big-endian format.
  *
- * Returns 0 if everything went fine; -1 otherwise.
+ * Returns 0 if everything went fine; -1 otherwise. Sometimes panics (need to
+ * fix this).
  */
 C_load_heap( fp, which_heap )
 FILE *fp;
@@ -187,8 +190,11 @@ int which_heap;
     limit = globals[ T_MAX_OFFSET ];
   }
   magic = getword( fp );
-  if ((magic & 0xFFFF) != HEAP_VERSION)
-    C_panic( "Wrong version heap image." );
+  if ((magic & 0xFFFF) != HEAP_VERSION) {
+    printf( "Wrong version heap image; got %d, want %d\n.",
+	    (magic & 0xFFFF), HEAP_VERSION );
+    return -1;
+  }
 
   for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
     w = getword( fp );
@@ -196,7 +202,7 @@ int which_heap;
   }
 
   if ((magic & 0xFFFF0000) == 1) {
-    C_panic( "Can't do split heaps!!" );
+    C_panic( "Can't do split heaps(yet)." );
     scount = getword( fp );
     hcount = getword( fp );
     loadit( fp, globals[ S_BASE_OFFSET ], globals[ S_MAX_OFFSET ], scount );
@@ -255,52 +261,78 @@ FILE *fp;
 
 
 /*
- * Dumps the tenured heap. The heap layout is described above.
- * Returns 0 if everything went fine; EOF otherwise.
+ * Dumps the tenured heap. The heap layout is described above under the
+ * comments for loadheap().
+ * Is not able to dump a split image.
  *
  * The tenured heap is dumped "as is"; pointers into other areas are
  * dumped literally and should not exist (how do we deal with pointers into
  * the static area? At least pointers into the tenured area can be gc'd away.)
  *
- * UNTESTED!!
+ * This procedure is intended to be called from millicode. It can therefore
+ * not really just crash with error messages. In the case of any error,
+ * -1 is returned for the time being. At some point we need to differentiate.
+ * Returns 0 on success.
  */
-C_dump_heap( fp )
-FILE *fp;
+C_dump_heap( filename )
+char *filename;
 {
-  word base, top, count, w, *p;
+  word base, top, count, w, *p, woids;
   int i, align;
+  FILE *fp;
+
+  fp = fopen( filename, "w");
+  if (fp == NULL)
+    return -1;
 
   base = globals[ T_BASE_OFFSET ];
   top  = globals[ T_TOP_OFFSET ];
-  if (putword( HEAP_VERSION, fp ) == EOF)
-    return EOF;
 
-  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
-    if (putword( globals[ i ], fp ) == EOF)
-      return EOF;
+  if (putword( HEAP_VERSION, fp ) == EOF)
+    return -1;
+
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
+    if (isptr( globals[ i ] )) {
+      if (putword( globals[ i ] - base, fp ) == EOF)
+	return -1;
+    }
+    else if (putword( globals[ i ], fp ) == EOF)
+      return -1;
+  }
 
   count = (top - base) / 4;
   if (putword( count, fp ) == EOF)
-    return EOF;
+    return -1;
 
+  if (globals[ DEBUGLEVEL_OFFSET ])
+    printf( "Heap size in dump: %lu\n", count );
+
+  /* This works; however, the right thing is to normalize the heap, do 
+   * a binary dump, and then adjust the heap again.
+   */
   p = (word *) base;
-  while (count--) {
-    w = *p++;
-    if (putword( isptr( w ) ? w-base : w, fp ) == EOF)
-      return EOF;
-    
+  woids = 0;
+  while (count) {
+    w = *p++; 
+    if (putword( (isptr( w ) ? w-base : w), fp ) == EOF)
+      return -1;
+    count--;
+    woids++;
+
     if (header( w ) == BV_HDR) {
       i = roundup4( sizefield( w ) ) / 4;
-      align = (i % 2 == 0);
       while (i--) {
 	if (putword( *p++, fp ) == EOF)
-	  return EOF;
+	  return -1;
+	count--;
+	woids++;
       }
-      if (align)
-	if (putword( 0, fp ) == EOF)
-	  return EOF;
     }
   }
+
+  fclose( fp );
+  if (globals[ DEBUGLEVEL_OFFSET ])
+    printf( "Words of data: %lu\n", woids );
 
   return 0;
 }

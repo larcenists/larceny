@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.6 1992/05/15 22:18:06 lth Exp lth $
+; $Id: makefile.sch,v 1.7 1992/05/18 05:07:23 lth Exp lth $
 ;
 ; USAGE:
 ;
@@ -118,7 +118,6 @@
       (("../Lib/ctak.lap" "../Lib/ctak.sch") ,compile)
       (("../Lib/ctest.lop" "../Lib/ctest.lap") ,assemble)
       (("../Lib/ctest.lap" "../Lib/ctest.sch") ,compile)
-      (("../feb7/fib.lop" "../feb7/fib.mal") ,assemble)
 ;      (("../Lib/millicode-support.lop" "../Lib/millicode-support.mal") 
 ;       ,assemble)
       (("../Lib/millicode-support.lop" "../Lib/millicode-support.lap") 

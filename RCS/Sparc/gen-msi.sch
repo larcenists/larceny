@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent code generation procedures.
 ;
-; $Id: gen-msi.sch,v 1.4 1992/03/31 12:31:25 lth Exp lth $
+; $Id: gen-msi.sch,v 1.5 1992/05/15 22:18:24 lth Exp lth $
 ;
 ; (used to be part of asm.sparc.scm).
 
@@ -74,16 +74,20 @@
 
 ; SETGLBL
 ;
-; Store a register in a global. Assumes a value cell is a pair.
+; Store the RESULT register in a global. Assumes a value cell is a pair.
 ; The delay slot could be filled if we didn't call 'emit-const->register'
 ; here; as it is, it stays a nop.
 
 (define (emit-result-register->global! as offset)
-  (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
-  (emit-const->register! as offset $r.result)         ; fetches ptr to cell
-  ;; MUST be parameterized! FIXME!
-  (emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
-  (emit! as `(,$i.nop)))
+  (if register-transactions-for-side-effects
+      (begin
+	(emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
+	(emit-const->register! as offset $r.result)     ; fetches ptr to cell
+	(emit! as `(,$i.jmpli ,$r.millicode ,$m.setcar ,$r.o7))
+	(emit! as `(,$i.nop)))
+      (begin
+	(emit-const->register! as offset $r.tmp0)
+	(emit! as `(,$i.sti ,$r.result ,(- $tag.pair-tag) ,$r.tmp0)))))
 
 
 ; GLOBAL
@@ -314,7 +318,7 @@
 
 ; APPLY
 ;
-; `apply' falls into millicode
+; `apply' falls into millicode.
 
 (define (emit-apply! as)
   (emit! as `(,$i.jmpli ,$r.millicode ,$m.apply ,$r.o7))
@@ -367,9 +371,14 @@
   (let ((base (emit-follow-chain! as m)))
     (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg3))
     (emit! as `(,$i.orr ,base ,$r.g0 ,$r.result))
-    ;; MUST PARAMETERIZE. FIXME!
-    (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
-    (emit! as `(,$i.ori ,$r.g0 ,(slotoffset (- n 1)) ,$r.argreg2))))
+    (if register-transactions-for-side-effects
+	(begin
+	  (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
+	  (emit! as `(,$i.ori ,$r.g0 ,(slotoffset (- n 1)) ,$r.argreg2)))
+	(begin
+	  (emit! as `(,$i.sti ,$r.argreg3
+			      ,(- (slotoffset n) $tag.procedure-tag)
+			      ,$r.tmp0))))))
 
 
 ; Follow static links.

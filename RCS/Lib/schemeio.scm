@@ -3,7 +3,7 @@
 ; Scheme 313 run-time system
 ; Basic i/o primitives for generic UNIX
 ;
-; $Id: schemeio.scm,v 1.3 92/02/10 03:19:58 lth Exp Locker: lth $
+; $Id: schemeio.scm,v 1.4 1992/05/15 22:18:18 lth Exp lth $
 ;
 ; The following procedures must be either integrable or coded up at some lower
 ; level (currently they are written in MacScheme assembly language):
@@ -94,9 +94,9 @@
   ;             the port object.
   ; buffer      A string.
   ; size        The allocated size of the buffer (length of the string).
-  ; count       The number of characters left in the buffer. For output streams
-  ;             this is the number of chars free; for input streams, the number
-  ;             of chars unread.
+  ; count       The number of characters left in the buffer. For output 
+  ;             streams this is the number of chars free; for input 
+  ;             streams, the number of chars unread.
   ; ptr         The index of the next character in the buffer.
   ; error       The error handler for i/o errors on this port.
   ; status      'open, 'eof, or 'closed.
@@ -229,6 +229,8 @@
 	  ((eq? (port.status p) 'closed)
 	   (error 'close "Port already closed."))
 	  (else
+	   (if (eq? direction 'output)
+	       (%flush-output-port p))
 	   (close-port! p))))
 
   (define (close-port! p)
@@ -316,16 +318,16 @@
 	    (else
 	     (do-write-char c (car p))))))
 
-  (define (%call-with-input-file file p)
+  (define (%call-with-input-file file proc)
     (let ((port (%open-input-file file)))
-      (let ((r (p port)))
-	(%close-input-port port)
+      (let ((r (proc port)))
+	(%close-port 'input port)
 	r)))
 
-  (define (%call-with-output-file file p)
+  (define (%call-with-output-file file proc)
     (let ((port (%open-output-file file)))
-      (let ((r (p port)))
-	(%close-output-port p)
+      (let ((r (proc port)))
+	(%close-port 'output port)
 	r)))
 
   (define %flush-output-port

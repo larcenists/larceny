@@ -1,7 +1,7 @@
 ; Print procedures for Larceny, based on same for MacScheme.
 ; Copyright 1991 Lightship Software
 ;
-; $Id: print.sch,v 1.2 1992/02/10 03:17:17 lth Exp lth $
+; $Id: print.sch,v 1.3 1992/05/15 22:18:13 lth Exp lth $
 ;
 ; Differences from MacScheme version: 
 ;  * printslashed now accepts both bytevectors and strings; bytevector 
@@ -93,7 +93,7 @@
               ((bytevector? x)          (printbytevector x p slashify))
               ((port? x)                (printport x p slashify))
               ((eof-object? x)          (printeof x p slashify))
-;             ((eq? x hash-bang-unspecified)    (printstr "#!unspecified" p))
+              ((eq? x (unspecified))    (printstr "#!unspecified" p))
               (else                     (printweird x p slashify)))))
      
      (printnumber

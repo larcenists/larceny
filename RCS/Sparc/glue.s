@@ -1,9 +1,13 @@
 ! -*- Fundamental -*-
 !
-! Scheme 313 Run-time system
-! Miscellaneous assembly language "glue" and millicode.
+! Larceny Run-time System (SPARC)
 !
-! $Id: glue.s,v 1.8 92/03/31 12:31:33 lth Exp Locker: lth $
+! $Id: glue.s,v 1.9 1992/05/15 22:18:30 lth Exp lth $
+!
+! This file contains miscellaneous glue procedures and many millicode
+! procedures. The most important glue procedures are _scheme_start which
+! invokes the Scheme system (callable from C) and _scheme_call, which calls
+! a Scheme procedure from millicode with complete saving of state.
 
 #include "registers.s.h"
 #include "millicode.s.h"
@@ -17,7 +21,7 @@
 
 	! Runtime-system internal procedures
 
-	.global	_schemestart
+	.global	_scheme_start
 	.global	_scheme_call
 
 	! Millicode procs
@@ -37,11 +41,11 @@
 	.global	_m_reset
 	.global	_m_exit
 	.global	_m_break
-	.global _m_dump
+	.global _m_dumpheap
 	.global _m_singlestep
 	.global _m_generic_exception
 
-! These need to appear.
+! These need to appear eventually, I think.
 !
 !	.global _m_vector_ref
 !	.global _m_vector_set
@@ -54,7 +58,8 @@
 !	.global _m_bytevector_like_ref
 !	.global _m_bytevector_like_set
 
-	! Mostly obsolete exception handlers
+	! Mostly obsolete exception handlers (but not obsolete until
+	! the primops catch up with the new exception handling policies).
 
 	.global	_not_supported
 	.global	_type_exception
@@ -64,20 +69,25 @@
 	.global	_arith_exception
 	.global	_undef_exception
 
-! The procedure _schemestart is called from the C-language initialization
-! code. _schemestart sets up the virtual machine and then calls the
+! The procedure _scheme_start is called from the C-language initialization
+! code. _scheme_start sets up the virtual machine and then calls the
 ! application specific startup procedure in the globals slot 'SCHEME_ENTRY'.
-! If that procedure returns, then _schemestart returns to its caller.
+! If that procedure returns, then _scheme_start returns to its caller.
 ! 
+! Note that if the startup procedure returns, Scheme I/O buffers will not
+! be flushed, nor will any other exit procedures be called. The only way
+! for all this to happen is for the application to do it, and it is normally
+! done by calling the scheme procedure "exit".
+!
 ! If the C startup wishes to pass arguments to SCHEME_ENTRY, it should 
 ! intialize the appropriate register save areas in globals[], as we avoid
 ! touching the registers here. (If there are no arguments, the startup
 ! must set %RESULT to 0, at least).
 !
-! [This may be a specialization of the C-to-scheme calling stuff; if so,
-!  it should later be merged with the general case.]
+! [This procedure may be a specialization of the C-to-scheme calling stuff;
+! if so, _scheme_start should later be merged with the general case.]
 
-_schemestart:
+_scheme_start:
 	save	%sp, -96, %sp			! Standard stack frame
 	st	%i7, [ %fp + 0x44 ]
 
@@ -85,9 +95,11 @@ _schemestart:
 	nop
 
 ! Call application code: setup a minimal continuation and jump. The
-! continuation contains a dummy procedure field.
+! continuation contains a dummy procedure field. No stack overflow check
+! is performed, so the stack cache must have a minimum of 16 bytes free.
+! (It would be ridiculous if it did not.)
 
-	set	L1-8, %TMP0		! this is ok since this code won't move
+	set	L1-8, %TMP0		! this is valid; this code won't move
 	sub	%STKP, 16, %STKP	! allocate frame
 	st	%TMP0, [ %STKP ]	! return address
 	mov	12, %TMP1
@@ -100,10 +112,11 @@ L2:
 	beq	L0
 	nop
 
-	! Startup slot does not have a procedure; just print an error and exit.
-	! This should never happen unless the user has manually hacked the
-	! heap image (as we can check that we get a procedure at dump time),
-	! and frankly, I couldn't care if ze shoots zemself in the foot.
+	! Startup slot does not have a procedure; just print an error and
+	! exit. This should never happen unless the user has manually hacked
+	! the heap image (as we can check that we get a procedure at dump 
+	! time), and frankly, I couldn't care if ze shoots zemself in the 
+	! foot.
 
 	set	Lnonproc, %o0
 	call	_printf
@@ -113,8 +126,8 @@ L2:
 
 	! Everything is fine.
 L0:
-	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
-	jmp	%TMP0 + A_CODEOFFSET
+	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
+	jmp	%TMP0 - BVEC_TAG + CODEOFFSET
 	nop
 
 	! Return to C code
@@ -127,8 +140,8 @@ L1:
 	restore
 
 	.seg	"data"
-Lnonproc:	.asciz	"Startup slot does not have a procedure!\n"
-
+Lnonproc:
+	.asciz	"Startup slot does not have a procedure!\n"
 	.seg	"text"
 
 ! `_scheme_call'
@@ -142,13 +155,13 @@ Lnonproc:	.asciz	"Startup slot does not have a procedure!\n"
 ! caller will not do this. So we must arrange for it to happen.
 !
 ! This is what happens: We create two stack frames, like shown below.
-! The top frame has no saved registers save R0, which is a pointer to the
-! global procedure "scheme2scheme-helper" (defined in "Lib/Sparc/glue.mal").
+! The top frame has no saved registers except R0, which is a pointer to the
+! Scheme procedure "scheme2scheme-helper" (defined in "Lib/Sparc/glue.mal").
 ! The return address in this frame points to the very start of that procedure.
 ! The second frame has a full set of saved registers, and its R0 is a pointer
 ! to the original caller. The return address is the return address in the
 ! original caller -- the point to which millicode should have returned.
-! When the scheme procedure which was called from millicode returns, it
+! When the Scheme procedure which was called from millicode returns, it
 ! will return into scheme2scheme-helper, which in turn pops *both* frames and
 ! restores the original context before returning to the original Scheme
 ! procedure.
@@ -178,7 +191,7 @@ Lnonproc:	.asciz	"Startup slot does not have a procedure!\n"
 !    vector pointer is in the root MILLICODE_SUPPORT.
 !
 ! This procedure then sets up the two stack frames and invokes the requested
-! scheme procedure, which returns through the helper procedure in the top
+! Scheme procedure, which returns through the helper procedure in the top
 ! stack frame. This procedure never returns to its caller.
 
 _scheme_call:
@@ -190,8 +203,8 @@ _scheme_call:
 	! location. So we store the offset into the procedure as a fixnum.
 
 	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]		! 4th arg
-	st	%TMP1, [ %GLOBALS + GLUE_TMP2_OFFSET ]		! argc
-	st	%TMP2, [ %GLOBALS + GLUE_TMP3_OFFSET ]		! proc
+	st	%TMP1, [ %GLOBALS + GLUE_TMP2_OFFSET ]		! argc. BUG!
+	st	%TMP2, [ %GLOBALS + GLUE_TMP3_OFFSET ]		! proc. BUG!
 	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
 	sub	%TMP0, BVEC_TAG, %TMP0
 	sub	%o7, %TMP0, %TMP0
@@ -203,7 +216,7 @@ _scheme_call:
 	cmp	%STKP, %TMP0
 	bge	Lscheme_call_1
 	nop
-	jmpl	%MILLICODE + M_STKOFLOW, %o7
+	call	_mem_internal_stkoflow
 	nop
 
 	! Allocate the stack frames, then save values.
@@ -215,6 +228,28 @@ Lscheme_call_1:
 
 	ld	[ %GLOBALS + MILLICODE_SUPPORT_OFFSET ], %TMP0
 	ld	[ %TMP0 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP0
+	cmp	%TMP0, UNSPECIFIED_CONST
+	bne	Lscheme_call_2
+	nop
+
+	! Here, there was no vector in the magic global, probably because
+	! the system is still being initialized. This is a fatal error,
+	! so we simply print an error message and abort. While this should
+	! never happen in a working system, it is nice to have as a 
+	! diagnostic when bringing up a new heap.
+
+	set	Lnovector, %o0
+	call	_printf
+	nop
+	call	_exit
+	mov	1, %o0
+
+	.seg	"data"
+Lnovector:
+	.asciz	"No vector in the MILLCODE_SUPPORT global.\n"
+	.seg	"data"
+
+Lscheme_call_2:
 	add	%TMP0, 4 - VEC_TAG, %TMP0
 	ld	[ %GLOBALS + GLUE_TMP3_OFFSET ], %TMP2		! proc idx
 	ld	[ %TMP0 + %TMP2 ], %TMP2			! proc to call
@@ -292,7 +327,7 @@ Lscheme_call_1:
 	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %REG4		! get 4th arg
 	ld	[ %GLOBALS + GLUE_TMP3_OFFSET ], %REG0		! proc
 	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
-	jmp	%TMP0 + A_CODEOFFSET
+	jmp	%TMP0 - BVEC_TAG + CODEOFFSET
 	sll	%TMP1, 2, %RESULT
 
 #undef BASE
@@ -346,7 +381,7 @@ _m_unlink_file:
 	restore
 
 ! Copy the string into the local buffer, truncating if necessary, and null-
-! terminating.
+! terminating. Assumes the string pointer is in %SAVED_RESULT.
 ! This is not particularly efficient.
 
 Lcopystring:
@@ -472,53 +507,55 @@ Lapply2:
 	! the list and returns that in TMP0. Finally it copies hardware-
 	! mapped registers in from the globals file.
 
-	mov	%REG1, %ARGREG2		! list ptr
-	mov	%GLOBALS, %ARGREG3	! pointer to globals
+	mov	%REG1, %TMP0				! list ptr
+	mov	%GLOBALS, %TMP1				! pointer to globals
+
 	save	%sp, -96, %sp
 
-	add	%SAVED_ARGREG3, REG1_OFFSET, %l0	! destination ptr
-	mov	%SAVED_ARGREG2, %l1			! source ptr
+	add	%SAVED_TMP1, REG1_OFFSET, %l0		! destination ptr
+	mov	%SAVED_TMP0, %l1			! source ptr
 	mov	30, %l2					! counter
 	mov	0, %l3					! list length
 
 Lapply3:
-	cmp	%l0, NIL_CONST
+	cmp	%l1, NIL_CONST				! done yet?
 	be	Lapply5
 	nop
-	and	%l0, TAGMASK, %TMP0
-	cmp	%TMP0, PAIR_TAG
+	and	%l1, TAGMASK, %l5			! pair?
+	cmp	%l5, PAIR_TAG
 	bne	Lapply9					! not a proper list
 	nop
-	ld	[ %l0 - PAIR_TAG ], %l4			! get car
+	ld	[ %l1 - PAIR_TAG ], %l4			! car
 	add	%l3, 1, %l3				! one more
 	st	%l4, [ %l0 ]				! stuff in table
-	subcc	%l2, 1, %l2
+	add	%l0, 4, %l0
+	subcc	%l2, 1, %l2				! one less
 	bg	Lapply3
-	ld	[ %l0 + 4 - PAIR_TAG ], %l0		! get cdr
+	ld	[ %l1 + 4 - PAIR_TAG ], %l1		! cdr
 
 	! Counter expired. We must save the list tail in REG31 and then
 	! cdr down the tail to find the length and make sure the list is
 	! proper.
 
-	st	%l0, [ %SAVED_ARGREG3 + REG31_OFFSET ]	! store tail
+	st	%l1, [ %SAVED_TMP1 + REG31_OFFSET ]	! store tail
 Lapply4:
-	cmp	%l0, NIL_CONST
+	cmp	%l1, NIL_CONST
 	be	Lapply5
 	nop
-	and	%l0, TAGMASK, %TMP0
-	cmp	%TMP0, PAIR_TAG
+	and	%l1, TAGMASK, %l5
+	cmp	%l5, PAIR_TAG
 	bne	Lapply9
 	nop
 	add	%l3, 1, %l3
 	b	Lapply4
-	ld	[ %l0 + 4 - PAIR_TAG ], %l0
+	ld	[ %l1 + 4 - PAIR_TAG ], %l1
 
 Lapply5:
 	! The length is now in %l3, and all software registers are set up 
 	! appropriately. Must load the hardware-mapped ones in, and then 
 	! setup the length.
 
-	sll	%l3, 2, %SAVED_ARGREG2			! fixnum it.
+	sll	%l3, 2, %SAVED_TMP1			! fixnum it.
 	restore
 
 	! One day we'll doubleword-align the software register file...
@@ -535,14 +572,15 @@ Lapply5:
 
 	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
 	jmp	%TMP0 + A_CODEOFFSET
-	mov	%ARGREG2, %RESULT
+	mov	%TMP1, %RESULT
 
 Lapply9:
 	! The list was not proper. We have an error that must be handled.
-	! This code depends on %RESULT and %ARGREG2 still having their
+	! This code depends on %RESULT and %REG1 still having their
 	! original values.
 
 	restore
+	mov	%REG1, %ARGREG2
 	jmp	%MILLICODE + M_GENERIC_EXCEPTION
 	mov	EX_APPLY, %TMP0
 
@@ -730,6 +768,8 @@ _m_debug:
 	b	_not_supported
 	nop
 
+! Reset the system. Should arguably be written entirely in Scheme.
+
 _m_reset:
 	b	_not_supported
 	nop
@@ -745,13 +785,69 @@ _m_exit:
 	call	_exit
 	mov	0, %o0
 
-! Reset the system. Should arguably be written entirely in Scheme.
+! Dump the heap to a file. Takes two arguments, the file name and the
+! startup procedure. 
 
-! Dump the heap to a file.
-
-_m_dump:
-	b	_not_supported
+_m_dumpheap:
+	and	%ARGREG2, TAGMASK, %TMP0
+	cmp	%TMP0, PROC_TAG
+	bne	Ldump_err
 	nop
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	bne	Ldump_err
+	nop
+	ld	[ %RESULT - BVEC_TAG ], %TMP0
+	and	%TMP0, 0xFF, %TMP1
+	cmp	%TMP1, (BV_HDR | STR_SUBTAG)
+	bne	Ldump_err
+	nop
+	sra	%TMP0, 8, %TMP0
+	cmp	%TMP0, 255
+	bge	Ldump_err
+	nop
+
+	! Data is validated as much as possible; what is left is that the
+	! init proc may not take the right number of arguments, but we
+	! cannot check that.
+
+	! Now install the startup procedure. No transaction need be recorded
+	! because we are about to do a major collection.
+
+	st	%ARGREG2, [ %GLOBALS + SCHEME_ENTRY_OFFSET ]
+
+	! Collect.
+
+	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
+	mov	%o7, %TMP0
+	call	_mem_internal_collect
+	mov	-2 << 2, %RESULT
+	mov	%TMP0, %o7
+	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
+
+	! Dump.
+
+	save	%sp, -96, %sp
+	
+	call	Lcopystring		! copies the file name into Lfnbuf
+	nop
+
+	set	Lfnbuf, %o0
+	call	_C_dump_heap
+	nop
+	cmp	%o0, -1
+	be	Ldump_err2
+	restore
+
+	jmp	%o7+8
+	nop
+
+Ldump_err:
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_DUMP, %TMP0
+Ldump_err2:
+	jmp	%MILLICODE + M_GENERIC_EXCEPTION
+	mov	EX_DUMPFAIL, %TMP0
 
 ! Breakpoints are expensive, as the machine state must be saved and restored;
 ! this is so that the break handler can inspect the state (if desired).
@@ -775,6 +871,19 @@ _m_break:
 ! Ditto single step handler. Single stepping was added to support CIS 561,
 ! and single steps on the granularity of MacScheme assembly language 
 ! instructions, with some compiler support.
+!
+! This procedure takes one argument in the %TMP0 register, namely a 
+! (fixnum) index into the constant vector of the currently executing 
+! procedure. This constant slot has to contain a string, and that string
+! will usually be the printable representation of the MacScheme instruction
+! to be executed next. 
+!
+! If the singlestep flag in the globals array is on, then the state is
+! saved, the string is fetched from the constant vector, and the
+! C_singlestep() procedure is invoked. When it returns, the state is 
+! restored, and control is returned to the running program. The singlestep
+! handler may *not* invoke the Scheme system again, as there is state
+! here. We could probably get rid of that problem.
 
 _m_singlestep:
 	ld	[ %GLOBALS + SINGLESTEP_OFFSET ], %TMP1
@@ -791,9 +900,8 @@ Lsinglestep1:
 	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
 	ld	[ %REG0 - PROC_TAG + CONSTVECTOR ], %TMP1
 	sub	%TMP1, VEC_TAG, %TMP1
-	ld	[ %TMP1 + %TMP0 ], %o0            ! tagged string ptr
 	call	_C_singlestep
-	nop
+	ld	[ %TMP1 + %TMP0 ], %o0            ! tagged string ptr
 	call	_mem_restore_scheme_context
 	nop
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
@@ -813,8 +921,9 @@ Lsinglestep1:
 !    point to the instruction which would have been returned to if the
 !    operation had succeeded (minus the usual 8 bytes), i.e. jumping to %o7+8
 !    with the correct(ed) result in %RESULT will continue the computation.
-!    The return address may not, under any circumstances, point into millicode.
-!  - %RESULT, %ARGREG2, and %ARGREG3 has the arguments of the operation that
+!    The return address may not, under any circumstances, point into 
+!    millicode.
+!  - %RESULT, %ARGREG2, and %ARGREG3 have the arguments of the operation that
 !    faulted.
 
 _m_generic_exception:
@@ -824,9 +933,8 @@ _m_generic_exception:
 	be	Lgeneric_exception
 	nop
 	mov	4, %TMP1
-	mov	MS_EXCEPTION_HANDLER, %TMP2
 	b	_scheme_call
-	nop
+	mov	MS_EXCEPTION_HANDLER, %TMP2
 
 ! Print an error message detailing the program counter, then enter the
 ! debugger in the run-time system. This routine will go away when we get

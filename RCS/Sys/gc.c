@@ -2,7 +2,7 @@
  * Larceny Runtime System.
  * Garbage collector.
  *
- * $Id: gc.c,v 3.6 92/02/23 16:56:30 lth Exp Locker: lth $
+ * $Id: gc.c,v 3.7 1992/05/15 22:18:37 lth Exp lth $
  *
  * THE COLLECTOR
  *   There are two kinds of spaces: the tenured space and the ephemeral space.
@@ -390,6 +390,7 @@ word *top;
   unsigned int i, tag, size;
   word *my_e_base = e_base;
   word *my_e_max = e_max;
+  word *my_t_trans = t_trans;
 
   dest = base;
 
@@ -404,7 +405,7 @@ word *top;
    * Do transaction list. The transaction list is in the tenured area 
    * between t_max and t_trans (including the former but not the latter.)
    */
-  for ( tail = head = t_max ; head > t_trans ; head-- ) {
+  for ( tail = head = t_max ; head > my_t_trans ; head-- ) {
     tag = tagof( *head );
     ptr = ptrof( *head );
     if (tag == VEC_TAG || tag == PROC_TAG) {

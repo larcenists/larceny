@@ -4,7 +4,7 @@
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
 ;
-; $Id: misc2bytevector.ss,v 1.2 92/02/10 03:31:18 lth Exp Locker: lth $
+; $Id: misc2bytevector.ss,v 1.3 1992/03/31 12:30:34 lth Exp lth $
 
 ; Generic.
 
@@ -153,16 +153,11 @@
 	(else
 	 (bitpattern f))))
 
-; Begin gross hack.
-
-(if (not (bound? 'has-loaded-bitpattern))
-    (load-foreign "../Chez/bitpattern.o"))
-(set! has-loaded-bitpattern #t)
+; Gross hack.
 
 (define unix$bitpattern
   (foreign-procedure "bitpattern" (integer-32 double-float) unsigned-32))
 
-; End gross hack.
 
 ; utility
 

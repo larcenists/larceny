@@ -1,6 +1,6 @@
 ; -*- Scheme -*-
 ;
-; $Id: make.sch,v 1.1 92/01/16 13:27:49 lth Exp Locker: lth $
+; $Id: make.sch,v 1.2 1992/02/10 03:35:59 lth Exp lth $
 ;
 ; DESCRIPTION
 ;   A "make" facility for Chez Scheme.
@@ -85,7 +85,7 @@
 			    (< (car times) x))
 			  (cdr times))
 		   (begin (display (format "Making ~a~%" target))
-			  ((cadr dep) (cdar dep)))))))))
+			  ((cadr dep) target (cdar dep)))))))))
 
   (make target))
 

@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: reader.sch,v 1.3 92/02/24 17:24:54 lth Exp Locker: lth $
+; $Id: reader.sch,v 1.4 1992/05/15 22:18:16 lth Exp lth $
 ;
 ; Scheme reader.                        17 April 1990
 ; Modified for the new system by lth.   16 January 1992
@@ -409,7 +409,7 @@
                        ((null) '())
                        ((false) #f)
                        ((true)  #t)
-                       ((unspecified) **unspecified**)
+                       ((unspecified) (unspecified))
                        ((fasl) **fasl**)
                        (else  (error "Malformed #! syntax" x)))))
                   ((char=? c (ascii "("))

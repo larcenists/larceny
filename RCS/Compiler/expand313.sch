@@ -1,19 +1,22 @@
 ;; Program which expands all macros in the input file.
 ;;
-;; $Id$
+;; $Id: expand313.sch,v 1.1 1992/05/15 22:25:22 lth Exp lth $
 ;;
 ;; We use this to get rid of quasiquotations to help the current version of
 ;; twobit. To be used in emergencies only. :-)
 
-(define (expand313 infn)
-  (let ((outfn (if (and (>= (string-length infn) 4)
-			(string=? (substring infn 
-					     (- (string-length infn) 4)
-					     (string-length infn)) 
-				  ".raw"))
-		   (string-append (substring infn 0 (- (string-length infn) 4))
-				  ".sch")
-		   (string-append infn ".sch"))))
+(define (expand313 infn . rest)
+  (let ((outfn 
+	 (if (not (null? rest))
+	     (car rest)
+	     (if (and (>= (string-length infn) 4)
+		      (string=? (substring infn 
+					   (- (string-length infn) 4)
+					   (string-length infn)) 
+				".raw"))
+		 (string-append (substring infn 0 (- (string-length infn) 4))
+				".sch")
+		 (string-append infn ".sch")))))
     (call-with-input-file infn
       (lambda (inp)
 	(delete-file outfn)

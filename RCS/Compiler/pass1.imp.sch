@@ -1,7 +1,7 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: pass1.imp.sch,v 1.2 92/02/10 03:36:07 lth Exp Locker: lth $
+; $Id: pass1.imp.sch,v 1.3 1992/05/15 22:17:49 lth Exp lth $
 
 (define (byte? x)
   (and (fixnum? x)
@@ -88,7 +88,7 @@
     (sys$reset 0 sys$reset #f 1)
     (sys$exit 0 sys$exit #f 2)
     (break 0 break #f 3)
-    (sys$dumpheap 0 sys$dumpheap #f 6)
+    (sys$dumpheap 2 sys$dumpheap #f 6) ; takes two args in larceny
     (creg 0 creg #f 7)
 ;    (undefined 0 undefined #f 8)
     (getrusage 0 getrusage #f -1)
@@ -169,6 +169,7 @@
     (eq? 2 eq? ,byte? #xa1)
     (eqv? 2 eqv? #f #xa2)
     (cons 2 cons #f #xa8)
+    (%cons 2 cons #f #xa8)          ; for the benefit of macro expansion...
     (set-car! 2 set-car! #f #xa9)
     (set-cdr! 2 set-cdr! #f #xaa)
     (+ 2 + ,byte? #xb0)

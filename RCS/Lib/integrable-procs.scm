@@ -3,15 +3,16 @@
 ; Larceny run-time system
 ; Global procedure definitions for integrable procedures.
 ;
-; $Id: integrable-procs.scm,v 1.2 92/02/10 03:19:42 lth Exp Locker: lth $
+; $Id: integrable-procs.scm,v 1.3 1992/05/15 22:18:04 lth Exp lth $
 
+(define getrusage (lambda () (getrusage)))
 (define debugvsm (lambda () (debugvsm)))
 (define reset (lambda () (sys$reset)))
 ;; exit should also flush output buffers, etc, etc.
 (define exit (lambda () (sys$exit)))
 (define break (lambda () (break)))
 (define gc (lambda (x) (sys$gc x)))
-; (define dumpheap (lambda () (sys$dumpheap)))
+(define dumpheap (lambda (filename proc) (sys$dumpheap filename proc)))
 (define creg (lambda () (creg)))
 ; (define undefined (lambda () (undefined)))
 (define unspecified (lambda () (unspecified)))

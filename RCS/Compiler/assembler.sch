@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.sch,v 1.10 92/03/31 12:30:36 lth Exp Locker: lth $
+; $Id: assembler.sch,v 1.11 1992/05/15 22:17:42 lth Exp lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -674,7 +674,7 @@
 ; Could be made portable with a little bit of effort.
 
 (define (emit-singlestep! as instr)
-  (if (not (memq (car instr) `(,$.label ,$.proc ,$.cont ,$.align)))
+  (if (not (memq (car instr) (list $.label $.proc $.cont $.align)))
       (let ((p (open-output-string))
 	    (f (= (car instr) $restore)))
 	(display (if (= (car instr) $lambda)

@@ -1,7 +1,7 @@
 /*
  * Larceny -- A run-time system for IEEE/R4RS Scheme on the Sun Sparcstation.
  *
- * $Id: main.c,v 1.9 92/03/31 12:31:45 lth Exp Locker: lth $
+ * $Id: main.c,v 1.10 1992/05/15 22:18:46 lth Exp lth $
  *
  * LARCENY (1)
  *
@@ -172,7 +172,7 @@ char **argv, **envp;
   globals[ RESULT_OFFSET ] = fixnum( 0 );  /* No arguments */
   globals[ SINGLESTEP_OFFSET ] = (singlestep ? TRUE_CONST : FALSE_CONST);
 
-  schemestart();
+  scheme_start();
   exit( 0 );
 }
 
@@ -205,10 +205,11 @@ static init_millicode()
 static void setup_interrupts( ifreq )
 unsigned ifreq;
 {
-  static void inthandler();
+  static void inthandler(), fpehandler();
 
   signal( SIGINT, inthandler );
   signal( SIGQUIT, inthandler );
+  signal( SIGFPE, fpehandler );
 }
 
 
@@ -221,6 +222,11 @@ static void inthandler()
   exit( 1 );
 }
 
+static void fpehandler()
+{
+  fprintf( stderr, "Arithmetic exception (division by zero?).\n" );
+  exit( 1 );
+}
 
 /*
  * Invalid command line argument error handler.

@@ -1,6 +1,6 @@
 ; Batch compiler/assembler/disassembler drivers for Scheme 313.
 ;
-; $Id: compile313.sch,v 1.3 91/10/13 21:16:50 lth Exp Locker: lth $
+; $Id: compile313.sch,v 1.4 1992/02/10 03:35:41 lth Exp lth $
 ;
 ; We operate with several different file formats.
 ;
@@ -27,16 +27,18 @@
 
 ; Compile a scheme file (extension ".sch" or ".scm") to a ".lap" file.
 
-(define (compile313 file)
+(define (compile313 file . rest)
   (let* ((n (string-length file))
          (outputfile
-          (string-append
-           (if (and (> n 4)
-                    (or (string-ci=? ".sch" (substring file (- n 4) n))
-			(string-ci=? ".scm" (substring file (- n 4) n))))
-               (substring file 0 (- n 4))
-               file)
-           ".lap")))
+	  (if (not (null? rest))
+	      (car rest)
+	      (string-append
+	       (if (and (> n 4)
+			(or (string-ci=? ".sch" (substring file (- n 4) n))
+			    (string-ci=? ".scm" (substring file (- n 4) n))))
+		   (substring file 0 (- n 4))
+		   file)
+	       ".lap"))))
     (call-with-input-file
      file
      (lambda (p)
@@ -57,7 +59,7 @@
 
 ; Assemble a ".lap" or ".mal" file to a ".lop" file.
 
-(define (assemble313 file)
+(define (assemble313 file . rest)
 
   (define (assemble-file filter infile outfile)
 
@@ -80,13 +82,15 @@
 
   (let* ((n (string-length file))
          (outputfile
-          (string-append
-           (if (and (> n 4)
-                    (or (string-ci=? ".lap" (substring file (- n 4) n))
-			(string-ci=? ".mal" (substring file (- n 4) n))))
-               (substring file 0 (- n 4))
-               file)
-           ".lop")))
+	  (if (not (null? rest))
+	      (car rest)
+	      (string-append
+	       (if (and (> n 4)
+			(or (string-ci=? ".lap" (substring file (- n 4) n))
+			    (string-ci=? ".mal" (substring file (- n 4) n))))
+		   (substring file 0 (- n 4))
+		   file)
+	       ".lop"))))
     (if (and (> n 4) (string-ci=? ".mal" (substring file (- n 4) n)))
 	(assemble-file eval file outputfile)
 	(assemble-file (lambda (x) x) file outputfile))))

@@ -1,7 +1,7 @@
 ! Scheme 313 runtime system
 ! Global table for millicode calls.
 !
-! $Id: tables.s,v 1.6 92/03/31 12:31:36 lth Exp Locker: lth $
+! $Id: tables.s,v 1.7 1992/05/15 22:18:34 lth Exp lth $
 !
 ! Needs to be sorted into a more logical order, I think.
 
@@ -223,6 +223,9 @@ _millicode:
 	nop
 	! #66: M_GENERIC_EXCEPTION
 	b	_m_generic_exception
+	nop
+	! #67: M_DUMPHEAP
+	b	_m_dumpheap
 	nop
 
 	! end of millicode table

@@ -3,7 +3,7 @@
 ;; but rather compile them and load the compiled code. This works. But one
 ;; can also load interpretable code (raw scheme) and have it work.
 ;;
-;; $Id: eval.sch,v 1.3 1992/05/18 05:11:14 lth Exp lth $
+;; $Id: eval.sch,v 1.4 1992/05/25 05:21:16 lth Exp lth $
 ;;
 ;; 'Eval' takes an expression and evaluates the expression in the default
 ;; toplevel environment. It returns the result of the evaluation,
@@ -101,17 +101,21 @@
 
 (define (empty-env) '())
 
-(define (extend-env env names values)
-  (cond ((and (null? names) (null? values))
-	 env)
-	((or (null? names) (null? values))
-	 (error "Wrong number of arguments to procedure"))
-	((not (pair? names))
-	 (cons (cons names values) env))
-	(else
-	 (extend-env (cons (cons (car names) (car values)) env)
-		     (cdr names)
-		     (cdr values)))))
+(define (extend-env env n v)
+
+  (define (extend-env env names values)
+    (cond ((and (null? names) (null? values))
+	   env)
+	  ((or (null? names) (null? values))
+	   (error "Wrong number of arguments to procedure;" n v))
+	  ((not (pair? names))
+	   (cons (cons names values) env))
+	  (else
+	   (extend-env (cons (cons (car names) (car values)) env)
+		       (cdr names)
+		       (cdr values)))))
+
+  (extend-env env n v))
 
 (define (env-set! env name value)
   (let ((probe (assq name env)))
@@ -135,16 +139,17 @@
   (let ((cell (toplevel-env-find symbol)))
     (if cell
 	cell
-	(begin (extend-toplevel-env! symbol '#f)
+	(begin (extend-toplevel-env! symbol (unspecified))
 	       (toplevel-cell symbol)))))
 
 ;; Return the value associated with the name, if any. Error if none.
 
 (define (toplevel-env-lookup name)
   (let ((cell (toplevel-env-find name)))
-    (if cell
-	(global-cell-ref cell)
-	(error "Unknown global variable" name))))
+    (if (or (not cell)
+	    (eq? (global-cell-ref cell) (unspecified)))
+	(error "Undefined or uninitialized global variable" name)
+	(global-cell-ref cell))))
 
 ;; Change the binding of a toplevel name.
 
@@ -192,6 +197,7 @@
   (extend-toplevel-env! 'putprop putprop)
   (extend-toplevel-env! 'remprop remprop)
   (extend-toplevel-env! 'procedure? procedure?)
+  (extend-toplevel-env! 'unspecified unspecified)
 
   ;; Characters
 
@@ -206,6 +212,8 @@
   (extend-toplevel-env! 'char-ci>? char-ci>?)
   (extend-toplevel-env! 'char-ci<=? char-ci<=?)
   (extend-toplevel-env! 'char-ci>=? char-ci>=?)
+  (extend-toplevel-env! 'integer->char integer->char)
+  (extend-toplevel-env! 'char->integer char->integer)
 
   ;; Support for rewriter
 
@@ -320,6 +328,8 @@
   (extend-toplevel-env! 'gcd gcd)
   (extend-toplevel-env! 'lcm lcm)
   (extend-toplevel-env! 'random random)
+  (extend-toplevel-env! 'max max)
+  (extend-toplevel-env! 'min min)
 
   ;; strings
 
@@ -343,6 +353,10 @@
   (extend-toplevel-env! 'string-ci>? string-ci>?)
   (extend-toplevel-env! 'string-ci<=? string-ci<=?)
   (extend-toplevel-env! 'string-ci>=? string-ci>=?)
+  (extend-toplevel-env! 'string->symbol string->symbol)
+  (extend-toplevel-env! 'symbol->string symbol->string)
+  (extend-toplevel-env! 'gensym gensym)
+  (extend-toplevel-env! 'substring substring)
 
   ;; bytevectors
 
@@ -358,7 +372,7 @@
   (extend-toplevel-env! 'bytevector-like-ref bytevector-like-ref)
   (extend-toplevel-env! 'bytevector-like-set! bytevector-like-set!)
   (extend-toplevel-env! 'bytevector-like-length bytevector-like-length)
-  (extend-toplevel-env! 'bytevector-like-equal? bytevector-like-equal?)
+;  (extend-toplevel-env! 'bytevector-like-equal? bytevector-like-equal?)
 
   ;; i/o
 
@@ -376,16 +390,26 @@
   (extend-toplevel-env! 'call-with-input-file call-with-input-file)
   (extend-toplevel-env! 'input-port? input-port?)
   (extend-toplevel-env! 'output-port? output-port?)
+  (extend-toplevel-env! 'current-input-port current-input-port)
+  (extend-toplevel-env! 'current-output-port current-output-port)
+  (extend-toplevel-env! 'port? port?)
+  (extend-toplevel-env! 'flush-output-port flush-output-port)
+  (extend-toplevel-env! '**eof** **eof**)
 
   ;; misc
 
   (extend-toplevel-env! 'rewrite rewrite)
   (extend-toplevel-env! 'run-with-stats run-with-stats)
+  (extend-toplevel-env! 'display-memstats display-memstats)
+  (extend-toplevel-env! 'getrusage getrusage)
   (extend-toplevel-env! 'issue-warnings issue-warnings)
   (extend-toplevel-env! 'collect collect)
   (extend-toplevel-env! 'memstats memstats)
   (extend-toplevel-env! 'typetag typetag)
   (extend-toplevel-env! 'typetag-set! typetag-set!)
+  (extend-toplevel-env! '**newline** **newline**)
+  (extend-toplevel-env! 'dumpheap dumpheap)
+  (extend-toplevel-env! 'rep-loop rep-loop)
 
   #t)
 
@@ -412,13 +436,23 @@
 	  ((2 tenuring) (set! type 2))
 	  ((3 full) (set! type 3))
 	  (else
-	   (error "collect: invalid type" x))))
+	   (error "collect: invalid type" (car args)))))
     (case type
-      ((1) (display "Ephemeral collection.") (newline) (gc 0))
-      ((2) (display "Tenuring collection.") (newline) (gc -1))
-      ((3) (display "Full collection.") (newline) (gc -2)))
+      ((1) (gc 0))
+      ((2) (gc -1))
+      ((3) (gc -2)))
     #t))
 
-;; eof
+(define gensym
+  (let ((n 1000))
+    (lambda (x)
+      (set! n (+ n 1))
+      (make-symbol (string-append x (number->string n))))))
 
-      
+(define (atom? x) (not (pair? x)))
+
+; This is a botch...
+
+(define **newline** 13)
+
+;; eof

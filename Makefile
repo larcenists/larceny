@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.8 1992/05/15 22:17:22 lth Exp lth $
+# $Id: Makefile,v 1.9 1992/05/18 05:10:31 lth Exp lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -28,18 +28,20 @@ OBJS=	$(SYS)/main.o \
 	$(MACH)/glue.o \
 	$(MACH)/generic.o
 
-# Three garbage collectors: generation-scavenging, mostly-generational,
-# and stop-and-copy.
+# Five garbage collectors: generation-scavenging, mostly-generational,
+# stop-and-copy, reference-remembered-set, card-marking.
 
 GSGC=	$(SYS)/gc
-MGGC=	$(THESIS)/mg-gc
-SCGC=	$(THESIS)/sc-gc
+MGGC=	$(THESIS)/Sys/mg-gc
+SCGC=	$(THESIS)/Sys/sc-gc
+RRGC=   $(THESIS)/Sys/rr-gc
+CMGC=   $(THESIS)/Sys/cm-gc
 
 # PROFILE=-pg
-DEBUG=-g
-DFLAG=-DDEBUG
+# DEBUG=-g
+# DFLAG=-DDEBUG
 CC=cc
-# OPTIMIZE=-O4
+OPTIMIZE=-O4
 
 COMPILE=-c
 COUTPUT=$*.o
@@ -52,20 +54,38 @@ CFLAGS=	$(COMPILE) $(PREPROCESS) $(OPTIMIZE) $(PROFILE) $(DEBUG) -I$(SYS)\
 	$(DFLAG)
 
 .s.o:
-	as -P $(DFLAG) -DASSEMBLY -I$(MACH) -o $*.o $<
+	as -P $(DFLAG) -DASSEMBLY -D$(TRANS) -I$(MACH) -o $*.o $<
 .c.o:
 	$(CC) $(CFLAGS) -DUSER=\"$$USER\" -DDATE="\"`date`\"" -o $(COUTPUT) $<
 
 larceny: $(OBJS) $(GSGC).o
+	rm -f $(MACH)/memory.o
+	make TRANS=REGULAR $(MACH)/memory.o
 	$(CC) $(PROFILE) -o larceny $(OBJS) $(GSGC).o
 	/bin/rm -f $(SYS)/version.o
 
 mg-larceny: $(OBJS) $(MGGC).o
-	$(CC) $(PROFILE) -o mg-larceny $(OBJS) $(MGGC).o
+	rm -f $(MACH)/memory.o
+	make TRANS=NONE $(MACH)/memory.o
+	$(CC) $(PROFILE) -o Execs/mg-larceny $(OBJS) $(MGGC).o
 	/bin/rm -f $(SYS)/version.o
 
 sc-larceny: $(OBJS) $(SCGC).o
-	$(CC) $(PROFILE) -o sc-larceny $(OBJS) $(SCGC).o
+	rm -f $(MACH)/memory.o
+	make TRANS=NONE $(MACH)/memory.o
+	$(CC) $(PROFILE) -o Execs/sc-larceny $(OBJS) $(SCGC).o
+	/bin/rm -f $(SYS)/version.o
+
+rr-larceny: $(OBJS) $(RRGC).o
+	rm -f $(MACH)/memory.o
+	make TRANS=REFERENCE $(MACH)/memory.o
+	$(CC) $(PROFILE) -o Execs/rr-larceny $(OBJS) $(RRGC).o
+	/bin/rm -f $(SYS)/version.o
+	
+cm-larceny: $(OBJS) $(CMGC).o
+	rm -f $(MACH)/memory.o
+	make TRANS=CARDMARKING $(MACH)/memory.o
+	$(CC) $(PROFILE) -o Execs/cm-larceny $(OBJS) $(CMGC).o
 	/bin/rm -f $(SYS)/version.o
 
 clean:
@@ -82,6 +102,7 @@ bits1: Chez/bitpattern.o
 bits2: Compiler/mtime.o
 
 # sources
+
 $(SYS)/main.o:		$(SYS)/main.c $(CHDRS)
 $(SYS)/gc.o:		$(SYS)/gc.c $(CHDRS) $(SYS)/gc.h
 $(SYS)/cglue.o:		$(SYS)/cglue.c $(CHDRS)
@@ -94,8 +115,11 @@ $(MACH)/tables.o:	$(MACH)/tables.s $(MACH)/memory.o $(MACH)/glue.o \
 			$(MACH)/generic.o
 $(MACH)/glue.o:		$(MACH)/glue.s $(AHDRS) $(MACH)/milliprocs.s.h
 $(MACH)/generic.o:	$(MACH)/generic.s $(AHDRS) $(MACH)/milliprocs.s.h
-$(THESIS)/mg-gc.o:	$(THESIS)/mg-gc.c $(CHDRS) $(SYS)/gc.h
-$(THESIS)/sc-gc.o:	$(THESIS)/sc-gc.c $(CHDRS) $(SYS)/gc.h
+
+$(MGGC).o:		$(MGGC).c $(CHDRS) $(SYS)/gc.h
+$(SCGC).o:		$(SCGC).c $(CHDRS) $(SYS)/gc.h
+$(RRGC).o:		$(RRGC).c $(CHDRS) $(SYS)/gc.h
+$(CMGC).o:		$(CMGC).c $(CHDRS) $(SYS)/gc.h
 
 # headers to build from config files.
 
