@@ -349,7 +349,7 @@
   (define (struct?* obj)
     (or (struct-instance? obj)
         (struct-proc? obj)))
-
+  
   ;; this is internal
   (define struct-instance?
     (lambda (obj) (and (record? obj)
@@ -381,8 +381,7 @@
           (loop (- c 1)
                 (cons c l)))))
 
-  (define (false? v)
-    (eq? v #f))
+  (define (false? v) (eq? v #f))
 
   ;; Hook up the implementation with the interface.
   (set! make-struct-type make-struct-type*)
@@ -409,7 +408,7 @@
   )
   
 ;; Quick test cases from the MzScheme manual
-
+;;; Test struct-type properties
 (define-values (struct:tup make-tup tup? tup-ref tup-set!)
   (make-struct-type 'tup #f 2 0))
 
@@ -421,7 +420,7 @@
 (define-values (struct:a make-a a? a-ref a-set!) 
   (make-struct-type 'a #f 2 0 'uninitialized (list (cons prop:p 8))))
 
-;;; Test struct-type properties
+
 (p? struct:a) ; => #t 
 (p? 13) ; => #f 
 (define an-a (make-a 'x 'y)) 
@@ -432,7 +431,7 @@
   (make-struct-type 'b #f 0 0 #f)) 
 (p? struct:b) ; => #f
 
-
+;;; Test struct-methods
 (define-values (struct:fish make-fish fish? fish-ref fish-set!) 
   (make-struct-type 'fish #f 2 0 #f '() #f 
                     (lambda (f n) (fish-set! f 0 (+ n (fish-ref f 0))))))
@@ -445,6 +444,7 @@
 (for-each wanda '(1 2 3))
 (fish-weight wanda) ; => 18
 
+;;; Test struct-procs
 (define-values (struct:ap make-annotated-proc annotated-proc? ap-ref ap-set!) 
   (make-struct-type 'anotated-proc #f 2 0 #f '() #f 0)) 
 (define (proc-annotation p) (ap-ref p 1))
