@@ -1,3 +1,9 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Chez Scheme compatibility code -- logical operations.
+;
 ; The following work because Chez Scheme fixnums are the same as Larceny 
 ; fixnums.
 

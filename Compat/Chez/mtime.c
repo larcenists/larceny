@@ -1,7 +1,8 @@
-/* 
- * Return modification time of a file.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Return modification time of a file.
  */
 
 #include <sys/types.h>

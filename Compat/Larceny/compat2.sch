@@ -1,23 +1,11 @@
-; Larceny/compat2.sch
-; Larceny -- second part of compatibility code
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; This file ought to be compiled.
+; Larceny -- second part of compatibility code
+; This file ought to be compiled, but doesn't have to be.
 
 (define host-system 'larceny)		; Don't remove this!
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Multiple values
-; Larceny 0.25 does not have multiple values.
-; But 0.32 does.
-
-;(define (values . x) x)
-
-;(define (call-with-values proc receiver)
-;  (apply receiver (proc)))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -1,10 +1,12 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
 ; Convert various data into bytevector representation.
 ; The bytevector header is not included in the returned bytevector.
 ;
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
-;
-; $Id$
 
 ; Generic.
 

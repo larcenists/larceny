@@ -1,7 +1,8 @@
-; Larceny/compat.sch
-; Larceny -- compatibility library for Twobit running under Larceny.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny -- compatibility library for Twobit running under Larceny.
 
 (define host-system 'larceny)
 

@@ -1,7 +1,8 @@
-; Chez/compat.sch
-; Compatibility library for the new Twobit under Chez Scheme
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Compatibility library for the new Twobit under Chez Scheme
 
 (define host-system 'chez)
 

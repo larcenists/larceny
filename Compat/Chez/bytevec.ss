@@ -1,5 +1,8 @@
-; Bytevector primitives for Chez Scheme.
+; Copyright 1998 Lars T Hansen.
 ;
+; $Id$
+;
+; Bytevector primitives for Chez Scheme.
 ; We simulate bytevectors with vectors. It's so easy...
 
 ; The primitives should be macros!
