@@ -96,13 +96,16 @@
 		  (apply string-append (insert-space libs)))))
 
 ; Metrowerks CodeWarrior 6.0
+;
+; mwcc can't compile Larceny with -opt full, but 'speed' may be required
+; to get code address alignment.
 
 (define (c-compiler:mwcc-win32 c-name o-name)
   (execute
    (twobit-format 
     #f
     "mwcc -g -c ~a -IRts\\Sys -IRts\\Standard-C -IRts\\Build -DSTDC_SOURCE ~a -o ~a ~a"
-    (if (optimize-c-code) "-opt on" "")  ; mwcc can't compile Larceny with -opt full
+    (if (optimize-c-code) "-opt speed,level=2" "")
     (if (optimize-c-code) "-DNDEBUG" "")
     o-name
     c-name)))
@@ -122,6 +125,35 @@
 		  output-name
 		  (apply string-append (insert-space libs)))))
 
+; GCC (cygwin)
+
+(define (c-compiler:gcc-win32 c-name o-name)
+  (execute
+   (twobit-format 
+    #f
+    "gcc -g -c ~a -IRts/Sys -IRts/Standard-C -IRts/Build -DSTDC_SOURCE ~a -o ~a ~a"
+    (if (optimize-c-code) "-O" "")
+    (if (optimize-c-code) "-DNDEBUG" "")
+    o-name
+    c-name)))
+
+(define (c-dll-linker:gcc-win32 output-name object-files . ignored)
+  (create-indirect-file "petit-objs.lnk" object-files)
+  (execute
+   (twobit-format #f
+		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.lib"
+		  output-name)))
+
+(define (c-linker:gcc-win32 output-name object-files libs)
+  (create-indirect-file "petit-objs.lnk" object-files)
+  (execute
+   (twobit-format #f
+		  "gcc -g -o ~a @petit-objs.lnk ~a"
+		  output-name
+		  (apply string-append (insert-space libs)))))
+
+;;;
+
 (define-compiler 
   "Microsoft Visual C/C++ 6.0 on Win32" 
   'msvc
@@ -140,6 +172,16 @@
     (link-library       . ,c-library-linker:msvc-win32)
     (link-executable    . ,c-linker:mwld-win32)
     (link-shared-object . ,c-dll-linker:mwcc-win32)
+    (append-files       . ,append-file-shell-command-msdos)))
+
+(define-compiler 
+  "gcc (cygwin) on Win32"
+  'gcc
+  ".o"
+  `((compile            . ,c-compiler:gcc-win32)
+    (link-library       . ,c-library-linker:msvc-win32)
+    (link-executable    . ,c-linker:gcc-win32)
+    (link-shared-object . ,c-dll-linker:gcc-win32)
     (append-files       . ,append-file-shell-command-msdos)))
 
 (select-compiler 'mwcc)
