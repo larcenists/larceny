@@ -26,7 +26,7 @@ static struct {
 		      { (fptr)primitive_exit, 1, 0 },
 		      { (fptr)osdep_mtime, 2, 1 },
 		      { (fptr)osdep_access, 2, 1 },
-		      { (fptr)osdep_rename, 2, 1 }, /* 10 */
+	/* 10 */      { (fptr)osdep_rename, 2, 1 },
 		      { (fptr)osdep_pollinput, 1, 0 },
 		      { (fptr)primitive_getenv, 1, 1 },
 		      { (fptr)primitive_garbage_collect, 2, 0 },
@@ -36,7 +36,7 @@ static struct {
 		      { (fptr)primitive_flonum_cos, 2, 0 },
 		      { (fptr)primitive_flonum_tan, 2, 0 },
 		      { (fptr)primitive_flonum_asin, 2, 0 },
-		      { (fptr)primitive_flonum_acos, 2, 0 }, /* 20 */
+	/* 20 */      { (fptr)primitive_flonum_acos, 2, 0 },
 		      { (fptr)primitive_flonum_atan, 2, 0 },
 		      { (fptr)primitive_flonum_atan2, 3, 0 },
 		      { (fptr)primitive_flonum_sqrt, 2, 0 },
@@ -46,7 +46,7 @@ static struct {
 		      { (fptr)primitive_gcctl_np, 3, 0 },
 		      { (fptr)primitive_block_signals, 1, 0 },
 		      { (fptr)primitive_flonum_sinh, 2, 0 },
-		      { (fptr)primitive_flonum_cosh, 2, 0 }, /* 30 */
+	/* 30 */      { (fptr)primitive_flonum_cosh, 2, 0 },
 		      { (fptr)osdep_system, 1, 1 },
 		      { (fptr)larceny_C_ffi_apply, 4, 1 },
 		      { (fptr)larceny_C_ffi_dlopen, 1, 0 },
@@ -56,9 +56,10 @@ static struct {
 		      { (fptr)larceny_C_ffi_getaddr, 1, 0 },
  		      { (fptr)primitive_sro, 3, 0 },
 		      { (fptr)primitive_sysfeature, 1, 0 },
-		      { (fptr)larceny_peek_bytes, 3, 0 }, /* 40 */
+	/* 40 */      { (fptr)larceny_peek_bytes, 3, 0 },
 		      { (fptr)larceny_poke_bytes, 3, 0 },
 		      { (fptr)larceny_segment_code_address, 2, 0 },
+		      { (fptr)primitive_stats_dump_stdout, 0, 1 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )
