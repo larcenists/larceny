@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: memory.txt,v 1.4 91/06/25 22:10:19 lth Exp Locker: lth $
+; $Id: memory.txt,v 1.5 91/06/27 15:26:25 lth Exp Locker: lth $
 
                  Memory Manager Interface Definition
 
@@ -24,8 +24,9 @@ Of all memory management procedures in the run-time system, The
 compiled code should call only the procedures exported from
 "memory.s", all of which are listed below, and which from now on will
 be collectively referred to as "the memory management millicode
-procedures", abbreviated "the MMMPs". All MMMPs except "stkuflow()"
-may invoke the garbage collector.
+procedures", abbreviated "the MMMPs". All MMMPs except "stkuflow()",
+"restore_continuation()", "save_scheme_context()", and
+"restore_scheme_context()" may invoke the garbage collector.
 
 MMMPs follow millicode calling conventions as outlined in
 "conventions.txt".
@@ -101,6 +102,17 @@ void restore_scheme_context( void )         [ M_RESTORE_CONTEXT ]
   machine state from the saved values in the "globals" array. If "globals"
   has not been properly initialized, then the results are undefined. This
   procedure is useful for inter-language calls.
+
+word capture_continuation( void )           [ M_CAPTURE ]
+  'Capture_continuation' returns a tagged pointer to a structure which
+  represents the current continuation at the time the capture procedure was
+  called.
+
+void restore_continuation( word c )         [ M_RESTORE ]
+  'Restore_continuation takes a tagged pointer to a continuation structure
+  as returned from 'capture_continuation' and reinstates that continuation.
+  The continuation which was current at the time 'restore_continuation' was
+  called is simply discarded.
 
 
 2. Initializing the memory manager
