@@ -117,7 +117,7 @@
 			    "Lib/Standard-C/"
 			    "Repl/"
 			    "Interpreter/"
-			    "Compiler/")))
+			    "Twobit/")))
 	      ext)
     #t))
 
