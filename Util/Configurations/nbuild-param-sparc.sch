@@ -23,6 +23,7 @@
            (auxiliary      . ,(pathname-append dir "Auxlib"))
            (root           . ,dir)
            (host-system    . ,hostname)
+           (host-os        . unix)
            (target-machine . SPARC)
            (target-os      . unix)
            (endianness     . big)
