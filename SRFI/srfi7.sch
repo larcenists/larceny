@@ -1,3 +1,5 @@
+; SRFI 7: configuration language.
+;
 ; From Richard Kelsey's SRFI document.
 
 (define-syntax program
@@ -20,3 +22,5 @@
               more ...)
      (begin (cond-expand (requirement (program stuff ...)) ...)
             (program more ...)))))
+
+; eof
