@@ -9,6 +9,7 @@
 ; the Unix shell scripts and the Util/Configurations/load-*.sch programs;
 
 (define nbuild-parameter #f)
+(define *requires-shared-runtime* #f)
 
 (define (unix-initialize)
   (load "Util/sysdep-unix.sch")
@@ -69,7 +70,9 @@
   (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
-  (execute-in-directory "Rts" "make libpetit.a"))
+  (if *requires-shared-runtime*
+      (execute-in-directory "Rts" "make libpetit.so")
+      (execute-in-directory "Rts" "make libpetit.a")))
 
 (define build-runtime-system build-runtime)  ; Old name
 
@@ -86,6 +89,12 @@
 (define (is-macosx?)
   (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
 
+(define (require-shared-runtime!)
+  (if (not *requires-shared-runtime*)
+      (begin
+        (set! *requires-shared-runtime* #t)
+        (set! unix/petit-rts-library "Rts/libpetit.so"))))
+
 (define (load-compiler)
   (load (make-filename "" "Util" "nbuild.sch"))
   (configure-system))
@@ -101,6 +110,7 @@
 
 (define (remove-runtime-objects)
   (system "rm -f Rts/libpetit.a")
+  (system "rm -f Rts/libpetit.so")
   (system "rm -f Rts/Sys/*.o")
   (system "rm -f Rts/Standard-C/*.o")
   (system "rm -f Rts/Build/*.o")
