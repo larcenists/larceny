@@ -1,7 +1,7 @@
 ; Asm/Sparc/asmutil32le.sch
 ; Larceny assembler -- 32-bit little-endian utility procedures.
 ;
-; $Id: asmutil32le.sch,v 1.1 1997/08/22 20:52:42 lth Exp $
+; $Id: asmutil32le.sch,v 1.1.1.1 1998/11/19 21:51:57 lth Exp $
 ;
 ; 32-bit numbers are represented as 4-byte bytevectors where byte 0
 ; is the least significant and byte 3 is the most significant.

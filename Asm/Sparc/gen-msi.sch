@@ -1,20 +1,27 @@
 ; Asm/Sparc/gen-msi.sch
 ; Larceny -- SPARC assembler code emitters for core MacScheme instructions
 ;
-; $Id: gen-msi.sch,v 1.4 1997/09/23 20:02:38 lth Exp lth $
+; $Id: gen-msi.sch,v 1.1.1.1 1998/11/19 21:51:58 lth Exp $
 
 
 ; SETGLBL
 ;
+; RS must be a hardware register.
+;
 ; A global cell is a pair, where the car holds the value.
-; FIXME: should allow an in-line barrier.
 
-(define (emit-result-register->global! as offset)
-  (emit-const->register! as offset $r.tmp0)             ; get cell
-  (sparc.sti as $r.result (- $tag.pair-tag) $r.tmp0)    ; [tmp0-tag] <- result
-  (if (write-barrier)
-      (begin (sparc.move as $r.result $r.argreg2)
-	     (millicode-call/1arg-in-result as $m.addtrans $r.tmp0))))
+(define (emit-register->global! as rs offset)
+  (cond ((= rs $r.result)
+	 (sparc.move as $r.result $r.argreg2)
+	 (emit-const->register! as offset $r.result)
+	 (if (write-barrier)
+	     (sparc.jmpli as $r.millicode $m.addtrans $r.o7))
+	 (sparc.sti as $r.argreg2 (- $tag.pair-tag) $r.result))
+	(else
+	 (emit-const->register! as offset $r.result)
+	 (sparc.sti as rs (- $tag.pair-tag) $r.result)
+	 (if (write-barrier)
+	     (millicode-call/1arg as $m.addtrans rs)))))
 
 
 ; GLOBAL
@@ -25,25 +32,27 @@
 ; an exception will be taken, with the global in question in $r.result.
 
 (define (emit-global->register! as offset r)
+  (emit-load-global as offset r (catch-undefined-globals)))
 
+; This leaves the cell in ARGREG2.  That fact is utilized by global/invoke
+; to signal an appropriate error message.
+
+(define (emit-load-global as offset r check?)
+  
   (define (emit-undef-check! as r)
-    (if (catch-undefined-globals)
-	(let ((l1 (new-label)))
+    (if check?
+	(let ((GLOBAL-OK (new-label)))
 	  (sparc.cmpi   as r $imm.undefined)
-	  (sparc.bne.a  as l1)
+	  (sparc.bne.a  as GLOBAL-OK)
 	  (sparc.slot   as)
-	  (sparc.move   as $r.tmp1 $r.result)
-	  (millicode-call/numarg-in-reg as 
-					$m.exception 
-					(thefixnum $ex.undef-global)
-					$r.tmp0)
-	  (sparc.label  as l1))))
+	  (millicode-call/0arg as $m.global-ex)            ; Cell in ARGREG2.
+	  (sparc.label  as GLOBAL-OK))))
 
-  (emit-const->register! as offset $r.tmp1)             ; get cell
+  (emit-const->register! as offset $r.argreg2)             ; Load cell.
   (if (hardware-mapped? r)
-      (begin (sparc.ldi as $r.tmp1 (- $tag.pair-tag) r)
+      (begin (sparc.ldi as $r.argreg2 (- $tag.pair-tag) r)
 	     (emit-undef-check! as r))
-      (begin (sparc.ldi as $r.tmp1 (- $tag.pair-tag) $r.tmp0)
+      (begin (sparc.ldi as $r.argreg2 (- $tag.pair-tag) $r.tmp0)
 	     (emit-store-reg! as $r.tmp0 r)
 	     (emit-undef-check! as $r.tmp0))))
 
@@ -71,20 +80,11 @@
 	(sparc.cmpi   as $r.result (thefixnum n))  ; FIXME: limit 1023 args
 	(sparc.be.a   as L2)
 	(sparc.slot   as)
-	(sparc.set    as (thefixnum n) $r.argreg2) ; FIXME: ditto
-	(sparc.move   as $r.reg0 $r.argreg3)
-	(millicode-call/numarg-in-reg as 
-				      $m.exception
-				      (thefixnum $ex.argc) 
-				      $r.tmp0)
+	(millicode-call/numarg-in-reg as $m.argc-ex (thefixnum n) $r.argreg2)
 	(sparc.label  as L2))))
 
+
 ; ARGS>=
-
-(define (emit-args>=! as n)
-  (emit-new-args>=! as n))
-
-; New
 ;
 ; The cases for 0 and 1 rest arguments are handled in-line; all other
 ; cases, including too few, are handled in millicode (really: a C call-out).
@@ -92,7 +92,7 @@
 ; The fast path only applies when we don't have to mess with the last
 ; register, hence the test.
 
-(define (emit-new-args>=! as n)
+(define (emit-args>=! as n)
   (let ((L0  (new-label))
 	(L99 (new-label))
 	(L98 (new-label)))
@@ -101,12 +101,12 @@
 	  (sparc.cmpi   as $r.result (thefixnum n)) ; n args
 	  (if (hardware-mapped? dest)
 	      (begin
-		(sparc.be.a  as L99)
-		(sparc.set   as $imm.null dest))
+		(sparc.be.a as L99)
+		(sparc.set  as $imm.null dest))
 	      (begin
-		(sparc.set   as $imm.null $r.tmp0)
-		(sparc.be.a  as L99)
-		(sparc.sti   as $r.tmp0 (swreg-global-offset dest) $r.globals)))
+		(sparc.set  as $imm.null $r.tmp0)
+		(sparc.be.a as L99)
+		(sparc.sti  as $r.tmp0 (swreg-global-offset dest) $r.globals)))
 	  (sparc.cmpi   as $r.result (thefixnum (+ n 1))) ; n+1 args
 	  (sparc.bne.a  as L98)
 	  (sparc.nop    as)
@@ -127,67 +127,48 @@
     (millicode-call/numarg-in-reg as $m.varargs (thefixnum n) $r.argreg2)
     (sparc.label  as L99)))
 
-; Older code.
-
-(define (emit-old-args>=! as n)
-  (let ((L0 (new-label)))
-    (sparc.cmpi   as $r.result (thefixnum n))  ; FIXME: limit 1023 args
-    (sparc.bge    as L0)
-    (sparc.set    as (thefixnum n) $r.argreg2) ; FIXME: ditto
-    (sparc.move   as $r.reg0 $r.argreg3)
-    (millicode-call/numarg-in-reg as 
-				  $m.exception
-				  (thefixnum $ex.vargc)
-				  $r.tmp0)
-    (sparc.label  as L0)
-    (millicode-call/0arg as $m.varargs)))      ; Argreg2 was set up above.
 
 ; INVOKE
-; INVOKE-WITH-SETRTN
+; SETRTN/INVOKE
 ;
-; The exception handling here has a bit of magic: the return address 
-; generated in %o7 is the return address which is in the topmost frame 
-; on the stack. (Can't be right. FIXME.)
+; Bummed.  Can still do better when the procedure to call is in a general
+; register (avoids the redundant move to RESULT preceding INVOKE).
 ;
-; NOTE: must setup argument count even in unsafe mode, because we may be
-;       calling code that was not compiled unsafe.
-;
-; This code takes 10 cycles on a call if the load hits the cache (SS1).
+; Note we must set up the argument count even in unsafe mode, because we 
+; may be calling code that was not compiled unsafe.
 
-(define (emit-invoke! as n)
-  (emit-invoke-code! as n #f))
-
-(define (emit-invoke-with-setrtn! as n)
-  (emit-invoke-code! as n #t))
-
-(define (emit-invoke-code! as n setrtn-also?)
-  (let ((L0 (new-label))
-	(L2 (new-label))
-	(L3 (new-label)))
-    (sparc.label as L0)
-    (check-timer as L2 L0)
-    (sparc.label as L2)
-    (if (not (unsafe-code))
-	(begin (sparc.andi  as $r.result $tag.tagmask $r.tmp0)
-	       (sparc.cmpi  as $r.tmp0 $tag.procedure-tag)
-	       (sparc.be.a  as L3)
-	       (sparc.ldi   as $r.result $p.codevector $r.tmp0)
-	       (sparc.set   as (thefixnum $ex.nonproc) $r.tmp0)
-	       (sparc.jmpli as $r.millicode $m.exception $r.g0)
-	       (sparc.ldi   as $r.stkp 4 $r.o7)
-	       (sparc.label as L3))
-	(begin (sparc.ldi   as $r.result $p.codevector $r.tmp0)))
-    ; TMP0 has code vector, RESULT has procedure.
-    (sparc.move  as $r.result $r.reg0)
-    (if setrtn-also?
-	(begin 
-	  (sparc.set   as (thefixnum n) $r.result)     ; FIXME: limit 1023 args
-	  (sparc.jmpli as $r.tmp0 $p.codeoffset $r.o7)
-	  (sparc.sti   as $r.o7 4 $r.stkp))
-	(begin 
-	  (sparc.jmpli as $r.tmp0 $p.codeoffset $r.g0)
-	  (sparc.set   as (thefixnum n) $r.result))))) ; FIXME: limit 1023 args
-
+(define (emit-invoke as n setrtn? mc-exception)
+  (let ((START    (new-label))
+	(TIMER-OK (new-label))
+	(PROC-OK  (new-label)))
+    (cond ((not (unsafe-code))
+	   (sparc.label        as START)
+	   (sparc.subicc       as $r.timer 1 $r.timer)
+	   (sparc.bne          as TIMER-OK)
+	   (sparc.andi         as $r.result $tag.tagmask $r.tmp0)
+	   (millicode-call/ret as $m.timer-exception START)
+	   (sparc.label        as TIMER-OK)
+	   (sparc.cmpi         as $r.tmp0 $tag.procedure-tag)
+	   (sparc.be.a         as PROC-OK)
+	   (sparc.ldi          as $r.result $p.codevector $r.tmp0)
+	   (millicode-call/ret as mc-exception START)
+	   (sparc.label        as PROC-OK))
+	  (else
+	   (sparc.label        as START)
+	   (sparc.subicc       as $r.timer 1 $r.timer)
+	   (sparc.bne.a        as TIMER-OK)
+	   (sparc.ldi          as $r.result $p.codevector $r.tmp0)
+	   (millicode-call/ret as $m.timer-exception START)
+	   (sparc.label        as TIMER-OK)))
+    (sparc.move                as $r.result $r.reg0)
+    ;; FIXME: limit 1023 args
+    (cond (setrtn?
+	   (sparc.set          as (thefixnum n) $r.result)
+	   (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.o7)
+	   (sparc.sti          as $r.o7 4 $r.stkp))
+	  (else
+	   (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.g0)
+	   (sparc.set          as (thefixnum n) $r.result)))))
 
 ; SAVE -- for new compiler
 ;
@@ -350,6 +331,24 @@
   (sparc.ldi   as $r.stkp 4 $r.o7)
   (sparc.jmpli as $r.o7 8 $r.g0)
   (sparc.nop   as))
+
+
+; RETURN-REG k
+
+(define (emit-return-reg! as r)
+  (sparc.ldi   as $r.stkp 4 $r.o7)
+  (sparc.jmpli as $r.o7 8 $r.g0)
+  (sparc.move  as r $r.result))
+
+
+; RETURN-CONST k
+;
+; The constant c must be synthesizable in a single instruction.
+
+(define (emit-return-const! as c)
+  (sparc.ldi   as $r.stkp 4 $r.o7)
+  (sparc.jmpli as $r.o7 8 $r.g0)
+  (emit-constant->register as c $r.result))
 
 
 ; MVRTN

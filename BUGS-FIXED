@@ -1,6 +1,6 @@
 ; -*- text -*-
 ; ./BUGS-FIXED
-; $Id: BUGS-FIXED,v 1.4 1997/09/17 15:24:39 lth Exp lth $
+; $Id: BUGS-FIXED,v 1.1.1.1 1998/11/19 21:51:36 lth Exp $
 
 	       Known bugs in Larceny that have been fixed.
 
@@ -1002,3 +1002,18 @@
 	Error: Wrong number of arguments to procedure #<PROCEDURE>
 
     FIX: This was an off-by-one bug in emit-init-proc-slots! in gen-msi.sch.
+
+070 v0.34 (981006 / lth)  Fixed 981113 by lth
+    Priority: low
+
+    Writer: should print all the special names accepted by the reader:
+
+	> #\tab
+	#\	
+	> #\space
+	#\space
+
+    Here the bug is in the printing of a tab character.
+
+    FIX: Implemented the necessary logic in Lib/print.sch, Lib/reader.sch,
+    and Lib/unix.sch (character codes).

@@ -1,7 +1,7 @@
 ; Lib/stringio.sch
 ; Larceny -- string I/O ports
 ;
-; $Id$
+; $Id: stringio.sch,v 1.1.1.1 1998/11/19 21:52:13 lth Exp $
 ;
 ; Compatibility notes:
 ;

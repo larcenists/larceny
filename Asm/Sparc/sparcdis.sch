@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcdis.sch
 ; Larceny back-end -- SPARC disassembler
 ;
-; $Id: sparcdis.sch,v 1.3 1997/09/23 20:02:38 lth Exp lth $
+; $Id: sparcdis.sch,v 1.1.1.1 1998/11/19 21:51:59 lth Exp $
 ;
 ; Interface.
 ;  (disassemble-codevector codevector)             => decoded-instruction-list
@@ -174,9 +174,9 @@
 	      (,(mnemonic 'or)    ,(mnemonic 'or 'i))
 	      (,(mnemonic 'xor)   ,(mnemonic 'xor 'i))
 	      (,(mnemonic 'sub)   ,(mnemonic 'sub 'i))
-	      (0          0)
-	      (0          0)
-	      (0          0)
+	      (,(mnemonic 'andn)  ,(mnemonic 'andn 'i))
+	      (,(mnemonic 'orn)   ,(mnemonic 'orn 'i))
+	      (,(mnemonic 'xnor)  ,(mnemonic 'xnor 'i))
 	      (0          0)
 	      (0          0)
 	      (0          0)                              ; 10
@@ -637,6 +637,10 @@
   (millicode-name $m.enable-interrupts "enable-interrupts")
   (millicode-name $m.disable-interrupts "disable-interrupts")
   (millicode-name $m.alloc-bv "alloc-bv")
+  (millicode-name $m.global-ex "global-exception")
+  (millicode-name $m.invoke-ex "invoke-exception")
+  (millicode-name $m.global-invoke-ex "global-invoke-exception")
+  (millicode-name $m.argc-ex "argc-exception")
 
   (set! format-instruction format-instr)
   'format-instruction)

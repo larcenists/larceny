@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.19 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: larceny.h,v 1.1.1.1 1998/11/19 21:51:46 lth Exp $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -90,7 +90,6 @@ extern void C_break( void );
 extern void C_singlestep( word s );
 extern void C_syscall( void );
 extern void C_wb_compact( int generation );
-extern void C_SRO( word ptrtag, word hdrtag, word limit );
 
 #endif /* not GC_INTERNAL */
 
@@ -132,6 +131,7 @@ extern void UNIX_system( word );
 extern void UNIX_allocate_nonmoving( word, word );
 extern void UNIX_object_to_address( word );
 extern void UNIX_sysfeature( word v );
+extern void UNIX_sro( word ptrtag, word hdrtag, word limit );
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -161,6 +161,8 @@ extern int  larceny_minor_version;
 extern char *user;
 extern char *date;
 extern char *osname;
+extern char *larceny_system_name;
+extern char *larceny_heap_name;
 #endif
 
 /* In "Rts/Sys/argv.c" */
@@ -212,7 +214,7 @@ int unbox_int( word w );
 /* In "Rts/$MACHINE/glue.s" */
 
 #ifndef GC_INTERNAL
-extern void scheme_start( void );
+extern void scheme_start( word *globals );
 #endif
 
 /* In "Rts/$MACHINE/cache.c" */

@@ -1,7 +1,7 @@
 ; Testsuite/Lib/fib.sch
 ; Fibonacci test
 ;
-; $Id$
+; $Id: fib.sch,v 1.1.1.1 1998/11/19 21:52:33 lth Exp $
 ;
 ; Tests non-tail calls; fixnum comparison; fixnum arithmetic.
 

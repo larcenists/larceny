@@ -1,13 +1,13 @@
 /* Rts/Sys/version.c.
  * Larceny run-time system -- the version number :-)
  *
- * $Id: version.c,v 1.10 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: version.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
  */
 
 #include "config.h"
 
 int larceny_major_version = 0;
-int larceny_minor_version = 34;
+int larceny_minor_version = 36;
 
 char *date = DATE;
 char *user = USER;

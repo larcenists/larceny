@@ -1,7 +1,7 @@
-/* Rts/Sys/cglue.c
+/* Rts/Sparc/cglue.c
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
- * $Id: cglue.c,v 1.13 1997/08/25 13:07:31 lth Exp $
+ * $Id: cglue.c,v 1.1.1.1 1998/11/19 21:51:50 lth Exp $
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are
@@ -23,17 +23,6 @@ void C_allocate( word request_words )
   /* The assignment violates the VM invariants -- that's OK */
   globals[ G_RESULT ] =
     (word)alloc_from_heap( nativeint( request_words )*sizeof(word) );
-}
-
-/* C_SRO: implements SRO operation. */
-void C_SRO( word w_ptrtag, word w_hdrtag, word w_limit )
-{
-  int ptrtag = (int)nativeint(w_ptrtag);
-  int hdrtag = (int)nativeint(w_hdrtag);
-  int limit = (int)nativeint(w_limit);
-
-  supremely_annoyingmsg( "SRO %d %d %d", ptrtag, hdrtag, limit );
-  globals[ G_RESULT ] = standing_room_only( ptrtag, hdrtag, limit );
 }
 
 /* C_stack_overflow: overflow handling depends on stack */

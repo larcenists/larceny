@@ -1,7 +1,7 @@
 /* Rts/Sys/heapio.c
  * Larceny run-time system -- heap I/O procedures
  *
- * $Id: heapio.c,v 1.4 1997/09/17 15:17:26 lth Exp $
+ * $Id: heapio.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
  *
  * There are three major kinds of heaps: bootstrap single, bootstrap split,
  * and dumped.
@@ -113,8 +113,8 @@ static jmp_buf EX_heapio_ex;
 #define CATCH( var )  if ((var = setjmp( EX_heapio_ex )) != 0)
 #define THROW( val )  longjmp( EX_heapio_ex, val )
 
-static int  load_text( heapio_t *h, word *base, unsigned count );
-static int  load_data( heapio_t *h, word *text, word *data, unsigned count );
+static int  load_text( heapio_t *h, word *base, int count );
+static int  load_data( heapio_t *h, word *text, word *data, int count );
 #if 0
 static void putheader( FILE*, word, word, word, word*, word );
 static void put_tagged_word( word, FILE*, word, word, word );
@@ -415,7 +415,7 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
 int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
 		       word *globals )
 {
-  unsigned i, j, r;
+  int i, j, r;
 
   if (h->fp == 0 || !h->input)
     return HEAPIO_NOTOPEN;
@@ -442,7 +442,7 @@ int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
 }
 
 static int
-load_text( heapio_t *h, word *text_base, unsigned count )
+load_text( heapio_t *h, word *text_base, int count )
 {
   word n;
 
@@ -452,10 +452,10 @@ load_text( heapio_t *h, word *text_base, unsigned count )
 }
 
 static int
-load_data( heapio_t *h, word *text_base, word *data_base, unsigned count )
+load_data( heapio_t *h, word *text_base, word *data_base, int count )
 {
   word *p, w;
-  unsigned i;
+  int i;
 
   if (fread( (char*)data_base, sizeof( word ), count, h->fp ) < count)
     return HEAPIO_CANTREAD;

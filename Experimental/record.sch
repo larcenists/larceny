@@ -1,27 +1,44 @@
 ; Experimental/record.sch
 ; Larceny library -- Record Package
 ;
-; $Id$
+; $Id: record.sch,v 1.1.1.1 1998/11/19 21:52:29 lth Exp $
 ;
-; Record package as proposed by RRRS authors but never made part of the
-; report.  Based on a proposal posted to rrrs-authors on 1 Sep 89 by 
-; Pavel Curtis, reposted to comp.lang.scheme by Norman Adams on 5 Feb, 1992.
+; Record package as proposed by RRRS authors but never made part 
+; of the report.  Based on a proposal posted to rrrs-authors on 
+; 1 Sep 89 by Pavel Curtis, reposted to comp.lang.scheme by Norman 
+; Adams on 5 Feb, 1992.
 ;
-; While that proposal is preserved in its full form, I have added some
-; useful features.  See the on-line documentation.
+; I have added some useful features:
+;   * Single inheritance of record types (type extension a la Oberon).
+;   * Record-type-descriptors are records; this work is not yet
+;     complete (*rtd-type* cannot yet be extended).
 ;
-; Features we have
-;   Record printing procedure
-;   Optimized access with `record-type-field-offset'
+; There are some Larceny-specific features also:
+;   * Control over record printing.
+;   * The procedure record-type-field-offset can be used with
+;     vector-like-ref to optimize field access; this is an
+;     experimental facility (may be removed if of little use).
+;
+; Public interface:
+;   (make-record-type type-name field-names &key :parent :printer)  =>  rtd
+;   (record-type-descriptor? obj)  =>  boolean
+;   (record-type-field-names rtd)  =>  field-names
+;   (record-type-name rtd)  =>  type-name
+;   (record-type-field-offset rtd field-name)  =>  fixnum
+;   (record-type-extends? rtd1 rtd2)  =>  boolean
+;
+;   (record? obj)  =>  boolean
+;   (record-constructor rtd)  =>  procedure
+;   (record-constructor rtd field-names)  =>  procedure
+;   (record-predicate rtd)  =>  procedure
+;   (record-accessor rtd field-name)  =>  procedure
+;   (record-updater rtd field-name)  =>  procedure
+;   (record-type-descriptor record)  =>  rtd
 ;
 ; Features we want
-;   Inheritance
 ;   Name hiding
-;   If record-type-descriptors are records, then some operations can be
-;     simplified -- the print procedure is just stored in a slot, for 
-;     example.  And there seems to be no performance reasons this should
-;     not be done
 ;   Better performance -- should in-line some type tests.
+
 
 ; Records.
 ;
@@ -32,7 +49,6 @@
 (define *record-overhead* 1)   ; number of overhead slots.
 
 ; True if the object is a record of any type.
-; This needs to be inlined everywhere for good performance.
 
 (define (record? obj)
   (and (structure? obj)
@@ -40,11 +56,23 @@
        (record-type-descriptor? (vector-like-ref obj 0))))
 
 ; True if the object is a record and its rtd is the given rtd.
-; This needs to be inlined everywhere for good performance.
+;
+; Two cases: either the object is of the given type, or it is of
+; a subtype of the given type.
+;
+; ASSUME: rtd is a record type descriptor.
+;
+; FIXME: Subtype case can be made faster by inlining and combining 
+;        tests (note that we assume that record-type-extends? checks
+;        that slot0 is an rtd).
+; FIXME: This needs to be inlined everywhere for good performance.
 
 (define (record/record-with-type? obj rtd)
-  (and (record? obj)
-       (eq? (record-type-descriptor obj) rtd)))
+  (and (structure? obj)
+       (> (vector-like-length obj) 0)
+       (let ((slot0 (vector-like-ref obj 0)))
+	 (or (eq? rtd slot0)
+	     (record-type-extends? slot0 rtd)))))
 
 (define (record-constructor rtd . rest)
   (let* ((fields  (if (null? rest)
@@ -56,17 +84,21 @@
     (lambda values
       (let ((record (make-structure (rtd/record-size rtd))))
 	(vector-like-set! record 0 rtd)
-	(for-each (lambda (i v)
-		    (vector-like-set! record i v))
-		  indices
-		  values)
-	record))))
+	(let loop ((indices indices) (values values))
+	  (cond ((null? indices)
+		 (if (not (null? values))
+		     (error "Constructor for " rtd
+			    ": too many arguments."))
+		 record)
+		(else
+		 (vector-like-set! record (car indices) (car values))
+		 (loop (cdr indices) (cdr values)))))))))
 
 (define (record-predicate rtd)
   (if (record-type-descriptor? rtd)
       (lambda (obj)
 	(record/record-with-type? obj rtd))
-      (error 'record-predicate "Not a record type descriptor")))
+      (error "record-predicate: " rtd " is not a record type descriptor.")))
 
 (define (record-accessor rtd field-name)
   (let ((i (record-type-field-offset rtd field-name)))
@@ -88,124 +120,151 @@
       (error "record-type-descriptor: " obj " is not a record.")))
 
 
-; Record type descriptors.
+; Record types
 ;
-; A record-type-descriptor is a structure where the first element is a
-; distinguished object.
+; A record type descriptor is a record, which requires a little magic.
+; Every record type descriptor is of type *rtd-type*.
+
+; Helper procedure.
+
+(define (rtd/make-slot-mapping fields)
+  (let loop ((j 0) (r '()) (f fields))
+    (if (= j (length fields))
+	(reverse r)
+	(loop (+ j 1)
+	      (cons (cons (car f)
+			  (+ j *record-overhead*))
+		    r)
+	      (cdr f)))))
+
+; BEGIN MAGIC
+
+; (define *rtd-type* 
+;   (make-record-type "record-type-descriptor"
+;                     '(type-name slot-mapping printer size
+;                       hierarchy-vector hierarchy-depth)))
 ;
-; Make-record-type takes additional keyword parameters, where the keywords
-; are just symbols.  Currently recognized are:
-;
-;   keyword   value
-;   -------   -----
-;   printer   printing procedure  (takes object and output port)
+; (define record-type-descriptor?
+;   (record-predicate *rtd-type*))
 
-(define (make-record-type type-name field-names . rest)
+(define *rtd-type*
+  (let* ((fields '(type-name slot-mapping printer size 
+			     hierarchy-vector hierarchy-depth))
+	 (x      (make-structure (+ *record-overhead* (length fields)))))
+    (vector-like-set! x 0 x)
+    (vector-like-set! x 1 "record-type-descriptor-type")
+    (vector-like-set! x 2 (rtd/make-slot-mapping fields))
+    (vector-like-set! x 3 #f)
+    (vector-like-set! x 4 (vector-like-length x))
+    (vector-like-set! x 5 (vector x))
+    (vector-like-set! x 6 0)
+    x))
 
-  (define (make-field-info names index)
-    (if (null? names)
-	'()
-	(cons (cons (car names) index)
-	      (make-field-info (cdr names) (+ index 1)))))
+; FIXME: This won't work if *rtd-type* is extended.
+; If *rtd-type* is exported (and its extensions can be used as types) then
+; the test must be that obj is an extension of *rtd-type*.
 
-  (define printer #f)
-  (define parent #f)
-
-  ; Parse rest arguments.
-
-  (let loop ((rest rest))
-    (cond ((null? rest))
-	  ((eq? (car rest) 'printer)
-	   (set! printer (cadr rest))
-	   (loop (cddr rest)))
-	  ((eq? (car rest) 'parent)
-	   (set! parent (cadr rest))
-	   (loop (cddr rest)))
-	  (else
-	   (error "make-record-type: invalid keyword " (car rest)))))
-
-  ; Create descriptor.
-
-  (let ((rtd (make-structure 5)))
-    (vector-like-set! rtd 0 rtd/tag)
-    (vector-like-set! rtd 1 type-name)                         ; name
-    (vector-like-set! rtd 2 (make-field-info field-names       ; field info
-					     *record-overhead*))
-    (vector-like-set! rtd 3 printer)                           ; print proc
-    (vector-like-set! rtd 4 (+ (length field-names)            ; # fields
-			       *record-overhead*))
-    rtd))
-
-(define rtd/tag (list 'record-type-descriptor))
-
-(define (rtd/field-info rtd) (vector-like-ref rtd 2))
-(define (rtd/printer rtd) (vector-like-ref rtd 3))
-(define (rtd/set-printer! rtd proc) (vector-like-set! rtd 3 proc))
-(define (rtd/record-size rtd) (vector-like-ref rtd 4))
-
-(define (record-type-descriptor? obj) 
-    (and (structure? obj) 
-	 (> (vector-like-length obj) 0)
-	 (eq? (vector-like-ref obj 0) rtd/tag)))
-
-(define (record-type-name rtd)
-  (if (record-type-descriptor? rtd)
-      (vector-like-ref rtd 1)
-      (error "record-type-name: " rtd " is not a record-type-descriptor.")))
-
-(define (record-type-field-names rtd)
-  (if (record-type-descriptor? rtd)
-      (map car (rtd/field-info rtd))
-      (error 'record-type-field-names "Not a record type descriptor")))
+(define (record-type-descriptor? obj)
+  (and (structure? obj)
+       (> (vector-like-length obj) 0)
+       (eq? (vector-like-ref obj 0) *rtd-type*)))
 
 (define (record-type-field-offset rtd name)
-  (let ((probe (assq name (rtd/field-info rtd))))
+  (cdr (assq name (vector-like-ref rtd (+ *record-overhead* 1)))))
+
+; END MAGIC
+
+; The ordering of the procedures is not accidental!
+
+(define rtd/slot-mapping
+  (record-accessor *rtd-type* 'slot-mapping))
+
+(define rtd/record-size
+  (record-accessor *rtd-type* 'size))
+
+(define rtd/hierarchy-depth
+  (record-accessor *rtd-type* 'hierarchy-depth))
+
+(define rtd/hierarchy-vector
+  (record-accessor *rtd-type* 'hierarchy-vector))
+
+(define (record-type-field-names rtd)
+  (map car (rtd/slot-mapping rtd)))
+
+(define rtd/make-record-type
+  (record-constructor *rtd-type*))
+
+; At this point, things are stable.
+
+(define (make-record-type type-name field-names . rest)
+  (let* ((printer (cond ((memq 'printer rest) => cadr)
+			(else #f)))
+	 (parent  (cond ((memq 'parent rest) => cadr)
+			(else #f)))
+	 (field-names (if parent
+			  (append (record-type-field-names parent)
+				  field-names)
+			  field-names))
+	 (hierdep (if parent
+		      (+ 1 (rtd/hierarchy-depth parent))
+		      0))
+	 (hiervec (let ((v (make-vector (+ hierdep 1))))
+		    (if parent
+			(let ((pv (rtd/hierarchy-vector parent)))
+			  (do ((i 0 (+ i 1)))
+			      ((= i hierdep))
+			    (vector-set! v i (vector-ref pv i)))))
+		    v)))
+    (let ((rtd (rtd/make-record-type
+		type-name
+		(rtd/make-slot-mapping field-names)
+		printer
+		(+ (length field-names) *record-overhead*)
+		hiervec
+		hierdep)))
+      (vector-set! hiervec hierdep rtd)
+      rtd)))
+
+(define record-type-name
+  (record-accessor *rtd-type* 'type-name))
+
+; Error-checking version.
+
+(define (record-type-field-offset rtd name)
+  (let ((probe (assq name (rtd/slot-mapping rtd))))
     (if probe
 	(cdr probe)
 	(error "record-type-field-offset: " name
 	       " is not a valid field for " rtd))))
 
-(define (set-record-type-printer! rtd printer)
-  (if (record-type-descriptor? rtd)
-      (rtd/set-printer! rtd printer)
-      (error "set-record-type-printer!: " rtd
-	     " is not a record-type-descriptor.")))
-
-; Does r1 extend r2?
-;
-; Uses (n^2)/2+O(1) bits globally if there are n record types, but
-; runs in constant time.  The inheritance bit vector for r1 has 1 
-; in the position for r2 if r1 extends r2.
+; Does r1 extend r2, ie, is r1 a subtype of r2?
+; r1 extends r2 iff r1.type-hierarcy-vector[ r2.type-hierarchy.depth ] = r2
 
 (define (record-type-extends? r1 r2)
-  (let* ((v (rtd/inheritance-bitvector r1))
-	 (l (bitvector-length v))
-	 (k (rtd/type-identifier r2)))
-    (and (< k l)
-	 (= 1 (bitvector-ref v k)))))
+  (let ((r1-vector (rtd/hierarchy-vector r1))
+	(r2-depth  (rtd/hierarchy-depth r2)))
+    (and (< r2-depth (vector-length r1-vector))
+	 (eq? (vector-ref r1-vector r2-depth) r2))))
 
-(define (bitvector-length v)
-  (* 8 (bytevector-length v)))
 
-(define (bitvector-ref v k)
-  (logand (rshl (bytevector-ref v (quotient k 8))
-		(remainder k 8))
-	  1))
+; Pretty printer for record types.
 
-(define (bitvector-set! v k x)
-  ...)
+((record-updater *rtd-type* 'printer)
+ *rtd-type*
+ (lambda (obj port)
+   (display "#<record-type-descriptor " port)
+   (display (record-type-name obj) port)
+   (display ">" port)))
+
 
 ; Install a printing procedure for records.
 
-(let ((previous-printer (structure-printer)))
+(let ((previous-printer (structure-printer))
+      (get-printer (record-accessor *rtd-type* 'printer)))
   (structure-printer
    (lambda (obj port quote?)
-     (cond ((record-type-descriptor? obj)
-	    (display "#<record-type-descriptor " port)
-	    (display (record-type-name obj) port)
-	    (display ">" port))
-	   ((record? obj)
-	    (let ((p (rtd/printer (record-type-descriptor obj))))
+     (cond ((record? obj)
+	    (let ((p (get-printer (record-type-descriptor obj))))
 	      (if p
 		  (p obj port)
 		  (begin (display "#<record " port)

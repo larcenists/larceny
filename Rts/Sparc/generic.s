@@ -1,7 +1,7 @@
 ! Sparc/generic.s.
 ! Larceny run-time system (Sparc) -- Millicode for Generic Arithmetic.
 !
-! $Id$
+! $Id: generic.s,v 1.1.1.1 1998/11/19 21:51:49 lth Exp $
 !
 ! Generic arithmetic operations are implemented as decision trees on 
 ! the representation, the goal being fast same-representation arithmetic
@@ -639,14 +639,6 @@ Ldiv_fix:
 	! expected; otherwise, the operation will generate a ratnum and the
 	! whole thing is pushed into Scheme.
 
-#ifdef CHECK_DIVISION_BY_ZERO
-	cmp	%ARGREG2, 0
-	bne,a	1f
-	nop
-	b	Lnumeric_error
-	mov	EX_DIV, %TMP0
-1:
-#endif
 	set	EX_DIV, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
 
@@ -694,21 +686,13 @@ EXTNAME(m_generic_quo):
 	bne	Lquotient1
 	nop
 
-	! Case 1: both fixnums
-	! Should probably conditionalize this on whether the machine has
-	! hardware divide or not; should save us some cycles. In fact,
-	! the fixnum case will then be small enough to move in-line.
-#ifdef CHECK_DIVISION_BY_ZERO
-	cmp	%ARGREG2, 0
-	bne,a	1f
-	nop
-	b	Lnumeric_error
-	mov	EX_QUOTIENT, %TMP0
-1:
-#endif
+	! Both operands are fixnums.
+
+	! Set up exception handling code, in case operation fails.
 	set	EX_QUOTIENT, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
 
+#if !defined(HARDWARE_DIVIDE)
 	! FOREIGN SECTION
 	save	%sp, -104, %sp
 	sra	%SAVED_RESULT, 2, %o0
@@ -717,7 +701,14 @@ EXTNAME(m_generic_quo):
 	sll	%o0, 2, %SAVED_RESULT
 	restore
 	! END FOREIGN SECTION
-
+#else
+	cmp	%RESULT, 0
+	blt,a	1f
+	wr	%g0, -1, %y
+	wr	%g0, 0, %y
+1:	sdiv	%RESULT, %ARGREG2, %TMP0
+	sll	%TMP0, 2, %RESULT
+#endif
 	jmp	%o7+8
 	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 Lquotient1:
@@ -805,14 +796,6 @@ EXTNAME(m_generic_rem):
 	bne	Lremainder1
 	nop
 
-#ifdef CHECK_DIVISION_BY_ZERO
-	cmp	%ARGREG2, 0
-	bne,a	1f
-	nop
-	b	Lnumeric_error
-	mov	EX_REMAINDER, %TMP0
-1:
-#endif
 	! Both fixnums
 	set	EX_REMAINDER, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]

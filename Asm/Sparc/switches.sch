@@ -1,7 +1,7 @@
 ; Asm/Sparc/switches.sch
 ; Larceny -- Switches for the Sparc assembler
 ;
-; $Id: switches.sch,v 1.3 1997/09/23 20:02:38 lth Exp lth $
+; $Id: switches.sch,v 1.1.1.1 1998/11/19 21:52:00 lth Exp $
 
 ; INTERNAL!
 (define short-effective-addresses
@@ -16,8 +16,8 @@
 (define inline-allocation
   (make-twobit-flag 'inline-allocation))
   
-(define inline-assignment
-  (make-twobit-flag 'inline-assignment))
+;(define inline-assignment
+;  (make-twobit-flag 'inline-assignment))
 
 (define write-barrier
   (make-twobit-flag 'write-barrier))  
@@ -31,17 +31,43 @@
 (define fill-delay-slots
   (make-twobit-flag 'fill-delay-slots))
 
-(define (fast-write-barrier) #f)
+(define (display-assembler-flags)
+  (display "SPARC Assembler flags") (newline)
+  (display-twobit-flag catch-undefined-globals)
+  (display-twobit-flag inline-allocation)
+;  (display-twobit-flag inline-assignment)
+  (display-twobit-flag peephole-optimization)
+  (display-twobit-flag unsafe-code)
+  (display-twobit-flag write-barrier)
+  (display-twobit-flag single-stepping)
+  (display-twobit-flag fill-delay-slots))
 
-; Initialization
+(define (set-assembler-flags! mode)
+  (case mode
+    ((no-optimization)
+     (set-assembler-flags! 'default)
+     (peephole-optimization #f)
+     (fill-delay-slots #f))
+    ((default)
+     (short-effective-addresses #t)
+     (catch-undefined-globals #t)
+     (inline-allocation #f)
+     (peephole-optimization #t)
+     (unsafe-code #f)
+     (write-barrier #t)
+     (single-stepping #f)
+     (fill-delay-slots #t))
+    ((fast-safe)
+     (set-assembler-flags! 'default)
+     ; (inline-assignment #t)
+     (inline-allocation #t))
+    ((fast-unsafe)
+     (set-assembler-flags! 'fast-safe)
+     (catch-undefined-globals #f)
+     (unsafe-code #t))
+    (else
+     (error "set-assembler-flags!: unknown mode " mode))))
 
-(short-effective-addresses #t)  ; Faster code (still safe).
-(inline-allocation #f)          ; Allocation of small, known size in-line.
-(inline-assignment #f)          ; Assignment generation check in-line.
-(write-barrier #t)              ; For generational garbage collection.
-(catch-undefined-globals #t)    ; #!undefined causes error.
-(unsafe-code #f)                ; Generate unsafe code.
-(single-stepping #f)            ; Single-step MacScheme instructions.
-(fill-delay-slots #t)           ; Branch delay slot filling in assembler.
+(set-assembler-flags! 'default)
 
 ; eof

@@ -2,7 +2,7 @@
 #
 # Rts/Makefile
 #
-# $Id: Makefile,v 1.12 1997/09/17 15:15:54 lth Exp lth $
+# $Id: Makefile,v 1.1.1.1 1998/11/19 21:51:36 lth Exp $
 
 ###########################################################################
 #
@@ -89,7 +89,7 @@ ARCHINFO=-DENDIAN_BIG -DBITS_32
 BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 
 CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(CONFIG) \
-	-ISys -IBuild -ICPetit $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) \
+	-ISys -IBuild -IStandard-C $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) \
 	$(ARCHINFO) $(BDW_DEBUG) $(CCFLAGS)
 
 SPARC_ASFLAGS= -P -ISparc -IBuild $(CONFIG) $(DEBUGFLAGS) \
@@ -122,30 +122,37 @@ BOEHM_GC_LIBRARIES=\
 
 COMMON_SPARC_OBJECTS=\
 	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o Sparc/cglue.o \
-	Sparc/glue.o Sparc/mcode.o Build/table.o
+	Sparc/glue.o Sparc/mcode.o Sparc/signals.o Build/sparc-table.o
 
 SPARC_PRECISE_GC_OBJECTS=\
 	Sparc/memory.o Sparc/generic.o
 
 PETIT_OBJECTS=\
-	CPetit/arithmetic.o CPetit/millicode.o CPetit/multiply.o
+	Standard-C/arithmetic.o Standard-C/millicode.o Standard-C/multiply.o \
+	Build/c-table.o
 
+# SPARC only
 LARCENY_OBJECTS=\
 	Sys/larceny.o \
+	Sparc/config.o \
 	$(COMMON_RTS_OBJECTS) \
 	$(COMMON_SPARC_OBJECTS) \
 	$(PRECISE_GC_OBJECTS) \
 	$(SPARC_PRECISE_GC_OBJECTS)
 
+# SPARC only
 BDW_LARCENY_OBJECTS=\
 	Sys/bdw-larceny.o \
+	Sparc/config.o \
 	$(COMMON_RTS_OBJECTS) \
 	$(COMMON_SPARC_OBJECTS) \
 	$(BOEHM_GC_OBJECTS) \
 	$(BOEHM_GC_SPARC_OBJECTS)
 
+# Generic Unix
 PETIT_LARCENY_OBJECTS=\
-	Sys/petit-larceny.o \
+	Sys/larceny.o \
+	Standard-C/config.o \
 	$(COMMON_RTS_OBJECTS) \
 	$(PRECISE_GC_OBJECTS) \
 	$(PETIT_OBJECTS)
@@ -154,7 +161,7 @@ PETIT_LARCENY_OBJECTS=\
 # Generated header files.
 # ACFG, CCFG, SCFG, and HDRFILES also exists in ../Makefile.  Watch it!
 
-CCFG=Build/globals.ch Build/except.ch Build/layouts.ch
+CCFG=Build/globals.ch Build/except.ch Build/layouts.ch Build/mprocs.ch
 
 ACFG=Build/globals.ah Build/regs.ah Build/except.ah Build/layouts.ah \
 	Build/mprocs.ah
@@ -166,7 +173,7 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 #
 # Rules
 
-.SUFFIXES:	.cfg .ch .ah .sh
+.SUFFIXES:	.cfg .ch .ah .sh .mac
 
 .cfg.ch:
 	./config "UNKNOWN" $<
@@ -176,6 +183,9 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 
 .cfg.sh:
 	./config "UNKNOWN" $<
+
+.mac.c:
+	./expand-mac $<
 
 # Yow!
 .s.o:
@@ -208,8 +218,9 @@ bdwlarceny: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
 
-petit: $(PETIT_LARCENY_OBJECTS)
-	$(CC) $(PROFILE) $(TCOV) -o petit-larceny $(PETIT_LARCENY_OBJECTS) \
+# SunOS 5.6, for sure.
+libpetit.so: $(PETIT_LARCENY_OBJECTS)
+	ld -G -o libpetit.so -L/usr/lib -lc $(PETIT_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o
 
@@ -221,14 +232,15 @@ Util/hsplit.o: Util/hsplit.c
 
 clean:
 	rm -f larceny hsplit bdwlarceny petit-larceny core defs \
-		Sys/*.o Sparc/*.o Build/*.o CPetit/*.o Util/ffi-dummy.o
+		Sys/*.o Sparc/*.o Build/*.o Standard-C/*.o Util/ffi-dummy.o \
+		libpetit.so Standard-C/arithmetic.c
 
 rtsclean: clean
 	rm -f Build/*.s Build/*.*h
 
 realclean: clean
 	if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi
-	rm -f Build/*
+	rm -rf Build
 
 defs: Util/defs.c
 	$(CC) -o defs Util/defs.c
@@ -246,7 +258,10 @@ Build/asmdefs.h:	$(ACFG)
 Build/schdefs.h:	$(SCFG)
 	cat $(SCFG) > Build/schdefs.h
 
-Build/table.s: Build/globals.cfg
+Build/sparc-table.s: Build/globals.cfg
+	./config "UNKNOWN" Build/globals.cfg
+
+Build/c-table.c: Build/globals.cfg
 	./config "UNKNOWN" Build/globals.cfg
 
 
@@ -258,10 +273,13 @@ Build/table.s: Build/globals.cfg
 LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \
 	  Build/cdefs.h Sys/config.h
 SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h defs
+PETIT_H=Standard-C/millicode.h Standard-C/petit-config.h \
+	Standard-C/petit-hacks.h
 
-CPetit/arithmetic.o: $(LARCENY_H) CPetit/millicode.h
-CPetit/millicode.o: $(LARCENY_H) CPetit/millicode.h Sys/gc_t.h
-CPetit/multiply.o: $(LARCENY_H) CPetit/millicode.h
+Standard-C/arithmetic.o: $(LARCENY_H) $(PETIT_H)
+Standard-C/millicode.o: $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \
+	Sys/stack.h
+Standard-C/multiply.o: $(LARCENY_H) $(PETIT_H)
 
 Sparc/barrier.o: $(SPARC_ASM_H)
 Sparc/bdw-memory.o: Sparc/memory.s $(SPARC_ASM_H)
@@ -272,7 +290,7 @@ Sparc/generic.o: $(SPARC_ASM_H)
 Sparc/glue.o: $(SPARC_ASM_H)
 Sparc/mcode.o: $(SPARC_ASM_H)
 Sparc/memory.o: $(SPARC_ASM_H)
-Sparc/table.o: $(SPARC_ASM_H)
+Sparc/signals.o: $(LARCENY_H)
 
 Sys/alloc.o: Sys/posix-alloc.c $(LARCENY_H) Sys/barrier.h Sys/gclib.h \
 	Sys/semispace_t.h

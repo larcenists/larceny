@@ -1,7 +1,7 @@
 ; Eval/eval.sch
 ; Larceny -- fast interpreter.
 ;
-; $Id: eval.sch,v 1.5 1997/07/18 13:51:43 lth Exp $
+; $Id: eval.sch,v 1.1.1.1 1998/11/19 21:52:14 lth Exp $
 ;
 ; Description
 ;   `Eval' takes an expression and optionally an R5RS environment and
@@ -142,6 +142,7 @@
 
 (define kwd:define 'define)
 (define kwd:lambda 'lambda)
+(define kwd:named-lambda '.named-lambda) ; Introduced by the interpreter
 (define kwd:if 'if)
 (define kwd:set! 'set!)
 (define kwd:quote 'quote)
@@ -191,12 +192,24 @@
 		  (else
 		   ???)))))
 
+    (define (lambda->named-lambda name x)
+      `(,kwd:named-lambda ,name ,@(cdr x)))
+
     (define (toplevel-preprocess expr env)
       (cond ((definition? expr)
-	     (really-preprocess `(,kwd:begin
-				  (,kwd:set! ,(cadr expr) ,(caddr expr))
-				  ,(unspecified))
-				env))
+	     (let ((lhs (cadr expr))
+		   (rhs (caddr expr)))
+	       (if (and (pair? rhs) (eq? kwd:lambda (car rhs)))
+		   (really-preprocess
+		    `(,kwd:begin
+		      (,kwd:set! ,lhs ,(lambda->named-lambda lhs rhs))
+		      ,(unspecified))
+		    env)
+		   (really-preprocess
+		    `(,kwd:begin
+		      (,kwd:set! ,lhs ,rhs)
+		      ,(unspecified))
+		    env))))
 	    ((begin? expr)
 	     (if (all-definitions? (cdr expr))
 		 (really-preprocess (cons kwd:begin
@@ -245,6 +258,8 @@
 			(eval/setglbl (cadr expr) rhs find-global expr))))
 		 ((eq? kwd:lambda kwd)
 		  (eval/make-proc expr env find-global expr))
+		 ((eq? kwd:named-lambda kwd)
+		  (eval/make-proc expr env find-global expr))
 		 ((eq? kwd:begin kwd)
 		  (if (null? (cdr expr))
 		      (begin (error "EVAL: empty BEGIN")
@@ -291,6 +306,9 @@
 
 (define (eval/make-proc expr env find-global src)
 
+  (define (named-lambda? x)
+    (eq? (car x) kwd:named-lambda))
+
   (define (listify x)
     (cond ((null? x) x)
 	  ((pair? x) (cons (car x) (listify (cdr x))))
@@ -301,19 +319,20 @@
 	(fixed-args (cdr x) (+ n 1))
 	n))
 
-  (let* ((args  (cadr expr))
-	 (body  (cddr expr))
+  (let* ((args  (if (named-lambda? expr) (caddr expr) (cadr expr)))
+	 (body  (if (named-lambda? expr) (cdddr expr) (cddr expr)))
+	 (name  (if (named-lambda? expr) (cadr expr) #f))
 	 (nenv  (eval/extend-env env (listify args)))
 	 (exprs (eval/preprocess (cons kwd:begin body) nenv find-global)))
     (if (list? args)
 	(case (length args)
-	  ((0) (eval/lambda0 exprs src))
-	  ((1) (eval/lambda1 exprs src))
-	  ((2) (eval/lambda2 exprs src))
-	  ((3) (eval/lambda3 exprs src))
-	  ((4) (eval/lambda4 exprs src))
-	  (else (eval/lambda-n (length args) exprs src)))
-	(eval/lambda-dot (fixed-args args 0) exprs src))))
+	  ((0) (eval/lambda0 exprs src name))
+	  ((1) (eval/lambda1 exprs src name))
+	  ((2) (eval/lambda2 exprs src name))
+	  ((3) (eval/lambda3 exprs src name))
+	  ((4) (eval/lambda4 exprs src name))
+	  (else (eval/lambda-n (length args) exprs src name)))
+	(eval/lambda-dot (fixed-args args 0) exprs src name))))
 
 ; Procedure call.  Special cases handled:
 ;  - letrec:  ((lambda (a b ...) ...) #!unspecified ...)
@@ -368,7 +387,7 @@
 
 (define (eval/global name find-global src)
   (let ((cell (find-global name)))
-    (evaluator-procedure
+    (interpreted-expression
      (lambda (env)
        (let ((v (car cell)))
 	 (if (eq? v (undefined))
@@ -432,7 +451,7 @@
     c))
 
 (define (eval/if test consequent alternate src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      (if (test env) (consequent env) (alternate env)))
    src))
@@ -449,25 +468,25 @@
     (else (eval/sequence-n exprs src))))
 
 (define (eval/sequence2 a b src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      (a env) (b env))
    src))
 
 (define (eval/sequence3 a b c src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      (a env) (b env) (c env))
    src))
 
 (define (eval/sequence4 a b c d src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      (a env) (b env) (c env) (d env))
    src))
 
 (define (eval/sequence-n exprs src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      (let loop ((exprs exprs))
        (cond ((null? (cdr exprs))
@@ -515,37 +534,37 @@
     (else ???)))
 
 (define (eval/invoke0 proc src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      ((proc env)))
    src))
 
 (define (eval/invoke1 proc a src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      ((proc env) (a env)))
    src))
 
 (define (eval/invoke2 proc a b src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      ((proc env) (a env) (b env)))
    src))
 
 (define (eval/invoke3 proc a b c src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      ((proc env) (a env) (b env) (c env)))
    src))
 
 (define (eval/invoke4 proc a b c d src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      ((proc env) (a env) (b env) (c env) (d env)))
    src))
 
 (define (eval/invoke-n proc args src)
-  (evaluator-procedure
+  (interpreted-expression
    (lambda (env)
      (let ((proc (proc env))
 	   (args (map (lambda (p) (p env)) args)))
@@ -557,79 +576,141 @@
 ; If 'vector' were faster, it would be a better choice for constructing 
 ; ribs than make-vector + vector-set!.
 
-(define (eval/lambda0 body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda ()
-       (body (cons '#() env))))
-   src))
+(define (eval/lambda0 body src name)
+  (let ((doc (vector name src 0 #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda ()
+	  (body (cons '#() env)))))
+     src)))
 
-(define (eval/lambda1 body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda (a)
-       (let ((v (make-vector 1 a)))
-	 (body (cons v env)))))
-   src))
+(define (eval/lambda1 body src name)
+  (let ((doc (vector name src 1 #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda (a)
+	  (let ((v (make-vector 1 a)))
+	    (body (cons v env))))))
+     src)))
 
-(define (eval/lambda2 body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda (a b)
-       (let ((v (make-vector 2 a)))
-	 (vector-set! v 1 b)
-	 (body (cons v env)))))
-   src))
+(define (eval/lambda2 body src name)
+  (let ((doc (vector name src 2 #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda (a b)
+	  (let ((v (make-vector 2 a)))
+	    (vector-set! v 1 b)
+	    (body (cons v env))))))
+     src)))
 
-(define (eval/lambda3 body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda (a b c)
-       (let ((v (make-vector 3 a)))
-	 (vector-set! v 1 b)
-	 (vector-set! v 2 c)
-	 (body (cons v env)))))
-   src))
+(define (eval/lambda3 body src name)
+  (let ((doc (vector name src 3 #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda (a b c)
+	  (let ((v (make-vector 3 a)))
+	    (vector-set! v 1 b)
+	    (vector-set! v 2 c)
+	    (body (cons v env))))))
+     src)))
 
-(define (eval/lambda4 body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda (a b c d)
-       (let ((v (make-vector 4 a)))
-	 (vector-set! v 1 b)
-	 (vector-set! v 2 c)
-	 (vector-set! v 3 d)
-	 (body (cons v env)))))
-   src))
+(define (eval/lambda4 body src name)
+  (let ((doc (vector name src 4 #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda (a b c d)
+	  (let ((v (make-vector 4 a)))
+	    (vector-set! v 1 b)
+	    (vector-set! v 2 c)
+	    (vector-set! v 3 d)
+	    (body (cons v env))))))
+     src)))
 
-(define (eval/lambda-n n body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda args
-       (body (cons (list->vector args) env))))
-   src))
+(define (eval/lambda-n n body src name)
+  (let ((doc (vector name src n #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda args
+	  (body (cons (list->vector args) env)))))
+     src)))
 
 ; `n' is the number of fixed arguments.
 
-(define (eval/lambda-dot n body src)
-  (evaluator-procedure
-   (lambda (env)
-     (lambda args
-       (let ((l (length args))
-	     (v (make-vector (+ n 1) (unspecified))))
-	 (if (< l n)
-	     (error "Too few arguments to procedure."))
-	 (do ((args args (cdr args))
-	      (i 0 (+ i 1)))
-	     ((= i n)
-	      (vector-set! v i args)
-	      (body (cons v env)))
-	   (vector-set! v i (car args))))))
-   src))
+(define (eval/lambda-dot n body src name)
+  (let ((doc (vector name src (exact->inexact n) #f #f)))
+    (interpreted-expression
+     (lambda (env)
+       (interpreted-procedure
+	doc
+	(lambda args
+	  (let ((l (length args))
+		(v (make-vector (+ n 1) (unspecified))))
+	    (if (< l n)
+		(error "Too few arguments to procedure."))
+	    (do ((args args (cdr args))
+		 (i 0 (+ i 1)))
+		((= i n)
+		 (vector-set! v i args)
+		 (body (cons v env)))
+	      (vector-set! v i (car args)))))))
+     src)))
 
-;;; Debugger support
 
-(define (evaluator-procedure proc doc)
+; Debugger support
+
+; Interpreted-procedure, interpreted-expression, and
+; interpreted-primitive can always return their procedure argument
+; without any harm to the interpreter; only debugging will be affected.
+
+; Interpreted-procedure takes a standard documentation structure and any
+; procedure (currently anything) and returns a new procedure that is
+; identical to the old except that the it has typetag 0 and is one
+; element longer.  The new, last element contains the pair 
+; ($eval-lambda . <doc>) where <doc> is the documentation structure.
+; This procedure is on the critical path in the interpreter and should
+; do no more work than absolutely necessary.
+
+(define (interpreted-procedure doc proc)
+  (let* ((l (procedure-length proc))
+	 (p (make-procedure (+ l 1))))
+    (do ((i 0 (+ i 1)))
+	((= i l))
+      (procedure-set! p i (procedure-ref proc i)))
+    (procedure-set! p l (cons '$eval-lambda doc))
+    (typetag-set! p 0)
+    p))
+
+(define (interpreted-procedure? x)
+  (and (procedure? x)
+       (zero? (typetag x))
+       (let ((last (procedure-ref x (- (procedure-length x) 1))))
+	 (and (pair? last)
+	      (eq? (car last) '$eval-lambda)))))
+
+(define (interpreted-procedure-documentation proc)
+  (cdr (procedure-ref proc (- (procedure-length proc) 1))))
+
+
+; Interpreted-expression takes any procedure and a documentation
+; structure (currently anything) and returns a new procedure that is
+; identical to the old except that the it is one element longer and has
+; typetag 0.  
+; The new, last element contains the pair ($evalproc . <doc>) where <doc>
+; is the documentation structure.
+
+(define (interpreted-expression proc doc)
   (let* ((l (procedure-length proc))
 	 (p (make-procedure (+ l 1))))
     (do ((i 0 (+ i 1)))
@@ -639,14 +720,78 @@
     (typetag-set! p 0)
     p))
 
-(define (evaluator-primitive name args proc)
+(define (interpreted-expression? x)
+  (and (procedure? x)
+       (zero? (typetag x))
+       (let ((last (procedure-ref x (- (procedure-length x) 1))))
+	 (and (pair? last)
+	      (eq? (car last) '$evalproc)))))
+
+
+; Interpreted-primitive takes a name (a symbol), a number of arguments
+; (a fixnum), and a procedure, and returns a new procedure that is
+; identical to the old except that it is one element longer and has
+; typetag 0.  
+; The new, last element contains the list ($evalprim <name> <argc>).
+
+(define (interpreted-primitive name argc proc)
   (let* ((l (procedure-length proc))
 	 (p (make-procedure (+ l 1))))
     (do ((i 0 (+ i 1)))
 	((= i l))
       (procedure-set! p i (procedure-ref proc i)))
-    (procedure-set! p l (list '$evalprim name args))
+    (procedure-set! p l (list '$evalprim name argc))
     (typetag-set! p 0)
     p))
+
+(define (interpreted-primitive? x)
+  (and (procedure? x)
+       (zero? (typetag x))
+       (let ((last (procedure-ref x (- (procedure-length x) 1))))
+	 (and (pair? last)
+	      (eq? (car last) '$evalprim)))))
+
+
+; Augmentations to procedures defined in Lib/procinfo.sch to deal
+; with interpreted procedures.
+
+(define procedure-arity
+  (let ((procedure-arity procedure-arity))
+    (lambda (proc)
+      (if (interpreted-procedure? proc)
+	  (vector-ref (interpreted-procedure-documentation proc) 2)
+	  (procedure-arity proc)))))
+
+(define procedure-name
+  (let ((procedure-name procedure-name))
+    (lambda (proc)
+      (cond ((interpreted-procedure? proc)
+	     (vector-ref (interpreted-procedure-documentation proc) 0))
+	    (else
+	     (procedure-name proc))))))
+
+(define procedure-expression 
+  (let ((procedure-expression procedure-expression))
+    (lambda (proc)
+      (cond ((interpreted-procedure? proc)
+	     (vector-ref (interpreted-procedure-documentation proc) 1))
+	    ((interpreted-expression? proc)
+	     (interpreted-procedure-documentation proc))
+	    ((interpreted-primitive? proc)
+	     (car (interpreted-procedure-documentation proc)))
+	    (else
+	     (procedure-expression proc))))))
+
+(define procedure-formals
+  (let ((procedure-formals procedure-formals))
+    (lambda (proc)
+      (cond ((interpreted-procedure? proc)
+	     (let ((src (procedure-expression proc)))
+	       (if (and src (pair? src))
+		   (cond ((eq? (car src) kwd:lambda) (cadr src))
+			 ((eq? (car src) kwd:named-lambda) (caddr src))
+			 (else #f)))))
+	    (else
+	     (procedure-formals proc))))))
 
 ; eof

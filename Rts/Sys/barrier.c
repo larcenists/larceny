@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.c
  * Larceny run-time system -- write barrier for new collector
  *
- * $Id: barrier.c,v 1.8 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: barrier.c,v 1.1.1.1 1998/11/19 21:51:38 lth Exp $
  *
  * Write barrier support code.
  *
@@ -23,11 +23,6 @@
 #include "larceny.h"
 #include "memmgr.h"
 #include "barrier.h"
-
-/* Disable the write barrier millicode code. (Rts/Sparc/barrier.s) */
-
-extern void wb_lowlevel_disable_barrier( void );
-
 
 /* Having these variables global makes it impossible to have more than
  * one write barrier in the system, which makes it impossible to
@@ -63,12 +58,13 @@ void wb_setup( unsigned *genv,     /* maps page number to generation number */
   globals[ G_PGBASE ] = (word)pagebase;
   globals[ G_NP_YOUNG_GEN ] = (word)np_young_gen;
   globals[ G_NP_YOUNG_GEN_SSBIDX ] = (word)np_ssbidx;
+  wb_lowlevel_enable_barrier( globals );
 }
 
-void wb_disable_barrier( void )
+void wb_disable_barrier( word *globals )
 {
   wb_generations = 0;
-  wb_lowlevel_disable_barrier();
+  wb_lowlevel_disable_barrier( globals );
 }
 
 void wb_re_setup( void *pagebase, unsigned *genv )

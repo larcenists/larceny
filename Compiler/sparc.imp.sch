@@ -1,7 +1,7 @@
 ; Compiler/sparc.imp.sch
 ; Larceny -- target-specific information for Twobit's SPARC backend.
 ;
-; $Id$
+; $Id: sparc.imp.sch,v 1.1.1.1 1998/11/19 21:52:25 lth Exp $
 ;
 ; Copyright 1991 William Clinger
 ;
@@ -100,16 +100,18 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: twobit.imp.sch,v 1.2 1997/02/11 20:21:58 lth Exp $
+; $Id: sparc.imp.sch,v 1.1.1.1 1998/11/19 21:52:25 lth Exp $
 ;
-; Changed by lth on 950627: added sys$bvlcmp, removed several others.
-
-; This is more conservative than it needs to be.
 
 (define (sparc-imm? x)
   (and (fixnum? x)
-       (<= 0 x)
-       (< x 256)))
+       (<= -1024 x 1023)))
+
+(define (sparc-eq-imm? x)
+  (or (sparc-imm? x)
+      (eq? x #t)
+      (eq? x #f)
+      (eq? x '())))
 
 (define $usual-integrable-procedures$
   `((break 0 break #f 3)
@@ -193,7 +195,7 @@
                                           (and (fixnum? x)
                                                (<= 0 x 7)))   ; used to be 31
                                  #xa0)
-    (eq? 2 eq? ,sparc-imm? #xa1)
+    (eq? 2 eq? ,sparc-eq-imm? #xa1)
     (eqv? 2 eqv? #f #xa2)
     (cons 2 cons #f #xa8)
     (.cons 2 cons #f #xa8)
@@ -216,6 +218,7 @@
     (rsha 2 rsha #f -1)
     (rshl 2 rshl #f -1)
     (rot 2 rot #f #xc4)
+    (make-string 2 make-string #f -1)
     (string-ref 2 string-ref ,sparc-imm? #xd1)
     (string-set! 3 string-set! ,sparc-imm? -1)
     (make-vector 2 make-vector #f #xd2)
@@ -768,28 +771,41 @@
 (define $branch (make-mnemonic 'branch))         ; branch  L
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
 
-; Backward compatible peephole stuff for old optimizations.
 
-(define $optb2 (make-mnemonic 'optb2))           ; optb2   prim,L
-(define $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
+; Operations introduced by peephole optimizer.
 
-; Operations created by new peephole optimizations.
-
-(define $optbreg1 (make-mnemonic 'optbreg1))       ; optbreg1    prim,k1,L
-(define $optbreg2 (make-mnemonic 'optbreg2))       ; optbreg2    prim,k1,k2,L
-(define $optbreg2imm (make-mnemonic 'optbreg2imm)) ; optbreg2imm prim,k1,x,L
-
-(define $dresop1 (make-mnemonic 'dresop1))         ; dresop1     prim,k1,kr
-(define $dresop2 (make-mnemonic 'dresop2))         ; dresop2     prim,k1,k2,kr
-(define $dresop2imm (make-mnemonic 'dresop2imm))   ; dresop2imm  prim,k1,x,kr
-
-(define $constreg (make-mnemonic 'constreg))       ; constreg    const,k
-
-(define $branchfreg (make-mnemonic 'branchfreg))   ; branchfreg k, L
-(define $branch-with-setrtn		           ; branch-with-setrtn L
-  (make-mnemonic 'branch-with-setrtn))
-(define $invoke-with-setrtn                        ; invoke-with-setrtn L
-  (make-mnemonic 'invoke-with-setrtn))
+(define $reg/op1/branchf                  ; reg/op1/branchf    prim,k1,L
+  (make-mnemonic 'reg/op1/branchf))
+(define $reg/op2/branchf                  ; reg/op2/branchf    prim,k1,k2,L
+  (make-mnemonic 'reg/op2/branchf))
+(define $reg/op2imm/branchf               ; reg/op2imm/branchf prim,k1,x,L
+  (make-mnemonic 'reg/op2imm/branchf))
+(define $reg/op1/setreg                   ; reg/op1/setreg     prim,k1,kr
+  (make-mnemonic 'reg/op1/setreg))
+(define $reg/op2/setreg                   ; reg/op2/setreg     prim,k1,k2,kr
+  (make-mnemonic 'reg/op2/setreg))
+(define $reg/op2imm/setreg                ; reg/op2imm/setreg  prim,k1,x,kr
+  (make-mnemonic 'reg/op2imm/setreg))
+(define $reg/branchf                      ; reg/branchf        k, L
+  (make-mnemonic 'reg/branchf))
+(define $reg/return                       ; reg/return         k
+  (make-mnemonic 'reg/return))
+(define $reg/setglbl                      ; reg/setglbl        k,x
+  (make-mnemonic 'reg/setglbl))
+(define $reg/op3                          ; reg/op3            prim,k1,k2,k3
+  (make-mnemonic 'reg/op3))
+(define $const/setreg                     ; const/setreg       const,k
+  (make-mnemonic 'const/setreg))
+(define $const/return                     ; const/return       const
+  (make-mnemonic 'const/return))
+(define $global/setreg                    ; global/setreg      x,k
+  (make-mnemonic 'global/setreg))
+(define $setrtn/branch                    ; setrtn/branch      L,doc
+  (make-mnemonic 'setrtn/branch))
+(define $setrtn/invoke                    ; setrtn/invoke      L
+  (make-mnemonic 'setrtn/invoke))
+(define $global/invoke                    ; global/invoke      global,n
+  (make-mnemonic 'global/invoke))
 
 ; misc
 

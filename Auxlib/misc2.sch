@@ -1,18 +1,5 @@
 ; More useful procedures.
-; $Id: misc2.sch,v 1.1 1997/09/17 15:06:05 lth Exp lth $
-
-; Most-positive-fixnum and most-negative-fixnum are of course implementation-
-; dependent, but for now there's only one implementation :-)
-
-(define most-positive-fixnum
-  (let ((mpf (- (expt 2 29) 1)))
-    (lambda ()
-      mpf)))
-
-(define most-negative-fixnum
-  (let ((mnf (expt -2 29)))
-    (lambda ()
-      mnf)))
+; $Id: misc2.sch,v 1.1.1.1 1998/11/19 21:52:18 lth Exp $
 
 ; Read-substring and write-substring can be optimized by plugging into 
 ; the I/O system; for now, they are useful abstractions.

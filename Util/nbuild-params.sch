@@ -1,7 +1,7 @@
 ; Util/nbuild-params.sch
 ; The nbuild-parameter procedure, for SPARC.
 ;
-; $Id$
+; $Id: nbuild-params.sch,v 1.1.1.1 1998/11/19 21:51:55 lth Exp $
 
 (define nbuild-parameter)
 

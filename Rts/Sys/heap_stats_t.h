@@ -1,7 +1,7 @@
 /* Rts/Sys/heap_stats_t.h
  * Larceny -- heap statistics structure definition
  *
- * $Id$
+ * $Id: heap_stats_t.h,v 1.1.1.1 1998/11/19 21:51:46 lth Exp $
  */
 
 #ifndef INCLUDED_HEAP_STATS_T_H

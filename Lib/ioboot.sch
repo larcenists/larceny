@@ -1,7 +1,7 @@
 ; Lib/ioboot.sch
 ; Larceny -- i/o system boot code
 ;
-; $Id: ioboot.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
+; $Id: ioboot.sch,v 1.1.1.1 1998/11/19 21:52:07 lth Exp $
 ;
 ; This code is loaded in the bootstrap heap image immediately following
 ; the I/O system.  The call to 'initialize-io-system' opens the console

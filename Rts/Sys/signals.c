@@ -1,7 +1,7 @@
 /* Rts/Sys/signals.c
  * Larceny Run-time system -- Unix signal handling.
  *
- * $Id: signals.c,v 1.2 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: signals.c,v 1.1.1.1 1998/11/19 21:51:43 lth Exp $
  */
 
 #include "config.h"
@@ -43,10 +43,12 @@ void setup_signal_handlers( void )
   struct sigaction act;
 
   act.sa_handler = 0;
-  act.sa_sigaction = inthandler;
   act.sa_flags = SA_SIGINFO | SA_RESTART;
   sigfillset( &act.sa_mask );
+
+  act.sa_sigaction = inthandler;
   sigaction( SIGINT, &act, (struct sigaction*)0 );
+
   act.sa_sigaction = fpehandler;
   sigaction( SIGFPE, &act, (struct sigaction*)0 );
 #endif
@@ -74,7 +76,7 @@ static void inthandler( int sig, siginfo_t *siginfo, void *context )
    * place.  Again, this is not the right thing, but it's OK now.
    */
 #if defined(SUNOS5)
-  setup_signal_handlers();  /* Re-enable signal before longjmp on Solaris */
+  unblock_all_signals();	/* Before longjmp */
 #endif
   longjmp( syscall_interrupt_buf, ASYNCHRONOUS_ERROR );
 }
@@ -87,7 +89,6 @@ static void fpehandler( int sig, int code, struct sigcontext *scp, char *addr )
 static void fpehandler( int sig, siginfo_t *siginfo, void *context )
 #endif
 {
-  void m_fpe_handler();
 #if defined(SUNOS5)
   int code = siginfo->si_code;
 #endif
@@ -96,7 +97,7 @@ static void fpehandler( int sig, siginfo_t *siginfo, void *context )
 
   if (in_interruptible_syscall) {
 #if defined(SUNOS5)
-    setup_signal_handlers();  /* Re-enable signal before longjmp on Solaris */
+    unblock_all_signals();	/* Before longjmp */
 #endif
     longjmp( syscall_interrupt_buf, SYNCHRONOUS_ERROR );
   }
@@ -112,24 +113,16 @@ static void fpehandler( int sig, siginfo_t *siginfo, void *context )
     return;
   }
   else {
-    /* Assumption: error happened in compiled code or millicode.
-     *
-     * SPARC specific code ahead!
-     * Setup a return address to millicode exception code.
-     */
+    /* Assumption: error happened in compiled code or millicode. */
 #if defined(SUNOS4)
-    scp->sc_pc = (int)m_fpe_handler;
-    scp->sc_npc = (int)m_fpe_handler + 4;
-
+    execute_sigfpe_magic( (void*)scp );
+    /* DO NOT PUT CODE HERE */
     return;
 #endif
 
 #if defined(SUNOS5)
-    ucontext_t *ucontext = (ucontext_t*)context;
-
-    ucontext->uc_mcontext.gregs[ REG_PC ] = (greg_t)m_fpe_handler;
-    ucontext->uc_mcontext.gregs[ REG_nPC ] = (greg_t)m_fpe_handler + 4;
-
+    execute_sigfpe_magic( context );
+    /* DO NOT PUT CODE HERE */
     return;
 #endif
   }
@@ -146,7 +139,15 @@ void block_all_signals( sigset_t *s )  /* s may be NULL */
 
 void unblock_signals( sigset_t *s )
 {
-  sigprocmask( SIG_SETMASK, s, 0 );
+  sigprocmask( SIG_SETMASK, s, (sigset_t*)0 );
+}
+
+void unblock_all_signals( void )
+{
+  sigset_t s;
+
+  sigemptyset( &s );
+  sigprocmask( SIG_SETMASK, &s, (sigset_t*)0 );
 }
 #endif
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/semispace.c
  * Larceny run-time system -- semispace ADT implementation.
  *
- * $Id: semispace.c,v 1.5 1997/05/23 13:50:06 lth Exp $
+ * $Id: semispace.c,v 1.1.1.1 1998/11/19 21:51:43 lth Exp $
  *
  * Interface defined in "Rts/Sys/semispace_t.h".
  */

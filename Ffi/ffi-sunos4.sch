@@ -1,7 +1,7 @@
 ; Ffi/ffi-sunos4.sch
 ; Larceny FFI -- ABI objects for sun4-sunos4
 ;
-; $Id$
+; $Id: ffi-sunos4.sch,v 1.1.1.1 1998/11/19 21:52:28 lth Exp $
 
 (define ffi/SPARC-sunos4-C-callout-stdabi
   (let ((parent ffi/SPARC-C-callout-stdabi))

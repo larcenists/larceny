@@ -2,7 +2,7 @@
 ; Experimental/applyhook0.mal
 ; Larceny library -- apply-hook support code.
 ;
-; $Id$
+; $Id: applyhook0.mal,v 1.1.1.1 1998/11/19 21:52:30 lth Exp $
 
 ; *apply-hook-proc-offset*
 

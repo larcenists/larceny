@@ -1,7 +1,7 @@
 ; Asm/Common/pass5p1.sch
 ; Larceny -- the assembler, target-independent code.
 ;
-; $Id: pass5p1.sch,v 1.4 1997/09/17 15:03:53 lth Exp $
+; $Id: pass5p1.sch,v 1.1.1.1 1998/11/19 21:51:58 lth Exp $
 ;
 ; Based on the MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.
@@ -26,17 +26,18 @@
 ; and a source instruction.  The procedure should just assemble
 ; the instruction using the operations defined below.
 ;
-; The table and target can be changed by redefining the following procedures.
+; The table and target can be changed by redefining the following 
+; five procedures.
 
 (define (assembly-table) (error "No assembly table defined."))
-(define (assembly-target) (error "No assembly target defined."))
 (define (assembly-start as) #t)
 (define (assembly-end as segment) segment)
+(define (assembly-user-data) #f)
 
 ; The main entry point.
 
 (define (assemble source . rest)
-  (let* ((user (if (null? rest) #f (car rest)))
+  (let* ((user (if (null? rest) (assembly-user-data) (car rest)))
 	 (as   (make-assembly-structure source (assembly-table) user)))
     (assembly-start as)
     (assemble1 as

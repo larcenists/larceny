@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcasm-test.sch
 ; Larceny -- Sparc machine assembler test code
 ;
-; $Id: sparcasm-test.sch,v 1.1 1997/07/18 13:43:13 lth Exp $
+; $Id: sparcasm-test.sch,v 1.1.1.1 1998/11/19 21:51:59 lth Exp $
 
 (define (sparcasm-test)
 

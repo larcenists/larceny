@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.8 1997/09/23 20:10:16 lth Exp lth $
+; $Id: toplevel.sch,v 1.1.1.1 1998/11/19 21:52:15 lth Exp $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -265,7 +265,7 @@
     (environment-set! r4rs 'apply apply)
     (environment-set! r4rs 'map map)
     (environment-set! r4rs 'for-each for-each)
-    (environment-set! r4rs 'force 'force)
+    (environment-set! r4rs 'force force)
     (environment-set! r4rs 'call-with-current-continuation
 		      call-with-current-continuation)
     ;; in R5RS:
@@ -293,6 +293,9 @@
 		      procedure-source-position)
     (environment-set! larc 'procedure-expression procedure-expression)
     (environment-set! larc 'procedure-environment procedure-environment)
+    (environment-set! larc 'interpreted-procedure? interpreted-procedure?)
+    (environment-set! larc 'interpreted-expression? interpreted-expression?)
+    (environment-set! larc 'interpreted-primitive? interpreted-primitive?)
 
     ;; i/o
 

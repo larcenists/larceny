@@ -1,7 +1,7 @@
 ; Compiler/printlap.sch
 ; Procedures that make .LAP structures human-readable
 ;
-; $Id: printlap.sch,v 1.1 1995/08/01 04:42:39 lth Exp $
+; $Id: printlap.sch,v 1.1.1.1 1998/11/19 21:52:24 lth Exp $
 
 (define (readify-lap code)
   (map (lambda (x)

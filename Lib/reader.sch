@@ -1,7 +1,7 @@
 ; Lib/reader.sch
 ; Larceny -- Scheme reader
 ;
-; $Id: reader.sch,v 1.8 1997/07/18 13:55:49 lth Exp $
+; $Id: reader.sch,v 1.1.1.1 1998/11/19 21:52:10 lth Exp $
 ;
 ; Original code Copyright Lightship Software.
 ; Extensive modifications by Lars T. Hansen.
@@ -424,19 +424,19 @@
 			    ;; This is horrifically expensive.
                             (let ((x (read-symbol c p '())))
                               (cond ((eq? x 'space)
-				     (integer->char 32))
+				     (integer->char **space**))
 				    ((eq? x 'newline)
 				     (integer->char **newline**))
 				    ((eq? x 'tab)
-				     (integer->char 9))
+				     (integer->char **tab**))
 				    ((eq? x 'return)
-				     (integer->char 13))
+				     (integer->char **carriage-return**))
 				    ((eq? x 'linefeed)
-				     (integer->char 10))
+				     (integer->char **linefeed**))
 				    ((eq? x 'page)
-				     (integer->char 12))
+				     (integer->char **form-feed**))
 				    ((eq? x 'backspace)
-				     (integer->char 8))
+				     (integer->char **backspace**))
 				    ((= (string-length (symbol->string x)) 1)
 				     c)
 				    (else

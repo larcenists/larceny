@@ -1,7 +1,7 @@
 /* Rts/Sys/memmgr.c
  * Larceny  -- precise garbage collector, top level.
  *
- * $Id: memmgr.c,v 1.24 1997/09/17 15:17:26 lth Exp $
+ * $Id: memmgr.c,v 1.1.1.1 1998/11/19 21:51:41 lth Exp $
  */
 
 const char *larceny_gc_technology = "precise";
@@ -260,7 +260,7 @@ static int initialize( gc_t *gc )
 	      gc->np_remset
 	     );
   else
-    wb_disable_barrier();
+    wb_disable_barrier( data->globals );
 
   annoyingmsg( "\nGC type: %s", gc->id );
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.10 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: unix.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
  *
  * RTS call-outs, for Unix.
  */
@@ -363,5 +363,17 @@ void UNIX_sysfeature( word v /* a vector of sufficient length */ )
 		   nativeint( vector_ref( v, 0 ) ) );
   }
 }
+
+/* UNIX_sro: implements SRO operation. */
+void UNIX_sro( word w_ptrtag, word w_hdrtag, word w_limit )
+{
+  int ptrtag = (int)nativeint(w_ptrtag);
+  int hdrtag = (int)nativeint(w_hdrtag);
+  int limit = (int)nativeint(w_limit);
+
+  supremely_annoyingmsg( "SRO %d %d %d", ptrtag, hdrtag, limit );
+  globals[ G_RESULT ] = standing_room_only( ptrtag, hdrtag, limit );
+}
+
 
 /* eof */

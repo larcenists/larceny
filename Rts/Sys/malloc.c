@@ -1,7 +1,7 @@
 /* Rts/Sys/malloc.c
  * Larceny run-time system -- malloc wrappers
  *
- * $Id: malloc.c,v 1.3 1997/07/07 20:13:53 lth Exp $
+ * $Id: malloc.c,v 1.1.1.1 1998/11/19 21:51:41 lth Exp $
  */
 
 #include <stdlib.h>

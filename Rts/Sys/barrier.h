@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.h
  * Larceny run-time system -- write barrier interface.
  *
- * $Id: barrier.h,v 1.6 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: barrier.h,v 1.1.1.1 1998/11/19 21:51:45 lth Exp $
  *
  * See Rts/Sys/barrier.c and Rts/Sparc/barrier.s for more information.
  */
@@ -24,11 +24,15 @@ void wb_setup( unsigned *genv,      /* map from page to generation */
 	      );
 
 /* Disable the write barrier. */
-void wb_disable_barrier( void );
+void wb_disable_barrier( word *globals );
 
 /* If the descriptor tables change, notify the barrier */
 void wb_re_setup( void *pagebase, unsigned *genv );
 
+/* Lowlevel support for barrier setup and shutdown. */
+
+extern void wb_lowlevel_disable_barrier( word *globals );
+extern void wb_lowlevel_enable_barrier( word *globals );
 
 #endif
 /* eof */

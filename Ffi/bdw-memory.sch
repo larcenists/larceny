@@ -2,7 +2,7 @@
 ; Larceny Foreign function interface -- memory management details,
 ;  for the Boehm-Demers-Weiser conservative collector.
 ;
-; $Id$
+; $Id: bdw-memory.sch,v 1.1.1.1 1998/11/19 21:52:26 lth Exp $
 
 (define make-nonrelocatable-bytevector make-bytevector)
 (define cons-nonrelocatable cons)

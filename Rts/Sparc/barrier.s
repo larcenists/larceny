@@ -1,7 +1,7 @@
 ! Rts/Sparc/barrier.s
 ! Write barrier code to support new GC with the old remembered sets.
 !
-! $Id: barrier.s,v 1.7 1997/05/15 00:58:05 lth Exp $
+! $Id: barrier.s,v 1.1.1.1 1998/11/19 21:51:48 lth Exp $
 !
 ! Write barrier.
 !
@@ -41,6 +41,7 @@
 	.global EXTNAME(mem_addtrans)		! alias for full barrier
 	.global EXTNAME(m_partial_barrier)	! partial write barrier
 	.global EXTNAME(wb_lowlevel_disable_barrier)	! disable barrier
+	.global EXTNAME(wb_lowlevel_enable_barrier)	! enable barrier
 
 	.seg "text"
 
@@ -193,21 +194,31 @@ EXTNAME(mem_addtrans):
 #endif
 
 
-! This procedure is called from C and disables the write barrier.  For
-! use with any single-generation system.
+! void wb_lowlevel_disable_barrier( word *globals )
+!
+! This procedure is called from C and disables the write barrier.
 !
 ! It works by overwriting the branch instruction in the millicode jump
 ! vector with a retl instruction, and the one following it with a nop.
 
 EXTNAME(wb_lowlevel_disable_barrier):
-	set	EXTNAME(globals), %o0
 	set	9f, %o1
 	ld	[ %o1 ], %o2
 	st	%o2, [ %o0+M_ADDTRANS ]
 	ld	[ %o1+4 ], %o2
 	st	%o2, [ %o0+M_ADDTRANS+4 ]
 9:
-	jmpl	%o7+8, %g0
+	retl
 	nop
 
+
+! void wb_lowlevel_enable_barrier( word *globals )
+!
+! Enable the barrier (initially).  A no-op in the SPARC version.
+
+EXTNAME(wb_lowlevel_enable_barrier):
+	retl
+	nop
+
+	
 ! eof

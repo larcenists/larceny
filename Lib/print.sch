@@ -1,7 +1,7 @@
 ; Lib/print.sch
 ; Larceny -- Print procedures 
 ;
-; $Id: print.sch,v 1.7 1997/09/23 20:08:39 lth Exp lth $
+; $Id: print.sch,v 1.1.1.1 1998/11/19 21:52:09 lth Exp $
 ;
 ; Copyright 1991 Lightship Software
 
@@ -133,9 +133,15 @@
   (define (printcharacter c p)
     (write-char #\# p)
     (write-char #\\ p)
-    (cond ((char=? c #\space) (printstr "space" p))
-	  ((char=? c #\newline) (printstr "newline" p))
-	  (else (write-char c p))))
+    (let ((k (char->integer c)))
+      (cond ((= k **space**)  (printstr "space" p))
+	    ((= k **newline**) (printstr "newline" p))
+	    ((= k **tab**) (printstr "tab" p))
+	    ((= k **carriage-return**) (printstr "return" p))
+	    ((= k **linefeed**) (printstr "linefeed" p))
+	    ((= k **form-feed**) (printstr "page" p))
+	    ((= k **backspace**) (printstr "backspace" p))
+	    (else (write-char c p)))))
      
   (define (printprocedure x p slashify)
     (printstr (string-append "#<PROCEDURE"

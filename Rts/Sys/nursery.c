@@ -1,7 +1,7 @@
 /* Rts/Sys/nursery.c
  * Larceny run-time system -- a nursery for the generational gc.
  *
- * $Id$
+ * $Id: nursery.c,v 1.1.1.1 1998/11/19 21:51:42 lth Exp $
  *
  * Contract
  *  - The stack cache lives in the heap; the stack pointer is the heap 

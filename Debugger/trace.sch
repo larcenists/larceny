@@ -136,7 +136,7 @@
   (display "Exit ")
   (display name)
   (display " => ")
-  (display-limited ret *debug-print-length*)
+  (debug/print-object ret)
   (newline))
 
 (define (debug/breakpoint toplevel-name args)
@@ -150,7 +150,7 @@
   (display name)
   (for-each (lambda (arg)
 	      (display " ")
-	      (display-limited arg *debug-print-length*))
+	      (debug/print-object arg))
 	    args)
   (display ")"))
 

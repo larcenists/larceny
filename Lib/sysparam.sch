@@ -1,7 +1,7 @@
 ; Lib/sysparam.sch
 ; Larceny library -- system parameter abstraction
 ;
-; $Id$
+; $Id: sysparam.sch,v 1.1.1.1 1998/11/19 21:52:13 lth Exp $
 
 ($$trace "sysparam")
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.18 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: larceny.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
  *
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
@@ -76,7 +76,8 @@ char **argv;
 #endif
 
   cache_setup();
-  consolemsg( "Larceny v%d.%d (%s:%s:%s) (%s %s)",
+  consolemsg( "%s v%d.%d (%s:%s:%s) (%s %s)",
+	      larceny_system_name,
 	      larceny_major_version, 
 	      larceny_minor_version,
 	      larceny_gc_technology,
@@ -86,7 +87,7 @@ char **argv;
 
   parse_options( argc, argv, &o );
   if (o.heapfile == 0)
-    o.heapfile = "larceny.heap";
+    o.heapfile = larceny_heap_name;
 
   quiet = o.quiet;
   annoying = o.annoying;

@@ -1,7 +1,7 @@
 ; Lib/fileio.sch
 ; Larceny -- file I/O
 ;
-; $Id: fileio.sch,v 1.3 1997/07/18 13:55:49 lth Exp $
+; $Id: fileio.sch,v 1.1.1.1 1998/11/19 21:52:05 lth Exp $
 
 ($$trace "fileio")
 

@@ -1,7 +1,7 @@
 ; Lib/struct.sch
 ; Larceny library -- structures.
 ;
-; $Id: struct.sch,v 1.1 1997/09/23 20:08:39 lth Exp lth $
+; $Id: struct.sch,v 1.1.1.1 1998/11/19 21:52:13 lth Exp $
 
 ($$trace "struct")
 

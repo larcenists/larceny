@@ -1,7 +1,7 @@
 /* Rts/Sys/young_heap_t.h
  * Larceny run-time system -- young heap data structure.
  * 
- * $Id$
+ * $Id: young_heap_t.h,v 1.1.1.1 1998/11/19 21:51:48 lth Exp $
  *
  * A `young_heap_t' represents a "young" heap -- the single heap in
  * a stop-and-copy system, or the youngest generation in a generational

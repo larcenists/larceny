@@ -1,7 +1,7 @@
 ; Compiler/sparc.imp.sch
 ; Larceny -- target-specific information for Twobit's standard-C backend.
 ;
-; $Id$
+; $Id: standard-C.imp.sch,v 1.1.1.1 1998/11/19 21:52:25 lth Exp $
 ;
 ; Copyright 1991 William Clinger
 ;
@@ -29,12 +29,12 @@
 ; Names of global procedures that cannot be redefined or assigned
 ; by ordinary code.
 
-(define name:IGNORED (string->symbol "IGNORED"))
 (define name:CONS '.cons)
 (define name:LIST '.list)
-(define name:MAKE-CELL (string->symbol "MAKE-CELL"))
-(define name:CELL-REF (string->symbol "CELL-REF"))
-(define name:CELL-SET! (string->symbol "CELL-SET!"))
+(define name:MAKE-CELL '.make-cell)
+(define name:CELL-REF '.cell-ref)
+(define name:CELL-SET! '.cell-set)
+(define name:IGNORED (string->symbol "IGNORED"))
 
 ;(begin (eval `(define ,name:CONS cons))
 ;       (eval `(define ,name:LIST list))
@@ -77,6 +77,14 @@
 (define (prim-entry name)
   (assq name $usual-integrable-procedures$))
 
+(define (prim-entry-by-opcodename name)
+  (let loop ((x $usual-integrable-procedures$))
+    (cond ((null? x) #f)
+	  ((eq? (prim-opcodename (car x)) name)
+	   (car x))
+	  (else 
+	   (loop (cdr x))))))
+
 (define prim-arity cadr)
 (define prim-opcodename caddr)
 (define prim-immediate? cadddr)
@@ -84,13 +92,13 @@
 (define (prim-implicit-continuation? entry) (cadr (cddddr entry)))
 
 (define (op1-primcode name)
-  (prim-primcode (prim-entry name)))
+  (prim-primcode (prim-entry-by-opcodename name)))
 
 (define op2-primcode op1-primcode)
 (define op3-primcode op1-primcode)
 
 (define (op1-implicit-continuation? name)
-  (prim-implicit-continuation? (prim-entry name)))
+  (prim-implicit-continuation? (prim-entry-by-opcodename name)))
 
 (define op2-implicit-continuation? op1-implicit-continuation?)
 (define op3-implicit-continuation? op1-implicit-continuation?)
@@ -143,7 +151,7 @@
     (complex? 1 complex? #f 19 #f)
     (real? 1 rational? #f 20 #f)
     (rational? 1 rational? #f 20 #f)
-    ; 21 missing
+    (compnum? 1 compnum? #f 21 #f)
     (integer? 1 integer? #f 22 #f)
     (fixnum? 1 fixnum? #f 23 #f)
     (flonum? 1 flonum? #f 24 #f)
@@ -173,10 +181,10 @@
     (procedure-length 1 procedure-length #f 48 #f)
     (make-procedure 1 make-procedure #f 49 #f)
     ; 50 missing
-    ; (make-cell 1 make-cell #f 51 #f)
-    ; (cell-ref 1 cell-ref #f 53 #f)
-    (,name:MAKE-CELL 1 make-cell #f 52 #f)
-    (,name:CELL-REF 1 cell-ref #f 54 #f)
+    ; 51 missing
+    (,name:MAKE-CELL 1 ,name:MAKE-CELL #f 52 #f)
+    ; 53 missing
+    (,name:CELL-REF 1 ,name:CELL-REF #f 54 #f)
     (typetag-set! 2 typetag-set! ,typetag-arg? 55 #f)
     (eq? 2 eq? ,smallint? 56 #f)
     (eqv? 2 eqv? #f 57 #t)
@@ -201,14 +209,16 @@
     (rsha 2 rsha #f 75 #f)
     (rshl 2 rshl #f 76 #f)
     (rot 2 rot #f 77 #f)
-    (string-ref 2 string-ref ,smallint? 78 #f)
+;    (string-ref 2 string-ref ,smallint? 78 #f)
+    (string-ref 2 string-ref #f 78 #f)
     (string-set! 3 string-set! ,smallint? 79 #f)
     (make-vector 2 make-vector #f 80 #f)
-    (vector-ref 2 vector-ref ,smallint? 81 #f)
-    (bytevector-ref 2 bytevector-ref ,smallint? 82 #f)
+;    (vector-ref 2 vector-ref ,smallint? 81 #f)
+    (vector-ref 2 vector-ref #f 81 #f)
+;    (bytevector-ref 2 bytevector-ref ,smallint? 82 #f)
+    (bytevector-ref 2 bytevector-ref #f 82 #f)
     (procedure-ref 2 procedure-ref #f 83 #f)
-    ; (cell-set! 2 cell-set! #f 84 #f)
-    (,name:CELL-SET! 2 cell-set! #f 84 #f)
+    (,name:CELL-SET! 2 ,name:CELL-SET! #f 84 #f)
     (char<? 2 char<? ,char? 85 #f)
     (char<=? 2 char<=? ,char? 86 #f)
     (char=? 2 char=? ,char? 87 #f)
@@ -228,6 +238,12 @@
     (vector-like-length 1 vector-like-length #f 101 #f)
     (bytevector-like-length 1 bytevector-like-length #f 102 #f)
     (remainder 2 remainder #f 103 #t)
+    (#f 1 petit-patch-boot-code #f 104 #f)
+    (#f 1 syscall #f 105 #t)
+    (creg 0 creg #f 106 #f)
+    (creg-set! 1 creg-set! #f 107 #f)
+    (gc-counter 0 gc-counter #f 108 #f)
+    (make-string 2 make-string #f 109 #f)
     ))
 
 (define $immediate-primops$
@@ -245,19 +261,11 @@
     (char=? 139 #f)
     (char>? 140 #f)
     (char>=? 141 #f)
-    (string-ref 142 #f)
-    (vector-ref 143 #f)
-    (bytevector-ref 144 #f)
-    (bytevector-like-ref 145 #f)
-    (vector-like-ref 146 #f)))
-
-
-; FIXME: must deal with these (used by MAL only).
-
-(define $secret-sacred-primops$
-  '((syscall 192 #t)
-    (creg 193 #f)
-    (creg-set! 194 #f)))
+; Not currently, although eventually.
+;    (string-ref 142 #f)
+;    (vector-ref 143 #f)
+;    (bytevector-ref 144 #f)
+    ))
 
 
 ; Primitive name used by compiler for generating certain consing code.
@@ -723,26 +731,5 @@
 (define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
 (define $branch (make-mnemonic 'branch))         ; branch  L
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
-
-; Unused, but some system code (printlap) depend on their existence.
-
-; Backward compatible peephole stuff for old optimizations.
-
-(define $optb2 (make-mnemonic 'optb2))           ; optb2   prim,L
-(define $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
-
-; Operations created by new peephole optimizations.
-
-(define $optbreg1 (make-mnemonic 'optbreg1))       ; optbreg1    prim,k1,L
-(define $optbreg2 (make-mnemonic 'optbreg2))       ; optbreg2    prim,k1,k2,L
-(define $optbreg2imm (make-mnemonic 'optbreg2imm)) ; optbreg2imm prim,k1,x,L
-
-(define $dresop1 (make-mnemonic 'dresop1))         ; dresop1     prim,k1,kr
-(define $dresop2 (make-mnemonic 'dresop2))         ; dresop2     prim,k1,k2,kr
-(define $dresop2imm (make-mnemonic 'dresop2imm))   ; dresop2imm  prim,k1,x,kr
-
-(define $constreg (make-mnemonic 'constreg))       ; constreg    const,k
-
-(define $branchfreg (make-mnemonic 'branchfreg))   ; branchfreg k, L
 
 ; eof

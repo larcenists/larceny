@@ -1,7 +1,15 @@
-; Compiler/compile313.sch
-; Some compilation parameters and compiler driver procedures.
-;
-; $Id: compile313.sch,v 1.5 1997/09/23 20:06:36 lth Exp lth $
+; Copyright 1998 William D Clinger and Lars T Hansen.
+; 
+; $Id: compile313.sch,v 1.1.1.1 1998/11/19 21:52:20 lth Exp $
+; compile313 -- compilation parameters and driver procedures.
+
+; File types -- these may differ between operating systems.
+
+(define *scheme-file-types* '(".sch" ".scm"))
+(define *lap-file-type*     ".lap")
+(define *mal-file-type*     ".mal")
+(define *lop-file-type*     ".lop")
+(define *fasl-file-type*    ".fasl")
 
 ;;; Parameters
 
@@ -18,18 +26,6 @@
 	    (else
 	     (error "twobit-auxiliary-expander: too many arguments."))))))
 
-; The architecture we're compiling for.
-; It's initialized to a real value by the program that loads this file.
-
-(define twobit-target-architecture
-  (let ((arch 'unknown))
-    (lambda rest
-      (cond ((null? rest) arch)
-	    ((null? (cdr rest)) (set! arch (car rest)) arch)
-	    (else
-	     (error "Wrong number of arguments to twobit-target-architecture"
-		    ))))))
-
 ;;; Driver procedurs
 
 ; Compile and assemble a scheme source file and produce a fastload file.
@@ -38,50 +34,55 @@
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename '(".sch" ".scm")
-				(fasl-extension))))
-	(user (asm-user-structure)))
+	     (rewrite-file-type infilename
+				*scheme-file-types*
+				*fasl-file-type*)))
+	(user
+	 (assembly-user-data)))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
-		  (lambda (item)
-		    (assemble (compile ((twobit-auxiliary-expander) item))
+		  (lambda (expr)
+		    (assemble (compile ((twobit-auxiliary-expander) expr))
 			      user)))
     (unspecified)))
 
 
-; Assemble a '.mal' or '.lop' file and produce a fastload file.
+; Assemble a MAL or LOP file and produce a FASL file.
 
 (define (assemble-file infilename . rest)
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename '(".lap" ".mal") (fasl-extension))))
+	     (rewrite-file-type infilename 
+				(list *lap-file-type* *mal-file-type*)
+				*fasl-file-type*)))
 	(malfile?
-	 (let ((n (string-length infilename)))
-	   (and (> n 4)
-		(string-ci=? ".mal" (substring infilename (- n 4) n)))))
-	(user (asm-user-structure)))
+	 (file-type=? infilename *mal-file-type*))
+	(user
+	 (assembly-user-data)))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
-		  (lambda (item)
-		    (if malfile? 
-			(assemble (eval item) user)
-			(assemble item user))))
+		  (lambda (x) (assemble (if malfile? (eval x) x) user)))
     (unspecified)))
 
-(define (compile-and-assemble-expression expr)
-  (assemble (compile ((twobit-auxiliary-expander) expr))
-	    (asm-user-structure)))
 
-; Compile a scheme source file to a ".lap" file.
+; Compile and assemble a single expression; return the LOP segment.
+
+(define (compile-and-assemble-expression expr)
+  (assemble (compile ((twobit-auxiliary-expander) expr))))
+
+
+; Compile a scheme source file to a LAP file.
 
 (define (compile313 file . rest)
   (let ((outputfile
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type file '(".sch" ".scm") ".lap"))))
+	     (rewrite-file-type file
+				*scheme-file-types* 
+				*lap-file-type*))))
     (process-file file
 		  outputfile
 		  (lambda (item port)
@@ -93,39 +94,34 @@
     (unspecified)))
 
 
-; Assemble a ".lap" or ".mal" file to a ".lop" file.
+; Assemble a LAP or MAL file to a LOP file.
 
 (define (assemble313 file . rest)
   (let ((outputfile
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type file '(".lap" ".mal") (lop-extension))))
-	(n (string-length file))
-	(user (asm-user-structure)))
+	     (rewrite-file-type file 
+				(list *lap-file-type* *mal-file-type*)
+				*lop-file-type*)))
+	(malfile?
+	 (file-type=? file *mal-file-type*))
+	(user
+	 (assembly-user-data)))
     (process-file file
 		  outputfile
 		  write-lop
-		  (if (and (> n 4)
-			   (string-ci=? ".mal" (substring file (- n 4) n)))
-		      (lambda (x) (assemble (eval x) user))
-		      (lambda (x) (assemble x user))))
+		  (lambda (x) (assemble (if malfile? (eval x) x) user)))
     (unspecified)))
 
-; Additional data structure used during assembly by some assemblers.
-
-(define (asm-user-structure)
-  (case (twobit-target-architecture)
-    ((standard-C) (list 0 0))
-    (else #f)))
-
-; Convert a ".lop" file to fastload format.
+; Convert a LOP file to a FASL file.
 
 (define (make-fasl infilename . rest)
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename '(".lop" ".elop")
-				(fasl-extension)))))
+	     (rewrite-file-type infilename
+				*lop-file-type*
+				*fasl-file-type*))))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
@@ -214,77 +210,33 @@
   (unspecified))
 
 
-; FIXME: sparc specific
+; Quick ways of setting compiler and assembler switches.
 
-(define (fast-unsafe-code)
-  (integrate-usual-procedures #t)
-  (benchmark-mode #t)
-  (inline-allocation #t)
-  (inline-assignment #t)
-  (catch-undefined-globals #f)
-  (unsafe-code #t)
-  (single-stepping #f))
-
-; FIXME: sparc specific
+(define (slow-code)
+  (set-compiler-flags! 'no-optimization)
+  (set-assembler-flags! 'no-optimization))
+  
+(define (default-code)
+  (set-compiler-flags! 'default)
+  (set-assembler-flags! 'default))
 
 (define (fast-safe-code)
-  (integrate-usual-procedures #t)
-  (benchmark-mode #t)
-  (inline-allocation #t)
-  (inline-assignment #t)
-  (catch-undefined-globals #t)
-  (unsafe-code #f)
-  (single-stepping #f))
+  (set-compiler-flags! 'fast-safe)
+  (set-assembler-flags! 'fast-safe))
 
-; FIXME: sparc specific
+(define (fast-unsafe-code)
+  (set-compiler-flags! 'fast-unsafe)
+  (set-assembler-flags! 'fast-unsafe))
+
+
+; Display all flags
 
 (define (compiler-switches)
-
-  (define (display-switch caption value)
-    (display #\tab)
-    (display caption)
-    (display " is ")
-    (display (if value "on" "off"))
-    (newline))
-
-  (display "Summary of compiler switches:" ) (newline)
-
-  (display-switch "Benchmark-mode" (benchmark-mode))
-  (display-switch "Catch-undefined-globals" (catch-undefined-globals))
-  (display-switch "Empty-list-is-true" (empty-list-is-true))
-  (if (eq? 'SPARC (twobit-target-architecture))
-      (display-switch "Fill-delay-slots" (fill-delay-slots)))
-  (display-switch "Generate-global-symbols" (generate-global-symbols))
-  (display-switch "Include-procedure-names" (include-procedure-names))
-  (display-switch "Include-source-code" (include-source-code))
-  (display-switch "Include-variable-names" (include-variable-names))
-  (display-switch "Inline-assignment" (inline-assignment))
-  (display-switch "Inline-allocation" (inline-allocation)) 
-  (display-switch "Integrate-usual-procedures" (integrate-usual-procedures))
-  (display-switch "Issue-warnings" (issue-warnings))
-  (display-switch "Listify?" listify?)
-  (display-switch "Local-optimizations" (local-optimizations))
-  (display-switch "Peephole-optimization" (peephole-optimization))
-  (if (eq? 'SPARC (twobit-target-architecture))
-      (display-switch "Single-stepping" (single-stepping)))
-  (display-switch "Unsafe-code" (unsafe-code))
-  (if (eq? 'SPARC (twobit-target-architecture))
-      (display-switch "Write-barrier" (write-barrier)))
+  (display-twobit-flags)
+  (newline)
+  (display-assembler-flags)
   (unspecified))
 
-; This needs to be replaced by a better mechanism.
-
-(define (lop-extension)
-  (if (and (eq? (twobit-target-architecture) 'SPARC)
-	   (not (write-barrier)))
-      ".elop"
-      ".lop"))
-
-(define (fasl-extension)
-  (if (and (eq? (twobit-target-architecture) 'SPARC)
-	   (not (write-barrier)))
-      ".efasl"
-      ".fasl"))
 
 ; Read and process one file, producing another.
 
@@ -313,9 +265,15 @@
 		(else
 		 (let* ((n (car m))
 			(l (string-length n)))
-		   (if (and (>= j l)
-			    (string-ci=? (substring filename (- j l) j) n))
+		   (if (file-type=? filename n)
 		       (string-append (substring filename 0 (- j l)) new)
 		       (loop (cdr m))))))))))
+
+(define (file-type=? file-name type-name)
+  (let ((fl (string-length file-name))
+	(tl (string-length type-name)))
+    (and (>= fl tl)
+	 (string-ci=? type-name
+		      (substring file-name (- fl tl) fl)))))
 
 ; eof

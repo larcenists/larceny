@@ -1,5 +1,5 @@
 /* hsplit.c -- program that shuffles code into the static area
- * $Id: hsplit.c,v 1.2 1997/05/23 13:50:06 lth Exp $
+ * $Id: hsplit.c,v 1.1.1.1 1998/11/19 21:51:38 lth Exp $
  *
  * Lars Thomas Hansen [lth@cs.uoregon.edu]
  * May 28, 1996
@@ -270,7 +270,8 @@ unsigned tcount, scount;
 	  if (n % 8 == 0) cnt_pad++;
 	  continue;
 	default : 
-	  panic( "Impossible case in object_stats: %d\n", the_header );
+	  panic( "Impossible case in object_stats at offset %d: 0x%08x\n", 
+		 p-tmem, *p );
 	  break;
       }
     }

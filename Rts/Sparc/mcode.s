@@ -1,7 +1,7 @@
 ! Rts/Sparc/mcode.s.
 ! Larceny run-time system (SPARC) -- miscellaneous primitives.
 !
-! $Id: mcode.s,v 1.4 1997/09/17 15:16:35 lth Exp $
+! $Id: mcode.s,v 1.1.1.1 1998/11/19 21:51:49 lth Exp $
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -18,6 +18,10 @@
 	.global	EXTNAME(m_break)
 	.global EXTNAME(m_singlestep)
 	.global	EXTNAME(m_timer_exception)
+	.global EXTNAME(m_global_exception)
+	.global EXTNAME(m_invoke_exception)
+	.global EXTNAME(m_global_invoke_exception)
+	.global EXTNAME(m_argc_exception)
 	.global EXTNAME(m_enable_interrupts)
 	.global EXTNAME(m_disable_interrupts)
 	.global EXTNAME(m_exception)
@@ -580,13 +584,68 @@ EXTNAME(m_disable_interrupts):
 	nop
 
 
+! _m_global_exception: Exception handler for undefined global variable.
+!
+! Call from: Scheme
+! Input:     ARGREG2 = the global cell
+! Output:    Undefined
+! Destroys:  RESULT, ARGREG2, ARGREG3, temporaries.
+
+EXTNAME(m_global_exception):
+	set	EX_UNDEF_GLOBAL, %TMP0
+	b	m_exception
+	mov	%ARGREG2, %RESULT
+
+
+! _m_invoke_exception: Exception handler for call to non-procedure.
+!
+! Call from: Scheme
+! Input:     RESULT = the value
+! Output:    Undefined
+!
+! Saves _one_ instruction in in-line code, but worth it!
+
+EXTNAME(m_invoke_exception):
+	set	EX_NONPROC, %TMP0
+	b	m_exception
+	nop
+
+
+! _m_global_invoke_exception: Exception handler for call to global 
+!     non-procedure (peephole-optimized GLOBAL/INVOKE or GLOBAL/SETRTN/INVOKE
+!     sequence).
+!
+! Call from: Scheme
+! Input:     RESULT = the value, ARGREG2 = the cell
+! Output:    Undefined
+!
+! Saves _one_ instruction in in-line code, but worth it!
+
+EXTNAME(m_global_invoke_exception):
+	set	EX_GLOBAL_INVOKE, %TMP0
+	b	m_exception
+	nop
+
+
+! _m_argc_exception: Wrong-number-of-arguments exception.
+!
+! Call from: Scheme
+! Input:     RESULT = supplied # of arguments, ARGREG2 = desired #.
+! Output:    Undefined.
+!
+! Saves two instructions in in-line code.
+
+EXTNAME(m_argc_exception):
+	set	EX_ARGC, %TMP0
+	b	m_exception
+	mov	%REG0, %ARGREG3
+
 ! _m_exception: General exception handler.
 !
 ! Call from: Scheme
 ! Input:     TMP0 = fixnum: exception code.
 !            RESULT, ARGREG2, ARGREG3 = objects: operands to the primitive.
 ! Output:    Undefined
-! Destroys:  Temporaries
 !
 ! The return address must point to the instruction which would have been
 ! returned to if the operation had succeeded, i.e., the exception handler
@@ -637,11 +696,15 @@ EXTNAME(m_fpe_handler):
 	nop
 
 	! Integer division special case: code is in globals[ G_IDIV_CODE ],
-	! and we must do a restore.
+	! and if code is not EX_QUOTIENT, we must do a restore.
 
+#if defined(HARDWARE_DIVIDE)
+	cmp	%g1, EX_QUOTIENT
+	be,a	3f
+	nop
+#endif
 	restore
-	ld	[ %GLOBALS + G_IDIV_CODE ], %TMP0
-	b	2f
+3:	b	2f
 	clr	[ %GLOBALS + G_IDIV_CODE ]
 
 	! All other cases: FPE code is in G_FPE, so raise EX_FPE and

@@ -1,7 +1,7 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.10 1997/08/22 21:05:14 lth Exp $
+; $Id: unix.sch,v 1.1.1.1 1998/11/19 21:52:14 lth Exp $
 
 ; Parameters for unix:open; the magic numbers are portable.
 
@@ -493,7 +493,12 @@
 ; System-dependent character values.
 
 (define **newline** 10)
-
+(define **space** 32)
+(define **tab** 9)
+(define **carriage-return** 13)
+(define **linefeed** 10)
+(define **form-feed** 12)
+(define **backspace** 8)
 
 ; RTS debugging utility function
 ;

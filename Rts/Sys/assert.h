@@ -5,6 +5,7 @@
  */
 
 #ifndef NDEBUG
+extern int panic_abort( const char *fmt, ... );
 #define assert( expr ) \
   ((expr) \
    ? (void)0 \

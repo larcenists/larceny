@@ -1,7 +1,7 @@
 ; Lib/env.sch
 ; Larceny library -- environments.
 ;
-; $Id: env.sch,v 1.3 1997/08/22 21:05:14 lth Exp $
+; $Id: env.sch,v 1.1.1.1 1998/11/19 21:52:05 lth Exp $
 ;
 ; An `environment' is a map from names (symbols) to locations (global cells).
 ;

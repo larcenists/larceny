@@ -1,7 +1,7 @@
 ; Lib/memstats.sch
 ; Larceny runtime library -- system statistics
 ;
-; $Id: memstats.sch,v 1.7 1997/07/18 13:55:49 lth Exp $
+; $Id: memstats.sch,v 1.1.1.1 1998/11/19 21:52:08 lth Exp $
 ;
 ; System statistics is maintained by the parts of the system written in C
 ; and are obtained by a call on the primitive sys$get-resource-usage (which
@@ -313,9 +313,47 @@
     r))
 
 
-; Nice procedure to have around.
+; Run-benchmark
+;
+; (run-benchmark name thunk)
+; (run-benchmark name thunk iterations)
+; (run-benchmark name iterations thunk ok?)
+;
+; The 2/3 arg version is compatible with old Larceny releases, and is
+; deprecated: a warning is printed if it is used.
+;
+; The 4 arg version is compatible with benchmarking code that comes 
+; with Gambit-C (and superior, because it tests the final value).
 
-(define (run-benchmark name thunk . rest)
+(define (run-benchmark . args)
+  (case (length args)
+    ((2 3) (newline)
+	   (display "WARNING: Using old run-benchmark.")
+	   (newline)
+	   (apply old-run-benchmark args))
+    ((4)   (apply new-run-benchmark args))
+    (else  (error "Wrong number of arguments to run-benchmark."))))
+
+(define (new-run-benchmark name iterations thunk ok?)
+
+  (define (loop n last-result)
+    (if (zero? n)
+	last-result
+	(loop (- n 1) (thunk))))
+
+  (newline)
+  (display "--------------------------------------------------------")
+  (newline)
+  (display name)
+  (newline)
+  (let ((result #f))
+    (run-with-stats (lambda ()
+		      (set! result (loop iterations (unspecified)))))
+    (if (not (ok? result))
+	(error "Benchmark program returned wrong result: " result))
+    (unspecified)))
+
+(define (old-run-benchmark name thunk . rest)
   (let ((n (if (null? rest) 1 (car rest))))
     
     (define (loop n)

@@ -1,7 +1,7 @@
 /* Rts/Sys/young_heap_t.c
  * Larceny run-time system -- generic young heap operations
  *
- * $Id$
+ * $Id: young_heap_t.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
  */
 
 #include "larceny.h"

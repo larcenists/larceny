@@ -1,7 +1,7 @@
 ; Asm/Sparc/pass5p2.sch
 ; Larceny -- Sparc machine assembler, top level
 ;
-; $Id: pass5p2.sch,v 1.3 1997/09/17 15:04:51 lth Exp $
+; $Id: pass5p2.sch,v 1.1.1.1 1998/11/19 21:51:58 lth Exp $
 ;
 ; Based on MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.
@@ -12,7 +12,6 @@
 ; Overrides the procedure of the same name in Asm/Common/pass5p1.sch.
 
 (define (assembly-table) $sparc-assembly-table$)
-(define (assembly-target) 'SPARC)
 
 ; Controls listing of instructions during assembly.
 
@@ -22,7 +21,7 @@
 
 (define $sparc-assembly-table$
   (make-vector
-   64
+   *number-of-mnemonics*
    (lambda (instruction as)
      (asm-error "Unrecognized mnemonic " instruction))))
 
@@ -153,19 +152,20 @@
 		       (regname (operand2 instruction))
 		       (regname (operand3 instruction)))))
 
-; Questionable use of argreg2 here?
-;
-; FIXME: This is sub-optimal in that it generates the constant into a 
-; register before operating on it; however, peephole optimization rewrites 
-; critical code to use other operations, so the problem is minor. 
-
 (define-instruction $op2imm
   (lambda (instruction as)
-    (list-instruction "opx" instruction)
-    (emit-constant->register as (operand2 instruction) $r.argreg2)
-    (emit-primop.2arg! as
-		       (operand1 instruction)
-		       $r.argreg2)))
+    (list-instruction "op2imm" instruction)
+    (let ((op (case (operand1 instruction)
+		((+) 'internal:+/imm)
+		((-) 'internal:-/imm)
+		(else #f))))
+      (if op
+	  (emit-primop.4arg! as op $r.result (operand2 instruction) $r.result)
+	  (begin
+	    (emit-constant->register as (operand2 instruction) $r.argreg2)
+	    (emit-primop.2arg! as
+			       (operand1 instruction)
+			       $r.argreg2))))))
 
 (define-instruction $const
   (lambda (instruction as)
@@ -182,8 +182,9 @@
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
-    (emit-result-register->global! as
-				   (emit-global as (operand1 instruction)))))
+    (emit-register->global! as
+			    $r.result
+			    (emit-global as (operand1 instruction)))))
 
 ; FIXME: A problem is that the listing is messed up because of the delayed
 ; assembly; somehow we should fix this by putting an identifying label
@@ -226,7 +227,7 @@
 (define-instruction $invoke
   (lambda (instruction as)
     (list-instruction "invoke" instruction)
-    (emit-invoke! as (operand1 instruction))))
+    (emit-invoke as (operand1 instruction) #f $m.invoke-ex)))
 
 (define-instruction $restore
   (lambda (instruction as)
@@ -300,6 +301,16 @@
     (list-instruction "return" instruction)
     (emit-return! as)))
 
+(define-instruction $reg/return
+  (lambda (instruction as)
+    (list-instruction "reg/return" instruction)
+    (emit-return-reg! as (regname (operand1 instruction)))))
+
+(define-instruction $const/return
+  (lambda (instruction as)
+    (list-instruction "const/return" instruction)
+    (emit-return-const! as (operand1 instruction))))
+
 (define-instruction $nop
   (lambda (instruction as)
     (list-instruction "nop" instruction)
@@ -360,203 +371,117 @@
     (emit-branchf! as (make-asm-label as (operand1 instruction)))))
 
 
-; Operations introduced by the peephole optimizer.
-;
-; General mnemonic key:
-;
-;   optbregN     operation test-and-branch with op1 in explicit reg
-;   optbregNimm  ditto with op2 an immediate (rather than explicit reg)
-;   dresopN      operation with explicit source and target registers
-;   dresopNimm   ditto with op2 an immediate (rather than explicit reg)
-;
-; A register can always be the symbol RESULT. (eh?)
+; Operations introduced by the peephole optimizer.
 
+(define (peep-regname r)
+  (if (eq? r 'RESULT) $r.result (regname r)))
 
-; ($optbreg1 test-op src1 label)
-; Test register and branch if false to label.
-
-(define-instruction $optbreg1
-  (let ((names '((null? . internal:bfnull?)
-		 (zero? . internal:bfzero?)
-		 (pair? . internal:bfpair?))))
-    (lambda (instruction as)
-      (list-instruction "optbreg1" instruction)
-      (let ((op (assq (operand1 instruction) names)))
-	(if (not op)
-	    (asm-error "Invalid op to optbreg1: " instruction)
-	    (emit-primop.3arg! as
-			       (cdr op)
-			       (if (eq? (operand2 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand2 instruction)))
-			       (make-asm-label as (operand3 instruction))))))))
-
-; ($optbreg2 test-op src1 src2 label)
-; Test two registers and branch if false to label.
-
-(define-instruction $optbreg2
-  (let ((names '((<       . internal:bf<)
-		 (>       . internal:bf>)
-		 (<=      . internal:bf<=)
-		 (>=      . internal:bf>=)
-		 (=       . internal:bf=)
-		 (char=?  . internal:bfchar=?)
-		 (char<=? . internal:bfchar<=?)
-		 (char<?  . internal:bfchar<?)
-		 (char>=? . internal:bfchar>=?)
-		 (char>?  . internal:bfchar>?)
-		 (eq?     . internal:bfeq?))))
-    (lambda (instruction as)
-      (list-instruction "optb2reg" instruction)
-      (let ((op (assq (operand1 instruction) names)))
-	(if (not op)
-	    (asm-error "Invalid op to optbreg2: " instruction)
-	    (emit-primop.4arg! as
-			       (cdr op)
-			       (if (eq? (operand2 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand2 instruction)))
-			       (if (eq? (operand3 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand3 instruction)))
-			       (make-asm-label as (operand4 instruction))))))))
-
-; ($optbreg2imm test-op src1 imm label)
-; Test register and immediate and branch if false to label.
-;
-; Cheats: loads constant into register, then does register-register case.
-; Dubious use of argreg2?
- 
-(define-instruction $optbreg2imm
-  (let ((names '((<       . internal:bf<imm)
-		 (>       . internal:bf>imm)
-		 (<=      . internal:bf<=imm)
-		 (>=      . internal:bf>=imm)
-		 (=       . internal:bf=imm)
-		 (char=?  . internal:bfchar=?imm)
-		 (char>=? . internal:bfchar>=?imm)
-		 (char>?  . internal:bfchar>?imm)
-		 (char<=? . internal:bfchar<=?imm)
-		 (char<?  . internal:bfchar<?imm)
-		 (eq? . internal:bfeq?imm))))
-    (lambda (instruction as)
-      (list-instruction "optbreg2imm" instruction)
-      (let ((op (assq (operand1 instruction) names)))
-	(if (not op)
-	    (asm-error "Invalid op to optbreg2imm: " instruction)
-	    (emit-primop.4arg! as
-			       (cdr op)
-			       (if (eq? (operand2 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand2 instruction)))
-			       (operand3 instruction)
-			       (make-asm-label as (operand4 instruction))))))))
-
-; ($dresop1 op src1 dest)
-; Operate on register and put result in register.
-
-(define-instruction $dresop1
-  (let ((names `((car            . internal:car2reg)
-		 (cdr            . internal:cdr2reg)
-		 (,name:CELL-REF . internal:cellref2reg))))
-    (lambda (instruction as)
-      (list-instruction "dresop1" instruction)
-      (let ((op (assq (operand1 instruction) names)))
-	(if (not op)
-	    (asm-error "Invalid op to dresop1: " instruction)
-	    (emit-primop.3arg! as
-			       (cdr op)
-			       (if (eq? (operand2 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand2 instruction)))
-			       (if (eq? (operand3 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand3 instruction)))))))))
-
-; ($dresop2 op src1 src2 dest)
-; Operate on two registers and put result in register.
-
-(define-instruction $dresop2
-  (let ((names '((+    . internal:+2reg)
-		 (-    . internal:-2reg)
-		 (eq?  . internal:eq2reg)
-		 (cons . internal:cons2reg))))
-    (lambda (instruction as)
-      (list-instruction "dresop2" instruction)
-      (let ((op (assq (operand1 instruction) names)))
-	(if (not op)
-	    (asm-error "Invalid op to dresop2: " instruction)
-	    (emit-primop.4arg! as
-			       (cdr op)
-			       (if (eq? (operand2 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand2 instruction)))
-			       (if (eq? (operand3 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand3 instruction)))
-			       (if (eq? (operand4 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand4 instruction)))))))))
-
-; ($dresop2imm op src1 imm dest)
-; Operate on register and immediate and put result in register.
-
-(define-instruction $dresop2imm
-  (let ((names '((+ . internal:+imm2reg)
-		 (- . internal:-imm2reg))))
-    (lambda (instruction as)
-      (list-instruction "dresop2imm" instruction)
-      (let ((op (assq (operand1 instruction) names)))
-	(if (not op)
-	    (asm-error "Invalid op to dresop2imm: " instruction)
-	    (emit-primop.4arg! as
-			       (cdr op)
-			       (if (eq? (operand2 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand2 instruction)))
-			       (operand3 instruction)
-			       (if (eq? (operand4 instruction) 'RESULT)
-				   $r.result
-				   (regname (operand4 instruction)))))))))
-
-; ($constreg const dest)
-; Move constant directly to register.
-
-(define-instruction $constreg
+(define-instruction $reg/op1/branchf
   (lambda (instruction as)
-    (list-instruction "constreg" instruction)
+    (list-instruction "reg/op1/branchf" instruction)
+    (emit-primop.3arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (make-asm-label as (operand3 instruction)))))
+
+(define-instruction $reg/op2/branchf
+  (lambda (instruction as)
+    (list-instruction "reg/op2/branchf" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (peep-regname (operand3 instruction))
+		       (make-asm-label as (operand4 instruction)))))
+
+(define-instruction $reg/op2imm/branchf
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/branchf" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (operand3 instruction)
+		       (make-asm-label as (operand4 instruction)))))
+
+(define-instruction $reg/op1/setreg
+  (lambda (instruction as)
+    (list-instruction "reg/op1/setreg" instruction)
+    (emit-primop.3arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (peep-regname (operand3 instruction)))))
+
+(define-instruction $reg/op2/setreg
+  (lambda (instruction as)
+    (list-instruction "reg/op2/setreg" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (peep-regname (operand3 instruction))
+		       (peep-regname (operand4 instruction)))))
+
+(define-instruction $reg/op2imm/setreg
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/setreg" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (operand3 instruction)
+		       (peep-regname (operand4 instruction)))))
+
+(define-instruction $reg/op3 
+  (lambda (instruction as)
+    (list-instruction "reg/op3" instruction)
+    (emit-primop.4arg! as
+		       (operand1 instruction)
+		       (peep-regname (operand2 instruction))
+		       (peep-regname (operand3 instruction))
+		       (peep-regname (operand4 instruction)))))
+
+(define-instruction $const/setreg
+  (lambda (instruction as)
+    (list-instruction "const/setreg" instruction)
     (emit-constant->register as
 			     (operand1 instruction)
 			     (regname (operand2 instruction)))))
 
-; ($branchfreg reg label)
-; branch to label if reg is false.
-
-(define-instruction $branchfreg
+(define-instruction $reg/branchf
   (lambda (instruction as)
-    (list-instruction "branchfreg" instruction)
+    (list-instruction "reg/branchf" instruction)
     (emit-branchfreg! as 
 		      (regname (operand1 instruction))
 		      (make-asm-label as (operand2 instruction)))))
 
-; ($branch-with-return label doc)
-; Set the return address to the address of the next instruction and
-; branch to 'label.
-;
-; (There's an implicit '.align x preceding the label but that is ignored
-; on the SPARC.)
-
-(define-instruction $branch-with-setrtn
+(define-instruction $setrtn/branch
   (lambda (instruction as)
-    (list-instruction "branch-with-setrtn" instruction)
+    (list-instruction "setrtn/branch" instruction)
     (emit-branch-with-setrtn! as (make-asm-label as (operand1 instruction)))))
 
-; ($invoke-with-return n)
-; As for branch-with-return.
-
-(define-instruction $invoke-with-setrtn
+(define-instruction $setrtn/invoke
   (lambda (instruction as)
-    (list-instruction "invoke-with-setrtn" instruction)
-    (emit-invoke-with-setrtn! as (operand1 instruction))))
+    (list-instruction "setrtn/invoke" instruction)
+    (emit-invoke as (operand1 instruction) #t $m.invoke-ex)))
+
+(define-instruction $global/setreg
+  (lambda (instruction as)
+    (list-instruction "global/setreg" instruction)
+    (emit-global->register! as
+			    (emit-global as (operand1 instruction))
+			    (regname (operand2 instruction)))))
+
+(define-instruction $global/invoke
+  (lambda (instruction as)
+    (list-instruction "global/invoke" instruction)
+    (emit-load-global as
+		      (emit-global as (operand1 instruction))
+		      $r.result
+		      #f)
+    (emit-invoke as (operand2 instruction) #f $m.global-invoke-ex)))
+
+(define-instruction $reg/setglbl
+  (lambda (instruction as)
+    (list-instruction "reg/setglbl" instruction)
+    (emit-register->global! as
+			    (regname (operand1 instruction))
+			    (emit-global as (operand2 instruction)))))
 
 ; eof

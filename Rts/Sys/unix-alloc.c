@@ -4,7 +4,7 @@
  * NOTE: THIS FILE CURRENTLY NOT IN USE; sbrk() and malloc() cannot coexist.
  *       Should rewrite to use memalign(), which should work OK.
  *
- * $Id: unix-alloc.c,v 1.11 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: unix-alloc.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write

@@ -1,13 +1,12 @@
 ; -*- text -*-
 ; ./BUGS
-; $Id: BUGS,v 1.8 1997/09/17 15:24:39 lth Exp lth $
+; $Id: BUGS,v 1.1.1.1 1998/11/19 21:51:35 lth Exp $
 
 
 			 KNOWN BUGS IN LARCENY
 			 ---------------------
 
 These are bugs that are or may be visible to the Scheme programmer.
-Bugs internal to the development system are in the file BUGS-DEV.
 Outright compiler bugs are generally only known to Will.
 
 Bugs are listed in the order recorded.  Fixed bugs have been moved to
@@ -65,6 +64,7 @@ supporting documentation, information, test cases, and so on.
 
 036  v0.28f (970826 / lth -- old bug)
 053  v0.32 (971107 / lth)
+     Priority: low.
 
      Reader bugs
 
@@ -110,6 +110,7 @@ supporting documentation, information, test cases, and so on.
       bug in the free version of Allegro Common Lisp for Windows(!).]
 
 043  v0.31 (971024 / lth)
+     Priority: low
 
      [Performance bug]
      Make-string needs to be a primop.  I classify this as a bug because
@@ -123,18 +124,21 @@ supporting documentation, information, test cases, and so on.
      are primops.
 
 047  v0.31 (971029 / lth)
+     Priority: low
 
      `Round' does not properly round down to even (e.g., for 0.5, 2.5, 4.5)
      as exposed by the test suite and as noted in comments in 
      Sparc/generic.s; this is for flonums only (it rounds ratnums properly).
 
 052  v0.32 (971103 / lth)
+     Priority: low
 
      [Performance bug]
      bignum->flonum is very, very slow.  The fix for this exists but
      needs to be implemented and tested.
 
 054 v0.32 (971107 / lth)
+    Priority: medium.  Await new compiler before fixing.
 
     [Macros that work]
     When a syntactic keyword is used as a variable, e.g.,
@@ -146,6 +150,7 @@ supporting documentation, information, test cases, and so on.
     macro expander errors should be mapped onto regular errors?
 
 056 v0.32 (980126 / lth)
+    Priority: low
 
     Chez Scheme development environment:
 
@@ -162,13 +167,16 @@ supporting documentation, information, test cases, and so on.
     happen on a subsequent try.
 
 057 v0.32 (980403 / lth)
+    Priority: low
 
     display-memstats:
-    * does not display information about the static area.
-    * displays information about the non-predictive remembered set even
+    * Does not distinguish information about the static area as being
+      about the static area (calls it Generation#n rather than Static).
+    * Displays information about the non-predictive remembered set even
       though it is not in use.
 
-059 v0.32 (980423 / will)
+059 v0.32 (980423 / wdc)
+    Priority: low
 
     Brad Lucier noted a problem with the complex contagion rule in Common 
     Lisp.  The mathematically ideal result for
@@ -183,6 +191,7 @@ supporting documentation, information, test cases, and so on.
      --lars]
 
 060 v0.33 (980425 / lth)
+    Priority: low
 
     This is the same problem as for the (fixed) bug 058, but for complex
     numbers:
@@ -198,13 +207,15 @@ supporting documentation, information, test cases, and so on.
     Larceny could do better here (and return 1 in the first case, #f in the
     second).  The first bug is in contagion; the second in econtagion.
 
-062 v0.33 (980430 / will)
+062 v0.33 (980430 / wdc)
+    Priority: low
 
     [Performance bug]
     Floating point output is very, very slow.  The Dragon4 algorithm, which
     uses (slow) bignums, should be replaced by Dybvig's algorithm.
 
 064 v0.34 (980514 / lth)
+    Priority: medium.  Await new compiler before fixing.
 
     From: comp.lang.scheme
       1) STk way
@@ -256,6 +267,7 @@ supporting documentation, information, test cases, and so on.
    passed as k does not check the number of arguments it receives!)
 
 065 v0.34 (980518 / lth)
+    Priority: low
 
     This applies to Larceny.  See code from Will in Lib/mcode.sch,
     and see item 066.
@@ -282,7 +294,8 @@ supporting documentation, information, test cases, and so on.
     Josh Rubin
     jlrubin@no_meat_byproducts.bway.net    Remove spam blocker to reply.
 
-066 v0.34 (980518 / will)
+066 v0.34 (980518 / wdc)
+    Priority: low
 
     Test case: (exact->inexact 14285714285714285714285) should be
     1.4285714285714286e22, not 1.4285714285714284e22.
@@ -290,6 +303,7 @@ supporting documentation, information, test cases, and so on.
     [See also item 065.]
 
 067 v0.34 (980603 / lth)
+    Priority: low
 
     I think this is wrong:
 
@@ -299,13 +313,52 @@ supporting documentation, information, test cases, and so on.
 	#\ÿ
 
     because it's not intuitive to me that these letters are upper/lower
-    case variants of each other.  It presents a slight problem for
-    existing character processing code if an alphabetical is both upper
-    and lower case, but character processing code is character set
-    dependent anyway, so it must be fixed.
+    case variants of each other.  Presumably this is defined somewhere.
+    This example presents a slight problem for existing character 
+    processing code if an alphabetical is both upper and lower case,
+    but character processing code is character set dependent anyway,
+    so it must be fixed.
 
     [Must fix this both in the reader and in Lib/string.sch.]
 
-NEXT ENTRY: 068
+068 v0.34 (ancient bug, maybe as old as v0.20)
+    Priority: low
+
+    Float-significand and float-exponent, as visible in the interaction
+    environment, should be more discriminating about the types of their
+    arguments:
+
+	> (float-significand "123456789abc")
+	6253164108014179
+	> (float-exponent "123456789abc")
+	-224
+
+069 v0.34 (980611 / lth)
+    Priority: low
+
+    Writer: this is weird but mostly benign because "read" discards the
+    backslashes properly:
+
+	> (write "a;b;c")
+	"a\;b\;c"
+
+    It's not benign when code parsing text created with write does not
+    expect the backslashes; it should probably be fixed.  (On the other 
+    hand it's no worse that quoting symbols with vertical bars.)
+
+071  v0.34 (981016 / wdc)
+     Priority: low
+
+     DISASSEMBLE-FILE does not work on .fasl files.
+
+072  v0.34 (981113 / lth)
+     Priority: low
+
+     The (break) procedure always invokes the RTS debugger.  It would be
+     more useful if it would invoke the user-installable breakpoint handler,
+     if that has been installed.
+     Chez Scheme uses a parameter 'break-handler'; we should too.
+
+NEXT ENTRY: 073
 	
 ; eof

@@ -1,7 +1,7 @@
 /* Rts/Sys/old_heap_t.c
  * Larceny run-time system -- generic operations on old heaps.
  *
- * $Id$
+ * $Id: old_heap_t.c,v 1.1.1.1 1998/11/19 21:51:42 lth Exp $
  *
  * An old heap is a heap that receives new objects by promotion from
  * younger heaps, not by direct allocation.

@@ -1,7 +1,7 @@
 /* Rts/Sys/semispace_t.h
  * Larceny run-time system -- semispace_t ADT
  *
- * $Id$
+ * $Id: semispace_t.h,v 1.1.1.1 1998/11/19 21:51:48 lth Exp $
  *
  * A semispace_t maintains a set of memory chunks of the same generation.
  * The set can grow and shrink as necessary; typically, it is grown by the

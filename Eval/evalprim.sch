@@ -4,7 +4,7 @@
 ($$trace "evalprim")
 
 (define (eval/invoke-prim1:- a orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '- 1
    (lambda (env)
      (let ((v (car cell)))
@@ -13,7 +13,7 @@
 	   (v (a env)))))))
 
 (define (eval/invoke-prim1:car a orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    'car 1
    (lambda (env)
      (let ((v (car cell)))
@@ -22,7 +22,7 @@
 	   (v (a env)))))))
 
 (define (eval/invoke-prim1:cdr a orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    'cdr 1
    (lambda (env)
      (let ((v (car cell)))
@@ -34,7 +34,7 @@
 ; could usefully be generated using a macro.
 
 (define (eval/invoke-prim2:+ a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '+ 2
    (lambda (env)
      (let ((v (car cell)))
@@ -43,7 +43,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:- a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '- 2
    (lambda (env)
      (let ((v (car cell)))
@@ -52,7 +52,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:= a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '= 2
    (lambda (env)
      (let ((v (car cell)))
@@ -61,7 +61,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:< a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '< 2
    (lambda (env)
      (let ((v (car cell)))
@@ -70,7 +70,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:> a b orig cell)
-  (evaluator-primitive 
+  (interpreted-primitive 
    '> 2
    (lambda (env)
      (let ((v (car cell)))
@@ -79,7 +79,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:<= a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '<= 2
    (lambda (env)
      (let ((v (car cell)))
@@ -88,7 +88,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:>= a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    '>= 2
    (lambda (env)
      (let ((v (car cell)))
@@ -97,7 +97,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:eq? a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    'eq? 2
    (lambda (env)
      (let ((v (car cell)))
@@ -106,7 +106,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:eqv? a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    'eqv? 2
    (lambda (env)
      (let ((v (car cell)))
@@ -115,7 +115,7 @@
 	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:cons a b orig cell)
-  (evaluator-primitive
+  (interpreted-primitive
    'cons 2
    (lambda (env)
      (let ((v (car cell)))

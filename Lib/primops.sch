@@ -1,7 +1,7 @@
 ; Lib/primops.sch
 ; Larceny library -- global procedure definitions for integrable procedures.
 ;
-; $Id: primops.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
+; $Id: primops.sch,v 1.1.1.1 1998/11/19 21:52:09 lth Exp $
 ;
 ; This file _must_ be compiled with integrate-usual-procedures on.
 
@@ -22,7 +22,8 @@
 (define cons (lambda (x y) (cons x y)))
 (define set-car! (lambda (x y) (set-car! x y)))
 (define set-cdr! (lambda (x y) (set-cdr! x y)))
-(define sys$partial-list->vector (lambda (x y) (sys$partial-list->vector x y)))
+'(define sys$partial-list->vector
+  (lambda (x y) (sys$partial-list->vector x y)))
 
 ; Numbers
 
@@ -53,7 +54,6 @@
 (define rshl (lambda (x y) (rshl x y)))
 (define rsha (lambda (x y) (rsha x y)))
 ; (define rot (lambda (x y) (rot x y)))
-;(define make-rectangular (lambda (x y) (make-rectangular x y)))
 (define remainder (lambda (x y) (remainder x y)))
 
 (define +
@@ -180,6 +180,11 @@
 
 ; Strings
 
+(define make-string
+  (lambda (x . rest)
+    (if (null? rest)
+	(make-string x #\space)
+	(make-string x (car rest)))))
 (define string? (lambda (x) (string? x)))
 (define string-length (lambda (x) (string-length x)))
 (define string-ref (lambda (x y) (string-ref x y)))
@@ -187,12 +192,13 @@
 
 ; Vectors
 
+(define make-vector
+  (lambda (x . rest) 
+    (if (null? rest)
+	(make-vector x #f)
+	(make-vector x (car rest)))))
 (define vector? (lambda (x) (vector? x)))
 (define vector-length (lambda (x) (vector-length x)))
-(define make-vector (lambda (x . rest) 
-		      (if (null? rest)
-			  (make-vector x #f)
-			  (make-vector x (car rest)))))
 (define vector-ref (lambda (x y) (vector-ref x y)))
 
 ; Vector-like

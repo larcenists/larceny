@@ -1,7 +1,7 @@
 /* Rts/Sys/gc_t.c
  * Larceny -- garbage collector structure constructor
  *
- * $Id$
+ * $Id: gc_t.c,v 1.1.1.1 1998/11/19 21:51:40 lth Exp $
  */
 
 #include "larceny.h"

@@ -26,7 +26,7 @@
   (lambda (exp env)
     (cond ((null? (cdr exp)) (make-constant '()))
           ((null? (cddr exp))
-           (make-call (make-variable 'cons)
+           (make-call (make-variable '.cons)
                       (list (m-scan (cadr exp) env)
                             (make-constant '()))))
           (else (make-call (make-variable 'list)
@@ -100,15 +100,3 @@
 
 (define $car:pair 'car)
 (define $cdr:pair 'cdr)
-
-; Modifies Asm/Sparc/pass5p2.sch
-; Cosmetic patch to listify? output.
-
-'
-(define-instruction $op2imm
-  (lambda (instruction as)
-    (list-instruction "op2imm" instruction)
-    (emit-constant->register as (operand2 instruction) $r.argreg2)
-    (emit-primop.2arg! as
-		       (operand1 instruction)
-		       $r.argreg2)))

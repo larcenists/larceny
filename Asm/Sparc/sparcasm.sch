@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcasm.sch
 ; Larceny -- SPARC machine assembler
 ;
-; $Id: sparcasm.sch,v 1.3 1997/08/22 20:54:57 lth Exp $
+; $Id: sparcasm.sch,v 1.1.1.1 1998/11/19 21:51:59 lth Exp $
 ;
 ; The procedure `sparc-instruction' takes an instruction class keyword and
 ; some operands and returns an assembler procedure for the instruction
@@ -672,6 +672,7 @@
 (define (sparc.move as rs rd) (sparc.orr as $r.g0 rs rd))
 (define (sparc.set as imm rd) (sparc.ori as $r.g0 imm rd))
 (define (sparc.btsti as rs imm) (sparc.andicc as rs imm $r.g0))
+(define (sparc.clr as rd) (sparc.move as $r.g0 rd))
 
 (define (sparc.deccc as rs . rest)
   (let ((k (cond ((null? rest) 1)

@@ -1,7 +1,7 @@
 /* Rts/Sys/stack.c.
  * Larceny run-time system (Unix) -- stack handling
  *
- * $Id$
+ * $Id: stack.c,v 1.1.1.1 1998/11/19 21:51:43 lth Exp $
  *
  * The stack lives at the high end of the current ephemeral area. There
  * are three major advantages to this:
@@ -91,6 +91,8 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
   while (stktop < stkbot) {
     /* convert header to vector header */
     size = *stktop;
+    assert( size % 4 == 0 );	  /* size must be words, a fixnum */
+    assert( (s_word)size >= 12 ); /* 3-word minimum, and nonnegative */
 #if 0
     debug2msg( "[debug] frame = %08lx words, retaddr = %08lx\n", size / 4,
 	       *(stktop+1) );
@@ -98,18 +100,18 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
     *stktop = mkheader( size, VEC_HDR );
 
     /* convert return address */
-    proc = *(stktop+3);
+    proc = *(stktop+STK_REG0);
     if (proc != 0) {
-      retaddr = *(stktop+1);
+      retaddr = *(stktop+STK_RETADDR);
       codeaddr = (word)ptrof( *(ptrof( proc )+PROC_CODEPTR) );
-      *(stktop+1) = retaddr-(codeaddr+4);
+      *(stktop+STK_RETADDR) = retaddr-(codeaddr+4);
     }
 
     /* chain things together */
     if (first == 0)
       first = stktop;
     else
-      *(prev+2) = (word)tagptr( stktop, VEC_TAG );
+      *(prev+STK_DYNLINK) = (word)tagptr( stktop, VEC_TAG );
     prev = stktop;
 
     framecount++;
@@ -118,7 +120,7 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
     stktop += size / 4;
   }
   if (prev != 0)
-    *(prev+2) = globals[ G_CONT ];
+    *(prev+STK_DYNLINK) = globals[ G_CONT ];
   if (first != 0)
     globals[ G_CONT ] = (word)tagptr( first, VEC_TAG );
 
@@ -162,17 +164,17 @@ int stk_restore_frame( word *globals )
   }
 
   /* Follow continuation chain. */
-  globals[ G_CONT ] = *(stktop+2);
+  globals[ G_CONT ] = *(stktop+STK_DYNLINK);
 
   /* convert the header back to a fixnum */
   *stktop = sizefield( *stktop );
 
   /* convert the return address */
-  proc = *(stktop+3);
+  proc = *(stktop+STK_REG0);
   if (proc != 0) {
-    retoffs = *(stktop+1);
+    retoffs = *(stktop+STK_RETADDR);
     codeaddr = (word)ptrof( *(ptrof( proc )+PROC_CODEPTR) );
-    *(stktop+1) = (codeaddr+4)+retoffs;
+    *(stktop+STK_RETADDR) = (codeaddr+4)+retoffs;
   }
 
   return 1;

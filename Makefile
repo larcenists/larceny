@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp $
+# $Id: Makefile,v 1.2 1998/11/20 13:10:17 lth Exp $
 
 
 ###########################################################################
@@ -29,7 +29,6 @@ FFI=Ffi
 EXPERIMENTAL=Experimental
 RTS=Rts
 SYS=$(RTS)/Sys
-MACH=$(RTS)/Sparc
 BUILD=$(RTS)/Build
 UTIL=Util
 ASM=Asm
@@ -61,10 +60,10 @@ HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 MISCFILES=COPYRIGHTS README README-0.?? CHGLOG Makefile nbuild
 BUGSFILES=BUGS BUGS-FIXED BUGS-RETIRED
 ASMFILES=$(ASM)/Common/*.sch $(ASM)/Sparc-old/*.sch $(ASM)/Sparc/*.sch \
-	$(ASM)/MacScheme/*.sch
+	$(ASM)/MacScheme/*.sch $(ASM)/Standard-C/*.sch
 LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch
-CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
-LARCFILES=Larceny/*.sch
+CHEZFILES=Compat/Chez/*.c Compat/Chez/*.ss Compat/Chez/*.h Compat/Chez/*.sch
+LARCFILES=Compat/Larceny/*.sch
 COMPFILES=$(COMP)/*.sch $(COMP)/help-topics.txt
 TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
@@ -79,8 +78,11 @@ EXPERIMENTALFILES=$(EXPERIMENTAL)/record.sch $(EXPERIMENTAL)/record.doc \
 	$(EXPERIMENTAL)/applyhook0.mal $(EXPERIMENTAL)/apropos.sch \
 	$(EXPERIMENTAL)/system-stuff.sch
 
+SPARCFILES=Rts/Sparc/*.s Rts/Sparc/*.h Rts/Sparc/*.c
+PETITFILES=Rts/Standard-C/*.h Rts/Standard-C/*.c
+
 RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Util/*.c \
-	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
+	$(SYS)/*.c $(SYS)/*.h $(SPARCFILES) $(PETITFILES) \
 	$(UTIL)/*.sch $(UTIL)/modules.list
 
 # Files for 'rtstar'
@@ -153,14 +155,13 @@ hsplit: target_hsplit
 target_hsplit:
 	( cd $(RTS) ; $(MAKE) hsplit )
 
-clean:
+clean: libclean rtsclean
 	( cd $(RTS) ; $(MAKE) clean )
-	rm -f *.map
 
 lopclean:
-	rm -f   $(LIB)/*.*lop \
-		$(EVAL)/*.*lop \
-		$(REPL)/*.*lop \
+	rm -f   $(LIB)/*.*lop $(LIB)/*.c $(LIB)/*.o \
+		$(EVAL)/*.*lop $(EVAL)/*.c $(EVAL)/*.o \
+		$(REPL)/*.*lop $(REPL)/*.c $(REPL)/*.o \
 		$(AUXLIB)/*.*lop \
 		$(TEST)/Lib/*.*lop
 
@@ -175,26 +176,29 @@ soclean:
 	rm -f $(LIB)/*.so
 	rm -f $(COMP)/*.so
 	rm -f $(ASM)/Common/*.so $(ASM)/Sparc/*.so
-	rm -f Chez/*.so
+	rm -f Compat/Chez/*.so
 
 faslclean:
-	rm -f $(COMP)/*.fasl
-	rm -f $(ASM)/Common/*.fasl $(ASM)/Sparc/*.fasl
-	rm -f Larceny/*.fasl
+	rm -f Compiler/*.fasl
+	rm -f Asm/Common/*.fasl Asm/Sparc/*.fasl Asm/Standard-C/*.fasl
+	rm -f Experimental/*.fasl
+	rm -f Compat/Larceny/*.fasl
 	rm -f Util/*.fasl
-	rm -f Lib/makefile.fasl
-	rm -f $(AUXLIB)/*.fasl
-	rm -f $(TEST)/GC/*.fasl
-	rm -f $(TEST)/Lib/*.fasl
+	rm -f Lib/makefile.fasl Lib/globals.sch Lib/ecodes.sch
+	rm -f Auxlib/*.fasl
+	rm -f Debugger/*.fasl
+	rm -f Testsuite/GC/*.fasl
+	rm -f Testsuite/Lib/*.fasl
 
-rtsclean: clean
-	rm -f larceny Build hsplit
-	rm -f Chez/*.o
+rtsclean:
+	rm -f *.map
+	rm -f larceny petit-larceny Build hsplit
+	rm -f Compat/Chez/*.o
 	( cd $(RTS) ; $(MAKE) rtsclean )
 
-realclean: clean libclean tildeclean rejclean soclean tcovclean
-	rm -f larceny Build hsplit bdwlarceny
-	rm -f Chez/*.o
+realclean: clean libclean tildeclean rejclean soclean tcovclean faslclean
+	rm -f larceny Build hsplit bdwlarceny larceny.heap
+	rm -f Compat/Chez/*.o
 	rm -f $(TEST)/GC/bb.out*
 	( cd $(RTS) ; $(MAKE) realclean )
 
@@ -246,6 +250,6 @@ Build/schdefs.h:
 # For Chez-hosted system
 
 chezstuff: 
-	( cd Chez ; $(CC) -c bitpattern.c mtime.c )
+	( cd Compat/Chez ; $(CC) -c bitpattern.c mtime.c )
 
 # eof

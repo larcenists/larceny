@@ -1,10 +1,26 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.10 1997/09/17 15:24:39 lth Exp lth $
+; $Id: CHGLOG,v 1.1.1.1 1998/11/19 21:51:35 lth Exp $
 
 
 ----------------------------------------------------------------------
-v0.34
+v0.34b 
+
+FEATURES
+  * Added 'ptrtag', 'boxed?', 'object-representation' to 
+    Experimental/system-stuff.sch.
+
+BUG FIXES
+  * Fixed implementation of the scheme-system procedure; it displayed
+    part of the string and returned part of it, instead of returning
+    all of it.
+  * Exposed the filter and find procedures from Auxlib in the heap 
+    created with Util/std-heap.sch.
+  * Changed export of "force" in toplevel.sch: it exported 'force as
+    a value rather than the "force" procedure!  [Not tested]
+
+----------------------------------------------------------------------
+v0.34 released 980605 by lth
 
 FEATURES
   * RTS improvements (performance/correctness/maintainability)

@@ -1,16 +1,19 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.11 1997/09/23 20:08:39 lth Exp lth $
+; $Id: makefile.sch,v 1.2 1998/11/20 13:10:57 lth Exp $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
 ;  make-larceny-eheap
+;  make-petit-heap
 ;  make-auxlib
 ;  make-compat
 ;  make-compiler
 ;  make-sparcasm
-;  make-development-environment  -- makes auxlib, compat, compiler, sparcasm
+;  make-petitasm
+;  make-development-environment
+;     makes auxlib, compat, compiler, sparcasm, petit-asm
 ;  make-gc-testsuite
 ;  make-regression-test
 
@@ -153,7 +156,6 @@
     ))
 
 (define heap-project (make:new-project "larceny.heap"))
-(define eheap-project (make:new-project "larceny.eheap"))
 
 (make:rule heap-project ".lop" ".mal" make-assemble)
 (make:rule heap-project ".lop" ".lap" make-assemble)
@@ -165,6 +167,8 @@
 (make:deps heap-project '("Lib/ecodes.sch") '("Build/except.sh"))
 (make:targets heap-project '("larceny.heap") make-dumpheap)
 
+(define eheap-project (make:new-project "larceny.eheap"))
+
 (make:rule eheap-project ".elop" ".mal" make-assemble)
 (make:rule eheap-project ".elop" ".lap" make-assemble)
 (make:rule eheap-project ".lap" ".sch" make-compile)
@@ -175,6 +179,18 @@
 (make:deps eheap-project '("Lib/globals.sch") '("Build/globals.sh"))
 (make:deps eheap-project '("Lib/ecodes.sch") '("Build/except.sh"))
 (make:targets eheap-project '("larceny.eheap") make-dumpheap)
+
+(define petit-project (make:new-project "petit.heap"))
+
+(make:rule petit-project ".lop" ".mal" make-assemble)
+(make:rule petit-project ".lop" ".lap" make-assemble)
+(make:rule petit-project ".lap" ".sch" make-compile)
+(make:rule petit-project ".sch" ".sh" make-copy)
+(make:deps petit-project '("petit.heap") (objects "Lib/" ".lop" heap-files))
+(make:deps petit-project '("petit.heap") (objects "" ".lop" eval-files))
+(make:deps petit-project '("Lib/globals.sch") '("Build/globals.sh"))
+(make:deps petit-project '("Lib/ecodes.sch") '("Build/except.sh"))
+(make:targets petit-project '("petit.heap") make-dumpheap)
 
 ; FIXME: The optional target name does not yet work.
 
@@ -200,6 +216,10 @@
 	     (newline)))
   (make:pretend (not (null? rest)))
   (make:make eheap-project "larceny.eheap"))
+
+(define (make-petit-heap . rest)
+  (make:pretend (not (null? rest)))
+  (make:make petit-project "petit.heap"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -259,11 +279,11 @@
 (define sparcasm-project (make:new-project "sparcasm.date"))
 
 (define generic-asm-files
-  '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "link-lop"))
+  '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "asmutil32le" "link-lop"))
 
 (define sparcasm-files
-  '("pass5p2" "gen-msi" "gen-prim" "sparcasm" "sparcutil"
-    "switches" "sparcdis" "peepopt"))
+  '("pass5p2" "gen-msi" "sparcprim-part1" "sparcprim-part2" "sparcprim-part3"
+    "sparcasm" "sparcutil" "switches" "sparcdis" "peepopt"))
 
 (make:rule sparcasm-project ".fasl" ".sch" make-compile-file)
 (make:deps sparcasm-project '("sparcasm.date")
@@ -279,12 +299,31 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Project for building all the files in the standard-C assembler.
+
+(define petit-asm-project (make:new-project "petitasm.date"))
+
+(define petit-asm-files
+  '("pass5p2" "switches" "dumpheap-extra"))
+
+(make:rule petit-asm-project ".fasl" ".sch" make-compile-file)
+(make:deps petit-asm-project '("petitasm.date")
+	   (objects "Asm/Standard-C/" ".fasl" petit-asm-files))
+(make:targets petit-asm-project '("petitasm.date") (lambda args #t))
+
+(define (make-petit-asm . rest)
+  (make:pretend (not (null? rest)))
+  (make:make petit-asm-project "petitasm.date"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Project for building the Larceny compatibility files.
 
 (define compat-project (make:new-project "Compat"))
 
 (make:rule compat-project ".fasl" ".sch" make-compile-file)
-(make:deps compat-project '("compat.date") '("Larceny/compat2.fasl"))
+(make:deps compat-project '("compat.date") '("Compat/Larceny/compat2.fasl"))
 (make:targets compat-project '("compat.date") (lambda args #t))
 
 (define (make-compat . rest)
@@ -297,7 +336,7 @@
 ; Project for building the Auxiliary libraries.
 
 (define auxlib-project (make:new-project "Auxlib"))
-(define auxlib-files '("misc" "sort" "pp" "io"))
+(define auxlib-files '("misc" "list" "vector" "string" "sort" "pp" "io"))
 (define experimental-files '("applyhook" "apropos" "system-stuff"))
 (define debugger-files '("debug" "countcalls" "trace"))
 
@@ -325,7 +364,7 @@
 (define gc-testsuite-project (make:new-project "GC Testsuite"))
 (define gc-testsuite-files
   '("dynamic" "gcbench0" "gcbench1" "grow" "lattice" "nbody"
-	      "nboyer" "nucleic2" "permsort" "sboyer"))
+	      "nboyer" "nucleic2" "permsort" "sboyer" "dummy"))
 
 (make:rule gc-testsuite-project ".fasl" ".sch" make-compile-file)
 (make:deps gc-testsuite-project '("gc-testsuite.date")
@@ -360,12 +399,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Rebuild the entire development system.
+; Rebuild the entire development system, for all targets.
 
 (define (make-development-environment . rest)
   (apply make-auxlib rest)
   (apply make-compiler rest)
   (apply make-sparcasm rest)
+  (apply make-petit-asm rest)
   (apply make-compat rest)
   (compile-file "Lib/makefile.sch"))
 

@@ -1,7 +1,7 @@
 ; Lib/ehandler.sch
 ; Larceny library -- system exception handler.
 ;
-; $Id: ehandler.sch,v 1.4 1997/08/22 21:05:14 lth Exp $
+; $Id: ehandler.sch,v 1.1.1.1 1998/11/19 21:52:04 lth Exp $
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, 
 ; ARGREG2, and ARGREG3, and an exception code as arguments. It 
@@ -59,7 +59,7 @@
 	  (error (string-append name ": not an integer."))))
 
     (define (div-by-zero name obj1 obj2)
-      (error (string-append name ":  division by zero: ") obj1 " " obj2))
+      (error (string-append name ": division by zero: ") obj1 " " obj2))
 
     (define (not-a-fix name obj)
       (if print-object?
@@ -113,7 +113,7 @@
 	      ((and (not (null? rest))
 		    (not (= code reffer))
 		    (not ((car rest) (cadr rest))))
-	       (error name " " arg3 " cannot be stored in a " thing))
+	       (error name " " (cadr rest) " cannot be stored in a " thing))
 	      (else
 	       (if (bignum? arg1)
 		   (begin (display "BIG: ") (bigdump* arg1) (newline)))
@@ -147,9 +147,9 @@
        ((= code $ex.cdr)
 	(not-a-pair "cdr" arg1))
        ((= code $ex.setcar)
-	(not-a-pair "setcar" arg1))
+	(not-a-pair "set-car!" arg1))
        ((= code $ex.setcdr)
-	(not-a-pair "setcdr" arg1))
+	(not-a-pair "set-cdr!" arg1))
 
        ;; Numbers
 
@@ -211,7 +211,7 @@
        ((= code $ex.zerop)
 	(not-a-num "zero?" arg1))
        ((= code $ex.neg)
-	(not-a-num "-" arg1))
+	(not-a-num "--" arg1))
        ((= code $ex.abs)
 	(if (not (number? arg1))
 	    (not-a-num "abs" arg1)
@@ -220,23 +220,18 @@
 	(not-a-num "real-part" arg1))
        ((= code $ex.imagpart)
 	(not-a-num "imag-part" arg1))
-       ((= code $ex.arithmetic-exception) 
-	; SIGFPE -- arg3 has signal code.
-	; FIXME: these codes are from sys/signal.h on SunOS!
-	(cond ((= arg3 #x14)
-	       (error "Integer division by zero: " arg1 " " arg2))
-	      ((= arg3 #xC4)
-	       (error "Floating inexact result."))
-	      ((= arg3 #xC8)
-	       (error "Floating point division by zero: " arg1 " " arg2))
-	      ((= arg3 #xCC)
-	       (error "Floating point underflow."))
-	      ((= arg3 #xD0)
-	       (error "Floating point operand error."))
-	      ((= arg3 #xD4)
-	       (error "Floating point overflow."))
-	      (else
-	       (error "Unrecognized SIGFPE code: " arg3))))
+       ((= code $ex.arithmetic-exception)
+	(case (interpret-arithmetic-exception-code arg3)
+	  ((intdiv) (error "Integer division by zero: " arg1 " " arg2))
+	  ((intovf) (error "Integer overflow."))
+	  ((fltdiv) (error "Floating point division by zero: " arg1 " " arg2))
+	  ((fltovf) (error "Floating point overflow."))
+	  ((fltund) (error "Floating point underflow."))
+	  ((fltres) (error "Floating point inexact result."))
+	  ((fltinv) (error "Invalid floating point operation."))
+	  ((fltsub) (error "Floating point subscript out of range."))
+	  ((fltopr) (error "Floating point operand error."))
+	  (else (error "Unknown SIGFPE code: " arg3))))
 	      
        ;; Vectors
 
@@ -364,6 +359,15 @@
 	    (error "Undefined global variable \"" (cdr arg1) "\".")
 	    (error "Undefined global variable [doesn't look like a cell].")))
 
+       ;; Here the cell is in arg2 (SECOND); if arg1 (RESULT) is undefined,
+       ;; then it's an undefined-global error, otherwise it's a non-procedure
+       ;; error.
+
+       ((= code $ex.global-invoke)
+	(if (eq? arg1 (undefined))
+	    (handler $ex.undef-global arg2 #f #f)
+	    (handler $ex.nonproc arg1 arg2 arg3)))
+
        ;; Created by the sys$dump primop. (Obsolete)
 
        ((= code $ex.dump)
@@ -384,5 +388,36 @@
 	(error "exception-handler: Unhandled code: " code))))
 
     handler))
+
+; FIXME: OS-dependent, belongs in its own file.
+;   - These codes are from sys/signal.h on SunOS4.
+;   - On SunOS5 they are defined in sys/machsig.h and have
+;     other values.
+
+(define (interpret-arithmetic-exception-code code)
+  (let ((os-name  (cdr (assq 'operating-system-name (system-features))))
+	(os-major (cdr (assq 'os-major-version (system-features)))))
+    (if (string=? os-name "SunOS")
+	(case os-major
+	  ((4) (case code
+		 ((#x14) 'intdiv)
+		 ((#xC4) 'fltres)
+		 ((#xC8) 'fltdiv)
+		 ((#xCC) 'fltund)
+		 ((#xD0) 'fltopr)
+		 ((#xD4) 'fltovf)
+		 (else #f)))
+	  ((5) (case code
+		 ((1) 'intdiv)
+		 ((2) 'intovf)
+		 ((3) 'fltdiv)
+		 ((4) 'fltovf)
+		 ((5) 'fltund)
+		 ((6) 'fltres)
+		 ((7) 'fltinv)
+		 ((8) 'fltsub)
+		 (else #f)))
+	  (else #f))
+	#f)))
 
 ; eof

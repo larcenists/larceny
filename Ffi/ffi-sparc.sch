@@ -1,7 +1,7 @@
 ; Ffi/ffi-sparc.sch
 ; Larceny FFI -- SPARC ABI implementations
 ;
-; $Id$
+; $Id: ffi-sparc.sch,v 1.1.1.1 1998/11/19 21:52:27 lth Exp $
 ;
 ; See the file sparc-abi.txt for information about calling conventions
 ; on the SPARC.

@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: syshooks.sch,v 1.5 1997/09/17 15:13:23 lth Exp $
+; $Id: syshooks.sch,v 1.1.1.1 1998/11/19 21:52:13 lth Exp $
 ;
 ; Larceny run-time system -- interface to system functions
 ;

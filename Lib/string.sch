@@ -1,7 +1,7 @@
 ; Lib/string.sch
 ; Larceny library --  characters, strings, and bytevectors.
 ;
-; $Id: string.sch,v 1.5 1997/07/18 13:55:49 lth Exp $
+; $Id: string.sch,v 1.1.1.1 1998/11/19 21:52:12 lth Exp $
 ;
 ; Parts of this code Copyright Lightship Software.
 ;
@@ -213,15 +213,14 @@
         ((>= i end) s)
         (string-set! s i c))))
 
-; Make-string is in Scheme for simplicity.
-; FIXME: Should we force initialization if no init character is presented?
+; Make-string is now a primitive; see primops.sch.
 
-(define (make-string n . rest)
-  (let ((init (char->integer (if (null? rest) #\space (car rest))))
-	(s    (make-bytevector n)))
-    (bytevector-fill! s init)
-    (typetag-set! s sys$tag.string-typetag)
-    s))
+;(define (make-string n . rest)
+;  (let ((init (char->integer (if (null? rest) #\space (car rest))))
+;	(s    (make-bytevector n)))
+;    (bytevector-fill! s init)
+;    (typetag-set! s sys$tag.string-typetag)
+;    s))
 
 (define list->string
   (letrec ((loop

@@ -1,7 +1,7 @@
 ; Asm/Common/asmutil32-test.sch
 ; Larceny assembler -- test code for 32-bit asm utilities.
 ;
-; $Id: asmutil32-test.sch,v 1.1 1997/08/22 20:52:42 lth Exp $
+; $Id: asmutil32-test.sch,v 1.1.1.1 1998/11/19 21:51:56 lth Exp $
 ;
 ; This code is endianness-independent.
 ;

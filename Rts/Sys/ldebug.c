@@ -1,7 +1,7 @@
 /* Rts/Sys/ldebug.c.
  * Larceny -- the run-time system debugger.
  *
- * $Id: ldebug.c,v 1.3 1997/09/17 15:17:26 lth Exp $
+ * $Id: ldebug.c,v 1.1.1.1 1998/11/19 21:51:41 lth Exp $
  */
 
 #include <stdio.h>
@@ -20,6 +20,7 @@ static void dumpproc( void );
 static void dumpregs( void );
 static void dumpglob( void );
 static void dumpcodevec( void );
+static void dump_top_frame( void );
 static int getreg( char ** );
 static int getuint( char ** );
 
@@ -31,7 +32,7 @@ void localdebugger( void )
     word val;
     int regno;
 
-    printf( "@ " ); fflush( stdout );
+    printf( "[rtsdebug] " ); fflush( stdout );
     if (fgets( cmd, 80, stdin ) == NULL) {
       printf( "\n" );
       exit( 1 );
@@ -57,9 +58,16 @@ void localdebugger( void )
   }
 }
 
+void debugvsm( void )
+{
+  dumpregs();
+  printf( "\n" );
+  dump_top_frame();
+}
+
 static void confused( char *msg )
 {
-  printf( "?%s\n", msg );
+  printf( "Don't understand %s; type '?' for help.\n", msg );
 }
 
 static void step( char *cmd )
@@ -433,6 +441,18 @@ static void dumpglob( void )
   printf( "  G_CALLOUT_TMP0=0x%08x G_CALLOUT_TMP1=0x%08x G_CALLOUT_TMP2=0x%08x\n",
 	  globals[ G_CALLOUT_TMP0 ], globals[ G_CALLOUT_TMP1 ],
 	  globals[ G_CALLOUT_TMP2 ] );
+}
+
+static void dump_top_frame( void )
+{
+  word *stkp = (word*)globals[ G_STKP ];
+  word size = stkp[0]/4;
+  int i;
+
+  for ( i=0 ; i < size && i < 10 ; i++ )
+    printf( "%-3d  %08x\n", i*4, stkp[i] );
+  if (i < size)
+    printf( "... (%d slots)\n", size );
 }
 
 static void dumpcodevec( void )

@@ -1,7 +1,7 @@
 /* Rts/Sys/macros.h
  * Larceny run-time system -- macros
  *
- * $Id: macros.h,v 1.3 1997/07/07 20:13:53 lth Exp $
+ * $Id: macros.h,v 1.1.1.1 1998/11/19 21:51:47 lth Exp $
  *
  * Machine and representation dependent (and independent) macros,
  * including tag definitions and tag masks, and interesting constants.
@@ -9,11 +9,10 @@
  * For C-language routines.
  */
 
-/* Various masks. Change BIT_MASK if your word is not 32 bits long. */
+/* Various masks */
 #define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
 #define HDR_SIGN	0x00000082	/* header signature */
 #define HDR_MASK	0x000000E3	/* Mask to extract header info */
-#define BIT_MASK	0x80000000	/* Mask for 'traced' bit */
 
 /* Convert integer to fixnum */
 #define fixnum( x )  ((x) << 2)
@@ -32,7 +31,7 @@
 #define ptrof( w )          ((word *)((word)(w) & ~TAG_MASK))
 
 /* May be faster on some architectures, and should never be slower (?) */
-#define striptag( w, t )   ((word*)((w) ^ t))
+#define striptag( w, t )   ((word*)((word)(w) - (t)))
 
 /* Given pointer and tag, return tagged pointer */
 #define tagptr( w, tag )    ((word)(w) | (tag))
@@ -58,11 +57,6 @@
 /* Extract size field from a header word. Hi bit is always 0. */
 #define sizefield( w )      ((w) >> 8)
 
-/* Is a word a pointer into a particular space? */
-/* OBSOLETE
-#define pointsto( p,lo,hi ) (isptr(p) && ptrof(p) >= (lo) && ptrof(p) < (hi))
-*/
-
 /* miscellaneous */
 #define max( a, b )         ((a) > (b) ? (a) : (b))
 #define min( a, b )         ((a) < (b) ? (a) : (b))
@@ -70,9 +64,9 @@
 #define ceildiv(a,b)        ((a)%(b) == 0 ? (a)/(b) : (a)/(b)+1)
 
 #define roundup( a, m )     ((((a)+((m)-1)) / (m))*(m))
-#define roundup2( a )       (((a) + 1) & ~0x01)
-#define roundup4( a )       (((a) + 3) & ~0x03)
-#define roundup8( a )       (((a) + 7) & ~0x07)
+#define roundup2( a )       (((a) + 1) & ~1)
+#define roundup4( a )       (((a) + 3) & ~3)
+#define roundup8( a )       (((a) + 7) & ~7)
 
 /* The following true on 32-bit machines */
 #define roundup_word( a )   roundup4( a )
@@ -82,26 +76,23 @@
 #define roundup_walign(a)   roundup2( a )   /* Word alignment: 2 words */
 #define roundup_balign(a)   roundup8( a )   /* Byte alignment: 8 bytes */
 
-/* Manipulating 'traced' bit in vector headers */
-/* OBSOLETE
-#define get_bit( w )        ((w) & BIT_MASK)
-#define set_bit( w )        ((w) |= BIT_MASK)
-#define reset_bit( w )      ((w) &= ~BIT_MASK)
-*/
-
 #define the_gc( globals )      (gc_t*)globals[ G_GC ]
 
 
-/* macros for manipulating Scheme data types */
+/* Macros for manipulating Scheme data types. */
+
 #define pair_car( ptr )        *ptrof( ptr )
 #define pair_cdr( ptr )        *(ptrof( ptr ) + 1)
 
 #define string_length( x )     sizefield( *ptrof( x ) )
 #define string_data( x )       ((char*)ptrof( x )+4)
 
-#define gcell_ref( cp )        pair_car( cp )
-#define vector_ref( vp, i )    (*(ptrof( vp )+VEC_HEADER_WORDS+(i)))
-#define vector_set( vp, i, v ) (*(ptrof( vp )+VEC_HEADER_WORDS+(i)) = (v))
+#define vector_ref( vp, i )    (ptrof( vp )[ VEC_HEADER_WORDS+(i) ])
+#define vector_set( vp, i, v ) (ptrof( vp )[ VEC_HEADER_WORDS+(i) ] = (v))
+
+#define procedure_length( pp ) (sizefield(*ptrof(pp)))
+#define procedure_ref( pp, i ) (ptrof(pp)[ PROC_HEADER_WORDS+(i) ])
+#define procedure_set( pp, i, x )  (ptrof(pp)[ PROC_HEADER_WORDS+(i) ] = (x))
 
 #define bytevector_length(x)   (sizefield(*ptrof(x)))
 #define bytevector_ref(x,i)    (*((byte*)(ptrof(x)+1)+i))
@@ -113,5 +104,8 @@
 
 #define real_part( x )         (*(double*)(ptrof(x)+2))
 #define imag_part( x )         (*((double*)(ptrof(x)+2)+1))
+
+#define global_cell_ref( cp )  pair_car( cp )
+#define global_cell_set( x, y ) pair_car( x ) = (y)
 
 /* eof */

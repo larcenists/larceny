@@ -1,7 +1,7 @@
 /* Rts/Sys/los_t.h
  * Larceny run-time system -- Large Object Space data type.
  *
- * $Id$
+ * $Id: los_t.h,v 1.1.1.1 1998/11/19 21:51:47 lth Exp $
  *
  * How the Large Object Space is used:
  *

@@ -1,7 +1,7 @@
 ; Ffi/ffi.sch
 ; Larceny library -- FFI utility functions
 ;
-; $Id$
+; $Id: ffi-util.sch,v 1.1.1.1 1998/11/19 21:52:28 lth Exp $
 
 (define (ffi/string->asciiz str)
   (let ((b (make-bytevector (+ (string-length str) 1))))

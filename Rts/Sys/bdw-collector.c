@@ -1,7 +1,7 @@
 /* Rts/Sys/bdw-collector.c
  * Larceny -- the Boehm-Demers-Weiser conservative garbage collector.
  *
- * $Id: bdw-collector.c,v 1.3 1997/07/07 20:07:05 lth Exp $
+ * $Id: bdw-collector.c,v 1.1.1.1 1998/11/19 21:51:39 lth Exp $
  *
  * Allocation:
  *

@@ -1,7 +1,7 @@
 /* Rts/Sys/callback.c
  * Larceny run-time-system -- call-in to Scheme mode
  *
- * $Id$
+ * $Id: callback.c,v 1.1.1.1 1998/11/19 21:51:39 lth Exp $
  */
 
 #include "larceny.h"
@@ -52,7 +52,7 @@ void larceny_call( word proc, int argc, word *argv, word *result )
     return;
   }
 
-  scheme_start();
+  scheme_start( globals );
 
   *result = globals[ G_RESULT ];
 

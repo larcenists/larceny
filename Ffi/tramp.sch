@@ -1,7 +1,7 @@
 ; Ffi/tramp.sch
 ; Larceny -- FFI trampoline construction (Common code)
 ;
-; $Id$
+; $Id: tramp.sch,v 1.1.1.1 1998/11/19 21:52:28 lth Exp $
 
 ; Trampoline for callout
 ;

@@ -1,7 +1,7 @@
 /* Rts/Sys/memmgr.h
  * Larceny run-time system -- internal interfaces for precise GC.
  * 
- * $Id: memmgr.h,v 1.11 1997/09/17 15:17:26 lth Exp $
+ * $Id: memmgr.h,v 1.1.1.1 1998/11/19 21:51:47 lth Exp $
  */
 
 #ifndef INCLUDED_MEMMGR_H

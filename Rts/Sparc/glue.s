@@ -1,11 +1,13 @@
 ! Rts/Sparc/glue.s
 ! Larceny Run-time System (SPARC) -- context switching and glue code.
 !
-! $Id: glue.s,v 1.2 1997/08/22 21:12:21 lth Exp $
+! $Id: glue.s,v 1.1.1.1 1998/11/19 21:51:49 lth Exp $
 !
 ! To fix:
 ! * The register save/restore code used in scheme-to-scheme calls needs to
 !   be faster.
+! * The globals argument passed to scheme_start should be used always
+!   (it's currently ignored).
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -35,8 +37,8 @@
 ! _scheme_start: Scheme VM entry point.
 !
 ! Call from: C
-! Input    : globals[]
-! Output   : globals[]
+! Input    : pointer to globals vector
+! Output   : nothing
 ! Destroys : Caller's %o and %g caller-save registers.
 !
 ! _scheme_start is called from the larceny_call().  It sets up the virtual
@@ -46,6 +48,9 @@
 ! Larceny_call() must allocate a stack frame and must also place arguments
 ! in the register save area in globals[], and must set up the argument
 ! count in globals[ G_RESULT ].
+!
+! NOTE: The sparc version currently ignores its argument and uses the 
+! global variable 'globals' instead.
 
 EXTNAME(scheme_start):
 	save	%sp, -96, %sp			! Standard stack frame

@@ -1,7 +1,7 @@
 ; Asm/Common/makefasl.sch
 ; Larceny -- procedure to create fastload segments.
 ;
-; $Id: makefasl.sch,v 1.3 1997/07/18 13:33:21 lth Exp $
+; $Id: makefasl.sch,v 1.1.1.1 1998/11/19 21:51:57 lth Exp $
 ;
 ; The procedure 'dump-fasl-segment-to-port' takes a segment and an output
 ; port as arguments and dumps the segment in fastload format on that port.

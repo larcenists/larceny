@@ -1,7 +1,7 @@
 /* Rts/Sys/signals.h
  * Larceny Run-time system -- Unix signal handling.
  *
- * $Id: signals.h,v 1.1 1997/09/17 15:17:26 lth Exp $
+ * $Id: signals.h,v 1.1.1.1 1998/11/19 21:51:48 lth Exp $
  */
 
 #ifndef INCLUDED_SIGNALS_H
@@ -9,6 +9,9 @@
 
 #include <signal.h>
 #include <setjmp.h>
+#if defined(SUNOS5)
+#include <ucontext.h>
+#endif
 
 #include "config.h"
 
@@ -19,6 +22,7 @@ extern int sigsetmask( int mask );
 #if defined(SUNOS5)
 void block_all_signals( sigset_t *s );
 void unblock_signals( sigset_t *s );
+void unblock_all_signals( void );
 #endif
 
 #define OLD_SIGNAL_HANDLER   0    /* misc. asynch. interrupts */
@@ -85,6 +89,8 @@ extern sigset_t syscall_blocked_signals;
     unblock_signals( &syscall_blocked_signals ); \
   } while(0)
 #endif
+
+void execute_sigfpe_magic( void *context );
 
 #endif
 

@@ -1,7 +1,7 @@
 ; Util/memstats.sch
 ; Accessors for the vector returned by (memstats).
 ;
-; $Id: memstats.sch,v 1.1 1997/07/07 21:02:22 lth Exp $
+; $Id: memstats.sch,v 1.1.1.1 1998/11/19 21:51:55 lth Exp $
 
 (define (memstats:words-allocated v)
   (vector-ref v 0))

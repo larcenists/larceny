@@ -1,7 +1,8 @@
 ; -*- Scheme -*-
 ;
 ; Multi-lingual autoconfiguration program, version 2.
-; Visciously hacked to accomodate v0.20, needs cleaning up. It's a mess.
+; Viciously hacked to accomodate v0.20, needs cleaning up. It's a mess.
+; ASM parts are SPARC dependent (sigh).
 ;
 ; USAGE
 ;   (config <configfile> ...)
@@ -91,7 +92,7 @@
 
   (define error-cont #f)
 
-  (define table-file #f)
+  (define table-objects '())
   (define table-counter 0)
 
   (define (conf-error kill? msg . rest)
@@ -218,14 +219,7 @@
 						  "LAST_ROOT" #f #f)
 				info)))
 	    ((define-global? item)
-	     (display "	.word	0" table-file)
-	     (display "	! " table-file)
-	     (display (cond ((cadr item))
-			    ((caddr item))
-			    ((cadddr item))
-			    (else "???"))
-		      table-file)
-	     (newline table-file)
+	     (table-word 0 (or (cadr item) (caddr item) (cadddr item) "???"))
 	     (let ((i (define-const (cons 'define-const
 					     (cons ($gensym)
 						   (cons table-counter
@@ -234,11 +228,7 @@
 	       (set! table-counter (+ table-counter 1))
 	       (loop (read inp) i)))
 	    ((define-mproc? item)
-	     (display "	b	" table-file)
-	     (display (extname (list-ref item 4)) table-file)
-	     (newline table-file)
-	     (display "	nop" table-file)
-	     (newline table-file)
+	     (table-branch (extname (list-ref item 4)))
 	     (let ((i (define-const (cons 'define-const
 					     (cons ($gensym)
 						   (cons table-counter
@@ -252,8 +242,7 @@
 		   (error 'config "Align directive exceeded:" item)
 		   (let loop2 ()
 		     (if (< table-counter n)
-			 (begin (display "	.word	0	! padding" table-file)
-				(newline table-file)
+			 (begin (table-word 0 #f)
 				(set! table-counter (+ table-counter 1))
 				(loop2))
 			 (loop (read inp) info))))))
@@ -262,16 +251,49 @@
 	     (loop (read inp) info)))))
 
   (define (define-table item)
-    (delete-file (cadr item))
-    (set! table-file (open-output-file (cadr item)))
-    (display (cadr comments) table-file) (newline table-file)
-    (display "#include \"asmmacro.h\"" table-file) (newline table-file)
-    (display "	.seg	\"data\"" table-file) (newline table-file)
-    (display "	.global	EXTNAME(globals)" table-file) (newline table-file)
-    (display "	.align 8" table-file) (newline table-file)
-    (display "EXTNAME(globals):" table-file) (newline table-file)
-    (set! table-counter 0)
-    #t)
+
+    (define (the-table port delegate)
+      (lambda (op)
+	(case op
+	  ((close) (lambda () (close-output-port port)))
+	  (else (delegate port op)))))
+
+    (define (open-table-output name table comment)
+      (delete-file name)
+      (let ((port (open-output-file name)))
+	(display comment port)
+	(newline port)
+	(set! table-objects (cons (the-table port table) table-objects))))
+
+    (let ((c-name (cadr item))
+	  (asm-name (caddr item)))
+      (if c-name
+	  (open-table-output c-name standard-C-table (car comments)))
+      (if asm-name
+	  (open-table-output asm-name SPARC-table (cadr comments)))
+      (table-heading)
+      (set! table-counter 0)
+      #t))
+
+  (define (table-heading)
+    (for-each (lambda (t)
+		((t 'heading)))
+	      table-objects))
+
+  (define (table-word value comment)
+    (for-each (lambda (t)
+		((t 'word) value comment))
+	      table-objects))
+
+  (define (table-branch name)
+    (for-each (lambda (t)
+		((t 'branch) name))
+	      table-objects))
+
+  (define (table-footer)
+    (for-each (lambda (t)
+		((t 'footer)))
+	      table-objects))
 
   ; Evaluate expression, watching out for constants.
 
@@ -378,7 +400,73 @@
     (if (info.c info) (close-output-port (lang.port (info.c info))))
     (if (info.assy info) (close-output-port (lang.port (info.assy info))))
     (if (info.sch info) (close-output-port (lang.port (info.sch info))))
-    (if table-file (close-output-port table-file)))
+    (table-footer)
+    (for-each (lambda (t)
+		((t 'close)))
+	      table-objects))
+
+  ;; SPARC table
+
+  (define (sparc-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '("#include \"asmmacro.h\"" #\newline
+	      #\tab ".seg" #\tab "\"data\"" #\newline
+	      #\tab ".global EXTNAME(globals)" #\newline
+	      #\tab ".align 8" #\newline
+	      "EXTNAME(globals):" #\newline)))
+
+    (define (table-word value comment)
+      (show `(#\tab ".word" #\tab ,value #\tab "! "
+		    ,(or comment "padding")
+		    #\newline)))
+
+    (define (table-branch name)
+      (show `(#\tab "b" #\tab ,name #\newline #\tab "nop" #\newline)))
+
+    (define (table-footer) #f)
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
+  ;; Standard-C table
+
+  (define (standard-C-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '("#include \"larceny-types.h\"" #\newline
+	      "word globals[] = {" #\newline)))
+
+    (define (table-word value comment)
+      (if comment
+	  (show `(#\tab ,value "," #\tab "/* " ,comment " */" #\newline))))
+
+    (define (table-branch name) #t)
+
+    (define (table-footer)
+      (show '("};" #\newline)))
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
 
   (for-each run-configure argv))
 

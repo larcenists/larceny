@@ -1,7 +1,7 @@
 /* Rts/Sys/posix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Posix).
  *
- * $Id: posix-alloc.c,v 1.1 1997/09/23 19:57:44 lth Exp lth $
+ * $Id: posix-alloc.c,v 1.1.1.1 1998/11/19 21:51:42 lth Exp $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write

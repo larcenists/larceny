@@ -1,7 +1,7 @@
 ; Lib/flonums.sch
 ; Larceny -- low-level floating point code
 ;
-; $Id: flonums.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
+; $Id: flonums.sch,v 1.1.1.1 1998/11/19 21:52:06 lth Exp $
 ;
 ; The procedures in this file all operate on IEEE flonums.  Formats of
 ; flonums and bignums and operations used are all specific to Larceny.

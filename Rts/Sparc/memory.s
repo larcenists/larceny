@@ -1,7 +1,7 @@
 ! Rts/Sparc/memory.s
 ! Larceny run-time system (SPARC)  --  memory management primitives.
 !
-! $Id: memory.s,v 1.4 1997/05/23 13:59:15 lth Exp $
+! $Id: memory.s,v 1.1.1.1 1998/11/19 21:51:50 lth Exp $
 !
 ! Naming conventions:
 !   All publicly available procedures are named _mem_something.

@@ -1,7 +1,7 @@
 /* Rts/Sys/sycall.c
  * Larceny RTS -- syscall functionality.
  *
- * $Id$
+ * $Id: syscall.c,v 1.1.1.1 1998/11/19 21:51:44 lth Exp $
  */
 
 #include "larceny.h"
@@ -53,7 +53,7 @@ static struct {
 		      { (fptr)UNIX_allocate_nonmoving, 2, 0 },
 		      { (fptr)UNIX_object_to_address, 1, 0 },
 		      { (fptr)larceny_C_ffi_getaddr, 1, 0 },
- 		      { (fptr)C_SRO, 3, 0 },
+ 		      { (fptr)UNIX_sro, 3, 0 },
 		      { (fptr)UNIX_sysfeature, 1, 0 },
 		      { (fptr)larceny_peek_bytes, 3, 0 },
 		      { (fptr)larceny_poke_bytes, 3, 0 },
