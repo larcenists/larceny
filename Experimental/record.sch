@@ -1,7 +1,8 @@
-; Experimental/record.sch
-; Larceny library -- Record Package
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- Record Package.
 ;
 ; Record package as proposed by RRRS authors but never made part 
 ; of the report.  Based on a proposal posted to rrrs-authors on 

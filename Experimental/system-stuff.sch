@@ -1,7 +1,8 @@
-; Experimental/system-stuff.sch
-; Sundry system-level code
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Sundry system-level code.
 
 (define (ptrtag obj)
   (cond ((pair? obj) 1)
@@ -134,6 +135,8 @@
 	 (oblist-set! (select (lambda (x)
 				(not (memq x dead)))
 			      (oblist)))))))
+
+; Display amount of space available.
 
 (define (room)
 

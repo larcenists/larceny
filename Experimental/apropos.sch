@@ -1,7 +1,8 @@
-; Experimental/apropos.sch
-; Apropos
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Apropos function.
 ;
 ; Idea from Alexander Taranov <tay@jet.msk.su>
 ; Could use regular expression matching, but OK for now.

@@ -1,8 +1,8 @@
-; -*- scheme -*-
-; Experimental/applyhook0.mal
-; Larceny library -- apply-hook support code.
-;
+; Copyright 1998 Lars T Hansen.             -*- scheme -*-
+; 
 ; $Id$
+; 
+; Larceny library -- apply-hook support code.
 
 ; *apply-hook-proc-offset*
 
