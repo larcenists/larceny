@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 21 April 1999.
+; 5 June 1999.
 ;
 ; Local optimizations for MacScheme machine assembly code.
 ;
@@ -82,6 +82,8 @@
     (bytevector-set! forward-table $setstk  forward:interesting)
     (bytevector-set! forward-table $setreg  forward:interesting)
     (bytevector-set! forward-table $movereg forward:interesting)
+    (bytevector-set! forward-table $const/setreg
+                                            forward:interesting)
     
     (bytevector-set! forward-table $args>=  forward:kills-all-registers)
     (bytevector-set! forward-table $popstk  forward:kills-all-registers)
@@ -121,6 +123,8 @@
     (bytevector-set! backward-table $setreg  backward:kills-arg1)
     (bytevector-set! backward-table $movereg (logior backward:uses-arg1
                                                      backward:kills-arg2))
+    (bytevector-set! backward-table $const/setreg
+                                             backward:kills-arg2)
     (bytevector-set! backward-table $lambda  backward:uses-many)
     (bytevector-set! backward-table $lexes   backward:uses-many)
     (bytevector-set! backward-table $args>=  backward:uses-many)
@@ -220,6 +224,12 @@
                        (cond ((eqv? op $setreg)
                               (vector-set! registers
                                            (instruction.arg1 instruction)
+                                           #f)
+                              (forwards instructions
+                                        (cons instruction filtered)))
+                             ((eqv? op $const/setreg)
+                              (vector-set! registers
+                                           (instruction.arg2 instruction)
                                            #f)
                               (forwards instructions
                                         (cons instruction filtered)))
