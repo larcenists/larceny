@@ -1,5 +1,6 @@
-; 13 November 2001 / lth
+; 1 August 2004 / lth
 ;
+; (Outdated documentation)
 ; Routines for dumping a Petit Larceny heap image using
 ; Microsoft Visual C/C++ 6.0 (Standard Edition) under 
 ; Windows NT and Windows 2000 (at least).
@@ -11,8 +12,8 @@
 ; in the working directory?  The error messages are too
 ; obscure to decipher.)
 
-(define win32/petit-rts-library "Rts\\petit-rts.lib")
-(define win32/petit-lib-library "petit-lib.lib")
+(define win32/petit-rts-library #f) ; defined later
+(define win32/petit-lib-library #f) ; defined later
 (define win32/petit-exe-name    "petit.exe")
 
 (define (build-petit-larceny heap output-file-name input-file-names)
@@ -24,15 +25,16 @@
   (c-link-library win32/petit-lib-library
 		  (remove-duplicates
 		   (append (map (lambda (x)
-				  (rewrite-file-type x ".lop" ".obj"))
+				  (rewrite-file-type x ".lop" (obj-suffix)))
 				input-file-names)
-			   (list (rewrite-file-type *temp-file* ".c" ".obj")))
+			   (list (rewrite-file-type 
+				  *temp-file* ".c" (obj-suffix))))
 		   string=?)
 		  '()))
 
 (define (build-application executable-name additional-files)
   (let ((src-name (rewrite-file-type executable-name '(".exe") ".c"))
-        (obj-name (rewrite-file-type executable-name '(".exe") ".obj")))
+        (obj-name (rewrite-file-type executable-name '(".exe") (obj-suffix))))
     (init-variables)
     (for-each create-loadable-file additional-files)
     (dump-loadable-thunks src-name)
@@ -40,7 +42,7 @@
     (c-link-executable executable-name
                        (cons obj-name
                              (map (lambda (x)
-                                    (rewrite-file-type x ".lop" ".obj"))
+                                    (rewrite-file-type x ".lop" (obj-suffix)))
                                   additional-files))
                        (list win32/petit-rts-library
 			     win32/petit-lib-library))
@@ -78,7 +80,7 @@
      (twobit-format #f "lib.exe /libpath:. /name:~a /out:~a @~a" lib-name output-name lnk-name))))
 
 (define (c-dll-linker:msvc-win32 output-name object-files)
-  ;; FIXME!!
+  ;; FIXME!!  (why??)
   (create-indirect-file "petit-objs.lnk" object-files)
   (system "del vc60.pdb")
   (execute
@@ -125,18 +127,34 @@
 		  output-name
 		  (apply string-append (insert-space libs)))))
 
-; GCC (cygwin)
+; GCC (mingw)
+; FIXME: do not use mwld (Metrowerks!) to link DLLs
 
 (define (c-compiler:gcc-win32 c-name o-name)
   (execute
    (twobit-format 
     #f
-    "gcc -g -c ~a -IRts/Sys -IRts/Standard-C -IRts/Build -DSTDC_SOURCE ~a -o ~a ~a"
+    "gcc -g -c ~a -IRts\\Sys -IRts\\Standard-C -IRts\\Build -DSTDC_SOURCE ~a -o ~a ~a"
     (if (optimize-c-code) "-O" "")
     (if (optimize-c-code) "-DNDEBUG" "")
     o-name
     c-name)))
 
+(define (c-library-linker:gcc-win32 output-name object-files libs)
+  (delete-file output-name)
+  (execute
+   (twobit-format 
+    #f
+    "ar -r ~a ~a" 
+    output-name
+    (apply string-append (insert-space object-files))))
+  (execute
+   (twobit-format 
+    #f
+    "ranlib ~a" 
+    output-name)))
+
+; FIXME
 (define (c-dll-linker:gcc-win32 output-name object-files . ignored)
   (create-indirect-file "petit-objs.lnk" object-files)
   (execute
@@ -145,11 +163,11 @@
 		  output-name)))
 
 (define (c-linker:gcc-win32 output-name object-files libs)
-  (create-indirect-file "petit-objs.lnk" object-files)
   (execute
    (twobit-format #f
-		  "gcc -g -o ~a @petit-objs.lnk ~a"
+		  "gcc -g -o ~a ~a ~a"
 		  output-name
+		  (apply string-append (insert-space object-files))
 		  (apply string-append (insert-space libs)))))
 
 ;;;
@@ -175,16 +193,16 @@
     (append-files       . ,append-file-shell-command-msdos)))
 
 (define-compiler 
-  "gcc (cygwin) on Win32"
-  'gcc
+  "gcc (mingw) on Win32"
+  'gcc-mingw
   ".o"
   `((compile            . ,c-compiler:gcc-win32)
-    (link-library       . ,c-library-linker:msvc-win32)
+    (link-library       . ,c-library-linker:gcc-win32)
     (link-executable    . ,c-linker:gcc-win32)
     (link-shared-object . ,c-dll-linker:gcc-win32)
     (append-files       . ,append-file-shell-command-msdos)))
 
-(select-compiler 'mwcc)
+(select-compiler 'gcc-mingw)
 
 ; eof
 

@@ -98,7 +98,7 @@
 		   (let ((item (read in)))
 		     (if (string? item)
 			 (loop (cons item decls))
-			 (do ((segment (read in) (read in))
+			 (do ((segment item (read in))
 			      (segments '() (cons segment segments)))
 			     ((eof-object? segment)
 			      (dump-segments (length *loadables*)
@@ -110,7 +110,7 @@
 				*loadables*)))))
 
   (define (dump-segments bootstrap-id fasl-file segments decls so-name)
-    (before-dump-file #f filename)
+    (before-dump-file #f filename decls)
     (delete-file fasl-file)
     (let ((entrypoints '())
 	  (bootstrap-id (or bootstrap-id
