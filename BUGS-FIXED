@@ -1891,3 +1891,47 @@ $Id$
     code in memory.s, cglue.c, young_heap_t.*, sc-heap.c, nursery.c.
     Avoided changing GC interface by having cglue.c call a yh_ method
     directly.
+
+152 v0.47 (2000-01-26 / lth)  Fixed 2000-03-13 by lth
+    Priority: high
+    Category: Libraries / correctness
+
+	Larceny v0.47 "'Bat' Guano" (precise:SunOS5:split) (lth 18-Nov-99 13:22:00)
+
+	> (/ 3975757967 1e6)
+	-319.209329		        ;; This is wrong, obviously
+	> (/ 3975757967 10)
+	-319209329/10			;; Ratnum arithmetic is broken
+	
+	Not an obvious optimizer bug:
+	
+	> (define a 3975757967)
+	a
+	> (define b 1e6)
+	b
+	> (/ a b)
+	-319.209329
+	
+	Bug also present in 1.0a1.
+	
+	ratnum-div seems to do the right thing when handed the arguments, so
+	what we're seeing might be ratnum-div being handed a wrongly converted
+	fixnum by contagion.
+
+	Fails in make-reduced-ratnum because
+
+	> (quotient 3975757967 1)
+	-319209329
+
+	which is very wrong.
+
+        The bug:
+
+	In Petit Larceny: The bug is that the millicode that does 
+	bignum/fixnum division for one-word nonnegative bignums calls 
+	ga_box_int rather than ga_box_longint to box (or not) the result.
+
+	In SPARC Larceny: similar problem: code that determined
+        whether the result was a fixnum was wrong.
+
+
