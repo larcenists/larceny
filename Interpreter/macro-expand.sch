@@ -8,35 +8,17 @@
 ($$trace "macro-expand")
 
 ; Used by the interpreter.
-;
-; The use of global-syntactic-environment in the 'else' case is 
-; really wrong -- it is technically an error.  However, it is correct 
-; for correct code, and it allows std-heap.sch to be used until we fix 
-; this properly.
 
 (define (interpreter-macro-expand expr . rest)
-  (let* ((env
-	  (if (null? rest) (interaction-environment) (car rest)))
-	 (syntax-env
-	  (case (environment-tag env)
-	    ((0 1) (make-standard-syntactic-environment))
-	    ((2)   global-syntactic-environment)
-	    (else  global-syntactic-environment))))
-    (let ((current-env global-syntactic-environment))
-      (dynamic-wind
-       (lambda ()
-	 (set! global-syntactic-environment syntax-env))
-       (lambda ()
-	 (macro-expand expr))
-       (lambda ()
-	 (set! global-syntactic-environment current-env))))))
-
+  (let ((env (if (null? rest) 
+                 (interaction-environment) 
+                 (car rest))))
+    (macro-expand expr (environment-syntax-environment env))))
 
 ; Exported to the user environment.
 
 (define (toplevel-macro-expand expr . rest)
   (make-readable (apply interpreter-macro-expand expr rest)))
-
 
 ; `Twobit-sort' is used by Twobit's macro expander.
 
