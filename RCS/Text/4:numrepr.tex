@@ -1,17 +1,18 @@
 % -*- TeX -*-
-% $Id: numrepr.txt,v 1.1 91/12/06 14:59:03 lth Exp Locker: lth $
+% $Id: numrepr.tex,v 1.2 92/01/24 14:04:47 lth Exp Locker: lth $
 
 \input{larceny.sty}
 
 \title{Larceny Note \#4: \\
-       Number Representations}
+       Number Representations \\
+       {\tenrm (definitive!)}}
 \author{Lars Thomas Hansen}
 
 \begin{document}
 \maketitle
 
-Fixnums are unboxed and kept in the high 30 bits of a word, with the
-two low bits always 0 (figure 1).
+Fixnums (small exact integers) are unboxed and kept in the high 30
+bits of a word, with the two low bits always 0 (figure 1).
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
@@ -22,16 +23,19 @@ two low bits always 0 (figure 1).
 \centerline{Figure 1: Fixnum}
 \end{minipage}
 
-Bignums are bytevector-like with the sign in the first two bytes
-(\#x0000 for 0 or positive, \#xFFFF for negative), followed by a digit
-count (two bytes) and then base-$2^{32}$ digits in the next words.
-with the least significant word first; each word is stored big-endian
-(figure 2).
+Bignums (large exact integers) are bytevector-like with the sign in
+the first two bytes (0 for positive, 1 for negative), followed by a
+digit count (two bytes) and then base-$2^{32}$ digits in the next
+words, with the least significant word first; each word is stored
+big-endian (figure 2).  While bignums cannot be 0 in user code, system
+code sometimes creates bignums of value 0 in an internal calculation.
+A bignum with value 0 is distinguished by a digitcount of 0; the sign
+is immaterial.
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
                           +------------------------+--------+
-                          |       length           | header |
+                          |       length           | hdrtag |
                           +------------------------+--------+
                           | sign          |   digitcount    |
                           +---------------------------------+
@@ -42,15 +46,23 @@ with the least significant word first; each word is stored big-endian
 \centerline{Figure 2: Bignum with 32-bit digits}
 \end{minipage}
 
-Each word is stored big-endian, and can be interpreted as two 16-bit
-digits, also in big-endian fashion within the word; interpreted this
-way, the bignum gets a funny access pattern (figure 3).
-The digit count is still the number of 32-bit digits used.
+The rationale for keeping a digit count which is different from the vector
+length is that while (in particular) the multiplication routine must create
+a vector whose length is the sum of the digit counts, some of the leading
+digits may be 0, and hence we can have a lower digit count without having
+to reallocate memory or use a temporary buffer.
+
+Bignums can also be considered with a different logical layout: Each
+32-bit digit can be interpreted as two 16-bit digits, also in
+big-endian fashion within the word; interpreted this way, the bignum
+gets a funny access pattern (figure 3).  The digit count is still the
+number of 32-bit digits used; see above discussion for sign and
+bignums of value 0.
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
                           +------------------------+--------+
-                          |       length           | header |
+                          |       length           | hdrtag |
                           +------------------------+--------+
                           | sign          |   digitcount    |
                           +---------------------------------+
@@ -61,14 +73,15 @@ The digit count is still the number of 32-bit digits used.
 \centerline{Figure 3: Bignum with 16-bit digits}
 \end{minipage}
 
-Ratnums (figure 4) are vector-like, with the first word of
-the vector being the numerator as a scheme object (fixnum or bignum),
-and the second word being the denominator (greater than 1).
+Ratnums (exact rationals), shown in figure 4, are vector-like, with
+the first word of the vector being the numerator as a Scheme object
+(fixnum or bignum), and the second word being the denominator (greater
+than 1), also a Scheme object.
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
                           +------------------------+--------+
-                          |       vectorlength     | header |
+                          |       vectorlength     | hdrtag |
                           +------------------------+--------+
                           |       numerator                 |
                           +---------------------------------+
@@ -78,15 +91,15 @@ and the second word being the denominator (greater than 1).
 \centerline{Figure 4: Ratnum}
 \end{minipage}
 
-Rectnums (figure 5) look like ratnums, except that the
-first word is the real part (an integer or ratnum) and the second word
-is the imaginary part (ditto). Both parts are exact reals, and the
-imaginary part is nonzero.
+Rectnums (exact complexes), shown in figure 5, look like ratnums,
+except that the first word is the real part (an integer or ratnum) and
+the second word is the imaginary part (ditto). Both parts are exact
+reals, and the imaginary part is nonzero.
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
                           +------------------------+--------+
-                          |       vectorlength     | header |
+                          |       vectorlength     | hdrtag |
                           +------------------------+--------+
                           |       real-part                 |
                           +---------------------------------+
@@ -96,17 +109,18 @@ imaginary part is nonzero.
 \centerline{Figure 5: Rectnum}
 \end{minipage}
 
-Flonums (IEEE double) are bytevector-like. The first word is unused,
-and the two next words contain the double. The rationale for the unused
-word is this: since everything in the system is aligned on an 8-byte
-boundary, one word will be wasted anyway. By putting it before the
-number rather than after, the number becomes 8-byte aligned, and we can use
-a ``load double'' instruction to load it. (Figure 6.)
+Flonums (inexact reals) are bytevector-like. The first word is unused,
+and the two next words contain the double in IEEE double precision
+format. The rationale for the unused word is this: since everything in
+the system is aligned on an 8-byte boundary, one word will be wasted
+anyway. By putting it before the number rather than after, the number
+becomes 8-byte aligned, and we can use a ``load double'' instruction
+to load it. (Figure 6.)
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
                           +------------------------+--------+
-                          |      length            | header |
+                          |      length            | hdrtag |
                           +------------------------+--------+
                           |      unused                     |
                           +---------------------------------+
@@ -117,10 +131,11 @@ a ``load double'' instruction to load it. (Figure 6.)
 \centerline{Figure 6: Flonum}
 \end{minipage}
 
-Compnums (two IEEE doubles) are bytevector-like. The first word is
+Compnums (inexact complexes) are bytevector-like. The first word is
 unused (see the description of the flonum for a rationale).  The two
 next words contain the real part. The two last words contain the
-imaginary part. (Figure 7.)
+imaginary part. (Figure 7.) Both parts are IEEE double precision
+numbers.
 
 \begin{minipage}{\linewidth}
 \begin{verbatim}
