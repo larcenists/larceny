@@ -13,6 +13,8 @@
 #ifndef INCLUDED_MACROS_H
 #define INCLUDED_MACROS_H
 
+#include <stdlib.h>		/* for abs() */
+
 /* Various masks */
 #define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
 #define HDR_SIGN	0x00000082	/* header signature */
@@ -25,7 +27,7 @@
  * Might be faster to keep the sign, shift the absvalue, and convert the
  * sign again than to actually divide the signed number. Not used much, tho.
  */
-#define nativeint( x )      ((word) ((long)(x) / 4))
+#define nativeint( x )      ((word) ((s_word)(x) / 4))
 #define nativeuint( n )     ((word)(n) / 4)
 
 /* Given tagged pointer, return tag */
@@ -62,7 +64,9 @@
 #define sizefield( w )      ((w) >> 8)
 
 /* miscellaneous */
+#undef max
 #define max( a, b )         ((a) > (b) ? (a) : (b))
+#undef min
 #define min( a, b )         ((a) < (b) ? (a) : (b))
 
 #define ceildiv(a,b)        ((a)%(b) == 0 ? (a)/(b) : (a)/(b)+1)
@@ -104,7 +108,7 @@
 
 #define mkbignum_header( sign, length )  (((sign) << 16) | length)
 #define bignum_length( x )     (*(ptrof(x)+1) & 0x0000FFFF)
-#define bignum_sign( x )       (*(ptrof(x)+1) >> 16)
+#define bignum_sign( x )       ((*(ptrof(x)+1) >> 16) & 1)
 #define bignum_ref32( x, i )   (*(ptrof(x)+2+i))
 
 #define real_part( x )         (*(double*)(ptrof(x)+2))
