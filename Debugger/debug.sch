@@ -2,10 +2,13 @@
 ;
 ; $Id$
 ;
-; Bare-bones debugger (very experimental).
+; Bare-bones debugger.
 ;
-; Usage: when an error has occurred in the program, type (backtrace)
-; or (debug) at the prompt.
+; The debugger is installed by evaluating (install-debugger).
+;
+; The debugger will be invoked automatically when an error is encountered
+; or when a keyboard interrupt is signalled.  After the user has left the
+; debugger, debugging can be continued by evaluating (debug).
 ;
 ; FIXME: When using nested debuggers, and using the Q command to pop out
 ;        of one level to the next level, the mysterious message "Procedure 
@@ -15,17 +18,20 @@
 ;        popping out one level and popping out all the way to the top level;
 ;        currently the latter is not possible.
 ;
-; FIXME: Debug/print-object must be able to deal with structures; right now
-;        it only prints #<WEIRD>, which is useless.
+; FIXME: It may be that interactive EOF should work as R rather than Q,
+;        which is the case now (holdover from waybackwhen).
 
-'(require 'pretty-print)
-'(require 'inspect-cont)
+'(require 'pretty-print)                ; Auxlib/pp.sch
+'(require 'inspect-cont)                ; Debugger/inspect-cont.sch
+'(require 'trace)                       ; Debugger/trace.sch
 
 (define debug/return #f)                ; Thunk that returns
 (define debug/reset #f)                 ; Thunk that resets
 
-(define *debug-print-length* 10)
-(define *debug-level* 0)
+(define *debug-level* 0)                ; Debugger nesting level
+(define *error-continuation* #f)        ; Saved continuation structure
+(define *debug-print-length* 7)         ; For PRINT-LENGTH
+(define *debug-print-level* 7)          ; for PRINT-LEVEL
 
 (define (install-debugger)
 
@@ -33,11 +39,21 @@
 
   (error-handler 
    (lambda the-error
-     (with-console-i/o
-      (lambda ()
-        (newline)
-        (decode-error the-error)
-        (debug/enter-debugger #f)))))
+     (error-continuation (current-continuation-structure))
+     (debug/displayln)
+     (let ((length (print-length))
+           (level  (print-level)))
+       ; FIXME: use parameterize
+       (dynamic-wind
+        (lambda ()
+          (print-length *debug-print-length*)
+          (print-level *debug-print-level*))
+        (lambda ()
+          (decode-error the-error (console-output-port)))
+        (lambda ()
+          (print-length length)
+          (print-level level))))
+     (debug/enter-debugger #f)))
 
   ; Install a keyboard interrupt handler that invokes the debugger so
   ; that keyboard interrupts can be handled and the computation can also
@@ -46,13 +62,10 @@
   (keyboard-interrupt-handler
    (lambda ()
      (let ((enabled? (disable-interrupts)))
-       (with-console-i/o
-        (lambda ()
-          (display "Keyboard interrupt.") 
-          (newline)
-          (debug/enter-debugger #t)
-          (if enabled? 
-              (enable-interrupts (standard-timeslice))))))))
+       (debug/displayln "Keyboard interrupt.") 
+       (debug/enter-debugger #t)
+       (if enabled? 
+           (enable-interrupts (standard-timeslice))))))
 
   ; Initialize the trace and breakpoint package.
 
@@ -60,50 +73,35 @@
 
   #t)
 
-; This is at least roughly right.  Divert current-input-port and 
-; current-output-port to the console in the dynamic extent of thunk.
-
-(define (with-console-i/o thunk)
-  (let ((conin  (current-input-port))
-        (conout (current-output-port)))
-    (dynamic-wind
-     (lambda ()
-       (reestablish-console))
-     thunk
-     (lambda ()
-       (current-input-port conin)
-       (current-output-port conout)))))
+(define (error-continuation . rest)
+  (cond ((null? rest) 
+         *error-continuation*)
+        ((null? (cdr rest))
+         (set! *error-continuation* (car rest)))
+        (else
+         (error "Too many arguments to ERROR-CONTINUATION."))))
 
 (define (debug)
-  (format #t "Entering debugger; ? for help.~%")
   (let ((e (error-continuation)))
     (if (not e)
-	(begin (display "No error continuation!")
-	       (newline))
-	(debug-continuation-structure #f e))))
+        (debug/displayln "No error continuation!")
+        (begin (debug/displayln "Entering debugger; ? for help.")
+               (debug-continuation-structure #f e)))))
 
 (define (debug/enter-debugger continuable?)
-  (display "Entering debugger; type \"?\" for help.")
-  (newline)
+  (debug/displayln "Entering debugger; type \"?\" for help.")
   (debug-continuation-structure continuable? (current-continuation-structure)))
-
-(define (backtrace)
-  (debug/backtrace 0 (make-continuation-inspector (error-continuation))))
 
 (define (debug-continuation-structure continuable? c . rest)
   (let ((inspector (make-continuation-inspector c))
 	(display? (and (not (null? rest)) (car rest))))
 
     (define (user-input)
-      (reestablish-console)
-      (display "debug")
-      (display (make-string *debug-level* #\>))
-      (display " ")
-      (flush-output-port)
+      (debug/display "debug" (make-string *debug-level* #\>) " ")
       (let* ((x     (debug/get-token))
-	     (count (if (number? x) x 1))
-	     (cmd   (if (number? x) (debug/get-token) x)))
-	(values count (debug-command cmd))))
+             (count (if (number? x) x 1))
+             (cmd   (if (number? x) (debug/get-token) x)))
+        (values count (debug-command cmd))))
 
     (define (loop display-frame?)
       (let ((current (inspector 'get)))
@@ -118,8 +116,7 @@
 		  (cmd count inspector)
 		  (loop (not (current 'same? (inspector 'get)))))
 		 (else
-		  (display "Bad command.  ? for help.")
-		  (newline)
+		  (debug/displayln "Bad command.  ? for help.")
 		  (loop #f)))))))
 
     (define (command-loop display-frame?)
@@ -128,7 +125,7 @@
                       (lambda () (loop display-frame?))
                       reset-token)))
         (if (eq? reset-token result)
-            (begin (newline)
+            (begin (debug/displayln)
                    (command-loop #f))
             result)))
 
@@ -137,8 +134,7 @@
         (cond ((eq? result 'reset) 'reset)
               (continuable?        'return)
               (else
-               (display "Computation is not continuable.")
-               (newline)
+               (debug/displayln "Computation is not continuable.")
                (inspect-continuation #f)))))
 
     (dynamic-wind
@@ -169,81 +165,15 @@
       thunk))))
 
 
-; Debugger user interface
+; Debugger user interface.
 ; Return the next token from the input source, or reset if EOF.
 
 (define (debug/get-token)
-  (let ((t (read)))
+  (let ((t (debug/read)))
     (if (eof-object? t)
-	(begin (display t)
-               (newline)
-               (reestablish-console)
+        (begin (debug/displayln t)
                (debug/reset))
-	t)))
-
-; Safely prints a potentially circular object.
-
-(define (debug/print-object obj)
-
-  (define limitation *debug-print-length*)
-
-  (define printed-elipsis #f)
-
-  (define (display-limited obj)
-    (cond ((<= limitation 0) 
-	   (if (not printed-elipsis)
-	       (begin (display "...")
-		      (set! printed-elipsis #t))))
-	  ((or (symbol? obj)
-	       (boolean? obj)
-	       (char? obj)
-	       (number? obj)
-	       (string? obj)
-	       (procedure? obj)
-	       (eq? (unspecified) obj)
-	       (eq? (undefined) obj)
-	       (eof-object? obj)
-	       (null? obj)
-	       (bytevector? obj)
-	       (port? obj))
-	   (write obj)
-	   (set! limitation (- limitation 1)))
-	  ((and (list? obj) (eq? (car obj) 'quote) (null? (cddr obj)))
-	   (display #\')
-	   (display-limited (cadr obj)))
-	  ((pair? obj)
-	   (set! limitation (- limitation 1))
-	   (display "(")
-	   (let loop ((obj obj))
-	     (cond ((and (pair? obj) 
-			 (not (or (<= limitation 0) (null? obj))))
-		    (display-limited (car obj))
-		    (if (not (null? (cdr obj)))
-			(display " "))
-		    (loop (cdr obj)))
-		   ((null? obj))
-		   ((and (not (pair? obj))
-			 (not (<= limitation 0)))
-		    (display ". ")
-		    (display-limited obj))
-		   ((not (null? obj))
-		    (display "..."))))
-	   (display ")")
-	   (set! printed-elipsis #f))
-	  ((vector? obj)
-	   (display "#")
-	   (display-limited (vector->list obj)))
-	  (else
-	   (display "#<WEIRD>")
-	   (set! limitation (- limitation 1)))))
-
-  (display-limited obj)
-  (unspecified))
-
-; Prints code.
-
-(define (debug/print-code expr)
-  (pretty-print expr))
+        t)))
 
 
 ; Debugger commands
@@ -259,21 +189,20 @@
 	(cdr probe)
 	#f)))
 
-
 (define (debug/help count inspector)
-  (display *inspector-help*))
+  (debug/display *inspector-help*))
 
 (define (debug/down count inspector)
   (cond ((zero? count))
 	((not (inspector 'down))
-	 (format #t "Already at the bottom.~%"))
+	 (debug/displayln "Already at the bottom."))
 	(else
 	 (debug/down (- count 1) inspector))))
 
 (define (debug/up count inspector)
   (cond ((zero? count))
 	((not (inspector 'up))
-	 (format #t "Already at the top.~%"))
+         (debug/displayln "Already at the top."))
 	(else
 	 (debug/up (- count 1) inspector))))
 
@@ -287,17 +216,17 @@
 	(display (car prefix)))
     (case class
       ((system-procedure)
-       (format #t "system continuation"))
+       (debug/display "system continuation"))
       ((interpreted-primitive)
-       (format #t "interpreted primitive ~a" (procedure-name proc)))
+       (debug/display "interpreted primitive " (procedure-name proc)))
       ((interpreted-expression)
-       (format #t "interpreted expression ")
+       (debug/display "interpreted expression ")
        (debug/print-object expr))
       ((compiled-procedure)
-       (format #t "compiled procedure ~a" (procedure-name proc)))
+       (debug/display "compiled procedure " (procedure-name proc)))
       (else
        (error "debug/summarize-frame: Unknown class " class)))
-    (newline)))
+    (debug/displayln)))
 
 (define (debug/backtrace count inspector)
   
@@ -319,30 +248,28 @@
 	(pretty-print expr))
     (do ((i 0 (+ i 1)))
 	((= i (f 'slots)))
-      (display "#")
-      (display i)
-      (display ": ")
+      (debug/display "#" i ": ")
       (debug/print-object (f 'ref-slot i))
-      (newline))))
+      (debug/displayln))))
 
 (define (debug/code count inspector)
   (let ((expr (((inspector 'get) 'code) 'source-code)))
     (if expr
 	(debug/print-code expr)
-	(format #t "No code.~%"))))
+	(debug/displayln "No code."))))
 
 (define (debug/inspect count inspector)
 
   (define (inspect-procedure proc)
     (cond ((eq? proc 0)
-	   (format #t "Can't inspect a system procedure.~%"))
+	   (debug/displayln "Can't inspect a system procedure."))
 	  ((interpreted-expression? proc)
 	   (debug/print-code (procedure-expression proc)))
 	  (else
 	   (do ((i 0 (+ i 1)))
 	       ((= i (procedure-length proc)))
 	     (debug/print-object (procedure-ref proc i))
-	     (newline)))))
+	     (debug/displayln)))))
 
   (let ((n (debug/get-token)))
     (cond ((eq? n '@)
@@ -350,7 +277,7 @@
 	  (else
 	   (let ((obj ((inspector 'get) 'ref-slot n)))
 	     (if (not (procedure? obj))
-		 (format #t "Slot ~a does not contain a procedure.~%" n)
+		 (debug/displayln "Slot " n " does not contain a procedure.")
 		 (inspect-procedure obj)))))))
 
 ; This parameter is set to #f whenever the debugger recursively calls
@@ -367,7 +294,16 @@
             (else
              (error "Wrong number of arguments to debug/breakpoints-enable "
                     rest))))))
-      
+
+(define (debug/call-with-breakpoints-disabled thunk)
+  (let ((outside (debug/breakpoints-enable)))
+    (dynamic-wind
+     (lambda ()
+       (debug/breakpoints-enable #f))
+     thunk
+     (lambda ()
+       (debug/breakpoints-enable outside)))))
+  
 (define (debug/evaluate count inspector)
 
   (define (valid-frame-slot? frame n)
@@ -387,13 +323,13 @@
                           (debug/breakpoints-enable breakpt)))))
 		   token)))
       (cond ((eq? proc token)
-	     (format #t "Expression caused a reset.~%"))
+	     (debug/displayln "Expression caused a reset."))
 	    ((not (procedure? proc))
-	     (format #t "~a does not evaluate to a procedure: ~a" expr proc))
+	     (debug/displayln expr " does not evaluate to a procedure: " proc))
 	    ((not (every? (lambda (n)
 			    (valid-frame-slot? frame n))
 			  args))
-	     (format #t "Some frame slots are not valid in ~a" args))
+	     (debug/displayln "Some frame slots are not valid in " args))
 	    (else
 	     (let* ((actuals (map (lambda (n)
 				    (frame 'ref-slot n))
@@ -402,13 +338,13 @@
 			  (lambda () (apply proc actuals))
 			  token)))
 	       (cond ((eq? res token)
-		      (format #t "Procedure call caused a reset.~%"))
+		      (debug/displayln "Procedure call caused a reset."))
 		     ((eq? res (unspecified))
 		      ; FIXME: really a conditional newline.
-		      (newline))
+		      (debug/displayln))
 		     (else
 		      (debug/print-object res)
-		      (newline))))))))
+		      (debug/displayln))))))))
 
   (let* ((n    (debug/get-token))
 	 (expr (debug/get-token)))
@@ -455,5 +391,47 @@ The B, D, and U commands can be prefixed with a count, for example,
 activations; the default count for D and U is 1.
 
 ")
+
+(define (debug/display . xs)
+  (for-each (lambda (x) 
+              (display x (console-output-port))) 
+            xs))
+
+(define (debug/displayln . xs)
+  (apply debug/display xs)
+  (newline (console-output-port)))
+
+(define (debug/read)
+  (read (console-input-port)))
+
+; FIXME: Use parameterize.
+
+(define (debug/print-object obj)
+  (let ((length (print-length))
+        (level  (print-level)))
+    (dynamic-wind 
+     (lambda ()
+       (print-length *debug-print-length*)
+       (print-level *debug-print-level*))
+     (lambda () 
+       (write obj (console-output-port)))
+     (lambda () 
+       (print-length length)
+       (print-level level)))))
+
+; FIXME: Use parameterize.
+
+(define (debug/print-code expr)
+  (let ((length (print-length))
+        (level  (print-level)))
+    (dynamic-wind 
+     (lambda ()
+       (print-length #f)
+       (print-level #f))
+     (lambda ()
+       (pretty-pring expr (console-output-port)))
+     (lambda ()
+       (print-length length)
+       (print-level level)))))
 
 ; eof
