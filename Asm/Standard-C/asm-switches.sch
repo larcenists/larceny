@@ -4,8 +4,8 @@
 ;
 ; Standard-C machine assembler flags.
 
-(define unsafe-code
-  (make-twobit-flag 'unsafe-code))
+(define runtime-safety-checking
+  (make-twobit-flag 'runtime-safety-checking))
 
 (define catch-undefined-globals
   (make-twobit-flag 'catch-undefined-globals))
@@ -16,32 +16,45 @@
 (define inline-assignment
   (make-twobit-flag 'inline-assignment))
 
-(define (peephole-optimization . rest) #f)
+(define peephole-optimization
+  (make-twobit-flag 'peephole-optimization))
 
-(define (single-stepping . rest) #f)
+; Backwards compatible
 
-(define (display-assembler-flags)
-  (display "Standard-C Assembler flags") (newline)
-  (display-twobit-flag unsafe-code)
-  (display-twobit-flag catch-undefined-globals)
-  (display-twobit-flag inline-allocation)
-  (display-twobit-flag inline-assignment)
-  (display-twobit-flag peephole-optimization))
+(define (single-stepping . rest) #f)    ; Not a switch
+
+(define (unsafe-code . args)
+  (if (null? args)
+      (not (runtime-safety-checking))
+      (runtime-safety-checking (not (car args)))))
+
+(define (display-assembler-flags which)
+  (case which
+    ((debugging) #t)
+    ((safety)
+     (display-twobit-flag runtime-safety-checking)
+     (if (runtime-safety-checking)
+         (begin (display "  ")
+                (display-twobit-flag catch-undefined-globals))))
+    ((optimization)
+     (display-twobit-flag peephole-optimization)
+     (display-twobit-flag inline-allocation)
+     (display-twobit-flag inline-assignment))
+    (else #t)))
 
 (define (set-assembler-flags! mode)
   (case mode
-    ((no-optimization default fast-safe)
+    ((no-optimization standard fast-safe)
      (inline-allocation #f)
      (inline-assignment #f)
+     (runtime-safety-checking #t)
      (catch-undefined-globals #t)
-     (peephole-optimization #f)
-     (unsafe-code #f))
+     (peephole-optimization #f))
     ((fast-unsafe)
-     (set-assembler-flags! 'default)
-     (unsafe-code #t)
-     (catch-undefined-globals #f))
+     (set-assembler-flags! 'standard)
+     (runtime-safety-checking #f))
     (else ???)))
 
-(set-assembler-flags! 'default)
+(set-assembler-flags! 'standard)
 
 ; eof
