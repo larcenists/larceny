@@ -1,84 +1,70 @@
 $Id$
 
-SPARC Larceny version 1.0a2.
+Release 1.0a2
+-------------
 
-Major features at a glance [currently in]
+This is the SPARC version only; Petit Larceny will not be released now.
 
-  * Twobit pass 3, other compiler fixes.
-  * Records.
-  * Foreign function interface.
-  * Performance bug fixes (named LET, CASE).
-  * Correctness bug fixes (sundry).
-  * SRFI support (full support to be determined).
+Major features of this release
+  * Compiler improvements (pass 3, bug fixes, performance)
+  * Library improvements (bug fixes, performance)
+  * Better top-level environments
+  * FFI
+  * Record package
+  * SRFIs
+  * Module system
 
--------------------------------
+Known bugs that should be fixed:
+	090 (performance bug) [ fixed; wdc should remove from BUGS ]
+	130 (compiler bug) [ fixed; wdc should remove from BUGS ]
+	091 (macro expander buglet)
 
-Remaining to-do items:
+Issues that must be addressed:
+	--- Representation-specific primitives in compiler tables
+	--- SRFI system -- must work with new environments
+	--- SRFI 11 (LET-VALUES and LET*-VALUES; we have a simplified form
+		     of this, and it must be updated)
+	--- Update build documentation
+	--- Update documentation generally (see $LARCENY/TODO-RELEASE)
+	--- Write more test code
+	--- What's the story with Petit Larceny?
+        --- Should ENVIRONMENT-SYNTAX-ENVIRONMENT really be called
+            ENVIRONMENT-SYNTACTIC-ENVIRONMENT?  (Can fix this later,
+            it's not for general consumption.)
+        --- Bug: UNSPECIFIED and UNDEFINED should not be in the null 
+            environment, but in the Larceny environment (sparc.imp.sch). 
+            So they need to move.
 
-[General bug fixes]
-  * All `high' priority bugs in BUGS:
-     136: [wdc] macro expander bug
-     137: [wdc] macro expander bug
+Known bugs it would be nice to fix:
+	074/139 (pretty printer is unreasonable; I've written a new one
+		 but it needs testing)
 
-  * The following `medium' priority BUGS:
-     085: [wdc/lth] environments must hold syntax environments
-     090, 091: [wdc] handling primitives properly even with 
-               integrate-usual-procedures off.
-     103: [wdc] spurious errors about redefinition of primitives with
-          integrate-usual-procedures off (verified present in 0.46).
-     130: [wdc] macro expander confused about multiple uses of variable-arity
-          primitives in same scope (verified present in 0.46).
-     147: [wdc] macro expander bug
+If there's time:
+	126 (broken timer interrupt mechanism)
+	148 (the I/O system is not thread safe)
+	--- Support SRFI 12 (Exceptions; not an official SRFI)
+	--- Better documentation information (source pos + filename)
 
-  * Tentatively the following `medium' priority BUGS:
-     098: [wdc] define-inline problem
-     099: [wdc] nonstandard macros available in standard environments
-     089: [lth] must catch more signals
+
+******** Move things above this line to include them in the release ********
+
 
 [Twobit]
-  * Handling primitives correctly
-     - depends on syntax environment bug fix
-  * Better debug information
+  * BUG: The flonum primitives fl+, fl-, fl--, fl*, fl=, fl<=, fl>, fl>= 
+    should check that their arguments are flonums and signal an error if 
+    not; at present they are mapped to the generic operations in the 
+    primitive table.
+  * DEBUG: Better debug information would be nice
+     - source position / source file name [lth knows how]
      - lth must write spec first [done, see Debugger/debug-info.txt]
-  * The flonum primitives fl+, fl-, fl--, fl*, fl=, fl<=, fl>, fl>= should
-    check that their arguments are flonums and signal an error if not; at
-    present they are mapped to the generic operations in the primitive
-    table.
-  * Misc that I've discovered and not decided whether should be fixed or
-    not:
+  * CLEANUP: fix these, or don't
     - Some primitives are obsolete in sparc.imp.sch (only available to MAL):
       - creg, creg-set!
     - The parameters FIXNUM-PRIMITIVES, FLONUM-PRIMITIVES (used in sparc.imp)
       are not exported to the std environment, should be removed when
       primitive handling is cleaned up
 
-[Run-time system]
-  * [lth] Provide more accurate data to memstats: it is possible to provide
-    up-to-date data for allocation volume and currently allocated heap,
-    not just data accurate to the last GC.  
-  * [lth] memstats: must compute words reclaimed.
-  * [lth] Must deal with more signals on Unix systems (important for buggy 
-    foreign code)
-  * [lth] Would be nice if NP remset could be flagged as such with (x,1)
-    identity.
-  * [lth] Must fix simulated barrier stats (in memmgr.c)
-
 [Library]
-  * [lth/wdc] Top-level environments must hold syntax definitions, and 
-    the hacks used to work around it (in compile-expression, 
-    macro-expand-expression) must be removed.
-     - lth must propose spec
-  * The following magic/compiler-internal names in the toplevel 
-    environment must be given new names (e.g., starting with `.'),
-    and Lib/Sparc/toplevel.sch must be fixed; presumably when the
-    primitive situation has been fixed these can just go away
-    altogether:
-	car:pair
-	cdr:pair
-	=:fix:fix, <:fix:fix, <=:fix:fix, >:fix:fix, >=:fix:fix
-	vector-length:vec
-	vector-ref:trusted
-	vector-set!:trusted
   * Remove these from the toplevel env and the library after checking
     that they're not used by compiler or assembler
 	call-with-error-handler	[ use parameterize or exception system ]
@@ -95,6 +81,17 @@ Remaining to-do items:
 					 hierarchy definition ]
   * Possible: SRFI 7  (Program-based configuration language)  [ done ]
               SRFI 9  (DEFINE-RECORD-TYPE syntax)             [ done ]
+
+[Run-time system]
+  * [lth] Provide more accurate data to memstats: it is possible to provide
+    up-to-date data for allocation volume and currently allocated heap,
+    not just data accurate to the last GC.  
+  * [lth] memstats: must compute words reclaimed.
+  * [lth] Must deal with more signals on Unix systems (important for buggy 
+    foreign code)
+  * [lth] Would be nice if NP remset could be flagged as such with (x,1)
+    identity.
+  * [lth] Must fix simulated barrier stats (in memmgr.c)
 
 [Debugging]
   * Print variable names where convenient.
@@ -184,7 +181,8 @@ Remaining to-do items:
        system).
      - BUG: some bugs were reported on the mailing list but are not recorded
        anywhere.
-     - BUG: CHECK, POPSTK, TRAP are not documented in the instruction set manual.
+     - BUG: CHECK, POPSTK, TRAP are not documented in the instruction set 
+       manual.
      - Language: the low-level macro system and the extensions to the 
        high-level system are not documented.
      - New stuff
@@ -226,13 +224,6 @@ Remaining to-do items:
          support inside the (modified) collector.  How to deal with that?
      - manual/concept.html:
        - needs some cleanup (see the file).
-
-----------------------------------------------------------------------
-
-Projects finished
-
-[FFI]
-
 
 ----------------------------------------------------------------------
 
