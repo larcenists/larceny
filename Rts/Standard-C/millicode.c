@@ -153,7 +153,7 @@ void scheme_start( word *globals )
     f = twobit_cont_label;
     break;
 #else
-    panic( "Unexpected entry to DISPATCH_CALL_AGAIN case in scheme_start()" );
+    panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN case in scheme_start()" );
 #endif
   case DISPATCH_EXIT:
     already_running = 0;
@@ -166,7 +166,7 @@ void scheme_start( word *globals )
     break;
   case DISPATCH_SIGFPE :
     handle_sigfpe( globals );
-    panic( "handle_sigfpe() returned." );
+    panic_exit( "handle_sigfpe() returned." );
   case DISPATCH_TIMER :
 #if USE_LONGJUMP
     /* The first-level timer expired.  The longjmp has pruned the stack; now
@@ -177,10 +177,10 @@ void scheme_start( word *globals )
     f = twobit_cont_label;
     break;
 #else
-    panic( "Unexpected entry to DISPATCH_TIMER case in scheme_start()" );
+    panic_exit( "Unexpected entry to DISPATCH_TIMER case in scheme_start()" );
 #endif
   default :
-    panic( "Unexpected value %d from setjmp in scheme_start()", x );
+    panic_exit( "Unexpected value %d from setjmp in scheme_start()", x );
   }
 
   /* Inner loop */
@@ -207,7 +207,7 @@ void scheme_start( word *globals )
      ((codeptr_t)twobit_cont_label)( globals );
 #  elif USE_LONGJUMP
    ((codeptr_t)f)( globals );
-  panic( "Unexpected return from procedure in scheme_start()" );
+  panic_exit( "Unexpected return from procedure in scheme_start()" );
 #  endif
 #endif
 }
@@ -279,7 +279,7 @@ static int valid_datum( word x )
          x == EOF_CONST;
 }
 
-void mc_alloc_bv( word *globals )
+void EXPORT mc_alloc_bv( word *globals )
 {
   assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
 
@@ -298,7 +298,7 @@ void mc_alloc_bv( word *globals )
 #endif
 }
 
-void mc_alloc( word *globals )
+void EXPORT mc_alloc( word *globals )
 {
 #if defined( BDW_GC )
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
@@ -335,7 +335,7 @@ void mc_alloc( word *globals )
 #endif
 }
 
-void mc_alloci( word *globals )
+void EXPORT mc_alloci( word *globals )
 {
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
   word *p;
@@ -361,33 +361,33 @@ void stk_initialize_underflow_frame( word *stkp )
 #endif
 }
 
-RTYPE mem_stkuflow( CONT_PARAMS )
+RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 {
   longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
 }
 
-void mc_stack_overflow( word *globals )
+void EXPORT mc_stack_overflow( word *globals )
 {
   gc_stack_overflow( the_gc( globals ) );
 }
 
-void mc_capture_continuation( word *globals )
+void EXPORT mc_capture_continuation( word *globals )
 {
   globals[ G_RESULT ] = gc_creg_get( the_gc( globals ) );
 }
 
-void mc_restore_continuation( word *globals )
+void EXPORT mc_restore_continuation( word *globals )
 {
   gc_creg_set( the_gc( globals ), globals[ G_RESULT ] );
 }
 
-void mc_break( word *globals )
+void EXPORT mc_break( word *globals )
 {
   if (globals[ G_BREAKPT_ENABLE ] == TRUE_CONST)
     localdebugger();
 }
 
-void mc_timer_exception( word *globals, cont_t k )
+void EXPORT mc_timer_exception( word *globals, cont_t k )
 {
 #if USE_LONGJUMP
   twobit_cont_label = k;
@@ -414,7 +414,7 @@ static void timer_exception( word *globals, cont_t k )
   }
 }
 
-void mc_enable_interrupts( word *globals, cont_t k )
+void EXPORT mc_enable_interrupts( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
 
@@ -432,7 +432,7 @@ void mc_enable_interrupts( word *globals, cont_t k )
 #endif
 }
 
-void mc_disable_interrupts( word *globals, cont_t k )
+void EXPORT mc_disable_interrupts( word *globals, cont_t k )
 {
   if (globals[ G_TIMER_ENABLE ] == TRUE_CONST) {
     globals[ G_TIMER_ENABLE ] = FALSE_CONST;
@@ -443,17 +443,17 @@ void mc_disable_interrupts( word *globals, cont_t k )
   check_signals( globals, k );
 }
 
-void mc_exception( word *globals, word exception )
+void EXPORT mc_exception( word *globals, word exception )
 {
   signal_exception( globals, exception, 0, 0 );
 }
 
-void mc_cont_exception( word *globals, word exception, cont_t k )
+void EXPORT mc_cont_exception( word *globals, word exception, cont_t k )
 {
   signal_exception( globals, exception, k, 0 );
 }
 
-void mc_apply( word *globals )
+void EXPORT mc_apply( word *globals )
 {
   word args = globals[ G_SECOND ];
   int i;
@@ -491,7 +491,7 @@ void mc_apply( word *globals )
      (set! REGn+1 (append! (list REGn+1 ... REGr-1) (copylist REGr)))
    */
 
-void mc_restargs( word *globals )
+void EXPORT mc_restargs( word *globals )
 {
   word j = nativeuint( globals[ G_RESULT ] );
   word n = nativeuint( globals[ G_SECOND ] );
@@ -561,7 +561,7 @@ void mc_restargs( word *globals )
   globals[ G_REG0+n+1 ] = tagptr( first, PAIR_TAG );
 }
 
-void mc_syscall( word *globals, cont_t k )
+void EXPORT mc_syscall( word *globals, cont_t k )
 {
   int nargs = (int)nativeuint( globals[ G_RESULT ] )-1;
   int nproc = (int)nativeuint( globals[ G_REG1 ] );
@@ -570,7 +570,7 @@ void mc_syscall( word *globals, cont_t k )
   check_signals( globals, k );
 }
 
-void mc_typetag( word *globals )
+void EXPORT mc_typetag( word *globals )
 {
   word obj = globals[ G_RESULT ];
   int t = tagof( obj );
@@ -581,7 +581,7 @@ void mc_typetag( word *globals )
     signal_exception( globals, EX_TYPETAG, 0, 0 );
 }
 
-void mc_typetag_set( word *globals )
+void EXPORT mc_typetag_set( word *globals )
 {
   word obj = globals[ G_RESULT ];
   word tag = globals[ G_SECOND ];
@@ -599,7 +599,7 @@ void mc_typetag_set( word *globals )
   signal_exception( globals, EX_TYPETAGSET, 0, 0 );
 }
 
-void mc_eqv( word *globals, cont_t k )
+void EXPORT mc_eqv( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
   word y = globals[ G_SECOND ];
@@ -633,7 +633,7 @@ void mc_eqv( word *globals, cont_t k )
     globals[ G_RESULT ] = FALSE_CONST;
 }
 
-void mc_partial_list2vector( word *globals )
+void EXPORT mc_partial_list2vector( word *globals )
 {
   word x = globals[ G_RESULT ];                    /* a list */
   int y = (int) nativeuint( globals[ G_SECOND ] ); /* a fixnum (the length) */
@@ -661,7 +661,7 @@ void mc_partial_list2vector( word *globals )
   globals[ G_RESULT ] = tagptr( p, VEC_TAG );
 }
 
-void mc_bytevector_like_fill( word *globals )
+void EXPORT mc_bytevector_like_fill( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   unsigned char c = (globals[ G_SECOND ] >> 2) & 255;
@@ -670,7 +670,7 @@ void mc_bytevector_like_fill( word *globals )
   memset( x+BVEC_HEADER_WORDS, c, length );
 }
 
-void mc_bytevector_like_compare( word *globals )
+void EXPORT mc_bytevector_like_compare( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   word *y = ptrof( globals[ G_SECOND ] ); /* assume: bytevector-like */
@@ -685,7 +685,7 @@ void mc_bytevector_like_compare( word *globals )
     globals[ G_RESULT ] = fixnum( lx - ly );
 }
 
-void mc_petit_patch_boot_code( word *globals )
+void EXPORT mc_petit_patch_boot_code( word *globals )
 {
   word l;
   int i;
@@ -708,7 +708,7 @@ void wb_lowlevel_disable_barrier( word *globals )
   globals[ G_GENV ] = 0;
 }
 
-void mc_partial_barrier( word *globals )
+void EXPORT mc_partial_barrier( word *globals )
 {
   unsigned *genv, gl, gr;
   word **ssbtopv, **ssblimv;
@@ -732,7 +732,7 @@ void mc_partial_barrier( word *globals )
     gc_compact_all_ssbs( the_gc(globals) );
 }
 
-void mc_full_barrier( word *globals )
+void EXPORT mc_full_barrier( word *globals )
 {
   if (isptr( globals[ G_SECOND ] ))
     mc_partial_barrier( globals );
@@ -930,7 +930,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 
   callouts = global_cell_ref( globals[ G_CALLOUTS ] );
   if (callouts == UNDEFINED_CONST)
-    panic( "mc_scheme_callout: no callout vector present." );
+    panic_exit( "mc_scheme_callout: no callout vector present." );
 
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );

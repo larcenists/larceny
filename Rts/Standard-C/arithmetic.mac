@@ -83,7 +83,7 @@ void initialize_generic_arithmetic( void )
 	fixnum+fixnum flonum+flonum compnum+compnum 
 	bignum+bignum-code ratnum+ratnum-code rectnum+rectnum)
 "
-void @name@( word *globals, cont_t k )
+void EXPORT @name@( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
   word y = globals[ G_SECOND ];
@@ -156,12 +156,12 @@ void @name@( word *globals, cont_t k )
   retry = global_cell_ref( globals[ G_CALLOUTS ] );
 #ifndef NDEBUG
   if (retry == UNDEFINED_CONST)
-    panic( \"@name@: No contagion procedure defined.\" );
+    panic_exit( \"@name@: No contagion procedure defined.\" );
 #endif
   globals[ G_THIRD ] = vector_ref( retry, @retry-name@ );
 #ifndef NDEBUG
   if (tagof( globals[ G_THIRD ] ) != PROC_TAG)
-    panic( \"@name@: Contagion procedure is not a procedure.\" );
+    panic_exit( \"@name@: Contagion procedure is not a procedure.\" );
 #endif
   mc_scheme_callout( globals, @contagion-name@, 3, k, 0 );
   return;
@@ -199,7 +199,7 @@ void @name@( word *globals, cont_t k )
     fixnum-code flonum-code compnum-code bignum-code ratnum-code rectnum-code
     otherwise)
 "
-void @name@( word *globals @extra@ )
+void EXPORT @name@( word *globals @extra@ )
 {
   word x = globals[ G_RESULT ];
   if (is_fixnum(x)) {
@@ -371,7 +371,7 @@ else {
 #define bigmeta_length( x ) (x & 0xFFFF)
 #define bigmeta_sign( x ) ((x >> 16) & 1)
 
-void mc_quo( word *globals, cont_t k )
+void EXPORT mc_quo( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
   word y = globals[ G_SECOND ];
@@ -399,7 +399,7 @@ void mc_quo( word *globals, cont_t k )
   generic_binary_operation( globals, MS_HEAVY_QUOTIENT, k );
 }
 
-void mc_rem( word *globals, cont_t k )
+void EXPORT mc_rem( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
   word y = globals[ G_SECOND ];

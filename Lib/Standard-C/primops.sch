@@ -8,6 +8,24 @@
 
 ($$trace "primops")
 
+; Special primops
+
+(define .check!
+  (let ((check (lambda (x y z exn)
+                 (error "Check exception: " exn x y z))))
+    (lambda (x . rest)
+      (if (null? rest)
+          (check #f #f #f x)
+          (let ((y (car rest))
+                (rest (cdr rest)))
+            (if (null? rest)
+                (check y #f #f x)
+                (let ((z (car rest))
+                      (rest (cdr rest)))
+                  (if (null? rest)
+                      (check y z #f x)
+                      (check y z (car rest) x)))))))))
+
 ; General predicates
 
 (define not (lambda (x) (not x)))
@@ -20,6 +38,8 @@
 (define pair? (lambda (x) (pair? x)))
 (define car (lambda (x) (car x)))
 (define cdr (lambda (x) (cdr x)))
+(define car:pair (lambda (x) (car x)))
+(define cdr:pair (lambda (x) (cdr x)))
 (define cons (lambda (x y) (cons x y)))
 (define set-car! (lambda (x y) (set-car! x y)))
 (define set-cdr! (lambda (x y) (set-cdr! x y)))
@@ -168,6 +188,12 @@
 	       (loop b rest))))))
 
 
+(define =:fix:fix (lambda (x y) (= x y)))
+(define <:fix:fix (lambda (x y) (< x y)))
+(define <=:fix:fix (lambda (x y) (<= x y)))
+(define >:fix:fix (lambda (x y) (> x y)))
+(define >=:fix:fix (lambda (x y) (>= x y)))
+
 ; Characters
 
 (define char? (lambda (x) (char? x)))
@@ -201,6 +227,9 @@
 (define vector? (lambda (x) (vector? x)))
 (define vector-length (lambda (x) (vector-length x)))
 (define vector-ref (lambda (x y) (vector-ref x y)))
+(define vector-length:vec (lambda (x) (vector-length x)))
+(define vector-ref:trusted (lambda (x y) (vector-ref x y)))
+(define vector-set!:trusted (lambda (x y z) (vector-set! x y z)))
 
 ; Vector-like
 
@@ -271,5 +300,10 @@
 (define enable-interrupts (lambda (n) (enable-interrupts n)))
 (define disable-interrupts (lambda () (disable-interrupts)))
 (define gc-counter (lambda () (gc-counter)))
+
+; Fixnum primitives
+
+(define most-negative-fixnum (lambda () (- (- #x1FFFFFFF) 1)))
+(define most-positive-fixnum (lambda () #x1FFFFFFF))
 
 ; eof

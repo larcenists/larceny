@@ -114,6 +114,7 @@ int main( int argc, char **os_argv )
   o.gc_info.is_conservative_system = 1;
 #endif
 
+#ifndef PETIT_LARCENY
   consolemsg( "%s v%d.%d%s (%s:%s:%s) (%s %s)",
               larceny_system_name,
               larceny_major_version, 
@@ -123,6 +124,15 @@ int main( int argc, char **os_argv )
               osname, 
               (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
               user, date );
+#else
+  consolemsg( "%s v%d.%d%s (%s:%s)",
+              larceny_system_name,
+              larceny_major_version, 
+              larceny_minor_version,
+              larceny_version_qualifier,
+              larceny_gc_technology,
+              osname );
+#endif
 
   /* FIXME: This should all be factored out as osdep_get_program_options()
      or something like that.  That requires factoring out the type of 'o'
@@ -183,17 +193,17 @@ int main( int argc, char **os_argv )
   }
 
   if (!create_memory_manager( &o.gc_info, &generations ))
-    panic( "Unable to set up the garbage collector." );
+    panic_exit( "Unable to set up the garbage collector." );
 
   if (!load_heap_image_from_file( o.heapfile ))
-    panic( "Unable to load the heap image." );
+    panic_exit( "Unable to load the heap image." );
 
   if (o.reorganize_and_dump) {
     char buf[ FILENAME_MAX ];   /* Standard C */
 
     sprintf( buf, "%s.split", o.heapfile );
     if (!reorganize_and_dump_static_heap( buf ))
-      panic( "Failed heap reorganization." );
+      panic_exit( "Failed heap reorganization." );
     return 0;
   }
 
@@ -241,7 +251,7 @@ int main( int argc, char **os_argv )
  *
  */
 
-int panic( const char *fmt, ... )
+int panic_exit( const char *fmt, ... )
 {
   static int in_panic = 0;
   va_list args;

@@ -270,16 +270,16 @@
     (unspecified))
 
   (case target
-    ((unix) (select "sys-unix.lop"))
+    ((unix macosx) (select "sys-unix.lop"))
     ((macos) (select "sys-macos.lop"))
     ((win32) (select "sys-win32.lop"))
     ((help) 
-     (display "Targets are unix, macos, win32.")
+     (display "Targets are unix, macosx, macos, win32.")
      (newline))
     (else 
      (error "Unsupported target "
 	    target 
-	    "; try one of unix, macos, win32."))))
+	    "; try one of unix, macosx, macos, win32."))))
  
 (define (make-petit-heap-project heap-dumper)
   (make:project "petit.heap"
@@ -344,6 +344,7 @@
     (make:project "compiler.date"
       `(rules
         (".lop" ".sch" ,make-compile-and-assemble)
+        (".lop" ".h" ,make-compile-and-assemble)     ; for Rts/Build/schdefs.lop
         (".fasl" ".h" ,make-compile-file)
         (".fasl" ".sch" ,make-compile-file))
       `(targets
@@ -461,7 +462,9 @@
   '("misc" "list" "vector" "string" "pp" "io" "format" "load" "osdep-unix"))
 
 (define experimental-files
-  '("applyhook" "applyhook0" "apropos" "system-stuff"))
+  ;'("applyhook" "applyhook0" "apropos" "system-stuff")
+  '()
+  )
 
 (define debugger-files
   '("debug" "countcalls" "trace" "inspect-cont"))
@@ -580,23 +583,19 @@
   (compile-and-assemble313 (string-append (nbuild-parameter 'source)
                                           "makefile.sch")))
 
-'  ; Don't remember where this comes from.
-(define (make-twobit-application)
+(define (petit-development-environment-lop-files)
 
   (define (fix files)
     (replace-extension ".lop" files))
 
-  (make-petit-development-environment)
-  (build-application 
-   "twobit" 
-   (append (list 
-            (string-append (nbuild-parameter 'compatibility) "compat2.lop")
-            (string-append (nbuild-parameter 'auxiliary) "list.lop")
-            (string-append (nbuild-parameter 'auxiliary) "pp.lop"))
-           (fix (nbuild:twobit-files))
-           (fix (nbuild:common-asm-files))
-           (fix (nbuild:machine-asm-files))
-           (fix (nbuild:heap-dumper-files))
-           (fix (nbuild:utility-files)))))
+  (append (list 
+	   (string-append (nbuild-parameter 'compatibility) "compat2.lop")
+	   (string-append (nbuild-parameter 'auxiliary) "list.lop")
+	   (string-append (nbuild-parameter 'auxiliary) "pp.lop"))
+	  (fix (nbuild:twobit-files))
+	  (fix (nbuild:common-asm-files))
+	  (fix (nbuild:machine-asm-files))
+	  (fix (nbuild:heap-dumper-files))
+	  (fix (nbuild:utility-files))))
 
 ; eof

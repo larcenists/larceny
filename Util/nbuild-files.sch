@@ -69,10 +69,11 @@
 
 (define *nbuild:petitasm-files*
   (nbuild-files 'standard-C-asm
-		`("pass5p2.sch" "asm-switches.sch" "dumpheap-extra.sch"
-		  ,@(if (eq? (nbuild-parameter 'host-os) 'win32)
-			'("dumpheap-win32.sch")
-			'()))))
+		`("pass5p2.sch" "peepopt.sch" "asm-switches.sch" "dumpheap-extra.sch"
+		  ,@(case (nbuild-parameter 'host-os)
+		      ((macosx unix) '("dumpheap-unix.sch"))
+		      ((win32)       '("dumpheap-win32.sch"))
+		      (else          '())))))
 
 (define *nbuild:make-files*
   `(,@(nbuild-files 'util '("make.sch"))

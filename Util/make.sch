@@ -331,9 +331,11 @@
   (define (make-target target cmd deps)  
     (make:debugmsg "make-target target=" target "; deps=" deps)
     (for-each make deps)
-    (cond ((and (file-exists? target)
-                (every? (lambda (d) (newer-than? target d)) deps))
-	   (make:debugmsg "make-target target=" target ": target newer than all dependencies."))
+    (cond ;((file-exists? target)
+	  ; (make:debugmsg "make-target target=" target ": already exists."))
+	  ((and (file-exists? target)
+		(every? (lambda (d) (newer-than? target d)) deps))
+	   (make:debugmsg "make-target target=" target ": all dependencies are older."))
 	  (else
 	   (make:debugmsg "make-target target=" target ": building.")
 	   (call-with-error-control

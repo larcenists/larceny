@@ -213,7 +213,7 @@ void bdw_before_gc( void )
 
   /* Stack sanity check */
   if (bdw_state.globals[G_ETOP] != bdw_state.globals[G_EBOT])
-    panic( "Foo!  In-line allocation has taken place!  Aborting." );
+    panic_exit( "Foo!  In-line allocation has taken place!  Aborting." );
 
 #if BDW_CLEAR_STACK
   /* Clear out the unused portion of the stack cache.  Ideally,
@@ -298,9 +298,9 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
   /* This can be removed if the check remains on the slow path
      in bdw-gc/malloc.c. */
   if (nbytes > LARGEST_OBJECT) {
-    panic( "\nSorry, an object of size %d bytes is too much for me; max is %d."
-	   "\nSee you in 64-bit-land...\n",
-	   nbytes, LARGEST_OBJECT );
+    panic_exit( "\nSorry, an object of size %d bytes is too much for me; max is %d."
+	        "\nSee you in 64-bit-land...\n",
+	        nbytes, LARGEST_OBJECT );
   }
   if (atomic)
     p = GC_malloc_atomic( nbytes );
@@ -379,7 +379,7 @@ static void do_stats_after_gc( void )
 static void stack_underflow( gc_t *gc )
 {
   if (!stk_restore_frame( bdw_state.globals ))
-    panic( "stack_underflow" );
+    panic_exit( "stack_underflow" );
 }
 
 static void stack_overflow( gc_t *gc )
@@ -422,7 +422,7 @@ static void init_stack( gc_t *gc )
   if (anchor == 0)
     anchor = GC_malloc_ignore_off_page( STACK_CACHE_SIZE );
   if (anchor == 0)
-    panic( "init_stack" );
+    panic_exit( "init_stack" );
 
   globals[ G_EBOT ] = globals[ G_ETOP ] = (word)anchor;
   globals[ G_ELIM ] = (word)anchor + STACK_CACHE_SIZE - 8;
@@ -430,7 +430,7 @@ static void init_stack( gc_t *gc )
   globals[ G_STKUFLOW ] = 0;
 
   if (!stk_create( bdw_state.globals ))
-    panic( "create_stack" );
+    panic_exit( "create_stack" );
 }
 
 static void flush_stack( gc_t *gc )

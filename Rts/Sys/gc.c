@@ -61,7 +61,7 @@ word allocate_nonmoving( int length, int tag )
     bytes = length + sizeof(word);   /* header */
     break;
   default :
-    panic( "Bad case in UNIX_allocate_nonmoving: %d", tag );
+    panic_exit( "Bad case in UNIX_allocate_nonmoving: %d", tag );
   }
 
   obj = gc_allocate_nonmoving( gc, bytes, tag == BVEC_TAG );
@@ -167,7 +167,7 @@ int reorganize_and_dump_static_heap( const char *filename )
 
   consolemsg( "Reorganizing." );
   if (gc->static_area == 0)
-    panic( "reorganize_and_dump_static_heap: no static heap." );
+    panic_exit( "reorganize_and_dump_static_heap: no static heap." );
   sh_reorganize( gc->static_area );
   data = gc->static_area->data_area;
   text = gc->static_area->text_area;

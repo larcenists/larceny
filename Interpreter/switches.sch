@@ -8,7 +8,12 @@
 
 ($$trace "switches")
 
-(define (issue-warnings) #t)
+(define issue-warnings
+  (let ((flag #f))        ; Off during bootstrapping to avoid annoying msgs in Petit Larceny
+    (lambda rest
+      (if (not (null? rest))
+	  (set! flag #t))
+      flag)))
 (define (include-source-code) #t)
 (define (include-procedure-names) #t)
 (define (include-variable-names) #t)

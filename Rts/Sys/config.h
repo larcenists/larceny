@@ -210,7 +210,6 @@
      supported by all the collectors.
      */
 
-
 /*
  * Library/feature attributes.  These macros declare the existence of
  * particular functions in the run-time library or as compiler
@@ -218,7 +217,9 @@
  * Larceny will supply portable definitions.  It may be desirable for
  * performance or functionality reasons to define these macros below, 
  * if your library or compiler supplies any of the functions -- for
- * example, the portable definition of gethrtime() always returns 0.
+ * example, the portable definition of gethrtime() always returns 0,
+ * and the portable definition of stat() always returns the same
+ * file modification time.
  */
 #undef HAVE_RINT		/* Library has rint() -- round to even */
 #undef HAVE_AINT		/* Library has aint() -- round to zero */
@@ -228,7 +229,11 @@
 				   and one can get hrtime_t by including
 				   <sys/time.h>
 				   */
-
+#undef HAVE_STAT                /* Library has 'struct stat' and stat(),
+				   and one can get at them by including
+				   <stat.h> */
+#undef HAVE_POLL                /* Library has poll() */
+#undef HAVE_SELECT              /* Library has select() */
 
 /* ------ USER DEFINITION SECTION ------- */
 /*
@@ -246,7 +251,7 @@
 
 /* Here are some sets of settings that work for me. */
 
-/* Sun/SPARC Solaris (2.5 and better, at least); native. */
+/* Sun/SPARC Solaris (2.5 and better, at least); native.
 #define SPARC                     1
 #define SUNOS5                    1
 #define BITS_32                   1
@@ -255,12 +260,15 @@
 #define HAVE_STRDUP               1
 #define HAVE_STRNCASECMP          1
 #define HAVE_HRTIME_T             1
+#define HAVE_POLL                 1
 #define STACK_UNDERFLOW_COUNTING  1
 #define GC_HIRES_TIMERS           1
 #define GC_EVENT_COUNTERS         0
 #define GCLIB_LARGE_TABLE         0
+*/
 
-/* Sun/SPARC Debian Linux; native; gcc
+/* Sun/SPARC Debian Linux; gcc; native.
+   Note, this is old and may not be completely adequate.
 #define SPARC                     1
 #define LINUX                     1
 #define DEBIAN_SPARC              1
@@ -273,7 +281,7 @@
 #define XOPEN_SIGNALS             1
 */
 
-/* MacOS; Metrowerks codewarrior (Petit Larceny).
+/* MacOS 8 or 9; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1
 #define MACOS                     1
 #define BITS_32                   1
@@ -286,8 +294,21 @@
 #define USE_GENERIC_ALLOCATOR     1
 */
 
+/* MacOS X; gcc; GNU libc (Petit Larceny). */
+#define PETIT_LARCENY             1
+#define BITS_32                   1
+#define BIG_ENDIAN                1
+#define BSD_UNIX                  1
+#define HAVE_RINT                 1
+#define HAVE_STRNCASECMP          1
+#define HAVE_STRDUP               1
+#define HAVE_SELECT               1
+#define STACK_UNDERFLOW_COUNTING  1
+#define USE_GENERIC_ALLOCATOR     1     /* Weirdness with mmap */
+
 /* DEC OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
-   running in 32-bit mode on 64-bit platform.
+   running in 32-bit mode on 64-bit platform.  These defs
+   are probably out of date.
 #define PETIT_LARCENY             1
 #define BITS_32                   1
 #define ENDIAN_LITTLE             1
@@ -296,11 +317,10 @@
 #define STACK_UNDERFLOW_COUNTING  1
 */
 
-/* Windows 2000 on x86 (Petit Larceny),
-   Microsoft Visual C/C++ 6.0 command line 
+/* Windows 2000 on x86; MetroWerks Codewarrior Pro 6; (Petit Larceny).
 #define PETIT_LARCENY             1
-#define BITS_32                   1
 #define WIN32                     1
+#define BITS_32                   1
 #define ENDIAN_LITTLE             1
 #define STACK_UNDERFLOW_COUNTING  1
 #define USE_GENERIC_ALLOCATOR     1
@@ -308,6 +328,9 @@
 #define USE_STDIO                 1
 #define USE_GENERIC_FILESYSTEM    1
 #define NO_SYNCHRONOUS_SIGNALS    1
+#define HAVE_STAT                 1
+#define HAVE_RINT                 1
+#define HAVE_STRNCASECMP          1
 */
 
 /* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny).
@@ -318,6 +341,7 @@
 #define HAVE_RINT                 1
 #define HAVE_STRNCASECMP          1
 #define HAVE_STRDUP               1
+#define HAVE_POLL                 1
 #define STACK_UNDERFLOW_COUNTING  1
 */
 

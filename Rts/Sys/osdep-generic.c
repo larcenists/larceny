@@ -18,6 +18,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#ifdef HAVE_STAT
+#  include <sys/stat.h>
+#endif
+#ifndef FILENAME_MAX
+#  define FILENAME_MAX 1024
+#endif
 
 #include "larceny.h"
 #include "assert.h"
@@ -108,46 +114,78 @@ void osdep_unlinkfile( word w_fn )
 }
 
 /* Standard C does not have a procedure to get the modification time of
-   a file.  Return a vector containing midnight, January 1, 1970 always.  
-   This is consistent with the result returned by osdep_access(), below.
+   a file, but if stat() exists we can use it.  If not, return a vector
+   containing midnight, January 1, 1970 always.  This is consistent with
+   the result returned by osdep_access(), below.
    */
 void osdep_mtime( word w_fn, word w_buf )
 {
-  vector_set( w_buf, 0, fixnum( 1970 ) );
-  vector_set( w_buf, 1, fixnum( 1 ) );
-  vector_set( w_buf, 2, fixnum( 1 ) );
-  vector_set( w_buf, 3, fixnum( 0 ) );
-  vector_set( w_buf, 4, fixnum( 0 ) );
-  vector_set( w_buf, 5, fixnum( 0 ) );
+  int r = 0;
+  struct tm *tm;
+
+#ifdef HAVE_STAT
+  struct stat s;
+  const char *fn = string2asciiz( w_fn );
+
+  r = stat( fn, &s );
+#else
+  struct {
+    time_t st_mtime;
+  } s;
+  s.st_mtime = 0;
+#endif
+
+  if (r != 0)
+  {
+    globals[ G_RESULT ] = fixnum(-1);
+    return;
+  }
+  tm = localtime( &s.st_mtime );
+  vector_set( w_buf, 0, fixnum( tm->tm_year + 1900 ) );
+  vector_set( w_buf, 1, fixnum( tm->tm_mon + 1 ) );
+  vector_set( w_buf, 2, fixnum( tm->tm_mday ) );
+  vector_set( w_buf, 3, fixnum( tm->tm_hour ) );
+  vector_set( w_buf, 4, fixnum( tm->tm_min ) );
+  vector_set( w_buf, 5, fixnum( tm->tm_sec ) );
   globals[ G_RESULT ] = fixnum( 0 );
 }
 
 /* Standard C does not have a procedure to check whether a file exists. 
-   Try to open the file in read mode to find out if it exists; this is
-   usually OK (not always).  Ignores the mode parameter.
+   We use stat() if we have it; many systems do.  If not, try to open
+   the file in read mode to find out if it exists; this is usually OK
+   (not always).  The mode is ignored.
 */
-void osdep_access( word w_fn, word mode )
+void osdep_access( word w_fn, word w_bits )
 {
-  char fnbuf[ 1024 ];
-  FILE *fp;
+#ifdef HAVE_STAT
+  struct stat s;
 
-  strcpy( fnbuf, string2asciiz( w_fn ) );
-  if ((fp = fopen( fnbuf, "r" )) != 0)
+  globals[ G_RESULT ]= fixnum(stat(string2asciiz(w_fn), &s ));
+#else
+  FILE *fp;
+  const char *fn = string2asciiz( w_fn );
+
+  if ((fp = fopen( fn, "r" )) != 0)
   {
     fclose( fp );
     globals[ G_RESULT ] = fixnum(0);
   }
   else
     globals[ G_RESULT ] = fixnum(-1);
+#endif
 }
 
 /* Rename is in Standard C. */
 void osdep_rename( word w_from, word w_to )
 {
-  char fnbuf[ 1024 ];
-
-  strcpy( fnbuf, string2asciiz( w_from ) );
-  globals[ G_RESULT ] = fixnum( rename( fnbuf, string2asciiz( w_to ) ) );
+  if (string_length(w_from) > FILENAME_MAX)
+    globals[ G_RESULT ] = fixnum(-1);
+  else
+  {
+    char fnbuf[ FILENAME_MAX+1 ];
+    strcpy( fnbuf, string2asciiz( w_from ) );
+    globals[ G_RESULT ] = fixnum( rename( fnbuf, string2asciiz(w_to) ) );
+  }
 }
 #endif /* USE_GENERIC_FILESYSTEM || GENERIC_OS */
 
@@ -163,6 +201,7 @@ static const int MODE_BINARY = 2;
 static const int MODE_APPEND = 4;
 static const int MODE_READ = 8;
 static const int MODE_WRITE = 16;
+static const int MODE_INTERMITTENT = 32;
 
 static struct finfo *fdarray = 0;
 static int num_fds = 0;
@@ -175,7 +214,7 @@ static void check_standard_filedes()
     fdarray = (struct finfo*)must_malloc( sizeof(struct finfo)*3 );
     num_fds = 3;
     fdarray[0].fp = stdin;
-    fdarray[0].mode = MODE_TEXT | MODE_READ;
+    fdarray[0].mode = MODE_TEXT | MODE_READ | MODE_INTERMITTENT;
     fdarray[1].fp = stdout;
     fdarray[1].mode = MODE_TEXT | MODE_WRITE;
     fdarray[2].fp = stderr;
@@ -281,9 +320,9 @@ void osdep_readfile( word w_fd, word w_buf, word w_cnt )
   fp = fdarray[fd].fp;
   buf = string_data(w_buf);
   nbytes = nativeint(w_cnt);
-  if (fdarray[fd].mode & MODE_TEXT)
+  if ((fdarray[fd].mode & (MODE_TEXT|MODE_INTERMITTENT)) == (MODE_TEXT|MODE_INTERMITTENT))
   {
-    // On some platforms, certainly Win32, fread() is not line buffered.
+    // On some platforms, certainly Win32, fread() is not line buffered on stdin.
     resp = fgets( buf, nbytes, fp );
     res = (resp == 0 ? 0 : strlen(buf));
   }

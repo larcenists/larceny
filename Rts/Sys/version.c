@@ -10,7 +10,7 @@
  *  'Bat' Guano                 0.47
  *  Big Board                   0.48
  *  'Buck' Turgidson            0.49
- *  The Coca-Cola Company
+ *  The Coca-Cola Company       0.51
  *  CRM-114
  *  Dear John
  *  Doomsday Device
@@ -33,8 +33,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 50;
-char *larceny_version_qualifier = " \"Ambassador de Sadesky\"";
+int  larceny_minor_version = 51;
+char *larceny_version_qualifier = " \"The Coca-Cola Company\"";
 
 char *date = DATE;
 char *user = USER;

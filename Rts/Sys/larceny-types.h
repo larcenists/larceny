@@ -14,7 +14,7 @@
 typedef unsigned int word;
 typedef int s_word;
 typedef unsigned char byte;
-#ifdef CODEWARRIOR /* Broken. */
+#if defined TRUE
 # undef FALSE
 # define FALSE 0
 # undef TRUE

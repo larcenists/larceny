@@ -133,14 +133,15 @@
 	     (* v v)))))
 
   (cond ((zero? x)
-	 1)
+	 (if (zero? y)
+	     1
+	     0))
 	((and (exact? y) (integer? y))
 	 (if (negative? y)
 	     (/ (expt x (abs y)))
 	     (e x y)))
 	(else
 	 (exp (* y (log x))))))
-
 
 ; From MacScheme.
 ;
@@ -182,7 +183,6 @@
            ;; X <= 0 <= Y so zero is the answer:
            0)))
   (simplest-rational (- x e) (+ x e)))
-
 
 ;---------------------------------------------------------------------------
 

@@ -128,6 +128,8 @@
          ((4) "OSF")
          ((5) "Unix")
          ((6) "Generic")
+	 ((7) "BSD Unix")
+	 ((8) "MacOS X")
          (else "Unknown"))))
     ((os-major)
      (get-feature feature$os-major))

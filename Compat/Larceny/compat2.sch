@@ -34,32 +34,42 @@
 
 (define write-fasl-datum lowlevel-write)
 
-; The power of self-hosting ;-)
+(define string->bytevector)
+(define bignum->bytevector)
+(define flonum->bytevector)
+(define compnum->bytevector)
 
-(define (misc->bytevector x)
-  (let ((bv (bytevector-like-copy x)))
-    (typetag-set! bv $tag.bytevector-typetag)
-    bv))
-
-(define string->bytevector misc->bytevector)
-
-(define bignum->bytevector misc->bytevector)
-
-(define (flonum->bytevector x)
-  (clear-first-word (misc->bytevector x)))
-
-(define (compnum->bytevector x)
-  (clear-first-word (misc->bytevector x)))
-
-; Clears garbage word of compnum/flonum; makes regression testing much
-; easier.
-
-(define (clear-first-word bv)
-  (bytevector-like-set! bv 0 0)
-  (bytevector-like-set! bv 1 0)
-  (bytevector-like-set! bv 2 0)
-  (bytevector-like-set! bv 3 0)
-  bv)
+(cond ((eq? (nbuild-parameter 'host-endianness)
+	    (nbuild-parameter 'target-endianness))
+       (let ((misc->bytevector
+	      (lambda (x)
+		(let ((bv (bytevector-like-copy x)))
+		  (typetag-set! bv $tag.bytevector-typetag)
+		  bv)))
+	     (clear-first-word 
+	      (lambda (bv)
+		(bytevector-like-set! bv 0 0)
+		(bytevector-like-set! bv 1 0)
+		(bytevector-like-set! bv 2 0)
+		(bytevector-like-set! bv 3 0)
+		bv)))
+	 (set! string->bytevector misc->bytevector)
+	 (set! bignum->bytevector misc->bytevector)
+	 (set! flonum->bytevector
+	       (lambda (x)
+		 (clear-first-word (misc->bytevector x))))
+	 (set! compnum->bytevector
+	       (lambda (x)
+		 (clear-first-word (misc->bytevector x))))
+	 #t))
+      ((eq? (nbuild-parameter 'target-endianness) 'big)
+       (compat:load (string-append (nbuild-parameter 'compatibility)
+				   "tobytevector-be.sch")))
+      ((eq? (nbuild-parameter 'target-endianness) 'little)
+       (compat:load (string-append (nbuild-parameter 'compatibility)
+				   "tobytevector-el.sch")))
+      (else
+       ???))
 
 (define (list->bytevector l)
   (let ((b (make-bytevector (length l))))

@@ -49,7 +49,7 @@
 (define syscall:sys-feature 39)
 (define syscall:peek-bytes 40)
 (define syscall:poke-bytes 41)
-(define syscall:segment-code-address 42) ; Petit Larceny only
+(define syscall:segment-code-address 42)          ; Petit Larceny only
 (define syscall:stats-dump-stdout 43)
 
 ; eof

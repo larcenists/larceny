@@ -280,13 +280,13 @@ static word *data_load_area( young_heap_t *heap, int nbytes )
 static void must_create_stack( young_heap_t *heap )
 {
   if (!stk_create( DATA(heap)->globals ))
-    panic( "nursery: create_stack" );
+    panic_exit( "nursery: create_stack" );
 }
 
 static void must_restore_frame( young_heap_t *heap )
 {
   if (!stk_restore_frame( DATA(heap)->globals ))
-    panic( "nursery: restore_frame");
+    panic_exit( "nursery: restore_frame");
 }
 
 static void flush_stack( young_heap_t *heap )

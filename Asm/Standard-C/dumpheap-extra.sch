@@ -49,7 +49,7 @@
 (define (before-all-files heap output-file-name input-file-names)
   (init-variables))
 
-(define (create-loadable-file filename)
+(define (create-loadable-file filename . rest)
 
   (define (dump-constants cv)
     (for-each (lambda (x)
@@ -60,7 +60,6 @@
                    (dump-constants (cadr x)))
                   (else #f)))           ; masks a bug in CASE in 1.0a1
               (vector->list cv)))
-
 
   (define (dump-code segment)
     (let ((entrypoint (dump-function-prototypes
@@ -77,9 +76,9 @@
          entrypoint)
         name)))
 
-  (define (dump-fasl segment out)
+  (define (dump-fasl bootstrap-id segment out)
     (display "((.petit-patch-procedure " out)
-    (display (length *loadables*) out)
+    (display bootstrap-id out)
     (display " " out)
     (display *segment-number* out)
     (newline out)
@@ -88,25 +87,159 @@
     (display "))" out)
     (newline out))
 
-  (display "Loading code for ") (display filename) (newline)
-  (let ((entrypoints '())
-        (fasl-file (rewrite-file-type filename ".lop" ".fasl")))
+  (define (dump-one-file lop-file)
+    (display "Loading code for ") (display lop-file) (newline)
+    (let ((fasl-file (rewrite-file-type lop-file ".lop" ".fasl")))
+      (let ((entrypoints 
+	     (dump-segments (length *loadables*)
+			    fasl-file
+			    (call-with-input-file lop-file
+			      (lambda (in)
+				(do ((segment (read in) (read in))
+				     (segments '() (cons segment segments)))
+				    ((eof-object? segment)
+				     (reverse segments)))))
+			    #f)))
+	(set! *loadables* (cons (cons *seed* (reverse entrypoints))
+				*loadables*)))))
+
+  (define (dump-segments bootstrap-id fasl-file segments so-name)
     (before-dump-file #f filename)
     (delete-file fasl-file)
-    (call-with-output-file fasl-file
+    (let ((entrypoints '())
+	  (bootstrap-id (or bootstrap-id (string-append ".petit-bootstrap-id-" *seed*))))
+      (call-with-output-file fasl-file
+	(lambda (out)
+	  (if so-name
+	      (begin (display "(define " out)
+		     (display bootstrap-id out)
+		     (display " (.petit-shared-object " out)
+		     (write so-name out)
+		     (display "))" out)
+		     (newline out)
+		     (newline out)))
+	  (do ((segments segments (cdr segments)))
+	      ((null? segments))
+	    (let ((segment (car segments)))
+	      (set! entrypoints (cons (dump-code segment) entrypoints))
+	      (dump-fasl bootstrap-id
+			 (cons (segment.code segment)
+			       (segment.constants segment))
+			 out)
+	      (set! *segment-number* (+ *segment-number* 1))))))
+      (if so-name
+	  (begin
+	    (emit-c-code "codeptr_t CDECL twobit_load_table[] = { ~%")
+	    (do ((l (reverse entrypoints) (cdr l))
+		 (i 0 (+ i 1)))
+		((null? l))
+	      (emit-c-code "  ~a,~%" (car l)))
+	    (emit-c-code 
+	     "  0  /* The table may be empty; some compilers complain */~%};~%")))
+      (after-dump-file #f filename)
+      entrypoints))
+
+  (if (null? rest)
+      (dump-one-file filename)
+      (dump-segments #f filename (car rest) (cadr rest))))
+
+
+; Specialized and more rational version of create-loadable-file, in three parts.
+
+(define *shared-object-so-expression* #f)
+(define *shared-object-so-name* #f)
+(define *shared-object-c-name* #f)
+(define *shared-object-o-name* #f)
+(define *shared-object-entrypoints* #f)
+
+(define (begin-shared-object so-name so-expression)
+  (set! *shared-object-so-expression* so-expression)
+  (set! *shared-object-so-name* so-name)
+  (set! *shared-object-c-name* (rewrite-file-type so-name '(".dll" ".so") ".c"))
+  (set! *shared-object-o-name* (rewrite-file-type so-name '(".dll" ".so") (obj-suffix)))
+  (set! *segment-number* 0)
+  (set! *shared-object-entrypoints* '())
+  (call-with-values 
+    (lambda () (compute-seed *shared-object-c-name*))
+    (lambda (seed updated?)
+      (set! *seed* seed)
+      (delete-file *shared-object-c-name*)
+      (delete-file *shared-object-o-name*)
+      (delete-file *shared-object-so-name*)
+      (let ((c-file (open-output-file *shared-object-c-name*)))
+	(set! *c-output* c-file)
+	(emit-c-code "#include \"twobit.h\"~%~%")
+	#t))))
+
+(define (add-to-shared-object fasl-name segments)
+
+  (define (dump-prologue file-unique-id out)
+    (display `(define ,file-unique-id (.petit-shared-object ,*shared-object-so-expression*)) 
+	     out)
+    (newline out)
+    (newline out))
+
+  (let ((file-unique-id (string-append ".petit-bootstrap-id-" *seed*)))
+    (delete-file fasl-name)
+    (call-with-output-file fasl-name
       (lambda (out)
-        (call-with-input-file filename
-          (lambda (in)
-            (do ((segment (read in) (read in)))
-                ((eof-object? segment) 
-                 (set! *loadables* (cons (cons *seed* (reverse entrypoints))
-                                         *loadables*)))
-              (set! entrypoints (cons (dump-code segment) entrypoints))
-              (dump-fasl (cons (segment.code segment)
-                               (segment.constants segment))
-                         out)
-              (set! *segment-number* (+ *segment-number* 1)))))))
-    (after-dump-file #f filename)))
+	(dump-prologue file-unique-id out)
+	(do ((segments segments (cdr segments)))
+	    ((null? segments))
+	  (let ((segment (car segments))
+		(segment-unique-id (string-append "twobit_thunk_"
+						  *seed*
+						  "_"
+						  (number->string *segment-number*))))
+	    (petit-dump-fasl-segment segment
+				     file-unique-id
+				     segment-unique-id
+				     *segment-number*
+				     out)
+	    (set! *shared-object-entrypoints* (cons segment-unique-id *shared-object-entrypoints*))
+	    (set! *segment-number* (+ *segment-number* 1))))))))
+
+(define (end-shared-object)
+  (emit-c-code "codeptr_t CDECL twobit_load_table[] = { ~%")
+  (do ((l (reverse *shared-object-entrypoints*) (cdr l)))
+      ((null? l))
+    (emit-c-code "  ~a,~%" (car l)))
+  (emit-c-code "  0  /* The table may be empty; some compilers complain */~%};~%")
+  (close-output-port *c-output*)
+  (c-compile-file *shared-object-c-name* *shared-object-o-name*)
+  (set! *c-output* #f)
+  #t)
+
+(define (petit-dump-fasl-segment segment file-unique-id segment-unique-id segment-number fasl-port)
+
+  (define (dump-constants cv)
+    (for-each (lambda (x)
+		(case (car x)
+		  ((codevector)     (dump-codevector! #f (cadr x)))
+		  ((constantvector) (dump-constants (cadr x)))))
+	      (vector->list cv)))
+
+  (let ((entrypoint (dump-function-prototypes (segment.function-info segment))))
+    (dump-codevector! #f (segment.code segment))
+    (dump-constants (segment.constants segment))
+    (emit-c-code 
+     "RTYPE ~a(CONT_PARAMS) {~%  RETURN_RTYPE(~a(CONT_ACTUALS));~%}~%"
+     segment-unique-id
+     entrypoint))
+
+  (display "((.petit-patch-procedure " fasl-port)
+  (display file-unique-id fasl-port)
+  (display " " fasl-port)
+  (display segment-number fasl-port)
+  (newline fasl-port)
+  (display "'" fasl-port)
+  (dump-fasl-segment-to-port (cons (segment.code segment)
+				   (segment.constants segment))
+			     fasl-port
+			     'no-code)
+  (display "))" fasl-port)
+  (newline fasl-port))
+
 
 ; This is probably not the right thing, because the library may need
 ; to be moved to its destination location before the executable is
@@ -141,7 +274,7 @@
 
 (define (before-dump-file h filename)
   (set! *segment-number* 0)
-  (let ((c-name (rewrite-file-type filename ".lop" ".c")))
+  (let ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".c")))
     (call-with-values 
      (lambda () (compute-seed c-name))
      (lambda (seed updated?)
@@ -159,8 +292,8 @@
 (define (after-dump-file h filename)
   (if *c-output*
       (close-output-port *c-output*))
-  (let ((c-name (rewrite-file-type filename ".lop" ".c"))
-        (o-name (rewrite-file-type filename ".lop" (obj-suffix))))
+  (let ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".c"))
+        (o-name (rewrite-file-type filename '(".fasl" ".lop") (obj-suffix))))
     (if (not (and (file-exists? o-name)
                   (compat:file-newer? o-name c-name)))
         (c-compile-file c-name o-name))
@@ -337,25 +470,11 @@
 ; We shold move the definitions of *c-linker* and *c-compiler* to
 ; a compatibility library, and *petit-libraries* also.
 
-(define *c-compiler* #f)                         ; Assigned below
-(define *c-linker* #f)                           ; Assigned below
-(define *c-library-linker* #f)                   ; Assigned below
-(define *obj-suffix* #f)                         ; Assigned below
+(define *available-compilers* '())  ; Assigned below -- ((tag name obj functions) ...)
+(define *current-compiler* #f)      ; Assigned below -- (tag name obj functions)
 
 (define optimize-c-code
   (make-twobit-flag "optimize-c-code"))
-
-(define (c-compile-file c-name o-name)
-  (*c-compiler* c-name o-name))
-
-(define (c-link-library output-name object-files libraries)
-  (*c-library-linker* output-name object-files libraries))
-
-(define (c-link-executable output-name object-files libraries)
-  (*c-linker* output-name object-files libraries))
-
-(define (obj-suffix)
-  *obj-suffix*)
 
 (define (insert-space l)
   (cond ((null? l) l)
@@ -368,122 +487,76 @@
   (if (not (= (system cmd) 0))
       (error "COMMAND FAILED.")))
   
-(define (c-compiler:gcc-unix c-name o-name)
-  (let ((cmd (twobit-format #f
-                            "gcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
-                            (if (optimize-c-code) "-O -DNDEBUG" "")
-                            o-name
-                            c-name)))
-    (execute cmd)))
+(define (c-compile-file c-name o-name)
+  ((cdr (assq 'compile (cadddr *current-compiler*))) c-name o-name))
 
-(define (c-library-linker:gcc-unix output-name object-files libs)
-  (let ((cmd (twobit-format #f
-                            "gcc -g -shared -o ~a ~a ~a"
-                            output-name
-                            (apply string-append (insert-space object-files))
-                            (apply string-append (insert-space libs)))))
-    (execute cmd)))
+(define (c-link-library output-name object-files libraries)
+  ((cdr (assq 'link-library (cadddr *current-compiler*))) output-name object-files libraries))
 
-(define (c-linker:gcc-unix output-name object-files libs)
-  (let ((cmd (twobit-format #f
-                            "gcc -g -o ~a ~a ~a"
-                            output-name
-                            (apply string-append (insert-space object-files))
-                            (apply string-append (insert-space libs)))))
-    (execute cmd)))
+(define (c-link-executable output-name object-files libraries)
+  ((cdr (assq 'link-executable (cadddr *current-compiler*))) output-name object-files libraries))
 
-(define (c-compiler:lcc-unix c-name o-name)
-  (let ((cmd (twobit-format #f
-                            "lcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -DSTDC_SOURCE ~a -o ~a ~a"
-                            (if (optimize-c-code) "-DNDEBUG" "")
-                            o-name
-                            c-name)))
-    (execute cmd)))
+(define (c-link-shared-object output-name object-files libraries)
+  ((cdr (assq 'link-shared-object (cadddr *current-compiler*))) output-name object-files libraries))
 
-(define (c-library-linker:lcc-unix output-name object-files libs)
-  (error "Must figure out how to create shared libraries with LCC."))
+(define (obj-suffix)
+  (caddr *current-compiler*))
 
-(define (c-linker:lcc-unix output-name object-files libs)
-  (let ((cmd (twobit-format #f
-                            "lcc -g -o ~a ~a ~a"
-                            output-name
-                            (apply string-append (insert-space object-files))
-                            (apply string-append (insert-space libs)))))
-    (execute cmd)))
+(define (*append-file-shell-command* x y)
+  ((cdr (assq 'append-files (cadddr *current-compiler*))) x y))
 
-(define (c-compiler:no-compiler c-name o-name)
-  (display ">>> MUST COMPILE ")
-  (display c-name)
-  (newline))
-
-(define (c-library-linker:no-linker output-name object-files libs)
-  (display ">>> MUST LINK LIBRARY ")
-  (display output-name)
-  (newline))
-
-(define (c-linker:no-linker output-name object-files libs)
-  (display ">>> MUST LINK EXECUTABLE ")
-  (display output-name)
-  (newline))
-
-
-; Somewhat general architecture for selecting compilers and linkers,
-; although I dread the day when all options for all operating systems
-; are included in this file.
+(define (define-compiler name tag extension commands)
+  (set! *available-compilers*
+	(cons (list tag name extension commands)
+	      *available-compilers*)))
 
 (define (select-compiler . rest)
-
-  (define compilers
-    `((gcc-unix 
-       "GCC on Unix systems" 
-       ,c-compiler:gcc-unix 
-       ,c-library-linker:gcc-unix
-       ,c-linker:gcc-unix 
-       ,append-file-shell-command-unix
-       ".o")
-      (lcc-unix 
-       "LCC on Unix systems" 
-       ,c-compiler:lcc-unix 
-       ,c-library-linker:lcc-unix
-       ,c-linker:lcc-unix
-       ,append-file-shell-command-unix
-       ".o")
-      (none 
-       "No compiler at all" 
-       ,c-compiler:no-compiler 
-       ,c-library-linker:no-linker
-       ,c-linker:no-linker
-       ,append-file-shell-command-portable
-       ".o")))
-
   (if (null? rest)
-      (begin (display "Select one of these: ")
-             (newline)
-             (for-each (lambda (x)
-                         (display "  ")
-                         (display (car x))
-                         (display 
-                          (make-string (- 12 (string-length 
-                                              (symbol->string (car x))))
-                                       #\space))
-                         (display (cadr x))
-                         (newline))
-                       compilers))
-      (let ((probe (assq (car rest) compilers)))
-        (if (not probe)
-            (select-compiler)
-	    (apply set-compiler! (cdr probe))))))
+      (begin
+	(display "Available compilers:")
+	(newline)
+	(for-each (lambda (c) 
+		    (display (car c))
+		    (display "   ")
+		    (display (cadr c))
+		    (newline))
+		  *available-compilers*))
+      (let ((probe (assq (car rest) *available-compilers*)))
+	(if probe
+	    (begin
+	      (display "Selecting compiler: ")
+	      (display (cadr probe))
+	      (newline)
+	      (set! *current-compiler* probe))
+	    (error "No such compiler: " (car rest)))))
+  (unspecified))
 
-(define (set-compiler! name compiler lib-linker linker append-cmd obj-suffix)
-  (set! *c-compiler* compiler)
-  (set! *c-library-linker* lib-linker)
-  (set! *c-linker* linker)
-  (set! *append-file-shell-command* append-cmd)
-  (set! *obj-suffix* obj-suffix)
-  (newline)
-  (display "Selecting compiler: ")
-  (display name)
-  (newline))
+(define-compiler 
+  "No compiler at all"
+  'none
+  ".o"
+  `((compile 
+     . ,(lambda (c-name o-name)
+	  (display ">>> MUST COMPILE ")
+	  (display c-name)
+	  (newline)))
+    (link-library
+     . ,(lambda (output-name object-files libs)
+	  (display ">>> MUST LINK LIBRARY ")
+	  (display output-name)
+	  (newline)))
+    (link-executable
+     . ,(lambda (output-name object-files libs)
+	  (display ">>> MUST LINK EXECUTABLE ")
+	  (display output-name)
+	  (newline)))
+    (link-shared-object
+     . ,(lambda (output-name object-files libs)
+	  (display ">>> MUST LINK SHARED OBJECT ")
+	  (display output-name)
+	  (newline)))
+    (append-files 
+     . ,append-file-shell-command-portable)))
 
 (select-compiler 'none)
 

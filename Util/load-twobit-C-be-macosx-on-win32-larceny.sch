@@ -3,17 +3,17 @@
 ; $Id$
 ;
 ; Load script for twobit with Standard-C assembler, endian-little, 
-; Win32 host/target, Petit Larceny host.
+; MacOS X target OS, Win32 host OS, Petit Larceny host system.
 
-(define *root-directory* "")                               ; Win32
+(define *root-directory* "")
 (define *sysdep-file* 
-  (string-append *root-directory* "Util\\sysdep-win32.sch"))
+  (string-append *root-directory* "Util/sysdep-win32.sch"))
 
 ; It should not be necessary to modify any of these.
 
 (load *sysdep-file*)
 
-(load (make-filename *root-directory* "Util" "nbuild-param-C-el-win32.sch"))
+(load (make-filename *root-directory* "Util" "nbuild-param-C-be-macosx-on-win32.sch"))
 (define nbuild-parameter
   (make-nbuild-parameter *root-directory* #t #f #t 
 			 "Larceny" "Petit Larceny"))

@@ -5,7 +5,6 @@
  * Operating-system dependent functionality -- Unix-type systems.
  *
  * Portability issues:
- *  poll           an X/OPENism; some systems have only "select"
  *  mmap/munmap    not available everywhere; see comments
  *  getrusage      not available everywhere?
  */
@@ -22,7 +21,9 @@
 #include <sys/mman.h>		/* For mmap() and munmap() */
 #include <unistd.h>
 #include <time.h>
-#include <poll.h>
+#ifdef HAVE_POLL
+# include <poll.h>
+#endif
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -159,11 +160,11 @@ word w_from, w_to;
   globals[ G_RESULT ] = fixnum( rename( fnbuf, string2asciiz( w_to ) ) );
 }
 
-/* Poll is an X/OPENism */
 void osdep_pollinput( w_fd )
 word w_fd;
 {
-  /* One could also use select() */
+#if defined HAVE_POLL
+  /* poll() is an X/OPENism, it is probably more efficient than select() */
   int r;
   struct pollfd fd[1];
 
@@ -174,6 +175,20 @@ word w_fd;
     globals[ G_RESULT ] = fixnum( fd[0].revents & (POLLIN|POLLHUP|POLLERR) );
   else
     globals[ G_RESULT ] = fixnum( r );
+#elif defined HAVE_SELECT
+  fd_set f;
+  struct timeval zero;
+  int r;
+
+  FD_ZERO( &f );
+  FD_SET( nativeint( w_fd ), &f );
+  zero.tv_sec = 0;
+  zero.tv_usec = 0;
+  r = select( nativeint( w_fd )+1, &f, NULL, &f, &zero );
+  globals[ G_RESULT ] = fixnum( r );
+#else
+  globals[ G_RESULT ] = fixnum(1);
+#endif
 }
 
 /* system() is in ANSI/ISO C. */
@@ -284,6 +299,9 @@ static void* alloc_block( int bytes )
   assert( fragmentation >= 0 );
 
 again:
+  /* Fails on MacOS X for reasons not understood.  It could be that PROT_WRITE
+     requires the file to be opened for writing (docs say so) but changing
+     O_RDONLY to O_RDWR above does not help.  */
   addr = mmap( addr_hint,
 	       bytes,
 	       (PROT_READ | PROT_WRITE | PROT_EXEC), 

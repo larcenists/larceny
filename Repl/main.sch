@@ -13,6 +13,7 @@
   (init-toplevel-environment)
   (setup-interrupt-and-error-handlers)
   (evaluator interpret)
+  (issue-warnings #t)              ; Warnings are off during bootstrapping
   (interactive-entry-point argv))
 
 

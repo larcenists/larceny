@@ -9,7 +9,16 @@
 ; the std-ffi type names work, whether foreign-procedure and foreign-file
 ; and the null pointer functions work, and  so on.
 
-(define *testsuite-dir* "/home/lth/net/larceny/Testsuite/")
+(define *testsuite-dir*)
+(define *foreign-file*)
+
+(let ((sys (cdr (assq 'os-name (system-features)))))
+  (cond ((string-ci=? sys "win32")
+	 (set! *testsuite-dir* "/Source/Larceny/src/Testsuite/")
+	 (set! *foreign-file* "std-ffi-test-ff.dll"))
+	(else
+	 (set! *testsuite-dir* "/home/lth/net/larceny/Testsuite/")
+	 (set! *foreign-file* "std-ffi-test-ff.so"))))
 
 (load (string-append *testsuite-dir* "Lib/test.sch"))
 
@@ -25,7 +34,7 @@
   (std-ffi-test-get/set)
   (std-ffi-test-peek/poke))
 
-(foreign-file (string-append *testsuite-dir* "FFI/std-ffi-test-ff.so"))
+(foreign-file (string-append *testsuite-dir* "FFI/" *foreign-file*))
 
 (define valid-null-pointer?
   (foreign-procedure "valid_null_pointer_p" '(unsigned) 'bool))

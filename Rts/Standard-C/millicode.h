@@ -11,6 +11,11 @@
 #include "larceny-types.h"
 #include "petit-config.h"
 
+#ifdef WIN32
+#  define EXPORT __declspec(dllexport)
+#else
+#  define EXPORT
+#endif
 
 /* The following must be exported by compiled Scheme code. */
 
@@ -33,21 +38,21 @@ void twobit_integrity_check( word *globals, const char *name );
      Output: None.
      */
 
-void mc_alloc_bv( word *globals );
+void EXPORT mc_alloc_bv( word *globals );
   /* Allocate uninitialized non-pointer-containing memory.
 
      Input:  RESULT = number of bytes to allocate (fixnum).
      Output: RESULT = raw pointer to allocated memory.
      */
 
-void mc_alloc( word *globals );
+void EXPORT mc_alloc( word *globals );
   /* Allocate uninitialized pointer-containing memory.
 
      Input:  RESULT = number of words to allocate (fixnum).
      Output: RESULT = raw pointer to allocated memory.
      */
 
-void mc_alloci( word *globals );
+void EXPORT mc_alloci( word *globals );
   /* Allocate initialized pointer-containing memory.
 
      Input:  RESULT = number of words to allocate (fixnum).
@@ -55,7 +60,7 @@ void mc_alloci( word *globals );
      Output: RESULT = raw pointer to allocated memory.
      */
 
-RTYPE mem_stkuflow( CONT_PARAMS );
+RTYPE EXPORT mem_stkuflow( CONT_PARAMS );
   /* Stack underflow handler.  
      This procedure is designed to be returned into -- not to be called.
      It restores a stack frame from the heap into the stack cache.
@@ -68,28 +73,28 @@ RTYPE mem_stkuflow( CONT_PARAMS );
      Output: nothing.
      */
 
-void mc_stack_overflow( word *globals );
+void EXPORT mc_stack_overflow( word *globals );
   /* Stack overflow handler.
 
      Input:  nothing.
      Output: nothing.
      */
 
-void mc_capture_continuation( word *globals );
+void EXPORT mc_capture_continuation( word *globals );
   /* Capture the current continuation.
 
      Input:  nothing.
      Output: RESULT = the captured continuation.
      */
 
-void mc_restore_continuation( word *globals );
+void EXPORT mc_restore_continuation( word *globals );
   /* Replace the current continuation with a saved continuation.
 
      Input:  RESULT = the saved continuation.
      Output: nothing.
      */
 
-void mc_full_barrier( word *globals );
+void EXPORT mc_full_barrier( word *globals );
   /* Implements the full write barrier: for each assignment that
      has a pointer-valued rhs, it calls mc_partial_barrier.
 
@@ -98,7 +103,7 @@ void mc_full_barrier( word *globals );
      Output: nothing.
      */
 
-void mc_partial_barrier( word *globals );
+void EXPORT mc_partial_barrier( word *globals );
   /* The rhs is assumed to be a pointer.  If the rhs is in a younger
      generation than the rhs, then the lhs is added to the SSB of the
      older generation.
@@ -108,14 +113,14 @@ void mc_partial_barrier( word *globals );
      Output: nothing.
      */
 
-void mc_break( word *globals );
+void EXPORT mc_break( word *globals );
   /* If breakpoints are enabled, invokes the RTS debugger.
 
      Input:  nothing.
      Output: nothing (although the user can change registers in the debugger).
      */
 
-void mc_timer_exception( word *globals, cont_t k );
+void EXPORT mc_timer_exception( word *globals, cont_t k );
   /* Exception handler for first-level timer expiration.  
      If timer interrupts are disabled, the timer is given a small amount
      of fuel, and execution continues.
@@ -132,7 +137,7 @@ void mc_timer_exception( word *globals, cont_t k );
      Output: nothing.
      */
 
-void mc_enable_interrupts( word *globals, cont_t k );
+void EXPORT mc_enable_interrupts( word *globals, cont_t k );
   /* Enable timer interrupts, set timer.
      'k' is a Scheme return address.
 
@@ -142,7 +147,7 @@ void mc_enable_interrupts( word *globals, cont_t k );
      Output: nothing.
      */
 
-void mc_disable_interrupts( word *globals, cont_t k );
+void EXPORT mc_disable_interrupts( word *globals, cont_t k );
   /* Disable timer interrupts and return the remaining time.
      'k' is a Scheme return address.
 
@@ -152,7 +157,7 @@ void mc_disable_interrupts( word *globals, cont_t k );
      Output: RESULT = timer value, or #f if interrupts were already disabled.
      */
 
-void mc_exception( word *globals, word exception );
+void EXPORT mc_exception( word *globals, word exception );
   /* Signal general non-continuable exception.  The exception is signalled 
      by calling the installed Scheme exception handler.
 
@@ -162,7 +167,7 @@ void mc_exception( word *globals, word exception );
      Output: nothing.
      */
 
-void mc_cont_exception( word *globals, word exception, cont_t k );
+void EXPORT mc_cont_exception( word *globals, word exception, cont_t k );
   /* Signal general continuable exception.  The exception is signalled 
      by calling the installed Scheme exception handler.
 
@@ -173,7 +178,7 @@ void mc_cont_exception( word *globals, word exception, cont_t k );
      Output: nothing.
      */
 
-void mc_apply( word *globals );
+void EXPORT mc_apply( word *globals );
   /* Given a procedure, a list of arguments, and the number of arguments,
      move the arguments to registers and sets things up as if for a
      procedure call.  The code for twobit_apply should call this
@@ -185,7 +190,7 @@ void mc_apply( word *globals );
      Output: register values in globals[], set up for a call.
      */
 
-void mc_restargs( word *globals );
+void EXPORT mc_restargs( word *globals );
   /* Cons up a rest argument list.  Does not perform any argument checking.
 
      Input:  RESULT = actual number of arguments.
@@ -194,7 +199,7 @@ void mc_restargs( word *globals );
              holding the rest arguments.
      */
 
-void mc_syscall( word *globals, cont_t k );
+void EXPORT mc_syscall( word *globals, cont_t k );
   /* Perform a call-out to a C procedure in the syscall table.
 
      A system event check is performed.
@@ -205,7 +210,7 @@ void mc_syscall( word *globals, cont_t k );
      Output: RESULT, as set up by the syscall.
      */
 
-void mc_typetag( word *globals );
+void EXPORT mc_typetag( word *globals );
   /* Get the typetag of the argument, if it has one, otherwise signal
      an error.
 
@@ -213,7 +218,7 @@ void mc_typetag( word *globals );
      Output: RESULT = a fixnum (the type tag).
      */
 
-void mc_typetag_set( word *globals );
+void EXPORT mc_typetag_set( word *globals );
   /* Change the typetag of the argument, if it has one.  If the
      argument does not have a typetag field, or the supplied tag is
      invalid, then signal an error.
@@ -225,7 +230,7 @@ void mc_typetag_set( word *globals );
      Output: nothing.
      */
 
-void mc_eqv( word *globals, cont_t k );
+void EXPORT mc_eqv( word *globals, cont_t k );
   /* Given two objects that are not eq?, test them for eqv?-ness.
 
      Input:  RESULT = an object.
@@ -233,7 +238,7 @@ void mc_eqv( word *globals, cont_t k );
      Output: a boolean.
      */
 
-void mc_partial_list2vector( word *globals );
+void EXPORT mc_partial_list2vector( word *globals );
   /* Given a list and its length, create a vector that contains the 
      elements of the list.
 
@@ -246,7 +251,7 @@ void mc_partial_list2vector( word *globals );
      Output: RESULT = a vector.
      */
 
-void mc_bytevector_like_fill( word *globals );
+void EXPORT mc_bytevector_like_fill( word *globals );
   /* Given a bytevector-like structure and a fixnum in the range 0..255,
      fill the bytevector with the fixnum.
 
@@ -257,7 +262,7 @@ void mc_bytevector_like_fill( word *globals );
      Output: Nothing.
      */
 
-void mc_bytevector_like_compare( word *globals );
+void EXPORT mc_bytevector_like_compare( word *globals );
   /* Given two bytevector-like structures, compare them lexically in an
      alphabet of byte values, and return a negative number if the first 
      collates before the second, 0 if they are equal, and a positive number
@@ -270,7 +275,7 @@ void mc_bytevector_like_compare( word *globals );
      Output: RESULT = a fixnum.
      */
 
-void mc_petit_patch_boot_code( word *globals );
+void EXPORT mc_petit_patch_boot_code( word *globals );
   /* This procedure is used only when loading a bootstrap heap.
 
      Given a list of thunks whose codevectors are #f, patch each 
@@ -285,7 +290,7 @@ void mc_petit_patch_boot_code( word *globals );
      Output: RESULT = the same list
      */
 
-void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
+void EXPORT mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 		        bool preserve );
   /* Given:
 
@@ -361,19 +366,19 @@ void initialize_generic_arithmetic( void );
    Output: RESULT = the result (number or boolean)
    */
 
-void mc_add( word *globals, cont_t k );
-void mc_sub( word *globals, cont_t k );
-void mc_mul( word *globals, cont_t k );
-void mc_div( word *globals, cont_t k );
-void mc_quo( word *globals, cont_t k );
-void mc_rem( word *globals, cont_t k );
-void mc_neg( word *globals, cont_t k );
-void mc_abs( word *globals, cont_t k );
-void mc_equalp( word *globals, cont_t k );
-void mc_lessp( word *globals, cont_t k );
-void mc_less_or_equalp( word *globals, cont_t k );
-void mc_greaterp( word *globals, cont_t k );
-void mc_greater_or_equalp( word *globals, cont_t k );
+void EXPORT mc_add( word *globals, cont_t k );
+void EXPORT mc_sub( word *globals, cont_t k );
+void EXPORT mc_mul( word *globals, cont_t k );
+void EXPORT mc_div( word *globals, cont_t k );
+void EXPORT mc_quo( word *globals, cont_t k );
+void EXPORT mc_rem( word *globals, cont_t k );
+void EXPORT mc_neg( word *globals, cont_t k );
+void EXPORT mc_abs( word *globals, cont_t k );
+void EXPORT mc_equalp( word *globals, cont_t k );
+void EXPORT mc_lessp( word *globals, cont_t k );
+void EXPORT mc_less_or_equalp( word *globals, cont_t k );
+void EXPORT mc_greaterp( word *globals, cont_t k );
+void EXPORT mc_greater_or_equalp( word *globals, cont_t k );
 
 /* The following unary operations are in arithmetic.c. 
 
@@ -386,12 +391,12 @@ void mc_greater_or_equalp( word *globals, cont_t k );
    Output: RESULT = the numeric result
    */
 
-void mc_exact2inexact( word *globals, cont_t k );
-void mc_inexact2exact( word *globals, cont_t k );
-void mc_real_part( word *globals );
-void mc_imag_part( word *globals );
-void mc_round( word *globals, cont_t k );
-void mc_truncate( word *globals, cont_t k );
+void EXPORT mc_exact2inexact( word *globals, cont_t k );
+void EXPORT mc_inexact2exact( word *globals, cont_t k );
+void EXPORT mc_real_part( word *globals );
+void EXPORT mc_imag_part( word *globals );
+void EXPORT mc_round( word *globals, cont_t k );
+void EXPORT mc_truncate( word *globals, cont_t k );
 
 /* The following unary predicates are in arithmetic.c. 
 
@@ -404,12 +409,12 @@ void mc_truncate( word *globals, cont_t k );
    Output: RESULT = a boolean result
    */
 
-void mc_zerop( word *globals );
-void mc_complexp( word *globals );
-void mc_rationalp( word *globals );
-void mc_integerp( word *globals );
-void mc_exactp( word *globals );
-void mc_inexactp( word *globals );
+void EXPORT mc_zerop( word *globals );
+void EXPORT mc_complexp( word *globals );
+void EXPORT mc_rationalp( word *globals );
+void EXPORT mc_integerp( word *globals );
+void EXPORT mc_exactp( word *globals );
+void EXPORT mc_inexactp( word *globals );
 
 
 /* Some millicode support routines (in multiply.c) */

@@ -502,6 +502,134 @@
 		   (emit-datum as (operand1 instruction))
                    (operand2 instruction)))))
 
+(define-instruction $op1/branchf
+  (lambda (instruction as)
+    (list-instruction "op1/branchf" instruction)
+    (if (op1-implicit-continuation? (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op1_branchf_~a( ~a, ~a, ~a, ~a ); /* ~a */"
+                          (op1-primcode (operand1 instruction))
+                          numeric
+                          symbolic
+			  (operand2 instruction)
+			  (compiled-procedure as (operand2 instruction) #f)
+                          (operand1 instruction))))
+	(emit-text as "twobit_op1_branchf_~a( ~a, ~a ); /* ~a */"
+		   (op1-primcode (operand1 instruction))
+		   (operand2 instruction)
+		   (compiled-procedure as (operand2 instruction) #f)
+		   (operand1 instruction)))))
+
+(define-instruction $op2/branchf
+  (lambda (instruction as)
+    (list-instruction "op2/branchf" instruction)
+    (if (op2-implicit-continuation? (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op2_branchf_~a( ~a, ~a, ~a, ~a, ~a ); /* ~a */"
+                          (op2-primcode (operand1 instruction))
+                          (operand2 instruction)
+                          numeric
+                          symbolic
+			  (operand3 instruction)
+			  (compiled-procedure as (operand3 instruction) #f)
+                          (operand1 instruction))))
+	(emit-text as "twobit_op2_branchf_~a( ~a, ~a, ~a ); /* ~a */"
+		   (op2-primcode (operand1 instruction))
+		   (operand2 instruction)
+		   (operand3 instruction)
+		   (compiled-procedure as (operand3 instruction) #f)
+		   (operand1 instruction)))))
+
+(define-instruction $op2imm/branchf
+  (lambda (instruction as)
+    (list-instruction "op2imm/branchf" instruction)
+    (if (op2imm-implicit-continuation? (operand1 instruction))
+        (call-with-values
+          (lambda () (implicit-procedure as))
+          (lambda (numeric symbolic)
+            (add-function as symbolic #f #f)
+            (emit-text as "twobit_op2imm_branchf_~a( ~a, ~a, ~a, ~a, ~a ); /* ~a */"
+                          (op2-primcode (operand1 instruction))     ; Note, not op2imm-primcode
+                          (constant-value (operand2 instruction))
+                          numeric
+                          symbolic
+			  (operand3 instruction)
+			  (compiled-procedure as (operand3 instruction) #f)
+                          (operand1 instruction))))
+	(emit-text as "twobit_op2imm_branchf_~a( ~a, ~a, ~a ); /* ~a */"
+		   (op2-primcode (operand1 instruction))            ; Note, not op2imm-primcode
+		   (constant-value (operand2 instruction))
+		   (operand3 instruction)
+		   (compiled-procedure as (operand3 instruction) #f)
+		   (operand1 instruction)))))
+
+;    Note, for the _check_ optimizations there is a hack in place.  Rather
+;    than using register numbers in the instructions the assembler emits
+;    reg(k) expressions when appropriate.  The reason it does this is so
+;    that it can also emit RESULT when it needs to, since RESULT can
+;    appear as a register name in these instructions.
+;
+;    This is a hack, but it beats having two versions of every macro.
+
+(define-instruction $reg/op1/check
+  (lambda (instruction as)
+    (list-instruction "reg/op1/check" instruction)
+    (if (op1-implicit-continuation? (operand1 instruction))
+	(error "Assembler invariant violated: implicit continuation in REG/OP1/CHECK for " 
+	       (operand1 instruction)))
+    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+		  "RESULT"
+		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
+      (emit-text as "twobit_reg_op1_check_~a(~a,~a,~a); /* ~a with ~a */"
+		 (op1-primcode (operand1 instruction))
+		 rn
+		 (operand3 instruction)
+		 (compiled-procedure as (operand3 instruction) #f)
+		 (operand1 instruction)
+		 (operand4 instruction)))))
+
+(define-instruction $reg/op2/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2/check" instruction)
+    (if (op2-implicit-continuation? (operand1 instruction))
+	(error "Assembler invariant violated: implicit continuation in REG/OP2/CHECK for " 
+	       (operand1 instruction)))
+    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+		  "RESULT"
+		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
+      (emit-text as "twobit_reg_op2_check_~a(~a,reg(~a),~a,~a); /* ~a with ~a */"
+		 (op2-primcode (operand1 instruction))
+		 rn
+		 (operand3 instruction)
+		 (operand4 instruction)
+		 (compiled-procedure as (operand4 instruction) #f)
+		 (operand1 instruction)
+		 (operand5 instruction)))))
+
+(define-instruction $reg/op2imm/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/check" instruction)
+    (if (op2-implicit-continuation? (operand1 instruction))  ; Note, not op2imm-implicit-continuation?
+	(error "Assembler invariant violated: implicit continuation in REG/OP2IMM/CHECK for " 
+	       (operand1 instruction)))
+    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+		  "RESULT"
+		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
+      (emit-text as "twobit_reg_op2imm_check_~a(~a,~a,~a,~a); /* ~a with ~a */"
+		 (op2-primcode (operand1 instruction)) ; Note, not op2imm-primcode
+		 rn
+		 (constant-value (operand3 instruction))
+		 (operand4 instruction)
+		 (compiled-procedure as (operand4 instruction) #f)
+		 (operand1 instruction)
+		 (operand5 instruction)))))
+
 ; Helper procedures.
 
 (define (compiled-procedure as label start?)

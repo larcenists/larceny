@@ -328,8 +328,8 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
-    panic( "Can't allocate an object of size %d bytes: max is %d bytes.",
-	   nbytes, LARGEST_OBJECT );
+    panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
+	        nbytes, LARGEST_OBJECT );
 
   return yh_allocate( gc->young_area, nbytes, no_gc );
 }
@@ -339,12 +339,12 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   assert( nbytes > 0 );
 
   if (gc->static_area == 0)
-    panic( "Cannot allocate nonmoving in a system without a static heap." );
+    panic_exit( "Cannot allocate nonmoving in a system without a static heap." );
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
-    panic( "Can't allocate an object of size %d bytes: max is %d bytes.",
-	   nbytes, LARGEST_OBJECT );
+    panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
+	        nbytes, LARGEST_OBJECT );
 
   return sh_allocate( gc->static_area, nbytes );
 }

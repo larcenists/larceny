@@ -80,6 +80,7 @@
 (define operand2 caddr)
 (define operand3 cadddr)
 (define (operand4 i) (car (cddddr i)))
+(define (operand5 i) (cadr (cddddr i)))
 
 ; Emits the bits contained in the bytevector bv.
 

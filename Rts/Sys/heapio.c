@@ -196,7 +196,7 @@ int hio_open( heapio_t *h, const char *filename )
     h->data_size = getword( fp );
     break;
   case HEAP_DUMPED:
-    panic( "Can't open DUMPED heaps." ); 
+    panic_exit( "Can't open DUMPED heaps." ); 
     break;
   default:
     fclose( fp );
@@ -225,7 +225,7 @@ int hio_create( heapio_t *h, const char *filename, int type )
     h->split_heap = 1;
     break;
   case HEAP_DUMPED :
-    panic( "Can't create DUMPED heaps." );
+    panic_exit( "Can't create DUMPED heaps." );
     break;
   default :
     fclose( h->fp );
@@ -506,11 +506,11 @@ int hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data,
     THROW( HEAPIO_NOTOPEN );
 
   /* FIXME: For now, only one chunk. */
-  if (data && data->current != 0) panic( "dump_heap_image#1" );
-  if (text && text->current != 0) panic( "dump_heap_image#2" );
+  if (data && data->current != 0) panic_exit( "dump_heap_image#1" );
+  if (text && text->current != 0) panic_exit( "dump_heap_image#2" );
 
   if (!data) 
-    panic( "dump_heap_image#3" );
+    panic_exit( "dump_heap_image#3" );
 
   data_base = (word)data->chunks[data->current].bot;
   data_top  = (word)data->chunks[data->current].top;

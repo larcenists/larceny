@@ -12,7 +12,7 @@
 
 /* Jump discipline.  Exactly one of these three should be true */
 
-#define USE_LONGJUMP               1
+#define USE_LONGJUMP               0
    /* Jump, invoke and return are implemented as calls; when the timer
       expires, a longjump is performed to prune the stack.  The extern 
       variable 'twobit_cont_label' holds the address to jump to following 
@@ -25,7 +25,7 @@
      to jump to following the longjmp.
      */
 
-#define USE_RETURN_WITH_VALUE      0
+#define USE_RETURN_WITH_VALUE      1
   /* Jump, invoke, and return are implemented as returns to a dispatch
      loop.  The address to jump to is returned to the dispatch loop 
      rather than being stored in a global.

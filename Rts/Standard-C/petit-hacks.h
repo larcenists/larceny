@@ -38,6 +38,8 @@
 #define EX_MAKE_PROCEDURE         EX_MKVL
 /* End exception codes */
 
+extern int larceny_main( int argc, char **argv );
+
 #endif
 
 /* eof */

@@ -7,9 +7,17 @@
 
 #include "larceny.h"
 
-#if defined(SUNOS4) || defined(SUNOS5)
+#if defined(SUNOS4) || defined(SUNOS5)  /* really HAVE_DLFCN_H */
 #include <dlfcn.h>
 #endif
+
+#if defined(WIN32)
+#define _X86_
+#include <stdarg.h>
+#include <windef.h>
+#include <winbase.h>
+#endif
+
 #include <assert.h>
 #include <string.h>
 
@@ -240,7 +248,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
     goto failed;
   }
   /*NOTREACHED*/
-  panic( "Fell off the end in larceny_C_ffi_apply." );
+  panic_exit( "Fell off the end in larceny_C_ffi_apply." );
 
  failed:
   globals[ G_RESULT ] = UNDEFINED_CONST;
@@ -280,6 +288,17 @@ larceny_C_ffi_dlopen( word w_path )
   if (desc == 0) 
     hardconsolemsg( "dlopen error: %s", dlerror() );
   globals[ G_RESULT ] = box_uint( (unsigned)desc );
+#elif defined(WIN32)
+  char *path;
+  HINSTANCE dll;
+
+  path = (char*)(ptrof(w_path)+1);
+  dll = LoadLibrary(path);
+  if (dll == 0) 
+    hardconsolemsg( "dlopen error" );
+  globals[ G_RESULT ] = box_uint( (unsigned)dll );
+#else
+  globals[ G_RESULT ] = 0;
 #endif
 }
 
@@ -303,6 +322,17 @@ larceny_C_ffi_dlsym( word w_handle, word w_sym )
   handle = (void*)unbox_uint( w_handle );
   r = dlsym( handle, sym );
   globals[ G_RESULT ] = box_uint( (unsigned)r );
+#elif defined(WIN32)
+  char *sym;
+  HINSTANCE dll;
+  void *r;
+
+  sym = (char*)(ptrof(w_sym)+1);
+  dll = (void*)unbox_uint( w_handle );
+  r = GetProcAddress( dll, sym );
+  globals[ G_RESULT ] = box_uint( (unsigned)r );
+#else
+  globals[ G_RESULT ] = 0;
 #endif
 }
 

@@ -34,7 +34,7 @@ extern const char *larceny_gc_technology;
 
 /* In "Rts/Sys/larceny.c" */
 
-extern int  panic( const char *fmt, ... );
+extern int  panic_exit( const char *fmt, ... );
 extern int  panic_abort( const char *fmt, ... );
 extern void annoyingmsg( const char *fmt, ... );
 extern void supremely_annoyingmsg( const char *fmt, ... );

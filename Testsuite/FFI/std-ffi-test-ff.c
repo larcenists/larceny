@@ -9,25 +9,31 @@
  *     gcc -fPIC -shared std-ffi-test-ff.c -o std-ffi-test-ff.so
  */
 
+#ifdef WIN32
+# define CDECL __cdecl
+#else
+# define CDECL
+#endif
+
 /* Null pointer tests */
 
-int valid_null_pointer_p( void *p ) { return p == 0; }
-void *return_null_pointer( void ) { return (void*)0; }
+int CDECL valid_null_pointer_p( void *p ) { return p == 0; }
+void* CDECL return_null_pointer( void ) { return (void*)0; }
 
 /* Integer tests */
 
-int add_ints( int a, int b ) { return a+b; }
-short add_shorts( short a, short b ) { return a+b; }
-long add_longs( long a, long b ) { return a+b; }
-unsigned add_uints( unsigned a, unsigned b ) { return a+b; }
-unsigned short add_ushorts( unsigned short a, unsigned short b ) {return a+b;}
-unsigned long add_ulongs( unsigned long a, unsigned long b ) { return a+b; }
+int CDECL add_ints( int a, int b ) { return a+b; }
+short CDECL add_shorts( short a, short b ) { return a+b; }
+long CDECL add_longs( long a, long b ) { return a+b; }
+unsigned CDECL add_uints( unsigned a, unsigned b ) { return a+b; }
+unsigned short CDECL add_ushorts( unsigned short a, unsigned short b ) {return a+b;}
+unsigned long CDECL add_ulongs( unsigned long a, unsigned long b ) { return a+b; }
 
 /* Char tests */
 
 #include <ctype.h>
 
-char cmp_chars( char a, char b) 
+char CDECL cmp_chars( char a, char b) 
 { 
   char yes, no;
   if (isupper(a) && isupper(b)) {
@@ -41,7 +47,7 @@ char cmp_chars( char a, char b)
   if (a == b) return yes; else return no;
 }
 
-unsigned char cmp_uchars( unsigned char a, unsigned char b) 
+unsigned char CDECL cmp_uchars( unsigned char a, unsigned char b) 
 { 
   unsigned char yes, no;
   if (islower(a) || islower(b)) {
@@ -57,22 +63,22 @@ unsigned char cmp_uchars( unsigned char a, unsigned char b)
 
 /* Bool tests */
 
-int pass_bool2int( int i ) { return i; }
-int pass_bool2bool( int i ) { return i; }
+int CDECL pass_bool2int( int i ) { return i; }
+int CDECL pass_bool2bool( int i ) { return i; }
 
 /* Floating tests */
 
-double add_doubles( double a, double b ) { return a+b; }
-float add_floats( float a, float b ) { return a+b; }
+double CDECL add_doubles( double a, double b ) { return a+b; }
+float CDECL add_floats( float a, float b ) { return a+b; }
 
 /* String and boxed tests */
 
-char *return_half( char *s )
+char* CDECL return_half( char *s )
 {
   return s + strlen( s )/2;
 }
 
-void fill_bytevector( void *p, int n )
+void CDECL fill_bytevector( void *p, int n )
 {
   unsigned char *q = (unsigned char *)p;
   int i;
@@ -81,19 +87,19 @@ void fill_bytevector( void *p, int n )
     q[i] = i;
 }
 
-char *pass_null_pointer( char *s )
+char* CDECL pass_null_pointer( char *s )
 {
   return s;
 }
 
-int pass_null_pointer_to_boxed( void *p )
+int CDECL pass_null_pointer_to_boxed( void *p )
 {
   return p == 0;
 }
 
 /* Void return test */
 
-void void_return( void *p ) 
+void CDECL void_return( void *p ) 
 { 
   *(unsigned char*)p = 1;
 }

@@ -266,52 +266,65 @@
 ; is a symbol, "text" or "binary".
 
 (define (process-file infilename outfilename writer processer)
+  (process-files (list infilename) outfilename writer processer))
+
+(define (process-files infilenames outfilename writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
 			 call-with-binary-output-file
-			 call-with-output-file))
-	(infilename  (if (pair? infilename) (car infilename) infilename))
-	(infilefn    (if (and (pair? infilename)
-			      (eq? 'binary (cadr infilename)))
-			 call-with-binary-input-file
-			 call-with-input-file)))
+			 call-with-output-file)))
     (delete-file outfilename)
     (outfilefn outfilename
       (lambda (outport)
-	(infilefn infilename
-	  (lambda (inport)
-	    (let loop ((x (read inport)))
-	      (if (eof-object? x)
-		  #t
-		  (begin (writer (processer x) outport)
-			 (loop (read inport)))))))))))
+	(for-each
+	 (lambda (infilename)
+	   (let ((infilename  (if (pair? infilename) (car infilename) infilename))
+		 (infilefn    (if (and (pair? infilename)
+				       (eq? 'binary (cadr infilename)))
+				  call-with-binary-input-file
+				  call-with-input-file)))
+	     (infilefn infilename
+		       (lambda (inport)
+			 (do ((x (read inport) (read inport)))
+			     ((eof-object? x))
+			   (writer (processer x) outport))))))
+	 infilenames)))))
 
 ; Same as above, but passes a list of the entire file's contents
-; to the processer.
+; to the processer.  Note, processes one input file at a time, though
+; plausibly it should read all the files and process the collected
+; input together.
+;
 ; FIXME:  Both versions of PROCESS-FILE always delete the output file.
 ; Shouldn't it be left alone if the input file can't be opened?
 
 (define (process-file-block infilename outfilename writer processer)
+  (process-files-block (list infilename) outfilename writer processer))
+
+(define (process-files-block infilenames outfilename writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
 			 call-with-binary-output-file
-			 call-with-output-file))
-	(infilename  (if (pair? infilename) (car infilename) infilename))
-	(infilefn    (if (and (pair? infilename)
-			      (eq? 'binary (cadr infilename)))
-			 call-with-binary-input-file
-			 call-with-input-file)))
+			 call-with-output-file)))
     (delete-file outfilename)
     (outfilefn outfilename
       (lambda (outport)
-        (infilefn infilename
-          (lambda (inport)
-	    (do ((x (read inport) (read inport))
-		 (forms '() (cons x forms)))
-		((eof-object? x)
-		 (writer (processer (reverse forms)) outport)))))))))
+	(for-each
+	 (lambda (infilename)
+	   (let ((infilename  (if (pair? infilename) (car infilename) infilename))
+		 (infilefn    (if (and (pair? infilename)
+				       (eq? 'binary (cadr infilename)))
+				  call-with-binary-input-file
+				  call-with-input-file)))
+	     (infilefn infilename
+		       (lambda (inport)
+			 (do ((x (read inport) (read inport))
+			      (forms '() (cons x forms)))
+			     ((eof-object? x)
+			      (writer (processer (reverse forms)) outport)))))))
+	 infilenames)))))
 
 ; Given a file name with some type, produce another with some other type.
 

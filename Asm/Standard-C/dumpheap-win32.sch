@@ -55,7 +55,9 @@
 		  (newline out))
 		object-files))))
 
-; Microsoft Visual C/C++ 6.0 on 32-bit windows.
+; Compiler definitions
+
+; Microsoft Visual C/C++ 6.0
 
 (define (c-compiler:msvc-win32 c-name o-name)
   (execute
@@ -68,46 +70,71 @@
     c-name)))
 
 (define (c-library-linker:msvc-win32 output-name object-files libs)
-  ; FIXME: assuming output-name is 'petit-lib.lib'
-  (create-indirect-file "petit-lib.lnk" object-files)
-  (delete-file "petit-lib.lib")
+  (let ((lnk-name (rewrite-file-type output-name ".lib" ".lnk"))
+	(lib-name (rewrite-file-type output-name ".lib" "")))
+    (create-indirect-file lnk-name object-files)
+    (delete-file output-name)
+    (execute
+     (twobit-format #f "lib.exe /libpath:. /name:~a /out:~a @~a" lib-name output-name lnk-name))))
+
+(define (c-dll-linker:msvc-win32 output-name object-files)
+  ;; FIXME!!
+  (create-indirect-file "petit-objs.lnk" object-files)
+  (system "del vc60.pdb")
   (execute
-    (twobit-format #f "lib.exe /libpath:. /name:petit-lib /out:~a @petit-lib.lnk" output-name)))
+   (twobit-format #f
+		  "link.exe /dll /export:twobit_load_table /debug /out:~a @petit-objs.lnk petit.exe"
+		  output-name)))
 
 (define (c-linker:msvc-win32 output-name object-files libs)
   (create-indirect-file "petit-objs.lnk" object-files)
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /debug /out:~a @petit-objs.lnk ~a"
+		  "link.exe /debug /export:mc_alloc /out:~a @petit-objs.lnk ~a"
 		  output-name
 		  (apply string-append (insert-space libs)))))
 
-'(set-compiler! "Microsoft Visual C/C++ 6.0 on Win32"
-	       c-compiler:msvc-win32
-	       c-library-linker:msvc-win32
-	       c-linker:msvc-win32
-	       append-file-shell-command-msdos
-	       ".obj")
-
-; Metrowerks CodeWarrior C/C++ 6.0 on 32-bit windows
+; Metrowerks CodeWarrior 6.0
 
 (define (c-compiler:mwcc-win32 c-name o-name)
   (execute
    (twobit-format 
     #f
-    "mwcc -c ~a -IRts\\Sys -IRts\\Standard-C -IRts\\Build -DSTDC_SOURCE ~a -o ~a ~a"
-    (if (optimize-c-code) "-opt on" "")
+    "mwcc -g -c ~a -IRts\\Sys -IRts\\Standard-C -IRts\\Build -DSTDC_SOURCE ~a -o ~a ~a"
+    (if (optimize-c-code) "-opt full" "")  ; or -opt on
     (if (optimize-c-code) "-DNDEBUG" "")
     o-name
     c-name)))
 
-(set-compiler! "Metrowerks CodeWarrior C/C++ 6.0 on Win32"
-	       c-compiler:mwcc-win32
-	       c-library-linker:msvc-win32
-	       c-linker:msvc-win32
-	       append-file-shell-command-msdos
-	       ".obj")
+(define (c-dll-linker:mwcc-win32 output-name object-files . ignored)
+  (create-indirect-file "petit-objs.lnk" object-files)
+  (execute
+   (twobit-format #f
+		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.lib"
+		  output-name)))
+
+(define-compiler 
+  "Microsoft Visual C/C++ 6.0 on Win32" 
+  'msvc
+  ".obj"
+  `((compile            . ,c-compiler:msvc-win32)
+    (link-library       . ,c-library-linker:msvc-win32)
+    (link-executable    . ,c-linker:msvc-win32)
+    (link-shared-object . ,c-dll-linker:msvc-win32)
+    (append-files       . ,append-file-shell-command-msdos)))
+
+(define-compiler 
+  "Metrowerks CodeWarrior C/C++ 6.0 on Win32"
+  'mwcc
+  ".obj"
+  `((compile            . ,c-compiler:mwcc-win32)
+    (link-library       . ,c-library-linker:msvc-win32)
+    (link-executable    . ,c-linker:msvc-win32)
+    (link-shared-object . ,c-dll-linker:mwcc-win32)
+    (append-files       . ,append-file-shell-command-msdos)))
+
+(select-compiler 'mwcc)
 
 ; eof
 

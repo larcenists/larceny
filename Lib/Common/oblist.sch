@@ -174,9 +174,10 @@
                         (vector-fill! v #f)))
 		  s)))))
       (begin
-	(display "WARNING: string->symbol: not interned: ")
-	(display s)
-	(newline)
+	; Annoying in Petit Larceny, where the heap is never dumped.
+	; (display "WARNING: string->symbol: not interned: ")
+	; (display s)
+	; (newline)
 	(make-symbol (string-copy s) 0 '()))))
 
 

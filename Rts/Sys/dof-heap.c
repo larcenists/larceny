@@ -1278,7 +1278,7 @@ static int sweep_large_objects( old_heap_t *heap, msgc_context_t *context )
         case VEC_HDR : obj = tagptr( p, VEC_TAG ); break;
         case BV_HDR : obj = tagptr( p, BVEC_TAG ); break;
         case header(PROC_HDR) : obj = tagptr( p, PROC_TAG ); break;
-        default : panic( "Bad case in sweep_large_objects()" );
+        default : panic_exit( "Bad case in sweep_large_objects()" );
       }
       size = sizefield( hdr );
       if (msgc_object_marked_p( context, obj )) {
@@ -1708,7 +1708,7 @@ static void reset_after_collection( old_heap_t *heap )
       data->retry_ok = FALSE;
     }
     else
-      panic( "Heap is full." );
+      panic_exit( "Heap is full." );
   }
   else
     data->retry_ok = TRUE;
@@ -2025,7 +2025,7 @@ static int initialize( old_heap_t *heap )
     int growth = roundup( (data->n-1)*(esize-dofsize)/(data->n-2), 
                           data->quantum );
     if (data->heap_limit && data->area_size + growth > data->heap_limit)
-      panic( "DOF heap is too small to accomodate promotion." );
+      panic_exit( "DOF heap is too small to accomodate promotion." );
     grow_all_generations( heap, growth / (data->n - 1) );
   }
 #if INVARIANT_CHECKING
@@ -2173,7 +2173,7 @@ static void stats( old_heap_t *heap )
 
 static word *data_load_area( old_heap_t *heap, int nbytes )
 {
-  panic( "DOF gc: data_load_area not implemented, use static area." );
+  panic_exit( "DOF gc: data_load_area not implemented, use static area." );
   /* Not reached */
   return 0;
 }

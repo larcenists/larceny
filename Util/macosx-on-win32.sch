@@ -1,31 +1,28 @@
-; 8 May 2001
+; 21 September 2002
 ;
-; General "script" for building Petit Larceny on Win32 systems,
-; may be dependent on (Petite) Chez Scheme.
+; General "script" for building Petit Larceny for MacOS X systems,
+; using Larceny on Win32.
 ;
-; On win32, the DOS shell is not all that useful, so the scripts that 
-; are used on Unix have been moved into this Scheme program.  It also
-; replaces the Util/load-*.sch programs.
+; The scripts that are used on Unix have been moved into this Scheme
+; program to facilitate cross-compilation.  This script also replaces
+; the Util\load-*.sch programs.
 
 ; Loading this file loads the entire build environment.
 
-(define nbuild-parameter #f)
+;(define nbuild-parameter #f)
 
 (define is-larceny? #t)
 
-(define (win32-initialize)
+(define (macosx-initialize)
 
-  ; The following actions are performed also by load-twobit-C-el-win32-petite.sch,
+  ; The following actions are performed also by load-twobit-C-el-unix-petite.sch,
   ; but they are needed also for bootstrapping the build environment -- without
-  ; loading Util/nbuild.sch -- so are included here separately.
+  ; loading Util\nbuild.sch -- so are included here separately.
 
   (load "Util\\sysdep-win32.sch")
-  (load "Util\\nbuild-param-C-el-win32.sch")
-  (if is-larceny?
-      (set! nbuild-parameter 
-	    (make-nbuild-parameter "" #t #f #t "Larceny" "Petit Larceny"))
-      (set! nbuild-parameter 
-	    (make-nbuild-parameter "" #t #f #t "Petite" "Petite Chez Scheme")))
+  (load "Util\\nbuild-param-C-be-macosx-on-win32.sch")
+  (set! nbuild-parameter 
+	(make-nbuild-parameter "" #t #f #t "Larceny" "Petit Larceny"))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")
@@ -107,16 +104,9 @@
     (compile-files (reverse files) dll-name)))
 
 (define (load-compiler)
-  (if is-larceny?
-      (load "Util\\load-twobit-C-el-win32-larceny.sch")
-      (load "Util\\load-twobit-C-el-win32-petite.sch")))
+  (load "Util\\load-twobit-C-be-macosx-on-win32-larceny.sch"))
 
 (define (remove-rts-objects)
-  (system "del Rts\\petit-rts.lib")
-  (system "del Rts\\vc60.pdb")
-  (system "del Rts\\Sys\\*.obj")
-  (system "del Rts\\Standard-C\\*.obj")
-  (system "del Rts\\Build\\*.obj")
   #t)
 
 (define (remove-heap-objects . extensions)
@@ -128,13 +118,6 @@
 				(if (memq n extensions) (list ext) '()))
 			      names
 			      ext))))
-    (system "del petit.exe")
-    (system "del petit.obj")
-    (system "del petit.pdb")
-    (system "del petit.heap")
-    (system "del petit-lib.lib")
-    (system "del petit-lib.pdb")
-    (system "del vc60.pdb")
     (for-each (lambda (ext)
 		(for-each (lambda (dir) (system (string-append "del " dir "*." ext))) 
 			  '("Lib\\Common\\"
@@ -145,38 +128,19 @@
 	      ext)
     #t))
 
-(win32-initialize)
-
-; Chez Scheme only -- Larceny does not have 'current-directory'.
-
-(define (execute-in-directory dir cmd)
-  (with-current-directory dir
-    (lambda ()
-      (system cmd))))
-
-(define (with-current-directory dir thunk)
-  (let ((cdir #f))
-    (dynamic-wind
-	(lambda ()
-	  (set! cdir (current-directory))
-	  (current-directory dir))
-	thunk
-	(lambda ()
-	  (set! dir (current-directory))
-	  (current-directory cdir)))))
+(macosx-initialize)
 
 ; A hack
 
-(if is-larceny?
-    (set! execute-in-directory 
-	  (lambda (dir cmd)
-	    (call-with-output-file "eid.bat"
-	      (lambda (out)
-		(display (string-append "cd " dir) out)
-		(newline out)
-		(display cmd out)
-		(newline out)))
-	    (system "eid.bat"))))
+(set! execute-in-directory 
+      (lambda (dir cmd)
+	(call-with-output-file "eid.bat"
+	  (lambda (out)
+	    (display (string-append "cd " dir) out)
+	    (newline out)
+	    (display cmd out)
+	    (newline out)))
+	(system "eid.bat")))
 
 ; temporarily here
 
@@ -197,7 +161,7 @@
 	      infilenames)
     (set! segments (reverse segments))
     (create-loadable-file outfilename segments so-name)
-    (c-link-shared-object so-name (list o-name) '("Rts/petit-rts.lib"))
+    (c-link-shared-object so-name (list o-name) '("Rts\\petit-rts.lib"))
     (unspecified)))
 
 ; This is really the wrong thing because it creates one .c for all the files.
@@ -227,7 +191,7 @@
   (end-shared-object)
   (c-link-shared-object so-name 
 			(list (rewrite-file-type so-name ".dll" ".obj"))
-			'("Rts/petit-rts.lib"))
+			'("Rts\\petit-rts.lib"))
   (unspecified))
 
 ; eof

@@ -1,53 +1,112 @@
-; Very Unix
-(define *petit-executable-src-name* "petit-larceny.c")
-(define *petit-executable-obj-name* "petit-larceny.o")
-(define *petit-executable-name* "petit-larceny")
-
-(define *petit-library-path* "Rts/")
-(define *petit-heap-library-name* "petit-larceny.so")
-(define *petit-rts-libraries* 
-  (list (string-append *petit-library-path* "libpetit.so")))
-(define *petit-executable-libraries* 
-  (append *petit-rts-libraries* 
-          (list (string-append *petit-library-path* "petit-larceny.so"))))
-
-; Build an _application_: an executable that contains additional object
-; files to load, and a set of FASL files that can be loaded to link 
-; the object code to Scheme procedures.
+; 22 September 2002
 ;
-; FIXME: The use of ".exe" and ".o" here are pretty arbitrary and not
-; right on all (most) platforms; must parameterize.  The use of .exe
-; is OK on both Unix and Mac, however, as rewrite-file-type also matches
-; on the empty extension.
+; Routines for dumping a Petit Larceny heap image using
+; some standard C compiler under Unix or MacOS X.
 
-(define (build-application executable-name additional-files)
-  (let ((src-name (rewrite-file-type executable-name '(".exe") ".c"))
-        (obj-name (rewrite-file-type executable-name '(".exe") (obj-suffix))))
+(define unix/petit-rts-library "Rts/libpetit.a")
+(define unix/petit-lib-library "libheap.a")
+(define unix/petit-exe-name    "petit")
+
+(define (build-petit-larceny heap output-file-name input-file-names)
+  (build-petit-lib-library input-file-names))
+
+(define (build-petit-lib-library input-file-names)
+  (c-link-library unix/petit-lib-library
+		  (remove-duplicates
+		   (append (map (lambda (x)
+				  (rewrite-file-type x ".lop" ".o"))
+				input-file-names)
+			   (list (rewrite-file-type *temp-file* ".c" ".o")))
+		   string=?)
+		  '()))
+
+(define (build-application executable-name lop-files)
+  (let ((src-name (rewrite-file-type executable-name '("") ".c"))
+        (obj-name (rewrite-file-type executable-name '("") ".o")))
     (init-variables)
-    (for-each create-loadable-file additional-files)
+    (for-each create-loadable-file lop-files)
     (dump-loadable-thunks src-name)
     (c-compile-file src-name obj-name)
     (c-link-executable executable-name
                        (cons obj-name
                              (map (lambda (x)
-                                    (rewrite-file-type x ".lop" (obj-suffix)))
-                                  additional-files))
-                       *petit-executable-libraries*)
+                                    (rewrite-file-type x ".lop" ".o"))
+                                  lop-files))
+                       (list unix/petit-rts-library
+			     unix/petit-lib-library))
     executable-name))
 
-; Link all the files in Lib, Repl, Eval, and the macro expander
-; with HEAPDATA.o and create the library with the requested name.
+(define (create-indirect-file filename object-files)
+  (delete-file filename)
+  (call-with-output-file filename
+    (lambda (out)
+      (for-each (lambda (x)
+		  (display x out)
+		  (newline out))
+		object-files))))
 
-(define (build-petit-library library-name input-file-names)
-  (c-link-library library-name
-		  (remove-duplicates
-		   (append (map (lambda (x)
-				  (rewrite-file-type x ".lop" (obj-suffix)))
-				input-file-names)
-			   (list (rewrite-file-type *temp-file* ".c" (obj-suffix))))
-		   string=?)
-		  *petit-rts-libraries*))
+; Compiler definitions
 
-(define (build-petit-lareny heap output-file-name input-file-names)
-  (build-petit-library *petit-heap-library-name* input-file-names)
-  (build-application *petit-executable-name* '()))
+(define gcc-name
+  (case (nbuild-parameter 'host-os)
+    ((macosx) "cc")     ; Apple brain damage
+    (else     "gcc")))
+
+(define (c-compiler:gcc-unix c-name o-name)
+  (execute
+   (twobit-format 
+    #f
+    "~a -c -gstabs+ -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    gcc-name
+    (if (optimize-c-code) "-O3 -DNDEBUG" "")
+    o-name
+    c-name)))
+
+(define (c-library-linker:gcc-unix output-name object-files libs)
+  (execute 
+   (twobit-format 
+    #f
+    "ar -r ~a ~a; ranlib ~a"
+    output-name
+    (apply string-append (insert-space object-files))
+    output-name)))
+
+(define (c-linker:gcc-unix output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "~a -gstabs+ -o ~a ~a ~a"
+    gcc-name
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
+
+(define (c-so-linker:gcc-unix output-name object-files libs)
+  (error "Don't know how to build a shared object under generic unix"))
+
+(define (c-so-linker:gcc-macosx output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "~a -gstabs+ -r -shared -o ~a ~a ~a"
+    gcc-name
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
+
+(define-compiler 
+  "GCC under Unix"
+  'gcc
+  ".o"
+  `((compile            . ,c-compiler:gcc-unix)
+    (link-library       . ,c-library-linker:gcc-unix)
+    (link-executable    . ,c-linker:gcc-unix)
+    (link-shared-object . ,(case (nbuild-parameter 'host-os)
+			     ((macosx) c-so-linker:gcc-macosx)
+			     (else     c-so-linker:gcc-unix)))
+    (append-files       . ,append-file-shell-command-unix)))
+
+(select-compiler 'gcc)
+
+; eof
+

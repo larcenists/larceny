@@ -209,6 +209,10 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum(2) );
 #elif defined(WIN32)
     vector_set( v, 0, fixnum(3) );
+#elif defined(BSD_UNIX)
+    vector_set( v, 0, fixnum(7) );
+#elif defined(UNIX)  // Generic unix, this case should come after other Unix variants
+    vector_set( v, 0, fixnum(5) );
 #else
 #error "Unknown operating system."
 #endif
@@ -229,8 +233,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum( stats_parameter( 1 ) ) );
     break;
   default : 
-    panic( "Unknown code %d passed to primitive_sysfeature",
-		   nativeint( vector_ref( v, 0 ) ) );
+    panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }
 }
 
@@ -260,7 +263,7 @@ char *string2asciiz( word w_str )
   l = string_length( w_str );
   if (l >= fnbuf_length) {
     if (fnbuf != 0) free( fnbuf );
-    fnbuf = malloc( l+1 );
+    fnbuf = must_malloc( l+1 );
     fnbuf_length = l+1;
   }
   strncpy( fnbuf, string_data( w_str ), l );

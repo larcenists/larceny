@@ -54,11 +54,6 @@
 (define *ffi-attributes*
   (let ()
 
-    (define _strlen
-      (ffi/foreign-procedure *ffi-callout-abi* "strlen"
-			     '(unsigned32)
-			     'signed32))
-					   
     (define (integer-check x name)
       (if (or (fixnum? x)
 	      (<= -2147483648 x 2147483647))
@@ -407,7 +402,11 @@
 ; Given the address of a C string, get the string.
 
 (define %peek-string 
-  (let ((_strlen (foreign-procedure "strlen" '(uint) 'int)))
+  (let ((_strlen ; (foreign-procedure "strlen" '(uint) 'int)
+	 (lambda (p)
+	   (do ((p p (+ p 1))
+		(l 0 (+ l 1)))
+	       ((zero? (%peek8 p)) l)))))
     (lambda (ptr)
       (let* ((l (_strlen ptr))
 	     (s (make-bytevector l)))

@@ -370,11 +370,14 @@
 	(let ((a (bignum-copy a)))
 	  (bignum-sign-set! a negative-sign)
 	  a)
-	(begin (bignum-set! b 0 (logand a bigit-mask))
-	       (bignum-set! b 1 (rsha a bigit-shift))
-	       (bignum-length-set! b 2)
-	       (if (< f 0) (bignum-sign-set! b negative-sign))
-	       b))))
+	(begin 
+	  (if (zero? f)
+	      (bignum-length-set! b 0)
+	      (begin
+		(bignum-set! b 0 (logand a bigit-mask))
+		(bignum-set! b 1 (rsha a bigit-shift))))
+	  (if (< f 0) (bignum-sign-set! b negative-sign))
+	  b))))
 
 
 ;-----------------------------------------------------------------------------
@@ -443,17 +446,12 @@
 
 
 ; Divide bignum `a' by bignum `b', returning the remainder.
-;
-; FIXME
-; This is wrong; handling of the sign needs to be different, and if the
-; sign of the remainder is negative, then the remainder needs to be
-; adjusted.
 
 (define (bignum-remainder a b)
   (let ((sa (bignum-sign a))
 	(sb (bignum-sign b)))
     (let ((c (cdr (big-divide-digits a b))))
-      (if (not (= sa sb))
+      (if (sign-negative? sa)
 	  (bignum-sign-set! c negative-sign))
       (big-normalize! c))))
 
@@ -467,14 +465,19 @@
     (let* ((c (big-divide-digits a b))
 	   (q (big-normalize! (car c)))
 	   (r (big-normalize! (cdr c))))
-      (if (zero? r)
-	  (if (not (= sa sb))
-	      (if (bignum? q)
-		  (begin (bignum-sign-set! q negative-sign)
-			 q)
-		  (- q))
-	      q)
-	  (make-reduced-ratnum a b)))))
+      (cond ((zero? r)
+	     (if (not (= sa sb))
+		 (if (bignum? q)
+		     (begin (bignum-sign-set! q negative-sign)
+			    q)
+		     (- q))
+		 q))
+	    ((sign-positive? sb)
+	     (make-reduced-ratnum a b))
+	    ((= sa sb)
+	     (make-reduced-ratnum (abs a) (abs b)))
+	    (else
+	     (make-reduced-ratnum (- a) (abs b)))))))
 
 
 ; Return the negation of the argument (a new bignum).

@@ -608,7 +608,7 @@ static void perform_collect( old_heap_t *heap )
     (data->target_size - los_bytes_used( los, data->gen_no )) / data->stepsize;
   if (data->k < 0) {
     /* Hard heap overflow in fixed-size heap. */
-    panic( "ROF collector: The heap is full." );
+    panic_exit( "ROF collector: The heap is full." );
   }
 
   free_steps = 

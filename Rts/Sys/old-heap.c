@@ -169,7 +169,7 @@ static void collect_ephemeral( old_heap_t *heap, gc_type_t request )
     gc_collect( heap->collector, data->gen_no+1, 0, request );
     break;
   default :
-    panic( "Impossible" );
+    panic_exit( "Impossible" );
   }
 
   if (collected)
@@ -321,7 +321,7 @@ static void perform_promote( old_heap_t *heap )
 
 static void perform_promote_then_promote( old_heap_t *heap )
 {
-  panic( "perform_promote_then_promote not implemented." );
+  panic_exit( "perform_promote_then_promote not implemented." );
   /* FIXME */
 }
 
