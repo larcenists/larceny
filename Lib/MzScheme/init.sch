@@ -63,6 +63,15 @@
         continuation-marks/structure
         continuation-mark-set->list)
 
+;; mzscheme-style hashtables
+(export hash-table?
+        make-hash-table
+        hash-table-get
+        hash-table-put!
+        hash-table-remove!
+        hash-table-map
+        hash-table-for-each)
+
 ;;; inspectors
 ;(export make-inspector
 ;        inspector?
