@@ -28,6 +28,9 @@
 
 ;;; Everything loaded after this point will be compiled as it is loaded.
 
+(install-debugger)
+(define install-debugger)
+
 ;;; Install pretty printer as default printer.
 
 (repl-printer
@@ -54,13 +57,6 @@
 (load "Auxlib/unix-functions.sch")
 
 ;;; Improve some definitions
-
-(define apropos
-  (let ((apropos apropos))
-    (lambda (x)
-      (sort (apropos x) 
-	    (lambda (a b)
-	      (string<? (symbol->string a) (symbol->string b)))))))
 
 (define (procedure-documentation-string p)
   (let ((e (procedure-expression p)))
