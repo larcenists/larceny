@@ -267,7 +267,7 @@
   (string-downcase! (string-copy s)))
 
 (define (string-upcase s)
-  (string-upcase (string-copy s)))
+  (string-upcase! (string-copy s)))
 
 (define list->bytevector
   (letrec ((loop
