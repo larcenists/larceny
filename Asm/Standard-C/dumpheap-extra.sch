@@ -89,19 +89,24 @@
     (display "Loading code for ") (display lop-file) (newline)
     (let ((fasl-file (rewrite-file-type lop-file ".lop" ".fasl")))
       (let ((entrypoints 
-	     (dump-segments (length *loadables*)
-			    fasl-file
-			    (call-with-input-file lop-file
-			      (lambda (in)
-				(do ((segment (read in) (read in))
-				     (segments '() (cons segment segments)))
-				    ((eof-object? segment)
-				     (reverse segments)))))
-			    #f)))
+	     (call-with-input-file lop-file
+	       (lambda (in)
+		 (let loop ((decls '()))
+		   (let ((item (read in)))
+		     (if (string? item)
+			 (loop (cons item decls))
+			 (do ((segment (read in) (read in))
+			      (segments '() (cons segment segments)))
+			     ((eof-object? segment)
+			      (dump-segments (length *loadables*)
+					     fasl-file
+					     (reverse segments)
+					     (reverse decls)
+					     #f))))))))))
 	(set! *loadables* (cons (cons *unique-id* (reverse entrypoints))
 				*loadables*)))))
 
-  (define (dump-segments bootstrap-id fasl-file segments so-name)
+  (define (dump-segments bootstrap-id fasl-file segments decls so-name)
     (before-dump-file #f filename)
     (delete-file fasl-file)
     (let ((entrypoints '())
@@ -139,7 +144,7 @@
 
   (if (null? rest)
       (dump-one-file filename)
-      (dump-segments #f filename (car rest) (cadr rest))))
+      (dump-segments #f filename (car rest) '() (cadr rest))))
 
 
 ; Specialized and more rational version of create-loadable-file, in three parts.
@@ -151,6 +156,7 @@
 (define *shared-object-entrypoints* #f)
 
 (define (begin-shared-object so-name so-expression)
+  (error "begin-shared-object needs to receive a list of assembly-declarations")
   (set! *shared-object-so-expression* so-expression)
   (set! *shared-object-so-name* so-name)
   (set! *shared-object-c-name* (rewrite-file-type so-name '(".dll" ".so") ".c"))
@@ -170,7 +176,8 @@
 (define (add-to-shared-object fasl-name segments)
 
   (define (dump-prologue file-unique-id out)
-    (display `(define ,file-unique-id (.petit-shared-object ,*shared-object-so-expression*)) 
+    (display `(define ,file-unique-id 
+		(.petit-shared-object ,*shared-object-so-expression*)) 
 	     out)
     (newline out)
     (newline out))
@@ -247,7 +254,7 @@
 (define (compute-unique-id c-name)
   (md5 c-name))
 
-(define (before-dump-file h filename)
+(define (before-dump-file h filename decls)
   (set! *segment-number* 0)
   (let* ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".c"))
 	 (id (compute-unique-id c-name)))
@@ -259,6 +266,8 @@
 	(let ((c-file (open-output-file c-name)))
 	  (set! *c-output* c-file)
 	  (emit-c-code "/* Generated from ~a */~%" filename)
+	  (for-each (lambda (d) (emit-c-code "~a~%" d))
+		    decls)
 	  (emit-c-code "#include \"twobit.h\"~%~%")))))
 
 (define (after-dump-file h filename)

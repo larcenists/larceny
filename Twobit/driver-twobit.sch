@@ -33,12 +33,14 @@
         (if (benchmark-block-mode)
             (process-file-block infilename
                                 `(,outfilename binary)
+				(assembly-declarations user)
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
                                   (assemble (compile-block forms syntaxenv) 
                                             user)))
             (process-file infilename
                           `(,outfilename binary)
+			  (assembly-declarations user)
                           dump-fasl-segment-to-port
                           (lambda (expr)
                             (assemble (compile expr syntaxenv) user)))))
@@ -67,11 +69,13 @@
       (if (benchmark-block-mode)
           (process-file-block infilename 
 			      outfilename 
+			      '()
 			      write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
           (process-file infilename 
 			outfilename 
+			'()
 			write-lap 
                         (lambda (x) 
 			  (compile x syntaxenv)))))
@@ -93,6 +97,7 @@
          (assembly-user-data)))
     (process-file file
                   `(,outputfile binary)
+		  (assembly-declarations user)
                   write-lop
                   (lambda (x) 
 		    (assemble (if malfile? (eval x) x) user)))
@@ -114,11 +119,13 @@
       (if (benchmark-block-mode)
           (process-file-block input-file
                               `(,output-file binary)
+			      (assembly-declarations user)
                               write-lop
                               (lambda (x)
 				(assemble (compile-block x syntaxenv) user)))
           (process-file input-file
                         `(,output-file binary)
+			(assembly-declarations user)
                         write-lop
                         (lambda (x) 
 			  (assemble (compile x syntaxenv) user)))))
@@ -137,6 +144,7 @@
                                   *fasl-file-type*))))
       (process-file `(,infilename binary)
                     `(,outfilename binary)
+		    '()
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

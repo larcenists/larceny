@@ -262,16 +262,21 @@
 ; the order dumped.
 
 (define (dump-file! h filename)
-  (before-dump-file h filename)
   (call-with-binary-input-file filename
     (lambda (in)
-      (do ((segment (read in) (read in))
-           (thunks  '() (cons (dump-segment! h segment) thunks)))
-          ((eof-object? segment)
-           (after-dump-file h filename)
-           (reverse thunks))))))
+      (let loop ((decls '()))
+	(let ((item (read in)))
+	  (if (string? item)
+	      (loop (cons item decls))
+	      (begin
+		(before-dump-file h filename (reverse decls))
+		(do ((segment item (read in))
+		     (thunks  '() (cons (dump-segment! h segment) thunks)))
+		    ((eof-object? segment)
+		     (after-dump-file h filename)
+		     (reverse thunks))))))))))
 
-(define (before-dump-file h filename) #t)
+(define (before-dump-file h filename decls) #t)
 (define (after-dump-file h filename) #t)
 
 ; Dump a segment and return the heap address of the resulting thunk.

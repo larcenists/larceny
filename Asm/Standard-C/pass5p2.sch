@@ -30,16 +30,6 @@
 
 (define (assembly-start as)
   (let ((u (as-user as)))
-    (if (zero? (user-data.toplevel-counter u))
-	(begin
-	  (if (not (runtime-safety-checking))
-	      (emit-string! as "#define UNSAFE_CODE\n"))
-	  (if (not (catch-undefined-globals))
-	      (emit-string! as "#define UNSAFE_GLOBALS\n"))
-	  (if (inline-allocation)
-	      (emit-string! as "#define INLINE_ALLOCATION\n"))
-	  (if (inline-assignment)
-	      (emit-string! as "#define INLINE_ASSIGNMENT\n"))))
     (user-data.proc-counter! u 0)
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
   (let ((e (new-proc-id as)))
@@ -51,6 +41,19 @@
 (define (assembly-user-data)
   (make-user-data))
 
+(define (assembly-declarations user-data)
+  (append (if (not (runtime-safety-checking))
+	      '("#define UNSAFE_CODE")
+	      '())
+	  (if (not (catch-undefined-globals))
+	      '("#define UNSAFE_GLOBALS")
+	      '())
+	  (if (inline-allocation)
+	      '("#define INLINE_ALLOCATION")
+	      '())
+	  (if (inline-assignment)
+	      '("#define INLINE_ASSIGNMENT")
+	      '())))
 
 ; User-data structure has two fields:
 ;  toplevel-counter     Different for each compiled segment

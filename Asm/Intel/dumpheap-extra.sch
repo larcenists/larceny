@@ -97,19 +97,24 @@
     (display "Loading code for ") (display lop-file) (newline)
     (let ((fasl-file (rewrite-file-type lop-file ".lop" ".fasl")))
       (let ((entrypoints 
-	     (dump-segments (length *loadables*)
-			    fasl-file
-			    (call-with-input-file lop-file
-			      (lambda (in)
-				(do ((segment (read in) (read in))
-				     (segments '() (cons segment segments)))
-				    ((eof-object? segment)
-				     (reverse segments)))))
-			    #f)))
+	     (call-with-input-file lop-file
+	       (lambda (in)
+		 (let loop ((decls '()))
+		   (let ((item (read in)))
+		     (if (string? item)
+			 (loop (cons item decls))
+			 (do ((segment (read in) (read in))
+			      (segments '() (cons segment segments)))
+			     ((eof-object? segment)
+			      (dump-segments (length *loadables*)
+					     fasl-file
+					     (reverse segments)
+					     (reverse decls)
+					     #f))))))))))
 	(set! *loadables* (cons (cons *unique-id* (reverse entrypoints))
 				*loadables*)))))
 
-  (define (dump-segments bootstrap-id fasl-file segments so-name)
+  (define (dump-segments bootstrap-id fasl-file segments decls so-name)
     (before-dump-file #f filename)
     (delete-file fasl-file)
     (let ((entrypoints '())
@@ -146,7 +151,7 @@
 
   (if (null? rest)
       (dump-one-file filename)
-      (dump-segments #f filename (car rest) (cadr rest))))
+      (dump-segments #f filename (car rest) '() (cadr rest))))
 
 
 ; Specialized and more rational version of create-loadable-file, in three parts.
@@ -158,6 +163,7 @@
 (define *shared-object-entrypoints* #f)
 
 (define (begin-shared-object so-name so-expression)
+  (error "begin-shared-object needs to receive a list of assembly-declarations")
   (set! *shared-object-so-expression* so-expression)
   (set! *shared-object-so-name* so-name)
   (set! *shared-object-asm-name* (rewrite-file-type so-name '(".dll" ".so") ".asm"))
@@ -253,10 +259,10 @@
 (define (compute-unique-id c-name)
   (md5 c-name))
 
-(define (before-dump-file h filename)
+(define (before-dump-file h filename decls)
   (set! *segment-number* 0)
   (let* ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".asm"))
-	 (id (compute-unique-id c-name)))
+	 (id     (compute-unique-id c-name)))
     (set! *unique-id* id)
     (set! *already-compiled* (cons c-name *already-compiled*))
     (if (and (file-exists? c-name)
@@ -264,6 +270,8 @@
 	(set! *asm-output* #f)
 	(let ((c-file (open-output-file c-name)))
 	  (set! *asm-output* c-file)
+	  (for-each (lambda (d) (emit-c-code "~a~%" d))
+		    decls)
 	  (emit-c-code "%include \"i386-machine.ah\"~%")
 	  (emit-c-code "%include \"i386-instr.asm\"~%")))))
 
