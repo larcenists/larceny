@@ -5,30 +5,12 @@
  * See dof.txt, sim-dof.sch, and dof-larceny.txt for more information.
  * There is purposely very little documentation in this file.
  *
- * TODO
+ * FIXME/BUGS
  *   Must incorporate information about other areas when recomputing
  *   heap size (can we use gc_compute_dynamic_size()?).
  *
- *   Test a _lot_ more (entire suite).
- *
- *   Add support for memstats so we can start tuning.
- *
- *   Fix remset stats to report remset size, which memstats always
- *   reports as 0 (and the remsets here are huge...)
- *
- *   Consider whether there are special measurements to make for this GC
- *   to add to stats (eg mark/cons ratio; distinguish between promotion,
- *   minor gc, major (full) gc; repeat collections; resets)
- *
- *   Support DOF collector in system-features, and in code that depends
- *   on system-features.
- *
- *   Fix rs_clear to release remset data.
- *
- *   MUST support dump-stats; perhaps add an interface to dump-stats
- *   that allows gc-specific data to be printed by the GC?
- *
- *   Add command line switch for growth divisor.
+ *   Add command line switch for growth divisor, and support it in this
+ *   module (currently hardcodes growth).
  */
 
 #include <math.h>
@@ -66,48 +48,41 @@ struct gen {
   int         order;            /* Generation number (for barrier/remset) */
   semispace_t *live;            /* The data */
 
-  int         bytes_marked;     /* Since last GC */
+  int         bytes_copied;     /* Since last GC, including promotion */
   int         bytes_moved;      /* Since last GC */
 #if INVARIANT_CHECKING
-  remset_t *remset;             /* The remembered set */
-  los_list_t *los;              /* The LOS list */
+  remset_t    *remset;          /* The remembered set */
+  los_list_t  *los;             /* The LOS list */
 #endif
 };
 
 struct dof_data {
-  int area_size;                /* Total memory allocated */
+  int    area_size;             /* Total memory allocated */
   double load_factor;
-  int heap_limit;               /* 0 or the max area size in bytes */
-  int full_frequency;           /* 0 or frequency of full GCs */
-  int gc_counter;               /* counter for full GC management */
+  int    heap_limit;            /* 0 or the max area size in bytes */
+  int    full_frequency;        /* 0 or frequency of full GCs */
+  int    gc_counter;            /* counter for full GC management */
   double growth_divisor;        /* Controls heap expansion */
-  int ephemeral_size;           /* Max amount that can be promoted in from
+  int    ephemeral_size;        /* Max amount that can be promoted in from
                                    the ephemeral areas */
-  int quantum;                  /* Heap growth quantum */
-  int first_gen_no;             /* Generation number of lowest-numbered gen. */
+  int    quantum;               /* Heap growth quantum */
+  int    first_gen_no;          /* Generation number of lowest-numbered gen. */
 
-  gen_t **gen;                  /* Array of generation structures */
-  int s;                        /* Generation size in bytes */
-  int n;                        /* Number of generations */
-  int ap;                       /* Allocation pointer (index into gen) */
-  int cp;                       /* Collection pointer (index into gen) */
-  int rp;                       /* Reserve pointer (index into gen) */
+  gen_t  **gen;                 /* Array of generation structures */
+  int    s;                     /* Generation size in bytes */
+  int    n;                     /* Number of generations */
+  int    ap;                    /* Allocation pointer (index into gen) */
+  int    cp;                    /* Collection pointer (index into gen) */
+  int    rp;                    /* Reserve pointer (index into gen) */
 
   /* Statistics */
-  int consing;                  /* Amount of consing since reset */
-  int marking;                  /* Amount of marking since reset */
+  int    consing;               /* Amount of consing since reset */
+  int    marking;               /* Amount of marking since reset */
   double total_consing;         /* Total amount of consing */
   double total_marking;         /* Total amount of marking */
-  int promotions;               /* Number of promotions into DOF area */
-  int collections;              /* Number of collections in DOF area */
-  int max_size;                 /* Maximum area size */
-  int repeat_collections;       /* Number of repeat collections */
-  int resets;                   /* Number of resets */
-  /* Stats disjoint from the preceding */
-  int full_collections;         /* Number of whole-heap collections */
-  int full_marked;              /* Words of marking in full GC */
-  int full_traced;              /* Words of tracing in full GC */
-  int full_removed;             /* Remset entries removed by full GC */
+  int    max_size;              /* Maximum area size */
+
+  dof_stats_t stats;            /* Collector's exportable stats */
 };
 
 #define DATA(h) ((dof_data_t*)(h->data))
@@ -578,22 +553,17 @@ static void full_collection( old_heap_t *heap )
   /* DEBUG -- ditto */
   consolemsg( " Full collection ends.  Marked=%d traced=%d removed=%d",
               marked, traced, removed );
-  DATA(heap)->full_collections++;
-  DATA(heap)->full_marked += marked;
-  DATA(heap)->full_traced += traced;
-  DATA(heap)->full_removed += removed;
+  DATA(heap)->stats.full_collections++;
+  DATA(heap)->stats.objects_marked += marked;
+  DATA(heap)->stats.pointers_traced += traced;
+  DATA(heap)->stats.remset_entries_removed += removed;
 }
 
-static void promote_in( old_heap_t *heap )
+static void do_promote_in( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int live_before, live_after, ap_before, i, j;
+  int i, j;
   semispace_t *targets[ MAX_GENERATIONS+1 ];
-
-  annoyingmsg( " DOF promotion begins" );
-  data->promotions++;
-  live_before = gen_used( data->gen[data->ap] );
-  ap_before = data->ap;
 
   for ( i=data->ap, j=0 ; i >= 0 ; i--, j++ )
     targets[j] = data->gen[i]->live;
@@ -604,16 +574,40 @@ static void promote_in( old_heap_t *heap )
     gclib_copy_into_with_barrier(heap->collector, data->first_gen_no, targets,
                                  GCTYPE_PROMOTE );
   assert( data->ap >= 0 );
-  /* Is this rs_clear() redundant?  Normal remset removal might have cleared 
-     the remset already.  Might be better to avoid remset removal on the set 
-     because wholesale clearing is potentially faster (but is it?).
+  /* Note, normal remset removal might have cleared the remset already.
+     Might be better to avoid remset removal on the set because wholesale
+     clearing is potentially faster.  But don't throw away the rs_clear:
+     it also frees up memory used by the set.
      */
   rs_clear( heap->collector->remset[ data->first_gen_no ] );
+}
+
+static void promote_in( old_heap_t *heap )
+{
+  dof_data_t *data = DATA(heap);
+  int live_before, live_after, ap_before, i, los_before;
+
+  annoyingmsg( " DOF promotion begins" );
+  data->stats.promotions++;
+  live_before = gen_used( data->gen[data->ap] );
+  los_before = los_bytes_used( heap->collector->los, 
+                               data->gen[data->ap]->order+data->first_gen_no );
+  ap_before = data->ap;
+
+  do_promote_in( heap );
 
   live_after = 0;
-  for ( i=ap_before ; i >= data->ap ; i-- )
-    live_after += gen_used( data->gen[i] );
+  for ( i=ap_before ; i >= data->ap ; i-- ) {
+    int used = gen_used( data->gen[i] );
+    int los_used = los_bytes_used( heap->collector->los,
+                                   data->gen[i]->order + data->first_gen_no );
+    live_after += used + los_used;
+    data->gen[i]->bytes_copied += (i == ap_before ? used - live_before : used);
+    data->gen[i]->bytes_moved += 
+      (i == ap_before ? los_used - los_before : los_used );
+  }
   data->consing += live_after - live_before;
+  data->stats.bytes_promoted_in += live_after - live_before;
   annoyingmsg( " DOF promotion ends: AP=%d CP=%d RP=%d promoted=%d",
                data->ap, data->cp, data->rp, live_after-live_before );
 }
@@ -666,10 +660,10 @@ expand_heap_after_reset( old_heap_t *heap, int new_size, double mark_cons )
   if (per_block == 0)           /* Rounding happens */
     return;
 
-  annoyingmsg( "  Expanding heap.  Old=%d, new=%d, mark/cons=%.3f",
-               data->area_size,
-               data->area_size + (per_block * (data->n - 1)),
-               mark_cons );
+  consolemsg( "  Expanding heap.  Old=%d, new=%d, mark/cons=%.3f",
+              data->area_size,
+              data->area_size + (per_block * (data->n - 1)),
+              mark_cons );
   grow_all_generations( heap, per_block );
 }
 
@@ -685,7 +679,7 @@ static void reset_after_collection( old_heap_t *heap )
   if (data->consing == 0 && heap_free_space( heap ) == 0)
     panic("No progress in one full collection cycle, and heap limit reached.");
 
-  data->resets++;
+  data->stats.resets++;
   if (data->cp > 0) {
     annoyingmsg( "  Reset case 1.  AP=%d, CP=%d, RP=%d, mark/cons=%.3f",
                  data->ap, data->cp, data->rp, mark_cons );
@@ -800,22 +794,15 @@ static void post_collection_policy( old_heap_t *heap )
     reset_after_collection( heap );
 }
 
-static void perform_collection( old_heap_t *heap )
+static void do_perform_collection( old_heap_t *heap )
 {
-  dof_data_t *data = DATA(heap);
   semispace_t *targets[ MAX_GENERATIONS+1 ];
-  int i, j, reserve_after, reserve_before, old_rp;
-
-  data->collections++;
-  annoyingmsg("  Collecting: AP=%d CP=%d RP=%d", data->ap, data->cp, data->rp);
+  dof_data_t *data = DATA(heap);
+  int i, j;
 
   /* Copy into gen(RP) and perhaps gen(RP-1). */
-  old_rp = data->rp;
-  reserve_before = 0;
-  for ( i=old_rp, j=0 ; i > data->cp ; i--, j++ ) {
+  for ( i=data->rp, j=0 ; i > data->cp ; i--, j++ )
     targets[j] = data->gen[i]->live;
-    reserve_before += gen_used( data->gen[i] );
-  }
   targets[j] = 0;
   
   assert( data->gen[data->cp]->order == 0 );
@@ -824,15 +811,40 @@ static void perform_collection( old_heap_t *heap )
     gclib_copy_into_with_barrier(heap->collector, data->first_gen_no+1, 
                                  targets,
                                  GCTYPE_PROMOTE );
+
   /* See comments about rs_clear() in promote_in(). */
   rs_clear( heap->collector->remset[ data->first_gen_no ] );
   rs_clear( heap->collector->remset[ data->first_gen_no+1 ] );
+}
 
-  reserve_after = 0;
-  for ( i=old_rp ; i > data->cp ; i-- )
-    reserve_after += gen_used( data->gen[i] );
-  
-  data->marking += reserve_after - reserve_before;
+static void perform_collection( old_heap_t *heap )
+{
+  dof_data_t *data = DATA(heap);
+  int i, live_after, rp_before, live_before, los_before;
+
+  data->stats.collections++;
+  annoyingmsg("  Collecting: AP=%d CP=%d RP=%d", data->ap, data->cp, data->rp);
+
+  rp_before = data->rp;
+  live_before = gen_used( data->gen[rp_before] );
+  los_before = los_bytes_used( heap->collector->los,
+                               data->gen[rp_before]->order+data->first_gen_no);
+
+  do_perform_collection( heap );
+
+  live_after = 0;
+  for ( i=rp_before ; i >= data->rp ; i-- ) {
+    int used = gen_used( data->gen[i] );
+    int los_used = los_bytes_used( heap->collector->los,
+                                   data->gen[i]->order + data->first_gen_no );
+
+    live_after += gen_used( data->gen[i] );
+    data->gen[i]->bytes_copied += (i == rp_before ? used - live_before : used);
+    data->gen[i]->bytes_moved += 
+      (i == rp_before ? los_used - los_before : los_used);
+  }  
+  data->marking += live_after - live_before;
+
   post_collection_policy( heap );
 }
 
@@ -845,14 +857,22 @@ static void maybe_collect( old_heap_t *heap )
   while (free_in_allocation_area(data) < space_needed_for_promotion(data)) {
     annoyingmsg( " DOF collection begins" );
     if (repeating) 
-      data->repeat_collections++;
+      data->stats.repeats++;
     if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
+      gc_start_gc( heap->collector );
+      stats_gc_type( data->first_gen_no, GCTYPE_FULL );
       full_collection( heap );
+      gc_end_gc( heap->collector ); 
       check_invariants( heap, FALSE );
       data->gc_counter = 0;
     }
     marking_before = data->marking + data->total_marking;
+
+    gc_start_gc( heap->collector );
+    stats_gc_type( data->first_gen_no, GCTYPE_COLLECT );
     perform_collection( heap );
+    gc_end_gc( heap->collector );
+
     check_invariants( heap, FALSE );
     annoyingmsg( " DOF collection ends: AP=%d CP=%d RP=%d survivors=%.0f",
                  data->ap, data->cp, data->rp, 
@@ -889,9 +909,16 @@ static void collect( old_heap_t *heap, gc_type_t request )
   annoyingmsg( "DOF collection cycle begins: AP=%d CP=%d RP=%d",
                data->ap, data->cp, data->rp );
   check_invariants( heap, FALSE );
+
+  gc_start_gc( heap->collector );
+  stats_gc_type( data->first_gen_no, GCTYPE_PROMOTE );
   promote_in( heap );
+  gc_end_gc( heap->collector );
+
   check_invariants( heap, FALSE );
+
   maybe_collect( heap );
+
   check_invariants( heap, TRUE );
   annoyingmsg( "DOF collection cycle ends",
                data->ap, data->cp, data->rp );
@@ -899,15 +926,21 @@ static void collect( old_heap_t *heap, gc_type_t request )
 
 static void before_collection( old_heap_t *heap )
 {
+  int i;
+  int used;
+
+  heap->maximum = DATA(heap)->area_size;
+  
+  used = 0;
+  for ( i=0 ; i < DATA(heap)->n ; i++ )
+    used += gen_used( DATA(heap)->gen[i] );
+  heap->allocated = used;
 }
 
 static void after_collection( old_heap_t *heap )
 {
 }
 
-/* It's not all that meaningful to shoehorn the DOF stats into
-   the common stats structure!
-   */
 static void stats( old_heap_t *heap, int gen, heap_stats_t *stats )
 {
   dof_data_t *data = DATA(heap);
@@ -918,14 +951,17 @@ static void stats( old_heap_t *heap, int gen, heap_stats_t *stats )
     if (data->gen[i]->order + data->first_gen_no == gen) {
       g = data->gen[i];
       stats->live = gen_used( g );
-      stats->copied_last_gc = g->bytes_marked;
+      stats->copied_last_gc = g->bytes_copied;
       stats->moved_last_gc = g->bytes_moved;
       stats->semispace1 = g->claim;
       stats->target = g->size;
-      g->bytes_marked = 0;
+      g->bytes_copied = 0;
       g->bytes_moved = 0;
-      return;
+      break;
     }
+  stats->dof_generation = TRUE;
+  stats->dof = data->stats;
+  memset( &data->stats, 0, sizeof( data->stats ) );
 }
 
 static word *data_load_area( old_heap_t *heap, int nbytes )
@@ -1014,6 +1050,10 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
   return heap;
 }
 
+void dof_gc_parameters( old_heap_t *heap, int *size )
+{
+  *size = DATA(heap)->gen[0]->size;
+}
 
 /* Below this point is gclib_copy_into_with_barrier().  I have chosen 
    to put the code in this file rather than in cheney.c, where it
