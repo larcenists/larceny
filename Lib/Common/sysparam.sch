@@ -8,16 +8,20 @@
 
 ; System parameters are defined in the Library using this procedure.
 
-(define (system-parameter name value)
-  (lambda rest
-    (cond ((null? rest)
-	   value)
-	  ((null? (cdr rest))
-	   (set! value (car rest))
-	   value)
-	  (else
-	   (error name ": too many arguments.")
-	   #t))))
+(define (system-parameter name value . rest)
+  (let ((ok? (if (null? rest) (lambda (x) #t) (car rest))))
+    (lambda rest
+      (cond ((null? rest)
+	     value)
+	    ((null? (cdr rest))
+	     (if (ok? (car rest))
+		 (begin (set! value (car rest))
+			value)
+		 (begin (error name ": Invalid value " (car rest))
+			#t)))
+	    (else
+	     (error name ": too many arguments.")
+	     #t)))))
 
 ; Returns an assoc list of system information.
 
