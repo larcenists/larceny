@@ -6,10 +6,11 @@ SPARC Larceny version 1.0a2, tentative release date 1 June 1999.
 
 Major features at a glance:
 
-  * Twobit pass 3
+  * Twobit pass 3, other fixes
   * Foreign function interface
   * Performance bug fixes (named LET, CASE)
   * Correctness bug fixes (sundry)
+  * SRFI-0 support (in the full heap)
 
 -------------------------------
 
@@ -21,9 +22,7 @@ Remaining to-do items:
      (list to be determined)
 
 [Twobit]
-  * Pass 3.
   * Macro expander performance.
-  * SRFI-0
 
 [Run-time system]
   * Must deal with more signals on Unix systems.  See TODO for details.
