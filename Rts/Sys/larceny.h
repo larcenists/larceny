@@ -154,6 +154,7 @@ extern void stats_before_gc( void );
 extern void stats_gc_type( int gen, stats_gc_t type );
 extern void stats_after_gc( void );
 extern unsigned stats_rtclock( void );
+extern void stats_add_gctime( long s, long ms );
 
 /* In "Rts/Sys/version.c" */
 
