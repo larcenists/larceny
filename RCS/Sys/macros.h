@@ -2,11 +2,11 @@
  *
  * Scheme Run-Time System
  * Machine and representation dependent (and independent) macros,
- * including tag definitions and tag masks.
+ * including tag definitions and tag masks, and interesting constants.
  *
  * For C-language routines.
  *
- * $Id: macros.h,v 1.1 91/06/25 13:36:59 lth Exp Locker: lth $
+ * $Id: macros.h,v 1.2 91/06/26 15:40:38 lth Exp Locker: lth $
  */
 
 /* Type tags as found at the low end of a scheme object pointer/value */
@@ -39,6 +39,11 @@
 #define STR_SUBTAG	0x00		/* string */
 #define BVEC_SUBTAG	0x04		/* bytevector */
 
+/* Constants */
+#define TRUE_CONST	0x00000006
+#define FALSE_CONST	0x00000002
+#define NIL_CONST	0x0000000A
+
 /* Various masks. Change BIT_MASK if your word is not 32 bits long. */
 #define TAG_MASK	0x00000007	/* extract bits 2, 1, and 0 */
 #define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
@@ -67,8 +72,8 @@
 /* extract header tag from a header word */
 #define header( w )         ((word) (w) & HDR_MASK)
 
-/* Create a header given integer (not fixnum!) size, and tag. */
-#define mkheader( size, tag )  (((word) (w) << 8) | (tag))
+/* Create a header given integer (not fixnum!) size (in bytes), and tag. */
+#define mkheader( size, tag )  (((word) (size) << 8) | (tag))
 
 /* a word is a pointer if the low bit is set */
 #define isptr( w )          ((word) (w) & 0x01)
