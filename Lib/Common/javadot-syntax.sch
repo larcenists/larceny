@@ -91,9 +91,9 @@
                     trailing-dot-class?
                     embedded-dot?))))
 
-(define-syntax .javadot
-  (transformer
-   (lambda (exp rename compare)
-     (let ((exp (cadr exp)))
-       (display "inside .javadot: ") (write exp) (newline)
-       (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp))))))
+;(define-syntax .javadot
+;  (transformer
+;   (lambda (exp rename compare)
+;     (let ((exp (cadr exp)))
+;       (display "inside .javadot: ") (write exp) (newline)
+;       (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp))))))

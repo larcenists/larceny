@@ -371,6 +371,19 @@
     ((.call ?inlines ?op ?exp)
      ?exp)))
 
+;; .javadot needs to be in the usual syntactic environment.
+;(define-syntax .javadot
+;  (transformer
+;   (lambda (exp rename compare)
+;     (let ((exp (cadr exp)))
+;       (display "inside .javadot: ") (write exp) (newline)
+;       (list (rename 'dotnet-mumble) (javadot-symbol->symbol exp))))))
+
+(define-syntax .javadot
+  (syntax-rules ()
+    ((_ ?exp)
+     (dotnet-mumble ?exp))))
+
 ))  ; end of (for-each (lambda (x) (macro-expand ...)) ...)
 
 (define-syntax-scope 'letrec)
