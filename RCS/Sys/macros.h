@@ -1,38 +1,59 @@
-/*
+/* -*- Fundamental -*-
+ *
  * Scheme Run-Time System
  * Machine and representation dependent (and independent) macros,
  * including tag definitions and tag masks.
  *
  * For C-language routines.
  *
- * $Id$
+ * $Id: macros.h,v 1.1 91/06/25 13:36:59 lth Exp Locker: lth $
  */
 
-/* Type tags */
-#define FIX1_TAG            0x0
-#define FIX2_TAG            0x4
-#define IMM1_TAG            0x2
-#define IMM2_TAG            0x6
-#define PAIR_TAG            0x1
-#define VEC_TAG             0x3
-#define BVEC_TAG            0x5
-#define PROC_TAG            0x7
+/* Type tags as found at the low end of a scheme object pointer/value */
+#define FIX1_TAG            0x0		/* fixnum */
+#define FIX2_TAG            0x4		/* fixnum */
+#define IMM1_TAG            0x2		/* immediate */
+#define IMM2_TAG            0x6		/* immediate */
+#define PAIR_TAG            0x1		/* pair pointer */
+#define VEC_TAG             0x3		/* vector pointer */
+#define BVEC_TAG            0x5		/* bytevector pointer */
+#define PROC_TAG            0x7		/* procedure pointer */
 
 /* Header tags */
-#define RES_HDR             0x82
-#define VEC_HDR             0xA2
-#define BV_HDR              0xC2
-#define PROC_HDR            0xFE
+#define RES_HDR             0x82	/* reserved */
+#define VEC_HDR             0xA2	/* vector-like */
+#define BV_HDR              0xC2	/* bytevector-like */
+#define PROC_HDR            0xFE	/* procedure */
+
+/* Subtags go in the 'xxx' fields in the low bytes of a vector or bytevector
+ * header, and are picked from the following set of values:
+ *
+ *     0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x18, 0x1C
+ */
+
+/* Subtags for vector headers. */
+#define VEC_SUBTAG	0x00		/* vector */
+#define CONT_SUBTAG	0x04		/* continuation frame */
+
+/* Subtags for bytevector headers. */
+#define STR_SUBTAG	0x00		/* string */
+#define BVEC_SUBTAG	0x04		/* bytevector */
 
 /* Various masks. Change BIT_MASK if your word is not 32 bits long. */
-#define TAG_MASK            0x00000007     /* extract bits 2, 1, and 0 */
-#define ISHDR_MASK          0x00000083     /* extract bits 7, 1, and 0 */
-#define HDR_SIGN            0x00000082     /* header signature */
-#define HDR_MASK            0x000000E3     /* Mask to extract header info */
-#define BIT_MASK            0x80000000     /* Mask for 'traced' bit */
+#define TAG_MASK	0x00000007	/* extract bits 2, 1, and 0 */
+#define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
+#define HDR_SIGN	0x00000082	/* header signature */
+#define HDR_MASK	0x000000E3	/* Mask to extract header info */
+#define BIT_MASK	0x80000000	/* Mask for 'traced' bit */
 
 /* Convert integer to fixnum */
 #define fixnum( x )  ((x) << 2)
+
+/* Convert fixnum to integer. Watch the sign! Can't use a shift here (sigh).
+ * Might be faster to keep the sign, shift the absvalue, and convert the
+ * sign again than to actually divide the signed number.
+ */
+#define nativeint( x ) ((word) ((long) (x) / 4))
 
 /* Given tagged pointer, return tag */
 #define tagof( w )          ((word)(w) & TAG_MASK)
@@ -45,6 +66,9 @@
 
 /* extract header tag from a header word */
 #define header( w )         ((word) (w) & HDR_MASK)
+
+/* Create a header given integer (not fixnum!) size, and tag. */
+#define mkheader( size, tag )  (((word) (w) << 8) | (tag))
 
 /* a word is a pointer if the low bit is set */
 #define isptr( w )          ((word) (w) & 0x01)
