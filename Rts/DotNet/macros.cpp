@@ -123,3 +123,105 @@
     public override SObject op_##method(SObject arg2, SObject arg3)
 #define OP3_OVERRIDE_REVERSED(method, type) \
     public override SObject op_reversed_##method(type arg1, SObject arg3)
+
+/* Special Operations */
+
+#define SPECIALOP1_VIRTUAL_EXN(method, excode) \
+    public virtual void op_##method() { \
+        Exn.fault(Constants.excode, null, this); \
+    }
+#define SPECIALOP1_VIRTUAL_MS(method, mscode) \
+    public virtual void op_##method() { \
+        Call.callMillicodeSupport1(Constants.mscode, this); \
+    }
+#define SPECIALOP1(method) \
+    public void op_##method()
+#define SPECIALOP1_OVERRIDE(method) \
+    public override void op_##method()
+
+#define SPECIALOP2(method) \
+    public void op_##method(SObject arg2)
+
+#define SPECIALOP2_VIRTUAL(method) \
+    public virtual void op_##method(SObject arg2)
+
+
+#define SPECIALOP2_NUMERIC_DEFAULT(method, contagion_method, generic_code) \
+    public virtual void op_##method(SObject arg2) { \
+        Procedure generic = Call.getSupportProcedure(Constants.generic_code); \
+        Call.contagion_method(this, arg2, generic); \
+    }
+#define SPECIALOP2_REVERSED(method) \
+    public virtual void op_reversed_generic_##method(SObject arg1)
+
+#define SPECIALOP2_REVERSED_GENERIC(method, contagion_method, generic) \
+    public void op_reversed_generic_##method(SObject arg1) { \
+        Procedure generic = Call.getSupportProcedure(Constants.generic); \
+        Call.contagion_method(arg1, this, generic); \
+    }
+#define SPECIALOP2_VIRTUAL_REVERSED_CASE(method, case, type) \
+    public virtual void op_reversed_##case##_##method(type arg1) { \
+        this.op_reversed_generic_##method(arg1); \
+    }
+
+#define SPECIALOP2_NUMERIC_SET(method, contagion_method, generic_code) \
+    SPECIALOP2_NUMERIC_DEFAULT(method, contagion_method, generic_code) \
+    SPECIALOP2_REVERSED_GENERIC(method, contagion_method, generic_code) \
+    SPECIALOP2_VIRTUAL_REVERSED_SET(method)
+
+#define SPECIALOP2_VIRTUAL_REVERSED_SET(method) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, fixnum, SFixnum) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, bignum, SByteVL) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, flonum, SByteVL) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, compnum, SByteVL) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, ratnum, SVL) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, rectnum, SVL)
+
+#define SPECIALOP2_OVERRIDE_REVERSED_CASE(method, case, type) \
+    public override void op_reversed_##case##_##method(type arg1)
+
+#define SPECIALOP2_CHAIN_FIXNUM(method) \
+    public override void op_##method(SObject arg2) { \
+        arg2.op_reversed_fixnum_##method(this); \
+    }
+#define SPECIALOP2_CHAIN_SByteVL(method) \
+    public override void op_##method(SObject arg2) { \
+        if (this.tag == Tags.BignumTag) { \
+            arg2.op_reversed_bignum_##method(this); \
+        } else if (this.tag == Tags.FlonumTag) { \
+            arg2.op_reversed_flonum_##method(this); \
+        } else if (this.tag == Tags.CompnumTag) { \
+            arg2.op_reversed_compnum_##method(this); \
+        } else { \
+            base.op_##method(this); \
+        } \
+    }
+#define SPECIALOP2_CHAIN_SVL(method) \
+    public override void op_##method(SObject arg2) { \
+       if (this.tag == Tags.RatnumTag) { \
+           arg2.op_reversed_ratnum_##method(this); \
+       } else if (this.tag == Tags.RectnumTag) { \
+           arg2.op_reversed_rectnum_##method(this); \
+       } else { \
+           base.op_##method(this); \
+       } \
+    }
+
+#define SPECIALOP2_OVERRIDE_REVERSED_HANDLE(method, case, type, ttag) \
+    public override void op_reversed_##case##_##method(type arg1) { \
+        if (this.tag == Tags.ttag) { \
+            this.op_reversed_##case##_##ttag##_##method(arg1); \
+        } else { \
+            base.op_reversed_##case##_##method(arg1); \
+        } \
+    } \
+    private void op_reversed_##case##_##ttag##_##method(type arg1) 
+
+#define SPECIALOP2_OVERRIDE_REV_MS(method, case, type, ttag, mscode) \
+    public override void op_reversed_##case##_##method(type arg1) { \
+        if (this.tag == Tags.ttag) { \
+            Call.callMillicodeSupport2(Constants.mscode, arg1, this); \
+        } else { \
+            base.op_reversed_##case##_##method(arg1); \
+        } \
+    }

@@ -20,6 +20,7 @@
 /* OP2_CHAIN overrides the operation to chain to 
  *   the reversed form of itself on arg2
  */
+/* Special Operations */
 using System;
 using System.Collections;
 using System.IO;
@@ -28,24 +29,6 @@ using Scheme.RT;
 using Scheme.Rep;
 
 namespace Scheme.Rep {
-
-    // -------------------------------------------
-    // Tags
-    // -------------------------------------------
-    public sealed class Tags {
-        public static readonly int VectorTag = Constants.VEC_SUBTAG >>2;
-        public static readonly int RectnumTag = Constants.RECT_SUBTAG >>2;
-        public static readonly int RatnumTag = Constants.RAT_SUBTAG >>2;
-        public static readonly int StructureTag = Constants.STRUCT_SUBTAG >>2;
-        public static readonly int PortTag = 4; // FIXME: From Lib/Common/typetags.sch
-        public static readonly int SymbolTag = Constants.SYM_SUBTAG >>2;
-
-        public static readonly int ByteVectorTag = Constants.BVEC_SUBTAG >>2;
-        public static readonly int StringTag = Constants.STR_SUBTAG >>2;
-        public static readonly int CompnumTag = Constants.COMP_SUBTAG >>2;
-        public static readonly int BignumTag = Constants.BIG_SUBTAG >>2;
-        public static readonly int FlonumTag = Constants.FLO_SUBTAG >>2;
-    }
 
     // -------------------------------------------
     // SObject
@@ -160,10 +143,11 @@ namespace Scheme.Rep {
         // Vector Operations
         public virtual SObject op_make_vector(SObject arg2) { Exn.fault(Constants.EX_MKVL, null, this, arg2); return Factory.Impossible; }
         public virtual SObject op_vector_length() { Exn.fault(Constants.EX_VECTOR_LENGTH, null, this); return Factory.Impossible; }
+        public virtual SObject op_vector_length_vec() { Exn.fault(Constants.EX_VECTOR_LENGTH, null, this); return Factory.Impossible; }
         public virtual SObject op_vector_ref(SObject arg2) { Exn.fault(Constants.EX_VECTOR_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_vector_ref(SVL arg1) { Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this); return Factory.Impossible; }
-            //        OP2_VIRTUAL_EXN_PAIR(vector_ref_trusted, EX_VECTOR_REF, SVL)
+        public virtual SObject op_vector_ref_trusted(SObject arg2) { Exn.fault(Constants.EX_VECTOR_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_vector_ref_trusted(SVL arg1) { Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_vector_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
-            //        OP3_VIRTUAL_EXN_PAIR(vector_set_trusted, EX_VECTOR_SET, SVL)
+        public virtual SObject op_vector_set_trusted(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set_trusted(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
 
         // Procedure Operations
         public virtual SObject op_procedure_length() { Exn.fault(Constants.EX_PROCEDURE_LENGTH, null, this); return Factory.Impossible; }
@@ -174,10 +158,11 @@ namespace Scheme.Rep {
         // String Operations
         public virtual SObject op_make_string(SObject arg2) { Exn.fault(Constants.EX_MKBVL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_make_string(SFixnum arg1) { Exn.fault(Constants.EX_MKBVL, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_string_length() { Exn.fault(Constants.EX_STRING_LENGTH, null, this); return Factory.Impossible; }
+        public virtual SObject op_string_length_str() { Exn.fault(Constants.EX_STRING_LENGTH, null, this); return Factory.Impossible; }
         public virtual SObject op_string_ref(SObject arg2) { Exn.fault(Constants.EX_STRING_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_string_ref(SByteVL arg1) { Exn.fault(Constants.EX_STRING_REF, null, arg1, this); return Factory.Impossible; }
-            //        OP2_VIRTUAL_EXN_PAIR(string_ref_trusted, EX_STRING_REF, SByteVL)
+        public virtual SObject op_string_ref_trusted(SObject arg2) { Exn.fault(Constants.EX_STRING_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_string_ref_trusted(SByteVL arg1) { Exn.fault(Constants.EX_STRING_REF, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_string_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_string_set(SByteVL arg1, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, arg1, this, arg3); return Factory.Impossible; }
-            //        OP3_VIRTUAL_EXN_PAIR(string_set_trusted, EX_STRING_SET, SByteVL)
+        public virtual SObject op_string_set_trusted(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_string_set_trusted(SByteVL arg1, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, arg1, this, arg3); return Factory.Impossible; }
 
         // Bytevector Operations
         public virtual SObject op_make_bytevector() { Exn.fault(Constants.EX_MKBVL, null, this); return Factory.Impossible; }
@@ -224,56 +209,15 @@ namespace Scheme.Rep {
         public virtual SObject op_real_part() { Exn.fault(Constants.EX_REALPART, null, this); return Factory.Impossible; }
         public virtual SObject op_imag_part() { Exn.fault(Constants.EX_IMAGPART, null, this); return Factory.Impossible; }
 
-        // -------------------
-        // Special Operations
-        // -------------------
+        public virtual SObject op_plus_idx_idx(SObject arg2) { Exn.fault(Constants.EX_ADD, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_plus_idx_idx(SFixnum arg1) { Exn.fault(Constants.EX_ADD, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_minus_idx_idx(SObject arg2) { Exn.fault(Constants.EX_SUB, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_minus_idx_idx(SFixnum arg1) { Exn.fault(Constants.EX_SUB, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_equal_fix_fix(SObject arg2) { Exn.fault(Constants.EX_EQUALP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_equal_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_EQUALP, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_less_fix_fix(SObject arg2) { Exn.fault(Constants.EX_LESSP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_less_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_LESSP, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_lessequal_fix_fix(SObject arg2) { Exn.fault(Constants.EX_LESSEQP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_lessequal_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_LESSEQP, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_greater_fix_fix(SObject arg2) { Exn.fault(Constants.EX_GREATERP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_greater_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_GREATERP, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_greaterequal_fix_fix(SObject arg2) { Exn.fault(Constants.EX_GREATEREQP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_greaterequal_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_GREATEREQP, null, arg1, this); return Factory.Impossible; }
 
-        //SPECIALOP1_VIRTUAL_EXN(enable_interrupts, EX_EINTR)
-        //public void disable_interrupts() {
-        //    if (Reg.interruptsEnabled) {
-        //        Reg.interruptsEnabled = false;
-        //        Reg.Result = Factory.makeFixnum((int)Reg.timer);
-        //    } else {
-        //        Reg.Result = Factory.makeBoolean(false);
-        //    }
-        //    Exn.checkSignals();
-        //}
-
-        //SPECIALOP1_VIRTUAL_EXN(syscall)
-        //
-        //SPECIALOP1_VIRTUAL_EXN(zerop)
-        //SPECIALOP2_VIRTUAL_EXN(eqvp)
-        //SPECIALOP2_VIRTUAL_EXN(numeric_equals)
-        //SPECIALOP2_VIRTUAL_EXN(less_than)
-        //SPECIALOP2_VIRTUAL_EXN(greater_than)
-        //SPECIALOP2_VIRTUAL_EXN(less_or_equal)
-        //SPECIALOP2_VIRTUAL_EXN(greater_or_equal)
-
-        //SPECIALARITH2(plus)  // Declares plus_2 for SFixum, SVL, SByteVL
-        //SPECIALARITH2(minus)
-        //SPECIALARITH2(multiply)
-        //SPECIALARITH2(divide)
-        //SPECIALARITH2(quotient)
-        //SPECIALARITH2(remainder)
-        //SPECIALOP1_VIRTUAL_EXN(truncate)
-        //SPECIALOP1_VIRTUAL_EXN(round)
-        //SPECIALOP1_VIRTUAL_EXN(negative)
-        //SPECIALOP1_VIRTUAL_EXN(exact2inexact)
-        //SPECIALOP1_VIRTUAL_EXN(inexact2exact)
-
-        // THE STUFF I WAS TOO LAZY TO PORT
-        public SObject op_vector_length_vec() {
-            return Factory.makeFixnum(((SVL)this).length());
-        }
-        public SObject op_vector_ref_trusted(SObject arg2) {
-            SObject arg1 = this;
-            return ((SVL)arg1).elementAt(((SFixnum)arg2).value);;
-        }
-        public SObject op_vector_set_trusted(SObject arg2, SObject arg3) {
-            SObject arg1 = this;
-            ((SVL)arg1).setElementAt(((SFixnum)arg2).value, arg3);
-            return Factory.Unspecified;
-        }
+        // Misc Operations
         public SObject op_sys_partial_list__vector(SObject arg2) {
             SObject arg1 = this;
             int n = ((SFixnum)arg2).value;
@@ -284,57 +228,58 @@ namespace Scheme.Rep {
             }
             return Factory.makeVector(items);
         }
-        public SObject op_string_length_str() {
-            SObject arg = this;
-            return Factory.makeFixnum(((SByteVL)arg).length());
-        }
 
-        public SObject op_string_ref_trusted(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeChar(((SByteVL)arg1).elements[((SFixnum)arg2).value]);
-        }
-        public SObject op_string_set_trusted(SObject arg2, SObject arg3) {
-            SObject arg1 = this;
-            SByteVL a = (SByteVL) arg1;
-            a.elements[((SFixnum)arg2).value] = (byte)((SChar)arg3).val;
-            return Factory.Unspecified;
-        }
-        public SObject op_plus_idx_idx(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeNumber
-                (((SFixnum)arg1).value + ((SFixnum)arg2).value);
-        }
-        public SObject op_minus_idx_idx(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeNumber
-                (((SFixnum)arg1).value - ((SFixnum)arg2).value);
-        }
-        public SObject op_equal_fix_fix(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeBoolean
-                (((SFixnum)arg1).value == ((SFixnum)arg2).value);
-        }
-        public SObject op_less_fix_fix(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeBoolean
-                (((SFixnum)arg1).value < ((SFixnum)arg2).value);
-        }
-        public SObject op_lessequal_fix_fix(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeBoolean
-                (((SFixnum)arg1).value <= ((SFixnum)arg2).value);
-        }
-        public SObject op_greater_fix_fix(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeBoolean
-                (((SFixnum)arg1).value > ((SFixnum)arg2).value);
-        }
-        public SObject op_greaterequal_fix_fix(SObject arg2) {
-            SObject arg1 = this;
-            return Factory.makeBoolean
-                (((SFixnum)arg1).value >= ((SFixnum)arg2).value);
-        }
+        // -------------------
+        // Special Operations
+        // -------------------
 
+        public virtual void op_enable_interrupts() { Exn.fault(Constants.EX_EINTR, null, this); }
+        public void op_disable_interrupts() {
+            if (Reg.interruptsEnabled) {
+                        Reg.interruptsEnabled = false;
+                        Reg.Result = Factory.makeFixnum((int)Reg.timer);
+            } else {
+                Reg.Result = Factory.makeBoolean(false);
+            }
+            Exn.checkSignals();
+        }
+        public virtual void op_syscall() { Exn.fault(Constants.EX_UNSUPPORTED, null, this); }
+
+        public virtual void op_zerop() { Exn.fault(Constants.EX_ZEROP, null, this); }
+        public void op_eqvp(SObject arg2) {
+            if (this == arg2) {
+                Reg.Result = Factory.True;
+            } else {
+                this.op_eqvp_not_eq(arg2);
+            }
+        }
+        public virtual void op_eqvp_not_eq(SObject arg2) {
+            Reg.Result = Factory.False;
+        }
+        public virtual void op_reversed_generic_eqvp_not_eq(SObject arg1) {
+            Reg.Result = Factory.False;
+        }
+        public virtual void op_reversed_fixnum_eqvp_not_eq(SFixnum arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); } public virtual void op_reversed_bignum_eqvp_not_eq(SByteVL arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); } public virtual void op_reversed_flonum_eqvp_not_eq(SByteVL arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); } public virtual void op_reversed_compnum_eqvp_not_eq(SByteVL arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); } public virtual void op_reversed_ratnum_eqvp_not_eq(SVL arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); } public virtual void op_reversed_rectnum_eqvp_not_eq(SVL arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); }
+        public virtual void op_reversed_char_eqvp_not_eq(SChar arg1) { this.op_reversed_generic_eqvp_not_eq(arg1); }
+
+        public virtual void op_numeric_equals(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_EQUAL); Call.econtagion(this, arg2, generic); } public void op_reversed_generic_numeric_equals(SObject arg1) { Procedure MS_GENERIC_EQUAL = Call.getSupportProcedure(Constants.MS_GENERIC_EQUAL); Call.econtagion(arg1, this, MS_GENERIC_EQUAL); } public virtual void op_reversed_fixnum_numeric_equals(SFixnum arg1) { this.op_reversed_generic_numeric_equals(arg1); } public virtual void op_reversed_bignum_numeric_equals(SByteVL arg1) { this.op_reversed_generic_numeric_equals(arg1); } public virtual void op_reversed_flonum_numeric_equals(SByteVL arg1) { this.op_reversed_generic_numeric_equals(arg1); } public virtual void op_reversed_compnum_numeric_equals(SByteVL arg1) { this.op_reversed_generic_numeric_equals(arg1); } public virtual void op_reversed_ratnum_numeric_equals(SVL arg1) { this.op_reversed_generic_numeric_equals(arg1); } public virtual void op_reversed_rectnum_numeric_equals(SVL arg1) { this.op_reversed_generic_numeric_equals(arg1); }
+        public virtual void op_less_than(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_LESS); Call.pcontagion(this, arg2, generic); } public void op_reversed_generic_less_than(SObject arg1) { Procedure MS_GENERIC_LESS = Call.getSupportProcedure(Constants.MS_GENERIC_LESS); Call.pcontagion(arg1, this, MS_GENERIC_LESS); } public virtual void op_reversed_fixnum_less_than(SFixnum arg1) { this.op_reversed_generic_less_than(arg1); } public virtual void op_reversed_bignum_less_than(SByteVL arg1) { this.op_reversed_generic_less_than(arg1); } public virtual void op_reversed_flonum_less_than(SByteVL arg1) { this.op_reversed_generic_less_than(arg1); } public virtual void op_reversed_compnum_less_than(SByteVL arg1) { this.op_reversed_generic_less_than(arg1); } public virtual void op_reversed_ratnum_less_than(SVL arg1) { this.op_reversed_generic_less_than(arg1); } public virtual void op_reversed_rectnum_less_than(SVL arg1) { this.op_reversed_generic_less_than(arg1); }
+        public virtual void op_less_or_equal(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_LESSEQ); Call.pcontagion(this, arg2, generic); } public void op_reversed_generic_less_or_equal(SObject arg1) { Procedure MS_GENERIC_LESSEQ = Call.getSupportProcedure(Constants.MS_GENERIC_LESSEQ); Call.pcontagion(arg1, this, MS_GENERIC_LESSEQ); } public virtual void op_reversed_fixnum_less_or_equal(SFixnum arg1) { this.op_reversed_generic_less_or_equal(arg1); } public virtual void op_reversed_bignum_less_or_equal(SByteVL arg1) { this.op_reversed_generic_less_or_equal(arg1); } public virtual void op_reversed_flonum_less_or_equal(SByteVL arg1) { this.op_reversed_generic_less_or_equal(arg1); } public virtual void op_reversed_compnum_less_or_equal(SByteVL arg1) { this.op_reversed_generic_less_or_equal(arg1); } public virtual void op_reversed_ratnum_less_or_equal(SVL arg1) { this.op_reversed_generic_less_or_equal(arg1); } public virtual void op_reversed_rectnum_less_or_equal(SVL arg1) { this.op_reversed_generic_less_or_equal(arg1); }
+        public virtual void op_greater_than(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_GREATER); Call.pcontagion(this, arg2, generic); } public void op_reversed_generic_greater_than(SObject arg1) { Procedure MS_GENERIC_GREATER = Call.getSupportProcedure(Constants.MS_GENERIC_GREATER); Call.pcontagion(arg1, this, MS_GENERIC_GREATER); } public virtual void op_reversed_fixnum_greater_than(SFixnum arg1) { this.op_reversed_generic_greater_than(arg1); } public virtual void op_reversed_bignum_greater_than(SByteVL arg1) { this.op_reversed_generic_greater_than(arg1); } public virtual void op_reversed_flonum_greater_than(SByteVL arg1) { this.op_reversed_generic_greater_than(arg1); } public virtual void op_reversed_compnum_greater_than(SByteVL arg1) { this.op_reversed_generic_greater_than(arg1); } public virtual void op_reversed_ratnum_greater_than(SVL arg1) { this.op_reversed_generic_greater_than(arg1); } public virtual void op_reversed_rectnum_greater_than(SVL arg1) { this.op_reversed_generic_greater_than(arg1); }
+        public virtual void op_greater_or_equal(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_GREATEREQ); Call.pcontagion(this, arg2, generic); } public void op_reversed_generic_greater_or_equal(SObject arg1) { Procedure MS_GENERIC_GREATEREQ = Call.getSupportProcedure(Constants.MS_GENERIC_GREATEREQ); Call.pcontagion(arg1, this, MS_GENERIC_GREATEREQ); } public virtual void op_reversed_fixnum_greater_or_equal(SFixnum arg1) { this.op_reversed_generic_greater_or_equal(arg1); } public virtual void op_reversed_bignum_greater_or_equal(SByteVL arg1) { this.op_reversed_generic_greater_or_equal(arg1); } public virtual void op_reversed_flonum_greater_or_equal(SByteVL arg1) { this.op_reversed_generic_greater_or_equal(arg1); } public virtual void op_reversed_compnum_greater_or_equal(SByteVL arg1) { this.op_reversed_generic_greater_or_equal(arg1); } public virtual void op_reversed_ratnum_greater_or_equal(SVL arg1) { this.op_reversed_generic_greater_or_equal(arg1); } public virtual void op_reversed_rectnum_greater_or_equal(SVL arg1) { this.op_reversed_generic_greater_or_equal(arg1); }
+
+        public virtual void op_plus(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_ADD); Call.contagion(this, arg2, generic); } public void op_reversed_generic_plus(SObject arg1) { Procedure MS_GENERIC_ADD = Call.getSupportProcedure(Constants.MS_GENERIC_ADD); Call.contagion(arg1, this, MS_GENERIC_ADD); } public virtual void op_reversed_fixnum_plus(SFixnum arg1) { this.op_reversed_generic_plus(arg1); } public virtual void op_reversed_bignum_plus(SByteVL arg1) { this.op_reversed_generic_plus(arg1); } public virtual void op_reversed_flonum_plus(SByteVL arg1) { this.op_reversed_generic_plus(arg1); } public virtual void op_reversed_compnum_plus(SByteVL arg1) { this.op_reversed_generic_plus(arg1); } public virtual void op_reversed_ratnum_plus(SVL arg1) { this.op_reversed_generic_plus(arg1); } public virtual void op_reversed_rectnum_plus(SVL arg1) { this.op_reversed_generic_plus(arg1); }
+        public virtual void op_minus(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_SUB); Call.contagion(this, arg2, generic); } public void op_reversed_generic_minus(SObject arg1) { Procedure MS_GENERIC_SUB = Call.getSupportProcedure(Constants.MS_GENERIC_SUB); Call.contagion(arg1, this, MS_GENERIC_SUB); } public virtual void op_reversed_fixnum_minus(SFixnum arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_bignum_minus(SByteVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_flonum_minus(SByteVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_compnum_minus(SByteVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_ratnum_minus(SVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_rectnum_minus(SVL arg1) { this.op_reversed_generic_minus(arg1); }
+        public virtual void op_multiply(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_MUL); Call.contagion(this, arg2, generic); } public void op_reversed_generic_multiply(SObject arg1) { Procedure MS_GENERIC_MUL = Call.getSupportProcedure(Constants.MS_GENERIC_MUL); Call.contagion(arg1, this, MS_GENERIC_MUL); } public virtual void op_reversed_fixnum_multiply(SFixnum arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_bignum_multiply(SByteVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_flonum_multiply(SByteVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_compnum_multiply(SByteVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_ratnum_multiply(SVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_rectnum_multiply(SVL arg1) { this.op_reversed_generic_multiply(arg1); }
+        public virtual void op_divide(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_DIV); Call.contagion(this, arg2, generic); } public void op_reversed_generic_divide(SObject arg1) { Procedure MS_GENERIC_DIV = Call.getSupportProcedure(Constants.MS_GENERIC_DIV); Call.contagion(arg1, this, MS_GENERIC_DIV); } public virtual void op_reversed_fixnum_divide(SFixnum arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_bignum_divide(SByteVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_flonum_divide(SByteVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_compnum_divide(SByteVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_ratnum_divide(SVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_rectnum_divide(SVL arg1) { this.op_reversed_generic_divide(arg1); }
+        public virtual void op_quotient(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_HEAVY_QUOTIENT); Call.contagion(this, arg2, generic); } public void op_reversed_generic_quotient(SObject arg1) { Procedure MS_HEAVY_QUOTIENT = Call.getSupportProcedure(Constants.MS_HEAVY_QUOTIENT); Call.contagion(arg1, this, MS_HEAVY_QUOTIENT); } public virtual void op_reversed_fixnum_quotient(SFixnum arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_bignum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_flonum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_compnum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_ratnum_quotient(SVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_rectnum_quotient(SVL arg1) { this.op_reversed_generic_quotient(arg1); }
+        public virtual void op_remainder(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_HEAVY_REMAINDER); Call.contagion(this, arg2, generic); } public void op_reversed_generic_remainder(SObject arg1) { Procedure MS_HEAVY_REMAINDER = Call.getSupportProcedure(Constants.MS_HEAVY_REMAINDER); Call.contagion(arg1, this, MS_HEAVY_REMAINDER); } public virtual void op_reversed_fixnum_remainder(SFixnum arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_bignum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_flonum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_compnum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_ratnum_remainder(SVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_rectnum_remainder(SVL arg1) { this.op_reversed_generic_remainder(arg1); }
+
+        public virtual void op_truncate() { Exn.fault(Constants.EX_TRUNC, null, this); }
+        public virtual void op_round() { Exn.fault(Constants.EX_ROUND, null, this); }
+        public virtual void op_negative() { Exn.fault(Constants.EX_NEG, null, this); }
+        public virtual void op_exact2inexact() { Call.callMillicodeSupport1(Constants.MS_GENERIC_EXACT2INEXACT, this); }
+        public virtual void op_inexact2exact() { Call.callMillicodeSupport1(Constants.MS_GENERIC_INEXACT2EXACT, this); }
     }
 
     // -------------------------------------------
@@ -413,6 +358,11 @@ namespace Scheme.Rep {
 
         public override SObject op_reversed_make_string(SFixnum arg1) {
             return Factory.makeString(arg1.value, this.val);
+        }
+
+        // Special Operations
+        public override void op_reversed_char_eqvp_not_eq(SChar arg1) {
+            Reg.Result = Factory.wrap(arg1.val == this.val);
         }
     }
 
@@ -529,7 +479,28 @@ namespace Scheme.Rep {
                 return Factory.Impossible;
             }
         }
+        public override SObject op_reversed_vector_ref_trusted(SVL arg1) {
+            SObject[] elements = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < elements.Length) {
+                return elements[index];
+            } else {
+                Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
+                return Factory.Impossible;
+            }
+        }
         public override SObject op_reversed_vector_set(SVL arg1, SObject arg3) {
+            SObject[] elements = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < elements.Length) {
+                elements[index] = arg3;
+                return Factory.Unspecified;
+            } else {
+                Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_reversed_vector_set_trusted(SVL arg1, SObject arg3) {
             SObject[] elements = arg1.elements;
             int index = this.value;
             if (0 <= index && index < elements.Length) {
@@ -602,6 +573,39 @@ namespace Scheme.Rep {
         }
 
         public override SObject op_make_string(SObject arg2) { return arg2.op_reversed_make_string(this); }
+        public override SObject op_reversed_string_ref(SByteVL arg1) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < bytes.Length) {
+                return Factory.makeChar(bytes[index]);
+            } else {
+                Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_reversed_string_ref_trusted(SByteVL arg1) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            return Factory.makeChar(bytes[index]);
+        }
+        public override SObject op_reversed_string_set(SByteVL arg1, SObject arg3) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < bytes.Length) {
+                if (arg3 is SChar) {
+                    bytes[index] = (byte) ((SChar)arg3).val;
+                    return Factory.Unspecified;
+                }
+            }
+            Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
+            return Factory.Impossible;
+        }
+        public override SObject op_reversed_string_set_trusted(SByteVL arg1, SObject arg3) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            bytes[index] = (byte) ((SChar)arg3).val;
+            return Factory.Unspecified;
+        }
 
         public override SObject op_make_bytevector() {
             return Factory.makeByteVector(this.value, (byte)0);
@@ -778,124 +782,170 @@ namespace Scheme.Rep {
             return Factory.wrap(0);
         }
 
+        public override SObject op_plus_idx_idx(SObject arg2) { return arg2.op_reversed_plus_idx_idx(this); }
+        public override SObject op_minus_idx_idx(SObject arg2) { return arg2.op_reversed_minus_idx_idx(this); }
+        public override SObject op_equal_fix_fix(SObject arg2) { return arg2.op_reversed_equal_fix_fix(this); }
+        public override SObject op_less_fix_fix(SObject arg2) { return arg2.op_reversed_less_fix_fix(this); }
+        public override SObject op_lessequal_fix_fix(SObject arg2) { return arg2.op_reversed_lessequal_fix_fix(this); }
+        public override SObject op_greater_fix_fix(SObject arg2) { return arg2.op_reversed_greater_fix_fix(this); }
+        public override SObject op_greaterequal_fix_fix(SObject arg2) { return arg2.op_reversed_greaterequal_fix_fix(this); }
+
+        public override SObject op_reversed_plus_idx_idx(SFixnum arg1) {
+            return Factory.wrap(arg1.value + this.value);
+        }
+        public override SObject op_reversed_minus_idx_idx(SFixnum arg1) {
+            return Factory.wrap(arg1.value - this.value);
+        }
+        public override SObject op_reversed_equal_fix_fix(SFixnum arg1) {
+            return Factory.wrap(arg1.value == this.value);
+        }
+        public override SObject op_reversed_less_fix_fix(SFixnum arg1) {
+            return Factory.wrap(arg1.value < this.value);
+        }
+        public override SObject op_reversed_lessequal_fix_fix(SFixnum arg1) {
+            return Factory.wrap(arg1.value <= this.value);
+        }
+        public override SObject op_reversed_greater_fix_fix(SFixnum arg1) {
+            return Factory.wrap(arg1.value > this.value);
+        }
+        public override SObject op_reversed_greaterequal_fix_fix(SFixnum arg1) {
+            return Factory.wrap(arg1.value >= this.value);
+        }
+
         // Special Operations
 
-        //SPECIALOP1_OVERRIDE(enable_interrupts) {
-        //    int time = ((SFixnum)arg).value;
-        //    if (time > 0) {
-        //        Reg.interruptsEnabled = true;
-        //        Reg.timer = time;
-        //    } else {
-        //        Exn.fault(Constants.EX_EINTR, null, this);
-        //    }
-        //    Reg.Result = Factory.Unspecified;
-        //    Exn.checkSignals();
-        //}
-        //SPECIALOP1_OVERRIDE(syscall) {
-        //    // subtract one 'cuz the first arg is just the value
-        //    // to which we want to dispatch.
-        //    int num_args = this.value - 1;
-        //    Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
-        //    Syscall.dispatch(num_args, num_syscall);
-        //}
-        //SPECIALOP1_OVERRIDE(zerop) {
-        //    Reg.Result = Factory.wrap(this.value == 0);
-        //}
-        //SPECIALOP2_CHAIN(eqvp)
-        //SPECIALOP2_CHAIN(numeric_equals)
-        //SPECIALOP2_CHAIN(less_then)
-        //SPECIALOP2_CHAIN(less_or_equal)
-        //SPECIALOP2_CHAIN(greater_than)
-        //SPECIALOP2_CHAIN(greater_or_equal)
-        //
-        //SPECIALOP2_CHAIN(plus)
-        //SPECIALOP2_CHAIN(minus)
-        //SPECIALOP2_CHAIN(multiply)
-        //SPECIALOP2_CHAIN(divide)
-        //SPECIALOP2_CHAIN(quotient)
-        //SPECIALOP2_CHAIN(remainder)
+        public override void op_enable_interrupts() {
+            int time = ((SFixnum)this).value;
+            if (time > 0) {
+                Reg.interruptsEnabled = true;
+                Reg.timer = time;
+            } else {
+                Exn.fault(Constants.EX_EINTR, null, this);
+            }
+            Reg.Result = Factory.Unspecified;
+            Exn.checkSignals();
+        }
+        public override void op_syscall() {
+            // subtract one 'cuz the first arg is just the value
+            // to which we want to dispatch.
+            int num_args = this.value - 1;
+            Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
+            Syscall.dispatch(num_args, num_syscall);
+        }
+        public override void op_zerop() {
+            Reg.Result = Factory.wrap(this.value == 0);
+        }
 
-        //SPECIALOP1_OVERRIDE(truncate) {
-        //    Reg.Result = this;
-        //}
-        //SPECIALOP1_OVERRIDE(round) {
-        //    Reg.Result = this;
-        //}
-        //SPECIALOP1_OVERRIDE(negative) {
-        //    Reg.Result = Factory.wrap(-this.value);
-        //}
-        //SPECIALOP1_OVERRIDE(exact2inexact) {
-        //    Reg.Result = Factory.makeFlonum((double)this.value);
-        //}
-        //SPECIALOP1_OVERRIDE(inexact2exact) {
-        //    Reg.Result = this;
-        //}
+        public override void op_eqvp_not_eq(SObject arg2) { arg2.op_reversed_fixnum_eqvp_not_eq(this); }
+        public override void op_numeric_equals(SObject arg2) { arg2.op_reversed_fixnum_numeric_equals(this); }
+        public override void op_less_than(SObject arg2) { arg2.op_reversed_fixnum_less_than(this); }
+        public override void op_less_or_equal(SObject arg2) { arg2.op_reversed_fixnum_less_or_equal(this); }
+        public override void op_greater_than(SObject arg2) { arg2.op_reversed_fixnum_greater_than(this); }
+        public override void op_greater_or_equal(SObject arg2) { arg2.op_reversed_fixnum_greater_or_equal(this); }
 
-        //SPECIALOP2_OVERRIDE_REVERSED(eqvp, SFixnum) {
-        //    Reg.Result = Factory.wrap(this.value == arg1.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(numeric_equals, SFixnum) {
-        //    Reg.Result = Factory.wrap(this.value == arg1.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(less_than, SFixnum) {
-        //    Reg.Result = Factory.wrap(this.value < arg1.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(less_or_equal, SFixnum) {
-        //    Reg.Result = Factory.wrap(this.value <= arg1.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(greater_than, SFixnum) {
-        //    Reg.Result = Factory.wrap(this.value > arg1.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(greater_or_equal, SFixnum) {
-        //    Reg.Result = Factory.wrap(this.value >= arg1.value);
-        //}
+        public override void op_plus(SObject arg2) { arg2.op_reversed_fixnum_plus(this); }
+        public override void op_minus(SObject arg2) { arg2.op_reversed_fixnum_minus(this); }
+        public override void op_multiply(SObject arg2) { arg2.op_reversed_fixnum_multiply(this); }
+        public override void op_divide(SObject arg2) { arg2.op_reversed_fixnum_divide(this); }
+        public override void op_quotient(SObject arg2) { arg2.op_reversed_fixnum_quotient(this); }
+        public override void op_remainder(SObject arg2) { arg2.op_reversed_fixnum_remainder(this); }
 
-        //SPECIALOP2_OVERRIDE_REVERSED(plus, SFixnum) {
-        //    Reg.Result = Factory.wrap(arg1.value + this.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(minus, SFixnum) {
-        //    Reg.Result = Factory.wrap(arg1.value - this.value);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(multiply, SFixnum) {
-        //    long r = arg1.value * this.value;
-        //    Reg.Result = Factory.wrap(r);
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(divide, SFixnum) {
-        //    int a = arg1.value, b = this.value;
-        //    if (b == 0) {
-        //        Exn.fault(Constants.EX_DIV, null, arg1, this);
-        //        return;
-        //    } else {
-        //        if (a % b == 0) {
-        //            Reg.Result = Factory.wrap(a / b);
-        //            return;
-        //        } else {
-        //            Call.callMillicodeSupport2
-        //                (Constants.MS_FIXNUM2RATNUM_DIV, arg1, this);
-        //            return; // TAIL CALL
-        //        }
-        //    }
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(quotient, SFixnum) {
-        //    int a = arg1.value, b = this.value;
-        //    if (b == 0) {
-        //        Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
-        //        return;
-        //    } else {
-        //        Reg.Result = Factory.wrap(a / b);
-        //        return;
-        //    }
-        //}
-        //SPECIALOP2_OVERRIDE_REVERSED(remainder, SFixnum) {
-        //    int a = arg1.value, b = this.value;
-        //    if (b == 0) {
-        //        Exn.fault(Constants.EX_REMAINDER, null, arg1, this);
-        //        return;
-        //    } else {
-        //        Reg.Result = Factory.wrap(a % b);
-        //        return;
-        //    }
-        //}
+        public override void op_reversed_fixnum_eqvp_not_eq(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value == this.value);
+        }
+        public override void op_reversed_fixnum_numeric_equals(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value == this.value);
+        }
+        public override void op_reversed_fixnum_less_than(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value < this.value);
+        }
+        public override void op_reversed_fixnum_less_or_equal(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value <= this.value);
+        }
+        public override void op_reversed_fixnum_greater_than(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value > this.value);
+        }
+        public override void op_reversed_fixnum_greater_or_equal(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value >= this.value);
+        }
+
+        public override void op_reversed_fixnum_plus(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value + this.value);
+        }
+        public override void op_reversed_fixnum_minus(SFixnum arg1) {
+            Reg.Result = Factory.wrap(arg1.value - this.value);
+        }
+        public override void op_reversed_fixnum_multiply(SFixnum arg1) {
+            Reg.Result = Factory.wrap((long)(arg1.value * this.value));
+        }
+        public override void op_reversed_fixnum_divide(SFixnum arg1) {
+            int a = arg1.value, b = this.value;
+            if (b == 0) {
+                Exn.fault(Constants.EX_DIV, null, arg1, this);
+            }
+            if (a % b == 0) {
+                Reg.Result = Factory.wrap(a / b);
+            } else {
+                Call.callMillicodeSupport2(Constants.MS_FIXNUM2RATNUM_DIV, arg1, this);
+            }
+        }
+        public override void op_reversed_fixnum_quotient(SFixnum arg1) {
+            int a = arg1.value, b = this.value;
+            if (b == 0) {
+                Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
+            }
+            Reg.Result = Factory.wrap(a / b);
+        }
+        public override void op_reversed_bignum_quotient(SByteVL arg1) {
+            // Must handle 1-word bignums too.
+            int bv = this.value;
+            if (bv > 0 &&
+                Number.getBignumLength(arg1) == 1 &&
+                Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
+                uint av = arg1.getUInt32(1);
+                uint result = av / (uint)bv;
+                Reg.Result = Factory.makeNumber(result);
+                return;
+            }
+            base.op_reversed_generic_quotient(arg1);
+        }
+
+        public override void op_reversed_fixnum_remainder(SFixnum arg1) {
+            int a = arg1.value, b = this.value;
+            if (b == 0) {
+                Exn.fault(Constants.EX_REMAINDER, null, arg1, this);
+            }
+            Reg.Result = Factory.wrap(a % b);
+        }
+        public override void op_reversed_bignum_remainder(SByteVL arg1) {
+            // Must handle 1-word bignums too.
+            int bv = this.value;
+            if (bv > 0 &&
+                Number.getBignumLength(arg1) == 1 &&
+                Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
+                uint av = arg1.getUInt32(1);
+                uint result = av % (uint)bv;
+                Reg.Result = Factory.makeNumber(result);
+                return;
+            }
+            base.op_reversed_generic_remainder(arg1);
+        }
+
+        public override void op_truncate() {
+            Reg.Result = this;
+        }
+        public override void op_round() {
+            Reg.Result = this;
+        }
+        public override void op_negative() {
+            Reg.Result = Factory.wrap(-this.value);
+        }
+        public override void op_exact2inexact() {
+            Reg.Result = Factory.makeFlonum((double)this.value);
+        }
+        public override void op_inexact2exact() {
+            Reg.Result = this;
+        }
     }
 
     // -------------------------------------------
@@ -1012,19 +1062,96 @@ namespace Scheme.Rep {
             check_typetag(Tags.VectorTag, Constants.EX_VECTOR_LENGTH);
             return Factory.wrap(elements.Length);
         }
+        public override SObject op_vector_length_vec() {
+            return Factory.wrap(elements.Length);
+        }
+
         public override SObject op_vector_ref(SObject arg2) { check_typetag(Tags.VectorTag, arg2, Constants.EX_VECTOR_REF); return arg2.op_reversed_vector_ref(this); }
+        public override SObject op_vector_ref_trusted(SObject arg2) { return arg2.op_reversed_vector_ref_trusted(this); }
         public override SObject op_vector_set(SObject arg2, SObject arg3) { check_typetag(Tags.VectorTag, arg2, arg3, Constants.EX_VECTOR_SET); return arg2.op_reversed_vector_set(this, arg3); }
+        public override SObject op_vector_set_trusted(SObject arg2, SObject arg3) { return arg2.op_reversed_vector_set_trusted(this, arg3); }
 
         // Special Operations
-        //SPECIALOP1_OVERRIDE(zerop) {
-        //    if (this.tag == Tags.RectnumTag) {
-        //        return Factory.False; // FIXME??
-        //    } else if (this.tag == Tags.RatnumTag) {
-        //        this.op_numeric_equals_2(Factory.makeFixnum(0));
-        //    } else {
-        //        super.op_zerop();
-        //    }
-        //}
+
+        public override void op_zerop() {
+            if (this.tag == Tags.RectnumTag) {
+                Reg.Result = Factory.False;
+            } else if (this.tag == Tags.RatnumTag) {
+                Reg.Result = Factory.False;
+            } else {
+                base.op_zerop();
+            }
+        }
+
+        public override void op_eqvp_not_eq(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_eqvp_not_eq(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_eqvp_not_eq(this); } else { base.op_eqvp_not_eq(this); } }
+        public override void op_numeric_equals(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_numeric_equals(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_numeric_equals(this); } else { base.op_numeric_equals(this); } }
+        public override void op_less_than(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_less_than(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_less_than(this); } else { base.op_less_than(this); } }
+        public override void op_less_or_equal(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_less_or_equal(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_less_or_equal(this); } else { base.op_less_or_equal(this); } }
+        public override void op_greater_than(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_greater_than(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_greater_than(this); } else { base.op_greater_than(this); } }
+        public override void op_greater_or_equal(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_greater_or_equal(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_greater_or_equal(this); } else { base.op_greater_or_equal(this); } }
+
+        public override void op_plus(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_plus(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_plus(this); } else { base.op_plus(this); } }
+        public override void op_minus(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_minus(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_minus(this); } else { base.op_minus(this); } }
+        public override void op_multiply(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_multiply(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_multiply(this); } else { base.op_multiply(this); } }
+        public override void op_divide(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_divide(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_divide(this); } else { base.op_divide(this); } }
+        public override void op_quotient(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_quotient(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_quotient(this); } else { base.op_quotient(this); } }
+        public override void op_remainder(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_remainder(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_remainder(this); } else { base.op_remainder(this); } }
+
+        // Ratnums
+        public override void op_reversed_ratnum_eqvp_not_eq(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_EQUAL, arg1, this); } else { base.op_reversed_ratnum_eqvp_not_eq(arg1); } }
+        public override void op_reversed_ratnum_numeric_equals(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_EQUAL, arg1, this); } else { base.op_reversed_ratnum_numeric_equals(arg1); } }
+        public override void op_reversed_ratnum_less_than(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_LESS, arg1, this); } else { base.op_reversed_ratnum_less_than(arg1); } }
+        public override void op_reversed_ratnum_less_or_equal(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_LESSEQ, arg1, this); } else { base.op_reversed_ratnum_less_or_equal(arg1); } }
+        public override void op_reversed_ratnum_greater_than(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_GREATER, arg1, this); } else { base.op_reversed_ratnum_greater_than(arg1); } }
+        public override void op_reversed_ratnum_greater_or_equal(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_GREATEREQ, arg1, this); } else { base.op_reversed_ratnum_greater_or_equal(arg1); } }
+
+
+        public override void op_reversed_ratnum_plus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_ADD, arg1, this); } else { base.op_reversed_ratnum_plus(arg1); } }
+        public override void op_reversed_ratnum_minus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_SUB, arg1, this); } else { base.op_reversed_ratnum_minus(arg1); } }
+        public override void op_reversed_ratnum_multiply(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_MUL, arg1, this); } else { base.op_reversed_ratnum_multiply(arg1); } }
+        public override void op_reversed_ratnum_divide(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_DIV, arg1, this); } else { base.op_reversed_ratnum_divide(arg1); } }
+
+        // Rectnums
+        public override void op_reversed_rectnum_eqvp_not_eq(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_eqvp_not_eq(arg1); } }
+        public override void op_reversed_rectnum_numeric_equals(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_numeric_equals(arg1); } }
+
+        public override void op_reversed_rectnum_plus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_ADD, arg1, this); } else { base.op_reversed_rectnum_plus(arg1); } }
+        public override void op_reversed_rectnum_minus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_SUB, arg1, this); } else { base.op_reversed_rectnum_minus(arg1); } }
+        public override void op_reversed_rectnum_multiply(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_MUL, arg1, this); } else { base.op_reversed_rectnum_multiply(arg1); } }
+        public override void op_reversed_rectnum_divide(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_DIV, arg1, this); } else { base.op_reversed_rectnum_divide(arg1); } }
+
+        public override void op_truncate() {
+            if (this.tag == Tags.RatnumTag) {
+                Call.callMillicodeSupport1(Constants.MS_RATNUM_TRUNCATE, this);
+            } else {
+                base.op_truncate();
+            }
+        }
+        public override void op_round() {
+            if (this.tag == Tags.RatnumTag) {
+                Call.callMillicodeSupport1(Constants.MS_RATNUM_ROUND, this);
+            } else {
+                base.op_truncate();
+            }
+        }
+        public override void op_negative() {
+            if (this.tag == Tags.RatnumTag) {
+                Call.callMillicodeSupport1(Constants.MS_RATNUM_NEGATE, this);
+            } else if (this.tag == Tags.RectnumTag) {
+                Call.callMillicodeSupport1(Constants.MS_RECTNUM_NEGATE, this);
+            } else {
+                base.op_truncate();
+            }
+        }
+        public override void op_inexact2exact() {
+            if (this.tag == Tags.RatnumTag) {
+                Reg.Result = this;
+            } else if (this.tag == Tags.RectnumTag) {
+                Reg.Result = this;
+            } else {
+                base.op_truncate();
+            }
+        }
     }
 
     // -------------------------------------------
@@ -1115,7 +1242,8 @@ namespace Scheme.Rep {
         // unsafeAsDouble: interprets bytes as the bit representation 
         //     of a double value
         public double unsafeAsDouble(int steps) {
-            return System.BitConverter.ToDouble(elements, 4 + steps * 8); // steps * sizeof(double)) + offset
+            return System.BitConverter.ToDouble(elements, 4 + steps * 8);
+              // steps * sizeof(double)) + offset
         }
         public void unsafeSetDouble(double d) {
             byte[] b = System.BitConverter.GetBytes(d);
@@ -1163,6 +1291,7 @@ namespace Scheme.Rep {
         // ----------------------
 
         public override SObject op_numberp() { return Factory.makeBoolean(this.isBignum() || this.isFlonum() || this.isCompnum()); } public override bool isNumber() { return (this.isBignum() || this.isFlonum() || this.isCompnum()); }
+
         public override bool isExact() { return (this.isBignum()); }
         public override bool isInexact() { return (this.isFlonum() || this.isCompnum()); }
         public override SObject op_exactp() {
@@ -1185,16 +1314,30 @@ namespace Scheme.Rep {
         public override SObject op_flonump() { return Factory.makeBoolean(this.tag == Tags.FlonumTag); } public override bool isFlonum() { return (this.tag == Tags.FlonumTag); }
         public override SObject op_compnump() { return Factory.makeBoolean(this.tag == Tags.CompnumTag); } public override bool isCompnum() { return (this.tag == Tags.CompnumTag); }
         public override SObject op_complexp() { return Factory.makeBoolean(this.isBignum() || this.isFlonum() || this.isCompnum()); } public override bool isComplex() { return (this.isBignum() || this.isFlonum() || this.isCompnum()); }
+
         public override SObject op_realp() { return Factory.makeBoolean(this.isBignum() || this.isFlonum()); } public override bool isReal() { return (this.isBignum() || this.isFlonum()); }
         public override SObject op_rationalp() { return Factory.makeBoolean(this.isBignum() || this.isFlonum()); } public override bool isRational() { return (this.isBignum() || this.isFlonum()); }
         public override SObject op_integerp() { return Factory.makeBoolean(this.isBignum() || (this.isFlonum() && this.isIntegralFlonum())); } public override bool isInteger() { return (this.isBignum() || (this.isFlonum() && this.isIntegralFlonum())); }
+
+
         public override SObject op_bytevector_likep() { return Factory.True; } public override bool isByteVectorLike() { return true; }
         public override SObject op_bytevectorp() { return Factory.makeBoolean(this.tag == Tags.ByteVectorTag); } public override bool isByteVector() { return (this.tag == Tags.ByteVectorTag); }
         public override SObject op_stringp() { return Factory.makeBoolean(this.tag == Tags.StringTag); } public override bool isString() { return (this.tag == Tags.StringTag); }
         // ----------------------
 
+        public override SObject op_string_length() {
+            check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
+            return Factory.wrap(this.elements.Length);
+        }
+        public override SObject op_string_length_str() {
+            check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
+            return Factory.wrap(this.elements.Length);
+        }
+
         public override SObject op_string_ref(SObject arg2) { check_typetag(Tags.StringTag, arg2, Constants.EX_STRING_REF); return arg2.op_reversed_string_ref(this); }
         public override SObject op_string_set(SObject arg2, SObject arg3) { check_typetag(Tags.StringTag, arg2, arg3, Constants.EX_STRING_SET); return arg2.op_reversed_string_set(this, arg3); }
+        public override SObject op_string_ref_trusted(SObject arg2) { return arg2.op_reversed_string_ref_trusted(this); }
+        public override SObject op_string_set_trusted(SObject arg2, SObject arg3) { return arg2.op_reversed_string_set_trusted(this, arg3); }
 
         public override SObject op_bytevector_length() { check_typetag(Tags.ByteVectorTag, Constants.EX_BYTEVECTOR_LENGTH); return implementation_bytevector_length(); } private SObject implementation_bytevector_length() {
             return Factory.wrap(this.elements.Length);
@@ -1223,6 +1366,186 @@ namespace Scheme.Rep {
                 }
             }
             return Factory.makeFixnum(a.Length - b.Length);
+        }
+
+        // Special Operation
+
+        public override void op_zerop() {
+            if (this.tag == Tags.BignumTag) {
+                Reg.Result = Factory.wrap(Number.getBignumLength(this) == 0);
+            } else if (this.tag == Tags.FlonumTag) {
+                Reg.Result = Factory.wrap(this.unsafeAsDouble(0) == 0.0);
+            } else if (this.tag == Tags.CompnumTag) {
+                Reg.Result = Factory.wrap(this.unsafeAsDouble(0) == 0.0 &&
+                                           this.unsafeAsDouble(1) == 0.0);
+            } else {
+                base.op_zerop();
+            }
+        }
+
+        public override void op_eqvp_not_eq(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_eqvp_not_eq(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_eqvp_not_eq(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_eqvp_not_eq(this); } else { base.op_eqvp_not_eq(this); } }
+        public override void op_numeric_equals(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_numeric_equals(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_numeric_equals(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_numeric_equals(this); } else { base.op_numeric_equals(this); } }
+        public override void op_less_than(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_less_than(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_less_than(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_less_than(this); } else { base.op_less_than(this); } }
+        public override void op_less_or_equal(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_less_or_equal(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_less_or_equal(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_less_or_equal(this); } else { base.op_less_or_equal(this); } }
+        public override void op_greater_than(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_greater_than(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_greater_than(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_greater_than(this); } else { base.op_greater_than(this); } }
+        public override void op_greater_or_equal(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_greater_or_equal(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_greater_or_equal(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_greater_or_equal(this); } else { base.op_greater_or_equal(this); } }
+
+        public override void op_plus(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_plus(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_plus(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_plus(this); } else { base.op_plus(this); } }
+        public override void op_minus(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_minus(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_minus(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_minus(this); } else { base.op_minus(this); } }
+        public override void op_multiply(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_multiply(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_multiply(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_multiply(this); } else { base.op_multiply(this); } }
+        public override void op_divide(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_divide(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_divide(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_divide(this); } else { base.op_divide(this); } }
+        public override void op_quotient(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_quotient(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_quotient(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_quotient(this); } else { base.op_quotient(this); } }
+        public override void op_remainder(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_remainder(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_remainder(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_remainder(this); } else { base.op_remainder(this); } }
+
+        // Bignums
+        public override void op_reversed_bignum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_eqvp_not_eq(arg1); } }
+
+        public override void op_reversed_bignum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_numeric_equals(arg1); } }
+
+        public override void op_reversed_bignum_less_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESS, arg1, this); } else { base.op_reversed_bignum_less_than(arg1); } }
+
+        public override void op_reversed_bignum_less_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESSEQ, arg1, this); } else { base.op_reversed_bignum_less_or_equal(arg1); } }
+
+        public override void op_reversed_bignum_greater_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATER, arg1, this); } else { base.op_reversed_bignum_greater_than(arg1); } }
+
+        public override void op_reversed_bignum_greater_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATEREQ, arg1, this); } else { base.op_reversed_bignum_greater_or_equal(arg1); } }
+
+
+        public override void op_reversed_bignum_plus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_ADD, arg1, this); } else { base.op_reversed_bignum_plus(arg1); } }
+        public override void op_reversed_bignum_minus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_SUB, arg1, this); } else { base.op_reversed_bignum_minus(arg1); } }
+        public override void op_reversed_bignum_multiply(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_MUL, arg1, this); } else { base.op_reversed_bignum_multiply(arg1); } }
+        public override void op_reversed_bignum_divide(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_DIV, arg1, this); } else { base.op_reversed_bignum_divide(arg1); } }
+
+        // Flonums
+        public override void op_reversed_flonum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_eqvp_not_eq(arg1); } else { base.op_reversed_flonum_eqvp_not_eq(arg1); } } private void op_reversed_flonum_FlonumTag_eqvp_not_eq(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_numeric_equals(arg1); } else { base.op_reversed_flonum_numeric_equals(arg1); } } private void op_reversed_flonum_FlonumTag_numeric_equals(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_less_than(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_less_than(arg1); } else { base.op_reversed_flonum_less_than(arg1); } } private void op_reversed_flonum_FlonumTag_less_than(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) < this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_less_or_equal(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_less_or_equal(arg1); } else { base.op_reversed_flonum_less_or_equal(arg1); } } private void op_reversed_flonum_FlonumTag_less_or_equal(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) <= this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_greater_than(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_greater_than(arg1); } else { base.op_reversed_flonum_greater_than(arg1); } } private void op_reversed_flonum_FlonumTag_greater_than(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) > this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_greater_or_equal(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_greater_or_equal(arg1); } else { base.op_reversed_flonum_greater_or_equal(arg1); } } private void op_reversed_flonum_FlonumTag_greater_or_equal(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) >= this.unsafeAsDouble(0));
+        }
+
+        public override void op_reversed_flonum_plus(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_plus(arg1); } else { base.op_reversed_flonum_plus(arg1); } } private void op_reversed_flonum_FlonumTag_plus(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) + this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_minus(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_minus(arg1); } else { base.op_reversed_flonum_minus(arg1); } } private void op_reversed_flonum_FlonumTag_minus(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) - this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_multiply(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_multiply(arg1); } else { base.op_reversed_flonum_multiply(arg1); } } private void op_reversed_flonum_FlonumTag_multiply(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) * this.unsafeAsDouble(0));
+        }
+        public override void op_reversed_flonum_divide(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_divide(arg1); } else { base.op_reversed_flonum_divide(arg1); } } private void op_reversed_flonum_FlonumTag_divide(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) / this.unsafeAsDouble(0));
+        }
+
+        // Compnums
+        public override void op_reversed_compnum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_eqvp_not_eq(arg1); } else { base.op_reversed_compnum_eqvp_not_eq(arg1); } } private void op_reversed_compnum_CompnumTag_eqvp_not_eq(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
+                                      &&
+                                      arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1));
+        }
+        public override void op_reversed_compnum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_numeric_equals(arg1); } else { base.op_reversed_compnum_numeric_equals(arg1); } } private void op_reversed_compnum_CompnumTag_numeric_equals(SByteVL arg1) {
+            Reg.Result = Factory.wrap(arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
+                                      &&
+                                      arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1));
+        }
+
+        public override void op_reversed_compnum_plus(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_plus(arg1); } else { base.op_reversed_compnum_plus(arg1); } } private void op_reversed_compnum_CompnumTag_plus(SByteVL arg1) {
+            Reg.Result = Factory.makeCompnum
+                (arg1.unsafeAsDouble(0) + this.unsafeAsDouble(0),
+                 arg1.unsafeAsDouble(1) + this.unsafeAsDouble(1));
+        }
+        public override void op_reversed_compnum_minus(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_minus(arg1); } else { base.op_reversed_compnum_minus(arg1); } } private void op_reversed_compnum_CompnumTag_minus(SByteVL arg1) {
+            Reg.Result = Factory.makeCompnum
+                (arg1.unsafeAsDouble(0) - this.unsafeAsDouble(0),
+                 arg1.unsafeAsDouble(1) - this.unsafeAsDouble(1));
+        }
+        public override void op_reversed_compnum_multiply(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_multiply(arg1); } else { base.op_reversed_compnum_multiply(arg1); } } private void op_reversed_compnum_CompnumTag_multiply(SByteVL arg1) {
+            double ar = arg1.unsafeAsDouble(0), ai = arg1.unsafeAsDouble(1);
+            double br = this.unsafeAsDouble(0), bi = this.unsafeAsDouble(1);
+            if (ai == 0) {
+                Reg.Result = Factory.makeCompnum(ar * br, ar * bi);
+            } else if (bi == 0) {
+                Reg.Result = Factory.makeCompnum(ar * br, ai * br);
+            } else {
+                Reg.Result = Factory.makeCompnum
+                    (ar * br - ai * bi,
+                     ar * bi + ai * br);
+            }
+        }
+        public override void op_reversed_compnum_divide(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_divide(arg1); } else { base.op_reversed_compnum_divide(arg1); } } private void op_reversed_compnum_CompnumTag_divide(SByteVL arg1) {
+            double ar = arg1.unsafeAsDouble(0), ai = arg1.unsafeAsDouble(1);
+            double br = this.unsafeAsDouble(0), bi = this.unsafeAsDouble(1);
+            double denom = br * br + bi * bi;
+            Reg.Result = Factory.makeCompnum
+                ((ar * br + ai * bi) / denom,
+                 (ai * br - ar * bi) / denom);
+        }
+
+        public override void op_truncate() {
+            if (this.tag == Tags.BignumTag) {
+                Reg.Result = this;
+            } else if (this.tag == Tags.FlonumTag) {
+                double d = this.unsafeAsDouble(0);
+                if (d < 0) {
+                    Reg.Result = Factory.makeFlonum(System.Math.Ceiling(d));
+                } else {
+                    Reg.Result = Factory.makeFlonum(System.Math.Floor(d));
+                }
+            } else {
+                base.op_truncate();
+            }
+        }
+        public override void op_round() {
+            if (this.tag == Tags.BignumTag) {
+                Reg.Result = this;
+            } else if (this.tag == Tags.FlonumTag) {
+                double d = this.unsafeAsDouble(0);
+                Reg.Result = Factory.makeFlonum(System.Math.Round(d));
+            } else {
+                base.op_round();
+            }
+        }
+        public override void op_negative() {
+            if (this.tag == Tags.BignumTag) {
+                Call.callMillicodeSupport1(Constants.MS_BIGNUM_NEGATE, this);
+            } else if (this.tag == Tags.FlonumTag) {
+                Reg.Result = Factory.makeFlonum
+                    (-this.unsafeAsDouble(0));
+            } else if (this.tag == Tags.CompnumTag) {
+                Reg.Result = Factory.makeCompnum
+                    (-this.unsafeAsDouble(0),
+                     -this.unsafeAsDouble(1));
+            } else {
+                base.op_negative();
+            }
+        }
+        public override void op_exact2inexact() {
+            if (this.tag == Tags.FlonumTag) {
+                Reg.Result = this;
+            } else if (this.tag == Tags.CompnumTag) {
+                Reg.Result = this;
+            } else {
+                base.op_exact2inexact();
+            }
+        }
+        public override void op_inexact2exact() {
+            if (this.tag == Tags.BignumTag) {
+                Reg.Result = this;
+            } else {
+                base.op_inexact2exact();
+            }
         }
     }
 

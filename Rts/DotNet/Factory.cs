@@ -8,6 +8,24 @@ using Scheme.Rep;
 namespace Scheme.Rep {
     
     // -------------------------------------------
+    // Tags
+    // -------------------------------------------
+    public sealed class Tags {
+        public static readonly int VectorTag = Constants.VEC_SUBTAG >>2;
+        public static readonly int RectnumTag = Constants.RECT_SUBTAG >>2;
+        public static readonly int RatnumTag = Constants.RAT_SUBTAG >>2;
+        public static readonly int StructureTag = Constants.STRUCT_SUBTAG >>2;
+        public static readonly int PortTag = 4; // FIXME: From Lib/Common/typetags.sch
+        public static readonly int SymbolTag = Constants.SYM_SUBTAG >>2;
+
+        public static readonly int ByteVectorTag = Constants.BVEC_SUBTAG >>2;
+        public static readonly int StringTag = Constants.STR_SUBTAG >>2;
+        public static readonly int CompnumTag = Constants.COMP_SUBTAG >>2;
+        public static readonly int BignumTag = Constants.BIG_SUBTAG >>2;
+        public static readonly int FlonumTag = Constants.FLO_SUBTAG >>2;
+    }
+
+    // -------------------------------------------
     // Factory
     // -------------------------------------------
     public sealed class Factory {
@@ -287,6 +305,9 @@ namespace Scheme.Rep {
         }
         public static SObject wrap(string s) {
             return makeString(s);
+        }
+        public static SObject wrap(double d) {
+            return makeFlonum(d);
         }
         public static SObject wrap(bool b) {
             return b ? Factory.True : Factory.False;
