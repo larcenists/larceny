@@ -1,0 +1,111 @@
+; -*- mode: m4 -*-
+;
+; PowerPC/m4/gas machine description for Larceny (early draft)
+
+define(`wordsize', 4)
+define(`object_align', 8)
+define(`code_align', 4)
+
+; MacOS X ABI
+;   GPR0 is a temp
+;   GPR1 holds C stack pointer
+;   GPR2 is a temp
+;   GPR3 - GPR10 are used for parameter passing
+;   GPR3 is used for the C return value
+;   GPR11 is a temp
+;   GPR12 is used when calling dynamically linked code, but is 
+;     otherwise a temp
+;
+;   GPR1 and GPR13 - GPR30 are callee-saves, all others are caller-saves
+;
+;   FPR0 is a temp
+;   FPR1 - FPR13 are used for parameter passing
+;
+;   FPR14 - FPR31 are callee-saves, all others are caller-saves
+;
+;   CR2 - CR4 are callee-saves, others are caller-saves
+;
+;   LR and CTR are caller-saves
+
+; Larceny does not use r0 or r1.
+
+; SECOND and THIRD are mapped to registers, but millicode makes these
+; visible to the GC only when it is known that they have defined
+; values, so scratch registers are mapped to the same registers as
+; SECOND and THIRD.  On the other hand, this means that if the
+; millicode might inspect them (as for T_TRAP) but they might contain
+; garbage, then they must be cleared before the millicode call.
+
+define(`TEMP', `r2')	; always same as SECOND
+define(`SECOND', `r2')  ; always same as TEMP
+define(`TEMP2', `r3')   ; always same as THIRD
+define(`THIRD', `r3')   ; always same as TEMP2
+define(`TIMER',`r4')
+define(`RESULT', `r5')
+define(`GLOBALS', `r6')
+define(`CONT', `r7')
+define(`REG0', `r8')
+define(`REG1', `r9')
+define(`REG2', `r10')
+define(`REG3', `r11')
+define(`REG4', `r12')
+define(`REG5', `r13')
+define(`REG6', `r14')
+define(`REG7', `r15')
+define(`REG8', `r16')
+define(`REG9', `r17')
+define(`REG10', `r18')
+define(`REG11', `r19')
+define(`REG12', `r20')
+define(`REG13', `r21')
+define(`REG14', `r22')
+define(`REG15', `r23')
+define(`REG16', `r24')
+define(`REG17', `r25')
+define(`REG18', `r26')
+define(`REG19', `r27')
+define(`REG20', `r28')
+define(`REG21', `r29')
+define(`REG22', `r30')
+define(`REG23', `r31')
+
+define(`FIRST_HWREG',0)
+define(`LAST_HWREG',23)
+
+define(`STK_OVERHEAD',12)
+define(`STK_RETADDR',4)
+define(`STK_REG0',12)
+
+include(`config.ah')
+include(`asmdefs.ah')
+
+define(`LASTREG',31)
+
+define(`PROC_OVERHEAD_WORDS',2)              ; code and constants
+define(`PROC_CONSTVECTOR',CONSTVECTOR)       ; byte offset
+define(`PROC_CODEVECTOR_NATIVE',CODEVECTOR)  ; byte offset
+define(`PROC_REG0',12)                       ; byte offset
+
+define(`EX_PROCEDURE_REF', EX_PREF)
+define(`EX_MAKE_BYTEVECTOR', EX_MKBVL)           ; FIXME
+define(`EX_BYTEVECTOR_LENGTH', EX_BVLEN)
+define(`EX_BYTEVECTOR_LIKE_LENGTH', EX_BVLLEN)
+define(`EX_BYTEVECTOR_LIKE_REF', EX_BVLREF)
+define(`EX_BYTEVECTOR_LIKE_SET', EX_BVLSET)
+define(`EX_MAKE_STRING', EX_MKBVL)	         ; FIXME
+define(`EX_STRING_LENGTH', EX_SLEN)
+define(`EX_STRING_REF', EX_SREF)
+define(`EX_STRING_SET', EX_SSET)
+define(`EX_MAKE_VECTOR', EX_MKVL)                ; FIXME
+define(`EX_VECTOR_LENGTH', EX_VLEN)
+define(`EX_VECTOR_REF', EX_VREF)
+define(`EX_VECTOR_SET', EX_VSET)
+define(`EX_VECTOR_LIKE_LENGTH', EX_VLLEN)
+define(`EX_VECTOR_LIKE_REF', EX_VLREF)
+define(`EX_VECTOR_LIKE_SET', EX_VLSET)
+define(`EX_BYTEVECTOR_REF', EX_BVREF)
+define(`EX_BYTEVECTOR_SET', EX_BVSET)
+define(`EX_MAKE_PROCEDURE', EX_MKVL)	         ; FIXME
+define(`EX_PROCEDURE_LENGTH', EX_PLEN)
+define(`EX_PROCEDURE_REF', EX_PREF)
+define(`EX_PROCEDURE_SET', EX_PSET)
