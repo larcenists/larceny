@@ -355,6 +355,7 @@
     (environment-set! larc 'with-output-to-port with-output-to-port)
     (environment-set! larc 'write-bytevector-like write-bytevector-like)
     (environment-set! larc 'lowlevel-write lowlevel-write)
+    (environment-set! larc 'port-position port-position)
 
     ;; general
 
@@ -470,9 +471,6 @@
     (environment-set! larc '**newline** **newline**)
     (environment-set! larc 'unspecified unspecified)
     (environment-set! larc 'undefined undefined)
-    ;; Backwards compatibility
-    (environment-set! larc 'repl-eval-procedure repl-evaluator)
-    (environment-set! larc 'repl-display-procedure repl-printer)
 
     ;; flonum debugging
 
