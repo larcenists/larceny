@@ -1,6 +1,8 @@
-; Read source code and return both datum and source locations
+; Copyright 1999 Lars T Hansen
 ;
-; 7 July 1999 / lth
+; $Id$
+;
+; Read source code and return both datum and source locations
 
 ; Returns two values: the datum read and an association list that maps the
 ; first pair of every list structure to a source position.  That is, every
