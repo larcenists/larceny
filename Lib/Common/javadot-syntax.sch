@@ -2,8 +2,13 @@
 
 ($$trace "javadot-syntax")
 
-(define javadot-type-suffix (make-parameter "javadot-type-suffix" "class" string?))
-(define javadot-generic-suffix (make-parameter "javadot-generic-suffix" "..no such suffix.." string?))
+;; Could be changed to ".type" if warranted.
+(define javadot-type-suffix
+  (make-parameter "javadot-type-suffix" ".class" string?))
+
+;; For dotnet 2.0
+(define javadot-generic-suffix
+  (make-parameter "javadot-generic-suffix" " ..no such suffix.." string?))
 
 (define (javadot-syntax? symbol)
 ;; The reader calls javadot-syntax? when deciding to create symbols or
@@ -104,13 +109,12 @@
            (let ((suffix-length (string-length suffix))
                  (other-length (string-length other)))
              (and (> other-length suffix-length)
-                  (char=? (string-ref other (- other-length suffix-length 1)) #\.)
                   (let loop ((suffix-scan 0)
                              (other-scan (- other-length suffix-length)))
                     (cond ((= suffix-scan suffix-length) #t)
                           ((char=? (char-downcase (string-ref suffix suffix-scan))
                                    (char-downcase (string-ref other other-scan)))
-                           (loop (1+ suffix-scan) (1+ other-scan)))
+                           (loop (+ suffix-scan 1) (+ other-scan 1)))
                           (else #f))))))
 
         (define (trailing-dot-class? string)
