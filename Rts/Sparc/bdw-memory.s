@@ -66,9 +66,9 @@
 EXTNAME(mem_alloc_bv):
 	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
 	save	%sp, -96, %sp
-#if CHECK_SIZE
 	and	%SAVED_RESULT, 4, %o0
 	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+#if CHECK_SIZE
 	set	LARGEST_OBJECT, %o1
 	cmp	%o0, %o1
 	bgt	bdw_toobig
@@ -77,7 +77,7 @@ EXTNAME(mem_alloc_bv):
 	nop
 #else
 	call	EXTNAME(GC_malloc_atomic)
-	mov	%SAVED_RESULT, %o0
+	nop ! mov	%SAVED_RESULT, %o0
 #endif
 	mov	%o0, %SAVED_RESULT
 	restore	
@@ -87,9 +87,9 @@ EXTNAME(mem_alloc_bv):
 EXTNAME(mem_alloc):
 	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
 	save	%sp, -96, %sp
-#if CHECK_SIZE
 	and	%SAVED_RESULT, 4, %o0
 	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+#if CHECK_SIZE
 	set	LARGEST_OBJECT, %o1
 	cmp	%o0, %o1
 	bgt	bdw_toobig
@@ -98,7 +98,7 @@ EXTNAME(mem_alloc):
 	nop
 #else
 	call	EXTNAME(GC_malloc)
-	mov	%SAVED_RESULT, %o0
+	nop ! mov	%SAVED_RESULT, %o0
 #endif
 	mov	%o0, %SAVED_RESULT
 	restore	
@@ -125,21 +125,18 @@ EXTNAME(mem_alloci):
 	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore Scheme retaddr
 
 	! %RESULT now has ptr, %ARGREG3 has count, %ARGREG2 has obj
+	! All object sizes are divisible by 8, so unroll once.
 
-	! No unrolled loop because, though we're guaranteed object
-	! alignment on an 8-byte boundary, we're not guaranteed that
-	! the word following the object won't be used by someone else.
-	! Native version unrolls this loop once.
-
-	sub	%RESULT, 4, %TMP1		! dest = RESULT - 4
+	sub	%RESULT, 8, %TMP1		! dest = RESULT - 8
 	b	Lalloci2
 	tst	%ARGREG3
 Lalloci3:
 	st	%ARGREG2, [ %TMP1 ]		! init a word
-	deccc	4, %ARGREG3			! n -= 4, test n
+	st	%ARGREG2, [ %TMP1+4 ]		! and another
+	deccc	8, %ARGREG3			! n -= 8, test n
 Lalloci2:
 	bgt	Lalloci3
-	add	%TMP1, 4, %TMP1			! dest += 4
+	add	%TMP1, 8, %TMP1			! dest += 8
 
 	jmp	%o7+8
 	ld	[ %GLOBALS + G_ALLOCI_TMP ], %ARGREG3
@@ -158,9 +155,9 @@ Lalloci2:
 EXTNAME(mem_internal_alloc):
 	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
 	save	%sp, -96, %sp
-#if CHECK_SIZE
 	and	%SAVED_RESULT, 4, %o0
 	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+#if CHECK_SIZE
 	set	LARGEST_OBJECT, %o1
 	cmp	%o0, %o1
 	bgt	bdw_toobig
@@ -169,7 +166,7 @@ EXTNAME(mem_internal_alloc):
 	nop
 #else
 	call	EXTNAME(GC_malloc)
-	mov	%SAVED_RESULT, %o0
+	nop ! mov	%SAVED_RESULT, %o0
 #endif
 	mov	%o0, %SAVED_RESULT
 	restore	
@@ -179,9 +176,9 @@ EXTNAME(mem_internal_alloc):
 EXTNAME(mem_internal_alloc_bv):
 	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
 	save	%sp, -96, %sp
-#if CHECK_SIZE
 	and	%SAVED_RESULT, 4, %o0
 	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+#if CHECK_SIZE
 	set	LARGEST_OBJECT, %o1
 	cmp	%o0, %o1
 	bgt	bdw_toobig
@@ -190,7 +187,7 @@ EXTNAME(mem_internal_alloc_bv):
 	nop
 #else
 	call	EXTNAME(GC_malloc_atomic)
-	mov	%SAVED_RESULT, %o0
+	nop ! mov	%SAVED_RESULT, %o0
 #endif	
 	mov	%o0, %SAVED_RESULT
 	restore	
