@@ -1,4 +1,4 @@
-; Copyright 1988 Lars T Hansen
+; Copyright 1998 Lars T Hansen
 ;
 ; $Id$
 ;
@@ -6,8 +6,10 @@
 ;
 ; Usage: when an error has occurred in the program, type (backtrace)
 ; or (debug) at the prompt.
-;
-; Requires that you load Auxlib/pp.sch and Debugger/inspect-cont.sch.
+
+; Requires
+;  Auxlib/pp.sch                  [ for pretty-print ]
+;  Debugger/inspect-cont.sch      [ for inspector ]
 
 (define *debug-exit* #f)
 (define *debug-print-length* 10)
@@ -23,8 +25,9 @@
 (define (backtrace)
   (debug/backtrace 0 (make-continuation-inspector (error-continuation))))
 
-(define (debug-continuation-structure c)
-  (let ((c (make-continuation-inspector c)))
+(define (debug-continuation-structure c . rest)
+  (let ((c (make-continuation-inspector c))
+	(display? (and (not (null? (car rest))) (car rest))))
 
     (define (user-input)
       (display "Debug> ")
@@ -53,7 +56,7 @@
 
     (define (inspect-continuation c)
       (let ((reset-token (list 'reset-token)))
-	(let outer ((display-frame? #t))
+	(let outer ((display-frame? display?))
 	  (let ((res (debug/safely 
 		      (lambda ()
 			(loop c display-frame?))
@@ -191,19 +194,20 @@
   (let* ((frame (inspector 'get))
 	 (code  (frame 'code))
 	 (class (code 'class))
-	 (expr  (code 'expression)))
+	 (expr  (code 'expression))
+	 (proc  (code 'procedure)))
     (if (not (null? prefix))
 	(display (car prefix)))
     (case class
       ((system-procedure)
        (format #t "system continuation"))
       ((interpreted-primitive)
-       (format #t "interpreted primitive ~a" (evaluator-primitive-name proc)))
+       (format #t "interpreted primitive ~a" (procedure-name proc)))
       ((interpreted-expression)
        (format #t "interpreted expression ")
        (debug/print-object expr))
       ((compiled-procedure)
-       (format #t "compiled procedure ~a" (procedure-name (code 'procedure))))
+       (format #t "compiled procedure ~a" (procedure-name proc)))
       (else
        ???))
     (newline)))
@@ -286,6 +290,9 @@
 			  token)))
 	       (cond ((eq? res token)
 		      (format #t "Procedure call caused a reset.~%"))
+		     ((eq? res (unspecified))
+		      ; FIXME: really a conditional newline.
+		      (newline))
 		     (else
 		      (debug/print-object res)
 		      (newline))))))))
@@ -310,27 +317,27 @@
 (define *inspector-help* "
   B           Print backtrace of continuation.
   C           Print source code (if available).
-  D           Down a frame.
+  D           Down to previous activation record.
   E n expr    Expr is evaluated in the current interaction environment 
               and must evaluate to a procedure.   It is passed the contents
-              of slot n from the current frame, and the result, if not 
-              unspecified, is printed.
+              of slot n from the current activation record, and the result, 
+              if not unspecified, is printed.
   E (n1 ... nk) expr
               Expr is evaluated in the current interaction environment and
               must evaluate to a procedure.   It is passed the contents of
-              slots n1 through nk from the current frame, and the result, 
-              if not unspecified, is printed.
-  I n         Inspect the procedure in slot n of the current frame.
-  I @         Inspect the procedure in the current continuation frame.
+              slots n1 through nk from the current activation record, and 
+              the result, if not unspecified, is printed.
+  I n         Inspect the procedure in slot n of the current activation record.
+  I @         Inspect the active procedure.
   Q           Quit the debugger.
-  S           Summarize the current frame.
-  U           Up a frame.
-  X           Examine the current frame contents.
+  S           Summarize the contents of the current activation record.
+  U           Up to the next activation record.
+  X           Examine the contents of the current activation record.
 
-The B, D, and U commands can be prefixed with a count; for example, 
-`5 U' moves up five frames, and `10 B' displays the next 10 frames.
-The default for B is to display all the frames; the default count for
-D and U is 1.
+The B, D, and U commands can be prefixed with a count, for example, 
+`5 U' moves up five activation records, and `10 B' displays the next 
+10 activation records.  The default for B is to display all the 
+activations; the default count for D and U is 1.
 
 ")
 

@@ -1,4 +1,9 @@
-; Simplistic trace and breakpoint facility -- only for top-level names.
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Simplistic trace and breakpoint facility -- only for top-level names,
+; and traces names rather than values.
 ;
 ; (trace name)             Trace 'name' on entry and exit
 ; (trace-entry name)       Trace 'name' on entry
@@ -11,15 +16,26 @@
 ; (unbreak)                Disable all breakpoints
 ;
 ; FIXME: 'Breakpt' is called 'breakpt' because 'break' is currently a 
-; primop; that should be fixed.  The primop should be renamed to
+; primop; that should be fixed.  The primop could be renamed to
 ; 'break-here' or somesuch (or 'debugvsm', even).
 ;
-; FIXME: Really want to make sure *trace-level* is set to 0 on error
-; (or, equivalently, when a new top-level expression is evaluated).
+; FIXME: Doesn't preserve proper tail recursion when tracing.
+
+; Requires
+;  Debugger/debug.sch         [ for debug/print ]
+
 
 (define *traced* '())			; list of (trace-proc proc name)
 (define *broken* '())			; list of (break-proc proc name)
 (define *trace-level* 0)		; indent level
+
+; Install an evaluator that resets the trace level each time a top-level 
+; expression is evaluated. (This isn't ideal but it's OK.)
+
+(let ((old-evaluator (repl-evaluator)))
+  (repl-evaluator (lambda (expr env)
+		    (set! *trace-level* 0)
+		    (old-evaluator expr env))))
 
 (define (trace . rest)
   (if (null? rest)
@@ -31,8 +47,6 @@
 
 (define (trace-exit toplevel-name)
   (trace-name toplevel-name 'exit))
-
-; FIXME: should do multiple return values when tracing the exit.
 
 (define (trace-name toplevel-name how)
   (let* ((e (interaction-environment))
@@ -47,19 +61,23 @@
 		       (lambda args
 			 (debug/trace-enter toplevel-name args)
 			 (set! *trace-level* (+ *trace-level* 2))
-			 (let ((r (apply x args)))
-			   (set! *trace-level* (- *trace-level* 2))
-			   (debug/trace-exit toplevel-name r)
-			   r)))
+			 (call-with-values
+			  (lambda () (apply x args))
+			  (lambda r
+			    (set! *trace-level* (- *trace-level* 2))
+			    (apply debug/trace-exit toplevel-name r)
+			    (apply values r)))))
 		      ((entry)
 		       (lambda args
 			 (debug/trace-enter toplevel-name args)
 			 (apply x args)))
 		      ((exit)
 		       (lambda args
-			 (let ((r (apply x args)))
-			   (debug/trace-exit toplevel-name r)
-			   r)))
+			 (call-with-values
+			  (lambda () (apply x args))
+			  (lambda r
+			    (apply debug/trace-exit toplevel-name r)
+			    (apply values r)))))
 		      (else ???))))
 	     (environment-set! e toplevel-name t)
 	     (set! *traced* (cons (list t x toplevel-name) *traced*))
@@ -69,7 +87,8 @@
   (if (null? rest)
       (begin (for-each (lambda (n) (untrace-name n #f)) (map caddr *traced*))
 	     (set! *traced* '()))
-      (untrace-name (car rest))))
+      (untrace-name (car rest)))
+  (unspecified))
 
 (define (untrace-name toplevel-name . rest)
   (let* ((silent? (not (null? rest)))
@@ -106,7 +125,8 @@
 (define (unbreak . rest)
   (if (null? rest)
       (for-each unbreak-name (map caddr *broken*))
-      (unbreak-name (car rest))))
+      (unbreak-name (car rest)))
+  (unspecified))
 
 (define (unbreak-name toplevel-name)
   (let* ((e (interaction-environment))
@@ -128,24 +148,35 @@
 (define (debug/trace-enter name args)
   (display (make-string *trace-level* #\space))
   (display "Enter: ")
-  (print-call name args)
+  (debug/print-call name args)
   (newline))
 
-(define (debug/trace-exit name ret)
+(define (debug/trace-exit name . ret)
   (display (make-string *trace-level* #\space))
   (display "Exit ")
   (display name)
   (display " => ")
-  (debug/print-object ret)
+  (cond ((null? ret)
+	 (display "[ No values ]"))
+	((null? (cdr ret))
+	 (debug/print-object (car ret)))
+	(else
+	 (display "[ ")
+	 (do ((ret ret (cdr ret)))
+	     ((null? ret))
+	   (debug/print-object (car ret))
+	   (if (not (null? (cdr ret)))
+	       (display ", ")))
+	 (display " ]")))
   (newline))
 
 (define (debug/breakpoint toplevel-name args)
   (display "Breakpoint: ")
-  (print-call toplevel-name args)
+  (debug/print-call toplevel-name args)
   (newline)
-  (debug-continuation-structure (current-continuation-structure)))
+  (debug-continuation-structure (current-continuation-structure) #f))
 
-(define (print-call name args)
+(define (debug/print-call name args)
   (display "(")
   (display name)
   (for-each (lambda (arg)
