@@ -4,7 +4,7 @@
 ;
 ; Sets represented as lists.
 ;
-; 5 April 1999.
+; 2000-01-11 / lth
 
 (define (empty-set) '())
 
@@ -26,7 +26,8 @@
 
 ; To get around MacScheme's limit on the number of arguments.
 
-(define apply-union)
+(define apply-union 
+  (lambda (sets) #f))                   ; Assigned below
 
 (define union
   (letrec ((union2
