@@ -200,10 +200,12 @@ void C_syscall( void )
   larceny_syscall( nargs, nproc, &globals[ G_REG2 ] );
 }
 
-/* OBSOLETE */
-void C_garbage_collect( word type, word request_words )
+/* Garbage collect the youngest generation and free up enough space
+ * for at least one cons cell.
+ */
+void C_garbage_collect( void )
 {
-  panic( "Call to obsolete C_garbage_collect." );
+  garbage_collect3( 0, 8 );
 }
 
 /* OBSOLETE */
