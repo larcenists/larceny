@@ -1,13 +1,15 @@
 /*
  * Scheme 313 Runtime System.
- *
  * Garbage collector.
- * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 2.3 91/07/10 10:17:26 lth Exp Locker: lth $
+ * Full internals documentation is in the files "gc.txt" and "gcinterface.txt".
+ *
+ * $Id: gc.c,v 2.4 91/07/10 18:14:02 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
- * We use "old" C; this has the virtue of letting us use 'lint' on the code.
+ *   We use "old" C; this has the virtue of letting us use 'lint' on the code
+ *   as well as Sun's C compiler (on the Sparc): the Sun compiler produces
+ *   better code than the (current) GNU compiler.
  *
  * ASSUMPTIONS
  * - We assume a representation with 32 bits; the code will work for
@@ -18,20 +20,51 @@
  *   8 bits.
  * - We *must* have sizeof( unsigned long ) >= sizeof( unsigned long * ).
  * - No 2's complement is assumed; all values are unsigned.
- * - UNIX-style malloc() and memcpy() must be provided.
+ * - UNIX-style malloc() must be provided.
  *
  * BUGS
- * - Does not detect overflow of tenured space during collection.
+ * - Does not detect overflow of tenured space during collection; detects it
+ *   after the fact if no segmentation fault occured.
  * - Does not remove transactions with no pointers into the ephemeral space
  *   from the transaction list.
+ * - Retains local state (copyspace pointers, statistics variables) which
+ *   should be moved entirely into the globals[] table. LOMEM and HIMEM should
+ *   go away altogether.
+ * - Some of the diagnostic messages should be controlled by some value in the
+ *   globals[] table, not by the DEBUG switch, since they can be generally
+ *   useful.
+ * - collect() should return a value indicating the kind of collection that
+ *   was performed, for diagnostic purposes.
+ * - init_collector() should take an additional argument specifying alignment
+ *   of the spaces, and align spaces accordingly. This way, we can force e.g.
+ *   page alignment, which can be useful for advising the VM system.
+ *
+ * POSSIBLE FUTURE ENHANCEMENTS
+ * - Detect tenured overflow by passing a limit to forward().
+ * - gc_trap() should expand area(s) when called, particularly the tenured
+ *   area.
+ * - Instead of taking a word and returning the forwarded word, forward()
+ *   could take a pointer to the word and do all the assigning itself,
+ *   if necessary. This is likely a win.
+ * - Detecting transactions with no pointers into the ephemeral area can be
+ *   done by returning (or passing a pointer to) a flag which indicates
+ *   whether something was indeed forwarded, during traversal of the 
+ *   transaction list. Possibly, we should have a separate version of forward()
+ *   for this if keeping track of the flag makes a lot of difference. 
+ *   (It shouldn't.)
+ * - Separate version of forward() for ephemeral space use which does not
+ *   worry about the tenured-space overflow?
+ * - We could malloc() the tenured areas separately. This gives considerable
+ *   flexibility in reallocating areas when they must grow. As long as
+ *   the ephemeral areas are never reallocated (they must remain below the
+ *   tenured areas!), there are no problems with allocating tenured areas
+ *   separately (except VM overflow).
  */
 
 #ifdef __STDC__
   #include <stdlib.h>                  /* for malloc() */
-  #include <memory.h>                  /* for memcpy() */
 #else
   extern char *malloc();
-  extern char *memcpy();
 #endif
 #include "offsets.h"
 #include "gcinterface.h"
@@ -196,7 +229,7 @@ unsigned int type;
 
 /*
  * We invoke different collections based on the effect of the last collection
- * and depending on the parameter given: 0 = ephemeral, 1 = tenuring.
+ * and depending on the parameter given.
  * The internal state overrides the parameter.
  */
 collect( type )
@@ -491,13 +524,14 @@ word w, *base, *limit, **dest;
     unsigned size;
     word *p1, *p3;
 
+    /* The size is the number of bytes in the body and then the header. */
+
     size = roundup4( sizefield( q ) ) + 4;
 
-    /* We unroll the loop because everything is double-word
-       aligned. While this costs an extra store occasionally,
-       it may help the compiler figure out what is going on
-       and generate better code. */
-
+    /* We can unroll the loop because everything is doubleword-aligned.
+     * While this causes an unneeded store occasionally, it may help the 
+     * compiler figure out what is going on and generate better code.
+     */
     p1 = *dest;
     p3 = (word *) ((word) *dest + size);
     while (p1 < p3) {
@@ -509,7 +543,7 @@ word w, *base, *limit, **dest;
 
     /* Might need to zero out a padding word */
 
-    if (size % 8 != 0)         /* need to pad out to doubleword? */
+    if (size % 8 != 0)
       *(p1-1) = (word) 0;
 
 #ifdef DEBUG
