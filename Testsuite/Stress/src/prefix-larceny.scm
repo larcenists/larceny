@@ -1,15 +1,5 @@
 (define fatal-error error)
 
-(define FLOATabs abs)
-(define FLOATsin sin)
-(define FLOATcos cos)
-(define FLOATatan atan)
-(define FLOATsqrt sqrt)
-(define FLOATmin min)
-(define FLOATmax max)
-(define FLOATround round)
-(define FLOATinexact->exact inexact->exact)
-
 (define bitwise-or logior)
 (define bitwise-and logand)
 (define bitwise-not lognot)
