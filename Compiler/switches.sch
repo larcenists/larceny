@@ -57,3 +57,5 @@
 (define generate-global-symbols
   (make-twobit-flag 'generate-global-symbols))
 
+; eof
+

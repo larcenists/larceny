@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.7 1997/09/17 15:09:26 lth Exp lth $
+; $Id: toplevel.sch,v 1.8 1997/09/23 20:10:16 lth Exp lth $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -363,6 +363,12 @@
     (environment-set! larc 'bytevector-like-set! bytevector-like-set!)
     (environment-set! larc 'bytevector-like-equal? bytevector-like-equal?)
     (environment-set! larc 'bytevector-like-copy bytevector-like-copy)
+
+    ;; structures
+
+    (environment-set! larc 'make-structure make-structure)
+    (environment-set! larc 'structure? structure?)
+    (environment-set! larc 'structure-printer structure-printer)
 
     ;; Support for rewriter and for macro expansion.
     ;; The %* names are hacks and should be fixed.

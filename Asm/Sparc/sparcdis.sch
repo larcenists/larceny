@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcdis.sch
 ; Larceny back-end -- SPARC disassembler
 ;
-; $Id: sparcdis.sch,v 1.2 1997/07/18 13:43:13 lth Exp $
+; $Id: sparcdis.sch,v 1.3 1997/09/23 20:02:38 lth Exp lth $
 ;
 ; Interface.
 ;  (disassemble-codevector codevector)              => decoded-instruction-list
@@ -27,9 +27,6 @@
   (loop (- (bytevector-length cv) 4) '()))
 
 (define disassemble-instruction)	    ; Defined below.
-
-(define disassemble disassemble-codevector) ; An alias used in compile313.sch.
-
 
 ; Mnemonics
 
@@ -385,8 +382,6 @@
 		 (print-ilist (cdr ilist) (+ a 4)))))
   
     (print-ilist ilist 0)))
-
-(define print-ilist print-instructions)	    ; Alias used in compile313.sch.
 
 (define format-instruction)		    ; Defined below
 

@@ -4,6 +4,41 @@
 
 
 ----------------------------------------------------------------------
+v0.30 in development
+
+MAJOR FEATURES
+* Works on Solaris (at least on v5.6)
+* There is a 'structure' data type
+* The new assembler is now the default for both Chez Scheme and Larceny.
+
+
+[Lib/print.sch; Lib/struct.sch; Lib/toplevel.sch; Lib/makefile.sch]
+  We have structures!
+  Structures are handled specially by calling the structure printer.
+
+[Compiler/compile313.sch]
+  - Added an 'assemble-file' procedure that takes .mal or .lap to .fasl.
+  - Fixed a bug in 'assemble313' where a .mal file was assembled to a file
+    with type .mal.lop rather than .lop.
+  - Cleaned up.
+
+[Asm/Sparc/sparcdis.sch; Asm/Sparc-old/sparcdis.sch; Compiler/compile313.sch]
+  - The name 'disassemble' is no longer in use; everyone agrees on the
+    name 'disassemble-codevector'.  This change was made to make it possible
+    to use the name 'disassemble' somewhere else.
+  - The name 'print-ilist' is no longer in use; everyone agrees on the
+    name 'print-instructions'.
+  - There is a new procedure 'disassemble' that disassembles a procedure
+    in a running system.
+
+
+----------------------------------------------------------------------
+v0.29b released 970924 by lth
+
+[Rts/Sparc/generic.s]
+  Fixed another bug in m_generic_div introduced by fp exception handling.
+
+----------------------------------------------------------------------
 v0.29a released 970917 by lth
 
 [Rts/Sparc/generic.s]

@@ -1,7 +1,7 @@
 ;; -*- Scheme -*-
 ;; Larceny assembler (Sparc) -- emitting code for integrables.
 ;;
-;; $Id: gen-prim.sch,v 1.3 1997/05/31 01:52:16 lth Exp $
+;; $Id: gen-prim.sch,v 1.4 1997/09/23 20:05:35 lth Exp lth $
 ;;
 ;; History
 ;;   November 3, 1995 / lth (v0.25)
@@ -1600,6 +1600,8 @@
       (if (write-barrier)
 	  (if (inline-assignment)
 	      (let ((l (new-label)))
+		(if (not (fast-write-barrier))
+		    (error "Old gen-prim: slow in-line barrier not implemented."))
 		(emit! as `(,$i.subrcc ,$r.result ,$r.e-top ,$r.g0))
 		(emit! as `(,$i.ble.a ,l))
 		(emit! as `(,$i.slot))

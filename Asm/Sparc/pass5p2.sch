@@ -1,7 +1,7 @@
 ; Asm/Sparc/pass5p2.sch
 ; Larceny -- Sparc machine assembler, top level
 ;
-; $Id: pass5p2.sch,v 1.3 1997/09/17 15:04:51 lth Exp lth $
+; $Id: pass5p2.sch,v 1.3 1997/09/17 15:04:51 lth Exp $
 ;
 ; Based on MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.

@@ -1,12 +1,22 @@
+; Util/load-env.sch
+; Larceny compilation environment -- compilation system loader file
+;
+; $Id: load-env.sch,v 1.2 1997/09/23 20:07:36 lth Exp lth $
+;
+; Usage: (load-environment module-file)
+;        (load-environment module-file 'verbose)
+
 ; See the file modules.list for an example of the input.
 
-(define (load-environment module-file)
+(define (load-environment module-file . rest)
 
   (define envs '())
+  (define verbose #f)
 
   (define (loadf files env)
     (for-each (lambda (fn)
-		(format #t "~a...~%" fn)
+		(if verbose
+		    (format #t "~a...~%" fn))
 		(load fn env))
 	      files))
 
@@ -65,6 +75,9 @@
 
   (define (lambda-expr? x)
     (and (pair? x) (eq? (car x) 'lambda)))
+
+  (if (memq 'verbose rest)
+      (set! verbose #t))
 
   (if (or (file-exists? ".larceny")
 	  (file-exists? (string-append (getenv "HOME") "/" ".larceny")))

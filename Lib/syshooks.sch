@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: syshooks.sch,v 1.5 1997/09/17 15:13:23 lth Exp lth $
+; $Id: syshooks.sch,v 1.5 1997/09/17 15:13:23 lth Exp $
 ;
 ; Larceny run-time system -- interface to system functions
 ;
@@ -34,6 +34,8 @@
     ((bignum-ref) bignum-ref)
     ((bigdump*) bigdump*)
     ((big-subtract-digits) big-subtract-digits)
+    ((make-ratnum) make-ratnum)
+    ((ratnum-div) ratnum-div)
     (else ???)))
 
 ; eof

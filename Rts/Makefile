@@ -10,13 +10,21 @@
 #
 # Section 1: Target OS selection
 
-# Uncomment the following to compile for SunOS 4.x (aka Solaris 1.x)
+# Uncomment the following to compile for SunOS 4.x
 TARGETOS=SUNOS
 EXTRALIBS=
 EXTRALIBPATH=
 
-# Uncomment the following to compile for Solaris (aka SunOS 5.x)
+# Uncomment the following to compile for Solaris (SunOS 5.x)
+# Known to work for Solaris 5.6 on an UltraSPARC.
 #TARGETOS=SOLARIS
+#EXTRALIBS=-lucb
+#EXTRALIBPATH=-L/usr/ucblib
+#ASXFLAGS=-xarch=v8plus
+#LDXFLAGS=-R/usr/ucblib
+
+# Uncomment the following to compile for Solaris 5.3 _only_ (not maintained)
+#TARGETOS=OLD_SOLARIS
 #EXTRALIBS=-lucb
 #EXTRALIBPATH=-L/usr/ucblib
 
@@ -62,7 +70,7 @@ NP_EXTRA_REMSET=1
 
 # Division by zero handling.
 #
-# Currently all checking is explicit, so don't undefine this.
+# It should not be necessary to uncomment the following line.
 
 #DIVZ=-DCHECK_DIVISION_BY_ZERO
 
@@ -118,7 +126,7 @@ CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) $(CONFIG) \
 	$(ARCHINFO) $(WARN) $(BDW_DEBUG)
 
 ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
-	$(IFLUSH) $(DIVZ) $(BDW_GC)
+	$(IFLUSH) $(DIVZ) $(BDW_GC) $(ASXFLAGS)
 
 
 ############################################################################
@@ -143,7 +151,7 @@ ASMOBJS=$(MACH)/mcode.o $(MACH)/glue.o $(BUILD)/table.o \
 
 ALL_GC=$(SYS)/larceny.o $(SYS)/memmgr.o $(SYS)/remset.o \
 	$(SYS)/young-heap.o $(SYS)/old-heap.o $(SYS)/sc-heap.o \
-	$(SYS)/unix-alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
+	$(SYS)/alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
 	$(SYS)/barrier.o $(SYS)/np-sc-heap.o $(SYS)/static-heap.o \
 	$(MACH)/memory.o $(SYS)/stats.o $(SYS)/gc.o
 
@@ -212,22 +220,22 @@ default:
 
 setup:
 	if [ ! -d Build ]; then mkdir Build; fi
-	(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
+	-(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
 larceny: $(ALL_GC_OBJS)
 	$(CC) $(PROFILE) -o larceny \
-		$(ALL_GC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) 
+		$(ALL_GC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f $(SYS)/version.o
 
 bdwlarceny: $(BOEHM_GC_OBJS)
 	( cd $(BDW_DIR) ; make gc.a )
 	$(CC) $(PROFILE) -o bdwlarceny $(BOEHM_GC_OBJS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \
-		$(BOEHMLIB)
+		$(BOEHMLIB) $(LDXFLAGS)
 	/bin/rm -f $(SYS)/version.o
 
 hsplit: $(SYS)/hsplit.o
-	$(CC) $(PROFILE) $(DEBUGINFO) -o hsplit $(SYS)/hsplit.o
+	$(CC) $(PROFILE) $(DEBUGINFO) $(LDXFLAGS) -o hsplit $(SYS)/hsplit.o
 
 $(SYS)/hsplit.o: $(SYS)/hsplit.c
 	$(CC) -g -o $(SYS)/hsplit.o -I$(BUILD) -I$(SYS) -c $(SYS)/hsplit.c
@@ -239,7 +247,7 @@ rtsclean: clean
 	rm -f $(BUILD)/*.s $(BUILD)/*.*h
 
 realclean: clean
-	( cd $(BDW_DIR) ; make clean )
+	if [ -d $(BDW_DIR) ]; then ( cd $(BDW_DIR) ; make clean ); fi
 	rm -f $(BUILD)/*
 
 
@@ -260,6 +268,7 @@ $(MACH)/bdw-memory.o: $(MACH)/memory.s
 $(SYS)/bdw-gc.o: $(SYS)/gc.c
 $(SYS)/bdw-larceny.o: $(SYS)/larceny.c
 $(SYS)/bdw-stats.o: $(SYS)/stats.c
+$(SYS)/alloc.o: $(SYS)/unix-alloc.c $(SYS)/posix-alloc.c
 
 $(COBJS): $(HDRS)
 $(ALL_GC): $(HDRS) $(GCHDRS)

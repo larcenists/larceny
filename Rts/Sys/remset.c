@@ -1,7 +1,7 @@
 /* Rts/Sys/remset.c.
  * Larceny run-time system -- remembered set implementation.
  *
- * $Id: remset.c,v 1.8 1997/07/07 20:13:53 lth Exp $
+ * $Id: remset.c,v 1.9 1997/09/23 19:57:44 lth Exp lth $
  *
  *
  * The remembered set is an ADT with a public interface as described
@@ -171,15 +171,8 @@ create_remset( unsigned tbl_entries,  /* size of hash table, 0 = default */
   if (log2( tbl_entries ) == -1)
     tbl_entries = DEFAULT_REMSET_TBLSIZE;   /* too fascist, but works */
   
- again:
-  rs = (remset_t*)malloc( sizeof( remset_t ) );
-  data = (remset_data_t*)malloc( sizeof( remset_data_t ) );
-  if (rs == 0 || data == 0) {
-    if (rs) free( rs );
-    if (data) free( data );
-    memfail( MF_MALLOC, "Can't allocate remembered set." );
-    goto again;
-  }
+  rs = (remset_t*)must_malloc( sizeof( remset_t ) );
+  data = (remset_data_t*)must_malloc( sizeof( remset_data_t ) );
 
  again2:
   heapptr = gclib_alloc_rts( tbl_entries*sizeof(word)+ssb_entries*sizeof(word),
@@ -525,11 +518,7 @@ static pool_t *allocate_pool_segment( unsigned pool_entries )
   pool_t *p;
   word *heapptr;
 
- again:
-  if ((p = (pool_t*)malloc( sizeof( pool_t ) )) == 0) {
-    memfail( MF_MALLOC, "Can't allocate remset hash pool." );
-    goto again;
-  }
+  p = (pool_t*)must_malloc( sizeof( pool_t ) );
 
  again2:
   heapptr = gclib_alloc_rts( pool_entries*WORDS_PER_POOL_ENTRY*sizeof(word), 

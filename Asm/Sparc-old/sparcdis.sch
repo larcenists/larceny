@@ -7,7 +7,7 @@
 ; Sparc assembly language instructions using symbolic register names,
 ; millicode table offsets, and global table offsets.
 
-(define disassemble
+(define disassemble-codevector
 
   (let ()
 
@@ -328,7 +328,7 @@
 ; It blatantly assumes that the first instruction is at address 0, and prints
 ; addresses (and relative addresses) given that.
 
-(define print-ilist
+(define print-instructions
 
   (let ()
 
@@ -480,4 +480,4 @@
     (lambda (ilist)
       (print-ilist ilist 0))))
 
-
+; eof

@@ -1,7 +1,7 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.10 1997/08/22 21:05:14 lth Exp $
+; $Id: makefile.sch,v 1.11 1997/09/23 20:08:39 lth Exp lth $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
@@ -11,7 +11,7 @@
 ;  make-compiler
 ;  make-sparcasm
 ;  make-newasm
-;  make-development-system  -- makes auxlib, compat, compiler, sparcasm
+;  make-development-environment  -- makes auxlib, compat, compiler, sparcasm
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -76,6 +76,7 @@
 
     ; General library
 
+    "struct"            ; structures
     "argv"              ; command line arguments
     "list"              ; list procedures
     "vector"            ; vector procedures
@@ -172,21 +173,24 @@
 (make:deps eheap-project '("Lib/ecodes.sch") '("Build/except.sh"))
 (make:targets eheap-project '("larceny.eheap") make-dumpheap)
 
+; FIXME: The optional target name does not yet work.
+
 (define (make-larceny-heap . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (if (not (write-barrier))
       (begin (write-barrier #t)
 	     (display "NOTE: Turning on write barrier.")
 	     (newline)))
-  (make:pretend (not (null? rest)))
-  (make:make heap-project "larceny.heap"))
+  (cond ((null? rest)
+	 (make:pretend #f)
+	 (make:make heap-project "larceny.heap"))
+	((string? (car rest))
+	 (make:pretend #f)
+	 (make:make heap-project (car rest)))
+	(else
+	 (make:pretend #t)
+	 (make:make heap-project "larceny.heap"))))
 
 (define (make-larceny-eheap . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (if (write-barrier)
       (begin (write-barrier #f)
 	     (display "NOTE: Turning off write barrier.")
@@ -206,7 +210,7 @@
 			 "sets" "switches" "twobit.imp" "pass4patch"))
 
 (define comp-asm-files '("makefasl" "makefasl2" "dumpheap"))
-(define comp-util-files '("make"))
+(define comp-util-files '("make" "init-comp"))
 
 
 (make:rule compiler-project ".fasl" ".sch" make-compile-file)
@@ -219,9 +223,6 @@
 (make:targets compiler-project '("compiler.date") (lambda args #t))
 
 (define (make-compiler . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (make:pretend (not (null? rest)))
   (make:make compiler-project "compiler.date"))
 
@@ -241,9 +242,6 @@
 (make:targets sparc-oldasm-project '("sparc-oldasm.date") (lambda args #t))
 
 (define (make-sparc-oldasm . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (make:pretend (not (null? rest)))
   (make:make sparc-oldasm-project "sparc-oldasm.date"))
 
@@ -271,9 +269,6 @@
 (make:targets sparcasm-project '("sparcasm.date") (lambda args #t))
 
 (define (make-sparcasm . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (make:pretend (not (null? rest)))
   (make:make sparcasm-project "sparcasm.date"))
 
@@ -289,9 +284,6 @@
 (make:targets compat-project '("compat.date") (lambda args #t))
 
 (define (make-compat . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (make:pretend (not (null? rest)))
   (make:make compat-project "compat.date"))
 
@@ -309,9 +301,6 @@
 (make:targets auxlib-project '("auxlib.date") (lambda args #t))
 
 (define (make-auxlib . rest)
-  (include-source-code #f)
-  (include-variable-names #f)
-  (include-procedure-names #t)
   (make:pretend (not (null? rest)))
   (make:make auxlib-project "auxlib.date"))
 

@@ -1,7 +1,7 @@
 /* Rts/Sys/signals.h
  * Larceny Run-time system -- Unix signal handling.
  *
- * $Id: signals.h,v 1.1 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: signals.h,v 1.1 1997/09/17 15:17:26 lth Exp $
  */
 
 #ifndef INCLUDED_SIGNALS_H

@@ -1,7 +1,7 @@
 ; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; $Id: reploop.sch,v 1.5 1997/09/17 15:14:58 lth Exp lth $
+; $Id: reploop.sch,v 1.5 1997/09/17 15:14:58 lth Exp $
 
 ($$trace "reploop")
 

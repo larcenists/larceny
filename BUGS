@@ -120,6 +120,14 @@ supporting documentation, information, test cases, and so on.
      particular, if a symbol starts with \c, then even if symbols may not
      usually start with c, the interpretation should be a symbol.
 
-NEXT ENTRY: 038.
+038  v0.29a (970917 / lth)
 
+     Typetag-set! gives a strange error message when it's not the structure
+     but the typetag that is bad:
+
+	> (typetag-set! (make-vector 3) 20)
+	Error: typetag-set!: #(#f #f #f) is not typetag-settable.
+
+NEXT ENTRY: 040.
+	
 ; eof

@@ -1,7 +1,7 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
- * $Id: unix-alloc.c,v 1.10 1997/07/07 20:13:53 lth Exp $
+ * $Id: unix-alloc.c,v 1.11 1997/09/23 19:57:44 lth Exp lth $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write
@@ -31,7 +31,6 @@
 
 #define GC_INTERNAL
 
-#include <errno.h>
 #include "larceny.h"
 #include "gclib.h"
 #include "assert.h"
@@ -228,7 +227,7 @@ static void *gclib_alloc( unsigned bytes )
                          bytes, bytes_allocated_by_sbrk);
 
  again:
-  if (pageof( top ) - pageof( gclib_pagebase ) > descriptor_slots) {
+  if (pageof( top ) > descriptor_slots) {
     unsigned slots = descriptor_slots * 2;
     unsigned *desc_g, *desc_b;
 
@@ -244,14 +243,16 @@ static void *gclib_alloc( unsigned bytes )
        */
       panic( "gclib_allocate: unable to grow page tables." );
     }
-    descriptor_slots = slots;
+
     for ( i=descriptor_slots ; i < slots ; i++ )
       desc_b[i] = desc_g[i] = 0;
 
+    descriptor_slots = slots;
     gclib_desc_g = desc_g;
     gclib_desc_b = desc_b;
-    wb_re_setup( gclib_desc_g );  /* HACK! UGLY! FIXME! */
-                                  /* (would be method on "arena" object?) */
+
+    wb_re_setup( gclib_pagebase, gclib_desc_g );
+
     goto again;
   }
 

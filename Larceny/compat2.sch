@@ -21,7 +21,7 @@
 ;
 ; A well-defined sorting procedure.
 
-(define compat:sort (lambda (list less?) (sort less? list)))
+(define compat:sort (lambda (list less?) (sort list less?)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

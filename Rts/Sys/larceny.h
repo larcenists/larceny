@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.18 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: larceny.h,v 1.19 1997/09/23 19:57:44 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -16,6 +16,7 @@
 /* Fundamental data type. */
 
 typedef unsigned word;
+typedef unsigned char byte;
 
 #ifndef GC_INTERNAL
 #include "gc.h"

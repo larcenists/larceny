@@ -1,7 +1,7 @@
 /* Rts/Sys/new-policy.c.
  * Larceny run-time system -- memory manager.
  *
- * $Id: memmgr.c,v 1.24 1997/09/17 15:17:26 lth Exp lth $
+ * $Id: memmgr.c,v 1.24 1997/09/17 15:17:26 lth Exp $
  *
  * This file contains procedures for memory allocatation and garbage 
  * collection policy.
