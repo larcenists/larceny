@@ -82,6 +82,14 @@ bool los_mark( los_t *los, los_list_t *marked, word *w, int gen_no );
      w must be the address of a live large object.
      */
 
+bool los_mark_and_set_generation( los_t *los, los_list_t *marked, word *w, 
+				  int gen_no, int new_gen_no );
+  /* Exactly like los_mark() except that the generation number of the object
+     is immediately changed to new_gen_no.
+
+     w must be the address of a live large object.
+     */
+
 void los_sweep( los_t *los, int gen_no );
   /* Sweep the indicated generation list and free all the blocks on it.
 
