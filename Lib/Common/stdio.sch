@@ -11,51 +11,18 @@
 
 ($$trace "stdio")
 
-; First there are private variables and some procedures that depend on them.
-; In a multi-threaded system, we must be more sophisticated than this, 
-; because the current input and output ports are really dynamically bound
-; (and bound separately on each processor).
+(define current-input-port 
+  (system-parameter "current-input-port" #f (lambda (x) (input-port? x))))
 
-(define *stdin* #f)
-(define *stdout* #f)
-
-(define (current-input-port . rest)
-  (cond ((null? rest) *stdin*)
-        ((null? (cdr rest))
-         (let ((old *stdin*)
-               (new (car rest)))
-           (if (input-port? new)
-               (begin (set! *stdin* new)
-                      old)
-               (begin (error "current-input-port: not an input port: " new)
-                      #t))))
-        (else
-         (error "current-input-port: too many arguments.")
-         #t)))
-
-(define (current-output-port . rest)
-  (cond ((null? rest) *stdout*)
-        ((null? (cdr rest))
-         (let ((old *stdout*)
-               (new (car rest)))
-           (if (output-port? new)
-               (begin (set! *stdout* new)
-                      old)
-               (begin (error "current-output-port: not an output port: " new)
-                      #t))))
-        (else
-         (error "current-output-port: too many arguments.")
-         #t)))
-
-; Then there is code that does not depend on *stdin* or *stdout*, but
-; that use only current-input-port and current-output-port.
+(define current-output-port 
+  (system-parameter "current-output-port" #f (lambda (x) (output-port? x))))
 
 (define (initialize-io-system)
   (io/initialize)
   (file-io/initialize)
   (console-io/initialize)
-  (current-input-port (console-io/current-console-input))
-  (current-output-port (console-io/current-console-output))
+  (current-input-port (console-input-port))
+  (current-output-port (console-output-port))
   (unspecified))
 
 (define (shutdown-io-system)
@@ -133,10 +100,18 @@
   (file-io/open-file filename 'output 'binary))
 
 (define (console-input-port)
-  (console-io/current-console-input))
+  ((console-input-port-factory)))
 
 (define (console-output-port)
-  (console-io/current-console-output))
+  ((console-output-port-factory)))
+
+(define console-input-port-factory
+  (system-parameter "console-input-port-factory" 
+                    console-io/console-input-port))
+
+(define console-output-port-factory
+  (system-parameter "console-output-port-factory"
+                    console-io/console-output-port))
 
 (define (open-input-string s)
   (string-io/open-input-string s))
@@ -202,26 +177,12 @@
       r)))
 
 (define (with-input-from-port port thunk)
-  (let ((outside #f))
-    (dynamic-wind
-     (lambda ()
-       (set! outside (current-input-port))
-       (current-input-port port))
-     thunk
-     (lambda ()
-       (set! port (current-input-port))
-       (current-input-port outside)))))
+  (parameterize ((current-input-port port))
+    (thunk)))
 
 (define (with-output-to-port port thunk)
-  (let ((outside #f))
-    (dynamic-wind
-     (lambda ()
-       (set! outside (current-output-port))
-       (current-output-port port))
-     thunk
-     (lambda ()
-       (set! port (current-output-port))
-       (current-output-port outside)))))
+  (parameterize ((current-output-port port))
+    (thunk)))
 
 (define (with-input-from-file fn thunk)
   (call-with-input-file fn
@@ -242,14 +203,6 @@
   (call-with-binary-output-file fn
     (lambda (p)
       (with-output-to-port p thunk))))
-
-; Transcript I/O is now an add-on.
-
-(define (transcript-on filename)
-  (error "Transcripts currently disabled."))
-
-(define (transcript-off)
-  (error "Transcripts currently disabled."))
 
 ; Close-open-files is useful for (interactive) error recovery.
 
