@@ -146,11 +146,12 @@
 (define-instruction $.align
   (lambda (instruction as)
     (list-instruction ".align" instruction)
-    (emit-text as "align ~a" (operand1 instruction))))
+    (emit-text as "T_ALIGN ~a" (operand1 instruction))))
 
 (define-instruction $.cont
   (lambda (instruction as)
-    (list-instruction ".cont" instruction)))
+    (list-instruction ".cont" instruction)
+    (emit-text as "T_CONT")))
 
 (define-instruction $.end
   (lambda (instruction as)
