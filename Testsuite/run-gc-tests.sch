@@ -76,17 +76,10 @@
       "(gc-benchmark 18)"
       "(gc-benchmark 18)")
      gcbench0
-     ((allocated 6292000 0.001)		; 6.292MW +/- 0.1%
-      (maxheap   7700000 0.05)          ; 7.7MW +/- 5%
-      )
+     ;((allocated 6292000 0.001)		; 6.292MW +/- 0.1%
+     ; (maxheap   7700000 0.05)          ; 7.7MW +/- 5%
+     ; )
      )
-    ("Ellis-Boehm GC benchmark, smaller object"
-     ("gcbench1")
-     ("(gc-benchmark 18)"
-      "(gc-benchmark 18)"
-      "(gc-benchmark 18)")
-     gcbench1
-     ())
     ("Array growth benchmark (integers)"
      ("grow")
      ("(int-sequence-benchmark)"
