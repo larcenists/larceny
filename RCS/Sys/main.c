@@ -1,8 +1,8 @@
 /*
- * Scheme run-time system
- * C-language procedures for system initialization (SunOS UNIX)
+ * Scheme 313 run-time system
+ * C-language procedures for system initialization (Berkeley UNIX)
  *
- * $Id: main.c,v 1.2 91/06/30 00:08:07 lth Exp Locker: lth $
+ * $Id: main.c,v 1.3 91/07/12 03:15:49 lth Exp Locker: lth $
  *
  * Exports the procedures C_init() and panic().
  * Accepts the following options from the command line:
@@ -12,11 +12,13 @@
  *    -l nnnn    Tenuring collection limit in bytes (decimal)
  *    -S nnnn    Static heap size in bytes (decimal) (?)
  *    -s nnnn    Stack cache size in bytes (decimal)
- *    -I nnnn    Interrupt frequency
+ *    -I nnnn    The initial value of the timer.
+ *    -h file    Tenured-area heap file. Mandatory.
+ *    -H file    Static-area heap file. Optional.
  *
  * Hack options (for benchmarks...)
  *
- *    -a nnnn    Argument for the benchmark.
+ *    -a nnnn    Argument for the benchmark. Supply any number of these.
  */
 
 #include <stdio.h>
@@ -29,12 +31,12 @@
 #include "offsets.h"
 #include "main.h"
 #include "macros.h"
+#include "exceptions.h"
 
 static void invalid(), setup_interrupts();
 void panic();
 
 word globals[ GLOBALS_TABLE_SIZE ];
-word (*millicode[ MILLICODE_TABLE_SIZE ])();
 
 /*
  * Parse command line and initialize runtime system components, then
@@ -49,6 +51,10 @@ char **argv, **envp;
   unsigned arg = 0;
   unsigned milliseconds;
   struct rusage r1, r2;
+  word args[ 10 ];
+  int argcount = 0, i;
+  char *heapfile = NULL;
+  FILE *heap;
 
   while (--argc) {
     ++argv;
@@ -88,7 +94,16 @@ char **argv, **envp;
 	  if (argc == 1 || sscanf( *(argv+1), "%u", &arg ) != 1)
 	    invalid( "-a" );
 	  ++argv; --argc;
+	  args[ argcount++ ] = arg;
 	  break;
+	case 'h' :
+	  if (argc == 1)
+	    invalid( "-h" );
+	  heapfile = *++argv; --argc;
+	  break;
+	case 'H' :
+	  fprintf( stderr, "Don't know about -H yetb.\n" );
+	  exit( 1 );
 	default :
 	  fprintf( stderr, "Invalid option '%s'\n", *argv );
 	  exit( 1 );
@@ -99,34 +114,41 @@ char **argv, **envp;
       exit( 1 );
     }
   }
- 
-  globals[ INITIAL_TIMER_OFFSET ] = (ifreq == 0 ? 1 : ifreq);
 
-  /* Millicode is used by other initializers and must be done first */
-
+  /* Millicode may be used by other initializers and must be done first */
   init_millicode();
 
   /* Allocate memory and set up stack. Ignore command line switches for now. */
-
   if (init_mem( 1024*1024, 1024*1024, 0, 1024*64, 1024*700 ) == 0)
-    panic( "Unable to initialize memory!\n" );
+    panic( "Unable to initialize memory!" );
+
+  if (heapfile == NULL)
+    panic( "Not without a heap file, you don't." );
+
+  if ((heap = fopen( heapfile, "r" )) == NULL)
+    panic( "Unable to open heap file." );
+
+  if (load_heap( heap ) == -1)
+    panic( "Error in loading heap file!" );
+
+  fclose( heap );
 
   /* Catch whatever interesting interrupts there are */
-
   setup_interrupts();
 
-  /* Setup the i/o system */
-
 #if 0
+  /* Setup the i/o system */
   init_iosys();
 #endif
 
   globals[ TIMER_OFFSET ] = globals[ INITIAL_TIMER_OFFSET ];
+  globals[ INITIAL_TIMER_OFFSET ] = (ifreq == 0 ? 1 : ifreq);
 
   getrusage( RUSAGE_SELF, &r1 );
 
-  globals[ RESULT_OFFSET ] = fixnum( 1 );
-  globals[ REG1_OFFSET ] = fixnum( arg );
+  globals[ RESULT_OFFSET ] = fixnum( argcount );
+  for (i = 0 ; i < argcount ; i++ )
+    globals[ REG1_OFFSET+i ] = fixnum( args[ i ] );
 
   schemestart();
 
@@ -134,6 +156,7 @@ char **argv, **envp;
   milliseconds = ((r2.ru_utime.tv_sec - r1.ru_utime.tv_sec)*1000
 		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
   printf( "Time: %u milliseconds.\n", milliseconds );
+  printf( "Result: %lx\n", globals[ RESULT_OFFSET ] );
 
   exit( 0 );
 }
@@ -145,67 +168,31 @@ char **argv, **envp;
 void panic( s )
 char *s;
 {
-  fprintf( stderr, "Scheme Runtime System Panic: %s\n", s );
+  fprintf( stderr, "Scheme Panic: %s\n", s );
   exit( 1 );
 }
 
 
 /*
  * C-language exception handler (called from exception.s)
- * This is a temporary hack.
+ * This is a temporary hack; eventually this procedure will not be needed.
  */
 void C_exception( i )
 {
-  printf( "exception handler called: %d\n.", i );
+  static char *s[] = { "Timer", "Type", "Procedure", "Argument" };
+
+  printf( "exception: %s\n.", s[ i ] );
   exit( 1 );
 }
 
 
 /*
- * The gyrations required to set up M_STKUFLOW on the Sparc are due to the
- * fact that Sparc return addresses are the addresses of the calling
- * instruction, meaning that since stkuflow is returned into (never called),
- * we must adjust its address by -8 to get it right.
+ * Eventually, we will here move the first instruction of each millicode
+ * procedure into the jump table and adjust the branch offset. For now,
+ * do nothing.
  */
 static init_millicode()
 {
-  extern word invalid_millicode();
-  extern word alloc(), alloci(), setcar(), setcdr(), vectorset(), gcstart();
-  extern word stkoflow(), stkuflow(), save_scheme_context();
-  extern word restore_scheme_context(), capture_continuation();
-  extern word restore_continuation(), exception();
-
-  int i;
-
-  for (i = 0 ; i <= LAST_MILLICODE ; i++ )
-    millicode[ i ] = invalid_millicode;
-
-  millicode[ M_ALLOC ] = alloc;
-  millicode[ M_ALLOCI ] = alloci;
-  millicode[ M_SETCAR ] = setcar;
-  millicode[ M_SETCDR ] = setcdr;
-  millicode[ M_VECTORSET ] = vectorset;
-  millicode[ M_GCSTART ] = gcstart;
-  millicode[ M_STKOFLOW ] = stkoflow;
-#if SPARC
-  millicode[ M_STKUFLOW ] = (word (*)())((word)stkuflow - 8);
-#else
-  millicode[ M_STKUFLOW ] = stkuflow();
-#endif
-  millicode[ M_SAVE_CONTEXT ] = save_scheme_context;
-  millicode[ M_RESTORE_CONTEXT ] = restore_scheme_context;
-  millicode[ M_CAPTURE ] = capture_continuation;
-  millicode[ M_RESTORE ] = restore_continuation;
-  millicode[ M_EXCEPTION ] = exception;
-}
-
-
-/*
- * Default millicode handler for non-installed millicode (sanity check).
- */
-word invalid_millicode()
-{
-  panic( "Invalid millicode call.\n" );
 }
 
 
