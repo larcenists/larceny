@@ -1,5 +1,5 @@
 ! -*- Fundamental -*-
-! $Id: bench1.s,v 1.3 91/06/26 12:30:31 lth Exp Locker: lth $
+! $Id: bench1.s,v 1.4 91/06/29 15:59:48 lth Exp Locker: lth $
 !
 ! Hand-compiled code for the following program:
 !
@@ -21,7 +21,7 @@
 
 	.word	...					! Bytevector header
 loop1:
-	ld	[ %GLOBALS+SP_LIMIT_OFFSET ], %g1	! Lower limit
+	ld	[ %GLOBALS+STK_LIMIT_OFFSET ], %g1	! Lower limit
 	cmp	%STKP, %g1				! Overflow?
 	bgt,a	L1
 	sub	%STKP, 16, %STKP			! allocate frame
