@@ -805,47 +805,6 @@ HIGH PRIORITY BUGS: none.
     The macro expander needs to be tuned.
     The rest of Twobit needs to be tuned.
 
-147 v0.48 (991123 / lth)
-    Priority: medium
-    Category: TWOBIT / correctness
-
-    The macro expander barfs on an incorrect use of ASSV:
-	> (macro-expand '(assv x))
-
-	Error: car: () is not a pair.
-	Entering debugger; type "?" for help.
-	debug> b
-	=> compiled procedure debug/enter-debugger
-	   system continuation
-	   compiled procedure #f
-	   compiled procedure m-transcribe-low-level
-	   compiled procedure #f
-	...
-	debug> 2 d
-	compiled procedure #f
-	debug> c
-	(lambda (exp rename compare)
-	  (let ((arg1 (cadr exp)) (arg2 (caddr exp)))
-	    (if (or (boolean? arg1)
-	            (char? arg1)
-	            (and (pair? arg1)
-	                 (= (length arg1) 2)
-	                 (identifier? (car arg1))
-	                 (compare (car arg1) (rename 'quote))
-	                 (symbol? (cadr arg1)))
-	            (and (pair? arg2)
-	                 (= (length arg2) 2)
-	                 (identifier? (car arg2))
-	                 (compare (car arg2) (rename 'quote))
-	                 (every1?
-	                   (lambda (y)
-	                     (and (pair? y)
-	                          (let ((x (car y)))
-	                            (or (boolean? x) (char? x) (symbol? x)))))
-	                   (cadr arg2))))
-	        (cons (rename 'assq) (cdr exp))
-	        exp)))
-
 148 v0.48 (991123 / lth)
     Priority: medium
     Category: LIB / correctness
@@ -903,32 +862,6 @@ HIGH PRIORITY BUGS: none.
     reference is not made.  The bug is that the environment does not have a
     distinguished primitive table, in the same way that it does not have a
     distinguished macro environment (known bug).
-
-154 v0.48 (2000-05-05 / lth)
-    Priority: medium
-    Category: TWOBIT / interface
-
-    Some error messages are extremely hard to decipher.
-
-	Error: Wrong number of arguments to known procedure((begin \
-	\.text-extending-right|2) ((begin *) (begin .xunit|16) '0.5) \
-	\((begin *) (begin .yunit|19) ((begin -) (begin .i|4) '0.5)))
-
-158 v0.48 (2000-05-17 / lth)
-    Priority: medium
-    Category: TWOBIT / user-friendliness
-
-    This is actually a problem of nongraceful handling of erroneous input.
-    Twobit hangs when given a CASE clause without any expressions, e.g.
-
-	(case x
-	  ((foo))
-          (else 1))
-
-    Note, it gives the correct error message if presented with only
-
-        (case x
-          ((foo)))
 
 NEXT ENTRY: 163
 
