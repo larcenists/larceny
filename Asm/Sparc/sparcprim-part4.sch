@@ -67,7 +67,7 @@
 	    (L0  (new-label))
 	    (L1  (new-label)))
 	(sparc.label  as L0)
-	(op-check as rs1 rs2 $r.tmp0)
+	(op-check     as rs1 rs2 $r.tmp0)
 	(sparc.bvc.a  as L1)
 	(sparc.move   as $r.tmp0 rd)
 	(if (not (= rs1 $r.result)) (sparc.move as rs1 $r.result))
