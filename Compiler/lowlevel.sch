@@ -1,3 +1,7 @@
+; Copyright 1998 William Clinger
+;
+; $Id$
+;
 ; Low-level macro facility based on explicit renaming.  See
 ; William D Clinger. Hygienic macros through explicit renaming.
 ; In Lisp Pointers IV(4), 25-28, December 1991.

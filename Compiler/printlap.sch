@@ -1,7 +1,8 @@
-; Compiler/printlap.sch
-; Procedures that make .LAP structures human-readable
+; Copyright 1998 William Clinger.
 ;
 ; $Id$
+;
+; Procedures that make .LAP structures human-readable
 
 (define (readify-lap code)
   (map (lambda (x)

@@ -1,13 +1,6 @@
 ; Copyright 1992 William Clinger
 ;
-; Permission to copy this software, in whole or in part, to use this
-; software for any lawful purpose, and to redistribute this software
-; is granted subject to the restriction that all copies made of this
-; software must include this copyright notice in full.
-;
-; I also request that you send me a copy of any improvements that you
-; make to this software so that they may be incorporated within it to
-; the benefit of the Scheme community.
+; $Id$
 ;
 ; 10 December 1998
 
@@ -51,30 +44,6 @@
     ((lambda ()
        (define ?name ?val) ...
        ?body ?body2 ...)))))
-
-(define-syntax case
-  (syntax-rules (else)
-    ((case ?e1 (else ?body ?body2 ...))
-     (begin ?e1 ?body ?body2 ...))
-    ((case ?e1 (?z ?body ?body2 ...))
-     (if (memv ?e1 '?z) (begin ?body ?body2 ...)))
-    ((case ?e1 ?clause1 ?clause2 ?clause3 ...)
-     (letrec-syntax
-       ((case-aux
-          (... (syntax-rules ()
-                ((case-aux ?temp (else ?body ?body2 ...))
-                 (begin ?body ?body2 ...))
-                ((case-aux ?temp ((?z ...) ?body ?body2 ...))
-                 (if (memv ?temp '(?z ...)) (begin ?body ?body2 ...)))
-                ((case-aux ?temp ((?z ...) ?body ?body2 ...) ?c1 ?c2 ...)
-                 (if (memv ?temp '(?z ...))
-                     (begin ?body ?body2 ...)
-                     (case-aux ?temp ?c1 ?c2 ...)))
-                ; a popular extension
-                ((case-aux ?temp (?z ?body ...) ?c1 ...)
-                 (case-aux ?temp ((?z) ?body ...) ?c1 ...))))))
-       (let ((temp ?e1))
-         (case-aux temp ?clause1 ?clause2 ?clause3 ...))))))
 
 ; This definition of named LET extends the prior definition of LET.
 ; The first rule is non-circular, thanks to the LET* scope that is

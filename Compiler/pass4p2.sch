@@ -1,5 +1,7 @@
 ; Copyright 1991 William Clinger
 ;
+; $Id$
+;
 ; 13 November 1998.
 
 ; Procedure calls.

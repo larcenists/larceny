@@ -1,13 +1,6 @@
 ; Copyright 1992 William Clinger
 ;
-; Permission to copy this software, in whole or in part, to use this
-; software for any lawful purpose, and to redistribute this software
-; is granted subject to the restriction that all copies made of this
-; software must include this copyright notice in full.
-;
-; I also request that you send me a copy of any improvements that you
-; make to this software so that they may be incorporated within it to
-; the benefit of the Scheme community.
+; $Id$
 ;
 ; 9 December 1998
 ; Syntactic environments.
@@ -249,7 +242,7 @@
                      (char=? (string-ref s 0) renaming-prefix-character))
                 (string->symbol (string-append s suffix))
                 (string->symbol (string-append renaming-prefix s suffix))))
-          (m-warn "Illegal use of rename procedure" ok sym)))))
+          (m-warn "Illegal use of rename procedure" 'ok:FIXME sym)))))
 
 ; Given a datum, strips the suffixes from any symbols that appear within
 ; the datum, trying not to copy any more of the datum than necessary.

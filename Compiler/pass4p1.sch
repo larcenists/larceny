@@ -1,6 +1,8 @@
 ; Copyright 1991 William Clinger
 ;
-; 1 December 1998
+; $Id$
+;
+; 13 November 1998
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.

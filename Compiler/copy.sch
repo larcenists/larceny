@@ -1,3 +1,7 @@
+; Copyright 1998 William Clinger.
+;
+; $Id$
+;
 ; Given an expression in the subset of Scheme used as an intermediate language
 ; by Twobit, returns a newly allocated copy of the expression in which the
 ; local variables have been renamed and the referencing information has been

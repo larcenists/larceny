@@ -1,20 +1,8 @@
-; Compiler/sparc.imp.sch
-; Larceny -- target-specific information for Twobit's standard-C backend.
+; Copyright 1991 William Clinger
 ;
 ; $Id$
 ;
-; Copyright 1991 William Clinger
-;
-; Permission to copy this software, in whole or in part, to use this
-; software for any lawful noncommercial purpose, and to redistribute
-; this software is granted subject to the restriction that all copies
-; made of this software must include this copyright notice in full.
-; 
-; I also request that you send me a copy of any improvements that you
-; make to this software so that they may be incorporated within it to
-; the benefit of the Scheme community.
-;
-; 09 April 1998 / lth
+; Larceny -- target-specific information for Twobit's standard-C backend.
 
 (define twobit-sort
   (lambda (less? list)

@@ -1,7 +1,8 @@
-; Compiler/help.sch
-; Larceny -- simple help system for the development environment
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny -- simple help system for the development environment
 
 (define *help-topics*)
 

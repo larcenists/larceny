@@ -1,5 +1,7 @@
 ; Copyright 1991 Lightship Software, Incorporated.
 ;
+; $Id$
+;
 ; 9 November 1998
 
 ; Implements the following abstract data types.

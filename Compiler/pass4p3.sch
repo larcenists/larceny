@@ -1,3 +1,7 @@
+; Copyright 1998 William Clinger.
+;
+; $Id$
+;
 ; Local optimizations for MacScheme machine assembly code.
 ;
 ; Suppress nop instructions.
