@@ -20,6 +20,12 @@
 ; (trace-entry <symbol>)        Trace the value in global <symbol> at entry
 ; (trace-exit <symbol>)         Trace the value in global <symbol> at exit
 ;
+; FIXME: It is probably a bug that
+;           (begin (trace-entry x) (trace-exit x))
+;        is not the same as
+;           (trace x)
+;        and that should be fixed.  Also fix the docn, which notes this.
+;
 ; FIXME: Come up with a better solution for resetting the trace level than
 ;        the redefinition of repl-evaluator.  The most obvious solution is
 ;        a set of REPL hooks: REPL-BEFORE-EVAL-HOOK and REPL-AFTER-EVAL-HOOK.
@@ -124,15 +130,20 @@
            p))))
 
 (define (untrace . rest)
+
+  (define (untrace-loop proc traced)
+    (cond ((null? traced) '())
+          ((eqv? (caar traced) proc)
+           (debug/undo-wrapping (cdar traced))
+           (untrace-loop proc (cdr traced)))
+          (else
+           (cons (car traced)
+                 (untrace-loop proc (cdr traced))))))
+
   (cond ((null? rest)
          (for-each untrace (map car *traced*)))
         ((null? (cdr rest))
-         (let ((p (car rest)))
-           (let ((probe (assq p *traced*)))
-             (if probe
-                 (begin (debug/undo-wrapping (cdr probe))
-                        (set! *traced* (remq! probe *traced*))))
-             p)))
+         (set! *traced* (untrace-loop (car rest) *traced*)))
         (else
          (for-each untrace rest)))
   (unspecified))
@@ -154,18 +165,23 @@
            p))))
 
 (define (unbreak . rest)
+
+  (define (unbreak-loop proc broken)
+    (cond ((null? broken) '())
+          ((eqv? (caar broken) proc)
+           (debug/undo-wrapping (cdar broken)))
+          (else
+           (cons (car broken)
+                 (untrace-look proc (cdr broken))))))
+
   (cond ((null? rest)
          (for-each unbreak (map car *broken*)))
         ((null? (cdr rest))
-         (let ((p (car rest)))
-           (let ((probe (assq p *broken*)))
-             (if probe
-                 (begin (debug/undo-wrapping (cdr probe))
-                        (set! *broken* (remq! probe *broken*))))
-             p)))
+         (set! *broken* (unbreak-loop (car rest) *broken*))
+         (unspecified))
         (else
-         (for-each unbreak rest)))
-  (unspecified))
+         (for-each unbreak rest))))
+
 
 (define (debug/signal-breakpoint p args)  ; args is a list or #f
   (cond ((and p args)
