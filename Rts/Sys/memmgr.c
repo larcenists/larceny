@@ -83,14 +83,13 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   gclib_init();
   gc = alloc_gc_structure( info->globals );
 
+  /* Number of generations includes static heap, if any */
   if (info->is_generational_system) 
     *generations = allocate_generational_system( gc, info );
   else
     *generations = allocate_stopcopy_system( gc, info );
 
   DATA(gc)->generations = *generations;
-  if (!info->is_generational_system && gc->static_area)
-    DATA(gc)->generations += 1;
 
   DATA(gc)->shrink_heap = !info->dont_shrink_heap;
   gc->los = create_los( *generations );
@@ -536,8 +535,9 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
   
   if (generation == 0)
     yh_stats( gc->young_area, stats );
-  else if (!data->is_generational_system)
-    return;			/* Stopcopy static area */
+  else if (gc->static_area && !data->is_generational_system) {
+    sh_stats( gc->static_area, stats );	/* Stopcopy static area */
+  }
   else if (gc->static_area && generation == data->generations-1) {
     sh_stats( gc->static_area, stats );
     rs_stats( gc->remset[generation], &stats->remset_data );
@@ -719,7 +719,7 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
   }
 
   gc->id = strdup( buf );
-  return 1;
+  return (info->use_static_area ? 2 : 1);
 }
 
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
