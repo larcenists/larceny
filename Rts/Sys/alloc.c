@@ -42,22 +42,24 @@
 
 /* Public globals */
 
-unsigned *gclib_desc_g;              /* generation owner */
-unsigned *gclib_desc_b;              /* attribute bits */
-caddr_t  gclib_pagebase;             /* page address of lowest known word */
+unsigned *gclib_desc_g;		/* generation owner */
+unsigned *gclib_desc_b;		/* attribute bits */
+caddr_t  gclib_pagebase;	/* page address of lowest known word */
 
 /* Private globals */
 
 static struct {
-  caddr_t    memtop;            /* address of highest known word */
+  caddr_t    memtop;		/* address of highest known word */
   int        descriptor_slots;  /* number of allocated slots */
+  unsigned   heap_bytes_limit;	/* Maximum allowed heap allocation */
   unsigned   heap_bytes;        /* bytes allocated to heap */
   unsigned   max_heap_bytes;    /* max ditto */
   unsigned   remset_bytes;      /* bytes allocated to remset */
   unsigned   max_remset_bytes;  /* max ditto */
   unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
   unsigned   max_rts_bytes;     /* max ditto */
-  unsigned   heap_bytes_limit;	/* Maximum allowed heap allocation */
+  unsigned   wastage_bytes;	/* amount of wasted space */
+  unsigned   max_wastage_bytes;	/* max ditto */
 } data;
 
 static byte *gclib_alloc( unsigned bytes );
@@ -264,11 +266,11 @@ static void grow_table( byte *new_bot, byte *new_top )
 static byte *alloc_aligned( unsigned bytes )
 {
   byte *p, *q;
-  double wastage;
 
   p = (byte*)must_malloc( bytes+PAGESIZE );
   q = (byte*)roundup_page( p );
-  wastage = (double)(q-p);
+  data.wastage_bytes += PAGESIZE;
+  data.max_wastage_bytes = max( data.max_wastage_bytes, data.wastage_bytes );
   register_pointer( q, p );
   return q;
 }
@@ -285,6 +287,7 @@ void gclib_free( void *addr, int bytes )
   supremely_annoyingmsg( "Freeing: bytes=%d addr=%p", bytes, (void*)addr );
   
   FREE_ALIGNED( addr, bytes );
+  data.wastage_bytes -= PAGESIZE;
 
   pages = bytes/PAGESIZE;
   pageno = pageof( addr );
@@ -334,14 +337,17 @@ void gclib_add_attribute( void *address, int nbytes, unsigned attr )
     gclib_desc_b[p] |= attr;
 }
 
-void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap )
+void gclib_stats( gclib_stats_t *stats )
 {
-  *wheap = data.heap_bytes/sizeof(word);
-  *wremset = data.remset_bytes/sizeof(word);
-  *wrts = data.rts_bytes/sizeof(word);
-  *wmax_heap = data.max_heap_bytes/sizeof(word);
+  stats->wheap = data.heap_bytes/sizeof(word);
+  stats->wheap_max = data.max_heap_bytes/sizeof(word);
+  stats->wremset = data.remset_bytes/sizeof(word);
+  stats->wremset_max = data.max_remset_bytes/sizeof(word);
+  stats->wrts = data.rts_bytes/sizeof(word);
+  stats->wrts_max = data.max_rts_bytes/sizeof(word);
+  stats->wastage = data.wastage_bytes/sizeof(word);
+  stats->wastage_max = data.max_wastage_bytes/sizeof(word);
 }
-
 
 /* Pointer registry for mapping pointers returned from malloc to pointers
    to page boundaries, and back.
