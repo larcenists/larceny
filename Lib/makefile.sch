@@ -200,7 +200,7 @@
 
 (define eval-files
   (append
-   (nbuild-files 'repl-source '("reploop"))
+   (nbuild-files 'repl-source '("main" "reploop"))
    (nbuild-files 'interp-source '("interp" "interp-prim" "switches"))
    (nbuild-files 'compiler 
                  '("pass1" "pass1.aux" "pass2.aux" "prefs" 
