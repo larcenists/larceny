@@ -182,7 +182,7 @@ struct gc {
 #define gc_creg_set( gc,k )           ((gc)->creg_set( gc, k ))
 #define gc_stack_overflow( gc )       ((gc)->stack_overflow( gc ))
 #define gc_stack_underflow( gc )      ((gc)->stack_underflow( gc ))
-#define gc_stats( gc,g,stats )        ((gc)->stats( gc,g,stats ))
+#define gc_stats( gc,g,s )            ((gc)->stats( (gc), (g), (s) ))
 #define gc_compact_all_ssbs( gc )     ((gc)->compact_all_ssbs( gc ))
 #if defined(SIMULATE_NEW_BARRIER)
 #define gc_isremembered( gc, w )      ((gc)->isremembered( gc, w ))
