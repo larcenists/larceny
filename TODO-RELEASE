@@ -1,115 +1,133 @@
 $Id$
 
-SPARC Larceny version 1.0a2, tentative release date 1 June 1999.
+SPARC Larceny version 1.0a2.
 
+Major features at a glance [currently in]
 
-Immediate to-do list:
-  - bug: FIXMEs in conio.
-  - Document a bunch of changes:
-     - changed repl-printer, repl-prompt: now take a port
-     - introduced console-input-port, console-output-port
-     - introduced print-length, print-level
-     - removed error-continuation from basic heap
-  - make Petit Larceny work again (fix compiler interface...)
-  - rebuild and rerelease.
-  - call the remaining system 0.46, and _tag_ it as such.
-
-General tasks from PETIT-STATUS (merge into TODO):
- - Debug printer must support records (too many printers...  merge them)
- - Heap images are dumped in native byte order, but the
-   first word should always be big-endian and should
-   encode the endianness and architecture of the heap.
- - Document new quirks in build/setup process:
-   - must hack Rts/Sys/config.h
-   - must hack makefile to setup osdep (though the system could be
-     compiled with _all_ osdeps and the right code included or excluded
-     by preprocessor wrappers; this seems like the right idea).
- - Bignums: abandon the bogus bignum-truncate-length!; see comments in
-   bignum code.
- - Flonums: names like flonum:infinity are being defined and used all
-   over the place.  Better to have one copy of these that everyone can
-   reference?
- - Flonums: it's called make-flonum but float-sign, etc: this inconsistency
-   is common.  Better to fix it once and for all?
-
--------------------------------
-
-Major features at a glance:
-
-  * Twobit pass 3, other fixes
-  * Foreign function interface
-  * Performance bug fixes (named LET, CASE)
-  * Correctness bug fixes (sundry)
-  * SRFI-0 support (in the full heap)
+  * Twobit pass 3, other compiler fixes.
+  * Records.
+  * Foreign function interface.
+  * Performance bug fixes (named LET, CASE).
+  * Correctness bug fixes (sundry).
+  * SRFI support (full support to be determined).
 
 -------------------------------
 
 Remaining to-do items:
 
 [General bug fixes]
-  * All `high' priority bugs in BUGS.
+  * All `high' priority bugs in BUGS:
+     136: [wdc] macro expander bug
+     137: [wdc] macro expander bug
+
   * The following `medium' priority BUGS:
-     (list to be determined)
+     085: [wdc/lth] environments must hold syntax environments
+     090, 091: [wdc] handling primitives properly even with 
+               integrate-usual-procedures off.
+     103: [wdc] spurious errors about redefinition of primitives with
+          integrate-usual-procedures off (verified present in 0.46).
+     108: [lth] make-vector bug
+     130: [wdc] macro expander confused about multiple uses of variable-arity
+          primitives in same scope (verified present in 0.46).
+
+  * Tentatively the following `medium' priority BUGS:
+     098: [wdc] define-inline problem
+     099: [wdc] nonstandard macros available in standard environments
+     089: [lth] must catch more signals
 
 [Twobit]
-  * Macro expander performance?
-  * Compiler performance?
-  * Add PARAMETERIZE, LET-VALUES, and FLUID-LET to the usual macros.
+  * Handling primitives correctly
+  * Macro expander performance issues?  [Not a priority]
+  * Compiler performance issues?        [Not a priority]
 
 [Run-time system]
-  * Must deal with more signals on Unix systems.  See TODO for details.
+  * Must deal with more signals on Unix systems (important for buggy 
+    foreign code)
+  * Provide more accurate data to memstats: it is possible to provide
+    up-to-date data for allocation volume and currently allocated heap,
+    not just data accurate to the last GC.
 
 [Library]
-  * EXIT must work differently: EXIT should leave the current REPL,
-    and there should be a procedure ABORT to leave the system entirely.
-    There should be EXIT-HANDLER and ABORT-HANDLER parameters.
   * Top-level environments must hold syntax definitions, and the hacks
     used to work around it (in compile-expression, macro-expand-expression)
     must be removed.
 
-[SPARC Assembler]
-  * Performance: get rid of branch target association list and replace
-    it by a bit vector or hash table.  See TODO for details.
+[SRFI]
+  * Definite: SRFI 0, SRFI 6 (string I/O), SRFI 11 (LET-VALUES)
+  * Probable: SRFI 12 (Exceptions), 
+  * Possible: SRFI 7 (configuration language), SRFI 9 (define-record syntax)
+
+[FFI]
+  * Add foreign-function-pointer, probably
+  * Change 'unsigned' to 'uint' various places, for consistency.
+  * Fix the RTLD_LOCAL / RTLD_GLOBAL bug in calls to dlopen
 
 [Debugging]
-  See TODO for details.  The following are important for 1.0a2:
-  * Add a command to enter a nested REPL.
-  * Document the debugger.
   * Print variable names where convenient.
-  * Reasonable support for debugging interpreted code.
-
-[Build process]
-  * Note that configuration process has changed because Rts/Sys/config.h
-    has been cleaned up.  This must be cleaned up further, tested, and
-    documented.  See TODO for details.  The goal here is:
-    - reasonable configuration complexity for Petit Larceny
-    - reasonable configuration complexity for SPARC Larceny
-    - predictability
-    - portability of the configuration process to non-unix platforms
-    - portability of Petit Larceny to non-unix platforms
+  * Add a command to enter a nested REPL.
+  * Debugger bugs -- see FIXMEs in the files.
 
 [Documentation]
-  * Describe new compiler switches
-  * Describe new configuration mechanism
   * Go thru toplevel.sch and make sure every non-R4RS procedure is
-    documented in the User's Manual.  In particular:
-    - Hash table interface.
-    - Reset-output-string
-    - ...
-  * Describe any other changes
+    documented in the User's Manual.
   * Fix reported documentation bugs (to be determined)
+     - bugs: remove claim that all optional functionality is supported,
+       because transcript ports are currently not supported.
+     - new stuff
+         QUIT, QUIT-HANDLER
+         PARAMETERIZE
+         LET-VALUES
+         CONSOLE-INPUT-PORT-FACTORY, CONSOLE-OUTPUT-PORT-FACTORY
+     - some were reported on the mailing list
+        - ...
+     - manual/intro.html: 
+        - debugging info
+        - compiler switches
+        - "make setup" will no longer work.
+     - manual/debugging.html:
+        - remove cautionary note about tracing once bug is fixed
+     - manual/fixnums.html:
+        - flesh out, or cross-link to general definitions?
+     - manual/ffi.html:
+        - add -uint versions (and deprecate -unsigned versions??)
+        - ditto type names
+        - document foreign-function-pointer, when it exists.
+     - manual/parameters.html
+        - add current-input-port, current-output-port
+     - manual/io.html:
+       - changed meaning of current-input-port, current-output-port:
+         they now return the new value (like all parameters)
+       - introduced console-input-port, console-output-port
+       - introduced print-length, print-level  [ Also parameters! ]
+       - introduced binary i/o procedures
+     - manual/syscontrol.html:
+       - memstats now accessed via accessor functions
+       - memstats vector changes:
+         - some fields no longer present
+         - some new fields
+         - remembered-set and generation identity fields
+     - manual/auxlib.html:
+       - This file is a mess.  Should abandon, and fold into the other
+         files?
+     - manual/ephemeral.html:
+       - remove debug stuff
+       - clean up or move record stuff
+     - manual/compiling.html -- read and redo 
+       - note Rts/Sys/config.h
+       - note change in 'make setup'
+     - manual/starting.html -- many more switches now
+     - manual/repl.hmtl
+       - the repl's use of the console, and how it controls timer 
+         interrupts and resets.
+     - manual/developing.html:
+       - build probably has more switches now?
+     - manual/bdw.html:
+       - setup process now more complicated since there is a lot of 
+         support inside the (modified) collector.  How to deal with that?
+     - manual/concept.html:
+       - needs some cleanup (see the file).
 
 [General clean-up]
-  * SPARC larceny does not currently compile with LCC because LCC
-    picks up LCC header files rather than system header files.  
-    Larceny requires the system header files for the native system
-    (for proprietary signal handling extensions).  It is no doubt
-    possible to tell LCC about the system header files, although 
-    they may not conform to ANSI C.
-  * Need to rename some files (this will happen as part of renaming for
-    the sake of Petit Larceny):
-     Util/std-heap.sch    ->   Util/larceny-heap.sch
-     Util/init-comp.sch   ->   Util/larceny-heap-init.sch
   * From Will:
      >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
      >constants, accessors, and setters for the documentation slot.
