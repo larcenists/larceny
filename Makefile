@@ -26,6 +26,7 @@ default:
 	@echo "  bdw_setup      - unpack Boehm-Demers-Weiser collector"
 	@echo "  larceny.bin    - build standard generational system"
 	@echo "  bdwlarceny.bin - build conservative collector system"
+	@echo "  libpetit       - build Rts/libpetit.so"
 	@echo "  hsplit         - build heap splitter"
 	@echo "  clean          - remove executables and objects"
 	@echo "  lopclean       - remove all .LOP files"
@@ -59,6 +60,10 @@ bdwlarceny.bin: target_bdwlarceny
 target_bdwlarceny:
 	( cd Rts ; $(MAKE) bdwlarceny.bin )
 
+libpetit: target_libpetit
+target_libpetit:
+	( cd Rts ; $(MAKE) libpetit.so )
+
 hsplit: target_hsplit
 target_hsplit:
 	( cd Rts ; $(MAKE) hsplit )
@@ -66,19 +71,26 @@ target_hsplit:
 clean: libclean rtsclean
 	( cd Rts ; $(MAKE) clean )
 
-lopclean:
+lopclean: seedclean
 	rm -f   Lib/Common/*.*lop Lib/Common/*.c Lib/Common/*.o \
 	        Lib/Sparc/*.*lop Lib/Sparc/*.c Lib/Sparc/*.o \
 	        Lib/Standard-C/*.*lop Lib/Standard-C/*.c Lib/Standard-C/*.o \
+		Lib/*.*lop Lib/*.c Lib/*.o \
+		Asm/Common/*.lop Asm/Common/*.c Asm/Common/*.o \
+		Asm/Standard-C/*.lop Asm/Standard-C/*.c Asm/Standard-C/*.o \
 		Eval/*.*lop Eval/*.c Eval/*.o \
 		Repl/*.*lop Repl/*.c Repl/*.o \
-		Auxlib/*.*lop \
+		Auxlib/*.*lop Auxlib/*.c Auxlib/*.o \
+		Util/*.*lop Util/*.c Util/*.o \
 		Testsuite/Lib/*.*lop \
-		Compiler/*.*lop
+		Compiler/*.*lop Compiler/*.c Compiler/*.o \
+		Compat/Larceny/*.c Compat/Larceny/*.o \
+		Rts/Build/*.*lop
 
 libclean: lopclean
 	rm -f   Lib/Common/*.lap Lib/Sparc/*.lap Lib/Standard-C/*.lap \
 	        Lib/Common/ecodes.sch Lib/Common/globals.sch \
+		Asm/Common/*.lap Asm/Standard-C/*.lap \
 		Eval/*.lap \
 		Repl/*.lap \
 		Auxlib/*.lap \
@@ -124,6 +136,9 @@ tildeclean:
 
 rejclean:
 	rm -f `find . -name '*\.rej' -print`
+
+seedclean:
+	rm -f `find . -name '*\.seed' -print`
 
 # For Chez-hosted system
 
