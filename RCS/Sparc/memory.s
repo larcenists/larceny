@@ -2,7 +2,7 @@
 ! Sparc version.
 ! All code goes into this file; definitions are in "memory.s.h"
 !
-! $Header$
+! $Id$
 !
 ! This file defines the following builtins:
 !
@@ -11,21 +11,22 @@
 !   setcar( p, v )	  set to v the car field of the pair pointed to by p
 !   setcdr( p, v )	  set to v the cdr field of the pair pointed to by p
 !   vectorset( p, i, v )  set to v the ith slot of the vector pointed to by p
-!
-! In addition, the following helper procedures are defined:
-!
-!   gcstart		  takes one parameter. Saves state in a predictable
+!   gcstart( n )	  Saves the virtual machine state in a predictable
 !			  place, flushes stack, calls collector, syncs the
 !			  cache, and allocates the requested number of words,
-!			  returning a pointer to those words.
-!   addtrans		  add a transaction to the transaction list, invoking
-!			  the collector if necessary.
+!			  returning a pointer to those words. If n is the
+!			  fixnum -1, then no memory is allocated; rather,
+!			  a tenuring collection is invoked. (The default is
+!			  to do an ephemeral collection.)
 !
-! 'gcstart' is made public for use by open-coded 'cons' calls.
+! 'gcstart' is made public for use by open-coded 'cons' calls and can also
+! be used to implement a user-level procedure which invokes the collector;
+! to do an ephemeral collection, simply request to allocate 0 bytes.
 !
-! Arguments are always passed in registers ARGREG1, ARGREG2, and ARGREG3, all
+! Arguments are always passed in registers RESULT, ARGREG2, and ARGREG3, all
 ! of which are rootable. The result, if any, is returned in register RESULT.
-! If no result is required, RESULT remains untouched.
+! If no result is required, RESULT remains untouched. ARGREG2 and ARGREG2 are
+! never destroyed by the call.
 !
 ! THIS CODE ASSUMES THE AVAILABILITY OF TWO NONROOTABLE TEMPORARY REGISTERS
 ! CALLED MTMP1 AND MTMP2 (Millicode Temporaries) WHICH NEED NOT BE SAVED
@@ -38,15 +39,30 @@
 
 #include "memory.s.h"
 
+! Adjusted offsets into data structures.
+! For pairs, the offset adjusts for the tag alone; a pair tag is 1.
+! For vectors, the offset adjusts for the tag and for the header word;
+! the tag is 3 and the size of the header word is 4.
 
-	.common	_gcstart2, _compact_trans
+#define CAR_OFFSET	-1
+#define CDR_OFFSET	3
+#define VEC_OFFSET	1
+
+! Pointer tags
+
+#define TAG_PAIR	0x01
+#define TAG_VEC		0x03
+
 	.globl alloc, alloci, setcar, setcdr, vectorset, gcstart
 
 	.text
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'alloc' takes one parameter, a fixnum which is the number of words to
 ! allocate. It returns an untagged pointer to this many words.
+!
+! Note that the delayed roundup (i.e. done after test for overflow) makes
+! sense because all allocations and limits are in an even number of words.
 !
 ! alloc( n )
 ! {
@@ -58,21 +74,21 @@
 ! }
 
 alloc:
-	mov	%E_TOP, %RESULT
-	add	%E_TOP, %ARGREG1, %E_TOP	! increment heap ptr
-	andcc	%ARGREG1, #0x04, %MTMP1
-	add	%E_TOP, %MTMP1, %E_TOP		! round up
+	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
+	and	%RESULT, 0x04, %MTMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
-	ble	Lalloc1
-	nop
+	blt,a	Lalloc1				! skip of no overflow
+	sub	%E_TOP, %RESULT, %RESULT	! setup result
 	call	gcstart				! deal with overflow
-	mov	#0, %RESULT			! RESULT is rootable
-Lalloc1:
+	nop
 	retl
 	nop
+Lalloc1:
+	retl
+	add	%E_TOP, %MTMP1, %E_TOP		! round up
 
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'alloci' takes two parameters, a fixnum which is the number of words to
 ! allocate, and the value (a word) with which to initialize the memory.
 ! It returns an untagged pointer to the requested number of words.
@@ -88,34 +104,43 @@ Lalloc1:
 !     *q = v;
 !     q += 4;
 !     n -= 4;
-    }
+!   }
 !   return p;
 ! }
 
 alloci:
-	mov	%E_TOP, %RESULT
-	add	%E_TOP, %ARGREG1, %E_TOP	! increment heap ptr
-	andcc	%ARGREG1, #0x04, %MTMP1
-	add	%E_TOP, %MTMP1, %E_TOP		! round up
+	mov	%RESULT, %MTMP1			! count into MTMP1
+	mov	%E_TOP, %RESULT			! resulting pointer
+	add	%E_TOP, %MTMP1, %E_TOP		! allocate optimistically
+	and	%MTMP1, 0x04, %MTMP2		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
-	ble	Lalloci2			! no overflow, start init
-	movcc	%RESULT, %MTMP1			! %MTMP1 is 'q'
+	ble,a	Lalloci1			! no overflow, start init
+	add	%E_TOP, %MTMP2, %E_TOP		! adjust if necessary
 	call	gcstart				! deal with overflow
-	mov	#0, %RESULT			! RESULT is rootable
-	b	Lalloci2			! goto init
-	movcc	%RESULT, %MTMP1
+	mov	%MTMP1, %RESULT			! restore count for argument
+
+	! restore byte/word count for use in initialization
+
+	sub	%E_TOP, %RESULT, %MTMP1
+	add	%MTMP1, 0x04, %MTMP1
+
+	! Now have pointer to memory in %RESULT, count in %MTMP1
+
+Lalloci1:
+	sub	%RESULT, 0x04, %MTMP2		! start off early
+	b	Lalloci2
+	tst	%MTMP1
 Lalloci3:
-	st	%ARGREG2, 0[%MTMP1]		! init a word
-	add	%MTMP1, #0x04, %MTMP1		! q += 4 (put in slot?)
-	subcc	%ARGREG1, #0x04, %ARGREG1	! n -= 4, test n
+	st	%ARGREG2, [ %MTMP2+0 ]		! init a word
+	subcc	%MTMP1, 0x04, %MTMP1		! n -= 4, test n
 Lalloci2:
 	bne	Lalloci3
-	nop
+	add	%MTMP2, 0x04, %MTMP2		! q += 4
 	retl
 	nop
 
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'setcar' takes two parameters: a tagged pointer, which is assumed to point
 ! to a pair, and a value, and sets the 'car' cell of the pair to the value.
 !
@@ -129,20 +154,20 @@ Lalloci2:
 ! }
 
 setcar:
-	ld	T_BASE_OFFSET[%GLOBALS], %MTMP1	! fetch tenured base
-	xor	%ARGREG1, #TAG_PAIR, %MTMP2	! strip tag
+	ld	[ %GLOBALS+T_BASE_OFFSET ], %MTMP1	! fetch tenured base
+	xor	%RESULT, TAG_PAIR, %MTMP2	! strip tag
 	cmp	%MTMP2, %MTMP1
 	blt	Lsetcar1
 	nop
 	call	addtrans			! add transaction to list
 	nop
 Lsetcar1:
-	st	%ARGREG2, CAR_OFFSET[%ARGREG1]	! CAR_OFFSET compensates right
+	st	%ARGREG2, [%ARGREG1+CAR_OFFSET]	! CAR_OFFSET compensates right
 	retl
 	nop
 
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'setcdr' takes two parameters: a tagged pointer, which is assumed to point
 ! to a pair, and a value, and sets the 'cdr' cell of the pair to the value.
 !
@@ -156,20 +181,20 @@ Lsetcar1:
 ! }
 
 setcdr:
-	ld	T_BASE_OFFSET[%GLOBALS], %MTMP1	! fetch tenured base
-	xor	%ARGREG1, #TAG_PAIR, %MTMP2	! strip tag
+	ld	[%GLOBALS+T_BASE_OFFSET], %MTMP1 ! fetch tenured base
+	xor	%RESULT, TAG_PAIR, %MTMP2	! strip tag
 	cmp	%MTMP2, %MTMP1
 	blt	Lsetcdr1
 	nop
 	call	addtrans			! add transaction to list
 	nop
 Lsetcdr1:
-	st	%ARGREG2, CDR_OFFSET[%ARGREG1]	! CDR_OFFSET compensates right
+	st	%ARGREG2, [%ARGREG1+CDR_OFFSET]	! CDR_OFFSET compensates right
 	retl
 	nop
 
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'vectorset' takes three parameters: a tagged pointer, which is assumed to
 ! point to a vector, a fixnum index, which is assumed to be valid for the
 ! given vector, and a value, and sets the specified slot of the vector to
@@ -185,23 +210,23 @@ Lsetcdr1:
 ! }
 
 vectorset:
-	ld	T_BASE_OFFSET[%GLOBALS], %MTMP1	! fetch tenured base
-	xor	%ARGREG1, #TAG_VEC, %MTMP2	! strip tag
+	ld	[%GLOBALS+T_BASE_OFFSET], %MTMP1 ! fetch tenured base
+	xor	%RESULT, TAG_VEC, %MTMP2	! strip tag
 	cmp	%MTMP2, %MTMP1
 	blt	Lvectorset1			! not in tenured space
 	nop
 	call	addtrans
 	nop
 Lvectorset1:
-	add	%ARGREG1, %ARGREG2, %MTMP1	! pointer which does not
+	add	%RESULT, %ARGREG2, %MTMP1	! pointer which does not
 						! compensate for header
 						! or tag
-	st	%ARGREG3, VEC_OFFSET[%MTMP1]	! VEC_OFFSET compensates
+	st	%ARGREG3, [%MTMP1+VEC_OFFSET]	! VEC_OFFSET compensates
 	retl
 	nop
 
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'gcstart' saves the state and invokes the collector. It also takes an
 ! argument, a fixnum indicating the number of words that was attempted 
 ! allocated when the heap overflow occured. If the overflow was due to
@@ -219,20 +244,19 @@ Lvectorset1:
 gcstart:
 	! Save context
 
-	st	%REG0, REG0_OFFSET[ %GLOBALS ]
-	st	%REG1, REG1_OFFSET[ %GLOBALS ]
-	st	%REG2, REG2_OFFSET[ %GLOBALS ]
-	st	%REG3, REG3_OFFSET[ %GLOBALS ]
-	st	%REG4, REG4_OFFSET[ %GLOBALS ]
-	st	%REG5, REG5_OFFSET[ %GLOBALS ]
-	st	%REG6, REG6_OFFSET[ %GLOBALS ]
-	st	%REG7, REG7_OFFSET[ %GLOBALS ]
+	st	%REG0, [ %GLOBALS+REG0_OFFSET ]
+	st	%REG1, [ %GLOBALS+REG1_OFFSET ]
+	st	%REG2, [ %GLOBALS+REG2_OFFSET ]
+	st	%REG3, [ %GLOBALS+REG3_OFFSET ]
+	st	%REG4, [ %GLOBALS+REG4_OFFSET ]
+	st	%REG5, [ %GLOBALS+REG5_OFFSET ]
+	st	%REG6, [ %GLOBALS+REG6_OFFSET ]
+	st	%REG7, [ %GLOBALS+REG7_OFFSET ]
 	! temps ?
-	st	%ARGREG1, ARGREG1_OFFSET[ %GLOBALS ]
-	st	%ARGREG2, ARGREG2_OFFSET[ %GLOBALS ]
-	st	%ARGREG3, ARGREG3_OFFSET[ %GLOBALS ]
-	st	%RESULT, RESULT_OFFSET[ %GLOBALS ]
-	st	%E_TOP, E_TOP_OFFSET[ %GLOBALS ]
+	st	%ARGREG2, [ %GLOBALS+ARGREG2_OFFSET ]
+	st	%ARGREG3, [ %GLOBALS+ARGREG3_OFFSET ]
+	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
+	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 
 	! C-language call
 
@@ -244,33 +268,32 @@ gcstart:
 
 	set	_globals, %GLOBALS			! this is fundamental
 	
-	ld	REG0_OFFSET[ %GLOBALS ], %REG0
-	ld	REG1_OFFSET[ %GLOBALS ], %REG1
-	ld	REG2_OFFSET[ %GLOBALS ], %REG2
-	ld	REG3_OFFSET[ %GLOBALS ], %REG3
-	ld	REG4_OFFSET[ %GLOBALS ], %REG4
-	ld	REG5_OFFSET[ %GLOBALS ], %REG5
-	ld	REG6_OFFSET[ %GLOBALS ], %REG6
-	ld	REG7_OFFSET[ %GLOBALS ], %REG7
+	ld	[ %GLOBALS+REG0_OFFSET ], %REG0
+	ld	[ %GLOBALS+REG1_OFFSET ], %REG1
+	ld	[ %GLOBALS+REG2_OFFSET ], %REG2
+	ld	[ %GLOBALS+REG3_OFFSET ], %REG3
+	ld	[ %GLOBALS+REG4_OFFSET ], %REG4
+	ld	[ %GLOBALS+REG5_OFFSET ], %REG5
+	ld	[ %GLOBALS+REG6_OFFSET ], %REG6
+	ld	[ %GLOBALS+REG7_OFFSET ], %REG7
 	! temps?
-	ld	ARGREG1_OFFSET[ %GLOBALS ], %ARGREG1
-	ld	ARGREG2_OFFSET[ %GLOBALS ], %ARGREG2
-	ld	ARGREG3_OFFSET[ %GLOBALS ], %ARGREG3
-	ld	RESULT_OFFSET[ %GLOBALS ], %RESULT
-	ld	E_TOP_OFFSET[ %GLOBALS ], %E_TOP
-	ld	E_LIMIT_OFFSET[ %GLOBALS ], %E_LIMIT
+	ld	[ %GLOBALS+ARGREG2_OFFSET ], %ARGREG2
+	ld	[ %GLOBALS+ARGREG3_OFFSET ], %ARGREG3
+	ld	[ %GLOBALS+RESULT_OFFSET ], %RESULT
+	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
+	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
 
 	! Must now allocate memory!
 
-	set	#0xFFFFFFFC, %MTMP1
-	cmp	%ARGREGS1, %MTMP1
+	set	0xFFFFFFFC, %MTMP1
+	cmp	%RESULT, %MTMP1
 	beq	Lgcstart1
 	nop
 
 	! Allocate...
 
-	add	%E_TOP, %RESULT
-	andcc	%ARGREG1, #0x04, %MTMP1
+	add	%E_TOP, %RESULT, %E_TOP
+	and	%RESULT, 0x04, %MTMP1
 	add	%E_TOP, %MTMP1, %E_TOP
 	
 Lgcstart1:
@@ -278,14 +301,15 @@ Lgcstart1:
 	nop
 
 
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! 'addtrans' takes one parameter, which must be a tagged pointer, and adds it
 ! to the transaction list. If the transaction list is full (i.e. there is
 ! an overflow of tenured space (shudder)) then 'addtrans' will call the C
 ! procedure '_compact_trans', which compacts the transaction list. If
 ! '_compact_trans' determines that the compaction did not help sufficiently,
 ! it returns a 0 value, and 'addtrans' must trigger a tenuring collection.
-! After the collection there is no sense in adding the transaction to the list.
+! After the collection there is no sense in adding the transaction to the
+! list.
 !
 ! Otherwise, '_compact_trans' returns a nonzero value, and 'addtrans' can
 ! go ahead and add the transaction.
@@ -298,42 +322,42 @@ addtrans:
 
 	! Get tenured-space limits and check for overflow
 
-	ld	T_ENTRIES_OFFSET[ %GLOBALS ], %MTMP1
-	ld	T_TOP_OFFSET[ %GLOBALS ], %MTMP2
+	ld	[ %GLOBALS+T_ENTRIES_OFFSET ], %MTMP1
+	ld	[ %GLOBALS+T_TOP_OFFSET ], %MTMP2
 	cmp	%MTMP1, %MTMP2
 	bgt	Laddtrans1
-	sub	%MTMP1, #4, %MTMP2
+	sub	%MTMP1, 4, %MTMP2
 
 	! %GLOBALS had better not be a %o register!
 
-	std	%o0, SAVED_OUTPUT_REGS_OFFSET[ %GLOBALS ]
-	std	%o2, SAVED_OUTPUT_REGS_OFFSET+8[ %GLOBALS ]
-	std	%o4, SAVED_OUTPUT_REGS_OFFSET+16[ %GLOBALS ]
-	std	%o6, SAVED_OUTPUT_REGS_OFFSET+24[ %GLOBALS ]
+	std	%o0, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET ]
+	std	%o2, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+8 ]
+	std	%o4, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+16 ]
+	std	%o6, [ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ]
 
 	call	_compact_trans
 	nop
 
-	test	%C_RESULT
-	ldd	SAVED_OUTPUT_REGS_OFFSET[ %GLOBALS ], %o0
-	ldd	SAVED_OUTPUT_REGS_OFFSET+8[ %GLOBALS ], %o2
-	ldd	SAVED_OUTPUT_REGS_OFFSET+16[ %GLOBALS ], %o4
-	ldd	SAVED_OUTPUT_REGS_OFFSET+24[ %GLOBALS ], %o6
+	tst	%C_RESULT
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET ], %o0
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+8 ], %o2
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+16 ], %o4
+	ldd	[ %GLOBALS+SAVED_OUTPUT_REGS_OFFSET+24 ], %o6
 
 	bne	Laddtrans1
-	sub	%MTMP1, #4, %MTMP2
+	sub	%MTMP1, 4, %MTMP2
 
 	! We've lost. Go ahead and collect.
 
-	set	#0xFFFFFFFC, %ARGREGS1
+	set	0xFFFFFFFC, %RESULT
 	call	gcstart
 	nop
 	retl
 	nop
 
 Laddtrans1:
-	st	%ARGREGS1, 0[ %MTMP1 ]
+	st	%RESULT, [ %MTMP1+0 ]
 	retl
-	st	%MTMP2, T_ENTRIES_OFFSET[ %GLOBALS ]
+	st	%MTMP2, [ %GLOBALS+T_ENTRIES_OFFSET ]
 
 	! end of file
