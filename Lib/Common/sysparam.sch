@@ -9,12 +9,13 @@
 ; System parameters are defined in the Library using this procedure.
 
 (define (make-parameter name value . rest)
-  (let ((ok? (if (null? rest) 
-                 (lambda (x) #t) 
+  (let ((ok? (if (null? rest)
+                 (lambda (x) #t)
                  (car rest))))
     (lambda args
-      (call-without-interrupts
-        (lambda ()
+;; No need to protect this!
+;      (call-without-interrupts
+;        (lambda ()
           (cond ((null? args)
                  value)
                 ((null? (cdr args))
@@ -25,7 +26,9 @@
                             #t)))
                 (else
                  (error name ": too many arguments.")
-                 #t)))))))
+                 #t))
+;             ))
+          )))
 
 ; Returns an assoc list of system information.
 
