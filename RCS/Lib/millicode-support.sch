@@ -4,7 +4,7 @@
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
 ;
-; $Id: millicode-support.sch,v 1.1 92/02/10 03:16:23 lth Exp Locker: lth $
+; $Id: millicode-support.sch,v 1.2 92/02/17 18:27:06 lth Exp Locker: lth $
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
@@ -156,7 +156,6 @@
 		   generic-inexact->exact
 		   generic-exact->inexact
 		   )))
-    (break)
     (set! millicode-support v)))
 
 

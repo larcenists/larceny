@@ -1,7 +1,7 @@
 ; Larceny run-time library.
 ; System-specific library routines and global variables.
 ;
-; $Id: xlib.sch,v 1.1 91/09/14 01:20:35 lth Exp Locker: lth $
+; $Id: xlib.sch,v 1.2 92/02/10 03:12:33 lth Exp Locker: lth $
 
 ; Typetags for bytevector-like structures.
 ; The typetags really should be gotten from the auto-generated stuff.
@@ -55,9 +55,9 @@
 (define (call-with-current-continuation proc)
   (let ((k (creg)))
     (proc (lambda (v) 
-;	    (write 'throwing) (write v) (newline)
-;	    (print-continuation k)
-;	    (break)
+	    (if (not (vector-like? k))
+		(begin (display "Bogus continuation!") (newline)
+		       (debug)))
 	    (creg-set! k)
 	    v))))
 

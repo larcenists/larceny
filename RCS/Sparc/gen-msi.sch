@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent code generation procedures.
 ;
-; $Id: gen-msi.sch,v 1.1 92/01/19 17:40:50 lth Exp Locker: lth $
+; $Id: gen-msi.sch,v 1.2 92/02/10 03:40:26 lth Exp Locker: lth $
 ;
 ; (used to be part of asm.sparc.scm).
 
@@ -287,7 +287,10 @@
 ; This use of vector-set is well-defined!
 
 (define (emit-setlex! as m n)
+  (display "setlex!!") (newline)
   (let ((base (emit-follow-chain! as m)))
+    (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg3))
+    (emit! as `(,$i.orr ,base ,$r.g0 ,$r.result))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.vector-set ,$r.o7))
     (emit! as `(,$i.orr ,$r.g0 ,(slotoffset n) ,$r.argreg2))))
 

@@ -79,9 +79,7 @@
 
 (define vector
   (lambda l
-    (let ((q (list->vector l)))
-      (break)
-      q)))
+    (list->vector l)))
 
 (define list->vector
   (letrec ((loop

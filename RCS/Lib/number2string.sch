@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: number2string.sch,v 1.1 92/01/19 16:42:42 lth Exp Locker: lth $
+; $Id: number2string.sch,v 1.2 92/02/17 18:27:08 lth Exp Locker: lth $
 ;
 ;                                       16 April 1990
 ;
@@ -14,6 +14,7 @@
   (let ()
     
     (define (number->string x . radix)
+      (break)
       (cond ((null? radix)
              (number2string x 10))
             (else (let ((radix (car radix)))
@@ -24,6 +25,7 @@
                         (error "Bad radix" radix))))))
     
     (define (number2string x radix)
+      (break)
       (cond ((fixnum? x)
              (integer->string x radix))
             ((bignum? x)
@@ -56,6 +58,7 @@
     (define two^n-1 4503599627370496)
     
     (define (integer->string n radix)
+      (break)
       (cond ((not (integer? n)) ???)
             ((not (exact? n))
              (string-append "#i" (integer->string (inexact->exact n) radix)))
@@ -66,6 +69,7 @@
             (else (integer->string-loop n radix '()))))
     
     (define (integer->string-loop n radix chars)
+      (break)
       (cond ((zero? n) (list->string chars))
             (else (let ((q (quotient n radix)))
                     (integer->string-loop q

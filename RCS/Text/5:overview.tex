@@ -4,30 +4,32 @@
 \input{larceny.sty}
 \title{Larceny Note \#5: \\
        An Overview of the System \\
-       {\tenrm (draft!)}}
+       {\tenrm (Draft. Comments welcome.)}}
 \author{Lars Thomas Hansen}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This document is gives an overview of Larceny and then delves
-into some gory detail about how to use the Chez Scheme hosted compiler,
-how to build a heap, how to load the heap, what debugging facilities are
-available, and so on.
+This document has two main parts: Part 1 (sections 1-4) delves into some
+gory detail about how to use the Chez Scheme hosted compiler, how to build a
+heap, how to load the heap, what debugging facilities are available, and so
+on. Part 2 (section 5) describes the implementation in general terms and
+attempts to provide some background information.
+
 \end{abstract}
 
 \section{Introduction}
 
-The general structure of running a Scheme program is this: the
+The general structure of running a Scheme program under Larceny is this: the
 compiler generates MacScheme assembly language, which the assembler
 then converts to files of Sparc object code in a relocatable format.
 Several such files are combined into a relocatable heap image, which
-is loaded by the Larceny executable at startup time. Section
-\ref{compiling} explains this process in more detail. Eventually the
+is loaded by the Larceny executable at startup time. Sections
+2 and 3 explain this process in more detail. Eventually the
 compiler and assembler will run as part of the Larceny system, and the
 Sparc object code modules will be loaded directly into a running
-Scheme system.
+Scheme system; this is described in section 4.
 
 %%
 
@@ -75,7 +77,7 @@ vectors, like Chez Scheme, byte vectors are represented using ordinary
 vectors.} with the relocatable Sparc object code, and the cdr of which
 is the constant vector for that piece of code.  Files consisting of
 segments have the file extension {\tt .lop}, for ``Lisp Object
-Program''. Segements are described in detail in Larceny Note \#6.
+Program''. Segments are described in detail in Larceny Note \#6.
 
 In addition, there is another file format for MacScheme assembly
 programs.  Some MacScheme assembly code must be written by hand to get
@@ -102,28 +104,28 @@ example, consider
 \noindent This expression, when {\em evaluated}, will be a valid input to the
 assembler.
 
-The heap dumper takes a number of {\tt .lop} files and combines them
-into a relocatable, loadable heap. The heap image consists of a number
-of root pointers (which are loaded into the roots table in the running
-system) followed by the relocatable heap proper. One of the roots is
-set to point to the heap initialization thunk, which is created by the
-heap dumper. This thunk has in its constant vector a pointer to a list
-of all the thunks loaded into the heap (except itself), and it will,
-when run, cdr down this list, calling each thunk, so that the heap can
-be initialized properly. The thunks are called in the order in which
-they were loaded. When the list has been exhausted, the global
-(programmer-defined) procedure ``go'' is called with the list of used
-symbols as its argument; this procedure must initialize the symbol
-table and then it can do what it wishes. Typically, it calls
-initializion routines for a number of system packages and then the
-read-eval-print loop, or some other top-level code.
+The heap dumper takes a number of {\tt .lop} files and combines them into a
+relocatable, loadable heap. The heap image consists of a number of root
+pointers (which are loaded into the roots table in the running system)
+followed by the relocatable heap proper. One of the roots is set to point to
+the heap initialization thunk, which is created by the heap dumper. This
+thunk has in its constant vector a pointer to a list of all the thunks
+loaded into the heap (except itself), and the initialization thunk will,
+when run, cdr down this list, calling each thunk, so that the heap can be
+initialized properly. The thunks are called in the order in which they were
+loaded. When the list has been exhausted, the global (programmer-defined)
+procedure ``go'' is called with the list of used symbols as its only
+argument; the ``go'' procedure must initialize the symbol table and then it
+can do what it wishes. Typically, it calls initializion routines for a
+number of system packages and then the read-eval-print loop, or some other
+top-level code.
 
 Heaps are stored in files with a {\tt .heap} extension, and heap files
 are described in detail in Larceny Note \#6.
 
 The heap dumper also makes a map file (occasionally useful for
 debugging) which contains the names of all the global symbols together
-with an identifying number for each; the heap dumper also places this
+with an identifying number for each; the heap dumper places this
 number in the cdr of the actual value cell for the global variable.
 Hence, when some unknown global is encountered, its identifying number
 can be found, and its name can be discovered from the map file.
@@ -132,12 +134,12 @@ A more general map file would be nice, but it would not be very useful
 after the first garbage collection.
 
 To make a heap, call on the ``make-heap'' procedure in the hosted
-environment. It takes an argument which is the filename for the heap
-to be made, and in addition a number of optional arguments which are
-switches to various passes of the compiler, assembler, and heap
-dumper.
+environment (defined in ``Lib/makefile.sch''). It takes an argument which is
+the filename for the heap to be made, and in addition a number of optional
+arguments which are switches to various passes of the compiler, assembler,
+and heap dumper, or additional file names to link into the heap.
 
-The swithces are these:
+The switches are these:
 
 \begin{description}
 \item[listify] This is a switch to the assembler which tells it to list
@@ -158,24 +160,22 @@ initialized to the ordinal number of the cell.
 
 \end{description}
 
-A brief description of what happens behind the scenes is appropriate
-at this point. ``Make-heap'' is a procedure defined in
-``Lib/makefile.sch'' which creates a dependency list based on the
-arguments and an internal variable which holds the list of files which
-go into a default heap image. In addition, the switches, if any,
-trigger the setting or resetting of various global variables in
-different modules. The dependency list is passed to the ``make''
-procedure, a simple UNIX-like ``make'' facility, defined and
-documented in ``Compiler/make.sch''. This utility traverses the
-dependencies and recompiles targets which are out of date with respect
-to their sources.  Custom versions of ``make-heap'' for other library
-configurations should be straightforward. Anyway, to compile a
-``.sch'' file to a ``.lap'' file, the procedure ``compile313'' is
-used, and to assemble a ``.mal'' or ``.lap'' file to a ``.lop'' file,
-the procedure ``assemble313'' is used. Both procedures are described
-below. Finally, the procedure ``dump-heap'' is called to dump a heap
-containing the ``.lop'' files in its argument list; this procedure is
-defined in ``Compiler/dumpheap.sch''.
+A brief description of what happens behind the scenes is appropriate at this
+point. ``Make-heap'' is a procedure (defined in ``Lib/makefile.sch'') which
+creates a dependency list based on the arguments and an internal variable
+which holds the list of files which go into a default heap image. In
+addition, the switches, if any, trigger the setting or resetting of various
+global variables in different modules. The dependency list is passed to the
+``make'' procedure, a simple UNIX-like ``make'' facility, defined and
+documented in ``Compiler/make.sch''. This utility traverses the dependency
+tree and recompiles targets which are out of date with respect to their
+sources.  Custom versions of ``make-heap'' for other library configurations
+should be straightforward. Anyway, to compile a ``.sch'' file to a ``.lap''
+file, the procedure ``compile313'' is used, and to assemble a ``.mal'' or
+``.lap'' file to a ``.lop'' file, the procedure ``assemble313'' is used.
+Both procedures are described below. Finally, the procedure ``dump-heap'' is
+called to dump a heap containing the ``.lop'' files in its argument list;
+this procedure is defined in ``Compiler/dumpheap.sch''.
 
 \section{The Hosted Compiler.}
 
@@ -185,9 +185,9 @@ assembler, and heap dumper.
 \begin{table}[hbt]
 \begin{center}
 \begin{tabular}{|l|l|} \hline
-Sparc/asm.sparc.scm       & Sparc assembler \\
-Sparc/disasm.sparc.scm    & Sparc disassembler \\
-Sparc/gen-primops.scm     & Code emitters for ``op'' instructions \\
+Sparc/asm.sparc.sch       & Sparc assembler \\
+Sparc/disasm.sparc.sch    & Sparc disassembler \\
+Sparc/gen-primops.sch     & Code emitters for ``op'' instructions \\
 Sparc/gen-msi.sch         & Code emitters for MacScheme instructions \\
 Compiler/assembler.sch    & Assembler top level (generic) \\
 Compiler/build.sch        & Compiler system bootstrap \\
@@ -224,9 +224,9 @@ useful:
 \begin{description}
 \item {\verb+(compile313 <filename>)+}
 
-Compile the source file (full path name) with extension ``.scm'' or
-``.sch'' (Scheme source files) to a file with the same path and base
-name but with extension ``.lap'' (MacScheme assemly language code).
+Compile the source file with extension ``.scm'' or ``.sch'' (Scheme source
+files) to a file with the same path and base name but with extension
+``.lap'' (MacScheme assemly language code).
 
 \item {\verb+(assemble313 <filename>)+}
 
@@ -273,28 +273,71 @@ dependencies. The gory details are in the comments at the head of the file
 
 Once you've managed to make the executable (say ``make'' at the UNIX prompt
 when you're at the root of the build tree), you can invoke Larceny with
-the command ``larceny'' and appropriate options. The following options are
-currently recognized:
+the command ``larceny'' and appropriate options. 
 
-... stuff ...
+\subsection{Command line options}
 
-% \section{Overview of The Assembler}
-% 
-% The MacScheme instruction set is summarized in the file
-% ``Text/instructions''. Most Scheme operators are not instructions in
-% MacScheme even though in-line code is generated for them. Rather, they
-% are given as operands to the {\tt op} instructions, for example
-% 
-% \begin{verbatim}
-%       op2   +,3
-% \end{verbatim}
-% 
-% \noindent which means ``add register R3 to the RESULT register''. 
-% When an {\tt op} instruction is encountered, the assembler searches
-% the primop-table for a procedure which can generate Sparc code for the
-% given operator.  To add primitive operators, therefore, one must add a
-% definition of the operator (in terms of Sparc assembly language
-% instructions) to the primop-table in the file XYZZY.
+The following options are currently (sort of) recognized:
+
+\begin{description}
+\item {\tt -t nnnn}
+
+ Tenured heap size in bytes (decimal); defaults to 1 MB.
+\item {\tt -e nnnn}
+
+ Ephemeral heap size in bytes (decimal); defaults to 1 MB.
+\item {\tt -s nnnn}
+
+ Stack cache size in bytes (decimal); defaults to 64K.
+\item {\tt -I nnnn} 
+
+Initial value of the interval timer (decimal); defaults
+to \verb+#xFFFF+.
+
+\item {\tt -h filename}
+
+ Heap file. This option must be supplied (and so it
+is not really an option).
+
+\item {\tt -b n}
+
+ Stop at (dynamic) breakpoint number n.
+
+\item {\tt -B}
+
+ Stop at all breakpoints.
+\end{description}
+
+At the present time the switches {\tt -t}, {\tt -e}, and {\tt -s} are 
+silently ignored. The {\tt -b} and {\tt -B} switches will throw you
+into the ``local'' debugger,\footnote{Someone should do some research to find
+out how we come up with nonintuitive names like that.} a low-level
+facility of limited utility.
+
+\subsection{The Local Debugger}
+
+There is an online help facility which explains the available commands 
+superficially. Basically, one can do register and procedure dumps, and one
+can inspect arbitrary pieces of system memory. Be warned that with the
+exception of registers, tags are not stripped from addresses, so if 
+you are not careful, a bus error will result.
+
+One of the more useful debugging techniques at this level is to dump the
+current code vector (with the 'c' command) to the file ``/tmp/larceny'' and
+then disassemble it using the ``disassemble313'' procedure in the
+development environment.
+
+\subsection{Some implementation details}
+
+The executable first parses its command line. It then initializes the memory
+subsystem and loads the heap image into memory. Finally it calls the
+procedure schemestart(), which is the entry point to Scheme procedures in
+the heap.
+
+Schemestart() grabs the entry point out of the globals table (which was set
+up when the heap was loaded) and jumps to it. For an uninitialized heap,
+this entry point is the initialization thunk. If the thunk returns,
+Larceny will exit with a status of 0.
 
 \section{The Run-time System}
 
@@ -345,25 +388,94 @@ collector knows what is contained in each word in the frame, and such
 that it can find the boundaries between frames.
 
 Fourth, data structures must be laid out carefully so that the collector
-can easily traverse them, while at the same time, the structures allow
+can easily traverse them, while at the same time, the structures must allow
 efficient accessing.
 
 \subsubsection{Overview of Data Structure Layout}
 
-This material is presented in depth in Larceny Note \#8; consider the
-following a brief summary of the highlights.
+This material is presented in depth in Larceny Notes \#1 and \#8; consider
+the following a brief summary of the highlights.
 
-... stuff ...
+Objects are represented as 32-bit tagged words. The three low bits are the
+tags, although for some data types the high bit of the tag is used as a part
+of the object (details follow). These are the tagged objects:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx00   fixnum
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx10   immediate
+  pppp pppp  pppp pppp  pppp pppp  pppp p001   pointer to pair 
+  pppp pppp  pppp pppp  pppp pppp  pppp p011   pointer to vector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p101   pointer to bytevector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p111   pointer to procedure struct
+\end{verbatim}
+\end{minipage}
+
+Immediates are used for odd data around the system. The following are
+the immediate formats.
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+  0000 0000  0000 0000  0000 0000  0000 0010   #f
+  0000 0000  0000 0000  0000 0000  0000 0110   #t
+  0000 0000  0000 0000  0000 0000  0000 1010   empty list
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  0001 0110   miscellaneous
+  0000 0000  cccc cccc  0000 0000  0010 0110   character
+  0sss ssss  ssss ssss  ssss ssss  100x xx10   reserved header
+  0sss ssss  ssss ssss  ssss ssss  101x xx10   vector-like header
+  0sss ssss  ssss ssss  ssss ssss  110x xx10   bytevector-like header
+  0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
+\end{verbatim}
+\end{minipage}
+
+The "s" bits must contain the size of the data structure in bytes, not
+including the header word, and not including padding (see below). The
+collector will correctly round "bytevector" and "reserved" lengths up
+to a word boundary. Hence, for these structures, the "s" bits give the
+correct length of the datum, like the length of a string. For vectors
+and procedures the s field must be evenly divisible by 4 (low two bits
+are 0).
+
+Since all pointers are doubleword-aligned, some vectors, bytevectors,
+and procedures will have to be padded out to an even number of words.
+The mutator must allocate the extra word but may choose to leave it
+uninitialized; the collector will take the size of the vector into
+account and skip the padding. If the word is initialized, it may or
+may not be copied along with the structure during a collection.
+
+Tagged pointers point to the following structure types:
+
+\begin{itemize}
+\item
+Pairs: A pair has two words, the car (low word) and the cdr (high word).
+The pair pointer points to the car of the pair.
+
+\item
+A vector-like structure has the header word in the low position, followed
+by tagged pointers in all locations of the vector. The vector pointer
+points to the header word.
+
+\item
+A bytevector-like structure has the header word in the low position,
+followed by untagged bytes in all locations of the vector. The bytevector
+pointer points to the header word.
+
+\item
+A procedure structure has the header word in the low position, followed by
+tagged pointers in all locations of the procedure structure.  With the
+exception of the tag, a procedure looks just like a vector-like structure.
+The procedure pointer points to the header word.
+\end{itemize}
 
 \subsubsection{An Efficient Garbage Collector}
 
 It has long been clear that the memory allocation behavior of
 higher-level languages like Scheme is characterized by the allocation
-of a varying amounts of short-lived memory and, over time, rather
+of varying amounts of short-lived memory and, over time, rather
 larger amounts of long-lived memory. Most reasonable garbage
 collectors use a copying approach (know as stop-and-copy): objects are
 allocated in an area of memory known as ``oldspace'', and when that
-area fills up, the live objects are traced out from the roots and
+area fills up, the live objects are traced from a set of roots and
 copied into a ``newspace'', with the necessary pointer adjustments.
 Then, ``newspace'' becomes the new ``oldspace'' and ``oldspace''
 becomes the new ``newspace'', and execution continues. There are two
@@ -390,15 +502,15 @@ collection. After that, the system goes back to allocating and
 collecting in the ephemeral area again, until it fills up anew, and a
 tenuring collection has to be performed.  Eventually, the tenured
 newspace will fill up, and a collection of tenured space will have to
-be performed; this is know as a full collection\footnote{Also ``moby''
+be performed; this is know as a full collection.\footnote{Also ``moby''
 collection.} When the tenured newspace is full after a collection,
 the system panics. This can be fixed, but it is not worth 
 worrying about at the moment.
 
 In general, the full collection should not necessarily be of the copying
 kind, as it means having a large number of megabytes of unused space
-floating around at all times. This, too, can be fixed but is of little
-importance.
+floating around at all times (for the tenured newspace). This, too, can be
+fixed but is of little importance for the current system.
 
 In Larceny there are two more heap areas, known respectively as the
 ``static'' and ``stack'' areas. The static area holds objects which
@@ -425,7 +537,7 @@ Whenever a side effect (vector-set!, set-car!, set-cdr!, and system
 procedures like cell-set!) is performed, and the object being changed
 is in the tenured space, a transaction is recorded in the transaction
 area. Then, when an ephemeral collection is performed, the transaction
-area is traversed and all pointers into the ephemeral area are followed
+area is traversed and all pointers into the ephemeral area can be followed
 and updated.
 
 \subsubsection{Efficient First-class Continuations}
@@ -461,19 +573,58 @@ before jumping to the correct return address.
 
 \subsection{Generic Arithmetic Support}
 
-One of the goals in implementing Larceny was to get a testbed for
-research in fast generic arithmetic. Consequently, the support for
-generic arithmetic is extensive and comprises a large part of the
-run-time system; the basic arithmetic operations weigh in at about
-4000 lines of code, half of it in Scheme and half of it in Sparc
-assembly language.
+One of the goals in implementing Larceny was to get a testbed for research
+in fast generic arithmetic. Consequently, the support for generic arithmetic
+is extensive and comprises a large part of the run-time system; the basic
+arithmetic operations weigh in at about 4000 lines of code, half of it in
+Scheme and half of it in Sparc assembly language.
 
-In the absence of type information at compile time, all fixnum
-arithmetic is done in line, and the rest is pushed into millicode.
-Larceny Note \#X goes into detail; the following is just an overview.
+\subsection{Representation}
 
-... stuff ...
+There are six representations for numbers.
 
-\subsection{The Run-time Library}
+\begin{itemize} 
+\item Fixnums fit in a tagged word and
+can represent small exact integers.
+\item Bignums are represented as bytevectors
+and represent exact integers which will not fit in a fixnum.
+\item Ratnums
+are represented by a vector (numerator and denominator, both are in turn
+numbers) and represent exact rationals with a denominator greater than 1.
+\item Rectnums are also represented as vectors and represent exact complex 
+numbers
+with a non-zero imaginary part. 
+\item Flonums are represented as bytevectors
+and represent inexact real numbers.
+\item  Compnums are represented as bytevectors
+and represent inexact complex numbers, possibly with a 0 imaginary part.
+\end{itemize}
+
+\subsection{Implementation}
+
+In the absence of type information at compile time, all fixnum arithmetic is
+done in line, and the rest is pushed into millicode.  Larceny Note \#7 goes
+into detail; the following is just an overview.
+
+If the integer operation fails or is too heavyweight, the generic arithmetic
+operation falls into the millicode. The millicode does a peculiar kind of
+type dispatch to efficiently figure out whether it can do same-representation
+arithmetic on fixnums, flonums, and compnums. If this dispatch fails,
+millicode sets up a continuation for the original Scheme code and falls
+into Scheme to complete the operation. Operations on mixed-representation
+numbers as well as operations on bignums, ratnums, and rectnums are
+all done in Scheme.
+
+In the case of mixed-representation arithmetic and comparison, the operands
+are promoted to a common type and the operation is retried. The promotion
+is straightforward in most cases; the exception is when we have a comparison
+operator and one bignum and one flonum operand. In this case, in order to
+have transitive operations, we have to coerce one way or another depending
+on the value of the flonum. If the flonum represents an integer, it is 
+``promoted'' to a bignum for the sake of the comparison and the operation
+is retried with bignums. Otherwise, the bignum is converted to a flonum
+and the operation is retried with flonums.
+
+% \subsection{The Run-time Library}
 
 \end{document}

@@ -5,7 +5,7 @@
 ;
 ; Second major version.
 ;
-; $Id: dumpheap.sch,v 1.6 92/02/10 03:35:53 lth Exp Locker: lth $
+; $Id: dumpheap.sch,v 1.7 92/02/17 18:26:41 lth Exp Locker: lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular
@@ -58,14 +58,14 @@
     (define largest-fixnum (- (expt 2 29) 1))
     (define smallest-fixnum (- (expt 2 29)))
 
-    (define heap-version 6)
+    (define heap-version 7)
 
     (define roots
       '(reg0 reg1 reg2 reg3 reg3 reg5 reg6 reg7 reg8 reg9 reg10 reg11 reg12
 	reg13 reg14 reg15 reg16 reg17 reg18 reg19 reg20 reg21 reg22 reg23
 	reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 argreg2 argreg3
 	result continuation scheme-entry millicode-support saved-result 
-        glue-tmp1 glue-tmp2 glue-tmp3 glue-tmp4 gen-tmp1 gen-tmp2 mem-tmp1))
+        glue-tmp1 glue-tmp2 glue-tmp3 glue-tmp4 gen-tmp1 gen-tmp2 mem-tmp1 mem-tmp2))
     
     ; A heap is represented internally as a vector of three elements,
     ; denoted the `bytes', `globals', and `top'. `Bytes' is a list
@@ -540,6 +540,9 @@
 		     (heap.global! heap
 				   'millicode-support
 				   (dump-global! heap 'millicode-support))
+		     (heap.global! heap
+				   'mem-tmp2
+				   (dump-global! heap 'number->string))
 		     (dump-heap-to-file! heap outputfile)
 		     (load-map))))))
 

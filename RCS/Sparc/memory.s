@@ -4,7 +4,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.19 92/02/10 03:38:34 lth Exp Locker: lth $
+! $Id: memory.s,v 1.20 92/02/17 18:27:30 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -39,7 +39,7 @@
 !			  pointer to the continuation structure.
 !   _restore_continuation() Reinstate the given continuation, discarding the
 !			  current one.
-!   _restore_frame()      Restore a frame from the continuation chain.
+!   _m_restore_frame()    Restore a frame from the continuation chain.
 !
 ! '_gcstart' is made public for use by open-coded 'cons' calls.
 !
@@ -126,7 +126,7 @@
 !   p = E_TOP;
 !   E_TOP += n;					; increment heap
 !   if (n & 0x04) E_TOP += 0x04;		; round up if necessary
-!   if (E_TOP > E_LIMIT) p = gc( n );		; check for overflow
+!   if (E_TOP > E_LIMIT) return _gcstart( n );	; check for overflow
 !   return p;
 ! }
 !
@@ -141,17 +141,22 @@ _alloc:
 	blt,a	Lalloc1				! skip of no overflow
 	sub	%E_TOP, %RESULT, %RESULT	! setup result
 
-	! Overflow; need to collect.
+	! Overflow; need to collect. Just branch to _gcstart.
+	! %RESULT still has the number of words to alloc.
 
-	mov	%o7, %TMP0
-	call	gcstart				! deal with overflow
+#ifdef DEBUG
+	save	%sp, -96, %sp
+	set	Lfoo, %o0
+	call	_printf
 	nop
-	jmp	%TMP0+8				! return to Scheme code
+	restore
+#endif
+	b	_gcstart			! deal with overflow
 	nop
 
 Lalloc1:
 	jmp	%o7+8
-	add	%E_TOP, %TMP1, %E_TOP		! round up
+	add	%E_TOP, %TMP1, %E_TOP		! round up (down
 
 
 ! _internal_alloc() is like _alloc(), but %TMP0 is a Scheme return
@@ -166,6 +171,15 @@ _internal_alloc:
 
 	! Overflow; need to collect.
 
+#ifdef DEBUG
+	save	%sp, -96, %sp
+	set	Lfoo2, %o0
+	call	_printf
+	nop
+	restore
+#endif
+
+	sub	%E_TOP, %RESULT, %E_TOP		! restore heap ptr
 	st	%o7, [ %GLOBALS + MEM_TMP1_OFFSET ]
 	call	gcstart				! deal with overflow
 	nop
@@ -208,16 +222,25 @@ _alloci:
 
 	! Overflow; need to collect
 
+#ifdef DEBUG
+	save	%sp, -96, %sp
+	set	Lfoo3, %o0
+	call	_printf
+	nop
+	restore
+#endif
+	sub	%E_TOP, %TMP0, %E_TOP		! restore heap pointer
 	mov	%TMP0, %RESULT			! restore count for argument
+	st	%RESULT, [ %GLOBALS + MEM_TMP1_OFFSET ]	! save count
 	mov	%o7, %TMP0
 	call	gcstart				! deal with overflow
 	nop
 	mov	%TMP0, %o7			! restore return address
 
-	! restore byte/word count for use in initialization
+	! restore byte/word count for use in initialization.
 
-	sub	%E_TOP, %RESULT, %TMP0
-	add	%TMP0, 0x04, %TMP0
+	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %TMP0	! restore count
+!	add	%TMP0, 0x04, %TMP0			! ??!?!?
 
 	! Now have pointer to memory in %RESULT, count in %TMP0
 
@@ -677,10 +700,9 @@ gcstart:
 	!-----------
 	! C-language call
 
-	mov	%RESULT, %g1		! %RESULT not valid after save...
 	save	%sp, -96, %sp
 	call	_gcstart2		! This *will* flush the stack!
-	mov	%g1, %o0
+	mov	%SAVED_RESULT, %o0
 	call	_restore_frame		! Restore our frame
 	nop
 	restore
@@ -715,7 +737,7 @@ Lgcstart1:
 	! However, we can only restore a frame if one exists!
 
 	st	%RESULT, [ %GLOBALS + RESULT_OFFSET ]	! save %RESULT for now
-	ld	[ %STKP+0 ], %RESULT			! get return address
+	ld	[ %STKP+0 ], %RESULT			! get Scheme return address
 	add	%STKP, 16, %STKP			! deallocate our frame
 
 	! Is there another frame?
@@ -850,5 +872,11 @@ _diag1:
 	.asciz	"Catch\n"
 _diag2:
 	.asciz	"Throw\n"
+Lfoo:
+	.asciz	"Failed alloc; collecting...\n"
+Lfoo2:
+	.asciz	"Failed internal_alloc; collecting...\n"
+Lfoo3:
+	.asciz	"Failed alloci; collecting...\n"
 
 	! end of file

@@ -1,27 +1,29 @@
 /*
- * Scheme 313 run-time system
- * C-language procedures for system initialization (Berkeley UNIX)
+ * Larceny -- A run-time system for IEEE/R4RS Scheme on the Sun Sparcstation.
  *
- * $Id: main.c,v 1.6 91/12/06 15:07:14 lth Exp Locker: lth $
+ * $Id: main.c,v 1.7 92/02/10 03:41:54 lth Exp Locker: lth $
  *
- * Exports the procedures C_init() and panic().
+ * Exports the procedures C_exception() and panic().
  * Accepts the following options from the command line:
  *
  *    -t nnnn    Tenured heap size in bytes (decimal)
  *    -e nnnn    Ephemeral heap size in bytes (decimal)
- *    -l nnnn    Tenuring collection limit in bytes (decimal)
- *    -S nnnn    Static heap size in bytes (decimal) (?)
+ *    -l nnnn    Ephemeral->tenuring collection limit in bytes (decimal)
  *    -s nnnn    Stack cache size in bytes (decimal)
  *    -I nnnn    The initial value of the timer.
  *    -h file    Tenured-area heap file. Mandatory.
- *    -H file    Static-area heap file. Optional.
+ *    -H file    Static-area heap file. Optional. (Unimplemented)
  *    -b #       breakpoint stop number (for debugging).
  *    -B         stop at every breakpoint
+ *    -d         Raise the level of debugging output by one.
+ *               This has an effect only when the programming is compiled with
+ *               DEBUG defined.
  *
- * Hack options (for benchmarks...)
- *
- *    -a nnnn    Argument for the benchmark. Supply any number of these.
+ * BUGS
+ *  The '-h' should be implicit.
  */
+
+#define VERSION "0.10"
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -38,7 +40,8 @@
 static void invalid(), setup_interrupts();
 void panic();
 
-word globals[ GLOBALS_TABLE_SIZE ];
+word globals[ GLOBALS_TABLE_SIZE ];         /* All system globals */
+int  debuglevel = 0;                        /* Except this */
 
 /*
  * Parse command line and initialize runtime system components, then
@@ -48,18 +51,19 @@ int main( argc, argv, envp )
 int argc;
 char **argv, **envp;
 {
-  unsigned long tsize = 0, esize = 0, elimit = 0, ssize = 0, Ssize = 0;
+  unsigned long tsize = 1024*1024, 
+                esize = 1024*1024, 
+                elimit = 1024*700, 
+                ssize = 1024*64, 
+                Ssize = 0;
   unsigned ifreq = 0xFFFFFFFF;
   unsigned arg = 0;
   unsigned milliseconds;
   struct rusage r1, r2;
-  word args[ 10 ];
-  int argcount = 0, i;
   char *heapfile = NULL;
   FILE *heap;
-  extern char *version;
 
-  printf( "%s\n", version );
+  printf( "Larceny version %s (Compiled by %s on %s)\n", VERSION, USER, DATE );
   while (--argc) {
     ++argv;
     if (**argv == '-') {
@@ -84,21 +88,13 @@ char **argv, **envp;
 	    invalid( "-s" );
 	  ++argv; --argc;
 	  break;
-	case 'S' :
-	  if (argc == 1 || sscanf( *(argv+1), "%lu", &Ssize ) != 1)
-	    invalid( "-S" );
-	  ++argv; --argc;
+	case 'd' :
+	  debuglevel++;
 	  break;
 	case 'I' :
 	  if (argc == 1 || sscanf( *(argv+1), "%u", &ifreq ) != 1)
 	    invalid( "-I" );
 	  ++argv; --argc;
-	  break;
-	case 'a' :
-	  if (argc == 1 || sscanf( *(argv+1), "%u", &arg ) != 1)
-	    invalid( "-a" );
-	  ++argv; --argc;
-	  args[ argcount++ ] = arg;
 	  break;
 	case 'h' :
 	  if (argc == 1)
@@ -107,7 +103,7 @@ char **argv, **envp;
 	  break;
 	case 'H' :
 	  fprintf( stderr, "Don't know about -H yetb.\n" );
-	  exit( 1 );
+	  break;
 	case 'b' :
 	  { int tmp;
 	    extern int break_list[], break_count;
@@ -137,8 +133,8 @@ char **argv, **envp;
   /* Millicode may be used by other initializers and must be done first */
   init_millicode();
 
-  /* Allocate memory and set up stack. Ignore command line switches for now. */
-  if (init_mem( 1024*1024, 1024*1024, 0, 1024*64, 1024*700 ) == 0)
+  /* Allocate memory and set up stack. */
+  if (init_mem( esize, tsize, Ssize, ssize , elimit ) == 0)
     panic( "Unable to initialize memory!" );
 
   if (heapfile == NULL)
@@ -155,28 +151,12 @@ char **argv, **envp;
   /* Catch whatever interesting interrupts there are */
   setup_interrupts();
 
-#if 0
-  /* Setup the i/o system */
-  init_iosys();
-#endif
-
   globals[ TIMER_OFFSET ] = globals[ INITIAL_TIMER_OFFSET ];
   globals[ INITIAL_TIMER_OFFSET ] = (ifreq == 0 ? 1 : ifreq);
 
-  getrusage( RUSAGE_SELF, &r1 );
+  globals[ RESULT_OFFSET ] = fixnum( 0 );  /* No arguments */
 
-  globals[ RESULT_OFFSET ] = fixnum( argcount );
-  for (i = 0 ; i < argcount ; i++ )
-    globals[ REG1_OFFSET+i ] = fixnum( args[ i ] );
-
-  schemestart();
-
-  getrusage( RUSAGE_SELF, &r2 );
-  milliseconds = ((r2.ru_utime.tv_sec - r1.ru_utime.tv_sec)*1000
-		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
-  printf( "Time: %u milliseconds.\n", milliseconds );
-  printf( "Result: %lx\n", globals[ RESULT_OFFSET ] );
-
+  schemestart();  /* Typically doesn't return. */
   exit( 0 );
 }
 

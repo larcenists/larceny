@@ -2,12 +2,14 @@
  * Scheme 313 Run-Time System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.11 92/02/10 03:41:57 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.12 92/02/17 18:27:38 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
  * They are likely a bit dependent upon calling conventions etc, although
  * I've tried to keep most such nasties confined to the file "layouts.h".
+ *
+ * THIS FILE SUFFERS FROM BIT ROT!
  */
 
 #include <sys/time.h>
@@ -28,6 +30,7 @@ static local_collect(),
        setup_memory_limits(),
        setup_stack();
 
+unsigned restored_since_collection;
 
 /*
  * Initialize memory management system. Allocate spaces, setup limits,
@@ -50,6 +53,8 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
 /*
  * This is the procedure that is called by the assembly-language memory
  * management routines when there is a need for garbage collection.
+ *
+ * [These comments are out of date.]
  *
  * If the argument 'n' is fixnum( -1 ) then we perform a tenuring collection
  * and return. If it is any other number (and it had better be nonnegative,
@@ -86,6 +91,7 @@ word n;
     }
   }
 
+  restored_since_collection = 0;
   flush_icache();
 }
 
@@ -107,7 +113,7 @@ load_heap( fp )
 FILE *fp;
 {
   word base, magic, count, *p, w;
-  int i;
+  unsigned i;
 
   base = globals[ T_BASE_OFFSET ];
   magic = getword( fp );
@@ -120,17 +126,21 @@ FILE *fp;
   }
 
   count = getword( fp );
-  if (count*4 > globals[ T_MAX_OFFSET ] - globals[ T_BASE_OFFSET ])
+  if (globals[ T_BASE_OFFSET ] + count*4 > globals[ T_MAX_OFFSET ])
     panic( "Heap image will not fit in tenured heap.");
 
+  if (fread( (word *) base, 4, count, fp ) < count)
+    return -1;
   p = (word *) base;
-  while (count--) {
-    w = getword( fp );
-    *p++ = (isptr( w ) ? w + base : w);
-    if (header( w ) == BV_HDR) {
+  while (count > 0) {
+    w = *p;
+    count--;
+    if (isptr( w ))
+      *p = w + base;
+    p++;
+    if (header( w ) == BV_HDR) {             /* is well-defined on non-hdrs */
       i = roundup4( sizefield( w ) ) / 4;
-      while (i--)
-	*p++ = getword( fp );
+      p += i; count -= i;
     }
   }
 
@@ -158,6 +168,8 @@ FILE *fp;
  * The tenured heap is dumped "as is"; pointers into other areas are
  * dumped literally and should not exist (how do we deal with pointers into
  * the static area? At least pointers into the tenured area can be gc'd away.)
+ *
+ * UNTESTED!!
  */
 dump_heap( fp )
 FILE *fp;
@@ -228,9 +240,10 @@ int type;
   struct rusage r1, r2;
 
 #ifdef DEBUG
-  printf( "garbage collection commencing, type %d\n", type );
-  printf( "Tbase=%lu, Ttop=%lu, Ttrans=%lu, %Tmax=%lu\n", globals[ T_BASE_OFFSET ], globals[ T_TOP_OFFSET ], globals[ T_TRANS_OFFSET ], globals[ T_MAX_OFFSET ] );
-  oldwords = globals[ WCOPIED_OFFSET ];
+  if (debuglevel) {
+    printf( "garbage collection commencing, type %d\n", type );
+    oldwords = globals[ WCOPIED_OFFSET ];
+  }
 #endif
 
   getrusage( RUSAGE_SELF, &r1 );
@@ -243,10 +256,10 @@ int type;
 		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
 
 #ifdef DEBUG
-  printf( "garbage collection done, type %d\n", realtype );
-  printf( "words copied: %ld\n", globals[ WCOPIED_OFFSET ]-oldwords );
-  printf( "Time spent collecting: %u milliseconds.\n", milliseconds );
-  printf( "Tbase=%lu, Ttop=%lu, Ttrans=%lu, %Tmax=%lu\n", globals[ T_BASE_OFFSET ], globals[ T_TOP_OFFSET ], globals[ T_TRANS_OFFSET ], globals[ T_MAX_OFFSET ] );
+  if (debuglevel) {
+    printf( "Done. Words copied: %ld in %u milliseconds\n", 
+	   globals[ WCOPIED_OFFSET ]-oldwords, milliseconds );
+  }
 #endif
 }
 
@@ -284,9 +297,7 @@ static setup_stack()
   *(stktop-3) = (word) millicode[ M_STKUFLOW+1 ];      /* underflow handler */
   globals[ STK_START_OFFSET ] = (word) (stktop-4);
   globals[ SP_OFFSET ] = (word) (stktop-3);
-#ifdef DEBUG
-  printf( "Initial stack pointer is %08x\n", globals[ SP_OFFSET ] );
-#endif
+
   /* 
    * Need to calculate max continuation size in order to find the
    * lower stack limit. We'll just gratuitiously assume that 100 words is
@@ -331,14 +342,15 @@ void restore_frame()
   unsigned sframesize, hframesize;
 
 #ifdef DEBUG
-  printf( "Restoring stack frame; stkptr is %08x.\n", globals[ SP_OFFSET ] );
-  if (globals[ CONTINUATION_OFFSET ] == FALSE_CONST)
-    panic( "restore_frame: no more continuation frames!" );
+  if (debuglevel > 1) {
+    printf( "Restoring stack frame; stkptr is %08x.\n", globals[ SP_OFFSET ] );
+    if (globals[ CONTINUATION_OFFSET ] == FALSE_CONST)
+      panic( "restore_frame: no more continuation frames!" );
 
+  }
   if (globals[ SP_OFFSET ] % 8 != 0) {
     printf( "restore_frame: botched stack pointer %08x!\n", 
 	   globals[ SP_OFFSET ] );
-    dumpchain();
     localdebugger();
     panic( "Not possible to continue. Goodbye." );
   }
@@ -350,7 +362,10 @@ void restore_frame()
   hframesize = sizefield( *hframe ) + 4;
 
 #ifdef DEBUG
-  printf( "Frame @ %08x, header %08x, size %d\n", hframe, *hframe, hframesize );
+  if (debuglevel > 1) {
+    printf( "Frame @ %08x, header %08x, size %d\n", hframe, *hframe, 
+	   hframesize );
+  }
 #endif
 
   /* Allocate stack frame and bump saved stack pointer */
@@ -383,7 +398,9 @@ void restore_frame()
     *(sframe + STK_CONTSIZE) = sframesize;
   }
 #ifdef DEBUG
-  printf( "return address %08x\n", *(sframe + STK_RETADDR ) );
+  if (debuglevel > 1) {
+    printf( "return address %08x\n", *(sframe + STK_RETADDR ) );
+  }
 #endif
 
   /* Copy the generic "saved slots" */
@@ -398,6 +415,7 @@ void restore_frame()
       *dest++ = *src++;
   }
 
+  restored_since_collection++;
   if (globals[ SP_OFFSET ] % 8 != 0)
     panic( "restore_frame(2): botched stack pointer!" );
 }
@@ -417,9 +435,11 @@ flush_stack_cache()
 #endif
 
 #ifdef DEBUG
-  printf( "Flushing stack cache; base = %x, limit = %x, ptr = %x.\n",
-	  globals[ STK_START_OFFSET ], globals[ STK_LIMIT_OFFSET ],
-	  globals[ SP_OFFSET ]);
+  if (debuglevel > 1) {
+    printf( "Flushing stack cache; base = %x, limit = %x, ptr = %x.\n",
+	   globals[ STK_START_OFFSET ], globals[ STK_LIMIT_OFFSET ],
+	   globals[ SP_OFFSET ]);
+  }
 #endif
 
   sp = (word *) globals[ SP_OFFSET ];
@@ -439,7 +459,9 @@ flush_stack_cache()
     procptr = ptrof( *(sframe + STK_PROC) ); /* pointer to the procedure */
 
 #ifdef DEBUG
-    printf( "return address %08x\n", retaddr );
+    if (debuglevel > 1) {
+      printf( "return address %08x\n", retaddr );
+    }
 #endif
 
     /* Move stack pointer */
@@ -489,6 +511,8 @@ flush_stack_cache()
     prev_cont = hframe;
 #ifdef DEBUG
     framecount++;
+    if (globals[ E_TOP_OFFSET ] > globals[ E_MAX_OFFSET ]) 
+      printf( "Major overflow in flush!\n" );
 #endif
   }
 
@@ -505,7 +529,9 @@ flush_stack_cache()
     globals[ CONTINUATION_OFFSET ] = (word) tagptr( first_cont, VEC_TAG );
 
 #ifdef DEBUG
-  printf( "%d frames flushed.\n", framecount );
+  if (debuglevel > 1) {
+    printf( "%d frames flushed.\n", framecount );
+  }
 #endif
 }
 

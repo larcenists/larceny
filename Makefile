@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.4 92/02/10 12:24:18 lth Exp Locker: lth $
+# $Id: Makefile,v 1.5 92/02/17 14:57:31 lth Exp Locker: lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -19,7 +19,6 @@ OBJS=	$(SYS)/main.o \
 	$(SYS)/memsupport.o \
 	$(SYS)/gc.o \
 	$(SYS)/cglue.o \
-	$(SYS)/version.o \
 	$(SYS)/localdebugger.o \
 	$(MACH)/memory.o \
 	$(MACH)/tables.o \
@@ -27,10 +26,10 @@ OBJS=	$(SYS)/main.o \
 	$(MACH)/generic.o
 
 # PROFILE=-pg
-DEBUG=-g
-DFLAG=-DDEBUG
+# DEBUG=-g
+# DFLAG=-DDEBUG
 CC=cc
-# OPTIMIZE=-O4
+OPTIMIZE=-O4
 
 COMPILE=-c
 COUTPUT=$*.o
@@ -45,7 +44,7 @@ CFLAGS=	$(COMPILE) $(PREPROCESS) $(OPTIMIZE) $(PROFILE) $(DEBUG) -I$(SYS)\
 .s.o:
 	as -P $(DFLAG) -DASSEMBLY -I$(MACH) -o $*.o $<
 .c.o:
-	$(CC) $(CFLAGS) -o $(COUTPUT) $<
+	$(CC) $(CFLAGS) -DUSER=\"$$USER\" -DDATE="\"`date`\"" -o $(COUTPUT) $<
 
 larceny: $(OBJS)
 	$(CC) $(PROFILE) -o larceny $(OBJS)
@@ -54,7 +53,7 @@ clean:
 	rm larceny $(OBJS)
 
 libclean:
-	rm $(LIB)/*.lap $(LIB)/*.lop
+	rm $(LIB)/*.lap $(LIB)/*.lop $(LIB)/Sparc/*.lap $(LIB)/Sparc/*.lop
 
 # Support stuff for Chez hosted system.
 
@@ -66,7 +65,6 @@ bits2: Compiler/mtime.o
 $(SYS)/main.o:		$(SYS)/main.c $(CHDRS)
 $(SYS)/gc.o:		$(SYS)/gc.c $(CHDRS)
 $(SYS)/cglue.o:		$(SYS)/cglue.c $(CHDRS)
-$(SYS)/version.o:	$(SYS)/version.c
 $(SYS)/memsupport.o:	$(SYS)/memsupport.c $(CHDRS)
 $(SYS)/localdebugger.o:	$(SYS)/localdebugger.c $(CHDRS)
 $(MACH)/memory.o:	$(MACH)/memory.s $(AHDRS)

@@ -1,6 +1,6 @@
 ; The application "main" file; in this case for testing.
 ;
-; $Id: main.sch,v 1.1 92/02/10 11:26:46 lth Exp Locker: lth $
+; $Id: main.sch,v 1.2 92/02/17 18:27:01 lth Exp Locker: lth $
 
 (define (main)
   ;(runfib)
@@ -87,7 +87,7 @@
 	       (loop (read))))))
 
 (define (numtest)
-  (display "1=fixnums, 2=flonums, 3=bignums, 4=strings, 0=quit: ")
+  (display "1=fixnums, 2=flonums, 3=bignums, 4=strings, 5=ctest, 6=ctak, 0=quit: ")
   (flush-output-port)
   (let ((choice (read)))
     (case choice
@@ -95,8 +95,105 @@
       ((2) (flotest) (numtest))
       ((3) (bigtest) (numtest))
       ((4) (strtest) (numtest))
+      ((5) (ctest) (numtest))
+      ((6) (let* ((t1 (getrusage))
+		  (x (ctak 18 12 6))
+		  (t2 (getrusage)))
+	     (display "(ctak 18 12 6) = ")
+	     (display x)
+	     (display " in ")
+	     (display (- t2 t1))
+	     (display " milliseconds.")
+	     (newline)
+	     (numtest)))
       ((0) #t)
       (else (numtest)))))
+
+; tests continuation stuff (I think).
+
+(define (ctest)
+  (ctest1)
+  (ctest2))
+
+; supposed to print "Now in ye procedure" followed by "hello, world"
+
+(define (ctest1)
+  (write 
+   (call-with-current-continuation
+    (lambda (k)
+      (write "Now in ye procedure")
+      (k "hello, world")
+      "goodbye, world"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; File:         ctak.sch
+; Description:  The ctak benchmark
+; Author:       Richard Gabriel
+; Created:      5-Apr-85
+; Modified:     10-Apr-85 14:53:02 (Bob Shaw)
+;               24-Jul-87 (Will Clinger)
+; Language:     Scheme
+; Status:       Public Domain
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; The original version of this benchmark used a continuation mechanism that
+; is less powerful than call-with-current-continuation and also relied on
+; dynamic binding, which is not provided in standard Scheme.  Since the
+; intent of the benchmark seemed to be to test non-local exits, the dynamic
+; binding has been replaced here by lexical binding.
+
+; For Scheme the comment that follows should read:
+;;; CTAK -- A version of the TAK procedure that uses continuations.
+
+;;; CTAK -- A version of the TAK function that uses the CATCH/THROW facility.
+
+;;; call: (ctak 18 12 6)
+
+(define (ctak x y z)
+  (call-with-current-continuation
+   (lambda (k)
+     (ctak-aux k x y z))))
+
+(define (ctak-aux k x y z)
+  (if (not (< y x))			;xy
+      (k z)
+      (call-with-current-continuation
+       (ctak-aux
+	k
+	(call-with-current-continuation
+	 (lambda (k)
+	   (ctak-aux k
+		     (- x 1)
+		     y
+		     z)))
+	(call-with-current-continuation
+	 (lambda (k)
+	   (ctak-aux k
+		     (- y 1)
+		     z
+		     x)))
+	(call-with-current-continuation
+	 (lambda (k)
+	   (ctak-aux k
+		     (- z 1)
+		     x
+		     y)))))))
+
+; jumps back in; supposed to print '33'.
+
+(define (ctest2)
+
+  (define (deep-and-hairy n)
+    (if (zero? n)
+	(call-with-current-continuation
+	 (lambda (k)
+	   (k k)))
+	(deep-and-hairy (- n 1))))
+
+  (let ((k (deep-and-hairy 10)))
+    (if (not (procedure? k))
+	(write "fum!")
+	(write (k 33)))))
 
 (define (strtest)
   (display "Enter two quoted strings") (newline)
@@ -161,7 +258,6 @@
     (fpr (/ a a))))
 
 (define (fpr n)
-  (break)
   (let ((s "0123456789abcdef"))
     (if (not (flonum? n))
 	(error "Not a flonum!"))

@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: numberparser.sch,v 1.1 92/01/19 16:43:20 lth Exp Locker: lth $
+; $Id: numberparser.sch,v 1.2 92/02/10 03:16:58 lth Exp Locker: lth $
 ;
 ;                                      16 April 1990
 ;
@@ -65,7 +65,7 @@
 ;       (lambda (l)
 ;         (list '- (list 'char->integer (cadr l)) '48)))
 
-(begin (display "$Id: numberparser.sch,v 1.1 92/01/19 16:43:20 lth Exp Locker: lth $")
+(begin (display "$Id: numberparser.sch,v 1.2 92/02/10 03:16:58 lth Exp Locker: lth $")
        (newline))
 
 (define (bellerophon . s)
@@ -81,7 +81,6 @@
   (let ((bellerophon bellerophon))
     
     (define (decimal-digit? c)
-      (break)
       (and (char>=? c #\0) (char<=? c #\9)))
 
     (define (decimal-value c)
