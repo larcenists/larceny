@@ -9,7 +9,7 @@
  * The assembler may use one of three strategies for the write barrier.
  * * In-line code may be generated that calls m_full_barrier in all
  *   cases.
- * * In-line code may perform a test which ensures that the RHS is not 
+ * * In-line code may perform a test which ensures that the RHS is not
  *   a constant, and if it is not, then call m_partial_barrier to perform
  *   the write barrier operation.
  * * If it is known that the young area is allocated below all areas,
@@ -21,7 +21,7 @@
  *
  * In the third case, in-line code may use a conservative heap limit check,
  * e.g., comparing against %E_LIMIT rather than globals[ G_ELIM ].  On
- * systems where the stack lives in the young heap area rather than in 
+ * systems where the stack lives in the young heap area rather than in
  * a separate cache, %E_LIMIT is not an accurate delimiter for the young
  * area as continuation structures may have been flushed above this limit.
  * Debuggers may change these structures and these changes need not be
@@ -34,7 +34,7 @@
  */
 
 #define ASSEMBLER 1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 #include "../Sys/gclib.h"
 
 #include "asmdefs.h"
@@ -93,8 +93,8 @@ EXTNAME(mem_addtrans):
  *    genv = (unsigned*)globals[ G_GENV ];
  *    gl = genv[page(lhs)];       // gl: generation # of lhs
  *    gr = genv[page(rhs)];       // gr: generation # of rhs
- *    if (gl <= gr) return;  
- *  
+ *    if (gl <= gr) return;
+ *
  *    // experiment
  *    if (gr == gl-1 && gl == globals[ G_NP_YOUNG_GEN ]) {
  *      gl = globals[ G_NP_YOUNG_GEN_SSBIDX ];

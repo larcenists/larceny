@@ -9,7 +9,7 @@
  * called from millicode) are named mem_internal_something.
  */
 #define ASSEMBLER 1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -70,7 +70,7 @@ Lalloc1:
 						/* without checking for */
 						/* overflow because everything */
 						/* is 8-byte aligned. */
-	
+
 /* _mem_alloci: allocate initialized memory
  *
  * Call from: Scheme
@@ -136,7 +136,7 @@ Lalloci2:
 
 
 /* _mem_internal_alloc: allocate uninitialized pointer-containing memory.
- * _mem_internal_alloc_bv: allocate uninitialized non-pointer-containing 
+ * _mem_internal_alloc_bv: allocate uninitialized non-pointer-containing
  *                         memory.
  *
  * Call from: Millicode
@@ -362,7 +362,7 @@ EXTNAME(mem_restore_continuation):
  *  to avoid the extra loop overhead. But that would mean writing the copy
  *  loop in assembly, which seems like overkill.
  *
- * Assumptions: 
+ * Assumptions:
  *  The iflush instruction is implemented in hardware and executes in
  *  one cycle. By definition, it flushes 8 bytes at a time and does not
  *  trap even if given an address outside the address space of the executing
@@ -378,15 +378,15 @@ EXTNAME(mem_restore_continuation):
  *  larger code :-)
  *
  * Implementation:
- *  Start and ending addresses are rounded down to nearest 8-byte boundary 
- *  before the loop; an extra iflush at the ending address is always 
+ *  Start and ending addresses are rounded down to nearest 8-byte boundary
+ *  before the loop; an extra iflush at the ending address is always
  *  performed after the loop to catch the last word.
  *
  *  Another option is to unroll the loop massively (say, 1000 times) and
  *  use Duff's device; this will very nearly always be a win.
  *
  * Cost:
- *  Roughly 3+(u+3)*ceil(n/(u*8))+3 cycles for n bytes of code and an 
+ *  Roughly 3+(u+3)*ceil(n/(u*8))+3 cycles for n bytes of code and an
  *  unrolling factor of u. The exact cost depends on the cost of branches
  *  in the processor implementation. In addition, the cost of a procedure
  *  call and a return.
@@ -426,4 +426,3 @@ EXTNAME(mem_icache_flush):
 	nop
 
 /* eof */
-

@@ -9,7 +9,7 @@
 
 void larceny_segment_code_address( word id, word number )
 {
-  panic( "Syscall `segment_code_address' not available in SPARC Larceny." );
+  panic_exit( "Syscall `segment_code_address' not available in SPARC Larceny." );
 }
 
 /* eof */

@@ -102,7 +102,7 @@ void C_restore_frame( void )
 
 /* C_wb_compact: some SSB filled up, and must be compacted. */
 void C_wb_compact( int generation )
-{ 
+{
   annoyingmsg( "Generation %d: SSB filled up during mutator operation.",
 	       generation );
   in_noninterruptible_syscall = 1;
@@ -120,7 +120,7 @@ void C_panic( char *fmt, ... )
   va_start( args, fmt );
   vsprintf( buf, fmt, args );
   va_end( args );
-  panic( "%s", buf );
+  panic_exit( "%s", buf );
   in_noninterruptible_syscall = 0;
 }
 
@@ -187,9 +187,9 @@ void C_varargs( void )
   while (k <= limit ) {
     alloc_one_pair(p);
     *p = globals[ G_REG0 + k ];
-    if (prev) 
-      *(prev+1) = tagptr( p, PAIR_TAG ); 
-    else 
+    if (prev)
+      *(prev+1) = tagptr( p, PAIR_TAG );
+    else
       first = p;
     prev = p;
     k++;
@@ -203,8 +203,8 @@ void C_varargs( void )
     while (t != NIL_CONST) {
       alloc_one_pair(p);
       *p = pair_car( t );
-      if (prev) 
-	*(prev+1) = tagptr( p, PAIR_TAG ); 
+      if (prev)
+	*(prev+1) = tagptr( p, PAIR_TAG );
       else
 	first = p;
       prev = p;
@@ -251,7 +251,7 @@ void C_singlestep( word cidx )
   constvec = *( ptrof( globals[G_REG0] ) + 2 );
   s = *( ptrof( constvec ) + VEC_HEADER_WORDS + nativeint(cidx) );
   if (tagof( s ) != BVEC_TAG)
-    panic( "Internal: Bad arg to C_singlestep().\n" );
+    panic_exit( "Internal: Bad arg to C_singlestep().\n" );
 
   l = string_length( s );
   strncpy( buf, string_data( s ), min( l, sizeof( buf )-1 ) );

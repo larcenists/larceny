@@ -4,9 +4,9 @@
  *
  * SPARC millicode for Generic Arithmetic.
  *
- * Generic arithmetic operations are implemented as decision trees on 
+ * Generic arithmetic operations are implemented as decision trees on
  * the representation, the goal being fast same-representation arithmetic
- * for a few classes of representation.  If representations are not the 
+ * for a few classes of representation.  If representations are not the
  * same, then a contagion routine is invoked to coerce operands as necessary,
  * and the operation is retried.
  *
@@ -16,19 +16,19 @@
  * When a generic arithmetic routine is called, the operands must be in the
  * millicode argument registers, and the Scheme return address must be in %o7.
  *
- * Compnum algorithms were taken from Press et al: "Numerical Recipes in C", 
+ * Compnum algorithms were taken from Press et al: "Numerical Recipes in C",
  * Cambridge University Press, 1988.
  *
  * BUGS
  * - Way big. Should have used M4.
  *
- * - Some of this code depends on TMP0 being a 'global' register (which 
+ * - Some of this code depends on TMP0 being a 'global' register (which
  *   is currently the case). Fixed in most places by referring to SAVED_TMP0;
  *   the entire file should be checked and the rest fixed.
  */
 
 #define ASSEMBLER  1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -478,7 +478,7 @@ Lmul_fix:
 	 *
 	 * The test is more complicated than above because bignums are
 	 * not stored in two's complement: therefore, we compute the
-	 * representation and see if the high part is 0. 
+	 * representation and see if the high part is 0.
 	 */
 	cmp	%TMP1, 0
 	bge,a	1f
@@ -675,7 +675,7 @@ Ldiv_fix:
 	cmp	%o0, 0
 	bne,a	Ldiv_fix2
 	restore
-	
+
 	sra	%SAVED_RESULT, 2, %o0
 	call	.div
 	sra	%SAVED_ARGREG2, 2, %o1
@@ -695,12 +695,12 @@ Ldiv_fix2:
 /* Quotient.
  *
  * Quotient must work on all integer operands, including flonums and
- * compnums that are representable as integers.  Only two cases are 
+ * compnums that are representable as integers.  Only two cases are
  * handled in millicode; all other arguments are passed to Scheme.
  *
  * The two cases handled in millicode are:
  *  - Both operands are fixnums.
- *  - The lhs is a nonnegative 32-bit bignum and the rhs is a 
+ *  - The lhs is a nonnegative 32-bit bignum and the rhs is a
  *    nonnegative fixnum.
  * The second case complicates the code but makes bignum arithmetic
  * much more pleasant to implement in Scheme.
@@ -737,7 +737,7 @@ EXTNAME(m_generic_quo):
 	jmp	%o7+8				/* Result in RESULT */
 	st	%g0, [ %GLOBALS + G_IDIV_CODE ]	/* Clear operation code */
 
-/* Common code for quotient and remainder.  
+/* Common code for quotient and remainder.
  *
  * Test to see if we have case 2: bignum-by-fixnum division.
  * ARGREG3 is either #t (quotient) or #f (remainder).
@@ -767,7 +767,7 @@ Lquotrem:
 	bne	Lquotrem2
 	nop
 
-/* Case 2: RESULT is a 32-bit nonnegative bignum, ARGREG2 is a 
+/* Case 2: RESULT is a 32-bit nonnegative bignum, ARGREG2 is a
  * nonnegative fixnum.
  */
 	/* FOREIGN SECTION */
@@ -894,7 +894,7 @@ Lneg_comp:
 #endif
 Lneg_big:
 	b	internal_scheme_call
-	mov	MS_BIGNUM_NEGATE, %TMP2	
+	mov	MS_BIGNUM_NEGATE, %TMP2
 Lneg_vec:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Lneg_rat
@@ -949,7 +949,7 @@ Labs_comp:
 	mov	EX_ABS, %TMP0
 Labs_big:
 	b	internal_scheme_call
-	mov	MS_BIGNUM_ABS, %TMP2	
+	mov	MS_BIGNUM_ABS, %TMP2
 Labs_vec:
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Labs_rat
@@ -1044,7 +1044,7 @@ Lzero_rect:
 	cmp	%TMP0, 0
 	bne,a	Lzero_num
 	mov	FALSE_CONST, %RESULT
-	mov	TRUE_CONST, %RESULT	
+	mov	TRUE_CONST, %RESULT
 Lzero_num:
 	jmp	%o7+8
 	nop
@@ -1716,7 +1716,7 @@ Lcomplexp_vec:
 	jmp	%o7+8
 	mov	TRUE_CONST, %RESULT
 
-/* (define (real? x) 
+/* (define (real? x)
  *   (rational? x))
  *
  * (define (rational? x)
@@ -1763,7 +1763,7 @@ Lrationalp_vec:
  *   (or (bignum? x)
  *       (fixnum? x)
  *       (or (and (flonum? x) (representable-as-int? x))
- *           (and (compnum? x) 
+ *           (and (compnum? x)
  *                (= (imag-part x) 0.0)
  *                (representable-as-int? (real-part x))))))
  */
@@ -1801,7 +1801,7 @@ Lintegerp_comp:
 	mov	FALSE_CONST, %RESULT
 
 Lintegerp_flo:
-	
+
 	/* Check to see if the real part is representable as an
 	 * integer, and if so, return #t. Otherwise return #f.
 	 *
@@ -2016,7 +2016,7 @@ EXTNAME(m_generic_inexact2exact):
 	mov	EX_I2E, %TMP0
 
 /* Isa bytevector; header in TMP0 */
-	
+
 Li2e_bvec:
 	cmp	%TMP0, BIGNUM_HDR
 	be	Li2e_identity		/* bignum */
@@ -2091,8 +2091,8 @@ Lgeneric_realpart2:
 	jmp	%o7+8
 	nop
 
-/* Given fixnum byte indices into compnums and rectnums in TMP1 and 
- * TMP2, and a pointer to a resolution routine for non-complex 
+/* Given fixnum byte indices into compnums and rectnums in TMP1 and
+ * TMP2, and a pointer to a resolution routine for non-complex
  * numbers in ARGREG2, do real_part/imag_part in one piece of code.
  * ARGREG3 has the exception code (fixnum) in the low 31 bits, and
  * an exactness bit in the high bit: 0=exact, 1=inexact (initially 0).
@@ -2211,7 +2211,7 @@ Lround:
 Ltrunc:
 	/* flonum is pointed to by %RESULT. Trunc it, box it, and return. */
 
-	set	Ldhalf, %TMP0 
+	set	Ldhalf, %TMP0
 	/* FOREIGN SECTION */
 	save	%sp, -96, %sp
 	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
@@ -2257,7 +2257,7 @@ Ltrunc_moveback:
 	/* END FOREIGN SECTION */
 
 
-/* Generic code for rounding and truncation. Address of final procedure 
+/* Generic code for rounding and truncation. Address of final procedure
  * is in %TMP1, exception code for specific operation is in %TMP2.
  */
 Lgeneric_trund:
@@ -2363,7 +2363,7 @@ Lnumeric_error:
 /****************************************************************************
  * Box various numbers.
  *
- * Box the double in %f2/f3 as a flonum. 
+ * Box the double in %f2/f3 as a flonum.
  * Return tagged pointer in RESULT.
  * Scheme return address is in %o7.
  */
@@ -2474,7 +2474,7 @@ _box_double_bignum:
 	addcc	%TMP0, 1, %TMP0
 	addx	%TMP1, 0, %TMP1
 
-/* As above, but the number is positive and the sign bit is the low bit 
+/* As above, but the number is positive and the sign bit is the low bit
  * of %TMP2.
  */
 _box_double_positive_bignum:
@@ -2511,4 +2511,3 @@ Le2itmp:
 	.word	0		/* temporary nonroot */
 
 /* eof */
-

@@ -7,13 +7,13 @@
  */
 
 #define ASSEMBLER 1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 
 #include "asmdefs.h"
 #include "asmmacro.h"
 
 	.global EXTNAME(test_cache)
-	
+
 /* int test_cache(void)
  *
  * Returns >0 if the architeture requires a cache flush, and 0 if it does not.

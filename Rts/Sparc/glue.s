@@ -12,7 +12,7 @@
  */
 
 #define ASSEMBLER 1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -50,12 +50,12 @@
  * _scheme_start is called from the larceny_call().  It sets up the virtual
  * machine and then calls the procedure in globals[ G_REG0 ].  If that
  * procedure returns, then _scheme_start returns to its caller.
- * 
+ *
  * Larceny_call() must allocate a stack frame and must also place arguments
  * in the register save area in globals[], and must set up the argument
  * count in globals[ G_RESULT ].
  *
- * NOTE: The sparc version currently ignores its argument and uses the 
+ * NOTE: The sparc version currently ignores its argument and uses the
  * global variable 'globals' instead.
  */
 EXTNAME(scheme_start):
@@ -97,17 +97,17 @@ L1:	call	internal_save_scheme_context	/* Enter C mode */
  *
  * Call Scheme when the VM is in Scheme mode already. The problem here is
  * that when Scheme code calls a millicode procedure, it is not required to
- * save any of its registers.  Thus, when the millicode must call out to 
+ * save any of its registers.  Thus, when the millicode must call out to
  * Scheme, the caller's context must be saved before the new Scheme procedure
  * is invoked.  This context must also be restored before control is returned
  * to the original caller, and, again, the original caller will not do this,
  * so we must arrange for it to happen.
  *
- * To accomodate interrupts, the contents of RESULT is saved and restored iff 
+ * To accomodate interrupts, the contents of RESULT is saved and restored iff
  * globals[ G_SCHCALL_SAVERES ] == #t on entry to this procedure.
  *
  * We create a special stack frame, shown below. The frame's return address
- * points to the millicode procedure internal_scheme_return (defined below); 
+ * points to the millicode procedure internal_scheme_return (defined below);
  * the save area contains the return offset from R0 as a fixnum and the saved
  * registers.
  *
@@ -244,7 +244,7 @@ Ls2serror:
  * Output:   Nothing
  * Destroys: TMP0, TMP1, TMP2
  *
- * Copies 32 words (the VM registers) as quickly as possible. 
+ * Copies 32 words (the VM registers) as quickly as possible.
  * FIXME: Should unroll fully.
  */
 copyregs:
@@ -414,7 +414,7 @@ internal_callout_to_C:
  */
 internal_restore_scheme_context:
 	set	EXTNAME(globals), %GLOBALS
-	
+
 	/* this is the body of internal_restore_globals, in-line. */
 	set	dzero, %TMP1
 	ldd	[ %TMP1 ], %f0
@@ -647,4 +647,3 @@ stackp:	.word	stack-4
 
 
 /* eof */
-

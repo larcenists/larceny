@@ -6,14 +6,14 @@
  */
 
 #define ASSEMBLER 1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 
 #include "asmdefs.h"
 #include "asmmacro.h"
 
 	.seg	"text"
 
-	.global EXTNAME(m_apply)	
+	.global EXTNAME(m_apply)
 	.global EXTNAME(m_varargs)
 	.global EXTNAME(m_syscall)
 	.global	EXTNAME(m_typetag)
@@ -102,14 +102,14 @@ Lvararg2:
 	set	EXTNAME(C_varargs), %TMP0
 	b	callout_to_C
 	nop
-	
+
 
 /* _m_syscall: implementation of the syscall primitive
  *
  * Call from: Scheme
  * Input:     RESULT has number of arguments.
- *            Arguments to C code passed in registers R1-R31; the C 
- *            procedure must read the memory register file to get at 
+ *            Arguments to C code passed in registers R1-R31; the C
+ *            procedure must read the memory register file to get at
  *	     RESULT and the other arguments.
  * Output:    C procedure must setup RESULT.
  * Destroys:  Temporaries.
@@ -306,11 +306,11 @@ Leqv_done:
  * Output   : RESULT = vector
  * Destroys : RESULT, ARGREG2, ARGREG3, temporaries
  *
- * list->vector is a partial primop because the Scheme implementation 
+ * list->vector is a partial primop because the Scheme implementation
  * (make the vector, bang the elements) causes a lot of unneccesary side
  * effect checking in the generation-scavenging collector. It is not a full
  * primop because of the harrowing details of dealing with non-lists etc.
- * 
+ *
  * The correctness of this code depends on the vector being allocated in
  * the ephemeral space.
  */
@@ -329,7 +329,7 @@ EXTNAME(m_partial_list2vector):
 	mov	%ARGREG2, %TMP2			/* TMP2 = counter (fixnum) */
 	b	Ll2v_1
 	tst	%TMP2				/* done yet? */
-Ll2v_2:	
+Ll2v_2:
 	st	%ARGREG3, [ %TMP0 ]		/* store in vector */
 	add	%TMP0, 4, %TMP0			/* next element */
 	ld	[ %TMP1 - PAIR_TAG + 4 ], %TMP1	/* get cdr */
@@ -351,8 +351,8 @@ Ll2v_1:
  *
  * Takes two bytevector-like structures and performs a lexicographical
  * comparison, where the alphabet consists of the integer values 0..255.
- * If RESULT orders less than ARGREG2, then a negative number is returned; 
- * if they order the same, 0 is returned, and if ARGREG2 orders less 
+ * If RESULT orders less than ARGREG2, then a negative number is returned;
+ * if they order the same, 0 is returned, and if ARGREG2 orders less
  * than RESULT, then a positive number is returned.
  *
  * For system use _only_: Does not check argument types.
@@ -462,7 +462,7 @@ EXTNAME(m_break):
  * Destroys:  Temporaries
  *
  * The constant slot has to contain a string, and that string will usually
- * be the printable representation of the MacScheme instruction to be executed 
+ * be the printable representation of the MacScheme instruction to be executed
  * next.
  */
 EXTNAME(m_singlestep):
@@ -519,7 +519,7 @@ handle_timer:
 	cmp	%TMP0, 0
 	bne	enable_interrupts_setup			/* skip if more time */
 	nop
-	
+
 	/* Timer really expired
 	 * Turn off interrupts and give the timer something to run on
 	 * so we won't take a detour thru here on every iteration in
@@ -576,7 +576,7 @@ enable_interrupts_setup:
 	mov	%TMP1, %TIMER
 	sub	%TMP0, %TMP1, %TMP0
 	st	%TMP0, [ %GLOBALS + G_TIMER2 ]
-2:	
+2:
 	/* check signals */
 	st	%o7, [ %GLOBALS + G_RETADDR ]
 	call	internal_check_signals
@@ -643,7 +643,7 @@ EXTNAME(m_invoke_exception):
 	nop
 
 
-/* _m_global_invoke_exception: Exception handler for call to global 
+/* _m_global_invoke_exception: Exception handler for call to global
  *     non-procedure (peephole-optimized GLOBAL/INVOKE or GLOBAL/SETRTN/INVOKE
  *     sequence).
  *
@@ -752,5 +752,5 @@ EXTNAME(m_fpe_handler):
 
 2:	b	EXTNAME(m_exception)
 	clr	[ %GLOBALS + G_FPE_CODE ]	/* or recursion will get you */
-	
+
 /* eof */
