@@ -10,7 +10,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 13 September 2000.
+; 14 September 2000.
 ;
 
 ; Thresholds that determine how CASE expressions are compiled.
@@ -444,7 +444,7 @@
          (implement-dispatch-other
           (implement-dispatch (+ prior (length other))
                               ref0 fix chr sym '())
-          prior var other))
+          prior ref0 other))
         ((not (null? fix))
          (make-conditional (make-call (make-variable name:FIXNUM?)
                                       (list ref0))
