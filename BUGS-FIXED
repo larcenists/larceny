@@ -890,6 +890,20 @@ $Id$
      FIX:
      Exported functions; added file Util/make-support.sch.
 
+041  v0.31 (9710xx / dougo)  Fixed 981215 by lth
+     Priority: should not be fixed.
+
+     The macro-expander and evaluator are not robust and produce strange 
+     error messages when handed syntactically incorrect programs.  Consider,
+
+	> (if)
+	Error: car: () is not a pair.
+
+     [Editorial: we should toss the macro-expander and switch to the
+      hygienic macro package. -- lars]
+
+     FIX: the new macro expander fixed this.
+
 043  v0.31 (971024 / lth)  Fixed 9811?? by lth
      Priority: low
 
@@ -1101,6 +1115,60 @@ $Id$
 	Error: Wrong number of arguments to procedure #<PROCEDURE>
 
     FIX: This was an off-by-one bug in emit-init-proc-slots! in gen-msi.sch.
+
+064 v0.34 (980514 / lth)  Fixed 981215 by lth
+    Priority: high.  Await new compiler before fixing.
+
+    From: comp.lang.scheme
+      1) STk way
+         (call-with-current-continuation (lambda (exit) (exit (values 1 2))))
+         ==>                                            ^^^^^^^^
+           1
+           2
+
+     2) SCSH way
+        (call-with-current-continuation (lambda (exit) (exit 1 2)))
+         ==>
+           ; 2 values
+           1
+           2
+
+    As far as I understand r5rs, it says nothing about the issue, but
+    my gut feeling is that the SCSH way is more elegant.
+
+    BTW, SCSH's `values' also checks its arguments for not being 
+    multiple-valued.
+
+    In Larceny 0.34, we have:
+      >(call-with-values 
+         (lambda () 
+           (call-with-current-continuation (lambda (k) (values 1 2 3)))) 
+         (lambda (a b c) 
+           (list a b c)))
+     (1 2 3)
+     > (call-with-values 
+         (lambda () 
+           (call-with-current-continuation 
+             (lambda (k) (k 1 2 3)))) 
+           (lambda (a b c) 
+             (list a b c)))
+     Error: Wrong number of arguments to procedure #<PROCEDURE>
+
+    And it appears the last one is probably wrong: k should take 3
+    arguments, but apparently receives only one, which can be seen
+    from:
+
+     > (call-with-values 
+        (lambda ()
+          (call-with-current-continuation 
+            (lambda (k) (k 1 2 3)))) 
+        (lambda a a))
+    (1)
+
+    (Arguably, there's a bug in Lib/malcode.mal because the closure
+    passed as k does not check the number of arguments it receives!)
+
+    FIX: implemented the correct code in malcode.mal.
 
 065 v0.34 (980518 / lth) Fixed 981202 by lth
     Priority: low

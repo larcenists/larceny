@@ -15,7 +15,7 @@ version of Larceny in which the bug was discovered, the date it was
 recorded and who found it, a description of the problem, and any
 supporting documentation, information, test cases, and so on.
 
-HIGH PRIORITY BUGS: 064, 082.
+HIGH PRIORITY BUGS: 082.
 
 
 005  (v0.27e)
@@ -85,18 +85,6 @@ HIGH PRIORITY BUGS: 064, 082.
 
      On the whole, the dark corners of the input syntax are indeed dark.
 
-041  v0.31 (9710xx / dougo)
-     Priority: should not be fixed.
-
-     The macro-expander and evaluator are not robust and produce strange 
-     error messages when handed syntactically incorrect programs.  Consider,
-
-	> (if)
-	Error: car: () is not a pair.
-
-     [Editorial: we should toss the macro-expander and switch to the
-      hygienic macro package. -- lars]
-
 042 v0.31 (971024 / lth)
     Priority: should not be fixed.
 
@@ -115,6 +103,9 @@ HIGH PRIORITY BUGS: 064, 082.
     bignum->flonum is very, very slow.  The fix for this exists but
     needs to be implemented and tested.  See comments in 
     Lib/Common/flonums.sch.
+
+    (Bignum->flonum is also very, very buggy.  See eg. bug 082, and 
+     comments in the code.)
 
 056 v0.32 (980126 / lth)
     Priority: low
@@ -148,58 +139,6 @@ HIGH PRIORITY BUGS: 064, 082.
     [Performance bug]
     Floating point output is very, very slow.  The Dragon4 algorithm, which
     uses (slow) bignums, should be replaced by Dybvig's algorithm.
-
-064 v0.34 (980514 / lth)
-    Priority: high.  Await new compiler before fixing.
-
-    From: comp.lang.scheme
-      1) STk way
-         (call-with-current-continuation (lambda (exit) (exit (values 1 2))))
-         ==>                                            ^^^^^^^^
-           1
-           2
-
-     2) SCSH way
-        (call-with-current-continuation (lambda (exit) (exit 1 2)))
-         ==>
-           ; 2 values
-           1
-           2
-
-    As far as I understand r5rs, it says nothing about the issue, but
-    my gut feeling is that the SCSH way is more elegant.
-
-    BTW, SCSH's `values' also checks its arguments for not being 
-    multiple-valued.
-
-    In Larceny 0.34, we have:
-      >(call-with-values 
-         (lambda () 
-           (call-with-current-continuation (lambda (k) (values 1 2 3)))) 
-         (lambda (a b c) 
-           (list a b c)))
-     (1 2 3)
-     > (call-with-values 
-         (lambda () 
-           (call-with-current-continuation 
-             (lambda (k) (k 1 2 3)))) 
-           (lambda (a b c) 
-             (list a b c)))
-     Error: Wrong number of arguments to procedure #<PROCEDURE>
-
-   And it appears the last one is probably wrong: k should take 3
-   arguments, but apparently receives only one, which can be seen
-   from:
-
-    > (call-with-values 
-        (lambda ()
-          (call-with-current-continuation 
-            (lambda (k) (k 1 2 3)))) 
-        (lambda a a))
-    (1)
-
-   (Arguably, there's a bug in Lib/malcode.mal because the closure
-   passed as k does not check the number of arguments it receives!)
 
 067 v0.34 (980603 / lth)
     Priority: low
@@ -299,8 +238,12 @@ HIGH PRIORITY BUGS: 064, 082.
 	> (exact->inexact (fact 180))
 	Error: log: Domain error: 0.0
 
-    [This fails for 171 -- at that point, the number is not representable
-     as a flonum.]
+    And furthermore, we see that bignum->flonum is again the culprit:
+
+	(bignum->flonum (fact 180))
+	-6.216419369289196e-288
+
+    Here, it should have returned +inf.0.
 
 083 v0.38 (981215 / lth)
     Priority: low
