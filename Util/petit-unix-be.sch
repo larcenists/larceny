@@ -3,21 +3,18 @@
 ; 18 November 2002
 ;
 ; General "script" for building Petit Larceny on generic big-endian Unix
-; systems, under Larceny.
+; systems (including MacOS X), under Larceny.
 ;
-; This program is a selfcontained development environment; it replaces
+; This program is a self-contained development environment; it replaces
 ; the Unix shell scripts and the Util/Configurations/load-*.sch programs;
 
 (define nbuild-parameter #f)
 
-(define *root-directory* "")
-(define *sysdep-file* 
-  (string-append *root-directory* "Util/sysdep-unix.sch"))
-
 (define (unix-initialize)
-  (load *sysdep-file*)
+  (load "Util/sysdep-unix.sch")
   (load "Util/Configurations/nbuild-param-C-be-unix.sch")
-  (set! nbuild-parameter (make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
+  (set! nbuild-parameter 
+	(make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")
@@ -40,7 +37,10 @@
 
   (define (catfiles input-files output-file)
     (system (string-append "cat " 
-			   (apply string-append (map (lambda (x) (string-append x " ")) input-files))
+			   (apply string-append 
+				  (map (lambda (x) 
+					 (string-append x " "))
+				       input-files))
 			   " > " 
 			   output-file)))
 
@@ -72,31 +72,26 @@
 
 (define (build-twobit)
   (make-petit-development-environment)
-  (build-application "twobit" (petit-development-environment-lop-files)))
+  ;; Twobit.app on MacOS X because MacOS X can't distinguish "Twobit"
+  ;; (the directory) and "twobit" (the program).  Unix?  I think not.
+  (build-application (if (is-macosx?) "twobit.app" "twobit")
+		     (petit-development-environment-lop-files)))
+
+(define (is-macosx?)
+  (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
 
 (define (load-compiler)
   (load (make-filename *root-directory* "Util" "nbuild.sch"))
-  (newline)
-  (display "*** CONFIGURE YOUR SYSTEM BY TYPING (configure-system) NOW.")
-  (newline)
-  (newline))
+  (configure-system))
 
-(define (configure-system . rest)
-  (let ((extraargs '((solaris . "-lm -ldl") (macosx . ()))))
-    (if (null? rest)
-        (begin
-          (display "Call (configure-system) again with one of the following as an argument:")
-          (newline)
-          (for-each (lambda (x)
-                      (display "  ") (display x) (newline))
-                    (map car extraargs)))
-        (let ((probe (assq (car rest) extraargs)))
-          (if probe
-              (set! unix/petit-lib-library-platform (list (cdr probe)))
-              (begin 
-                (display "Unknown system type ")
-                (display (car rest))
-                (newline)))))))
+; Make a guess at any extra libraries used for the system.
+
+(define (configure-system)
+  (let ((os-name (cdr (assq 'os-name (system-features)))))
+    (set! unix/petit-lib-library-platform 
+	  (cond ((string=? os-name "MacOS X") '())
+		((string=? os-name "SunOS")   '("-lm -ldl"))
+		(else                         '("-lm -ldl"))))))
 
 (define (remove-rts-objects)
   (system "rm -f Rts/libpetit.a")
@@ -116,7 +111,8 @@
 			      ext))))
     (system "rm -f petit petit.o petit.heap libheap.a")
     (for-each (lambda (ext)
-		(for-each (lambda (dir) (system (string-append "rm -f " dir "*." ext))) 
+		(for-each (lambda (dir) 
+			    (system (string-append "rm -f " dir "*." ext))) 
 			  '("Lib/Common/"
 			    "Lib/Standard-C/"
 			    "Repl/"
@@ -145,8 +141,9 @@
 		  (lambda (in)
 		    (do ((expr (read in) (read in)))
 			((eof-object? expr))
-		      (set! segments (cons (assemble (compile expr syntaxenv) user) 
-					   segments))))))
+		      (set! segments 
+			    (cons (assemble (compile expr syntaxenv) user) 
+				  segments))))))
 	      infilenames)
     (set! segments (reverse segments))
     (create-loadable-file outfilename segments so-name)
