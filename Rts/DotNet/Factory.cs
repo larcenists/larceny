@@ -65,26 +65,31 @@ namespace Scheme.Rep {
         // ===================
         //   Numbers
         // ===================
-      public static SFixnum makeFixnum (sbyte num) {
-        return SFixnum.makeFixnum (num);
-      }
-      public static SFixnum makeFixnum (byte num) {
-        return SFixnum.makeFixnum (num);
-      }
-      public static SFixnum makeFixnum (short num) {
-        return SFixnum.makeFixnum (num);
-      }
-      public static SFixnum makeFixnum (ushort num) {
-        return SFixnum.makeFixnum (num);
-      }
+	public static SFixnum makeFixnum (sbyte num) {
+	  return SFixnum.makeFixnum (num);
+	}
+	public static SFixnum makeFixnum (byte num) {
+	  return SFixnum.makeFixnum (num);
+	}
+	public static SFixnum makeFixnum (short num) {
+	  return SFixnum.makeFixnum (num);
+	}
+	public static SFixnum makeFixnum (ushort num) {
+	  return SFixnum.makeFixnum (num);
+	}
 
         public static SFixnum makeFixnum(int num) {
             return SFixnum.makeFixnum(num);
         }
         public static SObject makeNumber(int num) {
+            // Bignums are sign + magnitude, so we need to convert
+            // negative numbers to the positive equivalent.
+            // We have to be tricky here because simply negating
+            // the num might fall out of the range of representable
+            // signed integers.  Therefore, we cast it to a long first.
             return
                  SFixnum.inFixnumRange (num) ? SFixnum.makeFixnum (num)
-               : (num < 0) ? (SObject) makeBignum ((ulong)(- num), false)
+               : (num < 0) ? (SObject) makeBignum ((ulong)(- ((long)(num))), false)
                : (SObject) makeBignum ((ulong) num, true);
         }
         public static SObject makeNumber (uint num) {
@@ -93,9 +98,18 @@ namespace Scheme.Rep {
                : (SObject) makeBignum ((ulong) num, true);
         }
         public static SObject makeNumber (long num) {
-            return SFixnum.inFixnumRange (num) ? SFixnum.makeFixnum ((int) num)
-            : (num < 0) ? (SObject) makeBignum ((ulong)(- num), false)
-            : (SObject) makeBignum ((ulong) num, true);
+            // Bignums are sign + magnitude, so we need to convert
+            // negative numbers to the positive equivalent.
+
+            // We have to be tricky here because simply negating
+            // the num might fall out of the range of representable
+            // signed longs.  We therefore add 1 before negating it
+            // and subtract that result from the unsigned long maximum value.
+
+            return
+                 SFixnum.inFixnumRange (num) ? SFixnum.makeFixnum ((int) num)
+               : (num < 0) ? (SObject) makeBignum (UInt64.MaxValue - ((ulong)(- (num + 1))), false)
+               : (SObject) makeBignum ((ulong) num, true);
         }
 
         public static SObject makeNumber (ulong num) {
@@ -105,8 +119,13 @@ namespace Scheme.Rep {
         }
 
         public static SByteVL makeBignum(int num) {
+            // Bignums are sign + magnitude, so we need to convert
+            // negative numbers to the positive equivalent.
+            // We have to be tricky here because simply negating
+            // the num might fall out of the range of representable
+            // signed integers.  Therefore, we cast it to a long first.
             return (num < 0)
-                ? Number.makeBignum((ulong)-num, false)
+                ? Number.makeBignum((ulong)(- ((long)(num))), false)
                 : Number.makeBignum((ulong)num, true);
         }
         public static SByteVL makeBignum(ulong value, bool positive) {
