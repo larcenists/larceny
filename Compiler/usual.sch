@@ -272,13 +272,13 @@
     ((.interpret-continuation (4 ?cdr-mode ?cdr-arg ?return) ?e1)
      (.finalize-quasiquote ?cdr-mode ?cdr-arg (5 ?e1 ?return)))
     ((.interpret-continuation (5 ?e1 ?return) ?e2)
-     (.interpret-continuation ?return cons (?e1 ?e2)))
+     (.interpret-continuation ?return .cons (?e1 ?e2)))
     ((.interpret-continuation (6 ?x ?return) quote ?arg)
      (.interpret-continuation ?return quote ?x))
     ((.interpret-continuation (6 ?x ?return) ?mode ?arg)
      (.finalize-quasiquote ?mode ?arg (7 ?return)))
     ((.interpret-continuation (7 ?return) ?e)
-     (.interpret-continuation ?return list->vector (?e)))))
+     (.interpret-continuation ?return .list->vector (?e)))))
  
  (define-syntax quasiquote letrec
    (syntax-rules ()
