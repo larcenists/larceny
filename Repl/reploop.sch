@@ -20,7 +20,7 @@
 
 ($$trace "reploop")
 
-(define *init-file-name* ".larceny")  ; Unix-ism.
+(define *init-file-name* ".larceny")  ; FIXME: Unix-ism.
 (define *file-arguments* #f)          ; #t if file arguments were loaded
 (define *reset-continuation* #f)      ; current longjump point
 (define *saved-continuation* #f)      ; last saved error continuation
@@ -32,6 +32,7 @@
   ($$trace "In main")
   (init-toplevel-environment)
   (setup-error-handlers)
+  (setup-interrupt-handlers)
   (evaluator interpret)
   (rep-loop-bootstrap argv))
 
@@ -45,8 +46,8 @@
   (set! *repl-level* 0)
   (command-line-arguments argv)
   (record-current-console-io)
-  (standard-timeslice (- (expt 2 29) 1)) ; Largest possible slice.
-  (setup-interrupts)
+  (standard-timeslice (most-positive-fixnum)) ; Largest possible slice.
+  (enable-interrupts (standard-timeslice))
   (failsafe-load-init-file)
   (failsafe-load-file-arguments)
   (if (herald)
@@ -115,6 +116,7 @@
 	     (set! *reset-continuation* k)
 	     (set! *repl-level* (+ *repl-level* 1)))
 	   (lambda ()
+             (enable-interrupts (standard-timeslice))
 	     (repl))
 	   (lambda ()
 	     (set! *repl-level* (- *repl-level* 1))
@@ -161,11 +163,10 @@
 ; moved it because I want to first integrate changes to that package
 ; from the Petit Larceny development trees.
 
-; Observe that _by design_, the use of (current-input-port x) and
-; (current-output-port x) does not affect the REPL's I/O.  However,
-; there are some issues that remain to be solved: transcript-on/off
-; affects the REPL's I/O, but what does the REPL do if I/O on the
-; echo port fails?
+; By design, the use of (current-input-port x) and (current-output-port x)
+; does not affect the REPL's I/O.  However, there are some issues that remain
+; to be solved: transcript-on/off affects the REPL's I/O, but what does the 
+; REPL do if I/O on the echo port fails?
 
 (define *conin* #f)                   ; console input
 (define *conout* #f)                  ; console output
@@ -217,27 +218,20 @@
       (*reset-continuation* #f)
       (exit)))
 
-
 ; Interrupt handling.
 
-(define (setup-interrupts)
-  (let ((old-handler (interrupt-handler)))
-    (interrupt-handler
-     (lambda (type)
-       (cond ((eq? type 'timer)
-	      (enable-interrupts (standard-timeslice)))
-	     ((eq? type 'keyboard)
-	      (enable-interrupts (standard-timeslice))
-	      (reestablish-console-io)
-	      (display "Keyboard interrupt.")
-	      (newline)
-	      (let ((k (current-continuation-structure)))
-		(set! *saved-continuation* k)
-		(reset)))
-	     (else
-	      (old-handler type)))))
-    (enable-interrupts (standard-timeslice))))
-
+(define (setup-interrupt-handlers)
+  (timer-interrupt-handler
+   (lambda ()
+     (enable-interrupts (standard-timeslice))))
+  (keyboard-interrupt-handler
+   (lambda ()
+     (reestablish-console-io)
+     (display "Keyboard interrupt.")
+     (newline)
+     (let ((k (current-continuation-structure)))
+       (set! *saved-continuation* k)
+       (reset)))))
 
 ; Init file loading.
 
