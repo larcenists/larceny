@@ -85,12 +85,12 @@ namespace Scheme.RT {
             fault(Constants.EX_UNDEF_GLOBAL);
         }
         public static void faultArgCount(int expectedc) {
-            Reg.Second = Factory.wrap(expectedc);
+            Reg.Second = Factory.makeNumber (expectedc);
             Reg.Third = Reg.register0;
             fault(Constants.EX_ARGSEQ);
         }
         public static void faultVarArgCount(int expectedc) {
-            Reg.Second = Factory.wrap(expectedc);
+            Reg.Second = Factory.makeNumber (expectedc);
             Reg.Third = Reg.register0;
             fault(Constants.EX_ARGSGE);
         }
@@ -111,13 +111,13 @@ namespace Scheme.RT {
 
         public static void error(string msg) {
             debug.WriteLine("** called Exn.error(string) " + msg);
-            SObject string0 = Factory.wrap("");
+            SObject string0 = Factory.makeString ("");
             Call.callExceptionHandler
-                (new SObject[] {Factory.wrap(msg), string0, string0, Factory.Null});
+                (new SObject[] {Factory.makeString (msg), string0, string0, Factory.Null});
         }
         public static void error(string msg, SObject value) {
             Call.callExceptionHandler
-                (new SObject[] {Factory.wrap(msg), value, Factory.False, Factory.Null});
+                (new SObject[] {Factory.makeString (msg), value, Factory.False, Factory.Null});
         }
 
         // =================================================
