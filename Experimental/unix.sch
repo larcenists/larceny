@@ -7,7 +7,7 @@
 
 (foreign-file "/lib/libsocket.so")
 (foreign-file "/lib/libxnet.so")
-
+(foreign-file "Experimental/unix-support.so")
 
 ; accept(3XN)
 ; int accept( int s, struct sockaddr *addr, int *addrlen )
@@ -101,5 +101,19 @@
 ; int write( int fd, void *buf, int n )
 
 (define unix/write (foreign-procedure "write" '(int boxed int) 'int))
+
+
+; Helpers
+
+; int get_errno( void )
+; Returns errno.
+
+(define get-errno (foreign-procedure "get_errno" '() 'int))
+
+
+; int get_h_errno( void )
+; Returns h_errno.
+
+(define get-h-errno (foreign-procedure "get_h_errno" '() 'int))
 
 ; eof
