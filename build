@@ -96,6 +96,7 @@ run_development_environment() {
   esac
 
 cat > $TMPFILE <<END
+  (load "${UTIL}/sysdep-unix.sch")
   (load "${UTIL}/nbuild-param-${TARGET}.sch")
   (define nbuild-parameter 
     (make-nbuild-parameter 
