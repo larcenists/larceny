@@ -9,7 +9,7 @@ namespace Scheme.RT {
 
     public class Call {
         /* Utility Methods */
-        
+
         /** apply_setup
          * Unpacks arguments to Procedure in Result from list
          * Pre: Result contains Procedure; register k1 a list;
@@ -21,17 +21,18 @@ namespace Scheme.RT {
             int n = ((SFixnum)Reg.getRegister(k2)).value;
             if (n < Reg.NREGS-1) {
                 // Load registers 1 through n with elts of list in k1
-                SObject p = Reg.getRegister(k1);
-                for (int i = 1; i <= n; ++i) {
-                    SPair pp = (SPair) p;
-                    Reg.setRegister(i, pp.getFirst());
-                    p = pp.getRest();
-                }
+                Reg.spreadRegister (k1, n);
+//                SObject p = Reg.getRegister(k1);
+//                for (int i = 1; i <= n; ++i) {
+//                    SPair pp = (SPair) p;
+//                    Reg.setRegister(i, pp.getFirst());
+//                    p = pp.getRest();
+//                }
             } else {
                 // Load registers 1 to NREGS-2 with first NREGS-2 elts of
                 // list in k1 and put remaining tail in register NREG-1
                 SPair p = (SPair)Reg.getRegister(k1);
-                
+
                 for (int i = 1; i <= Reg.NREGS-2; ++i) {
                     Reg.setRegister(i, p.getFirst());
                     p = (SPair)p.getRest();
@@ -40,7 +41,7 @@ namespace Scheme.RT {
             }
             return n;
         }
-        
+
         // call
         public static void call(CodeVector code, int jumpIndex) {
             throw new BounceException(code, jumpIndex);
@@ -49,10 +50,92 @@ namespace Scheme.RT {
             throw new SchemeCallException(p, argc);
         }
 
+	// callback
+	// For when .NET calls back into Scheme.
+	public static SObject callback (Procedure p) {
+            SObject result;
+            SObject cont = Cont.getCC();
+            try {
+                Cont.reset();
+                trampoline (p, 0);
+                result = Reg.Result;
+            }
+            finally {
+                Cont.setCC (cont);
+            }
+            return result;
+        }
+
+	public static SObject callback (Procedure p, SObject arg0) {
+            SObject result;
+            SObject cont = Cont.getCC();
+            try {
+                Cont.reset();
+                Reg.setRegister (1, arg0);
+                trampoline (p, 1);
+                result = Reg.Result;
+            }
+            finally {
+                Cont.setCC (cont);
+            }
+            return result;
+        }
+
+	public static SObject callback (Procedure p, SObject arg0, SObject arg1) {
+            SObject result;
+            SObject cont = Cont.getCC();
+            try {
+                Cont.reset();
+                Reg.setRegister (1, arg0);
+                Reg.setRegister (2, arg1);
+                trampoline (p, 2);
+                result = Reg.Result;
+            }
+            finally {
+                Cont.setCC (cont);
+            }
+            return result;
+        }
+
+	public static SObject callback (Procedure p, SObject arg0, SObject arg1, SObject arg2) {
+            SObject result;
+            SObject cont = Cont.getCC();
+            try {
+                Cont.reset();
+                Reg.setRegister (1, arg0);
+                Reg.setRegister (2, arg1);
+                Reg.setRegister (3, arg2);
+                trampoline (p, 3);
+                result = Reg.Result;
+            }
+            finally {
+                Cont.setCC (cont);
+            }
+            return result;
+        }
+
+	public static SObject callback (Procedure p, SObject arg0, SObject arg1, SObject arg2, SObject arg3) {
+            SObject result;
+            SObject cont = Cont.getCC();
+            try {
+                Cont.reset();
+                Reg.setRegister (1, arg0);
+                Reg.setRegister (2, arg1);
+                Reg.setRegister (3, arg2);
+                Reg.setRegister (4, arg3);
+                trampoline (p, 4);
+                result = Reg.Result;
+            }
+            finally {
+                Cont.setCC (cont);
+            }
+            return result;
+        }
+
         public static void trampoline(Procedure p, int argc) {
             Reg.setRegister(0,p);
             Reg.Result = Factory.makeFixnum(argc);
-            
+
             CodeVector cv = p.entrypoint;
             int jumpIndex = 0;
             bool pending = true;
@@ -79,18 +162,18 @@ namespace Scheme.RT {
         public static void econtagion(SObject a, SObject b, SObject retry) {
             callMillicodeSupport3(Constants.MS_ECONTAGION, a, b, retry);
         }
-        public static void callExceptionHandler(SObject result, SObject second, 
+        public static void callExceptionHandler(SObject result, SObject second,
                                                 SObject third, int excode) {
             saveContext(false);
             Reg.setRegister(1, result);
             Reg.setRegister(2, second);
             Reg.setRegister(3, third);
-            Reg.setRegister(4, Factory.wrap(excode));
+            Reg.setRegister(4, Factory.makeNumber (excode));
             call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
         }
         public static void callExceptionHandler(SObject[] values) {
             saveContext(false);
-            
+
             if (values.Length > Reg.LASTREG) {
                 for (int ri = 1; ri < Reg.LASTREG; ++ri) {
                     Reg.setRegister(ri, values[ri-1]);
@@ -108,11 +191,11 @@ namespace Scheme.RT {
             Reg.setRegister(1, Factory.False);
             Reg.setRegister(2, Factory.False);
             Reg.setRegister(3, Factory.False);
-            Reg.setRegister(4, Factory.wrap(excode));
+            Reg.setRegister(4, Factory.makeNumber (excode));
             call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
         }
 
-        public static void callMillicodeSupport3(int procIndex, SObject a, 
+        public static void callMillicodeSupport3(int procIndex, SObject a,
                                                  SObject b, SObject c) {
             saveContext(false);
             Reg.setRegister(1, a);
@@ -121,7 +204,7 @@ namespace Scheme.RT {
             call(getSupportProcedure(procIndex), 3);
         }
 
-        public static void callMillicodeSupport2(int procIndex, SObject a, 
+        public static void callMillicodeSupport2(int procIndex, SObject a,
                                                  SObject b) {
             saveContext(false);
             Reg.setRegister(1, a);
@@ -146,7 +229,7 @@ namespace Scheme.RT {
                     Exn.internalError("millicode support " + index + " not a procedure");
                     return null;
                 }
-            } else if (support == Factory.Undefined) {                
+            } else if (support == Factory.Undefined) {
                 Exn.internalError("millicode-support is not defined");
                 return null;
             } else {
@@ -163,13 +246,14 @@ namespace Scheme.RT {
             // Save current context: Create frame described below, before RestoreContextCode
             Instructions.save(1 + Reg.LASTREG + 2);
             ContinuationFrame frame = Cont.cont;
-            frame.setSlot(0, RestoreContextCode.singletonProcedure);
-            frame.returnIndex = Reg.implicitContinuation;
-            for (int i = 0; i <= Reg.LASTREG; ++i) {
-                frame.setSlot(i + 1, Reg.getRegister(i));
-            }
-            frame.setSlot(Reg.LASTREG + 2, Reg.Result);
-            frame.setSlot(Reg.LASTREG + 3, Factory.wrap(full));
+            frame.saveRegisters(RestoreContextCode.singletonProcedure, full);
+//            frame.setSlot(0, RestoreContextCode.singletonProcedure);
+//            frame.returnIndex = Reg.implicitContinuation;
+//            for (int i = 0; i <= Reg.LASTREG; ++i) {
+//                frame.setSlot(i + 1, Reg.getRegister(i));
+//            }
+//            frame.setSlot(Reg.LASTREG + 2, Reg.Result);
+//            frame.setSlot(Reg.LASTREG + 3, full ? Factory.True : Factory.False);
             Reg.implicitContinuation = -1;
         }
 
@@ -183,18 +267,18 @@ namespace Scheme.RT {
 
     /* InitialContinuation returns normally to the trampoline, which returns
      * normally to the caller.
-     */    
+     */
     public class InitialContinuation : CodeVector {
         public static readonly InitialContinuation singleton = new InitialContinuation();
-        public static readonly Procedure singletonProcedure = 
+        public static readonly Procedure singletonProcedure =
             new Procedure(InitialContinuation.singleton);
         private InitialContinuation() {}
-		
+
         public override void call(int jump_index) {
             return;
         }
     }
-    
+
     /* RestoreContextCode
      * The frame contains complete saved context (reg0-LASTREG), with return
      * points RestoreContextCode and jumpIndex (= saved "implicit continuation")
@@ -224,8 +308,8 @@ namespace Scheme.RT {
 
     /* EXCEPTIONS */
 
-    /* BounceException is the superclass of all exceptions thrown 
-     * as a way of signaling the trampoline to continue execution. 
+    /* BounceException is the superclass of all exceptions thrown
+     * as a way of signaling the trampoline to continue execution.
      * It is used in a very specific way by Scheme.RT.Call.trampoline.
      */
     public class BounceException : Exception {
@@ -253,7 +337,7 @@ namespace Scheme.RT {
     public class SchemeCallException : BounceException {
         private Procedure p;
         private int argc;
-        public SchemeCallException(Procedure p, int argc) : 
+        public SchemeCallException(Procedure p, int argc) :
             base(p.entrypoint, 0) {
             this.p = p;
             this.argc = argc;
