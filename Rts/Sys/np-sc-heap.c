@@ -12,6 +12,20 @@
 
 #define GC_INTERNAL
 
+#define FLOAT_REDUCTION  0
+  /* Define this to 1 to do a mark-and-remset-sweep before every ROF 
+     collection and 2 to do ditto before every collection.
+
+     Normally this should be 0!
+     */
+
+#define REMSET_TRACE     0
+  /* Set this to 1 to dump a record of the remembered set sizes following
+     every garbage collection.
+     
+     Normally this should be 0!
+     */
+
 #include <stdlib.h>
 
 #include "larceny.h"
@@ -38,7 +52,7 @@ typedef struct {                /* Phase detection data */
   int j;                        /* value of j for that size */
 } phase_t;
 
-#define PHASE_WINDOW   3
+#define PHASE_WINDOW   4
 #define PHASE_BUFSIZ   (2*PHASE_WINDOW)
 
 typedef struct npsc_data npsc_data_t;
@@ -73,6 +87,9 @@ struct npsc_data {
   gen_stats_t gen_stats_old;    /* Stats structure for 'old' generation */
   gen_stats_t gen_stats_young;  /* Stats structure for 'young' generation */
   gc_stats_t  gc_stats;         /* Stats structure for the dynamic area */
+#if GC_EVENT_COUNTERS
+  gc_event_stats_t event_stats; /* Event counters */
+#endif
 };
 
 #define DATA(x) ((npsc_data_t*)((x)->data))
@@ -86,6 +103,12 @@ static int  used_young( old_heap_t *heap );
 static int  used_old( old_heap_t *heap );
 static int  compute_dynamic_size( old_heap_t *heap, int D, int Q );
 static int  used_in_space( semispace_t *ss );
+#if FLOAT_REDUCTION
+static void full_collection( old_heap_t *heap );
+#endif
+#if REMSET_TRACE
+static void remset_trace( old_heap_t *heap, char *type );
+#endif
 
 old_heap_t *
 create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
@@ -160,6 +183,9 @@ static void collect( old_heap_t *heap, gc_type_t request )
     data->gen_stats_old.promotions++;
     data->gen_stats_old.ms_promotion += stats_stop_timer( timer1 ); 
     data->gen_stats_old.ms_promotion_cpu += stats_stop_timer( timer2 ); 
+#if REMSET_TRACE
+    remset_trace( heap, "rof-promote-old" );
+#endif
     break;
   case PROMOTE_TO_BOTH :
     perform_promote_to_both( heap );
@@ -174,18 +200,27 @@ static void collect( old_heap_t *heap, gc_type_t request )
     data->gen_stats_old.ms_promotion_cpu += t2 / 2;
     data->gen_stats_young.ms_promotion += t1 / 2;
     data->gen_stats_young.ms_promotion_cpu += t2 / 2;
+#if REMSET_TRACE
+    remset_trace( heap, "rof-promote-both" );
+#endif
     break;
   case PROMOTE_TO_YOUNG :
     perform_promote_to_both( heap ); /* sic! */
     data->gen_stats_young.promotions++;
     data->gen_stats_young.ms_promotion += stats_stop_timer( timer1 ); 
     data->gen_stats_young.ms_promotion_cpu += stats_stop_timer( timer2 ); 
+#if REMSET_TRACE
+    remset_trace( heap, "rof-promote-young" );
+#endif
     break;
   case COLLECT : 
     perform_collect( heap );
     data->gen_stats_old.collections++;
     data->gen_stats_old.ms_collection += stats_stop_timer( timer1 ); 
     data->gen_stats_old.ms_collection_cpu += stats_stop_timer( timer2 ); 
+#if REMSET_TRACE
+    remset_trace( heap, "rof-collect-old" );
+#endif
     break;
   }
 
@@ -264,7 +299,7 @@ static bool run_phase_detector( old_heap_t *heap )
   /* Determine if old window exhibits growth */
   /* Old window is window at phase_idx. */
   prev = j = data->phase_idx;
-  for ( i=0 ; i < PHASE_WINDOW ; i++ ) {
+  for ( i=0 ; i < PHASE_WINDOW-1 ; i++ ) {
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
       return FALSE;             /* shrank */
@@ -283,7 +318,7 @@ static bool run_phase_detector( old_heap_t *heap )
     return FALSE;               /* shrank */
 
   prev = j = young;
-  for ( i=0 ; i < PHASE_WINDOW ; i++ ) {
+  for ( i=0 ; i < PHASE_WINDOW-1 ; i++ ) {
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
       return FALSE;             /* shrank */
@@ -302,7 +337,7 @@ static bool run_phase_detector( old_heap_t *heap )
                data->k, data->j, used_old(heap), used_young(heap) );
   annoyingmsg( "Buffer contents (oldest first):" );
   for ( i=0, j=data->phase_idx; i < PHASE_BUFSIZ ; i++, j=(j+1)%PHASE_BUFSIZ )
-    annoyingmsg( "  remset_size=%d   j=%d",
+    annoyingmsg( "  remset_size=%6d   j=%2d",
                  data->phase_buf[j].remset_size,
                  data->phase_buf[j].j );
   return TRUE;
@@ -411,6 +446,10 @@ static void perform_promote_to_old( old_heap_t *heap )
   
   annoyingmsg( "  Promoting into old area." );
 
+#if FLOAT_REDUCTION == 2
+  full_collection( heap );
+#endif
+
   ss_sync( data->old );
   old_before_gc = data->old->used;
   old_los_before_gc = los_bytes_used( gc->los, data->gen_no );
@@ -423,6 +462,12 @@ static void perform_promote_to_old( old_heap_t *heap )
         bytes2words( data->old->used - old_before_gc );
   data->gc_stats.words_moved += 
         bytes2words( los_bytes_used( los, data->gen_no )-old_los_before_gc );
+#if GC_EVENT_COUNTERS
+  data->event_stats.copied_by_prom += 
+        bytes2words( data->old->used - old_before_gc );
+  data->event_stats.moved_by_prom += 
+        bytes2words( los_bytes_used( los, data->gen_no )-old_los_before_gc );
+#endif
 }
 
 static void perform_promote_to_both( old_heap_t *heap )
@@ -434,6 +479,10 @@ static void perform_promote_to_both( old_heap_t *heap )
   los_t *los = gc->los;
 
   annoyingmsg( "  Promoting to both old and young." );
+
+#if FLOAT_REDUCTION == 2
+  full_collection( heap );
+#endif
 
   if (run_phase_detector( heap ))
     adjust_j( heap );
@@ -486,6 +535,14 @@ static void perform_promote_to_both( old_heap_t *heap )
   data->gc_stats.words_moved += 
       bytes2words(los_bytes_used( los, data->gen_no )-old_los_before_gc)
     + bytes2words(los_bytes_used( los, data->gen_no+1 )-young_los_before_gc);
+#if GC_EVENT_COUNTERS
+  data->event_stats.copied_by_prom += 
+      bytes2words( data->old->used - old_before_gc )
+    + bytes2words( data->young->used - young_before_gc );
+  data->event_stats.moved_by_prom += 
+      bytes2words(los_bytes_used( los, data->gen_no )-old_los_before_gc)
+    + bytes2words(los_bytes_used( los, data->gen_no+1 )-young_los_before_gc);
+#endif
 
   if (check_for_remset_overflow( heap ))
     adjust_j( heap );
@@ -501,6 +558,10 @@ static void perform_collect( old_heap_t *heap )
   int young_before_gc, young_los_before_gc;
 
   annoyingmsg( "  Full garbage collection." );
+
+#if FLOAT_REDUCTION
+  full_collection( heap );
+#endif
 
   if (run_phase_detector( heap ))
     adjust_j( heap );
@@ -607,7 +668,13 @@ static void perform_collect( old_heap_t *heap )
     bytes2words( data->old->used - young_before_gc );
   data->gc_stats.words_moved +=
     bytes2words( los_bytes_used( los, data->gen_no ) - young_los_before_gc );
-
+#if GC_EVENT_COUNTERS
+  data->event_stats.copied_by_gc += 
+    bytes2words( data->old->used - young_before_gc );
+  data->event_stats.moved_by_gc +=
+    bytes2words( los_bytes_used( los, data->gen_no ) - young_los_before_gc );
+#endif
+  
   annoyingmsg( "  ROF GC: Adjusting parameters, k=%d j=%d, luck=%d", 
                data->k, data->j, luck_steps );
   assert( data->k > 0 );
@@ -648,6 +715,10 @@ static void stats( old_heap_t *heap )
   data->gc_stats.np_k = data->k;
   stats_add_gc_stats( &data->gc_stats );
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
+
+#if GC_EVENT_COUNTERS
+  stats_set_gc_event_stats( & data->event_stats );
+#endif
 }
 
 static void before_collection( old_heap_t *heap )
@@ -792,5 +863,96 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 
   return heap;
 }
+
+#if REMSET_TRACE
+#include <stdio.h>
+
+static char *eish( int n )
+{
+  static char buf[10];
+  int e = 0;
+  double m = n;
+  
+  while (m >= 1000.0) {
+    e += 3;
+    m /= 1000.0;
+  }
+  if (e == 0)
+    sprintf( buf, "%d", n );
+  else
+    sprintf( buf, "%3.1fe%d", m, e );
+  return buf;
+}
+
+static void remset_trace( old_heap_t *heap, char *type )
+{
+  int i;
+
+  printf( "\nREMSET-TRACE (%-8s (gen ", type );
+  for ( i=1 ; i < heap->collector->remset_count ; i++ )
+    printf( " %8s", eish( heap->collector->remset[i]->live ) );
+  printf( "))\n");
+  fflush( stdout );
+}
+#endif
+
+#if FLOAT_REDUCTION
+/* Pilfered from the DOF collector.  Mark all objects reachable from
+   the roots and then sweep all the remembered sets, removing any
+   unmarked objects.
+   */
+#include "msgc-core.h"
+
+typedef struct {
+  msgc_context_t *context;
+  int removed;
+} scan_datum_t;
+
+static bool
+fullgc_should_keep_p( word loc, void *data, unsigned *stats )
+{
+  if (msgc_object_marked_p( ((scan_datum_t*)data)->context, loc ))
+    return TRUE;
+  else {
+    ((scan_datum_t*)data)->removed++;
+    return FALSE;
+  }
+}
+
+static int 
+sweep_remembered_sets( remset_t **remsets, int first, int last, 
+		       msgc_context_t *context )
+{
+  int i;
+  scan_datum_t d;
+
+  d.context = context;
+  d.removed = 0;
+  for ( i=first ; i <= last ; i++ )
+    rs_enumerate( remsets[i], fullgc_should_keep_p, &d );
+  return d.removed;
+}
+
+static
+void full_collection( old_heap_t *heap )
+{
+  msgc_context_t *context;
+  int marked=0, traced=0, removed=0, words_marked=0;
+  
+  consolemsg( ">>> Full collection starts." );
+
+  context = msgc_begin( heap->collector );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+
+  removed += sweep_remembered_sets( heap->collector->remset,
+                                    1,
+                                    heap->collector->remset_count-1,
+                                    context );
+  msgc_end( context );
+
+  consolemsg( ">>> Full collection ends.  Marked=%d traced=%d removed=%d",
+              marked, traced, removed );
+}
+#endif
 
 /* eof */
