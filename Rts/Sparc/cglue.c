@@ -104,11 +104,14 @@ void C_varargs( void )
   word n = nativeint( globals[ G_ARGREG2 ] );
   word r = 31;			                  /* Highest register # */
   word R = 32;			                  /* # of registers */
-  word *p, *q, *t;
+  word *p, *q, t;
   word k, limit;
   word bytes;
+#if defined(BDW_GC)
+  word *prev;
+#endif
 
-  bytes = 4*(2*(j-n));
+  bytes = sizeof(word)*(2*(j-n));
 
   if (bytes == 0) {
     globals[ G_REG0 + n + 1 ] = NIL_CONST;
@@ -117,6 +120,12 @@ void C_varargs( void )
 
   /* At least one vararg to cons up. */
 
+  /* It's possible to combine these two pieces of code with not much
+     performance loss for the optimized (precise-gc) version: just
+     abstract out allocation in a CONS macro, and then preallocate
+     or not.
+     */
+#if !defined(BDW_GC)
   q = p = (word*)alloc_from_heap( bytes );  /* Allocate memory for list. */
 
   k = n + 1;
@@ -124,26 +133,56 @@ void C_varargs( void )
 
   while ( k <= limit ) {
     *p = globals[ G_REG0 + k ];
-    *(p+1) = (word) (p + 2)  + PAIR_TAG;
+    *(p+1) = tagptr( (p+2), PAIR_TAG );
     p += 2;
     k++;
   }
 
   if (j >= r) {
-    t = (word *) globals[ G_REG0 + r ];
+    t = globals[ G_REG0 + r ];
 
     /* Copy the list in t into the memory pointed to by p. */
 
-    while ((word) t != NIL_CONST) {
-      *p = *(word *)((word) t - PAIR_TAG);               /* copy the car */
-      *(p+1) = (word) (p + 2) + PAIR_TAG;
+    while (t != NIL_CONST) {
+      *p = pair_car( t );
+      *(p+1) = tagptr( (p+2), PAIR_TAG );
       p += 2;
-      t = (word *)*((word *)((word) t - PAIR_TAG)+1);    /* get the cdr */
+      t = pair_cdr( t );
     }
   }
 
   *(p-1) = NIL_CONST;
-  globals[ G_REG0 + n + 1 ] = (word) q + PAIR_TAG;
+  globals[ G_REG0+n+1 ] = tagptr( q, PAIR_TAG );
+#else
+  /* Can't allocate all in one block */
+  q = prev = 0;
+
+  k = n+1;
+  limit = min( j, r-1 );
+
+  while (k <= limit ) {
+    p = (word*)alloc_from_heap( 2*sizeof(word) );
+    *p = globals[ G_REG0 + k ];
+    if (prev) *(prev+1) = tagptr( p, PAIR_TAG ); else q=p;
+    prev = p;
+    k++;
+  }
+
+  if (j >= r) {
+    t = globals[ G_REG0 + r ];
+
+    while (t != NIL_CONST) {
+      p = (word*)alloc_from_heap( 2*sizeof(word) );
+      *p = pair_car( t );
+      if (prev) *(prev+1) = tagptr( p, PAIR_TAG ); else q=p;
+      prev = p;
+      t = pair_cdr( t );
+    }
+  }
+
+  *(prev+1) = NIL_CONST;
+  globals[ G_REG0+n+1 ] = tagptr( q, PAIR_TAG );
+#endif
 }
 
 /* C-language exception handler (called from exception.s)
