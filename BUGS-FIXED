@@ -1386,6 +1386,16 @@ $Id$
     FIX: 
     Re-implemented bignum->flonum.
 
+086 v0.39 (981216 / lth) Fixed 990928 by lth
+    Priority: low
+    Category: RTS / correctness
+
+    With -stats switch, Larceny does not print size of text/static area, 
+    if there's one; see print_heapstats() in Rts/Sys/stats.c.
+
+    Fix: implemented support for proper static area stats in stats.c, 
+    memmgr.c, and static-heap.c.
+
 092 v0.40 (981219 / lth) Fixed 990416 by wdc
     Priority: medium.
 
