@@ -1,7 +1,8 @@
-; Test/test.sch
-; Larceny test suite -- test scaffolding
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Test scaffolding.
 
 ; Generic test procedure; compares answer to expected answer.
 ; It requires that the answer and the expected answer are represented in

@@ -1,3 +1,7 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+
 (define (run-boolean-tests)
   (test-not not)
   (test-boolean? boolean?))

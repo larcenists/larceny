@@ -1,3 +1,4 @@
+; $Id$
 ; Tests output procedures.
 ; FIXME: Not yet comprehensive.
 

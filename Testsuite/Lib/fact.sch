@@ -1,3 +1,4 @@
+; $Id$
 ; Test: fixnum <, -, *
 
 (define (fact n)

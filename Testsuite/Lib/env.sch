@@ -1,3 +1,7 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
 ; Testing the environments.
 
 (define (run-env-tests)

@@ -1,3 +1,4 @@
+; $Id$
 ; FIXME: this "test" does not yet check its result.
 
 (define (reverse-test)
