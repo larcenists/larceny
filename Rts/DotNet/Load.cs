@@ -78,7 +78,10 @@ namespace Scheme.RT {
         // assembly (should be the assembly corresponding to the compiled scheme code)
         // and then executes the "go" procedure, if available.
         public static void MainHelper(string[] args) {
-            InitializePerformanceCounters();
+            // Mono throws a not implemented exception here.
+            try {
+                InitializePerformanceCounters();
+                } catch (Exception) {};
             Reg.programAssembly = Assembly.GetCallingAssembly();
             bool keepRunning = handleAssembly(Reg.programAssembly);
             if (keepRunning) handleGo(args);
