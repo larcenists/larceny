@@ -22,12 +22,24 @@
 #define INCLUDED_GCLIB_H
 
 #include "config.h"
-#if defined(UNIX)
+
+/* The attribute GCLIB_LARGE_TABLE may be set in config.h.  This
+   attribute is experimental.  If set, then
+      gclib_desc_b is not defined;
+      gclib_pagebase is not defined;
+      gclib_desc_g element type is byte, and the high bit is the large
+        object bit and the low 7 bits are the generation number; and
+      the table for entire 4GB address range is preallocated.
+*/
+
+#ifndef ASSEMBLER
+# if defined(UNIX)
 #  include <sys/types.h>	/* For caddr_t */
-#else
+# else
    typedef char *caddr_t;	/* Need to fix this */
-#endif
-#include "larceny-types.h"
+# endif
+# include "larceny-types.h"
+#endif /* not ASSEMBLER */
 
 /* Page number macros */
 
@@ -36,38 +48,60 @@
 #define PAGESHIFT          12
 
 #define roundup_page( n )  (((word)(n)+PAGEMASK)&~PAGEMASK)
-#define pageof( n )        (int)(((word)(n)-(word)gclib_pagebase)>>(PAGESHIFT))
-#define pageof_pb( n, pb ) (int)(((word)(n)-(word)(pb)) >> (PAGESHIFT))
+#define pageof_pb( n, pb ) ((int)(((word)(n)-(word)(pb)) >> (PAGESHIFT)))
+#if GCLIB_LARGE_TABLE
+# define pageof( n )       ((int)((word)(n) >> (PAGESHIFT)))
+#else
+# define pageof( n )     ((int)(((word)(n)-(word)gclib_pagebase)>>(PAGESHIFT)))
+#endif
 
+#if GCLIB_LARGE_TABLE
+# define gen_of( ptr )      (gclib_desc_g[pageof(ptr)] & 127)
+# define attr_of( ptr )     (gclib_desc_g[pageof(ptr)] & ~127)
+#else
+# define gen_of( ptr )      (gclib_desc_g[pageof(ptr)])
+# define attr_of( ptr )     (gclib_desc_b[pageof(ptr)])
+#endif
 
 /* Descriptor table bits */
 
-#define MB_ALLOCATED      1      /* Page is allocated: 1=yes, 0=don't know */
-#define MB_HEAP_MEMORY    2      /* Memory belongs to Scheme heap */
-#define MB_RTS_MEMORY     4      /* Memory belongs to RTS (non-heap) */
-#define MB_FOREIGN        8      /* Memory does not belong to Larceny */
-#define MB_REMSET         16     /* Memory belongs to remembered set */
-#define MB_FREE           32     /* Memory is on Larceny free list */
-#define MB_LARGE_OBJECT   64     /* Memory is allocated to a large object */
-#define MB_FLONUMS        128    /* Memory is part of a flonum space */
-
+#if GCLIB_LARGE_TABLE
+# define MB_LARGE_OBJECT   128    /* Memory is allocated to a large object */
+#else
+# define MB_ALLOCATED      1      /* Page is allocated: 1=yes, 0=don't know */
+# define MB_HEAP_MEMORY    2      /* Memory belongs to Scheme heap */
+# define MB_RTS_MEMORY     4      /* Memory belongs to RTS (non-heap) */
+# define MB_FOREIGN        8      /* Memory does not belong to Larceny */
+# define MB_REMSET         16     /* Memory belongs to remembered set */
+# define MB_FREE           32     /* Memory is on Larceny free list */
+# define MB_LARGE_OBJECT   64     /* Memory is allocated to a large object */
+# define MB_FLONUMS        128    /* Memory is part of a flonum space */
+#endif
 
 /* The following values are used in the desc_g array for 
  * pages that are not owned by a heap.  By design, their values are
  * larger than any generation number.
  */
+#ifndef ASSEMBLER
 
-#define FOREIGN_PAGE       ((unsigned)-1)    /* Unknown owner */
-#define UNALLOCATED_PAGE   ((unsigned)-2)    /* Larceny owns it */
-#define RTS_OWNED_PAGE     ((unsigned)-3)    /* Larceny owns it */
+#if GCLIB_LARGE_TABLE
+typedef byte gclib_desc_t;
+#else
+typedef unsigned gclib_desc_t;
+#endif
+
+#define FOREIGN_PAGE       ((gclib_desc_t)-1)    /* Unknown owner */
+#define UNALLOCATED_PAGE   ((gclib_desc_t)-2)    /* Larceny owns it */
+#define RTS_OWNED_PAGE     ((gclib_desc_t)-3)    /* Larceny owns it */
 
 
 /* Global variables */
 
-extern unsigned *gclib_desc_g;           /* generation owner */
-extern unsigned *gclib_desc_b;           /* attribute bits */
-extern caddr_t   gclib_pagebase;         /* address of lowest page */
-
+extern gclib_desc_t *gclib_desc_g;	/* generation owner */
+#if !GCLIB_LARGE_TABLE
+extern gclib_desc_t* gclib_desc_b;      /* attribute bits */
+extern caddr_t       gclib_pagebase;    /* address of lowest page */
+#endif
 
 /* The following are defined in "alloc.c" */
 
@@ -189,7 +223,9 @@ void gclib_check_memory_validity( word *p, int n );
      if a pointer, points to a valid word.  Signals an error with 
      conditional_abort() if any invalid data are found.
      */
-     
+
+#endif /* not ASSEMBLER */
+
 #endif /* INCLUDED_GCLIB_H */
 
 /* eof */
