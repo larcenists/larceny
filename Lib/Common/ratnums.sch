@@ -1,10 +1,12 @@
-; Copyright 1998 Lars T Hansen.
+; Copyright 1992 Rémy Evard.
+;
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful purpose, and to redistribute this software
+; is granted.
 ;
 ; $Id$
 ;
 ; Larceny library  -  Scheme code for ratnum arithmetic.
-;
-; (Originally written by Remy Evard; extensively modified by Lars Hansen.)
 ;
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
