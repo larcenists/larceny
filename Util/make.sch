@@ -329,18 +329,23 @@
   ; build all the dependencies and then the target.
 
   (define (make-target target cmd deps)  
+    (make:debugmsg "make-target target=" target "; deps=" deps)
     (for-each make deps)
-    (if (or (not (file-exists? target))
-	    (some? (lambda (d) (newer-than? d target)) deps))
-	(call-with-error-control
-	 (lambda () (if (make:pretend)
-			(begin (display "MAKE: ")
-			       (display target)
-			       (display " : ")
-			       (display deps)
-			       (newline))
-			(cmd target deps)))
-	 (errhandler target))))
+    (cond ((file-exists? target)
+	   (make:debugmsg "make-target target=" target ": already exists."))
+	  ((every? (lambda (d) (newer-than? d target)) deps)
+	   (make:debugmsg "make-target target=" target ": all dependencies are newer."))
+	  (else
+	   (make:debugmsg "make-target target=" target ": building.")
+	   (call-with-error-control
+	    (lambda () (if (make:pretend)
+			   (begin (display "MAKE: ")
+				  (display target)
+				  (display " : ")
+				  (display deps)
+				  (newline))
+			   (cmd target deps)))
+	    (errhandler target)))))
 
 
   ; Return #t iff the target can be made (but don't make it).
@@ -356,23 +361,24 @@
   ; Given a target, compute the command and dependencies and then build it.
 
   (define (make target)
-    (if (not (member target have-made))
+    (if (member target have-made)
+	(make:debugmsg "make target=" target ": already built.")
 	(let* ((targets (make-project.targets proj))
 	       (deps    (make-project.deps    proj))
 	       (probe   (assoc target targets))
 	       (dprobe  (assoc target deps)))
 	  (cond (probe
-		 (make:debugmsg target ": #1")
+		 (make:debugmsg target ": RULE: explicit target")
 		 (make-target target (cdr probe) (if dprobe (cdr dprobe) '())))
 		((rule-controlled-dependency dprobe)
 		 =>
 		 (lambda (cmd)
-		   (make:debugmsg target ": #2")
+		   (make:debugmsg target ": RULE: explicit dependency")
 		   (make-target (car dprobe) cmd (cdr dprobe))))
 		((find-rule target)
 		 =>
 		 (lambda (r)
-		   (make:debugmsg target ": #3")
+		   (make:debugmsg target ": RULE: rule match " r)
 		   (make-target target
 				(make-rule.cmd r)
 				(cons (replace-extension 
@@ -381,9 +387,10 @@
 				       (make-rule.ext2 r))
 				      (if dprobe (cdr dprobe) '())))))
 		((file-exists? target)
-		 (make:debugmsg target ": #4")
+		 (make:debugmsg target ": RULE: file exists")
 		 #t)
 		(else
+		 (make:debugmsg target ": no rules apply")
 		 (make:error 'make:make "Don't know how to make "
 			     target)))
 	  (set! have-made (cons target have-made)))))

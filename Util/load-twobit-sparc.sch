@@ -14,12 +14,12 @@
 
 (load *sysdep-file*)
 
-(load (pathname-append *root-directory* "Util" "nbuild-param-sparc.sch"))
+(load (make-filename *root-directory* "Util" "nbuild-param-sparc.sch"))
 (define nbuild-parameter
   (make-nbuild-parameter *root-directory* #f #t #t "Larceny" "Larceny"))
 
-(load (pathname-append *root-directory* "Compat" "Larceny" "compat.sch"))
+(load (make-filename *root-directory* "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
-(load (pathname-append *root-directory* "Util" "nbuild.sch"))
+(load (make-filename *root-directory* "Util" "nbuild.sch"))
 
 ; eof
