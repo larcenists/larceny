@@ -19,7 +19,7 @@ Priority high: "Must be fixed ASAP"
 Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
-HIGH PRIORITY BUGS: 088, 091, 096, 105.
+HIGH PRIORITY BUGS: 088, 105.
 
 
 005  (v0.27e)
@@ -238,6 +238,8 @@ HIGH PRIORITY BUGS: 088, 091, 096, 105.
     * some top-level names are reserved by the quasiquote macro:
       lambda, define, quote, begin, if, set!
 
+    See also 091.
+
 084 v0.39 (981216 / lth)
     Priority: low
 
@@ -387,6 +389,10 @@ HIGH PRIORITY BUGS: 088, 091, 096, 105.
     Should catch SIGSEGV, SIGBUS because broken unsafe code can otherwise 
     cause a core dump.
 
+    Notes:
+    This is partly implemented in Rts/Sys/signals.c but not complete; a 
+    minor redesign of the exception handling system seems in order.
+
 090 v0.40 (981219 / lth )
     Priority: medium.
 
@@ -403,7 +409,7 @@ HIGH PRIORITY BUGS: 088, 091, 096, 105.
     primitive table to contain the name:* primitives.
 
 091 v0.40 (981219 / lth )
-    Priority: high.
+    Priority: medium.
 
     Macro expander error.
 
@@ -607,6 +613,17 @@ HIGH PRIORITY BUGS: 088, 091, 096, 105.
 	Elapsed GC time: 0 ms (in 0 collections.)
 	100000000
 
-NEXT ENTRY: 106
+106 v1.0a1 (990108 / lth)
+    Priority: medium.
+
+    This is silly:
+
+	> (procedure-name max)
+	.max|3
+
+    I don't know whether the compiler or the assembler should be responsible
+    for cleaning this up.
+
+NEXT ENTRY: 107
 
 ; eof
