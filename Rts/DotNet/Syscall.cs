@@ -198,7 +198,7 @@ namespace Scheme.RT {
             case Sys.close : close(); break;
             case Sys.read : read(); break;
             case Sys.write : write(); break;
-            // case Sys.get_resource_usage :
+            case Sys.get_resource_usage : get_resource_usage(); break;
             // case Sys.dump_heap :
             case Sys.exit : exit(); break;
             case Sys.mtime : mtime(); break;
@@ -217,21 +217,30 @@ namespace Scheme.RT {
             case Sys.flonum_atan : flonum_atan(); break;
             case Sys.flonum_atan2 : flonum_atan2(); break;
             case Sys.flonum_sqrt : flonum_sqrt(); break;
-	    case Sys.flonum_sinh : flonum_sinh(); break;
-	    case Sys.flonum_cosh : flonum_cosh(); break;
+    	    case Sys.flonum_sinh : flonum_sinh(); break;
+	        case Sys.flonum_cosh : flonum_cosh(); break;
 			
-	    case Sys.system : system(); break;
-	    case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
-		// case Sys.sys_feature : sys_feature(); break;
+	        case Sys.system : system(); break;
+	        case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
+		    case Sys.sys_feature : sys_feature(); break;
 			
-	    case Sys.segment_code_address : segment_code_address() ; break;
-	    case Sys.chdir : chdir() ; break;
-	    case Sys.cwd : cwd() ; break;
+	        case Sys.segment_code_address : segment_code_address() ; break;
+	        case Sys.chdir : chdir() ; break;
+	        case Sys.cwd : cwd() ; break;
 
+            case Sys.sysglobal:
+                SObject g = (SObject)Reg.globals[((SByteVL)Reg.register2).asString()];
+                if (g == null) {
+                    Reg.Result = Factory.Undefined;
+                } else {
+                    Reg.Result = g;
+                }
+                break;
+        
             default: Exn.internalError("unsupported syscall: " + num_proc); break;
             }
         }
-                
+
         // Magic numbers are defined in <larceny_src>/Lib/Common/sys-unix.sch
         private static void open() {
             string file_name = ((SByteVL)Reg.register2).asString();
@@ -276,7 +285,7 @@ namespace Scheme.RT {
             Reg.Result = Factory.makeFixnum(
 				Unix.Close(((SFixnum)Reg.register2).intValue()));
         }
-                
+
         private static void read() {
             int fd = ((SFixnum)Reg.register2).intValue();
             byte[] bytes = ((SByteVL)Reg.register3).elements;
@@ -291,6 +300,18 @@ namespace Scheme.RT {
             int count = ((SFixnum)Reg.register4).intValue();
                         
             Reg.Result = Factory.makeFixnum(Unix.Write(fd, bytes, count));
+        }
+
+        private static void get_resource_usage() {
+            SObject zero = Factory.wrap(0);
+            SObject[] stats = ((SVL)Reg.register2).elements;
+
+            int ticks = Environment.TickCount;
+            stats[28 /*RTIME*/] = Factory.wrap(ticks);
+            //stats[29 /*STIME*/] = Factory.wrap(ticks);
+            stats[30 /*UTIME*/] = Factory.wrap(ticks);
+
+            Reg.Result = Reg.register2;
         }
 
         private static void exit() {
@@ -452,9 +473,51 @@ namespace Scheme.RT {
 		    p.Dispose();
 		}
 		
-//		private static void sys_feature() {
-//		    
-//		}
+		private static void sys_feature() {
+		    SObject[] v = ((SVL)Reg.register2).elements;
+		    int request = ((SFixnum)v[0]).value;
+		    switch (request) {
+		        case 0: // larceny-major
+		            v[0] = Factory.wrap(0);
+		            break;
+		        case 1: // larceny-minor
+		            v[0] = Factory.wrap(53);
+		            break;
+		        case 2: // os-major
+		            v[0] = Factory.wrap(Environment.OSVersion.Version.Major);
+		            break;
+		        case 3: // os-minor
+		            v[0] = Factory.wrap(Environment.OSVersion.Version.Minor);
+		            break;
+		        case 4: // gc-info
+		            v[0] = Factory.False;
+		            v[1] = Factory.wrap(0);
+		            break;
+		        case 5: // gen-info
+		            v[0] = Factory.False;
+		            break;
+		        case 6: // arch-name
+		            v[0] = Factory.wrap(3);
+		            break;
+		        case 7: // os-name
+		            v[0] = Factory.wrap(3); // win32
+		            break;
+		        case 8: // endianness
+		            #if BIG_ENDIAN 
+		            v[0] = Factory.wrap(0); // big
+		            #else
+		            v[0] = Factory.wrap(1); // little
+		            #endif
+		            break;
+		        case 9: // stats-generations
+		            v[0] = Factory.wrap(0);
+		            break;
+		        case 10: // stats-remsets
+		            v[0] = Factory.wrap(0);
+		            break;
+		    }
+		    Reg.Result = Factory.Unspecified;
+		}
 		
 		private static void segment_code_address() {
 		    // file, ns, id, number

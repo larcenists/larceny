@@ -45,6 +45,7 @@ namespace Scheme.RT {
 		segment_code_address=42,
 		stats_dump_stdout=43,
 		chdir=44,
-		cwd=45
+		cwd=45,
+		sysglobal = 91
 	};
 }
