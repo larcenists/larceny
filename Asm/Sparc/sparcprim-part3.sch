@@ -101,7 +101,7 @@
 	  (sparc.andi  as rs2 #x7c $r.g0) ; RS2 fixnum and 0 <= RS2 < 32?
 	  (sparc.label as FAULT)
 	  (if (not (= rs1 $r.result))
-	      (sparc.mov as rs1 $r.result))
+	      (sparc.move as rs1 $r.result))
 	  (if (not (= rs2 $r.argreg2))
 	      (emit-move2hwreg! as rs2 $r.argreg2))
 	  (sparc.set   as (thefixnum exn) $r.tmp0)
