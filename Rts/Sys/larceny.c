@@ -1,9 +1,8 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen       -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
  * Larceny run-time system -- main file.
- * On-line manual available at http://www.ccs.neu.edu/home/will/Larceny/.
  */
 
 #include <stdio.h>
@@ -16,18 +15,12 @@
 #include "larceny.h"
 #include "gc.h"
 #include "stats.h"        /* for stats_init() */
-#if defined(MACOS) && defined(CODEWARRIOR)
-# include <SIOUX.h>
-# include <console.h>
-  long os_get_next_event( EventRecord *e );
-  long os_handle_event( EventRecord *e );
-#endif
 
 /* Argument parsing structure */
 
 typedef struct opt opt_t;
 struct opt {
-  int        maxheaps;		        /* length of size[] member */
+  int        maxheaps;                  /* length of size[] member */
   int        size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
   gc_param_t gc_info;                   /* detailed info about areas */
   unsigned   timerval;                  /* timer value */
@@ -90,6 +83,9 @@ int main( int argc, char **os_argv )
   argv = os_argv;
 #endif
 
+  osdep_init();
+  cache_setup();
+
   memset( &o, 0, sizeof( o ) );
   o.maxheaps = MAX_GENERATIONS;
   o.timerval = 0xFFFFFFFF;
@@ -103,64 +99,50 @@ int main( int argc, char **os_argv )
   o.gc_info.is_conservative_system = 1;
 #endif
 
-  cache_setup();
   consolemsg( "%s v%d.%d%s (%s:%s:%s) (%s %s)",
-	      larceny_system_name,
-	      larceny_major_version, 
-	      larceny_minor_version,
-	      larceny_version_qualifier,
-	      larceny_gc_technology,
-	      osname, 
-	      (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
-	      user, date );
+              larceny_system_name,
+              larceny_major_version, 
+              larceny_minor_version,
+              larceny_version_qualifier,
+              larceny_gc_technology,
+              osname, 
+              (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
+              user, date );
 
-#if !defined(MACOS)
-  parse_options( argc, argv, &o );
-#else
-# if defined(CODEWARRIOR)
-  SIOUXSettings.asktosaveonclose = 0;
-  SIOUXSettings.autocloseonquit = 1;
-  SIOUXSetTitle( "\pPetit Larceny Transcript" );
-# endif  
+  /* FIXME: This should all be factored out as osdep_get_program_options()
+     or something like that.  That requires factoring out the type of 'o'
+     in a header somewhere, and exposing parse_options.
+     */
+#if defined(MACOS)
   { /* Look for the file "larceny.args" in the application's home directory. */
     int argc, maxargs = 100;
     char *argv[100], buf[256], *p;
     char *args_filename = "larceny.args"; /* fixme: don't hardwire file name */
     FILE *fp;
 
-    argv[0] = "Petit Larceny";  	  /* fixme: get application name */
+    argv[0] = "Petit Larceny";            /* fixme: get application name */
     argc = 1;
     if ((fp = fopen( args_filename, "r")) != 0) {
-    	while (fgets( buf, sizeof(buf), fp ) != 0) {
-    		p = strtok( buf, " \t\n\r" );
-    		while (p != 0 && argc < maxargs-1) {
-    			argv[argc++] = strdup( p );
-    			p = strtok( 0, " \t\n\r" );
-    		}
-    	}
-    	fclose( fp );
+      while (fgets( buf, sizeof(buf), fp ) != 0) {
+        p = strtok( buf, " \t\n\r" );
+        while (p != 0 && argc < maxargs-1) {
+          argv[argc++] = strdup( p );
+          p = strtok( 0, " \t\n\r" );
+        }
+      }
+      fclose( fp );
     }
     argv[argc] = 0;
     parse_options( argc, argv, &o );
   }
+#else
+  parse_options( argc, argv, &o );
 #endif
 
-#if defined( MACOS )
-  /* Is there a principled way to do this?
-     Loop for a while to process OpenDocument Apple Event to get the 
-     heap file, if any.
-     */
-  { EventRecord event; 
-    int i;
-    for ( i=0 ; i < 10 ; i++ ) {
-    	os_get_next_event( &event );
-    	os_handle_event( &event );
-   	}
-  }
-#endif
+  osdep_poll_startup_events();
 
   if (o.heapfile == 0)
-    o.heapfile = larceny_heap_name;
+    o.heapfile = larceny_heap_name; /* Default name or set by startup events */
 
   quiet = o.quiet;
   annoying = o.annoying;
@@ -192,7 +174,7 @@ int main( int argc, char **os_argv )
     panic( "Unable to load the heap image." );
 
   if (o.reorganize_and_dump) {
-    char buf[ FILENAME_MAX ];	/* Standard C */
+    char buf[ FILENAME_MAX ];   /* Standard C */
 
     sprintf( buf, "%s.split", o.heapfile );
     if (!reorganize_and_dump_static_heap( buf ))
@@ -212,7 +194,6 @@ int main( int argc, char **os_argv )
   globals[ G_RESULT ] = fixnum( 0 );  /* No arguments */
 
   setup_signal_handlers();
-  osdep_init();
   stats_init( the_gc(globals) );
   scheme_init( globals );
 
@@ -358,12 +339,12 @@ parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, prev_size, areas = DEFAULT_AREAS;
 #if defined( BDW_GC )
-  double load_factor = 0.0;	              /* Ignore it. */
+  double load_factor = 0.0;                   /* Ignore it. */
 #else
   double load_factor = DEFAULT_LOAD_FACTOR;
 #endif
-  double expansion = 0.0;	              /* Ignore it. */
-  int divisor = 0;		              /* Ignore it. */
+  double expansion = 0.0;                     /* Ignore it. */
+  int divisor = 0;                            /* Ignore it. */
   double feeling_lucky = 0.0;                 /* Not lucky at all. */
   double phase_detection = -1.0;              /* No detection. */
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
@@ -387,7 +368,7 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.use_non_predictive_collector = 1;
     }
     else if (numbarg( "-dof", &argc, &argv, 
-		      &o->gc_info.dynamic_dof_info.generations )) {
+                      &o->gc_info.dynamic_dof_info.generations )) {
       o->gc_info.is_generational_system = 1;
       o->gc_info.use_dof_collector = 1;
     }
@@ -398,20 +379,20 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1) o->gc_info.is_generational_system = 1;
       if (loc < 0 || loc > o->maxheaps)
-	invalid( "-size" );
+        invalid( "-size" );
       else if (loc > 0)
-	o->size[loc-1] = val;
+        o->size[loc-1] = val;
       else 
-	for ( i=1 ; i < o->maxheaps ; i++ )
-	  if (o->size[i-1] == 0) o->size[i-1] = val;
+        for ( i=1 ; i < o->maxheaps ; i++ )
+          if (o->size[i-1] == 0) o->size[i-1] = val;
     }
     else if (numbarg( "-steps", &argc, &argv,
-		     &o->gc_info.dynamic_np_info.steps )) {
+                     &o->gc_info.dynamic_np_info.steps )) {
       o->gc_info.is_generational_system = 1;
       o->gc_info.use_non_predictive_collector = 1;
     }
     else if (sizearg( "-stepsize", &argc, &argv,
-		     &o->gc_info.dynamic_np_info.stepsize )) {
+                     &o->gc_info.dynamic_np_info.stepsize )) {
       o->gc_info.is_generational_system = 1;
       o->gc_info.use_non_predictive_collector = 1;
     }
@@ -421,11 +402,11 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (numbarg( "-full-frequency", &argc, &argv, &full_frequency )) {
       if (full_frequency < 0)
-	param_error( "Full GC frequency must be nonnegative." );
+        param_error( "Full GC frequency must be nonnegative." );
     }
     else if (doublearg( "-growth-divisor", &argc, &argv, &growth_divisor )) {
       if (growth_divisor <= 0.0)
-	param_error( "Growth divisor must be positive." );
+        param_error( "Growth divisor must be positive." );
     }
     else 
 #endif
@@ -434,10 +415,10 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (doublearg( "-load", &argc, &argv, &load_factor )) {
 #if defined(BDW_GC)
       if (load_factor < 1.0 && load_factor != 0.0)
-	param_error( "Load factor must be at least 1.0" );
+        param_error( "Load factor must be at least 1.0" );
 #else
       if (load_factor < 2.0)
-	param_error( "Load factor must be at least 2.0" );
+        param_error( "Load factor must be at least 2.0" );
 #endif
     }
     else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
@@ -480,11 +461,11 @@ parse_options( int argc, char **argv, opt_t *o )
 #if defined(BDW_GC)
     else if (numbarg( "-divisor", &argc, &argv, &divisor )) {
       if (divisor < 1)
-	param_error( "Divisor must be at least 1." );
+        param_error( "Divisor must be at least 1." );
     }
     else if (doublearg( "-expansion", &argc, &argv, &expansion )) {
       if (expansion < 1.0)
-	param_error( "Expansion factor must be at least 1.0" );
+        param_error( "Expansion factor must be at least 1.0" );
     }
 #endif
     else if (**argv == '-') {
@@ -525,7 +506,7 @@ parse_options( int argc, char **argv, opt_t *o )
 
   /* Complete parameter structure by computing the not-specified values. */
   if (o->gc_info.is_generational_system) {
-    int n = areas-1;		/* Index of dynamic generation */
+    int n = areas-1;            /* Index of dynamic generation */
 
     /* Nursery */
     o->gc_info.nursery_info.size_bytes =
@@ -536,14 +517,14 @@ parse_options( int argc, char **argv, opt_t *o )
 
     for ( i = 1 ; i <= areas-2 ; i++ ) {
       if (o->size[i] == 0)
-	o->size[i] = prev_size + DEFAULT_EPHEMERAL_INCREMENT;
+        o->size[i] = prev_size + DEFAULT_EPHEMERAL_INCREMENT;
       o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
       prev_size = o->size[i];
     }
 
     /* Dynamic generation */
     if (o->gc_info.use_dof_collector && 
-	o->gc_info.use_non_predictive_collector) {
+        o->gc_info.use_non_predictive_collector) {
       consolemsg( "Error: Both nonpredictive (ROF) and DOF gc selected." );
       consolemsg( "Type \"larceny -help\" for help." );
       exit( 1 );
@@ -555,24 +536,24 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_np_info.dynamic_max = dynamic_max;
       o->gc_info.dynamic_np_info.dynamic_min = dynamic_min;
       if (o->size[n] != 0)
-	o->gc_info.dynamic_np_info.size_bytes = o->size[n];
+        o->gc_info.dynamic_np_info.size_bytes = o->size[n];
       size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
       if (dynamic_min) size = max( dynamic_min, size );
       if (dynamic_max) size = min( dynamic_max, size );
       compute_np_parameters( o, size );
       if (feeling_lucky < 0.0 || feeling_lucky > 1.0)
-	param_error( "NP luck parameter (-feeling-lucky) out of range." );
+        param_error( "NP luck parameter (-feeling-lucky) out of range." );
       else
-	o->gc_info.dynamic_np_info.luck = feeling_lucky;
+        o->gc_info.dynamic_np_info.luck = feeling_lucky;
       if (phase_detection != -1.0 &&
-	  (phase_detection < 0.0 || phase_detection > 1.0))
-	param_error( "NP phase detection paramater out of range." );
+          (phase_detection < 0.0 || phase_detection > 1.0))
+        param_error( "NP phase detection paramater out of range." );
       else
-	o->gc_info.dynamic_np_info.phase_detection = phase_detection;
+        o->gc_info.dynamic_np_info.phase_detection = phase_detection;
       if (np_remset_limit < 0)
-	param_error( "NP remset limit must be nonnegative." );
+        param_error( "NP remset limit must be nonnegative." );
       else
-	o->gc_info.dynamic_np_info.extra_remset_limit = np_remset_limit;
+        o->gc_info.dynamic_np_info.extra_remset_limit = np_remset_limit;
     }
     else if (o->gc_info.use_dof_collector) {
       o->gc_info.dynamic_dof_info.load_factor = load_factor;
@@ -581,26 +562,26 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_dof_info.full_frequency = full_frequency;
       o->gc_info.dynamic_dof_info.growth_divisor = growth_divisor;
       if (o->size[n] == 0) {
-	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
-	if (dynamic_min) size = max( dynamic_min, size );
-	if (dynamic_max) size = min( dynamic_max, size );
-	o->gc_info.dynamic_dof_info.area_size = size;
+        int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+        if (dynamic_min) size = max( dynamic_min, size );
+        if (dynamic_max) size = min( dynamic_max, size );
+        o->gc_info.dynamic_dof_info.area_size = size;
       }
       else
-	o->gc_info.dynamic_dof_info.area_size = o->size[n];
+        o->gc_info.dynamic_dof_info.area_size = o->size[n];
     }
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
       o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
       o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
       if (o->size[n] == 0) {
-	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
-	if (dynamic_min) size = max( dynamic_min, size );
-	if (dynamic_max) size = min( dynamic_max, size );
-	o->gc_info.dynamic_sc_info.size_bytes = size;
+        int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+        if (dynamic_min) size = max( dynamic_min, size );
+        if (dynamic_max) size = min( dynamic_max, size );
+        o->gc_info.dynamic_sc_info.size_bytes = size;
       }
       else
-	o->gc_info.dynamic_sc_info.size_bytes = o->size[n];
+        o->gc_info.dynamic_sc_info.size_bytes = o->size[n];
     }
   }
   else if (o->gc_info.is_stopcopy_system) {
@@ -665,11 +646,15 @@ static void compute_np_parameters( opt_t *o, int suggested_size )
   o->gc_info.dynamic_np_info.size_bytes = size;
 }
 
-static int 
-sizearg( char *str, int *argc, char ***argv, int *loc ) 
+/* Takes a positive integer only, suffixes K and M are accepted. */
+static int sizearg( char *str, int *argc, char ***argv, int *loc ) 
 {
   if (strcmp( **argv, str ) == 0) {
-    if (*argc == 1 || !getsize( *(*argv+1), loc )) invalid( str );
+    if (*argc == 1 || !getsize( *(*argv+1), loc ) || *loc <= 0) {
+      char buf[ 128 ];
+      sprintf( buf, "%s requires a positive integer.", str );
+      invalid( buf );
+    }
     ++*argv; --*argc;
     return 1;
   }
@@ -781,7 +766,7 @@ static void dump_options( opt_t *o )
     consolemsg( "  Incremental: %d", o->gc_info.use_incremental_bdw_collector);
     consolemsg( "  Inverse load factor: %f", o->gc_info.bdw_info.load_factor );
     consolemsg( "  Inverse expansion factor: %f", 
-		o->gc_info.bdw_info.expansion_factor );
+                o->gc_info.bdw_info.expansion_factor );
     consolemsg( "  Divisor: %d", o->gc_info.bdw_info.divisor );
     consolemsg( "  Min size: %d", o->gc_info.bdw_info.dynamic_min );
     consolemsg( "  Max size: %d", o->gc_info.bdw_info.dynamic_max );
@@ -801,7 +786,7 @@ static void dump_options( opt_t *o )
     for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
       consolemsg( "  Ephemeral area %d", i );
       consolemsg( "    Size (bytes): %d",
-		  o->gc_info.ephemeral_info[i-1].size_bytes );
+                  o->gc_info.ephemeral_info[i-1].size_bytes );
     }
     if (o->gc_info.use_non_predictive_collector ) {
       np_info_t *i = &o->gc_info.dynamic_np_info;
@@ -823,7 +808,7 @@ static void dump_options( opt_t *o )
       consolemsg( "    Max size: %d", i->dynamic_max );
     }
     consolemsg( "  Using non-predictive dynamic area: %d",
-	       o->gc_info.use_non_predictive_collector );
+               o->gc_info.use_non_predictive_collector );
     consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
   }
   else {
@@ -841,7 +826,8 @@ static void param_error( char *s )
 
 static void invalid( char *s )
 {
-  consolemsg( "Error: Invalid argument to option '%s'", s );
+  consolemsg( "" );
+  consolemsg( "Error: Invalid argument to option: %s", s );
   consolemsg( "Type \"larceny -help\" for help." );
   exit( 1 );
 }
@@ -863,19 +849,20 @@ static char *helptext[] = {
   "  -stopcopy",
   "     Select the stop-and-copy collector." ,
   "  -gen",
-  "     Select the standard generational collector, with "
-        STR(DEFAULT_AREAS) 
-        " heap areas.  This is",
-  "     the collection type selected by default.",
+  "     Select generational collection with the standard generational"
+  "     collector.  This is the default collector."
   "  -areas n",
-  "     Select generational collection, with n heap areas." ,
+  "     Select generational collection, with n heap areas.  The default" ,
+  "     number of heap areas is "
+        STR(DEFAULT_AREAS) 
+        "."
   "  -np",
   "  -rof",
   "     Select generational collection with the renewal-oldest-first",
   "     dynamic area (radioactive decay non-predictive collection).",
   "  -dof n",
   "     Select generational collection with the deferred-oldest-first",
-  "     dynamic area, using n chunks (default 4).",
+  "     dynamic area, using n chunks.",
   "  -size# nnnn",
   "     Heap area number '#' is given size 'nnnn' bytes.",
   "     This selects generational collection if # > 1.",
@@ -1009,7 +996,7 @@ static void help( void )
   for (i=0 ; helptext[i] != 0 ; i++ )
     consolemsg( helptext[i] );
   consolemsg("The Larceny User's Manual is available on the web at");
-  consolemsg("  http://www.ccs.neu.edu/home/lth/larceny/manual.html");
+  consolemsg("  http://www.ccs.neu.edu/home/will/Larceny/manual/index.html");
   exit( 0 );
 }
 
