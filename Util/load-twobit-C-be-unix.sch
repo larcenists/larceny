@@ -14,7 +14,7 @@
 
 (load (pathname-append *root-directory* "Util" "nbuild-param-C-be-unix.sch"))
 (define nbuild-parameter
-  (make-nbuild-parameter *root-directory* #f #f "Larceny" "Larceny"))
+  (make-nbuild-parameter *root-directory* #f #t "Larceny" "Larceny"))
 
 (load (pathname-append *root-directory* "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
