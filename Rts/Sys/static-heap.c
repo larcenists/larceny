@@ -34,7 +34,7 @@ static word *allocate( static_heap_t *heap, int nbytes )
   nbytes = roundup_balign( nbytes );
   nwords = nbytes / sizeof( word );
   if (!heap->data_area)
-    heap->data_area = create_semispace( nbytes, data->gen_no, data->gen_no );
+    heap->data_area = create_semispace( nbytes, data->gen_no );
   ss = heap->data_area;
   if (ss->chunks[ ss->current ].top + nwords >= ss->chunks[ ss->current ].lim)
     ss_expand( ss, max( nbytes, GC_CHUNK_SIZE ) );
@@ -56,8 +56,8 @@ static void reorganize( static_heap_t *heap )
      This is only a quick fix to level the field for the Boehm collector.
    */
   textsize = datasize = heap->data_area->allocated;
-  text = create_semispace( textsize, s_data->gen_no, s_data->gen_no);
-  data = create_semispace( datasize, s_data->gen_no, s_data->gen_no);
+  text = create_semispace( textsize, s_data->gen_no);
+  data = create_semispace( datasize, s_data->gen_no);
   gclib_stopcopy_split_heap( heap->collector, data, text );
   if (heap->text_area) ss_free( heap->text_area );
   if (heap->data_area) ss_free( heap->data_area );
@@ -91,7 +91,7 @@ static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
   assert( nbytes % BYTE_ALIGNMENT == 0 );
 
   if (*space == 0)
-    *space = create_semispace( nbytes, gen_no, gen_no );
+    *space = create_semispace( nbytes, gen_no );
   else
     ss_expand( *space, nbytes ); 
   (*space)->chunks[ (*space)->current ].top += nbytes/sizeof(word);
