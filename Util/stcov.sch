@@ -48,10 +48,12 @@
 ; the source code.
 ;
 ; BUGS
+; Doesn't respect lexical overrides of names of standard macros.
 ; Doesn't do quasiquote (handles it, but punts).
 ; Doesn't do R5RS macros.
 ; Doesn't deal properly with nonlocal exits.
-; 
+; Overannotates some BEGIN/DEFINE/expr nests (see FIXME in stcov-body).
+;
 ; DESCRIPTION
 ; The program inserts a call ($stcov X) where X is a unique identifier 
 ; in the following places:
@@ -60,6 +62,7 @@
 ;   Before the body in a DO, and before the exit expressions (if any).
 ;   In the body of every DELAYed expression.
 ;   Before the second and subsequent conditions in an OR or AND.
+;   Before any expression in a sequence if preceded by IF, COND, or CASE.
 ;
 ; The actual code inserted is customizable -- change the procedure
 ; `stcov-annotation' to return the expression to be inserted.
@@ -71,8 +74,7 @@
 ;
 ; FURTHER WORK
 ; The procedure stcov-summarize-execution is an experimental profiling
-; facility.  The annotations must be improved: we must deal with join
-; points.
+; facility.
 ;
 ; The program would be even more useful if it could recognize control 
 ; points that depend on higher-level control points; this way it 
@@ -81,10 +83,9 @@
 ;
 ; Because the program goes to some trouble to ensure that the identifiers
 ; are generated in a deterministic order, it is possible to write a simple
-; program that produces output that's identical (modulo comments
-; and formatting) to the input but where nonexecuted expressions are
-; indicated visually, eg folded to all-caps, typeset in boldface, etc.
-; Think HTML.
+; program that produces output that's identical to the input but where
+; nonexecuted expressions are indicated visually, eg folded to all-caps,
+; typeset in boldface, etc.  Think HTML.
 
 (define (stcov-files files)
 
@@ -206,6 +207,7 @@
 	   ((do) (stcov-do expr))
 	   ((quasiquote) (stcov-quasiquote expr))
 	   ((quote) expr)
+           ((define-syntax let-syntax letrec-syntax) (stcov-syntax expr))
 	   (else
 	    (stcov-call expr))))
 	((symbol? expr) expr)
@@ -233,30 +235,34 @@
 	 ,@(stcov-body (cddr expr)))))
 
 ; (D ... E ...) ;   => (D ... ($stcov n) E ...)
-; where D ... is sequence of definitions of begins that contain definitions
+; where D ... is sequence of definitions or begins that contain definitions
 ; (recursively).
+;
+; FIXME: this is R4RS but not R5RS because BEGIN is more complicated 
+; in R5RS; the first E can be (deep) inside the last of the toplevel Ds.
+; This code will insert more than one annotation for that kind of code.
 
 (define (stcov-body body)
 
   (define (finish exprs)
     (let ((id (next-stcov-ident)))
       `(,(stcov-annotation id)
-	,@(map-l-r stcov-expr exprs))))
+	,@(stcov-expr-seq exprs))))
 
-    (let loop ((body body))
-      (cond ((null? body) 
-	     (finish '()))
-	    ((pair? (car body))
-	     (cond ((eq? (caar body) 'begin)
-		    (let ((x `(begin ,@(stcov-body (cdar body)))))
-		      (cons x (loop (cdr body)))))
-		   ((eq? (caar body) 'define)
-		    (let ((x (stcov-define (car body))))
-		      (cons x (loop (cdr body)))))
-		   (else
-		    (finish body))))
-	    (else
-	     (finish body)))))
+  (let loop ((body body))
+    (cond ((null? body) 
+           (finish '()))
+          ((pair? (car body))
+           (cond ((eq? (caar body) 'begin)
+                  (let ((x `(begin ,@(stcov-body (cdar body)))))
+                    (cons x (loop (cdr body)))))
+                 ((eq? (caar body) 'define)
+                  (let ((x (stcov-define (car body))))
+                    (cons x (loop (cdr body)))))
+                 (else
+                  (finish body))))
+          (else
+           (finish body)))))
 
 (define (stcov-if expr)
   (if (null? (cdddr expr))
@@ -291,7 +297,29 @@
 		      ,(stcov-expr (cadr expr))))))
 
 (define (stcov-seq expr)
-  `(,(car expr) ,@(map-l-r stcov-expr (cdr expr))))
+  `(,(car expr) ,@(stcov-expr-seq (cdr expr))))
+
+; Join points are those expressions in sequences that are preceded
+; by a conditional expression.
+
+;(define (stcov-expr-seq exprs)          ; Does not handle join points
+;  (map-l-r stcov-expr exprs))
+
+(define (stcov-expr-seq exprs)          ; Handles join points
+  (if (null? exprs)
+      '()
+      (let loop ((exprs exprs) (res '()))
+        (let ((e0 (car exprs)))
+          (let ((e (stcov-expr e0)))
+            (cond ((null? (cdr exprs))
+                   (reverse (cons e res)))
+                  ((and (pair? e0) (memq (car e0) '(if cond case)))
+                   (loop (cdr exprs)
+                         (cons (stcov-annotation (next-stcov-ident))
+                               (cons e res))))
+                  (else
+                   (loop (cdr exprs)
+                         (cons e res)))))))))
 
 (define (stcov-condition expr)
   (cond ((null? (cdr expr)) expr)
@@ -393,6 +421,8 @@
 ; Punt -- fix later.
 
 (define (stcov-quasiquote expr)  expr)
+
+(define (stcov-syntax expr) expr)
 
 
 ; Left-to-right
