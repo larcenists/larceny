@@ -38,7 +38,7 @@
   (case option:endian
     ((big) (set! system-big-endian? (lambda () #t)))
     ((little) (set! system-big-endian? (lambda () #f))))
-  
+
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
   (case option:os
@@ -57,7 +57,7 @@
     (set!
      make-nbuild-parameter
      (lambda (dir hostdir hostname)
-       (let ((parameters 
+       (let ((parameters
               `((compiler       . ,(pathname-append dir "Twobit"))
                 (util           . ,(pathname-append dir "Util"))
                 (build          . ,(pathname-append dir "Rts" "Build"))
@@ -86,11 +86,11 @@
                 )))
          (lambda (key)
            (let ((probe (assq key parameters)))
-             (if probe 
+             (if probe
                  (cdr probe)
                  #f)))))))
-     
-  
+
+
   ;; set this so everybody can use it
   (set! nbuild-parameter
         (make-nbuild-parameter *larceny-root* host host))
@@ -117,13 +117,13 @@
            (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs"))
           (rts-dir (make-filename *larceny-root* "Rts")))
       (lambda ()
-        (csharp-config 
+        (csharp-config
          output-c#-file
          `((,(make-filename rts-dir "layouts.cfg") int)
            (,(make-filename rts-dir "except.cfg")  int)
            (,(make-filename rts-dir "globals.cfg") int)
            (,(make-filename rts-dir "mprocs.cfg")  int))))))
-      
+
   (define (catfiles input-files output-file)
     (with-output-to-file output-file
       (lambda ()
@@ -150,11 +150,11 @@
            (catfiles (list src-file) target-file))))
    (map (lambda (f) (make-filename (string-append f ".cfg")))
         cfg-names))
-  
+
   ;; we don't need the C code
   ;;(expand-file (build-path "Standard-C" "arithmetic.mac")
   ;;             (build-path "Standard-C" "arithmetic.c"))
-  
+
   ;(parameterize [(current-directory *root-directory*)]
   (display " -- Running config ...")(newline)
   (for-each config
@@ -181,7 +181,7 @@
                                          (string-append f ".sh")))
               (remove "mprocs" cfg-names))
          (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))))
-  
+
   (display " -- Running C# config...")(newline)
   (let ((file (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs")))
     (if (file-exists? file)
