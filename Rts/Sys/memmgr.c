@@ -25,6 +25,10 @@ const char *larceny_gc_technology = "precise";
 #include "heapio.h"
 #include "barrier.h"
 
+#if defined(STDC_SOURCE)
+extern char *strdup( const char * );
+#endif
+
 typedef struct gc_data gc_data_t;
 
 /* The 'remset' table in the gc structure has one extra element if the
