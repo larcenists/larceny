@@ -124,8 +124,8 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
 
   annoyingmsg( "NP collector: k=%d j=%d", data->k, data->j );
 
-  data->old = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no );
-  data->young = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no+1 );
+  data->old = create_semispace( GC_CHUNK_SIZE, gen_no );
+  data->young = create_semispace( GC_CHUNK_SIZE, gen_no+1 );
 
   heap->maximum = data->stepsize * data->k;
   heap->allocated = 0;
@@ -365,7 +365,7 @@ static void adjust_j( old_heap_t *heap )
   /* Nuke young space, recreate */
   ss_free( data->young );
   data->young = 
-    create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1 );
+    create_semispace( GC_CHUNK_SIZE, data->gen_no+1 );
 
   /* Clear or move remset contents */
   rs_assimilate( heap->collector->remset[ data->gen_no ], 
@@ -474,7 +474,7 @@ static void perform_collect( old_heap_t *heap )
 			     los->object_lists[ data->gen_no+1 ], 
 			     data->gen_no);
 
-  data->young = create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1);
+  data->young = create_semispace( GC_CHUNK_SIZE, data->gen_no+1);
 
   /* Compute new k and j, and other policy parameters */
   /* Young is empty */
@@ -680,7 +680,6 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 			    HEAPCODE_OLD_2SPACE_NP,
 			    0,               /* initialize */
 			    collect,
-			    0,	/* collect_with_selective_fromspace */
 			    before_collection,
 			    after_collection,
 			    stats,
