@@ -42,7 +42,9 @@
   (<= 0 x 7))
 
 (define (immediate-int? x)
-  (<= -1024 x 1023))
+  (and (exact? x)
+       (integer? x)
+       (<= -1024 x 1023)))
 
 ; Given an exact integer, can it be represented as a fixnum?
 

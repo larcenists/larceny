@@ -1588,6 +1588,24 @@ $Id$
     FIX:
     SIMPLIFY-LET now calls STANDARDIZE-KNOWN-CALLS.
 
+121 v1.0a1 (990325 / lth)
+    Priority: high
+
+    [Assembler bug]
+    Consider:
+
+	((lambda () 10.0))
+
+    In 1.0a1 this returns '0', as will 
+
+	((lambda () 1/2))
+
+    The bug appears to be in the assembler.  The peephole optimizer
+    generates a const/return operation, but the assembler emits incorrect
+    code for the operation.
+
+    Fixed 990405 / wdc: Changed immediate-int? in sparcutil.sch.
+
 122 v1.0a1 (990329 / wdc)
     Priority: high
 
