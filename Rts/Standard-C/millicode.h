@@ -8,14 +8,33 @@
 #ifndef MILLICODE_H
 #define MILLICODE_H
 
+#include <setjmp.h>
 #include "larceny-types.h"
-#include "petit-config.h"
+#ifdef PETIT_LARCENY
+#  include "petit-config.h"
+#else
+typedef word codeptr_t;
+typedef word cont_t;
+#  define RTYPE           cont_t
+#  define CONT_PARAMS     word *globals
+#  define CONT_ACTUALS    globals
+#  define TEMPORARY_FUEL  100
+#  define TIMER_STEP      12500
+#endif
 
 #ifdef WIN32
 #  define EXPORT __declspec(dllexport)
 #else
 #  define EXPORT
 #endif
+
+#define DISPATCH_CALL_AGAIN             1 /* Call twobit_cont_label */
+#define DISPATCH_EXIT                   2 /* Return from scheme_start() */
+#define DISPATCH_RETURN_FROM_S2S_CALL   3 /* Return from scheme->scheme call */
+#define DISPATCH_STKUFLOW               4 /* Handle stack underflow */
+#define DISPATCH_SIGFPE                 5 /* Handle synchronous signal */
+#define DISPATCH_TIMER                  6 /* Handle timer interrupt */
+#define DISPATCH_CALL_R0                7 /* Call proc in R0 */
 
 /* The following must be exported by compiled Scheme code. */
 
@@ -60,8 +79,15 @@ void EXPORT mc_alloci( word *globals );
      Output: RESULT = raw pointer to allocated memory.
      */
 
+void EXPORT mc_morecore( word *globals );
+  /* Free up enough memory to satisfy a "small" allocation request.
+
+     Input:  nothing.
+     Output: nothing.
+     */
+
 RTYPE EXPORT mem_stkuflow( CONT_PARAMS );
-  /* Stack underflow handler.  
+  /* Stack underflow handler.
      This procedure is designed to be returned into -- not to be called.
      It restores a stack frame from the heap into the stack cache.
 
@@ -94,6 +120,14 @@ void EXPORT mc_restore_continuation( word *globals );
      Output: nothing.
      */
 
+void EXPORT mc_compact_ssbs( word *globals );
+  /* Fold the SSB content into the remembered set.  Usually called
+     from the write barrier in response to a full SSB.
+
+     Input:  nothing
+     Output: nothing
+     */
+
 void EXPORT mc_full_barrier( word *globals );
   /* Implements the full write barrier: for each assignment that
      has a pointer-valued rhs, it calls mc_partial_barrier.
@@ -121,13 +155,13 @@ void EXPORT mc_break( word *globals );
      */
 
 void EXPORT mc_timer_exception( word *globals, cont_t k );
-  /* Exception handler for first-level timer expiration.  
+  /* Exception handler for first-level timer expiration.
      If timer interrupts are disabled, the timer is given a small amount
      of fuel, and execution continues.
      Otherwise, if the second-level timer is nonzero, then the first-level
      timer is given more fuel, and execution continues.
-     Otherwise, a timer interrupt is signalled to the Scheme timer 
-     interrupt handler. 
+     Otherwise, a timer interrupt is signalled to the Scheme timer
+     interrupt handler.
 
      'k' is a Scheme return address.
 
@@ -158,7 +192,7 @@ void EXPORT mc_disable_interrupts( word *globals, cont_t k );
      */
 
 void EXPORT mc_exception( word *globals, word exception );
-  /* Signal general non-continuable exception.  The exception is signalled 
+  /* Signal general non-continuable exception.  The exception is signalled
      by calling the installed Scheme exception handler.
 
      'Exception' is a native exception code.
@@ -168,7 +202,7 @@ void EXPORT mc_exception( word *globals, word exception );
      */
 
 void EXPORT mc_cont_exception( word *globals, word exception, cont_t k );
-  /* Signal general continuable exception.  The exception is signalled 
+  /* Signal general continuable exception.  The exception is signalled
      by calling the installed Scheme exception handler.
 
      'Exception' is a native exception code.
@@ -239,11 +273,11 @@ void EXPORT mc_eqv( word *globals, cont_t k );
      */
 
 void EXPORT mc_partial_list2vector( word *globals );
-  /* Given a list and its length, create a vector that contains the 
+  /* Given a list and its length, create a vector that contains the
      elements of the list.
 
-     No error checking is performed; in particular, if the list is 
-     circular then the procedure will loop uninterruptible forever 
+     No error checking is performed; in particular, if the list is
+     circular then the procedure will loop uninterruptible forever
      because no timer interrupt checks are performed.
 
      Input:  RESULT = a list.
@@ -264,7 +298,7 @@ void EXPORT mc_bytevector_like_fill( word *globals );
 
 void EXPORT mc_bytevector_like_compare( word *globals );
   /* Given two bytevector-like structures, compare them lexically in an
-     alphabet of byte values, and return a negative number if the first 
+     alphabet of byte values, and return a negative number if the first
      collates before the second, 0 if they are equal, and a positive number
      if the second collates before the first.
 
@@ -278,8 +312,8 @@ void EXPORT mc_bytevector_like_compare( word *globals );
 void EXPORT mc_petit_patch_boot_code( word *globals );
   /* This procedure is used only when loading a bootstrap heap.
 
-     Given a list of thunks whose codevectors are #f, patch each 
-     thunk with its appropriate procedure pointer.  The procedure 
+     Given a list of thunks whose codevectors are #f, patch each
+     thunk with its appropriate procedure pointer.  The procedure
      pointers are stored in a private array.  The length of the
      array must be equal to the length of the list, and the ordering
      of code pointers in the arrays must correspond to the ordering
@@ -305,7 +339,7 @@ void EXPORT mc_scheme_callout( word *globals, int index, int argc, cont_t k,
      then RESULT is preserved across the call.
 
      Input:  RESULT, SECOND, THIRD, FOURTH: arguments to the callee
-     Output: RESULT = current value (save_result == 1) 
+     Output: RESULT = current value (save_result == 1)
                       or result (save_result == 0)
      */
 
@@ -336,7 +370,7 @@ void mem_icache_flush( void *lo, void *limit );
      */
 
 void execute_sigfpe_magic( void *context );
-  /* Called with operating system dependent data when a SIGFPE is 
+  /* Called with operating system dependent data when a SIGFPE is
      received while executing millicode or compiled code.  This is
      a synchronous exception; the Scheme VM is guaranteed to be in a
      consistent state.
@@ -354,9 +388,9 @@ void initialize_generic_arithmetic( void );
      */
 
 /* The following procedures implementing binary operations are in
-   arithmetic.c. 
+   arithmetic.c.
 
-   Note: the operands can be _any_ objects, and unless noted 
+   Note: the operands can be _any_ objects, and unless noted
    otherwise the procedures return the result, if the objects are of
    appropriate types, or call the exception handler with appropriate
    arguments.
@@ -380,9 +414,9 @@ void EXPORT mc_less_or_equalp( word *globals, cont_t k );
 void EXPORT mc_greaterp( word *globals, cont_t k );
 void EXPORT mc_greater_or_equalp( word *globals, cont_t k );
 
-/* The following unary operations are in arithmetic.c. 
+/* The following unary operations are in arithmetic.c.
 
-   Note: the operand can be _any_ object, and unless noted 
+   Note: the operand can be _any_ object, and unless noted
    otherwise the procedures return the result, if the object is of
    appropriate type, or call the exception handler with appropriate
    arguments.
@@ -398,9 +432,9 @@ void EXPORT mc_imag_part( word *globals );
 void EXPORT mc_round( word *globals, cont_t k );
 void EXPORT mc_truncate( word *globals, cont_t k );
 
-/* The following unary predicates are in arithmetic.c. 
+/* The following unary predicates are in arithmetic.c.
 
-   Note: the operand can be _any_ object, and unless noted 
+   Note: the operand can be _any_ object, and unless noted
    otherwise the procedures return the result, if the object is of
    appropriate type, or call the exception handler with appropriate
    arguments.

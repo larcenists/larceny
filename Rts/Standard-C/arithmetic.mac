@@ -16,8 +16,8 @@
  *
  * $Id$
  *
- * WARNING: This code has been auto-generated.  Edit 
- * Rts/Standard-C/arithmetic.mac instead and rerun the expander by 
+ * WARNING: This code has been auto-generated.  Edit
+ * Rts/Standard-C/arithmetic.mac instead and rerun the expander by
  * loading expand.sch and then evaluating
  *   (expand-file \"arithmetic.mac\" \"arithmetic.c\")
  */
@@ -71,8 +71,10 @@ void initialize_generic_arithmetic( void )
 {
 }
 
-#define G_SECOND G_ARGREG2
-#define G_THIRD  G_ARGREG3
+#ifndef G_SECOND
+# define G_SECOND G_ARGREG2
+# define G_THIRD  G_ARGREG3
+#endif
 "
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -80,7 +82,7 @@ void initialize_generic_arithmetic( void )
 
 (define-template 'binary-decision-tree
   '(name retry-name contagion-name error-code
-	fixnum+fixnum flonum+flonum compnum+compnum 
+	fixnum+fixnum flonum+flonum compnum+compnum
 	bignum+bignum-code ratnum+ratnum-code rectnum+rectnum)
 "
 void EXPORT @name@( word *globals, cont_t k )
@@ -130,7 +132,7 @@ void EXPORT @name@( word *globals, cont_t k )
     h1 = header_byte( x, VEC_TAG );
     h2 = header_byte( y, VEC_TAG );
     if (h1 == RATNUM_HDR) {
-      if (h2 == RATNUM_HDR) 
+      if (h2 == RATNUM_HDR)
 	generic_binary_operation( globals, @ratnum+ratnum-code@, k );
       else
 	goto mixed;
@@ -175,7 +177,7 @@ void EXPORT @name@( word *globals, cont_t k )
 
 (define (standard-arithmetic name name2 fixcode flocode compcode)
   (expand-template
-   'binary-decision-tree 
+   'binary-decision-tree
    `((name ,name)
      (retry-name ,(string-append "MS_GENERIC_" name2))
      (contagion-name "MS_CONTAGION")
@@ -186,7 +188,7 @@ void EXPORT @name@( word *globals, cont_t k )
      (bignum+bignum-code ,(string-append "MS_BIGNUM_" name2))
      (ratnum+ratnum-code ,(string-append "MS_RATNUM_" name2))
      (rectnum+rectnum
-      ,(string-append 
+      ,(string-append
 	"generic_binary_operation( globals, MS_RECTNUM_" name2 ", k );")))))
 
 
@@ -194,7 +196,7 @@ void EXPORT @name@( word *globals, cont_t k )
 ; Template: unary-decision-tree
 
 (define-template 'unary-decision-tree
-  '(name exception 
+  '(name exception
     extra extra-arg
     fixnum-code flonum-code compnum-code bignum-code ratnum-code rectnum-code
     otherwise)
@@ -212,13 +214,13 @@ void EXPORT @name@( word *globals @extra@ )
     }
     else if (h == COMPNUM_HDR) {
       @compnum-code@
-    } 
+    }
     else if (h == BIGNUM_HDR) {
       @bignum-code@
     }
     else if (h == RATNUM_HDR) {
       @ratnum-code@
-    } 
+    }
     else if (h == RECTNUM_HDR) {
       @rectnum-code@
     }
@@ -256,10 +258,10 @@ void EXPORT @name@( word *globals @extra@ )
 ; mc_add
 ; Fixnums with no overflow is handled in-line.
 
-(standard-arithmetic "mc_add" "ADD" 
+(standard-arithmetic "mc_add" "ADD"
 "ga_box_int(globals, (int)nativeint(x)+(int)nativeint(y));"
 "ga_box_flonum(globals, flonum_val(x)+flonum_val(y));"
-"ga_box_compnum(globals, compnum_real(x)+compnum_real(y), 
+"ga_box_compnum(globals, compnum_real(x)+compnum_real(y),
                       compnum_imag(x)+compnum_imag(y));
 "
 
@@ -349,7 +351,7 @@ else {
 ;
 ; Quotient must work on all integer operands, including flonums and compnums
 ; that are representable as integers. In order to preserve the programmer's
-; sanity, only two cases are handled in millicode; all other arguments are 
+; sanity, only two cases are handled in millicode; all other arguments are
 ; passed to the "generic-quotient" procedure (in Scheme).
 ;
 ; The two cases handled in millicode are:
@@ -383,7 +385,7 @@ void EXPORT mc_quo( word *globals, cont_t k )
     globals[ G_RESULT ] = fixnum((s_word)x / (s_word)y);
     return;
   }
-  else if (tagof( x ) == BVEC_TAG && 
+  else if (tagof( x ) == BVEC_TAG &&
            header_byte(x, BVEC_TAG) == BIGNUM_HDR &&
            is_nonnegative_fixnum( y )) {
     word z = *(ptrof( x )+1);
@@ -411,7 +413,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
     globals[ G_RESULT ] = fixnum((s_word)nativeint(x) % (s_word)nativeint(y));
     return;
   }
-  else if (tagof( x ) == BVEC_TAG && 
+  else if (tagof( x ) == BVEC_TAG &&
            header_byte(x, BVEC_TAG) == BIGNUM_HDR &&
            is_nonnegative_fixnum( y )) {
     word z = *(ptrof( x )+1);
@@ -491,7 +493,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
 ; be handled again.
 
 (expand-template
- 'binary-decision-tree 
+ 'binary-decision-tree
  '((name "mc_equalp")
    (retry-name "MS_GENERIC_EQUAL")
    (contagion-name "MS_ECONTAGION")
@@ -518,16 +520,16 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
 
 (define (order-not-equal name name2 op)
   (expand-template
-   'binary-decision-tree 
+   'binary-decision-tree
    `((name ,name)
      (retry-name ,(string-append "MS_GENERIC_" name2))
      (contagion-name "MS_PCONTAGION")
      (error-code ,(string-append "EX_" name2 "P"))
-     (fixnum+fixnum 
+     (fixnum+fixnum
       ,(apply string-append
 	      "setcc( (int)nativeint(x) " op " (int)nativeint(y) );" '()))
-     (flonum+flonum 
-      ,(apply string-append 
+     (flonum+flonum
+      ,(apply string-append
 	      "setcc( flonum_val(x) " op " flonum_val(y) );" '()))
      (compnum+compnum "goto error;")
      (bignum+bignum-code ,(string-append "MS_BIGNUM_" name2))
@@ -555,7 +557,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
       (false "globals[ G_RESULT ] = FALSE_CONST;"))
   (unary-decision-tree
    "mc_rationalp" "0/* none */"
-   true true 
+   true true
    (string-append "if (compnum_imag( x ) == 0.0) " true " else " false)
    true true false #f false))
 
@@ -563,7 +565,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
       (false "globals[ G_RESULT ] = FALSE_CONST;"))
   (unary-decision-tree
    "mc_integerp" "0/* none */"
-   true 
+   true
    "double v = flonum_val( x );
 setcc( is_integer( v ) );
 "
@@ -598,7 +600,7 @@ setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
 ; mc_real_part
 ; mc_imag_part
 
-(unary-decision-tree 
+(unary-decision-tree
  "mc_exact2inexact" "EX_E2I"
  "ga_box_flonum( globals, (double)(int)nativeint( x ) );"
  #f
@@ -638,7 +640,7 @@ setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
  #f					; fixnum - nothing
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_even( v ) );"
 "if (compnum_imag( x ) == 0.0) {
-  double v = flonum_val( x ); 
+  double v = flonum_val( x );
   ga_box_flonum( globals, round_to_even( v ) );
 }
 else
@@ -656,13 +658,13 @@ else
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_zero( v ) );"
 "
 if (compnum_imag( x ) == 0.0) {
-  double v = flonum_val( x ); 
+  double v = flonum_val( x );
   ga_box_flonum( globals, round_to_zero( v ) );
 }
 else
   goto error;
 "
- #f 
+ #f
  "generic_unary_operation( globals, MS_RATNUM_TRUNCATE, k );"
  "goto error;"
  #t
@@ -693,7 +695,7 @@ static void generic_unary_operation( word *globals, int op, cont_t k )
    */
 static void ga_box_int( word *globals, word x )
 {
-  if ((x & 0xe0000000) == 0 || (x & 0xe0000000) == 0xe0000000) 
+  if ((x & 0xe0000000) == 0 || (x & 0xe0000000) == 0xe0000000)
     globals[ G_RESULT ] = fixnum( x );
   else if ((int)x < 0)
     ga_box_word( globals, -(int)x, 1 );
@@ -706,8 +708,8 @@ static void ga_box_int( word *globals, word x )
    */
 static void ga_box_longint( word *globals, word hi, word lo )
 {
-  if (hi == 0) { 
-    if ((lo & 0xe0000000) == 0) 
+  if (hi == 0) {
+    if ((lo & 0xe0000000) == 0)
       globals[ G_RESULT ] = fixnum( lo );
     else
       ga_box_word( globals, lo, 0 );
@@ -724,7 +726,7 @@ static void ga_box_longint( word *globals, word hi, word lo )
       sign = 1;
       lo = ~lo + 1; hi = ~hi;
       if (lo == 0) hi += 1;
-    }   
+    }
     if (hi == 0)
       ga_box_int( globals, (int)lo );
     else {
@@ -775,7 +777,7 @@ static void ga_box_compnum( word *globals, double r, double i )
   globals[ G_RESULT ] = fixnum(6*sizeof(word));
   mc_alloc_bv( globals );
   p = (word*)globals[ G_RESULT ];
-  *p = mkheader( 5*sizeof(word), FLONUM_HDR );
+  *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
   *(double*)(p+2) = r;
   *(double*)(p+4) = i;
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
@@ -784,4 +786,3 @@ static void ga_box_compnum( word *globals, double r, double i )
 "
 
 ; eof
-
