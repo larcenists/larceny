@@ -10,7 +10,7 @@
 ;;  - make-struct-type should use struct-type-property guard proc
 ;;  - inherit things like inspectors, prop-value-lists, struct-procedures
 ;;  - handle error cases appropriately (relies on having Mz. exception system)
-
+($$trace "struct")
 
 ;; These procedures are provided.
 (define make-struct-type)
@@ -37,7 +37,7 @@
 
 ;; define-record is nowhere to be found.
 (let* ((*rtd-type* (record-type-descriptor (make-record-type "" '())))
-      
+
        ;; The struct-type-descriptor type is a subtype of the
        ;; record-type-descriptor type.  (Say that five times fast!)
        (*std-type* (make-record-type
@@ -55,22 +55,23 @@
                            '(name guard-proc))))
 
   ;; Accessors for record type descriptors
-  (define get-slots (record-accessor *rtd-type* 'slot-offsets))
-  (define get-printer (record-accessor *rtd-type* 'printer))
+  (define get-hier-depth  (record-accessor *rtd-type* 'hierarchy-depth))
   (define get-hier-vector (record-accessor *rtd-type* 'hierarchy-vector))
-  (define get-hier-depth (record-accessor *rtd-type* 'hierarchy-depth))
+  (define get-name        (record-accessor *rtd-type* 'name))
+  (define get-printer     (record-accessor *rtd-type* 'printer))
   (define get-record-size (record-accessor *rtd-type* 'record-size))
+  (define get-slots       (record-accessor *rtd-type* 'slot-offsets))
 
   ;; Constructors / Accessors / Predicate for struct type descriptors
-  (define make-stype (record-constructor *std-type*)) 
+  (define make-stype (record-constructor *std-type*))
+  (define stype-init-field-k (record-accessor *std-type* 'init-field-k))
+  (define stype-auto-field-k (record-accessor *std-type* 'auto-field-k))
   (define stype-auto-v (record-accessor *std-type* 'auto-v))
   (define stype-prop-values (record-accessor *std-type* 'prop-values))
   (define stype-inspector (record-accessor *std-type* 'inspector))
   (define stype-proc (record-accessor *std-type* 'proc))
   (define stype-immutable-k-list
     (record-accessor *std-type* 'immutable-k-list))
-  (define stype-init-field-k (record-accessor *std-type* 'init-field-k))
-  (define stype-auto-field-k (record-accessor *std-type* 'auto-field-k))
   (define stype? (record-predicate *std-type*))
 
   ;; Constructors / Accessors / Predicate for struct-type-property
@@ -81,7 +82,7 @@
   (define stype-prop-guard-proc (record-accessor *stype-prop-type*
                                           'guard-proc))
   (define stype-prop? (record-predicate *stype-prop-type*))
-  
+
   ;; Tags for the struct-procs created by make-struct-type
   (define sys$tag.struct-constructor-procedure 'struct-constructor-procedure)
   (define sys$tag.struct-predicate-procedure 'struct-predicate-procedure)
@@ -120,12 +121,12 @@
                                               "procedure"
                                               proc-spec
                                               field-vals)))))
-                            
+
                    (else make/rec))))
-                   
+
         (make-struct-proc constructor
                           sys$tag.struct-constructor-procedure))))
-      
+
   (define (struct-constructor-procedure?* obj)
     (and (struct-proc? obj)
          (eq? (struct-proc-extra obj)
@@ -145,7 +146,7 @@
                  instance-of-stype?)))
         (make-struct-proc predicate
                           sys$tag.struct-predicate-procedure))))
-  
+
   (define (struct-predicate-procedure?* obj)
     (and (struct-proc? obj)
          (eq? (struct-proc-extra obj)
@@ -181,7 +182,7 @@
                         (throw-type-error obj index))))))
         (make-struct-proc accessor
                           sys$tag.struct-accessor-procedure))))
-  
+
   (define (struct-accessor-procedure?* obj)
     (and (struct-proc? obj)
          (eq? (struct-proc-extra obj)
@@ -223,7 +224,7 @@
     (and (struct-proc? obj)
          (eq? (struct-proc-extra obj)
               sys$tag.struct-mutator-procedure)))
-  
+
   (define make-struct-type*
     (let ((offset->name
            (lambda (n) (string->symbol
@@ -239,22 +240,22 @@
                (opts (append rest
                              (drop (length rest) defaults)))
                (opts (list->vector opts)))
-          
+
           (let ((auto-v (vector-ref opts 0))
                 (prop-values (vector-ref opts 1))
                 (inspector (vector-ref opts 2))
                 (proc-spec (vector-ref opts 3))
                 (immutable-k-list (vector-ref opts 4))
-                
+
                 (field-names
                  (map (lambda (n)
                         (let ((offset (if super
                                           (length (record-type-field-names super))
                                           0)))
                           (offset->name (+ n offset))))
-                                         
+
                       (nats-to (+ init-field-k auto-field-k)))))
-            
+
             ;; Make a record-type, and then use accessors to transfer
             ;; the data into a struct-type
             (let ((rtd (make-record-type (symbol->string name)
@@ -262,7 +263,7 @@
                                          super)))
               (let ((hierarchy-vec (get-hier-vector rtd))
                     (hierarchy-depth (get-hier-depth rtd)))
-                
+
                 (let ((st (make-stype
                            (record-type-name rtd)
                            (get-slots rtd)
@@ -283,14 +284,14 @@
                   ;; as a record-type-descriptor, but we want our
                   ;; shiny new struct-type-descriptor there instead.
                   (vector-set! hierarchy-vec hierarchy-depth st)
-                  
+
                   (let ((predicate (struct-predicate st))
                         (constructor (struct-constructor st)))
                     (let ((accessor
                            (struct-accessor st predicate))
                           (mutator
                            (struct-mutator st predicate)))
-                
+
                       (values st
                               constructor
                               predicate
@@ -323,10 +324,10 @@
                           (else (p-ref 0))))) ;; trigger the error case
                  (else
                   (error "make-struct-type-property: exn:application:type"))))
-           
+
          (values prop:p p? p-ref)
          ))))
-  
+
   (define (make-struct-field-accessor* ref-proc field-index . rest)
     (let ((name (if (pair? rest)
                     (car rest)
@@ -338,7 +339,7 @@
           (raise-type-error 'make-struct-field-accessor
                             "accessor procedure that requires a field index"
                             ref-proc))))
-  
+
   (define (make-struct-field-mutator* mutator-proc field-index . rest)
     (let ((name (if (pair? rest)
                     (car rest)
@@ -353,7 +354,7 @@
           (raise-type-error 'make-struct-field-mutator
                             "mutator procedure"
                             mutator-proc))))
-  
+
   (define make-wrapped-waitable* (undefined))
   (define make-nack-guard-waitable* (undefined))
   (define make-poll-guard-waitable* (undefined))
@@ -364,29 +365,39 @@
   (define (struct?* obj)
     (or (struct-instance? obj)
         (struct-proc? obj)))
-  
+
   ;; this is internal
   (define struct-instance?
     (lambda (obj) (and (record? obj)
                   (struct-type? (record-type-descriptor obj)))))
-  
+
   (define struct-type?*
     (lambda (t) (stype? t)))
-  
+
   (define struct-type-property?* stype-prop?)
-  
+
   (define struct-info* (undefined))
-  (define struct-type-info* (undefined))
+  (define (struct-type-info* st)
+    ;; Bogus, but jrm needs the name field, so it's a start.
+    (values (get-name st) ; name
+            (stype-init-field-k st) ; init-field-k
+            (stype-auto-field-k st) ; auto-field-k
+            #f ; accessor
+            #f ; mutator
+            #f ; immutable-k-list
+            #f ; super
+            #f ; skipped?
+            ))
   (define struct->vector* (undefined))
-  
- 
+
+
   ;; Random utilities that don't belong above.
   ;; drop the first n elements of lst
   (define (drop n lst)
     (if (zero? n)
         lst
         (drop (- n 1) (cdr lst))))
-  
+
   ;; generate (list 0 1 ... n-1)
   (define (nats-to n)
     (let loop ((c (- n 1))
@@ -403,25 +414,25 @@
   (set! make-struct-type-property make-struct-type-property*)
   (set! make-struct-field-accessor make-struct-field-accessor*)
   (set! make-struct-field-mutator make-struct-field-mutator*)
-  
+
   (set! make-wrapped-waitable make-wrapped-waitable*)
   (set! make-nack-guard-waitable make-nack-guard-waitable*)
   (set! make-poll-guard-waitable make-poll-guard-waitable*)
-  
+
   (set! struct? struct?*)
   (set! struct-type? struct-type?*)
   (set! struct-type-property? struct-type-property?*)
-  
+
   (set! struct-info struct-info*)
   (set! struct-type-info struct-type-info*)
   (set! struct->vector struct->vector*)
-  
+
   (set! struct-mutator-procedure? struct-mutator-procedure?*)
   (set! struct-accessor-procedure? struct-accessor-procedure?*)
   (set! struct-predicate-procedure? struct-predicate-procedure?*)
   (set! struct-constructor-procedure? struct-constructor-procedure?*)
   )
-  
+
 ;; Quick test cases from the MzScheme manual
 ;;; Test struct-type properties
 (define-values (struct:tup make-tup tup? tup-ref tup-set!)
@@ -432,23 +443,23 @@
 
 (define-values (prop:p p? p-ref) (make-struct-type-property 'p))
 
-(define-values (struct:a make-a a? a-ref a-set!) 
+(define-values (struct:a make-a a? a-ref a-set!)
   (make-struct-type 'a #f 2 0 'uninitialized (list (cons prop:p 8))))
 
 
-(p? struct:a) ; => #t 
-(p? 13) ; => #f 
-(define an-a (make-a 'x 'y)) 
+(p? struct:a) ; => #t
+(p? 13) ; => #f
+(define an-a (make-a 'x 'y))
 (p? an-a) ; => #t
 (p-ref an-a) ; => 8
 
-(define-values (struct:b make-b b? b-ref b-set!) 
-  (make-struct-type 'b #f 0 0 #f)) 
+(define-values (struct:b make-b b? b-ref b-set!)
+  (make-struct-type 'b #f 0 0 #f))
 (p? struct:b) ; => #f
 
 ;;; Test struct-methods
-(define-values (struct:fish make-fish fish? fish-ref fish-set!) 
-  (make-struct-type 'fish #f 2 0 #f '() #f 
+(define-values (struct:fish make-fish fish? fish-ref fish-set!)
+  (make-struct-type 'fish #f 2 0 #f '() #f
                     (lambda (f n) (fish-set! f 0 (+ n (fish-ref f 0))))))
 (define fish-weight (make-struct-field-accessor fish-ref 0))
 (define fish-color (make-struct-field-accessor fish-ref 1))
@@ -460,8 +471,8 @@
 (fish-weight wanda) ; => 18
 
 ;;; Test struct-procs
-(define-values (struct:ap make-annotated-proc annotated-proc? ap-ref ap-set!) 
-  (make-struct-type 'anotated-proc #f 2 0 #f '() #f 0)) 
+(define-values (struct:ap make-annotated-proc annotated-proc? ap-ref ap-set!)
+  (make-struct-type 'anotated-proc #f 2 0 #f '() #f 0))
 (define (proc-annotation p) (ap-ref p 1))
 (define plus1 (make-annotated-proc
                 (lambda (x) (+ x 1))
