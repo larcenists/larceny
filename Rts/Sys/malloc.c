@@ -19,6 +19,12 @@ void *must_malloc( unsigned bytes )
 {
   void *p;
 
+#ifdef __MWERKS__
+  /* Default CodeWarrior behavior is to return NULL if malloc is
+     called with 0.  (Not ANSI compliant; stupid; etc.) */
+  bytes = max( bytes, 1 );
+#endif /* __MWERKS__ */
+
  again:
   p = malloc( bytes );
   bytes_allocated_by_malloc += bytes;
