@@ -1,8 +1,8 @@
-; Copyright 1998 Lars T Hansen
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; Util/nbuild.sch -- host-independent loader for Larceny development system.
+; Host-independent loader for the development system.
 ;
 ; The only parameter to this module is a procedure "nbuild-parameter"
 ; that accepts a key and returns a value for the key.
@@ -21,9 +21,7 @@
 ;   endianness      endianness of target, either 'big' or 'little'.
 ;
 ; If target-machine = SPARC:
-;   sparc-asm       the directory the new SPARC assembler
-;   sparc-old       the directory for the old SPARC assembler [OBSOLETE]
-;   new-assembler?  use the new assembler (or not)
+;   sparc-asm       the directory the SPARC assembler
 ;
 ; If target-machine = Standard-C
 ;   standard-C-asm  the directory for the standard-C assembler
@@ -48,10 +46,8 @@
 (nbuild-load 'compiler "switches.sch")
 (nbuild-load 'compiler "pass1.aux.sch")
 (case (nbuild-parameter 'target-machine)
-  ((SPARC)
-   (nbuild-load 'compiler "sparc.imp.sch"))
-  ((Standard-C)
-   (nbuild-load 'compiler "standard-C.imp.sch"))
+  ((SPARC)      (nbuild-load 'compiler "sparc.imp.sch"))
+  ((Standard-C) (nbuild-load 'compiler "standard-C.imp.sch"))
   (else ???))
 
 (nbuild-load 'compiler "copy.sch")
@@ -64,68 +60,45 @@
 (nbuild-load 'compiler "pass4p2.sch")
 (nbuild-load 'compiler "pass4p3.sch")
 
-(if (and (eq? 'SPARC (nbuild-parameter 'target-machine))
-	 (not (nbuild-parameter 'new-assembler?)))
-    (begin 
-      (writeln "Loading the old generic assembler.")
-      (with-optimization 2
-        (lambda ()
-	  (nbuild-load 'sparc-old "assembler.sch")
-	  (nbuild-load 'sparc-old "peepopt.sch"))))
-    (begin
-      (writeln "Loading the common assembler.")
-      (nbuild-load 'common-asm "pass5p1.sch")
-      (nbuild-load 'common-asm "asmutil.sch")
-      (nbuild-load 'common-asm "asmutil32be.sch")  ; For now
-      (nbuild-load 'common-asm "asmutil32.sch")))
+(writeln "Loading the common assembler.")
+(nbuild-load 'common-asm "pass5p1.sch")
+(nbuild-load 'common-asm "asmutil.sch")
+(case (nbuild-parameter 'endianness)
+  ((big)    (nbuild-load 'common-asm "asmutil32be.sch"))
+  ((little) (nbuild-load 'common-asm "asmutil32el.sch"))
+  (else ???))
+(nbuild-load 'common-asm "asmutil32.sch")
 
 (writeln "Loading the back-end header files.")
 (case (nbuild-parameter 'target-machine)
-  ((sparc)
-   (nbuild-load 'build "schdefs.h"))
-  ((standard-C)
-   (nbuild-load 'build "schdefs.h"))
+  ((SPARC)      (nbuild-load 'build "schdefs.h"))
+  ((standard-C) (nbuild-load 'build "schdefs.h"))
   (else ???))
 
-(cond ((and (eq? 'SPARC (nbuild-parameter 'target-machine))
-	    (not (nbuild-parameter 'new-assembler?)))
-       (writeln "Loading the old SPARC assembler and code generator.")
-       (with-optimization 2
-	 (lambda ()
-	   (nbuild-load 'sparc-old "sparcasm.sch")))
-       (nbuild-load 'sparc-old "gen-msi.sch")
-       (nbuild-load 'sparc-old "gen-prim.sch")
-       (nbuild-load 'sparc-old "asmutil.sch")
-       (nbuild-load 'sparc-old "switches.sch"))
-      ((eq? 'SPARC (nbuild-parameter 'target-machine))
-       (writeln "Loading the new SPARC assembler and code generator.")
-       (nbuild-load 'sparc-asm "pass5p2.sch")
-       (nbuild-load 'sparc-asm "peepopt.sch")
-       (nbuild-load 'sparc-asm "sparcutil.sch")
-       (nbuild-load 'sparc-asm "sparcasm.sch")
-       (nbuild-load 'sparc-asm "gen-msi.sch")
-       (nbuild-load 'sparc-asm "sparcprim-part1.sch")
-       (nbuild-load 'sparc-asm "sparcprim-part2.sch")
-       (nbuild-load 'sparc-asm "sparcprim-part3.sch")
-       (nbuild-load 'sparc-asm "switches.sch"))
-      ((eq? 'Standard-C (nbuild-parameter 'target-machine))
-       (writeln "Loading the standard-C assembler.")
-       (nbuild-load 'standard-C-asm "pass5p2.sch")
-       (nbuild-load 'standard-C-asm "switches.sch"))
-      (else
-       ???))
+(case (nbuild-parameter 'target-machine)
+  ((SPARC)
+   (writeln "Loading the SPARC assembler and code generator.")
+   (nbuild-load 'sparc-asm "pass5p2.sch")
+   (nbuild-load 'sparc-asm "peepopt.sch")
+   (nbuild-load 'sparc-asm "sparcutil.sch")
+   (nbuild-load 'sparc-asm "sparcasm.sch")
+   (nbuild-load 'sparc-asm "gen-msi.sch")
+   (nbuild-load 'sparc-asm "sparcprim-part1.sch")
+   (nbuild-load 'sparc-asm "sparcprim-part2.sch")
+   (nbuild-load 'sparc-asm "sparcprim-part3.sch")
+   (nbuild-load 'sparc-asm "switches.sch"))
+  ((Standard-C)
+   (writeln "Loading the standard-C assembler.")
+   (nbuild-load 'standard-C-asm "pass5p2.sch")
+   (nbuild-load 'standard-C-asm "switches.sch"))
+  (else ???))
 
 (nbuild-load 'compiler "patch0.sch")
 
 (case (nbuild-parameter 'target-machine)
   ((SPARC)
-   (if (not (nbuild-parameter 'new-assembler?))
-       (begin 
-	 (writeln "Loading old SPARC disassembler.")
-	 (nbuild-load 'sparc-old "sparcdis.sch"))
-       (begin
-	 (writeln "Loading new SPARC disassembler.")
-	 (nbuild-load 'sparc-asm "sparcdis.sch"))))
+   (writeln "Loading SPARC disassembler.")
+   (nbuild-load 'sparc-asm "sparcdis.sch"))
   ((standard-C)
    (writeln "(No disassembler for standard-C)"))
   (else ???))
@@ -135,9 +108,8 @@
   (lambda ()
     (nbuild-load 'common-asm "dumpheap.sch")
     (case (nbuild-parameter 'target-machine)
-      ((SPARC) #t)
-      ((standard-C)
-       (nbuild-load 'standard-C-asm "dumpheap-extra.sch"))
+      ((SPARC)      #t)
+      ((standard-C) (nbuild-load 'standard-C-asm "dumpheap-extra.sch"))
       (else ???))))
 
 (writeln "Loading drivers and utilities.")
