@@ -56,7 +56,7 @@
               ;; System.Windows.Forms.Form[].class
               System.Windows.Forms.GiveFeedbackEventArgs.class
               System.Windows.Forms.GiveFeedbackEventHandler.class
-              System.Windows.Forms.GraphicsBufferManager.class
+              ;; System.Windows.Forms.GraphicsBufferManager.class
               System.Windows.Forms.HelpEventArgs.class
               System.Windows.Forms.HelpEventHandler.class
               System.Windows.Forms.HorizontalAlignment.class
