@@ -1,17 +1,24 @@
 ; Some SMTP stuff
+; $Id$
 
 '(begin (load "Auxlib/macros.sch")
         (load "Auxlib/std-ffi.sch")
-        (load "Experimental/record.sch")
+        (load "Auxlib/record.sch")
         (load "Experimental/define-record.sch")
         (load "Experimental/unix.sch")
         (load "Experimental/socket.sch")
-        (load "Experimental/descriptor.sch"))
+        (load "Experimental/iosys.sch")
+        (load "Experimental/unix-descriptor.sch")
+        (load "Experimental/poll.sch"))
 
 ; Example
 
 (define mailhost "mailhost")
-(define localhost "vega")
+(define localhost "canopus")
+
+; Sender is a string: username@domain
+; Recipients is a list of strings: mail addresses
+; Message is a list of strings: the message to send.
 
 (define (send-mail-by-smtp sender recipients message)
   (call-with-current-continuation
@@ -116,8 +123,7 @@
   (let-values ((port proto) (get-service-by-name service proto))
     (let* ((client (client-socket host port))
            (chat-in (open-input-descriptor client))
-           (chat-out (open-output-descriptor client)))
-      (port/set-discretionary-flush-flag! chat-out #t)
+           (chat-out (open-output-descriptor client 'flush)))
       (make-chat-connection client chat-in chat-out #f))))
 
 (define (close-chat-client conn)
