@@ -3,6 +3,9 @@ $Id$
 Release 2 todo and check lists
 
 
+Working on:
+
+
 Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * For most people it is most reasonable that Twobit share the macro
@@ -27,33 +30,21 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    for internal procedures.  See Larceny note #12 and 
    Lib/Common/procinfo.sch.
 
- * The make system seems broken: a lot of stuff that should never be
-   recompiled for make-petit-heap is anyway recompiled.  Why?
-
  * SRFI: The most important non-supported SRFIs are the exception
    and condition SRFIs.  It would be very nice to have these.
 
- * FFI: Test well on Win32 and Linux, make sure it works and that the
-   documentation reflects how it works.
+ * FFI: Test well on Win32 -- does it work according to the docs?
 
- * Test peephole optimization in Petit Larceny, and when it
-   appears to work, turn it on by default.  Consider backporting
-   eg GLOBAL/INVOKE from the x86-nasm version.
+ * FFI: Test well on Linux -- does it work according to the docs?
 
- * Make work under Win32 with Cygwin or MinGW.
+ * FFI: Does the docs reflect how it works?
+
+ * Make Petit Larceny build under Win32 with Cygwin or MinGW.
 
  * Implement pointer transformation for non-aligning compilers,
    to work properly under Win32 with Codewarrior and MSVC.
 
- * Update documentation to reflect the actual state of the system
-
- * X86-NASM: Finish up the exception handling millicode.  Make sure 
-   it can at least rebuild itself and run the test suites, we can
-   put off more optimization and call it 'alpha'.
-
- * The require system must play nice with heap dumping: the database
-   must not be unconditionally reinitialized even if .larceny reloads
-   the REQUIRE package.  (Implemented, not yet tested.)
+ * Update all documentation to reflect the actual state of the system
 
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
    of bogus, cf recent discussion on SRFI-0 list.  Should probably
@@ -63,11 +54,22 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    'net with the source? flag set to #t, this will confuse people that
    read the instructions for compiling Twobit.
 
- * Quality: Honor defines like INLINE_ALLOCATION more generally in the
-   code generation macros.
-
  * Quality: Clean up the Util/petit-win32.sch; the unix variants are
-   much better.
+   much cleaner.
+
+ * Quality: Instances of OPTIMIZEME in Rts/Standard-C/twobit.h
+
+ * Quality: petit-hacks.h should be renamed eg petit-machine.h,
+   since this file serves the same purpose as i386-machine.h
+
+ * Quality: dumpheap-extra.sch is a silly name, perhaps better
+   would be dumpheap-overrides.sch.
+
+ * Quality: the support code for the C compiler can be factored out of
+   Asm/Intel/dumpheap-extra.sch and Asm/Standard-C/dumpheap-extra.sch
+   and into something common, eg, Asm/Common/external-compiler.sch, and
+   the flag for optimization can be defined more thoroughly there and
+   integrated into asm-switches.sch.
 
 
 Release candidate 1 -> Release candidate 2
