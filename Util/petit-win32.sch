@@ -23,7 +23,7 @@
   (load "Util\\Configurations\\nbuild-param-C-el-win32.sch")
   (if is-larceny?
       (set! nbuild-parameter 
-	    (make-nbuild-parameter "" #t #f #t "Larceny" "Petit Larceny"))
+	    (make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
       (set! nbuild-parameter 
 	    (make-nbuild-parameter "" #t #f #t "Petite" "Petite Chez Scheme")))
   (display "Loading ")
@@ -83,11 +83,9 @@
 (define (build-executable)
   (build-application "petit.exe" '()))
 
-;(define (build-executable)
-;  (c-compile-file "petit.c" "petit.obj")
-;  (c-link-executable "petit.exe" 
-;		     '("petit.obj") 
-;		     '("petit-lib.lib" "Rts\\petit-rts.lib")))
+(define (build-twobit)
+  (make-petit-development-environment)
+  (build-application "twobit.exe" (petit-development-environment-lop-files)))
 
 (define (build-development-system dll-name)
   (let ((files '())
