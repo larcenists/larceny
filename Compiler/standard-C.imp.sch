@@ -18,10 +18,12 @@
 ; by ordinary code.
 
 (define name:CONS '.cons)
+(define name:CAR '.car)
+(define name:CDR '.cdr)
 (define name:LIST '.list)
 (define name:MAKE-CELL '.make-cell)
 (define name:CELL-REF '.cell-ref)
-(define name:CELL-SET! '.cell-set)
+(define name:CELL-SET! '.cell-set!)
 (define name:IGNORED (string->symbol "IGNORED"))
 
 ;(begin (eval `(define ,name:CONS cons))
@@ -38,10 +40,25 @@
 ; The number of MacScheme machine registers.
 ; (They do not necessarily correspond to hardware registers.)
 
-;(define *nregs* 8)
 (define *nregs* 32)
 (define *lastreg* (- *nregs* 1))
 (define *fullregs* (quotient *nregs* 2))
+
+; The number of argument registers that are represented by hardware
+; registers.
+
+(define *nhwregs* 8)
+
+; Variable names that indicate register targets.
+
+(define *regnames*
+  (do ((alist '() (cons (cons (string->symbol
+                               (string-append ".REG" (number->string r)))
+                              r)
+                        alist))
+       (r (- *nhwregs* 1) (- r 1)))
+      ((<= r 0)
+       alist)))
 
 ; A non-inclusive upper bound for the instruction encodings.
 
@@ -256,408 +273,401 @@
     ))
 
 
-; Primitive name used by compiler for generating certain consing code.
+; Constant folding.
+; Prototype, will probably change in the future.
 
-(define $cons 'cons)
+(define (constant-folding-entry name)
+  (assq name $usual-constant-folding-procedures$))
 
+(define constant-folding-predicates cadr)
+(define constant-folding-folder caddr)
 
-; These values are used in Chez/compat.ss and in any other compat libraries
-; where the hosting compiler does not support (unspecified) and (undefined).
-; The extra level of quoting removes any dependence on these values being
-; self-quoting or not.
+(define $usual-constant-folding-procedures$
+  (let ((always? (lambda (x) #t))
+        (charcode? (lambda (n)
+                     (and (number? n)
+                          (exact? n)
+                          (<= 0 n)
+                          (< n 128))))
+        (ratnum? (lambda (n)
+                   (and (number? n)
+                        (exact? n)
+                        (rational? n)))))
+    `(
+      ; This makes some assumptions about the host system.
+      
+      (integer->char (,charcode?) ,integer->char)
+      (char->integer (,char?) ,char->integer)
+      (< (,ratnum? ,ratnum?) ,<)
+      (<= (,ratnum? ,ratnum?) ,<=)
+      (= (,ratnum? ,ratnum?) ,=)
+      (>= (,ratnum? ,ratnum?) ,>=)
+      (> (,ratnum? ,ratnum?) ,>)
+      (+ (,ratnum? ,ratnum?) ,+)
+      (- (,ratnum? ,ratnum?) ,-)
+      (* (,ratnum? ,ratnum?) ,*)
+      (-- (,ratnum?) ,(lambda (x) (- 0 x)))
+      (eq? (,always? ,always?) ,eq?)
+      (eqv? (,always? ,always?) ,eqv?)
+      (equal? (,always? ,always?) ,equal?)
+      (memq (,always? ,list?) ,memq)
+      (memv (,always? ,list?) ,memv)
+      (member (,always? ,list?) ,member)
+      (assq (,always? ,list?) ,assq)
+      (assv (,always? ,list?) ,assv)
+      (assoc (,always? ,list?) ,assoc)
+      (length (,list?) ,length)
+      )))
 
-(define-inline 'undefined
-  (lambda (exp env) (list 'quote (undefined))))
+(for-each pass1
+          '(
 
-(define-inline 'unspecified
-  (lambda (exp env) (list 'quote (unspecified))))
+(define-inline abs
+  (syntax-rules ()
+   ((abs ?z)
+    (let ((temp ?z))
+      (if (< temp 0)
+          (-- temp)
+          temp)))))
 
+(define-inline negative?
+  (syntax-rules ()
+   ((negative? ?x)
+    (< ?x 0))))
 
-; Bugs: Many of these should be checking env but aren't.
-; These bugs should disappear when this is rewritten to coexist
-; with hygienic macros.
-
-(define-inline 'abs
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp)))
-           (inline-error exp))
-          ((and (not (assq '< env))
-                (not (assq '-- env)))
-           (m-scan `(let ((temp ,(cadr exp)))
-                         (if (< temp 0)
-                             (-- temp)
-                             temp))
-                   env))
-          (else (make-call (make-variable 'abs)
-                           (m-scan (cadr exp) env))))))
-
-(define-inline 'negative?
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp)))
-           (inline-error exp))
-          (else (make-call (make-variable '<)
-                           (list (m-scan (cadr exp) env)
-                                 (make-constant 0)))))))
-
-(define-inline 'positive?
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp)))
-           (inline-error exp))
-          (else (make-call (make-variable '>)
-                           (list (m-scan (cadr exp) env)
-                                 (make-constant 0)))))))
+(define-inline positive?
+  (syntax-rules ()
+   ((positive? ?x)
+    (> ?x 0))))
 
 ; This transformation must make sure the entire list is freshly
 ; allocated when an argument to LIST returns more than once.
 
-(define-inline 'list
-  (lambda (exp env)
-    (cond ((null? (cdr exp)) (make-constant '()))
-          ((null? (cddr exp))
-           (make-call (make-variable 'cons)
-                      (list (m-scan (cadr exp) env)
-                            (make-constant '()))))
-          (else (m-scan `((lambda x x) ,@(cdr exp)) env)))))
+(define-inline list
+  (syntax-rules ()
+   ((list)
+    '())
+   ((list ?e)
+    (cons ?e '()))
+   ((list ?e1 ?e2 ...)
+    (let* ((t1 ?e1)
+           (t2 (list ?e2 ...)))
+      (cons t1 t2)))))
 
-(define-inline 'cadddr
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'car)
-                 (list (make-call
-                        (make-variable 'cdr)
-                        (list (make-call
-                               (make-variable 'cdr)
-                               (list (make-call
-                                      (make-variable 'cdr)
-                                      (list (m-scan (cadr exp) env)))))))))))))
+; This transformation must make sure the entire list is freshly
+; allocated when an argument to VECTOR returns more than once.
 
-(define-inline 'cdddr
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'cdr)
-                 (list (make-call
-                        (make-variable 'cdr)
-                        (list (make-call
-                               (make-variable 'cdr)
-                               (list (m-scan (cadr exp) env)))))))))))
+(define-inline vector
+  (syntax-rules ()
+   ((vector)
+    '#())
+   ((vector ?e)
+    (make-vector 1 ?e))
+   ((vector ?e1 ?e2 ...)
+    (letrec-syntax
+      ((vector-aux1
+        (... (syntax-rules ()
+              ((vector-aux1 () ?n ?exps ?indexes ?temps)
+               (vector-aux2 ?n ?exps ?indexes ?temps))
+              ((vector-aux1 (?exp1 ?exp2 ...) ?n ?exps ?indexes ?temps)
+               (vector-aux1 (?exp2 ...)
+                            (+ ?n 1)
+                            (?exp1 . ?exps)
+                            (?n . ?indexes)
+                            (t . ?temps))))))
+       (vector-aux2
+        (... (syntax-rules ()
+              ((vector-aux2 ?n (?exp1 ?exp2 ...) (?n1 ?n2 ...) (?t1 ?t2 ...))
+               (let* ((?t1 ?exp1)
+                      (?t2 ?exp2)
+                      ...
+                      (v (make-vector ?n ?t1)))
+                 (vector-set! v ?n2 ?t2)
+                 ...
+                 v))))))
+      (vector-aux1 (?e1 ?e2 ...) 0 () () ())))))
 
-(define-inline 'caddr
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'car)
-                 (list (make-call
-                        (make-variable 'cdr)
-                        (list (make-call
-                               (make-variable 'cdr)
-                               (list (m-scan (cadr exp) env)))))))))))
+(define-inline cadddr
+  (syntax-rules ()
+   ((cadddr ?e)
+    (car (cdr (cdr (cdr ?e)))))))
 
-(define-inline 'cddr
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'cdr)
-                 (list (make-call
-                        (make-variable 'cdr)
-                        (list (m-scan (cadr exp) env)))))))))
+(define-inline cddddr
+  (syntax-rules ()
+   ((cddddr ?e)
+    (cdr (cdr (cdr (cdr ?e)))))))
 
-(define-inline 'cdar
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'cdr)
-                 (list (make-call
-                        (make-variable 'car)
-                        (list (m-scan (cadr exp) env)))))))))
+(define-inline cdddr
+  (syntax-rules ()
+   ((cdddr ?e)
+    (cdr (cdr (cdr ?e))))))
 
-(define-inline 'cadr
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'car)
-                 (list (make-call
-                        (make-variable 'cdr)
-                        (list (m-scan (cadr exp) env)))))))))
+(define-inline caddr
+  (syntax-rules ()
+   ((caddr ?e)
+    (car (cdr (cdr ?e))))))
 
-(define-inline 'caar
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          (else (make-call
-                 (make-variable 'car)
-                 (list (make-call
-                        (make-variable 'car)
-                        (list (m-scan (cadr exp) env)))))))))
+(define-inline cddr
+  (syntax-rules ()
+   ((cddr ?e)
+    (cdr (cdr ?e)))))
 
-(define-inline 'make-vector
-  (lambda (exp env)
-    (cond ((= 2 (length exp))
-           (m-scan `(make-vector ,(cadr exp) '()) env))
-          ((= 3 (length exp))
-           (make-call (make-variable 'make-vector)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (inline-error exp)))))
+(define-inline cdar
+  (syntax-rules ()
+   ((cdar ?e)
+    (cdr (car ?e)))))
 
-(define-inline 'make-string
-  (lambda (exp env)
-    (cond ((= 2 (length exp))
-           (m-scan `(make-string ,(cadr exp) #\space) env))
-          ((= 3 (length exp))
-           (make-call (make-variable 'make-string)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (inline-error exp)))))
+(define-inline cadr
+  (syntax-rules ()
+   ((cadr ?e)
+    (car (cdr ?e)))))
 
-(define-inline 'integer->char
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          ((and (smallint? (cadr exp))
-                (<= 0 (cadr exp) 255))
-           (make-constant (integer->char (cadr exp))))
-          (else (make-call (make-variable 'integer->char)
-                           (list (m-scan (cadr exp) env)))))))
+(define-inline caar
+  (syntax-rules ()
+   ((caar ?e)
+    (car (car ?e)))))
 
-(define-inline 'char->integer
-  (lambda (exp env)
-    (cond ((not (= 2 (length exp))) (inline-error exp))
-          ((char? (cadr exp))
-           (make-constant (char->integer (cadr exp))))
-          (else (make-call (make-variable 'char->integer)
-                           (list (m-scan (cadr exp) env)))))))
+(define-inline make-vector
+  (syntax-rules ()
+   ((make-vector ?n)
+    (make-vector ?n '()))))
 
-(define-inline '=
-  (lambda (exp env)
-    (cond ((< (length exp) 3) (inline-error exp))
-          ((= (length exp) 3)
-           (make-call (make-variable '=)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (let ((TEMP (gensym "t")))
-                  (m-scan `(let ((,TEMP ,(caddr exp)))
-                                (and (= ,(cadr exp) ,TEMP)
-                                     (= ,TEMP ,@(cdddr exp))))
-                          env))))))
+(define-inline make-string
+  (syntax-rules ()
+   ((make-string ?n)
+    (make-string ?n #\space))))
 
-(define-inline '<
-  (lambda (exp env)
-    (cond ((< (length exp) 3) (inline-error exp))
-          ((= (length exp) 3)
-           (make-call (make-variable '<)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (let ((TEMP (gensym "t")))
-                  (m-scan `(let ((,TEMP ,(caddr exp)))
-                                (and (< ,(cadr exp) ,TEMP)
-                                     (< ,TEMP ,@(cdddr exp))))
-                          env))))))
+(define-inline =
+  (syntax-rules ()
+   ((= ?e1 ?e2 ?e3 ?e4 ...)
+    (let ((t ?e2))
+      (and (= ?e1 t)
+           (= t ?e3 ?e4 ...))))))
 
-(define-inline '>
-  (lambda (exp env)
-    (cond ((< (length exp) 3) (inline-error exp))
-          ((= (length exp) 3)
-           (make-call (make-variable '>)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (let ((TEMP (gensym "t")))
-                  (m-scan `(let ((,TEMP ,(caddr exp)))
-                                (and (> ,(cadr exp) ,TEMP)
-                                     (> ,TEMP ,@(cdddr exp))))
-                          env))))))
+(define-inline <
+  (syntax-rules ()
+   ((< ?e1 ?e2 ?e3 ?e4 ...)
+    (let ((t ?e2))
+      (and (< ?e1 t)
+           (< t ?e3 ?e4 ...))))))
 
-(define-inline '<=
-  (lambda (exp env)
-    (cond ((< (length exp) 3) (inline-error exp))
-          ((= (length exp) 3)
-           (make-call (make-variable '<=)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (let ((TEMP (gensym "t")))
-                  (m-scan `(let ((,TEMP ,(caddr exp)))
-                                (and (<= ,(cadr exp) ,TEMP)
-                                     (<= ,TEMP ,@(cdddr exp))))
-                          env))))))
+(define-inline >
+  (syntax-rules ()
+   ((> ?e1 ?e2 ?e3 ?e4 ...)
+    (let ((t ?e2))
+      (and (> ?e1 t)
+           (> t ?e3 ?e4 ...))))))
 
-(define-inline '>=
-  (lambda (exp env)
-    (cond ((< (length exp) 3) (inline-error exp))
-          ((= (length exp) 3)
-           (make-call (make-variable '>=)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (let ((TEMP (gensym "t")))
-                  (m-scan `(let ((,TEMP ,(caddr exp)))
-                                (and (>= ,(cadr exp) ,TEMP)
-                                     (>= ,TEMP ,@(cdddr exp))))
-                          env))))))
+(define-inline <=
+  (syntax-rules ()
+   ((<= ?e1 ?e2 ?e3 ?e4 ...)
+    (let ((t ?e2))
+      (and (<= ?e1 t)
+           (<= t ?e3 ?e4 ...))))))
 
-(define-inline '+
-  (lambda (exp env)
-    (define (fold args val)
-      (cond ((null? args) (make-constant val))
-            ((and (constant? (car args))
-                  (smallint? (constant.value (car args)))
-                  (smallint? (+ val (constant.value (car args)))))
-             (fold (cdr args) (+ val (constant.value (car args)))))
-            ((and (null? (cdr args))
-                  (zero? val))
-             (car args))
-            ((null? (cdr args))
-             (make-call (make-variable '+)
-                        (list (car args) (make-constant val))))
-            ((and (constant? (cadr args))
-                  (smallint? (constant.value (cadr args)))
-                  (smallint? (+ val (constant.value (cadr args)))))
-             (fold (cons (car args) (cddr args))
-                   (+ val (constant.value (cadr args)))))
-            (else (fold (cons (make-call (make-variable '+)
-                                         (list (car args) (cadr args)))
-                              (cddr args))
-                        val))))
-    (fold (map (lambda (x) (m-scan x env)) (cdr exp)) 0)))
+(define-inline >=
+  (syntax-rules ()
+   ((>= ?e1 ?e2 ?e3 ?e4 ...)
+    (let ((t ?e2))
+      (and (>= ?e1 t)
+           (>= t ?e3 ?e4 ...))))))
 
-(define-inline '*
-  (lambda (exp env)
-    (define (fold args val)
-      (cond ((null? args) (make-constant val))
-            ((and (constant? (car args))
-                  (smallint? (constant.value (car args)))
-                  (smallint? (* val (constant.value (car args)))))
-             (fold (cdr args) (* val (constant.value (car args)))))
-            ((and (null? (cdr args))
-                  (= 1 val))
-             (car args))
-            ((null? (cdr args))
-             (make-call (make-variable '*)
-                        (list (car args) (make-constant val))))
-            ((and (constant? (cadr args))
-                  (smallint? (constant.value (cadr args)))
-                  (smallint? (* val (constant.value (cadr args)))))
-             (fold (cons (car args) (cddr args))
-                   (* val (constant.value (cadr args)))))
-            (else (fold (cons (make-call (make-variable '*)
-                                         (list (car args) (cadr args)))
-                              (cddr args))
-                        val))))
-    (fold (map (lambda (x) (m-scan x env)) (cdr exp)) 1)))
+(define-inline +
+  (syntax-rules ()
+   ((+)
+    0)
+   ((+ ?e)
+    ?e)
+   ((+ ?e1 ?e2 ?e3 ?e4 ...)
+    (+ (+ ?e1 ?e2) ?e3 ?e4 ...))))
 
-(define-inline '-
-  (lambda (exp env)
-    (define (fold args val)
-      (cond ((and (null? (cdr args))
-                  (zero? val))
-             (car args))
-            ((and (null? (cdr args))
-                  (constant? (car args))
-                  (smallint? (constant.value (car args)))
-                  (smallint? (- (constant.value (car args)) val)))
-             (make-constant (- (constant.value (car args)) val)))
-            ((null? (cdr args))
-             (make-call (make-variable '-)
-                        (list (car args) (make-constant val))))
-            ((and (constant? (cadr args))
-                  (smallint? (constant.value (cadr args)))
-                  (smallint? (+ val (constant.value (cadr args)))))
-             (fold (cons (car args) (cddr args))
-                   (+ val (constant.value (cadr args)))))
-            (else (fold (cons (make-call (make-variable '-)
-                                         (list (car args) (cadr args)))
-                              (cddr args))
-                        val))))
-    (cond ((null? (cdr exp)) (inline-error exp))
-          ((null? (cdr (cdr exp)))
-           (make-call (make-variable '--)
-                      (list (m-scan (cadr exp) env))))
-          (else (fold (map (lambda (x) (m-scan x env)) (cdr exp)) 0)))))
+(define-inline *
+  (syntax-rules ()
+   ((*)
+    1)
+   ((* ?e)
+    ?e)
+   ((* ?e1 ?e2 ?e3 ?e4 ...)
+    (* (* ?e1 ?e2) ?e3 ?e4 ...))))
 
-(define-inline '/
-  (lambda (exp env)
-    (cond ((null? (cdr exp))
-           (inline-error exp))
-          ((null? (cddr exp))
-           (m-scan `(/ 1 ,(cadr exp)) env))
-          ((null? (cdddr exp))
-           (make-call (make-variable '/)
-                      (list (m-scan (cadr exp) env)
-                            (m-scan (caddr exp) env))))
-          (else (m-scan `(/ (/ ,(cadr exp) ,(caddr exp)) ,@(cdddr exp))
-                        env)))))
+(define-inline -
+  (syntax-rules ()
+   ((- ?e)
+    (- 0 ?e))
+   ((- ?e1 ?e2 ?e3 ?e4 ...)
+    (- (- ?e1 ?e2) ?e3 ?e4 ...))))
 
-(define-inline 'eq?
-  (lambda (exp env)
-    (cond ((not (= 3 (length exp)))
-           (inline-error exp))
-          ((and (smallint? (cadr exp))
-                (smallint? (caddr exp)))
-           (make-constant (eqv? (cadr exp) (caddr exp))))
-          ((smallint? (cadr exp))
-           (m-scan `(eq? ,(caddr exp) ,(cadr exp)) env))
-          (else (make-call (make-variable 'eq?)
-                           (list (m-scan (cadr exp) env)
-                                 (m-scan (caddr exp) env)))))))
+(define-inline /
+  (syntax-rules ()
+   ((/ ?e)
+    (/ 1 ?e))
+   ((/ ?e1 ?e2 ?e3 ?e4 ...)
+    (/ (/ ?e1 ?e2) ?e3 ?e4 ...))))
 
-(define-inline 'eqv?
-  (lambda (exp env)
-    (cond ((not (= 3 (length exp)))
-           (inline-error exp))
-          (else (make-call
-                 (let ((arg1 (cadr exp))
-                       (arg2 (caddr exp)))
-                   (if (or (boolean? arg1)
-                           (boolean? arg2)
-                           (smallint? arg1)
-                           (smallint? arg2)
-                           (char? arg1)
-                           (char? arg2)
-                           (and (pair? arg1)
-                                (eq? (car arg1) 'quote)
-                                (pair? (cdr arg1))
-                                (let ((x (cadr arg1)))
-                                  (or (boolean? x)
-                                      (smallint? x)
-                                      (char? x)
-                                      (null? x)
-                                      (symbol? x))))
-                           (and (pair? arg2)
-                                (eq? (car arg2) 'quote)
-                                (pair? (cdr arg2))
-                                (let ((x (cadr arg2)))
-                                  (or (boolean? x)
-                                      (smallint? x)
-                                      (char? x)
-                                      (null? x)
-                                      (symbol? x)))))
-                       (make-variable 'eq?)
-                       (make-variable 'eqv?)))
-                 (list (m-scan (cadr exp) env)
-                       (m-scan (caddr exp) env)))))))
+(define-inline eqv?
+  (transformer
+   (lambda (exp rename compare)
+     (let ((arg1 (cadr exp))
+           (arg2 (caddr exp)))
+       (define (constant? exp)
+         (or (boolean? exp)
+             (char? exp)
+             (and (pair? exp)
+                  (= (length exp) 2)
+                  (identifier? (car exp))
+                  (compare (car exp) (rename 'quote))
+                  (symbol? (cadr exp)))))
+       (if (or (constant? arg1)
+               (constant? arg2))
+           (cons (rename 'eq?) (cdr exp))
+           exp)))))
 
-(define-inline 'memv
-  (lambda (exp env)
-    (cond ((not (= 3 (length exp)))
-           (inline-error exp))
-          (else (let ((e1 (m-scan (cadr exp) env))
-                      (e2 (m-scan (caddr exp) env)))
-                  (if (and (constant? e2)
-                           (not (assq 'memq env))
-                           (list? (constant.value e2))
-                           (every? (lambda (x)
-                                     (or (boolean? x)
-                                         (smallint? x)
-                                         (char? x)
-                                         (null? x)
-                                         (symbol? x)))
-                                   (constant.value e2)))
-                      (if (constant? e1)
-                          (make-constant
-                           (memv (constant.value e1)
-                                 (constant.value e2)))
-                          (make-call (make-variable 'memq)
-                                     (list e1 e2)))
-                      (make-call (make-variable 'memv)
-                                 (list e1 e2))))))))
+(define-inline memq
+  (syntax-rules (quote)
+   ((memq ?expr '(?datum ...))
+    (letrec-syntax
+      ((memq0
+        (... (syntax-rules (quote)
+              ((memq0 '?xx '(?d ...))
+               (let ((t1 '(?d ...)))
+                 (memq1 '?xx t1 (?d ...))))
+              ((memq0 ?e '(?d ...))
+               (let ((t0 ?e)
+                     (t1 '(?d ...)))
+                 (memq1 t0 t1 (?d ...)))))))
+       (memq1
+        (... (syntax-rules ()
+              ((memq1 ?t0 ?t1 ())
+               #f)
+              ((memq1 ?t0 ?t1 (?d1 ?d2 ...))
+               (if (eq? ?t0 '?d1)
+                   ?t1
+                   (let ((?t1 (cdr ?t1)))
+                     (memq1 ?t0 ?t1 (?d2 ...)))))))))
+      (memq0 ?expr '(?datum ...))))))
 
+(define-inline memv
+  (transformer
+   (lambda (exp rename compare)
+     (let ((arg1 (cadr exp))
+           (arg2 (caddr exp)))
+       (if (or (boolean? arg1)
+               (fixnum? arg1)
+               (char? arg1)
+               (and (pair? arg1)
+                    (= (length arg1) 2)
+                    (identifier? (car arg1))
+                    (compare (car arg1) (rename 'quote))
+                    (symbol? (cadr arg1)))
+               (and (pair? arg2)
+                    (= (length arg2) 2)
+                    (identifier? (car arg2))
+                    (compare (car arg2) (rename 'quote))
+                    (every1? (lambda (x)
+                               (or (boolean? x)
+                                   (fixnum? x)
+                                   (char? x)
+                                   (symbol? x)))
+                             (cadr arg2))))
+           (cons (rename 'memq) (cdr exp))
+           exp)))))
+
+(define-inline assv
+  (transformer
+   (lambda (exp rename compare)
+     (let ((arg1 (cadr exp))
+           (arg2 (caddr exp)))
+       (if (or (boolean? arg1)
+               (char? arg1)
+               (and (pair? arg1)
+                    (= (length arg1) 2)
+                    (identifier? (car arg1))
+                    (compare (car arg1) (rename 'quote))
+                    (symbol? (cadr arg1)))
+               (and (pair? arg2)
+                    (= (length arg2) 2)
+                    (identifier? (car arg2))
+                    (compare (car arg2) (rename 'quote))
+                    (every1? (lambda (y)
+                               (and (pair? y)
+                                    (let ((x (car y)))
+                                      (or (boolean? x)
+                                          (char? x)
+                                          (symbol? x)))))
+                             (cadr arg2))))
+           (cons (rename 'assq) (cdr exp))
+           exp)))))
+
+(define-inline map
+  (syntax-rules (lambda)
+   ((map ?proc ?exp1 ?exp2 ...)
+    (letrec-syntax
+      ((loop
+        (... (syntax-rules (lambda)
+              ((loop 1 () (?y1 ?y2 ...) ?f ?exprs)
+               (loop 2 (?y1 ?y2 ...) ?f ?exprs))
+              ((loop 1 (?a1 ?a2 ...) (?y2 ...) ?f ?exprs)
+               (loop 1 (?a2 ...) (y1 ?y2 ...) ?f ?exprs))
+              
+              ((loop 2 ?ys (lambda ?formals ?body) ?exprs)
+               (loop 3 ?ys (lambda ?formals ?body) ?exprs))
+              ((loop 2 ?ys (?f1 . ?f2) ?exprs)
+               (let ((f (?f1 . ?f2)))
+                 (loop 3 ?ys f ?exprs)))
+              ; ?f must be a constant or variable.
+              ((loop 2 ?ys ?f ?exprs)
+               (loop 3 ?ys ?f ?exprs))
+              
+              ((loop 3 (?y1 ?y2 ...) ?f (?e1 ?e2 ...))
+               (do ((?y1 ?e1 (cdr ?y1))
+                    (?y2 ?e2 (cdr ?y2))
+                    ...
+                    (results '() (cons (?f (car ?y1) (car ?y2) ...)
+                                       results)))
+                   ((or (null? ?y1) (null? ?y2) ...)
+                    (reverse results))))))))
+      
+      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
+
+(define-inline for-each
+  (syntax-rules (lambda)
+   ((for-each ?proc ?exp1 ?exp2 ...)
+    (letrec-syntax
+      ((loop
+        (... (syntax-rules (lambda)
+              ((loop 1 () (?y1 ?y2 ...) ?f ?exprs)
+               (loop 2 (?y1 ?y2 ...) ?f ?exprs))
+              ((loop 1 (?a1 ?a2 ...) (?y2 ...) ?f ?exprs)
+               (loop 1 (?a2 ...) (y1 ?y2 ...) ?f ?exprs))
+              
+              ((loop 2 ?ys (lambda ?formals ?body) ?exprs)
+               (loop 3 ?ys (lambda ?formals ?body) ?exprs))
+              ((loop 2 ?ys (?f1 . ?f2) ?exprs)
+               (let ((f (?f1 . ?f2)))
+                 (loop 3 ?ys f ?exprs)))
+              ; ?f must be a constant or variable.
+              ((loop 2 ?ys ?f ?exprs)
+               (loop 3 ?ys ?f ?exprs))
+              
+              ((loop 3 (?y1 ?y2 ...) ?f (?e1 ?e2 ...))
+               (do ((?y1 ?e1 (cdr ?y1))
+                    (?y2 ?e2 (cdr ?y2))
+                    ...)
+                   ((or (null? ?y1) (null? ?y2) ...)
+                    (if #f #f))
+                   (?f (car ?y1) (car ?y2) ...)))))))
+      
+      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
+
+
+
+))
+
+(define extended-syntactic-environment
+  (syntactic-copy global-syntactic-environment))
+
+(define (make-extended-syntactic-environment)
+  (syntactic-copy extended-syntactic-environment))
 
 ; MacScheme machine assembly instructions.
 
@@ -719,5 +729,11 @@
 (define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
 (define $branch (make-mnemonic 'branch))         ; branch  L
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
+
+; misc
+
+(define $cons 'cons)
+(define $car:pair 'car)
+(define $cdr:pair 'cdr)
 
 ; eof
