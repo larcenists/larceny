@@ -21,6 +21,8 @@
  *   the reversed form of itself on arg2
  */
 /* Special Operations */
+/* ---- */
+// NC = No Contagion
 using System;
 using System.Collections;
 using System.IO;
@@ -276,8 +278,9 @@ namespace Scheme.Rep {
         public virtual void op_minus(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_SUB); Call.contagion(this, arg2, generic); } public void op_reversed_generic_minus(SObject arg1) { Procedure MS_GENERIC_SUB = Call.getSupportProcedure(Constants.MS_GENERIC_SUB); Call.contagion(arg1, this, MS_GENERIC_SUB); } public virtual void op_reversed_fixnum_minus(SFixnum arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_bignum_minus(SByteVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_flonum_minus(SByteVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_compnum_minus(SByteVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_ratnum_minus(SVL arg1) { this.op_reversed_generic_minus(arg1); } public virtual void op_reversed_rectnum_minus(SVL arg1) { this.op_reversed_generic_minus(arg1); }
         public virtual void op_multiply(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_MUL); Call.contagion(this, arg2, generic); } public void op_reversed_generic_multiply(SObject arg1) { Procedure MS_GENERIC_MUL = Call.getSupportProcedure(Constants.MS_GENERIC_MUL); Call.contagion(arg1, this, MS_GENERIC_MUL); } public virtual void op_reversed_fixnum_multiply(SFixnum arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_bignum_multiply(SByteVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_flonum_multiply(SByteVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_compnum_multiply(SByteVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_ratnum_multiply(SVL arg1) { this.op_reversed_generic_multiply(arg1); } public virtual void op_reversed_rectnum_multiply(SVL arg1) { this.op_reversed_generic_multiply(arg1); }
         public virtual void op_divide(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_GENERIC_DIV); Call.contagion(this, arg2, generic); } public void op_reversed_generic_divide(SObject arg1) { Procedure MS_GENERIC_DIV = Call.getSupportProcedure(Constants.MS_GENERIC_DIV); Call.contagion(arg1, this, MS_GENERIC_DIV); } public virtual void op_reversed_fixnum_divide(SFixnum arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_bignum_divide(SByteVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_flonum_divide(SByteVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_compnum_divide(SByteVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_ratnum_divide(SVL arg1) { this.op_reversed_generic_divide(arg1); } public virtual void op_reversed_rectnum_divide(SVL arg1) { this.op_reversed_generic_divide(arg1); }
-        public virtual void op_quotient(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_HEAVY_QUOTIENT); Call.contagion(this, arg2, generic); } public void op_reversed_generic_quotient(SObject arg1) { Procedure MS_HEAVY_QUOTIENT = Call.getSupportProcedure(Constants.MS_HEAVY_QUOTIENT); Call.contagion(arg1, this, MS_HEAVY_QUOTIENT); } public virtual void op_reversed_fixnum_quotient(SFixnum arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_bignum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_flonum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_compnum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_ratnum_quotient(SVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_rectnum_quotient(SVL arg1) { this.op_reversed_generic_quotient(arg1); }
-        public virtual void op_remainder(SObject arg2) { Procedure generic = Call.getSupportProcedure(Constants.MS_HEAVY_REMAINDER); Call.contagion(this, arg2, generic); } public void op_reversed_generic_remainder(SObject arg1) { Procedure MS_HEAVY_REMAINDER = Call.getSupportProcedure(Constants.MS_HEAVY_REMAINDER); Call.contagion(arg1, this, MS_HEAVY_REMAINDER); } public virtual void op_reversed_fixnum_remainder(SFixnum arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_bignum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_flonum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_compnum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_ratnum_remainder(SVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_rectnum_remainder(SVL arg1) { this.op_reversed_generic_remainder(arg1); }
+
+        public virtual void op_quotient(SObject arg2) { Call.callMillicodeSupport2(Constants.MS_HEAVY_QUOTIENT, this, arg2); } public void op_reversed_generic_quotient(SObject arg1) { Call.callMillicodeSupport2(Constants.MS_HEAVY_QUOTIENT, arg1, this); } public virtual void op_reversed_fixnum_quotient(SFixnum arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_bignum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_flonum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_compnum_quotient(SByteVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_ratnum_quotient(SVL arg1) { this.op_reversed_generic_quotient(arg1); } public virtual void op_reversed_rectnum_quotient(SVL arg1) { this.op_reversed_generic_quotient(arg1); }
+        public virtual void op_remainder(SObject arg2) { Call.callMillicodeSupport2(Constants.MS_HEAVY_REMAINDER, this, arg2); } public void op_reversed_generic_remainder(SObject arg1) { Call.callMillicodeSupport2(Constants.MS_HEAVY_REMAINDER, arg1, this); } public virtual void op_reversed_fixnum_remainder(SFixnum arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_bignum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_flonum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_compnum_remainder(SByteVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_ratnum_remainder(SVL arg1) { this.op_reversed_generic_remainder(arg1); } public virtual void op_reversed_rectnum_remainder(SVL arg1) { this.op_reversed_generic_remainder(arg1); }
 
         public virtual void op_truncate() { Exn.fault(Constants.EX_TRUNC, null, this); }
         public virtual void op_round() { Exn.fault(Constants.EX_ROUND, null, this); }
@@ -886,7 +889,9 @@ namespace Scheme.Rep {
             Reg.Result = Factory.wrap(arg1.value - this.value);
         }
         public override void op_reversed_fixnum_multiply(SFixnum arg1) {
-            Reg.Result = Factory.wrap((long)(arg1.value * this.value));
+            long a = arg1.value;
+            long b = this.value;
+            Reg.Result = Factory.wrap(a * b);
         }
         public override void op_reversed_fixnum_divide(SFixnum arg1) {
             int a = arg1.value, b = this.value;
@@ -908,12 +913,17 @@ namespace Scheme.Rep {
         }
         public override void op_reversed_bignum_quotient(SByteVL arg1) {
             // Must handle 1-word bignums too.
+            // Exn.debug.WriteLine("trying bignum/fixnum case: {0}; {1}", arg1, this);
             int bv = this.value;
-            if (bv > 0 &&
-                Number.getBignumLength(arg1) == 1 &&
-                Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
+            if (bv == 0) {
+                Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
+                return;
+            } else if (bv > 0 &&
+                       Number.getBignumLength(arg1) == 1 &&
+                       Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
                 uint av = arg1.getUInt32(1);
                 uint result = av / (uint)bv;
+                // Exn.debug.WriteLine("  / {0}; {1}", av, bv);
                 Reg.Result = Factory.makeNumber(result);
                 return;
             }

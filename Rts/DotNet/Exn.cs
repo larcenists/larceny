@@ -15,6 +15,7 @@ namespace Scheme.RT {
 
         public static TextWriter msg = System.Console.Error;
         public static readonly TextWriter debug = System.Console.Error;
+        // new StreamWriter(File.Open("CORE-DEBUG", FileMode.Create));
 
         public static void internalError(string message) {
             throw new Exception("Internal Error:" + message);
@@ -67,13 +68,13 @@ namespace Scheme.RT {
             checkSignals();
             Cont.clear();
 
+            //Exn.debug.WriteLine("#timer {2} @ {0} @ {1}", Reg.register0, j, count);
             if (Reg.interruptsEnabled) {
                 Reg.interruptsEnabled = false;
                 Reg.implicitContinuation = j;
                 Call.callInterruptHandler(Constants.EX_TIMER);
                 return;
             } else {
-                // Exn.debug.WriteLine("#timer {2} @ {0} @ {1}", Reg.register0, j, count);
                 Reg.timer = Reg.SMALL_TIME_SLICE;
                 Procedure p = (Procedure)Reg.getRegister(0);
                 throw new CodeVectorCallException(p.entrypoint, j);
