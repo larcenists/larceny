@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 2000-01-09 / lth
+; 2000-09-26 / lth
 ;
 ; File lists for nbuild et al.  Don't rearrange the lists -- order matters.
 
@@ -16,11 +16,13 @@
 
 (define *nbuild:twobit-files-1*
   (nbuild-files 'compiler
-    '("sets.sch" "hash.sch" "hashtable.sch" "hashtree.sch"
+    `("sets.sch" "hash.sch" "hashtable.sch" "hashtree.sch"
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
-      "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
-      "expand.sch" "usual.sch" "copy.sch" "pass1.sch"
-      "pass3commoning.aux.sch" "pass3rep.aux.sch")))
+      ,@(if (nbuild-parameter 'development?)
+            '("prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
+              "expand.sch" "usual.sch" "pass1.sch")
+            '("pass1-interface.sch"))
+      "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch")))
 
 (define *nbuild:sparc/twobit-files*
   (nbuild-files 'compiler
@@ -32,14 +34,18 @@
 
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler
-    '("pass2p1.sch" "pass2p2.sch" "pass2if.sch"
+    `("pass2p1.sch" "pass2p2.sch" "pass2if.sch"
       "pass3callgraph.sch" "pass3inlining.sch" "pass3folding.sch"
       "pass3anormal.sch" "pass3anormal2.sch" "pass3commoning.sch"
       "pass3rep.sch" "pass3.sch"
       "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4let.sch"
       "pass4special.sch"
       "pass4p3.sch"
-      "compile313.sch" "printlap.sch")))
+      "driver-common.sch"
+      ,(if (nbuild-parameter 'development?)
+           "driver-twobit.sch"
+           "driver-larceny.sch")
+      "printlap.sch")))
 
 (define *nbuild:common-asm-be*
   (nbuild-files 'common-asm
@@ -68,8 +74,10 @@
 		'("pass5p2.sch" "asm-switches.sch" "dumpheap-extra.sch")))
 
 (define *nbuild:make-files*
-  (append (nbuild-files 'util '("make.sch"))
-	  (nbuild-files 'source '("makefile.sch"))))
+  `(,@(nbuild-files 'util '("make.sch"))
+    ,@(if (nbuild-parameter 'development?)
+          (nbuild-files 'source '("makefile.sch"))
+          '())))
 
 (define *nbuild:help-files*
   (nbuild-files 'compiler '("help.sch")))
