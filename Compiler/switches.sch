@@ -103,8 +103,6 @@
   (case how
     ((no-optimization)
      (set-compiler-flags! 'default)
-     (integrate-usual-procedures #f)
-     (benchmark-mode #f)
      (local-optimizations #f)
      (global-optimizations #f)
      (representation-optimizations #f)
@@ -115,6 +113,8 @@
      (include-source-code #f)
      (include-procedure-names #t)
      (include-variable-names #t)
+     (integrate-usual-procedures #f)
+     (benchmark-mode #f)
      (local-optimizations #t)
      (global-optimizations #t)
      (representation-optimizations #t)
