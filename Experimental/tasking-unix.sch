@@ -5,6 +5,11 @@
 ; Tasking system extensions for Unix, supporting nonblocking I/O and 
 ; a nonblocking console.
 ;
+; Bug in tasking system: if we kill a task that's in I/O wait, it should
+; be removed from the set of descriptors to poll on.  Ditto for an explicit
+; unblock of a task that's in I/O wait (a useful technique for implementing
+; things like Thread.AlertWait()).
+;
 ; You must load tasking.sch first because this file captures and 
 ; overrides some procedures from that file.
 
@@ -16,30 +21,32 @@
          (if x (enable-interrupts x))
          r)))))
 
-(define *end-tasking-continuation* #f)
+(define *old-console-input-port-factory* #f)
+(define *old-console-output-port-factory* #f)
 (define *poll-interval* 10)
 (define *poll-counter* *poll-interval*)
 (define *poll-input* '())               ; ((fd . task) ...)
 (define *poll-output* '())              ; ((fd . task) ...)
 
 (define begin-tasking
-  (let ((begin-tasking begin-tasking)
-        (end-tasking end-tasking))
+  (let ((begin-tasking begin-tasking))
     (lambda ()
       (if *tasking-on* (error "Tasking is already on."))
-      (fluid-let ((console-input-port nonblocking-console-input-port)
-                  (console-output-port nonblocking-console-output-port))
-        (call-with-current-continuation
-         (lambda (k)
-           (set! *end-tasking-continuation* k)
-           (begin-tasking)
-           (repl)))
-        (end-tasking)))))
+      (disable-interrupts)
+      (set! *old-console-input-port-factory* (console-input-port-factory))
+      (set! *old-console-output-porty-factory* (console-output-port-factory))
+      (console-input-port-factory nonblocking-console-input-port)
+      (console-output-port-factory nonblocking-console-output-port)
+      (begin-tasking))))
 
-(define (end-tasking)
-  (if (not *tasking-on*) (error "Tasking is not on."))
-  (tasks/without-interrupts
-   (*end-tasking-continuation* #t)))
+(define end-tasking
+  (let ((end-tasking end-tasking))
+    (lambda ()
+      (if (not *tasking-on*) (error "Tasking is not on."))
+      (disable-interrupts)
+      (console-input-port-factory *old-console-input-port-factory*)
+      (console-output-port-factory *old-console-output-port-factory*)
+      (end-tasking))))
 
 ; Called in critical section.
 
