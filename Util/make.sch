@@ -66,6 +66,10 @@
 ;      rules that apply to the target, then the target is considered
 ;      successfully built if and only if it exists.
 ;
+; HIGH-LEVEL INTERFACE
+;   (make:project name clause ...)          => project
+;   See explanation at the procedure definition.
+;
 ; INTERFACE
 ;   (make:new-project name)                 => project
 ;   (make:project? obj)                     => bool
@@ -386,6 +390,37 @@
   (set! have-made '())
   (make target)
   #t)
+
+; Convenient high-level interface:
+;  (make:project name clause ...)
+; 
+; clause     ::= (rules <rule> ...)
+;              | (targets <target> ...)
+;              | (dependencies <dependency> ...)
+; rule       ::= (<destination-extension> <source-extension> <procedure>)
+; target     ::= (<target-file-name> <procedure>)
+; dependency ::= (<target-file-name> <list-of-files-it-depends-on>)
+
+(define (make:project proj-name . rest)
+  (let ((project (make:new-project proj-name)))
+    (do ((l rest (cdr l)))
+	((null? l) project)
+      (let ((clause (car l)))
+	(case (car clause)
+	  ((rules) 
+	   (for-each (lambda (x)
+		       (make:rule project (car x) (cadr x) (caddr x)))
+		     (cdr clause)))
+	  ((targets) 
+	   (for-each (lambda (x)
+		       (make:targets project (list (car x)) (cadr x)))
+		     (cdr clause)))
+	  ((dependencies)
+	   (for-each (lambda (x)
+		       (make:deps project (list (car x)) (cadr x)))
+		     (cdr clause)))
+	  (else
+	   (error "make:project: the clause " clause " is not valid.")))))))
 
 ; Our own error handler for portability's sake.
 
