@@ -152,18 +152,34 @@
 ; procedures are intact.
 
 (define inline-syntactic-environment
-  (syntactic-copy usual-syntactic-environment))
+  (syntactic-copy (the-usual-syntactic-environment)))
+
+(define non-inline-names
+  (syntactic-environment-names (the-usual-syntactic-environment)))
+
+; This is contorted, for the following reason: it's important not to
+; have standard macros be in the inline environment that's presented to
+; the compiler, because the syntactic environment that is in the
+; environment that the compiler is operating under may not have those
+; standard macros present.  Yet, I believe that the inline procedures
+; must be defined in an environment where the standard macros are
+; present.  So what I do here is construct a smaller environment,
+; containing only inline definitions, to be used by the compiler.
+;
+; When the .CALL macro is implemented much of this cruft will probably
+; go away, because inlines will be defined using a different mechanism.
 
 (define (compiler-macros)
-  (if (eq? (integrate-procedures) 'none)
-      '()
-      (map (lambda (n)
-             (cons n
-                   (syntactic-lookup inline-syntactic-environment n)))
-           (difference (syntactic-environment-names 
-                        inline-syntactic-environment)
-                       (syntactic-environment-names
-                        usual-syntactic-environment)))))
+  (let ((names (if (eq? (integrate-procedures) 'none)
+                   '()
+                   (difference (syntactic-environment-names 
+                                inline-syntactic-environment)
+                               non-inline-names))))
+    (syntactic-extend (make-minimal-syntactic-environment)
+                      names
+                      (map (lambda (n)
+                             (syntactic-lookup inline-syntactic-environment n))
+                           names))))
 
 (for-each (lambda (x) 
             (pass1 x inline-syntactic-environment))
