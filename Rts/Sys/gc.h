@@ -45,6 +45,7 @@ struct np_info {		/* Non-predictive dynamic area */
   double load_factor;		/* inverse load factor */
   int dynamic_min;              /* 0 or lower bound on expandable area */
   int dynamic_max;		/* 0 or upper bound on expandable area */
+  double luck;			/* 0.0 .. 1.0 */
 };
 
 struct bdw_info {
