@@ -221,6 +221,7 @@ namespace Scheme.RT {
 			case Sys.flonum_cosh : flonum_cosh(); break;
 			
 			case Sys.system : system(); break;
+			case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
 			// case Sys.sys_feature : sys_feature(); break;
 			
 			case Sys.segment_code_address : segment_code_address() ; break;

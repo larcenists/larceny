@@ -36,7 +36,8 @@ SRCS =	Call.cs \
 	Syscall.cs \
 	Syscall-enum.cs \
 	Constants.cs \
-	Load.cs
+	Load.cs \
+	FFI.cs
 
 DEBUG_OPT = /debug:full /d:DEBUG
 #DEBUG_OPT = 

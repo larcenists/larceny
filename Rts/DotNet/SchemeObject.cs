@@ -165,6 +165,10 @@ namespace Scheme.Rep {
             return new SByteVL(Tags.StringTag, chars);
         }
 
+        public static Foreign makeForeign(object obj) {
+            return new Foreign(obj);
+        }
+
         public static SObject wrap(int n) {
             return makeNumber(n);
         }
@@ -820,6 +824,13 @@ namespace Scheme.Rep {
 
         public override void call(int ignored) {
             throw new Exception("not a real codevector");
+        }
+    }
+    
+    public class Foreign : SObject {
+        public readonly object value;
+        public Foreign(object obj) {
+            this.value = obj;
         }
     }
 }
