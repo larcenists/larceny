@@ -1460,3 +1460,61 @@ $Id$
 
     Fixed 990312 / wdc: changed macro for CASE in Compiler/usual.sch by
     adding ELSE to the keyword list of nested macro.
+
+115 v0.34 (981016 / wdc)
+    Priority: medium
+
+    [Performance bug]
+    If the second or third argument to a primop is a register variable,
+    then it is unnecessarily copied to another register before the
+    operation is performed.
+
+    FIX:
+    New code generator.
+
+116  v0.34 (981016 / wdc)
+     Priority: medium
+
+     [Performance bug]
+     Nested non-tail calls save the same registers several times.
+
+    FIX:
+    New code generator.
+
+117 v0.34 (981016 / wdc)
+    Priority: medium
+
+    [Performance bug]
+    Known local procedures should not be lifted out of lambda
+    expressions that escape.
+
+    FIX:
+    New code generator.
+
+118 v0.34 (981016 / wdc)
+    Priority: low
+
+    [Performance bug]
+    Passing more than one argument to LIST results in a real call
+    instead of inlined calls to CONS.  Also, tail calls to LIST
+    are compiled as non-tail calls.
+
+    FIX:
+    New pass 1.
+
+119 v0.34 (981016 / wdc)
+    Priority: high
+
+    Known local procedures that take a variable number of arguments
+    are not rewritten to take a fixed number of arguments if the
+    local procedure is bound by LET instead of LETREC.  Example:
+
+         (let ((foo (lambda args args)))
+           (foo x1 x2 x3 x4 x5 x6 x7 x8 x9 x10))
+
+         ((lambda ()
+            (define .foo_3 (lambda .args_2 .args_2))
+            (.foo_3 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10)))
+
+    FIX:
+    SIMPLIFY-LET now calls STANDARDIZE-KNOWN-CALLS.
