@@ -127,7 +127,31 @@
 ; Returns a resource usage vector.
 
 (define (unix:get-resource-usage)
-  (syscall syscall:get-resource-usage))
+  (syscall syscall:get-resource-usage (make-stats-structure)))
+
+(define (make-stats-structure)
+
+  ; NOTE! These constants must be synchronized with the corresponding
+  ; definitions in Rts/globals.cfg.
+
+  (define stat-v-size 37)		; Size of outer vector
+  (define stat-g-size 11)		; Size of a generation vector
+  (define stat-r-size 15)		; Size of a remset vector
+  (define stat-generations 10)          ; Offset of generations vector
+  (define stat-remsets 11)		; Offset of remsets vector
+
+  (let* ((f (cdr (assq 'heap-area-info (system-features))))
+         (generations (vector-length f))
+         (outer (make-vector stat-v-size 0))
+         (gen   (make-vector generations 0))
+         (rem   (make-vector generations 0)))
+    (vector-set! outer stat-generations gen)
+    (vector-set! outer stat-remsets rem)
+    (do ((i 0 (+ i 1)))
+        ((= i generations))
+      (vector-set! gen i (make-vector stat-g-size 0))
+      (vector-set! rem i (make-vector stat-r-size 0)))
+    outer))
 
 ; Turn on and off GC statistics dumping to a file.
 
