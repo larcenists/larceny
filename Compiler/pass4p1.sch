@@ -1,6 +1,6 @@
 ; Copyright 1991 William Clinger
 ;
-; 13 November 1998
+; 1 December 1998
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.
@@ -461,7 +461,11 @@
             (begin (gen! output $.label L2)
                    (cgreg-join! regs regs2)
                    (cgframe-join! frame1 frame2)))
-        r))))
+        (if (and (not target)
+                 (not (eq? r 'result))
+                 (not (cgreg-lookup-reg regs r)))
+            (cg-move output frame regs r 'result)
+            r)))))
 
 (define (cg-variable output exp target regs frame env tail?)
   (define (return id)
