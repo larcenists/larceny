@@ -68,9 +68,9 @@ shared object:
     > (fib 10)
     55
 
-Note that a single C source file is generated from all the Scheme
-source files in the input list.  Be aware that some C compilers have
-problems with very large files at high optimization settings.
+A single C source file is generated from all the Scheme source files in
+the input list.  Be aware that some C compilers have problems with very
+large files at high optimization settings.
 
 On some systems the run-time system must be compiled as a shared library
 in order for dynamic loading to work.  See HOWTO-UNIX.

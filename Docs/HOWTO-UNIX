@@ -1,5 +1,5 @@
 Information about Petit Larceny on Unix systems
-15 November 2003 / lth
+23 November 2004 / lth
 
 
 HOW TO BUILD AND USE.
@@ -10,7 +10,8 @@ surprises.
 Bonuses:
  - BUILD-TWOBIT works as described in HOWTO-PETIT.
 
- - COMPILE-FILES and dynamic loading work as described in HOWTO-PETIT.
+ - COMPILE-FILES and dynamic loading work as described in HOWTO-PETIT (though
+   see point below about making the runtime system into a shared object)
 
  - On some systems you need to set LD_LIBRARY_PATH in order for
    Larceny to find the shared object.  On Linux my LD_LIBRARY_PATH
