@@ -55,4 +55,11 @@
 	(else
 	 (error "->string: Cannot convert " x " to a string."))))
 
+(define (string-insert! target loc src)
+  (let ((l (string-length src)))
+    (do ((i 0 (+ i 1))
+	 (n loc (+ n 1)))
+	((= i l) target)
+      (string-set! target n (string-ref src i)))))
+
 ; eof
