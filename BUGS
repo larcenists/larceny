@@ -930,59 +930,6 @@ HIGH PRIORITY BUGS: 159, 162.
         (case x
           ((foo)))
 
-159 v0.49 (2000-07-10 / lth)
-    Priority: high
-    Category: TWOBIT / correctness
-
-    Given the code
-
-    (define (bug glarg . rest)
-
-      (define results #f)
-
-      (define (process-datum datum n)
-	((results 'lookup)))
-
-      (define (analyze all-data)
-	(for-each-benchmark-result process-datum all-data))
-
-      (define (mark/cons-analysis)
-	(analyze glarg))
-
-      (if (null? rest)
-	  (mark/cons-analysis)
-	  #t))
-
-    Twobit produces code where the reference to `glarg' is made with a GLOBAL
-    instruction.
-
-    The output from pass3 looks OK to my eyes:
-
-    > (make-readable (pass3 (pass2 (pass1 test))))
-    ((lambda (.T13)
-       ((lambda (.T14) 'bug) (set! bug .T13)))
-     (lambda (.glarg|1 . .rest|1)
-       ((lambda (.results|2)
-	  ((lambda (.CELL:.results|2)
-	     ((lambda (.process-datum|2|24)
-		((lambda (.T8)
-		   ((lambda (.T10)
-		      (if .T10
-			  ((lambda (.REG1)
-			     ((lambda (.REG2)
-				(for-each-benchmark-result .REG1 .REG2))
-			      .glarg|1))
-			   .process-datum|2|24)
-			  '#t))
-		    (null? .rest|1)))
-		 (.cell-set! .CELL:.results|2 '#f)))
-	      (lambda (IGNORED IGNORED)
-		((lambda (.T4)
-		   ((lambda (.T5) (.T5)) (.T4 'lookup)))
-		 (.cell-ref .CELL:.results|2)))))
-	   (.make-cell .results|2)))
-	(unspecified))))
-
 162 v0.48 (2000-08-29 / lth)
     Priority: high
     Category: TWOBIT / correctness

@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 7 June 1999.
+; 12 September 2000.
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.
@@ -469,11 +469,26 @@
 
 (define (cg-if-result output exp target regs frame env tail?)
   (let ((L1 (make-label))
-        (L2 (make-label)))
+        (L2 (make-label))
+        (exp1 (if.then exp))
+        (exp2 (if.else exp)))
     (gen! output $branchf L1 (cgreg-tos regs))
     (let* ((regs2 (cgreg-copy regs))
            (frame1 (if (and tail?
-                            (negative? (cgframe-size frame)))
+                            (negative? (cgframe-size frame))
+
+                            ; Are all live variables that were stored by
+                            ; a phantom store still in registers?
+                            ; Temporaries can be filtered out
+                            ; because they are dead in tail position.
+
+                            (let ((vars (intersection
+                                         (union (freevariables exp1)
+                                                (freevariables exp2))
+                                         (filter symbol?
+                                                 (cgframe-vars frame)))))
+                              (every? (lambda (v) (cgreg-lookup regs v))
+                                      vars)))
                        (cgframe-initial)
                        frame))
            (frame2 (if (eq? frame frame1)
@@ -482,11 +497,17 @@
            (t0 (cgreg-lookup-reg regs 0)))
       (if (not (eq? frame frame1))
           (let ((live (cgframe-livevars frame)))
+
+            ; FIXME: Isn't live always empty in tail position?
+
+            (if (not (null? live))
+                (begin (display "***** ") (write live) (newline)))
+
             (cgframe-livevars-set! frame1 live)
             (cgframe-livevars-set! frame2 live)
             (gen-save! output frame1 t0)
             (cg-saveregs output regs frame1)))
-      (let ((r (cg0 output (if.then exp) target regs frame1 env tail?)))
+      (let ((r (cg0 output exp1 target regs frame1 env tail?)))
         (if (not tail?)
             (gen! output $skip L2 (cgreg-live regs r)))
         (gen! output $.label L1)
@@ -494,7 +515,7 @@
             (begin (gen-save! output frame2 t0)
                    (cg-saveregs output regs2 frame2))
             (cgframe-update-stale! frame2))
-        (cg0 output (if.else exp) r regs2 frame2 env tail?)
+        (cg0 output exp2 r regs2 frame2 env tail?)
         (if (not tail?)
             (begin (gen! output $.label L2)
                    (cgreg-join! regs regs2)

@@ -1911,7 +1911,7 @@ $Id$
     Avoided changing GC interface by having cglue.c call a yh_ method
     directly.
 
-136 v0.45 (??? / lth)
+136 v0.45 (??? / lth)  Fixed 000912 by wdc
     Priority: high
     Category: TWOBIT / correctness
 
@@ -1986,7 +1986,7 @@ $Id$
     FIX:  DESUGAR-DEFINE must macro-expand the defined variable
     name before calling MAKE-TOPLEVEL-DEFINITION.
 
-137 v0.45 (991013 / lth)
+137 v0.45 (991013 / lth)  Fixed 000912 by wdc
     Priority: high
     Category: TWOBIT / correctness
 
@@ -2103,6 +2103,64 @@ $Id$
 
 	(define (string-upcase s)
 	  (string-upcase! (string-copy s)))
+
+159 v0.49 (2000-07-10 / lth)  Fixed 2000-09-12 by wdc
+    Priority: high
+    Category: TWOBIT / correctness
+
+    Given the code
+
+    (define (bug glarg . rest)
+
+      (define results #f)
+
+      (define (process-datum datum n)
+	((results 'lookup)))
+
+      (define (analyze all-data)
+	(for-each-benchmark-result process-datum all-data))
+
+      (define (mark/cons-analysis)
+	(analyze glarg))
+
+      (if (null? rest)
+	  (mark/cons-analysis)
+	  #t))
+
+    Twobit produces code where the reference to `glarg' is made with a GLOBAL
+    instruction.
+
+    The output from pass3 looks OK to my eyes:
+
+    > (make-readable (pass3 (pass2 (pass1 test))))
+    ((lambda (.T13)
+       ((lambda (.T14) 'bug) (set! bug .T13)))
+     (lambda (.glarg|1 . .rest|1)
+       ((lambda (.results|2)
+	  ((lambda (.CELL:.results|2)
+	     ((lambda (.process-datum|2|24)
+		((lambda (.T8)
+		   ((lambda (.T10)
+		      (if .T10
+			  ((lambda (.REG1)
+			     ((lambda (.REG2)
+				(for-each-benchmark-result .REG1 .REG2))
+			      .glarg|1))
+			   .process-datum|2|24)
+			  '#t))
+		    (null? .rest|1)))
+		 (.cell-set! .CELL:.results|2 '#f)))
+	      (lambda (IGNORED IGNORED)
+		((lambda (.T4)
+		   ((lambda (.T5) (.T5)) (.T4 'lookup)))
+		 (.cell-ref .CELL:.results|2)))))
+	   (.make-cell .results|2)))
+	(unspecified))))
+
+    FIX:  This was a bug in the frame optimization performed by
+    cg-if-result (Compiler/pass4p1.sch).  That optimization cannot
+    be performed if any live variables for which a phantom store
+    has been emitted are no longer in registers.
 
 160 v0.49 (2000-07-17 / lth)  Fixed 2000-09-11 by lth
     Priority: medium
