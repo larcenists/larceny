@@ -5,8 +5,13 @@
  * Millicode-to-C interface (SPARC).
  *
  * All callouts from millicode to the run-time system are to C procedure
- * with names starting with C_ or UNIX_; all procedures named C_* are
- * in this file.
+ * with names starting with C_, and all those procedures are in this file.
+ * The procedures are flagged to the RTS as noninterruptible syscalls;
+ * this for the benefit of signal handling.
+ *
+ * Also in this file are some support procs (scheme_init,
+ * stk_initialize_underflow_frame) that are machine-dependent; it might
+ * be more reasonable to move them to some other file.
  */
 
 #include <stdio.h>
@@ -15,52 +20,80 @@
 #include <string.h>
 #include "larceny.h"
 #include "signals.h"
+#include "gc.h"
+#include "gc_t.h"
+#include "stack.h"
 
+void scheme_init( word *globals )
+{
+  /* Nothing yet */
+}
+
+void stk_initialize_underflow_frame( word *stktop )
+{
+  extern void mem_stkuflow();
+
+  *(stktop+0) = fixnum(3);                      /* header/size field */
+  *(stktop+1) = (word)mem_stkuflow;             /* retaddr: uflow handler */
+  *(stktop+2) = 0xDEADBEEF;                     /* dynamic link field */
+  *(stktop+3) = 0;                              /* saved procedure */
+}
 
 /* C_allocate: allocate heap memory */
 void C_allocate( word request_words )
 {
   supremely_annoyingmsg( "Allocation call-out from millicode." );
   /* The assignment violates the VM invariants -- that's OK */
+  in_noninterruptible_syscall = 1;
   globals[ G_RESULT ] =
     (word)alloc_from_heap( nativeint( request_words )*sizeof(word) );
+  in_noninterruptible_syscall = 0;
 }
 
 /* C_stack_overflow: overflow handling depends on stack */
 void C_stack_overflow( void )
 {
   supremely_annoyingmsg( "Stack overflow exception in millicode." );
-  stack_overflow();
+  in_noninterruptible_syscall = 1;
+  gc_stack_overflow( the_gc( globals ) );
+  in_noninterruptible_syscall = 0;
 }
 
 /* C_creg_get: capture the current continuation. */
 void C_creg_get( void )
 {
   supremely_annoyingmsg( "Call/cc exception in millicode." );
-  globals[ G_RESULT ] = creg_get();
+  in_noninterruptible_syscall = 1;
+  globals[ G_RESULT ] = gc_creg_get( the_gc( globals ) );
+  in_noninterruptible_syscall = 0;
 }
 
 /* C_creg_set: reinstate a continuation */
 void C_creg_set( void )
 {
   supremely_annoyingmsg( "Throw exception in millicode." );
-  creg_set( globals[ G_RESULT ] );
+  in_noninterruptible_syscall = 1;
+  gc_creg_set( the_gc( globals ), globals[ G_RESULT ] );
+  in_noninterruptible_syscall = 0;
 }
 
 /* C_restore_frame: stack underflowed, restore a frame */
 void C_restore_frame( void )
 {
   supremely_annoyingmsg( "Stack underflow exception in millicode." );
-  stack_underflow();
+  in_noninterruptible_syscall = 1;
+  gc_stack_underflow( the_gc( globals ) );
+  in_noninterruptible_syscall = 0;
 }
 
 /* C_wb_compact: some SSB filled up, and must be compacted. */
-
 void C_wb_compact( int generation )
 { 
   annoyingmsg( "Generation %d: SSB filled up during mutator operation.",
 	       generation );
-  compact_ssb();
+  in_noninterruptible_syscall = 1;
+  gc_compact_all_ssbs( the_gc( globals ) ); /* Ignores remset overflows. */
+  in_noninterruptible_syscall = 0;
 }
 
 /* C_panic: print a message and die. */
@@ -69,10 +102,12 @@ void C_panic( char *fmt, ... )
   va_list args;
   char buf[ 128 ];
 
+  in_noninterruptible_syscall = 1;
   va_start( args, fmt );
   vsprintf( buf, fmt, args );
   va_end( args );
   panic( "%s", buf );
+  in_noninterruptible_syscall = 0;
 }
 
 /*
@@ -111,10 +146,13 @@ void C_varargs( void )
   word *prev;
 #endif
 
+  in_noninterruptible_syscall = 1;
+
   bytes = sizeof(word)*(2*(j-n));
 
   if (bytes == 0) {
     globals[ G_REG0 + n + 1 ] = NIL_CONST;
+    in_noninterruptible_syscall = 0;
     return;
   }
 
@@ -183,6 +221,7 @@ void C_varargs( void )
   *(prev+1) = NIL_CONST;
   globals[ G_REG0+n+1 ] = tagptr( q, PAIR_TAG );
 #endif
+  in_noninterruptible_syscall = 0;
 }
 
 /* C-language exception handler (called from exception.s)
@@ -191,7 +230,9 @@ void C_varargs( void )
 void C_exception( word i, word pc )
 {
   hardconsolemsg( "Larceny exception at PC=0x%08x: %d.", pc, nativeint(i) );
+  in_noninterruptible_syscall = 1;
   localdebugger();
+  in_noninterruptible_syscall = 0;
 }
 
 /* This is for debugging the run-time system; should be replaced by a
@@ -199,7 +240,9 @@ void C_exception( word i, word pc )
  */
 void C_break( void )
 {
+  in_noninterruptible_syscall = 1;
   localdebugger();
+  in_noninterruptible_syscall = 0;
 }
 
 /* Single stepping. Takes a fixnum argument which is the constant vector
@@ -212,6 +255,7 @@ void C_singlestep( word cidx )
   word s;
   word constvec;
 
+  in_noninterruptible_syscall = 1;
   constvec = *( ptrof( globals[G_REG0] ) + 2 );
   s = *( ptrof( constvec ) + VEC_HEADER_WORDS + nativeint(cidx) );
   if (tagof( s ) != BVEC_TAG)
@@ -222,6 +266,7 @@ void C_singlestep( word cidx )
   buf[ l ] = 0;
   hardconsolemsg( "Step: %s", buf );
   localdebugger();
+  in_noninterruptible_syscall = 0;
 }
 
 /* Syscall primitive.
@@ -234,6 +279,9 @@ void C_syscall( void )
 {
   int nargs, nproc;
 
+  /* Do not set in_noninterruptible_syscall here because that is
+     taken care of by the machinery in larceny_syscall.
+  */
   nargs = nativeint( globals[ G_RESULT ] )-1;
   nproc = nativeint( globals[ G_REG1 ] );
 
@@ -245,7 +293,9 @@ void C_syscall( void )
  */
 void C_garbage_collect( void )
 {
-  garbage_collect3( 0, 8 );
+  in_noninterruptible_syscall = 1;
+  gc_collect( the_gc( globals ), 0, 8, GCTYPE_PROMOTE );
+  in_noninterruptible_syscall = 0;
 }
 
 /* OBSOLETE */
@@ -254,5 +304,89 @@ void C_compact_ssb( void )
   panic( "Obsolete function C_compact_ssb." );
 }
 
+#if defined(SIMULATE_NEW_BARRIER)
+
+#include "gclib.h"
+
+static word wb_total_assignments = 0;
+static word wb_array_assignments = 0;
+static word wb_lhs_young_or_remembered = 0;
+static word wb_rhs_constant = 0;
+static word wb_cross_gen_check = 0;
+static word wb_trans_recorded = 0;
+
+void simulated_barrier_stats( word *total_assignments,
+			      word *array_assignments,
+			      word *lhs_young_or_remembered,
+			      word *rhs_constant,
+			      word *cross_gen_check,
+			      word *transactions )
+{
+  *total_assignments = wb_total_assignments;
+  *array_assignments = wb_array_assignments;
+  *lhs_young_or_remembered = wb_lhs_young_or_remembered;
+  *rhs_constant = wb_rhs_constant;
+  *cross_gen_check = wb_cross_gen_check;
+  *transactions = wb_trans_recorded;
+  wb_total_assignments = 0;
+  wb_array_assignments = 0;
+  wb_lhs_young_or_remembered = 0;
+  wb_rhs_constant = 0;
+  wb_cross_gen_check = 0;
+  wb_trans_recorded = 0;
+}
+
+/* Simulation of new write barrier */
+void C_simulate_new_barrier( void )
+{
+  word *genv;
+  word lhs;
+  word rhs;
+  unsigned gl, gr;
+  word **ssbtopv, **ssblimv;
+  int isvec = 0;
+
+  genv = (word*)globals[ G_GENV ];
+  lhs = globals[ G_RESULT ];
+  rhs = globals[ G_ARGREG2 ];
+
+  wb_total_assignments++;
+  if (tagof(lhs) == VEC_TAG || tagof(lhs) == PROC_TAG) {
+    isvec = 1;
+    wb_array_assignments++;
+
+    if (genv[pageof(lhs)] == 0) {
+      wb_lhs_young_or_remembered++;
+      return;
+    }
+    else if (gc_isremembered( the_gc(globals), lhs )) {
+      wb_lhs_young_or_remembered++;
+      return;
+    }
+    else if (!isptr( rhs )) {
+      wb_rhs_constant++;
+      return;
+    }
+  }
+  else if (!isptr(rhs))
+    return;
+
+ record_trans:
+  gl = genv[pageof(lhs)];
+  gr = genv[pageof(rhs)];
+  if (gl <= gr) {
+    if (isvec) wb_cross_gen_check++; /* not old->young */
+    return;
+  }
+  if (isvec)
+    wb_trans_recorded++;
+  ssbtopv = (word**)globals[G_SSBTOPV];
+  ssblimv = (word**)globals[G_SSBLIMV];
+  *ssbtopv[gl] = lhs;
+  ssbtopv[gl] += 1;
+  if (ssbtopv[gl] == ssblimv[gl]) C_wb_compact( gl );
+}
+
+#endif  /* if SIMULATE_NEW_BARRIER */
 
 /* eof */
