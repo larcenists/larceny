@@ -3,8 +3,13 @@
  * $Id$
  *
  * You must define the attributes for the system you're compiling in 
- * the section for user definitions, below.  Refer to the installation 
- * notes for more elaborate instructions.
+ * the section for user definitions, below.
+ *
+ * Don't panic!  Useful sets of attributes for many systems are defined
+ * below.
+ *
+ * Refer to the installation notes for more elaborate instructions, or
+ * read the comments in this file carefully.
  *
  * ---
  *
@@ -28,6 +33,7 @@
 #undef SPARC			/* Native: SPARC v8 or later */
 #undef PETIT_LARCENY		/* Portable: Hardware is irrelevant */
 
+
 /* Architecture attributes. */
 #undef BITS_32			/* 32-bit words */
 #undef BITS_64			/* 64-bit words */
@@ -37,6 +43,9 @@
 				   Some systems, like the PPC, do not trap
 				   integer division by zero.
 				   */
+#undef FLUSH_ALWAYS             /* Set to 1 to force icache flushing */
+#undef FLUSH_NEVER              /* Set to 1 to disable icache flushing */
+
 
 /* Operating systems. */
 #undef SUNOS4			/* SunOS 4.x */
@@ -52,12 +61,18 @@
 #undef SUNOS			/* Synthesized */
 #undef UNIX			/* Synthesized */
 
+
 /* Operating system attributes */
 #undef BSD_SIGNALS		/* sigvec, as described by Leffler et al */
 #undef STDC_SIGNALS		/* signal, as in ANSI/ISO C (weak) */
 #undef POSIX_SIGNALS		/* sigaction + sa_handler, as described 
 				   by Lewine */
 #undef XOPEN_SIGNALS		/* sigaction + sa_sigaction */
+
+
+/* Other configuration options */
+#undef STACK_UNDERFLOW_COUNTING /* Set to 1 to enable this (recommended) */
+
 
 /* Special system attributes -- for use of non-portable extensions or 
    bug workarounds, or other weirdness.
@@ -66,6 +81,11 @@
 #undef DEC_ALPHA_32BIT		/* DEC Alpha, in 32-bit mode.  Needed to
 				   cope with some mixed-word-length weirdness.
 				*/
+#undef NO_ATOMIC_ALLOCATION     /* BDW collector: do not allocate bytevectors
+				   specially (not recommended in general) */
+#undef GCLIB_LARGE_TABLE        /* Wizards only */
+#undef SIMULATE_NEW_BARRIER     /* Wizards only */
+
 
 /* Library attributes.  These macros declare the existence of particular
    functions in the run-time library or as compiler intrinsics.
@@ -74,10 +94,10 @@
    reasons to define these macros below, if your library or compiler
    supplies any of the functions.
    */
-#undef HAVE_RINT		/* library has rint() -- round to even */
-#undef HAVE_AINT		/* library has aint() -- round to zero */
-#undef HAVE_STRNCASECMP		/* library has strncasecmp() */
-#undef HAVE_STRDUP		/* library has strdup() */
+#undef HAVE_RINT		/* Library has rint() -- round to even */
+#undef HAVE_AINT		/* Library has aint() -- round to zero */
+#undef HAVE_STRNCASECMP		/* Library has strncasecmp() */
+#undef HAVE_STRDUP		/* Library has strdup() */
 
 
 /* ------ USER DEFINITION SECTION ------- */
@@ -95,43 +115,48 @@
 
 /* Here are some sets of settings that work for me. */
 
-/* Sparc Solaris (2.5 and better, at least); native */
-#define SPARC                1
-#define SUNOS5               1
-#define BITS_32              1
-#define BIG_ENDIAN           1
-#define HAVE_RINT            1
-#define HAVE_STRDUP          1
-#define HAVE_STRNCASECMP     1
+/* Sparc Solaris (2.5 and better, at least); native. */
+#define SPARC                     1
+#define SUNOS5                    1
+#define BITS_32                   1
+#define BIG_ENDIAN                1
+#define HAVE_RINT                 1
+#define HAVE_STRDUP               1
+#define HAVE_STRNCASECMP          1
+#define STACK_UNDERFLOW_COUNTING  1
+#define GCLIB_LARGE_TABLE         0 /* Experimental! */
 
-/* MacOS; Metrowerks codewarrior (Petit Larceny)
-#define PETIT_LARCENY        1
-#define MACOS                1
-#define BITS_32              1
-#define BIG_ENDIAN           1
-#define EXPLICIT_DIVZ_CHECK  1
-#define STDC_SIGNALS         1
-#define CODEWARRIOR          1
-#define HAVE_RINT            1
+/* MacOS; Metrowerks codewarrior (Petit Larceny).
+#define PETIT_LARCENY             1
+#define MACOS                     1
+#define BITS_32                   1
+#define BIG_ENDIAN                1
+#define EXPLICIT_DIVZ_CHECK       1
+#define STDC_SIGNALS              1
+#define CODEWARRIOR               1
+#define HAVE_RINT                 1
+#define STACK_UNDERFLOW_COUNTING  1
 */
 
-/* Dec OSF/1 4.0 on DEC Alpha, at least (Petit Larceny)
-   Running in 32-bit mode on 64-bit platform.
-#define PETIT_LARCENY        1
-#define BITS_32              1
-#define ENDIAN_LITTLE        1
-#define XOPEN_UNIX           1
-#define DEC_ALPHA_32BIT      1
+/* Dec OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
+   running in 32-bit mode on 64-bit platform.
+#define PETIT_LARCENY             1
+#define BITS_32                   1
+#define ENDIAN_LITTLE             1
+#define XOPEN_UNIX                1
+#define DEC_ALPHA_32BIT           1
+#define STACK_UNDERFLOW_COUNTING  1
 */
 
-/* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny)
-#define PETIT_LARCENY        1
-#define BITS_32              1
-#define ENDIAN_LITTLE        1
-#define LINUX                1
-#define HAVE_RINT            1
-#define HAVE_STRNCASECMP     1
-#define HAVE_STRDUP          1
+/* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny).
+#define PETIT_LARCENY             1
+#define BITS_32                   1
+#define ENDIAN_LITTLE             1
+#define LINUX                     1
+#define HAVE_RINT                 1
+#define HAVE_STRNCASECMP          1
+#define HAVE_STRDUP               1
+#define STACK_UNDERFLOW_COUNTING  1
 */
 
 
