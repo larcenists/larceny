@@ -14,8 +14,8 @@
  * e.g. an "arena_t" ADT that encapsulates the global variables declared
  * below.
  *
- * Should remove use of caddr_t altogether; using char* or byte* everywhere 
- * is ok by the ANSI standard.
+ * FIXME: Should remove use of caddr_t altogether; using char* or byte*
+ *        everywhere is ok by the ANSI standard.
  */
 
 #ifndef INCLUDED_GCLIB_H
@@ -23,9 +23,9 @@
 
 #include "config.h"
 #if defined(UNIX)
-#  include <sys/types.h>		    /* For caddr_t */
+#  include <sys/types.h>	/* For caddr_t */
 #else
-   typedef char *caddr_t;	        /* Gotta fix this */
+   typedef char *caddr_t;	/* Need to fix this */
 #endif
 #include "larceny-types.h"
 
@@ -60,6 +60,20 @@
 #define FOREIGN_PAGE       ((unsigned)-1)    /* Unknown owner */
 #define UNALLOCATED_PAGE   ((unsigned)-2)    /* Larceny owns it */
 #define RTS_OWNED_PAGE     ((unsigned)-3)    /* Larceny owns it */
+
+
+/* Types */
+
+struct gclib_stats {
+  word wheap;			/* words currently allocated to heap areas */
+  word wheap_max;		/* max of wheap over time */
+  word wremset;			/* words allocated to remembered sets */
+  word wremset_max;		/* max of wremset over time */
+  word wrts;			/* words allocated to run-time systems */
+  word wrts_max;		/* max of wrts over time */
+  word wastage;			/* words of fragmentation in heap areas */
+  word wastage_max;		/* max of wastage over time */
+};
 
 
 /* Global variables */
@@ -125,12 +139,8 @@ void gclib_add_attribute( void *address, int nbytes, unsigned attr );
      pages in the range implied by `address' and `nbytes'.
      */
 
-void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap );
+void gclib_stats( gclib_stats_t *stats );
   /* Returns some statistics about the memory manager.
-         *wheap     = words currently allocated to heap areas
-	 *wremset   = words allocated to remembered sets
-	 *wrts      = words allocated to run-time systems
-	 *wmax_heap = max of *wheap over time
      */
 
 
@@ -174,21 +184,6 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace );
      'young' area.
      */
 
-int gclib_copy_into_with_barrier( gc_t *gc, int younger_than, 
-				  semispace_t **tospaces, gc_type_t type );
-  /* Copy objects from generations younger than `younger_than' into the
-     areas of `tospaces', filling the areas in strict order and never
-     extending an area (overflow is a fatal error).  Large objects are
-     not counted in the calculation of area usage.  There is a traditional
-     write barrier on the areas of `tospaces'.
-     
-     All tospaces but the first must be empty.
-
-     Returns the index of the last tospace used.
-
-     Experimental; for the DOF dynamic-area collector.
-     */
-     
 void gclib_stopcopy_split_heap( gc_t *gc,
 			        semispace_t *data, semispace_t *text );
   /* Copy all live data into the two static-area semispaces provided. 

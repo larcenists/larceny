@@ -163,10 +163,10 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
   M = max( M, lower_limit );
 
   if (!DATA(gc)->shrink_heap) {
-    word wheap, wremset, wrts, wmax_heap;
+    gclib_stats_t stats;
 
-    gclib_stats( &wheap, &wremset, &wrts, &wmax_heap );
-    M = max( M, wmax_heap );	/* use no less than before */
+    gclib_stats( &stats );
+    M = max( M, stats.wheap_max ); /* use no less than before */
   }
 
   if (upper_limit > 0) {
@@ -376,7 +376,7 @@ static void permute_remembered_sets( gc_t *gc, int permutation[] )
 
 static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
-  word wheap, wremset, wrts, wmax_heap;
+  gclib_stats_t stats;
   gc_data_t *data = DATA(gc);
 
   assert( gen >= 0 );
@@ -410,11 +410,12 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
     after_collection( gc );
     stats_after_gc();
 
-    gclib_stats( &wheap, &wremset, &wrts, &wmax_heap );
+    gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
-		 wheap*sizeof(word), wremset*sizeof(word), wrts*sizeof(word) );
+		 stats.wheap*sizeof(word), stats.wremset*sizeof(word), 
+		 stats.wrts*sizeof(word) );
     annoyingmsg( "  Max heap usage: %d bytes", 
-		 wmax_heap*sizeof(word) );
+		 stats.wheap_max*sizeof(word) );
   }
 }
 
@@ -449,7 +450,7 @@ static void
 dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
   gc_data_t *data = DATA(gc);
-  word wheap, wremset, wrts, wmax_heap;
+  gclib_stats_t stats;
 
   assert( gen >= 0 );
   assert( gen > 0 || bytes_needed >= 0 );
@@ -468,11 +469,12 @@ dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 
   gc_end_gc( gc );
   if (--data->in_gc == 0) {
-    gclib_stats( &wheap, &wremset, &wrts, &wmax_heap );
+    gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
-		 wheap*sizeof(word), wremset*sizeof(word), wrts*sizeof(word) );
+		 stats.wheap*sizeof(word), stats.wremset*sizeof(word), 
+		 stats.wrts*sizeof(word) );
     annoyingmsg( "  Max heap usage: %d bytes", 
-		 wmax_heap*sizeof(word) );
+		 stats.wheap_max*sizeof(word) );
   }
 }
 
