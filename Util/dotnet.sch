@@ -185,6 +185,9 @@
          (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))))
   
   (display " -- Running C# config...")(newline)
+  (let ((file (make-filename *larceny-root* "Rts/DotNet/Constants.cs")))
+    (if (file-exists? file)
+        (delete-file file)))
   (run-csharp-config))
 
 
