@@ -73,7 +73,7 @@
 		 `("pass5p2.sch" 
 		   "peepopt.sch" 
 		   "asm-switches.sch" 
-		   "dumpheap-extra.sch" 
+		   "dumpheap-overrides.sch" 
 		   "petit-init-proc.sch"
 		   "md5.sch"
 		   ,@(case (nbuild-parameter 'host-os)
@@ -88,7 +88,7 @@
    (nbuild-files 'x86-nasm-asm
 		 `("pass5p2-nasm.sch"
 		   "peepopt.sch"
-		   "dumpheap-extra.sch" 
+		   "dumpheap-overrides.sch" 
 		   ,@(case (nbuild-parameter 'host-os)
 		      ((unix)  '("dumpheap-unix.sch"))
 		      ((win32) '("dumpheap-win32.sch"))
