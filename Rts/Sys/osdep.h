@@ -227,21 +227,34 @@ extern void osdep_system( word command );
      FIXME: there is no way to distinguish between errors.
      */
 
+extern void osdep_chdir( word path );
+  /* Change the process's working directory to PATH.
+
+     Returns fixnum(0) on success, fixnum(-1) on failure or if chdir is
+     not implemented on the platform.
+     */
+
+extern void osdep_cwd( void );
+  /* Get the current working directory as a string.
+
+     Returns #f on error or if unimplemented, otherwise the string.
+     */
+
 extern word osdep_dlopen( const char *path );
   /* 'path' is an untagged pointer to a string.
       
-      'Path' represents the name of a shared object in the
-      system.  osdep_dlopen() attempts to load that object,
-      and if it is successful, returns a nonzero handle to it.
-      If the load failed, 0 is returned.  (Some systems
-      choose to crash if dlopen fails.  Sorry.)
+      'Path' represents the name of a shared object in the system.
+      osdep_dlopen() attempts to load that object, and if it is
+      successful, returns a nonzero handle to it.  If the load failed,
+      0 is returned.  (Some systems choose to crash if dlopen fails.
+      Sorry.)
       
-      The string uses the operating system's native string 
+      The string uses the operating system's native string
       representation -- `asciiz' on Unix, 'pascal' on MacOS.
       
-      The mapping from the name of the shared object as specified
-      by path and an actual shared object in the system is
-      entirely os-dependent.  UTSL.
+      The mapping from the name of the shared object as specified by
+      path and an actual shared object in the system is entirely
+      os-dependent.  UTSL.
       */
 
 extern word osdep_dlsym( word handle, const char *symbol );
