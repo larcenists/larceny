@@ -25,7 +25,8 @@
 
 (define (run-basic-ffi-tests)
   (run-callout-tests)
-  (run-callback-tests))
+  (run-callback-tests)
+  (run-peek-poke-tests))
 
 (load (string-append *ffi-path* "ffi-load.sch"))
 (load (string-append *test-path* "test.sch"))
@@ -44,6 +45,8 @@
 
 (ffi/libraries (cons (string-append *ffi-test-path* "ffi-test-ff.so")
                      (ffi/libraries)))
+
+;;; Callouts
 
 (define (fp name param ret)
 
@@ -89,6 +92,8 @@
     (test "Test 10" (ffitest10 1.0) 1.0)
     (test "Test 11" (ffitest11 1.0 2.0) 3.0)))
 
+;;; Callback tests
+
 (define fficb1 (fp "fficb1" '(pointer) 'void))
 (define fficb2 (fp "fficb2" '(pointer) 'int))
 (define fficb3 (fp "fficb3" '(int pointer) 'int))
@@ -132,5 +137,75 @@
           (let ((r (fficb3 37 cb:int->int)))
             (cons r *the-value*))
           '(74 . cb:int->int))))
+
+;;; Peek and poke
+
+(define malloc (fp "malloc" '(int) 'unsigned))
+(define free (fp "free" '(unsigned) 'void))
+
+(define (run-peek-poke-tests)
+  (allof "Peek/poke"
+    (test "Peek/poke 1"
+          (peek/poke-test 1)
+          #t)
+    (test "Peek/poke 4"
+          (peek/poke-test 4)
+          #t)
+    (test "Peek/poke 7"
+          (peek/poke-test 7)
+          #t)
+    (test "Peek/poke 40"
+          (peek/poke-test 40)
+          #t)
+    (test "Peek/poke 62"
+          (peek/poke-test 62)
+          #t)
+    (test "Peek/poke 2133"
+          (peek/poke-test 2133)
+          #t)
+    ))
+
+; This runs two tests:
+;   (1) peek puts the right data, and poke gets the right data
+;   (2) poke doesn't overwrite the adjacent bytes
+
+(define (peek/poke-test n)
+  (call-with-current-continuation
+   (lambda (return)
+     (let ((buffer (malloc (+ n 8)))
+           (bv1 (make-bytevector n))
+           (bv2 (make-bytevector n))
+           (lo1 (make-bytevector 4))
+           (lo2 (make-bytevector 4))
+           (hi1 (make-bytevector 4))
+           (hi2 (make-bytevector 4)))
+       
+       (define (dealloc)
+         (free buffer))
+
+       (do ((i 0 (+ i 1)))
+           ((= i n))
+         (bytevector-set! bv1 i (remainder i 255)))
+       (peek-bytes buffer lo1 4)
+       (peek-bytes (+ buffer n 4) hi1 4)
+       (bytevector-fill! bv2 256)
+       (poke-bytes (+ buffer 4) bv1 n)
+       (peek-bytes (+ buffer 4) bv2 n)
+       (peek-bytes buffer lo2 4)
+       (peek-bytes (+ buffer n 4) hi2 4)
+       (if (not (equal? bv1 bv2))
+           (begin (dealloc)
+                  (display "Failed first poke/peek test")
+                  #f))
+       (if (not (equal? lo1 lo2))
+           (begin (dealloc)
+                  (display "Appeared to overwrite at start.")
+                  #f))
+       (if (not (equal? hi1 hi2))
+           (begin (dealloc)
+                  (display "Appeared to overwrite at end.")
+                  #f))
+       (dealloc)
+       #t))))
 
 ; eof
