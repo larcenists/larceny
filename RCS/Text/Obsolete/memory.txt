@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: memory.txt,v 1.6 91/07/05 15:20:06 lth Exp Locker: lth $
+; $Id: memory.txt,v 1.7 91/07/16 13:23:59 lth Exp Locker: lth $
 
                  Memory Manager Interface Definition
 
@@ -15,7 +15,8 @@ forth and some examples are presented.
 Section 1 discusses the application interface to the memory manager
 allocation, mutation, and management procedures.  Section 2 discusses
 the application interface to the memory manager initialization
-procedures.  Section 3 shows some examples.
+procedures.  Section 3 shows some examples for the SPARC. Section 4
+discusses the SPARC implementation.
 
 
 1. The application interface to the memory manager
@@ -193,3 +194,81 @@ Lcollect1:
     ld      [ %MILLICODE + M_GCSTART ], %TMP0
     jmp     %TMP0
     nop
+
+
+4. The SPARC Implementation
+---------------------------
+The SPARC implementation of the MMPS is unspectacular. The highlights
+are the (arguably sick, vile, and unnatural) internal calling
+conventions, and the internal subroutines for garbage collection and
+transaction management. In addition, some strategy decisions will be
+discussed.
+
+You will want to look at a source listing of "memory.s" before you
+read too much of the following.
+
+
+4.1 Internal calling conventions
+--------------------------------
+Whenever a millicode procedure is called, its return address (to
+Scheme code) must be in %o7. This value is known as the ERA or
+"external return address". In the case of a garbage collection, it is
+expected to change, and must hence be dealt with in that respect.
+However, MMMPs are never moved, and hence if an MMMP calls another,
+the millicode return address (known as the MRA) can be saved anywhere.
+Currently, if such a call happens (i.e. _alloc calls gcstart), the ERA
+is saved in %TMP0, where gcstart expects to find it, and the MRA (into
+_alloc) is saved in %o7 by the "call" instruction. Only one level of
+millicode calls is possible using this convention, since there is no
+provision for millicode to stuff an MRA anywhere but in %o7, which of
+course can hold only one. So far the MMMPs have needed only one level
+of non-tail calls internally, but a much better solution would be to
+have an internal stack on which to push MRAs. It is somewhat unclear
+whether this would be a problem for reentrancy; the MMMPs are never
+entered more than once, so this is not an issue here.
+
+Since some MMMPs (like _stkoflow and _stkuflow) may not change the
+%RESULT register, and since at least the overflow procedure may
+trigger a garbage collection, and since gcstart changes %RESULT, then
+these MMMPs must save %RESULT for later restoring it. The place of
+choice for this save is in globals[ SAVED_RESULT_OFFSET ], which is
+for this use. It is a rootable location. Currently, _stkoflow,
+_stkuflow, _setcar, _setcdr, and _vectorset save %RESULT across calls
+to internal millicode procedures.
+
+
+4.2 Internal Subroutines
+------------------------
+There are two internal subroutines: gcstart (not to be confused with
+the publicly available _gcstart), and addtrans. The former initiates a
+garbage collection and has the same semantics as _gctrans (see above);
+the latter adds a transaction to the transaction list if possible and
+triggers a collection (by calling gcstart) if not possible (due to tenured
+heap overflow).
+
+
+4.3 Strategy
+------------
+The big question in this section is what kind of collections to
+trigger on various kinds of heap overflows. For some situations (e.g.
+if _alloc overflows the heap) the answer is obvious; for others (e.g.
+if _stkoflow overflows the heap), it is not. This section summarizes
+the current decisions and comments on their appropriateness.
+
+If _alloc or _alloci find that memory cannot be allocated because the
+ephemeral heap is full, they call gcstart with an argument corresponding
+to the number of words to allocate, forcing gcstart to trigger an
+ephemeral collection.
+
+If _stkoflow fills up the ephemeral heap, it calls gcstart with an argument
+of fixnum( -1 ), which triggers a tenuring collection. The reason why
+it does not instead trigger an ephemeral collection is that heap overflow
+due to stack spills is most likely a sign of deep recursion, meaning
+in turn that a lot of data will be retained. If this is indeed the case,
+then the ephemeral collection will simply have to be followed by a tenuring
+collection. It is possible that we should investigate the options here
+somewhat better before committing to the current choice.
+
+If addtrans discovers that the tenured heap is full, it triggers a full
+collection. A more refined approach would be to try to compact the transaction
+list, and only when that fails, do a tenuring collection.
