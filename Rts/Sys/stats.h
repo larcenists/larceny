@@ -241,4 +241,11 @@ void stats_dumpstate( void );
      with the current state of the system counters to the dump file.
      */
 
+void stats_dumpstate_stdout( void );
+  /* Whether logging is on or not, dump a GC log record with the current
+     state of the system counters to standard output.  May not make sense
+     on all platforms; mostly useful for profiling tasks that need to
+     avoid heap allocation.
+     */
+
 /* eof */
