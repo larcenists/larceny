@@ -18,9 +18,9 @@
 
 (define (make-pathname dir fn)
   (if (= (string-length dir) 0)
-      (error "append-directory-and-filename: \"" dir "\" is not a directory."))
+      (error "append-directory-and-filename: \"\" is not a directory."))
   (if (= (string-length fn) 0)
-      (error "append-directory-and-filename: \"" fn "\" is not a file name."))
+      (error "append-directory-and-filename: \"\" is not a file name."))
   (if (char=? #\/ (string-ref dir (- (string-length dir) 1)))
       (string-append dir fn)
       (string-append dir "/" fn)))
