@@ -1,8 +1,8 @@
-# -*- mode: fundamental -*-
-#
-# Rts/Makefile
+# Copyright 1998 Lars T Hansen       -*- mode: fundamental -*-
 #
 # $Id$
+#
+# This is Rts/Makefile.
 
 ###########################################################################
 #
@@ -176,16 +176,16 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 .SUFFIXES:	.cfg .ch .ah .sh .mac
 
 .cfg.ch:
-	./config "UNKNOWN" $<
+	../build -config $<
 
 .cfg.ah:
-	./config "UNKNOWN" $<
+	../build -config $<
 
 .cfg.sh:
-	./config "UNKNOWN" $<
+	../build -config $<
 
 .mac.c:
-	./expand-mac $<
+	../build -expand $<
 
 # Yow!
 .s.o:
@@ -206,14 +206,14 @@ setup:
 	if [ ! -d Build ]; then mkdir Build; fi
 	-(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
-larceny: $(LARCENY_OBJECTS) Util/ffi-dummy.o
-	$(CC) $(PROFILE) $(TCOV) -o larceny $(LARCENY_OBJECTS) \
+larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
 
-bdwlarceny: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
+bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 	( cd bdw-gc ; make gc.a )
-	$(CC) $(PROFILE) $(TCOV) -o bdwlarceny $(BDW_LARCENY_OBJECTS) \
+	$(CC) $(PROFILE) $(TCOV) -o bdwlarceny.bin $(BDW_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \
 		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
@@ -231,8 +231,8 @@ Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm -f larceny hsplit bdwlarceny petit-larceny core defs \
-		Sys/*.o Sparc/*.o Build/*.o Standard-C/*.o Util/ffi-dummy.o \
+	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core defs \
+		Sys/*.o Sparc/*.o Build/*.o Standard-C/*.o Util/*.o \
 		libpetit.so Standard-C/arithmetic.c
 
 rtsclean: clean
@@ -259,10 +259,10 @@ Build/schdefs.h:	$(SCFG)
 	cat $(SCFG) > Build/schdefs.h
 
 Build/sparc-table.s: Build/globals.cfg
-	./config "UNKNOWN" Build/globals.cfg
+	../build -config Build/globals.cfg
 
 Build/c-table.c: Build/globals.cfg
-	./config "UNKNOWN" Build/globals.cfg
+	../build -config Build/globals.cfg
 
 
 
