@@ -118,7 +118,6 @@ faslclean:
 
 rtsclean:
 	rm -f *.map
-	rm -f larceny.bin petit-larceny.bin hsplit bdwlarceny.bin
 	rm -f Compat/Chez/*.o
 	( cd Rts ; $(MAKE) rtsclean )
 
