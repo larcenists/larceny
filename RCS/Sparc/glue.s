@@ -975,7 +975,7 @@ _m_generic_exception:
 	ld	[ %TMP1 - GLOBAL_CELL_TAG + CELL_VALUE_OFFSET ], %TMP1
 	cmp	%TMP1, UNSPECIFIED_CONST
 	be	Lgeneric_exception
-	mov	%TMP0, %TMP1
+	srl	%TMP0, 2, %TMP1
 	mov	4, %TMP1
 	b	_scheme_call
 	mov	MS_EXCEPTION_HANDLER, %TMP2
@@ -1067,6 +1067,9 @@ _undef_exception:
 !
 ! THIS PROCEDURE IS NOT REENTRANT! The C exception handler may not
 ! re-invoke Scheme code and later return to this handler.
+!
+! The handler accepts *native* integers greater than or equal to 0 in %TMP1. 
+! These integers are exception codes (defined in "exceptions.cfg").
 
 Lgeneric_exception:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]

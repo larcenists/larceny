@@ -15,7 +15,7 @@
 #include "gcinterface.h"
 #include "layouts.h"
 #include "macros.h"
-
+#include "exceptions.h"
 
 /*
  * Millicode to deal with variable-length argument lists.
