@@ -34,7 +34,7 @@
 
   (define next 0)			; Next output ID to be used
 
-  (define (make-ref obj) (list obj 1 #f)))
+  (define (make-ref obj) (list obj 1 #f))
 
   (define (ref-increment-count! r)
     (set-car! (cdr r) (+ (cadr r) 1)))
