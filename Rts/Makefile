@@ -63,16 +63,12 @@ LDXFLAGS=
 ############################################################################
 #
 # Compiler flags
-#
-# Defining DEBUG adds some debugging output.
-# Defining DEBUG2 may or may not add a _lot_ of debugging output (old switch)
 
 LIBS=-lm -ldl
 
 DEBUGINFO=-g3
-DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
 PROFILE=#-pg
-TCOV=#-a -g -DNDEBUG2 -DNDEBUG
+TCOV=#-a -g
 LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 
@@ -83,8 +79,7 @@ OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 
 CFLAGS=-c -ISys -IBuild -IStandard-C \
-	$(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(DEBUGFLAGS) \
-	$(BDW_DEBUG) $(CCXFLAGS)
+	$(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
 
 ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
 
@@ -186,9 +181,9 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 .s.o:
 	$(AS) $(ASFLAGS) -o $*.o $<
 
-# Really want %Y but SunOS 4 doesn't do that.
+# Not everyone accepts %Y -- notably SunOS 4.  But that is _so_ last century...
 .c.o:
-	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%d-%h-%y %T'`\"" -o $*.o $<
+	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
 
 ############################################################################
 #
