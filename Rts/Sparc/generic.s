@@ -691,30 +691,37 @@ Ldiv_fix2:
 
 ! Quotient.
 !
-! Quotient must work on all integer operands, including flonums and compnums
-! which are representable as integers. In order to preserve the programmer's
-! sanity, only two cases are handled in millicode; all other arguments are 
-! passed to the "generic-quotient" procedure (in Scheme).
+! Quotient must work on all integer operands, including flonums and
+! compnums that are representable as integers.  Only two cases are 
+! handled in millicode; all other arguments are passed to Scheme.
 !
 ! The two cases handled in millicode are:
-!  - both operands are fixnums
-!  - the lhs is a positive 32-bit bignum and the rhs is a positive fixnum
+!  - Both operands are fixnums.
+!  - The lhs is a nonnegative 32-bit bignum and the rhs is a 
+!    nonnegative fixnum.
 ! The second case complicates the code but makes bignum arithmetic
-! more pleasant to implement in Scheme.
+! much more pleasant to implement in Scheme.
 
 EXTNAME(m_generic_quo):
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
-	bne	Lquotient1
-	nop
+	bne,a	Lquotrem
+	set	TRUE_CONST, %ARGREG3
 
-	! Both operands are fixnums.
+! Case 1: both operands are fixnums.  Perform fixnum division and
+! return a fixnum result.
 
-	! Set up exception handling code, in case operation fails.
-	set	EX_QUOTIENT, %TMP0
-	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
+	set	EX_QUOTIENT, %TMP0			! In case of
+	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]	!   division by zero
 
-#if !defined(HARDWARE_DIVIDE)
+#if HARDWARE_DIVISION
+	cmp	%RESULT, 0				! Sign extend RESULT
+	blt,a	1f					!   ...
+	wr	%g0, -1, %y				!   ...
+	wr	%g0, 0, %y				!   ...
+1:	sdiv	%RESULT, %ARGREG2, %TMP0
+	sll	%TMP0, 2, %RESULT
+#else
 	! FOREIGN SECTION
 	save	%sp, -104, %sp
 	sra	%SAVED_RESULT, 2, %o0
@@ -723,21 +730,13 @@ EXTNAME(m_generic_quo):
 	sll	%o0, 2, %SAVED_RESULT
 	restore
 	! END FOREIGN SECTION
-#else
-	cmp	%RESULT, 0
-	blt,a	1f
-	wr	%g0, -1, %y
-	wr	%g0, 0, %y
-1:	sdiv	%RESULT, %ARGREG2, %TMP0
-	sll	%TMP0, 2, %RESULT
 #endif
-	jmp	%o7+8
-	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
-Lquotient1:
-	set	TRUE_CONST, %ARGREG3
-	!FALLTHROUGH
+	jmp	%o7+8					! Result in RESULT
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]		! Clear operation code
 
-! Common code for bignum-by-fixnum division for quotient and remainder.
+! Common code for quotient and remainder.  
+!
+! Test to see if we have case 2: bignum-by-fixnum division.
 ! ARGREG3 is either #t (quotient) or #f (remainder).
 
 Lquotrem:
@@ -765,8 +764,8 @@ Lquotrem:
 	bne	Lquotrem2
 	nop
 
-	! Finally -- RESULT is a 32-bit bignum, ARGREG2 is a fixnum.
-	! Both are nonnegative.
+! Case 2: RESULT is a 32-bit nonnegative bignum, ARGREG2 is a 
+! nonnegative fixnum.
 
 	! FOREIGN SECTION
 	save	%sp, -104, %sp
@@ -781,9 +780,8 @@ Lquotrem:
 1:	call	.urem,2
 	sra	%SAVED_ARGREG2, 2, %o1
 2:	! Will it fit in a fixnum?
-	sll	%o0, 2, %o2
-	sra	%o2, 2, %o2
-	cmp	%o0, %o2
+	sethi	%hi(0xe0000000), %o2
+	andcc	%o0, %o2, %g0
 	bne	Lquotrem3
 	nop
 	! Fixnumize and exit
@@ -808,15 +806,15 @@ Lquotrem2:
 	mov	2, %TMP1
 
 ! Remainder.
-! Same treatment of arguments as for quotient, above.
 !
+! Same treatment of arguments as for quotient, above.
 ! The .rem procedure produces the correct signs and values for "remainder".
 
 EXTNAME(m_generic_rem):
 	or	%RESULT, %ARGREG2, %TMP0
 	andcc	%TMP0, 3, %g0
-	bne	Lremainder1
-	nop
+	bne,a	Lquotrem
+	set	FALSE_CONST, %ARGREG3
 
 	! Both fixnums
 	set	EX_REMAINDER, %TMP0
@@ -831,10 +829,6 @@ EXTNAME(m_generic_rem):
 	! END FOREIGN SECTION
 	jmp	%o7+8
 	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
-
-Lremainder1:
-	b	Lquotrem
-	set	FALSE_CONST, %ARGREG3
 
 
 ! Modulus. OBSOLETE
