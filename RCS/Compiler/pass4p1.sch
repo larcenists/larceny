@@ -636,9 +636,6 @@
                        (parallel-assignment regs
                                             (map cons regvars regs)
                                             args))))
-	   (display "para ")
-	   (display (if para "yes" "no"))
-	   (newline)
            (if para
                (do ((regs para (cdr regs))
                     (args (cg-permute args regs para) (cdr args))

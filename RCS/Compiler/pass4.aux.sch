@@ -71,49 +71,49 @@
 
 ; Instructions and pseudo-instructions.
 
-(define (make-mnemonic symbol)
-  (let ((s (symbol->string symbol)))
-    (string->symbol
-     (string-append
-      "    "
-      s
-      (make-string (max 0 (- 8 (string-length s)))
-                   #\space)))))
-
-(define $.label (string->symbol "L"))
-
-(define $op1 (make-mnemonic 'op1))               ; op      prim
-(define $op2 (make-mnemonic 'op2))               ; op2     prim,k
-(define $op3 (make-mnemonic 'op3))               ; op3     prim,k1,k2
-(define $op2imm (make-mnemonic 'opx))            ; op2imm  prim,x
-(define $const (make-mnemonic 'const))           ; const   x
-(define $global (make-mnemonic 'global))         ; global  x
-(define $setglbl (make-mnemonic 'setglbl))       ; setglbl x
-(define $lexical (make-mnemonic 'lexical))       ; lexical m,n
-;(define $setlex (make-mnemonic 'setlex))         ; setlex  m,n
-(define $stack (make-mnemonic 'stack))           ; stack   n
-(define $setstk (make-mnemonic 'setstk))         ; setstk  n
-(define $reg (make-mnemonic 'reg))               ; reg     k
-(define $setreg (make-mnemonic 'setreg))         ; setreg  k
-(define $movereg (make-mnemonic 'movereg))       ; movereg k1,k2
-(define $lambda (make-mnemonic 'lambda))         ; lambda  x,k
-(define $lexes (make-mnemonic 'lexes))           ; lexes   k
-(define $chain (make-mnemonic 'chain))           ; chain   m
-(define $args= (make-mnemonic 'args=))           ; args=   k
-(define $args>= (make-mnemonic 'args>=))         ; args>=  k
-(define $invoke (make-mnemonic 'invoke))         ; invoke  k
-(define $save (make-mnemonic 'save))             ; save    L,k
-;(define $setrtn (make-mnemonic 'setrtn))         ; setrtn  L
-(define $restore (make-mnemonic 'restore))       ; restore k
-(define $pop (make-mnemonic 'pop))               ; pop     k
-(define $return (make-mnemonic 'return))         ; return
-;(define $mvrtn (make-mnemonic 'mvrtn))           ; mvrtn
-;(define $apply (make-mnemonic 'apply))           ; apply
-(define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
-(define $branch (make-mnemonic 'branch))         ; branch  L
-(define $branchf (make-mnemonic 'branchf))       ; branchf L
-
-(define $cons 'cons)
+; (define (make-mnemonic symbol)
+;   (let ((s (symbol->string symbol)))
+;     (string->symbol
+;      (string-append
+;       "    "
+;       s
+;       (make-string (max 0 (- 8 (string-length s)))
+;                    #\space)))))
+; 
+; (define $.label (string->symbol "L"))
+; 
+; (define $op1 (make-mnemonic 'op1))               ; op      prim
+; (define $op2 (make-mnemonic 'op2))               ; op2     prim,k
+; (define $op3 (make-mnemonic 'op3))               ; op3     prim,k1,k2
+; (define $op2imm (make-mnemonic 'opx))            ; op2imm  prim,x
+; (define $const (make-mnemonic 'const))           ; const   x
+; (define $global (make-mnemonic 'global))         ; global  x
+; (define $setglbl (make-mnemonic 'setglbl))       ; setglbl x
+; (define $lexical (make-mnemonic 'lexical))       ; lexical m,n
+; ;(define $setlex (make-mnemonic 'setlex))         ; setlex  m,n
+; (define $stack (make-mnemonic 'stack))           ; stack   n
+; (define $setstk (make-mnemonic 'setstk))         ; setstk  n
+; (define $reg (make-mnemonic 'reg))               ; reg     k
+; (define $setreg (make-mnemonic 'setreg))         ; setreg  k
+; (define $movereg (make-mnemonic 'movereg))       ; movereg k1,k2
+; (define $lambda (make-mnemonic 'lambda))         ; lambda  x,k
+; (define $lexes (make-mnemonic 'lexes))           ; lexes   k
+; (define $chain (make-mnemonic 'chain))           ; chain   m
+; (define $args= (make-mnemonic 'args=))           ; args=   k
+; (define $args>= (make-mnemonic 'args>=))         ; args>=  k
+; (define $invoke (make-mnemonic 'invoke))         ; invoke  k
+; (define $save (make-mnemonic 'save))             ; save    L,k
+; ;(define $setrtn (make-mnemonic 'setrtn))         ; setrtn  L
+; (define $restore (make-mnemonic 'restore))       ; restore k
+; (define $pop (make-mnemonic 'pop))               ; pop     k
+; (define $return (make-mnemonic 'return))         ; return
+; ;(define $mvrtn (make-mnemonic 'mvrtn))           ; mvrtn
+; ;(define $apply (make-mnemonic 'apply))           ; apply
+; (define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
+; (define $branch (make-mnemonic 'branch))         ; branch  L
+; (define $branchf (make-mnemonic 'branchf))       ; branchf L
+; 
+; (define $cons 'cons)
 
 ; Environments.
 ;

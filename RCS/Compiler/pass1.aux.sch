@@ -35,8 +35,6 @@
        (<= 0 x)
        (< x 256)))
 
-; primop tables used to be here.
-
 ; Procedure-specific source code transformations.
 ; The transformer is passed a source code expression and a predicate
 ; and returns one of:
@@ -59,258 +57,537 @@
        (or (assq name @integrable@)
            (prim-entry name))))
 
-(define define-integrable)
+(define define-inline)
 
-(define (define-integrable name transformer)
+(define (define-inline name transformer)
   (if (assq name @integrable@)
       (begin (set! @integrable@
                    (remq! (assq name @integrable@)
                           @integrable@))
-             (define-integrable name transformer))
+             (define-inline name transformer))
       (begin (set! @integrable@
                    (cons (list name transformer)
                          @integrable@))
              name)))
 
-(define-integrable 'abs
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? '<))
-         (not (bound? '--))
-         `(let ((temp ,(cadr exp)))
-               (if (< temp 0)
-                   (-- temp)
-                   temp)))))
+(define (inline-error exp) (static-error 9 exp))
 
-(define-integrable 'negative?
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? '<))
-         `(< ,(cadr exp) 0))))
+(define-inline 'abs
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp)))
+           (inline-error exp))
+          ((and (not (assq '< env))
+                (not (assq '-- env)))
+           (m-scan `(let ((temp ,(cadr exp)))
+                         (if (< temp 0)
+                             (-- temp)
+                             temp))
+                   env))
+          (else (make-call (make-variable 'abs)
+                           (m-scan (cadr exp) env))))))
 
-(define-integrable 'positive?
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? '>))
-         `(> ,(cadr exp) 0))))
+(define-inline 'negative?
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp)))
+           (inline-error exp))
+          (else (make-call (make-variable '<)
+                           (list (m-scan (cadr exp) env)
+                                 (make-constant 0)))))))
 
-(define-integrable 'list
-  (lambda (exp bound?)
-    (cond ((null? (cdr exp)) ''())
-          ((bound? 'cons) exp)
-          (else `(cons ,(cadr exp)
-                       (list ,@(cddr exp)))))))
+(define-inline 'positive?
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp)))
+           (inline-error exp))
+          (else (make-call (make-variable '>)
+                           (list (m-scan (cadr exp) env)
+                                 (make-constant 0)))))))
 
-(define-integrable 'cadddr
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'car))
-         (not (bound? 'cdr))
-         `(car (cdr (cdr (cdr ,(cadr exp))))))))
+(define-inline 'list
+  (lambda (exp env)
+    (cond ((null? (cdr exp)) (make-constant '()))
+          (else (make-call (make-variable 'cons)
+                           (list (m-scan (cadr exp) env)
+                                 (m-scan `(list ,@(cddr exp)) env)))))))
 
-(define-integrable 'cdddr
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'cdr))
-         `(cdr (cdr (cdr ,(cadr exp)))))))
+(define-inline 'cadddr
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'car)
+                 (list (make-call
+                        (make-variable 'cdr)
+                        (list (make-call
+                               (make-variable 'cdr)
+                               (list (make-call
+                                      (make-variable 'cdr)
+                                      (list (m-scan (cadr exp) env)))))))))))))
 
-(define-integrable 'caddr
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'car))
-         (not (bound? 'cdr))
-         `(car (cdr (cdr ,(cadr exp)))))))
+(define-inline 'cdddr
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'cdr)
+                 (list (make-call
+                        (make-variable 'cdr)
+                        (list (make-call
+                               (make-variable 'cdr)
+                               (list (m-scan (cadr exp) env)))))))))))
 
-(define-integrable 'cddr
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'cdr))
-         `(cdr (cdr ,(cadr exp))))))
+(define-inline 'caddr
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'car)
+                 (list (make-call
+                        (make-variable 'cdr)
+                        (list (make-call
+                               (make-variable 'cdr)
+                               (list (m-scan (cadr exp) env)))))))))))
 
-(define-integrable 'cdar
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'car))
-         (not (bound? 'cdr))
-         `(cdr (car ,(cadr exp))))))
+(define-inline 'cddr
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'cdr)
+                 (list (make-call
+                        (make-variable 'cdr)
+                        (list (m-scan (cadr exp) env)))))))))
 
-(define-integrable 'cadr
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'car))
-         (not (bound? 'cdr))
-         `(car (cdr ,(cadr exp))))))
+(define-inline 'cdar
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'cdr)
+                 (list (make-call
+                        (make-variable 'car)
+                        (list (m-scan (cadr exp) env)))))))))
 
-(define-integrable 'caar
-  (lambda (exp bound?)
-    (and (= 2 (length exp))
-         (not (bound? 'car))
-         `(car (car ,(cadr exp))))))
+(define-inline 'cadr
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'car)
+                 (list (make-call
+                        (make-variable 'cdr)
+                        (list (m-scan (cadr exp) env)))))))))
 
-(define-integrable 'make-vector
-  (lambda (exp bound?)
+(define-inline 'caar
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
+          (else (make-call
+                 (make-variable 'car)
+                 (list (make-call
+                        (make-variable 'car)
+                        (list (m-scan (cadr exp) env)))))))))
+
+(define-inline 'make-vector
+  (lambda (exp env)
     (cond ((= 2 (length exp))
-           `(make-vector ,(cadr exp) '()))
-          ((= 3 (length exp)) exp)
-          (else #f))))
+           (m-scan `(make-vector ,(cadr exp) '()) env))
+          ((= 3 (length exp))
+           (make-call (make-variable 'make-vector)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (inline-error exp)))))
 
-; (define-integrable 'make-string
-;   (lambda (exp bound?)
-;     (cond ((= 2 (length exp))
-;            `(make-string ,(cadr exp) #\space))
-;           ((= 3 (length exp)) exp)
-;           (else #f))))
+(define-inline 'make-string
+  (lambda (exp env)
+    (cond ((= 2 (length exp))
+           (m-scan `(make-string ,(cadr exp) #\space) env))
+          ((= 3 (length exp))
+           (make-call (make-variable 'make-string)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (inline-error exp)))))
 
-(define-integrable 'integer->char
-  (lambda (exp bound?)
-    (cond ((not (= 2 (length exp))) #f)
+(define-inline 'integer->char
+  (lambda (exp env)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
           ((and (fixnum? (cadr exp))
                 (<= 0 (cadr exp) 255))
-           (list 'quote (integer->char (cadr exp))))
-          (else exp))))
+           (make-constant (integer->char (cadr exp))))
+          (else (make-call (make-variable 'integer->char)
+                           (list (m-scan (cadr exp) env)))))))
 
-(define-integrable 'char->integer
+(define-inline 'char->integer
   (lambda (exp bound?)
-    (cond ((not (= 2 (length exp))) #f)
+    (cond ((not (= 2 (length exp))) (inline-error exp))
           ((char? (cadr exp))
-           (list 'quote (char->integer (cadr exp))))
-          (else exp))))
+           (make-constant (char->integer (cadr exp))))
+          (else (make-call (make-variable 'integer->char)
+                           (list (m-scan (cadr exp) env)))))))
 
-(define-integrable '=
-  (lambda (exp bound?)
-    (cond ((< (length exp) 3) #f)
-          ((= (length exp) 3) exp)
-          (else (let ((TEMP (gensym "T")))
-                  `(let ((,TEMP ,(caddr exp)))
-                        (and (= ,(cadr exp) ,TEMP)
-                             (= ,TEMP ,@(cdddr exp)))))))))
+(define-inline '=
+  (lambda (exp env)
+    (cond ((< (length exp) 3) (inline-error exp))
+          ((= (length exp) 3)
+           (make-call (make-variable '=)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (let ((TEMP (gensym "t")))
+                  (m-scan `(let ((,TEMP ,(caddr exp)))
+                                (and (= ,(cadr exp) ,TEMP)
+                                     (= ,TEMP ,@(cdddr exp))))
+                          env))))))
 
-(define-integrable '<
-  (lambda (exp bound?)
-    (cond ((< (length exp) 3) #f)
-          ((= (length exp) 3) exp)
-          (else (let ((TEMP (gensym "T")))
-                  `(let ((,TEMP ,(caddr exp)))
-                        (and (< ,(cadr exp) ,TEMP)
-                             (< ,TEMP ,@(cdddr exp)))))))))
+(define-inline '<
+  (lambda (exp env)
+    (cond ((< (length exp) 3) (inline-error exp))
+          ((= (length exp) 3)
+           (make-call (make-variable '<)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (let ((TEMP (gensym "t")))
+                  (m-scan `(let ((,TEMP ,(caddr exp)))
+                                (and (< ,(cadr exp) ,TEMP)
+                                     (< ,TEMP ,@(cdddr exp))))
+                          env))))))
 
-(define-integrable '>
-  (lambda (exp bound?)
-    (cond ((< (length exp) 3) #f)
-          ((= (length exp) 3) exp)
-          (else (let ((TEMP (gensym "T")))
-                  `(let ((,TEMP ,(caddr exp)))
-                        (and (> ,(cadr exp) ,TEMP)
-                             (> ,TEMP ,@(cdddr exp)))))))))
+(define-inline '>
+  (lambda (exp env)
+    (cond ((< (length exp) 3) (inline-error exp))
+          ((= (length exp) 3)
+           (make-call (make-variable '>)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (let ((TEMP (gensym "t")))
+                  (m-scan `(let ((,TEMP ,(caddr exp)))
+                                (and (> ,(cadr exp) ,TEMP)
+                                     (> ,TEMP ,@(cdddr exp))))
+                          env))))))
 
-(define-integrable '<=
-  (lambda (exp bound?)
-    (cond ((< (length exp) 3) #f)
-          ((= (length exp) 3) exp)
-          (else (let ((TEMP (gensym "T")))
-                  `(let ((,TEMP ,(caddr exp)))
-                        (and (<= ,(cadr exp) ,TEMP)
-                             (<= ,TEMP ,@(cdddr exp)))))))))
+(define-inline '<=
+  (lambda (exp env)
+    (cond ((< (length exp) 3) (inline-error exp))
+          ((= (length exp) 3)
+           (make-call (make-variable '<=)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (let ((TEMP (gensym "t")))
+                  (m-scan `(let ((,TEMP ,(caddr exp)))
+                                (and (<= ,(cadr exp) ,TEMP)
+                                     (<= ,TEMP ,@(cdddr exp))))
+                          env))))))
 
-(define-integrable '>=
-  (lambda (exp bound?)
-    (cond ((< (length exp) 3) #f)
-          ((= (length exp) 3) exp)
-          (else (let ((TEMP (gensym "T")))
-                  `(let ((,TEMP ,(caddr exp)))
-                        (and (>= ,(cadr exp) ,TEMP)
-                             (>= ,TEMP ,@(cdddr exp)))))))))
+(define-inline '>=
+  (lambda (exp env)
+    (cond ((< (length exp) 3) (inline-error exp))
+          ((= (length exp) 3)
+           (make-call (make-variable '>=)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (let ((TEMP (gensym "t")))
+                  (m-scan `(let ((,TEMP ,(caddr exp)))
+                                (and (>= ,(cadr exp) ,TEMP)
+                                     (>= ,TEMP ,@(cdddr exp))))
+                          env))))))
 
-(define-integrable '+
-  (lambda (exp bound?)
-    (cond ((null? (cdr exp)) '0)
-          ((null? (cddr exp)) (cadr exp))
-          ((null? (cdddr exp))
-           (cond ((and (fixnum? (cadr exp))
-                       (fixnum? (caddr exp))
-                       (fixnum? (+ (cadr exp) (caddr exp))))
-                  (+ (cadr exp) (caddr exp)))
-                 ((fixnum? (cadr exp))
-                  `(+ ,(caddr exp) ,(cadr exp)))
-                 (else exp)))
-          (else `(+ (+ ,(cadr exp) ,(caddr exp)) ,@(cdddr exp))))))
+(define-inline '+
+  (lambda (exp env)
+    (define (fold args val)
+      (cond ((null? args) (make-constant val))
+            ((and (constant? (car args))
+                  (fixnum? (constant.value (car args)))
+                  (fixnum? (+ val (constant.value (car args)))))
+             (fold (cdr args) (+ val (constant.value (car args)))))
+            ((and (null? (cdr args))
+                  (zero? val))
+             (car args))
+            ((null? (cdr args))
+             (make-call (make-variable '+)
+                        (list (car args) (make-constant val))))
+            ((and (constant? (cadr args))
+                  (fixnum? (constant.value (cadr args)))
+                  (fixnum? (+ val (constant.value (cadr args)))))
+             (fold (cons (car args) (cddr args))
+                   (+ val (constant.value (cadr args)))))
+            (else (fold (cons (make-call (make-variable '+)
+                                         (list (car args) (cadr args)))
+                              (cddr args))
+                        val))))
+    (fold (map (lambda (x) (m-scan x env)) (cdr exp)) 0)))
 
-(define-integrable '*
-  (lambda (exp bound?)
-    (cond ((null? (cdr exp)) '1)
-          ((null? (cddr exp)) (cadr exp))
-          ((null? (cdddr exp))
-           (cond ((and (fixnum? (cadr exp))
-                       (fixnum? (caddr exp))
-                       (fixnum? (* (cadr exp) (caddr exp))))
-                  (* (cadr exp) (caddr exp)))
-                 ((fixnum? (cadr exp))
-                  `(* ,(caddr exp) ,(cadr exp)))
-                 (else exp)))
-          (else `(* (* ,(cadr exp) ,(caddr exp)) ,@(cdddr exp))))))
+(define-inline '*
+  (lambda (exp env)
+    (define (fold args val)
+      (cond ((null? args) (make-constant val))
+            ((and (constant? (car args))
+                  (fixnum? (constant.value (car args)))
+                  (fixnum? (* val (constant.value (car args)))))
+             (fold (cdr args) (* val (constant.value (car args)))))
+            ((and (null? (cdr args))
+                  (= 1 val))
+             (car args))
+            ((null? (cdr args))
+             (make-call (make-variable '*)
+                        (list (car args) (make-constant val))))
+            ((and (constant? (cadr args))
+                  (fixnum? (constant.value (cadr args)))
+                  (fixnum? (* val (constant.value (cadr args)))))
+             (fold (cons (car args) (cddr args))
+                   (* val (constant.value (cadr args)))))
+            (else (fold (cons (make-call (make-variable '*)
+                                         (list (car args) (cadr args)))
+                              (cddr args))
+                        val))))
+    (fold (map (lambda (x) (m-scan x env)) (cdr exp)) 1)))
 
-(define-integrable '-
-  (lambda (exp bound?)
-    (cond ((null? (cdr exp)) #f)
+(define-inline '-
+  (lambda (exp env)
+    (define (fold args val)
+      (cond ((and (null? (cdr args))
+                  (zero? val))
+             (car args))
+            ((null? (cdr args))
+             (make-call (make-variable '-)
+                        (list (car args) (make-constant val))))
+            ((and (constant? (cadr args))
+                  (fixnum? (constant.value (cadr args)))
+                  (fixnum? (+ val (constant.value (cadr args)))))
+             (fold (cons (car args) (cddr args))
+                   (+ val (constant.value (cadr args)))))
+            (else (fold (cons (make-call (make-variable '-)
+                                         (list (car args) (cadr args)))
+                              (cddr args))
+                        val))))
+    (cond ((null? (cdr exp)) (inline-error exp))
+          ((null? (cdr (cdr exp)))
+           (make-call (make-variable '--)
+                      (list (m-scan (cadr exp) env))))
+          (else (fold (map (lambda (x) (m-scan x env)) (cdr exp)) 0)))))
+
+(define-inline '/
+  (lambda (exp env)
+    (cond ((null? (cdr exp))
+           (inline-error exp))
           ((null? (cddr exp))
-           (if (bound? '--)
-               `(- 0 ,(cadr exp))
-               `(-- ,(cadr exp))))
+           (m-scan `(/ 1 ,(cadr exp)) env))
           ((null? (cdddr exp))
-           (cond ((and (fixnum? (cadr exp))
-                       (fixnum? (caddr exp))
-                       (fixnum? (- (cadr exp) (caddr exp))))
-                  (- (cadr exp) (caddr exp)))
-                 (else exp)))
-          (else `(- (- ,(cadr exp) ,(caddr exp)) ,@(cdddr exp))))))
+           (make-call (make-variable '/)
+                      (list (m-scan (cadr exp) env)
+                            (m-scan (caddr exp) env))))
+          (else (m-scan `(/ (/ ,(cadr exp) ,(caddr exp)) ,@(cdddr exp))
+                        env)))))
 
-(define-integrable '/
-  (lambda (exp bound?)
-    (cond ((null? (cdr exp)) #f)
-          ((null? (cddr exp)) `(/ 1 ,(cadr exp)))
-          ((null? (cdddr exp))
-           (cond ((and (fixnum? (cadr exp))
-                       (fixnum? (caddr exp))
-                       (fixnum? (/ (cadr exp) (caddr exp))))
-                  (/ (cadr exp) (caddr exp)))
-                 (else exp)))
-          (else `(/ (/ ,(cadr exp) ,(caddr exp)) ,@(cdddr exp))))))
-
-(define-integrable 'eq?
-  (lambda (exp bound?)
-    (cond ((not (= 3 (length exp))) #f)
-          ((fixnum? (caddr exp)) exp)
+(define-inline 'eq?
+  (lambda (exp env)
+    (cond ((not (= 3 (length exp)))
+           (inline-error exp))
           ((fixnum? (cadr exp))
-           `(eq? ,(caddr exp) ,(cadr exp)))
-          (else exp))))
+           (m-scan `(eq? ,(caddr exp) ,(cadr exp)) env))
+          (else (make-call (make-variable 'eq?)
+                           (list (m-scan (cadr exp) env)
+                                 (m-scan (caddr exp) env)))))))
 
-(define-integrable 'eqv?
-  (lambda (exp bound?)
-    (cond ((not (= 3 (length exp))) #f)
-          ((bound? 'eq?) exp)
-          (else (let ((arg1 (cadr exp))
-                      (arg2 (caddr exp)))
-                  (if (or (boolean? arg1)
-                          (boolean? arg2)
-                          (fixnum? arg1)
-                          (fixnum? arg2)
-                          (char? arg1)
-                          (char? arg2)
-                          (and (pair? arg1)
-                               (pair? (cdr arg1))
-                               (let ((x (cadr arg1)))
-                                 (or (boolean? x)
-                                     (fixnum? x)
-                                     (char? x)
-                                     (null? x)
-                                     (symbol? x))))
-                          (and (pair? arg2)
-                               (pair? (cdr arg2))
-                               (let ((x (cadr arg2)))
-                                 (or (boolean? x)
-                                     (fixnum? x)
-                                     (char? x)
-                                     (null? x)
-                                     (symbol? x)))))
-                      (cons 'eq? (cdr exp))
-                      exp))))))
+(define-inline 'eqv?
+  (lambda (exp env)
+    (cond ((not (= 3 (length exp)))
+           (inline-error exp))
+          (else (make-call
+                 (let ((arg1 (cadr exp))
+                       (arg2 (caddr exp)))
+                   (if (or (boolean? arg1)
+                           (boolean? arg2)
+                           (fixnum? arg1)
+                           (fixnum? arg2)
+                           (char? arg1)
+                           (char? arg2)
+                           (and (pair? arg1)
+                                (eq? (car arg1) 'quote)
+                                (pair? (cdr arg1))
+                                (let ((x (cadr arg1)))
+                                  (or (boolean? x)
+                                      (fixnum? x)
+                                      (char? x)
+                                      (null? x)
+                                      (symbol? x))))
+                           (and (pair? arg2)
+                                (eq? (car arg2) 'quote)
+                                (pair? (cdr arg2))
+                                (let ((x (cadr arg2)))
+                                  (or (boolean? x)
+                                      (fixnum? x)
+                                      (char? x)
+                                      (null? x)
+                                      (symbol? x)))))
+                       (make-variable 'eq?)
+                       (make-variable 'eqv?)))
+                 (list (m-scan (cadr exp) env)
+                       (m-scan (caddr exp) env)))))))
+
+
+
+; Macros for cross-compilation.
+
+(define @special-forms@
+  '(quote lambda if set! begin))
+
+(define @macros@ '())
+
+(define (install-macro keyword transformer)
+  (if (assq keyword @macros@)
+      (begin (set! @special-forms@ (remq! keyword @special-forms@))
+             (set! @macros@ (remq! (assq keyword @macros@) @macros@))
+             (install-macro keyword transformer))
+      (begin (set! @macros@ (cons (list keyword transformer) @macros@))
+             (set! @special-forms@ (cons keyword @special-forms@))
+             keyword)))
+
+(for-each (lambda (x) (install-macro (car x) (cadr x)))
+          **macros**)
+
+(define-macro undefined
+  (lambda (l) `',hash-bang-unspecified))
+
+(define-macro or
+  (lambda (l)
+    (cond ((null? (cdr l)) '#f)
+          ((null? (cddr l)) (cadr l))
+          (else (let ((temp (gensym "T")))
+                  `(let ((,temp ,(cadr l)))
+                        (if ,temp ,temp (or ,@(cddr l)))))))))
+
+(define-macro cond
+  (lambda (l)
+    (if (null? (cdr l))
+        `',hash-bang-unspecified
+        (if (memq (car (car (cdr l))) '(#t else))
+            (cons 'begin (cdr (car (cdr l))))
+            (if (= (length (car (cdr l))) 1)
+                (list 'or
+                      (car (car (cdr l)))
+                      (cons 'cond (cdr (cdr l))))
+                (if (eq? (car (cdr (car (cdr l)))) '=>)
+                    (if (= (length (car (cdr l))) 3)
+                        (list '(lambda (test-result thunk2 thunk3)
+                                       (if test-result
+                                           ((thunk2) test-result)
+                                           (thunk3)))
+                              (car (car (cdr l)))
+                              (list 'lambda
+                                    '()
+                                    (car (cdr (cdr (car (cdr l))))))
+                              (list 'lambda
+                                    '()
+                                    (cons 'cond (cdr (cdr l)))))
+                        (error "Malformed cond clause" l))                                   
+                    (list 'if
+                          (car (car (cdr l)))
+                          (cons 'begin (cdr (car (cdr l))))
+                          (cons 'cond (cdr (cdr l))))))))))
+
+; This generates pretty terrible code for named let.
+; Ought to fix it someday.
+
+(define-macro let
+  (lambda (l)
+    (if (and (atom? (cadr l))
+             (not (null? (cadr l))))
+        (cons (list 'letrec                  ; named let
+                    (list (list (cadr l)
+                                (cons 'lambda
+                                      (cons (map car (caddr l))
+                                            (cdddr l)))))
+                    (cadr l))
+              (map (lambda (x) (cadr x)) (caddr l)))
+        (cons (cons 'lambda               ; standard let
+                    (cons (map car (cadr l))
+                          (cddr l)))
+              (map (lambda (x) (cadr x)) (cadr l))))))
+
+(define-macro letrec
+  (lambda (l)
+    (let ((bindings (sort (cadr l)
+                          (lambda (x y)
+                            (and (pair? (cadr x))
+                                 (eq? (car (cadr x)) 'lambda)))))
+          (body (cddr l)))
+      (cons (list 'lambda
+                  (map car bindings)
+                  (cons 'begin
+                        (map (lambda (x) (cons 'set! x)) bindings))
+                  (cons 'let (cons '() body)))
+            (map (lambda (x) '(undefined)) bindings)))))
+
+(define-macro do
+  (let ((oops (lambda (l) 
+                (error "Malformed do expression" l))))
+    (lambda (l)
+      (if (not (proper-list? l)) (oops l))
+      (if (<? (length l) 3) (oops l))
+      (if (not (proper-list? (cadr l))) (oops l))
+      (if (not (and (proper-list? (caddr l)) (pair? (caddr l))))
+          (oops l))
+      (let
+        ((loop (gensym "DO"))
+         (bindings (map (lambda (x)
+                          (cond ((atom? x) (oops l))
+                                ((atom? (cdr x))
+                                 (list (car x) '() (car x)))
+                                ((atom? (cddr x))
+                                 (list (car x) (cadr x) (car x)))
+                                (else x)))
+                        (cadr l)))
+         (test (caddr l)))
+        (list 'letrec
+              (list (list loop
+                          (list 'lambda
+                                (map car bindings)
+                                (list 'if
+                                      (car test)
+                                      (cons 'begin (cdr test))
+                                      (list 'begin
+                                            (cons 'begin (cdddr l))
+                                            (cons loop (map caddr bindings)))))))
+              (cons loop (map cadr bindings)))))))
+
+; For testing.
+
+; MAKE-READABLE strips the referencing information
+; and replaces (begin I) by I.
+
+(define (make-readable exp)
+  (case (car exp)
+    ((quote)    exp)
+    ((lambda)   `(lambda ,(lambda.args exp)
+                         ,@(map (lambda (def)
+                                  `(define ,(def.lhs def)
+                                           ,(make-readable (def.rhs def))))
+                                (lambda.defs exp))
+                           ,(make-readable (lambda.body exp))))
+    ((set!)     `(set! ,(assignment.lhs exp)
+                       ,(make-readable (assignment.rhs exp))))
+    ((if)       `(if ,(make-readable (if.test exp))
+                     ,(make-readable (if.then exp))
+                     ,(make-readable (if.else exp))))
+    ((begin)    (if (variable? exp)
+                    (variable.name exp)
+                    `(begin ,@(map make-readable (begin.exprs exp)))))
+    (else       `(,(make-readable (call.proc exp))
+                  ,@(map make-readable (call.args exp))))))
+
+; MAKE-UNREADABLE does the reverse.
+; It assumes there are no internal definitions.
+
+(define (make-unreadable exp)
+  (cond ((symbol? exp) (list 'begin exp))
+        ((pair? exp)
+         (case (car exp)
+           ((quote) exp)
+           ((lambda) (list 'lambda
+                           (cadr exp)
+                           '(begin)
+                           '(() ())
+                           (make-unreadable (cons 'begin (cddr exp)))))
+           ((set!) (list 'set! (cadr exp) (make-unreadable (caddr exp))))
+           ((if) (list 'if
+                       (make-unreadable (cadr exp))
+                       (make-unreadable (caddr exp))
+                       (if (= (length exp) 3)
+                           (list 'quote hash-bang-unspecified)
+                           (make-unreadable (cadddr exp)))))
+           ((begin) (if (= (length exp) 2)
+                        (make-unreadable (cadr exp))
+                        (cons 'begin (map make-unreadable (cdr exp)))))
+           (else (map make-unreadable exp))))
+        (else (list 'quote exp))))
