@@ -594,7 +594,7 @@ EXTNAME(m_disable_interrupts):
 
 EXTNAME(m_global_exception):
 	set	EX_UNDEF_GLOBAL, %TMP0
-	b	m_exception
+	b	EXTNAME(m_exception)
 	mov	%ARGREG2, %RESULT
 
 
@@ -608,7 +608,7 @@ EXTNAME(m_global_exception):
 
 EXTNAME(m_invoke_exception):
 	set	EX_NONPROC, %TMP0
-	b	m_exception
+	b	EXTNAME(m_exception)
 	nop
 
 
@@ -624,7 +624,7 @@ EXTNAME(m_invoke_exception):
 
 EXTNAME(m_global_invoke_exception):
 	set	EX_GLOBAL_INVOKE, %TMP0
-	b	m_exception
+	b	EXTNAME(m_exception)
 	nop
 
 
@@ -638,7 +638,7 @@ EXTNAME(m_global_invoke_exception):
 
 EXTNAME(m_argc_exception):
 	set	EX_ARGC, %TMP0
-	b	m_exception
+	b	EXTNAME(m_exception)
 	mov	%REG0, %ARGREG3
 
 ! _m_exception: General exception handler.
