@@ -84,6 +84,9 @@
     (environment-set! larc 'remq remq)
     (environment-set! larc 'remv remv)
     (environment-set! larc 'remove remove)
+    (environment-set! larc 'remq! remq!)
+    (environment-set! larc 'remv! remv!)
+    (environment-set! larc 'remove! remove!)
     (environment-set! larc 'append! append!)
     (environment-set! larc 'reverse! reverse!)
     (environment-set! larc 'some? some?)
@@ -374,6 +377,8 @@
     (environment-set! larc 'exit exit)
     (environment-set! larc 'add-exit-procedure! add-exit-procedure!)
     (environment-set! larc 'add-init-procedure! add-init-procedure!)
+    (environment-set! larc 'sort sort)
+    (environment-set! larc 'sort! sort!)
 
     ;; debugging.
 
@@ -422,7 +427,7 @@
 
     ;; Support for rewriter and for macro expansion.
 
-    (environment-set! larc 'macro-expand (lambda (e) (macro-expand e #f)))
+    (environment-set! larc 'macro-expand toplevel-macro-expand)
     (environment-set! null '.list .list)
     (environment-set! null '.list->vector .list->vector)
     (environment-set! null '.cons .cons)
