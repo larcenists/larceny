@@ -11,10 +11,18 @@
 #include "config.h"
 
 /* Scalar data types. */
-typedef unsigned word;
+typedef unsigned int word;
 typedef int s_word;
 typedef unsigned char byte;
+#ifdef CODEWARRIOR /* Broken. */
+# undef FALSE
+# define FALSE 0
+# undef TRUE
+# define TRUE 1
+# define bool int
+#else
 typedef enum { FALSE, TRUE } bool;
+#endif
 typedef enum { GCTYPE_COLLECT, 
 	         /* A collection in an area that may also promote in
                     data from other areas. */
