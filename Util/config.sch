@@ -319,13 +319,14 @@
 
     (define (dump-const! entry lang base)
       (if lang
-	  (if (string? entry)
-	      (twobit-format (lang.port lang)
-                             (lang.fmt lang)
-                             entry
-                             ((lang.action lang) base))
-	      #f)
-	  #f))
+	  (cond ((string? entry)
+                 (twobit-format (lang.port lang)
+                                (lang.fmt lang)
+                                entry
+                                ((lang.action lang) base)))
+                ((not entry))
+                (else
+                 (error "Invalid entry for DEFINE-CONST: " x)))))
 
     (let ((name (cadr x))
 	  (base (eval-expr (caddr x) (info.symtab info)))
