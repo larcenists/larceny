@@ -195,19 +195,7 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 #
 # Rules
 
-.SUFFIXES:	.cfg .ch .ah .sh .mac .asm
-
-.cfg.ch:
-	../build -config $<
-
-.cfg.ah:
-	../build -config $<
-
-.cfg.sh:
-	../build -config $<
-
-.mac.c:
-	../build -expand $<
+.SUFFIXES:	.asm
 
 .s.o:
 	$(AS) $(ASFLAGS) -o $*.o $<
@@ -256,11 +244,8 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 #	/bin/rm -f Sys/version.o
 
 # MacOS X shared object (not tested much)
-#libpetit.so: $(PETIT_LARCENY_OBJECTS)
-#	$(CC) -r -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS) \
-#		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) \
-#		-L/usr/lib -lc -lm
-#	/bin/rm -f Sys/version.o
+libpetit.so: $(PETIT_LARCENY_OBJECTS)
+	$(CC) -dylib -o libpetit.dylib $(PETIT_LARCENY_OBJECTS)
 
 # Generic Unix
 libpetit.a: $(PETIT_LARCENY_OBJECTS)
@@ -268,8 +253,8 @@ libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a
 
 # Generic Unix (?)
-libpetit.so: $(PETIT_LARCENY_OBJECTS)
-	gcc -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS)
+#libpetit.so: $(PETIT_LARCENY_OBJECTS)
+#	gcc -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS)
 
 # Intel x86 with the NASM back-end, on Unix
 libx86.a: $(X86_NASM_LARCENY_OBJECTS)
@@ -301,27 +286,6 @@ rtsclean: clean
 realclean: clean
 	if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi
 	rm -rf Build
-
-###########################################################################
-#
-# Magic header files
-
-Build/cdefs.h:	$(CCFG)
-	cat $(CCFG) > Build/cdefs.h
-
-Build/asmdefs.h:	$(ACFG)
-	cat $(ACFG) > Build/asmdefs.h
-
-Build/schdefs.h:	$(SCFG)
-	cat $(SCFG) > Build/schdefs.h
-
-Build/sparc-table.s: Build/globals.cfg
-	../build -config Build/globals.cfg
-
-Build/c-table.c: Build/globals.cfg
-	../build -config Build/globals.cfg
-
-
 
 ###########################################################################
 #
