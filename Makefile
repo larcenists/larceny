@@ -39,6 +39,7 @@ default:
 	@echo "  lopclean       - remove all .LOP files"
 	@echo "  libclean       - remove all .LAP and .LOP files"
 	@echo "  soclean        - remove all .so files"
+	@echo "  seedclean      - remove all .seed files"
 	@echo "  tildeclean     - remove all *~ files"
 	@echo "  faslclean      - remove all .FASL files"
 
@@ -116,6 +117,7 @@ petit.bin:
 # Cleanup
 
 clean: libclean rtsclean compilerclean
+	rm -f core
 
 libclean:
 	( cd Lib ; $(MAKE) clean )
@@ -131,8 +133,8 @@ compilerclean:
 	( cd Compiler ; $(MAKE) clean )
 
 realclean: tildeclean rejclean tcovclean
+	rm -f core
 	rm -f *.heap 
-	rm -f Testsuite/GC/bb.out*
 	( cd Lib ; $(MAKE) realclean )
 	( cd Interpreter ; $(MAKE) realclean )
 	( cd Repl ; $(MAKE) realclean )
@@ -152,6 +154,7 @@ soclean:
 
 tcovclean:
 	rm -f `find . -name '*\.tcov' -print`
+	rm -f `find . -name 'bb\.out*' -print`
 
 tildeclean:
 	rm -f `find . -name '*~' -print`
