@@ -55,7 +55,7 @@
 ! Output:    Nothing
 ! Destroys:  Temporaries
 
-#if !SIMULATE_NEW_BARRIER
+#if !defined(SIMULATE_NEW_BARRIER)
 EXTNAME(m_full_barrier):
 EXTNAME(mem_addtrans):
 #endif
@@ -103,7 +103,9 @@ EXTNAME(mem_addtrans):
 !    if (ssbtopv[gl] == ssblimv[gl]) C_wb_compact( gl );
 !  }
 
+#if !defined(SIMULATE_NEW_BARRIER)
 EXTNAME(m_partial_barrier):
+#endif
 	ld	[%GLOBALS+G_PGBASE], %TMP2	! pagebase in %TMP2
 	sub	%RESULT, %TMP2, %TMP0
 	srl	%TMP0, PAGESHIFT, %TMP0		! page(RESULT) in TMP0
@@ -188,6 +190,7 @@ EXTNAME(m_partial_barrier):
 
 #if SIMULATE_NEW_BARRIER
 EXTNAME(m_full_barrier):
+EXTNAME(m_partial_barrier):
 EXTNAME(mem_addtrans):
 	set	EXTNAME(C_simulate_new_barrier), %TMP0
 	b	callout_to_C
@@ -221,5 +224,5 @@ EXTNAME(wb_lowlevel_enable_barrier):
 	retl
 	nop
 
-	
+
 ! eof
