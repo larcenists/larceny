@@ -19,6 +19,9 @@
 ; Note this still isn't right -- it should be integrated with pass5p2 --
 ; but it's a step in the right direction.
 
+; TO DO
+;  * Consider backporting GLOBAL/INVOKE from the x86-nasm version.
+
 (define *peephole-table* (make-vector *number-of-mnemonics* #f))
 
 (define (define-peephole n p)
