@@ -65,7 +65,7 @@ struct sro_t {
   word *stklim;                 /* Current stack segment upper limit */
 };
 
-#define STACKSIZE  32767        /* Arbitrary */
+#define STACKSIZE  32760        /* Nearly arbitrary */
 
 struct sro_stack_t {
   word stack[ STACKSIZE ];
@@ -124,7 +124,7 @@ word sro( gc_t *gc, int p_tag, int h_tag, int limit )
   cnt = 0;
   for ( i=0 ; i < pages ; i++ )
     if (tbl.buckets[i] != 0)
-      for ( b = tbl.buckets[i], j=0 ; j < PAGESIZE/sizeof(word) ; j+= 2 )
+      for ( b = tbl.buckets[i], j=0 ; j < bytes2words(PAGESIZE) ; j+= 2 )
 	if (b[j] != 0)
 	  if (sro_ok( b[j], b[j+1], p_tag, h_tag, limit ))
 	    cnt++;
@@ -132,14 +132,14 @@ word sro( gc_t *gc, int p_tag, int h_tag, int limit )
 	    b[j] = 0;
 
   /* Allocate result vector without GC. */
-  x = gc_allocate( gc, (cnt+1)*sizeof(word), 1, 0 );
-  *x = mkheader( cnt*sizeof(word), VECTOR_HDR );
+  x = gc_allocate( gc, words2bytes(cnt+1), TRUE, FALSE );
+  *x = mkheader( words2bytes(cnt), VECTOR_HDR );
 
   /* Phase 3: insert elements into vector */
   p = x+1;
   for ( i=0 ; i < pages ; i++ )
     if (tbl.buckets[i] != 0)
-      for ( b = tbl.buckets[i], j=0 ; j < PAGESIZE/sizeof(word) ; j+= 2 )
+      for ( b = tbl.buckets[i], j=0 ; j < bytes2words(PAGESIZE) ; j+= 2 )
 	if (b[j] != 0)
 	  *p++ = b[j];
   
@@ -169,7 +169,7 @@ static void sro_traverse( sro_t *tbl )
       break;
     case VEC_TAG :
     case PROC_TAG :
-      n = sizefield( *ptrof(w) ) / sizeof(word);
+      n = bytes2words( sizefield( *ptrof(w) ) );
       for ( i=0 ; i < n ; i++ )
         sro_push( tbl, vector_ref( w, i ) );
       break;
@@ -236,7 +236,7 @@ static int sro_mark( sro_t *tbl, word w )
   page = pageof_pb( w, sro_pagebase );
   if (tbl->buckets[page] == 0) {
     t = tbl->buckets[page] = (word*)sro_alloc( tbl, PAGESIZE );
-    for ( i=0 ; i < PAGESIZE/sizeof(word) ; i++ )
+    for ( i=0 ; i < bytes2words(PAGESIZE) ; i++ )
       t[i] = 0;
   }
   else
@@ -261,7 +261,11 @@ static int sro_ok( word w, int refs, int p_tag, int h_tag, int limit )
 /* Memory management parameters */
 #define BIG_BLOCK_CUTOFF    (2*PAGESIZE)
 #define BLOCKSIZE           (1024*1024)
-#define SRO_MEM_ATTRIB      MB_RTS_MEMORY
+#if GCLIB_LARGE_TABLE
+# define SRO_MEM_ATTRIB      0
+#else
+# define SRO_MEM_ATTRIB      MB_RTS_MEMORY
+#endif
 
 static void *sro_alloc( sro_t *tbl, unsigned n_bytes )
 {
