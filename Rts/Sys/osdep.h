@@ -41,6 +41,11 @@ extern void stats_pagefaults( unsigned *major, unsigned *minor );
      that does not.
      */
        
+void osdep_poll_startup_events( void );
+  /* Process any events that need to be processed at startup.  This function
+     is only to be called before any Scheme procedures are run.
+     */
+
 extern void osdep_poll_events( word *globals );
   /* Poll for events that need to be polled for on this operating system, and
      dispatch on them if necessary.  This function is only to be called when
