@@ -70,7 +70,7 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
-#ifdef PETIT_LARCENY
+#if defined PETIT_LARCENY || defined X86_NASM
 int larceny_main( int argc, char **os_argv )
 #else
 int main( int argc, char **os_argv )
@@ -115,15 +115,14 @@ int main( int argc, char **os_argv )
 #endif
 
 #ifndef PETIT_LARCENY
-  consolemsg( "%s v%d.%d%s (%s:%s:%s) (%s %s)",
+  consolemsg( "%s v%d.%d%s (%s:%s:%s)",
               larceny_system_name,
               larceny_major_version, 
               larceny_minor_version,
               larceny_version_qualifier,
               larceny_gc_technology,
               osname, 
-              (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
-              user, date );
+              (globals[ G_CACHE_FLUSH ] ? "split" : "unified") );
 #else
   consolemsg( "%s v%d.%d%s (%s:%s)",
               larceny_system_name,

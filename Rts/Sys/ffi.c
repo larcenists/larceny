@@ -7,17 +7,6 @@
 
 #include "larceny.h"
 
-#if defined(SUNOS4) || defined(SUNOS5)  /* really HAVE_DLFCN_H */
-#include <dlfcn.h>
-#endif
-
-#if defined(WIN32)
-#define _X86_
-#include <stdarg.h>
-#include <windef.h>
-#include <winbase.h>
-#endif
-
 #include <assert.h>
 #include <string.h>
 
@@ -256,84 +245,36 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 
 
 /* This is a syscall.
- * w_path is a pointer to a bytevector containing a null-terminated string.
  *
- * See dlopen(3X) for details.
+ * w_path is a pointer to a bytevector containing a string.
+ *
+ * Returns a handle of some sort, or 0 on error.
  */
 void
 larceny_C_ffi_dlopen( word w_path )
 {
-#if defined(SUNOS4)
-  char *path;
-  void *desc;
-
-  path = (char*)(ptrof(w_path)+1);
-  desc = dlopen( path, 1 );
-  if (desc == 0) 
-    hardconsolemsg( "dlopen error: %s", dlerror() );
+  char *path = (char*)(ptrof(w_path)+1);
+  word desc = osdep_dlopen( path );
   globals[ G_RESULT ] = box_uint( (unsigned)desc );
-#elif defined(SUNOS5)
-  char *path;
-  void *desc;
-
-  path = (char*)(ptrof(w_path)+1);
-  /* One can debate whether this mode is the right one.
-     Perhaps the mode should be a parameter to this function.
-
-     Note: libjava.so requires RTLD_GLOBAL; currently that is
-     hacked around in Scheme code.  RTLD_GLOBAL does not
-     strike me as a reasonable default mode.  --lars
-     */
-  desc = dlopen( path, RTLD_LAZY | RTLD_LOCAL );
-  if (desc == 0) 
-    hardconsolemsg( "dlopen error: %s", dlerror() );
-  globals[ G_RESULT ] = box_uint( (unsigned)desc );
-#elif defined(WIN32)
-  char *path;
-  HINSTANCE dll;
-
-  path = (char*)(ptrof(w_path)+1);
-  dll = LoadLibrary(path);
-  if (dll == 0) 
-    hardconsolemsg( "dlopen error" );
-  globals[ G_RESULT ] = box_uint( (unsigned)dll );
-#else
-  globals[ G_RESULT ] = 0;
-#endif
 }
 
 
 /* This is a syscall.
- * w_handle is a 32-bit unsigned integer (bignum or fixnum) representing
- *  a void* returned from a previous call to larceny_C_ffi_dlopen.
- * w_sym is a pointer to a bytevector containing a null-terminated string.
  *
- * See dlsym(3X) for details.
+ * w_handle is a 32-bit unsigned integer (bignum or fixnum) representing
+ * a void* returned from a previous call to larceny_C_ffi_dlopen.
+ *
+ * w_sym is a pointer to a bytevector containing a string.
+ *
+ * Returns a handle of some sort, or 0 on error.
  */
 void
 larceny_C_ffi_dlsym( word w_handle, word w_sym )
 {
-#if defined(SUNOS4) || defined(SUNOS5)
-  char *sym;
-  void *handle;
-  void *r;
-
-  sym = (char*)(ptrof(w_sym)+1);
-  handle = (void*)unbox_uint( w_handle );
-  r = dlsym( handle, sym );
+  char *sym = (char*)(ptrof(w_sym)+1);
+  word handle = (word)unbox_uint( w_handle );
+  word r = osdep_dlsym( handle, sym );
   globals[ G_RESULT ] = box_uint( (unsigned)r );
-#elif defined(WIN32)
-  char *sym;
-  HINSTANCE dll;
-  void *r;
-
-  sym = (char*)(ptrof(w_sym)+1);
-  dll = (void*)unbox_uint( w_handle );
-  r = GetProcAddress( dll, sym );
-  globals[ G_RESULT ] = box_uint( (unsigned)r );
-#else
-  globals[ G_RESULT ] = 0;
-#endif
 }
 
 
@@ -349,6 +290,7 @@ void larceny_C_ffi_getaddr( word w_key )
     break;
   }
 }
+
 
 /* larceny_C_ffi_convert_and_call is called from C or from a callback
  * trampoline.

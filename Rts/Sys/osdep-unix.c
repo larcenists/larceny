@@ -29,6 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#if defined (SUNOS4) || defined(SUNOS5) || defined(LINUX) /* really should be HAVE_DLOPEN... */
+#include <dlfcn.h>  /* not on MacOS X */
+#endif
 
 #if defined(SUNOS4)		/* Not in any header file. */
 extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
@@ -567,6 +570,34 @@ static void get_rtclock( stat_time_t *real )
   real->sec = sec;
   real->usec = usec;
 }
+
+word
+osdep_dlopen( char *path )
+{
+#if defined(SUNOS4)
+  int mode = 1;
+#else
+  /* One can debate whether this mode is the right one.
+     Perhaps the mode should be a parameter to this function.
+
+     Note: libjava.so requires RTLD_GLOBAL; currently that is
+     hacked around in Scheme code.  RTLD_GLOBAL does not
+     strike me as a reasonable default mode.  --lars
+     */
+  int mode = RTLD_LAZY | RTLD_LOCAL;
+#endif
+  void *desc = dlopen( path, mode );
+  if (desc == 0)
+    hardconsolemsg( "dlopen error: %s", dlerror() );
+  return (word)desc;
+}
+
+word
+osdep_dlsym( word handle, char *sym )
+{
+  return (word)dlsym( (void*)handle, sym );
+}
+
 #endif /* defined(UNIX) */
 
 /* eof */

@@ -153,12 +153,21 @@ static void setreg( char *cmd )
     int index;
   } globassoc[] = {{ "STARTUP", G_STARTUP },
 		   { "CALLOUTS", G_CALLOUTS },
+#ifdef G_SCHCALL_ARG4
 		   { "SCHCALL_ARG4", G_SCHCALL_ARG4 },
+#endif
+#ifdef G_FOURTH
+		   { "FOURTH", G_FOURTH },
+#endif
+#ifdef G_ALLOCI_TMP
 		   { "ALLOCI_TMP", G_ALLOCI_TMP },
+#endif
+#ifdef G_GENERIC_NRTMP1
 		   { "GENERIC_NRTMP1", G_GENERIC_NRTMP1 },
 		   { "GENERIC_NRTMP2", G_GENERIC_NRTMP2 },
 		   { "GENERIC_NRTMP3", G_GENERIC_NRTMP3 },
 		   { "GENERIC_NRTMP4", G_GENERIC_NRTMP4 },
+#endif
 		   { "PUSHTMP", G_PUSHTMP },
 		   { "CALLOUT_TMP0", G_CALLOUT_TMP0 },
 		   { "CALLOUT_TMP1", G_CALLOUT_TMP1 },
@@ -173,10 +182,20 @@ static void setreg( char *cmd )
     globals[ G_REG0 + regno ] = val;
   else if (sscanf( cmd, "= RESULT %i", &val ) == 1)
     globals[ G_RESULT ] = val;
+#ifdef G_SECOND
+  else if (sscanf( cmd, "= SECOND %i", &val ) == 1)
+    globals[ G_SECOND ] = val;
+#else
   else if (sscanf( cmd, "= ARGREG2 %i", &val ) == 1)
     globals[ G_ARGREG2 ] = val;
+#endif
+#ifdef G_THIRD
+  else if (sscanf( cmd, "= THIRD %i", &val ) == 1)
+    globals[ G_THIRD ] = val;
+#else
   else if (sscanf( cmd, "= ARGREG3 %i", &val ) == 1)
     globals[ G_ARGREG3 ] = val;
+#endif
   else if (sscanf( cmd, "= G_%[A-Z0-9_] %i", name, &val ) == 2) {
     for ( i=0 ; globassoc[i].name && strcmp( globassoc[i].name, name ) ; i++ )
       ;
@@ -330,14 +349,28 @@ static int getreg( char **cmdl )
     p+=6;
     regno = G_RESULT;
   }
+#ifdef G_SECOND
+  else if (strncmp( p, "SECOND", 6 ) == 0) {
+    p+=6;
+    regno = G_SECOND;
+  }
+#else
   else if (strncmp( p, "ARGREG2", 7 ) == 0) {
     p+=7;
     regno = G_ARGREG2;
   }
+#endif
+#ifdef G_THIRD
+  else if (strncmp( p, "THIRD", 5 ) == 0) {
+    p+=5;
+    regno = G_THIRD;
+  }
+#else
   else if (strncmp( p, "ARGREG3", 7 ) == 0) {
     p+=7;
     regno = G_ARGREG3;
   }
+#endif
   else if (*p == 'R') {
     p++;
     regno = getuint( &p );
@@ -403,11 +436,19 @@ static void dumpregs( void )
       printf( "REG %2d=0x%08x  ", j*4+k, globals[ G_REG0 + j*4+k ] );
     putchar( '\n' );
   }
+#ifdef G_SECOND
+  printf( "RESULT=0x%08x  SECOND=0x%08x   THIRD=0x%08x    RETADDR=0x%08x\n", 
+	  globals[ G_RESULT ],
+	  globals[ G_SECOND ],
+	  globals[ G_THIRD ],
+	  globals[ G_RETADDR ] );
+#else
   printf( "RESULT=0x%08x  ARGREG2=0x%08x  ARGREG3=0x%08x  RETADDR=0x%08x\n", 
 	  globals[ G_RESULT ],
 	  globals[ G_ARGREG2 ],
 	  globals[ G_ARGREG3 ],
 	  globals[ G_RETADDR ] );
+#endif
   printf( "TIMER=0x%08x  Flags=%c%c%c  PC=0x%08x  CONT=0x%08x\n",
 	  globals[ G_TIMER2 ] + globals[ G_TIMER ],
 	  (globals[ G_TIMER_ENABLE ] == TRUE_CONST ? 'T' : 't'),
@@ -426,16 +467,27 @@ static void dumpregs( void )
 static void dumpglob( void )
 {
   printf( "Roots for precise GC:\n" );
-  printf( "  G_STARTUP=0x%08x  G_CALLOUTS=0x%08x  G_SCHCALL_ARG4=0x%08x\n",
+  printf( "  G_STARTUP=0x%08x  G_CALLOUTS=0x%08x"
+#ifdef G_SCHCALL_ARG4
+	  "G_SCHCALL_ARG4=0x%08x"
+#endif
+	  "\n",
 	  globals[ G_STARTUP ],
-	  globals[ G_CALLOUTS ],
-	  globals[ G_SCHCALL_ARG4 ] );
+	  globals[ G_CALLOUTS ]
+#ifdef G_SCHCALL_ARG4
+	  , globals[ G_SCHCALL_ARG4 ]
+#endif
+	  );
+#ifdef G_ALLOCI_TMP
   printf( "  G_ALLOCI_TMP=0x%08x\n", globals[ G_ALLOCI_TMP ] );
+#endif
   printf( "\nNon-roots:\n" );
+#ifdef G_GENERIC_NRTMP1
   printf( "  G_GENERIC_NRTMP1=0x%08x G_GENERIC_NRTMP2=0x%08x\n", 
 	  globals[ G_GENERIC_NRTMP1 ], globals[ G_GENERIC_NRTMP2 ] );
   printf( "  G_GENERIC_NRTMP3=0x%08x G_GENERIC_NRTMP4=0x%08x\n", 
 	  globals[ G_GENERIC_NRTMP3 ], globals[ G_GENERIC_NRTMP4 ] );
+#endif
   printf( "  G_PUSHTMP=0x%08x G_SCHCALL_RETADDR=0x%08x\n",
 	  globals[ G_PUSHTMP ], globals[ G_SCHCALL_RETADDR ] );
   printf( "  G_CALLOUT_TMP0=0x%08x G_CALLOUT_TMP1=0x%08x G_CALLOUT_TMP2=0x%08x\n",

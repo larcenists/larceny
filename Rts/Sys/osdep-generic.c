@@ -110,6 +110,18 @@ static void get_rtclock( stat_time_t *real )
   real->usec = 0;
 }
 
+word
+osdep_dlopen( char *path )
+{
+  return 0;
+}
+
+word
+osdep_dlsym( word handle, char *sym )
+{
+  return 0;
+}
+
 #endif /* GENERIC_OS */
 
 #if USE_GENERIC_FILESYSTEM || GENERIC_OS

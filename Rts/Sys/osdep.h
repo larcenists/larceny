@@ -240,24 +240,24 @@ extern void osdep_cwd( void );
      Returns #f on error or if unimplemented, otherwise the string.
      */
 
-extern word osdep_dlopen( const char *path );
+extern word osdep_dlopen( char *path );
   /* 'path' is an untagged pointer to a string.
       
-      'Path' represents the name of a shared object in the system.
-      osdep_dlopen() attempts to load that object, and if it is
-      successful, returns a nonzero handle to it.  If the load failed,
-      0 is returned.  (Some systems choose to crash if dlopen fails.
-      Sorry.)
+     'Path' represents the name of a shared object in the system.
+     osdep_dlopen() attempts to load that object, and if it is
+     successful, returns a nonzero handle to it.  If the load failed,
+     0 is returned.  (Some systems choose to kill the process if
+     dlopen fails.  Sorry.)
       
-      The string uses the operating system's native string
-      representation -- `asciiz' on Unix, 'pascal' on MacOS.
+     The string uses the operating system's native string
+     representation -- `asciiz' on Unix or Win32, 'pascal' on MacOS.
       
-      The mapping from the name of the shared object as specified by
-      path and an actual shared object in the system is entirely
-      os-dependent.  UTSL.
-      */
+     The mapping from the name of the shared object as specified by
+     path and an actual shared object in the system is entirely
+     OS-dependent.  UTSL.
+     */
 
-extern word osdep_dlsym( word handle, const char *symbol );
+extern word osdep_dlsym( word handle, char *symbol );
   /* 'handle' is a non-zero value returned by osdep_dlopen(),
      representing a loaded shared object.
      'symbol' is an untagged pointer to a string.
@@ -268,7 +268,7 @@ extern word osdep_dlsym( word handle, const char *symbol );
      occured.
 
      The string uses the operating system's native string 
-     representation -- `asciiz' on Unix, 'pascal' on MacOS.      
+     representation -- `asciiz' on Unix or Win32, 'pascal' on MacOS.
      */
 
 extern void osdep_open_shared_object( word params, word results );

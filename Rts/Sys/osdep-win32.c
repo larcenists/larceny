@@ -24,11 +24,16 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#define _X86_
+#include <windef.h>
+#include <winbase.h>
+
 #include <stdio.h>
 #include <time.h>
 #include <io.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "larceny.h"
 
@@ -225,6 +230,23 @@ static void get_rtclock( stat_time_t *real )
 
   real->sec = x / 1000 ;
   real->usec = x % 1000 * 1000;
+}
+
+word
+osdep_dlopen( char *path )
+{
+  HINSTANCE dll;
+
+  dll = LoadLibrary(path);
+  if (dll == 0) 
+    hardconsolemsg( "dlopen error" );
+  return (word)dll;
+}
+
+word
+osdep_dlsym( word handle, char *sym )
+{
+  return (word)GetProcAddress( (HINSTANCE)handle, sym );
 }
 
 #endif /* defined( WIN32 ) */

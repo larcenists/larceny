@@ -197,6 +197,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       vector_set( v, 0, fixnum(0) );
     else if (strcmp( larceny_architecture, "Standard-C" ) == 0)
       vector_set( v, 0, fixnum(1) );
+    else if (strcmp( larceny_architecture, "X86-NASM" ) == 0)
+      vector_set( v, 0, fixnum(2) );
     else
       vector_set( v, 0, fixnum(-1) );
     break;
