@@ -57,6 +57,12 @@
   (let ((h (logand (symbol-hash name) 255)))
     (cdr (assq name (vector-ref primop-vector h)))))
 
+(define (for-each-primop proc)
+  (do ((i 0 (+ i 1)))
+      ((= i (vector-length primop-vector)))
+    (for-each (lambda (p)
+                (proc (cdr p)))
+              (vector-ref primop-vector i))))
 
 ; Primops
 
