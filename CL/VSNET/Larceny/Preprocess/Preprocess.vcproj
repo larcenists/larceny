@@ -51,17 +51,19 @@
 					Name="Debug|Win32">
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="cl.exe /D_DEBUG /E $(InputPath) &gt; $(InputDir)FFI.cs
+						Description="Preprocessing $(InputFileName)"
+						CommandLine="cl.exe /nologo /D_DEBUG /E $(InputPath) &gt; $(InputDir)$(InputName)
 "
-						Outputs="$(InputDir)FFI.cs"/>
+						Outputs="$(InputDir)$(InputName)"/>
 				</FileConfiguration>
 				<FileConfiguration
 					Name="Release|Win32">
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="cl.exe /DNDEBUG /E $(InputPath) &gt; $(InputDir)FFI.cs
+						Description="Preprocessing $(InputFileName)"
+						CommandLine="cl.exe /nologo /DNDEBUG /E $(InputPath) &gt; $(InputDir)$(InputName)
 "
-						Outputs="$(InputDir)FFI.cs"/>
+						Outputs="$(InputDir)$(InputName)"/>
 				</FileConfiguration>
 			</File>
 			<File
@@ -70,17 +72,19 @@
 					Name="Debug|Win32">
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="cl.exe /D_DEBUG /E $(InputPath) &gt; $(InputDir)SchemeObject.cs
+						Description="Preprocessing $(InputFileName)"
+						CommandLine="cl.exe /nologo /D_DEBUG /E $(InputPath) &gt; $(InputDir)$(InputName)
 "
-						Outputs="$(InputDir)SchemeObject.cs"/>
+						Outputs="$(InputDir)$(InputName)"/>
 				</FileConfiguration>
 				<FileConfiguration
 					Name="Release|Win32">
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="cl.exe /DNDEBUG /E $(InputPath) &gt; $(InputDir)SchemeObject.cs
+						Description="Preprocessing $(InputFileName)"
+						CommandLine="cl.exe /nologo /DNDEBUG /E $(InputPath) &gt; $(InputDir)$(InputName)
 "
-						Outputs="$(InputDir)SchemeObject.cs"/>
+						Outputs="$(InputDir)$(InputName)"/>
 				</FileConfiguration>
 			</File>
 		</Filter>
