@@ -7,7 +7,13 @@ using Scheme.Rep;
 using System.Windows.Forms;
 
 namespace Scheme.RT {
-    public class FFI_message_filter : IMessageFilter {
+
+  // Why is this here?  Can't think of a better place.
+  // This wrapper is for the callback from the Windows message pump
+  // which for some reason is not a delegate like every other callback.
+
+    public class FFI_message_filter : IMessageFilter
+    {
         Procedure scheme_filter;
 
         public FFI_message_filter (Procedure _scheme_filter)
@@ -17,7 +23,7 @@ namespace Scheme.RT {
 
         public bool PreFilterMessage (ref Message m)
         {
-            return Call.callback (scheme_filter, Factory.makeForeign (m)) != Factory.False;
+            return Call.callback (scheme_filter, Factory.makeForeignBox (m)) != Factory.False;
         }
     }
 
@@ -30,126 +36,234 @@ namespace Scheme.RT {
 
         public static void ffi_syscall() {
             try {
-                ffi_syscall_main();
+                SObject scode = Reg.register2;
+                ffi_syscall_main(((SFixnum)scode).value);
             } catch (Exception e) {
                 Exn.error("exception in ffi: " + e.ToString());
             }
         }
 
-        private static void ffi_syscall_main() {
-            SObject scode = Reg.register2;
-            SObject arg1 = Reg.register3;
-            SObject arg2 = Reg.register4;
-            SObject arg3 = Reg.register5;
-            SObject arg4 = Reg.register6;
+        private static void ffi_syscall_main (int code) {
 
-            if (!scode.isFixnum()) {
-                Exn.error("ffi: expected code to be a fixnum", scode);
-                return;
-            }
-            int code = ((SFixnum)scode).value;
-            switch (code) {
-            case 0: // get type
-            {
-                string name = ((SByteVL)arg1).asString();
-                // case insensitive lookup
-                Reg.Result = Factory.makeForeignF (Type.GetType (name, false, true));
-                return;
-            }
-            case 1: // get method
-            {
-                Type t = (Type) ((Foreign)arg1).value;
-                string name = ((SByteVL)arg2).asString();
-                SObject[] typev = ((SVL)arg3).elements;
-                Type[] types = new Type[typev.Length];
-                for (int i = 0; i < types.Length; ++i) {
-                    types[i] = (Type) ((Foreign)typev[i]).value;
-                }
-                MethodInfo mi = t.GetMethod(name, types);
-                Reg.Result = Factory.makeForeignF(mi);
-                return;
-            }
-            case 2: // datum2foreign
-            {
-                int conversion = ((SFixnum)arg1).value;
-                Reg.Result = datum2foreign(conversion, arg2);
-                return;
-            }
-            case 3: // foreign2datum
-            {
-                int conversion = ((SFixnum)arg1).value;
-                Reg.Result = foreign2datum(conversion, arg2);
-                return;
-            }
-            case 4: // invoke
-            {
-                MethodInfo m = (MethodInfo) ((Foreign)arg1).value;
-                object obj = null;
-                if (!m.IsStatic) {
-                    obj = unwrapF(arg2);
-                }
-                SObject[] sargv = ((SVL)arg3).elements;
-                object[] args = new object[sargv.Length];
-                for (int i = 0; i < args.Length; ++i) {
-                    args[i] = unwrapF(sargv[i]);
-                }
-                object result;
-                try {
-                    result = m.Invoke(obj, args);
-                } catch (Exception e) {
-                    Exn.error("ffi:invoke: error in foreign function: " + e);
-                    return;
-                }
+          // SObject arg1 = Reg.register3;
+           // SObject arg2 = Reg.register4;
+           // SObject arg3 = Reg.register5;
+           // SObject arg4 = Reg.register6;
+          switch (code) {
 
-                Reg.Result = wrapF(result);
+            case 0:  // clr-version
+              // Return a list of integers indicating the version of the CLR runtime.
+            {
+                Version v = Environment.Version;
+                // return a list of 2, 3, or 4 elements
+                Reg.Result =
+                    Factory.makePair
+                    (Factory.makeNumber (v.Major),
+                     Factory.makePair
+                     (Factory.makeNumber (v.Minor),
+                      (v.Build == -1)
+                      ? (SObject) Factory.Null
+                      : (SObject) Factory.makePair (Factory.makeNumber (v.Build),
+                                                    (v.Revision == -1)
+                                                    ? (SObject) Factory.Null
+                                                    : (SObject) Factory.makePair (Factory.makeNumber (v.Revision),
+                                                                                  Factory.Null))));
                 return;
             }
-            case 5: // get field
+
+            case 1: // ffi version
+              // Return a list of integers indicating the version of this FFI.
             {
-                Type t = (Type) ((Foreign)arg1).value;
-                string name = ((SByteVL)arg2).asString();
-                Reg.Result = getField(t, name);
+                // Should actually do real versioning here.
+                Reg.Result =
+                    Factory.makePair (Factory.makeNumber (0),
+                                      Factory.makePair (Factory.makeNumber (0), Factory.Null));
                 return;
             }
-            case 6: // get property
+
+            case 2: // foreign?
+              // Return True iff argument is a ForeignBox wrapper.
             {
-                Type t = (Type) ((Foreign)arg1).value;
-                string name = ((SByteVL)arg2).asString();
-                Reg.Result = getProperty(t, name);
+                // SObject arg1 = Reg.register3;
+                // SObject arg2 = Reg.register4;
+                // SObject arg3 = Reg.register5;
+                // SObject arg4 = Reg.register6;
+                Reg.Result = (Reg.register3 is ForeignBox) ? Factory.True : Factory.False;
                 return;
             }
-            case 7: // isa?
+
+            case 3: // to-string
             {
-                object obj = ((Foreign)arg1).value;
-                Type type = (Type) ((Foreign)arg2).value;
+                SObject arg1 = Reg.register3;
+                object val = ((ForeignBox) arg1).value;
+                Reg.Result = Factory.makeString ((val == null) ? "null" : val.ToString());
+                return;
+            }
+
+            case 4: // object-type
+            {
+                SObject arg1 = Reg.register3;
+                Reg.Result = Factory.makeForeignBox (((ForeignBox) arg1).value.GetType());
+                return;
+            }
+
+            case 5: // isa?
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                object obj = ((ForeignBox)arg1).value;
+                Type type = (Type) ((ForeignBox)arg2).value;
                 Reg.Result = type.IsInstanceOfType(obj) ? Factory.True : Factory.False;
                 return;
             }
-            case 8: // field-get
+
+            case 6: // foreign-eq?
             {
-                FieldInfo f = (FieldInfo) ((Foreign)arg1).value;
-                object obj = null;
-                if (!f.IsStatic) {
-                    obj = unwrapF(arg2);
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                // SObject arg3 = Reg.register5;
+                // SObject arg4 = Reg.register6;
+                if (arg1 == arg2) {
+                    Reg.Result = Factory.True;
+                    }
+                else if (arg1 is ForeignBox) {
+                    if (arg2 is ForeignBox) {
+                        Reg.Result = ((((ForeignBox)arg1).value) == (((ForeignBox)arg2).value))
+                            ? Factory.True
+                            : Factory.False;
+                        }
+                    else if (arg2 is SFixnum) {
+                        Reg.Result = Factory.False;
+                        }
+                    else if (arg2 is SImmediate) {
+                        Reg.Result = Factory.False;
+                        }
+                    else
+                        Exn.error("cannot unwrap foreign argument");
+                    }
+                else if (arg1 is SFixnum) {
+                    if (arg2 is SFixnum) {
+                        Reg.Result = ((((ForeignBox)arg1).value) == (((ForeignBox)arg2).value))
+                            ? Factory.True
+                            : Factory.False;
+                        }
+                    else if (arg2 is ForeignBox)  {
+                        Reg.Result = Factory.False;
+                        }
+                    else if (arg2 is SImmediate) {
+                        Reg.Result = Factory.False;
+                        }
+                    else
+                        Exn.error("cannot unwrap foreign argument");
+                    }
+
+                else if (arg1 is SImmediate) {
+                    if (arg2 is SImmediate) {
+                        Reg.Result = Factory.False;
+                        }
+                    else if (arg2 is ForeignBox) {
+                        Reg.Result = Factory.False;
+                        }
+                    else if (arg2 is SFixnum) {
+                        Reg.Result = Factory.False;
+                        }
+                    else
+                        Exn.error("cannot unwrap foreign argument");
+                    }
+                else
+                    Exn.error("cannot unwrap foreign argument");
+                return;
+            }
+
+            case 7: // get type
+            {
+                // SObject arg1 = Reg.register3;
+                // string name = ((SByteVL)arg1).asString();
+                // case insensitive lookup
+                Type ft = Type.GetType (((SByteVL)(Reg.register3)).asString(), false, true);
+                // Return #F if not found.
+                Reg.Result = (ft == null) ? Factory.False : Factory.makeForeignBox (ft);
+                return;
+            }
+
+            // return the reflected field-info object associated with a named field.
+            // #F if not found
+            case 8: // get field
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                FieldInfo fi = ((Type) ((ForeignBox)arg1).value).GetField (((SByteVL)arg2).asString());
+                Reg.Result = (fi == null) ? Factory.False : Factory.makeForeignBox (fi);
+                return;
+            }
+            // return the reflected constructor
+            // #F if not found
+            case 9: // get-constructor
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject[] typev = ((SVL)arg2).elements;
+                Type[] types = new Type[typev.Length];
+                for (int i = 0; i < types.Length; ++i) {
+                    types[i] = (Type) ((ForeignBox)typev[i]).value;
                 }
+                ConstructorInfo ci = ((Type) ((ForeignBox)arg1).value).GetConstructor (types);
+                Reg.Result = (ci == null) ? Factory.False : Factory.makeForeignBox (ci);
+                return;
+            }
+
+            case 10: // get method
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                SObject[] typev = ((SVL)arg3).elements;
+                Type[] types = new Type[typev.Length];
+                for (int i = 0; i < types.Length; ++i) {
+                    types[i] = (Type) ((ForeignBox)typev[i]).value;
+                }
+                MethodInfo mi = ((Type) ((ForeignBox)arg1).value).GetMethod(((SByteVL)arg2).asString(), types);
+                Reg.Result = (mi == null) ? Factory.False : Factory.makeForeignBox (mi);
+                return;
+            }
+
+            case 11: // get property
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                SObject[] typev = ((SVL)arg3).elements;
+                Type[] types = new Type[typev.Length];
+                for (int i = 0; i < types.Length; ++i) {
+                    types[i] = (Type) ((ForeignBox)typev[i]).value;
+                }
+                PropertyInfo pi = ((Type) ((ForeignBox)arg1).value).GetProperty (((SByteVL)arg2).asString(), types);
+                Reg.Result = (pi == null) ? Factory.False : Factory.makeForeignBox (pi);
+                return;
+            }
+
+            case 12: // field-ref
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                FieldInfo fi = (FieldInfo) ((ForeignBox)arg1).value;
                 try {
-                    Reg.Result = wrapF(f.GetValue(obj));
+                    Reg.Result = Factory.makeForeignBox (fi.GetValue (fi.IsStatic ? null : ((ForeignBox) arg2).value));
                     return;
                 } catch (Exception e) {
                     Exn.error("ffi:field-get: " + e);
                     return;
                 }
             }
-            case 9: // field-set
+
+            case 13: // field-set!
             {
-                FieldInfo f = (FieldInfo) ((Foreign)arg1).value;
-                object obj = null;
-                if (!f.IsStatic) {
-                    obj = unwrapF(arg2);
-                }
-                object newvalue = unwrapF(arg3);
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                FieldInfo fi = (FieldInfo) ((ForeignBox)arg1).value;
                 try {
-                    f.SetValue(obj, newvalue);
+                    fi.SetValue (fi.IsStatic ? null : ((ForeignBox)arg2).value, ((ForeignBox) arg3).value);
                     Reg.Result = Factory.Unspecified;
                     return;
                 } catch (Exception e) {
@@ -157,81 +271,87 @@ namespace Scheme.RT {
                     return;
                 }
             }
-            case 10: // foreign?
+
+            case 14: // invoke constructor
             {
-                Reg.Result = (arg1 is Foreign) ? Factory.True : Factory.False;
-                return;
-            }
-            case 11: // get-constructor
-            {
-                Type t = (Type) ((Foreign)arg1).value;
-                SObject[] typev = ((SVL)arg2).elements;
-                Type[] types = new Type[typev.Length];
-                for (int i = 0; i < types.Length; ++i) {
-                    types[i] = (Type) ((Foreign)typev[i]).value;
-                }
-                Reg.Result = Factory.makeForeignF(t.GetConstructor(types));
-                return;
-            }
-            case 12: // invoke-constructor
-            {
-                ConstructorInfo m = (ConstructorInfo) ((Foreign)arg1).value;
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                ConstructorInfo ci = (ConstructorInfo) ((ForeignBox)arg1).value;
                 SObject[] sargv = ((SVL)arg2).elements;
                 object[] args = new object[sargv.Length];
                 for (int i = 0; i < args.Length; ++i) {
-                    args[i] = unwrapF(sargv[i]);
+                    args[i] = ((ForeignBox)(sargv[i])).value;
                 }
                 try {
-                    Reg.Result = wrapF(m.Invoke(args));
+                    Reg.Result = Factory.makeForeignBox (ci.Invoke (args));
                     return;
                 } catch (Exception e) {
                     Exn.error("ffi:invoke-constructor: " + e);
                     return;
                 }
             }
-            case 13: // equals?
+
+            case 15: // invoke method
             {
-                object a = unwrapF(arg1);
-                object b = unwrapF(arg2);
-                if (a == null) {
-                    Reg.Result = (b == null) ? Factory.True : Factory.False;
-                } else if (b == null) {
-                    Reg.Result = (a == null) ? Factory.True : Factory.False;
-                } else {
-                    Reg.Result = (a.Equals(b)) ? Factory.True : Factory.False;
-                }
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                MethodInfo mi = (MethodInfo) ((ForeignBox)arg1).value;
+                SObject[] sargv = ((SVL)arg3).elements;
+                object[] args = new object[sargv.Length];
+                for (int i = 0; i < args.Length; i++)
+                    args [i] = ((ForeignBox)(sargv[i])).value;
+
+// I wonder if this version is better?
+//                int i = 0;
+//                foreach (SObject sarg in sargv)
+//                  args [i++] = ((ForeignBox) sarg).value;
+                object result;
+                try {
+                    result = mi.Invoke (mi.IsStatic ? null : ((ForeignBox)arg2).value, args);
+                    }
+                catch (Exception e) {
+                    Exn.error("ffi:invoke: error in foreign function: " + e);
+                    return;
+                    }
+
+                Reg.Result = Factory.makeForeignBox (result);
                 return;
             }
-            case 14: // get-property-value
+
+            case 16: // property-ref
             {
-                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
-                object obj = unwrapF (arg2);
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
-                    args[i] = unwrapF (sargv[i]);
+                    args[i] = ((ForeignBox)(sargv[i])).value;
                 object result;
                 try {
-                    result = pi.GetValue (obj, args);
+                    result = ((PropertyInfo) ((ForeignBox) arg1).value).GetValue (((ForeignBox)arg2).value, args);
                     }
                 catch (Exception e) {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
                     return;
-                   }
-                Reg.Result = wrapF (result);
+                    }
+                Reg.Result = Factory.makeForeignBox (result);
                 return;
             }
-            case 15: // set-property-value
+
+            case 17: // property-set
             {
-                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
-                object obj = unwrapF (arg2);
-                object newval = unwrapF (arg3);
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                SObject arg4 = Reg.register6;
                 SObject[] sargv = ((SVL) arg4).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
-                    args[i] = unwrapF (sargv[i]);
+                    args[i] = ((ForeignBox)(sargv[i])).value;
                 try {
-                       pi.SetValue (obj, newval, args);
+                    ((PropertyInfo) ((ForeignBox) arg1).value).SetValue (((ForeignBox) arg2).value, ((ForeignBox) arg3).value, args);
                     }
                 catch (Exception e) {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
@@ -240,22 +360,44 @@ namespace Scheme.RT {
                 Reg.Result = Factory.Unspecified;
                 return;
             }
-            case 16: // to-string
+
+            case 18: // array ref
             {
-                Reg.Result = Factory.makeString (unwrapF (arg1).ToString());
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                Reg.Result =
+                    Factory.makeForeignBox (((Array)((ForeignBox) arg1).value).GetValue (((SFixnum) arg2).value));
                 return;
             }
-            case 17: // get-property-value-boolean
+
+            case 19: // datum2foreign
             {
-                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
-                object obj = unwrapF (arg2);
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                Reg.Result = datum2foreign (((SFixnum)arg1).value, arg2);
+                return;
+            }
+
+            case 20: // foreign2datum
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                Reg.Result = foreign2datum (((SFixnum)arg1).value, arg2);
+                return;
+            }
+
+            case 21: // get-property-value-boolean
+            {
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
-                    args[i] = unwrapF (sargv[i]);
+                    args[i] = ((ForeignBox)(sargv[i])).value;
                 object result;
                 try {
-                    result = pi.GetValue (obj, args);
+                    result = ((PropertyInfo) ((ForeignBox) arg1).value).GetValue (((ForeignBox) arg2).value, args);
                     }
                 catch (Exception e) {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
@@ -264,17 +406,18 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeBoolean ((bool)result != false);
                 return;
             }
-            case 18: // get-property-value-int
+            case 22: // get-property-value-int
             {
-                PropertyInfo pi = (PropertyInfo) ((Foreign) arg1).value;
-                object obj = unwrapF (arg2);
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
-                    args[i] = unwrapF (sargv[i]);
+                    args[i] = ((ForeignBox) (sargv[i])).value;
                 object result;
                 try {
-                    result = pi.GetValue (obj, args);
+                    result = ((PropertyInfo) ((ForeignBox) arg1).value).GetValue (((ForeignBox) arg2).value, args);
                     }
                 catch (Exception e) {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
@@ -283,17 +426,45 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeNumber((int)result);
                 return;
             }
-            case 19: // array ref
+            case 23: // get-property-value-native-window
             {
-               Array ra = (Array)((Foreign) arg1).value;
-               int index = ((SFixnum) arg2).value;
-               Reg.Result = wrapF (ra.GetValue (index));
-               return;
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = ((ForeignBox)(sargv[i])).value;
+                object result;
+                try {
+                    result = ((PropertyInfo) ((ForeignBox) arg1).value).GetValue (((ForeignBox) arg2).value, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.makeForeignBox (System.Windows.Forms.NativeWindow.FromHandle ((IntPtr)result));
+                return;
             }
-            case 20: // object-type
+            case 24: // get-property-value-intptr
             {
-              Reg.Result = Factory.makeForeign (unwrapF (arg1).GetType());
-              return;
+                SObject arg1 = Reg.register3;
+                SObject arg2 = Reg.register4;
+                SObject arg3 = Reg.register5;
+                SObject[] sargv = ((SVL) arg3).elements;
+                object[] args = new object [sargv.Length];
+                for (int i = 0; i < args.Length; ++i)
+                    args[i] = ((ForeignBox)(sargv[i])).value;
+                object result;
+                try {
+                    result = ((PropertyInfo) ((ForeignBox) arg1).value).GetValue (((ForeignBox) arg2).value, args);
+                    }
+                catch (Exception e) {
+                    Exn.error ("ffi:invoke: error in foreign function: " + e);
+                    return;
+                   }
+                Reg.Result = Factory.makeNumber ((int) ((IntPtr) result));
+                return;
             }
             }
             Exn.error("bad ffi syscall code");
@@ -304,14 +475,14 @@ namespace Scheme.RT {
             if (o is Int32 && SFixnum.inFixnumRange((int)o)) {
                 return Factory.makeFixnum ((int)o);
             } else {
-                return Factory.makeForeign(o);
+                return Factory.makeForeignBox (o);
             }
         }
         private static object unwrapF(SObject s) {
             if (s is SFixnum) {
                 return ((SFixnum)s).value;
-            } else if (s is Foreign) {
-                return ((Foreign)s).value;
+            } else if (s is ForeignBox) {
+                return ((ForeignBox)s).value;
             } else {
                 FAULT_ERROR("cannot unwrap foreign argument");
             }
@@ -319,10 +490,62 @@ namespace Scheme.RT {
 
         private static SObject datum2foreign(int conversion, SObject obj) {
             // datum->foreign : conversion value -> F
+
+            // Always returns a foreign box.  Contents of the box is controlled
+            // by the conversion switch.
             switch (conversion) {
+                // No conversion.  Scheme object is placed in the box.
+                case 0:
+                {
+                    return Factory.makeForeignBox (obj);
+                }
+
+                // String.
+                case 1:
+                {
+                    return Factory.makeForeignBox (((SByteVL)obj).asString());
+                }
+
+                // various integer forms
+                case 2:
+                {
+                    return Factory.makeForeignBox ((Byte) ((SFixnum)obj).value);
+                }
+
+                case 3:
+                {
+                    return Factory.makeForeignBox ((UInt16) ((SFixnum)obj).value);
+                }
+
+                case 4:
+                {
+                    return Factory.makeForeignBox ((UInt32) ((SFixnum)obj).value);
+                }
+
+                case 5:
+                {
+                    return Factory.makeForeignBox ((SByte) ((SFixnum)obj).value);
+                }
+
+                case 6:
+                {
+                    return Factory.makeForeignBox ((Int16) ((SFixnum)obj).value);
+                }
+
+                case 7:
+                {
+                    return Factory.makeForeignBox ((Int32) ((SFixnum)obj).value);
+                }
+
+                case 8: // message filter
+                {
+                    return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
+                }
+#if 0
+
                 case 0: // object
                 {
-                    if (obj is SFixnum || obj is Foreign) {
+                    if (obj is SFixnum || obj is ForeignBox) {
                         return obj;
                     } else {
                         FAULT_ERROR("datum->foreign (object) expected F");
@@ -330,13 +553,13 @@ namespace Scheme.RT {
                 }
                 case 1: // schemeobject
                 {
-                    return Factory.makeForeign(obj);
+                    return Factory.makeForeignBox (obj);
                 }
                 case 2: // string
                 {
                     if (obj is SByteVL) {
                         string value = ((SByteVL)obj).asString();
-                        return Factory.makeForeign(value);
+                        return Factory.makeForeignBox (value);
                     } else {
                         FAULT_ERROR("datum->foreign (string) expected string");
                     }
@@ -349,7 +572,7 @@ namespace Scheme.RT {
                 case 4: // bytes
                 {
                     if (obj is SByteVL) {
-                        return Factory.makeForeign(((SByteVL)obj).elements);
+                        return Factory.makeForeignBox (((SByteVL)obj).elements);
                     } else {
                         Exn.error("datum->foreign (bytes) expected bytevector");
                         return Factory.Impossible;
@@ -365,7 +588,7 @@ namespace Scheme.RT {
                             uint magn = (uint)(Number.bignumRef(n, 1) << 16)
                                       + (uint)Number.bignumRef(n, 0);
                             int val = Number.getBignumSign(n);
-                            return Factory.makeForeign(val);
+                            return Factory.makeForeignBox (val);
                         }
                     }
                     Exn.error("datum->foreign (int) expected small integer");
@@ -375,7 +598,7 @@ namespace Scheme.RT {
                 {
                     if (obj.isFlonum()) {
                         double value = ((SByteVL)obj).unsafeAsDouble(0);
-                        return Factory.makeForeign((float)value);
+                        return Factory.makeForeignBox ((float)value);
                     } else {
                         Exn.error("datum->foreign (float) expected flonum");
                         return Factory.Impossible;
@@ -385,7 +608,7 @@ namespace Scheme.RT {
                 {
                     if (obj.isFlonum()) {
                         double value = ((SByteVL)obj).unsafeAsDouble(0);
-                        return Factory.makeForeign(value);
+                        return Factory.makeForeignBox (value);
                     } else {
                         Exn.error("datum->foreign (float) expected flonum");
                         return Factory.Impossible;
@@ -399,12 +622,13 @@ namespace Scheme.RT {
                 case 9: // message filter
                 {
                     if (obj is Procedure)
-                        return Factory.makeForeign (new FFI_message_filter ((Procedure) obj));
+                        return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
                     else {
                         Exn.error("datum->foreign (message filter) expected procedure");
                         return Factory.Impossible;
                         }
                 }
+#endif
 
             }
             Exn.error("datum->foreign: unknown conversion");
@@ -413,8 +637,8 @@ namespace Scheme.RT {
         private static SObject foreign2datum(int conversion, SObject obj) {
             // foreign->datum : conversion F -> value
             object value;
-            if (obj is Foreign) {
-                value = ((Foreign)obj).value;
+            if (obj is ForeignBox) {
+                value = ((ForeignBox)obj).value;
             } else if (obj is SFixnum) {
                 value = ((SFixnum)obj).value;
             } else {
@@ -491,18 +715,6 @@ namespace Scheme.RT {
             }
             Exn.error("foreign->datum: unknown conversion");
             return Factory.Impossible;
-        }
-
-        public static SObject getMethod(Type type, string name, Type[] formals) {
-            return Factory.makeForeignF (type.GetMethod(name, formals));
-        }
-
-        public static SObject getField(Type type, string name) {
-            return Factory.makeForeignF (type.GetField(name));
-        }
-
-        public static SObject getProperty(Type type, string name) {
-            return Factory.makeForeignF (type.GetProperty (name));
         }
     }
 }
