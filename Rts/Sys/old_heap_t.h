@@ -48,12 +48,20 @@ struct old_heap {
        been allocated.
        */
   
-  void (*collect)( old_heap_t *heap );
-     /* A method that requests a garbage collection in the heap, without
-	guaranteeing that one is performed, but in any event guaranteeing
-	that at least `nbytes' bytes are free for allocation following
-	the call.
+  void (*collect)( old_heap_t *heap, gc_type_t request );
+     /* A method that requests a garbage collection in the heap.
+	Request is the type of GC requested.
 	*/
+
+  void (*collect_with_selective_fromspace)( old_heap_t *heap, int *fromspaces );
+    /* Takes an array of generation numbers to consider as part of fromspace
+       during the collection, and promotes these into oldspace (or collects 
+       oldspace, promoting them in the process).  
+     
+       There is a write barrier during GC: any promoted object that points to
+       any area not in fromspace must be added to the dynamic area's remembered
+       set.
+       */
 
   void (*before_collection)( old_heap_t *heap );
      /* A method that is called before any garbage collection.
@@ -103,7 +111,8 @@ old_heap_t *create_old_heap_t(
   char *id,
   word code,
   int  (*initialize)( old_heap_t *heap ), 
-  void (*collect)( old_heap_t *heap ),
+  void (*collect)( old_heap_t *heap, gc_type_t request ),
+  void (*collect_with_selective_fromspace)( old_heap_t *heap, int *fromspaces ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
   void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats ),
@@ -116,7 +125,9 @@ old_heap_t *create_old_heap_t(
 );
 
 #define oh_initialize( oh )        ((oh)->initialize( oh ))
-#define oh_collect( oh )           ((oh)->collect( oh ))
+#define oh_collect( oh,r )         ((oh)->collect( oh,r ))
+#define oh_collect_with_selective_fromspace( oh, fs ) \
+  ((oh)->collect_with_selective_fromspace( oh, fs ))
 #define oh_before_collection( oh ) ((oh)->before_collection( oh ))
 #define oh_after_collection( oh )  ((oh)->after_collection( oh ))
 #define oh_stats( oh, gen, s )     ((oh)->stats( oh, gen, s ))
