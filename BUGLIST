@@ -1,4 +1,4 @@
-$Id$
+$Id: BUGLIST,v 1.2 92/01/31 16:17:31 lth Exp Locker: lth $
 
 		    Larceny  --  Official Bug List
 			   (and wish list)
@@ -47,10 +47,17 @@ Assembler/basic code generator
 
 4. Sparc assembler is too slow. It could also stand a little cleaning up.
 
+5. Assembler must be smarter; right now we're pessimizing all the effective
+   address calculations in save and setrtn (and also in jump); most of the
+   time, the work is unnecessary, as the address would fit in an immediate.
+   The assembler must fix this up.
+
+6. op2imm for control peeps.
+
 Primops
 -------
-1. Vector-set!, set-cdr!, cell-set! must call millicode so that their 
-   transactions can be registered.
+*1. Vector-set!, set-cdr!, cell-set! must call millicode so that their 
+    transactions can be registered.
 
 2. Check that (byte)vector-{ref,set!} are using correct range checking;
    should it be bleu rather than blu?
@@ -77,9 +84,9 @@ Misc
 ----
 1. Investigate use of trap instruction for breakpoints?
 
-2. Is there *any* reason for using ARITH_SAVED_RETADDR_OFFSET rather than
-   SAVED_RETADDR_OFFSET in generic.s? [I suppose it might have to do with
-   the fact that Scheme may be called here.]
+*2. Is there *any* reason for using ARITH_SAVED_RETADDR_OFFSET rather than
+    SAVED_RETADDR_OFFSET in generic.s? [I suppose it might have to do with
+    the fact that Scheme may be called here.]
 
 3. Redesign the internal calling stuff in millicode. It's a mess.
 
