@@ -144,7 +144,9 @@
 			     (if (not (pair? v))
 				 #f
 				 (stage3 real (car v) (cdr v))))))))
-		(else (error "INTERNAL:PARSE-COMPLEX") #t))))
+		(else
+		 (error "Internal error in parse-complex: " c)
+		 #t))))
 
       (define (stage3 real imag input)
 	(cond ((null? input)
