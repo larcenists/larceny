@@ -6,5 +6,7 @@
 
 (fast-safe-code)
 (include-source-code #t)
+(issue-warnings #t)
+(initialize-help "Compiler/")
 
 ; eof
