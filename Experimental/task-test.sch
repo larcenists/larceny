@@ -15,7 +15,6 @@
 (load "Experimental/nonblocking-console.sch")
 (load "Experimental/tasking.sch")
 (load "Experimental/tasking-unix.sch")
-(load "Experimental/tasking-repl.sch")
 (load "Experimental/socket.sch")
 
 (define server #f)                      ; The server or #f
