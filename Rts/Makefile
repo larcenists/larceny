@@ -15,14 +15,14 @@
 
 # Petit Larceny: Unix: gcc
 # Petit Larceny: Win32: gcc under cygwin or mingw
-# Petit Larceny: MacOS X: gcc (when not building a shared library)
+# Petit Larceny: MacOS X: gcc (not building a shared library)
 O=o
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
-# Petit Larceny: MacOS X: gcc (when building a shared library; works otherwise, too)
+# Petit Larceny: MacOS X: gcc (building a shared library)
 #O=o
 #CC=gcc
 #DEBUGINFO=#-gstabs+
@@ -222,6 +222,7 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 
 # Unix: generic
 # Win32: cygwin
+# Win32: mingw, if you're not using dynamic loading (other targets further down)
 libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a
@@ -239,22 +240,23 @@ libpetit.so: $(PETIT_LARCENY_OBJECTS)
 # MacOS X dynamic shared library
 # You need to set your DYLD_LIBRARY_PATH to point to Rts/ to load this.
 libpetit.dylib: $(PETIT_LARCENY_OBJECTS)
-	$(CC) -undefined suppress -flat_namespace -dynamiclib -o libpetit.dylib $(PETIT_LARCENY_OBJECTS)
+	$(CC) -undefined suppress -flat_namespace -dynamiclib \
+		-o libpetit.dylib $(PETIT_LARCENY_OBJECTS)
 
-# Unix: Intel x86 with the NASM back-end
-libx86.a: $(X86_NASM_LARCENY_OBJECTS)
-	ar -r libx86.a $(X86_NASM_LARCENY_OBJECTS)
-	ranlib libx86.a
-
-# Win32: mingw
-libpetit.a: $(PETIT_LARCENY_OBJECTS)
-	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
-	ranlib libpetit.a
+# Win32: mingw, if you're using dynamic loading
+libpetit.dll: $(PETIT_LARCENY_OBJECTS)
+	dllwrap --output-lib=libpetit.lib --dllname=libpetit.dll \
+		--driver-name=gcc $(PETIT_LARCENY_OBJECTS)
 
 # Win32: other compilers
 libpetit.lib: $(PETIT_LARCENY_OBJECTS)
 	lib /libpath:Rts /name:libpetit /out:libpetit.lib \
 	   $(PETIT_LARCENY_OBJECTS)
+
+# Unix: Intel x86 with the NASM back-end
+libx86.a: $(X86_NASM_LARCENY_OBJECTS)
+	ar -r libx86.a $(X86_NASM_LARCENY_OBJECTS)
+	ranlib libx86.a
 
 hsplit: Util/hsplit.o
 	$(CC) $(PROFILE) $(TCOV) $(DEBUGINFO) $(LDXFLAGS) -o hsplit \
