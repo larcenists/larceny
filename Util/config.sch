@@ -87,7 +87,7 @@
   (define table-counter 0)
 
   (define (conf-error kill? msg . rest)
-    (apply format (current-output-port) (cons msg rest))
+    (apply twobit-format (current-output-port) (cons msg rest))
     (newline)
     (if kill?
 	(error-cont #f)))
@@ -251,11 +251,12 @@
 	  (else (delegate port op)))))
 
     (define (open-table-output name table comment)
-      (delete-file name)
-      (let ((port (open-output-file (string-append config-path name))))
-	(display comment port)
-	(newline port)
-	(set! table-objects (cons (the-table port table) table-objects))))
+      (let ((name (string-append config-path name)))
+        (delete-file name)
+        (let ((port (open-output-file name)))
+          (display comment port)
+          (newline port)
+          (set! table-objects (cons (the-table port table) table-objects)))))
 
     (let ((c-name (cadr item))
 	  (asm-name (caddr item)))
@@ -319,10 +320,10 @@
     (define (dump-const! entry lang base)
       (if lang
 	  (if (string? entry)
-	      (format (lang.port lang)
-                      (lang.fmt lang)
-                      entry
-                      ((lang.action lang) base))
+	      (twobit-format (lang.port lang)
+                             (lang.fmt lang)
+                             entry
+                             ((lang.action lang) base))
 	      #f)
 	  #f))
 
