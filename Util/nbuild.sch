@@ -115,7 +115,7 @@
 (writeln "Loading drivers and utilities.")
 (nbuild-load 'compiler "compile313.sch")
 (nbuild-load 'compiler "printlap.sch")
-(nbuild-load 'common-asm "makefasl2.sch")
+(nbuild-load 'common-asm "makefasl.sch")
 
 (writeln "Loading makefile.")
 (nbuild-load 'source "makefile.sch")
