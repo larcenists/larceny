@@ -1615,6 +1615,30 @@ $Id$
 
     Fixed 990405 / wdc: Changed DO macro.
    
+111 v1.0a1 (990317 / lth)  Fixed at unknown date by wdc
+    Priority: high
+    Category: TWOBIT / correctness
+
+    [This may have been fixed when bug 109 was fixed, but I haven't
+    yet checked. - wdc]
+
+    Message-Id: <199903171640.LAA27566@vega.ccs.neu.edu>
+    To: will@ccs.neu.edu
+    Subject: Re: Twobit bug 
+    Date: Wed, 17 Mar 1999 11:40:46 -0500
+    From: Lars Thomas Hansen <lth@ccs.neu.edu>
+
+    I also found another bug just now -- another coredump.  I haven't
+    investigated it because I have other things to do and I managed to work
+    around it, but I saved the pertinent data and information.  Again it
+    appears to be related to a (large) nest of internal definitions.  
+    The tar file with the information is
+    /home/lth/net/larceny/compiler-bug-990317.tar, in case you're
+    interested.  (It could be an assembler error as well as a compiler
+    error.)
+
+    Tested in 0.45 and found to have been fixed.
+
 115 v0.34 (981016 / wdc)
     Priority: medium
 
