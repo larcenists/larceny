@@ -51,7 +51,7 @@ namespace Scheme.RT {
 
       public static void InitializePerformanceCounters ()
       {
-#if PERFORMANCE_COUNTERS
+#if HAS_PERFORMANCE_COUNTERS
         if (PerformanceCounterCategory.Exists ("Scheme")) {
             // If the counters exist, get a hold of them.
             // If not, no big deal.
@@ -77,14 +77,28 @@ namespace Scheme.RT {
 #endif
       }
 
+      public static
+      bool test_checked()
+      {
+        int x = Int32.MaxValue;
+        try {
+            for (int i = 0; i < 10; i++) x += i;
+            return false;
+            }
+        catch (Exception) {
+            return true;
+            }
+      }
+
       // MainHelper takes the argument vector, executes the body of the caller's
       // assembly (should be the assembly corresponding to the compiled scheme code)
       // and then executes the "go" procedure, if available.
       public static void MainHelper (string[] args)
       {
         Debug.Listeners.Add (new TextWriterTraceListener (Console.Out));
-	//        Debug.WriteLine ("CLR Version:  {0}", System.Environment.Version);
+        //        Debug.WriteLine ("CLR Version:  {0}", System.Environment.Version);
         Debug.WriteLine ("DEBUG version of Scheme runtime.");
+        Debug.WriteLine (test_checked() ? "CHECKED arithmetic" : "UNCHECKED arithmetic");
 
         // Mono throws a not implemented exception here.
         try {
