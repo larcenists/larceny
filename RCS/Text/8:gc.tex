@@ -1,0 +1,585 @@
+% -*- TeX -*-
+% $Id: gcinterface.txt,v 1.5 91/07/24 13:33:45 lth Exp $
+
+\input{larceny.sty}
+\title{Larceny Note \#8: \\
+       Garbage Collector Interface Definition}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document describes the conventions that must be followed by an
+application using the garbage collector (henceforth called "the
+mutator").  There are specifications for collector initialization,
+space allocation, data formats, and invariants that must be upheld by
+the mutator.
+
+For the compiler writer, the only really interesting sections are the
+ones dealing with data formats, memory layout, and memory allocation.
+(Sections 2, 3, 5, and 6.)
+
+This document does not describe the internal workings of the garbage 
+collector.
+
+Other relevant documents are "memory.txt", which describes the
+higher-level interface to the memory management system, and "gc.txt",
+which describes the implementation of the garbage collector.
+\end{abstract}
+
+
+\section{General Conventions}
+
+All global variables defined by the collector are kept in the "globals"
+table. They must have their correct values when the "collect()" procedure
+is called.  However, the mutator may keep these variables in registers
+between calls to the collector.
+
+Algorithms for allocation are described in C but will in practice be coded
+in assembly language if the mutator runs compiled code that uses processor
+registers for virtual machine registers.
+
+
+\section{Data Formats}
+
+A pointer has a 2 or 3 bit type tag in the low order bits. Structures on
+the heap (except pairs) have a type tag in the first word. All heap
+structures must be aligned on an 8-byte boundary.
+
+The following are the tagged pointer formats.
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx00   fixnum
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx10   immediate
+  pppp pppp  pppp pppp  pppp pppp  pppp p001   pointer to pair 
+  pppp pppp  pppp pppp  pppp pppp  pppp p011   pointer to vector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p101   pointer to bytevector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p111   pointer to procedure struct
+\end{verbatim}
+\end{minipage}
+
+The following are the immediate formats.
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+  0000 0000  0000 0000  0000 0000  0000 0010   #f
+  0000 0000  0000 0000  0000 0000  0000 0110   #t
+  0000 0000  0000 0000  0000 0000  0000 1010   empty list
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  0001 0110   miscellaneous
+  0000 0000  cccc cccc  0000 0000  0010 0110   character
+  0sss ssss  ssss ssss  ssss ssss  100x xx10   reserved header
+  0sss ssss  ssss ssss  ssss ssss  101x xx10   vector-like header
+  0sss ssss  ssss ssss  ssss ssss  110x xx10   bytevector-like header
+  0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
+\end{verbatim}
+\end{minipage}
+
+The "xxx" bits in the low byte of a header can be used by the mutator to
+distinguish between different subtypes of structures; they are neither
+used nor examined by the collector.
+
+The "s" bits must contain the size of the data structure in bytes, not
+including the header word, and not including padding (see below). The
+collector will correctly round "bytevector" and "reserved" lengths up
+to a word boundary. Hence, for these structures, the "s" bits give the
+correct length of the datum, like the length of a string. For vectors
+and procedures the s field must be evenly divisible by 4 (low two bits
+are 0).
+
+Since all pointers are doubleword-aligned, some vectors, bytevectors,
+and procedures will have to be padded out to an even number of words.
+The mutator must allocate the extra word but may choose to leave it
+uninitialized; the collector will take the size of the vector into
+account and skip the padding. If the word is initialized, it may or
+may not be copied along with the structure during a collection.
+
+The structure layouts are these:
+
+\begin{itemize}
+\item
+Pairs: A pair has two words, the car (low word) and the cdr (high word).
+The pair pointer points to the car of the pair.
+
+\item
+A vector-like structure has the header word in the low position, followed
+by tagged pointers in all locations of the vector. The vector pointer
+points to the header word.
+
+\item
+A bytevector-like structure has the header word in the low position,
+followed by untagged bytes in all locations of the vector. The bytevector
+pointer points to the header word.
+
+\item
+A procedure structure has the header word in the low position, followed
+by tagged pointers in all locations of the procedure structure. To the
+collector, and with the exception of the tag, a procedure looks just like
+a vector-like structure. The interpretation of each word of the procedure
+structure is up to the mutator. The procedure pointer points to the
+header word.
+
+\item
+There is a "reserved" header but currently no "reserved" data layout; the
+collector does not know about the "reserved" header.
+\end{itemize}
+
+\section{The Collector's World View}
+
+There are four areas of memory, denoted the Static, Ephemeral, Tenured, and
+Stack areas. There is also a set of Root Pointers.
+
+\begin{itemize}
+\item
+The Static area has no out-pointers and will not be used for roots
+during a collection, nor will pointers into the Static area be traversed
+during a collection. The collector allocates this area as requested
+but never references it.
+
+\item
+The Ephemeral area is used for data structure creation; all memory 
+allocation is performed in the ephemeral area.
+
+\item
+The Tenured area is used for keeping data structures that are assumed
+to have an extended life. No memory is ever allocated directly in
+the Tenured area; data structures are created here only when they are
+moved from the Ephemeral area. The Tenured area also holds the 
+"transaction list", which is a set of pointers to data structures in 
+the Tenured area which might have pointers to data structures in the
+Ephemeral area.
+
+\item
+The Stack area has no in-pointers and is used only by the mutator; the
+collector allocates this area but never references it. If there are
+out pointers from the Stack area into the Tenured or Ephemeral areas,
+these pointers must also exist in data structures in those areas or
+in the root pointer set.
+
+\item
+The root pointers are those elements of the global table "globals"
+(which is not defined by the collector module) between the indices
+{\sc first\_root} and {\sc last\_root}, both of which are constants
+which must be defined in the file "offsets.h". The "globals" table
+must be an array of the data type "word", which is defined in the file
+"gcinterface.h".
+
+\end{itemize}
+
+The collector defines the following variables in the "globals" table
+(the names used are the symbolic names of the offsets into the table,
+as defined in the file "offsets.h"):
+
+\begin{description}
+
+\item {\sc e\_base\_offset}
+
+A pointer pointing to the first word of the current Ephemeral space.
+
+\item {\sc e\_top\_offset}
+
+A pointer pointing to the first unallocated word of the
+current Ephemeral space.
+
+\item {\sc e\_max\_offset}
+
+A pointer to the last word of the current Ephemeral space.
+
+\item {\sc e\_new\_base\_offset, e\_new\_max\_offset }
+
+Ditto for the ephemeral newspace. The mutator should *never* use these values.
+
+\item {\sc e\_mark\_offset}
+
+ A byte offset from the bottom of the Ephemeral area. If, after
+ a collection of the ephemeral area, the data in the Ephemeral
+ area goes past this mark, then the next collection will be a
+ tenuring collection. The mutator may change the value of this
+ variable at will.
+
+\item {\sc t\_base\_offset}
+
+ A pointer to the first word of the current Tenured space.
+
+\item {\sc t\_top\_offset}
+
+ A pointer to the first unallocated word of the current Tenured space.
+
+\item {\sc t\_trans\_offset}
+
+ A pointer to the last word of the current Tenured space
+ before the transaction area; the transactions are allocated
+ towards low memory.
+
+\item {\sc t\_max\_offset}
+
+ A pointer to the last word of the current Tenured area.
+ The words between {\sc t\_max\_offset} (inclusive) and 
+ {\sc t\_trans\_offset} (exclusive) make up the transaction list.
+
+\item {\sc t\_new\_base\_offset, t\_new\_max\_offset}
+
+ Ditto for the tenured newspace.
+
+\item {\sc s\_base\_offset}
+
+ A pointer to the first word of the Static space.
+
+\item {\sc s\_max\_offset}
+
+ A pointer to the last word of the Static space.
+
+\item {\sc stk\_base\_offset}
+
+ A pointer to the first word of the Stack space.
+
+\item {\sc stk\_max\_offset}
+
+  A pointer to the last word of the Stack space.
+
+\end{description}
+
+The mutator may only change {\sc t\_trans\_offset}, {\sc t\_top\_offset},
+{\sc e\_mark\_offset}, and {\sc e\_top\_offset}; all other values are to
+be considered read-only to the mutator. All Tenured and Ephemeral
+pointers are subject to change after a collection. [{\sc t\_top\_offset}
+is not normally changed, but if we load a heap into the tenured area,
+it will have to be. Also, if we want to be able to allocate an object
+larger than the Ephemeral area, it will have to be allocated directly
+in the Tenured area, and in that case {\sc t\_top\_offset} must change.]
+
+All pointers into all spaces are comparable. The Ephemeral area pointers
+always compare less than the Tenured area pointers. The relations of and to
+the other areas is implementation-defined, and may indeed change at run-time.
+
+
+\section{Initializing the collector}
+
+The collector is initialized with a call to 'init\_collector()':
+\begin{verbatim}
+  init\_collector( s_size, t_size, e_size, stack_size );
+\end{verbatim}
+where 's\_size', 't\_size', and 'e\_size', and 'stack\_size' are the sizes (in
+bytes) of the Static, Tenured, Ephemeral, and Stack areas, respectively.
+
+Upon initialization, the collector will honor the given sizes insofar as
+they do not violate the constraints set forth in the header file "gc.h".
+The collector will change unreasonable values into reasonable ones.
+
+The file ``gc.h'' and its contents are described in section ??.
+
+The memory manager is initialized with a call to the procedure ``init\_mem()'',
+which is defined in the file ``memsupport.c''. It is typically called from
+the initialization code in ``main.c'', and should be called before any other
+initialization code which may use memory is called. It takes five parameters:
+
+\begin{description}
+\item[e\_size] is the requested size of the ephemeral area, in bytes;
+\item[t\_size] is the requested (initial) size of the tenured area, in bytes;
+\item[s\_size] is the requested size of the static area, in bytes;
+\item[stk\_size] is the requested size of the stack cache area, in bytes; and
+\item[e\_lim] is the requested offset, in bytes from the bottom of the
+  ephemeral area, of the ephemeral watermark. If the live data in the
+  ephemeral area after an ephemeral collection overflows past the
+  watermark, then the next collection will be a tenuring collection.
+\end{description}
+
+The ``init\_mem()'' procedure will initialize the garbage collector and then
+set up the values at global table offsets E\_LIMIT and STK\_LIMIT. It will
+also setup a dummy continuation at the bottom (high addresses) of the
+stack cache to catch stack underflows, which may occur after stack flushes.
+
+
+\section{Memory Allocation}
+
+For the purposes of the following discussions, we will assume that there
+is a variable {\sc e\_limit\_offset} which the mutator will use as the allocation
+limit for the Ephemeral area. One cannot use {\sc e\_max\_offset} for this, for the
+following reason: When the Ephemeral area is full, and the collector
+must be invoked, the Stack will need to be copied into the Ephemeral area.
+Hence we must guarantee that there is room between {\sc e\_limit\_offset} and
+{\sc e\_max\_offset} to spill the stack in. {\sc e\_limit\_offset} is not used by the
+collector, and it is the responisbility of the mutator to calculate
+its value based on {\sc e\_max\_offset} after a collection.
+
+To allocate 'n' words from the ephemeral area, the procedure would be this:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+   word *alloc( int n )
+   {
+     word *p;
+
+     p = globals[ E_TOP_OFFSET ];
+
+     /* Allocate the requested memory; round number of words to even */
+     globals[ E_TOP_OFFSET ] += n + (n & 0x01);
+
+     /* Check for ephemeral area overflow */
+     if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ]) 
+       p = gc( n );
+
+     return p;
+   }
+\end{verbatim}
+\end{minipage}
+
+where the gc() procedure performs a collection, allocates ``n'' words, and
+returns a pointer to the newly-allocated space; a possible implementation
+is shown below.
+
+The first two statements allocate memory (notice that we must allocate
+an even number of words always, even if an odd number was requested).
+If the allocation moves {\sc e\_top\_offset} beyond {\sc
+e\_limit\_offset}, the collector is invoked.  Otherwise, a pointer to
+the structure is returned.
+
+Note that in the case of a collection, the gc() procedure is made to
+allocate the requested space. This is so that we can conveniently have
+out-of-line checks for whether {\sc e\_top\_offset} is greater than or
+equal to {\sc e\_limit\_offset} after the allocation; this may in fact
+happen.
+
+
+\section{The Transaction List}
+
+Memory for the ``transaction list'' -- the list of pointers to data
+structures in the Tenured space which contain pointers into the Ephemeral
+space -- is allocated in the Tenured area.
+
+Whenever the mutator side-effects a data structure in the tenured area
+(using ``set-car!'', ``set-cdr!'', or ``vector-set!'') with a value that is
+a tagged pointer into the Ephemeral area, then a transaction should be
+added to the transaction list. The transaction should be a tagged pointer
+not to the new object but to the header of the data structure in the
+Tenured area that was changed.
+
+The value stored into the Tenured-area data structure does not strictly
+speaking have to be a pointer into the Ephemeral area, but it is necessary
+to store a transaction on the transaction list when the stored value is
+such a pointer.  The collector deals with entries on the transaction list
+which are not pointers into the tenured area in a reasonable way.
+
+To allocate a transaction on the tranaction list, put the transaction in
+the location pointed to by the pointer {\sc t\_trans\_offset}, and then decrement
+this pointer. Then change the value in the data structure in the Tenured
+space.  Entries are allocated from the top of the tenured area with the
+initial value of {\sc t\_trans\_offset} being {\t t\_limit\_offset}.
+
+If, before allocating space for the entry, {\sc t\_trans\_offset} is
+less than {\sc t\_top\_offset}, then the tenured area has overflowed,
+and must be collected. The mutator must check this.
+
+We provide some example code for 'set-car!':
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+   void set_car( word objp, word val )
+   {
+     /* Check if we're storing into a Tenured object */
+     if (ptrof( objp ) >= globals[ T_BASE_OFFSET ]) {
+       if (globals[ T_TRANS_OFFSET ] < globals[ T_TOP_OFFSET ]) {
+         /* at this point do a tenuring collection */
+       }
+       *globals[ T_TRANS_OFFSET ]-- = objp;
+     }
+     *ptrof( objp ) = val;
+   }
+\end{verbatim}
+\end{minipage}
+
+
+\section{Calling the Garbage Collector}
+
+The garbage collector traces all objects reachable from the set of root
+objects, as outlined in section 3.  It is the duty of the storage
+allocating procedures (like 'alloc()' above) to store all root objects in
+the 'globals' table before the collector is invoked. In the case of
+'alloc()' it calls the procedure 'gc()', which could look something like
+this:
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+   gc( int n )
+   {
+     word *p;
+
+     globals[ REGO_OFFSET ] = REG0;
+     globals[ REG1_OFFSET ] = REG1;
+       :
+     globals[ REGn_OFFSET ] = REGn;
+
+     flush_stack_cache();
+     flush_instruction_cache();
+
+     collect( EPHEMERAL_COLLECTION );
+
+     REG0 = globals[ REG0_OFFSET ];
+     REG1 = globals[ REG1_OFFSET ];
+       :
+     REGn = globals[ REGn_OFFSET ];
+
+     calculate_e_limit();
+
+     p = globals[ E_TOP_OFFSET ];
+     globals[ E_TOP_OFFSET ] += n + (n & 0x01);
+     if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ]) {
+       /* at this point either do major GC or just give up. */
+     }
+     return p;
+   }
+\end{verbatim}
+\end{minipage}
+
+This code assumes that we have two stacks: one for Scheme, and one for C.
+
+First all rootable registers (\reg{reg0} through \reg{regn}) are
+stored.  There might be other registers as well, depending on the
+implementation.
+
+Then the stack cache is flushed. This code is not shown here, as it depends
+on the details of the stack layout, which in turn is irrelevant in the
+context of this document.
+
+Flushing the instruction cache is a system-dependent procedure; some
+systems will not need it. A selective flush is probably best; I think (but
+haven't decided yet) that it is always best to selectively flush oldspace,
+which is why the icache flush comes before the collection. It is probably
+equivalent to flush newspace (after the collection); and don't forget that
+we must flush the icache after an interactive compile-and-load.
+
+The collector is then called. The entry point of the collector is the
+'collect()' procedure; the constants {\sc ephemeral\_collection},
+{\sc tenuring\_collection}, and {\sc full\_collection} are defined in the file
+``gcinterface.h''
+
+Finally, when the collector has finished, each element of the
+``globals'' array is copied out to where they came from (they may all
+have changed).  A new {\sc e\_limit\_offset} is computed, and space is
+allocated. (If we fail again, there is one more hope: to do a tenuring
+collection. The code for this has not been shown.)
+
+
+\section{Memory statistics}
+
+The garbage collector keeps track of how much space is allocated and
+collected from the heap. These statistics are available in variables
+in the 'globals' array with the following names/offsets:
+
+\begin{description}
+\item {\sc e\_collections\_offset}
+
+ The number of ephemeral garbage collections.
+
+\item {\sc t\_collections\_offset}
+
+    The number of tenuring garbage collections.
+
+\item {\sc f\_collections\_offset}
+
+    The number of full garbage collections.
+
+\item {\sc wcollected\_offset}
+
+       The number of words collected (total).
+
+\item {\sc wallocated\_offset}
+
+       The number of words allocated (total).
+
+\item {\sc wcopied\_offset}
+
+          The number of words copied (total).
+\end{description}
+
+The number of words allocated is derived from the difference in the
+values of {\sc e\_top\_offset} just after a collection and just before the next
+one. Hence, if {\sc e\_top\_offset} has an invalid value (as it may legally have
+when the collector is called), then this statistic may be thrown off.
+(If 'alloc()' and 'gc()' are implemented like it was suggested earlier,
+a quick fix is for 'gc()' to subtract its argument from {\sc e\_top\_offset}.)
+
+
+\section{Requirements}
+
+The garbage collector requires the availability of the following 
+procedures:
+\begin{description}
+\item {\tt malloc()}
+
+Standard C library memory allocation procedure
+
+\item {\tt panic()}
+
+Must be provided by the mutator. It takes one argument (a string), and
+displays this string before terminating the program. Panic() will be
+called in the case of an unrecoverable error, and should not return to
+its caller.
+\end{description}
+It also requires the following variable:
+\begin{verbatim}
+   extern word globals[]
+\end{verbatim}
+which is the 'globals' table that has been mentioned above.
+The procedures and the variable should all be declared in ``gc.h''.
+
+Furthermore, ``gc.h'' must define all the offsets into the ``globals'' table.
+
+
+\section{Setting the Limits}
+
+The file ``gc.h'' contains a number of \#definitions of limits on the various
+memory area. The collector use these definitions as sanity checks on the
+arguments to init\_collector(). The utility of this facility is to remove
+the chore of sanity checking from the mutator.  However, the programmer
+needs to come up with values to use. The comments in the header file should
+adequately explain the restrictions.
+
+
+\section{Interface}
+
+The collector module exports three names: collect(), init\_collector(),
+and gc\_trap(), all of which are procedures. 
+
+Collect() takes a single argument, which must be an integer. The values
+{\sc ephemeral\_collection}, {\sc tenuring\_collection}, and 
+{\sc full\_collection} are defined
+in ``gcinterface.h''. Other valued cause a panic().
+
+Init\_collector()' takes four arguments, all unsigned integers, as outlined
+above.
+
+Gc\_trap() takes one argument, an integer:
+\begin{itemize}
+\item
+If the argument is {\sc ephemeral\_trap}, it means that the ephemeral area 
+overflowed. Typically this happens if one tries to allocate a data 
+structure larger than the ephemeral area. 
+
+\item
+If the argument is {\sc tenured\_trap}, it means that the tenured area
+overflowed.  This could happen if there are too many tenured objects
+(i.e.  during a collection).
+\end{itemize}
+
+If gc\_trap() returns to its caller, the caller is to repeat the failed
+operation, hoping that gc\_trap() solved the problem by allocating more
+memory.
+
+It should be noted that gc\_trap() currently calls panic() with some
+appropriate error message, and that its interface to the surrounding
+world may be too simple for realistic cases. It may therefore be considered
+``experimental''.
+
+The symbolic arguments to gc\_trap() are defined in ``gcinterface.h''.
+
+
+\section{Notes}
+
+The initialization routine will eventually take an additional argument
+which is the alignment to use in allocating memory for the spaces. On many
+systems, the alignment will be on a page boundary; this is interesting
+because we have to set access privileges on some of the spaces.
+
+\end{document}
