@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# checkout [dirs ...]
+#   For each listed directory, or the default set if there are none
+#   on the command line, do an RCS check-out of each file that is
+#   older (by date) than the RCS version. 
+#
+#   We assume that if the file is checked out and locked, then it will
+#   be newer than the RCS version.
+#
+#   Warnings:
+#     This script must be run in the root directory of the tree.
+
+
+top="."
+dirs=" 	${top}
+	${top}/Chez
+	${top}/Compiler
+	${top}/Lib
+	${top}/Lib/Sparc
+	${top}/Sparc
+	${top}/Sys
+	${top}/Text
+	"
+
+if [ "$#" -ge 1 ]; then
+	dirs="$@"
+fi
+
+basedir=`pwd`
+for dir in ${dirs}; do
+
+  cd ${basedir}/${dir}
+ 
+  filelist=`echo RCS/*,v`
+  if [ "${filelist}" = 'RCS/*,v' ]; then
+    filelist=""
+  fi
+
+  for rcsfile in ${filelist}; do
+    file=`basename ${rcsfile} ,v`
+
+    if /cs/bin/newer ${rcsfile} ${file} || [ ! -f ${file} ] ; then
+      echo "Checking out ${dir}/${file}"
+      co ${file}
+    fi
+  done
+done
+
+
+	
