@@ -1819,6 +1819,16 @@ $Id$
 
     Hacked the assembler and the error handler as described above.
 
+134 v0.45 and all earlier (990915 / lth)  Fixed 990928 by lth
+    Priority: medium
+    Category: RTS measurements / correctness
+
+    The number of words copied and moved are overreported by factors of four, 
+    because the stats module does not convert bytes to words when computing
+    these fields.
+
+    Fix: added the necessary calculations to Rts/Sys/stats.c.
+
 135 v0.45 and many earlier (990920 / lth)
     Priority: high
     Category: RTS / correctness
