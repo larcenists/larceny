@@ -390,7 +390,7 @@
 
   (set! have-made '())
   (make target)
-  #t)
+  (unspecified))
 
 ; Convenient high-level interface:
 ;  (make:project name clause ...)
