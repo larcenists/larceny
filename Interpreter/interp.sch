@@ -62,7 +62,7 @@
          (let ((address (interpret/var-address (variable.name expr) env)))
            (if address
                (interpret/lexical (car address) (cdr address))
-               (interpret/global (variable.name expr) find-global 
+               (interpret/global (variable.name expr) find-global
                                  expr proc-doc))))
         ((constant? expr)
          (interpret/const (constant.value expr)))
@@ -99,15 +99,15 @@
          #t)))
 
 
-; Closure creation.  Special cases handled: 
+; Closure creation.  Special cases handled:
 ;  - procedures of 0..4 arguments.
 ;  - varargs procedures.
 
 (define (interpret/make-proc expr env find-global src)
 
   (define (listify x)
-    (cond ((null? x) x)
-          ((pair? x) (cons (car x) (listify (cdr x))))
+    (cond ((pair? x) (cons (car x) (listify (cdr x))))
+          ((null? x) x)
           (else (list x))))
 
   (define (fixed-args x n)
@@ -121,15 +121,28 @@
          (src   (if doc (doc.code doc) #f))
          (nenv  (interpret/extend-env env (listify args)))
          (exprs (interpret/preprocess body nenv find-global doc)))
-    (if (list? args)
-        (case (length args)
-          ((0) (interpret/lambda0 exprs doc src))
-          ((1) (interpret/lambda1 exprs doc src))
-          ((2) (interpret/lambda2 exprs doc src))
-          ((3) (interpret/lambda3 exprs doc src))
-          ((4) (interpret/lambda4 exprs doc src))
-          (else (interpret/lambda-n (length args) exprs doc src)))
-        (interpret/lambda-dot (fixed-args args 0) exprs doc src))))
+    (cond ((pair? args)
+           (let ((tail0 (cdr args)))
+             (cond ((pair? tail0)
+                    (let ((tail1 (cdr tail0)))
+                      (cond ((pair? tail1)
+                             (let ((tail2 (cdr tail1)))
+                               (cond ((pair? tail2)
+                                      (let ((tail3 (cdr tail2)))
+                                        (cond ((pair? tail3)
+                                               (if (list? tail3)
+                                                   (interpret/lambda-n (length args) exprs doc src)
+                                                   (interpret/lambda-dot (fixed-args args 0) exprs doc src)))
+                                              ((null? tail3) (interpret/lambda4 exprs doc src))
+                                              (else (interpret/lambda-dot (fixed-args args 0) exprs doc src)))))
+                                     ((null? tail2) (interpret/lambda3 exprs doc src))
+                                     (else (interpret/lambda-dot (fixed-args args 0) exprs doc src)))))
+                            ((null? tail1) (interpret/lambda2 exprs doc src))
+                            (else (interpret/lambda-dot (fixed-args args 0) exprs doc src)))))
+                   ((null? tail0) (interpret/lambda1 exprs doc src))
+                   (else (interpret/lambda-dot (fixed-args args 0) exprs doc src)))))
+          ((null? args) (interpret/lambda0 exprs doc src))
+          (else (interpret/lambda-dot (fixed-args args 0) exprs doc src)))))
 
 ; Procedure call.  Special cases handled:
 ;  - primitive: (op a b ...)
@@ -143,7 +156,7 @@
          (args  (cdr pexps))
          (n     (length args)))
     (cond ((<= n 4)
-           (interpret/invoke-short proc args 
+           (interpret/invoke-short proc args
                                    (call.proc expr) n env find-global src doc))
           (else
            (interpret/invoke-n proc args src doc)))))
@@ -181,13 +194,17 @@
       (set-car! cell (expr env)))))
 
 ; Unroll loop for the closest ribs.
-
+; Go deep because we actually hit the default case fairly often.
 (define (interpret/lexical rib offset)
   (case rib
     ((0) (interpret/lexical0 offset))
     ((1) (interpret/lexical1 offset))
     ((2) (interpret/lexical2 offset))
     ((3) (interpret/lexical3 offset))
+    ((4) (interpret/lexical4 offset))
+    ((5) (interpret/lexical5 offset))
+    ((6) (interpret/lexical6 offset))
+    ((7) (interpret/lexical7 offset))
     (else (interpret/lexical-n rib offset))))
 
 (define (interpret/lexical0 offset)
@@ -205,6 +222,22 @@
 (define (interpret/lexical3 offset)
   (lambda (env)
     (vector-ref (cadddr env) offset)))
+
+(define (interpret/lexical4 offset)
+  (lambda (env)
+    (vector-ref (car (cddddr env)) offset)))
+
+(define (interpret/lexical5 offset)
+  (lambda (env)
+    (vector-ref (cadr (cddddr env)) offset)))
+
+(define (interpret/lexical6 offset)
+  (lambda (env)
+    (vector-ref (caddr (cddddr env)) offset)))
+
+(define (interpret/lexical7 offset)
+  (lambda (env)
+    (vector-ref (cadddr (cddddr env)) offset)))
 
 (define (interpret/lexical-n rib offset)
   (lambda (env0)
@@ -402,10 +435,9 @@
      (letrec ((self (interpreted-procedure
                      doc
                      (lambda args
-                       (let ((l (length args)))
-                         (if (< l n)
-                             (interpret/too-few self n l 'exact)))
-                       (body (cons (list->vector (cons self args)) env))))))
+                       (if (length<? args n)
+                           (interpret/too-few self n (length args) 'exact)
+                           (body (cons (list->vector (cons self args)) env)))))))
         self))
    src))
 
@@ -418,24 +450,25 @@
                (interpreted-procedure
                 doc
                 (lambda args
-                  (let ((l (length args))
-                        (v (make-vector (+ n 2) (unspecified))))
-                    (if (< l n)
-                        (interpret/too-few self n l 'inexact))
+                  (let ((v (make-vector (+ n 2) (unspecified)))
+                        (limit (+ n 1)))
                     (vector-set! v 0 self)
-                    (do ((args args (cdr args))
-                         (i 1 (+ i 1)))
-                        ((= i (+ n 1))
-                         (vector-set! v i args)
-                         (body (cons v env)))
-                      (vector-set! v i (car args))))))))
-        self))
+                    (let loop ((argnum  1)
+                               (argtail args))
+                      (cond ((= argnum limit)
+                             (vector-set! v argnum argtail)
+                             (body (cons v env)))
+                            ((pair? argtail)
+                             (vector-set! v argnum (car argtail))
+                             (loop (+ argnum 1) (cdr argtail)))
+                            (else (interpret/too-few self n (length args) 'inexact)))))))))
+       self))
    src))
 
 (define (interpret/too-few proc required got exact?)
-  (error "Too few arguments to procedure " 
+  (error "Too few arguments to procedure "
          (procedure-name proc)
-         "; got " 
+         "; got "
          got
          ", wanted "
          (if exact? "" "at least ")
@@ -451,7 +484,7 @@
 ; Interpreted-procedure takes a standard documentation structure and any
 ; procedure (currently anything) and returns a new procedure that is
 ; identical to the old except that the it has typetag 0 and is one
-; element longer.  The new, last element contains the pair 
+; element longer.  The new, last element contains the pair
 ; ($eval-lambda . <doc>) where <doc> is the documentation structure.
 ; This procedure is on the critical path in the interpreter and should
 ; do no more work than absolutely necessary.
@@ -479,8 +512,8 @@
 
 ; Interpreted-expression takes any procedure and a pair consisting of
 ; the source code for the expression and the enclosing procedure's
-; documentation slot and returns a new procedure that is identical to 
-; the old except that the it is one element longer and has typetag 0.  
+; documentation slot and returns a new procedure that is identical to
+; the old except that the it is one element longer and has typetag 0.
 ;
 ; The new, last element contains the pair ($evalproc . <doc>) where <doc>
 ; is (<source> <documentation>)
@@ -506,7 +539,7 @@
 ; Interpreted-primitive takes a name (a symbol), a number of arguments
 ; (a fixnum), and a procedure, and returns a new procedure that is
 ; identical to the old except that it is one element longer and has
-; typetag 0.  
+; typetag 0.
 ; The new, last element contains the list ($evalprim <name> <argc>).
 
 (define (interpreted-primitive name argc proc)
@@ -530,7 +563,7 @@
 ; Augments the definition in Lib/procinfo.sch to deal with interpreted
 ; procedures.
 
-(define procedure-documentation 
+(define procedure-documentation
   (let ((procedure-documentation procedure-documentation))
     (lambda (proc . rest)
       (cond ((interpreted-procedure? proc)
