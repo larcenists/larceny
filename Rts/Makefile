@@ -324,7 +324,7 @@ LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \
 	  Build/cdefs.h Build/config.h
 SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h
 PETIT_H=Standard-C/millicode.h Standard-C/petit-config.h \
-	Standard-C/petit-hacks.h
+	Standard-C/petit-machine.h
 
 Standard-C/arithmetic.$(O): $(LARCENY_H) $(PETIT_H)
 Standard-C/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \

@@ -14,7 +14,7 @@
 #include "gclib.h"              /* For pageof() */
 #include "stack.h"
 #include "millicode.h"
-#include "petit-hacks.h"        /* Sane aliases for old, insane names */
+#include "petit-machine.h"
 #include "signals.h"
 #include "assert.h"
 #include <setjmp.h>

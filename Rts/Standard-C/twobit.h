@@ -32,7 +32,7 @@
 #include "macros.h"
 #include "cdefs.h"
 #include "millicode.h"
-#include "petit-hacks.h"
+#include "petit-machine.h"
 #include "assert.h"
 
 #ifndef USE_CACHED_STATE
