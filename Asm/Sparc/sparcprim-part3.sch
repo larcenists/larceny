@@ -19,18 +19,18 @@
 (define (emit-setcar/setcdr! as rs1 rs2 offs)
   (cond ((and (write-barrier) (hardware-mapped? rs2))
 	 (sparc.sti as rs2 (- offs $tag.pair-tag) rs1)
-	 (if (not (= rs1 $r.result))
-	     (sparc.move as rs1 $r.result))
-	 (millicode-call/1arg as $m.addtrans rs2))
-	((write-barrier)
-	 (emit-move2hwreg! as rs2 $r.argreg2)
-	 (sparc.sti as $r.argreg2 (- offs $tag.pair-tag) rs1)
-	 (millicode-call/1arg-in-result as $m.addtrans rs1))
-	((hardware-mapped? rs2)
-	 (sparc.sti as rs2 (- offs $tag.pair-tag) rs1))
-	(else
-	 (emit-move2hwreg! as rs2 $r.argreg2)
-	 (sparc.sti as $r.argreg2 (- offs $tag.pair-tag) rs1))))
+         (if (not (= rs1 $r.result))
+             (sparc.move as rs1 $r.result))
+         (millicode-call/1arg as $m.addtrans rs2))
+        ((write-barrier)
+         (emit-move2hwreg! as rs2 $r.argreg2)
+         (sparc.sti as $r.argreg2 (- offs $tag.pair-tag) rs1)
+         (millicode-call/1arg-in-result as $m.addtrans rs1))
+        ((hardware-mapped? rs2)
+         (sparc.sti as rs2 (- offs $tag.pair-tag) rs1))
+        (else
+         (emit-move2hwreg! as rs2 $r.argreg2)
+         (sparc.sti as $r.argreg2 (- offs $tag.pair-tag) rs1))))
 
 
 ; LOGAND, LOGIOR, LOGXOR: logical operations on fixnums.
@@ -48,32 +48,32 @@
     (millicode-call/ret as $m.exception L0))
 
   (let ((L0  (new-label))
-	(L1  (new-label)))
+        (L1  (new-label)))
     (sparc.label     as L0)
     (let ((rs1 (force-hwreg! as rs1 $r.result))
-	  (rs2 (force-hwreg! as rs2 $r.argreg2))
-	  (u   (unsafe-code))
-	  (d   (hardware-mapped? dest)))
+          (rs2 (force-hwreg! as rs2 $r.argreg2))
+          (u   (unsafe-code))
+          (d   (hardware-mapped? dest)))
       (cond ((and u d)
-	     (op as rs1 rs2 dest))
-	    ((and u (not d))
-	     (op as rs1 rs2 $r.tmp0)
-	     (emit-store-reg! as $r.tmp0 dest))
-	    ((and (not u) d)
-	     (sparc.orr     as rs1 rs2 $r.tmp0)
-	     (sparc.btsti   as $r.tmp0 3)
-	     (sparc.bz.a    as L1)
-	     (op            as rs1 rs2 dest)
-	     (fail rs1 rs2 L0)
-	     (sparc.label   as L1))
-	    (else
-	     (sparc.orr     as rs1 rs2 $r.tmp0)
-	     (sparc.btsti   as $r.tmp0 3)
-	     (sparc.bz.a    as L1)
-	     (op            as rs1 rs2 $r.tmp0)
-	     (fail rs1 rs2 L0)
-	     (sparc.label   as L1)
-	     (emit-store-reg! as $r.tmp0 dest))))))
+             (op as rs1 rs2 dest))
+            ((and u (not d))
+             (op as rs1 rs2 $r.tmp0)
+             (emit-store-reg! as $r.tmp0 dest))
+            ((and (not u) d)
+             (sparc.orr     as rs1 rs2 $r.tmp0)
+             (sparc.btsti   as $r.tmp0 3)
+             (sparc.bz.a    as L1)
+             (op            as rs1 rs2 dest)
+             (fail rs1 rs2 L0)
+             (sparc.label   as L1))
+            (else
+             (sparc.orr     as rs1 rs2 $r.tmp0)
+             (sparc.btsti   as $r.tmp0 3)
+             (sparc.bz.a    as L1)
+             (op            as rs1 rs2 $r.tmp0)
+             (fail rs1 rs2 L0)
+             (sparc.label   as L1)
+             (emit-store-reg! as $r.tmp0 dest))))))
 
 
 ; LSH, RSHA, RSHL: Bitwise shifts on fixnums.
@@ -92,34 +92,34 @@
 (define (emit-shift-operation as exn rs1 rs2 rd)
   (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
     (if (not (unsafe-code))
-	(let ((L0 (new-label))
-	      (FAULT (new-label))
-	      (START (new-label)))
-	  (sparc.label as START)
-	  (sparc.btsti as rs1 3)	  ; RS1 fixnum?
-	  (sparc.be.a  as L0)
-	  (sparc.andi  as rs2 #x7c $r.g0) ; RS2 fixnum and 0 <= RS2 < 32?
-	  (sparc.label as FAULT)
-	  (if (not (= rs1 $r.result))
-	      (sparc.move as rs1 $r.result))
-	  (if (not (= rs2 $r.argreg2))
-	      (emit-move2hwreg! as rs2 $r.argreg2))
-	  (sparc.set   as (thefixnum exn) $r.tmp0)
-	  (millicode-call/ret as $m.exception START)
-	  (sparc.label as L0)
-	  (sparc.bne   as FAULT)
-	  (sparc.srai  as rs2 2 $r.tmp1))
-	(begin
-	  (sparc.srai  as rs2 2 $r.tmp1)))
+        (let ((L0 (new-label))
+              (FAULT (new-label))
+              (START (new-label)))
+          (sparc.label as START)
+          (sparc.btsti as rs1 3)          ; RS1 fixnum?
+          (sparc.be.a  as L0)
+          (sparc.andi  as rs2 #x7c $r.g0) ; RS2 fixnum and 0 <= RS2 < 32?
+          (sparc.label as FAULT)
+          (if (not (= rs1 $r.result))
+              (sparc.move as rs1 $r.result))
+          (if (not (= rs2 $r.argreg2))
+              (emit-move2hwreg! as rs2 $r.argreg2))
+          (sparc.set   as (thefixnum exn) $r.tmp0)
+          (millicode-call/ret as $m.exception START)
+          (sparc.label as L0)
+          (sparc.bne   as FAULT)
+          (sparc.srai  as rs2 2 $r.tmp1))
+        (begin
+          (sparc.srai  as rs2 2 $r.tmp1)))
     (cond ((= exn $ex.lsh)
-	   (sparc.sllr as rs1 $r.tmp1 rd))
-	  ((= exn $ex.rshl)
-	   (sparc.srlr  as rs1 $r.tmp1 rd)
-	   (sparc.andni as rd 3 rd))
-	  ((= exn $ex.rsha)
-	   (sparc.srar  as rs1 $r.tmp1 rd)
-	   (sparc.andni as rd 3 rd))
-	  (else ???))))
+           (sparc.sllr as rs1 $r.tmp1 rd))
+          ((= exn $ex.rshl)
+           (sparc.srlr  as rs1 $r.tmp1 rd)
+           (sparc.andni as rd 3 rd))
+          ((= exn $ex.rsha)
+           (sparc.srar  as rs1 $r.tmp1 rd)
+           (sparc.andni as rd 3 rd))
+          (else ???))))
 
 
 ; Set result on condition code.
@@ -191,8 +191,8 @@
 
 (define (double-tagcheck-assert as tag1 tag2 rs1 rs2/imm rs3 excode imm?)
   (let ((L0    (new-label))
-	(L1    (new-label))
-	(FAULT (new-label)))
+        (L1    (new-label))
+        (FAULT (new-label)))
     (sparc.label as L0)
     (sparc.andi  as rs1 $tag.tagmask $r.tmp0)
     (sparc.cmpi  as $r.tmp0 tag1)
@@ -200,15 +200,15 @@
     (sparc.ldi   as rs1 (- tag1) $r.tmp0)
     (sparc.label as FAULT)
     (if (not (= rs1 $r.result))
-	(sparc.move as rs1 $r.result))
+        (sparc.move as rs1 $r.result))
     (if rs2/imm 
-	(cond (imm?
-	       (sparc.set as (thefixnum rs2/imm) $r.argreg2))
-	      ((= rs2/imm $r.argreg2))
-	      (else
-	       (emit-move2hwreg! as rs2/imm $r.argreg2))))
+        (cond (imm?
+               (sparc.set as (thefixnum rs2/imm) $r.argreg2))
+              ((= rs2/imm $r.argreg2))
+              (else
+               (emit-move2hwreg! as rs2/imm $r.argreg2))))
     (if (and rs3 (not (= rs3 $r.argreg3)))
-	(emit-move2hwreg! as rs3 $r.argreg3))
+        (emit-move2hwreg! as rs3 $r.argreg3))
     (sparc.set   as (thefixnum excode) $r.tmp0)
     (millicode-call/ret as $m.exception L0)
     (sparc.label as L1)
@@ -240,8 +240,8 @@
 
 (define (emit-single-tagcheck-assert-reg! as tag1 reg reg2 excode)
   (let ((L0    (new-label))
-	(L1    (new-label))
-	(FAULT (new-label)))
+        (L1    (new-label))
+        (FAULT (new-label)))
     (sparc.label as L0)
     (sparc.andi  as reg $tag.tagmask $r.tmp0)
     (sparc.cmpi  as $r.tmp0 tag1)
@@ -252,8 +252,8 @@
 
 (define (emit-assert-fixnum! as reg excode)
   (let ((L0    (new-label))
-	(L1    (new-label))
-	(FAULT (new-label)))
+        (L1    (new-label))
+        (FAULT (new-label)))
     (sparc.label  as L0)
     (sparc.btsti  as reg 3)
     (fault-if-ne as excode #f #f reg #f L0)))
@@ -263,8 +263,8 @@
 
 (define (emit-assert-char! as excode fault-label)
   (let ((L0    (new-label))
-	(L1    (new-label))
-	(FAULT (new-label)))
+        (L1    (new-label))
+        (FAULT (new-label)))
     (sparc.label as L0)
     (sparc.andi  as $r.result #xFF $r.tmp0)
     (sparc.cmpi  as $r.tmp0 $imm.character)
@@ -288,42 +288,42 @@
 (define (fault-if-ne as excode cont-label fault-label reg1 reg2 ret-label)
   (if fault-label
       (begin 
-	(if (and reg2 (not (= reg2 $r.argreg2)))
-	    (emit-move2hwreg! as reg2 $r.argreg2))
-	(sparc.bne as fault-label)
-	(if (and reg1 (not (= reg1 $r.result)))
-	    (sparc.move as reg1 $r.result)
-	    (sparc.nop as))
-	fault-label)
+        (if (and reg2 (not (= reg2 $r.argreg2)))
+            (emit-move2hwreg! as reg2 $r.argreg2))
+        (sparc.bne as fault-label)
+        (if (and reg1 (not (= reg1 $r.result)))
+            (sparc.move as reg1 $r.result)
+            (sparc.nop as))
+        fault-label)
       (let ((FAULT (new-label))
-	    (L1    (new-label)))
-	(sparc.be.a  as (or cont-label L1))
-	(sparc.slot  as)
-	(sparc.label as FAULT)
-	(if (and reg1 (not (= reg1 $r.result)))
-	    (sparc.move as reg1 $r.result))
-	(if (and reg2 (not (= reg2 $r.argreg2)))
-	    (emit-move2hwreg! as reg2 $r.argreg2))
-	(sparc.set   as (thefixnum excode) $r.tmp0)
-	(millicode-call/ret as $m.exception (or ret-label L1))
-	(if (or (not cont-label) (not ret-label))
-	    (sparc.label as L1))
-	FAULT)))
+            (L1    (new-label)))
+        (sparc.be.a  as (or cont-label L1))
+        (sparc.slot  as)
+        (sparc.label as FAULT)
+        (if (and reg1 (not (= reg1 $r.result)))
+            (sparc.move as reg1 $r.result))
+        (if (and reg2 (not (= reg2 $r.argreg2)))
+            (emit-move2hwreg! as reg2 $r.argreg2))
+        (sparc.set   as (thefixnum excode) $r.tmp0)
+        (millicode-call/ret as $m.exception (or ret-label L1))
+        (if (or (not cont-label) (not ret-label))
+            (sparc.label as L1))
+        FAULT)))
 
 ; This is more expensive than what is good for it (5 cycles in the usual case),
 ; but there does not seem to be a better way.
 
 (define (emit-assert-positive-fixnum! as reg excode)
   (let ((L1 (new-label))
-	(L2 (new-label))
-	(L3 (new-label))) 
+        (L2 (new-label))
+        (L3 (new-label))) 
     (sparc.label   as L2)
     (sparc.tsubrcc as reg $r.g0 $r.g0)
     (sparc.bvc     as L1)
     (sparc.nop     as)
     (sparc.label   as L3)
     (if (not (= reg $r.result))
-	(sparc.move as reg $r.result))
+        (sparc.move as reg $r.result))
     (sparc.set     as (thefixnum excode) $r.tmp0)
     (millicode-call/ret as $m.exception l2)
     (sparc.label   as L1)
@@ -336,13 +336,13 @@
 
 (define (emit-cmp-primop! as branch_t.a generic r)
   (let ((Ltagok (new-label))
-	(Lcont  (new-label))
-	(r      (force-hwreg! as r $r.argreg2)))
+        (Lcont  (new-label))
+        (r      (force-hwreg! as r $r.argreg2)))
     (sparc.tsubrcc as $r.result r $r.g0)
     (sparc.bvc.a   as Ltagok)
     (sparc.set     as $imm.false $r.result)
     (if (not (= r $r.argreg2))
-	(sparc.move    as r $r.argreg2))
+        (sparc.move    as r $r.argreg2))
     (millicode-call/ret as generic Lcont)
     (sparc.label   as Ltagok)
     (branch_t.a    as Lcont)
@@ -367,12 +367,12 @@
 
 (define (emit-bcmp-primop! as branch_f.a src1 src2 Lfalse generic src2isreg)
   (let ((Ltagok (new-label))
-	(Ltrue  (new-label))
-	(op2    (if src2isreg
-		    (force-hwreg! as src2 $r.tmp1)
-		    (thefixnum src2)))
-	(sub   (if src2isreg sparc.tsubrcc sparc.tsubicc))
-	(mov   (if src2isreg sparc.move sparc.set)))
+        (Ltrue  (new-label))
+        (op2    (if src2isreg
+                    (force-hwreg! as src2 $r.tmp1)
+                    (thefixnum src2)))
+        (sub   (if src2isreg sparc.tsubrcc sparc.tsubicc))
+        (mov   (if src2isreg sparc.move sparc.set)))
     (sub         as src1 op2 $r.g0)
     (sparc.bvc.a as Ltagok)
     (sparc.slot  as)
@@ -382,13 +382,13 @@
     ; Must move src2 to argreg2 if src2 is not argreg2.
 
     (let ((move-res  (not (= src1 $r.result)))
-	  (move-arg2 (or (not src2isreg) (not (= op2 $r.argreg2)))))
+          (move-arg2 (or (not src2isreg) (not (= op2 $r.argreg2)))))
       (if (and move-arg2 move-res)
-	  (mov     as op2 $r.argreg2))
+          (mov     as op2 $r.argreg2))
       (sparc.jmpli as $r.millicode generic $r.o7)
       (cond (move-res   (sparc.move as src1 $r.result))
-	    (move-arg2  (mov        as op2 $r.argreg2))
-	    (else       (sparc.nop  as)))
+            (move-arg2  (mov        as op2 $r.argreg2))
+            (else       (sparc.nop  as)))
       (sparc.cmpi  as $r.result $imm.false)
       (sparc.bne.a as Ltrue)
       (sparc.slot  as)
@@ -415,30 +415,30 @@
 
 '(define (emit-arith-primop! as op invop generic src1 src2 dest src2isreg)
   (let ((L1  (new-label))
-	(op2 (if src2isreg
-		 (force-hwreg! as src2 $r.tmp1)
-		 (thefixnum src2))))
+        (op2 (if src2isreg
+                 (force-hwreg! as src2 $r.tmp1)
+                 (thefixnum src2))))
     (if (and src2isreg (= op2 dest))
-	(begin (op          as src1 op2 $r.tmp0)
-	       (sparc.bvc.a as L1)
-	       (sparc.move  as $r.tmp0 dest))
-	(begin (op          as src1 op2 dest)
-	       (sparc.bvc.a as L1)
-	       (sparc.slot  as)
-	       (invop       as dest op2 dest)))
+        (begin (op          as src1 op2 $r.tmp0)
+               (sparc.bvc.a as L1)
+               (sparc.move  as $r.tmp0 dest))
+        (begin (op          as src1 op2 dest)
+               (sparc.bvc.a as L1)
+               (sparc.slot  as)
+               (invop       as dest op2 dest)))
     (let ((n    (+ (if (not (= src1 $r.result)) 1 0)
-		   (if (or (not src2isreg) (not (= op2 $r.argreg2))) 1 0)))
-	  (mov2 (if src2isreg sparc.move sparc.set)))
+                   (if (or (not src2isreg) (not (= op2 $r.argreg2))) 1 0)))
+          (mov2 (if src2isreg sparc.move sparc.set)))
       (if (= n 2)
-	  (mov2 as op2 $r.argreg2))
+          (mov2 as op2 $r.argreg2))
       (sparc.jmpli as $r.millicode generic $r.o7)
       (cond ((= n 0) (sparc.nop  as))
-	    ((= n 1) (mov2       as op2 $r.argreg2))
-	    (else    (sparc.move as src1 $r.result)))
+            ((= n 1) (mov2       as op2 $r.argreg2))
+            (else    (sparc.move as src1 $r.result)))
       ; Generic arithmetic leaves stuff in RESULT, must move to dest if
       ; dest is not RESULT.
       (if (not (= dest $r.result))
-	  (sparc.move as $r.result dest))
+          (sparc.move as $r.result dest))
       (sparc.label as L1))))
 
 ; Comprehensible, but longer.
@@ -458,49 +458,49 @@
 (define (emit-arith-primop! as op invop generic rs1 rs2/imm rd op2isreg)
   (let ((L1 (new-label)))
     (if op2isreg
-	(let ((rs2 (force-hwreg! as rs2/imm $r.argreg2)))
-	  (cond ((or (= rs1 rs2 rd)
-		     (and (= rs2 rd)
-			  (= generic $m.subtract)))
-		 (op          as rs1 rs2 $r.tmp0)
-		 (sparc.bvc.a as L1)
-		 (sparc.move  as $r.tmp0 rd))
-		((= rs1 rd)
-		 (op          as rs1 rs2 rs1)
-		 (sparc.bvc.a as L1)
-		 (sparc.slot  as)
-		 (invop       as rs1 rs2 rs1))
-		((= rs2 rd)
-		 (op          as rs1 rs2 rs2)
-		 (sparc.bvc.a as L1)
-		 (sparc.slot  as)
-		 (invop       as rs2 rs1 rs2))
-		(else
-		 (op          as rs1 rs2 rd)
-		 (sparc.bvc.a as L1)
-		 (sparc.slot  as)
-		 (if (and (not (= rd $r.result)) (not (= rd $r.argreg2)))
-		     (sparc.clr as rd))))
-	  (cond ((and (= rs1 $r.result) (= rs2 $r.argreg2))
-		 ;; Could peephole the INVOP or CLR into the slot here.
-		 (millicode-call/0arg as generic))
-		((= rs1 $r.result)
-		 (millicode-call/1arg as generic rs2))
-		((= rs2 $r.argreg2)
-		 (millicode-call/1arg-in-result as generic rs1))
-		(else
-		 (sparc.move as rs2 $r.argreg2)
-		 (millicode-call/1arg-in-result as generic rs1))))
-	(let ((imm (thefixnum rs2/imm)))
-	  (op          as rs1 imm rd)
-	  (sparc.bvc.a as L1)
-	  (sparc.slot  as)
-	  (invop       as rd imm rd)
-	  (if (not (= rs1 $r.result))
-	      (sparc.move as rs1 $r.result))
-	  (millicode-call/numarg-in-reg as generic imm $r.argreg2)))
+        (let ((rs2 (force-hwreg! as rs2/imm $r.argreg2)))
+          (cond ((or (= rs1 rs2 rd)
+                     (and (= rs2 rd)
+                          (= generic $m.subtract)))
+                 (op          as rs1 rs2 $r.tmp0)
+                 (sparc.bvc.a as L1)
+                 (sparc.move  as $r.tmp0 rd))
+                ((= rs1 rd)
+                 (op          as rs1 rs2 rs1)
+                 (sparc.bvc.a as L1)
+                 (sparc.slot  as)
+                 (invop       as rs1 rs2 rs1))
+                ((= rs2 rd)
+                 (op          as rs1 rs2 rs2)
+                 (sparc.bvc.a as L1)
+                 (sparc.slot  as)
+                 (invop       as rs2 rs1 rs2))
+                (else
+                 (op          as rs1 rs2 rd)
+                 (sparc.bvc.a as L1)
+                 (sparc.slot  as)
+                 (if (and (not (= rd $r.result)) (not (= rd $r.argreg2)))
+                     (sparc.clr as rd))))
+          (cond ((and (= rs1 $r.result) (= rs2 $r.argreg2))
+                 ;; Could peephole the INVOP or CLR into the slot here.
+                 (millicode-call/0arg as generic))
+                ((= rs1 $r.result)
+                 (millicode-call/1arg as generic rs2))
+                ((= rs2 $r.argreg2)
+                 (millicode-call/1arg-in-result as generic rs1))
+                (else
+                 (sparc.move as rs2 $r.argreg2)
+                 (millicode-call/1arg-in-result as generic rs1))))
+        (let ((imm (thefixnum rs2/imm)))
+          (op          as rs1 imm rd)
+          (sparc.bvc.a as L1)
+          (sparc.slot  as)
+          (invop       as rd imm rd)
+          (if (not (= rs1 $r.result))
+              (sparc.move as rs1 $r.result))
+          (millicode-call/numarg-in-reg as generic imm $r.argreg2)))
     (if (not (= rd $r.result))
-	(sparc.move as $r.result rd))
+        (sparc.move as $r.result rd))
     (sparc.label as L1)))
 
 
@@ -509,33 +509,33 @@
 (define (emit-negate as rs rd)
   (let ((L1 (new-label)))
     (cond ((= rs rd)
-	   (sparc.tsubrcc as $r.g0 rs rs)
-	   (sparc.bvc.a   as L1)
-	   (sparc.slot    as)
-	   (if (= rs $r.result)
-	       (begin 
-		 (sparc.jmpli as $r.millicode $m.negate $r.o7)
-		 (sparc.subr  as $r.g0 $r.result $r.result))
-	       (begin
-		 (sparc.subr  as $r.g0 rs rs)
-		 (sparc.jmpli as $r.millicode $m.negate $r.o7)
-		 (sparc.move  as rs $r.result))))
-	  (else
-	   (sparc.tsubrcc as $r.g0 rs rd)
-	   (sparc.bvc.a   as L1)
-	   (sparc.slot    as)
-	   (cond ((= rs $r.result)
-		  (sparc.jmpli as $r.millicode $m.negate $r.o7)
-		  (sparc.clr   as rd))
-		 ((= rd $r.result)
-		  (sparc.jmpli as $r.millicode $m.negate $r.o7)
-		  (sparc.move  as rs $r.result))
-		 (else
-		  (sparc.clr   as rd)
-		  (sparc.jmpli as $r.millicode $m.negate $r.o7)
-		  (sparc.move  as rs $r.result)))))
+           (sparc.tsubrcc as $r.g0 rs rs)
+           (sparc.bvc.a   as L1)
+           (sparc.slot    as)
+           (if (= rs $r.result)
+               (begin 
+                 (sparc.jmpli as $r.millicode $m.negate $r.o7)
+                 (sparc.subr  as $r.g0 $r.result $r.result))
+               (begin
+                 (sparc.subr  as $r.g0 rs rs)
+                 (sparc.jmpli as $r.millicode $m.negate $r.o7)
+                 (sparc.move  as rs $r.result))))
+          (else
+           (sparc.tsubrcc as $r.g0 rs rd)
+           (sparc.bvc.a   as L1)
+           (sparc.slot    as)
+           (cond ((= rs $r.result)
+                  (sparc.jmpli as $r.millicode $m.negate $r.o7)
+                  (sparc.clr   as rd))
+                 ((= rd $r.result)
+                  (sparc.jmpli as $r.millicode $m.negate $r.o7)
+                  (sparc.move  as rs $r.result))
+                 (else
+                  (sparc.clr   as rd)
+                  (sparc.jmpli as $r.millicode $m.negate $r.o7)
+                  (sparc.move  as rs $r.result)))))
     (if (not (= rd $r.result))
-	(sparc.move as $r.result rd))
+        (sparc.move as $r.result rd))
     (sparc.label   as L1)))
 
 
@@ -547,8 +547,8 @@
 (define (emit-get-length! as tag1 tag2 excode rs rd)
   (if (not (unsafe-code))
       (if tag2
-	  (emit-double-tagcheck-assert-reg/reg! as tag1 tag2 rs rd excode)
-	  (emit-single-tagcheck-assert-reg! as tag1 rs rd excode)))
+          (emit-double-tagcheck-assert-reg/reg! as tag1 tag2 rs rd excode)
+          (emit-single-tagcheck-assert-reg! as tag1 rs rd excode)))
   (sparc.ldi  as rs (- tag1) $r.tmp0)
   (sparc.srli as $r.tmp0 8 rd)
   (if (= tag1 $tag.bytevector-tag)
@@ -588,7 +588,7 @@
 
 (define (emit-bytevector-fill as r-bytecount r-pointer r-value)
   (let ((L2 (new-label))
-	(L1 (new-label)))
+        (L1 (new-label)))
     (sparc.label  as L2)
     (sparc.deccc  as r-bytecount)
     (sparc.bge.a  as L2)
@@ -610,29 +610,29 @@
 (define (emit-bytevector-like-ref! as rs1 rs2 rd fault charize? header-loaded?)
   (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
     (if (not (unsafe-code))
-	(begin
-	  ; check that index is fixnum
-	  (sparc.btsti  as rs2 3)
-	  (sparc.bne    as fault)
-	  (if (not header-loaded?)
-	      (sparc.ldi as rs1 (- $tag.bytevector-tag) $r.tmp0))
-	  ; check length
-	  (sparc.srai   as rs2 2 $r.tmp1)
-	  (sparc.srli   as $r.tmp0 8 $r.tmp0)
-	  (sparc.cmpr   as $r.tmp0 $r.tmp1)
-	  (sparc.bleu as fault)
-	  ; No NOP or SLOT -- the SUBI below goes into the slot.
-	  )
-	(begin
-	  (sparc.srai   as rs2 2 $r.tmp1)))
+        (begin
+          ; check that index is fixnum
+          (sparc.btsti  as rs2 3)
+          (sparc.bne    as fault)
+          (if (not header-loaded?)
+              (sparc.ldi as rs1 (- $tag.bytevector-tag) $r.tmp0))
+          ; check length
+          (sparc.srai   as rs2 2 $r.tmp1)
+          (sparc.srli   as $r.tmp0 8 $r.tmp0)
+          (sparc.cmpr   as $r.tmp0 $r.tmp1)
+          (sparc.bleu as fault)
+          ; No NOP or SLOT -- the SUBI below goes into the slot.
+          )
+        (begin
+          (sparc.srai   as rs2 2 $r.tmp1)))
     ; Pointer is in RS1.
     ; Shifted index is in TMP1.
     (sparc.addi as rs1 (- 4 $tag.bytevector-tag) $r.tmp0)
     (sparc.ldbr as $r.tmp0 $r.tmp1 $r.tmp0)
     (if (not charize?)
-	(sparc.slli as $r.tmp0 2 rd)
-	(begin (sparc.slli as $r.tmp0 16 rd)
-	       (sparc.ori  as rd $imm.character rd)))))
+        (sparc.slli as $r.tmp0 2 rd)
+        (begin (sparc.slli as $r.tmp0 16 rd)
+               (sparc.ori  as rd $imm.character rd)))))
 
 ; As above, but RS2 is replaced by an immediate, IMM.
 ;
@@ -640,30 +640,30 @@
 ; instruction's immediate field.
 
 (define (emit-bytevector-like-ref/imm! as rs1 imm rd fault charize?
-				       header-loaded?)
+                                       header-loaded?)
   (if (not (unsafe-code))
       (begin
-	(if (not header-loaded?)
-	    (sparc.ldi as rs1 (- $tag.bytevector-tag) $r.tmp0))
-	; Range check.
-	(sparc.srli   as $r.tmp0 8 $r.tmp0)
-	(sparc.cmpi   as $r.tmp0 imm)
-	(sparc.bleu.a as fault)
-	(sparc.slot   as)))
+        (if (not header-loaded?)
+            (sparc.ldi as rs1 (- $tag.bytevector-tag) $r.tmp0))
+        ; Range check.
+        (sparc.srli   as $r.tmp0 8 $r.tmp0)
+        (sparc.cmpi   as $r.tmp0 imm)
+        (sparc.bleu.a as fault)
+        (sparc.slot   as)))
 
   ; Pointer is in RS1.
 
   (let ((adjusted-offset (+ (- 4 $tag.bytevector-tag) imm)))
     (if (immediate-literal? adjusted-offset)
-	(begin
-	  (sparc.ldbi as rs1 adjusted-offset $r.tmp0))
-	(begin
-	  (sparc.addi as rs1 (- 4 $tag.bytevector-tag) $r.tmp0)
-	  (sparc.ldbr as $r.tmp0 imm $r.tmp0)))
+        (begin
+          (sparc.ldbi as rs1 adjusted-offset $r.tmp0))
+        (begin
+          (sparc.addi as rs1 (- 4 $tag.bytevector-tag) $r.tmp0)
+          (sparc.ldbr as $r.tmp0 imm $r.tmp0)))
     (if (not charize?)
-	(sparc.slli as $r.tmp0 2 rd)
-	(begin (sparc.slli as $r.tmp0 16 rd)
-	       (sparc.ori  as rd $imm.character rd)))))
+        (sparc.slli as $r.tmp0 2 rd)
+        (begin (sparc.slli as $r.tmp0 16 rd)
+               (sparc.ori  as rd $imm.character rd)))))
 
 
 ; BYTEVECTOR-SET!, BYTEVECTOR-LIKE-SET!
@@ -684,26 +684,26 @@
 
 (define (emit-bytevector-like-set! as idx byte fault header-loaded?)
   (let ((r1 (force-hwreg! as idx $r.tmp1))
-	(r2 (force-hwreg! as byte $r.argreg3)))
+        (r2 (force-hwreg! as byte $r.argreg3)))
     (if (not (unsafe-code))
-	(begin
-	  (if (not header-loaded?)
-	      (sparc.ldi     as $r.result (- $tag.bytevector-tag) $r.tmp0))
-	  ; Both index and byte must be fixnums.  
-	  ; Can't use tsubcc because the computation may really overflow.
-	  (sparc.orr     as r1 r2 $r.tmp2)
-	  (sparc.btsti   as $r.tmp2 3)
-	  (sparc.bnz     as fault)
-	  ; No NOP -- next instruction is OK in slot.
-	  ; Index must be in range.
-	  (sparc.srli    as $r.tmp0 8 $r.tmp0)    ; limit - in slot
-	  (sparc.srai    as r1 2 $r.tmp1)         ; index
-	  (sparc.cmpr    as $r.tmp1 $r.tmp0)
-	  (sparc.bgeu    as fault)
-	  ; No NOP -- next instruction is OK in slot.
-	  )
-	(begin
-	  (sparc.srai   as r1 2 $r.tmp1)))
+        (begin
+          (if (not header-loaded?)
+              (sparc.ldi     as $r.result (- $tag.bytevector-tag) $r.tmp0))
+          ; Both index and byte must be fixnums.  
+          ; Can't use tsubcc because the computation may really overflow.
+          (sparc.orr     as r1 r2 $r.tmp2)
+          (sparc.btsti   as $r.tmp2 3)
+          (sparc.bnz     as fault)
+          ; No NOP -- next instruction is OK in slot.
+          ; Index must be in range.
+          (sparc.srli    as $r.tmp0 8 $r.tmp0)    ; limit - in slot
+          (sparc.srai    as r1 2 $r.tmp1)         ; index
+          (sparc.cmpr    as $r.tmp1 $r.tmp0)
+          (sparc.bgeu    as fault)
+          ; No NOP -- next instruction is OK in slot.
+          )
+        (begin
+          (sparc.srai   as r1 2 $r.tmp1)))
     (sparc.srli as r2 2 $r.tmp0)
     ; Using ARGREG2 as the destination is OK because the resulting pointer
     ; value always looks like a fixnum.  By doing so, we avoid needing TMP2.
@@ -715,34 +715,34 @@
 
 (define (emit-string-set! as rs1 rs2 rs3)
   (let* ((rs2 (force-hwreg! as rs2 $r.argreg2))
-	 (rs3 (force-hwreg! as rs3 $r.argreg3))
-	 (FAULT (if (not (unsafe-code))
-		    (double-tagcheck-assert 
-		     as 
-		     $tag.bytevector-tag
-		     (+ $imm.bytevector-header $tag.string-typetag)
-		     rs1 rs2 rs3
-		     $ex.sset
-		     #f))))
+         (rs3 (force-hwreg! as rs3 $r.argreg3))
+         (FAULT (if (not (unsafe-code))
+                    (double-tagcheck-assert 
+                     as 
+                     $tag.bytevector-tag
+                     (+ $imm.bytevector-header $tag.string-typetag)
+                     rs1 rs2 rs3
+                     $ex.sset
+                     #f))))
     ; Header is in TMP0; TMP1 and TMP2 are free.
     (if (not (unsafe-code))
-	(begin
-	  ; RS2 must be a fixnum.
-	  (sparc.btsti  as rs2 3)
-	  (sparc.bne    as FAULT)
-	  ; Index (in RS2) must be valid; header is in tmp0.
-	  (sparc.srli   as $r.tmp0 8 $r.tmp0) ; limit
-	  (sparc.srai   as rs2 2 $r.tmp1) ; index
-	  (sparc.cmpr   as $r.tmp1 $r.tmp0)
-	  (sparc.bgeu   as FAULT)
-	  ; RS3 must be a character.
-	  (sparc.andi   as rs3 #xFF $r.tmp0)
-	  (sparc.cmpi   as $r.tmp0 $imm.character)
-	  (sparc.bne    as FAULT)
-	  ; No NOP -- the SRLI below goes in the slot
-	  )
-	(begin
-	  (sparc.srai as rs2 2 $r.tmp1)))
+        (begin
+          ; RS2 must be a fixnum.
+          (sparc.btsti  as rs2 3)
+          (sparc.bne    as FAULT)
+          ; Index (in RS2) must be valid; header is in tmp0.
+          (sparc.srli   as $r.tmp0 8 $r.tmp0) ; limit
+          (sparc.srai   as rs2 2 $r.tmp1) ; index
+          (sparc.cmpr   as $r.tmp1 $r.tmp0)
+          (sparc.bgeu   as FAULT)
+          ; RS3 must be a character.
+          (sparc.andi   as rs3 #xFF $r.tmp0)
+          (sparc.cmpi   as $r.tmp0 $imm.character)
+          (sparc.bne    as FAULT)
+          ; No NOP -- the SRLI below goes in the slot
+          )
+        (begin
+          (sparc.srai as rs2 2 $r.tmp1)))
     ; tmp1 has nativeint index. 
     ; rs3/argreg3 has character.
     ; tmp0 is garbage.
@@ -760,13 +760,13 @@
   (sparc.jmpli as $r.millicode $m.alloc $r.o7)
   (sparc.set  as (thefixnum (+ length 1)) $r.result)
   (emit-immediate->register! as (+ (* 256 (thefixnum length))
-				   $imm.vector-header
-				   $tag.vector-typetag)
-			     $r.tmp0)
+                                   $imm.vector-header
+                                   $tag.vector-typetag)
+                             $r.tmp0)
   (sparc.sti  as $r.tmp0 0 $r.result)
   (let ((dest (force-hwreg! as r $r.argreg2)))
     (do ((i 0 (+ i 1)))
-	((= i length))
+        ((= i length))
       (sparc.sti as dest (* (+ i 1) 4) $r.result)))
   (sparc.addi as $r.result $tag.vector-tag $r.result))
 
@@ -781,8 +781,8 @@
     (sparc.addi  as $r.result 4 $r.result)
     (sparc.jmpli as $r.millicode $m.alloci $r.o7)
     (if (null? r)
-	(sparc.set as $imm.null $r.argreg2)
-	(emit-move2hwreg! as r $r.argreg2))
+        (sparc.set as $imm.null $r.argreg2)
+        (emit-move2hwreg! as r $r.argreg2))
     (sparc.slli  as $r.argreg3 8 $r.tmp0)
     (sparc.addi  as $r.tmp0 hdr $r.tmp0)
     (sparc.sti   as $r.tmp0 0 $r.result)
@@ -797,18 +797,18 @@
 (define (emit-vector-like-ref! as rs1 rs2 rd FAULT tag header-loaded? )
   (let ((index (force-hwreg! as rs2 $r.argreg2)))
     (if (not (unsafe-code))
-	(begin
-	  (if (not header-loaded?)
-	      (sparc.ldi   as rs1 (- tag) $r.tmp0))
-	  ; Index must be fixnum.
-	  (sparc.btsti as index 3)
-	  (sparc.bne   as FAULT)
-	  ; Index must be within bounds.
-	  (sparc.srai  as $r.tmp0 8 $r.tmp0)
-	  (sparc.cmpr  as $r.tmp0 index)
-	  (sparc.bleu  as FAULT)
-	  ; No NOP; the following instruction is valid in the slot.
-	  ))
+        (begin
+          (if (not header-loaded?)
+              (sparc.ldi   as rs1 (- tag) $r.tmp0))
+          ; Index must be fixnum.
+          (sparc.btsti as index 3)
+          (sparc.bne   as FAULT)
+          ; Index must be within bounds.
+          (sparc.srai  as $r.tmp0 8 $r.tmp0)
+          (sparc.cmpr  as $r.tmp0 index)
+          (sparc.bleu  as FAULT)
+          ; No NOP; the following instruction is valid in the slot.
+          ))
     (sparc.addi as rs1 (- 4 tag) $r.tmp0)
     (sparc.ldr  as $r.tmp0 index rd)))
 
@@ -826,20 +826,20 @@
 (define (emit-vector-like-ref/imm! as rs1 imm rd FAULT tag header-loaded?)
   (if (not (unsafe-code))
       (begin
-	(if (not header-loaded?) (sparc.ldi as rs1 (- tag) $r.tmp0))
-	; Check bounds.
-	(sparc.srai  as $r.tmp0 10 $r.tmp0)
-	(sparc.cmpi  as $r.tmp0 imm)
-	(sparc.bleu  as FAULT)
-	(sparc.nop   as)))
-  (let* ((offset (* imm 4))		          ; words->bytes
-	 (adjusted-offset (+ (- 4 tag) offset)))
+        (if (not header-loaded?) (sparc.ldi as rs1 (- tag) $r.tmp0))
+        ; Check bounds.
+        (sparc.srai  as $r.tmp0 10 $r.tmp0)
+        (sparc.cmpi  as $r.tmp0 imm)
+        (sparc.bleu  as FAULT)
+        (sparc.nop   as)))
+  (let* ((offset (* imm 4))                       ; words->bytes
+         (adjusted-offset (+ (- 4 tag) offset)))
     (if (immediate-literal? adjusted-offset)
-	(begin
-	  (sparc.ldi as rs1 adjusted-offset rd))
-	(begin
-	  (sparc.addi as rs1 (- 4 tag) $r.tmp0)
-	  (sparc.ldi  as $r.tmp0 offset rd)))))
+        (begin
+          (sparc.ldi as rs1 adjusted-offset rd))
+        (begin
+          (sparc.addi as rs1 (- 4 tag) $r.tmp0)
+          (sparc.ldi  as $r.tmp0 offset rd)))))
 
 
 ; VECTOR-SET!, VECTOR-LIKE-SET!, PROCEDURE-SET!
@@ -855,35 +855,35 @@
 
 (define (emit-vector-like-set! as rs1 rs2 rs3 fault tag header-loaded?)
   (let ((rs2 (force-hwreg! as rs2 $r.tmp1))
-	(rs3 (force-hwreg! as rs3 $r.argreg2)))
+        (rs3 (force-hwreg! as rs3 $r.argreg2)))
     (if (not (unsafe-code))
-	(begin 
-	  (if (not header-loaded?)
-	      (sparc.ldi as $r.result (- tag) $r.tmp0))
-	  (sparc.btsti as rs2 3)
-	  (sparc.bne   as fault)
-	  (sparc.srai  as $r.tmp0 8 $r.tmp0)
-	  (sparc.cmpr  as $r.tmp0 rs2)
-	  (sparc.bleu  as fault)))
+        (begin 
+          (if (not header-loaded?)
+              (sparc.ldi as $r.result (- tag) $r.tmp0))
+          (sparc.btsti as rs2 3)
+          (sparc.bne   as fault)
+          (sparc.srai  as $r.tmp0 8 $r.tmp0)
+          (sparc.cmpr  as $r.tmp0 rs2)
+          (sparc.bleu  as fault)))
     ;; The ADDR goes in the delay slot of the preceding BLEU (if emitted).
     (sparc.addr as rs1 rs2 $r.tmp0)
     (cond ((not (write-barrier))
-	   (sparc.sti  as rs3 (- 4 tag) $r.tmp0))
-	  ((= rs1 $r.result)
-	   (cond ((= rs3 $r.argreg2)
-		  (sparc.jmpli as $r.millicode $m.addtrans $r.o7)
-		  (sparc.sti  as rs3 (- 4 tag) $r.tmp0))
-		 (else
-		  (sparc.sti  as rs3 (- 4 tag) $r.tmp0)
-		  (millicode-call/1arg as $m.addtrans rs3))))
-	  (else
-	   (cond ((= rs3 $r.argreg2)
-		  (sparc.sti  as rs3 (- 4 tag) $r.tmp0)
-		  (millicode-call/1arg-in-result as $m.addtrans rs1))
-		 (else
-		  (sparc.sti  as rs3 (- 4 tag) $r.tmp0)
-		  (sparc.move as rs1 $r.result)
-		  (millicode-call/1arg as $m.addtrans rs3)))))))
+           (sparc.sti  as rs3 (- 4 tag) $r.tmp0))
+          ((= rs1 $r.result)
+           (cond ((= rs3 $r.argreg2)
+                  (sparc.jmpli as $r.millicode $m.addtrans $r.o7)
+                  (sparc.sti  as rs3 (- 4 tag) $r.tmp0))
+                 (else
+                  (sparc.sti  as rs3 (- 4 tag) $r.tmp0)
+                  (millicode-call/1arg as $m.addtrans rs3))))
+          (else
+           (cond ((= rs3 $r.argreg2)
+                  (sparc.sti  as rs3 (- 4 tag) $r.tmp0)
+                  (millicode-call/1arg-in-result as $m.addtrans rs1))
+                 (else
+                  (sparc.sti  as rs3 (- 4 tag) $r.tmp0)
+                  (sparc.move as rs1 $r.result)
+                  (millicode-call/1arg as $m.addtrans rs3)))))))
 
 ; Character comparison.
 
@@ -891,25 +891,25 @@
 
 (define (emit-char-cmp as r btrue.a excode)
   (emit-charcmp! as (lambda ()
-		      (let ((l2 (new-label)))
-			(sparc.set   as $imm.false $r.result)
-			(btrue.a     as L2)
-			(sparc.set   as $imm.true $r.result)
-			(sparc.label as L2)))
-		 $r.result
-		 r
-		 excode))
+                      (let ((l2 (new-label)))
+                        (sparc.set   as $imm.false $r.result)
+                        (btrue.a     as L2)
+                        (sparc.set   as $imm.true $r.result)
+                        (sparc.label as L2)))
+                 $r.result
+                 r
+                 excode))
  
 ; op1 is a hw register
 ; op2 is a register or a character constant
 
 (define (emit-char-bcmp-primop! as bfalse.a op1 op2 L0 excode)
   (emit-charcmp! as (lambda ()
-		      (bfalse.a   as L0)
-		      (sparc.slot as))
-		 op1
-		 op2
-		 excode))
+                      (bfalse.a   as L0)
+                      (sparc.slot as))
+                 op1
+                 op2
+                 excode))
 
 ; We check the tags of both by xoring them and seeing if the low byte is 0.
 ; If so, then we can subtract one from the other (tag and all) and check the
@@ -922,44 +922,44 @@
 
 (define (emit-charcmp! as tail op1 op2 excode)
   (let ((op2 (if (char? op2)
-		 op2
-		 (force-hwreg! as op2 $r.argreg2))))
+                 op2
+                 (force-hwreg! as op2 $r.argreg2))))
     (cond ((not (unsafe-code))
-	   (let ((L0 (new-label))
-		 (L1 (new-label))
-		 (FAULT (new-label)))
-	     (sparc.label as L0)
-	     (cond ((char? op2)
-		    (sparc.xori  as op1 $imm.character $r.tmp0)
-		    (sparc.btsti as $r.tmp0 #xFF)
-		    (sparc.srli  as op1 16 $r.tmp0)
-		    (sparc.be.a  as L1)
-		    (sparc.cmpi  as $r.tmp0 (char->integer op2)))
-		   (else
-		    (sparc.andi  as op1 #xFF $r.tmp0)
-		    (sparc.andi  as op2 #xFF $r.tmp1)
-		    (sparc.cmpr  as $r.tmp0 $r.tmp1)
-		    (sparc.bne   as FAULT)
-		    (sparc.cmpi  as $r.tmp0 $imm.character)
-		    (sparc.be.a  as L1)
-		    (sparc.cmpr  as op1 op2)))
-	     (sparc.label as FAULT)
-	     (if (not (eqv? op1 $r.result))
-		 (sparc.move as op1 $r.result))
-	     (cond ((char? op2) 
-		    (emit-immediate->register! as
-					       (char->immediate op2)
-					       $r.argreg2))
-		   ((not (eqv? op2 $r.argreg2))
-		    (sparc.move as op2 $r.argreg2)))
-	     (sparc.set   as (thefixnum excode) $r.tmp0)
-	     (millicode-call/ret as $m.exception L0)
-	     (sparc.label as L1)))
-	  ((not (char? op2))
-	   (sparc.cmpr as op1 op2))
-	  (else
-	   (sparc.srli as op1 16 $r.tmp0)
-	   (sparc.cmpi as $r.tmp0 (char->integer op2))))
+           (let ((L0 (new-label))
+                 (L1 (new-label))
+                 (FAULT (new-label)))
+             (sparc.label as L0)
+             (cond ((char? op2)
+                    (sparc.xori  as op1 $imm.character $r.tmp0)
+                    (sparc.btsti as $r.tmp0 #xFF)
+                    (sparc.srli  as op1 16 $r.tmp0)
+                    (sparc.be.a  as L1)
+                    (sparc.cmpi  as $r.tmp0 (char->integer op2)))
+                   (else
+                    (sparc.andi  as op1 #xFF $r.tmp0)
+                    (sparc.andi  as op2 #xFF $r.tmp1)
+                    (sparc.cmpr  as $r.tmp0 $r.tmp1)
+                    (sparc.bne   as FAULT)
+                    (sparc.cmpi  as $r.tmp0 $imm.character)
+                    (sparc.be.a  as L1)
+                    (sparc.cmpr  as op1 op2)))
+             (sparc.label as FAULT)
+             (if (not (eqv? op1 $r.result))
+                 (sparc.move as op1 $r.result))
+             (cond ((char? op2) 
+                    (emit-immediate->register! as
+                                               (char->immediate op2)
+                                               $r.argreg2))
+                   ((not (eqv? op2 $r.argreg2))
+                    (sparc.move as op2 $r.argreg2)))
+             (sparc.set   as (thefixnum excode) $r.tmp0)
+             (millicode-call/ret as $m.exception L0)
+             (sparc.label as L1)))
+          ((not (char? op2))
+           (sparc.cmpr as op1 op2))
+          (else
+           (sparc.srli as op1 16 $r.tmp0)
+           (sparc.cmpi as $r.tmp0 (char->integer op2))))
     (tail)))
 
 ; eof
