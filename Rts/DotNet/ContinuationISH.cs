@@ -26,6 +26,9 @@ namespace Scheme.RT {
      */
 
     public class Cont {
+        public static PerformanceCounter stackFlushCounter;
+        public static PerformanceCounter stackReloadCounter;
+
         // How many individual slot fields before we use
         // the overflow array
         // named slot0, slot1, ..., slot{NUM_SLOT_FIELDS-1}
@@ -128,6 +131,7 @@ namespace Scheme.RT {
          * Flush all frames out of the cache to the heap. Does not change stack cache.
          */
         public static SObject copyOutStack() {
+            if (stackFlushCounter != null) stackFlushCounter.Increment();
             SObject h = heap;
             for (StackCacheFrame f = ROOT; f != cont.after; f = f.after) {
                 h = f.toVector(h);
@@ -138,6 +142,7 @@ namespace Scheme.RT {
         /* fillCache
          */
         public static void fillCache() {
+            if (stackReloadCounter != null) stackReloadCounter.Increment();
             cont = ROOT;
             if (!(heap is SVL)) {
                 Exn.internalError("fillCache: Cont.heap is not a vector");
