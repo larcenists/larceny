@@ -1,8 +1,8 @@
 /*
  * Ephemeral garbage collector (for Scheme).
- * Documentation is in the files "gc.c" and "gcinterface.c".
+ * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 1.2 91/06/20 21:30:54 lth Exp Locker: lth $
+ * $Id: gc.c,v 1.3 91/06/20 22:14:50 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -29,7 +29,7 @@
   #include <memory.h>                  /* for memcpy() */
 #else
   extern char *malloc();
-  extern void memcpy();
+  extern char *memcpy();
 #endif
 #include "gc.h"
 #include "gcinterface.h"
@@ -96,8 +96,8 @@
 #define roundup8( a )       (((a) + 7) & ~0x07)
 
 /* Private globals */
-static unsigned ecollections, tcollections;
-static unsigned words_collected, words_allocated;
+static unsigned long ecollections, tcollections;
+static unsigned long words_collected, words_allocated;
 static word *e_base, *e_max, *e_top, *e_mark;
 static word *e_new_base, *e_new_max, *e_new_mark;
 static word *t_base, *t_max, *t_top, *t_trans;
@@ -137,6 +137,7 @@ init_collector( s_size, t_size, e_size, e_lim, stack_size )
 unsigned int s_size, t_size, e_size, e_lim, stack_size;
 {
   word *p;
+  word lomem, himem;
 
   /* 
    * The size of a space must be divisible by the size of a doubleword,
@@ -149,9 +150,10 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
 
   /*
    * There are no limits on the ephemeral watermark, as a bad limit will
-   * simply cause poor memory behavior.
+   * simply cause poor memory behavior. Makes no sense to have it bigger
+   * than the ephemeral area, though.
    */
-  e_lim = roundup8( e_lim );
+  e_lim = min( roundup8( e_lim ), e_size );
 
   /* 
    * Allocate memory for all the spaces.
@@ -165,6 +167,8 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
     return 0;
 
   p = (word *) roundup8( (word) p );    /* adjust to doubleword ptr */
+
+  lomem = (word) p;
 
   /* The stack cache goes at the bottom of memory. */
   stk_base = p;                                 /* lowest word */
@@ -195,6 +199,9 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
   
   t_new_base = p;
   t_new_max = p + t_size / 4 - 1;
+  p += t_size / 4;
+
+  himem = (word) p;
 
   globals[ E_BASE_OFFSET ] = (word) e_base;
   globals[ E_TOP_OFFSET ] = (word) e_top;
@@ -211,6 +218,9 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
 
   globals[ STK_BASE_OFFSET ] = (word) stk_base;
   globals[ STK_MAX_OFFSET ] = (word) stk_max;
+
+  globals[ LOMEM_OFFSET ] = lomem;
+  globals[ HIMEM_OFFSET ] = himem;
 
   return 1;
 }
@@ -245,6 +255,7 @@ unsigned int type;
   unsigned words1;                         /* # words in use before this gc */
 
   e_top = (word *) globals[ E_TOP_OFFSET ];
+  t_top = (word *) globals[ T_TOP_OFFSET ];     /* enables heap loading */
   t_trans = (word *) globals[ T_TRANS_OFFSET ];
 
   if (type == 1) 
@@ -276,6 +287,11 @@ unsigned int type;
   globals[ T_TOP_OFFSET ] = (word) t_top;
   globals[ T_MAX_OFFSET ] = (word) t_max;
   globals[ T_TRANS_OFFSET ] = (word) t_trans;
+
+  globals[ WCOLLECTED_OFFSET ] = words_collected;
+  globals[ WALLOCATED_OFFSET ] = words_allocated;
+  globals[ TCOLLECTIONS_OFFSET ] = tcollections;
+  globals[ ECOLLECTIONS_OFFSET ] = ecollections;
 }
 
 
