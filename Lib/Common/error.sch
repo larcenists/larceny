@@ -44,28 +44,43 @@
      thunk
      (lambda () (reset-handler old-handler)))))
 
+; This takes an argument list as presented to ERROR-HANDLER (below)
+; and optionally a port to print on (defaults to current output) and
+; prints a human-readable error message based on the information in 
+; the argument list.
+
+(define (decode-error the-error . rest)
+  (let ((who (car the-error))
+        (port (if (null? rest) (current-output-port) (car rest))))
+    (if (number? who)
+        (decode-system-error who 
+                             (cadr the-error) 
+                             (caddr the-error)
+                             (cadddr the-error)
+                             port)
+        (begin
+          (display "Error: " port)
+          (if (not (null? who))
+              (begin (display who port)
+                     (display ": " port)))
+          (for-each (lambda (x) (display x port)) (cdr the-error))
+          (newline port)))))
+
 ; The error handler is a procedure that takes a keyword as the first
 ; argument and then some additional arguments.  If the keyword is a number,
 ; then the error occured in compiled code or in a system subroutine.
 ; If the keyword is null, it is ignored.  Otherwise it is printed with the
 ; rest of the arguments.  Installed error handlers should obey this logic
 ; as far as reasonable.
+;
+; The error handler is called with interrupts in the state they were
+; when the error was encountered.
 
 (define error-handler
   (system-parameter "error-handler" 
-		    (lambda (who . args)
-		      (if (number? who)
-			  (begin (apply system-error-handler who args)
-				 (display "FATAL: Error handler returned.")
-				 (newline)
-				 (exit))
-			  (begin (display "Error: ")
-				 (if (not (null? who))
-				     (begin (display who)
-					    (display ": ")))
-				 (for-each display args)
-				 (newline)
-				 (reset))))))
+		    (lambda args
+                      (decode-error args)
+                      (reset))))
 
 (define reset-handler
   (system-parameter "reset-handler" 
