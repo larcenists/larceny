@@ -17,10 +17,8 @@
                   (display msg)
                   (newline)
                   (debug/enter-debugger (exception-continuable? exn))
-                  (when (not (exception-continuable? exn))
-                    (display "Internal error in debugger -- it returned.")
-                    (newline)
-                    (exit))))
+                  (if (not (exception-continuable? exn))
+                      (error "Internal error in debugger -- it returned."))))
               (lambda ()
                 (old-evaluator expr env)))))))
 
