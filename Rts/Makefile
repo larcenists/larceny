@@ -60,7 +60,7 @@
 #	$(CC) $(CFLAGS) -o $*.o $<
 
 
-# Petit Larceny on Debian Linux: gcc
+# Petit Larceny on generic Unix with gcc
 O=o
 CC=gcc
 DEBUGINFO=-gstabs+
