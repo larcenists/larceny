@@ -3,7 +3,12 @@
 ; $Id$
 ;
 ; Larceny FFI -- upper level of generic C ffi.
+;
 ; FIXME: *ffi/linked-procedures* needs to hold the procedures weakly.
+;
+; FIXME: *ffi/linked-procedures* should probably destroy any foreign
+;        function pointer trampoline, as these cannot be fixed up at
+;        load time.
 
 (define *ffi/libraries* '())		; list of names
 (define *ffi/loaded-libraries* '())	; list of ( name . handle )
@@ -56,21 +61,30 @@
 
 (define (ffi/foreign-procedure abi name args ret)
   (let* ((addr  (ffi/link-procedure abi name))
-	 (tramp (ffi/make-callout abi addr args ret))
+         (tramp (ffi/make-callout abi addr args ret))
 	 (args  (ffi/convert-arg-descriptor abi args))
 	 (ret   (ffi/convert-ret-descriptor abi ret)))
     (set! *ffi/linked-procedures*
 	  (cons (list name abi tramp *ffi/libraries*) *ffi/linked-procedures*))
-    (lambda actuals
-      (call-with-values
-       (lambda ()
-	 (ffi/apply tramp args ret actuals))
-       (lambda (error? value)
-	 (if error?
-	     (if (eq? value 'conversion-error)
-		 (error "Data conversion error in callout to \"" name "\".")
-		 (error "Error signalled in callout to \"" name "\"."))
-	     value))))))
+    (ffi/make-foreign-invoker tramp args ret name)))
+
+(define (ffi/foreign-procedure-pointer abi addr args ret)
+  (let ((tramp (ffi/make-callout abi addr args ret))
+        (args  (ffi/convert-arg-descriptor abi args))
+        (ret   (ffi/convert-ret-descriptor abi ret)))
+    (ffi/make-foreign-invoker tramp args ret "<anonymous>")))
+
+(define (ffi/make-foreign-invoker tramp args ret name)
+  (lambda actuals
+    (call-with-values
+     (lambda ()
+       (ffi/apply tramp args ret actuals))
+     (lambda (error? value)
+       (if error?
+           (if (eq? value 'conversion-error)
+               (error "Data conversion error in callout to \"" name "\".")
+               (error "Error signalled in callout to \"" name "\"."))
+           value)))))
 
 (define (ffi/initialize-after-load-world)
 ;  (display "; Reloading foreign functions")
