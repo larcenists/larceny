@@ -114,6 +114,22 @@
 	(bignum->flonum a)
 	a))
 
+  (define (->rect a)			; 'a' is anything
+    (cond ((compnum? a)
+	   (make-rectangular (inexact->exact (real-part a))
+			     (inexact->exact (imag-part a))))
+	  ((rectnum? a)
+	   a)
+	  (else
+	   (make-rectangular (inexact->exact a) 0))))
+
+  (define (->comp a)			; 'a' is anything
+    (cond ((compnum? a) a)
+	  ((rectnum? a)
+	   (make-rectangular (exact->inexact (real-part a))
+			     (exact->inexact (real-part b))))
+	  (else
+	   (make-rectangular (exact->inexact a) 0))))
 
   ; Algorithm* for arithmetic.  If both are representable as
   ; integers, convert to bignums and compute, and then convert to inexact.
@@ -161,6 +177,34 @@
 	  (retry a b))
 	(let ((a (->flo/comp a))
 	      (b (->flo/comp b)))
+	  (retry a b))))
+
+  ; Algorithm*c for at least one complex number.
+
+  (define (algorithm*cr a b retry)
+    (if (and (integer? (real-part a))
+	     (integer? (imag-part a))
+	     (integer? (real-part b))
+	     (integer? (imag-part b)))
+	(let ((a (->rect a))
+	      (b (->rect b)))
+	  (exact->inexact (retry a b)))
+	(let ((a (->comp a))
+	      (b (->comp b)))
+	  (retry a b))))
+
+  ; Algorithm*e for at least one complex number.
+
+  (define (algorithm*cre a b retry)
+    (if (and (integer? (real-part a))
+	     (integer? (imag-part a))
+	     (integer? (real-part b))
+	     (integer? (imag-part b)))
+	(let ((a (->rect a))
+	      (b (->rect b)))
+	  (retry a b))
+	(let ((a (->comp a))
+	      (b (->comp b)))
 	  (retry a b))))
 
   ; Signal an error given an index or a procedure from the millicode vector.
@@ -218,29 +262,47 @@
   ; Contagion matrices. They are completely symmetric with respect to the
   ; final types, although the entries in the matrix are different across the
   ; diagonal.
-
+  ; Order: fix big rat rect flo comp
   ; Standard matrix: for arithmetic operations.
 
   (set! cmatrix
-    (vector (vector oops (fun fixnum->bignum id) (fun fixnum->ratnum id) 
-		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
+    (vector (vector oops
+		    (fun fixnum->bignum id)
+		    (fun fixnum->ratnum id) 
+		    (fun fixnum->rectnum id)
+		    (fun fixnum->flonum id) 
 		    (fun fixnum->compnum id))
-	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
-		    (fun bignum->rectnum id) algorithm*c algorithm*c)
-	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
-		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
+	    (vector (fun id fixnum->bignum)
+		    oops
+		    (fun bignum->ratnum id)
+		    (fun bignum->rectnum id) 
+		    algorithm*c
+		    algorithm*c)
+	    (vector (fun id fixnum->ratnum)
+		    (fun id bignum->ratnum)
+		    oops
+		    (fun ratnum->rectnum id)
+		    (fun ratnum->flonum id)
 		    (fun ratnum->compnum id))
-	    (vector (fun id fixnum->rectnum) (fun id bignum->rectnum)
-		    (fun id ratnum->rectnum) oops
-		    (fun rectnum->compnum flonum->compnum)
-		    (fun rectnum->compnum id))
-	    (vector (fun id fixnum->flonum) algorithm*c
+	    (vector (fun id fixnum->rectnum)
+		    (fun id bignum->rectnum)
+		    (fun id ratnum->rectnum)
+		    oops
+		    algorithm*cr ; (fun rectnum->compnum flonum->compnum)
+		    algorithm*cr ; (fun rectnum->compnum id)
+		    )
+	    (vector (fun id fixnum->flonum)
+		    algorithm*c
 		    (fun id ratnum->flonum) 
-		    (fun flonum->compnum rectnum->compnum)
-		    oops (fun flonum->compnum id))
-	    (vector (fun id fixnum->compnum) algorithm*c
-		    (fun id ratnum->compnum) (fun id rectnum->compnum)
-		    (fun id flonum->compnum) oops)))
+		    algorithm*cr ; (fun flonum->compnum rectnum->compnum)
+		    oops
+		    (fun flonum->compnum id))
+	    (vector (fun id fixnum->compnum)
+		    algorithm*c
+		    (fun id ratnum->compnum) 
+		    algorithm*cr ; (fun id rectnum->compnum)
+		    (fun id flonum->compnum) 
+		    oops)))
 
   ; Predicate matrix: for <, <=, >, >=
   ; Algorithm*p handles illegal complex numbers.
@@ -269,25 +331,43 @@
   ; Equality matrix: for = (only)
 
   (set! ematrix
-    (vector (vector oops (fun fixnum->bignum id) (fun fixnum->ratnum id) 
-		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
+    (vector (vector oops
+		    (fun fixnum->bignum id)
+		    (fun fixnum->ratnum id) 
+		    (fun fixnum->rectnum id)
+		    (fun fixnum->flonum id) 
 		    (fun fixnum->compnum id))
-	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
-		    (fun bignum->rectnum id) algorithm*e algorithm*e)
-	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
-		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
+	    (vector (fun id fixnum->bignum)
+		    oops
+		    (fun bignum->ratnum id)
+		    (fun bignum->rectnum id)
+		    algorithm*e
+		    algorithm*e)
+	    (vector (fun id fixnum->ratnum)
+		    (fun id bignum->ratnum)
+		    oops
+		    (fun ratnum->rectnum id)
+		    (fun ratnum->flonum id)
 		    (fun ratnum->compnum id))
-	    (vector (fun id fixnum->rectnum) (fun id bignum->rectnum)
-		    (fun id ratnum->rectnum) oops
-		    (fun rectnum->compnum flonum->compnum)
-		    (fun rectnum->compnum id))
-	    (vector (fun id fixnum->flonum) algorithm*e
+	    (vector (fun id fixnum->rectnum)
+		    (fun id bignum->rectnum)
+		    (fun id ratnum->rectnum)
+		    oops
+		    algorithm*cre ; (fun rectnum->compnum flonum->compnum)
+		    algorithm*cre ; (fun rectnum->compnum id)
+		    )
+	    (vector (fun id fixnum->flonum)
+		    algorithm*e
 		    (fun id ratnum->flonum) 
-		    (fun flonum->compnum rectnum->compnum)
-		    oops (fun flonum->compnum id))
-	    (vector (fun id fixnum->compnum) algorithm*e
-		    (fun id ratnum->compnum) (fun id rectnum->compnum)
-		    (fun id flonum->compnum) oops)))
+		    algorithm*cre ; (fun flonum->compnum rectnum->compnum)
+		    oops
+		    (fun flonum->compnum id))
+	    (vector (fun id fixnum->compnum)
+		    algorithm*e
+		    (fun id ratnum->compnum)
+		    algorithm*cre ; (fun id rectnum->compnum)
+		    (fun id flonum->compnum)
+		    oops)))
 
   (set! contagion (lambda (a b retry)
 		    (do-contagion cmatrix a b retry)))
