@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: makefasl.sch,v 1.2 1997/02/11 20:21:58 lth Exp lth $
+; $Id: makefasl.sch,v 1.2 1997/02/11 20:21:58 lth Exp $
 ;
 ; Larceny compilation system -- procedure to create fastload segments.
 ;

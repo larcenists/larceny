@@ -1,7 +1,7 @@
 ! Rts/Sparc/barrier.s
 ! Write barrier code to support new GC with the old remembered sets.
 !
-! $Id: barrier.s,v 1.4 1997/02/03 18:21:49 lth Exp $
+! $Id: barrier.s,v 1.5 1997/02/24 01:05:53 lth Exp $
 !
 ! Write barrier.
 !
@@ -156,5 +156,23 @@ EXTNAME(mem_addtrans):
 	b	callout_to_C
 	nop
 #endif
+
+
+! This procedure is called from C and disables the write barrier.  For
+! use with any single-generation system.
+!
+! It works by overwriting the branch instruction in the millicode jump
+! vector with a retl instruction, and the one following it with a nop.
+
+EXTNAME(wb_disable):
+	set	EXTNAME(globals), %o0
+	set	9f, %o1
+	ld	[ %o1 ], %o2
+	st	%o2, [ %o0+M_ADDTRANS ]
+	ld	[ %o1+4 ], %o2
+	st	%o2, [ %o0+M_ADDTRANS+4 ]
+9:
+	jmpl	%o7+8, %g0
+	nop
 
 ! eof

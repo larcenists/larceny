@@ -1,20 +1,19 @@
-; Copyright 1991 Lightship Software
-; Copyright 1995 Lars Thomas Hansen
-;
+; Lib/control.sch
 ; Larceny library -- various control procedures
 ;
-; $Id: control.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: control.sch,v 1.3 1997/03/04 16:03:05 lth Exp $
 ;
-; Member, assq, and so on may be found in list.sch.
-; Call-with-current-continuation is in malcode.mal.
-; Exit is OS-specific (see e.g. unix.sch)
+; Copyright 1991 Lightship Software
+;
+; 'Member', 'assq', and so on may be found in Lib/list.sch.
+; 'Call-with-current-continuation' is in Lib/malcode.mal.
+; 'Exit' is OS-specific (see e.g. Lib/unix.sch)
 
 
 ; APPLY
 ;
-; @raw-apply@ is written in mal (MacScheme assembly language)
-; in another file.  It takes exactly three arguments and does
-; something magical with them.
+; @raw-apply@ is written in MacScheme assembly language; see Lib/malcode.mal.
+; It takes exactly three arguments: a procedure, a list, and the list length.
 ;
 ; (list? l) and (length l) can be computed in one pass over the list,
 ; if performance is a problem here.
@@ -22,32 +21,34 @@
 (define apply
   (let ((raw-apply @raw-apply@))              ; see above
 
-    (define (loop x rest)
-      (if (null? (cdr rest))
-          (append (reverse x) (car rest))
-          (loop (cons (car rest) x) (cdr rest))))
+    (define (collect-arguments l)
+      (if (null? (cdr l))
+	  (car l)
+	  (cons (car l) (collect-arguments (cdr l)))))
 
     (define (apply f l . rest)
       (cond ((not (procedure? f))
-             (error "Non-procedure -- apply" f))
+             (error "apply: not a procedure: " f)
+	     #t)
             ((not (null? rest))
-             (apply f (loop (list l) rest)))
+	     (apply f (cons l (collect-arguments rest))))
             ((null? l) (f))
             ((null? (cdr l)) (f (car l)))
             ((null? (cddr l)) (f (car l) (cadr l)))
             ((null? (cdddr l)) (f (car l) (cadr l) (caddr l)))
             ((null? (cddddr l)) (f (car l) (cadr l) (caddr l) (cadddr l)))
-            ((not (list? l))
-             (error "Non-list -- apply" l))
+            ((not (list? l)) (error "apply: not a list: " l))
             (else (raw-apply f l (length l)))))
 
     apply))
 
-; from make25.sch
+
+; No doubt this needs to be refined.
 
 (define call-without-interrupts
   (lambda (thunk)
     (thunk)))
+
 
 ; Used by 'delay'.
 
@@ -86,19 +87,20 @@
 	   "Use: (collect [generation [{promote,collect}]])"))
 
   (if (null? args)
-	(sys$gc 0 0)
-	(let ((a (car args)))
-	  (cond ((eq? a 'ephemeral) (sys$gc 0 0))
-		((eq? a 'tenuring)  (sys$gc 1 1))
-		((eq? a 'full)      (sys$gc 1 0))
-		((and (fixnum? a) (positive? a))
-		 (if (null? (cdr args))
-		     (sys$gc a 0)
-		     (let ((b (cadr args)))
-		       (cond ((eq? b 'collect) (sys$gc a 0))
-			     ((eq? b 'promote) (sys$gc a 1))
-			     (else (err))))))
-		(else (err))))))
+      (sys$gc 0 0)
+      (let ((a (car args)))
+	(cond ((eq? a 'ephemeral) (sys$gc 0 0))
+	      ((eq? a 'tenuring)  (sys$gc 1 1))
+	      ((eq? a 'full)      (sys$gc 1 0))
+	      ((and (fixnum? a) (positive? a))
+	       (if (null? (cdr args))
+		   (sys$gc a 0)
+		   (let ((b (cadr args)))
+		     (cond ((eq? b 'collect) (sys$gc a 0))
+			   ((eq? b 'promote) (sys$gc a 1))
+			   (else (err))))))
+	      (else (err)))))
+  (unspecified))
 
 
 ; Given a continuation (which is a procedure), return the internal 

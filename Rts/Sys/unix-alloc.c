@@ -1,7 +1,7 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
- * $Id: unix-alloc.c,v 1.4 1997/02/11 19:48:21 lth Exp lth $
+ * $Id: unix-alloc.c,v 1.6 1997/02/24 01:01:34 lth Exp $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write
@@ -13,9 +13,9 @@
  * It is expected that requests for memory will be large and infrequent; 
  * this allocator is not intended to be a replacement for malloc and friends.
  *
- * There are three descriptor tables: gclib_desc_h maps page numbers to
- * heap numbers; gclib_desc_g maps page numbers to generation numbers; and
- * gclib_desc_b maps page numbers to attribute bits.  The "page number" of
+ * There are two descriptor tables: gclib_desc_g maps page numbers to
+ * generation numbers, and gclib_desc_b maps page numbers to attribute bits.
+ * The "page number" of
  * an address is defined by the pageof() macro in gclib.h; it is the address
  * minus the value of the global gclib_pagebase, all shifted right to throw
  * away the low-order bits.
@@ -48,7 +48,6 @@ struct freelist {
 
 /* Public globals */
 
-unsigned *gclib_desc_h;              /* heap owner */
 unsigned *gclib_desc_g;              /* generation owner */
 unsigned *gclib_desc_b;              /* attribute bits */
 caddr_t  gclib_pagebase;             /* page address of lowest known word */
@@ -59,9 +58,12 @@ caddr_t  gclib_pagebase;             /* page address of lowest known word */
 static unsigned   descriptor_slots;  /* number of allocated slots */
 static caddr_t    memtop;            /* address of highest known word */
 static freelist_t *freelist;         /* linear list of chunks */
-
+static unsigned   heap_bytes;        /* bytes allocated to heap */
+static unsigned   remset_bytes;      /* bytes allocated to remset */
+static unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
 
 static void *gclib_alloc( unsigned bytes );
+static void dump_freelist( void );
 
 
 /* Initialize descriptor tables and memory allocation pointers. */
@@ -88,12 +90,10 @@ gclib_init( void )
 
  again:
   /* It's OK to be using malloc() here */
-  gclib_desc_h = (unsigned*)malloc( sizeof( unsigned ) * descriptor_slots );
   gclib_desc_g = (unsigned*)malloc( sizeof( unsigned ) * descriptor_slots );
   gclib_desc_b = (unsigned*)malloc( sizeof( unsigned ) * descriptor_slots );
 
-  if (gclib_desc_h == 0 || gclib_desc_g == 0 || gclib_desc_b == 0) {
-    if (gclib_desc_h) free( gclib_desc_h );
+  if (gclib_desc_g == 0 || gclib_desc_b == 0) {
     if (gclib_desc_g) free( gclib_desc_g );
     if (gclib_desc_b) free( gclib_desc_b );
     memfail( MF_MALLOC, "gclib could not allocate descriptor tables." );
@@ -101,7 +101,7 @@ gclib_init( void )
   }
 
   for ( i = 0 ; i < descriptor_slots ; i++ )
-    gclib_desc_h[i] = gclib_desc_g[i] = gclib_desc_b[i] = 0;
+    gclib_desc_g[i] = gclib_desc_b[i] = 0;
 
   freelist = 0;
   return;
@@ -122,14 +122,18 @@ void *gclib_alloc_heap( unsigned bytes, unsigned heap_no, unsigned gen_no )
 {
   void *ptr;
   int i;
+  caddr_t oldtop;
 
+  bytes = roundup_page( bytes );
+  oldtop = memtop;
   ptr = gclib_alloc( bytes );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ); i++ ) {
-    gclib_desc_h[i] = heap_no;
+    assert( ptr >= (void*)oldtop || (gclib_desc_b[i] & MB_FREE) );
     gclib_desc_g[i] = gen_no;
     gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY;
   }
+  heap_bytes += bytes;
   return ptr;
 }
 
@@ -139,14 +143,21 @@ void *gclib_alloc_rts( unsigned bytes, unsigned attribute )
 {
   void *ptr;
   int i;
+  caddr_t oldtop;
 
+  bytes = roundup_page( bytes );
+  oldtop = memtop;
   ptr = gclib_alloc( bytes );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ); i++ ) {
-    gclib_desc_h[i] = RTS_OWNED_PAGE;
+    assert( ptr >= (void*)oldtop || (gclib_desc_b[i] & MB_FREE) );
     gclib_desc_g[i] = RTS_OWNED_PAGE;
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
   }
+  if (attribute & MB_REMSET)
+    remset_bytes += bytes;
+  else
+    rts_bytes += bytes;
   return ptr;
 }
 
@@ -164,7 +175,7 @@ static void *gclib_alloc( unsigned bytes )
   if (bytes == 0) return 0;
 
   bytes = roundup_page( bytes );
-  for ( f = freelist, prev=0; f != 0 && f->size < bytes ; prev=f, f = f->next )
+  for ( f = freelist, prev=0; f != 0 && f->size < bytes ; prev=f, f=f->next )
     ;
   if (f != 0) {
     freelist_t *n;
@@ -181,6 +192,10 @@ static void *gclib_alloc( unsigned bytes )
     else
       freelist = n;
 
+#ifdef GCLIB_DEBUG
+    consolemsg( "  *** (allocated %p %u from-free-list)", f, bytes );
+    dump_freelist();
+#endif
     return (void*)f;
   }
 
@@ -203,18 +218,43 @@ static void *gclib_alloc( unsigned bytes )
   if ((int)ptr == -1) return 0;
   top = ptr+bytes;
 
+ again:
   if (pageof( top ) - pageof( gclib_pagebase ) > descriptor_slots) {
-    /* FIXME: grow descriptor tables */
-    panic( "gclib_allocate: overflow handling unimplemented." );
+    unsigned slots = descriptor_slots * 2;
+    unsigned *desc_g, *desc_b;
+
+    annoyingmsg( "Growing page tables; new slots=%u.", slots );
+
+    desc_g = (unsigned*)realloc( gclib_desc_g, sizeof( unsigned ) * slots );
+    desc_b = (unsigned*)realloc( gclib_desc_b, sizeof( unsigned ) * slots );
+
+    if (desc_g == 0 || desc_b == 0) {
+      /* FIXME: should handle memory allocation failure, but this
+	 does not allow us to use realloc (because a non-grown table
+	 must not be freed).
+       */
+      panic( "gclib_allocate: unable to grow page tables." );
+    }
+    descriptor_slots = slots;
+    for ( i=descriptor_slots ; i < slots ; i++ )
+      desc_b[i] = desc_g[i] = 0;
+
+    gclib_desc_g = desc_g;
+    gclib_desc_b = desc_b;
+    wb_re_setup( gclib_desc_g );  /* HACK! UGLY! FIXME! */
+    goto again;
   }
 
   for ( i = pageof( memtop ) ; i < pageof( ptr ) ; i++ ) {
-    gclib_desc_h[i] = gclib_desc_g[i] = FOREIGN_PAGE;
+    gclib_desc_g[i] = FOREIGN_PAGE;
     gclib_desc_b[i] = MB_ALLOCATED | MB_FOREIGN;
   }
 
   memtop = top;
 
+#ifdef GCLIB_DEBUG
+  consolemsg( "  *** (allocated %p %u fresh)", ptr, bytes );
+#endif
   return (void *)ptr;
 }
 
@@ -232,11 +272,26 @@ void gclib_free( void *addr, unsigned bytes )
   assert(((word)addr & PAGEMASK) == 0);
 
   bytes = roundup_page( bytes );
+#ifdef GCLIB_DEBUG
+  consolemsg( "  *** (free %p %u)", addr, bytes );
+#endif
   pages = bytes/PAGESIZE;
   pageno = pageof( addr );
 
+  /* This assumes that all pages being freed have the same major attributes.
+   * That is a reasonable assumption.
+   */
+  if (pages > 0) {
+    if (gclib_desc_g[pageno] & MB_HEAP_MEMORY)
+      heap_bytes -= bytes;
+    else if (gclib_desc_g[pageno] & MB_REMSET)
+      remset_bytes -= bytes;
+    else
+      rts_bytes -= bytes;
+  }
   while (pages > 0) {
-    gclib_desc_h[pageno] = UNALLOCATED_PAGE;
+    assert( (gclib_desc_b[pageno] & MB_ALLOCATED ) &&
+	    !(gclib_desc_b[pageno] & MB_FOREIGN ) );
     gclib_desc_g[pageno] = UNALLOCATED_PAGE;
     gclib_desc_b[pageno] = MB_FREE;
     pageno++;
@@ -250,11 +305,17 @@ void gclib_free( void *addr, unsigned bytes )
   for ( fl = freelist, p = 0 ; fl != 0 ; p = fl, fl = fl->next ) {
     if ((char*)fl+fl->size == (char*)f) {
       fl->size += bytes;
+#ifdef GCLIB_DEBUG
+      debugmsg( "      trailing existing at %p", fl );
+#endif
       break;
     }
     else if ((char*)f+f->size == (char*)fl) {
       f->size += fl->size;
       f->next = fl->next;
+#ifdef GCLIB_DEBUG
+      debugmsg( "      preceding existing at %p", fl );
+#endif
       if (p == 0)
 	freelist = f;
       else
@@ -267,6 +328,9 @@ void gclib_free( void *addr, unsigned bytes )
     f->next = freelist;
     freelist = f;
   }
+#ifdef GCLIB_DEBUG
+  dump_freelist();
+#endif
 }
 
 
@@ -278,6 +342,7 @@ void gclib_set_gen_no( semispace_t *s, int gen_no )
   int i;
   word *bot, *lim;
 
+  s->gen_no = gen_no;
   for ( i = 0 ; i < s->n ; i++ ) {
     if (s->chunks[i].bytes == 0) continue;
     bot = s->chunks[i].bot;
@@ -293,9 +358,25 @@ void gclib_set_gen_no( semispace_t *s, int gen_no )
 /* Return information about memory use */
 void gclib_stats( word *wheap, word *wremset, word *wrts )
 {
-  *wheap = 0;    /* FIXME */
-  *wremset = 0;  /* FIXME */
-  *wrts = 0;     /* FIXME */
+  *wheap = heap_bytes;
+  *wremset = remset_bytes;
+  *wrts = rts_bytes;
 }
+
+
+#ifdef GCLIB_DEBUG
+static void dump_freelist( void )
+{
+  freelist_t *f = freelist;
+
+  consolemsg( "   FREELIST" );
+  while (f != 0) {
+    consolemsg( "       %p %p (%d)",
+	        (void*)f, (void*)((char*)f+f->size), f->size );
+    f = f->next;
+  }
+}
+#endif  /* GCLIB_DEBUG */
+
 
 /* eof */

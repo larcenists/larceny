@@ -1,6 +1,6 @@
 ; Larceny auxiliary library -- a more intelligent 'load' procedure.
 ;
-; $Id$
+; $Id: load.sch,v 1.1 1997/02/27 16:48:16 lth Exp lth $
 ;
 ; This version of 'load' extends the normal 'load' in several ways:
 ; - multiple arguments

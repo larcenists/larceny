@@ -3,7 +3,7 @@
 ; Symbol table management for Larceny, based on same from MacScheme.
 ; Parts of this code is copyright 1991 lightship software
 ;
-; $Id: oblist.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: oblist.sch,v 1.3 1997/03/05 19:28:51 lth Exp lth $
 ;
 ; symbol?
 ; symbol->string
@@ -147,15 +147,17 @@
 
   (define obvector #f)
       
+  ; FIXME: This should run with interrupts turned off.
+
   (define (intern s)
     (let ((h (string-hash s)))
-      (call-without-interrupts
-       (lambda ()
-	 (or (search-bucket
-	      s
-	      h
-	      (vector-ref obvector (remainder h (vector-length obvector))))
-	     (install-symbol (make-symbol s) h obvector))))))
+      (or (search-bucket
+	   s
+	   h
+	   (vector-ref obvector (remainder h (vector-length obvector))))
+	  (install-symbol (make-symbol-structure (string-copy s) h '())
+			  h
+			  obvector))))
 
   ; Given a string, interns it.
 

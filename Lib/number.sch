@@ -3,7 +3,7 @@
 ; Arithmetic functions for MacScheme.
 ; Augmented and changed for Larceny, which has a different set of primops.
 ;
-; $Id: number.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: number.sch,v 1.3 1997/03/05 19:28:51 lth Exp lth $
 
 (define positive? (lambda (x) (> x 0)))
  
@@ -202,6 +202,7 @@
 	(else
 	 (truncate x))))
 
+
 ; Ceiling of x.
 ; A little contorted to avoid generic arithmetic in flonum case.
   
@@ -222,13 +223,20 @@
 	       (+ g 1)
 	       g)))))
 
-; Odd and even -- these could be much faster.
+
+; Odd and even, optimized for the fixnum case.
+; FIXME.  Should optimize for bignums, too.
 
 (define (even? n)
-  (zero? (remainder n 2)))
+  (if (fixnum? x)
+      (= (logand x 1) 0)
+      (zero? (remainder n 2))))
 
-(define (odd? n)
-  (not (zero? (remainder n 2))))
+(define (odd? x)
+  (if (fixnum? x) 
+      (= (logand x 1) 1)
+      (not (zero? (remainder n 2)))))
+
 
 ; Polar numbers
 

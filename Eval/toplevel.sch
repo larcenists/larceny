@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id$
+; $Id: toplevel.sch,v 1.1 1997/03/20 16:44:10 lth Exp lth $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -112,6 +112,8 @@
   (extend-toplevel-env! 'remove remove)
   (extend-toplevel-env! 'append! append!)
   (extend-toplevel-env! 'reverse! reverse!)
+  (extend-toplevel-env! 'some? some?)
+  (extend-toplevel-env! 'every? every?)
 
   ;; symbols
 
@@ -123,6 +125,15 @@
   (extend-toplevel-env! 'gensym gensym)
   (extend-toplevel-env! 'namespace namespace)           ; temporary
   (extend-toplevel-env! 'namespace-set! namespace-set!) ; temporary
+
+  ;; R5RS environments
+
+  (extend-toplevel-env! 'interaction-environment interaction-environment)
+  (extend-toplevel-env! 'scheme-report-environment scheme-report-environment)
+  (extend-toplevel-env! 'null-environment null-environment)
+  ;; not in R5RS:
+  (extend-toplevel-env! 'environment-lookup-binding environment-lookup-binding)
+  (extend-toplevel-env! 'eval-environment? environment?)
 
   ;; numbers
 
@@ -372,7 +383,7 @@
 
   ;; Support for rewriter and for macro expansion.
 
-  (extend-toplevel-env! 'macro-expand rewrite)
+  (extend-toplevel-env! 'macro-expand macro-expand)
   (extend-toplevel-env! '%list list)
   (extend-toplevel-env! '%list->vector list->vector)
   (extend-toplevel-env! '%cons cons)

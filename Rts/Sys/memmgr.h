@@ -1,7 +1,7 @@
 /* Rts/Sys/gc-interface.h
  * Larceny run-time system -- garbage collector interface (internal).
  * 
- * $Id: memmgr.h,v 1.4 1997/02/03 18:13:36 lth Exp $
+ * $Id: memmgr.h,v 1.6 1997/02/27 16:40:26 lth Exp $
  *
  * A garbage collector is an ADT of type gc_t; see the file Rts/Sys/gc.h.
  * 
@@ -102,8 +102,10 @@
 
 typedef struct young_heap young_heap_t;
 typedef struct old_heap old_heap_t;
+typedef struct static_heap static_heap_t;
 typedef struct remset remset_t;
 typedef struct remset_stats remset_stats_t;
+
 
 /***************************************************************************
  *
@@ -232,9 +234,14 @@ struct young_heap {
  */
 
 old_heap_t *
-create_old_heap( int *gen_no, int heap_no, unsigned size_bytes,
-       		                           unsigned hiwatermark,
-		                           unsigned lowatermark );
+create_old_heap( int *gen_no, int heap_no,
+		unsigned size_bytes,
+		unsigned hiwatermark,
+		unsigned lowatermark );
+
+old_heap_t *
+create_old_np_sc_heap( int *gen_no, int heap_no, 
+		       unsigned size_bytes, unsigned chunksize_bytes );
 
 struct old_heap {
   gc_t *collector;
@@ -253,6 +260,24 @@ struct old_heap {
   void *data;
 };
 
+
+/***************************************************************************
+ *
+ * Static heaps.
+ */
+
+static_heap_t *
+create_static_heap( int heap_no, int gen_no, unsigned size_bytes );
+
+struct static_heap {
+  char *id;
+
+  int  (*initialize)( static_heap_t * );
+  void (*stats)( static_heap_t *, heap_stats_t * );
+  word *(*data_load_area)( static_heap_t *, unsigned );
+
+  void *data;
+};
 
 /*************************************************************************
  *

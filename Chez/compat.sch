@@ -1,13 +1,16 @@
-; Compatibility library for the new Twobit under Chez 4.1
-; $Id$
+; Chez/compat.sch
+; Compatibility library for the new Twobit under Chez Scheme
 ;
-; Chez will probably barf on some of these if optimization is turned on.
+; $Id: compat.sch,v 1.1 1997/02/11 21:50:45 lth Exp lth $
 
 (define host-system 'chez)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Initialization
+
+(define chez-compile-file compile-file)
+(define *file-list* '())
 
 (define (compat:initialize)
   (load-foreign (string-append hostdir "bitpattern.o"))
@@ -17,6 +20,15 @@
       (load (string-append hostdir "values.ss")))
   (print-vector-length #f)
   #t)
+
+(define (compat:load filename)
+  (set! *file-list* (cons (cons filename (optimize-level)) *file-list*))
+  (let ((cfn (chez-new-extension filename "so")))
+    (if (and (file-exists? cfn)
+	     (compat:file-newer? cfn filename))
+	(begin (display (format "; ~a~%" cfn))
+	       (load cfn))
+	(load filename))))
 
 (define (with-optimization level thunk)
   (parameterize ((optimize-level level))
@@ -32,6 +44,17 @@
 		     (apply eh args)))
     (thunk1)
     (error-handler eh)))
+
+(define (chez-new-extension fn ext)
+  (let* ((l (string-length fn))
+	 (x (let loop ((i (- l 1)))
+	      (cond ((< i 0) #f)
+		    ((char=? (string-ref fn i) #\.) (+ i 1))
+		    (else (loop (- i 1)))))))
+    (if (not x)
+	(string-append fn "." ext)
+	(string-append (substring fn 0 x) ext))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -64,7 +87,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Error handling.
-; Chez Scheme's error is incompatible with the format of the error messages
+; Chez Scheme's 'error' is incompatible with the format of the error messages
 ; used in Twobit.
 
 (define error
@@ -120,5 +143,24 @@
 (define file-modification-time
   ; Using 'mtime' procedure defined in mtime.c.
   (foreign-procedure "mtime" (string) unsigned-32))
+
+
+(define (compat:file-newer? a b)
+  (>= (file-modification-time a) (file-modification-time b)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Compilation
+
+(define (chez-compile-files)
+  (for-each (lambda (fn)
+	      (with-optimization 
+	       (cdr fn)
+	       (lambda ()
+		 (chez-compile-file (car fn)
+				    (chez-new-extension (car fn) "so")))))
+	    *file-list*))
+
 
 ; eof

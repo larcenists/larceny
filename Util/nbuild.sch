@@ -1,5 +1,7 @@
-; -*- Scheme -*-
+; Util/nbuild.sch
 ; Loader for Larceny development system; portable!
+;
+; $Id: nbuild.sch,v 1.3 1997/02/11 21:53:13 lth Exp lth $
 ;
 ; This file assumes that the following variables are defined:
 ;
@@ -25,7 +27,8 @@
 (compat:initialize)
 
 (define (loadfile path file)
-  (load (string-append path file)))
+  (let ((fn (string-append path file)))
+    (compat:load fn)))
 
 (display "Loading make utility...") (newline)
 (loadfile compilerdir "make.sch")
@@ -75,11 +78,6 @@
 (loadfile compilerdir "printlap.sch")
 (loadfile compilerdir "utils.sch")
 (loadfile compilerdir "makefasl.sch")
-
-;; The next two do magic things for the top level compilation.
-
-;(loadfile compilerdir "expand313.sch")
-;(loadfile compilerdir "rewrite.sch")  ; HACK! FIXME!
 
 (display "Loading makefile...") (newline)
 (loadfile sourcedir "makefile.sch")

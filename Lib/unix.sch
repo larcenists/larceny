@@ -1,7 +1,7 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.4 1997/02/11 19:50:57 lth Exp lth $
+; $Id: unix.sch,v 1.5 1997/03/02 17:26:15 lth Exp $
 
 ; Various UNIX I/O parameters. The values are taken from header files
 ; for SunOS 4.1.1; at some point we need to find a scheme for generating
@@ -207,11 +207,22 @@
 
 ; Open the 'terminal' and return file descriptors for input and output
 ; on it.
+;
+; FIXME: must be more sophisticated and reopen the terminal after EOF.
 
 (define (sys$open-terminal mode)
   (cond ((eq? mode 'input)  unix:stdin)
 	((eq? mode 'output) unix:stdout)
-	(else ???open-terminal)))
+	(else (error "sys$open-terminal: invalid mode: " mode)
+	      #t)))
+
+; FIXME: should actually close it when asked to do so.
+
+(define (sys$close-terminal fd)
+  (cond ((equal? fd unix:stdin) 0)
+	((equal? fd unix:stdout) 0)
+	(else (error "sys$close-terminal: invalid descriptor: " fd)
+	      #t)))
 
 (define (sys$open-file fn mode)
   (cond ((eq? mode 'input)
@@ -287,5 +298,14 @@
 ; System-dependent character values.
 
 (define **newline** 10)
+
+
+; RTS debugging utility function
+
+(define ($$trace msg)
+  (let ((nl (make-string 1)))
+    (string-set! nl 0 (integer->char **newline**))
+    (sys$write-file4 1 msg (string-length msg) 0)
+    (sys$write-file4 1 nl 1 0)))
 
 ; eof

@@ -1,7 +1,7 @@
 /* Rts/Sys/semispace.c
  * Larceny run-time system -- semispace ADT.
  *
- * January 14, 1997
+ * $Id: semispace.c,v 1.3 1997/02/20 15:55:03 lth Exp $
  *
  * The semispace_t ADT maintains a growable/shrinkable set of heap chunks
  * for a semispace; all chunks have the same generation number.
@@ -38,7 +38,7 @@ create_semispace( unsigned bytes, int heap_no, int gen_no )
     memfail( MF_MALLOC, "Unable to allocate semispace chunks." );
     goto again2;
   }
-  for ( i = 1; i < n; i++ ) 
+  for ( i = 0; i < n; i++ ) 
     s->chunks[i].bytes = 0;
   ss_expand( s, bytes );
 
@@ -59,7 +59,7 @@ void ss_expand( semispace_t *s, unsigned bytes_request )
   
   bytes_request = roundup_page( bytes_request );
 
-  for ( i=s->current+1 ; i < s->n ; i++ ) {
+  for ( i=s->current+1 ; i < s->n && empty < 0 ; i++ ) {
     if (s->chunks[i].bytes >= bytes_request) {
       chunk_t tmp = s->chunks[i];
       s->chunks[i] = s->chunks[s->current+1];
@@ -135,6 +135,23 @@ void ss_sync( semispace_t *s )
   for ( i = 0 ; i <= s->current ; i++ )
     if (s->chunks[i].bytes > 0)
       s->used += (s->chunks[i].top - s->chunks[i].bot)*sizeof(word);
+}
+
+
+/* Free a semispace and all its data.
+ */
+void ss_free( semispace_t *s )
+{
+  int i;
+
+  for ( i=0 ; i < s->n ; i++ ) {
+    if (s->chunks[i].bytes > 0)
+      gclib_free( s->chunks[i].bot, s->chunks[i].bytes );
+    s->chunks[i].bot = s->chunks[i].top = 0;  /* catches bugs */
+  }
+  free( s->chunks );
+  s->chunks = 0;      /* catches bugs */
+  free( s );
 }
 
 /* eof */

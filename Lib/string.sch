@@ -1,11 +1,14 @@
-; Larceny library: characters, strings, and bytevectors.
-; Parts of this code Copyright Lightship Software.
+; Lib/string.sch
+; Larceny library --  characters, strings, and bytevectors.
 ;
-; $Id: string.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: string.sch,v 1.3 1997/03/05 19:28:51 lth Exp lth $
+;
+; Parts of this code Copyright Lightship Software.
 ;
 ; FIXME: 
 ;  - many character procedures should be table driven.
 ;  - see FIXMEs in the code for other issues.
+
 
 ; Upper- and lower-case predicates and conversions
 ; for both characters and strings.
@@ -138,24 +141,37 @@
   (lambda chars
     (list->string chars)))
 
-; FIXME: slow. Use sys$bvl-copy-into! when available.
-(define string-append
-  (lambda args
-    (list->string (apply append (map string->list args)))))
- 
-; FIXME: slow. Use sys$bvl-copy-into! when available.
-(define substring
-  (let ((tag sys$tag.string-typetag))
-    (lambda (s m n)
-      (do ((x s)
-	   (y (make-bytevector (- n m)))
-	   (i m (+ i 1))
-	   (j 0 (+ j 1)))
-	  ((>= i n) (begin 
-		       (typetag-set! y tag)
-		       y))
-	(bytevector-like-set! y j (bytevector-like-ref x i))))))
- 
+;(define string-append
+;  (lambda args
+;    (list->string (apply append (map string->list args)))))
+
+; This reduces storage allocation relative to the above definition
+; considerably, but has about the same performance when the copyer
+; is implemented in Scheme and not cleverly optimized.
+
+(define (string-append . args)
+
+  (define (lengths args n)
+    (if (null? args)
+	n
+	(lengths (cdr args) (+ n (string-length (car args))))))
+
+  (let* ((n (lengths args 0))
+	 (s (make-bytevector n)))
+    (typetag-set! s sys$tag.string-typetag)
+    (do ((l args (cdr l))
+	 (i 0    (+ i (string-length (car l)))))
+	((null? l) s)
+      (bytevector-like-copy-into! (car l) 0 (string-length (car l))
+				  s i))))
+
+(define (substring s m n)
+  (let ((y (make-bytevector (- n m))))
+    (typetag-set! y sys$tag.string-typetag)
+    (bytevector-like-copy-into! s m n y 0)
+    y))
+
+
 (define string-fill!
   (lambda (s c)
     (if (and (string? s) (char? c))
@@ -163,6 +179,7 @@
 	(error "string-fill!: bad operands: " s c))))
  
 ; FIXME: should there be a bytevector-like-subfill! primop?
+
 (define substring-fill!
   (lambda (s start end c)
     (do ((i start (+ i 1)))
@@ -241,6 +258,7 @@
       (error name "Operands must be strings.")
       (sys$bvlcmp a b)))
 
+
 (define (bytevector-equal? b1 b2)
   (if (not (bytevector? b1))
       (error "bytevector-equal?: not a bytevector: " b1))
@@ -248,10 +266,12 @@
       (error "bytevector-equal?: not a bytevector: " b2))
   (zero? (sys$bvlcmp bv1 bv2)))
 
+
 (define (bytevector-copy b)
   (if (not (bytevector? b))
       (error "bytevector-copy: not a bytevector: " b))
   (bytevector-like-copy b))
+
 
 (define (bytevector-like-equal? b1 b2)
   (if (not (bytevector-like? b1))
@@ -260,16 +280,19 @@
       (error "bytevector-like-equal?: not a bytevector-like: " b2))
   (zero? (sys$bvlcmp b1 b2)))
 
-; Needs to use sys$bvl-copy-into when available.
 
 (define (bytevector-like-copy b)
-  (if (not (bytevector-like? b))
-      (error "bytevector-like-copy: not a bytevector-like: " b))
-  (let* ((l (bytevector-like-length b))
-	 (n (make-bytevector l)))
-    (do ((i (- l 1) (- i 1)))
-	((< i 0) (typetag-set! n (typetag b)) n)
-      (bytevector-like-set! n i (bytevector-like-ref b i)))))
+  (let ((v (make-bytevector (bytevector-like-length b))))
+    (typetag-set! n (typetag b))
+    (bytevector-like-copy-into b 0 (bytevector-like-length b) v 0)))
+
+
+(define (bytevector-like-copy-into! src from lim dest to)
+  (do ((i from (+ i 1))
+       (j to   (+ j 1)))
+      ((= i lim) dest)
+    (bytevector-like-set! dest j (bytevector-like-ref src i))))
+
 
 ; OBSOLETE -- comment out.
 ;
@@ -279,7 +302,7 @@
 ;
 ; This should probably be a primop hooking into a millicode proc.
 
-(define (bytevector-like-compare bv1 bv2)
+'(define (bytevector-like-compare bv1 bv2)
   (display "WARNING: calling obsolete bytevector-like-compare.")
   (newline)
   (let* ((la    (bytevector-like-length bv1))

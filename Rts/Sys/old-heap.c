@@ -1,7 +1,7 @@
 /* Rts/Sys/old-heap.c
  * Larceny run-time system -- stop-and-copy varsized heap.
  *
- * $Id: old-heap.c,v 1.5 1997/01/28 19:48:15 lth Exp $
+ * $Id: old-heap.c,v 1.7 1997/02/24 01:01:34 lth Exp $
  *
  * An old heap is a heap that receives new objects by promotion from
  * younger heaps, not by direct allocation.  Promotion from younger heaps
@@ -29,6 +29,7 @@ struct old_data {
   int  gen_no;
   int  must_promote;           /* 1 if heap was full after last gc */
   int  must_collect;           /* 1 if heap was full after last promote */
+  int  size_bytes;             /* our notion of target data size */
 
   semispace_t *current_space;  /* Space to promote into */
   semispace_t *other_space;    /* Unused */
@@ -102,6 +103,8 @@ create_old_heap( int *gen_no,             /* add at least 1 to this */
   data->hiwatermark = thiwatermark;
   data->lowatermark = tlowatermark;
 
+  data->size_bytes = size_bytes;
+
   heap->initialize = initialize;
   heap->before_promotion = before_promotion;
   heap->after_promotion = after_promotion;
@@ -130,7 +133,6 @@ static void promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   semispace_t *s;
-  unsigned allocated;
 
   if (data->must_collect) {
     heap->collect( heap );
@@ -142,12 +144,11 @@ static void promote( old_heap_t *heap )
   stats_gc_type( data->gen_no, STATS_PROMOTE );
 
   s = data->current_space;
-  allocated = s->allocated;
   gclib_copy_younger_into( heap->collector, s );
   ss_sync( s );
 
   /* If heap overflowed during promotion, schedule a collection */
-  data->must_collect = (s->allocated > allocated);
+  data->must_collect = (s->used > data->size_bytes);
 }
 
 
@@ -165,6 +166,9 @@ static void collect( old_heap_t *heap )
     return;
   }
 
+  if (data->gen_no > 0)
+    annoyingmsg( "Garbage collecting generation %d.", data->gen_no );
+
   debugmsg( "[debug] old heap (%d,%d): collection.",
 	   data->heap_no, data->gen_no );
   stats_gc_type( data->gen_no, STATS_COLLECT );
@@ -173,17 +177,33 @@ static void collect( old_heap_t *heap )
   to = data->other_space;
 
   ss_reset( to );                                   /* clear tospace */
-  gclib_stopcopy_slow( heap->collector, from, to ); /* promote&copy */
+  gclib_stopcopy_slow( heap->collector, to );       /* promote&copy */
   ss_sync( to );                                    /* calculate statistics */
 
-  /* If live after gc is over high watermark, schedule promotion */
-  if (to->used > to->allocated/100*data->hiwatermark)
+  /* If live after gc is over high watermark, schedule promotion.
+   * If it's the oldest heap, expand the heap by 20%.
+   */
+  if (to->used > data->size_bytes/100*data->hiwatermark) {
     if (!heap->oldest)
       data->must_promote = 1;
+    else {
+      unsigned n = roundup_page(data->size_bytes/5);
+      data->size_bytes += n;
+      annoyingmsg( "Expanding generation %d by %u bytes; size=%u.", 
+		   data->gen_no, n, data->size_bytes );
+    }
+  }
 
-  /* If live is gc is under low watermark, deallocate some memory */
-  if (to->used < to->allocated/100*data->lowatermark) {
-    /* FIXME */
+  /* If live is gc is under low watermark, deallocate some memory.
+   * This probably assumes that the watermark is 'reasonable'.
+   */
+  if (to->used < data->size_bytes/100*data->lowatermark) {
+    if (heap->oldest) {
+      unsigned n = roundup_page( data->size_bytes/5 );
+      data->size_bytes -= n;
+      annoyingmsg( "Contracting generation %d by %u bytes; size=%u.",
+		   data->gen_no, n, data->size_bytes );
+    }
   }
 
   data->must_collect = 0;

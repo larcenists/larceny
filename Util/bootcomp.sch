@@ -1,5 +1,5 @@
 ; Util/bootcomp.sch
-; $Id$
+; $Id: bootcomp.sch,v 1.1 1997/02/11 21:53:13 lth Exp lth $
 ;
 ; Program that bootstraps the heap containing the compiler.
 ; Load from Larceny root directory.

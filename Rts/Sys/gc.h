@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.h
  * Larceny run-time system -- garbage collector interface (public)
  *
- * $Id: gc.h,v 1.7 1997/02/04 16:36:40 lth Exp $
+ * $Id: gc.h,v 1.9 1997/02/27 16:40:26 lth Exp $
  *
  * The procedure create_gc() returns a new garbage collector that manages
  * some number of heap areas.  It is implemented in "memmgr.c".
@@ -35,7 +35,11 @@ create_gc( unsigned esize_bytes,
 	   unsigned ssb,
 	   unsigned generations,
 	   old_param_t *old_gen_info,
-	   word *globals
+	   int np_gc,
+	   unsigned np_steps,
+	   unsigned np_stepsize_bytes,
+	   word *globals,
+	   int *actual_generations /* OUT */
 	  );
 
 struct gc { 
@@ -45,7 +49,6 @@ struct gc {
   /* Memory management */
   void (*collect)( gc_t *gc, int gen, gc_type_t type, unsigned request_bytes);
   word *(*allocate)( gc_t *gc, unsigned request_bytes );
-  int  (*compact_all_ssbs)( gc_t *gc );
 
   /* Heap loading */
   word *(*data_load_area)( gc_t *gc, unsigned bytes_needed );
@@ -61,6 +64,10 @@ struct gc {
 
   /* Statistics */
   void (*stats)( gc_t *gc, int generation, heap_stats_t *stats );
+
+  /* Remembered sets */
+  int  (*compact_all_ssbs)( gc_t *gc );
+  void (*clear_remset)( gc_t *gc, int generation );
 
   /* Support for simulated write barrier */
   int (*isremembered)( gc_t *gc, word w );

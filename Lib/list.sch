@@ -1,10 +1,26 @@
-; Copyright 1991 Lightship Software
-;
+; Lib/list.sch
 ; Larceny library -- list procedures
 ;
-; $Id: list.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: list.sch,v 1.3 1997/03/02 17:26:15 lth Exp $
+;
+; Copyright 1991 Lightship Software
 ;
 ; Procedures of the form x->list and list->x can be found in the file for x.
+;
+; FIXME
+;   In general we need to substantiate that the code generated for
+;     (define (p a1 ...)
+;        ...
+;        (p e1 ...))
+;   is as good as that generated for
+;     (define (p a1 ...)
+;        (define (p a1 ...)
+;          ...
+;          (p e1 ...))
+;        (p a1 ...))
+;   when benchmark-mode is turned on, and then rewrite all the procedures
+;   in here that use the latter form into the former form, because they
+;   look nicer.
 
 (define caar (lambda (x) (car (car x))))
 (define cadr (lambda (x) (car (cdr x))))
@@ -35,52 +51,104 @@
 (define cdddar (lambda (x) (cdr (cdr (cdr (car x))))))
 (define cddddr (lambda (x) (cdr (cdr (cdr (cdr x))))))
  
-(define list (lambda x x))
 
-(define %list list)
- 
+(define (list . x) x)
+
+
 (define (length l)
-  (letrec ((loop (lambda (l len)
-		   (if (null? l)
-		       len
-		       (loop (cdr l) (+ len 1))))))
-    (loop l 0)))
 
-(define for-each)
-(define map)
-(letrec
-  ((map2 (lambda (f l)
-           (if (null? l) '() (cons (f (car l)) (map2 f (cdr l))))))
-   (for-each2 (lambda (f l)
-                (if (null? l)
-                    #f
-                    (begin (f (car l))
-                           (for-each2 f (cdr l))))))
-   (map0 (lambda (f l1 . rest)
-           (cond ((null? l1) '())
-                 (else (cons (apply f (cons (car l1) (map2 car rest)))
-                             (apply map0 (help0 f l1 rest)))))))
-   (for-each0 (lambda (f l1 . rest)
-                (cond ((null? l1) #f)
-                      (else (apply f (cons (car l1) (map2 car rest)))
-                            (apply for-each0 (help0 f l1 rest))))))
-   (help0 (lambda (f l1 rest)
-            (cons f (cons (cdr l1) (map2 cdr rest)))))
-   )
-  (set! map
-        (lambda (f l1 . rest)
-          (if (null? rest)
-              (map2 f l1)
-              (apply map0 (cons f (cons l1 rest))))))
-  (set! for-each
-        (lambda (f l1 . rest)
-          (if (null? rest)
-              (for-each2 f l1)
-              (apply for-each0 (cons f (cons l1 rest))))))
-  #t)
+  (define (loop l len)
+    (if (null? l)
+	len
+	(loop (cdr l) (+ len 1))))
 
-; List structure.
- 
+  (loop l 0))
+
+
+(define (map f x . rest)
+
+  (define (map1 f x)
+    (if (null? x)
+	'()
+	(cons (f (car x)) (map1 f (cdr x)))))
+
+  (define (map2 f x y)
+    (if (null? x)
+	'()
+	(cons (f (car x) (car y))
+	      (map2 f (cdr x) (cdr y)))))
+
+  (define (map3 f x y z)
+    (if (null? x)
+	'()
+	(cons (f (car x) (car y) (car z))
+	      (map3 f (cdr x) (cdr y) (cdr z)))))
+
+  (define (map4 f x y z w)
+    (if (null? x)
+	'()
+	(cons (f (car x) (car y) (car z) (car w))
+	      (map4 f (cdr x) (cdr y) (cdr z) (cdr w)))))
+
+  (define (mapn f lists)
+    (if (null? (car lists))
+	'()
+	(cons (apply f (map1 car lists))
+	      (mapn f (map1 cdr lists)))))
+
+  (case (length rest)
+    ((0)  (map1 f x))
+    ((1)  (map2 f x (car rest)))
+    ((2)  (map3 f x (car rest) (cadr rest)))
+    ((3)  (map4 f x (car rest) (cadr rest) (caddr rest)))
+    (else (mapn f (cons x rest)))))
+
+
+(define (for-each f x . rest)
+
+  (define (map1 f x)
+    (if (null? x)
+	'()
+	(cons (f (car x)) (map1 f (cdr x)))))
+
+  (define (for-each1 f x)
+    (if (null? x)
+	(unspecified)
+	(begin (f (car x))
+	       (for-each1 f (cdr x)))))
+
+  (define (for-each2 f x y)
+    (if (null? x)
+	(unspecified)
+	(begin (f (car x) (car y))
+	       (for-each2 f (cdr x) (cdr y)))))
+
+  (define (for-each3 f x y z)
+    (if (null? x)
+	(unspecified)
+	(begin (f (car x) (car y) (car z))
+	       (for-each3 f (cdr x) (cdr y) (cdr z)))))
+
+  (define (for-each4 f x y z w)
+    (if (null? x)
+	(unspecified)
+	(begin (f (car x) (car y) (car z) (car w))
+	       (for-each4 f (cdr x) (cdr y) (cdr z) (cdr w)))))
+
+  (define (for-each-n f lists)
+    (if (null? (car lists))
+	(unspecified)
+	(begin (apply f (map1 car lists))
+	       (for-each-n f (map1 cdr lists)))))
+
+  (case (length rest)
+    ((0)  (for-each1 f x))
+    ((1)  (for-each2 f x (car rest)))
+    ((2)  (for-each3 f x (car rest) (cadr rest)))
+    ((3)  (for-each4 f x (car rest) (cadr rest) (caddr rest)))
+    (else (for-each-n f (cons x rest)))))
+
+
 (define reverse
   (letrec ((reverse-loop
 	    (lambda (l1 l2)
@@ -89,6 +157,7 @@
 		  (reverse-loop (cdr l1) (cons (car l1) l2))))))
     (lambda (l)
       (reverse-loop l '()))))
+
 
 (define (reverse! l)
   (define (loop0 prev curr next)
@@ -111,7 +180,7 @@
       (loop0 '() l (cdr l))))
 
 
-; Slow; should use a better algorithm.
+; FIXME: the use of apply makes this slow in the n-ary case.
 
 (define append
   (letrec ((append2
@@ -127,9 +196,6 @@
 		    (else (append2 (car args) (apply append (cdr args))))))))
     append))
 
-; For macro expander.
-
-(define %append append)
 
 (define (append! . args)
 
@@ -149,27 +215,29 @@
 	(loop (cdr a) (car a)))))
 
 
-(define list-tail
-  (letrec ((list-tail
-             (lambda (x k)
-               (if (zero? k)
-                   x
-                   (list-tail (cdr x) (- k 1))))))
-    (lambda (x k)
-      (list-tail x k))))
+(define (list-tail x k)
 
-(define list-ref
-  (lambda (x k)
-    (car (list-tail x k))))
+  (define (list-tail x k)
+    (if (zero? k)
+	x
+	(list-tail (cdr x) (- k 1))))
 
-(define list-set!
-  (lambda (l n o)
-    (set-car! (list-tail l n) o)))
+  (list-tail x k))
+
+
+(define (list-ref x k)
+  (car (list-tail x k)))
+
+
+(define (list-set! l n o)
+  (set-car! (list-tail l n) o))
+
 
 (define (last-pair l)
   (if (null? (cdr l))
       l
       (last-pair (cdr l))))
+
 
 ; This is pretty much optimal for Larceny.
 
@@ -186,15 +254,18 @@
 	(loop (cdr l) first)
 	first)))
 
+
 (define member
-  (letrec ((member (lambda (x l)
-                     (cond ((null? l) #f)
-                           ((equal? x (car l)) l)
-                           (else (member x (cdr l)))))))
+  (letrec ((member
+	    (lambda (x l)
+	      (cond ((null? l) #f)
+		    ((equal? x (car l)) l)
+		    (else (member x (cdr l)))))))
     (lambda (x l)
       (cond ((symbol? x) (memq x l))
             ((number? x) (memv x l))
             (else (member x l))))))
+
 
 (define (memv x l)
   (define (memv x l)
@@ -205,20 +276,24 @@
       (memq x l)
       (memv x l)))
 
+
 (define (memq x l)
   (cond ((null? l) #f)
 	((eq? (car l) x) l)
 	(else (memq x (cdr l)))))
 
+
 (define assoc
-  (letrec ((assoc (lambda (x l)
-		    (cond ((null? l) #f)
-			  ((equal? x (caar l)) (car l))
-			  (else (assoc x (cdr l)))))))
+  (letrec ((assoc
+	    (lambda (x l)
+	      (cond ((null? l) #f)
+		    ((equal? x (caar l)) (car l))
+		    (else (assoc x (cdr l)))))))
     (lambda (x l)
       (cond ((symbol? x) (assq x l))
             ((number? x) (assv x l))
             (else (assoc x l))))))
+
 
 (define (assv x l)
   (define (assv x l)
@@ -229,25 +304,30 @@
       (assq x l)
       (assv x l)))
 
+
 (define (assq x l)
   (cond ((null? l) #f)
 	((eq? (caar l) x) (car l))
 	(else (assq x (cdr l)))))
 
+
 (define (remove x l)
-  (cond ((atom? l) l)
+  (cond ((not (pair? l)) l)
 	((equal? x (car l)) (remove x (cdr l)))
 	(else (cons (car l) (remove x (cdr l))))))
  
+
 (define (remv x l)
-  (cond ((atom? l) l)
+  (cond ((not (pair? l)) l)
 	((eqv? x (car l)) (remv x (cdr l)))
 	(else (cons (car l) (remv x (cdr l))))))
 
+
 (define (remq x l)
-  (cond ((atom? l) l)
+  (cond ((not (pair? l)) l)
 	((eq? x (car l)) (remq x (cdr l)))
 	(else (cons (car l) (remq x (cdr l))))))
+
 
 (define (list? x)
   (define (loop slow fast)
@@ -266,5 +346,36 @@
   (or (null? x)
       (and (pair? x)
 	   (loop x (cdr x)))))
+
+
+; If all expressions are non-#f, then returns the value of the last
+; expression, otherwise returns #f.  If list is null, return #t.
+
+(define (every? p l)
+
+  (define (loop l)
+    (cond ((null? (cdr l)) (p (car l)))
+	  ((p (car l)) (loop (cdr l)))
+	  (else #f)))
+
+  (if (null? l)
+      #t
+      (loop l)))
+
+
+; Returns the value of the first non-#f expression, or #f if all are #f.
+
+(define (some? p l)
+  (cond ((null? l) #f)
+	((p (car l)))
+	(else (some? p (cdr l)))))
+
+
+; Support for macro-expanded code (quasiquote).
+; FIXME:  Really belongs somewhere else.
+
+(define %append append)
+(define %list list)
+ 
 
 ; eof

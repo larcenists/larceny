@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.7 1997/02/11 14:30:55 lth Exp $
+ * $Id: larceny.c,v 1.10 1997/02/27 16:40:26 lth Exp $
  *
  * See the manual page file ``larceny.1'' for instructions about the 
  * format of the command line.  Alternatively, read the source for 
@@ -38,9 +38,14 @@ struct opt {
   unsigned enable_timer;
   unsigned show_heapstats;
   char     *heapfile;
-  unsigned quiet;
+  int      quiet;
+  int      annoying;
   int      flush;
   int      noflush;
+  int      np_gc;
+  int      np_steps;
+  int      np_stepsize;
+  int      use_static;
   int      restc;
   char     **restv;
   char     *gc_debug_file;
@@ -49,7 +54,6 @@ struct opt {
 static void invalid( char *s );
 static void handle_signals( int ifreq );
 static void usage( void );
-static void usage2( void );
 static void help( void );
 static void parse_options( int argc, char **argv, opt_t *opt );
 static int getsize( char *s, unsigned *p );
@@ -59,11 +63,15 @@ extern char *gctype();
 /* 'quiet' controls consolemsg() */
 static int quiet = 0;
 
+/* 'annoying' controls annoying_msg() */
+static int annoying = 0;
+
 /* Genesis. */
 int main( argc, argv )
 int argc;
 char **argv;
 {
+  unsigned ssize;
   opt_t o;
 
   memset( &o, 0, sizeof( o ) );
@@ -72,6 +80,7 @@ char **argv;
   o.restv = 0;
   o.gc_debug_file = 0;
   o.requested_old_generations = 1;
+  o.use_static = 1;
   o.old_generations = MAX_OLD_GENERATIONS;  /* really determined by GC */
 
   cache_setup();
@@ -86,31 +95,43 @@ char **argv;
     o.heapfile = "larceny.heap";
 
   quiet = o.quiet;
+  annoying = o.annoying;
 
   if (o.flush)
     globals[ G_CACHE_FLUSH ] = 1;
   else if (o.noflush)
     globals[ G_CACHE_FLUSH ] = 0;
 
+#if 0
+  /* No longer available... */
   if (o.gc_debug_file) {
     gcdebug( o.gc_debug_file );
     exit( 0 );
   }
+#endif
 
   /* Load the heap */
   openheap( o.heapfile );
 
+  if (o.use_static)
+    ssize = heap_ssize() + heap_tsize();
+  else
+    ssize = 0;
+
+  /* This is getting messy. */
   if (!allocate_heap( o.esize, o.ewatermark,
-		      heap_ssize(),
+		      ssize,
 		      o.rhash, o.ssb,
 		      o.requested_old_generations,
-		      o.old_gen_info ))
+		      o.old_gen_info,
+		      o.np_gc, o.np_steps, o.np_stepsize ))
     panic( "Unable to allocate heap/create garbage collector." );
 
   load_heap();
   closeheap();
 
-  consolemsg( "GC: %s\n", gctype() );
+  if (o.show_heapstats)
+    consolemsg( "GC type: %s\n", gctype() );
 
   /* initialize some policy globals */
   globals[ G_BREAKPT_ENABLE ] =
@@ -145,7 +166,7 @@ char **argv;
  *
  */
 
-int panic( char *fmt, ... )
+int panic( const char *fmt, ... )
 {
   static int in_panic = 0;
   va_list args;
@@ -162,7 +183,7 @@ int panic( char *fmt, ... )
   /* Never returns. Return type is 'int' to facilitate an idiom. */
 }
 
-int panic_abort( char *fmt, ... )
+int panic_abort( const char *fmt, ... )
 {
   static int in_panic = 0;
   va_list args;
@@ -179,9 +200,11 @@ int panic_abort( char *fmt, ... )
   /* Never returns. Return type is 'int' to facilitate an idiom. */
 }
 
-void consolemsg( char *fmt, ... )
+void annoyingmsg( const char *fmt, ... )
 {
   va_list args;
+
+  if (!annoying) return;
 
   va_start( args, fmt );
   if (!quiet) {
@@ -191,7 +214,19 @@ void consolemsg( char *fmt, ... )
   va_end( args );
 }
 
-void hardconsolemsg( char *fmt, ... )
+void consolemsg( const char *fmt, ... )
+{
+  va_list args;
+
+  if (quiet) return;
+
+  va_start( args, fmt );
+  vfprintf( stderr, fmt, args );
+  fprintf( stderr, "\n" );
+  va_end( args );
+}
+
+void hardconsolemsg( const char *fmt, ... )
 {
   va_list args;
 
@@ -300,6 +335,10 @@ parse_options( int argc, char **argv, opt_t *o )
 	  if (!o->lomark_explicit[i])
 	    o->old_gen_info[i].lowatermark = val;
     }
+    else if (numbarg( "-np:steps", &argc, &argv, &o->np_steps ))
+      o->np_gc = 1;
+    else if (sizearg( "-np:size", &argc, &argv, &o->np_stepsize ))
+      o->np_gc = 1;
     else if (strcmp( *argv, "-break" ) == 0)
       o->enable_breakpoints = 1;
     else if (strcmp( *argv, "-step" ) == 0)
@@ -310,10 +349,14 @@ parse_options( int argc, char **argv, opt_t *o )
       help();
     else if (strcmp( *argv, "-quiet" ) == 0) 
       o->quiet = 1;
+    else if (strcmp( *argv, "-annoy-user" ) == 0)
+      o->annoying = 1;
     else if (strcmp( *argv, "-flush" ) == 0)
       o->flush = 1;
     else if (strcmp( *argv, "-noflush" ) == 0)
       o->noflush = 1;
+    else if (strcmp( *argv, "-nostatic" ) == 0)
+      o->use_static = 0;
     else if (strcmp( *argv, "-args" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
@@ -328,7 +371,7 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (**argv == '-') {
       consolemsg( "Error: Invalid option '%s'", *argv );
-      usage2();
+      usage();
     }
     else if (o->heapfile != NULL) {
       consolemsg( "Error: Only one heap file allowed." );
@@ -424,25 +467,21 @@ static int getsize( char *s, unsigned *p )
 static void invalid( char *s )
 {
   consolemsg( "Error: Invalid argument to option '%s'", s );
-  usage2();
+  consolemsg( "Type \"larceny -help\" for help." );
+  exit( 1 );
 }
 
 static void usage( void )
 {
   consolemsg( "" );
-  consolemsg( "Usage: larceny [ options ] heapfile [-args arguments]" );
-  usage2();
-}
-
-static void usage2( void )
-{
+  consolemsg( "Usage: larceny [ options ][ heapfile ][-args arguments]" );
   consolemsg( "Type \"larceny -help\" for help." );
   exit( 1 );
 }
 
 static void help( void )
 {
-  consolemsg("Usage: larceny [ options ] heapfile [-args args-to-scheme]" );
+  consolemsg("Usage: larceny [ options ][ heapfile ][-args args-to-scheme]" );
   consolemsg("" );
   consolemsg("Options:" );
   consolemsg("\t-esize    nnnn  Ephemeral-area size in bytes" );
@@ -452,12 +491,15 @@ static void help( void )
   consolemsg("\t-ssb      nnnn  Remembered-set Sequential Store Buffer (SSB)");
   consolemsg("\t                 size in elements" );
   consolemsg("\t-old      n     Number of old generations." );
+  consolemsg("\t-np:steps n     Number of steps in the non-predictive gc." );
+  consolemsg("\t-np:size  nnnn  Size of each step in non-predictive gc." );
   consolemsg("\t-tsize    nnnn  Old-area size in bytes." );
   consolemsg("\t-thimark  n     Old-area high watermark in percent" );
   consolemsg("\t-tlomark  n     Old-area low watermark in percent" );
   consolemsg("\t-tsize#   nnnn  Old-area number '#' size" );
   consolemsg("\t-thimark# n     Old-area number '#' high watermark" );
   consolemsg("\t-tlomark# n     Old-area number '#' low watermark" );
+  consolemsg("\t-nostatic       Don't use the static area" );
   consolemsg("\t-ticks    nnnn  Initial timer interval value" );
   consolemsg("\t-break          Enable breakpoints" );
   consolemsg("\t-step           Enable single-stepping" );
@@ -466,11 +508,15 @@ static void help( void )
 */
   consolemsg("\t-stats          Print memory statistics" );
   consolemsg("\t-quiet          Suppress nonessential messages" );
+  consolemsg("\t-annoy-user     Print annoying messages" );
   consolemsg("\t-help           Print this message" );
   consolemsg("\t-gcdebug file   GC debug mode (developers only!)" );
   consolemsg("" );
   consolemsg("Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed");
   consolemsg("with K (for KB) or M (for MB) when that makes sense." );
+  consolemsg("");
+  consolemsg("The larceny user's manual is available on the World-Wide Web at");
+  consolemsg("  http://www.ccs.neu.edu/home/lth/larceny/manual.html");
   exit( 0 );
 }
 

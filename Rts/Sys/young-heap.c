@@ -1,7 +1,7 @@
 /* Rts/Sys/young-heap.c
  * Larceny run-time system -- youngest heap.
  *
- * $Id: young-heap.c,v 1.9 1997/02/11 19:48:21 lth Exp lth $
+ * $Id: young-heap.c,v 1.9 1997/02/11 19:48:21 lth Exp $
  *
  * Contract
  *

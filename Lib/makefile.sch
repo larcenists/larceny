@@ -1,11 +1,7 @@
-; -*- scheme -*-
-; $Id: makefile.sch,v 1.3 1997/02/06 20:04:44 lth Exp $
-;
+; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; Lars Thomas Hansen / January 28, 1996
-;
-; April 28, 1996
+; $Id: makefile.sch,v 1.5 1997/03/05 19:28:51 lth Exp lth $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
@@ -29,10 +25,6 @@
 (define (make-assemble target deps)
   (display "Assembling ") (display target) (newline)
   (assemble313 (car deps) target))
-
-(define (make-expand target deps)
-  (display "Expanding ") (display target) (newline)
-  (expand313 (car deps) target))
 
 (define (make-compile-file target deps)
   (display "Making ") (display target) (newline)
@@ -80,6 +72,7 @@
     "malcode"           ; real basic things
     "typetags"          ; type tags
     "unix"              ; OS primitives for Unix
+    "error0"            ; Boot-time 'error' procedure.
     "primops"           ; primop procedures
 
     ; general library
@@ -95,8 +88,21 @@
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
     "error"             ; error system
-    "schemeio"          ; I/O system
+
+    ; Old I/O subsystem
+
+;    "schemeio"          ; I/O system
+;    "print"             ; write/display
+
+    ; New I/O subsystem -- not yet properly tested
+
+    "iosys"
+    "fileio"
+    "conio"
+    "stdio"
     "print"             ; write/display
+    "ioboot"
+
     "number"            ; arithmetic
     "globals"           ; 'global' offsets (for gc)
 
@@ -125,7 +131,7 @@
   '("Repl/reploop"      ; Read-eval-print loop
     "Eval/eval"         ; Simple eval procedure (interpreter)
     "Eval/toplevel"     ; Top-level environment
-    "Eval/rewrite"      ; Macro expander (for Eval)
+    "Eval/macro-expand" ; Macro expander (for Eval)
     ))
 
 ; Files that hold system constants.
@@ -145,7 +151,6 @@
 (make:rule heap-project ".lop" ".lap" make-assemble)
 (make:rule heap-project ".lap" ".sch" make-compile)
 (make:rule heap-project ".sch" ".sh" make-copy)
-(make:rule heap-project ".sch" ".raw" make-expand)
 (make:deps heap-project '("larceny.heap") (objects "Lib/" ".lop" heap-files))
 (make:deps heap-project '("larceny.heap") (objects "" ".lop" eval-files))
 (make:deps heap-project '("Lib/globals.sch") '("Build/globals.sh"))
@@ -156,7 +161,6 @@
 (make:rule eheap-project ".elop" ".lap" make-assemble)
 (make:rule eheap-project ".lap" ".sch" make-compile)
 (make:rule eheap-project ".sch" ".sh" make-copy)
-(make:rule eheap-project ".sch" ".raw" make-expand)
 (make:deps eheap-project '("larceny.eheap")
 	   (objects "Lib/" ".elop" heap-files))
 (make:deps eheap-project '("larceny.eheap") (objects "" ".elop" eval-files))

@@ -1,7 +1,7 @@
 /* Rts/Sys/barrier.c
  * Larceny run-time system -- write barrier for new collector
  *
- * January 17, 1997
+ * $Id: barrier.c,v 1.4 1997/02/24 01:01:34 lth Exp $
  *
  * The code in this file sets things up for the millicode write barrier: 
  * the values of pagebase, genv, ssbtopv, and ssblimv.  See the code 
@@ -29,6 +29,7 @@ static remset_t **wb_remsets;  /* [0..n-1] where [0] has unspecified value */
 static word **wb_ssbtopv;      /* ditto */
 static word **wb_ssblimv;      /* ditto */
 static int wb_generations;     /* the value 'n' */
+static word *wb_globals;
 
 void wb_setup( remset_t **remsets, /* one remset per generation, except [0] */
 	       unsigned *genv,     /* maps page number to generation number */
@@ -39,6 +40,7 @@ void wb_setup( remset_t **remsets, /* one remset per generation, except [0] */
 {
   wb_remsets = remsets;
   wb_generations = generations;
+  wb_globals = globals;
 
   assert( generations > 1 );
 
@@ -62,12 +64,22 @@ void wb_setup( remset_t **remsets, /* one remset per generation, except [0] */
 }
 
 
+/* Ugh. */
+void
+wb_re_setup( unsigned *genv )
+{
+  wb_globals[ G_GENV ] = (word)genv;
+}
+
+
 /* Synchronize the barrier tables with values from the remembered sets. */
 
 void
 wb_sync_ssbs( void )
 {
   int i;
+
+  debug2msg( "   *** sync_ssbs" );
 
   /* ssblimv[] must be reset every time because remembered sets may have
    * been shuffled, esp. by the non-predictive collector. 
@@ -86,6 +98,8 @@ wb_sync_remsets( void )
 {
   int i;
 
+  debug2msg( "   *** sync_remsets" );
+
   for ( i = 1 ; i < wb_generations ; i++ )
     wb_remsets[i]->ssb_top = wb_ssbtopv[i];
 }
@@ -96,8 +110,22 @@ wb_sync_remsets( void )
 void
 wb_compact( int gen )
 {
+#if 0
   assert( gen > 0 );
   wb_remsets[gen]->compact( wb_remsets[gen] );
+#else
+  panic_abort( "wb_compact" );
+#endif
+}
+
+
+/* Return the remset pointer tables -- useful for the non-predictive gc. */
+
+void
+wb_remset_ptrs( word ***top, word ***lim )
+{
+  *top = wb_ssbtopv;
+  *lim = wb_ssblimv;
 }
 
 /* eof */

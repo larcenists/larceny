@@ -3,8 +3,7 @@
 ;
 ; $Id: reader.sch,v 1.5 1997/03/05 19:28:51 lth Exp lth $
 ;
-; Original code Copyright Lightship Software.
-; Extensive modifications by Lars T. Hansen.
+; Copyright Lightship Software.
 ;
 ; install-reader takes no arguments
 ;
@@ -27,119 +26,122 @@
 ; such as is returned by the readtable-ref procedure, and changes the
 ; character's character class and dispatch procedures.
 
-(define install-reader
-  (lambda ()
-    (letrec
-      (
-       (tyipeek io/peek-char)
-       (tyinext io/peek-next-char)  ; == (begin (tyi p) (tyipeek p))
-       (tyi     io/read-char)
+; These have been lifted out.
 
-       ; The dispatch vector first used by the reader.
-       ; Entry 0 is for end of file.
-       ; Entry n+1 is for the character whose Ascii code is n.
+; The dispatch vector first used by the reader.
+; Entry 0 is for end of file.
+; Entry n+1 is for the character whose Ascii code is n.
  
-       (read-dispatch-vec
-         (make-vector 256 (undefined)))
+(define read-dispatch-vec (make-vector 256 (undefined)))
  
-       ; The dispatch vector used for reading elements of a list.
-       ; Entries are as described above for read-dispatch-vec.
+; The dispatch vector used for reading elements of a list.
+; Entries are as described above for read-dispatch-vec.
  
-       (read-list-vec
-         (make-vector 256 (undefined)))
+(define read-list-vec (make-vector 256 (undefined)))
  
-       ; The character syntax table used to parse atoms.
-       ; Each character's entry is an integer x = a0 + 2*a1 + 4*a2 where
-       ;
-       ;     a0 is 1 iff the character is a whitespace character.
-       ;     a1 is 1 iff the character is a separator (delimiter).
-       ;     a2 is 1 iff the character is a digit.
+; The character syntax table used to parse atoms.
+; Each character's entry is an integer x = a0 + 2*a1 + 4*a2 where
+;
+;     a0 is 1 iff the character is a whitespace character.
+;     a1 is 1 iff the character is a separator (delimiter).
+;     a2 is 1 iff the character is a digit.
  
-       (character-syntax-table (make-bytevector 256))
+(define character-syntax-table (make-bytevector 256))
  
-       ; Equivalent procedures for what are macros in the MacScheme version.
-       ; These come from "reader0.sch", but a procedures, they have to
-       ; be defined inside this letrec.
+(define peculiar-id-message
+  (string-append "Illegal or unsupported number syntax"
+		 (make-string 1 #\newline)
+		 "    (Will be interpreted as a symbol)"))
+       
+; Equivalent procedures for what are macros in the MacScheme version.
+; These come from "reader0.sch", but a procedures, they have to
+; be defined inside this letrec.
 
-       (whitespace?
-	(lambda (x)
-	  (not (zero? (logand 1 (bytevector-ref 
-				 character-syntax-table
-				 (char->integer x)))))))
+;       (whitespace?
+;	(lambda (x)
+;	  (not (zero? (logand 1 (bytevector-ref 
+;				 character-syntax-table
+;				 (logand (char->integer x) 255)))))))
 
-       (separator?
-	(lambda (x)
-	  (not (zero? (logand 2 (bytevector-ref
-				 character-syntax-table
-				 (char->integer x)))))))
-
-       (digit?
-	(lambda (x)
-	  (not (zero? (logand 4 (bytevector-ref
-				 character-syntax-table
-				 (char->integer x)))))))
+;       (separator?
+;	(lambda (x)
+;	  (not (zero? (logand 2 (bytevector-ref
+;				 character-syntax-table
+;				 (logand (char->integer x) 255)))))))
  
-       ;****************************************************************
+;       (digit?
+;	(lambda (x)
+;	  (not (zero? (logand 4 (bytevector-ref
+;				 character-syntax-table
+;				 (logand (char->integer x) 255)))))))
  
+;       (double-quote?
+;	(lambda (x)
+;	  (char=? x #\")))
+ 
+;       (backslash?
+;	(lambda (x)
+;	  (char=? x #\\)))
  
        ; The main internal reader routine.
        ; The character c has already been consumed from the input file.
  
-       (read-dispatch
-        (lambda (c p)
-          (cond ((char? c)
-                 ((vector-ref read-dispatch-vec (char->integer c))
-                  c p))
-                ((eof-object? c) (read-eof p))
-                (else
-                 (error "Error on input" p)))))
+(define (read-dispatch c p)
+  (cond ((char? c)
+	 ((vector-ref read-dispatch-vec (logand (char->integer c) 255))
+	  c p))
+	((eof-object? c) (read-eof p))
+	(else
+	 (error "Error on input" p))))
  
        ; Reads rest of list.
        ; c has already been consumed from the input file.
  
-       (read-list
-        (lambda (c p)
-          (cond ((char? c)
-                 ((vector-ref read-list-vec (char->integer c)) c p))
-                ((eof-object? c)
-                 (read-unexpected-eof p))
-                (else
-                 (error "Error on input" p)))))
+(define (read-list c p)
+  (cond ((char? c)
+	 ((vector-ref read-list-vec
+		      (logand (char->integer c) 255)) c p))
+	((eof-object? c)
+	 (read-unexpected-eof p))
+	(else
+	 (error "Error on input" p))))
  
        ; Read a list element and then read the rest of the list.
        ; c, the first character of the list element, has been consumed.
  
-       (read-list-element
-         (lambda (c p)
-           (let ((first (read-dispatch c p)))
-             (cons first (read-list (tyi p) p)))))
+(define (read-list-element c p)
+  (let ((first (read-dispatch c p)))
+    (cons first (read-list (io/read-char p) p))))
  
        ; The dot has been consumed.
  
-       (read-dotted-pair-tail
-        (lambda (p)
-          (let ((c (tyipeek p)))
-            (if (and (char? c) (whitespace? c))
-                (let ((tail (read-dispatch (tyi p) p)))
-                  (flush-whitespace-until-rparen (tyi p) p)
-                  tail)
-                (read-list-element #\. p)))))
+(define (read-dotted-pair-tail p)
+  (let ((c (io/peek-char p)))
+    (if (and (char? c) 
+	     (not (zero? (logand 1 (bytevector-ref 
+				    character-syntax-table
+				    (logand (char->integer c) 255))))))
+	(let ((tail (read-dispatch (io/read-char p) p)))
+	  (flush-whitespace-until-rparen (io/read-char p) p)
+	  tail)
+	(read-list-element #\. p))))
 
-       (flush-whitespace-until-rparen
-        (lambda (c p)
-          (if (char? c)
-              (cond ((char=? c #\)) '())
-                    ((whitespace? c) (flush-whitespace-until-rparen (tyi p) p))
-                    ((char=? c #\*)
-                     (begin
-                      (flush-comment p)
-                      (flush-whitespace-until-rparen (tyi p) p)))
-                    (else (dotted-pair-error p)))
-              (dotted-pair-error p))))
+(define (flush-whitespace-until-rparen c p)
+  (if (char? c)
+      (cond ((char=? c #\)) '())
+	    ((not (zero? (logand 1 (bytevector-ref 
+				    character-syntax-table
+				    (logand (char->integer c) 255)))))
+	     (flush-whitespace-until-rparen (io/read-char p) p))
+	    ((char=? c #\*)
+	     (begin
+	       (flush-comment p)
+	       (flush-whitespace-until-rparen (io/read-char p) p)))
+	    (else (dotted-pair-error p)))
+      (dotted-pair-error p)))
 
-       (dotted-pair-error
-        (lambda (p)
-          (error "Malformed dotted pair in input" p)))
+(define (dotted-pair-error p)
+  (error "Malformed dotted pair in input" p))
  
        ; Opening double quote has been consumed.
        ; When first called, c is the first character of the string and has been
@@ -148,13 +150,12 @@
        ;
        ; FIXME: conses a lot.
 
-       (read-string
-         (lambda (c p l)
-           (cond ((not (char? c)) (read-unexpected-eof p))
-                 ((char=? c #\")  (list->string (reverse l)))
-                 ((char=? c #\\)  (let ((c (tyi p)))
-				    (read-string (tyi p) p (cons c l))))
-                 (else            (read-string (tyi p) p (cons c l))))))
+(define (read-string c p l)
+  (cond ((not (char? c))   (read-unexpected-eof p))
+	((char=? c #\")    (list->string (reverse l)))
+	((char=? c #\\)    (let ((c (io/read-char p)))
+			     (read-string (io/read-char p) p (cons c l))))
+	(else              (read-string (io/read-char p) p (cons c l)))))
  
        ; Reads a symbol.  This skips the attempt to parse a symbol as a number.
        ; Collects characters tail-recursively, and then reverses and interns.
@@ -164,8 +165,8 @@
 ;         (lambda (c p l)
 ;           (if (or (not (char? c)) (separator? c))
 ;               (string->symbol (string-downcase (list->string (reverse l))))
-;               (begin (tyi p)
-;                      (read-symbol (tyipeek p) p (cons c l))))))
+;               (begin (io/read-char p)
+;                      (read-symbol (io/peek-char p) p (cons c l))))))
 
        ; The following implementation of read-symbol cuts storage 
        ; allocation on one reader benchmark by 30% but run-time by only 4%.
@@ -174,26 +175,35 @@
        ; invocation of read, and by using a version of string->symbol
        ; that does not copy its argument.
 
-       (read-symbol
-	(lambda (c p l)
-	  (let ((s (make-string 16)))   ; seems like a good length.
-	    ; Initial hackery to be compatible with read-symbol consumers.
-	    (if (null? l)
-		(read-symbol2 c p s 0 (string-length s))
-		(begin (string-set! s 0 (car l))
-		       (read-symbol2 c p s 1 (string-length s)))))))
+(define (read-symbol c p l)
+  (let ((s (make-string 16)))		; seems like a good length.
+    ; Initial hackery to be compatible with read-symbol consumers.
+    (if (null? l)
+	(read-symbol2 c p s 0 (string-length s))
+	(begin (string-set! s 0 (car l))
+	       (read-symbol2 c p s 1 (string-length s))))))
 
-       (read-symbol2
-	(lambda (c p s n k)
-	  (cond ((not (char? c)) (string->symbol (substring s 0 n)))
-		((separator? c)  (string->symbol (substring s 0 n)))
-		((< n k)
-		 (string-set! s n (char-downcase c))
-		 (read-symbol2 (tyinext p) p s (+ n 1) k))
-		(else
-		 (let ((s (string-append s s)))
-		   (string-set! s n (char-downcase c))
-		   (read-symbol2 (tyinext p) p s (+ n 1) (+ k k)))))))
+(define (read-symbol2 c p s n k)
+
+  (define (read:char-downcase c)
+    (cond ((char>? c #\Z) c)
+	  ((char<? c #\A) c)
+	  (else (integer->char (+ 32 (char->integer c))))))
+
+  (cond ((not (char? c)) (string->symbol (substring s 0 n)))
+	((not (zero? (logand 2 (bytevector-ref
+				character-syntax-table
+				(logand (char->integer c) 255)))))
+	 (string->symbol (substring s 0 n)))
+	((< n k)
+	 (io/read-char p)
+	 (string-set! s n (read:char-downcase c))
+	 (read-symbol2 (io/peek-char p) p s (+ n 1) k))
+	(else
+	 (io/read-char p)
+	 (let ((s (string-append s s)))
+	   (string-set! s n (read:char-downcase c))
+	   (read-symbol2 (io/peek-char p) p s (+ n 1) (+ k k))))))
 
        ; Similar to read-symbol, but reads a number or symbol.
        ; If it parses as a number, it's a number.  Otherwise it's a symbol.
@@ -201,139 +211,126 @@
        ;
        ; FIXME: conses a lot.
 
-       (read-atom
-        (lambda (c p l)
-          (if (or (not (char? c)) (separator? c))
-              (let* ((r (reverse l))
-		     (x (parse-number r)))
-                (if x
-                    x
-                    (let ((x (string->symbol
-			      (string-downcase (list->string r)))))
-                      (if (not (peculiar-identifier? x))
-                          (warn peculiar-id-message x))
-                      x)))
-	      (read-atom (tyinext p) p (cons c l)))))
+(define (read-atom c p l)
+    (if (or (not (char? c)) 
+	    (not (zero? (logand 2 (bytevector-ref
+				   character-syntax-table
+				   (logand (char->integer c) 255))))))
+	(let* ((r (reverse l))
+	       (x (parse-number r)))
+	  (if x
+	      x
+	      (let ((x (string->symbol
+			(string-downcase
+			 (list->string r)))))
+		(if (not (peculiar-identifier? x))
+		    (read:warn peculiar-id-message x))
+		x)))
+	(begin (io/read-char p)
+	       (read-atom (io/peek-char p) p (cons c l)))))
        
-       (parse-prefixed-number
-        (lambda (p prefix)
-          (parse-number-loop (tyipeek p) p (list prefix #\#))))
+(define (parse-prefixed-number p prefix)
+    (parse-number-loop (io/peek-char p) p (list prefix #\#)))
        
        ; FIXME: Conses a lot?
 
-       (parse-number-loop
-        (lambda (c p l)
-          (if (or (not (char? c)) (separator? c))
-              (let ((x (parse-number (reverse l))))
-                (if (number? x)
-                    x
-                    (error "Illegal number syntax "
-			   (list->string (reverse l)))))
-	      (parse-number-loop (tyinext p) p (cons c l)))))
+(define (parse-number-loop c p l)
+    (if (or (not (char? c)) 
+	    (not (zero? (logand 2 (bytevector-ref
+				   character-syntax-table
+				   (logand (char->integer c) 255))))))
+	(let ((x (parse-number (reverse l))))
+	  (if (number? x)
+	      x
+	      (error "Illegal number syntax "
+		     (list->string (reverse l)))))
+	(begin (io/read-char p)
+	       (parse-number-loop (io/peek-char p) p (cons c l)))))
  
-       (peculiar-identifier?
-        (lambda (x)
-          (or (memq x '(+ - -- -1+ ... 1+ 1-))
-              (let ((s (symbol->string x)))
-                (and (>= (string-length s) 2)
-                     (char=? (string-ref s 0) #\-)
-                     (char=? (string-ref s 1) #\>))))))
+(define (peculiar-identifier? x)
+    (or (memq x '(+ - -- -1+ ... 1+ 1-))
+	(let ((s (symbol->string x)))
+	  (and (>= (string-length s) 2)
+	       (char=? (string-ref s 0) #\-)
+	       (char=? (string-ref s 1) #\>)))))
        
-       (peculiar-id-message
-        (string-append "Illegal or unsupported number syntax"
-                       (make-string 1 #\newline)
-                       "    (Will be interpreted as a symbol)"))
-       
-       ; Flushes characters until it reads a carriage return, line feed,
-       ; or end of file character.
+       ; Flushes characters until it reads a carriage return, line feed, or end
+       ; of file character.
  
-       (flush-comment
-         (lambda (p)
-           (let ((c (tyi p)))
-             (if (char? c)                                ; EOF
-		 (let ((c (char->integer c)))
-		   (cond ((eq? c 13) #f)                  ; CR
-			 ((eq? c 10) #f)                  ; LF
-			 (else (flush-comment p))))))))
+(define (flush-comment p)
+    (let ((c (io/read-char p)))
+      (if (or (not (char? c))
+	      (memq (char->integer c) '(13 10))) ; CR, LF, EOF
+	  '()
+	  (flush-comment p))))
  
-       (flush-comment-and-read
-        (lambda (p)
-
-	  (define (cont)
-	    (read-dispatch (tyi p) p))
-	    
-          (let ((c (tyi p)))
-	    (if (not (char? c))                             ; EOF
-		(cont)
-		(let ((c (char->integer c)))
-		  (cond ((eq? c 13) (cont))                 ; CR
-			((eq? c 10) (cont))                 ; LF
-			(else (flush-comment-and-read p))))))))
+(define (flush-comment-and-read p)
+    (let ((c (io/read-char p)))
+      (if (or (not (char? c))
+	      (memq (char->integer c) '(13 10))) ; CR, LF, EOF
+	  (read-dispatch (io/read-char p) p)
+	  (flush-comment-and-read p))))
  
-       (flush-comment-and-read-list
-         (lambda (p)
-
-	   (define (cont)
-	     (read-list (tyi p) p))
-
-           (let ((c (tyi p)))
-            (if (not (char? c))                             ; EOF
-		(cont)
-		(let ((c (char->integer c)))
-		  (cond ((eq? c 13) (cont))                 ; CR
-			((eq? c 10) (cont))                 ; LF
-			(else (flush-comment-and-read-list p))))))))
+(define (flush-comment-and-read-list p)
+    (let ((c (io/read-char p)))
+      (if (or (not (char? c))
+	      (memq (char->integer c) '(13 10))) ; CR, LF, EOF
+	  (read-list (io/read-char p) p)
+	  (flush-comment-and-read-list p))))
  
        ; Handles end of file.
  
-       (read-eof
-         (lambda (p)
-           (eof-object)))
+(define read-eof
+  (lambda (p)
+    (eof-object)))
  
        ; Handles end of file encountered within a list or string etc.
  
-       (read-unexpected-eof
-         (lambda (p)
-           (error "Unexpected end of file encountered during read")))
+(define read-unexpected-eof
+  (lambda (p)
+    (error "Unexpected end of file encountered during read")))
  
        ; Miscellaneous help functions.
  
-       (string-downcase
-        (letrec ((loop (lambda (s i)
-                         (if (< i 0)
-                             s
-                             (let ((x (bytevector-like-ref s i)))
-                               (cond
-                                ((> x (char->integer #\Z)) #f)
-                                ((< x (char->integer #\A)) #f)
-                                (else (bytevector-like-set! s i (+ x 32))))
-                               (loop s (- i 1)))))))
-          (lambda (s)
-            (loop s (- (string-length s) 1)))))
+(define string-downcase
+  (letrec ((loop (lambda (s i)
+		   (if (< i 0)
+		       s
+		       (let ((x (bytevector-like-ref s i)))
+			 (cond
+			  ((> x (char->integer #\Z)) #f)
+			  ((< x (char->integer #\A)) #f)
+			  (else (bytevector-like-set! s i (+ x 32))))
+			 (loop s (- i 1)))))))
+    (lambda (s)
+      (loop s (- (string-length s) 1)))))
  
-       (char-downcase
-         (lambda (c)
-           (cond ((char>? c #\Z) c)
-                 ((char<? c #\A) c)
-                 (else (integer->char (+ 32 (char->integer c)))))))
+(define (read:char-downcase c)
+    (cond ((char>? c #\Z) c)
+	  ((char<? c #\A) c)
+	  (else (integer->char (+ 32 (char->integer c))))))
  
-       (char-alphabetic?
-        (lambda (c)
-          (let ((c (char-downcase c)))
-            (cond ((char>? c #\z) #f)
-                  ((char<? c #\a) #f)
-                  (else #t)))))
+(define (read:char-alphabetic? c)
+    (let ((c (read:char-downcase c)))
+      (cond ((char>? c #\z) #f)
+	    ((char<? c #\a) #f)
+	    (else #t))))
        
-       (warn
-        (lambda (msg . args)
-          (if #f ; (issue-warnings)
-              (begin (newline)
-                     (display "WARNING: ")
-                     (display msg)
-                     (newline)
-                     (for-each (lambda (arg) (write arg) (newline))
-                               args)))))
+(define read:warn
+  (lambda (msg . args)
+    (if #f ; (issue-warnings)
+	(begin (newline)
+	       (display "WARNING: ")
+	       (display msg)
+	       (newline)
+	       (for-each (lambda (arg) (write arg) (newline))
+			 args)))))
  
+(define install-reader
+  (lambda ()
+    (letrec
+      (
+
        ;****************************************************************
  
        ; Routines that appear in the dispatch tables.
@@ -343,18 +340,12 @@
            (error "Illegal character in input to read"
                   c)))
  
-       ; The eq? test here is supposed to make a fast read-blanks look
-       ; that does not interfere with the read-table logic.  In v0.27
-       ; it slows the reader down, presumably because the compiler does
-       ; not optimize the loop very well.  Revisit later. (FIXME)
-
        (read-dispatch-whitespace
-        (lambda (x p)
-          (let ((c (tyi p)))
-            (cond ((eq? x c)
-		   (read-dispatch-whitespace x p))
-		  ((char? c)
-		   ((vector-ref read-dispatch-vec (char->integer c)) c p))
+        (lambda (c p)
+          (let ((c (io/read-char p)))
+            (cond ((char? c)
+                   ((vector-ref read-dispatch-vec
+				(logand (char->integer c) 255)) c p))
                   ((eof-object? c)
                    (read-eof p))
                   (else 
@@ -369,26 +360,23 @@
  
        (read-dispatch-symbol-starter
          (lambda (c p)
-           (read-symbol (tyipeek p) p (cons c '()))))
+           (read-symbol (io/peek-char p) p (cons c '()))))
  
        (read-dispatch-parse
          (lambda (c p)
-           (read-atom (tyipeek p) p (cons c '()))))
+           (read-atom (io/peek-char p) p (cons c '()))))
  
        (read-dispatch-reserved
          (lambda (c p)
            (error "Reserved delimiter found in input"
                   c)))
  
-       ; See comments preceding read-dispatch-whitespace (above).
-
        (read-list-whitespace
-        (lambda (x p)
-          (let ((c (tyi p)))
-            (cond ((eq? x c)
-		   (read-list-whitespace x p))
-		  ((char? c)
-		   ((vector-ref read-list-vec (char->integer c)) c p))
+        (lambda (c p)
+          (let ((c (io/read-char p)))
+            (cond ((char? c)
+                   ((vector-ref read-list-vec
+				(logand (char->integer c) 255)) c p))
                   ((eof-object? c)
                    (read-unexpected-eof p))
                   (else
@@ -400,16 +388,16 @@
  
        (read-sharp
         (lambda (c p)
-          (let ((c (let ((c (tyi p)))
+          (let ((c (let ((c (io/read-char p)))
                      (if (char? c)
-                         (char-downcase c)
+                         (read:char-downcase c)
                          (read-unexpected-eof p)))))
             (cond ((char=? c #\t) #t)
                   ((char=? c #\f) (not #t))
                   ((char=? c #\\)
-                   (let ((c (tyipeek p)))
+                   (let ((c (io/peek-char p)))
                      (cond ((not (char? c)) (read-unexpected-eof p))
-                           ((char-alphabetic? c)
+                           ((read:char-alphabetic? c)
                             (let ((x (read-symbol c p '())))
                               (case x
                                 ((space) (integer->char 32))
@@ -423,9 +411,9 @@
 					     1)
                                           c
                                           (error "Malformed #\\ syntax" x))))))
-                           (else (begin (tyi p) c)))))
+                           (else (begin (io/read-char p) c)))))
                   ((char=? c #\!)
-                   (let ((x (read-symbol (tyipeek p) p '())))
+                   (let ((x (read-symbol (io/peek-char p) p '())))
                      (case x
                        ((null) '())
                        ((false) #f)
@@ -435,25 +423,26 @@
                        ; ((fasl) **fasl**)
                        (else  (error "Malformed #! syntax" x)))))
                   ((char=? c #\()
-                   (list->vector (read-list (tyi p) p)))
+                   (list->vector (read-list (io/read-char p) p)))
                   ;; Control-B is used for bytevectors by compile-file.
 		  ;; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
-                   (tyi p) ; consume double quote
-		   (let ((s (read-string (tyi p) p '())))
+                   (io/read-char p) ; consume double quote
+		   (let ((s (read-string (io/read-char p) p '())))
 		     (typetag-set! s sys$tag.bytevector-typetag)
 		     (sys$codevector-iflush s)
 		     s))
 		  ;; Control-P is used for procedures by compile-file.
 		  ;; The syntax is #^P(...)
 		  ((char=? c (integer->char 16))
-		   (tyi p) ; consume left paren
-		   (list->procedure (read-list (tyi p) p)))
+		   (io/read-char p) ; consume left paren
+		   (list->procedure (read-list (io/read-char p) p)))
 		  ;; Control-G is used for global references by compile-file.
 		  ;; The syntax is #^Gsymbol; it evaluates to a value which
 		  ;; is a global cell.
 		  ((char=? c (integer->char 7))
-		   ((global-name-resolver) (read-symbol (tyipeek p) p '())))
+		   ((global-name-resolver)
+		    (read-symbol (io/peek-char p) p '())))
                   ((char=? c #\e)
                    (parse-prefixed-number p #\e))
                   ((char=? c #\i)
@@ -469,8 +458,6 @@
                   (else (error "Malformed # syntax"
                                c))))))
  
-       (read-list-reserved read-dispatch-reserved)
- 
       ; End of letrec bindings.
  
       )
@@ -482,7 +469,7 @@
  
       (do ((i 255 (- i 1)))
           ((< i 0) '())
-	(bytevector-set! character-syntax-table i 0))
+          (bytevector-set! character-syntax-table i 0))
 
       (for-each (lambda (c)
 		  (bytevector-set! 
@@ -502,10 +489,10 @@
  
       (do ((c 0 (+ 1 c)))
           ((> c 31) '())
-	(bytevector-set!
-	 character-syntax-table
-	 c
-	 (logior 2 (bytevector-ref character-syntax-table c))))
+          (bytevector-set!
+            character-syntax-table
+            c
+            (logior 2 (bytevector-ref character-syntax-table c))))
 
       (for-each (lambda (c)
 		  (bytevector-set!
@@ -603,7 +590,7 @@
       (vector-set! read-dispatch-vec                  ;double quote
                    (char->integer #\")
                    (lambda (c p)
-                     (read-string (tyi p) p '())))
+                     (read-string (io/read-char p) p '())))
  
       (vector-set! read-dispatch-vec                  ;sharp sign
                    (char->integer #\#)
@@ -612,12 +599,12 @@
       (vector-set! read-dispatch-vec                  ;quote
                    (char->integer #\')
                    (lambda (c p)
-                     (list 'quote (read-dispatch (tyi p) p))))
+                     (list 'quote (read-dispatch (io/read-char p) p))))
 
       (vector-set! read-dispatch-vec                  ;left parenthesis
                    (char->integer #\()
                    (lambda (c p)
-                     (read-list (tyi p) p)))
+                     (read-list (io/read-char p) p)))
  
       (vector-set! read-dispatch-vec                  ;right parenthesis
                    (char->integer #\))
@@ -626,9 +613,9 @@
       (vector-set! read-dispatch-vec                  ;comma
                    (char->integer #\,)
                    (lambda (c p)
-                     (let ((c (tyi p)))
+                     (let ((c (io/read-char p)))
                        (if (and (char? c) (char=? c #\@))
-                           (list 'unquote-splicing (read-dispatch (tyi p) p))
+                           (list 'unquote-splicing (read-dispatch (io/read-char p) p))
                            (list 'unquote (read-dispatch c p))))))
  
       (vector-set! read-dispatch-vec                  ;semicolon
@@ -639,7 +626,7 @@
       (vector-set! read-dispatch-vec                  ;backquote
                    (char->integer #\`)
                    (lambda (c p)
-                     (list 'quasiquote (read-dispatch (tyi p) p))))
+                     (list 'quasiquote (read-dispatch (io/read-char p) p))))
  
       ; Reserved delimiters.
  
@@ -663,7 +650,7 @@
       ; Whitespace handlers.
  
       (for-each (lambda (c)
-		  (vector-set! read-list-vec c read-list-whitespace))
+              (vector-set! read-list-vec c read-list-whitespace))
             '(32      ;space
               13      ;carriage return
               10      ;line feed
@@ -686,8 +673,7 @@
           (vector-set! read-list-vec c read-list-element))
  
       (for-each (lambda (c)
-		  (vector-set! read-list-vec (char->integer c)
-			       read-list-element))
+              (vector-set! read-list-vec (char->integer c) read-list-element))
             (list #\!
                   #\$
                   #\%
@@ -709,8 +695,7 @@
       ; Possible symbol starters that require further parsing.
  
       (for-each (lambda (c)
-		  (vector-set! read-list-vec (char->integer c)
-			       read-list-element))
+              (vector-set! read-list-vec (char->integer c) read-list-element))
             (list #\+
                   #\-
                   #\0
@@ -727,7 +712,7 @@
       ; Special characters.
  
       (vector-set! read-list-vec                      ;double quote
-                   (char->integer #\")
+                   34
                    read-list-element)
  
       (vector-set! read-list-vec                      ;sharp sign
@@ -766,8 +751,7 @@
       ; Reserved delimiters.
  
       (for-each (lambda (c)
-		  (vector-set! read-list-vec (char->integer c)
-			       read-list-reserved))
+              (vector-set! read-list-vec (char->integer c) read-dispatch-reserved))
             (list #\[
                   #\]
                   #\{
@@ -783,7 +767,7 @@
 	      (let ((p (if (not (null? p))
 			   (car p)
 			   (current-input-port))))
-		(read-dispatch (tyi p) p))))
+		(read-dispatch (io/read-char p) p))))
     
       (set! readtable-ref
             (lambda (char)

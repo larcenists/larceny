@@ -1,5 +1,5 @@
 ; Larceny auxiliary library -- sorting
-; $Id$
+; $Id: sort.sch,v 1.1 1997/02/27 16:48:16 lth Exp lth $
 ;
 ; Sort and Sort! will sort lists and vectors. The former returns a new
 ; data structure; the latter sorts the data structure in-place. A mergesort

@@ -1,7 +1,7 @@
 /* Rts/Sys/stats.c.
  * Larceny run-time system -- run-time statistics.
  *
- * $Id: stats.c,v 1.10 1997/02/11 19:48:21 lth Exp lth $
+ * $Id: stats.c,v 1.11 1997/03/02 16:00:37 lth Exp $
  *
  * The stats module maintains run-time statistics.  Mainly, these are
  * statistics on memory use (bytes allocated and collected, amount of 
@@ -255,6 +255,7 @@ void stats_after_gc( void )
 
   memstats.gctime += fixnum( time );
   memstats.gen_stat[gen].gctime += fixnum( time );
+
 
   dump_stats( heapstats_after_gc, &memstats );
 }
@@ -694,7 +695,6 @@ static void add( unsigned *hi, unsigned *lo, unsigned x )
   assert((x & 3) == 0);
   *lo += x;
   if (*lo > LARGEST_FIXNUM) {
-    printf( "OVERFLOW IN ADD\n" );
     *lo -= LARGEST_FIXNUM;
     *hi += 4;
   }

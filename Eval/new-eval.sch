@@ -1,5 +1,5 @@
 ; Eval/eval.sch
-; Larceny -- fast interpreter.
+; Larceny -- fast interpreter
 ;
 ; $Id$
 ;
@@ -27,8 +27,8 @@
 ;   Run-time lexical environments are lists of vectors, in inside-out lexical
 ;   order.
 ;
-; Features Needed or Deeply Desired
-;   Optimizations:
+; Features Needed
+;   Several other optimizations can go in:
 ;   * More primitives (we need macros before this is practical).  Notably,
 ;     we need more predicates and both vector and string operations.
 ;   * If+predicate, for example, (if (< a b) ...) can be optimized to
@@ -40,18 +40,7 @@
 ;     and that local is at rib0, then do the vector-ref in the primitive.
 ;   * `Let' optimization akin to letrec optimization (avoids calls).
 ;   * `Eval:benchmark-mode' switch that makes the interpreter skip the
-;     global cache check for primitive names.  It's a bit of a joke, but
-;     it might improve performance some.
-;   * We could unroll several cases for eval/setlex just as for eval/lexical.
-;   * We could have a special case for calling a global variable: the
-;     reference to the variable could be lifted out.
-;
-;   Niceties:
-;   * In general, it would be nice to be able to give better error messages
-;     when calling a procedure that was fetched from a variable, rather than
-;     just "#f is not a procedure".
-;   * Debuggability -- can the procedures be constructed so that they
-;     contain the source code for the expression being evaluated?
+;     global cache check for primitive names.
 ;
 ; Bugs
 ;   It's possible that there should be some restrictions here for
@@ -67,8 +56,7 @@
 
     (define (toplevel-preprocess expr env)
       (let ((expr (if (and (pair? expr) (eq? (car expr) 'define))
-		      `(begin (set! ,(cadr expr) ,(caddr expr))
-			      ,(unspecified))
+		      (list 'set! (cadr expr) (caddr expr))
 		      expr)))
 	(eval/preprocess expr 
 			 '() 
@@ -136,9 +124,7 @@
       (eq? expr (unspecified))
       (eof-object? expr)))
 
-; Closure creation.  Special cases handled: 
-;  - procedures of 0..4 arguments.
-;  - varargs procedures.
+; Special cases: procedures of 0..4 arguments, and varargs procedures.
 
 (define (eval/make-proc expr env find-global)
 
@@ -161,7 +147,7 @@
 	  (else (eval/lambda-n (length args) exprs)))
 	(eval/lambda-dot (length (listify args)) exprs))))
 
-; Procedure call.  Special cases handled:
+; Special cases:
 ;  - letrec:  ((lambda (a b ...) ...) #!unspecified ...)
 ;  - primitive: (op a b ...)
 ;  - short: 0..4 arguments
@@ -216,10 +202,7 @@
 (define (eval/global name find-global)
   (let ((cell (find-global name)))
     (lambda (env)
-      (let ((v (car cell)))
-	(if (eq? v (undefined))
-	    (error "Reference to undefined global variable `" name "'.")
-	    v)))))
+      (car cell))))
 
 (define (eval/setglbl name expr find-global)
   (let ((cell (find-global name)))
@@ -258,6 +241,8 @@
       (if (= rib 0)
 	  (vector-ref (car env) offset)
 	  (loop (- rib 1) (cdr env))))))
+
+; FIXME: should unroll here too?
 
 (define (eval/setlex rib offset expr)
   (lambda (env)

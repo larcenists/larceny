@@ -1,7 +1,7 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.6 1997/02/11 19:48:21 lth Exp lth $
+ * $Id: unix.c,v 1.6 1997/02/11 19:48:21 lth Exp $
  *
  * RTS call-outs, for Unix.
  */

@@ -1,5 +1,5 @@
 ; Larceny library -- namespaces.
-; $Id$
+; $Id: namespc.sch,v 1.1 1997/02/27 16:48:16 lth Exp lth $
 
 (define (make-namespace . rest) 
   (cond ((null? rest)

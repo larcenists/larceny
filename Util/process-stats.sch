@@ -1,11 +1,14 @@
 ; Util/process-stats.sch
 ; Accessor procedures for the statistics dump output format
 ;
-; $Id: process-stats.sch,v 1.1 1997/02/11 14:41:42 lth Exp lth $
+; $Id: process-stats.sch,v 1.2 1997/02/11 21:53:13 lth Exp lth $
 ;
 ; In addition to the accessor procedures, a sample procedure called 
 ; process-dump is defined.  This procedure reads the dump and produces
 ; human-readable, annotated output.
+
+(define (list-set! l n v)
+  (set-car! (list-tail l n) v))
 
 ; Accessors
 
@@ -13,6 +16,7 @@
 (define (words-reclaimed x) (bignum (list-ref x 2) (list-ref x 3)))
 (define (words-copied x)    (bignum (list-ref x 4) (list-ref x 5)))
 (define (overall-gc-time x) (list-ref x 6))
+(define (overall-gc-time! x v) (list-set! x 6 v))
 (define (overall-words-live x) (list-ref x 7))
 (define (last-gc x)         (cons (list-ref x 8) (list-ref x 9)))
 
@@ -22,6 +26,7 @@
 (define (collections x gen) (list-ref (list-ref (gen-list x) gen) 0))
 (define (promotions x gen)  (list-ref (list-ref (gen-list x) gen) 1))
 (define (gc-time x gen)     (list-ref (list-ref (gen-list x) gen) 2))
+(define (gc-time! x gen v)  (list-set! (list-ref (gen-list x) gen) 2 v))
 (define (words-live x gen)  (list-ref (list-ref (gen-list x) gen) 3))
 
 (define (rem-list x)        (list-ref x 11))
@@ -72,7 +77,6 @@
 (define (swb-rhs-constant x) (list-ref x 24))
 (define (swb-cross-gen-check x) (list-ref x 25))
 (define (swb-vector-transactions x) (list-ref x 26))
-
 
 ; Produce human-readable output.  Optionally take the procedure to
 ; apply to each record.
@@ -145,7 +149,7 @@
 
 
 ; Prints a profile of number of transactions recorded and the number of 
-; hash table entries that resulted.
+; hash table entries that resulted (excluding the simulated barrier).
 
 (define (ssb-profile filename)
   (display "trans  hash")
@@ -168,6 +172,64 @@
 	  (newline)
 	  (set! previous-t current-t)
 	  (set! previous-h current-h))))))
+
+; This is not general; it works with a system that has an ephemeral
+; heap and a 2-generational non-predictive heap.
+
+(define (remset-profile filename)
+  (display 
+"There is one data line per garbage collection, and it shows the number
+of objects and words traced as part of doing remembered-set tracing
+during that garbage collection.  If a collection affects the non-predictive
+heap, then this is duly noted with a message preceding the data line
+for that collection.
+")
+  (process-stats filename
+    (let ((previous-o 0)
+	  (previous-w 0))
+      (lambda (x)
+	(cond ((equal? (last-gc x) '(1 . promote))
+	       (display "Promoting into np heap")
+	       (newline))
+	      ((equal? (last-gc x) '(1 . collect))
+	       (display "Promoting into np heap and collecting")
+	       (newline)))
+	(let ((current-o 0)
+	      (current-w 0))
+	  (do ((i 0 (+ i 1)))
+	      ((= i (remsets x)) #t)
+	    (set! current-o
+		  (+ current-o (hash-entries-scanned x i)))
+	    (set! current-w
+		  (+ current-w (old-words-scanned x i))))
+	  (display (- current-o previous-o))
+	  (display "; ")
+	  (display (- current-w previous-w))
+	  (newline)
+	  (set! previous-w current-w)
+	  (set! previous-o current-o))))))
+
+(define (swb-profile filename)
+  (process-stats filename (lambda (r) 
+			    (display (list-tail r 22))
+			    (newline))))
+
+(define (filter-times infile outfile)
+  (call-with-input-file infile
+    (lambda (in)
+      (call-with-output-file outfile
+	(lambda (out)
+	  (let loop ((item (read in)))
+	    (if (eof-object? item)
+		#t
+		(begin (overall-gc-time! item 0)
+		       (do ((i 0 (+ i 1)))
+			   ((= i (generations item)))
+			 (gc-time! item i 0))
+		       (write item out)
+		       (newline out)
+		       (loop (read in))))))))))
+
 
 ; Internal
 

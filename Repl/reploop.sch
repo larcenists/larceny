@@ -1,8 +1,6 @@
-; -*- scheme -*-
-;
+; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; lth@cs.uoregon.edu / 1992
 ; $Id$
 
 (define *reset-continuation* #f)    ; to jump to for error or reset
@@ -59,6 +57,14 @@
 			(load fn))))))))
 
 (define (rep-loop)
+
+  ; This loop should check that the current output port is still writable,
+  ; and should exit without any fuss if it is not.  If it does not
+  ; discover that the output is not writable, then it may try to write the
+  ; final newline to it, resulting in an error, resulting in an error ...
+  ; and so on, until kingdom come.  This may be the source of some looping
+  ; seen on EOF (race condition), and the 300MB runaway process on everest.
+  ; In general, we need to catch SIGHUP too.
 
   (define (loop)
     (display "> ")

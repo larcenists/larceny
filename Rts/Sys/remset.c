@@ -1,7 +1,7 @@
 /* Rts/Sys/remset.c.
  * Larceny run-time system -- remembered set implementation.
  *
- * $Id: remset.c,v 1.5 1997/02/04 16:36:40 lth Exp $
+ * $Id: remset.c,v 1.6 1997/02/23 01:15:32 lth Exp $
  *
  *
  * The remembered set is an ADT with a public interface as described
@@ -269,6 +269,7 @@ static int compact_ssb( remset_t *rs )
   unsigned recorded;
   remset_data_t *data = DATA(rs);
 
+  debugmsg( "   *** compact SSB for remset @0x%p", rs );
   data->ssb_recorded += rs->ssb_top - rs->ssb_bot;
 
   p = rs->ssb_bot;

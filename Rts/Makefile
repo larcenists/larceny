@@ -3,7 +3,7 @@
 # Rts/Makefile
 # Larceny -- the main Makefile
 #
-# $Id: Makefile,v 1.4 1997/02/11 14:33:56 lth Exp lth $
+# $Id: Makefile,v 1.7 1997/02/27 16:44:36 lth Exp lth $
 
 
 ############################################################################
@@ -33,7 +33,7 @@ EXTRALIBPATH=
 # that simulates and gathers accurate statistics for the planned write
 # barrier.
 
-SIMULATE_NEW_BARRIER=1
+SIMULATE_NEW_BARRIER=0
 
 
 # Stack underflow statistics.
@@ -86,12 +86,17 @@ BUILD=Build
 CONFIG=-DSIMULATE_NEW_BARRIER=$(SIMULATE_NEW_BARRIER) \
 	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING)
 
-#PROFILE=-pg
-DEBUGINFO=-g
-DEBUGFLAGS=#-DDEBUG # -DDEBUG2
-OPTIMIZE=-DNDEBUG -O2
+# The -g3 may allow some debuggers to deal with macros. 
+# Its use is experimental.
+DEBUGINFO=-g3
+DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
+PROFILE=#-p
+# The -f... switches are gcc-specific.  Their use is experimental.
+OPTIMIZE=-DNDEBUG -O3 -funroll-loops -fexpensive-optimizations -frerun-cse-after-loop
+
 CC=gcc
 AS=as
+LIBS=-lm
 
 CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) $(CONFIG) \
 	-I$(SYS) -I$(BUILD) $(DEBUGFLAGS) $(IFLUSH) $(DIVZ)
@@ -117,7 +122,7 @@ COBJS=$(SYS)/larceny.o $(SYS)/remset.o $(SYS)/stack.o\
 GSGC=$(SYS)/gc.o $(SYS)/memmgr.o \
 	$(SYS)/young-heap.o $(SYS)/old-heap.o \
 	$(SYS)/unix-alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
-	$(SYS)/barrier.o $(SYS)/gcdebug.o
+	$(SYS)/barrier.o $(SYS)/np-sc-heap.o $(SYS)/static-heap.o
 
 ASMOBJS=$(MACH)/mcode.o $(MACH)/memory.o $(MACH)/glue.o $(BUILD)/table.o \
 	$(MACH)/generic.o $(MACH)/cache0.o $(MACH)/barrier.o
@@ -177,15 +182,15 @@ setup:
 	(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
 larceny: $(GSGC_OBJS)
-	$(CC) $(PROFILE) -o larceny $(GSGC_OBJS) -lm $(EXTRALIBS) $(EXTRALIBPATH) 
+	$(CC) $(PROFILE) -o larceny $(GSGC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) 
 	/bin/rm -f $(SYS)/version.o
 
 sclarceny: $(SCGC_OBJS)
-	$(CC) $(PROFILE) -o sclarceny $(SCGC_OBJS) -lm $(EXTRALIBS) $(EXTRALIBPATH)
+	$(CC) $(PROFILE) -o sclarceny $(SCGC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH)
 	/bin/rm -f $(SYS)/version.o
 
 exlarceny: $(EXGC_OBJS)
-	$(CC) $(PROFILE) -o exlarceny $(EXGC_OBJS) -lm $(EXTRALIBS) $(EXTRALIBPATH)
+	$(CC) $(PROFILE) -o exlarceny $(EXGC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH)
 	/bin/rm -f $(SYS)/version.o
 
 hsplit: $(SYS)/hsplit.o
@@ -196,8 +201,11 @@ clean:
 	rm -f larceny sclarceny exlarceny hsplit
 	rm -f $(GSGC_OBJS) $(SCGC_OBJS) $(EXGC_OBJS)
 
-realclean:
+rtsclean:
 	rm -f $(BUILD)/*.s $(BUILD)/*.*h
+
+realclean:
+	rm -f $(BUILD)/*
 
 
 ###########################################################################

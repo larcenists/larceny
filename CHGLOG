@@ -1,6 +1,55 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.3 1997/02/11 20:37:45 lth Exp lth $
+; $Id: CHGLOG,v 1.4 1997/02/11 20:48:09 lth Exp lth $
+
+
+----------------------------------------------------------------------
+v0.27  Not yet released
+
+
+FUNCTIONALITY CHANGES
+
+Development environment
+* [Chez/compat.sch] Now has a procedure chez-compile-files that compiles
+  all the scheme files in the development environment to Chez object files,
+  and now loads object files automatically if they exist and are newer than
+  corresponding Scheme files.  See manual.
+
+Evaluator
+* [Eval/macro-expand.sch] (COND ((E) => E) ...) expansion is implemented.
+
+
+BUG FIXES
+
+Evaluator
+* [Eval/macro-expand.sch] OR expansion is now correct.
+* [Eval/macro-expand.sch] (COND ((E)) ...) expansion is now correct.
+* [Eval/macro-expand.sch] Named LET expansion is now correct.
+
+
+STRUCTURAL CHANGES
+
+Cleanup
+* [nbuild] Now gets nbuild.sch from Util rather than from Compiler.
+* [Rts/config] Now gets config.sch from ../Util rather than from ../Compiler.
+* [Util/nbuild.sch] Moved here from Compiler.
+* [Util/config.sch] Moved here from Compiler.
+* [Makefile] realclean should now really clean up
+* [Rts/Makefile] distinguishes rtsclean and realclean.
+* [Eval/macro-expand.sch] This file is the old Compiler/rewrite.sch.
+
+Development environment
+* [Util/nbuild.sch] Now parcels out the load work to compat:load.
+
+
+MISC CHANGES
+
+RTS
+* [Rts/Sys/larceny.c] Now prints GC type only if -stats option is given.
+
+Evaluator
+* [Eval/eval.sch; Eval/toplevel.sch] 'Eval' now calls 'macro-expand' 
+  rather than 'rewrite'.
 
 
 ----------------------------------------------------------------------

@@ -1,5 +1,5 @@
 ; Larceny auxiliary library -- miscellaneous
-; $Id$
+; $Id: misc.sch,v 1.1 1997/02/27 16:48:16 lth Exp lth $
 
 (define (some? p l)
   (and (not (null? l))

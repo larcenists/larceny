@@ -1,7 +1,7 @@
 ; Lib/print.sch
 ; Larceny -- Print procedures 
 ;
-; $Id: print.sch,v 1.3 1997/02/11 19:50:57 lth Exp lth $
+; $Id: print.sch,v 1.4 1997/03/05 19:28:51 lth Exp lth $
 ;
 ; Copyright 1991 Lightship Software
 
@@ -10,6 +10,7 @@
   (letrec
     
     (
+     (write-char io/write-char)
      
      (print
       (lambda (x p slashify)
@@ -127,9 +128,9 @@
      
      (printport
       (lambda (x p slashify)
-        (printstr (string-append "#<" (if (input-port? x)
-					  "INPUT PORT "
-					  "OUTPUT PORT ")
+        (printstr (string-append "#<" (cond ((input-port? x) "INPUT PORT ")
+					    ((output-port? x) "OUTPUT PORT ")
+					    (else "PORT "))
 				 (port-name x)
 				 ">")
 		  p)))
@@ -181,28 +182,32 @@
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (print x p #t)
-      (if (eq? p (current-output-port)) (flush-output-port p))
+      (io/discretionary-flush p)
+;      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 (define display
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (print x p #f)
-      (if (eq? p (current-output-port)) (flush-output-port p))
+      (io/discretionary-flush p)
+;      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 (define lowlevel-write
   (lambda (x . rest)
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (print x p **lowlevel**)
-      (if (eq? p (current-output-port)) (flush-output-port p))
+      (io/discretionary-flush p)
+;      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 (define newline
   (lambda rest
     (let ((p (if (null? rest) (current-output-port) (car rest))))
       (write-char #\newline p)
-      (if (eq? p (current-output-port)) (flush-output-port p))
+      (io/discretionary-flush p)
+;      (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
 ; eof

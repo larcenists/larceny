@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.5 1997/02/11 20:38:34 lth Exp lth $
+# $Id: Makefile,v 1.6 1997/02/11 21:48:32 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
@@ -136,7 +136,7 @@ libclean: lopclean
 rtsclean: clean
 	rm -f larceny sclarceny exlarceny Build hsplit
 	rm -f Chez/*.o
-	( cd $(RTS) ; $(MAKE) realclean )
+	( cd $(RTS) ; $(MAKE) rtsclean )
 
 realclean: clean libclean
 	rm -f larceny sclarceny exlarceny Build hsplit

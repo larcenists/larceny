@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.10 1997/02/11 19:48:21 lth Exp lth $
+ * $Id: larceny.h,v 1.12 1997/02/23 01:15:32 lth Exp $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -27,10 +27,11 @@ extern word globals[];
 
 /* In "Rts/Sys/larceny.c" */
 
-extern int  panic( char *fmt, ... );
-extern int  panic_abort( char *fmt, ... );
-extern void consolemsg( char *fmt, ... );
-extern void hardconsolemsg( char *fmt, ... );
+extern int  panic( const char *fmt, ... );
+extern int  panic_abort( const char *fmt, ... );
+extern void annoyingmsg( const char *fmt, ... );
+extern void consolemsg( const char *fmt, ... );
+extern void hardconsolemsg( const char *fmt, ... );
 
 /* In "Rts/Sys/heapio.c" */
 
@@ -50,7 +51,10 @@ extern int  allocate_heap( unsigned esize, unsigned emark,
 			   unsigned ssize, 
 			   unsigned rhash, unsigned ssb,
 			   unsigned oldgen,
-			   old_param_t *info
+			   old_param_t *info,
+			   int np_gc,
+			   unsigned np_steps,
+			   unsigned np_stepsize 
 			  );
 extern word *alloc_from_heap( unsigned );
 extern void garbage_collect( int, unsigned );

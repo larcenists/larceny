@@ -1,10 +1,20 @@
 /* Rts/Sys/barrier.h
  * Larceny run-time system -- write barrier interface.
  *
- * January 13, 1997
+ * $Id: barrier.h,v 1.3 1997/02/24 01:01:34 lth Exp $
  *
  * See Rts/Sys/barrier.c and Rts/Sparc/barrier.s for more information.
  */
+
+#ifndef INCLUDED_BARRIER_H
+#define INCLUDED_BARRIER_H
+
+#ifndef INCLUDED_GC_INTERFACE_H
+typedef struct young_heap young_heap_t;
+typedef struct old_heap old_heap_t;
+typedef struct remset remset_t;
+typedef struct remset_stats remset_stats_t;
+#endif
 
 /* Initialize the write barrier */
 
@@ -13,6 +23,11 @@ void wb_setup( remset_t **remsets,  /* one remset per generation */
 	       unsigned pagebase,   /* fixed: address of lowest page */
 	       int generations,     /* fixed: number of generations */
 	       word *globals );     /* fixed: globals vector */
+
+
+/* If the descriptor tables change, notify the barrier */
+
+void wb_re_setup( unsigned *genv );
 
 
 /* Syncronize the write barrier internal tables with values from the
@@ -33,4 +48,15 @@ void wb_sync_remsets( void );
 
 void wb_compact( int gen );
 
+
+/* Return the SSB top and limit pointers for all remsets */
+
+void wb_remset_ptrs( word ***top, word ***lim );
+
+
+/* Disable the write barrier millicode code. */
+
+void wb_disable( void );
+
+#endif
 /* eof */

@@ -1,5 +1,5 @@
 ; Sparc machine assembler: top level.
-; $Id: pass5p2sparc.sch,v 1.1 1997/02/11 20:21:58 lth Exp lth $
+; $Id: pass5p2sparc.sch,v 1.1 1997/02/11 20:21:58 lth Exp $
 ;
 ; Based on MacScheme machine assembler, 
 ;    copyright 1991 Lightship Software, Incorporated.

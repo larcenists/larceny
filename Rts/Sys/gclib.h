@@ -1,7 +1,7 @@
 /* Rts/Sys/gclib.h
  * Larceny run-time system -- garbage collector library
  *
- * January 18, 1997
+ * $Id: gclib.h,v 1.6 1997/02/24 01:01:34 lth Exp $
  *
  * This header defines the interface to the gc library, which provides 
  * the following services:
@@ -54,9 +54,19 @@
 #define RTS_OWNED_PAGE     ((unsigned)-3)    /* Larceny owns it */
 
 
+/* The following values are used to control gclib operation for the
+ * non-predictive collector.
+ */
+
+typedef enum { 
+  ROOTS_ONLY,            /* only forward roots */
+  SCAN_ONLY,             /* only scan */
+  ROOTS_AND_SCAN         /* both */
+} np_operation_t;
+
+
 /* Global variables */
 
-extern unsigned *gclib_desc_h;           /* heap owner */
 extern unsigned *gclib_desc_g;           /* generation owner */
 extern unsigned *gclib_desc_b;           /* attribute bits */
 extern caddr_t   gclib_pagebase;         /* address of lowest page */
@@ -108,7 +118,10 @@ void gclib_free( void *addr, unsigned bytes );
 
 word *gclib_stopcopy_fast( gc_t *gc, word *oldlo, word *oldhi, word *dest );
 void gclib_copy_younger_into( gc_t *gc, semispace_t *to );
-void gclib_stopcopy_slow( gc_t *gc, semispace_t *from, semispace_t *to );
+void gclib_copy_younger_into3( gc_t *gc, semispace_t *to, np_operation_t op );
+void gclib_stopcopy_slow( gc_t *gc, semispace_t *to );
+void gclib_np_copy_younger_into( gc_t *gc, semispace_t *tospace,
+				 np_operation_t op );
 
 
 /* Page attribute manipulation */
@@ -121,6 +134,7 @@ void gclib_set_gen_no( semispace_t *ss, int gen_no );
 void ss_expand( semispace_t *ss, unsigned bytes_needed );
 void ss_reset( semispace_t *ss );
 void ss_sync( semispace_t *ss );
+void ss_free( semispace_t *ss );
 
 
 /* Statistics */
