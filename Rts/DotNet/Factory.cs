@@ -125,7 +125,7 @@ namespace Scheme.Rep {
         public static SByteVL makeFlonum(double num) {
             byte[] bvec = new byte[12];
             byte[] numbytes = System.BitConverter.GetBytes(num);
-            for (int i = 0; i < numbytes.Length; ++i) {
+            for (int i = 0; i < numbytes.Length; i++) {
                 bvec[i + 4] = numbytes[i];
             }
             return new SByteVL(Tags.FlonumTag, bvec);
@@ -133,7 +133,7 @@ namespace Scheme.Rep {
         public static SByteVL makeFlonum(long num) {
             byte[] bvec = new byte[12];
             byte[] numbytes = System.BitConverter.GetBytes(num);
-            for (int i = 0; i < numbytes.Length; ++i) {
+            for (int i = 0; i < numbytes.Length; i++) {
                 bvec[i + 4] = numbytes[i];
             }
             return new SByteVL(Tags.FlonumTag, bvec);
@@ -143,7 +143,7 @@ namespace Scheme.Rep {
             byte[] bvec = new byte[20];
             byte[] realbytes = System.BitConverter.GetBytes(real);
             byte[] imagbytes = System.BitConverter.GetBytes(imag);
-            for (int i = 0; i < realbytes.Length; ++i) {
+            for (int i = 0; i < realbytes.Length; i++) {
                 bvec[4 + i] = realbytes[i];
             }
             for (int j = 0; j < imagbytes.Length; ++j) {
@@ -155,7 +155,7 @@ namespace Scheme.Rep {
             byte[] bvec = new byte[20];
             byte[] realbytes = System.BitConverter.GetBytes(real);
             byte[] imagbytes = System.BitConverter.GetBytes(imag);
-            for (int i = 0; i < realbytes.Length; ++i) {
+            for (int i = 0; i < realbytes.Length; i++) {
                 bvec[4 + i] = realbytes[i];
             }
             for (int j = 0; j < imagbytes.Length; ++j) {
@@ -197,7 +197,11 @@ namespace Scheme.Rep {
          * the Scheme program. After that, symbol creation must be
          * done in Scheme code.
          */
-        private static Hashtable internedSymbols = new Hashtable();
+        // The literal 4500 is slightly more than the number of symbols
+        // in the initial load.  By sizing the hashtable this way, we
+        // avoid a bunch of rehashing at load time.  The number doesn't
+        // have to be correct, but should be a tad larger than necessary.
+        private static Hashtable internedSymbols = new Hashtable (4500);
         private static bool allowInternSymbol = true;
 
         public static SVL internSymbol(string str) {
@@ -258,11 +262,14 @@ namespace Scheme.Rep {
             return new SByteVL(Tags.StringTag, length, (byte)fill);
         }
         public static SByteVL makeString(string s) {
-            byte[] chars = new byte[s.Length];
-            for (int i = 0; i < chars.Length; ++i) {
-                chars[i] = (byte)s[i];
-            }
-            return new SByteVL(Tags.StringTag, chars);
+           // byte [] chars = new byte [SByteVL.stringEncoding.GetByteCount (s)];
+           // SByteVL.stringEncoding.GetBytes (s, 0, s.Length, chars, 0);
+           // return new SByteVL (Tags.StringTag, chars);
+           byte[] chars = new byte[s.Length];
+           for (int i = 0; i < chars.Length; i++) {
+               chars[i] = (byte)s[i];
+           }
+           return new SByteVL(Tags.StringTag, chars);
         }
         public static SByteVL makeString(byte[] elements) {
             return new SByteVL(Tags.StringTag, elements);
@@ -295,7 +302,7 @@ namespace Scheme.Rep {
 
         public static SObject arrayToList(SObject[] array, int start) {
             SObject list = Factory.Null;
-            for (int i = start; i < array.Length; ++i) {
+            for (int i = start; i < array.Length; i++) {
                 list = Factory.makePair(array[i], list);
             }
             return list;

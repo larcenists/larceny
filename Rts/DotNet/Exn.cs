@@ -8,7 +8,9 @@ namespace Scheme.RT {
 
     public class Exn {
 
-        public static readonly Hashtable namespaces = new Hashtable();
+        // About 100 namespaces.  Size estimate here does not have to
+        // be correct.
+        public static readonly Hashtable namespaces = new Hashtable(100);
         public static void registerNamespace(string ns, string source) {
             namespaces[ns] = source;
         }
