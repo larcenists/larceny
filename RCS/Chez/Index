@@ -1,0 +1,18 @@
+The index for ~larceny/Chez
+$Id$
+
+This directory contains the code needed to build larceny using Chez.
+
+bitpattern.c
+  The C routine bitpattern(i,f).
+
+bytevector.ss
+  Bytevector primitives for Chez Scheme.
+
+compat.ss
+  Code to deal with some MacScheme/Chez Scheme incompatibilities.
+
+misc2bytevector.ss
+  Convert various data into bytevector representation.
+  These support routines run under Chez Scheme and other implementations
+  without native support for byte vectors.
