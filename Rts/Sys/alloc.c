@@ -5,11 +5,11 @@
 
 #include "config.h"
 
-#ifdef SUNOS4
+#if defined(SUNOS4)
 /* # include "unix-alloc.c" */  /* Broken. */
 # include "posix-alloc.c"
-#endif
-
-#ifdef SUNOS5
+#elif defined(SUNOS5)
+# include "posix-alloc.c"
+#else
 # include "posix-alloc.c"
 #endif
