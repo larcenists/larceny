@@ -140,11 +140,10 @@
    ; arguments described in the middle column, then the procedure
    ; in the last column can be called instead.
    
-   '(
-    ;(+                  (index index)               +:idx:idx)
-    ;(+                  (fixnum fixnum)             +:fix:fix)
-    ;(-                  (index index)               -:idx:idx)
-    ;(-                  (fixnum fixnum)             -:fix:fix)
+   '((+                  (index index)               +:idx:idx)
+     (+                  (fixnum fixnum)             +:fix:fix)
+     (-                  (index index)               -:idx:idx)
+     (-                  (fixnum fixnum)             -:fix:fix)
      
      (=                  (fixnum fixnum)             =:fix:fix)
      (<                  (fixnum fixnum)             <:fix:fix)
@@ -186,12 +185,12 @@
      (+                 (flonum flonum)             (flonum))
      (-                 (flonum flonum)             (flonum))
      
-    ;(+:idx:idx         (index index)               (!fixnum))
-    ;(-:idx:idx         (index index)               (fixnum!))
-    ;(+:fix:fix         (index index)               (exactint))
-    ;(+:fix:fix         (fixnum fixnum)             (exactint))
-    ;(-:idx:idx         (index index)               (fixnum))
-    ;(-:fix:fix         (fixnum fixnum)             (exactint))
+     (+:idx:idx         (index index)               (!fixnum))
+     (-:idx:idx         (index index)               (fixnum!))
+     (+:fix:fix         (index index)               (exactint))
+     (+:fix:fix         (fixnum fixnum)             (exactint))
+     (-:idx:idx         (index index)               (fixnum))
+     (-:fix:fix         (fixnum fixnum)             (exactint))
      
      (make-vector       (object object)             (vector))
      (vector-length:vec (vector)                    (index))
@@ -205,7 +204,7 @@
      (<=                (number number)             (boolean))
      (>                 (number number)             (boolean))
      (>=                (number number)             (boolean))
-     
+
      (=:fix:fix         (fixnum fixnum)             (boolean))
      (<:fix:fix         (fixnum fixnum)             (boolean))
      (<=:fix:fix        (fixnum fixnum)             (boolean))

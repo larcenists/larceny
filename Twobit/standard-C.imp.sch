@@ -208,9 +208,9 @@
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
 
     (.+:idx:idx       2 +:idx:idx        ,stdc-imm?   500 ,:immortal ,:none #f)
-    (.+:fix:fix       2 +                #f           501 ,:immortal ,:none #f)
-    (.-:idx:idx       2 -:idx:idx        ,stdc-imm?    -1 ,:immortal ,:none #f)     ; FIXME
-    (.-:fix:fix       2 -                #f            -1 ,:immortal ,:none #f)     ; FIXME
+    (.+:fix:fix       2 +:fix:fix        ,stdc-imm?   501 ,:immortal ,:none #f)
+    (.-:idx:idx       2 -:idx:idx        ,stdc-imm?   502 ,:immortal ,:none #f)
+    (.-:fix:fix       2 -:fix:fix        ,stdc-imm?   503 ,:immortal ,:none #f)
 
     (.=:fix:fix       2 =:fix:fix        ,stdc-imm?   406 ,:immortal ,:none #f)
     (.<:fix:fix       2 <:fix:fix        ,stdc-imm?   407 ,:immortal ,:none #f)
@@ -427,14 +427,17 @@
     (>=:fix:fix       2 >=:fix:fix       ,stdc-imm?    409 ,:immortal ,:none #f)
     (>:fix:fix        2 >:fix:fix        ,stdc-imm?    410 ,:immortal ,:none #f)
 
-    ; FIXME: Not yet implemented in twobit.h
-    (+:idx:idx        2 +:idx:idx        #f            500 ,:immortal ,:none #f)
-    (+:fix:fix        2 +:idx:idx        #f            501 ,:immortal ,:none #f)
-    (+:exi:exi        2 +:idx:idx        #f            502 ,:immortal ,:none #f)
-    (+:flo:flo        2 +:idx:idx        #f            503 ,:immortal ,:none #f)
-    (=:flo:flo        2 =:flo:flo        #f            504 ,:immortal ,:none #f)
-    (=:obj:flo        2 =:obj:flo        #f            505 ,:immortal ,:none #f)
-    (=:flo:obj        2 =:flo:obj        #f            506 ,:immortal ,:none #f)
+    (+:idx:idx        2 +:idx:idx        ,stdc-imm?    500 ,:immortal ,:none #f)
+    (+:fix:fix        2 +:fix:fix        ,stdc-imm?    501 ,:immortal ,:none #f)
+    (-:idx:idx        2 -:idx:idx        ,stdc-imm?    502 ,:immortal ,:none #f)
+    (-:fix:fix        2 -:fix:fix        ,stdc-imm?    503 ,:immortal ,:none #f)
+    ; FIXME: Not yet implemented in twobit.h, and code generating them
+    ; has been commented out in standard-C.imp2.sch
+    ;(+:exi:exi        2 +:exi:exi        #f             -1 ,:immortal ,:none #f)
+    ;(+:flo:flo        2 +:idx:idx        #f             -1 ,:immortal ,:none #f)
+    ;(=:flo:flo        2 =:flo:flo        #f             -1 ,:immortal ,:none #f)
+    ;(=:obj:flo        2 =:obj:flo        #f             -1 ,:immortal ,:none #f)
+    ;(=:flo:obj        2 =:flo:obj        #f             -1 ,:immortal ,:none #f)
 
     ; Introduced by peephole optimization
     ; External name, immediate predicate, killed, and kills are not used for these.
@@ -543,6 +546,10 @@
     (<=:fix:fix 453 #f)
     (>:fix:fix 454 #f)
     (>=:fix:fix 455 #f)
+    (+:idx:idx 520 #f)
+    (-:idx:idx 521 #f)
+    (+:fix:fix 522 #f)
+    (-:fix:fix 523 #f)
     (internal:branchf-</imm 635 #t)
     (internal:branchf->/imm 636 #t)
     (internal:branchf->=/imm 637 #t)
