@@ -16,7 +16,7 @@
 
 (load (pathname-append *root-directory* "Util" "nbuild-param-sparc.sch"))
 (define nbuild-parameter
-  (make-nbuild-parameter *root-directory* #f #f "Larceny" "Larceny"))
+  (make-nbuild-parameter *root-directory* #f #t #t "Larceny" "Larceny"))
 
 (load (pathname-append *root-directory* "Compat" "Larceny" "compat.sch"))
 (compat:initialize)
