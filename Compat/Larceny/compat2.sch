@@ -5,7 +5,7 @@
 ; Larceny -- second part of compatibility code
 ; This file ought to be compiled, but doesn't have to be.
 ;
-; 12 April 1999
+; 20 August 1999
 
 (define host-system 'larceny)		; Don't remove this!
 
@@ -90,11 +90,25 @@
 ;
 ; Gross, huh?
 
-(define (an-arbitrary-number)
+'(define (an-arbitrary-number)
   (system "echo \\\"`date`\\\" > a-random-number")
   (let ((x (string-hash (call-with-input-file "a-random-number" read))))
     (delete-file "a-random-number")
     x))
+
+; More portable but still gross.  No worse race condition than the 
+; previous, at least.
+
+(define (an-arbitrary-number)
+  (call-with-output-file "a-random-number"
+    (lambda (out)
+      (display "Hello, sailor!" out)
+      (newline out)))
+  (let ((s (open-output-string)))
+    (display (file-modification-time "a-random-number") s)
+    (let ((x (string-hash (get-output-string s))))
+      (delete-file "a-random-number")
+      x)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
