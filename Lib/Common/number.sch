@@ -67,7 +67,7 @@
     (lambda (n)
       (if (and (fixnum? n) (< n 16384))
           (random14 n)
-          (loop n (random14 16384) n)))))
+          (loop (quotient n 16384) (random14 16384) n)))))
  
 (define gcd
   (letrec ((loop (lambda (x y)
