@@ -3,7 +3,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.12 91/07/03 16:35:42 lth Exp Locker: lth $
+! $Id: memory.s,v 1.13 91/07/05 15:15:22 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -95,6 +95,10 @@
 	.global _stkoflow, _stkuflow
 	.global _save_scheme_context, _restore_scheme_context
 	.global _capture_continuation, _restore_continuation
+
+#ifdef DEBUG
+	.global	gcstart, addtrans
+#endif
 
 	.seg "text"
 
@@ -448,10 +452,10 @@ _capture_continuation:
 	blt	Lcapture_cont2
 	mov	%o7, %TMP0
 
-	st	%RESULT, [ %GLOBALS + SAVED_RETURN_OFFSET ]
+	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	gcstart
 	set	fixnum( 0 ), %RESULT
-	ld	[ %GLOBALS + SAVED_RETURN_OFFSET ], %RESULT
+	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
 Lcapture_cont2:
 	jmp	%TMP0+8
