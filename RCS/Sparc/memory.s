@@ -1,7 +1,7 @@
 ! Assembly-language millicode routines for allocation and mutation.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.4 91/06/24 01:55:40 lth Exp Locker: lth $
+! $Id: memory.s,v 1.6 91/06/27 15:21:46 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -71,6 +71,10 @@
 #define TAG_PAIR	0x01
 #define TAG_VEC		0x03
 
+! Constants
+
+#define FALSE_CONST	0x00000002
+
 	.global _alloc, _alloci, _setcar, _setcdr, _vectorset, _gcstart
 	.global _stkoflow, _stkuflow
 	.global _save_scheme_context, _restore_scheme_context
@@ -109,7 +113,7 @@ _alloc:
 	nop
 
 Lalloc1:
-	jmp	%o7
+	jmp	%o7+8
 	add	%E_TOP, %TMP0, %E_TOP		! round up
 
 
@@ -167,7 +171,7 @@ Lalloci3:
 Lalloci2:
 	bne	Lalloci3
 	add	%TMP1, 0x04, %TMP1		! q += 4
-	jmp	%o7
+	jmp	%o7+8
 	nop
 
 
@@ -285,7 +289,7 @@ _gcstart:
 _stkuflow:
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
-	save	%sp, -96, %sp
+	save	%sp, -64, %sp
 	call	_restore_frame
 	nop
 	restore
@@ -309,7 +313,7 @@ _stkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
-	save	%sp, -96, %sp
+	save	%sp, -64, %sp
 	call	_flush_stack_cache
 	nop
 	restore
@@ -318,15 +322,40 @@ _stkoflow:
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	cmp	%E_TOP, %E_LIMIT
 	blt	Lstkoflow1
-	mov	%o7, %TMP0
-
-	! Overflow; must collect
-
-	call	gcstart
 	nop
 
-Lstkoflow1:
+	! Overflow; must collect. The collector restores any necessary
+	! frames, though, so after collecting we can simply return to the
+	! caller.
+
+	mov	%o7, %TMP0
+	call	gcstart
+	nop
 	jmp	%TMP0+8
+	nop
+
+	! Heap did not overflow. We will need to restore one frame from the
+	! continuation chain in order for the caller not to be confused.
+	! However, we restore from the chain only if there is a frame to
+	! be restored.
+
+Lstkoflow1:
+	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %TMP0
+	set	FALSE_CONST, %TMP1
+	cmp	%TMP0, %TMP1
+	beq	Lstkoflow2
+
+	! restore frame
+
+	st	%STKP, [ %GLOBALS + SP_OFFSET ]
+	save	%sp, -64, %sp
+	call	_restore_frame
+	nop
+	restore
+	ld	[ %GLOBALS + SP_OFFSET ], %STKP
+
+Lstkoflow2:
+	jmp	%o7+8
 	nop
 
 
@@ -340,7 +369,7 @@ _restore_scheme_context:
 	mov	%o7, %TMP0
 	call	restore_scheme_context
 	nop
-	jmp	%TMP0
+	jmp	%TMP0+8
 	nop
 
 
@@ -354,7 +383,7 @@ _save_scheme_context:
 	mov	%o7, %TMP0
 	call	save_scheme_context
 	nop
-	jmp	%TMP0
+	jmp	%TMP0+8
 	nop
 
 
@@ -378,6 +407,13 @@ _save_scheme_context:
 ! the C-language routine '_gcstart2' with the number of words to allocate
 ! as a parameter. When '_gcstart2' returns, the number of words indicated
 ! (if not 0xFFFFFFFC) can safely be allocated.
+!
+! There's a bit of hair associated with the stack, as it will be flushed
+! during a collection, but it must have a coherent (i.e. non-empty) state
+! when we return to the caller. [While the logic to deal with this could
+! have been put in _gcstart2, it is better to keep it here since it is really
+! quite dependent on millicode calling conventions, which can be thought of
+! as implementation dependent.]
 
 gcstart:
 	! Setup a continuation
@@ -397,9 +433,12 @@ gcstart:
 	!-----------
 	! C-language call
 
-	save	%sp, -96, %sp
-	call	_gcstart2
-	mov	%RESULT, %o0
+	mov	%RESULT, %g1		! %RESULT not valid after save...
+	save	%sp, -64, %sp
+	call	_gcstart2		! This *will* flush the stack!
+	mov	%g1, %o1
+	call	_restore_frame		! Restore our frame
+	nop
 	restore
 	!-----------
 
@@ -425,11 +464,38 @@ gcstart:
 
 Lgcstart1:
 
-	! Destroy continuation and return
+	! Return to caller.
+	!
+	! We have to deallocate the frame that was created in here, restore
+	! the previous frame from the heap (otherwise the caller will be
+	! terribly confused!), and then return.
+	! However, we can only restore a frame if one exists!
 
-	ld	[ %STKP+0 ], %TMP0		! restore return address
-	jmp	%o7				! return to millicode
-	add	%STKP, 16, %STKP		! deallocate frame
+	st	%RESULT, [ %GLOBALS + RESULT_OFFSET ]	! save %RESULT for now
+	ld	[ %STKP+0 ], %RESULT			! get return address
+	add	%STKP, 16, %STKP			! deallocate our frame
+
+	! Is there another frame?
+
+	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %TMP0
+	set	FALSE_CONST, %TMP1
+	cmp	%TMP0, %TMP1
+	beq	Lgcstart2
+	nop
+
+	! Fetch a frame
+
+	st	%STKP, [ %GLOBALS + SP_OFFSET ]
+	save	%sp, -64, %sp				! get a frame
+	call	_restore_frame
+	nop
+	restore
+	ld	[ %GLOBALS + SP_OFFSET ], %STKP
+
+Lgcstart2:
+	mov	%RESULT, %TMP0				! return address
+	jmp	%TMP0+8					! return to millicode
+	ld	[ %GLOBALS + RESULT_OFFSET ], %RESULT	! result
 
 	
 !-----------------------------------------------------------------------------
@@ -461,7 +527,7 @@ addtrans:
 
 Laddtrans1:
 	st	%RESULT, [ %TMP1 ]
-	jmp	%o7
+	jmp	%o7+8
 	st	%TMP2, [ %GLOBALS+T_TRANS_OFFSET ]
 
 	! end of file
@@ -491,7 +557,7 @@ restore_scheme_context:
 	ld	[ %GLOBALS+RESULT_OFFSET ], %RESULT
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
-	jmp	%o7
+	jmp	%o7+8
 	ld	[ %GLOBALS+SP_OFFSET ], %STKP
 
 
@@ -515,6 +581,6 @@ save_scheme_context:
 	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
-	jmp	%o7
+	jmp	%o7+8
 	nop
 
