@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 88, 93, 111.
+HIGH PRIORITY BUGS: 88, 111.
 
 
 005  (v0.27e)
@@ -550,7 +550,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 	.max|3
 
     I don't know whether the compiler or the assembler should be responsible
-    for cleaning this up.
+    for cleaning this up; either way, the name needs to be demangled.
 
 108 v1.0a1 (990208 / lth)
     Priority: medium.
@@ -607,18 +607,6 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     Category: TWOBIT / quality-of-implementation
 
     Space leaks can result from dead variables in closures.
-
-123 v1.0a1 (990421 / lth)
-    Priority: low
-    Category: TWOBIT / performance
-
-    [May have been fixed since]
-
-    The macro for DO produces worse code than it needs to: if there
-    are no <expression>s following the <test> it returns the value
-    of the <test>, which means that the compiler will generate 
-    code to evaluate the boolean for its value, resulting in numerous
-    needless operations.
 
 125 v1.0a1 (990429 / lth)
     Priority: low
@@ -707,7 +695,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
     Impact: current fixes are enough to allow benchmarking, but the
     others must be fixed.
-    
+
 129 v0.43 (990709 / lth)
     Priority: low
     Category: TWOBIT / correctness
@@ -740,7 +728,6 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     make-string
     Error: Wrong number of arguments to integrable procedure(make-string .x|1)
 
-
-NEXT ENTRY: 131
+NEXT ENTRY: 132
 
 ; eof
