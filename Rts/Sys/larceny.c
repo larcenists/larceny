@@ -211,7 +211,7 @@ int main( int argc, char **os_argv )
    */
   { word args[1], res;
 
-    args[0] = allocate_argument_vector( o.restc, o.restv );
+    args[0] = allocate_argument_vector( the_gc(globals), o.restc, o.restv );
     larceny_call( globals[ G_STARTUP ], 1, args, &res );
     consolemsg( "Startup procedure returned with value %08lx", (long)res );
   }
