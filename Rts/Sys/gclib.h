@@ -196,7 +196,8 @@ void gclib_stopcopy_promote_into_np( gc_t *gc,
      is copied into young that contains a pointer into old.
 
      old_remaining is the amount of available data in the old area;
-     young_remaining ditto for the young area.
+     young_remaining ditto for the young area.  The collector uses these
+     when promoting small objects (but not when promoting large objects).
      */
 
 void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace );
