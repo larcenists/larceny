@@ -6,7 +6,7 @@
  *
  * For C-language routines.
  *
- * $Id: macros.h,v 1.2 91/06/26 15:40:38 lth Exp Locker: lth $
+ * $Id: macros.h,v 1.3 91/06/26 16:44:44 lth Exp Locker: lth $
  */
 
 /* Type tags as found at the low end of a scheme object pointer/value */
@@ -34,10 +34,14 @@
 /* Subtags for vector headers. */
 #define VEC_SUBTAG	0x00		/* vector */
 #define CONT_SUBTAG	0x04		/* continuation frame */
+#define SYM_SUBTAG      0x0C            /* symbol */
 
 /* Subtags for bytevector headers. */
 #define STR_SUBTAG	0x00		/* string */
 #define BVEC_SUBTAG	0x04		/* bytevector */
+
+/* Made-up headers */
+#define SYMBOL_HDRTAG   (VEC_HDR | SYM_SUBTAG)
 
 /* Constants */
 #define TRUE_CONST	0x00000006
