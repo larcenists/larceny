@@ -285,10 +285,13 @@
 
   (define (string-hash-step code byte)
     (logxor code
-            (logand #xFFFF
-                    (+ (lsh (logand code #x07FF) 5)
-                       (rshl code 2)
-                       byte))))
+            ;; Avoid consing fixnums
+            (let ((l (lsh (logand code #x01FF) 5))
+                  ;; R must be less than (+ (rshl #x01FF 2) 256)
+                  (r (+ (rshl code 2) byte)))
+              (if (> (- 16383 l) (- r 1))
+                  (+ l r)
+                  (+ (- l (- 16384 128)) (- r 128))))))
 
   (define (string-hash-loop string limit i code)
     (if (= i limit)
@@ -298,7 +301,7 @@
          (string-hash-step code (bytevector-like-ref string i)))))
 
   (let ((n (string-length string)))
-    (string-hash-loop string n 0 (logxor n #x5aa5))))
+    (string-hash-loop string n 0 (logxor n #x1aa5))))
 
 ;;; This version (commented out) trades space for speed.  The problem
 ;;; is that fixnums take 16 bytes *each*, so keeping a shift table may
