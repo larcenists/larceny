@@ -109,6 +109,7 @@
        (case arch
          ((0) "SPARC")
          ((1) "Standard-C")
+	 ((2) "X86-NASM")
          (else "Unknown"))))
     ((endian)
      (let ((end (get-feature feature$endianness)))
