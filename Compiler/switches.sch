@@ -80,7 +80,10 @@
                ((#t larceny) (set! state 'larceny) state)
                ((#f none)    (set! state 'none) state)
                ((r4rs r5rs)  (set! state (car args)) state)
-               ((display)    (display "  = integrate-procedures is \"")
+               ((display)    (display (if (eq? state 'none)
+                                          "  -"
+                                          "  +"))
+                             (display " integrate-procedures is \"")
                              (display state)
                              (display "\"")
                              (newline))
