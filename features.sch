@@ -224,6 +224,12 @@
     ;
     ; Recommended setting is on.
 
+ "DYNAMIC_LOADING"
+    ; If set, allow .FASL files that reference external shared object files
+    ; to be loaded.  This does not work on all systems because the addresses
+    ; into the shared objects cannot be represented properly in Larceny's
+    ; data structures.
+
  ; Special system attributes -- for use of non-portable extensions or 
  ; bug workarounds, or other weirdness.
 
@@ -345,6 +351,7 @@
     "HAVE_HRTIME_T"
     "HAVE_POLL"
     "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     "GC_HIRES_TIMERS"
     "USE_CACHED_STATE"
@@ -360,6 +367,7 @@
     "HAVE_STRNCASECMP"
     "HAVE_SELECT"
     ;"HAVE_DLFCN"                        ; only if you have installed the dlcompat package
+    "DYNAMIC_LOADING"                   ; only makes a difference if HAVE_DLFCN is defined
     "STACK_UNDERFLOW_COUNTING"
     "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
     "USE_CACHED_STATE"
@@ -395,6 +403,7 @@
     "HAVE_STRDUP"
     "HAVE_POLL"
     "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
     "USE_CACHED_STATE"
@@ -410,6 +419,7 @@
     "HAVE_STRDUP"
     "HAVE_POLL"
     "HAVE_DLFCN"
+    ;"DYNAMIC_LOADING"                  ; Never tested
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
     "USE_CACHED_STATE"
@@ -425,6 +435,7 @@
     "HAVE_STRDUP"
     "HAVE_POLL"
     "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
     ))
@@ -439,6 +450,7 @@
     "HAVE_STRDUP"
     "HAVE_POLL"
     "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     ))
 
@@ -453,6 +465,7 @@
     "HAVE_STRDUP"
     "HAVE_STRNCASECMP"
     "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     "XOPEN_SIGNALS"
     ))
@@ -478,7 +491,7 @@
     "DEC_ALPHA_32BIT"
     "STACK_UNDERFLOW_COUNTING"))
 
-(define selected-feature-set features-petit-win32)
+(define selected-feature-set features-petit-linux)
 
 ; ------ END USER DEFINITION SECTION ------
 
