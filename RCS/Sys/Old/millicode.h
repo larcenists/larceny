@@ -3,7 +3,7 @@
  * Scheme 313 Runtime System
  * Millicode table offsets.
  *
- * $Id: millicode.h,v 1.4 91/07/12 03:13:12 lth Exp Locker: lth $
+ * $Id: millicode.h,v 1.5 91/08/21 14:43:41 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -13,7 +13,7 @@
 #endif
 
 /* Watch this! */
-#define LAST_MILLICODE	31
+#define LAST_MILLICODE	37
 
 #define MILLICODE_TABLE_SIZE	(LAST_MILLICODE+1)
 
@@ -49,3 +49,13 @@
 #define M_NUMGT                 (29*M_ADJUST)
 #define M_NUMGE                 (30*M_ADJUST)
 #define M_GARBAGE_COLLECT       (31*M_ADJUST)
+#define M_OPEN_FILE             (32*M_ADJUST)
+#define M_CLOSE_FILE		(33*M_ADJUST)
+#define M_CREATE_FILE		(34*M_ADJUST)
+#define M_UNLINK_FILE		(35*M_ADJUST)
+#define M_READ_FILE		(36*M_ADJUST)
+#define M_WRITE_FILE		(37*M_ADJUST)
+
+#undef M_ADJUST
+
+/* EOF */

@@ -1,7 +1,7 @@
 ! Scheme 313 runtime system
 ! Global table for millicode calls.
 !
-! $Id$
+! $Id: tables.s,v 1.1 91/08/21 14:42:41 lth Exp Locker: lth $
 
 	.global	_millicode
 
@@ -116,6 +116,24 @@ _millicode:
 	nop
 	! #31: M_GARBAGE_COLLECT
 	b	_garbage_collect
+	nop
+	! #32: M_OPEN_FILE
+	b	_open_file
+	nop
+	! #33: M_CLOSE_FILE
+	b	_close_file
+	nop
+	! #34: M_CREATE_FILE
+	b	_create_file
+	nop
+	! #35: M_UNLINK_FILE
+	b	_unlink_file
+	nop
+	! #36: M_READ_FILE
+	b	_read_file
+	nop
+	! #37: M_WRITE_FILE
+	b	_write_file
 	nop
 
 	! end of millicode table
