@@ -38,9 +38,9 @@
 (define *standard-timeslice* 50000)       ; Empirical.
 
 (define standard-timeslice
-  (system-parameter "standard-timeslice"
-                    *standard-timeslice* 
-                    (lambda (x)
-                      (and (fixnum? x) (> x 0)))))
+  (make-parameter "standard-timeslice"
+                  *standard-timeslice* 
+                  (lambda (x)
+                    (and (fixnum? x) (> x 0)))))
 
 ; eof

@@ -35,7 +35,7 @@
 ; Public procedures.
 
 (define herald
-  (system-parameter "herald" #f))
+  (make-parameter "herald" #f))
 
 (define (dump-interactive-heap filename)
   (dump-heap filename interactive-entry-point))

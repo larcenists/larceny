@@ -48,12 +48,12 @@
 ; noncontinuable.
 
 (define error-handler
-  (system-parameter "error-handler" 
-                    (lambda args 
-                      (parameterize ((print-length 7)
-                                     (print-level 7))
-                        (decode-error args))
-                      (reset))))
+  (make-parameter "error-handler" 
+                  (lambda args 
+                    (parameterize ((print-length 7)
+                                   (print-level 7))
+                      (decode-error args))
+                    (reset))))
 
 ; The reset handler is called by the RESET procedure.  It takes no arguments.
 ;
@@ -61,28 +61,28 @@
 ; system.  The reset handler may not return.
 
 (define reset-handler
-  (system-parameter "reset-handler" 
-                    (lambda ignored
-                      (exit))))
+  (make-parameter "reset-handler" 
+                  (lambda ignored
+                    (exit))))
 
 ; The timer interrupt handler is called with timer interrupts OFF.
 ; It takes no arguments.
 
 (define timer-interrupt-handler
-  (system-parameter "timer-interrupt-handler"
-                    (lambda ()
-                      ($$debugmsg "Unhandled timer interrupt."))
-                    procedure?))
+  (make-parameter "timer-interrupt-handler"
+                  (lambda ()
+                    ($$debugmsg "Unhandled timer interrupt."))
+                  procedure?))
 
 ; The keyboard interrupt handler is called when a keyboard interrupt has
 ; been seen.  It takes no arguments.
 
 (define keyboard-interrupt-handler
-  (system-parameter "keyboard-interrupt-handler"
-                    (lambda ()
-                      ($$debugmsg "Unhandled keyboard interrupt.")
-                      (exit))
-                    procedure?))
+  (make-parameter "keyboard-interrupt-handler"
+                  (lambda ()
+                    ($$debugmsg "Unhandled keyboard interrupt.")
+                    (exit))
+                  procedure?))
 
 ; The breakpoint handler is called when a BREAK primitive is encountered,
 ; and it may also be called by debugger-installed breakpoints that do not
@@ -93,13 +93,13 @@
 ; (Interpretation of the code address is architecture dependent.)
 
 (define break-handler
-  (system-parameter "break-handler"
-                    (lambda (proc code-address)
-                      (display "Breakpoint: ")
-                      (display proc)
-                      (display " @ ")
-                      (display code-address)
-                      (newline))))
+  (make-parameter "break-handler"
+                  (lambda (proc code-address)
+                    (display "Breakpoint: ")
+                    (display proc)
+                    (display " @ ")
+                    (display code-address)
+                    (newline))))
 
 ; The system signal handler is called when an asynchronous signal is received
 ; for which a lowlevel handler has been installed.  It takes one argument:
@@ -109,11 +109,11 @@
 ; On Unix, it is a small nonnegative exact integer -- the signal number.
 
 (define system-signal-handler
-  (system-parameter "system-signal-handler"
-                    (lambda (sig)
-                      (display "Signal: ")
-                      (display sig)
-                      (newline))))
+  (make-parameter "system-signal-handler"
+                  (lambda (sig)
+                    (display "Signal: ")
+                    (display sig)
+                    (newline))))
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and

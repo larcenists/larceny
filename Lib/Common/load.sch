@@ -15,20 +15,20 @@
 ; EVAL in the loaded file will reference the correct environment.
 
 (define load-evaluator
-  (system-parameter "load-evaluator"
-                    (lambda (expr env)
-                      (let ((old-env (interaction-environment)))
-                        (dynamic-wind 
-                         (lambda ()
-                           (interaction-environment env))
-                         (lambda ()
-                           (if (and (pair? expr)
-                                    (procedure? (car expr)))
-                               (apply (car expr) (cdr expr))
-                               (eval expr env)))
-                         (lambda ()
-                           (if (eq? (interaction-environment) env)
-                               (interaction-environment old-env))))))))
+  (make-parameter "load-evaluator"
+                  (lambda (expr env)
+                    (let ((old-env (interaction-environment)))
+                      (dynamic-wind 
+                       (lambda ()
+                         (interaction-environment env))
+                       (lambda ()
+                         (if (and (pair? expr)
+                                  (procedure? (car expr)))
+                             (apply (car expr) (cdr expr))
+                             (eval expr env)))
+                       (lambda ()
+                         (if (eq? (interaction-environment) env)
+                             (interaction-environment old-env))))))))
 
 (define (load filename . rest)
 

@@ -12,10 +12,10 @@
 ($$trace "stdio")
 
 (define current-input-port 
-  (system-parameter "current-input-port" #f (lambda (x) (input-port? x))))
+  (make-parameter "current-input-port" #f (lambda (x) (input-port? x))))
 
 (define current-output-port 
-  (system-parameter "current-output-port" #f (lambda (x) (output-port? x))))
+  (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
 
 (define (initialize-io-system)
   (io/initialize)
@@ -106,14 +106,14 @@
   ((console-output-port-factory)))
 
 (define console-input-port-factory
-  (system-parameter "console-input-port-factory" 
-                    console-io/console-input-port
-                    procedure?))
+  (make-parameter "console-input-port-factory" 
+                  console-io/console-input-port
+                  procedure?))
 
 (define console-output-port-factory
-  (system-parameter "console-output-port-factory"
-                    console-io/console-output-port
-                    procedure?))
+  (make-parameter "console-output-port-factory"
+                  console-io/console-output-port
+                  procedure?))
 
 (define (open-input-string s)
   (string-io/open-input-string s))

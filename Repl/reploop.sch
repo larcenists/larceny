@@ -88,19 +88,19 @@
 ; REPL parameters (some public, some not)
 
 (define repl-level
-  (system-parameter "repl-level" 0))
+  (make-parameter "repl-level" 0))
 
 (define repl-prompt
-  (system-parameter "repl-prompt"
+  (make-parameter "repl-prompt"
 		    (lambda (level port)
                       (display (make-string level #\>) port)
                       (display " " port))))
 
 (define repl-evaluator
-  (system-parameter "repl-evaluator" eval))
+  (make-parameter "repl-evaluator" eval))
 
 (define repl-printer
-  (system-parameter "repl-printer" ur-printer))
+  (make-parameter "repl-printer" ur-printer))
 
 
 ; eof

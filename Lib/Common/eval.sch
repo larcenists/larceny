@@ -23,9 +23,9 @@
     ((evaluator) expr env)))
 
 (define evaluator
-  (system-parameter "evaluator"
-		    (lambda (expr env)
-		      (error "No evaluator procedure installed."))
-		    procedure?))
+  (make-parameter "evaluator"
+                  (lambda (expr env)
+                    (error "No evaluator procedure installed."))
+                  procedure?))
 
 ; eof

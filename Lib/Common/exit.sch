@@ -52,6 +52,6 @@
   ((quit-handler)))
 
 (define quit-handler
-  (system-parameter "quit-handler" exit procedure?))
+  (make-parameter "quit-handler" exit procedure?))
 
 ; eof
