@@ -49,6 +49,10 @@
 #if defined( SUNOS4 ) || defined( SUNOS5 )
 # define round_to_even( x )    rint( x )
 # define round_any( x )        rint( x )
+#elif defined(STDC_SOURCE)
+/* There are no standard functions for this (sigh).  FIXME. */
+# define round_to_even( x )    rint( x )
+# define round_any( x )        rint( x )
 #else
 # error \"round_to_even not implemented.\"
 #endif
