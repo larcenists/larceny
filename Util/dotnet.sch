@@ -135,9 +135,9 @@
              (lambda ()
                (let loop ()
                  (let ((next (read-char)))
-                   (unless (eof-object? next)
-                     (write-char next)
-                     (loop)))))))
+                   (if (not (eof-object? next))
+                       (begin (write-char next)
+                              (loop))))))))
          input-files))))
 
   (define cfg-names '("except" "globals" "layouts" "mprocs"))
@@ -152,36 +152,37 @@
          (catfiles (list src-file) target-file))))
    (map (lambda (f) (make-filename (string-append f ".cfg")))
         cfg-names))
-     
-       
-    ;; we don't need the C code
-    ;;(expand-file (build-path "Standard-C" "arithmetic.mac")
-    ;;             (build-path "Standard-C" "arithmetic.c"))
-
-    ;(parameterize [(current-directory *root-directory*)]
+  
+  ;; we don't need the C code
+  ;;(expand-file (build-path "Standard-C" "arithmetic.mac")
+  ;;             (build-path "Standard-C" "arithmetic.c"))
+  
+  ;(parameterize [(current-directory *root-directory*)]
   (display " -- Running config ...")(newline)
   (for-each config
             (map (lambda (f) (make-filename *larceny-root*
-                                       "Rts"
-                                       (string-append f ".cfg")))
+                                            "Rts"
+                                            (string-append f ".cfg")))
                  cfg-names))
-  (unless (file-exists? (make-filename *larceny-root* "Rts" "Build" "cdefs.h"))
-    (catfiles
-     (map (lambda (f) (make-filename *larceny-root*
-                                "Rts"
-                                "Build"
-                                (string-append f ".ch")))
-          cfg-names)
-     (make-filename *larceny-root* "Rts" "Build" "cdefs.h")))
+  (if (not (file-exists? (make-filename *larceny-root* "Rts" "Build" "cdefs.h")))
+      (begin
+        (catfiles
+         (map (lambda (f) (make-filename *larceny-root*
+                                         "Rts"
+                                         "Build"
+                                         (string-append f ".ch")))
+              cfg-names)
+         (make-filename *larceny-root* "Rts" "Build" "cdefs.h"))))
 
-  (unless (file-exists? (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))
-    (catfiles
-     (map (lambda (f) (make-filename *larceny-root*
-                                "Rts"
-                                "Build"
-                                (string-append f ".sh")))
-          (remove "mprocs" cfg-names))
-     (make-filename *larceny-root* "Rts" "Build" "schdefs.h")))
+  (if (not (file-exists? (make-filename *larceny-root* "Rts" "Build" "schdefs.h")))
+      (begin
+        (catfiles
+         (map (lambda (f) (make-filename *larceny-root*
+                                         "Rts"
+                                         "Build"
+                                         (string-append f ".sh")))
+              (remove "mprocs" cfg-names))
+         (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))))
   
   (display " -- Running C# config...")(newline)
   (run-csharp-config))
@@ -201,4 +202,3 @@
     (else
      (error "Unknown operating system: " (nbuild-paramter 'host-os)))))
 
-  
