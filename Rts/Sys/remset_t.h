@@ -2,23 +2,20 @@
  *
  * $Id$
  *
- * Larceny run-time system -- remembered-set data structure.
- *
- * Remembered sets are objects with operations encoded as
- * function pointers in the instance.  
+ * Remembered-set interface.
  *
  * Remembered sets remember objects.  The basic assumption in the current
  * implementation is that there will be one set for each generation, and 
  * it will remember objects in the generation that may contain pointers 
- * to younger generations.
+ * to generations that will be collected before the generation with which
+ * the set is collected (a "points-out" set).
  */
 
 #ifndef INCLUDED_REMSET_T_H
 #define INCLUDED_REMSET_T_H
 
+#include "config.h"
 #include "larceny-types.h"
-
-/* Remembered set statistics */
 
 struct remset_stats {
   unsigned ssb_recorded;     /* SSB entries recorded */
@@ -28,66 +25,108 @@ struct remset_stats {
   unsigned hash_removed;     /* Hash table entries removed */
 };
 
-remset_t *
-create_remset( unsigned tbl_ent, unsigned pool_ent, unsigned ssb_ent,
-	       word **ssb_bot_loc, word **ssb_top_loc, word **ssb_lim_loc );
-
 struct remset {
   int live;
-    /* Number of live entries in the remembered set.  This is updated
-       by rs_clear(), rs_compact(), rs_enumerate(), and rs_assimilate(),
-       and is thus only imprecise when the SSB is non-empty.
+    /* Number of live entries in the set.  This is imprecise only
+       when the SSB is non-empty.
        */
 
-  void (*clear)( remset_t *remset );
-    /* Method that clears the set of its contents; this is needed after 
-       data are promoted out of the generations the remembered set belongs to.
-       */
-
-  int  (*compact)( remset_t *remset );
-    /* A method that moves the contents of the SSB into the set and clears
-       the SSB.  It returns 1 if the remembered set overflowed during the
-       compaction.
-       */
-     
-  void (*enumerate)(remset_t *remset, int (*scanner)(word,void*, unsigned*),
-		    void*data);
-    /* A method that takes a scanner function and calls it once with each
-       object pointer remembered by the set; the scanner function can then 
-       scan the object looking for pointers into younger generations.  If 
-       the scanner returns 1, the remembered pointer is retained; if it 
-       returns 0, the pointer may be removed from the set.
-       */
-
-  void (*stats)( remset_t *remset, remset_stats_t *stats );
-    /* A method that fills the statistics structure.
-       */
-
-  int  (*has_overflowed)( remset_t *remset );
-    /* A method that returns 1 if the remembered set has filled to 
-       overflowing since the last time it was cleared.
-       */
-
-  void (*assimilate)( remset_t *borg, remset_t *human );
-    /* A method that folds the set 'human' into the set 'borg'.
+  bool has_overflowed;
+    /* TRUE if the remembered set node pool has overflowed since the
+       last time the set was cleared.
        */
 
   /* For the write barrier. */
-  word **ssb_bot;
-  word **ssb_top;
-  word **ssb_lim;
+  word **ssb_bot;		/* Location of pointer to start of SSB */
+  word **ssb_top;		/* Location of pointer to next free in SSB */
+  word **ssb_lim;		/* Location of pointer past end of SSB */
 
-  /* Private */
-  void *data;
+  void *data;			/* Implementation's data */
 };
 
-#define rs_clear( r )            ((r)->clear( r ))
-#define rs_compact( r )          ((r)->compact( r ))
-#define rs_enumerate( r, s, d )  ((r)->enumerate( r, s, d ))
-#define rs_stats( r, s )         ((r)->stats( r, s ))
-#define rs_has_overflowed( r )   ((r)->has_overflowed( r ))
-#define rs_assimilate( r1, r2 )  ((r1)->assimilate( r1, r2 ))
+remset_t *
+create_remset( int tbl_ent,	   /* Number of entries in hash table */
+	       int pool_ent,       /* Number of entries in initial node pool */
+	       int ssb_ent,        /* Number of entries in SSB */
+	       word **ssb_bot_loc, /* Location of pointer to start of SSB */
+	       word **ssb_top_loc, /* Location of pointer to next free of SSB */
+	       word **ssb_lim_loc  /* Location of pointer past end of SSB */
+	       );
+  /* Create a remembered set and return a pointer to it.
 
+     The parameters tbl_ent, pool_ent, and ssb_ent can all be zero, in
+     which case default values are used.
+
+     The parameters ssb_bot_loc, ssb_top_loc, and ssb_lim_loc are all
+     pointers to the client's locations for these values, allowing the
+     variables to be shared between the client and the remembered set
+     and allowing these variables for all the remembered sets to be
+     located together in an array (for the benefit of assembly code).
+
+     tbl_ent >= 0 must be a power of 2.
+     pool_ent >= 0
+     ssb_ent >= 0 
+     */
+
+void rs_clear( remset_t *remset );
+  /* Clears the remembered set.
+     */
+
+bool rs_compact( remset_t *remset );
+  /* Moves the contents of the set's SSB into the set and clears the SSB.
+     Only entries not already in the set are added to the set, so every
+     element in the SSB is subject to a collision check.
+
+     Returns TRUE if the remembered set overflowed during the compaction.
+     */
+
+bool rs_compact_nocheck( remset_t *remset );
+  /* Moves the contents of the set's SSB into the set and clears the SSB.
+     Entries are added to the set without checking for duplicates.
+
+     Returns TRUE if the remembered set overflowed during the compaction.
+     */
+     
+void rs_enumerate( remset_t *remset, 
+		   bool (*scanner)(word loc, void *data, unsigned *stats),
+		   void *data );
+  /* Calls the scanner function once with each object pointer ('loc') in
+     the remembered set.  Each call also passes 'data' and a pointer to
+     a statistics variable.
+
+     The scanner function should add the number of words it scans to the
+     statistics variable.
+
+     If the scanner function returns TRUE then the object pointer is
+     retained in the set, otherwise it is removed.
+     */
+
+void rs_stats( remset_t *remset, remset_stats_t *stats );
+  /* Fills the statistics structure with statistics about remembered set
+     behavior.
+     */
+
+void rs_assimilate( remset_t *borg, remset_t *human );
+  /* Folds the set 'human' into the set 'borg'.
+     */
+
+#if defined(SIMULATE_NEW_BARRIER)
+bool rs_isremembered( remset_t *rs, word w );
+  /* Returns TRUE if the object denoted by w is in the remembered set.
+     */
+#endif
+
+void rs_consistency_check( remset_t *rs );
+  /* Perform a consistency check and print some statistics.  Useful mainly
+     when called from an interactive debugger.
+     */
+
+#if defined(REMSET_PROFILE)
+void rs_print_crossing_stats( remset_t *rs );
+  /* Prints out a bunch of information about the volume of pointers from
+     the remembered set into various generations.
+     */
+#endif
 #endif /* INCLUDED_REMSET_T_H */
 
 /* eof */
