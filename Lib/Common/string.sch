@@ -165,33 +165,54 @@
   (lambda (x y)
     (not (string-ci<? x y))))
 
+(define (alloc-string length)
+  (let ((result (make-bytevector length)))
+    (typetag-set! result sys$tag.string-typetag)
+    result))
+
 (define string-copy
   (lambda (x)
-    (string-append x "")))
+    (let* ((length (string-length x))
+           (y (alloc-string length)))
+      (bytevector-like-copy-into! x 0 length y 0)
+      y)))
 
 (define string
   (lambda chars
     (list->string chars)))
 
+(define (concatenate-strings string-list)
+  (define (concatenate-strings1 position tail)
+    (cond ((pair? tail)
+           (let* ((this-string  (car tail))
+                  (length (string-length this-string))
+                  (result-string (concatenate-strings1 (+ position length) (cdr tail))))
+             (bytevector-like-copy-into! this-string 0 length
+                                         result-string position)
+             result-string))
+          ((null? tail) (alloc-string position))
+          (else (error "concatenate-strings: improper list") #t)))
+  (concatenate-strings1 0 string-list))
+
 (define (string-append . args)
+  (concatenate-strings args)
+;  (define (lengths args n)
+;    (if (null? args)
+;	n
+;	(lengths (cdr args) (+ n (string-length (car args))))))
 
-  (define (lengths args n)
-    (if (null? args)
-	n
-	(lengths (cdr args) (+ n (string-length (car args))))))
-
-  (let* ((n (lengths args 0))
-	 (s (make-bytevector n)))
-    (typetag-set! s sys$tag.string-typetag)
-    (do ((l args (cdr l))
-	 (i 0    (+ i (string-length (car l)))))
-	((null? l) s)
-      (bytevector-like-copy-into! (car l) 0 (string-length (car l))
-				  s i))))
+;  (let* ((n (lengths args 0))
+;	 (s (make-bytevector n)))
+;    (typetag-set! s sys$tag.string-typetag)
+;    (do ((l args (cdr l))
+;	 (i 0    (+ i (string-length (car l)))))
+;	((null? l) s)
+;      (bytevector-like-copy-into! (car l) 0 (string-length (car l))
+;				  s i)))
+  )
 
 (define (substring s m n)
-  (let ((y (make-bytevector (- n m))))
-    (typetag-set! y sys$tag.string-typetag)
+  (let ((y (alloc-string (- n m))))
     (bytevector-like-copy-into! s m n y 0)
     y))
 
