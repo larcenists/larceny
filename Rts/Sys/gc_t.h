@@ -8,6 +8,7 @@
 #ifndef INCLUDED_GC_T_H
 #define INCLUDED_GC_T_H
 
+#include "config.h"
 #include "larceny-types.h"
 
 struct gc { 
@@ -79,10 +80,31 @@ struct gc {
        Returns a pointer to the allocated object.
        */
 
-  void (*collect)( gc_t *gc, int gen, int bytes_needed );
+  void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t type );
     /* A method that requests that a garbage collection be performed in
        generation `gen', such that at least `bytes_needed' bytes can be
        allocated following the collection.
+       */
+
+  void (*collect_old_with_selective_fromspace)( gc_t *gc, int *fromspaces );
+    /* Takes an array of generation numbers to consider as part of fromspace
+       during the collection, and promotes these into oldspace (or collects 
+       oldspace, promoting them in the process).  
+     
+       There is a write barrier during GC: any promoted object that points to
+       any area not in fromspace must be added to the dynamic area's remembered
+       set.
+     
+       NOTE.  This is an abstraction-breaking hack used by the DOF collector
+       because the GC protocol is not suited to its use.  FIXME.
+       */
+
+  void (*rotate_areas_down)( gc_t *gc, int lo_gen, int hi_gen, int places );
+    /* Rotate areas in range down: low become high, others are shifted "down". 
+       This sets page attributes and makes sure that all cached data are 
+       modified to reflect changes.
+       
+       Only non-nursery ephemeral areas can be rotated.
        */
 
   void (*set_policy)( gc_t *gc, int heap, int x, int y );
@@ -114,6 +136,11 @@ struct gc {
   /* Remembered sets */
   int  (*compact_all_ssbs)( gc_t *gc );
 
+#if defined(SIMULATE_NEW_BARRIER)
+  /* Support for simulated write barrier */
+  int (*isremembered)( gc_t *gc, word w );
+#endif
+
   /* Support for non-predictive collector */
   void (*compact_np_ssb)( gc_t *gc );
   void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim );
@@ -135,25 +162,33 @@ struct gc {
        0 is returned, otherwise 1.
        */
 
+  word *(*make_handle)( gc_t *gc, word obj );
+    /* Store obj in a location visible to the garbage collector and and 
+       return a pointer to the location.  The location may be modified
+       and referenced through the pointer, but the contents of the
+       location may be changed by the garbage collector.
+       */
+       
+  void (*free_handle)( gc_t *gc, word *handle );
+    /* Given a handle returned by make_handle(), return the location
+       to the pool of available locations.
+       */
 
   /* PRIVATE */
   /* Internal to the collector implementation. */
   void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *), void * );
   void (*enumerate_remsets_older_than)( gc_t *gc, int generation,
-				        int (*f)(word, void*, unsigned * ),
+				        bool (*f)(word, void*, unsigned * ),
 				        void *,
 				        bool enumerate_np_remset );
 };
-
-gc_t *create_gc( gc_param_t *params, /* OUT */ int *actual_generations );
-gc_t *create_bdw_gc( gc_param_t *params, /* OUT */ int *actual_generations );
 
 /* Operations.  For prototypes, see the method specs above. */
 
 #define gc_initialize( gc )           ((gc)->initialize( gc ))
 #define gc_allocate( gc, n, nogc, a ) ((gc)->allocate( gc, n, nogc, a ))
 #define gc_allocate_nonmoving( gc,n,a ) ((gc)->allocate_nonmoving( gc, n,a ))
-#define gc_collect( gc,gen,n )        ((gc)->collect( gc,gen,n ))
+#define gc_collect( gc,gen,n,t )      ((gc)->collect( gc,gen,n,t ))
 #define gc_set_policy( gc,h,x,y )     ((gc)->set_policy( gc,h,x,y ))
 #define gc_data_load_area( gc,n )     ((gc)->data_load_area( gc,n ))
 #define gc_text_load_area( gc,n )     ((gc)->text_load_area( gc,n ))
@@ -164,14 +199,22 @@ gc_t *create_bdw_gc( gc_param_t *params, /* OUT */ int *actual_generations );
 #define gc_stack_underflow( gc )      ((gc)->stack_underflow( gc ))
 #define gc_stats( gc,g,stats )        ((gc)->stats( gc,g,stats ))
 #define gc_compact_all_ssbs( gc )     ((gc)->compact_all_ssbs( gc ))
+#if defined(SIMULATE_NEW_BARRIER)
+#define gc_isremembered( gc, w )      ((gc)->isremembered( gc, w ))
+#endif
 #define gc_compact_np_ssb( gc )       ((gc)->compact_np_ssb( gc ))
 #define gc_dump_heap( gc, fn, c )     ((gc)->dump_heap( gc, fn, c ))
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
-
+#define gc_collect_old_with_selective_fromspace( gc, f ) \
+  ((gc)->collect_old_with_selective_fromspace( gc, f ))
+#define gc_rotate_areas_down( gc, l, h, n ) \
+  ((gc)->rotate_areas_down( gc, l, h, n ))
 #define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
+#define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
+#define gc_free_handle( gc, h )       ((gc)->free_handle( gc, f ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -179,7 +222,9 @@ gc_t
 	     int  (*initialize)( gc_t *gc ),
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
-	     void (*collect)( gc_t *gc, int gen, int bytes_needed ),
+	     void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t req ),
+	     void (*collect_old_with_selective_fromspace)( gc_t *gc, int *fromspaces ),
+	     void (*rotate_areas_down)( gc_t *gc, int lo, int hi, int places ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),
@@ -190,15 +235,20 @@ gc_t
 	     void (*stack_underflow)( gc_t *gc ),
 	     void (*stats)( gc_t *gc, int generation, heap_stats_t *stats ),
 	     int  (*compact_all_ssbs)( gc_t *gc ),
+#if defined(SIMULATE_NEW_BARRIER)
+	     int  (*isremembered)( gc_t *gc, word w ),
+#endif
 	     void (*compact_np_ssb)( gc_t *gc ),
 	     void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim),
 	     int  (*load_heap)( gc_t *gc, heapio_t *h ),
 	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
+	     word *(*make_handle)( gc_t *gc, word object ),
+	     void (*free_handle)( gc_t *gc, word *handle ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
 	     void (*enumerate_remsets_older_than)
 	        ( gc_t *gc, int generation,
-		  int (*f)(word, void*, unsigned * ),
+		  bool (*f)(word, void*, unsigned * ),
 		  void *data,
 		  bool enumerate_np_remset )
 	     );

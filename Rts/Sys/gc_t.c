@@ -14,7 +14,9 @@ gc_t
 	     int  (*initialize)( gc_t *gc ),
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
-	     void (*collect)( gc_t *gc, int gen, int bytes_needed ),
+	     void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t req ),
+	     void (*collect_old_with_selective_fromspace)( gc_t *gc, int *fromspaces ),
+	     void (*rotate_areas_down)( gc_t *gc, int lo, int hi, int places ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),
@@ -25,15 +27,20 @@ gc_t
 	     void (*stack_underflow)( gc_t *gc ),
 	     void (*stats)( gc_t *gc, int generation, heap_stats_t *stats ),
 	     int  (*compact_all_ssbs)( gc_t *gc ),
+#if defined(SIMULATE_NEW_BARRIER)
+	     int (*isremembered)( gc_t *gc, word w ),
+#endif
 	     void (*compact_np_ssb)( gc_t *gc ),
 	     void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim),
 	     int  (*load_heap)( gc_t *gc, heapio_t *h ),
 	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
+	     word *(*make_handle)( gc_t *gc, word obj ),
+	     void (*free_handle)( gc_t *gc, word *handle ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
 	     void (*enumerate_remsets_older_than)
 	        ( gc_t *gc, int generation,
-		  int (*f)(word, void*, unsigned * ),
+		  bool (*f)(word, void*, unsigned * ),
 		  void *data, 
 		  bool enumerate_np_remset )
 	     )
@@ -59,6 +66,8 @@ gc_t
   gc->allocate = allocate;
   gc->allocate_nonmoving = allocate_nonmoving;
   gc->collect = collect;
+  gc->collect_old_with_selective_fromspace = collect_old_with_selective_fromspace;
+  gc->rotate_areas_down = rotate_areas_down;
   gc->set_policy = set_policy;
   gc->data_load_area = data_load_area;
   gc->text_load_area = text_load_area;
@@ -71,6 +80,9 @@ gc_t
   gc->stats = stats;
 
   gc->compact_all_ssbs = compact_all_ssbs;
+#if defined(SIMULATE_NEW_BARRIER)
+  gc->isremembered = isremembered;
+#endif
   gc->compact_np_ssb = compact_np_ssb;
 
   gc->np_remset_ptrs = np_remset_ptrs;
@@ -78,6 +90,9 @@ gc_t
   gc->load_heap = load_heap;
   gc->dump_heap = dump_heap;
 
+  gc->make_handle = make_handle;
+  gc->free_handle = free_handle;
+  
   gc->enumerate_roots = enumerate_roots;
   gc->enumerate_remsets_older_than = enumerate_remsets_older_than;
 
