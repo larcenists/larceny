@@ -211,7 +211,6 @@
    (nbuild-files 'compiler 
                  '("pass1" "pass1.aux" "pass2.aux" "prefs" 
                    "syntaxenv" "syntaxrules" "lowlevel" "expand" "usual"
-                   "javadot-macro"
                    ))
    (nbuild-files 'interp-source '("macro-expand"))
    ))

@@ -52,8 +52,6 @@
            "driver-twobit.sch"
            "driver-larceny.sch")
       "printlap.sch"
-      ;;
-      "javadot-macro.sch"
       )))
 
 (define *nbuild:common-asm-be*
