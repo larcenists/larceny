@@ -132,10 +132,10 @@
 (define (memstats:remset:words-used-in-nodepool v i)
   (vector-ref (vector-ref (memstats:remset-info v) i) 1))
 
-(define (memstats:remset:words-allocated-to-hashtable v i)
-  (vector-ref (vector-ref (memstats:remset-info v) i) 2))
+(define (memstats:remset:words-live-in-nodepool v i)
+  (vector-ref (vector-ref (memstats:remset-info v) i) 3))
 
-(define (memstats:remset:words-used-in-hashtable v i)
+(define (memstats:remset:words-allocated-to-hashtable v i)
   (vector-ref (vector-ref (memstats:remset-info v) i) 3))
 
 (define (memstats:remset:objects-recorded v i)
@@ -152,5 +152,17 @@
 
 (define (memstats:remset:transactions-recorded v i)
   (vector-ref (vector-ref (memstats:remset-info v) i) 8))
+
+(define (memstats:remset:times-cleared v i)
+  (vector-ref (vector-ref (memstats:remset-info v) i) 9))
+
+(define (memstats:remset:times-scanned v i)
+  (vector-ref (vector-ref (memstats:remset-info v) i) 10))
+
+(define (memstats:remset:times-compacted v i)
+  (vector-ref (vector-ref (memstats:remset-info v) i) 11))
+
+(define (memstats:remset:max-words v i)
+  (vector-ref (vector-ref (memstats:remset-info v) i) 12))
 
 ; eof
