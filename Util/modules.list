@@ -3,156 +3,140 @@
 ; $Id$
 ;
 ; Experimental setup for loading compiled systems into environments.
-; Each for defines an environment in terms of parent environment, files
-; to load, and entities to import from other environments.  The 
+; Each form defines an environment in terms of parent environment, files
+; to load, and values to import from other environments.  The 
 ; environments must form a DAG with respect to the parent/child relationship,
-; so parents must come before children in the file.
+; and parents must come before children in the file.
 ; 
 ; The names @interaction-environment@ and @toplevel@ are magic.
 
-((environment auxiliary)
- (parent @interaction-environment@)
- (files "Auxlib/misc.fasl"
-	"Auxlib/list.fasl"
-	"Auxlib/string.fasl"
-	"Auxlib/vector.fasl"
-	"Auxlib/sort.fasl"
-	"Auxlib/pp.fasl"
-	"Auxlib/io.fasl"
-	"Experimental/apropos.fasl"
-	"Experimental/system-stuff.fasl"
-	"Experimental/applyhook0.fasl"
-	"Experimental/applyhook.fasl"))
+'((environment auxiliary)
+  (parent @interaction-environment@)
+  (files "Auxlib/misc.fasl"
+	 "Auxlib/list.fasl"
+	 "Auxlib/string.fasl"
+	 "Auxlib/vector.fasl"
+	 "Auxlib/sort.fasl"
+	 "Auxlib/pp.fasl"
+	 "Auxlib/io.fasl"))
 
-((environment debugger)
- (parent auxiliary)
- (files "Debugger/debug.fasl"
-	"Debugger/inspect-cont.fasl"
-	"Debugger/countcalls.fasl"
-	"Debugger/trace.fasl"))
+'((environment experimental)
+  (parent auxiliary)
+  (files "Experimental/apropos.fasl"
+	 "Experimental/system-stuff.fasl"
+	 "Experimental/applyhook0.fasl"
+	 "Experimental/applyhook.fasl"))
 
-((environment compiler)
- (parent auxiliary)
- (files "Larceny/compat2.fasl"
-	"Compiler/sets.fasl"
-	"Compiler/switches.fasl"
-	"Compiler/pass1.aux.fasl"
-	"Compiler/sparc.imp.fasl"
-	"Compiler/pass2.aux.fasl"
- 	"Compiler/pass1.fasl"
-	"Compiler/pass2p1.fasl"
-	"Compiler/pass2p2.fasl"
-	"Compiler/pass4.aux.fasl"
-	"Compiler/pass4p1.fasl"
-	"Compiler/pass4p2.fasl"
-	"Compiler/pass4p3.fasl"
-	"Compiler/pass4patch.fasl"
-	"Compiler/compile313.fasl"
-	"Compiler/printlap.fasl"
-	"Asm/Common/pass5p1.fasl"
-	"Asm/Common/asmutil.fasl"
-	"Asm/Common/asmutil32be.fasl"
-	"Asm/Common/asmutil32.fasl"
-	"Asm/Common/makefasl2.fasl"
-	"Asm/Common/link-lop.fasl"
-	"Build/schdefs.h"
-	"Asm/Sparc/pass5p2.fasl"
-	"Asm/Sparc/sparcasm.fasl"
-	"Asm/Sparc/sparcutil.fasl"
-	"Asm/Sparc/gen-msi.fasl"
-	"Asm/Sparc/gen-prim.fasl"
-	"Asm/Sparc/switches.fasl"
-	"Asm/Sparc/sparcdis.fasl"
-	"Asm/Sparc/peepopt.fasl"
-        "Util/make.fasl"
-	"Util/make-support.fasl"
-	"Util/init-comp.fasl"))
+'((environment debugger)
+  (parent auxiliary)
+  (files "Debugger/debug.fasl"
+	 "Debugger/inspect-cont.fasl"
+	 "Debugger/countcalls.fasl"
+	 "Debugger/trace.fasl"))
 
-((environment @interaction-environment@)
- (imports (auxiliary scheme-system)
-	  (auxiliary most-positive-fixnum)
-	  (auxiliary most-negative-fixnum)
-	  (auxiliary *pi*)
-	  (auxiliary remq!)
-	  (auxiliary remv!)
-	  (auxiliary remove!)
-	  (auxiliary aremq!)
-	  (auxiliary aremv!)
-	  (auxiliary aremove!)
-	  (auxiliary filter)
-	  (auxiliary find)
-	  (auxiliary make-list)
-	  (auxiliary reduce)
-	  (auxiliary reduce-right)
-	  (auxiliary fold-left)
-	  (auxiliary fold-right)
-	  (auxiliary vector-copy)
-	  (auxiliary read-line)
-	  (auxiliary sort)
-	  (auxiliary sort!)
-	  (auxiliary pretty-print)
-	  (auxiliary pretty-print-to-string)
-	  (auxiliary pretty-line-length)
-	  (auxiliary apropos)
-	  (auxiliary count-objects-in-heap)
-	  (auxiliary make-apply-hook)
-	  (auxiliary apply-hook?)
-	  (auxiliary apply-hook-procedure)
-	  (auxiliary set-apply-hook-procedure!)
-	  (auxiliary apply-hook-extra)
-	  (auxiliary set-apply-hook-extra!)
-	  (auxiliary file-newer?)
-	  (auxiliary read-line)
-	  ; Debugging
-	  (debugger debug)
-	  (debugger backtrace)
-	  (debugger trace)
-	  (debugger untrace)
-	  (debugger breakpt)
-	  (debugger unbreak)
-	  (debugger begin-countcalls)
-	  (debugger end-countcalls)
-	  (debugger report-calls)
-	  ; Compilation
-	  (compiler twobit-auxiliary-expander)
-	  (compiler twobit-target-architecture)
-	  (compiler compile-file)
-	  (compiler assemble-file)
-	  (compiler compile-and-assemble-expression)
-	  (compiler disassemble-file)
-	  (compiler disassemble)
-	  ; Compiler and assembler switches
-	  (compiler integrate-usual-procedures)
-	  (compiler local-optimizations)
-	  (compiler benchmark-mode)
-	  (compiler empty-list-is-true)
-	  (compiler issue-warnings)
-	  (compiler include-procedure-names)
-	  (compiler include-variable-names)
-	  (compiler include-source-code)
-	  (compiler peephole-optimization)
-	  (compiler catch-undefined-globals)
-	  (compiler generate-global-symbols)
-	  (compiler inline-allocation)
-	  (compiler write-barrier)
-	  (compiler inline-assignment)
-	  (compiler unsafe-code)
-	  (compiler fast-unsafe-code)
-	  (compiler fast-safe-code)
-	  (compiler disassemble-codevector)
-	  (compiler print-instructions)
-	  (compiler fill-delay-slots)
-	  ; Make utility
-	  (compiler make:new-project)
-	  (compiler make:project?)
-	  (compiler make:rule)
-	  (compiler make:deps)
-	  (compiler make:targets)
-	  (compiler make:pretend)
-	  (compiler make:pretend)
-	  (compiler make:debug)
-	  (compiler make:debug)
-	  (compiler make:make)))
+`((environment compiler)
+  (parent auxiliary)
+  (files "Compat/Larceny/compat2.fasl"
+	 ,@(nbuild:twobit-files)
+	 ,@(nbuild:common-asm-files)
+	 "Asm/Common/link-lop.fasl"
+	 ,@(nbuild:machine-asm-files)
+	 ,@(nbuild:utility-files)
+	 "Util/make-support.fasl"
+	 "Util/init-comp.fasl"))
+
+'((environment @interaction-environment@)
+  (imports (auxiliary scheme-system)
+	   (auxiliary *pi*)
+	   (auxiliary remq!)
+	   (auxiliary remv!)
+	   (auxiliary remove!)
+	   (auxiliary aremq!)
+	   (auxiliary aremv!)
+	   (auxiliary aremove!)
+	   (auxiliary filter)
+	   (auxiliary find)
+	   (auxiliary make-list)
+	   (auxiliary reduce)
+	   (auxiliary reduce-right)
+	   (auxiliary fold-left)
+	   (auxiliary fold-right)
+	   (auxiliary vector-copy)
+	   (auxiliary read-line)
+	   (auxiliary sort)
+	   (auxiliary sort!)
+	   (auxiliary pretty-print)
+	   (auxiliary pretty-line-length)
+	   (auxiliary file-newer?)
+	   (auxiliary read-line)
+	   ; System-level things
+	   (experimental apropos)
+	   (experimental object-representation)
+	   (experimental object-size)
+	   (experimental count-objects-in-heap)
+	   (experimental gctwa)
+	   (experimental room)
+	   (experimental make-apply-hook)
+	   (experimental apply-hook?)
+	   (experimental apply-hook-procedure)
+	   (experimental set-apply-hook-procedure!)
+	   (experimental apply-hook-extra)
+	   (experimental set-apply-hook-extra!)
+	   ; Debugging
+	   (debugger debug)
+	   (debugger backtrace)
+	   (debugger trace)
+	   (debugger untrace)
+	   (debugger breakpt)
+	   (debugger unbreak)
+	   (debugger begin-countcalls)
+	   (debugger end-countcalls)
+	   (debugger report-calls)
+	   ; Compilation
+	   (compiler compile-file)
+	   (compiler assemble-file)
+	   (compiler compile-and-assemble-expression)
+	   (compiler identifier?)
+	   ; Disassembler
+	   (compiler disassemble-codevector)
+	   (compiler print-instructions)
+	   (compiler disassemble-file)
+	   (compiler disassemble)
+	   ; Compiler and assembler switches
+	   (compiler compiler-switches)
+	   (compiler issue-warnings)
+	   (compiler include-procedure-names)
+	   (compiler include-source-code)
+	   (compiler include-variable-names)
+	   (compiler empty-list-is-true)
+	   (compiler ignore-space-leaks)
+	   (compiler integrate-usual-procedures)
+	   (compiler benchmark-mode)
+	   (compiler local-optimizations)
+	   (compiler global-optimizations)
+	   (compiler representation-optimizations)
+	   (compiler lambda-optimizations)
+	   (compiler parallel-assignment-optimization)
+	   (compiler catch-undefined-globals)
+	   (compiler inline-allocation)
+	   (compiler peephole-optimization)
+	   (compiler unsafe-code)
+	   (compiler write-barrier)
+	   (compiler fill-delay-slots)
+	   (compiler slow-code)
+	   (compiler default-code)
+	   (compiler fast-safe-code)
+	   (compiler fast-unsafe-code)
+	   ; Make utility
+	   (compiler make:project)
+	   (compiler make:new-project)
+	   (compiler make:project?)
+	   (compiler make:rule)
+	   (compiler make:deps)
+	   (compiler make:targets)
+	   (compiler make:pretend)
+	   (compiler make:debug)
+	   (compiler make:make)))
 
 ; Remember the find-env procedure.
 
