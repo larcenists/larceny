@@ -335,7 +335,10 @@
     (environment-set! larc 'make-procedure make-procedure)
     (environment-set! larc 'enable-interrupts enable-interrupts)
     (environment-set! larc 'disable-interrupts disable-interrupts)
-    (environment-set! larc 'interrupt-handler interrupt-handler)
+;    (environment-set! larc 'interrupt-handler interrupt-handler)
+    (environment-set! larc 'timer-interrupt-handler timer-interrupt-handler)
+    (environment-set! larc 'keyboard-interrupt-handler 
+                      keyboard-interrupt-handler)
     (environment-set! larc 'call-without-interrupts call-without-interrupts)
     (environment-set! larc 'standard-timeslice standard-timeslice)
     (environment-set! larc 'procedure-arity procedure-arity)
@@ -380,6 +383,16 @@
     (environment-set! r4rs 'transcript-on transcript-on)
     (environment-set! r4rs 'transcript-off transcript-off)
     ;; not in R4RS:
+    (environment-set! larc 'open-binary-input-file open-binary-input-file)
+    (environment-set! larc 'open-binary-output-file open-binary-output-file)
+    (environment-set! larc 'call-with-binary-input-file 
+                           call-with-binary-input-file)
+    (environment-set! larc 'call-with-binary-output-file 
+                           call-with-binary-output-file)
+    (environment-set! larc 'with-input-from-binary-file
+                           with-input-from-binary-file)
+    (environment-set! larc 'with-output-to-binary-file 
+                           with-output-to-binary-file)
     (environment-set! larc 'open-input-string open-input-string)
     (environment-set! larc 'open-output-string open-output-string)
     (environment-set! larc 'get-output-string get-output-string)
@@ -411,6 +424,7 @@
 
     (environment-set! larc 'error error)
     (environment-set! larc 'error-handler error-handler)
+    (environment-set! larc 'decode-error decode-error)
     (environment-set! larc 'call-with-error-handler call-with-error-handler)
     (environment-set! larc 'call-without-errors call-without-errors)
     (environment-set! larc 'reset reset)
