@@ -13,6 +13,10 @@
 ; You must load tasking.sch first because this file captures and 
 ; overrides some procedures from that file.
 
+(require 'experimental/poll)
+(require 'experimental/nonblocking-console)
+(require 'experimental/tasking)
+
 (define-syntax tasks/without-interrupts    ; Unchanged
   (syntax-rules ()
     ((tasks/without-interrupts E0 E1 ...)
@@ -34,7 +38,7 @@
       (if *tasking-on* (error "Tasking is already on."))
       (disable-interrupts)
       (set! *old-console-input-port-factory* (console-input-port-factory))
-      (set! *old-console-output-porty-factory* (console-output-port-factory))
+      (set! *old-console-output-port-factory* (console-output-port-factory))
       (console-input-port-factory nonblocking-console-input-port)
       (console-output-port-factory nonblocking-console-output-port)
       (begin-tasking))))
