@@ -4,12 +4,24 @@
 
 ; The primitives should be macros!
 
-(define make-bytevector make-vector)
-(define bytevector-ref vector-ref)
-(define bytevector-set! vector-set!)
-(define bytevector-length vector-length)
+(define *bv-key* (vector 'bytevector))
+
+(define (make-bytevector n)
+  (let ((v (make-vector (+ n 1) '*bv-init*)))
+    (vector-set! v 0 *bv-key*)
+    v))
+
+(define (bytevector-ref bv k) (vector-ref bv (+ k 1)))
+(define (bytevector-set! bv k v) (vector-set! bv (+ k 1) v))
+(define (bytevector-length bv) (- (vector-length bv) 1))
 (define bytevector-copy vector-copy)
-(define (bytevector? x) #f)
+(define (bytevector? x) 
+  (and (vector? x)
+       (> (vector-length x) 0)
+       (equal? (vector-ref x 0) *bv-key*)))   ; [sic]
+
+(define (list->bytevector l)
+  (list->vector (cons *bv-key* l)))
 
 (define bytevector-tag-set! (lambda (x y) '()))
 
@@ -34,5 +46,17 @@
 	  (if (sign-negative? (bignum-sign b))
 	      (- f)
 	      f)))))
+
+(define (write-bytevector-like bv . rest)
+  (cond ((bytevector? bv)
+	 (let ((limit (vector-length bv))
+	       (port  (if (null? rest) (current-output-port) (car rest))))
+	   (do ((i 1 (+ i 1)))
+	       ((= i limit))
+	     (write-char (integer->char (vector-ref bv i)) port))))
+	((string? bv)
+	 (apply display bv rest))
+	(else
+	 ???)))
 
 ; eof

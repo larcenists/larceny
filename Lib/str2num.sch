@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: str2num.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
+; $Id: str2num.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
 ;
 ;                                      16 April 1990 / lightship
 ;

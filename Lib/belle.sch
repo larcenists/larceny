@@ -1,6 +1,6 @@
 ; Copyright Lightship Software
 ;
-; $Id: belle.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
+; $Id: belle.sch,v 1.2 1997/07/18 13:55:49 lth Exp $
 ;
 ; A version of Algorithm Bellerophon for implementations
 ; of Scheme that support IEEE double precision arithmetic

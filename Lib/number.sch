@@ -1,16 +1,14 @@
 ; Lib/number.sch
 ; Larceny library -- arithmetic functions.
 ;
-; $Id: number.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
+; $Id: number.sch,v 1.6 1997/08/22 21:05:14 lth Exp $
 ; 
 ; Parts of this file is Copyright Lightship Software.
 ; Additional code and modifications by Lars Hansen.
 
 ($$trace "number")
 
-; FIXME: this is a poor approximation indeed.
-
-(define *pi* 3.14159)
+(define *pi* 3.14159265358979323846)           ; from <math.h>
 
 (define positive? (lambda (x) (> x 0)))
  
@@ -106,17 +104,17 @@
                      (cons (lcm (car args) (cadr args))
                            (cddr args))))))
 
-(define modulo
-  (lambda (x y)
-    (let* ((q (quotient x y))
-           (r (- x (* q y))))
-      (if (negative? r)
-          (if (negative? y)
-              r
-              (+ r y))
-          (if (negative? y)
-              (+ r y)
-              r)))))
+(define (modulo x y)
+  (let* ((q (quotient x y))
+	 (r (- x (* q y))))
+    (cond ((negative? r)
+	   (if (negative? y)
+	       r
+	       (+ r y)))
+	  ((negative? y)
+	   (+ r y))
+	  (else
+	    r))))
 
 (define (expt x y)
 
@@ -271,7 +269,7 @@
 ; Formula for complex square root from CLtL2, p310.
 
 (define (sqrt z)
-  (cond ((flonum? z)
+  (cond ((and (flonum? z) (>= z 0.0))
 	 (flonum:sqrt z))
 	((not (real? z))
 	 (exp (/ (log z) 2)))
@@ -358,7 +356,7 @@
 ; Complex/negative case from the R^4.95RS, p25.
 
 (define (log z)
-  (cond ((flonum? z)
+  (cond ((and (flonum? z) (> z 0.0))
 	 (flonum:log z))
 	((or (not (real? z)) (< z 0))
 	 (+ (log (magnitude z)) (* +1.0i (angle z))))

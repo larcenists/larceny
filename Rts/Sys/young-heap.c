@@ -1,7 +1,7 @@
 /* Rts/Sys/young-heap.c
  * Larceny run-time system -- youngest heap.
  *
- * $Id: young-heap.c,v 1.13 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: young-heap.c,v 1.14 1997/09/17 15:17:26 lth Exp lth $
  *
  * Contract
  *
@@ -110,6 +110,8 @@ create_young_heap( int *gen_no,
   data = (young_data_t*)must_malloc( sizeof( young_data_t ) );
 
   heap->id = "sc/fixed";
+  heap->code = HEAPCODE_YOUNG_2SPACE;
+
   heap->initialize = initialize;
   heap->creg_get = creg_get;
   heap->creg_set = creg_set;
@@ -198,12 +200,15 @@ set_policy( young_heap_t *heap, int op, unsigned value )
   young_data_t *data = DATA(heap);
 
   switch (op) {
-  case 8 : /* oflomark */
+  case GCCTL_OFLOMARK :
     if ( value > 100 )
         value = 100;
     if ( value <= 0 )
         data->promote_always = 1;
-    else data->watermark = (data->heapsize/100)*value;
+    else {
+      data->promote_always = 0;
+      data->watermark = (data->heapsize/100)*value;
+    }
     break;
   }
 }

@@ -1,7 +1,7 @@
 /* Rts/Sys/np-sc-heap.c
  * Larceny run-time system -- non-predictive copying collector.
  *
- * $Id: np-sc-heap.c,v 1.11 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: np-sc-heap.c,v 1.12 1997/09/17 15:17:26 lth Exp lth $
  *
  * The collector divides the heap into two generations.  Each generation
  * is represented by one semispace_t data type: one for the old generation,
@@ -208,6 +208,8 @@ allocate_heap( unsigned gen_no, unsigned heap_no )
 
   heap->oldest = 0;
   heap->id = "npsc/2/variable";
+  heap->code = HEAPCODE_OLD_2SPACE_NP;
+
   heap->data = data;
 
   heap->initialize = initialize;
@@ -237,22 +239,26 @@ set_policy( old_heap_t *heap, int op, unsigned value )
   npsc_data_t *data = DATA(heap);
 
   switch (op) {
-  case 0 : /* j-fixed */
+  case GCCTL_J_FIXED : /* j-fixed */
     data->pin_j = 1;
     data->pin_value = value;
     if (data->j > value) data->j = value;  /* Hack. */
     break;
-  case 1 : /* j-percent */
+  case GCCTL_J_PERCENT : /* j-percent */
     data->pin_j = 0;
     data->j_percent = value;
     break;
-  case 2 : /* incr-fixed */
+  case GCCTL_INCR_FIXED : /* incr-fixed */
     data->expansion_fixed = 1;
     data->expand_fixed = value;
     break;
-  case 3 : /* incr-percent */
+  case GCCTL_INCR_PERCENT : /* incr-percent */
     data->expansion_fixed = 0;
     data->expand_percent = value;
+    break;
+  case GCCTL_LOMARK : /* lomark -- contraction limit */
+    if (value > 100) value = 100;
+    data->lo_mark = value;
     break;
   }
 }

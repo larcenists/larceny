@@ -1,7 +1,7 @@
 ; Lib/ratnums.sch
 ; Larceny library  -  Scheme code for ratnum arithmetic.
 ;
-; $Id: ratnums.sch,v 1.2 1997/07/07 20:52:12 lth Exp lth $
+; $Id: ratnums.sch,v 1.3 1997/07/18 13:55:49 lth Exp $
 ;
 ; (Originally written by Remy Evard; extensively modified by Lars Hansen.)
 ;

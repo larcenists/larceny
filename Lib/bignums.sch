@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id: bignums.sch,v 1.3 1997/07/07 20:45:06 lth Exp $
+; $Id: bignums.sch,v 1.5 1997/09/17 15:13:23 lth Exp lth $
 ;
 ; Larceny runtime system.
 ; Scheme code for bignum arithmetic.
@@ -103,6 +103,8 @@
 
 (define smallest-positive-bignum 536870912)  ; 2^29
 (define largest-negative-bignum -536870913)  ; -(2^29+1)
+(define most-negative-fixnum    -536870912)  ; -(2^29)
+(define most-positive-fixnum     536870911)  ; 2^29-1
 
 (define negative-sign 1)                     ; the sign of a negative bignum
 (define positive-sign 0)                     ; ditto of a positive one
@@ -190,6 +192,7 @@
 ; can then go away.
 
 (define bignum-base)
+(define bignum-base/2)
 (define bigit-mask)
 (define bigit-shift)
 (define bigits-per-fixnum)
@@ -304,6 +307,7 @@
 	  (bignum-set! b ln 0))))
 
   (set! bignum-base (* 256 256))
+  (set! bignum-base/2 (* 256 128))
   (set! bigit-mask #xFFFF)
   (set! bigit-shift 16)
   (set! bigits-per-fixnum 2)
@@ -551,12 +555,18 @@
 ;		  (loop (- i 1) (+ (* bignum-base n) (bignum-ref b i)))))))
 ;    (loop (- (bignum-length b) 1) 0)))
 
+; Assumes that the number fits in a fixnum.
+
 (define (bignum->fixnum b)
-  (let ((c (logior (lsh (bignum-ref b 1) bigit-shift)
-		   (bignum-ref b 0))))
-    (if (sign-negative? (bignum-sign b))
-	(- c)
-	c)))
+  (let ((d0 (bignum-ref b 0))
+	(d1 (bignum-ref b 1))
+	(n  (sign-negative? (bignum-sign b))))
+    (if (>= (lsh d1 2) bignum-base/2)
+	most-negative-fixnum
+	(let ((c (logior (lsh d1 bigit-shift) d0)))
+	  (if n
+	      (- c)
+	      c)))))
 
 ; Can't use `big-normalize!' because it'd convert it back to a fixnum.
 ; (Could use big-limited-normalize, though.)
@@ -699,7 +709,7 @@
 (define (bignum-negate a)
   (let ((b (bignum-copy a)))
     (flip-sign! b)
-    b))
+    (big-normalize! b)))
 
 ; relational operators
 
@@ -827,35 +837,34 @@
 ; a third, possibly negative, bignum c.
 
 (define (big-subtract-digits a b)
-  (let ((x    (big-compare-digits a b)))  ; FIXME: Potentially expensive.
+  (let ((x (big-compare-magnitude a b)))  ; FIXME: Potentially expensive.
+    ;; Set up so that abs(a) >= abs(b)
     (let ((a    (if (negative? x) b a))
 	  (b    (if (negative? x) a b)))
       (let* ((la   (bignum-length a))
 	     (lb   (bignum-length b))
-	     (lmax (max la lb))
-	     (lmin (min la lb))
+	     (lmax la)
+	     (lmin lb)
 	     (c    (bignum-alloc (+ lmax 1)))) ; FIXME: are you sure?
 
-	; subtract common segments
+	; Subtract common segments
 
-	(letrec ((loop 
-		  (lambda (i borrow)
-		    (if (< i lmin)
-			(loop (+ i 1) (big2- a b c i borrow))
+	(define (loop-common i borrow)
+	  (if (< i lmin)
+	      (loop-common (+ i 1) (big2- a b c i borrow))
+	      (loop-rest (if (= i la) b a) i borrow)))
+
+	; Subtract borrow through longest number
+
+	(define (loop-rest rest i borrow)
+	  (if (< i lmax)
+	      (loop-rest rest (+ i 1) (big1- rest c i borrow))
+	      (begin (if (negative? x)
+			 (flip-sign! c))
+		     c)))
 	  
-			; subtract borrow through longest number
+	(loop-common 0 0)))))
 
-			(let ((rest (if (= i la) b a)))
-			  (letrec ((loop2
-				    (lambda (i borrow)
-				      (if (< i lmax)
-					  (loop2 (+ i 1)
-						 (big1- rest c i borrow))
-					  (begin (if (negative? x)
-						     (flip-sign! c))
-						 c)))))
-			    (loop2 i borrow)))))))
-	  (loop 0 0))))))
 
 ; Multiply the digits of two positive bignums, producing a third,
 ; positive, bignum.
@@ -990,13 +999,13 @@
 	       1))
 	  (else
 	   (if (sign-negative? sa)
-	       (- (big-compare-digits a b))
-	       (big-compare-digits a b))))))
+	       (- (big-compare-magnitude a b))
+	       (big-compare-magnitude a b))))))
 
 ; FIXME: this loop is a natural for optimization:
-;  (big-cmp-digits a b i) => integer
+;  (big-cmp-magnitude a b i) => integer
 
-(define (big-compare-digits a b)
+(define (big-compare-magnitude a b)
   (let ((la (bignum-length a))
 	(lb (bignum-length b)))
     (if (not (= la lb))

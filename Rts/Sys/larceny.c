@@ -1,13 +1,12 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.15 1997/07/07 20:09:30 lth Exp $
+ * $Id: larceny.c,v 1.17 1997/09/17 15:17:26 lth Exp lth $
  *
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
 
 #include <stdio.h>
-#include <signal.h>
 #include <stdarg.h>
 #include <memory.h>
 #include <malloc.h>
@@ -43,7 +42,6 @@ struct opt {
 };
 
 static void invalid( char *s );
-static void handle_signals( int ifreq );
 static void usage( void );
 static void help( void );
 static void parse_options( int argc, char **argv, opt_t *opt );
@@ -78,7 +76,7 @@ char **argv;
   o.gc_info.globals = globals;
 
   cache_setup();
-  consolemsg( "Larceny v%s/%s (%s;%s) (%s/%s)",
+  consolemsg( "Larceny v%s (%s;%s;%s) (%s/%s)",
 	      version, 
 	      gc_technology,
 	      osname, 
@@ -116,7 +114,7 @@ char **argv;
   openheap( o.heapfile );
 
   if (o.gc_info.use_static_heap)
-    o.gc_info.static_size = heap_ssize() + heap_tsize();
+    o.gc_info.static_size = heap_text_size() + heap_data_size();
 
   if (!allocate_heap( &o.gc_info ))
     panic( "Unable to allocate heap/create garbage collector." );
@@ -145,10 +143,11 @@ char **argv;
     (o.enable_singlestep ? TRUE_CONST : FALSE_CONST );
   globals[ G_TIMER_ENABLE ] =
     (o.enable_timer ? TRUE_CONST : FALSE_CONST );
-  globals[ G_TIMER ] = o.timerval;
+  globals[ G_TIMER ] = 0;
+  globals[ G_TIMER2 ] = o.timerval;
   globals[ G_RESULT ] = fixnum( 0 );  /* No arguments */
 
-  handle_signals( 0 /* FIXME -- unused */ );
+  setup_signal_handlers();
   init_stats( o.show_heapstats );
 
   /* Allocate vector of command line arguments and pass it as an
@@ -255,46 +254,6 @@ void hardconsolemsg( const char *fmt, ... )
   vfprintf( stderr, fmt, args );
   va_end( args );
   fprintf( stderr, "\n" );
-}
-
-
-/****************************************************************************
- *
- * Signal handling.
- *
- */
-static void handle_signals( int ifreq )
-{
-  static void inthandler();
-  static void fpehandler();
-
-  signal( SIGINT, inthandler );
-  signal( SIGQUIT, inthandler );
-  signal( SIGFPE, fpehandler );
-}
-
-
-static void inthandler( int sig, int code, struct sigcontext *scp, char *addr )
-{
-  /* The commented-out code works, but the world is not quite ready for it */
-#if 0
-  word g;
-
-  g = globals[ G_SIGNALS ];
-  if (g != FALSE_CONST)		/* make sure it's installed */
-    vector_set(gcell_ref(g), sig, vector_ref(gcell_ref(g), sig)+fixnum( 1 ));
-#endif
-
-  /* Eventually this should do something intelligent to clear the timer... */
-  hardconsolemsg( "Caught signal -- exiting.\n" );
-  /* can't go to localdebugger because the registers are not saved */
-  exit( 1 );
-}
-
-static void fpehandler()
-{
-  hardconsolemsg( "Arithmetic exception (SIGFPE).\n" );
-  exit( 1 );
 }
 
 
@@ -410,6 +369,10 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.use_static_heap = 0;
     else if (strcmp( *argv, "-reorganize-and-dump" ) == 0)
       o->reorganize_and_dump = 1;
+    else if (strcmp( *argv, "-nocontract" ) == 0)
+      o->gc_info.disable_contraction = 1;
+    else if (strcmp( *argv, "-nonursery" ) == 0)
+      o->gc_info.disable_nursery = 1;
     else if (strcmp( *argv, "-args" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
@@ -544,6 +507,8 @@ static void help( void )
   consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
   consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
   consolemsg("\t-nostatic       Don't use the static area." );
+  consolemsg("\t-nocontract     Disable heap contraction." );
+  consolemsg("\t-nonursery      Disable nursery." );
   consolemsg("\t-reorganize-and-dump  Split static heap." );
 #endif
   consolemsg("\t-stats          Print startup memory statistics." );

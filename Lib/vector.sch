@@ -3,7 +3,7 @@
 ;
 ; Larceny library -- vector procedures
 ;
-; $Id: vector.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
+; $Id: vector.sch,v 1.2 1997/07/18 13:55:49 lth Exp $
 
 ($$trace "vector")
 

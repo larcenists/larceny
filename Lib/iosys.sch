@@ -1,7 +1,7 @@
 ; Lib/iosys.sch
 ; Larceny -- New I/O system
 ;
-; *$Id: iosys.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
+; *$Id: iosys.sch,v 1.6 1997/08/22 21:05:14 lth Exp $
 ;
 ; Design: the system is designed so that in the common case, very few
 ; procedure calls are executed.
@@ -16,19 +16,20 @@
 (define port.iodata     2) ; port-specific data
 (define port.ioproc     3) ; port*symbol -> void
 (define port.buffer     4) ; a string or #f: i/o buffer
+(define port.error?     5) ; boolean: #t after error
 
 ; input ports
 
-(define port.rd-eof?    5) ; boolean: input port at EOF
-(define port.rd-lim     6) ; nonnegative fixnum: index beyond last char
-(define port.rd-ptr     7) ; nonnegative fixnum: next loc for input
+(define port.rd-eof?    6) ; boolean: input port at EOF
+(define port.rd-lim     7) ; nonnegative fixnum: index beyond last char
+(define port.rd-ptr     8) ; nonnegative fixnum: next loc for input
 
 ; output ports
 
-(define port.wr-flush?  8) ; boolean: discretionary output flushing
-(define port.wr-ptr     9) ; nonnegative fixnum: next loc for output
+(define port.wr-flush?  9) ; boolean: discretionary output flushing
+(define port.wr-ptr    10) ; nonnegative fixnum: next loc for output
 
-(define port.structure-size 10)      ; size of port structure
+(define port.structure-size 11)      ; size of port structure
 (define port.buffer-size    1024)    ; length of default I/O buffer
 
 
@@ -43,6 +44,7 @@
 	   (vector-like-set! p port.rd-lim 0)
 	   (vector-like-set! p port.rd-eof? #t))
 	  ((eq? r 'error)
+	   (vector-like-set! p port.error? #t)
 	   (error "Read error on port " p)
 	   #t)
 	  (else
@@ -59,6 +61,7 @@
 	(cond ((eq? r 'ok)
 	       (vector-like-set! p port.wr-ptr 0))
 	      ((eq? r 'error)
+	       (vector-like-set! p port.error? #t)
 	       (error "Write error on port " p)
 	       #t)
 	      (else
@@ -204,6 +207,30 @@
       (begin (error "write-char: not an output port: " p)
 	     #t)))
 
+; This is _not_ clean, but other parts of the I/O system may currently
+; depend on a string (rather than bytevector-like) buffer.  This should
+; be checked, and fixed.  FIXME.
+;
+; Also, for short strings, it might be more effective to copy rather than
+; flush.  This procedure is really most useful for long strings, and was
+; written to speed up fasl file writing.
+
+(define (io/write-bytevector-like bvl p)
+  (if (and (port? p) (vector-like-ref p port.output?))
+      (let ((buf (vector-like-ref p port.buffer))
+	    (tt  (typetag bvl)))
+	(io/flush-buffer p)
+	(vector-like-set! p port.buffer bvl)
+	(vector-like-set! p port.wr-ptr (bytevector-like-length bvl))
+	(typetag-set! bvl sys$tag.string-typetag)
+	(io/flush-buffer p)
+	(typetag-set! bvl tt)
+	(vector-like-set! p port.buffer buf)
+	(vector-like-set! p port.wr-ptr 0)
+	(unspecified))
+      (begin (error "io/write-bytevector-like: not an output port: " p)
+	     #t)))
+  
 (define (io/discretionary-flush p)
   (if (and (port? p) (vector-like-ref p port.output?))
       (if (vector-like-ref p port.wr-flush?)
@@ -232,5 +259,8 @@
 
 (define (io/port-name p)
   (((vector-like-ref p port.ioproc) 'name) (vector-like-ref p port.iodata)))
+
+(define (io/port-error-condition? p)
+  (vector-like-ref p port.error?))
 
 ; eof

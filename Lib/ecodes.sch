@@ -74,3 +74,5 @@
 (define $ex.char>=? 119)
 (define $ex.bvfill 120)
 (define $ex.enable-interrupts 121)
+(define $ex.keyboard-interrupt 122)
+(define $ex.arithmetic-exception 123)

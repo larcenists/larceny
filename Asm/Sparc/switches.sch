@@ -1,7 +1,7 @@
 ; Asm/Sparc/switches.sch
 ; Larceny -- Switches for the Sparc assembler
 ;
-; $Id: switches.sch,v 1.1 1997/07/07 20:36:24 lth Exp lth $
+; $Id: switches.sch,v 1.2 1997/07/18 13:43:13 lth Exp $
 
 ; INTERNAL!
 (define short-effective-addresses

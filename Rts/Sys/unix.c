@@ -1,12 +1,10 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.8 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: unix.c,v 1.9 1997/08/25 13:07:31 lth Exp $
  *
  * RTS call-outs, for Unix.
  */
-
-static char *getfilename();
 
 /* Welcome to Unix */
 #include <sys/types.h>
@@ -24,10 +22,12 @@ static char *getfilename();
 #include "macros.h"
 #include "cdefs.h"
 
+static char *getstring( word w );
+
 void UNIX_openfile( w_fn, w_flags, w_mode )
 word w_fn, w_flags, w_mode;
 {
-  char *fn = getfilename( w_fn );
+  char *fn = getstring( w_fn );
   int flags = nativeint( w_flags );
   int mode = nativeint( w_mode );
   int newflags = 0;
@@ -48,7 +48,7 @@ word w_fn, w_flags, w_mode;
 void UNIX_unlinkfile( w_fn )
 word w_fn;
 {
-  char *fn = getfilename( w_fn );
+  char *fn = getstring( w_fn );
   if (fn == 0) {
     globals[ G_RESULT ] = fixnum( -1 );
     return;
@@ -89,7 +89,7 @@ word w_fn, w_proc;
 {
   char *fn;
 
-  fn = getfilename( w_fn );                      /* heap file name */
+  fn = getstring( w_fn );                      /* heap file name */
   globals[ G_STARTUP ] = w_proc;                 /* startup procedure */
 
   if (fn == 0 || dump_heap( fn ) == -1)
@@ -105,7 +105,7 @@ word w_fn, w_buf;
   struct stat buf;
   struct tm *tm;
 
-  if (stat( getfilename( w_fn ), &buf ) == -1) {
+  if (stat( getstring( w_fn ), &buf ) == -1) {
     globals[ G_RESULT ] = fixnum( -1 );
     return;
   }
@@ -129,7 +129,7 @@ word w_fn, w_bits;
   if (bits & 0x02) newbits |= R_OK;
   if (bits & 0x04) newbits |= W_OK;
   if (bits & 0x08) newbits |= X_OK;
-  globals[ G_RESULT ] = fixnum(access(getfilename(w_fn), newbits ));
+  globals[ G_RESULT ] = fixnum(access(getstring(w_fn), newbits ));
 }
 
 void UNIX_rename( w_from, w_to )
@@ -137,8 +137,8 @@ word w_from, w_to;
 {
   char fnbuf[ 1024 ];
 
-  strcpy( fnbuf, getfilename( w_from ) );
-  globals[ G_RESULT ] = fixnum( rename( fnbuf, getfilename( w_to ) ) );
+  strcpy( fnbuf, getstring( w_from ) );
+  globals[ G_RESULT ] = fixnum( rename( fnbuf, getstring( w_to ) ) );
 }
 
 void UNIX_pollinput( w_fd )
@@ -164,7 +164,7 @@ word w_envvar;
   word *q;
   int l;
 
-  p = getenv( getfilename( w_envvar ) );
+  p = getenv( getstring( w_envvar ) );
   if (p == 0) {
     globals[ G_RESULT ] = FALSE_CONST;
     return;
@@ -191,8 +191,7 @@ word w_bv;
 }
 
 /* Copy a file name from a Scheme string to a C string. */
-static char *getfilename( w_str )
-word w_str;
+static char *getstring( word w_str )
 {
   static char fnbuf[ 1024 ];
   size_t l;
@@ -243,7 +242,7 @@ numeric_onearg( UNIX_flonum_sqrt, sqrt )
 void UNIX_stats_dump_on( w_fn )
 word w_fn;
 {
-  char *fn = getfilename( w_fn );
+  char *fn = getstring( w_fn );
   globals[ G_RESULT ] = fixnum( stats_opendump( fn ) );
 }
 
@@ -272,6 +271,12 @@ void UNIX_block_signals( word code )
     old_mask = sigsetmask( -1 );
   else if (code == fixnum(0))
     sigsetmask( old_mask );
+}
+
+void UNIX_system( word w_cmd )
+{
+  char *cmd = getstring( w_cmd );
+  globals[ G_RESULT ] = system( cmd );
 }
 
 /* eof */

@@ -693,6 +693,8 @@ Ldiv_fix:
 	mov	EX_DIV, %TMP0
 1:
 #endif
+	set	EX_DIV, %TMP0
+	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
 	save	%sp, -104, %sp
 	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
@@ -700,8 +702,10 @@ Ldiv_fix:
 	sra	%SAVED_ARGREG2, 2, %o1
 	!ld	[ %fp-4 ], %STKLIM
 	cmp	%o0, 0
-	bne,a	Ldiv_fix2
 	restore
+	bne	Ldiv_fix2
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
+
 	! no need to store STKLIM again
 	sra	%SAVED_RESULT, 2, %o0
 	call	.div
@@ -746,6 +750,8 @@ EXTNAME(m_generic_quo):
 	mov	EX_QUOTIENT, %TMP0
 1:
 #endif
+	set	EX_QUOTIENT, %TMP0
+	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
 	save	%sp, -104, %sp
 	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
@@ -753,8 +759,9 @@ EXTNAME(m_generic_quo):
 	sra	%SAVED_ARGREG2, 2, %o1
 	!ld	[ %fp-4 ], %STKLIM
 	sll	%o0, 2, %SAVED_RESULT
-	jmp	%i7+8
 	restore
+	jmp	%o7+8
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 Lquotient1:
 	set	TRUE_CONST, %ARGREG3
 	!FALLTHROUGH
@@ -852,6 +859,8 @@ EXTNAME(m_generic_rem):
 1:
 #endif
 	! Both fixnums
+	set	EX_REMAINDER, %TMP0
+	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
 	save	%sp, -104, %sp
 	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
@@ -859,8 +868,9 @@ EXTNAME(m_generic_rem):
 	sra	%SAVED_ARGREG2, 2, %o1
 	!ld	[ %fp-4 ], %STKLIM
 	sll	%o0, 2, %SAVED_RESULT
-	jmp	%i7+8
 	restore
+	jmp	%o7+8
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 
 Lremainder1:
 	b	Lquotrem

@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.17 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: larceny.h,v 1.18 1997/09/17 15:17:26 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -44,14 +44,17 @@ extern void hardconsolemsg( const char *fmt, ... );
 
 /* In "Rts/Sys/heapio.c" */
 
-#ifndef GC_INTERNAL
-extern void openheap( char *filename );
-extern unsigned heap_ssize( void );
-extern unsigned heap_tsize( void );
+#if !defined( GC_INTERNAL ) && !defined( HEAPIO_INTERNAL )
+extern void openheap( const char *filename );
+extern int heap_is_bootstrap( void );
+extern unsigned heap_text_size( void );
+extern unsigned heap_data_size( void );
 extern void closeheap( void );
-extern void load_heap_image( word *sbase, word *tbase, word *globals );
-extern int dump_heap_image( char *filename, semispace_t *data, 
-			    semispace_t *text, word *globals );
+extern void load_bootstrap_heap( word *sbase, word *tbase, word *globals );
+extern void load_dumped_heap( word *globals );
+extern int dump_bootstrap_heap( char *filename, semispace_t *data, 
+			        semispace_t *text, word *globals );
+extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 #endif
 
 /* In "Rts/Sys/gc.c" -- an old-looking front-end for the new collector */
@@ -59,7 +62,9 @@ extern int dump_heap_image( char *filename, semispace_t *data,
 #ifndef GC_INTERNAL
 extern int  allocate_heap( gc_param_t *params );
 extern word *alloc_from_heap( unsigned );
+#if 0
 extern void garbage_collect( int, unsigned );
+#endif
 extern void garbage_collect3( unsigned, unsigned, unsigned );
 extern int  compact_ssb( void );
 extern void load_heap( void );
@@ -138,6 +143,7 @@ extern void UNIX_gcctl_np();
 extern void UNIX_block_signals();
 extern void UNIX_flonum_sinh();
 extern void UNIX_flonum_cosh();
+extern void UNIX_system();
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -180,6 +186,10 @@ extern word allocate_argument_vector( int argc, char **argv );
 
 extern void *must_malloc( unsigned bytes );
 extern void *must_realloc( void *ptr, unsigned size );
+
+/* In "Rts/Sys/signals.c" */
+
+void setup_signal_handlers( void );
 
 /* In "Rts/$MACHINE/glue.s" */
 

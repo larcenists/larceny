@@ -1,6 +1,78 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.8 1997/07/07 20:28:23 lth Exp lth $
+; $Id: CHGLOG,v 1.10 1997/09/17 15:24:39 lth Exp lth $
+
+
+----------------------------------------------------------------------
+v0.29 not yet released
+
+MAJOR FEATURES:
+* System is now self-hosting.
+* New, fast SPARC assembler.
+* Keyboard interrupt handling -- ^C no longer aborts Larceny, but
+  returns to the top level.  There is an installable interrupt handler.
+* Arithmetic exceptions are handled and no longer abort larceny.
+* Timer interrupts have been tested extensively and are working.
+* First-class top-level environments.
+* Compiler load script (see manual) uses top-level environments for
+  namespace control.
+* Changes to garbage collector: a "nursery" (always-promoting) youngest
+  generation is the default; this can be disabled with -nonursery.
+  This facility is in its infancy.
+
+
+[misc Rts]
+  Garbage collector defaults have changed.  The default now is to always
+  promote out of the youngest heap (thereby emulating a nursery); the
+  old behavior can be had with the command line switch -nonursery.
+  Also, a new command line switch -nocontract can be given to disable all
+  heap contraction; this is useful for some benchmarking purposes.
+
+[Lib/unix.sch; Lib/toplevel.sch; 
+  Rts/Sys/unix.c; Rts/Sys/cglue.c; Rts/Sys/larceny.h]
+  Implemented `system' procedure.
+
+[Compiler/dumpheap.sch; Util/nbuild.sch]
+  Dumpheap moved to Asm/Common; build script updated.
+
+[Compiler/makefasl.sch; Util/nbuild.sch]
+  Makefasl moved to Asm/Common; build script updated.
+
+[Compiler/make.sch; Util/nbuild.sch; ./nbuild]
+  Scheme files moved to Util; build script updated.
+
+[Compiler/freevars.sch]
+  Moved to Util.
+
+[Asm/Sparc/gen-prim.sch]
+  [011] Fixed bugs in the way error reporting code was generated; error
+  messages should now be correct.
+  [033] char=? is now less liberal in the types it accepts.
+
+[Rts/Sparc/mcode.s, Rts/Sparc/glue.s, Rts/Sys/signals.c, Rts/Sys/cglue.c]
+  Keyboard interrupts now work!  They are not particularly sophisticated,
+  and not restartable, and must be redesigned when we get threads, but
+  it's a big improvement over what we had (i.e., nothing).
+
+[Rts/Sparc/mcode.s, Rts/Sparc/generic.s, Rts/Sys/signals.c]
+  Division by zero is now handled without testing!  Also, general arithmetic
+  exception handling is in place, even though it has not been tested
+  extensively.
+
+[Lib/env.sch; Eval/toplevel.sch]
+  We now have proper first-class toplevel environments, and R5RS environments
+  are properly supported in terms of these.
+
+[Rts/Sparc/glue.s]
+  Fixed several serious bugs in internal_scheme_call where context would 
+  be destroyed if a stack overflow happened in internal_scheme_call.
+
+[Asm/Sparc-old/gen-msi.sch]
+  Fixed a bug in the calculation of the return address when taking a timer
+  interrupt in a branch (obscure but important).
+
+[Lib/bignums.sch]
+  [037] Fixed yet another bug in bignum->fixnum.
 
 
 ----------------------------------------------------------------------

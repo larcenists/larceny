@@ -1,7 +1,7 @@
 ; Lib/gcctl.sch
 ; Larceny library -- garbage collector policy control
 ;
-; $Id: gcctl.sch,v 1.2 1997/07/07 20:52:12 lth Exp lth $
+; $Id: gcctl.sch,v 1.4 1997/09/17 15:13:23 lth Exp lth $
 ;
 ; This is a hack, until the collector gets rewritten in Scheme.
 
@@ -21,9 +21,9 @@
     ((incr-percent) (sys$gcctl heap 3 (car args)))
     ((decr-fixed)   (sys$gcctl heap 4 (car args)))
     ((decr-percent) (sys$gcctl heap 5 (car args)))
-    ((himark)       #f)
-    ((lomark)       #f)
-    ((oflomark)     (sys$gcctl heap 8 (car args)))
+    ((himark)       (sys$gcctl heap 6 (car args)))    ; expansion limit
+    ((lomark)       (sys$gcctl heap 7 (car args)))    ; contraction limit
+    ((oflomark)     (sys$gcctl heap 8 (car args)))    ; promotion
     ((grow)         #f)
     (else           (error "gcctl: no such operation: " op)
 		    #t)))

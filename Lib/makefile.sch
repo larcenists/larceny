@@ -1,7 +1,7 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.8 1997/07/07 20:52:12 lth Exp lth $
+; $Id: makefile.sch,v 1.10 1997/08/22 21:05:14 lth Exp $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
@@ -38,7 +38,7 @@
     (call-with-output-file fn
       (lambda (p)
 	(let ((q (apply build-heap-image target files)))
-	  (pretty-print q p))))))
+	  (pretty-print q p))))))  ; could be `display' or `write'.
 
 (define (make-copy target src)
   (display "Copying ") (display target) (newline)
@@ -200,17 +200,22 @@
 ; Project for building all the files in the Compiler subdirectory.
 
 (define compiler-project (make:new-project "compiler.date"))
-(define compiler-files '("sets" "pass1.aux" "switches"
-			 "twobit.imp" "pass1" "pass2.aux"
-			 "pass2p1" "pass2p2" "pass4.aux"
-			 "pass4p1" "pass4p2" "pass4p3" "compile313"
-			 ; Miscellaneous
-			 "makefasl" "make" "dumpheap"
-			 ))
+(define compiler-files '("compile313" "help" "pass1.aux" "pass1" 
+			 "pass2.aux" "pass2p1" "pass2p2" "pass4.aux"
+			 "pass4p1" "pass4p2" "pass4p3" 
+			 "sets" "switches" "twobit.imp" "pass4patch"))
+
+(define comp-asm-files '("makefasl" "makefasl2" "dumpheap"))
+(define comp-util-files '("make"))
+
 
 (make:rule compiler-project ".fasl" ".sch" make-compile-file)
 (make:deps compiler-project '("compiler.date") 
 	   (objects "Compiler/" ".fasl" compiler-files))
+(make:deps compiler-project '("compiler.date")
+	   (objects "Asm/Common/" ".fasl" comp-asm-files))
+(make:deps compiler-project '("compiler.date") 
+	   (objects "Util/" ".fasl" comp-util-files))
 (make:targets compiler-project '("compiler.date") (lambda args #t))
 
 (define (make-compiler . rest)
@@ -252,11 +257,11 @@
 (define sparcasm-project (make:new-project "sparcasm.date"))
 
 (define generic-asm-files
-  '("pass5p1" "asmutil" "asmutil32"))
+  '("pass5p1" "asmutil" "asmutil32" "asmutil32be"))
 
 (define sparcasm-files
   '("pass5p2" "gen-msi" "gen-prim" "sparcasm" "sparcutil"
-    "switches" "sparcdis"))
+    "switches" "sparcdis" "peepopt"))
 
 (make:rule sparcasm-project ".fasl" ".sch" make-compile-file)
 (make:deps sparcasm-project '("sparcasm.date")
@@ -280,7 +285,7 @@
 (define compat-project (make:new-project "Compat"))
 
 (make:rule compat-project ".fasl" ".sch" make-compile-file)
-(make:deps compat-project '("Larceny/compat.fasl") '("Larceny/compat.sch"))
+(make:deps compat-project '("compat.date") '("Larceny/compat2.fasl"))
 (make:targets compat-project '("compat.date") (lambda args #t))
 
 (define (make-compat . rest)

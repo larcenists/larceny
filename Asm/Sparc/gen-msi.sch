@@ -1,7 +1,7 @@
 ; Asm/Sparc/gen-msi.sch
 ; Larceny -- SPARC assembler code emitters for core MacScheme instructions
 ;
-; $Id: gen-msi.sch,v 1.1 1997/07/07 20:36:24 lth Exp lth $
+; $Id: gen-msi.sch,v 1.3 1997/08/22 20:54:57 lth Exp $
 
 
 ; SETGLBL
@@ -130,7 +130,7 @@
     ; TMP0 has code vector, RESULT has procedure.
     (sparc.move  as $r.result $r.reg0)
     (sparc.jmpli as $r.tmp0 $p.codeoffset $r.g0)
-    (sparc.set   as (thefixnum n) $r.result)))
+    (sparc.set   as (thefixnum n) $r.result)))   ; FIXME: limit 1023 args
 
 
 ; SAVE -- for new compiler
@@ -233,11 +233,11 @@
 
 ; LOAD
 
-(define (emit-load! as n k)
-  (if (hardware-mapped? k)
-      (sparc.ldi as $r.stkp (+ 12 (* n 4)) k)
-      (begin (sparc.ldi as $r.stkp (+ 12 (* n 4)) $r.tmp0)
-	     (emit-store-reg! as $r.tmp0 k))))
+(define (emit-load! as slot dest-reg)
+  (if (hardware-mapped? dest-reg)
+      (sparc.ldi as $r.stkp (+ 12 (* slot 4)) dest-reg)
+      (begin (sparc.ldi as $r.stkp (+ 12 (* slot 4)) $r.tmp0)
+	     (emit-store-reg! as $r.tmp0 dest-reg))))
 
 
 ; STORE
@@ -363,11 +363,10 @@
 ; BRANCH
 
 (define (emit-branch! as check-timer? label)
-  (let ((label (make-asm-label label)))
-    (if check-timer?
-	(check-timer as label label)
-	(begin (sparc.b   as label)
-	       (sparc.nop as)))))
+  (if check-timer?
+      (check-timer as label label)
+      (begin (sparc.b   as label)
+	     (sparc.nop as))))
 
 
 ; BRANCHF
@@ -379,10 +378,9 @@
 ; BRANCHFREG -- introduced by peephole optimization.
 
 (define (emit-branchfreg! as hwreg label)
-  (let ((label (make-asm-label label)))
-    (sparc.cmpi as hwreg $imm.false)
-    (sparc.be.a as label)
-    (sparc.slot as)))
+  (sparc.cmpi as hwreg $imm.false)
+  (sparc.be.a as label)
+  (sparc.slot as))
 
 
 ; JUMP
@@ -394,7 +392,6 @@
 
 (define (emit-jump! as m label)
   (let* ((r      (emit-follow-chain! as m))
-	 (label  (make-asm-label label))
 	 (labelv (label-value as label))
 	 (v      (if (number? labelv)
 		     (+ labelv $p.codeoffset)
@@ -437,8 +434,7 @@
 
 (define (emit-return-address! as label)
   (let* ((loc  (here as))
-	 (lab  (make-asm-label label))
-	 (lloc (label-value as lab)))
+	 (lloc (label-value as label)))
 
     (define (emit-short val)
       (sparc.call as (+ loc 8))
@@ -458,8 +454,8 @@
 		 (emit-short target-rel-addr)
 		 (emit-long (- target-rel-addr 8)))))
 	  ((short-effective-addresses)
-	   (emit-short `(- ,lab ,loc 8)))
+	   (emit-short `(- ,label ,loc 8)))
 	  (else
-	   (emit-long `(- ,lab ,loc 16))))))
+	   (emit-long `(- ,label ,loc 16))))))
 
 ; eof

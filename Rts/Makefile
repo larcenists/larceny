@@ -3,7 +3,7 @@
 # Rts/Makefile
 # Larceny -- the main Makefile
 #
-# $Id: Makefile,v 1.10 1997/05/31 01:48:56 lth Exp $
+# $Id: Makefile,v 1.12 1997/09/17 15:15:54 lth Exp lth $
 
 
 ############################################################################
@@ -64,7 +64,7 @@ NP_EXTRA_REMSET=1
 #
 # Currently all checking is explicit, so don't undefine this.
 
-DIVZ=-DCHECK_DIVISION_BY_ZERO
+#DIVZ=-DCHECK_DIVISION_BY_ZERO
 
 
 ############################################################################
@@ -132,7 +132,7 @@ ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
 COBJS=$(SYS)/stack.o $(SYS)/cglue.o $(SYS)/heapio.o \
 	$(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
 	$(SYS)/argv.o $(SYS)/malloc.o $(SYS)/util.o \
-	$(MACH)/cache.o
+	$(SYS)/signals.o $(MACH)/cache.o
 
 # Common ASM objects
 
@@ -180,7 +180,8 @@ SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 
 HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
-HDRS=$(SYS)/larceny.h $(SYS)/macros.h $(SYS)/gc.h $(BUILD)/cdefs.h
+HDRS=$(SYS)/larceny.h $(SYS)/macros.h $(SYS)/gc.h $(BUILD)/cdefs.h \
+	$(SYS)/heapio.h
 
 GCHDRS=$(SYS)/memmgr.h $(SYS)/barrier.h $(SYS)/gclib.h $(SYS)/semispace.h
 
@@ -263,6 +264,9 @@ $(SYS)/bdw-stats.o: $(SYS)/stats.c
 $(COBJS): $(HDRS)
 $(ALL_GC): $(HDRS) $(GCHDRS)
 $(BOEHM_GC): $(HDRS)
+
+$(SYS)/signals.o: $(SYS)/signals.h
+$(SYS)/cglue.o: $(SYS)/signals.h
 
 $(ASMOBJS): $(BUILD)/asmdefs.h
 

@@ -1,7 +1,7 @@
 ; Chez/compat.sch
 ; Compatibility library for the new Twobit under Chez Scheme
 ;
-; $Id: compat.sch,v 1.1 1997/02/11 21:50:45 lth Exp $
+; $Id: compat.sch,v 1.4 1997/09/17 15:06:46 lth Exp lth $
 
 (define host-system 'chez)
 
@@ -16,19 +16,27 @@
   (load-foreign (string-append hostdir "bitpattern.o"))
   (load (string-append hostdir "bytevec.ss"))
   (load (string-append hostdir "misc2bytevector.ss"))
+  (load (string-append hostdir "logops.ss"))
   (if (not (bound? 'values))
       (load (string-append hostdir "values.ss")))
   (print-vector-length #f)
   #t)
 
+(define (compat:initialize2)
+  #t)
+
 (define (compat:load filename)
+  (define (loadit fn)
+    (if *verbose-load*
+	(begin (display fn)
+	       (newline)))
+    (load fn))
   (set! *file-list* (cons (cons filename (optimize-level)) *file-list*))
   (let ((cfn (chez-new-extension filename "so")))
     (if (and (file-exists? cfn)
 	     (compat:file-newer? cfn filename))
-	(begin ; (display (format "; ~a~%" cfn))
-	       (load cfn))
-	(load filename))))
+	(loadit cfn)
+	(loadit filename))))
 
 (define (with-optimization level thunk)
   (parameterize ((optimize-level level))
@@ -110,6 +118,19 @@
     (lambda (x)
       (set! n (+ n 1))
       (string->uninterned-symbol (format "~a~a" x n)))))
+
+(define (symbol-hash sym)
+  (string-hash (symbol->string sym)))
+
+(define (string-hash string)
+  (define (loop s i h)
+    (if (< i 0)
+	h
+	(loop s
+	      (- i 1)
+	      (fxlogand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+  (let ((n (string-length string)))
+    (loop string (- n 1) n)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

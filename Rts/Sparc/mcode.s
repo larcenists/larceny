@@ -1,22 +1,7 @@
-! -*- Fundamental -*-
-! This is the file Sparc/mcode.s.
-!
-! $Id: mcode.s,v 1.1 1997/01/21 20:03:54 lth Exp $
-!
+! Rts/Sparc/mcode.s.
 ! Larceny run-time system (SPARC) -- miscellaneous primitives.
 !
-! History
-!   January 8, 1996 / lth (v0.25)
-!     Added m_enable_interrupts and m_disable_interrupts.
-!
-!   January 19, 1995 / lth (v0.23)
-!     Added _m_syscall for SYSCALL primitive.
-!
-!   December 6, 1994 / lth (v0.23)
-!     Solaris port.
-!
-!   June 27 - July 1, 1994 / lth (v0.20)
-!     Moved procedures to this file from Sparc/glue.s.
+! $Id: mcode.s,v 1.4 1997/09/17 15:16:35 lth Exp lth $
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -37,6 +22,8 @@
 	.global EXTNAME(m_disable_interrupts)
 	.global EXTNAME(m_exception)
 	.global EXTNAME(m_bvlcmp)
+	.global EXTNAME(m_fpe_handler)
+
 
 ! _m_apply: millicode for the 'apply' instruction
 !
@@ -469,27 +456,52 @@ Lsinglestep1:
 ! Output:    Nothing
 ! Destroys:  Temporaries, ARGREG2, ARGREG3
 
+! TMP_FUEL is the number of ticks that the system is given every time the
+! timer expires; it is the amount of fuel that the timer handler gets
+! to run on or the running code gets to use before another trap is taken.
+! It must be > 1.
+!
+! TIMER_STEP is the ...
+
+#define TMP_FUEL    1000
+#define TIMER_STEP  50000
+
 EXTNAME(m_timer_exception):
-	ld	[ %GLOBALS + G_TIMER_ENABLE ], %TMP0
-	cmp	%TMP0, TRUE_CONST
-	be,a	handle_timer
+	st	%o7, [ %GLOBALS + G_RETADDR ]		! save return addr
+	set	TMP_FUEL, %TIMER			! in case of interrupt
+	call	internal_check_signals
 	nop
-	jmp	%o7+8
-	mov	5, %TIMER	! add a little time (_must_ be > 1).
+	ld	[ %GLOBALS + G_RETADDR ], %o7		! restore return addr
+
+	ld	[ %GLOBALS + G_TIMER_ENABLE ], %TMP0	! get flag
+	cmp	%TMP0, TRUE_CONST			! is it set?
+	be,a	handle_timer				! jump if so
+	nop
+	set	TMP_FUEL, %TIMER			! get to run a while
+	jmp	%o7+8					! just return
+	nop
 
 	! Handle timer interrupt.
+	! First check secondary timer and return quickly if there's
+	! more time on it.
+handle_timer:
+	ld 	[ %GLOBALS + G_TIMER2 ], %TMP0
+	cmp	%TMP0, 0
+	bne	enable_interrupts_setup			! skip if more time
+	nop
+	
+	! Timer really expired
 	! Turn off interrupts and give the timer something to run on
 	! so we won't take a detour thru here on every iteration in
 	! the scheduler.
 	!
 	! %RESULT is preserved by the exception mechanism when the global
-	! G_RESULT is set to #!undefined.
-handle_timer:
-	set	UNDEFINED_CONST, %TMP0
-	st	%TMP0, [ %GLOBALS + G_RESULT ]
+	! G_SCHCALL_SAVERES is set to #t.
+	set	TRUE_CONST, %TMP0
+	st	%TMP0, [ %GLOBALS + G_SCHCALL_SAVERES ]
 	mov	FALSE_CONST, %TMP0
-	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]
-	set	100000, %TIMER
+	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]	! disable interrupts
+	set	TMP_FUEL, %TIMER			! get to run a while
 	b	EXTNAME(m_exception)
 	mov	EX_TIMER, %TMP0
 
@@ -512,11 +524,34 @@ EXTNAME(m_enable_interrupts):
 	ble,a	EXTNAME(m_exception)
 	mov	EX_EINTR, %TMP0
 
-	! Setup count, then enable interrupts.
-	! Timer is in native format, so convert.
-	srl	%RESULT, 2, %TIMER
+	! Enable interrupts
 	mov	TRUE_CONST, %TMP0
 	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]
+
+	! Setup timer.  Timer is in native format, so convert.
+	srl	%RESULT, 2, %TMP0		! convert to native
+
+enable_interrupts_setup:
+	! TMP0 has timer value as nativeint.
+	set	TIMER_STEP, %TMP1		! timer step limit
+	cmp	%TMP0, %TMP1
+	bg	1f				! branch if value > step limit
+	nop
+	! value <= TIMER_STEP
+	mov	%TMP0, %TIMER
+	b	2f
+	st	%g0, [ %GLOBALS + G_TIMER2 ]
+1:	! value > TIMER_STEP
+	mov	%TMP1, %TIMER
+	sub	%TMP0, %TMP1, %TMP0
+	st	%TMP0, [ %GLOBALS + G_TIMER2 ]
+2:	
+	! check signals
+	st	%o7, [ %GLOBALS + G_RETADDR ]
+	call	internal_check_signals
+	nop
+	ld	[ %GLOBALS + G_RETADDR ], %o7
+
 	jmp	%o7+8
 	nop
 
@@ -536,8 +571,17 @@ EXTNAME(m_disable_interrupts):
 	mov	FALSE_CONST, %RESULT
 	mov	FALSE_CONST, %TMP0
 	st	%TMP0, [ %GLOBALS + G_TIMER_ENABLE ]
-	sll	%TIMER, 2, %RESULT
-1:	jmp	%o7+8
+	ld	[ %GLOBALS + G_TIMER2 ], %TMP0
+	add	%TIMER, %TMP0, %TMP0
+	sll	%TMP0, 2, %RESULT
+
+1:	! check signals
+	st	%o7, [ %GLOBALS + G_RETADDR ]
+	call	internal_check_signals
+	nop
+	ld	[ %GLOBALS + G_RETADDR ], %o7
+
+	jmp	%o7+8
 	nop
 
 
@@ -552,8 +596,6 @@ EXTNAME(m_disable_interrupts):
 ! The return address must point to the instruction which would have been
 ! returned to if the operation had succeeded, i.e., the exception handler
 ! must repair the error if the program is to continue.
-!
-! FIXME: Should we disable interrupts here?
 
 EXTNAME(m_exception):
 	ld	[ %GLOBALS + G_CALLOUTS ], %TMP1
@@ -573,4 +615,52 @@ Lexception:
 	nop
 
 
+! _m_fpe_handler: Glue code for arithmetic exceptions.
+!
+! Call from: is returned to from signal handler when the signal handler
+!            determined that an arithmetic exception was taken while the
+!            VM was in Scheme mode (or almost).
+! Input:     nothing
+! Output:    nothing
+! Destroys:  temporaries
+!
+! The following hack deals with a peculiarity in the current implementation
+! of integer division in the arithmetic millicode (generic.s):
+!
+! If globals[ G_IDIV_CODE ] != 0, then the exception code to signal to
+! Scheme is in global[ G_IDIV_CODE ], and one _restore_ must be executed
+! to bring the machine state back to Scheme mode.
+!
+! All of this hackery will go away as the arithmetic millicode is cleaned up
+! and we switch to using the integer division instructions.
+
+EXTNAME(m_fpe_handler):
+	set	EXTNAME(globals), %g1		! %g1 == %TMP0, so this is OK
+	ld	[ %g1 + G_IDIV_CODE ], %g1
+	tst	%g1
+	bz	1f
+	nop
+
+	! Integer division special case: code is in globals[ G_IDIV_CODE ],
+	! and we must do a restore.
+
+	restore
+	ld	[ %GLOBALS + G_IDIV_CODE ], %TMP0
+	b	2f
+	clr	[ %GLOBALS + G_IDIV_CODE ]
+
+	! All other cases: FPE code is in G_FPE, so raise EX_FPE and
+	! hope for the best.  We really need to inspect the faulting
+	! instruction here to find out what operation failed, so that
+	! we can give a decent error message.  FIXME.
+	!
+	! In any event, the FPE code is loaded into ARGREG3 so that
+	! the error handler can inspect it.
+
+1:	ld	[ %GLOBALS + G_FPE_CODE ], %ARGREG3
+	mov	EX_FPE, %TMP0
+
+2:	b	EXTNAME(m_exception)
+	clr	[ %GLOBALS + G_FPE_CODE ]	! or recursion will get you.
+	
 ! end-of-file

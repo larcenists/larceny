@@ -1,7 +1,7 @@
 /* Rts/Sys/cglue.c
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
- * $Id: cglue.c,v 1.11 1997/07/07 20:09:30 lth Exp $
+ * $Id: cglue.c,v 1.13 1997/08/25 13:07:31 lth Exp $
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are
@@ -14,6 +14,7 @@
 #include "larceny.h"
 #include "macros.h"
 #include "cdefs.h"
+#include "signals.h"
 
 
 /* C_garbage_collect: perform a garbage collection */
@@ -222,7 +223,7 @@ void C_syscall( void )
 			{ (fptr)UNIX_mtime, 2, 1 },
 			{ (fptr)UNIX_access, 2, 1 },
 			{ (fptr)UNIX_rename, 2, 1 },
-			{ (fptr)UNIX_pollinput, 1, 1 },
+			{ (fptr)UNIX_pollinput, 1, 0 },
 			{ (fptr)UNIX_getenv, 1, 1 },
 			{ (fptr)UNIX_garbage_collect, 2, 0 },
 			{ (fptr)UNIX_flonum_log, 2, 0 },
@@ -242,6 +243,7 @@ void C_syscall( void )
 			{ (fptr)UNIX_block_signals, 1, 0 },
 			{ (fptr)UNIX_flonum_sinh, 2, 0 },
 			{ (fptr)UNIX_flonum_cosh, 2, 0 },
+			{ (fptr)UNIX_system, 1, 1 },
 		      };
   fptr proc;
   int nargs, nproc;
@@ -256,6 +258,9 @@ void C_syscall( void )
 
   proc = syscall_table[ nproc ].proc;
 
+  if (syscall_table[ nproc ].interruptible)
+    BEGIN_INTERRUPTIBLE_SYSCALL();
+
   switch (nargs) {
     case 0 : proc(); break;
     case 1 : proc( globals[ G_REG2 ] ); break;
@@ -266,6 +271,9 @@ void C_syscall( void )
 		   globals[ G_REG4 ], globals[ G_REG5 ] ); break;
     default: panic( "syscall: Too many arguments." ); break;
   }
+
+  if (syscall_table[ nproc ].interruptible)
+    END_INTERRUPTIBLE_SYSCALL();
 }
 
 #if SIMULATE_NEW_BARRIER

@@ -1,7 +1,7 @@
 ; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; $Id: reploop.sch,v 1.2 1997/07/07 21:01:13 lth Exp lth $
+; $Id: reploop.sch,v 1.5 1997/09/17 15:14:58 lth Exp lth $
 
 ($$trace "reploop")
 
@@ -10,11 +10,11 @@
 (define *reset-continuation* #f)      ; current longjump point
 (define *saved-continuation* #f)      ; last saved error continuation
 
-
 ;;; Entry point in a bootstrap heap.
 
 (define (main argv)
   (init-toplevel-environment)
+  (interaction-environment (larceny-environment))
   (setup-error-handlers)
   (rep-loop-bootstrap argv))
 
@@ -24,9 +24,10 @@
 (define (rep-loop-bootstrap argv)
   (command-line-arguments argv)
   (record-current-console-io)
+  (standard-timeslice (- (expt 2 29) 1))    ; Largest possible slice.
+  (setup-interrupts)
   (failsafe-load-init-file)
   (failsafe-load-file-arguments)
-  (setup-interrupts)
   (rep-loop))
 
 
@@ -106,9 +107,11 @@
   (set! *conout* (current-output-port)))
 
 (define (reestablish-console-io)
-  (if (not (io/open-port? *conin*))
+  (if (or (not (io/open-port? *conin*))
+	  (io/port-error-condition? *conin*))
       (set! *conin* (console-io/open-input-console)))
-  (if (not (io/open-port? *conout*))
+  (if (or (not (io/open-port? *conout*))
+	  (io/port-error-condition? *conout*))
       (set! *conout* (console-io/open-output-console)))
   (current-input-port *conin*)
   (current-output-port *conout*))
@@ -145,19 +148,24 @@
       (exit)))
 
 
-;;; Timer interrupt handling.
-;;; Default behavior for timer interrupts: reset the timer to max.
-;;; FIXME: other interrupts must be handled, too.
-
-(define *max-ticks* 536870911)            ; (- (expt 2 29) 1)
+;;; Interrupt handling.
 
 (define (setup-interrupts)
   (let ((old-handler (interrupt-handler)))
-    (interrupt-handler (lambda (type)
-			 (if (eq? type 'timer)
-			     (enable-interrupts *max-ticks*)
-			     (old-handler type)))))
-  (enable-interrupts *max-ticks*))
+    (interrupt-handler
+     (lambda (type)
+       (cond ((eq? type 'timer)
+	      (enable-interrupts (standard-timeslice)))
+	     ((eq? type 'keyboard)
+	      (enable-interrupts (standard-timeslice))
+	      (reestablish-console-io)
+	      (display "Keyboard interrupt.")
+	      (let ((k (current-continuation-structure)))
+		(set! *saved-continuation* k)
+		(reset)))
+	     (else
+	      (old-handler type)))))
+    (enable-interrupts (standard-timeslice))))
 
 
 ;;; User-available procedures.

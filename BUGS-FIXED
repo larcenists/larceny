@@ -1,6 +1,6 @@
 ; -*- text -*-
 ; ./BUGS-FIXED
-; $Id: BUGS-FIXED,v 1.2 1997/07/07 20:28:23 lth Exp lth $
+; $Id: BUGS-FIXED,v 1.4 1997/09/17 15:24:39 lth Exp lth $
 
 	       Known bugs in Larceny that have been fixed.
 
@@ -242,6 +242,48 @@
      FIX:
      Changed the instruction to bleu.
 
+011  (v0.28) Fixed 970727 by lth
+
+     Error reporting for vector-ref is broken:
+
+	> (vector-ref '#(1 2 3) 4)
+	Error: Exception-handler: confused about vector-ref: #(1 2 3) 2
+
+     This is a known problem: the value '2' is not the right value;
+     the generated code does not pass the right value to the fault handler.
+
+     Fix this in the _new_ assembler only.
+
+     Consolidated bugs: [013,015,014,016].  This is really a problem with
+     the way emit-double-tagcheck-assert! and emit-single-tagcheck-assert!
+     are implemented in the assembler.  Tag checking code needs to be
+     revisited anyway, which is why I haven't implemented a quick fix.
+     --lars
+
+     [013] Error reporting for bytevector-like-ref is broken:
+
+	(bytevector-like-ref "123" 4)
+	Error: Exception-handler: confused about bytevector-like-ref: 123 2
+
+     [014] Error reporting for bytevector-ref is broken:
+
+	(bytevector-ref (make-bytevector 3) 4)
+	Error: Exception-handler: confused about bytevector-ref: 
+		#<BYTEVECTOR> 2
+
+     [015] Error reporting for bytevector-set! is broken:
+
+	(bytevector-set! (make-bytevector 3) 4 27)
+	Error: bytevector-set!: 3 is not a valid index into bytevector
+
+     [016] Error reporting for vector-set! is broken:
+
+	(vector-set! (vector 1 2 3) 4 0)
+	Error: vector-set!: 3 is not a valid index into vector
+
+     FIX: Implemented the necessary changes in Asm/Sparc/gen-prim.sch.
+
+
 017  (v0.28)  970507  Fixed 970625 by lth
 
      Must restore console i/o on error.  Consider:
@@ -253,6 +295,15 @@
 
      FIX:
      Wrote the necessary code in the Repl and its error handlers to do this.
+
+018  (v0.28)  970507  Fixed June(?) 1997 by lth
+
+     Expt only takes exact integer powers:
+
+	(expt 2 1.5)
+	Error: expt: don't yet know how to deal with21.5
+
+     FIX: Apparently, I've since written the code.
 
 020  (v0.28b) 970527  Fixed 970624 by lth
 
@@ -384,4 +435,46 @@
 
      FIX:
      But in read-symbol introduced during optimization.
+
+033  v0.28f (970717 / lth)  Fixed 970727 byt lth
+
+     (This is an old error.)
+     The typechecking of character comparisons is not correct, it only
+     checks that the objects have the same low 8 bits:
+
+	> (char=? 1 1)
+	#t
+	> (char<? 1 1)
+	#f
+
+     The error is in Asm/Sparc/gen-prim.sch, in the procedure emit-charcmp!.
+
+     FIX: rewrote emit-charcmp! in the obvious way.
+
+037  v0.28f (970915 / lth)  Fixed 970716 by lth
+
+     Negation of a bignum does not work correctly if the resulting number
+     is the most negative fixnum:
+
+       > (fixnum? (- (expt 2 29)))
+       #f
+       > (fixnum? (- (+ (- (expt 2 29)) 1) 1))
+       #t
+       > (fixnum? (+ (- (- (expt 2 29)) 1) 1))
+       #f
+
+     The resulting number should be represented as a fixnum.
+
+     Note that the third expression is _also_ an error, possibly related.
+
+     Actually, it seems to go deeper: this is very wrong:
+
+	> (- (expt 2 29))
+	536870912
+	> (- 0 (expt 2 29))
+	536870912
+
+     FIX: 
+     Turned out to be bignum->fixnum, once again, that did not handle
+     the most negative fixnum correctly.
 

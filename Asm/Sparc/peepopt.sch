@@ -1,7 +1,7 @@
 ; Larceny -- the generic assembler.
 ; Peephole optimization code.
 ;
-; $Id: peepopt.sch,v 1.1 1997/07/07 20:39:10 lth Exp lth $
+; $Id: peepopt.sch,v 1.2 1997/07/18 13:43:13 lth Exp $
 ;
 ; The procedure peep is called with the as structure as an argument
 ; before every instruction is emitted. It may replace the prefix of the

@@ -1,7 +1,7 @@
 /* Rts/Sys/static-heap.c
  * Larceny run-time system -- static heap.
  *
- * $Id: static-heap.c,v 1.5 1997/05/31 01:38:14 lth Exp $
+ * $Id: static-heap.c,v 1.6 1997/09/17 15:17:26 lth Exp lth $
  */
 
 #define GC_INTERNAL
@@ -83,6 +83,8 @@ allocate_static_heap( int gen_no, int heap_no )
   data = (static_data_t*)must_malloc( sizeof( static_data_t ) );
 
   heap->id = "static";
+  heap->code = HEAPCODE_STATIC_2SPACE;
+
   heap->data = data;
   heap->initialize = initialize;
   heap->stats = stats;

@@ -4,7 +4,7 @@
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
 ;
-; $Id: misc2bytevector.ss,v 1.1 1997/02/11 21:50:45 lth Exp $
+; $Id: misc2bytevector.ss,v 1.2 1997/09/17 15:06:46 lth Exp lth $
 
 ; Generic.
 
@@ -15,12 +15,6 @@
 
 (define (symbol->bytevector s)
   (string->bytevector (symbol->string s)))
-
-; For implementations w/o bytevectors.
-; (Implementations w/ bytevectors should have this in the std library.)
-
-(define (list->bytevector l)
-  (list->vector l))
 
 ; SPARC specific.
 ;

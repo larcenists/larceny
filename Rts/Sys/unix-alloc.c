@@ -1,7 +1,7 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
- * $Id: unix-alloc.c,v 1.10 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: unix-alloc.c,v 1.10 1997/07/07 20:13:53 lth Exp $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write

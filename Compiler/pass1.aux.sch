@@ -129,7 +129,7 @@
                               (list 'lambda
                                     '()
                                     (cons 'cond (cdr (cdr l)))))
-                        (error "Malformed cond clause" l))                                   
+                        (error "Malformed cond clause" l))
                     (list 'if
                           (car (car (cdr l)))
                           (cons 'begin (cdr (car (cdr l))))

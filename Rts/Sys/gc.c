@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.c
  * Larceny run-time system -- RTS/GC glue code for 0.26.alpha
  * 
- * $Id: gc.c,v 1.18 1997/07/07 20:09:30 lth Exp $
+ * $Id: gc.c,v 1.19 1997/09/17 15:17:26 lth Exp lth $
  *
  * The code in this file presents an interface to the new GC that looks
  * mostly like the interface to the old GC.  The purpose of the deception
@@ -14,6 +14,7 @@
 #include "macros.h"
 #include "cdefs.h"
 #include "gc.h"
+#include "heapio.h"
 
 static gc_t *gc;
 static int  generations;
@@ -49,6 +50,7 @@ word *alloc_from_heap( unsigned bytes )
   return gc->allocate( gc, bytes );
 }
 
+#if 0
 void garbage_collect( int type, unsigned request_bytes )
 {
   debugmsg( "[debug] Warning: call to obsolete procedure garbage_collect()" );
@@ -67,6 +69,7 @@ void garbage_collect( int type, unsigned request_bytes )
       panic( "garbage_collect: bogus type: %d", type );
   }
 }
+#endif
 
 /* If type == 0 then the meaning is: collect in the named generation
  * if type == 1 then the meaning is: promote into the named generation
@@ -91,20 +94,80 @@ void stack_underflow( void ) { gc->stack_underflow( gc ); }
 void stack_overflow( void )  { gc->stack_overflow( gc ); }
 int  compact_ssb( void )     { return gc->compact_all_ssbs( gc ); }
 
+/* New heapio */
+static heapio_t *heap;
+
+/* New heapio */
+void openheap( const char *filename )
+{
+  int r;
+
+  if (heap == 0)
+    heap = create_heapio();
+  if ((r = heap->open( heap, filename )) < 0)
+    panic( "Could not open heap %s, reason %d.", filename, -r );
+}
+
+void createheap( const char *filename, int type )
+{
+  int r;
+
+  if (heap == 0)
+    heap = create_heapio();
+  if ((r = heap->create( heap, filename, type )) < 0)
+    panic( "Could not create heap %s, reason %d.", filename, -r );
+}
+
+/* New heapio */
+void closeheap( void )
+{
+  heap->close( heap );
+  delete_heapio( heap );
+  heap = 0;
+}
+
+/* New heapio */
+unsigned heap_text_size( void ) { return heap->text_size*sizeof(word); }
+unsigned heap_data_size( void ) { return heap->data_size*sizeof(word); }
+
 void load_heap( void )
 {
   word *sbase = 0;
   word *tbase = 0;
 
-  if (heap_ssize() > 0) {
-    sbase = gc->text_load_area( gc, heap_ssize() );
-    if (sbase == 0)
-      panic( "Static heap too small to load image." );
+#if 0  /* old heapio */
+  if (heap_is_bootstrap()) {
+    if (heap_text_size() > 0) {
+      sbase = gc->text_load_area( gc, heap_text_size() );
+      if (sbase == 0)
+	panic( "Static heap too small to load image." );
+    }
+    tbase = gc->data_load_area( gc, heap_data_size() );
+    if (tbase == 0)
+      panic( "Dynamic heap too small to load image." );
+    load_bootstrap_heap( sbase, tbase, globals );
   }
-  tbase = gc->data_load_area( gc, heap_tsize() );
-  if (tbase == 0)
-    panic( "Dynamic heap too small to load image." );
-  load_heap_image( sbase, tbase, globals );
+  else
+    load_dumped_image( gc, globals );
+#else /* new heapio */
+  int t = heap->type( heap );
+  int r;
+
+  if (t == HEAP_SINGLE || t == HEAP_SPLIT) {
+    if (heap_text_size() > 0) {
+      sbase = gc->text_load_area( gc, heap_text_size() );
+      if (sbase == 0)
+	panic( "Static heap too small to load image." );
+    }
+    tbase = gc->data_load_area( gc, heap_data_size() );
+    if (tbase == 0)
+      panic( "Dynamic heap too small to load image." );
+    if (r = heap->load_bootstrap( heap, sbase, tbase, globals ) < 0)
+      panic( "Error during load: %d.", r );
+  }
+  else
+    gc->load_heap( gc, heap );
+#endif
 }
 
 int dump_heap( char *filename )
@@ -112,20 +175,35 @@ int dump_heap( char *filename )
 #if 0
   /* gc-before-dump is more subtle than it used to be, and with the
    * new heap format, maybe we don't want to do it at all.
+   *
+   * Arguably, the right thing is to perform a local gc in each heap
+   * where data in older and younger heaps are not moved.  On the
+   * other hand, we could gc everything into the oldest dynamic
+   * generation (assuming we have such).
    */
-  garbage_collect_before_dump();
+  /* garbage_collect_before_dump(); */
+  /* perhaps: */
+  gc->collect_before_dump();
 #endif
 
-  hardconsolemsg("Heap dumping not currently supported (out of chocolate).");
+/*  return dump_dumped_heap( filename, gc, globals ); */
   return -1;
 }
 
 int reorganize_and_dump_static_heap( char *filename )
 {
   semispace_t *data, *text;
+  int r;
 
   gc->reorganize_static( gc, &data, &text );
-  return dump_heap_image( filename, data, text, globals ) != -1;
+#if 0
+  return dump_bootstrap_heap( filename, data, text, globals ) != -1;
+#else
+  createheap( filename, HEAP_SPLIT );
+  r = heap->dump_bootstrap( heap, text, data, globals ) == 0;
+  closeheap();
+  return r;
+#endif
 }
 
 /* This is useful mainly for the simulated barrier. */

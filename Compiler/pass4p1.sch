@@ -616,8 +616,30 @@
                             (constant.value (cadr args))))
         (let ((reg2 (cg0 output (cadr args) #f regs frame env #f)))
           (cond ((not (eq? reg2 'result))
+; Original
                  (cg0 output (car args) 'result regs frame env #f)
                  (gen! output $op2 op reg2))
+; New
+; The problem with the preceding code is that when (car args) is evaluated,
+; there is no record that the register that holds the result from (cadr args)
+; is live.  The following code fixes that, while trying to minimize 
+; the register moves that must be done.
+;		 (cond ((= (cgreg-tos regs) (- reg2 1))              ; @@ Lars
+;			(cg0 output                                  ; @@ Lars
+;			     (car args) 'result (cgreg-push1 regs)   ; @@ Lars
+;			     frame env #f)                           ; @@ Lars
+;                        (gen! output $op2 op reg2))                  ; @@ Lars
+;		       ((>= (cgreg-tos regs) reg2)                   ; @@ Lars
+;			(cg0 output                                  ; @@ Lars
+;			     (car args) 'result regs frame env #f)   ; @@ Lars
+;                        (gen! output $op2 op reg2))                  ; @@ Lars
+;		       (else                                         ; @@ Lars
+;			(let* ((regs (cgreg-push1 regs))             ; @@ Lars
+;			       (r    (cgreg-tos regs)))              ; @@ Lars
+;			  (gen! output $setreg r)                    ; @@ Lars
+;			  (cg0 output                                ; @@ Lars
+;			       (car args) 'result regs frame env #f) ; @@ Lars
+;			  (gen! output $op2 op r)))))                ; @@ Lars
                 ((not (= (cgreg-tos regs) *lastreg*))
                  (let* ((regs (cgreg-push regs 1))
                         (r (cgreg-tos regs)))

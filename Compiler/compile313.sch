@@ -1,9 +1,8 @@
+; Compiler/compile313.sch
 ; Larceny run-time environment -- compiler drivers.
 ;
-; History
-;   July 19, 1994 / lth (v0.20)
-;     Cleaned up.
-
+; $Id: compile313.sch,v 1.4 1997/08/22 21:00:04 lth Exp $
+;
 ; We operate with several different file formats.
 ;
 ; - Files with extension ".sch" or ".scm" are Scheme source files and are
@@ -63,7 +62,9 @@
 		    (write item port)
 		    (newline port)
 		    (newline port))
-		  compile)
+		  (lambda (x)
+		    ; (break)
+		    (compile x)))
     #t))
 
 
@@ -85,7 +86,9 @@
 		  (if (and (> n 4)
 			   (string-ci=? ".mal" (substring file (- n 4) n)))
 		      (lambda (x) (assemble (eval x)))
-		      assemble))
+		      (lambda (x)
+			; (break)
+			(assemble x))))
     #t))
 
 

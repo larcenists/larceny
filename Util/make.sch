@@ -1,7 +1,7 @@
 ; Compiler/make.sch
 ; Larceny compilation system -- `make' facility.
 ;
-; $Id: make.sch,v 1.3 1997/07/07 20:41:40 lth Exp lth $
+; $Id: make.sch,v 1.3 1997/07/07 20:41:40 lth Exp $
 ;
 ; DESCRIPTION
 ; A project is created with make:new-project.  It consists of rules, 

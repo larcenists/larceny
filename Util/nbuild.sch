@@ -1,7 +1,7 @@
 ; Util/nbuild.sch
 ; Loader for Larceny development system; portable!
 ;
-; $Id: nbuild.sch,v 1.3 1997/02/11 21:53:13 lth Exp $
+; $Id: nbuild.sch,v 1.5 1997/08/22 21:10:46 lth Exp $
 ;
 ; All directory names *must* end with "/" (or whatever is appropriate for
 ; the current operating system), and they should all be absolute (ditto).
@@ -20,9 +20,12 @@
 ; * `sparc-asmdir' is the name of the directory that has all the 
 ;   SPARC-specific files for the new SPARC assembler.
 ;
-; * `sourcedir' is the absolute name of the directory that has the
+; * `sourcedir' is the name of the directory that has the
 ;   Larceny makefile.
-
+;
+; * `utildir' is the name of the directory that has some utilities, like
+;   the make system.
+;
 ; Note: the compatibility package has already been loaded by the build script.
 
 (compat:initialize)
@@ -32,22 +35,22 @@
     (compat:load fn)))
 
 (display "Loading make utility...") (newline)
-(loadfile compilerdir "make.sch")
+(loadfile utildir "make.sch")
 
 (display "Loading compiler proper...") (newline)
 (loadfile compilerdir "sets.sch")
-(loadfile compilerdir "switches.sch")    ; @@ Will
+(loadfile compilerdir "switches.sch")
 (loadfile compilerdir "pass1.aux.sch")
-(loadfile compilerdir "twobit.imp.sch")  ; @@ Will
+(loadfile compilerdir "twobit.imp.sch")
 (loadfile compilerdir "pass1.sch")
 (loadfile compilerdir "pass2.aux.sch")
-(loadfile compilerdir "pass2p1.sch")     ; @@ Will
-(loadfile compilerdir "pass2p2.sch")     ; @@ Will
+(loadfile compilerdir "pass2p1.sch")
+(loadfile compilerdir "pass2p2.sch")
 (loadfile compilerdir "pass4.aux.sch")
 (loadfile compilerdir "pass4p1.sch")
 (loadfile compilerdir "pass4p2.sch")
-(loadfile compilerdir "pass4p3.sch")     ; @@ Will
-
+(loadfile compilerdir "pass4p3.sch")
+(loadfile compilerdir "pass4patch.sch")  ; @@ Lars
 (if (not new-assembler?)
     (begin 
       (display "Loading old generic assembler...")
@@ -60,6 +63,7 @@
       (display "Loading new generic assembler...") (newline)
       (loadfile common-asmdir "pass5p1.sch")
       (loadfile common-asmdir "asmutil.sch")
+      (loadfile common-asmdir "asmutil32be.sch")  ; For now
       (loadfile common-asmdir "asmutil32.sch")))
 
 (display "Loading SPARC header files...") (newline)
@@ -87,7 +91,7 @@
 
 (if (not new-assembler?)
     (begin 
-      (display "Loading SPARC disassembler...") (newline)
+      (display "Loading old SPARC disassembler...") (newline)
       (loadfile sparc-olddir "sparcdis.sch"))
     (begin
       (display "Loading new SPARC disassembler...") (newline)
@@ -97,13 +101,13 @@
 (display "Loading bootstrap heap dumper...") (newline)
 (with-optimization 3
   (lambda ()
-    (loadfile compilerdir "dumpheap.sch")))
+    (loadfile common-asmdir "dumpheap.sch")))
 
 (display "Loading drivers and utilities...") (newline)
 (loadfile compilerdir "compile313.sch")
 (loadfile compilerdir "printlap.sch")
 (loadfile compilerdir "utils.sch")
-(loadfile compilerdir "makefasl.sch")
+(loadfile common-asmdir "makefasl2.sch")
 
 (display "Loading makefile...") (newline)
 (loadfile sourcedir "makefile.sch")
@@ -111,8 +115,8 @@
 (display "Loading help...") (newline)
 (loadfile compilerdir "help.sch")
 
-; The switches can be found in Compiler/switches.sch, Compiler/assembler.sch,
-; and Sparcasm/switches.sch.
+; The switches can be found in Compiler/switches.sch and 
+; Asm/Sparc/switches.sch.
 ;
 ; FIXME: each of the mentioned files should contain a procedure which
 ; prints its own switches, so this procedure won't have to know.
@@ -132,45 +136,28 @@
 
   (display "Summary of compiler switches:" ) (newline)
 
-; Compiler switches -- defined in Compiler/switches.sch
-
-  (display-switch "Integrate-usual-procedures"                    ; @@ Will
-                  (integrate-usual-procedures))                   ; @@ Will
-  (display-switch "Local-optimizations"                           ; @@ Will
-                  (local-optimizations))                          ; @@ Will
   (display-switch "Benchmark-mode" (benchmark-mode))
-  (display-switch "Issue-warnings" (issue-warnings))
+  (display-switch "Catch-undefined-globals" (catch-undefined-globals))
+  (display-switch "Empty-list-is-true" (empty-list-is-true))
+  (display-switch "Fill-delay-slots" (fill-delay-slots))
+  (display-switch "Generate-global-symbols" (generate-global-symbols))
+  (display-switch "Include-procedure-names" (include-procedure-names))
   (display-switch "Include-source-code" (include-source-code))
   (display-switch "Include-variable-names" (include-variable-names))
-  (display-switch "Include-procedure-names" (include-procedure-names))
-  (display-switch "Empty-list-is-true" (empty-list-is-true))
-
-; Sparc assembler switches -- define in Sparcasm/switches.sch
-
-;  (display-switch "Fast-pop (not always safe)" fast-pop)         ; @@ Will
-  (display-switch "Unsafe-code" (unsafe-code))
-  (display-switch "Inline-cons" (inline-cons)) 
   (display-switch "Inline-assignment" (inline-assignment))
-  (display-switch "Write-barrier" (write-barrier))
-  (display-switch "Catch-undefined-globals" (catch-undefined-globals))
-
-; Heap dumper switch -- defined in Compiler/switches.sch
-
-  (display-switch "Generate-global-symbols" 
-		  (generate-global-symbols))
-
-; Generic assembler switches -- defined in Compiler/assembler.sch.
-
+  (display-switch "Inline-cons" (inline-cons)) 
+  (display-switch "Integrate-usual-procedures" (integrate-usual-procedures))
+  (display-switch "Issue-warnings" (issue-warnings))
   (display-switch "Listify?" listify?)
-  (display-switch "Enable-peephole?" enable-peephole?)
-  (display-switch "Enable-singlestep?" enable-singlestep?)
-
-; Sparc assembler switch
-
-  (display-switch "Assume-short-distance-to-call (not always safe)" 
-		  assume-short-distance-to-call)
+  (display-switch "Local-optimizations" (local-optimizations))
+  (display-switch "Peephole-optimization" (peephole-optimization))
+  (display-switch "Single-stepping" (single-stepping))
+  (display-switch "Unsafe-code" (unsafe-code))
+  (display-switch "Write-barrier" (write-barrier))
 
   )
+
+(compat:initialize2)
 
 (display "Welcome. Type (help) for help.")
 (newline)

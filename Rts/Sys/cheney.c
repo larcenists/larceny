@@ -1,7 +1,7 @@
 /* Rts/Sys/cheney.c
  * Larceny run-time system -- copying garbage collector library.
  *
- * $Id: cheney.c,v 1.12 1997/07/07 20:09:30 lth Exp $
+ * $Id: cheney.c,v 1.13 1997/09/17 15:17:26 lth Exp lth $
  *
  *
  * Description.
@@ -509,7 +509,6 @@ gclib_np_copy_younger_into( gc_t *gc, semispace_t *tospace, np_operation_t op)
 void
 gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text )
 {
-  /* STILL UNTESTED! */
   oldspace_copy( gc, data, text, data->gen_no+1, 0, ROOTS_AND_SCAN );
 }
 

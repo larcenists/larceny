@@ -1,7 +1,7 @@
 /* Rts/Sys/old-heap.c
  * Larceny run-time system -- stop-and-copy varsized old heap.
  *
- * $Id: old-heap.c,v 1.12 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: old-heap.c,v 1.13 1997/09/17 15:17:26 lth Exp lth $
  *
  * An old heap is a heap that receives new objects by promotion from
  * younger heaps, not by direct allocation.  Promotion from younger heaps
@@ -141,6 +141,7 @@ allocate_old_sc_heap( int gen_no, int heap_no )
 
   heap->oldest = 0;
   heap->id = "sc/variable";
+  heap->code = HEAPCODE_OLD_2SPACE;
 
   data->gen_no = gen_no;
   data->heap_no = heap_no;
@@ -176,13 +177,21 @@ set_policy( old_heap_t *heap, int op, unsigned value )
   old_data_t *data = DATA(heap);
 
   switch (op) {
-  case 2 : /* incr-fixed.  Value is kilobytes. */
+  case GCCTL_INCR_FIXED : /* incr-fixed.  Value is kilobytes. */
     data->expansion_fixed = 1;
     data->expand_fixed = value*1024;
     break;
-  case 3 : /* incr-percent */
+  case GCCTL_INCR_PERCENT : /* incr-percent */
     data->expansion_fixed = 0;
     data->expand_percent = value;
+    break;
+  case GCCTL_HIMARK : /* himark -- expansion limit */
+    if (value > 100) value=100;
+    data->hiwatermark = value;
+    break;
+  case GCCTL_LOMARK : /* lomark -- contraction limit */
+    if (value > 100) value=100;
+    data->lowatermark = value;
     break;
   }
 }

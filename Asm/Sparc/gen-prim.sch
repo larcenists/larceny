@@ -1,7 +1,7 @@
 ; Asm/Sparc/gen-prim.sch
 ; Larceny -- SPARC assembler code emitters for primops.
 ;
-; $Id: gen-prim.sch,v 1.1 1997/07/07 20:36:24 lth Exp lth $
+; $Id: gen-prim.sch,v 1.3 1997/08/22 20:54:57 lth Exp $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -42,20 +42,31 @@
 
 
 ;---------------------------------------------------------------------------
-; Assoc list of primops, indexed by name.
-; Should be hash table?  It's getting long.
+; Hash table of primops (used to be assoc list).
 
-(define primop-list '())
+;(define primop-list '())
+
+(define primop-vector (make-vector 256 '()))
+
+;(define (define-primop name proc)
+;  (set! primop-list (cons (cons name proc) primop-list)))
 
 (define (define-primop name proc)
-  (set! primop-list (cons (cons name proc) primop-list)))
+  (let ((h (logand (symbol-hash name) 255)))
+    (vector-set! primop-vector h (cons (cons name proc)
+				       (vector-ref primop-vector h)))))
+
+;(define (find-primop name)
+;  (cdr (assq name primop-list)))
 
 (define (find-primop name)
-  (cdr (assq name primop-list)))
+  (let ((h (logand (symbol-hash name) 255)))
+    (cdr (assq name (vector-ref primop-vector h)))))
 
-(define (setup-primops)
-  (set! primop-list (reverse! primop-list)))
+;(define (setup-primops)
+;  (set! primop-list (reverse! primop-list)))
 
+(define (setup-primops) #t)
 
 ;---------------------------------------------------------------------------
 ; Primops
@@ -339,13 +350,13 @@
 (define-primop 'set-car!
   (lambda (as x)
     (if (not (unsafe-code))
-	(emit-single-tagcheck-assert! as $tag.pair-tag $ex.car))
+	(emit-single-tagcheck-assert! as $tag.pair-tag $ex.car #f))
     (emit-setcar/setcdr! as x 0)))
 
 (define-primop 'set-cdr!
   (lambda (as x)
     (if (not (unsafe-code))
-	(emit-single-tagcheck-assert! as $tag.pair-tag $ex.cdr))
+	(emit-single-tagcheck-assert! as $tag.pair-tag $ex.cdr #f))
     (emit-setcar/setcdr! as x 4)))
 
 ; Cells are internal data structures, represented using pairs.
@@ -487,7 +498,8 @@
 		      as
 		      $tag.bytevector-tag
 		      (+ $imm.bytevector-header $tag.string-typetag)
-		      $ex.sref)
+		      $ex.sref
+		      r)
 		     #f)))
       (emit-bytevector-like-ref! as r fault #t))))
 
@@ -498,7 +510,8 @@
 		      as
 		      $tag.bytevector-tag
 		      (+ $imm.bytevector-header $tag.bytevector-typetag)
-		      $ex.bvref)
+		      $ex.bvref
+		      r)
 		     #f)))
       (emit-bytevector-like-ref! as r fault #f))))
 
@@ -507,29 +520,32 @@
     (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.bytevector-tag
-						   $ex.bvlref)
+						   $ex.bvlref
+						   r)
 		     #f)))
       (emit-bytevector-like-ref! as r fault #f))))
 
 (define-primop 'bytevector-like-set!
-  (lambda (as x y)
+  (lambda (as r1 r2)
     (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.bytevector-tag
-						   $ex.bvlset)
+						   $ex.bvlset
+						   r1)
 		     #f)))
-      (emit-bytevector-like-set! as x y fault))))
+      (emit-bytevector-like-set! as r1 r2 fault))))
 
 (define-primop 'bytevector-set!
-  (lambda (as x y)
+  (lambda (as r1 r2)
     (let ((fault (if (not (unsafe-code))
 		     (emit-double-tagcheck-assert!
 		      as
 		      $tag.bytevector-tag
 		      (+ $imm.bytevector-header $tag.bytevector-typetag)
-		      $ex.bvset)
+		      $ex.bvset
+		      r1)
 		     #f)))
-      (emit-bytevector-like-set! as x y fault))))
+      (emit-bytevector-like-set! as r1 r2 fault))))
 
 (define-primop 'sys$bvlcmp
   (lambda (as x)
@@ -646,7 +662,8 @@
 		      as
 		      $tag.vector-tag
 		      (+ $imm.vector-header $tag.vector-typetag)
-		      $ex.vref)
+		      $ex.vref
+		      r)
 		     #f)))
       (emit-vector-like-ref! as r fault $tag.vector-tag))))
 
@@ -655,7 +672,8 @@
     (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.vector-tag
-						   $ex.vlref)
+						   $ex.vlref
+						   r)
 		     #f)))
       (emit-vector-like-ref! as r fault $tag.vector-tag))))
 
@@ -664,7 +682,8 @@
     (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.procedure-tag
-						   $ex.pref)
+						   $ex.pref
+						   r)
 		     #f)))
       (emit-vector-like-ref! as r fault $tag.procedure-tag))))
 
@@ -675,7 +694,8 @@
 		      as
 		      $tag.vector-tag
 		      (+ $imm.vector-header $tag.vector-typetag)
-		      $ex.vset)
+		      $ex.vset
+		      r1)
 		     #f)))
       (emit-vector-like-set! as r1 r2 fault $tag.vector-tag))))
 
@@ -684,7 +704,8 @@
     (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.vector-tag
-						   $ex.vlset)
+						   $ex.vlset
+						   r1)
 		     #f)))
       (emit-vector-like-set! as r1 r2 fault $tag.vector-tag))))
 
@@ -693,7 +714,8 @@
     (let ((fault (if (not (unsafe-code))
 		     (emit-single-tagcheck-assert! as
 						   $tag.procedure-tag
-						   $ex.pset)
+						   $ex.pset
+						   r1)
 		     #f)))
       (emit-vector-like-set! as r1 r2 fault $tag.procedure-tag))))
 
@@ -732,7 +754,7 @@
 	(asm-error "Assembler: internal:car2reg: reg is not HW"))
     (if (not (unsafe-code))
 	(emit-single-tagcheck-assert-reg! as
-					  $tag.pair-tag src1 $ex.car))
+					  $tag.pair-tag src1 #f $ex.car))
     (sparc.ldi as src1 (- $tag.pair-tag) dest)))
 
 (define-primop 'internal:cdr2reg
@@ -741,7 +763,7 @@
 	(asm-error "Assembler: internal:cdr2reg: reg is not HW"))
     (if (not (unsafe-code))
 	(emit-single-tagcheck-assert-reg! as
-					  $tag.pair-tag src1 $ex.cdr))
+					  $tag.pair-tag src1 #f $ex.cdr))
     (sparc.ldi as src1 (- 4 $tag.pair-tag) dest)))
 
 (define-primop 'internal:cellref2reg
@@ -816,7 +838,7 @@
     (if (not (hardware-mapped? reg))
 	(asm-error "Assembler: internal:bfnull?: reg is not HW"))
     (sparc.cmpi  as reg $imm.null)
-    (sparc.bne.a as (make-asm-label label))
+    (sparc.bne.a as label)
     (sparc.slot  as)))
 
 (define-primop 'internal:bfpair?
@@ -825,7 +847,7 @@
 	(asm-error "Assembler: internal:bfpair?: reg is not HW"))
     (sparc.andi  as reg $tag.tagmask $r.tmp0)
     (sparc.cmpi  as $r.tmp0 $tag.pair-tag)
-    (sparc.bne.a as (make-asm-label label))
+    (sparc.bne.a as label)
     (sparc.slot  as)))
 
 (define-primop 'internal:bfzero?
@@ -923,13 +945,13 @@
 (define-primop 'internal:bfeq?
   (lambda (as src1 src2 label)
     (sparc.cmpr  as src1 src2)
-    (sparc.bne.a as (make-asm-label label))
+    (sparc.bne.a as label)
     (sparc.slot  as)))
 
 (define-primop 'internal:bfeq?imm
   (lambda (as src1 imm label)
     (sparc.cmpi  as src1 (thefixnum imm))
-    (sparc.bne.a as (make-asm-label label))
+    (sparc.bne.a as label)
     (sparc.slot  as)))
 
 (setup-primops)
@@ -991,7 +1013,10 @@
     (sparc.set   as $imm.false $r.result)
     (sparc.label as L1)))
 
-(define (emit-double-tagcheck-assert! as tag1 tag2 excode)
+; If reg2 is not #f, then it is a register that must be moved to ARGREG2
+; in the fault code.
+
+(define (emit-double-tagcheck-assert! as tag1 tag2 excode reg2)
   (let ((L0    (new-label))
 	(L1    (new-label))
 	(FAULT (new-label)))
@@ -1001,6 +1026,8 @@
     (sparc.be.a  as L1)
     (sparc.ldbi  as $r.result (+ (- tag1) 3) $r.tmp0)
     (sparc.label as FAULT)
+    (if (and reg2 (not (= reg2 $r.argreg2)))
+	(emit-move2hwreg! as reg2 $r.argreg2))
     (sparc.set   as (thefixnum excode) $r.tmp0)
     (millicode-call/ret as $m.exception l0)
     (sparc.label as L1)
@@ -1014,17 +1041,17 @@
   (sparc.cmpi as $r.tmp0 tag)
   (emit-set-boolean! as))
 
-(define (emit-single-tagcheck-assert! as tag1 excode)
-  (emit-single-tagcheck-assert-reg! as tag1 $r.result excode))
+(define (emit-single-tagcheck-assert! as tag1 excode reg2)
+  (emit-single-tagcheck-assert-reg! as tag1 $r.result reg2 excode))
 
-(define (emit-single-tagcheck-assert-reg! as tag1 reg excode)
+(define (emit-single-tagcheck-assert-reg! as tag1 reg reg2 excode)
   (let ((L0    (new-label))
 	(L1    (new-label))
 	(FAULT (new-label)))
     (sparc.label as L0)
     (sparc.andi  as reg $tag.tagmask $r.tmp0)
     (sparc.cmpi  as $r.tmp0 tag1)
-    (fault-if-ne as excode #f #f reg L0)))
+    (fault-if-ne as excode #f #f reg reg2 L0)))
 
 ; Assert that a machine register has a fixnum in it.
 ; Returns the label of the fault code.
@@ -1035,7 +1062,7 @@
 	(FAULT (new-label)))
     (sparc.label  as L0)
     (sparc.btsti  as reg 3)
-    (fault-if-ne as excode #f #f reg L0)))
+    (fault-if-ne as excode #f #f reg #f L0)))
 
 ; Assert that RESULT has a character in it.
 ; Returns the label of the fault code.
@@ -1047,14 +1074,16 @@
     (sparc.label as L0)
     (sparc.andi  as $r.result #xFF $r.tmp0)
     (sparc.cmpi  as $r.tmp0 $imm.character)
-    (fault-if-ne as excode #f fault-label #f L0)))
+    (fault-if-ne as excode #f fault-label #f #f L0)))
 
 ; Generate code for fault handling if the zero flag is not set.
 ; - excode is the nativeint exception code.
 ; - cont-label, if not #f, is the label to go to if there is no fault.
 ; - fault-label, if not #f, is the label of an existing fault handler.
-; - must-move-reg, if not #f, is the number of a register which must be
+; - reg1, if not #f, is the number of a register which must be
 ;   moved into RESULT before the fault handler is called.
+; - reg2, if not #f, is the number of a register which must be moved
+;   into ARGREG2 before the fault handler is called.
 ; - ret-label, if not #f, is the return address to be set up before calling
 ;   the fault handler.
 ;
@@ -1062,20 +1091,25 @@
 ; the ret-label is ignored (since the existing fault handler most likely
 ; sets up the return in the desired manner).
 
-(define (fault-if-ne as excode cont-label fault-label must-move-reg ret-label)
+(define (fault-if-ne as excode cont-label fault-label reg1 reg2 ret-label)
   (if fault-label
-      (begin (sparc.bne as fault-label)
-	     (if (and must-move-reg (not (= must-move-reg $r.result)))
-		 (sparc.move as must-move-reg $r.result)
-		 (sparc.nop as))
-	     fault-label)
+      (begin 
+	(if (and reg2 (not (= reg2 $r.argreg2)))
+	    (emit-move2hwreg! as reg2 $r.argreg2))
+	(sparc.bne as fault-label)
+	(if (and reg1 (not (= reg1 $r.result)))
+	    (sparc.move as reg1 $r.result)
+	    (sparc.nop as))
+	fault-label)
       (let ((FAULT (new-label))
 	    (L1    (new-label)))
 	(sparc.be.a  as (or cont-label L1))
 	(sparc.slot  as)
 	(sparc.label as FAULT)
-	(if (and must-move-reg (not (= must-move-reg $r.result)))
-	    (sparc.move as must-move-reg $r.result))
+	(if (and reg1 (not (= reg1 $r.result)))
+	    (sparc.move as reg1 $r.result))
+	(if (and reg2 (not (= reg2 $r.argreg2)))
+	    (emit-move2hwreg! as reg2 $r.argreg2))
 	(sparc.set   as (thefixnum excode) $r.tmp0)
 	(millicode-call/ret as $m.exception (or ret-label L1))
 	(if (or (not cont-label) (not ret-label))
@@ -1125,9 +1159,8 @@
 
 ; Possibly it would be better to unchain the branches and let slots be filled?
 
-(define (emit-bcmp-primop! as bcc.a src1 src2 label generic src2isreg)
+(define (emit-bcmp-primop! as bcc.a src1 src2 L2 generic src2isreg)
   (let ((L1  (new-label))
-	(L2  (make-asm-label label))
 	(op2 (if src2isreg
 		(force-hwreg! as src2 $r.tmp1)
 		(thefixnum src2)))
@@ -1199,8 +1232,8 @@
 (define (emit-get-length! as tag1 tag2 excode)
   (if (not (unsafe-code))
       (if tag2
-	  (emit-double-tagcheck-assert! as tag1 tag2 excode)
-	  (emit-single-tagcheck-assert! as tag1 excode)))
+	  (emit-double-tagcheck-assert! as tag1 tag2 excode #f)
+	  (emit-single-tagcheck-assert! as tag1 excode #f)))
   (sparc.ldi  as $r.result (- tag1) $r.tmp0)
   (sparc.srli as $r.tmp0 8 $r.result)
   (if (= tag1 $tag.bytevector-tag)
@@ -1227,7 +1260,7 @@
 
     ; Allocate space
 
-    (sparc.jmpli as $r.millicode $m.alloc $r.o7)
+    (sparc.jmpli as $r.millicode $m.alloc-bv $r.o7)
     (sparc.srai  as $r.result 2 $r.result)
 
     ; Setup header, tag pointer.
@@ -1251,7 +1284,8 @@
   (let* ((fault (emit-double-tagcheck-assert! as
 					      $tag.bytevector-tag
 					      hdr
-					      $ex.bvfill))
+					      $ex.bvfill
+					      r))
 	 (L1    (new-label))
 	 (L2    (new-label))
 	 (r     (force-hwreg! as r $r.tmp2)))
@@ -1434,21 +1468,19 @@
 ; op1 is a hw register
 ; op2 is a register or a character constant
 
-(define (emit-char-bcmp-primop! as bfalse.a op1 op2 label excode)
-  (let ((L0 (make-asm-label label)))
-    (emit-charcmp! as (lambda ()
-			(bfalse.a   as L0)
-			(sparc.slot as))
-		   op1
-		   op2
-		   excode)))
+(define (emit-char-bcmp-primop! as bfalse.a op1 op2 L0 excode)
+  (emit-charcmp! as (lambda ()
+		      (bfalse.a   as L0)
+		      (sparc.slot as))
+		 op1
+		 op2
+		 excode))
 
 ; We check the tags of both by xoring them and seeing if the low byte is 0.
 ; If so, then we can subtract one from the other (tag and all) and check the
 ; condition codes.  
-; FIXME: BUG: That check is incorrect, consider (char=? 1 1).
 ;
-; The branch-on-true instruction must have the annull bit set.
+; The branch-on-true instruction must have the annull bit set. (???)
 ;
 ; op1 is a hw register
 ; op2 is a register or a character constant.
@@ -1459,7 +1491,8 @@
 		 (force-hwreg! as op2 $r.argreg2))))
     (cond ((not (unsafe-code))
 	   (let ((L0 (new-label))
-		 (L1 (new-label)))
+		 (L1 (new-label))
+		 (FAULT (new-label)))
 	     (sparc.label as L0)
 	     (cond ((char? op2)
 		    (sparc.xori  as op1 $imm.character $r.tmp0)
@@ -1468,10 +1501,14 @@
 		    (sparc.be.a  as L1)
 		    (sparc.cmpi  as $r.tmp0 (char->integer op2)))
 		   (else
-		    (sparc.xorr  as op1 op2 $r.tmp0)
-		    (sparc.btsti as $r.tmp0 #xFF)
+		    (sparc.andi  as op1 #xFF $r.tmp0)
+		    (sparc.andi  as op2 #xFF $r.tmp1)
+		    (sparc.cmpr  as $r.tmp0 $r.tmp1)
+		    (sparc.bne   as FAULT)
+		    (sparc.cmpi  as $r.tmp0 $imm.character)
 		    (sparc.be.a  as L1)
 		    (sparc.cmpr  as op1 op2)))
+	     (sparc.label as FAULT)
 	     (if (not (eqv? op1 $r.result))
 		 (sparc.move as op1 $r.result))
 	     (cond ((char? op2) 

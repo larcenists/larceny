@@ -1,7 +1,7 @@
 ; Lib/primops.sch
 ; Larceny library -- global procedure definitions for integrable procedures.
 ;
-; $Id: primops.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
+; $Id: primops.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
 
 ($$trace "primops")
 

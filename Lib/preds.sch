@@ -1,7 +1,7 @@
 ; Lib/preds.sch
 ; Larceny library -- general predicates
 ;
-; $Id: preds.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: preds.sch,v 1.3 1997/07/18 13:55:49 lth Exp $
 ;
 ; In part based on code from MacScheme:
 ;    Copyright Lightship Software.

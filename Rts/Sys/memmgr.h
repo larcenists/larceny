@@ -1,7 +1,7 @@
 /* Rts/Sys/gc-interface.h
  * Larceny run-time system -- garbage collector interface (internal).
  * 
- * $Id: memmgr.h,v 1.10 1997/05/31 01:38:14 lth Exp $
+ * $Id: memmgr.h,v 1.11 1997/09/17 15:17:26 lth Exp lth $
  *
  * A garbage collector is an ADT of type gc_t; see the file Rts/Sys/gc.h.
  * 
@@ -111,6 +111,7 @@
 #define INCLUDED_GC_INTERFACE_H
 
 #include "gc.h"
+#include "heapio.h"            /* For heapio_t */
 #include "semispace.h"         /* Sigh.  Static-heap interface exports them. */
 
 typedef struct young_heap young_heap_t;
@@ -118,6 +119,26 @@ typedef struct old_heap old_heap_t;
 typedef struct static_heap static_heap_t;
 typedef struct remset remset_t;
 typedef struct remset_stats remset_stats_t;
+
+/* Heap codes (for load/dump matching) */
+
+#define HEAPCODE_STATIC_2SPACE   0     /* text & data areas */
+#define HEAPCODE_YOUNG_2SPACE    1     /* normal two-space */
+#define HEAPCODE_OLD_2SPACE      2     /* normal two-space */
+#define HEAPCODE_OLD_2SPACE_NP   3     /* non-predictive two-space */
+
+/* Policy codes (for set_policy()).  See also Lib/gcctl.sch. */
+
+#define GCCTL_J_FIXED       0
+#define GCCTL_J_PERCENT     1
+#define GCCTL_INCR_FIXED    2
+#define GCCTL_INCR_PERCENT  3
+#define GCCTL_DECR_FIXED    4
+#define GCCTL_DECR_PERCENT  5
+#define GCCTL_HIMARK        6
+#define GCCTL_LOMARK        7
+#define GCCTL_OFLOMARK      8
+#define GCCTL_GROW          9
 
 
 /***************************************************************************
@@ -181,6 +202,7 @@ create_sc_heap( int *gen_no, int heap_no,
 struct young_heap {
   gc_t     *collector;
   char     *id;
+  word     code;
 
   int      (*initialize)( young_heap_t *heap );
   word     *(*allocate)( young_heap_t *heap, unsigned nbytes );
@@ -198,7 +220,10 @@ struct young_heap {
 
   /* Heap loading support */
   word     *(*data_load_area)( young_heap_t *heap, unsigned nbytes );
-
+  int      (*load_prepare)( young_heap_t *heap, metadata_block_t *m, 
+			    heapio_t *h, word **lo, word **hi );
+  int      (*load_data)( young_heap_t *heap, metadata_block_t *m, heapio_t *h);
+  
   /* Continuation management */
   word     (*creg_get)( young_heap_t *heap );
   void     (*creg_set)( young_heap_t *heap, word k );
@@ -271,6 +296,7 @@ create_old_np_sc_heap( int *gen_no, int heap_no,
 struct old_heap {
   gc_t *collector;
   char *id;
+  word code;
 
   int  oldest;
   int  (*initialize)( old_heap_t *heap );
@@ -280,6 +306,9 @@ struct old_heap {
   void (*promote_from_younger)( old_heap_t *heap );
   void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats );
   word *(*data_load_area)( old_heap_t *heap, unsigned nbytes );
+  int  (*load_prepare)( old_heap_t *heap, metadata_block_t *m, 
+		        heapio_t *h, word **lo, word **hi );
+  int  (*load_data)( old_heap_t *heap, metadata_block_t *m, heapio_t *h );
   void (*set_policy)( old_heap_t *heap, int op, unsigned value );
 
   /* Private */
@@ -298,12 +327,16 @@ create_static_heap( int heap_no, int gen_no, unsigned size_bytes );
 struct static_heap {
   gc_t *collector;
   char *id;
+  word code;
 
   int  (*initialize)( static_heap_t * );
   void (*reorganize)( static_heap_t * );
   void (*stats)( static_heap_t *, heap_stats_t * );
   word *(*data_load_area)( static_heap_t *, unsigned );
   word *(*text_load_area)( static_heap_t *, unsigned );
+  int  (*load_prepare)( static_heap_t *heap, metadata_block_t *m, 
+		        heapio_t *h, word **lo, word **hi );
+  int  (*load_data)( static_heap_t *heap, metadata_block_t *m, heapio_t *h );
   void (*get_data_areas)( static_heap_t *, semispace_t **, semispace_t ** );
 
   void *data;

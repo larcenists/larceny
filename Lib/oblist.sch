@@ -1,7 +1,7 @@
 ; Lib/oblist.sch
 ; Larceny library -- symbol table management.
 ;
-; $Id: oblist.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
+; $Id: oblist.sch,v 1.5 1997/07/18 13:55:49 lth Exp $
 ;
 ; In part based on code from MacScheme:
 ;    Copyright 1991 lightship software.

@@ -1,5 +1,5 @@
 ; Larceny -- Sparc assembler load utility.
-; $Id: asmload.sch,v 1.1 1997/07/07 20:36:24 lth Exp lth $
+; $Id: asmload.sch,v 1.1 1997/07/07 20:36:24 lth Exp $
 ;
 ; lth@cs.uoregon.edu / August 22, 1995 
 ;

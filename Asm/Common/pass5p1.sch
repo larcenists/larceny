@@ -1,7 +1,7 @@
 ; Asm/Common/pass5p1.sch
 ; Larceny -- the assembler, target-independent code.
 ;
-; $Id$
+; $Id: pass5p1.sch,v 1.4 1997/09/17 15:03:53 lth Exp lth $
 ;
 ; Based on MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.
@@ -28,8 +28,7 @@
 ;
 ; The table can be changed by redefining the following procedure.
 
-;(define (assembly-table) $bytecode-assembly-table$)
-(define (assembly-table) $sparc-assembly-table$)
+(define (assembly-table) $bytecode-assembly-table$)
 
 ; The main entry point.
 ; The assembly table could be a parameter to this procedure.
@@ -39,7 +38,8 @@
 	     (lambda (as)
 	       (let ((segment (assemble-pasteup as)))
 		 (assemble-finalize! as)
-		 segment))))
+		 segment))
+	     #f))
 
 ; The following procedures are to be called by table routines.
 ;
@@ -57,7 +57,7 @@
 ; outer lambda holds code and constants for the inner lambda in its
 ; constant vector.
 
-(define (assemble-nested-lambda as source k)
+(define (assemble-nested-lambda as source doc k)
   (let ((nested-as (make-assembly-structure source (as-table as))))
     (as-parent! nested-as as)
     (as-nested! as (cons (lambda ()
@@ -66,7 +66,8 @@
 					(let ((segment
 					       (assemble-pasteup nested-as)))
 					  (assemble-finalize! nested-as)
-					  (k segment)))))
+					  (k segment)))
+				      doc))
 			 (as-nested as)))))
 
 (define operand0 car)      ; the mnemonic
@@ -77,7 +78,7 @@
 
 ; Emits the bits contained in the bytevector bv.
 
-(define (emit-instr! as bv)
+(define (emit! as bv)
   (as-code! as (cons bv (as-code as)))
   (as-lc! as (+ (as-lc as) (bytevector-length bv))))
 
@@ -126,9 +127,7 @@
 ; Defines the given label using the current location counter.
 
 (define (emit-label! as L)
-  (as-labels! as
-              (cons (cons L (as-lc as))
-                    (as-labels as))))
+  (set-cdr! L (as-lc as)))
 
 ; Adds the integer n to the size code bytes beginning at the
 ; given byte offset from the current value of the location counter.
@@ -160,23 +159,46 @@
 			  proc)
 		    (as-fixups as))))
 
+; Labels.
+
 ; The current value of the location counter.
 
 (define (here as) (as-lc as))
 
-; Label lookup
+; Given a MAL label (a number), create an assembler label.
 
-(define (label-value as L)
+(define (make-asm-label as label)
+  (let ((probe (find-label as label)))
+    (if probe
+	probe
+	(let ((l (cons label #f)))
+	  (as-labels! as (cons l (as-labels as)))
+	  l))))
+
+; This can use hashed lookup.
+
+(define (find-label as L)
 
   (define (lookup-label-loop x labels parent)
     (let ((entry (assq x labels)))
-      (cond (entry (cdr entry))
+      (cond (entry)
 	    ((not parent) #f)
 	    (else 
 	     (lookup-label-loop x (as-labels parent) (as-parent parent))))))
     
   (lookup-label-loop L (as-labels as) (as-parent as)))
-    
+
+; Create a new assembler label, distinguishable from a MAL label.
+
+(define new-label
+  (let ((n 0))
+    (lambda ()
+      (set! n (- n 1))
+      (cons n #f))))
+
+; Given a value name (a number), return the label value or #f.
+
+(define (label-value as L) (cdr L))
 
 ; For peephole optimization.
 
@@ -213,14 +235,12 @@
 (define (asm-value-too-large as info expr val)
   (if (as-retry as)
       (begin 
-	(display "SPARC assembler: Warning: value too large in ")
-	(display info)
-	(display " (")
-	(display expr)
-	(display "=")
-	(display val)
-	(display "); retrying assembly with long offsets.")
-	(newline)
+	(if (issue-warnings)
+	    (begin
+	      (display "Warning (SPARCasm): immediate overflow (")
+	      (display val)
+	      (display "); retrying assembly with long offsets.")
+	      (newline)))
 	((as-retry as)))
       (asm-error info ": Value too large: " expr " = " val)))
 
@@ -257,8 +277,8 @@
 ;
 ; In fixups, labels are of the form (<L>) to distinguish them from fixnums.
 
-(define label? pair?)
-(define label.value car)
+(define (label? x) (and (pair? x) (fixnum? (car x))))
+(define label.ident car)
 
 (define (make-assembly-structure source table)
   (vector table
@@ -309,7 +329,7 @@
 
 ; The guts of the assembler.
 
-(define (assemble1 as finalize)
+(define (assemble1 as finalize doc)
   (let ((assembly-table (as-table as))
 	(peep? (peephole-optimization))
 	(step? (single-stepping)))
@@ -334,7 +354,7 @@
 		     (loop))))))
 
     (define (doit)
-      (emit-datum as #f)  ; documentation slot is always first; #f for now.
+      (emit-datum as doc)
       (loop))
 
     (let* ((source (as-source as))
@@ -342,28 +362,30 @@
 	       (lambda (k)
 		 (as-retry! as (lambda () (k 'retry)))
 		 (doit)))))
-    (if (eq? r 'retry)
-	(begin
-	  (short-effective-addresses #f)
-	  (as-reset! as source)
-	  (let ((r (doit)))
-	    (short-effective-addresses #t)
-	    r))
-	r))))
+      (if (eq? r 'retry)
+	  (let ((old (short-effective-addresses)))
+	    (as-reset! as source)
+	    (dynamic-wind
+	     (lambda ()
+	       (short-effective-addresses #f))
+	     doit
+	     (lambda ()
+	       (short-effective-addresses old))))
+	  r))))
 
 (define (assemble-pasteup as)
   (let ((code      (make-bytevector (as-lc as)))
         (constants (list->vector (as-constants as))))
     
-    ; The bytevectors: byte 0 is least significant.
+    ; The bytevectors: byte 0 is most significant.
 
     (define (paste-code! bvs i)
       (if (not (null? bvs))
           (let* ((bv (car bvs))
                  (n  (bytevector-length bv)))
             (do ((i i (- i 1))
-                 (j 0 (+ j 1)))
-                ((= j n)
+                 (j (- n 1) (- j 1)))	; (j 0 (+ j 1))
+                ((< j 0)		; (= j n)
                  (paste-code! (cdr bvs) i))
                 (bytevector-set! code i (bytevector-ref bv j))))))
     
@@ -393,7 +415,7 @@
             (apply-fixups! (cdr fixups)))))
 
     (define (lookup-label L)
-      (or (label-value as (label.value L))
+      (or (label-value as (label.ident L))
 	  (asm-error "Assembler error -- undefined label " L)))
 
     (apply-fixups! (reverse! (as-fixups as)))

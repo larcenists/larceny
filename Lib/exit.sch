@@ -1,7 +1,7 @@
 ; Lib/exit.sch
 ; Larceny library -- the exit procedure, and init/exit hooks.
 ;
-; $Id: exit.sch,v 1.1 1997/07/07 20:45:06 lth Exp $
+; $Id: exit.sch,v 1.2 1997/07/18 13:55:49 lth Exp $
 
 ($$trace "exit")
 

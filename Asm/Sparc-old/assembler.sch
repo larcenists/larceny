@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.sch,v 1.2 1997/02/11 20:19:40 lth Exp $
+; $Id: assembler.sch,v 1.3 1997/07/18 13:47:41 lth Exp $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;

@@ -1,6 +1,6 @@
 ; Larceny auxiliary library -- pretty printer
 ; 
-; $Id: pp.sch,v 1.2 1997/07/07 20:40:20 lth Exp lth $
+; $Id: pp.sch,v 1.2 1997/07/07 20:40:20 lth Exp $
 ;
 ; File: "pp.scm"   (c) 1991, Marc Feeley
 ; [Snarfed from the Scheme repository at Indiana University, August 5, 1995.]

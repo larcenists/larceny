@@ -1,16 +1,19 @@
 ; -*- text -*-
 ; ./BUGS
-; $Id: BUGS,v 1.6 1997/07/07 20:28:23 lth Exp lth $
+; $Id: BUGS,v 1.8 1997/09/17 15:24:39 lth Exp lth $
 
 
 			 KNOWN BUGS IN LARCENY
 			 ---------------------
 
+These are bugs that are or may be visible to the Scheme programmer.
+Bugs internal to the development system are in the file BUGS-DEV.
+
 Bugs are listed in the order recorded.  Fixed bugs have been moved to
-the file BUGS-FIXED.  An entry consists of an entry number, the version
-of Larceny in which the bug was discovered, the date it was recorded, a
-description of the problem, and any supporting documentation,
-information, test cases, and so on.
+the file BUGS-FIXED.  Each entry consists of an entry number, the
+version of Larceny in which the bug was discovered, the date it was
+recorded and who found it, a description of the problem, and any
+supporting documentation, information, test cases, and so on.
 
 
 005  (v0.27e)
@@ -25,59 +28,12 @@ information, test cases, and so on.
      new tables.  But at this point the barrier has not yet been initialized,
      so garbage is accessed.
 
-011  (v0.28)
-
-     Error reporting for vector-ref is broken:
-
-	> (vector-ref '#(1 2 3) 4)
-	Error: Exception-handler: confused about vector-ref: #(1 2 3) 2
-
-     This is a known problem: the value '2' is not the right value;
-     the generated code does not pass the right value to the fault handler.
-
-     Fix this in the _new_ assembler only.
-
-     Consolidated bugs: [013,015,014,016].  This is really a problem with
-     the way emit-double-tagcheck-assert! and emit-single-tagcheck-assert!
-     are implemented in the assembler.  Tag checking code needs to be
-     revisited anyway, which is why I haven't implemented a quick fix.
-     --lars
-
-     [013] Error reporting for bytevector-like-ref is broken:
-
-	(bytevector-like-ref "123" 4)
-	Error: Exception-handler: confused about bytevector-like-ref: 123 2
-
-     [014] Error reporting for bytevector-ref is broken:
-
-	(bytevector-ref (make-bytevector 3) 4)
-	Error: Exception-handler: confused about bytevector-ref: 
-		#<BYTEVECTOR> 2
-
-     [015] Error reporting for bytevector-set! is broken:
-
-	(bytevector-set! (make-bytevector 3) 4 27)
-	Error: bytevector-set!: 3 is not a valid index into bytevector
-
-     [016] Error reporting for vector-set! is broken:
-
-	(vector-set! (vector 1 2 3) 4 0)
-	Error: vector-set!: 3 is not a valid index into vector
-
-
 012  (v0.28)  970507
 
      Remembered-set size information from the command line is disregarded
      when creating the remembered sets in the garbage collector.
 
      See file Rts/Sys/memmgr.c
-
-018  (v0.28)  970507
-
-     Expt only takes exact integer powers:
-
-	(expt 2 1.5)
-	Error: expt: don't yet know how to deal with21.5
 
 019  (v0.28)  970507
 
@@ -104,25 +60,66 @@ information, test cases, and so on.
      The following functions do not accept complex arguments:
 	SQRT, SIN, COS, TAN, ASIN, ACOS, ATAN, LOG, EXP
 
-     [970701: Actually, I've implemented LOG, EXP, SIN, COS, TAN, ASIN, ACOS, 
-      and ATAN; SQRT remains.  Also, these must all be tested.  --lars ]
+     [970701: Actually, I've implemented these, but testing remains. 
+      At the very least, ASIN and ACOS for values outside [1,1] must
+      do something different from what they do now.  --lars]
 
 026  (v0.28d) 970701
 
      LOG does not accept negative arguments.
 
-     [970716: Actually, this has been implemented, but it remains to be
-      tested.  --lars ]
+     [970716: Actually, I've implemented this, but testing remains. --lars]
 
 031  v0.28e (970708 / lth)
 
-     dynamic-wind must be made thread-aware: there are race conditions.
+     Dynamic-wind must be made aware of timer interrupts.
 
 032  v0.28e (970715 / lth)
 
      It appears that the error continuation grows longer and longer with
-     each error.
+     each error.  This is an error.
 
-NEXT ENTRY: 033.
+034  v0.28f (970723 / lth)
+
+     (This is true both in the old and new assembler.)
+     The number of arguments to a procedure is limited to 1023.  This is due
+     to the way the argument count is set up during INVOKE and the way it
+     is compared during ARGS=, ARGS>=.
+
+     Note that things like (apply + massively-long-list) still work,
+     because + takes 0 or more arguments (so the comparison is with 0), and
+     apply computes the correct length of the list.
+
+     This is easy to fix, but before doing so, check that the compiler 
+     does not in fact compile these kinds of procedures and calls specially.
+
+035  v0.28f (970812 / lth)
+
+     The macro expander (and Twobit?) rely on some global variables called
+     %list, %list->vector, %cons, %append, and %make-promise.  
+
+     These dependencies should be removed completely, probably by using
+     magic global names (more magic than the above...) that the linker
+     treats specially.
+
+     Also NOTE that those names are not present in the null environment, 
+     so some code that should run in that environment (notably code with
+     quasiquotations, but perhaps other code as well) will not in fact run.
+     The same fix applies.
+
+036  v0.28f (970826 / lth -- old bug)
+
+     The reader accepts \ as an initial character in symbols, but not
+     as a subsequent, and when it is an initial character, it is not
+     an escape character.
+
+     I think the right behavior for \ is to work as an escape character
+     in symbols and be valid everywhere in a symbol; \c should then mean
+     literally c everywhere (notably preserving case, but also allowing
+     spaces, control characters, and non-standard characters).  In 
+     particular, if a symbol starts with \c, then even if symbols may not
+     usually start with c, the interpretation should be a symbol.
+
+NEXT ENTRY: 038.
 
 ; eof

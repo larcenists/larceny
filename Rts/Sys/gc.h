@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.h
  * Larceny run-time system -- garbage collector interface (public)
  *
- * $Id: gc.h,v 1.13 1997/05/31 01:38:14 lth Exp $
+ * $Id: gc.h,v 1.14 1997/09/17 15:17:26 lth Exp lth $
  *
  * The procedure create_gc() returns a new garbage collector that manages
  * some number of heap areas.  It is implemented in "memmgr.c".
@@ -23,6 +23,7 @@
 #define INCLUDED_GC_H
 
 #include "semispace.h"   /* Sigh.  gc_t needs it. */
+#include "heapio.h"      /* Ditto */
 
 /* Information about each heap */
 
@@ -45,6 +46,9 @@ struct gc_param {
   int bdw_incremental;        /* 1 if incremental conservative GC */
 
   word *globals;              /* globals table used by collector */
+
+  unsigned   disable_contraction;  /* 1 to disable contraction */
+  unsigned   disable_nursery;      /* 1 to disable "promote-always" */
 
   /* For non-static heap and remembered-set information, a value of 0 
    * means "default" 
@@ -120,6 +124,7 @@ struct gc {
 
   /* Support for static heap. */
   void (*reorganize_static)( gc_t *gc, semispace_t **data, semispace_t **text);
+  int  (*load_heap)( gc_t *gc, heapio_t *h );
 
   /* PRIVATE */
   /* Internal to the collector implementation. */

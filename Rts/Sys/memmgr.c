@@ -1,7 +1,7 @@
 /* Rts/Sys/new-policy.c.
  * Larceny run-time system -- memory manager.
  *
- * $Id: memmgr.c,v 1.23 1997/07/07 20:13:53 lth Exp lth $
+ * $Id: memmgr.c,v 1.24 1997/09/17 15:17:26 lth Exp lth $
  *
  * This file contains procedures for memory allocatation and garbage 
  * collection policy.
@@ -37,6 +37,7 @@ const char *gc_technology = "precise";
 #include "memmgr.h"
 #include "gclib.h"
 #include "assert.h"
+#include "heapio.h"
 
 #define MAX_GENERATIONS (2*MAX_HEAPS)
 
@@ -207,6 +208,8 @@ allocate_young_heap( gc_param_t *params, gc_t *gc, int *gen_no )
 		       params->heap_info[0].oflo_mark,
 		       params->globals );
   data->young_heap->collector = gc;
+  if (params->disable_nursery == 0)  /* i.e., enable it! */
+    data->young_heap->set_policy( data->young_heap, GCCTL_OFLOMARK, 0 );
 }
 
 
@@ -243,6 +246,8 @@ allocate_old_heaps( int number_of_old_heaps, gc_param_t *params, gc_t *gc,
     data->old_heaps[h]->oldest = 0;
     for ( i = g ; i < *gen_no ; i++ )
       data->old_gen[i].heap = data->old_heaps[h];
+    if (params->disable_contraction)
+      data->old_heaps[h]->set_policy( data->old_heaps[h], GCCTL_LOMARK, 0 );
   }
   data->old_heaps[h-1]->oldest = 1;
   *heap_no = h;
@@ -334,6 +339,7 @@ static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim );
 static void set_np_collection_flag( gc_t *gc );
 static void np_merge_and_clear_remset( gc_t *gc, int gen );
 static void reorganize_static( gc_t *, semispace_t **, semispace_t ** );
+static int  load_heap( gc_t *gc, heapio_t *h );
 static void set_policy( gc_t *, int, int, unsigned );
 
 static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
@@ -394,6 +400,7 @@ static gc_t *alloc_gc_structure( int number_of_old_heaps, word *globals )
   gc->np_merge_and_clear_remset = np_merge_and_clear_remset;
 
   gc->reorganize_static = reorganize_static;
+  gc->load_heap = load_heap;
 
   gc->iflush = iflush;
   gc->stats = stats;
@@ -916,6 +923,100 @@ reorganize_static( gc_t *gc, semispace_t **data, semispace_t **text )
   DATA(gc)->static_heap->reorganize( DATA(gc)->static_heap );
   DATA(gc)->static_heap->get_data_areas( DATA(gc)->static_heap, data, text );
 }
-  
+
+
+/* This should be in heapio.c, but can't, since gc_data_t is private.
+   That is yet another argument in favor of exposing selected parts
+   of the gc data (namely, the heaps).
+ */
+
+static int
+load_heap( gc_t *gc, heapio_t *h )
+{
+#if 1
+  panic( "memmgr.c::load_heap: you can't do that." );
+#else
+  gc_data_t *data = DATA(gc);
+  word **pagetable;
+  metadata_block_t *p;
+  old_heap_t **q;
+  int i, k, r = HEAPIO_OK, have_static = 0;
+  word *lo, *hi;
+
+  pagetable = (word**)must_malloc( h->data_pages*sizeof(word*) );
+
+  /* STAGE 1: Setup data areas and page table */
+
+  p = h->metadata;
+
+  /* Young heap */
+  if (data->young_heap->code != p->code) {
+    r = HEAPIO_CODEMATCH;
+    goto cleanup;
+  }
+  data->young_heap->load_prepare( data->young_heap, p, h, &lo, &hi );
+  for ( i = pageof(lo), page=lo ; i <= pageof(hi) ; i++, page += PAGE_WORDS )
+    pagetable[i] = page;
+  p = p->next;
+
+  /* Old heaps */
+  q = data->old_heaps;
+  k = data->number_of_old_heaps;
+  while (p != 0 && k > 0) {
+    while (k > 0 && p->code != (*q)->code) { q++; k-- }
+    if (k == 0) break;
+    /* p->code == (*q)->code */
+    (*q)->load_prepare( *q, p, h, &lo, &hi );
+    for ( i = pagof(lo), page=lo ; i <= pageof(hi) ; i++, page += PAGE_WORDS )
+      pagetable[i] = page;
+    p = p->next;
+    q++; k--;
+  }
+
+  /* Static heap */
+  if (data->static_heap != 0 && p != 0 && data->static_heap->code == p->code) {
+    have_static = 1;
+    data->static_heap->load_prepare( data->static_heap, p, h, &lo, &hi );
+    for ( i = pageof(lo), page=lo ; i <= pageof(hi) ; i++, page += PAGE_WORDS )
+      pagetable[i] = page;
+  }
+  else if (p != 0 || data->static_heap != 0) {
+    r = HEAPIO_CODEMATCH;
+    goto cleanup;
+  }
+
+  h->pagetable = pagetable;
+
+
+  /* STAGE 2: Load heap data */
+
+  h->load_roots( h, data->globals );
+
+  /* Young */
+  p = info->metadata;
+  gc->young_heap->load_data( gc->young_heap, p, h );
+  p = p->next;
+
+  /* Old */
+  q = gc->old_heaps;
+  k = gc->number_of_old_heaps;
+  while (p != 0) {
+    while (p->code != (*q)->code) { q++; k-- }
+    /* p->code == (*q)->code */
+    (*q)->load_data( *q, p, h );  /* must construct remset! */
+    p = p->next;
+    q++; k--;
+  }
+
+  /* Static */
+  if (have_static)
+    data->static_heap->load_data( data->static_heap, p, h );  /* ditto */
+
+ cleanup:
+  free( pagetable );
+  return r;
+#endif
+}
+
 /* eof */
 

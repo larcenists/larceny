@@ -1,0 +1,141 @@
+; -*- scheme -*-
+;
+; $Id: modules.list,v 1.1 1997/09/17 15:24:00 lth Exp lth $
+;
+; Experimental setup for loading compiled systems into environments.
+; Each for defines an environment in terms of parent environment, files
+; to load, and entities to import from other environments.  The 
+; environments must form a DAG with respect to the parent/child relationship,
+; so parents must come before children in the file.
+; 
+; The names @interaction-environment@ and @toplevel@ are magic.
+
+((environment auxiliary)
+ (parent @interaction-environment@)
+ (files "Auxlib/misc.fasl"
+	"Auxlib/sort.fasl"
+	"Auxlib/pp.fasl"
+	"Larceny/compat2.fasl"))
+
+; This is a little grungy... twobit.imp.fasl uses define-inline
+; which is defined in pass1.aux.fasl, and the assembler needs the
+; $whatever definitions from Compiler/twobit.imp.fasl.  I've broken
+; it up here.  Ideally, this would be more sophisticated -- as it is,
+; the assembler gets to see all of compiler-base, much more than
+; it needs. 
+
+((environment compiler-1)
+ (parent auxiliary)
+ (files "Compiler/sets.fasl"
+	"Compiler/switches.fasl"
+	"Compiler/pass1.aux.fasl")
+ (imports (compiler-base twobit-sort)))
+
+
+; I've included pass2.aux.fasl here because many procedures defined there
+; are used in twobit.imp.fasl, and of course this further pollutes the
+; name space for the assembler (sigh).
+
+((environment compiler-base)
+ (parent compiler-1)
+ (files "Compiler/twobit.imp.fasl"
+	"Compiler/pass2.aux.fasl")
+ (imports (compiler m-scan)))
+
+
+((environment compiler)
+ (parent compiler-base)
+ (files	"Compiler/pass1.fasl"
+	"Compiler/pass2p1.fasl"
+	"Compiler/pass2p2.fasl"
+	"Compiler/pass4.aux.fasl"
+	"Compiler/pass4p1.fasl"
+	"Compiler/pass4p2.fasl"
+	"Compiler/pass4p3.fasl"
+	"Compiler/pass4patch.fasl"
+	"Compiler/compile313.fasl"
+	)
+ (imports (asm-common assemble)
+	  (asm-common dump-fasl-segment-to-port)
+	  (asm-sparc  disassemble)
+	  (asm-sparc  print-ilist)
+	  (asm-sparc  write-barrier)
+	  ))
+
+((environment asm-common)
+ (parent compiler-base)
+ (files "Asm/Common/pass5p1.fasl"
+	"Asm/Common/asmutil.fasl"
+	"Asm/Common/asmutil32be.fasl"
+	"Asm/Common/asmutil32.fasl"
+	"Asm/Common/makefasl2.fasl")
+ (imports (asm-sparc assembly-table)
+	  (asm-sparc peep)
+	  (asm-sparc peephole-optimization)
+	  (asm-sparc single-stepping)
+	  ))
+
+((environment asm-sparc)
+ (parent asm-common)
+ (files "Build/schdefs.h"
+	"Asm/Sparc/pass5p2.fasl"
+	"Asm/Sparc/sparcasm.fasl"
+	"Asm/Sparc/sparcutil.fasl"
+	"Asm/Sparc/gen-msi.fasl"
+	"Asm/Sparc/gen-prim.fasl"
+	"Asm/Sparc/switches.fasl"
+	"Asm/Sparc/sparcdis.fasl"
+	"Asm/Sparc/peepopt.fasl")
+ ; No imports -- inherits asm-common.
+ )
+
+((environment make)
+ (parent auxiliary)
+ (files "Util/make.fasl"))
+
+; Missing: disassembler.
+
+((environment @toplevel@)
+ (parent @interaction-environment@)
+ (imports (auxiliary remq!)
+	  (auxiliary reduce-left)
+	  (auxiliary reduce-right)
+	  (auxiliary sort)
+	  (auxiliary sort!)
+	  (auxiliary pretty-print)
+	  (auxiliary pretty-print-to-string)
+	  (auxiliary pretty-line-length)
+	  (compiler compile-file)
+	  (compiler integrate-usual-procedures)
+	  (compiler local-optimizations)
+	  (compiler benchmark-mode)
+	  (compiler empty-list-is-true)
+	  (compiler issue-warnings)
+	  (compiler include-procedure-names)
+	  (compiler include-variable-names)
+	  (compiler include-source-code)
+	  (asm-common assemble)
+	  (asm-sparc peephole-optimization)
+	  (asm-sparc catch-undefined-globals)
+	  (asm-sparc generate-global-symbols)
+	  (asm-sparc inline-cons)
+	  (asm-sparc write-barrier)
+	  (asm-sparc inline-assignment)
+	  (asm-sparc unsafe-code)
+	  (make make:new-project)
+	  (make make:project?)
+	  (make make:rule)
+	  (make make:deps)
+	  (make make:targets)
+	  (make make:pretend)
+	  (make make:pretend)
+	  (make make:debug)
+	  (make make:debug)
+	  (make make:make)))
+
+; For the time being, remember the find-env procedure.
+
+(lambda (find-env)
+  (environment-set! (find-env '@toplevel@) 'larceny/find-env find-env))
+
+; eof 

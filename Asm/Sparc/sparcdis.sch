@@ -1,7 +1,7 @@
 ; Asm/Sparc/sparcdis.sch
 ; Larceny back-end -- SPARC disassembler
 ;
-; $Id$
+; $Id: sparcdis.sch,v 1.2 1997/07/18 13:43:13 lth Exp $
 ;
 ; Interface.
 ;  (disassemble-codevector codevector)              => decoded-instruction-list

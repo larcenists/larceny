@@ -1,15 +1,5 @@
 ; Larceny auxiliary library -- miscellaneous
-; $Id: misc.sch,v 1.1 1997/02/27 16:48:16 lth Exp $
-
-(define (some? p l)
-  (and (not (null? l))
-       (or (p (car l))
-	   (some? p (cdr l)))))
-
-(define (every? p l)
-  (or (null? l)
-      (and (p (car l))
-	   (every? p (cdr l)))))
+; $Id: misc.sch,v 1.2 1997/08/22 20:58:12 lth Exp $
 
 ; Names used by older code.
 
@@ -21,6 +11,14 @@
 (define andmap every?)
 (define ormap some?)
 
+; Not as efficient as it could be!
+
+(define (remq! key list)
+  (cond ((null? list) list)
+	((eq? key (car list))
+	 (remq! key (cdr list)))
+	(else
+	 (set-cdr! list (remq! key (cdr list))))))
 
 ; Reductions.
 ; The procedures optionally take an identity element.  If the

@@ -1,35 +1,18 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.8 1997/07/07 20:52:12 lth Exp lth $
+; $Id: unix.sch,v 1.10 1997/08/22 21:05:14 lth Exp $
 
-; Various UNIX I/O parameters. The values are taken from header files
-; for SunOS 4.1.1; at some point we need to find a scheme for generating
-; these values automatically (unless the values are POSIX-mandated).
+; Parameters for unix:open; the magic numbers are portable.
 
-; sys/fcntlcom.h
-; Obsolete: the ones below are portable.
-;(define unix:O_RDONLY 0)             ; mode for opening a file for read
-;(define unix:O_WRONLY 1)             ; ditto for write
-;(define unix:O_RDWR   2)             ; ditto for both
-;(define unix:O_CREAT  #x200)         ; create file if !existing (output)
-;(define unix:O_TRUNC  #x400)         ; truncate if existing (output)
-
-; Parameters for unix:open.
-
-(define unix:open-read  #x01)         ; open for read
-(define unix:open-write #x02)         ; open for write
+(define unix:open-read   #x01)        ; open for read
+(define unix:open-write  #x02)        ; open for write
 (define unix:open-append #x04)        ; position at end (writing)
 (define unix:open-create #x08)        ; create if not existing (writing)
 (define unix:open-trunc  #x10)        ; truncate if existing (writing)
 (define unix:create-mode #o666)       ; default mode for new files
 
-; unistd.h
-; Obsolete: the ones below are portable.
-;(define unix:R_OK 4)                 ; access for reading
-;(define unix:W_OK 2)                 ; access for writing
-;(define unix:X_OK 1)                 ; access for execution
-;(define unix:F_OK 0)                 ; path searchable, file exists
+; Parameters for unix:access; the magic numbers are portable.
 
 (define unix:access-exists  #x01)     ; path searchable, file exists
 (define unix:access-read    #x02)     ; file readable
@@ -38,14 +21,14 @@
 
 ; Standard Unix file descriptors
 
-(define unix:stdin 0)
+(define unix:stdin  0)
 (define unix:stdout 1)
 (define unix:stderr 2)
 
 ; Syscalls
 ;
-; They belong in a configuration file!!
-; Values correspond to the table ordering in Rts/Sys/cglue.c.
+; FIXME: these values belong in a configuration file.
+; NOTE: Values correspond to the table ordering in Rts/Sys/cglue.c.
 
 (define syscall:open 0)
 (define syscall:unlink 1)
@@ -78,33 +61,57 @@
 (define syscall:block-signals 28)
 (define syscall:flonum-sinh 29)
 (define syscall:flonum-cosh 30)
+(define syscall:system 31)
 
-; Wrappers
+; Syscall wrappers.
+
+; Returns file descriptor; -1 on error.
 
 (define (unix:open filename flags mode)
   (syscall syscall:open filename flags mode))
 
+; Returns 0 on success; -1 on error.
+
 (define (unix:close fd)
   (syscall syscall:close fd))
+
+; Returns number of bytes actually read; 0 on eof; -1 on error.
 
 (define (unix:read fd buffer nbytes)
   (syscall syscall:read fd buffer nbytes))
 
+; Returns number of bytes actually written; -1 on error.
+
 (define (unix:write fd buffer nbytes offset)
   (syscall syscall:write fd buffer nbytes offset))
+
+; Returns 0 on success, -1 on error.
 
 (define (unix:unlink filename)
   (syscall syscall:unlink filename))
 
+; Doesn't return.
+
 (define (unix:exit code)
   (syscall syscall:exit code))
 
-; Get resource usage data into given vector
+; Returns #t (ready) or #f (not ready).
+
+(define (unix:pollinput fd)
+  (= (syscall syscall:pollinput fd) 1))
+
+; Returns the exit status from wait(); see system(3).
+
+(define (unix:system commandline)
+  (syscall syscall:system commandline))
+
+; Get resource usage data into given vector.
+; Returns nothing.
 
 (define (unix:get-resource-usage)
   (syscall syscall:get-resource-usage))
 
-; Turn on and off GC statistics dumping to a file
+; Turn on and off GC statistics dumping to a file.
 
 (define (unix:stats-dump-on filename)
   (if (string? filename)
@@ -114,13 +121,12 @@
 (define (unix:stats-dump-off)
   (syscall syscall:stats-dump-off))
 
-; Dump image to given filename, and with given startup proc.
+; Dump a heap image to the given filename, with the given startup procedure.
 
 (define (unix:dump-heap fn proc)
   (syscall syscall:dump-heap fn proc))
 
-; Returns a vector of length 6, containing yr month day hr min sec.
-; Return the vector, or #f if the call failed.
+; Returns a vector of length 6: #(yr month day hr min sec), or #f on failure.
 
 (define (unix:file-modification-time filename)
   (let ((v (make-vector 6)))
@@ -139,31 +145,22 @@
 (define (unix:rename old new)
   (zero? (syscall syscall:rename old new)))
 
-; Poll for input on the given file descriptor
-
-(define (unix:pollinput fd)
-  (= (syscall syscall:pollinput fd) 1))
-
-; Get an environment variable, or #f
+; Get the value of an environment variable, and return string or #f.
 
 (define (unix:getenv str)
   (syscall syscall:getenv str))
 
-; Garbage collection. 
-; 'Gen' is the generation.
-; 'Type' is 0 (collect) or 1 (promote).
+; 'Gen' is the generation; 'type' is 0 (collect) or 1 (promote).
 
 (define (unix:gc gen type)
   (syscall syscall:gc gen type))
 
-; Instruction cache flushing
-; Argument is a byte vector
+; Instruction cache flushing.  The argument is a byte vector.
 
 (define (unix:iflush bv)
   (syscall syscall:iflush bv))
 
-; Transcendentals and square root are supported by callouts to C,
-; for now.
+; Transcendentals and square root are supported by callouts to C, for now.
 
 (define (unix:flonum-log x)
   (syscall syscall:flonum-log x (make-raw-flonum)))
@@ -213,7 +210,7 @@
 ; 'mode' is a symbol, either input or output, and a buffer is a 
 ; bytevector-like structure.
 ;
-; Rule: Opening a file which already exits for mail will cause the old file
+; Rule: Opening a file which already exits for output will cause the old file
 ; to be silently truncated.
 
 ; Open the 'terminal' and return file descriptors for input and output
@@ -304,6 +301,13 @@
 (define flonum:log unix:flonum-log)
 (define flonum:sqrt unix:flonum-sqrt)
 
+; Subprocess
+
+(define (system cmd)
+  (if (not (string? cmd))
+      (error "system: " cmd " is not a string.")
+      (unix:system cmd)))
+
 ; System-dependent character values.
 
 (define **newline** 10)
@@ -317,13 +321,15 @@
 ;  - can't have a newline in a string constant, since we don't have
 ;    any syntax for that yet.
 
-(define ($$trace msg)
+(define ($$debugmsg msg)
   (let ((nl " "))
     (string-set! nl 0 (integer->char **newline**))
     (sys$write-file4 1 msg (string-length msg) 0)
     (sys$write-file4 1 nl 1 0)))
 
-; For 0.28e release *only*
+(define $$trace $$debugmsg)
+
+; For releases (and when we get tired of seeing all the startup msgs).
 
 (define ($$trace msg)
   #f)

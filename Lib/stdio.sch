@@ -1,7 +1,7 @@
 ; Lib/stdio.sch
 ; Larceny -- standard Scheme I/O library
 ;
-; $Id: stdio.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
+; $Id: stdio.sch,v 1.6 1997/08/22 21:05:14 lth Exp $
 ;
 ; Procedures we could add:
 ;   file-port?
@@ -100,6 +100,15 @@
 	 (io/write-char c (car rest)))
 	(else
 	 (error "write-char: too many arguments.")
+	 #t)))
+
+(define (write-bytevector-like bvl . rest)
+  (cond ((null? rest)
+	 (io/write-bytevector-like bvl (current-output-port)))
+	((null? (cdr rest))
+	 (io/write-bytevector-like bvl (car rest)))
+	(else
+	 (error "write-bytevector-like: too many arguments.")
 	 #t)))
 
 (define (eof-object? p)

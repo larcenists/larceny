@@ -1,13 +1,17 @@
 ; Asm/Sparc/sparcasm.sch
 ; Larceny -- SPARC machine assembler
 ;
-; $Id: sparcasm.sch,v 1.1 1997/07/07 20:36:24 lth Exp lth $
+; $Id: sparcasm.sch,v 1.3 1997/08/22 20:54:57 lth Exp $
 ;
 ; The procedure `sparc-instruction' takes an instruction class keyword and
-; some operands and returns an assembler procedure for that instruction.
+; some operands and returns an assembler procedure for the instruction
+; denoted by the class and the operands.
 ;
-; Assembler procedures for SPARC mnemonics are defined at the end 
+; All assembler procedures for SPARC mnemonics are defined at the end 
 ; of this file.
+;
+; The SPARC has 32-bit, big-endian words.  All instructions are 1 word.
+; This assembler currently accepts a subset of the SPARC v8 instruction set.
 ;
 ; Each assembler procedure takes an `as' assembly structure (see 
 ; Asm/Common/pass5p1.sch) and operands relevant to the instruction, and
@@ -17,14 +21,14 @@
 ; are normally considered the "same".  For example, the `add' instruction is
 ; split into two operations here: `sparc.addr' takes a register as operand2,
 ; and `sparc.addi' takes an immediate.  We could remove this restriction
-; by using magic constants (procedures, vectors) rather than numbers for
-; registers, but it does not seem to be an important problem.
+; by using objects with identity rather than numbers for registers, but it
+; does not seem to be an important problem.
 ;
 ; Operands that denote values (addresses, immediates, offsets) may be
 ; expressed using symbolic expressions. These expressions must conform
 ; to the following grammar:
 ;
-;   <expr> --> <symbol>                    ; label
+;   <expr> --> ( <number> . <obj> )        ; label
 ;            | <number>                    ; literal value (exact integer)
 ;            | (+ <expr> ... )             ; sum
 ;            | (- <expr> ... )             ; difference
@@ -41,13 +45,22 @@
 ;
 ; Note: I removed `$' from the expression grammar because it wreaks havoc with
 ; fixups and because `(here as)' can always be used instead.
-
+;
+; Note: the idiom that is seen in this file,
+;   (emit-fixup-proc! as (lambda (b l) (fixup b l)))
+; when `fixup' is a local procedure, avoids allocation of the closure
+; except in the cases where the fixup is in fact needed, for gains in
+; speed and reduction in allocation.  (Ask me if you want numbers.)
+ 
 (define sparc-instruction)
 
 (let ()
 
   (define ibit (asm:bv 0 0 #x20 0))	; immediate bit: 2^13
   (define abit (asm:bv #x20 0 0 0))	; annul bit: 2^29
+  (define zero (asm:bv 0 0 0 0))        ; all zero bits
+
+  (define two^32 (expt 2 32))
 
   ; Constant expression evaluation. If the expression cannot be 
   ; evaluated, eval-expr returns #f, otherwise a number.
@@ -55,12 +68,26 @@
 
   (define (eval-expr as e)
 
-    (define (hibits e) (if (not e) e (quotient e 1024)))
-    (define (lobits e) (if (not e) e (remainder e 1024)))
+    (define (complement x)
+      (modulo (+ two^32 x) two^32))
+
+    (define (hibits e)
+      (cond ((not e) e)
+	    ((< e 0)
+	     (complement (quotient (complement e) 1024)))
+	    (else
+	     (quotient e 1024))))
+
+    (define (lobits e)
+      (cond ((not e) e)
+	    ((< e 0)
+	     (remainder (complement e) 1024))
+	    (else
+	     (remainder e 1024))))
 
     (define (evaluate e)
       (cond ((integer? e)      e)
-	    ((symbol? e)       (label-value as e))
+	    ((label? e)        (label-value as e))
 	    ((eq? 'hi (car e)) (hibits (evaluate (cadr e))))
 	    ((eq? 'lo (car e)) (lobits (evaluate (cadr e))))
 	    ((eq? '+ (car e))
@@ -97,40 +124,122 @@
       (else 
        (error "Invalid error code in assembler: " code))))
 
-  ; Procedures that compute operand bits.
+  ; The following procedures construct instructions by depositing field
+  ; values directly into bytevectors; the location parameter in the dep-*!
+  ; procedures is the address in the bytevector of the most significant byte.
 
-  (define (rs1-op r) (asm:lsh r 14))
-  (define (rs2-op r) r)
-  (define (rd-op r)  (asm:lsh r 25))
-  (define (imm-op v) (asm:lobits v 13))
+  (define (copy bits)
+    (let ((bv (make-bytevector 4)))
+      (bytevector-set! bv 0 (bytevector-ref bits 0))
+      (bytevector-set! bv 1 (bytevector-ref bits 1))
+      (bytevector-set! bv 2 (bytevector-ref bits 2))
+      (bytevector-set! bv 3 (bytevector-ref bits 3))
+      bv))
 
-  ; Instruction manipulation
+  (define (copy-instr bv from to)
+    (bytevector-set! bv to (bytevector-ref bv from))
+    (bytevector-set! bv (+ to 1) (bytevector-ref bv (+ from 1)))
+    (bytevector-set! bv (+ to 2) (bytevector-ref bv (+ from 2)))
+    (bytevector-set! bv (+ to 3) (bytevector-ref bv (+ from 3))))
 
-  (define (get-instr bv loc)
-    (asm:bv (bytevector-ref bv loc)
-	    (bytevector-ref bv (+ loc 1))
-	    (bytevector-ref bv (+ loc 2))
-	    (bytevector-ref bv (+ loc 3))))
+  (define (dep-rs1! bits k rs1)
+    (bytevector-set! bits (+ k 1)
+		     (logior (bytevector-ref bits (+ k 1))
+			     (rshl rs1 2)))
+    (bytevector-set! bits (+ k 2)
+		     (logior (bytevector-ref bits (+ k 2))
+			     (lsh (logand rs1 3) 6))))
 
-  (define (set-instr! bv loc instr)
-    (bytevector-set! bv (+ loc 3) (bytevector-ref instr 0))
-    (bytevector-set! bv (+ loc 2) (bytevector-ref instr 1))
-    (bytevector-set! bv (+ loc 1) (bytevector-ref instr 2))
-    (bytevector-set! bv loc (bytevector-ref instr 3)))
+  (define (dep-rs2! bits k rs2)
+    (bytevector-set! bits (+ k 3)
+		     (logior (bytevector-ref bits (+ k 3)) rs2)))
 
-  (define (display-instr instr)
-    (do ((i 3 (- i 1)))
-	((< i 0))
-      (format #t "~a " (number->string (bytevector-ref instr i) 16))))
+  (define (dep-rd! bits k rd)
+    (bytevector-set! bits k
+		     (logior (bytevector-ref bits k) (lsh rd 1))))
 
-  ; Register a fixup procedure and return 0.
+  (define (dep-imm! bits k imm)
+    (cond ((fixnum? imm)
+	   (bytevector-set! bits (+ k 3) (logand imm 255))
+	   (bytevector-set! bits (+ k 2)
+			    (logior (bytevector-ref bits (+ k 2))
+				    (logand (rsha imm 8) 31))))
+	  ((bytevector? imm)
+	   (bytevector-set! bits (+ k 3) (bytevector-ref imm 0))
+	   (bytevector-set! bits (+ k 2)
+			    (logior (bytevector-ref bits (+ k 2))
+				    (logand (bytevector-ref imm 1)
+					    31))))
+	  (else
+	   (dep-imm! bits k (asm:int->bv imm)))))
 
-  (define (fixup-logior as proc)
-    (emit-fixup-proc!
-     as 
-     (lambda (bv loc)
-       (set-instr! bv loc (asm:logior (get-instr bv loc) (proc)))))
-    0)
+  (define (dep-branch-offset! bits k offs)
+    (cond ((fixnum? offs)
+	   (if (not (= (logand offs 3) 0))
+	       (signal-error 'unaligned "branch" offs))
+	   (dep-imm22! bits k (rsha offs 2)))
+	  ((bytevector? offs)
+	   (if (not (= (logand (bytevector-ref offs 3) 3) 0))
+	       (signal-error 'unaligned "branch" (asm:bv->int offs)))
+	   (dep-imm22! bits k (asm:rsha offs 2)))
+	  (else
+	   (dep-branch-offset! bits k (asm:int->bv offs)))))
+
+  (define (dep-imm22! bits k imm)
+    (cond ((fixnum? imm)
+	   (bytevector-set! bits (+ k 3) (logand imm 255))
+	   (bytevector-set! bits (+ k 2)
+			    (logand (rsha imm 8) 255))
+	   (bytevector-set! bits (+ k 1)
+			    (logior (bytevector-ref bits (+ k 1))
+				    (logand (rsha imm 16) 63))))
+	  ((bytevector? imm)
+	   (bytevector-set! bits (+ k 3) (bytevector-ref imm 3))
+	   (bytevector-set! bits (+ k 2) (bytevector-ref imm 2))
+	   (bytevector-set! bits (+ k 1)
+			    (logior (bytevector-ref bits (+ k 1))
+				    (logand (bytevector-ref imm 1)
+					    63))))
+	  (else
+	   (dep-imm22! bits k (asm:int->bv imm)))))
+
+  (define (dep-call-offset! bits k offs)
+    (cond ((fixnum? offs)
+	   (if (not (= (logand offs 3) 0))
+	       (signal-error 'unaligned "call" offs))
+	   (bytevector-set! bits (+ k 3) (logand (rsha offs 2) 255))
+	   (bytevector-set! bits (+ k 2) (logand (rsha offs 10) 255))
+	   (bytevector-set! bits (+ k 1) (logand (rsha offs 18) 255))
+	   (bytevector-set! bits k (logior (bytevector-ref bits k)
+					   (logand (rsha offs 26) 63))))
+	  ((bytevector? offs)
+	   (if (not (= (logand (bytevector-ref offs 3) 3) 0))
+	       (signal-error 'unaligned "call" (asm:bv->int offs)))
+	   (let ((offs (asm:rsha offs 2)))
+	     (bytevector-set! bits (+ k 3) (bytevector-ref offs 3))
+	     (bytevector-set! bits (+ k 2) (bytevector-ref offs 2))
+	     (bytevector-set! bits (+ k 1) (bytevector-ref offs 1))
+	     (bytevector-set! bits k (logior (bytevector-ref bits k)
+					     (logand (bytevector-ref offs 0)
+						     63)))))
+	  (else
+	   (dep-call-offset! bits k (asm:int->bv imm)))))
+
+  ; Add 1 to an instruction (to bump a branch offset by 4).
+  ; FIXME: should check for field overflow.
+
+  (define (add1 bv loc)
+    (let* ((r0 (+ (bytevector-ref bv (+ loc 3)) 1))
+	   (d0 (logand r0 255))
+	   (c0 (rshl r0 8)))
+      (bytevector-set! bv (+ loc 3) d0)
+      (let* ((r1 (+ (bytevector-ref bv (+ loc 2)) c0))
+	     (d1 (logand r1 255))
+	     (c1 (rshl r1 8)))
+	(bytevector-set! bv (+ loc 2) d1)
+	(let* ((r2 (+ (bytevector-ref bv (+ loc 1)) c1))
+	       (d2 (logand r2 255)))
+	  (bytevector-set! bv (+ loc 1) d2)))))
 
   ; For delay slot filling -- uses the assembler value scratchpad in
   ; the as structure.  Delay slot filling is discussed in the comments
@@ -144,6 +253,8 @@
 
   ; Mark the instruction at the current address as not being eligible 
   ; for being lifted into a branch delay slot.
+  ;
+  ; FIXME: should perhaps be a hash table; see BOOT-STATUS file for details.
 
   (define (not-a-delay-slot-instruction as)
     (assembler-value! as 'not-dsi
@@ -151,7 +262,7 @@
 			    (or (assembler-value as 'not-dsi) '()))))
 
   (define (is-a-delay-slot-instruction? as addr)
-    (not (memv addr (assembler-value as 'not-dsi))))
+    (not (memv addr (or (assembler-value as 'not-dsi) '()))))
 
   ; SETHI, etc.
 
@@ -159,17 +270,18 @@
     (let ((bits (asm:lsh bits 22)))
       (lambda (as val rd)
 
-	(define (expr)
-	  (let ((v (eval-expr as val)))
-	    (cond ((not v) v)
-		  (else (asm:lobits v 22)))))
+	(define (fixup bv loc)
+	  (dep-imm22! bv loc
+		      (or (eval-expr as val)
+			  (signal-error 'fixup "sethi" val))))
 
-	(define (fixup)
-	  (or (expr) (signal-error 'fixup "sethi" val)))
-
-	(let ((e  (or (expr) (fixup-logior as fixup)))
-	      (rd (rd-op rd)))
-	  (emit-instr! as (asm:logior rd bits e))))))
+	(let ((bits (copy bits))
+	      (e    (eval-expr as val)))
+	  (if e
+	      (dep-imm22! bits 0 e)
+	      (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	  (dep-rd! bits 0 rd)
+	  (emit! as bits)))))
 
   ; NOP is a peculiar sethi
 
@@ -180,14 +292,14 @@
 
   ; Un-annulled branches.
 
-  (define (class00b i) (branch i 0))
+  (define (class00b i) (branch i zero))
 
   ; Annulled branches.
 
   (define (class00a i) (branch i abit))
 
   ; Branches in general.  
-  ; The `annul' parameter is either 0 or the value of the `abit' variable.
+  ; The `annul' parameter is either `zero' or `abit' (see top of file).
   ;
   ; Annuled branches require special treatement for delay slot
   ; filling based on the `slot' pseudo-instruction.
@@ -204,14 +316,14 @@
   ; branch (which will always set the cache).
 
   (define (branch bits annul)
-    (let ((bits (asm:lsh bits 25))
-	  (code (asm:lsh #b010 22)))
+    (let ((bits (asm:logior (asm:lsh bits 25) (asm:lsh #b010 22) annul)))
       (lambda (as target0)
 	(let ((target `(- ,target0 ,(here as))))
 
 	  (define (expr)
 	    (let ((e (eval-expr as target)))
-	      (cond ((not e) e)
+	      (cond ((not e)
+		     e)
 		    ((not (zero? (logand e 3)))
 		     (signal-error 'unaligned "branch" target0))
 		    ((asm:fits? e 24)
@@ -219,22 +331,22 @@
 		    (else
 		     (asm-value-too-large as "branch" target e)))))
 
-	  (define (fixup)
+	  (define (fixup bv loc)
 	    (let ((e (expr)))
 	      (if e
-		  (asm:lobits (asm:rsha e 2) 22)
+		  (dep-branch-offset! bv loc e)
 		  (signal-error 'fixup "branch" target0))))
 
-	  (let ((e (expr)))
-	    (let ((offset (asm:lobits
-			   (asm:rsha (or e (fixup-logior as fixup)) 2)
-			   22))
-		  (bt     (or e expr)))
-	      (if (not (eqv? annul 0))
-		  (remember-branch-target as bt)
-		  (remember-branch-target as #f)) ; Clears the cache.
-	      (not-a-delay-slot-instruction as)
-	      (emit-instr! as (asm:logior annul bits code offset))))))))
+	  (if (not (eq? annul zero))
+	      (remember-branch-target as target0)
+	      (remember-branch-target as #f)) ; Clears the cache.
+	  (not-a-delay-slot-instruction as)
+	  (let ((bits (copy bits))
+		(e    (expr)))
+	    (if e
+		(dep-branch-offset! bits 0 e)
+		(emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	    (emit! as bits))))))
 
   ; Branch delay slot pseudo-instruction.
   ;
@@ -246,106 +358,118 @@
   ;
   ; It's important that this fixup run _after_ any fixups for the branch
   ; instruction itself!
-  ;
-  ; FIXME: check overflow of the branch offset field.
 
   (define (class-slot)
     (let ((nop-instr (class-nop #b100)))
       (lambda (as)
-	; The branch target as remembered is the relative displacement from
-	; the branch instruction itself.
-	(let* ((branch-target
-		(recover-branch-target as))
-	       (fixup
-		(lambda (bv loc)
-		  (if (procedure? branch-target)
-		      (set! branch-target (branch-target)))
-		  (set! branch-target (+ branch-target (- loc 4)))
-		  (if (is-a-delay-slot-instruction? as branch-target)
-		      (begin
-			(set-instr! bv loc (get-instr bv branch-target))
-			(set-instr! bv
-				    (- loc 4)
-				    (asm:add (get-instr bv (- loc 4)) 1)))))))
-	  (if (fill-delay-slots)
-	      (emit-fixup-proc! as fixup))
-	  (nop-instr as)))))
+
+	; The branch target is the expression denoting the target location.
+
+	(define branch-target (recover-branch-target as))
+
+	(define (fixup bv loc)
+	  (let ((bt (or (eval-expr as branch-target)
+			(asm-error "Branch fixup: can't happen: " 
+				   branch-target))))
+	    (if (is-a-delay-slot-instruction? as bt)
+		(begin
+		  (copy-instr bv bt loc)
+		  (add1 bv (- loc 4))))))
+
+	(if (and branch-target (fill-delay-slots))
+	    (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	(nop-instr as))))
 
   ; ALU stuff, register operand. Also: jump.
   ; If 'extra' is non-null, it's a jump.
 
   (define (class10r bits . extra)
-    (let ((bits  (asm:lsh bits 19))
-	  (code  (asm:lsh #b10 30))
+    (let ((bits  (asm:logior (asm:lsh #b10 30) (asm:lsh bits 19)))
 	  (jump? (not (null? extra))))
       (lambda (as rs1 rs2 rd)
-	(let ((rs1 (rs1-op rs1))
-	      (rs2 (rs2-op rs2))
-	      (rd  (rd-op rd)))
-	  (if jump?
-	      (not-a-delay-slot-instruction as))
-	  (emit-instr! as (asm:logior code rd bits rs1 rs2))))))
+	(if jump?
+	    (not-a-delay-slot-instruction as))
+	(let ((bits (copy bits)))
+	  (dep-rs1! bits 0 rs1)
+	  (dep-rs2! bits 0 rs2)
+	  (dep-rd! bits 0 rd)
+	  (emit! as bits)))))
+
 
   ; ALU stuff, immediate operand. Also: jump.
   ; If 'extra' is non-null, it's a jump.
 
   (define (class10i bits  . extra)
-    (let ((bits  (asm:lsh bits 19))
-	  (code  (asm:lsh #b10 30))
+    (let ((bits  (asm:logior (asm:lsh #b10 30) (asm:lsh bits 19) ibit))
 	  (jump? (not (null? extra))))
       (lambda (as rs1 e rd)
 
 	(define (expr)
 	  (let ((imm (eval-expr as e)))
-	    (cond ((not imm) imm)
-		  ((asm:fits? imm 13) (imm-op imm))
+	    (cond ((not imm)
+		   imm)
+		  ((asm:fits? imm 13)
+		   imm)
 		  (jump?
 		   (asm-value-too-large as "`jmpli'" e imm))
 		  (else
 		   (asm-value-too-large as "ALU instruction" e imm)))))
 
-	(define (fixup)
-	  (or (expr) (signal-error 'fixup "ALU instruction" e)))
+	(define (fixup bv loc)
+	  (let ((e (expr)))
+	    (if e
+		(dep-imm! bv loc e)
+		(signal-error 'fixup "ALU instruction" e))))
 
-	(let ((imm (or (expr) (fixup-logior as fixup)))
-	      (rs1 (rs1-op rs1))
-	      (rd  (rd-op rd)))
-	  (if jump?
-	      (not-a-delay-slot-instruction as))
-	  (emit-instr! as (asm:logior code rd bits rs1 ibit imm))))))
+	(if jump?
+	    (not-a-delay-slot-instruction as))
+	(let ((bits (copy bits))
+	      (e    (expr)))
+	  (if e
+	      (dep-imm! bits 0 e)
+	      (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	  (dep-rs1! bits 0 rs1)
+	  (dep-rd! bits 0 rd)
+	  (emit! as bits)))))
 
   ; Memory stuff, register operand.
 
   (define (class11r bits)
-    (let ((bits (asm:lsh bits 19))
-	  (code (asm:lsh #b11 30)))
+    (let ((bits (asm:logior (asm:lsh #b11 30) (asm:lsh bits 19))))
       (lambda (as rs1 rs2 rd)
-	(let ((rs1 (rs1-op rs1))
-	      (rs2 (rs2-op rs2))
-	      (rd  (rd-op rd)))
-	  (emit-instr! as (asm:logior code rd bits rs1 rs2))))))
+	(let ((bits (copy bits)))
+	  (dep-rs1! bits 0 rs1)
+	  (dep-rs2! bits 0 rs2)
+	  (dep-rd! bits 0 rd)
+	  (emit! as bits)))))
 
   ; Memory stuff, immediate operand.
 
   (define (class11i bits)
-    (let ((bits (asm:lsh bits 19))
-	  (code (asm:lsh #b11 30)))
+    (let ((bits (asm:logior (asm:lsh #b11 30) (asm:lsh bits 19) ibit)))
       (lambda (as rs1 e rd)
 
 	(define (expr)
 	  (let ((imm (eval-expr as e)))
 	    (cond ((not imm) imm)
-		  ((asm:fits? imm 13) (imm-op imm))
+		  ((asm:fits? imm 13) imm)
 		  (else 
 		   (signal-error 'toolarge "Memory instruction" e imm)))))
 
-	(define (fixup)
-	  (or (expr) (signal-error 'fixup "Memory instruction" e)))
+	(define (fixup bv loc)
+	  (let ((e (expr)))
+	    (if e
+		(dep-imm! bv loc e)
+		(signal-error 'fixup "Memory instruction" e))))
 
-	(let ((imm (or (expr) (fixup-logior as fixup)))
-	      (rs1 (rs1-op rs1))
-	      (rd  (rd-op rd)))
-	  (emit-instr! as (asm:logior code rd bits rs1 ibit imm))))))
+	(let ((bits (copy bits))
+	      (e    (expr)))
+	  (dep-rs1! bits 0 rs1)
+	  (dep-rd! bits 0 rd)
+	  (if e
+	      (dep-imm! bits 0 e)
+	      (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	  (emit! as bits)))))
 
   ; For store instructions.  The syntax is (st a b c) meaning m[ b+c ] <- a.
   ; However, on the Sparc, the destination (rd) field is  the source of
@@ -369,22 +493,19 @@
       (lambda (as target0)
 	(let ((target `(- ,target0 ,(here as))))
 
-	  (define (expr)
+	  (define (fixup bv loc)
 	    (let ((e (eval-expr as target)))
-	      (if (not e)
-		  e
-		  (let ((e (asm:int->bv e)))
-		    (if (zero? (logand (bytevector-ref e 0) 3))	; Alignment.
-			(asm:rshl e 2)
-			(signal-error 'unaligned "call" target0))))))
+	      (if e
+		  (dep-call-offset! bv loc e)
+		  (signal-error 'fixup "call" target0))))
 
-	  (define (fixup)
-	    (or (expr) (signal-error 'fixup "call" target0)))
-
-	  (let ((offset (or (expr)
-			    (fixup-logior as fixup))))
+	  (let ((bits (copy code))
+		(e    (eval-expr as target)))
 	    (not-a-delay-slot-instruction as)
-	    (emit-instr! as (asm:logior code offset)))))))
+	    (if e
+		(dep-call-offset! bits 0 e)
+		(emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	    (emit! as bits))))))
 
   (define (class-label)
     (lambda (as label)
@@ -554,4 +675,4 @@
 		 (else (asm-error "sparc.deccc: too many operands: " rest)))))
     (sparc.subicc as rs k rs)))
 
-; EOF
+; eof

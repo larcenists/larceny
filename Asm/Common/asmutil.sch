@@ -1,7 +1,7 @@
 ; Asm/Common/asmutil.sch
 ; Larceny assembler -- miscellaneous utility procedures.
 ;
-; $Id$
+; $Id: asmutil.sch,v 1.1 1997/07/18 13:33:21 lth Exp $
 
 ; Given any Scheme object, return its printable representation as a string.
 ; This code is largely portable (see comments).

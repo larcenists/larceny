@@ -1,7 +1,7 @@
 ; Lib/ehandler.sch
 ; Larceny library -- system exception handler.
 ;
-; $Id: ehandler.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: ehandler.sch,v 1.4 1997/08/22 21:05:14 lth Exp $
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, 
 ; ARGREG2, and ARGREG3, and an exception code as arguments. It 
@@ -21,9 +21,12 @@
 ($$trace "ehandler")
 
 (define (exception-handler arg1 arg2 arg3 code)
-  (if (= code $ex.timer)
-      ((interrupt-handler) 'timer)
-      ((error-handler) code arg1 arg2 arg3)))
+  (cond ((= code $ex.timer)
+	 ((interrupt-handler) 'timer))
+	((= code $ex.keyboard-interrupt)
+	 ((interrupt-handler) 'keyboard))
+	(else
+	 ((error-handler) code arg1 arg2 arg3))))
 
 ; If ``print-object?'' is true then the faulting object is printed as part
 ; of the error message, otherwise it is not printed.
@@ -217,7 +220,24 @@
 	(not-a-num "real-part" arg1))
        ((= code $ex.imagpart)
 	(not-a-num "imag-part" arg1))
-
+       ((= code $ex.arithmetic-exception) 
+	; SIGFPE -- arg3 has signal code.
+	; FIXME: these codes are from sys/signal.h on SunOS!
+	(cond ((= arg3 #x14)
+	       (error "Integer division by zero: " arg1 " " arg2))
+	      ((= arg3 #xC4)
+	       (error "Floating inexact result."))
+	      ((= arg3 #xC8)
+	       (error "Floating point division by zero: " arg1 " " arg2))
+	      ((= arg3 #xCC)
+	       (error "Floating point underflow."))
+	      ((= arg3 #xD0)
+	       (error "Floating point operand error."))
+	      ((= arg3 #xD4)
+	       (error "Floating point overflow."))
+	      (else
+	       (error "Unrecognized SIGFPE code: " arg3))))
+	      
        ;; Vectors
 
        ((or (= code $ex.vref) (= code $ex.vset))

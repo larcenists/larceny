@@ -3,7 +3,7 @@
 # ./nbuild
 # nbuild -- development system load script
 #
-# $Id: nbuild,v 1.3 1997/02/11 21:48:03 lth Exp $
+# $Id: nbuild,v 1.5 1997/09/17 15:24:39 lth Exp lth $
 #
 # The advantage of having this script is that it can be cloned and 
 # specialized for different object (or source) directories.
@@ -22,25 +22,46 @@ L_HOST=Chez
 L_HOSTNAME="Chez Scheme"
 
 ARGS=""
+INTERP="#f"
+VERBOSE="#f"
+EXECUTABLE=""
 
 while [ "$1" != "" ]; do 
   case $1 in
-    -larceny | -l)
-       L_HOST=Larceny; L_HOSTNAME="Larceny" 
-       ;;
-    -chez | -c)
-       L_HOST=Chez; L_HOSTNAME="Chez Scheme" 
-       ;;
-    -new | -n)
-       NEW_ASM="#t" 
-       ;;
-    -a)
+    -a | -arguments)
        shift
        ARGS=$*
        break
        ;;
+    -chez | -c)
+       L_HOST=Chez
+       L_HOSTNAME="Chez Scheme" 
+       NEW_ASM="#f"
+       ;;
+    -e | -executable)
+       shift
+       EXECUTABLE=$1
+       ;;
+    -i | -interpreted)
+       INTERP="#t"
+       ;;
+    -larceny | -l)
+       L_HOST=Larceny
+       L_HOSTNAME="Larceny" 
+       NEW_ASM="#t"
+       ;;
+    -old | -o)
+       NEW_ASM="#f"
+       ;;
+    -new | -n)
+       NEW_ASM="#t" 
+       ;;
+    -v | -verbose)
+       VERBOSE="#t"
+       ;;
     *) echo "Unknown host system: $1"
-       echo "Usage: $0 [ -larceny | -l | -chez | -c | -new | -n ] [-a args]"
+       echo "Usage: $0 [ -c | -i | -l | -o | -n | -v ] [ -a args ]"
+       echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
        exit 1
        ;;
   esac
@@ -48,11 +69,14 @@ while [ "$1" != "" ]; do
 done
 
 cat > $TMPFILE <<END
+(define *always-load-scheme-code* $INTERP)
+(define *verbose-load* $VERBOSE)
 (define new-assembler? $NEW_ASM)
 (define host-system-name "$L_HOSTNAME")
 (define host-system '$L_HOST)
 (define hostdir "$DIR/$L_HOST/")
 (define topleveldir "$DIR/")
+(define utildir "$DIR/Util/")
 (define sourcedir "$DIR/Lib/")
 (define targetdir "$DIR/Lib/")
 (define configdir "$DIR/")
@@ -81,13 +105,20 @@ END
 
 # Run the development environment.
 
+if [ "$EXECUTABLE" = "" ]; then
+  case $L_HOST in
+    Chez) EXECUTABLE="scheme" ;;
+    Larceny) EXECUTABLE="larceny" ;;
+  esac
+fi
+
 case $L_HOST in
-  Chez)    scheme $ARGS $TMPFILE ;;
-  Larceny) larceny $ARGS -args $TMPFILE ;;
+  Chez)    $EXECUTABLE $ARGS $TMPFILE ;;
+  Larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
   *)       echo "Internal error in build script."; exit 1 ;;
 esac
 
-rm $TMPFILE
+#rm $TMPFILE
 exit 0
 
 # eof

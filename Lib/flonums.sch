@@ -1,6 +1,6 @@
 ; *Way* low-level floating point stuff.
 ;
-; $Id: flonums.sch,v 1.3 1997/07/07 20:45:06 lth Exp $
+; $Id: flonums.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
 ;
 ; The procedures in this file all operate on IEEE flonums.
 ; Formats of flonums and bignums and operations used are all specific

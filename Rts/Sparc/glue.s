@@ -1,30 +1,13 @@
-! -*- Fundamental -*-
-! This is the file Sparc/glue.s.
-! $Id: glue.s,v 1.1 1997/01/21 20:03:54 lth Exp $
+! Rts/Sparc/glue.s
+! Larceny Run-time System (SPARC) -- context switching and glue code.
 !
-! Larceny Run-time System (SPARC) -- glue procedures.
+! $Id: glue.s,v 1.2 1997/08/22 21:12:21 lth Exp $
 !
-! This file contains much glue for inter-language calling and for setting
-! up and shutting down the Scheme virtual machine. It makes many assumptions
-! about the layout of the runtime structures (stack, heap, regs).
-!
-! I suppose one could say that this file deals with context switching.
-!
-! History
-!   January 9, 1996 / lth (v0.25)
-!     internal_scheme_call now optionally saves and restores RESULT,
-!     to accomodate the timer interrupt mechanism.
-!
-!   June 17, 1995 / lth (v0.24)
-!     Fixed bug in copyregs which caused only the first 16 registers
-!     to be saved and caused the gc to crash with a scheme2scheme frame
-!     on the stack.
-!
-!   December 6, 1994 / lth (v0.23)
-!     Solaris port.
-!
-!   June 27 - July 1, 1994 / lth (v0.20)
-!     Pruned from the original glue.s, extensively rewritten.
+! To fix:
+! * The amount of assembly code in scheme_start can be considerably reduced --
+!   much of the work can be done in C.
+! * The register save/restore code used in scheme-to-scheme calls needs to
+!   be faster.
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -49,6 +32,7 @@
 	.global internal_restore_vm_regs	! restore R0..Rn
 	.global	internal_retaddr2fixnum		! make retaddr relocatable
 	.global internal_fixnum2retaddr		! make retaddr absolute
+	.global internal_check_signals		! check Unix signals
 
 ! _scheme_start: Scheme entry point.
 !
@@ -145,29 +129,28 @@ Lbadstack:
 !            TMP1 = argument count (0..4)
 !            TMP2 = vector index into CALLOUTS
 !            o7 = scheme return address
-!            globals[ G_RESULT ] = #!unspecified or not (RESULT save flag)
+!            globals[ G_SCHCALL_SAVERES ] = boolean (RESULT restore flag)
 ! Outputs  : Unspecified
-! Destroys : Temporaries, (RESULT), ARGREG2, ARGREG3, (G_RESULT)
+! Destroys : Temporaries, (RESULT), ARGREG2, ARGREG3
 !
-! Note that the calling conventions briefly violates the VM invariant
-! by keeping a root in TMP0. It's OK.
+! Note that the calling conventions briefly violate the VM invariant
+! by keeping a root in TMP0.
 !
 ! Call Scheme when the VM is in Scheme mode already. The problem here is
 ! that when Scheme code calls a millicode procedure, it is not required to
-! save any of its registers. Thus, when the millicode must call on Scheme
-! again to do some work for it, the caller's context must be saved before
-! the new Scheme procedure is invoked. This context must also be restored
-! before control is returned to the original caller, and, again, the original
-! caller will not do this. So we must arrange for it to happen.
+! save any of its registers.  Thus, when the millicode must call out to 
+! Scheme, the caller's context must be saved before the new Scheme procedure
+! is invoked.  This context must also be restored before control is returned
+! to the original caller, and, again, the original caller will not do this,
+! so we must arrange for it to happen.
 !
-! To accomodate the timer interrupt, RESULT is saved and restored iff
-! G_RESULT == #!undefined on entry to this procedure.  If so, G_RESULT
-! is cleared.
+! To accomodate interrupts, the contents of RESULT is saved and restored iff 
+! globals[ G_SCHCALL_SAVERES ] == #t on entry to this procedure.
 !
-! We handle this by creating a special stack frame, shown below. The frame's
-! return address points to the millicode procedure internal_scheme_return
-! (defined below); the save area contains the return offset from R0 as a 
-! fixnum and the saved registers.
+! We create a special stack frame, shown below. The frame's return address
+! points to the millicode procedure internal_scheme_return (defined below); 
+! the save area contains the return offset from R0 as a fixnum and the saved
+! registers.
 !
 !     +------------------------------------------------+  <- tos
 !     | (frame size)                                   |
@@ -182,10 +165,9 @@ Lbadstack:
 !     | (saved RESULT)                                 |
 !     | (saved RESULT restore flag)                    |
 !     +------------------------------------------------+
-!
-! If we knew which registers were live, we could get away with saving only
-! some; the payoff is probably only slight, however, since context switches
-! are not expected to be frequent in practice.
+
+! FIXME: these should be parameterized by the number of registers to save,
+! and the code below assumes some fixed positions also.
 
 ! REALFRAMESIZE is what we bump stkp by: full header plus pad word
 #define S2S_REALFRAMESIZE	(5+34)*4+4
@@ -197,49 +179,64 @@ Lbadstack:
 #define S2S_BASE		20
 
 internal_scheme_call:
-	st	%o7, [ %GLOBALS + G_RETADDR ]
-	cmp	%TMP1, 4
-	be,a	.+8
-	st	%TMP0, [ %GLOBALS + G_SCHCALL_ARG4 ]	! stored only if valid
-	st	%TMP1, [ %GLOBALS + G_SCHCALL_ARGC ]
-	st	%TMP2, [ %GLOBALS + G_SCHCALL_PROCIDX ]
-Ls2s2:	sub	%STKP, S2S_REALFRAMESIZE, %STKP
-	cmp	%STKP, %STKLIM
-	bge	Ls2s3
+
+	! This procedure is not reentrant.
+
+	st	%o7, [ %GLOBALS + G_RETADDR ]		! in case of stk oflo
+
+	! First, save all state in private temporaries.  We use private
+	! temporaries since a stack overflow may need to use the common
+	! system temporaries (like G_RETADDR).  However, we may assume that
+	! RESULT, ARGREG2, and ARGREG3 will not be clobbered during
+	! a stack overflow.
+
+	cmp	%TMP1, 4				! test: store TMP0?
+	be,a	1f					! if so, then
+	st	%TMP0, [ %GLOBALS + G_SCHCALL_ARG4 ]	!   save it in a root
+1:	st	%TMP1, [ %GLOBALS + G_SCHCALL_ARGC ]	! always save TMP1
+	st	%TMP2, [ %GLOBALS + G_SCHCALL_PROCIDX ]	! always save TMP2
+	mov	%o7, %TMP0				! convert
+	call	internal_retaddr2fixnum			!   return address
+	nop						!     to a fixnum
+	st	%TMP0, [ %GLOBALS + G_SCHCALL_RETADDR ] ! save it
+
+	! Create stack frame.
+
+Ls2s2:	sub	%STKP, S2S_REALFRAMESIZE, %STKP		! try to allocate
+	cmp	%STKP, %STKLIM				! check overflow;
+	bge	Ls2s3					!   skip if not
 	nop
-	add	%STKP, S2S_REALFRAMESIZE, %STKP
-	jmpl	%MILLICODE + M_INTERNAL_STKOFLOW, %o7
-	sub	%o7, (.-Ls2s2)+4, %o7			! return to Ls2s2
+	add	%STKP, S2S_REALFRAMESIZE, %STKP		! un-try and
+	call	EXTNAME(mem_internal_stkoflow)		!   handle overflow;
+	sub	%o7, (.-Ls2s2)+4, %o7			!     return to Ls2s2
+
+	! Initialize stack frame header
+
 Ls2s3:	set	S2S_FRAMESIZE, %TMP0			! store
 	st	%TMP0, [ %STKP ]			!   frame size
 	set	internal_scheme_return, %TMP0		! store
 	st	%TMP0, [ %STKP+4 ]			!   retaddr
 	st	%g0, [ %STKP+8 ]			! dynlink
 	st	%g0, [ %STKP+12 ]			! proc (fixed)
-	call	internal_retaddr2fixnum			! convert
-	ld	[ %GLOBALS + G_RETADDR ], %TMP0		!   return address
-	st	%TMP0, [ %STKP+16 ]			!     and store it
+	ld	[ %GLOBALS + G_SCHCALL_RETADDR ], %TMP0	! get return address
+	st	%TMP0, [ %STKP+16 ]			!   and store it
 
-	! save registers in frame
+	! Save registers in frame -- this can be made faster.
 
 	call	internal_save_vm_regs			! flush R0...Rn
 	nop
-	add	%GLOBALS, G_REG0, %TMP0			! src ptr
-	call	copyregs				! save all registers
-	add	%STKP, S2S_BASE, %TMP1			! dest ptr
+	add	%GLOBALS, G_REG0, %TMP0			! source ptr
+	call	copyregs				! copy regs to frame
+	add	%STKP, S2S_BASE, %TMP1			! destination ptr
 
-	! If G_RESULT is #!undefined, then save RESULT and clear G_RESULT
+	! Save RESULT and the RESULT restore flag; clear the flag.
 
 	st	%RESULT, [ %STKP+S2S_BASE+(32*4) ]	! save RESULT always
-	ld	[ %GLOBALS + G_RESULT ], %TMP2
-	cmp	%TMP2, UNDEFINED_CONST
-	set	TRUE_CONST, %TMP2
-	bne,a	1f
-	set	FALSE_CONST, %TMP2
-	st	%TMP2, [ %GLOBALS + G_RESULT ]		! clear G_RESULT
-1:	st	%TMP2, [ %STKP+S2S_BASE+(33*4) ]	! save restore flag
+	ld	[ %GLOBALS + G_SCHCALL_SAVERES ], %TMP2 ! get restore flag
+	st	%TMP2, [ %STKP+S2S_BASE+(33*4) ]	!   and save it
+	st	%g0, [ %GLOBALS + G_SCHCALL_SAVERES ]	! clear flag
 
-	! set up arguments
+	! Set up the arguments to the procedure.
 
 	mov	%RESULT, %REG1
 	mov	%ARGREG2, %REG2
@@ -249,7 +246,7 @@ Ls2s3:	set	S2S_FRAMESIZE, %TMP0			! store
 	be,a	.+8
 	ld	[ %GLOBALS + G_SCHCALL_ARG4 ], %REG4
 
-	! get procedure to call
+	! Get the procedure to call.
 
 	ld	[ %GLOBALS + G_SCHCALL_PROCIDX ], %TMP0
 	ld	[ %GLOBALS + G_CALLOUTS ], %TMP1
@@ -259,8 +256,11 @@ Ls2s3:	set	S2S_FRAMESIZE, %TMP0			! store
 	nop
 	add	%TMP1, 4 - VEC_TAG, %TMP1
 	ld	[ %TMP1 + %TMP0 ], %REG0		! the procedure!
+
+	! Call it.
+
 	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
-	jmp	%TMP0 - BVEC_TAG + CODEOFFSET		! DOIT!
+	jmp	%TMP0 - BVEC_TAG + CODEOFFSET		! wheeee!
 	sll	%TMP2, 2, %RESULT			! argc
 
 ! Error: no millicode vector present.
@@ -325,27 +325,33 @@ internal_scheme_return:
 	nop
 	nop
 
-	! restore registers from stack frame
+	! Restore registers from the stack frame.
+
 	add	%STKP, S2S_BASE, %TMP0		! source ptr
 	call	copyregs
 	add	%GLOBALS, G_REG0, %TMP1		! dest ptr
 	call	internal_restore_vm_regs
 	nop
 
-	! Deal with conditionally restoring the value of RESULT
+	! Conditionally restore the value of RESULT.
+
 	ld	[ %STKP+S2S_BASE+(33*4) ], %TMP0
 	cmp	%TMP0, TRUE_CONST
 	be,a	.+8
 	ld	[ %STKP+S2S_BASE+(32*4) ], %RESULT
 
-	call	internal_fixnum2retaddr		! get return address
+	! Get and compute the return address.
+
+	call	internal_fixnum2retaddr
 	ld	[ %STKP + 16 ], %TMP0
 	mov	%TMP0, %o7
 
-	! pop the frame
+	! Pop the frame.
+
 	add	%STKP, S2S_REALFRAMESIZE, %STKP
 
-	! Force the presence of a stack frame
+	! Force the presence of a stack frame on the stack.
+
 	ld	[ %GLOBALS + G_STKBOT ], %TMP0
 	cmp	%STKP, %TMP0
 	bne	Ls2srtn2
@@ -385,6 +391,12 @@ callout_to_C:
 	nop
 
 	call	internal_restore_scheme_context
+	nop
+
+	! Check signals.  This costs a little, but code on the critical
+	! path shouldn't be using C callouts anyway.  (Hint: fix varargs!)
+
+	call	internal_check_signals
 	nop
 
 	ld	[ %GLOBALS + G_RETADDR ], %o7
@@ -565,6 +577,52 @@ internal_fixnum2retaddr:
 Lf2r1:
 	jmp	%o7 + 8
 	nop
+
+! Call from: millicode
+! Input:     nothing; Scheme return in G_RETADDR
+! Output:    nothing
+! Destroys:  temporaries
+
+internal_check_signals:
+	ld	[ %GLOBALS + G_SIGNAL ], %TMP0
+	cmp	%TMP0, 0
+	bne	1f
+	nop
+! FIXME: This is absolutely not right!
+!	ld	[ %GLOBALS + G_FPE_CODE ], %TMP0
+!	cmp	%TMP0, 0
+!	bne	EXTNAME(m_fpe_handler)
+!	nop
+	jmp	%o7 + 8
+	nop
+
+1:	ld	[ %GLOBALS + G_SIGINT ], %TMP0
+	cmp	%TMP0, 0
+	be	2f
+	nop
+	! SIGINT
+	mov	EX_KBDINTR, %TMP0
+	b	raise_signal_exception
+	mov	G_SIGINT, %TMP1
+
+	! No signals were discovered -- clear master flag and return.
+	! FIXME: this is really a race condition; we should block signals
+	! while clearing the flag.
+2:	jmp	%o7 + 8
+	st	%g0, [ %GLOBALS + G_SIGNAL ]
+
+	! Raise an exception.  TMP0 has the correct exception code,
+	! TMP1 has the globals index for the signal in question.
+	! FIXME: this is really a race condition; we should block signals
+	! while clearing the flag.
+
+raise_signal_exception:
+	st	%g0, [ %GLOBALS + %TMP1 ]		! clear signal's flag
+	ld	[ %GLOBALS + G_RETADDR ], %o7		! to return
+	set	TRUE_CONST, %TMP1			! setup to
+	b	EXTNAME(m_exception)
+	st	%TMP1, [ %GLOBALS + G_SCHCALL_SAVERES ]	!   save RESULT
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -619,8 +619,10 @@
 
 ; BRANCH
 ;
-; FIXME: the use of label in the slot of the millicode call may cause
-;        an undetected overflow in long code vectors.
+; The use of label in the slot of the millicode call may cause
+; an undetected overflow in long code vectors, hence the slower code
+; below (the new assembler fixes this; this is just a patch for the old
+; assembler because it caused an actual bug).
 
 (define (emit-branch! as check-timer? label)
   (let ((label (make-asm-label label)))
@@ -628,8 +630,19 @@
 	(begin (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
 	       (emit! as `(,$i.bne.a ,label))
 	       (emit! as `(,$i.slot))
+; Debug
+;	       (emit! as `(,$i.call (+ $ 8)))                ; @@Lars
+;	       (emit! as `(,$i.orr ,$r.g0 ,$r.o7 ,$r.tmp0))  ; @@Lars
 	       (emit! as `(,$i.jmpli ,$r.millicode ,$m.timer-exception ,$r.o7))
-	       (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7)))
+; Was:
+;	       (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7))
+; Correct, if slower:
+	       (emit! as `(,$i.nop))
+	       ; DO NOT replace this with i.b.a followed by i.slot --
+	       ; i.b.a means do _not_ execute the instruction in the slot.
+	       (emit! as `(,$i.b ,label))
+	       (emit! as `(,$i.nop))
+	       )
 	(begin (emit! as `(,$i.b ,label))
 	       (emit! as `(,$i.nop))))))
 

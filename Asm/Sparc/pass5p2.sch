@@ -1,13 +1,17 @@
 ; Asm/Sparc/pass5p2.sch
 ; Larceny -- Sparc machine assembler, top level
 ;
-; $Id$
+; $Id: pass5p2.sch,v 1.3 1997/09/17 15:04:51 lth Exp lth $
 ;
 ; Based on MacScheme machine assembler:
 ;    Copyright 1991 Lightship Software, Incorporated.
 ;
 ; The assembly instruction generators are themselves in the files
 ; Asm/Sparc/gen-msi.sch and Asm/Sparc/gen-prim.sch.
+
+; Overrides the procedure of the same name in Asm/Common/pass5p1.sch.
+
+(define (assembly-table) $sparc-assembly-table$)
 
 ; Controls listing of instructions during assembly.
 
@@ -63,28 +67,12 @@
 
 ; Utilities
 
-; Given a numeric (MAL) label, prepend a L and make it a symbol,
-; so that the SPARC assembler can interpret it correctly.
-
-(define (make-asm-label q)
-  (string->symbol (string-append
-		   "Q"
-		   (number->string q))))
-
-; Create an internal label; prepend with Q to distinguish from MAL labels.
-
-(define new-label
-  (let ((n 0))
-    (lambda ()
-      (set! n (+ n 1))
-      (string->symbol (string-append "Q" (number->string n))))))
-
 ; Pseudo-instructions.
 
 (define-instruction $.label
   (lambda (instruction as)
     (list-label instruction)
-    (sparc.label as (make-asm-label (operand1 instruction)))))
+    (sparc.label as (make-asm-label as (operand1 instruction)))))
 
 (define-instruction $.proc
   (lambda (instruction as)
@@ -173,15 +161,13 @@
       (list-lambda-start instruction)
       (assemble-nested-lambda as
 			      (operand1 instruction)
+			      (operand3 instruction)   ; documentation
 			      (lambda (segment)
 				(set-constant! as code-offset (car segment))
 				(set-constant! as const-offset (cdr segment))))
       (list-lambda-end)
       (set! code-offset  (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
-      ; (FIXME: is this true?)
-      ; Documentation is ignored.  It could be assigned to the constant
-      ; vector offset that holds the documentation.
       (emit-lambda! as
 		    code-offset
 		    const-offset
@@ -190,8 +176,6 @@
 (define-instruction $lexes
   (lambda (instruction as)
     (list-instruction "lexes" instruction)
-    ; (FIXME: is this true?)
-    ; Documentation is ignored for now.
     (emit-lexes! as (operand1 instruction))))
 
 (define-instruction $args=
@@ -309,7 +293,7 @@
 (define-instruction $setrtn
   (lambda (instruction as)
     (list-instruction "setrtn" instruction)
-    (emit-setrtn! as (operand1 instruction))))
+    (emit-setrtn! as (make-asm-label as (operand1 instruction)))))
 
 (define-instruction $apply
   (lambda (instruction as)
@@ -321,22 +305,24 @@
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
-    (emit-jump! as (operand1 instruction) (operand2 instruction))))
+    (emit-jump! as
+		(operand1 instruction)
+		(make-asm-label as (operand2 instruction)))))
 
 (define-instruction $skip
   (lambda (instruction as)
     (list-instruction "skip" instruction)
-    (emit-branch! as #f (operand1 instruction))))
+    (emit-branch! as #f (make-asm-label as (operand1 instruction)))))
 
 (define-instruction $branch
   (lambda (instruction as)
     (list-instruction "branch" instruction)
-    (emit-branch! as #t (operand1 instruction))))
+    (emit-branch! as #t (make-asm-label as (operand1 instruction)))))
 
 (define-instruction $branchf
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
-    (emit-branchf! as (operand1 instruction))))
+    (emit-branchf! as (make-asm-label as (operand1 instruction)))))
 
 
 ; Operations introduced by the peephole optimizer.
@@ -368,7 +354,7 @@
 			       (if (eq? (operand2 instruction) 'RESULT)
 				   $r.result
 				   (regname (operand2 instruction)))
-			       (operand3 instruction)))))))
+			       (make-asm-label as (operand3 instruction))))))))
 
 ; ($optbreg2 test-op src1 src2 label)
 ; Test two registers and branch if false to label.
@@ -398,7 +384,7 @@
 			       (if (eq? (operand3 instruction) 'RESULT)
 				   $r.result
 				   (regname (operand3 instruction)))
-			       (operand4 instruction)))))))
+			       (make-asm-label as (operand4 instruction))))))))
 
 ; ($optbreg2imm test-op src1 imm label)
 ; Test register and immediate and branch if false to label.
@@ -429,7 +415,7 @@
 				   $r.result
 				   (regname (operand2 instruction)))
 			       (operand3 instruction)
-			       (operand4 instruction)))))))
+			       (make-asm-label as (operand4 instruction))))))))
 
 ; ($dresop1 op src1 dest)
 ; Operate on register and put result in register.
@@ -516,7 +502,7 @@
     (list-instruction "branchfreg" instruction)
     (emit-branchfreg! as 
 		      (regname (operand1 instruction))
-		      (operand2 instruction))))
+		      (make-asm-label as (operand2 instruction)))))
 
 ; We emit a singlestep breakpoint for all MacScheme instructions except
 ; the pseudo-operations and a load into R0.

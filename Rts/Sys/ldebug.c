@@ -1,7 +1,7 @@
 /* Rts/Sys/ldebug.c.
  * Larceny -- the run-time system debugger.
  *
- * $Id$
+ * $Id: ldebug.c,v 1.3 1997/09/17 15:17:26 lth Exp lth $
  *
  * BUGS
  *  - Parsing is somewhat ad-hoc; all should accept RESULT, ARGREG2, and
@@ -370,7 +370,7 @@ static void dumpregs( void )
 	  globals[ G_ARGREG3 ],
 	  globals[ G_RETADDR ] );
   printf( "TIMER=0x%08x  Flags=%c%c%c  PC=0x%08x  CONT=0x%08x\n",
-	  globals[ G_TIMER ],
+	  globals[ G_TIMER2 ] + globals[ G_TIMER ],
 	  (globals[ G_TIMER_ENABLE ] == TRUE_CONST ? 'T' : ' '),
 	  (globals[ G_SINGLESTEP_ENABLE ] == TRUE_CONST ? 'S' : ' '),
 	  (globals[ G_BREAKPT_ENABLE ] == TRUE_CONST ? 'B' : ' '),

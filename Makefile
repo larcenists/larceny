@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.9 1997/07/07 20:28:23 lth Exp lth $
+# $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
@@ -75,7 +75,7 @@ HTMLFILES=$(HTML)/*.html
 
 RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
-	$(UTIL)/*.sch
+	$(UTIL)/*.sch $(UTIL)/modules.list
 
 
 # Files for 'rtstar'
@@ -160,6 +160,14 @@ libclean: lopclean
 		$(REPL)/*.lap \
 		$(AUXLIB)/*.lap \
 		$(TEST)/*.lap
+
+faslclean:
+	rm -f $(COMP)/*.fasl
+	rm -f $(ASM)/Common/*.fasl $(ASM)/Sparc/*.fasl
+	rm -f Larceny/*.fasl
+	rm -f Util/*.fasl
+	rm -f Lib/makefile.fasl
+	rm -f $(AUXLIB)/*.fasl
 
 rtsclean: clean
 	rm -f larceny Build hsplit

@@ -1,7 +1,7 @@
 ; Lib/print.sch
 ; Larceny -- Print procedures 
 ;
-; $Id: print.sch,v 1.4 1997/03/05 19:28:51 lth Exp $
+; $Id: print.sch,v 1.6 1997/08/22 21:05:14 lth Exp $
 ;
 ; Copyright 1991 Lightship Software
 
@@ -37,6 +37,8 @@
                        (print (car x) p slashify)
                        (print-cdr (cdr x) p slashify))))))
      
+     ; FIXME: Should use write-bytevector-like here, probably.
+
      (printstr
       (lambda (s p)
         (letrec
@@ -50,6 +52,7 @@
                 (string-length s)))))
      
      ; Works on strings as well as bytevectors.
+     ; FIXME: the use of memq is _not_ good.
 
      (printslashed
       (lambda (s p)
@@ -85,6 +88,11 @@
                           (printslashed x p)
                           (write-char #\" p))
                    (printstr x p)))
+	      ((environment? x)
+	       (printstr (string-append "#<ENVIRONMENT "
+					(environment-name x)
+					">")
+			 p))
               ((vector? x)
                (begin (write-char #\# p)
                       (print (vector->list x) p slashify)))

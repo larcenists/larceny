@@ -1,7 +1,9 @@
-; Compiler/dumpheap.sch
+; Asm/Common/dumpheap.sch
 ; Larceny -- bootstrap heap dumper.
 ;
-; $Id: dumpheap.sch,v 1.3 1997/07/07 20:41:40 lth Exp lth $
+; $Id: dumpheap.sch,v 1.5 1997/08/22 20:52:42 lth Exp $
+;
+; Usage: (build-heap-image outputfile inputfile ... )
 ;
 ; Each input file is a sequence of segments, which are represented as pairs.
 ; The car of a segment is a code vector and the cdr of a segment is a constant
@@ -29,18 +31,15 @@
 ; could be avoided by pre-assembling the code and patching it here, but 
 ; the way it is now, this procedure is entirely portable -- no target
 ; dependencies.
-;
-; Usage: (build-heap-image outputfile inputfile ... )
 
 (define build-heap-image
-
   (let ()
 
     ; Useful constants.
 
     (define twofiftysix^3 (* 256 256 256))
     (define twofiftysix^2 (* 256 256))
-    (define twofiftysix   256)                ; don't ask
+    (define twofiftysix   256)
 
     (define largest-fixnum (- (expt 2 29) 1))
     (define smallest-fixnum (- (expt 2 29)))
@@ -100,8 +99,7 @@
     ; Put a byte on the heap.
 
     (define (heap.byte! h b)
-;      (heap.bytes! h (cons b (heap.bytes h)))
-      (display (integer->char b) (heap.datafile h))
+      (write-char (integer->char b) (heap.datafile h))
       (heap.top! h (+ 1 (heap.top h))))
 
     ; Adjust the heap up to an 8-byte boundary.
@@ -174,8 +172,6 @@
 	     $imm.unspecified)
 	    ((equal? datum (undefined))
 	     $imm.undefined)
-;	    ((equal? datum (eof-object))
-;	     $imm.eof)
 	    ((vector? datum)
 	     (dump-vector! h datum $tag.vector-typetag))
 	    ((bytevector? datum)
@@ -499,9 +495,9 @@
 	  (patch-constant-vector! (cdr segment) '(data (2)) `(bits ,m))
 	  (dump-segment! h segment))))
 
-    ; Write to the output file.
+    ; Write the header to the header file.
 
-    (define (dump-heap-to-file! h filename)
+    (define (dump-header-to-file! h filename)
 
       (define (write-word w)
 	(display (integer->char (quotient w twofiftysix^3)))
@@ -536,15 +532,41 @@
 	    (display (integer->char x)))
 	  bytes))
 
-      (display "Dumping to file") (newline)
+      (display "Writing header data...") (newline)
       (delete-file filename)
       (with-output-to-file filename
 	(lambda ()
 	  (write-version-number)
 	  (write-roots (heap.globals h))
-	  (write-word (quotient (heap.top h) 4))
-;	  (write-bytes (reverse (heap.bytes h)))
-	  )))
+	  (write-word (quotient (heap.top h) 4)))))
+
+    ; Attempt to append the file HEAPDATA to the outputfile.
+    ; The implementation is a gross hack that happens to work very well.
+
+    (define (concatenate-files outputfile)
+
+      (define (message)
+	(display "You must execute the command")
+	(newline)
+	(display "  cat HEAPDATA >> ")
+	(display outputfile)
+	(newline)
+	(display "to create the final heap image.")
+	(newline))
+
+      (case host-system
+	((chez larceny)
+	 (display "Creating final image...") (newline)
+	 (if (zero? (system (string-append "cat HEAPDATA >> " outputfile)))
+	     (delete-file "HEAPDATA")
+	     (begin (display "Creation failed!")
+		    (newline)
+		    (display "Attempting to restore header file...")
+		    (newline)
+		    (dump-header-to-file! heap outputfile)
+		    (message))))
+	(else
+	 (message))))
 
     ; Main loop.
 
@@ -568,26 +590,9 @@
 ;		     (heap.global! heap
 ;				   'signals
 ;				   (dump-global! heap 'pending-signals))
-		     (dump-heap-to-file! heap outputfile)
+		     (dump-header-to-file! heap outputfile)
 		     (close-output-port (heap.datafile heap))
-		     (cond ((eq? host-system 'chez)
-			    (if (zero? (system (string-append 
-						"cat HEAPDATA >> "
-						outputfile)))
-				(delete-file "HEAPDATA")
-				(begin (display "Concatenation failed!")
-				       (newline)
-				       (dump-heap-to-file! heap outputfile))))
-			   ((eq? host-system 'larceny)
-			    (display "You must execute the command")
-			    (newline)
-			    (display "  cat HEAPDATA >> ")
-			    (display outputfile)
-			    (newline)
-			    (display "to create the final heap image.")
-			    (newline))
-			   (else
-			    ???))
+		     (concatenate-files outputfile)
 		     (load-map))))))
 
     build-heap-image))

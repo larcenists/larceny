@@ -1,4 +1,7 @@
-; Simple help system for Larceny
+; Compiler/help.sch
+; Larceny -- simple help system for the development environment
+;
+; $Id: help.sch,v 1.3 1997/08/22 21:00:04 lth Exp $
 
 (define (help . rest)
   (if (null? rest)
@@ -47,6 +50,7 @@
      "  (make-larceny-heap)"
      "    Create a bootstrap heap image for generational collectors,"
      "    using the default makefile. The heap is named \"larceny.heap\"."
+     ""
      "  (make-larceny-eheap)"
      "    Create a bootstrap heap image for non-generational collectors,"
      "    using the default makefile. The heap is names \"larceny.eheap\"."
@@ -59,40 +63,46 @@
      "For details, see the file Lib/makefile.sch."
      )
     (compiler-switches
-     "There are a number of compiler and assembler switches, and a bit of"
-     "chaos in how they are used. The command (compiler-switches) lists"
-     "all switches and their current settings. The switches are:"
+     "There are a number of compiler and assembler switches.  The"
+     "command (compiler-switches) lists all switches and their current"
+     "settings. The switches are:"
      ""
-     ; @@ Will (the next three lines were updated)
      "Compilation switches:"
      "  (integrate-usual-procedures)  Generate in-line code for primitives."
-     "  (local-optimizations)    Suppress redundant instructions."
-     "  (benchmark-mode)         Makes global self-recursion faster."
+     "  (local-optimizations)      Suppress redundant instructions."
+     "  (benchmark-mode)           Compile"
+     "                               (define (f a b c) ...)"
+     "                             as"
+     "                               (define f"
+     "                                 (letrec ((f (lambda (a b c) ...)))"
+     "                                   f))"
+     "                             since this is faster if `f' is self-recursive."
+     "  (empty-list-is-true)       () counts as a true value."
+     "  (issue-warnings)           Print warning messages."
      ""
-     "Code generation (assembler) switches:"
-     "  (write-barrier)            Generate code for gen. gc."
+     "Documentation switches:"
+     "  (include-procedure-names)  Compiled code will contain the procedure name."
+     "  (include-variable-names)   Compiled code will contain variable names."
+     "  (include-source-code)      Compiled code will contain source code."
+     ""
+     "Assembler switches:"
+     "  (peephole-optimization)    Perform peephole optimization."
      "  (catch-undefined-globals)  Check references to global variables."
      "  (generate-global-symbols)  Let each global cell contain its name."
      "  (inline-cons)              Allocate pairs in-line."
-     "  (inline-assignment)        Generate in-line generation check."
+     "  (write-barrier)            Generate code for generational GC."
+     "  (inline-assignment)        Generate in-line write barrier code."
      "  (unsafe-code)              Turn off type checking for many primitives."
-;     "  fast-pop                 Do not check for stack underflow." ; @@ Will
      ""
      "Internal (development) switches:"
-     "  listify?                 Produce listing of MAL code (obsolete)."
-     "  enable-peephole?         Perform peephole optimization."
-     "  enable-singlestep?       Insert singlestepping support code (slow)."
-     "  assume-short-distance-to-call  Manual branch optimization..."
-
+     "  listify?                   Produce listing of MAL code."
+     "  (single-stepping)          Insert singlestepping support code."
+     "  (fill-delay-slots)         Fill SPARC branch delay slots."
      ""
-     ; @@ Will (the next paragraph was updated)
      "All switches can be set to #t to enable the effect explained above,"
      "or to #f to disable the effect.  If the switch is a variable, its"
      "value can be set by an assignment.  If the switch is a procedure,"
      "it can be set by passing an argument as in (benchmark-mode #f)."
-     "Please note that assume-short-distance-to-call is not always safe"
-     "due to assembler bugs.  It is probably ok for benchmarks, but not"
-     "for the libraries."
      )
     (general
      "Scheme source files have extension .sch or .scm; these extensions"
@@ -135,3 +145,5 @@
 (define (writeln . x)
   (for-each display x)
   (newline))
+
+; eof
