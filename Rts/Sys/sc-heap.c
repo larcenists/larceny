@@ -53,27 +53,25 @@
 #include "static_heap_t.h"
 #include "stack.h"
 #include "gclib.h"
-#include "heap_stats_t.h"
+#include "stats.h"
 
 typedef struct {
-  int gen_no;
-
-  word *globals;
+  stats_id_t  self;		/* Identity */
+  int         gen_no;
+  word        *globals;
   semispace_t *current_space;
 
   /* Strategy/Policy/Mechanism */
-  int size_bytes;      /* Size requested at startup time */
-  int target_size;     /* Size for this area computed following previous gc. */
+  int    size_bytes;   /* Size requested at startup time */
+  int    target_size;  /* Size for this area computed following previous gc. */
   double load_factor;  /* That's the L from the formula above */
-  int lower_limit;     /* 0 or lower bound on collected area (bytes) */
-  int upper_limit;     /* 0 or upper bound on collected area (bytes) */
+  int    lower_limit;  /* 0 or lower bound on collected area (bytes) */
+  int    upper_limit;  /* 0 or upper bound on collected area (bytes) */
 
   /* Statistics */
-  unsigned stacks_created;
-  unsigned frames_flushed;
-  unsigned bytes_flushed;
-  int copied_last_gc;       /* Not including large objects */
-  int moved_last_gc;        /* The large objects */
+  int         used_after_last_gc;  /* Bytes */
+  gen_stats_t gen_stats;	   /* Local statistics */
+  gc_stats_t  gc_stats;		   /* Global statistics */
 } sc_data_t;
 
 #define DATA(heap)  ((sc_data_t*)((heap)->data))
@@ -173,7 +171,10 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 {
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
-  int total_bytes, stack;
+  int total_bytes, stack, used_before, used_after;
+  stats_id_t timer;
+
+  timer = stats_start_timer();
 
   assert( request_bytes >= 0 );
   request_bytes = roundup_balign( request_bytes );
@@ -185,13 +186,12 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   if (request_bytes <= GC_LARGE_OBJECT_LIMIT)
     total_bytes += request_bytes;
 
-  stats_gc_type( 0, GCTYPE_COLLECT );
-
   stack = used_stack_space( heap );
   flush_stack( heap );
 
+  used_before = used_space( heap );
   annoyingmsg( "Stop-and-copy heap: Garbage collection." );
-  annoyingmsg( "   Avail=%d,  Used=%d", free_space( heap ), used_space( heap ));
+  annoyingmsg( "  Avail=%d,  Used=%d", free_space( heap ), used_before );
   
   /* MODE: ss */
   mode_globals_to_ss( heap );
@@ -215,9 +215,16 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   mode_ss_to_globals( heap );
   /* END MODE: ss */
 
-
-  data->copied_last_gc = data->current_space->used;
-  data->moved_last_gc = los_bytes_used( heap->collector->los, 0 );
+  /* Statistics */
+  used_after = used_space( heap );
+  data->gc_stats.allocated += 
+    bytes2words( used_before - data->used_after_last_gc );
+  data->gc_stats.reclaimed += bytes2words( used_before - used_after );
+  data->gc_stats.words_copied += bytes2words( data->current_space->used );
+  data->gc_stats.words_moved += 
+    bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
+  data->gen_stats.collections += 1;
+  data->used_after_last_gc = used_after;
 
   /* POLICY */
   data->target_size =
@@ -232,6 +239,9 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
   assert( free_current_chunk( heap ) >= request_bytes );
 
+  /* More statistics */
+  data->gen_stats.ms_collection += stats_stop_timer( timer );
+
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
 	       used_space( heap ) );
 
@@ -243,6 +253,7 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
     data->current_space->allocated,
     los_bytes_used( heap->collector->los, 0 ),
     static_used( heap ) );
+
 }
 
 static int compute_target_size( young_heap_t *heap, int D, int Q )
@@ -281,29 +292,22 @@ static int free_space( young_heap_t *heap )
   return data->target_size - used_space( heap );
 }
 
-static void stats( young_heap_t *heap, heap_stats_t *stats ) 
+static void stats( young_heap_t *heap )
 {
   sc_data_t *data = DATA(heap);
-  word *globals = data->globals;
 
-  stats->live = used_space( heap ) - used_stack_space( heap );
-  stats->copied_last_gc = data->copied_last_gc;
-  stats->moved_last_gc = data->moved_last_gc;
-  stats->stack = globals[ G_STKBOT ] - globals[ G_STKP ];
-  stats->frames_flushed = data->frames_flushed;
-  stats->frames_restored = globals[G_STKUFLOW];
-  stats->bytes_flushed = data->bytes_flushed;
-  stats->semispace1 = data->current_space->allocated 
-                    + los_bytes_used( heap->collector->los, data->gen_no );
-  stats->semispace2 = 0;
-  stats->target = data->target_size;
-  stats->stacks_created = data->stacks_created;
+  data->gen_stats.target = bytes2words( data->target_size );
+  data->gen_stats.allocated = 
+    bytes2words( data->current_space->allocated 
+		 + los_bytes_used( heap->collector->los, data->gen_no ) );
+  data->gen_stats.used = 
+    bytes2words( used_space( heap ) - used_stack_space( heap ) );
 
-  data->frames_flushed = 0;
-  data->bytes_flushed = 0;
-  data->stacks_created = 0;
-  data->copied_last_gc = 0;
-  globals[ G_STKUFLOW ] = 0;
+  stats_add_gen_stats( data->self, &data->gen_stats );
+  memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
+
+  stats_add_gc_stats( &data->gc_stats );
+  memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
 static word *data_load_area( young_heap_t *heap, int nbytes )
@@ -410,24 +414,19 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
 
 static void must_create_stack( young_heap_t *heap )
 {
-  if (!stk_create( DATA(heap)->globals ))
-    panic_abort( "INVARIANT" );
-  DATA(heap)->stacks_created++;
+  bool r = stk_create( DATA(heap)->globals );
+  assert( r );
 }
 
 static void must_restore_frame( young_heap_t *heap )
 {
-  if (!stk_restore_frame( DATA(heap)->globals ))
-    panic_abort( "INVARIANT" );
+  bool r = stk_restore_frame( DATA(heap)->globals );
+  assert( r );
 }
 
 static void flush_stack( young_heap_t *heap )
 {
-  unsigned frames, bytes;
-
-  stk_flush( DATA(heap)->globals, &frames, &bytes );
-  DATA(heap)->frames_flushed += frames;
-  DATA(heap)->bytes_flushed += bytes;
+  stk_flush( DATA(heap)->globals );
 }
 
 /* Mode in: globals; Mode out: ss */
@@ -512,11 +511,10 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
 			      data );
   heap->collector = gc;
 
+  data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
-  data->frames_flushed = 0;
-  data->bytes_flushed = 0;
-  data->stacks_created = 0;
-  data->copied_last_gc = 0;
+  memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
+  memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 
   return heap;
 }

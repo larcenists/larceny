@@ -8,17 +8,19 @@
 #define GC_INTERNAL
 
 #include "larceny.h"
-#include "gc.h"			/* For heap_stats_t */
 #include "memmgr.h"
 #include "static_heap_t.h"
 #include "semispace_t.h"
 #include "gclib.h"
-#include "heap_stats_t.h"
+#include "stats.h"
+#include "gc_t.h"
+#include "remset_t.h"
 
 typedef struct static_data static_data_t;
 
 struct static_data {
-  int gen_no;		/* Generation number. */
+  stats_id_t self;		/* identity */
+  int        gen_no;		/* Generation number. */
 };
 
 #define DATA(heap)   ((static_data_t*)(heap->data))
@@ -68,21 +70,25 @@ static void reorganize( static_heap_t *heap )
   if (data->used > 0) heap->data_area = data; else ss_free( data );
 }
 
-static void stats( static_heap_t *heap, heap_stats_t *s )
+static void stats( static_heap_t *heap )
 {
-  s->target = s->live = heap->allocated;
+  gen_stats_t s;
+
+  memset( &s, 0, sizeof(s) );
+  s.target = s.allocated = bytes2words(heap->allocated);
+
   if (heap->text_area) {
     ss_sync( heap->text_area );
-    s->semispace1 = heap->text_area->used;
+    s.used += bytes2words(heap->text_area->used);
   }
-  else 
-    s->semispace1 = 0;
   if (heap->data_area) {
     ss_sync( heap->data_area );
-    s->semispace2 = heap->data_area->used;
+    s.used += bytes2words(heap->data_area->used);
   }
-  else
-    s->semispace2 = 0;
+
+  stats_add_gen_stats( DATA(heap)->self, &s );
+  if (heap->collector->remset_count > DATA(heap)->gen_no)
+    rs_stats( heap->collector->remset[ DATA(heap)->gen_no ] );
 }
 
 static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
@@ -136,6 +142,7 @@ static_heap_t *create_static_area( int gen_no, gc_t *gc )
   heap->load_prepare = 0;
   heap->load_data = 0;
 
+  data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
 
   return heap;

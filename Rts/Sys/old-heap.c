@@ -21,8 +21,8 @@
 #include "semispace_t.h"
 #include "los_t.h"
 #include "gclib.h"
-#include "heap_stats_t.h"
 #include "remset_t.h"
+#include "stats.h"
 
 #define PROMOTE_WITHOUT_COLLECTING       0
 #define PROMOTE_WHILE_COLLECTING         1
@@ -32,6 +32,7 @@
 typedef struct old_data old_data_t;
 
 struct old_data {
+  stats_id_t  self;
   int         gen_no;             /* Generation and heap number */
   semispace_t *current_space;     /* Space to promote into */
   bool        is_ephemeral_area;  /* Otherwise, it's dynamic */
@@ -45,10 +46,9 @@ struct old_data {
   bool        must_clear_area;    /* Clear area after collection */
   bool        must_clear_remset;  /* Clear remset after collection */
 
-  /* Statistics counters */
-  int         copied_last_gc;     /* Bytes */
-  int         moved_last_gc;      /* Bytes */
-  int         promoted_last_gc;   /* Copied and moved in at last promotion */
+  int         promoted_last_gc;	  /* For policy use */
+  gen_stats_t gen_stats;	  /* accumulates collections and time */
+  gc_stats_t  gc_stats;		  /* accumulates words copied/moved */
 };
 
 #define DATA(x)  ((old_data_t*)((x)->data))
@@ -231,9 +231,11 @@ static void perform_collect( old_heap_t *heap )
 {
   semispace_t *from, *to;
   old_data_t *data = DATA(heap);
+  stats_id_t timer;
 
   annoyingmsg( "  Collecting generation %d.", data->gen_no );
-  stats_gc_type( data->gen_no, GCTYPE_COLLECT );
+
+  timer = stats_start_timer();
 
   from = data->current_space;
   to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
@@ -244,17 +246,22 @@ static void perform_collect( old_heap_t *heap )
   ss_free( from );
   ss_sync( to );
 
-  data->copied_last_gc = to->used;
-  data->moved_last_gc = los_bytes_used( heap->collector->los, data->gen_no );
+  data->gc_stats.words_copied = bytes2words( to->used );
+  data->gc_stats.words_moved = 
+    bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
+  data->gen_stats.ms_collection += stats_stop_timer( timer );
+  data->gen_stats.collections++;
 }
 
 static void perform_promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   int used_before, tospace_before, los_before;
+  stats_id_t timer;
 
   annoyingmsg( "  Promoting into generation %d.", data->gen_no );
-  stats_gc_type( data->gen_no, GCTYPE_PROMOTE );
+
+  timer = stats_start_timer();
 
   used_before = used_space( heap );
   ss_sync( data->current_space );
@@ -264,9 +271,14 @@ static void perform_promote( old_heap_t *heap )
   gclib_stopcopy_promote_into( heap->collector, data->current_space );
 
   data->promoted_last_gc = used_space( heap ) - used_before;
-  data->copied_last_gc = data->current_space->used - tospace_before;
-  data->moved_last_gc =
-    los_bytes_used( heap->collector->los, data->gen_no ) - los_before;
+
+  data->gc_stats.words_copied = 
+    bytes2words(data->current_space->used - tospace_before);
+  data->gc_stats.words_moved =
+    bytes2words(los_bytes_used(heap->collector->los, data->gen_no)-los_before);
+
+  data->gen_stats.ms_promotion += stats_stop_timer( timer );
+  data->gen_stats.promotions++;
 }
 
 static void perform_promote_then_promote( old_heap_t *heap )
@@ -303,21 +315,24 @@ static void after_collection( old_heap_t *heap )
 	       heap->collector->remset[ data->gen_no ]->live );
 }
 
-static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
+static void stats( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
 
   ss_sync( data->current_space );
 
-  stats->live = used_space( heap );
-  stats->copied_last_gc = data->copied_last_gc;
-  stats->moved_last_gc = data->moved_last_gc;
-  stats->semispace1 = data->current_space->allocated
-                    + los_bytes_used( heap->collector->los, data->gen_no );
-  stats->target = data->target_size;
+  data->gen_stats.target = bytes2words( data->target_size );
+  data->gen_stats.allocated = 
+    bytes2words(data->current_space->allocated + 
+		los_bytes_used( heap->collector->los, data->gen_no ));
+  data->gen_stats.used = bytes2words(used_space( heap ));
 
-  data->copied_last_gc = 0;
-  data->moved_last_gc = 0;
+  stats_add_gen_stats( data->self, &data->gen_stats );
+  stats_add_gc_stats( &data->gc_stats );
+  rs_stats( heap->collector->remset[ data->gen_no ] );
+
+  memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
+  memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
 static word *data_load_area( old_heap_t *heap, int nbytes )
@@ -375,9 +390,8 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
 			    0,	                  /* set_policy */
 			    data );
   heap->collector = gc;
+  data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
-  data->copied_last_gc = 0;
-  data->moved_last_gc = 0;
   data->promoted_last_gc = 0;
   data->is_ephemeral_area = ephem;
   data->load_factor = 0.0;

@@ -75,6 +75,7 @@
 #include "memmgr.h"
 #include "remset_t.h"
 #include "gclib.h"
+#include "stats.h"
 
 /* This is an artifact of the low-level implementation of the hash pool;
    see comments above. */
@@ -93,6 +94,7 @@ struct pool {
 };
 
 struct remset_data {
+  stats_id_t     self;		/* identity */
   word           *tbl_bot;	/* Hash table bottom */
   word           *tbl_lim;	/* Hash table limit */
   pool_t         *first_pool;	/* Pointer to first pool */
@@ -174,11 +176,11 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
   /* Misc */
   memset( &data->stats, 0, sizeof( data->stats ));
   data->pool_entries = pool_entries;
+  data->self = stats_new_remembered_set( ++identity, 0 );
 
   rs->live = 0;
   rs->has_overflowed = FALSE;
   rs->data = data;
-  rs->identity = ++identity;
 
   rs_clear( rs );
 
@@ -257,7 +259,7 @@ bool rs_compact( remset_t *rs )
       b = (word*)*(b+1);
     if (b == 0) {
       if (pooltop == poollim) {
-	data->stats.hash_recorded += recorded;
+	data->stats.recorded += recorded;
 	rs->live += recorded;
 	recorded = 0;
 	data->curr_pool->top = pooltop;
@@ -282,7 +284,7 @@ bool rs_compact( remset_t *rs )
     }
   }
 
-  data->stats.hash_recorded += recorded;
+  data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
   *rs->ssb_top = *rs->ssb_bot;
@@ -335,7 +337,7 @@ bool rs_compact_nocheck( remset_t *rs )
     }
     h = hash_object( w, mask );
     if (pooltop == poollim) {
-      data->stats.hash_recorded += recorded;
+      data->stats.recorded += recorded;
       rs->live += recorded;
       recorded = 0;
       data->curr_pool->top = pooltop;
@@ -359,7 +361,7 @@ bool rs_compact_nocheck( remset_t *rs )
     recorded++;
   }
 
-  data->stats.hash_recorded += recorded;
+  data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
   *rs->ssb_top = *rs->ssb_bot;
@@ -408,14 +410,14 @@ void rs_enumerate( remset_t *rs,
     if (ps == DATA(rs)->curr_pool) break;
     ps = ps->next;
   }
-  DATA(rs)->stats.hash_scanned += scanned;
+  DATA(rs)->stats.objs_scanned += scanned;
   DATA(rs)->stats.words_scanned += word_count;
-  DATA(rs)->stats.hash_removed += removed_count;
+  DATA(rs)->stats.removed += removed_count;
   rs->live -= removed_count;
   DATA(rs)->stats.scanned++;
   supremely_annoyingmsg( "REMSET @0x%x: removed %d elements (total %d).", 
 			 (word)rs, removed_count, 
-			 DATA(rs)->stats.hash_removed );
+			 DATA(rs)->stats.removed );
 }
 
 /* FIXME: Worth optimizing?  The inner loop looks gratuitously slow. */
@@ -448,25 +450,28 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
   rs_compact( r1 );
 }
 
-void rs_stats( remset_t *rs, remset_stats_t *stats )
+void rs_stats( remset_t *rs )
 {
   remset_data_t *data = DATA(rs);
 
-  data->stats.identity = rs->identity;
+  data->stats.allocated = 
+    (data->tbl_lim - data->tbl_bot) +
+    (*rs->ssb_lim - *rs->ssb_bot) +
+    (data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY);
 
-  data->stats.hash_allocated = data->tbl_lim - data->tbl_bot;
-
-  data->stats.pool_used =
+  data->stats.used =
+    (data->tbl_lim - data->tbl_bot) +
+    (*rs->ssb_lim - *rs->ssb_bot) +
     data->pool_entries*(data->numpools-1)*WORDS_PER_POOL_ENTRY +
     (data->curr_pool->top - data->curr_pool->bot);
 
-  data->stats.pool_live = rs->live;
+  data->stats.live = 
+    (data->tbl_lim - data->tbl_bot) +
+    (*rs->ssb_lim - *rs->ssb_bot) +
+    rs->live;
 
-  data->stats.pool_allocated = 
-    data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY;
-
-  *stats = data->stats;
-  memset( &data->stats, 0, sizeof( data->stats ) );
+  stats_add_remset_stats( data->self, &data->stats );
+  memset( &data->stats, 0, sizeof( remset_stats_t ) );
 }
 
 bool rs_isremembered( remset_t *rs, word w )

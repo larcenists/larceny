@@ -39,23 +39,24 @@
 #include "los_t.h"
 #include "stack.h"
 #include "young_heap_t.h"
-#include "heap_stats_t.h"
+#include "stats.h"
 
 typedef struct young_data young_data_t;
 
 struct young_data {
-  int  gen_no;              /* generation number for this heap */
+  stats_id_t self;		/* Identity for stats module  */
+  int        gen_no;		/* generation number for this heap */
 
-  word *heapbot;            /* address of first word of nursery */
-  word *heaplim;            /* address of first word after nursery */
-  int  heapsize;            /* size of nursery in bytes */
-  word *globals;            /* the globals vector */
+  word       *heapbot;		/* address of first word of nursery */
+  word       *heaplim;		/* address of first word after nursery */
+  int        heapsize;		/* size of nursery in bytes */
+  word       *globals;		/* the globals vector */
 
-  unsigned frames_flushed;  /* stack frames flushed */
-  unsigned bytes_flushed;   /* bytes of stack flushed or copied */
-  unsigned stacks_created;  /* number of stacks created */
-
-  int nbytes_wanted;        /* bytes wanted during last gc */
+  bool       havestats;		/* Flag */
+  int        los_live;		/* Before gc */
+  int        stack_live;	/* Before gc */
+  int        not_used;		/* Before gc */
+  int        nbytes_wanted;	/* bytes wanted during last gc */
 };
 
 #define DATA( heap )  ((young_data_t*)((heap)->data))
@@ -93,7 +94,7 @@ create_nursery( int gen_no,
     memfail( MF_HEAP, "young-heap: Could not allocate heap data area." );
     goto again2;
   }
-  data->heaplim = data->heapbot + size_bytes/sizeof(word);
+  data->heaplim = data->heapbot + bytes2words(size_bytes);
 
   /* Setup heap pointers needed by RTS */
   globals[ G_EBOT ] = (word)(data->heapbot);
@@ -153,9 +154,20 @@ static void collect( young_heap_t *heap, int nbytes, int request )
 
 static void before_collection( young_heap_t *heap )
 {
+  young_data_t *data = DATA(heap);
+  word *globals = data->globals;
+
   flush_stack( heap );
-  heap->maximum = DATA(heap)->heapsize;
+  heap->maximum = data->heapsize;
   heap->allocated = heap->maximum - free_space( heap );
+
+  if (!data->havestats) {
+    data->havestats = TRUE;
+    data->los_live = 
+      bytes2words(los_bytes_used( heap->collector->los, data->gen_no ));
+    data->stack_live = bytes2words(globals[G_STKBOT] - globals[G_STKP]);
+    data->not_used = bytes2words(globals[G_STKP] - globals[G_ETOP]);
+  }
 }
 
 static void after_collection( young_heap_t *heap )
@@ -179,30 +191,28 @@ static int free_space( young_heap_t *heap )
   return globals[ G_STKP ] - globals[ G_ETOP ];
 }
 
-static void stats( young_heap_t *heap, heap_stats_t *stats )
+static void stats( young_heap_t *heap )
 {
   young_data_t *data = DATA(heap);
-  word *globals = data->globals;
-  int los_live;
+  gen_stats_t gen_stats;
+  gc_stats_t gc_stats;
 
-  los_live = los_bytes_used( heap->collector->los, data->gen_no );
-  stats->stack = globals[ G_STKBOT ] - globals[ G_STKP ];
-  stats->live = data->heapsize 
-              - (globals[ G_STKBOT ] - globals[ G_ETOP ])
-	      + los_live;
-  stats->copied_last_gc = 0;
-  stats->moved_last_gc = 0;
-  stats->frames_flushed = data->frames_flushed;
-  stats->frames_restored = globals[ G_STKUFLOW ];
-  stats->bytes_flushed = data->bytes_flushed;
-  stats->semispace1 = data->heapsize + los_live;
-  stats->target = data->heapsize;
-  stats->stacks_created = data->stacks_created;
+  assert( data->havestats );
 
-  data->frames_flushed = 0;
-  data->bytes_flushed = 0;
-  data->stacks_created = 0;
-  globals[ G_STKUFLOW ] = 0;
+  memset( &gen_stats, 0, sizeof(gen_stats) );
+  gen_stats.target = bytes2words(data->heapsize);
+  gen_stats.allocated = gen_stats.target + data->los_live;
+  gen_stats.used = gen_stats.allocated - data->not_used;
+  stats_add_gen_stats( data->self, &gen_stats );
+
+  memset( &gc_stats, 0, sizeof( gc_stats ) );
+  gc_stats.allocated = gen_stats.used - data->stack_live;
+  stats_add_gc_stats( &gc_stats );
+
+  data->los_live = 0;
+  data->stack_live = 0;
+  data->not_used = 0;
+  data->havestats = FALSE;
 }
 
 static word *data_load_area( young_heap_t *heap, int nbytes )
@@ -222,7 +232,6 @@ static void must_create_stack( young_heap_t *heap )
 {
   if (!stk_create( DATA(heap)->globals ))
     panic( "nursery: create_stack" );
-  DATA(heap)->stacks_created += 1;
 }
 
 static void must_restore_frame( young_heap_t *heap )
@@ -233,11 +242,7 @@ static void must_restore_frame( young_heap_t *heap )
 
 static void flush_stack( young_heap_t *heap )
 {
-  unsigned frames, bytes;
-
-  stk_flush( DATA(heap)->globals, &frames, &bytes );
-  DATA(heap)->frames_flushed += frames;
-  DATA(heap)->bytes_flushed += bytes;
+  stk_flush( DATA(heap)->globals );
 }
 
 /* Here we don't know the size of the frame that overflowed.  If the 
@@ -316,11 +321,12 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 			      data );
   heap->collector = gc;
 
+  data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
-  data->frames_flushed = 0;
-  data->bytes_flushed = 0;
-  data->stacks_created = 0;
-
+  data->los_live = 0;
+  data->stack_live = 0;
+  data->not_used = 0;
+  data->havestats = FALSE;
   return heap;
 }
 

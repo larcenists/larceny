@@ -22,7 +22,7 @@
 #include "young_heap_t.h"
 #include "old_heap_t.h"
 #include "semispace_t.h"
-#include "heap_stats_t.h"
+#include "stats.h"
 #include "remset_t.h"
 #include "static_heap_t.h"
 
@@ -39,7 +39,9 @@ typedef struct {
 typedef struct npsc_data npsc_data_t;
 
 struct npsc_data {
-  int gen_no;                 /* generation number of 'old' generation */
+  stats_id_t self_young;	/* Identity of 'young' generation */
+  stats_id_t self_old;		/* Identity of 'old' generation */
+  int        gen_no;		/* Generation number of 'old' generation */
 
   /* Parameters. */
   int size_bytes;             /* Original size */
@@ -56,20 +58,19 @@ struct npsc_data {
   int j_pin;                  /* -1 or value at which to pin j */
   double load_factor;
   double luck;		      /* 0.0 .. 1.0 */
-  int remset_limit;		/* 0 .. INT_MAX */
+  int remset_limit;	      /* 0 .. INT_MAX */
   int lower_limit;            /* 0 or lower limit on the non-predictive area */
   int upper_limit;	      /* 0 or upper limit on the non-predictive area */
   semispace_t *old;	      /* 'old' generation */
   semispace_t *young;	      /* 'young' generation */
 
-  double phase_detection;     /* -1.0 or 0.0 .. 1.0 */
+  double  phase_detection;    /* -1.0 or 0.0 .. 1.0 */
   phase_t phase_buf[ PHASE_BUFSIZ ];  /* phase detection data */
-  int phase_idx;		/* next index in phase_buf */
+  int     phase_idx;	      /* next index in phase_buf */
 
-  int copied_last_gc_old;     /* bytes */
-  int moved_last_gc_old;
-  int copied_last_gc_young;   /* bytes */
-  int moved_last_gc_young;
+  gen_stats_t gen_stats_old;
+  gen_stats_t gen_stats_young;
+  gc_stats_t  gc_stats;
 };
 
 #define DATA(x)             ((npsc_data_t*)((x)->data))
@@ -138,18 +139,24 @@ void np_gc_parameters( old_heap_t *heap, int *k, int *j )
   *j = DATA(heap)->j;
 }
 
+/* Update gc stats
+   Update gen stats
+*/
 static void collect( old_heap_t *heap, gc_type_t request )
 {
   npsc_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
   los_t *los = gc->los;
   int old_before_gc, old_los_before_gc, young_before_gc, young_los_before_gc;
-  int type;
+  int type, t;
+  stats_id_t timer;
 
   annoyingmsg( "" );
   annoyingmsg( "Non-predictive dynamic area: garbage collection. " );
   annoyingmsg( "  Live old: %d   Live young: %d  k: %d  j: %d",
 	       used_old( heap ), used_young( heap ), data->k, data->j );
+
+  timer = stats_start_timer();
 
   ss_sync( data->old );
   ss_sync( data->young );
@@ -172,20 +179,43 @@ static void collect( old_heap_t *heap, gc_type_t request )
 
   ss_sync( data->young );
   ss_sync( data->old );
+
   if (type == COLLECT) {
-    data->copied_last_gc_old = data->old->used - young_before_gc;
-    data->moved_last_gc_old =
-      los_bytes_used( los, data->old->gen_no ) - young_los_before_gc;
-    data->copied_last_gc_young = 0;
-    data->moved_last_gc_young = 0;
+    data->gc_stats.words_copied += 
+      bytes2words( data->old->used - young_before_gc );
+    data->gc_stats.words_moved +=
+      bytes2words( los_bytes_used( los, data->gen_no ) - young_los_before_gc );
   }
   else {
-    data->copied_last_gc_young = data->young->used - young_before_gc;
-    data->moved_last_gc_young =
-      los_bytes_used( los, data->gen_no+1 ) - young_los_before_gc;
-    data->copied_last_gc_old = data->old->used - old_before_gc;
-    data->moved_last_gc_old = 
-      los_bytes_used( los, data->gen_no ) - old_los_before_gc;
+    data->gc_stats.words_copied += 
+      bytes2words( data->young->used - young_before_gc );
+    data->gc_stats.words_moved += 
+      bytes2words( los_bytes_used( los, data->gen_no+1 )-young_los_before_gc );
+  }
+
+  switch( type ) {
+  case PROMOTE_TO_OLD :
+    data->gen_stats_old.promotions++;
+    data->gen_stats_old.ms_promotion += stats_stop_timer( timer ); 
+    break;
+  case PROMOTE_TO_BOTH :
+    /* Split the cost -- it probably comes out even in the end and
+       it's less obviously wrong than assigning all time to one or the
+       other.
+       */
+    t = stats_stop_timer( timer ); 
+    data->gen_stats_old.promotions++; /* Only count one  */
+    data->gen_stats_old.ms_promotion += t/2;
+    data->gen_stats_young.ms_promotion += t/2;
+    break;
+  case PROMOTE_TO_YOUNG :
+    data->gen_stats_young.promotions++;
+    data->gen_stats_young.ms_promotion += stats_stop_timer( timer ); 
+    break;
+  case COLLECT : 
+    data->gen_stats_old.collections++;
+    data->gen_stats_old.ms_collection += stats_stop_timer( timer ); 
+    break;
   }
 
   annoyingmsg( "Non-predictive dynamic area: collection finished, k=%d j=%d",
@@ -385,7 +415,6 @@ static void perform_promote_to_old( old_heap_t *heap )
   npsc_data_t *data = DATA(heap);
 
   annoyingmsg( "  Promoting into old area." );
-  stats_gc_type( data->gen_no, GCTYPE_PROMOTE );
 
   gclib_stopcopy_promote_into( heap->collector, data->old );
   rs_clear( heap->collector->remset[ data->gen_no ] );
@@ -397,7 +426,6 @@ static void perform_promote_to_both( old_heap_t *heap )
   int x, young_available, old_available;
 
   annoyingmsg( "  Promoting to both old and young." );
-  stats_gc_type( data->gen_no+1, GCTYPE_PROMOTE );
 
   if (run_phase_detector( heap ))
     adjust_j( heap );
@@ -455,7 +483,6 @@ static void perform_collect( old_heap_t *heap )
   young_los_before = los_bytes_used( los, data->gen_no+1 );
 
   annoyingmsg( "  Full garbage collection." );
-  stats_gc_type( data->gen_no, GCTYPE_COLLECT );
 
   gclib_stopcopy_collect_np( gc, data->young );
   rs_clear( gc->remset[ data->gen_no ] );
@@ -543,38 +570,35 @@ static void perform_collect( old_heap_t *heap )
   update_phase_data( heap );
 }
 
-static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
+static void stats( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
   int live_los;
 
-  if (generation == data->gen_no) {
-    live_los = los_bytes_used( heap->collector->los, data->gen_no );
-    stats->np_old = 1;
-    stats->copied_last_gc = data->copied_last_gc_old;
-    stats->moved_last_gc = data->moved_last_gc_old;
-    stats->target = data->stepsize * (data->k-data->j);
-    stats->live = used_old( heap );
-    stats->semispace1 = data->old->allocated + live_los;
+  live_los = los_bytes_used( heap->collector->los, data->gen_no );
+  data->gen_stats_old.target = 
+    bytes2words( data->stepsize * (data->k-data->j) );
+  data->gen_stats_old.allocated = 
+    bytes2words( data->old->allocated + live_los );
+  data->gen_stats_old.used = bytes2words( used_old( heap ) + live_los );
+  stats_add_gen_stats( data->self_old, &data->gen_stats_old );
+  memset( &data->gen_stats_old, 0, sizeof( gen_stats_t ) );
+  rs_stats( heap->collector->remset[ data->gen_no ] );
 
-    data->copied_last_gc_old = 0;
-    data->moved_last_gc_old = 0;
-  }
-  else {
-    live_los = los_bytes_used( heap->collector->los, data->gen_no+1 );
-    stats->np_young = 1;
-    stats->copied_last_gc = data->copied_last_gc_young;
-    stats->moved_last_gc = data->moved_last_gc_young;
-    stats->target = data->stepsize * data->j;
-    stats->live = used_young( heap );
-    stats->semispace1 = data->young->allocated + live_los;
+  live_los = los_bytes_used( heap->collector->los, data->gen_no+1 );
+  data->gen_stats_young.target = bytes2words( data->stepsize * data->j );
+  data->gen_stats_young.allocated = 
+    bytes2words( data->young->allocated + live_los );
+  data->gen_stats_young.used = bytes2words( used_young( heap ) + live_los );
+  stats_add_gen_stats( data->self_young, &data->gen_stats_young );
+  memset( &data->gen_stats_young, 0, sizeof( gen_stats_t ) );
+  rs_stats( heap->collector->remset[ data->gen_no + 1] );
+  rs_stats( heap->collector->remset[ heap->collector->np_remset ] );
 
-    data->copied_last_gc_young = 0;
-    data->moved_last_gc_young = 0;
-  }
-
-  stats->np_j = data->j;
-  stats->np_k = data->k;
+  data->gc_stats.np_j = data->j;
+  data->gc_stats.np_k = data->k;
+  stats_add_gc_stats( &data->gc_stats );
+  memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
 static void before_collection( old_heap_t *heap )
@@ -689,17 +713,18 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 			   );
   heap->collector = gc;
 
+  data->self_old = stats_new_generation( gen_no, 0 );
+  data->self_young = stats_new_generation( gen_no+1, 0 );
+  data->gen_no = gen_no;
   for ( i=0 ; i < PHASE_BUFSIZ ; i++ ) {
     data->phase_buf[i].remset_size = 0;
     data->phase_buf[i].j = 0;
   }
   data->phase_idx = 0;
 
-  data->gen_no = gen_no;
-  data->copied_last_gc_old = 0;
-  data->moved_last_gc_old = 0;
-  data->copied_last_gc_young = 0;
-  data->moved_last_gc_young = 0;
+  memset( &data->gen_stats_young, 0, sizeof( gen_stats_t ) );
+  memset( &data->gen_stats_old, 0, sizeof( gen_stats_t ) );
+  memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 
   return heap;
 }
