@@ -58,6 +58,7 @@ static struct {
 		      { (fptr)UNIX_sysfeature, 1, 0 },
 		      { (fptr)larceny_peek_bytes, 3, 0 },
 		      { (fptr)larceny_poke_bytes, 3, 0 },
+		      { (fptr)larceny_segment_code_address, 2, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )
