@@ -23,26 +23,49 @@
 
     (define (collect-arguments l)
       (if (null? (cdr l))
-	  (car l)
-	  (cons (car l) (collect-arguments (cdr l)))))
+          (car l)
+          (cons (car l) (collect-arguments (cdr l)))))
 
     (define (apply f l . rest)
       (cond ((not (procedure? f))
              (error "apply: not a procedure: " f)
-	     #t)
+             #t)
             ((not (null? rest))
-	     (apply f (cons l (collect-arguments rest))))
+             (apply f (cons l (collect-arguments rest))))
             ((null? l) (f))
             ((null? (cdr l)) (f (car l)))
             ((null? (cddr l)) (f (car l) (cadr l)))
             ((null? (cdddr l)) (f (car l) (cadr l) (caddr l)))
             ((null? (cddddr l)) (f (car l) (cadr l) (caddr l) (cadddr l)))
             ((not (list? l)) 
-	     (error "apply: not a list: " l)
-	     #t)
+             (error "apply: not a list: " l)
+             #t)
             (else (raw-apply f l (length l)))))
 
     apply))
+
+
+; MAKE-TRAMPOLINE
+;
+; MAKE-TRAMPOLINE takes a procedure P and returns an environment-less
+; procedure that takes any number of arguments and tail-calls P with those
+; arguments.  
+;
+; It is not possible to create a procedure with a shorter procedure 
+; structure than that of a trampoline.  That fact may be relied on: 
+; a trampoline can be patched into any other procedure.
+;
+; This procedure depends on the representation of procedures.
+
+(define (make-trampoline p)
+  (let* ((t trampoline-template)       ; in LIB/MALCODE.MAL
+         (q (procedure-copy t)))
+    (procedure-set! q 1 (vector-copy (procedure-ref q 1)))
+    (let loop ((i 0) (const (procedure-ref q 1)))
+      (if (eq? (vector-ref const i) 'dummy)
+          (vector-set! const i p)
+          (loop (+ i 1) const)))
+    q))
 
 
 ; Used by 'delay'.
@@ -50,16 +73,16 @@
 (define make-promise
   (lambda (proc)
     (let ((result-ready? #f)
-	  (result        #f))
+          (result        #f))
       (lambda ()
-	(if result-ready?
-	    result
-	    (let ((x (proc)))
-	      (if result-ready?
-		  result
-		  (begin (set! result-ready? #t)
-			 (set! result x)
-			 result))))))))
+        (if result-ready?
+            result
+            (let ((x (proc)))
+              (if result-ready?
+                  result
+                  (begin (set! result-ready? #t)
+                         (set! result x)
+                         result))))))))
 
 (define force
   (lambda (proc)
@@ -77,25 +100,25 @@
 
   (define (err)
     (error "collect: bad arguments "
-	   args
-	   #\newline
-	   "Use: (collect [generation [{promote,collect}]])")
+           args
+           #\newline
+           "Use: (collect [generation [{promote,collect}]])")
     #t)
 
   (if (null? args)
       (sys$gc 0 0)
       (let ((a (car args)))
-	(cond ((eq? a 'ephemeral) (sys$gc 0 0))
-	      ((eq? a 'tenuring)  (sys$gc 1 1))
-	      ((eq? a 'full)      (sys$gc 1 0))
-	      ((and (fixnum? a) (positive? a))
-	       (if (null? (cdr args))
-		   (sys$gc a 0)
-		   (let ((b (cadr args)))
-		     (cond ((eq? b 'collect) (sys$gc a 0))
-			   ((eq? b 'promote) (sys$gc a 1))
-			   (else (err))))))
-	      (else (err)))))
+        (cond ((eq? a 'ephemeral) (sys$gc 0 0))
+              ((eq? a 'tenuring)  (sys$gc 1 1))
+              ((eq? a 'full)      (sys$gc 1 0))
+              ((and (fixnum? a) (positive? a))
+               (if (null? (cdr args))
+                   (sys$gc a 0)
+                   (let ((b (cadr args)))
+                     (cond ((eq? b 'collect) (sys$gc a 0))
+                           ((eq? b 'promote) (sys$gc a 1))
+                           (else (err))))))
+              (else (err)))))
   (unspecified))
 
 
@@ -124,16 +147,16 @@
 (define values
   (lambda vals
     (cond ((null? vals) *values0*)
-	  ((null? (cdr vals)) (car vals))
-	  (else (cons *multiple-values* vals)))))
+          ((null? (cdr vals)) (car vals))
+          (else (cons *multiple-values* vals)))))
 
 (define call-with-values
   (lambda (producer consumer)
     (let ((vals (producer)))
       (if (and (pair? vals)
-	       (eq? (car vals) *multiple-values*))
-	  (apply consumer (cdr vals))
-	  (consumer vals)))))
+               (eq? (car vals) *multiple-values*))
+          (apply consumer (cdr vals))
+          (consumer vals)))))
 
 
 ; dynamic-wind
@@ -152,33 +175,33 @@
   (let ((call-with-current-continuation call-with-current-continuation))
     (lambda (proc)
       (let ((here *here*))
-	(call-with-current-continuation
-	 (lambda (cont)
-	   (proc (lambda results
-		   (reroot! here)
-		   (apply cont results)))))))))
+        (call-with-current-continuation
+         (lambda (cont)
+           (proc (lambda results
+                   (reroot! here)
+                   (apply cont results)))))))))
     
 (define (dynamic-wind before during after)
   (let ((here *here*))
     (reroot! (cons (cons before after) here))
     (call-with-values during
       (lambda results
-	(reroot! here)
-	(apply values results)))))
+        (reroot! here)
+        (apply values results)))))
 
 (define (reroot! there)
 
   (define (reroot-loop there)
     (if (not (eq? *here* there))
-	(begin (reroot-loop (cdr there))
-	       (let ((before (caar there))
-		     (after  (cdar there)))
-		 (set-car! *here* (cons after before))
-		 (set-cdr! *here* there)
-		 (set-car! there #f)
-		 (set-cdr! there '())
-		 (set! *here* there)
-		 (before)))))
+        (begin (reroot-loop (cdr there))
+               (let ((before (caar there))
+                     (after  (cdar there)))
+                 (set-car! *here* (cons after before))
+                 (set-cdr! *here* there)
+                 (set-car! there #f)
+                 (set-cdr! there '())
+                 (set! *here* there)
+                 (before)))))
 
   (let ((ticks (disable-interrupts)))
     (reroot-loop there)
