@@ -43,6 +43,13 @@ int stk_size_for_top_stack_frame( word *globals );
      as the top stack frame in the current stack.
      */
 
+/* IMPORTED ROUTINES */
+
+void stk_initialize_underflow_frame( word *stktop );
+  /* Given a pointer to a four-word initialized frame, store data in it
+     that allow it to function as a stack underflow frame.
+     */ 
+
 #endif /* INCLUDED_STACK_H */
 
 /* eof */
