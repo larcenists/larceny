@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Procedures for rectnum arithmetic
 ;
-; $Id: rectnums.scm,v 1.3 1992/02/24 17:24:56 lth Exp remy $
+; $Id: rectnums.scm,v 1.4 1992/06/13 03:52:28 remy Exp remy $
 ;
 ; A rectnum is a pair of two exact real numbers (the "real" and "imaginary"
 ; parts) where the imaginary part is nonzero.
@@ -41,19 +41,7 @@
 ; Magnitude: 
 ;     z = a + bi  ->  |z| = r
 ;
-; Reciprocal:   _
-;         1     z       r         if z =/= 0
-;         -  = ---  =  ---       
-;         z      2       2
-;               C       C
-;
-;                       (sqrt aa + bb)       (sqrt aa + bb)
-;                   = -----------------  =  ----------------
-;                     (a - bi) (a - bi)     aa - bb + (2ab)i
-; 
-; Division:
-;    x / y = x * 1/y
-;
+
 
 ; (export rectnum-add
 ;         rectnum-subtract
@@ -149,6 +137,9 @@
 	  ((> a b) (* a (sqrt (+ 1.0 (sqr (/ b a))))))
 	  (else    (* b (sqrt (+ 1.0 (sqr (/ a b)))))))))
 
+
+; This is taken from the Numerical Programming in C book.
+;
 (define (rectnum-div x y)
   (let ((a (rectnum-real-part x))
 	(b (rectnum-imag-part x))
@@ -167,7 +158,6 @@
 	       (imag (- a (* r b))))
 	  (make-rectangular (/ real denominator) 
 			    (/ imag denominator))))))
-
 
 
 (define (rectnum=? x y)

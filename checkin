@@ -15,17 +15,7 @@
 
 
 rlog=/local/apps/rcs/rcs-pre5.6/rlog
-top="."
-dirs=" 	${top}
-	${top}/Chez
-	${top}/Compiler
-	${top}/Lib
-	${top}/Lib/Sparc
-	${top}/Lib/Eval
-	${top}/Sparc
-	${top}/Sys
-	${top}/Text
-	"
+dirs=`awk '!/^#/ {print}' < Directories`
 
 if [ "$#" -ge 1 ]; then
 	dirs="$@"

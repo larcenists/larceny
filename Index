@@ -1,5 +1,5 @@
 The top index for larceny
-$Id: Index,v 1.1 1992/06/12 20:13:53 remy Exp remy $
+$Id: Index,v 1.2 1992/06/12 22:40:13 remy Exp remy $
 
 This is the top-level directory for the larceny development environment.
 It lists all dirctories in the tree, as well as the files in the root
@@ -51,6 +51,10 @@ BUGLIST
   The official bug list (also the wish list).  This list really contains
   bugs that are known of but haven't been fixed for various reasons. 
   Also contains suggested improvements.
+
+Directories
+  A list of directories in the larceny development environment.  Used
+  by checkin, checkout, make-larceny-tree, and possibly other utils.
 
 Index
   This file.
