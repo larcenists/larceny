@@ -278,8 +278,9 @@ void gclib_free( void *addr, int bytes )
   unsigned pages;
   unsigned pageno;
 
-  assert( (word)addr % PAGESIZE == 0 &&
-	  bytes % PAGESIZE == 0 );
+  assert( (word)addr % PAGESIZE == 0 );
+
+  bytes = roundup_page( bytes );
 
   supremely_annoyingmsg( "Freeing: bytes=%d addr=%p", bytes, (void*)addr );
   
