@@ -198,7 +198,7 @@ struct gc {
 #define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
-#define gc_free_handle( gc, h )       ((gc)->free_handle( gc, f ))
+#define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
 
 gc_t 
 *create_gc_t(char *id,
