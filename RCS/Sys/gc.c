@@ -1,26 +1,27 @@
 /*
  * Ephemeral garbage collector (for Scheme).
+ * Documentation is in the files "gc.c" and "gcinterface.c".
  *
- * $Header$
+ * $Id$
  *
  * IMPLEMENTATION
- *  We use "old" C; this has the virtue of letting us use 'lint'
- *  on the code.
+ * We use "old" C; this has the virtue of letting us use 'lint' on the code.
  *
  * ASSUMPTIONS
- *  - We assume a representation with at least 32 bits; I think this
- *    code will work if words are bigger than that, since all bit
- *    tests are explicit with respect to bit position. However, to
- *    use excess bits to store data, you must change the #definition
- *    of BIT_MASK below. It might also work on shorter words, but I
- *    haven't really bothered to check carefully.
- *  - We *must* have sizeof( unsigned long ) >= sizeof( unsigned long * ).
- *  - I don't think 2's complement arithmetic is assumed anywhere;
- *    I've tried to keep all values unsigned.
- *  - UNIX-style malloc() and memcpy() must be provided.
+ * - We assume a representation with 32 bits; the code will work for
+ *   other word sizes if the #definition of BIT_MASK is changed
+ *   correctly. 
+ * - The number of bytes in a word is assumed to be 4 in a number of places.
+ *   This should probably be fixed. I don't think we assume that a byte has
+ *   8 bits.
+ * - We *must* have sizeof( unsigned long ) >= sizeof( unsigned long * ).
+ * - No 2's complement is assumed; all values are unsigned.
+ * - UNIX-style malloc() and memcpy() must be provided.
  *
  * BUGS
- *  - Does not detect overflow of tenured space during collection.
+ * - Does not detect overflow of tenured space during collection.
+ * - Does not remove transactions with no pointers into the ephemeral space
+ *   from the transaction list.
  */
 
 #ifdef __STDC__
@@ -31,6 +32,7 @@
   extern void memcpy();
 #endif
 #include "gc.h"
+#include "gcinterface.h"
 
 /* this is the usual one */
 #define NULL                0
@@ -84,33 +86,24 @@
 /* extract size field from a header word, accounting for a set hi bit */
 #define sizefield( w )      ((((word) (w)) & ~BIT_MASK) >> 8)
 
+/* Is a word a pointer into a particular space? */
+#define pointsto( p,lo,hi ) (isptr(p) && ptrof(p) >= (lo) && ptrof(p) <= (hi))
+
 /* miscellaneous */
 #define max( a, b )         ((a) > (b) ? (a) : (b))
 #define min( a, b )         ((a) < (b) ? (a) : (b))
 #define roundup4( a )       (((a) + 3) & ~0x03)
 #define roundup8( a )       (((a) + 7) & ~0x07)
 
-/* convenient types */
-typedef unsigned long word;                 /* 32-bit quantity */
-
-/* variables to be defined by the invoker */
-extern word *roots;                         /* pointer to first root */
-extern unsigned int rootcnt;                /* number of roots */
-
-/* The current-space variables */
-word *e_base, *e_limit, *e_top, *e_mark;
-word *t_base, *t_limit, *t_top, *t_entries;
-word *s_base, *s_limit, *s_top;
-word *stack_base, *stack_limit, *stack_mark;
-
-/* Statistics variables */
-unsigned collections;
-unsigned words_collected;
-unsigned words_allocated;
-
-/* The new-space variables */
-static word *t_new_base, *t_new_limit;
-static word *e_new_base, *e_new_limit, *e_new_mark;
+/* Private globals */
+static unsigned ecollections, tcollections;
+static unsigned words_collected, words_allocated;
+static word *e_base, *e_max, *e_top, *e_mark;
+static word *e_new_base, *e_new_max, *e_new_mark;
+static word *t_base, *t_max, *t_top, *t_trans;
+static word *t_new_base, *t_new_max;
+static word *s_base, *s_max;
+static word *stk_base, *stk_max;
 
 static word forward();
 static unsigned words_used();
@@ -124,12 +117,13 @@ static ephemeral_collection(),
  * allocation is performed by the Scheme code. This code uses malloc() and 
  * hence peacefully coexists with other code that uses malloc().
  *
- * 's_size' is the requested size of the static area, in bytes.
- * 't_size' is the requested size of the tenured area, in bytes.
- * 'e_size' is the requested size of the ephemeral area, in bytes.
- * 'stk_size' is the requested size of the stack cache area, in bytes.
- * 'e_lim' is the requested watermark of the ephemeral are, in bytes.
- * 'stk_lim' is the requested watermark of the stack cache, in bytes.
+ * Arguments:
+ * - 's_size' is the requested size of the static area, in bytes.
+ * - 't_size' is the requested size of the tenured area, in bytes.
+ * - 'e_size' is the requested size of the ephemeral area, in bytes.
+ * - 'e_lim' is the requested watermark of the ephemeral area, measured
+ *   in bytes from the bottom of the area.
+ * - 'stk_size' is the requested size of the stack cache area, in bytes.
  *
  * First, all sizes and marks are adjusted for proper alignment and for
  * compliance with the constraints set forth in "gc.h".
@@ -139,8 +133,8 @@ static ephemeral_collection(),
  * If the initialization succeeded, a nonzero value is returned. Otherwise,
  * 0 is returned.
  */
-init_collector( s_size, t_size, e_size, e_lim, stk_size, stk_lim )
-unsigned int s_size, t_size, e_size, e_lim, stk_size, stk_lim;
+unsigned int init_collector( s_size, t_size, e_size, e_lim, stack_size )
+unsigned int s_size, t_size, e_size, e_lim, stack_size;
 {
   word *p;
 
@@ -151,38 +145,13 @@ unsigned int s_size, t_size, e_size, e_lim, stk_size, stk_lim;
   s_size = max( MIN_S_SIZE, roundup8( s_size ) );
   t_size = max( MIN_T_SIZE, roundup8( t_size ) );
   e_size = max( MIN_E_SIZE, roundup8( e_size ) );
-  stk_size = max( MIN_STK_SIZE, roundup8( stk_size ) );
+  stack_size = max( MIN_STK_SIZE, roundup8( stack_size ) );
 
   /*
-   * We stipulate that the ephemeral watermark must be at least 1/16 of
-   * the size of the space from the bottom of the ephemeral space,
-   * and that it may be no higher than the space needed for the 
-   * overflow area.
-   *
-   * The epehemeral area must have room for a flush of a completely full
-   * stack cache. The number of words that need to be set aside for this
-   * is computed by oflosize().
+   * There are no limits on the ephemeral watermark, as a bad limit will
+   * simply cause poor memory behavior.
    */
-  { unsigned int e_words = e_size / 4;
-    unsigned int e_limit = roundup8( e_lim / 4 );
-    unsigned int e_max = e_words - oflosize( stk_size );
-    
-    e_lim = max( e_words / 16, min( e_limit, e_max ) );
-  }
-
-  /*
-   * The stack watermark must leave room for at least one full continuation.
-   * The reason for this is that we can then check for stack overflow at the
-   * start of a continuation-creating procedure and not worry about it after
-   * that.
-   * We give a lower limit here, 1/32 of the stack size.
-   */
-  { unsigned int stk_words = stk_size / 4;
-    unsigned int stk_limit = roundup8( stk_lim / 4 );
-    unsigned int stk_min = stk_words / 32;
-
-    stk_lim = max( stk_min, min( stk_words - MAX_CONT_SIZE, stk_limit ));
-  }
+  e_lim = roundup8( e_lim );
 
   /* 
    * Allocate memory for all the spaces.
@@ -198,35 +167,50 @@ unsigned int s_size, t_size, e_size, e_lim, stk_size, stk_lim;
   p = (word *) roundup8( (word) p );    /* adjust to doubleword ptr */
 
   /* The stack cache goes at the bottom of memory. */
-  stack_base = p;                                 /* lowest word */
-  stack_limit = p + stk_size / 4 - 1;             /* highest word */
-  stack_mark = stack_base + stk_lim - 1;
+  stk_base = p;                                 /* lowest word */
+  stk_max = p + stk_size / 4 - 1;               /* highest word */
   p += stk_size / 4;
 
   /* The epehemral areas are the lowest of the heap spaces */
   e_base = e_top = p;
-  e_limit = p + e_size / 4 - 1;
-  e_mark = e_base + e_lim - 1;
+  e_max = p + e_size / 4 - 1;
+  e_mark = e_base + e_lim / 4 - 1;
   p += e_size / 4;
 
   e_new_base = p;
-  e_new_limit = p + e_size / 4 - 1;
-  e_new_mark = e_new_base + e_lim - 1;
+  e_new_max = p + e_size / 4 - 1;
+  e_new_mark = e_new_base + e_lim / 4 - 1;
   p += e_size / 4;
 
   /* The static area goes in the middle */
   s_base = s_top = p;
-  s_limit = p + s_size / 4 - 1;
+  s_max = p + s_size / 4 - 1;
   p += s_size / 4;
 
   /* The tenured areas go on the top */
   t_base = t_top = p;
-  t_limit = p + t_size / 4 - 1;
-  t_entries = t_limit;
+  t_max = p + t_size / 4 - 1;
+  t_trans = t_max;
   p += t_size / 4;
   
   t_new_base = p;
-  t_new_limit = p + t_size / 4 - 1;
+  t_new_max = p + t_size / 4 - 1;
+
+  globals[ E_BASE_OFFSET ] = e_base;
+  globals[ E_TOP_OFFSET ] = e_top;
+  globals[ E_MARK_OFFSET ] = e_mark;
+  globals[ E_MAX_OFFSET ] = e_max;
+
+  globals[ T_BASE_OFFSET ] = t_base;
+  globals[ T_TOP_OFFSET ] = t_top;
+  globals[ T_MAX_OFFSET ] = t_max;
+  globals[ T_TRANS_OFFSET ] = t_trans;
+
+  globals[ S_BASE_OFFSET ] = s_base;
+  globals[ S_MAX_OFFSET ] = s_max;
+
+  globals[ STK_BASE_OFFSET ] = stk_base;
+  globals[ STK_MAX_OFFSET ] = stk_max;
 
   return 1;
 }
@@ -236,7 +220,7 @@ unsigned int s_size, t_size, e_size, e_lim, stk_size, stk_lim;
  * Garbage collector trap entry point. In later versions, when we trap on
  * a memory overflow, we will attempt to allocate more space.
  */
-gc_trap( type )
+void gc_trap( type )
 unsigned int type;
 {
   if (type == 0)
@@ -260,11 +244,18 @@ unsigned int type;
   static unsigned words2;                  /* # words in use after last gc */
   unsigned words1;                         /* # words in use before this gc */
 
-  collections++;
+  e_top = globals[ E_TOP_OFFSET ];
+  t_trans = globals[ T_TRANS_OFFSET ];
+
+  if (type == 1) 
+    ecollections++;
+  else
+    tcollections++;
+
   words1 = words_used();
   words_allocated += words2 - words1;
 
-  if (must_tenure || type == 1) {
+  if (must_tenure || type != 1) {
     tenuring_collection();
     must_tenure = 0;
   }
@@ -275,16 +266,26 @@ unsigned int type;
 
   words2 = words_used();
   words_collected += words1 - words2;
+
+  globals[ E_BASE_OFFSET ] = e_base;
+  globals[ E_TOP_OFFSET ] = e_top;
+  globals[ E_MARK_OFFSET ] = e_mark;
+  globals[ E_MAX_OFFSET ] = e_max;
+
+  globals[ T_BASE_OFFSET ] = t_base;
+  globals[ T_TOP_OFFSET ] = t_top;
+  globals[ T_MAX_OFFSET ] = t_max;
+  globals[ T_TRANS_OFFSET ] = t_trans;
 }
 
 
 /*
  * Calculate how much memory we're using in the tenured and ephemeral areas.
- * Is there anyreason why/why not the static area should be included? Stack?
+ * Is there any reason why/why not the static area should be included?
  */
 static unsigned words_used()
 {
-  return (e_top - e_base) + (t_top - t_base) + (t_limit - t_entries);
+  return (e_top - e_base) + (t_top - t_base) + (t_max - t_trans);
 }
 
 
@@ -292,7 +293,7 @@ static unsigned words_used()
  * The ephemeral collection copies all reachable objects in the ephemeral 
  * area into the new ephemeral area. An object is reachable if
  *  - it is reachable from the set of root pointers in `roots', or
- *  - it is reachable from the entry list, or
+ *  - it is reachable from the transaction list, or
  *  - it is reacable from a reachable object.
  */
 static ephemeral_collection()
@@ -311,48 +312,45 @@ static ephemeral_collection()
    * pointed to by 'roots'. 'rootcnt' is the number of roots. They must all
    * be consecutive.
    */
-  for (i = rootcnt, p = roots ; i ; i--, p++ )
-    *p = forward( *p, e_base, e_limit, &dest );
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    globals[ i ] = forward( globals[ i ], e_base, e_max, &dest );
 
   /*
-   * Do entry list. The entry list is in the tenured area between t_limit
-   * and t_entries (including the former but not the latter.)
+   * Do entry list. The entry list is in the tenured area between t_max
+   * and t_trans (including the former but not the latter.)
    */
-  for ( tail = head = t_limit ; head > t_entries ; head-- ) {
+  for ( tail = head = t_max ; head > t_trans ; head-- ) {
     tag = tagof( *head );
     ptr = ptrof( *head );
     if (tag == VEC_TAG || tag == PROC_TAG) {
-      if (get_bit( *ptr ) == 0) {         /* haven't done this structure yet */
+      if (get_bit( *ptr ) == 0) {        /* haven't done this structure yet */
 	set_bit( *ptr );
 	size = sizefield( *ptr ) >> 2;
 	for (i = 0, ++ptr ; i < size ; i++, ptr++ )
-	  *ptr = forward( *ptr, e_base, e_limit, &dest );
+	  *ptr = forward( *ptr, e_base, e_max, &dest );
 	*tail-- = *head;
       }
     }
     else if (tag == PAIR_TAG) {
       /* have done pair if either word is pointer into neswpace! */
-      if (isptr( *ptr ) && 
-	  ptrof( *ptr ) >= e_new_base && ptrof( *ptr ) <= e_new_limit
-	  || 
-	  isptr( *(ptr+1) && 
-	  ptrof( *(ptr+1) ) >= e_new_base && ptrof( *(ptr+1) ) <= e_new_limit))
+      if (pointsinto( *ptr, e_new_base, e_new_limit )
+       || pointsinto( *(ptr+1), e_new_base, e_new_limit ))
 	;
       else {
-	*ptr = forward( *ptr, e_base, e_limit, &dest );
-	*(ptr+1) = forward( *(ptr+1), e_base, e_limit, &dest );
+	*ptr = forward( *ptr, e_base, e_max, &dest );
+	*(ptr+1) = forward( *(ptr+1), e_base, e_max, &dest );
 	*tail-- = *head;
       }
     }
     else
       panic( "Failed invariant in ephemeral_collection().\n" );
   }
-  t_entries = tail;
+  t_trans = tail;
 
   /*
    * Clear the header bits in the tenured area.
    */
-  for (head = t_limit ; head > t_entries ; head-- ) {
+  for (head = t_max ; head > t_trans ; head-- ) {
     tag = tagof( *head );
     if (tag == VEC_TAG || tag == PROC_TAG)
       reset_bit( *ptrof( *head ) );
@@ -368,7 +366,7 @@ static ephemeral_collection()
       ptr += size + 1;
     }
     else {
-      *ptr = forward( *ptr, e_base, e_limit, &dest );
+      *ptr = forward( *ptr, e_base, e_max, &dest );
       ptr++;
     }
   }
@@ -377,7 +375,7 @@ static ephemeral_collection()
    * Flip the spaces.
    */
   tmp = e_base; e_base = e_new_base; e_new_base = tmp;
-  tmp = e_limit; e_limit = e_new_limit; e_new_limit = tmp;
+  tmp = e_max; e_max = e_new_max; e_new_max = tmp;
   tmp = e_mark; e_mark = e_new_mark; e_new_mark = tmp;
   e_top = dest;
 }
@@ -401,16 +399,14 @@ static tenuring_collection()
   /*
    * Do the roots. Scan twice to get both spaces.
    */
-  for (p = roots, i = rootcnt ; i ; i--, p++ )
-    *p = forward( *p, t_base, t_limit, &dest );
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    globals[ i ] = forward( globals[ i ], t_base, t_max, &dest );
 
-  for (p = roots, i = rootcnt ; i ; i--, p++ )
-    *p = forward( *p, e_base, e_limit, &dest );
-
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    globals[ i ] = forward( globals[ i ], e_base, e_max, &dest );
 
   /*
    * Do the copied objects until there are no more.
-   * Does this adequately deal with static space?
    */
   p = t_new_base;
   while (p < dest) {
@@ -420,10 +416,10 @@ static tenuring_collection()
     }
     else {
       if (isptr( *p )) {
-	if (ptrof( *p ) <= e_limit)
-	  *p = forward( *p, e_base, e_limit, &dest );
+	if (ptrof( *p ) <= e_max)
+	  *p = forward( *p, e_base, e_max, &dest );
 	else
-	  *p = forward( *p, t_base, t_limit, &dest );
+	  *p = forward( *p, t_base, t_max, &dest );
       }
       p++;
     }
@@ -433,15 +429,15 @@ static tenuring_collection()
    * Flip.
    */
   tmp = t_base; t_base = t_new_base; t_new_base = tmp;
-  tmp = t_limit; t_limit = t_new_limit; t_new_limit = tmp;
+  tmp = t_max; t_max = t_new_max; t_new_max = tmp;
   t_top = dest;
-  t_entries = t_limit;
+  t_trans = t_max;
   e_top = e_base;
 }
 
 
 /*
- * "Forward" takes a word "w", the limits "base" and "limit" of oldspace,
+ * "Forward" takes a word "w", the limits "base" and "max" of oldspace,
  * and a pointer to a pointer into newspace, "dest". It returns the forwarding
  * value of w, which is:
  *  - w if w is a literal (header or fixnum)
@@ -486,7 +482,7 @@ word w, *base, *limit, **dest;
     *((*dest)++) = *ptr++;
     *((*dest)++) = *ptr++;
   }
-  else {                      /* vector-like (bytevector, vector, procedure) */
+  else {                     /* vector-like (bytevector, vector, procedure) */
     size = roundup4( sizefield( q ) + 4 );
     memcpy( (char *) *dest, (char *) ptr, size );
     *dest += size / 4;
