@@ -78,10 +78,12 @@
 	 (* (bytevector-ref bv (+ i 2)) two^8)
 	 (bytevector-ref bv (+ i 3))))))
 
-(define (twobit-format fmt . rest)
-  (let ((out (open-output-string)))
-    (apply format out fmt rest)
-    (get-output-string out)))
+;(define (twobit-format fmt . rest)
+;  (let ((out (open-output-string)))
+;    (apply format out fmt rest)
+;    (get-output-string out)))
+
+(define twobit-format format)
 
 ; This needs to be a random number in both a weaker and stronger sense
 ; than `random': it doesn't need to be a truly random number, so a sequence
