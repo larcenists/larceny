@@ -39,6 +39,7 @@ struct msgc_context {
   word         *stklim;
   int          traced;
   int          marked;
+  int          words_marked;
 };
 
 #define STACKSIZE  32760        /* Should be large. */
@@ -105,7 +106,7 @@ static void mark_from_stack( msgc_context_t *context )
   word w, bit_idx, word_idx, bit;
   word first = (word)context->lowest_heap_address;
   word *bitmap = context->bitmap;
-  int i, n, traced=0, marked=0;
+  int i, n, traced=0, marked=0, words_marked=0;
 
   while (1) {
     /* Pop */
@@ -128,12 +129,14 @@ static void mark_from_stack( msgc_context_t *context )
     /* Process contents */
     switch (tagof(w)) {
     case PAIR_TAG :
+      words_marked += 2;
       PUSH( context, pair_cdr( w ) ); /* Do the CDR last */
       PUSH( context, pair_car( w ) ); /* Do the CAR first */
       break;
     case VEC_TAG :                    /* FIXME: super bad for long vectors */
     case PROC_TAG :
       n = sizefield( *ptrof(w) ) / sizeof(word);
+      words_marked += n+1;
       for ( i=0 ; i < n ; i++ )
         PUSH( context, vector_ref( w, i ) );
       break;
@@ -141,6 +144,7 @@ static void mark_from_stack( msgc_context_t *context )
   }
   context->traced += traced;
   context->marked += marked;
+  context->words_marked += words_marked;
 }
 
 static void push_root( word *loc, void *data )
@@ -183,7 +187,8 @@ msgc_context_t *msgc_begin( gc_t *gc )
 }
 
 void 
-msgc_mark_objects_from_roots(msgc_context_t *context, int *marked, int *traced)
+msgc_mark_objects_from_roots( msgc_context_t *context, 
+                              int *marked, int *traced, int *words_marked )
 {
   int n;
 
@@ -195,7 +200,8 @@ msgc_mark_objects_from_roots(msgc_context_t *context, int *marked, int *traced)
   push_segment( context );
   context->marked = 0;
   context->traced = 0;
-
+  context->words_marked = 0;
+  
   gc_enumerate_roots( context->gc, push_root, (void*)context );
   mark_from_stack( context );
 
@@ -204,6 +210,7 @@ msgc_mark_objects_from_roots(msgc_context_t *context, int *marked, int *traced)
     hardconsolemsg( "  Warning: deep mark stack: %d elements.", n*STACKSIZE );
   *marked = context->marked;
   *traced = context->traced;
+  *words_marked = context->words_marked;
 }
 
 void msgc_end( msgc_context_t *context )
