@@ -355,30 +355,50 @@
 
   ;; JavaDot and case-sensitivity
   ;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
-  
+
   (environment-set! larc 'case-sensitive? case-sensitive?)
   (environment-set! larc
                     'recognize-javadot-symbols?
                     recognize-javadot-symbols?)
+  (environment-set! larc 'recognize-keywords? recognize-keywords?)
   (environment-set! larc 'javadot-symbol? javadot-symbol?)
   (environment-set! larc 'javadot-symbol->symbol javadot-symbol->symbol)
   (environment-set! larc 'symbol->javadot-symbol symbol->javadot-symbol)
 
-  
+
   ;; pairs and lists
 
-  (environment-set! larc 'list-copy list-copy)
-  (environment-set! larc 'last-pair last-pair)
-  (environment-set! larc 'remq remq)
-  (environment-set! larc 'remv remv)
-  (environment-set! larc 'remove remove)
-  (environment-set! larc 'remq! remq!)
-  (environment-set! larc 'remv! remv!)
-  (environment-set! larc 'remove! remove!)
   (environment-set! larc 'append! append!)
-  (environment-set! larc 'reverse! reverse!)
-  (environment-set! larc 'some? some?)
+  (environment-set! larc 'assoc assoc)
+  (environment-set! larc 'assoc-string assoc-string)
+  (environment-set! larc 'assoc-string-ci assoc-string-ci)
+  (environment-set! larc 'assq assq)
+  (environment-set! larc 'assv assv)
   (environment-set! larc 'every? every?)
+  (environment-set! larc 'filter filter)
+  (environment-set! larc 'find-if find-if)
+  (environment-set! larc 'foldl foldl)
+  (environment-set! larc 'foldr foldr)
+  (environment-set! larc 'last-pair last-pair)
+  (environment-set! larc 'length<=? length<=?)
+  (environment-set! larc 'length<? length<?)
+  (environment-set! larc 'length=? length=?)
+  (environment-set! larc 'length>=? length>=?)
+  (environment-set! larc 'length>? length>?)
+  (environment-set! larc 'list* list*)
+  (environment-set! larc 'list-copy list-copy)
+  (environment-set! larc 'list-head list-head)
+  (environment-set! larc 'longer? longer?)
+  (environment-set! larc 'position-of position-of)
+  (environment-set! larc 'remove remove)
+  (environment-set! larc 'remove! remove!)
+  (environment-set! larc 'remq remq)
+  (environment-set! larc 'remq! remq!)
+  (environment-set! larc 'remv remv)
+  (environment-set! larc 'remv! remv!)
+  (environment-set! larc 'reverse! reverse!)
+  (environment-set! larc 'shorter? shorter?)
+  (environment-set! larc 'some? some?)
 
   ;; hash functions and hashtables
 
@@ -413,7 +433,7 @@
   (environment-set! larc 'environment-get environment-get)
   (environment-set! larc 'environment-get-cell environment-get-cell)
   (environment-set! larc 'environment-set! environment-set!)
-  (environment-set! larc 'environment-syntax-environment 
+  (environment-set! larc 'environment-syntax-environment
                     environment-syntax-environment)
   (environment-set! larc 'environment-copy environment-copy)
   (environment-set! larc 'environment-macros environment-macros)
@@ -466,38 +486,38 @@
   (environment-set! larc 'enable-interrupts enable-interrupts)
   (environment-set! larc 'disable-interrupts disable-interrupts)
   (environment-set! larc 'timer-interrupt-handler timer-interrupt-handler)
-  (environment-set! larc 'keyboard-interrupt-handler 
+  (environment-set! larc 'keyboard-interrupt-handler
                     keyboard-interrupt-handler)
   (environment-set! larc 'break-handler break-handler)
   (environment-set! larc 'call-without-interrupts call-without-interrupts)
   (environment-set! larc 'standard-timeslice standard-timeslice)
   (environment-set! larc 'procedure-arity procedure-arity)
   (environment-set! larc 'procedure-documentation procedure-documentation)
-  (environment-set! larc 'procedure-documentation-string 
+  (environment-set! larc 'procedure-documentation-string
                     procedure-documentation-string)
   (environment-set! larc 'procedure-name procedure-name)
   (environment-set! larc 'procedure-source-file procedure-source-file)
-  (environment-set! larc 'procedure-source-position 
+  (environment-set! larc 'procedure-source-position
                     procedure-source-position)
   (environment-set! larc 'procedure-expression procedure-expression)
   (environment-set! larc 'procedure-environment procedure-environment)
   (environment-set! larc 'interpreted-procedure? interpreted-procedure?)
   (environment-set! larc 'interpreted-expression? interpreted-expression?)
   (environment-set! larc 'interpreted-primitive? interpreted-primitive?)
-  (environment-set! larc 'interpreted-expression-source 
+  (environment-set! larc 'interpreted-expression-source
                     interpreted-expression-source)
 
   ;; io
 
   (environment-set! larc 'open-binary-input-file open-binary-input-file)
   (environment-set! larc 'open-binary-output-file open-binary-output-file)
-  (environment-set! larc 'call-with-binary-input-file 
+  (environment-set! larc 'call-with-binary-input-file
                     call-with-binary-input-file)
-  (environment-set! larc 'call-with-binary-output-file 
+  (environment-set! larc 'call-with-binary-output-file
                     call-with-binary-output-file)
   (environment-set! larc 'with-input-from-binary-file
                     with-input-from-binary-file)
-  (environment-set! larc 'with-output-to-binary-file 
+  (environment-set! larc 'with-output-to-binary-file
                     with-output-to-binary-file)
   (environment-set! larc 'open-input-string open-input-string)
   (environment-set! larc 'open-output-string open-output-string)
@@ -522,7 +542,7 @@
   (environment-set! larc 'readtable-set! readtable-set!)
   (environment-set! larc 'console-input-port console-input-port)
   (environment-set! larc 'console-output-port console-output-port)
-  (environment-set! larc 'console-input-port-factory 
+  (environment-set! larc 'console-input-port-factory
                     console-input-port-factory)
   (environment-set! larc 'console-output-port-factory
                     console-output-port-factory)
@@ -550,7 +570,7 @@
 
   ;; debugging.
 
-  (environment-set! larc 'current-continuation-structure 
+  (environment-set! larc 'current-continuation-structure
                     current-continuation-structure)
   (environment-set! larc 'break break)
 
@@ -610,32 +630,32 @@
   (environment-set! larc 'memstats-allocated memstats-allocated)
   (environment-set! larc 'memstats-gc-reclaimed memstats-gc-reclaimed)
   (environment-set! larc 'memstats-gc-copied memstats-gc-copied)
-  (environment-set! larc 'memstats-gc-total-elapsed-time 
+  (environment-set! larc 'memstats-gc-total-elapsed-time
                     memstats-gc-total-elapsed-time)
   (environment-set! larc 'memstats-gc-total-cpu-time
                     memstats-gc-total-cpu-time)
-  (environment-set! larc 'memstats-gc-promotion-elapsed-time 
+  (environment-set! larc 'memstats-gc-promotion-elapsed-time
                     memstats-gc-promotion-elapsed-time)
   (environment-set! larc 'memstats-gc-promotion-cpu-time
                     memstats-gc-promotion-cpu-time)
-  (environment-set! larc 'memstats-heap-allocated-now 
+  (environment-set! larc 'memstats-heap-allocated-now
                     memstats-heap-allocated-now)
-  (environment-set! larc 'memstats-heap-allocated-max 
+  (environment-set! larc 'memstats-heap-allocated-max
                     memstats-heap-allocated-max)
   (environment-set! larc 'memstats-heap-live-now memstats-heap-live-now)
-  (environment-set! larc 'memstats-remsets-allocated-now 
+  (environment-set! larc 'memstats-remsets-allocated-now
                     memstats-remsets-allocated-now)
-  (environment-set! larc 'memstats-remsets-allocated-max 
+  (environment-set! larc 'memstats-remsets-allocated-max
                     memstats-remsets-allocated-max)
-  (environment-set! larc 'memstats-rts-allocated-now 
+  (environment-set! larc 'memstats-rts-allocated-now
                     memstats-rts-allocated-now)
-  (environment-set! larc 'memstats-rts-allocated-max 
+  (environment-set! larc 'memstats-rts-allocated-max
                     memstats-rts-allocated-max)
-  (environment-set! larc 'memstats-heap-fragmentation-now 
+  (environment-set! larc 'memstats-heap-fragmentation-now
                     memstats-heap-fragmentation-now)
-  (environment-set! larc 'memstats-heap-fragmentation-max 
+  (environment-set! larc 'memstats-heap-fragmentation-max
                     memstats-heap-fragmentation-max)
-  (environment-set! larc 'memstats-mem-allocated-now 
+  (environment-set! larc 'memstats-mem-allocated-now
                     memstats-mem-allocated-now)
   (environment-set! larc 'memstats-mem-allocated-max
                     memstats-mem-allocated-max)
@@ -645,26 +665,26 @@
   (environment-set! larc 'memstats-words-flushed memstats-words-flushed)
   (environment-set! larc 'memstats-stacks-created memstats-stacks-created)
   (environment-set! larc 'memstats-frames-restored memstats-frames-restored)
-  (environment-set! larc 'memstats-swb-total-assignments 
+  (environment-set! larc 'memstats-swb-total-assignments
                     memstats-swb-total-assignments)
-  (environment-set! larc 'memstats-swb-vector-assignments 
+  (environment-set! larc 'memstats-swb-vector-assignments
                     memstats-swb-vector-assignments)
-  (environment-set! larc 'memstats-swb-lhs-young-or-remembered 
+  (environment-set! larc 'memstats-swb-lhs-young-or-remembered
                     memstats-swb-lhs-young-or-remembered)
-  (environment-set! larc 'memstats-swb-rhs-immediate 
+  (environment-set! larc 'memstats-swb-rhs-immediate
                     memstats-swb-rhs-immediate)
-  (environment-set! larc 'memstats-swb-not-intergenerational 
+  (environment-set! larc 'memstats-swb-not-intergenerational
                     memstats-swb-not-intergenerational)
-  (environment-set! larc 'memstats-swb-transactions 
+  (environment-set! larc 'memstats-swb-transactions
                     memstats-swb-transactions)
   (environment-set! larc 'memstats-elapsed-time memstats-elapsed-time)
   (environment-set! larc 'memstats-system-time memstats-system-time)
   (environment-set! larc 'memstats-user-time memstats-user-time)
   (environment-set! larc 'memstats-minor-faults memstats-minor-faults)
   (environment-set! larc 'memstats-major-faults memstats-major-faults)
-  (environment-set! larc 'memstats-fullgc-collections 
+  (environment-set! larc 'memstats-fullgc-collections
                     memstats-fullgc-collections)
-  (environment-set! larc 'memstats-fullgc-elapsed-time 
+  (environment-set! larc 'memstats-fullgc-elapsed-time
                     memstats-fullgc-elapsed-time)
   (environment-set! larc 'memstats-fullgc-cpu-time memstats-fullgc-cpu-time)
   (environment-set! larc 'memstats-fullgc-copied memstats-fullgc-copied)
@@ -731,39 +751,39 @@
   (environment-set! larc 'memstats-gen-minor-id memstats-gen-minor-id)
   (environment-set! larc 'memstats-gen-collections memstats-gen-collections)
   (environment-set! larc 'memstats-gen-promotions memstats-gen-promotions)
-  (environment-set! larc 'memstats-gen-total-elapsed-time 
+  (environment-set! larc 'memstats-gen-total-elapsed-time
                     memstats-gen-total-elapsed-time)
   (environment-set! larc 'memstats-gen-total-cpu-time
                     memstats-gen-total-cpu-time)
-  (environment-set! larc 'memstats-gen-promotion-elapsed-time 
+  (environment-set! larc 'memstats-gen-promotion-elapsed-time
                     memstats-gen-promotion-elapsed-time)
   (environment-set! larc 'memstats-gen-promotion-cpu-time
                     memstats-gen-promotion-cpu-time)
-  (environment-set! larc 'memstats-gen-target-size-now 
+  (environment-set! larc 'memstats-gen-target-size-now
                     memstats-gen-target-size-now)
-  (environment-set! larc 'memstats-gen-allocated-now 
+  (environment-set! larc 'memstats-gen-allocated-now
                     memstats-gen-allocated-now)
   (environment-set! larc 'memstats-gen-live-now memstats-gen-live-now)
   (environment-set! larc 'memstats-remset-major-id memstats-remset-major-id)
   (environment-set! larc 'memstats-remset-minor-id memstats-remset-minor-id)
-  (environment-set! larc 'memstats-remset-allocated-max 
+  (environment-set! larc 'memstats-remset-allocated-max
                     memstats-remset-allocated-max)
-  (environment-set! larc 'memstats-remset-allocated-now 
+  (environment-set! larc 'memstats-remset-allocated-now
                     memstats-remset-allocated-now)
   (environment-set! larc 'memstats-remset-used-now memstats-remset-used-now)
   (environment-set! larc 'memstats-remset-live-now memstats-remset-live-now)
   (environment-set! larc 'memstats-remset-recorded memstats-remset-recorded)
   (environment-set! larc 'memstats-remset-removed memstats-remset-removed)
   (environment-set! larc 'memstats-remset-scanned memstats-remset-scanned)
-  (environment-set! larc 'memstats-remset-object-words-scanned 
+  (environment-set! larc 'memstats-remset-object-words-scanned
                     memstats-remset-object-words-scanned)
-  (environment-set! larc 'memstats-remset-transactions 
+  (environment-set! larc 'memstats-remset-transactions
                     memstats-remset-transactions)
-  (environment-set! larc 'memstats-remset-times-cleared 
+  (environment-set! larc 'memstats-remset-times-cleared
                     memstats-remset-times-cleared)
-  (environment-set! larc 'memstats-remset-times-scanned 
+  (environment-set! larc 'memstats-remset-times-scanned
                     memstats-remset-times-scanned)
-  (environment-set! larc 'memstats-remset-times-compacted 
+  (environment-set! larc 'memstats-remset-times-compacted
                     memstats-remset-times-compacted)
 
   ;; environment interface
