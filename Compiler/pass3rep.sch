@@ -1,7 +1,17 @@
-; Interprocedural representation analysis.
-
-; Given the callgraph for an expression in A-normal form,
-; returns a hashtable mapping local variables to representation types.
+; Copyright 1999 William D Clinger.
+;
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful noncommercial purpose, and to redistribute
+; this software is granted subject to the restriction that all copies
+; made of this software must include this copyright notice in full.
+;
+; I also request that you send me a copy of any improvements that you
+; make to this software so that they may be incorporated within it to
+; the benefit of the Scheme community.
+;
+; 12 June 1999.
+;
+; Intraprocedural representation inference.
 
 (define (representation-analysis exp)
   (let* ((debugging? #f)
@@ -52,6 +62,15 @@
                             (schedule! caller)
                             (schedule! (callgraphnode.code node))))))
                 g))
+    
+    ; Schedules local procedures of a lambda expression.
+    
+    (define (schedule-local-procedures! L)
+      (for-each (lambda (def)
+                  (let ((name (def.lhs def)))
+                    (if (known-procedure-is-callable? name)
+                        (schedule! name))))
+                (lambda.defs L)))
     
     ; Returns true iff the given known procedure is known to be callable.
     
@@ -191,6 +210,7 @@
     
     (define (analyze-let0 exp constraints)
       (let ((proc (call.proc exp)))
+        (schedule-local-procedures! proc)
         (if (null? (lambda.args proc))
             (analyze (lambda.body exp) constraints)
             (analyze-unknown-call exp constraints))))
@@ -198,6 +218,7 @@
     (define (analyze-let1 exp constraints)
       (let* ((proc (call.proc exp))
              (vars (lambda.args proc)))
+        (schedule-local-procedures! proc)
         (if (and (pair? vars)
                  (null? (cdr vars)))
             (let* ((T1 (car vars))
@@ -280,6 +301,7 @@
                  (newline)))
       (let ((L (lookup-code name))
             (constraints (make-constraints-table)))
+        (schedule-local-procedures! L)
         (let ((type (analyze (lambda.body L) constraints)))
           (if (update-typevar! name type)
               (schedule-callers! name))
@@ -289,6 +311,7 @@
       (if debugging?
           (begin (display "Analyzing escaping lambda expression")
                  (newline)))
+      (schedule-local-procedures! L)
       (let ((vars (make-null-terminated (lambda.args L))))
         (for-each (lambda (var)
                     (hashtable-put! types var rep:object))
@@ -369,7 +392,7 @@
     
     (set! mutate? #t)
     
-    ; We don't want to analyze known procedures that haven't been marked.
+    ; We don't want to analyze known procedures that are never called.
     
     (set! schedule
           (cons (callgraphnode.code (car g))
