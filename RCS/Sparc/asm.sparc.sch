@@ -4,7 +4,7 @@
 ; Machine-dependent part of the assembler, for Sparc.
 ; Machine-dependent code generation procedures.
 ;
-; $Id: asm.sparc.scm,v 1.3 91/08/15 02:31:10 lth Exp Locker: lth $
+; $Id: asm.sparc.scm,v 1.4 91/08/17 04:33:54 lth Exp Locker: lth $
 ;
 ; There are a lot of tables here that have values which must correspond to
 ; those in header files used by C and assembly. We should find a better way
@@ -116,22 +116,12 @@
 
 (define $r.g0 0)
 (define $r.g1 1)
-(define $r.i0 24)
-(define $r.i1 25)
-(define $r.i2 26)
-(define $r.i3 27)
-(define $r.i4 28)
-(define $r.i5 29)
-(define $r.i6 30)
-(define $r.i7 31)
-(define $r.l0 16)
-(define $r.l1 17)
-(define $r.l2 18)
-(define $r.l3 19)
-(define $r.l4 20)
-(define $r.l5 21)
-(define $r.l6 22)
-(define $r.l7 23)
+(define $r.g2 2)
+(define $r.g3 3)
+(define $r.g4 4)
+(define $r.g5 5)
+(define $r.g6 6)
+(define $r.g7 7) 
 (define $r.o0 8)
 (define $r.o1 9)
 (define $r.o2 10)
@@ -140,6 +130,22 @@
 (define $r.o5 13)
 (define $r.o6 14)
 (define $r.o7 15)
+(define $r.l0 16)
+(define $r.l1 17)
+(define $r.l2 18)
+(define $r.l3 19)
+(define $r.l4 20)
+(define $r.l5 21)
+(define $r.l6 22)
+(define $r.l7 23)
+(define $r.i0 24)
+(define $r.i1 25)
+(define $r.i2 26)
+(define $r.i3 27)
+(define $r.i4 28)
+(define $r.i5 29)
+(define $r.i6 30)
+(define $r.i7 31)
 
 ; Register mapping for hardware-mapped registers; offsets into `globals'
 ; for memory-mapped registers. These had better correspond to the ones
@@ -465,7 +471,9 @@
 	  (let ((i    (shl i 25))
 		(code (shl #b010 22)))
 	    (lambda (x)
-	      (let ((offset (lobits (eval-expr `(- ,(operand1 x) $)) 22)))
+	      (let ((offset (quotient
+			     (lobits (eval-expr `(- ,(operand1 x) $)) 24)
+			     4)))
 		(+ i code offset)))))
       
 	; annuled branches
@@ -474,7 +482,9 @@
 	  (let ((i    (shl i 25))
 		(code (shl #b010 22)))
 	    (lambda (x)
-	      (let ((offset (lobits (eval-expr `(- ,(operand1 x) $)) 22)))
+	      (let ((offset (quotient
+			     (lobits (eval-expr `(- ,(operand1 x) $)) 24)
+			     4)))
 		(+ abit i code offset)))))
   
 	; alu stuff and some others
@@ -521,13 +531,35 @@
 		    (rd  (shl (operand3 x) 25)))
 		(+ code rd i rs1 ibit imm)))))
 
+	; For Stores. syntax is (st a b c) meaning m[ b + c ] <- a.
+	; However, on the sparc, the destination field is the source
+	; of a store, so we transform it into (st c b a) and pass it to
+	; the real store procedure.
+
+	(define (class11sr i)
+	  (let ((q (class11r i)))
+	    (lambda (x)
+	      (q (list (car x)
+		       (cadddr x)
+		       (caddr x)
+		       (cadr x))))))
+
+	(define (class11si i)
+	  (let ((q (class11i i)))
+	    (lambda (x)
+	      (q (list (car x)
+		       (cadddr x)
+		       (caddr x)
+		       (cadr x))))))
 
 	; call is a class all by itself
 
 	(define (class-call)
 	  (let ((code (shl #b01 30)))
 	    (lambda (x)
-	      (let ((offset (lobits (eval-expr `(- ,(operand1 x) $)) 30)))
+	      (let ((offset (quotient
+			     (lobits (eval-expr `(- ,(operand1 x) $)) 32)
+			     4)))
 		(+ code offset)))))
 
 	(define (class-label)
@@ -560,16 +592,16 @@
 	  (vector-set! v $i.ldbr    (class11r #b000001))
 	  (vector-set! v $i.lddfi   (class11i #b100001))
 	  (vector-set! v $i.lddfr   (class11r #b100001))
-	  (vector-set! v $i.stdi   (class11i #b000111))
-	  (vector-set! v $i.stdr   (class11r #b000111))
-	  (vector-set! v $i.sti     (class11i #b000100))
-	  (vector-set! v $i.str     (class11r #b000100))
-	  (vector-set! v $i.sthi    (class11i #b000110))
-	  (vector-set! v $i.sthr    (class11r #b000110))
-	  (vector-set! v $i.stbi    (class11i #b000101))
-	  (vector-set! v $i.stbr    (class11r #b000101))
-	  (vector-set! v $i.stdfi   (class11i #b100111))
-	  (vector-set! v $i.stdfr   (class11r #b100111))
+	  (vector-set! v $i.stdi    (class11si #b000111))
+	  (vector-set! v $i.stdr    (class11sr #b000111))
+	  (vector-set! v $i.sti     (class11si #b000100))
+	  (vector-set! v $i.str     (class11sr #b000100))
+	  (vector-set! v $i.sthi    (class11si #b000110))
+	  (vector-set! v $i.sthr    (class11sr #b000110))
+	  (vector-set! v $i.stbi    (class11si #b000101))
+	  (vector-set! v $i.stbr    (class11sr #b000101))
+	  (vector-set! v $i.stdfi   (class11si #b100111))
+	  (vector-set! v $i.stdfr   (class11sr #b100111))
 	  (vector-set! v $i.sethi   (class-sethi #b100))
 	  (vector-set! v $i.andr    (class10r #b000001))
 	  (vector-set! v $i.andrcc  (class10r #b010001))
@@ -706,7 +738,6 @@
 ;
 ; These are complicated by the presence of memory-mapped registers.
 
-
 ; Tag a fixnum and move it into a register.
 
 (define (emit-fixnum->register! as f r)
@@ -732,7 +763,7 @@
 ; the current procedure.
 
 (define (emit-const->register! as cvlabel r)
-  (let ((cvlabel (* cvlabel 4)))
+  (let ((cvlabel (- (* cvlabel 4) $tag.vector)))
     (emit! as `(,$i.ldi ,$r.reg0 ,$p.constvector ,$r.tmp0))
     (if (hardware-mapped? r)
 	(emit! as `(,$i.ldi ,$r.tmp0 ,cvlabel ,r))
@@ -773,14 +804,16 @@
 ; skip back to the check when the exception handler returns.
 	 
 (define (emit-args=! as n)
-  (let ((l (new-label)))
+  (let ((l1 (new-label))
+	(l2 (new-label)))
+    (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.subicc ,$r.result ,(* n 4) ,$r.g0))
-    (emit! as `(,$i.be ,l))
+    (emit! as `(,$i.be ,l2))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.arg-exception ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-    (emit! as `(,$i.subi ,$r.o7 20 ,$r.o7))
-    (emit! as `(,$i.label ,l))))
+    (emit! as `(,$i.addi ,$r.o7 (- ,l1 (- $ 4) 8) ,$r.o7))
+    (emit! as `(,$i.label ,l2))))
 
 
 ; Variable-length argument list check drops into millicode automatically.
@@ -791,27 +824,29 @@
   (emit! as `(,$i.nop)))
 
 
-; Invoke a procedure, with all gyrations.
+; Invoke a procedure, with all gyrations. This is way too complex.
 
 (define (emit-invoke! as n)
-  (let ((l (new-label))
-	(m (new-label)))
+  (let ((l1 (new-label))
+	(l2 (new-label))
+	(m  (new-label)))
     (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
-    (emit! as `(,$i.bne.a ,l))
+    (emit! as `(,$i.bne.a ,l1))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.timer-exception ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
     (emit! as `(,$i.nop))
+    (emit! as `(,$i.label ,l2))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-    (emit! as `(,$i.label ,l))
+    (emit! as `(,$i.label ,l1))
     (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure ,$r.g0))
     (emit! as `(,$i.be ,m))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.proc-exception ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-    (emit! as `(,$i.subi ,$r.o7 24 ,$r.o7))
+    (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.label ,m))
-    (emit! as `(,$i.orr ,$r.reg0 ,$r.g0 ,$r.argreg2))
+;    (emit! as `(,$i.orr ,$r.reg0 ,$r.g0 ,$r.argreg2))
     (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.reg0))
     (emit! as `(,$i.ldi ,$r.reg0 ,$p.codevector ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 ,$p.codeoffset ,$r.g0))
@@ -834,9 +869,9 @@
     (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
     (emit! as `(,$i.label ,l))
     (emit! as `(,$i.call (+ $ 8)))
-    (emit! as `(,$i.subi ,$r.o7 (- ,(make-label label) (- $ 4) 8) ,$r.o7))
+    (emit! as `(,$i.addi ,$r.o7 (- ,(make-label label) (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.sti ,$r.o7 0 ,$r.stkp))
-    (emit! as `(,$i.ori ,$r.g0 ,(quotient framesize 4) ,$r.tmp0))
+    (emit! as `(,$i.ori ,$r.g0 ,framesize ,$r.tmp0))
     (emit! as `(,$i.sti ,$r.tmp0 4 ,$r.stkp))
     (let loop ((i 0) (offset 8))
       (if (<= i n)
@@ -870,7 +905,7 @@
 
 (define (emit-setrtn as label)
   (emit! as `(,$i.call (+ $ 8)))
-  (emit! as `(,$i.subi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7))
+  (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7))
   (emit! as `(,$i.sti ,$r.o7 0 ,$r.stkp)))
 
 ; `apply' falls into millicode
@@ -947,13 +982,15 @@
 ; the new procedure.
 
 (define (emit-lambda! as x y n doc)
+  (let ((x (- (* 4 x) $tag.vector))
+	(y (- (* 4 y) $tag.vector)))
   (emit-alloc-proc! as n)
   (emit! as `(,$i.ldi ,$r.reg0 ,$p.constvector ,$r.tmp0))
-  (emit! as `(,$i.ldi ,$r.tmp0 ,(- x $tag.vector) ,$r.tmp1))
+  (emit! as `(,$i.ldi ,$r.tmp0 ,x ,$r.tmp1))
   (emit! as `(,$i.sti ,$r.tmp1 ,$p.codevector ,$r.result))
-  (emit! as `(,$i.ldi ,$r.tmp0 ,(- y $tag.vector) ,$r.tmp1))
+  (emit! as `(,$i.ldi ,$r.tmp0 ,y ,$r.tmp1))
   (emit! as `(,$i.sti ,$r.tmp1 ,$p.constvector ,$r.result))
-  (emit-init-proc-slots! as n))
+  (emit-init-proc-slots! as n)))
  
 ; allocate procedure with room for n register slots; return tagged pointer.
 
@@ -961,9 +998,9 @@
   (emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
   (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
   (emit! as `(,$i.ori ,$r.g0 ,(* (+ n 4) 4) ,$r.result))
-  (emit! as `(,$i.addi ,$r.g0
-		       ,(+ (* (* (+ n 3) 4) 256) $imm.procedure-header)
-		       ,$r.tmp0))
+  (emit! as `(,$i.ori ,$r.g0
+		      ,(+ (* (* (+ n 3) 4) 256) $imm.procedure-header)
+		      ,$r.tmp0))
   (emit! as `(,$i.sti ,$r.tmp0 0 ,$r.result))
   (emit! as `(,$i.addi ,$r.result ,$tag.procedure ,$r.result)))
 
@@ -992,25 +1029,30 @@
 	       (emit! as `(,$i.nop))
 	       (emit! as `(,$i.ldi ,$r.millicode ,$m.timer-exception ,$r.tmp0))
 	       (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-	       (emit! as `(,$i.nop))))
-    (emit! as `(,$i.b ,label))
-    (emit! as `(,$i.nop))))
+	       (emit! as `(,$i.addi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7)))
+	(begin (emit! as `(,$i.b ,label))
+	       (emit! as `(,$i.nop))))))
 
 (define (emit-branchf! as label)
   (let ((label (make-label label)))
     (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
-    (emit! as `(,$i.bne ,label))
+    (emit! as `(,$i.be ,label))
     (emit! as `(,$i.nop))))
 
 (define (emit-jump! as m label)
   (let ((r     (emit-follow-chain! as m))
 	(label (make-label label)))
-    (emit! as `(,$i.addr ,r ,$r.g0 ,$r.reg0))
+    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.reg0))
     (emit! as `(,$i.ldl ,$r.reg0 ,$p.codevector ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 (+ ,$p.codeoffset ,label) ,$r.g0))))
 
 (define (emit-label! as l)
   (emit! as `(,$i.label ,l)))
+
+; no-op on sparc
+
+(define (emit-.proc! as)
+  '())
 
 ; Primops.
 
@@ -1023,7 +1065,8 @@
 (define (emit-primop2! as op r1 r2)
   ((cdr (assq op primop-list)) as r1 r2))
 
-; assoc list of primops with generating procedures.
+; Assoc list of primops with generating procedures.
+; This is getting long; a better ordering may be beneficial to performance.
 
 (define primop-list
   (list (cons 'zero?
@@ -1057,26 +1100,26 @@
 	      (lambda (as)
 		(let ((l (new-label)))
 		  (emit! as `(,$i.xoricc ,$r.result ,$imm.null ,$r.g0))
-		  (emit! as `(,$i.addi ,$r.g0 ,$imm.true ,$r.result))
+		  (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
 		  (emit! as `(,$i.bne.a ,l))
-		  (emit! as `(,$i.addi ,$r.g0 ,$imm.false ,$r.result))
+		  (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
 		  (emit! as `(,$i.label ,l)))))
 	(cons 'pair?
 	      (lambda (as)
 		(let ((l (new-label)))
 		  (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
 		  (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
-		  (emit! as `(,$i.addi ,$r.g0 ,$imm.true ,$r.result))
+		  (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
 		  (emit! as `(,$i.bne.a ,l))
-		  (emit! as `(,$i.addi ,$r.g0 ,$imm.false ,$r.result))
+		  (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
 		  (emit! as `(,$i.label ,l)))))
 	(cons 'cons
 	      ; really should be open-coded
 	      (lambda (as r)
 		(emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
-		(emit! as `(,$i.addr ,$r.result ,$r.g0 ,$r.argreg2))
+		(emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
 		(emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-		(emit! as `(,$i.addr ,$r.g0 8 ,$r.result))
+		(emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
 		(emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 		(emit! as `(,$i.sti ,r 4 ,$r.result))
 		(emit! as `(,$i.addi ,$r.result ,$tag.pair ,$r.result))))
@@ -1098,14 +1141,17 @@
 	(cons 'vector-set!
 	      (lambda (as r1 r2)
 		'()))
+
+	; Cells are internal data structures, represented using pairs.
+	; No error checking is done on cell references.
+
 	(cons 'make-cell
-	      ; cells are conses.
 	      ; this really should be open-coded.
 	      (lambda (as)
 		(emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
-		(emit! as `(,$i.addr ,$r.result ,$r.g0 ,$r.argreg2))
+		(emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.argreg2))
 		(emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-		(emit! as `(,$i.addr ,$r.g0 8 ,$r.result))
+		(emit! as `(,$i.ori ,$r.g0 8 ,$r.result))
 		(emit! as `(,$i.sti ,$r.argreg2 0 ,$r.result))
 		(emit! as `(,$i.sti ,$r.g0 4 ,$r.result))
 		(emit! as `(,$i.addi ,$r.result ,$tag.pair ,$r.result))))
@@ -1114,44 +1160,98 @@
 		(emit! as `(,$i.ldi ,$r.result ,(- $tag.pair) ,$r.result))))
 	(cons 'cell-set!
 	      (lambda (as r)
-		(emit! as `(,$i.sti ,r ,(- $tag.pair) ,$r.result))))))
+		(emit! as `(,$i.sti ,r ,(- $tag.pair) ,$r.result))))
+
+	; These are introduced by peephole optimization; they evaluate a 
+	; boolean expression for control only.
+
+	(cons 'bfnull?
+	      (lambda (as label)
+		(emit! as `(,$i.subicc ,$r.result ,$imm.null ,$r.g0))
+		(emit! as `(,$i.bne ,(make-label label)))
+		(emit! as `(,$i.nop))))
+	(cons 'bfpair?
+	      (lambda (as label)
+		(emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
+		(emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
+		(emit! as `(,$i.bne ,(make-label label)))
+		(emit! as `(,$i.nop))))
+	(cons 'bfzero?
+	      (lambda (as label)
+		(emit-bcmp-primop! as $i.bne.a $r.g0 label $m.zerop)))
+	(cons 'bf=
+	      (lambda (as r label)
+		(emit-bcmp-primop! as $i.bne.a r label $m.numeq)))
+	(cons 'bf<
+	      (lambda (as r label)
+		(emit-bcmp-primop! as $i.bge.a r label $m.numlt)))
+	(cons 'bf<=
+	      (lambda (as r label)
+		(emit-bcmp-primop! as $i.bg.a r label $m.numle)))
+	(cons 'bf>
+	      (lambda (as r label)
+		(emit-bcmp-primop! as $i.ble.a r label $m.numgt)))
+	(cond 'bf>=
+	      (lambda (as r label)
+		(emit-bcmp-primop! as $i.bl.a r label $m.numge)))))
+
+
+; Emit code which performs a comparison operation on %result and another
+; register and which returns a boolean in %result.
+;
+; The extra cost of computing the boolean (rather than leaving it implicitly
+; in the status register) is 3 cycles.
 
 (define (emit-cmp-primop! as cmp test generic r)
   (let ((l1 (new-label))
 	(l2 (new-label)))
     (emit! as `(,cmp ,$r.result ,r ,$r.g0))
     (emit! as `(,$i.bvc.a ,l1))
-    (emit! as `(,$i.addi ,$r.g0 ,$imm.false ,$r.result))
+    (emit! as `(,$i.ori ,$r.g0 ,$imm.false ,$r.result))
+    (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
+    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.result))
+    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
+    (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
+    (emit! as `(,$i.label ,l1))
+    (emit! as `(,test ,l2))
+    (emit! as `(,$i.ori ,$r.g0 ,$imm.true ,$r.result))
+    (emit! as `(,$i.label ,l2))))
+
+(define (emit-bcmp-primop! as ntest r label generic)
+  (let ((l1 (new-label))
+	(l2 (make-label label)))
+    (emit! as `(,$i.subrcc ,$r.result ,r ,$r.g0))
+    (emit! as `(,$i.bvc.a ,l1))
+    (emit! as `(,ntest ,l2))
+    (emit! as `(,$i.nop))
     (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
     (emit! as `(,$i.nop))
-    (emit! as `(,$i.b ,l2))
-    (emit! as `(,$i.nop))
+    (emit! as `(,$i.subicc ,$r.result ,$imm.false $r.g0))
+    (emit! as `(,$i.be.a ,l2))
     (emit! as `(,$i.label ,l1))
-    (emit! as `(,test ,l2))
-    (emit! as `(,$i.addi ,$r.g0 ,$imm.true ,$r.result))
-    (emit! as `(,$i.label ,l2))))
+    (emit! as `(,$i.nop))))
 
 (define (emit-arith-primop! as i generic r)
   (let ((l1 (new-label)))
     (emit! as `(,i ,$r.result ,r ,$r.tmp0))
     (emit! as `(,$i.bvc.a ,l1))
-    (emit! as `(,$i.addr ,$r.tmp0 ,$r.g0 ,$r.result))
+    (emit! as `(,$i.orr ,$r.tmp0 ,$r.g0 ,$r.result))
     (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
-    (emit! as `(,$i.addr ,r ,$r.g0 ,$r.argreg2))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-    (emit! as `(,$i.nop))
+    (emit! as `(,$i.orr ,r ,$r.g0 ,$r.argreg2))
     (emit! as `(,$i.label ,l1))))
 
 (define (emit-pair-op! as offset)
-  (let ((l (new-label)))
+  (let ((l1 (new-label))
+	(l2 (new-label)))
+    (emit! as `(,$i.label ,l2))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
     (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
-    (emit! as `(,$i.be ,l))
-    (emit! as `(,$i.nop))
+    (emit! as `(,$i.be.a ,l1))
+    (emit! as `(,$i.ldi ,$r.result ,(- offset $tag.pair) ,$r.result))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.type-exception ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-    (emit! as `(,$i.subi ,$r.o7 20 ,$r.o7))
-    (emit! as `(,$i.label ,l))
-    (emit! as `(,$i.ldi ,$r.result ,(- offset $tag.pair) ,$r.result))))
+    (emit! as `(,$i.addi ,$r.o7 (- ,l2 (- $ 4) 8) ,$r.o7))
+    (emit! as `(,$i.label ,l1))))
 
