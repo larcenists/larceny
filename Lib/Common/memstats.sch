@@ -77,6 +77,7 @@
 		#f			; non-predictive remembered sets
 		(vector-ref v $mstat.max-heap)
 		(vector-ref v $mstat.promtime)
+                (vector-ref v $mstat.swb-total)
 		))
 
       (define (count-remsets rv)
