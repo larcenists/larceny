@@ -9,11 +9,14 @@
 # where larceny-options are valid options for larceny _except_ that
 # they use @ for the option character rather than -, and program-
 # options are everything else.
+#
+# Additionally @small selects the interpreter-only heap.
 
 # EDIT THIS PATH TO SUIT YOUR SYSTEM.
 LARCENY_PATH=/usr/local/lib/larceny
 unset LARGS
 unset PARGS
+SMALL=0
 while [ "$1" != "" ]; do 
   case $1 in
     @stopcopy) LARGS="$LARGS -stopcopy"; shift ;;
@@ -37,7 +40,12 @@ while [ "$1" != "" ]; do
     @nobreak) LARGS="$LARGS -nobreak"; shift ;;
     @step) LARGS="$LARGS -step"; shift ;;
     @reorganize-and-dump) LARGS="$LARGS -reorganize-and-dump"; shift ;;
+    @small) SMALL=1; shift ;;
     *) PARGS="-args $@"; break ;;
   esac
 done
-exec $LARCENY_PATH/larceny.bin $LARGS $LARCENY_PATH/larceny.heap $PARGS
+if [ $SMALL = 0 ]; then
+  exec $LARCENY_PATH/larceny.bin $LARGS $LARCENY_PATH/larceny.heap $PARGS
+else
+  exec $LARCENY_PATH/larceny.bin $LARGS $LARCENY_PATH/r5rs.heap $PARGS
+fi
