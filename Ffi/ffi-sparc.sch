@@ -147,7 +147,7 @@
     (at-end tr (restore)))
 
   (define (iflush code)
-    ((system-function 'iflush) code))	; FIXME?
+    (sys$codevector-iflush code))
 
   ; Callout trampoline
   ;
