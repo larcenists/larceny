@@ -11,18 +11,18 @@ namespace Scheme.Rep {
     // Tags
     // -------------------------------------------
     public sealed class Tags {
-        public static readonly int VectorTag = Constants.VEC_SUBTAG >>2;
-        public static readonly int RectnumTag = Constants.RECT_SUBTAG >>2;
-        public static readonly int RatnumTag = Constants.RAT_SUBTAG >>2;
-        public static readonly int StructureTag = Constants.STRUCT_SUBTAG >>2;
-        public static readonly int PortTag = 4; // FIXME: From Lib/Common/typetags.sch
-        public static readonly int SymbolTag = Constants.SYM_SUBTAG >>2;
+        public const int VectorTag = Constants.VEC_SUBTAG >>2;
+        public const int RectnumTag = Constants.RECT_SUBTAG >>2;
+        public const int RatnumTag = Constants.RAT_SUBTAG >>2;
+        public const int StructureTag = Constants.STRUCT_SUBTAG >>2;
+        public const int PortTag = 4; // FIXME: From Lib/Common/typetags.sch
+        public const int SymbolTag = Constants.SYM_SUBTAG >>2;
 
-        public static readonly int ByteVectorTag = Constants.BVEC_SUBTAG >>2;
-        public static readonly int StringTag = Constants.STR_SUBTAG >>2;
-        public static readonly int CompnumTag = Constants.COMP_SUBTAG >>2;
-        public static readonly int BignumTag = Constants.BIG_SUBTAG >>2;
-        public static readonly int FlonumTag = Constants.FLO_SUBTAG >>2;
+        public const int ByteVectorTag = Constants.BVEC_SUBTAG >>2;
+        public const int StringTag = Constants.STR_SUBTAG >>2;
+        public const int CompnumTag = Constants.COMP_SUBTAG >>2;
+        public const int BignumTag = Constants.BIG_SUBTAG >>2;
+        public const int FlonumTag = Constants.FLO_SUBTAG >>2;
     }
 
     // -------------------------------------------
@@ -65,6 +65,19 @@ namespace Scheme.Rep {
         // ===================
         //   Numbers
         // ===================
+      public static SFixnum makeFixnum (sbyte num) {
+	return SFixnum.makeFixnum (num);
+      }
+      public static SFixnum makeFixnum (byte num) {
+	return SFixnum.makeFixnum (num);
+      }
+      public static SFixnum makeFixnum (short num) {
+	return SFixnum.makeFixnum (num);
+      }
+      public static SFixnum makeFixnum (ushort num) {
+	return SFixnum.makeFixnum (num);
+      }
+
         public static SFixnum makeFixnum(int num) {
             return SFixnum.makeFixnum(num);
         }
@@ -298,7 +311,7 @@ namespace Scheme.Rep {
             }
         }
         // =================================================
-        // Quick and Simple
+        // Quick and Simple... and slow
         // =================================================
 
         public static SObject wrap(int n) {
