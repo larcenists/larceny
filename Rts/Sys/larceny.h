@@ -77,7 +77,7 @@ extern int  reorganize_and_dump_static_heap( const char *filename );
 
 #ifndef GC_INTERNAL
 extern void C_allocate( word request );
-extern void C_garbage_collect( word type, word request );
+extern void C_garbage_collect( void );
 extern void C_compact_ssb( void );
 extern void C_stack_overflow( void );
 extern void C_creg_get( void );
