@@ -74,6 +74,19 @@
     (apply format out fmt rest)
     (get-output-string out)))
 
+; This needs to be a random number in both a weaker and stronger sense
+; than `random': it doesn't need to be a truly random number, so a sequence
+; of calls can return a non-random sequence, but if two processes generate
+; two sequences, then those sequences should not be the same.
+;
+; Gross, huh?
+
+(define (an-arbitrary-number)
+  (system "echo \\\"`date`\\\" > a-random-number")
+  (let ((x (string-hash (call-with-input-file "a-random-number" read))))
+    (delete-file "a-random-number")
+    x))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Miscellaneous
