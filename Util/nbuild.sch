@@ -31,6 +31,18 @@
 ;
 ; There might be other keys used by the compatibility packages.
 
+; Sanity check: normally we do not want always-source? to be true,
+; so warn if it is.  This decreases the likelihood that a true value
+; for this parameter escapes into a release.
+
+(if (nbuild-parameter 'always-source?)
+    (begin
+      (newline)
+      (newline)
+      (display "*** WARNING: Loading source code only")
+      (newline)
+      (newline)))
+
 (load (make-filename (nbuild-parameter 'util) "nbuild-files.sch"))
 
 ; File lists and procedures
@@ -71,6 +83,7 @@
 
 ; And they're off!
 
+(newline)
 (writeln "Welcome. Type (help) for help.")
 
 ; eof

@@ -12,7 +12,8 @@
 
 (define (load-compiler)
   (load (make-filename "" "Util" "nbuild.sch"))
-  (configure-system))
+  (configure-system)
+  (unspecified))
 
 (define (common-unix-initialize)
   (set! nbuild-parameter 
@@ -76,7 +77,7 @@
 
 (define build-runtime-system build-runtime)  ; Old name
 
-(define (build-executable)
+(define (build-petit)
   (build-application (petit-application-name) '()))
 
 (define (build-twobit)

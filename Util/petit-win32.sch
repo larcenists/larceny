@@ -78,7 +78,7 @@
 
 (define build-runtime-system build-runtime) ; Old name
 
-(define (build-executable)
+(define (build-petit)
   (build-application "petit.exe" '()))
 
 (define (build-twobit)

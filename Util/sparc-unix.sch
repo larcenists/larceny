@@ -14,7 +14,7 @@
   (load "Util/sysdep-unix.sch")
   (load "Util/Configurations/nbuild-param-sparc.sch")
   (set! nbuild-parameter 
-	(make-nbuild-parameter "" #t #t #t "Larceny" "Larceny"))
+	(make-nbuild-parameter "" #f #t #t "Larceny" "Larceny"))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")
@@ -69,11 +69,6 @@
   (apply make-sparc-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
-  (build-executable))
-
-(define build-runtime-system build-runtime)  ; Old name
-
-(define (build-executable)
   (execute-in-directory "Rts" "make larceny.bin")
   (newline)
   (display "The program is Rts/larceny.bin")
