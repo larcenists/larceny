@@ -176,7 +176,7 @@
 	    (begin
 	      (millicode-call/ret as $m.multiply Ldone))
 	    (begin
-	      (sparc.set as $ex.mul $r.tmp0)
+	      (sparc.set as (thefixnum $ex.fx*) $r.tmp0)
 	      (millicode-call/ret as $m.exception Lstart)))
 	(sparc.label   as Ltagok)
 	(sparc.smulr   as $r.tmp0 rs2 $r.tmp0)
