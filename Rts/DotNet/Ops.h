@@ -1,4 +1,4 @@
-    
+
 /* Predicates
  * PREDICATE_VIRTUAL_FALSE defines a virtual predicate pair returning false/#f
  * PREDICATE_OVERRIDE_TRUE overrides a virtual predicate to return true/#t
@@ -11,7 +11,7 @@
 #define OP1_PREDICATE_OVERRIDE_FALSE(method) \
     public override SObject op_##method() { return Factory.False; }
 #define OP1_PREDICATE_OVERRIDE_EXPR(method, expr) \
-    public override SObject op_##method() { return Factory.makeBoolean(expr); }
+    public override SObject op_##method() { return (expr) ? Factory.True : Factory.False; }
 
 #define CLR_PREDICATE_VIRTUAL_FALSE(method) \
     public virtual bool method() { return false; }
@@ -49,7 +49,7 @@
 #define OP1(method) \
     public SObject op_##method()
 #define OP1_OVERRIDE(method) \
-    public override SObject op_##method() 
+    public override SObject op_##method()
 
 #define OP1_OVERRIDE_CHECK_TAG(method, tag, excode) \
     public override SObject op_##method() {\
@@ -78,7 +78,7 @@
 #define OP2(method) \
     public SObject op_##method(SObject arg2)
 
-/* OP2_CHAIN overrides the operation to chain to 
+/* OP2_CHAIN overrides the operation to chain to
  *   the reversed form of itself on arg2
  */
 #define OP2_CHAIN(method) \
@@ -215,7 +215,7 @@
             base.op_reversed_##case##_##method(arg1); \
         } \
     } \
-    private void op_reversed_##case##_##ttag##_##method(type arg1) 
+    private void op_reversed_##case##_##ttag##_##method(type arg1)
 
 #define SPECIALOP2_OVERRIDE_REV_MS(method, case, type, ttag, mscode) \
     public/**/ override void op_reversed_##case##_##method(type arg1) { \
