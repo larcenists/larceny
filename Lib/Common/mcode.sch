@@ -103,10 +103,11 @@
                  (q (denominator r))
 		 (x (/ (exact->inexact-internal p)
 		       (exact->inexact-internal q))))
-            (if (and (<= p two^n)
-                     (<= q two^n))
-                x
-                (hard-case p q x)))))))
+            (cond ((and (<= p two^n)
+			(<= q two^n))
+		   x)
+		  (else
+		   (hard-case p q x))))))))
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
