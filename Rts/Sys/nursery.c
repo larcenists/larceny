@@ -128,8 +128,21 @@ static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
     p = (word*)globals[ G_ETOP ];
     globals[ G_ETOP ] += nbytes;
   }
-  else
+  else {
+#if 1
     p = los_allocate( heap->collector->los, nbytes, DATA(heap)->gen_no );
+#else
+    /* Enable this at some point */
+    p = los_allocate_or_null( heap->collector->los, 
+			      nbytes, 
+			      DATA(heap)->gen_no );
+    if (p == 0) {
+      if (!no_gc)
+	gc_collect( heap->collector, 1, 0, GCTYPE_CONDITION_RED );
+      p = los_allocate( heap->collector->los, nbytes, DATA(heap)->gen_no );
+    }
+#endif
+  }
 
   return p;
 }
