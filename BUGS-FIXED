@@ -1373,6 +1373,68 @@ $Id$
     FIX: 
     Re-implemented bignum->flonum.
 
+092 v0.40 (981219 / lth) Fixed 990416 by wdc
+    Priority: medium.
+
+    SPARC Assembler error.
+
+    When compiling Testsuite/GC/nucleic2.sch with benchmark-block-mode,
+    the assembler signals an error in sparcutil.sch:emit-const->register!
+    called from gen-msi.sch:emit-register->global! (setglbl), because
+    there the former cannot handle more than 1023 global variables -- 
+    the constant vector offset is too large.
+
+    This should be easy to fix if the offset is always known when
+    emit-const->register! is called.  If that is not the case, then
+    we must implement another crock like `short-effective-addresses'.
+
+093 v0.41 (981221 / lth) Fixed 990414 by wdc
+    Priority: high.
+
+    Macro expander error.
+
+    'Case' really ought to do better when the constants are fixnums,
+    symbols, characters; currently it just expands to a call to memv.
+
+    Consider, for example, this, which is pretty slow:
+
+	(define (fibonacci n)
+	  (case n
+	    ((0)  0)
+	    ((1)  1)
+	    (else (+ (fibonacci (- n 2)) (fibonacci (- n 1))))))
+
+    This is a problem with an interaction between the LETREC* scope
+    of the usual macros and the order of definition of the macro for
+    CASE and the inline for MEMV.
+
+	> (macro-expand '(case x ((0 1) 'a) ((2 3) 'b) (else 'c)))
+	((lambda ()
+	   ((lambda (.temp|1|4)
+	      (if (memv .temp|1|4 '(0 1))
+	        'a
+	        (if (memv .temp|1|4 '(2 3)) 'b 'c)))
+	    x)))
+
+	> (macro-expand '(memv x '(0 1 2)))
+	((lambda ()
+	   ((lambda (.t0|2|3|6 .t1|2|3|6)
+	      (if (eq? .t0|2|3|6 '0)
+	        .t1|2|3|6
+	        ((lambda (.t1|2|3|10)
+	           (if (eq? .t0|2|3|6 '1)
+	             .t1|2|3|10
+	             ((lambda (.t1|2|3|14)
+	                (if (eq? .t0|2|3|6 '2)
+	                  .t1|2|3|14
+	                  ((lambda (.t1|2|3|18) '#f) (cdr .t1|2|3|14))))
+	              (cdr .t1|2|3|10))))
+	         (cdr .t1|2|3|6))))
+	    x
+	    '(0 1 2))))
+
+    This problem results in *major* lossage on LATTICE.
+
 096 v0.41 (981221 / lth) Fixed 990108 by lth
     Priority: high.
 
@@ -1587,6 +1649,16 @@ $Id$
 
     FIX:
     SIMPLIFY-LET now calls STANDARDIZE-KNOWN-CALLS.
+
+120 v1.0a1 (990324 / wdc) Fixed: 990416 wdc
+    Priority: low
+
+    [Performance bug]
+    LET expressions allocate registers even when the value of a
+    LET-bound variable comes from an existing register variable.
+    Pass 3 should fix this.
+
+    FIX: Copy propagation, provided (common-subexpression-elimination).
 
 121 v1.0a1 (990325 / lth)
     Priority: high
