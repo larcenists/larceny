@@ -1,0 +1,99 @@
+; -*- Text -*-
+;
+; [As of current writing (Dec 4, 1991), this is obsolete, although the
+; current omf is much like suggested at the beginning. There is no low-level
+; omf.]
+
+	     Original proposal for object module formats
+			  (lth Aug 14 1991)
+
+		  ----------------------------------
+
+The assembler returns a pair, the car being the bytevector for the
+code and the cdr being a constant vector. The constant vector is a
+true vector, but all objects in it are tagged: they are pairs, with
+the car being one of the tags below and the cdr being the actual data
+object. These are the tags:
+
+	data
+	global-reference
+	constantvector
+
+All literal (i.e. quoted) data goes under the `data' label. All
+references to global variables in the code are entered as the pair
+
+	(global-reference . name)
+
+in the constant vector; the loader resolves the name and inserts a
+pointer to the global value cell at load time. Similarly, if the entry
+is
+
+	(constantvector . vector)
+
+then the loader must apply the same procedure to that vector, since it
+has global names and constant vectors which need to be resolved.
+
+If the output from the assembler is to be loaded into the currently
+running Scheme image (i.e. the one in which the compiler runs), then
+this format suffices.
+
+If, however, we are creating an object file to later be loaded, we
+will need a different format. The following low-level format is
+suggested.
+
+Consider first a mechanism with which the above data representation is
+converted to a list of (label . object) pairs, for arbitrary labels.
+For example, the list
+
+	'(a 1 1234567890987654321)
+
+can be represented as
+
+	((L0 . (pair (symbol a) (pairptr L1)))
+	 (L1 . (pair (fixnum 1) (pairptr L2)))
+         (L2 . (pair (bytevectorptr L3) (null)))
+	 (L3 . (bignum 1234567890987654321)))
+
+i.e. where all implicit pointers in the data structure are replaced by
+a label referencing the data object. (Symbols are peculiar because
+there is only one symbol of any particular spelling, and hence there
+cannot be a local copy of a symbol).
+
+The above layout has a very simple mapping onto a byte stream, with
+each object being represented by a prefix followed by some
+prefix-dependent data.  There are only a few prefixes, to wit:
+
+(In the following, <n> is a length field, probably 16 bits, <w> is an
+arbitrary 32-bit word, <b> is an arbitrary byte, and <symbol> is
+described below.)
+
+RAW <n> <w> ...
+
+	The next n words are raw data and are to be loaded "as is".
+
+RELOC <n> <w> ...
+
+	The next n words are relocatable data; the words contain 
+	offsets which are added to a base (to be described below).
+
+GLOBAL <symbol>
+
+	The given symbol is the name of a global variable; insert a pointer
+	to its value cell here.
+
+SYMBOL <symbol>
+
+	Insert a pointer to the given symbol here.
+
+where a <symbol> is a quantity
+
+	<n> <b> ...
+
+To top things off, each object module starts with a length word. This
+is the number of memory words which must be allocated for all objects
+in the module, exclusive of symbols. The way the loader works is that
+it allocates exactly that much memory, in one chunk, and then streams
+the objects into that chunk, adding the base address of the chunk to
+each relocatable word. The C code for this is mostly trivial; the only
+"hard" parts are global name lookup and symbol table manipulation.
+

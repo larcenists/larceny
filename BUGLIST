@@ -1,0 +1,63 @@
+		    Larceny  --  Official Bug List
+			   (and wish list)
+                    ------------------------------
+
+   Bugs are grouped by presumed module or otherwise under "Unknown".
+   Bugs which have been fixed and whose fix has been tested have a '*' 
+   suffixed to their number.
+
+   A lot of bugs which are fixed on the fly never end up in here; this
+   list are for things that have been put off for various reasons.
+
+Front end
+---------
+1. The large 'let' in schemeio.scm generates a (save L 50) instruction; the
+   register number is really constrained to be <= 31, so this is a bug.
+
+Disassembler
+------------
+*1. Disassembling "sethi" should leftshift the constant by 10 bits so that
+    it comes out in a readable form. [Fixed, but untested.]
+
+*2. 'slli' is disassembled as 'lddi'. [See also assembler bug #1.]
+    Turned out that these instructions had been omitted from the disassembler
+    tables; another argument for not using '0' (== lddi) for the empty
+    slot filler...
+
+3. Disassembling millicode calls should cause the millicode name to be 
+   printed in a comment next to the jmpli.
+
+Assembler/basic code generator
+------------------------------
+1. 'srli' is (apparently) assembled as 'slli'; at least, that's what adb
+   says. [See also disassembler bug #2.]
+   May just be confusion due to disassembler; appears correct now.
+
+Primops
+-------
+1. Vector-set!, set-cdr!, cell-set! must call millicode so that their 
+   transactions can be registered.
+
+2. Check that (byte)vector-{ref,set!} are using correct range checking;
+   should it be bleu rather than blu?
+
+
+Performance
+-----------
+1. Need to keep return address in a register; this makes SAVE more expensive
+   but is reasonable in leaves; in general a win.
+
+2. Need to implement function cell hack for global variables.
+
+3. Any way to make the itimer tell us when to trap? [timer reg and arg count
+   reg becomes same.]
+
+Misc
+----
+1. Investigate use of trap instruction for breakpoints?
+
+2. Is there *any* reason for using ARITH_SAVED_RETADDR_OFFSET rather than
+   SAVED_RETADDR_OFFSET in generic.s? [I suppose it might have to do with
+   the fact that Scheme may be called here.]
+
+3. Redesign the internal calling stuff in millicode. It's a mess.
