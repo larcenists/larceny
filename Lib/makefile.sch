@@ -205,7 +205,14 @@
      
 (define (make-sparc-heap . rest)
   (make:pretend (not (null? rest)))
-  (make:make sparc-heap-project "sparc.heap"))
+  (let ((iup (integrate-usual-procedures)))
+    (dynamic-wind 
+     (lambda ()
+       (integrate-usual-procedures #t))
+     (lambda ()
+       (make:make sparc-heap-project "sparc.heap"))
+     (lambda ()
+       (integrate-usual-procedures iup)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
