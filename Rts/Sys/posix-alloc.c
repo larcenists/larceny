@@ -189,7 +189,7 @@ static byte *gclib_alloc( unsigned bytes )
     old_pagebase = gclib_pagebase;
 
     if (pageof_pb( top-1, ptr ) >= data.descriptor_slots)
-      grow_table( ptr, data.memtop );    /* changes gclib_pagebase */
+      grow_table( ptr, (byte*)data.memtop );    /* changes gclib_pagebase */
     else {
       int diff;
 
@@ -204,7 +204,7 @@ static byte *gclib_alloc( unsigned bytes )
 	gclib_desc_b[i] = gclib_desc_b[i-diff];
       }
 
-      gclib_pagebase = ptr;
+      gclib_pagebase = (caddr_t)ptr;
     }
 
     /* Fill out table */
@@ -220,11 +220,11 @@ static byte *gclib_alloc( unsigned bytes )
     old_memtop = data.memtop;
 
     if (pageof( top-1 ) >= data.descriptor_slots) {
-      grow_table( gclib_pagebase, top );  /* changes memtop */
+      grow_table( (byte*)gclib_pagebase, top );  /* changes memtop */
       wb_re_setup( gclib_pagebase, gclib_desc_g );
     }
     else
-      data.memtop = top;
+      data.memtop = (caddr_t)top;
 
     /* Fill out table */
     for ( i = pageof( old_memtop ) ; i < pageof( ptr ) ; i++ ) {
@@ -269,8 +269,8 @@ static void grow_table( byte *new_bot, byte *new_top )
     desc_b[i] = desc_g[i] = 0;
 
   data.descriptor_slots = slots;
-  gclib_pagebase = new_bot;
-  data.memtop = new_top;
+  gclib_pagebase = (caddr_t)new_bot;
+  data.memtop = (caddr_t)new_top;
 
   free( gclib_desc_g );
   free( gclib_desc_b );
