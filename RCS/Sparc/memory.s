@@ -1,7 +1,7 @@
 ! Assembly-language millicode routines for allocation and mutation.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.8 91/06/29 14:38:02 lth Exp Locker: lth $
+! $Id: memory.s,v 1.9 91/06/30 00:02:45 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -46,7 +46,7 @@
 ! and %REG0 must contain the pointer to the calling procedure. See the
 ! file "conventions.txt" for calling convention details.
 !
-! Internal calling conventions are somewhat odd: before a call to 'addtrans'
+! Internal calling conventions are strange: on entry to 'addtrans'
 ! or 'gcstart', the "external" (Scheme) return address must be saved in %TMP0,
 ! where the internal procedures will expect to find it, in case it must be 
 ! adjusted due to a collection.
@@ -331,12 +331,18 @@ _stkoflow:
 	! Overflow; must collect. The collector restores any necessary
 	! frames, though, so after collecting we can simply return to the
 	! caller.
+	!
+	! The saving of %RESULT is necessary since we guarantee that
+	! stkoflow will not alter it.
+
+	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 
 	mov	%o7, %TMP0
 	call	gcstart
-	nop
+	mov	0xFFFFFFFC, %RESULT
+
 	jmp	%TMP0+8
-	nop
+	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
 	! Heap did not overflow. We will need to restore one frame from the
 	! continuation chain in order for the caller not to be confused.
@@ -498,8 +504,8 @@ Lgcstart1:
 	ld	[ %GLOBALS + SP_OFFSET ], %STKP
 
 Lgcstart2:
-	mov	%RESULT, %TMP0				! return address
-	jmp	%TMP0+8					! return to millicode
+	mov	%RESULT, %TMP0				! "external" retaddr!
+	jmp	%o7+8					! return to millicode
 	ld	[ %GLOBALS + RESULT_OFFSET ], %RESULT	! result
 
 	
@@ -589,3 +595,12 @@ save_scheme_context:
 	jmp	%o7+8
 	nop
 
+! Local data
+
+	.seg	"bss"
+
+	.align	4
+	.reserve	mstk, 20		! millicode stack -- 5 words
+mstke:
+
+	! end of file
