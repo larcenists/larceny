@@ -1,7 +1,9 @@
-(require (lib "list.ss")
-         (lib "etc.ss")
-         (lib "process.ss"))
-(require (prefix mz: mzscheme))
+;; Why not just require?
+;; Well... that doesn't work on certain versions of DrScheme.
+(namespace-require/copy '(lib "list.ss"))
+(namespace-require/copy '(lib "etc.ss"))
+(namespace-require/copy '(lib "process.ss"))
+(namespace-require/copy '(prefix mz: mzscheme))
 
 (define ($$trace x) #t)
 (define host-system 'mzscheme)
