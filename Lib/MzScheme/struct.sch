@@ -105,7 +105,6 @@
       (let ((constructor
              (cond ((procedure? proc-spec)
                     (lambda field-vals
-                      (display (procedure-arity make/rec)) (newline)
                       (make-struct-method proc-spec
                                           (apply make/rec field-vals))))
                    ;; The number will have been range-checked by
