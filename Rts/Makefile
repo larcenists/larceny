@@ -80,9 +80,9 @@ LIBS=-lm -ldl
 DEBUGINFO=-g
 DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
 PROFILE=#-p
-TCOV=#-a -g -DNDEBUG
+TCOV=#-a -g -DNDEBUG2 -DNDEBUG
 LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
-OPTIMIZE=-DNDEBUG -O3
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 ARCHINFO=-DENDIAN_BIG -DBITS_32
 
 # You typically want this to remain on, unless you want multiple collectors
@@ -309,8 +309,7 @@ Sparc/memory.o: $(SPARC_ASM_H)
 Sparc/signals.o: $(LARCENY_H)
 Sparc/syscall.o: $(LARCENY_H)
 
-Sys/alloc.o: Sys/posix-alloc.c $(LARCENY_H) Sys/barrier.h Sys/gclib.h \
-	Sys/semispace_t.h
+Sys/alloc.o: $(LARCENY_H) Sys/barrier.h Sys/gclib.h Sys/semispace_t.h
 Sys/argv.o: $(LARCENY_H)
 Sys/barrier.o: $(LARCENY_H) Sys/memmgr.h Sys/barrier.h
 Sys/bdw-collector.o: $(LARCENY_H) Sys/barrier.h Sys/gc.h Sys/gc_t.h \
