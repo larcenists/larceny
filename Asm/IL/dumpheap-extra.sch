@@ -202,6 +202,9 @@
         (fasl-file (rewrite-file-type filename ".lop" ".fasl"))
         (il-file-name (rewrite-file-type filename ".lop" ".code-il"))
         (manifest-file (rewrite-file-type filename ".lop" ".manifest")))
+    (if (file-exists? il-file-name) (delete-file il-file-name))
+    (if (file-exists? fasl-file) (delete-file fasl-file))
+    (if (file-exists? manifest-file) (delete-file manifest-file))
     (set! *c-output* (open-output-file il-file-name))
     (call-with-output-file fasl-file
       (lambda (out)
@@ -229,6 +232,7 @@
   (init-variables)
   (let ((il-name (rewrite-file-type file ".exe" ".asm-il"))
         (assembly-name (rewrite-file-type file ".exe" "")))
+    (if (file-exists? il-name) (delete-file il-name))
     (set! *c-output* (open-output-file il-name))
     (emit topc
           (il:directive 'assembly-extern il:scheme-assembly-name '())
