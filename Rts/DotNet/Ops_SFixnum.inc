@@ -17,22 +17,20 @@
             return Factory.Unspecified;
         }
         OP2_OVERRIDE_REVERSED(vector_like_ref, SVL) {
-            SObject[] elements = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < elements.Length) {
-                return elements[index];
-            } else {
-                Exn.fault(Constants.EX_VLREF, null, arg1, this);
-                return Factory.Impossible;
+            try {
+              return (arg1.elements) [this.value];
+            }
+            catch (Exception) {
+              Exn.fault (Constants.EX_VLREF, null, arg1, this);
+              return Factory.Impossible;
             }
         }
         OP3_OVERRIDE_REVERSED(vector_like_set, SVL) {
-            SObject[] elements = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < elements.Length) {
-                elements[index] = arg3;
-                return Factory.Unspecified;
-            } else {
+          try {
+            (arg1.elements)[this.value] = arg3;
+            return Factory.Unspecified;
+            }
+          catch (Exception) {
                 Exn.fault(Constants.EX_VLSET, null, arg1, this, arg3);
                 return Factory.Impossible;
             }
@@ -47,46 +45,30 @@
             }
         }
         OP2_OVERRIDE_REVERSED(vector_ref, SVL) {
-            SObject[] elements = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < elements.Length) {
-                return elements[index];
-            } else {
-                Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
-                return Factory.Impossible;
+          try {
+            return (arg1.elements)[this.value];
+          }
+          catch (Exception) {
+            Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
+            return Factory.Impossible;
             }
         }
         OP2_OVERRIDE_REVERSED(vector_ref_trusted, SVL) {
-            SObject[] elements = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < elements.Length) {
-                return elements[index];
-            } else {
-                Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
-                return Factory.Impossible;
-            }
+          return (arg1.elements)[this.value];
         }
         OP3_OVERRIDE_REVERSED(vector_set, SVL) {
-            SObject[] elements = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < elements.Length) {
-                elements[index] = arg3;
-                return Factory.Unspecified;
-            } else {
-                Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
-                return Factory.Impossible;
-            }
+          try {
+            (arg1.elements)[this.value] = arg3;
+            return Factory.Unspecified;
+          }
+          catch (Exception) {
+            Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
+            return Factory.Impossible;
+          }
         }
         OP3_OVERRIDE_REVERSED(vector_set_trusted, SVL) {
-            SObject[] elements = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < elements.Length) {
-                elements[index] = arg3;
-                return Factory.Unspecified;
-            } else {
-                Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
-                return Factory.Impossible;
-            }
+          (arg1.elements)[this.value] = arg3;
+          return Factory.Unspecified;
         }
         OP1_OVERRIDE(make_procedure) {
             int a = this.value - 2;
@@ -151,112 +133,99 @@
 
         OP2_CHAIN(make_string)
         OP2_OVERRIDE_REVERSED(string_ref, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < bytes.Length) {
-                return Factory.makeChar(bytes[index]);
-            } else {
-                Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
-                return Factory.Impossible;
-            }
-        }
-        OP2_OVERRIDE_REVERSED(string_ref_trusted, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            return Factory.makeChar(bytes[index]);
-        }
-        OP3_OVERRIDE_REVERSED(string_set, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < bytes.Length) {
-                if (arg3 is SChar) {
-                    bytes[index] = (byte) ((SChar)arg3).val;
-                    return Factory.Unspecified;
-                }
-            }
+          try {
+            return Factory.makeChar ((arg1.elements)[this.value]);
+          }
+          catch (Exception){
             Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
             return Factory.Impossible;
+          }
+        }
+        OP2_OVERRIDE_REVERSED(string_ref_trusted, SByteVL) {
+          return Factory.makeChar ((arg1.elements)[this.value]);
+        }
+        OP3_OVERRIDE_REVERSED(string_set, SByteVL) {
+          try {
+            (arg1.elements)[this.value] = (byte) ((SChar)arg3).val;
+            return Factory.Unspecified;
+          }
+          catch (Exception) {
+            Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
+            return Factory.Impossible;
+          }
         }
         OP3_OVERRIDE_REVERSED(string_set_trusted, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            bytes[index] = (byte) ((SChar)arg3).val;
-            return Factory.Unspecified;
+          (arg1.elements)[this.value] = unchecked ((byte) ((SChar)arg3).val);
+          return Factory.Unspecified;
         }
 
         OP1_OVERRIDE(make_bytevector) {
             return Factory.makeByteVector(this.value, (byte)0);
         }
         OP2_OVERRIDE_REVERSED(bytevector_ref, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < bytes.Length) {
-                return Factory.wrap(bytes[index]);
-            } else {
+          try {
+            return makeFixnum ((arg1.elements)[this.value]);
+            }
+          catch (Exception) {
                 Exn.fault(Constants.EX_BYTEVECTOR_REF, null, arg1, this);
                 return Factory.Impossible;
             }
         }
         OP3_OVERRIDE_REVERSED(bytevector_set, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < bytes.Length) {
-                if (arg3 is SFixnum) {
-                    bytes[index] = (byte)((SFixnum)arg3).value;
-                    return Factory.Unspecified;
-                }
-            }
+          try {
+            (arg1.elements) [this.value] = (byte) ((SFixnum)arg3).value;
+            return Factory.Unspecified;
+          }
+          catch (Exception) {
             Exn.fault(Constants.EX_BYTEVECTOR_SET, null, arg1, this, arg3);
             return Factory.Impossible;
+          }
         }
         OP2_OVERRIDE_REVERSED(bytevector_fill, SByteVL) {
             byte[] bytes = arg1.elements;
             byte fill = (byte) this.value;
             for (int i = 0; i < bytes.Length; ++i) {
-               bytes[i] = fill;
+                bytes[i] = fill;
             }
             return Factory.Unspecified;
         }
-        
+
         OP2_OVERRIDE_REVERSED(bytevector_like_ref, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < bytes.Length) {
-                return Factory.wrap(bytes[index]);
-            } else {
-                Exn.fault(Constants.EX_BVLREF, null, arg1, this);
-                return Factory.Impossible;
-            }
-        }
-        OP3_OVERRIDE_REVERSED(bytevector_like_set, SByteVL) {
-            byte[] bytes = arg1.elements;
-            int index = this.value;
-            if (0 <= index && index < bytes.Length) {
-                if (arg3 is SFixnum) {
-                    bytes[index] = (byte)((SFixnum)arg3).value;
-                    return Factory.Unspecified;
-                }
-            }
+          try {
+            return makeFixnum ((arg1.elements)[this.value]);
+          }
+          catch (Exception) {
             Exn.fault(Constants.EX_BVLREF, null, arg1, this);
             return Factory.Impossible;
+          }
         }
-        
+        OP3_OVERRIDE_REVERSED(bytevector_like_set, SByteVL) {
+          try {
+            (arg1.elements)[this.value] = (byte)((SFixnum)arg3).value;
+            return Factory.Unspecified;
+          }
+          catch (Exception) {
+            Exn.fault(Constants.EX_BVLREF, null, arg1, this);
+            return Factory.Impossible;
+          }
+        }
+
         OP1_OVERRIDE(fxzerop) {
-            return Factory.wrap(this.value == 0);
+            return (this.value == 0) ? Factory.True : Factory.False;
         }
         OP1_OVERRIDE(fxpositivep) {
-            return Factory.wrap(this.value > 0);
+            return (this.value > 0) ? Factory.True : Factory.False;
         }
         OP1_OVERRIDE(fxnegativep) {
-            return Factory.wrap(this.value < 0);
+            return (this.value < 0) ? Factory.True : Factory.False;
         }
         OP1_OVERRIDE(fxnegative) {
             int a = - this.value;
-            if (!SFixnum.inFixnumRange(-a)) {
+            if (!inFixnumRange(-a)) {
                 Exn.fault(Constants.EX_FXNEG, "result not a fixnum", this);
                 return Factory.Impossible;
             }
-            return Factory.wrap(a);
+            return makeFixnum (a);
         }
         OP2_CHAIN(fxplus)
         OP2_CHAIN(fxminus)
@@ -268,50 +237,50 @@
         OP2_CHAIN(fxequal)
 
         OP2_OVERRIDE_REVERSED(fxplus, SFixnum) {
-            int a = arg1.value, b = this.value; 
-            int r = a + b; 
-            if (!SFixnum.inFixnumRange(r)) {
+            int a = arg1.value, b = this.value;
+            int r = a + b;
+            if (!inFixnumRange(r)) {
                 Exn.fault(Constants.EX_FXADD, null, arg1, this);
-                return Factory.Impossible; 
+                return Factory.Impossible;
             }
-            return Factory.wrap(r);
+            return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(fxminus, SFixnum) {
-            int a = arg1.value, b = this.value; 
-            int r = a - b; 
-            if (!SFixnum.inFixnumRange(r)) {
-                Exn.fault(Constants.EX_FXSUB, null, arg1, this); 
-                return Factory.Impossible; 
+            int a = arg1.value, b = this.value;
+            int r = a - b;
+            if (!inFixnumRange(r)) {
+                Exn.fault(Constants.EX_FXSUB, null, arg1, this);
+                return Factory.Impossible;
             }
-            return Factory.wrap(r);
+            return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(fxmul, SFixnum) {
             int a = arg1.value, b = this.value;
             long r = a * b;
-            if (!SFixnum.inFixnumRange(r)) {
+            if (!inFixnumRange(r)) {
                 Exn.fault(Constants.EX_FXMUL, null, arg1, this);
                 return Factory.Impossible;
             }
-            return Factory.wrap((int)r);
+            return makeFixnum ((int)r);
         }
         OP2_OVERRIDE_REVERSED(fxless, SFixnum) {
-            return Factory.wrap(arg1.value < this.value);
+            return (arg1.value < this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(fxless_equal, SFixnum) {
-            return Factory.wrap(arg1.value <= this.value);
+            return (arg1.value <= this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(fxgreater, SFixnum) {
-            return Factory.wrap(arg1.value > this.value);
+            return (arg1.value > this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(fxgreater_equal, SFixnum) {
-            return Factory.wrap(arg1.value >= this.value);
+            return (arg1.value >= this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(fxequal, SFixnum) {
-            return Factory.wrap(arg1.value == this.value);
+            return (arg1.value == this.value) ? Factory.True : Factory.False;
         }
 
         OP1_OVERRIDE(lognot) {
-            return Factory.wrap(~this.value);
+            return Factory.makeNumber (~this.value);
         }
         OP2_CHAIN(logand)
         OP2_CHAIN(logior)
@@ -322,41 +291,41 @@
         OP2_CHAIN(rshl)
 
         OP2_OVERRIDE_REVERSED(logand, SFixnum) {
-            return Factory.wrap(arg1.value & this.value);
+            return makeFixnum (arg1.value & this.value);
         }
         OP2_OVERRIDE_REVERSED(logior, SFixnum) {
-            return Factory.wrap(arg1.value | this.value);
+            return makeFixnum (arg1.value | this.value);
         }
         OP2_OVERRIDE_REVERSED(logxor, SFixnum) {
-            return Factory.wrap(arg1.value ^ this.value);
+            return makeFixnum (arg1.value ^ this.value);
         }
         OP2_OVERRIDE_REVERSED(lsh, SFixnum) {
             int r = arg1.value << this.value;
             r = (r << 2) >> 2; // mask out top bits (w/ sign extend)
-            return Factory.wrap(r);
+            return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(rsh, SFixnum) {
             int r = arg1.value >> this.value;
-            r = (r << 2) >> 2;
-            return Factory.wrap(r);
+            // r = (r << 2) >> 2;
+            return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(rsha, SFixnum) {
             int r = arg1.value >> this.value;
-            r = (r << 2) >> 2;
-            return Factory.wrap(r);
+            // r = (r << 2) >> 2;
+            return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(rshl, SFixnum) {
             uint a = (uint)arg1.value << 2;
             int b = this.value;
             int r = (int)(a >> b) >> 2;
-            return Factory.wrap((int)r);
+            return Factory.makeNumber ((int)r);
         }
 
         OP1_OVERRIDE(real_part) {
             return this;
         }
         OP1_OVERRIDE(imag_part) {
-            return Factory.wrap(0);
+            return makeFixnum (0);
         }
 
         OP2_CHAIN(plus_idx_idx)
@@ -368,25 +337,25 @@
         OP2_CHAIN(greaterequal_fix_fix)
 
         OP2_OVERRIDE_REVERSED(plus_idx_idx, SFixnum) {
-            return Factory.wrap(arg1.value + this.value);
+            return Factory.makeNumber (arg1.value + this.value);
         }
         OP2_OVERRIDE_REVERSED(minus_idx_idx, SFixnum) {
-            return Factory.wrap(arg1.value - this.value);
+            return Factory.makeNumber (arg1.value - this.value);
         }
         OP2_OVERRIDE_REVERSED(equal_fix_fix, SFixnum) {
-            return Factory.wrap(arg1.value == this.value);
+            return (arg1.value == this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(less_fix_fix, SFixnum) {
-            return Factory.wrap(arg1.value < this.value);
+            return (arg1.value < this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(lessequal_fix_fix, SFixnum) {
-            return Factory.wrap(arg1.value <= this.value);
+            return (arg1.value <= this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(greater_fix_fix, SFixnum) {
-            return Factory.wrap(arg1.value > this.value);
+            return (arg1.value > this.value) ? Factory.True : Factory.False;
         }
         OP2_OVERRIDE_REVERSED(greaterequal_fix_fix, SFixnum) {
-            return Factory.wrap(arg1.value >= this.value);
+            return (arg1.value >= this.value) ? Factory.True : Factory.False;
         }
 
         // Special Operations
@@ -410,7 +379,7 @@
             Syscall.dispatch(num_args, num_syscall);
         }
         SPECIALOP1_OVERRIDE(zerop) {
-            Reg.Result = Factory.wrap(this.value == 0);
+          Reg.Result = (this.value == 0) ? Factory.True : Factory.False;
         }
 
         SPECIALOP2_CHAIN_FIXNUM(eqvp_not_eq)
@@ -428,34 +397,34 @@
         SPECIALOP2_CHAIN_FIXNUM(remainder)
 
         SPECIALOP2_OVERRIDE_REVERSED_CASE(eqvp_not_eq, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value == this.value);
+            Reg.Result = (arg1.value == this.value) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(numeric_equals, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value == this.value);
+            Reg.Result = (arg1.value == this.value) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(less_than, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value < this.value);
+            Reg.Result = (arg1.value < this.value) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(less_or_equal, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value <= this.value);
+            Reg.Result = (arg1.value <= this.value) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(greater_than, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value > this.value);
+            Reg.Result = (arg1.value > this.value) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(greater_or_equal, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value >= this.value);
+            Reg.Result = (arg1.value >= this.value) ? Factory.True : Factory.False;
         }
 
         SPECIALOP2_OVERRIDE_REVERSED_CASE(plus, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value + this.value);
+            Reg.Result = Factory.makeNumber (arg1.value + this.value);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(minus, fixnum, SFixnum) {
-            Reg.Result = Factory.wrap(arg1.value - this.value);
+            Reg.Result = Factory.makeNumber (arg1.value - this.value);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(multiply, fixnum, SFixnum) {
             long a = arg1.value;
             long b = this.value;
-            Reg.Result = Factory.wrap(a * b);
+            Reg.Result = Factory.makeNumber (a * b);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(divide, fixnum, SFixnum) {
             int a = arg1.value, b = this.value;
@@ -463,7 +432,7 @@
                 Exn.fault(Constants.EX_DIV, null, arg1, this);
             }
             if (a % b == 0) {
-                Reg.Result = Factory.wrap(a / b);
+                Reg.Result = Factory.makeNumber (a / b);
             } else {
                 Call.callMillicodeSupport2(Constants.MS_FIXNUM2RATNUM_DIV, arg1, this);
             }
@@ -473,7 +442,7 @@
             if (b == 0) {
                 Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
             }
-            Reg.Result = Factory.wrap(a / b);
+            Reg.Result = Factory.makeNumber (a / b);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(quotient, bignum, SByteVL) {
             // Must handle 1-word bignums too.
@@ -483,7 +452,7 @@
                 Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
                 return;
             } else if (bv > 0 &&
-                       Number.getBignumLength(arg1) == 1 && 
+                       Number.getBignumLength(arg1) == 1 &&
                        Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
                 uint av = arg1.getUInt32(1);
                 uint result = av / (uint)bv;
@@ -499,13 +468,13 @@
             if (b == 0) {
                 Exn.fault(Constants.EX_REMAINDER, null, arg1, this);
             }
-            Reg.Result = Factory.wrap(a % b);
+            Reg.Result = Factory.makeNumber (a % b);
         }
         SPECIALOP2_OVERRIDE_REVERSED_CASE(remainder, bignum, SByteVL) {
             // Must handle 1-word bignums too.
             int bv = this.value;
             if (bv > 0 &&
-                Number.getBignumLength(arg1) == 1 && 
+                Number.getBignumLength(arg1) == 1 &&
                 Number.getBignumSign(arg1) == Number.BIGNUM_POSITIVE) {
                 uint av = arg1.getUInt32(1);
                 uint result = av % (uint)bv;
@@ -522,7 +491,7 @@
             Reg.Result = this;
         }
         SPECIALOP1_OVERRIDE(negative) {
-            Reg.Result = Factory.wrap(-this.value);
+            Reg.Result = Factory.makeNumber (-this.value);
         }
         SPECIALOP1_OVERRIDE(exact2inexact) {
             Reg.Result = Factory.makeFlonum((double)this.value);
