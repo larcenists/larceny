@@ -509,9 +509,9 @@ extern cont_t twobit_cont_label;
 # endif
 #endif
 
-#define twobit_check( x, y, z, L ) \
+#define twobit_check( x, y, z, L_numeric, L_symbolic ) \
   if (RESULT == FALSE_CONST) { \
-    twobit_skip( L ); \
+    twobit_skip( L_numeric, L_symbolic ); \
   }
 
 #define twobit_trap( x, y, z, excode ) \
@@ -522,7 +522,14 @@ extern cont_t twobit_cont_label;
     SAVE_STATE(); \
     mc_exception( globals, excode ); \
   } while(0)
-     
+
+#define twobit_imm_const_setreg( w, r ) \
+  reg(r) = (word)(w); integrity_check( "imm_const_setreg" )
+
+#define twobit_const_setreg( k, r ) \
+  reg(r) = get_const( k ); integrity_check( "const_setreg" )
+
+
 /* Primitives */
 
 #define twobit_op1_1() /* break -- really 0 args */ \
