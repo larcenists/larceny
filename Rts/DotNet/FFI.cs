@@ -565,7 +565,7 @@ namespace Scheme.RT {
 #endif
                 }
 
-#if 0
+#if NEVER
 
                 case 0: // object
                 {
