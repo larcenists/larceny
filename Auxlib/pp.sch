@@ -1,14 +1,18 @@
-; Larceny auxiliary library -- pretty printer
+; File: "pp.scm"   (c) 1991, Marc Feeley
 ; 
 ; $Id$
 ;
-; File: "pp.scm"   (c) 1991, Marc Feeley
-; [Snarfed from the Scheme repository at Indiana University, August 5, 1995.]
+; Pretty printer.  [From the Scheme Repository, August 5, 1995.]
 ;
-; 23 April 1998 / lth
-; TODO: Make sure that it handles all Larceny objects.
+;  (pretty-print obj [port])        => unspecified
+;  (pretty-line-length [length])    => length
 ;
-; 'generic-write' is a procedure that transforms a Scheme data value (or
+; FIXME:
+;  - does not support all the control characters supported by the
+;    reader (return, linefeed, page, backspace)
+;
+;
+; '%generic-write' is a procedure that transforms a Scheme data value (or
 ; Scheme program expression) into its textual representation.  The interface
 ; to the procedure is sufficiently general to easily implement other useful
 ; formatting procedures such as pretty printing, output to a string and
@@ -25,7 +29,7 @@
 ;               with successive substrings of the textual representation.
 ;               This procedure can return #f to stop the transformation.
 ;
-; The value returned by 'generic-write' is undefined.
+; The value returned by '%generic-write' is undefined.
 ;
 ; Examples:
 ;
@@ -34,7 +38,26 @@
 ;
 ; where display-string = (lambda (s) (for-each write-char (string->list s)) #t)
 
-(define (generic-write obj display? width output)
+(define (%generic-write obj display? width output)
+
+  ; (reverse-string-append l) = (apply string-append (reverse l))
+
+  (define (reverse-string-append l)
+
+    (define (rev-string-append l i)
+      (if (pair? l)
+	  (let* ((str (car l))
+		 (len (string-length str))
+		 (result (rev-string-append (cdr l) (+ i len))))
+	    (let loop ((j 0) (k (- (- (string-length result) i) len)))
+	      (if (< j len)
+		  (begin
+		    (string-set! result k (string-ref str j))
+		    (loop (+ j 1) (+ k 1)))
+		  result)))
+	  (make-string i)))
+
+    (rev-string-append l 0))
 
   (define (read-macro? l)
     (define (length1? l) (and (pair? l) (null? (cdr l))))
@@ -144,7 +167,7 @@
       (if (or (pair? obj) (vector? obj)) ; may have to split on multiple lines
         (let ((result '())
               (left (min (+ (- (- width col) extra) 1) max-expr-width)))
-          (generic-write obj display? #f
+          (%generic-write obj display? #f
             (lambda (str)
               (set! result (cons str result))
               (set! left (- left (string-length str)))
@@ -291,71 +314,17 @@
     (out (make-string 1 #\newline) (pp obj 0))
     (wr obj 0)))
 
-; (reverse-string-append l) = (apply string-append (reverse l))
-
-(define (reverse-string-append l)
-
-  (define (rev-string-append l i)
-    (if (pair? l)
-      (let* ((str (car l))
-             (len (string-length str))
-             (result (rev-string-append (cdr l) (+ i len))))
-        (let loop ((j 0) (k (- (- (string-length result) i) len)))
-          (if (< j len)
-            (begin
-              (string-set! result k (string-ref str j))
-              (loop (+ j 1) (+ k 1)))
-            result)))
-      (make-string i)))
-
-  (rev-string-append l 0))
-
-; (object->string obj) returns the textual representation of 'obj' as a
-; string.
-;
-; Note: (write obj) = (display (object->string obj))
-
-(define (object->string obj)
-  (let ((result '()))
-    (generic-write obj #f #f (lambda (str) (set! result (cons str result)) #t))
-    (reverse-string-append result)))
-
-; (object->limited-string obj limit) returns a string containing the first
-; 'limit' characters of the textual representation of 'obj'.
-
-(define (object->limited-string obj limit)
-  (let ((result '()) (left limit))
-    (generic-write obj #f #f
-      (lambda (str)
-        (let ((len (string-length str)))
-          (if (> len left)
-            (begin
-              (set! result (cons (substring str 0 left) result))
-              (set! left 0)
-              #f)
-            (begin
-              (set! result (cons str result))
-              (set! left (- left len))
-              #t)))))
-    (reverse-string-append result)))
-
 ; (pretty-print obj port) pretty prints 'obj' on 'port'.  The current
 ; output port is used if 'port' is not specified.
 
 (define (pretty-print obj . opt)
   (let ((port (if (pair? opt) (car opt) (current-output-port))))
-    (generic-write obj #f (pretty-line-length)
-		   (lambda (s) (display s port) #t))
-    #t))
-
-; (pretty-print-to-string obj) returns a string with the pretty-printed
-; textual representation of 'obj'.
-
-(define (pretty-print-to-string obj)
-  (let ((result '()))
-    (generic-write obj #f (pretty-line-length)
-		   (lambda (str) (set! result (cons str result)) #t))
-    (reverse-string-append result)))
+    (%generic-write obj #f
+		   (pretty-line-length)
+		   (lambda (s)
+		     (display s port)
+		     #t))
+    (unspecified)))
 
 ; The name 'pretty-line-length' is from Chez Scheme.
 
