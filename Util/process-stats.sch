@@ -359,6 +359,18 @@ for that collection.
       (nprint " " (field (gc-time prev i) 7)))
     (newline)))
 
+; Plots the size of each generation in words following each collection.
+; Try nboyer3 with five generations and watch the pig move!
+
+(define (generation-size-profile filename)
+  (process-stats 
+   filename
+   (lambda (r)
+     (nprint "GC: " (last-gc r))
+     (do ((i 0 (+ i 1)))
+         ((= i (generations r)))
+       (nprint " " (field (words-live r i) 12)))
+     (newline))))
 
 (define (ssb-profile filename)
   (let ((prev #f))
