@@ -32,8 +32,8 @@
     (let ((s (server-socket port)))
       (set! server (current-task))
       (let accept-loop ()
-        (let-values ((ns addr)
-                     (wait-for-connection-on-server-socket s 'nonblocking))
+        (let-values (((ns addr)
+                      (wait-for-connection-on-server-socket s 'nonblocking)))
           (spawn
            (make-server-thread ns)))
         (accept-loop)))))

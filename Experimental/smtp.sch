@@ -20,7 +20,7 @@
 (define (send-mail-by-smtp sender recipients message)
   (call-with-current-continuation
    (lambda (return)
-     (let-values ((conn response) (open-smtp-connection mailhost))
+     (let-values (((conn response) (open-smtp-connection mailhost)))
 
        (define (finish reply value)
          (if reply (display-chat-response reply))
@@ -117,7 +117,7 @@
 (define-record chat-connection (fd in out log))
 
 (define (open-chat-client host service proto)
-  (let-values ((port proto) (get-service-by-name service proto))
+  (let-values (((port proto) (get-service-by-name service proto)))
     (let* ((client (client-socket host port))
            (chat-in (open-input-descriptor client))
            (chat-out (open-output-descriptor client 'flush)))

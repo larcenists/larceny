@@ -98,10 +98,10 @@
                           (define (trace-both)
                             (parameterize ((debug/breakpoints-enable #f))
                               (debug/trace-enter-msg name expr args))
-                            (let-values (results
-                                         (parameterize ((trace-level 
-                                                         (+ (trace-level) 1)))
-                                           (apply compute args)))
+                            (let-values ((results
+                                          (parameterize ((trace-level 
+                                                          (+ (trace-level) 1)))
+                                            (apply compute args))))
                               (parameterize ((debug/breakpoints-enable #f))
                                 (debug/trace-exit-msg name expr args results))
                               (apply values results)))
@@ -112,7 +112,7 @@
                             (apply compute args))
                       
                           (define (trace-exit)
-                            (let-values (results (apply compute args))
+                            (let-values ((results (apply compute args)))
                               (parameterize ((debug/breakpoints-enable #f))
                                 (debug/trace-exit-msg name expr args results))
                               (apply values results)))

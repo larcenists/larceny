@@ -64,7 +64,7 @@
     (define (new-sharp-dispatch c p)
       (let ((next (peek-char p)))
         (if (char-numeric? next)
-            (let-values ((n trailing) (read-object-id p))
+            (let-values (((n trailing) (read-object-id p)))
               (case trailing
                 ((#\=) (fluid-let ((circular? #f))
                          (let ((item (read p)))
