@@ -2,26 +2,19 @@
  *
  * $Id$
  *
- * Larceny run-time system -- run-time statistics.
- *
- * The stats module maintains run-time statistics.  Mainly, these are
- * statistics on memory use (bytes allocated and collected, amount of 
- * memory allocated to which parts the RTS, and so on) and running time
- * statistics (time spent in collector, time spent in any specific collector,
- * and so on).
+ * Run-time statistics processing.
  *
  * Statistics are calculated in two ways.  First, some parts of the RTS
- * are assumed to call the statistics module to signal events; for example,
- * the garbage collector calls the following callbacks:
+ * are assumed to call the statistics module to signal events.  The
+ * following callbacks are used by the garbage collector:
  *
  *    stats_before_gc()      signals the start of a collection
  *    stats_gc_type()        reports the generation number and type
  *    stats_after_gc()       signals the end of a collection
  *    stats_add_gctime()     add GC time outside GC region (eg lazy sweep)
  *
- * Currently, the listed procedures are the only such callbacks.
  * Second, procedures in the stats module will call on procedures
- * in other parts of the RTS (notably gc->stats() and gclib_stats()) to
+ * in other parts of the RTS (notably gc_stats() and gclib_stats()) to
  * obtain information about those parts.
  *
  * Scheme code makes a callout to primitive_get_stats(), passing a Scheme
@@ -36,32 +29,33 @@
  * static data.
  *
  * Still to be done:
- * - record/report remembered set memory usage statistics
- * - record/report number of times a remset was cleared
+ * - record/report peak memory usage (allocated) per generation
  * - record/report overall memory usage statistics
  * - record/report low-level allocator free memory
- * - record/report peak memory usage (allocated) per generation & remset
  *
  * FIXME: the logic is too tangled.
  * FIXME: integrate better with BDW collector.
  */
 
-#include "config.h"
-
-#if defined(BDW_GC)
-#include "../bdw-gc/include/gc.h"
-#endif
-
 #include <stdio.h>
 #include <string.h>
+
+#include "config.h"
 #include "larceny.h"
 #include "gc.h"
 #include "gc_t.h"
 #include "memmgr.h"
 #include "gclib.h"
 #include "heap_stats_t.h"
+#if defined(BDW_GC)
+# include "../bdw-gc/include/gc.h"
+#endif
 
+/* All "word" entries in rem_stat_t, gen_stat_t, and sys_stat_t
+ * are Scheme fixnums.
+ */
 typedef struct {
+  word identity;         /* who am i? */
   word hscanned_hi;      /* hash table */
   word hscanned_lo;      /*   entries scanned */
   word hrecorded_hi;     /* hash table */
@@ -73,6 +67,13 @@ typedef struct {
   word wscanned_hi;      /* Words of old */
   word wscanned_lo;      /*   objects scanned */
   word cleared;          /* Number of times remset was cleared */
+  word scanned;		 /* Number of times remset was scanned */
+  word compacted;        /* Number of times SSB was compacted */
+  word hallocated;	 /* Words allocated to hash table */
+  word pallocated;       /* Words allocated to node pool */
+  word pused;            /* Words used in node pool */
+  word plive;		 /* Words live in node pool */
+  word max_size;	 /* Max words allocated in hash+pool */
 } rem_stat_t;
 
 typedef struct {
@@ -82,16 +83,11 @@ typedef struct {
   word promtime;         /* total promotion time in ms */
   word target;           /* current allocation target (upper bound) */
   word alloc;            /* current allocation */
-  unsigned np_old;       /* 1 iff NP 'old' generation */
-  unsigned np_young;     /* 1 iff NP 'young' generation */
-  unsigned np_k;         /* Number of steps (old+young together) */
-  unsigned np_j;         /* Number of steps in young */
+  word np_old;           /* 1 iff NP 'old' generation */
+  word np_young;         /* 1 iff NP 'young' generation */
+  word np_k;             /* Number of steps (old+young together) */
+  word np_j;             /* Number of steps in young */
 } gen_stat_t;
-
-/* The structure of type sys_stat_t keeps statistics information both
- * running and at the present time.
- * All numbers in this structure are represented as fixnums.
- */
 
 typedef struct {
   /* GC stuff - overall */
@@ -115,15 +111,8 @@ typedef struct {
   word lastcollection_gen; /* generation of last collection */
   word lastcollection_type;/* type of last collection */
 
-  /* Remembered sets - overall (preliminary) */
+  /* Remembered sets */
   rem_stat_t rem_stat[MAX_GENERATIONS]; /* info about each remset */
-  word hscanned_hi;        /* hash table */
-  word hscanned_lo;        /*   entries scanned */
-  word hrecorded_hi;       /* hash table */
-  word hrecorded_lo;       /*   entries recorded */
-  word ssbrecorded_hi;     /* SSB entries */
-  word ssbrecorded_lo;     /*   recorded */
-  word remset_cleared;     /* number of times remsets cleared */
   
   /* Stacks - overall */
   word fflushed_hi;        /* number of stack */
@@ -149,12 +138,31 @@ typedef struct {
     word transactions;
   } swb;
 #endif
+
+  /* Deferred-oldest-first collector */
+  struct {
+    word promotions;
+    word collections;
+    word resets;
+    word repeats;
+    word full_collections;
+    word bytes_promoted_hi;
+    word bytes_promoted_lo;
+    word objs_marked_hi;
+    word objs_marked_lo;
+    word ptrs_traced_hi;
+    word ptrs_traced_lo;
+    word entries_removed_hi;
+    word entries_removed_lo;
+  } dof;
+
   /* There Can Be Only One! */
   rem_stat_t np_remset;            /* Remembered-set statistics */
 } sys_stat_t;
 
 #define STATS_COLLECT   (fixnum(0)) /* Externally visible */
 #define STATS_PROMOTE   (fixnum(1)) /* Externally visible */
+#define STATS_FULL      (fixnum(2)) /* Externally visible */
 
 static sys_stat_t   memstats;             /* statistics */
 static int          generations;          /* number of generations in gc */
@@ -164,12 +172,13 @@ static unsigned     time_before_gc;       /* timestamp when starting gc */
 static unsigned     live_before_gc;       /* live when starting a gc */
 static heap_stats_t *heapstats_before_gc; /* stats before gc */
 static heap_stats_t *heapstats_after_gc;  /* stats after last gc */
+static bool         stats_after_gc_pending = FALSE;
 static gc_t *gc;                          /* The garbage collector */
 
 static FILE *dumpfile = 0;                /* For stats dump */
 
 static void current_statistics( heap_stats_t *, sys_stat_t * );
-static heap_stats_t *make_heapstats( heap_stats_t *base );
+static heap_stats_t *make_heapstats( void );
 static void add( unsigned *hi, unsigned *lo, unsigned x );
 static void print_heapstats( heap_stats_t *stats );
 static void dump_stats( heap_stats_t *stats, sys_stat_t *ms );
@@ -198,12 +207,17 @@ static int initialized = 0;
 void
 stats_init( gc_t *collector, int gens, int show_heapstats )
 {
+  int i;
+
   gc = collector;
   generations = gens;
 
-  heapstats_before_gc = make_heapstats( 0 );
-  heapstats_after_gc  = make_heapstats( 0 );
+  heapstats_before_gc = make_heapstats();
+  heapstats_after_gc  = make_heapstats();
   memset( &memstats, 0, sizeof( memstats ) );
+
+  for ( i=0 ; i < generations ; i++ )
+    memstats.rem_stat[i].identity = -1;
 
   current_statistics( heapstats_after_gc, &memstats );
 
@@ -222,6 +236,9 @@ void
 stats_before_gc( void )
 {
   if (!initialized) return;
+
+  assert( !stats_after_gc_pending ); /* Don't nest. */
+  stats_after_gc_pending = TRUE;
 
   time_before_gc = stats_rtclock();
 
@@ -254,8 +271,12 @@ stats_gc_type( int generation, gc_type_t type )
      remembered.
    */
   memstats.lastcollection_gen = fixnum(generation);
-  memstats.lastcollection_type = 
-    (type == GCTYPE_COLLECT ? STATS_COLLECT : STATS_PROMOTE);
+  switch (type) {
+    case GCTYPE_COLLECT : memstats.lastcollection_type = STATS_COLLECT; break;
+    case GCTYPE_PROMOTE : memstats.lastcollection_type = STATS_PROMOTE; break;
+    case GCTYPE_FULL    : memstats.lastcollection_type = STATS_FULL; break;
+    default             : panic( "stats_gc_type: %d", type );
+  }
 }
 
 
@@ -267,18 +288,26 @@ stats_after_gc( void )
   unsigned gen;
   unsigned time;
 
-  if (!initialized)
+  if (!initialized )
     return;
+
+  assert( stats_after_gc_pending );
+  stats_after_gc_pending = FALSE;
+
+  /* FIXME: we need to compute the slot in the memstats
+     structure where the remembered set with the identity
+     of this generation lives... 
+     */
+  gen = nativeint(memstats.lastcollection_gen);
 
   add( &memstats.wallocated_hi, &memstats.wallocated_lo,
       fixnum( allocated / sizeof(word) ) );
 
-  if (memstats.lastcollection_type == STATS_COLLECT)
-    memstats.gen_stat[nativeint(memstats.lastcollection_gen)].collections
-      += fixnum(1);
+  if (memstats.lastcollection_type == STATS_PROMOTE)
+    memstats.gen_stat[gen].promotions += fixnum(1);
   else
-    memstats.gen_stat[nativeint(memstats.lastcollection_gen)].promotions
-      += fixnum(1);
+    /* Collections and full collections, FIXME */
+    memstats.gen_stat[gen].collections += fixnum(1);
 
   current_statistics( heapstats_after_gc, &memstats );
   time = stats_rtclock() - time_before_gc;
@@ -286,7 +315,6 @@ stats_after_gc( void )
   add( &memstats.wcollected_hi, &memstats.wcollected_lo,
        fixnum( live_before_gc - nativeint(memstats.wlive) ) );
 
-  gen = nativeint(memstats.lastcollection_gen);
   add( &memstats.wcopied_hi, &memstats.wcopied_lo,
       fixnum(heapstats_after_gc[gen].copied_last_gc / sizeof(word)) );
 
@@ -321,7 +349,7 @@ stats_fillvector( word w_buffer )
   sys_stat_t ms;
   int i, gen_generations, rem_remsets;
 
-  if (hs == 0) hs = make_heapstats( 0 );
+  if (hs == 0) hs = make_heapstats();
   current_statistics( hs, &memstats );
 
   ms = memstats;
@@ -443,10 +471,10 @@ fill_gen_vector( word *gv, gen_stat_t *gs, word live )
 static void
 fill_remset_vector( word *rv, rem_stat_t *rs, int np_remset )
 {
-  rv[ STAT_R_APOOL ] = 0;  /* FIXME */
-  rv[ STAT_R_UPOOL ] = 0;  /* FIXME */
-  rv[ STAT_R_AHASH ] = 0;  /* FIXME */
-  rv[ STAT_R_UHASH ] = 0;  /* FIXME */
+  rv[ STAT_R_POOL_ALLOC ] = rs->pallocated;
+  rv[ STAT_R_POOL_USED ] = rs->pused;
+  rv[ STAT_R_POOL_LIVE ] = rs->plive;
+  rv[ STAT_R_HASH_ALLOC ] = rs->hallocated;
   rv[ STAT_R_HREC_HI ] = rs->hrecorded_hi;
   rv[ STAT_R_HREC_LO ] = rs->hrecorded_lo;
   rv[ STAT_R_HREM_HI ] = rs->hremoved_hi;
@@ -458,7 +486,12 @@ fill_remset_vector( word *rv, rem_stat_t *rs, int np_remset )
   rv[ STAT_R_SSBREC_HI ] = rs->ssbrecorded_hi;
   rv[ STAT_R_SSBREC_LO ] = rs->ssbrecorded_lo;
   rv[ STAT_R_NP_P ] = np_remset ? TRUE_CONST : FALSE_CONST;
+  rv[ STAT_R_CLEARED ] = rs->cleared;
+  rv[ STAT_R_SCANNED ] = rs->scanned;
+  rv[ STAT_R_COMPACTED ] = rs->compacted;
+  rv[ STAT_R_MAX_SIZE ] = rs->max_size;
 }
+
 
 static void
 print_heapstats( heap_stats_t *stats )
@@ -490,7 +523,7 @@ print_heapstats( heap_stats_t *stats )
  * Format: see the banner string below.
  */
 static char *dump_banner =
-"; RTS statistics, dumped by Larceny version %d.%d\n;\n"
+"; RTS statistics, dumped by Larceny version %d.%d%s\n;\n"
 "; The output is an s-expression, one following each GC.  When some entry\n"
 "; is advertised as xxx-hi and xxx-lo, then the -hi is the high 29 bits\n"
 "; and the -lo is the low 29 bits of a 58-bit unsigned integer.\n"
@@ -517,8 +550,8 @@ static char *dump_banner =
 "; ordered from younger to older (each remset is associated\n"
 "; with one old generation).  First the snapshot entries:\n"
 ";\n"
-";   ((words-allocated-to-pool words-used-in-pool\n"
-";     hash-table-total-entries hash-table-non-null-entries\n"
+";   ((pool-words-allocated pool-words-used pool-words-live\n"
+";     hash-entries-allocated\n"
 ";\n"
 "; Then there are running totals:\n"
 ";\n"
@@ -527,6 +560,7 @@ static char *dump_banner =
 ";     hash-entries-scanned-hi hash-entries-scanned-lo\n"
 ";     words-of-oldspace-scanned-hi words-of-oldspace-scanned-lo\n"
 ";     ssb-entries-recorded-hi ssb-entries-recorded-lo\n"
+";     times-cleared times-scanned times-compacted max-total-size\n"
 ";    )...)\n"
 ";\n"
 "; Then follows information about the stack cache (running totals):\n"
@@ -552,6 +586,14 @@ static char *dump_banner =
 ";\n"
 "; Tag=`np-remset': non-predictive collector's extra remembered set.\n"
 ";   This data is as for the remembered sets, above.\n"
+";\n"
+"; Tag=`dof': DOF collector's global statistics, all accumulated entries.\n"
+";   dof-promotions dof-collections dof-resets dof-repeat-collections\n"
+";   dof-full-collections\n"
+";   dof-bytes-promoted-in-hi dof-bytes-promoted-in-lo\n"
+";   dof-fullgc-objects-marked-hi dof-fullgc-objects-marked-lo\n"
+";   dof-fullgc-pointers-traced-hi dof-fullgc-pointers-traced-hi\n"
+";   dof-fullgc-remset-entries-removed dof-fullgc-remset-entries-removed-lo\n"
 ";  )\n";
 
 int
@@ -563,7 +605,9 @@ stats_opendump( const char *filename )
 
   if (dumpfile)
     fprintf( dumpfile, dump_banner,
-	     larceny_major_version, larceny_minor_version );
+	     larceny_major_version, 
+	     larceny_minor_version,
+	     larceny_version_qualifier );
   return dumpfile != 0;
 }
 
@@ -581,6 +625,9 @@ stats_closedump( void )
 static void
 dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 {
+  bool has_dofgc = FALSE;
+  bool has_npgc = FALSE;
+  char *type;
   int i;
 
   if (dumpfile == 0) return;
@@ -588,6 +635,12 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
   fprintf( dumpfile, "(" );
 
   /* Print overall memory and GC information */
+  switch (ms->lastcollection_type) {
+    case STATS_COLLECT : type = "collect"; break;
+    case STATS_PROMOTE : type = "promote"; break;
+    case STATS_FULL :    type = "full"; break;
+    default : panic_abort( "dump_stats: %d", ms->lastcollection_type);
+  }
   fprintf( dumpfile, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %s ",
 	   nativeuint( ms->wallocated_hi ),
 	   nativeuint( ms->wallocated_lo ),
@@ -598,16 +651,17 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 	   nativeuint( ms->gctime ),
 	   nativeuint( ms->wlive ),
 	   nativeuint( ms->lastcollection_gen ),
-	   (ms->lastcollection_type == STATS_COLLECT 
-	     ? "collect"
-	     : "promote") );
+	   type );
 
 
   /* Print generations information */
 
   fprintf( dumpfile, "(" );
-  for ( i=0 ; i < generations ; i++ )
+  for ( i=0 ; i < generations ; i++ ) {
     dump_gen_stats( dumpfile, &ms->gen_stat[i], stats[i].live );
+    has_dofgc = has_dofgc || stats[i].dof_generation;
+    has_npgc = has_npgc || stats[i].np_young;
+  }
   fprintf( dumpfile, ") " );
 
 
@@ -650,10 +704,28 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 	   nativeuint( ms->swb.total_assignments ) );
 #endif
 
-  /* FIXME: should depend on the presence or absence of the remset */
-  fprintf( dumpfile, "(np-remset . " );
-  dump_remset_stats( dumpfile, &ms->np_remset );
-  fprintf( dumpfile, ")" );
+  if (has_dofgc)
+    fprintf( dumpfile,
+	     "(dof . (%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu))",
+	     nativeuint( ms->dof.promotions ),
+	     nativeuint( ms->dof.collections ),
+	     nativeuint( ms->dof.resets ),
+	     nativeuint( ms->dof.repeats ),
+	     nativeuint( ms->dof.full_collections ),
+	     nativeuint( ms->dof.bytes_promoted_hi ),
+	     nativeuint( ms->dof.bytes_promoted_lo ),
+	     nativeuint( ms->dof.objs_marked_hi ),
+	     nativeuint( ms->dof.objs_marked_lo ),
+	     nativeuint( ms->dof.ptrs_traced_hi ),
+	     nativeuint( ms->dof.ptrs_traced_lo ),
+	     nativeuint( ms->dof.entries_removed_hi ),
+	     nativeuint( ms->dof.entries_removed_lo ) );
+	   
+  if (has_npgc) {
+    fprintf( dumpfile, "(np-remset . " );
+    dump_remset_stats( dumpfile, &ms->np_remset );
+    fprintf( dumpfile, ")" );
+  }
 
   fprintf( dumpfile, ")\n" );
 }
@@ -677,23 +749,27 @@ dump_gen_stats( FILE *dumpfile, gen_stat_t *gs, word live )
 static void
 dump_remset_stats( FILE *dumpfile, rem_stat_t *rs )
 {
-  fprintf( dumpfile, "(%lu %lu %lu %lu ",
-	  0,			/* FIXME */
-	  0,			/* FIXME */
-	  0,			/* FIXME */
-	  0			/* FIXME */
-	  );
-  fprintf( dumpfile, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu) ",
-	  nativeuint( rs->hrecorded_hi ),
-	  nativeuint( rs->hrecorded_lo ),
-	  nativeuint( rs->hremoved_hi ),
-	  nativeuint( rs->hremoved_lo ),
-	  nativeuint( rs->hscanned_hi ),
-	  nativeuint( rs->hscanned_lo ),
-	  nativeuint( rs->wscanned_hi ),
-	  nativeuint( rs->wscanned_lo ),
-	  nativeuint( rs->ssbrecorded_hi ),
-	  nativeuint( rs->ssbrecorded_lo ) );
+  fprintf( dumpfile, "(%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu "
+	             "%lu %lu %lu %lu %lu %lu) ",
+	   nativeuint( rs->pallocated ),
+	   nativeuint( rs->pused ),
+	   nativeuint( rs->plive ),
+	   nativeuint( rs->hallocated ),
+	   nativeuint( rs->hrecorded_hi ),
+	   nativeuint( rs->hrecorded_lo ),
+	   nativeuint( rs->hremoved_hi ),
+	   nativeuint( rs->hremoved_lo ),
+	   nativeuint( rs->hscanned_hi ),
+	   nativeuint( rs->hscanned_lo ),
+	   nativeuint( rs->wscanned_hi ),
+	   nativeuint( rs->wscanned_lo ),
+	   nativeuint( rs->ssbrecorded_hi ),
+	   nativeuint( rs->ssbrecorded_lo ),
+	   nativeuint( rs->cleared ),
+	   nativeuint( rs->scanned ),
+	   nativeuint( rs->compacted ),
+	   nativeuint( rs->max_size ),
+	   nativeuint( rs->identity ));
 }
 
 
@@ -703,72 +779,89 @@ dump_remset_stats( FILE *dumpfile, rem_stat_t *rs )
  * are just updated.  All stats are kept as fixnums.
  */
 
+static void do_remset( rem_stat_t *acc, remset_stats_t *in )
+{
+  assert( acc->identity == fixnum( in->identity ) );
+
+  add( &acc->hrecorded_hi, &acc->hrecorded_lo, fixnum( in->hash_recorded ));
+  add( &acc->hscanned_hi, &acc->hscanned_lo, fixnum( in->hash_scanned ));
+  add( &acc->hremoved_hi, &acc->hremoved_lo, fixnum( in->hash_removed ));
+  add( &acc->ssbrecorded_hi, &acc->ssbrecorded_lo, fixnum( in->ssb_recorded ));
+  add( &acc->wscanned_hi, &acc->wscanned_lo, fixnum( in->words_scanned ));
+  acc->cleared += fixnum( in->cleared );
+  acc->scanned += fixnum( in->scanned );
+  acc->compacted += fixnum( in->compacted );
+  acc->hallocated = fixnum( in->hash_allocated );
+  acc->pallocated = fixnum( in->pool_allocated );
+  acc->pused = fixnum( in->pool_used );
+  acc->plive = fixnum( in->pool_live );
+  acc->max_size = max( acc->max_size, acc->hallocated + acc->pallocated );
+}
+
+/* We do remembered sets and generations by remset identity, which is
+   the right thing except that in some collectors there can be more than
+   one remembered set per generation.  Fix it when it becomes an issue
+   by decoupling generations and remsets.
+   */
+static int find_slot( sys_stat_t *ms, int identity )
+{
+  int i;
+
+  for ( i=0 ; i < generations ; i++ ) {
+    if (ms->rem_stat[i].identity == fixnum(identity ))
+      break;
+    if (ms->rem_stat[i].identity == -1) {
+      ms->rem_stat[i].identity = fixnum(identity);
+      break;
+    }
+  }
+  assert ( i < generations );
+  return i;
+}
+
 static void
 current_statistics( heap_stats_t *stats, sys_stat_t *ms )
 {
-  int i;
+  int i, j;
   word bytes_live = 0;
-  word ssb_recorded = 0;
-  word hash_recorded = 0;
-  word hash_scanned = 0;
   word frames_flushed = 0;
   word frames_restored = 0;
   word bytes_flushed = 0;
   word stacks_created = 0;
 
-  for ( i=0 ; i < generations ; i++ ) {
-    gc->stats( gc, i, &stats[i] );
-    bytes_live += stats[i].live;
-    ssb_recorded += stats[i].remset_data.ssb_recorded;
-    hash_recorded += stats[i].remset_data.hash_recorded;
-    hash_scanned += stats[i].remset_data.hash_scanned;
-    frames_flushed += stats[i].frames_flushed;
-    bytes_flushed += stats[i].bytes_flushed;
-    stacks_created += stats[i].stacks_created;
-    frames_restored += stats[i].frames_restored;
-    add( &ms->rem_stat[i].hrecorded_hi, &ms->rem_stat[i].hrecorded_lo,
-	 fixnum( stats[i].remset_data.hash_recorded ));
-    add( &ms->rem_stat[i].hscanned_hi, &ms->rem_stat[i].hscanned_lo,
-	 fixnum( stats[i].remset_data.hash_scanned ));
-    add( &ms->rem_stat[i].hremoved_hi, &ms->rem_stat[i].hremoved_lo,
-	 fixnum( stats[i].remset_data.hash_removed ));
-    add( &ms->rem_stat[i].ssbrecorded_hi, &ms->rem_stat[i].ssbrecorded_lo,
-	 fixnum( stats[i].remset_data.ssb_recorded ));
-    add( &ms->rem_stat[i].wscanned_hi, &ms->rem_stat[i].wscanned_lo,
-	 fixnum( stats[i].remset_data.words_scanned ));
-    ms->rem_stat[i].cleared += fixnum(0);  /* FIXME */
+  for ( j=0 ; j < generations ; j++ ) {
+    stats[j].remset_data.identity = 0;
+    gc_stats( gc, j, &stats[j] );
+
+    i = find_slot( ms, stats[j].remset_data.identity );
+
+    bytes_live += stats[j].live;
+
+    frames_flushed += stats[j].frames_flushed;
+    bytes_flushed += stats[j].bytes_flushed;
+    stacks_created += stats[j].stacks_created;
+    frames_restored += stats[j].frames_restored;
+
+    do_remset( &ms->rem_stat[i], &stats[j].remset_data );
 
     /* Non-predictive collector */
-    ms->gen_stat[i].np_young = fixnum(stats[i].np_young);
-    ms->gen_stat[i].np_old = fixnum(stats[i].np_old);
-    ms->gen_stat[i].np_j = fixnum(stats[i].np_j);
-    ms->gen_stat[i].np_k = fixnum(stats[i].np_k);
+    ms->gen_stat[i].np_young = fixnum(stats[j].np_young);
+    ms->gen_stat[i].np_old = fixnum(stats[j].np_old);
+    ms->gen_stat[i].np_j = fixnum(stats[j].np_j);
+    ms->gen_stat[i].np_k = fixnum(stats[j].np_k);
 
     /* Policy & allocation */
-    ms->gen_stat[i].target = fixnum(stats[i].target/sizeof(word));
-    ms->gen_stat[i].alloc = fixnum((stats[i].semispace1+stats[i].semispace2)/
+    ms->gen_stat[i].target = fixnum(stats[j].target/sizeof(word));
+    ms->gen_stat[i].alloc = fixnum((stats[j].semispace1+stats[i].semispace2)/
 				   sizeof(word));
 
-    if (stats[i].np_young) {  /* Entries valid exactly when np_young==1 */
-      add( &ms->np_remset.hrecorded_hi, &ms->np_remset.hrecorded_lo,
-	  fixnum( stats[i].np_remset_data.hash_recorded ));
-      add( &ms->np_remset.hscanned_hi, &ms->np_remset.hscanned_lo,
-	  fixnum( stats[i].np_remset_data.hash_scanned ));
-      add( &ms->np_remset.hremoved_hi, &ms->np_remset.hremoved_lo,
-	  fixnum( stats[i].np_remset_data.hash_removed ));
-      add( &ms->np_remset.ssbrecorded_hi, &ms->np_remset.ssbrecorded_lo,
-	  fixnum( stats[i].np_remset_data.ssb_recorded ));
-      add( &ms->np_remset.wscanned_hi, &ms->np_remset.wscanned_lo,
-	  fixnum( stats[i].np_remset_data.words_scanned ));
-      ms->np_remset.cleared += fixnum(0);  /* FIXME */
-    }
+    if (stats[j].np_young)
+      /* Entries valid exactly when np_young==1 */
+      do_remset( &ms->np_remset, &stats[j].np_remset_data );
   }
 
   /* Overall statistics */
   ms->wlive = fixnum(bytes_live / sizeof(word));
-  add( &ms->ssbrecorded_hi, &ms->ssbrecorded_lo, fixnum( ssb_recorded ) );
-  add( &ms->hrecorded_hi, &ms->hrecorded_lo, fixnum( hash_recorded ) );
-  add( &ms->hscanned_hi, &ms->hscanned_lo, fixnum( hash_scanned ) );
   add( &ms->fflushed_hi, &ms->fflushed_lo, fixnum( frames_flushed ) );
   add( &ms->wflushed_hi, &ms->wflushed_lo, fixnum(bytes_flushed/sizeof(word)));
   add( &ms->frestored_hi, &ms->frestored_lo, fixnum( frames_restored ) );
@@ -806,16 +899,12 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
 }
 
 
-static heap_stats_t *
-make_heapstats( heap_stats_t *base )
+static heap_stats_t *make_heapstats( void )
 {
   heap_stats_t *p;
 
-  p = (heap_stats_t*)must_malloc( generations*sizeof(heap_stats_t) );
-  if (base == 0)
-    memset( p, 0, sizeof( heap_stats_t )*generations );
-  else
-    memcpy( p, base, sizeof( heap_stats_t )*generations );
+  p = must_malloc( generations*sizeof(heap_stats_t) );
+  memset( p, 0, sizeof( heap_stats_t )*generations );
   return p;
 }
 
