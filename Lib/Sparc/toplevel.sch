@@ -335,6 +335,8 @@
     (environment-set! r4rs 'display display)
     (environment-set! r4rs 'newline newline)
     (environment-set! r4rs 'write-char write-char)
+    (environment-set! r4rs 'transcript-on transcript-on)
+    (environment-set! r4rs 'transcript-off transcript-off)
     ;; not in R4RS:
     (environment-set! larc 'open-input-string open-input-string)
     (environment-set! larc 'open-output-string open-output-string)
