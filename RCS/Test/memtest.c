@@ -3,7 +3,7 @@
  * Derived from garbage collector test program. 
  * EXEC and DEF are no longer supported.
  *
- * $Id: memtest.c,v 1.1 91/06/27 16:34:47 lth Exp Locker: lth $
+ * $Id: memtest.c,v 1.2 91/06/30 00:04:16 lth Exp Locker: lth $
  *
  * Usage:
  *   memtest <inheap> <outheap>
@@ -29,7 +29,11 @@
  *           | "POINTERS"
  *           | "ALLOC" <hex>
  *           | "ALLOCI" <hex> <hex>
- *           | "FRAME" <hex> ...
+ *           | "SETCAR" <word> <word>
+ *           | "SETCDR" <word> <word>
+ *           | "VECTORSET" <word> <hex> <word>
+ *           | "SUM" ??
+ *           | "CONSUP" ??
  *           | <word>
  *           
  * word    --> ["E","T","C"]<hex>
@@ -47,11 +51,17 @@
 #include "main.h"
 #include "macros.h"
 
+#define mkeptr( x )  ((word) (x) + globals[ E_BASE_OFFSET ] )
+#define mktptr( x )  ((word) (x) + globals[ T_BASE_OFFSET ] )
+
 word globals[ GLOBALS_TABLE_SIZE ];
 void (*millicode[ MILLICODE_TABLE_SIZE ])();
 
 word *roots = &globals[ FIRST_ROOT ];
 word rootcnt = 0;
+
+extern void alloc(), alloci(), setcar(), setcdr(), vectorset(), gcstart();
+extern void stkoflow(), stkuflow(), exception();
 
 /* Our files */
 FILE *ifp, *ofp;
@@ -68,8 +78,6 @@ main( argc, argv )
 int argc;
 char **argv;
 {
-  extern void alloc(), alloci(), setcar(), setcdr(), vectorset(), gcstart(),
-              stkoflow(), stkuflow(), exception();
   char s[ 200 ];
   int i;
   int (*f)();
@@ -94,7 +102,7 @@ char **argv;
      compensate for the compensation done by the return instruction. */
   millicode[ M_STKUFLOW ] = (void (*)())((word)stkuflow - 8);
 
-  if (!init_mem( 1024*1024, 1024*1024, 1024*1024, 1024*8, 1024*512 ))
+  if (!init_mem( 1024*1024, 6*1024*1024, 1024*1024, 1024*64, 1024*512 ))
     panic( "Unable to initialize!" );
 
   printf( "Init done; running...\n" );
@@ -118,9 +126,10 @@ char **argv;
 }
 
 
-void exception()
+void C_exception( n )
+int n;
 {
-  fprintf( stderr, "Exception handler was called! Panicking...\n" );
+  fprintf( stderr, "Exception handler was called (%d)! Panicking...\n", n );
   exit( 1 );
 }
 
@@ -133,7 +142,7 @@ char *s;
   s += strlen( "ALLOC" );
   if (sscanf( s, "%x", &wds ) != 1)
     panic( "Illegal ALLOC" );
-  test_alloc_2( wds );
+  millicall( alloc, wds, 0, 0 );
 }
 
 
@@ -145,7 +154,7 @@ char *s;
   s += strlen( "ALLOCI" );
   if (sscanf( s, "%x %x", &wds, &init ) != 2)
     panic( "Illegal ALLOCI" );
-  test_alloci_2( wds, init );
+  millicall( alloci, wds, init, 0 );
 }
 
 
@@ -159,7 +168,7 @@ char *s;
     panic( "Illegal NALLOCI" );
 
   while (count--)
-    test_alloci_2( wds, init );
+    millicall( alloci, wds, init, 0 );
 }
 
 test_sum( s )
@@ -172,6 +181,87 @@ char *s;
     panic( "Illegal SUM" );
   fprintf( ofp, "; sum value: %x\n", test_sum_2( x ) );
 }
+
+test_consup( s )
+char *s;
+{
+  unsigned x;
+  int i;
+
+  s += strlen( "CONSUP" );
+  if (sscanf( s, "%x", &x ) != 1)
+    panic( "Illegal CONSUP" );
+  fprintf( ofp, "%d %d\n", x/4, listlength( test_consup_2( x ) ) );
+  fprintf( ofp, "%lx %d\n", globals[ RESULT_OFFSET ], listlength( globals[ RESULT_OFFSET ] ) );
+  pointers();
+  collect( EPHEMERAL_COLLECTION );
+  pointers();
+  fprintf( ofp, "%lx %d\n", globals[ RESULT_OFFSET ], listlength( globals[ RESULT_OFFSET ] ) );
+  for ( i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    fprintf( ofp, "%lx\n", globals[ i ] );
+}
+
+
+/* SETCAR <word> <word> */
+/* The scanf from hell. */
+test_setcar( s )
+char *s;
+{
+  word ww1, ww2, w1, w2;
+  char w1s[2], w2s[2];
+
+  s += strlen( "SETCAR" );
+  if (sscanf( s, "%*[ ]%[ETC] %lx%*[ ]%[ETC] %lx", w1s, &w1, w2s, &w2 ) != 4)
+    panic( "setcar: kaboom (1)");
+
+  ww1 = mkwrd( *w1s, w1 );
+  ww2 = mkwrd( *w2s, w2 );
+  if (!isptr( ww1 ) || tagof( ww1 ) != PAIR_TAG)
+    panic( "setcar: kaboom (2)" );
+
+  millicall( setcar, ww1, ww2, 0 );
+}
+
+
+/* SETCDR <word> <word> */
+test_setcdr( s )
+char *s;
+{
+  word ww1, ww2, w1, w2;
+  char w1s[2], w2s[2];
+
+  s += strlen( "SETCDR" );
+  if (sscanf( s, "%*[ ]%[ETC] %lx%*[ ]%[ETC] %lx", w1s, &w1, w2s, &w2 ) != 4)
+    panic( "setcdr: kaboom (1)");
+
+  ww1 = mkwrd( *w1s, w1 );
+  ww2 = mkwrd( *w2s, w2 );
+  if (!isptr( ww1 ) || tagof( ww1 ) != PAIR_TAG)
+    panic( "setcdr: kaboom (2)" );
+
+  millicall( setcdr, ww1, ww2, 0 );
+}
+
+
+/* VECTORSET <word> <int> <word> */
+test_vectorset( s )
+char *s;
+{
+  word ww1, ww2, w1, w2, idx;
+  char w1s[2], w2s[2];
+
+  s += strlen( "VECTORSET" );
+  if (sscanf( s, "%*[ ]%[ETC] %lx %lx%*[ ]%[ETC] %lx", w1s, &w1, &idx, w2s, &w2 ) != 5)
+    panic( "vectorset: kaboom (1)");
+
+  ww1 = mkwrd( *w1s, w1 );
+  ww2 = mkwrd( *w2s, w2 );
+  if (!isptr( ww1 ) || tagof( ww1 ) != VEC_TAG)
+    panic( "vectorset: kaboom (2)" );
+
+  millicall( vectorset, ww1, idx, ww2 );
+}
+
 
 outl( s )
 char *s;
@@ -247,12 +337,20 @@ char *s;
 
   if (sscanf( s+1, "%lx", &tmp ) != 1)
     panic( "Unable to get word" );
-  if (*s == 'E')
-    return tmp + (word) globals[ E_BASE_OFFSET ];
-  else if (*s == 'T')
-    return tmp + (word) globals[ T_BASE_OFFSET ];
-  else if (*s == 'C')
-    return tmp;
+  return mkwrd( *s, tmp );
+}
+
+
+mkwrd( s, w )
+char s;
+word w;
+{
+  if (s == 'E')
+    return mkeptr( w );
+  else if (s == 'T')
+    return mktptr( w );
+  else if (s == 'C')
+    return w;
   else
     panic( "Illegal word spec" );
 }
@@ -284,7 +382,7 @@ r_dump()
   int i;
 
   fprintf( ofp, "; roots\n" );
-  for (i = FIRST_ROOT ; i < FIRST_ROOT + rootcnt ; i++ )
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     dumpword( globals[ i ] );
 }
 
@@ -338,7 +436,7 @@ y_dump()
 
 pointers()
 {
-#define outit( s, x )  fprintf( ofp, "; %-20s %08lX\n", s, (word) x )
+#define outit( s, x )  fprintf( stdout, "; %-20s %08lX\n", s, (word) x )
   outit( "e_base", globals[ E_BASE_OFFSET ] );
   outit( "e_top", globals[ E_TOP_OFFSET ] );
   outit( "e_limit", globals[ E_LIMIT_OFFSET ] );
@@ -402,6 +500,7 @@ word *base, *top;
 panic( s )
 char *s;
 {
+  pointers();
   fprintf( stderr, "%s\n", s );
   exit( 1 );
 }
@@ -411,7 +510,8 @@ dumpword( x )
 word x;
 {
   word *p;
-  
+  FILE *ofp = stdout;
+
   if (isptr( x )) {
     p = (word *) ptrof( x );
     if (p >= (word *) globals[ E_BASE_OFFSET ] && p <= (word *) globals[ E_MAX_OFFSET ] )
@@ -451,6 +551,10 @@ struct {
 	     { "S-DUMP", s_dump },
 	     { "POINTERS", pointers },
 	     { "SUM", test_sum },
+	     { "CONSUP", test_consup },
+	     { "SETCAR", test_setcar },
+	     { "SETCDR", test_setcdr },
+	     { "VECTORSET", test_vectorset },
 	     { "STATS", stats }};
 
 int (*keyword( s ))()
@@ -511,3 +615,71 @@ char *s;
   strcpy( p, s );
   return p;
 }
+
+
+/* Dummy entry point */
+testtest()
+{
+  word tmp, chainlength();
+
+  tmp = 0;
+  printf( "%lx\n", chainlength( tmp ) );
+}
+
+/* Test code to be called from debugger. */
+
+word chainlength( p )
+word p;
+{
+  word *q;
+  unsigned tag;
+  int l;
+
+  l = 0;
+  while (tagof( p ) == VEC_TAG) {
+    q = ptrof( p );
+    if ((*q & 0xFF) != 0xa6) {
+      printf( "non-vector at address p = %lx\n", p );
+      return l;
+    }
+    l++;
+    p = *(q+1);
+  }
+  if (p != FALSE_CONST)
+    printf( "abnormal terminating value: %lx\n", p );
+  return l;
+}
+
+listlength( p )
+word p;
+{
+  int l, space = -1;
+  word *q;
+
+  l = 0;
+  while (p != NIL_CONST) {
+    l++;
+    if (tagof( p ) != PAIR_TAG) {
+      printf( "non-list: %lx\n", p );
+      return l;
+    }
+    q = ptrof( p );
+    if (p >= globals[ E_BASE_OFFSET ] && p <= globals[ E_MAX_OFFSET ]) {
+      if (space != 0)
+	printf( "going into ephemeral space; l = %d/\n", l );
+      space = 0;
+    }
+    else if (p >= globals[ T_BASE_OFFSET ] && p <= globals[ T_MAX_OFFSET ]) {
+      if (space != 2)
+	printf( "going into tenured space; l = %d\n", l );
+      space = 2;
+    }
+    else {
+      printf( "going into hyperspace; l = %d, p = %lx\n", l, p );
+      space = -1;
+    }
+    p = *(q + 1);
+  }
+  return l;
+}
+  
