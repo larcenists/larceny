@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 17 December 1998
 
 ; Implements the following abstract data types.
 ;
@@ -609,13 +609,18 @@
         (let ((x (assq id (car ribs))))
           (if x
               (case (cadr x)
-                ((lexical) (cons id
-                                 (cons (cadr x)
-                                       (cons m (cddr x)))))
-                ((procedure) (cons id
-                                   (cons (cadr x)
-                                         (cons m (cddr x)))))
-                ((integrable) x)
+                ((lexical)
+                 (cons id
+                       (cons (cadr x)
+                             (cons m (cddr x)))))
+                ((procedure)
+                 (cons id
+                       (cons (cadr x)
+                             (cons m (cddr x)))))
+                ((integrable)
+                 (if (integrate-usual-procedures)
+                     x
+                     (loop '() m)))
                 (else ???))
               (loop (cdr ribs) (+ m 1))))))
   (loop env 0))
