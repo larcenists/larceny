@@ -57,8 +57,9 @@ struct bdw_info {
 };
 
 struct dof_info {               /* Deferred-oldest-first intermediate area */
-  int size_bytes;               /* Size of area in bytes, > 0 */
-  int steps;			/* Number of steps, > 0 */
+  int generations;		/* Number of generations, > 0 */
+  int area_size;		/* Size of area in bytes, > 0 */
+  int full_frequency;		/* Frequency of full collections, >= 0 */
   double load_factor;		/* Inverse load factor */
   int dynamic_min;		/* 0 or lower bound on collected area */
   int dynamic_max;		/* 0 or upper bound on collected area */
