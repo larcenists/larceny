@@ -66,19 +66,25 @@
                     (cdr (assq 'set! standard-syntactic-environment)))
               (syntactic-copy standard-syntactic-environment))))
 
-; Most macros are stored here.
-
-(define usual-syntactic-environment
-  (make-basic-syntactic-environment))
-
-; Support for Larceny.  Macros are packaged up as procedures chiefly
-; because they are circular structures.
-
 (define (make-minimal-syntactic-environment)
   (list (cons lambda0
               (cdr (assq 'lambda standard-syntactic-environment)))
         (cons set!0
               (cdr (assq 'set! standard-syntactic-environment)))))
+
+; Most macros are stored here.
+
+(define usual-syntactic-environment
+  (make-basic-syntactic-environment))
+
+(define (the-usual-syntactic-environment . rest)
+  (if (and (not (null? rest))
+           (eq? (car rest) 'copy))
+      (syntactic-copy usual-syntactic-environment)
+      usual-syntactic-environment))
+
+; Support for Larceny.  Macros are packaged up as procedures chiefly
+; because they are circular structures.
 
 (define (syntactic-environment-names syntaxenv)
   (let loop ((e syntaxenv) (n '()))
@@ -98,7 +104,7 @@
         (lambda (key)
           (if (eq? key *syntactic-env-key*)
               x
-              (error "Wizards only..."))))))
+              (error "Wrong key for macro.  Are you mixing macro expanders?"))))))
           
 (define (syntactic-environment-set! syntaxenv id macro)
   (parameterize ((global-syntactic-environment syntaxenv))
@@ -117,13 +123,11 @@
 ; for lambda0.  That entry is used as a header by destructive
 ; operations.
 
-(define *global-syntactic-environment*
-  #f)
+(define global-syntactic-environment
+  (make-parameter "global-syntactic-environment" #f))
 
-(define (global-syntactic-environment . rest)
-  (if (not (null? rest))
-      (set! *global-syntactic-environment* (car rest)))
-  *global-syntactic-environment*)
+(define global-inline-environment
+  (make-parameter "global-inline-environment" '()))
 
 (define (global-syntactic-environment-set! env)
   (set-cdr! (global-syntactic-environment) env)
@@ -158,7 +162,10 @@
   (let ((entry (assq id env)))
     (if entry
         (cdr entry)
-        (make-identifier-denotation id))))
+        (let ((inline-entry (assq id (global-inline-environment))))
+          (if inline-entry
+              (cdr inline-entry)
+              (make-identifier-denotation id))))))
 
 (define (syntactic-assign! env id denotation)
   (let ((entry (assq id env)))
