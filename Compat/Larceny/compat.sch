@@ -14,6 +14,17 @@
   (if (not flag)
       (apply error "Runtime check exception: " exn args)))
 
+; Temporary until all versions of Larceny have migrated to the new
+; environment system.
+
+(call-with-error-handler
+ (lambda args
+   (set! environment-syntax-environment
+         (lambda (env)
+           usual-syntactic-environment)))
+ (lambda ()
+   environment-syntax-environment))
+
 ; The compatibility library loads Auxlib if compat:initialize is called
 ; without arguments.  Compat:load will load fasl files when appropriate.
 
@@ -23,7 +34,8 @@
             (auxlib (nbuild-parameter 'auxiliary)))
 	(compat:load (string-append dir "compat2.sch"))
 	(compat:load (string-append auxlib "list.sch"))
-	(compat:load (string-append auxlib "pp.sch")))))
+	;(compat:load (string-append auxlib "pp.sch"))
+        )))
 
 (define (with-optimization level thunk) 
   (thunk))
