@@ -4,6 +4,8 @@
 ;
 ; Interface to Unix socket system calls 
 ; This works for SunOS 5, don't know (yet) about SunOS 4.
+;
+; You must first load Experimental/unix.sch (for the system calls).
 
 ;;; Some sample code that uses the socket stuff.
 
@@ -127,10 +129,16 @@
 
 ;;; Libraries.
 
-(foreign-file "/lib/libsocket.so")
-(foreign-file "/lib/libxnet.so")
 ; I haven't figured out how to make this work (yet).
 ;(foreign-file "./Experimental/socket-support.so")
+
+; struct hostent *gethostbyname( const char *host )
+; struct servent *getservbyname( const char *service, const char *proto )
+
+(define unix/gethostbyname
+  (foreign-procedure "gethostbyname" '(string) 'unsigned))
+(define unix/getservbyname
+  (foreign-procedure "getservbyname" '(string string) 'unsigned))
 
 ;;; Constants
 
@@ -169,41 +177,6 @@
 
 (define unix/IPPROTO_TCP 6)		; TCP
 (define unix/IPPROTO_UDP 17)		; UDP
-
-
-;;; System calls and library functions
-;
-; int socket( int domain, int type, int protocol )
-; int accept( int s, struct sockaddr *addr, int *addrlen )
-; int connect( int s, struct sockaddr *name, int namelen )
-; int listen( int s, int backlog )
-; int bind( int s, struct sockaddr *name, int namelen )
-; struct hostent *gethostbyname( const char *host )
-; struct servent *getservbyname( const char *service, const char *proto )
-; int setsockopt( int s, int level, int option_name, void *value, unsigned len)
-;
-; int read( int fd, void *buf, int n )
-; int write( int fd, void *buf, int n )
-; int close( int fd )
-; void perror( const char * )
-
-(define unix/socket (foreign-procedure "socket" '(int int int) 'int))
-(define unix/accept (foreign-procedure "accept" '(int boxed boxed) 'int))
-(define unix/connect (foreign-procedure "connect" '(int boxed int) 'int))
-(define unix/listen (foreign-procedure "listen" '(int int) 'int))
-(define unix/bind (foreign-procedure "bind" '(int boxed int) 'int))
-(define unix/setsockopt
-  (foreign-procedure "setsockopt" '(int int int boxed unsigned) 'int))
-(define unix/gethostbyname
-  (foreign-procedure "gethostbyname" '(string) 'unsigned))
-(define unix/getservbyname
-  (foreign-procedure "getservbyname" '(string string) 'unsigned))
-
-(define unix/read (foreign-procedure "read" '(int boxed int) 'int))
-(define unix/write (foreign-procedure "write" '(int boxed int) 'int))
-(define unix/close (foreign-procedure "close" '(int) 'int))
-(define unix/perror (foreign-procedure "perror" '(string) 'void))
-
 
 ;;; Socket support code
 
