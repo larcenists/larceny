@@ -318,6 +318,27 @@ Program received signal SIGSEGV, Segmentation fault.
 
        (define car (lambda (x) (car x)))
 
+098 v1.0a1 (981221 / wdc)  Retired 2000-09-28 by lth
+    Priority: medium.
+    Category: INTERPRETER / correctness
+
+    Define-inline works in larceny.heap but not in r5rs.heap.
+
+    Retired because DEFINE-INLINE is no longer available.
+
+099 v1.0a1 (990104 / lth)  Retired 2000-09-28 by lthy
+    Priority: medium.
+    Category: INTERPRETER / correctness
+    See also: 084, 085, 153
+
+    define-inline is available in scheme-report-environment and 
+    null-environment but should not be:
+
+	> (eval '(define-inline foo (syntax-rules () ((foo x) x))) 
+                (scheme-report-environment 5))
+
+    Retired because DEFINE-INLINE is no longer available.
+
 123 v1.0a1 (990421 / lth)  Retired 990818 by lth
     Priority: low
     Category: TWOBIT / performance
@@ -332,5 +353,52 @@ Program received signal SIGSEGV, Segmentation fault.
 
     Reason for retiring: had been fixed by other compiler fixes, but
     unknown which.
+
+153 v0.48 (2000-04-03 / dougo)  Retired 2000-09-28 by lth
+    Priority: medium
+    Category: TWOBIT / correctness
+    See also: 084, 085, 099
+
+    >What's up with this?
+    >
+    >> (eval 'car (null-environment 5))
+    >Error: Undefined global variable "car".
+    >Type (debug) to enter debugger.
+    >> (eval '(car '(1 2)) (null-environment 5))
+    >1
+    >
+    >What exactly is defined in the null environment?  I thought it was
+    >only supposed to have syntactic keywords?
+    
+    Yes, but there are bugs... CAR is a primitive, but LIST-REF is not, so
+    let's try LIST-REF:
+    
+      > (eval '(list-ref '(1 2) 0) (null-environment 5))
+    
+      Error: Undefined global variable "list-ref".
+      Entering debugger; type "?" for help.
+    
+    The problem is that the compiler open-codes CAR so an environment
+    reference is not made.  The bug is that the environment does not have a
+    distinguished primitive table, in the same way that it does not have a
+    distinguished macro environment (known bug).
+
+    Comment 2000-09-21 / lth
+
+    This is somewhat deep.  The "right way" here would might be
+    to restrict the primitives for a compilation based on which top-level
+    environment is in use.  Currently we don't do that, and it seems
+    really complicated to do it, maybe even unnecessary.  The right
+    way to do the above is
+
+	(parameterize ((integrate-procedures 'none))
+          (eval '(car '(1 2)) (null-environment 5)))
+
+    which restricts both the top-level bindings available as well as
+    the primitives available.  Crufty, sure, but would it really be
+    better if this were an implicit fact of passing null-environment
+    to EVAL?  Not sure...
+
+    Retired because I decided that the above behavior is correct.
 
 ; eof
