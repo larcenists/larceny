@@ -199,7 +199,9 @@ int unbox_int( word w );
 double rint( double f );
 double aint( double f );
 int strncasecmp( const char *s1, const char *s2, size_t n );
+#if !defined(DEBIAN_SPARC)
 char *strdup( const char * );
+#endif
 
 /* Target-specific */
 /* NOTE!  For the time being, the SPARC version uses a global

@@ -53,6 +53,7 @@
 				   if that compromises backward compatibility.
 				   Some RISC systems implement HW division
 				   only in later architecture versions. */
+#undef SPARCV9                  /* Use v9 instructions */
 
 /* 
  * Operating systems. 
@@ -258,6 +259,19 @@
 #define GC_HIRES_TIMERS           1
 #define GC_EVENT_COUNTERS         0
 #define GCLIB_LARGE_TABLE         0
+
+/* Sun/SPARC Debian Linux; native; gcc
+#define SPARC                     1
+#define LINUX                     1
+#define DEBIAN_SPARC              1
+#define BITS_32                   1
+#define BIG_ENDIAN                1
+#define HAVE_RINT                 1
+#define HAVE_STRDUP               1
+#define HAVE_STRNCASECMP          1
+#define STACK_UNDERFLOW_COUNTING  1
+#define XOPEN_SIGNALS             1
+*/
 
 /* MacOS; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1

@@ -103,6 +103,9 @@ void setup_signal_handlers( void )
 #if defined(BSD_SIGNALS)
   signal( SIGINT, inthandler );	/* FIXME: Should use sigvec */
   signal( SIGFPE, fpehandler );	/* FIXME: Should use sigvec */
+# if defined(DEBIAN_SPARC)
+  signal( SIGILL, fpehandler ); /* FIXME: Should use sigvec */
+# endif
 #elif defined(XOPEN_SIGNALS)
   struct sigaction act;
 
@@ -115,6 +118,11 @@ void setup_signal_handlers( void )
 
   act.sa_sigaction = fpehandler;
   sigaction( SIGFPE, &act, (struct sigaction*)0 );
+# if defined(DEBIAN_SPARC)
+  /* Integer division by zero is sometimes(?) signalled as a SIGILL with 
+     si_code=ILL_OPN, so install that here too. */
+  sigaction( SIGILL, &act, (struct sigaction*)0 );
+# endif
 #elif defined(POSIX_SIGNALS)
   struct sigaction act;
 
