@@ -1,19 +1,15 @@
-; Copyright ???
+;;; File   : sort.scm
+;;; Author : Richard A. O'Keefe (based on Prolog code by D.H.D.Warren)
+;;; Updated: 11 June 1991
+;;; Defines: sorted?, merge, merge!, sort, sort!
 ;
 ; $Id$
+;
+; Code originally obtained from Scheme Repository, since hacked.
 ;
 ; Sort and Sort! will sort lists and vectors.  The former returns a new
 ; data structure; the latter sorts the data structure in-place.  A 
 ; mergesort algorithm is used.
-;
-; Based on code written by Richard O'Keefe, available from the Internet
-; Scheme Repository (ftp://ftp.cs.indiana.edu/pub/scheme-repository).
-; Modified by Lars Hansen and Will Clinger.
-;
-; FIXME: 
-;  * It would be prudent to sort vectors in-place using a shell sort
-;    or quicksort, as this can reduce the space consumption considerably.
-;  * It would be reasonable to allow strings and bytevectors to be sorted.
 
 (define sort)
 (define sort!)
