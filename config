@@ -1,7 +1,7 @@
 #!/bin/sh
 rm -f tmp.config
 echo "(load \"Compiler/config.sch\")" >> tmp.config
-echo "(main " >> tmp.config
+echo "(config " >> tmp.config
 for i
 do
 	echo \"$i\" >> tmp.config
