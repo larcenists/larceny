@@ -250,9 +250,9 @@
 
 ; Cells
 
-(define make-cell (lambda (x) (make-cell x)))
-(define cell-ref (lambda (x) (cell-ref x)))
-(define cell-set! (lambda (x y) (cell-set! x y)))
+(define .make-cell (lambda (x) (.make-cell x)))
+(define .cell-ref (lambda (x) (.cell-ref x)))
+(define .cell-set! (lambda (x y) (.cell-set! x y)))
 
 ; I/O system support
 
