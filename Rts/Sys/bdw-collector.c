@@ -99,7 +99,7 @@ create_bdw_gc( gc_param_t *params, int *generations )
   if (params->use_incremental_bdw_collector)
     GC_enable_incremental();
   init_stack( gc );
-  wb_disable_barrier();
+  wb_disable_barrier( params->globals );
 
   return gc;
 }
