@@ -78,7 +78,10 @@
   (load (make-filename "" "Util" "nbuild.sch"))
   ; This var is picked up by Asm/Standard-C/dumpheap-unix.sch
   (set! unix/petit-lib-library-platform 
-	'("/usr/lib/libm.a" "/usr/lib/libdl.a"))
+	(list "/usr/lib/libm.a"))
+  (if (file-exists? "/usr/lib/libdl.a")  ; not for Cygwin, it doesn't
+      (set! unix/petit-lib-library-platform 
+	    (append unix/petit-lib-library-platform (list "/usr/lib/libdl.a"))))
   (unspecified))
 
 (define (remove-runtime-objects)
