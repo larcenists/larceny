@@ -8,6 +8,12 @@
 
 (define host-system 'larceny)
 
+; Temporary?
+
+(define (.check! flag exn . args)
+  (if (not flag)
+      (apply error "Runtime check exception: " exn args)))
+
 ; The compatibility library loads Auxlib if compat:initialize is called
 ; without arguments.  Compat:load will load fasl files when appropriate.
 
