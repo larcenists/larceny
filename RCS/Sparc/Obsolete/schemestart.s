@@ -2,7 +2,7 @@
 ! Sparc version.
 ! Scheme initialization file.
 !
-! $Id$
+! $Id: schemestart.s,v 1.3 91/06/21 15:12:55 lth Exp Locker: lth $
 !
 ! The procedure _schemestart is called from the C-language initialization
 ! code. _schemestart sets up the virtual machine by initializing %GLOBALS
@@ -25,7 +25,7 @@ _schemestart:
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
 
-	ld	[ %GLOBALS+STK_MAX_OFFSET ], %SP
+	ld	[ %GLOBALS+STK_MAX_OFFSET ], %STKP
 	ld	[ %GLOBALS+INITIAL_TIMER_OFFSET ], %TIMER
 
 	! All rootable registers must be initialized
@@ -58,12 +58,12 @@ _schemestart:
 ! had better deal with this.
 
 	set	L1, %TMP0
-	st	%TMP0, [ %SP-12 ]	! return address
+	st	%TMP0, [ %STKP-12 ]	! return address
 	mov	16, %TMP1
-	st	%TMP1, [ %SP-8 ]	! size
-	st	%g0, [ %SP-4 ]		! procedure (dummy!)
-	st	%g0, [ %SP ]		! padding
-	sub	%SP, 16, %SP		! allocate frame
+	st	%TMP1, [ %STKP-8 ]	! size
+	st	%g0, [ %STKP-4 ]	! procedure (dummy!)
+	st	%g0, [ %STKP ]		! padding
+	sub	%STKP, 16, %STKP	! allocate frame
 
 ! Do the call. We simply jump to an application-specific entry procedure
 ! S_ENTRY which must be present in one of the files of the Scheme application.
