@@ -356,7 +356,7 @@ namespace Scheme.RT {
                 
         private static void getenv() {
             // FIXME: #f seems to be right answer... but maybe not
-            Reg.Result = SObject.False;
+            Reg.Result = Factory.False;
         }
 
 		private static void flonum_log() {

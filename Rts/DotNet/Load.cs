@@ -136,7 +136,9 @@ namespace Scheme.RT {
                 return;
             }
             Exn.msg.WriteLine("Executing (go ...)");
-            handleProcedure(go, new SObject[] {makeSymlist(), makeArgv(args)});
+            handleProcedure(go, 
+                            new SObject[] {Factory.stopSymbolInterning(), 
+                                           makeArgv(args)});
         }
 
         public static SObject makeArgv(string[] args) {
@@ -147,14 +149,6 @@ namespace Scheme.RT {
             return Factory.makeVector(argv);
         }
         
-        public static SObject makeSymlist() {
-            SObject syms = SObject.Null;
-            foreach (SObject arg in Reg.internedSymbols.Values) {
-                syms = Factory.makePair(arg, syms);
-            }
-            return syms;
-        }
-
         public static SObject findCode(string module, string ns, int id, int number) {
             CodeVector cv = null;
             // First look in programAssembly
@@ -166,7 +160,7 @@ namespace Scheme.RT {
             cv = findCodeInAssembly(moduleAssembly, ns, number);
             if (cv != null) return cv;
             Exn.internalError("code not found: " + module + " " + ns + " " + number);
-            return SObject.False;
+            return Factory.False;
         }
 
         public static CodeVector findCodeInAssembly(Assembly asm, string ns, int number) {

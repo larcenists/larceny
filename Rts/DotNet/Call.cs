@@ -88,11 +88,26 @@ namespace Scheme.RT {
             Reg.setRegister(4, Factory.wrap(excode));
             call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
         }
+        public static void callExceptionHandler(SObject[] values) {
+            saveContext(false);
+            
+            if (values.Length > Reg.LASTREG) {
+                for (int ri = 1; ri < Reg.LASTREG; ++ri) {
+                    Reg.setRegister(ri, values[ri-1]);
+                }
+                Reg.setRegister(Reg.LASTREG, Factory.arrayToList(values, Reg.LASTREG - 1));
+            } else {
+                for (int ri = 1; ri < values.Length + 1; ++ri) {
+                    Reg.setRegister(ri, values[ri-1]);
+                }
+            }
+            call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), values.Length);
+        }
         public static void callInterruptHandler(int excode) {
             saveContext(true);
-            Reg.setRegister(1, SObject.False);
-            Reg.setRegister(2, SObject.False);
-            Reg.setRegister(3, SObject.False);
+            Reg.setRegister(1, Factory.False);
+            Reg.setRegister(2, Factory.False);
+            Reg.setRegister(3, Factory.False);
             Reg.setRegister(4, Factory.wrap(excode));
             call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
         }
@@ -131,7 +146,7 @@ namespace Scheme.RT {
                     Exn.internalError("millicode support " + index + " not a procedure");
                     return null;
                 }
-            } else if (support == SObject.Undefined) {                
+            } else if (support == Factory.Undefined) {                
                 Exn.internalError("millicode-support is not defined");
                 return null;
             } else {
@@ -197,7 +212,7 @@ namespace Scheme.RT {
             for (int i = 0; i < Reg.NREGS; ++i) {
                 Reg.setRegister(i, frame.getSlot(i+1));
             }
-            if (frame.getSlot(Reg.LASTREG + 3) == SObject.True) {
+            if (frame.getSlot(Reg.LASTREG + 3) == Factory.True) {
                 Reg.Result = frame.getSlot(Reg.LASTREG + 2);
             }
             Procedure p0 = (Procedure) Reg.getRegister(0);

@@ -117,7 +117,7 @@
   (il:call '() iltype-schemechar il-schemechar "makeChar" 
            (list iltype-int32)))
 (define (rep:make-interned-symbol)
-  (il:call '() iltype-svl il-schemefactory "makeSymbol" 
+  (il:call '() iltype-svl il-schemefactory "internSymbol" 
            (list iltype-string)))
 (define (rep:make-pair)
   (il:call '() iltype-schemepair il-schemefactory "makePair"

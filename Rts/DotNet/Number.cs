@@ -133,50 +133,5 @@ public class Number {
     public static SObject compImagPart(SByteVL n) {
         return Factory.makeFlonum(n.unsafeAsDouble(1));
     }
-
-    // ======================
-    //   String Hash
-    // ======================
-    
-    // Duplicates string-hash in Lib/Common/string.sch
-    public static int stringHash(string str) {
-        /*
-        (define (string-hash string)
-          (define (loop s i h)
-            (if (< i 0)
-                h
-                (loop s
-                      (- i 1)
-                      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
-          (let ((n (string-length string)))
-            (loop string (- n 1) n)))
-        */
-        int hash = str.Length;
-        for (int i = str.Length - 1; i >= 0; --i) {
-            hash = 65535 & (str[i] + hash + hash + hash);
-        }
-        return hash;
-    }
-    
-    // ============
-    //   Lists
-    // ============
-    public static SObject copyList(SObject list) {
-        if (list == SObject.Null) {
-            return list;
-        } else {
-            SPair copyhead = new SPair(null, null);
-            SPair copyIntoCdr = copyhead;
-            while (list is SPair) {
-                SPair p = (SPair) list;
-                SPair newpair = new SPair(p.first, null);
-                copyIntoCdr.rest = newpair;
-                copyIntoCdr = newpair;
-                list = p.rest;
-            }
-            copyIntoCdr.rest = list;
-            return copyhead.rest;
-        }
-    }
 }
 }

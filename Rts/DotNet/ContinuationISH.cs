@@ -38,7 +38,7 @@ namespace Scheme.RT {
         public static readonly int MAX_RESTORE_FRAMES = 25;             
 
         // Heap frames : described later in file
-        public static SObject heap = SObject.False;
+        public static SObject heap = Factory.False;
 
         // Offsets within HEAP FRAME of return address, dynamic link, return procedure, and first slot (same)
         // Adjusted down by one from C version.
@@ -80,7 +80,7 @@ namespace Scheme.RT {
         // resetCache
         // Clear out any existing continuation and install the initial one.
         public static void reset() {
-            heap = SObject.False;
+            heap = Factory.False;
             cont = ROOT;
             cont.prepare(0);
             cont.slot0 = InitialContinuation.singletonProcedure;
@@ -152,7 +152,7 @@ namespace Scheme.RT {
 //            StackCacheFrame f = cont.after;
 //            int framesToCopy = MAX_RESTORE_FRAMES;
 //            // Invariant: frames f through cont inclusive are valid frames
-//            while (framesToCopy > 0 & heap != SObject.False) {
+//            while (framesToCopy > 0 & heap != Factory.False) {
 //                SVL h = (SVL) heap;
 //                f = f.before;
 //                heap = h.elements[Cont.HC_DYNLINK];
@@ -268,7 +268,7 @@ namespace Scheme.RT {
             if (this.capacity() <= lastslot) {
                 this.overflowSlots = new SObject[1 + lastslot - Cont.NUM_SLOT_FIELDS];
                 for (int oi = 0; oi < overflowSlots.Length; ++oi) {
-                    this.overflowSlots[oi] = SObject.False;
+                    this.overflowSlots[oi] = Factory.False;
                 }
             }
             this.lastslot = lastslot;
@@ -278,7 +278,7 @@ namespace Scheme.RT {
         public void clear() {
             if (! this.dirty) return;
             for (int i = this.lastslot + 1; i < this.capacity(); ++i) {
-                this.setSlot(i, SObject.False);
+                this.setSlot(i, Factory.False);
             }
             this.dirty = false;
         }

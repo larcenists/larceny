@@ -22,7 +22,7 @@ public class Instructions {
         Procedure thisProc = (Procedure) Reg.register0;
         SPair cell = (SPair)thisProc.constants[index];
 
-        if (cell.first == SObject.Undefined) {
+        if (cell.first == Factory.Undefined) {
             Exn.fault(Constants.EX_UNDEF_GLOBAL,
                       "reference to unbound global: " + name,
                       cell);
@@ -220,7 +220,7 @@ public class Instructions {
         if (n < Reg.NREGS - 2) {
             if (j < Reg.LASTREG) {
                 // Case 0 in instruction set doc
-                SObject restlist = SObject.Null;
+                SObject restlist = Factory.Null;
                 for (int i = j; i >= n + 1; i--) {
                     restlist = Factory.makePair(Reg.getRegister(i), restlist);
                 }
@@ -229,7 +229,7 @@ public class Instructions {
                 // Case 1 in instruction set doc
                 //Exn.msg.WriteLine("argsge case 1: n = {0}; j = {1}", n, j);
                 SObject original = Reg.getRegister(Reg.LASTREG);
-                SObject copy = Number.copyList(original);
+                SObject copy = Factory.copyList(original);
                 SObject restlist = copy;
                 for (int i = Reg.LASTREG - 1; i >= n + 1; i--) {
                     restlist = Factory.makePair(Reg.getRegister(i), restlist);
@@ -240,8 +240,8 @@ public class Instructions {
             // Case 2 in instruction set doc
             //Exn.msg.WriteLine("argsge case 2: n = {0}; j = {1}", n, j);
             SObject original = Reg.getRegister(Reg.LASTREG);
-            SObject copy = Number.copyList(original);
-            Reg.setRegister(Reg.LASTREG, Factory.makePair(copy, SObject.Null));
+            SObject copy = Factory.copyList(original);
+            Reg.setRegister(Reg.LASTREG, Factory.makePair(copy, Factory.Null));
         } else {
             // Case 3 in instruction set doc
             //Exn.msg.WriteLine("argsge case 3: n = {0}; j = {1}", n, j);

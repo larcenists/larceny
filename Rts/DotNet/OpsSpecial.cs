@@ -19,7 +19,7 @@ public class OpsSpecial {
             Exn.fault(Constants.EX_EINTR,
                       "enable-interrupts: expected positive value");
         }
-        Reg.Result = SObject.Unspecified;
+        Reg.Result = Factory.Unspecified;
         Exn.checkSignals();
     }
 
@@ -43,6 +43,7 @@ public class OpsSpecial {
     public static void op1_syscall(SObject arg) {
         // subtract one 'cuz the first arg is just the value
         // to which we want to dispatch.
+//        System.Console.WriteLine("*** syscall {0}", Reg.register2);
         int num_args = ((SFixnum)arg).intValue() - 1;
         Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
         Syscall.dispatch(num_args, num_syscall);
@@ -58,7 +59,7 @@ public class OpsSpecial {
         } else if (arg is SVL) {
             SVL a = (SVL) arg;
             if (a.tag == Tags.RatnumTag) {
-                Reg.Result = SObject.False; // FIXME???
+                Reg.Result = Factory.False; // FIXME???
             } else if (a.tag == Tags.RectnumTag) {
                 op2_numeric_equals(arg, Factory.makeFixnum(0));
                 return;
@@ -85,7 +86,7 @@ public class OpsSpecial {
     public static void op2_eqvp(SObject arg1, SObject arg2) {
         // EQ test first, get that out of the way.
         if (arg1 == arg2) {
-            Reg.Result = SObject.True;
+            Reg.Result = Factory.True;
             return;
         } else if (arg1 is SChar & arg2 is SChar) {
             Reg.Result = Factory.wrap(((SChar)arg1).val == ((SChar)arg2).val);
@@ -105,7 +106,7 @@ public class OpsSpecial {
                 Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, a, b);
                 return; // TAIL CALL
             } else {
-                Reg.Result = SObject.False;
+                Reg.Result = Factory.False;
                 return;
             }
         } else if (arg1 is SByteVL & arg2 is SByteVL) {
@@ -127,11 +128,11 @@ public class OpsSpecial {
                 Reg.Result = Factory.makeBoolean(ar == br & ai == bi);
                 return;
             } else {
-                Reg.Result = SObject.False;
+                Reg.Result = Factory.False;
                 return;
             }
         } else {
-            Reg.Result = SObject.False;
+            Reg.Result = Factory.False;
             return;
         }
     }
@@ -611,6 +612,7 @@ public class OpsSpecial {
     
     public static void op1_truncate(SObject arg) {
         if (arg is SFixnum) {
+            Reg.Result = arg;
             return;
         } else if (arg is SVL) {
             SVL a = (SVL) arg;

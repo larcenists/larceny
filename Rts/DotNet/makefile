@@ -12,7 +12,7 @@ CSC = csc
 #CSC = csc /d:USING_ROTOR /d:BIG_ENDIAN
 
 ## Linux (Mono)
-#CSC = mcs
+CSC = mcs
 
 ## Solaris (Mono)
 #CSC = mcs /d:BIG_ENDIAN
@@ -30,6 +30,7 @@ SRCS =	Call.cs \
 	ContinuationISH.cs \
 	Instructions.cs \
 	SchemeObject.cs \
+	Factory.cs \
 	Ops.cs \
 	OpsSpecial.cs \
 	Number.cs \
@@ -54,3 +55,6 @@ Scheme.dll : $(SRCS)
 
 DynLoad.exe : DynLoad.cs
 	$(CSC) $(INLINE_OPT) $(DEBUG_OPT) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs 
+
+SchemeObject.cs : SchemeObject.cs.cpp macros.cpp
+	cpp -P -C -nostdinc SchemeObject.cs.cpp -o SchemeObject.cs

@@ -55,8 +55,8 @@ public class Reg {
     public static string debugFile;
     
     // Timer Interrupts
-    public static readonly int TIME_SLICE = 8000;
-    public static readonly int SMALL_TIME_SLICE = 100;
+    public static readonly int TIME_SLICE = 80000;
+    public static readonly int SMALL_TIME_SLICE = 1000;
 
     public static int timer = TIME_SLICE;
     public static bool interruptsEnabled = false;
@@ -75,10 +75,6 @@ public class Reg {
     // Globals
     public static Hashtable globals = new Hashtable();
 
-    // Interned Symbols
-    // Used until (go ...) replaces with oblist.sch implementation
-    public static Hashtable internedSymbols = new Hashtable();
-
     /* ===================================================== */
     /*   Support Code                                        */
     /* ===================================================== */
@@ -90,8 +86,8 @@ public class Reg {
     public static SPair globalCell(string identifier) {
         SPair cell = (SPair) globals[identifier];
         if (cell == null) {
-            cell = new SPair(SObject.Undefined,
-                             Factory.makeSymbol(identifier));
+            cell = new SPair(Factory.Undefined,
+                             Factory.internSymbol(identifier));
             globals[identifier] = cell;
         }
         return cell;
@@ -183,11 +179,11 @@ public class Reg {
     }
     
     public static void clearRegisters() {
-        Reg.Result = SObject.Undefined;
-        Reg.Second = SObject.Undefined;
-        Reg.Third = SObject.Undefined;
+        Reg.Result = Factory.Undefined;
+        Reg.Second = Factory.Undefined;
+        Reg.Third = Factory.Undefined;
         for (int i = 0; i < Reg.NREGS; ++i) {
-            Reg.setRegister(i, SObject.Undefined);
+            Reg.setRegister(i, Factory.Undefined);
         }
     }
 }

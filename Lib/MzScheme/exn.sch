@@ -39,6 +39,12 @@
 ;; error : symbol format-string value ... -> *escapes*
 
 ;; raise-type-error : symbol string value -> *escapes*
+(define raise-type-error 
+  (case-lambda
+    ((who msg val)
+     ...)
+    ((who msg index vals)
+     ...)))
 ;; raise-type-error : symbol string integer (listof value) -> *escapes*
 
 ;; raise-mismatch-error : symbol string value -> *escapes*

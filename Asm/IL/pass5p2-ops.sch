@@ -31,7 +31,7 @@
                       '()
                       (cons iltype-schemeobject (loop (- argc 1))))))
        (il:recache-result))
-      (il:call '() 
+      (il:call '()
                iltype-schemeobject
                il-ops
                (twobit-format #f "op~a_~a" argc (csharp-op-name opcode))
@@ -39,6 +39,14 @@
                  (if (zero? argc)
                      '()
                      (cons iltype-schemeobject (loop (- argc 1))))))))
+;      (il:call '(virtual instance) 
+;               iltype-schemeobject
+;               il-schemeobject
+;               (twobit-format #f "op_~a" (csharp-op-name opcode))
+;               (let loop ((argc (- argc 1)))
+;                 (if (positive? argc)
+;                     (cons iltype-schemeobject (loop (- argc 1)))
+;                     '())))))
 
 ;; opX : assembler (opcode -> boolean) symbol instruction thunk -> void
 ;; If there is a special implementation defined in the operations-table, 
@@ -129,8 +137,14 @@
           (il:load-register 'result)
           (il:call '() iltype-void il-cont "setCC" (list iltype-schemeobject))
           (il:set-register 'result (il:load-constant (unspecified))))))
-;; break
-;; gc-counter
+(define-operation 1 'break
+  (lambda (as)
+    (emit as
+          (il:fault $ex.breakpoint))))
+(define-operation 1 'gc-counter
+  (lambda (as)
+    (emit as
+          (il:fault $ex.unsupported))))
 (define-operation 1 'not
   (lambda (as)
     (emit as
@@ -151,20 +165,20 @@
           (rep:make-boolean)
           (il:set-register/pop 'result))))
 
-(define (define-type-predicate op type)
-  (define-operation 1 op
-    (lambda (as)
-      (let ((true-label (allocate-label as))
-            (done-label (allocate-label as)))
-        (emit as
-              (il:load-register 'result)
-              (il 'isinst type)
-              (il:branch-s 'brtrue true-label)
-              (il:set-register 'result (il:load-constant #f))
-              (il:branch-s 'br done-label)
-              (il:label true-label)
-              (il:set-register 'result (il:load-constant #t))
-              (il:label done-label))))))
+;;(define (define-type-predicate op type)
+;;  (define-operation 1 op
+;;    (lambda (as)
+;;      (let ((true-label (allocate-label as))
+;;            (done-label (allocate-label as)))
+;;        (emit as
+;;              (il:load-register 'result)
+;;              (il 'isinst type)
+;;              (il:branch-s 'brtrue true-label)
+;;              (il:set-register 'result (il:load-constant #f))
+;;              (il:branch-s 'br done-label)
+;;              (il:label true-label)
+;;              (il:set-register 'result (il:load-constant #t))
+;;              (il:label done-label))))))
 (define (define-predicate op method)
   (define-operation 1 op
     (lambda (as)
@@ -174,30 +188,30 @@
             (rep:make-boolean)
             (il:set-register/pop 'result)))))
 
-(define-predicate 'complex? "isComplex")
-(define-predicate 'real? "isReal")
-(define-predicate 'rational? "isRational")
-(define-predicate 'integer? "isInteger")
-;(define-type-predicate 'fixnum? iltype-fixnum)
-(define-predicate 'fixnum? "isFixnum")
-;(define-type-predicate 'pair? iltype-schemepair)
-(define-predicate 'pair? "isPair")
-(define-predicate 'flonum? "isFlonum")
-(define-predicate 'compnum? "isCompnum")
-(define-predicate 'symbol? "isSymbol")
-(define-predicate 'vector? "isVector")
-;(define-type-predicate 'vector-like? iltype-svl)
-(define-predicate 'vector-like? "isVectorLike")
-(define-predicate 'bytevector? "isByteVector")
-;(define-type-predicate 'bytevector-like? iltype-sbytevl)
-(define-predicate 'bytevector-like? "isByteVectorLike")
-(define-predicate 'port? "isPort")
-(define-predicate 'structure? "isStructure")
-(define-predicate 'string? "isString")
-;(define-type-predicate 'char? iltype-schemechar)
-(define-predicate 'char? "isChar")
-;(define-type-predicate 'procedure? iltype-procedure)
-(define-predicate 'procedure? "isProcedure")
+;(define-predicate 'complex? "isComplex")
+;(define-predicate 'real? "isReal")
+;(define-predicate 'rational? "isRational")
+;(define-predicate 'integer? "isInteger")
+;;(define-type-predicate 'fixnum? iltype-fixnum)
+;(define-predicate 'fixnum? "isFixnum")
+;;(define-type-predicate 'pair? iltype-schemepair)
+;(define-predicate 'pair? "isPair")
+;(define-predicate 'flonum? "isFlonum")
+;(define-predicate 'compnum? "isCompnum")
+;(define-predicate 'symbol? "isSymbol")
+;(define-predicate 'vector? "isVector")
+;;(define-type-predicate 'vector-like? iltype-svl)
+;(define-predicate 'vector-like? "isVectorLike")
+;(define-predicate 'bytevector? "isByteVector")
+;;(define-type-predicate 'bytevector-like? iltype-sbytevl)
+;(define-predicate 'bytevector-like? "isByteVectorLike")
+;(define-predicate 'port? "isPort")
+;(define-predicate 'structure? "isStructure")
+;(define-predicate 'string? "isString")
+;;(define-type-predicate 'char? iltype-schemechar)
+;(define-predicate 'char? "isChar")
+;;(define-type-predicate 'procedure? iltype-procedure)
+;(define-predicate 'procedure? "isProcedure")
 
 ;; exact? ;; expect number
 ;; inexact? ;; expect number
@@ -269,13 +283,13 @@
 ;                         (il:fault-abort $ex.car))
 ;          (rep:pair-car)
 ;          (il:set-register/pop 'result))))
-(define-operation 1 'car:pair
-  (lambda (as)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-schemepair)
-          (rep:pair-car)
-          (il:set-register/pop 'result))))
+;(define-operation 1 'car:pair
+;  (lambda (as)
+;    (emit as
+;          (il:load-register 'result)
+;          (il 'castclass iltype-schemepair)
+;          (rep:pair-car)
+;          (il:set-register/pop 'result))))
 ;(define-operation 1 'cdr
 ;  (lambda (as)
 ;    (emit as
@@ -284,13 +298,13 @@
 ;                         (il:fault-abort $ex.cdr))
 ;          (rep:pair-cdr)
 ;          (il:set-register/pop 'result))))
-(define-operation 1 'cdr:pair
-  (lambda (as)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-schemepair)
-          (rep:pair-cdr)
-          (il:set-register/pop 'result))))
+;(define-operation 1 'cdr:pair
+;  (lambda (as)
+;    (emit as
+;          (il:load-register 'result)
+;          (il 'castclass iltype-schemepair)
+;          (rep:pair-cdr)
+;          (il:set-register/pop 'result))))
 ;(define-operation 2 'set-car!
 ;  (lambda (as reg2)
 ;    (emit as
@@ -300,14 +314,14 @@
 ;          (il:load-register reg2)
 ;          (rep:set-pair-car!)
 ;          (il:set-register 'result (il:load-constant (unspecified))))))
-(define-operation 2 'set-car!:pair
-  (lambda (as reg2)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-schemepair)
-          (il:load-register reg2)
-          (rep:set-pair-car!)
-          (il:set-register 'result (il:load-constant (unspecified))))))
+;(define-operation 2 'set-car!:pair
+;  (lambda (as reg2)
+;    (emit as
+;          (il:load-register 'result)
+;          (il 'castclass iltype-schemepair)
+;          (il:load-register reg2)
+;          (rep:set-pair-car!)
+;          (il:set-register 'result (il:load-constant (unspecified))))))
 ;(define-operation 2 'set-cdr!
 ;  (lambda (as reg2)
 ;    (emit as
@@ -317,14 +331,14 @@
 ;          (il:load-register reg2)
 ;          (rep:set-pair-cdr!)
 ;          (il:set-register 'result (il:load-constant (unspecified))))))
-(define-operation 2 'set-cdr!:pair
-  (lambda (as reg2)
-    (emit as
-          (il:load-register 'result)
-          (il 'castclass iltype-schemepair)
-          (il:load-register reg2)
-          (rep:set-pair-cdr!)
-          (il:set-register 'result (il:load-constant (unspecified))))))
+;(define-operation 2 'set-cdr!:pair
+;  (lambda (as reg2)
+;    (emit as
+;          (il:load-register 'result)
+;          (il 'castclass iltype-schemepair)
+;          (il:load-register reg2)
+;          (rep:set-pair-cdr!)
+;          (il:set-register 'result (il:load-constant (unspecified))))))
 
 ;; Fixnum Data
 

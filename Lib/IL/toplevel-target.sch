@@ -24,8 +24,6 @@
   ;; the code vectors already linked into the executable or present
   ;; in dynamically loaded object files.
 
-;  (environment-set! larc '.petit-patch-procedure .petit-patch-procedure)
-;  (environment-set! larc '.petit-shared-object .petit-shared-object)
   (environment-set! larc '.common-patch-procedure .common-patch-procedure)
 
   larc)

@@ -58,7 +58,7 @@ namespace Scheme.RT {
             }
             Call.callExceptionHandler(Reg.Result, Reg.Second, Reg.Third, (int)excode);
         }
-
+        
         /** faultTimer
          * Specialized fault for timer interrupt.
          * Called directly from IL.
@@ -73,16 +73,12 @@ namespace Scheme.RT {
                 Call.callInterruptHandler(Constants.EX_TIMER);
                 return;
             } else {
-                //debug.WriteLine("Unhandled timer interrupt");
+                // Exn.debug.WriteLine("#timer {2} @ {0} @ {1}", Reg.register0, j, count);
                 Reg.timer = Reg.SMALL_TIME_SLICE;
                 Procedure p = (Procedure)Reg.getRegister(0);
                 throw new CodeVectorCallException(p.entrypoint, j);
             }
         }
-
-        /* faultGlobal
-         * Called when global faults
-         */
         public static void faultGlobal(int global) {
             Reg.Result = ((Procedure)Reg.register0).constants[global];
             fault(Constants.EX_UNDEF_GLOBAL);
@@ -112,10 +108,22 @@ namespace Scheme.RT {
             // ?? FIXME
         }
 
+        public static void error(string msg) {
+            Call.callExceptionHandler
+                (new SObject[] {Factory.Null, Factory.wrap(msg)});
+        }
+        public static void error(string msg, SObject value) {
+            Call.callExceptionHandler
+                (new SObject[] {Factory.Null, Factory.wrap(msg), value});
+        }
+
+        // =================================================
+
         /* Reporting Framework
          * These methods are called to report machine state when exception 
          * occurs and also at end of execution
          */
+
         public static void dumpSpecialRegisters(bool includeReg0) {
             msg.WriteLine("*PC*    = {0}", Reg.debugLocation);
             msg.WriteLine("*FILE*  = {0}", Reg.debugFile);

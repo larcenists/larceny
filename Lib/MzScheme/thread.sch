@@ -88,3 +88,56 @@
 
 ;; sync/enable-break : evt ...1 -> evt-result
 ;; sync/timeout/enable-break : number evt ...1 -> evt-result
+
+;; Implementation
+;; --------------
+
+(define-struct thread (next prev                        ;; threads
+                       tset-parent tset-next tset-prev  ;; thread-sets
+
+                       current-continuation
+                       
+                       config        ;; Scheme_Config
+                       engine-weight ;; long
+
+                       running?      ;; boolean
+                       suspended-box ;; contains thread when it's suspended
+                       resumed-box   ;; contains thread when it's resumed
+                       dead-box      ;; contains non-zero when thread is dead
+                       running-box   ;; contains thread when it's running
+                       
+                       nester nestee ;; threads
+                       
+                       sleep-time            ;; double
+                       block-descriptor      ;; int
+                       blocker               ;; value
+                       block-check           ;; function, Scheme_Ready_Fun
+                       block-needs-wakeup    ;; function Scheme_Needs_Wakeup_Fun
+                       
+                       ran-some?             ;; boolean
+                       suspend-to-kill?      ;; boolean
+                       
+                       ;; When transforming...
+                       ;; Why aren't these parameters?
+                       current-local-env     ;; Scheme_Comp_Env
+                       current-local-mark    ;; value
+                       current-local-name    ;; value
+                       
+                       ;; Exception stuff
+                       exn-raised            ;; boolean
+                       error-invoked         ;; boolean
+                       err-val-str-invoked   ;; boolean
+                       
+                       suspend-break         ;; short (why?)
+                       external-break        ;; short (why?)
+                       
+                       user-tls              ;; void** w/ count
+                       custodian             ;; custodian
+                       extra-custodians      ;; (listof custodian)
+                       
+                       name                  ;; value
+                       ))
+
+(define-struct config (table            ;; hashtable
+                       ;; Some copy-on-write stuff, omitted for now.
+                       ))

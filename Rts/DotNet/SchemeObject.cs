@@ -26,217 +26,13 @@ namespace Scheme.Rep {
     }
 
     // -------------------------------------------
-    // Factory
-    // -------------------------------------------
-    public sealed class Factory {
-        public static readonly double PositiveInfinity = Double.PositiveInfinity;
-        public static readonly double NegativeInfinity = Double.NegativeInfinity;
-        public static readonly double Nan = Double.NaN;
-
-        public static SImmediate makeBoolean(bool b) {
-            return b ? SObject.True : SObject.False;
-        }
-        public static SObject makeNumber(int num) {
-            if (SFixnum.inFixnumRange(num)) {
-                return SFixnum.makeFixnum(num);
-            } else {
-                return makeBignum(num);
-            }
-        }
-        public static SObject makeNumber(long num) {
-            int a = (int) num;
-            if (a == num) {
-                return makeNumber(a);
-            } else {
-                if (num < 0) {
-                    return makeBignum((ulong)-num, false);
-                } else {
-                    return makeBignum((ulong)num, true);
-                }
-            }
-        }
-        public static SFixnum makeFixnum(int num) {
-            return SFixnum.makeFixnum(num);
-        }
-        public static SByteVL makeBignum(int num) {
-			//Console.Out.WriteLine("## {0} ##", num);
-            if (num < 0) {
-                return Number.makeBignum((ulong)-num, false);
-            } else {
-                return Number.makeBignum((ulong)num, true);
-            }
-        }
-        public static SByteVL makeBignum(ulong value, bool positive) {
-            return Number.makeBignum(value, positive);
-        }
-        public static SByteVL makeBignum(short[] data, bool positive) {
-            return Number.makeBignum(data, positive);
-        }
-        public static SVL makeRatnum(SObject num, SObject denom) {
-            return new SVL(Tags.RatnumTag, new SObject[] {num, denom});
-        }
-
-        public static SVL makeRectnum(SObject real, SObject imag) {
-            return new SVL(Tags.RectnumTag, new SObject[] {real, imag});
-        }
-        public static SByteVL makeFlonum(double num) {
-            byte[] bvec = new byte[12];
-            byte[] numbytes = System.BitConverter.GetBytes(num);
-            for (int i = 0; i < numbytes.Length; ++i) {
-                bvec[i + 4] = numbytes[i];
-            }
-            return new SByteVL(Tags.FlonumTag, bvec);
-        }
-        public static SByteVL makeFlonum(long num) {
-            byte[] bvec = new byte[12];
-            byte[] numbytes = System.BitConverter.GetBytes(num);
-            for (int i = 0; i < numbytes.Length; ++i) {
-                bvec[i + 4] = numbytes[i];
-            }
-            return new SByteVL(Tags.FlonumTag, bvec);
-        }
-
-        public static SByteVL makeCompnum(double real, double imag) {
-            byte[] bvec = new byte[20];
-            byte[] realbytes = System.BitConverter.GetBytes(real);
-            byte[] imagbytes = System.BitConverter.GetBytes(imag);
-            for (int i = 0; i < realbytes.Length; ++i) {
-                bvec[4 + i] = realbytes[i];
-            }
-            for (int j = 0; j < imagbytes.Length; ++j) {
-                bvec[12 + j] = imagbytes[j];
-            }
-            return new SByteVL(Tags.CompnumTag, bvec);
-        }
-        public static SByteVL makeCompnum(long real, long imag) {
-            byte[] bvec = new byte[20];
-            byte[] realbytes = System.BitConverter.GetBytes(real);
-            byte[] imagbytes = System.BitConverter.GetBytes(imag);
-            for (int i = 0; i < realbytes.Length; ++i) {
-                bvec[4 + i] = realbytes[i];
-            }
-            for (int j = 0; j < imagbytes.Length; ++j) {
-                bvec[12 + j] = imagbytes[j];
-            }
-            return new SByteVL(Tags.CompnumTag, bvec);
-        }
-        public static SChar makeChar(int val) {
-            return SChar.makeChar(val);
-        }
-        public static SPair makePair(SObject first, SObject rest) {
-            return new SPair(first, rest);
-        }
-        public static SPair makePairReversed(SObject rest, SObject first) {
-            return new SPair(first, rest);
-        }
-        public static SVL makeVector(SObject[] objs) {
-            return new SVL(Tags.VectorTag, objs);
-        }
-        public static SVL makeVector(int size, SObject fill) {
-            return new SVL(Tags.VectorTag, size, fill);
-        }
-        
-        public static SByteVL makeByteVector(int size, int fill) {
-            return new SByteVL
-                (Tags.ByteVectorTag, size, (byte)fill);
-        }
-
-        public static SVL makeSymbol(string str) {
-            SVL sym = (SVL) Reg.internedSymbols[str];
-            if (sym == null) {
-                SObject name = makeString(str);
-                SObject hash = makeFixnum(Number.stringHash(str));
-                sym = new SVL(Tags.SymbolTag, 
-                            new SObject[]{name, hash, SObject.Null});
-                Reg.internedSymbols[str] = sym;
-            }
-            return sym;
-        }
-
-        public static SByteVL makeString(int length, char fill) {
-            return new SByteVL
-                (Tags.StringTag, length, (byte)fill);
-        }
-        public static SByteVL makeString(string s) {
-            byte[] chars = new byte[s.Length];
-            for (int i = 0; i < chars.Length; ++i) {
-                chars[i] = (byte)s[i];
-            }
-            return new SByteVL(Tags.StringTag, chars);
-        }
-
-        public static Foreign makeForeign(object obj) {
-            return new Foreign(obj);
-        }
-
-        public static SObject wrap(int n) {
-            return makeNumber(n);
-        }
-        public static SObject wrap(string s) {
-            return makeString(s);
-        }
-        public static SObject wrap(bool b) {
-            return b ? SObject.True : SObject.False;
-        }
-    }
-
-    // -------------------------------------------
     // SObject
     // -------------------------------------------
     public abstract class SObject {
-        public static readonly SImmediate True 
-            = new SImmediate("#t");
-        public static readonly SImmediate False 
-            = new SImmediate("#f");
-        public static readonly SImmediate Null
-            = new SImmediate("()");
-        public static readonly SImmediate Eof 
-            = new SImmediate("#<eof>");
-        public static readonly SImmediate Unspecified
-            = new SImmediate("#<unspecified>");
-        public static readonly SImmediate Undefined
-            = new SImmediate("#<undefined>");
-        
-        /* General Predicates */
-        public virtual bool isNumber() {return false;}
-        public virtual bool isFixnum() {return false;}
-        public virtual bool isFlonum() {return false;}
-        public virtual bool isBignum() {return false;}
-        public virtual bool isRatnum() {return false;}
-        public virtual bool isRectnum() {return false;}
-        public virtual bool isCompnum() {return false;}
-
-        public virtual bool isComplex() {return false;}
-        public virtual bool isReal() {return false;}
-        public virtual bool isRational() {return false;}
-        public virtual bool isInteger() {return false;}
-        public virtual bool isExact() {return false;}
-        public virtual bool isInexact() {return false;}
-
-        public virtual bool isImmediate() {return false;}
-        public virtual bool isSymbol() {return false;}
-        public virtual bool isChar() {return false;}
-        public virtual bool isPair() {return false;}
-        public virtual bool isProcedure() {return false;}
-        public virtual bool isCell() { return false; }
-
-        public virtual bool isVectorLike() {return false;}
-        public virtual bool isVector() {return false;}
-        public virtual bool isPort() {return false;}
-        public virtual bool isStructure() {return false;}
-
-        public virtual bool isByteVectorLike() {return false;}
-        public virtual bool isByteVector() {return false;}
-        public virtual bool isString() {return false;}
-        
+        // Debugging
         public override string ToString() {
-            System.IO.StringWriter sw = new System.IO.StringWriter(); // new StringBuilder(16, 4000));
-            // try {
-                this.write(sw);
-            //} catch (Exception e) {
-            //    System.Console.WriteLine("Exception:");
-            //    System.Console.WriteLine(e);
-            //}
+            System.IO.StringWriter sw = new System.IO.StringWriter();
+            this.write(sw);
             return sw.ToString();
         }
         public virtual void write(TextWriter w) {
@@ -244,6 +40,331 @@ namespace Scheme.Rep {
             w.Write(this.GetType());
             w.Write(">");
         }
+
+        // Predicates
+        public virtual bool isNumber() { return false; }
+        public virtual bool isFixnum() { return false; }
+        public virtual bool isFlonum() { return false; }
+        public virtual bool isBignum() { return false; }
+        public virtual bool isRatnum() { return false; }
+        public virtual bool isRectnum() { return false; }
+        public virtual bool isCompnum() { return false; }
+
+        public virtual bool isComplex() { return false; }
+        public virtual bool isReal() { return false; }
+        public virtual bool isRational() { return false; }
+        public virtual bool isInteger() { return false; }
+        public virtual bool isExact() { return false; }
+        public virtual bool isInexact() { return false; }
+
+        public virtual bool isImmediate() { return false; }
+        public virtual bool isSymbol() { return false; }
+        public virtual bool isChar() { return false; }
+        public virtual bool isPair() { return false; }
+        public virtual bool isProcedure() { return false; }
+
+        public virtual bool isVectorLike() { return false; }
+        public virtual bool isVector() { return false; }
+        public virtual bool isPort() { return false; }
+        public virtual bool isStructure() { return false; }
+
+        public virtual bool isByteVectorLike() { return false; }
+        public virtual bool isByteVector() { return false; }
+        public virtual bool isString() { return false; }
+
+        // ===================
+        //   Operations
+        // ===================
+
+        // General Predicates
+        public virtual SObject op_numberp() { return Factory.False; }
+        public virtual SObject op_fixnump() { return Factory.False; }
+        public virtual SObject op_flonump() { return Factory.False; }
+        public virtual SObject op_bignump() { return Factory.False; }
+        public virtual SObject op_ratnump() { return Factory.False; }
+        public virtual SObject op_rectnump() { return Factory.False; }
+        public virtual SObject op_compnump() { return Factory.False; }
+
+        public virtual SObject op_complexp() { return Factory.False; }
+        public virtual SObject op_realp() { return Factory.False; }
+        public virtual SObject op_rationalp() { return Factory.False; }
+        public virtual SObject op_integerp() { return Factory.False; }
+
+        public virtual SObject op_exactp() { Exn.fault(Constants.EX_EXACTP, null, this); return Factory.Impossible; }
+        public virtual SObject op_inexactp() { Exn.fault(Constants.EX_INEXACTP, null, this); return Factory.Impossible; }
+
+        public virtual SObject op_immediatep() { return Factory.False; }
+        public virtual SObject op_symbolp() { return Factory.False; }
+        public virtual SObject op_charp() { return Factory.False; }
+        public virtual SObject op_pairp() { return Factory.False; }
+        public virtual SObject op_procedurep() { return Factory.False; }
+
+        public virtual SObject op_vector_likep() { return Factory.False; }
+        public virtual SObject op_vectorp() { return Factory.False; }
+        public virtual SObject op_portp() { return Factory.False; }
+        public virtual SObject op_structurep() { return Factory.False; }
+
+        public virtual SObject op_bytevector_likep() { return Factory.False; }
+        public virtual SObject op_bytevectorp() { return Factory.False; }
+        public virtual SObject op_stringp() { return Factory.False; }
+
+        public SObject op_eqp(SObject arg2) { return Factory.wrap(this == arg2); }
+        public SObject op_not() { return Factory.wrap(this != Factory.False); }
+        public SObject op_nullp() { return Factory.wrap(this == Factory.Null); }
+        public SObject op_eof_objectp() { return Factory.wrap(this == Factory.Eof); }
+        public SObject op_unspecifiedp() {
+            return Factory.wrap(this == Factory.Unspecified);
+        }
+        public SObject op_undefinedp() {
+            return Factory.wrap(this == Factory.Undefined);
+        }
+
+        // Misc
+        public SObject op_creg() {
+            return Cont.getCC();
+        }
+        public SObject op_creg_set() {
+            Cont.setCC(this);
+            return Factory.Unspecified;
+        }
+        public SObject op_break() {
+            Exn.fault(Constants.EX_BREAKPOINT);
+            return Factory.Impossible;
+        }
+        public SObject op_gc_counter() {
+            Exn.fault(Constants.EX_UNSUPPORTED);
+            return Factory.Impossible;
+        }
+
+        // Data
+        public SObject op_unspecified() {
+            return Factory.Unspecified;
+        }
+        public SObject op_undefined() {
+            return Factory.Undefined;
+        }
+        public SObject op_eof_object() {
+            return Factory.Eof;
+        }
+
+        // Chars
+        public virtual SObject op_char_lt(SObject arg2) { Exn.fault(Constants.EX_CHARLT, null, this, arg2); return Factory.Impossible; } public virtual SObject op_char_lt_2(SChar arg1) { Exn.fault(Constants.EX_CHARLT, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_char_le(SObject arg2) { Exn.fault(Constants.EX_CHARLE, null, this, arg2); return Factory.Impossible; } public virtual SObject op_char_le_2(SChar arg1) { Exn.fault(Constants.EX_CHARLE, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_char_ge(SObject arg2) { Exn.fault(Constants.EX_CHARGE, null, this, arg2); return Factory.Impossible; } public virtual SObject op_char_ge_2(SChar arg1) { Exn.fault(Constants.EX_CHARGE, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_char_gt(SObject arg2) { Exn.fault(Constants.EX_CHARGT, null, this, arg2); return Factory.Impossible; } public virtual SObject op_char_gt_2(SChar arg1) { Exn.fault(Constants.EX_CHARGT, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_char_equals(SObject arg2) { Exn.fault(Constants.EX_CHAREQ, null, this, arg2); return Factory.Impossible; } public virtual SObject op_char_equals_2(SChar arg1) { Exn.fault(Constants.EX_CHAREQ, null, arg1, this); return Factory.Impossible; }
+
+        public virtual SObject op_char2integer() { Exn.fault(Constants.EX_CHAR2INT, null, this); return Factory.Impossible; }
+        public virtual SObject op_integer2char() { Exn.fault(Constants.EX_INT2CHAR, null, this); return Factory.Impossible; }
+
+        // Cell Operations
+        public SObject op_make_cell() { return Factory.makePair(this, Factory.False); }
+        public virtual SObject op_cell_ref() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
+        public virtual SObject op_cell_set(SObject arg2) { Exn.fault(Constants.EX_SETCAR, null, this, arg2); return Factory.Impossible; }
+
+        // Pair Operations
+        public SObject op_cons(SObject arg2) { return Factory.makePair(this, arg2); }
+        public virtual SObject op_car() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
+        public virtual SObject op_car_pair() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
+        public virtual SObject op_cdr() { Exn.fault(Constants.EX_CDR, null, this); return Factory.Impossible; }
+        public virtual SObject op_cdr_pair() { Exn.fault(Constants.EX_CDR, null, this); return Factory.Impossible; }
+
+        public virtual SObject op_set_car(SObject arg2) { Exn.fault(Constants.EX_SETCAR, null, this, arg2); return Factory.Impossible; }
+        public virtual SObject op_set_car_pair(SObject arg2) { Exn.fault(Constants.EX_SETCAR, null, this, arg2); return Factory.Impossible; }
+        public virtual SObject op_set_cdr(SObject arg2) { Exn.fault(Constants.EX_SETCDR, null, this, arg2); return Factory.Impossible; }
+        public virtual SObject op_set_cdr_pair(SObject arg2) { Exn.fault(Constants.EX_SETCDR, null, this, arg2); return Factory.Impossible; }
+
+        // Typetag Operations
+        public virtual SObject op_typetag() { Exn.fault(Constants.EX_TYPETAG, null, this); return Factory.Impossible; }
+        public virtual SObject op_typetag_set(SObject arg2) { Exn.fault(Constants.EX_TYPETAGSET, null, this, arg2); return Factory.Impossible; } public virtual SObject op_typetag_set_2(STagged arg1) { Exn.fault(Constants.EX_TYPETAGSET, null, arg1, this); return Factory.Impossible; }
+
+        // Vectorlike Operations
+        public virtual SObject op_vector_like_length() { Exn.fault(Constants.EX_VLLEN, null, this); return Factory.Impossible; }
+        public virtual SObject op_vector_like_ref(SObject arg2) { Exn.fault(Constants.EX_VLREF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_vector_like_ref_2(SVL arg1) { Exn.fault(Constants.EX_VLREF, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_vector_like_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VLSET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_vector_like_set_2(SVL arg2, SObject arg3) { Exn.fault(Constants.EX_VLSET, null, this, arg2, arg3); return Factory.Impossible; }
+
+        // Vector Operations
+        public virtual SObject op_make_vector(SObject arg2) { Exn.fault(Constants.EX_MKVL, null, this, arg2); return Factory.Impossible; }
+        public virtual SObject op_vector_length() { Exn.fault(Constants.EX_VECTOR_LENGTH, null, this); return Factory.Impossible; }
+        public virtual SObject op_vector_ref(SObject arg2) { Exn.fault(Constants.EX_VECTOR_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_vector_ref_2(SVL arg1) { Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this); return Factory.Impossible; }
+            //        VEX2X(op_vector_ref_trusted, EX_VECTOR_REF, SVL)
+        public virtual SObject op_vector_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_vector_set_2(SVL arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; }
+            //        VEX3X(op_vector_set_trusted, EX_VECTOR_SET, SVL)
+
+        // Procedure Operations
+        public virtual SObject op_procedure_length() { Exn.fault(Constants.EX_PROCEDURE_LENGTH, null, this); return Factory.Impossible; }
+        public virtual SObject op_make_procedure() { Exn.fault(Constants.EX_MKVL, null, this); return Factory.Impossible; }
+        public virtual SObject op_procedure_ref(SObject arg2) { Exn.fault(Constants.EX_PROCEDURE_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_procedure_ref_2(Procedure arg1) { Exn.fault(Constants.EX_PROCEDURE_REF, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_procedure_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_PROCEDURE_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_procedure_set_2(Procedure arg2, SObject arg3) { Exn.fault(Constants.EX_PROCEDURE_SET, null, this, arg2, arg3); return Factory.Impossible; }
+
+        // String Operations
+        public virtual SObject op_make_string(SObject arg2) { Exn.fault(Constants.EX_MKBVL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_make_string_2(SFixnum arg1) { Exn.fault(Constants.EX_MKBVL, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_string_length() { Exn.fault(Constants.EX_STRING_LENGTH, null, this); return Factory.Impossible; }
+        public virtual SObject op_string_ref(SObject arg2) { Exn.fault(Constants.EX_STRING_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_string_ref_2(SByteVL arg1) { Exn.fault(Constants.EX_STRING_REF, null, arg1, this); return Factory.Impossible; }
+            //        VEX2X(op_string_ref_trusted, EX_STRING_REF, SByteVL)
+        public virtual SObject op_string_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_string_set_2(SByteVL arg2, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, this, arg2, arg3); return Factory.Impossible; }
+            //        VEX3X(op_string_set_trusted, EX_STRING_SET, SByteVL)
+
+        // Bytevector Operations
+        public virtual SObject op_make_bytevector() { Exn.fault(Constants.EX_MKBVL, null, this); return Factory.Impossible; }
+        public virtual SObject op_bytevector_length() { Exn.fault(Constants.EX_BYTEVECTOR_LENGTH, null, this); return Factory.Impossible; }
+        public virtual SObject op_bytevector_ref(SObject arg2) { Exn.fault(Constants.EX_BYTEVECTOR_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_bytevector_ref_2(SByteVL arg1) { Exn.fault(Constants.EX_BYTEVECTOR_REF, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_bytevector_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_BYTEVECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_bytevector_set_2(SByteVL arg2, SObject arg3) { Exn.fault(Constants.EX_BYTEVECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; }
+        public virtual SObject op_bytevector_equal(SObject arg2) { Exn.fault(Constants.EX_UNSUPPORTED, null, this, arg2); return Factory.Impossible; } public virtual SObject op_bytevector_equal_2(SByteVL arg1) { Exn.fault(Constants.EX_UNSUPPORTED, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_bytevector_fill(SObject arg2) { Exn.fault(Constants.EX_BVFILL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_bytevector_fill_2(SByteVL arg1) { Exn.fault(Constants.EX_BVFILL, null, arg1, this); return Factory.Impossible; }
+
+        // Bytevector-like Operations
+        public virtual SObject op_bytevector_like_length() { Exn.fault(Constants.EX_BVLLEN, null, this); return Factory.Impossible; }
+        public virtual SObject op_bytevector_like_ref(SObject arg2) { Exn.fault(Constants.EX_BVLREF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_bytevector_like_ref_2(SByteVL arg1) { Exn.fault(Constants.EX_BVLREF, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_bytevector_like_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_BVLSET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_bytevector_like_set_2(SByteVL arg2, SObject arg3) { Exn.fault(Constants.EX_BVLSET, null, this, arg2, arg3); return Factory.Impossible; }
+        public virtual SObject op_sys_bvlcmp(SObject arg2) { Exn.fault(Constants.EX_UNSUPPORTED, null, this, arg2); return Factory.Impossible; } public virtual SObject op_sys_bvlcmp_2(SByteVL arg1) { Exn.fault(Constants.EX_UNSUPPORTED, null, arg1, this); return Factory.Impossible; }
+
+        // Fixnum Operations
+        public virtual SObject op_fxzerop() { Exn.fault(Constants.EX_UNSUPPORTED, null, this); return Factory.Impossible; }
+        public virtual SObject op_fxpositivep() { Exn.fault(Constants.EX_FXPOSITIVE, null, this); return Factory.Impossible; }
+        public virtual SObject op_fxnegativep() { Exn.fault(Constants.EX_FXNEGATIVE, null, this); return Factory.Impossible; }
+        public virtual SObject op_fxnegative() { Exn.fault(Constants.EX_FXNEG, null, this); return Factory.Impossible; }
+        public virtual SObject op_fxplus(SObject arg2) { Exn.fault(Constants.EX_FXADD, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxplus_2(SFixnum arg1) { Exn.fault(Constants.EX_FXADD, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxminus(SObject arg2) { Exn.fault(Constants.EX_FXSUB, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxminus_2(SFixnum arg1) { Exn.fault(Constants.EX_FXSUB, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxmul(SObject arg2) { Exn.fault(Constants.EX_FXMUL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxmul_2(SFixnum arg1) { Exn.fault(Constants.EX_FXMUL, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxless(SObject arg2) { Exn.fault(Constants.EX_FXLT, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxless_2(SFixnum arg1) { Exn.fault(Constants.EX_FXLT, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxgreater(SObject arg2) { Exn.fault(Constants.EX_FXGT, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxgreater_2(SFixnum arg1) { Exn.fault(Constants.EX_FXGT, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxless_equal(SObject arg2) { Exn.fault(Constants.EX_FXLE, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxless_equal_2(SFixnum arg1) { Exn.fault(Constants.EX_FXLE, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxgreater_equal(SObject arg2) { Exn.fault(Constants.EX_FXGE, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxgreater_equal_2(SFixnum arg1) { Exn.fault(Constants.EX_FXGE, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_fxequal(SObject arg2) { Exn.fault(Constants.EX_FXEQ, null, this, arg2); return Factory.Impossible; } public virtual SObject op_fxequal_2(SFixnum arg1) { Exn.fault(Constants.EX_FXEQ, null, arg1, this); return Factory.Impossible; }
+
+        public SObject op_most_positive_fixnum() {
+            return Factory.makeFixnum(SFixnum.MAX);
+        }
+        public SObject op_most_negative_fixnum() {
+            return Factory.makeFixnum(SFixnum.MIN);
+        }
+
+        // Logical Operations
+        public virtual SObject op_lognot() { Exn.fault(Constants.EX_LOGNOT, null, this); return Factory.Impossible; }
+        public virtual SObject op_logand(SObject arg2) { Exn.fault(Constants.EX_LOGAND, null, this, arg2); return Factory.Impossible; } public virtual SObject op_logand_2(SFixnum arg1) { Exn.fault(Constants.EX_LOGAND, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_logior(SObject arg2) { Exn.fault(Constants.EX_LOGIOR, null, this, arg2); return Factory.Impossible; } public virtual SObject op_logior_2(SFixnum arg1) { Exn.fault(Constants.EX_LOGIOR, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_logxor(SObject arg2) { Exn.fault(Constants.EX_LOGXOR, null, this, arg2); return Factory.Impossible; } public virtual SObject op_logxor_2(SFixnum arg1) { Exn.fault(Constants.EX_LOGXOR, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_lsh(SObject arg2) { Exn.fault(Constants.EX_LSH, null, this, arg2); return Factory.Impossible; } public virtual SObject op_lsh_2(SFixnum arg1) { Exn.fault(Constants.EX_LSH, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_rsh(SObject arg2) { Exn.fault(Constants.EX_RSHA, null, this, arg2); return Factory.Impossible; } public virtual SObject op_rsh_2(SFixnum arg1) { Exn.fault(Constants.EX_RSHA, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_rsha(SObject arg2) { Exn.fault(Constants.EX_RSHA, null, this, arg2); return Factory.Impossible; } public virtual SObject op_rsha_2(SFixnum arg1) { Exn.fault(Constants.EX_RSHA, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_rshl(SObject arg2) { Exn.fault(Constants.EX_RSHL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_rshl_2(SFixnum arg1) { Exn.fault(Constants.EX_RSHL, null, arg1, this); return Factory.Impossible; }
+
+        // Arithmetic Operations
+        public virtual SObject op_real_part() { Exn.fault(Constants.EX_REALPART, null, this); return Factory.Impossible; }
+        public virtual SObject op_imag_part() { Exn.fault(Constants.EX_IMAGPART, null, this); return Factory.Impossible; }
+
+        // -------------------
+        // Special Operations
+        // -------------------
+
+        //SPECIALVEX1(op_enable_interrupts, EX_EINTR)
+        //public void op_disable_interrupts() {
+        //    if (Reg.interruptsEnabled) {
+        //        Reg.interruptsEnabled = false;
+        //        Reg.Result = Factory.makeFixnum((int)Reg.timer);
+        //    } else {
+        //        Reg.Result = Factory.makeBoolean(false);
+        //    }
+        //    Exn.checkSignals();
+        //}
+
+        //SPECIALVEX1(op_syscall)
+        //
+        //SPECIALVEX1(op_zerop)
+        //SPECIALVEX2(op_eqvp)
+        //SPECIALVEX2(op_numeric_equals)
+        //SPECIALVEX2(op_less_than)
+        //SPECIALVEX2(op_greater_than)
+        //SPECIALVEX2(op_less_or_equal)
+        //SPECIALVEX2(op_greater_or_equal)
+
+        //SPECIALARITH2(op_plus)  // Declares op_plus_2 for SFixum, SVL, SByteVL
+        //SPECIALARITH2(op_minus)
+        //SPECIALARITH2(op_multiply)
+        //SPECIALARITH2(op_divide)
+        //SPECIALARITH2(op_quotient)
+        //SPECIALARITH2(op_remainder)
+        //SPECIALVEX1(op_truncate)
+        //SPECIALVEX1(op_round)
+        //SPECIALVEX1(op_negative)
+        //SPECIALVEX1(op_exact2inexact)
+        //SPECIALVEX1(op_inexact2exact)
+
+        // THE STUFF I WAS TOO LAZY TO PORT
+        public SObject op_vector_length_vec() {
+            return Factory.makeFixnum(((SVL)this).length());
+        }
+        public SObject op_vector_ref_trusted(SObject arg2) {
+            SObject arg1 = this;
+            return ((SVL)arg1).elementAt(((SFixnum)arg2).value);;
+        }
+        public SObject op_vector_set_trusted(SObject arg2, SObject arg3) {
+            SObject arg1 = this;
+            ((SVL)arg1).setElementAt(((SFixnum)arg2).value, arg3);
+            return Factory.Unspecified;
+        }
+        public SObject op_sys_partial_list__vector(SObject arg2) {
+            SObject arg1 = this;
+            int n = ((SFixnum)arg2).value;
+            SObject[] items = new SObject[n];
+            for (int i = 0; i < n; ++i) {
+                items[i] = ((SPair)arg1).first;
+                arg1 = ((SPair)arg1).rest;
+            }
+            return Factory.makeVector(items);
+        }
+        public SObject op_string_length_str() {
+            SObject arg = this;
+            return Factory.makeFixnum(((SByteVL)arg).length());
+        }
+
+        public SObject op_string_ref_trusted(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeChar(((SByteVL)arg1).elements[((SFixnum)arg2).value]);
+        }
+        public SObject op_string_set_trusted(SObject arg2, SObject arg3) {
+            SObject arg1 = this;
+            SByteVL a = (SByteVL) arg1;
+            a.elements[((SFixnum)arg2).value] = (byte)((SChar)arg3).val;
+            return Factory.Unspecified;
+        }
+        public SObject op_plus_idx_idx(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeNumber
+                (((SFixnum)arg1).value + ((SFixnum)arg2).value);
+        }
+        public SObject op_minus_idx_idx(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeNumber
+                (((SFixnum)arg1).value - ((SFixnum)arg2).value);
+        }
+        public SObject op_equal_fix_fix(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeBoolean
+                (((SFixnum)arg1).value == ((SFixnum)arg2).value);
+        }
+        public SObject op_less_fix_fix(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeBoolean
+                (((SFixnum)arg1).value < ((SFixnum)arg2).value);
+        }
+        public SObject op_lessequal_fix_fix(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeBoolean
+                (((SFixnum)arg1).value <= ((SFixnum)arg2).value);
+        }
+        public SObject op_greater_fix_fix(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeBoolean
+                (((SFixnum)arg1).value > ((SFixnum)arg2).value);
+        }
+        public SObject op_greaterequal_fix_fix(SObject arg2) {
+            SObject arg1 = this;
+            return Factory.makeBoolean
+                (((SFixnum)arg1).value >= ((SFixnum)arg2).value);
+        }
+
     }
 
     // -------------------------------------------
@@ -260,6 +381,7 @@ namespace Scheme.Rep {
 
         // ------------------
         public override bool isImmediate() { return true; }
+        public override SObject op_immediatep() { return Factory.True; }
     }
 
     // -------------------------------------------
@@ -267,7 +389,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     public sealed class SChar : SObject {
         public static readonly int CHAR_COUNT = 256;
-        public static readonly SChar[] characters = 
+        public static readonly SChar[] characters =
             new SChar[CHAR_COUNT];
 
         public char val;
@@ -294,6 +416,36 @@ namespace Scheme.Rep {
 
         // ------------------
         public override bool isChar() { return true; }
+        public override SObject op_charp() { return Factory.True; }
+
+        public override SObject op_char_lt(SObject arg2) { return arg2.op_char_lt_2(this); }
+        public override SObject op_char_le(SObject arg2) { return arg2.op_char_le_2(this); }
+        public override SObject op_char_gt(SObject arg2) { return arg2.op_char_gt_2(this); }
+        public override SObject op_char_ge(SObject arg2) { return arg2.op_char_ge_2(this); }
+        public override SObject op_char_equals(SObject arg2) { return arg2.op_char_equals_2(this); }
+        public override SObject op_char_lt_2(SChar arg1) {
+            return Factory.wrap(arg1.val < this.val);
+        }
+        public override SObject op_char_le_2(SChar arg1) {
+            return Factory.wrap(arg1.val <= this.val);
+        }
+        public override SObject op_char_gt_2(SChar arg1) {
+            return Factory.wrap(arg1.val > this.val);
+        }
+        public override SObject op_char_ge_2(SChar arg1) {
+            return Factory.wrap(arg1.val >= this.val);
+        }
+        public override SObject op_char_equals_2(SChar arg1) {
+            return Factory.wrap(arg1.val == this.val);
+        }
+
+        public override SObject op_char2integer() {
+            return Factory.wrap(this.val);
+        }
+
+        public override SObject op_make_string_2(SFixnum arg1) {
+            return Factory.makeString(arg1.value, this.val);
+        }
     }
 
     // -------------------------------------------
@@ -318,7 +470,7 @@ namespace Scheme.Rep {
         public static readonly int maxPreAlloc = 16000;
         public static readonly int MAX = (1 << 29) - 1;
         public static readonly int MIN = -(1 << 29);
-        public static readonly uint BITS = 29;
+        public static readonly int BITS = 30;
 
         // Stores numbers -maxPreAlloc to +maxPreAlloc
         //          0 -> maxPreAlloc
@@ -326,7 +478,7 @@ namespace Scheme.Rep {
         static SFixnum() {
             pool = new SFixnum[2 * maxPreAlloc + 1];
             for (int i = -maxPreAlloc; i <= maxPreAlloc; i++)
-                pool[i + maxPreAlloc] = new SFixnum(i);                   
+                pool[i + maxPreAlloc] = new SFixnum(i);
         }
         private SFixnum(int value) {
             this.value = value;
@@ -338,20 +490,21 @@ namespace Scheme.Rep {
             return value;
         }
         public static bool inFixnumRange(int n) {
-            int highbits = n >> 29;
+            int highbits = n >> (BITS-1);
             return (highbits == 0 || highbits == -1);
         }
+        public static bool inFixnumRange(long n) {
+            return ((n >> 32 == 0) || (n >> 32 == -1))
+                && inFixnumRange((int)n);
+        }
         public static SFixnum makeFixnum(int val) {
-//            if (val == 21845) {
-//                throw new Exception();
-//            }
             if (val >= -maxPreAlloc && val <= maxPreAlloc) {
                 return pool[val + maxPreAlloc];
             } else
                 return new SFixnum(val);
         }
         // ----------------
-        
+
         public override bool isNumber() { return true; }
         public override bool isFixnum() { return true; }
         public override bool isComplex() { return true; }
@@ -359,16 +512,462 @@ namespace Scheme.Rep {
         public override bool isRational() { return true; }
         public override bool isInteger() { return true; }
         public override bool isExact() { return true; }
+
+        public override SObject op_numberp() { return Factory.True; }
+        public override SObject op_fixnump() { return Factory.True; }
+        public override SObject op_complexp() { return Factory.True; }
+        public override SObject op_realp() { return Factory.True; }
+        public override SObject op_rationalp() { return Factory.True; }
+        public override SObject op_integerp() { return Factory.True; }
+        public override SObject op_exactp() { return Factory.True; }
+
+        public override SObject op_integer2char() {
+            return Factory.makeChar(this.value);
+        }
+        public override SObject op_typetag_set_2(STagged arg1) {
+            arg1.tag = this.value;
+            return Factory.Unspecified;
+        }
+        public override SObject op_vector_like_ref_2(SVL arg1) {
+            SObject[] elements = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < elements.Length) {
+                return elements[index];
+            } else {
+                Exn.fault(Constants.EX_VLREF, null, arg1, this);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_vector_like_set_2(SVL arg1, SObject arg3) {
+            SObject[] elements = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < elements.Length) {
+                elements[index] = arg3;
+                return Factory.Unspecified;
+            } else {
+                Exn.fault(Constants.EX_VLSET, null, arg1, this, arg3);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_make_vector(SObject arg2) {
+            int length = this.value;
+            if (0 <= length) {
+                return Factory.makeVector(this.value, arg2);
+            } else {
+                Exn.fault(Constants.EX_MKVL, null, this, arg2);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_vector_ref_2(SVL arg1) {
+            SObject[] elements = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < elements.Length) {
+                return elements[index];
+            } else {
+                Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_vector_set_2(SVL arg1, SObject arg3) {
+            SObject[] elements = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < elements.Length) {
+                elements[index] = arg3;
+                return Factory.Unspecified;
+            } else {
+                Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_make_procedure() {
+            int a = this.value - 2;
+            if (0 <= a) {
+                SObject[] env = new SObject[a];
+                env[0] = Factory.False;
+                for (int i = 1; i < a; ++i) {
+                    env[i] = Factory.Null; // So says Petit Larceny
+                }
+                return new Procedure(CodeVector.NoCode,
+                                     Factory.makeVector(0, Factory.False),
+                                     env);
+            } else {
+                Exn.fault(Constants.EX_MKVL, null, this);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_procedure_ref_2(Procedure arg1) {
+            Procedure p = arg1;
+            int b = this.value;
+            if (b == 0) {
+                // Code vector
+                return p.getCode();
+            } else if (b == 1) {
+                // Constant vector
+                return p.constantvector;
+            } else if (b > 1) {
+                b = b - 2;
+                if (b < p.rib.Length) {
+                    return p.rib[b];
+                }
+            }
+            Exn.fault(Constants.EX_PROCEDURE_REF, null, arg1, this);
+            return Factory.Impossible;
+        }
+        public override SObject op_procedure_set_2(Procedure arg1, SObject arg3) {
+            Procedure p = arg1;
+            int b = this.value;
+            if (b == 0) {
+                // Code vector
+                p.setCode(arg3);
+                return Factory.Unspecified;
+            } else if (b == 1) {
+                // Constant vector
+                if (arg3.isVector()) {
+                    p.setConstants((SVL)arg3);
+                    return Factory.Unspecified;
+                } else {
+                    Exn.fault(Constants.EX_PROCEDURE_SET, null, arg1, this, arg3);
+                    return Factory.Impossible;
+                }
+            } else if (b > 1) {
+                b = b - 2;
+                if (b < p.rib.Length) {
+                    p.rib[b] = arg3;
+                    return Factory.Unspecified;
+                }
+            }
+            Exn.fault(Constants.EX_PROCEDURE_SET, null, arg1, this, arg3);
+            return Factory.Impossible;
+        }
+
+        public override SObject op_make_string(SObject arg2) { return arg2.op_make_string_2(this); }
+
+        public override SObject op_make_bytevector() {
+            return Factory.makeByteVector(this.value, (byte)0);
+        }
+        public override SObject op_bytevector_ref_2(SByteVL arg1) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < bytes.Length) {
+                return Factory.wrap(bytes[index]);
+            } else {
+                Exn.fault(Constants.EX_BYTEVECTOR_REF, null, arg1, this);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_bytevector_set_2(SByteVL arg1, SObject arg3) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < bytes.Length) {
+                if (arg3 is SFixnum) {
+                    bytes[index] = (byte)((SFixnum)arg3).value;
+                    return Factory.Unspecified;
+                }
+            }
+            Exn.fault(Constants.EX_BYTEVECTOR_SET, null, arg1, this, arg3);
+            return Factory.Impossible;
+        }
+        public override SObject op_bytevector_fill_2(SByteVL arg1) {
+            byte[] bytes = arg1.elements;
+            byte fill = (byte) this.value;
+            for (int i = 0; i < bytes.Length; ++i) {
+               bytes[i] = fill;
+            }
+            return Factory.Unspecified;
+        }
+
+        public override SObject op_bytevector_like_ref_2(SByteVL arg1) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < bytes.Length) {
+                return Factory.wrap(bytes[index]);
+            } else {
+                Exn.fault(Constants.EX_BVLREF, null, arg1, this);
+                return Factory.Impossible;
+            }
+        }
+        public override SObject op_bytevector_like_set_2(SByteVL arg1, SObject arg3) {
+            byte[] bytes = arg1.elements;
+            int index = this.value;
+            if (0 <= index && index < bytes.Length) {
+                if (arg3 is SFixnum) {
+                    bytes[index] = (byte)((SFixnum)arg3).value;
+                    return Factory.Unspecified;
+                }
+            }
+            Exn.fault(Constants.EX_BVLREF, null, arg1, this);
+            return Factory.Impossible;
+        }
+
+        public override SObject op_fxzerop() {
+            return Factory.wrap(this.value == 0);
+        }
+        public override SObject op_fxpositivep() {
+            return Factory.wrap(this.value > 0);
+        }
+        public override SObject op_fxnegativep() {
+            return Factory.wrap(this.value < 0);
+        }
+        public override SObject op_fxnegative() {
+            int a = - this.value;
+            if (!SFixnum.inFixnumRange(-a)) {
+                Exn.fault(Constants.EX_FXNEG, "result not a fixnum", this);
+                return Factory.Impossible;
+            }
+            return Factory.wrap(a);
+        }
+        public override SObject op_fxplus(SObject arg2) { return arg2.op_fxplus_2(this); }
+        public override SObject op_fxminus(SObject arg2) { return arg2.op_fxminus_2(this); }
+        public override SObject op_fxmul(SObject arg2) { return arg2.op_fxmul_2(this); }
+        public override SObject op_fxless(SObject arg2) { return arg2.op_fxless_2(this); }
+        public override SObject op_fxless_equal(SObject arg2) { return arg2.op_fxless_equal_2(this); }
+        public override SObject op_fxgreater(SObject arg2) { return arg2.op_fxgreater_2(this); }
+        public override SObject op_fxgreater_equal(SObject arg2) { return arg2.op_fxgreater_equal_2(this); }
+        public override SObject op_fxequal(SObject arg2) { return arg2.op_fxequal_2(this); }
+
+        public override SObject op_fxplus_2(SFixnum arg1) {
+            int a = arg1.value, b = this.value;
+            int r = a + b;
+            if (!SFixnum.inFixnumRange(r)) {
+                Exn.fault(Constants.EX_FXADD, null, arg1, this);
+                return Factory.Impossible;
+            }
+            return Factory.wrap(r);
+        }
+        public override SObject op_fxminus_2(SFixnum arg1) {
+            int a = arg1.value, b = this.value;
+            int r = a - b;
+            if (!SFixnum.inFixnumRange(r)) {
+                Exn.fault(Constants.EX_FXSUB, null, arg1, this);
+                return Factory.Impossible;
+            }
+            return Factory.wrap(r);
+        }
+        public override SObject op_fxmul_2(SFixnum arg1) {
+            int a = arg1.value, b = this.value;
+            long r = a * b;
+            if (!SFixnum.inFixnumRange(r)) {
+                Exn.fault(Constants.EX_FXMUL, null, arg1, this);
+                return Factory.Impossible;
+            }
+            return Factory.wrap((int)r);
+        }
+        public override SObject op_fxless_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value < this.value);
+        }
+        public override SObject op_fxless_equal_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value <= this.value);
+        }
+        public override SObject op_fxgreater_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value > this.value);
+        }
+        public override SObject op_fxgreater_equal_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value >= this.value);
+        }
+        public override SObject op_fxequal_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value == this.value);
+        }
+
+        public override SObject op_lognot() {
+            return Factory.wrap(~this.value);
+        }
+        public override SObject op_logand(SObject arg2) { return arg2.op_logand_2(this); }
+        public override SObject op_logior(SObject arg2) { return arg2.op_logior_2(this); }
+        public override SObject op_logxor(SObject arg2) { return arg2.op_logxor_2(this); }
+        public override SObject op_lsh(SObject arg2) { return arg2.op_lsh_2(this); }
+        public override SObject op_rsh(SObject arg2) { return arg2.op_rsh_2(this); }
+        public override SObject op_rsha(SObject arg2) { return arg2.op_rsha_2(this); }
+        public override SObject op_rshl(SObject arg2) { return arg2.op_rshl_2(this); }
+
+        public override SObject op_logand_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value & this.value);
+        }
+        public override SObject op_logior_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value | this.value);
+        }
+        public override SObject op_logxor_2(SFixnum arg1) {
+            return Factory.wrap(arg1.value ^ this.value);
+        }
+        public override SObject op_lsh_2(SFixnum arg1) {
+            int r = arg1.value << this.value;
+            r = (r << 2) >> 2; // mask out top bits (w/ sign extend)
+            return Factory.wrap(r);
+        }
+        public override SObject op_rsh_2(SFixnum arg1) {
+            int r = arg1.value >> this.value;
+            r = (r << 2) >> 2;
+            return Factory.wrap(r);
+        }
+        public override SObject op_rsha_2(SFixnum arg1) {
+            int r = arg1.value >> this.value;
+            r = (r << 2) >> 2;
+            return Factory.wrap(r);
+        }
+        public override SObject op_rshl_2(SFixnum arg1) {
+            uint a = (uint)arg1.value << 2;
+            int b = this.value;
+            int r = (int)(a >> b) >> 2;
+            return Factory.wrap((int)r);
+        }
+
+        public override SObject op_real_part() {
+            return this;
+        }
+        public override SObject op_imag_part() {
+            return Factory.wrap(0);
+        }
+
+        // Special Operations
+
+        //SPECIALIMPL1(op_enable_interrupts) {
+        //    int time = ((SFixnum)arg).value;
+        //    if (time > 0) {
+        //        Reg.interruptsEnabled = true;
+        //        Reg.timer = time;
+        //    } else {
+        //        Exn.fault(Constants.EX_EINTR, null, this);
+        //    }
+        //    Reg.Result = Factory.Unspecified;
+        //    Exn.checkSignals();
+        //}
+        //SPECIALIMPL1(op_syscall) {
+        //    // subtract one 'cuz the first arg is just the value
+        //    // to which we want to dispatch.
+        //    int num_args = this.value - 1;
+        //    Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
+        //    Syscall.dispatch(num_args, num_syscall);
+        //}
+        //SPECIALIMPL1(op_zerop) {
+        //    Reg.Result = Factory.wrap(this.value == 0);
+        //}
+        //SPECIALDISPATCH2(op_eqvp)
+        //SPECIALDISPATCH2(op_numeric_equals)
+        //SPECIALDISPATCH2(op_less_then)
+        //SPECIALDISPATCH2(op_less_or_equal)
+        //SPECIALDISPATCH2(op_greater_than)
+        //SPECIALDISPATCH2(op_greater_or_equal)
+        //
+        //SPECIALDISPATCH2(op_plus)
+        //SPECIALDISPATCH2(op_minus)
+        //SPECIALDISPATCH2(op_multiply)
+        //SPECIALDISPATCH2(op_divide)
+        //SPECIALDISPATCH2(op_quotient)
+        //SPECIALDISPATCH2(op_remainder)
+
+        //SPECIALIMPL1(op_truncate) {
+        //    Reg.Result = this;
+        //}
+        //SPECIALIMPL1(op_round) {
+        //    Reg.Result = this;
+        //}
+        //SPECIALIMPL1(op_negative) {
+        //    Reg.Result = Factory.wrap(-this.value);
+        //}
+        //SPECIALIMPL1(op_exact2inexact) {
+        //    Reg.Result = Factory.makeFlonum((double)this.value);
+        //}
+        //SPECIALIMPL1(op_inexact2exact) {
+        //    Reg.Result = this;
+        //}
+
+        //SPECIALOVERRIDE2X(op_eqvp, SFixnum) {
+        //    Reg.Result = Factory.wrap(this.value == arg1.value);
+        //}
+        //SPECIALOVERRIDE2X(op_numeric_equals, SFixnum) {
+        //    Reg.Result = Factory.wrap(this.value == arg1.value);
+        //}
+        //SPECIALOVERRIDE2X(op_less_than, SFixnum) {
+        //    Reg.Result = Factory.wrap(this.value < arg1.value);
+        //}
+        //SPECIALOVERRIDE2X(op_less_or_equal, SFixnum) {
+        //    Reg.Result = Factory.wrap(this.value <= arg1.value);
+        //}
+        //SPECIALOVERRIDE2X(op_greater_than, SFixnum) {
+        //    Reg.Result = Factory.wrap(this.value > arg1.value);
+        //}
+        //SPECIALOVERRIDE2X(op_greater_or_equal, SFixnum) {
+        //    Reg.Result = Factory.wrap(this.value >= arg1.value);
+        //}
+
+        //SPECIALOVERRIDE2X(op_plus, SFixnum) {
+        //    Reg.Result = Factory.wrap(arg1.value + this.value);
+        //}
+        //SPECIALOVERRIDE2X(op_minus, SFixnum) {
+        //    Reg.Result = Factory.wrap(arg1.value - this.value);
+        //}
+        //SPECIALOVERRIDE2X(op_multiply, SFixnum) {
+        //    long r = arg1.value * this.value;
+        //    Reg.Result = Factory.wrap(r);
+        //}
+        //SPECIALOVERRIDE2X(op_divide, SFixnum) {
+        //    int a = arg1.value, b = this.value;
+        //    if (b == 0) {
+        //        Exn.fault(Constants.EX_DIV, null, arg1, this);
+        //        return;
+        //    } else {
+        //        if (a % b == 0) {
+        //            Reg.Result = Factory.wrap(a / b);
+        //            return;
+        //        } else {
+        //            Call.callMillicodeSupport2
+        //                (Constants.MS_FIXNUM2RATNUM_DIV, arg1, this);
+        //            return; // TAIL CALL
+        //        }
+        //    }
+        //}
+        //SPECIALOVERRIDE2X(op_quotient, SFixnum) {
+        //    int a = arg1.value, b = this.value;
+        //    if (b == 0) {
+        //        Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
+        //        return;
+        //    } else {
+        //        Reg.Result = Factory.wrap(a / b);
+        //        return;
+        //    }
+        //}
+        //SPECIALOVERRIDE2X(op_remainder, SFixnum) {
+        //    int a = arg1.value, b = this.value;
+        //    if (b == 0) {
+        //        Exn.fault(Constants.EX_REMAINDER, null, arg1, this);
+        //        return;
+        //    } else {
+        //        Reg.Result = Factory.wrap(a % b);
+        //        return;
+        //    }
+        //}
     }
 
+    // -------------------------------------------
+    // STagged
+    // -------------------------------------------
+    public class STagged : SObject {
+        public int tag;
+
+        public override SObject op_typetag() {
+            return Factory.wrap(this.tag);
+        }
+        public override SObject op_typetag_set(SObject arg2) {
+            return arg2.op_typetag_set_2(this);
+        }
+
+        public void check_typetag(int tag, int excode) {
+            if (this.tag != tag) Exn.fault(excode, null, this);
+        }
+        public void check_typetag(int tag, SObject arg2, int excode) {
+            if (this.tag != tag) Exn.fault(excode, null, this, arg2);
+        }
+        public void check_typetag(int tag, SObject arg2,
+                                           SObject arg3, int excode) {
+            if (this.tag != tag) Exn.fault(excode, null, this, arg2, arg3);
+        }
+    }
 
     // -------------------------------------------
     // SVL (vector-like)
     // -------------------------------------------
-    public sealed class SVL : SObject {
-        public int tag;
+    public sealed class SVL : STagged {
         public readonly SObject[] elements;
-        
+
         public SVL(int tag, int size, SObject fill) {
             this.tag = tag;
             this.elements = new SObject[size];
@@ -391,7 +990,26 @@ namespace Scheme.Rep {
         public void setElementAt(int index, SObject elt) {
             elements[index] = elt;
         }
-        
+
+        public override void write(TextWriter w) {
+            if (this.tag == Tags.VectorTag) {
+                w.Write("#<vector>");
+            } else if (this.tag == Tags.RectnumTag) {
+                w.Write("#<rectnum>");
+            } else if (this.tag == Tags.RatnumTag) {
+                w.Write("#<ratnum>");
+            } else if (this.tag == Tags.PortTag) {
+                w.Write("#<port>");
+            } else if (this.tag == Tags.StructureTag) {
+                w.Write("#<structure>");
+            } else if (this.tag == Tags.SymbolTag) {
+                SByteVL name = (SByteVL) this.elements[0];
+                w.Write(name.asString());
+            } else {
+                w.Write("#<vectorlike: " + this.tag + ">");
+            }
+        }
+
         // -------------------
 
         public override bool isNumber() {
@@ -412,13 +1030,10 @@ namespace Scheme.Rep {
         public override bool isRational() {
             return this.isRatnum();
         }
-        public override bool isInteger() {
-            return this.isRatnum() && this.isIntegralRatnum();
-        }
         public override bool isExact() {
             return this.isRatnum() || this.isRectnum();
         }
-        
+
         public override bool isVectorLike() {
             return true;
         }
@@ -435,43 +1050,81 @@ namespace Scheme.Rep {
             return this.tag == Tags.SymbolTag;
         }
 
-        private bool isIntegralRatnum() {
-            bool b = this.elements[1] == SFixnum.makeFixnum(1);
-            //Exn.debug.WriteLine("isIntegralRatnum({0} / {1}): {2}",
-            //                    this.elements[0],
-            //                    this.elements[1],
-            //                    b);
-            return b;
+        // -------------------
+        public override SObject op_numberp() {
+            return Factory.wrap(this.isRatnum() || this.isRectnum());
         }
-
-        // -----
-        public override void write(TextWriter w) {
-            if (this.tag == Tags.VectorTag) {
-                w.Write("#<vector>");
-            } else if (this.tag == Tags.RectnumTag) {
-                w.Write("#<rectnum>");
-            } else if (this.tag == Tags.RatnumTag) {
-                w.Write("#<ratnum>");
-            } else if (this.tag == Tags.PortTag) {
-                w.Write("#<port>");
-            } else if (this.tag == Tags.StructureTag) {
-                w.Write("#<structure>");
-            } else if (this.tag == Tags.SymbolTag) {
-                SByteVL name = (SByteVL) this.elements[0];
-                w.Write(name.asString());
+        public override SObject op_ratnump() {
+            return Factory.wrap(this.tag == Tags.RatnumTag);
+        }
+        public override SObject op_rectnump() {
+            return Factory.wrap(this.tag == Tags.RectnumTag);
+        }
+        public override SObject op_complexp() {
+            return Factory.wrap(this.isRatnum() || this.isRectnum());
+        }
+        public override SObject op_realp() {
+            return this.op_ratnump();
+        }
+        public override SObject op_rationalp() {
+            return this.op_ratnump();
+        }
+        public override SObject op_exactp() {
+            if (this.isNumber()) {
+                return Factory.wrap(this.isRatnum() || this.isRectnum());
             } else {
-                w.Write("#<vectorlike: " + this.tag + ">");
+                Exn.fault(Constants.EX_EXACTP, null, this);
+                return Factory.Impossible;
             }
         }
+
+        public override SObject op_vector_likep() {
+            return Factory.True;
+        }
+        public override SObject op_vectorp() {
+            return Factory.wrap(this.tag == Tags.VectorTag);
+        }
+        public override SObject op_portp() {
+            return Factory.wrap(this.tag == Tags.PortTag);
+        }
+        public override SObject op_structurep() {
+            return Factory.wrap(this.tag == Tags.StructureTag);
+        }
+        public override SObject op_symbolp() {
+            return Factory.wrap(this.tag == Tags.SymbolTag);
+        }
+
+        public override SObject op_vector_like_length() {
+            return Factory.wrap(elements.Length);
+        }
+        public override SObject op_vector_like_ref(SObject arg2) { return arg2.op_vector_like_ref_2(this); }
+        public override SObject op_vector_like_set(SObject arg2, SObject arg3) { return arg2.op_vector_like_set_2(this, arg3); }
+
+        public override SObject op_vector_length() {
+            check_typetag(Tags.VectorTag, Constants.EX_VECTOR_LENGTH);
+            return Factory.wrap(elements.Length);
+        }
+        public override SObject op_vector_ref(SObject arg2) { check_typetag(Tags.VectorTag, arg2, Constants.EX_VECTOR_REF); return arg2.op_vector_ref_2(this); }
+        public override SObject op_vector_set(SObject arg2, SObject arg3) { check_typetag(Tags.VectorTag, arg2, arg3, Constants.EX_VECTOR_SET); return arg2.op_vector_set_2(this, arg3); }
+
+        // Special Operations
+        //SPECIALIMPL1(op_zerop) {
+        //    if (this.tag == Tags.RectnumTag) {
+        //        return Factory.False; // FIXME??
+        //    } else if (this.tag == Tags.RatnumTag) {
+        //        this.op_numeric_equals_2(Factory.makeFixnum(0));
+        //    } else {
+        //        super.op_zerop();
+        //    }
+        //}
     }
-    
+
     // -------------------------------------------
     // SByteVL (bytevector-like)
     // -------------------------------------------
-    public sealed class SByteVL : SObject {
-        public int tag;
+    public sealed class SByteVL : STagged {
         public readonly byte[] elements;
-        public static System.Text.Encoding stringEncoding 
+        public static System.Text.Encoding stringEncoding
             = new System.Text.ASCIIEncoding();
 
         public SByteVL(int tag, int size, byte fill) {
@@ -483,7 +1136,7 @@ namespace Scheme.Rep {
             this.tag = tag;
             this.elements = vec;
         }
-                
+
         public int length() {
             return elements.Length;
         }
@@ -502,16 +1155,22 @@ namespace Scheme.Rep {
         public void setByte(int index, int b) {
             elements[index] = (byte)b;
         }
-        
-		public short getInt16(int index) {
+
+        public void fill(byte b) {
+            for (int i = 0; i < elements.Length; ++i) {
+                elements[i] = b;
+            }
+        }
+
+        public short getInt16(int index) {
             return System.BitConverter.ToInt16(elements, index*2);
         }
-		public void setInt16(int index, int s) {
+        public void setInt16(int index, int s) {
             byte[] bytes = System.BitConverter.GetBytes((short)s);
             elements[index*2] = bytes[0];
             elements[index*2 + 1] = bytes[1];
         }
-        
+
         public ushort getUInt16(int index) {
             return System.BitConverter.ToUInt16(elements, index*2);
         }
@@ -545,12 +1204,6 @@ namespace Scheme.Rep {
             elements[i+3] = bytes[3];
         }
 
-        public void fill(byte b) {
-            for (int i = 0; i < elements.Length; ++i) {
-                elements[i] = b;
-            }
-        }
-        
         // unsafeAsDouble: interprets bytes as the bit representation 
         //     of a double value
         public double unsafeAsDouble(int steps) {
@@ -563,11 +1216,49 @@ namespace Scheme.Rep {
             }
         }
 
+
+        // -----
+        private bool isIntegralFlonum() {
+            double v = this.unsafeAsDouble(0);
+            // Exn.debug.Write("Testing for integral double " + v);
+            bool b = (Math.Ceiling(v) == Math.Floor(v));
+            // Exn.debug.WriteLine(b ? " yes" : " no");
+            return b;
+        }
+
+        public override void write(TextWriter w) {
+            if (this.tag == Tags.ByteVectorTag) {
+                w.Write("#<bytevector*");
+                w.Write(elements.Length);
+                w.Write(">");
+            } else if (this.tag == Tags.StringTag) {
+                w.Write("\"");
+                w.Write(this.asString());
+                w.Write("\"");
+            } else if (this.tag == Tags.CompnumTag) {
+                w.Write("#<compnum>");
+            } else if (this.tag == Tags.BignumTag) {
+                w.Write("#<bignum[{0}]>", Number.getBignumLength(this));
+            } else if (this.tag == Tags.FlonumTag) {
+                w.Write(this.unsafeAsDouble(0));
+            } else {
+                w.Write("#<bytevector-like ");
+                w.Write(this.tag);
+                w.Write(">");
+            }
+        }
+
+        // asString returns a CLR string with the same characters as the Scheme string
+        // It does not add ""
+        public string asString() {
+            return stringEncoding.GetString(elements);
+        }
+
         // ----------------------
 
         public override bool isNumber() {
             return this.isBignum() || this.isFlonum() || this.isCompnum();
-        } 
+        }
         public override bool isExact() {
             return this.isBignum();
         }
@@ -605,41 +1296,79 @@ namespace Scheme.Rep {
             return this.tag == Tags.StringTag;
         }
 
-        // -----
-        private bool isIntegralFlonum() {
-            double v = this.unsafeAsDouble(0);
-            // Exn.debug.Write("Testing for integral double " + v);
-            bool b = (Math.Ceiling(v) == Math.Floor(v));
-            // Exn.debug.WriteLine(b ? " yes" : " no");
-            return b;
+        // ----------------------
+
+        public override SObject op_numberp() {
+            return Factory.wrap(this.isBignum() || this.isFlonum() || this.isCompnum());
+        }
+        public override SObject op_exactp() {
+            return this.op_bignump();
+        }
+        public override SObject op_inexactp() {
+            return Factory.wrap(this.isFlonum() || this.isCompnum());
+        }
+        public override SObject op_bignump() {
+            return Factory.wrap(this.tag == Tags.BignumTag);
+        }
+        public override SObject op_flonump() {
+            return Factory.wrap(this.tag == Tags.FlonumTag);
+        }
+        public override SObject op_compnump() {
+            return Factory.wrap(this.tag == Tags.CompnumTag);
+        }
+        public override SObject op_complexp() {
+            return Factory.wrap(this.isBignum() || this.isFlonum() || this.isCompnum());
+        }
+        public override SObject op_realp() {
+            return Factory.wrap(this.isBignum() || this.isFlonum());
+        }
+        public override SObject op_rationalp() {
+            return Factory.wrap(this.isBignum() || this.isFlonum());
+        }
+        public override SObject op_integerp() {
+            return Factory.wrap(this.isBignum() ||
+                                (this.isFlonum() && this.isIntegralFlonum()));
+        }
+        public override SObject op_bytevector_likep() {
+            return Factory.True;
+        }
+        public override SObject op_bytevectorp() {
+            return Factory.wrap(this.tag == Tags.ByteVectorTag);
+        }
+        public override SObject op_stringp() {
+            return Factory.wrap(this.tag == Tags.StringTag);
         }
 
-        public override void write(TextWriter w) {
-            if (this.tag == Tags.ByteVectorTag) {
-                w.Write("#<bytevector*");
-                w.Write(elements.Length);
-                w.Write(">");
-            } else if (this.tag == Tags.StringTag) {
-                w.Write("\"");
-                w.Write(this.asString());
-                w.Write("\"");
-            } else if (this.tag == Tags.CompnumTag) {
-                w.Write("#<compnum>");
-            } else if (this.tag == Tags.BignumTag) {
-                w.Write("#<bignum[{0}]>", Number.getBignumLength(this));
-            } else if (this.tag == Tags.FlonumTag) {
-                w.Write(this.unsafeAsDouble(0));
-            } else {
-                w.Write("#<bytevector-like ");
-                w.Write(this.tag);
-                w.Write(">");
-            }
+        public override SObject op_string_ref(SObject arg2) { check_typetag(Tags.StringTag, arg2, Constants.EX_STRING_REF); return arg2.op_string_ref_2(this); }
+        public override SObject op_string_set(SObject arg2, SObject arg3) { check_typetag(Tags.StringTag, arg2, arg3, Constants.EX_STRING_SET); return arg2.op_string_set_2(this, arg3); }
+
+        public override SObject op_bytevector_length() { check_typetag(Tags.ByteVectorTag, Constants.EX_BYTEVECTOR_LENGTH); return op_bytevector_length_implementation1(); } private SObject op_bytevector_length_implementation1() {
+            return Factory.wrap(this.elements.Length);
         }
-        
-        // asString returns a CLR string with the same characters as the Scheme string
-        // It does not add ""
-        public string asString() {
-            return stringEncoding.GetString(elements);
+        public override SObject op_bytevector_ref(SObject arg2) { check_typetag(Tags.ByteVectorTag, arg2, Constants.EX_BYTEVECTOR_REF); return arg2.op_bytevector_ref_2(this); }
+        public override SObject op_bytevector_set(SObject arg2, SObject arg3) { check_typetag(Tags.ByteVectorTag, arg2, arg3, Constants.EX_BYTEVECTOR_SET); return arg2.op_bytevector_set_2(this, arg3); }
+        public override SObject op_bytevector_equal(SObject arg2) { check_typetag(Tags.ByteVectorTag, arg2, Constants.EX_UNSUPPORTED); return arg2.op_bytevector_equal_2(this); }
+        public override SObject op_bytevector_fill(SObject arg2) { check_typetag(Tags.ByteVectorTag, arg2, Constants.EX_BVFILL); return arg2.op_bytevector_fill_2(this); }
+
+        public override SObject op_bytevector_like_length() {
+            return Factory.wrap(this.elements.Length);
+        }
+        public override SObject op_bytevector_like_ref(SObject arg2) { return arg2.op_bytevector_like_ref_2(this); }
+        public override SObject op_bytevector_like_set(SObject arg2, SObject arg3) { return arg2.op_bytevector_like_set_2(this, arg3); }
+        public override SObject op_sys_bvlcmp(SObject arg2) { return arg2.op_sys_bvlcmp_2(this); }
+
+        public override SObject op_sys_bvlcmp_2(SByteVL arg1) {
+            byte[] a = arg1.elements;
+            byte[] b = this.elements;
+            int upper = (a.Length < b.Length) ? a.Length : b.Length;
+            for (int i = 0; i < upper; ++i) {
+                if (a[i] == b[i]) {
+                    continue;
+                } else {
+                    return Factory.makeFixnum(a[i] - b[i]);
+                }
+            }
+            return Factory.makeFixnum(a.Length - b.Length);
         }
     }
 
@@ -662,7 +1391,7 @@ namespace Scheme.Rep {
                 if (p.rest.isPair()) {
                     w.Write(" ");
                     p = (SPair)p.rest;
-                } else if (p.rest == SObject.Null) {
+                } else if (p.rest == Factory.Null) {
                     return;
                 } else {
                     w.Write(" . ");
@@ -695,19 +1424,35 @@ namespace Scheme.Rep {
 
         // ------------------
         public override bool isPair() { return true; }
+
+        public override SObject op_pairp() { return Factory.True; }
+        public override SObject op_cell_ref() { return this.first; }
+        public override SObject op_cell_set(SObject arg2) {
+            this.first = arg2;
+            return Factory.Unspecified;
+        }
+        public override SObject op_car() { return this.first; }
+        public override SObject op_car_pair() { return this.first; }
+        public override SObject op_cdr() { return this.rest; }
+        public override SObject op_cdr_pair() { return this.rest; }
+
+        public override SObject op_set_car(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
+        public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
+        public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
+        public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
+
     }
-    
+
     // -------------------------------------------
     // Procedure
     // -------------------------------------------
-    public sealed class Procedure : SObject {
-        public int tag;
+    public sealed class Procedure : STagged {
         public CodeVector entrypoint;
         public SObject[] rib;
         public SVL constantvector;
         public SObject[] constants;
 
-        public Procedure(CodeVector entrypoint, 
+        public Procedure(CodeVector entrypoint,
                          SObject constantvector,
                          SObject[] rib) {
             this.tag = Constants.PROC_TAG;
@@ -720,12 +1465,12 @@ namespace Scheme.Rep {
         public Procedure(CodeVector entrypoint, SObject constantvector)
             : this(entrypoint, constantvector, new SObject[]{}) {}
         public Procedure(CodeVector entrypoint)
-            : this(entrypoint, Factory.makeVector(1, SObject.False), new SObject[0]) {}
+            : this(entrypoint, Factory.makeVector(1, Factory.False), new SObject[0]) {}
 
         public void setCode(SObject code) {
             if (code is CodeVector) {
                 this.entrypoint = (CodeVector) code;
-            } else if (code == SObject.False) {
+            } else if (code == Factory.False) {
                 this.entrypoint = CodeVector.NoCode;
             } else {
                 Exn.internalError("procedure-set! 0 called, not a codevector: " + code);
@@ -734,19 +1479,19 @@ namespace Scheme.Rep {
         public SObject getCode() {
             if (this.entrypoint is DataCodeVector) {
                 return ((DataCodeVector)this.entrypoint).datum;
-            } else { 
+            } else {
                 return this.entrypoint;
             }
         }
-        
+
         public void setConstants(SVL constantvector) {
             this.constantvector = constantvector;
             this.constants = constantvector.elements;
         }
-        
+
         /** lookup
          * Look up (rib, slot) in lexical environment
-         */    
+         */
         public SObject lookup(int ri, int slot) {
             SObject[] rib = this.rib;
             while (ri > 0) {
@@ -755,7 +1500,7 @@ namespace Scheme.Rep {
             }
             return rib[slot];
         }
-        
+
         /** update
          * Mutate a lexically bound variable at (rib, slot) to new_value
          */
@@ -767,8 +1512,6 @@ namespace Scheme.Rep {
             }
             rib[slot] = newValue;
         }
-
-        public override bool isProcedure() { return true; }
 
         public override void write(TextWriter w) {
             w.Write("#<PROCEDURE: ");
@@ -785,20 +1528,31 @@ namespace Scheme.Rep {
             w.Write(entrypoint.name());
             w.Write(">");
         }
+
+        public override bool isProcedure() { return true; }
+        public override SObject op_procedurep() {
+            return Factory.True;
+        }
+
+        public override SObject op_procedure_length() {
+            return Factory.wrap(this.rib.Length + 2);
+        }
+        public override SObject op_procedure_ref(SObject arg2) { return arg2.op_procedure_ref_2(this); }
+        public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_procedure_set_2(this, arg3); }
     }
 
     // -------------------------------------------
     // CodeVectors and ConstantVectors
     // -------------------------------------------
     public abstract class CodeVector : SObject {
-        public static readonly CodeVector NoCode = new DataCodeVector(SObject.False);
+        public static readonly CodeVector NoCode = new DataCodeVector(Factory.False);
 
         /** call
          * Given a jump index (0 for entry point, NOT the same as label number),
          * start executing at the label corresponding to that code.
          */
         public abstract void call(int jump_index);
-        
+
         public virtual int id() { return 0; }
         public string name() {
             Type t = this.GetType();
@@ -810,8 +1564,10 @@ namespace Scheme.Rep {
             return ns + " " + (idn >> 16) + ":" + (idn & 0xFFFF);
         }
 
-        public override string ToString() {
-            return "CodeVector " + name();
+        public override void write(TextWriter w) {
+            w.Write("#<CodeVector ");
+            w.Write(name());
+            w.Write(">");
         }
     }
 
@@ -826,11 +1582,14 @@ namespace Scheme.Rep {
             throw new Exception("not a real codevector");
         }
     }
-    
+
+    /* Foreign
+     * Holds foreign values; cooperates with ffi.
+     */
     public class Foreign : SObject {
-        public readonly object value;
-        public Foreign(object obj) {
-            this.value = obj;
+        public object value;
+        public Foreign(object value) {
+            this.value = value;
         }
     }
 }
