@@ -12,6 +12,7 @@
 ; Overrides the procedure of the same name in Asm/Common/pass5p1.sch.
 
 (define (assembly-table) $sparc-assembly-table$)
+(define (assembly-target) 'SPARC)
 
 ; Controls listing of instructions during assembly.
 
@@ -95,6 +96,34 @@
     (list-instruction ".align" instruction)
     #t))
 
+(define-instruction $.end
+  (lambda (instruction as)
+    #t))
+
+(define-instruction $.singlestep
+  (lambda (instruction as)
+    (let ((instr (car (as-source as))))
+
+      (define (special?)
+	(let ((op (operand0 instr)))
+	  (or (= op $.label)
+	      (= op $.proc)
+	      (= op $.cont)
+	      (= op $.align)
+	      (and (= op $load) (= 0 (operand1 instr))))))
+
+      (define (readify-instr)
+	(if (= (operand0 instr) $lambda)
+	    (list 'lambda '(...) (caddr instr) (cadddr instr))
+	    (car (readify-lap (list instr)))))
+
+      (if (not (special?))
+	  (let ((repr   (format-object (readify-instr)))
+		(funky? (= (operand0 instr) $restore)))
+	    (let ((o (emit-datum as repr)))
+	      (emit-singlestep-instr! as funky? 0 o)))))))
+
+
 ; Instructions.
 
 ; A hack to deal with the MacScheme macro expander's treatment of 1+ and 1-.
@@ -168,7 +197,7 @@
       (assemble-nested-lambda as
 			      (operand1 instruction)
 			      (operand3 instruction)   ; documentation
-			      (lambda (segment)
+			      (lambda (nested-as segment)
 				(set-constant! as code-offset (car segment))
 				(set-constant! as const-offset (cdr segment))))
       (list-lambda-end)
@@ -509,29 +538,5 @@
     (emit-branchfreg! as 
 		      (regname (operand1 instruction))
 		      (make-asm-label as (operand2 instruction)))))
-
-; We emit a singlestep breakpoint for all MacScheme instructions except
-; the pseudo-operations and a load into R0.
-
-(define (emit-singlestep! as instr)
-
-  (define (special?)
-    (let ((op (operand0 instr)))
-      (or (= op $.label)
-	  (= op $.proc)
-	  (= op $.cont)
-	  (= op $.align)
-	  (and (= op $load) (= 0 (operand1 instr))))))
-
-  (define (readify-instr)
-    (if (= (operand0 instr) $lambda)
-	(list 'lambda '(...) (caddr instr) (cadddr instr))
-	(car (readify-lap (list instr)))))
-
-  (if (not (special?))
-      (let ((repr   (format-object (readify-instr)))
-	    (funky? (= (operand0 instr) $restore)))
-	(let ((o (emit-datum as repr)))
-	  (emit-singlestep-instr! as funky? 0 o)))))
 
 ; eof

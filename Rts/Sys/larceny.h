@@ -8,19 +8,14 @@
 #define INCLUDED_LARCENY_H
 
 #include <limits.h>
+#include "config.h"
+#include "larceny-types.h"
+#include "macros.h"
+#include "cdefs.h"
+#include "assert.h"
 
 #ifdef GC_INTERNAL
 #define NOGLOBALS      /* globals[] array is not declared in this file */
-#endif
-
-/* Fundamental data type. */
-
-typedef unsigned word;
-typedef int s_word;
-typedef unsigned char byte;
-
-#ifndef GC_INTERNAL
-#include "gc.h"
 #endif
 
 /* In "Build/table.s" */
@@ -32,7 +27,7 @@ extern word globals[];
 /* In the garbage collector (Rts/Sys/memmgr.c or Rts/Sys/bdw-collector.c) */
 
 #ifndef GC_INTERNAL
-extern const char *gc_technology;
+extern const char *larceny_gc_technology;
 #endif
 
 /* In "Rts/Sys/larceny.c" */
@@ -47,11 +42,7 @@ extern void hardconsolemsg( const char *fmt, ... );
 /* In "Rts/Sys/heapio.c" */
 
 #if !defined( GC_INTERNAL ) && !defined( HEAPIO_INTERNAL )
-extern void openheap( const char *filename );
 extern int heap_is_bootstrap( void );
-extern unsigned heap_text_size( void );
-extern unsigned heap_data_size( void );
-extern void closeheap( void );
 extern void load_bootstrap_heap( word *sbase, word *tbase, word *globals );
 extern void load_dumped_heap( word *globals );
 extern int dump_bootstrap_heap( char *filename, semispace_t *data, 
@@ -61,24 +52,25 @@ extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 
 /* In "Rts/Sys/gc.c" -- an old-looking front-end for the new collector */
 
-#ifndef GC_INTERNAL
-extern int  allocate_heap( gc_param_t *params );
-extern word *alloc_from_heap( unsigned nbytes );
-extern word gc_allocate_nonmoving( int length, int tag );
-#if 0
-extern void garbage_collect( int, unsigned );
-#endif
-extern void garbage_collect3( unsigned, unsigned, unsigned );
+#if !defined( GC_INTERNAL )
+extern char *gctype( void );
+extern int  create_memory_manager( gc_param_t *params );
+extern word *alloc_from_heap( int nbytes );
+extern word *alloc_bv_from_heap( int nbytes );
+extern word allocate_nonmoving( int length, int tag );
+extern word standing_room_only( int p_tag, int h_tag, int limit );
+extern void garbage_collect3( int gen, int request_bytes );
 extern void compact_ssb( void );
-extern void load_heap( void );
-extern int  reorganize_and_dump_static_heap( char *filename );
-extern int  dump_heap( char *filename );
 extern void init_stats( int show_stats );
-extern void gc_policy_control( int heap, int rator, unsigned rand );
+extern void policy_control( int heap, int rator, unsigned rand );
 extern word creg_get( void );
 extern void creg_set( word k );
 extern void stack_overflow( void );
 extern void stack_underflow( void );
+
+extern int  load_heap_image_from_file( const char *filename );
+extern int  dump_heap_image_to_file( const char *filename );
+extern int  reorganize_and_dump_static_heap( const char *filename );
 #endif
 
 /* In "Rts/Sys/cglue.c", called only from millicode */
@@ -98,58 +90,47 @@ extern void C_break( void );
 extern void C_singlestep( word s );
 extern void C_syscall( void );
 extern void C_wb_compact( int generation );
+extern void C_SRO( word ptrtag, word hdrtag, word limit );
 
-#if SIMULATE_NEW_BARRIER
-typedef struct {
-  unsigned array_assignments;
-  unsigned lhs_young_or_remembered;
-  unsigned rhs_constant;
-  unsigned cross_gen_check;
-  unsigned transactions;
-} simulated_barrier_stats_t;
-extern void C_simulate_new_barrier( void );
-extern void simulated_barrier_stats( simulated_barrier_stats_t * );
-#endif
-
-#endif
+#endif /* not GC_INTERNAL */
 
 /* In "Rts/Sys/unix.c", called only as syscalls */
 
 #ifndef GC_INTERNAL
-extern void UNIX_openfile();
-extern void UNIX_unlinkfile();
-extern void UNIX_closefile();
-extern void UNIX_readfile();
-extern void UNIX_writefile();
-extern void UNIX_getresourceusage();
-extern void UNIX_dumpheap();
-extern void UNIX_exit();
-extern void UNIX_mtime();
-extern void UNIX_access();
-extern void UNIX_rename();
-extern void UNIX_pollinput();
-extern void UNIX_getenv();
-extern void UNIX_garbage_collect();
-extern void UNIX_iflush();
-extern void UNIX_flonum_exp();
-extern void UNIX_flonum_log();
-extern void UNIX_flonum_sin();
-extern void UNIX_flonum_cos();
-extern void UNIX_flonum_tan();
-extern void UNIX_flonum_asin();
-extern void UNIX_flonum_acos();
-extern void UNIX_flonum_atan();
-extern void UNIX_flonum_atan2();
-extern void UNIX_flonum_sqrt();
-extern void UNIX_stats_dump_on();
-extern void UNIX_stats_dump_off();
-extern void UNIX_gcctl_np();
-extern void UNIX_block_signals();
-extern void UNIX_flonum_sinh();
-extern void UNIX_flonum_cosh();
-extern void UNIX_system();
-extern void UNIX_allocate_nonmoving();
-extern void UNIX_object_to_address();
+extern void UNIX_openfile( word, word, word );
+extern void UNIX_unlinkfile( word );
+extern void UNIX_closefile( word );
+extern void UNIX_readfile( word, word, word );
+extern void UNIX_writefile( word, word, word, word );
+extern void UNIX_getresourceusage( void );
+extern void UNIX_dumpheap( word, word );
+extern void UNIX_exit( word );
+extern void UNIX_mtime( word, word );
+extern void UNIX_access( word, word );
+extern void UNIX_rename( word, word );
+extern void UNIX_pollinput( word );
+extern void UNIX_getenv( word );
+extern void UNIX_garbage_collect( word, word );
+extern void UNIX_iflush( word );
+extern void UNIX_flonum_exp( word, word );
+extern void UNIX_flonum_log( word, word );
+extern void UNIX_flonum_sin( word, word );
+extern void UNIX_flonum_cos( word, word );
+extern void UNIX_flonum_tan( word, word );
+extern void UNIX_flonum_asin( word, word );
+extern void UNIX_flonum_acos( word, word );
+extern void UNIX_flonum_atan( word, word );
+extern void UNIX_flonum_sqrt( word, word );
+extern void UNIX_flonum_sinh( word, word );
+extern void UNIX_flonum_cosh( word, word );
+extern void UNIX_flonum_atan2( word, word, word );
+extern void UNIX_stats_dump_on( word );
+extern void UNIX_stats_dump_off( void );
+extern void UNIX_gcctl_np( word, word, word );
+extern void UNIX_block_signals( word );
+extern void UNIX_system( word );
+extern void UNIX_allocate_nonmoving( word, word );
+extern void UNIX_object_to_address( word );
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -209,20 +190,22 @@ void larceny_C_ffi_getaddr( word w_key );
 void larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
 				    word *adesc, int rdesc, int argc );
 
+/* In Rts/Sys/syscall.c */
+
+void larceny_syscall( int nargs, int nproc, word *args );
+
 /* In Rts/Sys/callback.c */
 
 void larceny_call( word proc, int argc, word *argv, word *result );
 
 /* In "Rts/Sys/util.c" */
 
-#ifndef GC_INTERNAL
 word copy_object( gc_t *gc, word obj );
 word box_double( double d );
 word box_int( int i );
 word box_uint( unsigned u );
 unsigned unbox_uint( word w );
 int unbox_int( word w );
-#endif
 
 /* In "Rts/$MACHINE/glue.s" */
 
@@ -247,16 +230,6 @@ extern int memfail( int code, char *fmt, ... );
 #define MF_RTS      4     /* gclib_alloc_rts() failed */
 
 /* Defaults */
-
-/* Heap defaults (appropriate for compiler-less heap) */
-#define DEFAULT_ESIZE (1024*1024)     /* default espace size = 1MB */
-#define DEFAULT_TSIZE (1024*1024*2)   /* default tspace size = 2MB */
-#define DEFAULT_SSIZE 0               /* default static size = 0 */
-#define DEFAULT_SC_SIZE (1024*1024*2)  /* default stop+copy size = 2MB */
-
-#define DEFAULT_STEPS              8  /* default number of NP steps */
-#define DEFAULT_STEPSIZE   (256*1024) /* default NP step size */
-#define DEFAULT_NP_SIZE (DEFAULT_STEPS*DEFAULT_STEPSIZE)
 
 /* GC policy defaults (not tuned) */
 #if 0
@@ -308,9 +281,6 @@ extern int memfail( int code, char *fmt, ... );
 #define HL_SBOT 3
 #define HL_STOP 4
 
-/* System-wide maximum number of non-static heaps */
-#define MAX_HEAPS  16
-
 /* There are some limits even in Larceny :-) 
  *
  * The size of the largest object is determined by the size field in
@@ -319,6 +289,8 @@ extern int memfail( int code, char *fmt, ... );
  */
 
 #define LARGEST_OBJECT    16777215
+#define BYTE_ALIGNMENT    8
+#define WORD_ALIGNMENT    2
 
 /* debugmsg( char *fmt, ... ); */
 

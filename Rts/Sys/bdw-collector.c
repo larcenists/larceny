@@ -1,17 +1,14 @@
 /* Rts/Sys/bdw-collector.c
- * Larceny run-time system -- support for Boehm-Demers-Weiser conservative gc.
+ * Larceny -- the Boehm-Demers-Weiser conservative garbage collector.
  *
  * $Id: bdw-collector.c,v 1.3 1997/07/07 20:07:05 lth Exp $
  *
+ * Allocation:
  *
- * Allocation.
+ * Allocation happens by callout to millicode.  Therefore, the millicode
+ * has been hacked to call GC_malloc() to allocate memory.
  *
- * Allocation has to go through millicode, as per normal procedure.
- * Therefore, the millicode (Sparc/memory.s) has been hacked to call
- * GC_malloc() to allocate memory.
- *
- *
- * The stack cache.
+ * The stack cache:
  *
  * The stack cache must have the same appearance to compiled code as it
  * usually has.  This means setting up the pointers in the globals table
@@ -23,8 +20,7 @@
  * clearing the stack cache above the current point.  Clearing can be
  * triggered by overflow/underflow or other events.
  *
- *
- * The static area (data_load_area, text_load_area).
+ * The static area (data_load_area, text_load_area):
  *
  * These are allocated in the heap as a two large objects, with
  * private (but gc-visible) anchors that ensure that none of the
@@ -34,28 +30,31 @@
  *
  * It is probably important to use a split heap (where the code vectors
  * are in a separate segment) so that the collector will not get confused
- * about instructions looking like data.  This has yet to be substantiated;
- * on repeated 50dynamic, the collector retains about the same amount
- * of storage with either split or unified heaps.  This is worrysome.
+ * about instructions looking like data.  This has yet to be substantiated.
  *
  * The code in this file is reentrant.
  * The code in this file does not rely on word size.
  * The code in this file does not depend on header size.
  */
 
-const char *gc_technology = "conservative";
+const char *larceny_gc_technology = "conservative";
+
+#define BDW_CLEAR_STACK 1
+#define BDW_DEBUG       1
 
 #define GC_INTERNAL
 
-#define STACK_CACHE_SIZE  (1024*65)
+#define STACK_CACHE_SIZE  (1024*64)
 
 #include <string.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
+#include "gc.h"
+#include "gc_t.h"
 #include "memmgr.h"
 #include "gclib.h"
-#include "assert.h"
+#include "barrier.h"
+#include "heap_stats_t.h"
+#include "stack.h"
 #include "../bdw-gc/include/gc.h"
 
 typedef struct {
@@ -68,80 +67,40 @@ typedef struct {
 
 #define DATA( gc )   ((bdw_data_t*)gc->data)
 
-static void no_op_warn();
-static int initialize( gc_t *gc );
-static void collect( gc_t *, int, gc_type_t, unsigned );
-static word *allocate( gc_t *gc, unsigned nbytes );
-static word *data_load_area( gc_t *gc, unsigned nbytes );
-static word *text_load_area( gc_t *gc, unsigned nbytes );
-static word creg_get( gc_t *gc );
-static void creg_set( gc_t *gc, word k );
-static void stack_underflow( gc_t *gc );
-static void stack_overflow( gc_t *gc );
-static int iflush( gc_t *gc, int generation );
-static void stats( gc_t *gc, int generation, heap_stats_t *stats );
-static void set_policy( gc_t *gc, int heap, int rator, unsigned rand );
-
 static void init_stack( gc_t *gc );
 static void flush_stack( gc_t *gc );
+static gc_t *allocate_area( word *globals );
 
-
-/* Usually you want this to be on, but you can turn it off to allow multiple
- * collectors in the same process.
- */
-#ifdef BDW_DEBUG
+/* You can turn this off to allow multiple collectors in the same process. */
+#if BDW_DEBUG
 static word *bdw_globals = 0;
 #endif
 
+void bdw_before_gc( void );
+void bdw_after_gc( void );
 
 gc_t *
 create_bdw_gc( gc_param_t *params, int *generations )
 {
-  gc_t *the_gc;
+  gc_t *gc;
 
   *generations = 1;
 
-  the_gc = (gc_t*)must_malloc( sizeof( gc_t ) );
-  the_gc->data = (bdw_data_t*)must_malloc( sizeof( bdw_data_t ) );
-
-  DATA(the_gc)->globals = params->globals;
-  DATA(the_gc)->frames_flushed = 0;
-  DATA(the_gc)->bytes_flushed = 0;
-  DATA(the_gc)->stacks_created = 0;
-
-  the_gc->id = "bdw/variable";
-
-  the_gc->initialize = initialize;
-  the_gc->collect = collect;
-  the_gc->allocate = allocate;
-  the_gc->data_load_area = data_load_area;
-  the_gc->text_load_area = text_load_area;
-  the_gc->creg_get = creg_get;
-  the_gc->creg_set = creg_set;
-  the_gc->stack_underflow = stack_underflow;
-  the_gc->stack_overflow = stack_overflow;
-  the_gc->iflush = iflush;
-  the_gc->stats = stats;
-  the_gc->compact_all_ssbs = (int (*)())no_op_warn;
-  the_gc->clear_remset = no_op_warn;
-  the_gc->isremembered = (int (*)())no_op_warn;
-  the_gc->compact_np_ssb = no_op_warn;
-  the_gc->clear_np_remset = no_op_warn;
-  the_gc->np_remset_ptrs = no_op_warn;
-  the_gc->set_np_collection_flag = no_op_warn;
-  the_gc->np_merge_and_clear_remset = no_op_warn;
-  the_gc->promote_out_of = no_op_warn;
-  the_gc->enumerate_roots = no_op_warn;
-  the_gc->enumerate_remsets_older_than = no_op_warn;
-  the_gc->set_policy = no_op_warn;
-
+  gc = allocate_area( params->globals );
   GC_INIT();
-  if (params->bdw_incremental)
+#if 0
+  GC_register_displacement( 0 );
+  GC_register_displacement( 1 );
+  GC_register_displacement( 3 );
+  GC_register_displacement( 5 );
+  GC_register_displacement( 7 );
+#endif
+  if (params->use_incremental_bdw_collector)
     GC_enable_incremental();
-  init_stack( the_gc );
-  wb_disable();
+  init_stack( gc );
+  wb_disable_barrier();
 
-  return the_gc;
+  return gc;
 }
 
 /* Hook run before gc (if gc has been set up to do it). */
@@ -149,6 +108,9 @@ create_bdw_gc( gc_param_t *params, int *generations )
 void bdw_before_gc( void )
 {
 #if BDW_DEBUG
+  word *p, *lim;
+  int n, s;
+
   if (!bdw_globals) return;
 
   /* Stack sanity check */
@@ -156,13 +118,25 @@ void bdw_before_gc( void )
     panic( "Foo!  In-line allocation has taken place!  Aborting." );
 
 # if BDW_CLEAR_STACK
-  /* UNTESTED CODE!  Test after Quals.  FIXME */
   /* Clear out the unused portion of the stack cache.  Ideally,
    * it would be better to tell the collector to just ignore that
-   * region.  FIXME.
+   * region.
    */
-  memset( (word*)bdw_globals[G_ETOP], 0,
+  memset( (void*)bdw_globals[G_ETOP], 
+ 	  0,
 	  bdw_globals[G_STKP]-bdw_globals[G_ETOP] );
+
+  /* Clear all the dynamic links and pad words, since they're garbage. */
+  p = (word*)bdw_globals[ G_STKP ];
+  lim = (word*)bdw_globals[ G_STKBOT ];
+  while (p < lim) {
+    p[2] = 0;			        /* Clear the dynamic link */
+    s = (p[0] >> 2) + 1;
+    n = roundup2( s );
+    if (n != s) p[s] = 0;	        /* Clear the pad word */
+    p += n;
+  }
+
 # endif
 #endif
   stats_before_gc();
@@ -188,51 +162,61 @@ static int initialize( gc_t *gc )
 {
 #if BDW_DEBUG
   bdw_globals = DATA(gc)->globals;
-#endif
+#endif  
   return 1;
 }
 
-static void collect( gc_t *gc, int gen, gc_type_t type, unsigned nbytes )
+static void collect( gc_t *gc, int gen, int nbytes )
 {
   GC_gcollect();
 }
 
-static word *allocate( gc_t *gc, unsigned nbytes )
+/* We can ignore no_gc because it's a non-moving collector */
+static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
 {
   void *p;
 
   if (nbytes > LARGEST_OBJECT) {
-    /* FIXME: should really raise an exception */
     panic( "\nSorry, an object of size %d bytes is too much for me; max is %d."
 	   "\nSee you in 64-bit-land...\n",
 	   nbytes, LARGEST_OBJECT );
   }
-  p = GC_malloc( nbytes );
+  if (atomic)
+    p = GC_malloc_atomic( nbytes );
+  else
+    p = GC_malloc( nbytes );
   if (p == 0)
     panic( "GC_malloc failed for %u bytes.", nbytes );
   return (word*)p;
 }
 
-static word *data_load_area( gc_t *gc, unsigned nbytes )
+static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic ) 
+{
+  return allocate( gc, nbytes, 0, atomic );
+}
+
+static word *data_load_area( gc_t *gc, int nbytes )
 {
   /* The anchor allows the use of GC_malloc_ignore_off_page, which
    * is recommended by the authors (see bdw-gc/gc.h).
    */
-  static void *anchor;
+  static void *anchor = 0;
 
+  assert( anchor == 0 );
   anchor = GC_malloc_ignore_off_page( nbytes );
   if (anchor == 0) 
     panic( "GC_malloc failed for %u bytes.", nbytes );
   return (word*)anchor;
 }
 
-static word *text_load_area( gc_t *gc, unsigned nbytes )
+static word *text_load_area( gc_t *gc, int nbytes )
 {
   /* The anchor allows the use of GC_malloc_atomic_ignore_off_page, which
    * is recommended by the authors (see bdw-gc/gc.h).
    */
-  static void *anchor;
+  static void *anchor = 0;
 
+  assert( anchor == 0 );
   anchor = GC_malloc_atomic_ignore_off_page( nbytes );
   if (anchor == 0)
     panic( "GC_malloc_atomic failed for %u bytes.", nbytes );
@@ -254,6 +238,18 @@ static void stats( gc_t *gc, int generation, heap_stats_t *stats )
   stats->live = stats->semispace1 = GC_get_heap_size();
 }
 
+static void stack_underflow( gc_t *gc )
+{
+  if (!stk_restore_frame( DATA(gc)->globals ))
+    panic( "stack_underflow" );
+}
+
+static void stack_overflow( gc_t *gc )
+{
+  flush_stack( gc );
+  stack_underflow( gc );
+}
+
 static word creg_get( gc_t *gc )
 {
   word k;
@@ -271,19 +267,6 @@ static void creg_set( gc_t *gc, word k )
   stack_underflow( gc );
 }
 
-static void stack_underflow( gc_t *gc )
-{
-  if (!stk_restore_frame( DATA(gc)->globals ))
-    panic( "stack_underflow" );
-}
-
-static void stack_overflow( gc_t *gc )
-{
-  flush_stack( gc );
-  stack_underflow( gc );
-}
-
-
 /* Internal */
 
 static void init_stack( gc_t *gc )
@@ -291,15 +274,13 @@ static void init_stack( gc_t *gc )
   static void *anchor = 0;
   word *globals = DATA(gc)->globals;
 
-  if (anchor == 0) {
+  if (anchor == 0)
     anchor = GC_malloc_ignore_off_page( STACK_CACHE_SIZE );
-    memset( (void*)anchor, 0, STACK_CACHE_SIZE );
-  }
   if (anchor == 0)
     panic( "init_stack" );
 
   globals[ G_EBOT ] = globals[ G_ETOP ] = (word)anchor;
-  globals[ G_ELIM ] = (word)anchor + STACK_CACHE_SIZE;
+  globals[ G_ELIM ] = (word)anchor + STACK_CACHE_SIZE - 8;
   globals[ G_STKP ] = globals[ G_ELIM ];
   globals[ G_STKUFLOW ] = 0;
 
@@ -345,6 +326,68 @@ static void flush_stack( gc_t *gc )
 static void clear_stack( gc_t *gc )
 {
   stk_clear( DATA(gc)->globals );
+}
+
+static gc_t *allocate_area( word *globals )
+{
+  bdw_data_t *data;
+
+  data = (bdw_data_t*)must_malloc( sizeof( bdw_data_t ) );
+
+  data->globals = globals;
+  data->frames_flushed = 0;
+  data->bytes_flushed = 0;
+  data->stacks_created = 0;
+
+  return create_gc_t("bdw/variable", 
+		     data,
+		     initialize,
+		     allocate,
+		     allocate_nonmoving,
+		     collect,
+		     no_op_warn,     	     /* set_policy */
+		     data_load_area,
+		     text_load_area,
+		     iflush,
+		     creg_get,
+		     creg_set,
+		     stack_overflow,
+		     stack_underflow,
+		     stats,
+		     (int (*)())no_op_warn,  /* compact_all_ssbs */
+		     no_op_warn,             /* compact_np_ssb */
+		     no_op_warn,             /* np_remset_ptrs */
+		     0,                      /* load_heap */
+		     0,                      /* dump_heap */
+		     no_op_warn,             /* enumerate_roots */
+		     no_op_warn              /* enumerate_remsets_older_than */
+		     );
+}
+
+/* Support for SRO. */
+
+void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
+{
+  /* These are present at least in v4.12; see bdw-gc/gc_priv.h */
+  extern caddr_t GC_least_plausible_heap_addr;
+  extern caddr_t GC_greatest_plausible_heap_addr;
+
+  *lowest = GC_least_plausible_heap_addr;
+  *highest = GC_greatest_plausible_heap_addr;
+}
+
+void *gclib_alloc_rts( int nbytes, unsigned attr )
+{
+  void *p;
+
+  p = GC_malloc_atomic_uncollectable( nbytes );
+  if (p == 0) panic( "GC_alloc_atomic_uncollectable returned 0!" );
+  return p;
+}
+
+void gclib_free( void *p, int nbytes )
+{
+  GC_free( p );
 }
 
 /* eof */

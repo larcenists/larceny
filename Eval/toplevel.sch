@@ -265,6 +265,8 @@
     ;; in R5RS:
     (environment-set! r5rs 'dynamic-wind dynamic-wind)
     (environment-set! r5rs 'eval eval)
+    (environment-set! r5rs 'values values)
+    (environment-set! r5rs 'call-with-values call-with-values)
     ;; not in R4RS:
     (environment-set! larc 'procedure-length procedure-length)
     (environment-set! larc 'procedure-ref procedure-ref)
@@ -387,7 +389,7 @@
     ;; Support for rewriter and for macro expansion.
     ;; The %* names are hacks and should be fixed.
 
-    (environment-set! larc 'macro-expand macro-expand)
+    (environment-set! larc 'macro-expand (lambda (e) (macro-expand e #f)))
     (environment-set! r4rs '%list list)
     (environment-set! r4rs '%list->vector list->vector)
     (environment-set! r4rs '%cons cons)
@@ -401,6 +403,7 @@
     (environment-set! larc 'display-memstats display-memstats)
     (environment-set! larc 'collect collect)
     (environment-set! larc 'gcctl gcctl)
+    (environment-set! larc 'sro sro)
     (environment-set! larc 'memstats memstats)
     (environment-set! larc 'stats-dump-on stats-dump-on)
     (environment-set! larc 'stats-dump-off stats-dump-off)
@@ -419,11 +422,11 @@
 
     ;; miscellaneous extensions
 
+    (environment-set! larc 'repl repl)
     (environment-set! larc 'repl-printer repl-printer)
     (environment-set! larc 'repl-evaluator repl-evaluator)
+    (environment-set! larc 'repl-prompt repl-prompt)
     (environment-set! larc 'eval-macro-expander eval-macro-expander)
-    (environment-set! larc 'load-noisily load-noisily)
-    (environment-set! larc 'load-quietly load-quietly)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
     (environment-set! larc 'typetag-set! typetag-set!)
@@ -433,6 +436,9 @@
     ;; Backwards compatibility
     (environment-set! larc 'repl-eval-procedure repl-evaluator)
     (environment-set! larc 'repl-display-procedure repl-printer)
+; No longer in Lib/load.sch -- look in Auxlib/load.sch
+;    (environment-set! larc 'load-noisily load-noisily)
+;    (environment-set! larc 'load-quietly load-quietly)
 
     ;; bignum debugging
 

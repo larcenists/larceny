@@ -107,12 +107,44 @@
   (creg))
 
 
+; From: William D Clinger <will@ccs.neu.edu>
+; Newsgroups: comp.lang.scheme
+; Subject: Re: call-with-values: what's all about?
+; Date: Tue, 11 Nov 1997 15:29:31 -0500
+
+; This is correct for correct programs.
+;
+; Returning multiple values to a continuation that does not expect them
+; (an error) will not be detected.
+;
+; We need to replace these definitions when Larceny gets compiler 
+; support for them.
+
+(define *multiple-values* (list '*multiple-values*))
+(define *values0* (list *multiple-values*))
+
+(define values
+  (lambda vals
+    (cond ((null? vals) *values0*)
+	  ((null? (cdr vals)) (car vals))
+	  (else (cons *multiple-values* vals)))))
+
+(define call-with-values
+  (lambda (producer consumer)
+    (let ((vals (producer)))
+      (if (and (pair? vals)
+	       (eq? (car vals) *multiple-values*))
+	  (apply consumer (cdr vals))
+	  (consumer vals)))))
+
+
 ; dynamic-wind
 ;
 ; Snarfed from Lisp Pointers, V(4), October-December 1992, p45.
 ; Written by Jonathan Rees.
 ;
 ; FIXME: this code is not thread-aware.
+; FIXME: this may not correspond to the R5RS specification.
 
 (define *here* (list #f))
 
@@ -129,17 +161,10 @@
 (define (dynamic-wind before during after)
   (let ((here *here*))
     (reroot! (cons (cons before after) here))
-    (let ((r (during)))
-      (reroot! here)
-      r)))
-
-; The code following the call to reroot! is really the following, but
-; we don't have multiple values yet:
-;
-;    (call-with-values during
-;      (lambda results
-;	(reroot! here)
-;	(apply values results)))
+    (call-with-values during
+      (lambda results
+	(reroot! here)
+	(apply values results)))))
 
 (define (reroot! there)
   (if (not (eq? *here* there))
@@ -152,6 +177,5 @@
 	       (set-cdr! there '())
 	       (set! *here* there)
 	       (before)))))
-
 
 ; eof

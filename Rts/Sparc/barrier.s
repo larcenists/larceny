@@ -40,7 +40,7 @@
 	.global EXTNAME(m_full_barrier)		! full write barrier
 	.global EXTNAME(mem_addtrans)		! alias for full barrier
 	.global EXTNAME(m_partial_barrier)	! partial write barrier
-	.global EXTNAME(wb_disable)		! disable barrier
+	.global EXTNAME(wb_lowlevel_disable_barrier)	! disable barrier
 
 	.seg "text"
 
@@ -116,9 +116,12 @@ EXTNAME(m_partial_barrier):
 	! %TMP1: gr
 	! %TMP2: dead
 	cmp	%TMP0, %TMP1
+#if NP_EXTRA_REMSET && 0
+! begin experimental
+! This works, but (1) slows down the normal collector's barrier, 
+! and (2) won't work with the new barrier.  So I've taken it out, for
+! the time being.
 	ble	9f
-! begin experimental (yes, this is in the delay slot.  watch it.)
-#if NP_EXTRA_REMSET
 	add	%TMP1, 1, %TMP1
 
 	! Must record a transaction
@@ -140,9 +143,12 @@ EXTNAME(m_partial_barrier):
 	! %TMP1: dead
 	! %TMP2: dead
 1:
-#endif
-! end experimental
 	sll	%TMP0, 2, %TMP1			! gl shifted for indexing
+! end experimental
+#else
+	ble	9f
+	sll	%TMP0, 2, %TMP1			! gl shifted for indexing
+#endif
 
 	! %TMP0: dead
 	! %TMP1: gl, shifted for indexing
@@ -193,7 +199,7 @@ EXTNAME(mem_addtrans):
 ! It works by overwriting the branch instruction in the millicode jump
 ! vector with a retl instruction, and the one following it with a nop.
 
-EXTNAME(wb_disable):
+EXTNAME(wb_lowlevel_disable_barrier):
 	set	EXTNAME(globals), %o0
 	set	9f, %o1
 	ld	[ %o1 ], %o2

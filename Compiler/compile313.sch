@@ -27,16 +27,15 @@
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename
-				'(".sch" ".scm")
-				(if (write-barrier)
-				    ".fasl"
-				    ".efasl")))))
+	     (rewrite-file-type infilename '(".sch" ".scm")
+				(fasl-extension))))
+	(user (asm-user-structure)))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
 		  (lambda (item)
-		    (assemble (compile ((twobit-auxiliary-expander) item)))))
+		    (assemble (compile ((twobit-auxiliary-expander) item))
+			      user)))
     (unspecified)))
 
 
@@ -46,21 +45,18 @@
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename
-				'(".lap" ".mal")
-				(if (write-barrier)
-				    ".fasl"
-				    ".efasl"))))
+	     (rewrite-file-type infilename '(".lap" ".mal") (fasl-extension))))
 	(malfile?
 	 (and (> n 4)
-	      (string-ci=? ".mal" (substring file (- n 4) n)))))
+	      (string-ci=? ".mal" (substring file (- n 4) n))))
+	(user (asm-user-structure)))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
 		  (lambda (item)
 		    (if malfile? 
-			(assemble (eval item))
-			(assemble item))))
+			(assemble (eval item) user)
+			(assemble item user))))
     (unspecified)))
 
 
@@ -88,21 +84,24 @@
   (let ((outputfile
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type file
-				'(".lap" ".mal")
-				(if (write-barrier)
-				    ".lop"
-				    ".elop"))))
-	(n (string-length file)))
+	     (rewrite-file-type file '(".lap" ".mal") (lop-extension))))
+	(n (string-length file))
+	(user (asm-user-structure)))
     (process-file file
 		  outputfile
 		  write-lop
 		  (if (and (> n 4)
 			   (string-ci=? ".mal" (substring file (- n 4) n)))
-		      (lambda (x) (assemble (eval x)))
-		      assemble))
+		      (lambda (x) (assemble (eval x) user))
+		      (lambda (x) (assemble x user))))
     (unspecified)))
 
+; Additional data structure used during assembly by some assemblers.
+
+(define (asm-user-structure)
+  (case (assembly-target)
+    ((standard-C) (list 0 0))
+    (else #f)))
 
 ; Convert a ".lop" file to fastload format.
 
@@ -110,11 +109,8 @@
   (let ((outfilename
 	 (if (not (null? rest))
 	     (car rest)
-	     (rewrite-file-type infilename
-				'(".lop" ".elop")
-				(if (write-barrier)
-				    ".fasl"
-				    ".efasl")))))
+	     (rewrite-file-type infilename '(".lop" ".elop")
+				(fasl-extension)))))
     (process-file infilename
 		  outfilename
 		  dump-fasl-segment-to-port
@@ -149,7 +145,8 @@
 	((codevector)
 	 (print "Code vector")
 	 (print-instructions (disassemble-codevector
-			      (cadr (vector-ref cv i)))))
+			      (cadr (vector-ref cv i)))
+			     port))
 	((constantvector)	
 	 (print "Constant vector")
 	 (print-constvector (cadr (vector-ref cv i))))
@@ -160,12 +157,13 @@
 
   (define (print-segment segment)
     (print "Segment # " segment-no)
-    (print-instructions (disassemble-codevector (car segment)))
+    (print-instructions (disassemble-codevector (car segment)) port)
     (print-constvector (cdr segment))
     (print "========================================"))
 
   (cond ((procedure? item)
-	 (print-instructions (disassemble-codevector (procedure-ref item 0))))
+	 (print-instructions (disassemble-codevector (procedure-ref item 0))
+			     port))
 	((and (pair? item)
 	      (bytevector? (car item))
 	      (vector? (cdr item)))
@@ -178,10 +176,6 @@
 ; other (optional) file.
 
 (define (disassemble-file file . rest)
-
-  (define (print . rest)
-    (for-each (lambda (x) (display x port)) rest)
-    (newline port))
 
   (define (doit input-port output-port)
     (display "; From " output-port)
@@ -201,7 +195,7 @@
 	  (begin
 	    (delete-file (car rest))
 	    (call-with-output-file (car rest)
-	      (lambda (output-port) (doit file output-port)))))))
+	      (lambda (output-port) (doit input-port output-port)))))))
   (unspecified))
 
 
@@ -223,6 +217,7 @@
 	    (else
 	     (error "Wrong arguments to target-architecture: " rest))))))
 
+; FIXME: sparc specific
 (define (fast-unsafe-code)
   (integrate-usual-procedures #t)
   (benchmark-mode #t)
@@ -232,6 +227,7 @@
   (unsafe-code #t)
   (single-stepping #f))
 
+; FIXME: sparc specific
 (define (fast-safe-code)
   (integrate-usual-procedures #t)
   (benchmark-mode #t)
@@ -241,6 +237,19 @@
   (unsafe-code #f)
   (single-stepping #f))
 
+; This needs to be replaced by a better mechanism.
+
+(define (lop-extension)
+  (if (and (eq? (assembly-target) 'SPARC)
+	   (not (write-barrier)))
+      ".elop"
+      ".lop"))
+
+(define (fasl-extension)
+  (if (and (eq? (assembly-target) 'SPARC)
+	   (not (write-barrier)))
+      ".efasl"
+      ".fasl"))
 
 ; Read and process one file, producing another.
 

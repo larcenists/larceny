@@ -6,13 +6,10 @@
 
 #include <memory.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "gc.h"
-
+#include "gc_t.h"
 
 #define HDR_BYTES    4    /* Belongs in layouts.cfg */
-
 
 /* Given a tagged pointer to an object, make a copy of the object in the
  * heap of the given collector.  The source object does not need to be
@@ -23,12 +20,14 @@ word copy_object( gc_t *gc, word obj )
 {
   word *p;
   unsigned size;
+  int t;
 
-  if (tagof( obj ) == PAIR_TAG)
+  t = tagof( obj );
+  if (t == PAIR_TAG)
     size = 2*sizeof( word );
   else 
     size = roundup_balign( sizefield( *ptrof( obj ) )+HDR_BYTES );
-  p = gc->allocate( gc, size );
+  p = gc_allocate( gc, size, 0, t == BVEC_TAG );
   memcpy( p, ptrof( obj ), size );
   return tagptr( p, tagof( obj ) );
 }
@@ -38,7 +37,7 @@ word box_int( int n )
   if (n >= MOST_NEGATIVE_FIXNUM && n <= MOST_POSITIVE_FIXNUM)
     return fixnum(n);
   else {
-    word *p = alloc_from_heap( 12 );
+    word *p = alloc_bv_from_heap( 12 );
     *p = mkheader( 8, BIGNUM_HDR );
     if (n < 0) {
       n = -n;
@@ -56,7 +55,7 @@ word box_uint( unsigned n )
   if (n <= MOST_POSITIVE_FIXNUM)
     return fixnum(n);
   else {
-    word *p = alloc_from_heap( 12 );
+    word *p = alloc_bv_from_heap( 12 );
     *p = mkheader( 8, BIGNUM_HDR );
     *(p+1) = mkbignum_header( 0, 1 );
     *(p+2) = n;
@@ -66,7 +65,7 @@ word box_uint( unsigned n )
 
 word box_double( double d )
 {
-  word *p = alloc_from_heap( 16 );
+  word *p = alloc_bv_from_heap( 16 );
   *(double*)(p+2) = d;
   *p = mkheader( 12, FLONUM_HDR );
   return tagptr(p, BVEC_TAG);

@@ -13,7 +13,7 @@
 
 # Boehm-Demers-Weiser garbage collector
 
-BDW_DIST=bdw-gc-4.11.tar.gz
+BDW_DIST=bdw-gc-4.12.tar.gz
 
 # Programs (note also setup in Rts/Makefile).
 
@@ -60,7 +60,7 @@ HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
 # These exist only in this file
 
-MISCFILES=COPYRIGHTS README CHGLOG Makefile nbuild
+MISCFILES=COPYRIGHTS README README-0.?? CHGLOG Makefile nbuild
 BUGSFILES=BUGS BUGS-FIXED BUGS-RETIRED
 ASMFILES=$(ASM)/Common/*.sch $(ASM)/Sparc-old/*.sch $(ASM)/Sparc/*.sch \
 	$(ASM)/MacScheme/*.sch
@@ -72,15 +72,15 @@ COMPFILES=$(COMP)/*.sch $(COMP)/help-topics.txt
 TEXTFILES=$(TEXT)/*.tex
 AUXFILES=$(AUXLIB)/*.sch $(AUXLIB)/*.mal
 TESTFILES=$(TEST)/Lib/*.sch $(TEST)/Lib/*.mal $(TEST)/Lib/README \
-	$(TEST)/GC/*.sch $(TEST)/GC/README
+	$(TEST)/GC/*.sch $(TEST)/GC/README $(TEST)/*.sch
 HTMLFILES=$(HTML)/*.html
-FFIFILES=$(FFI)/*.sch $(FFI)/*.txt
+FFIFILES=$(FFI)/*.sch $(FFI)/*.txt $(FFI)/README
 # Only a subset of experimental code is distributed.
 EXPERIMENTALFILES=$(EXPERIMENTAL)/record.sch $(EXPERIMENTAL)/record.doc \
 	$(EXPERIMENTAL)/debug.sch $(EXPERIMENTAL)/applyhook.sch \
 	$(EXPERIMENTAL)/applyhook0.mal
 
-RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg \
+RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Util/*.c \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
 	$(UTIL)/*.sch $(UTIL)/modules.list
 
@@ -120,6 +120,8 @@ default:
 	@echo "  clean      - remove executables and objects"
 	@echo "  lopclean   - remove all .LOP files"
 	@echo "  libclean   - remove all .LAP and .LOP files"
+	@echo "  soclean    - remove all .so files"
+	@echo "  tildeclean - remove all *~ files"
 	@echo "  faslclean  - remove all .FASL files"
 	@echo "  realclean  - remove everything, included generated headers"
 	@echo "  rtstar     - tar up all RTS sources"
@@ -171,6 +173,12 @@ libclean: lopclean
 		$(AUXLIB)/*.lap \
 		$(TEST)/Lib/*.lap
 
+soclean:
+	rm -f $(LIB)/*.so
+	rm -f $(COMP)/*.so
+	rm -f $(ASM)/Common/*.so $(ASM)/Sparc/*.so
+	rm -f Chez/*.so
+
 faslclean:
 	rm -f $(COMP)/*.fasl
 	rm -f $(ASM)/Common/*.fasl $(ASM)/Sparc/*.fasl
@@ -186,10 +194,17 @@ rtsclean: clean
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) rtsclean )
 
-realclean: clean libclean
+realclean: clean libclean tildeclean rejclean soclean
 	rm -f larceny Build hsplit bdwlarceny
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) realclean )
+
+
+tildeclean:
+	rm -f `find . -name '*~' -print`
+
+rejclean:
+	rm -f `find . -name '*\.rej' -print'
 
 rtstar:
 	tar cf $(RTSTAR) $(RTSFILES)

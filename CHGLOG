@@ -4,7 +4,148 @@
 
 
 ----------------------------------------------------------------------
-v0.31 in development
+v0.32
+
+FEATURES
+  * New garbage collector! (again)
+  * Has SRO.
+  * stop-and-copy collector has static heap
+  * Several performance improvements
+    - I/O
+    - rest arguments
+  * Support for Macros that Work.
+  * Support for multiple values (rudimentary).
+  * Many bug fixes and minor improvements.
+
+COMPATIBILITY NOTE
+All programs should be recompiled.  Sorry.
+
+DETAILED CHANGES
+[Asm/Sparc/gen-msi.sch]
+  - The code generated for args>= now does the cases for 0 and 1 rest
+    arguments in-line.
+
+[Asm/Sparc/gen-prim.sch]
+  - Added a primop definition for eof-object?.
+  - Added a primop definition for port?.
+  - Added a primop definition for structure?.
+  - Removed the primop definition for make-rectangular.
+
+[Auxlib/load.sch; Auxlib/util.sch]
+  - A more sophisticated loader.
+  - Added full definitions of load-noisily and load-quietly.
+  - Load-noisily now handles multiple values.
+
+[Compiler/twobit.imp.sch]
+  - Added a primop definition for eof-object?.
+  - Added a primop definition for port?.
+  - Added a primop definition for structure?.
+  - Removed the primop definition for make-rectangular.
+
+[Eval/eval.sch]
+  - The signature and meaning of eval-macro-expander has changed.  It now
+    requires the installed macro-expander to take two arguments (namely,
+    the expression and the syntactic environment), and allows the user
+    to specify the keywords used by the macro expander in its output.
+    Together these changes accomodate Clinger's "Macros that work" package.
+    See the manual for details.
+  - Fixed a bug: () is now considered self-evaluating.  This was
+    discovered because the new macro expander does not wrap all constants
+    in a QUOTE.
+
+[Eval/toplevel.sch]
+  - Added values and call-with-values to the r5rs environment.
+  - Added repl and repl-prompt to larceny environment.
+
+[Lib/conio.sch]
+  - [055] Fixed a bug in conio which prevented I/O redirection at the shell
+    from working correctly.
+
+[Lib/control.sch]
+  - Added values and call-with-values (temporary but correct definitions,
+    modulo some call/cc interaction).
+
+[Lib/iosys.sch]
+  - Added io/port-at-eof?.
+  - Commented out port? -- it is now integrable.
+  - Removed reset-iosystem -- it was obsolete.
+
+[Lib/load.sch]
+  - If the environment argument to 'load' is omitted (indicating that the
+    interaction environment should be used), then interaction-environment
+    is called to get the environment for each expression evaluated.  This
+    modification lets loaded files change the setting of the interaction
+    environment and have that change visible to subsequent evaluations
+    during the loading.  Previously, the environment was computed before
+    the first evaluation and not changed throughout.
+  - removed load-noisily and load-quietly and moved them to Auxlib/load.sch.
+
+[Lib/malcode.mal]
+  - Added definitions for read-char and write-char.
+
+[Lib/mcode.sch]
+  - generic-make-rectangular now signals an error if called; make-rectangular
+    is no longer integrable.
+
+[Lib/number.sch]
+  - Implemented make-rectangular.
+
+[Lib/primops.sch]
+  - Added eof-object?.
+  - Added structure?.
+  - Added port?.
+  - Removed make-rectangular.
+
+[Lib/stdio.sch]
+  - Commented out eof-object?, which is now integrable.
+  - Commented out read-char and write-char, which are now written in MAL.
+
+[Lib/struct.sch]
+  - Commented out structure?, which is now integrable.
+
+[Macwork/*]
+  - This is Will Clinger's "Macros that work" package (dated 13 April 1993,
+    fetched from the Scheme repository) and one additional file, load.sch,
+    that allows the macro expander to be installed conveniently under
+    Larceny (UTSL).  The macro package is not yet integrated with Larceny's
+    top-level environments, but it's coming.
+
+[Repl/reploop.sch]
+  - The REPL now handles multiple values returned from the evaluated
+    expression, and prints them intelligently.
+  - There is now an installable REPL prompt printer, in the parameter
+    repl-prompt.  The prompt printer is a procedure of one argument
+    that receives the current REPL nesting level (1=outermost).
+  - REPL can be nested; ^D at the REPL prompt now exits the current level
+    of REPL only.  Ditto, ^D when reading during an expression evaluation
+    will not have the effect of terminating the program when control
+    returns to the REPL, but will just signal ^D to the application.
+
+[Rts/Sparc/generic.s]
+  - Disabled m_generic_make_rectangular.
+
+[Rts/Sys/*]
+  - Implemented SRO.
+
+[Rts/Sys/cheney.c]
+  - Folded in the bug fix from v0.29e (q.v.).
+
+[Rts/Sys/unix-alloc.c]
+  - [021] Changed free-list management.
+
+[Util/load-env.sch]
+  - Supports @interaction-environment@ as a target environment.
+
+[Util/modules.list]
+  - Now side-effects the interaction environment rather than redefining
+    it.  This change makes non-interactive use of load-environment behave
+    in the expected way; with the previous setup we got predictable but 
+    very weird behavior.  Essentially, bindings that were created in the 
+    new interaction environment were not visible to running code.
+
+
+----------------------------------------------------------------------
+v0.31 released 971031 by lth
 
 FEATURES
   * Now allows the allocation of large objects in the generational
@@ -167,6 +308,15 @@ MAJOR FEATURES
     name 'print-instructions'.
   - There is a new procedure 'disassemble' that disassembles a procedure
     in a running system.
+
+----------------------------------------------------------------------
+v0.29e released 971103 by lth
+
+[Rts/Sys/cheney.c]
+  Fixed a bug in scan_oflo() and scan_oflo_partial() that resulted in
+  excessive instruction cache flushing -- once for every bytevector-like,
+  rather than for every bytevector.  The problem was that in these two
+  macros, the test for flushing used T_h rather than T_w.  Subtle.
 
 ----------------------------------------------------------------------
 v0.29d released 971030 by lth

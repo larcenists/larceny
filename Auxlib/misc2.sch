@@ -45,4 +45,19 @@
 	((= i end))
       (write-char (string-ref buf i) port))))
 
+; Environment switching procedures.  They will be available in all
+; environments that inherit from this environment.
+;
+; FIXME: need to interact with the repl prompt to show the environment name
+; in the prompt?
+
+; 'Go to the default environment'
+
+(define *user-env* (interaction-environment))
+
+; 'Go to environment'
+
+(define (ge env)
+  (interaction-environment env))
+
 ; eof

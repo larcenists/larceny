@@ -81,11 +81,6 @@ Lapply5:
 !
 ! Most of the operation has been punted to C code; see comments in that code
 ! for illumination.
-!
-! The 0-extra-args case ought to be handled here for efficiency, but
-! it gets a little hairy. Perhaps we should handle the case where there
-! are 0 extra arguments and less arguments than registers, that's
-! easy enough.
 
 EXTNAME(m_varargs):
 	cmp	%RESULT, %ARGREG2
@@ -150,7 +145,7 @@ Ltypetag1:
 ! Output:    Nothing.
 ! Destroys:  Temporaries.
 !
-! The tag must be a fixnum in the range 0-8, appropriately shifted.
+! The tag must be a fixnum in the range 0-7, appropriately shifted.
 
 EXTNAME(m_typetag_set):
 	and	%RESULT, 7, %TMP0

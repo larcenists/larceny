@@ -7,134 +7,38 @@
 #define GC_INTERNAL
 
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
+#include "gc.h"			/* For heap_stats_t */
 #include "memmgr.h"
+#include "static_heap_t.h"
+#include "semispace_t.h"
 #include "gclib.h"
-#include "assert.h"
+#include "heap_stats_t.h"
 
 typedef struct static_data static_data_t;
 
 struct static_data {
-  int      gen_no;
-  int      heap_no;
-  semispace_t *text;
-  semispace_t *data;
-  unsigned size;         /* bytes allocated */
+  int gen_no;		/* Generation number. */
 };
 
 #define DATA(heap)   ((static_data_t*)(heap->data))
 
-static static_heap_t *allocate_static_heap( int gen_no, int heap_no );
 
-static_heap_t *
-create_static_heap( int heap_no,          /* given */
-		    int gen_no,           /* given */
-		    unsigned size_bytes   /* ignored under new regime */
-		   )
+static word *allocate( static_heap_t *heap, int nbytes )
 {
-  static_heap_t *heap;
-  static_data_t *data;
-
-  heap = allocate_static_heap( gen_no, heap_no );
-  data = DATA(heap);
-
-  return heap;
-}
-
-#if defined(SUNOS)
-/* Debug code, for the time being */
-#include <sys/mman.h>
-
-void protect_static( static_heap_t *heap )
-{
-  static_data_t *data = DATA(heap);
-  int i;
-
-  for ( i=0 ; i <= data->text->current ; i++ ) {
-    if (mprotect( (void*)(data->text->chunks[i].bot),
-		 data->text->chunks[i].bytes,
-		 PROT_READ | PROT_EXEC ) == -1)
-      consolemsg( "mprotect failed." );
-  }
-}
-#endif
-
-static int  initialize( static_heap_t *heap );
-static word *allocate( static_heap_t *, unsigned nbytes );
-static void reorganize( static_heap_t *heap );
-static void stats( static_heap_t *heap, heap_stats_t *s );
-static word *data_load_area( static_heap_t *heap, unsigned nbytes );
-static word *text_load_area( static_heap_t *heap, unsigned nbytes );
-static void get_data_areas( static_heap_t *, semispace_t **, semispace_t ** );
-
-static static_heap_t *
-allocate_static_heap( int gen_no, int heap_no )
-{
-  static_heap_t *heap;
-  static_data_t *data;
-  
-  heap = (static_heap_t*)must_malloc( sizeof( static_heap_t ) );
-  data = (static_data_t*)must_malloc( sizeof( static_data_t ) );
-
-  heap->id = "static";
-  heap->code = HEAPCODE_STATIC_2SPACE;
-
-  heap->data = data;
-  heap->initialize = initialize;
-  heap->allocate = allocate;
-  heap->stats = stats;
-  heap->data_load_area = data_load_area;
-  heap->text_load_area = text_load_area;
-  heap->reorganize = reorganize;
-  heap->get_data_areas = get_data_areas;
-
-  data->gen_no = gen_no;
-  data->heap_no = heap_no;
-
-  data->size = 0;
-  data->data = data->text = 0;
-
-  return heap;
-}
-
-
-static int initialize( static_heap_t *heap )
-{
-  /* Nothing to be done */
-  return 1;
-}
-
-
-static word *
-allocate( static_heap_t *heap, unsigned nbytes )
-{
-  /* allocate in the data area */
   word *p;
-  semispace_t *ss = DATA(heap)->data;
+  static_data_t *data = DATA(heap);
+  semispace_t *ss;
 
-  nbytes = roundup8( nbytes );
+  if (!heap->data_area)
+    heap->data_area = create_semispace( nbytes, data->gen_no, data->gen_no );
+  ss = heap->data_area;
+  nbytes = roundup_balign( nbytes );
   if (ss->chunks[ ss->current ].top + nbytes >= ss->chunks[ ss->current ].lim)
-    ss_expand( ss, max( nbytes, OLDSPACE_EXPAND_BYTES ) ); 
+    ss_expand( ss, max( nbytes, OLDSPACE_EXPAND_BYTES ) );   /* FIXME: wrong constant */
   p = ss->chunks[ ss->current ].top;
   ss->chunks[ ss->current ].top += nbytes;
-  DATA(heap)->size += nbytes;
   return p;
 }
-
-
-static void get_data_areas( static_heap_t *heap,
-			    semispace_t **data, semispace_t **text )
-{
-  *data = DATA(heap)->data;
-  *text = DATA(heap)->text;
-}
-
-
-/* This procedure copies all live data into two parts, _text_ (for non-pointer
- * containing) and _data_ (pointer containing), and then make the static
- * area consist of those two.
- */
 
 static void reorganize( static_heap_t *heap )
 {
@@ -148,49 +52,102 @@ static void reorganize( static_heap_t *heap )
      use existing (May '97) heap dumping code to dump a split heap.
      This is only a quick fix to level the field for the Boehm collector.
    */
-  textsize = datasize = s_data->size;
-  text = create_semispace( textsize, s_data->heap_no, s_data->gen_no);
-  data = create_semispace( datasize, s_data->heap_no, s_data->gen_no);
+  textsize = datasize = heap->data_area->allocated;
+  text = create_semispace( textsize, s_data->gen_no, s_data->gen_no);
+  data = create_semispace( datasize, s_data->gen_no, s_data->gen_no);
   gclib_stopcopy_split_heap( heap->collector, data, text );
-  if (s_data->text) ss_free( s_data->text );
-  if (s_data->data) ss_free( s_data->data );
-  s_data->text = s_data->data = 0;
+  if (heap->text_area) ss_free( heap->text_area );
+  if (heap->data_area) ss_free( heap->data_area );
+  heap->text_area = heap->data_area = 0;
   ss_shrinkwrap( text ); ss_sync( text );
   ss_shrinkwrap( data ); ss_sync( data );
-  if (text->used > 0) s_data->text = text; else ss_free( text );
-  if (data->used > 0) s_data->data = data; else ss_free( data );
+  if (text->used > 0) heap->text_area = text; else ss_free( text );
+  if (data->used > 0) heap->data_area = data; else ss_free( data );
 }
 
 static void stats( static_heap_t *heap, heap_stats_t *s )
 {
-  s->target = s->semispace1 = s->live = DATA(heap)->size;
+  s->target = s->semispace1 = s->live = heap->allocated;
   s->semispace2 = 0;
 }
 
-static word *data_load_area( static_heap_t *heap, unsigned nbytes )
+static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
 {
-  static_data_t *data = DATA(heap);
+  assert( nbytes > 0 );
+  assert( nbytes % BYTE_ALIGNMENT == 0 );
 
-  if (data->data)
-    ss_expand( data->data, nbytes ); 
+  if (*space == 0)
+    *space = create_semispace( nbytes, gen_no, gen_no );
   else
-    data->data = create_semispace( nbytes, data->heap_no, data->gen_no );
-  data->data->chunks[ data->data->current ].top += nbytes;
-  data->size += nbytes;
-  return data->data->chunks[ data->data->current ].bot;
+    ss_expand( *space, nbytes ); 
+  (*space)->chunks[ (*space)->current ].top += nbytes/sizeof(word);
+  return (*space)->chunks[ (*space)->current ].bot;
 }
 
-static word *text_load_area( static_heap_t *heap, unsigned nbytes )
+static word *data_load_area( static_heap_t *heap, int nbytes )
 {
-  static_data_t *data = DATA(heap);
-
-  if (data->text)
-    ss_expand( data->text, nbytes ); 
-  else
-    data->text = create_semispace( nbytes, data->heap_no, data->gen_no);
-  data->text->chunks[ data->text->current ].top += nbytes;
-  data->size += nbytes;
-  return data->text->chunks[ data->text->current ].bot;
+  heap->allocated += nbytes;
+  return allocate_chunk( &heap->data_area, nbytes, DATA(heap)->gen_no );
 }
+
+static word *text_load_area( static_heap_t *heap, int nbytes )
+{
+  heap->allocated += nbytes;
+  return allocate_chunk( &heap->text_area, nbytes, DATA(heap)->gen_no );
+}
+
+static_heap_t *create_static_area( int gen_no, gc_t *gc )
+{
+  static_heap_t *heap;
+  static_data_t *data;
+  
+  heap = (static_heap_t*)must_malloc( sizeof( static_heap_t ) );
+  data = (static_data_t*)must_malloc( sizeof( static_data_t ) );
+
+  heap->collector = gc;
+  heap->id = "static";
+  heap->code = HEAPCODE_STATIC_2SPACE;
+  heap->data_area = 0;
+  heap->text_area = 0;
+  heap->allocated = 0;
+
+  heap->data = data;
+
+  heap->initialize = 0;
+  heap->allocate = allocate;
+  heap->stats = stats;
+  heap->data_load_area = data_load_area;
+  heap->text_load_area = text_load_area;
+  heap->reorganize = reorganize;
+  heap->load_prepare = 0;
+  heap->load_data = 0;
+
+  data->gen_no = gen_no;
+
+  return heap;
+}
+
+#if defined(SUNOS4)
+
+/* Debug code: write-protect the text area. */
+
+#include <sys/mman.h>
+extern int mprotect( caddr_t addr, int len, int prot );
+
+void protect_static( static_heap_t *heap )
+{
+  semispace_t *ss = heap->text_area;
+  int i;
+
+  if (ss == 0) return;
+  for ( i=0 ; i <= ss->current ; i++ ) {
+    if (mprotect( (void*)(ss->chunks[i].bot),
+		  ss->chunks[i].bytes,
+		  PROT_READ | PROT_EXEC ) == -1)
+      consolemsg( "mprotect failed." );
+  }
+}
+
+#endif  /* defined(SUNOS4) */
 
 /* eof */

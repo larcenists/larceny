@@ -10,11 +10,12 @@
 ;
 ; Multiple values
 ; Larceny 0.25 does not have multiple values.
+; But 0.32 does.
 
-(define (values . x) x)
+;(define (values . x) x)
 
-(define (call-with-values proc receiver)
-  (apply receiver (proc)))
+;(define (call-with-values proc receiver)
+;  (apply receiver (proc)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -127,6 +128,8 @@
 	 (* (bytevector-ref bv (+ i 2)) two^8)
 	 (bytevector-ref bv (+ i 3))))))
 
+(define (twobit-format fmt . rest)
+  (apply format #f rest))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

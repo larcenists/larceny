@@ -8,54 +8,32 @@
 #
 # Section 0: Programs
 #
-# Note: you need an ANSI C compiler.
+# You need an ANSI C compiler.
 #
-# Note: the assembler must accept -P; the GNU assembler does not.  If
-# you experience assembler errors, you most likely have the wrong assembler.
+# The assembler must accept -P; the GNU assembler does not.  If you
+# experience assembler errors, you most likely have the wrong assembler.
 # On SunOS systems, try /bin/as.
 
 CC=gcc
+CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+	-Wimplicit
 AS=as
 
 ############################################################################
 #
 # Section 1: Target OS selection
 
-# Uncomment the following to compile for SunOS 4.x
-TARGETOS=SUNOS
-EXTRALIBS=
+# Target OS is detected automatically in Sys/config.h.  If you need to
+# override the detection, then hack that file, and additionally add to
+# the following variables.
+
 EXTRALIBPATH=
-
-# Uncomment the following to compile for Solaris 2.x (SunOS 5.x)
-# Known to work for SunOS 5.6 on an UltraSPARC.
-#TARGETOS=SOLARIS
-#EXTRALIBS=-lucb
-#EXTRALIBPATH=-L/usr/ucblib
-# Define -DV8PLUS -xarch=v8plus _only if_ you'll be running on such
-# an architecture; otherwise, leave undefined.
-#ASXFLAGS=-DV8PLUS -xarch=v8plus
-#LDXFLAGS=-R/usr/ucblib
-
-# Uncomment the following to compile for SunOS 5.3 _only_ (not maintained)
-#TARGETOS=OLD_SOLARIS
-#EXTRALIBS=-lucb
-#EXTRALIBPATH=-L/usr/ucblib
-
+EXTRALIBS=
+LDXFLAGS=
 
 ###########################################################################
 #
 # Section 2: Feature configuration section.
-
-# Remembered set computation.
-#
-# By setting SIMULATE_NEW_BARRIER to 1, then doing a make clean ; make larceny,
-# and making sure that all Scheme code was in fact compiled with no in-line
-# write barrier checking, Larceny will switch to a (very slow) write barrier
-# that simulates and gathers accurate statistics for the planned write
-# barrier.
-
-SIMULATE_NEW_BARRIER=0
-
 
 # Stack underflow statistics.
 #
@@ -75,7 +53,7 @@ NP_EXTRA_REMSET=1
 # In general, Larceny detects automatically whether cache flushing needs
 # to be performed on the architecture Larceny is running on. You can,
 # however, override this behaviour by uncommenting one of the following
-# lines and recompiling Rts/$(MACH)/cache.c and relinking.
+# lines and recompiling Rts/Sparc/cache.c and relinking.
 
 #IFLUSH=-DFLUSH_ALWAYS
 #IFLUSH=-DFLUSH_NEVER
@@ -90,119 +68,102 @@ NP_EXTRA_REMSET=1
 
 ############################################################################
 #
-# Directory paths relative to the larceny top-level directory.
-
-# Architecture-independent stuff
-SYS=Sys
-
-# Subdirectory for machine-dependent stuff.
-MACH=Sparc
-
-# Build directory
-BUILD=Build
-
-# Conservative GC directory
-BDW_DIR=bdw-gc
-
-
-############################################################################
-#
 # Compiler flags
 #
 # Defining DEBUG adds some debugging output.
 # Defining DEBUG2 may or may not add a _lot_ of debugging output (old switch)
 
-CONFIG=-DSIMULATE_NEW_BARRIER=$(SIMULATE_NEW_BARRIER) \
+CONFIG=\
 	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING) \
 	-DNP_EXTRA_REMSET=$(NP_EXTRA_REMSET)
 
 LIBS=-lm
 
-# A mixed blessing, at best, whatwith all the casting going on (or not).
-WARN=#-W #-Wimplicit -Wformat -Wpointer-arith
-
 DEBUGINFO=-g
 DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
 PROFILE=#-p
+LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
 OPTIMIZE=-DNDEBUG -O3
 ARCHINFO=-DENDIAN_BIG -DBITS_32
 
 # You typically want this to remain on, unless you want multiple collectors
 # in the same process (beyond the realm of the possible, at the moment).  
 # See Sys/bdw-collector.c for details, and grovel over the source tree :-)
+
 BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 
-CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) $(CONFIG) \
-	-I$(SYS) -I$(BUILD) $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) $(BDW_GC) \
-	$(ARCHINFO) $(WARN) $(BDW_DEBUG)
+CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(CONFIG) \
+	-ISys -IBuild -ICPetit $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) \
+	$(ARCHINFO) $(BDW_DEBUG) $(CCFLAGS)
 
-ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
-	$(IFLUSH) $(DIVZ) $(BDW_GC) $(ASXFLAGS)
+SPARC_ASFLAGS= -P -ISparc -IBuild $(CONFIG) $(DEBUGFLAGS) \
+	$(IFLUSH) $(DIVZ) $(ASXFLAGS)
 
 
 ############################################################################
 #
 # Big bags of files
-#
-# GSGC_OBJS are the object files to link for a generation-scavenging collector.
 
-# Common C objects
+COMMON_RTS_OBJECTS=\
+	Sys/argv.o Sys/barrier.o Sys/callback.o Sys/ffi.o Sys/gc_t.o \
+	Sys/heapio.o Sys/ldebug.o Sys/malloc.o Sys/signals.o Sys/sro.o \
+	Sys/stack.o Sys/syscall.o Sys/unix.o Sys/util.o Sys/version.o
 
-COBJS=$(SYS)/stack.o $(SYS)/cglue.o $(SYS)/heapio.o \
-	$(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
-	$(SYS)/argv.o $(SYS)/malloc.o $(SYS)/util.o \
-	$(SYS)/signals.o $(SYS)/ffi.o $(SYS)/callback.o $(MACH)/cache.o
+PRECISE_GC_OBJECTS=\
+	Sys/alloc.o Sys/cheney.o Sys/gc.o Sys/los.o \
+	Sys/memmgr.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
+	Sys/old-heap.o Sys/remset.o Sys/sc-heap.o Sys/semispace.o \
+	Sys/static-heap.o Sys/stats.o Sys/young_heap_t.o
 
-# Common ASM objects
+BOEHM_GC_OBJECTS=\
+	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o
 
-ASMOBJS=$(MACH)/mcode.o $(MACH)/glue.o $(BUILD)/table.o \
-	$(MACH)/generic.o $(MACH)/cache0.o $(MACH)/barrier.o
+BOEHM_GC_SPARC_OBJECTS=\
+	Sparc/bdw-memory.o 
 
-# C and asm objects for all GCs except the Boehm collector
+BOEHM_GC_LIBRARIES=\
+	bdw-gc/gc.a
 
-ALL_GC=$(SYS)/larceny.o $(SYS)/memmgr.o $(SYS)/remset.o \
-	$(SYS)/young-heap.o $(SYS)/old-heap.o $(SYS)/sc-heap.o \
-	$(SYS)/alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
-	$(SYS)/barrier.o $(SYS)/np-sc-heap.o $(SYS)/static-heap.o \
-	$(MACH)/memory.o $(SYS)/stats.o $(SYS)/gc.o
+COMMON_SPARC_OBJECTS=\
+	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o Sparc/cglue.o \
+	Sparc/generic.o Sparc/glue.o Sparc/mcode.o Build/table.o
 
-# C and asm objects for the Boehm collector.  The source files for
-# these invariably #define BDW_GC and then #include the other source
-# file.
+SPARC_PRECISE_GC_OBJECTS=\
+	Sparc/memory.o
 
-BOEHM_GC=$(SYS)/bdw-larceny.o $(SYS)/bdw-gc.o $(SYS)/bdw-stats.o \
-	$(SYS)/bdw-collector.o $(MACH)/bdw-memory.o 
+PETIT_OBJECTS=\
+	CPetit/arithmetic.o CPetit/millicode.o CPetit/multiply.o
 
-BOEHMLIB=bdw-gc/gc.a
+LARCENY_OBJECTS=\
+	Sys/larceny.o \
+	$(COMMON_RTS_OBJECTS) \
+	$(COMMON_SPARC_OBJECTS) \
+	$(PRECISE_GC_OBJECTS) \
+	$(SPARC_PRECISE_GC_OBJECTS)
 
-# Standard generational collector: multiple copying generations
+BDW_LARCENY_OBJECTS=\
+	Sys/bdw-larceny.o \
+	$(COMMON_RTS_OBJECTS) \
+	$(COMMON_SPARC_OBJECTS) \
+	$(BOEHM_GC_OBJECTS) \
+	$(BOEHM_GC_SPARC_OBJECTS)
 
-ALL_GC_OBJS=$(COBJS) $(ASMOBJS) $(ALL_GC)
+PETIT_LARCENY_OBJECTS=\
+	Sys/petit-larceny.o \
+	$(COMMON_RTS_OBJECTS) \
+	$(PRECISE_GC_OBJECTS) \
+	$(PETIT_OBJECTS)
 
 
-# Boehm-Demers-Weiser conservative collector
+# Generated header files.
+# ACFG, CCFG, SCFG, and HDRFILES also exists in ../Makefile.  Watch it!
 
-BOEHM_GC_OBJS=$(COBJS) $(ASMOBJS) $(BOEHM_GC)
+CCFG=Build/globals.ch Build/except.ch Build/layouts.ch
 
+ACFG=Build/globals.ah Build/regs.ah Build/except.ah Build/layouts.ah \
+	Build/mprocs.ah
 
-# Header files.
-#
-# ACFG, CCFG, SCFG, and HDRFILES also exists in ../Makefile. Watch it!
-
-CCFG=$(BUILD)/globals.ch $(BUILD)/except.ch $(BUILD)/layouts.ch
-
-ACFG=$(BUILD)/globals.ah $(BUILD)/regs.ah $(BUILD)/except.ah \
-	$(BUILD)/layouts.ah $(BUILD)/mprocs.ah
-
-SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
-	$(BUILD)/layouts.sh 
-
-HDRFILES=$(CCFG) $(ACFG) $(SCFG)
-
-HDRS=$(SYS)/larceny.h $(SYS)/macros.h $(SYS)/gc.h $(BUILD)/cdefs.h \
-	$(SYS)/heapio.h
-
-GCHDRS=$(SYS)/memmgr.h $(SYS)/barrier.h $(SYS)/gclib.h $(SYS)/semispace.h
+SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh 
 
 
 ############################################################################
@@ -212,15 +173,21 @@ GCHDRS=$(SYS)/memmgr.h $(SYS)/barrier.h $(SYS)/gclib.h $(SYS)/semispace.h
 .SUFFIXES:	.cfg .ch .ah .sh
 
 .cfg.ch:
-	./config $(TARGETOS) $<
+	./config "UNKNOWN" $<
+
 .cfg.ah:
-	./config $(TARGETOS) $<
+	./config "UNKNOWN" $<
+
 .cfg.sh:
-	./config $(TARGETOS) $<
+	./config "UNKNOWN" $<
+
+# Yow!
 .s.o:
-	$(AS) $(ASFLAGS) -o $*.o $<
+	/bin/sh -c "$(AS) $(SPARC_ASFLAGS) \`defs\` -o $*.o $<"
+
+# Really want %Y but SunOS 4 doesn't do that.
 .c.o:
-	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date`\"" -o $*.o $<
+	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%d-%h-%y %T'`\"" -o $*.o $<
 
 ############################################################################
 #
@@ -233,66 +200,138 @@ setup:
 	if [ ! -d Build ]; then mkdir Build; fi
 	-(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
-larceny: $(ALL_GC_OBJS)
-	$(CC) $(PROFILE) -o larceny \
-		$(ALL_GC_OBJS) $(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
-	/bin/rm -f $(SYS)/version.o
+larceny: $(LARCENY_OBJECTS) Util/ffi-dummy.o
+	$(CC) $(PROFILE) -o larceny $(LARCENY_OBJECTS) \
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) $(LDYFLAGS)
+	/bin/rm -f Sys/version.o
 
-bdwlarceny: $(BOEHM_GC_OBJS)
-	( cd $(BDW_DIR) ; make gc.a )
-	$(CC) $(PROFILE) -o bdwlarceny $(BOEHM_GC_OBJS) \
+bdwlarceny: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
+	( cd bdw-gc ; make gc.a )
+	$(CC) $(PROFILE) -o bdwlarceny $(BDW_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \
-		$(BOEHMLIB) $(LDXFLAGS)
-	/bin/rm -f $(SYS)/version.o
+		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
+	/bin/rm -f Sys/version.o
 
-hsplit: $(SYS)/hsplit.o
-	$(CC) $(PROFILE) $(DEBUGINFO) $(LDXFLAGS) -o hsplit $(SYS)/hsplit.o
+petit: $(PETIT_LARCENY_OBJECTS)
+	$(CC) $(PROFILE) -o petit-larceny $(PETIT_LARCENY_OBJECTS) \
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	/bin/rm -f Sys/version.o
 
-$(SYS)/hsplit.o: $(SYS)/hsplit.c
-	$(CC) -g -o $(SYS)/hsplit.o -I$(BUILD) -I$(SYS) -c $(SYS)/hsplit.c
+hsplit: Util/hsplit.o
+	$(CC) $(PROFILE) $(DEBUGINFO) $(LDXFLAGS) -o hsplit Util/hsplit.o
+
+Util/hsplit.o: Util/hsplit.c
+	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm -f larceny hsplit bdwlarceny core \
-		$(SYS)/*.o $(MACH)/*.o $(BUILD)/*.o
+	rm -f larceny hsplit bdwlarceny petit-larceny core defs \
+		Sys/*.o Sparc/*.o Build/*.o CPetit/*.o Util/ffi-dummy.o
 
 rtsclean: clean
-	rm -f $(BUILD)/*.s $(BUILD)/*.*h
+	rm -f Build/*.s Build/*.*h
 
 realclean: clean
-	if [ -d $(BDW_DIR) ]; then ( cd $(BDW_DIR) ; make clean ); fi
-	rm -f $(BUILD)/*
+	if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi
+	rm -f Build/*
+
+defs: Util/defs.c
+	$(CC) -o defs Util/defs.c
+
+###########################################################################
+#
+# Magic header files
+
+Build/cdefs.h:	$(CCFG)
+	cat $(CCFG) > Build/cdefs.h
+
+Build/asmdefs.h:	$(ACFG)
+	cat $(ACFG) > Build/asmdefs.h
+
+Build/schdefs.h:	$(SCFG)
+	cat $(SCFG) > Build/schdefs.h
+
+Build/table.s: Build/globals.cfg
+	./config "UNKNOWN" Build/globals.cfg
+
 
 
 ###########################################################################
 #
-# sources
+# Dependencies for source files beyond this point.
 
-$(BUILD)/cdefs.h:	$(CCFG)
-	cat $(CCFG) > $(BUILD)/cdefs.h
+LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \
+	  Build/cdefs.h Sys/config.h
+SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h defs
 
-$(BUILD)/asmdefs.h:	$(ACFG)
-	cat $(ACFG) > $(BUILD)/asmdefs.h
+CPetit/arithmetic.o: $(LARCENY_H) CPetit/millicode.h
+CPetit/millicode.o: $(LARCENY_H) CPetit/millicode.h Sys/gc_t.h
+CPetit/multiply.o: $(LARCENY_H) CPetit/millicode.h
 
-$(BUILD)/schdefs.h:	$(SCFG)
-	cat $(SCFG) > $(BUILD)/schdefs.h
+Sparc/barrier.o: $(SPARC_ASM_H)
+Sparc/bdw-memory.o: Sparc/memory.s $(SPARC_ASM_H)
+Sparc/cache.o: $(LARCENY_H)
+Sparc/cache0.o: $(SPARC_ASM_H)
+Sparc/cglue.o: $(LARCENY_H) Sys/signals.h
+Sparc/generic.o: $(SPARC_ASM_H)
+Sparc/glue.o: $(SPARC_ASM_H)
+Sparc/mcode.o: $(SPARC_ASM_H)
+Sparc/memory.o: $(SPARC_ASM_H)
+Sparc/table.o: $(SPARC_ASM_H)
 
-$(MACH)/bdw-memory.o: $(MACH)/memory.s
-$(SYS)/bdw-gc.o: $(SYS)/gc.c
-$(SYS)/bdw-larceny.o: $(SYS)/larceny.c
-$(SYS)/bdw-stats.o: $(SYS)/stats.c
-$(SYS)/alloc.o: $(SYS)/unix-alloc.c $(SYS)/posix-alloc.c
-
-$(COBJS): $(HDRS)
-$(ALL_GC): $(HDRS) $(GCHDRS)
-$(BOEHM_GC): $(HDRS)
-
-$(SYS)/signals.o: $(SYS)/signals.h
-$(SYS)/cglue.o: $(SYS)/signals.h
-
-$(ASMOBJS): $(BUILD)/asmdefs.h
-
-$(BUILD)/table.s: $(BUILD)/globals.cfg
-	./config $(TARGETOS) $(BUILD)/globals.cfg
+Sys/alloc.o: Sys/posix-alloc.c $(LARCENY_H) Sys/barrier.h Sys/gclib.h \
+	Sys/semispace_t.h
+Sys/argv.o: $(LARCENY_H)
+Sys/barrier.o: $(LARCENY_H) Sys/memmgr.h Sys/barrier.h
+Sys/bdw-collector.o: $(LARCENY_H) Sys/barrier.h Sys/gc.h Sys/gc_t.h \
+	Sys/gclib.h Sys/heap_stats_t.h Sys/memmgr.h Sys/stack.h \
+	bdw-gc/include/gc.h
+Sys/bdw-gc.o: Sys/gc.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h \
+	Sys/static_heap_t.h
+Sys/bdw-larceny.o: Sys/larceny.c $(LARCENY_H) Sys/gc.h
+Sys/bdw-stats.o: Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/memmgr.h
+Sys/callback.o: $(LARCENY_H)
+Sys/cheney.o: $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+Sys/ffi.o: $(LARCENY_H)
+Sys/gc.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/static_heap_t.h
+Sys/gc_t.o: $(LARCENY_H) Sys/gc_t.h
+Sys/heapio.o: $(LARCENY_H) Sys/heapio.h Sys/semispace_t.h Sys/gclib.h
+Sys/larceny.o: $(LARCENY_H) Sys/gc.h
+Sys/ldebug.o: $(LARCENY_H) Sys/macros.h
+Sys/los.o: $(LARCENY_H) Sys/gclib.h Sys/los_t.h
+Sys/malloc.o: $(LARCENY_H)
+Sys/memmgr.o: $(LARCENY_H) Sys/barrier.h Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/heapio.h Sys/los_t.h Sys/memmgr.h \
+	Sys/old_heap_t.h Sys/remset_t.h Sys/static_heap_t.h Sys/young_heap_t.h 
+Sys/np-sc-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
+	Sys/remset_t.h Sys/semispace_t.h Sys/young_heap_t.h
+Sys/nursery.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/stack.h \
+	Sys/young_heap_t.h
+Sys/old_heap_t.o: $(LARCENY_H) Sys/old_heap_t.h
+Sys/old-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \
+	Sys/remset_t.h Sys/semispace_t.h Sys/static_heap_t.h Sys/young_heap_t.h
+Sys/remset.o: $(LARCENY_H) Sys/gclib.h Sys/memmgr.h Sys/remset_t.h
+Sys/sc-heap.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h \
+	Sys/stack.h Sys/static_heap_t.h Sys/young_heap_t.h
+Sys/semispace.o: $(LARCENY_H) Sys/gclib.h Sys/semispace_t.h
+Sys/signals.o: $(LARCENY_H) Sys/signals.h
+Sys/sro.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h Sys/heapio.h \
+	Sys/memmgr.h
+Sys/stack.o: $(LARCENY_H) Sys/stack.h
+Sys/static-heap.o: $(LARCENY_H) Sys/gc.h Sys/gclib.h Sys/heap_stats_t.h \
+	Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+Sys/stats.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \
+	Sys/heap_stats_t.h Sys/memmgr.h
+Sys/syscall.o: $(LARCENY_H) Sys/signals.h
+Sys/unix.o: $(LARCENY_H)
+Sys/util.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h
+Sys/version.o: Sys/config.h
+Sys/young_heap_t.o: $(LARCENY_H) Sys/young_heap_t.h
 
 # eof
 

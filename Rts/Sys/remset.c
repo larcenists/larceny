@@ -82,12 +82,12 @@
 
 #define GC_INTERNAL
 
+#include <stdlib.h>
+
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "memmgr.h"
+#include "remset_t.h"
 #include "gclib.h"
-#include "assert.h"
 
 /* This is an artifact of the low-level implementation of the hash pool;
    see comments above. */
@@ -214,7 +214,6 @@ create_remset( unsigned tbl_entries,  /* size of hash table, 0 = default */
   rs->enumerate = enumerate_remset;
   rs->stats = get_stats;
   rs->has_overflowed = has_overflowed;
-  rs->isremembered = isremembered;
   rs->assimilate = assimilate;
 
   rs->data = data;
@@ -382,7 +381,7 @@ enumerate_remset( remset_t *rs, int (*scanner)( word, void*, unsigned* ),
 
   assert( *rs->ssb_top == *rs->ssb_bot );
 
-  debugmsg( "[debug] Scanning remset @0x%x.", (word)rs );
+  supremely_annoyingmsg( "REMSET @0x%p scan", (void *)rs );
 
   ps = DATA(rs)->first_pool;
   while (1) {
@@ -391,6 +390,8 @@ enumerate_remset( remset_t *rs, int (*scanner)( word, void*, unsigned* ),
     DATA(rs)->hash_scanned += (q-p)/2;
     while (p < q) {
       if (*p != 0) {
+	/* MB_ALLOCATED and MB_HEAP_MEMORY should be set. */
+	assert( (gclib_desc_b[ pageof(*p) ] & 3) == 3 );
 	if (!scanner( *p, data, &word_count )) {
 	  /* Mark the slot by setting the pointer to 0. */
 	  *p = (word)(word*)0;
@@ -511,26 +512,6 @@ static void get_stats( remset_t *rs, remset_stats_t *stats )
 static int has_overflowed( remset_t *rs )
 {
   return DATA(rs)->has_overflowed;
-}
-
-
-/* Is the object denoted by w remembered by this set?
- * This procedure is used by the simulator for the new write barrier.
- */
-
-static int isremembered( remset_t *rs, word w )
-{
-  word mask, *tbl, *b, tblsize, h;
-  remset_data_t *data = DATA(rs);
-
-  tbl = data->tbl_bot;
-  tblsize = data->tbl_lim - tbl;
-  mask = tblsize-1;
-
-  h = (w >> 4) & mask;
-  b = (word*)tbl[ h ];
-  while (b != 0 && *b != w) b = (word*)*(b+1);
-  return b != 0;
 }
 
 

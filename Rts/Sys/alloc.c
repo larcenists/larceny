@@ -1,7 +1,10 @@
-#ifdef SUNOS
-# include "unix-alloc.c"
+#include "config.h"
+
+#ifdef SUNOS4
+/* # include "unix-alloc.c" */  /* Broken. */
+# include "posix-alloc.c"
 #endif
 
-#ifdef SOLARIS
+#ifdef SUNOS5
 # include "posix-alloc.c"
 #endif

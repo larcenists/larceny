@@ -21,11 +21,12 @@
 #define GC_INTERNAL
 
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "memmgr.h"
 #include "barrier.h"
-#include "assert.h"
+
+/* Disable the write barrier millicode code. (Rts/Sparc/barrier.s) */
+
+extern void wb_lowlevel_disable_barrier( void );
 
 
 /* Having these variables global makes it impossible to have more than
@@ -40,7 +41,7 @@ static int wb_generations;     /* the value 'n' */
 static word *wb_globals;       /* the globals array */
 
 void wb_setup( unsigned *genv,     /* maps page number to generation number */
-	       unsigned pagebase,  /* address of lowest page in arena: fixed */
+	       unsigned *pagebase, /* address of lowest page in arena: fixed */
 	       int generations,    /* the value 'n': fixed */
                word *globals,      /* the globals vector */
 	       word **ssbtopv,
@@ -64,92 +65,18 @@ void wb_setup( unsigned *genv,     /* maps page number to generation number */
   globals[ G_NP_YOUNG_GEN_SSBIDX ] = (word)np_ssbidx;
 }
 
-
-void wb_setup0( void )
+void wb_disable_barrier( void )
 {
   wb_generations = 0;
+  wb_lowlevel_disable_barrier();
 }
 
-void
-wb_re_setup( void *pagebase, unsigned *genv )
+void wb_re_setup( void *pagebase, unsigned *genv )
 {
   if (wb_generations > 0) {
     wb_globals[ G_GENV ] = (word)genv;
     wb_globals[ G_PGBASE ] = (word)pagebase;
   }
-}
-
-
-/**********************************************************************/
-/* Obsolete code beyond this point. */
-
-
-/* Synchronize the barrier tables with values from the remembered sets. */
-
-void
-wb_sync_ssbs( void )
-{
-#if 0
-  int i;
-
-  debug2msg( "   *** sync_ssbs" );
-
-  /* ssblimv[] must be reset every time because remembered sets may have
-   * been shuffled, esp. by the non-predictive collector. 
-   */
-  for ( i = 1 ; i < wb_generations ; i++ ) {
-    wb_ssbtopv[i] = wb_remsets[i]->ssb_top;
-    wb_ssblimv[i] = wb_remsets[i]->ssb_lim;
-  }
-#else
-  panic( "wb_sync_ssbs" );
-#endif
-}
-
-
-/* Synchronize the remembered sets with values from the barrier tables. */
-
-void
-wb_sync_remsets( void )
-{
-#if 0
-  int i;
-
-  debug2msg( "   *** sync_remsets" );
-
-  for ( i = 1 ; i < wb_generations ; i++ )
-    wb_remsets[i]->ssb_top = wb_ssbtopv[i];
-#else
-  panic( "wb_sync_remsets: obsolete" );
-#endif
-}
-
-
-/* Compact the SSB. */
-
-void
-wb_compact( int gen )
-{
-#if 0
-  assert( gen > 0 );
-  wb_remsets[gen]->compact( wb_remsets[gen] );
-#else
-  panic_abort( "wb_compact: obsolete" );
-#endif
-}
-
-
-/* Return the remset pointer tables -- useful for the non-predictive gc. */
-
-void
-wb_remset_ptrs( word ***top, word ***lim )
-{
-#if 0
-  *top = wb_ssbtopv;
-  *lim = wb_ssblimv;
-#else
-  panic( "wb_remset_ptrs: obsolete" );
-#endif
 }
 
 /* eof */

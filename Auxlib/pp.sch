@@ -74,6 +74,9 @@
 
     (cond ((pair? obj)        (wr-expr obj col))
           ((null? obj)        (wr-lst obj col))
+	  ((environment? obj) (out "#<environment " col)
+			      (out (environment-name obj) col)
+			      (out ">" col))
           ((vector? obj)      (wr-lst (vector->list obj) (out "#" col)))
           ((boolean? obj)     (out (if obj "#t" "#f") col))
           ((number? obj)      (out (number->string obj) col))
@@ -105,6 +108,9 @@
           ((output-port? obj) (out "#<output-port>" col))
           ((eof-object? obj)  (out "#<eof>" col))
 	  ((eq? obj (unspecified)) (out "#!unspecified" col))
+	  ((eq? obj (undefined)) (out "#!undefined" col))
+	  ((structure? obj)   (out "#<structure>" col))
+	  ((bytevector? obj)  (out "#<bytevector>" col))
           (else               (out "#[unknown]" col))))
 
   (define (pp obj col)

@@ -10,11 +10,11 @@
     (typetag-set! s sys$tag.structure-typetag)
     s))
 
-; structure? needs to be integrable / a primop.
+; structure? is now integrable.
 
-(define (structure? obj)
-  (and (vector-like? obj)
-       (eq? (typetag obj) sys$tag.structure-typetag)))
+;(define (structure? obj)
+;  (and (vector-like? obj)
+;       (eq? (typetag obj) sys$tag.structure-typetag)))
 
 ; When the printer receives a structure, it calls `structure-printer' which
 ; returns the current structure printer procedure.  The programmer may

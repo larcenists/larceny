@@ -5,11 +5,11 @@
 ;
 ; Design: the system is designed so that in the common case, very few
 ; procedure calls are executed.
-;
-; FIXME:
-;  'Port?' needs to be integrable for maximal efficiency.
 
 ($$trace "iosys")
+
+; Note that you can *not* change these values without also changing them
+; in io/read-char, below, where they have been in-lined.
 
 (define port.input?     0) ; boolean: an open input port
 (define port.output?    1) ; boolean: an open output port
@@ -50,7 +50,6 @@
 	  (else
 	   (vector-like-set! p port.rd-ptr 0)
 	   (vector-like-set! p port.rd-lim r)))))
-
 
 (define (io/flush-buffer p)
   (if (> (vector-like-ref p port.wr-ptr) 0)
@@ -103,9 +102,16 @@
     (typetag-set! v sys$tag.port-typetag)
     v))
 
-(define (port? x)
-  (and (vector-like? x)
-       (= (typetag x) sys$tag.port-typetag)))
+; Port? is now integrable.
+;
+;(define (port? x)
+;  (and (vector-like? x)
+;       (= (typetag x) sys$tag.port-typetag)))
+
+; Eof-object? is now integrable.
+;
+;(define (eof-object? x)
+;  (eq? x (eof-object)))
 
 (define (io/input-port? p)
   (and (port? p) (vector-like-ref p port.input?)))
@@ -116,20 +122,20 @@
 (define (io/open-port? p)
   (or (io/input-port? p) (io/output-port? p)))
 
-; Note: I've inlined port? to avoid a procedure call.
+; Moving the constants in-line improves performance because the global
+; variable references are heavyweight -- several loads, and a check for
+; definedness.
 
 (define (io/read-char p)
-  (if (and (vector-like? p)
-	   (= (typetag p) sys$tag.port-typetag)
-	   (vector-like-ref p port.input?))
-      (let ((ptr (vector-like-ref p port.rd-ptr))
-	    (lim (vector-like-ref p port.rd-lim))
-	    (buf (vector-like-ref p port.buffer)))
+  (if (and (port? p) (vector-like-ref p 0))          ; 0 = port.input?
+      (let ((ptr (vector-like-ref p 8))              ; 8 = port.rd-ptr
+	    (lim (vector-like-ref p 7))              ; 7 = port.rd-lim
+	    (buf (vector-like-ref p 4)))             ; 4 = port.buffer
 	(cond ((< ptr lim)
 	       (let ((c (string-ref buf ptr)))
-		 (vector-like-set! p port.rd-ptr (+ ptr 1))
+		 (vector-like-set! p 8 (+ ptr 1))    ; 8 = port.rd-ptr
 		 c))
-	      ((vector-like-ref p port.rd-eof?)
+	      ((vector-like-ref p 6)                 ; 6 = port.rd-eof?
 	       (eof-object))
 	      (else
 	       (io/fill-buffer p)
@@ -137,12 +143,8 @@
       (begin (error "read-char: not an input port: " p)
 	     #t)))
 
-; Note: I've inlined port? to avoid a procedure call.
-
 (define (io/peek-char p)
-  (if (and (vector-like? p)
-	   (= (typetag p) sys$tag.port-typetag)
-	   (vector-like-ref p port.input?))
+  (if (and (port? p) (vector-like-ref p port.input?))
       (let ((ptr (vector-like-ref p port.rd-ptr))
 	    (lim (vector-like-ref p port.rd-lim))
 	    (buf (vector-like-ref p port.buffer)))
@@ -160,9 +162,7 @@
 ; peek-next-char discards the current character and peeks the next one.
 
 (define (io/peek-next-char p)
-  (if (and (vector-like? p)
-	   (= (typetag p) sys$tag.port-typetag)
-	   (vector-like-ref p port.input?))
+  (if (and (port? p) (vector-like-ref p port.input?))
       (let ((ptr (vector-like-ref p port.rd-ptr))
 	    (lim (vector-like-ref p port.rd-lim))
 	    (buf (vector-like-ref p port.buffer)))
@@ -262,5 +262,8 @@
 
 (define (io/port-error-condition? p)
   (vector-like-ref p port.error?))
+
+(define (io/port-at-eof? p)
+  (vector-like-ref p port.rd-eof?))
 
 ; eof

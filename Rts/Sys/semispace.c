@@ -1,214 +1,280 @@
 /* Rts/Sys/semispace.c
- * Larceny run-time system -- semispace ADT.
+ * Larceny run-time system -- semispace ADT implementation.
  *
  * $Id: semispace.c,v 1.5 1997/05/23 13:50:06 lth Exp $
  *
- * The semispace_t ADT maintains a growable/shrinkable set of heap chunks
- * for a semispace; all chunks have the same generation number.
- *
- * For reasons having to do with the implementation of the garbage 
- * collector, chunks are allocated in strict sequential order through 
- * the chunk array, and all chunks from 0 through s->current are 
- * part of the valid semispace.
+ * Interface defined in "Rts/Sys/semispace_t.h".
  */
 
 #define GC_INTERNAL
 
+#include <stdlib.h>
 #include "larceny.h"
-#include "assert.h"
 #include "gclib.h"
+#include "semispace_t.h"
 
-static void extend_chunk_array( semispace_t *s );
+static void extend_chunk_array( semispace_t *ss );
+static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes );
+static void free_chunk_memory( semispace_t *ss, int slot );
+static void clear( semispace_t *ss, int i );
 
-semispace_t *
-create_semispace( unsigned bytes, int heap_no, int gen_no )
+semispace_t *create_semispace( int bytes, int heap_no, int gen_no )
 {
   const int n = 5;
-  semispace_t *s;
+  semispace_t *ss;
   int i;
 
-  s = (semispace_t*)must_malloc( sizeof( semispace_t ) );
-  s->chunks = (chunk_t*)must_malloc( sizeof( chunk_t )*n );
+  assert( bytes > 0 );
+  assert( heap_no >= 0 );
+  assert( gen_no >= heap_no );
 
-  s->heap_no = heap_no;
-  s->gen_no = gen_no;
-  s->allocated = 0;
-  s->used = 0;
-  s->current = -1;  /* Magic for initial call to ss_expand() */
-  s->n = n;
+  bytes = roundup_page( bytes );
+
+  ss = (semispace_t*)must_malloc( sizeof( semispace_t ) );
+
+  ss->heap_no = heap_no;
+  ss->gen_no = gen_no;
+  ss->n = n;
+  ss->current = 0;
+  ss->chunks = (ss_chunk_t*)must_malloc( sizeof( ss_chunk_t )*n );
+  ss->allocated = 0;
+  ss->used = 0;
 
   for ( i = 0; i < n; i++ ) 
-    s->chunks[i].bytes = 0;
-  ss_expand( s, bytes );
+    ss->chunks[i].bytes = 0;
 
-  return s;
+  allocate_chunk_memory( ss, 0, bytes );
+  return ss;
 }
 
-
-/* Expand the semispace by allocating a chunk large enough to hold the
- * request.  A chunk larger than the request will be used if it exists;
- * otherwise, one will be allocated that's large enough to hold the
- * request but not bigger (rounded up to pagesize).  When the procedure 
- * returns, s->current has been incremented, and 
- * s->current.top = s->current.bot.
- *
- * There are three cases:
- *  - found a chunk
- *  - didn't find a chunk but found an empty slot
- *  - didn't find a chunk, didn't find an empty slot
- */
-void ss_expand( semispace_t *s, unsigned bytes_request )
+void ss_expand( semispace_t *s, int bytes_needed )
 {
-  int i, empty = -1;
+  int i, empty;
   word *p;
 
-  assert( bytes_request > 0 );
+  assert( bytes_needed > 0 );
 
-  bytes_request = roundup_page( bytes_request );
+  bytes_needed = roundup_page( bytes_needed );
 
-  for ( i=s->current+1 ; i < s->n ; i++ ) {
-    if (s->chunks[i].bytes >= bytes_request) {
-      /* Case 1: found a chunk.  Swap it into the next slot, and return. */
-      chunk_t tmp = s->chunks[i];
-      s->chunks[i] = s->chunks[s->current+1];
-      s->chunks[s->current+1] = tmp;
-      s->current = s->current + 1;
-      return;
-    }
-    else if (s->chunks[i].bytes == 0 && empty < 0) {
-      /* Remember the first empty slot if we can't find a chunk */
+  /* Search for a large-enough chunk, and remember the first empty slot. */
+  empty = -1;
+  for ( i=s->current+1 ; i < s->n && s->chunks[i].bytes < bytes_needed ; i++ )
+    if (s->chunks[i].bytes == 0 && empty < 0)
       empty = i;
-    }
+
+  /* Found a chunk at slot `i'.  Increment current, and swap the found chunk
+   * into the now-current slot, then return.
+   */
+  if (i < s->n) {
+    ss_chunk_t tmp;
+
+    s->current = s->current + 1;
+    tmp = s->chunks[i];
+    s->chunks[i] = s->chunks[s->current];
+    s->chunks[s->current] = tmp;
+    s->chunks[s->current].top = s->chunks[s->current].bot;
+    return;
   }
 
-  /* Case 2: empty > -1, so we found a hole at location 'empty' */
-  /* Case 3: empty == -1, so no chunk, and no hole */
-
+  /* `Empty' == -1, so no chunk was found, nor an empty slot.  Create an 
+   * empty slot and note its location in `empty'.
+   */
   if (empty == -1) {
-    /* Case 3: create a hole */
     empty = s->n;              /* First slot of extension will be empty */
     extend_chunk_array( s );
   }
 
-  /* Cases 2 and 3: move next chunk to location 'empty', then
-   * allocate a new chunk in the next location.
+  /* We have an empty slot, but no chunk yet.  Increment current, move
+   * the chunk from the current slot to slot 'empty' (to preserve its 
+   * contents -- it has memory, just not enough), then allocate a
+   * new chunk in the current slot.
    */
+  s->current = s->current + 1;
+  s->chunks[empty] = s->chunks[s->current];
+  allocate_chunk_memory( s, s->current, bytes_needed );
+}
 
-  s->chunks[empty] = s->chunks[s->current+1];
+void ss_reset( semispace_t *ss )
+{
+  int i;
+
+  for ( i = 0 ; i < ss->n ; i++ )
+    if (ss->chunks[i].bytes > 0)
+      ss->chunks[i].top = ss->chunks[i].bot;
+
+  ss->current = 0;
+  ss->used = 0;
+}
+
+void ss_prune( semispace_t *ss )
+{
+  int i;
+
+  for ( i = 1 ; i < ss->n ; i++ )
+    if (ss->chunks[i].bytes > 0)
+      free_chunk_memory( ss, i );
+  ss_reset( ss );
+}
+
+void ss_shrinkwrap( semispace_t *ss )
+{
+  int i;
+  int newbytes;
+  ss_chunk_t *c;
+
+  for ( i = ss->current+1 ; i < ss->n ; i++ )
+    if (ss->chunks[i].bytes > 0) 
+      free_chunk_memory( ss, i );
+
+  c = &ss->chunks[ss->current];
+  c->lim = c->top = (word*)roundup_page( (unsigned)c->top );
+  newbytes = (c->top - c->bot)*sizeof( word );
+  gclib_shrink_block( c->bot, c->bytes, newbytes );
+  ss->allocated -= c->bytes - newbytes;
+  c->bytes = newbytes;
+}
+
+void ss_sync( semispace_t *ss )
+{
+  int i;
+
+  ss->used = 0;
+  for ( i = 0 ; i <= ss->current ; i++ )
+    if (ss->chunks[i].bytes > 0)
+      ss->used += (ss->chunks[i].top - ss->chunks[i].bot)*sizeof(word);
+}
+
+void ss_free( semispace_t *ss )
+{
+  int i;
+
+  for ( i=0 ; i < ss->n ; i++ )
+    if (ss->chunks[i].bytes > 0)
+      free_chunk_memory( ss, i );
+
+  free( ss->chunks );
+  ss->chunks = 0;		/* Catches bugs. */
+  free( ss );
+}
+
+int ss_allocate_and_insert_block( semispace_t *ss, int nbytes )
+{
+  int curr = ss->current;
+  ss_chunk_t tmp;
+
+  ss_expand( ss, nbytes );
+  tmp = ss->chunks[ curr ];
+  ss->chunks[ curr ] = ss->chunks[ ss->current ];
+  ss->chunks[ ss->current ] = tmp;
+  return curr;
+}
+
+int ss_move_block_to_semispace( semispace_t *from, int i, semispace_t *to )
+{
+  int j;
+
+  /* Look for an empty slot in `to' */
+  for ( j=0 ; j < to->n ; j++ )
+    if (to->chunks[j].bytes == 0)
+      break;
+
+  /* If no empty slot was found, then extend `to'; `j' remains correct. */
+  if (j == to->n)
+    extend_chunk_array( to );
+
+  /* `j' is the index of the empty slot: swap the chunk into it. */
+  to->chunks[j] = to->chunks[to->current+1];
+  to->chunks[to->current+1] = to->chunks[to->current];
+  j = to->current;
+  to->current = to->current + 1;
+  to->chunks[j] = from->chunks[i];
+
+  /* Fill hole in `from' */
+  if (from->current > 0) {
+    from->chunks[i] = from->chunks[from->current-1];
+    from->chunks[from->current-1] = from->chunks[from->current];
+  }
+  clear( from, from->current );
+  from->current = from->current - 1;
+
+  /* Update statistics */
+  to->allocated += to->chunks[j].bytes;
+  from->allocated -= to->chunks[j].bytes;
+
+  /* Set generation number on moved memory */
+  gclib_set_generation( to->chunks[j].bot, to->chunks[j].bytes, to->gen_no );
+
+  return j;
+}
+
+void ss_set_gen_no( semispace_t *s, int gen_no )
+{
+  int i;
+
+  s->gen_no = gen_no;
+  for ( i=0 ; i < s->n ; i++ ) {
+    if (s->chunks[i].bytes == 0) continue;
+    gclib_set_generation( s->chunks[i].bot, s->chunks[i].bytes, gen_no );
+  }
+}
+
+/* Internal */
+
+static void clear( semispace_t *ss, int i )
+{
+  ss->chunks[i].bytes = 0;
+  ss->chunks[i].bot = (word*)0xDEADBEEF;
+  ss->chunks[i].top = (word*)0xDEADBEEF;
+  ss->chunks[i].lim = (word*)0xDEADBEEF;
+}
+
+static void extend_chunk_array( semispace_t *ss )
+{
+  const int n = ss->n*2;
+  ss_chunk_t *c;
+  int i;
+
+  c = (ss_chunk_t*)must_realloc( ss->chunks, sizeof( ss_chunk_t )*n );
+  ss->chunks = c;
+  for ( i = ss->n ; i < n ; i++ ) 
+    clear( ss, i );
+  ss->n = n;
+}
+
+static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes )
+{
+  word *p;
+
+  assert( bytes % PAGESIZE == 0 );
+  assert( slot >= 0 && slot < ss->n );
+  assert( ss->chunks[slot].bytes == 0 );
 
  again:
-  p = (word*)gclib_alloc_heap( bytes_request, s->heap_no, s->gen_no );
+  p = (word*)gclib_alloc_heap( bytes, ss->gen_no );
   if (p == 0) {
     memfail( MF_HEAP, "Could not expand semispace, request=%u bytes.\n", 
-	     bytes_request );
+	     bytes );
     goto again;
   }
 
-  s->current = s->current + 1;
-
-  s->allocated += bytes_request;
-  s->chunks[s->current].bytes = bytes_request;
-  s->chunks[s->current].bot = p;
-  s->chunks[s->current].top = p;
-  s->chunks[s->current].lim = p+bytes_request/sizeof(word);
+  ss->allocated += bytes;
+  ss->chunks[slot].bytes = bytes;
+  ss->chunks[slot].bot = p;
+  ss->chunks[slot].top = p;
+  ss->chunks[slot].lim = (word*)((char*)p + bytes);
 }
 
-
-static void
-extend_chunk_array( semispace_t *s )
+static void free_chunk_memory( semispace_t *ss, int slot )
 {
-  const int n = s->n*2;
-  chunk_t *c;
-  int i;
+  ss_chunk_t *c;
 
-  c = (chunk_t*)must_realloc( s->chunks, sizeof( chunk_t )*n );
-  s->chunks = c;
-  for ( i = s->n ; i < n ; i++ )
-    c[i].bytes = 0;
-  s->n = n;
-}
+  assert( slot >= 0 && slot < ss->n );
+  assert( ss->chunks[slot].bytes > 0 );
 
-
-/* Reset the semispace: set each chunk's top pointer equal to the bot
- * pointer, set usage to 0 and set the current chunk to the first.
- */
-void ss_reset( semispace_t *s )
-{
-  int i;
-
-  for ( i = 0 ; i < s->n ; i++ )
-    if (s->chunks[i].bytes > 0)
-      s->chunks[i].top = s->chunks[i].bot;
-  s->current = 0;
-  s->used = 0;
-}
-
-
-/* Prune the semispace: deallocate all chunks except the first, and reset
- * the first chunks's top pointer, and set the current chunk to the first.
- */
-void ss_prune( semispace_t *s )
-{
-  int i;
-
-  for ( i = 1 ; i < s->n ; i++ )
-    if (s->chunks[i].bytes > 0) {
-      gclib_free( s->chunks[i].bot, s->chunks[i].bytes );
-      s->chunks[i].bytes = 0;
-      s->chunks[i].top = s->chunks[i].bot = 0;
-    }
-  ss_reset( s );
-}
-
-/* Deallocate all unused chunks (except the first), set the lim pointer
- * of the last used chunk to equal the top pointer (modulo roundup), and 
- * free any excess memory from the last used chunk.
- */
-void ss_shrinkwrap( semispace_t *s )
-{
-  int i;
-  word *newlim;
-  unsigned newbytes;
-
-  for ( i = s->current+1 ; i < s->n ; i++ )
-    if (s->chunks[i].bytes > 0) {
-      gclib_free( s->chunks[i].bot, s->chunks[i].bytes );
-      s->chunks[i].bytes = 0;
-    }
-  newlim = (word*)roundup_page( (unsigned)s->chunks[s->current].top );
-  newbytes = (unsigned)newlim-(unsigned)s->chunks[s->current].bot;
-  gclib_free( newlim, s->chunks[s->current].bytes - newbytes );
-  s->chunks[s->current].lim = newlim;
-  s->chunks[s->current].bytes = newbytes;
-}
-
-/* Make a pass over all the chunks and compute the number of bytes in
- * use in the semispace.
- */
-void ss_sync( semispace_t *s )
-{
-  int i;
-
-  s->used = 0;
-  for ( i = 0 ; i <= s->current ; i++ )
-    if (s->chunks[i].bytes > 0)
-      s->used += (s->chunks[i].top - s->chunks[i].bot)*sizeof(word);
-}
-
-
-/* Free a semispace and all its data. */
-void ss_free( semispace_t *s )
-{
-  int i;
-
-  for ( i=0 ; i < s->n ; i++ ) {
-    if (s->chunks[i].bytes > 0)
-      gclib_free( s->chunks[i].bot, s->chunks[i].bytes );
-    s->chunks[i].bot = s->chunks[i].top = 0;  /* catches bugs */
-  }
-  free( s->chunks );
-  s->chunks = 0;                              /* catches bugs */
-  free( s );
+  c = &ss->chunks[slot];
+  gclib_free( c->bot, c->bytes );
+  ss->allocated -= c->bytes;
+  clear( ss, slot );
 }
 
 /* eof */

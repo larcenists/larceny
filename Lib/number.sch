@@ -226,18 +226,24 @@
 	       g)))))
 
 
-; Odd and even, optimized for the fixnum case.
-; FIXME.  Should optimize for bignums, too.
+; Odd and even, optimized for the fixnum and bignum cases.
+; The bignum case matters for some system code.
 
 (define (even? x)
-  (if (fixnum? x)
-      (= (logand x 1) 0)
-      (zero? (remainder x 2))))
+  (cond ((fixnum? x)
+	 (= (logand x 1) 0))
+	((bignum? x)
+	 (= (logand (bignum-ref x 0) 1) 1))
+	(else
+	 (zero? (remainder x 2)))))
 
 (define (odd? x)
-  (if (fixnum? x) 
-      (= (logand x 1) 1)
-      (not (zero? (remainder x 2)))))
+  (cond ((fixnum? x) 
+	 (= (logand x 1) 1))
+	((bignum? x)
+	 (= (logand (bignum-ref x 0) 1) 1))
+	(else
+	 (not (zero? (remainder x 2))))))
 
 
 ; Polar numbers
@@ -381,5 +387,42 @@
 	      (+ (cos i) (* +1.0i (sin i))))))
 	(else
 	 (flonum:exp (exact->inexact z)))))
+
+(define (make-rectangular a b) 
+
+  (define (construct-compnum a b)
+    (if (= b 0.0)
+	a
+	(make-compnum a b)))
+
+  (define (construct-rectnum a b)
+    (if (= b 0)
+	a
+	(make-rectnum a b)))
+
+  (define (fail x)
+    (error "make-rectangular: " x " is not a real number."))
+
+  (cond ((flonum? a)
+	 (cond ((flonum? b)
+		(construct-compnum a b))
+	       ((compnum? b)
+		(if (= 0.0 (imag-part b))
+		    (construct-compnum a (real-part b))
+		    (fail b)))
+	       (else
+		(make-rectangular a (exact->inexact b)))))
+	((compnum? a) 
+	 (if (= 0.0 (imag-part a))
+	     (make-rectangular (real-part a) b)
+	     (fail a)))
+	((inexact? b)
+	 (make-rectangular (exact->inexact a) b))
+	((rectnum? a)
+	 (fail a))
+	((rectnum? b)
+	 (fail b))
+	(else
+	 (construct-rectnum a b))))
 
 ; eof

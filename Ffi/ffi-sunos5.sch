@@ -1,4 +1,7 @@
-; OS-specific ABIs.
+; Ffi/ffi-sunos5.sch
+; Larceny FFI -- ABI objects for sun4-sunos5
+;
+; $Id$
 
 (define ffi/SPARC-sunos5-C-callout-stdabi
   (let ((parent ffi/SPARC-C-callout-stdabi))
@@ -19,7 +22,7 @@
   (let ((parent ffi/SPARC-C-callback-stdabi))
 
     (define (callback-addr)
-      (let ((a (ffi/dlsym 0 "larceny_C_ffi_convert_and_call")))
+      (let ((a (ffi/getaddr 'convert-and-call)))
 	(if a
 	    a
 	    (error "callback-addr (sunos5): failed."))))
@@ -29,4 +32,4 @@
 	((callback-addr)  callback-addr)
 	(else (parent selector))))))
 
-
+; eof

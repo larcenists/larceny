@@ -10,6 +10,17 @@
 #include <signal.h>
 #include <setjmp.h>
 
+#include "config.h"
+
+#if defined(SUNOS4)
+extern int sigsetmask( int mask );
+#endif
+
+#if defined(SUNOS5)
+void block_all_signals( sigset_t *s );
+void unblock_signals( sigset_t *s );
+#endif
+
 #define OLD_SIGNAL_HANDLER   0    /* misc. asynch. interrupts */
 #define OLD_FPE_HANDLER      0    /* arithmetic exceptions (synchronous) */
 
@@ -23,9 +34,9 @@
 
 extern jmp_buf syscall_interrupt_buf;
 extern int     in_interruptible_syscall;
-extern int     syscall_mask;
 
-# define begin_critical_section()
+#if defined(SUNOS4)
+extern int syscall_mask;
 
 # define BEGIN_INTERRUPTIBLE_SYSCALL() \
   do { \
@@ -46,6 +57,32 @@ extern int     syscall_mask;
     sigsetmask( -1 ); \
     in_interruptible_syscall = 0; \
     sigsetmask( syscall_mask ); \
+  } while(0)
+#endif
+#endif
+
+#if defined(SUNOS5)
+extern sigset_t syscall_blocked_signals;
+
+# define BEGIN_INTERRUPTIBLE_SYSCALL() \
+  do { \
+    block_all_signals( &syscall_blocked_signals ); \
+    in_interruptible_syscall = 1; \
+    if (setjmp( syscall_interrupt_buf ) != 0) { \
+      block_all_signals( 0 ); \
+      in_interruptible_syscall = 0; \
+      globals[ G_RESULT ] = UNDEFINED_CONST; \
+      unblock_signals( &syscall_blocked_signals ); \
+      return; \
+    } \
+    unblock_signals( &syscall_blocked_signals ); \
+  } while(0)
+
+# define END_INTERRUPTIBLE_SYSCALL() \
+  do { \
+    block_all_signals( 0 ); \
+    in_interruptible_syscall = 0; \
+    unblock_signals( &syscall_blocked_signals ); \
   } while(0)
 #endif
 

@@ -41,27 +41,33 @@
  * - record/report peak memory usage (allocated) per generation & remset
  */
 
+#include "config.h"
+
 #include <sys/time.h>
 
-#if defined( SUNOS ) || defined( SOLARIS )   /* Works in 4.x, 5.5, 5.6 */
+#if defined(SUNOS4) || defined(SUNOS5)   /* Works in 4.x, 5.5, 5.6 */
 /* For rusage() et al. */
 #include <sys/resource.h>
 #endif
 
-#if defined( OLD_SOLARIS )                   /* Worked in 5.3 */
+#if defined(SUNOS5_3)                   /* Worked in 5.3 */
 #include <sys/resource.h>
 #include <sys/rusage.h>
+#endif
+
+#if defined(SUNOS4)
+extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
+extern int getrusage( int who, struct rusage *rusage );
 #endif
 
 #include <stdio.h>
 #include <memory.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "gc.h"
+#include "gc_t.h"
 #include "memmgr.h"
 #include "gclib.h"
-#include "assert.h"
+#include "heap_stats_t.h"
 
 /* These are hardwired limits in the system. They should possibly be 
  * defined somewhere else.
@@ -108,6 +114,8 @@ typedef struct {
   word wcollected_lo;      /*  reclaimed */
   word wcopied_hi;         /* total words */
   word wcopied_lo;         /*  copied */
+  word wmoved_hi;          /* total words */
+  word wmoved_lo;          /*  moved (LOS only, at this time) */
   word gctime;             /* total milliseconds GC time (includes promotion)*/
   word promtime;           /* total milliseconds promotion time */
 
@@ -291,6 +299,9 @@ stats_after_gc( void )
   add( &memstats.wcopied_hi, &memstats.wcopied_lo,
       fixnum(heapstats_after_gc[gen].copied_last_gc) );
 
+  add( &memstats.wmoved_hi, &memstats.wmoved_lo,
+      fixnum(heapstats_after_gc[gen].moved_last_gc) );
+
   memstats.gctime += fixnum( time );
   memstats.gen_stat[gen].gctime += fixnum( time );
   if (memstats.lastcollection_type == fixnum(STATS_PROMOTE)) {
@@ -453,6 +464,8 @@ fill_main_entries( word *vp, sys_stat_t *ms )
 #endif
   vp[ STAT_WCOPIED_HI ]    = ms->wcopied_hi;
   vp[ STAT_WCOPIED_LO ]    = ms->wcopied_lo;
+  vp[ STAT_WMOVED_HI ]     = ms->wmoved_hi;
+  vp[ STAT_WMOVED_LO ]     = ms->wmoved_lo;
   vp[ STAT_GCTIME ]        = ms->gctime;
   vp[ STAT_PROMTIME ]      = ms->promtime;
   vp[ STAT_WLIVE ]         = ms->wlive;
@@ -483,12 +496,12 @@ fill_main_entries( word *vp, sys_stat_t *ms )
 
   getrusage( RUSAGE_SELF, &buf );
 
-#if defined( SUNOS ) || defined( SOLARIS )  /* 4.x, 5.5, 5.6 */
+#if defined(SUNOS4) || defined(SUNOS5)  /* 4.x, 5.5, 5.6 */
   systime = fixnum( buf.ru_stime.tv_sec * 1000 + buf.ru_stime.tv_usec / 1000);
   usertime = fixnum( buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000);
 #endif
 
-#if defined( OLD_SOLARIS )  /* 5.3 */
+#if defined(SUNOS5_3)  /* 5.3 */
   systime = fixnum( buf.ru_stime.tv_sec*1000 + buf.ru_stime.tv_nsec/1000000);
   usertime = fixnum( buf.ru_utime.tv_sec*1000 + buf.ru_utime.tv_nsec/1000000);
 #endif
@@ -611,6 +624,9 @@ static char *dump_banner =
 ";\n"
 ";   words-allocated-heap words-allocated-remset words-allocated-rts-other\n"
 ";\n"
+"; Then there are some fields added in v0.32 that belong somewhere else:\n"
+";   words-moved-hi words-moved-lo\n"
+";\n"
 "; The tail of the list is an association list, where the entries that\n"
 "; are dumped depend on how the system was compiled.  Each entry is a list\n"
 "; where the car is the tag and the cdr is a list of data, as shown.\n"
@@ -699,11 +715,15 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 	   nativeint( ms->frestored_hi ),
 	   nativeint( ms->frestored_lo ) );
 
-  /* Print overal heap information */
+  /* Print overall heap information */
   fprintf( dumpfile, "%lu %lu %lu ",
 	   nativeint( ms->wallocated_heap ),
 	   nativeint( ms->wallocated_remset ),
 	   nativeint( ms->wallocated_rts ) );
+
+  /* New fields for v0.32 */
+  fprintf( dumpfile, "%lu %lu ",
+	   nativeint( ms->wmoved_hi ), nativeint( ms->wmoved_lo ) );
 
 #if SIMULATE_NEW_BARRIER
   fprintf( dumpfile, "(swb . (%lu %lu %lu %lu %lu))",
@@ -715,6 +735,7 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 #endif
 
 #if NP_EXTRA_REMSET
+  /* FIXME: should depend on the presence or absence of the remset */
   fprintf( dumpfile, "(np-remset . " );
   dump_remset_stats( dumpfile, &ms->np_remset );
   fprintf( dumpfile, ")" );

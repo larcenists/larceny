@@ -43,6 +43,9 @@
 /* extract type tag from a header word */
 #define typetag( w )	    ((word)(w) & TYPETAG_MASK)
 
+/* strip type tag from a header word */
+#define striptypetag( w )   ((word)(w) & ~TYPETAG_MASK)
+
 /* Create a header given integer (not fixnum!) size (in bytes), and tag. */
 #define mkheader( size, tag )  (((word) (size) << 8) | (tag))
 
@@ -63,6 +66,8 @@
 /* miscellaneous */
 #define max( a, b )         ((a) > (b) ? (a) : (b))
 #define min( a, b )         ((a) < (b) ? (a) : (b))
+
+#define ceildiv(a,b)        ((a)%(b) == 0 ? (a)/(b) : (a)/(b)+1)
 
 #define roundup( a, m )     ((((a)+((m)-1)) / (m))*(m))
 #define roundup2( a )       (((a) + 1) & ~0x01)
@@ -105,7 +110,5 @@
 
 #define real_part( x )       (*(double*)(ptrof(x)+2))
 #define imag_part( x )       (*((double*)(ptrof(x)+2)+1))
-
-#define MEGABYTE  (1024*1024)
 
 /* eof */

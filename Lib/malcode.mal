@@ -1,14 +1,9 @@
 ; -*- scheme -*-
 ;
+; Lib/malcode.mal
+; Larceny -- MAL code that supports Larceny's standard libraries
+;
 ; $Id: malcode.mal,v 1.3 1997/07/18 13:55:49 lth Exp lth $
-;
-; malcode.mal -- all MacScheme assembly language to support Larceny.
-;
-; June 27, 1995 / lth
-;   Created (by merging some older files).
-;
-; January 17, 1996 / lth
-;   Added sys$continuation-data-structure
 
 ; @raw-apply@
 ;
@@ -86,10 +81,10 @@
 
 ; syscall
 ;
-; Syscall is written in mal because the arguments are passed in a
+; Syscall has to be coded in mal because the arguments are passed in a
 ; non-standard way and because the compiler cannot handle a primitive
-; with a variable, large, number of parameters. Syscall is simply a
-; trampoline into a millicode procedure. RESULT has the number of 
+; with a variable, large, number of parameters.  Syscall is simply a
+; trampoline into a millicode procedure.  RESULT has the number of 
 ; arguments, and the arguments are passed in registers as usual.
 
 `((,$lambda ((,$.proc)
@@ -101,5 +96,93 @@
   (,$const   syscall)
   (,$return))
 
+
+; read-char
+;
+; read-char has been coded in MAL for performance -- it avoids consing
+; up the varargs list.  We should keep this version even if the compiler
+; is taught about read-char, because the interpreter will still call
+; this version.
+;
+; The original is in Lib/stdio.h; make sure to reflect changes there.
+; RESULT has the number of arguments.
+;
+; Incidentally, this is mostly how we'd generate code for case-lambda,
+; and case-lambda is a better solution than MAL :-)
+
+`((,$lambda ((,$setreg 2)
+	     (,$reg 2)
+	     (,$op2imm eq? 1)
+	     (,$branchf 1001)
+	     (,$global io/read-char)	; One argument: pass it on.
+	     (,$invoke 1)
+	     (,$.label 1001)
+	     (,$reg 2)
+	     (,$op2imm eq? 0)
+	     (,$branchf 1002)
+	     (,$save 0)			; Zero arguments: get the port
+	     (,$store 0 0)
+	     (,$global current-input-port)
+	     (,$setrtn 1003)
+	     (,$invoke 0)
+	     (,$.align 4)
+	     (,$.label 1003)
+	     (,$.cont)
+	     (,$load 0 0)
+	     (,$setreg 1)
+	     (,$pop 0)
+	     (,$global io/read-char)
+	     (,$invoke 1)
+	     (,$.label 1002)		; Other cases: an error.
+	     (,$const "read-char: Too many arguments.")
+	     (,$setreg 1)
+	     (,$global error)
+	     (,$invoke 1))
+	    0
+	    #f)
+  (,$setglbl read-char)
+  (,$const read-char)
+  (,$return))
+
+; write-char
+;
+; write-char has been coded in MAL for performance; see comments for
+; read-char, above.
+
+`((,$lambda ((,$setreg 3)
+	     (,$reg 3)
+	     (,$op2imm eq? 2)
+	     (,$branchf 1001)
+	     (,$global io/write-char)	; Two arguments: pass them on
+	     (,$invoke 2)
+	     (,$.label 1001)
+	     (,$reg 3)
+	     (,$op2imm eq? 1)
+	     (,$branchf 1002)
+	     (,$save 1)			; One argument: get the port
+	     (,$store 0 0)
+	     (,$store 1 1)
+	     (,$global current-output-port)
+	     (,$setrtn 1003)
+	     (,$invoke 0)
+	     (,$.align 4)
+	     (,$.label 1003)
+	     (,$.cont)
+	     (,$load 0 0)
+	     (,$load 1 1)
+	     (,$setreg 2)
+	     (,$pop 1)
+	     (,$global io/write-char)
+	     (,$invoke 2)
+	     (,$.label 1002)		; Other cases: an error.
+	     (,$const "write-char: wrong number of arguments.")
+	     (,$setreg 1)
+	     (,$global error)
+	     (,$invoke 1))
+	    0
+	    #f)
+  (,$setglbl write-char)
+  (,$const write-char)
+  (,$return))
 
 ; eof

@@ -17,8 +17,12 @@ DIR=`pwd`
 # New assembler or not?
 NEW_ASM="#t"
 
+# Target (choices: "SPARC", "standard-C")
+TARGET="SPARC"
+
 # Default host system for building is Chez Scheme.
-L_HOST=Chez
+L_HOST=chez
+L_HOSTDIR=Chez
 L_HOSTNAME="Chez Scheme"
 
 ARGS=""
@@ -34,7 +38,8 @@ while [ "$1" != "" ]; do
        break
        ;;
     -chez | -c)
-       L_HOST=Chez
+       L_HOST=chez
+       L_HOSTDIR=Chez
        L_HOSTNAME="Chez Scheme" 
        NEW_ASM="#f"
        ;;
@@ -46,7 +51,14 @@ while [ "$1" != "" ]; do
        INTERP="#t"
        ;;
     -larceny | -l)
+       L_HOST=larceny
+       L_HOSTDIR=Larceny
+       L_HOSTNAME="Larceny" 
+       NEW_ASM="#t"
+       ;;
+    -Larceny | -L)
        L_HOST=Larceny
+       L_HOSTDIR=Larceny
        L_HOSTNAME="Larceny" 
        NEW_ASM="#t"
        ;;
@@ -55,6 +67,12 @@ while [ "$1" != "" ]; do
        ;;
     -new | -n)
        NEW_ASM="#t" 
+       ;;
+    -sparc)
+       TARGET="SPARC"
+       ;;
+    -standard-C)
+       TARGET="standard-C"
        ;;
     -v | -verbose)
        VERBOSE="#t"
@@ -74,7 +92,7 @@ cat > $TMPFILE <<END
 (define new-assembler? $NEW_ASM)
 (define host-system-name "$L_HOSTNAME")
 (define host-system '$L_HOST)
-(define hostdir "$DIR/$L_HOST/")
+(define hostdir "$DIR/$L_HOSTDIR/")
 (define topleveldir "$DIR/")
 (define utildir "$DIR/Util/")
 (define sourcedir "$DIR/Lib/")
@@ -84,10 +102,12 @@ cat > $TMPFILE <<END
 (define sparc-olddir "$DIR/Asm/Sparc-old/")
 (define common-asmdir "$DIR/Asm/Common/")
 (define sparc-asmdir "$DIR/Asm/Sparc/")
+(define standard-C-asmdir "$DIR/Asm/C/")
 (define utildir "$DIR/Util/")
 (define builddir "$DIR/Build/")
 (define evaldir "$DIR/Eval/")
 (define repldir "$DIR/Repl/")
+(define nbuild:target-machine '$TARGET)
 (display "Twobit/Larceny development environment running under ")
 (display host-system-name)
 (display ".")
@@ -107,13 +127,15 @@ END
 
 if [ "$EXECUTABLE" = "" ]; then
   case $L_HOST in
-    Chez) EXECUTABLE="scheme" ;;
-    Larceny) EXECUTABLE="larceny" ;;
+    chez) EXECUTABLE="scheme" ;;
+    larceny) EXECUTABLE="larceny" ;;
+    Larceny) EXECUTABLE="Larceny" ;;
   esac
 fi
 
 case $L_HOST in
-  Chez)    $EXECUTABLE $ARGS $TMPFILE ;;
+  chez)    $EXECUTABLE $ARGS $TMPFILE ;;
+  larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
   Larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
   *)       echo "Internal error in build script."; exit 1 ;;
 esac

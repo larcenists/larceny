@@ -340,6 +340,18 @@
      compiler uses a copy of the same quasiquotation rewriter, so that had 
      to be fixed too.
 
+021  (v0.28b) 970528  Fixed 980115 by lth
+
+     Free list coalescing is not done properly in unix-alloc.c.  This is 
+     a benign problem with the current GC structure, but should be fixed.
+     - free list should be address ordered (for coalescing, and also so
+       that we can return memory to the OS).
+     - a new free block can merge two previously separated blocks so that
+       all three blocks become one.
+
+     FIX:
+     Reimplemented free list management.
+
 022  (v0.28d) 970625  Fixed 970701 by lth
 
      The following functions do not accept complex arguments:
@@ -865,3 +877,61 @@
      FIX:
      Added code to conio.sch and unix.sch to implement this.
 
+048  v0.31 (971031 / lth)  Fixed 9711?? by lth
+
+     Consider the following scenario:
+
+     > (read)
+     #<EOF>
+     >
+
+     everest%
+
+     I.e., if the user types the end-of-file character in a program while
+     the program is reading from the standard input port, then the REPL
+     interprets that EOF as an exit signal.  Instead, EOF encountered during
+     an evaluation should maybe be treated differently, e.g., by always
+     reestablishing the I/O ports after an evaluation, and requiring another
+     EOF.  Chez Scheme does it this way, and it seems much cleaner.
+
+     FIX:
+     Presumably the code to handle this was written?
+
+049  v0.31 (971031 / lth)  Fixed 980107 by lth
+
+     [Performance bug]
+     port? needs to be a primop; see Lib/iosys.sch.
+
+     FIX:
+     Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
+     Asm/Sparc/gen-prim.sch to implement this.
+
+050  v0.31 (971031 / lth)  Fixed 980107 by lth
+
+     [Performance bug]
+     structure? needs to be a primop; see Lib/struct.sch.
+
+     FIX:
+     Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
+     Asm/Sparc/gen-prim.sch to implement this.
+
+051  v0.31 (971031 / lth)  Fixed 980107 by lth
+
+     [Performance bug]
+     eof-object? needs to be a primop.
+
+     FIX:
+     Added code to Compiler/twobit.imp.sch, Lib/primops.sch, and 
+     Asm/Sparc/gen-prim.sch to implement this.
+
+055 v0.32 (980116 / lth)  Fixed 980116 by lth
+
+    I/O redirection at the shell seems to be overridden by Larceny; this
+    may have something to do with how I/O ports are handled?
+
+    FIX:
+    Turned out that in conio.sch, there was a single global variable
+    to record 'first time through' and thereby allow the use of the
+    standard i/o streams; there should be one variable for input and
+    one for output.  This was implemented, and redirection now works
+    correctly.

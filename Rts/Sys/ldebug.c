@@ -2,16 +2,12 @@
  * Larceny -- the run-time system debugger.
  *
  * $Id: ldebug.c,v 1.3 1997/09/17 15:17:26 lth Exp $
- *
- * BUGS
- *  - Parsing is somewhat ad-hoc; all should accept RESULT, ARGREG2, and
- *    ARGREG3 but do not.
  */
 
 #include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 
 static void confused( char * );
 static void step( char * );
@@ -22,6 +18,7 @@ static void help( void );
 static void examine( char * );
 static void dumpproc( void );
 static void dumpregs( void );
+static void dumpglob( void );
 static void dumpcodevec( void );
 static int getreg( char ** );
 static int getuint( char ** );
@@ -45,6 +42,7 @@ void localdebugger()
 	case 'b' : breakpt( cmd ); break;
         case 'B' : backtrace(); break;
         case 'd' : dumpregs(); break;
+	case 'g' : dumpglob(); break;
         case 'r' : return;
 	case 'p' : dumpproc(); break;
 	case 'c' : dumpcodevec(); break;
@@ -142,13 +140,45 @@ static void backtrace( void )
 
 static void setreg( char *cmd )
 {
-  int regno;
+  static struct {
+    char *name;
+    int index;
+  } globassoc[] = {{ "STARTUP", G_STARTUP },
+		   { "CALLOUTS", G_CALLOUTS },
+		   { "SCHCALL_ARG4", G_SCHCALL_ARG4 },
+		   { "ALLOCI_TMP", G_ALLOCI_TMP },
+		   { "GENERIC_NRTMP1", G_GENERIC_NRTMP1 },
+		   { "GENERIC_NRTMP2", G_GENERIC_NRTMP2 },
+		   { "GENERIC_NRTMP3", G_GENERIC_NRTMP3 },
+		   { "GENERIC_NRTMP4", G_GENERIC_NRTMP4 },
+		   { "PUSHTMP", G_PUSHTMP },
+		   { "CALLOUT_TMP0", G_CALLOUT_TMP0 },
+		   { "CALLOUT_TMP1", G_CALLOUT_TMP1 },
+		   { "CALLOUT_TMP2", G_CALLOUT_TMP2 },
+		   { "SCHCALL_RETADDR", G_SCHCALL_RETADDR },
+		   { 0, 0 }};
+  int regno, i;
   unsigned val;
+  char name[ 128 ];
 
-  if (sscanf( cmd, "= R%i %i", &regno, &val ) == 2) {
+  if (sscanf( cmd, "= R%i %i", &regno, &val ) == 2)
     globals[ G_REG0 + regno ] = val;
+  else if (sscanf( cmd, "= RESULT %i", &val ) == 1)
+    globals[ G_RESULT ] = val;
+  else if (sscanf( cmd, "= ARGREG2 %i", &val ) == 1)
+    globals[ G_ARGREG2 ] = val;
+  else if (sscanf( cmd, "= ARGREG3 %i", &val ) == 1)
+    globals[ G_ARGREG3 ] = val;
+  else if (sscanf( cmd, "= G_%[A-Z0-9_] %i", name, &val ) == 2) {
+    for ( i=0 ; globassoc[i].name && strcmp( globassoc[i].name, name ) ; i++ )
+      ;
+    if (globassoc[i].name)
+      globals[ globassoc[i].index ] = val;
+    else
+      confused( "global name" );
   }
-  else confused( "reg" );
+  else
+    confused( "reg" );
 }
 
 static void help( void )
@@ -165,6 +195,8 @@ static void help( void )
   printf( "z{+|-}   manipulate single stepping enable\n" );
   printf( "= <reg> <val>\n" );
   printf( "         set register value\n" );
+  printf( "= <globval> <val>\n" );
+  printf( "         set global (as dumped with 'g') value\n" );
   printf( "\n" );
   printf( "<loc> is either an address (number) or a register name (syntax: Rn).\n" );
   printf( "For Xw and Xo the tag is masked off the <loc>.\n" );
@@ -334,7 +366,6 @@ static int getuint( char **cmdl )
   return -1;
 }
 
-
 static void dumpproc( void )
 {
   word w = globals[ G_REG0 ];
@@ -371,9 +402,9 @@ static void dumpregs( void )
 	  globals[ G_RETADDR ] );
   printf( "TIMER=0x%08x  Flags=%c%c%c  PC=0x%08x  CONT=0x%08x\n",
 	  globals[ G_TIMER2 ] + globals[ G_TIMER ],
-	  (globals[ G_TIMER_ENABLE ] == TRUE_CONST ? 'T' : ' '),
-	  (globals[ G_SINGLESTEP_ENABLE ] == TRUE_CONST ? 'S' : ' '),
-	  (globals[ G_BREAKPT_ENABLE ] == TRUE_CONST ? 'B' : ' '),
+	  (globals[ G_TIMER_ENABLE ] == TRUE_CONST ? 'T' : 't'),
+	  (globals[ G_SINGLESTEP_ENABLE ] == TRUE_CONST ? 'S' : 's'),
+	  (globals[ G_BREAKPT_ENABLE ] == TRUE_CONST ? 'B' : 'b'),
 	  globals[ G_RETADDR ],
           globals[ G_CONT ] );
 
@@ -382,6 +413,26 @@ static void dumpregs( void )
 	  globals[ G_STKBOT ],
 	  globals[ G_EBOT ],
           globals[ G_ETOP ] );
+}
+
+static void dumpglob( void )
+{
+  printf( "Roots for precise GC:\n" );
+  printf( "  G_STARTUP=0x%08x  G_CALLOUTS=0x%08x  G_SCHCALL_ARG4=0x%08x\n",
+	  globals[ G_STARTUP ],
+	  globals[ G_CALLOUTS ],
+	  globals[ G_SCHCALL_ARG4 ] );
+  printf( "  G_ALLOCI_TMP=0x%08x\n", globals[ G_ALLOCI_TMP ] );
+  printf( "\nNon-roots:\n" );
+  printf( "  G_GENERIC_NRTMP1=0x%08x G_GENERIC_NRTMP2=0x%08x\n", 
+	  globals[ G_GENERIC_NRTMP1 ], globals[ G_GENERIC_NRTMP2 ] );
+  printf( "  G_GENERIC_NRTMP3=0x%08x G_GENERIC_NRTMP4=0x%08x\n", 
+	  globals[ G_GENERIC_NRTMP3 ], globals[ G_GENERIC_NRTMP4 ] );
+  printf( "  G_PUSHTMP=0x%08x G_SCHCALL_RETADDR=0x%08x\n",
+	  globals[ G_PUSHTMP ], globals[ G_SCHCALL_RETADDR ] );
+  printf( "  G_CALLOUT_TMP0=0x%08x G_CALLOUT_TMP1=0x%08x G_CALLOUT_TMP2=0x%08x\n",
+	  globals[ G_CALLOUT_TMP0 ], globals[ G_CALLOUT_TMP1 ],
+	  globals[ G_CALLOUT_TMP2 ] );
 }
 
 static void dumpcodevec( void )

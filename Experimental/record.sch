@@ -4,7 +4,7 @@
 ; $Id$
 ;
 ; Record package as proposed by RRRS authors but never made part of the
-; report.  Based on a proposal posted to rrrs-authors on 01 Sep 89 by 
+; report.  Based on a proposal posted to rrrs-authors on 1 Sep 89 by 
 ; Pavel Curtis, reposted to comp.lang.scheme by Norman Adams on 5 Feb, 1992.
 ;
 ; While that proposal is preserved in its full form, I have added some
@@ -140,6 +140,7 @@
 
 (define (rtd/field-info rtd) (vector-like-ref rtd 2))
 (define (rtd/printer rtd) (vector-like-ref rtd 3))
+(define (rtd/set-printer! rtd proc) (vector-like-set! rtd 3 proc))
 (define (rtd/record-size rtd) (vector-like-ref rtd 4))
 
 (define (record-type-descriptor? obj) 
@@ -163,6 +164,12 @@
 	(cdr probe)
 	(error "record-type-field-offset: " name
 	       " is not a valid field for " rtd))))
+
+(define (set-record-type-printer! rtd printer)
+  (if (record-type-descriptor? rtd)
+      (rtd/set-printer! rtd printer)
+      (error "set-record-type-printer!: " rtd
+	     " is not a record-type-descriptor.")))
 
 ; #t iff r1 extends r2
 

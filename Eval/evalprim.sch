@@ -4,98 +4,124 @@
 ($$trace "evalprim")
 
 (define (eval/invoke-prim1:- a orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (- (a env))
-	  (v (a env))))))
+  (evaluator-primitive
+   '- 1
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (- (a env))
+	   (v (a env)))))))
 
 (define (eval/invoke-prim1:car a orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (car (a env))
-	  (v (a env))))))
+  (evaluator-primitive
+   'car 1
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (car (a env))
+	   (v (a env)))))))
 
 (define (eval/invoke-prim1:cdr a orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (cdr (a env))
-	  (v (a env))))))
+  (evaluator-primitive
+   'cdr 1
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (cdr (a env))
+	   (v (a env)))))))
 
 ; Invoking primitives that take 2 arguments.  The primitive procedures
 ; could usefully be generated using a macro.
 
 (define (eval/invoke-prim2:+ a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (+ (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   '+ 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (+ (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:- a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (- (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   '- 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (- (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:= a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (= (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   '= 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (= (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:< a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (< (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   '< 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (< (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:> a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (> (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive 
+   '> 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (> (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:<= a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (<= (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   '<= 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (<= (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:>= a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (>= (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   '>= 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (>= (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:eq? a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (eq? (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   'eq? 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (eq? (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:eqv? a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (eqv? (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   'eqv? 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (eqv? (a env) (b env))
+	   (v (a env) (b env)))))))
 
 (define (eval/invoke-prim2:cons a b orig cell)
-  (lambda (env)
-    (let ((v (car cell)))
-      (if (eq? v orig)
-	  (cons (a env) (b env))
-	  (v (a env) (b env))))))
+  (evaluator-primitive
+   'cons 2
+   (lambda (env)
+     (let ((v (car cell)))
+       (if (eq? v orig)
+	   (cons (a env) (b env))
+	   (v (a env) (b env)))))))
 
 ; Primitive tables and lookup functions.
 

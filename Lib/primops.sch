@@ -53,7 +53,7 @@
 (define rshl (lambda (x y) (rshl x y)))
 (define rsha (lambda (x y) (rsha x y)))
 ; (define rot (lambda (x y) (rot x y)))
-(define make-rectangular (lambda (x y) (make-rectangular x y)))
+;(define make-rectangular (lambda (x y) (make-rectangular x y)))
 (define remainder (lambda (x y) (remainder x y)))
 
 (define +
@@ -229,10 +229,9 @@
 
 ; Structures and typetags
 
-; (define structure? (lambda (x) (structure? x)))
+(define structure? (lambda (x) (structure? x)))
 (define typetag (lambda (x) (typetag x)))
 (define typetag-set! (lambda (x y) (typetag-set! x y)))
-
 
 ; Procedures
 
@@ -248,6 +247,12 @@
 (define cell-ref (lambda (x) (cell-ref x)))
 (define cell-set! (lambda (x y) (cell-set! x y)))
 
+; I/O system support
+
+(define port? (lambda (x) (port? x)))
+(define eof-object (lambda () (eof-object)))
+(define eof-object? (lambda (x) (eof-object? x)))
+
 ; Miscellaneous
 
 (define symbol? (lambda (x) (symbol? x)))
@@ -258,6 +263,5 @@
 (define unspecified (lambda () (unspecified)))
 (define enable-interrupts (lambda (n) (enable-interrupts n)))
 (define disable-interrupts (lambda () (disable-interrupts)))
-(define eof-object (lambda () (eof-object)))
 
 ; eof

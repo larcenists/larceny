@@ -4,13 +4,12 @@
  * $Id$
  */
 
-#if defined(SUNOS) || defined(SOLARIS) || defined(OLD_SOLARIS)
+#include "larceny.h"
+
+#if defined(SUNOS4) || defined(SUNOS5)
 #include <dlfcn.h>
 #endif
 #include <assert.h>
-#include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 
 /* larceny_C_ffi_apply()
  * This is a syscall, so the value is returned in RESULT.
@@ -250,7 +249,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 void
 larceny_C_ffi_dlopen( word w_path )
 {
-#if defined(SUNOS)
+#if defined(SUNOS4)
   char *path;
   void *desc;
 
@@ -273,7 +272,7 @@ larceny_C_ffi_dlopen( word w_path )
 void
 larceny_C_ffi_dlsym( word w_handle, word w_sym )
 {
-#if defined(SUNOS)
+#if defined(SUNOS4)
   char *sym;
   void *handle;
   void *r;

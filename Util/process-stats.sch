@@ -19,6 +19,7 @@
 (define (words-allocated x) (bignum (list-ref x 0) (list-ref x 1)))
 (define (words-reclaimed x) (bignum (list-ref x 2) (list-ref x 3)))
 (define (words-copied x)    (bignum (list-ref x 4) (list-ref x 5)))
+(define (words-moved x)     (bignum (list-ref x 22) (list-ref x 23)))
 (define (overall-gc-time x) (list-ref x 6))
 (define (overall-gc-time! x v) (list-set! x 6 v))
 (define (overall-words-live x) (list-ref x 7))
@@ -83,7 +84,7 @@
 (define (words-in-remsets x) (list-ref x 20))
 (define (words-in-rts x) (list-ref x 21))
 
-(define (extra-assoc-list x) (list-tail x 22))
+(define (extra-assoc-list x) (list-tail x 24))
 
 
 ; Simulated write barrier ("swb") entries.
@@ -138,6 +139,7 @@
   (print "Words allocated: " (words-allocated x))
   (print "Words reclaimed: " (words-reclaimed x))
   (print "Words copied: " (words-copied x))
+  (print "Words moved: " (words-moved x))
   (print "GC time: " (overall-gc-time x))
   (print "Words live: " (overall-words-live x))
   (print "Last gc: " (car (last-gc x)) " " (cdr (last-gc x)))
@@ -332,6 +334,30 @@ for that collection.
       (nprint " " (field (gc-time prev i) 7)))
     (newline)))
 
+; Same as above, but also prints two columns with copied and moved data.
+
+(define (gc-profile-with-cp/mv filename)
+  (let ((prev #f))
+    (process-stats
+     filename
+     (lambda (r)
+       (if (not prev)
+	   (set! prev r))
+       (nprint "GC: " (last-gc r))
+       (do ((i 0 (+ i 1)))
+	   ((= i (generations r)))
+	 (nprint " " (field (- (gc-time r i) (gc-time prev i)) 7)))
+       (nprint " "
+	       (field (- (words-copied r) (words-copied prev)) 7)
+	       (field (- (words-moved r) (words-moved prev)) 7))
+       (set! prev r)
+       (newline)))
+    (nprint "Total time       ")
+    (do ((i 0 (+ i 1)))
+	((= i (generations prev)))
+      (nprint " " (field (gc-time prev i) 7)))
+    (newline)))
+
 
 (define (ssb-profile filename)
   (let ((prev #f))
@@ -349,7 +375,7 @@ for that collection.
 		       "," (field (- (hash-entries-scanned r i)
 				     (hash-entries-scanned prev i))
 				  5
-				  'right)))
+				  'left)))
 	     (newline)
 	     (set! prev r)))))))
 
@@ -398,17 +424,21 @@ for that collection.
 (define (nprint . rest)
   (for-each display rest))
 
-; Format a number n in a field of width k, left-justified unless the
-; optional symbol argument 'right is also given, in which case it 
-; is right-justified.
+; Format a number n in a field of width k, right-justified unless the
+; optional symbol argument 'left is also given, in which case it 
+; is left-justified.  If the number fills the field, then a space is
+; added on the right.
 
 (define (field n k . attr)
-  (let loop ((s (number->string n)))
-    (if (< (string-length s) k)
-	(if (memq 'right attr)
-	    (loop (string-append s " "))
-	    (loop (string-append " " s)))
-	s)))
+  (let ((s (number->string n)))
+    (if (= (string-length s) k)
+	(string-append s " ")
+	(let loop ((s (number->string n)))
+	  (if (< (string-length s) k)
+	      (if (memq 'left attr)
+		  (loop (string-append s " "))
+		  (loop (string-append " " s)))
+	      s)))))
 	
 
 ; eof

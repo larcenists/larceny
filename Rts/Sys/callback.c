@@ -5,8 +5,6 @@
  */
 
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 
 #define FRAMESIZE 24
 

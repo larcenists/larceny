@@ -131,8 +131,10 @@
     ; Top-level rewriter -- handles top-level definitions as special case.
     ; They are left as definitions, while internal defines are rewritten as
     ; a letrec.
+    ;
+    ; Ignores the syntactic environment -- does not support macros.
 
-    (define (rewrite expr)
+    (define (rewrite expr syntax-env)
       (if (definition? expr)
 	  (rewrite-top-level-define expr)
 	  (rewrite-expr expr)))
@@ -143,6 +145,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Derived forms
+
+(define-eval-macro 'delay
+  (lambda (l)
+    `(%make-promise (lambda () ,(cadr l)))))
 
 (define-eval-macro 'and
   (lambda (expr)

@@ -1,3 +1,8 @@
+; Ffi/ffi-sunos4.sch
+; Larceny FFI -- ABI objects for sun4-sunos4
+;
+; $Id$
+
 (define ffi/SPARC-sunos4-C-callout-stdabi
   (let ((parent ffi/SPARC-C-callout-stdabi))
 
@@ -28,3 +33,4 @@
 	((callback-addr)  callback-addr)
 	(else (parent selector))))))
 
+; eof

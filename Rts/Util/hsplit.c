@@ -79,6 +79,7 @@ char **argv;
     do_split = 0;
   }
   else {
+    printf( "Warning: hsplit is not sufficient for the BDW collector.\n" );
     fn1 = argv[1];
     fn2 = argv[2];
     do_info = 0;

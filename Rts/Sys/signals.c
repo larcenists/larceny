@@ -4,41 +4,42 @@
  * $Id: signals.c,v 1.2 1997/09/23 19:57:44 lth Exp lth $
  */
 
+#include "config.h"
+
 #include <signal.h>
 #include <setjmp.h>
-#if defined(SOLARIS)
+#if defined(SUNOS5)
 #include <ucontext.h>
 #endif
 
-#include "signals.h"
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
+#include "signals.h"
 
-#if defined(SUNOS)
+#if defined(SUNOS4)
 static void inthandler( int, int, struct sigcontext *, char * );
 static void fpehandler( int, int, struct sigcontext *, char * );
+int syscall_mask = 0;
 #endif
 
-#if defined(SOLARIS)
+#if defined(SUNOS5)
 static void inthandler( int, siginfo_t *, void * );
 static void fpehandler( int, siginfo_t *, void * );
+sigset_t syscall_blocked_signals;
 #endif
 
 jmp_buf syscall_interrupt_buf;
 int     in_interruptible_syscall = 0;
 int     in_noninterruptible_syscall = 0;
-int     syscall_mask = 0;
 int     syscall_synch_error = 0;
 
 void setup_signal_handlers( void )
 {
-#if defined(SUNOS)
+#if defined(SUNOS4)
   signal( SIGINT, inthandler );
   signal( SIGFPE, fpehandler );
 #endif
 
-#if defined(SOLARIS)
+#if defined(SUNOS5)
   struct sigaction act;
 
   act.sa_handler = 0;
@@ -51,10 +52,10 @@ void setup_signal_handlers( void )
 #endif
 }
 
-#if defined(SUNOS)
+#if defined(SUNOS4)
 static void inthandler( int sig, int code, struct sigcontext *c, char *a )
 #endif
-#if defined(SOLARIS)
+#if defined(SUNOS5)
 static void inthandler( int sig, siginfo_t *siginfo, void *context )
 #endif
 {
@@ -72,29 +73,29 @@ static void inthandler( int sig, siginfo_t *siginfo, void *context )
    * longjumping back to the callout point, where cleanup will take
    * place.  Again, this is not the right thing, but it's OK now.
    */
-#if defined(SOLARIS)
+#if defined(SUNOS5)
   setup_signal_handlers();  /* Re-enable signal before longjmp on Solaris */
 #endif
   longjmp( syscall_interrupt_buf, ASYNCHRONOUS_ERROR );
 }
 
 
-#if defined(SUNOS)
+#if defined(SUNOS4)
 static void fpehandler( int sig, int code, struct sigcontext *scp, char *addr )
 #endif
-#if defined(SOLARIS)
+#if defined(SUNOS5)
 static void fpehandler( int sig, siginfo_t *siginfo, void *context )
 #endif
 {
   void m_fpe_handler();
-#if defined(SOLARIS)
+#if defined(SUNOS5)
   int code = siginfo->si_code;
 #endif
 
   globals[ G_FPE_CODE ] = fixnum( code );
 
   if (in_interruptible_syscall) {
-#if defined(SOLARIS)
+#if defined(SUNOS5)
     setup_signal_handlers();  /* Re-enable signal before longjmp on Solaris */
 #endif
     longjmp( syscall_interrupt_buf, SYNCHRONOUS_ERROR );
@@ -116,14 +117,14 @@ static void fpehandler( int sig, siginfo_t *siginfo, void *context )
      * SPARC specific code ahead!
      * Setup a return address to millicode exception code.
      */
-#if defined(SUNOS)
+#if defined(SUNOS4)
     scp->sc_pc = (int)m_fpe_handler;
     scp->sc_npc = (int)m_fpe_handler + 4;
 
     return;
 #endif
 
-#if defined(SOLARIS)
+#if defined(SUNOS5)
     ucontext_t *ucontext = (ucontext_t*)context;
 
     ucontext->uc_mcontext.gregs[ REG_PC ] = (greg_t)m_fpe_handler;
@@ -134,6 +135,20 @@ static void fpehandler( int sig, siginfo_t *siginfo, void *context )
   }
 }
 
+#if defined(SUNOS5)
+void block_all_signals( sigset_t *s )  /* s may be NULL */
+{
+  sigset_t t;
+
+  sigfillset( &t );
+  sigprocmask( SIG_SETMASK, &t, s );
+}
+
+void unblock_signals( sigset_t *s )
+{
+  sigprocmask( SIG_SETMASK, s, 0 );
+}
+#endif
 
 /* ---------------------------------------------------------------------- */
 

@@ -68,16 +68,6 @@
 				  code " FFI error code.")))))
 		(values #f r)))))))
 
-
-; Helper functions
-
-(define (ffi/string->asciiz str)
-  (let ((b (make-bytevector (+ (string-length str) 1))))
-    (bytevector-set! b (string-length str) 0)
-    (do ((i (- (string-length str) 1) (- i 1)))
-	((< i 0) b)
-      (bytevector-set! b i (char->integer (string-ref str i))))))
-
 ; FIXME
 (define (sys$C-ffi-error)
   (values 0 #f))

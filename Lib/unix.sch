@@ -68,6 +68,7 @@
 (define syscall:make-nonrelocatable 35)
 (define syscall:object->address 36)
 (define syscall:ffi-getaddr 37)
+(define syscall:sro 38)
 
 ; Syscall wrappers.
 
@@ -110,6 +111,13 @@
 
 (define (unix:system commandline)
   (syscall syscall:system commandline))
+
+(define (unix:sro ptr hdr limit)
+  (if (not (and (fixnum? ptr)
+		(fixnum? hdr)
+		(fixnum? limit)))
+      (error "Bogus parameters to unix:sro " (list ptr hdr limit)))
+  (syscall syscall:sro ptr hdr limit))
 
 ; Returns a resource usage vector.
 
@@ -392,6 +400,10 @@
 (define flonum:exp unix:flonum-exp)
 (define flonum:log unix:flonum-log)
 (define flonum:sqrt unix:flonum-sqrt)
+
+; SRO
+
+(define sro unix:sro)
 
 ; Subprocess
 

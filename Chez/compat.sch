@@ -12,14 +12,29 @@
 (define chez-compile-file compile-file)
 (define *file-list* '())
 
+; Foreign functions (for OS functionality).
+
+(let ((bitpattern (string-append hostdir "bitpattern.o"))
+      (mtime      (string-append hostdir "mtime.o"))
+      (libc       "/lib/libc.so"))
+  (case (machine-type)
+    ((sun4)  ; SunOS 4
+     (load-foreign bitpattern)
+     (load-foreign mtime))
+    ((sps2)  ; SunOS 5
+     (load-shared-object bitpattern)
+     (load-shared-object mtime)
+     (load-shared-object libc))
+    (else ???)))
+
 (define (compat:initialize)
-  (load-foreign (string-append hostdir "bitpattern.o"))
   (load (string-append hostdir "bytevec.ss"))
   (load (string-append hostdir "misc2bytevector.ss"))
   (load (string-append hostdir "logops.ss"))
   (if (not (bound? 'values))
       (load (string-append hostdir "values.ss")))
   (print-vector-length #f)
+  (print-gensym #f)
   #t)
 
 (define (compat:initialize2)
@@ -138,8 +153,12 @@
 ;
 ; Input and output
 
-(define write-lop write)
+(define (write-lop x p)
+  (write x p)
+  (newline p)
+  (newline p))
 
+(define twobit-format format)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -152,8 +171,6 @@
 ;
 ;  (file-modification-time string)
 ;     returns a timestamp for the file
-
-(load-foreign (string-append hostdir "mtime.o"))
 
 (define file-exists?
   (let ((access

@@ -1,6 +1,9 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
+ * NOTE: THIS FILE CURRENTLY NOT IN USE; sbrk() and malloc() cannot coexist.
+ *       Should rewrite to use memalign(), which should work OK.
+ *
  * $Id: unix-alloc.c,v 1.11 1997/09/23 19:57:44 lth Exp lth $
  *
  * This allocator handles memory allocation for Larceny and manages the
@@ -67,7 +70,8 @@ static unsigned   max_free_bytes;    /* max ditto */
 static unsigned   bytes_allocated_by_sbrk;
 
 static void *gclib_alloc( unsigned bytes );
-static void dump_freelist( void );
+void dump_freelist( void );
+static void freelist_insert( void *addr, unsigned bytes );
 
 
 /* Initialize descriptor tables and memory allocation pointers. */
@@ -109,6 +113,14 @@ gclib_init( void )
 }
 
 
+/* Return the RTS's idea of the memory range in use */
+void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
+{
+  *lowest = gclib_pagebase;
+  *highest = memtop;
+}
+
+
 /* Allocate memory for the garbage-collected heap.
  *
  * Allocate the requested number of bytes, rounded up to an integral
@@ -126,7 +138,7 @@ void *gclib_alloc_heap( unsigned bytes, unsigned heap_no, unsigned gen_no )
   oldtop = memtop;
   ptr = gclib_alloc( bytes );
 
-  for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ); i++ ) {
+  for ( i = pageof( ptr ) ; i < pageof( (char*)ptr+bytes ); i++ ) {
     assert( ptr >= (void*)oldtop || (gclib_desc_b[i] & MB_FREE) );
     gclib_desc_g[i] = gen_no;
     gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY;
@@ -148,7 +160,7 @@ void *gclib_alloc_rts( unsigned bytes, unsigned attribute )
   oldtop = memtop;
   ptr = gclib_alloc( bytes );
 
-  for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ); i++ ) {
+  for ( i = pageof( ptr ) ; i < pageof( (char*)ptr+bytes ); i++ ) {
     assert( ptr >= (void*)oldtop || (gclib_desc_b[i] & MB_FREE) );
     gclib_desc_g[i] = RTS_OWNED_PAGE;
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
@@ -227,7 +239,7 @@ static void *gclib_alloc( unsigned bytes )
                          bytes, bytes_allocated_by_sbrk);
 
  again:
-  if (pageof( top ) > descriptor_slots) {
+  if (pageof( top ) >= descriptor_slots) {
     unsigned slots = descriptor_slots * 2;
     unsigned *desc_g, *desc_b;
 
@@ -277,7 +289,6 @@ static void *gclib_alloc( unsigned bytes )
  */
 void gclib_free( void *addr, unsigned bytes )
 {
-  freelist_t *fl, *f, *p;
   unsigned pages;
   unsigned pageno;
 
@@ -313,39 +324,36 @@ void gclib_free( void *addr, unsigned bytes )
     pages--;
   }
 
+  freelist_insert( addr, bytes );
+
+#if 0 && GCLIB_DEBUG
+  dump_freelist();
+#endif
+}
+
+static void freelist_insert( void *addr, unsigned bytes )
+{
+  freelist_t *fl, *f, *p;
+
   f = (freelist_t*)addr;
   f->size = bytes;
   f->next = 0;
 
-  for ( fl = freelist, p = 0 ; fl != 0 ; p = fl, fl = fl->next ) {
-    if ((char*)fl+fl->size == (char*)f) {
-      fl->size += bytes;
-#if 0 && GCLIB_DEBUG
-      debugmsg( "      trailing existing at %p", fl );
-#endif
-      break;
-    }
-    else if ((char*)f+f->size == (char*)fl) {
-      f->size += fl->size;
-      f->next = fl->next;
-#if 0 && GCLIB_DEBUG
-      debugmsg( "      preceding existing at %p", fl );
-#endif
-      if (p == 0)
-	freelist = f;
-      else
-	p->next = f;
-      break;
-    }
-  }
+  /* Insert the block */
+  for ( p=0, fl=freelist ; fl != 0 && f > fl ; p=fl, fl=fl->next )
+    ;
+  f->next = fl;
+  if (p == 0) freelist = f; else p->next = f;
 
-  if (fl == 0) {
-    f->next = freelist;
-    freelist = f;
+  /* Coalesce blocks. f points to the block, p is 0 or the preceding. */
+  if (f->next != 0 && (char*)f + f->size == (char*)f->next) {
+    f->size += f->next->size;
+    f->next = f->next->next;
   }
-#if 0 && GCLIB_DEBUG
-  dump_freelist();
-#endif
+  if (p != 0 && (char*)p+p->size == (char*)f) {
+    p->size += f->size;
+    p->next = f->next;
+  }
 }
 
 
@@ -390,6 +398,14 @@ void dump_freelist( void )
 	        (void*)f, (void*)((char*)f+f->size), f->size );
     f = f->next;
   }
+}
+
+/* This is just plain dumb, but it ensures that dump_freelist is not
+   "optimized" away by the linker.
+ */
+void my_dummy_function( void (*f)( void ) )
+{
+  my_dummy_function( dump_freelist );
 }
 
 /* eof */

@@ -277,6 +277,11 @@
   (lambda (as)
     (emit-single-tagcheck->bool! as $tag.pair-tag)))
 
+(define-primop 'eof-object?
+  (lambda (as)
+    (sparc.cmpi as $r.result $imm.eof)
+    (emit-set-boolean! as)))
+
 ; Tests the specific representation, not 'flonum or compnum with 0i'.
 
 (define-primop 'flonum?
@@ -290,6 +295,18 @@
     (emit-double-tagcheck->bool! as $tag.vector-tag
 				 (+ $imm.vector-header
 				    $tag.symbol-typetag))))
+
+(define-primop 'port?
+  (lambda (as)
+    (emit-double-tagcheck->bool! as $tag.vector-tag
+				 (+ $imm.vector-header
+				    $tag.port-typetag))))
+
+(define-primop 'structure?
+  (lambda (as)
+    (emit-double-tagcheck->bool! as $tag.vector-tag
+				 (+ $imm.vector-header
+				    $tag.structure-typetag))))
 
 (define-primop 'char?
   (lambda (as)
@@ -434,9 +451,9 @@
     (sparc.slli as $r.result 14 $r.result)
     (sparc.ori  as $r.result $imm.character $r.result)))
 
-(define-primop 'make-rectangular
-  (lambda (as r)
-    (millicode-call/1arg as $m.make-rectangular r)))
+;(define-primop 'make-rectangular
+;  (lambda (as r)
+;    (millicode-call/1arg as $m.make-rectangular r)))
 
 (define-primop 'not
   (lambda (as)
@@ -457,6 +474,51 @@
       (millicode-call/1arg as $m.eqv tmp)
       (sparc.label as L1))))
 
+; I/O
+
+; Experimental (for performance).
+; This makes massive assumptions about the layout of the port structure:
+; A port is a vector-like where
+;   #0 = port.input?
+;   #4 = port.buffer
+;   #7 = port.rd-lim
+;   #8 = port.rd-ptr
+; See Lib/iosys.sch for more information.
+
+(define-primop 'sys$read-char
+  (lambda (as)
+    (let ((Lfinish (new-label))
+	  (Lend    (new-label)))
+      (if (not (unsafe-code))
+	  (begin
+	    (sparc.andi as $r.result $tag.tagmask $r.tmp0) ; mask argument tag
+	    (sparc.cmpi as $r.tmp0 $tag.vector-tag); vector-like? 
+	    (sparc.bne as Lfinish)		   ; skip if not vector-like
+	    (sparc.nop as)
+	    (sparc.ldbi as $r.RESULT 0 $r.tmp1)))   ; header byte
+      (sparc.ldi  as $r.RESULT 1 $r.tmp2)	    ; port.input? or garbage
+      (if (not (unsafe-code))
+	  (begin
+	    (sparc.cmpi as $r.tmp1 $hdr.port)       ; port?
+	    (sparc.bne as Lfinish)))		    ; skip if not port
+      (sparc.cmpi as $r.tmp2 $imm.false)  	    ; [slot] input port?
+      (sparc.be as Lfinish)			    ; skip if not active port
+      (sparc.ldi as $r.RESULT (+ 1 32) $r.tmp1)	    ; [slot] port.rd-ptr 
+      (sparc.ldi as $r.RESULT (+ 1 28) $r.tmp2)	    ; port.rd-lim
+      (sparc.ldi as $r.RESULT (+ 1 16) $r.tmp0)	    ; port.buffer
+      (sparc.cmpr as $r.tmp1 $r.tmp2)		    ; rd-ptr < rd-lim?
+      (sparc.bge as Lfinish)			    ; skip if rd-ptr >= rd-lim
+      (sparc.subi as $r.tmp0 1 $r.tmp0)		    ; [slot] addr of string@0
+      (sparc.srai as $r.tmp1 2 $r.tmp2)		    ; rd-ptr as native int
+      (sparc.ldbr as $r.tmp0 $r.tmp2 $r.tmp2)	    ; get byte from string
+      (sparc.addi as $r.tmp1 4 $r.tmp1)		    ; bump rd-ptr
+      (sparc.sti as $r.tmp1 (+ 1 32) $r.RESULT)	    ; store rd-ptr in port
+      (sparc.slli as $r.tmp2 16 $r.tmp2)	    ; convert to char #1
+      (sparc.b as Lend)
+      (sparc.ori as $r.tmp2 $imm.character $r.RESULT) ; [slot] convert to char
+      (sparc.label as Lfinish)
+      (sparc.set as $imm.false $r.RESULT)	    ; failed
+      (sparc.label as Lend))))
 
 ; String and bytevector operations
 
@@ -640,6 +702,36 @@
 			    (+ $imm.vector-header $tag.vector-typetag)
 			    $tag.vector-tag)))
 
+(define-primop 'make-vector:0
+  (lambda (as r) (make-vector-n as 0 r)))
+
+(define-primop 'make-vector:1
+  (lambda (as r) (make-vector-n as 1 r)))
+
+(define-primop 'make-vector:2
+  (lambda (as r) (make-vector-n as 2 r)))
+
+(define-primop 'make-vector:3
+  (lambda (as r) (make-vector-n as 3 r)))
+
+(define-primop 'make-vector:4
+  (lambda (as r) (make-vector-n as 4 r)))
+
+(define-primop 'make-vector:5
+  (lambda (as r) (make-vector-n as 5 r)))
+
+(define-primop 'make-vector:6
+  (lambda (as r) (make-vector-n as 6 r)))
+
+(define-primop 'make-vector:7
+  (lambda (as r) (make-vector-n as 7 r)))
+
+(define-primop 'make-vector:8
+  (lambda (as r) (make-vector-n as 8 r)))
+
+(define-primop 'make-vector:9
+  (lambda (as r) (make-vector-n as 9 r)))
+
 (define-primop 'vector-length
   (lambda (as)
     (emit-get-length! as
@@ -784,7 +876,7 @@
 	(sparc.sti as src1 0 $r.result)
 	(sparc.sti as (force-hwreg! as src2 $r.tmp1) 4 $r.result)
 	(if cont (sparc.b as cont))
-	(sparc.addi as $r.result 1 dest)))
+	(sparc.addi as $r.result $tag.pair-tag dest)))
 
     (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
 	(asm-error "Assembler: internal:cons2reg: reg is not HW"))
@@ -805,7 +897,7 @@
 	  (sparc.label as L1)
 	  (let ((src2 (force-hwreg! as src2 $r.tmp1)))
 	    (sparc.sti   as src2 -4 $r.e-top)
-	    (sparc.subi  as $r.e-top 7 dest)
+	    (sparc.subi  as $r.e-top 7 dest)     ; FIXME: evil tag spec
 	    (sparc.label as L2)))
 	(emit-common-case #f))))
 
@@ -1371,6 +1463,24 @@
 
 
 ; VECTORS and PROCEDURES
+
+; Allocate short vectors of known length; faster than the general case.
+; FIXME: can also allocate in-line.
+
+(define (make-vector-n as length r)
+  (sparc.jmpli as $r.millicode $m.alloc $r.o7)
+  (sparc.set  as (thefixnum (+ length 1)) $r.result)
+  (emit-immediate->register! as (+ (* 256 (thefixnum length))
+				   $imm.vector-header
+				   $tag.vector-typetag)
+			     $r.tmp0)
+  (sparc.sti  as $r.tmp0 0 $r.result)
+  (let ((dest (force-hwreg! as r $r.argreg2)))
+    (do ((i 0 (+ i 1)))
+	((= i length))
+      (sparc.sti as dest (* (+ i 1) 4) $r.result)))
+  (sparc.addi as $r.result $tag.vector-tag $r.result))
+
 
 ; emit-make-vector-like! assumes argreg3 is not destroyed by alloci.
 

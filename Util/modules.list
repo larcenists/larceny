@@ -17,9 +17,9 @@
 	"Auxlib/pp.fasl"
 	"Larceny/compat2.fasl"))
 
-; This is a little grungy... twobit.imp.fasl uses define-inline
+; This is a little grungy... sparc.imp.fasl uses define-inline
 ; which is defined in pass1.aux.fasl, and the assembler needs the
-; $whatever definitions from Compiler/twobit.imp.fasl.  I've broken
+; $whatever definitions from Compiler/sparc.imp.fasl.  I've broken
 ; it up here.  Ideally, this would be more sophisticated -- as it is,
 ; the assembler gets to see all of compiler-base, much more than
 ; it needs. 
@@ -33,12 +33,12 @@
 
 
 ; I've included pass2.aux.fasl here because many procedures defined there
-; are used in twobit.imp.fasl, and of course this further pollutes the
+; are used in sparc.imp.fasl, and of course this further pollutes the
 ; name space for the assembler (sigh).
 
 ((environment compiler-base)
  (parent compiler-1)
- (files "Compiler/twobit.imp.fasl"
+ (files "Compiler/sparc.imp.fasl"
 	"Compiler/pass2.aux.fasl")
  (imports (compiler m-scan)))
 
@@ -57,6 +57,7 @@
 	"Util/init-comp.fasl"
 	)
  (imports (asm-common assemble)
+	  (asm-common assembly-target)
 	  (asm-common dump-fasl-segment-to-port)
 	  (asm-sparc  disassemble-codevector)
 	  (asm-sparc  print-instructions)
@@ -71,6 +72,9 @@
 	"Asm/Common/asmutil32.fasl"
 	"Asm/Common/makefasl2.fasl")
  (imports (asm-sparc assembly-table)
+	  (asm-sparc assembly-target)
+	  (asm-sparc assembly-start)
+	  (asm-sparc assembly-end)
 	  (asm-sparc peep)
 	  (asm-sparc peephole-optimization)
 	  (asm-sparc single-stepping)
@@ -95,8 +99,9 @@
  (files "Util/make.fasl"
 	"Util/make-support.fasl"))
 
-((environment @toplevel@)
- (parent @interaction-environment@)
+(;(environment @toplevel@)
+ ;(parent @interaction-environment@)
+ (environment @interaction-environment@)
  (imports (auxiliary remq!)
 	  (auxiliary reduce-left)
 	  (auxiliary reduce-right)
@@ -143,7 +148,11 @@
 
 ; For the time being, remember the find-env procedure.
 
+;(lambda (find-env)
+;  (environment-set! (find-env '@toplevel@) 'larceny/find-env find-env))
+
 (lambda (find-env)
-  (environment-set! (find-env '@toplevel@) 'larceny/find-env find-env))
+  (environment-set! (find-env '@interaction-environment@)
+		    'larceny/find-env find-env))
 
 ; eof 

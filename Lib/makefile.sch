@@ -10,8 +10,8 @@
 ;  make-compat
 ;  make-compiler
 ;  make-sparcasm
-;  make-newasm
 ;  make-development-environment  -- makes auxlib, compat, compiler, sparcasm
+;  make-testsuite
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -93,11 +93,6 @@
     "timer"             ; timer interrupts
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
-
-    ; Old I/O subsystem
-
-;    "schemeio"          ; I/O system
-;    "print"             ; write/display
 
     ; New I/O subsystem
 
@@ -209,7 +204,7 @@
 (define compiler-files '("compile313" "help" "pass1.aux" "pass1" 
 			 "pass2.aux" "pass2p1" "pass2p2" "pass4.aux"
 			 "pass4p1" "pass4p2" "pass4p3" 
-			 "sets" "switches" "twobit.imp" "pass4patch"))
+			 "sets" "switches" "sparc.imp" "pass4patch"))
 
 (define comp-asm-files '("makefasl" "makefasl2" "dumpheap"))
 (define comp-util-files '("make" "make-support" "init-comp"))
@@ -305,6 +300,46 @@
 (define (make-auxlib . rest)
   (make:pretend (not (null? rest)))
   (make:make auxlib-project "auxlib.date"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Project for building the GC test suite.
+
+(define gc-testsuite-project (make:new-project "GC Testsuite"))
+(define gc-testsuite-files
+  '("dynamic" "gcbench0" "gcbench1" "grow" "lattice" "nbody"
+	      "nboyer" "nucleic2" "permsort" "sboyer"))
+
+(make:rule gc-testsuite-project ".fasl" ".sch" make-compile-file)
+(make:deps gc-testsuite-project '("gc-testsuite.date")
+	   (objects "Testsuite/GC/" ".fasl" gc-testsuite-files))
+(make:targets gc-testsuite-project '("gc-testsuite.date") (lambda args #t))
+
+(define (make-gc-testsuite . rest)
+  (make:pretend (not (null? rest)))
+  (make:make gc-testsuite-project "gc-testsuite.date"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Regression tests.
+
+(define regression-test-project
+  (make:new-project "Regression tests"))
+
+(define regression-test-files
+  '("char" "env" "number" "test"))
+
+(make:rule regression-test-project ".fasl" ".sch" make-compile-file)
+(make:deps regression-test-project '("regression-test.date")
+	   (objects "Testsuite/Lib/" ".fasl" regression-test-files))
+(make:targets regression-test-project '("regression-test.date")
+	      (lambda args #t))
+
+(define (make-regression-test . rest)
+  (make:pretend (not (null? rest)))
+  (make:make regression-test-project "regression-test.date"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -7,59 +7,30 @@
 #ifndef INCLUDED_HEAPIO_H
 #define INCLUDED_HEAPIO_H
 
+#include "larceny-types.h"
 #include "cdefs.h"
 #include <stdio.h>
 
-typedef struct heapio_t heapio_t;
-typedef struct metadata_block_t metadata_block_t;
+typedef struct hio_tbl hio_tbl;
 
 struct heapio_t {
-  int (*open)( heapio_t *h, const char *filename );
-  int (*create)( heapio_t *h, const char *filename, int type );
-  int (*close)( heapio_t *h );
-  int (*type)( heapio_t *h );
-
-  /* Major interfaces to loading and dumping */
-  int (*load_bootstrap)( heapio_t *h, word *text, word *data, word *globals );
-  int (*dump_bootstrap)( heapio_t *h, semispace_t *text, semispace_t *data,
-			 word *globals );
-
-  /* Utility functions used by the heaps' load/dump functions */
-  int (*load_roots)( heapio_t *h, word *globals );
-  int (*read_data)( heapio_t *h, word *start, unsigned words );
-  int (*write_data)( heapio_t *h, word *start, unsigned words );
-  int (*read_ptr)( heapio_t *h, word **wp );
-  int (*read_word)( heapio_t *h, word *w );
-  int (*write_ptr)( heapio_t *h, word *wp );
-  int (*write_word)( heapio_t *h, word w );
-
   /* Public fields for single and split heaps */
-  unsigned text_size;               /* Size (words) of text */
-  unsigned data_size;               /* Size (words) of data */
-
-  /* Public fields for dumped heaps */
-  unsigned data_pages;                   /* Number of dumped pages (total) */
-  metadata_block_t *metadata;            /* Chain of metadata blocks */
-  word **pagetable;                      /* Used during pointer adjustment */
+  int     text_size;            /* Size (words) of text */
+  int     data_size;            /* Size (words) of data */
+  int     type;                 /* Type code */
 
   /* Private data */
-  FILE *fp;
-  word magic;                            /* Header word */
-  word roots[ LAST_ROOT-FIRST_ROOT+1 ];  /* Root load area */
-  int  split_heap;                       /* 1 if the heap has a static area */
-  int  bootstrap_heap;                   /* 1 if single or split heap */
-  int  input;                            /* 1 if open for input */
-  int  output;                           /* 1 if open for output */
+  FILE    *fp;
+  word    magic;                /* Header word */
+  word    roots[ LAST_ROOT-FIRST_ROOT+1 ];
+  bool    split_heap;           /* 1 if the heap has a static area */
+  bool    bootstrap_heap;       /* 1 if single or split heap */
+  bool    input;                /* 1 if open for input */
+  bool    output;               /* 1 if open for output */
+  word    *globals;
+  hio_tbl *text_segments; 
+  hio_tbl *data_segments;
 };
-
-struct metadata_block_t {
-  word metadata_length;                  /* length of metadata (words) */
-  word data_pages;                       /* Number of pages in data block */
-  word code;                             /* heap type word */
-  word *data;                            /* metadata or 0 */
-  metadata_block_t *next;                /* next block on chain */
-};
-
 
 #define HEAPIO_OK             0
 #define HEAPIO_WRONGTYPE     -1          /* wrong heap type */
@@ -69,14 +40,77 @@ struct metadata_block_t {
 #define HEAPIO_NOTOPEN       -5          /* heap not open */
 #define HEAPIO_CANTWRITE     -6          /* write error */
 #define HEAPIO_CODEMATCH     -7          /* unmatched heap code during load */
+#define HEAPIO_CANTCLOSE     -8          /* close error */
 
-/* These are not random. */
-#define HEAP_SINGLE  0
-#define HEAP_SPLIT   1
-#define HEAP_DUMPED  2
+/* Heap type values.  These are not random. */
+#define HEAP_SINGLE          0
+#define HEAP_SPLIT           1
+#define HEAP_DUMPED          2
+
+/* Codes for hio_dump_segment. */
+
+#define TEXT_SEGMENT         0
+#define DATA_SEGMENT         1
+
 
 extern heapio_t *create_heapio( void );
-extern void delete_heapio( heapio_t * );
+  /* Create a heapio_t structure.
+     */
+
+extern int hio_open( heapio_t *h, const char *filename );
+  /* Open the heap image file and read metadata into the heapio structure.
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+extern int hio_create( heapio_t *h, const char *filename, int type );
+  /* Create a heap image file for the given type of heap.
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+extern int hio_close( heapio_t *h );
+  /* Close the heap image file and deallocate the structure.
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+extern int hio_dump_initiate( heapio_t *h, word *globals );
+  /* Start a dump.
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+extern int hio_dump_segment( heapio_t *h, int type, word *bot, word *top );
+  /* Set up a dump of the array of words between bot (inclusive) and top
+     (exclusive) to the file represented by 'h'.  The memory may not be
+     dumped at this time, and should not be altered until after a subsequent
+     call to hio_dump_commit().
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+extern int hio_dump_commit( heapio_t *h );
+  /* Finish the dump.
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+extern int
+hio_load_bootstrap( heapio_t *h, word *text, word *data, word *globals );
+  /* If h is an open heap of type HEAP_SPLIT or HEAP_SINGLE, then load the
+     heap image into the text and data areas.
+
+     Returns 0 on success or a negative error code on failure.
+     */
+
+#if 0
+extern int
+hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data, 
+		   word *globals );
+  /* For backward compatibility */
+#endif
+
 
 #endif /* ifndef INCLUDED_HEAPIO_H */
 

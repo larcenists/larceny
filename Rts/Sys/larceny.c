@@ -8,55 +8,54 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <memory.h>
-#include <malloc.h>
-#include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
+#include <stdlib.h>
+#include <string.h>
 
-typedef struct opt opt_t;
+#include "larceny.h"
+#include "gc.h"
 
 /* Argument parsing structure */
+
+typedef struct opt opt_t;
 struct opt {
-  int        maxheaps;
-  gc_param_t gc_info;
-  int        size_explicit[ MAX_HEAPS ];
-  int        himark_explicit[ MAX_HEAPS ];
-  int        lomark_explicit[ MAX_HEAPS ];
-  int        oflomark_explicit[ MAX_HEAPS ];
-  unsigned   timerval;
-  unsigned   enable_singlestep;
-  unsigned   enable_breakpoints;
-  unsigned   enable_timer;
-  unsigned   show_heapstats;
-  char       *heapfile;
-  int        quiet;
-  int        annoying;
-  int        supremely_annoying;
-  int        flush;
-  int        noflush;
-  int        reorganize_and_dump;
-  int        restc;
-  char       **restv;
-  char       *gc_debug_file;
+  int        maxheaps;		        /* length of size[] member */
+  int        size[ MAX_HEAPS ];	        /* area 1 at loc 0, etc */
+  gc_param_t gc_info;                   /* detailed info about areas */
+  unsigned   timerval;                  /* timer value */
+  bool       enable_singlestep;         /* enable/disable single stepping */
+  bool       enable_breakpoints;        /* enable/disable breakpoints */
+  bool       enable_timer;              /* enable/disable timer */
+  bool       show_heapstats;            /* unparse this structure */
+  char       *heapfile;                 /* name of heap file */
+  bool       quiet;                     /* do not print informative msgs */
+  bool       annoying;                  /* print many informative msgs */
+  bool       supremely_annoying;        /* print massively many msgs */
+  bool       flush;                     /* force icache flushing */
+  bool       noflush;                   /* disable icache flushing */
+  bool       reorganize_and_dump;       /* split text and data and dump */
+  int        restc;                     /* number of extra arguments */
+  char       **restv;                   /* vector of extra arguments */
 };
 
 static void invalid( char *s );
 static void usage( void );
 static void help( void );
 static void parse_options( int argc, char **argv, opt_t *opt );
-static int getsize( char *s, unsigned *p );
+static int  getsize( char *s, unsigned *p );
+void dump_options( opt_t *o );
 
-extern char *gctype();
+static bool quiet = 0;
+  /* 'quiet' controls consolemsg() 
+     */
 
-/* 'quiet' controls consolemsg() */
-static int quiet = 0;
+static bool annoying = 0;
+  /* 'annoying' controls annoying_msg() 
+     */
 
-/* 'annoying' controls annoying_msg() */
-static int annoying = 0;
-static int supremely_annoying = 0;
+static bool supremely_annoying = 0;
+  /* 'supremely_annoying' controls supremely_annoyingmsg()
+     */
 
-/* Genesis. */
 int main( argc, argv )
 int argc;
 char **argv;
@@ -68,18 +67,17 @@ char **argv;
   o.timerval = 0xFFFFFFFF;
   o.heapfile = 0;
   o.restv = 0;
-
-  o.gc_info.heaps = 2;   /* dual-heap generational collector */
-  o.gc_info.heap_info =
-    (heap_info_t*)must_malloc( sizeof(heap_info_t)*MAX_HEAPS );
-  memset( o.gc_info.heap_info, 0, sizeof( heap_info_t )*MAX_HEAPS );
-  o.gc_info.use_static_heap = 1;
+  o.gc_info.ephemeral_info = 0;
+  o.gc_info.use_static_area = 1;
   o.gc_info.globals = globals;
+#if defined( BDW_GC )
+  o.gc_info.is_conservative_system = 1;
+#endif
 
   cache_setup();
-  consolemsg( "Larceny v%s (%s;%s;%s) (%s/%s)",
+  consolemsg( "Larceny v%s (%s:%s:%s) (%s %s)",
 	      version, 
-	      gc_technology,
+	      larceny_gc_technology,
 	      osname, 
 	      (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),
 	      user, date );
@@ -88,54 +86,43 @@ char **argv;
   if (o.heapfile == 0)
     o.heapfile = "larceny.heap";
 
-  /* HACK! HACK! HACK! FIXME!
-   * Static area currently disabled with stop-and-copy system.
-   */
-  if (o.gc_info.heaps == 1) {
-    if (o.gc_info.use_static_heap) {
-      consolemsg( "The static area is disabled with the stop+copy gc." );
-      consolemsg( "Use -nostatic to disable this message." );
-      o.gc_info.use_static_heap = 0;
-    }
-  }
-
   quiet = o.quiet;
   annoying = o.annoying;
   supremely_annoying = o.supremely_annoying;
-#ifdef DEBUG
-  annoying = supremely_annoying = 1;
-#endif
+
+  if (annoying || supremely_annoying)
+    dump_options( &o );
 
   if (o.flush)
     globals[ G_CACHE_FLUSH ] = 1;
   else if (o.noflush)
     globals[ G_CACHE_FLUSH ] = 0;
 
-  /* Load the heap */
-  openheap( o.heapfile );
+  if (o.reorganize_and_dump && !o.gc_info.is_stopcopy_system) {
+    o.gc_info.is_conservative_system = 0;
+    o.gc_info.is_generational_system = 0;
+    o.gc_info.is_stopcopy_system = 1;
+    o.gc_info.use_static_area = 1;
+    o.gc_info.use_non_predictive_collector = 0;
+    o.gc_info.use_incremental_bdw_collector = 0;
+    o.gc_info.sc_info.size_bytes = DEFAULT_STOPCOPY_SIZE;
+    o.gc_info.sc_info.load_factor = DEFAULT_LOAD_FACTOR;
+  }
 
-  if (o.gc_info.use_static_heap)
-    o.gc_info.static_size = heap_text_size() + heap_data_size();
+  if (!create_memory_manager( &o.gc_info ))
+    panic( "Unable to set up the garbage collector." );
 
-  if (!allocate_heap( &o.gc_info ))
-    panic( "Unable to allocate heap/create garbage collector." );
-
-  load_heap();
-  closeheap();
+  if (!load_heap_image_from_file( o.heapfile ))
+    panic( "Unable to load the heap image." );
 
   if (o.reorganize_and_dump) {
     char buf[ PATH_MAX ];
 
-    if (!o.gc_info.use_static_heap)
-      panic( "No static heap to reorganize!" );
     sprintf( buf, "%s.split", o.heapfile );
     if (!reorganize_and_dump_static_heap( buf ))
       panic( "Failed heap reorganization." );
     goto end;
   }
-
-  if (o.show_heapstats)
-    consolemsg( "GC type: %s\n", gctype() );
 
   /* initialize some policy globals */
   globals[ G_BREAKPT_ENABLE ] =
@@ -253,6 +240,7 @@ void consolemsg( const char *fmt, ... )
   vfprintf( stderr, fmt, args );
   fprintf( stderr, "\n" );
   va_end( args );
+  fflush( stderr );
 }
 
 void hardconsolemsg( const char *fmt, ... )
@@ -265,95 +253,89 @@ void hardconsolemsg( const char *fmt, ... )
   fprintf( stderr, "\n" );
 }
 
-
 /****************************************************************************
  *
  * Command line parsing.
- *
- * As of 0.26, there can be multiple old generations, and each generation can
- * have its parameters specified individually or as a group.  For the time
- * being (one can make this arbitrarily complicated...) -tsize indicates
- * the size for all old generations for which an individual size has not
- * been given, and -tsizen for some 0 <= _n_ <= 31 indicates the size for
- * generation _n_.  Ditto for -thimark and -tlomark.  It is an error to
- * specify the sizes for generations that do not exist, although that error is
- * not detected.  The switch -old n indicates the desired number of old
- * generations.
  */
 
 static int sizearg( char *str, int *argc, char ***argv, unsigned *var );
 static int hsizearg( char *str, int *argc, char ***argv, unsigned *var,
 		    int *loc );
+static int doublearg( char *str, int *argc, char ***argv, double *var );
 static int numbarg( char *str, int *argc, char ***argv, unsigned *var );
 static int hnumbarg( char *str, int *argc, char ***argv, unsigned *var,
 		    int *loc );
+static void compute_np_parameters( opt_t *o, int suggested_size );
+
+static void init_generational( opt_t *o, int areas, char *name )
+{
+  if (areas < 2)
+    invalid( name );
+
+  if (o->gc_info.ephemeral_info != 0) {
+    consolemsg( "Error: Number of areas re-specified with '%s'", name );
+    consolemsg( "Type \"larceny -help\" for help." );
+    exit( 1 );
+  }
+
+  o->gc_info.is_generational_system = 1;
+  o->gc_info.ephemeral_info = 
+    (sc_info_t*)must_malloc( sizeof( sc_info_t )*areas-2 );
+  o->gc_info.ephemeral_area_count = areas-2;
+}
 
 static void
 parse_options( int argc, char **argv, opt_t *o )
 {
-  int i, loc;
+  int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
+  double load_factor = DEFAULT_LOAD_FACTOR;
   unsigned val;
 
   while (--argc) {
     ++argv;
-    if (numbarg( "-heaps", &argc, &argv, &o->gc_info.heaps )) {
-      if (o->gc_info.heaps >= o->maxheaps || o->gc_info.heaps < 1)
-	invalid( "-heaps" );
+#if !defined( BDW_GC )
+    if (strcmp( *argv, "-stopcopy" ) == 0)
+      o->gc_info.is_stopcopy_system = 1;
+    else if (numbarg( "-areas", &argc, &argv, &areas ))
+      init_generational( o, areas, "-areas" );
+    else if (strcmp( *argv, "-gen" ) == 0)
+      init_generational( o, areas, "-gen" );
+    else if (strcmp( *argv, "-np" ) == 0) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_non_predictive_collector = 1;
     }
-    else if (sizearg( "-rhash", &argc, &argv, &o->gc_info.rhash )) ;
-    else if (sizearg( "-ssb", &argc, &argv, &o->gc_info.ssb )) ;
-    else if (numbarg( "-ticks", &argc, &argv, &o->timerval )) ;
+    else if (strcmp( *argv, "-nostatic" ) == 0)
+      o->gc_info.use_static_area = 0;
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
+      if (loc > 1) o->gc_info.is_generational_system = 1;
       if (loc < 0 || loc > o->maxheaps)
 	invalid( "-size" );
-      else if (loc > 0) {
-	o->gc_info.heap_info[loc-1].size_bytes = val;
-	o->size_explicit[loc-1] = 1;
-      }
+      else if (loc > 0)
+	o->size[loc-1] = val;
       else 
-	for ( i=0 ; i < o->maxheaps ; i++ )
-	  if (!o->size_explicit[i]) o->gc_info.heap_info[i].size_bytes = val;
+	for ( i=1 ; i < o->maxheaps ; i++ )
+	  if (o->size[i-1] < 0) o->size[i-1] = val;
     }
-    else if (hnumbarg( "-himark", &argc, &argv, &val, &loc )) {
-      if (loc < 0 || loc > o->maxheaps) 
-	invalid( "-himark" );
-      else if (loc > 0) {
-	o->gc_info.heap_info[loc-1].hi_mark = val;
-	o->himark_explicit[loc-1] = 1;
-      }
-      else 
-	for ( i=0 ; i < o->maxheaps ; i++ )
-	  if (!o->himark_explicit[i]) o->gc_info.heap_info[i].hi_mark = val;
+    else if (doublearg( "-load", &argc, &argv, &load_factor ))
+      ;
+    else if (numbarg( "-steps", &argc, &argv,
+		     &o->gc_info.dynamic_np_info.steps )) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_non_predictive_collector = 1;
     }
-    else if (hnumbarg( "-lomark", &argc, &argv, &val, &loc )) {
-      if (loc < 0 || loc > o->maxheaps)
-	invalid( "-lomark" );
-      else if (loc > 0) {
-	o->gc_info.heap_info[loc-1].lo_mark = val;
-	o->lomark_explicit[loc-1] = 1;
-      }
-      else 
-	for ( i=0 ; i < o->maxheaps ; i++ )
-	  if (!o->lomark_explicit[i]) o->gc_info.heap_info[i].lo_mark = val;
+    else if (sizearg( "-stepsize", &argc, &argv,
+		     &o->gc_info.dynamic_np_info.stepsize )) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_non_predictive_collector = 1;
     }
-    else if (hnumbarg( "-overflowmark", &argc, &argv, &val, &loc ) ||
-	     hnumbarg( "-oflomark", &argc, &argv, &val, &loc )) {
-      if (loc < 0 || loc > o->maxheaps) 
-	invalid( "-overflowmark" );
-      else if (loc > 0) {
-	o->gc_info.heap_info[loc-1].oflo_mark = val;
-	o->oflomark_explicit[loc-1] = 1;
-      }
-      else 
-	for ( i=0 ; i < o->maxheaps ; i++ )
-	  if (!o->oflomark_explicit[i]) o->gc_info.heap_info[i].oflo_mark=val;
-    }
-    else if (numbarg( "-steps", &argc, &argv, &o->gc_info.np_steps ))
-      o->gc_info.use_np_heap = 1;
-    else if (sizearg( "-stepsize", &argc, &argv, &o->gc_info.np_stepsize ))
-      o->gc_info.use_np_heap = 1;
-    else if (strcmp( *argv, "-np" ) == 0)
-      o->gc_info.use_np_heap = 1;
+    else if (sizearg( "-rhash", &argc, &argv, &o->gc_info.rhash ))
+      ;
+    else if (sizearg( "-ssb", &argc, &argv, &o->gc_info.ssb ))
+      ;
+    else 
+#endif
+      if (numbarg( "-ticks", &argc, &argv, &o->timerval ))
+      ;
     else if (strcmp( *argv, "-break" ) == 0)
       o->enable_breakpoints = 1;
     else if (strcmp( *argv, "-step" ) == 0)
@@ -374,14 +356,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->flush = 1;
     else if (strcmp( *argv, "-noflush" ) == 0)
       o->noflush = 1;
-    else if (strcmp( *argv, "-nostatic" ) == 0)
-      o->gc_info.use_static_heap = 0;
     else if (strcmp( *argv, "-reorganize-and-dump" ) == 0)
       o->reorganize_and_dump = 1;
-    else if (strcmp( *argv, "-nocontract" ) == 0)
-      o->gc_info.disable_contraction = 1;
-    else if (strcmp( *argv, "-nonursery" ) == 0)
-      o->gc_info.disable_nursery = 1;
     else if (strcmp( *argv, "-args" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
@@ -398,6 +374,99 @@ parse_options( int argc, char **argv, opt_t *o )
     else
       o->heapfile = *argv;
   }
+
+  if (o->gc_info.is_conservative_system &&
+      (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system)) {
+    consolemsg( "Error: Both precise and conservative gc selected!" );
+    consolemsg( "Type \"larceny -help\" for help." );
+    exit( 1 );
+  }
+    
+  if (o->gc_info.is_generational_system && o->gc_info.is_stopcopy_system) {
+    consolemsg( "Error: Both generational and non-generational gc selected!" );
+    consolemsg( "Type \"larceny -help\" for help." );
+    exit( 1 );
+  }
+
+  if (!o->gc_info.is_stopcopy_system && o->gc_info.ephemeral_info == 0)
+    init_generational( o, areas, "*invalid*" );
+
+  if (o->gc_info.is_generational_system) {
+    /* Nursery */
+    o->gc_info.nursery_info.size_bytes =
+      (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
+
+    /* Ephemeral generations */
+    prev_size = o->gc_info.nursery_info.size_bytes;
+
+    for ( i = 1 ; i <= areas-2 ; i++ ) {
+      if (o->size[i] == 0)
+	o->size[i] = prev_size + DEFAULT_EPHEMERAL_INCREMENT;
+      o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
+      prev_size = o->size[i];
+    }
+
+    /* Dynamic generation */
+    if (o->gc_info.use_non_predictive_collector) {
+      int n = areas-1;
+      o->gc_info.dynamic_np_info.load_factor = load_factor;
+      if (o->size[n] != 0)
+	o->gc_info.dynamic_np_info.size_bytes = o->size[n];
+      compute_np_parameters( o, prev_size + DEFAULT_DYNAMIC_INCREMENT );
+    }
+    else {
+      int n = areas-1;
+      o->gc_info.dynamic_sc_info.load_factor = load_factor;
+      if (o->size[n] == 0)
+	o->gc_info.dynamic_sc_info.size_bytes = 
+	  prev_size + DEFAULT_DYNAMIC_INCREMENT;
+      else
+	o->gc_info.dynamic_sc_info.size_bytes = o->size[n];
+    }
+  }
+  else if (o->gc_info.is_stopcopy_system) {
+    if (o->size[0] == 0)
+      o->gc_info.sc_info.size_bytes = DEFAULT_STOPCOPY_SIZE;
+    else 
+      o->gc_info.sc_info.size_bytes = o->size[0];
+    o->gc_info.sc_info.load_factor = load_factor;
+  }
+}
+
+static void compute_np_parameters( opt_t *o, int suggested_size )
+{
+  int steps = o->gc_info.dynamic_np_info.steps;
+  int stepsize = o->gc_info.dynamic_np_info.stepsize;
+  int size = o->gc_info.dynamic_np_info.size_bytes;
+
+  if (steps == 0 && stepsize == 0) {
+    if (size == 0)
+      size = suggested_size;
+    stepsize = DEFAULT_STEPSIZE;
+    steps = ceildiv( size, stepsize );
+  }
+  else if (steps != 0 && stepsize == 0) {
+    if (size == 0) {
+      stepsize = DEFAULT_STEPSIZE;
+      size = stepsize * steps;
+    }
+    else
+      stepsize = size / steps;
+  }
+  else if (steps == 0 && stepsize != 0) {
+    if (size == 0) {
+      steps = DEFAULT_STEPS;
+      size = stepsize * steps;
+    }
+    else
+      steps = size / stepsize;
+  }
+  else 
+    size = stepsize * steps;
+
+  o->gc_info.dynamic_np_info.steps = steps;
+  o->gc_info.dynamic_np_info.stepsize = stepsize;
+  o->gc_info.dynamic_np_info.size_bytes = size;
 }
 
 static int 
@@ -444,6 +513,18 @@ numbarg( char *str, int *argc, char ***argv, unsigned *loc )
 }
 
 static int 
+doublearg( char *str, int *argc, char ***argv, double *loc )
+{
+  if (strcmp( **argv, str ) == 0) {
+    if (*argc == 1 || sscanf( *(*argv+1), "%lf", loc ) != 1 ) invalid( str );
+    ++*argv; --*argc;
+    return 1;
+  }
+  else
+    return 0;
+}
+
+static int 
 hnumbarg( char *str, int *argc, char ***argv, unsigned *var, int *loc )
 {
   int l = strlen(str);
@@ -482,6 +563,70 @@ static int getsize( char *s, unsigned *p )
   return 0;
 }
 
+void dump_options( opt_t *o )
+{
+  int i;
+
+  consolemsg( "" );
+  consolemsg( "Command line parameter dump" );
+  consolemsg( "---------------------------" );
+  consolemsg( "Stepping: %d", o->enable_singlestep );
+  consolemsg( "Breakpoints: %d", o->enable_breakpoints );
+  consolemsg( "Timer: %d (val=%d)", o->enable_timer, o->timerval );
+  consolemsg( "Heap file: %s", o->heapfile );
+  consolemsg( "Quiet: %d", o->quiet );
+  consolemsg( "Annoying: %d", o->annoying );
+  consolemsg( "Supremely annoying: %d", o->supremely_annoying );
+  consolemsg( "Flush/noflush: %d/%d", o->flush, o->noflush );
+  consolemsg( "Reorganize and dump: %d", o->reorganize_and_dump );
+  consolemsg( "" );
+  if (o->gc_info.is_conservative_system) {
+    consolemsg( "Using conservative garbage collector." );
+    consolemsg( "  Incremental: %d", o->gc_info.use_incremental_bdw_collector);
+  }
+  else if (o->gc_info.is_stopcopy_system) {
+    consolemsg( "Using stop-and-copy garbage collector." );
+    consolemsg( "  Size (bytes): %d", o->gc_info.sc_info.size_bytes );
+    consolemsg( "  Inverse load factor: %f", o->gc_info.sc_info.load_factor );
+    consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
+  }
+  else if (o->gc_info.is_generational_system) {
+    consolemsg( "Using generational garbage collector." );
+    consolemsg( "  Nursery" );
+    consolemsg( "    Size (bytes): %d", o->gc_info.nursery_info.size_bytes );
+    for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
+      consolemsg( "  Ephemeral area %d", i );
+      consolemsg( "    Size (bytes): %d",
+		  o->gc_info.ephemeral_info[i-1].size_bytes );
+    }
+    if (o->gc_info.use_non_predictive_collector ) {
+      consolemsg( "  Dynamic area (nonpredictive copying)" );
+      consolemsg( "    Steps: %d", o->gc_info.dynamic_np_info.steps );
+      consolemsg( "    Step size (bytes): %d",
+		 o->gc_info.dynamic_np_info.stepsize );
+      consolemsg( "    Total size (bytes): %d",
+		 o->gc_info.dynamic_np_info.size_bytes );
+      consolemsg( "    Inverse load factor: %f",
+		 o->gc_info.dynamic_np_info.load_factor );
+    }
+    else {
+      consolemsg( "  Dynamic area (normal copying)" );
+      consolemsg( "    Size (bytes): %d",
+		 o->gc_info.dynamic_sc_info.size_bytes );
+      consolemsg( "    Inverse load factor: %f",
+		 o->gc_info.dynamic_sc_info.load_factor );
+    }
+    consolemsg( "  Using non-predictive dynamic area: %d",
+	       o->gc_info.use_non_predictive_collector );
+    consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
+  }
+  else {
+    consolemsg( "ERROR: inconsistency: GC type not known." );
+    exit( 1 );
+  }
+  consolemsg( "---------------------------" );
+}
+
 static void invalid( char *s )
 {
   consolemsg( "Error: Invalid argument to option '%s'", s );
@@ -499,26 +644,26 @@ static void usage( void )
 
 static void help( void )
 {
-  consolemsg("Usage: larceny [ options ][ heapfile ][-args arg-to-scheme ...]");
+ consolemsg("Usage: larceny [ options ][ heapfile ][-args arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
 #ifndef BDW_GC
-  consolemsg("\t-heaps    n     Number of non-static heaps." );
-  consolemsg("\t-size     nnnn  Per-heap size in bytes." );
-  consolemsg("\t-size#    nnnn  Heap number '#' size." );
-  consolemsg("\t-himark   n     Per-heap expansion watermark in percent." );
-  consolemsg("\t-himark#  n     Heap number '#' expansion watermark." );
-  consolemsg("\t-lomark   n     Per-heap contraction watermark in percent." );
-  consolemsg("\t-lomark#  n     Heap number '#' contraction watermark." );
-  consolemsg("\t-oflomark n     Per-heap promotion watermark in percent." );
-  consolemsg("\t-oflomark# n    Heap number '#' promotion watermark." );
-  consolemsg("\t-np       n     Use the non-predictive collector." );
-  consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
-  consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
+  consolemsg("\t-stopcopy       Select stop-and-copy collector." );
+  consolemsg("\t-areas    n     Select generational collector with n areas." );
+  consolemsg("\t-gen            Select generational collector with %d areas.",
+	     DEFAULT_AREAS );
+  consolemsg("\t                  (This is the default selection)." );
   consolemsg("\t-nostatic       Don't use the static area." );
-  consolemsg("\t-nocontract     Disable heap contraction." );
-  consolemsg("\t-nonursery      Disable nursery." );
-  consolemsg("\t-reorganize-and-dump  Split static heap." );
+  consolemsg("\t-size#    n     Area number '#' is given size 'size' bytes." );
+  consolemsg("\t                  (Selects generational collector if # > 1.)");
+  consolemsg("\t-load     d     Use inverse load factor d for dynamic area");
+  consolemsg("\t                  or for stop-and-copy heap." );
+  consolemsg("\t-np             Use the non-predictive dynamic area." );
+  consolemsg("\t                  (Selects generational collector.)" );
+  consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
+  consolemsg("\t                  (Selects generational collector.)" );
+  consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
+  consolemsg("\t                  (Selects generational collector.)" );
 #endif
   consolemsg("\t-stats          Print startup memory statistics." );
   consolemsg("\t-quiet          Suppress nonessential messages." );
@@ -535,14 +680,14 @@ static void help( void )
   consolemsg("\t-ticks    nnnn  Initial timer interval value" );
   consolemsg("\t-break          Enable breakpoints" );
   consolemsg("\t-step           Enable single-stepping" );
-/*
-  consolemsg( "\t-timer          Enable timer interrupts at startup" ); 
-*/
+#ifndef BDW_GC
+  consolemsg("\t-reorganize-and-dump  Split static heap." );
+#endif
   consolemsg("" );
   consolemsg("Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed");
   consolemsg("with K (for KB) or M (for MB) when that makes sense." );
   consolemsg("");
-  consolemsg("The larceny user's manual is available on the World-Wide Web at");
+ consolemsg("The larceny user's manual is available on the World-Wide Web at");
   consolemsg("  http://www.ccs.neu.edu/home/lth/larceny/manual.html");
   exit( 0 );
 }

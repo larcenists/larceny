@@ -24,7 +24,11 @@
 ; NOTE
 ; Order matters!
 
-(define (test-numerical-operations)
+(define (run-number-tests)
+  (newline)
+  (display "****************************************") (newline)
+  (display "Numbers") (newline)
+  (newline)
   (and (test-number-representation-predicates)
        (test-number-type-predicates)
        (test-number-ordering-predicates/same-representation)

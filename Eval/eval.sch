@@ -75,24 +75,98 @@
 
 ($$trace "eval")
 
+; Macro expander parameterization
+;
+; The macro expander is a procedure that takes two arguments: an 
+; expression and a syntactic environment.  It returns a macro-expanded 
+; expression where the only syntactic forms allowed are LAMBDA, IF, SET!,
+; QUOTE, BEGIN, and top-level DEFINE.  A top-level BEGIN containing
+; zero [sic] or more DEFINE forms is also accepted, including nested
+; BEGIN/DEFINE forms.
+;
+; A macro expander can be installed by the user by calling 
+; eval-macro-expander with one, two, or three arguments.
+; If called with one argument, then the argument is assumed to
+; be a new macro expander procedure.  If called with two arguments,
+; then the first argument is the macro expander procedure and the
+; second argument is an association list that maps the allowed 
+; syntactic keywords to their representations in the macro-expander's
+; output.  The representations must be symbols.  If called with three
+; arguments, then the first argument is the macro expander, the
+; second argument is an association list, and the third argument
+; is a procedure that takes a top-level environment and returns
+; an object that will be passed as the second argument to the macro
+; expander.
+
 (define *eval-macro-expander* #f)
 
 (define (eval-macro-expander . rest)
+
+  (define (parse-assoc-list l)
+    (for-each (lambda (x)
+		(case (car x)
+		  ((define) (set! kwd:define (cdr x)))
+		  ((lambda) (set! kwd:lambda (cdr x)))
+		  ((if)     (set! kwd:if (cdr x)))
+		  ((set!)   (set! kwd:set! (cdr x)))
+		  ((quote)  (set! kwd:quote (cdr x)))
+		  ((begin)  (set! kwd:begin (cdr x)))
+		  (else
+		   (error "eval-macro-expander: the syntactic keyword "
+			  (car x)
+			  " is not recognized by the macro expander.")
+		   #t)))
+	      l))
+
   (cond ((null? rest)
-	 (if (not *eval-macro-expander*)
-	     macro-expand		; In macro-expand.sch
-	     *eval-macro-expander*))
+	 (list (get-macro-expander)
+	       (list (cons 'define kwd:define)
+		     (cons 'lambda kwd:lambda)
+		     (cons 'if kwd:if)
+		     (cons 'set! kwd:set!)
+		     (cons 'quote kwd:quote)
+		     (cons 'begin kwd:begin))
+	       syntactic-environment))
 	((null? (cdr rest))
+	 (set! *eval-macro-expander* (car rest)))
+	((null? (cddr rest))
 	 (set! *eval-macro-expander* (car rest))
-	 *eval-macro-expander*)
+	 (parse-assoc-list (cadr rest)))
+	((null? (cdddr rest))
+	 (set! *eval-macro-expander* (car rest))
+	 (parse-assoc-list (cadr rest))
+	 (set! syntactic-environment (caddr rest)))
 	(else
-	 (error "Too many arguments to eval-macro-expander."))))
+	 (error "Too many arguments to eval-macro-expander.")
+	 #t)))
+
+(define kwd:define 'define)
+(define kwd:lambda 'lambda)
+(define kwd:if 'if)
+(define kwd:set! 'set!)
+(define kwd:quote 'quote)
+(define kwd:begin 'begin)
+
+(define syntactic-environment 
+  (lambda (env) #f))
+
+; End macro expander parameterization
+
+; All code below this point should be independent of the actual macro
+; expander used.
+
+(define (get-macro-expander)
+  (or *eval-macro-expander*
+      macro-expand))			; In Eval/macro-expand.sch
 
 (define eval
   (let ()
 
-    (define (definition? x) (and (pair? x) (eq? (car x) 'define)))
-    (define (begin? x) (and (pair? x) (eq? (car x) 'begin)))
+    (define (definition? x)
+      (and (pair? x) (eq? (car x) kwd:define)))
+
+    (define (begin? x)
+      (and (pair? x) (eq? (car x) kwd:begin)))
 
     (define (all-definitions? elist)
       (if (null? elist)
@@ -109,7 +183,7 @@
 	  (list (unspecified))
 	  (let ((expr (car elist)))
 	    (cond ((definition? expr)
-		   (cons `(set! ,(cadr expr) ,(caddr expr))
+		   (cons `(,kwd:set! ,(cadr expr) ,(caddr expr))
 			 (rewrite-begin-nest (cdr elist))))
 		  ((begin? expr)
 		   (append (rewrite-begin-nest (cdr expr))
@@ -119,12 +193,13 @@
 
     (define (toplevel-preprocess expr env)
       (cond ((definition? expr)
-	     (really-preprocess `(begin (set! ,(cadr expr) ,(caddr expr))
-					,(unspecified))
+	     (really-preprocess `(,kwd:begin
+				  (,kwd:set! ,(cadr expr) ,(caddr expr))
+				  ,(unspecified))
 				env))
 	    ((begin? expr)
 	     (if (all-definitions? (cdr expr))
-		 (really-preprocess (cons 'begin
+		 (really-preprocess (cons kwd:begin
 					  (rewrite-begin-nest (cdr expr)))
 				    env)
 		 (really-preprocess expr env)))
@@ -138,7 +213,7 @@
 			 (environment-lookup-binding env sym))))
 
     (define (eval expr . rest)
-      (let ((env (cond ((null? rest)
+      (let* ((env (cond ((null? rest)
 			(interaction-environment))
 		       ((and (null? (cdr rest))
 			     (environment? (car rest)))
@@ -146,7 +221,7 @@
 		       (else
 			(error "Eval: bad arguments: " rest)
 			#t)))
-	    (expr ((eval-macro-expander) expr)))
+	     (expr ((get-macro-expander) expr (syntactic-environment env))))
 	((toplevel-preprocess expr env) '())))
 
     eval))
@@ -158,33 +233,40 @@
 	       (eval/lexical (car address) (cdr address) expr)
 	       (eval/global expr find-global expr))))
 	((pair? expr)
-	 (case (car expr)
-	   ((quote)  (eval/const (cadr expr)))
-	   ((set!)   (let ((address (eval/var-address (cadr expr) env))
-			   (rhs
-			    (eval/preprocess (caddr expr) env find-global)))
-		       (if address
-			   (eval/setlex (car address) (cdr address) rhs expr)
-			   (eval/setglbl (cadr expr) rhs find-global expr))))
-	   ((lambda) (eval/make-proc expr env find-global expr))
-	   ((begin)  (if (null? (cdr expr))
-			 (begin (error "EVAL: empty BEGIN")
-				#t)
-			 (eval/sequence
-			  (map (lambda (x)
-				 (eval/preprocess x env find-global))
-			       (cdr expr)))))
-	   ((if)     (let ((test
-			    (eval/preprocess (cadr expr) env find-global))
-			   (*then
-			    (eval/preprocess (caddr expr) env find-global))
-			   (*else
-			    (if (null? (cdddr expr))
-				(eval/const (unspecified))
-				(eval/preprocess (cadddr expr) env
-						 find-global))))
-		       (eval/if test *then *else expr)))
-	   (else     (eval/make-call expr env find-global))))
+	 (let ((kwd (car expr)))
+	   (cond ((eq? kwd:quote kwd)
+		  (eval/const (cadr expr)))
+		 ((eq? kwd:set! kwd)
+		  (let ((address (eval/var-address (cadr expr) env))
+			(rhs
+			 (eval/preprocess (caddr expr) env find-global)))
+		    (if address
+			(eval/setlex (car address) (cdr address) rhs expr)
+			(eval/setglbl (cadr expr) rhs find-global expr))))
+		 ((eq? kwd:lambda kwd)
+		  (eval/make-proc expr env find-global expr))
+		 ((eq? kwd:begin kwd)
+		  (if (null? (cdr expr))
+		      (begin (error "EVAL: empty BEGIN")
+			     #t)
+		      (eval/sequence
+		       (map (lambda (x)
+			      (eval/preprocess x env find-global))
+			    (cdr expr))
+		       expr)))
+		 ((eq? kwd:if kwd)
+		  (let ((test
+			 (eval/preprocess (cadr expr) env find-global))
+			(*then
+			 (eval/preprocess (caddr expr) env find-global))
+			(*else
+			 (if (null? (cdddr expr))
+			     (eval/const (unspecified))
+			     (eval/preprocess (cadddr expr) env
+					      find-global))))
+		    (eval/if test *then *else expr)))
+		 (else
+		  (eval/make-call expr env find-global expr)))))
 	((eval/self-evaluating? expr)
 	 (eval/const expr))
 	(else
@@ -198,6 +280,7 @@
       (boolean? expr)
       (number? expr)
       (char? expr)
+      (null? expr)
       (eq? expr (unspecified))
       (eq? expr (undefined))
       (eof-object? expr)))
@@ -221,7 +304,7 @@
   (let* ((args  (cadr expr))
 	 (body  (cddr expr))
 	 (nenv  (eval/extend-env env (listify args)))
-	 (exprs (eval/preprocess (cons 'begin body) nenv find-global)))
+	 (exprs (eval/preprocess (cons kwd:begin body) nenv find-global)))
     (if (list? args)
 	(case (length args)
 	  ((0) (eval/lambda0 exprs src))
@@ -237,11 +320,10 @@
 ;  - primitive: (op a b ...)
 ;  - short: 0..4 arguments
 
-(define (eval/make-call expr env find-global)
+(define (eval/make-call expr env find-global src)
 
   (define (lambda? op)
-    (and (pair? op)
-	 (eq? (car op) 'lambda)))
+    (and (pair? op) (kwd:lambda? (car op))))
 
   (define (let? op n)
     (and (lambda? op)
@@ -262,12 +344,12 @@
 	 (n     (length args)))
     (cond ;((letrec? (car expr) n (cdr expr))
 	  ; (eval/invoke-letrec 
-	  ; (eval/preprocess (cons 'begin (cddar expr)) env find-global)
+	  ; (eval/preprocess (cons kwd:begin (cddar expr)) env find-global)
 	  ; (length args)))
 	  ((<= n 4)
-	   (eval/invoke-short proc args (car expr) n env find-global))
+	   (eval/invoke-short proc args (car expr) n env find-global src))
 	  (else
-	   (eval/invoke-n proc args)))))
+	   (eval/invoke-n proc args src)))))
 
 (define (eval/extend-env env names)
   (cons names env))
@@ -296,14 +378,16 @@
 	     v)))
      src)))
 
+; This never fails, so the source code is not recorded.
+
 (define (eval/setglbl name expr find-global src)
   (let ((cell (find-global name)))
-    (evaluator-procedure 
-     (lambda (env)
-       (set-car! cell (expr env)))
-     src)))
+    (lambda (env)
+      (set-car! cell (expr env)))))
 
 ; Unroll loop for the closest ribs.
+; We don't record the source because these are primitive expressions that
+; never fail.
 
 (define (eval/lexical rib offset src)
   (case rib
@@ -314,52 +398,38 @@
     (else (eval/lexical-n rib offset src))))
 
 (define (eval/lexical0 offset src)
-  (evaluator-procedure
-   (lambda (env)
-     (vector-ref (car env) offset))
-   src))
+  (lambda (env)
+    (vector-ref (car env) offset)))
 
 (define (eval/lexical1 offset src)
-  (evaluator-procedure
-   (lambda (env)
-     (vector-ref (cadr env) offset))
-   src))
+  (lambda (env)
+    (vector-ref (cadr env) offset)))
 
 (define (eval/lexical2 offset src)
-  (evaluator-procedure
-   (lambda (env)
-     (vector-ref (caddr env) offset))
-   src))
+  (lambda (env)
+    (vector-ref (caddr env) offset)))
 
 (define (eval/lexical3 offset src)
-  (evaluator-procedure
-   (lambda (env)
-     (vector-ref (cadddr env) offset))
-   src))
+  (lambda (env)
+    (vector-ref (cadddr env) offset)))
 
 (define (eval/lexical-n rib offset src)
-  (evaluator-procedure
-   (lambda (env0)
-     (let loop ((rib rib) (env env0))
-       (if (= rib 0)
-	   (vector-ref (car env) offset)
-	   (loop (- rib 1) (cdr env)))))
-   src))
+  (lambda (env0)
+    (let loop ((rib rib) (env env0))
+      (if (= rib 0)
+	  (vector-ref (car env) offset)
+	  (loop (- rib 1) (cdr env))))))
 
 (define (eval/setlex rib offset expr src)
-  (evaluator-procedure
-   (lambda (env0)
-     (let loop ((rib rib) (env env0))
-       (if (= rib 0)
-	   (vector-set! (car env) offset (expr env0))
-	   (loop (- rib 1) (cdr env)))))
-   src))
+  (lambda (env0)
+    (let loop ((rib rib) (env env0))
+      (if (= rib 0)
+	  (vector-set! (car env) offset (expr env0))
+	  (loop (- rib 1) (cdr env))))))
 
 (define (eval/const c)
-  (evaluator-procedure
-   (lambda (env)
-     c)
-   c))
+  (lambda (env)
+    c))
 
 (define (eval/if test consequent alternate src)
   (evaluator-procedure
@@ -369,40 +439,48 @@
 
 ; Special cases: 1..4 expressions.
 
-(define (eval/sequence exprs)
+(define (eval/sequence exprs src)
   (case (length exprs)
     ((1) (car exprs))
-    ((2) (eval/sequence2 (car exprs) (cadr exprs)))
-    ((3) (eval/sequence3 (car exprs) (cadr exprs) (caddr exprs)))
+    ((2) (eval/sequence2 (car exprs) (cadr exprs) src))
+    ((3) (eval/sequence3 (car exprs) (cadr exprs) (caddr exprs) src))
     ((4) (eval/sequence4 (car exprs) (cadr exprs) (caddr exprs)
-			 (cadddr exprs)))
-    (else (eval/sequence-n exprs))))
+			 (cadddr exprs) src))
+    (else (eval/sequence-n exprs src))))
 
-(define (eval/sequence2 a b)
-  (lambda (env)
-    (a env) (b env)))
+(define (eval/sequence2 a b src)
+  (evaluator-procedure
+   (lambda (env)
+     (a env) (b env))
+   src))
 
-(define (eval/sequence3 a b c)
-  (lambda (env)
-    (a env) (b env) (c env)))
+(define (eval/sequence3 a b c src)
+  (evaluator-procedure
+   (lambda (env)
+     (a env) (b env) (c env))
+   src))
 
-(define (eval/sequence4 a b c d)
-  (lambda (env)
-    (a env) (b env) (c env) (d env)))
+(define (eval/sequence4 a b c d src)
+  (evaluator-procedure
+   (lambda (env)
+     (a env) (b env) (c env) (d env))
+   src))
 
-(define (eval/sequence-n exprs)
-  (lambda (env)
-    (let loop ((exprs exprs))
-      (cond ((null? (cdr exprs))
-	     ((car exprs) env))
-	    (else
-	     ((car exprs) env)
-	     (loop (cdr exprs)))))))
+(define (eval/sequence-n exprs src)
+  (evaluator-procedure
+   (lambda (env)
+     (let loop ((exprs exprs))
+       (cond ((null? (cdr exprs))
+	      ((car exprs) env))
+	     (else
+	      ((car exprs) env)
+	      (loop (cdr exprs))))))
+   src))
 
-(define (eval/invoke-prim1 name a find-global)
+(define (eval/invoke-prim1 name a find-global src)
   ((eval/primitive name 1) a (eval/prim-orig name) (find-global name)))
 
-(define (eval/invoke-prim2 name a b find-global)
+(define (eval/invoke-prim2 name a b find-global src)
   ((eval/primitive name 2) a b (eval/prim-orig name) (find-global name)))
 
 ; Call to a literal lambda expression where all the arguments are
@@ -416,7 +494,7 @@
 
 ; Calls that take 0..4 arguments.
 
-(define (eval/invoke-short proc args op n env find-global)
+(define (eval/invoke-short proc args op n env find-global src)
 
   (define (prim?)
     (and (symbol? op)
@@ -424,42 +502,55 @@
 	 (eval/primitive? op n)))
 
   (case n
-    ((0) (eval/invoke0 proc))
+    ((0) (eval/invoke0 proc src))
     ((1) (if (prim?)
-	     (eval/invoke-prim1 op (car args) find-global)
-	     (eval/invoke1 proc (car args))))
+	     (eval/invoke-prim1 op (car args) find-global src)
+	     (eval/invoke1 proc (car args) src)))
     ((2) (if (prim?)
-	     (eval/invoke-prim2 op (car args) (cadr args) find-global)
-	     (eval/invoke2 proc (car args) (cadr args))))
-    ((3) (eval/invoke3 proc (car args) (cadr args) (caddr args)))
-    ((4) (eval/invoke4 proc (car args) (cadr args) (caddr args) (cadddr args)))
+	     (eval/invoke-prim2 op (car args) (cadr args) find-global src)
+	     (eval/invoke2 proc (car args) (cadr args) src)))
+    ((3) (eval/invoke3 proc (car args) (cadr args) (caddr args) src))
+    ((4) (eval/invoke4 proc (car args) (cadr args) (caddr args)
+		       (cadddr args) src))
     (else ???)))
 
-(define (eval/invoke0 proc)
-  (lambda (env)
-    ((proc env))))
+(define (eval/invoke0 proc src)
+  (evaluator-procedure
+   (lambda (env)
+     ((proc env)))
+   src))
 
-(define (eval/invoke1 proc a)
-  (lambda (env)
-    ((proc env) (a env))))
+(define (eval/invoke1 proc a src)
+  (evaluator-procedure
+   (lambda (env)
+     ((proc env) (a env)))
+   src))
 
-(define (eval/invoke2 proc a b)
-  (lambda (env)
-    ((proc env) (a env) (b env))))
+(define (eval/invoke2 proc a b src)
+  (evaluator-procedure
+   (lambda (env)
+     ((proc env) (a env) (b env)))
+   src))
 
-(define (eval/invoke3 proc a b c)
-  (lambda (env)
-    ((proc env) (a env) (b env) (c env))))
+(define (eval/invoke3 proc a b c src)
+  (evaluator-procedure
+   (lambda (env)
+     ((proc env) (a env) (b env) (c env)))
+   src))
 
-(define (eval/invoke4 proc a b c d)
-  (lambda (env)
-    ((proc env) (a env) (b env) (c env) (d env))))
+(define (eval/invoke4 proc a b c d src)
+  (evaluator-procedure
+   (lambda (env)
+     ((proc env) (a env) (b env) (c env) (d env)))
+   src))
 
-(define (eval/invoke-n proc args)
-  (lambda (env)
-    (let ((proc (proc env))
-	  (args (map (lambda (p) (p env)) args)))
-      (apply proc args))))
+(define (eval/invoke-n proc args src)
+  (evaluator-procedure
+   (lambda (env)
+     (let ((proc (proc env))
+	   (args (map (lambda (p) (p env)) args)))
+       (apply proc args)))
+   src))
 
 ; Closure creation.
 ;
@@ -467,38 +558,38 @@
 ; ribs than make-vector + vector-set!.
 
 (define (eval/lambda0 body src)
-  (lambda (env)
-    (evaluator-procedure
+  (evaluator-procedure
+   (lambda (env)
      (lambda ()
-       (body (cons '#() env)))
-     src)))
+       (body (cons '#() env))))
+   src))
 
 (define (eval/lambda1 body src)
-  (lambda (env)
-    (evaluator-procedure
+  (evaluator-procedure
+   (lambda (env)
      (lambda (a)
        (let ((v (make-vector 1 a)))
-	 (body (cons v env))))
-     src)))
+	 (body (cons v env)))))
+   src))
 
 (define (eval/lambda2 body src)
-  (lambda (env)
-    (evaluator-procedure
+  (evaluator-procedure
+   (lambda (env)
      (lambda (a b)
        (let ((v (make-vector 2 a)))
 	 (vector-set! v 1 b)
-	 (body (cons v env))))
-     src)))
+	 (body (cons v env)))))
+   src))
 
 (define (eval/lambda3 body src)
-  (lambda (env)
-    (evaluator-procedure
+  (evaluator-procedure
+   (lambda (env)
      (lambda (a b c)
        (let ((v (make-vector 3 a)))
 	 (vector-set! v 1 b)
 	 (vector-set! v 2 c)
-	 (body (cons v env))))
-     src)))
+	 (body (cons v env)))))
+   src))
 
 (define (eval/lambda4 body src)
   (evaluator-procedure
@@ -544,7 +635,17 @@
     (do ((i 0 (+ i 1)))
 	((= i l))
       (procedure-set! p i (procedure-ref proc i)))
-    (procedure-set! p l doc)
+    (procedure-set! p l (cons '$evalproc doc))
+    (typetag-set! p 0)
+    p))
+
+(define (evaluator-primitive name args proc)
+  (let* ((l (procedure-length proc))
+	 (p (make-procedure (+ l 1))))
+    (do ((i 0 (+ i 1)))
+	((= i l))
+      (procedure-set! p i (procedure-ref proc i)))
+    (procedure-set! p l (list '$evalprim name args))
     (typetag-set! p 0)
     p))
 

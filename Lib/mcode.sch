@@ -18,6 +18,7 @@
 ; this procedure.
 
 (define (generic-make-rectangular a b) 
+  (error "Call to generic-make-rectangular.")
   (cond ((exact? a)
 	 (if (exact? b)
 	     (if (= b 0)

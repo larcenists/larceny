@@ -1,3 +1,8 @@
+; Compiler/sparc.imp.sch
+; Larceny -- target-specific information for Twobit's SPARC backend.
+;
+; $Id$
+;
 ; Copyright 1991 William Clinger
 ;
 ; Permission to copy this software, in whole or in part, to use this
@@ -9,9 +14,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 15 May 1995.
-;
-; Target-specific information for Larceny on the SPARC architecture.
+; 26 February 1998
 
 (define twobit-sort (lambda (less? list) (compat:sort list less?)))
 
@@ -98,7 +101,9 @@
 ;
 ; Changed by lth on 950627: added sys$bvlcmp, removed several others.
 
-(define (byte? x)
+; This is more conservative than it needs to be.
+
+(define (sparc-imm? x)
   (and (fixnum? x)
        (<= 0 x)
        (< x 256)))
@@ -118,6 +123,9 @@
     (not 1 not #f #x18)
     (null? 1 null? #f #x19)
     (pair? 1 pair? #f #x1a)
+    (eof-object? 1 eof-object? #f -1)
+    (port? 1 port? #f -1)
+    (structure? 1 structure? #f -1)
     (car 1 car #f #x1b)
     (cdr 1 cdr #f #x1c)
     (symbol? 1 symbol? #f #x1f)
@@ -184,22 +192,22 @@
                                           (and (fixnum? x)
                                                (<= 0 x 7)))   ; used to be 31
                                  #xa0)
-    (eq? 2 eq? ,byte? #xa1)
+    (eq? 2 eq? ,sparc-imm? #xa1)
     (eqv? 2 eqv? #f #xa2)
     (cons 2 cons #f #xa8)
     (%cons 2 cons #f #xa8)          ; for the benefit of macro expansion...
     (set-car! 2 set-car! #f #xa9)
     (set-cdr! 2 set-cdr! #f #xaa)
-    (+ 2 + ,byte? #xb0)
-    (- 2 - ,byte? #xb1)
-    (* 2 * ,byte? #xb2)
+    (+ 2 + ,sparc-imm? #xb0)
+    (- 2 - ,sparc-imm? #xb1)
+    (* 2 * ,sparc-imm? #xb2)
     (/ 2 / #f #xb3)
     (quotient 2 quotient #f #xb4)
-    (< 2 < ,byte? #xb5)
-    (<= 2 <= ,byte? #xb6)
-    (= 2 = ,byte? #xb7)
-    (> 2 > ,byte? #xb8)
-    (>= 2 >= ,byte? #xb9)
+    (< 2 < ,sparc-imm? #xb5)
+    (<= 2 <= ,sparc-imm? #xb6)
+    (= 2 = ,sparc-imm? #xb7)
+    (> 2 > ,sparc-imm? #xb8)
+    (>= 2 >= ,sparc-imm? #xb9)
     (logand 2 logand #f #xc0)
     (logior 2 logior #f #xc1)
     (logxor 2 logxor #f #xc2)
@@ -207,12 +215,11 @@
     (rsha 2 rsha #f -1)
     (rshl 2 rshl #f -1)
     (rot 2 rot #f #xc4)
-    (make-rectangular 2 make-rectangular #f #xcf)
-    (string-ref 2 string-ref ,byte? #xd1)
-    (string-set! 3 string-set! ,byte? -1)
+    (string-ref 2 string-ref ,sparc-imm? #xd1)
+    (string-set! 3 string-set! ,sparc-imm? -1)
     (make-vector 2 make-vector #f #xd2)
-    (vector-ref 2 vector-ref ,byte? #xd3)
-    (bytevector-ref 2 bytevector-ref ,byte? #xd5)
+    (vector-ref 2 vector-ref ,sparc-imm? #xd3)
+    (bytevector-ref 2 bytevector-ref ,sparc-imm? #xd5)
     (procedure-ref 2 procedure-ref #f #xd7)
     (cell-set! 2 cell-set! #f #xdf)
     (,(string->symbol "CELL-SET!") 2 cell-set! #f #xdf)
@@ -237,6 +244,7 @@
     (bytevector-like-length 1 bytevector-like-length #f -1)
     (remainder 2 remainder #f -1)
 ;    (modulo 2 modulo #f -1)
+    (sys$read-char 1 sys$read-char #f -1)
     ))
 
 (define $immediate-primops$
@@ -318,6 +326,21 @@
                       (list (m-scan (cadr exp) env)
                             (make-constant '()))))
           (else (m-scan `((lambda x x) ,@(cdr exp)) env)))))
+
+; @@Lars
+; Precomputes (length (quote (x ...)))
+
+;(define-inline 'length
+;  (lambda (exp env)
+;    (cond ((not (= 2 (length exp)))
+;	   (inline-error exp))
+;	  ((and (pair? (cadr exp))
+;		(eq? (car (cadr exp)) 'quote)
+;		(list? (cadr (cadr exp))))
+;	   (make-constant (length (cadr (cadr exp)))))
+;	  (else
+;	   (make-call (make-variable 'length)
+;		      (list (m-scan (cadr exp) env)))))))
 
 (define-inline 'cadddr
   (lambda (exp env)
@@ -675,9 +698,12 @@
 (define $.label 63)
 (define $.proc 62)        ; entry point for procedure
 (define $.cont 61)        ; return point
-(define $.align 60)
-(define $.asm 59)         ; in-line native assembly instruction
+(define $.align 60)       ; align code stream
+(define $.asm 59)         ; in-line native code
 (define $.proc-doc 58)    ; internal definition procedure info
+(define $.end 57)         ; end of code vector (asm internal)
+(define $.singlestep 56)  ; insert singlestep point (asm internal)
+(define $.entry 55)       ; procedure entry point (asm internal)
 
 (define make-mnemonic
   (let ((count 0))

@@ -10,8 +10,6 @@
 
 #include <stdlib.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 
 /* Return a vector of length argc containing strings which represent
  * the command line arguments passed after the -args argument.

@@ -5,7 +5,6 @@
  */
 
 #include "larceny.h"
-#include "cdefs.h"
 
 /* Configure Larceny's cache logic */
 void cache_setup()

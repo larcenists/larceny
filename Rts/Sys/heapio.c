@@ -29,8 +29,8 @@
  *    - text area
  *    - data area
  *
- *   Intergenerational pointers (data -> text) have high bit set. All 
- *   pointers are adjusted relative to 0 of the heap they point to.
+ *   Intergenerational pointers (data -> text) have the high bit set. 
+ *   All pointers are adjusted relative to 0 of the heap they point to.
  *
  * Dumped heaps are dumped interactively and preserve the data of each
  * generation individually, and in addition allows for the dumping of
@@ -70,9 +70,7 @@
  *
  * -----
  *
- * BUGS (from the old version)
- * - Knows a little bit about the globals which delimit the heap 
- *   areas; this should be abstracted away eventually.
+ * BUGS
  * - Assumes that the pad words are not garbage; this happens to be true
  *   after a collection (by design), but it means you cannot dump without
  *   collecting first.
@@ -81,97 +79,92 @@
 #define HEAPIO_INTERNAL
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <setjmp.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "heapio.h"
+#include "semispace_t.h"
+#include "gclib.h"
+
+typedef struct hio_range hio_range;
+
+/* Private */
+struct hio_tbl {
+  hio_range *a;
+  word      *lowest;
+  word      *highest;
+  int       next;
+  int       size;
+};
+
+struct hio_range  {
+  word *bot;
+  word *top;
+  bool is_large;
+  word *real_bot;
+  int  bytes;
+  int  pages;
+};
+
+#define HIBIT  0x80000000U
 
 static jmp_buf EX_heapio_ex;
 
 #define CATCH( var )  if ((var = setjmp( EX_heapio_ex )) != 0)
 #define THROW( val )  longjmp( EX_heapio_ex, val )
 
-static int openheap( heapio_t *h, const char *filename );
-static int createheap( heapio_t *h, const char *filename, int type );
-static int closeheap( heapio_t *h );
-static int heaptype( heapio_t *h );
-static int load_bootstrap( heapio_t *heap, word *text_base, word *data_base,
-			   word *globals );
-static int dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data, 
-			   word *globals );
-static int load_roots( heapio_t *h, word *globals );
-
-/* Internal */
-static void init_heapio( heapio_t *h );
+static int  load_text( heapio_t *h, word *base, unsigned count );
+static int  load_data( heapio_t *h, word *text, word *data, unsigned count );
+#if 0
+static void putheader( FILE*, word, word, word, word*, word );
+static void put_tagged_word( word, FILE*, word, word, word );
+static void dump_text( word, word, FILE* );
+static void dump_data( word, word, word, word, FILE* );
+#else
+static void put_tagged_word( word w, word *lowest, word *pagetbl, FILE *fp );
+static void dump_text_block( hio_range a, word *lowest, word *pagetbl,
+			     FILE *fp );
+static void dump_data_block( hio_range a, word *lowest, word *pagetbl,
+			     FILE *fp );
+#endif
+static word getword( FILE *fp );
+static void putword( word, FILE* );
 
 heapio_t *create_heapio( void )
 {
   heapio_t *h;
 
   h = (heapio_t*)must_malloc( sizeof( heapio_t ) );
-  h->open = openheap;
-  h->create = createheap;
-  h->close = closeheap;
-  h->type = heaptype;
-  h->load_bootstrap = load_bootstrap;
-  h->dump_bootstrap = dump_bootstrap;
-  h->load_roots = load_roots;
 
-/*
-  h->dump = ...;
-  h->read_data = ...;
-  h->read_ptr = ...;
-  h->read_word = ...;
-  h->write_data = ...;
-  h->write_ptr = ...;
-  h->write_word = ...;
-*/
-  
-  init_heapio( h );
+  h->fp = 0;
+  h->type = 0;
+  h->input = 0;
+  h->output = 0;
+  h->split_heap = 0;
+  h->bootstrap_heap = 0;
+  h->text_segments = (hio_tbl*)must_malloc( sizeof( hio_tbl ) );
+  h->text_segments->a = 0;
+  h->text_segments->size = 0;
+  h->text_segments->next = 0;
+  h->text_segments->lowest = (word*)(-1);
+  h->text_segments->highest = 0;
+  h->data_segments = (hio_tbl*)must_malloc( sizeof( hio_tbl ) );
+  h->data_segments->a = 0;
+  h->data_segments->size = 0;
+  h->data_segments->next = 0;
+  h->data_segments->lowest = (word*)(-1);
+  h->data_segments->highest = 0;
 
   return h;
 }
 
-
-static void
-init_heapio( heapio_t *h )
-{
-  h->fp = 0;
-  h->metadata = 0;
-  h->pagetable = 0;
-  h->input = 0;
-  h->output = 0;
-}
-
-
-void delete_heapio( heapio_t *h )
-{
-  if (h->fp != 0)
-    closeheap( h );
-  free( h );
-}
-
-
-static metadata_block_t *read_metadata( FILE *fp, word words );
-static int load_text( heapio_t *h, word *base, unsigned count );
-static int load_data( heapio_t *h, word *text, word *data, unsigned count );
-static void putheader( FILE*, word, word, word, word*, word );
-static void put_tagged_word( word, FILE*, word, word, word );
-static void dump_text( word, word, FILE* );
-static void dump_data( word, word, word, word, FILE* );
-static word getword( FILE *fp );
-static word putword( word, FILE* );
-
-
-static int
-openheap( heapio_t *h, const char *filename )
+int hio_open( heapio_t *h, const char *filename )
 {
   unsigned vno, metadata_size;
   int i, j, r;
   FILE *fp;
 
-  if (h->fp != 0) closeheap( h );
+  assert( h->fp == 0 );
 
   fp = fopen( filename, "rb" );
   if (fp == 0)
@@ -188,10 +181,8 @@ openheap( heapio_t *h, const char *filename )
   for (i = FIRST_ROOT, j=0 ; i <= LAST_ROOT ; i++,j++ ) 
     h->roots[j] = getword( fp );
 
-  h->split_heap = 0;
-  h->bootstrap_heap = 0;
-
-  switch ((h->magic >> 16) & 0xFFFF) {
+  h->type = (h->magic >> 16) & 0xFFFF;
+  switch (h->type) {
   case HEAP_SINGLE:
     h->bootstrap_heap = 1;
     h->data_size = getword( fp );
@@ -204,13 +195,7 @@ openheap( heapio_t *h, const char *filename )
     h->data_size = getword( fp );
     break;
   case HEAP_DUMPED:
-    metadata_size = getword( fp );
-    h->data_pages = getword( fp );
-    h->metadata = read_metadata( fp, metadata_size );
-    if (h->metadata == 0) {
-      fclose( fp );
-      return HEAPIO_CANTREAD;
-    }
+    panic( "Can't open DUMPED heaps." ); 
     break;
   default:
     fclose( fp );
@@ -221,17 +206,14 @@ openheap( heapio_t *h, const char *filename )
   return HEAPIO_OK;
 }
 
-static int
-createheap( heapio_t *h, const char *filename, int type )
+int hio_create( heapio_t *h, const char *filename, int type )
 {
-  if (h->fp != 0) closeheap( h );
+  assert( h->fp == 0 );
 
   h->fp = fopen( filename, "wb" );
   if (h->fp == 0)
     return HEAPIO_CANTOPEN;
-
-  h->split_heap = 0;
-  h->bootstrap_heap = 0;
+  h->type = type;
 
   switch (type) {
   case HEAP_SINGLE :
@@ -242,8 +224,7 @@ createheap( heapio_t *h, const char *filename, int type )
     h->split_heap = 1;
     break;
   case HEAP_DUMPED :
-    h->metadata = 0;
-    h->pagetable = 0;
+    panic( "Can't create DUMPED heaps." );
     break;
   default :
     fclose( h->fp );
@@ -254,39 +235,185 @@ createheap( heapio_t *h, const char *filename, int type )
   return HEAPIO_OK;
 }
 
-static int
-closeheap( heapio_t *h )
+int hio_close( heapio_t *h )
 {
+  int code = HEAPIO_OK;
+
   if (h->fp != 0) {
-    fclose( h->fp );
+    if (fclose( h->fp ) == EOF) code = HEAPIO_CANTCLOSE;
     h->fp = 0;
-    if (!h->bootstrap_heap) {
-      metadata_block_t *p = h->metadata, *q;
-      while (p != 0) {
-	if (p->data) free( p->data );
-	q = p;
-	p = p->next;
-	free( q );
-      }
-    }
   }
-  init_heapio( h );
+
+  if (h->text_segments->a) free( h->text_segments->a );
+  free( h->text_segments );
+  if (h->data_segments->a) free( h->data_segments->a );
+  free( h->data_segments );
+  free( h );
+
+  return code;
+}
+
+int hio_dump_initiate( heapio_t *h, word *globals )
+{
+  h->globals = globals;
+}
+
+int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
+{
+  int newsize, i, j;
+  hio_tbl *tbl;
+  hio_range *a;
+
+  assert( type == TEXT_SEGMENT || type == DATA_SEGMENT );
+  assert(    (word)bot % PAGESIZE == 0
+	  || (gclib_desc_b[ pageof( bot ) ] & MB_LARGE_OBJECT) );
+  assert( top > bot );
+
+  tbl = (type == TEXT_SEGMENT ? h->text_segments : h->data_segments);
+
+  if (tbl->next == tbl->size) {
+    newsize = max( tbl->size*2, 10 );
+    a = (hio_range*)must_malloc( sizeof( hio_range )*newsize );
+    for ( i=0 ; i < tbl->size ; i++ )
+      a[i] = tbl->a[i];
+    tbl->size = newsize;
+    if (tbl->a) free( tbl->a );
+    tbl->a = a;
+  }
+
+  i = tbl->next;
+  tbl->next++;
+  /* Deal with large objects */
+  if ((word)bot % PAGESIZE != 0) {
+    tbl->a[i].is_large = 1;
+    tbl->a[i].real_bot = bot;
+    bot = (word*)((word)bot & ~PAGEMASK);
+  }
+  else
+    tbl->a[i].is_large = 0;
+  tbl->a[i].bot = bot;
+  tbl->a[i].top = top;
+  tbl->a[i].bytes = (top - bot)*sizeof( word );
+  tbl->a[i].pages = roundup_page( tbl->a[i].bytes ) / PAGESIZE;
+  if (bot < tbl->lowest) tbl->lowest = bot;
+  if (top > tbl->highest) tbl->highest = top;
   return HEAPIO_OK;
 }
 
-static int heaptype( heapio_t *h )
+int hio_dump_commit( heapio_t *h )
 {
-  if (h->bootstrap_heap)
-    if (h->split_heap)
-      return HEAP_SPLIT;
-    else
-      return HEAP_SINGLE;
-  else 
-    return HEAP_DUMPED;
+  word *lowest, *highest, *pagetbl;
+  int pages, i, j, pg, r, text_size, data_size, nextpage;
+
+  /* Compute limits */
+  lowest = min( h->text_segments->lowest, h->data_segments->lowest );
+  highest = max( h->text_segments->highest, h->data_segments->highest );
+
+  /* Construct the page table and compute the data and textg size.
+     The page table maps memory addresses to heap image addresses,
+     where the heap image address is 0-based in each heap area,
+     with the high bit set for addresses in the text area.
+     */
+  pages = roundup_page((highest-lowest)*sizeof(word))/PAGESIZE;
+  pagetbl = (int*)must_malloc( sizeof(word)*pages );
+  for ( i=0 ; i<pages ; i++ )
+    pagetbl[i] = 0;
+
+  text_size = 0;
+  data_size = 0;
+
+  nextpage = 0;
+  for ( i=0 ; i < h->text_segments->next ; i++ ) {
+    pg = pageof_pb( h->text_segments->a[i].bot, lowest );
+    j = h->text_segments->a[i].pages;
+    text_size += j*PAGESIZE;
+    for ( ; j > 0 ; pg++, j--, nextpage++ )
+      pagetbl[pg] = (nextpage*PAGESIZE) | HIBIT;
+  }
+  nextpage = 0;
+  for ( i=0 ; i < h->data_segments->next ; i++ ) {
+    pg = pageof_pb( h->data_segments->a[i].bot, lowest );
+    j = h->data_segments->a[i].pages;
+    data_size += j*PAGESIZE;
+    for ( ; j > 0 ; pg++, j--, nextpage++ )
+      pagetbl[pg] = nextpage*PAGESIZE;
+  }
+
+  /* Dump it! */
+  CATCH( r )
+    return r;
+
+  putword( h->magic, h->fp );
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ ) 
+    put_tagged_word( h->globals[i], lowest, pagetbl, h->fp );
+  putword( text_size/sizeof(word), h->fp );
+  putword( data_size/sizeof(word), h->fp );
+  for ( i=0 ; i < h->text_segments->next ; i++ )
+    dump_text_block( h->text_segments->a[i], lowest, pagetbl, h->fp );
+  for ( i=0 ; i < h->data_segments->next ; i++ )
+    dump_data_block( h->data_segments->a[i], lowest, pagetbl, h->fp );
 }
 
-static int
-load_bootstrap( heapio_t *h, word *text_base, word *data_base, word *globals )
+static void
+put_tagged_word( word w, word *lowest, word *pagetbl, FILE *fp )
+{
+  if (isptr( w ))
+    putword( pagetbl[pageof_pb(w, lowest)] | (w & PAGEMASK), fp );
+  else
+    putword( w, fp );
+}    
+
+static void
+pad( int bytes, FILE *fp )
+{
+  int i;
+
+  if (bytes % PAGESIZE != 0)
+    for ( i=PAGESIZE - bytes%PAGESIZE ; i ; i-- )
+      putc( 0, fp );
+}
+
+static void
+dump_text_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
+{
+  if (fwrite( (void*)a.bot, 1, a.bytes, fp ) != a.bytes)
+    THROW( HEAPIO_CANTWRITE );
+  pad( a.bytes, fp );
+}
+
+static void
+dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
+{
+  word w, *p;
+  int i, data_count;
+
+  data_count = (a.top - a.bot);
+  p = a.bot;
+  if (a.is_large) {
+    while (p != a.real_bot) {
+      putword( 0, fp );
+      p++;
+      data_count--;
+    }
+  }
+  while (data_count) {
+    w = *p++; 
+    put_tagged_word( w, lowest, pagetbl, fp );
+    data_count--;
+
+    if (header( w ) == BV_HDR) {
+      i = roundup4( sizefield( w ) ) / sizeof( word );
+      while (i--) {
+	putword( *p++, fp );
+	data_count--;
+      }
+    }
+  }
+  pad( a.bytes, fp );
+}
+
+int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
+		       word *globals )
 {
   unsigned i, j, r;
 
@@ -298,8 +425,8 @@ load_bootstrap( heapio_t *h, word *text_base, word *data_base, word *globals )
 
   for ( i=FIRST_ROOT, j=0 ; i<=LAST_ROOT ; i++, j++ ) {
     if (isptr( h->roots[j] )) {
-      if (h->roots[j] & 0x80000000)
-	globals[i] = (h->roots[j] & ~0x80000000) + (word)text_base;
+      if (h->roots[j] & HIBIT)
+	globals[i] = (h->roots[j] & ~HIBIT) + (word)text_base;
       else
 	globals[i] = h->roots[j] + (word)data_base;
     }
@@ -314,7 +441,6 @@ load_bootstrap( heapio_t *h, word *text_base, word *data_base, word *globals )
   return load_data( h, text_base, data_base, h->data_size );
 }
 
-/* Internal */
 static int
 load_text( heapio_t *h, word *text_base, unsigned count )
 {
@@ -325,7 +451,6 @@ load_text( heapio_t *h, word *text_base, unsigned count )
     return HEAPIO_CANTREAD;
 }
 
-/* Internal */
 static int
 load_data( heapio_t *h, word *text_base, word *data_base, unsigned count )
 {
@@ -340,8 +465,8 @@ load_data( heapio_t *h, word *text_base, word *data_base, unsigned count )
     w = *p;
     count--;
     if (isptr( w )) {
-      if (w & 0x80000000)
-	*p = (w & ~0x80000000) + (word)text_base;
+      if (w & HIBIT)
+	*p = (w & ~HIBIT) + (word)text_base;
       else
 	*p = w + (word)data_base;
     }
@@ -359,62 +484,9 @@ load_data( heapio_t *h, word *text_base, word *data_base, unsigned count )
   return HEAPIO_OK;
 }
 
-static metadata_block_t *read_metadata( FILE *fp, word words )
-{
-  word *p = (word *)must_malloc( words*sizeof(word) ), *wp, *limit;
-  metadata_block_t *first = 0, *last = 0, *block;
-  word *data;
-  int r;
-
-  r = fread( p, words, sizeof(word), fp );
-  if (r < words) { free(p); return 0; }
-
-  wp = p; 
-  limit = p+words;
-  while (wp < limit) {
-    block = (metadata_block_t *)must_malloc( sizeof( metadata_block_t ) );
-    block->metadata_length = p[0];
-    block->data_pages = p[1];
-    block->code = p[2];
-    if (block->metadata_length > 0) {
-      block->data = (word*)must_malloc( block->metadata_length*sizeof(word) );
-      block->next = 0;
-      memcpy( block->data, p+3, block->metadata_length*sizeof(word) );
-    }
-    else
-      block->data = 0;
-    if (first == 0)
-      first = last = block;
-    else
-      last = last->next = block;
-    wp += 3+block->metadata_length;
-  }
-  free( p );
-  return first;
-}
-
-/* Dumped heaps */
-static int load_roots( heapio_t *h, word *globals )
-{
-  int i, j;
-
-#if 1
-  panic( "heapio.c: load_roots" );
-#else
-  for ( i=FIRST_ROOT, j=0 ; i<=LAST_ROOT ; i++, j++ ) {
-    if (isptr( h->roots[j] )) 
-      globals[i] = adjust_ptr( h->roots[j] );
-    else
-      globals[ i ] = h->roots[j];
-  }
-#endif
-  return 0;
-}
-
-
-static int
-dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data, 
-	        word *globals )
+#if 0
+int hio_dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data, 
+		        word *globals )
 {
   word data_base = 0, data_top = 0, data_count = 0;
   word text_count = 0, text_base = 0, text_top = 0;
@@ -457,7 +529,6 @@ dump_bootstrap( heapio_t *h, semispace_t *text, semispace_t *data,
   return HEAPIO_OK;
 }
 
-/* Internal */
 static void
 dump_text( word text_base, word text_top, FILE *fp )
 {
@@ -466,7 +537,6 @@ dump_text( word text_base, word text_top, FILE *fp )
     THROW( HEAPIO_CANTWRITE );
 }
 
-/* Internal */
 static void
 dump_data( word data_base, word data_top, word text_base, word text_top,
 	   FILE *fp )
@@ -494,7 +564,6 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
   }
 }
 
-/* Internal */
 static void
 putheader( FILE *fp, 
 	   word data_base, word text_base, word text_top, word *globals,
@@ -507,7 +576,6 @@ putheader( FILE *fp,
     put_tagged_word( globals[i], fp, data_base, text_base, text_top );
 }
 
-/* Internal */
 static void
 put_tagged_word( word w, FILE *fp,
 		 word data_base, word text_base, word text_top )
@@ -521,44 +589,11 @@ put_tagged_word( word w, FILE *fp,
   else
     putword( w, fp );
 }
-
-static int
-dump_dumped_image( char *filename, gc_t *gc, word *globals )
-{
-#if 0
-  FILE *fp;
-  word magic;
-
-  fp = fopen( filename, "wb" );
-  if (fp == 0) return -1;
-
-  magic = (2 << 16) | HEAP_VERSION;
-  pages = gc->live_pages( gc );      /* computes total live pages */
-  <compute page table>
-  gc->prepare_dump_all( gc, ... );   /* calls all metadata functions */
-  
-  <write header>
-  <write metadata>
-  <write pagetable>
-  <dump data segments>
- 
-		      
-  /*
-     1. calculate the total number of pages needed
-     2. allocate and initialize the page table
-     3. 
-     */
-
-  
-  /* ...; */
 #endif
-  panic( "DUMP_DUMPED_IMAGE" );
-}
-
 
 #if defined( ENDIAN_BIG ) && defined( BITS_32 )
 
-static word putword( word w, FILE *fp )
+static void putword( word w, FILE *fp )
 {
   if (putc( (w >> 24) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
   if (putc( (w >> 16) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
@@ -579,7 +614,7 @@ static word getword( FILE *fp )
 }
 
 #else
-  #error "Must write new putword() and getword()."
+#  error "Must write new putword() and getword()."
 #endif  /* defined( ENDIAN_BIG ) && defined( BITS_32 ) */
 
 /* eof */

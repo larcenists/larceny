@@ -36,18 +36,10 @@ supporting documentation, information, test cases, and so on.
 
      See file Rts/Sys/memmgr.c
 
-021  (v0.28b) 970528
-
-     Free list coalescing is not done properly in unix-alloc.c.  This is 
-     a benign problem with the current GC structure, but should be fixed.
-     - free list should be address ordered (for coalescing, and also so
-       that we can return memory to the OS).
-     - a new free block can merge two previously separated blocks so that
-       all three blocks become one.
-
 031  v0.28e (970708 / lth)
 
-     Dynamic-wind must be made aware of timer interrupts.
+     Dynamic-wind must be made aware of timer interrupts [some parts must
+     be guarded by critical sections.]
 
 034  v0.28f (970723 / lth)
 
@@ -79,8 +71,11 @@ supporting documentation, information, test cases, and so on.
      The same fix applies.
 
 036  v0.28f (970826 / lth -- old bug)
+053  v0.32 (971107 / lth)
 
-     The reader accepts \ as an initial character in symbols, but not
+     Reader bugs
+
+   * The reader accepts \ as an initial character in symbols, but not
      as a subsequent, and when it is an initial character, it is not
      an escape character.
 
@@ -91,10 +86,17 @@ supporting documentation, information, test cases, and so on.
      particular, if a symbol starts with \c, then even if symbols may not
      usually start with c, the interpretation should be a symbol.
 
+   * Another reader problem:
+
+	(symbol->string '|#x) => ""
+	(symbol->string '|#x|) => "|#x"
+
+     On the whole, the dark corners of the input syntax are indeed dark.
+
 041  v0.31 (9710xx / dougo)
 
-     Macro-expander and evaluator are not robust and produce strange error
-     messages when handed syntactically incorrect programs.  Consider,
+     The macro-expander and evaluator are not robust and produce strange 
+     error messages when handed syntactically incorrect programs.  Consider,
 
 	> (if)
 	Error: car: () is not a pair.
@@ -121,42 +123,49 @@ supporting documentation, information, test cases, and so on.
 
 047  v0.31 (971029 / lth)
 
-     round does not properly round down to even (e.g., for 0.5, 2.5, 4.5)
+     `Round' does not properly round down to even (e.g., for 0.5, 2.5, 4.5)
      as exposed by the test suite and as noted in comments in 
-     Sparc/generic.s.
+     Sparc/generic.s; this is for flonums only (it rounds ratnums properly).
 
-048  v0.31 (971031 / lth)
-
-     Consider the following scenario:
-
-     > (read)
-     #<EOF>
-     >
-
-     everest%
-
-     I.e., if the user types the end-of-file character in a program while
-     the program is reading from the standard input port, then the REPL
-     interprets that EOF as an exit signal.  Instead, EOF encountered during
-     an evaluation should maybe be treated differently, e.g., by always
-     reestablishing the I/O ports after an evaluation, and requiring another
-     EOF.  Chez Scheme does it this way, and it seems much cleaner.
-
-049  v0.31 (971031 / lth)
+052  v0.32 (971103 / lth)
 
      [Performance bug]
-     port? needs to be a primop; see Lib/iosys.sch.
+     bignum->flonum is very, very slow.  The fix for this exists but
+     needs to be implemented and tested.
 
-050  v0.31 (971031 / lth)
+054 v0.32 (971107 / lth)
 
-     [Performance bug]
-     structure? needs to be a primop; see Lib/struct.sch.
+    When a syntactic keyword is used as a variable, e.g.,
 
-051  v0.31 (971031 / lth)
+	> repeat
 
-     [Performance bug]
-     eof-object? needs to be a primop.
+    then the macro expander gives an error and returns the syntactic
+    environment, which is massive.  This is _not_ useful.  On the whole,
+    macro expander errors should be mapped onto regular errors?
 
-NEXT ENTRY: 052.
+056 v0.32 (980126 / lth)
+
+    Chez Scheme development environment:
+
+	; Just finished make-larceny-heap
+	> (inline-barrier)
+
+	*** Error encountered!
+	Deleting target file: larceny.heap
+
+	Error: variable inline-barrier is not bound.
+	Type (debug) to enter the debugger.
+
+    In this case, it should not delete the previous target!  This did not
+    happen on a subsequent try.
+
+057 v0.32 (980403 / lth)
+
+    display-memstats:
+    * does not display information about the static area.
+    * displays information about the non-predictive remembered set even
+      though it is not in use.
+
+NEXT ENTRY: 058
 	
 ; eof

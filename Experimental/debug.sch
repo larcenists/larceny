@@ -10,7 +10,7 @@
 ;  - display procedure-expression, if defined
 ;  - display parameter names, if known
 ;  - display arity, if known
-;  - must work with interpreted code.
+;  - must work (even better) with interpreted code, although it's improving.
 
 ; Data structure offsets
 
@@ -26,11 +26,31 @@
 
 (define constants:documentation 0)
 
+(define *debug-exit* #f)
+
 ; Accessors
 
 (define (procedure-documentation proc)
-  (vector-ref (procedure-ref proc procedure:constants)
-	      constants:documentation))
+  (if (evaluator-procedure? proc)
+      (evaluator-procedure-documentation proc)
+      (vector-ref (procedure-ref proc procedure:constants)
+		  constants:documentation)))
+
+(define (evaluator-procedure? proc)
+  (let ((x (procedure-ref proc (- (procedure-length proc) 1))))
+    (and (pair? x) (eq? (car x) '$evalproc))))
+
+(define (evaluator-primitive? proc)
+  (let ((x (procedure-ref proc (- (procedure-length proc) 1))))
+    (and (pair? x) (eq? (car x) '$evalprim))))
+
+(define (evaluator-primitive-name proc)
+  (let ((x (procedure-ref proc (- (procedure-length proc) 1))))
+    (cadr x)))
+
+(define (evaluator-procedure-documentation proc)
+  (let ((x (cdr (procedure-ref proc (- (procedure-length proc) 1)))))
+    (vector "<expression>" x #f #f #f)))
 
 (define (continuation-return-address frame)
   (* (vector-ref frame frame:return-offset) 4))
@@ -89,9 +109,17 @@
   (let ((proc (vector-ref frame frame:procedure)))
     (if (not (null? rest))
 	(display (car rest)))
-    (if (eq? proc 0)
-	(format #t "system continuation")
-	(summarize-documentation (procedure-documentation proc)))
+    (cond ((eq? proc 0)
+	   (format #t "system continuation"))
+	  ((evaluator-procedure? proc)
+	   (format #t "expression ")
+	   (display-limited
+	    (vector-ref (evaluator-procedure-documentation proc) 1)
+	    *debug-print-length*))
+	  ((evaluator-primitive? proc)
+	   (format #t "primitive ~a" (evaluator-primitive-name proc)))
+	  (else
+	   (summarize-documentation (procedure-documentation proc))))
     (format #t "; ~a slots.~%" (count-saved-slots frame))
     #t))
 
@@ -131,8 +159,16 @@
 
 (define (debug)
   (format #t "Entering debugger; ? for help.~%")
-  (let ((e (error-continuation)))
-    (inspect-continuation e)))
+  (call-with-current-continuation
+   (lambda (k)
+     (set! *debug-exit* k)
+     (let ((e (error-continuation)))
+       (if (not e)
+	   (begin (display "No error continuation!")
+		  (newline))
+	   (inspect-continuation e)))))
+  (set! *debug-exit* #f)
+  (unspecified))
 
 ; From Lib/error.sch, where it was not public.
 
@@ -160,9 +196,8 @@
   (define (get-token)
     (let ((t (read)))
       (if (eof-object? t)
-	  (begin (display "EOF!")
-		 (newline)
-		 (exit))
+	  (begin (display t) (newline)
+		 (*debug-exit* #f))
 	  t)))
 
   (define (evaluate args expr frame token)
@@ -252,14 +287,14 @@
 	  (doit c)			; [sic!]
 	  (let ((c-length (continuation-length c)))
 	    (if (<= c-length 20)
-		(doit frame)
+		(doit c)
 		(begin
 		  (format #t "The continuation has ~a frames.~%~a~%"
 			  c-length
 			  "Are you sure you want to see them all? (Y/N) ")
 		  (let ((x (get-token)))
 		    (if (eq? x 'y)
-			(doit frame)))))))
+			(doit c)))))))
       (loop frame prev #f))
 
   (define (cmd:summarize frame prev)
@@ -280,12 +315,16 @@
       (loop frame prev #f)))
 
   (define (inspect-procedure proc)
-    (if (eq? proc 0)
-	(format #t "can't inspect a system procedure.~%")
-	(do ((i 0 (+ i 1)))
-	    ((= i (procedure-length proc)))
-	  (display-limited (procedure-ref proc i) *debug-print-length*)
-	  (newline))))
+    (cond ((eq? proc 0)
+	   (format #t "can't inspect a system procedure.~%"))
+	  ((evaluator-procedure? proc)
+	   (display-source
+	    (vector-ref (evaluator-procedure-documentation proc) 1)))
+	  (else
+	   (do ((i 0 (+ i 1)))
+	       ((= i (procedure-length proc)))
+	     (display-limited (procedure-ref proc i) *debug-print-length*)
+	     (newline)))))
 
   (define (cmd:inspect frame prev)
     (let ((n (get-token)))
@@ -480,5 +519,89 @@ d and u is 1.
 	    (format #t "Invalid frame~%")))
      #t)))
 
+(define (display-source source)
+  (pretty-print source))
+
+; Not currently used.
+; This attempts to do some macro-unexpanding.  Pretty sick stuff.
+
+(define (unexpand x)
+
+  (define (unexpand-variable-name x)
+    x)
+
+  (define (unexpand-formals x)
+    x)
+
+  (define (if-expr? x) (and (pair? x) (eq? (car x) 'if)))
+  (define (cond-expr? x) (and (pair? x) (eq? (car x) 'cond)))
+  (define (let-expr? x) (and (pair? x) (eq? (car x) 'let)))
+
+  (define (unexpand-if x)
+    (let ((a (unexpand (cadr x)))
+	  (b (unexpand (caddr x)))
+	  (c (unexpand (cadddr x))))
+      (cond ((if-expr? c)
+	     `(cond (,a ,b)
+		    (,(cadr c) ,(caddr c))
+		    (else ,(cadddr c))))
+	    ((cond-expr? c)
+	     `(cond (,a ,b)
+		    ,@(cdr c)))
+	    (else
+	     (list kwd:if a b c)))))
+
+  (define (unexpand-lambda x)
+    (cons 'lambda
+	  (cons (unexpand-formals (cadr x))
+		(map unexpand (cddr x)))))
+
+  ; We should recognize internal definitions here.
+
+  (define (unexpand-let x)
+    `(let ,(map (lambda (name val)
+		  (list (unexpand name)
+			(unexpand val)))
+		(cadr (car x))
+		(cdr x))
+       ,@(map unexpand (cddr (car x)))))
+
+  (define (unexpand-begin x)
+    (if (null? (cddr x))
+	(unexpand (cadr x))
+	(cons 'begin (map unexpand (cdr x)))))
+
+  (cond ((pair? x)
+	 (let ((op (car x)))
+	   (cond ((eq? op kwd:if)
+		  (unexpand-if x))
+		 ((eq? op kwd:set!) 
+		  (cons 'set! (map unexpand (cdr x))))
+		 ((eq? op kwd:begin) 
+		  (unexpand-begin x))
+		 ((eq? op kwd:define) 
+		  (list 'define (unexpand (cadr x)) (unexpand (caddr x))))
+		 ((eq? op kwd:quote)
+		  (list 'quote (cadr x)))
+		 ((eq? op kwd:lambda)
+		  (unexpand-lambda x))
+		 ((and (pair? op) (eq? (car op) kwd:lambda))
+		  (unexpand-let x))
+		 (else
+		  (map unexpand x)))))
+	((symbol? x)
+	 (unexpand-variable-name x))
+	(else
+	 x)))
+
+; These must correspond to the keywords used by the macro expander for
+; the primitives.
+
+(define kwd:if 'if)
+(define kwd:begin 'begin)
+(define kwd:set! 'set!)
+(define kwd:define 'define)
+(define kwd:lambda 'lambda)
+(define kwd:quote 'quote)
 
 ; eof

@@ -611,6 +611,7 @@ Ldiv_comp2:
 	fbl	Ldiv_comp3
 	nop
 
+	! FIXME: f16 is imag_part of b!!!  Bug???  (But: cf rectnum code.)
 	! case 1: (>= (abs (real-part b)) (abs (imag-part a)))
 
 	fdivd	%f12, %f10, %f14  ! r:   (/ (imag-part b) (real-part b))
@@ -1770,7 +1771,7 @@ Lcomplexp_vec:
 !
 ! (define (rational? x)
 !   (or (and (compnum? x) (= (imag-part x) 0.0))
-!       (flonum? x) (rational? x)
+!       (flonum? x)
 !       (ratnum? x)
 !       (integer? x)))
 
@@ -2089,6 +2090,8 @@ Li2e_identity:
 	jmp	%o7+8
 	nop
 
+! NOTE: this is obsolete; make-rectangular is no longer integrable.
+!
 ! `make-rectangular' is actually a bit hairy. Should it just go into Scheme?
 ! (Possibly flonum+flonum->compnum case should be in line, for speed).
 !
@@ -2112,10 +2115,12 @@ Li2e_identity:
 !       (box-compnum (exact->inexact a) (exact->inexact b))))
 
 EXTNAME(m_generic_make_rectangular):
+	call	EXTNAME(abort)			! die.
+	nop
+	! original code follows.
 	mov	2, %TMP1
 	b	internal_scheme_call
 	mov	MS_GENERIC_MAKE_RECTANGULAR, %TMP2
-
 
 ! `real-part' and `imag-part'.
 !
@@ -2420,8 +2425,13 @@ Lnumeric_error:
 
 _box_flonum:
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	EXTNAME(mem_internal_alloc)
+	! Save in case we gc.  This could be done smarter!
+	st	%f2, [ %GLOBALS + G_GENERIC_NRTMP1 ]
+	st	%f3, [ %GLOBALS + G_GENERIC_NRTMP2 ]
+	call	EXTNAME(mem_internal_alloc_bv)
 	mov	16, %RESULT
+	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %f2
+	ld	[ %GLOBALS + G_GENERIC_NRTMP2 ], %f3
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	std	%f2, [ %RESULT + 8 ]
 	set	(12 << 8) | FLONUM_HDR, %TMP1
@@ -2436,8 +2446,17 @@ _box_flonum:
 
 _box_compnum:
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	EXTNAME(mem_internal_alloc)
+	! Save in case we gc.  This could be done smarter!
+	st	%f2, [ %GLOBALS + G_GENERIC_NRTMP1 ]
+	st	%f3, [ %GLOBALS + G_GENERIC_NRTMP2 ]
+	st	%f4, [ %GLOBALS + G_GENERIC_NRTMP3 ]
+	st	%f5, [ %GLOBALS + G_GENERIC_NRTMP4 ]
+	call	EXTNAME(mem_internal_alloc_bv)
 	mov	24, %RESULT
+	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %f2
+	ld	[ %GLOBALS + G_GENERIC_NRTMP2 ], %f3
+	ld	[ %GLOBALS + G_GENERIC_NRTMP3 ], %f4
+	ld	[ %GLOBALS + G_GENERIC_NRTMP4 ], %f5
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	std	%f2, [ %RESULT + 8 ]
 	std	%f4, [ %RESULT + 16 ]
@@ -2462,7 +2481,7 @@ _box_single_positive_bignum:
 	st	%TMP0, [ %GLOBALS + G_GENERIC_NRTMP1 ]
 	st	%TMP2, [ %GLOBALS + G_GENERIC_NRTMP2 ]
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	EXTNAME(mem_internal_alloc)
+	call	EXTNAME(mem_internal_alloc_bv)
 	mov	12, %RESULT
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0
@@ -2488,7 +2507,7 @@ _box_double_positive_bignum:
 	st	%TMP1, [ %GLOBALS + G_GENERIC_NRTMP2 ]
 	st	%TMP2, [ %GLOBALS + G_GENERIC_NRTMP3 ]
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	EXTNAME(mem_internal_alloc)
+	call	EXTNAME(mem_internal_alloc_bv)
 	mov	16, %RESULT
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0

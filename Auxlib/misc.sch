@@ -22,6 +22,13 @@
 	(else
 	 (set-cdr! list (remq! key (cdr list))))))
 
+; MIT Scheme has this.
+
+(define (make-list nelem val)
+  (if (zero? nelem)
+      '()
+      (cons val (make-list (- nelem 1) val))))
+
 ; Reductions.
 ; The procedures optionally take an identity element.  If the
 ; identity is present, lists of length 0 are allowed.  If not,
@@ -57,9 +64,12 @@
       (car rest)
       (loop (car l) (cdr l))))
 
-; Names used by some (notably SML).
+; Should be in the basis library?
 
-(define foldl reduce-left)
-(define foldr reduce-right)
+(define (vector-copy v)
+  (let ((v2 (make-vector (vector-length v) #f)))
+    (do ((i (- (vector-length v) 1) (- i 1)))
+        ((< i 0) v2)
+      (vector-set! v2 i (vector-ref v i)))))
 
 ; eof

@@ -1,6 +1,7 @@
 ; Ffi/ffi-test.sch
 
 (load "Ffi/loadffi.sch")
+(load-ffi "Ffi/" 'sun4-sunos4)
 
 ; (define puts
 ;   (let ((puts (ffi/foreign-procedure ffi/SPARC-sunos4-C-callout-stdabi

@@ -10,15 +10,14 @@
 ;
 ; Features we could add:
 ;   string ports
-;
-; Notes
-;   eof-object? needs to be integrable for good performance.
+;   transcript ports
 
 ($$trace "stdio")
 
 ; First there are private variables and some procedures that depend on them.
-; In a multi-threaded system, we must be more sophisticated than this, because
-; the current input and output ports are really dynamically bound.
+; In a multi-threaded system, we must be more sophisticated than this, 
+; because the current input and output ports are really dynamically bound
+; (and bound separately on each processor).
 
 (define *stdin* #f)
 (define *stdout* #f)
@@ -27,11 +26,11 @@
   (cond ((null? rest) *stdin*)
 	((null? (cdr rest))
 	 (let ((old *stdin*)
-	       (p   (car rest)))
-	   (if (input-port? p)
-	       (begin (set! *stdin* p)
+	       (new (car rest)))
+	   (if (input-port? new)
+	       (begin (set! *stdin* new)
 		      old)
-	       (begin (error "current-input-port: not an input port: " p)
+	       (begin (error "current-input-port: not an input port: " new)
 		      #t))))
 	(else
 	 (error "current-input-port: too many arguments.")
@@ -41,18 +40,18 @@
   (cond ((null? rest) *stdout*)
 	((null? (cdr rest))
 	 (let ((old *stdout*)
-	       (p   (car rest)))
-	   (if (output-port? p)
-	       (begin (set! *stdout* p)
+	       (new (car rest)))
+	   (if (output-port? new)
+	       (begin (set! *stdout* new)
 		      old)
-	       (begin (error "current-output-port: not an output port: " p)
+	       (begin (error "current-output-port: not an output port: " new)
 		      #t))))
 	(else
 	 (error "current-output-port: too many arguments.")
 	 #t)))
 
-
-; The following do not depend on *stdin* and *stdout*.
+; Then there is code that does not depend on *stdin* or *stdout*, but
+; that use only current-input-port and current-output-port.
 
 (define (initialize-io-system)
   (io/initialize)
@@ -66,14 +65,16 @@
   (close-open-files)
   (unspecified))
 
-(define (read-char . rest)
-  (cond ((null? rest)
-	 (io/read-char (current-input-port)))
-	((null? (cdr rest))
-	 (io/read-char (car rest)))
-	(else
-	 (error "read-char: too many arguments.")
-	 #t)))
+; Read-char has been re-coded in MAL for performance; see Lib/malcode.mal.
+;
+;(define (read-char . rest)
+;  (cond ((null? rest)
+;	 (io/read-char (current-input-port)))
+;	((null? (cdr rest))
+;	 (io/read-char (car rest)))
+;	(else
+;	 (error "read-char: too many arguments.")
+;	 #t)))
 
 (define (peek-char . rest)
   (cond ((null? rest)
@@ -93,14 +94,16 @@
 	 (error "char-ready?: too many arguments.")
 	 #t)))
 
-(define (write-char c . rest)
-  (cond ((null? rest)
-	 (io/write-char c (current-output-port)))
-	((null? (cdr rest))
-	 (io/write-char c (car rest)))
-	(else
-	 (error "write-char: too many arguments.")
-	 #t)))
+; Write-char has been re-coded in MAL for performance; see Lib/malcode.mal.
+;
+;(define (write-char c . rest)
+;  (cond ((null? rest)
+;	 (io/write-char c (current-output-port)))
+;	((null? (cdr rest))
+;	 (io/write-char c (car rest)))
+;	(else
+;	 (error "write-char: too many arguments.")
+;	 #t)))
 
 (define (write-bytevector-like bvl . rest)
   (cond ((null? rest)
@@ -110,9 +113,6 @@
 	(else
 	 (error "write-bytevector-like: too many arguments.")
 	 #t)))
-
-(define (eof-object? p)
-  (eq? p (eof-object)))
 
 (define (input-port? p)
   (io/input-port? p))
@@ -148,10 +148,13 @@
 	     #t)))
 
 (define (flush-output-port . rest)
-  (cond ((null? rest) (io/flush (current-output-port)))
-	((null? (cdr rest)) (io/flush (car rest)))
-	(else (error "flush-output-port: too many arguments.")
-	      #t)))
+  (cond ((null? rest)
+	 (io/flush (current-output-port)))
+	((null? (cdr rest))
+	 (io/flush (car rest)))
+	(else
+	 (error "flush-output-port: too many arguments.")
+	 #t)))
 
 (define (call-with-input-file file proc)
   (let ((port (open-input-file file)))
@@ -187,14 +190,12 @@
     (lambda (p)
       (with-output-to-port p thunk))))
 
-
-; Useful for (interactive) error recovery.
+; Close-open-files is useful for (interactive) error recovery.
 
 (define (close-open-files)
   (file-io/close-open-files))
 
-
-; Useful extensions dealing with the file system.
+; The following are useful extensions for dealing with the file system.
 
 (define (file-modification-time filename)
   (file-io/file-modification-time filename))
@@ -207,10 +208,5 @@
 
 (define (delete-file filename)
   (file-io/delete-file filename))
-
-; Backwards compatibility
-
-(define (reset-iosystem)
-  #t)
 
 ; eof

@@ -17,7 +17,7 @@
 ; from the entry in the parent environment, and all subsequent references
 ; to the name in the environment will get the new cell.
 ;
-; There are at least three alternative ways to view inheritance.  
+; There are at least three ways to view inheritance.  
 ; (1) All entries in the parent are eagerly duplicated in the new 
 ;     environment when it is created.  Hence, all values in the new 
 ;     environment are definitely those of the parent at the time of 
@@ -74,7 +74,8 @@
         (else
          (let ((l '()))
            (env/enumerate-bindings* env (lambda (name value)
-                                          (set! l (cons name l))))
+					  (if (not (memq name l))
+					      (set! l (cons name l)))))
            l))))
 
 (define (environment-gettable? env name)
@@ -218,18 +219,13 @@
   (env/enumerate-cells env (lambda (name cell)
                              (proc name (cell-ref cell)))))
 
-; The returned list may contain duplicates.
-
 (define (env/enumerate-bindings* env proc)
-  (let loop ((l '()) (env env))
-    (if env
-        (loop (cons (env/enumerate-cells 
-                      env 
-                      (lambda (name cell)
-                        (proc name (cell-ref cell))))
-                    l)
-              (env.parent env))
-        (apply append! l))))
+  (if env
+      (begin 
+	(env/enumerate-cells env 
+			     (lambda (name cell)
+			       (proc name (cell-ref cell))))
+	(env/enumerate-bindings* (env.parent env) proc))))
 
 (define (env/enumerate-cells env proc)
   (let ((ht (env.hashtable env)))

@@ -41,7 +41,12 @@
 (loadfile compilerdir "sets.sch")
 (loadfile compilerdir "switches.sch")
 (loadfile compilerdir "pass1.aux.sch")
-(loadfile compilerdir "twobit.imp.sch")
+(cond ((eq? nbuild:target-machine 'sparc)
+       (loadfile compilerdir "sparc.imp.sch"))
+      ((eq? nbuild:target-machine 'standard-C)
+       (loadfile compilerdir "standard-C.imp.sch"))
+      (else
+       ???))
 (loadfile compilerdir "pass1.sch")
 (loadfile compilerdir "pass2.aux.sch")
 (loadfile compilerdir "pass2p1.sch")
@@ -67,37 +72,53 @@
       (loadfile common-asmdir "asmutil32be.sch")  ; For now
       (loadfile common-asmdir "asmutil32.sch")))
 
-(display "Loading SPARC header files...") (newline)
-(loadfile builddir "schdefs.h")
+(display "Loading back-end header files...") (newline)
+(cond ((eq? nbuild:target-machine 'SPARC)
+       (loadfile builddir "schdefs.h"))
+      ((eq? nbuild:target-machine 'standard-C)
+       #t)
+      (else
+       ???))
 
-(if (not new-assembler?)
-    (begin
-      (display "Loading old SPARC assembler and code generator...") (newline)
-      (with-optimization 2
-	(lambda ()
-	  (loadfile sparc-olddir "sparcasm.sch")))
-      (loadfile sparc-olddir "gen-msi.sch")
-      (loadfile sparc-olddir "gen-prim.sch")
-      (loadfile sparc-olddir "asmutil.sch")
-      (loadfile sparc-olddir "switches.sch"))
-    (begin 
-      (display "Loading new SPARC assembler and code generator...") (newline)
-      (loadfile sparc-asmdir "pass5p2.sch")
-      (loadfile sparc-asmdir "peepopt.sch")
-      (loadfile sparc-asmdir "sparcutil.sch")
-      (loadfile sparc-asmdir "sparcasm.sch")
-      (loadfile sparc-asmdir "gen-msi.sch")
-      (loadfile sparc-asmdir "gen-prim.sch")
-      (loadfile sparc-asmdir "switches.sch")))
+(cond ((not new-assembler?)
+       (if (not (eq? nbuild:target-machine 'SPARC))
+	   (error "Old assembler can only do SPARC output."))
+       (display "Loading old SPARC assembler and code generator...") (newline)
+       (with-optimization 2
+	 (lambda ()
+	   (loadfile sparc-olddir "sparcasm.sch")))
+       (loadfile sparc-olddir "gen-msi.sch")
+       (loadfile sparc-olddir "gen-prim.sch")
+       (loadfile sparc-olddir "asmutil.sch")
+       (loadfile sparc-olddir "switches.sch"))
+      ((eq? nbuild:target-machine 'SPARC)
+       (display "Loading new SPARC assembler and code generator...") (newline)
+       (loadfile sparc-asmdir "pass5p2.sch")
+       (loadfile sparc-asmdir "peepopt.sch")
+       (loadfile sparc-asmdir "sparcutil.sch")
+       (loadfile sparc-asmdir "sparcasm.sch")
+       (loadfile sparc-asmdir "gen-msi.sch")
+       (loadfile sparc-asmdir "gen-prim.sch")
+       (loadfile sparc-asmdir "switches.sch"))
+      ((eq? nbuild:target-machine 'standard-C)
+       (display "Loading standard-C assembler...") (newline)
+       (loadfile standard-C-asmdir "pass5p2.sch")
+       (loadfile standard-C-asmdir "switches.sch"))
+      (else
+       ???))
 
-(if (not new-assembler?)
-    (begin 
-      (display "Loading old SPARC disassembler...") (newline)
-      (loadfile sparc-olddir "sparcdis.sch"))
-    (begin
-      (display "Loading new SPARC disassembler...") (newline)
-      (loadfile sparc-asmdir "sparcdis.sch")
-      ))
+(cond ((eq? nbuild:target-machine 'SPARC)
+       (if (not new-assembler?)
+	   (begin 
+	     (display "Loading old SPARC disassembler...") (newline)
+	     (loadfile sparc-olddir "sparcdis.sch"))
+	   (begin
+	     (display "Loading new SPARC disassembler...") (newline)
+	     (loadfile sparc-asmdir "sparcdis.sch"))))
+      ((eq? nbuild:target-machine 'standard-C)
+       (display "(No disassembler for standard-C)") (newline))
+      (else
+       ???))
 
 (display "Loading bootstrap heap dumper...") (newline)
 (with-optimization 3
@@ -118,7 +139,7 @@
 (loadfile compilerdir "help.sch")
 
 ; The switches can be found in Compiler/switches.sch and 
-; Asm/Sparc/switches.sch.
+; Asm/{Sparc,C}/switches.sch.
 ;
 ; FIXME: each of the mentioned files should contain a procedure which
 ; prints its own switches, so this procedure won't have to know.
@@ -141,7 +162,8 @@
   (display-switch "Benchmark-mode" (benchmark-mode))
   (display-switch "Catch-undefined-globals" (catch-undefined-globals))
   (display-switch "Empty-list-is-true" (empty-list-is-true))
-  (display-switch "Fill-delay-slots" (fill-delay-slots))
+  (if (eq? nbuild:target-machine 'SPARC)
+      (display-switch "Fill-delay-slots" (fill-delay-slots)))
   (display-switch "Generate-global-symbols" (generate-global-symbols))
   (display-switch "Include-procedure-names" (include-procedure-names))
   (display-switch "Include-source-code" (include-source-code))
@@ -153,9 +175,11 @@
   (display-switch "Listify?" listify?)
   (display-switch "Local-optimizations" (local-optimizations))
   (display-switch "Peephole-optimization" (peephole-optimization))
-  (display-switch "Single-stepping" (single-stepping))
+  (if (eq? nbuild:target-machine 'SPARC)
+      (display-switch "Single-stepping" (single-stepping)))
   (display-switch "Unsafe-code" (unsafe-code))
-  (display-switch "Write-barrier" (write-barrier))
+  (if (eq? nbuild:target-machine 'SPARC)
+      (display-switch "Write-barrier" (write-barrier)))
 
   )
 

@@ -52,11 +52,15 @@
 	(find-env name)))
 
   (define (process-item item)
-    (let ((name    (get 'environment item 'fail #f))
-	  (files   (get 'files item '() #t))
-	  (parent  (process-parent (get 'parent item 'fail #f)))
-	  (imports (get 'imports item '() #t)))
-      (let ((env (make-environment (symbol->string name) parent)))
+    (let* ((name    (get 'environment item 'fail #f))
+	   (files   (get 'files item '() #t))
+	   (parent  (if (eq? name '@interaction-environment@)
+			#t
+			(process-parent (get 'parent item 'fail #f))))
+	   (imports (get 'imports item '() #t)))
+      (let ((env (if (eq? name '@interaction-environment@)
+		     (interaction-environment)
+		     (make-environment (symbol->string name) parent))))
 	(loadf files env)
 	(remember-env name env imports))))
 
@@ -111,9 +115,11 @@
 	      (else
 	       (process-item item))))))
 
-  ; Become the new toplevel environment.
+  ; If there is a toplevel environment, become it.
 
-  (interaction-environment (find-env '@toplevel@))
+  (let ((probe (assq '@toplevel@ envs)))
+    (if probe
+	(interaction-environment (cadr probe))))
   (unspecified))
 
 (define (standard-installations)

@@ -19,6 +19,9 @@
 ! Assumptions:
 !   - all allocation is in 8-byte aligned chunks
 !   - the ephemeral space lives below the tenured space
+!
+! Notes
+!   It's a lot of code.  It would have been a lot less with a macro-assembler.
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -27,6 +30,7 @@
 	.global EXTNAME(mem_alloc_bv)			! allocate raw RAM
 	.global EXTNAME(mem_alloci)			! allocate cooked RAM
 	.global	EXTNAME(mem_internal_alloc)		! allocate raw RAM
+	.global	EXTNAME(mem_internal_alloc_bv)		! allocate raw RAM
 	.global EXTNAME(mem_garbage_collect)		! do a GC
 	.global EXTNAME(mem_stkoflow)			! handle stack oflow
 	.global	EXTNAME(mem_internal_stkoflow)		! handle stack oflow
@@ -37,9 +41,13 @@
 
 	.seg "text"
 
+#if defined( BDW_GC )
+# define LARGEST_OBJECT    16777215
+#endif
 
-! _mem_alloc: allocate uninitialized pointer-containing memory.
+
 ! _mem_alloc_bv: allocate uninitialized pointer-non-containing memory.
+! _mem_alloc: allocate uninitialized pointer-containing memory.
 !
 ! Call from: Scheme
 ! Input    : RESULT = fixnum: size of structure in words
@@ -50,18 +58,49 @@
 ! These procedures could call _mem_internal_alloc, but do their work
 ! in-line for performance reasons.
 
+#if defined( BDW_GC )
 EXTNAME(mem_alloc_bv):
-#ifdef BDW_GC
-	b	bdw_allocate_atomic		! in bdw-memory.s
+	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
+	save	%sp, -96, %sp
+	and	%SAVED_RESULT, 4, %o0
+	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+	set	LARGEST_OBJECT, %o1
+	cmp	%o0, %o1
+	bgt	bdw_toobig
 	nop
-#else
-	/* falls through to mem_alloc!! */
+	call	EXTNAME(GC_malloc_atomic)
+	nop
+	cmp	%o0, 0
+	be	bdw_nocore
+	mov	%o0, %SAVED_RESULT
+	restore	
+	retl
+	ld	[ %GLOBALS + G_STKP ], %STKP
 #endif
 
-
+#if defined( BDW_GC )
 EXTNAME(mem_alloc):
-#ifndef BDW_GC
-Lalloc0:
+	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
+	save	%sp, -96, %sp
+	and	%SAVED_RESULT, 4, %o0
+	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+	set	LARGEST_OBJECT, %o1
+	cmp	%o0, %o1
+	bgt	bdw_toobig
+	nop
+	call	EXTNAME(GC_malloc)
+	nop
+	cmp	%o0, 0
+	be	bdw_nocore
+	mov	%o0, %SAVED_RESULT
+	restore	
+	retl
+	ld	[ %GLOBALS + G_STKP ], %STKP
+#endif
+
+#if !defined( BDW_GC )
+EXTNAME(mem_alloc):
+EXTNAME(mem_alloc_bv):
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -83,9 +122,6 @@ Lalloc1:
 						! without checking for
 						! overflow because everything
 						! is 8-byte aligned.
-#else
-	b	bdw_allocate			! in bdw-memory.s
-	nop
 #endif
 
 
@@ -104,24 +140,57 @@ EXTNAME(mem_alloci):
 
 	call	EXTNAME(mem_internal_alloc)	! allocate memory
 	mov	%RESULT, %ARGREG3		! save size for later
+
 	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore Scheme retaddr
 
 	! %RESULT now has ptr, %ARGREG3 has count, %ARGREG2 has obj
 
-	sub	%RESULT, 4, %TMP1		! dest = RESULT - 4
+#if 1 /* Old initialization code */
+
+	sub	%RESULT, 8, %TMP1		! dest = RESULT - 8
 	b	Lalloci2
 	tst	%ARGREG3
 Lalloci3:
 	st	%ARGREG2, [ %TMP1 ]		! init a word
-	deccc	4, %ARGREG3			! n -= 4, test n
+	st	%ARGREG2, [ %TMP1+4 ]		! and another
+	deccc	8, %ARGREG3			! n -= 8, test n
 Lalloci2:
-	bne	Lalloci3
-	add	%TMP1, 4, %TMP1			! dest += 4
+	bgt	Lalloci3
+	add	%TMP1, 8, %TMP1			! dest += 8
+
+#else	/* New initialization code */
+
+	! Duff's device, for an unrolling of 4 (generalizes to longer).
+	! This code works, but does not seem to offer any performance
+	! improvements for small vectors (not surprising).  It might
+	! be worthwhile to use for longer vectors, which is why the
+	! code is still here.
+
+	andcc	%ARGREG3, 15, %TMP1		! inverse offset
+	set 	16, %TMP0
+	sub	%TMP0, %TMP1, %TMP1		! actual offset (16-x)
+	add	%ARGREG3, %TMP1, %ARGREG3	! round iterations up
+	set	Lalloci3, %TMP0			! branch target
+	jmp	%TMP0 + %TMP1			! jump into loop!
+	sub	%RESULT, %TMP1, %TMP1		! set up initialization pointer
+Lalloci3:
+	st	%ARGREG2, [ %TMP1 ]
+	st	%ARGREG2, [ %TMP1+4 ]
+	st	%ARGREG2, [ %TMP1+8 ]
+	st	%ARGREG2, [ %TMP1+12 ]
+Lalloci2:
+	subcc	%ARGREG3, 16, %ARGREG3
+	bg	Lalloci3
+	add	%TMP1, 16, %TMP1
+
+#endif
+
 	jmp	%o7+8
 	ld	[ %GLOBALS + G_ALLOCI_TMP ], %ARGREG3
 
 
-! _mem_internal_alloc: allocate uninitialized memory.
+! _mem_internal_alloc: allocate uninitialized pointer-containing memory.
+! _mem_internal_alloc_bv: allocate uninitialized non-pointer-containing memory.
 !
 ! Call from: Millicode
 ! Input    : RESULT = fixnum: size of structure in words
@@ -130,8 +199,49 @@ Lalloci2:
 ! Output   : RESULT = untagged ptr to uninitialized memory
 ! Destroys : RESULT, Temporaries
 
+#if defined( BDW_GC )
 EXTNAME(mem_internal_alloc):
-#ifndef BDW_GC
+	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
+	save	%sp, -96, %sp
+	and	%SAVED_RESULT, 4, %o0
+	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+	set	LARGEST_OBJECT, %o1
+	cmp	%o0, %o1
+	bgt	bdw_toobig
+	nop
+	call	EXTNAME(GC_malloc)
+	nop
+	cmp	%o0, 0
+	be	bdw_nocore
+	mov	%o0, %SAVED_RESULT
+	restore	
+	retl
+	ld	[ %GLOBALS + G_STKP ], %STKP
+#endif
+
+#if defined( BDW_GC )
+EXTNAME(mem_internal_alloc_bv):
+	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
+	save	%sp, -96, %sp
+	and	%SAVED_RESULT, 4, %o0
+	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
+	set	LARGEST_OBJECT, %o1
+	cmp	%o0, %o1
+	bgt	bdw_toobig
+	nop
+	call	EXTNAME(GC_malloc_atomic)
+	nop
+	cmp	%o0, 0
+	be	bdw_nocore
+	mov	%o0, %SAVED_RESULT
+	restore	
+	retl
+	ld	[ %GLOBALS + G_STKP ], %STKP
+#endif
+
+#if !defined( BDW_GC )
+EXTNAME(mem_internal_alloc):
+EXTNAME(mem_internal_alloc_bv):
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -147,12 +257,29 @@ Lialloc1:
 	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
 						! in code for _mem_alloc.
-#else
-	b	bdw_allocate			! in bdw-memory.s
-	nop
 #endif
 
+#if defined( BDW_GC )
+bdw_nocore:
+	set	mallocfail, %o0
+	call	EXTNAME(panic)
+	nop
+bdw_toobig:
+	set	toobig, %o0
+	call	EXTNAME(panic)
+	nop
 
+	.data
+
+mallocfail:
+	.asciz "GC_malloc returned 0."
+toobig:
+	.asciz "Object too large for allocation (limit is 16MB)."
+
+	.text
+#endif
+
+#if !defined( BDW_GC )
 ! heap_overflow: Heap overflow handler for allocation primitives.
 ! ETOP must point to first free word in ephemeral area.
 !
@@ -167,6 +294,7 @@ heap_overflow:
 	set	EXTNAME(C_allocate), %TMP0
 	b	internal_callout_to_C
 	mov	%RESULT, %TMP1
+#endif
 
 
 ! OBSOLETE -- retained for backwards compatibility (globals[] table)
@@ -210,10 +338,9 @@ EXTNAME(mem_stkuflow):
 	ld	[ %TMP0 - VEC_TAG ], %TMP1	! get header
 	srl	%TMP1, 10, %TMP1		! size in words
 	inc	%TMP1				! need to copy header too
-	! now rounding up to even words
-	andcc	%TMP1, 1, %g0
-	bne,a	.+8
-	inc	%TMP1
+	! Round up to even words
+	and	%TMP1, 1, %TMP2
+	add	%TMP1, %TMP2, %TMP1
 	! Allocate frame, check for overflow
 	sll	%TMP1, 2, %TMP2			! must subtract bytes...
 	sub	%STKP, %TMP2, %STKP

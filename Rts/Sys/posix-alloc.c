@@ -36,9 +36,8 @@
 
 #include <stdlib.h>
 #include "larceny.h"
-#include "macros.h"
+#include "semispace_t.h"
 #include "gclib.h"
-#include "assert.h"
 #include "barrier.h"
 
 #define TEST_POSIX_ALLOC  0
@@ -52,14 +51,17 @@ caddr_t  gclib_pagebase;             /* page address of lowest known word */
 
 /* Private globals */
 
-static caddr_t    memtop;            /* address of highest known word */
-static unsigned   descriptor_slots;  /* number of allocated slots */
-static unsigned   heap_bytes;        /* bytes allocated to heap */
-static unsigned   max_heap_bytes;    /* max ditto */
-static unsigned   remset_bytes;      /* bytes allocated to remset */
-static unsigned   max_remset_bytes;  /* max ditto */
-static unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
-static unsigned   max_rts_bytes;     /* max ditto */
+static struct {
+  caddr_t    memtop;            /* address of highest known word */
+  int        descriptor_slots;  /* number of allocated slots */
+  unsigned   heap_bytes;        /* bytes allocated to heap */
+  unsigned   max_heap_bytes;    /* max ditto */
+  unsigned   remset_bytes;      /* bytes allocated to remset */
+  unsigned   max_remset_bytes;  /* max ditto */
+  unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
+  unsigned   max_rts_bytes;     /* max ditto */
+} data;
+
 #if TEST_POSIX_ALLOC
 static void *test_chunk = 0;         /* anchor for low-address chunk */
 #endif
@@ -80,17 +82,17 @@ gclib_init( void )
   int i;
 
 #if !TEST_POSIX_ALLOC
-  descriptor_slots = 32*1024*1024 / PAGESIZE;   /* Slots to handle 32 MB */
+  data.descriptor_slots = 32*1024*1024 / PAGESIZE;   /* Slots to handle 32MB */
 #else
-  descriptor_slots = 2*1024*1024 / PAGESIZE;    /* Slots to handle 2 MB */
+  data.descriptor_slots = 2*1024*1024 / PAGESIZE;    /* Slots to handle 2 MB */
 #endif
 
   gclib_desc_g =
-    (unsigned*)must_malloc( sizeof( unsigned ) * descriptor_slots );
+    (unsigned*)must_malloc( sizeof( unsigned ) * data.descriptor_slots );
   gclib_desc_b =
-    (unsigned*)must_malloc( sizeof( unsigned ) * descriptor_slots );
+    (unsigned*)must_malloc( sizeof( unsigned ) * data.descriptor_slots );
 
-  for ( i = 0 ; i < descriptor_slots ; i++ )
+  for ( i = 0 ; i < data.descriptor_slots ; i++ )
     gclib_desc_g[i] = gclib_desc_b[i] = 0;
 
   /* Assume all allocation will happen following these allocations.
@@ -99,26 +101,24 @@ gclib_init( void )
    * necessary.
    */
   if ((long)gclib_desc_b > (long)gclib_desc_g)
-    gclib_pagebase = memtop = 
-      (caddr_t)roundup_page((byte*)(gclib_desc_b + descriptor_slots));
+    gclib_pagebase = data.memtop = 
+      (caddr_t)roundup_page((byte*)(gclib_desc_b + data.descriptor_slots));
   else
-    gclib_pagebase = memtop =
-      (caddr_t)roundup_page((byte*)(gclib_desc_g + descriptor_slots));
+    gclib_pagebase = data.memtop =
+      (caddr_t)roundup_page((byte*)(gclib_desc_g + data.descriptor_slots));
 
 #if TEST_POSIX_ALLOC
   test_chunk = must_malloc( TEST_CHUNK_SIZE );
 #endif
 }
 
+void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
+{
+  *lowest = gclib_pagebase;
+  *highest = data.memtop;
+}
 
-/* Allocate memory for the garbage-collected heap.
- *
- * Allocate the requested number of bytes, rounded up to an integral
- * number of pages, and return a pointer to the memory.  Set the
- * heap ownership and generation ownership as indicated.  Pointer is
- * aligned to the beginning of a page.
- */
-void *gclib_alloc_heap( unsigned bytes, unsigned heap_no, unsigned gen_no )
+void *gclib_alloc_heap( int bytes, int gen_no )
 {
   byte *ptr;
   int i;
@@ -130,11 +130,11 @@ void *gclib_alloc_heap( unsigned bytes, unsigned heap_no, unsigned gen_no )
     gclib_desc_g[i] = gen_no;
     gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY;
   }
-  heap_bytes += bytes;
-  if (heap_bytes > max_heap_bytes) max_heap_bytes = heap_bytes;
+  data.heap_bytes += bytes;
+  data.max_heap_bytes = max( data.max_heap_bytes, data.heap_bytes );
 
-  annoyingmsg( "Allocated heap memory gen=%d heap=%d bytes=%u addr=%p",
-	       gen_no, heap_no, bytes, (void*)ptr );
+  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%d addr=%p",
+			 gen_no, bytes, (void*)ptr );
 
 #if TEST_POSIX_ALLOC
   if (test_chunk != 0) {
@@ -145,10 +145,7 @@ void *gclib_alloc_heap( unsigned bytes, unsigned heap_no, unsigned gen_no )
   return (void*)ptr;
 }
 
-
-/* Allocate memory for the run-time system */
-
-void *gclib_alloc_rts( unsigned bytes, unsigned attribute )
+void *gclib_alloc_rts( int bytes, unsigned attribute )
 {
   byte *ptr;
   int i;
@@ -161,16 +158,15 @@ void *gclib_alloc_rts( unsigned bytes, unsigned attribute )
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
   }
   if (attribute & MB_REMSET) {
-    remset_bytes += bytes;
-    if (remset_bytes > max_remset_bytes) max_remset_bytes = remset_bytes;
+    data.remset_bytes += bytes;
+    data.max_remset_bytes = max( data.max_remset_bytes, data.remset_bytes );
   }
   else {
-    rts_bytes += bytes;
-    if (rts_bytes > max_rts_bytes) max_rts_bytes = rts_bytes;
+    data.rts_bytes += bytes;
+    data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
   return (void*)ptr;
 }
-
 
 /* The descriptor tables have to be expanded only when the allocated
  * address range cannot be captured by the descriptor table at its
@@ -191,17 +187,17 @@ static byte *gclib_alloc( unsigned bytes )
   if ((caddr_t)ptr < gclib_pagebase) {   /* new allocation below pagebase */
     old_pagebase = gclib_pagebase;
 
-    if (pageof_pb( top-1, ptr ) >= descriptor_slots)
-      grow_table( ptr, memtop );      /* changes gclib_pagebase */
+    if (pageof_pb( top-1, ptr ) >= data.descriptor_slots)
+      grow_table( ptr, data.memtop );    /* changes gclib_pagebase */
     else {
-      unsigned diff;
+      int diff;
 
       /* Slide the table down, i.e., move the entries up */
 
       annoyingmsg( "Sliding page table by %u entries.", diff );
 
       diff = pageof_pb( gclib_pagebase, ptr );
-      for ( i = descriptor_slots-1 ; i >= diff ; i-- ) {
+      for ( i = data.descriptor_slots-1 ; i >= diff ; i-- ) {
 	gclib_desc_g[i] = gclib_desc_g[i-diff];
 	gclib_desc_b[i] = gclib_desc_b[i-diff];
       }
@@ -217,16 +213,16 @@ static byte *gclib_alloc( unsigned bytes )
 
     wb_re_setup( gclib_pagebase, gclib_desc_g );
   }
-  else if ((caddr_t)top > memtop) {	   /* new allocation above memtop */
+  else if ((caddr_t)top > data.memtop) {  /* new allocation above memtop */
     
-    old_memtop = memtop;
+    old_memtop = data.memtop;
 
-    if (pageof( top-1 ) >= descriptor_slots) {
+    if (pageof( top-1 ) >= data.descriptor_slots) {
       grow_table( gclib_pagebase, top );  /* changes memtop */
       wb_re_setup( gclib_pagebase, gclib_desc_g );
     }
     else
-      memtop = top;
+      data.memtop = top;
 
     /* Fill out table */
     for ( i = pageof( old_memtop ) ; i < pageof( ptr ) ; i++ ) {
@@ -238,19 +234,16 @@ static byte *gclib_alloc( unsigned bytes )
   return ptr;
 }
 
-
 static void grow_table( byte *new_bot, byte *new_top )
 {
-  unsigned slots = max( pageof_pb( new_top, new_bot ) - 1,
-		        descriptor_slots * 2 );
   unsigned *desc_g, *desc_b;
-  unsigned dest;
-  int i;
+  int slots = max( pageof_pb( new_top, new_bot )-1, data.descriptor_slots*2 );
+  int dest, i;
 
   assert( ((word)new_bot % PAGESIZE) == 0 );
   assert( ((word)new_top % PAGESIZE) == 0 );
   assert( (caddr_t)new_bot <= gclib_pagebase );
-  assert( (caddr_t)new_top >= memtop );
+  assert( (caddr_t)new_top >= data.memtop );
   annoyingmsg( "Growing page tables; new slots=%u.", slots );
 
   desc_g = (unsigned*)must_malloc( sizeof( unsigned ) * slots );
@@ -259,22 +252,22 @@ static void grow_table( byte *new_bot, byte *new_top )
   dest = pageof_pb( gclib_pagebase, new_bot );
 
   assert( dest < slots );
-  assert( dest+descriptor_slots < slots );
+  assert( dest+data.descriptor_slots < slots );
 
   for ( i=0 ; i < dest ; i++ )
     desc_b[i] = desc_g[i] = 0;
 
-  for ( i=0 ; i < descriptor_slots ; i++, dest++ ) {
+  for ( i=0 ; i < data.descriptor_slots ; i++, dest++ ) {
     desc_b[dest] = gclib_desc_b[i];
     desc_g[dest] = gclib_desc_g[i];
   }
 
-  for ( i=descriptor_slots ; i < slots ; i++ )
+  for ( i=data.descriptor_slots ; i < slots ; i++ )
     desc_b[i] = desc_g[i] = 0;
 
-  descriptor_slots = slots;
+  data.descriptor_slots = slots;
   gclib_pagebase = new_bot;
-  memtop = new_top;
+  data.memtop = new_top;
 
   free( gclib_desc_g );
   free( gclib_desc_b );
@@ -282,47 +275,132 @@ static void grow_table( byte *new_bot, byte *new_top )
   gclib_desc_b = desc_b;
 }
 
-
 static byte *alloc_aligned( unsigned bytes )
 {
   byte *p, *q;
-  int wastage;
+  double wastage;
 
   p = (byte*)must_malloc( bytes+PAGESIZE );
   q = (byte*)roundup_page( p );
-  wastage = q-p;
-  annoyingmsg( "Allocation alignment wastage: %d (%2.1f%%)",
-	       wastage, (double)wastage*100/(double)bytes  );
+  wastage = (double)(q-p);
+  supremely_annoyingmsg( "Allocation alignment wastage: %d (%2.1f%%)",
+			 (int)wastage, wastage*100.0/bytes  );
   register_pointer( q, p );
   return q;
 }
 
+void gclib_free( void *addr, int bytes )
+{
+  unsigned pages;
+  unsigned pageno;
+
+  FREE_ALIGNED( addr, bytes );
+
+  pages = bytes/PAGESIZE;
+  pageno = pageof( addr );
+
+  /* This assumes that all pages being freed have the same major attributes.
+   * That is a reasonable assumption.
+   */
+  if (pages > 0) {
+    if (gclib_desc_b[pageno] & MB_HEAP_MEMORY)
+      data.heap_bytes -= bytes;
+    else if (gclib_desc_b[pageno] & MB_REMSET)
+      data.remset_bytes -= bytes;
+    else
+      data.rts_bytes -= bytes;
+  }
+
+  while (pages > 0) {
+    assert( (gclib_desc_b[pageno] & MB_ALLOCATED ) &&
+	    !(gclib_desc_b[pageno] & MB_FOREIGN ) );
+    gclib_desc_g[pageno] = UNALLOCATED_PAGE;
+    gclib_desc_b[pageno] = MB_FOREIGN;
+    pageno++;
+    pages--;
+  }
+}
+
+void gclib_shrink_block( void *p, int oldsize, int newsize )
+{
+  assert( oldsize >= newsize );
+
+  /* This does not make sense in a malloc-based implementation */
+}
+
+void gclib_set_generation( void *address, int nbytes, int generation )
+{
+  int p;
+
+  for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ )
+    gclib_desc_g[p] = generation;
+}
+
+void gclib_add_attribute( void *address, int nbytes, unsigned attr )
+{
+  int p;
+
+  for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ )
+    gclib_desc_b[p] |= attr;
+}
+
+void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap )
+{
+  *wheap = data.heap_bytes/sizeof(word);
+  *wremset = data.remset_bytes/sizeof(word);
+  *wrts = data.rts_bytes/sizeof(word);
+  *wmax_heap = data.max_heap_bytes/sizeof(word);
+}
+
+
+/* Pointer registry for mapping pointers returned from malloc to pointers
+   to page boundaries, and back.
+   */
 
 /* This is probably far too slow, but it's OK for now. */
 
-static struct regentry {
+struct regentry {
   byte *original;
   byte *derived;
-} registry[256];
+};
+static struct regentry *registry = 0;
 static int reg_next = 0;
+static int reg_size = 0;
 
 static void register_pointer( byte *derived, byte *original )
 {
   int i, j;
 
-  annoyingmsg( "registering: orig=%p, derived=%p",
-	      (void*)original, (void*)derived );
-  if (reg_next == sizeof(registry)/sizeof(struct regentry)) {
+  supremely_annoyingmsg( "registering ptr: orig=%p, derived=%p",
+			 (void*)original, (void*)derived );
+
+  if (reg_next == reg_size) {
+    /* It's full, so compact it and see what happens */
     j = 0;
-    for (i=0 ; i<reg_next; i++ ) {
+    for ( i=0 ; i < reg_size; i++ ) {
       if (registry[i].original != 0) {
 	registry[j] = registry[i];
 	j++;
       }
     }
-    if (j == reg_next)
-      panic( "posix_alloc: pointer registry full." );
-    reg_next = j;
+
+    if (j < reg_size) {
+      /* Compaction succeeded */
+      reg_next = j;
+    }
+    else {
+      /* Compaction failed: registry is full, so double its size. */
+      struct regentry *new_reg;
+      int k;
+
+      k = max( 256, reg_size * 2 );
+      new_reg = (struct regentry *)must_malloc( k*sizeof( struct regentry ) );
+      for ( i=0 ; i < reg_size ; i++ )
+	new_reg[i] = registry[i];
+      if (registry != 0) free( registry );
+      registry = new_reg;
+      reg_size = k;
+    }
   }
 	
   registry[reg_next].original = original;
@@ -338,78 +416,11 @@ static byte *find_and_free_pointer( byte *derived )
   for ( i=0 ; i < reg_next && registry[i].derived != derived ; i++ )
     ;
   if (i == reg_next)
-    panic( "posix_alloc: pointer %p not found in registry.", (void*)derived );
+    panic_abort( "posix_alloc: pointer %p not found in registry.",
+		 (void*)derived );
   p = registry[i].original;
   registry[i].original = registry[i].derived = 0;
   return p;
-}
-
-
-/*
- * Free the memory (rounded up to an integral number of bytes), and
- * clear the ownership bits.
- */
-void gclib_free( void *addr, unsigned bytes )
-{
-  unsigned pages;
-  unsigned pageno;
-
-  FREE_ALIGNED( addr, bytes );
-
-  pages = bytes/PAGESIZE;
-  pageno = pageof( addr );
-
-  /* This assumes that all pages being freed have the same major attributes.
-   * That is a reasonable assumption.
-   */
-  if (pages > 0) {
-    if (gclib_desc_b[pageno] & MB_HEAP_MEMORY)
-      heap_bytes -= bytes;
-    else if (gclib_desc_b[pageno] & MB_REMSET)
-      remset_bytes -= bytes;
-    else
-      rts_bytes -= bytes;
-  }
-
-  while (pages > 0) {
-    assert( (gclib_desc_b[pageno] & MB_ALLOCATED ) &&
-	    !(gclib_desc_b[pageno] & MB_FOREIGN ) );
-    gclib_desc_g[pageno] = UNALLOCATED_PAGE;
-    gclib_desc_b[pageno] = MB_FOREIGN;
-    pageno++;
-    pages--;
-  }
-}
-
-
-/* Given a semispace, set the generation number for all memory allocated
- * to the semispace to the given generation number.
- */
-void gclib_set_gen_no( semispace_t *s, int gen_no )
-{
-  int i;
-  word *bot, *lim;
-
-  s->gen_no = gen_no;
-  for ( i = 0 ; i < s->n ; i++ ) {
-    if (s->chunks[i].bytes == 0) continue;
-    bot = s->chunks[i].bot;
-    lim = s->chunks[i].lim;
-    while (bot < lim) {
-      gclib_desc_g[pageof(bot)] = gen_no;
-      bot += PAGESIZE/sizeof(word);
-    }
-  }
-}
-
-
-/* Return information about memory use */
-void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap )
-{
-  *wheap = heap_bytes/sizeof(word);
-  *wremset = remset_bytes/sizeof(word);
-  *wrts = rts_bytes/sizeof(word);
-  *wmax_heap = max_heap_bytes/sizeof(word);
 }
 
 /* eof */

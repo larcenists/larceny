@@ -1,7 +1,7 @@
 /* Rts/Sys/stack.c.
  * Larceny run-time system (Unix) -- stack handling
  *
- * January 20, 1997
+ * $Id$
  *
  * The stack lives at the high end of the current ephemeral area. There
  * are three major advantages to this:
@@ -40,19 +40,11 @@
 #define GC_INTERNAL
 
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
-#include "assert.h"
+#include "stack.h"
 
-/* 
- * Create a new, empty stack cache at the high end of the ephemeral
- * area. 
- *
- * Return 1 if the creation succeeded; 0 if the heap is full and a gc
- * must be performed.
- */
-int
-stk_create( word *globals )
+#define STACK_BASE_SIZE    16   /* bytes */
+
+int stk_create( word *globals )
 {
   extern void mem_stkuflow();
   word *stktop;
@@ -78,19 +70,11 @@ stk_create( word *globals )
   return 1;
 }
 
-
-/* Clear the stack cache */
-void 
-stk_clear( word *globals )
+void stk_clear( word *globals )
 {
   globals[ G_STKP ] = globals[ G_STKBOT ];
 }
 
-
-/*
- * Flush the stack cache to the heap by walking it, converting
- * stack frames to heap frames.
- */
 void
 stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
 {
@@ -107,8 +91,10 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
   while (stktop < stkbot) {
     /* convert header to vector header */
     size = *stktop;
+#if 0
     debug2msg( "[debug] frame = %08lx words, retaddr = %08lx\n", size / 4,
 	       *(stktop+1) );
+#endif
     *stktop = mkheader( size, VEC_HDR );
 
     /* convert return address */
@@ -141,18 +127,10 @@ stk_flush( word *globals, unsigned *frames_flushed, unsigned *bytes_flushed )
   *frames_flushed = framecount;
 }
 
-
-/*
- * Restore one stack frame from the heap, assuming that the stack pointer
- * currently points to a frame created by create_stack().
- *
- * Returns 1 if the frame could be restored, 0 if the heap is full.
- *
- * A copy of this code exists in Sparc/memory.s; if you change anything
- * here, check that code as well.
+/* NOTE:  A copy of this code exists in Sparc/memory.s; if you change 
+ * anything here, check that code as well.
  */
-int
-stk_restore_frame( word *globals )
+int stk_restore_frame( word *globals )
 {
   word *stktop, *hframe, *p;
   word retoffs, proc, codeaddr;
@@ -198,6 +176,22 @@ stk_restore_frame( word *globals )
   }
 
   return 1;
+}
+
+int stk_size_for_top_stack_frame( word *globals )
+{
+#if OLD_GC_CODE
+  return
+    nativeint( *(word*)globals[ G_STKP ] )*sizeof( word ) + STACK_BASE_SIZE;
+#else
+  int frame_size;
+  if (globals[ G_STKP ] == globals[ G_STKBOT])
+    frame_size = sizefield( *ptrof( globals[ G_CONT ] ) );
+  else
+    frame_size = *(word*)globals[ G_STKP ];
+  return roundup8( frame_size + 4 ) + STACK_BASE_SIZE;
+#endif
+
 }
 
 /* eof */

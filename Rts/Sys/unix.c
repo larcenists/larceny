@@ -17,10 +17,20 @@
 #include <math.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <poll.h>
+#include <string.h>
 
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
+#include "signals.h"
+
+/* Why these aren't in the system's header files I don't know */
+#if defined(SUNOS4)
+extern int rename( const char *oldname, const char *newname );
+extern int sigsetmask( int mask );
+extern int poll( struct pollfd *fds, unsigned long nfds, int timeout );
+#endif
+
+extern void mem_icache_flush( void *lo, void *limit );
 
 static char *getstring( word w );
 
@@ -92,7 +102,7 @@ word w_fn, w_proc;
   fn = getstring( w_fn );                      /* heap file name */
   globals[ G_STARTUP ] = w_proc;                 /* startup procedure */
 
-  if (fn == 0 || dump_heap( fn ) == -1)
+  if (fn == 0 || dump_heap_image_to_file( fn ) == -1)
     globals[ G_RESULT ] = FALSE_CONST;
   else 
     globals[ G_RESULT ] = TRUE_CONST;
@@ -170,7 +180,7 @@ word w_envvar;
     return;
   }
   l = strlen( p );
-  q = (word*)alloc_from_heap( 4 + l );
+  q = (word*)alloc_bv_from_heap( 4 + l );
   *q = mkheader( l, (BV_HDR | STR_SUBTAG) );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
@@ -180,7 +190,8 @@ void UNIX_garbage_collect( w_gen, w_type )
 word w_gen;
 word w_type;      /* fixnum: type requested */
 {
-  garbage_collect3( nativeint( w_gen ), nativeint( w_type ), 0 );
+  /* Type is ignored */
+  garbage_collect3( nativeint( w_gen ), 0 );
 }
 
 void UNIX_iflush( w_bv )
@@ -246,7 +257,7 @@ word w_fn;
   globals[ G_RESULT ] = fixnum( stats_opendump( fn ) );
 }
 
-void UNIX_stats_dump_off()
+void UNIX_stats_dump_off( void )
 {
   stats_closedump();
 }
@@ -254,9 +265,9 @@ void UNIX_stats_dump_off()
 void UNIX_gcctl_np( word heap, word rator, word rand )
 {
   /* Heap# comes in as 1..n, but RTS uses 0..n-1 */
-  gc_policy_control( nativeint( heap )-1,
-		     nativeint( rator ), 
-		     (unsigned)nativeint( rand ) );
+  policy_control( nativeint( heap )-1,
+		 nativeint( rator ), 
+		 (unsigned)nativeint( rand ) );
 }
 
 void UNIX_exit( word code )
@@ -264,14 +275,29 @@ void UNIX_exit( word code )
   exit( nativeint( code ) );
 }
 
+#if defined(SUNOS4)
 void UNIX_block_signals( word code )
 {
   static old_mask = 0;
+
   if (code == fixnum(1))
     old_mask = sigsetmask( -1 );
   else if (code == fixnum(0))
     sigsetmask( old_mask );
 }
+#endif
+
+#if defined(SUNOS5)
+void UNIX_block_signals( word code )
+{
+  static sigset_t old_mask;
+
+  if (code == fixnum(1))
+    block_all_signals( &old_mask );
+  else if (code == fixnum(0))
+    unblock_signals( &old_mask );
+}
+#endif
 
 void UNIX_system( word w_cmd )
 {
@@ -282,7 +308,7 @@ void UNIX_system( word w_cmd )
 void UNIX_allocate_nonmoving( word w_length, word w_tag )
 {
   globals[ G_RESULT ] = 
-    gc_allocate_nonmoving( nativeint( w_length ), nativeint( w_tag ) );
+    allocate_nonmoving( nativeint( w_length ), nativeint( w_tag ) );
 }
 
 void UNIX_object_to_address( word w_obj )

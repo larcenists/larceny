@@ -335,6 +335,7 @@ callout_to_C:
 	ld	[ %GLOBALS + G_CALLOUT_TMP0 ], %TMP0
 	ld	[ %GLOBALS + G_CALLOUT_TMP1 ], %o0
 	ld	[ %GLOBALS + G_CALLOUT_TMP2 ], %o1
+
 	jmpl	%TMP0, %o7
 	nop
 

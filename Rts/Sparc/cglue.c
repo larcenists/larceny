@@ -8,12 +8,11 @@
  * in this file.
  */
 
-#include <stdarg.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "signals.h"
 
 
@@ -32,7 +31,18 @@ void C_garbage_collect( word type, word request_words )
 {
   hardconsolemsg( "Call to obsolete C_garbage_collect." );
   supremely_annoyingmsg( "Allocation exception in millicode." );
-  garbage_collect3( 0, 0, nativeint( request_words )*sizeof( word ) );
+  garbage_collect3( 0, nativeint( request_words )*sizeof( word ) );
+}
+
+/* C_SRO: implements SRO operation. */
+void C_SRO( word w_ptrtag, word w_hdrtag, word w_limit )
+{
+  int ptrtag = (int)nativeint(w_ptrtag);
+  int hdrtag = (int)nativeint(w_hdrtag);
+  int limit = (int)nativeint(w_limit);
+
+  supremely_annoyingmsg( "SRO %d %d %d", ptrtag, hdrtag, limit );
+  globals[ G_RESULT ] = standing_room_only( ptrtag, hdrtag, limit );
 }
 
 /* C_stack_overflow: overflow handling depends on stack */
@@ -209,155 +219,13 @@ void C_singlestep( word cidx )
  */
 void C_syscall( void )
 {
-  typedef void (*fptr)();
-
-  /* Order of this table is important, see Lib/unix.sch. */
-  static struct {
-    fptr proc;
-    int  nargs;
-    int  interruptible;
-  } syscall_table[] = { { (fptr)UNIX_openfile, 3, 1 },
-			{ (fptr)UNIX_unlinkfile, 1, 1 },
-			{ (fptr)UNIX_closefile, 1, 1  },
-			{ (fptr)UNIX_readfile, 3, 1 },
-			{ (fptr)UNIX_writefile, 4, 1 },
-			{ (fptr)UNIX_getresourceusage, 0, 1 },
-			{ (fptr)UNIX_dumpheap, 2, 1 },
-			{ (fptr)UNIX_exit, 1, 0 },
-			{ (fptr)UNIX_mtime, 2, 1 },
-			{ (fptr)UNIX_access, 2, 1 },
-			{ (fptr)UNIX_rename, 2, 1 },
-			{ (fptr)UNIX_pollinput, 1, 0 },
-			{ (fptr)UNIX_getenv, 1, 1 },
-			{ (fptr)UNIX_garbage_collect, 2, 0 },
-			{ (fptr)UNIX_flonum_log, 2, 0 },
-		        { (fptr)UNIX_flonum_exp, 2, 0 },
-			{ (fptr)UNIX_flonum_sin, 2, 0 },
-			{ (fptr)UNIX_flonum_cos, 2, 0 },
-			{ (fptr)UNIX_flonum_tan, 2, 0 },
-			{ (fptr)UNIX_flonum_asin, 2, 0 },
-			{ (fptr)UNIX_flonum_acos, 2, 0 },
-			{ (fptr)UNIX_flonum_atan, 2, 0 },
-			{ (fptr)UNIX_flonum_atan2, 3, 0 },
-			{ (fptr)UNIX_flonum_sqrt, 2, 0 },
-			{ (fptr)UNIX_stats_dump_on, 1, 1 },
-			{ (fptr)UNIX_stats_dump_off, 0, 1 },
-			{ (fptr)UNIX_iflush, 1, 0 },
-			{ (fptr)UNIX_gcctl_np, 3, 0 },
-			{ (fptr)UNIX_block_signals, 1, 0 },
-			{ (fptr)UNIX_flonum_sinh, 2, 0 },
-			{ (fptr)UNIX_flonum_cosh, 2, 0 },
-			{ (fptr)UNIX_system, 1, 1 },
-			{ (fptr)larceny_C_ffi_apply, 4, 1 },
-			{ (fptr)larceny_C_ffi_dlopen, 1, 0 },
-			{ (fptr)larceny_C_ffi_dlsym, 2, 0 },
-			{ (fptr)UNIX_allocate_nonmoving, 2, 0 },
-			{ (fptr)UNIX_object_to_address, 1, 0 },
-			{ (fptr)larceny_C_ffi_getaddr, 1, 0 },
-		      };
-  fptr proc;
   int nargs, nproc;
 
   nargs = nativeint( globals[ G_RESULT ] )-1;
   nproc = nativeint( globals[ G_REG1 ] );
-  if (nproc < 0 || nproc >= sizeof( syscall_table )/sizeof( fptr ))
-    panic( "syscall: index out of range: %d.", nproc );
 
-  if (nargs != syscall_table[ nproc ].nargs)
-    panic( "syscall: wrong number of arguments to #%d\n", nproc );
-
-  proc = syscall_table[ nproc ].proc;
-
-  if (syscall_table[ nproc ].interruptible)
-    BEGIN_INTERRUPTIBLE_SYSCALL();
-
-  switch (nargs) {
-    case 0 : proc(); break;
-    case 1 : proc( globals[ G_REG2 ] ); break;
-    case 2 : proc( globals[ G_REG2 ], globals[ G_REG3 ] ); break;
-    case 3 : proc( globals[ G_REG2 ], globals[ G_REG3 ], 
-		   globals[ G_REG4 ] ); break;
-    case 4 : proc( globals[ G_REG2 ], globals[ G_REG3 ], 
-		   globals[ G_REG4 ], globals[ G_REG5 ] ); break;
-    default: panic( "syscall: Too many arguments." ); break;
-  }
-
-  if (syscall_table[ nproc ].interruptible)
-    END_INTERRUPTIBLE_SYSCALL();
+  larceny_syscall( nargs, nproc, &globals[ G_REG2 ] );
 }
-
-#if SIMULATE_NEW_BARRIER
-
-#include "gclib.h"
-
-static unsigned wb_array_assignments = 0;
-static unsigned wb_lhs_young_or_remembered = 0;
-static unsigned wb_rhs_constant = 0;
-static unsigned wb_third_check = 0;
-static unsigned wb_trans_recorded = 0;
-
-void simulated_barrier_stats( simulated_barrier_stats_t *stats )
-{
-  stats->array_assignments = wb_array_assignments;
-  stats->lhs_young_or_remembered = wb_lhs_young_or_remembered;
-  stats->rhs_constant = wb_rhs_constant;
-  stats->cross_gen_check = wb_third_check;
-  stats->transactions = wb_trans_recorded;
-  wb_array_assignments = 0;
-  wb_lhs_young_or_remembered = 0;
-  wb_rhs_constant = 0;
-  wb_third_check = 0;
-  wb_trans_recorded = 0;
-}
-
-/* Simulation of new write barrier */
-void C_simulate_new_barrier( void )
-{
-  word *genv = (word*)globals[G_GENV];
-  word lhs = globals[G_RESULT];
-  word rhs = globals[G_ARGREG2];
-  unsigned gl, gr;
-  word **ssbtopv, **ssblimv;
-
-  if (tagof(lhs) == VEC_TAG) {
-    wb_array_assignments++;
-    if (genv[pageof(lhs)] == 0)
-      wb_lhs_young_or_remembered++;
-    else if (isremembered( lhs ))
-      wb_lhs_young_or_remembered++;
-    else if (!isptr( rhs ))
-      wb_rhs_constant++;
-    else 
-      goto record_trans;
-  }
-  else {
-    if (genv[pageof(lhs)] == 0)
-      ;
-    else if (!isptr(rhs))
-      ;
-    else
-      goto record_trans;
-  }
-  return;
- record_trans:
-  gl = genv[pageof(lhs)];
-  gr = genv[pageof(rhs)];
-  if (gl <= gr) {
-    if (tagof(lhs) == VEC_TAG) wb_third_check++;
-    return;
-  }
-  if (tagof(lhs) == VEC_TAG)
-    wb_trans_recorded++;
-  ssbtopv = (word**)globals[G_SSBTOPV];
-  ssblimv = (word**)globals[G_SSBLIMV];
-  *ssbtopv[gl] = lhs;
-  ssbtopv[gl] += 1;
-  if (ssbtopv[gl] == ssblimv[gl]) C_wb_compact( gl );
-}
-
-#endif  /* if SIMULATE_NEW_BARRIER */
-
-/* OBSOLETE PROCEDURES */
 
 /* C_compact_ssb: compact SSB, garbage collect if full. */
 void C_compact_ssb( void )

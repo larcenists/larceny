@@ -42,7 +42,10 @@
 	(o2i '(+ -))			; ditto with immediate
 	(b1  '(null? pair? zero?))	; unary ops for reg-test-branch
 	(b2  '(< > >= <= = eq? char=? char>=? char>? char<=? char<?))
-	(b2i '(< > >= <= = eq? char=? char>=? char>? char<=? char<?)))
+	(b2i '(< > >= <= = eq? char=? char>=? char>? char<=? char<?))
+	(vn  '#(make-vector:0 make-vector:1 make-vector:2 make-vector:3
+	        make-vector:4 make-vector:5 make-vector:6 make-vector:7
+		make-vector:8 make-vector:9)))
     (lambda (as)
       (let* ((t0 (as-source as))
 	     (i1 (if (null? t0) '(-1 0 0 0) (car t0)))
@@ -225,9 +228,19 @@
 						   ,(caddr i1)
 						   ,(cadr i2))
 				    t2)))
+	      ; (const n)   n <= 10
+	      ; (op2 make-vector r)
+	      ; => (op2 make-vector:n r)
+	      ((and (= (car i1) $const)
+		    (= (car i2) $op2)
+		    (eq? (cadr i2) 'make-vector)
+		    (fixnum? (cadr i1))
+		    (<= 0 (cadr i1) 9))
+	       (as-source! as (cons `(,$op2 ,(vector-ref vn (cadr i1))
+					    ,(caddr i2))
+				    t2)))
 	      (else
 	       #f))))))
-
 
 (define (peeptest istream)
   (let ((as (make-assembly-structure istream)))

@@ -3,456 +3,398 @@
  *
  * $Id: old-heap.c,v 1.13 1997/09/17 15:17:26 lth Exp $
  *
- * An old heap is a heap that receives new objects by promotion from
- * younger heaps, not by direct allocation.  Promotion from younger heaps
- * into an older heap is handled by the older heap itself: it scans
- * itself and all remembered sets of older heaps and copies younger 
- * objects into the heap in the process.
- * 
- * Allocation.  
- *
- * Only one semispace is allocated initially, the other being allocated
- * only when a collection takes place, and then on-demand in smallish chunks.
- * After a collection, the inactive space is released.
- * There are two benefits to this:
- * - First, it commonly uses less (virtual) memory than what would have
- *   been used with two permanently allocated spaces (although the worst
- *   cases are the same).
- * - Second, and far more subtly, the way overflows are handled in the 
- *   GC means that semispaces are not bounded by their selected limits,
- *   but may aquire extra space when needed.  This space would stick around
- *   in a semispace unless freed explicitly, and freeing the semispace
- *   accomplishes that as a side effect.
- *
- * See comments in the file "memmgr.h" for further details about the flow
- * of control among the garbage collector modules.
+ * The code in this file implements stop-and-copy older areas both for
+ * ephemeral and dynamic generations.  The only real difference are the 
+ * garbage collection decision algorithms (described below).
  */
 
 #define GC_INTERNAL
 
 #include "larceny.h"
-#include "macros.h"
-#include "cdefs.h"
 #include "memmgr.h"
+#include "gc.h"
+#include "gc_t.h"
+#include "young_heap_t.h"
+#include "old_heap_t.h"
+#include "static_heap_t.h"
+#include "semispace_t.h"
+#include "los_t.h"
 #include "gclib.h"
-#include "assert.h"
+#include "heap_stats_t.h"
+#include "remset_t.h"
 
-
-/* Don't change this :-) */
-
-#define PROMOTE_PREMATURELY     0
+#define PROMOTE_WITHOUT_COLLECTING       0
+#define PROMOTE_WHILE_COLLECTING         1
+#define PROMOTE_WHOLESALE_THEN_PROMOTE   2
+#define PASS_THE_BUCK                    3
 
 typedef struct old_data old_data_t;
 
 struct old_data {
-  int  heap_no;
-  int  gen_no;
-  int  must_promote;           /* 1 if heap overflowed after last gc */
-  int  must_promote_immediately;  /* 1 if heap was overfull after last gc */
-  int  must_collect;           /* 1 if heap overflowed after last promote */
-  int  size_bytes;             /* our notion of target data size */
+  int         gen_no;             /* Generation and heap number */
+  semispace_t *current_space;     /* Space to promote into */
+  bool        is_ephemeral_area;  /* Otherwise, it's dynamic */
 
-  int  expansion_fixed;        /* 1 if expansion is fixed-size */
-  unsigned expand_fixed;       /* amount to expand by (bytes) */
-  unsigned expand_percent;     /* amount to expand by */
+  /* Strategy/Policy/Mechanism */
+  int         size_bytes;         /* Initial size */
+  int         target_size;        /* Current size */
+  double      load_factor;        /* That's the L from the formula above */
+  bool        must_clear_area;    /* Clear area after collection */
+  bool        must_clear_remset;  /* Clear remset after collection */
 
-  semispace_t *current_space;  /* Space to promote into */
-
-  unsigned hiwatermark;        /* Percent */
-  unsigned lowatermark;        /* Percent */
-  unsigned oflowatermark;      /* Percent */
-
-  unsigned copied_last_gc;     /* bytes */
+  /* Statistics counters */
+  int         copied_last_gc;     /* Bytes */
+  int         moved_last_gc;      /* Bytes */
+  int         promoted_last_gc;   /* Copied and moved in at last promotion */
 };
 
 #define DATA(x)  ((old_data_t*)((x)->data))
 
+static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem );
 
-static old_heap_t *allocate_old_sc_heap( int gen_no, int heap_no );
-static void post_promote_policy( old_heap_t *heap );
-static void post_gc_policy( old_heap_t *heap );
+static int  decision( old_heap_t *heap );
+static void perform_collect( old_heap_t *heap );
+static void perform_promote( old_heap_t *heap );
+static void perform_promote_then_promote( old_heap_t *heap );
+static int  compute_dynamic_size( old_heap_t *heap, int live, int los );
+static int  used_space( old_heap_t *heap );
+
 
 old_heap_t *
-create_old_heap( int *gen_no,             /* add at least 1 to this */
-		 int heap_no,             /* this is given */
-		 unsigned size_bytes,     /* size requested by user, or 0 */
-		 unsigned thiwatermark,   /* in percent */
-		 unsigned tlowatermark,   /* in percent */
-                 unsigned toflowatermark  /* in percent */
-		)
+create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
 {
   old_heap_t *heap;
   old_data_t *data;
 
-  assert( *gen_no > 0 );
+  assert( info->size_bytes > 0 );
 
-  if (size_bytes == 0) size_bytes = DEFAULT_TSIZE;
-  size_bytes = roundup_page( size_bytes );
-
-  if (thiwatermark == 0 || thiwatermark > 100)
-    thiwatermark = DEFAULT_THIWATERMARK;
-  if (tlowatermark == 0 || tlowatermark > 100)
-    tlowatermark = DEFAULT_TLOWATERMARK;
-  if (toflowatermark == 0 || toflowatermark > 100)
-    toflowatermark = DEFAULT_TOFLOWATERMARK;
-
-  annoyingmsg("Heap %d hi_mark=%u, lo_mark=%u, oflo_mark=%u.",
-              *gen_no, thiwatermark, tlowatermark, toflowatermark);
-
-  heap = allocate_old_sc_heap( *gen_no, heap_no );
+  heap = allocate_heap( gen_no, gc, ephemeral );
   data = DATA(heap);
 
-  *gen_no = *gen_no + 1;
+  data->current_space = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no );
+  data->size_bytes = roundup_page( info->size_bytes );
 
-  data->current_space =
-    create_semispace( size_bytes, data->heap_no, data->gen_no );
-  assert( data->current_space != 0 );
-
-  data->hiwatermark = thiwatermark;
-  data->lowatermark = tlowatermark;
-  data->oflowatermark = toflowatermark;
-  data->expansion_fixed = 0;
-  data->expand_fixed = OLDSPACE_EXPAND_BYTES/1024;
-  data->expand_percent = 50;
-
-  data->size_bytes = size_bytes;
-
+  if (!ephemeral) {
+    data->load_factor = info->load_factor;
+    data->target_size =
+      compute_dynamic_size( heap,
+			    data->size_bytes/data->load_factor,
+			    0 );
+  }
+  else
+    data->target_size = data->size_bytes;
   return heap;
 }
 
-
-static int initialize( old_heap_t *h );
-static void promote( old_heap_t *h );
-static void collect( old_heap_t *h );
-static void *allocate( old_heap_t *h, unsigned n, int must );
-static void stats( old_heap_t *h, int generation, heap_stats_t *s );
-static void before_promotion( old_heap_t *h );
-static void after_promotion( old_heap_t *h );
-static word *data_load_area( old_heap_t *, unsigned );
-static void set_policy( old_heap_t *heap, int op, unsigned value );
-
-static old_heap_t *
-allocate_old_sc_heap( int gen_no, int heap_no )
+static void collect_dynamic( old_heap_t *heap )
 {
-  old_heap_t *heap;
-  old_data_t *data;
-
-  heap = (old_heap_t*)must_malloc( sizeof( old_heap_t ) );
-  data = heap->data = (old_data_t*)must_malloc( sizeof( old_data_t ) );
-
-  heap->oldest = 0;
-  heap->id = "sc/variable";
-  heap->code = HEAPCODE_OLD_2SPACE;
-
-  data->gen_no = gen_no;
-  data->heap_no = heap_no;
-  data->must_promote = 0;
-  data->must_promote_immediately = 0;
-  data->must_collect = 0;
-  data->copied_last_gc = 0;
-
-  heap->initialize = initialize;
-  heap->before_promotion = before_promotion;
-  heap->after_promotion = after_promotion;
-  heap->collect = collect;
-  heap->allocate = allocate;
-  heap->promote_from_younger = promote;
-  heap->stats = stats;
-  heap->data_load_area = data_load_area;
-  heap->set_policy = set_policy;
-
-  return heap;
-}
-
-
-static int 
-initialize( old_heap_t *heap )
-{
-  /* Nothing special to do here, it's all been taken care of. */
-  return 1;
-}
-
-
-static void
-set_policy( old_heap_t *heap, int op, unsigned value )
-{
+  gc_t *gc = heap->collector;
   old_data_t *data = DATA(heap);
+  int alloc, i;
 
-  switch (op) {
-  case GCCTL_INCR_FIXED : /* incr-fixed.  Value is kilobytes. */
-    data->expansion_fixed = 1;
-    data->expand_fixed = value*1024;
-    break;
-  case GCCTL_INCR_PERCENT : /* incr-percent */
-    data->expansion_fixed = 0;
-    data->expand_percent = value;
-    break;
-  case GCCTL_HIMARK : /* himark -- expansion limit */
-    if (value > 100) value=100;
-    data->hiwatermark = value;
-    break;
-  case GCCTL_LOMARK : /* lomark -- contraction limit */
-    if (value > 100) value=100;
-    data->lowatermark = value;
-    break;
+  /* Compute live data in the ephemeral areas.  Note that ->allocated
+     included large objects.
+     */
+  alloc = gc->young_area->allocated;
+  for ( i = 0 ; i < gc->ephemeral_area_count ; i++ )
+    alloc += gc->ephemeral_area[i]->allocated;
+
+  annoyingmsg( "old-heap: DECISION for dynamic generation\n"
+	       "  alloc=%d target=%d used=%d",
+	       alloc, data->target_size, used_space( heap ) );
+
+  if (alloc <= data->target_size - used_space( heap ))
+    perform_promote( heap );
+  else {
+    data->must_clear_remset = 1;
+    perform_collect( heap );
+    ss_sync( data->current_space );
+    data->target_size = 
+      compute_dynamic_size( heap,
+			    data->current_space->used, 
+			    los_bytes_used( gc->los, data->gen_no ) );
+    annoyingmsg( "old-heap: recomputing size\n"
+		 "  size=%d, live dynamic=%d (%d%% full), live overall=%d", 
+		 data->target_size,
+		 data->current_space->used,
+		 data->current_space->used*100/data->target_size,
+		 used_space( heap ) );
   }
 }
 
-
-/* 
- * Promote all younger objects into this heap.
- * Precondition: before_promote() has been called for all younger heaps.
- */
-static void promote( old_heap_t *heap )
+static void collect_ephemeral( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
-  semispace_t *s;
-  unsigned used_before;
 
-  if (data->must_promote) {
-    if (!heap->oldest) {
-      heap->collector->promote_out_of( heap->collector, data->heap_no );
-      return;
+  switch( decision( heap ) ) {
+  case PROMOTE_WITHOUT_COLLECTING :
+    perform_promote( heap );
+    break;
+  case PROMOTE_WHILE_COLLECTING :
+    data->must_clear_remset = 1;
+    perform_collect( heap );
+    annoyingmsg( "old-heap: garbage collection finished\n"
+		 "  Size=%d, live=%d (%d%% full)",
+		 data->target_size,
+		 used_space( heap ),
+		 used_space( heap )*100/data->target_size );
+    break;
+  case PROMOTE_WHOLESALE_THEN_PROMOTE :
+    perform_promote_then_promote( heap );
+    break;
+  case PASS_THE_BUCK :
+    data->must_clear_area = 1;
+    data->must_clear_remset = 1;
+    gc_collect( heap->collector, data->gen_no+1, 0 );
+    break;
+  default :
+    panic( "Impossible" );
+  }
+}
+
+static int decision( old_heap_t *heap )
+{
+  old_data_t *data = DATA(heap);
+  gc_t *gc = heap->collector;
+  int X, Y, Z, M, Xnext;
+  int *live_est, i, n, j;
+
+  /* n: number of ephemeral areas (including young_area) */
+  /* i: _index_ in ephemeral_area[] of this heap */
+  n = heap->collector->ephemeral_area_count+1;
+  i = data->gen_no-1;
+
+  /* Gather information */
+  /* X: allocated in younger generations */
+  /* Y: allocated in this and younger generations */
+  /* M: sum of sizes of younger generations */
+  /* Note that it's possible to have X > M because of large objects */
+
+  X = gc->young_area->allocated;
+  M = gc->young_area->maximum;
+  for ( j=0 ; j < i ; j++ ) {
+    X += gc->ephemeral_area[j]->allocated;
+    M += gc->ephemeral_area[j]->maximum;
+  }
+  Y = X + gc->ephemeral_area[i]->allocated;
+
+  /* Z: estimate of live data to promote */
+  /* Xnext: Estimate of X next time */
+  Z = data->promoted_last_gc;
+  Xnext = (X+M) / 2;
+
+  annoyingmsg( "old-heap: DECISION for generation %d\n"
+	       "  M=%d, X=%d, Y=%d, Z=%d, Xnext=%d\n"
+	       "  alloc=%d, max=%d",
+	       data->gen_no, M, X, Y, Z, Xnext, 
+	       heap->allocated, heap->maximum );
+
+  /* Case 1: data will fit in this area. */
+  if (Y <= heap->maximum) {
+    if (heap->allocated + Z >= heap->maximum - Xnext)
+      return PROMOTE_WHILE_COLLECTING;
+    else
+      return PROMOTE_WITHOUT_COLLECTING;
+  }
+
+  /* Case 2: data will not fit, but can we do better than pass the buck? */
+  if (data->gen_no+1 < n) {
+    old_heap_t *next = gc->ephemeral_area[i+1];
+
+    if (heap->allocated <= next->maximum - next->allocated) {
+      /* Is there reason to believe that at the time of the next collection
+	 in E{i-1}, the storage now in E0 through E{i-1} will contain a higher
+	 fraction of garbage than Ei has now?
+	 */
+      /* For the time being, assume that is never the case. */
+      /* FIXME */
     }
-    else data->must_collect = 1;
   }
 
-  if (data->must_collect) {
-    heap->collect( heap );
-    return;
-  }
-
-  /* Experimental policy that allows overflowed heaps to be promoted
-   * more quickly.  In some sense, this policy is an implementation
-   * of premature tenuring, so we need to benchmark it carefully.
-   *
-   * Known so far:
-   *   Makes GC time for 50dynamic grow by 50%.
-   */
-#if PROMOTE_PREMATURELY
-  if (data->must_promote_immediately && !heap->oldest) {
-    heap->collector->promote_out_of( heap->collector, data->heap_no );
-    return;
-  }
-#endif
-
-  supremely_annoyingmsg( "Promoting into generation %d.", data->gen_no );
-  debugmsg( "[debug] old heap (%d,%d): promotion.", data->heap_no,
-	    data->gen_no );
-  stats_gc_type( data->gen_no, STATS_PROMOTE );
-
-  s = data->current_space;
-  ss_sync( s );
-  used_before = s->used;
-  gclib_copy_younger_into( heap->collector, s );
-  ss_sync( s );
-
-  supremely_annoyingmsg("  Size after promotion: %u.", s->used);
-
-  data->copied_last_gc = s->used - used_before;
-
-  post_promote_policy( heap );
+  /* Case 3: not here. */
+  return PASS_THE_BUCK;
 }
 
-
-static void *allocate( old_heap_t *heap, unsigned nbytes, int must )
-{
-  old_data_t *data = DATA(heap);
-  semispace_t *ss = data->current_space;
-  unsigned nwords = nbytes/sizeof(word);
-  word *p;
-
-  if (nbytes > data->size_bytes && !must)
-    return 0;
-  ss_sync( ss );
-  if (ss->used > data->size_bytes) {
-    heap->collector->collect( heap->collector, data->gen_no, GC_COLLECT, 0 );
-    ss = data->current_space;
-  }
-
-  if (ss->chunks[ss->current].lim - ss->chunks[ss->current].top < nwords)
-    ss_expand( ss, nbytes );
-
-  p = ss->chunks[ss->current].top;
-  ss->chunks[ss->current].top += nwords;
-  return p;
-}
-
-/*
- * Collect this and all younger heaps.
- * Precondition: before_promote() has been called for all younger heaps.
- */
-static void collect( old_heap_t *heap )
+static void perform_collect( old_heap_t *heap )
 {
   semispace_t *from, *to;
   old_data_t *data = DATA(heap);
 
-#if !PROMOTE_PREMATURELY
-  data->must_promote = data->must_promote || data->must_promote_immediately;
-#endif
-  if (data->must_promote && !heap->oldest) {
-    heap->collector->promote_out_of( heap->collector, data->heap_no );
-    return;
-  }
-
-  supremely_annoyingmsg( "Garbage collecting generation %d.", data->gen_no );
-  debugmsg( "[debug] old heap (%d,%d): collection.", data->heap_no,
-	    data->gen_no );
+  annoyingmsg( "old-heap: garbage collecting generation %d.", data->gen_no );
   stats_gc_type( data->gen_no, STATS_COLLECT );
 
   from = data->current_space;
-  to = create_semispace( OLDSPACE_EXPAND_BYTES, data->heap_no, data->gen_no );
+  to = create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
   
-  gclib_stopcopy_slow( heap->collector, to );       /* promote&copy */
+  gclib_stopcopy_collect( heap->collector, to );
 
   data->current_space = to;
   ss_free( from );
   ss_sync( to );
 
   data->copied_last_gc = to->used;
-  supremely_annoyingmsg( "  live after gc: %u", to->used );
-
-  post_gc_policy( heap );
+  data->moved_last_gc = los_bytes_used( heap->collector->los, data->gen_no );
 }
 
-
-static void
-post_promote_policy( old_heap_t *heap )
+static void perform_promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
-  semispace_t *s = data->current_space;
-  unsigned oflosize;
+  int used_before, tospace_before, los_before;
 
-  ss_sync( s );
-  oflosize = (data->size_bytes/100) * data->oflowatermark;
-  data->must_collect = 0;
+  annoyingmsg( "old-heap: promoting into generation %d.", data->gen_no );
+  stats_gc_type( data->gen_no, STATS_PROMOTE );
 
-  /* If heap overflowed during promotion, schedule a collection */
-  if (s->used > oflosize) {
-    if (data->copied_last_gc > oflosize) {
-      data->must_promote = 1;
-      supremely_annoyingmsg( "Generation %d decided to promote next time "
-                             "(used=%d).", data->gen_no, s->used );
-    }
-    else {
-      data->must_collect = 1;
-      supremely_annoyingmsg( "Generation %d decided to collect next time "
-			    "(used=%d).", data->gen_no, s->used );
-    }
-  }
+  used_before = used_space( heap );
+  ss_sync( data->current_space );
+  tospace_before = data->current_space->used;
+  los_before = los_bytes_used( heap->collector->los, data->gen_no );
+
+  gclib_stopcopy_promote_into( heap->collector, data->current_space );
+
+  annoyingmsg( "old-heap: promotion finished\n"
+	       "  Size=%d, used=%d (%d%% full)",
+	       data->target_size,
+	       used_space( heap ),
+	       used_space( heap )*100/data->target_size );
+
+  data->promoted_last_gc = used_space( heap ) - used_before;
+  data->copied_last_gc = data->current_space->used - tospace_before;
+  data->moved_last_gc =
+    los_bytes_used( heap->collector->los, data->gen_no ) - los_before;
 }
 
+static void perform_promote_then_promote( old_heap_t *heap )
+{
+  panic( "perform_promote_then_promote not implemented." );
+  /* FIXME */
+}
 
-static void
-post_gc_policy( old_heap_t *heap )
+static void before_collection( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
-  semispace_t *to = data->current_space;
 
-  data->must_promote = 0;
-  data->must_promote_immediately = 0;
-  data->must_collect = 0;
-
-  ss_sync( to );
-
-  /* Expand/contract/promote checking */
-
-  if (!heap->oldest) {
-    /* In non-oldest heaps, promote if overflowed */
-    if (to->used > data->size_bytes) {
-      data->must_promote_immediately = 1;
-      supremely_annoyingmsg( "Generation %d decided to promote ASAP "
-			     "(used=%d).", data->gen_no, to->used );
-    }
-    else if (to->used > data->size_bytes/100*data->oflowatermark) {
-      data->must_promote = 1;
-      supremely_annoyingmsg( "Generation %d decided to promote next time "
-			     "(used=%d).", data->gen_no, to->used );
-    }
-  }
-  else {
-    unsigned expanded = 0;
-
-    /* In oldest heaps, expand if overflowed. */
-
-    while (to->used > data->size_bytes/100*data->hiwatermark) {
-      if (data->expansion_fixed) {
-	data->size_bytes += data->expand_fixed;
-	expanded += data->expand_fixed;
-      }
-      else {
-	unsigned n = roundup_page(data->size_bytes/100*data->expand_percent);
-	data->size_bytes += n;
-	expanded += n;
-      }
-    }
-
-    if (expanded)
-      annoyingmsg( "Expanding generation %d by %u bytes; size=%u.", 
-		   data->gen_no, expanded, data->size_bytes );
-
-    /* If live is gc is under low watermark, contract by 33%.  */
-    /* FIXME: should be under user control too. */
-
-    if (!expanded && to->used < data->size_bytes/100*data->lowatermark) {
-      if (heap->oldest) {
-	unsigned n = roundup_page( data->size_bytes/3 );
-	data->size_bytes -= n;
-	annoyingmsg( "Contracting generation %d by %u bytes; size=%u.",
-		    data->gen_no, n, data->size_bytes );
-      }
-    }
-  }
+  data->must_clear_area = 0;
+  data->must_clear_remset = 0;
+  heap->maximum = data->target_size;
+  heap->allocated = used_space( heap );
 }
 
+static void after_collection( old_heap_t *heap )
+{
+  old_data_t *data = DATA(heap);
+
+  /* Clear area if data was promoted out */
+  if (data->must_clear_area) {
+    ss_free( data->current_space );
+    data->current_space = 
+      create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
+  }
+  if (data->must_clear_remset) 
+    rs_clear( heap->collector->remset[ data->gen_no ] );
+}
 
 static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
 {
   old_data_t *data = DATA(heap);
 
   ss_sync( data->current_space );
+
+  stats->live = used_space( heap );
   stats->copied_last_gc = data->copied_last_gc;
+  stats->moved_last_gc = data->moved_last_gc;
+  stats->semispace1 = data->current_space->allocated
+                    + los_bytes_used( heap->collector->los, data->gen_no );
+  stats->target = data->target_size;
+
   data->copied_last_gc = 0;
-  stats->live = data->current_space->used;
-  stats->semispace1 = data->current_space->allocated;
-  stats->target = data->size_bytes;
+  data->moved_last_gc = 0;
 }
 
-
-static void before_promotion( old_heap_t *heap )
+static word *data_load_area( old_heap_t *heap, int nbytes )
 {
-  debugmsg( "[debug] old-heap(%d,%d):before_promotion.", DATA(heap)->heap_no,
-	    DATA(heap)->gen_no );
-  /* Nothing, for now */
+  old_data_t *data = DATA( heap );
+  int n;
+
+  assert( nbytes > 0 );
+  assert( nbytes % BYTE_ALIGNMENT == 0 );
+
+  n = ss_allocate_and_insert_block( data->current_space, nbytes );
+  return data->current_space->chunks[ n ].bot;
 }
 
+/* Internal */
 
-static void after_promotion( old_heap_t *heap )
+/* The size of the dynamic area is computed based on live data.
+   The size is computed as the size to which current allocation can
+   grow before GC is necessary.  D = live small data, Q = live large 
+   data, S = live static data, L is the inverse load factor.
+
+   If we assume a steady state, then size = L*(D+S+Q) - D, since 
+   (D+S+Q) is live, and D is needed for the tospace during the next gc.
+
+   A refinement (maybe) is size = L*(D+S+Q) - kD where k is some
+   fudge factor to account for non-steady state; if k > 1, then growth
+   is assumed, if k < 1, contraction is assumed.  k > 1 seems more
+   useful.  I haven't tried this.
+
+   A different formula is size = L*(D+S+Q) - (D+S+Q); that formula is
+   independent of where data is located. It's also more conservative,
+   and it underestimates size.  However, it makes the effects of changes
+   to L more predictable.
+   */
+
+static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
 {
-  debugmsg( "[debug] old-heap(%d,%d):after_promotion.", DATA(heap)->heap_no,
-	    DATA(heap)->gen_no );
+  static_heap_t *s = heap->collector->static_area;
+  double L = DATA(heap)->load_factor;
+  int S = (s ? s->allocated : 0);
 
-  DATA(heap)->must_promote = 0;
-  DATA(heap)->must_promote_immediately = 0;
-  DATA(heap)->must_collect = 0;
-  DATA(heap)->copied_last_gc = 0;
-  ss_prune( DATA(heap)->current_space );
+  /* size = M - (S+Q+D) = L(D+S+Q) - (D+S+Q) */
+  return roundup_page( (int)(L*(D+S+Q) - (D+S+Q)) );
+
+  /* Dynamic size is M - copyspace = M - D = L(D+S+Q) - D */
+  /* return roundup_page( (int)(L*(D+S+Q) - D) ); */
 }
 
-
-static word *
-data_load_area( old_heap_t *heap, unsigned nbytes )
+static int used_space( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
-  chunk_t *c = &data->current_space->chunks[data->current_space->current];
 
-  if ((c->lim - c->top)*sizeof(word) >= nbytes) {
-    word *p = c->top;
-    c->top += nbytes/sizeof(word);
-    return p;
-  }
-  else
-    return 0;
+  ss_sync( data->current_space );
+  return data->current_space->used +
+           los_bytes_used( heap->collector->los, data->gen_no );
+}
+
+static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
+{
+  old_heap_t *heap;
+  old_data_t *data;
+
+  data = (old_data_t*)must_malloc( sizeof( old_data_t ) );
+  heap = create_old_heap_t( "sc/variable",
+			    HEAPCODE_OLD_2SPACE,
+			    0,                    /* initialize */
+			    (ephem ? collect_ephemeral : collect_dynamic),
+			    before_collection,
+			    after_collection,
+			    stats,
+			    data_load_area,
+			    0,                    /* FIXME: load_prepare */
+			    0,                    /* FIXME: load_data */
+			    0,	                  /* set_policy */
+			    data );
+  heap->collector = gc;
+  data->gen_no = gen_no;
+  data->copied_last_gc = 0;
+  data->moved_last_gc = 0;
+  data->promoted_last_gc = 0;
+  data->is_ephemeral_area = ephem;
+  data->load_factor = 0.0;
+  data->target_size = 0;
+  data->must_clear_area = 0;
+  data->must_clear_remset = 0;
+
+  return heap;
 }
 
 /* eof */

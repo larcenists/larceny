@@ -2,8 +2,6 @@
 ; Larceny test suite -- test scaffolding
 ;
 ; $Id$
-;
-; See e.g. arith.sch for an example of how to use this.
 
 ; Generic test procedure; compares answer to expected answer.
 ; It requires that the answer and the expected answer are represented in
@@ -26,15 +24,6 @@
 
 (define (allof/noncritical . x)
   #t)
-
-; Lifted from the library -- should be public!
-
-(define (call-with-reset-handler handler thunk)
-  (let ((old-handler (reset-handler)))
-    (dynamic-wind 
-     (lambda () (reset-handler handler))
-     thunk
-     (lambda () (reset-handler old-handler)))))
 
 (define (safely thunk token)
   (call-with-current-continuation

@@ -8,18 +8,20 @@
 
 ($$trace "conio")
 
-(define *conio-firsttime* #t)
+(define *conio-input-firsttime* #t)
+(define *conio-output-firsttime* #t)
 
 (define (console-io/initialize)
-  (set! *conio-firsttime* #t)
+  (set! *conio-input-firsttime* #t)
+  (set! *conio-output-firsttime* #t)
   #t)
 
 (define (console-io/ioproc op)
   (case op
     ((read) 
-     (file-io/ioproc op))
+     (file-io/ioproc op))		; wrong if console is intermittent
     ((write) 
-     (file-io/ioproc op))
+     (file-io/ioproc op))		; ditto
     ((close) 
      (lambda (data)
        (let ((r (sys$close-terminal (file-io/fd data))))
@@ -37,15 +39,15 @@
      #t)))
 
 (define (console-io/open-input-console)
-  (let ((fd (sys$open-terminal 'input *conio-firsttime*)))
-    (set! *conio-firsttime* #f)
+  (let ((fd (sys$open-terminal 'input *conio-input-firsttime*)))
+    (set! *conio-input-firsttime* #f)
     (io/make-port console-io/ioproc
 		  (file-io/data fd "*console-input*")
 		  'input)))
 
 (define (console-io/open-output-console)
-  (let ((fd (sys$open-terminal 'output *conio-firsttime*)))
-    (set! *conio-firsttime* #f)
+  (let ((fd (sys$open-terminal 'output *conio-output-firsttime*)))
+    (set! *conio-output-firsttime* #f)
     (io/make-port console-io/ioproc
 		  (file-io/data fd "*console-output*")
 		  'output

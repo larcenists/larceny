@@ -10,66 +10,51 @@
 
 ($$trace "load")
 
-(define *load-noise-level* #f)
-
 (define load-evaluator
   (system-parameter "load-evaluator"
 		    (lambda (expr env)
-		      (eval expr env))))
+		      (eval expr env)))) ; That's in Eval/eval.sch.
 
 (define (load filename . rest)
 
   (define (get-environment)
     (cond ((null? rest)
 	   (interaction-environment))
-	  ((and (null? (cdr rest))
-		(environment? (car rest)))
+	  ((null? (cdr rest))
 	   (car rest))
 	  (else
 	   (error "load: too many arguments")
 	   #t)))
 
-  (define (eval-expr expr env)
-    ((load-evaluator) expr env))
+  ;; The environment must be recomputed for each expression evaluation --
+  ;; the loaded expressions may change the interaction environment, and
+  ;; when the environment is implicit, that change should be reflected in
+  ;; subsequent evaluations.
 
-  (define (display-result value)
-    (if *load-noise-level*
-	(repl-display value)))
-
-  (define (load-file env)
+  (define (load-file)
     (let ((p (open-input-file filename)))
       (do ((expr (read p) (read p)))
 	  ((eof-object? expr))
-	(display-result (eval-expr expr env)))
+	((load-evaluator) expr (get-environment)))
       (close-input-port p)
       (unspecified)))
 
-  (let* ((env (get-environment))
-	 (old-resolver (global-name-resolver))
-	 (new-resolver (lambda (sym)
-			 (environment-lookup-binding env sym))))
+  ;; The linker is implicit in the loader (as the #^G thing) and uses
+  ;; global-name-resolver as the linker.  The following hacks make
+  ;; sure that global-name-resolver uses the right environment.  We
+  ;; need to separate linking from loading, which will remove this
+  ;; silliness.
+
+  (let ((old-resolver (global-name-resolver))
+	(new-resolver (lambda (sym)
+			(environment-lookup-binding (get-environment) sym))))
     (dynamic-wind 
      (lambda () (global-name-resolver new-resolver))
-     (lambda () (load-file env))
+     (lambda () (load-file))
      (lambda () (global-name-resolver old-resolver)))))
 
-(define (load-noisily . args)
-  (let ((noise-level *load-noise-level*))
-    (set! *load-noise-level* #t)
-    (if (not (null? args))
-	(begin (load (car args))
-	       (set! *load-noise-level* noise-level)))
-    (unspecified)))
 
-(define (load-quietly . args)
-  (let ((noise-level *load-noise-level*))
-    (set! *load-noise-level* #f)
-    (if (not (null? args))
-	(begin (load (car args))
-	       (set! *load-noise-level* noise-level)))
-    (unspecified)))
-
-; list->procedure is used by the reader to deal with #^P.
+; List->procedure is used by the reader to deal with #^P.
 
 (define (list->procedure list)
   (let ((p (make-procedure (length list))))

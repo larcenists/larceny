@@ -80,25 +80,64 @@
 	(sparc.label  as L2))))
 
 ; ARGS>=
-;
-; Variable-length argument list check does the check and then drops into
-; millicode to gather arguments into a list.
-;
-; FIXME: We can remove the checking bit here; the millicode does it too.
 
 (define (emit-args>=! as n)
-  (let ((L2 (new-label)))
-    (sparc.cmpi   as $r.result (thefixnum n))      ; FIXME: limit 1023 args
-    (sparc.bge    as L2)
-    (sparc.set    as (thefixnum n) $r.argreg2)     ; FIXME: ditto
+  (emit-old-args>=! as n))
+
+; New
+;
+; The cases for 0 and 1 rest arguments are handled in-line; all other
+; cases, including too few, are handled in millicode (really: a C call-out).
+;
+; The fast path only applies when we don't have to mess with the last
+; register, hence the test.
+
+(define (emit-new-args>=! as n)
+  (let ((L0  (new-label))
+	(L99 (new-label))
+	(L98 (new-label)))
+    (if (<= n (- lastreg 2))
+	(let ((dest (regname (+ n 1))))
+	  (sparc.cmpi   as $r.result (thefixnum n)) ; n args
+	  (if (hardware-mapped? dest)
+	      (begin
+		(sparc.be.a   as L99)
+		(sparc.set    as $imm.null dest))
+	      (begin
+		(sparc.set    as $imm.null $r.tmp0)
+		(sparc.be.a   as L99)
+		(sparc.sti    as $r.tmp0 (offsetof dest) $r.globals)))
+	  (sparc.cmpi   as $r.result (thefixnum (+ n 1))) ; n+1 args
+	  (sparc.bne.a  as L98)
+	  (sparc.nop    as)
+	  (millicode-call/numarg-in-result as $m.alloc 8)
+	  (let ((src1 (force-hwreg! as dest $r.tmp1)))
+	    (sparc.set as $imm.null $r.tmp0)
+	    (sparc.sti as src1 0 $r.result)
+	    (sparc.sti as $r.tmp0 4 $r.result)
+	    (sparc.addi as $r.result $tag.pair-tag $r.result)
+	    (sparc.b as L99)
+	    (if (hardware-mapped? dest)
+		(sparc.move as $r.result dest)
+		(sparc.sti  as $r.result (offsetof dest) $r.globals)))))
+    ; General case
+    (sparc.label  as L98)
+    (sparc.move   as $r.reg0 $r.argreg3)  ; FIXME in Sparc/mcode.s
+    (millicode-call/numarg-in-reg as $m.varargs (thefixnum n) $r.argreg2)
+    (sparc.label  as L99)))
+
+(define (emit-old-args>=! as n)
+  (let ((L0 (new-label)))
+    (sparc.cmpi   as $r.result (thefixnum n))  ; FIXME: limit 1023 args
+    (sparc.bge    as L0)
+    (sparc.set    as (thefixnum n) $r.argreg2) ; FIXME: ditto
     (sparc.move   as $r.reg0 $r.argreg3)
     (millicode-call/numarg-in-reg as 
 				  $m.exception
 				  (thefixnum $ex.vargc)
 				  $r.tmp0)
-    (sparc.label  as L2)
-    (millicode-call/0arg as $m.varargs)))
-
+    (sparc.label  as L0)
+    (millicode-call/0arg as $m.varargs)))      ; Argreg2 was set up above.
 
 ; INVOKE
 ;

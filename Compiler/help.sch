@@ -19,6 +19,7 @@
 	      *help-topics*))
 
   (define (writeln . x)
+    (display "  ")
     (for-each display x)
     (newline))
 

@@ -3,14 +3,29 @@
 ;
 ; $Id: reploop.sch,v 1.5 1997/09/17 15:14:58 lth Exp $
 
+; User-accessible parameter procedures:
+;
+;  repl-prompt
+;    Procedure parameter that takes the nesting level and prints a prompt.
+;
+;  repl-evaluator 
+;    Procedure parameter that takes an expression and an environment and
+;    evaluates the expression, returning all its return values.
+;
+;  repl-printer
+;    Procedure parameter that takes a value and prints it on the current
+;    output port.
+
+
 ($$trace "reploop")
 
 (define *init-file-name* ".larceny")  ; Unix-ism.
 (define *file-arguments* #f)          ; #t if file arguments were loaded
 (define *reset-continuation* #f)      ; current longjump point
 (define *saved-continuation* #f)      ; last saved error continuation
+(define *repl-level* 0)               ; nesting level
 
-;;; Entry point in a bootstrap heap.
+; Entry point in a bootstrap heap.
 
 (define (main argv)
   (init-toplevel-environment)
@@ -20,53 +35,86 @@
   (rep-loop-bootstrap argv))
 
 
-;;; Entry point in a saved interactive heap.
+; Entry point in a saved interactive heap.
 
 (define (rep-loop-bootstrap argv)
+  (set! *file-arguments* #f)
+  (set! *reset-continuation* #f)
+  (set! *repl-level* 0)
   (command-line-arguments argv)
   (record-current-console-io)
-  (standard-timeslice (- (expt 2 29) 1))    ; Largest possible slice.
+  (standard-timeslice (- (expt 2 29) 1)) ; Largest possible slice.
   (setup-interrupts)
   (failsafe-load-init-file)
   (failsafe-load-file-arguments)
-  (rep-loop))
+  (newline)
+  (repl)
+  (exit 0))
 
+(define (repl)
 
-;;; Read-eval-print loop.
+  (define done #f)
 
-(define (rep-loop)
+  (define (repl-display result)
+    (call-with-error-handler
+     (lambda (who . args)
+       (reestablish-console-io)
+       (format #t "Error: Bogus display procedure; reverting to default.")
+       (repl-printer default-repl-printer)
+       (reset))
+     (lambda ()
+       ((repl-printer) result))))
 
-  (define (rep-loop)
-    (display "> ")
+  (define (repl)
+    ((repl-prompt) *repl-level*)
     (flush-output-port)
     (let ((expr (read)))
       (if (not (eof-object? expr))
-	  (let ((result ((repl-evaluator) expr (interaction-environment))))
+	  (let ((results (call-with-values 
+			  (lambda ()
+			    ((repl-evaluator) expr (interaction-environment)))
+			  (lambda values
+			    values))))
 	    (reestablish-console-io)
-	    (repl-display result)
-	    (rep-loop))
-	  (begin (newline)
-		 (exit)))))
+	    (cond ((null? results)
+		   (repl-display "; No values"))
+		  ((null? (cdr results))
+		   (repl-display (car results)))
+		  (else
+		   (repl-display (string-append
+				  "; "
+				  (number->string (length results))
+				  " values"))
+		   (for-each (lambda (x)
+			       (repl-display x))
+			     results)))
+	    (repl))
+	  (begin
+	    (reestablish-console-io)
+	    (newline)
+	    (set! done #t)
+	    (*reset-continuation* #f)))))
 
-  ; Setup the error continuation
+  ; Setup the error continuation.  We wrap it in a dynamic-wind to allow
+  ; REPLs to be nested.
 
-  (call-with-current-continuation
-   (lambda (k)
-     (set! *reset-continuation* k)))
-  (newline)
-  (rep-loop))
+  (let ((x *reset-continuation*))
+    (let ((k #f))
+      (call-with-current-continuation
+       (lambda (c) (set! k c)))
+      (if (not done)
+	  (dynamic-wind
+	   (lambda ()
+	     (set! *reset-continuation* k)
+	     (set! *repl-level* (+ *repl-level* 1)))
+	   (lambda ()
+	     (repl))
+	   (lambda ()
+	     (set! *repl-level* (- *repl-level* 1))
+	     (set! *reset-continuation* x))))))
+  (unspecified))
 
-
-;;; Read-eval-print loop evaluator.
-
-(define repl-evaluator
-  (system-parameter "repl-evaluator" #f))
-
-
-;;; Read-eval-print loop printer.  The print procedure defaults to a simple
-;;; wrapper around 'display', but the procedure is installable, so that
-;;; higher-level code can install e.g. a pretty-printer as the default
-;;; print procedure.
+; The default printer uses "display" and does not print unspecified values.
 
 (define default-repl-printer
   (lambda (result)
@@ -74,24 +122,30 @@
 	(begin (display result)
 	       (newline)))))
 
+(define repl-prompt
+  (system-parameter "repl-prompt"
+		    (lambda (level)
+		      (do ((i 0 (+ i 1)))
+			  ((= i level))
+			(write-char #\>))
+		      (write-char #\space))))
+
+(define repl-evaluator
+  (system-parameter "repl-evaluator" #f))
+
 (define repl-printer
   (system-parameter "repl-printer" default-repl-printer))
 
+; User-available procedures.
 
-; Called by repl and by loader.
+(define (error-continuation)
+  *saved-continuation*)
 
-(define (repl-display result)
-  (call-with-error-handler
-   (lambda (who . args)
-     (reestablish-console-io)
-     (format #t "Error: Bogus display procedure; reverting to default.")
-     (repl-printer default-repl-printer)
-     (reset))
-   (lambda ()
-     ((repl-printer) result))))
+(define (dump-interactive-heap filename)
+  (dump-heap filename rep-loop-bootstrap))
 
 
-;;; Console i/o handling -- after an error, console i/o must be reset.
+; Console i/o handling -- after an error, console i/o must be reset.
 
 (define *conin* #f)                   ; console input
 (define *conout* #f)                  ; console output
@@ -102,7 +156,8 @@
 
 (define (reestablish-console-io)
   (if (or (not (io/open-port? *conin*))
-	  (io/port-error-condition? *conin*))
+	  (io/port-error-condition? *conin*)
+	  (io/port-at-eof? *conin*))
       (set! *conin* (console-io/open-input-console)))
   (if (or (not (io/open-port? *conout*))
 	  (io/port-error-condition? *conout*))
@@ -111,18 +166,18 @@
   (current-output-port *conout*))
 
 
-;;; Error handling.
-;;;
-;;; We set up customized error and reset handlers so that we can
-;;; capture errors and save a debugging continuation for a backtrace.
-;;;
-;;; The new error handler captures the current continuation _structure_,
-;;; saves it in the global *saved-continuation*, and then invokes the
-;;; previously defined (default) error handler, which in normal cases will
-;;; print an error message and then do a (reset).
-;;;
-;;; The new reset handler does a longjump to the currently saved
-;;; reset continuation, which will be set up by the read-eval-print loop.
+; Error handling.
+;
+; We set up customized error and reset handlers so that we can
+; capture errors and save a debugging continuation for a backtrace.
+;
+; The new error handler captures the current continuation _structure_,
+; saves it in the global *saved-continuation*, and then invokes the
+; previously defined (default) error handler, which in normal cases will
+; print an error message and then do a (reset).
+;
+; The new reset handler does a longjump to the currently saved
+; reset continuation, which will be set up by the read-eval-print loop.
 
 (define (setup-error-handlers)
   (reset-handler new-reset-handler)
@@ -142,7 +197,7 @@
       (exit)))
 
 
-;;; Interrupt handling.
+; Interrupt handling.
 
 (define (setup-interrupts)
   (let ((old-handler (interrupt-handler)))
@@ -162,16 +217,7 @@
     (enable-interrupts (standard-timeslice))))
 
 
-;;; User-available procedures.
-
-(define (error-continuation)
-  *saved-continuation*)
-
-(define (dump-interactive-heap filename)
-  (dump-heap filename rep-loop-bootstrap))
-
-
-;;; Init file loading.
+; Init file loading.
 
 (define (failsafe-load-init-file)
   (cond ((file-exists? *init-file-name*)
