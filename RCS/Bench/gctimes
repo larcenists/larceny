@@ -1,0 +1,30 @@
+Garbage collection times
+------------------------
+Ephemeral collection, Sparc IPC, 0.99 MB live data, empty transaction list:
+  456 ms
+
+Tenuring Collection, Sparc IPC, 0.99 MB live data:
+  526 ms
+
+(Note: The times include profiling overhead. The only non-literal data type
+       in the heap at the time of collection is the continuation frame (a
+       vector). Each frame is 5 words long, plus one word of padding.)
+
+(Note: Times averaged over 5 runs, and based on output from 'gprof'. Times
+       do not include stack flush time, merely raw collection time.)
+
+
+Memory Bandwidth
+----------------
+Memory Bandwidth, Sparc IPC, hand-coded, copying doublewords:
+  130 ms / 1 MB.
+
+Memory Bandwidth, Sparc IPC, compiled, copying words:
+  180 ms / 1 MB (sun's standard 'cc' with "-O4 -dalign")
+  280 ms / 1 MB (GNU cc v 1.39 with "-O -fstrength-reduce")
+
+(Note: Sun 'cc' produces code that which is cache-conscious and also unrolls
+       the loop a fair bit, neither of which is done by 'gcc'. This explains
+       the large difference in times. In this respect the latter is probably
+       more realistic, since copy bounds are not fixed during a garbage
+       collection.)
