@@ -43,13 +43,25 @@
 ; in ERROR.SCH.  
 ;
 ; Documented behavior: the default error handler prints all its
-; arguments and then calls reset. The error handler may not return to
-; noncontinuable errors.  Currently all errors are noncontinuable.
+; arguments safely and then calls reset. The error handler may not 
+; return to noncontinuable errors.  Currently all errors are 
+; noncontinuable.
 
 (define error-handler
   (system-parameter "error-handler" 
-                    (lambda args
-                      (decode-error args) ; In ERROR.SCH
+                    (lambda args 
+                      ; FIXME: use PARAMETERIZE.
+                      (let ((length (print-length))
+                            (level  (print-level)))
+                        (dynamic-wind
+                         (lambda ()
+                           (print-length 7) ; OK to hardwire these since
+                           (print-level 7)) ;   debugger installs new handler.
+                         (lambda ()
+                           (decode-error args))
+                         (lambda ()
+                           (print-length length)
+                           (print-level level))))
                       (reset))))
 
 ; The reset handler is called by the RESET procedure.  It takes no arguments.
@@ -102,8 +114,8 @@
 ; for which a lowlevel handler has been installed.  It takes one argument:
 ; the signal.
 ;
-; The meaning of the signal is operating-system dependent.  On Unix, it
-; is a small nonnegative exact integer.
+; The meaning and representation of the signal are operating-system dependent.
+; On Unix, it is a small nonnegative exact integer -- the signal number.
 
 (define system-signal-handler
   (system-parameter "system-signal-handler"
@@ -119,10 +131,6 @@
 
 (define (decode-system-error code arg1 arg2 arg3 port)
 
-  ; Print faulting object?
-
-  (define print-object? #t)
-
   (define (error . args)
     (display "Error: " port)
     (do ((args args (cdr args)))
@@ -130,32 +138,22 @@
       (display (car args) port)))
 
   (define (not-a-pair name obj)
-    (if print-object?
-        (error name ": " obj " is not a pair.")
-        (error name ": not a pair.")))
+    (error name ": " obj " is not a pair."))
 
   (define (not-a-num name obj)
-    (if print-object?
-        (error (string-append name ": ") obj " is not a number.")
-        (error (string-append name ": not a number."))))
+    (error (string-append name ": ") obj " is not a number."))
 
   (define (not-a-real name obj)
-    (if print-object?
-        (error (string-append name ": ") obj " is not a real number.")
-        (error (string-append name ": not a real number."))))
+    (error (string-append name ": ") obj " is not a real number."))
 
   (define (not-an-int name obj)
-    (if print-object?
-        (error (string-append name ": ") obj " is not an integer.")
-        (error (string-append name ": not an integer."))))
+    (error (string-append name ": ") obj " is not an integer."))
 
   (define (div-by-zero name obj1 obj2)
     (error (string-append name ": division by zero: ") obj1 " " obj2))
 
   (define (not-a-fix name obj)
-    (if print-object?
-        (error (string-append name ": ") obj " is not a fixnum.")
-        (error (string-append name ": not a fixnum."))))
+    (error (string-append name ": ") obj " is not a fixnum."))
 
   (define (num-binop name arg1 arg2)
     (cond ((not (number? arg1)) (not-a-num name arg1))
@@ -202,15 +200,11 @@
   (define (dstruct code reffer thing test? length arg1 arg2 . rest)
     (let ((name (string-append thing (if (= code reffer) "-ref:" "-set!:"))))
       (cond ((not (test? arg1))
-             (if print-object?
-                 (error name " " arg1 " is not a " thing)
-                 (error name " not a " thing)))
+             (error name " " arg1 " is not a " thing))
             ((or (not (fixnum? arg2))
                  (< arg2 0)
                  (>= arg2 (length arg1)))
-             (if print-object?
-                 (error name " " arg2 " is not a valid index into " thing)
-                 (error name " invalid index into " thing)))
+             (error name " " arg2 " is not a valid index into " thing))
             ((and (not (null? rest))
                   (not (= code reffer))
                   (not ((car rest) (cadr rest))))
@@ -464,9 +458,7 @@
                (error "Apply: I'm sooo confused..."))))
 
        ((= code $ex.nonproc)
-        (if print-object?
-            (error "Attempt to apply " arg1 ", which is not a procedure.")
-            (error "Attempt to apply non-procedure.")))
+        (error "Attempt to apply " arg1 ", which is not a procedure."))
 
        ;; The pointer to the global Cell should now be in arg1 (RESULT).
        ;; Since a cell is a pair (currently!), and we know that the CDR
