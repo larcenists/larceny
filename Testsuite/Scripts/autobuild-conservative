@@ -13,11 +13,13 @@ CUSTOM_EXTRA='(issue-warnings #f) (inline-allocation #f)'
 
 CUSTOM_EXPRESSIONS="${CUSTOM_EXPRESSIONS:-$CUSTOM_DEFAULT} $CUSTOM_EXTRA"
 
+BUILD_SYSTEM=${BUILD_SYSTEM:-1}
 BUILD_GC_TESTS=${BUILD_GC_TESTS:-1}
 RUN_GC_TESTS=${RUN_GC_TESTS:-1}
 LOG="log.auto"
 TRACE="trace.auto"
 
+if [ $BUILD_HEAP != 0 ]; then
 build -chez <<EOF
 $CUSTOM_EXPRESSIONS
 (system "make libclean faslclean")
@@ -41,6 +43,7 @@ $CUSTOM_EXPRESSIONS
 (make-development-environment)
 EOF
 cmp sparc.heap sparc.heap.safe || ( echo "ERROR -- heaps not equal" ; exit 1 )
+fi
 
 if [ $BUILD_GC_TESTS != 0 ]; then
   build -lb <<EOF
@@ -54,6 +57,6 @@ if [ $RUN_GC_TESTS != 0 ]; then
   cd Testsuite/GC
   ../../larceny.bin ../../sparc.heap <<EOF
 (load "../run-gc-tests.sch")
-(run-gc-tests "../../larceny.bin" "../../sparc.heap" "$LOG" "$TRACE")
+(run-gc-tests "../../larceny.bin" "../../sparc.heap" "$LOG" "$TRACE" 'conservative)
 EOF
 fi
