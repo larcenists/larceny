@@ -199,6 +199,20 @@
     (lambda (p)
       (with-output-to-port p thunk))))
 
+(define (transcript-on filename)
+  (transcript-io/push filename)
+  ((transcript-event-notifier))
+  (unspecified))
+
+(define (transcript-off)
+  (transcript-io/pop)
+  ((transcript-event-notifier))
+  (unspecified))
+
+(define transcript-event-notifier
+  (system-parameter 'transcript-event-notifier (lambda () #t)))
+
+
 ; Close-open-files is useful for (interactive) error recovery.
 
 (define (close-open-files)
