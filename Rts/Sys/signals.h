@@ -2,7 +2,67 @@
  *
  * $Id$
  *
- * Larceny Run-time system -- Unix signal handling.
+ * Larceny Run-time system -- signal handling.
+ *
+ * Signals are either synchronous (SIGFPE, SIGBUS, SIGSEGV, SIGILL) or 
+ * asynchronous (SIGINT, SIGQUIT, etc).  Synchronous signals must be 
+ * handled as they occur, whereas asynchronous signals can be handled
+ * when it is convenient to do so.
+ *
+ * A signal can occur when the virtual machine is in one of three modes:
+ *  - in compiled code or millicode
+ *  - in a non-interruptible syscall or in system code (eg, GC)
+ *  - in an interruptible syscall, including user-written foreign functions
+ *
+ * Thus we have six cases to deal with.
+ *
+ * (1) Synchronous signals in compiled code or millicode: since we are in
+ *     control over the code that is executing, it is straightforward to
+ *     guarantee that the synchronous signals of interest either do not
+ *     occur or occur at well-defined places (eg SIGFPE), or can be treated
+ *     as an error, (eg SIGBUS, SIGSEGV).  In any event, these errors are
+ *     handled by what is effectively a longjump to a handler for these
+ *     types of errors (currently called execute_sigfpe_magic(), but that
+ *     name should change).
+ *
+ * (2) Synchronous signals in non-interruptible syscall or in system code:
+ *     these do not occur -- or are errors when they do occur -- since the
+ *     only non-interruptible syscalls that exist are under our control
+ *     and can be known not to create conditions that result in synchronous
+ *     signals.  Ditto system code.
+ *
+ * (3) Synchronous signals in interruptible syscalls or foreign functions: 
+ *     SIGBUS and SIGSEGV are errors and can be handled as such by aborting
+ *     the syscall and signalling the error, but things like SIGFPE are more
+ *     problematic because they may occur for legitimate reasons, yet it is
+ *     impossible to continue execution.  It seems that a reasonable solution
+ *     would be to allow for a user-installable signal handler procedure
+ *     that can be called by Larceny's signal handler, and that may control
+ *     execution in the syscall or foreign functions.
+ *
+ * (4) Asynchronous signals in compiled code or millicode: these are recorded
+ *     as delivered in the virtual machine context and are handled in
+ *     millicode or compiled code at the next timer expiration (or when the
+ *     timer is next manipulated).  After recording the signal, the signal
+ *     handler returns.
+ *
+ * (5) Asynchronous signals in non-interruptible syscalls: these are handled
+ *     exactly as for case (4).
+ *
+ * (6) Asynchronous signals in interruptible syscalls or foreign functions:
+ *     these are recorded as delivered in the virtual machine context and
+ *     are handled in millicode or compiled code at the next timer expiration
+ *     (or when the timer is next manipulated).  After recording the signal,
+ *     the signal handler aborts the syscall or foreign function by a
+ *     longjump to the callout point.
+ *
+ * The interface defined in this file should generalize to signal handling
+ * systems of capability similar to that of 4.3 BSD or POSIX.  Note that
+ * this does not include ANSI/ISO C, which has an extremely weak signal
+ * specification.
+ *
+ * The implementation is scattered across Sys/signals.h, Sys/signals.c, and
+ * $MACHINE/signals.c.
  */
 
 #ifndef INCLUDED_SIGNALS_H
@@ -10,65 +70,37 @@
 
 #include <signal.h>
 #include <setjmp.h>
-#if defined(SUNOS5)
-#include <ucontext.h>
-#endif
 
 #include "config.h"
 
-#if defined(SUNOS4)
-extern int sigsetmask( int mask );
-#endif
-
-#if defined(SUNOS5)
-void block_all_signals( sigset_t *s );
-void unblock_signals( sigset_t *s );
-void unblock_all_signals( void );
-#endif
-
-#define OLD_SIGNAL_HANDLER   0    /* misc. asynch. interrupts */
-#define OLD_FPE_HANDLER      0    /* arithmetic exceptions (synchronous) */
-
-#define SYNCHRONOUS_ERROR    1    /* SIGFPE */
-#define ASYNCHRONOUS_ERROR   2    /* SIGINT, etc */
-
-#if OLD_SIGNAL_HANDLER
-# define BEGIN_INTERRUPTIBLE_SYSCALL()
-# define END_INTERRUPTIBLE_SYSCALL()
+#if !defined(STDC_SOURCE) && (defined(SUNOS4) || defined(BSD_SOURCE))
+# define signal_set_t int
+# define BSD_SIGNALS
+#elif defined(STDC_SOURCE)
+# define signal_set_t int
+# define STDC_SIGNALS
 #else
-
-extern jmp_buf syscall_interrupt_buf;
-extern int     in_interruptible_syscall;
-
-#if defined(SUNOS4)
-extern int syscall_mask;
-
-# define BEGIN_INTERRUPTIBLE_SYSCALL() \
-  do { \
-    syscall_mask = sigsetmask(-1); \
-    in_interruptible_syscall = 1; \
-    if (setjmp( syscall_interrupt_buf ) != 0) { \
-      sigsetmask( -1 ); \
-      in_interruptible_syscall = 0; \
-      globals[ G_RESULT ] = UNDEFINED_CONST; \
-      sigsetmask( syscall_mask ); \
-      return; \
-    } \
-    sigsetmask( syscall_mask ); \
-  } while(0)
-
-# define END_INTERRUPTIBLE_SYSCALL() \
-  do { \
-    sigsetmask( -1 ); \
-    in_interruptible_syscall = 0; \
-    sigsetmask( syscall_mask ); \
-  } while(0)
-#endif
+# define signal_set_t sigset_t
+# define POSIX_SIGNALS
 #endif
 
-#if defined(SUNOS5)
-extern sigset_t syscall_blocked_signals;
+/* These are values returned to the setjmp() below */
+#define SYNCHRONOUS_ERROR    1    /* SIGFPE, SIGBUS, SIGSEGV, SIGILL */
+#define ASYNCHRONOUS_ERROR   2    /* SIGINT, SIGQUIT, etc */
 
+/* In signals.c */
+extern void         block_all_signals( signal_set_t *s );
+extern void         unblock_signals( signal_set_t *s );
+extern void         unblock_all_signals( void );
+extern jmp_buf      syscall_interrupt_buf;
+extern int          in_interruptible_syscall;
+extern int          in_noninterruptible_syscall;
+extern signal_set_t syscall_blocked_signals;
+
+/* In $MACHINE/signals.c */
+extern void execute_sigfpe_magic( void *context ); /* misnamed */
+
+/* This facility is not reentrant */
 # define BEGIN_INTERRUPTIBLE_SYSCALL() \
   do { \
     block_all_signals( &syscall_blocked_signals ); \
@@ -89,9 +121,6 @@ extern sigset_t syscall_blocked_signals;
     in_interruptible_syscall = 0; \
     unblock_signals( &syscall_blocked_signals ); \
   } while(0)
-#endif
-
-void execute_sigfpe_magic( void *context );
 
 #endif
 
