@@ -1,0 +1,10 @@
+The index for ~larceny/Lib/Obsolete
+$Id$
+
+This directory contains obsolete code that was previously in
+~larceny/Lib.
+
+arithmetic.scm
+  Arithmetic and other numeric stuff.
+
+
