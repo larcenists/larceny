@@ -8,7 +8,9 @@
 
 #define GC_INTERNAL
 
-#include <sys/time.h>
+#ifdef UNIX
+# include <sys/time.h>
+#endif
 #include <string.h>
 #include "larceny.h"
 #include "memmgr.h"
