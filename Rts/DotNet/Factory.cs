@@ -215,8 +215,9 @@ namespace Scheme.Rep {
 
         public static SVL makeSymbolUninterned(string str) {
             SObject name = makeString(str);
-            SObject hash = makeNumber(stringHash(str));
-            return new SVL(Tags.SymbolTag, new SObject[]{name, hash, Factory.Null});
+            // No need to hash here because the runtime will redo it.
+            // SObject hash = makeNumber(stringHash(str));
+            return new SVL(Tags.SymbolTag, new SObject[]{name, makeFixnum(0), Factory.Null});
         }
 
         // Duplicates string-hash in Lib/Common/string.sch
