@@ -222,6 +222,10 @@
 #define HAVE_STRNCASECMP          1
 #define HAVE_HRTIME_T             1
 #define STACK_UNDERFLOW_COUNTING  1
+#define GC_HIRES_TIMERS           0
+#define GC_EVENT_COUNTERS         0
+#define GCLIB_LARGE_TABLE         0 /* Experimental */
+#define RETURN_MEMORY_TO_OS       0 /* Experimental */
 
 /* MacOS; Metrowerks codewarrior (Petit Larceny).
 #define PETIT_LARCENY             1
