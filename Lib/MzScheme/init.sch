@@ -393,6 +393,35 @@
           (and (leading-dot? string)
                (trailing-dollar-sharp? string)))
 
+        (define (set-dollar-excl? string)
+          ;; Return #T if the symbol begins with SET-.  and ends
+          ;; with $!
+          ;; These symbols are created from the SETF! macro.
+          ;; Kinda gross.
+          (let ((length (string-length string)))
+            (and (> length 6)
+                 (char=? (string-ref string 0) #\s)
+                 (char=? (string-ref string 1) #\e)
+                 (char=? (string-ref string 2) #\t)
+                 (char=? (string-ref string 3) #\-)
+                 (char=? (string-ref string (- length 2)) #\$)
+                 (char=? (string-ref string (- length 1)) #\!))))
+
+        (define (set-dollar-sharp-excl? string)
+          ;; Return #T if the string begins with SET-.  and ends
+          ;; with $#!
+          ;; These strings are created from the SETF! macro.
+          ;; Kinda gross.
+          (let ((length (string-length string)))
+            (and (> length 7)
+                 (char=? (string-ref string 0) #\s)
+                 (char=? (string-ref string 1) #\e)
+                 (char=? (string-ref string 2) #\t)
+                 (char=? (string-ref string 3) #\-)
+                 (char=? (string-ref string (- length 3)) #\$)
+                 (char=? (string-ref string (- length 2)) #\#)
+                 (char=? (string-ref string (- length 1)) #\!))))
+
         (define (set-dot-dollar-excl? string)
           ;; Return #T if the symbol begins with SET-.  and ends
           ;; with $!
@@ -519,14 +548,26 @@
                      (,(rename 'quote)
                       ,(string->symbol (trim "" text ".")))))
 
-                  ((trailing-dollar-sharp? text)
-                   `(,(rename 'clr/find-static-field)
+                  ((and (set-dollar-sharp-excl? text) (embedded-dot? text))
+                   `(,(rename 'clr/find-static-field-setter)
+                     #t ;; allow private
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "set-" text "$#!")))))
+
+                  ((and (set-dollar-excl? text) (embedded-dot? text))
+                   `(,(rename 'clr/find-static-field-setter)
+                     #f ;; public only
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "set-" text "$!")))))
+
+                  ((and (trailing-dollar-sharp? text) (embedded-dot? text))
+                   `(,(rename 'clr/find-static-field-getter)
                      #t ;; allow private
                      (,(rename 'quote)
                       ,(string->symbol (trim "" text "$#")))))
 
-                  ((trailing-dollar? text)
-                   `(,(rename 'clr/find-static-field)
+                  ((and (trailing-dollar? text) (embedded-dot? text))
+                   `(,(rename 'clr/find-static-field-getter)
                      #f ;; public only
                      (,(rename 'quote)
                       ,(string->symbol (trim "" text "$")))))

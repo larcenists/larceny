@@ -259,6 +259,8 @@
 
 (define-int-ffi-property clr-array/length clr-type-handle/system-array "Length")
 
+(define-boolean-ffi-property clr-fieldinfo/is-init-only?
+  clr-type-handle/system-reflection-fieldinfo "IsInitOnly")
 (define-boolean-ffi-property clr-fieldinfo/is-literal?
   clr-type-handle/system-reflection-fieldinfo "IsLiteral")
 (define-boolean-ffi-property clr-fieldinfo/is-static?
@@ -1291,14 +1293,14 @@
                              (let* ((StudlyName (string-append (clr/StudlyName enum-class)
                                                                "." name))
                                     (instance (make enum-class
-                                                :StudlyName StudlyName
-                                                :value value))
+                                                    :StudlyName StudlyName
+                                                    :value value))
                                     (thunk (lambda () instance)))
                                (dotnet-message 4 "Enum" name "=" value)
-                               (hash-table-put! *clr-static-fields*
+                               (hash-table-put! *clr-static-field-getters*
                                                 (StudlyName->key StudlyName)
                                                 thunk)
-                               (hash-table-put! *clr-public-static-fields*
+                               (hash-table-put! *clr-public-static-field-getters*
                                                 (StudlyName->key StudlyName)
                                                 thunk)
                                instance))
@@ -1614,6 +1616,19 @@
                    (in-marshaler
                     (ffi:%field-get info foreign-null '#()))))))
 
+(define (clr-field-info->static-setter-method info class)
+  (let ((name (clr-memberinfo/name info))
+        (new-value-marshaler (argument-marshaler (clr-fieldinfo/field-type info))))
+    (make class
+      :arity 1
+      :max-arity 2
+      :clr-handle info
+      :name name
+      :specializers (list (argument-specializer (clr-fieldinfo/field-type info)))
+      :procedure (lambda (call-next-method new-value)
+                   (dotnet-message 4 "Setting static field" name)
+                   (ffi:%field-set info foreign-null (new-value-marshaler new-value))))))
+
 (define (clr-field-info->getter-method info class)
   (let* ((name (clr-memberinfo/name info))
          (declaring-type (clr-memberinfo/declaring-type info))
@@ -1750,6 +1765,40 @@
                        (unspecified))
                      (arity-plus arity 1)))))))
 
+(define (clr-property-info->static-setter-method info class)
+  (call-with-values
+   (lambda () (clr-propertyinfo/get-index-parameters info))
+   (lambda (required-parameter-count
+            optional-parameter-count
+            default-values
+            specializers
+            out-marshalers)
+     (let* ((name (clr-memberinfo/name info))
+            (declaring-type (clr-memberinfo/declaring-type info))
+            (arity (if (= optional-parameter-count 0)
+                       (+ required-parameter-count 1)
+                       (make-arity-at-least (+ required-parameter-count 1))))
+            (max-arity (+ optional-parameter-count required-parameter-count 2))
+            (new-value-marshaler (argument-marshaler (clr-propertyinfo/property-type info))))
+       (make class
+         :arity arity
+         :max-arity max-arity
+         :clr-handle info
+         :name name
+         :specializers (cons (argument-specializer (clr-propertyinfo/property-type info))
+                              specializers)
+         :procedure (nary->fixed-arity
+                     (lambda (call-next-method new-value . args)
+                       (dotnet-message 4 "Setting static property" name)
+                       (ffi:%property-set info
+                                          foreign-null
+                                          (new-value-marshaler new-value)
+                                          (marshal-out (+ optional-parameter-count
+                                                          required-parameter-count)
+                                                       out-marshalers args default-values))
+                       (unspecified))
+                     (arity-plus arity 1)))))))
+
 ;;;; Generic functions on CLR objects.
 ;;;
 ;;; Methods on CLR objects will map into methods on generic functions.
@@ -1860,6 +1909,47 @@
                       (display ">" port)))
                   print-object))))
 
+(define <clr-static-field-setter>
+  (let ((<clr-static-field-setter>
+         (rec-allocate-instance
+          (*default-entityclass-class*)
+          (list :direct-default-initargs #f
+                :direct-supers (list <clr-method>)
+                :direct-slots '()
+                :name '<clr-static-field-setter>))))
+    (if (*make-safely*)
+        (check-initargs
+         (*default-entityclass-class*)
+         (list :direct-default-initargs #f
+               :direct-supers (list <clr-method>)
+               :direct-slots '()
+               :name '<clr-static-field-setter>)))
+    (rec-initialize
+     <clr-static-field-setter>
+     (list :direct-default-initargs #f
+           :direct-supers (list <clr-method>)
+           :direct-slots '()
+           :name '<clr-static-field-setter>))
+    <clr-static-field-setter>))
+
+(add-method print-object
+  (make (*default-method-class*)
+    :specializers (list <clr-static-field-setter>)
+    :arity 3
+    :procedure ((lambda ()
+                  (define (print-object call-next-method object port slashify)
+                    (let* ((clr-object  (clr-object/clr-handle object))
+                           (decl-type   (clr-object/to-string
+                                         (clr-object/clr-handle (clr-memberinfo/declaring-type clr-object))))
+                           (printed-rep (clr-memberinfo/name clr-object)))
+
+                      (display "#<CLR-FIELD-SETTER " port)
+                      (display decl-type port)
+                      (display "." port)
+                      (display printed-rep port)
+                      (display ">" port)))
+                  print-object))))
+
 (define <clr-instance-field-setter>
   (let ((<clr-instance-field-setter>
          (rec-allocate-instance
@@ -1955,23 +2045,45 @@
               (error "CLR-CONSTRUCTOR not found: " name)))
            (error "CLR-CONSTRUCTOR not found (class not found): " name))))))
 
-(define *clr-static-fields* (make-hash-table 'symbol-eq?))
-(define *clr-public-static-fields* (make-hash-table 'symbol-eq?))
+(define *clr-static-field-getters* (make-hash-table 'symbol-eq?))
+(define *clr-public-static-field-getters* (make-hash-table 'symbol-eq?))
 
-(define (clr/find-static-field allow-private? name)
+(define (clr/find-static-field-getter allow-private? name)
   (hash-table-get
-   (if allow-private? *clr-static-fields* *clr-public-static-fields*) name
+   (if allow-private? *clr-static-field-getters* *clr-public-static-field-getters*) name
    (lambda ()
      ;; If the static field isn't here, perhaps the class needs to be
      ;; loaded.
      (let loop ((as-string (symbol->string name))
                 (scan (string-length (symbol->string name))))
-       (cond ((= scan 0) (error "Bogus name to clr/find-static-field"))
+       (cond ((= scan 0) (error "Bogus name to clr/find-static-field-getter"))
              ((char=? (string-ref as-string (- scan 1)) #\.)
               (let ((class-name (substring as-string 0 (- scan 1))))
                 (if (clr/find-class class-name)
                     (hash-table-get
-                     (if allow-private? *clr-static-fields* *clr-public-static-fields*) name
+                     (if allow-private? *clr-static-field-getters* *clr-public-static-field-getters*) name
+                     (lambda ()
+                       (error "CLR-STATIC-FIELD not found: " name)))
+                    (error "CLR-STATIC-FIELD not found (class not found): " name))))
+             (else (loop as-string (- scan 1))))))))
+
+(define *clr-static-field-setters* (make-hash-table 'symbol-eq?))
+(define *clr-public-static-field-setters* (make-hash-table 'symbol-eq?))
+
+(define (clr/find-static-field-setter allow-private? name)
+  (hash-table-get
+   (if allow-private? *clr-static-field-setters* *clr-public-static-field-setters*) name
+   (lambda ()
+     ;; If the static field isn't here, perhaps the class needs to be
+     ;; loaded.
+     (let loop ((as-string (symbol->string name))
+                (scan (string-length (symbol->string name))))
+       (cond ((= scan 0) (error "Bogus name to clr/find-static-field-setter"))
+             ((char=? (string-ref as-string (- scan 1)) #\.)
+              (let ((class-name (substring as-string 0 (- scan 1))))
+                (if (clr/find-class class-name)
+                    (hash-table-get
+                     (if allow-private? *clr-static-field-setters* *clr-public-static-field-setters*) name
                      (lambda ()
                        (error "CLR-STATIC-FIELD not found: " name)))
                     (error "CLR-STATIC-FIELD not found (class not found): " name))))
@@ -2128,25 +2240,41 @@
   )
 
 (define (process-static-literal handle clr-field-info public?)
-  ;; (dotnet-message "Process static literal" clr-field-info)
+  (dotnet-message 3 "Process static literal" clr-field-info)
   (let* ((marshaler (return-marshaler (clr-fieldinfo/field-type handle)))
          (literal-value (marshaler (clr-field-info/get-value handle)))
          (key (StudlyName->key (make-static-name clr-field-info)))
          (thunk (lambda () literal-value)))
-      (hash-table-put! *clr-static-fields* key thunk)
+      (hash-table-put! *clr-static-field-getters* key thunk)
       (if public?
-          (hash-table-put! *clr-public-static-fields* key thunk))))
+          (hash-table-put! *clr-public-static-field-getters* key thunk))))
 
-(define (process-static-field handle clr-field-info public?)
-  ;; (dotnet-message "Process static field" (make-static-name clr-field-info))
+(define (process-static-field-reader handle clr-field-info public?)
+  (dotnet-message 3 "Process static field reader" (make-static-name clr-field-info))
   (install-method (clr-field-info->static-getter-method handle
                                                         <clr-static-field-getter>)
                   (if public?
-                      (list *clr-static-fields*
-                            *clr-public-static-fields*)
-                      (list *clr-static-fields*))
+                      (list *clr-static-field-getters*
+                            *clr-public-static-field-getters*)
+                      (list *clr-static-field-getters*))
                   (make-static-name clr-field-info)
                   0))
+
+(define (process-static-field-writer handle clr-field-info public?)
+  (dotnet-message 3 "Process static field writer" (make-static-name clr-field-info))
+  (install-method (clr-field-info->static-setter-method handle
+                                                        <clr-static-field-setter>)
+                  (if public?
+                      (list *clr-static-field-setters*
+                            *clr-public-static-field-setters*)
+                      (list *clr-static-field-setters*))
+                  (make-static-name clr-field-info)
+                  0))
+
+(define (process-static-field handle clr-field-info public?)
+  (process-static-field-reader handle clr-field-info public?)
+  (if (not (clr-fieldinfo/is-init-only? handle))
+      (process-static-field-writer handle clr-field-info public?)))
 
 (define (process-field handle public?)
   (let ((name (clr-memberinfo/name handle)))
@@ -2158,13 +2286,14 @@
                         (list *clr-instance-field-getters*))
                     name
                     1)
-    (install-method (clr-field-info->setter-method handle <clr-instance-field-setter>)
-                    (if public?
-                        (list *clr-instance-field-setters*
-                              *clr-public-instance-field-setters*)
-                        (list *clr-instance-field-setters*))
-                    name
-                    2)))
+    (if (not (clr-fieldinfo/is-init-only? handle))
+        (install-method (clr-field-info->setter-method handle <clr-instance-field-setter>)
+                        (if public?
+                            (list *clr-instance-field-setters*
+                                  *clr-public-instance-field-setters*)
+                            (list *clr-instance-field-setters*))
+                        name
+                        2))))
 
 (define (process-method name clr-method-info public?)
   (install-method clr-method-info
@@ -2182,15 +2311,30 @@
                   (make-static-name clr-method-info)
                   0))
 
-(define (process-static-property handle clr-property-info public?)
+(define (process-static-property-reader handle clr-property-info public?)
   (install-method (clr-property-info->static-getter-method handle
                                                            <clr-static-field-getter>)
                   (if public?
-                      (list *clr-static-fields*
-                            *clr-public-static-fields*)
-                      (list *clr-static-fields*))
+                      (list *clr-static-field-getters*
+                            *clr-public-static-field-getters*)
+                      (list *clr-static-field-getters*))
                   (make-static-name clr-property-info)
                   0))
+
+(define (process-static-property-writer handle clr-property-info public?)
+  (install-method (clr-property-info->static-setter-method handle
+                                                           <clr-static-field-setter>)
+                  (if public?
+                      (list *clr-static-field-setters*
+                            *clr-public-static-field-setters*)
+                      (list *clr-static-field-setters*))
+                  (make-static-name clr-property-info)
+                  0))
+
+(define (process-static-property handle clr-property-info public?)
+  (process-static-property-reader handle clr-property-info public?)
+  (if (clr-propertyinfo/can-write? handle)
+      (process-static-property-writer handle clr-property-info public?)))
 
 (define (process-property-reader name handle public?)
   (install-method (clr-property-info->getter-method handle
@@ -2344,9 +2488,12 @@
                   (hash-table-entries *clr-public-constructors*) "constructors,"
                   (- (hash-table-entries *clr-constructors*)
                      (hash-table-entries *clr-public-constructors*)) "private constructors,"
-                  (hash-table-entries *clr-static-fields*) "static fields,"
-                  (- (hash-table-entries *clr-static-fields*)
-                     (hash-table-entries *clr-public-static-fields*)) "private static fields,"
+                  (hash-table-entries *clr-static-field-getters*) "static field getters,"
+                  (- (hash-table-entries *clr-static-field-getters*)
+                     (hash-table-entries *clr-public-static-field-getters*)) "private static field getters,"
+                  (hash-table-entries *clr-static-field-setters*) "static field setters,"
+                  (- (hash-table-entries *clr-static-field-setters*)
+                     (hash-table-entries *clr-public-static-field-setters*)) "private static field setters,"
                   (hash-table-entries *clr-static-methods*) "static methods,"
                   (- (hash-table-entries *clr-static-methods*)
                      (hash-table-entries *clr-public-static-methods*)) "private static methods,"

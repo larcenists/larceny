@@ -41,6 +41,33 @@
 
          (define (dot-dollar-sharp?) (and (leading-dot?) (trailing-dollar-sharp?)))
 
+         (define (set-dollar-excl?)
+           ;; Return #T if the symbol begins with SET-  ends
+           ;; with $!, and has a dot somewhere inside.
+           ;; These symbols are created by the SETF! macro.
+           ;; Kinda gross.
+           (and (> length 6)
+                (char=? (string-ref string 0) #\s)
+                (char=? (string-ref string 1) #\e)
+                (char=? (string-ref string 2) #\t)
+                (char=? (string-ref string 3) #\-)
+                (char=? (string-ref string (- length 2)) #\$)
+                (char=? (string-ref string (- length 1)) #\!)))
+
+         (define (set-dollar-sharp-excl?)
+           ;; Return #T if the string begins with SET-  and ends
+           ;; with $#!
+           ;; These strings are created by the SETF! macro.
+           ;; Kinda gross.
+           (and (> length 7)
+                (char=? (string-ref string 0) #\s)
+                (char=? (string-ref string 1) #\e)
+                (char=? (string-ref string 2) #\t)
+                (char=? (string-ref string 3) #\-)
+                (char=? (string-ref string (- length 3)) #\$)
+                (char=? (string-ref string (- length 2)) #\#)
+                (char=? (string-ref string (- length 1)) #\!)))
+
          (define (set-dot-dollar-excl?)
            ;; Return #T if the symbol begins with SET-.  and ends
            ;; with $!
@@ -90,14 +117,17 @@
                         ((char=? (string-ref string scan) #\.) #t)
                         (else (loop (+ scan 1)))))))
 
-         (or (dot-dollar?)
-             (dot-dollar-sharp?)
-             (set-dot-dollar-excl?)
-             (set-dot-dollar-sharp-excl?)
+         (or ;(dot-dollar?)
+             ;(dot-dollar-sharp?)
+             ;(set-dot-dollar-excl?)
+             ;(set-dot-dollar-sharp-excl?)
              (leading-dot?)
-             (trailing-dot-sharp?)
+             ;(trailing-dot-sharp?)
              (trailing-dot?)
-             (trailing-dollar-sharp?)
-             (trailing-dollar?)
-             (trailing-dot-class?)
-             (embedded-dot?)))))
+             ;(and (set-dollar-sharp-excl? text) (embedded-dot? text))
+             ;(and (set-dollar-excl? text) (embedded-dot? text))
+             ;(and (trailing-dollar-sharp? text) (embedded-dot? text))
+             ;(and (trailing-dollar text) (embedded-dot? text))
+             ;(trailing-dot-class?)
+             (embedded-dot?)
+             ))))
