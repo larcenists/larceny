@@ -1,5 +1,4 @@
 ;;; i386 millicode entry points and millicode jump vector initialization.
-;;; 2003-09-09 / lth
 ;;;
 ;;; $Id$
 ;;;
@@ -9,8 +8,6 @@
 ;;; be replaced by hand-coded assembler or similar code.
 	
 %include "i386-machine.ah"
-
-%define wordsize        4
 
 ;;; It is generally helpful to enable OPTIMIZE_MILLICODE: it turns
 ;;; on some assembler versions of millicode routines normally written
@@ -38,12 +35,13 @@
 	extern	return_from_scheme
 	extern	dispatch_loop_return
 	extern	gclib_pagebase
+	extern	mc_exception
 	
 ;;; The return address of the bottommost frame in the stack cache points
 ;;; to i386_stack_underflow; all we do is call the C function that
 ;;; escapes to the dispatch loop to restore a frame and continue execution.
 	
-	align	wordsize
+	align	code_align
 EXTNAME(i386_stack_underflow):
 	mov	eax, mem_stkuflow
 	jmp	callout_to_C
@@ -54,7 +52,7 @@ EXTNAME(i386_stack_underflow):
 ;;; the C function that escapes to the dispatch loop to restore state
 ;;; and continue execution
 	
-	align	wordsize
+	align	code_align
 EXTNAME(i386_return_from_scheme):
 	mov	eax, return_from_scheme
 	jmp	callout_to_C
@@ -64,7 +62,7 @@ EXTNAME(i386_return_from_scheme):
 ;;; to i386_dispatch_loop_return; all we do is call the C function
 ;;; that terminates the dispatch loop.
 	
-	align	wordsize
+	align	code_align
 EXTNAME(i386_dispatch_loop_return):
 	mov	eax, dispatch_loop_return
 	jmp	callout_to_C
@@ -101,26 +99,31 @@ EXTNAME(i386_scheme_jump):
 
 %macro PUBLIC 1
 	global	%1
-	align	wordsize
+	align	code_align
 %1:
 %endmacro
 
-;;; Arguments: second? c-name callout-method
+;;; The unadjusted return address is in GLOBALS[-1]; adjust it and
+;;; save it in G_RETADDR.
+;;;
+;;; Destroys: EAX
 
-%macro MILLICODE_STUB 3
-	extern	EXTNAME(%2)
-	;; The code 'pop dword [GLOBALS+wordsize+G_RETADDR]' does not work,
-	;; it appears that esp is updated before the move, the reference
-	;; manual notwithstanding.  So use more complicated code here and
-	;; be sure to save eax first if it is live.
-	add	esp, 4		; Fixup GLOBALS
-%if %1
-	mov	[GLOBALS+G_SECOND], eax
-%endif
+%macro SAVE_RETURN_ADDRESS 0
 	mov	eax, dword [GLOBALS-4]          ; return address
 	add	eax, 3		                ;  rounded up
 	and	eax, 0xFFFFFFFC	                ;   to 4-byte boundary
 	mov	dword [GLOBALS+G_RETADDR], eax  ;    saved for later
+%endmacro
+	
+;;; Arguments: second? c-name callout-method
+
+%macro MILLICODE_STUB 3
+	extern	EXTNAME(%2)
+	add	esp, 4				; Fixup GLOBALS
+%if %1
+	mov	[GLOBALS+G_SECOND], eax
+%endif
+	SAVE_RETURN_ADDRESS
 	mov	eax, EXTNAME(%2)
 	jmp	%3
 %endmacro
@@ -208,17 +211,24 @@ PUBLIC i386_restore_continuation
 	
 PUBLIC i386_full_barrier
 %ifdef OPTIMIZE_MILLICODE
-	;; FIXME.  The implementation requires that GCLIB_LARGE_TABLE 
-	;; is disabled.  This is not hard to fix.
 	test	SECOND, 1			; If rhs is ptr
-	jnz	L3				;   enter the barrier
+	jnz	i386_partial_barrier		;   enter the barrier
 	ret					; Otherwise return
-L3:	add	GLOBALS, 4
+%else  ; OPTIMIZE_MILLICODE
+	MC2g	mc_full_barrier
+%endif ; OPTIMIZE_MILLICODE
+	
+PUBLIC i386_partial_barrier
+%ifdef OPTIMIZE_MILLICODE
+  %ifdef GCLIB_LARGE_TABLE
+    %error Optimized write barrier does not work with GCLIB_LARGE_TABLE yet
+  %endif
+	add	GLOBALS, 4
 	cmp	dword [GLOBALS+G_GENV], 0	; Barrier is enabled
-	jne	L4				;   if generation map not 0
+	jne	Lpb1				;   if generation map not 0
 	sub	GLOBALS, 4			; Otherwise
 	ret					;   return to scheme
-L4:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
+Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
 	mov	[GLOBALS+G_REG1], REG1		;   working registers
 	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
 	sub	RESULT, [gclib_pagebase]	; Load
@@ -230,13 +240,13 @@ L4:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
 	shl	SECOND, 2			;     (using byte offset)
 	mov	SECOND, [REG1+SECOND]		;       for rhs
 	cmp	RESULT, SECOND			; Only store lhs in SSB
-	jg	L6				;   if gen(lhs) > gen(rhs)
-L5:	xor	RESULT, RESULT			; Clean
+	jg	Lpb3				;   if gen(lhs) > gen(rhs)
+Lpb2:	xor	RESULT, RESULT			; Clean
 	xor	SECOND, SECOND			;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	sub	GLOBALS, 4			;       return
 	ret					;         to Scheme
-L6:	shl	RESULT, 2			; Gen(lhs) as byte offset
+Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	mov	SECOND, [GLOBALS+G_RESULT]	; The value to store (lhs)
 	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
@@ -247,14 +257,14 @@ L6:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
 	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
 	cmp	REG1, SECOND			; If ptr!=limit
-	jne	L5				;   then no overflow, so done
+	jne	Lpb2				;   then no overflow, so done
 	xor	RESULT, RESULT			; Clean
 	xor	SECOND, SECOND			;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	sub	GLOBALS, 4			;       handle
 	MCg	mc_compact_ssbs			;         overflow
 %else  ; OPTIMIZE_MILLICODE
-	MC2g	mc_full_barrier
+	MC2g	mc_partial_barrier
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_break
@@ -268,15 +278,6 @@ PUBLIC i386_enable_interrupts
 	
 PUBLIC i386_disable_interrupts
 	MCgk	mc_disable_interrupts
-	
-PUBLIC i386_exception
-	add	esp, 4				; Fixup GLOBALS
-	mov	[ GLOBALS+G_SECOND ], SECOND
-	mov	SECOND, [GLOBALS-4]
-	mov	ax, [SECOND]
-	and	eax, 0xFFFF
-	shl	eax, 2
-	jmp	i386_signal_exception
 	
 PUBLIC i386_apply
 	MC2g	mc_apply
@@ -380,32 +381,49 @@ PUBLIC i386_exactp
 PUBLIC i386_inexactp
 	MCg	mc_inexactp
 	
-PUBLIC i386_global_exception
+PUBLIC i386_exception				; Exn encoded in instr stream
 	add	esp, 4				; Fixup GLOBALS
-	mov	[GLOBALS+G_SECOND],SECOND
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	SECOND, [GLOBALS-4]		; Exn code address
+	mov	ax, [SECOND]			; Exn code
+	and	eax, 0xFFFF			;   is 16 bits
+	shl	eax, 2				;     encoded as fixnum
+	jmp	i386_signal_exception
+	
+PUBLIC i386_global_exception			; RESULT holds the global cell
+	add	esp, 4				; Fixup GLOBALS
+	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
 	mov	SECOND, EX_UNDEF_GLOBAL
 	jmp	i386_signal_exception
 	
-;;; FIXME: this must also handle undefined variables, see T_GLOBAL_INVOKE.
-PUBLIC i386_invoke_exception
+PUBLIC i386_invoke_exception			; RESULT holds defined value
 	add	esp, 4				; Fixup GLOBALS
 	cmp	dword [GLOBALS+G_TIMER], 0
 	jnz	Linv1
 	sub	esp, 4
 	jmp	i386_timer_exception
-Linv1:	mov	[GLOBALS+G_SECOND], SECOND
+Linv1:	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
 	mov	SECOND, EX_NONPROC
 	jmp	i386_signal_exception
 	
-PUBLIC i386_global_invoke_exception		; Obsolete
+PUBLIC i386_global_invoke_exception		; RESULT holds the global cell
 	add	esp, 4				; Fixup GLOBALS
-	mov	[GLOBALS+G_SECOND], SECOND
-	mov	SECOND, EX_GLOBAL_INVOKE
+	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
+	cmp	dword [GLOBALS+G_TIMER], 0
+	jnz	Lginv1
+	sub	esp, 4
+	jmp	i386_timer_exception
+Lginv1:	cmp	dword [RESULT-PAIR_TAG], UNDEFINED_CONST
+	jnz	Lginv2
+	mov	SECOND, EX_UNDEF_GLOBAL
+	jmp	i386_signal_exception	
+Lginv2:	mov	RESULT, [RESULT-PAIR_TAG]
+	mov	SECOND, EX_NONPROC
 	jmp	i386_signal_exception
 	
-PUBLIC i386_argc_exception
+PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
 	add	esp, 4				; Fixup GLOBALS
-	mov	[GLOBALS+G_SECOND], SECOND
+	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
 	mov	SECOND, EX_ARGC
 	jmp	i386_signal_exception
 	
@@ -456,11 +474,22 @@ PUBLIC i386_petit_patch_boot_code
 ;;;	RESULT has first value
 ;;;	globals[G_SECOND] has second value
 ;;;	globals[G_THIRD] has third value
-;;;	SECOND has exception code (fixnum)
+;;;	SECOND has fixnum exception code
 ;;;	globals[-1] has the unadjusted return address
 
 i386_signal_exception:
-	hlt			; FIXME
+	shr	SECOND, 2			; fixnum -> native
+	mov	[tmp_exception_code], SECOND    ; SECOND=eax
+	SAVE_RETURN_ADDRESS			; compute G_RETADDR
+	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
+	mov	ebx, GLOBALS
+	mov	esp, [ebx+G_SAVED_ESP]
+	push	dword [tmp_exception_code]	; exception code
+	push	ebx				; globals
+	call	mc_exception
+	add	esp, 8
+	RESTORE_STATE saved_globals_pointer
+	jmp	[GLOBALS + G_RETADDR]
 
 ;;; callout_to_C
 ;;;	Switch from Scheme to C mode and call a C function, then
@@ -488,7 +517,7 @@ callout_to_Ck:
 
 saved_globals_pointer:
 	dd	0
-
-	section .text
+tmp_exception_code:
+	dd	0
 
 ;;; eof

@@ -51,6 +51,7 @@
            (assembly-user-data)))
       (process-file infilename
                     `(,outfilename binary)
+		    (assembly-declarations user)
                     dump-fasl-segment-to-port
                     (lambda (x) (assemble (if malfile? (eval x) x) user)))
       (unspecified)))
@@ -265,10 +266,10 @@
 ; Filenames can be simple strings or list (filename mode) where mode
 ; is a symbol, "text" or "binary".
 
-(define (process-file infilename outfilename writer processer)
-  (process-files (list infilename) outfilename writer processer))
+(define (process-file infilename outfilename decls writer processer)
+  (process-files (list infilename) outfilename decls writer processer))
 
-(define (process-files infilenames outfilename writer processer)
+(define (process-files infilenames outfilename decls writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
@@ -277,9 +278,15 @@
     (delete-file outfilename)
     (outfilefn outfilename
       (lambda (outport)
+	(for-each (lambda (decl)
+		    (write decl outport)
+		    (newline outport))
+		  decls)
 	(for-each
 	 (lambda (infilename)
-	   (let ((infilename  (if (pair? infilename) (car infilename) infilename))
+	   (let ((infilename  (if (pair? infilename) 
+				  (car infilename) 
+				  infilename))
 		 (infilefn    (if (and (pair? infilename)
 				       (eq? 'binary (cadr infilename)))
 				  call-with-binary-input-file
@@ -299,10 +306,10 @@
 ; FIXME:  Both versions of PROCESS-FILE always delete the output file.
 ; Shouldn't it be left alone if the input file can't be opened?
 
-(define (process-file-block infilename outfilename writer processer)
-  (process-files-block (list infilename) outfilename writer processer))
+(define (process-file-block infilename outfilename decls writer processer)
+  (process-files-block (list infilename) outfilename decls writer processer))
 
-(define (process-files-block infilenames outfilename writer processer)
+(define (process-files-block infilenames outfilename decls writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
@@ -311,9 +318,15 @@
     (delete-file outfilename)
     (outfilefn outfilename
       (lambda (outport)
+	(for-each (lambda (decl)
+		    (write decl outport)
+		    (newline outport))
+		  decls)
 	(for-each
 	 (lambda (infilename)
-	   (let ((infilename  (if (pair? infilename) (car infilename) infilename))
+	   (let ((infilename  (if (pair? infilename) 
+				  (car infilename)
+				  infilename))
 		 (infilefn    (if (and (pair? infilename)
 				       (eq? 'binary (cadr infilename)))
 				  call-with-binary-input-file
@@ -323,7 +336,8 @@
 			 (do ((x (read inport) (read inport))
 			      (forms '() (cons x forms)))
 			     ((eof-object? x)
-			      (writer (processer (reverse forms)) outport)))))))
+			      (writer (processer (reverse forms)) 
+				      outport)))))))
 	 infilenames)))))
 
 ; Given a file name with some type, produce another with some other type.

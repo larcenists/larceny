@@ -2,11 +2,18 @@
  *
  * $Id$
  *
- * A bunch of random hacks that belong elsewhere; here for the time being.
+ * Abstractions for the instruction macros defined in twobit.h.  The
+ * definitions in this file make the virtual machine a little more
+ * pleasant (removing or glossing over a number of historical
+ * accidents that are hard to fix without changing the SPARC
+ * back-end).
+ *
+ * TODO, on an idle day: synchronize these names with the ones in
+ * ../Intel/i386-machine.h, they are even better.
  */
 
-#ifndef PETIT_HACKS_H
-#define PETIT_HACKS_H
+#ifndef PETIT_MACHINE_H
+#define PETIT_MACHINE_H
 
 #ifndef G_SECOND
 # define G_SECOND         G_ARGREG2
@@ -28,8 +35,8 @@
 /* These are strange cases; must check that Rts sources don't use the
    old/wrong names before renaming in except.cfg.
    */
-#define EX_MAKE_VECTOR            EX_MKVL
-#define EX_MAKE_BYTEVECTOR        EX_MKBVL
+#define EX_MAKE_VECTOR            EX_MKVL    /* Hack, FIXME */
+#define EX_MAKE_BYTEVECTOR        EX_MKBVL   /* Hack, FIXME */
 #define EX_BYTEVECTOR_LIKE_LENGTH EX_BVLLEN
 #define EX_BYTEVECTOR_LIKE_REF    EX_BVLREF
 #define EX_BYTEVECTOR_LIKE_SET    EX_BVLSET
@@ -37,10 +44,12 @@
 #define EX_VECTOR_LIKE_SET        EX_VLSET
 #define EX_VECTOR_LIKE_LENGTH     EX_VLLEN
 #define EX_MAKE_PROCEDURE         EX_MKVL
+#define EX_MAKE_STRING            EX_MKBVL   /* Hack, FIXME */
+
 /* End exception codes */
 
 extern int larceny_main( int argc, char **argv );
 
-#endif
+#endif /* PETIT_MACHINE_H */
 
 /* eof */

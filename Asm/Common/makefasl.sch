@@ -125,7 +125,8 @@
       (if (not omit-code?) (putc #\)))
       (putc #\newline))
 
-    (dump-fasl-segment segment)
-    (flush)))
+    (if (pair? segment)			; Ignore "declaration" strings
+	(begin (dump-fasl-segment segment)
+	       (flush)))))
 
 ; eof

@@ -48,24 +48,24 @@
 
 
 # Petit Larceny on MacOS X: gcc disguised as cc
-#O=o
-#CC=cc
-#DEBUG=-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUG) $(OPTIMIZE) $(CCXFLAGS)
-#LIBS=-lm
-#.c.o:
-#	$(CC) $(CFLAGS) -o $*.o $<
+O=o
+CC=cc
+DEBUG=-gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
+CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUG) $(OPTIMIZE) $(CCXFLAGS)
+LIBS=-lm
+.c.o:
+	$(CC) $(CFLAGS) -o $*.o $<
 
 
 # Petit Larceny on Debian Linux: gcc
-O=o
-CC=gcc
-DEBUGINFO=-gstabs+
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+#O=o
+#CC=gcc
+#DEBUGINFO=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
 
 # Native Larceny on Debian Linux: gcc + nasm (still debugging)
@@ -321,10 +321,10 @@ Build/c-table.c: Build/globals.cfg
 # Dependencies for source files beyond this point.
 
 LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \
-	  Build/cdefs.h Sys/config.h
+	  Build/cdefs.h Build/config.h
 SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h
 PETIT_H=Standard-C/millicode.h Standard-C/petit-config.h \
-	Standard-C/petit-hacks.h
+	Standard-C/petit-machine.h
 
 Standard-C/arithmetic.$(O): $(LARCENY_H) $(PETIT_H)
 Standard-C/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \
@@ -406,7 +406,7 @@ Sys/osdep-unix.$(O): $(LARCENY_H)
 Sys/osdep-win32.$(O): $(LARCENY_H)
 Sys/osdep-generic.$(O): $(LARCENY_H)
 Sys/util.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h
-Sys/version.$(O): Sys/config.h
+Sys/version.$(O): Build/config.h
 Sys/young_heap_t.$(O): $(LARCENY_H) Sys/young_heap_t.h
 
 # eof

@@ -398,15 +398,6 @@ parse_options( int argc, char **argv, opt_t *o )
       init_generational( o, areas, "-areas" );
     else if (strcmp( *argv, "-gen" ) == 0)
       init_generational( o, areas, "-gen" );
-    else if (strcmp( *argv, "-np" ) == 0 || strcmp( *argv, "-rof" ) == 0) {
-      o->gc_info.is_generational_system = 1;
-      o->gc_info.use_non_predictive_collector = 1;
-    }
-    else if (numbarg( "-dof", &argc, &argv, 
-                      &o->gc_info.dynamic_dof_info.generations )) {
-      o->gc_info.is_generational_system = 1;
-      o->gc_info.use_dof_collector = 1;
-    }
     else if (strcmp( *argv, "-nostatic" ) == 0)
       o->gc_info.use_static_area = 0;
     else if (strcmp( *argv, "-nocontract" ) == 0)
@@ -421,30 +412,12 @@ parse_options( int argc, char **argv, opt_t *o )
         for ( i=1 ; i < o->maxheaps ; i++ )
           if (o->size[i-1] == 0) o->size[i-1] = val;
     }
-    else if (numbarg( "-steps", &argc, &argv,
-                     &o->gc_info.dynamic_np_info.steps )) {
-      o->gc_info.is_generational_system = 1;
-      o->gc_info.use_non_predictive_collector = 1;
-    }
-    else if (sizearg( "-stepsize", &argc, &argv,
-                     &o->gc_info.dynamic_np_info.stepsize )) {
-      o->gc_info.is_generational_system = 1;
-      o->gc_info.use_non_predictive_collector = 1;
-    }
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
-    else if (numbarg( "-dof-fullgc-frequency", &argc, &argv, &full_frequency)){
-      if (full_frequency < 0)
-        param_error( "Full GC frequency must be nonnegative." );
-    }
-    else if (doublearg( "-dof-growth-divisor", &argc, &argv, &growth_divisor)){
-      if (growth_divisor <= 0.0)
-        param_error( "Growth divisor must be positive." );
-    }
     else 
-#endif
+#endif /* !BDW_GC */
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
     else if (doublearg( "-load", &argc, &argv, &load_factor )) {
@@ -455,6 +428,40 @@ parse_options( int argc, char **argv, opt_t *o )
       if (load_factor < 2.0)
         param_error( "Load factor must be at least 2.0" );
 #endif
+    }
+#if ROF_COLLECTOR
+    else if (strcmp( *argv, "-np" ) == 0 || strcmp( *argv, "-rof" ) == 0) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_non_predictive_collector = 1;
+    }
+    else if (numbarg( "-steps", &argc, &argv,
+                     &o->gc_info.dynamic_np_info.steps )) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_non_predictive_collector = 1;
+    }
+    else if (sizearg( "-stepsize", &argc, &argv,
+                     &o->gc_info.dynamic_np_info.stepsize )) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_non_predictive_collector = 1;
+    }
+    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
+      ;
+    else if (numbarg( "-np-remset-limit", &argc, &argv, &np_remset_limit )) 
+      ;
+#endif
+#if DOF_COLLECTOR
+    else if (numbarg( "-dof", &argc, &argv, 
+                      &o->gc_info.dynamic_dof_info.generations )) {
+      o->gc_info.is_generational_system = 1;
+      o->gc_info.use_dof_collector = 1;
+    }
+    else if (numbarg( "-dof-fullgc-frequency", &argc, &argv, &full_frequency)){
+      if (full_frequency < 0)
+        param_error( "Full GC frequency must be nonnegative." );
+    }
+    else if (doublearg( "-dof-growth-divisor", &argc, &argv, &growth_divisor)){
+      if (growth_divisor <= 0.0)
+        param_error( "Growth divisor must be positive." );
     }
     else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
       ;
@@ -478,14 +485,6 @@ parse_options( int argc, char **argv, opt_t *o )
         param_error( "-dof-free-after-collection out of range: "
                      "must have d > 0.0." );
     }
-    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
-      ;
-    else if (numbarg( "-np-remset-limit", &argc, &argv, &np_remset_limit )) 
-      ;
-    else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
-      ;
-    else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
-      ;
     else if (strcmp( *argv, "-dof-no-shadow-remsets" ) == 0)
       o->gc_info.dynamic_dof_info.no_shadow_remsets = TRUE;
     else if (strcmp( *argv, "-dof-fullgc-generational" ) == 0)
@@ -494,12 +493,17 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_dof_info.fullgc_on_collection = TRUE;
     else if (strcmp( *argv, "-dof-fullgc-on-promotion" ) == 0)
       o->gc_info.dynamic_dof_info.fullgc_on_promotion = TRUE;
+#endif /* DOF_COLLECTOR */
     else if (strcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
     else if (strcmp( *argv, "-step" ) == 0)
       o->enable_singlestep = 1;
     else if (strcmp( *argv, "-stats" ) == 0)
       o->show_heapstats = 1;
+    else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
+      ;
+    else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
+      ;
     else if (strcmp( *argv, "-help" ) == 0 || strcmp( *argv, "-h" ) == 0)
       help();
     else if (strcmp( *argv, "-quiet" ) == 0) 
@@ -592,6 +596,7 @@ parse_options( int argc, char **argv, opt_t *o )
       consolemsg( "Type \"larceny -help\" for help." );
       exit( 1 );
     }
+#if ROF_COLLECTOR
     else if (o->gc_info.use_non_predictive_collector) {
       int size;
 
@@ -618,6 +623,8 @@ parse_options( int argc, char **argv, opt_t *o )
       else
         o->gc_info.dynamic_np_info.extra_remset_limit = np_remset_limit;
     }
+#endif /* ROF_COLLECTOR */
+#if DOF_COLLECTOR
     else if (o->gc_info.use_dof_collector) {
       o->gc_info.dynamic_dof_info.load_factor = load_factor;
       o->gc_info.dynamic_dof_info.dynamic_max = dynamic_max;
@@ -639,6 +646,7 @@ parse_options( int argc, char **argv, opt_t *o )
       else
         o->gc_info.dynamic_dof_info.area_size = o->size[n];
     }
+#endif /* DOF_COLLECTOR */
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
       o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
@@ -678,6 +686,7 @@ parse_options( int argc, char **argv, opt_t *o )
   }
 }
 
+#if ROF_COLLECTOR
 /* Note that by design, we do not take the load factor into account. */
 static void compute_np_parameters( opt_t *o, int suggested_size )
 {
@@ -714,6 +723,7 @@ static void compute_np_parameters( opt_t *o, int suggested_size )
   o->gc_info.dynamic_np_info.stepsize = stepsize;
   o->gc_info.dynamic_np_info.size_bytes = size;
 }
+#endif /* ROF_COLLECTOR */
 
 /* Takes a positive integer only, suffixes K and M are accepted. */
 static int sizearg( char *str, int *argc, char ***argv, int *loc ) 
@@ -857,6 +867,7 @@ static void dump_options( opt_t *o )
       consolemsg( "    Size (bytes): %d",
                   o->gc_info.ephemeral_info[i-1].size_bytes );
     }
+#if ROF_COLLECTOR
     if (o->gc_info.use_non_predictive_collector ) {
       np_info_t *i = &o->gc_info.dynamic_np_info;
       consolemsg( "  Dynamic area (nonpredictive copying)" );
@@ -868,7 +879,10 @@ static void dump_options( opt_t *o )
       consolemsg( "    Max size: %d", i->dynamic_max );
       consolemsg( "    Luck: %f", i->luck );
     }
-    else if (o->gc_info.use_dof_collector) {
+    else 
+#endif
+#if DOF_COLLECTOR
+    if (o->gc_info.use_dof_collector) {
       dof_info_t *i = &o->gc_info.dynamic_dof_info;
       consolemsg( "  Dynamic area (deferred-older-first copying)" );
       consolemsg( "    Generations: %d", i->generations );
@@ -893,7 +907,9 @@ static void dump_options( opt_t *o )
                    (i->fullgc_on_collection ? "collections" : 
                     "window resets")));
     }
-    else {
+    else 
+#endif
+    {
       sc_info_t *i = &o->gc_info.dynamic_sc_info;
       consolemsg( "  Dynamic area (normal copying)" );
       consolemsg( "    Size (bytes): %d", i->size_bytes );
@@ -950,13 +966,17 @@ static char *helptext[] = {
   "     number of heap areas is "
         STR(DEFAULT_AREAS) 
         ".",
+#if ROF_COLLECTOR
   "  -np",
   "  -rof",
   "     Select generational collection with the renewal-oldest-first",
   "     dynamic area (radioactive decay non-predictive collection).",
+#endif
+#if DOF_COLLECTOR
   "  -dof n",
   "     Select generational collection with the deferred-oldest-first",
   "     dynamic area, using n chunks.",
+#endif
   "  -size# nnnn",
   "     Heap area number '#' is given size 'nnnn' bytes.",
   "     This selects generational collection if # > 1.",
@@ -1012,6 +1032,7 @@ static char *helptext[] = {
   "  -nocontract",
   "     Do not contract the dynamic area according to the load factor, but",
   "     always use all the memory that has been allocated.",
+#if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",
   "     This selects generational collection and the non-predictive GC.",
@@ -1048,6 +1069,8 @@ static char *helptext[] = {
   "     young area to the old area and to clear the remembered set.  By",
   "     default, the limit is infinity.  This parameter does not select",
   "     anything else, not even the nonpredictive GC.",
+#endif
+#if DOF_COLLECTOR
   "  -dof-fullgc-frequency n",
   "     The frequency of policy-triggered full garbage collections in ",
   "     the DOF collector, in terms of the number of collection window",
@@ -1095,6 +1118,7 @@ static char *helptext[] = {
   "     the number of full collections triggered as a result of too little",
   "     memory being available before GC.  Values of d smaller than 1.0",
   "     are probably dangerous.  The default value is 1.0.",
+#endif
   "  -rhash nnnn",
   "     Set the remembered-set hash table size, in elements.  The size must",
   "     be a power of 2.",

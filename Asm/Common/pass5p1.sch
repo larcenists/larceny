@@ -31,6 +31,7 @@
 (define (assembly-start as) #t)
 (define (assembly-end as segment) segment)
 (define (assembly-user-data) #f)
+(define (assembly-declarations user-data) '())
 
 ; The main entry point.
 

@@ -1,0 +1,124 @@
+Information about native Larceny on PPC systems
+2 July 2004 / lth
+
+
+I've done nothing here yet.  I would like to use the same
+macro-assembler approach I've used for x86 Larceny, but there does not
+seem to be a good macro-assembler available for PPC.  A possible
+solution is to use M4 together with the native assembler.  Some M4
+code that works(!) for x86 is included below; it looks workable.
+
+On the other hand, the PPC is a pretty simple CPU and it may not be
+very difficult to write a native assembler for it.
+
+
+
+# M4 as a macro assembler.
+
+# BEGIN IGNORE
+# Generic hair
+
+# From GNU m4 manual, but modified to test the condition first, so it
+# may execute zero times.
+
+define(`forloop',
+	`pushdef(`$1', `$2')_forloop(`$1', `$2', `$3', `$4')popdef(`$1')')
+define(`_forloop',
+        `ifelse($1, `$3', ,
+	            `$4`'define(`$1', incr($1))_forloop(`$1', `$2', `$3', `$4')')')
+
+# Local label management.  Use DEFLOCn to give a new value to
+# a local label, then LOCn to use its value.
+
+define(`LOC',10)	# Exercise for the reader: why not start at 0?  :-)
+define(`L0',`xxx')
+define(`L1',`xxx')
+define(`L2',`xxx')
+define(`L3',`xxx')
+define(`DEFLOC0',
+	`define(`LOC',incr(LOC)) define(`L0', `L'LOC)')
+define(`DEFLOC1',
+	`define(`LOC',incr(LOC)) define(`L1', `L'LOC)')
+define(`DEFLOC2',
+	`define(`LOC',incr(LOC)) define(`L2', `L'LOC)')
+define(`DEFLOC3',
+	`define(`LOC',incr(LOC)) define(`L3', `L'LOC)')
+
+# END IGNORE
+
+define(`IMM_CHAR',38)
+
+define(`wordsize','4')
+define(`object_align',`8')
+define(`code_align',`4')
+define(`fixtag_mask',`3')
+define(`tag_mask',`7')
+define(`hdr_shift',`8')
+define(`char_shift',`16')
+define(`is_hwreg', `eval($1>=1 && $1<=3)')
+define(`fixnum',`eval(($1)<<2)')
+define(`char',`eval((($1)<<char_shift)|IMM_CHAR)')
+define(`roundup4',`eval((($1)+3)&~3)')
+define(`roundup8',`eval((($1)+7)&~7)')
+define(`words2bytes',`eval(($1)*4)')
+define(`stkslot',`eval(CONT+STK_REG0+words2bytes($1))')
+define(`framesize',`eval(roundup8(wordsize+STK_OVERHEAD+words2bytes($1)))')
+define(`recordedsize',`eval(STK_OVERHEAD+words2bytes($1))')
+define(`t_label',`$1')
+
+# loadr targetreg, regno
+#	load HW register targetreg from VM register regno
+
+define(`loadr',
+`ifelse(is_hwreg($2),1,
+	``mov	$1, REG$2'',
+	``mov	$1, [GLOBALS+G_REG$2]'')')
+
+# loadc hwreg, slot
+#	Load constant vector element 'slot' into hwreg
+
+define(`loadc',
+	`loadr($1, 0)
+	mov	$1, [$1-PROC_TAG+PROC_CONSTVECTOR]
+	mov	$1, [$1-VEC_TAG+words2bytes(($2)+1)]')
+
+# fixnum_compare reg, cc, ex
+# OPTIMIZEME for whenever %1 is a hwreg
+
+define(`fixnum_compare',
+	`DEFLOC0 DEFLOC1
+L0:	loadr(	TEMP, $1)
+	or	TEMP, RESULT
+	test	TEMP_LOW, fixtag_mask
+	jz short L1
+	loadr(	SECOND, $1)
+	exception_continuable $3, L0
+L1:	ifelse(is_hwreg($1),1,
+	``cmp	RESULT, REG$1'',
+	``cmp	RESULT, [GLOBALS+G_REG$1]'')
+	setcc $2')
+
+# MAL instructions
+
+define(`T_CONST_IMM',
+`	mov RESULT, $1')
+
+define(`T_CONST_CONSTVECTOR', 
+`	loadc(RESULT, $1)')
+
+define(`T_LEXICAL',
+`	loadr(TEMP,0)
+	forloop(`i',0,$1,
+``	mov	TEMP, [TEMP-PROC_TAG+PROC_REG0]
+'')
+	mov	RESULT, [TEMP-PROC_TAG+PROC_REG0+words2bytes($2)]')
+
+
+# Example code!
+
+	T_CONST_IMM(char(37))
+	T_CONST_CONSTVECTOR(5)
+	T_LEXICAL(0,4)
+	T_LEXICAL(3,5)
+	fixnum_compare(1,l,10)
+	fixnum_compare(2,ge,12)

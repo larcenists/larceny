@@ -14,7 +14,7 @@
 #include "gclib.h"              /* For pageof() */
 #include "stack.h"
 #include "millicode.h"
-#include "petit-hacks.h"        /* Sane aliases for old, insane names */
+#include "petit-machine.h"
 #include "signals.h"
 #include "assert.h"
 #include <setjmp.h>
@@ -39,7 +39,7 @@ extern void i386_return_from_scheme();
 #endif
 
 #ifdef PETIT_LARCENY
-int twobit_cache_state = 0;     /* For twobit.h debug code */
+int twobit_cache_state = 0;     /* For petit-instr.h debug code */
 # if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
 cont_t twobit_cont_label = 0;   /* Label to jump to */
 # endif

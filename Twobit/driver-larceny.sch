@@ -36,12 +36,14 @@
         (if (benchmark-block-mode)
             (process-file-block infilename
                                 `(,outfilename binary)
+				(assembly-declarations user)
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
                                   (assemble (compile-block forms syntaxenv) 
                                             user)))
             (process-file infilename
                           `(,outfilename binary)
+			  (assembly-declarations user)
                           dump-fasl-segment-to-port
                           (lambda (expr)
                             (assemble (compile expr syntaxenv) user)))))

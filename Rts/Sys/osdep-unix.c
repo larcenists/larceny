@@ -29,9 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#if defined (SUNOS4) || defined(SUNOS5) || defined(LINUX) /* really should be HAVE_DLOPEN... */
+//#if defined (SUNOS4) || defined(SUNOS5) || defined(LINUX) /* really should be HAVE_DLOPEN... */
 #include <dlfcn.h>  /* not on MacOS X */
-#endif
+//#endif
 
 #if defined(SUNOS4)		/* Not in any header file. */
 extern int gettimeofday( struct timeval *tp, struct timezone *tzp );

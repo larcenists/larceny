@@ -539,16 +539,18 @@ static void init_env( cheney_env_t *e, gc_t *gc,
                       void (*scanner)( cheney_env_t * ) );
 static void scan_static_area( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
-static void root_scanner_np( word *ptr, void *data );
 static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
-static bool remset_scanner_np( word obj, void *data, unsigned *count );
 static void scan_oflo_normal( cheney_env_t *e );
 static void scan_oflo_splitting( cheney_env_t *e );
-static void scan_oflo_np_promote( cheney_env_t *e );
 static void expand_semispace( semispace_t *, word **, word **, unsigned );
-static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
 static word forward( word, word **, cheney_env_t *e );
+#if ROF_COLLECTOR
+static void root_scanner_np( word *ptr, void *data );
+static bool remset_scanner_np( word obj, void *data, unsigned *count );
+static void scan_oflo_np_promote( cheney_env_t *e );
+static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
+#endif
 
 /* Attribute bits to be passed to init_env() */
 #define NP_PROMOTION        1
@@ -630,6 +632,7 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
   stats_set_gc_event_stats( &cheney );
 }
 
+#if ROF_COLLECTOR
 void gclib_stopcopy_promote_into_np( gc_t *gc,
                                      semispace_t *old, semispace_t *young,
                                      int old_remaining, int young_remaining )
@@ -660,6 +663,7 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
 }
+#endif /* ROF_COLLECTOR */
 
 void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
 {
@@ -709,11 +713,16 @@ static void init_env( cheney_env_t *e,
   e->lim2 = (tospace2 ? tospace2->chunks[tospace2->current].lim : 0);
   e->los = (e->splitting ? 0 : gc->los);
 
+#if ROF_COLLECTOR
   if (e->np_promotion)    e->scan_from_globals = root_scanner_np;
   else                    e->scan_from_globals = root_scanner_oflo;
 
   if (e->np_promotion)    e->scan_from_remsets = remset_scanner_np;
   else                    e->scan_from_remsets = remset_scanner_oflo;
+#else
+  e->scan_from_globals = root_scanner_oflo;
+  e->scan_from_remsets = remset_scanner_oflo;
+#endif
 
   e->scan_from_tospace = scanner;
 }
@@ -779,6 +788,7 @@ static void root_scanner_oflo( word *ptr, void *data )
   forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e );
 }
 
+#if ROF_COLLECTOR
 static void root_scanner_np( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
@@ -788,6 +798,7 @@ static void root_scanner_np( word *ptr, void *data )
 
   FORW_NP_ENV_END( e, dest, lim )
 }
+#endif
 
 static bool remset_scanner_oflo( word object, void *data, unsigned *count )
 {
@@ -809,6 +820,7 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   return has_intergen_ptr;
 }
 
+#if ROF_COLLECTOR
 static bool remset_scanner_np( word object, void *data, unsigned *count )
 {
   cheney_env_t *e = (cheney_env_t*)data;
@@ -826,6 +838,7 @@ static bool remset_scanner_np( word object, void *data, unsigned *count )
   FORW_NP_ENV_END( e, dest, lim )
   return has_intergen_ptr;
 }
+#endif
 
 static void scan_oflo_normal( cheney_env_t *e )
 {
@@ -868,6 +881,7 @@ static void scan_oflo_normal( cheney_env_t *e )
   e->lim = copylim;
 }
 
+#if ROF_COLLECTOR
 static void scan_np_old( cheney_env_t *e );
 static void scan_np_young( cheney_env_t *e );
 static void scan_np_los_old( cheney_env_t *e, word **los_p_arg );
@@ -1000,6 +1014,7 @@ static void scan_np_los_young( cheney_env_t *e, word **los_p )
 
   FORW_NP_ENV_END( e, dest, copylim )
 }
+#endif /* ROF_COLLECTOR */
 
 static void scan_oflo_splitting( cheney_env_t *e )
 {
@@ -1174,6 +1189,7 @@ expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
   *dest = ss->chunks[ss->current].top;
 }
 
+#if ROF_COLLECTOR
 static void
 expand_semispace_np( word **lim, word **dest, unsigned bytes, cheney_env_t *e )
 {
@@ -1203,6 +1219,7 @@ expand_semispace_np( word **lim, word **dest, unsigned bytes, cheney_env_t *e )
   *dest = ss->chunks[ ss->current ].bot;
   *lim = ss->chunks[ ss->current ].lim;
 }
+#endif /* ROF_COLLECTOR */
 
 /* FIXME: Note a problem with the following code.  When a large object is
    forwarded, its generation bits are not changed until after scanning

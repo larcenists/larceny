@@ -1,5 +1,4 @@
 ;;; NASM/i386 macros for the MacScheme instruction set.
-;;; 2003-11-15 / lth
 ;;;
 ;;; $Id$
 ;;; 
@@ -54,14 +53,24 @@
 ;;; 	very densely to fit all in 4 bytes, but that would be a major
 ;;;     win; 3 would be better still.  Use variable-length encoding? 
 ;;;   - Generally search for OPTIMIZEME below
+;;;
+;;; Defines affecting the generated code:
+;;;   UNSAFE_CODE        omit all type checks
+;;;   UNSAFE_GLOBALS     omit undefined-checks on globals
+;;;   INLINE_ALLOCATION  inline all allocation
+;;;   INLINE_ASSIGNMENT  inline the write barrier (partially)
 
+%ifdef UNSAFE_CODE
+ %ifndef USAFE_GLOBALS
+  %define UNSAFE_GLOBALS
+ %endif
+%endif
+	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
-;;; Handy macros for this and that
+;;; Handy macros for this and that.  More fundamental stuff is
+;;; defined in i386-machine.ah
 
-%define wordsize            4
-%define object_align        8
-%define code_align          4
 %define fixtag_mask	    3
 %define tag_mask            7
 %define hdr_shift           8
@@ -99,6 +108,7 @@
 
 ;;; storer regno, sourcereg
 ;;;     store VM register regno from HW register sourcereg
+;;;     Does not destroy sourcereg
 
 %macro storer 2
 %if is_hwreg(%1)
@@ -121,15 +131,37 @@
 ;;;	Move values from r1 and r2 to RESULT and SECOND and perform
 ;;;	a write barrier.  r1 and r2 may be -1, in which case the
 ;;;	value must already be in RESULT and SECOND.
+;;;
+;;;     For INLINE_ASSIGNMENT, test the r2 value and skip the barrier
+;;;     if the low bit is not 1.
 
 %macro write_barrier 2
-%if %1 != -1
-	mov	RESULT, REG%1
-%endif
-%if %2 != -1
+%ifdef INLINE_ASSIGNMENT
+ %if %2 != -1 && is_hwreg(%2)
+	test	REG%2, 1
+	jz short %%L0
 	mov	SECOND, REG%2
-%endif
+ %else
+  %if %2 != -1
+	mov	SECOND, REG%2
+  %endif
+	test	SECOND, 1
+	jz short %%L0
+ %endif
+ %if %1 != -1
+	mov	RESULT, REG%1
+ %endif
+	mcall	M_PARTIAL_BARRIER
+%%L0:
+%else
+ %if %1 != -1
+	mov	RESULT, REG%1
+ %endif
+ %if %2 != -1
+	mov	SECOND, REG%2
+ %endif
 	mcall	M_FULL_BARRIER
+%endif
 %endmacro
 	
 ;;; timer_check
@@ -195,14 +227,15 @@ end_codevector_%1:
 ;;;	in RESULT.
 
 %macro alloc 0
-%ifdef INLINE_ALLOC
+%ifdef INLINE_ALLOCATION
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
-	... FIXME: roundup result to 8!
-	add	TEMP, RESULT
+	add	TEMP, RESULT	; allocate
+	add	TEMP, 4		;   and
+	and	TEMP, -8	;     round up to 8-byte boundary
 	cmp	TEMP, CONT
-	jle	%%L2
+	jle short %%L2
 	mcall	M_MORECORE
-	jmp	%%L1
+	jmp short %%L1
 %%L2:	mov	RESULT, [GLOBALS+G_ETOP]
 	mov	[GLOBALS+G_ETOP], TEMP
 %else
@@ -286,11 +319,12 @@ t_label(%1):
 ;;; compare here, at least.  (Why does it not fit in a byte?)
 
 %macro T_GLOBAL 1
-%%L0:	loadc	RESULT, %1
-	mov	RESULT, [RESULT-PAIR_TAG]
-%ifndef UNSAFE_CODE
+%%L0:	loadc	TEMP, %1
+	mov	RESULT, [TEMP-PAIR_TAG]
+%ifndef UNSAFE_GLOBALS
 	cmp	RESULT, UNDEFINED_CONST
 	jne short %%L1
+	mov	RESULT, TEMP
 	mcall	M_GLOBAL_EX
 	jmp short %%L0
 %%L1:
@@ -360,6 +394,7 @@ t_label(%1):
 	loadr RESULT, %1
 %endmacro
 	
+;;; Does not destroy RESULT.  The peephole optimizer uses that fact.
 %macro T_SETREG 1
 	storer	%1, RESULT
 %endmacro
@@ -460,10 +495,8 @@ t_label(%1):
 	mcall	M_VARARGS
 %endmacro
 
-;;; FIXME: the millicode call for M_INVOKE_EX is used to check for timer
-;;; exception as well, and must check the timer first.  It is also used
-;;; to check for undefined globals if peephole optimization is enabled
-;;; (see below).
+;;; Note the millicode for M_INVOKE_EX is used to check for timer
+;;; exception as well, and must check the timer first.
 
 %macro T_INVOKE 1
 %ifdef UNSAFE_CODE
@@ -490,17 +523,30 @@ t_label(%1):
 %endmacro
 
 ;;; Introduced by peephole optimization.
+;;; 
 ;;; The trick here is that the tag check for procedure-ness will
 ;;; catch undefined variables too.  So there is no need to see
-;;; if the global has an undefined value, just defer to T_INVOKE.
-;;; FIXME: note that M_INVOKE_EX now must check for #!undefined,
-;;; and will not have the data to print a reasonable error message
-;;; since the global cell is lost.
+;;; if the global has an undefined value, specifically.  The
+;;; exception handler figures out the rest.
 
 %macro T_GLOBAL_INVOKE 2
-	loadc	RESULT, %1
-	mov	RESULT, [RESULT-PAIR_TAG]
+%ifdef UNSAFE_GLOBALS
+	T_GLOBAL %1
 	T_INVOKE %2
+%else
+	loadc	RESULT, %1		; global cell
+	mov	TEMP, [RESULT-PAIR_TAG]	;   dereference
+	inc	TEMP			; really TEMP += PROC_TAG-8
+	test	TEMP_LOW, tag_mask	; tag test
+	jz short %%L0
+%%L1:	mcall	M_GLOBAL_INVOKE_EX	; RESULT has global cell (always)
+%%L0:	dec	dword [GLOBALS+G_TIMER]	; timer
+	jz short %%L1			;   test
+	dec	TEMP			; undo ptr adjustment
+	storer	0, TEMP			; save proc ptr
+	const2regf RESULT, fixnum(%2)	; argument count
+	jmp	[TEMP-PROC_TAG+PROC_CODEVECTOR_NATIVE]
+%endif
 %endmacro
 	
 ;;; Allocate the frame but initialize only the basic slots
@@ -1178,23 +1224,32 @@ t_label(%1):
 	add	RESULT, %2
 %endmacro
 
-;;; make_indexed_structure_byte regno ptrtag hdrtag ex
+;;; make_indexed_structure_byte regno hdrtag ex
 ;;;	Allocate a byte structure with the length specified in RESULT
 ;;;     (fixnum number of bytes).  If %1 is not -1, then REG%1 must
-;;;     hold a char value to be used for initialization.  If %1 is -1,
-;;;     no initialization is performed.
-;;;
-;;; FIXME: silly to pass in the ptrtag, it is always BVEC_TAG.
-;;; FIXME: check the type of the init value
+;;;     hold a char value to be used for initialization (a check is
+;;;     performed that is a char).  If %1 is -1, no initialization 
+;;; 	is performed.
 
-%macro make_indexed_structure_byte 4
+%macro make_indexed_structure_byte 3
 %ifndef UNSAFE_CODE
-	;; OPTIMIZEME: Code size: unless allocation is inline,
-	;; this test can be moved into the millicode.
- %%L0:	test	RESULT, fixtag_mask|0x80000000
-	jz short %%L1
-	exception_continuable %4, %%L0
-%%L1:
+	;; OPTIMIZEME (size): Unless allocation is inline,
+	;; the fixnum test can be moved into the millicode.
+	;; (As can the char test, I guess -- in fact, this whole
+	;; instruction is probably best moved into millicode)
+	;; OPTIMIZEME (speed): Both branches are mispredicted here.
+%%L0:
+%if %1 != -1
+	loadr	SECOND, %1
+%endif
+	test	RESULT, fixtag_mask|0x80000000
+	jz short %%L2
+%%L1:	exception_continuable %3, %%L0
+%%L2:
+%if %1 != -1
+	cmp	SECOND_LOW, IMM_CHAR
+	jne	%%L1
+%endif
 %endif
 	mov	[GLOBALS+G_ALLOCTMP], RESULT
 	add	RESULT, fixnum(wordsize)
@@ -1214,9 +1269,9 @@ t_label(%1):
 %endif
 	mov	TEMP, [GLOBALS+G_ALLOCTMP]
 	shl	TEMP, 6
-	or	TEMP, %3
+	or	TEMP, %2
 	mov	[RESULT], TEMP
-	add	RESULT, %2
+	add	RESULT, BVEC_TAG
 %endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1450,7 +1505,7 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_46 0		; make-bytevector
-	make_indexed_structure_byte -1, BVEC_TAG, BYTEVECTOR_HDR, EX_MAKE_BYTEVECTOR
+	make_indexed_structure_byte -1, BYTEVECTOR_HDR, EX_MAKE_BYTEVECTOR
 %endmacro
 
 %macro T_OP1_47 0		; procedure?
@@ -1494,21 +1549,36 @@ t_label(%1):
 	mcall	M_EQV
 %endmacro
 				
-%macro T_OP2_58 1		; cons -- FIXME, should not always be inline
+%macro T_OP2_58 1		; cons
+%ifdef INLINE_ALLOCATION
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
 	add	TEMP, 8
 	cmp	TEMP, CONT
-	jle	%%L2
+	jle short %%L2
 	mcall	M_MORECORE
 	jmp short %%L1
 %%L2:	mov	[GLOBALS+G_ETOP], TEMP
 	mov	[TEMP-8], RESULT
 	lea	RESULT, [TEMP-8+PAIR_TAG]
-%if is_hwreg(%1)
+ %if is_hwreg(%1)
 	mov	[RESULT-PAIR_TAG+4], REG%1
-%else
+ %else
 	loadr	TEMP, %1
 	mov	[RESULT-PAIR_TAG+4], TEMP
+ %endif
+%else
+	mov	[GLOBALS+G_ALLOCTMP], RESULT
+	mov	RESULT, 8
+	mcall	M_ALLOC
+	mov	TEMP, [GLOBALS+G_ALLOCTMP]
+	mov	[RESULT], TEMP
+ %if is_hwreg(%1)
+	mov	[RESULT+4], REG%1
+ %else
+	loadr	TEMP, %1
+	mov	[RESULT+4], TEMP
+ %endif
+	add	RESULT, PAIR_TAG
 %endif
 %endmacro
 	
@@ -1793,7 +1863,7 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_109 1		; make-string
-	make_indexed_structure_byte %1, BVEC_TAG, STR_HDR, EX_MAKE_STRING
+	make_indexed_structure_byte %1, STR_HDR, EX_MAKE_STRING
 %endmacro
 
 %macro T_OP2IMM_128 1		; typetag-set!
@@ -2018,6 +2088,14 @@ t_label(%1):
 	trusted_fixnum_compare %1, le
 %endmacro
 
+%macro T_OP2_409 1		; >=:fix:fix
+	trusted_fixnum_compare %1, ge
+%endmacro
+
+%macro T_OP2_410 1		; >:fix:fix
+	trusted_fixnum_compare %1, g
+%endmacro
+
 %macro T_OP2IMM_450 1		; vector-ref:trusted
 	mov	RESULT, [RESULT+(wordsize-VEC_TAG)+%1]
 %endmacro
@@ -2058,7 +2136,12 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_501 1		; +:fix:fix
-	T_OP2_500 %1
+	loadr	TEMP, %1
+	add	RESULT, TEMP
+	jno short %%L2
+	sub	RESULT, TEMP
+%%L1:	mcall	M_ADD		; second is temp so 2nd arg is in place
+%%L2:
 %endmacro
 	
 %macro T_OP2_502 1		; -:idx:idx
@@ -2070,7 +2153,12 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_503 1		; -:fix:fix
-	T_OP2_502 %1
+	loadr	TEMP, %1
+	sub	RESULT, TEMP
+	jno short %%L2
+	add	RESULT, TEMP
+%%L1:	mcall	M_SUB		; second is temp so 2nd arg is in place
+%%L2:
 %endmacro
 
 %macro T_OP2IMM_520 1		; +:idx:idx
@@ -2079,6 +2167,11 @@ t_label(%1):
 
 %macro T_OP2IMM_521 1		; +:fix:fix
 	add	RESULT, %1
+	jno short %%L2
+	sub	RESULT, %1
+%%L1:	mov	SECOND, %1
+	mcall	M_ADD
+%%L2:
 %endmacro
 
 %macro T_OP2IMM_522 1		; -:idx:idx
@@ -2087,8 +2180,12 @@ t_label(%1):
 
 %macro T_OP2IMM_523 1		; -:fix:fix
 	sub	RESULT, %1
+	jno short %%L2
+	add	RESULT, %1
+%%L1:	mov	SECOND, %1
+	mcall	M_SUBTRACT
+%%L2:	
 %endmacro
-
 
 ;;; Experimental stuff below this line, we need more than this to support
 ;;; peephole optimization well.

@@ -355,6 +355,9 @@
   (environment-set! larc
                     'recognize-javadot-symbols?
                     recognize-javadot-symbols?)
+  (environment-set! larc 'javadot-symbol? javadot-symbol?)
+  ;; Do we need to add symbol->javadot-symbol, etc to the env?
+
   
   ;; pairs and lists
 

@@ -208,9 +208,9 @@
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
 
     (.+:idx:idx       2 +:idx:idx        ,stdc-imm?   500 ,:immortal ,:none #f)
-    (.+:fix:fix       2 +:fix:fix        ,stdc-imm?   501 ,:immortal ,:none #f)
+    (.+:fix:fix       2 +:fix:fix        ,stdc-imm?   501 ,:immortal ,:none #t)
     (.-:idx:idx       2 -:idx:idx        ,stdc-imm?   502 ,:immortal ,:none #f)
-    (.-:fix:fix       2 -:fix:fix        ,stdc-imm?   503 ,:immortal ,:none #f)
+    (.-:fix:fix       2 -:fix:fix        ,stdc-imm?   503 ,:immortal ,:none #t)
 
     (.=:fix:fix       2 =:fix:fix        ,stdc-imm?   406 ,:immortal ,:none #f)
     (.<:fix:fix       2 <:fix:fix        ,stdc-imm?   407 ,:immortal ,:none #f)
@@ -428,9 +428,9 @@
     (>:fix:fix        2 >:fix:fix        ,stdc-imm?    410 ,:immortal ,:none #f)
 
     (+:idx:idx        2 +:idx:idx        ,stdc-imm?    500 ,:immortal ,:none #f)
-    (+:fix:fix        2 +:fix:fix        ,stdc-imm?    501 ,:immortal ,:none #f)
+    (+:fix:fix        2 +:fix:fix        ,stdc-imm?    501 ,:immortal ,:none #t)
     (-:idx:idx        2 -:idx:idx        ,stdc-imm?    502 ,:immortal ,:none #f)
-    (-:fix:fix        2 -:fix:fix        ,stdc-imm?    503 ,:immortal ,:none #f)
+    (-:fix:fix        2 -:fix:fix        ,stdc-imm?    503 ,:immortal ,:none #t)
     ; FIXME: Not yet implemented in twobit.h, and code generating them
     ; has been commented out in standard-C.imp2.sch
     ;(+:exi:exi        2 +:exi:exi        #f             -1 ,:immortal ,:none #f)
@@ -547,9 +547,9 @@
     (>:fix:fix 454 #f)
     (>=:fix:fix 455 #f)
     (+:idx:idx 520 #f)
-    (-:idx:idx 521 #f)
-    (+:fix:fix 522 #f)
-    (-:fix:fix 523 #f)
+    (+:fix:fix 521 #t)
+    (-:idx:idx 522 #f)
+    (-:fix:fix 523 #t)
     (internal:branchf-</imm 635 #t)
     (internal:branchf->/imm 636 #t)
     (internal:branchf->=/imm 637 #t)

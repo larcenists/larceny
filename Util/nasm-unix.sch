@@ -1,4 +1,4 @@
-; 31 August 2003
+; $Id$
 ;
 ; General script for building Larceny on x86 using the NASM backend,
 ; under (Petit) Larceny on Unix.
@@ -52,10 +52,16 @@
   (catfiles '("Rts/Build/globals.sh" 
 	      "Rts/Build/except.sh" 
 	      "Rts/Build/layouts.sh")
-	    "Rts/Build/schdefs.h"))
+	    "Rts/Build/schdefs.h")
+  (load "features.sch"))
 
-(define (build-runtime-system)
+(define (build-heap . args)
+  (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
+
+(define (build-runtime)
   (execute-in-directory "Rts" "make libx86.a"))
+
+(define build-runtime-system build-runtime)  ; Old name
 
 (define (build-executable)
   (build-application "petit" '()))
@@ -73,13 +79,15 @@
 	'("/usr/lib/libm.a" "/usr/lib/libdl.a"))
   (unspecified))
 
-(define (remove-rts-objects)
+(define (remove-runtime-objects)
   (system "rm -f Rts/libx86.a")
   (system "rm -f Rts/Sys/*.o")
   (system "rm -f Rts/Standard-C/*.o")
   (system "rm -f Rts/Intel/*.o")
   (system "rm -f Rts/Build/*.o")
   #t)
+
+(define remove-rts-objects remove-runtime-objects) ; Old name
 
 (define (remove-heap-objects . extensions)
   (let ((ext   '("o" "asm" "lap" "lop"))
@@ -94,11 +102,11 @@
     (for-each (lambda (ext)
 		(for-each (lambda (dir) 
 			    (system (string-append "rm -f " dir "*." ext))) 
-			  '("Lib/Common/"
-			    "Lib/Standard-C/"
-			    "Repl/"
-			    "Interpreter/"
-			    "Compiler/")))
+			  (list (nbuild-parameter 'common-source)
+				(nbuild-parameter 'machine-source)
+				(nbuild-parameter 'repl-source)
+				(nbuild-parameter 'interp-source)
+				(nbuild-parameter 'compiler))))
 	      ext)
     #t))
 

@@ -3,31 +3,15 @@ $Id$
 Release 2 todo and check lists
 
 
+Working on:
+
+
 Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * For most people it is most reasonable that Twobit share the macro
    definitions between the interpreter and compiler, so that loading
    a file with macros in the interpreter is reflected when the compiler
    is invoked.  This does not work now.  Fix it!
-
- * SRFI: The most important non-supported SRFIs are the exception
-   and condition SRFIs.  It would be very nice to have these.
-
- * FFI: Test well on Win32 and Linux, make sure it works and that the
-   documentation reflects how it works.
-
- * Test peephole optimization in Petit Larceny, and when it
-   appears to work, turn it on by default.  Consider backporting
-   eg GLOBAL/INVOKE from the x86-nasm version.
-
- * Figure out how to emit #defines into the generated C and ASM
-   for compiler switches that effect the macros, like unsafe-code
-   and inline-allocation.
-
- * Make work under Win32 with Cygwin or MinGW.
-
- * Implement pointer transformation for non-aligning compilers,
-   to work properly under Win32 with Codewarrior and MSVC.
 
  * Better dynamic loading of compiled code: as it is, a given file
    can only be loaded once, so if foo.fasl points to foo.so and
@@ -41,31 +25,45 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    The latter solves the silly LD_LIBRARY_PATH problem and makes
    FASL files easily moveable.
 
- * Update documentation to reflect the actual state of the system
-
- * X86-NASM: Finish up the exception handling millicode.  Make sure 
-   it can at least rebuild itself and run the test suites, we can
-   put off more optimization and call it 'alpha'.
-
  * Make the debugger work with both x86-NASM and Petit, and make sure
    debug info is emitted correctly.  Information is probably missing
    for internal procedures.  See Larceny note #12 and 
    Lib/Common/procinfo.sch.
 
- * The require system must play nice with heap dumping: the database
-   must not be unconditionally reinitialized even if .larceny reloads
-   the REQUIRE package.  (Implemented, not yet tested.)
+ * SRFI: The most important non-supported SRFIs are the exception
+   and condition SRFIs.  It would be very nice to have these.
 
- * The make system seems broken: a lot of stuff that should never be
-   recompiled for make-petit-heap is anyway recompiled.  Why?
+ * FFI: Test well on Win32 -- does it work according to the docs?
+
+ * FFI: Test well on Linux -- does it work according to the docs?
+
+ * FFI: Does the docs reflect how it works?
+
+ * Make Petit Larceny build under Win32 with Cygwin or MinGW.
+
+ * Implement pointer transformation for non-aligning compilers,
+   to work properly under Win32 with Codewarrior and MSVC.
+
+ * Update all documentation to reflect the actual state of the system
 
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
    of bogus, cf recent discussion on SRFI-0 list.  Should probably
    fix this both in SRFI code as well as in test code.
 
- * Merge Util/petit-macosx.sch into Util/petit-unix-be.sch,
-   ditto for any configuration stuff in Util/configurations.
-   Change doc'n as appropriate.
+ * Worry about situations where a build configuration escapes to the
+   'net with the source? flag set to #t, this will confuse people that
+   read the instructions for compiling Twobit.
+
+ * Quality: Clean up the Util/petit-win32.sch; the unix variants are
+   much cleaner.
+
+ * Quality: Instances of OPTIMIZEME in Rts/Standard-C/twobit.h.  
+
+ * Perhaps twobit.h should be renamed petit-instr.h, to conform to
+   what is going on in Intel/ and PowerPC/.
+
+ * Quality: dumpheap-extra.sch is a silly name, perhaps better
+   would be dumpheap-overrides.sch or dumpheap-target.sch
 
 
 Release candidate 1 -> Release candidate 2

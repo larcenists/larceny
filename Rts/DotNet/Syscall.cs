@@ -217,16 +217,16 @@ namespace Scheme.RT {
             case Sys.flonum_atan : flonum_atan(); break;
             case Sys.flonum_atan2 : flonum_atan2(); break;
             case Sys.flonum_sqrt : flonum_sqrt(); break;
-			case Sys.flonum_sinh : flonum_sinh(); break;
-			case Sys.flonum_cosh : flonum_cosh(); break;
+	    case Sys.flonum_sinh : flonum_sinh(); break;
+	    case Sys.flonum_cosh : flonum_cosh(); break;
 			
-			case Sys.system : system(); break;
-			case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
-			// case Sys.sys_feature : sys_feature(); break;
+	    case Sys.system : system(); break;
+	    case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
+		// case Sys.sys_feature : sys_feature(); break;
 			
-			case Sys.segment_code_address : segment_code_address() ; break;
-			case Sys.chdir : chdir() ; break;
-			case Sys.cwd : cwd() ; break;
+	    case Sys.segment_code_address : segment_code_address() ; break;
+	    case Sys.chdir : chdir() ; break;
+	    case Sys.cwd : cwd() ; break;
 
             default: Exn.internalError("unsupported syscall: " + num_proc); break;
             }
@@ -440,13 +440,13 @@ namespace Scheme.RT {
 		    pi.Arguments = "/c " + command;
 		    pi.UseShellExecute = true;
 			
-			// The CreateNoWindow field isn't defined in
-			// ProcessStartInfo on Rotor. :(
-			#if !USING_ROTOR
-            pi.CreateNoWindow = true;
-			#endif
-            
-			Process p = Process.Start(pi);
+		    // The CreateNoWindow field isn't defined in
+		    // ProcessStartInfo on Rotor. :(
+		    #if !USING_ROTOR
+			pi.CreateNoWindow = true;
+		    #endif
+			
+		    Process p = Process.Start(pi);
 		    p.WaitForExit();
 		    Reg.Result = Factory.wrap(p.ExitCode);
 		    p.Dispose();

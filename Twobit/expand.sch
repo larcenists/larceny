@@ -249,7 +249,7 @@
                       (cons var (R-entry.references R-entry)))
                      var))
                   ((javadot)
-                   (let* ((dot-javadot '.javadot)
+                   (let* ((dot-javadot (make-identifier '.javadot))
                           (id exp)
                           (new-exp `(,dot-javadot ,id)))
                      (display ">> ") (display new-exp) (newline)

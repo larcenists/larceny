@@ -43,6 +43,13 @@
     (cond ((= (car i2) $setreg)
            (reg-setreg as i1 i2 t2)))))
 
+(define-peephole $setreg
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (cond ((= (car i2) $reg)
+	   (setreg-reg as i1 i2 t2))
+	  ((= (car i2) $store)
+	   (setreg-store as i1 i2 t2)))))
+
 (define-peephole $global
   (lambda (as i1 i2 i3 t1 t2 t3)
     (cond ((= (car i2) $invoke)
@@ -64,6 +71,25 @@
     (if (= rs rd)
         (as-source! as tail)
         (as-source! as (cons (list $movereg rs rd) tail)))))
+
+; Optimize
+;   setreg n
+;   reg n
+; on the assumption that setreg does not destroy RESULT
+
+(define (setreg-reg as i:setreg i:reg tail)
+  (if (= (operand1 i:setreg) (operand1 i:reg))
+      (as-source! as (cons i:setreg tail))))
+
+; Ditto for
+;   setreg n
+;   store n, k
+
+(define (setreg-store as i:setreg i:store tail)
+  (if (= (operand1 i:setreg) (operand1 i:store))
+      (as-source! as (cons i:setreg
+			   (cons (list $setstk (operand2 i:store))
+				 tail)))))
 
 ; Gets rid of spurious branch-to-next-instruction
 ;    (branch Lx k)

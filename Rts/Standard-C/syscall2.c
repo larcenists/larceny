@@ -6,7 +6,7 @@
  */
 
 #include "larceny.h"
-#include "twobit.h"
+#include "petit-instr.h"
 
 extern cont_t *twobit_load_table[];
 

@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-21 November 2003 / lth
+3 July 2004 / lth
 
 
 HOW TO BUILD PETIT LARCENY AND USE THE BUILD ENVIRONMENT
@@ -18,8 +18,8 @@ BOOTSTRAPPING if you don't have a working Scheme system.
 
 First things first:
 
-  * You must inspect Rts/Sys/config.h and choose the configuration
-    you are building.
+  * You must inspect features.sch and choose the configuration you are
+    building.
 
   * You will probably need to edit Rts/Makefile to make it fit your
     system -- "make" is used to build the run-time system.
@@ -29,21 +29,21 @@ be the Larceny source directory if necessary, and load the appropriate
 configuration file for your operating system, currently one of:
 
     Util/petit-win32.sch
-    Util/petit-macosx.sch
     Util/petit-unix-be.sch
     Util/petit-unix-el.sch
 
 These programs sometimes invoke external programs and may place
 additional demands on your host system.  Currently all systems need
 some version of "make" to be able to build the run-time system, and
-will need access to a command interepreter.
+will need access to a command interpreter.
 
 The first time you run the build environment you will want to evaluate:
 
     > (setup-directory-structure)
 
-Whenever you have altered any of the Rts/*.cfg, or the first time you
-run the build environment, you will want to evaluate:
+Whenever you have altered ~/features.sch or any of the Rts/*.cfg, or
+the first time you run the build environment, you will want to
+evaluate:
 
     > (build-config-files)
 
@@ -56,14 +56,14 @@ which is why it is a separate step):
 and then build the heap image, the runtime system, and finally the
 executable:
 
-    > (make-petit-heap)
-    > (build-runtime-system)
+    > (build-heap)
+    > (build-runtime)
     > (build-executable)
 
 Other useful commands are:
 
-    > (remove-heap-objects)   ; removes generated files (LAP, LOP, C, OBJ)
-    > (remove-rts-objects)    ; removes OBJ files in the Rts tree
+    > (remove-heap-objects)     ; removes generated files (LAP, LOP, C, OBJ)
+    > (remove-runtime-objects)  ; removes OBJ files in the Rts/ tree
 
 It is also possible to create an application that contains more
 compiled code than the standard heap image.  In this case, the object

@@ -33,6 +33,19 @@
 (define (assembly-user-data)
   (make-user-data))
 
+(define (assembly-declarations user-data)
+  (append (if (not (runtime-safety-checking))
+	      '("%define UNSAFE_CODE")
+	      '())
+	  (if (not (catch-undefined-globals))
+	      '("%define UNSAFE_GLOBALS")
+	      '())
+	  (if (inline-allocation)
+	      '("%define INLINE_ALLOCATION")
+	      '())
+	  (if (inline-assignment)
+	      '("%define INLINE_ASSIGNMENT")
+	      '())))
 
 ; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment

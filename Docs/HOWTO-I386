@@ -1,5 +1,5 @@
 Information about native Larceny on Intel 386-class systems
-15 December 2003 / lth
+4 July 2004 / lth
 
 
 HOW TO BUILD AND USE.
@@ -18,60 +18,73 @@ rather than source files in C.
 Obviously you need to have NASM installed on your system.  It is free
 and can be downloaded from http://sourceforge.net/projects/nasm.
 
-Technical details are scattered (too much) across Asm/Intel/README and
-files in Rts/Intel.
+Technical details are scattered across Asm/Intel/README and files in
+Rts/Intel.
 
 
 STATUS.
 
-Operational but not complete.  Twobit running in the interpreter
-creates an executable and heap image identical to those it creates
-when running in Petit Larceny's interpreter.
-
-Major missing piece is millicode support for exception handling; right
-now the exception handler executes HLT and crashes the program.
+Operational.  Twobit running in the interpreter creates an executable
+and heap image identical to those it creates when running in Petit
+Larceny's interpreter.
 
 
 TODO.
 
- - implement exception signalling in Rts/Intel/i386-millicode.asm (important)
- - a few FIXMEs in Rts/Intel/i386-instr.asm (unproblematic)
- - a few OPTIMIZEMEs ditto (ditto)
- - performance (see next section)
- - code size (see section after that)
+ - more extensive peephole optimization
+ - minor issues with performance, code size
  - test, test, test
+
+
+ISSUES.
+
+ - a crash during GC was seen some time following a ^C, which 
+   could indicate that kbd interrupts are not handled properly
+
+
+OTHER NOTES AND IDEAS.
+
+ - NASM can generate .bin format files, ie, raw code.  We can use this
+   to create a system with on-line compilation: just dump the code to
+   an asm file in /tmp, assemble it to a .bin, and slurp the object
+   code into a code vector in the heap.  There should be very little
+   extra work involved in getting this done, once the rest works.  
+
+   There is a subtle snag with this approach: code vectors in the heap
+   are bytevector pointers but code vectors in the executable look
+   like fixnums.  Different calling sequences are used for the two.
+   Thus it is unlikely that we can build a system containing both
+   kinds of code.
+
+ - The GNU assembler (gas) cannot create a .bin directly, but ld can
+   (using --oformat=binary), so the same trick applies there.
 
 
 PERFORMANCE.
 
-Programs that do a lot of traps to millicode will likely be slower
-than they used to be, because there is more state to save and a more
-costly call protocol (one indirect and one direct jump, rather than
-just one direct jump).  The operations most likely to suffer adversely
-are allocation, the write barrier, and generic arithmetic.  (Of these,
-the interpreter heavily relies on allocation and assignment; these
-have been fixed and it helps a little, see below.)
+Five aspects:
+  - Configuring Twobit to fit the x86.  I've done this a little by
+    setting the number of hardware registers to 16 (means most generic
+    code will use short instructions to fetch "hardware" registers
+    located in the sw register file); unclear if much more can be
+    done.
+  - Configuring the RTS.  I've rearranged the globals array some to
+    allow many references to use short instructions.
+  - Peephole optimization, notably of boolean evaluation for control
+    and the CHECK operations: need to port the optimizations from the
+    other back-ends.
+  - Code quality in the primitives.  See section below.
+  - Millicode calls.  See section below.
 
-The next step would be to (a) compile with profiling, to see if much
-time is being spent in the RTS/millicode, and if so where, and (b)
-change the assembler to emit debug info that the profiler can use, at
-which point we can profile the entire system!  (NASM loses here -- it
-can't handle debug information.)
+Should compile with profiling, to see if much time is being spent in
+the RTS/millicode, and if so where.
 
-The Intel manuals stress the importance of being nice to the CPU by
-generating straight-line code and getting static prefetches right (ie,
-backward branch is predicted as taken, forward predicted as not taken,
-many details).  Also, several short instructions may be preferable to
-one long one, for the sake of the decoder.  May also be able to use
-conditional move instruction on 586-class systems (even better if it
-were introduced on 486, I haven't checked) to reduce branches, but it
-requires some reworking.
+Should change the assembler to emit debug info that the profiler can
+use, at which point we can profile the entire system!  (NASM loses
+here -- it can't handle debug information.)
 
-One benchmark is the time it takes to load the compiler from the
-interpreter (this should not vary much) and the time it takes to
-rebuild the system in the interpreter.
-
-Time it takes to load compiler from source:
+One ad-hoc benchmark is the time it takes to load the compiler from
+the interpreter (this should not vary much):
 
 Petit Larceny 0.51
   Elapsed time...: 14616 ms (User: 14420 ms; System: 40 ms)
@@ -95,12 +108,53 @@ Larceny 0.53, as above but with a lot of bumming the code for size
   Elapsed time...: 9429 ms (User: 8520 ms; System: 0 ms)
 
 
+CODE QUALITY.
+
+I've spent a fair amount of time bumming the code for size (see
+section below both for what's been done and remaining ideas); this
+seems to improve performance too.
+
+The Intel manuals stress the importance of being nice to the CPU by
+generating straight-line code and getting static prefetches right.
+(Eg, backward branch is predicted as taken, forward predicted as not
+taken, many details.  The current code does it the other way around,
+with a lot of skipping over error handlers or skipping backward to
+error handlers.  This minimizes code size, which is why it is the way
+it is.)  Also, several short instructions may be preferable to one
+long one, for the sake of the decoder.
+
+May also be able to use conditional move instruction on 586-class
+systems (even better if it were introduced on 486, I haven't checked)
+to reduce branches, but it requires some reworking, and with proper
+peephole optimization the issue is less important.
+
+Look for OPTIMIZEMEs in Rts/Intel/i386-instr.asm.
+
+
+MILLICODE CALLS.
+
+Programs that do a lot of traps to millicode will likely be slower
+than they used to be, because there is more state to save and a more
+costly call protocol (one indirect and one direct jump, rather than
+just one direct jump).  The operations most likely to suffer adversely
+are allocation, the write barrier, and generic arithmetic.  Of these,
+the interpreter heavily relies on allocation and assignment; these
+have been fixed by creating fast paths in the assembler millicode, and
+it helps a little, see below.
+
+
+
 CODE SIZE.
 
 Information about static instruction frequency in Lib/Common is
 attached to the end of this file.
 
-Here are some ideas:
+There are a number of OPTIMIZEMEs in the instruction macros, to
+be handled.
+
+Peephole optimization must be more generally implemented.
+
+Here are some further ideas:
 
  - Bumming: The assembler does *not* optimize short forward
    conditional branches properly; insert a 'short' qualifier when the
@@ -110,21 +164,11 @@ Here are some ideas:
     but NASM falls to pieces on larger files: optimizing
     memstats.asm at -O2 generates bogus errors.)
 
- - Peephole optimization should get rid of most cases where we have
-   to generate boolean values (10 bytes each time)
-
- - Peephole optimize SETREG k; REG k -- this happens quite a bit
-
- - Peephole optimize SETREG k; STORE k, n -- this too seems to be common
-
  - Bumming: Put most-used millicode procs at negative offsets from
    GLOBALS, so that short offsets are generated in calling them!
    Right now the millicode call to do generic arithmetic is 7 bytes,
    but it need only be 4.  Certainly common exception offsets must be
    near, and the barrier.  As many as possible!
-
- - Bumming: G_TIMER should be at a short offset, this in itself should
-   save about 10KB.
 
  - Bumming: Rather than generating short constants with MOV it may be
    smaller to generate them with either "clear; load low" or "load
@@ -155,16 +199,6 @@ Here are some ideas:
    For this to pay off, access to globals would need to be much more
    frequent on the average than millicode calls.  This is dubious.
 
- - There appears to be a bug in twobit where it uses R31 in the
-   initialization thunks for global variables (twice per thunk).  R31
-   is at a long offset, R16 would be more reasonable.
-
- - If size is in itself an issue, the Rts can be trimmed: the DOF
-   collector is 20KB, and there is a lot of stuff in cheney.c
-   supporting ROF collection.  No doubt other code can go, and the
-   extensive help for the wizard options for the advanced collectors.
-   (The RTS is 140KB text+data.)
-
 
 SIZE OPTIMIZATIONS IMPLEMENTED.
 
@@ -191,15 +225,14 @@ SIZE OPTIMIZATIONS IMPLEMENTED.
  - Peephole-optimize jump-to-next-instruction and REG/SETREG brings it
    down to 1386500 -- another 16KB.
 
+ - Peephole optimize 
+        SETREG k; REG k
+   and  SETREG k; STORE k, n
+   and put G_TIMER should be at a short offset -- another 25KB (but down
+   to 1374212, I lost about 13KB somewhere in April/May).
 
-OTHER NOTES.
-
-Future ideas:
- - nasm can generate .bin format files, ie, raw code.  We can use this to 
-   create a system with on-line compilation: just dump the code to an asm 
-   file in /tmp, assemble it to a .bin, and slurp the object code into a
-   code vector in the heap.  There should be very little extra work involved 
-   in getting this done, once the rest works.
+ - RTS trimming: the RTS can now be configured without the ROF and DOF
+   collectors, saving 54KB (including help text), down to 1320408.
 
 
 ; 2003-11-24

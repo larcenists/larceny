@@ -41,6 +41,19 @@
 (define (assembly-user-data)
   (make-user-data))
 
+(define (assembly-declarations user-data)
+  (append (if (not (runtime-safety-checking))
+	      '("#define UNSAFE_CODE")
+	      '())
+	  (if (not (catch-undefined-globals))
+	      '("#define UNSAFE_GLOBALS")
+	      '())
+	  (if (inline-allocation)
+	      '("#define INLINE_ALLOCATION")
+	      '())
+	  (if (inline-assignment)
+	      '("#define INLINE_ASSIGNMENT")
+	      '())))
 
 ; User-data structure has two fields:
 ;  toplevel-counter     Different for each compiled segment
@@ -661,10 +674,10 @@
 (define (constant-value x)
 
   (define (exact-int->fixnum x)
-    (* x 4))
+    (string-append "fixnum(" (number->string x) ")"))
 
   (define (char->immediate c)
-    (+ (* (char->integer c) 65536) $imm.character))
+    (string-append "int_to_char(" (number->string (char->integer c)) ")"))
 
   (cond ((fixnum? x)              (exact-int->fixnum x))
         ((eq? x #t)               "TRUE_CONST")

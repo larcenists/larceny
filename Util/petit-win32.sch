@@ -63,7 +63,8 @@
   (catfiles '("Rts\\Build\\globals.sh" 
 	      "Rts\\Build\\except.sh" 
 	      "Rts\\Build\\layouts.sh")
-	    "Rts\\Build\\schdefs.h"))
+	    "Rts\\Build\\schdefs.h")
+  (load "features.sch"))
 
 (define (catfiles input-files output-file)
   (delete-file output-file)
@@ -77,8 +78,13 @@
 			(write-char c out)))))
 		input-files))))
 
-(define (build-runtime-system)
+(define (build-heap . args)
+  (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
+
+(define (build-runtime)
   (execute-in-directory "Rts" "nmake petit-rts.lib"))
+
+(define build-runtime-system build-runtime) ; Old name
 
 (define (build-executable)
   (build-application "petit.exe" '()))
@@ -109,13 +115,15 @@
       (load "Util\\Configurations\\load-twobit-C-el-win32-larceny.sch")
       (load "Util\\Configurations\\load-twobit-C-el-win32-petite.sch")))
 
-(define (remove-rts-objects)
+(define (remove-runtime-objects)
   (system "del Rts\\petit-rts.lib")
   (system "del Rts\\vc60.pdb")
   (system "del Rts\\Sys\\*.obj")
   (system "del Rts\\Standard-C\\*.obj")
   (system "del Rts\\Build\\*.obj")
   #t)
+
+(define remove-rts-objects remove-runtime-objects) ; Old name
 
 (define (remove-heap-objects . extensions)
   (let ((ext   '("obj" "c" "lap" "lop"))
@@ -134,12 +142,13 @@
     (system "del petit-lib.pdb")
     (system "del vc60.pdb")
     (for-each (lambda (ext)
-		(for-each (lambda (dir) (system (string-append "del " dir "*." ext))) 
-			  '("Lib\\Common\\"
-			    "Lib\\Standard-C\\"
-			    "Repl\\"
-			    "Interpreter\\"
-			    "Compiler\\")))
+		(for-each (lambda (dir) 
+			    (system (string-append "del " dir "*." ext))) 
+			  (list (nbuild-parameter 'common-source)
+				(nbuild-parameter 'machine-source)
+				(nbuild-parameter 'repl-source)
+				(nbuild-parameter 'interp-source)
+				(nbuild-parameter 'compiler))))
 	      ext)
     #t))
 

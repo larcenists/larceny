@@ -1,5 +1,9 @@
+; -*- mode: asm -*-
+;
 ; Copyright 2003 Lars T Hansen
 ; Machine description for x86-nasm port of Larceny.
+;
+; $Id$
 ;
 ; Notes on the representations.
 ;
@@ -29,6 +33,10 @@
 %ifndef I386_MACHINE_ASM
 %define I386_MACHINE_ASM
 
+%define wordsize        4
+%define object_align    8
+%define code_align      4
+
 %define TEMP    	eax	; always same as SECOND
 %define SECOND  	eax	; always same as TEMP
 %define RESULT  	ebx
@@ -53,6 +61,7 @@
 
 %define hwreg_has_low(r)  (r==1 || r==2)
 
+%include "config.ah"
 %include "asmdefs.ah"
 
 %ifdef WIN32
@@ -73,16 +82,16 @@
 %define PROC_REG0                   12            ; byte offset
 
 %define EX_PROCEDURE_REF	    EX_PREF
-%define EX_MAKE_BYTEVECTOR	    EX_MKBVL	; FIXME
+%define EX_MAKE_BYTEVECTOR	    EX_MKBVL	  ; FIXME
 %define EX_BYTEVECTOR_LENGTH	    EX_BVLEN
 %define EX_BYTEVECTOR_LIKE_LENGTH   EX_BVLLEN
 %define EX_BYTEVECTOR_LIKE_REF	    EX_BVLREF
 %define EX_BYTEVECTOR_LIKE_SET	    EX_BVLSET
-%define EX_MAKE_STRING		    EX_MKBVL	; FIXME
+%define EX_MAKE_STRING		    EX_MKBVL	  ; FIXME
 %define EX_STRING_LENGTH	    EX_SLEN
 %define EX_STRING_REF		    EX_SREF
 %define EX_STRING_SET		    EX_SSET
-%define EX_MAKE_VECTOR		    EX_MKVL     ; FIXME
+%define EX_MAKE_VECTOR		    EX_MKVL       ; FIXME
 %define EX_VECTOR_LENGTH	    EX_VLEN
 %define EX_VECTOR_REF		    EX_VREF
 %define EX_VECTOR_SET		    EX_VSET
@@ -91,7 +100,7 @@
 %define EX_VECTOR_LIKE_SET	    EX_VLSET
 %define EX_BYTEVECTOR_REF	    EX_BVREF
 %define EX_BYTEVECTOR_SET	    EX_BVSET
-%define EX_MAKE_PROCEDURE	    EX_MKVL	; FIXME
+%define EX_MAKE_PROCEDURE	    EX_MKVL	  ; FIXME
 %define EX_PROCEDURE_LENGTH	    EX_PLEN
 %define EX_PROCEDURE_REF	    EX_PREF
 %define EX_PROCEDURE_SET	    EX_PSET
