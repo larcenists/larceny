@@ -10,18 +10,20 @@ Status
 Callbacks are not fully implemented -- the integration with call/cc is
 not finished.  Don't use callbacks yet.
 
+(This readme may be slightly out-of-date, please report bugs.)
+
 
 Introduction
 ------------
 
-To use the ffi, it's easiest to load Ffi/loadffi.sch and then evaluate
+To use the ffi, it's easiest to load Ffi/ffi-load.sch and then evaluate
 
 	(load-ffi <path>)
 
 where <path> is the name of the Ffi directory, with a trailing directory
-separator.  Load-ffi loads all the FFI files and loads the appropriate
-libc.  It returns three values: an architecture identifier, a callout-abi
-structure, and a callback-abi structure.
+separator.  <tt>Load-ffi</tt> loads all the FFI files and loads the
+appropriate libc.  It returns three values: an architecture identifier,
+a callout-abi structure, and a callback-abi structure.
 
 If you take a look in Ffi/examples.sch, you'll see an example of this.
 The code in that file should in any case be very instructive.
