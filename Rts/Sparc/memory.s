@@ -4,25 +4,9 @@
 !
 ! SPARC memory management primitives.
 !
-! Naming conventions:
-!   All publicly available procedures are named _mem_something.
-!   Procedures which use internal calling conventions (i.e., which are
-!   called from millicode) are named _mem_internal_something.
-!
-! Calling conventions:
-!   Scheme-to-millicode: return address in %o7, valid %R0, arguments
-!   in RESULT, ARGREG2, ARGREG3. Always in Scheme mode.
-!
-!   Millicode-to-millicode: return address in %o7, Scheme return
-!   address saved in G_RETADDR, %R0 valid, arguments in RESULT,
-!   ARGREG2, ARGREG3.
-!
-! Assumptions:
-!   - all allocation is in 8-byte aligned chunks
-!   - the ephemeral space lives below the tenured space
-!
-! Notes
-!   It's a lot of code.  It would have been a lot less with a macro-assembler.
+! All publicly available procedures are named mem_something.
+! Procedures which use internal calling conventions (i.e., which are
+! called from millicode) are named mem_internal_something.
 
 #define ASSEMBLER 1
 #include "../Sys/config.h"
@@ -64,6 +48,7 @@
 
 EXTNAME(mem_alloc):
 EXTNAME(mem_alloc_bv):
+#if 0
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -86,7 +71,31 @@ Lalloc1:
 						! overflow because everything
 						! is 8-byte aligned.
 
+#else
+	sub	%E_LIMIT, %E_TOP, %TMP0		! Compute space
+	and	%RESULT, 0x04, %TMP1		! Get odd bit
+	cmp	%RESULT, %TMP0			! Space?
+	bleu,a	Lalloc1				!   Skip and
+	add	%E_TOP, %RESULT, %E_TOP		!     allocate if so
 
+	! Heap overflow. %RESULT still has the number of words to alloc.
+
+	st	%o7, [ %GLOBALS + G_RETADDR ]	! save scheme return address
+	call	heap_overflow
+	nop
+	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore return address
+	jmp	%o7+8
+	nop
+
+Lalloc1:
+	sub	%E_TOP, %RESULT, %RESULT	! result ptr
+	jmp	%o7+8
+	add	%E_TOP, %TMP1, %E_TOP		! Round up. We can round
+						! without checking for
+						! overflow because everything
+						! is 8-byte aligned.
+#endif
+	
 ! _mem_alloci: allocate initialized memory
 !
 ! Call from: Scheme
@@ -163,6 +172,7 @@ Lalloci2:
 
 EXTNAME(mem_internal_alloc):
 EXTNAME(mem_internal_alloc_bv):
+#if 0
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
 	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
 	cmp	%E_TOP, %E_LIMIT		! check for overflow
@@ -178,7 +188,24 @@ Lialloc1:
 	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
 						! in code for _mem_alloc.
+#else
+	sub	%E_LIMIT, %E_TOP, %TMP0		! Compute space
+	and	%RESULT, 0x04, %TMP1		! get 'odd' bit
+	cmp	%RESULT, %TMP0			! Space?
+	bleu,a	Lialloc1			!   skip and
+	add	%E_TOP, %RESULT, %E_TOP		!     allocate if so
 
+	! Heap overflow.
+
+	b	heap_overflow			! returns to caller
+	nop
+
+Lialloc1:
+	sub	%E_TOP, %RESULT, %RESULT	! setup result
+	jmp	%o7+8
+	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
+						! in code for _mem_alloc.
+#endif
 
 ! heap_overflow: Heap overflow handler for allocation primitives.
 ! ETOP must point to first free word in ephemeral area.
