@@ -1,9 +1,4 @@
-;;; Compiler settings.  Change these as appropriate.
-
-(fast-safe-code)                        ; Default setting
-(issue-warnings #f)                     ; Or get very upset about nucleic.scm
-
-;;;
+;;; Edit the file larceny-settings.scm to set compiler switches.
 
 (define fatal-error error)
 
