@@ -148,8 +148,7 @@
 ; I think this is now used in only one place, in simplify-if.
 
 (define (integrable? name)
-  (and (integrate-usual-procedures)
-       (prim-entry name)))
+  (prim-entry name))
 
 ; MAKE-READABLE strips the referencing information
 ; and replaces (begin I) by I.
