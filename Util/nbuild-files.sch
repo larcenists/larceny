@@ -14,31 +14,33 @@
 
 (define *nbuild:twobit-files-1*
   (nbuild-files 'compiler
-		'("sets.sch" "switches.sch" "copy.sch" "pass1.aux.sch" 
-		  "pass1.sch" "pass2.aux.sch" "pass2p1.sch" "pass2p2.sch")))
+		'("sets.sch" "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
+		  "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
+		  "expand.sch" "usual.sch" "copy.sch" "pass1.sch")))
 
 (define *nbuild:sparc/twobit-files*
   (nbuild-files 'compiler
-		'("sparc.imp.sch" "patch0.sch")))
+		'("sparc.imp.sch")))
 
 (define *nbuild:petit/twobit-files*
   (nbuild-files 'compiler
-		'("standard-C.imp.sch" "patch0.sch")))
+		'("standard-C.imp.sch")))
 
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler
-		'("pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4p3.sch"
+		'("pass2p1.sch" "pass2p2.sch"
+		  "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4p3.sch"
 		  "compile313.sch" "printlap.sch")))
 
 (define *nbuild:common-asm-be*
   (nbuild-files 'common-asm
 		'("pass5p1.sch" "asmutil.sch" "asmutil32be.sch" "asmutil32.sch"
-		  "makefasl.sch")))
+		  "makefasl.sch" "dumpheap.sch")))
 
 (define *nbuild:common-asm-el*
   (nbuild-files 'common-asm
 		'("pass5p1.sch" "asmutil.sch" "asmutil32el.sch" "asmutil32.sch"
-                  "makefasl.sch")))
+                  "makefasl.sch" "dumpheap.sch")))
 
 (define *nbuild:build-files*
   (nbuild-files 'build '("schdefs.h")))
@@ -61,12 +63,11 @@
 (define *nbuild:help-files*
   (nbuild-files 'compiler '("help.sch")))
 
-(define *nbuild:sparc-heap-dumper-files*
-  (nbuild-files 'common-asm '("dumpheap.sch")))
+(define *nbuild:sparc-heap-dumper-files* 
+  '())
 
 (define *nbuild:petit-heap-dumper-files*
-  (append (nbuild-files 'common-asm '("dumpheap.sch"))
-	  (nbuild-files 'standard-C-asm '("dumpheap-extra.sch"))))
+  (nbuild-files 'standard-C-asm '("dumpheap-extra.sch")))
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*
