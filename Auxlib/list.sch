@@ -8,33 +8,8 @@
 ; * Reduce, reduce-right, fold-right, fold-left are compatible with MIT Scheme.
 ; * Make-list is compatible with MIT Scheme and Chez Scheme.
 ; * These are not (yet) compatible with Shivers's proposed list functions.
-; * remq, remv, remove, every?, and some? are in the basic library already.
-
-; Destructively remove all elements that match `key' from `list'.
-
-(define (remq! key list)
-  (cond ((null? list) list)
-	((eq? key (car list))
-	 (remq! key (cdr list)))
-	(else
-	 (set-cdr! list (remq! key (cdr list)))
-	 list)))
-
-(define (remv! key list)
-  (cond ((null? list) list)
-	((eqv? key (car list))
-	 (remv! key (cdr list)))
-	(else
-	 (set-cdr! list (remv! key (cdr list)))
-	 list)))
-
-(define (remove! key list)
-  (cond ((null? list) list)
-	((equal? key (car list))
-	 (remove! key (cdr list)))
-	(else
-	 (set-cdr! list (remove! key (cdr list)))
-	 list)))
+; * remq, remv, remove, remq!, remv!, remov!, every?, and some? are in the 
+;   basic library.
 
 ; Destructively remove all associations whose key matches `key' from `alist'.
 
