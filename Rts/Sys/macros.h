@@ -10,6 +10,9 @@
  * For C-language routines.
  */
 
+#ifndef INCLUDED_MACROS_H
+#define INCLUDED_MACROS_H
+
 /* Various masks */
 #define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
 #define HDR_SIGN	0x00000082	/* header signature */
@@ -108,5 +111,7 @@
 
 #define global_cell_ref( cp )  pair_car( cp )
 #define global_cell_set( x, y ) pair_car( x ) = (y)
+
+#endif
 
 /* eof */
