@@ -108,6 +108,7 @@ struct swb_stats {
 struct gc_event_stats {
   /* GC_HIRES_TIMERS */
   /* Generic */
+  /* hrtime_t is usually a long long. */
   hrtime_t gctime;
   hrtime_t promtime;
   hrtime_t free_unused;
@@ -133,7 +134,9 @@ struct gc_event_stats {
 
   /* GC_EVENT_COUNTERS */
   int copied_by_gc;             /* One way of counting */
+  int moved_by_gc;
   int copied_by_prom;           /* One way of counting */
+  int moved_by_prom;
   int words_forwarded;          /* Another way of counting */
   int ptrs_forwarded;
   int gc_barrier_hit;		/* DOF/ROF GC */
@@ -197,8 +200,9 @@ void stats_add_swb_stats( swb_stats_t *stats );
      */
 #endif
 
-void stats_add_gc_event_stats( gc_event_stats_t *stats );
-  /* Add the GC event statistics to the statistics variables.
+void stats_set_gc_event_stats( gc_event_stats_t *stats );
+  /* Set the GC event statistics to the values contained in stats,
+     for all nonzero elements in stats. (Note, does _not_ add them.)
      */
 
 /* Scheme-side interface -- in stats.c */

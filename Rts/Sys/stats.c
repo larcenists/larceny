@@ -13,7 +13,9 @@
  * better if the data were placed directly into the Scheme data
  * structure as it comes in from the rest of the RTS.  All that's
  * necessary is for the Scheme library to register a buffer with this
- * module into which data can be accumulated.  
+ * module into which data can be accumulated.  On the other hand, that
+ * creates a heap-allocated structure whose size varies with the collector,
+ * and that introduces noise, so I've decided to hold off on it.
  */
 
 #include <stdio.h>
@@ -49,7 +51,18 @@
 
 #define PUT_WORD( src, target, field ) 		\
   target->field = fixnum( src->field )
-     
+
+#define CPUTBIG_DWORD( src, target, field )                             \
+  do { if (src->field != 0) {                                           \
+         target->PASTE(field,_lo) = fixnum( src->field & FIXNUM_MASK ); \
+         target->PASTE(field,_hi) =                                     \
+           fixnum( (src->field >> FIXNUM_SHIFT) & FIXNUM_MASK );        \
+       }                                                                \
+  } while(0) 
+
+#define CPUT_WORD( src, target, field ) 		\
+  if (src->field != 0) target->field = fixnum( src->field )
+
 
 typedef struct gc_memstat gc_memstat_t;
 typedef struct gclib_memstat gclib_memstat_t;
@@ -181,7 +194,9 @@ struct gc_event_memstat {
   DWORD( assimilate_gc );
 
   word copied_by_gc;
+  word moved_by_gc;
   word copied_by_prom;
+  word moved_by_prom;
   word words_forwarded;
   word ptrs_forwarded;
   word gc_barrier_hit;
@@ -401,39 +416,41 @@ void stats_add_swb_stats( swb_stats_t *stats )
 }
 #endif
 
-void stats_add_gc_event_stats( gc_event_stats_t *stats )
+void stats_set_gc_event_stats( gc_event_stats_t *stats )
 {
   gc_event_memstat_t *s = &stats_state.gc_event_stats;
 
-  PUTBIG_DWORD( stats, s, gctime );
-  PUTBIG_DWORD( stats, s, promtime );
-  PUTBIG_DWORD( stats, s, free_unused );
-  PUTBIG_DWORD( stats, s, root_scan_gc );
-  PUTBIG_DWORD( stats, s, root_scan_prom );
-  PUTBIG_DWORD( stats, s, los_sweep_gc );
-  PUTBIG_DWORD( stats, s, los_sweep_prom );
-  PUTBIG_DWORD( stats, s, remset_scan_gc );
-  PUTBIG_DWORD( stats, s, remset_scan_prom );
-  PUTBIG_DWORD( stats, s, tospace_scan_gc );
-  PUTBIG_DWORD( stats, s, tospace_scan_prom );
-  PUTBIG_DWORD( stats, s, reset_after_gc );
-  PUTBIG_DWORD( stats, s, decrement_after_gc );
-  PUTBIG_DWORD( stats, s, dof_remset_scan );
-  PUTBIG_DWORD( stats, s, sweep_shadow );
-  PUTBIG_DWORD( stats, s, msgc_mark );
-  PUTBIG_DWORD( stats, s, sweep_dof_sets );
-  PUTBIG_DWORD( stats, s, sweep_remset );
-  PUTBIG_DWORD( stats, s, sweep_los );
-  PUTBIG_DWORD( stats, s, assimilate_prom );
-  PUTBIG_DWORD( stats, s, assimilate_gc );
+  CPUTBIG_DWORD( stats, s, gctime );
+  CPUTBIG_DWORD( stats, s, promtime );
+  CPUTBIG_DWORD( stats, s, free_unused );
+  CPUTBIG_DWORD( stats, s, root_scan_gc );
+  CPUTBIG_DWORD( stats, s, root_scan_prom );
+  CPUTBIG_DWORD( stats, s, los_sweep_gc );
+  CPUTBIG_DWORD( stats, s, los_sweep_prom );
+  CPUTBIG_DWORD( stats, s, remset_scan_gc );
+  CPUTBIG_DWORD( stats, s, remset_scan_prom );
+  CPUTBIG_DWORD( stats, s, tospace_scan_gc );
+  CPUTBIG_DWORD( stats, s, tospace_scan_prom );
+  CPUTBIG_DWORD( stats, s, reset_after_gc );
+  CPUTBIG_DWORD( stats, s, decrement_after_gc );
+  CPUTBIG_DWORD( stats, s, dof_remset_scan );
+  CPUTBIG_DWORD( stats, s, sweep_shadow );
+  CPUTBIG_DWORD( stats, s, msgc_mark );
+  CPUTBIG_DWORD( stats, s, sweep_dof_sets );
+  CPUTBIG_DWORD( stats, s, sweep_remset );
+  CPUTBIG_DWORD( stats, s, sweep_los );
+  CPUTBIG_DWORD( stats, s, assimilate_prom );
+  CPUTBIG_DWORD( stats, s, assimilate_gc );
 
-  PUT_WORD( stats, s, copied_by_gc );
-  PUT_WORD( stats, s, copied_by_prom );
-  PUT_WORD( stats, s, words_forwarded );
-  PUT_WORD( stats, s, ptrs_forwarded );
-  PUT_WORD( stats, s, gc_barrier_hit );
-  PUT_WORD( stats, s, remset_large_objs_scanned );
-  PUT_WORD( stats, s, remset_large_obj_words_scanned );
+  CPUT_WORD( stats, s, copied_by_gc );
+  CPUT_WORD( stats, s, moved_by_gc );
+  CPUT_WORD( stats, s, copied_by_prom );
+  CPUT_WORD( stats, s, moved_by_prom );
+  CPUT_WORD( stats, s, words_forwarded );
+  CPUT_WORD( stats, s, ptrs_forwarded );
+  CPUT_WORD( stats, s, gc_barrier_hit );
+  CPUT_WORD( stats, s, remset_large_objs_scanned );
+  CPUT_WORD( stats, s, remset_large_obj_words_scanned );
 }
 
 int stats_parameter( int key )
@@ -563,6 +580,7 @@ static void fill_main_entries( word *vp )
 #endif
 
   /* GC event counters */
+  /* FIXME: does not put moved_by_gc, moved_by_prom. */
   STAT_PUT_DWORD( vp, GCE_GCTIME, gce, gctime );
   STAT_PUT_DWORD( vp, GCE_PROMTIME, gce, promtime );
   STAT_PUT_DWORD( vp, GCE_FREE_UNUSED, gce, free_unused );
@@ -843,6 +861,13 @@ static void stats_dump_state_now( FILE *f )
     PRINT_WORD( f, s, gc_barrier_hit );
     PRINT_WORD( f, s, remset_large_objs_scanned );
     PRINT_WORD( f, s, remset_large_obj_words_scanned );
+    /* FIXME: These perhaps belong with the "copied" elements above, but
+       I don't want to mess with the order because it'd break working
+       code.  Perhaps fix in v0.50, when processing code can distinguish
+       between the two layouts.  
+       */
+    PRINT_WORD( f, s, moved_by_gc );
+    PRINT_WORD( f, s, moved_by_prom );
     fprintf( f, ") " );
   }
   fprintf( f, ")" );
