@@ -19,10 +19,11 @@
 
 (define (compat:initialize . rest)
   (if (null? rest)
-      (let ((dir (nbuild-parameter 'compatibility)))
+      (let ((dir (nbuild-parameter 'compatibility))
+            (auxlib (nbuild-parameter 'auxiliary)))
 	(compat:load (string-append dir "compat2.sch"))
-	(compat:load (string-append dir "../../Auxlib/list.sch"))
-	(compat:load (string-append dir "../../Auxlib/pp.sch")))))
+	(compat:load (string-append auxlib "list.sch"))
+	(compat:load (string-append auxlib "pp.sch")))))
 
 (define (with-optimization level thunk) 
   (thunk))
