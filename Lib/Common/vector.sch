@@ -49,5 +49,19 @@
       (v-equal-loop (- (vector-length v1) 1))
       #f))
  
+(define (vector-copy vec)
+  (let* ((l (vector-length vec))
+         (v (make-vector l #f)))
+    (do ((i 0 (+ i 1)))
+        ((= i l) v)
+      (vector-set! v i (vector-ref vec i)))))
+
+(define (procedure-copy proc)
+  (let* ((l (procedure-length proc))
+         (p (make-procedure l)))
+    (do ((i 0 (+ i 1)))
+        ((= i l) p)
+      (procedure-set! p i (procedure-ref proc i)))))
+  
 
 ; eof
