@@ -1,3 +1,5 @@
+;;; -*-Mode: Scheme; coding: iso-8859-1 -*-
+;;;
 ;;; Part of the RIPOFF object system.
 ;;; Originally part of Tiny-CLOS,
 ;;; Heavily hacked by Eli Barzilay: Maze is Life!  (eli@barzilay.org)
@@ -88,6 +90,8 @@
 ;;; the tail of a different list, we use it (and pop it from all the
 ;;; lists that might also have that head element).  Iterate until done.
 
+;;; NOTE:  THIS IS THE `C3' LINEARIZATION ALGORITHM
+;;; IT IS DIFFERENT FROM CLOS AND SWINDLE
 (define (compute-class-linearization class)
 
   (define (select-candidate lists)
@@ -112,7 +116,6 @@
             ((null? scan) (error "Inconsistent class linearization."))
             (else (error "Improper list.")))))
 
-
   (define (merge-lists remaining result)
     (if (every? null? remaining)
         (reverse! result)
@@ -131,7 +134,6 @@
     (merge-lists (append (map %class-cpl direct-superclasses)
                          (list direct-superclasses))
                  (list class))))
-
 
 ;;>>... Generics in the instance initialization protocol
 ;;> The following generic functions are used as part of the protocol of
@@ -213,7 +215,7 @@
 ;;>   Gets a generic and returns a function that gets the given arguments
 ;;>   for this call.  This function which it returns is the combination of
 ;;>   all given methods.  The standard one arranges them by default using
-;;>   the `call-next-method' argument argument that methods have.  Swindle
+;;>   the `call-next-method' argument argument that methods have.  Ripoff
 ;;>   extends this with qualified methods and applies `before', `after', and
 ;;>   `around' methods in a similar way to CLOS: first the `around' methods
 ;;>   are applied (and they usually call their `call-next-method' to
@@ -225,7 +227,7 @@
 ;;>   procedure that is used to combine the primary methods, but the
 ;;>   auxiliary ones are still applied in the same way.  This is unlike CLOS
 ;;>   where the standard combinations run only `around' methods, and there
-;;>   is generally more control with method combinations, but in Swindle
+;;>   is generally more control with method combinations, but in Ripoff
 ;;>   `compute-apply-methods' should be overridden for this.  See
 ;;>   `make-generic-combination' for details about method combinations.
 (define compute-apply-methods         (make <generic> :name 'compute-apply-methods :arity 2))
@@ -239,6 +241,7 @@
 ;;; which is not eq? to the current one.
 (define *generic-app-cache-tag* #t)
 
+
 ;;>> (add-method generic method)
 ;;>   This generic function is called to add a method to a generic function
 ;;>   object.  This is another change from the original Tiny CLOS where it
@@ -247,7 +250,7 @@
   ;; add singleton specializer value (if any) to the corresponding hash table
   ;; in singletons-list.
   (define (add-to-singletons-list specs tables)
-    (if (not (null? specs))
+    (if (pair? specs)
         (begin
           (if (%singleton? (car specs))
               (begin
@@ -281,9 +284,11 @@
     (%set-generic-methods!
      generic
      (cons method
-           (filter (lambda (m)
-                     (not (and (every-ct eq? (method-specializers m) specs)
-                               (eq? (%method-qualifier m) qualifier))))
+           ;; When adding a method, we remove the previous definition
+           ;; by filtering out methods with the same specializers and
+           ;; qualifiers.
+           (filter (lambda (existing)
+                     (not (same-method-signature? method existing)))
                    (%generic-methods generic))))
     (%set-instance/procedure! generic (compute-apply-generic generic))))
 
@@ -299,8 +304,9 @@
 
 ;;; BOOTSTRAP STEP
 (%set-instance/procedure! compute-apply-generic
-   (lambda (generic)
-     ((%method-procedure (car (%generic-methods generic))) '() generic)))
+   (lambda (instance arglist)
+     (let ((generic (car arglist)))
+       ((%method-procedure (car (%generic-methods generic))) '() generic))))
 
 (add-method compute-apply-generic
   (make <method>
@@ -319,14 +325,14 @@
                           (loop (cdr args) (cdr tables)
                                 (cons (if (and (car tables)
                                                (hash-table-get
-                                                (car tables) (car args) false-func))
+                                                (car tables) (car args) (lambda () #f)))
                                           (car args)
                                           ;; use the serial number for hashing
                                           (class-serial-number (class-of (car args))))
                                       ks)))))
 
 
-                  (define (method:compute-apply-generic call-next-method generic)
+                  (define (method:compute-apply-generic call-next-method ignored)
 ;      #| The code below is the original, then comes the optimized version below
 ;      ;; see the definition of the <generic> class above.
 ;      (lambda args
@@ -341,7 +347,7 @@
                     ;; cache, or generates one and store it if there is no entry, or the
                     ;; cache was reset.  Finally, it is applied to the arguments as usual.
                     ;; NOTE: This code is delicate! Handle with extreme care!
-                    (lambda args
+                    (lambda (generic args)
                       (let ((app-cache (%generic-app-cache generic))
                             (arity     (%generic-arity generic))
                             (keys      (get-keys args (%generic-singletons-list generic)))
@@ -383,14 +389,17 @@
     :specializers (list <generic>)
     :qualifier :primary
     :procedure ((lambda ()
+                  (define (sort-predicate compare arguments)
+                    (lambda (left-method right-method)
+                      (compare left-method right-method arguments)))
+
                   (define (method:compute-methods call-next-method generic args)
-                    (let ((more-specific? (compute-method-more-specific? generic)))
-                      (sort (filter
-                             (lambda (m)
-                               ;; Note that every only goes as far as the shortest list
-                               (every-ct instance-of? args (%method-specializers m)))
-                             (%generic-methods generic))
-                            (lambda (m1 m2) (more-specific? m1 m2 args)))))
+                    (sort (filter
+                           (lambda (m)
+                             (instances-of? args (%method-specializers m)))
+                           (%generic-methods generic))
+                          (sort-predicate (compute-method-more-specific? generic) args)))
+
                   method:compute-methods))))
 
 (add-method compute-method-more-specific?
@@ -400,34 +409,35 @@
     :qualifier :primary
     :procedure ((lambda ()
                   (define (method:compute-method-more-specific? call-next-method generic)
-                    (lambda (m1 m2 args)
-                      (let loop ((specls1 (%method-specializers m1))
-                                 (specls2 (%method-specializers m2))
+                    (lambda (left right args)
+                      (let loop ((specls-left (%method-specializers left))
+                                 (specls-right (%method-specializers right))
                                  (args    args))
-                        (cond ((and (null? specls1) (null? specls2))
-                               (if (eq? (%method-qualifier m1) (%method-qualifier m2))
+                        (cond ((and (null? specls-left) (null? specls-right))
+                               (if (eq? (%method-qualifier left) (%method-qualifier right))
                                    (error "COMPUTE-METHOD-MORE-SPECIFIC?:  two methods are equally specific in " generic)
                                    #f))
-                              ;; some methods in this file have less specializers than
-                              ;; others, for things like args -- so remove this, leave the
+                              ;; some methods in this file have fewer specializers than
+                              ;; others for things like args -- so remove this, leave the
                               ;; args check but treat the missing as if it's <top>
-                              ;; ((or (null? specls1) (null? specls2))
+                              ;; ((or (null? specls-left) (null? specls-right))
                               ;;  (error 'generic
                               ;;         "two methods have different number of ~
                               ;;          specializers in ~e" generic))
                               ((null? args) ; shouldn't happen
                                (error "COMPUTE-METHOD-MORE-SPECIFIC?: fewer arguments than specializers for " generic))
-                              ((null? specls1) ; see above -> treat this like <top>
-                               (if (eq? <top> (car specls2))
-                                   (loop specls1 (cdr specls2) (cdr args))
+                              ((null? specls-left) ; see above -> treat this like <top>
+                               (if (eq? <top> (car specls-right))
+                                   (loop specls-left (cdr specls-right) (cdr args))
                                    #f))
-                              ((null? specls2) ; see above -> treat this like <top>
-                               (if (eq? <top> (car specls1))
-                                   (loop (cdr specls1) specls2 (cdr args))
+                              ((null? specls-right) ; see above -> treat this like <top>
+                               (if (eq? <top> (car specls-left))
+                                   (loop (cdr specls-left) specls-right (cdr args))
                                    #t))
-                              (else (let ((c1 (car specls1)) (c2 (car specls2)))
+                              (else (let ((c1 (car specls-left))
+                                          (c2 (car specls-right)))
                                       (if (eq? c1 c2)
-                                          (loop (cdr specls1) (cdr specls2) (cdr args))
+                                          (loop (cdr specls-left) (cdr specls-right) (cdr args))
                                           (more-specific? c1 c2 (car args)))))))))
                   method:compute-method-more-specific?))))
 
@@ -650,11 +660,10 @@
 ;;>> (more-specific? class1 class2 x)
 ;;>   Is `class1' more specific than `class2' for the given value?
 (define (more-specific? c1 c2 arg)
-  (if (%singleton? c1)
-      (and (eq? (singleton-value c1) arg)
-           (not (and (%singleton? c2) (eq? (singleton-value c1) arg))))
-      (let ((cc1 (memq (%struct->class c1) (%class-cpl (class-of arg)))))
-        (and cc1 (memq (%struct->class c2) (cdr cc1))))))
+  (cond ((%singleton? c1) (eq? (singleton-value c1) arg))
+        ((%singleton? c2) (not (eq? (singleton-value c2) arg)))
+        (else (let ((cc1 (memq (%struct->class c1) (%class-cpl (class-of arg)))))
+                (and cc1 (memq (%struct->class c2) (cdr cc1)))))))
 
 ;;; Install the class initializers for the standard classes.
 (add-method initialize-instance
@@ -701,7 +710,7 @@
                     (%set-class-direct-supers!
                      class
                      (let ((default (*default-object-class*))
-                           (supers (getarg initargs :direct-supers)))
+                           (supers (getarg initargs :direct-supers #f)))
                        ;; check valid supers, and always have an object class
                        (cond
                         ((not default) supers) ; check disabled
@@ -717,11 +726,11 @@
                                     supers))))))
                     (%set-class-direct-slots!
                      class
-                     (let ((autoinitargs (getarg initargs :autoinitargs)))
+                     (let ((autoinitargs (getarg initargs :autoinitargs #f)))
                        (map (lambda (s)
                               (if (pair? s)
                                   (if (or (not autoinitargs)
-                                          (getarg (cdr s) :initarg)
+                                          (getarg (cdr s) :initarg #f)
                                           (not (symbol? (car s))))
                                       s
                                       (list* (car s) :initarg (string->symbol
@@ -733,7 +742,7 @@
                     (%set-class-cpl!   class (compute-cpl   class))
                     (%set-class-slots! class (compute-slots class))
                     (%set-class-default-initargs! class (compute-default-initargs class))
-                    (%set-class-name!  class (or (getarg initargs :name) '-anonymous-))
+                    (%set-class-name!  class (getarg initargs :name '-anonymous-))
                     (%set-class-serial-number! class (get-serial-number))
                     (let* ((nfields 0)
                            (field-initializers '())
@@ -775,9 +784,9 @@
                     (%set-generic-methods!     generic '())
                     (%set-generic-arity!       generic (getarg initargs :arity #f))
                     (%set-generic-name!        generic (getarg initargs :name '-anonymous-generic-))
-                    (%set-generic-combination! generic (getarg initargs :combination))
+                    (%set-generic-combination! generic (getarg initargs :combination #f))
                     (%set-instance/procedure!  generic
-                                               (lambda args
+                                               (lambda (generic args)
                                                  (error "APPLY:  generic function has no methods "
                                                         (%generic-name generic) generic))))
                   method:initialize-instance))))
@@ -800,7 +809,9 @@
     :qualifier :primary
     :procedure ((lambda ()
                   (define (method:allocate-instance call-next-method class initargs)
-                    (%instance/allocate class (length (%class-field-initializers class))))
+                    (%make-instance class
+                                    (make-vector (length (%class-field-initializers class))
+                                                 (undefined))))
                   method:allocate-instance))))
 
 (add-method allocate-instance
@@ -810,7 +821,10 @@
     :qualifier :primary
     :procedure ((lambda ()
                   (define (method:allocate-instance call-next-method class initargs)
-                    (%entity/allocate class (length (%class-field-initializers class))))
+                    (%make-entity class
+                                  uninitialized-entity-procedure
+                                  (make-vector (length (%class-field-initializers class))
+                                               (undefined))))
                   method:allocate-instance))))
 
 ;; Normally, can't allocate these.
@@ -902,14 +916,6 @@
                              (map %class-direct-default-initargs (%class-cpl class))))))
                   method:compute-slots))))
 
-(define (l-getarg args initargs default)
-  (cond ((pair? initargs) (let ((x (getarg args (car initargs) default)))
-                            (if (eq? x default)
-                                (l-getarg args (cdr initargs) default)
-                                x)))
-        ((null? initargs) default)
-        (else (error "COMPUTE-GETTER-AND-SETTER:  bad list"))))
-
 (add-method compute-getter-and-setter
   (make <method>
     :arity 3
@@ -918,7 +924,7 @@
     :procedure ((lambda ()
                   (define (method:compute-getter-and-setter call-next-method class slot allocator)
                     (let ((initargs    (getargs (cdr slot) :initarg))
-                          (initializer (getarg (cdr slot) :initializer))
+                          (initializer (getarg (cdr slot) :initializer #f))
                           (initvalue   (getarg (cdr slot) :initvalue (undefined)))
                           (type        (getarg (cdr slot) :type #f))
                           (allocation  (getarg (cdr slot) :allocation :instance))
@@ -932,7 +938,7 @@
                             ((eq? allocation :instance)
                              (let* ((f (allocator
                                         (lambda args
-                                          (let* ((result (l-getarg args initargs nothing))
+                                          (let* ((result (getarg* args initargs nothing))
                                                  (result1 (if (eq? result nothing)
                                                               (if (not initializer)
                                                                   initvalue
@@ -967,7 +973,7 @@
                                    (%set-class-initializers!
                                     class
                                     (cons (lambda args
-                                            (let ((result (l-getarg args initargs nothing)))
+                                            (let ((result (getarg* args initargs nothing)))
                                               ;; cache the setter
                                               (if (not setter)
                                                   (set! setter
@@ -1077,7 +1083,7 @@
 (define *default-entityclass-class* (make-parameter "*default-entityclass-class*" <entity-class> class?))
 
 ;;>> *make-safely*
-;;>   Setting this parameter to #t will make Swindle perform sanity checks
+;;>   Setting this parameter to #t will make Ripoff perform sanity checks
 ;;>   on given initargs for creating an object.  This will make things
 ;;>   easier for debugging, but also slower.  Defaults to `#f'.  Note that
 ;;>   the sanity checks are done in `initialize-instance'.
@@ -1087,7 +1093,7 @@
   (let ((extended
          (foldl (lambda (initarg initlist)
                   (let ((key (car initarg)))
-                    (if (getarg given-initargs key)
+                    (if (getarg given-initargs key #f)
                         initlist
                         (cons key (cons ((caddr initarg)) initlist)))))
                 '() class-initargs)))
@@ -1217,6 +1223,28 @@
           (old-add-method generic method))
 
         method:add-method)))))
+
+;;; BOOTSTRAP STEP
+;;; Turn slot-unbound and slot-missing into generic-functions
+(set! slot-missing (make <generic> :name 'slot-missing :arity (make-arity-at-least 4)))
+(add-method slot-missing
+  (make <method>
+    :arity (make-arity-at-least 4)
+    :specializers (list <top>)
+    :qualifier :primary
+    :procedure (lambda (call-next-method class instance slot-name operation . new-value)
+                 (error (string-append "slot-missing: '"(symbol->string slot-name)
+                                       "' is not a slot in ") class))))
+
+(set! slot-unbound (make <generic> :name 'slot-unbound :arity 3))
+(add-method slot-unbound
+  (make <method>
+    :arity 3
+    :specializers (list <top>)
+    :qualifier :primary
+    :procedure (lambda (call-next-method class instance slot-name)
+                 (error (string-append "slot-unbound: '"(symbol->string slot-name)
+                                       "' is not bound in ") instance))))
 
 ;;; BOOTSTRAP STEP
 ;;; Optimized frequently used accessors:
@@ -1411,7 +1439,7 @@
 ;;; replace class-of with something more intelligent
 (set! class-of
       (lambda (object)
-        (cond ((instance? object) (instance/class object))
+        (cond ((instance? object) (%instance/class object))
               ((procedure? object) <procedure>)
               ((string?   object) <string>)
               ((pair?     object) (if (list? object)

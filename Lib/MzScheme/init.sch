@@ -52,28 +52,28 @@
 (export arity-at-least?
         arity-at-least-value
         arity-plus
-        every-ct
-        false-func
         getarg
+        getarg*
         getargs
+        get-serial-number
         identity
-        keys/args
-        keyword?
-        make-arity-at-least
-        mapadd)
+        make-arity-at-least)
 
 (export %instance)
 
 ;; instance
-(export %instance/allocate
-        %entity/allocate
-        instance?
+(export instance?
         instance/class
         instance/procedure
         instance/ref
         instance/set!
         instance/replace!
-        set-instance-class-to-self!)
+        %make-instance
+        %make-instance*
+        %make-entity
+        %make-entity*
+        set-instance-class-to-self!
+        uninitialized-entity-procedure)
 
 ;; class
 (export %class-cpl
@@ -158,6 +158,7 @@
         generic-name
         generic?
         instance-of?
+        instances-of?
         make
         method-arity
         method-name
@@ -169,13 +170,18 @@
         no-applicable-method
         no-next-method
         object?
-        set-instance-class-to-self!
+        same-method-signature?
         singleton
         singleton-value
         singleton?
         slot-bound?
+        slot-exists?
+        slot-makunbound ; sic
+        slot-missing
         slot-ref
         slot-set!
+        slot-unbound
+        slot-value
         struct-type->class
         subclass?
         )
@@ -339,12 +345,21 @@
 
         (define (leading? char string)
           ;; Return #t if the string begins with CHAR.
-          (char=? (string-ref string 0) char))
+          (and (>= (string-length string) 1)
+               (char=? (string-ref string 0) char)))
 
         (define (trailing? char string)
-          ;; Return #t if the symbol ends with CHAR.
-          (char=? (string-ref string (- (string-length string) 1))
-                  char))
+          ;; Return #t if the string ends with CHAR.
+          (let ((length (string-length string)))
+            (and (>= length 1)
+                 (char=? (string-ref string (- length 1)) char))))
+
+        (define (trailing2? penultimate ultimate string)
+          ;; Return #t if the string ends with the two characters.
+          (let ((length (string-length string)))
+            (and (> length 2)
+                 (char=? (string-ref string (- length 2)) penultimate)
+                 (char=? (string-ref string (- length 1)) ultimate))))
 
         (define (leading-dot? string)
           ;; Return #T if the `string' has a leading dot.
@@ -357,11 +372,26 @@
         (define (trailing-dot? string)
           (trailing? #\. string))
 
+        (define (trailing-sharp? string)
+          (trailing? #\# string))
+
+        (define (trailing-dot-sharp? string)
+          (trailing2? #\. #\# string))
+
+        (define (trailing-dollar-sharp? string)
+          (trailing2? #\$ #\# string))
+
         (define (dot-dollar? string)
           ;; Return #T if the symbol has a leading dot and a trailing
           ;; dollar sign.
           (and (leading-dot? string)
                (trailing-dollar? string)))
+
+        (define (dot-dollar-sharp? string)
+          ;; Return #T if the symbol has a leading dot and a trailing
+          ;; dollar and sharp sign.
+          (and (leading-dot? string)
+               (trailing-dollar-sharp? string)))
 
         (define (set-dot-dollar-excl? string)
           ;; Return #T if the symbol begins with SET-.  and ends
@@ -376,6 +406,22 @@
                  (char=? (string-ref string 3) #\-)
                  (char=? (string-ref string 4) #\.)
                  (char=? (string-ref string (- length 2)) #\$)
+                 (char=? (string-ref string (- length 1)) #\!))))
+
+        (define (set-dot-dollar-sharp-excl? string)
+          ;; Return #T if the string begins with SET-.  and ends
+          ;; with $#!
+          ;; These strings are created from the SETF! macro.
+          ;; Kinda gross.
+          (let ((length (string-length string)))
+            (and (> length 8)
+                 (char=? (string-ref string 0) #\s)
+                 (char=? (string-ref string 1) #\e)
+                 (char=? (string-ref string 2) #\t)
+                 (char=? (string-ref string 3) #\-)
+                 (char=? (string-ref string 4) #\.)
+                 (char=? (string-ref string (- length 3)) #\$)
+                 (char=? (string-ref string (- length 2)) #\#)
                  (char=? (string-ref string (- length 1)) #\!))))
 
         (define (trailing-dot-class? string)
@@ -412,40 +458,93 @@
                          ((char=? (string-ref string scan) #\.) #t)
                          (else (loop (+ scan 1))))))))
 
+        (define (trim prefix string suffix)
+          ;; return the string without the prefix and suffix
+          (substring string
+                     (string-length prefix)
+                     (- (string-length string)
+                        (string-length suffix))))
+
         (define (transform exp rename compare)
           (let* ((exp (cadr exp))
                  (text (symbol->string (javadot-symbol->symbol exp))))
             (cond ((dot-dollar? text)
                    `(,(rename 'clr/find-instance-field-getter)
+                     #f ;; public only
                      ,@(map (lambda (fragment)
                               (list (rename 'quote) (string->symbol fragment)))
-                            (split-on-dots (substring text 1 (- (string-length text) 1))))))
+                            (split-on-dots (trim "." text "$")))))
+
+                  ((dot-dollar-sharp? text)
+                   `(,(rename 'clr/find-instance-field-getter)
+                     #t ;; allow private
+                     ,@(map (lambda (fragment)
+                              (list (rename 'quote) (string->symbol fragment)))
+                            (split-on-dots (trim "." text "$#")))))
 
                   ((set-dot-dollar-excl? text)
                    `(,(rename 'clr/find-instance-field-setter)
+                     #f ;; public only
                      ,@(map (lambda (fragment)
                               (list (rename 'quote) (string->symbol fragment)))
-                            (split-on-dots (substring text 5 (- (string-length text) 2))))))
+                            (split-on-dots (trim "set-." text "$!")))))
+
+                  ((set-dot-dollar-sharp-excl? text)
+                   `(,(rename 'clr/find-instance-field-setter)
+                     #t ;; allow private
+                     ,@(map (lambda (fragment)
+                              (list (rename 'quote) (string->symbol fragment)))
+                            (split-on-dots (trim "set-." text "$#!")))))
 
                   ((leading-dot? text)
-                   `(,(rename 'clr/find-generic)
-                     (,(rename 'quote) ,(string->symbol (substring text 1 (string-length text))))))
+                   (if (trailing-sharp? text)
+                       `(,(rename 'clr/find-generic)
+                         #t ;; allow private
+                         (,(rename 'quote)
+                          ,(string->symbol (trim "." text "#"))))
+                       `(,(rename 'clr/find-generic)
+                         #f ;; public only
+                         (,(rename 'quote)
+                          ,(string->symbol (trim "." text ""))))))
+
+                  ((trailing-dot-sharp? text)
+                   `(,(rename 'clr/find-constructor)
+                     #t ;; allow private
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "" text ".#")))))
 
                   ((trailing-dot? text)
                    `(,(rename 'clr/find-constructor)
-                     (,(rename 'quote) ,(string->symbol (substring text 0 (- (string-length text) 1))))))
+                     #f ;; public only
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "" text ".")))))
+
+                  ((trailing-dollar-sharp? text)
+                   `(,(rename 'clr/find-static-field)
+                     #t ;; allow private
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "" text "$#")))))
 
                   ((trailing-dollar? text)
                    `(,(rename 'clr/find-static-field)
-                     (,(rename 'quote) ,(string->symbol (substring text 0 (- (string-length text) 1))))))
+                     #f ;; public only
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "" text "$")))))
 
                   ((trailing-dot-class? text)
                    `(,(rename 'clr/find-class)
-                     (,(rename 'quote) ,(string->symbol (substring text 0 (- (string-length text) 6))))))
+                     (,(rename 'quote)
+                      ,(string->symbol (trim "" text ".class")))))
 
                   ((embedded-dot? text)
-                   `(,(rename 'clr/find-static-method)
-                     (,(rename 'quote) ,(javadot-symbol->symbol exp))))
+                   (if (trailing-sharp? text)
+                       `(,(rename 'clr/find-static-method)
+                         #t
+                         (,(rename 'quote)
+                          ,(string->symbol (trim "" text "#"))))
+                       `(,(rename 'clr/find-static-method)
+                         #f
+                         (,(rename 'quote) ,(string->symbol text)))))
 
                   (else (error "Bad javadot identifier?" exp)))))
 

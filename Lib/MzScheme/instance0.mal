@@ -1,19 +1,35 @@
+;;; -*-Mode: Scheme; coding: iso-8859-1 -*-
+
+;;; jrm fecit
+
 ;;; This is part of the RIPOFF object system.
 
-;; The MAL code guarantees that the inner lambda's environment rib
-;; contains 'proc', 'class', and 'state' at known offsets.
+;;; This code creates `instances' and `entities' for the object
+;;; system.  These are special procedures that can be recognized and
+;;; manipulated by the object system in addition to being `normally'
+;;; callable.
 
-;; %instance : procedure * object * object -> procedure
+;;; The MAL code guarantees that the inner lambda's environment rib
+;;; contains 'proc', 'class', and 'state' at known offsets.
+
+;;; %instance : procedure * object * object -> procedure
+
+;;; When the instance is applied to arguments, the procedure within the
+;;; instance will be invoked with two arguments:  the instance itself
+;;; and the list of arguments supplied at call time.  We don't use
+;;; APPLY to `spread' the arguments because it would waste time.  As
+;;; it happens, the generic function code that is installed here
+;;; would take the arguments as a `rest' arg anyway.
 
 `((,$lambda ((,$args= 3)
-             (,$lambda ((,$args>= 0)    ;; reg1 <- arg list
-                        (,$movereg 1 2) ;; reg2 <- reg1
-                        (,$lexical 0 1) ;; Result <- the procedure
-                        (,$setreg 1)    ;; reg1 <- Result
-                        (,$global apply);; Result <- apply
-                        (,$invoke 2))   ;; (apply reg1 reg2)
-                       3 ;; close over the proc, class, and state vector
-                       #(%instance #f 0.0 #f #f)) ;; do not change this name!
+             (,$lambda ((,$args>= 0)    ; reg1 <- arg list
+                        (,$movereg 1 2) ; reg2 <- arglist
+                        (,$movereg 0 1) ; reg1 <- self
+                        (,$lexical 0 1) ; Result <- proc
+                        (,$invoke 2))   ; (proc instance arglist)
+
+                       3                ; close over the proc, class, and state vector
+                       #(%instance #f 0.0 #f #f)) ; DO NOT CHANGE THIS NAME!
              (,$return))
             0
             #f)

@@ -1,3 +1,5 @@
+;;; -*-Mode: Scheme; coding: iso-8859-1 -*-
+;;;
 ;;; Part of the RIPOFF object system.
 ;;; Originally part of Tiny-CLOS,
 ;;; Heavily hacked by Eli Barzilay: Maze is Life!  (eli@barzilay.org)
@@ -29,11 +31,105 @@
 ;;; An instance is simply a structure with 3 fields
 
 ;;;   instance-class      - holds the class describing this instance
-;;;   instance-procedure  - holds a function that is invoked if the instance is called
+;;;   instance-procedure  - holds a procedure that is invoked if the
+;;;                         instance is called
 ;;;   instance-slots      - holds a vector of state
+
+;;; The instance-procedure should be a procedure of two arguments.  If
+;;; the instance is invoked as a procedure, the instance-procedure
+;;; will be called with the instance itself as the first argument and
+;;; the supplied argument list as the second.
 
 ;;; There is some MAL code for instantiating an instance as a special
 ;;; procedure object.
+
+;;; Other parts of the system expect specific structures to be present
+;;; in the class field, so all user interaction should be mediated by
+;;; the class system.
+
+;;; Standard API
+;;;
+;;; (%make-instance <class> <vector>)                                  Procedure
+;;;
+;;; Create an instance.  <class> must be a class object recognized by the object
+;;; system.  <vector> must be a vector of the appropriate size.  These objects
+;;; are not copied, so the caller should ensure they are not exposed.  The
+;;; instance-procedure will be initialized to a procedure that generates an
+;;; error.
+;;;
+;;;
+;;; (instance? <object>)                                     Predicate Procedure
+;;; <object> may be any Scheme object.  Returns #t iff <object> is an instance.
+;;;
+;;;
+;;; (instance/class <instance>)                                        Procedure
+;;;
+;;; <instance> must be an instance.  Returns the class object stored in the
+;;; instance.  This must not be mutated.
+;;;
+;;;
+;;; (instance/procedure <instance>)                                    Procedure
+;;;
+;;; <instance> must be an instance.  Returns the procedure that is invoked when
+;;; instance is called as a function.
+;;;
+;;;
+;;; (set-instance/procedure! <instance> <proc>)                        Procedure
+;;;
+;;; <instance> must be an instance.  <proc> must be a procedure of two
+;;; arguments.  Replaces the procedure object within instance to be <proc>.
+;;; When instance is invoked as a function, <proc> will be called on two values:
+;;; the instance and the list of arguments supplied.  Value returned from <proc>
+;;; is used as the result of invoking the instance.
+;;;
+;;;
+;;; (instance/ref <instance> <index>)                                  Procedure
+;;;
+;;; <instance> must be an instance, <index> must be an exact positive integer
+;;; smaller than the length of the <instance>'s state vector.  Returns the value
+;;; of the <index>th field of <instance>.
+;;;
+;;;
+;;; (instance/set! <instance> <index> <new-value>)                     Procedure
+;;;
+;;; <instance> must be an instance, <index> must be an exact positive integer
+;;; smaller than the length of the <instance>'s state vector.  Mutates the
+;;; <index>th field of <instance> to contain <new-value>.
+
+;;; Performance API
+;;;
+;;; The following macros are provided for performance-critical
+;;; applications.  These macros perform no checks and should not be
+;;; used where there is the possibility that an incorrect value could
+;;; be passed in.
+;;;
+;;; (%instance/class <instance>)                                          Syntax
+;;; (%instance/procedure <instance>)                                      Syntax
+;;; (%set-instance/procedure! <instance> <proc>)                          Syntax
+;;;
+;;; (%instance/ref <instance> <index>)                                    Syntax
+;;;
+;;; (%instance/set! <instance> <index> <new-value>)                       Syntax
+
+;;; Special API
+;;;
+;;; These functions and syntax are for specific unusual circumstances and should
+;;; not be used by `normal' code.
+;;;
+;;; (%set-instance/class! <instance> <new-class>)                         Syntax
+;;; Replace the <class> associate with instance with <new-class>.  This should
+;;; only be done via the object system as a part of schema upgrade.
+;;;
+;;; (%instance/slots <instance>)                                          Syntax
+;;; (%set-instance/slots <instance> <new-value>)                          Syntax
+;;; Manipulate the state vector associated with instance.  Should only be done
+;;; by the object system.
+;;;
+;;; (instance/replace! <old-instance> <new-instance>)                  Procedure
+;;; Replace the class, procedure, and slots of <old-instance> with the values
+;;; present in <new-instance>.  This changes the entire behavior of the instance
+;;; without changing the identity of the instance.  This is used by the object
+;;; system to allow you to incrementally `redefine' classes and methods.
 
 ;;; FIXME
 (define sys$tag.instance-typetag 0) ;; JRM asks:  should this be something else?
@@ -43,30 +139,6 @@
 (define instance/procedure-offset 3)
 (define instance/class-offset     4)
 (define instance/slots-offset     5)
-
-(define (%instance/allocate class nslots)
-  (let ((i (%instance
-            (lambda args
-              (error "APPLY: an instance isn't a procedure -- can't apply it"))
-            class
-            (make-vector nslots (undefined)))))
-    (typetag-set! i sys$tag.instance-typetag)
-    i))
-
-(define (%entity/allocate class nslots)
-  (let ((i (%instance
-            (lambda args
-              (error "APPLY:  uninitialized entity"))
-            class
-            (make-vector nslots (undefined)))))
-    (typetag-set! i sys$tag.instance-typetag)
-    i))
-
-(define (instance? object)
-  (and (procedure? object)
-       (= (typetag object) sys$tag.instance-typetag)
-       (eq? (procedure-name object) '%instance)
-       (= (procedure-length object) 6)))
 
 ;;; Shamelessly abuse the macro system to get performance.
 (define-syntax %instance/procedure
@@ -93,6 +165,59 @@
   (syntax-rules ()
     ((%set-instance/slots! instance slots) (procedure-set! instance 5 slots))))
 
+(define (instance? object)
+  (and (procedure? object)
+       (= (typetag object) sys$tag.instance-typetag)
+       ;; MAL code will ensure that the procedure-name is `%instance'
+       (eq? (procedure-name object) '%instance)
+       (= (procedure-length object) 6)))
+
+;;; End of code that knows about how instances are represented.
+
+(define (print-instance-to-string instance)
+  (let ((string-output-port (string-io/open-output-string)))
+    (write instance string-output-port)
+    (string-io/get-output-string string-output-port)))
+
+;;; This procedure is placed in all instance objects by default.
+;;; Error message is worded to be similar to what one would get for
+;;; any other non-applicable object.
+(define (default-instance-procedure instance arglist)
+  (error
+   (string-append "Attempt to apply "
+                  (print-instance-to-string instance)
+                  ", which is not a procedure.")))
+
+(define (%make-instance class slot-vector)
+  (let ((instance
+         (%instance default-instance-procedure
+                    class
+                    slot-vector)))
+    (typetag-set! instance sys$tag.instance-typetag)
+    instance))
+
+(define (%make-instance* class . initial-slot-values)
+  (%make-instance class (list->vector initial-slot-values)))
+
+(define (uninitialized-entity-procedure entity arglist)
+  (error
+   (string-append "Attempt to apply "
+                  (print-instance-to-string entity)
+                  ", which has not been initialized.")))
+
+(define (%make-entity class entity-procedure slot-vector)
+  ;; entity-procedure will be invoked if the entity is applied to an
+  ;; object.
+  (let ((instance (%instance
+                   entity-procedure
+                   class
+                   slot-vector)))
+    (typetag-set! instance sys$tag.instance-typetag)
+    instance))
+
+(define (%make-entity* class entity-procedure . initial-slot-values)
+  (%make-entity class entity-procedure (list->vector initial-slot-values)))
+
 (define-syntax %instance/ref
   (syntax-rules ()
     ((%instance/ref instance offset)
@@ -112,9 +237,11 @@
 
 ;; This is used to dynamically change the class of an instance.
 (define (instance/replace! old-instance new-instance)
-  (%set-instance/class!      old-instance (%instance/class new-instance))
-  (%set-instance/procedure!  old-instance (%instance/procedure new-instance))
-  (%set-instance/slots!      old-instance (%instance/slots new-instance)))
+  (call-without-interrupts
+   (lambda ()
+     (%set-instance/class!      old-instance (%instance/class new-instance))
+     (%set-instance/procedure!  old-instance (%instance/procedure new-instance))
+     (%set-instance/slots!      old-instance (%instance/slots new-instance)))))
 
 ;; This is used to make the class system meta-circular.
 (define (set-instance-class-to-self! instance)

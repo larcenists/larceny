@@ -1,7 +1,9 @@
+;;; -*-Mode: Scheme; coding: iso-8859-1 -*-
+;;;
 ;;; Part of the RIPOFF object system.
 ;;; Originally part of Tiny-CLOS,
 ;;; Heavily hacked by Eli Barzilay: Maze is Life!  (eli@barzilay.org)
-;;; as part of Swindle, then hacked and ported Common Larceny by jrm.
+;;; as part of Swindle, then hacked and ported to Common Larceny by jrm.
 
 ;;> This module is the core object system.  It is a heavily hacked
 ;;> version of the original Tiny-CLOS code from Xerox, but it has been
@@ -55,17 +57,6 @@
 
 ;;; end of temporarily here
 
-;;; A unique `serial number' is defined for each class so that hashing
-;;; by class is fast.  (Otherwise, the hash code really behaves poorly.)
-(define get-serial-number
-  (let ((current-serial-number 0))
-    (lambda ()
-      (call-without-interrupts
-       (lambda ()
-         (let ((sn current-serial-number))
-           (set! current-serial-number (+ current-serial-number 1))
-           sn))))))
-
 (define the-slots-of-a-class
     '(
       (cpl)                             ; (class ...)
@@ -98,75 +89,80 @@
 
 (define make
   ;; Bootstrap version of make.
-  (lambda (class . initargs)
-    (cond ((or (eq? class <class>)
-               (eq? class <entity-class>))
-           (let* ((new     (%instance/allocate class
-                                               (length the-slots-of-a-class)))
-                  (dinitargs (getarg initargs :direct-default-initargs '()))
-                  (dslots    (getarg initargs :direct-slots '()))
-                  (dsupers   (getarg initargs :direct-supers '()))
-                  (name      (getarg initargs :name '-anonymous-))
-                  (cpl     (let loop ((sups dsupers) (so-far (list new)))
-                             (if (null? sups)
-                                 (reverse! so-far)
-                                 (loop (append (cdr sups)
-                                               (%class-direct-supers (car sups)))
-                                       (if (memq (car sups) so-far)
-                                           so-far
-                                           (cons (car sups) so-far))))))
-                  (slots
-                   (append dslots (append-map %class-direct-slots (cdr cpl))))
-                  ;(all-default-initargs
-                  ; (apply append dinitargs (map %class-direct-default-initargs (cdr cpl))))
-                  (nfields 0)
-                  (field-initializers '())
-                  ;; this is a temporary allocator version, kept as the original
-                  ;; one in tiny-clos.  the permanent version below is modified.
-                  (allocator
-                   (lambda (init)
-                     (let ((f nfields))
-                       (set! nfields (+ nfields 1))
-                       (set! field-initializers (cons init field-initializers))
-                       (list (lambda (o)   (%instance/ref  o f))
-                             (lambda (o n) (%instance/set! o f n))))))
-                  (getters-n-setters
-                   (map (lambda (s)
-                          (cons (car s) (allocator unspecified-initializer)))
-                        slots)))
-             (%set-class-default-initargs!   new '()) ; no default initargs now
-             (%set-class-direct-default-initargs! new dinitargs)
-             (%set-class-direct-supers!      new dsupers)
-             (%set-class-direct-slots!       new dslots)
-             (%set-class-cpl!                new cpl)
-             (%set-class-slots!              new slots)
-             (%set-class-nfields!            new nfields)
-             (%set-class-field-initializers! new (reverse! field-initializers))
-             (%set-class-getters-n-setters!  new getters-n-setters)
-             (%set-class-name!               new name)
-             (%set-class-serial-number!      new (get-serial-number))
-             (%set-class-initializers!       new '()) ; no class inits now
-             (%set-class-valid-initargs!     new (append-map
-                                                  (lambda (slot) (getargs (cdr slot) :initarg))
-                                                  (%class-slots new)))
-             new))
-          ((eq? class <generic>)
-           (let ((new   (%entity/allocate class (length (%class-slots class)))))
-             (%set-generic-methods!     new '())
-             (%set-generic-arity!       new (getarg initargs :arity #f))
-             (%set-generic-name!        new (getarg initargs :name '-anonymous-generic-))
-             (%set-generic-combination! new #f)
-             new))
-          ((eq? class <method>)
-           (let ((new (%entity/allocate class (length (%class-slots class)))))
-             (%set-method-specializers! new (getarg initargs :specializers))
-             (%set-method-procedure!    new (getarg initargs :procedure))
-             (%set-method-qualifier!    new (getarg initargs :qualifier :primary))
-             (%set-method-name!         new (getarg initargs :name '-anonymous-method-))
-             (%set-method-arity!        new (getarg initargs :arity
-                                                (make-arity-at-least 0)))
-             (%set-instance/procedure!  new (method:compute-apply-method #f new))
-             new)))))
+  (let ((class-slot-count (length the-slots-of-a-class)))
+    (lambda (class . initargs)
+      (cond ((or (eq? class <class>)
+                 (eq? class <entity-class>))
+             (let* ((new      (%make-instance class
+                                              (make-vector class-slot-count (undefined))))
+                    (dinitargs (getarg initargs :direct-default-initargs '()))
+                    (dslots    (getarg initargs :direct-slots '()))
+                    (dsupers   (getarg initargs :direct-supers '()))
+                    (name      (getarg initargs :name '-anonymous-))
+                    (cpl     (let loop ((sups dsupers) (so-far (list new)))
+                               (if (pair? sups)
+                                   (loop (append (cdr sups)
+                                                 (%class-direct-supers (car sups)))
+                                         (if (memq (car sups) so-far)
+                                             so-far
+                                             (cons (car sups) so-far)))
+                                   (reverse! so-far))))
+                    (slots
+                     (append dslots (append-map %class-direct-slots (cdr cpl))))
+                                        ;(all-default-initargs
+                                        ; (apply append dinitargs (map %class-direct-default-initargs (cdr cpl))))
+                    (nfields 0)
+                    (field-initializers '())
+                    ;; this is a temporary allocator version, kept as the original
+                    ;; one in tiny-clos.  the permanent version below is modified.
+                    (allocator
+                     (lambda (init)
+                       (let ((f nfields))
+                         (set! nfields (+ nfields 1))
+                         (set! field-initializers (cons init field-initializers))
+                         (list (lambda (o)   (%instance/ref  o f))
+                               (lambda (o n) (%instance/set! o f n))))))
+                    (getters-n-setters
+                     (map (lambda (s)
+                            (cons (car s) (allocator unspecified-initializer)))
+                          slots)))
+               (%set-class-default-initargs!   new '()) ; no default initargs now
+               (%set-class-direct-default-initargs! new dinitargs)
+               (%set-class-direct-supers!      new dsupers)
+               (%set-class-direct-slots!       new dslots)
+               (%set-class-cpl!                new cpl)
+               (%set-class-slots!              new slots)
+               (%set-class-nfields!            new nfields)
+               (%set-class-field-initializers! new (reverse! field-initializers))
+               (%set-class-getters-n-setters!  new getters-n-setters)
+               (%set-class-name!               new name)
+               (%set-class-serial-number!      new (get-serial-number))
+               (%set-class-initializers!       new '()) ; no class inits now
+               (%set-class-valid-initargs!     new (append-map
+                                                    (lambda (slot) (getargs (cdr slot) :initarg))
+                                                    (%class-slots new)))
+               new))
+            ((eq? class <generic>)
+             (let ((new   (%make-entity class
+                                        uninitialized-entity-procedure
+                                        (make-vector (length (%class-slots class)) (undefined)))))
+               (%set-generic-methods!     new '())
+               (%set-generic-arity!       new (getarg initargs :arity #f))
+               (%set-generic-name!        new (getarg initargs :name '-anonymous-generic-))
+               (%set-generic-combination! new #f)
+               new))
+            ((eq? class <method>)
+             (let ((new (%make-entity class
+                                      uninitialized-entity-procedure
+                                      (make-vector (length (%class-slots class)) (undefined)))))
+               (%set-method-specializers! new (getarg initargs :specializers '()))
+               (%set-method-procedure!    new (getarg initargs :procedure #f))
+               (%set-method-qualifier!    new (getarg initargs :qualifier :primary))
+               (%set-method-name!         new (getarg initargs :name '-anonymous-method-))
+               (%set-method-arity!        new (getarg initargs :arity
+                                                      (make-arity-at-least 0)))
+               (%set-instance/procedure!  new (method:compute-apply-method #f new))
+               new))))))
 
 (define-syntax lookup-slot-info
   (syntax-rules ()
@@ -180,16 +176,55 @@
                          (%class-getters-n-setters class))
                    (error "slot-ref: no slot `~e' in ~e" slot-name class))))))
 
-(define (slot-ref object slot-name)
-  ((lookup-slot-info (class-of object) slot-name cadr) object))
+(define (slot-exists? instance slot-name)
+  (assq slot-name (%class-getters-n-setters (class-of instance))))
+
+;;; These two will be replaced by generic functions
+(define slot-missing
+  (lambda (class instance slot-name why . more)
+    (error "Slot missing" slot-name instance why)))
+
+(define slot-unbound
+  (lambda (class instance slot-name)
+    (error "Slot unbound" slot-name instance why)))
+
+(define (slot-bound? instance slot-name)
+  (let* ((class (class-of instance))
+         (slot (assq slot-name (%class-getters-n-setters class))))
+    (if (not slot)
+        (slot-missing class instance slot-name 'slot-bound?)
+        (not (eq? ((cadr slot) instance) (undefined))))))
+
+(define (slot-value instance slot-name)
+  (let* ((class (class-of instance))
+         (slot  (assq slot-name (%class-getters-n-setters class))))
+    (if (not slot)
+        (slot-missing class instance slot-name 'slot-value)
+        (let ((value ((cadr slot) instance)))
+          (if (eq? value (undefined))
+              (slot-unbound class instance slot-name)
+              value)))))
+
+(define slot-ref slot-value)
+
+(define (slot-set! instance slot-name new-value)
+  (let* ((class (class-of instance))
+         (slot  (assq slot-name (%class-getters-n-setters class))))
+    (if (not slot)
+        (slot-missing class instance slot-name 'setf new-value)
+        ((caddr slot) instance new-value))))
+
+(define (slot-makunbound instance slot-name)
+  (let* ((class (class-of instance))
+         (slot  (assq slot-name (%class-getters-n-setters class))))
+    (if (not slot)
+        (slot-missing class instance slot-name 'slot-makunbound)
+        ((caddr slot) instance (undefined)))))
 
 (define-syntax %slot-ref
   (syntax-rules ()
     ((%slot-ref object slot-name)
      ((lookup-slot-info (class-of object) slot-name cadr) object))))
-
-(define (slot-set! object slot-name new-value)
-  ((lookup-slot-info (class-of object) slot-name caddr) object new-value))
 
 (define-syntax %slot-set!
   (syntax-rules ()
@@ -209,9 +244,6 @@
                             (setter o (cdr n)))
                            ((eq? (undefined) ((car g+s) o)) (setter o n))
                            (else (error))))))))
-
-(define (slot-bound? object slot-name)
-  (not (eq? (undefined) (%slot-ref object slot-name))))
 
 ;;; The core accessors and mutators.
 (define (class-cpl                c) (%slot-ref c 'cpl))
@@ -311,10 +343,12 @@
 (define singleton-classes (make-hash-table 'weak))
 
 (define (singleton x)
-  (or (hash-table-get singleton-classes x false-func)
-      (let ((c (list 'singleton x)))
-        (hash-table-put! singleton-classes x c)
-        c)))
+  (hash-table-get
+   singleton-classes x
+   (lambda ()
+     (let ((c (list 'singleton x)))
+       (hash-table-put! singleton-classes x c)
+       c))))
 
 (define (singleton? x)
   (and (pair? x)
@@ -378,11 +412,24 @@
             (memq cc (%class-cpl (if (struct-type? cx)
                                      (struct-type->class cx)
                                      cx)))))))
+
+;;; Return #t if each item is an instance of the corresponding class.
+;;; Stops at the shortest of the two lists.
+(define (instances-of? items classes)
+  (if (pair? items)
+      (if (pair? classes)
+          (and (instance-of? (car items) (car classes))
+               (instances-of? (cdr items) (cdr classes)))
+          (or (null? classes)
+              (error "Improper list: " classes)))
+      (or (null? items)
+          (error "Improper list: " items))))
+
 ;;>>...
 ;;> *** Basic classes
 
 ;;>> <class>
-;;>   This is the "mother of all classes": every Swindle class is an
+;;>   This is the "mother of all classes":  every Ripoff class is an
 ;;>   instance of `<class>'.
 ;;>   Slots:
 ;;>   * default-initargs: initargs
@@ -400,10 +447,12 @@
 ;;>   See the `clos' documentation for available class and slot keyword
 ;;>   arguments and their effect.
 
-(define <class> (%instance/allocate #f (length the-slots-of-a-class)))
-;; BOOTSTRAP STEP
-;; Set class of class to itself
-(set-instance-class-to-self! <class>)
+(define <class>
+  (let ((instance (%make-instance #f (make-vector (length the-slots-of-a-class) (undefined)))))
+    ;; BOOTSTRAP STEP
+    ;; Set class of class to itself
+    (set-instance-class-to-self! instance)
+    instance))
 
 (define getters-n-setters-for-class     ; see lookup-slot-info
   (map (lambda (s)
@@ -434,7 +483,7 @@
     :name          '<top>))
 
 ;;>> <object>
-;;>   This is the "mother of all objects": every Swindle object is an
+;;>   This is the "mother of all objects": every Ripoff object is an
 ;;>   instance of `<object>'.
 (define <object>
   (make <class>
@@ -474,7 +523,7 @@
 
 ;;>> <procedure-class>
 ;;>   The class of all procedures classes, both standard Scheme procedures
-;;>   classes and entity (Swindle procedure objects) classes.  (Note that
+;;>   classes and entity (Ripoff procedure objects) classes.  (Note that
 ;;>   this is a class of *classes*).
 (define <procedure-class>
   (make <class>
@@ -485,8 +534,8 @@
 
 ;;>> <entity-class>
 ;;>   The class of entity classes -- generic functions and methods.  An
-;;>   entity is a procedural Swindle object, something that you can apply as
-;;>   a function but it is still a Swindle object.  Note that this is the
+;;>   entity is a procedural Ripoff object, something that you can apply as
+;;>   a function but it is still a Ripoff object.  Note that this is the
 ;;>   class of entity *classes* not of entities themselves.
 (define <entity-class>
   (make <class>
@@ -549,7 +598,7 @@
 ;;>> <method>
 ;;>   The class of methods: objects that are similar to Scheme closures,
 ;;>   except that they have type specifiers attached.  Note that in contrast
-;;>   to Tiny CLOS, methods are applicable objects in Swindle -- they check
+;;>   to Tiny CLOS, methods are applicable objects in Ripoff -- they check
 ;;>   supplied argument types when applied.
 ;;>   Slots:
 ;;>   * specializers: a list of class (and singleton) specializers
@@ -582,6 +631,23 @@
    procedure
    qualifier))
 
+;;; True if left-method has the same qualifier as and compatible
+;;; specializers with right-method.
+
+(define (same-method-signature? left-method right-method)
+  (and (eq? (method-qualifier left-method)
+            (method-qualifier right-method))
+       (let loop ((left-specs  (method-specializers left-method))
+                  (right-specs (method-specializers right-method)))
+         (if (pair? left-specs)
+             (if (pair? right-specs)
+                 (and (eq? (car left-specs) (car right-specs))
+                      (loop (cdr left-specs) (cdr right-specs)))
+                 (or (null? right-specs)
+                     (error "Bad specializer list" (method-specializers right-method))))
+             (or (null? left-specs)
+                 (error "Bad specializer list" (method-specializers left-method)))))))
+
 ;; an automatic superclass for all classes -- turned off for the builtins below
 ;;>> *default-object-class*
 ;;>   This parameter contains a value which is automatically made a
@@ -612,11 +678,29 @@
 ;;>   first one is applied on a generic and a method in case there was no
 ;;>   next method and `call-next-method' was used.  The second is used when
 ;;>   a generic was called but no matching primary methods were found.  The
-;;>   only difference is that in Swindle methods can be applied directly,
+;;>   only difference is that in Ripoff methods can be applied directly,
 ;;>   and if `call-next-method' is used, then `no-next-method' gets `#f' for
 ;;>   the generic argument.
 (define no-applicable-method (make <generic> :name 'no-applicable-method))
 (define no-next-method       (make <generic> :name 'no-next-method))
+
+(define (method:wrong-type-argument method bad-argument expected-type)
+  (error
+   (let ((string-output-port (string-io/open-output-string)))
+     (write method       string-output-port)
+     (display ": "       string-output-port)
+     (write bad-argument string-output-port)
+     (display " is not a(n) " string-output-port)
+     (write expected-type string-output-port)
+     (display "." string-output-port)
+     (string-io/get-output-string string-output-port))))
+
+(define (method:wrong-number-of-arguments method args)
+  (error
+   (let ((string-output-port (string-io/open-output-string)))
+     (display "Wrong number of arguments to " string-output-port)
+     (write method string-output-port)
+     (string-io/get-output-string string-output-port))))
 
 ;;; Add possibility of generic-independent method application - this is the
 ;;; instance-proc of methods, which is activated when you apply the object (in
@@ -624,30 +708,45 @@
 ;;; name and arguments because it is later used directly by the generic
 ;;; function (cannot use the generic in the inital make since methods need to
 ;;; be created when the generics are constructed).
+
+;;; NOTE:  This is NOT the code run when the method is invoked as part
+;;; of a generic function.
 (define (method:compute-apply-method call-next-method method)
   (let* ((specializers (%method-specializers method))
-         (*no-next-method*              ; see the *no-next-method* trick below
-          (lambda args (apply no-next-method #f method args)))
-         (proc     (%method-procedure method))
          (arity    (method-arity method))
          (exact?   (and (integer? arity) (exact? arity)))
          (required ((if exact? identity arity-at-least-value) arity)))
+
+    (define (method-application-function self arglist)
+      (define (next-method-function . new-arglist)
+        (apply no-next-method #f self (if (pair? new-arglist)
+                                          new-arglist
+                                          arglist)))
+
+      ;; Validate the arglist.
+      (let loop ((tail     arglist)
+                 (req      required)
+                 (specs    specializers))
+        (cond ((pair? specs) (if (pair? tail)
+                                 (if (instance-of? (car tail) (car specs))
+                                     (loop (cdr tail) (- req 1) (cdr specs))
+                                     (method:wrong-type-argument self (car tail) (car specs)))
+                                 (method:wrong-number-of-arguments self arglist)))
+
+              ;; when we run out of specs, ensure we have sufficient
+              ;; remaining arguments.
+              ((null? specs) (if (if exact?
+                                     (length=? tail req)
+                                     (length>=? tail req))
+                                 (apply (%method-procedure self) next-method-function arglist)
+                                 (method:wrong-number-of-arguments self arglist)))
+
+              (else (method:bad-specializers self specializers)))))
+
     (if (and exact? (length>? specializers required))
         (error "COMPUTE-APPLY-METHOD:  wrong number of specializers."
                (length specializers) (%method-name method) required)
-        (lambda args
-          (cond ((if exact?
-                     (not (length=? args required))
-                     (length<? args required))
-                 (error "wrong number of arguments to method"
-                        (%method-name method)))
-                ((not (every-ct instance-of? args specializers))
-                 (let loop ((args args) (specs specializers))
-                   (if (instance-of? (car args) (car specs))
-                       (loop (cdr args) (cdr specs))
-                       (error "wrong type argument to method"
-                              (%method-name method) (%class-name (car specs))))))
-                (else (apply proc *no-next-method* args)))))))
+        method-application-function)))
 
 ;;>> <primitive-class>
 ;;>   The class of all built-on classes.
@@ -673,8 +772,8 @@
 ;;>> <struct>
 ;;>> <opaque-struct>
 ;;>   These are also classes for built-in objects, but they are classes for
-;;>   MzScheme structs -- which can be used like Swindle classes since they
-;;>   will get converted to appropriate Swindle subclasses of `<struct>'.
+;;>   MzScheme structs -- which can be used like Ripoff classes since they
+;;>   will get converted to appropriate Ripoff subclasses of `<struct>'.
 (define <struct>
   (make <primitive-class>
     :direct-default-initargs '()
@@ -696,7 +795,7 @@
 ;;>   Predicates for instances of <builtin>, <function>, <generic>, and
 ;;>   <method>.
 (define (builtin?  x) (instance-of? x <builtin>))
-(define (class? x)    (instance-of? x <class>))
+(define (class?    x) (instance-of? x <class>))
 (define (function? x) (instance-of? x <function>))
 (define (generic?  x) (instance-of? x <generic>))
 (define (method?   x) (instance-of? x <method>))
