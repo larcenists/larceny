@@ -16,8 +16,6 @@
   (unspecified))
 
 (define (common-unix-initialize)
-  (set! nbuild-parameter 
-	(make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")

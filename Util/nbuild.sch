@@ -79,7 +79,7 @@
 
 ; Initialize heap dumper.
 
-(dumpheap.set-endianness! (nbuild-parameter 'endianness))
+(dumpheap.set-endianness! (nbuild-parameter 'target-endianness))
 
 ; And they're off!
 

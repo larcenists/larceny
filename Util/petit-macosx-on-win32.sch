@@ -6,6 +6,9 @@
 ; The scripts that are used on Unix have been moved into this Scheme
 ; program to facilitate cross-compilation.  This script also replaces
 ; the Util\Configurations\load-*.sch programs.
+;
+; WARNING!  Not really maintained.  Use with caution, compare to
+; petit-win32.sch if in doubt.
 
 ; Loading this file loads the entire build environment.
 
@@ -20,9 +23,17 @@
   ; loading Util\nbuild.sch -- so are included here separately.
 
   (load "Util\\sysdep-win32.sch")
-  (load "Util\\Configurations\\nbuild-param-C-be-macosx-on-win32.sch")
+  (load "Util\\nbuild-param.sch")
   (set! nbuild-parameter 
-	(make-nbuild-parameter "" #t #f #t "Larceny" "Petit Larceny"))
+	(make-nbuild-parameter 'always-source? #f
+                               'verbose-load? #t
+                               'development? #t
+                               'machine-source "Lib/Standard-C/"
+                               'host-os 'win32
+                               'host-endianness 'little
+                               'target-machine 'standard-c
+                               'target-os 'macosx
+                               'target-endianness 'big))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")

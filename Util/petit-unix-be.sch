@@ -9,8 +9,18 @@
 
 (define (unix-initialize)
   (load "Util/sysdep-unix.sch")
-  (load "Util/Configurations/nbuild-param-C-be-unix.sch")
+  (load "Util/nbuild-param.sch")
   (load "Util/petit-unix-common.sch")
+  (set! nbuild-parameter 
+	(make-nbuild-parameter 'always-source? #f
+                               'verbose-load? #t
+                               'development? #t
+                               'machine-source "Lib/Standard-C/"
+                               'host-os 'unix
+                               'host-endianness 'big
+                               'target-machine 'standard-c
+                               'target-os 'unix
+                               'target-endianness 'big))
   (common-unix-initialize)
   (unspecified))
 

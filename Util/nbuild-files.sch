@@ -139,7 +139,7 @@
 	  *nbuild:twobit-files-2*))
 
 (define (nbuild:common-asm-files)
-  (case (nbuild-parameter 'endianness)
+  (case (nbuild-parameter 'target-endianness)
     ((big)    ;(append *nbuild:common-asm-be* *nbuild:build-files*)
               *nbuild:common-asm-be*)
     ((little) ;(append *nbuild:common-asm-el* *nbuild:build-files*)

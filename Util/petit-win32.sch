@@ -12,9 +12,17 @@
 
 (define (win32-initialize)
   (load "Util\\sysdep-win32.sch")
-  (load "Util\\Configurations\\nbuild-param-C-el-win32.sch")
+  (load "Util\\nbuild-param.sch")
   (set! nbuild-parameter 
-	(make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
+	(make-nbuild-parameter 'always-source? #f
+                               'verbose-load? #t
+                               'development? #t
+                               'machine-source "Lib/Standard-C/"
+                               'host-os 'win32
+                               'host-endianness 'little
+                               'target-machine 'standard-c
+                               'target-os 'win32
+                               'target-endianness 'little))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")

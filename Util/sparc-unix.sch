@@ -4,17 +4,21 @@
 ;
 ; General "script" for building SPARC-native Larceny on generic Unix
 ; systems, under Larceny.
-;
-; This program is a self-contained development environment; it replaces
-; the Unix shell scripts and the Util/Configurations/load-*.sch programs;
 
 (define nbuild-parameter #f)
 
 (define (unix-initialize)
   (load "Util/sysdep-unix.sch")
-  (load "Util/Configurations/nbuild-param-sparc.sch")
+  (load "Util/nbuild-param.sch")
   (set! nbuild-parameter 
-	(make-nbuild-parameter "" #f #t #t "Larceny" "Larceny"))
+	(make-nbuild-parameter 'always-source? #f
+                               'verbose-load? #t
+                               'development? #t
+                               'host-os 'unix
+                               'host-endianness 'big
+                               'target-machine 'SPARC
+                               'target-os 'unix
+                               'target-endianness 'big))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")
