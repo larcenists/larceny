@@ -53,7 +53,15 @@
             #t                               ; mutability flag
             name                             ; printable environment name
             parent                           ; parent environment or #f
+	    -1                               ; tag
             )))
+
+(define (environment-tag env)
+  (if (environment? env)
+      (env.tag env)
+      (begin 
+	(error "environment-tag: " env " is not an environment.")
+	#t)))
 
 (define (environment? obj)
   (and (vector? obj)
@@ -175,21 +183,37 @@
 (define (scheme-report-environment version)
   (case version
     ((4) 
-     (make-environment "scheme-report-environment-v4"
-		       *r4rs-environment*))
+     (tag-environment
+      (make-environment "scheme-report-environment-v4"
+			*r4rs-environment*)
+      1))
     ((5)
-     (make-environment "scheme-report-environment-v5"
-		       *r5rs-environment*))
+     (tag-environment
+      (make-environment "scheme-report-environment-v5"
+			*r5rs-environment*)
+      1))
     (else
      (error "scheme-report-environment: " version
 	    " is not an accepted version number.")
      #t)))
 
-(define (null-environment)
-  (make-environment "null-environment" *null-environment*))
+(define (null-environment version)
+  (if (or (= version 4) (= version 5))
+      (tag-environment
+       (make-environment "null-environment" *null-environment*)
+       0)
+      (begin 
+	(error "null-environment: " version 
+	       " is not an accepted version number."))))
 
 (define (larceny-environment)
-  (make-environment "larceny-environment" *larceny-environment*))
+  (tag-environment
+   (make-environment "larceny-environment" *larceny-environment*)
+   2))
+
+(define (tag-environment env tag)
+  (env.tag! env tag)
+  env)
 
 
 ; Internal
@@ -210,11 +234,13 @@
 (define (env.mutable env) (vector-ref env 3))
 (define (env.name env) (vector-ref env 4))
 (define (env.parent env) (vector-ref env 5))
+(define (env.tag env) (vector-ref env 6))
 
 (define (env.hashtable! env ht) (vector-set! env 1 ht))
 (define (env.count! env cnt) (vector-set! env 2 cnt))
 (define (env.mutable! env flag) (vector-set! env 3 flag))
 (define (env.parent! env parent) (vector-set! env 5 parent))
+(define (env.tag! env tag) (vector-set! env 6 tag))
 
 (define (env/enumerate-bindings env proc)
   (env/enumerate-cells env (lambda (name cell)
