@@ -6,97 +6,73 @@
 
 ###########################################################################
 #
-# Section 0: Programs
-#
+# Compiler/assembler selection.  Uncomment one of these or hack up a new one.
 
-# You need an ANSI C compiler.
-#
-# The assembler must accept -P; the GNU assembler does not.  If you
-# experience assembler errors, you most likely have the wrong assembler.
-# On SunOS systems, try /bin/as.  gcc -E might work.
+# Native Larceny on Solaris/SPARC: gcc
+# The assembler must be able to run the preprocessor; the Sun assembler accepts
+# -P to do this,; the GNU assembler does not.  If you experience assembler
+# errors, you most likely have the wrong assembler.  On SunOS systems, 
+# try /bin/as.  gcc -E might work.  Or hack up a shell script.
+#O=o
+#CC=gcc
+#DEBUG=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#PROFILE=#-pg
+#TCOV=#-a -g
+#BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
+#LDXFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
+#CFLAGS=-c -ISys -IBuild -IStandard-C \
+#	$(DEBUG) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
+#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
+#AS=as
+#ASFLAGS=-P -ISparc -IBuild $(DEBUG)
+#LIBS=-lm -ldl
+#.c.o:
+#	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
 
-# Defaults (correct for building SPARC Larceny on Solaris)
 
+# Petit Larceny on Win32: Metrowerks CodeWarrior 6
+#O=obj
+#CC=mwcc
+#OPT=-opt on
+#DEBUG=-g
+#CFLAGS=-c $(DEBUG) $(OPT) -ISys -IBuild -IStandard-C
+#LIBS=-lm
+#.c.obj:
+#	$(CC) -c $(CFLAGS) -o $*.obj $<
+
+# Petit Larceny on MacOS X: gcc disguised as cc
 O=o
-CC=gcc
+CC=cc
+DEBUG=-gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-AS=as
-ASXFLAGS=
+CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUG) $(OPTIMIZE) $(CCXFLAGS)
+LIBS=-lm
+.c.o:
+	$(CC) $(CFLAGS) -o $*.o $<
 
-# DEC Alpha OSF/1 (Petit Larceny): DEC C compiler
-#
-# CC=cc
-# CCXFLAGS=-g3 -taso -xtaso_short -ieee
-# LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so \
-#	-lm -lc -all
+
+# Petit Larceny on DEC Alpha OSF/1: DEC C compiler
+# Probably not up-to-date, has not been tested for some time!
+#CC=cc
+#CCXFLAGS=-g3 -taso -xtaso_short -ieee
+#LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so -lm -lc -all
 ## Needed because make leaves the -o off.
 # Why is this here?  See other .c.o rule below.
 #.c.o:
 #	$(CC) $(CFLAGS) -c $< -o $*.o
 
-# Microsoft C/C++ with DOS shell on Win32
+
+# Microsoft Visual C/C++ with DOS shell on Win32
+# Probably not up-to-date, has not been tested for some time!
 #O=obj
 #CC=cl
+#.c.obj:
+# 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
 
-# Metrowerks code warrior
-O=obj
-CC=mwcc
-OPT=-opt on
-DEBUG=-g
-CFLAGS=-c $(DEBUG) $(OPT) -ISys -IBuild -IStandard-C
-.c.obj:
-	$(CC) -c $(CFLAGS) -o $*.obj $<
-
-# MacOS X with gcc disguised as 'cc'
-
-#O=o
-#CC=cc
-#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-
-############################################################################
-#
-# Section 1: Target OS selection
-
-# Target OS is detected automatically in Sys/config.h.  If you need to
-# override the detection, then hack that file, and additionally add to
-# the following variables.
-
-EXTRALIBPATH=
-EXTRALIBS=
-LDXFLAGS=
-
-
-###########################################################################
-#
-# Section 2: Feature configuration section.
-
-# Do all your configuration selection by editing Sys/config.h.
-
-
-############################################################################
-#
-# Compiler flags
-
-LIBS=-lm -ldl
-
-DEBUGINFO=-gstabs+
-PROFILE=#-pg
-TCOV=#-a -g
-LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-
-# You typically want this to remain on, unless you want multiple collectors
-# in the same process (beyond the realm of the possible, at the moment).  
-# See Sys/bdw-collector.c for details, and grovel over the source tree :-)
-
-BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
-
-#CFLAGS=-c -ISys -IBuild -IStandard-C \
-#	$(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
-
-ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
 
 ############################################################################
 #
@@ -197,13 +173,7 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 .s.o:
 	$(AS) $(ASFLAGS) -o $*.o $<
 
-# Not everyone accepts %Y -- notably SunOS 4.  But that is _so_ last century...
-.c.o:
-	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
 
-# Win32
-#.c.obj:
-# 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
 
 ############################################################################
 #
@@ -228,7 +198,7 @@ config:
 
 larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \
-		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) $(LDYFLAGS)
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) 
 	/bin/rm -f Sys/version.o
 
 bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
@@ -245,7 +215,6 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 #	/bin/rm -f Sys/version.o
 
 # MacOS X
-LIBS=-lm
 libpetit.so: $(PETIT_LARCENY_OBJECTS)
 	$(CC) -r -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) -L/usr/lib -lc -lm
