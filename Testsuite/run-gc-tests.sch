@@ -1,7 +1,8 @@
-; Testsuite/run-gc-tests.sch
-; Larceny -- GC testsuite autorun script.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; GC testsuite autorun script.
 ;
 ; Load this in a Larceny system, then call run-gc-tests with the 
 ; following parameters:

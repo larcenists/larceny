@@ -1,3 +1,9 @@
+; Copyright 1998 Lars T Hansen
+;
+; $Id$
+;
+; Unclear if this is still used.
+
 (define (run-benchmark name thunk . rest)
   (let ((n (if (null? rest) 1 (car rest))))
     
