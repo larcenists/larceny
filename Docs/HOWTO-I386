@@ -31,7 +31,6 @@ creates when running in Petit Larceny's interpreter.
 
 TODO.
 
- - a few FIXMEs in Rts/Intel/i386-millicode.asm (unproblematic)
  - a few OPTIMIZEMEs in Rts/Intel/i386-instr.asm (unproblematic)
  - honor INLINE_ASSIGNMENT, UNSAFE_CODE, UNSAFE_GLOBALS, ...
  - performance (see below)

@@ -58,15 +58,19 @@
 ;;;   UNSAFE_CODE        omit all type checks
 ;;;   UNSAFE_GLOBALS     omit undefined-checks on globals
 ;;;   INLINE_ALLOCATION  inline all allocation
-;;;   INLINE_ASSIGNMENT  inline the write barrier (at least partially)
+;;;   INLINE_ASSIGNMENT  inline the write barrier (partially)
+
+%ifdef UNSAFE_CODE
+ %ifndef USAFE_GLOBALS
+  %define UNSAFE_GLOBALS
+ %endif
+%endif
 	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
-;;; Handy macros for this and that
+;;; Handy macros for this and that.  More fundamental stuff is
+;;; defined in i386-machine.ah
 
-%define wordsize            4
-%define object_align        8
-%define code_align          4
 %define fixtag_mask	    3
 %define tag_mask            7
 %define hdr_shift           8
@@ -127,15 +131,37 @@
 ;;;	Move values from r1 and r2 to RESULT and SECOND and perform
 ;;;	a write barrier.  r1 and r2 may be -1, in which case the
 ;;;	value must already be in RESULT and SECOND.
+;;;
+;;;     For INLINE_ASSIGNMENT, test the r2 value and skip the barrier
+;;;     if the low bit is not 1.
 
 %macro write_barrier 2
-%if %1 != -1
-	mov	RESULT, REG%1
-%endif
-%if %2 != -1
+%ifdef INLINE_ASSIGNMENT
+ %if %2 != -1 && is_hwreg(%2)
+	test	REG%2, 1
+	jz short %%L0
 	mov	SECOND, REG%2
-%endif
+ %else
+  %if %2 != -1
+	mov	SECOND, REG%2
+  %endif
+	test	SECOND, 1
+	jz short %%L0
+ %endif
+ %if %1 != -1
+	mov	RESULT, REG%1
+ %endif
+	mcall	M_PARTIAL_BARRIER
+%%L0:
+%else
+ %if %1 != -1
+	mov	RESULT, REG%1
+ %endif
+ %if %2 != -1
+	mov	SECOND, REG%2
+ %endif
 	mcall	M_FULL_BARRIER
+%endif
 %endmacro
 	
 ;;; timer_check
@@ -203,12 +229,13 @@ end_codevector_%1:
 %macro alloc 0
 %ifdef INLINE_ALLOCATION
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
-	lea	TEMP, [RESULT+7]
-	and	TEMP, -8	
+	add	TEMP, RESULT	; allocate
+	add	TEMP, 4		;   and
+	and	TEMP, -8	;     round up to 8-byte boundary
 	cmp	TEMP, CONT
-	jle	%%L2
+	jle short %%L2
 	mcall	M_MORECORE
-	jmp	%%L1
+	jmp short %%L1
 %%L2:	mov	RESULT, [GLOBALS+G_ETOP]
 	mov	[GLOBALS+G_ETOP], TEMP
 %else
@@ -292,16 +319,15 @@ t_label(%1):
 ;;; compare here, at least.  (Why does it not fit in a byte?)
 
 %macro T_GLOBAL 1
-%%L0:	loadc	RESULT, %1
-	mov	RESULT, [RESULT-PAIR_TAG]
-%ifndef UNSAFE_CODE
+%%L0:	loadc	TEMP, %1
+	mov	RESULT, [TEMP-PAIR_TAG]
 %ifndef UNSAFE_GLOBALS
 	cmp	RESULT, UNDEFINED_CONST
 	jne short %%L1
+	mov	RESULT, TEMP
 	mcall	M_GLOBAL_EX
 	jmp short %%L0
 %%L1:
-%endif
 %endif
 %endmacro
 
@@ -500,16 +526,27 @@ t_label(%1):
 ;;; 
 ;;; The trick here is that the tag check for procedure-ness will
 ;;; catch undefined variables too.  So there is no need to see
-;;; if the global has an undefined value, just defer to T_INVOKE.
-;;;
-;;; The problem with this hack is that the information about the
-;;; global variable is lost, since the global cell ptr is no longer
-;;; in RESULT.
+;;; if the global has an undefined value, specifically.  The
+;;; exception handler figures out the rest.
 
 %macro T_GLOBAL_INVOKE 2
-	loadc	RESULT, %1
-	mov	RESULT, [RESULT-PAIR_TAG]
+%ifdef UNSAFE_GLOBALS
+	T_GLOBAL %1
 	T_INVOKE %2
+%else
+	loadc	RESULT, %1		; global cell
+	mov	TEMP, [RESULT-PAIR_TAG]	;   dereference
+	inc	TEMP			; really TEMP += PROC_TAG-8
+	test	TEMP_LOW, tag_mask	; tag test
+	jz short %%L0
+%%L1:	mcall	M_GLOBAL_INVOKE_EX	; RESULT has global cell (always)
+%%L0:	dec	dword [GLOBALS+G_TIMER]	; timer
+	jz short %%L1			;   test
+	dec	TEMP			; undo ptr adjustment
+	storer	0, TEMP			; save proc ptr
+	const2regf RESULT, fixnum(%2)	; argument count
+	jmp	[TEMP-PROC_TAG+PROC_CODEVECTOR_NATIVE]
+%endif
 %endmacro
 	
 ;;; Allocate the frame but initialize only the basic slots
@@ -1512,37 +1549,37 @@ t_label(%1):
 	mcall	M_EQV
 %endmacro
 				
-%macro T_OP2_58 1
+%macro T_OP2_58 1		; cons
 %ifdef INLINE_ALLOCATION
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
 	add	TEMP, 8
 	cmp	TEMP, CONT
-	jle	%%L2
+	jle short %%L2
 	mcall	M_MORECORE
 	jmp short %%L1
 %%L2:	mov	[GLOBALS+G_ETOP], TEMP
 	mov	[TEMP-8], RESULT
 	lea	RESULT, [TEMP-8+PAIR_TAG]
-%if is_hwreg(%1)
+ %if is_hwreg(%1)
 	mov	[RESULT-PAIR_TAG+4], REG%1
-%else
+ %else
 	loadr	TEMP, %1
 	mov	[RESULT-PAIR_TAG+4], TEMP
-%endif
-%else ; not INLINE_ALLOCATION
+ %endif
+%else
 	mov	[GLOBALS+G_ALLOCTMP], RESULT
 	mov	RESULT, 8
 	mcall	M_ALLOC
 	mov	TEMP, [GLOBALS+G_ALLOCTMP]
 	mov	[RESULT], TEMP
-%if is_hwreg(%1)
+ %if is_hwreg(%1)
 	mov	[RESULT+4], REG%1
-%else
+ %else
 	loadr	TEMP, %1
 	mov	[RESULT+4], TEMP
-%endif
+ %endif
 	add	RESULT, PAIR_TAG
-%endif ; INLINE_ALLOCATION
+%endif
 %endmacro
 	
 %macro T_OP2_59 1		; set-car!
