@@ -48,7 +48,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     public sealed class SChar : SObject {
         public static readonly int CHAR_COUNT = 256;
-        public static readonly SChar[] characters = 
+        public static readonly SChar[] characters =
             new SChar[CHAR_COUNT];
 
         public char val;
@@ -106,7 +106,7 @@ namespace Scheme.Rep {
         static SFixnum() {
             pool = new SFixnum[2 * maxPreAlloc + 1];
             for (int i = -maxPreAlloc; i <= maxPreAlloc; i++)
-                pool[i + maxPreAlloc] = new SFixnum(i);                   
+                pool[i + maxPreAlloc] = new SFixnum(i);
         }
         private SFixnum(int value) {
             this.value = value;
@@ -117,13 +117,23 @@ namespace Scheme.Rep {
         public int intValue() {
             return value;
         }
+        public static bool inFixnumRange(short n) {
+            return (n <= MAX) && (n >= MIN);
+        }
+        public static bool inFixnumRange(ushort n) {
+            return n <= MAX;
+        }
         public static bool inFixnumRange(int n) {
-            int highbits = n >> (BITS-1);
-            return (highbits == 0 || highbits == -1);
+            return (n <= MAX) && (n >= MIN);
+        }
+        public static bool inFixnumRange(uint n) {
+            return n <= MAX;
         }
         public static bool inFixnumRange(long n) {
-            return ((n >> 32 == 0) || (n >> 32 == -1))
-                && inFixnumRange((int)n);
+            return (n <= MAX) && (n >= MIN);
+        }
+        public static bool inFixnumRange(ulong n) {
+            return n <= ((ulong)MAX);
         }
         public static SFixnum makeFixnum(int val) {
             if (val >= -maxPreAlloc && val <= maxPreAlloc) {
@@ -159,7 +169,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     public sealed class SVL : STagged {
         public readonly SObject[] elements;
-        
+
         public SVL(int tag, int size, SObject fill) {
             this.tag = tag;
             this.elements = new SObject[size];
@@ -204,13 +214,13 @@ namespace Scheme.Rep {
 
 #       include "Ops_SVL.inc"
     }
-    
+
     // -------------------------------------------
     // SByteVL (bytevector-like)
     // -------------------------------------------
     public sealed class SByteVL : STagged {
         public readonly byte[] elements;
-        public static System.Text.Encoding stringEncoding 
+        public static System.Text.Encoding stringEncoding
             = new System.Text.ASCIIEncoding();
 
         public SByteVL(int tag, byte[] vec) {
@@ -222,7 +232,7 @@ namespace Scheme.Rep {
             this.elements = new byte[size];
             for (int i = 0; i < size; ++i) {elements[i] = fill;}
         }
-                
+
         public int length() {
             return elements.Length;
         }
@@ -239,7 +249,7 @@ namespace Scheme.Rep {
                 elements[i] = b;
             }
         }
-        
+
         public short getInt16(int index) {
             return System.BitConverter.ToInt16(elements, index*2);
         }
@@ -248,7 +258,7 @@ namespace Scheme.Rep {
             elements[index*2] = bytes[0];
             elements[index*2 + 1] = bytes[1];
         }
-        
+
         public ushort getUInt16(int index) {
             return System.BitConverter.ToUInt16(elements, index*2);
         }
@@ -282,10 +292,10 @@ namespace Scheme.Rep {
             elements[i+3] = bytes[3];
         }
 
-        // unsafeAsDouble: interprets bytes as the bit representation 
+        // unsafeAsDouble: interprets bytes as the bit representation
         //     of a double value
         public double unsafeAsDouble(int steps) {
-            return System.BitConverter.ToDouble(elements, 4 + steps * 8); 
+            return System.BitConverter.ToDouble(elements, 4 + steps * 8);
               // steps * sizeof(double)) + offset
         }
         public void unsafeSetDouble(int steps, double d) {
@@ -322,7 +332,7 @@ namespace Scheme.Rep {
                 w.Write(">");
             }
         }
-        
+
         // asString returns a CLR string with the same characters as the Scheme string
         // It does not add ""
         public string asString() {
@@ -384,7 +394,7 @@ namespace Scheme.Rep {
 
 #       include "Ops_SPair.inc"
     }
-    
+
     // -------------------------------------------
     // Procedure
     // -------------------------------------------
@@ -394,7 +404,7 @@ namespace Scheme.Rep {
         public SVL constantvector;
         public SObject[] constants;
 
-        public Procedure(CodeVector entrypoint, 
+        public Procedure(CodeVector entrypoint,
                          SObject constantvector,
                          SObject[] rib) {
             this.tag = Constants.PROC_TAG;
@@ -421,19 +431,19 @@ namespace Scheme.Rep {
         public SObject getCode() {
             if (this.entrypoint is DataCodeVector) {
                 return ((DataCodeVector)this.entrypoint).datum;
-            } else { 
+            } else {
                 return this.entrypoint;
             }
         }
-        
+
         public void setConstants(SVL constantvector) {
             this.constantvector = constantvector;
             this.constants = constantvector.elements;
         }
-        
+
         /** lookup
          * Look up (rib, slot) in lexical environment
-         */    
+         */
         public SObject lookup(int ri, int slot) {
             SObject[] rib = this.rib;
             while (ri > 0) {
@@ -442,7 +452,7 @@ namespace Scheme.Rep {
             }
             return rib[slot];
         }
-        
+
         /** update
          * Mutate a lexically bound variable at (rib, slot) to new_value
          */
@@ -494,7 +504,7 @@ namespace Scheme.Rep {
          * start executing at the label corresponding to that code.
          */
         public abstract void call(int jump_index);
-        
+
         public virtual int id() { return 0; }
         public string name() {
             Type t = this.GetType();

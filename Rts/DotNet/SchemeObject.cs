@@ -17,7 +17,7 @@
 /* OP2_VIRTUAL_EXN defines an operation of two arguments
  *   that by default throws the given exception
  */
-/* OP2_CHAIN overrides the operation to chain to 
+/* OP2_CHAIN overrides the operation to chain to
  *   the reversed form of itself on arg2
  */
 /* Special Operations */
@@ -418,13 +418,23 @@ namespace Scheme.Rep {
         public int intValue() {
             return value;
         }
+        public static bool inFixnumRange(short n) {
+            return (n <= MAX) && (n >= MIN);
+        }
+        public static bool inFixnumRange(ushort n) {
+            return n <= MAX;
+        }
         public static bool inFixnumRange(int n) {
-            int highbits = n >> (BITS-1);
-            return (highbits == 0 || highbits == -1);
+            return (n <= MAX) && (n >= MIN);
+        }
+        public static bool inFixnumRange(uint n) {
+            return n <= MAX;
         }
         public static bool inFixnumRange(long n) {
-            return ((n >> 32 == 0) || (n >> 32 == -1))
-                && inFixnumRange((int)n);
+            return (n <= MAX) && (n >= MIN);
+        }
+        public static bool inFixnumRange(ulong n) {
+            return n <= ((ulong)MAX);
         }
         public static SFixnum makeFixnum(int val) {
             if (val >= -maxPreAlloc && val <= maxPreAlloc) {
@@ -432,7 +442,6 @@ namespace Scheme.Rep {
             } else
                 return new SFixnum(val);
         }
-
 
 // Ops for SFixnum
 
@@ -1255,7 +1264,7 @@ namespace Scheme.Rep {
             elements[i+3] = bytes[3];
         }
 
-        // unsafeAsDouble: interprets bytes as the bit representation 
+        // unsafeAsDouble: interprets bytes as the bit representation
         //     of a double value
         public double unsafeAsDouble(int steps) {
             return System.BitConverter.ToDouble(elements, 4 + steps * 8);

@@ -418,9 +418,17 @@ namespace Scheme.RT {
                     }
                 }
                 case 5: { // int
-                    if (value is Enum) return Factory.makeNumber ((int) value);
-                    if (value is int)  return Factory.makeNumber ((int) value);
-                    if (value is long) return Factory.makeNumber ((long) value);
+                    if (value is Enum)   return Factory.makeNumber ((int)    value);
+                    if (value is Byte)   return Factory.makeNumber ((byte)   value);
+                    if (value is SByte)  return Factory.makeNumber ((sbyte)  value);
+                    if (value is char)   return Factory.makeNumber ((char)   value);
+                    if (value is short)  return Factory.makeNumber ((short)  value);
+                    if (value is int)    return Factory.makeNumber ((int)    value);
+                    if (value is long)   return Factory.makeNumber ((long)   value);
+                    if (value is ushort) return Factory.makeNumber ((ushort) value);
+                    if (value is uint)   return Factory.makeNumber ((uint)   value);
+                    if (value is ulong)  return Factory.makeNumber ((ulong)  value);
+
                     Exn.error("foreign->datum (int): not an integer");
                     return Factory.Impossible;
                 }

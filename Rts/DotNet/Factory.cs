@@ -6,7 +6,7 @@ using Scheme.RT;
 using Scheme.Rep;
 
 namespace Scheme.Rep {
-    
+
     // -------------------------------------------
     // Tags
     // -------------------------------------------
@@ -37,19 +37,19 @@ namespace Scheme.Rep {
         // ===================
         //   Immediates
         // ===================
-        public static readonly SImmediate True 
+        public static readonly SImmediate True
             = new SImmediate("#t");
-        public static readonly SImmediate False 
+        public static readonly SImmediate False
             = new SImmediate("#f");
         public static readonly SImmediate Null
             = new SImmediate("()");
-        public static readonly SImmediate Eof 
+        public static readonly SImmediate Eof
             = new SImmediate("#<eof>");
         public static readonly SImmediate Unspecified
             = new SImmediate("#<unspecified>");
         public static readonly SImmediate Undefined
             = new SImmediate("#<undefined>");
-        
+
         // Used as "return value" in escaping procedures
         public static readonly SImmediate Impossible
             = new SImmediate("#<IMPOSSIBLE>");
@@ -69,30 +69,32 @@ namespace Scheme.Rep {
             return SFixnum.makeFixnum(num);
         }
         public static SObject makeNumber(int num) {
-            if (SFixnum.inFixnumRange(num)) {
-                return SFixnum.makeFixnum(num);
-            } else {
-                return makeBignum(num);
-            }
+            return
+                 SFixnum.inFixnumRange (num) ? SFixnum.makeFixnum (num)
+               : (num < 0) ? (SObject) makeBignum ((ulong)(- num), false)
+               : (SObject) makeBignum ((ulong) num, true);
         }
-        public static SObject makeNumber(long num) {
-            int a = (int) num;
-            if (a == num) {
-                return makeNumber(a);
-            } else {
-                if (num < 0) {
-                    return makeBignum((ulong)-num, false);
-                } else {
-                    return makeBignum((ulong)num, true);
-                }
-            }
+        public static SObject makeNumber (uint num) {
+	    return SFixnum.inFixnumRange (num)
+               ? SFixnum.makeFixnum ((int) num)
+               : (SObject) makeBignum ((ulong) num, true);
         }
+        public static SObject makeNumber (long num) {
+            return SFixnum.inFixnumRange (num) ? SFixnum.makeFixnum ((int) num)
+            : (num < 0) ? (SObject) makeBignum ((ulong)(- num), false)
+            : (SObject) makeBignum ((ulong) num, true);
+        }
+
+	public static SObject makeNumber (ulong num) {
+	    return SFixnum.inFixnumRange (num)
+               ? SFixnum.makeFixnum ((int) num)
+               : (SObject) makeBignum (num, true);
+        }
+
         public static SByteVL makeBignum(int num) {
-            if (num < 0) {
-                return Number.makeBignum((ulong)-num, false);
-            } else {
-                return Number.makeBignum((ulong)num, true);
-            }
+            return (num < 0)
+        	? Number.makeBignum((ulong)-num, false)
+	        : Number.makeBignum((ulong)num, true);
         }
         public static SByteVL makeBignum(ulong value, bool positive) {
             return Number.makeBignum(value, positive);
@@ -173,13 +175,13 @@ namespace Scheme.Rep {
         public static SVL makeVector(int size, SObject fill) {
             return new SVL(Tags.VectorTag, size, fill);
         }
-        
+
         // ===================
         //  Symbols
         // ===================
 
-        /* Symbols may only be created until (go ...) is called in 
-         * the Scheme program. After that, symbol creation must be 
+        /* Symbols may only be created until (go ...) is called in
+         * the Scheme program. After that, symbol creation must be
          * done in Scheme code.
          */
         private static Hashtable internedSymbols = new Hashtable();
@@ -203,7 +205,7 @@ namespace Scheme.Rep {
             SObject hash = makeNumber(stringHash(str));
             return new SVL(Tags.SymbolTag, new SObject[]{name, hash, Factory.Null});
         }
-        
+
         // Duplicates string-hash in Lib/Common/string.sch
         private static int stringHash(string str) {
             /*
@@ -276,7 +278,7 @@ namespace Scheme.Rep {
                 return copyhead.rest;
             }
         }
-        
+
         public static SObject arrayToList(SObject[] array, int start) {
             SObject list = Factory.Null;
             for (int i = start; i < array.Length; ++i) {
@@ -302,7 +304,19 @@ namespace Scheme.Rep {
         public static SObject wrap(int n) {
             return makeNumber(n);
         }
+        public static SObject wrap(short n) {
+            return makeNumber((int)n);
+        }
         public static SObject wrap(long n) {
+            return makeNumber(n);
+        }
+        public static SObject wrap(uint n) {
+            return makeNumber(n);
+        }
+        public static SObject wrap(ushort n) {
+            return makeNumber((uint)n);
+        }
+        public static SObject wrap(ulong n) {
             return makeNumber(n);
         }
         public static SObject wrap(string s) {
