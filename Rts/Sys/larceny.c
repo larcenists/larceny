@@ -664,7 +664,7 @@ static void help( void )
 	     DEFAULT_AREAS );
   consolemsg("\t                  (This is the default selection)." );
   consolemsg("\t-nostatic       Don't use the static area." );
-  consolemsg("\t-size#    n     Area number '#' is given size 'size' bytes." );
+  consolemsg("\t-size#    nnnn  Area number '#' is given size 'nnnn' bytes." );
   consolemsg("\t                  (Selects generational collector if # > 1.)");
   consolemsg("\t-load     d     Use inverse load factor d for dynamic area");
   consolemsg("\t                  or for stop-and-copy heap." );
