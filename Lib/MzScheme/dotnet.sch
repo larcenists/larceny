@@ -62,6 +62,13 @@
     :procedure (lambda (call-next-method string)
                  (clr/%string->foreign string))))
 
+(add-method clr/default-marshal-out
+  (make (*default-method-class*)
+    :arity 1
+    :specializers (list <procedure>)
+    :procedure (lambda (call-next-method proc)
+                 (clr/%schemeobject->foreign proc))))
+
 ;;;; .NET Class hierarchy
 
 ;; The class hierarchy in Scheme will mirror the .NET class hierarchy.
@@ -509,7 +516,7 @@
 (define (clr-object->class clr-type-descriptor)
   (let* ((StudlyName    (clr/%to-string clr-type-descriptor))
          (clr-type-name (StudlyName->key StudlyName)))
-    ;; (dotnet-message 4 "CLR-OBJECT->CLASS: " StudlyName)
+    (dotnet-message 4 "CLR-OBJECT->CLASS: " StudlyName)
     (hash-table-get
      *clr-type-table* clr-type-name
      (lambda ()
@@ -523,23 +530,24 @@
                    :StudlyName StudlyName
                    :clr-handle clr-type-descriptor
                    :direct-supers
-                   ;; As it turns out, the "BaseType" property is *not* a reliable
-                   ;; means to figure out the base type.  This COND special cases the
-                   ;; known problems.
-                   (let ((bt-property (clr-type/%base-type clr-type-descriptor)))
-                     (if (or (not bt-property)
-                             (null? bt-property)
-                             (void? bt-property)
-                             (clr/%null? bt-property))
-                         (list System.Object)
-                         (list (clr-object->class bt-property))))
+                   (append (map-clr-array clr-object->class
+                                          (clr-type/%get-interfaces clr-type-descriptor))
+                           ;; As it turns out, the "BaseType" property is *not* a reliable
+                           ;; means to figure out the base type.  This COND special cases the
+                           ;; known problems.
+                           (let ((bt-property (clr-type/%base-type clr-type-descriptor)))
+                             (if (or (not bt-property)
+                                     (null? bt-property)
+                                     (void? bt-property)
+                                     (clr/%null? bt-property))
+                                 (list System.Object)
+                                 (list (clr-object->class bt-property)))))
                    :can-instantiate? #f
                    :argument-marshaler clr-object/clr-handle
                    :return-marshaler (lambda (instance)
                                        (if (clr/%null? instance)
                                            '()
                                            (wrap-clr-object descriptor instance))))))
-
          descriptor)))))
 
 ;; Specifically check for Type so we don't create multiple wrappers.
@@ -724,8 +732,10 @@
             ;; (dotnet-message (clr-object->class (clr-type/%base-type this-type)))
 
             (slot-set! System.RuntimeType 'direct-supers
-                       (list (clr-object->class (clr-type/%base-type type-type))
-                             <class>))
+                       (append (cons (clr-object->class (clr-type/%base-type type-type))
+                                     (map-clr-array clr-object->class
+                                                    (clr-type/%get-interfaces type-type)))
+                               (list <class>)))
             (slot-set! System.RuntimeType 'cpl   (compute-cpl System.RuntimeType))
             (slot-set! System.RuntimeType 'slots (compute-slots System.RuntimeType))
             (slot-set! System.RuntimeType 'can-instantiate? #f)
@@ -832,7 +842,9 @@
            :name (StudlyName->key (clr/%to-string clr-type-handle/system-array))
            :StudlyName (clr/%to-string clr-type-handle/system-array)
            :clr-handle clr-type-handle/system-array
-           :direct-supers (list (clr-object->class (clr-type/%base-type clr-type-handle/system-array)))
+           :direct-supers (cons (clr-object->class (clr-type/%base-type clr-type-handle/system-array))
+                                (map-clr-array clr-object->class
+                                               (clr-type/%get-interfaces clr-type-handle/system-array)))
            :direct-slots '()
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle
@@ -843,7 +855,9 @@
            :name (StudlyName->key (clr/%to-string clr-type-handle/system-enum))
            :StudlyName (clr/%to-string clr-type-handle/system-enum)
            :clr-handle clr-type-handle/system-enum
-           :direct-supers (list (clr-object->class (clr-type/%base-type clr-type-handle/system-enum)))
+           :direct-supers (cons (clr-object->class (clr-type/%base-type clr-type-handle/system-enum))
+                                (map-clr-array clr-object->class
+                                               (clr-type/%get-interfaces clr-type-handle/system-enum)))
            :direct-slots (list (list 'StudlyName :initarg :StudlyName :reader 'clr/StudlyName)
                                (list 'enumerates :allocation :class :reader 'enum/enumerates)
                                (list 'value      :initarg :value :reader 'enum/value))
@@ -856,9 +870,12 @@
            :name (StudlyName->key (clr/%to-string clr-type-handle/system-reflection-methodbase))
            :StudlyName (clr/%to-string clr-type-handle/system-reflection-methodbase)
            :clr-handle clr-type-handle/system-reflection-methodbase
-           :direct-supers (list <method>
+           :direct-supers (list* <method>
                                 (clr-object->class
-                                 (clr-type/%base-type clr-type-handle/system-reflection-methodbase)))
+                                 (clr-type/%base-type clr-type-handle/system-reflection-methodbase))
+                                (map-clr-array clr-object->class
+                                               (clr-type/%get-interfaces
+                                                clr-type-handle/system-reflection-methodbase)))
            :direct-slots  (list (list 'max-arity :initarg :max-arity :reader 'max-arity))
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle))
@@ -936,7 +953,7 @@
     (define (clr-array->vector array)
       (if (clr/%null? array)
           '()
-          (list->vector (map-foreign-array element-marshaler array))))
+          (list->vector (map-clr-array element-marshaler array))))
     clr-array->vector))
 
 (define (initialize-array-class array-class)
@@ -2072,7 +2089,8 @@
 
 
 (define (process-event clr-event-info public?)
-  ;;(dotnet-message "Ignoring event" clr-event-info)
+  (dotnet-message 2 "Processing event" clr-event-info)
+  ;; (process-method-or-constructor clr-event-info public?)
   #f
   )
 
@@ -2125,7 +2143,6 @@
            (let ((name (clr-memberinfo/name handle)))
              (if (or (< (string-length name) 5)
                      (and (not (string=? (substring name 0 4) "get_"))
-                          (not (string=? (substring name 0 4) "add_"))
                           (not (string=? (substring name 0 4) "set_"))))
                  (if (clr-methodbase/is-static? handle)
                      (install-static-method (make-static-name handle) clr-info public?)
@@ -2296,6 +2313,7 @@
         ((null? left) '())
         (else (error "set-union: improper list " left))))
 
+
   ;; Given a procedure of at least ARITY args,
   ;; return a procedure of exacty ARITY args.
 (define (nary->fixed-arity procedure arity)
@@ -2309,48 +2327,8 @@
   ;; 31 arguments.  I think they left one out.
   (cond ((number? arity)
          (case arity
-           ((0) (lambda ()
-                  (procedure)))
-           ((1) (lambda (arg0)
-                  (procedure arg0)))
-           ((2) (lambda (arg0 arg1)
-                  (procedure arg0 arg1)))
-           ((3) (lambda (arg0 arg1 arg2)
-                  (procedure arg0 arg1 arg2)))
-           ((4) (lambda (arg0 arg1 arg2 arg3)
-                  (procedure arg0 arg1 arg2 arg3)))
-           ((5) (lambda (arg0 arg1 arg2 arg3 arg4)
-                  (procedure arg0 arg1 arg2 arg3 arg4)))
-           ((6) (lambda (arg0 arg1 arg2 arg3 arg4 arg5)
-                  (procedure arg0 arg1 arg2 arg3 arg4 arg5)))
-           ((7) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6)
-                  (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6)))
-           ((8) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7)
-                  (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7)))
-           ((9) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8)
-                  (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8)))
-           ((10) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)
-                   (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)))
-           ((11) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10)
-                   (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                              arg10)))
-           ((12) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11)
-                   (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                              arg10 arg11)))
-           ((13) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 arg12)
-                   (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                              arg10 arg11 arg12)))
-           ((14) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 arg12 arg13)
-                   (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                              arg10 arg11 arg12 arg13)))
-           ((15) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 arg12 arg13 arg14)
-                   (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                              arg10 arg11 arg12 arg13 arg14)))
+           ((0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
+            (%nary->fixed-arity procedure arity))
            ((16) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
                                arg10 arg11 arg12 arg13 arg14 arg15)
                    (procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
@@ -2459,47 +2437,7 @@
            (else (error "Need more of nary->fixed arity" arity))))
         ((arity-at-least? arity)
          (case (arity-at-least-value arity)
-           ((0) procedure)
-           ((1) (lambda (arg0 . rest)
-                  (apply procedure arg0 rest)))
-           ((2) (lambda (arg0 arg1 . rest)
-                  (apply procedure arg0 arg1 rest)))
-           ((3) (lambda (arg0 arg1 arg2 . rest)
-                  (apply procedure arg0 arg1 arg2 rest)))
-           ((4) (lambda (arg0 arg1 arg2 arg3 . rest)
-                  (apply procedure arg0 arg1 arg2 arg3 rest)))
-           ((5) (lambda (arg0 arg1 arg2 arg3 arg4 . rest)
-                  (apply procedure arg0 arg1 arg2 arg3 arg4 rest)))
-           ((6) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 . rest)
-                  (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 rest)))
-           ((7) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 . rest)
-                  (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 rest)))
-           ((8) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 . rest)
-                  (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 rest)))
-           ((9) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 . rest)
-                  (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 rest)))
-           ((10) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 . rest)
-                   (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 rest)))
-           ((11) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 . rest)
-                   (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                          arg10 rest)))
-           ((12) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 . rest)
-                   (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                          arg10 arg11 rest)))
-           ((13) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 arg12 . rest)
-                   (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                          arg10 arg11 arg12 rest)))
-           ((14) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 arg12 arg13 . rest)
-                   (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                          arg10 arg11 arg12 arg13 rest)))
-           ((15) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                               arg10 arg11 arg12 arg13 arg14 . rest)
-                   (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-                          arg10 arg11 arg12 arg13 arg14 rest)))
+           ((0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (%nary->fixed-arity procedure arity))
            ((16) (lambda (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
                                arg10 arg11 arg12 arg13 arg14 arg15 . rest)
                    (apply procedure arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
@@ -2607,4 +2545,3 @@
 
            (else (error "Need more of nary->fixed arity" arity))))
         (else (error "nary->fixed-arity:  not an arity" arity))))
-

@@ -57,7 +57,8 @@
         getargs
         get-serial-number
         identity
-        make-arity-at-least)
+        make-arity-at-least
+        %nary->fixed-arity)
 
 (export %instance)
 

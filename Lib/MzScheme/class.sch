@@ -149,7 +149,7 @@
                (%set-generic-methods!     new '())
                (%set-generic-arity!       new (getarg initargs :arity #f))
                (%set-generic-name!        new (getarg initargs :name '-anonymous-generic-))
-               (%set-generic-combination! new #f)
+               (%set-generic-combination! new (getarg initargs :combination #f))
                new))
             ((eq? class <method>)
              (let ((new (%make-entity class
@@ -590,7 +590,7 @@
                      (arity :initarg :arity)
                      (name  :initarg :name
                             :initvalue '-anonymous-generic-)
-                     (combination)
+                     (combination :initarg :combination)
                      (app-cache)
                      (singletons-list))
     :name          '<generic>))
