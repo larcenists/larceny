@@ -499,7 +499,7 @@
     (,$const (symbols))                 ; dummy list of symbols
     (,$setreg 1)
     (,$global go)
-    ;(,$op1 break)
+    ;(,$op1 debugvsm)
     (,$invoke 2)                        ; (go <list of symbols> argv)
     (,$.label 2)
     (,$save 2)
