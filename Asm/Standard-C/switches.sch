@@ -1,7 +1,8 @@
 ; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
-; switches -- Switches for the standard-C assembler
+;
+; Standard-C machine assembler flags.
 
 (define unsafe-code
   (make-twobit-flag 'unsafe-code))
@@ -28,11 +29,18 @@
   (display-twobit-flag peephole-optimization))
 
 (define (set-assembler-flags! mode)
-  (inline-allocation #f)
-  (inline-assignment #f)
-  (catch-undefined-globals #t)
-  (peephole-optimization #f)
-  (unsafe-code #f))
+  (case mode
+    ((no-optimization default fast-safe)
+     (inline-allocation #f)
+     (inline-assignment #f)
+     (catch-undefined-globals #t)
+     (peephole-optimization #f)
+     (unsafe-code #f))
+    ((fast-unsafe)
+     (set-assembler-flags! default)
+     (unsafe-code #t)
+     (catch-undefined-globals #f))
+    (else ???)))
 
 (set-assembler-flags! 'default)
 
