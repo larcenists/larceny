@@ -158,6 +158,12 @@
 
 ; Console i/o handling -- after an error, console i/o must be reset.
 
+; Observe that _by design_, the use of (current-input-port x) and
+; (current-output-port x) does not affect the REPL's I/O.  However,
+; there are some issues that remain to be solved: transcript-on/off
+; affects the REPL's I/O, but what does the REPL do if I/O on the
+; echo port fails?
+
 (define *conin* #f)                   ; console input
 (define *conout* #f)                  ; console output
 
@@ -176,6 +182,7 @@
   (current-input-port *conin*)
   (current-output-port *conout*))
 
+(transcript-event-notifier record-current-console-io)
 
 ; Error handling.
 ;
