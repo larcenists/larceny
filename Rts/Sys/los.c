@@ -62,7 +62,9 @@ los_t *create_los( int generations )
 
 int los_bytes_used( los_t *los, int gen_no )
 {
-  assert( -2 <= gen_no && gen_no < los->generations );
+  assert( 0 <= gen_no && gen_no < los->generations 
+	  || gen_no == LOS_MARK1
+	  || gen_no == LOS_MARK2 );
 
   if (gen_no == -2)
     return los->mark2->bytes;
@@ -93,7 +95,7 @@ word *los_allocate( los_t *los, int nbytes, int gen_no )
   return w;
 }
 
-int los_mark( los_t *los, los_list_t *marked, word *w, int gen_no )
+bool los_mark( los_t *los, los_list_t *marked, word *w, int gen_no )
 {
   word *p = prev( w );
   word *n = next( w );
@@ -196,8 +198,8 @@ static void remove( word *w )
   set_prev( w, 0 );
 }
 
-/* Note that in this case, for any n != h, prev(n) may be invalid.
-   */
+/* Note that in this case, for any n != h, prev(n) may be invalid. */
+
 static void insert_at_end( word *w, los_list_t *list )
 {
   word *h, *last;
@@ -239,8 +241,9 @@ static void append_and_clear( los_list_t *left, los_list_t *right )
 }
 
 /* Dump the list during a forward walk, and compute sizes forwards and
-   backwards.  WARNING: don't run this on a mark list during GC 
-   because the prev() pointers are not right during GC.
+   backwards.  Useful during debugging.
+   WARNING: don't run this on a mark list during GC because the prev() 
+   pointers are not right during GC.
    */
 static void dump_list( los_list_t *l, char *tag, int nbytes )
 {
