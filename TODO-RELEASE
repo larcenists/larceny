@@ -9,79 +9,81 @@ Major features at a glance:
   * Twobit pass 3
   * Foreign function interface
   * Performance bug fixes (named LET, CASE)
-  * Other bug fixes
-  * General clean-up
+  * Correctness bug fixes (sundry)
 
 -------------------------------
 
 Remaining to-do items:
-
-[Twobit]
-  * SRFI-0, if finalized early enough (unlikely).
-  * Macro expander performance.
-  * Implement and test pass 3.
-  * Test, test, test.
 
 [General bug fixes]
   * All `high' priority bugs in BUGS.
   * The following `medium' priority BUGS:
      (list to be determined)
 
-[FFI -- call-outs only]
-  * Make it work (see TODO).
-  * Consider creating an FFIGEN back-end and releasing it.
+[Twobit]
+  * Pass 3.
+  * Macro expander performance.
+  * SRFI-0, if finalized early enough (unlikely).
 
-[Assembler]
-  * Performance: get rid of branch target association list and replace
-    it by a bit vector.
-  * Assemble-file is only so-so useful in larceny.heap because it can't do
-    MAL files -- the MAL names are not bound, and EVAL is used.  We can
-    either:
-      - bind the MAL names -- gratuitous namespace pollution.
-      - change the MAL syntax to be all-symbolic -- attractive.
-      - remove the binding of assemble-file -- it really only belongs
-        in the development environment anyway.
-      - elaborately hack assemble-file to create an environment that
-        contains the MAL names and use this for EVAL -- way too elaborate.
+[Run-time system]
+  * Must deal with more signals on Unix systems.  See TODO for details.
 
 [Library]
   * Top-level environments must hold syntax definitions, and the hacks
     used to work around it (in compile-expression, macro-expand-expression)
     must be removed.
 
+[SPARC Assembler]
+  * Performance: get rid of branch target association list and replace
+    it by a bit vector.  See TODO for details.
+
 [Debugging]
-  * Trace procedures rather than names.
-  * Fix `break', reinstate `debugvsm' for what `break' does now.
-  * Rename `breakpt' as `break-entry'.
-  * Print variable names if at all possible -- at least trace-entry and
-    break-entry can print variable names and values if variable names
-    or source code are present.
+  See TODO for details.  The following are important for 1.0a2:
+  * Document the debugger
+  * Trace/break procedures rather than names.
+  * Print variable names where convenient.
+  * Reasonable support for debugging interpreted code.
+
+[Build process]
+  * Note that configuration process has changed because Rts/Sys/config.h
+    has been cleaned up.  This must be cleaned up further, tested, and
+    documented.  See TODO for details.  The goal here is:
+    - reasonable configuration complexity for Petit Larceny
+    - reasonable configuration complexity for SPARC Larceny
+    - predictability
+    - portability of the configuration process to non-unix platforms
+    - portability of Petit Larceny to non-unix platforms
 
 [Documentation]
   * Describe new compiler switches
+  * Describe new configuration mechanism
+  * Go thru toplevel.sch and make sure every non-R4RS procedure is
+    documented in the User's Manual.  In particular:
+    - Hash table interface.
+    - Reset-output-string
+    - ...
   * Describe any other changes
-  * Fix reported bugs (to be determined)
+  * Fix reported documentation bugs (to be determined)
 
 [General clean-up]
-  * SPARC larceny does not currently compile with LCC:
-    - Can't currently compile with lcc because the Sys/config.h trick 
-      to determine the platform does not work with lcc.  A reasonable 
-      fix is to make `make setup' determine the platform and record it 
-      in Sys/config.h; the current trick is in any case very brittle.
-    - It hasn't a prayer compiling Sys/signals.c
-    - It picks up LCC header files rather than system header files,
-      which is wrong.
-  * Rename some files:
-      Util/std-heap.sch    ->   Util/larceny-heap.sch
-      Util/init-comp.sch   ->   Util/larceny-heap-init.sch
-      Eval                 ->   Interpreter
-      Eval/eval.sch        ->   Interpreter/interp.sch
-      Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
+  * SPARC larceny does not currently compile with LCC because LCC
+    picks up LCC header files rather than system header files.  
+    Larceny requires the system header files for the native system
+    (for proprietary signal handling extensions).  It is no doubt
+    possible to tell LCC about the system header files, although 
+    they may not conform to ANSI C.
+  * Need to rename some files (this will happen as part of renaming for
+    the sake of Petit Larceny):
+     Util/std-heap.sch    ->   Util/larceny-heap.sch
+     Util/init-comp.sch   ->   Util/larceny-heap-init.sch
+     Eval                 ->   Interpreter
+     Eval/eval.sch        ->   Interpreter/interp.sch
+     Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
   * From Will:
-      >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
-      >constants, accessors, and setters for the documentation slot.
-      >This information should exist in only one place, and it has to
-      >be part of the development environment.
+     >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
+     >constants, accessors, and setters for the documentation slot.
+     >This information should exist in only one place, and it has to
+     >be part of the development environment.
 
 [Standard builds]
   * [discussion item]
@@ -90,7 +92,14 @@ Remaining to-do items:
   * The debugger needs to be part of interpreter.heap.
   * Should create scripts that setup correct compiler switches before
     compiling all files for standard heaps; automate the entire process
-    of building the heaps.  Eg., Scripts/build-larceny-heap, etc.
+    of building the heaps.  Eg., Scripts/build-larceny-heap.
+
+----------------------------------------------------------------------
+
+Projects finished
+
+[FFI]
+
 
 ----------------------------------------------------------------------
 
@@ -99,6 +108,12 @@ Release process checklist etc
 Bug to watch out for: The binary archives have a symbolic link to the
 binary, rather than the binary, due to the directory structure's use of
 links.
+
+Observe that the Standard-FFI is _not_ portable between operating
+systems, not even between SunOS 4 and SunOS 5.  The reason is different
+name mangling (prepended underscore on SunOS 4, none on SunOS 5).  Thus
+larceny.heap must be built for each system.  Annoying but it's the way
+it is for now (see TODO for more info).
 
 [Release]
   * Source freeze (in this order):                                
