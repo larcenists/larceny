@@ -6,12 +6,23 @@
 
 (load "../Lib/test.sch")
 
-(define switches
+; It takes too long to test every combination of compiler switches,
+; so we have to factor them into moderately independent sets.
+
+; Switches that exist primarily for compiler research,
+; and are seldom disabled by real users.
+
+(define basic-switches
   (list avoid-space-leaks
-        integrate-usual-procedures
         control-optimization
         parallel-assignment-optimization
         lambda-optimization
+        ))
+
+; Compiler and assembler switches that are likely to interact.
+
+(define optimization-switches
+  (list integrate-usual-procedures
         benchmark-mode
         benchmark-block-mode
         ;global-optimization ; must be on for some of these tests
@@ -23,17 +34,24 @@
         
         ; Assembler switches
         
-        ;peephole-optimization
-        ;inline-allocation
-        ;fill-delay-slots
-        ;runtime-safety-checking
-        ;catch-undefined-globals
+        peephole-optimization
+        runtime-safety-checking
+        ))
+
+; Assembler switches that are fairly independent of the compiler.
+
+(define backend-switches
+  (list inline-allocation
+        fill-delay-slots
+        catch-undefined-globals
         ))
 
 (define files
   '("p2tests" "p4tests"))
 
-(define (run-compiler-tests)
+(define (run-compiler-tests . rest)
+
+  (define switches (if (null? rest) optimization-switches (car rest)))
 
   (define (set-switches! i)
     (do ((l switches (cdr l))
