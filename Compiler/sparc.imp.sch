@@ -24,7 +24,7 @@
 (define name:LIST '.list)
 (define name:MAKE-CELL '.make-cell)
 (define name:CELL-REF '.cell-ref)
-(define name:CELL-SET! '.cell-set)
+(define name:CELL-SET! '.cell-set!)
 (define name:IGNORED (string->symbol "IGNORED"))
 (define name:CAR '.car)
 (define name:CDR '.cdr)
