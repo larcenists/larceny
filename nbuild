@@ -1,13 +1,13 @@
 #!/bin/sh
-# nbuild -- development system load script
+#
+# Copyright 1998 Lars T Hansen.
 #
 # $Id$
 #
+# Development system load script
+#
 # Usage:
 #   nbuild [ nbuild options ] [ -a host system argument ... ]
-#
-# The advantage of having this script is that it can be cloned and 
-# specialized for different object (or source) directories.
 
 # Temporary command file
 TMPFILE=/tmp/larceny.build.`whoami`.$$
@@ -15,11 +15,8 @@ TMPFILE=/tmp/larceny.build.`whoami`.$$
 # Working directory
 DIR=`pwd`
 
-# New assembler or not?
-NEW_ASM="#t"
-
-# Target (choices: "SPARC", "standard-C")
-TARGET="SPARC"
+# Target (choices: "sparc", "standard-C")
+TARGET="sparc"
 
 # Use Larceny to build
 #L_HOST=larceny
@@ -45,7 +42,7 @@ while [ "$1" != "" ]; do
        break
        ;;
     -be | -big)
-       shift
+       TARGET="standard-C"
        ENDIAN=big
        ;;
     -chez | -c)
@@ -58,7 +55,7 @@ while [ "$1" != "" ]; do
        EXECUTABLE=$1
        ;;
     -el | -little)
-       shift
+       TARGET="standard-C"
        ENDIAN=little
        ;;
     -i | -interpreted)
@@ -68,20 +65,14 @@ while [ "$1" != "" ]; do
        L_HOST=larceny
        L_HOSTDIR=Larceny
        L_HOSTNAME="Larceny" 
-       NEW_ASM="#t"
        ;;
     -Larceny | -L)
        L_HOST=Larceny
        L_HOSTDIR=Larceny
        L_HOSTNAME="Larceny" 
        ;;
-    -old | -o)
-       NEW_ASM="#f"
-       ;;
-    -new | -n)
-       ;;
     -sparc)
-       TARGET="SPARC"
+       TARGET="sparc"
        ;;
     -standard-C | -petit)
        TARGET="standard-C"
@@ -89,8 +80,19 @@ while [ "$1" != "" ]; do
     -v | -verbose)
        VERBOSE="#t"
        ;;
-    *) echo "Unknown host system: $1"
-       echo "Usage: $0 [ -c | -i | -l | -o | -n | -v ] [ -a args ]"
+    *) echo "Illegal argument: $1"
+       echo "Usage: $0 [ options ] [ -a arguments ]"
+       echo ""
+       echo "Options are:"
+       echo "  -big               big endian (Standard-C target)"
+       echo "  -chez              use Chez Scheme"
+       echo "  -interpreted       use interpreter (do not load compiled files)"
+       echo "  -larceny           use larceny"
+       echo "  -Larceny           use Larceny"
+       echo "  -little            endian little (Standard-C target)"
+       echo "  -sparc             compile for SPARC target"
+       echo "  -petit             compile for Standard-C target"
+       echo "  -verbose           be verbose"
        echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
        exit 1
        ;;
@@ -98,29 +100,19 @@ while [ "$1" != "" ]; do
   shift
 done
 
+if [ $TARGET = "standard-C" ]; then
+  if [ $ENDIAN = "big" ]; then
+    TARGET="C-be"
+  else
+    TARGET="C-el"
+  fi
+fi
+
 cat > $TMPFILE <<END
-(define nbuild-parameter
-  (let ((parameters '((compiler       . "$DIR/Compiler/")
-		      (util           . "$DIR/Util/")
-		      (build          . "$DIR/Build/")
-		      (source         . "$DIR/Lib/")
-		      (common-asm     . "$DIR/Asm/Common/")
-		      (sparc-old      . "$DIR/Asm/Sparc-old/")
-		      (sparc-asm      . "$DIR/Asm/Sparc/")
-		      (standard-C-asm . "$DIR/Asm/Standard-C/")
-		      (endianness     . $ENDIAN)
-		      (target-machine . $TARGET)
-		      (new-assembler? . $NEW_ASM)
-		      (always-source? . $INTERP)
-		      (verbose-load?  . $VERBOSE)
-		      (compatibility  . "$DIR/Compat/$L_HOSTDIR/")
-		      (host-system    . "$L_HOSTNAME")
-		      )))
-    (lambda (key)
-      (let ((probe (assq key parameters)))
-	(if probe 
-	    (cdr probe)
-	    (error "Bad nbuild parameter key " path-ident))))))
+(load "Util/nbuild-param-${TARGET}.sch")
+(define nbuild-parameter 
+    (make-nbuild-parameter 
+    "$DIR/" $INTERP $VERBOSE "$L_HOSTDIR" "$L_HOSTNAME"))
 
 (display "Twobit/Larceny development environment running under ")
 (display (nbuild-parameter 'host-system))
