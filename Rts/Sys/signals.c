@@ -162,7 +162,7 @@ static void inthandler( int sig )
     return;
   }
 
-#if ALLOW_SYNCHRONOUS_SIGNALS
+#if !NO_SYNCHRONOUS_SIGNALS
   /* Interruptible syscall.  Interrupt it by longjumping back to the
      callout point, where cleanup will take place. 
      */
