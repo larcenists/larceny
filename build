@@ -156,11 +156,11 @@ run_chez() {
 run_larceny_bin() {
   EXEC=${LARCENY}/larceny.bin
   HEAP=${LARCENY}/sparc.heap
-  $EXEC $HEAP -args $TMPFILE $ARGS | tail +1
+  $EXEC $HEAP -args $TMPFILE $ARGS | tail +2
 }
 
 run_larceny() {
-  larceny $TMPFILE $ARGS | tail +1
+  larceny $TMPFILE $ARGS | tail +2
 }
 
 # Main
