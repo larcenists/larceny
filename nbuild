@@ -1,158 +1,226 @@
 #!/bin/sh
 #
-# Copyright 1998 Lars T Hansen.
+# Copyright 1998 Lars T Hansen
 #
 # $Id$
 #
-# Development system load script
+# Development system shell script.
+
+######################################################################
 #
-# Usage:
-#   nbuild [ nbuild options ] [ -a host system argument ... ]
+# Configuration section
 
-# Temporary command file
+# Valid values for $HOST: chez, larceny, Larceny.  Add others by 
+# editing the code.
+HOST=chez
+
+# Path of build directory.
+# Do _NOT_ remove the LARCENY_DEF tag.  It is used by `make setup' to
+# initialize the definition of the working directory.
+LARCENY=/proj/will/lth/larceny/src #@LARCENY_DEF@
+
+#
+######################################################################
+
+# Variables
+
 TMPFILE=/tmp/larceny.build.`whoami`.$$
-
-# Working directory
-DIR=`pwd`
-
-# Target (choices: "sparc", "standard-C")
+UTIL=${LARCENY}/Util
+ACTION=build
+FILE=
 TARGET="sparc"
-
-# Use Larceny to build
-#L_HOST=larceny
-#L_HOSTDIR=Larceny
-#L_HOSTNAME="Larceny"
-
-# Use Chez Scheme to build
-L_HOST=chez
-L_HOSTDIR=Chez
-L_HOSTNAME="Chez Scheme"
-
 ARGS=""
 INTERP="#f"
 VERBOSE="#f"
-EXECUTABLE=""
 ENDIAN=big
+
+# Functions
+
+usage() {
+  echo "Usage: nbuild [ options ] [ -a host system argument ... ]"
+  echo ""
+  echo "Options are:"
+  echo "  -build             run development environment (default)"
+  echo "  -config file       run config on the file"
+  echo "  -expand file       run expand on the file"
+  echo ""
+  echo "  -big               big endian (Standard-C target)"
+  echo "  -chez, -c          use Chez Scheme (default)"
+  echo "  -interpreted, -i   use interpreter (do not load compiled files)"
+  echo "  -larceny, -l       use larceny (in the build directory)"
+  echo "  -Larceny, -L       use Larceny (in the PATH)"
+  echo "  -little            little endian (Standard-C target)"
+  echo "  -sparc             SPARC target (default)"
+  echo "  -petit             Standard-C target"
+  echo "  -verbose, -v       be verbose"
+  echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
+  exit 1
+}
+
+run_development_environment() {
+  if [ $TARGET = "standard-C" ]; then
+    if [ $ENDIAN = "big" ]; then
+      TARGET="C-be"
+    else
+      TARGET="C-el"
+    fi
+  fi
+
+  case $HOST in
+    chez)
+      L_HOSTDIR="Chez"
+      L_HOSTNAME="Chez Scheme"
+      ;;
+    larceny | Larceny)
+      L_HOSTDIR=Larceny
+      L_HOSTNAME="Larceny"
+      ;;
+    *)
+      echo "Error: bad host $HOST in run_development_environment."
+      exit 1
+      ;;
+  esac
+
+cat > $TMPFILE <<END
+  (load "${UTIL}/nbuild-param-${TARGET}.sch")
+  (define nbuild-parameter 
+    (make-nbuild-parameter 
+      "${LARCENY}/" $INTERP $VERBOSE "$L_HOSTDIR" "$L_HOSTNAME"))
+
+  (display "Twobit/Larceny development environment running under ")
+  (display (nbuild-parameter 'host-system))
+  (display ".")
+  (newline)
+  (newline)
+  (display "Loading ")
+  (display (nbuild-parameter 'host-system))
+  (display " compatibility package.")
+  (newline)
+  (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
+  (compat:initialize)
+  (load (string-append (nbuild-parameter 'util) "nbuild.sch"))
+END
+
+  # Make the scheme header file; it may have changed.
+
+  ( cd Rts; make Build/schdefs.h ; exit $? ) || exit $?
+
+  # Do it!
+  run_scheme
+}
+
+expand_file() {
+  TARGET=`dirname $FILE`/`basename $FILE .mac`.c
+  echo "(define host '${HOST})" >> $TMPFILE
+  echo "(load \"${UTIL}/expand.sch\")" >> $TMPFILE
+  echo "(expand-file \"${FILE}\" \"${TARGET}\")" >> $TMPFILE
+  echo "(exit)" >> $TMPFILE
+  run_scheme
+}
+
+config_file() {
+  echo "(define host '${HOST})" >> $TMPFILE
+  echo "(load \"${UTIL}/config.sch\")" >> $TMPFILE
+  echo "(config \"${FILE}\")" >> $TMPFILE
+  echo "(exit)" >> $TMPFILE
+  run_scheme
+}
+
+run_scheme() {
+  case $HOST in
+    chez)    run_chez ;;
+    larceny) run_larceny ;;
+    Larceny) run_Larceny ;;
+    *)       echo "Unknown host tag $HOST"; exit 1 ;;
+  esac
+}
+
+run_chez() {
+  scheme $TMPFILE $ARGS | tail +4
+#  echo "scheme $TMPFILE $ARGS | tail +4"
+}
+
+run_larceny() {
+  EXEC=${LARCENY}/larceny
+  HEAP=${LARCENY}/larceny.heap
+  $EXEC $HEAP -args $TMPFILE $ARGS | tail +1
+#  echo "$EXEC $HEAP -args $TMPFILE $ARGS | tail +1"
+}
+
+run_Larceny() {
+  Larceny $TMPFILE $ARGS | tail +1
+#  echo "Larceny $TMPFILE $ARGS | tail +1"
+}
+
+# Main
 
 while [ "$1" != "" ]; do 
   case $1 in
+    -build)
+      ACTION=build; shift
+      ;;
+    -config)
+      ACTION=config; shift
+      if [ "$1" != "" ]; then FILE=$1; shift ; else usage; fi
+      ;;
+    -expand)  
+      ACTION=expand; shift
+      if [ "$1" != "" ]; then FILE=$1; shift ; else usage; fi
+      ;;
     -a | -arguments)
-       shift
-       ARGS=$*
-       break
-       ;;
-    -be | -big)
-       TARGET="standard-C"
-       ENDIAN=big
-       ;;
+      shift
+      ARGS=$*
+      break
+      ;;
+    -big)
+      TARGET="standard-C"
+      ENDIAN=big
+      shift
+      ;;
     -chez | -c)
-       L_HOST=chez
-       L_HOSTDIR=Chez
-       L_HOSTNAME="Chez Scheme" 
-       ;;
-    -e | -executable)
-       shift
-       EXECUTABLE=$1
-       ;;
-    -el | -little)
-       TARGET="standard-C"
-       ENDIAN=little
-       ;;
-    -i | -interpreted)
-       INTERP="#t"
-       ;;
+      HOST=chez; shift 
+      ;;
+    -interpreted | -i)
+      INTERP="#t"
+      shift
+      ;;
+    -little)
+      TARGET="standard-C"
+      ENDIAN=little
+      shift
+      ;;
     -larceny | -l)
-       L_HOST=larceny
-       L_HOSTDIR=Larceny
-       L_HOSTNAME="Larceny" 
-       ;;
-    -Larceny | -L)
-       L_HOST=Larceny
-       L_HOSTDIR=Larceny
-       L_HOSTNAME="Larceny" 
-       ;;
+      HOST=larceny; shift
+      ;;
+    -Larceny | -L) 
+      HOST=Larceny; shift 
+      ;;
     -sparc)
-       TARGET="sparc"
-       ;;
-    -standard-C | -petit)
-       TARGET="standard-C"
-       ;;
-    -v | -verbose)
-       VERBOSE="#t"
-       ;;
-    *) echo "Illegal argument: $1"
-       echo "Usage: $0 [ options ] [ -a arguments ]"
-       echo ""
-       echo "Options are:"
-       echo "  -big               big endian (Standard-C target)"
-       echo "  -chez              use Chez Scheme"
-       echo "  -interpreted       use interpreter (do not load compiled files)"
-       echo "  -larceny           use larceny"
-       echo "  -Larceny           use Larceny"
-       echo "  -little            endian little (Standard-C target)"
-       echo "  -sparc             compile for SPARC target"
-       echo "  -petit             compile for Standard-C target"
-       echo "  -verbose           be verbose"
-       echo "See also http://www.ccs.neu.edu/home/lth/larceny/developing.html"
-       exit 1
-       ;;
+      TARGET="sparc"
+      shift
+      ;;
+    -petit)
+      TARGET="standard-C"
+      shift
+      ;;
+    -verbose | -v)
+      VERBOSE="#t"
+      shift
+      ;;
+    *)
+      echo "Unrecognized option: $1"
+      usage 
+      ;;
   esac
-  shift
 done
 
-if [ $TARGET = "standard-C" ]; then
-  if [ $ENDIAN = "big" ]; then
-    TARGET="C-be"
-  else
-    TARGET="C-el"
-  fi
-fi
-
-cat > $TMPFILE <<END
-(load "Util/nbuild-param-${TARGET}.sch")
-(define nbuild-parameter 
-    (make-nbuild-parameter 
-    "$DIR/" $INTERP $VERBOSE "$L_HOSTDIR" "$L_HOSTNAME"))
-
-(display "Twobit/Larceny development environment running under ")
-(display (nbuild-parameter 'host-system))
-(display ".")
-(newline)
-(newline)
-(display "Loading ")
-(display (nbuild-parameter 'host-system))
-(display " compatibility package.")
-(newline)
-(load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
-(compat:initialize)
-
-;;;
-
-(load (string-append (nbuild-parameter 'util) "nbuild.sch"))
-END
-
-# Make the scheme header file; it may have changed.
-
-( cd Rts; make Build/schdefs.h ; exit $? ) || exit $?
-
-# Run the development environment.
-
-if [ "$EXECUTABLE" = "" ]; then
-  case $L_HOST in
-    chez) EXECUTABLE="scheme" ;;
-    larceny) EXECUTABLE="larceny" ;;
-    Larceny) EXECUTABLE="Larceny" ;;
-  esac
-fi
-
-case $L_HOST in
-  chez)    $EXECUTABLE $ARGS $TMPFILE ;;
-  larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
-  Larceny) $EXECUTABLE $ARGS -args $TMPFILE ;;
-  *)       echo "Internal error in build script."; exit 1 ;;
+rm -f $TMPFILE
+case $ACTION in
+  build)  run_development_environment ;;
+  expand) expand_file ;;
+  config) config_file ;;
 esac
 
-rm $TMPFILE
+rm -f $TMPFILE
 exit 0
 
-# eof
