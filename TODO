@@ -170,7 +170,6 @@ Common RTS
       done in Petit Larceny, just a matter of merging.]
     - Factor out larceny_init() from main().
     - Simplify the remembered set:
-      - remove the remembered-set garbage collector
       - go from a linked-list representation to an extensible hash-table 
         representation (maybe)
     - low-level allocation code:
@@ -182,7 +181,6 @@ Common RTS
         profile the pointer registry to make sure it's not slowing us
         down.  (It'll make less difference if a higher-level module manages
         free blocks intelligently.)
-    - Remove all support for the "simulated write barrier".
   * Must deal with more signals (on Unix, especially).
     The right design here seems to be pretty much what we're doing now:
     - Synchronous interrupts (SIGFPE, SIGSEGV, SIGBUS) are handled as
@@ -202,8 +200,6 @@ Common RTS
     - Features
       - weak cells
       - finalization
-    - Policy & performance
-      - Use madvise (maybe)
     - Implementation
       - consider building an allocator on top of memalign or mmap (maybe)
   * Representation changes
@@ -344,18 +340,8 @@ Debugging
   * Document the debugger.
   * Record source file name in debug info, if available.
   * Record source code location in debug info, if available.
-    This is how to do it: install a reader macro for #\(.  This macro
-    does exactly what the current reader does, but when the datum has
-    been read, it installs a mapping from the datum to the source position
-    of the #\( in a map.  (The map can be cleared after every top-level
-    expression.)  When the macro expander wants to create documentation,
-    it takes its source expression and looks it up in the map to get
-    the source position (if any).  Probably an eq-hash table is best,
-    especially when doing block compilation.
     See Experimental/read-source.sch for an example implementation.
   * Print variable names
-    - Trace-entry and break-entry can easily print parameter names
-      (and their values) if parameter names or source code are present.
     - The compiler must support variable name maps in compiled code.
       We need to map three kinds of locations to variable names: closure
       slots, stack frame slots, and registers.  
@@ -396,7 +382,6 @@ Library / primitives
   * I/O system is not thread safe.
   * Top-level environments must also hold syntax definitions.
   * Move Experimental functionality to Auxlib
-     - records (requires cleaning up and documenting records).
      - applyhooks
   * Replace hash tables in top-level environments and symbol table with
     the new hash tables.
@@ -411,7 +396,6 @@ Library / primitives
     Better to fix this properly by integrating environments and syntax
     environments the way it "should" be done.
   * I/O system high priority
-    - Extensible I/O system (see Larceny Note).
     - Performance [see fast-read-char.txt for details]
       - peek-char should maybe be coded in MAL, like read-char and write-char.
       - read-char, write-char, and peek-char should be compiler macros that
@@ -426,15 +410,10 @@ Library / primitives
     - Faster printer [maybe].
     - Reader and printer should be able to read and print graph structures.
     - Switch from Dragon4 to Dybvig's algorithm.
-    - Re-implement transcript I/O in terms of the extensible I/O system.
     - Re-implement string I/O in terms of the extensible I/O system.
     - Read tables (a la Interlisp where the read table can be an argument
       to 'read').
     - Print tables [maybe].
-  * Returning from the REPL: Should (exit) just exit from the current level
-    of REPL, instead of returning to the OS?
-  * 'Abort' and 'abort-handler'?  Makes sense if 'exit' exits the repl,
-    not the system.
   * Define "repl-reader" so that the reader can be replaced in the REPL.
   * Define "load-reader" so that a reader that does circular objects
     can be installed?
@@ -567,7 +546,6 @@ Performance and code generation
 
 Auxiliary library (directory Auxlib)
   * Pretty printer should support structure printer.
-  * Printer/reader that can do circular structures (need eq? hashing).
   + Object pickler
 
 Documentation
