@@ -38,7 +38,7 @@
 (define *current-console-input*  #f)    ; There is only one!
 (define *current-console-output* #f)    ; There is only one!
 
-(define (console-io/current-console-input)
+(define (console-io/console-input-port)
   (call-without-interrupts
     (lambda ()
       (let ((ccin *current-console-input*))
@@ -51,7 +51,7 @@
                          (console-io/open-input-console))))
         *current-console-input*))))
 
-(define (console-io/current-console-output)
+(define (console-io/console-output-port)
   (call-without-interrupts
     (lambda ()
       (let ((ccout *current-console-output*))
