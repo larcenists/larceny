@@ -1404,8 +1404,8 @@
                  print-object))))
 
 ;;; BOOTSTRAP STEP
-(let ((old-hook (*print-procedure-hook*)))
-  (*print-procedure-hook*
+(let ((old-hook (procedure-printer)))
+  (procedure-printer
    (lambda (procedure port slashify)
      (if (instance? procedure)
          (print-object procedure port slashify)
