@@ -1,7 +1,8 @@
-; Asm/Sparc/sparcasm.sch
-; Larceny -- SPARC machine assembler
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; SPARC machine assembler.
 ;
 ; The procedure `sparc-instruction' takes an instruction class keyword and
 ; some operands and returns an assembler procedure for the instruction
@@ -42,9 +43,6 @@
 ; procedure `asm-value-too-large', which allows the higher-level assembler 
 ; to retry the assembly with different settings (typically, by splitting 
 ; a jump instruction into an offset calculation and a jump).
-;
-; Note: I removed `$' from the expression grammar because it wreaks havoc with
-; fixups and because `(here as)' can always be used instead.
 ;
 ; Note: the idiom that is seen in this file,
 ;   (emit-fixup-proc! as (lambda (b l) (fixup b l)))

@@ -1,7 +1,8 @@
-; Asm/Sparc/sparcutil.sch
-; Larceny -- SPARC assembler machine parameters & utility procedures
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; SPARC assembler machine parameters & utility procedures.
 
 ; Round up to nearest 8.
 

@@ -1,12 +1,11 @@
-; Larceny -- Sparc assembler load utility.
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
 ;
-; lth@cs.uoregon.edu / August 22, 1995 
-;
-; March 31, 1996
-;
-; For Larceny: Load the Sparc assembler.
-; If a path is given, it is used. Otherwise, "." is assumed.
+; Asm/Sparc/asmload.sch -- Sparc assembler load utility.
+
+; Load the Sparc assembler.  If a path is given, it is used. Otherwise, 
+; "." is assumed.
 
 (define (asmload . rest)
   (let ((path  (if (null? rest) "./" (car rest)))
@@ -14,9 +13,10 @@
 		 "asmutil.fasl" 
 		 "sparcasm.fasl"
 		 "gen-msi.fasl" 
-		 "gen-prim.fasl" 
+		 "sparcprim-part1.fasl" 
+		 "sparcprim-part2.fasl" 
+		 "sparcprim-part3.fasl" 
 		 "switches.fasl"  
-		 ; "sparcdis.fasl"
 		 )))
 
     (define (do-load fn)

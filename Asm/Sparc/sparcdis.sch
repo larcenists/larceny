@@ -1,17 +1,24 @@
-; Asm/Sparc/sparcdis.sch
-; Larceny back-end -- SPARC disassembler
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; Interface.
-;  (disassemble-codevector codevector)             => decoded-instruction-list
-;  (disassemble-instruction instruction address)    => decoded-instruction
-;  (print-instructions decoded-instruction-list)    => unspecified
-;      Also takes an optional port and optionally the symbol "native-names".
-;  (format-instruction decoded-instruction address larceny-names?) => string
+; SPARC disassembler.
+;
+; (disassemble-instruction instruction address)
+;     => decoded-instruction
+;
+; (disassemble-codevector codevector)
+;     => decoded-instruction-list
+;
+; (print-instructions decoded-instruction-list)
+;     => unspecified
+;     Also takes an optional port and optionally the symbol "native-names".
+;
+; (format-instruction decoded-instruction address larceny-names?) 
+;     => string
 ; 
-; A `decoded-instruction' is a list where the car is a mnemonic (see below)
-; and the operands are appropriate for that mnemonic.
+; A `decoded-instruction' is a list where the car is a mnemonic and
+; the operands are appropriate for that mnemonic.
 ;
 ; A `mnemonic' is an exact nonnegative integer.  It encodes the name of
 ; the instruction as well as its attributes (operand pattern and instruction

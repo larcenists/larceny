@@ -1,7 +1,9 @@
-; Asm/Sparc/gen-msi.sch
-; Larceny -- SPARC assembler code emitters for core MacScheme instructions
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Asm/Sparc/gen-msi.sch -- SPARC assembler code emitters for 
+;    core MacScheme instructions
 
 
 ; SETGLBL

@@ -1,13 +1,8 @@
-; Asm/Sparc/pass5p2.sch
-; Larceny -- Sparc machine assembler, top level
+; Copyright 1991 Lightship Software, Incorporated.
 ;
 ; $Id$
 ;
-; Based on MacScheme machine assembler:
-;    Copyright 1991 Lightship Software, Incorporated.
-;
-; The assembly instruction generators are themselves in the files
-; Asm/Sparc/gen-msi.sch and Asm/Sparc/gen-prim.sch.
+; Asm/Sparc/pass5p2.sch -- Sparc machine assembler, top level
 
 ; Overrides the procedure of the same name in Asm/Common/pass5p1.sch.
 

@@ -1,4 +1,4 @@
-; Copyright 1998 Lars T Hansen and William D Clinger.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;

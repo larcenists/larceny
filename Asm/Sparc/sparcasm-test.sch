@@ -1,7 +1,8 @@
-; Asm/Sparc/sparcasm-test.sch
-; Larceny -- Sparc machine assembler test code
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Sparc machine assembler test code.
 
 (define (sparcasm-test)
 

@@ -1,4 +1,9 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
 ; Test code for new sparc assembler.
+
 ; This code tests the assembler's code generation by exhaustion.
 ; The idea is to assemble the same instruction sequences with the old
 ; assembler and compare them.

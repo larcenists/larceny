@@ -1,9 +1,9 @@
-; Copyright 1998 Lars T Hansen and William D Clinger.
+; Copyright 1998 Lars T Hansen.
 ; 
 ; $Id$
 ;
-; Asm/Sparc/sparcprim-part1.sch -- SPARC primitives, part 1.
-; Primitives defined in Compiler/sparc.imp.sch.
+; SPARC code generation macros for primitives, part 1:
+;   primitives defined in Compiler/sparc.imp.sch.
 
 ; Primop emitters.
 

@@ -1,9 +1,9 @@
-; Copyright 1998 Lars T Hansen and William D Clinger.
+; Copyright 1998 Lars T Hansen.
 ; 
 ; $Id$
 ;
-; Asm/Sparc/sparcprim-part2.sch -- SPARC primitives, part 2.
-; Primitives introduced by peephole optimization.
+; SPARC code generation macros for primitives, part 2:
+;   primitives introduced by peephole optimization.
 
 (define-primop 'internal:car
   (lambda (as src1 dest)

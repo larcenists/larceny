@@ -1,9 +1,9 @@
-; Copyright 1998 Lars T Hansen and William D Clinger
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
-; Asm/Sparc/sparcprim-part3.sch -- SPARC primitives, part 3.
-; Helper procedures.
+; SPARC code generation macros for primitives, part 3:
+;   helper procedures.
 
 
 ; SET-CAR!, SET-CDR!, CELL-SET!
@@ -78,23 +78,27 @@
 
 ; LSH, RSHA, RSHL: Bitwise shifts on fixnums.
 ;
-; The semantics do not match those of MIT Scheme or MacScheme: only 
-; positive shifts are allowed.  
-;
-; The names do not match the fixnum-specific procedures of Chez Scheme
-; with our semantics: fxsll, fxsra, fxsrl.  Gag.
+; Notes for future contemplation:
+;   - The semantics do not match those of MIT Scheme or MacScheme: only 
+;     positive shifts are allowed.
+;   - The names do not match the fixnum-specific procedures of Chez Scheme
+;     that have the same semantics: fxsll, fxsra, fxsrl.
+;   - This code checks that the second argument is in range; if it did
+;     not, then we could get a MOD for free.  Probably too hardware-dependent
+;     to worry about.
+;   - The range 0..31 for the shift count is curious given that the fixnum
+;     is 30-bit.
 
 (define (emit-shift-operation as exn rs1 rs2 rd)
   (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
     (if (not (unsafe-code))
-	(let ((BOTH-FIXNUMS (new-label))
+	(let ((L0 (new-label))
 	      (FAULT (new-label))
 	      (START (new-label)))
 	  (sparc.label as START)
-	  (sparc.orr   as rs1 rs2 $r.tmp0)
-	  (sparc.btsti as $r.tmp0 3)
-	  (sparc.be.a  as BOTH-FIXNUMS)
-	  (sparc.cmpi  as rs2 0)
+	  (sparc.btsti as rs1 3)	  ; RS1 fixnum?
+	  (sparc.be.a  as L0)
+	  (sparc.andi  as rs2 #x7c $r.g0) ; RS2 fixnum and 0 <= RS2 < 32?
 	  (sparc.label as FAULT)
 	  (if (not (= rs1 $r.result))
 	      (sparc.mov as rs1 $r.result))
@@ -102,8 +106,8 @@
 	      (emit-move2hwreg! as rs2 $r.argreg2))
 	  (sparc.set   as (thefixnum exn) $r.tmp0)
 	  (millicode-call/ret as $m.exception START)
-	  (sparc.label as BOTH-FIXNUMS)
-	  (sparc.bl    as FAULT)
+	  (sparc.label as L0)
+	  (sparc.bne   as FAULT)
 	  (sparc.srai  as rs2 2 $r.tmp1))
 	(begin
 	  (sparc.srai  as rs2 2 $r.tmp1)))

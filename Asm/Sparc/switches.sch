@@ -1,7 +1,9 @@
-; Asm/Sparc/switches.sch
-; Larceny -- Switches for the Sparc assembler
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; SPARC machine assembler flags.
+
 
 ; INTERNAL!
 (define short-effective-addresses
@@ -52,6 +54,7 @@
      (short-effective-addresses #t)
      (catch-undefined-globals #t)
      (inline-allocation #f)
+     ; (inline-assignment #f)
      (peephole-optimization #t)
      (unsafe-code #f)
      (write-barrier #t)
