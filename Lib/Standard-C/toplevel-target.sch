@@ -10,7 +10,7 @@
 (define (initialize-r4rs-environment-target-specific r4rs) r4rs)
 (define (initialize-r5rs-environment-target-specific r5rs) r5rs)
 
-(define (initialize-larceny-environment-target-specific larc) 
+(define (initialize-larceny-environment-target-specific larc)
 
   ;; system performance and interface
 
@@ -19,6 +19,11 @@
   (environment-set! larc 'sys$C-ffi-dlsym sys$C-ffi-dlsym)
   (environment-set! larc 'peek-bytes peek-bytes)
   (environment-set! larc 'poke-bytes poke-bytes)
+
+  ;; environment interface
+
+  (environment-set! larc 'dump-heap dump-heap)
+  (environment-set! larc 'dump-interactive-heap dump-interactive-heap)
 
   ;; Support for loading compiled files as code-less FASL files with
   ;; the code vectors already linked into the executable or present

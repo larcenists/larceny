@@ -8,17 +8,17 @@
 
 (define (init-toplevel-environment)
   (let* ((null    (initialize-null-environment-target-specific
-		   (initialize-null-environment
-		    (make-environment "null-environment"))))
+                   (initialize-null-environment
+                    (make-environment "null-environment"))))
          (r4rs    (initialize-r4rs-environment-target-specific
-		   (initialize-r4rs-environment
-		    (environment-copy null "report-environment-4"))))
+                   (initialize-r4rs-environment
+                    (environment-copy null "report-environment-4"))))
          (r5rs    (initialize-r5rs-environment-target-specific
-		   (initialize-r5rs-environment
-		    (environment-copy r4rs "report-environment-5"))))
+                   (initialize-r5rs-environment
+                    (environment-copy r4rs "report-environment-5"))))
          (larceny (initialize-larceny-environment-target-specific
-		   (initialize-larceny-environment
-		    (environment-copy r5rs "larceny-environment")))))
+                   (initialize-larceny-environment
+                    (environment-copy r5rs "larceny-environment")))))
     (install-environments! null r4rs r5rs larceny)
     (unspecified)))
 
@@ -54,12 +54,14 @@
 
   ;; support procedures for compiled code and macro expansion
 
-  ; FIXME: most of these do not belong here; they are primitives
-  ;        that are introduced by the compiler and should always be
-  ;        open-coded.  Fix when we've fixed the compiler tables.
+  ; Some of these are introduced by the compiler.  The compiler should
+  ; always open-code them, and it should be possible to remove them
+  ; from here.
+  ;
+  ; The rest are introduced by the macro expander; the compiler will
+  ; open-code them as well, but the interpreter will not, so the
+  ; definitions must be here.
 
-  (environment-set! null 'unspecified unspecified) ; Twobit bug
-  (environment-set! null 'undefined undefined)     ; Twobit bug
   (environment-set! null 'car:pair car:pair)
   (environment-set! null 'cdr:pair cdr:pair)
   (environment-set! null '=:fix:fix  =:fix:fix)
@@ -81,6 +83,8 @@
   (environment-set! null '.cell-ref .cell-ref)
   (environment-set! null '.cell-set! .cell-set!)
   (environment-set! null '.check! .check!)
+  (environment-set! null '.unspecified unspecified)
+  (environment-set! null '.undefined undefined)
 
   null)
 
@@ -573,10 +577,6 @@
   (environment-set! larc 'structure-printer structure-printer)
   (environment-set! larc 'structure-comparator structure-comparator)
 
-  ;; Support for or hooks into the interpreter.
-
-  (environment-set! larc 'macro-expand toplevel-macro-expand)
-
   ;; system performance and interface
 
   (environment-set! larc 'collect collect)
@@ -756,6 +756,7 @@
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
   (environment-set! larc 'system system)
+  (environment-set! larc 'current-directory current-directory)
 
   ;; miscellaneous extensions and hacks
 
@@ -766,6 +767,8 @@
   (environment-set! larc 'repl-level repl-level)
   (environment-set! larc 'herald herald)
   (environment-set! larc 'load-evaluator load-evaluator)
+  (environment-set! larc 'macro-expand toplevel-macro-expand)
+  (environment-set! larc 'macro-expander macro-expander)
   (environment-set! larc 'typetag typetag)
   (environment-set! larc 'typetag-set! typetag-set!)
   (environment-set! larc 'unspecified unspecified)
