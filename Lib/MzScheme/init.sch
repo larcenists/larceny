@@ -284,6 +284,7 @@
         initialize-instance
         make-generic-combination
         more-specific?
+        print-object
         rec-allocate-instance
         rec-initialize
         )
