@@ -338,7 +338,7 @@
 
 (define auxlib-project 
   (let ((auxlib-files
-	 '("misc" "list" "vector" "string" "sort" "pp" "io" "format"))
+	 '("misc" "list" "vector" "string" "pp" "io" "format"))
 	(experimental-files
 	 '("applyhook" "applyhook0" "apropos" "system-stuff"))
 	(debugger-files
