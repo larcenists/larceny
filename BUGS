@@ -255,7 +255,6 @@ HIGH PRIORITY BUGS: None.
     Environments should contain syntax environments, and both 
     compile-expression (Compiler/compile313.sch) and macro-expand 
     (Eval/macro-expand.sch) should allow any environment to be used.
-    This is a longer-term project.
 
 086 v0.39 (981216 / lth)
     Priority: low
@@ -268,7 +267,82 @@ HIGH PRIORITY BUGS: None.
 
     Memstats does not return information about the static area, if any.
 
+088 v0.40 (981219 / lth)
+    Priority: low
 
-NEXT ENTRY: 088
+    [Performance bug]
+    When running with (integrate-usual-procedures #f), arithmetic is quite
+    slow, because the definitions of '+' etc are coded in Scheme using
+    rest args.  Much better would be if they were written in MAL in 
+    the same way as read-char / write-char, special-casing 0, 1, 2, 3, and
+    4 arguments, or, even better, using case-lambda.
+
+    On vega:
+
+	> (default-code)
+	#t
+	> (define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))
+	fib
+	> (run-with-stats (lambda () (fib 30)))
+	Words allocated: 10770618
+	Words reclaimed: 10738790
+	Elapsed time...: 5863 ms (User: 5840 ms; System: 0 ms)
+	Elapsed GC time: 174 ms (in 41 collections.)
+	832040
+
+    In fact, the interpreter is only 50% slower:
+
+	vega(197) % larceny -small
+	Larceny v0.40 (precise:SunOS5:split) (lth 18-Dec-98 17:59:12)
+
+	> (define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))
+	fib
+	> (run-with-stats (lambda () (fib 30)))
+	Words allocated: 10770624
+	Words reclaimed: 10733898
+	Elapsed time...: 8376 ms (User: 8200 ms; System: 20 ms)
+	Elapsed GC time: 85 ms (in 41 collections.)
+	832040
+
+089 v0.40 (981219 / lth)
+    Priority: low
+
+    Should catch SIGSEGV, SIGBUS because broken unsafe code can otherwise 
+    cause a core dump.
+
+090 v0.40 (981219 / lth )
+    Priority: low
+
+    With (integrate-usual-primitives #f), calls to the primitives 
+    .make-cell, .cell-ref, and .cell-set! are compiled as normal 
+    procedure calls.  This runs correctly -- I've added the correct
+    names to the environment -- but code that uses assignments takes
+    a performance hit.
+
+091 v0.40 (981219 / lth )
+    Priority: low
+
+    The macro expander generates calls to procedures (unspecified) and 
+    (undefined).  With (integrate-usual-primitives #f), this is incorrect 
+    -- either these should be the procedures (.unspecified) and (.undefined),
+    in which case see Bug 090, or they should be the correct constants.
+
+092 v0.40 (981219 / lth)
+    Priority: low
+
+    SPARC Assembler error.
+
+    When compiling Testsuite/GC/nucleic2.sch with benchmark-block-mode,
+    the assembler signals an error in sparutil.sch:emit-const->register!
+    called from gen-msi.sch:emit-register->global! (setglbl), because
+    there the former cannot handle more than 1023 global variables -- 
+    the constant vector offset is too large.
+
+    This should be easy to fix if the offset is always known when
+    emit-const->register! is called.  If that is not the case, then
+    we must implement another crock like `short-effective-addresses'.
+
+
+NEXT ENTRY: 093
 	
 ; eof
