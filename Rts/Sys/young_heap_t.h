@@ -59,6 +59,11 @@ struct young_heap {
 	nbytes > 0
 	*/
 
+  void (*make_room)( young_heap_t *heap );
+     /* Ensure that there is at least 4KB of contiguous space at the
+	allocation pointer.
+        */
+
   void (*collect)( young_heap_t *heap, int nbytes, int request );
      /* A method that requests a garbage collection in the heap, without
 	guaranteeing that one is performed, but in any event guaranteeing
@@ -146,6 +151,7 @@ young_heap_t *create_young_heap_t(
    word code,
    int  (*initialize)( young_heap_t *heap ),
    word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc ),
+   void (*make_room)( young_heap_t *heap ),
    void (*collect)( young_heap_t *heap, int nbytes, int request ),
    void (*before_collection)( young_heap_t *heap ),
    void (*after_collection)( young_heap_t *heap ),
@@ -165,6 +171,7 @@ young_heap_t *create_young_heap_t(
 
 #define yh_initialize( h )         ((h)->initialize( (h) ))
 #define yh_allocate( h, n, f )     ((h)->allocate( (h), (n), (f) ))
+#define yh_make_room( h )          ((h)->make_room( h ))
 #define yh_collect( h, n, r )      ((h)->collect( (h), (n), (r) ))
 #define yh_before_collection( h )  ((h)->before_collection( (h) ))
 #define yh_after_collection( h )   ((h)->after_collection( (h) ))
