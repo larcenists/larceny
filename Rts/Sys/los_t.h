@@ -110,8 +110,15 @@ word *los_walk_list( los_list_t *list, word *p );
      */
 
 void los_free_list( los_list_t *list );
- /* Free the list.  Does not affect any objects on the list.
-    */
+  /* Free the list.  Does not affect any objects on the list.
+     */
+
+void los_permute_object_lists( los_t *los, int permutation[] );
+  /* Permute the object lists according to PERMUTATION, which is an array
+     of length MAX_GENERATION where list[i] is moved to list[permutation[i]].
+     Also sets the generation numbers on all the objects in the lists
+     according to where they are moved.
+     */
 
 /* eof */
 

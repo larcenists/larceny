@@ -14,6 +14,7 @@
 #include "larceny.h"
 #include "los_t.h"
 #include "gclib.h"
+#include "gc.h"			/* For MAX_GENERATIONS */
 
 #define HEADER_WORDS     4	/* Number of header words */
 #define HEADER_UNUSED    -4     /* Unused field (could be mark?) */
@@ -179,6 +180,21 @@ word *los_walk_list( los_list_t *list, word *p )
   else {
     assert( ishdr( *n ) );
     return n;
+  }
+}
+
+void los_permute_object_lists( los_t *los, int permutation[] )
+{
+  los_list_t *old[ MAX_GENERATIONS ];
+  int i, k;
+
+  for ( i=0 ; i < los->generations ; i++ )
+    old[i] = los->object_lists[i];
+
+  for ( i=0 ; i < los->generations ; i++ ) {
+    k = permutation[i];
+    los->object_lists[k] = old[i];
+    los_list_set_gen_no( los->object_lists[k], k );
   }
 }
 
