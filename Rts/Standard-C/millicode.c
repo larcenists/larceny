@@ -931,11 +931,11 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   stkp[ STK_REG0 ] = *return_from_scheme_procedure;
   stkp[ 4 ] = fixnum((word)k);
 #elif defined X86_NASM
-  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(i386_return_from_scheme,0);
+  stkp[ STK_RETADDR ] = (word)i386_return_from_scheme;
   stkp[ STK_REG0 ] = 0;
   stkp[ 4 ] = (word)k;
-#else
-  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(return_from_scheme,0);
+#else /* PETIT_LARCENY && !USE_GOTOS_LOCALLY */
+  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(0,return_from_scheme);
   stkp[ STK_REG0 ] = 0;
   stkp[ 4 ] = (word)k;
 #endif
