@@ -44,7 +44,11 @@ void stk_initialize_underflow_frame( word *stktop )
 void C_allocate( word request_words )
 {
   supremely_annoyingmsg( "Allocation call-out from millicode." );
-  /* The assignment violates the VM invariants -- that's OK */
+  /* The assignment to G_RESULT violates the VM invariants because an
+     untagged pointer to memory is being stored in a root.  That's OK,
+     because the millicode will fix the problem before anyone gets to
+     see the pointer.
+     */
   in_noninterruptible_syscall = 1;
   globals[ G_RESULT ] =
     (word)alloc_from_heap( nativeint( request_words )*sizeof(word) );
