@@ -11,7 +11,7 @@ define print_gens
 end
 
 # argument: a los_t pointer variable or pointer
-define print_dof
+define print_los
   set $i=0
   while $i < $arg0->generations
     print *($arg0->object_lists[$i])
