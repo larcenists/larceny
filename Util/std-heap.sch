@@ -32,8 +32,10 @@
    (if (not (eq? x (unspecified)))
        (pretty-print x))))
 
-(load "Auxlib/std-ffi.sch")
-(load "Auxlib/unix-functions.sch")
+; FFI not included in 1.0a1
+;
+;(load "Auxlib/std-ffi.sch")
+;(load "Auxlib/unix-functions.sch")
 
 (define apropos
   (let ((apropos apropos))
