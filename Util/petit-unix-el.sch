@@ -59,7 +59,8 @@
 	    "Rts/Build/schdefs.h")
   (load "features.sch"))
 
-(define build-heap make-petit-heap)	     ; Defined in Lib/makefile.sch
+(define (build-heap . args)
+  (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
   (execute-in-directory "Rts" "make libpetit.a"))

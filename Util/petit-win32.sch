@@ -78,7 +78,8 @@
 			(write-char c out)))))
 		input-files))))
 
-(define build-heap make-petit-heap)
+(define (build-heap . args)
+  (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
   (execute-in-directory "Rts" "nmake petit-rts.lib"))
