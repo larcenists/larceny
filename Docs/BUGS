@@ -723,7 +723,74 @@ HIGH PRIORITY BUGS: none.
     Twobit generates the primop $const/setreg, which is not in the core
     instruction set.
 
+166 v0.53 (2004-07-11 / jivera@flame.org)
+    Priority: medium
+    Category: TWOBIT / correctness
 
-NEXT ENTRY: 166
+    From: William D Clinger <will@ccs.neu.edu>
+    To: jivera@flame.org, larceny@ccs.neu.edu, will@ccs.neu.edu
+    Subject: Re: Are Twobit's pass 2 rewrite rules valid?
+    Date: Sun, 11 Jul 2004 22:04:09 -0400
+
+    Yes, this is a bug.  I was aware of it, and it should have been
+    in the list of known bugs.  I'll make sure it gets there.
+
+    Will
+
+    Dr. Clinger,
+
+    I have been thinking about some of the transformations that Twobit
+    performs in phase 2 [1], this one in particular:
+
+      (E0 ... (begin --- E) ...)      (begin --- (E0 ... E ...))
+
+    Wouldn't this rewrite prove problematic in the following example?
+
+      (foo (begin (set! x #f) x)
+           (begin (set! x #t) x))
+
+    Following the above rewrite rule, this would be rewritten (along with
+    nested begin collapsing) to:
+
+      (begin (set! x #f)
+             (set! x #t)
+             (foo x x))
+
+    The following snippet seems to confirm that fear:
+
+      > (pass2 '((begin f)
+                 (begin (set! x (begin #t)) (begin x))
+                 (begin (set! x (begin #f)) (begin x))))
+      (begin
+        (set! x (begin #t))
+        (set! x (begin #f))
+        ((begin f) (begin x) (begin x)))
+
+    Perhaps this is a known bug (it's not in Docs/BUGS of 0.52).
+
+    [1] http://www.ccs.neu.edu/home/will/Twobit/p2local.html
+
+
+167 v0.53  (2004-12-10 / lth)
+    Priority: low
+    Category: REPRESENTATIONS / Portability
+
+    The data representations in Petit Larceny are quite abstract and
+    precise layouts are defined by macros in C header files.  In most
+    cases there's not much that can be done with this abstraction, but
+    in the case of Unicode there is: one can go from a CHAR data
+    representation that has 8 bits of data to one that has 24 bits of
+    data, provided the character data use all available space.  But
+    the char representation puts the character data in the middle 8
+    bits.  For all C code this is abstracted away and it is easy to
+    change the charcode() and int_to_char() macros.  But the heap dumper
+    does not cooperate: it knows what a character looks like.
+
+    The heap dumper should be parameterized to handle this, or
+    perhaps, we should store the character data more conveniently for
+    a Unicode port to get at them.
+ 
+
+NEXT ENTRY: 168
 
 ; eof

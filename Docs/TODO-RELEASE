@@ -2,24 +2,54 @@ $Id$
 
 Release 2 todo and check lists
 
-Working on:
-
- * Implement pointer transformation for non-aligning compilers.
-   Works for USE_GOTOS_LOCALLY+RETURN_WITH_VALUE, not otherwise tested.
-   Need to test:
-     - other jump disciplines
-     - other C compilers than mingw
-
-
 Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
- * Figure out how to package Petit Larceny: something akin to
-   std-heap.sch and r5rs-heap.sch.
+ * Test Win32 pointer transformation for other jump disciplines.
+   Works for USE_GOTOS_LOCALLY+RETURN_WITH_VALUE.
+ 
+ * r5rs-heap:
 
- * For most people it is most reasonable that Twobit share the macro
-   definitions between the interpreter and compiler, so that loading
-   a file with macros in the interpreter is reflected when the compiler
-   is invoked.  This does not work now.  Fix it!
+    * Seems to work OK (only pretty-printer is added)
+
+    * Package this somehow:
+        (build-application "petit-r5rs" '("Auxlib/pp.lop"))
+      including the compilation of pp.sch to pp.lop
+
+ * std-heap:
+
+    * petit-std-heap.sch refers directly to osdep-unix.sch and
+      petit-unix-el.sch.  Bad!
+
+    * a crash was seen during heap dumping (in the x86 system) but
+      remains unexplained.
+
+    * Still does not work: Loading macros from a file into twobit will
+      make them visible to the interpreter, but they are not visible
+      to COMPILE-FILES.  See when.sch and gwen.sch.
+
+    * There is much code that could be loaded that is not, right now.
+
+ * Go over all docs to make sure they are at least mostly relevant
+
+ * Examine subversion archives for any hacks that apply right away
+
+ * x86-nasm hits infinite gc loop in stop+copy collector: on return
+   from gc, there is not enough memory to allocate a cons, and
+   compiled code calls morecore, which collects and returns, and it
+   happens all over again.  This is a bug in i386-instr.asm: the
+   inline allocation code calls MORECORE, but that does not reserve
+   sufficient space, and because the system is in a steady state we
+   loop forever.  It should not be a problem in the Standard-C system.
+
+----
+
+ * Import Aubrey Jaffer's updated R4RS test suite
+   http://swiss.csail.mit.edu/ftpdir/scm/r4rstest.scm
+
+ * Document
+      (compiler-switches 'get) => obj
+      (compiler-switches 'set obj)
+   for getting and restoring compiler switches.
 
  * Better dynamic loading of compiled code: as it is, a given file
    can only be loaded once, so if foo.fasl points to foo.so and
@@ -32,11 +62,6 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    does the former, it requires being able to inspect the directory.
    The latter solves the silly LD_LIBRARY_PATH problem and makes
    FASL files easily moveable.
-
- * Make the debugger work with both x86-NASM and Petit, and make sure
-   debug info is emitted correctly.  Information is probably missing
-   for internal procedures.  See Larceny note #12 and 
-   Lib/Common/procinfo.sch.
 
  * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
 
@@ -68,6 +93,9 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * Win32 TO-DO items: see section at the end of HOWTO-WIN32.
 
+ * Win32: Is the Open Watcom compiler viable?  MIT Scheme supposedly
+   uses it.
+
  * LIB: The require system must play nice with heap dumping: the
    database must not be unconditionally reinitialized even if .larceny
    reloads the REQUIRE package.  (Implemented, not yet tested.)
@@ -82,11 +110,6 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    generate completely dense switches for dispatch in a procedure --
    no gap between the start label 0 and normal label, and no dead
    labels.)
-
-
-QA:
-
-  * Go over all docs to make sure they are at least mostly relevant
 
 
 Release candidate 1 -> Release candidate 2
