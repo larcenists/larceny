@@ -13,12 +13,20 @@
  * The gc library is not reentrant, although it can be made so by creating
  * e.g. an "arena_t" ADT that encapsulates the global variables declared
  * below.
+ *
+ * Should remove use of caddr_t altogether; using char* or byte* everywhere 
+ * is ok by the ANSI standard.
  */
 
 #ifndef INCLUDED_GCLIB_H
 #define INCLUDED_GCLIB_H
 
-#include <sys/types.h>		/* For caddr_t */
+#include "config.h"
+#if defined(UNIX)
+#  include <sys/types.h>		    /* For caddr_t */
+#else
+   typedef char *caddr_t;	        /* Gotta fix this */
+#endif
 #include "larceny-types.h"
 
 /* Page number macros */
@@ -164,6 +172,43 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace );
   /* Copy objects younger than the 'tospace' into 'tospace', growing 
      'tospace' as necessary.  'Tospace' must be the non-predictive
      'young' area.
+     */
+
+void gclib_stopcopy_promote_into_dof( gc_t *gc,
+				      semispace_t **dest_areas,
+				      int *sizes,
+				      int *last_used,
+				      int dynamic_gen );
+  /* Deferred-oldest-first promotion:  Promote all objects from the nursery
+     (generation 0) into the areas referenced by dest_areas[] and sizes[].
+     The dest_areas[] and sizes[] arrays are terminated by 0 entries.
+     Return the index in dest_areas[] of the last area used in last_used.
+     The parameter dynamic_gen is the generation number of the dynamic generation.
+     
+     This collector has a complex write barrier: an object promoted into an
+     area is added to the area's remembered set if it references any younger
+     generation or if it references the dynamic generation.
+     */
+     
+void gclib_stopcopy_promote_into_selective( gc_t *gc, 
+                                            semispace_t *tospace,
+                                            int *fromspaces );
+  /* Promote all live objects from the generations named by 0-terminated
+     array FROMSPACES into unbounded semispace TOSPACE, adding to the
+     remembered set of TOSPACE all those objects promoted that still
+     reference objects in younger generations not part of FROMSPACES.
+     */
+
+void gclib_stopcopy_collect_selective( gc_t *gc,
+                                       semispace_t *tospace,
+                                       int *fromspaces );
+  /* Collect the generation of TOSPACE while promoting all live objects 
+     from the generations named by 0-terminated array FROMSPACES into 
+     TOSPACE.  Add to the remembered set of TOSPACE all those objects
+     that still reference objects in younger generations not part of
+     FROMSPACES.
+     
+     Clear the remembered set of TOSPACE before calling this function.
      */
 
 void gclib_stopcopy_split_heap( gc_t *gc,
