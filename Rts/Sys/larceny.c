@@ -39,12 +39,13 @@ struct opt {
   char       **restv;                   /* vector of extra arguments */
 };
 
+static void param_error( char *s );
 static void invalid( char *s );
 static void usage( void );
 static void help( void );
 static void parse_options( int argc, char **argv, opt_t *opt );
 static int  getsize( char *s, int *p );
-void dump_options( opt_t *o );
+static void dump_options( opt_t *o );
 
 static bool quiet = 0;
   /* 'quiet' controls consolemsg() 
@@ -294,8 +295,14 @@ static void
 parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
+#if !defined( BDW_GC )
   double load_factor = DEFAULT_LOAD_FACTOR;
+#else
+  double load_factor = 1.25;	/* Compatible */
+#endif
   int dynamic_max = 0;
+  int dynamic_min = 0;
+  int divisor = 0;
   int val;
 
   while (--argc) {
@@ -323,10 +330,6 @@ parse_options( int argc, char **argv, opt_t *o )
 	for ( i=1 ; i < o->maxheaps ; i++ )
 	  if (o->size[i-1] == 0) o->size[i-1] = val;
     }
-    else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
-      ;
-    else if (doublearg( "-load", &argc, &argv, &load_factor ))
-      ;
     else if (numbarg( "-steps", &argc, &argv,
 		     &o->gc_info.dynamic_np_info.steps )) {
       o->gc_info.is_generational_system = 1;
@@ -343,7 +346,13 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else 
 #endif
-      if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
+    if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
+      ;
+    else if (doublearg( "-load", &argc, &argv, &load_factor ))
+      ;
+    else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
+      ;
+    else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
       ;
     else if (strcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
@@ -372,6 +381,10 @@ parse_options( int argc, char **argv, opt_t *o )
       o->restv = argv+1;
       break;
     }
+#if defined(BDW_GC)
+    else if (numbarg( "-divisor", &argc, &argv, &divisor ))
+      ;
+#endif
     else if (**argv == '-') {
       consolemsg( "Error: Invalid option '%s'", *argv );
       usage();
@@ -384,23 +397,34 @@ parse_options( int argc, char **argv, opt_t *o )
       o->heapfile = *argv;
   }
 
+  /* Initial validation */
   if (o->gc_info.is_conservative_system &&
-      (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system)) {
-    consolemsg( "Error: Both precise and conservative gc selected!" );
-    consolemsg( "Type \"larceny -help\" for help." );
-    exit( 1 );
-  }
+      (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system))
+    param_error( "Both precise and conservative gc selected." );
     
-  if (o->gc_info.is_generational_system && o->gc_info.is_stopcopy_system) {
-    consolemsg( "Error: Both generational and non-generational gc selected!" );
-    consolemsg( "Type \"larceny -help\" for help." );
-    exit( 1 );
-  }
+  if (o->gc_info.is_generational_system && o->gc_info.is_stopcopy_system)
+    param_error( "Both generational and non-generational gc selected." );
 
-  if (!o->gc_info.is_stopcopy_system && o->gc_info.ephemeral_info == 0)
+  if (!o->gc_info.is_stopcopy_system && !o->gc_info.is_conservative_system
+      && o->gc_info.ephemeral_info == 0)
     init_generational( o, areas, "*invalid*" );
 
+  if (dynamic_max && dynamic_min && dynamic_max < dynamic_min)
+    param_error( "Expandable MAX is less than expandable MIN." );
+
+  if (dynamic_max || dynamic_min) {
+    int n = (o->gc_info.is_generational_system ? areas-1 : 0);
+
+    if (o->size[n] && dynamic_max && o->size[n] > dynamic_max)
+      param_error( "Size of expandable area is larger than selected max." );
+    if (o->size[n] && dynamic_min && o->size[n] < dynamic_min)
+      param_error( "Size of expandable area is smaller than selected min." );
+  }
+
+  /* Complete parameter structure by computing the not-specified values. */
   if (o->gc_info.is_generational_system) {
+    int n = areas-1;		/* Index of dynamic generation */
+
     /* Nursery */
     o->gc_info.nursery_info.size_bytes =
       (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
@@ -417,31 +441,51 @@ parse_options( int argc, char **argv, opt_t *o )
 
     /* Dynamic generation */
     if (o->gc_info.use_non_predictive_collector) {
-      int n = areas-1;
+      int size;
+
       o->gc_info.dynamic_np_info.load_factor = load_factor;
       o->gc_info.dynamic_np_info.dynamic_max = dynamic_max;
+      o->gc_info.dynamic_np_info.dynamic_min = dynamic_min;
       if (o->size[n] != 0)
 	o->gc_info.dynamic_np_info.size_bytes = o->size[n];
-      compute_np_parameters( o, prev_size + DEFAULT_DYNAMIC_INCREMENT );
+      size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+      if (dynamic_min) size = max( dynamic_min, size );
+      if (dynamic_max) size = min( dynamic_max, size );
+      compute_np_parameters( o, size );
     }
     else {
-      int n = areas-1;
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
       o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
-      if (o->size[n] == 0)
-	o->gc_info.dynamic_sc_info.size_bytes = 
-	  prev_size + DEFAULT_DYNAMIC_INCREMENT;
+      o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
+      if (o->size[n] == 0) {
+	int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+	if (dynamic_min) size = max( dynamic_min, size );
+	if (dynamic_max) size = min( dynamic_max, size );
+	o->gc_info.dynamic_sc_info.size_bytes = size;
+      }
       else
 	o->gc_info.dynamic_sc_info.size_bytes = o->size[n];
     }
   }
   else if (o->gc_info.is_stopcopy_system) {
-    if (o->size[0] == 0)
-      o->gc_info.sc_info.size_bytes = DEFAULT_STOPCOPY_SIZE;
-    else 
-      o->gc_info.sc_info.size_bytes = o->size[0];
+    if (o->size[0] == 0) {
+      int size = DEFAULT_STOPCOPY_SIZE;
+
+      if (dynamic_min) size = max( dynamic_min, size );
+      if (dynamic_max) size = min( dynamic_max, size );
+      o->gc_info.sc_info.size_bytes = size;
+    }
+    else
+      o->gc_info.sc_info.size_bytes = o->size[0]; /* Already validated */
     o->gc_info.sc_info.load_factor = load_factor;
+    o->gc_info.sc_info.dynamic_min = dynamic_min;
     o->gc_info.sc_info.dynamic_max = dynamic_max;
+  }
+  else if (o->gc_info.is_conservative_system) {
+    o->gc_info.bdw_info.load_factor = load_factor;
+    o->gc_info.bdw_info.divisor = divisor;
+    o->gc_info.bdw_info.dynamic_min = dynamic_min;
+    o->gc_info.bdw_info.dynamic_max = dynamic_max;
   }
 }
 
@@ -575,7 +619,7 @@ static int getsize( char *s, int *p )
   return 0;
 }
 
-void dump_options( opt_t *o )
+static void dump_options( opt_t *o )
 {
   int i;
 
@@ -595,12 +639,18 @@ void dump_options( opt_t *o )
   if (o->gc_info.is_conservative_system) {
     consolemsg( "Using conservative garbage collector." );
     consolemsg( "  Incremental: %d", o->gc_info.use_incremental_bdw_collector);
+    consolemsg( "  Inverse load factor: %f", o->gc_info.bdw_info.load_factor );
+    consolemsg( "  Divisor: %d", o->gc_info.bdw_info.divisor );
+    consolemsg( "  Min size: %d", o->gc_info.bdw_info.dynamic_min );
+    consolemsg( "  Max size: %d", o->gc_info.bdw_info.dynamic_max );
   }
   else if (o->gc_info.is_stopcopy_system) {
     consolemsg( "Using stop-and-copy garbage collector." );
     consolemsg( "  Size (bytes): %d", o->gc_info.sc_info.size_bytes );
     consolemsg( "  Inverse load factor: %f", o->gc_info.sc_info.load_factor );
     consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
+    consolemsg( "  Min size: %d", o->gc_info.sc_info.dynamic_min );
+    consolemsg( "  Max size: %d", o->gc_info.sc_info.dynamic_max );
   }
   else if (o->gc_info.is_generational_system) {
     consolemsg( "Using generational garbage collector." );
@@ -612,21 +662,22 @@ void dump_options( opt_t *o )
 		  o->gc_info.ephemeral_info[i-1].size_bytes );
     }
     if (o->gc_info.use_non_predictive_collector ) {
+      np_info_t *i = &o->gc_info.dynamic_np_info;
       consolemsg( "  Dynamic area (nonpredictive copying)" );
-      consolemsg( "    Steps: %d", o->gc_info.dynamic_np_info.steps );
-      consolemsg( "    Step size (bytes): %d",
-		 o->gc_info.dynamic_np_info.stepsize );
-      consolemsg( "    Total size (bytes): %d",
-		 o->gc_info.dynamic_np_info.size_bytes );
-      consolemsg( "    Inverse load factor: %f",
-		 o->gc_info.dynamic_np_info.load_factor );
+      consolemsg( "    Steps: %d", i->steps );
+      consolemsg( "    Step size (bytes): %d", i->stepsize );
+      consolemsg( "    Total size (bytes): %d", i->size_bytes );
+      consolemsg( "    Inverse load factor: %f", i->load_factor );
+      consolemsg( "    Min size: %d", i->dynamic_min );
+      consolemsg( "    Max size: %d", i->dynamic_max );
     }
     else {
+      sc_info_t *i = &o->gc_info.dynamic_sc_info;
       consolemsg( "  Dynamic area (normal copying)" );
-      consolemsg( "    Size (bytes): %d",
-		 o->gc_info.dynamic_sc_info.size_bytes );
-      consolemsg( "    Inverse load factor: %f",
-		 o->gc_info.dynamic_sc_info.load_factor );
+      consolemsg( "    Size (bytes): %d", i->size_bytes );
+      consolemsg( "    Inverse load factor: %f", i->load_factor );
+      consolemsg( "    Min size: %d", i->dynamic_min );
+      consolemsg( "    Max size: %d", i->dynamic_max );
     }
     consolemsg( "  Using non-predictive dynamic area: %d",
 	       o->gc_info.use_non_predictive_collector );
@@ -637,6 +688,12 @@ void dump_options( opt_t *o )
     exit( 1 );
   }
   consolemsg( "---------------------------" );
+}
+
+static void param_error( char *s )
+{
+  consolemsg( "Error: %s", s );
+  usage();
 }
 
 static void invalid( char *s )
@@ -656,7 +713,7 @@ static void usage( void )
 
 static void help( void )
 {
- consolemsg("Usage: larceny [ options ][ heapfile ][-args arg-to-scheme ...]");
+  consolemsg("Usage: larceny [options][heapfile][-args arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
 #ifndef BDW_GC
@@ -668,16 +725,20 @@ static void help( void )
   consolemsg("\t-nostatic       Don't use the static area." );
   consolemsg("\t-size#    nnnn  Area number '#' is given size 'nnnn' bytes." );
   consolemsg("\t                  (Selects generational collector if # > 1.)");
-  consolemsg("\t-load     d     Use inverse load factor d for dynamic area");
-  consolemsg("\t                  or for stop-and-copy heap." );
   consolemsg("\t-np             Use the non-predictive dynamic area." );
   consolemsg("\t                  (Selects generational collector.)" );
   consolemsg("\t-steps    n     Number of steps in the non-predictive gc." );
   consolemsg("\t                  (Selects generational collector.)" );
   consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
   consolemsg("\t                  (Selects generational collector.)" );
-  consolemsg("\t-max      nnnn  Upper limit on the generational dynamic area" );
-  consolemsg("\t                  and on the stop-and-copy heap." );
+#endif
+  consolemsg("\t-min      nnnn  Lower limit on the expandable area." );
+  consolemsg("\t-max      nnnn  Upper limit on the expandable area." );
+  consolemsg("\t-load     d     Use inverse load factor d for dynamic area");
+  consolemsg("\t                  or for stop-and-copy heap." );
+#ifdef BDW_GC
+  consolemsg("\t-divisor  n     Allocation divisor s.t. live/n bytes are" );
+  consolemsg("\t                 allocated before next GC." );
 #endif
   consolemsg("\t-stats          Print startup memory statistics." );
   consolemsg("\t-quiet          Suppress nonessential messages." );
@@ -701,7 +762,7 @@ static void help( void )
   consolemsg("Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed");
   consolemsg("with K (for KB) or M (for MB) when that makes sense." );
   consolemsg("");
- consolemsg("The larceny user's manual is available on the World-Wide Web at");
+  consolemsg("The Larceny User's Manual is available on the web at");
   consolemsg("  http://www.ccs.neu.edu/home/lth/larceny/manual.html");
   exit( 0 );
 }
@@ -712,10 +773,11 @@ int memfail( int code, char *fmt, ... )
   static char *code_str[] = { "malloc", "heap", "realloc", "calloc", "rts" };
 
   va_start( args, fmt );
-  fprintf( stderr, "Allocation failed (code '%s'): ", code_str[code] );
+  fprintf( stderr, "Allocation failed (code '%s').\n", code_str[code] );
   vfprintf( stderr, fmt, args );
   va_end( args );
-  abort();
+  fprintf( stderr, "\n" );
+  exit( 1 );
   /* Never returns; return type is `int' to facilitate an idiom. */
   return 0;
 }

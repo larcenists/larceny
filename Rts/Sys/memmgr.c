@@ -40,8 +40,11 @@ typedef struct gc_data gc_data_t;
    */
 
 struct gc_data {
-  bool is_generational_system; /* True if system has multiple generations */
-  bool uses_np_collector;      /* True if dynamic area is non-predictive */
+  bool is_generational_system;  /* True if system has multiple generations */
+  bool uses_np_collector;       /* True if dynamic area is non-predictive */
+  int  dynamic_min;		/* 0 or lower limit of expandable area */
+  int  dynamic_max;		/* 0 or upper limit of expandable area */
+  int  nonexpandable_size;	/* Size of nonexpandable areas */
 
   word *globals;
   int  in_gc;                  /* a counter: > 0 means in gc */
@@ -62,6 +65,7 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
 static void before_collection( gc_t *gc );
 static void after_collection( gc_t *gc );
 static void compact_all_areas( gc_t *gc );
+static void effect_heap_limits( gc_t *gc );
 static int
 dump_generational_system( gc_t *gc, const char *filename, bool compact );
 static int
@@ -87,15 +91,17 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 
   gc->los = create_los( *generations );
 
+  effect_heap_limits( gc );
   return gc;
 }
 
-/* The size of the dynamic area is computed based on live data.
+/* The size of the dynamic (expandable) area is computed based on live data.
 
    The size is computed as the size to which allocation can grow
    before GC is necessary.  D = live copied data, Q = live large 
-   data, S = live static data, L is the inverse load factor, limit
-   is 0 or the upper limit on the dynamic area.
+   data, S = live static data, L is the inverse load factor, lower_limit
+   is 0 or the lower limit on the dynamic area, upper_limit is 0 or
+   the upper limit on the dynamic area.
 
    Let the total memory use be M = L*(D+S+Q).
 
@@ -120,7 +126,9 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 
    I'm currently using the latter quantity.
 
-   Taking limit into account: first pin M as min( M, limit ).
+   Taking lower_limit into account: pin M as max( M, lower_limit ).
+
+   Taking upper_limit into account: first pin M as min( M, upper_limit ).
    If M - current_live - live_at_next_gc is negative, then there is
    negative space available for allocation, which is absurd, hence the
    limit may be exceeded.  However, whether it actually will be exceeded
@@ -136,23 +144,25 @@ gc_t *create_gc( gc_param_t *info, int *generations )
    can be estimated with some certainty.  Other programs should use the
    load factor for control.
    */
-int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit )
+int gc_compute_dynamic_size( int D, int S, int Q, double L, 
+			     int lower_limit, int upper_limit )
 {
   int live = D+S+Q;
   int M = (int)(L*live);
-  int est_live_next_gc = live;	/* Could also be D or kD */
+  int est_live_next_gc = live;	/* == M/L */
 
-  if (limit > 0) {
-    int newM = min( M, limit );
+  if (lower_limit && upper_limit == lower_limit) {
+    /* Fixed heap size */
+    return roundup_page( upper_limit - (int)(upper_limit/L) );
+  }
+
+  M = max( M, lower_limit );
+
+  if (upper_limit > 0) {
+    int newM = min( M, upper_limit );
     int avail = (newM - live - est_live_next_gc);
-    if (avail < 0) {
-      hardconsolemsg("******************************************************");
-      hardconsolemsg("Dynamic area limit exceeded; expanding it temporarily.");
-      hardconsolemsg( "[M=%dK live=%dK old limit=%dK avail=%dK]",
-		      M/1024, live/1024, limit/1024, avail/1024 );
-      hardconsolemsg("******************************************************");
+    if (avail < 0)
       M = newM + roundup_page( abs( avail ) );	/* _Minimal_ amount */
-    }
     else
       M = newM;
   }
@@ -419,6 +429,10 @@ static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
   
+  if (gc->static_area)
+    DATA(gc)->nonexpandable_size += nbytes;
+  effect_heap_limits( gc );
+
   if (gc->static_area && load_text)
     return sh_text_load_area( gc->static_area, nbytes );
   else if (gc->static_area)
@@ -603,9 +617,21 @@ static void compact_all_areas( gc_t *gc )
   collect( gc, 0, 0 );  /* For now!  Compacts young heap only. */
 }
 
+static void effect_heap_limits( gc_t *gc )
+{
+  if (DATA(gc)->dynamic_max) {
+    int lim = DATA(gc)->dynamic_max+DATA(gc)->nonexpandable_size;
+    annoyingmsg( "*** Changing heap limit to %d", lim );
+    gclib_set_heap_limit( lim );
+  }
+}
+
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 100 ];
+
+  DATA(gc)->dynamic_max = info->sc_info.dynamic_max;
+  DATA(gc)->dynamic_min = info->sc_info.dynamic_min;
 
   gc->young_area = create_sc_heap( 0, gc, &info->sc_info, info->globals );
   strcpy( buf, gc->young_area->id );
@@ -623,16 +649,27 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 256 ], buf2[ 100 ];
-  int gen_no, i, e;
+  int gen_no, i, e, size;
   gc_data_t *data = DATA(gc);
 
   gen_no = 0;
   data->is_generational_system = 1;
+  size = 0;
+
+  if (info->use_non_predictive_collector) {
+    DATA(gc)->dynamic_max = info->dynamic_np_info.dynamic_max;
+    DATA(gc)->dynamic_min = info->dynamic_np_info.dynamic_min;
+  }
+  else {
+    DATA(gc)->dynamic_max = info->dynamic_sc_info.dynamic_max;
+    DATA(gc)->dynamic_min = info->dynamic_sc_info.dynamic_min;
+  }
 
   /* Create nursery.
      */
   gc->young_area =
     create_nursery( gen_no, gc, &info->nursery_info, info->globals );
+  size += info->nursery_info.size_bytes;
   gen_no += 1;
   strcpy( buf, gc->young_area->id );
 
@@ -643,6 +680,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ) );
 
   for ( i = 0 ; i < e ; i++ ) {
+    size += info->ephemeral_info[i].size_bytes;
     gc->ephemeral_area[ i ] = 
       create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
     gen_no += 1;
@@ -652,6 +690,8 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 	     gc->ephemeral_area_count, gc->ephemeral_area[0]->id );
     strcat( buf, buf2 );
   }
+
+  data->nonexpandable_size = size;
 
   /* Create dynamic area.
      */
@@ -724,6 +764,9 @@ static gc_t *alloc_gc_structure( word *globals )
   data->ssb_bot = 0;
   data->ssb_top = 0;
   data->ssb_lim = 0;
+  data->dynamic_max = 0;
+  data->dynamic_min = 0;
+  data->nonexpandable_size = 0;
 
   return 
     create_gc_t( "*invalid*",
