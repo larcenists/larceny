@@ -785,7 +785,11 @@
 
   (let ((int-class (clr-object->class clr-type-handle/system-int32)))
     (slot-set! int-class 'argument-marshaler clr/int->foreign)
-    (slot-set! int-class 'return-marshaler clr/foreign->int))
+    (slot-set! int-class 'return-marshaler
+               (lambda (thing)
+                 (if (clr/%null? thing)
+                     #f
+                     (clr/foreign->int thing)))))
 
   (let ((bool-class (clr-object->class clr-type-handle/system-boolean)))
     (slot-set! bool-class 'argument-marshaler clr/bool->foreign)
@@ -793,7 +797,11 @@
 
   (let ((string-class (clr-object->class clr-type-handle/system-string)))
     (slot-set! string-class 'argument-marshaler clr/string->foreign)
-    (slot-set! string-class 'return-marshaler   clr/foreign->string))
+    (slot-set! string-class 'return-marshaler
+               (lambda (thing)
+                 (if (clr/%null? thing)
+                     #f
+                     (clr/foreign->string thing)))))
 
   (let ((system-type-class (clr-object->class clr-type-handle/system-type)))
     (slot-set! system-type-class 'return-marshaler
@@ -826,7 +834,11 @@
   (for-each (lambda (handle)
               (let ((class (clr-object->class handle)))
                 (slot-set! class 'argument-marshaler clr/int->foreign)
-                (slot-set! class 'return-marshaler   clr/foreign->int)))
+                (slot-set! class 'return-marshaler
+                           (lambda (thing)
+                             (if (clr/%null? thing)
+                                 #f
+                                 (clr/foreign->int thing))))))
 
             (list clr-type-handle/system-byte
                   clr-type-handle/system-int16
