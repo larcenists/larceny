@@ -1,0 +1,373 @@
+
+                  Garbage Collector Interface Definition 
+
+                          (draft May 22, 1991)
+
+[As of May 22, this document and the collector are not entirely in sync, as the
+ new semantics for e_limit have not been implemented. Also, section 8 of this
+ document is not current.]
+
+                          --------------------
+
+
+0. Purpose of this Document
+---------------------------
+This document describes the conventions that must be followed by an
+application using the garbage collector (henceforth called 'the
+mutator'). There are specifications for collector initialization,
+space allocation, data formats, and invariants that must be upheld by
+the mutator.
+
+This document does not describe the internal workings of the garbage 
+collector.
+
+
+1. General Conventions
+----------------------
+A number of global variables are used by the collector and described
+in the following. The variables are defined by the collector and must
+have their correct values when the 'collect()' procedure is called.
+However, the mutator may keep these variables in registers between
+calls to the collector.
+
+Algorithms are described in C but will in practice be coded in
+assembly language if the mutator runs compiled code that uses
+processor registers for virtual machine registers.
+
+
+2. Data Formats
+---------------
+A pointer has a 3 bit type tag in the low order bits. Structures on
+the heap (except pairs) have a type tag in the first word. All heap
+structures must be aligned on an 8-byte boundary.
+
+The following are the tagged pointer formats.
+
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx00   fixnum
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx10   immediate
+  pppp pppp  pppp pppp  pppp pppp  pppp p001   pointer to pair 
+  pppp pppp  pppp pppp  pppp pppp  pppp p011   pointer to vector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p101   pointer to bytevector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p111   pointer to procedure struct
+
+The following are the immediate formats.
+
+  0000 0000  0000 0000  0000 0000  0000 0010   #f
+  0000 0000  0000 0000  0000 0000  0000 0110   #t
+  0000 0000  0000 0000  0000 0000  0000 1010   empty list
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  0001 0110   miscellaneous
+  0000 0000  cccc cccc  0000 0000  0010 0110   character
+  0sss ssss  ssss ssss  ssss ssss  100x xx10   reserved header
+  0sss ssss  ssss ssss  ssss ssss  101x xx10   vector-like header
+  0sss ssss  ssss ssss  ssss ssss  110x xx10   bytevector-like header
+  0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
+
+The 'xxx' bits in the low byte of a header can be used by the mutator to
+distinguish between different subtypes of structures.
+
+The 's' bits must contain the size of the data structure in bytes, not
+including the header word. The collector will correctly round
+"bytevector" and "reserved" lengths up to a word boundary. Hence, for
+these structures, the 's' bits gives the correct length of the datum,
+like the length of a string. For vectors and procedures the s field must
+be evenly divisible by 4 (low two bits are 0).
+
+Since all pointers are doubleword-aligned, some vectors, bytevectors,
+and procedures will have to be padded out to an even number of words.
+The mutator must allocate the extra word but may choose to leave it
+uninitialized; the collector will take the size of the vector into
+account and skip the padding. If the word is initialized, it may or
+may not be copied along with the structure during a collection.
+
+The structure layout is this.
+
+  - Pairs: A pair has two words, the car (low word) and the cdr (high word).
+    The pair pointer points to the car of the pair.
+
+  - A vector-like structure has the header word in the low position, followed
+    by tagged pointers in all locations of the vector. The vector pointer
+    points to the header word.
+
+  - A bytevector-like structure has the header word in the low poition,
+    followed by untagged bytes in all locations of the vector. The bytevector
+    pointer points to the header word.
+
+  - A procedure structure has the header word in the low position, followed
+    by tagged pointers in all locations of the procedure structure. To the
+    collector, and with the exception of the tag, a procedure looks just like
+    a vector-like structure. The interpretation of each word of the procedure
+    structure is up to the mutator. The procedure pointer points to the
+    header word.
+
+  - There is a "reserved" header but currently no "reserved" data layout; the
+    collector does not know about the "reserved" header.
+
+
+
+3. Initializing the collector
+-----------------------------
+The collector is initialized with a call to 'init_collector()':
+
+  init_collector( s_size, t_size, e_size, e_mark, stack_size, stack_mark );
+
+where 's_size', 't_size', and 'e_size', and 'stack_size' are the sizes
+(in bytes) of the static, tenured, ephemeral, and stack cache areas,
+respectively, and 'e_mark' and 'stack_mark' are the watermark offets
+(in bytes) from the bottom of each area. The collector does not interpret
+the watermarks to mean anything in particular; it just uses them to set
+up the pointers for the memory spaces (see section 4).
+
+Upon initialization, the collector will honor the given sizes and
+marks insofar as they do not violate the constraints set forth in the
+header file "gc.h".  The collector goes to great lengths to make sure that
+values used by the collector are reasonable.
+
+The file "gc.h" and its contents are described in section XYZZY.
+
+
+4. Memory Layout
+----------------
+The ephemeral area is at the bottom, the static area is in the middle,
+and the tenured area is at the top of memory. The position of the stack
+area relative to the other areas is left undefined. Any pointer into
+either area is comparable with any other pointer into either area.
+Hence, we can determine whether any pointer points into a specific
+area by at most two comparisons, and only one will usually be
+necessary.
+
+The areas are delimited by the following global pointer variables:
+
+  'e_base', 'e_limit' : lower and upper bound of current ephemeral area
+  't_base', 't_limit' : ditto for tenured area
+  's_base', 's_limit' : ditto for static area
+  'stack_base', 
+  'stack_limit'       : ditto for stack area
+
+In addition, the stack and ephemeral areas have watermark pointers:
+'e_mark' and 'stk_mark', respectively.
+
+For all these variables, the relations
+
+	'base' < 'limit'
+	'base' <= 'mark' <= 'limit'.
+
+hold.
+
+
+5. Memory Allocation
+--------------------
+There are variables 'e_top', 't_top', 's_top', and 'stack_top' which
+point to the first free word in each area.
+
+Memory is allocated in the ephemeral area, starting with 'e_top' at
+'e_base' and growing up. When 'e_top' is greater than 'e_limit', the
+garbage collector should be invoked by the allocation procedure. For
+example, to allocate 'n' words from the ephemeral area, the procedure
+would be this:
+
+   word *alloc_words( int n )
+   {
+     word *p;
+     extern word *e_top, *e_mark;
+
+     p = e_top;
+     e_top += n + (n & 0x01);   /* rounds up if necessary */
+     if (e_top > e_limit) 
+       p = gc( n );             /* collect & allocate */
+     return p;
+   }
+	
+(where the `gc' procedure is defined below).  The first two statements
+allocate memory (notice that we must allocate an even number of words always,
+even if an odd number was requested). If the allocation moves 'e_top' beyond
+'e_limit', the collector is invoked.  Otherwise, a pointer to the structure is
+returned.
+
+Note that in the case of a collection, the 'gc()' procedure is made to
+allocate the requested space. This is so that we can conveniently have
+out-of-line checks for whether 'e_top' > 'e_limit' after the allocation; this
+may in fact happen if 'n' is large enough.
+
+The interplay of the pointers into the ephemeral area is this. No allocation
+may allocate space beyond 'e_limit'; the procedure 'gc()' must maintain this
+invariant. Notice that although the procedure above increments the pointer
+beyond 'e_limit', no pointer to the new area is saved, so the space is not
+allocated.  If, when the collector is done, the allocated space in the
+ephemeral area exceeds 'e_mark', then the next collection triggered will be a
+tenuring collection.
+
+
+6. The entry list
+-----------------
+Memory for the 'entry list' -- the list of pointers to data structures
+in the tenured space which contain pointers into the ephemeral space --
+is allocated in the tenured area. 
+
+Whenever the mutator side-effects a data structure in the tenured area
+(using 'set-car!', 'set-cdr!', 'vector-set!', or 'cell-set!') with a
+value that is a tagged pointer into the ephemeral area, then an entry
+should be added to the entry list. The entry should be a tagged
+pointer not to the new object but to the header of the data structure
+in the tenured area that was changed.
+
+The value stored into the tenured-area data structure does not
+strictly speaking have to be a pointer into the ephemeral area, but it
+is neccesary to store an entry in the entry list when it is.
+
+To allocate an entry on the entry list, put the entry in the location pointed
+to by the pointer 't_entries', and then decrement this pointer. Then
+change the value in the data structure in the tenured space.
+Entries are allocated from the top of the tenured area with the initial
+value of 't_entries' being 't_limit'. 
+
+If, before allocating space for the entry, 't_entries' <= 't_top', then the
+tenured area has overflowed. The mutator must check this.
+
+We provide the code for 'set-car!':
+
+   set_car( word objp, word val )
+   {
+     extern word *t_top, *t_entries;
+
+     if (ptrof( objp ) >= t_base) {   /* storing into tenured? */
+       if (t_entries < t_top) {
+	 /* at this point either do a tenuring collection or
+	    attempt to compact the entry list */
+       }
+       *t_entries-- = objp;
+     }
+     *ptrof( objp ) = val;
+   }
+
+
+7. Calling the garbage collector
+--------------------------------
+The garbage collector traces all objects reachable from a set of root objects
+that it expects to find in some global table pointed to by the pointer
+'roots'. Furthermore, the global variable 'rootcnt' tells the collector how
+many of the entries in that table are used. It is the duty of the storage
+allocating procedures (like 'alloc()' above) to store all root objects in the
+'roots' table before the collector is invoked. In the case of 'alloc()' it
+calls the procedure 'gc()', which looks something like this:
+
+	gc( int n )
+	{
+	  word *p;
+
+	  *roots = R0;
+	  *(roots + 1) = R1;
+	    :
+	  *(roots + n) = Rn;
+
+	  flush_stack_cache();
+	  flush_instruction_cache();
+
+	  *(roots + n + 1) = CREG;
+	  *(roots + n + 2) = GREG;
+	  rootcnt = n + 3;           /* in this case */
+	  collect( 1 );
+	  R0 = *roots;
+	  R1 = *(roots + 1);
+	    :
+	  Rn = *(roots + n);
+	  CREG = *(roots + n + 1);
+	  GREG = *(roots + n + 2);
+
+	  p = e_top;
+	  e_top += n;
+	  if (e_top > e_limit) {
+	    /* at this point either do major GC or just give up. */
+          }
+	  return p;
+	}
+
+[This code assumes we have two stacks: one for Scheme, and one for C.]
+
+First all rootable registers (R0 through Rn) are stored. Then the stack cache
+is flushed, and the continuation register is stored.  Finally, the global
+variables register (assumed to point to a vector-like structure, the elements
+of which are the global variables) is stored. There might be other registers
+as well, depending on the implementation. (And the global variables may not be
+accessible through such a vector, in which case the collector must somehow be
+informed about how to access the globals so that they can be traced.)
+
+Then, the collector is called. The entry point of the collector is the
+'collect()' procedure; the argument '1' means "do a minor collection".
+
+Finally, when the collector has finished, each element of 'roots' is
+copied out to where they came from (they will all have changed).
+
+Flushing the instruction cache is a system-dependent procedure; some systems
+will not need it. A selective flush is probably best; I think (but haven't
+decided yet) that it is always best to selectively flush oldspace, which
+is why the icache flush comes before the collection. It is probably equivalent
+to flush newspace (after the collection); and don't forget that we must
+flush the icache after a 'define' (I think...).
+
+
+8. Flushing the Stack Cache [NOT CURRENT]
+-----------------------------------------
+The application must flush the stack cache to the heap before calling the
+collector; the collector operates on heap-based continuation frames only.
+However, this means that there must be room on the heap for flushing a
+possibly full stack cache. The collector guarantees that such space will be
+available above the `e_limit' mark.
+
+In order to flush the stack cache, we would do something like the following:
+
+	flush_stack_cache()
+	{
+	  word *p = SP;
+	  word *prev = NULL;
+	  word retaddr;
+	  word size;
+	  word proc;
+	  word *top = CREG;
+
+	  while (p < stack_base) {    /* stack grows *up* */
+	    retaddr = *p--;
+	    size = *p--;
+	    proc = *p--;
+
+	    q = e_top;
+	    e_top += size + (size & 0x01);
+	    *q = <make vector header saying this is a continuation>;
+	    *(q+1) = CONST_FALSE;
+	    *(q+2) = <calculate offset from proc and retaddr>;
+	    *(q+3) = proc;
+	    for (i = 0 ; i < size - 3 ; i++ )
+	      *q(4+i) = *p--;
+	    if (prev != NULL)
+	      *(prev+1) = q;
+	    else
+	      top = q;
+	    prev = q;
+	  }
+	  if (prev != NULL)
+	    *(prev+1) = CREG;
+	}
+
+(We're assuming that stack_cache_limit is the address of the topmost word in
+the stack cache.)
+
+
+9. Miscellaneous notes
+----------------------
+There's no reason why a cell cannot be implemented as a pair (hence we get 
+away with fewer mutators). Current thought is as a vector-like thing.
+
+
+10. Summary
+-----------
+The file "gcinterface.h" is to be included by the mutator; it defines all
+names exported from the collector.
+
+The collector requires the mutator to define (or libraries to supply) the
+procedures malloc() and panic(). The former is the standard C 'malloc()';
+the latter is a procedure of one string argument which prints its argument on
+some suitable output device and then terminates the program.
+
+
+11. How to define things in "gc.h"
+----------------------------------
+(Not here yet)
