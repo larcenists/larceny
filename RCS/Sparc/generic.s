@@ -3,7 +3,7 @@
 ! Scheme 313 Runtime System
 ! Millicode for Generic Arithmetic, SPARC.
 !
-! $Id: generic.s,v 1.3 91/09/13 03:02:30 lth Exp Locker: lth $
+! $Id: generic.s,v 1.4 92/01/29 18:06:35 lth Exp Locker: lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -46,6 +46,7 @@
 	.global	_generic_rem			! (remainder a b)
 	.global	_generic_mod			! (modulo a b)
 	.global	_generic_neg			! (- a)
+	.global	_generic_abs			! (abs x)
 	.global	_generic_zerop			! (zero? a)
 	.global	_generic_equalp			! (= a b)
 	.global	_generic_lessp			! (< a b)
@@ -66,7 +67,6 @@
 	.global	_generic_sqrt			! (sqrt z)
 	.global	_generic_round			! (round x)
 	.global	_generic_truncate		! (truncate x)
-	.global	_generic_abs			! (abs x)
 	.global	_generic_negativep		! (negative? x)
 	.global	_generic_positivep		! (positive? x)
 
@@ -840,8 +840,8 @@ Labs_rat:
 	b	_scheme_call
 	mov	MS_RATNUM_ABS, %TMP2
 Labs_rect:
-	b	_scheme_call
-	mov	MS_RECTNUM_ABS, %TMP2
+	b	_domain_error1
+	nop
 
 ! Test for zero.
 ! The fixnum case is always handled in line. Furthermore, there are no 
@@ -955,6 +955,33 @@ Lequal_flo2:
 	jmp	%o7+8
 	nop
 Lequal_comp:
+	be,a	Lequal_comp2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP1, FLONUM_HDR
+	bne,a	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lequal_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+Lequal_comp2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f6
+	fcmpd	%f2, %f4
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f8
+	fbe,a	Lequal_comp3
+	fcmpd	%f6, %f8
+	jmp	%o7+8
+	.empty				! the next mov goes here
+Lequal_comp3:
+	mov	FALSE_CONST, %RESULT
+	fbe,a
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
 Lequal_big:
 	be,a	Lequal_big2
 	mov	2, %TMP1
@@ -964,13 +991,501 @@ Lequal_big2:
 	b	_scheme_call
 	mov	MS_BIGNUM_EQUALP, %TMP2
 Lequal_vec:
+	be,a	Lequal_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+Lequal_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Lequal_rat
+	cmp	%TMP1, RATNUM_HDR
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Lequal_rect
+	cmp	%TMP1, RECTNUM_HDR
+	b	_non_numeric2
+	nop
+Lequal_rat:
+	be,a	Lequal_rat2
+	mov	2, %TMP2
+	b	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+Lequal_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_EQUAL, %TMP2
+Lequal_rect:
+	be,a	Lequal_rect2
+	mov	2, %TMP2
+	b	_econtagion
+	mov	MS_GENERIC_EQUAL, %TMP2
+Lequal_rect2:
+	b	_scheme_call
+	mov	MS_RECTNUM_EQUAL, %TMP2
+
+! Less-than.
+! Fixnums are done in-line.
+! Compnums and rectnums are not in the domain of this function, but compnums
+! with a 0 imaginary part are and have to be handled specially.
 
 _generic_lessp:
-_generic_less_or_equalp:
-_generic_greaterp:
-_generic_greater_or_equalp:
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lless_bvec
+	cmp	%TMP1, BVEC_TAG
+	cmp	%TMP0, VEC_TAG
+	be,a	Lless_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric
+	nop
+Lless_bvec:
+	be,a	Lless_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+Lless_bvec2:
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lless_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lless_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lless_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric2
+	nop
+Lless_flo:
+	be,a	Lless_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lless_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+Lless_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	fcmpd	%f2, %f4
+	mov	FALSE_CONST, %RESULT
+	blt,a	.+8
+	mov	TRUE_CONST, %RESULT
 	jmp	%o7+8
 	nop
+Lless_comp:
+	be,a	Lless_comp2
+	nop
+	! op1 was a compnum, op2 was not. If op2 is a flonum and op1 has
+	! 0i, then we're fine.
+	cmp	%TMP1, %FLONUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	be,a	Lless_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_domain_error2
+	nop
+Lless_comp2:
+	! op1 and op2 were both compnums; if they both have 0i, then
+	! we're fine.
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
+	fcmpd	%f0, %f2
+	nop
+	fbne	_domain_error2
+	nop
+	fcmpd	%f0, %f4
+	nop
+	fbne	_domain_error2
+	nop
+	b	Lless_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+Lless_big:
+	be,a	Lless_big2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+Lless_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_LESS, %TMP2
+Lless_vec:
+	be,a	Lless_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+Lless_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_TAG
+	be,a	Lless_rat
+	cmp	%TMP1, RATNUM_TAG
+	cmp	%TMP0, RECTNUM_TAG
+	be,a	_domain_error2
+	nop
+	b	_non_numeric2
+	nop
+Lless_rat:
+	be,a	Lless_rat2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_LESS, %TMP2
+Lless_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_LESS, %TMP2
+
+! Less-than-or-equal.
+! Fixnums are done in-line.
+! Compnums and rectnums are not in the domain of this function, but compnums
+! with a 0 imaginary part are and have to be handled specially.
+
+_generic_less_or_equalp:
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Llesseq_bvec
+	cmp	%TMP1, BVEC_TAG
+	cmp	%TMP0, VEC_TAG
+	be,a	Llesseq_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric
+	nop
+Llesseq_bvec:
+	be,a	Llesseq_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+Llesseq_bvec2:
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Llesseq_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Llesseq_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Llesseq_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric2
+	nop
+Llesseq_flo:
+	be,a	Llesseq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Llesseq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+Llesseq_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	fcmpd	%f2, %f4
+	mov	FALSE_CONST, %RESULT
+	ble,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+Llesseq_comp:
+	be,a	Llesseq_comp2
+	nop
+	! op1 was a compnum, op2 was not. If op2 is a flonum and op1 has
+	! 0i, then we're fine.
+	cmp	%TMP1, %FLONUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	be,a	Llesseq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_domain_error2
+	nop
+Llesseq_comp2:
+	! op1 and op2 were both compnums; if they both have 0i, then
+	! we're fine.
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
+	fcmpd	%f0, %f2
+	nop
+	fbne	_domain_error2
+	nop
+	fcmpd	%f0, %f4
+	nop
+	fbne	_domain_error2
+	nop
+	b	Llesseq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+Llesseq_big:
+	be,a	Llesseq_big2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+Llesseq_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_LESSEQ, %TMP2
+Llesseq_vec:
+	be,a	Llesseq_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+Llesseq_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_TAG
+	be,a	Llesseq_rat
+	cmp	%TMP1, RATNUM_TAG
+	cmp	%TMP0, RECTNUM_TAG
+	be,a	_domain_error2
+	nop
+	b	_non_numeric2
+	nop
+Llesseq_rat:
+	be,a	Lless_rat2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_LESSEQ, %TMP2
+Llesseq_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_LESSEQ, %TMP2
+
+! Greater-than.
+! Fixnums are done in-line.
+! Compnums and rectnums are not in the domain of this function, but compnums
+! with a 0 imaginary part are and have to be handled specially.
+
+_generic_greaterp:
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lgreater_bvec
+	cmp	%TMP1, BVEC_TAG
+	cmp	%TMP0, VEC_TAG
+	be,a	Lgreater_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric
+	nop
+Lgreater_bvec:
+	be,a	Lgreater_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+Lgreater_bvec2:
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lgreater_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lgreater_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lgreater_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric2
+	nop
+Lgreater_flo:
+	be,a	Lgreater_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lgreater_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+Lgreater_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	fcmpd	%f2, %f4
+	mov	FALSE_CONST, %RESULT
+	bgt,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+Lgreater_comp:
+	be,a	Lgreater_comp2
+	nop
+	! op1 was a compnum, op2 was not. If op2 is a flonum and op1 has
+	! 0i, then we're fine.
+	cmp	%TMP1, %FLONUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	be,a	Lgreater_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_domain_error2
+	nop
+Lgreater_comp2:
+	! op1 and op2 were both compnums; if they both have 0i, then
+	! we're fine.
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
+	fcmpd	%f0, %f2
+	nop
+	fbne	_domain_error2
+	nop
+	fcmpd	%f0, %f4
+	nop
+	fbne	_domain_error2
+	nop
+	b	Lgreater_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+Lgreater_big:
+	be,a	Lgreater_big2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+Lgreater_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_GREATER, %TMP2
+Lgreater_vec:
+	be,a	Lgreater_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+Lgreater_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_TAG
+	be,a	Lgreater_rat
+	cmp	%TMP1, RATNUM_TAG
+	cmp	%TMP0, RECTNUM_TAG
+	be,a	_domain_error2
+	nop
+	b	_non_numeric2
+	nop
+Lgreater_rat:
+	be,a	Lgreater_rat2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_GREATER, %TMP2
+Lgreater_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_GREATER, %TMP2
+
+! Greater-than-or-equal
+! Fixnums are done in-line.
+! Compnums and rectnums are not in the domain of this function, but compnums
+! with a 0 imaginary part are and have to be handled specially.
+
+_generic_greater_or_equalp:
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Lgreatereq_bvec
+	cmp	%TMP1, BVEC_TAG
+	cmp	%TMP0, VEC_TAG
+	be,a	Lgreatereq_vec
+	cmp	%TMP1, VEC_TAG
+	b	_non_numeric
+	nop
+Lgreatereq_bvec:
+	be,a	Lgreatereq_bvec2
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+Lgreatereq_bvec2:
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Lgreatereq_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Lgreatereq_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Lgreatereq_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	_non_numeric2
+	nop
+Lgreatereq_flo:
+	be,a	Lgreatereq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Lgreatereq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+Lgreatereq_flo2:
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
+	fcmpd	%f2, %f4
+	mov	FALSE_CONST, %RESULT
+	bge,a	.+8
+	mov	TRUE_CONST, %RESULT
+	jmp	%o7+8
+	nop
+Lgreatereq_comp:
+	be,a	Lgreatereq_comp2
+	nop
+	! op1 was a compnum, op2 was not. If op2 is a flonum and op1 has
+	! 0i, then we're fine.
+	cmp	%TMP1, %FLONUM_HDR
+	bne,a	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	be,a	Lgreatereq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	b	_domain_error2
+	nop
+Lgreatereq_comp2:
+	! op1 and op2 were both compnums; if they both have 0i, then
+	! we're fine.
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
+	fcmpd	%f0, %f2
+	nop
+	fbne	_domain_error2
+	nop
+	fcmpd	%f0, %f4
+	nop
+	fbne	_domain_error2
+	nop
+	b	Lgreatereq_flo2
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+Lgreatereq_big:
+	be,a	Lgreatereq_big2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+Lgreatereq_big2:
+	b	_scheme_call
+	mov	MS_BIGNUM_GREATEREQ, %TMP2
+Lgreatereq_vec:
+	be,a	Lgreatereq_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+Lgreatereq_vec2:
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_TAG
+	be,a	Lgreatereq_rat
+	cmp	%TMP1, RATNUM_TAG
+	cmp	%TMP0, RECTNUM_TAG
+	be,a	_domain_error2
+	nop
+	b	_non_numeric2
+	nop
+Lgreatereq_rat:
+	be,a	Lgreatereq_rat2
+	mov	2, %TMP1
+	b	_pcontagion
+	mov	MS_GENERIC_GREATEREQ, %TMP2
+Lgreatereq_rat2:
+	b	_scheme_call
+	mov	MS_RATNUM_GREATEREQ, %TMP2
+
 
 ! The tower of numeric types.
 !
@@ -983,7 +1498,7 @@ _generic_greater_or_equalp:
 _generic_complexp:
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, BVEC_TAG
-	bne	Lcomplexp_bvec
+	bne	Lcomplexp1
 	nop
 	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
 	cmp	%TMP0, COMPNUM_HDR
@@ -1364,12 +1879,139 @@ Limag_part2:
 	jmp	%o7+8
 	mov	%g0, %RESULT
 
-! These do the quick thing in the obvious cases (hw-supported and identity)
-! and fall into Scheme in the other cases.
+! These will return the argument in the case of fixnum, bignum, or ratnum;
+! will return a new number in the case of a flonum (or compnum with 0i);
+! and will give a domain error for compnums with non-0i and rectnums.
 
-_generic_sqrt:
 _generic_round:
+	set	Lround, %TMP1
+	b	Lgeneric_trund
+	nop
+
 _generic_truncate:
+	set	Ltrunc, %TMP1
+	b	Lgeneric_trund
+	nop
+
+Lround:
+	! Flonum is pointed to by %RESULT. Round it, box it, and return.
+	! The simple way to round is to add .5 and then truncate.
+	! [There ought to be a way to move stuff from flonum regs to int regs
+	!  short of pushing it thru memory. >groan<]
+
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
+	set	Ldhalf, %TMP0 
+	ldd	[ %TMP0 ], %f4
+	faddd	%f2, %f4, %f2
+	std	%f2, [ %TMP0 + 8 ]
+	save	%sp, -96, %sp
+	b	Ltrunc2
+	ldd	[ %TMP0 + 8 ], %l0
+
+Ltrunc:
+	! flonum is pointed to by %RESULT. Trunc it, box it, and return.
+
+	save	%sp, -96, %sp
+	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
+Ltrunc2:
+	srl	%l0, 20, %l2			! get at exponent
+	and	%l2, 0x7FF, %l2			! toss sign
+	subcc	%l2, 1023, %l2			! unbias
+	blt,a	Ltrunc2zero
+	mov	%g0, %l1
+	cmp	%l2, 52
+	bge	Ltrunc_moveback
+	nop
+	cmp	%l2, 20
+	ble,a	Ltrunc_high
+	mov	%g0, %l1
+
+	! mask off low word.
+	mov	52, %l3
+	sub	%l3, %l2, %l2
+	srl	%l1, %l2, %l1
+	b	Ltrunc_moveback
+	sll	%l1, %l2, %l1
+
+Ltrunc_high:
+	! zero out lo word, mask off high word
+	mov	20, %l3
+	sub	%l3, %l2, %l2
+	srl	%l0, %l2, %l0
+	b	Ltrunc_moveback
+	sll	%l0, %l2, %l0
+
+Ltrunc2zero:
+	sethi	%hi( 0x80000000 ), %l2
+	and	%l0, %l2, %l0			! get sign right
+
+Ltrunc_moveback:
+	! move back into fp regs
+
+	std	%l0, [ %TMP0 + 2 ]
+	ldd	[ %TMP0 + 2 ], %f2
+	b	_box_flonum
+	restore
+
+! Generic code for rounding and truncation. Address of final procedure 
+! is in %TMP1.
+
+Lgeneric_trund:
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	be,a	Ltrund_bvec
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	andcc	%RESULT, 3, %g0
+	be,a	Ltrund_def
+	nop
+	cmp	%TMP0, VEC_TAG
+	be,a	Ltrund_vec
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	b	_non_numeric1
+	nop
+Ltrund_bvec:
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Ltrund_flo
+	nop
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Ltrund_comp
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Ltrund_big
+	nop
+	b	_non_numeric1
+	nop
+Ltrund_flo:
+	jmp	%TMP1
+	nop
+Ltrund_comp:
+	fcmpd	%f0, %f2
+	nop
+	fbne,a	_domain_error1
+	nop
+	jmp	%TMP1
+	nop
+Ltrund_big:
+	jmp	%o7+8
+	nop
+Ltrund_vec:
+	cmp	%TMP0, RATNUM_TAG
+	be,a	Ltrund_rat
+	nop
+	cmp	%TMP0, RECTNUM_TAG
+	be,a	_domain_error1
+	nop
+	b	_non_numeric1
+	nop
+Ltrund_rat:
+	jmp	%o7+8
+	nop
+
+! Not yet done in millicode.
+
+_generic_negativep:
+_generic_positivep:
+_generic_sqrt:
 	jmp	%MILLICODE + M_NOT_SUPPORTED
 	nop
 
@@ -1406,9 +2048,9 @@ _econtagion:
 ! globals[ ARITH_SAVED_RETADDR_OFFSET ]; if it is not, but is still in %o7,
 ! then use the entry point '_nonnumeric1'.
 
-_nonnumeric1:
+_non_numeric1:
+_non_numeric2:
 	st	%o7, [ %GLOBALS + ARITH_SAVED_RETADDR_OFFSET ]
-_nonnumeric:
 
 	call	_save_scheme_context
 	nop
@@ -1418,7 +2060,7 @@ _nonnumeric:
 
 	save	%sp, -96, %sp
 
-	set	errmsg, %o0
+	set	Lerrmsg, %o0
 	call	_printf
 	nop
 
@@ -1435,17 +2077,22 @@ _nonnumeric:
 	nop
 
 
+_domain_error1:
+_domain_error2:
+	jmp	%o7 + 8
+	nop
 
 !-----------------------------------------------------------------------------
 ! Box various numbers.
 
 ! Box the double in %f2/f3 as a flonum. Return tagged pointer in RESULT.
+! Scheme return address in %o7.
 
 _box_flonum:
-	st	%o7, [ %GLOBALS + GEN_TMP1_OFFSET ]
-	call	_alloc
+	mov	%o7, %TMP0
+	call	_internal_alloc
 	mov	16, %RESULT
-	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %o7
+	mov	%TMP0, %o7
 
 	std	%f2, [ %RESULT + 8 ]
 	set	(16 << 8) | FLONUM_HDR, %TMP0
@@ -1456,12 +2103,13 @@ _box_flonum:
 
 ! Box the two doubles in %f2/%f3 and %f4/%f5 as a compnum.
 ! Return tagged pointer in RESULT.
+! Scheme return address in %o7.
 
 _box_compnum:
-	st	%o7, [ %GLOBALS + GEN_TMP1_OFFSET ]
-	call	_alloc
+	mov	%o7, %TMP0
+	call	_internal_alloc
 	mov	24, %RESULT
-	ld	[ %GLOBALS + GEN_TMP1_OFFSET ], %o7
+	mov	%TMP0, %o7
 
 	std	%f2, [ %RESULT + 8 ]
 	std	%f4, [ %RESULT + 16 ]
@@ -1504,7 +2152,10 @@ _box_double_bignum:
 ! Interesting data for the generic arithmetic system.
 
 	.seg	"data"
-errmsg:
+Lerrmsg:
 	.asciz	"Non-numeric operand(s) to arithmetic operation.\n"
+Ldhalf:
+	.double	0.5r0
+	.double 0.0r0		! this is a temp and DON'T MOVE IT!!
 
 	! end

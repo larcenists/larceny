@@ -1,9 +1,10 @@
+! -*- Fundamental -*-
 ! Scheme 313 Run-time System.
 !
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.16 91/07/24 11:49:53 lth Exp Locker: lth $
+! $Id: memory.s,v 1.17 91/09/13 03:02:34 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -37,6 +38,7 @@
 !			  pointer to the continuation structure.
 !   _restore_continuation() Reinstate the given continuation, discarding the
 !			  current one.
+!   _restore_frame()      Restore a frame from the continuation chain.
 !
 ! '_gcstart' is made public for use by open-coded 'cons' calls.
 !
@@ -56,10 +58,11 @@
 ! file "conventions.txt" for calling convention details.
 !
 ! --
+! [This paragraph is confusing.]
 !
 ! The user program may enter '_gcstart' with a value in E_TOP which
 ! is invalid in the sense that it is greater than or equal to E_LIMIT.
-! '_gcstart' must correct this behavior, if necessary, since user code may
+! '_gcstart' will correct this error, if necessary, since user code may
 ! under no circumstances allocate space above E_LIMIT. However, millicode may
 ! violate this requirement (that is what the overflow area between E_LIMIT and
 ! E_MAX is for). It follows that millicode which interfaces with user code
@@ -91,10 +94,20 @@
 
 #define fixnum( x )	((x) << 2)
 
-	.global _alloc, _alloci, _setcar, _setcdr, _vectorset, _gcstart
-	.global _garbage_collect, _stkoflow, _stkuflow
-	.global _save_scheme_context, _restore_scheme_context
-	.global _capture_continuation, _restore_continuation
+	.global _alloc
+	.global _alloci
+	.global _setcar
+	.global _setcdr
+	.global _vectorset
+	.global _gcstart
+	.global _garbage_collect
+	.global _stkoflow
+	.global _stkuflow
+	.global _save_scheme_context
+	.global _restore_scheme_context
+	.global _capture_continuation
+	.global _restore_continuation
+	.global	_m_restore_frame
 
 #ifdef DEBUG
 	.global	gcstart, addtrans
@@ -262,12 +275,18 @@ Lsetcdr1:
 
 !-----------------------------------------------------------------------------
 ! '_vectorset' takes three parameters: a tagged pointer, which is assumed to
-! point to a vector, a fixnum index, which is assumed to be valid for the
-! given vector, and a value, and sets the specified slot of the vector to
-! the value.
+! point to a structure of vector semblance (meaning vector-like or procedure),
+! a fixnum index, which is assumed to be valid for the given structure, and a
+! value, and sets the specified slot of the structure to the value.
+! The index is the untranslated fixnum indicating the slot in the structure,
+! e.g. fixnum( 0 ) for the first slot or fixnum( 4 ) for the second slot.
 !
-! If the vector is in the tenured space, then a transaction must be added to
+! If the structure is in the tenured space, then a transaction must be added to
 ! the transaction list.
+!
+! While we could tweak this ever so slightly for vector-like pointers only,
+! the generality is nice (we'd save only 1 cycle in the case where a 
+! transaction is not needed).
 !
 ! vectorset( p, i, v )
 ! {
@@ -277,23 +296,28 @@ Lsetcdr1:
 
 _vectorset:
 	ld	[%GLOBALS+T_BASE_OFFSET], %TMP0 ! fetch tenured base
-	xor	%RESULT, VEC_TAG, %TMP1		! strip tag
+	! strip tag
+	sra     %RESULT, 3, %TMP1
+	sll	%TMP1, 3, %TMP1
+	!
 	cmp	%TMP1, %TMP0
-	blt	Lvectorset1			! not in tenured space
-	mov	%o7, %TMP0
+	ble,a	Lvectorset1			! not in tenured space
+	add	%TMP1, %ARGREG2, %TMP1
 
+	! add  transaction
+
+	mov	%o7, %TMP0
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	addtrans
 	nop
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
-
+	mov	%TMP0, %o7
+	sra     %RESULT, 3, %TMP1
+	sll	%TMP1, 3, %TMP1
+	add	%TMP1, %ARGREG2, %TMP1
 Lvectorset1:
-	add	%RESULT, %ARGREG2, %TMP1	! pointer which does not
-						! compensate for header
-						! or tag
-	st	%ARGREG3, [%TMP1+A_VEC_OFFSET]	! VEC_OFFSET compensates
-	jmp	%TMP0+8
-	mov	0, %RESULT
+	jmp	%o7+8
+	st	%ARGREG3, [%TMP1+4]
 
 
 !-----------------------------------------------------------------------------
@@ -484,11 +508,12 @@ _capture_continuation:
 	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %RESULT
 
 	cmp	%E_TOP, %E_LIMIT
-	blt	Lcapture_cont1
-	mov	%o7, %TMP0
+	blt,a	Lcapture_cont1
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 
 	! heap filled up, so we must collect
 
+	mov	%o7, %TMP0
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	gcstart
 	mov	fixnum( 0 ), %RESULT
@@ -508,7 +533,8 @@ Lcapture_cont1:
 
 	! return
 
-	jmp	%TMP0+8
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
+	jmp	%o7+8
 	ld	[ %GLOBALS+SP_OFFSET ], %STKP
 
 
@@ -527,7 +553,12 @@ Lcapture_cont1:
 ! }
 
 _restore_continuation:
+	! Why do we have to adjust the stack start to get the stack pointer?
+	! Because the stack start is the first free word, whereas the stack
+	! pointer must point to the top (used) word of the stack, one word
+	! above.
 	ld	[ %GLOBALS + STK_START_OFFSET ], %TMP0
+	add	%TMP0, 4, %TMP0
 	st	%RESULT, [ %GLOBALS + CONTINUATION_OFFSET ]
 
 	! Is there a frame to restore?
@@ -544,10 +575,32 @@ _restore_continuation:
 	restore
 
 Lrestore_cont2:
-	ld	[ %GLOBALS + SP_OFFSET ], %STKP
 	jmp	%o7+8
-	mov	fixnum( 0 ), %RESULT
+	ld	[ %GLOBALS + SP_OFFSET ], %STKP
 
+!-----------------------------------------------------------------------------
+! '_m_restore_frame'
+!
+! Simply restore a frame from the continuation chain and return to the caller.
+! If there is no frame, skip it.
+
+_m_restore_frame:
+	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %TMP0
+	cmp	%TMP0, FALSE_CONST
+	bne,a	Lrestore_frame1
+	st	%STKP, [ %GLOBALS + SP_OFFSET ]
+
+	jmp	%o7+8
+	nop
+
+Lrestore_frame1:
+	save	%sp, -96, %sp
+	call	_restore_frame
+	nop
+	restore
+
+	jmp	%o7+8
+	ld	[ %GLOBALS + SP_OFFSET ], %STKP
 
 !-----------------------------------------------------------------------------
 ! 'gcstart'
@@ -577,8 +630,8 @@ Lrestore_cont2:
 ! during a collection, but it must have a coherent (i.e. non-empty) state
 ! when we return to the caller. [While the logic to deal with this could
 ! have been put in _gcstart2, it is better to keep it here since it is really
-! quite dependent on millicode calling conventions, which can be thought of
-! as implementation dependent.]
+! quite dependent on millicode calling conventions, which are implementation
+! dependent.]
 
 gcstart:
 	! Setup a continuation
@@ -668,7 +721,8 @@ Lgcstart2:
 ! a tenuring collection.
 ! 
 ! A more sophisticated approach would be to attempt to compact the transaction
-! list before resorting to collection; this should probably be investigated.
+! list before resorting to collection; this should probably be investigated
+! at some point.
 !
 ! On entry, the "external" return address is in %TMP0.
 
@@ -682,8 +736,8 @@ addtrans:
 	bgt	Laddtrans1
 	sub	%TMP1, 4, %TMP2
 
-	! We've lost. Go ahead and collect; never return to this
-	! procedure. (A millicode tail-call! Yeah!)
+	! We've lost. Go ahead and collect; never return to this procedure.
+	! (There's no need to add a transaction after a tenuring collection.)
 
 	b	gcstart
 	set	fixnum( -2 ), %RESULT
@@ -766,5 +820,9 @@ save_scheme_context:
 	.align	8
 dzero:
 	.double 0r0.0
+_diag1:
+	.asciz	"Catch\n"
+_diag2:
+	.asciz	"Throw\n"
 
 	! end of file

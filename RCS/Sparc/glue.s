@@ -3,21 +3,25 @@
 ! Scheme 313 Run-time system
 ! Miscellaneous assembly language "glue" and millicode.
 !
-! $Id: glue.s,v 1.3 91/08/27 13:44:34 lth Exp Locker: lth $
+! $Id: glue.s,v 1.4 91/09/13 03:02:27 lth Exp Locker: lth $
 
 #include "registers.s.h"
 #include "millicode.h"
 #include "offsets.h"
 #include "layouts.s.h"
+#include "exceptions.h"
+
 
 	.seg	"text"
 
+	.global	_schemestart
 	.global	_scheme_call
 	.global	_open_file
 	.global	_close_file
 	.global	_unlink_file
 	.global	_read_file
 	.global	_write_file
+	.global _m_getrusage
 	.global _apply
 	.global _scheme_varargs
 	.global	_typetag
@@ -28,6 +32,63 @@
 	.global	_m_exit
 	.global	_m_break
 	.global	_not_supported
+	.global	_type_exception
+	.global	_timer_exception
+	.global	_proc_exception
+	.global _arg_exception
+
+
+! The procedure _schemestart is called from the C-language initialization
+! code. _schemestart sets up the virtual machine and then calls the
+! application specific startup procedure in the globals slot 'SCHEME_ENTRY'.
+! If that procedure returns, then _schemestart returns to its caller.
+! 
+! If the C startup wishes to pass arguments to SCHEME_ENTRY, it should 
+! intialize the appropriate register save areas in globals[], as we avoid
+! touching the registers here. (If there are no arguments, the startup
+! must set %RESULT to 0, at least).
+!
+! [This may be a specialization of the C-to-scheme calling stuff; if so,
+!  it should later be merged with the general case.]
+
+_schemestart:
+	save	%sp, -96, %sp			! Standard stack frame
+	st	%i7, [ %fp + 0x44 ]
+
+	call	_restore_scheme_context
+	nop
+
+! Call application code: setup a minimal continuation and jump. The
+! continuation contains a dummy procedure field; the stack flusher
+! had better deal with this.
+
+	set	L1-8, %TMP0		! this is ok since this code won't move
+	sub	%STKP, 16, %STKP	! allocate frame
+	st	%TMP0, [ %STKP ]	! return address
+	mov	12, %TMP1
+	st	%TMP1, [ %STKP+4 ]	! size
+	st	%g0, [ %STKP+8 ]	! procedure (dummy!)
+L2:
+	ld	[ %GLOBALS + SCHEME_ENTRY_OFFSET ], %REG0
+	and	%REG0, TAGMASK, %TMP0
+	cmp	%TMP0, PROC_TAG
+	beq	L0
+	nop
+	jmpl	%MILLICODE + M_PROC_EXCEPTION, %o7
+	add	%o7, (L2-(.-4))-8, %o7
+L0:
+	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
+	jmp	%TMP0 + A_CODEOFFSET
+	nop
+
+	! Return to C code
+L1:
+	call	_save_scheme_context
+	nop
+
+	ld	[ %fp + 0x44 ], %i7
+	ret
+	restore
 
 ! `_scheme_call'
 !
@@ -35,45 +96,78 @@
 ! that when Scheme code calls a millicode procedure, it is not required to
 ! save any of its registers. Thus, when the millicode must call on Scheme
 ! again to do some work for it, the caller's context must be saved before
-! the new Scheme procedure is invoked.
+! the new Scheme procedure is invoked. This context must also be restored
+! before control is returned to the original caller, and, again, the original
+! caller will not do this. So we must arrange for it to happen.
 !
-! Given a pointer to a scheme procedure in %ARGREG3, and two operands in
-! %RESULT and %ARGREG2, call the scheme procedure with the given arguments.
-! The return address into the calling millicode is in %o7, and the return
-! address into the Scheme code that called the millicode must be in
-! globals[ SAVED_RETADDR_OFFSET ].
+! This is what happens: We create two stack frames, like shown below.
+! The top frame has no saved registers save R0, which is a pointer to the
+! global procedure "scheme2scheme-helper" (defined in "Lib/Sparc/glue.mal").
+! The return address in this frame points to the very start of that procedure.
+! The second frame has a full set of saved registers, and its R0 is a pointer
+! to the original caller. The return address is the return address in the
+! original caller -- the point to which millicode should have returned.
 !
-! Before calling the Scheme procedure, the entire register set is saved
-! in a local continuation. The saved stack frame is somewhat nonstandard:
+!      +---------------+  <-- top of stack
+!      | (return addr) |
+!      | (frame size)  |
+!      | (proc ptr)    |
+!      | (unused)      |
+!      +---------------+
+!      | (return addr) |
+!      | (frame size)  |
+!      | (proc ptr)    |
+!      | (Reg1)        |
+!          :
+!      | (Reg31)       |
+!      +---------------+
+!      |  (stuff)      |
 !
-!       | etc...        |
-!       | saved reg 2   |
-!       | saved reg 1   |
-!       | saved reg 0   |
-!       | return offset |   (return address into Scheme, relative to REG0)
-!       | retaddr       |   (return address into calling millicode)
-!	| 0             |
-!       | frame size    |
-! SP -> | retaddr       |   (return address into _Scheme_call)
+! This millicode procedure takes the following arguments:
+!  * %RESULT, %ARGREG1, and %ARGREG2 are used for arguments to be passed on
+!    to the Scheme procedure
+!  * %o7 is the return address to the original caller (who is in %REG0).
+!  * %TMP0 is the argument count (0, 1, 2, or 3)
+!  * %TMP1 is the vector index into the global vector of Scheme procedures
+!    callable from millicode. A pointer to a value cell which holds the
+!    vector pointer is in the root MILLICODE_SUPPORT.
+!
+! This procedure then sets up the two stack frames and invokes the requested
+! scheme procedure, which returns through the helper procedure in the top
+! stack frame. This procedure never returns to its caller.
 
+! Offset within bottom stack frame where REG0 is stored.
 
-! Offset in frame of REG0 slot.
-
-#define REG0P	20
+#define REG0P	8
 
 _scheme_call:
+	
+	! Save parameters which were passed in registers we need to use
+
+	st	%o7,   [ %GLOBALS + GLUE_TMP1_OFFSET ]	! WRONG. Must calc offs
+	st	%TMP0, [ %GLOBALS + GLUE_TMP2_OFFSET ]
+	st	%TMP1, [ %GLOBALS + GLUE_TMP3_OFFSET ]
+
+	! Check stack overflow
+
 	ld	[ %GLOBALS + STK_LIMIT_OFFSET ], %TMP0
 	cmp	%STKP, %TMP0
 	bge	scheme_call_1
 	nop
 	jmpl	%MILLICODE + M_STKOFLOW, %o7
 	nop
+
+	! Allocate the stack frames, then save values.
+
 scheme_call_1:
-	sub	%STKP, 32*4+24, %STKP		! all regs + bookkeeping + pad
-	mov	32*4+16, %TMP0
+	sub	%STKP, 32*4+8, %STKP		! 
+	mov	32*4+8, %TMP0
 	st	%TMP0, [ %STKP + 4 ]
-	st	%g0, [ %STKP + 8 ]
-	st	%o7, [ %STKP + 12 ]
+	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
+	! recalc the real address
+	st	%TMP0, [ %STKP + 0 ]
+
+	
 	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
 	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %TMP1
 	sub	%TMP1, %TMP0, %TMP0
@@ -129,57 +223,6 @@ scheme_call_1:
 	jmpl	%TMP0 + A_CODEOFFSET, %o7
 	st	%o7, [ %STKP ]
 
-	ldd	[ %STKP + 8*15 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG30_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG31_OFFSET ]
-	ldd	[ %STKP + 8*14 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG28_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG29_OFFSET ]
-	ldd	[ %STKP + 8*13 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG26_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG27_OFFSET ]
-	ldd	[ %STKP + 8*12 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG24_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG25_OFFSET ]
-	ldd	[ %STKP + 8*11 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG22_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG23_OFFSET ]
-	ldd	[ %STKP + 8*10 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG20_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG21_OFFSET ]
-	ldd	[ %STKP + 8*9 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG18_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG19_OFFSET ]
-	ldd	[ %STKP + 8*8 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG16_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG17_OFFSET ]
-	ldd	[ %STKP + 8*7 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG14_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG15_OFFSET ]
-	ldd	[ %STKP + 8*6 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG12_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG13_OFFSET ]
-	ldd	[ %STKP + 8*5 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG10_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG11_OFFSET ]
-	ldd	[ %STKP + 8*4 + REG0P ], %REG0
-	st	%REG0, [ %GLOBALS + REG8_OFFSET ]
-	st	%REG1, [ %GLOBALS + REG9_OFFSET ]
-	ldd	[ %STKP + 8*3 + REG0P ], %REG6
-	ldd	[ %STKP + 8*2 + REG0P ], %REG4
-	ldd	[ %STKP + 8*1 + REG0P ], %REG2
-	ldd	[ %STKP + 8*0 + REG0P ], %REG0
-
-	ld	[ %STKP + 16 ], %TMP0
-	ld	[ %REG0 + A_CODEVECTOR ], %TMP1
-	add	%TMP1, BVEC_TAG - 4, %TMP1
-	add	%TMP0, %TMP1, %TMP0
-	st	%TMP0, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
-
-	ld	[ %STKP+12 ], %o7
-	jmp	%o7+8
-	add	%STKP, 32*4 + 24, %STKP
-
 
 ! I/O primitives -- these tap right into the OS.
 !
@@ -189,6 +232,10 @@ scheme_call_1:
 ! Open and unlink require a null-terminated string for the filename
 ! argument. Since the argument in is not on that form (rather, it has a length
 ! byte), we have to convert it.
+
+! OPEN: filename (string) in RESULT.
+!       flags (fixnum) in ARGREG2.
+!       mode (fixnum) in ARGREG3.
 
 _open_file:
 	save	%sp, -96, %sp
@@ -204,6 +251,8 @@ _open_file:
 
 	jmp	%i7+8
 	restore
+
+! UNLINK: filename (string) in RESULT.
 
 _unlink_file:
 	save	%sp, -96, %sp
@@ -221,7 +270,7 @@ _unlink_file:
 
 ! Copy the string into the local buffer, truncating if necessary, and null-
 ! terminating.
-! This is not particularly efficient. I couldn't care less.
+! This is not particularly efficient.
 
 copystring:
 	ld	[ %SAVED_RESULT - BVEC_TAG ], %l0	! get hdr
@@ -242,7 +291,7 @@ Lopen1:
 	jmp	%o7+8
 	nop
 
-! Close is trivial.
+! CLOSE: file descriptor (fixnum) in RESULT.
 
 _close_file:
 	save	%sp, -96, %sp
@@ -254,30 +303,49 @@ _close_file:
 	jmp	%i7+8
 	restore
 
-! Reading is straightforward -- move args to registers, call _read.
+! READ: file descriptor (fixnum) in RESULT.
+!       buffer (string) in ARGREG2.
+!       byte count (fixnum) in ARGREG3.
 
 _read_file:
 	save	%sp, -96, %sp
 
 	srl	%SAVED_RESULT, 2, %o0			! file descriptor
-	add	%SAVED_ARGREG2, 4 - BVEC_TAG, %o2	! buffer pointer
+	add	%SAVED_ARGREG2, 4 - BVEC_TAG, %o1	! buffer pointer
 	call	_read
-	srl	%SAVED_ARGREG3, 2, %o1			! byte count
+	srl	%SAVED_ARGREG3, 2, %o2			! byte count
 	sll	%o0, 2, %SAVED_RESULT			! setup result
 
 	jmp	%i7+8
 	restore
 
-! Ditto for writing.
+! WRITE: file descriptor (fixnum) in RESULT.
+!        buffer (string) in ARGREG2.
+!        byte count (fixnum) in ARGREG3.
 
 _write_file:
 	save	%sp, -96, %sp
 
 	srl	%SAVED_RESULT, 2, %o0			! file descriptor
-	add	%SAVED_ARGREG2, 4 - BVEC_TAG, %o2	! buffer pointer
+	add	%SAVED_ARGREG2, 4 - BVEC_TAG, %o1	! buffer pointer
 	call	_write
-	srl	%SAVED_ARGREG3, 2, %o1			! byte count
+	srl	%SAVED_ARGREG3, 2, %o2			! byte count
 	sll	%o0, 2, %SAVED_RESULT			! setup result
+
+	jmp	%i7+8
+	restore
+
+! GETRUSAGE: there are no arguments. The result is the system time field from
+!            the rusage struct converted to milliseconds, as a fixnum.
+
+_m_getrusage:
+	save	%sp, -96, %sp
+
+	call	_C_getrusage
+	nop
+	sll	%o0, 2, %SAVED_RESULT
+	set	0x7fffffff, %o0
+	and	%o0, %SAVED_RESULT, %SAVED_RESULT
 
 	jmp	%i7+8
 	restore
@@ -292,12 +360,16 @@ _write_file:
 ! 4. Move RESULT to REG0, set RESULT to the length of the list, and invoke
 !    the procedure in REG0.
 !
-! If there are any exceptions in here, the return value is set up to be that
+! If there are any exceptions in here, the return address is set up to be that
 ! of the instruction which called this procedure; i.e. the operation is
 ! retried rather than returning into the millicode. While the latter would
 ! probably work, it is conceptually simpler to never have any exceptions
 ! return into the millicode -- the exception handler can be simpler, for
 ! example.
+!
+! It is likely that the Scheme/MAL wrapper takes care of some of the
+! grudge, like checking for a proper list. If so, we may be able to clean
+! things up a bit here. FIXME.
 
 _apply:
 	! Is the value of %RESULT a procedure? If not, we must signal an
@@ -406,26 +478,10 @@ Lapply9:
 
 
 ! Millicode for the 'args>=' instruction.
+! Most of the operation has been punted to C code; see comments in that code
+! for illumination.
 !
-! Deals with variable-length argument lists. This is extremely hairy, and
-! in addition we want good performance. One major problem is dealing with
-! memory overflow requiring a collection &c.
-!
-! Initial state:
-!  %RESULT must be a fixnum. This is not verified. Call this number 'j'.
-!  `j' is the actual number of arguments.
-!  %ARGREG2 is another fixnum (set up by the caller). Call this number `n'.
-!  `n' is the minimum expected number of arguments.
-!
-! 1. If j < n then fault (wrong number of arguments).
-! 2. Pick a case:
-!    0. If n < 30 and j < 31, then load REGn+1 with a fresh list formed from
-!       REGn+1 through REGj.
-!    1. 
-!
-! In order to keep the code manageable, all registers are software-mapped.
-! We *always* keep software and hardware copies in synch (or we die when
-! the collector kicks in).
+! The 0-extra-args case ought to be handled here for efficiency.
 
 _scheme_varargs:
 	cmp	%RESULT, %ARGREG2
@@ -435,20 +491,18 @@ _scheme_varargs:
 	sub	%o7, 8, %o7				! retry
 
 Lvararg2:
-	mov	%o7, %TMP0	
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 	call	_save_scheme_context
 	nop
-	mov	%TMP0, %o7
 
 	save	%sp, -96, %sp
-	call	_C_scheme_varargs			! Temporary.
+	call	_C_scheme_varargs			! Can't fail.
 	nop
 	restore
 
-	mov	%o7, %TMP0
 	call	_restore_scheme_context
 	nop
-	mov	%o7, %TMP0
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
 
 	jmp	%o7+8
 	nop
@@ -587,37 +641,129 @@ Leqv1:
 	jmp	%o7+8
 	nop
 
+! Debugger entry point.
+
 _m_debug:
 	b	_not_supported
 	nop
 
-! Exit -- simply terminate the program by calling exit(), which should clean up
-! most things. This is certainly good enough for the time being.
+! Exit -- simply terminate the program by calling exit(), which should 
+! clean up most things. This is certainly good enough for the time being.
+! We may assume that there is a Scheme wrapper around this millicode which
+! takes care of flushing buffers, etc.
 
 _m_exit:
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 	call	_save_scheme_context
 	call	_exit
 	mov	0, %o0
+
+! Reset the system.
 
 _m_reset:
 	b	_not_supported
 	nop
 
+! Breakpoints are expensive, as the machine state must be saved and restored;
+! this is so that the break handler can inspect the state (if desired).
+!
+! This breakpoint handler is only for breakpoints entered with the call to
+! the "break" procedure. Breakpoints entered through the trap instruction
+! are handled below in _break_trap.
+
 _m_break:
-	b	_not_supported
-	nop
-
-! Print an error message detailing the program counter, then die.
-! This routine will go away eventually.
-
-_not_supported:
-	set	emsg, %o0
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
 	call	_save_scheme_context
 	nop
+	call	_C_break
+	nop
+	call	_restore_scheme_context
+	nop
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
+	jmp	%o7+8
+	nop
+
+! Print an error message detailing the program counter, then enter the
+! debugger in the run-time system. This routine will go away when we get
+! debugging support on the Scheme level.
+
+_not_supported:
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
+	call	_save_scheme_context
+	nop
+	save	%sp, -96, %sp
+	set	emsg, %o0
 	call	_printf
 	mov	%o7, %o1
-	call	_exit
-	mov	1, %o0
+	call	_localdebugger
+	nop
+	restore
+	call	_restore_scheme_context
+	nop
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET  ], %o7
+	jmp	%o7 + 8
+	nop
+
+! Exception handlers. A coherent protocol for passing of information needs
+! to be designed here.
+!
+! A "timer exception" is raised when the software timer reaches 0.
+!
+! A "type exception" is raised when a procedure is applied to an argument
+! of a type it cannot handle, e.g. "car" on a non-pair.
+!
+! A "procedure exception" is raised when the user program attempts to
+! apply a non-procedure.
+!
+! An "arg exception" is raised when the user program applies a procedure
+! to the wrong number of arguments.
+!
+! Currently, the timer exception resets the timer and returns, while the
+! others call _C_exception (which aborts the program, presumably). 
+
+! Just reset the timer and return, for now. Later, we'll want to implement
+! "process" switching, and so we'll have to jump into Scheme if necessary.
+
+_timer_exception:
+	b	generic_exception
+	mov	TIMER_EXCEPTION, %TMP1
+
+!	jmp	%o7+8
+!	ld	[ %GLOBALS + INITIAL_TIMER_OFFSET ], %TIMER
+
+_type_exception:
+	b	generic_exception
+	mov	TYPE_EXCEPTION, %TMP1
+
+_proc_exception:
+	b	generic_exception
+	mov	PROC_EXCEPTION, %TMP1
+
+_arg_exception:
+	b	generic_exception
+	mov	ARG_EXCEPTION, %TMP1
+
+
+! Generic exception handler for now. Jumps to the C exception handler.
+! This handler will later be (re)written in Scheme. If the hander returns,
+! we return to the caller and hope for the best.
+
+generic_exception:
+	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
+	call	_save_scheme_context
+	nop
+	mov	%TMP1, %g1
+
+	save	%sp, -96, %sp
+	call	_C_exception
+	mov	%g1, %o0
+	restore
+
+	call	_restore_scheme_context
+	nop
+	ld	[ %GLOBALS + SAVED_RETADDR_OFFSET ], %o7
+	jmp	%o7+8
+	nop
 
 ! Static data for this module.
 
