@@ -2,11 +2,10 @@
 ;
 ; $Id$
 ;
-; A printer for circular objects
+; A printer for shared and circular structures.
 ;
-; It's currently O(n^2), which is not at all good.  It can be O(n) if
-; we can implement an O(1) object-id or object-hash procedure.  We'd
-; then have an internal actual hash table keyed on object ID.
+; The syntax #n=<object> associates mark n with <object>.
+; The syntax #n# is a reference to the object associated with mark n.
 
 (define (print-circular obj . rest)
   (print-circular-internal obj
@@ -30,24 +29,22 @@
 
 (define (print-circular-internal obj port quote? primitive-printer)
 
-  (define hashtbl '())			; An assoc list (object ID,count,ID)
+  (define tbl                           ; Maps objects to refs 
+    (make-hashtable equal-hash assq))
+
   (define next 0)			; Next output ID to be used
 
-  ; Return obj or an integer -- the index
+  (define (make-ref obj) (list obj 1 #f)))
 
-  (define (find-reference obj)
-    (assq obj hashtbl))
-
-  (define (add-reference obj)
-    (set! hashtbl (cons (list obj 1 #f) hashtbl)))
-
-  (define (add-reference-count r)
+  (define (ref-increment-count! r)
     (set-car! (cdr r) (+ (cadr r) 1)))
 
-  (define (multiple-references? r)
-    (> (cadr r) 1))
+  (define (ref-count r) (cadr r))
 
-  (define (mark-sequence-number r)
+  (define (ref-already-printed? r)      ; Has been printed if seq number not #f
+    (caddr r))
+
+  (define (ref-sequence-number r)       ; Return a sequence number
     (let ((x (caddr r)))
       (if x
 	  x
@@ -55,9 +52,6 @@
 	    (set! next (+ next 1))
 	    (set-car! (cddr r) x)
 	    x))))
-
-  (define (already-printed? r)
-    (caddr r))
 
   (define (out x quote?)
     (primitive-printer x port quote?))
@@ -68,9 +62,9 @@
 
   (define (preprocess x)
     (if (or (pair? x) (vector? x) (string? x))
-	(let ((r (find-reference x)))
+	(let ((r (hashtable-get tbl x)))
 	  (if (not r)
-	      (begin (add-reference x)
+	      (begin (hashtable-put! tbl x (make-ref x))
 		     (cond ((pair? x)
 			    (preprocess (car x))
 			    (preprocess (cdr x)))
@@ -78,7 +72,7 @@
 			    (do ((i (- (vector-length x) 1) (- i 1)))
 				((< i 0))
 			      (preprocess (vector-ref x i))))))
-	      (add-reference-count r)))))
+	      (ref-increment-count! r)))))
 
   (define (print-pair obj)
     (out "(" #f)
@@ -88,18 +82,19 @@
   (define (print-pair2 obj)
     (print (car obj))
     (let ((x (cdr obj)))
-      (cond ((pair? x)
-	     (let ((r (find-reference x)))
-	       (cond ((already-printed? r)
-		      (begin (out " . " #f)
-			     (print-reference r)))
-		     ((not (pair? x))
-		      (out " . " #f)
-		      (print x))
-		     (else
-		      (out " " #f)
-		      (print-pair2 x)))))
-	    ((null? x))
+      (cond ((null? x))
+            ((pair? x)
+	     (let ((r (hashtable-get tbl x)))
+	       (cond ((ref-already-printed? r)
+                      (out " . " #f)
+                      (print-reference r))
+                     ((> (ref-count r) 1)
+                      (out " . " #f)
+                      (print-mark r)
+                      (print-pair x))
+                     (else
+                      (out " " #f)
+                      (print-pair2 x)))))
 	    (else
 	     (out " . " #f)
 	     (print x)))))
@@ -115,19 +110,19 @@
 
   (define (print-reference r)
     (out "#" #f)
-    (out (mark-sequence-number r) #f)
+    (out (ref-sequence-number r) #f)
     (out "#" #f))
 
   (define (print-mark r)
     (out "#" #f)
-    (out (mark-sequence-number r) #f)
+    (out (ref-sequence-number r) #f)
     (out "=" #f))
 
   (define (print-obj-with-identity x print-obj)
-    (let ((r (find-reference x)))
-      (cond ((already-printed? r)
+    (let ((r (hashtable-get tbl x)))
+      (cond ((ref-already-printed? r)
 	     (print-reference r))
-	    ((multiple-references? r)
+	    ((> (ref-count r) 1)
 	     (print-mark r)
 	     (print-obj x))
 	    (else
