@@ -321,9 +321,7 @@
 (define-instruction $lexes
   (lambda (instruction as)
     (list-instruction "lexes" instruction)
-    (emit-text as "twobit_lexes( ~a );" 
-	       (operand1 instruction)
-	       (operand2 instruction))))
+    (emit-text as "twobit_lexes( ~a );" (operand1 instruction))))
 
 (define-instruction $args=
   (lambda (instruction as)
