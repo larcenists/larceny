@@ -38,8 +38,8 @@ typedef struct gc_data gc_data_t;
 
 struct gc_data {
   bool is_generational_system;  /* True if system has multiple generations */
-  bool uses_dof_collector;      /* True if system uses DOF collector */
-  bool uses_np_collector;       /* True if dynamic area is non-predictive */
+  bool use_dof_collector;	/* True if system uses DOF collector */
+  bool use_np_collector;	/* True if dynamic area is non-predictive */
   bool shrink_heap;		/* True if heap can be shrunk */
   int  dynamic_min;		/* 0 or lower limit of expandable area */
   int  dynamic_max;		/* 0 or upper limit of expandable area */
@@ -228,7 +228,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     }
     else if (op < data->static_generation &&
 	     gc->dynamic_area &&
-	     data->uses_np_collector) {
+	     data->use_np_collector) {
       int k, j;
 
       /* Non-predictive dynamic area */
@@ -247,7 +247,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     }
     else if (op < data->static_generation &&
 	     gc->dynamic_area &&
-	     data->uses_dof_collector) {
+	     data->use_dof_collector) {
       /*  DOF area -- fixed number of same-size generations */
       int size;
 
@@ -294,12 +294,16 @@ static int initialize( gc_t *gc )
 
   if (data->is_generational_system) {
     wb_setup( gclib_desc_g,
-	      (unsigned*)gclib_pagebase,
+#if GCLIB_LARGE_TABLE
+	      (byte*)0,
+#else
+	      (byte*)gclib_pagebase,
+#endif
 	      data->generations,
 	      data->globals,
 	      data->ssb_top,
 	      data->ssb_lim, 
-	      (data->uses_np_collector ? data->generations-1 : -1 ),
+	      (data->use_np_collector ? data->generations-1 : -1 ),
 	      gc->np_remset
 	     );
   }
@@ -597,7 +601,7 @@ static int isremembered( gc_t *gc, word w )
 {
   unsigned g;
 
-  g = gclib_desc_g[ pageof( w ) ];
+  g = gen_of( w );
   assert( g >= 0 && g < gc->remset_count );
   if (g > 0)
     return rs_isremembered( gc->remset[g], w );
@@ -605,12 +609,6 @@ static int isremembered( gc_t *gc, word w )
     return 0;
 }
 #endif
-
-/* Not a method anymore */
-static void stats( gc_t *gc )
-{
-  assert( 0 );
-}
 
 /* Strategy: generations report the data for themselves and their 
    remembered sets.  Everything else is handled here.
@@ -823,13 +821,17 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 
   gen_no = 0;
   data->is_generational_system = 1;
-  data->uses_dof_collector = info->use_dof_collector;
-  data->uses_np_collector = info->use_non_predictive_collector;
+  data->use_dof_collector = info->use_dof_collector;
+  data->use_np_collector = info->use_non_predictive_collector;
   size = 0;
 
   if (info->use_non_predictive_collector) {
     DATA(gc)->dynamic_max = info->dynamic_np_info.dynamic_max;
     DATA(gc)->dynamic_min = info->dynamic_np_info.dynamic_min;
+  }
+  else if (info->use_dof_collector) {
+    DATA(gc)->dynamic_max = info->dynamic_dof_info.dynamic_max;
+    DATA(gc)->dynamic_min = info->dynamic_dof_info.dynamic_min;
   }
   else {
     DATA(gc)->dynamic_max = info->dynamic_sc_info.dynamic_max;
@@ -967,7 +969,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 creg_set,
 		 stack_overflow,
 		 stack_underflow,
-		 stats,
 		 compact_all_ssbs,
 #if defined(SIMULATE_NEW_BARRIER)
 		 isremembered,
