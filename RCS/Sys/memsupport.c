@@ -1,17 +1,13 @@
 /*
- * Scheme Run-Time System.
- * Memory management system workhorses.
+ * Scheme 313 Run-Time System.
+ * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.6 91/07/10 10:19:08 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.7 91/07/10 18:14:30 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
  * They are likely a bit dependent upon calling conventions etc, although
  * I've tried to keep most such nasties confined to the file "layouts.h".
- *
- * The data in the heap continuation is not adjusted to an even number
- * of words, so on restoring a frame, we must be sure to pad the stack
- * if necessary.
  */
 
 #include <sys/time.h>
@@ -25,13 +21,18 @@
 #include "millicode.h"
 #ifdef DEBUG
 #include <stdio.h>
-extern FILE *ofp;
 #else
 #define NULL       0
 #endif
 
 /* Calculate free bytes in ephemeral space. Can be negative! */
-#define free_ephem_space()   ((long) globals[E_LIMIT_OFFSET] - (long) globals[E_TOP_OFFSET])
+#define free_e_space() ((long)globals[E_LIMIT_OFFSET] - (long)globals[E_TOP_OFFSET])
+
+static local_collect(),
+       flush_stack_cache(),
+       setup_memory_limits(),
+       setup_stack();
+
 
 /*
  * Initialize memory management system. Allocate spaces, setup limits,
@@ -40,11 +41,12 @@ extern FILE *ofp;
 init_mem( e_size, t_size, s_size, stk_size, e_lim )
 unsigned e_size, t_size, s_size, stk_size, e_lim;
 {
-  if (init_collector( s_size, t_size, e_size, e_lim, stk_size ) == 0)
+  if (init_collector( s_size, t_size, e_size, stk_size ) == 0)
     return 0;
 
   globals[ CONTINUATION_OFFSET ] = FALSE_CONST;
   globals[ T_TRANS_OFFSET ] = globals[ T_MAX_OFFSET ];
+  globals[ E_MARK_OFFSET ] = roundup8( e_lim );
   setup_memory_limits();
   setup_stack();
 }
@@ -68,28 +70,18 @@ gcstart2( n )
 word n;
 {
   long n_bytes = nativeint( n ) * 4;
-  unsigned int milliseconds;
-  struct rusage r1, r2;
-
-#ifdef DEBUG
-  getrusage( RUSAGE_SELF, &r1 );
-#endif
 
   flush_stack_cache();
 
-  if (n == fixnum( -1 )) {
-    collect( TENURING_COLLECTION );
-    setup_memory_limits();
-  }
+  if (n == fixnum( -1 ))
+    local_collect( TENURING_COLLECTION );
   else {
-    collect( EPHEMERAL_COLLECTION );
-    setup_memory_limits();
+    local_collect( EPHEMERAL_COLLECTION );
 
-    if (n_bytes > free_ephem_space()) {
-      collect( TENURING_COLLECTION );
-      setup_memory_limits();
+    if (n_bytes > free_e_space()) {
+      local_collect( TENURING_COLLECTION );
 
-      while (n_bytes > free_ephem_space()) {
+      while (n_bytes > free_e_space()) {
 	gc_trap( EPHEMERAL_TRAP );
 	setup_memory_limits();
       }
@@ -97,11 +89,40 @@ word n;
   }
 
   flush_icache();
+}
+
+
+/*
+ * Do a collection and gather some statistics.
+ *
+ * HOW TO LIE WITH STATISTICS: The times here do not include the time it
+ * takes to do a stack or cache flush, nore any overhead incurred by 
+ * gc_trap() in the case of an ephemeral space overflow.
+ */
+static local_collect( type )
+int type;
+{
+  int realtype;
+  unsigned int milliseconds, oldwords;
+  struct rusage r1, r2;
 
 #ifdef DEBUG
+  printf( "garbage collection commencing, type %d\n", type );
+  oldwords = globals[ WCOPIED_OFFSET ];
+#endif
+
+  getrusage( RUSAGE_SELF, &r1 );
+
+  realtype = collect( type );
+  setup_memory_limits();
+
   getrusage( RUSAGE_SELF, &r2 );
   milliseconds = ((r2.ru_utime.tv_sec - r1.ru_utime.tv_sec)*1000
 		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
+
+#ifdef DEBUG
+  printf( "garbage collection done, type %d\n", realtype );
+  printf( "words copied: %ld\n", globals[ WCOPIED_OFFSET ]-oldwords );
   printf( "Time spent collecting: %u milliseconds.\n", milliseconds );
 #endif
 }
@@ -111,11 +132,11 @@ word n;
  * Given that the spaces have been set up and that pointers are in the
  * "globals" array, we calculate the ephemeral heap limit.
  */
-setup_memory_limits()
+static setup_memory_limits()
 {
   /*
-   * currently we reserve twice the stack space for the overflow area.
-   * This is allmost certainly too much (but that is not harmful).
+   * Currently we reserve twice the stack space for the overflow area.
+   * This is almost certainly too much (but that is not harmful).
    */
 
   globals[ E_LIMIT_OFFSET ] = globals[ E_MAX_OFFSET ]+4 - 
@@ -127,12 +148,12 @@ setup_memory_limits()
  * Calculate stack limit in some implementation-dependent fashion, and set
  * up a fake continuation at the bottom (highest addresses) of the stack.
  */
-setup_stack()
+static setup_stack()
 {
   extern void stkuflow();
   word *stktop;
 
-#if SPARC1 || SPARC2
+#if SPARC
   stktop = (word *) globals[ STK_MAX_OFFSET ];
   *stktop = 0x81726354;                                /* dummy magic # */
   *(stktop-1) = 0;                                     /* saved proc */
@@ -141,13 +162,13 @@ setup_stack()
   globals[ STK_START_OFFSET ] = (word) (stktop-4);
   globals[ SP_OFFSET ] = (word) (stktop-3);
 
-  /* Need to calculate max continuation size in order to find the
+  /* 
+   * Need to calculate max continuation size in order to find the
    * lower stack limit. We'll just gratuitiously assume that 100 words is
    * plenty, and deal with elegance later.
    */
 
   globals[ STK_LIMIT_OFFSET ] = (word) ((word *)globals[STK_BASE_OFFSET]+100);
-#else
 #endif
 }
 
@@ -156,7 +177,7 @@ setup_stack()
  * Flush the instruction cache, if there is one.
  * On some systems this probably cannot be done in a high-level language.
  */
-flush_icache()
+static flush_icache()
 {
 #if SPARC1 || SPARC2
   /* 
@@ -201,12 +222,6 @@ void restore_frame()
     if (sframesize % 8 != 0) sframesize += 4;
     sframe = (word *) globals[ SP_OFFSET ] - sframesize / 4;
     globals[ SP_OFFSET ] = (word) sframe;
-
-#if 0
-#ifdef DEBUG
-  printf( "restoring frame. hsz=%u, ssz=%u, hfr=0x%lx, sfr=0x%lx\n", hframesize, sframesize, (word) hframe, (word) sframe );
-#endif
-#endif
 
     /* Follow continuation chain. */
 
@@ -253,9 +268,6 @@ flush_stack_cache()
 {
   word *sp, *first_cont, *e_top, *prev_cont, *stk_start;
 
-#ifdef DEBUG
-/*  printf( "flushing\n" ); */
-#endif
   sp = (word *) globals[ SP_OFFSET ];
   stk_start = (word *) globals[ STK_START_OFFSET ];
   e_top = (word *) globals[ E_TOP_OFFSET ];
@@ -329,16 +341,7 @@ flush_stack_cache()
   globals[ SP_OFFSET ] = (word) sp;
   globals[ E_TOP_OFFSET ] = (word) e_top;
   if (first_cont != NULL)
-    globals[ CONTINUATION_OFFSET ] = 
-          (word) tagptr( first_cont, VEC_TAG );
-#ifdef DEBUG
-/*  printf( "done flushing.\n" ); */
-
-  if (globals[ E_TOP_OFFSET ] > globals[ E_MAX_OFFSET ]) {
-    printf( "%lx %lx\n", globals[ E_TOP_OFFSET ], globals[ E_MAX_OFFSET ] );
-    panic( "Ephemeral heap overflow after stack flush." );
-  }
-#endif
+    globals[ CONTINUATION_OFFSET ] = (word) tagptr( first_cont, VEC_TAG );
 }
 
 
