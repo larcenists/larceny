@@ -85,8 +85,7 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -o ~a ~a ~a"
-    gcc-name
+    "gcc -gstabs+ -o ~a ~a ~a"
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -98,8 +97,7 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -shared -o ~a ~a ~a"
-    gcc-name
+    "gcc -gstabs+ -shared -o ~a ~a ~a"
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))

@@ -34,17 +34,20 @@
   (make-user-data))
 
 
-; User-data structure has two fields:
+; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
+;  seen-labels          A list of labels at lower addresses
 
-(define (make-user-data) (list 0 0))
+(define (make-user-data) (list 0 0 '()))
 
 (define (user-data.toplevel-counter u) (car u))
 (define (user-data.proc-counter u) (cadr u))
+(define (user-data.labels u) (caddr u))
 
 (define (user-data.toplevel-counter! u x) (set-car! u x))
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
+(define (user-data.labels! u x) (set-car! (cddr u) x))
 
 
 ; Assembly listing.
@@ -169,6 +172,8 @@
   (lambda (instruction as)
     (list-label instruction)
     (add-compiled-scheme-function as (operand1 instruction) #f #f)
+    (let ((u (as-user as)))
+      (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (emit-text-noindent as
 			"T_LABEL ~a" 
 			(compiled-procedure as (operand1 instruction)))))
@@ -374,12 +379,35 @@
     (list-instruction "nop" instruction)
     (emit-text as "T_NOP")))
 
+; (define-instruction $save
+;   (lambda (instruction as)
+;     (if (not (negative? (operand1 instruction)))
+;         (begin
+;          (list-instruction "save" instruction)
+; 	 (emit-text as "T_SAVE ~a" (operand1 instruction))))))
+
 (define-instruction $save
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))
         (begin
-         (list-instruction "save" instruction)
-	 (emit-text as "T_SAVE ~a" (operand1 instruction))))))
+	  (list-instruction "save" instruction)
+	  (let* ((n (operand1 instruction))
+		 (v (make-vector (+ n 1) #t)))
+	    (emit-text as "T_SAVE0 ~a" n)
+	    (if (peephole-optimization)
+		(let loop ((instruction (next-instruction as)))
+		  (if (eqv? $store (operand0 instruction))
+		      (begin (list-instruction "store" instruction)
+			     (emit-text as "T_STORE ~a, ~a"
+					(operand1 instruction)
+					(operand2 instruction))
+			     (consume-next-instruction! as)
+			     (vector-set! v (operand2 instruction) #f)
+			     (loop (next-instruction as))))))
+	    (do ((i 0 (+ i 1)))
+		((= i (vector-length v)))
+	      (if (vector-ref v i)
+		  (emit-text as "T_SAVE1 ~a" i))))))))
 
 (define-instruction $setrtn
   (lambda (instruction as)
@@ -413,14 +441,20 @@
   (lambda (instruction as)
     (list-instruction "branch" instruction)
     (emit-text as
-	       "T_BRANCH ~a"
+	       (if (memq (operand1 instruction) 
+			 (user-data.labels (as-user as)))
+		   "T_BRANCH ~a"
+		   "T_SKIP ~a")
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branchf
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
     (emit-text as 
-	       "T_BRANCHF ~a" 
+	       (if (memq (operand1 instruction)
+			 (user-data.labels (as-user as)))
+		   "T_BRANCHF ~a" 
+		   "T_SKIPF ~a")
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $check
@@ -476,6 +510,14 @@
 	       (op-primcode (operand1 instruction))            ; Note, not op2imm-primcode
 	       (constant-value (operand2 instruction))
 	       (compiled-procedure as (operand3 instruction))
+	       (operand1 instruction))))
+
+(define-instruction $global/invoke
+  (lambda (instruction as)
+    (list-instruction "global/invoke" instruction)
+    (emit-text as "T_GLOBAL_INVOKE  ~a, ~a  ; ~a" 
+	       (emit-global as (operand1 instruction))
+	       (operand2 instruction)
 	       (operand1 instruction))))
 
 ;    Note, for the _check_ optimizations there is a hack in place.  Rather
