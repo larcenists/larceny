@@ -6,16 +6,14 @@
 
 ###########################################################################
 #
-# Section 0: Programs
+# Defaults compiler configuration
 #
-
-# You need an ANSI C compiler.
+# The defaults are OK with GCC and Sun assembler on Solaris.
 #
-# The assembler must accept -P; the GNU assembler does not.  If you
-# experience assembler errors, you most likely have the wrong assembler.
-# On SunOS systems, try /bin/as.  gcc -E might work.
-
-# Defaults (correct for building SPARC Larceny on Solaris)
+# You need an ANSI C compiler, and the assembler must run cpp before
+# assembly.  Note, GAS does not run CPP.
+#
+###########################################################################
 
 O=o
 CC=gcc
@@ -23,8 +21,40 @@ CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
 AS=as
 ASXFLAGS=
+EXTRALIBPATH=
+EXTRALIBS=
+LDXFLAGS=
+LIBS=-lm -ldl
 
-# Pick a compiler here!
+DEBUGINFO=-g3
+PROFILE=#-pg
+TCOV=#-a -g
+LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+
+BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
+
+CFLAGS=-c -ISys -IBuild -IStandard-C \
+	$(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
+
+ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
+
+
+######################################################################
+#                                                                    #
+#                 Pick a compiler variation here!                    #
+#                                                                    #
+######################################################################
+
+# GCC with GAS on Debian SPARC-Linux, at least
+#
+# ASXFLAGS=-x assembler-with-cpp -c
+ 
+
+# GCC with Sun assembler on SunOS (obsolete)
+#
+# AS=/bin/as
+
 
 # DEC Alpha OSF/1 (Petit Larceny): DEC C compiler
 #
@@ -37,53 +67,12 @@ ASXFLAGS=
 #.c.o:
 #	$(CC) $(CFLAGS) -c $< -o $*.o
 
-# Microsoft C/C++ with DOS shell on Win32
 
-O=obj
-CC=cl
-
-############################################################################
+# Microsoft C/C++ with DOS shell on Win32 (Petit Larceny)
 #
-# Section 1: Target OS selection
+# O=obj
+# CC=cl
 
-# Target OS is detected automatically in Sys/config.h.  If you need to
-# override the detection, then hack that file, and additionally add to
-# the following variables.
-
-EXTRALIBPATH=
-EXTRALIBS=
-LDXFLAGS=
-
-
-###########################################################################
-#
-# Section 2: Feature configuration section.
-
-# Do all your configuration selection by editing Sys/config.h.
-
-
-############################################################################
-#
-# Compiler flags
-
-LIBS=-lm -ldl
-
-DEBUGINFO=-g3
-PROFILE=#-pg
-TCOV=#-a -g
-LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-
-# You typically want this to remain on, unless you want multiple collectors
-# in the same process (beyond the realm of the possible, at the moment).  
-# See Sys/bdw-collector.c for details, and grovel over the source tree :-)
-
-BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
-
-CFLAGS=-c -ISys -IBuild -IStandard-C \
-	$(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
-
-ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
 
 ############################################################################
 #
@@ -190,7 +179,7 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 
 # Win32
 .c.obj:
- 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
+	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
 
 ############################################################################
 #
