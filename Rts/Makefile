@@ -21,7 +21,7 @@
 
 CC=gcc
 CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-	-Wimplicit
+	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
 
 # DEC Alpha C compiler on DEC OSF/1 (for Petit Larceny)
 #
@@ -92,7 +92,7 @@ CONFIG=-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING)
 
 LIBS=-lm -ldl
 
-DEBUGINFO=-g
+DEBUGINFO=-g3
 DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
 PROFILE=#-p
 TCOV=#-a -g -DNDEBUG2 -DNDEBUG
@@ -126,8 +126,8 @@ COMMON_RTS_OBJECTS=\
 
 PRECISE_GC_OBJECTS=\
 	Sys/alloc.o Sys/cheney.o Sys/dof-heap.o Sys/gc.o Sys/heapio.o \
-	Sys/los.o \
-	Sys/memmgr.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
+	Sys/los.o Sys/memmgr.o \
+	Sys/msgc-core.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
 	Sys/old-heap.o Sys/remset.o Sys/sc-heap.o Sys/semispace.o \
 	Sys/static-heap.o Sys/stats.o Sys/young_heap_t.o
 
