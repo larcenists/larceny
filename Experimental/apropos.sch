@@ -19,7 +19,7 @@
 		    substr)))
     (sort
      (filter (lambda (name)
-               (and (environment-gettable? env name)
+               (and (environment-variable? env name)
                     (cond ((symbol? name)
                            (substring-match (symbol->string name) substr))
                           ((string? name)
