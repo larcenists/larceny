@@ -5,8 +5,7 @@
 (define *dotnet-noise-level* #f)
 
 (define (dotnet-message message-level text . objects)
-  (if (and *dotnet-noise-level*
-           (number? *dotnet-noise-level*)
+  (if (and (number? *dotnet-noise-level*)
            (>= *dotnet-noise-level* message-level))
       (begin
         (display "dotnet ")
@@ -258,6 +257,8 @@
 
 (define-clr-property         clr-methodinfo/%return-type
   clr-type-handle/system-reflection-methodinfo "ReturnType")
+(define-boolean-clr-property clr-methodinfo/contains-generic-parameters?
+  clr-type-handle/system-reflection-methodinfo "ContainsGenericParameters" #t)
 
 (define-clr-property         clr-parameterinfo/%default-value
   clr-type-handle/system-reflection-parameterinfo "DefaultValue")
@@ -283,6 +284,8 @@
   clr-type-handle/system-type "BaseType")
 (define-clr-property         clr-type/%full-name
   clr-type-handle/system-type "FullName")
+(define-boolean-clr-property clr-type/contains-generic-parameters?
+  clr-type-handle/system-type "ContainsGenericParameters" #t)
 (define-boolean-clr-property clr-type/is-enum?
   clr-type-handle/system-type "IsEnum")
 (define-boolean-clr-property clr-type/is-generic?
@@ -321,6 +324,7 @@
                                                  clr-type-handle/system-string
                                                  clr-type-handle/system-boolean))))
     (lambda (enum-type name)
+      ;; (dotnet-message 5 "Parse enum" name)
       (clr/%foreign->int
        (clr/%invoke method-handle #f
                     (vector enum-type
@@ -362,6 +366,7 @@
        (let ((method-handle (clr/%get-method type-handle method-name '#())))
          (if method-handle
              (lambda (object)
+               ;; (dotnet-message 5 "Invoke method" method-name)
                (clr/%invoke method-handle object '#()))
              (error (string-append "Method "method-name" not found."))))))))
 
@@ -388,6 +393,7 @@
                                          clr-type-handle/system-boolean
                                          clr-type-handle/system-boolean))))
     (lambda (assembly typename)
+      ;; (dotnet-message 5 "clr-assembly/%get-type" typename)
       (clr/%invoke method assembly (vector typename clr/false clr/true)))))
 
 (define clr-convert/%change-type
@@ -395,12 +401,14 @@
                                  (vector clr-type-handle/system-object
                                          clr-type-handle/system-type))))
     (lambda (object new-type)
+      ;; (dotnet-message 5 "clr-convert/%change-type")
       (clr/%invoke method #f (vector object new-type)))))
 
 (define clr-enum/%get-names
   (let ((method (clr/%get-method clr-type-handle/system-enum "GetNames"
                                  (vector clr-type-handle/system-type))))
     (lambda (object)
+      ;; (dotnet-message 5 "clr-enum/%get-names")
       (clr/%invoke method #f (vector object)))))
 
 (define (clr-enum/get-names enum)
@@ -410,6 +418,7 @@
   (let ((method (clr/%get-method clr-type-handle/system-enum "GetValues"
                                  (vector clr-type-handle/system-type))))
     (lambda (object)
+      ;; (dotnet-message 5 "clr-enum/%get-values")
       (clr/%invoke method #f (vector object)))))
 
 (define (clr-enum/get-values enum)
@@ -421,12 +430,14 @@
                                         (vector clr-type-handle/system-type
                                                 clr-type-handle/system-int32))))
     (lambda (class-handle number)
+      ;; (dotnet-message 5 "clr-enum/to-object")
       (clr/%invoke method-handle #f (vector class-handle (clr/%number->foreign-int32 number))))))
 
 (define clr-field-info/%get-value
   (let ((method (clr/%get-method clr-type-handle/system-reflection-fieldinfo "GetValue"
                                  (vector clr-type-handle/system-object))))
     (lambda (object)
+      ;; (dotnet-message 5 "clr-field-info/%get-value")
       (clr/%invoke method object (vector clr/null)))))
 
 ;;; TRUE argument means fetch private name, false means public only.
@@ -436,6 +447,7 @@
         (private-arglist (vector clr/true))
         (public-arglist  (vector clr/false)))
     (lambda (property-info allow-private?)
+      ;; (dotnet-message 5 "clr-propertyinfo/%get-get-method" allow-private?)
       (clr/%invoke method-handle property-info
                    (if allow-private? private-arglist public-arglist)))))
 
@@ -444,6 +456,7 @@
                                  (vector clr-type-handle/system-boolean)))
         (args (vector clr/true)))
     (lambda (object)
+      ;; (dotnet-message 5 "clr-type/%get-custom-attributes")
       (clr/%invoke method object args))))
 
 (define (clr-type/get-custom-attributes object)
@@ -478,6 +491,7 @@
                               (logior clr-binding-flags/static
                                       clr-binding-flags/non-public)))))
     (lambda (type static? public?)
+      ;; (dotnet-message 5 "clr-type/%get-members" static? public?)
       (clr/%invoke method type (if static?
                                    (if public?
                                        arglist-static-public
