@@ -167,30 +167,72 @@
       (class-finish)
       (cons loadable-classname il-namespace))))
 
-;; dump-fasl : segment string output-port -> void
-;; Dumps a fasl file containing the file base (no extension) of the
-;; source .lop file, the generated namespace for all classes in that
-;; segment, 0 (?), and the number of the segment.
-(define (dump-fasl segment filename out)
-  (twobit-format 
-   out
-   "((.common-patch-procedure ~s ~s ~s ~s "
-   (rewrite-file-type filename ".lop" "")
-   (cvclass-il-namespace (segment.code segment))
-   (length *loadables*)
-   (car (cvclass-id (segment.code segment)));;*segment-number*
-   )
-  (dump-fasl-segment-to-port segment out 'no-code)
-  (twobit-format out "))~%"))
+;;; dump-fasl : segment string output-port -> void
+;;; Dumps a fasl file containing the file base (no extension) of the
+;;; source .lop file, the generated namespace for all classes in that
+;;; segment, 0 (?), and the number of the segment.
+;(define (dump-fasl segment filename out)
+;  (twobit-format 
+;   out
+;   "((.common-patch-procedure ~s ~s ~s ~s "
+;   (rewrite-file-type filename ".lop" "")
+;   (cvclass-il-namespace (segment.code segment))
+;   (length *loadables*)
+;   (car (cvclass-id (segment.code segment)));;*segment-number*
+;   )
+;  (dump-fasl-segment-to-port segment out 'no-code)
+;  (twobit-format out "))~%"))
+
+;; dump-fasl : string string (listof string) -> void
+(define (dump-fasl base exe manifests)
+  (with-output-to-file (string-append base ".fasl")
+    (lambda ()
+      (for-each (lambda (manifest)
+                  (dump-fasl/manifest base manifest))
+                manifests))))
+(define (dump-fasl/manifest base manifest)
+  (with-input-from-file manifest
+    (lambda ()
+      (read/for-each 
+       (lambda (entry)
+         (twobit-format (current-output-port)
+                        "((.common-patch-procedure ~s ~s ~s ~s~%  "
+                        base
+                        (list-ref entry 1)  ;; il namespace
+                        (list-ref entry 2)  ;; 0
+                        (+ 1 (list-ref entry 3))) ;; segment #
+         (dump-fasl-segment-to-port (cons #f (list-ref entry 4)) 
+                                    (current-output-port)
+                                    'no-code)
+         (twobit-format (current-output-port)
+                        "))~%"))))))
 
 ;; dump-manifest : segment string output-port -> void
-(define (dump-manifest code filename out)
-  (write `(,(rewrite-file-type filename ".lop" "")
-           ,(cvclass-il-namespace code)
-           ,(length *loadables*)
-           ,*segment-number*)
+(define (dump-manifest segment filename out)
+  (write (list (rewrite-file-type filename ".lop" "")
+               (cvclass-il-namespace (segment.code segment))
+               (length *loadables*)
+               *segment-number*
+               (copy-constant-vector/strip-code 
+                (segment.constants segment)))
          out)
   (newline out))
+
+;; copy-constant-vector/strip-code : constant-vector -> constant-vector
+(define (copy-constant-vector/strip-code constant-vector)
+  (list->vector
+   (map copy-constant/strip-code (vector->list constant-vector))))
+
+;; copy-constant/strip-code : constant -> constant
+(define (copy-constant/strip-code constant)
+  (case (car constant)
+    ((data) constant)
+    ((global) constant)
+    ((codevector) '(codevector #f))
+    ((constantvector) 
+     `(constantvector 
+       ,(copy-constant-vector/strip-code (cadr constant))))
+    (else (error "copy-constant/strip-code: bad constant: " constant))))
 
 ;; create-loadable-file : string -> void
 ;; ENTRY POINT for creating .il files in larceny-csharp
@@ -206,8 +248,8 @@
     (if (file-exists? fasl-file) (delete-file fasl-file))
     (if (file-exists? manifest-file) (delete-file manifest-file))
     (set! *c-output* (open-output-file il-file-name))
-    (call-with-output-file fasl-file
-      (lambda (out)
+;    (call-with-output-file fasl-file
+;      (lambda (out)
         (call-with-output-file manifest-file
           (lambda (manifest-out)
             (call-with-input-file filename
@@ -217,12 +259,13 @@
                    (set! *loadables* (cons (cons *seed* (reverse entrypoints))
                                            *loadables*)))
                   (set! entrypoints (cons (dump-segment segment) entrypoints))
-                  (dump-fasl (cons (segment.code segment)
-                                   (segment.constants segment))
-                             filename out)
-                  (dump-manifest (segment.code segment)
-                                 filename manifest-out)
-                  (set! *segment-number* (+ *segment-number* 1)))))))))
+;                  (dump-fasl (cons (segment.code segment)
+;                                   (segment.constants segment))
+;                             filename out)
+                  (dump-manifest segment
+                                 filename 
+                                 manifest-out)
+                  (set! *segment-number* (+ *segment-number* 1)))))))
     (il-finalize *c-output*)
     (close-output-port *c-output*)
     (set! *c-output* #f)))
@@ -353,13 +396,6 @@
                   (il-namespace (fun.il-namespace fun))
                   (definite? (fun.definite? fun))
                   (entry? (fun.entry? fun)))
-             ;; We can emit class prototypes here if we choose.
-;             (class-add 
-;              (make-class (codevector-name id) 
-;                          il-namespace
-;                          il-codevector
-;                          '(private auto ansi beforefieldinit)
-;                          '()))
              (loop (cdr funs) 
                    (if entry? id entry)))))))
 
@@ -369,20 +405,22 @@
 ;; ilasm-executable : string
 (define ilasm-executable "ilasm")
 
-(define (create-application app src-manifests)
+(define (create-application app src-manifests fasl?)
   (let* ((app-exe (string-append app ".exe"))
          (assembly-il 
           (create-assembly app-exe src-manifests))
          (ordered-il-files
           (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
                src-manifests)))
+    (if fasl? (dump-fasl app app-exe src-manifests))
     (ilasm app-exe (cons assembly-il ordered-il-files))
     app-exe))
 
-;; Override Asm/Common/dumpheap.sch's definition so
-;; the make-system will do the right thing
+;; build-heap-image : string (listof string) -> void
+;; Input files: ?.manifest ?.code-il -> base.exe base.fasl
+;; Overrides definition in Asm/Common/dumpheap.sch
 (define (build-heap-image output-file input-files)
-  (create-application output-file input-files))
+  (create-application output-file input-files #f))
 
 (define (invoke-ilasm exe-file il-files)
   (let ((options
@@ -426,12 +464,24 @@
 
 ;; -----------------------------------------------
 
+(define *scheme-suffixes* '(".sch" ".scm" ".ss" ".mal"))
+
+(define (compile-application app files)
+  (for-each scheme->il files)
+  (create-application 
+   app
+   (map (lambda (f) (rewrite-file-type f *scheme-suffixes* ".manifest"))
+        files)
+   #t)
+  (twobit-format #t "  Application created (fasl + exe)~%"))
+
 (define (scheme->app file)
   (let ((base (rewrite-file-type file '(".sch" ".scm" ".mal") "")))
     (scheme->il file)
     (let ((app (create-application 
                 base
-                (list (string-append base ".manifest")))))
+                (list (string-append base ".manifest"))
+                #t)))
       (twobit-format (current-output-port)
                      "  application file -> ~s~%" app))))
 
@@ -458,8 +508,7 @@
 	       (set! listify-oport (open-output-file listing-name))))
     (assemble313 filename)
     (if (codegen-option 'listify-write-list-file)
-	(begin ;; (flush-output-port listify-oport) ;; FIXME: WHY WAS THIS HERE?
-	       (close-output-port listify-oport)
+	(begin (close-output-port listify-oport)
 	       (listify-reset)
 	       (twobit-format (current-output-port)
 			      "  listing -> ~s~%" listing-name)))

@@ -72,6 +72,12 @@
         '()
         (cons (f next) (read/map f)))))
 
+(define (read/for-each f)
+  (let ((next (read)))
+    (if (eof-object? next)
+        (unspecified)
+        (begin (f next) (read/map f)))))
+
 ;; Growable vector
 
 (vector-struct $$growable-vector make-growable-vector growable-vector?
