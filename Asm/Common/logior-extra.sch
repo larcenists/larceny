@@ -1,3 +1,7 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
 ; Not currently in use.
 
 (define (asm:logior2 a b)

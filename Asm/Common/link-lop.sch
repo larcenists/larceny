@@ -1,7 +1,8 @@
-; Asm/Common/link-lop.sch
-; Larceny -- lop segment linker
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; LOP segment linker.
 ;
 ; Given a lop segment, return a thunk.  Calling the thunk runs the code
 ; represented by the segment.  This procedure is useful for bypassing the

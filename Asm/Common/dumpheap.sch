@@ -1,7 +1,8 @@
-; Asm/Common/dumpheap.sch
-; Larceny -- bootstrap heap dumper.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Bootstrap heap dumper.
 ;
 ; Usage: (build-heap-image outputfile inputfile ... )
 ;

@@ -1,7 +1,8 @@
-; Asm/Sparc/asmutil32be.sch
-; Larceny assembler -- 32-bit big-endian utility procedures.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny assembler -- 32-bit big-endian utility procedures.
 ;
 ; 32-bit numbers are represented as 4-byte bytevectors where byte 3
 ; is the least significant and byte 0 is the most significant.

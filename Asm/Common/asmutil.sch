@@ -1,7 +1,8 @@
-; Asm/Common/asmutil.sch
-; Larceny assembler -- miscellaneous utility procedures.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Common assembler -- miscellaneous utility procedures.
 
 ; Given any Scheme object, return its printable representation as a string.
 ; This code is largely portable (see comments).

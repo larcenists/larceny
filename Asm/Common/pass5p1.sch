@@ -1,10 +1,8 @@
-; Asm/Common/pass5p1.sch
-; Larceny -- the assembler, target-independent code.
-;
+; Copyright 1991 Lightship Software, Incorporated.
+; 
 ; $Id$
 ;
-; Based on the MacScheme machine assembler:
-;    Copyright 1991 Lightship Software, Incorporated.
+; Target-independent part of the assembler.
 ;
 ; This is a simple, table-driven, one-pass assembler.
 ; Part of it assumes a big-endian target machine.

@@ -1,7 +1,8 @@
-; Asm/Common/makefasl2.sch
-; Larceny -- procedure that writes fastload segment
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Procedure that writes fastload segment.
 ;
 ; The procedure 'dump-fasl-segment-to-port' takes a segment and an output
 ; port as arguments and dumps the segment in fastload format on that port.

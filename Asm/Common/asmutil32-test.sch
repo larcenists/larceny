@@ -1,7 +1,8 @@
-; Asm/Common/asmutil32-test.sch
-; Larceny assembler -- test code for 32-bit asm utilities.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny assembler -- test code for 32-bit asm utilities.
 ;
 ; This code is endianness-independent.
 ;
