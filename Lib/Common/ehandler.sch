@@ -1,9 +1,8 @@
-; Copyright 1998 Lars T Hansen.
+; Copyright 1998 Lars T Hansen.               -*- indent-tabs-mode: nil -*-
 ;
 ; $Id$
 ;
-; System-level handling of interrupts and primitive errors.
-
+; System-level handling of interrupts, breaks, signals, and primitive errors.
 
 ($$trace "ehandler")
 
@@ -15,14 +14,103 @@
 ; EXCEPTION-HANDLER does not manipulate the state of the interrupt flag,
 ; leaving that to the handlers themselves.
 
+; NOTE. Keyboard interrupt handling in this procedure will eventually be 
+; handled by generalized signal handling.
+
 (define (exception-handler arg1 arg2 arg3 code)
   (cond ((= code $ex.timer)              ; Interrupt state is OFF
          ((timer-interrupt-handler)))
-	((= code $ex.keyboard-interrupt) ; Interrupt state is unknown
+        ((= code $ex.keyboard-interrupt) ; Interrupt state is unknown
          ((keyboard-interrupt-handler)))
-	(else                            ; Interrupt state is unknown
-	 ((error-handler) code arg1 arg2 arg3))))
+        ((= code $ex.breakpoint)         ; Interrupt state is unknown
+         ((break-handler) arg1 arg2))
+        ((= code $ex.signal)             ; Interrupt state is unknown
+         ((system-signal-handler) arg1))
+        (else                            ; Interrupt state is unknown
+         ((error-handler) code arg1 arg2 arg3))))
 
+; The error handler takes a key as the first argument and then some
+; additional arguments.  There are three cases, depending on the key:
+;  - a number:  The error is a primitive error.  There will be three
+;               additional values, the contents of RESULT, SECOND, and
+;               THIRD.
+;  - null:      The key is to be ignored, and the following arguments are
+;               to be interpreted as a user-level error: objects to be
+;               printed.
+;  - otherwise: The arguments are to be interpreted as a user-level error:
+;               objects to be printed.
+; By design, this is the same kind of parameter list accepted by DECODE-ERROR,
+; in ERROR.SCH.  
+;
+; Documented behavior: the default error handler prints all its
+; arguments and then calls reset. The error handler may not return to
+; noncontinuable errors.  Currently all errors are noncontinuable.
+
+(define error-handler
+  (system-parameter "error-handler" 
+                    (lambda args
+                      (decode-error args) ; In ERROR.SCH
+                      (reset))))
+
+; The reset handler is called by the RESET procedure.  It takes no arguments.
+;
+; Documented behavior: the default reset handler exits to the operating
+; system.  The reset handler may not return.
+
+(define reset-handler
+  (system-parameter "reset-handler" 
+                    (lambda ignored
+                      (exit))))
+
+; The timer interrupt handler is called with timer interrupts OFF.
+; It takes no arguments.
+
+(define timer-interrupt-handler
+  (system-parameter "timer-interrupt-handler"
+                    (lambda ()
+                      ($$debugmsg "Unhandled timer interrupt."))
+                    procedure?))
+
+; The keyboard interrupt handler is called when a keyboard interrupt has
+; been seen.  It takes no arguments.
+
+(define keyboard-interrupt-handler
+  (system-parameter "keyboard-interrupt-handler"
+                    (lambda ()
+                      ($$debugmsg "Unhandled keyboard interrupt.")
+                      (exit))
+                    procedure?))
+
+; The breakpoint handler is called when a BREAK primitive is encountered,
+; and it may also be called by debugger-installed breakpoints that do not
+; use the BREAK primitive.
+;
+; The breakpoint handler takes two arguments: the procedure in which the
+; breakpoint occurred, and the code address at which it occurred.
+; (Interpretation of the code address is architecture dependent.)
+
+(define break-handler
+  (system-parameter "break-handler"
+                    (lambda (proc code-address)
+                      (display "Breakpoint: ")
+                      (display proc)
+                      (display " @ ")
+                      (display code-address)
+                      (newline))))
+
+; The system signal handler is called when an asynchronous signal is received
+; for which a lowlevel handler has been installed.  It takes one argument:
+; the signal.
+;
+; The meaning of the signal is operating-system dependent.  On Unix, it
+; is a small nonnegative exact integer.
+
+(define system-signal-handler
+  (system-parameter "system-signal-handler"
+                    (lambda (sig)
+                      (display "Signal: ")
+                      (display sig)
+                      (newline))))
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and
@@ -263,7 +351,7 @@
           ((fltsub) (error "Floating point subscript out of range."))
           ((fltopr) (error "Floating point operand error."))
           (else (error "Arithmetic exception (code " arg3 ")."))))
-	      
+              
        ;; Vectors
 
        ((or (= code $ex.vref) (= code $ex.vset))
@@ -426,28 +514,28 @@
 
 (define (interpret-arithmetic-exception-code code)
   (let ((os-name  (cdr (assq 'operating-system-name (system-features))))
-	(os-major (cdr (assq 'os-major-version (system-features)))))
+        (os-major (cdr (assq 'os-major-version (system-features)))))
     (if (string=? os-name "SunOS")
-	(case os-major
-	  ((4) (case code
-		 ((#x14) 'intdiv)
-		 ((#xC4) 'fltres)
-		 ((#xC8) 'fltdiv)
-		 ((#xCC) 'fltund)
-		 ((#xD0) 'fltopr)
-		 ((#xD4) 'fltovf)
-		 (else #f)))
-	  ((5) (case code
-		 ((1) 'intdiv)
-		 ((2) 'intovf)
-		 ((3) 'fltdiv)
-		 ((4) 'fltovf)
-		 ((5) 'fltund)
-		 ((6) 'fltres)
-		 ((7) 'fltinv)
-		 ((8) 'fltsub)
-		 (else #f)))
-	  (else #f))
-	#f)))
+        (case os-major
+          ((4) (case code
+                 ((#x14) 'intdiv)
+                 ((#xC4) 'fltres)
+                 ((#xC8) 'fltdiv)
+                 ((#xCC) 'fltund)
+                 ((#xD0) 'fltopr)
+                 ((#xD4) 'fltovf)
+                 (else #f)))
+          ((5) (case code
+                 ((1) 'intdiv)
+                 ((2) 'intovf)
+                 ((3) 'fltdiv)
+                 ((4) 'fltovf)
+                 ((5) 'fltund)
+                 ((6) 'fltres)
+                 ((7) 'fltinv)
+                 ((8) 'fltsub)
+                 (else #f)))
+          (else #f))
+        #f)))
 
 ; eof
