@@ -317,7 +317,7 @@
 #endif
 
 /* Debian Linux 3.0; gcc; GNU libc (Petit Larceny). */
-#if 0
+#if 1
 # define PETIT_LARCENY             1
 # define BITS_32                   1
 # define ENDIAN_LITTLE             1
@@ -331,7 +331,7 @@
 #endif
 
 /* Debian Linux 3.0; gcc+nasm; GNU libc (x86-nasm native). */
-#if 1
+#if 0
 # define X86_NASM                  1
 # define BITS_32                   1
 # define ENDIAN_LITTLE             1

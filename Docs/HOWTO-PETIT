@@ -1,5 +1,5 @@
 Building and using Petit Larceny
-29 August 2003 / lth
+06 November 2003 / lth
 
 
 HOW TO BUILD PETIT LARCENY AND USE THE BUILD ENVIRONMENT
@@ -84,6 +84,9 @@ have a file "exename.lop" in the list of files passed to
 BUILD-APPLICATION, the .c file generated from the .lop file will be
 clobbered and you will see strange link errors.
 
+
+COMPILING TWOBIT
+
 A facility built on BUILD-APPLICATION is called BUILD-TWOBIT:
 
 	> (build-twobit)
@@ -96,8 +99,12 @@ If you build Twobit using BUILD-TWOBIT, and then start "twobit" and
 follow the directions above (loading "Util/petit-macosx.sch", say, and
 then running LOAD-COMPILER), you will have a development environment
 with a compiled compiler, suitable mainly for compiler development.
-(See a later section for how to turn this into a standalone compiler
-for other kinds of development.)
+
+See a later section for how to turn Twobit into a standalone compiler
+for other kinds of development.
+
+
+COMPILING AND LOADING YOUR OWN PROGRAMS
 
 On some systems it is possible to load compiled Scheme code
 dynamically.  A driver routine called COMPILE-FILES compiles a group
@@ -166,9 +173,10 @@ Anyway, to create a standalone compiler do the following:
       a heap image containing twobit, but also changes some global
       settings internally about where twobit will look for include files
       and libraries
+      [Hint: you need write access to that directory.]
   (4) Exit.  There should be a file twobit.heap in the current
       directory.
-  (5) Test it by starting thetwobit executable with twobit.heap
+  (5) Test it by starting the twobit executable with twobit.heap
       as its argument, then evaluate
          > COMPILE313
       The REPL should print #<PROCEDURE compile313>.

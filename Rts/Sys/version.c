@@ -11,7 +11,7 @@
  *  Big Board                   0.48
  *  'Buck' Turgidson            0.49
  *  The Coca-Cola Company       0.51
- *  CRM-114
+ *  CRM-114                     0.52
  *  Dear John
  *  Doomsday Device
  *  Fluoridation
@@ -33,8 +33,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 51;
-char *larceny_version_qualifier = " \"The Coca-Cola Company\"";
+int  larceny_minor_version = 52;
+char *larceny_version_qualifier = " \"CRM-114\"";
 
 char *date = DATE;
 char *user = USER;
