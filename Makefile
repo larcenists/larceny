@@ -25,8 +25,8 @@ default:
 	@echo ""
 	@echo "Your options are:"
 	@echo "  setup_larceny  - setup build system for larceny host"
-	@echo "  setup_chez     - setup build system for chez scheme and larceny hosts"
-	@echo "  setup_gambit   - setup build system for gambit-c and larceny hosts"
+	@echo "  setup_chez     - setup build system for chez scheme host"
+	@echo "  setup_gambit   - setup build system for gambit-c host"
 	@echo "  bdw_setup      - unpack Boehm-Demers-Weiser collector"
 	@echo "  larceny.bin    - build standard generational system"
 	@echo "  bdwlarceny.bin - build conservative collector system"
@@ -47,24 +47,41 @@ setup:
 	@echo "   setup_larceny  setup for larceny host system"
 
 setup_larceny:
+	( SETUP_HOST_NAME=larceny; \
+	  export SETUP_HOST_NAME; \
+	  $(MAKE) setup_generic; \
+	  cd Compat/Larceny ; \
+	  $(MAKE) CC=$(CC) compat )
+
+setup_chez:
+	( SETUP_HOST_NAME=chez; \
+	  export SETUP_HOST_NAME; \
+	  $(MAKE) setup_generic; \
+	  cd Compat/Chez ; \
+	  $(MAKE) CC=$(CC) compat )
+
+setup_gambit:
+	( SETUP_HOST_NAME=gambit; \
+	  export SETUP_HOST_NAME; \
+	  $(MAKE) setup_generic; \
+	  cd Compat/Gambit-C ; \
+	  $(MAKE) CC=$(CC) compat )
+
+setup_generic:
 	rm -f bdwlarceny.bin hsplit larceny.bin
 	ln -s Rts/larceny.bin
 	ln -s Rts/bdwlarceny.bin
 	ln -s Rts/hsplit
 	mv build build.safe
-	sed "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" < build.safe > build || \
-	   ( echo "build hack failed!"; mv build.safe build; exit 1 )
+	sed \
+	 -e "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" \
+	 -e "s|^DEFAULT_BUILD_HOST=.* #@BUILD_HOST_DEF@.*\$$|DEFAULT_BUILD_HOST=$$SETUP_HOST_NAME #@BUILD_HOST_DEF@|" \
+	    < build.safe > build || \
+	      ( echo "build hack failed!"; mv build.safe build; exit 1 )
 	rm build.safe
 	chmod a+x build
 	(cd Rts ; $(MAKE) setup)
 
-setup_chez:
-	$(MAKE) setup_larceny
-	$(MAKE) chezstuff
-
-setup_gambit:
-	$(MAKE) setup_larceny
-	$(MAKE) gambitstuff
 
 bdw_setup:
 	( cd Rts ; $(BDW_UNZIP) < ../$(BDW_DIST) | tar xvf - ; mv gc bdw-gc );
@@ -89,6 +106,7 @@ petit.bin:
 	$(MAKE) -f makefile.gcc petit.bin
 
 clean: libclean rtsclean
+	( cd Lib ; $(MAKE) clean )
 	( cd Rts ; $(MAKE) clean )
 
 lopclean: seedclean
@@ -138,13 +156,13 @@ faslclean:
 
 rtsclean:
 	rm -f *.map
-	rm -f Compat/Chez/*.o
 	( cd Rts ; $(MAKE) rtsclean )
 
-realclean: clean libclean tildeclean rejclean soclean tcovclean faslclean
+realclean: clean tildeclean rejclean soclean tcovclean faslclean
 	rm -f *.heap 
-	rm -f Compat/Chez/*.o
 	rm -f Testsuite/GC/bb.out*
+	( cd Lib ; $(MAKE) realclean )
+	( cd Compat ; $(MAKE) realclean )
 	( cd Rts ; $(MAKE) realclean )
 
 tcovclean:
@@ -158,20 +176,5 @@ rejclean:
 
 seedclean:
 	rm -f `find . -name '*\.seed' -print`
-
-# For Chez-hosted system.
-
-chezstuff: 
-	( cd Compat/Chez ; $(CC) -c bitpattern.c mtime.c )
-
-# For Gambit-hosted system.
-# Tested with CC=gcc only.
-
-gambitstuff:
-	( cd Compat/Gambit-C ; \
-	  rm -f gsi-ffs.o* ; \
-	  gsc gsi-ffs.scm ; \
-	  gcc -shared -fPIC -D___DYNAMIC gsi-ffs.c gsi-ffs_.c -lc -lgambc \
-		-o gsi-ffs.o1 )
 
 # eof
