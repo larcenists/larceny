@@ -94,7 +94,7 @@
 	   (imports (get 'imports item '() #t)))
       (let ((env (if (eq? name '@interaction-environment@)
 		     (interaction-environment)
-		     (make-environment (symbol->string name) parent))))
+		     (environment-copy parent name))))
 	(loadf files env)
 	(remember-env name env imports))))
 
@@ -161,7 +161,7 @@
 	      (let ((name (car e))
 		    (env  (cadr e)))
 		(for-each (lambda (v)
-			    (if (not (environment-gettable? env v))
+			    (if (not (environment-variable? env v))
 				(format #t "Undefined variable ~a in ~a~%"
 					v name)))
 			  (environment-variables env))))
