@@ -6,6 +6,8 @@
 
 ($$trace "exit")
 
+; Exit: leave the system.
+
 (define (exit . rest)
   (run-exit-procedures)
   (cond ((null? rest)
@@ -22,6 +24,7 @@
 (define *init-procedures* '())
 (define *exit-procedures* '())
 
+
 ; Init procedures must be run in the order they were added.
 
 (define (add-init-procedure! thunk)
@@ -31,6 +34,7 @@
 (define (run-init-procedures)
   (for-each (lambda (x) (x)) *init-procedures*))
 
+
 ; Exit procedures are run in reverse order.
 
 (define (add-exit-procedure! thunk)
@@ -39,5 +43,15 @@
 
 (define (run-exit-procedures)
   (for-each (lambda (x) (x)) *exit-procedures*))
+
+
+; Quit: do something system-defined.  The REPL overrides this to allow
+; QUIT at a nested REPL to return from the REPL.
+
+(define (quit)
+  ((quit-handler)))
+
+(define quit-handler
+  (system-parameter "quit-handler" exit))
 
 ; eof
