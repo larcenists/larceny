@@ -104,6 +104,7 @@
 
 ;;; storer regno, sourcereg
 ;;;     store VM register regno from HW register sourcereg
+;;;     Does not destroy sourcereg
 
 %macro storer 2
 %if is_hwreg(%1)
@@ -367,6 +368,7 @@ t_label(%1):
 	loadr RESULT, %1
 %endmacro
 	
+;;; Does not destroy RESULT.  The peephole optimizer uses that fact.
 %macro T_SETREG 1
 	storer	%1, RESULT
 %endmacro
