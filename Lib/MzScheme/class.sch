@@ -588,10 +588,12 @@
     ':direct-default-initargs '()
     ':direct-supers (list <object> <function>)
     ':direct-slots  '((methods)
-                      (arity :initarg :arity)
+                      (arity :initarg :arity
+                             :initvalue #f)
                       (name  :initarg :name
                              :initvalue -anonymous-generic-)
-                      (combination :initarg :combination)
+                      (combination :initarg :combination
+                                   :initvalue #f)
                       (app-cache)
                       (singletons-list))
     ':name          '<generic>))
