@@ -241,6 +241,8 @@
     ;; For each 16 word block, go through a round one to four.
     ;; step4 : (list word) -> "(list word word word word)"
 
+    (define (word->integer x) x)
+
     (define (step4 message)
       (define (loop A B C D message)
 	(if (null? message)
