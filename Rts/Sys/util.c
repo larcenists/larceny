@@ -5,12 +5,15 @@
  * Larceny run-time system -- miscellaneous procedures.
  */
 
-#include <memory.h>
-#include "larceny.h"
+#include <math.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include "larceny.h"		/* Includes config.h */
 #include "gc.h"
 #include "gc_t.h"
 
-#define HDR_BYTES    4    /* Belongs in layouts.cfg */
+#define HDR_BYTES    4		/* Belongs in layouts.cfg */
 
 /* Given a tagged pointer to an object, make a copy of the object in the
  * heap of the given collector.  The source object does not need to be
@@ -48,7 +51,7 @@ word box_int( int n )
   if (n >= MOST_NEGATIVE_FIXNUM && n <= MOST_POSITIVE_FIXNUM)
     return fixnum(n);
   else {
-    word *p = alloc_bv_from_heap( 12 );
+    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
     *p = mkheader( 8, BIGNUM_HDR );
     if (n < 0) {
       n = -n;
@@ -66,7 +69,7 @@ word box_uint( unsigned n )
   if (n <= MOST_POSITIVE_FIXNUM)
     return fixnum(n);
   else {
-    word *p = alloc_bv_from_heap( 12 );
+    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
     *p = mkheader( 8, BIGNUM_HDR );
     *(p+1) = mkbignum_header( 0, 1 );
     *(p+2) = n;
@@ -76,7 +79,7 @@ word box_uint( unsigned n )
 
 word box_double( double d )
 {
-  word *p = alloc_bv_from_heap( 16 );
+  word *p = gc_allocate( the_gc(globals), 16, 0, 1 );
   *(double*)(p+2) = d;
   *p = mkheader( 12, FLONUM_HDR );
   return tagptr(p, BVEC_TAG);
@@ -116,5 +119,78 @@ int unbox_int( word w )
   }
 }
 
-/* eof */
+#if !defined(HAVE_RINT)
+/* RINT: round double to current rounding mode.  A BSDism.
+   This version always rounds to even, because that's what Larceny requires;
+   the default IEEE rounding mode is round-to-even.
+   */
+double rint( double f )
+{
+  double frac, ip;
 
+  frac = modf( fabs(f), &ip );
+  if (frac == 0)
+    return f;
+  else if (frac > 0.5) {
+    modf( f, &ip );
+    if (f > 0.0)
+      return ip+1.0;
+    else
+      return ip-1.0;
+  }
+  else if (frac < 0.5) {
+    modf( f, &ip );
+    return ip;
+  }
+  else if (fmod( ip, 2.0 ) == 0) { /* Even is down */
+    modf( f, &ip );
+    return ip;
+  }
+  else {			/* Even is up */
+    modf( f, &ip );
+    if (f > 0.0)
+      return ip+1.0;
+    else
+      return ip-1.0;
+  }
+}
+#endif /* !defined(HAVE_RINT) */
+
+#if !defined(HAVE_AINT)
+/* AINT: round double toward zero.  A BSDism. */
+double aint( double x )
+{
+  return x < 0.0 ? ceil( x ) : floor( x );
+}
+#endif /* !defined(HAVE_AINT) */
+
+#if !defined(HAVE_STRNCASECMP)
+/* STRNCASECMP: compare string prefixes case-insensitively.  A BSDism.  */
+int strncasecmp( const char *a, const char *b, size_t n )
+{
+  int i = 0;
+
+  while (i < n && tolower(*a) == tolower(*b) && *a != 0) {
+    i++;
+    a++;
+    b++;
+  }
+  if (i == n)
+    return 0;
+  else
+    return tolower(*a) - tolower(*b);
+}
+#endif /* !defined(HAVE_STRNCASECMP) */
+
+#if !defined(HAVE_STRDUP)
+/* STRDUP: duplicate string on malloc'ed heap.  BSDism, SVIDism. */
+char *strdup( const char *s )
+{
+  char *t = (char*)malloc( strlen(s)+1 );
+  if (t != 0) 
+    strcpy( t, s );
+  return t;
+}
+#endif /* !defined(HAVE_STRDUP) */
+
+/* eof */
