@@ -7,32 +7,43 @@
 
 #define NOGLOBALS
 
-#include <setjmp.h>
-#include <stdlib.h>
-#include "larceny.h"
-#include "gc_t.h"		/* For gc_allocate() macro */
-#include "barrier.h"		/* For prototypes */
-#include "gclib.h"		/* For pageof() */
+#include "larceny.h"            /* Includes config.h also */
+#include "gc.h"
+#include "gc_t.h"               /* For gc_allocate() macro */
+#include "barrier.h"            /* For prototypes */
+#include "gclib.h"              /* For pageof() */
 #include "stack.h"
 #include "millicode.h"
-#include "petit-hacks.h"	/* Temporary grossness */
+#include "petit-hacks.h"        /* Temporary grossness */
 #include "signals.h"
+#include "assert.h"
+#include <setjmp.h>
+#include <stdlib.h>
+#include <string.h>
 
-int twobit_cache_state = 0;	/* For twobit.h debug code */
+int twobit_cache_state = 0;     /* For twobit.h debug code */
 #if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
-cont_t twobit_cont_label = 0;	/* Label to jump to */
+cont_t twobit_cont_label = 0;   /* Label to jump to */
 #endif
 
 static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, 
-			      int preserve );
+                              int preserve );
 static void setup_timer( word *globals, int timer, cont_t k );
 static void check_signals( word *globals, cont_t k );
 static cont_t restore_context( word *globals );
-static void dispatch_loop_return( void );
+static RTYPE dispatch_loop_return( CONT_PARAMS );
+static RTYPE return_from_scheme( CONT_PARAMS );
 static void handle_sigfpe( word *globals );
 static cont_t refill_stack_cache( word *globals );
 static int valid_datum( word x );
+static word *make_system_procedure( gc_t *gc, codeptr_t f );
+
+#if USE_GOTOS_LOCALLY
+static word *dispatch_loop_return_procedure;
+static word *return_from_scheme_procedure;
+static word *stack_underflow_procedure;
+#endif
 
 /* These could go in the globals vector, too */
 static jmp_buf dispatch_jump_buffer;
@@ -44,14 +55,34 @@ static int already_running = 0;
 #define DISPATCH_STKUFLOW               4 /* Handle stack underflow */
 #define DISPATCH_SIGFPE                 5 /* Handle synchronous signal */
 #define DISPATCH_TIMER                  6 /* Handle timer interrupt */
-#define DISPATCH_CALL_R0	        7 /* Call proc in R0 */
-
-typedef cont_t (*tramp_t)( CONT_PARAMS );
+#define DISPATCH_CALL_R0                7 /* Call proc in R0 */
 
 void scheme_init( word *globals )
 {
-  /* Set rounding modes etc */
+  gc_t *gc = the_gc( globals );
+
   initialize_generic_arithmetic();
+
+#if USE_GOTOS_LOCALLY
+  /* Create some system procedures used for control flow. */
+  dispatch_loop_return_procedure = 
+    make_system_procedure( gc, dispatch_loop_return );
+  return_from_scheme_procedure = 
+    make_system_procedure( gc, return_from_scheme );
+  stack_underflow_procedure = 
+    make_system_procedure( gc, mem_stkuflow );
+#endif
+}
+
+static word *make_system_procedure( gc_t *gc, codeptr_t f )
+{
+  word *p;
+
+  p = alloc_from_heap( sizeof(word)*4 );
+  p[0] = mkheader( 12, PROC_HDR );
+  p[1] = (word)f;
+  p[2] = p[3] = 0;
+  return gc_make_handle( gc, tagptr( p, PROC_TAG ) );
 }
 
 void scheme_start( word *globals )
@@ -69,7 +100,13 @@ void scheme_start( word *globals )
     procedure_set( globals[ G_REG0 ], IDX_PROC_CODE, (word)twobit_start );
 
   /* Return address for bottom-most frame */
+#if USE_GOTOS_LOCALLY
+  stkp[ 1 ] = 0;
+  stkp[ 3 ] = *dispatch_loop_return_procedure;
+#else
   stkp[ 1 ] = (word)dispatch_loop_return;
+  stkp[ 3 ] = 0;
+#endif
 
 #if USE_LONGJUMP
   globals[ G_TIMER ] = TIMER_STEP;
@@ -98,7 +135,11 @@ void scheme_start( word *globals )
   switch (x = setjmp( dispatch_jump_buffer )) {
   case 0 :
   case DISPATCH_CALL_R0 :
+#if USE_GOTOS_LOCALLY
+    f = 0;
+#else
     f = (cont_t)(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
+#endif
     break;
   case DISPATCH_CALL_AGAIN :
 #if USE_LONGJUMP
@@ -137,18 +178,31 @@ void scheme_start( word *globals )
   }
 
   /* Inner loop */
-#if USE_RETURN_WITH_VALUE
-  while (1)
-    f = ((tramp_t)f)( CONT_ACTUALS );
-#elif USE_RETURN_WITHOUT_VALUE
-  twobit_cont_label = f;
-  while (1)
-    ((tramp_t)twobit_cont_label)( CONT_ACTUALS );
-#elif USE_LONGJUMP
-  ((tramp_t)f)( CONT_ACTUALS );
-  panic( "Unexpected return from procedure in scheme_start()" );
+#if USE_GOTOS_LOCALLY
+   /* INVARIANT: f is an entry point within the code of the procedure in REG0. */
+#  if USE_RETURN_WITH_VALUE
+   while (1)
+     f = ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, f );
+#  elif USE_RETURN_WITHOUT_VALUE
+   twobit_cont_label = f;
+   while (1) {
+     ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, twobit_cont_label );
+   }
+#  elif USE_LONGJUMP
+   ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, f );
+#  endif
 #else
-# error "Missing dispatch loop discipline in scheme_start()"
+#  if USE_RETURN_WITH_VALUE
+   while (1)
+     f = ((codeptr_t)f)( globals );
+#  elif USE_RETURN_WITHOUT_VALUE
+   twobit_cont_label = f;
+   while (1)
+     ((codeptr_t)twobit_cont_label)( globals );
+#  elif USE_LONGJUMP
+   ((codeptr_t)f)( globals );
+  panic( "Unexpected return from procedure in scheme_start()" );
+#  endif
 #endif
 }
 
@@ -161,7 +215,7 @@ void twobit_integrity_check( word *globals, const char *name )
   for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     if (!valid_datum( globals[i] ))
       panic_abort( "Invalid value 0x%08x found in global %d\n", 
-		  globals[i], i );
+                  globals[i], i );
 
   stkp = (word*)globals[ G_STKP ];
   etop = (word*)globals[ G_ETOP ];
@@ -172,15 +226,15 @@ void twobit_integrity_check( word *globals, const char *name )
   /* Check heap and stack pointers */
   if (stkp < etop)
     panic_abort( "Stack pointer points below heap top!\n"
- 		 "stkp=0x%08x, etop=0x%08x\n", (word)stkp, (word)etop );
+                 "stkp=0x%08x, etop=0x%08x\n", (word)stkp, (word)etop );
   if (stkp > stkbot)
     panic_abort( "Stack pointer points above stack bottom!\n"
- 		 "stkp=0x%08x, stkbot=0x%08x\n", (word)stkp, (word)stkbot );
+                 "stkp=0x%08x, stkbot=0x%08x\n", (word)stkp, (word)stkbot );
   if (etop < ebot || etop > elim)
     panic_abort( "Heap pointers are not ordered correctly!\n"
-		"ebot=0x%08x, etop=0x%08x, elim=0x%08x",
-		(word)ebot, (word)etop, (word)elim );
-		 
+                "ebot=0x%08x, etop=0x%08x, elim=0x%08x",
+                (word)ebot, (word)etop, (word)elim );
+                 
   /* Check that all stack frames look OK
        - Size field must be fixnum and >= 12
        - Return address must be fixnum
@@ -196,7 +250,7 @@ void twobit_integrity_check( word *globals, const char *name )
       panic_abort( "Invalid return address 0x%08x\n", retaddr );
     for ( i=STK_REG0 ; i <= size/4 ; i++ )
       if (!valid_datum( frame[i] ))
-	panic_abort( "Invalid datum in stack frame: 0x%08x\n", frame[i] );
+        panic_abort( "Invalid datum in stack frame: 0x%08x\n", frame[i] );
     frame = frame + roundup_walign( size/4+1 );
   }
 
@@ -209,13 +263,13 @@ static int valid_datum( word x )
 {
   return (isptr( x ) && (caddr_t)x >= gclib_pagebase) ||
          is_fixnum( x ) || 
-	 is_char( x ) ||
-	 x == UNSPECIFIED_CONST ||
-	 x == UNDEFINED_CONST ||
-	 x == NIL_CONST ||
-	 x == TRUE_CONST || 
-	 x == FALSE_CONST ||
-	 x == EOF_CONST;
+         is_char( x ) ||
+         x == UNSPECIFIED_CONST ||
+         x == UNDEFINED_CONST ||
+         x == NIL_CONST ||
+         x == TRUE_CONST || 
+         x == FALSE_CONST ||
+         x == EOF_CONST;
 }
 
 void mc_alloc_bv( word *globals )
@@ -227,8 +281,7 @@ void mc_alloc_bv( word *globals )
 
   nwords = roundup_walign( nwords );
   p = GC_malloc_atomic( nwords*sizeof(word) );
-  if (p == 0)
-    panic( "mc_alloc_bv: GC_malloc returned 0." );
+  assert( p != 0 );
   globals[ G_RESULT ] = (word)p;
 #else
   globals[ G_RESULT ] = roundup4( globals[ G_RESULT ] >> 2 );
@@ -244,8 +297,7 @@ void mc_alloc( word *globals )
 
   nwords = roundup_walign( nwords );
   p = GC_malloc( nwords*sizeof(word) );
-  if (p == 0)
-    panic( "mc_alloc: GC_malloc returned 0." );
+  assert (p != 0);
   globals[ G_RESULT ] = (word)p;
 #else
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
@@ -254,10 +306,8 @@ void mc_alloc( word *globals )
   word *p;
 
   /* Debug code */
-  if (((word)etop & 7) != 0)
-    panic_abort( "Unaligned heap pointer!" );
-  if (((word)elim & 7) != 0)
-    panic_abort( "Unaligned stack pointer!" );
+  assert(((word)etop & 7) == 0);
+  assert(((word)elim & 7) == 0);
 
   nwords = roundup_walign( nwords );
   p = etop;
@@ -268,8 +318,9 @@ void mc_alloc( word *globals )
   }
   else {
     globals[ G_RESULT ] =
-      (word)gc_allocate( (gc_t*)globals[ G_GC ], nwords*sizeof( word ), 0, 0 );
+      (word)gc_allocate( the_gc( globals ), nwords*sizeof( word ), 0, 0 );
   }
+  assert( globals[ G_RESULT ] >= (word)gclib_pagebase );
 #endif
 }
 
@@ -286,58 +337,52 @@ void mc_alloci( word *globals )
     *p++ = init;
 }
 
-void mem_stkuflow( void )
+void stk_initialize_underflow_frame( word *stktop )
+{
+#if USE_GOTOS_LOCALLY
+  *(stktop+1) = 0;                                    /* retaddr: uflow handler */
+  *(stktop+3) = *stack_underflow_procedure;           /* saved procedure */
+#else
+  *(stktop+1) = (word)mem_stkuflow;                   /* retaddr: uflow handler */
+  *(stktop+3) = 0;                                    /* saved procedure */
+#endif
+}
+
+RTYPE mem_stkuflow( CONT_PARAMS )
 {
   longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
 }
 
 void mc_stack_overflow( word *globals )
 {
-  gc_stack_overflow( (gc_t*)globals[ G_GC ] );
+  gc_stack_overflow( the_gc( globals ) );
 }
 
 void mc_capture_continuation( word *globals )
 {
-  globals[ G_RESULT ] = gc_creg_get( (gc_t*)globals[ G_GC ] );
+  globals[ G_RESULT ] = gc_creg_get( the_gc( globals ) );
 }
 
 void mc_restore_continuation( word *globals )
 {
-  gc_creg_set( (gc_t*)globals[ G_GC ], globals[ G_RESULT ] );
+  gc_creg_set( the_gc( globals ), globals[ G_RESULT ] );
 }
+
+/* Every problem in computer science ... */
+static void normal_partial_barrier( word * );
+static void dof_partial_barrier( word * );
+
+static void (*partial_barrier)(word*) = normal_partial_barrier;
 
 void mc_full_barrier( word *globals )
 {
   if (isptr( globals[ G_SECOND ] ))
-    mc_partial_barrier( globals );
+    (*partial_barrier)( globals );
 }
 
 void mc_partial_barrier( word *globals )
 {
-  unsigned *genv, gl, gr;
-  word **ssbtopv, **ssblimv;
-  word lhs, rhs;
-
-  genv = (unsigned*)globals[ G_GENV ];
-  if (genv == 0) return;	/* Barrier disabled */
-
-  lhs = globals[ G_RESULT ];
-  rhs = globals[ G_SECOND ];
-
-  gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
-  gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
-  if (gl <= gr) return;  
-  
-  /* Experiment */
-  if (gr == gl-1 && gl == globals[ G_NP_YOUNG_GEN ]) {
-    gl = globals[ G_NP_YOUNG_GEN_SSBIDX ];
-  }
-
-  ssbtopv = (word**)globals[ G_SSBTOPV ];
-  ssblimv = (word**)globals[ G_SSBLIMV ];
-  *ssbtopv[gl] = lhs;
-  ssbtopv[gl] = ssbtopv[gl]+1;
-  if (ssbtopv[gl] == ssblimv[gl]) compact_ssb();
+  (*partial_barrier)( globals );
 }
 
 void mc_break( word *globals )
@@ -362,8 +407,10 @@ static void timer_exception( word *globals, cont_t k )
 
   if (globals[ G_TIMER_ENABLE ] == FALSE_CONST)
     globals[ G_TIMER ] = TEMPORARY_FUEL;         /* Run a little longer */
-  else if (globals[ G_TIMER2 ] != 0) 
+  else if (globals[ G_TIMER2 ] != 0) { 
+    osdep_poll_events( globals );
     setup_timer( globals, globals[ G_TIMER2 ], k );
+  }
   else
     signal_exception( globals, EX_TIMER, k, 1 );
 }
@@ -374,11 +421,11 @@ void mc_enable_interrupts( word *globals, cont_t k )
 
   if (is_fixnum( x ) && (int)x > 0) {
     globals[ G_TIMER_ENABLE ] = TRUE_CONST;
-    setup_timer( globals, nativeuint( x ), k );	/* Checks signals */
+    setup_timer( globals, nativeuint( x ), k ); /* Checks signals */
   }
   else
     signal_exception( globals, EX_EINTR, 0, 0 ); /* Never returns */
-  check_signals( globals, k );	                 /* Thus, redundant */
+  check_signals( globals, k );                   /* Thus, redundant */
 #if USE_LONGJUMP
   /* For now: prune the stack */
   twobit_cont_label = k;
@@ -541,7 +588,7 @@ void mc_eqv( word *globals, cont_t k )
 
   if (x == y)                             /* eq? => eqv? */
     globals[ G_RESULT ] = TRUE_CONST;     
-  else if (tagof( x ^ y ) != 0)	          /* Different tags => not eqv? */
+  else if (tagof( x ^ y ) != 0)           /* Different tags => not eqv? */
     globals[ G_RESULT ] = FALSE_CONST;
   else if (tagof( x ) == BVEC_TAG) {      /* Could be numbers */
     int t1 = *ptrof( x ) & 255;
@@ -549,7 +596,7 @@ void mc_eqv( word *globals, cont_t k )
     if (t1 == BIGNUM_HDR && t2 == BIGNUM_HDR)
       mc_equalp( globals, k );
     else if ((t1 == FLONUM_HDR || t1 == COMPNUM_HDR) &&
-	     (t2 == FLONUM_HDR || t2 == COMPNUM_HDR))
+             (t2 == FLONUM_HDR || t2 == COMPNUM_HDR))
       mc_equalp( globals, k );
     else
       globals[ G_RESULT ] = FALSE_CONST;
@@ -570,7 +617,7 @@ void mc_eqv( word *globals, cont_t k )
 
 void mc_partial_list2vector( word *globals )
 {
-  word x = globals[ G_RESULT ];	                   /* a list */
+  word x = globals[ G_RESULT ];                    /* a list */
   int y = (int) nativeuint( globals[ G_SECOND ] ); /* a fixnum (the length) */
   word *p, *dest;
   
@@ -586,7 +633,7 @@ void mc_partial_list2vector( word *globals )
   p = (word*)globals[ G_RESULT ];
   *p = mkheader( y*sizeof( word ), VECTOR_HDR );
 
-  x = globals[ G_THIRD ];	/* restore safe value */
+  x = globals[ G_THIRD ];       /* restore safe value */
   dest = p + VEC_HEADER_WORDS;
   while ( y-- ) {
     *dest++ = pair_car( x );
@@ -609,7 +656,7 @@ void mc_bytevector_like_compare( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   word *y = ptrof( globals[ G_SECOND ] ); /* assume: bytevector-like */
-  int lx, ly, l, n;
+  int lx, ly, n;
 
   lx = sizefield( *x );
   ly = sizefield( *y );
@@ -643,15 +690,82 @@ void wb_lowlevel_disable_barrier( word *globals )
   globals[ G_GENV ] = 0;
 }
 
+void wb_install_dof_barrier( void )
+{partial_barrier = dof_partial_barrier;
+}
+
+static void normal_partial_barrier( word *globals )
+{
+  unsigned *genv, gl, gr;
+  word **ssbtopv, **ssblimv;
+  word lhs, rhs;
+
+  genv = (unsigned*)globals[ G_GENV ];
+  if (genv == 0) return;        /* Barrier disabled */
+
+  lhs = globals[ G_RESULT ];
+  rhs = globals[ G_SECOND ];
+
+  gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
+  gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
+  if (gl <= gr) return;  
+  
+#if 0
+  /* Experimental code.  If the store creates a pointer from NP young to NP old
+     then add the barrier to the NP young's remset.  This code works, but 
+     (1) slows down the normal collector's barrier, and (2) won't work with the
+     new barrier.  So I've taken it out, for the time being, cf. Sparc/barrier.s.
+     */
+  if (gr == gl-1 && gl == globals[ G_NP_YOUNG_GEN ]) {
+    gl = globals[ G_NP_YOUNG_GEN_SSBIDX ];
+  }
+#endif
+
+  ssbtopv = (word**)globals[ G_SSBTOPV ];
+  ssblimv = (word**)globals[ G_SSBLIMV ];
+  *ssbtopv[gl] = lhs;
+  ssbtopv[gl] = ssbtopv[gl]+1;
+  if (ssbtopv[gl] == ssblimv[gl]) 
+    gc_compact_all_ssbs( the_gc(globals) );
+}
+
+static void dof_partial_barrier( word *globals )
+{
+  unsigned *genv, gl, gr;
+  word **ssbtopv, **ssblimv;
+  word lhs, rhs;
+
+  genv = (unsigned*)globals[ G_GENV ];
+  if (genv == 0) return;        /* Barrier disabled */
+
+  lhs = globals[ G_RESULT ];
+  rhs = globals[ G_SECOND ];
+
+  gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
+  gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
+  if (gl > gr || gl < gr && gr == globals[ G_DYNAMIC_GEN ]) {
+    ssbtopv = (word**)globals[ G_SSBTOPV ];
+    ssblimv = (word**)globals[ G_SSBLIMV ];
+    *ssbtopv[gl] = lhs;
+    ssbtopv[gl] = ssbtopv[gl]+1;
+    if (ssbtopv[gl] == ssblimv[gl]) 
+      gc_compact_all_ssbs( the_gc(globals) );
+  }
+}
+
+
 /* Stack underflow handler. */
 
 static cont_t refill_stack_cache( word *globals )
 {
   word *stkp;
 
-  gc_stack_underflow( (gc_t*)globals[ G_GC ] );
+  gc_stack_underflow( the_gc( globals ) );
   stkp = (word*)globals[ G_STKP ];
-  return (cont_t)stkp[ STK_RETADDR ];
+#if USE_GOTOS_LOCALLY
+  globals[ G_REG0 ] = stkp[ STK_REG0 ];
+#endif
+  return ((cont_t)stkp[ STK_RETADDR ]) >> 2;
 }
 
 /* Cache flushing */
@@ -675,7 +789,7 @@ void mem_icache_flush( void *lo, void *limit )
    */
 void execute_sigfpe_magic( void *context )
 {
-  unblock_all_signals();	/* Reset signal mask, really. */
+  unblock_all_signals();        /* Reset signal mask, really. */
   longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
 }
 
@@ -768,12 +882,12 @@ static void check_signals( word *globals, cont_t k )
 # error "Still a few bugs in the system"
 #endif
 
-#define S2S_REALFRAMESIZE	roundup_walign( NREGS+7 )
+#define S2S_REALFRAMESIZE       roundup_walign( NREGS+7 )
   /* REALFRAMESIZE is what we bump stkp by: full header plus pad word.
      Size in _words_.
      */
 
-#define S2S_FRAMESIZE		((NREGS+6)*sizeof( word ))
+#define S2S_FRAMESIZE           ((NREGS+6)*sizeof( word ))
   /* FRAMESIZE is what we store in the frame: sans header or pad word.
      Size in _bytes_.
      */
@@ -785,10 +899,8 @@ static void check_signals( word *globals, cont_t k )
    The procedure arguments are in RESULT, SECOND, THIRD, FOURTH.
    */
 
-static cont_t return_from_scheme( void );
-
 void mc_scheme_callout( word *globals, int index, int argc, cont_t k, 
-		       bool preserve )
+                       bool preserve )
 {
   word *stkp;
   word *stklim;
@@ -809,9 +921,14 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 
   /* Initialize frame */
   stkp[ 0 ] = (word)S2S_FRAMESIZE;
-  stkp[ 1 ] = (word)return_from_scheme;
   stkp[ 2 ] = 0;
+#if USE_GOTOS_LOCALLY
+  stkp[ 1 ] = 0;
+  stkp[ 3 ] = *return_from_scheme_procedure;
+#else
+  stkp[ 1 ] = (word)return_from_scheme;
   stkp[ 3 ] = 0;
+#endif
   stkp[ 4 ] = (word)k;
   for ( i=0 ; i < NREGS ; i++ )
     stkp[ 5+i ] = globals[ G_REG0+i ];
@@ -836,7 +953,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 
 /* Return address for scheme-to-scheme call frame. 
    */
-static cont_t return_from_scheme( void )
+static RTYPE return_from_scheme( CONT_PARAMS )
 {
   longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
 }
@@ -863,7 +980,7 @@ static cont_t restore_context( word *globals )
   return k;
 }
 
-static void dispatch_loop_return( void )
+static RTYPE dispatch_loop_return( CONT_PARAMS )
 {
   longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
 }
