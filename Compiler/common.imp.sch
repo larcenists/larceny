@@ -67,10 +67,24 @@
 ; Prototype, will probably change in the future.
 
 (define (constant-folding-entry name)
-  (assq name $usual-constant-folding-procedures$))
+  (if (eq? (integrate-procedures) 'none)
+      (assq name $minimal-constant-folding-procedures$)
+      (assq name $usual-constant-folding-procedures$)))
 
 (define constant-folding-predicates cadr)
 (define constant-folding-folder caddr)
+
+(define $minimal-constant-folding-procedures$
+  (let ((smallint? (lambda (n) (smallint? n))))
+    `(
+      ; This makes some assumptions about the host system.
+      
+      (=:fix:fix  (,smallint? ,smallint?) ,=)
+      (<:fix:fix  (,smallint? ,smallint?) ,<)
+      (<=:fix:fix (,smallint? ,smallint?) ,<=)
+      (>:fix:fix  (,smallint? ,smallint?) ,>)
+      (>=:fix:fix (,smallint? ,smallint?) ,>=)
+      )))
 
 (define $usual-constant-folding-procedures$
   (let ((always? (lambda (x) #t))
@@ -124,11 +138,31 @@
              (apply error "Runtime check exception: " exn args)))
        #t)
 
+; Compiler macros.
+;
 ; Order matters.  If f and g are both inlined, and the definition of g
 ; uses f, then f should be defined before g.
 
-(for-each pass1
-          `(
+; For now there's only one inline environment, though there might be
+; others later.
+
+(define inline-syntactic-environment
+  (syntactic-copy usual-syntactic-environment))
+
+(define (compiler-macros)
+  (if (eq? (integrate-procedures) 'none)
+      '()
+      (map (lambda (n)
+             (cons n
+                   (syntactic-lookup inline-syntactic-environment n)))
+           (difference (syntactic-environment-names 
+                        inline-syntactic-environment)
+                       (syntactic-environment-names
+                        usual-syntactic-environment)))))
+
+(for-each (lambda (x) 
+            (pass1 x inline-syntactic-environment))
+`(
 
 (define-inline car
   (syntax-rules ()
@@ -518,12 +552,6 @@
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
 
 ))
-
-(define extended-syntactic-environment
-  (syntactic-copy global-syntactic-environment))
-
-(define (make-extended-syntactic-environment)
-  (syntactic-copy extended-syntactic-environment))
 
 ; MacScheme machine assembly instructions.
 
