@@ -328,15 +328,41 @@
                         (swap! t p) ...))))))))
        (parameterize-aux () ((p1 e1) ...) b1 b2 ...)))))
 
-; The controversial SRFI-11 LET-VALUES.
+; SRFI-11 LET-VALUES and LET*-VALUES
 
 (define-syntax let-values
   (syntax-rules ()
-    ((let-values (formals e0) e1 e2 ...)
+    ((let-values (?binding ...) ?body0 ?body1 ...)
+     (let-values "bind" (?binding ...) () (begin ?body0 ?body1 ...)))
+   
+    ((let-values "bind" () ?tmps ?body)
+     (let ?tmps ?body))
+   
+    ((let-values "bind" ((?b0 ?e0) ?binding ...) ?tmps ?body)
+     (let-values "mktmp" ?b0 ?e0 () (?binding ...) ?tmps ?body))
+   
+    ((let-values "mktmp" () ?e0 ?args ?bindings ?tmps ?body)
      (call-with-values
-      (lambda ()
-	e0)
-      (lambda formals e1 e2 ...)))))
+       (lambda () ?e0)
+       (lambda ?args
+         (let-values "bind" ?bindings ?tmps ?body))))
+   
+    ((let-values "mktmp" (?a . ?b) ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
+     (let-values "mktmp" ?b ?e0 (?arg ... x) ?bindings (?tmp ... (?a x)) ?body))
+   
+    ((let-values "mktmp" ?a ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
+     (call-with-values
+       (lambda () ?e0)
+       (lambda (?arg ... . x)
+         (let-values "bind" ?bindings (?tmp ... (?a x)) ?body)))))) 
+
+(define-syntax let*-values
+  (syntax-rules ()
+    ((let*-values () ?body0 ?body1 ...)
+     (begin ?body0 ?body1 ...))
+    ((let*-values (?binding0 ?binding1 ...) ?body0 ?body1 ...)
+     (let-values (?binding0)
+       (let*-values (?binding1 ...) ?body0 ?body1 ...)))))
 
 ; For the macro-expander; will be redefined later.
 
@@ -345,7 +371,7 @@
     ((.call ?inlines ?op ?exp)
      ?exp)))
 
-            ))
+))  ; end of (for-each (lambda (x) (macro-expand ...)) ...)
 
 (define-syntax-scope 'letrec)
 
