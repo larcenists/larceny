@@ -16,8 +16,8 @@
     (if (eq? 'little (nbuild-parameter 'endianness))
         (begin (load (string-append hostdir "bytevec-el.ss"))
                (load (string-append hostdir "misc2bytevector-el.ss")))
-        (begin (load (string-append "bytevec.ss"))
-               (load (string-append "misc2bytevector.ss"))))
+        (begin (load (string-append hostdir "bytevec.ss"))
+               (load (string-append hostdir "misc2bytevector.ss"))))
     (print-vector-length #f)
     #t))
 
