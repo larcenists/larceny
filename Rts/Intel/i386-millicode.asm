@@ -93,9 +93,9 @@ EXTNAME(i386_scheme_jump):
 %1:
 %endmacro
 
-;;; Arguments: second? c-name callout-method fixup-cont?
+;;; Arguments: second? c-name callout-method
 
-%macro MILLICODE_STUB 4
+%macro MILLICODE_STUB 3
 	extern	EXTNAME(%2)
 	;; The code 'pop dword [GLOBALS+wordsize+G_RETADDR]' does not work,
 	;; it appears that esp is updated before the move, the reference
@@ -105,29 +105,28 @@ EXTNAME(i386_scheme_jump):
 %if %1
 	mov	[GLOBALS+G_SECOND], eax
 %endif
-%if %4
-	mov	CONT, [GLOBALS+G_STKP]
-%endif
 	mov	eax, dword [GLOBALS-4]          ; return address
-	mov	dword [GLOBALS+G_RETADDR], eax  ;   save it
+	add	eax, 3		                ;  rounded up
+	and	eax, 0xFFFFFFFC	                ;   to 4-byte boundary
+	mov	dword [GLOBALS+G_RETADDR], eax  ;    saved for later
 	mov	eax, EXTNAME(%2)
 	jmp	%3
 %endmacro
 	
 %macro MCg 1
-	MILLICODE_STUB 0, %1, callout_to_C, 0
+	MILLICODE_STUB 0, %1, callout_to_C
 %endmacro
 
 %macro MCgk 1
-	MILLICODE_STUB 0, %1, callout_to_Ck, 0
+	MILLICODE_STUB 0, %1, callout_to_Ck
 %endmacro
 
 %macro MC2g 1
-	MILLICODE_STUB 1, %1, callout_to_C, 0
+	MILLICODE_STUB 1, %1, callout_to_C
 %endmacro
 
 %macro MC2gk 1
-	MILLICODE_STUB 1, %1, callout_to_Ck, 0
+	MILLICODE_STUB 1, %1, callout_to_Ck
 %endmacro
 
 PUBLIC i386_alloc_bv
@@ -139,7 +138,7 @@ PUBLIC i386_alloci
 PUBLIC i386_morecore
 	MCg	mc_morecore
 PUBLIC i386_stack_overflow
-	MILLICODE_STUB 0, mc_stack_overflow, callout_to_C, 1
+	MILLICODE_STUB 0, mc_stack_overflow, callout_to_C
 PUBLIC i386_capture_continuation
 	MCg	mc_capture_continuation
 PUBLIC i386_restore_continuation
@@ -155,7 +154,12 @@ PUBLIC i386_enable_interrupts
 PUBLIC i386_disable_interrupts
 	MCgk	mc_disable_interrupts
 PUBLIC i386_exception
-	hlt			; FIXME
+	add	esp, 4				; Fixup GLOBALS
+	mov	[ GLOBALS+G_SECOND ], SECOND
+	mov	SECOND, [GLOBALS-4]
+	mov	ax, [SECOND]
+	and	eax, 0xFFFF
+	jmp	i386_signal_exception
 PUBLIC i386_apply
 	MC2g	mc_apply
 PUBLIC i386_restargs
@@ -225,13 +229,25 @@ PUBLIC i386_exactp
 PUBLIC i386_inexactp
 	MCg	mc_inexactp
 PUBLIC i386_global_exception
-	hlt			; FIXME
+	add	esp, 4				; Fixup GLOBALS
+	mov	[GLOBALS+G_SECOND],SECOND
+	mov	SECOND, EX_UNDEF_GLOBAL
+	jmp	i386_signal_exception
 PUBLIC i386_invoke_exception
-	hlt			; FIXME
+	add	esp, 4				; Fixup GLOBALS
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	SECOND, EX_NONPROC
+	jmp	i386_signal_exception
 PUBLIC i386_global_invoke_exception
-	hlt			; FIXME
+	add	esp, 4				; Fixup GLOBALS
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	SECOND, EX_GLOBAL_INVOKE
+	jmp	i386_signal_exception
 PUBLIC i386_argc_exception
-	hlt			; FIXME
+	add	esp, 4				; Fixup GLOBALS
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	SECOND, EX_ARGC
+	jmp	i386_signal_exception
 PUBLIC i386_petit_patch_boot_code
 	MCg	mc_petit_patch_boot_code
 
@@ -259,7 +275,8 @@ PUBLIC i386_petit_patch_boot_code
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
 %if %1
-	push	dword 0		; dummy continuation pointer
+	mov	ecx, [ebx+G_RETADDR]	
+	push	ecx
 %endif
 	push	ebx		; globals
 	call	eax
@@ -269,7 +286,21 @@ PUBLIC i386_petit_patch_boot_code
 	add	esp, 4
 %endif
 %endmacro
-	
+
+;;; i386_signal_exception
+;;;	Signal the exception by calling signal_exception in the
+;;;	C millicode.
+;;;
+;;; On entry:
+;;;	RESULT has first value
+;;;	globals[G_SECOND] has second value
+;;;	globals[G_THIRD] has third value
+;;;	SECOND has exception code (fixnum)
+;;;	globals[-1] has the unadjusted return address
+
+i386_signal_exception:
+	hlt
+
 ;;; callout_to_C
 ;;;	Switch from Scheme to C mode and call a C function, then
 ;;;	restore Scheme mode and return.  Do not change the Scheme

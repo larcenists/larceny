@@ -1,5 +1,5 @@
 ;;; NASM/i386 macros for the MacScheme instruction set.
-;;; 2003-09-09 / lth
+;;; 2003-11-15 / lth
 ;;;
 ;;; $Id$
 ;;; 
@@ -14,7 +14,7 @@
 ;;; Because nasm is a macro assembler, Twobit's assembler just outputs
 ;;; something that is only superficially different from MacScheme assembly
 ;;; language.  The present file defines the macros that allow that output
-;;; to be assembled.  See the Examples subdirectory.
+;;; to be assembled.
 ;;; 
 ;;; Sections in this file
 ;;;   - Section 1: handy macros
@@ -31,7 +31,11 @@
 ;;;   - The above implies that the JUMP instruction must know the
 ;;;     name of the codevector it is jumping to.
 ;;;   - Constants are emitted with symbolic names when possible.
-;;;
+;;;   - Any address that may escape to Scheme code (codevector ptr,
+;;;     return address) must be aligned on a 4-byte boundary.  For
+;;;     millicode calls this means inserting NOPs following the call
+;;;     instruction; millicode stubs fix up the return address.
+;;; 
 ;;; Conventions in this file:
 ;;;   - No concrete register names may be used!  Use symbolic names
 ;;;     only, to ease reassignments later (my Pentium 3 seems to have
@@ -44,13 +48,11 @@
 ;;;     impact performance.
 ;;;   - 'add r, -1' generates a 32-bit datum; 'sub' might be better
 ;;;     if you know your constant is negative.
-;;;   - the exception handling code is 10 bytes but not complete
-;;;     probably (not moving to THIRD for OP3) and is too large.
-;;;     Can we shrink further, eg by encoding registers with
-;;;     arguments as well as restart address in a literal following
-;;;     the call point?  Must pack very densely to fit all in 4 bytes,
-;;;     but that would be a major win; 3 would be better still.
-;;;     Use variable-length encoding? 
+;;;   - the exception handling code is large.  Can we shrink further,
+;;;     eg by encoding registers with arguments as well as restart
+;;;     address in a literal following the call point?  Must pack 
+;;; 	very densely to fit all in 4 bytes, but that would be a major
+;;;     win; 3 would be better still.  Use variable-length encoding? 
 ;;;   - Generally search for OPTIMIZEME below
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -59,6 +61,7 @@
 
 %define wordsize            4
 %define object_align        8
+%define code_align          4
 %define fixtag_mask	    3
 %define tag_mask            7
 %define hdr_shift           8
@@ -71,7 +74,6 @@
 %define stkslot(n)          (CONT+STK_REG0+words2bytes(n))
 %define framesize(n)        roundup8(wordsize+STK_OVERHEAD+words2bytes(n))
 %define recordedsize(n)     (framesize(n)-wordsize)
-;%define t_label(n)          .L %+ n
 %define t_label(L)          L
 %define backward_branch(l)  1	; FIXME -- how to test this?
 			
@@ -81,6 +83,7 @@
 
 %macro mcall 1
 	call	[GLOBALS+%1]
+	align	code_align
 %endmacro
 
 ;;; loadr targetreg, regno
@@ -166,6 +169,7 @@
 %macro exception_continuable 2
 	call	[GLOBALS+M_EXCEPTION]
 	dw	%1
+	align	code_align
 	jmp	%2
 %endmacro
 
@@ -174,7 +178,7 @@
 	
 %macro begin_codevector 1
 	section	.text
-	align	4
+	align	code_align
 %1:
 %endmacro
 
@@ -208,6 +212,14 @@ end_codevector_%1:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
 ;;; MacScheme machine instruction set
+
+%macro T_ALIGN 1
+	align	%1
+%endmacro
+
+%macro T_CONT 0
+	;; No-op
+%endmacro
 	
 %macro T_LABEL 1
 t_label(%1):
@@ -408,6 +420,7 @@ t_label(%1):
 %endif
 %endmacro
 
+;;; OPTIMIZEME: avoid checking if the minimum number of args is 0
 %macro T_ARGSGE 1
 	mov	SECOND, fixnum(%1)
 %ifndef UNSAFE_CODE
@@ -443,6 +456,7 @@ t_label(%1):
 %%L0:	sub	CONT, framesize(%1)
 	cmp	CONT, [GLOBALS+G_ETOP]
 	jge	%%L1
+	add	CONT, framesize(%1)
 	mcall	M_STKOFLOW
 	jmp	%%L0
 %%L1:	mov	dword [CONT], recordedsize(%1)
@@ -498,6 +512,9 @@ t_label(%1):
 	mov	[GLOBALS+G_THIRD], TEMP
 	loadr	SECOND, %1
 	mcall	M_APPLY
+	loadr	TEMP, 0
+	mov	TEMP, [TEMP-PROC_TAG+PROC_CODEVECTOR_NATIVE]
+	jmp	TEMP
 %endmacro
 
 %macro T_NOP 0
@@ -727,7 +744,7 @@ t_label(%1):
 	loadr	SECOND, %1
 	jz	%%L2
 %%L1:	exception_continuable %3, %%L0
-%%L2:	cmp	TEMP, 32   ; SECOND is TEMP
+%%L2:	cmp	TEMP, fixnum(32)	; SECOND is TEMP
 	jge	%%L1
 %else
 	loadr	TEMP, %1
@@ -751,12 +768,12 @@ t_label(%1):
 	loadr	TEMP, %1
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
-	jnz	%%L1
 	loadr	TEMP, %1
+	jnz	%%L1
 	%2	RESULT, TEMP
-	jnc	%%L2
-%%L1:	%3	RESULT, TEMP
-	mcall	%4		; second is temp so 2nd arg is in place
+	jno	%%L2
+	%3	RESULT, TEMP
+%%L1:	mcall	%4		; second is temp so 2nd arg is in place
 %%L2:
 %endmacro
 	
@@ -766,13 +783,11 @@ t_label(%1):
 	loadr	TEMP, %1
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
+	loadr	SECOND, %1
 	jz	%%L1
-	sub	RESULT, TEMP
-	mov	SECOND, TEMP
 	mcall	%3
 	jmp	%%L2	
-%%L1:	loadr	TEMP, %1
-	cmp	RESULT, TEMP
+%%L1:	cmp	RESULT, SECOND
 	mov	RESULT, TRUE_CONST
 	j%2	%%L2
 	mov	RESULT, FALSE_CONST

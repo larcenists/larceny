@@ -1,6 +1,11 @@
 Representations and register assignments for i386
 2002-11-06
 
+
+WARNING!!  Not presently maintained, look in i386-machine.ah for
+up-to-date information.
+
+
 EAX is used as a temp for generated code, and to pass SECOND on calls
 to millicode.  It is never a root for garbage collection, so SECOND
 must be flushed to memory by millicode.
