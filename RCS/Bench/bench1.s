@@ -1,5 +1,5 @@
 ! -*- Fundamental -*-
-! $Id: bench1.s,v 1.2 91/06/26 12:21:17 lth Exp Locker: lth $
+! $Id: bench1.s,v 1.3 91/06/26 12:30:31 lth Exp Locker: lth $
 !
 ! Hand-compiled code for the following program:
 !
@@ -86,6 +86,7 @@ L12:
 
 	! Now returning
 L13:
+	ldd	[ %STKP+8 ], %REG0			! restore proc & arg
 	tsubcc	%REG1, 4, %TMP0				! n - 1
 	bvc,a	L6
 	mov	%TMP0, %REG1				! move arg in place
