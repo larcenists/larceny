@@ -5,51 +5,56 @@
 ; Larceny's interpreter.
 ;
 ; Description
-;   INTERPRET takes an expression and a top-level environment and evaluates 
-;   the expression in the environment.  It returns the result of the 
-;   evaluation, and may change the environment argument.
+;   INTERPRET takes an expression and a top-level environment and
+;   evaluates the expression in the environment.  It returns the
+;   result of the evaluation, and may change the environment argument.
 ;
-;   INTERPRET accepts full R4RS Scheme, but requires a procedure MACRO-EXPAND
-;   that converts full Scheme to its core form with all constants quoted.
+;   INTERPRET accepts full R4RS Scheme, but requires a procedure
+;   stored in the parameter MACRO-EXPANDER that converts full Scheme
+;   to its core form with all constants quoted.
 ;
 ; Technique
-;   The interpreter works by preprocessing the source code into a procedure
-;   that takes a run-time environment as its only argument.  The procedure
-;   in turn calls procedures representing subexpressions, and so on, so all
-;   steps in the interpretation are translated into direct function calls,
-;   with roughly one call per subexpression.  This technique strongly
-;   resembles the use of threaded code.
+;   The interpreter works by preprocessing the source code into a
+;   procedure that takes a run-time environment as its only argument.
+;   The procedure in turn calls procedures representing
+;   subexpressions, and so on, so all steps in the interpretation are
+;   translated into direct function calls, with roughly one call per
+;   subexpression.  This technique strongly resembles the use of
+;   threaded code.
 ;
-;   By judiciously translating common cases specially and using some caching
-;   (using local transformations only), much interpretive overhead is avoided.
-;   A number of further optimizations are possible; see the to-do list.
+;   By judiciously translating common cases specially and using some
+;   caching (using local transformations only), much interpretive
+;   overhead is avoided.  A number of further optimizations are
+;   possible; see the to-do list.
 ;
-;   Run-time lexical environments are lists of vectors, in inside-out lexical
-;   order.  Slot 0 of every rib is the procedure: this makes the environment
-;   self-describing, which aids debugging.
+;   Run-time lexical environments are lists of vectors, in inside-out
+;   lexical order.  Slot 0 of every rib is the procedure: this makes
+;   the environment self-describing, which aids debugging.
 ;
-;   See also Feeley and LaPalme, "Using closures for code generation", 
+;   See also Feeley and LaPalme, "Using closures for code generation",
 ;   Journal of Programming Languages, 1989.
 ;
 ; Bugs
 ;   It's possible that there should be some restrictions here for
-;   certain to-level environment arguments; for example, some environments
-;   are immutable (cf the Report).  We can detect immutable arguments
-;   at preprocessing time and generate code for setglbl that signals
-;   an error if executed (and perhaps a warning during preprocessing).
+;   certain to-level environment arguments; for example, some
+;   environments are immutable (cf the Report).  We can detect
+;   immutable arguments at preprocessing time and generate code for
+;   setglbl that signals an error if executed (and perhaps a warning
+;   during preprocessing).
 ;
 ; Note
-;   The adt returned by interpreter-macro-expand is defined in 
-;   Compiler/pass2.aux.sch.
+;   The ADT returned by the expander stored in MACRO-EXPANDER is
+;   defined in Twobit/pass2.aux.sch.
 
 ($$trace "interpret")
 
 (define (interpret expr env)
-  ((interpret/preprocess (interpreter-macro-expand expr env)
-                         '()
-                         (lambda (sym)
-                           (environment-get-cell env sym))
-                         #f)
+  ((interpret/preprocess
+    ((macro-expander) expr (environment-syntax-environment env))
+    '()
+    (lambda (sym)
+      (environment-get-cell env sym))
+    #f)
    '()))
 
 (define (interpret/preprocess expr env find-global proc-doc)
@@ -57,7 +62,7 @@
          (let ((address (interpret/var-address (variable.name expr) env)))
            (if address
                (interpret/lexical (car address) (cdr address))
-               (interpret/global (variable.name expr) find-global 
+               (interpret/global (variable.name expr) find-global
                                  expr proc-doc))))
         ((constant? expr)
          (interpret/const (constant.value expr)))
@@ -94,7 +99,7 @@
          #t)))
 
 
-; Closure creation.  Special cases handled: 
+; Closure creation.  Special cases handled:
 ;  - procedures of 0..4 arguments.
 ;  - varargs procedures.
 
@@ -138,7 +143,7 @@
          (args  (cdr pexps))
          (n     (length args)))
     (cond ((<= n 4)
-           (interpret/invoke-short proc args 
+           (interpret/invoke-short proc args
                                    (call.proc expr) n env find-global src doc))
           (else
            (interpret/invoke-n proc args src doc)))))
@@ -428,9 +433,9 @@
    src))
 
 (define (interpret/too-few proc required got exact?)
-  (error "Too few arguments to procedure " 
+  (error "Too few arguments to procedure "
          (procedure-name proc)
-         "; got " 
+         "; got "
          got
          ", wanted "
          (if exact? "" "at least ")
@@ -446,7 +451,7 @@
 ; Interpreted-procedure takes a standard documentation structure and any
 ; procedure (currently anything) and returns a new procedure that is
 ; identical to the old except that the it has typetag 0 and is one
-; element longer.  The new, last element contains the pair 
+; element longer.  The new, last element contains the pair
 ; ($eval-lambda . <doc>) where <doc> is the documentation structure.
 ; This procedure is on the critical path in the interpreter and should
 ; do no more work than absolutely necessary.
@@ -474,8 +479,8 @@
 
 ; Interpreted-expression takes any procedure and a pair consisting of
 ; the source code for the expression and the enclosing procedure's
-; documentation slot and returns a new procedure that is identical to 
-; the old except that the it is one element longer and has typetag 0.  
+; documentation slot and returns a new procedure that is identical to
+; the old except that the it is one element longer and has typetag 0.
 ;
 ; The new, last element contains the pair ($evalproc . <doc>) where <doc>
 ; is (<source> <documentation>)
@@ -501,7 +506,7 @@
 ; Interpreted-primitive takes a name (a symbol), a number of arguments
 ; (a fixnum), and a procedure, and returns a new procedure that is
 ; identical to the old except that it is one element longer and has
-; typetag 0.  
+; typetag 0.
 ; The new, last element contains the list ($evalprim <name> <argc>).
 
 (define (interpreted-primitive name argc proc)
@@ -525,7 +530,7 @@
 ; Augments the definition in Lib/procinfo.sch to deal with interpreted
 ; procedures.
 
-(define procedure-documentation 
+(define procedure-documentation
   (let ((procedure-documentation procedure-documentation))
     (lambda (proc . rest)
       (cond ((interpreted-procedure? proc)

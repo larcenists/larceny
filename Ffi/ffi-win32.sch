@@ -9,7 +9,7 @@
 
     (lambda (selector)
       (case selector
-	((load-lib) load-library)
-	((link-proc) link-procedure)
-	(else (parent selector))))))
+        ((load-lib) load-library)
+        ((link-proc) link-procedure)
+        (else (parent selector))))))
 
