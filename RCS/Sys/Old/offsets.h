@@ -8,7 +8,7 @@
  * The roots must be contiguous and between FIRST_ROOT and LAST_ROOT,
  * inclusive.
  *
- * $Id: offsets.h,v 1.6 91/07/09 23:57:59 lth Exp Locker: lth $
+ * $Id: offsets.h,v 1.7 91/07/12 03:12:54 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -20,7 +20,7 @@
 /* Be careful with these! */
 #define FIRST_ROOT		20
 #define LAST_ROOT		56
-#define LAST_GLOBAL             73
+#define LAST_GLOBAL             80
 
 /* Table size */
 #define GLOBALS_TABLE_SIZE	(LAST_GLOBAL + 1)
@@ -43,8 +43,8 @@
 #define STK_LIMIT_OFFSET	(12*ADJUST)
 #define STK_START_OFFSET        (13*ADJUST)
 #define STK_MAX_OFFSET		(14*ADJUST)
-#define ECOLLECTIONS_OFFSET	(15*ADJUST)
-#define TCOLLECTIONS_OFFSET	(16*ADJUST)
+#define E_COLLECTIONS_OFFSET	(15*ADJUST)
+#define T_COLLECTIONS_OFFSET	(16*ADJUST)
 #define WCOLLECTED_OFFSET	(17*ADJUST)
 #define WALLOCATED_OFFSET	(18*ADJUST)
 #define INITIAL_TIMER_OFFSET    (19*ADJUST)
@@ -94,3 +94,11 @@
 #define HIMEM_OFFSET            (71*ADJUST)
 #define SP_OFFSET		(72*ADJUST)
 #define TIMER_OFFSET		(73*ADJUST)
+#define E_NEW_BASE_OFFSET	(74*ADJUST)
+#define E_NEW_MAX_OFFSET	(75*ADJUST)
+#define T_NEW_BASE_OFFSET	(76*ADJUST)
+#define T_NEW_MAX_OFFSET	(77*ADJUST)
+#define MUST_TENURE_OFFSET	(78*ADJUST)
+#define F_COLLECTIONS_OFFSET	(79*ADJUST)
+#define WCOPIED_OFFSET		(80*ADJUST)
+
