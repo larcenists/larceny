@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 25 April 1999.
+; 14 September 2000.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
@@ -348,13 +348,13 @@
   (define (loop1 formals actuals processed-formals processed-actuals)
     (cond ((null? formals)
            (if (not (null? actuals))
-               (pass2-error p2error:wna exp))
+               (pass2-error p2error:wna (make-readable exp #t)))
            (return1 processed-formals processed-actuals))
           ((symbol? formals)
            (return1 (cons formals processed-formals)
                     (cons (make-call-to-LIST actuals) processed-actuals)))
           ((null? actuals)
-           (pass2-error p2error:wna exp)
+           (pass2-error p2error:wna (make-readable exp #t))
            (return1 processed-formals
                     processed-actuals))
           ((and (lambda? (car actuals))
@@ -403,7 +403,7 @@
                         (cons (car formals) processed-formals)
                         (cons (car actuals) processed-actuals)))))
           (else (if (null? actuals)
-                    (pass2-error p2error:wna exp))
+                    (pass2-error p2error:wna (make-readable exp #t)))
                 (loop1 (cdr formals)
                        (cdr actuals)
                        (cons (car formals) processed-formals)
@@ -564,7 +564,8 @@
                                       (list
                                        (make-call-to-LIST
                                         (list-tail (call.args call) n)))))
-                             (pass2-error p2error:wna call)))
+                             (pass2-error p2error:wna
+                                          (make-readable call #t))))
                        calls)))
           (else (let ((n (length formals)))
                   (for-each (lambda (call)
