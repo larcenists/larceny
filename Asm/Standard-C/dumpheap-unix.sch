@@ -1,17 +1,29 @@
-; 9 November 2002
+; 29 August 2003
 ;
-; Routines for dumping a Petit Larceny heap image using
-; some standard C compiler under Unix or MacOS X.
+; Routines for dumping a Petit Larceny heap image using some standard
+; C compiler under Unix-like systems (Unix, Linux, MacOS X).
+
+; Hook for a list of libraries for your platform.  This is normally
+; set by code in the petit-*-*.sch file, after this file is loaded.
+
+(define unix/petit-lib-library-platform '())
+
+; Hook for a set of switches that tells the compiler where to look for
+; standard include files.  If twobit is not used for compiler
+; development then this is usually set to reference the 'include' dir
+; of the Larceny install directory.
+
+(define unix/petit-include-path "-IRts/Sys -IRts/Standard-C -IRts/Build")
+
+; Hooks for library names.  These are normally set by code in the 
+; petit-*-*.sch file, after this file is loaded.
 
 (define unix/petit-rts-library "Rts/libpetit.a")
 (define unix/petit-lib-library "libheap.a")
-(define unix/petit-exe-name    "petit")
-(define unix/petit-lib-library-platform '()) ; Set by platform code
+
+; Hook called from dumpheap-extra.sch to create the heap library file
 
 (define (build-petit-larceny heap output-file-name input-file-names)
-  (build-petit-lib-library input-file-names))
-
-(define (build-petit-lib-library input-file-names)
   (c-link-library unix/petit-lib-library
 		  (remove-duplicates
 		   (append (map (lambda (x)
@@ -20,6 +32,9 @@
 			   (list (rewrite-file-type *temp-file* ".c" ".o")))
 		   string=?)
 		  '()))
+
+; General interface for creating an executable containing the standard
+; libraries and some additional files.
 
 (define (build-application executable-name lop-files)
   (let ((src-name (rewrite-file-type executable-name '("") ".c"))
@@ -38,15 +53,6 @@
                          ,@unix/petit-lib-library-platform))
     executable-name))
 
-(define (create-indirect-file filename object-files)
-  (delete-file filename)
-  (call-with-output-file filename
-    (lambda (out)
-      (for-each (lambda (x)
-		  (display x out)
-		  (newline out))
-		object-files))))
-
 ; Compiler definitions
 
 (define gcc-name
@@ -58,8 +64,9 @@
   (execute
    (twobit-format 
     #f
-    "~a -c -gstabs+ -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    "~a -c -gstabs+ ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
     gcc-name
+    unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")
     o-name
     c-name)))
@@ -73,6 +80,16 @@
     (apply string-append (insert-space object-files))
     output-name)))
 
+(define (c-linker:gcc-linux output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "~a -gstabs+ -rdynamic -o ~a ~a ~a"
+    gcc-name
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
+
 (define (c-linker:gcc-unix output-name object-files libs)
   (execute
    (twobit-format 
@@ -85,6 +102,16 @@
 
 (define (c-so-linker:gcc-unix output-name object-files libs)
   (error "Don't know how to build a shared object under generic unix"))
+
+(define (c-so-linker:gcc-linux output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "~a -gstabs+ -shared -o ~a ~a ~a"
+    gcc-name
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
 
 (define (c-so-linker:gcc-macosx output-name object-files libs)
   (execute
@@ -100,13 +127,20 @@
   "GCC under Unix"
   'gcc
   ".o"
-  `((compile            . ,c-compiler:gcc-unix)
-    (link-library       . ,c-library-linker:gcc-unix)
-    (link-executable    . ,c-linker:gcc-unix)
-    (link-shared-object . ,(case (nbuild-parameter 'host-os)
-			     ((macosx) c-so-linker:gcc-macosx)
-			     (else     c-so-linker:gcc-unix)))
-    (append-files       . ,append-file-shell-command-unix)))
+  (let ((host-os (nbuild-parameter 'host-os)))
+    (if (eq? host-os 'unix)
+	(if (zero? (system "test \"`uname`\" = \"Linux\""))
+	    (set! host-os 'linux)))
+    `((compile            . ,c-compiler:gcc-unix)
+      (link-library       . ,c-library-linker:gcc-unix)
+      (link-executable    . ,(case host-os
+			       ((linux) c-linker:gcc-linux)
+			       (else    c-linker:gcc-unix)))
+      (link-shared-object . ,(case host-os
+			       ((macosx) c-so-linker:gcc-macosx)
+			       ((linux)  c-so-linker:gcc-linux)
+			       (else     c-so-linker:gcc-unix)))
+      (append-files       . ,append-file-shell-command-unix))))
 
 (select-compiler 'gcc)
 
