@@ -1,0 +1,106 @@
+% -*- TeX -*-
+% $Id: numrepr.txt,v 1.1 91/12/06 14:59:03 lth Exp Locker: lth $
+
+\input{larceny.sty}
+
+\title{Larceny Note \# 4: \\
+       Numeric Representations}
+\author{Lars Thomas Hansen}
+
+\begin{document}
+\maketitle
+
+Fixnums are unboxed and kept in the high 30 bits of a word, with the
+two low bits always 0:
+
+\begin{verbatim}
+        +------------------------------+--+
+        |       fixnum                 |00|
+        +------------------------------+--+
+\end{verbatim}
+
+Bignums are bytevector-like with the sign in the first two bytes
+(\#x0000 for 0 or positive, \#xFFFF for negative), followed by a digit
+count (two bytes) and then base-$2^32$ digits in the next words.
+with the least significant word first. Each word is stored big-endian,
+and can be interpreted as two 16-bit digits, also in big-endian
+fashion.
+
+\begin{verbatim}
+        +------------------------+--------+
+        |       length           | header |
+        +------------------------+--------+
+        | sign          |   digitcount    |
+        +---------------------------------+
+        |              lsd                |
+        +---------------------------------+
+        ...
+\end{verbatim}
+
+Ratnums are vector-like, with the first word of the vector being the
+numerator as a scheme object (fixnum or bignum), and the second word
+being the denominator (greater than 1) (ditto):
+
+\begin{verbatim}
+        +------------------------+--------+
+        |       vectorlength     | header |
+        +------------------------+--------+
+        |       numerator                 |
+        +---------------------------------+
+        |       denominator               |
+        +---------------------------------+
+\end{verbatim}
+
+Rectnums look like ratnums, except that the first word is the real
+part (an integer or ratnum) and the second word is the imaginary part
+(ditto): (both exact reals; imag part is nonzero)
+
+\begin{verbatim}
+        +------------------------+--------+
+        |       vectorlength     | header |
+        +------------------------+--------+
+        |       real-part                 |
+        +---------------------------------+
+        |       imag-part                 |
+        +---------------------------------+
+\end{verbatim}
+
+Flonums (IEEE double) are bytevector-like. The first word is unused.
+The two next words contain the double:
+
+\begin{verbatim}
+        +------------------------+--------+
+        |      length            | header |
+        +------------------------+--------+
+        |      unused                     |
+        +---------------------------------+
+        |      IEEE double precision      |
+        |                                 |
+        +---------------------------------+
+\end{verbatim}
+
+Compnums (two IEEE doubles) are bytevector-like. The first word is
+unused.  The two next words contain the real part. The two last words
+contain the imaginary part:
+
+\begin{verbatim}
+        +------------------------+--------+
+        |      length            | hdrtag |
+        +------------------------+--------+
+        |      unused                     |
+        +---------------------------------+
+        |      IEEE double precision      |
+        |      (real part)                |
+        +---------------------------------+
+        |      IEEE double precision      |
+        |      (imaginary part)           |
+        +---------------------------------+
+\end{verbatim}
+
+The rationale of the unused part of the flonums and compnums is that
+since everything in the is aligned on an 8-byte boundary, a word will
+be wasted anyway, and when we insert that word in the structure rather
+than having it trailing the structure, we can double-load the flonums
+if desired.
+
+\end{document}
