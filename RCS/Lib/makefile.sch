@@ -2,7 +2,7 @@
 ;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.1 92/02/10 03:15:52 lth Exp Locker: lth $
+; $Id: makefile.sch,v 1.2 92/02/10 11:27:58 lth Exp Locker: lth $
 ;
 ; USAGE:
 ;
