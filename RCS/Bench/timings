@@ -1,0 +1,106 @@
+Benchmark 1:
+
+	(define (loop1 n)
+	  (if (zero? n)
+	      'done
+	      (begin (f) (loop1 (- n 1)))))
+
+	(define (f) #t)
+
+All timings were obtained on an unloaded Sparcstation IPC. No garbage 
+collection occured for any system at any time during test runs.
+
+
+Chez Scheme 3.0
+---------------
+All times were obtained with internal 'time' form.
+Chez Scheme has a maximum fixnum-size of less than 300,000, so trials were 
+with 'n' = 200,000. Times were then normalized to 1,000,000 iterations.
+
+Two sets of times were obtained: one where 'loop1' was local to some other
+procedure, and one where 'loop1' was defined in the top-level environment.
+(Call them cases 1 and 2, respectively.)  In both cases, 'f' was defined
+in the top-level environment.
+
+Optimization-level 2 (inline primitives, safe code):
+
+	Case 1: 4750 ms/1,000,000 iterations
+	Case 2: 4200 ms/1,000,000 iterations
+
+Optimization-level 3 (inline primitives, unsafe code):
+
+	Case 1: 4300 ms/1,000,000 iterations
+	Case 2: 4100 ms/1,000,000 iterations
+
+It is suspect that the times for a globally defined 'loop1' are better than
+the times for a locally defined one.
+
+
+Franz Allegro Common Lisp 4.0.1
+-------------------------------
+All times were obtained with the internal 'time' form.
+ACL has 29-bit fixnums and tests were run with 'n' = 1,000,000.
+
+Optimization: Speed=3, safety=0. The disassembled code shows that the tail
+call is compiled to a backward branch even when the definition of 'loop1'
+is in the top-level environment. No locally-defined 'loop1' tests were run.
+
+	1164 ms/1,000,000 iterations
+
+
+Sun Common Lisp 4.0.0
+---------------------
+(This is the Lucid system, although this fact seems to be documented nowhere.)
+All times were obtained with the internal 'test' form.
+
+Optimization: Speed=3, safety=0, compilation-speed=0. The disassembled code
+shows that the tail call is compiled to a branch.
+
+	1150 ms/1,000,000 iterations
+
+
+Scheme 313 (very early alpha 1.0.0)
+-----------------------------------
+I've blatantly assumed that we can compile the tail recursion to 'loop1'
+into a branch, as if 'loop1' were defined locally somewhere and known not
+to be redefined.
+On the other hand, 'f' is assumed to be "unknown".
+
+Times were obtained with the UNIX resource usage system calls, which have
+a resolution of 10 ms. Times are averaged over several runs. The times
+do not include load and setup time for the executable, merely the time
+spent in the 'loop1' procedure (and 'f', of course).
+
+For the case in which 'f' sets up a continuation frame (which it need not do):
+
+	2800 ms/1,000,000 iterations
+
+For the case in which 'f' does not set up a continuation frame (but the return
+address is stored in the stack frame by the caller and fetched from the stack
+frame by the callee before the return):
+
+	1820 ms/1,000,000 iterations
+
+For the case in which 'f' does not set up a frame and the return address is
+passed in %o7 (we're still well within the bounds of what is realistic; the
+callee can always save the return address in a local slot (or in a slot in the
+caller's frame) if necessary):
+
+	1620 ms/1,000,000 iterations
+
+-------
+
+These times are probably slightly (but only slightly) optimistic because 
+while the evaluation of the procedure position of a call normally will involve
+one or two memory references, the benchmark programs cheat and use a constant
+value (taking 3 cycles to set up, equivalent to a single memory reference).
+
+-------
+
+One of the main disadvantages with our calling convention is the need to store
+any updated values in the stack frame on each iteration because the callee
+could potentially destroy them. It seems reasonable that the compiler can do
+better by partitioning registers into caller-saves and callee-saves classes,
+and cache local variables in callee-saves registers. Unclear how this would
+fit in with current calling conventions, however.
+
