@@ -9,6 +9,10 @@
 		      (util           . ,(string-append dir "Util/"))
 		      (build          . ,(string-append dir "Rts/Build/"))
 		      (source         . ,(string-append dir "Lib/"))
+                      (common-source  . ,(string-append dir "Lib/Common/"))
+                      (repl-source    . ,(string-append dir "Repl/"))
+                      (interp-source  . ,(string-append dir "Eval/"))
+                      (machine-source . ,(string-append dir "Lib/Standard-C/"))
 		      (common-asm     . ,(string-append dir "Asm/Common/"))
 		      (standard-C-asm . ,(string-append dir "Asm/Standard-C/"))
 		      (target-machine . Standard-C)
@@ -27,6 +31,6 @@
 	    #f)))))
 
 (define nbuild-parameter
-  (make-nbuild-parameter "./" #f #f "Larceny" "Larceny"))
+  (make-nbuild-parameter "./" (getenv "SOURCE_ONLY") #t "Larceny" "Larceny"))
 
 ; eof
