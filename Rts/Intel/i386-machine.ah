@@ -1,0 +1,88 @@
+; Copyright 2003 Lars T Hansen
+; Machine description for x86-nasm port of Larceny.
+;
+; Notes on the representations.
+;
+; EAX is used as a temp for generated code, and to pass SECOND on
+; calls to millicode.  EAX is never a root for garbage collection, so
+; SECOND must be flushed to memory by millicode.
+;
+; GLOBALS must be mapped mapped to ESP to make millicode calls
+; compact.  The first slot of the globals vector is empty.  To call
+; millicode one executes an indirect CALL instruction; the return
+; address will be pushed into the first element of GLOBALS.  Millicode
+; must pop the value to adjust GLOBALS and save the address.
+;
+; REG0 is not mapped to a hardware reg because there are few available
+; and computation is probably more important than access to the
+; procedure.  I don't have any data to back this up.
+;
+; Using the low byte of registers when possible reduces code size.
+; The instruction macros know that RESULT and TEMP have a low byte
+; register, but otherwise rely on hwreg_has_low() to test the mapping.
+
+%ifndef I386_MACHINE_ASM
+%define I386_MACHINE_ASM
+
+%define TEMP    	eax   ; always same as SECOND
+%define SECOND  	eax   ; always same as TEMP
+%define RESULT  	ebx
+%define REG1    	ecx
+%define REG2    	edx
+%define REG3    	edi
+%define REG4    	esi
+%define GLOBALS 	esp
+%define CONT    	ebp
+
+%define FIRST_HWREG	1
+%define LAST_HWREG	4
+
+%define TEMP_LOW	al
+%define RESULT_LOW	bl
+%define SECOND_LOW	al
+%define REG1_LOW	cl
+%define REG2_LOW	dl
+
+%define hwreg_has_low(r)  (r==1 || r==2)
+
+%include "asmdefs.ah"
+
+%ifdef WIN32
+%define EXTNAME(x) _ %+ x
+%else
+%define EXTNAME(x) x
+%endif
+
+%define STK_OVERHEAD 12
+%define STK_RETADDR 4
+%define STK_REG0 12
+
+%define LASTREG 31
+
+%define PROC_OVERHEAD_WORDS         2             ; code and constants
+%define PROC_CONSTVECTOR            CONSTVECTOR   ; byte offset
+%define PROC_CODEVECTOR_NATIVE      CODEVECTOR    ; byte offset
+%define PROC_REG0                   12            ; byte offset
+
+%define EX_PROCEDURE_REF	    EX_PREF
+%define EX_MAKE_BYTEVECTOR	    EX_MKBVL	; FIXME
+%define EX_BYTEVECTOR_LENGTH	    EX_BVLEN
+%define EX_BYTEVECTOR_LIKE_LENGTH   EX_BVLLEN
+%define EX_BYTEVECTOR_LIKE_REF	    EX_BVLREF
+%define EX_BYTEVECTOR_LIKE_SET	    EX_BVLSET
+%define EX_MAKE_STRING		    EX_MKBVL	; FIXME
+%define EX_STRING_LENGTH	    EX_SLEN
+%define EX_STRING_REF		    EX_SREF
+%define EX_STRING_SET		    EX_SSET
+%define EX_MAKE_VECTOR		    EX_MKVL     ; FIXME
+%define EX_VECTOR_LIKE_LENGTH	    EX_VLLEN
+%define EX_VECTOR_LIKE_REF	    EX_VLREF
+%define EX_VECTOR_LIKE_SET	    EX_VLSET
+%define EX_BYTEVECTOR_REF	    EX_BVREF
+%define EX_BYTEVECTOR_SET	    EX_BVSET
+%define EX_MAKE_PROCEDURE	    EX_MKVL	; FIXME
+%define EX_PROCEDURE_LENGTH	    EX_PLEN
+%define EX_PROCEDURE_REF	    EX_PREF
+%define EX_PROCEDURE_SET	    EX_PSET
+
+%endif ; ndef I386_MACHINE_ASM
