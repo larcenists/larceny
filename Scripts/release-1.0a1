@@ -6,16 +6,19 @@
 #
 # Prune the source tree for the 1.0a1 release.
 
-rm -f TODO TODO-RELEASE TODO-RAINYDAY CHGLOG BUGS-FIXED BUGS-RETIRED
-rm -f Asm/Intel Asm/MacScheme
+# The -r added after the 1.0a1 branch.
+rm -f TODO TODO-RELEASE TODO-RAINYDAY CHGLOG BUGS-FIXED BUGS-RETIRED 
+rm -rf Asm/Intel Asm/MacScheme
 rm -f Auxlib/std-ffi.sch Auxlib/unix-functions.sch
 rm -f Compiler/standard-C.imp.sch
-rm -f Ffi
+rm -rf Ffi
 rm -f Experimental/socket* Experimental/unix.sch Experimental/record* \
 	Experimental/print-circular.sch
-rm -f Lib/Standard-C
-rm -f Rts/Standard-C
-rm -f Testsuite
+rm -rf Lib/Standard-C
+rm -rf Rts/Standard-C
+rm -rf Testsuite
 rm -f Util/compfasl.sch Util/heap-info.sch Util/load-twobit-C* \
 	Util/nbuild-param-C* Util/sim.sch
-
+# Added after the 1.0a1 branch.
+rm -f `find . -name '*~'`
+rm -f RELEASE-NOTES
