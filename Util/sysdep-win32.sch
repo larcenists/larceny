@@ -6,16 +6,16 @@
 
 ; Takes zero or more directories and a filename and appends them, inserting
 ; the necessary pathname separators.  The first directory in the list, if
-; present, has special meaning.  If "" or #f, it denotes the current 
+; present, has special meaning.  If "" or #f, it denotes the current
 ; directory.  Otherwise it is taken literally and should already have a
 ; format that is meaningful on the system.
 
 (define (make-filename first . components)
   (cond ((null? components)
 	 first)
-	((not first) 
+	((not first)
 	 (apply make-relative-filename components))
-	((string=? first "") 
+	((string=? first "")
 	 (apply make-relative-filename components))
 	(else
 	 (let ((rest (apply make-relative-filename components)))
@@ -41,8 +41,8 @@
       (car components)
       (apply string-append (construct components))))
 
-; This takes one or more directory components and constructs a 
-; directory name with proper termination (a crock -- we can finess 
+; This takes one or more directory components and constructs a
+; directory name with proper termination (a crock -- we can finess
 ; this later).
 
 (define (pathname-append . components)

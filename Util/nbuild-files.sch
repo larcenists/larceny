@@ -30,7 +30,7 @@
 		'("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
 
 (define *nbuild:dotnet/twobit-files*
-  (append 
+  (append
    (nbuild-files 'compiler
                  '("common.imp.sch"))
    ;;; FIXME:  Compiler is going to need to know about
@@ -81,10 +81,10 @@
    (nbuild-files 'common-asm
 		 '("external-assembler.sch"))
    (nbuild-files 'standard-C-asm
-		 `("pass5p2.sch" 
-		   "peepopt.sch" 
-		   "asm-switches.sch" 
-		   "dumpheap-overrides.sch" 
+		 `("pass5p2.sch"
+		   "peepopt.sch"
+		   "asm-switches.sch"
+		   "dumpheap-overrides.sch"
 		   "petit-init-proc.sch"
 		   "md5.sch"
 		   ,@(case (nbuild-parameter 'host-os)
@@ -99,7 +99,7 @@
    (nbuild-files 'x86-nasm-asm
 		 `("pass5p2-nasm.sch"
 		   "peepopt.sch"
-		   "dumpheap-overrides.sch" 
+		   "dumpheap-overrides.sch"
 		   ,@(case (nbuild-parameter 'host-os)
 		      ((unix)  '("dumpheap-unix.sch"))
 		      ((win32) '("dumpheap-win32.sch"))
@@ -109,7 +109,7 @@
 		   "petit-init-proc.sch"
 		   "md5.sch"))))
 
-(define *nbuild:dotnetasm-files* 
+(define *nbuild:dotnetasm-files*
   (nbuild-files 'dotnet-asm
                 '("asm-switches.sch"
                   "config.sch"
@@ -135,7 +135,7 @@
 (define *nbuild:help-files*
   (nbuild-files 'compiler '("help.sch")))
 
-(define *nbuild:sparc-heap-dumper-files* 
+(define *nbuild:sparc-heap-dumper-files*
   '())
 
 (define *nbuild:petit-heap-dumper-files*
