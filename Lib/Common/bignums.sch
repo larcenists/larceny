@@ -103,8 +103,8 @@
 
 (define smallest-positive-bignum 536870912)  ; 2^29
 (define largest-negative-bignum -536870913)  ; -(2^29+1)
-(define most-negative-fixnum    -536870912)  ; -(2^29)
-(define most-positive-fixnum     536870911)  ; 2^29-1
+(define max-negative-fixnum     -536870912)  ; -(2^29)
+(define max-positive-fixnum      536870911)  ; 2^29-1
 
 (define negative-sign 1)                     ; the sign of a negative bignum
 (define positive-sign 0)                     ; ditto of a positive one
@@ -565,7 +565,7 @@
 	(d1 (bignum-ref b 1))
 	(n  (sign-negative? (bignum-sign b))))
     (if (>= (lsh d1 2) bignum-base/2)
-	most-negative-fixnum
+	max-negative-fixnum
 	(let ((c (logior (lsh d1 bigit-shift) d0)))
 	  (if n
 	      (- c)
