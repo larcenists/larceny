@@ -43,7 +43,7 @@
 	.seg "text"
 
 #if defined( BDW_GC )
-# define LARGEST_OBJECT    16777215
+# error "This file cannot be used with the BDW collector."
 #endif
 
 
@@ -59,47 +59,6 @@
 ! These procedures could call _mem_internal_alloc, but do their work
 ! in-line for performance reasons.
 
-#if defined( BDW_GC )
-EXTNAME(mem_alloc_bv):
-	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
-	save	%sp, -96, %sp
-	and	%SAVED_RESULT, 4, %o0
-	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
-	set	LARGEST_OBJECT, %o1
-	cmp	%o0, %o1
-	bgt	bdw_toobig
-	nop
-	call	EXTNAME(GC_malloc_atomic)
-	nop
-	cmp	%o0, 0
-	be	bdw_nocore
-	mov	%o0, %SAVED_RESULT
-	restore	
-	retl
-	ld	[ %GLOBALS + G_STKP ], %STKP
-#endif
-
-#if defined( BDW_GC )
-EXTNAME(mem_alloc):
-	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
-	save	%sp, -96, %sp
-	and	%SAVED_RESULT, 4, %o0
-	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
-	set	LARGEST_OBJECT, %o1
-	cmp	%o0, %o1
-	bgt	bdw_toobig
-	nop
-	call	EXTNAME(GC_malloc)
-	nop
-	cmp	%o0, 0
-	be	bdw_nocore
-	mov	%o0, %SAVED_RESULT
-	restore	
-	retl
-	ld	[ %GLOBALS + G_STKP ], %STKP
-#endif
-
-#if !defined( BDW_GC )
 EXTNAME(mem_alloc):
 EXTNAME(mem_alloc_bv):
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
@@ -123,7 +82,6 @@ Lalloc1:
 						! without checking for
 						! overflow because everything
 						! is 8-byte aligned.
-#endif
 
 
 ! _mem_alloci: allocate initialized memory
@@ -200,47 +158,6 @@ Lalloci2:
 ! Output   : RESULT = untagged ptr to uninitialized memory
 ! Destroys : RESULT, Temporaries
 
-#if defined( BDW_GC )
-EXTNAME(mem_internal_alloc):
-	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
-	save	%sp, -96, %sp
-	and	%SAVED_RESULT, 4, %o0
-	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
-	set	LARGEST_OBJECT, %o1
-	cmp	%o0, %o1
-	bgt	bdw_toobig
-	nop
-	call	EXTNAME(GC_malloc)
-	nop
-	cmp	%o0, 0
-	be	bdw_nocore
-	mov	%o0, %SAVED_RESULT
-	restore	
-	retl
-	ld	[ %GLOBALS + G_STKP ], %STKP
-#endif
-
-#if defined( BDW_GC )
-EXTNAME(mem_internal_alloc_bv):
-	st	%STKP, [ %GLOBALS + G_STKP ]	! collector code needs it
-	save	%sp, -96, %sp
-	and	%SAVED_RESULT, 4, %o0
-	add	%SAVED_RESULT, %o0, %o0		! round up to doubleword
-	set	LARGEST_OBJECT, %o1
-	cmp	%o0, %o1
-	bgt	bdw_toobig
-	nop
-	call	EXTNAME(GC_malloc_atomic)
-	nop
-	cmp	%o0, 0
-	be	bdw_nocore
-	mov	%o0, %SAVED_RESULT
-	restore	
-	retl
-	ld	[ %GLOBALS + G_STKP ], %STKP
-#endif
-
-#if !defined( BDW_GC )
 EXTNAME(mem_internal_alloc):
 EXTNAME(mem_internal_alloc_bv):
 	add	%E_TOP, %RESULT, %E_TOP		! allocate optimistically
@@ -258,29 +175,8 @@ Lialloc1:
 	jmp	%o7+8
 	add	%E_TOP, %TMP1, %E_TOP		! round up; see justification
 						! in code for _mem_alloc.
-#endif
 
-#if defined( BDW_GC )
-bdw_nocore:
-	set	mallocfail, %o0
-	call	EXTNAME(panic)
-	nop
-bdw_toobig:
-	set	toobig, %o0
-	call	EXTNAME(panic)
-	nop
 
-	.data
-
-mallocfail:
-	.asciz "GC_malloc returned 0."
-toobig:
-	.asciz "Object too large for allocation (limit is 16MB)."
-
-	.text
-#endif
-
-#if !defined( BDW_GC )
 ! heap_overflow: Heap overflow handler for allocation primitives.
 ! ETOP must point to first free word in ephemeral area.
 !
@@ -295,7 +191,6 @@ heap_overflow:
 	set	EXTNAME(C_allocate), %TMP0
 	b	internal_callout_to_C
 	mov	%RESULT, %TMP1
-#endif
 
 
 ! _mem_garbage_collect: perform a garbage collection.
