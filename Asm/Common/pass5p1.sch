@@ -561,6 +561,15 @@
                      (view-segment (cons (car constants)
                                          (cadr constants))))))))
 
+; emit is a procedure that takes an as and emits instructions into it.
+
+(define (test-asm emit)
+  (let ((as (make-assembly-structure #f #f #f)))
+    (emit as)
+    (let ((segment (assemble-pasteup as)))
+      (assemble-finalize! as)
+      (disassemble segment))))
+
 (define (compile&assemble x)
   (view-segment (assemble (compile x))))
 
