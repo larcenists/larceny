@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 136, 137.
+HIGH PRIORITY BUGS: 136, 137, 159.
 
 
 005  (v0.27e)
@@ -1042,6 +1042,81 @@ HIGH PRIORITY BUGS: 136, 137.
     I'll add this to BUGS.
 
 
-NEXT ENTRY: 159
+159 v0.49 (2000-07-10 / lth)
+    Priority: high
+    Category: TWOBIT / correctness
+
+    Given the code
+
+    (define (bug glarg . rest)
+
+      (define results #f)
+
+      (define (process-datum datum n)
+	((results 'lookup)))
+
+      (define (analyze all-data)
+	(for-each-benchmark-result process-datum all-data))
+
+      (define (mark/cons-analysis)
+	(analyze glarg))
+
+      (if (null? rest)
+	  (mark/cons-analysis)
+	  #t))
+
+    Twobit produces code where the reference to `glarg' is made with a GLOBAL
+    instruction.
+
+    The output from pass3 looks OK to my eyes:
+
+    > (make-readable (pass3 (pass2 (pass1 test))))
+    ((lambda (.T13)
+       ((lambda (.T14) 'bug) (set! bug .T13)))
+     (lambda (.glarg|1 . .rest|1)
+       ((lambda (.results|2)
+	  ((lambda (.CELL:.results|2)
+	     ((lambda (.process-datum|2|24)
+		((lambda (.T8)
+		   ((lambda (.T10)
+		      (if .T10
+			  ((lambda (.REG1)
+			     ((lambda (.REG2)
+				(for-each-benchmark-result .REG1 .REG2))
+			      .glarg|1))
+			   .process-datum|2|24)
+			  '#t))
+		    (null? .rest|1)))
+		 (.cell-set! .CELL:.results|2 '#f)))
+	      (lambda (IGNORED IGNORED)
+		((lambda (.T4)
+		   ((lambda (.T5) (.T5)) (.T4 'lookup)))
+		 (.cell-ref .CELL:.results|2)))))
+	   (.make-cell .results|2)))
+	(unspecified))))
+
+160 v0.49 (2000-07-17 / lth)
+    Priority: medium
+    Category: LIBRARY / performance
+
+    An obscure bug: if the symbol table is in the static area, and it is
+    grown so much that it must be rehashed, then the new table is
+    allocated in the collected heap.  However, the old table remains 
+    in the static area, and since it is already in the remembered set
+    because it contains pointers to new symbols in the collected
+    heap, it will _remain_ in the remembered set and will continue to
+    be scanned on all subsequent collections, even minor collections.
+
+    In the default heap image with Twobit, the table contains some 10,000
+    elements on startup, so this is not a trivial cost.
+
+    The easiest fix is to clear the symbol table after rehashing, to
+    ensure that any table in non-collected memory will not cause 
+    unnecessary remembered set scanning.  As far as I can tell, this will
+    make a real difference on some of the really weird results that
+    are seen on the Twobit benchmark. (cf my dissertation)
+
+
+NEXT ENTRY: 161
 
 ; eof
