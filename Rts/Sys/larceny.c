@@ -15,7 +15,7 @@
 #include "config.h"
 #include "larceny.h"
 #include "gc.h"
-#include "millicode.h"    /* for scheme_init() */
+#include "stats.h"        /* for stats_init() */
 #if defined(MACOS) && defined(CODEWARRIOR)
 # include <SIOUX.h>
 # include <console.h>
