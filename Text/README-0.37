@@ -1,0 +1,84 @@
+This is to announce Larceny version 0.37 (11 December).  The system is
+still somewhat in flux, but improving.  Documentation is lagging behind
+the changes in this file, but improving also.
+
+
+Source code
+-----------
+
+Use CVS (in a clean directory) to get the sources.  The CVS tag is
+'release-0-37', so
+
+	cvs checkout -d larceny-0.37 larceny_src
+
+should do the trick.
+
+In a pinch, grab my snapshot: /proj/will/lth/releases/larceny-0.37-src.tar.gz.
+
+
+Some features included
+----------------------
+* Hygienic macro expander in the compiler (not yet in the interpreter).
+* Many, many bug fixes (especially in generic arithmetic).
+* Transcript ports.  Larceny now has _all_ optional and required parts 
+  of R4RS, R5RS, and the IEEE/ANSI Standard.
+
+
+Some features missing
+---------------------
+* The new macro expander does not preserve procedure names, so debugging
+  can be hard.
+* Constant folding / constant propagation is not included, so code is
+  larger and slower than it will eventually be.
+
+
+Important changes
+-----------------
+As we're moving towards release, things are getting cleaned up and
+hopefully named in a more consistent manner.  The changes below are
+a consequence of this effort.
+
+The 'nbuild' script is now called 'build'.
+
+Names names of command line switches to 'build' have changed, for 
+  reasons of consistency with other changes.  Importantly, there is
+  a switch '-help' that will print a useful help message.
+
+The scripts 'Rts/config' and 'Rts/expand-mac' no longer exist but
+  have been folded into 'build'.
+
+The default Scheme system used by 'build' is now a program called 'larceny',
+  which must be in your path somewhere.  The default program used to be 
+  Chez Scheme.  If you do not have a working program called 'larceny' in 
+  your path, you are well advised to change the definition of BUILD_HOST 
+  in 'build' to 'chez' until you do.
+
+The Larceny executable is called 'larceny.bin' and you must use this
+  name as an argument to 'make'.
+
+The Larceny heap expected by 'larceny.bin' is called 'sparc.heap', not
+  'larceny.heap' as before.
+
+The procedure 'make-larceny-heap' in the development environment has
+  been renamed 'make-sparc-heap'.
+
+The Lib directory now has subdirectories: Common, Sparc, Standard-C.
+
+The obsolete names 'repl-eval-procedure' and 'repl-display-procedure' have
+  been removed from the top-level namespace; use 'repl-evaluator' and
+  'repl-printer' instead.
+
+The now-useless procedure 'twobit-auxiliary-expander' has been removed,
+  and no support for an auxiliary macro expander is currently provided.
+
+There is a directory Scripts that contain two shell scripts, 'larceny' and
+  'twobit'.  These can be installed and edited as described in the manual's
+  intro page.
+
+The manual has an intro page:
+  See the new page: http://www.ccs.neu.edu/home/lth/manual/intro.html.
+
+There are scripts Util/std-heap.sch and Util/twobit-heap.sch to build
+  standard heap images.  Their use is described in the "Compiling and
+  Installing Larceny" section of the manual:
+  http://www.ccs.neu.edu/home/lth/manual/compiling.html.

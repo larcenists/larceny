@@ -1,0 +1,32 @@
+From lth@vega.ccs.neu.edu Thu Jan  7 15:23:12 1999
+Path: news.ccs.neu.edu!not-for-mail
+From: Lars Thomas Hansen <lth@vega.ccs.neu.edu>
+Newsgroups: comp.lang.scheme
+Subject: First alpha release of Twobit and Larceny
+Date: 07 Jan 1999 13:47:58 -0500
+Organization: Northeastern University College of Computer Science
+Lines: 17
+Message-ID: <y8wg19mj4wx.fsf@vega.ccs.neu.edu>
+References: <3694C6C0.34F2BDB@ccs.neu.edu>
+NNTP-Posting-Host: vega.ccs.neu.edu
+X-Newsreader: Gnus v5.3/Emacs 19.34
+Xref: news.ccs.neu.edu comp.lang.scheme:10864
+
+
+Twobit and Larceny v1.0 alpha 1 are now available.
+
+Twobit is a retargetable optimizing compiler for Scheme, and Larceny
+is an implementation of Scheme that uses Twobit to generate native
+code for the SPARC architecture under SunOS 4 and SunOS 5 (Solaris).
+Larceny provides a choice between four garbage collectors: two
+generational collectors, a nongenerational stop-and-copy collector,
+and the Boehm/Weiser conservative collector.
+
+Source code and binary distributions are available, under liberal
+redistribution terms.
+
+See http://www.ccs.neu.edu/home/will/Larceny/index.html for details.
+
+Lars T Hansen
+William D Clinger
+
