@@ -253,7 +253,10 @@
   (let ((compiler-files 
 	 (replace-extension ".fasl" (nbuild:twobit-files)))
 	(comp-util-files 
-	 '("make" "make-support" "init-comp" "compile-always")))
+         (replace-extension ".fasl" (nbuild:utility-files)))
+        (other-util-files
+	 '("make-support" "init-comp" "compile-always"
+           "std-heap" "twobit-heap" "r5rs-heap")))
     (make:project "compiler.date"
       `(rules
 	(".fasl" ".sch" ,make-compile-file))
@@ -261,7 +264,8 @@
 	("compiler.date" ,(lambda args #t)))
       `(dependencies
 	("compiler.date" ,compiler-files)
-	("compiler.date" ,(objects "Util/" ".fasl" comp-util-files))))))
+        ("compiler.date" ,comp-util-files)
+	("compiler.date" ,(objects "Util/" ".fasl" other-util-files))))))
 
 (define (make-compiler . rest)
   (make:pretend (not (null? rest)))
