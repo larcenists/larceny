@@ -627,8 +627,8 @@ namespace Scheme.Rep {
         public readonly int value;
         public static readonly SFixnum[] pool;
       // NOTE THE COMPILER KNOWS ABOUT THESE CONSTANTS
-        public const int minPreAlloc = -32768;
-        public const int maxPreAlloc = 65536;
+        public const int minPreAlloc = -128;
+        public const int maxPreAlloc = 255;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
@@ -637,7 +637,7 @@ namespace Scheme.Rep {
         //          0 -> (maxPreAlloc - minPreAlloc + 1)
         // minPreAlloc -> maxPreAlloc
         static SFixnum() {
-	    pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
+            pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
             for (int i = 0; i < pool.Length ; i++)
                 pool[i] = new SFixnum(i + minPreAlloc);
         }
@@ -1290,17 +1290,17 @@ namespace Scheme.Rep {
 
         // -------------------
         public override SObject op_vector_like_length() {
-            return Factory.makeNumber (elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
         public override SObject op_vector_like_ref(SObject arg2) { return arg2.op_reversed_vector_like_ref(this); }
         public override SObject op_vector_like_set(SObject arg2, SObject arg3) { return arg2.op_reversed_vector_like_set(this, arg3); }
 
         public override SObject op_vector_length() {
             check_typetag(Tags.VectorTag, Constants.EX_VECTOR_LENGTH);
-            return Factory.makeNumber (elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
         public override SObject op_vector_length_vec() {
-            return Factory.makeNumber (elements.Length);
+            return Factory.makeNumber (this.elements.Length);
         }
 
         public override SObject op_vector_ref(SObject arg2) { check_typetag(Tags.VectorTag, arg2, Constants.EX_VECTOR_REF); return arg2.op_reversed_vector_ref(this); }
@@ -1407,7 +1407,11 @@ namespace Scheme.Rep {
         public SByteVL(int tag, int size, byte fill) {
             this.tag = tag;
             this.elements = new byte[size];
-            for (int i = 0; i < size; ++i) {elements[i] = fill;}
+            if (fill == 0)
+                Array.Clear (this.elements, 0, size);
+            else {
+                for (int i = 0; i < size; i++) elements[i] = fill;
+                }
         }
 
         public int length() {
@@ -1422,9 +1426,11 @@ namespace Scheme.Rep {
         }
 
         public void fill(byte b) {
-            for (int i = 0; i < elements.Length; ++i) {
-                elements[i] = b;
-            }
+            if (b == 0)
+                Array.Clear (this.elements, 0, this.elements.Length);
+            else {
+                for (int i = 0; i < this.elements.Length; i++) elements[i] = b;
+                }
         }
 
         public short getInt16(int index) {
@@ -1555,7 +1561,7 @@ namespace Scheme.Rep {
             return Factory.makeNumber (this.elements.Length);
         }
         public override SObject op_string_length_str() {
-            check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
+	    // check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
             return Factory.makeNumber (this.elements.Length);
         }
 
@@ -1565,6 +1571,7 @@ namespace Scheme.Rep {
         public override SObject op_string_set_trusted(SObject arg2, SObject arg3) { return arg2.op_reversed_string_set_trusted(this, arg3); }
 
         public override SObject op_bytevector_length() { check_typetag(Tags.ByteVectorTag, Constants.EX_BYTEVECTOR_LENGTH); return implementation_bytevector_length(); } private SObject implementation_bytevector_length() {
+	  // check_typetag (Tags.ByteVectorTag, EX_BYTEVECTOR_LENGTH);
             return Factory.makeNumber (this.elements.Length);
         }
         public override SObject op_bytevector_ref(SObject arg2) { check_typetag(Tags.ByteVectorTag, arg2, Constants.EX_BYTEVECTOR_REF); return arg2.op_reversed_bytevector_ref(this); }
@@ -1624,17 +1631,17 @@ namespace Scheme.Rep {
 
         // Bignums
         public override void op_reversed_bignum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_eqvp_not_eq(arg1); } }
-#line 113 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 114 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_numeric_equals(arg1); } }
-#line 115 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 116 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_less_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESS, arg1, this); } else { base.op_reversed_bignum_less_than(arg1); } }
-#line 117 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 118 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_less_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESSEQ, arg1, this); } else { base.op_reversed_bignum_less_or_equal(arg1); } }
-#line 119 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 120 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_greater_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATER, arg1, this); } else { base.op_reversed_bignum_greater_than(arg1); } }
-#line 121 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 122 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_greater_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATEREQ, arg1, this); } else { base.op_reversed_bignum_greater_or_equal(arg1); } }
-#line 123 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 124 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
 
         public override void op_reversed_bignum_plus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_ADD, arg1, this); } else { base.op_reversed_bignum_plus(arg1); } }
         public override void op_reversed_bignum_minus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_SUB, arg1, this); } else { base.op_reversed_bignum_minus(arg1); } }
@@ -1772,7 +1779,7 @@ namespace Scheme.Rep {
                 base.op_inexact2exact();
             }
         }
-#line 346 "SchemeObject.cs.cpp"
+#line 352 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -1843,7 +1850,7 @@ namespace Scheme.Rep {
         public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
-#line 399 "SchemeObject.cs.cpp"
+#line 405 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
@@ -2354,7 +2361,7 @@ namespace Scheme.Rep {
 
 
 
-#line 910 "SchemeObject.cs.cpp"
+#line 916 "SchemeObject.cs.cpp"
 
 #line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Ops_Procedure.inc"
 // Ops for Procedure
@@ -2365,20 +2372,27 @@ namespace Scheme.Rep {
         }
         public override SObject op_procedure_ref(SObject arg2) { return arg2.op_reversed_procedure_ref(this); }
         public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_reversed_procedure_set(this, arg3); }
-#line 912 "SchemeObject.cs.cpp"
+#line 918 "SchemeObject.cs.cpp"
     }
 
     // -------------------------------------------
     // CodeVectors and ConstantVectors
     // -------------------------------------------
-    public abstract class CodeVector : SObject {
+
+    // This should be abstract, but it causes Scheme to be an order of magnitude
+    // slower when starting.
+    public /* abstract */ class CodeVector : SObject {
         public static readonly CodeVector NoCode = new DataCodeVector(Factory.False);
 
         /** call
          * Given a jump index (0 for entry point, NOT the same as label number),
          * start executing at the label corresponding to that code.
          */
-        public abstract void call(int jump_index);
+        // This should be abstract, but see above.
+        // public abstract void call(int jump_index);
+        public virtual void call (int jump_index) {
+          throw new Exception ("Subclass of CodeVector did not override call method.");
+          }
 
         public virtual int id() { return 0; }
         public string name() {
