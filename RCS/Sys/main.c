@@ -2,7 +2,7 @@
  * Scheme run-time system
  * C-language procedures for system initialization (SunOS UNIX)
  *
- * $Id$
+ * $Id: main.c,v 1.1 91/06/21 15:18:57 lth Exp Locker: lth $
  *
  * Exports the procedures C_init() and panic().
  * Accepts the following options from the command line:
@@ -18,13 +18,16 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <signal.h>
+#include "machine.h"
 #include "memsupport.h"
 #include "offsets.h"
+#include "millicode.h"
 
 static void invalid(), setup_interrupts();
 void panic();
 
 word globals[ GLOBALS_TABLE_SIZE ];
+word (*millicode[ MILLICODE_TABLE_SIZE ])();
 
 /*
  * Parse command line and initialize runtime system components, then
@@ -86,6 +89,7 @@ char **argv, **envp;
 
   init_mem( ... );
   init_iosys( ... );
+  init_millicode();
   setup_interrupts();
 
   schemestart();
@@ -104,6 +108,31 @@ char *s;
   exit( 1 );
 }
 
+/*
+ * The gyrations required to set up M_STKUFLOW on the Sparc are due to the
+ * fact that Sparc return addresses are the addresses of the calling
+ * instruction, meaning that since stkuflow is returned into (never called),
+ * we must adjust its address by -8 to get it right.
+ */
+static init_millicode()
+{
+  extern word alloc(), alloci(), setcar(), setcdr(), vectorset(), gcstart();
+  extern word stkoflow(), stkuflow(), exception();
+
+  millicode[ M_ALLOC ] = alloc;
+  millicode[ M_ALLOCI ] = alloci;
+  millicode[ M_SETCAR ] = setcar;
+  millicode[ M_SETCDR ] = setcdr;
+  millicode[ M_VECTORSET ] = vectorset;
+  millicode[ M_GCSTART ] = gcstart;
+  millicode[ M_STKOFLOW ] = stkoflow;
+#if SPARC1 || SPARC2
+  millicode[ M_STKUFLOW ] = (void (*)())((word)stkuflow - 8);
+#else
+  millicode[ M_STKUFLOW ] = stkuflow();
+#endif
+  millicode[ M_EXCEPTION ] = exception;
+}
 
 /*
  * Initialize signal handlers. We catch SIGINT and SIGQUIT.
