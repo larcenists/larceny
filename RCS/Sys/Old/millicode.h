@@ -3,7 +3,7 @@
  * Scheme 313 Runtime System
  * Millicode table offsets.
  *
- * $Id: millicode.h,v 1.5 91/08/21 14:43:41 lth Exp Locker: lth $
+ * $Id: millicode.h,v 1.6 91/08/23 22:12:44 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -13,7 +13,7 @@
 #endif
 
 /* Watch this! */
-#define LAST_MILLICODE	37
+#define LAST_MILLICODE	60
 
 #define MILLICODE_TABLE_SIZE	(LAST_MILLICODE+1)
 
@@ -55,7 +55,28 @@
 #define M_UNLINK_FILE		(35*M_ADJUST)
 #define M_READ_FILE		(36*M_ADJUST)
 #define M_WRITE_FILE		(37*M_ADJUST)
-
-#undef M_ADJUST
+#define M_MOD			(38*M_ADJUST)
+#define M_COMPLEXP		(39*M_ADJUST)
+#define M_REALP			(40*M_ADJUST)
+#define M_RATIONALP		(41*M_ADJUST)
+#define M_INTEGERP		(42*M_ADJUST)
+#define M_EXACTP		(43*M_ADJUST)
+#define M_INEXACTP		(44*M_ADJUST)
+#define M_EXACT2INEXACT		(45*M_ADJUST)
+#define M_INEXACT2EXACT		(46*M_ADJUST)
+#define M_MAKE_RECTANGULAR	(47*M_ADJUST)
+#define M_REAL_PART		(48*M_ADJUST)
+#define M_IMAG_PART		(49*M_ADJUST)
+#define M_SQRT			(50*M_ADJUST)
+#define M_ROUND			(51*M_ADJUST)
+#define M_TRUNCATE		(52*M_ADJUST)
+#define M_NOT_SUPPORTED		(53*M_ADJUST)
+#define M_DEBUG                 (54*M_ADJUST)
+#define M_RESET			(55*M_ADJUST)
+#define M_EXIT			(56*M_ADJUST)
+#define M_BREAK			(57*M_ADJUST)
+#define M_TYPETAG		(58*M_ADJUST)
+#define M_TYPETAGSET		(59*M_ADJUST)
+#define M_EQV			(60*M_ADJUST)
 
 /* EOF */

@@ -2,7 +2,7 @@
 ! Sparc version.
 ! Scheme initialization file.
 !
-! $Id: schemestart.s,v 1.5 91/07/12 03:14:26 lth Exp Locker: lth $
+! $Id: schemestart.s,v 1.6 91/08/21 14:44:20 lth Exp Locker: lth $
 !
 ! The procedure _schemestart is called from the C-language initialization
 ! code. _schemestart sets up the virtual machine and then calls the
@@ -16,11 +16,10 @@
 !
 ! Assemble with '-P' flag
 
-#define ASSEMBLY
 #include "registers.s.h"
-#include "layouts.s.h"
 #include "offsets.h"
 #include "millicode.h"
+#include "layouts.s.h"
 
 	.global	_schemestart
 

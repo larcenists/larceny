@@ -1,9 +1,23 @@
 /*
- * Some millicode.
+ * Scheme 313 run-time system.
+ * Millicode in C.
  *
+ * $Id$
+ *
+ * Millicode routines which are written in C and which do not warrant 
+ * their own files go in here.
+ *
+ * Currently exports:
+ *   void C_scheme_varargs( void )
+ *   word *C_alloc( int nbytes )
  */
 
-word C_alloc();
+#include "offsets.h"
+#include "gcinterface.h"
+#include "macros.h"
+#include "main.h"
+
+word *C_alloc();
 
 /*
  * Millicode to deal with variable-length argument lists.
@@ -19,59 +33,106 @@ word C_alloc();
  *
  * We then have four cases.
  *
- * Case 0: n < R-2, j < r (i.e. all varargs are in registers).
- *   REGn+1 := (list REGn+1 ... REGj)
+ * Case 0: n < R-2, j < r [i.e. all fixed args and varargs are in registers].
+ *   (set! REGn+1 (list REGn+1 ... REGj))
  *
- * Case 1: n < R-2, j >= r (i.e. all fixed args are in registers, but
- *   all varargs are not -- some are in a list in REGr).
- *   REGn+1 := (append! (list REGn+1 ... REGr-1) (copylist REGr))
+ * Case 1: n < R-2, j >= r [i.e. all fixed args are in registers, but
+ *   all varargs are not -- some are in a list in REGr].
+ *   (set! REGn+1 (append! (list REGn+1 ... REGr-1) (copylist REGr)))
  *
- * Case 2: n = R-2 (i.e. The varargs are exactly the ones in the list
- *   in REGr).
- *   REGr := (copylist REGr)
+ * Case 2: n = R-2 [i.e. The varargs are exactly the ones in the list in REGr].
+ *   (set! REGr (list (copylist REGr)))
  *
- * Case 3: r <= n <= j (i.e. the varargs is a tail of the list in REGr).
- *   
+ * Case 3: r <= n <= j [i.e. the varargs is a tail of the list in REGr].
+ *   (define (list-tail l m)
+ *     (if (zero? m)
+ *         l
+ *         (list-tail (cdr l) (- m 1))))
  *
+ *   (set! REGr (let ((tmp (copylist REGr)))
+ *                (set-cdr! (list-tail tmp (- n r))
+ *                          (list (list-tail tmp (+ (- n r) 1))))
+ *                tmp))
  */
 
-C_scheme_varargs()
+void C_scheme_varargs()
 {
   word j = globals[ RESULT_OFFSET ] / 4;       /* Convert from fixnum */
   word n = globals[ ARGREG2_OFFSET ] / 4;      /* Ditto */
   word r = 31;                                 /* Highest register # */
   word R = 32;                                 /* # of registers */
+  word *p, *q, *t;
+  int case3 = 0;
 
-  if (n < R-2 && j < r) {
-    word *p, *q;
-    word k;
+  /* Allocate memory for list, including an extra pair which is needed in
+   * some cases (and which will be gc'd away when it is not).
+   */
+  q = p = C_alloc( 4*(2*(j-n+1)) );
+
+  if (n < R-2) {   /* Cases 0 and 1: copy registers into list */
+    word k, limit;
 
     k = n + 1;
-    q = p = (word *) C_alloc( 2*(j-k+1) );
-    while ( k < j ) {
+    limit = min( j, r-1 );
+
+    while ( k <= limit ) {
       *p = globals[ REG0_OFFSET + k ];
       *(p+1) = (word) p + 2 + PAIR_TAG;
       p += 2;
       k++;
     }
-    *p = globals[ REG0_OFFSET + k ];
-    *(p+1) = NULL_CONST;
-    globals[ REG0_OFFSET + n + 1 ] = (word) q + PAIR_TAG;
-  }
-  else if (n < R-2 && j >= r) {
+
+    if (j < r)
+      t = (word *) NIL_CONST;
+    else
+      t = (word *) globals[ REG0_OFFSET + r ];
   }
   else if (n == R-2) {
+    *p = (word) p + 8 + PAIR_TAG;   /* Setup a list of the rest list. */
+    *(p+1) = NIL_CONST;
+    p += 2;
+
+    t = (word *) globals[ REG0_OFFSET + r ];
   }
   else /* r <= n <= j */ {
+    *(p+1) = NIL_CONST;
+    p += 2;
+
+    t = (word *) globals[ REG0_OFFSET + r ];
+    case3 = 1;
   }
+
+  /* Copy the list in t into the memory pointed to by p. */
+
+  while ((word) t != NIL_CONST) {
+    *p = ((word) t - PAIR_TAG);
+    *(p+1) = (word) p + 2 + PAIR_TAG;
+    p += 2;
+    t = (word *)*((word *)((word) t - PAIR_TAG)+1);
+  }
+
+  if (case3) {
+    panic( "Varargs case 3. Lazy good-for-nothing bum programmer..." );
+  }
+
+  *(p-1) = NIL_CONST;
+  globals[ REG0_OFFSET + n + 1 ] = (word) q + PAIR_TAG;
 }
 
 
 /*
- * Allocate a chunk of memory.
- *
- * `n' is a number of bytes, but must be divisible by 4.
+ * Allocate a chunk of memory. `n' is a number of bytes.
  */
-word C_alloc( n )
+static word *C_alloc( n )
 {
+  word p;
+
+  n = roundup8( n );
+
+  if (globals[ E_TOP_OFFSET ] + n > globals[ E_LIMIT_OFFSET ])
+    gcstart2( n );
+
+  p = globals[ E_TOP_OFFSET ];
+  globals[ E_TOP_OFFSET ] += n;
+  return (word *)p;
 }

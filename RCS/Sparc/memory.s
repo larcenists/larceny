@@ -3,24 +3,24 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.15 91/07/12 03:15:27 lth Exp Locker: lth $
+! $Id: memory.s,v 1.16 91/07/24 11:49:53 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
-!   _alloc( n )		  allocate n uninitialized words
-!   _alloci( n, v )	  allocate n words initialized to v
-!   _setcar( p, v )	  set to v the car field of the pair pointed to by p
-!   _setcdr( p, v )	  set to v the cdr field of the pair pointed to by p
-!   _vectorset( p, i, v ) set to v the ith slot of the vector pointed to by p
-!   _gcstart( n )	  Saves the virtual machine state in a predictable
-!			  place, flushes stack, calls collector, syncs the
-!			  cache, and allocates the requested number of words,
-!			  returning a pointer to those words. If n is the
-!			  fixnum -1, then no memory is allocated; rather,
-!			  a tenuring collection is invoked. (The default is
-!			  to do an ephemeral collection.) IT IS LEGAL FOR THE
-!			  VALUE OF "E_TOP" TO BE INVALID UPON ENTRY TO THIS
-!			  PROCEDURE.
+!   _alloc( n )		  Allocate n uninitialized words.
+!   _alloci( n, v )	  Allocate n words initialized to v.
+!   _setcar( p, v )	  Set to v the car field of the pair pointed to by p.
+!   _setcdr( p, v )	  Set to v the cdr field of the pair pointed to by p.
+!   _vectorset( p, i, v ) Set to v the ith slot of the vector pointed to by p.
+!   _gcstart( n )	  Performs a garbage collection, allocates n words,
+!			  and returns a pointer to the allocated words.
+!			  'n' is a fixnum.
+!			  IT IS LEGAL FOR THE VALUE OF "E_TOP" TO BE INVALID 
+!			  UPON ENTRY TO THIS PROCEDURE.
+!   _garbage_collect( n ) Initiate a garbage collection. The argument is a
+!			  fixnum specifying the type of collection: 0 for
+!			  an ephemeral collection, -1 for a tenuring 
+!			  collection, -2 for a full collection.
 !   _stkuflow()		  Procedure to be called on a stack cache underflow.
 !			  It will restore a single continuation frame from
 !			  the heap-based continuations, if there are any.
@@ -29,18 +29,16 @@
 !   _stkoflow()		  Procedure to be called on a stack cache overflow.
 !			  It will flush the stack cache to memory and setup
 !			  the continuation pointer, and return to its caller.
-!   _save_scheme_context  Saves all machine-mapped virtual machine registers
+!   _save_scheme_context()  Saves all machine-mapped virtual machine registers
 !			  in the "globals" table.
-!   _restore_scheme_context  Restores all machine-mapped virtual machine
+!   _restore_scheme_context()  Restores all machine-mapped virtual machine
 !			  registers from the "globals" table.
-!   _capture_continuation Capture the current continuation and return a pointer
-!                         to the continuation structure.
-!   _restore_continuation Reinstate the given continuation, discarding the
+!   _capture_continuation()  Capture the current continuation and return a
+!			  pointer to the continuation structure.
+!   _restore_continuation() Reinstate the given continuation, discarding the
 !			  current one.
 !
-! '_gcstart' is made public for use by open-coded 'cons' calls and can also
-! be used to implement a user-level procedure which invokes the collector;
-! to do an ephemeral collection, simply request to allocate 0 bytes.
+! '_gcstart' is made public for use by open-coded 'cons' calls.
 !
 ! '_save_scheme_context' and '_restore_scheme_context' are useful in
 ! inter-language calls.
@@ -83,9 +81,8 @@
 !
 ! --
 !
-! Assemble with 'as -P'.
+! Assemble with 'as -P -DASSEMBLY'
 
-#define ASSEMBLY
 #include "registers.s.h"
 #include "offsets.h"
 #include "layouts.s.h"
@@ -95,7 +92,7 @@
 #define fixnum( x )	((x) << 2)
 
 	.global _alloc, _alloci, _setcar, _setcdr, _vectorset, _gcstart
-	.global _stkoflow, _stkuflow
+	.global _garbage_collect, _stkoflow, _stkuflow
 	.global _save_scheme_context, _restore_scheme_context
 	.global _capture_continuation, _restore_continuation
 
@@ -307,7 +304,7 @@ Lvectorset1:
 ! _gcstart( n )
 ! {
 !   E_TOP = min( E_TOP, E_LIMIT );
-!   gcstart( n );
+!   return gcstart( n );
 ! }
 
 _gcstart:
@@ -317,6 +314,25 @@ _gcstart:
 	mov	%E_LIMIT, %E_TOP
 
 L_gcstart1:
+	mov	%o7, %TMP0
+	call	gcstart
+	nop
+	jmp	%TMP0+8
+	nop
+
+
+!-----------------------------------------------------------------------------
+! '_garbage_collect' initiates a garbage collection of the specified type.
+! The type is a fixnum and may be either 0 for an ephemeral collection, 
+! -1 for a tenuring collection, or -2 for a full collection. Other values
+! are invalid.
+!
+! _garbage_collect( n )
+! {
+!   return gcstart( n );
+! }
+
+_garbage_collect:
 	mov	%o7, %TMP0
 	call	gcstart
 	nop
@@ -442,6 +458,16 @@ _save_scheme_context:
 ! '_capture_continuation' flushes the stack, performs a collection if 
 ! necessary, and returns a pointer to the continuation which was current
 ! at the time of the call to this procedure.
+!
+! DO WE NEED TO RESTORE A FRAME AFTER FLUSHING THE STACK?
+!
+! _capture_continuation()
+! {
+!   flush_stack_cache();
+!   if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ])
+!     gcstart( 0 );
+!   return globals[ CONTINUATION_OFFSET ];
+! }
 
 _capture_continuation:
 	st	%STKP, [ %GLOBALS + SP_OFFSET ]
@@ -458,23 +484,47 @@ _capture_continuation:
 	ld	[ %GLOBALS + CONTINUATION_OFFSET ], %RESULT
 
 	cmp	%E_TOP, %E_LIMIT
-	blt	Lcapture_cont2
+	blt	Lcapture_cont1
 	mov	%o7, %TMP0
+
+	! heap filled up, so we must collect
 
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 	call	gcstart
-	set	fixnum( 0 ), %RESULT
+	mov	fixnum( 0 ), %RESULT
+
+	! return
+
+	jmp	%TMP0+8
 	ld	[ %GLOBALS + SAVED_RESULT_OFFSET ], %RESULT
 
-Lcapture_cont2:
-	jmp	%TMP0+8
+	! pop a frame into the stack cache
+
+Lcapture_cont1:
+	save	%sp, -96, %sp
+	call	_restore_frame
 	nop
+	restore
+
+	! return
+
+	jmp	%TMP0+8
+	ld	[ %GLOBALS+SP_OFFSET ], %STKP
 
 
 !-----------------------------------------------------------------------------
 ! '_restore_continuation' throws away the current continuation (by bumping
 ! the stack pointer and resetting the value of globals[ CONTINUATION_OFFSET ])
 ! and reinstates the continuation which is an argument to this procedure.
+!
+! _restore_continuation( k )
+! {
+!   globals[ SP_OFFSET ] = globals[ STK_START_OFFSET ];
+!   globals[ CONTINUATION_OFFSET ] = k;
+!   if (globals[ CONTINUATION_OFFSET ] != FALSE_CONST)
+!     restore_frame();
+!   return 0;
+! }
 
 _restore_continuation:
 	ld	[ %GLOBALS + STK_START_OFFSET ], %TMP0
@@ -494,8 +544,9 @@ _restore_continuation:
 	restore
 
 Lrestore_cont2:
-	jmp	%o7+8
 	ld	[ %GLOBALS + SP_OFFSET ], %STKP
+	jmp	%o7+8
+	mov	fixnum( 0 ), %RESULT
 
 
 !-----------------------------------------------------------------------------
@@ -507,17 +558,20 @@ Lrestore_cont2:
 !
 ! 'gcstart' saves the state and invokes the collector. It also takes an
 ! argument, a fixnum indicating the number of words that was attempted 
-! allocated when the heap overflow occured. If the overflow was due to
-! an entry list overflow, this word must be fixnum( -1 )
-! and a tenuring collection will be performed.
+! allocated when the heap overflow occured. This word may validly be 0, -1,
+! or -2, as well as positive. If it is 0 or positive, then an ephemeral
+! collection is performed. If it is -1, then a tenuring collection is 
+! performed, and no space is allocated. If it is -2, then a full collection
+! is performed, and no space is allocated.
 !
 ! The return value from 'gcstart' is a pointer to the requested amount of
-! memory (unless the argument was fixnum( -1 )).
+! memory (unless the argument was 0, -1, or -2, in which case the return
+! value is 0).
 !
 ! 'gcstart' saves the state which is kept in registers and then calls
 ! the C-language routine '_gcstart2' with the number of words to allocate
 ! as a parameter. When '_gcstart2' returns, the number of words indicated
-! (if not fixum( -1 )) can safely be allocated.
+! can safely be allocated.
 !
 ! There's a bit of hair associated with the stack, as it will be flushed
 ! during a collection, but it must have a coherent (i.e. non-empty) state
@@ -558,11 +612,11 @@ gcstart:
 	nop
 	mov	%TMP0, %o7
 
-	! Must now allocate memory!
+	! Must now allocate memory! First check for exception cases...
 
-	cmp	%RESULT, fixnum( - 1 )
-	beq,a	Lgcstart1
-	mov	0, %RESULT
+	cmp	%RESULT, fixnum( 0 )
+	ble,a	Lgcstart1
+	mov	fixnum( 0 ), %RESULT
 
 	! Allocate...
 
@@ -632,7 +686,7 @@ addtrans:
 	! procedure. (A millicode tail-call! Yeah!)
 
 	b	gcstart
-	set	fixnum( -1 ), %RESULT
+	set	fixnum( -2 ), %RESULT
 
 Laddtrans1:
 	st	%RESULT, [ %TMP1 ]
@@ -667,6 +721,12 @@ restore_scheme_context:
 	ld	[ %GLOBALS+E_TOP_OFFSET ], %E_TOP
 	ld	[ %GLOBALS+E_LIMIT_OFFSET ], %E_LIMIT
 	ld	[ %GLOBALS+TIMER_OFFSET ], %TIMER
+	ld	[ %GLOBALS + SAVED_F2_OFFSET ], %f2
+	ld	[ %GLOBALS + SAVED_F3_OFFSET ], %f3
+	ld	[ %GLOBALS + SAVED_F4_OFFSET ], %f4
+	ld	[ %GLOBALS + SAVED_F5_OFFSET ], %f5
+	set	dzero, %TMP1
+	ldd	[ %TMP1 ], %f0
 	jmp	%o7+8
 	ld	[ %GLOBALS+SP_OFFSET ], %STKP
 
@@ -691,8 +751,20 @@ save_scheme_context:
 	st	%RESULT, [ %GLOBALS+RESULT_OFFSET ]
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
-	st	%TIMER, [ %GLOBALS+TIMER_OFFSET ]
+	st	%f2, [ %GLOBALS + SAVED_F2_OFFSET ]
+	st	%f3, [ %GLOBALS + SAVED_F3_OFFSET ]
+	st	%f4, [ %GLOBALS + SAVED_F4_OFFSET ]
+	st	%f5, [ %GLOBALS + SAVED_F5_OFFSET ]
 	jmp	%o7+8
-	nop
+	st	%TIMER, [ %GLOBALS+TIMER_OFFSET ]
+
+!-----------------------------------------------------------------------------
+! Some data
+
+	.seg	"data"
+
+	.align	8
+dzero:
+	.double 0r0.0
 
 	! end of file

@@ -2,7 +2,7 @@
  * Scheme 313 run-time system
  * C-language procedures for system initialization (Berkeley UNIX)
  *
- * $Id: main.c,v 1.3 91/07/12 03:15:49 lth Exp Locker: lth $
+ * $Id: main.c,v 1.4 91/08/21 14:44:35 lth Exp Locker: lth $
  *
  * Exports the procedures C_init() and panic().
  * Accepts the following options from the command line:
@@ -27,9 +27,9 @@
 #include <signal.h>
 #include "machine.h"
 #include "gcinterface.h"
-#include "millicode.h"
 #include "offsets.h"
 #include "main.h"
+#include "millicode.h"
 #include "macros.h"
 #include "exceptions.h"
 
@@ -190,6 +190,10 @@ void C_exception( i )
  * Eventually, we will here move the first instruction of each millicode
  * procedure into the jump table and adjust the branch offset. For now,
  * do nothing.
+ *
+ * Under SunOS, we have to set the writeable attribute on the page with the
+ * table before we mess with it. It would be simpler to put the page in the
+ * data segment.
  */
 static init_millicode()
 {

@@ -1,7 +1,7 @@
 ! Scheme 313 runtime system
 ! Global table for millicode calls.
 !
-! $Id: tables.s,v 1.1 91/08/21 14:42:41 lth Exp Locker: lth $
+! $Id: tables.s,v 1.2 91/08/23 22:12:31 lth Exp Locker: lth $
 
 	.global	_millicode
 
@@ -55,28 +55,28 @@ _millicode:
 	b	_type_exception
 	nop
 	! #11: M_ZEROP
-	unimp	0
+	b	_generic_zerop
 	nop
 	! #12: M_ADD
-	unimp	0
+	b	_generic_add
 	nop
 	! #13: M_SUB
-	unimp	0
+	b	_generic_sub
 	nop
 	! #14: M_MUL
-	unimp	0
+	b	_generic_mul
 	nop
 	! #15: M_QUOT
-	unimp	0
+	b	_generic_quo
 	nop
 	! #16: M_REM
-	unimp	0
+	b	_generic_rem
 	nop
 	! #17: M_DIV
-	unimp	0
+	b	_generic_div
 	nop
 	! #18: M_NEG
-	unimp	0
+	b	_generic_neg
 	nop
 	! #19: M_CAPTURE
 	b	_capture_continuation
@@ -94,25 +94,25 @@ _millicode:
 	b	_arg_exception
 	nop
 	! #24: M_VARARGS
-	unimp	0
+	b	_scheme_varargs
 	nop
 	! #25: M_APPLY
-	unimp	0
+	b	_apply
 	nop
 	! #26: M_NUMEQ
-	unimp	0
+	b	_generic_equalp
 	nop
 	! #27: M_NUMLT
-	unimp	0
+	b	_generic_lessp
 	nop
 	! #28: M_NUMLE
-	unimp	0
+	b	_generic_less_or_equalp
 	nop
 	! #29: M_NUMGT
-	unimp	0
+	b	_generic_greaterp
 	nop
 	! #30: M_NUMGE
-	unimp	0
+	b	_generic_greater_or_equalp
 	nop
 	! #31: M_GARBAGE_COLLECT
 	b	_garbage_collect
@@ -123,8 +123,8 @@ _millicode:
 	! #33: M_CLOSE_FILE
 	b	_close_file
 	nop
-	! #34: M_CREATE_FILE
-	b	_create_file
+	! #34: M_CREATE_FILE		/* OBSOLETE */
+	unimp	0
 	nop
 	! #35: M_UNLINK_FILE
 	b	_unlink_file
@@ -134,6 +134,75 @@ _millicode:
 	nop
 	! #37: M_WRITE_FILE
 	b	_write_file
+	nop
+	! #38: M_MOD
+	b	_generic_mod
+	nop
+	! #39: M_COMPLEXP
+	b	_generic_complexp
+	nop
+	! #40: M_REALP
+	b	_generic_realp
+	nop
+	! #41: M_RATIONALP
+	b	_generic_rationalp
+	nop
+	! #42: M_INTEGERP
+	b	_generic_integerp
+	nop
+	! #43: M_EXACTP
+	b	_generic_exactp
+	nop
+	! #44: M_INEXACTP
+	b	_generic_inexactp
+	nop
+	! #45: M_EXACT2INEXACT
+	b	_generic_exact2inexact
+	nop
+	! #46: M_INEXACT2EXACT
+	b	_generic_inexact2exact
+	nop
+	! #47: M_MAKE_RECTANGULAR
+	b	_generic_make_rectangular
+	nop
+	! #48: M_REAL_PART
+	b	_generic_real_part
+	nop
+	! #49: M_IMAG_PART
+	b	_generic_imag_part
+	nop
+	! #50: M_SQRT
+	b	_generic_sqrt
+	nop
+	! #51: M_ROUND
+	b	_generic_round
+	nop
+	! #52: M_TRUNCATE
+	b	_generic_truncate
+	nop
+	! #53: M_NOT_SUPPORTED
+	b	_not_supported
+	nop
+	! #54: M_DEBUG
+	b	_m_debug
+	nop
+	! #55: M_RESET
+	b	_m_reset
+	nop
+	! #56: M_EXIT
+	b	_m_exit
+	nop
+	! #57: M_BREAK
+	b	_m_break
+	nop
+	! #58: M_TYPETAG
+	b	_typetag
+	nop
+	! #59: M_TYPETAGSET
+	b	_typetag_set
+	nop
+	! #60: M_EQV
+	b	_eqv
 	nop
 
 	! end of millicode table

@@ -8,7 +8,7 @@
  * The roots must be contiguous and between FIRST_ROOT and LAST_ROOT,
  * inclusive.
  *
- * $Id: offsets.h,v 1.7 91/07/12 03:12:54 lth Exp Locker: lth $
+ * $Id: offsets.h,v 1.8 91/07/24 12:13:44 lth Exp Locker: lth $
  */
 
 #ifdef ASSEMBLY
@@ -19,8 +19,8 @@
 
 /* Be careful with these! */
 #define FIRST_ROOT		20
-#define LAST_ROOT		56
-#define LAST_GLOBAL             80
+#define LAST_ROOT		58
+#define LAST_GLOBAL             86
 
 /* Table size */
 #define GLOBALS_TABLE_SIZE	(LAST_GLOBAL + 1)
@@ -88,6 +88,9 @@
 #define CONTINUATION_OFFSET	(55*ADJUST)
 /* Roots which are millicode temporaries */
 #define SAVED_RESULT_OFFSET	(56*ADJUST)
+/* More roots */
+#define SCHEME_ENTRY_OFFSET     (57*ADJUST)
+#define SYMTAB_OFFSET           (58*ADJUST)
 
 /* More nonroots */
 #define LOMEM_OFFSET            (70*ADJUST)
@@ -101,4 +104,9 @@
 #define MUST_TENURE_OFFSET	(78*ADJUST)
 #define F_COLLECTIONS_OFFSET	(79*ADJUST)
 #define WCOPIED_OFFSET		(80*ADJUST)
-
+#define SAVED_F2_OFFSET         (81*ADJUST)
+#define SAVED_F3_OFFSET         (82*ADJUST)
+#define SAVED_F4_OFFSET         (83*ADJUST)
+#define SAVED_F5_OFFSET         (84*ADJUST)
+#define SAVED_RETADDR_OFFSET    (85*ADJUST)
+#define ARITH_SAVED_RETADDR_OFFSET  (86*ADJUST)

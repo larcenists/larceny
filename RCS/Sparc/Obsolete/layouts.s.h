@@ -1,6 +1,6 @@
 ! -*-Fundamental -*-
 !
-! $Id: layouts.s.h,v 1.2 91/07/12 03:11:47 lth Exp Locker: lth $
+! $Id: layouts.s.h,v 1.3 91/07/24 11:51:32 lth Exp Locker: lth $
 
 #define TAGMASK			0x07
 
@@ -27,12 +27,18 @@
 ! Subtags for vector headers.
 
 #define VEC_SUBTAG	0x00
-#define CONT_SUBTAG	0x04
+#define CONT_SUBTAG	VEC_SUBTAG
+#define RECT_SUBTAG     0x04
+#define RAT_SUBTAG      0x08
+#define SYM_SUBTAG      0x0C
 
 ! Subtags for bytevector headers.
 
-#define STR_SUBTAG	0x00
-#define BVEC_SUBTAG	0x04
+#define BVEC_SUBTAG	0x00
+#define STR_SUBTAG	0x04
+#define FLO_SUBTAG      0x08
+#define COMP_SUBTAG     0x0C
+#define BIG_SUBTAG      0x10
 
 ! Constants
 
@@ -69,3 +75,15 @@
 
 #define CODEOFFSET	4
 #define A_CODEOFFSET	-1
+
+! Headers
+
+#define COMPNUM_HDR     (BV_HDR | COMP_SUBTAG)
+#define FLONUM_HDR      (BV_HDR | FLO_SUBTAG)
+#define BIGNUM_HDR      (BV_HDR | BIG_SUBTAG)
+#define RATNUM_HDR      (VEC_HDR | RAT_SUBTAG)
+#define RECTNUM_HDR     (VEC_HDR | RECT_SUBTAG)
+#define STRING_HDR      (BV_HDR | STR_SUBTAG)
+#define BYTEVECTOR_HDR  (BV_HDR | BV_SUBTAG)
+#define VECTOR_HDR      (VEC_HDR | VEC_SUBTAG)
+#define SYMBOL_HDR      (VEC_HDR | SYM_SUBTAG)

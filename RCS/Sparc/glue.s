@@ -1,12 +1,11 @@
 ! -*- Fundamental -*-
 !
 ! Scheme 313 Run-time system
-! Miscellaneous assembly language "glue" -- all the millicode that did not
-! deserve its own file.
+! Miscellaneous assembly language "glue" and millicode.
 !
-! $Id: glue.s,v 1.2 91/08/23 22:13:04 lth Exp Locker: lth $
+! $Id: glue.s,v 1.3 91/08/27 13:44:34 lth Exp Locker: lth $
 
-#define ASSEMBLY
+#include "registers.s.h"
 #include "millicode.h"
 #include "offsets.h"
 #include "layouts.s.h"
@@ -21,6 +20,14 @@
 	.global	_write_file
 	.global _apply
 	.global _scheme_varargs
+	.global	_typetag
+	.global	_typetag_set
+	.global	_eqv
+	.global	_m_debug
+	.global	_m_reset
+	.global	_m_exit
+	.global	_m_break
+	.global	_not_supported
 
 ! `_scheme_call'
 !
@@ -123,41 +130,41 @@ scheme_call_1:
 	st	%o7, [ %STKP ]
 
 	ldd	[ %STKP + 8*15 + REG0P ], %REG0
-	st	[ %GLOBALS + REG30_OFFSET ], %REG0
-	st	[ %GLOBALS + REG31_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG30_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG31_OFFSET ]
 	ldd	[ %STKP + 8*14 + REG0P ], %REG0
-	st	[ %GLOBALS + REG28_OFFSET ], %REG0
-	st	[ %GLOBALS + REG29_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG28_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG29_OFFSET ]
 	ldd	[ %STKP + 8*13 + REG0P ], %REG0
-	st	[ %GLOBALS + REG26_OFFSET ], %REG0
-	st	[ %GLOBALS + REG27_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG26_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG27_OFFSET ]
 	ldd	[ %STKP + 8*12 + REG0P ], %REG0
-	st	[ %GLOBALS + REG24_OFFSET ], %REG0
-	st	[ %GLOBALS + REG25_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG24_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG25_OFFSET ]
 	ldd	[ %STKP + 8*11 + REG0P ], %REG0
-	st	[ %GLOBALS + REG22_OFFSET ], %REG0
-	st	[ %GLOBALS + REG23_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG22_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG23_OFFSET ]
 	ldd	[ %STKP + 8*10 + REG0P ], %REG0
-	st	[ %GLOBALS + REG20_OFFSET ], %REG0
-	st	[ %GLOBALS + REG21_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG20_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG21_OFFSET ]
 	ldd	[ %STKP + 8*9 + REG0P ], %REG0
-	st	[ %GLOBALS + REG18_OFFSET ], %REG0
-	st	[ %GLOBALS + REG19_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG18_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG19_OFFSET ]
 	ldd	[ %STKP + 8*8 + REG0P ], %REG0
-	st	[ %GLOBALS + REG16_OFFSET ], %REG0
-	st	[ %GLOBALS + REG17_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG16_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG17_OFFSET ]
 	ldd	[ %STKP + 8*7 + REG0P ], %REG0
-	st	[ %GLOBALS + REG14_OFFSET ], %REG0
-	st	[ %GLOBALS + REG15_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG14_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG15_OFFSET ]
 	ldd	[ %STKP + 8*6 + REG0P ], %REG0
-	st	[ %GLOBALS + REG12_OFFSET ], %REG0
-	st	[ %GLOBALS + REG13_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG12_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG13_OFFSET ]
 	ldd	[ %STKP + 8*5 + REG0P ], %REG0
-	st	[ %GLOBALS + REG10_OFFSET ], %REG0
-	st	[ %GLOBALS + REG11_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG10_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG11_OFFSET ]
 	ldd	[ %STKP + 8*4 + REG0P ], %REG0
-	st	[ %GLOBALS + REG8_OFFSET ], %REG0
-	st	[ %GLOBALS + REG9_OFFSET ], %REG1
+	st	%REG0, [ %GLOBALS + REG8_OFFSET ]
+	st	%REG1, [ %GLOBALS + REG9_OFFSET ]
 	ldd	[ %STKP + 8*3 + REG0P ], %REG6
 	ldd	[ %STKP + 8*2 + REG0P ], %REG4
 	ldd	[ %STKP + 8*1 + REG0P ], %REG2
@@ -189,11 +196,11 @@ _open_file:
 	call	copystring
 	nop
 
-	set	_fnbuf, %o0
-	shrl	%SAVED_ARGREG2, 2, %o1
+	set	fnbuf, %o0
+	srl	%SAVED_ARGREG2, 2, %o1
 	call	_open
-	shrl	%SAVED_ARGREG3, 2, %o2
-	shl	%o0, 2, %SAVED_RESULT
+	srl	%SAVED_ARGREG3, 2, %o2
+	sll	%o0, 2, %SAVED_RESULT
 
 	jmp	%i7+8
 	restore
@@ -204,10 +211,10 @@ _unlink_file:
 	call	copystring
 	nop
 
-	set	_fnbuf, %o0
+	set	fnbuf, %o0
 	call	_unlink
 	nop
-	shl	%o0, 2, %SAVED_RESULT
+	sll	%o0, 2, %SAVED_RESULT
 
 	jmp	%i7+8
 	restore
@@ -218,15 +225,15 @@ _unlink_file:
 
 copystring:
 	ld	[ %SAVED_RESULT - BVEC_TAG ], %l0	! get hdr
-	shrl	%l0, 8, %l0				! get length
+	srl	%l0, 8, %l0				! get length
 	andcc	%l0, 255, %l0				! truncate
-	set	_fnbuf, %l2				! dest ptr
+	set	fnbuf, %l2				! dest ptr
 	stb	%g0, [ %l2 + %l0 ]			! terminator
 	b	Lopen1
 	add	%SAVED_RESULT, 4 - BVEC_TAG, %l1	! src ptr
 Lopen0:
-	ldb	[ %l1+%l0 ], %l3			! get
-	stb	%l3, [ %l2+l0 ]				! put
+	ldub	[ %l1+%l0 ], %l3			! get
+	stb	%l3, [ %l2+%l0 ]			! put
 Lopen1:
 	subcc	%l0, 1, %l0				! dec
 	bge	Lopen0					! again?
@@ -241,8 +248,8 @@ _close_file:
 	save	%sp, -96, %sp
 
 	call	_close
-	shrl	%SAVED_RESULT, 2, %o0			! file descriptor
-	shr	%o0, 2, %SAVED_RESULT			! setup result
+	srl	%SAVED_RESULT, 2, %o0			! file descriptor
+	sll	%o0, 2, %SAVED_RESULT			! setup result
 
 	jmp	%i7+8
 	restore
@@ -252,11 +259,11 @@ _close_file:
 _read_file:
 	save	%sp, -96, %sp
 
-	shrl	%SAVED_RESULT, 2, %o0			! file descriptor
+	srl	%SAVED_RESULT, 2, %o0			! file descriptor
 	add	%SAVED_ARGREG2, 4 - BVEC_TAG, %o2	! buffer pointer
 	call	_read
-	shrl	%SAVED_ARGREG3, 2, %o1			! byte count
-	shl	%o0, 2, %SAVED_RESULT			! setup result
+	srl	%SAVED_ARGREG3, 2, %o1			! byte count
+	sll	%o0, 2, %SAVED_RESULT			! setup result
 
 	jmp	%i7+8
 	restore
@@ -266,11 +273,11 @@ _read_file:
 _write_file:
 	save	%sp, -96, %sp
 
-	shrl	%SAVED_RESULT, 2, %o0			! file descriptor
+	srl	%SAVED_RESULT, 2, %o0			! file descriptor
 	add	%SAVED_ARGREG2, 4 - BVEC_TAG, %o2	! buffer pointer
 	call	_write
-	shrl	%SAVED_ARGREG3, 2, %o1			! byte count
-	shl	%o0, 2, %SAVED_RESULT			! setup result
+	srl	%SAVED_ARGREG3, 2, %o1			! byte count
+	sll	%o0, 2, %SAVED_RESULT			! setup result
 
 	jmp	%i7+8
 	restore
@@ -333,7 +340,7 @@ Lapply2:
 	mov	0, %l3					! list length
 
 Lapply3:
-	cmp	%l0, NULL_CONST
+	cmp	%l0, NIL_CONST
 	be	Lapply5
 	nop
 	and	%l0, TAGMASK, %TMP0
@@ -351,9 +358,9 @@ Lapply3:
 	! cdr down the tail to find the length and make sure the list is
 	! proper.
 
-	st	%l0, [ %SAVED_ARGREG + REG31_OFFSET ]	! store tail
+	st	%l0, [ %SAVED_ARGREG3 + REG31_OFFSET ]	! store tail
 Lapply4:
-	cmp	%l0, NULL_CONST
+	cmp	%l0, NIL_CONST
 	be	Lapply5
 	nop
 	and	%l0, TAGMASK, %TMP0
@@ -369,7 +376,7 @@ Lapply5:
 	! appropriately. Must load the hardware-mapped ones in, and then 
 	! setup the length.
 
-	shl	%l3, 2, SAVED_ARGREG2			! fixnum it.
+	sll	%l3, 2, %SAVED_ARGREG2			! fixnum it.
 	restore
 
 	! One day we'll doubleword-align the software register file...
@@ -385,12 +392,12 @@ Lapply5:
 	mov	%RESULT, %REG0
 
 	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
-	jmp	[ %TMP0 + A_CODEOFFSET ]
+	jmp	%TMP0 + A_CODEOFFSET
 	mov	%ARGREG2, %RESULT
 
 Lapply9:
 	! The list was not proper. We have an error that must be handled.
-	! We take a `type' exception for now and setup the return address
+	! We take a 'type' exception for now and setup the return address
 	! to be in the Scheme code.
 
 	restore
@@ -398,14 +405,14 @@ Lapply9:
 	sub	%o7, 8, %o7
 
 
-! Millicode for the `args>=' instruction.
+! Millicode for the 'args>=' instruction.
 !
 ! Deals with variable-length argument lists. This is extremely hairy, and
 ! in addition we want good performance. One major problem is dealing with
 ! memory overflow requiring a collection &c.
 !
 ! Initial state:
-!  %RESULT must be a fixnum. This is not verified. Call this number `j'.
+!  %RESULT must be a fixnum. This is not verified. Call this number 'j'.
 !  `j' is the actual number of arguments.
 !  %ARGREG2 is another fixnum (set up by the caller). Call this number `n'.
 !  `n' is the minimum expected number of arguments.
@@ -422,7 +429,7 @@ Lapply9:
 
 _scheme_varargs:
 	cmp	%RESULT, %ARGREG2
-	bge	Lvararg1
+	bge	Lvararg2
 	nop
 	jmp	%MILLICODE + M_ARG_EXCEPTION		! *NOT* jmpl
 	sub	%o7, 8, %o7				! retry
@@ -446,10 +453,177 @@ Lvararg2:
 	jmp	%o7+8
 	nop
 
+! Extract typetag from vector or bytevector header, given a pointer to either.
+
+_typetag:
+	and	%RESULT, 7, %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Ltypetag1
+	xorcc	%RESULT, VEC_TAG, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	be,a	Ltypetag1
+	xorcc	%RESULT, BVEC_TAG, %TMP0
+	jmp	%MILLICODE + M_TYPE_EXCEPTION
+	nop
+Ltypetag1:
+	ld	[ %TMP0 ], %TMP0
+	jmp	%o7+8	
+	and	%TMP0, 0x1C, %RESULT
+
+! Set the typetag of a vector or bytevector header. The pointer to the 
+! structure is passed in %RESULT. The new tag is in %ARGREG2. That tag must
+! be a fixnum in the range 0-8 (appropriately shifted).
+
+_typetag_set:
+	and	%RESULT, 7, %TMP0
+	cmp	%TMP0, VEC_TAG
+	be,a	Ltypetagset1
+	xorcc	%RESULT, VEC_TAG, %TMP0
+	cmp	%TMP0, BVEC_TAG
+	be,a	Ltypetagset1
+	xorcc	%RESULT, BVEC_TAG, %TMP0
+Ltypetagset0:
+	jmp	%MILLICODE + M_TYPE_EXCEPTION
+	nop
+Ltypetagset1:
+	mov	0xFFFFFFE3, %TMP1
+	andcc	%ARGREG2, %TMP1, %g0
+	bne	Ltypetagset0
+	nop
+	ld	[ %TMP0 ], %TMP1
+	or	%TMP1, %ARGREG2, %TMP1
+	jmp	%o7 + 8
+	st	%TMP1, [ %TMP0 ]
+
+! This procedure is entered only if the two arguments are not eq?.
+! Note that fixnums and immediates are always eq? if they are eqv?, so we need
+! only concern ourselves with larger structures here.
+
+_eqv:
+	and	%RESULT, TAGMASK, %TMP0
+	xor	%ARGREG2, %TMP0, %TMP0
+	andcc	%TMP0, TAGMASK, %g0
+	bne,a	Leqv1
+	mov	FALSE_CONST, %RESULT
+
+	! Tags are equal, but addresses are not (they are not eq?). This
+	! gets rid of pairs, strings, procedures, vectors, and symbols, and
+	! leaves only numbers (below).
+
+	and	%RESULT, TAGMASK, %TMP0
+	cmp	%TMP0, PAIR_TAG
+	be,a	Leqv1
+	mov	FALSE_CONST, %RESULT
+	cmp	%TMP0, PROC_TAG
+	be,a	Leqv1
+	mov	FALSE_CONST, %RESULT
+	cmp	%TMP0, BVEC_TAG
+	bne	Leqv2
+	nop
+
+	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP0
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
+
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Leqv3
+	mov	0, %TMP0
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Leqv3
+	mov	1, %TMP0
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Leqv3
+	mov	1,%TMP0
+	b	Leqv1
+	mov	FALSE_CONST, %RESULT
+Leqv3:
+	cmp	%TMP1, BIGNUM_HDR
+	be,a	Leqv4
+	mov	0, %TMP1
+	cmp	%TMP1, FLONUM_HDR
+	be,a	Leqv4
+	mov	1, %TMP1
+	cmp	%TMP1, COMPNUM_HDR
+	be,a	Leqv4
+	mov	1, %TMP1
+	b	Leqv1
+	mov	FALSE_CONST, %RESULT
+
+Leqv2:
+	! We know it has a vector tag here. The header tags must be the same,
+	! and both must be either ratnum or rectnum.
+
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
+
+	cmp	%TMP0, %TMP1
+	bne,a	Leqv1
+	mov	FALSE_CONST, %RESULT
+
+	mov	0, %TMP1
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Leqv4
+	mov	0, %TMP0
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Leqv4
+	mov	0, %TMP0
+	b	Leqv1
+	mov	FALSE_CONST, %RESULT
+
+Leqv4:
+	! Numbers. They are eqv if they are of the same exactness and they
+	! test #t with `='. The exactness is encoded in TMP0 and TMP1: 0s
+	! mean exact, 1s mean inexact.
+
+	cmp	%TMP0, %TMP1
+	bne,a	Leqv1
+	mov	FALSE_CONST, %RESULT
+
+	! Same exactness. Test for equality.
+
+	jmp	%MILLICODE + M_NUMEQ
+	nop
+
+Leqv1:
+	jmp	%o7+8
+	nop
+
+_m_debug:
+	b	_not_supported
+	nop
+
+! Exit -- simply terminate the program by calling exit(), which should clean up
+! most things. This is certainly good enough for the time being.
+
+_m_exit:
+	call	_save_scheme_context
+	call	_exit
+	mov	0, %o0
+
+_m_reset:
+	b	_not_supported
+	nop
+
+_m_break:
+	b	_not_supported
+	nop
+
+! Print an error message detailing the program counter, then die.
+! This routine will go away eventually.
+
+_not_supported:
+	set	emsg, %o0
+	call	_save_scheme_context
+	nop
+	call	_printf
+	mov	%o7, %o1
+	call	_exit
+	mov	1, %o0
+
 ! Static data for this module.
 
 	.seg	"data"
 
 fnbuf:	.skip	256
+emsg:	.asciz	"Unsupported millicode procedure at PC=%lX\n"
 
 	! end of file
