@@ -41,6 +41,11 @@
 
 ;; Code Generation
 
+;; 'ilasm-debug
+;;   if set, passes the debug switch to ilasm: results in debuggable
+;;   IL, but slower code
+(set-codegen-option! 'ilasm-debug)
+
 ;; 'insert-use-fuel
 ;;   if set, decrements and checks the timer on every backwards branch 
 ;;   and procedure invocation

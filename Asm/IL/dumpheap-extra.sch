@@ -378,13 +378,18 @@
   (create-application output-file input-files))
 
 (define (invoke-ilasm exe-file il-files)
-  (system (twobit-format #f "ilasm /nologo /quiet /output:~a ~a" 
-                         exe-file
-                         (apply string-append
-                                (map/separated
-                                 values
-                                 (lambda () " ")
-                                 il-files)))))
+  (let ((options
+         (if (codegen-option 'ilasm-debug)
+             "/nologo /quiet /debug"
+             "/nologo /quiet")))
+    (system (twobit-format #f "ilasm ~a/output:~a ~a" 
+                           options
+                           exe-file
+                           (apply string-append
+                                  (map/separated
+                                   values
+                                   (lambda () " ")
+                                   il-files))))))
 
 (define (ilasm exe-file il-files)
   (if (member (nbuild-parameter 'host-system) '("Larceny"))
