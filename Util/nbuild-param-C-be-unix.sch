@@ -2,9 +2,9 @@
 ;
 ; $Id$
 ;
-; NBUILD parameters for Petit Larceny, big-endian, 32-bit, Unix OS.
+; NBUILD parameters for Petit Larceny, big-endian, 32-bit, generic Unix.
 
-(define (make-nbuild-parameter dir source? verbose? hostdir hostname)
+(define (make-nbuild-parameter dir source? verbose? development? hostdir hostname)
   (let ((parameters 
          `((compiler       . ,(pathname-append dir "Compiler"))
            (util           . ,(pathname-append dir "Util"))
@@ -18,13 +18,17 @@
            (standard-C-asm . ,(pathname-append dir "Asm" "Standard-C"))
            (always-source? . ,source?)
            (verbose-load?  . ,verbose?)
+	   (development?   . ,development?)
            (compatibility  . ,(pathname-append dir "Compat" hostdir))
            (auxiliary      . ,(pathname-append dir "Auxlib"))
            (root           . ,dir)
            (host-system    . ,hostname)
            (target-machine . Standard-C)
            (target-os      . unix)
+           (host-os        . unix)
            (endianness     . big)
+           (target-endianness . big)  ; same as "endianness"
+           (host-endianness . big)
            (word-size      . 32)
            )))
     (lambda (key)
