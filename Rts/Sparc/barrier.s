@@ -32,11 +32,12 @@
 ! using only one branch and three ALU instructions; see my off-line design
 ! notes for the details.  --lars
 
+#define ASSEMBLER 1
+#include "../Sys/config.h"
+#include "../Sys/gclib.h"
+
 #include "asmdefs.h"
 #include "asmmacro.h"
-
-! FIXME: This should be defined somewhere else.
-#define PAGESHIFT 12
 
 	.global EXTNAME(m_full_barrier)		! full write barrier
 	.global EXTNAME(mem_addtrans)		! alias for full barrier
@@ -106,6 +107,8 @@ EXTNAME(mem_addtrans):
 #if !defined(SIMULATE_NEW_BARRIER)
 EXTNAME(m_partial_barrier):
 #endif
+#if !GCLIB_LARGE_TABLE
+	! pagebase > 0; word table with generation only
 	ld	[%GLOBALS+G_PGBASE], %TMP2	! pagebase in %TMP2
 	sub	%RESULT, %TMP2, %TMP0
 	srl	%TMP0, PAGESHIFT, %TMP0		! page(RESULT) in TMP0
@@ -116,6 +119,16 @@ EXTNAME(m_partial_barrier):
 	sll	%TMP1, 2, %TMP1			!   shifted for indexing
 	ld	[%TMP2+%TMP0], %TMP0		! gl in %TMP0
 	ld	[%TMP2+%TMP1], %TMP1		! gr in %TMP1
+#else
+	! pagebase == 0; byte table with generation and attribute
+	ld	[%GLOBALS + G_GENV], %TMP2	! genv in %TMP2
+	srl	%RESULT, PAGESHIFT, %TMP0	! page(RESULT) in TMP0
+	srl	%ARGREG2, PAGESHIFT, %TMP1	! page(ARGREG2) in TMP1
+	ldub	[%TMP2 + %TMP0], %TMP0		! gl in %TMP0
+	ldub	[%TMP2 + %TMP1], %TMP1		! gr in %TMP1
+	andn	%TMP0, MB_LARGE_OBJECT, %TMP0	! clear MB_LARGE_OBJECT
+	andn	%TMP1, MB_LARGE_OBJECT, %TMP1	! clear MB_LARGE_OBJECT
+#endif
 	! %TMP0: gl
 	! %TMP1: gr
 	! %TMP2: dead
