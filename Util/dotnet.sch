@@ -189,7 +189,8 @@
 
 ;; Load the compiler
 (define (load-twobit)
-  (load (make-filename *larceny-root* "Util" "nbuild.sch")))
+  (load (make-filename *larceny-root* "Util" "nbuild.sch"))
+  (load (make-filename *larceny-root* "Util" "il.scm")))
 
 ;; FIXME:  PLT dependent.
 (define (ensure-build-environment)
