@@ -72,15 +72,15 @@ namespace Scheme.RT {
             ROOT = SENTINEL.after;
             LIMIT = SENTINEL.before;
             cont = ROOT;
+            clear();
             // Install the initial continuation.
-            resetCache();
+            reset();
         }
 
         // resetCache
         // Clear out any existing continuation and install the initial one.
-        public static void resetCache() {
+        public static void reset() {
             heap = SObject.False;
-            clear();
             cont = ROOT;
             cont.prepare(0);
             cont.slot0 = InitialContinuation.singletonProcedure;
@@ -89,13 +89,13 @@ namespace Scheme.RT {
 
         // clear
         // Clear all frames in the cache (so GC doesn't hold dead objects)
+        // Called on every timer interrupt (see Exn.faultTimer).
         public static void clear() {
-            StackCacheFrame frame = cont;
+            StackCacheFrame frame = ROOT;
             while (frame != SENTINEL) {
                 frame.clear();
-                frame = frame.before;
+                frame = frame.after;
             }
-            cont = SENTINEL;
         }
 
         /* save
@@ -103,7 +103,7 @@ namespace Scheme.RT {
         public static void save(int lastslot) {
             if (cont == LIMIT) {
                 heap = copyOutStack();
-                clear();
+                cont = SENTINEL;
             }
             cont = cont.after;
             cont.prepare(lastslot);
@@ -113,7 +113,7 @@ namespace Scheme.RT {
         /* pop
          */
         public static void pop() {
-            cont.clear();
+            cont.lastslot = -1;
             cont = cont.before;
             if (cont == SENTINEL) {
                 fillCache();
@@ -180,7 +180,6 @@ namespace Scheme.RT {
          * Install arg as current continuation
          */
         public static void setCC(SObject k) {
-            clear();
             heap = k;
             fillCache();
         }
@@ -202,9 +201,18 @@ namespace Scheme.RT {
         public int returnIndex;
         
         public int lastslot;
+        public bool dirty;
 
-        public string createdFile;
-        public int createdLine;
+        public ContinuationFrame() {
+            this.lastslot = -1;
+            this.dirty = true;
+            this.overflowSlots = new SObject[] {};
+            this.clear();
+        }
+
+        private int capacity() {
+            return Cont.NUM_SLOT_FIELDS + this.overflowSlots.Length;
+        }
 
         public SObject toVector(SObject parent) {
             SObject[] elements = new SObject[this.lastslot + Cont.HC_OVERHEAD + 1];
@@ -226,7 +234,6 @@ namespace Scheme.RT {
             }
         }
 
-        // Methods
         public SObject getSlot(int slot) {
             switch (slot) {
             case 0: return slot0;
@@ -258,31 +265,22 @@ namespace Scheme.RT {
         }
 
         public void prepare(int lastslot) {
-            if (lastslot >= Cont.NUM_SLOT_FIELDS) {
-                overflowSlots = new SObject[1 + lastslot - Cont.NUM_SLOT_FIELDS];
+            if (this.capacity() <= lastslot) {
+                this.overflowSlots = new SObject[1 + lastslot - Cont.NUM_SLOT_FIELDS];
                 for (int oi = 0; oi < overflowSlots.Length; ++oi) {
-                    overflowSlots[oi] = SObject.False;
+                    this.overflowSlots[oi] = SObject.False;
                 }
             }
             this.lastslot = lastslot;
-            this.createdFile = Reg.debugFile;
-            this.createdLine = Reg.debugLocation;
+            this.dirty = true;
         }
 
         public void clear() {
-            slot0 = SObject.False;
-            slot1 = SObject.False;
-            slot2 = SObject.False;
-            slot3 = SObject.False;
-            slot4 = SObject.False;
-            slot5 = SObject.False;
-            slot6 = SObject.False;
-            slot7 = SObject.False;
-            overflowSlots = null;
-            returnIndex = 0;
-            lastslot = -1;
-            createdFile = null;
-            createdLine = 0;
+            if (! this.dirty) return;
+            for (int i = this.lastslot + 1; i < this.capacity(); ++i) {
+                this.setSlot(i, SObject.False);
+            }
+            this.dirty = false;
         }
         
         public void checkPop(int lastslot, SObject reg0) {

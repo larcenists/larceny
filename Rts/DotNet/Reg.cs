@@ -56,7 +56,7 @@ public class Reg {
     
     // Timer Interrupts
     public static readonly int TIME_SLICE = 8000;
-    public static readonly int SMALL_TIME_SLICE = 10;
+    public static readonly int SMALL_TIME_SLICE = 100;
 
     public static int timer = TIME_SLICE;
     public static bool interruptsEnabled = false;

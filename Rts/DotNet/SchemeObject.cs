@@ -716,7 +716,7 @@ namespace Scheme.Rep {
         public Procedure(CodeVector entrypoint, SObject constantvector)
             : this(entrypoint, constantvector, new SObject[]{}) {}
         public Procedure(CodeVector entrypoint)
-            : this(entrypoint, Factory.makeVector(0, null), new SObject[0]) {}
+            : this(entrypoint, Factory.makeVector(1, SObject.False), new SObject[0]) {}
 
         public void setCode(SObject code) {
             if (code is CodeVector) {

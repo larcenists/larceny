@@ -62,10 +62,10 @@ namespace Scheme.RT {
         /** faultTimer
          * Specialized fault for timer interrupt.
          * Called directly from IL.
-         * FIXME
          */
         public static void faultTimer(int j) {
             checkSignals();
+            Cont.clear();
 
             if (Reg.interruptsEnabled) {
                 Reg.interruptsEnabled = false;
