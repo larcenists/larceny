@@ -109,7 +109,7 @@
 	((input)   (vector-set! v port.input? #t))
 	((output)  (vector-set! v port.output? #t))
 	((flush)   (vector-set! v port.wr-flush? #t))
-	(else      (error "make-proc: bad attribute: " (car l))
+	(else      (error "make-port: bad attribute: " (car l))
 		   #t)))
     (vector-set! v port.ioproc ioproc)
     (vector-set! v port.iodata iodata)
@@ -121,16 +121,8 @@
     (typetag-set! v sys$tag.port-typetag)
     v))
 
-; Port? is now integrable.
-;
-;(define (port? x)
-;  (and (vector-like? x)
-;       (= (typetag x) sys$tag.port-typetag)))
-
-; Eof-object? is now integrable.
-;
-;(define (eof-object? x)
-;  (eq? x (eof-object)))
+; Port? is integrable.
+; Eof-object? is integrable.
 
 (define (io/input-port? p)
   (and (port? p) (vector-like-ref p port.input?)))
