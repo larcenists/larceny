@@ -1,5 +1,5 @@
 ;;; NASM/i386 macros for the MacScheme instruction set.
-;;; 2003-11-15 / lth
+;;; 2004-01-27 / lth
 ;;;
 ;;; $Id$
 ;;; 
@@ -54,7 +54,13 @@
 ;;; 	very densely to fit all in 4 bytes, but that would be a major
 ;;;     win; 3 would be better still.  Use variable-length encoding? 
 ;;;   - Generally search for OPTIMIZEME below
-
+;;;
+;;; Defines affecting the generated code:
+;;;   UNSAFE_CODE        omit all type checks
+;;;   UNSAFE_GLOBALS     omit undefined-checks on globals
+;;;   INLINE_ALLOCATION  inline all allocation
+;;;   INLINE_ASSIGNMENT  inline the write barrier (at least partially)
+	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
 ;;; Handy macros for this and that
@@ -195,10 +201,10 @@ end_codevector_%1:
 ;;;	in RESULT.
 
 %macro alloc 0
-%ifdef INLINE_ALLOC
+%ifdef INLINE_ALLOCATION
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
-	... FIXME: roundup result to 8!
-	add	TEMP, RESULT
+	lea	TEMP, [RESULT+7]
+	and	TEMP, -8	
 	cmp	TEMP, CONT
 	jle	%%L2
 	mcall	M_MORECORE
@@ -288,7 +294,7 @@ t_label(%1):
 %macro T_GLOBAL 1
 %%L0:	loadc	RESULT, %1
 	mov	RESULT, [RESULT-PAIR_TAG]
-%ifndef UNSAFE_CODE
+%if !defined UNSAFE_CODE && !defined UNSAFE_GLOBALS
 	cmp	RESULT, UNDEFINED_CONST
 	jne short %%L1
 	mcall	M_GLOBAL_EX
@@ -2016,6 +2022,14 @@ t_label(%1):
 
 %macro T_OP2_408 1		; <=:fix:fix
 	trusted_fixnum_compare %1, le
+%endmacro
+
+%macro T_OP2_409 1		; >=:fix:fix
+	trusted_fixnum_compare %1, ge
+%endmacro
+
+%macro T_OP2_410 1		; >:fix:fix
+	trusted_fixnum_compare %1, g
 %endmacro
 
 %macro T_OP2IMM_450 1		; vector-ref:trusted
