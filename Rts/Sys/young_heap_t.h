@@ -94,9 +94,10 @@ struct young_heap {
 	in the heap.  The return value may be negative.
 	*/
 
-  void (*stats)( young_heap_t *heap, heap_stats_t *stats );
-     /* A method that fills in the stats structure for the heap.
-	
+  void (*stats)( young_heap_t *heap );
+     /* Update the stats for the heap in the central repository.
+
+	Old invariant, does not hold any more, do not rely on it:
 	When called at the beginning of a collection, the before_collection()
 	method will not yet have been called, and when called at the end of
 	a collection, the after_collection() method will have been called
@@ -157,7 +158,7 @@ young_heap_t *create_young_heap_t(
    void (*after_collection)( young_heap_t *heap ),
    void (*set_policy)( young_heap_t *heap, int rator, int rand ),
    int (*free_space)( young_heap_t *heap ),
-   void (*stats)( young_heap_t *heap, heap_stats_t *stats ),
+   void (*stats)( young_heap_t *heap ),
    word *(*data_load_area)( young_heap_t *heap, int nbytes ),
    int  (*load_prepare)( young_heap_t *heap, metadata_block_t *m, 
 			 heapio_t *h, word **lo, word **hi ),
@@ -177,7 +178,7 @@ young_heap_t *create_young_heap_t(
 #define yh_after_collection( h )   ((h)->after_collection( (h) ))
 #define yh_set_policy( h, x, y )   ((h)->set_policy( h, x, y ))
 #define yh_free_space( h )         ((h)->free_space( h ))
-#define yh_stats( h, s )           ((h)->stats( h, s ))
+#define yh_stats( h )              ((h)->stats( h ))
 #define yh_data_load_area( h, n )  ((h)->data_load_area( h, n ))
 #define yh_creg_get( h )           ((h)->creg_get( h ))
 #define yh_creg_set( h, k )        ((h)->creg_set( h, k ))

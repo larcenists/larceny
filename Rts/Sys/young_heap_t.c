@@ -23,7 +23,7 @@ young_heap_t *create_young_heap_t(
    void (*after_collection)( young_heap_t *heap ),
    void (*set_policy)( young_heap_t *heap, int rator, int rand ),
    int  (*free_space)( young_heap_t *heap ),
-   void (*stats)( young_heap_t *heap, heap_stats_t *stats ),
+   void (*stats)( young_heap_t *heap ),
    word *(*data_load_area)( young_heap_t *heap, int nbytes ),
    int  (*load_prepare)( young_heap_t *heap, metadata_block_t *m, 
 			 heapio_t *h, word **lo, word **hi ),

@@ -62,8 +62,8 @@ struct static_heap {
        Arguably this method does not belong in this interface.
        */
 
-  void (*stats)( static_heap_t *h, heap_stats_t *s );
-     /* A method that fills in the stats structure for the heap.
+  void (*stats)( static_heap_t *h );
+     /* Update the stats for the heap in the central repository. 
 	*/
 
   word *(*data_load_area)( static_heap_t *h, int nbytes );
@@ -99,7 +99,7 @@ struct static_heap {
 #define sh_initialize( h )            ((h)->initialize?(h)->initialize( h ):1)
 #define sh_allocate( h, n )           ((h)->allocate( (h), (n) ))
 #define sh_reorganize( h )            ((h)->reorganize( (h) ))
-#define sh_stats( h, s )              ((h)->stats( (h), (s) ))
+#define sh_stats( h )                 ((h)->stats( (h) ))
 #define sh_data_load_area( h, n )     ((h)->data_load_area( (h),(n) ))
 #define sh_text_load_area( h, n )     ((h)->text_load_area( (h),(n) ))
 #define sh_get_data_areas( h, d, t )  ((h)->get_data_areas( (h),(d),(t) ))
