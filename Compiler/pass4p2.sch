@@ -631,7 +631,8 @@
                        ;  (apply-union
                        ;   (map (lambda (x) (freevars2 x env))
                        ;        (cddr exp)))))
-                       (lambda.F exp))
+                       (difference (lambda.F exp)
+                                   (make-null-terminated (lambda.args exp))))
                       ((memq keyword '(if set! begin))
                        (apply-union
                         (map (lambda (x) (freevars2 x env))
