@@ -208,9 +208,9 @@
                ((eq? keyword denotation-of-set!)          (m-set exp env))
                ((eq? keyword denotation-of-begin)         (m-begin exp env))
                ((eq? keyword denotation-of-let-syntax)
-		(m-let-syntax exp env))
+                (m-let-syntax exp env))
                ((eq? keyword denotation-of-letrec-syntax)
-		(m-letrec-syntax exp env))
+                (m-letrec-syntax exp env))
                ((or (eq? keyword denotation-of-define)
                     (eq? keyword denotation-of-define-syntax)
                     (eq? keyword denotation-of-define-inline))
@@ -234,20 +234,20 @@
   (cond ((not (symbol? exp))
          ; Here exp ought to be a boolean, number, character, or string.
          ; I'll warn about other things but treat them as if quoted.
-	 ;
-	 ; I'm turning off some of the warnings because notably procedures
-	 ; and #!unspecified can occur in loaded files and it's a major
-	 ; pain if a warning is printed for each. --lars
+         ;
+         ; I'm turning off some of the warnings because notably procedures
+         ; and #!unspecified can occur in loaded files and it's a major
+         ; pain if a warning is printed for each. --lars
          (if (and (not (boolean? exp))
                   (not (number? exp))
                   (not (char? exp))
                   (not (string? exp))
-		  (not (procedure? exp))
-		  (not (eq? exp (unspecified))))
+                  (not (procedure? exp))
+                  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))
          (make-constant exp))
-        ((colon-prefix? exp)
-         (make-constant exp))
+        ;; ((colon-prefix? exp)
+        ;;  (make-constant exp))
         (else (let ((denotation (syntactic-lookup env exp)))
                 (case (denotation-class denotation)
                   ((special macro)
