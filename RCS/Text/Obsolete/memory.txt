@@ -1,4 +1,5 @@
-; $Id: memory.txt,v 1.2 91/06/18 13:45:42 lth Exp Locker: lth $
+; -*- Text -*-
+; $Id: memory.txt,v 1.3 91/06/23 16:03:22 lth Exp Locker: lth $
 
                  Memory Manager Interface Definition
 
@@ -12,53 +13,26 @@ and the compiled Scheme application. Rules for the interaction are set
 forth and some examples are presented. 
 
 Section 1 discusses the application interface to the memory manager
-and the calling conventions expected by these procedures.
-Section 2 discusses the initialization interface to the memory manager.
-Section 3 shows some examples.
+allocation, mutation, and management procedures.  Section 2 discusses
+the application interface to the memory manager initialization
+procedures.  Section 3 shows some examples.
 
 
 1. The application interface to the memory manager
---------------------------------------------------
-The compiled code should call only the procedures exported from
-"memory.s", all of which are listed below (from now on called "the
-millicode procedures", although there can and will be other millicode
-procedures as well). All millicode procedures except "stkuflow()" may
-invoke the garbage collector.
+-------------------------------------------------- 
+Of all memory management procedures in the run-time system, The
+compiled code should call only the procedures exported from
+"memory.s", all of which are listed below, and which from now on will
+be collectively referred to as "the memory management millicode
+procedures", abbreviated "the MMMPs". All MMMPs except "stkuflow()"
+may invoke the garbage collector.
 
-Millicode procedures take arguments in the millicode registers RESULT,
-ARGREG2, and ARGREG3, from leftmost to rightmost argument.  Results are
-returned in the RESULT register. Argument registers ARGREG2 and ARGREG3
-are never changed by these procedures, with the exception of address
-changes due to garbage collection. Hence, the millicode argument
-registers can be used as rootable temporary registers even across
-millicode calls. The RESULT register is always changed; if no values
-are returned, then it is set to 0.
+MMMPs follow millicode calling conventions as outlined in
+"conventions.txt".
 
-The millicode procedures assume that the address of the calling
-instruction will be available in %o7, so the application will typically
-use a "call" or "jmpl" instruction.  Assuming that these procedures are
-all kept in the millicode table, we have the following calling sequence:
-
-	ld	[ %MILLICODE + M_ALLOC ], %TMP0
-	jmpl	%TMP0, %o7
-	nop
-
-where M_ALLOC is the symbolic name of the offset of the allocation
-procedure in the millicode table, and %MILLICODE is the register that
-points to the millicode table. Note that the caller does not have to
-store the return address in its continuation frame! In the event of a
-garbage collection, the millicode procedures will themselves take care
-of fixing up return addresses for code that has been moved.
-
-If and only if the code that calls the millicode is never moved by the
-garbage collector (i.e. it is linked in with the runtime support
-system), then a "call" instruction can be used, decreasing call time
-from 6 cycles (worst case, assuming no cache misses) to 2 cycles
-(ditto).
-
-The procedures exported from "memory.s" are the following, shown using C
-declaration syntax. The names in brackets are the symbolic names for the
-procedures' offsets within the "millicode" array.
+The procedures exported from "memory.s" are the following, shown using
+C declaration syntax. The names in brackets are the symbolic names for
+the procedures' offsets within the "millicode" array.
 
 word *alloc( word n )                       [ M_ALLOC ]
   Allocates n uninitialized words on the heap and returns an untagged
@@ -94,24 +68,23 @@ void vectorset( word p, word i, word v )    [ M_VECTORSET ]
   of calling vectorset() is undefined. The argument i must be a fixnum.
 
 word *gcstart( word n )                     [ M_GCSTART ]
-  If n is the fixnum representing -1 (namely, 0xFFFFFFFC) then the
-  garbage collector is invoked to do a tenuring collection, and the
-  value of RESULT is unchanged (modulo address updates). Otherwise, the
-  garbage collector is invoked to collect the ephemeral area, a block of
-  n words is allocated as for alloc(), above, and RESULT is set to an
-  untagged pointer to the allocated memory. A tenuring collection may be
-  invoked even if n is not -1, depending on the internal state of the
-  collector. The parameter n must be a fixnum.
+  If n is the fixnum representing -1, then the garbage collector is
+  invoked to do a tenuring collection, and the value of RESULT is
+  unchanged (modulo address updates). Otherwise, the garbage collector
+  is invoked to collect the ephemeral area, a block of n words is
+  allocated as for alloc(), above, and RESULT is set to an untagged
+  pointer to the allocated memory. A tenuring collection may be invoked
+  even if n is not -1, depending on the internal state of the collector.
+  The parameter n must be a fixnum.
 
 void stkuflow( void )                       [ M_STKUFLOW ]
   'Stkuflow 'retrieves a continuation frame from the heap and puts it at
   the top of the stack cache (growing down). Typically, there will be a
   dummy continuation at the top of the stack cache. This continuation
   contains a return address which points to 'stkuflow'; when underflow
-  occurs, stkuflow is invoked and handles the underflow, returning to
-  the instruction that caused it to be invoked, and hence causing the
-  program to be resumed.  A stack underflow will never cause a garbage
-  collection.
+  occurs, 'stkuflow' is invoked and handles the underflow, returning to
+  the return address in the newly-fetched stack frame. A stack underflow
+  will never cause a garbage collection.
 
 void stkoflow( void )                       [ M_STKOFLOW ]
   'Stkoflow' should be invoked from the compiled application to flush the
@@ -135,7 +108,9 @@ initialization code which may use memory is called. It takes five parameters:
   watermark, then the next collection will be a tenuring collection.
 
 The "init_mem()" procedure will initialize the garbage collector and then
-set up the values at global table offsets E_LIMIT and STK_LIMIT.
+set up the values at global table offsets E_LIMIT and STK_LIMIT. It will
+also setup a dummy continuation at the bottom (high addresses) of the
+stack cache to catch stack underflows, which may occur after stack flushes.
 
 
 3. Examples of use of the memory manager
@@ -143,31 +118,35 @@ set up the values at global table offsets E_LIMIT and STK_LIMIT.
 
 ! Generic CONS using alloc()
 !
-! Assume values to cons are in R1 and R2 and that pointer to new cell is
-! to be left in RESULT. (If the arguments were in an even/odd register
-! pair, we would use 'std' rather than 'st'.)
+! Assume values to cons are in REG1 and REG2 and that pointer to new 
+! cell is to be left in RESULT. (If the arguments were in an even/odd 
+! register pair, we would use 'std' rather than 'st'.)
 
-	ld	[ %MILLICODE + M_ALLOC ], %TMP0
-	jmpl	%TMP0, %o7
-	set	8, %RESULT			! #8 == fixnum( #2 )
-	st	%R1, [ %RESULT+CAR_OFFSET ]
-	st	%R2, [ %RESULT+CDR_OFFSET ]
-	or	%RESULT, PAIR_TAG, %RESULT
+    ld      [ %MILLICODE + M_ALLOC ], %TMP0    
+    jmpl    %TMP0, %o7                        ! allocate it
+    mov     8, %RESULT                        ! 8 == fixnum( 2 )
+    st      %REG1, [ %RESULT+CAR_OFFSET ]
+    st      %REG2, [ %RESULT+CDR_OFFSET ]
+    or      %RESULT, PAIR_TAG, %RESULT        ! set tag
 
 ! Open-coded CONS, same assumptions as above.
 !
 ! In general, if we cannot use 'std', we can get slightly better
 ! performance by moving the setting of the tag between the stores
 ! and using a tag-adjusted offset in the second store.
+!
+! This code uses 12 cycles in the general case (the two consecutive 
+! stores create a nasty stall on the Sparc 1), assuming we hit the
+! cache (which is perhaps unlikely for an allocation routine...)
 
-	add	%E_TOP, 8, %E_TOP		! allocate optimistically
-	cmp	%E_TOP, %E_LIMIT		! overflow?
-	ble,a	L1				! jump if not
-	sub	%E_TOP, 8, %RESULT		! setup pointer if ok
-	ld	[ %MILLICODE + M_GCSTART ], %TMP0
-	jmpl	%TMP0, %o7			! collect and allocate
-	set	8, %RESULT			! argument for gcstart
+    add     %E_TOP, 8, %E_TOP                     ! allocate optimistically
+    cmp     %E_TOP, %E_LIMIT                      ! overflow?
+    ble,a   L1                                    ! jump if not
+    sub     %E_TOP, 8, %RESULT                    ! setup pointer if ok
+    ld      [ %MILLICODE + M_GCSTART ], %TMP0
+    jmpl    %TMP0, %o7                            ! collect and allocate
+    mov     8, %RESULT                            ! argument for gcstart
 L1:
-	st	%R1, [ %RESULT+CAR_OFFSET ]
-	st	%R2, [ %RESULT+CDR_OFFSET ]
-	or	%RESULT, PAIR_TAG, %RESULT
+    st      %REG1, [ %RESULT+CAR_OFFSET ]
+    st      %REG2, [ %RESULT+CDR_OFFSET ]
+    or      %RESULT, PAIR_TAG, %RESULT
