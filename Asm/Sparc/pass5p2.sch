@@ -539,4 +539,24 @@
 		      (regname (operand1 instruction))
 		      (make-asm-label as (operand2 instruction)))))
 
+; ($branch-with-return label doc)
+; Set the return address to the address of the next instruction and
+; branch to 'label.
+;
+; (There's an implicit '.align x preceding the label but that is ignored
+; on the SPARC.)
+
+(define-instruction $branch-with-setrtn
+  (lambda (instruction as)
+    (list-instruction "branch-with-setrtn" instruction)
+    (emit-branch-with-setrtn! as (make-asm-label as (operand1 instruction)))))
+
+; ($invoke-with-return n)
+; As for branch-with-return.
+
+(define-instruction $invoke-with-setrtn
+  (lambda (instruction as)
+    (list-instruction "invoke-with-setrtn" instruction)
+    (emit-invoke-with-setrtn! as (operand1 instruction))))
+
 ; eof

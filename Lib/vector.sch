@@ -21,8 +21,6 @@
   (lambda (l)
     (sys$partial-list->vector l (length l))))
 
-(define %list->vector list->vector)
-
 (define vector->list
   (letrec ((loop
              (lambda (v i l)

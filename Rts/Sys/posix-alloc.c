@@ -194,7 +194,8 @@ static byte *gclib_alloc( unsigned bytes )
 
       /* Slide the table down, i.e., move the entries up */
 
-      annoyingmsg( "Sliding page table by %u entries.", diff );
+      annoyingmsg( "Low-level allocator: Sliding page table by %u entries.",
+		   diff );
 
       diff = pageof_pb( gclib_pagebase, ptr );
       for ( i = data.descriptor_slots-1 ; i >= diff ; i-- ) {
@@ -244,7 +245,8 @@ static void grow_table( byte *new_bot, byte *new_top )
   assert( ((word)new_top % PAGESIZE) == 0 );
   assert( (caddr_t)new_bot <= gclib_pagebase );
   assert( (caddr_t)new_top >= data.memtop );
-  annoyingmsg( "Growing page tables; new slots=%u.", slots );
+  annoyingmsg( "Low-level allocator: Growing page tables; new slots=%u.",
+	       slots );
 
   desc_g = (unsigned*)must_malloc( sizeof( unsigned ) * slots );
   desc_b = (unsigned*)must_malloc( sizeof( unsigned ) * slots );
@@ -283,8 +285,6 @@ static byte *alloc_aligned( unsigned bytes )
   p = (byte*)must_malloc( bytes+PAGESIZE );
   q = (byte*)roundup_page( p );
   wastage = (double)(q-p);
-  supremely_annoyingmsg( "Allocation alignment wastage: %d (%2.1f%%)",
-			 (int)wastage, wastage*100.0/bytes  );
   register_pointer( q, p );
   return q;
 }
@@ -370,9 +370,6 @@ static int reg_size = 0;
 static void register_pointer( byte *derived, byte *original )
 {
   int i, j;
-
-  supremely_annoyingmsg( "registering ptr: orig=%p, derived=%p",
-			 (void*)original, (void*)derived );
 
   if (reg_next == reg_size) {
     /* It's full, so compact it and see what happens */

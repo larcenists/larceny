@@ -52,7 +52,7 @@ struct gc {
 
   int np_remset;
     /* In a non-predictive collector, the index in the remset array of
-       the extra non-predictive remembered set.
+       the extra non-predictive remembered set, otherwise -1.
        */
 
   void *data;
@@ -117,8 +117,9 @@ struct gc {
   void (*compact_np_ssb)( gc_t *gc );
   void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim );
 
-  int  (*dump_heap)( gc_t *gc, const char *filename );
-    /* Method that dumps the heap image into the named file.
+  int  (*dump_heap)( gc_t *gc, const char *filename, bool compact );
+    /* Method that dumps the heap image into the named file.  Compact
+       the heap first iff compact is non-zero.
 
        Returns 0 on success, a negative error code (defined in heapio.h)
        on error.
@@ -155,7 +156,7 @@ gc_t *create_bdw_gc( gc_param_t *params, /* OUT */ int *actual_generations );
 #define gc_set_policy( gc,h,x,y )     ((gc)->set_policy( gc,h,x,y ))
 #define gc_data_load_area( gc,n )     ((gc)->data_load_area( gc,n ))
 #define gc_text_load_area( gc,n )     ((gc)->text_load_area( gc,n ))
-#define gc_iflush( gc,g )             ((gc)->iflush( gc,g ))
+#define gc_iflush( gc )               ((gc)->iflush( gc, -1 ))
 #define gc_creg_get( gc )             ((gc)->creg_get( gc ))
 #define gc_creg_set( gc,k )           ((gc)->creg_set( gc, k ))
 #define gc_stack_overflow( gc )       ((gc)->stack_overflow( gc ))
@@ -163,9 +164,10 @@ gc_t *create_bdw_gc( gc_param_t *params, /* OUT */ int *actual_generations );
 #define gc_stats( gc,g,stats )        ((gc)->stats( gc,g,stats ))
 #define gc_compact_all_ssbs( gc )     ((gc)->compact_all_ssbs( gc ))
 #define gc_compact_np_ssb( gc )       ((gc)->compact_np_ssb( gc ))
-#define gc_dump_heap( gc, fn )        ((gc)->dump_heap( gc, fn ))
+#define gc_dump_heap( gc, fn, c )     ((gc)->dump_heap( gc, fn, c ))
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
+#define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
 
 #define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
@@ -190,7 +192,7 @@ gc_t
 	     void (*compact_np_ssb)( gc_t *gc ),
 	     void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim),
 	     int  (*load_heap)( gc_t *gc, heapio_t *h ),
-	     int  (*dump_heap)( gc_t *gc, const char *filename ),
+	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
 	     void (*enumerate_remsets_older_than)

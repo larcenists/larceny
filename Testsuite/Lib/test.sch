@@ -10,26 +10,38 @@
 (define (test id ans correct)
   (if (not (equal? ans correct))
       (begin (display "********** FAILURE *********") (newline)
-	     (display id) (display " did not pass test.") (newline)
-	     (display "answer=") (display ans) (newline)
-	     (display "correct=") (display correct) (newline)
+	     (display "  ") (display id) (display " did not pass test.")
+	     (newline)
+	     (display "  Returned value = ") (display ans) (newline)
+	     (display "  Correct value  = ") (display correct) (newline)
 	     #f)
       #t))
 
-(define (allof . x)
-  (let loop ((l x))
-    (cond ((null? l) #t)
-	  ((not (car l)) #f)
-	  (else (loop (cdr l))))))
+; This really ought to be a macro that evaluates the tests in order and
+; stops when a threshold of errors is reached.  It should also protect
+; each executed test from aborting the test suite.
 
-(define (allof/noncritical . x)
-  #t)
+(define (allof test-name . l)
+  (do ((l l (cdr l))
+       (errors 0))
+      ((null? l)
+       (if (not (zero? errors))
+	   (begin (newline)
+		  (display errors)
+		  (display " failure(s) detected in the group \"")
+		  (display test-name)
+		  (display "\".")
+		  (newline)
+		  (newline)))
+       errors)
+    (if (not (car l))
+	(set! errors (+ errors 1)))))
 
 (define (safely thunk token)
   (call-with-current-continuation
    (lambda (k)
-     (call-with-reset-handler
-      (lambda ()
+     (call-with-error-handler
+      (lambda args
 	(k token))
       thunk))))
 

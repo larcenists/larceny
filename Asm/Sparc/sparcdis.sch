@@ -521,8 +521,11 @@
 		   (larceny-register-name (op2 instr)) ", "
 		   (larceny-register-name (op3 instr))))
 
-  (define (call instr)
-    (pcrel (op1 instr)))
+;  (define (call instr a)
+;    (pcrel (op1 instr)))
+
+  (define (call instr addr)
+    (string-append "#" (number->string (+ (op1 instr) addr))))
 
   ;; If we want to handle instruction aliases (clr, mov, etc) then
   ;; the structure of this procedure must change, because as it is,
@@ -545,7 +548,7 @@
 			   ((mnemonic=? m 'nop) "")
 			   ((mnemonic=? m 'jmpl)
 			    (if (mnemonic:immediate? m) (jmpli i) (jmplr i)))
-			   ((mnemonic=? m 'call) (call i))
+			   ((mnemonic=? m 'call) (call i a))
 			   ((mnemonic:immediate? m) (rir i))
 			   (else (rrr i))))))
 

@@ -20,7 +20,6 @@
 (define car (lambda (x) (car x)))
 (define cdr (lambda (x) (cdr x)))
 (define cons (lambda (x y) (cons x y)))
-(define %cons (lambda (x y) (cons x y))) ; for macro expander
 (define set-car! (lambda (x y) (set-car! x y)))
 (define set-cdr! (lambda (x y) (set-cdr! x y)))
 (define sys$partial-list->vector (lambda (x y) (sys$partial-list->vector x y)))
@@ -34,6 +33,7 @@
 (define integer? (lambda (x) (integer? x)))
 (define fixnum? (lambda (x) (fixnum? x)))
 (define flonum? (lambda (x) (flonum? x)))
+(define compnum? (lambda (x) (compnum? x)))
 (define exact? (lambda (x) (exact? x)))
 (define inexact? (lambda (x) (inexact? x)))
 (define exact->inexact (lambda (x) (exact->inexact x)))

@@ -11,8 +11,8 @@
 ;  make-compiler
 ;  make-sparcasm
 ;  make-development-environment  -- makes auxlib, compat, compiler, sparcasm
-;  make-testsuite
-
+;  make-gc-testsuite
+;  make-regression-test
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -93,6 +93,7 @@
     "timer"             ; timer interrupts
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
+    "secret"            ; some "hidden" top-level names
 
     ; New I/O subsystem
 
@@ -204,7 +205,8 @@
 (define compiler-files '("compile313" "help" "pass1.aux" "pass1" 
 			 "pass2.aux" "pass2p1" "pass2p2" "pass4.aux"
 			 "pass4p1" "pass4p2" "pass4p3" 
-			 "sets" "switches" "sparc.imp" "pass4patch"))
+			 "sets" "switches" "sparc.imp" "pass4patch"
+			 "printlap"))
 
 (define comp-asm-files '("makefasl" "makefasl2" "dumpheap"))
 (define comp-util-files '("make" "make-support" "init-comp"))
@@ -252,7 +254,7 @@
 (define sparcasm-project (make:new-project "sparcasm.date"))
 
 (define generic-asm-files
-  '("pass5p1" "asmutil" "asmutil32" "asmutil32be"))
+  '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "link-lop"))
 
 (define sparcasm-files
   '("pass5p2" "gen-msi" "gen-prim" "sparcasm" "sparcutil"
@@ -329,7 +331,7 @@
   (make:new-project "Regression tests"))
 
 (define regression-test-files
-  '("char" "env" "number" "test"))
+  '("test" "fib" "ctak" "number" "char" "bool"))
 
 (make:rule regression-test-project ".fasl" ".sch" make-compile-file)
 (make:deps regression-test-project '("regression-test.date")

@@ -14,7 +14,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 26 February 1998.
+; 09 April 1998 / lth
 
 (define twobit-sort
   (lambda (less? list)
@@ -30,8 +30,8 @@
 ; by ordinary code.
 
 (define name:IGNORED (string->symbol "IGNORED"))
-(define name:CONS (string->symbol "CONS"))
-(define name:LIST '%list)
+(define name:CONS '.cons)
+(define name:LIST '.list)
 (define name:MAKE-CELL (string->symbol "MAKE-CELL"))
 (define name:CELL-REF (string->symbol "CELL-REF"))
 (define name:CELL-SET! (string->symbol "CELL-SET!"))
@@ -173,15 +173,15 @@
     (procedure-length 1 procedure-length #f 48 #f)
     (make-procedure 1 make-procedure #f 49 #f)
     ; 50 missing
-    (make-cell 1 make-cell #f 51 #f)
-    (,(string->symbol "MAKE-CELL") 1 make-cell #f 52 #f)
-    (cell-ref 1 cell-ref #f 53 #f)
-    (,(string->symbol "CELL-REF") 1 cell-ref #f 54 #f)
+    ; (make-cell 1 make-cell #f 51 #f)
+    ; (cell-ref 1 cell-ref #f 53 #f)
+    (,name:MAKE-CELL 1 make-cell #f 52 #f)
+    (,name:CELL-REF 1 cell-ref #f 54 #f)
     (typetag-set! 2 typetag-set! ,typetag-arg? 55 #f)
     (eq? 2 eq? ,smallint? 56 #f)
     (eqv? 2 eqv? #f 57 #t)
     (cons 2 cons #f 58 #f)
-    (%cons 2 cons #f 58 #f)          ; for the benefit of macro expansion...
+    (.cons 2 cons #f 58 #f)
     (set-car! 2 set-car! #f 59 #f)
     (set-cdr! 2 set-cdr! #f 60 #f)
     (+ 2 + ,smallint? 61 #t)
@@ -207,8 +207,8 @@
     (vector-ref 2 vector-ref ,smallint? 81 #f)
     (bytevector-ref 2 bytevector-ref ,smallint? 82 #f)
     (procedure-ref 2 procedure-ref #f 83 #f)
-    (cell-set! 2 cell-set! #f 84 #f)
-    (,(string->symbol "CELL-SET!") 2 cell-set! #f 84 #f)
+    ; (cell-set! 2 cell-set! #f 84 #f)
+    (,name:CELL-SET! 2 cell-set! #f 84 #f)
     (char<? 2 char<? ,char? 85 #f)
     (char<=? 2 char<=? ,char? 86 #f)
     (char=? 2 char=? ,char? 87 #f)

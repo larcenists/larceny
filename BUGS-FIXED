@@ -675,6 +675,25 @@
 
      FIX: rewrote emit-charcmp! in the obvious way.
 
+035  v0.28f (970812 / lth)  Fixed 980409 by lth
+
+     The macro expander (and Twobit?) rely on some global variables called
+     %list, %list->vector, %cons, %append, and %make-promise.  
+
+     These dependencies should be removed completely, probably by using
+     magic global names (more magic than the above...) that the linker
+     treats specially, possibly by having all environments inherit
+     from an environment where they are bound.
+
+     Also NOTE that those names are not present in the null environment, 
+     so some code that should run in that environment (notably code with
+     quasiquotations, but perhaps other code as well) will not in fact run.
+     The same fix applies.
+
+     FIX: implemented magic names.  Magic names start with . and may contain
+     no underscores (for reasons of possibly ugly interaction with the 
+     compiler).
+
 037  v0.28f (970915 / lth)  Fixed 970716 by lth
 
      Negation of a bignum does not work correctly if the resulting number
@@ -935,3 +954,40 @@
     standard i/o streams; there should be one variable for input and
     one for output.  This was implemented, and redirection now works
     correctly.
+
+058 v0.32 (980423 / will)  Fixed 980424 by lth
+
+    Since -1.0 is the mathematically ideal result of
+    (- (expt 2. 100) (+ (expt 2 100) 1)), the R5RS says that
+
+        (zero? (- (expt 2. 100) (+ (expt 2 100) 1)))
+
+    should evaluate to #f, not to #t.  Scheme48 gets this right, but it is
+    the only implementation I have found that does.  This is probably a
+    common bug in implementations of Scheme.
+
+    [This is curious, because it is the case in Larceny that
+     (= (inexact->exact (expt 2.0 100)) (expt 2 100)).  One notes that
+     (- (expt 2.0 100) (+ (expt 2 100) 1)) => 0.0, which is wrong, hence
+     some contagion rule gets it wrong here. --lars]
+
+    FIX:
+    Changed the contagion matrix for arithmetic.
+
+061 v0.33 (980428 / lth)  Fixed 980428 by lth
+
+    Logand, logior, logxor cannot cope with the largest negative fixnum,
+    and exhibit the following behavior:
+	
+	> (logand -536870912 1)
+	Error: exception-handler: confused about logand
+
+    The reason for the bug is the tag check used in the implementation:
+
+      (sparc.tsubrcc as $r.result tmp $r.g0)
+      (sparc.bvc.a   as L1)
+
+    Of course, the overflow flag will _also_ be set if there was a true
+    overflow from the subtraction!
+
+    FIX: Implemented the correct tag checking code.

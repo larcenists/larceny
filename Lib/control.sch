@@ -49,7 +49,7 @@
 
 ; Used by 'delay'.
 
-(define %make-promise
+(define make-promise
   (lambda (proc)
     (let ((result-ready? #f)
 	  (result        #f))

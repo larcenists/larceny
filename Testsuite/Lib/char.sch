@@ -4,24 +4,18 @@
 ; $Id$
 
 (define (run-char-tests)
-  (newline)
-  (display "****************************************") (newline)
-  (display "Characters") (newline)
-  (newline)
-  (and (char-predicate-test)
-       (char-test-eqv?)
-       (char-simple-comparisons)
-       (char-more-simple-comparisons #\a)
-       (char-tests-for-control)
-       (char-more-tests-for-control #\a)
-       (char-yet-more-tests-for-control #\a #\b)
-       (char-conversion-tests #\a)
-       (char-classification-tests)))
+  (char-predicate-test)
+  (char-test-eqv?)
+  (char-simple-comparisons)
+  (char-more-simple-comparisons #\a)
+  (char-tests-for-control)
+  (char-more-tests-for-control #\a)
+  (char-yet-more-tests-for-control #\a #\b)
+  (char-conversion-tests #\a)
+  (char-classification-tests))
 
 (define (char-predicate-test)
-  (display "----------------------------------------") (newline)
-  (display "Testing char?") (newline)
-  (allof
+  (allof "char?"
    (test "(char? #\a)" (char? #\a) #t)
    (test "(char? 37)" (char? 37) #f)
    (test "(char? #x26)" (char? #x26) #f)
@@ -41,16 +35,12 @@
   (define (p a b)
     (eqv? a b))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing eqv? on characters") (newline)
-  (allof
+  (allof "eqv? on characters"
    (test "(p #\a #\a)" (p #\a #\a) #t)
    (test "(p #\a #\b)" (p #\a #\b) #f)))
 
 (define (char-simple-comparisons)
-  (display "----------------------------------------") (newline)
-  (display "Simple char comparisons") (newline)
-  (allof
+  (allof "char=?, char<?, char<=?, char>?, char>=?"
    (test "(char=? #\a #\a)" (char=? #\a #\a) #t)
    (test "(char=? #\a #\b)" (char=? #\a #\b) #f)
    (test "(char>? #\a #\a)" (char>? #\a #\a) #f)
@@ -69,9 +59,7 @@
 ; X is known to have value #\a.
 
 (define (char-more-simple-comparisons x)
-  (display "----------------------------------------") (newline)
-  (display "More simple char comparisons.") (newline)
-  (allof
+  (allof "char=?, char<?, char<=?, char>?, char>=? (again!)"
    (test "(char=? #\a x)" (char=? #\a x) #t)
    (test "(char=? #\a x)" (char=? #\b x) #f)
    (test "(char>? #\a x)" (char>? #\a x) #f)
@@ -84,9 +72,7 @@
    (test "(char<=? #\b x)" (char<=? #\b x) #f)))
 
 (define (char-tests-for-control)
-  (display "----------------------------------------") (newline)
-  (display "Character predicates for control") (newline)
-  (allof
+  (allof "char=?, char<?, char<=?, char>?, char>=? for control"
    (test "(if (char=? #\a #\b) 0 1)" (if (char=? #\a #\b) 0 1) 1)
    (test "(if (char=? #\a #\a) 0 1)" (if (char=? #\a #\a) 0 1) 0)
    (test "(if (char>? #\a #\b) 0 1)" (if (char>? #\a #\b) 0 1) 1)
@@ -105,9 +91,7 @@
 ; x is known to be #\a
 
 (define (char-more-tests-for-control x)
-  (display "----------------------------------------") (newline)
-  (display "More character predicates for control") (newline)
-  (allof
+  (allof "char=?, char<?, char<=?, char>?, char>=? for control (again!)"
    (test "(if (char=? x #\b) 0 1)" (if (char=? x #\b) 0 1) 1)
    (test "(if (char=? x #\a) 0 1)" (if (char=? x #\a) 0 1) 0)
    (test "(if (char>? x #\b) 0 1)" (if (char>? x #\b) 0 1) 1)
@@ -126,9 +110,7 @@
 ; x is #\a and y is #\b
 
 (define (char-yet-more-tests-for-control x y)
-  (display "----------------------------------------") (newline)
-  (display "Yet more character predicates for control.") (newline)
-  (allof
+  (allof "char=?, char<?, char<=?, char>?, char>=? for control (again!!)"
    (test "(if (char=? x y) 0 1)" (if (char=? x y) 0 1) 1)
    (test "(if (char=? x x) 0 1)" (if (char=? x x) 0 1) 0)
    (test "(if (char>? x y) 0 1)" (if (char>? x y) 0 1) 1)
@@ -152,9 +134,7 @@
 ; FIXME: char-upcase, char-downcase
 
 (define (char-conversion-tests x)
-  (display "----------------------------------------") (newline)
-  (display "Character conversions.") (newline)
-  (allof
+  (allof "integer->char, char->integer"
    (test "(char? (integer->char 44))" (char? (integer->char 44)) #t)
    (let loop ((i 0 (+ i 1)))
      (cond ((= i 256) #t)
@@ -181,9 +161,7 @@
 	  (char-whitespace? x)
 	  (char-upper-case? x)
 	  (char-lower-case? x)))
-  (display "----------------------------------------") (newline)
-  (display "Characer classification.") (newline)
-  (allof
+  (allof "character classification"
    (let loop ((i (char->integer #\a)))
      (cond ((> i (char->integer #\z)) #t)
 	   ((not (test `("(p " ,(integer->char i) ")")

@@ -6,7 +6,7 @@
 
 #include "config.h"
 
-char *version = "0.32";
+char *version = "0.33";
 char *date = DATE;
 char *user = USER;
 

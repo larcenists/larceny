@@ -18,6 +18,7 @@ supporting documentation, information, test cases, and so on.
 
 
 005  (v0.27e)
+     Priority: low.
 
      While the system can now grow the heap to any size (by growing the
      descriptor tables), an attempt to start the system with more than 32MB
@@ -29,7 +30,12 @@ supporting documentation, information, test cases, and so on.
      new tables.  But at this point the barrier has not yet been initialized,
      so garbage is accessed.
 
+     This is generally no longer a problem, since heaps are allocated
+     lazily.  It will become a problem when someone tries to load a heap
+     image of about 32MB or more.
+
 012  (v0.28)  970507
+     Priority: low.
 
      Remembered-set size information from the command line is disregarded
      when creating the remembered sets in the garbage collector.
@@ -37,11 +43,13 @@ supporting documentation, information, test cases, and so on.
      See file Rts/Sys/memmgr.c
 
 031  v0.28e (970708 / lth)
+     Priority: low.
 
      Dynamic-wind must be made aware of timer interrupts [some parts must
      be guarded by critical sections.]
 
 034  v0.28f (970723 / lth)
+     Priority: low.
 
      (This is true both in the old and new assembler.)
      The number of arguments to a procedure is limited to 1023.  This is due
@@ -54,21 +62,6 @@ supporting documentation, information, test cases, and so on.
 
      This is easy to fix, but before doing so, check that the compiler 
      does not in fact compile these kinds of procedures and calls specially.
-
-035  v0.28f (970812 / lth)
-
-     The macro expander (and Twobit?) rely on some global variables called
-     %list, %list->vector, %cons, %append, and %make-promise.  
-
-     These dependencies should be removed completely, probably by using
-     magic global names (more magic than the above...) that the linker
-     treats specially, possibly by having all environments inherit
-     from an environment where they are bound.
-
-     Also NOTE that those names are not present in the null environment, 
-     so some code that should run in that environment (notably code with
-     quasiquotations, but perhaps other code as well) will not in fact run.
-     The same fix applies.
 
 036  v0.28f (970826 / lth -- old bug)
 053  v0.32 (971107 / lth)
@@ -94,6 +87,7 @@ supporting documentation, information, test cases, and so on.
      On the whole, the dark corners of the input syntax are indeed dark.
 
 041  v0.31 (9710xx / dougo)
+     Priority: should not be fixed.
 
      The macro-expander and evaluator are not robust and produce strange 
      error messages when handed syntactically incorrect programs.  Consider,
@@ -105,6 +99,7 @@ supporting documentation, information, test cases, and so on.
       hygienic macro package. -- lars]
 
 042  v0.31 (971024 / lth)
+     Priority: should not be fixed.
 
      > (+ 'a)
      a
@@ -120,6 +115,12 @@ supporting documentation, information, test cases, and so on.
      Make-string needs to be a primop.  I classify this as a bug because
      the performance implications are potentially considerable, and
      because the new pass3 wants to rely on make-string being a primop.
+     One possibility here is to expand (make-string n c) to
+       (let ((s (make-bytevector n)))
+         (bytevector-fill! s (char->integer c))
+         s)
+     since both make-bytevector, bytevector-fill!, and char->integer
+     are primops.
 
 047  v0.31 (971029 / lth)
 
@@ -135,6 +136,7 @@ supporting documentation, information, test cases, and so on.
 
 054 v0.32 (971107 / lth)
 
+    [Macros that work]
     When a syntactic keyword is used as a variable, e.g.,
 
 	> repeat
@@ -166,6 +168,43 @@ supporting documentation, information, test cases, and so on.
     * displays information about the non-predictive remembered set even
       though it is not in use.
 
-NEXT ENTRY: 058
+059 v0.32 (980423 / will)
+
+    Brad Lucier noted a problem with the complex contagion rule in Common 
+    Lisp.  The mathematically ideal result for
+
+        (let ((z (make-rectangular +inf +inf))
+          (* 1. z))
+
+    is z itself.  Chez Scheme gets this right, but Larceny 0.32 gets it wrong.
+
+    [Produces +nan.0+nan.0i in 0.33 also.  Works for finite values in z.
+     The reason is that +inf.0 * 0 -> invalid operation in IEEE arithmetic.
+     --lars]
+
+060 v0.33 (980425 / lth)
+
+    This is the same problem as for the (fixed) bug 058, but for complex
+    numbers:
+
+      (- (+ 1 (make-rectangular (expt 2 100) 1))
+         (make-rectangular (expt 2.0 100) 1.0))
+    => 0.0
+
+      (= (+ 1 (make-rectangular (expt 2 100) 1))
+         (make-rectangular (expt 2.0 100) 1.0))
+    => #t
+
+    Larceny could do better here (and return 1 in the first case, #f in the
+    second).  The first bug is in contagion; the second in econtagion.
+
+062 v0.33 (980430 / will)
+
+    [Performance bug]
+    Floating point output is very, very slow.  The Dragon4 algorithm, which
+    uses (slow) bignums, should be replaced by Dybvig's algorithm.
+
+
+NEXT ENTRY: 063
 	
 ; eof

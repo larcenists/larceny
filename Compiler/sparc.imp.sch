@@ -14,9 +14,10 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 26 February 1998
+; 18 April 1998 / lth
 
-(define twobit-sort (lambda (less? list) (compat:sort list less?)))
+(define twobit-sort
+  (lambda (less? list) (compat:sort list less?)))
 
 (define renaming-prefix ".")
 
@@ -26,13 +27,15 @@
 
 ; Names of global procedures that cannot be redefined or assigned
 ; by ordinary code.
+; The expansion of quasiquote uses .cons and .list directly, so these
+; should not be changed willy-nilly.
 
+(define name:CONS '.cons)
+(define name:LIST '.list)
+(define name:MAKE-CELL '.make-cell)
+(define name:CELL-REF '.cell-ref)
+(define name:CELL-SET! '.cell-set)
 (define name:IGNORED (string->symbol "IGNORED"))
-(define name:CONS (string->symbol "CONS"))
-(define name:LIST '%list)
-(define name:MAKE-CELL (string->symbol "MAKE-CELL"))
-(define name:CELL-REF (string->symbol "CELL-REF"))
-(define name:CELL-SET! (string->symbol "CELL-SET!"))
 
 ;(begin (eval `(define ,name:CONS cons))
 ;       (eval `(define ,name:LIST list))
@@ -108,8 +111,6 @@
        (<= 0 x)
        (< x 256)))
 
-; (define hash-bang-unspecified '#&(a))
-
 (define $usual-integrable-procedures$
   `((break 0 break #f 3)
     (creg 0 creg #f 7)
@@ -136,6 +137,7 @@
     (integer? 1 integer? #f #x22)
     (fixnum? 1 fixnum? #f #x23)
     (flonum? 1 flonum? #f -1)
+    (compnum? 1 compnum? #f -1)
     (exact? 1 exact? #f #x24)
     (inexact? 1 inexact? #f #x25)
     (exact->inexact 1 exact->inexact #f #x26)
@@ -162,10 +164,9 @@
     (procedure-length 1 procedure-length #f #x59)
     (make-procedure 1 make-procedure #f #x5a)
     (creg-set! 1 creg-set! #f #x71)
-    (make-cell 1 make-cell #f #x7e)
-    (,(string->symbol "MAKE-CELL") 1 make-cell #f #x7e)
-    (cell-ref 1 cell-ref #f #x7f)
-    (,(string->symbol "CELL-REF") 1 cell-ref #f #x7f)
+    (,name:MAKE-CELL 1 make-cell #f #x7e)
+    (,name:CELL-REF 1 cell-ref #f #x7f)
+    (,name:CELL-SET! 2 cell-set! #f #xdf)
     
     ; These next few entries are for the disassembler only.
     ; [Not used by the Larceny disassembler.]
@@ -195,7 +196,7 @@
     (eq? 2 eq? ,sparc-imm? #xa1)
     (eqv? 2 eqv? #f #xa2)
     (cons 2 cons #f #xa8)
-    (%cons 2 cons #f #xa8)          ; for the benefit of macro expansion...
+    (.cons 2 cons #f #xa8)
     (set-car! 2 set-car! #f #xa9)
     (set-cdr! 2 set-cdr! #f #xaa)
     (+ 2 + ,sparc-imm? #xb0)
@@ -221,8 +222,6 @@
     (vector-ref 2 vector-ref ,sparc-imm? #xd3)
     (bytevector-ref 2 bytevector-ref ,sparc-imm? #xd5)
     (procedure-ref 2 procedure-ref #f #xd7)
-    (cell-set! 2 cell-set! #f #xdf)
-    (,(string->symbol "CELL-SET!") 2 cell-set! #f #xdf)
     (char<? 2 char<? ,char? #xe0)
     (char<=? 2 char<=? ,char? #xe1)
     (char=? 2 char=? ,char? #xe2)
@@ -243,7 +242,6 @@
     (vector-like-length 1 vector-like-length #f -1)
     (bytevector-like-length 1 bytevector-like-length #f -1)
     (remainder 2 remainder #f -1)
-;    (modulo 2 modulo #f -1)
     (sys$read-char 1 sys$read-char #f -1)
     ))
 
@@ -688,33 +686,45 @@
 (define instruction.arg2 caddr)
 (define instruction.arg3 cadddr)
 
-; BEGIN code snarfed from Larceny/Compiler/pass4.imp.sch.
-
 ; Opcode table.
-;
-; $Id: twobit.imp.sch,v 1.2 1997/02/11 20:21:58 lth Exp $
 
-(define $.linearize -1)
-(define $.label 63)
-(define $.proc 62)        ; entry point for procedure
-(define $.cont 61)        ; return point
-(define $.align 60)       ; align code stream
-(define $.asm 59)         ; in-line native code
-(define $.proc-doc 58)    ; internal definition procedure info
-(define $.end 57)         ; end of code vector (asm internal)
-(define $.singlestep 56)  ; insert singlestep point (asm internal)
-(define $.entry 55)       ; procedure entry point (asm internal)
+(define *mnemonic-names* '())		; For readify-lap
+(define *last-reserved-mnemonic* 32767)	; For consistency check
 
 (define make-mnemonic
   (let ((count 0))
-    (lambda (ignored)
+    (lambda (name)
       (set! count (+ count 1))
+      (if (= count *last-reserved-mnemonic*)
+	  (error "Error in make-mnemonic: conflict: " name))
+      (set! *mnemonic-names* (cons (cons count name) *mnemonic-names*))
       count)))
+
+(define (reserved-mnemonic name value)
+  (if (and (> value 0) (< value *last-reserved-mnemonic*))
+      (set! *last-reserved-mnemonic* value))
+  (set! *mnemonic-names* (cons (cons value name) *mnemonic-names*))
+  value)
+
+(define $.linearize (reserved-mnemonic '.linearize -1))
+(define $.label (reserved-mnemonic '.label 63))
+(define $.proc (reserved-mnemonic '.proc 62))    ; proc entry point
+(define $.cont (reserved-mnemonic '.cont 61))    ; return point
+(define $.align (reserved-mnemonic '.align 60))  ; align code stream
+(define $.asm (reserved-mnemonic '.asm 59))      ; in-line native code
+(define $.proc-doc                               ; internal def proc info
+  (reserved-mnemonic '.proc-doc 58))
+(define $.end                                    ; end of code vector
+  (reserved-mnemonic '.end 57))                  ; (asm internal)
+(define $.singlestep                             ; insert singlestep point
+  (reserved-mnemonic '.singlestep 56))           ; (asm internal)
+(define $.entry (reserved-mnemonic '.entry 55))  ; procedure entry point 
+                                                 ; (asm internal)
 
 (define $op1 (make-mnemonic 'op1))               ; op      prim
 (define $op2 (make-mnemonic 'op2))               ; op2     prim,k
 (define $op3 (make-mnemonic 'op3))               ; op3     prim,k1,k2
-(define $op2imm (make-mnemonic 'opx))            ; op2imm  prim,x
+(define $op2imm (make-mnemonic 'op2imm))         ; op2imm  prim,x
 (define $const (make-mnemonic 'const))           ; const   x
 (define $global (make-mnemonic 'global))         ; global  x
 (define $setglbl (make-mnemonic 'setglbl))       ; setglbl x
@@ -763,9 +773,13 @@
 (define $constreg (make-mnemonic 'constreg))       ; constreg    const,k
 
 (define $branchfreg (make-mnemonic 'branchfreg))   ; branchfreg k, L
+(define $branch-with-setrtn		           ; branch-with-setrtn L
+  (make-mnemonic 'branch-with-setrtn))
+(define $invoke-with-setrtn                        ; invoke-with-setrtn L
+  (make-mnemonic 'invoke-with-setrtn))
 
 ; misc
 
 (define $cons 'cons)
 
-; END code snarfed from Larceny/Compiler/pass4.imp.sch.
+; eof

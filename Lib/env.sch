@@ -185,7 +185,7 @@
      #t)))
 
 (define (null-environment)
-  (make-environment "null-environment" #f))
+  (make-environment "null-environment" *null-environment*))
 
 (define (larceny-environment)
   (make-environment "larceny-environment" *larceny-environment*))

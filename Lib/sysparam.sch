@@ -16,4 +16,11 @@
 	   (error name ": too many arguments.")
 	   #t))))
 
+(define (system-features)
+  (list (cons 'architecture     (sys$system-feature 'architecture))
+	(cons 'operating-system (sys$system-feature 'os-name))
+	(cons 'os-major-version (sys$system-feature 'os-major-version))
+	(cons 'os-minor-version (sys$system-feature 'os-minor-version))
+	(cons 'gc-technology    (sys$system-feature 'gc-technology))))
+
 ; eof

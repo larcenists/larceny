@@ -258,6 +258,18 @@ larceny_C_ffi_dlopen( word w_path )
   if (desc == 0) 
     hardconsolemsg( "dlopen error: %s", dlerror() );
   globals[ G_RESULT ] = box_uint( (unsigned)desc );
+#elif defined(SUNOS5)
+  char *path;
+  void *desc;
+
+  path = (char*)(ptrof(w_path)+1);
+  /* One can debate whether this mode is the right one.
+     Perhaps the mode should be a parameter to this function.
+     */
+  desc = dlopen( path, RTLD_LAZY | RTLD_LOCAL );
+  if (desc == 0) 
+    hardconsolemsg( "dlopen error: %s", dlerror() );
+  globals[ G_RESULT ] = box_uint( (unsigned)desc );
 #endif
 }
 
@@ -272,7 +284,7 @@ larceny_C_ffi_dlopen( word w_path )
 void
 larceny_C_ffi_dlsym( word w_handle, word w_sym )
 {
-#if defined(SUNOS4)
+#if defined(SUNOS4) || defined(SUNOS5)
   char *sym;
   void *handle;
   void *r;

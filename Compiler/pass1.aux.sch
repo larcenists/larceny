@@ -275,7 +275,7 @@
 
 (define-macro 'delay
   (lambda (l)
-    `(%make-promise (lambda () ,(cadr l)))))
+    `(.make-promise (lambda () ,(cadr l)))))
 
 ;; Rewrites quasiquotations. Painfully.
 ;; A stop-gap measure only.
@@ -316,16 +316,16 @@
 ;;   almost always expand to runnable code, resulting in slower
 ;;   and larger code. 
 ;;
-;; Assumes existence of top-level names %LIST, %CONS, %LIST->VECTOR, 
-;; and %APPEND; they may not be redefined nor shadowed by local names... sigh.
+;; Assumes existence of top-level names .LIST, .CONS, .LIST->VECTOR, 
+;; and .APPEND.
 
 (define-macro 'quasiquote
   (lambda (expr)
     
-    (define hyg-list->vector '%list->vector)
-    (define hyg-list '%list)
-    (define hyg-cons '%cons)
-    (define hyg-append '%append)
+    (define hyg-list->vector '.list->vector)
+    (define hyg-list '.list)
+    (define hyg-cons '.cons)
+    (define hyg-append '.append)
     
     (define (r e l)
       (cond ((vector? (cadr e))

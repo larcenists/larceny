@@ -5,12 +5,14 @@
 
 ($$trace "toplevel")
 
+(define *null-environment*)
 (define *r4rs-environment*)
-(define *r4rs-environment*)
+(define *r5rs-environment*)
 (define *larceny-environment*)
 
 (define (init-toplevel-environment)
-  (let* ((r4rs (make-environment "<r4rs-basis>" #f))
+  (let* ((null (make-environment "<null-basis>" #f))
+	 (r4rs (make-environment "<r4rs-basis>" null))
 	 (r5rs (make-environment "<r5rs-basis>" r4rs))
 	 (larc (make-environment "<larceny-basis>" r5rs)))
 
@@ -314,6 +316,7 @@
     ;; not in R4RS:
     (environment-set! larc 'format format)
     (environment-set! larc 'port? port?)
+    (environment-set! larc 'port-name port-name)
     (environment-set! larc 'flush-output-port flush-output-port)
     (environment-set! larc 'eof-object eof-object)
     (environment-set! larc 'delete-file delete-file)
@@ -348,6 +351,8 @@
     (environment-set! larc 'error-continuation error-continuation)
     (environment-set! larc 'current-continuation-structure 
 		      current-continuation-structure)
+    (environment-set! larc 'break break)
+
     ;; property lists
 
     (environment-set! larc 'getprop getprop)
@@ -387,14 +392,13 @@
     (environment-set! larc 'structure-comparator structure-comparator)
 
     ;; Support for rewriter and for macro expansion.
-    ;; The %* names are hacks and should be fixed.
 
     (environment-set! larc 'macro-expand (lambda (e) (macro-expand e #f)))
-    (environment-set! r4rs '%list list)
-    (environment-set! r4rs '%list->vector list->vector)
-    (environment-set! r4rs '%cons cons)
-    (environment-set! r4rs '%append append)
-    (environment-set! r4rs '%make-promise %make-promise)
+    (environment-set! null '.list .list)
+    (environment-set! null '.list->vector .list->vector)
+    (environment-set! null '.cons .cons)
+    (environment-set! null '.append .append)
+    (environment-set! null '.make-promise .make-promise)
 
     ;; system performance and interface
 
@@ -436,9 +440,6 @@
     ;; Backwards compatibility
     (environment-set! larc 'repl-eval-procedure repl-evaluator)
     (environment-set! larc 'repl-display-procedure repl-printer)
-; No longer in Lib/load.sch -- look in Auxlib/load.sch
-;    (environment-set! larc 'load-noisily load-noisily)
-;    (environment-set! larc 'load-quietly load-quietly)
 
     ;; bignum debugging
 
@@ -451,6 +452,7 @@
     (environment-set! larc 'float-significand float-significand)
     (environment-set! larc 'float-exponent float-exponent)
 
+    (set! *null-environment* null)
     (set! *r4rs-environment* r4rs)
     (set! *r5rs-environment* r5rs)
     (set! *larceny-environment* larc)

@@ -1,0 +1,43 @@
+$Id: README,v 1.1 1997/03/25 16:28:31 lth Exp lth $
+
+Larceny Test Directory
+
+The files in this directory test various aspects of Larceny.  Some of
+the code is currently somewhat old and assumes a not-entirely-bright
+compiler; in particular, a compiler that performs global constant
+propagation and compile-time evaluation of primitives with constant
+arguments will skew the tests.  This needs to be fixed.  (Constant
+folding and interprocedural constant propagation makes things even
+worse.)
+
+The files are listed in the most reasonable order of testing; generally,
+later tests assume that earlier tests have run to completion correctly.
+
+The file `test.sch' contains two procedures, `test' and `allof', which
+are used by the test procedures and should be loaded before other tests
+are run.
+
+Some assumptions are made about a correctly working run-time system, in
+particular, the code assumes that `car', `cdr', `display', `equal?',
+`newline', `not', and `null?' (all of which are used by `test.sch')
+work.  This is not usually a problem; the typical use of this test suite
+is to check out new versions of the compiler and assembler after a
+working system has already been created and is stable.  In the
+bootstrapping phase you should rely on other tests to get the RTS up.
+At a minimum, I would suggest compiling `test.sch' with an already
+working compiler and assembler and only compile the test program with
+the compiler being tested.
+
+Each file X.sch defines a procedure of no arguments called `X-test'
+(e.g., fib-test, fact-test) which is the procedure to call interactively
+to run the test after the compiled code has been loaded.  Other toplevel
+procedures will be defined as well, depending on the test.
+
+fib.sch		procedure calling and fixnum +,-,<
+fact.sch	procedure calling and fixnum *,<,-
+print.sch	output procedures
+reverse.sch	list operations
+char.sch	all character operations including char->integer, integer->char
+arith.sch	generic arithmetic (not yet comprehensive)
+ctak.sch	call-with-current-continuation, closure creation
+

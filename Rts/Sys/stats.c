@@ -155,10 +155,8 @@ typedef struct {
 #if SIMULATE_NEW_BARRIER
   simulated_barrier_stats_t swb;   /* simulated barrier statistics */
 #endif
-#if NP_EXTRA_REMSET
   /* There Can Be Only One! */
   rem_stat_t np_remset;            /* Remembered-set statistics */
-#endif
 } sys_stat_t;
 
 
@@ -362,11 +360,7 @@ stats_fillvector( void )
    * The size includes the header and any padding.
    */
   gen_generations = generations;                 /* # of generation vectors */
-#if !NP_EXTRA_REMSET
-  rem_remsets = generations-1;                   /* # of remset vectors */
-#else
   rem_remsets = generations;                     /* np remset is last elt. */
-#endif
   main_vec_elts = roundup2( STAT_VSIZE+1 );      /* main vector */
   gen_vec_elts = roundup2( gen_generations+1 );  /* generation meta-vector */
   one_gen_elts = roundup2( STAT_G_SIZE+1 );      /* one generation vector */
@@ -427,18 +421,14 @@ stats_fillvector( void )
     remv[i] = tagptr( rv, VEC_TAG );
     *rv = mkheader( STAT_R_SIZE*sizeof(word), VECTOR_HDR );
 
-#if NP_EXTRA_REMSET
     np_remset = i == rem_remsets;
-#endif
     if (np_remset)
       fill_remset_vector( rv+1, &ms.np_remset, 1 );
     else
       fill_remset_vector( rv+1, &ms.rem_stat[i], 0 );
   }
 
-#if NP_EXTRA_REMSET
   vp[ STAT_NPREMSET_P ] = TRUE_CONST;  /* Useful as a hint only */
-#endif
 
   return tagptr( p, VEC_TAG );
 }
@@ -734,12 +724,10 @@ dump_stats( heap_stats_t *stats, sys_stat_t *ms )
 	   nativeint( ms->swb.transactions ) );
 #endif
 
-#if NP_EXTRA_REMSET
   /* FIXME: should depend on the presence or absence of the remset */
   fprintf( dumpfile, "(np-remset . " );
   dump_remset_stats( dumpfile, &ms->np_remset );
   fprintf( dumpfile, ")" );
-#endif
 
   fprintf( dumpfile, ")\n" );
 }
@@ -835,7 +823,6 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
     ms->gen_stat[i].alloc = fixnum((stats[i].semispace1+stats[i].semispace2)/
 				   sizeof(word));
 
-#if NP_EXTRA_REMSET
     if (stats[i].np_young) {  /* Entries valid exactly when np_young==1 */
       add( &ms->np_remset.hrecorded_hi, &ms->np_remset.hrecorded_lo,
 	  fixnum( stats[i].np_hash_recorded ));
@@ -849,7 +836,6 @@ current_statistics( heap_stats_t *stats, sys_stat_t *ms )
 	  fixnum( stats[i].np_words_scanned ));
       ms->np_remset.cleared += fixnum(0);  /* FIXME */
     }
-#endif
   }
 
   /* Overall statistics */

@@ -1,3 +1,10 @@
+; Testsuite/Lib/ctak.sch
+; Larceny test suite -- TAK with continuations
+;
+; $Id$
+;
+; Partially tests call-with-current-continuation.
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; File:         ctak.sch
 ; Description:  The ctak benchmark
@@ -8,6 +15,14 @@
 ; Language:     Scheme
 ; Status:       Public Domain
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(define (run-ctak-tests)
+  (allof "ctak tests"
+	 (test "(ctak 18 12 6)" (ctak 18 12 6) 7)
+	 (test "(ctak 18 12 6)" (ctak 18 12 6) 7)
+	 (test "(ctak 18 12 6)" (ctak 18 12 6) 7)))
+
 
 ; The original version of this benchmark used a continuation mechanism that
 ; is less powerful than call-with-current-continuation and also relied on
@@ -50,9 +65,4 @@
 		     x
 		     y)))))))
 
-;;; call: (ctak 18 12 6)
-
-; (run-benchmark "CTAK" (lambda () (ctak 18 12 6)))
-
-(define (ctak-test)
-  (test "(ctak 18 12 6)" (ctak 18 12 6) 7))
+; eof

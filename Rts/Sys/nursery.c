@@ -132,9 +132,9 @@ static void collect( young_heap_t *heap, int nbytes )
 {
   young_data_t *data = DATA(heap);
 
-  annoyingmsg( "nursery: promoting (free=%d; request=%d)%s",
-	       free_space( heap ), nbytes,
-	       (nbytes == 0 ? " [stack overflow]" : "" ) );
+  supremely_annoyingmsg( "nursery: promoting (free=%d; request=%d)%s",
+			 free_space( heap ), nbytes,
+			 (nbytes == 0 ? " [stack overflow]" : "" ) );
 
   gc_collect( heap->collector, data->gen_no+1, 0 );
   assert( nbytes > GC_LARGE_OBJECT_LIMIT || free_space( heap ) >= nbytes );

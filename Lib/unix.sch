@@ -69,6 +69,7 @@
 (define syscall:object->address 36)
 (define syscall:ffi-getaddr 37)
 (define syscall:sro 38)
+(define syscall:sys-feature 39)
 
 ; Syscall wrappers.
 
@@ -376,6 +377,21 @@
 	 (unix:exit 1))
 	(else
 	 (unix:exit code))))
+
+(define (sys$system-feature name)
+  (case name
+    ((architecture) 'sparc)		      ; 0
+    ((architecture-version) #f)               ; 1
+    ((operating-system) 'sunos)		      ; 2
+    ((os-major-version) (unix:sysfeature 3))
+    ((os-minor-version) (unix:sysfeature 4))
+    ((gc-technology)
+     (case (unix:sysfeature 5)
+       ((0) 'stop-and-copy)
+       ((1) 'generational)
+       ((2) 'conservative)
+       (else 'unknown)))
+    (else ???)))
 
 ; Get the value of an environment variable.
 

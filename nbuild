@@ -1,9 +1,10 @@
 #!/bin/sh
-#
-# ./nbuild
 # nbuild -- development system load script
 #
 # $Id: nbuild,v 1.5 1997/09/17 15:24:39 lth Exp lth $
+#
+# Usage:
+#   nbuild [ nbuild options ] [ -a host system argument ... ]
 #
 # The advantage of having this script is that it can be cloned and 
 # specialized for different object (or source) directories.
@@ -41,7 +42,6 @@ while [ "$1" != "" ]; do
        L_HOST=chez
        L_HOSTDIR=Chez
        L_HOSTNAME="Chez Scheme" 
-       NEW_ASM="#f"
        ;;
     -e | -executable)
        shift
@@ -60,13 +60,11 @@ while [ "$1" != "" ]; do
        L_HOST=Larceny
        L_HOSTDIR=Larceny
        L_HOSTNAME="Larceny" 
-       NEW_ASM="#t"
        ;;
     -old | -o)
        NEW_ASM="#f"
        ;;
     -new | -n)
-       NEW_ASM="#t" 
        ;;
     -sparc)
        TARGET="SPARC"

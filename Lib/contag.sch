@@ -82,7 +82,7 @@
   ; in the millicode implementations.  Hence, the compnum case with
   ; zero imag part can just return or operate on the compnum.
 
-  (define (->int a)
+  (define (->int a)			; 'a' flonum, compnum w/0i, bignum
     (if (bytevector-like? a)
 	(let ((t (typetag a)))
 	  (cond ((eq? t sys$tag.bignum-typetag) a)
@@ -95,7 +95,7 @@
 		 #f)))
 	#f))
 
-  (define (->flo a)
+  (define (->flo a)			; 'a' flonum, compnum w/0i, bignum
     (if (bytevector-like? a)
 	(let ((t (typetag a)))
 	  (cond ((eq? t sys$tag.flonum-typetag) a)
@@ -107,6 +107,27 @@
 		(else
 		 #f)))
 	#f))
+
+  (define (->flo/comp a)		; 'a' flonum, compnum, bignum
+    (if (and (bytevector-like? a)
+	     (eq? (typetag a) sys$tag.bignum-typetag))
+	(bignum->flonum a)
+	a))
+
+
+  ; Algorithm* for arithmetic.  If both are representable as
+  ; integers, convert to bignums and compute, and then convert to inexact.
+  ; Otherwise, convert to flonums and compute.
+  ; One input is a bignum, the other a flonum or compnum.
+
+  (define (algorithm*c a b retry)
+    (if (and (integer? a) (integer? b))
+	(let ((a (->int a))
+	      (b (->int b)))
+	  (exact->inexact (retry a b)))
+	(let ((a (->flo/comp a))
+	      (b (->flo/comp b)))
+	  (retry a b))))
 
   ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
   ; representable as integers, represent as bignums and compare. 
@@ -137,14 +158,10 @@
     (if (and (integer? a) (integer? b))
 	(let ((a (->int a))
 	      (b (->int b)))
-	  (if (and a b)
-	      (retry a b)
-	      #f))
-	(let ((a (->flo a))
-	      (b (->flo b)))
-	  (if (and a b)
-	      (retry a b)
-	      #f))))
+	  (retry a b))
+	(let ((a (->flo/comp a))
+	      (b (->flo/comp b)))
+	  (retry a b))))
 
   ; Signal an error given an index or a procedure from the millicode vector.
   
@@ -209,8 +226,7 @@
 		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
 		    (fun fixnum->compnum id))
 	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
-		    (fun bignum->rectnum id) (fun bignum->flonum id)
-		    (fun bignum->compnum id))
+		    (fun bignum->rectnum id) algorithm*c algorithm*c)
 	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
 		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
 		    (fun ratnum->compnum id))
@@ -218,11 +234,11 @@
 		    (fun id ratnum->rectnum) oops
 		    (fun rectnum->compnum flonum->compnum)
 		    (fun rectnum->compnum id))
-	    (vector (fun id fixnum->flonum) (fun id bignum->flonum) 
+	    (vector (fun id fixnum->flonum) algorithm*c
 		    (fun id ratnum->flonum) 
 		    (fun flonum->compnum rectnum->compnum)
 		    oops (fun flonum->compnum id))
-	    (vector (fun id fixnum->compnum) (fun id bignum->compnum) 
+	    (vector (fun id fixnum->compnum) algorithm*c
 		    (fun id ratnum->compnum) (fun id rectnum->compnum)
 		    (fun id flonum->compnum) oops)))
 

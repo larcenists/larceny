@@ -25,15 +25,6 @@ void C_allocate( word request_words )
     (word)alloc_from_heap( nativeint( request_words )*sizeof(word) );
 }
 
-/* C_garbage_collect: perform a garbage collection */
-/* FIXME: SHOULD BE OBSOLETE */
-void C_garbage_collect( word type, word request_words )
-{
-  hardconsolemsg( "Call to obsolete C_garbage_collect." );
-  supremely_annoyingmsg( "Allocation exception in millicode." );
-  garbage_collect3( 0, nativeint( request_words )*sizeof( word ) );
-}
-
 /* C_SRO: implements SRO operation. */
 void C_SRO( word w_ptrtag, word w_hdrtag, word w_limit )
 {
@@ -48,7 +39,6 @@ void C_SRO( word w_ptrtag, word w_hdrtag, word w_limit )
 /* C_stack_overflow: overflow handling depends on stack */
 void C_stack_overflow( void )
 {
-  debugmsg( "[debug] Stack overflow." );
   supremely_annoyingmsg( "Stack overflow exception in millicode." );
   stack_overflow();
 }
@@ -56,7 +46,6 @@ void C_stack_overflow( void )
 /* C_creg_get: capture the current continuation. */
 void C_creg_get( void )
 {
-  debugmsg( "[debug] capturing continuation." );
   supremely_annoyingmsg( "Call/cc exception in millicode." );
   globals[ G_RESULT ] = creg_get();
 }
@@ -64,7 +53,6 @@ void C_creg_get( void )
 /* C_creg_set: reinstate a continuation */
 void C_creg_set( void )
 {
-  debugmsg( "[debug] reinstating continuation." );
   supremely_annoyingmsg( "Throw exception in millicode." );
   creg_set( globals[ G_RESULT ] );
 }
@@ -72,7 +60,6 @@ void C_creg_set( void )
 /* C_restore_frame: stack underflowed, restore a frame */
 void C_restore_frame( void )
 {
-  debugmsg( "[debug] Stack underflow." );
   supremely_annoyingmsg( "Stack underflow exception in millicode." );
   stack_underflow();
 }
@@ -81,8 +68,8 @@ void C_restore_frame( void )
 
 void C_wb_compact( int generation )
 { 
-  debugmsg( "[debug] wb_compact." );
-  supremely_annoyingmsg( "SSB exception in millicode." );
+  annoyingmsg( "Generation %d: SSB filled up during mutator operation.",
+	       generation );
   compact_ssb();
 }
 
@@ -131,9 +118,6 @@ void C_varargs( void )
   word k, limit;
   word bytes;
 
-#ifdef DEBUG2
-  debugmsg( "[debug] varargs given=%d, wanted=%d." j, n );
-#endif
   bytes = 4*(2*(j-n));
 
   if (bytes == 0) {
@@ -227,11 +211,16 @@ void C_syscall( void )
   larceny_syscall( nargs, nproc, &globals[ G_REG2 ] );
 }
 
-/* C_compact_ssb: compact SSB, garbage collect if full. */
+/* OBSOLETE */
+void C_garbage_collect( word type, word request_words )
+{
+  panic( "Call to obsolete C_garbage_collect." );
+}
+
+/* OBSOLETE */
 void C_compact_ssb( void )
 {
-  debugmsg( "[debug] Warning: call to obsolete C_compact_ssb" );
-  return;
+  panic( "Obsolete function C_compact_ssb." );
 }
 
 

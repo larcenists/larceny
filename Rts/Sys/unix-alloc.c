@@ -243,7 +243,8 @@ static void *gclib_alloc( unsigned bytes )
     unsigned slots = descriptor_slots * 2;
     unsigned *desc_g, *desc_b;
 
-    annoyingmsg( "Growing page tables; new slots=%u.", slots );
+    annoyingmsg( "Low-level allocator: Growing page tables; new slots=%u.", 
+		 slots );
 
     desc_g = (unsigned*)realloc( gclib_desc_g, sizeof( unsigned ) * slots );
     desc_b = (unsigned*)realloc( gclib_desc_b, sizeof( unsigned ) * slots );

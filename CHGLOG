@@ -4,7 +4,127 @@
 
 
 ----------------------------------------------------------------------
-v0.32
+v0.33 released 980430 by lth
+
+NOTEWORTHY
+  * All code should be recompiled due to some non-backwardly compatible 
+    changes.  Sorry.
+
+FEATURES and CHANGES
+  * Non-predictive collector has been rewritten and works again.
+  * The -reorganize-and-dump command line switch works again.
+  * The FFI call-outs now works on SunOS 5.
+  * Dynamic heap upper limit can be specified with the -max switch.
+    This is really just a strong suggestion to the collector, and 
+    using e.g. -max 24M doesn't guarantee that memory usage won't ever
+    go over 24M + memory occupied by other areas, but it does prevent
+    the dynamic heaps from ever calculating a new size following
+    GC exceeding the specified maximum unless absolutely necessary.
+  * It's now possible to use Twobit as the evaluator in the read-eval-print
+    loop.  After loading the system with nbuild, just load 
+    Util/compile-always.sch.  This functionality needs to be elaborated
+    and cleaned up, but it does work.
+  * There's new peephole optimization of nontail calls; see PERFORMANCE 
+    section.
+  * The inline-cons switch has been renamed inline-allocation.
+
+BUG FIXES
+  * Fixed a bug in the Sparc target specification where name:CONS was not
+    recognized as a primop, resulting in all sorts of problems.  This 
+    problem shows up when calling internal definitions that take a rest
+    argument.
+  * Fixed bug in Sparc assembler that caused constants divisible by 512 but
+    not by 1024 to be assembled incorrectly.
+  * Fixed bug in Sparc assembler that generated incorrect tag checking code
+    for bitwise operations on fixnums.
+  * Fixed bug in flonum code that allowed +/-inf.0 and +nan.0 as arguments
+    to inexact->exact.
+  * Fixed two bugs in `even?' [cut-and-paste-o].
+  * Fixed bug in contagion rules that did not properly handle bignum/flonum
+    arithmetic as well as could be expected.
+
+CHANGES
+[Asm/Sparc/gen-msi.sch]
+  - Support for branch-with-setrtn and invoke-with-setrtn.
+  - Fixed bug in logical-op that generated incorrect tag checking code.
+
+[Asm/Sparc/pass5p2.sch]
+  - Support for branch-with-setrtn and invoke-with-setrtn.
+
+[Asm/Sparc/sparcutil.sch]
+  - Fixed an assembler bug that occasionally generated incorrect code for
+    constants; for example, the constant 10000000 was generated as 
+    9999872 because emit-immediate->register divided by 512 rather than 
+    1024 in a test.
+
+[Compiler/compile313.sch]
+  - fixed bug in assemble-file.
+
+[Compiler/sparc.imp.sch]
+  - Support for branch-with-setrtn and invoke-with-setrtn.
+  - Cleaned up mnemonic definition a little.
+
+[Compiler/printlap.sch]
+  - Now gets mnemonic names from the mnemonic table in the *.imp.sch file.
+
+[Ffi/loadffi.sch]
+  - Implemented load path.
+  - Fixed a load order bug.
+  - Cleaned up for OS dependencies.
+
+[Lib/contag.sch]
+  - [058] Fixed one bug in contagion that didn't use Algorithm* for
+    bignum/flonum arithmetic.
+
+[Lib/flonums.sch]
+  - Removed compnum? -- it's now a primop.
+  - Added code in flonum->integer that checks for infinity and NaN.
+
+[Lib/primops.sch]
+  - Compnum? is a primop.
+
+[Lib/secret.sch; Eval/macro-expand.sch; Eval/toplevel.sch;
+ Compiler/pass1.aux.sch; Compiler/*.imp.sch]
+  - [035] Secret names used by macro expanders are now illegal names and
+    cannot be confused with user-defined names.
+
+[Rts/Sys/cheney.c]
+  - Massively changed and rearranged to accomodate the new non-predictive
+    collector; the result is a larger but nicer program.
+
+[Rts/Sys/gc.c] 
+  - Bug fixed in reorganize_and_dump_heap_image.
+
+[Rts/Sys/larceny.c]
+  - Accepts -max switch.
+
+[Rts/Sys/np-sc-heap.c]
+  - Non-predictive collector rewritten.
+
+[Rts/Sys/old-heap.c]
+  - Used dynamic_max parameter.
+
+[Rts/Sys/sc-heap.c]
+  - Used dynamic_max parameter.
+
+[Rts/Sys/ffi.c]
+  - Implemented sunos5 support for FFI.
+
+PERFORMANCE
+  * Peephole-optimizations for the pattern
+	setrtn Lx
+	branch Ly
+	.align whatever
+	.label Lx
+    and ditto for invoke; these now utilize the SPARC's generated
+    return address as part of the call or jmpl instruction rather than
+    doing the setrtn and then the jump.  
+    Yield: 8% speedup on doubly recursive (fib 35) [branch case]
+    Note: the 'invoke' case has been disabled because it slows the
+    program down; see comments in Asm/Sparc/peepopt.sch.
+
+----------------------------------------------------------------------
+v0.32 released 980406 by lth
 
 FEATURES
   * New garbage collector! (again)

@@ -66,6 +66,7 @@ char **argv;
   o.maxheaps = MAX_HEAPS;
   o.timerval = 0xFFFFFFFF;
   o.heapfile = 0;
+  o.enable_breakpoints = 1;
   o.restv = 0;
   o.gc_info.ephemeral_info = 0;
   o.gc_info.use_static_area = 1;
@@ -289,6 +290,7 @@ parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
   double load_factor = DEFAULT_LOAD_FACTOR;
+  int dynamic_max = 0;
   unsigned val;
 
   while (--argc) {
@@ -316,6 +318,8 @@ parse_options( int argc, char **argv, opt_t *o )
 	for ( i=1 ; i < o->maxheaps ; i++ )
 	  if (o->size[i-1] < 0) o->size[i-1] = val;
     }
+    else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
+      ;
     else if (doublearg( "-load", &argc, &argv, &load_factor ))
       ;
     else if (numbarg( "-steps", &argc, &argv,
@@ -336,8 +340,8 @@ parse_options( int argc, char **argv, opt_t *o )
 #endif
       if (numbarg( "-ticks", &argc, &argv, &o->timerval ))
       ;
-    else if (strcmp( *argv, "-break" ) == 0)
-      o->enable_breakpoints = 1;
+    else if (strcmp( *argv, "-nobreak" ) == 0)
+      o->enable_breakpoints = 0;
     else if (strcmp( *argv, "-step" ) == 0)
       o->enable_singlestep = 1;
     else if (strcmp( *argv, "-stats" ) == 0)
@@ -410,6 +414,7 @@ parse_options( int argc, char **argv, opt_t *o )
     if (o->gc_info.use_non_predictive_collector) {
       int n = areas-1;
       o->gc_info.dynamic_np_info.load_factor = load_factor;
+      o->gc_info.dynamic_np_info.dynamic_max = dynamic_max;
       if (o->size[n] != 0)
 	o->gc_info.dynamic_np_info.size_bytes = o->size[n];
       compute_np_parameters( o, prev_size + DEFAULT_DYNAMIC_INCREMENT );
@@ -417,6 +422,7 @@ parse_options( int argc, char **argv, opt_t *o )
     else {
       int n = areas-1;
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
+      o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
       if (o->size[n] == 0)
 	o->gc_info.dynamic_sc_info.size_bytes = 
 	  prev_size + DEFAULT_DYNAMIC_INCREMENT;
@@ -430,6 +436,7 @@ parse_options( int argc, char **argv, opt_t *o )
     else 
       o->gc_info.sc_info.size_bytes = o->size[0];
     o->gc_info.sc_info.load_factor = load_factor;
+    o->gc_info.sc_info.dynamic_max = dynamic_max;
   }
 }
 
@@ -664,6 +671,8 @@ static void help( void )
   consolemsg("\t                  (Selects generational collector.)" );
   consolemsg("\t-stepsize nnnn  Size of each step in non-predictive gc." );
   consolemsg("\t                  (Selects generational collector.)" );
+  consolemsg("\t-max      nnnn  Upper limit on the generational dynamic area" );
+  consolemsg("\t                  and on the stop-and-copy heap." );
 #endif
   consolemsg("\t-stats          Print startup memory statistics." );
   consolemsg("\t-quiet          Suppress nonessential messages." );
@@ -678,7 +687,7 @@ static void help( void )
   consolemsg("\t                 size in elements" );
 #endif
   consolemsg("\t-ticks    nnnn  Initial timer interval value" );
-  consolemsg("\t-break          Enable breakpoints" );
+  consolemsg("\t-nobreak        Disable breakpoints" );
   consolemsg("\t-step           Enable single-stepping" );
 #ifndef BDW_GC
   consolemsg("\t-reorganize-and-dump  Split static heap." );

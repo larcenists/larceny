@@ -82,7 +82,7 @@
 ; ARGS>=
 
 (define (emit-args>=! as n)
-  (emit-old-args>=! as n))
+  (emit-new-args>=! as n))
 
 ; New
 ;
@@ -96,17 +96,17 @@
   (let ((L0  (new-label))
 	(L99 (new-label))
 	(L98 (new-label)))
-    (if (<= n (- lastreg 2))
+    (if (< n (- *lastreg* 1))
 	(let ((dest (regname (+ n 1))))
 	  (sparc.cmpi   as $r.result (thefixnum n)) ; n args
 	  (if (hardware-mapped? dest)
 	      (begin
-		(sparc.be.a   as L99)
-		(sparc.set    as $imm.null dest))
+		(sparc.be.a  as L99)
+		(sparc.set   as $imm.null dest))
 	      (begin
-		(sparc.set    as $imm.null $r.tmp0)
-		(sparc.be.a   as L99)
-		(sparc.sti    as $r.tmp0 (offsetof dest) $r.globals)))
+		(sparc.set   as $imm.null $r.tmp0)
+		(sparc.be.a  as L99)
+		(sparc.sti   as $r.tmp0 (swreg-global-offset dest) $r.globals)))
 	  (sparc.cmpi   as $r.result (thefixnum (+ n 1))) ; n+1 args
 	  (sparc.bne.a  as L98)
 	  (sparc.nop    as)
@@ -119,12 +119,15 @@
 	    (sparc.b as L99)
 	    (if (hardware-mapped? dest)
 		(sparc.move as $r.result dest)
-		(sparc.sti  as $r.result (offsetof dest) $r.globals)))))
+		(sparc.sti  as $r.result (swreg-global-offset dest)
+			    $r.globals)))))
     ; General case
     (sparc.label  as L98)
     (sparc.move   as $r.reg0 $r.argreg3)  ; FIXME in Sparc/mcode.s
     (millicode-call/numarg-in-reg as $m.varargs (thefixnum n) $r.argreg2)
     (sparc.label  as L99)))
+
+; Older code.
 
 (define (emit-old-args>=! as n)
   (let ((L0 (new-label)))
@@ -140,6 +143,7 @@
     (millicode-call/0arg as $m.varargs)))      ; Argreg2 was set up above.
 
 ; INVOKE
+; INVOKE-WITH-SETRTN
 ;
 ; The exception handling here has a bit of magic: the return address 
 ; generated in %o7 is the return address which is in the topmost frame 
@@ -151,6 +155,12 @@
 ; This code takes 10 cycles on a call if the load hits the cache (SS1).
 
 (define (emit-invoke! as n)
+  (emit-invoke-code! as n #f))
+
+(define (emit-invoke-with-setrtn! as n)
+  (emit-invoke-code! as n #t))
+
+(define (emit-invoke-code! as n setrtn-also?)
   (let ((L0 (new-label))
 	(L2 (new-label))
 	(L3 (new-label)))
@@ -169,8 +179,14 @@
 	(begin (sparc.ldi   as $r.result $p.codevector $r.tmp0)))
     ; TMP0 has code vector, RESULT has procedure.
     (sparc.move  as $r.result $r.reg0)
-    (sparc.jmpli as $r.tmp0 $p.codeoffset $r.g0)
-    (sparc.set   as (thefixnum n) $r.result)))   ; FIXME: limit 1023 args
+    (if setrtn-also?
+	(begin 
+	  (sparc.set   as (thefixnum n) $r.result)     ; FIXME: limit 1023 args
+	  (sparc.jmpli as $r.tmp0 $p.codeoffset $r.o7)
+	  (sparc.sti   as $r.o7 4 $r.stkp))
+	(begin 
+	  (sparc.jmpli as $r.tmp0 $p.codeoffset $r.g0)
+	  (sparc.set   as (thefixnum n) $r.result))))) ; FIXME: limit 1023 args
 
 
 ; SAVE -- for new compiler
@@ -293,7 +309,8 @@
 
 (define (emit-lexical! as m n)
   (let ((base (emit-follow-chain! as m)))
-    (sparc.ldi as base (- (slotoffset n) $tag.procedure-tag) $r.result)))
+    (sparc.ldi as base (- (procedure-slot-offset n) $tag.procedure-tag)
+	       $r.result)))
 
 
 ; SETLEX
@@ -301,7 +318,8 @@
 
 (define (emit-setlex! as m n)
   (let ((base (emit-follow-chain! as m)))
-    (sparc.sti as $r.result (- (slotoffset n) $tag.procedure-tag) base)
+    (sparc.sti as $r.result (- (procedure-slot-offset n) $tag.procedure-tag)
+	       base)
     (if (write-barrier)
 	(begin
 	  (sparc.move as $r.result $r.argreg2)
@@ -384,7 +402,7 @@
 ; The tagged pointer to the procedure is in $r.result.
 
 (define (emit-init-proc-slots! as n)
-  (let ((limit (min (- maxregs 1) n)))
+  (let ((limit (min (- *nregs* 1) n)))
     (let loop ((i 0) (offset $p.reg0))
       (cond ((<= i limit)
 	     (let ((r (force-hwreg! as (regname i) $r.tmp0)))
@@ -423,6 +441,15 @@
   (sparc.be.a as label)
   (sparc.slot as))
 
+
+; BRANCH-WITH-SETRTN -- introduced by peephole optimization
+
+(define (emit-branch-with-setrtn! as label)
+  (let ((L0 (new-label)))
+    (check-timer as L0 L0)
+    (sparc.label as L0)
+    (sparc.call as label)
+    (sparc.sti as $r.o7 4 $r.stkp)))
 
 ; JUMP
 ;

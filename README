@@ -1,38 +1,71 @@
-% -*- text -*- 
-% $Id$
+README for Larceny version 0.33
 
+1. General information
+----------------------
+The file 
+	/proj/will/lth/releases/larceny-0.33-src.tar.gz 
+contains all the source code for the system.
 
-		   Larceny version 0.32 release notes
-
-
-
-INSTALLING AND BUILDING LARCENY
--------------------------------
+The files
+	/proj/will/lth/releases/larceny-0.33-sunos4.tar.gz
+	/proj/will/lth/releases/larceny-0.33-sunos5.tar.gz
+contains prebuilt binaries and heap images for SunOS4 and SunOS5 (Solaris),
+respectively.
 
 Installation instructions may be found at
 	 http://www.ccs.neu.edu/home/lth/larceny/compiling.html.
+
 A full manual may be found at 
 	 http://www.ccs.neu.edu/home/lth/larceny
 
-
-AUXILIARY LIBRARIES
--------------------
-
-Larceny comes with many auxiliary functions which are not part of the
-basic heap image. These are located in the Auxlib subdirectory. You can
-load them all into a running system by compiling to .fasl all the Scheme
-files in the Auxlib library (sorry, no automation yet) and loading the
-file "Auxlib/auxload.sch"; it will in turn load all these
-files. Typically you load this file from your .larceny file.
-
-Libraries included are:
-
-	sort.sch	- sort and sort!, works on lists and vectors
-	pp.sch		- pretty-printer
-	misc.sch	- useful non-standard library procedures
-	load.sch	- a fancy extended-functionality 'load' procedure
+Everyone should upgrade; several important bugs have been fixed.
 
 
--------------
-END OF README
--------------
+2. Notable changes (from the file 'CHGLOG')
+-------------------------------------------
+NOTEWORTHY
+  * All code should be recompiled due to some non-backwardly compatible 
+    changes.  Sorry.
+
+FEATURES and CHANGES
+  * Non-predictive collector has been rewritten and works again.
+  * The -reorganize-and-dump command line switch works again.
+  * The FFI call-outs now works on SunOS 5.
+  * Dynamic heap upper limit can be specified with the -max switch.
+  * It's now possible to use Twobit as the evaluator in the REPL.
+  * Several code generation improvements have been implemented.
+  * The inline-cons switch has been renamed inline-allocation.
+
+BUG FIXES
+  * Fixed a bug in the Sparc target specification where name:CONS was not
+    recognized as a primop, resulting in all sorts of problems.  This 
+    problem shows up when calling internal definitions that take a rest
+    argument.
+  * Fixed bug in Sparc assembler that caused constants divisible by 512 but
+    not by 1024 to be assembled incorrectly.
+  * Fixed bug in Sparc assembler that generated incorrect tag checking code
+    for bitwise operations on fixnums.
+  * Fixed bug in flonum code that allowed +/-inf.0 and +nan.0 as arguments
+    to inexact->exact.
+  * Fixed two bugs in `even?' [cut-and-paste-o].
+  * Fixed bug in contagion rules that did not properly handle bignum/flonum
+    arithmetic as well as could be expected.
+
+
+3. Compiling code on-the-fly
+----------------------------
+
+It is now possible to use Twobit as the evaluator in the read-eval-print
+loop.  This functionality is not fully developed, but it works and it's
+reasonably convenient to set up.
+
+If you're running a Larceny session that has the compiler loaded
+(whether the compiler was loaded by nbuild -l or by load-environment),
+do the following:
+
+	> (load "Util/compile-always.sch")
+
+This loads Asm/Common/loadlop.sch and installs procedure for the REPL
+and LOAD evaluators, and for the top-level EVAL, that compile the
+expression to be evaluated using Twobit and then links the resulting
+procedure into the running system, and finally evaluates it.

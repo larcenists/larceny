@@ -33,6 +33,8 @@
 ;  (or (char? x)
 ;      (immediate-int? x)))
 
+(define *peep-nontail-call* #t)	; Works OK.
+
 (define (peep-immediate? x) 
   (and (number? x) (immediate-int? x)))
 
@@ -53,7 +55,8 @@
 	     (i2 (if (null? t1) '(-1 0 0 0) (car t1)))
 	     (t2 (if (null? t1) t1 (cdr t1)))
 	     (i3 (if (null? t2) '(-1 0 0 0) (car t2)))
-	     (t3 (if (null? t2) t2 (cdr t2))))
+	     (t3 (if (null? t2) t2 (cdr t2)))
+	     (i4 (if (null? t3) '(-1 0 0 0) (car t3))))
 	(cond ((and (= (car i1) $reg) (hwreg? (cadr i1)))
 	       (cond ((and (= (car i2) $op1) (memq (cadr i2) o1))
 		      (cond ((and (= (car i3) $setreg) (hwreg? (cadr i3)))
@@ -228,8 +231,8 @@
 						   ,(caddr i1)
 						   ,(cadr i2))
 				    t2)))
-	      ; (const n)   n <= 10
-	      ; (op2 make-vector r)
+	      ;    (const n)            where n <= 10
+	      ;    (op2 make-vector r)
 	      ; => (op2 make-vector:n r)
 	      ((and (= (car i1) $const)
 		    (= (car i2) $op2)
@@ -239,6 +242,36 @@
 	       (as-source! as (cons `(,$op2 ,(vector-ref vn (cadr i1))
 					    ,(caddr i2))
 				    t2)))
+	      ; This allows the use of hardware 'call' instructions.
+	      ;    (setrtn Lx)
+	      ;    (branch Ly k)
+	      ;    (.align k)
+	      ;    (.label Lx)
+	      ; => (branch-with-return Ly k)
+	      ;    (.label Lx)
+	      ((and *peep-nontail-call*
+		    (= (car i1) $setrtn)
+		    (= (car i2) $branch)
+		    (= (car i3) $.align) ;Ignored on SPARC
+		    (= (car i4) $.label)
+		    (= (cadr i1) (cadr i4)))
+	       (as-source! as (cons `(,$branch-with-setrtn ,@(cdr i2))
+				    t3)))
+	      ; Ditto for 'invoke'.
+	      ; Disabled because it does _not_ pay off on the
+	      ; SPARC currently -- probably, the dependency created 
+	      ; between 'jmpl' and 'st' is not handled well on the
+	      ; test machine (an Ultrasparc).  Might work better if
+	      ; the return address were to be kept in a register always.
+	      ((and #f  ; DISABLED
+		    *peep-nontail-call*
+		    (= (car i1) $setrtn)
+		    (= (car i2) $invoke)
+		    (= (car i3) $.align) ;Ignored on SPARC
+		    (= (car i4) $.label)
+		    (= (cadr i1) (cadr i4)))
+	       (as-source! as (cons `(,$invoke-with-setrtn ,@(cdr i2))
+				    t3)))
 	      (else
 	       #f))))))
 
@@ -253,3 +286,4 @@
 		   (loop (cons a l))))))))
 
 
+; eof

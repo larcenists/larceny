@@ -135,9 +135,7 @@ extern void UNIX_object_to_address( word );
 
 /* In "Rts/Sys/ldebug.c" */
 
-#ifndef GC_INTERNAL
-extern void localdebugger();
-#endif
+extern void localdebugger( void );
 
 /* In "Rts/Sys/stats.c" */
 

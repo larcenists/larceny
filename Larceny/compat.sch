@@ -62,6 +62,10 @@
 	    (else
 	     (> (vector-ref ta i) (vector-ref tb i)))))))
 
+; Twobit uses cerror a few places.
+
+(define cerror error)
+
 ; I have split the file here so that the second part can be compiled; 
 ; compat:load will load the fasl file when appropriate.
 

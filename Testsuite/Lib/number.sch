@@ -21,31 +21,26 @@
 ;     how to do this
 ;   * There are too few hard cases, esp. with regard to flonum arithmetic.
 
-; NOTE
-; Order matters!
+; Order matters.
 
 (define (run-number-tests)
-  (newline)
-  (display "****************************************") (newline)
-  (display "Numbers") (newline)
-  (newline)
-  (and (test-number-representation-predicates)
-       (test-number-type-predicates)
-       (test-number-ordering-predicates/same-representation)
-       (test-eqv?-on-numbers)
-       (test-basic-arithmetic)
-       (test-round-truncate-floor-ceiling)
-       (test-bit-operations)
-       (test-bignum-arithmetic)
-       (test-exactness-predicates)
-       (test-exactness-conversion)
-       (test-number-constructors-and-accessors)
-       (test-number-ordering-predicates/mixed-representation)
-       (test-odd-even)
-       (test-sundry-arithmetic)
-       (test-in-out-conversions)
-       (test-trancendental-functions)
-       ))
+  (test-number-representation-predicates)
+  (test-number-type-predicates)
+  (test-number-ordering-predicates/same-representation)
+  (test-eqv?-on-numbers)
+  (test-basic-arithmetic)
+  (test-round-truncate-floor-ceiling)
+  (test-bit-operations)
+  (test-bignum-arithmetic)
+  (test-exactness-predicates)
+  (test-exactness-conversion)
+  (test-number-constructors-and-accessors)
+  (test-number-ordering-predicates/mixed-representation)
+  (test-odd-even)
+  (test-sundry-arithmetic)
+  (test-in-out-conversion)
+  (test-trancendental-functions))
+
 
 ; NOTE
 ; Answers should contain booleans only -- correctness of eqv?/equal? has
@@ -61,10 +56,7 @@
 	  (compnum? n)
 	  (rectnum? n)))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing fixnum?, bignum?, ratnum?, flonum?, compnum?, rectnum?")
-  (newline)
-  (allof
+  (allof "number fixnum?, bignum?, ratnum?, flonum?, compnum?, rectnum?"
    (test "(rpred 1)" (rpred 1) '(#t #f #f #f #f #f))
    (test "(rpred -1)" (rpred -1) '(#t #f #f #f #f #f))
    (test "(rpred 536870911)" (rpred 536870911) '(#t #f #f #f #f #f))
@@ -102,9 +94,7 @@
   (define (numberpred n)
     (list (integer? n) (rational? n) (real? n) (complex? n)))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing integer?, rational?, real?, complex?") (newline)
-  (allof
+  (allof "integer?, rational?, real?, complex?"
    ; fixnums
    (test "(numberpred 1)" (numberpred 1) '(#t #t #t #t))
    (test "(numberpred -1)" (numberpred -1) '(#t #t #t #t))
@@ -165,10 +155,7 @@
   (define (q m)
     (list (zero? m) (negative? m) (positive? m)))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing same-repr =, >, <, >=, <=, zero?, negative?, positive?")
-  (newline)
-  (allof
+  (allof "zero?, negative?, positive?, =, >, <, >=, <="
    (test "(p 1 1)" (p 1 1) '(#t #f #f #t #t))
    (test "(p -1 -1)" (p -1 -1) '(#t #f #f #t #t))
    (test "(p 1 -1)" (p 1 -1) '(#f #t #f #t #f))
@@ -204,8 +191,6 @@
 ; Establishes correctness of eqv?/equal?.
 
 (define (test-eqv?-on-numbers)
-  (display "----------------------------------------") (newline)
-  (display "Testing eqv? on numbers") (newline)
   (test-eqv?-on-numbers-helper 0 1 -1 0.0 1.0 -1.0 1/2 0.5 1+1i 1.0+1.0i))
 
 ; We must test equal? too, since equal? is used to determine the
@@ -218,7 +203,7 @@
   (define (p x y)
     (list (eqv? x y) (equal? x y)))
 
-  (allof
+  (allof "eqv? on numbers"
    (test "(p 0 1)" (p exact-zero exact-one) '(#f #f))
    (test "(p 1 1)" (p exact-one exact-one) '(#t #t))
    (test "(p 0.0 1.0)" (p inexact-zero inexact-one) '(#f #f))
@@ -247,10 +232,8 @@
 	 (two^30 1073741824)
 	 (two^31 2147483648)
 	 (two^32-1 4294967295))
-    (display "----------------------------------------") (newline)
-    (display "Basic arithmetic") (newline)
 
-    (allof
+    (allof "basic arithmetic"
      (test "(- a)" (- a) -a)
      (test "(- -a)" (- -a) a)
 
@@ -335,9 +318,7 @@
 
   (define big 4294967296)              ; Big enough to be a bignum!
 
-  (display "----------------------------------------") (newline)
-  (display "Testing round, truncate, floor, ceiling") (newline)
-  (allof/noncritical
+  (allof "round, truncate, floor, ceiling"
    ; Basic rounding.  
    ; FIXME: need some biggish flonums.
    (test "(round 1)" (round 1) 1)
@@ -407,25 +388,77 @@
 
    ))
 
+
+; Bitwise operations on fixnums, only.
+
 (define (test-bit-operations)
-  (display "----------------------------------------") (newline)
-  (display "Testing bit operations") (newline)
-  (allof
-   (test "(= (logior 3 5) 7)" (= (logior 3 5) 7) #t)
-   (test "(= (logand #x33 #x55) #x11)" (= (logand #x33 #x55) #x11) #t)
-   (test "(= (lsh #x44 2) #x110)" (= (lsh #x44 2) #x110) #t)
-   (test "(= (lsh #x44 4) #x440)" (= (lsh #x44 4) #x440) #t)
-   (test "(= (rshl #x44 2) #x11)" (= (rshl #x44 2) #x11) #t)
-   (test "(= (rshl #x44 7) 0)" (= (rshl #x44 7) 0) #t)
-   (test "(= (rsha -1 4) -1)" (= (rsha -1 4) -1) #t)
-   (test "(= (rshl #x-20000000 4) #x2000000)"
-	 (= (rshl #x-20000000 4) #x2000000)
-	 #t)
-; FIXME
-; Test 'lognot' also.
-; Test 'logxor' also.
-; Test 'rot' also.
-   ))
+  (test-bit-operations-help logand logior logxor lognot lsh rshl rsha))
+
+(define (test-bit-operations-help logandp logiorp logxorp lognotp lshp rshlp rshap)
+
+  (define (test-logand)
+    (allof "logand"
+      (test "(logand #x33 #x55)" (logand #x33 #x55) #x11)
+      (test "(logand 536870911 1)" (logand 536870911 1) 1)
+      (test "(logand -536870912 1)" (logand -536870912 1) 0)
+
+      (test "(logandp #x33 #x55)" (logandp #x33 #x55) #x11)
+      (test "(logandp 536870911 1)" (logandp 536870911 1) 1)
+      (test "(logandp -536870912 1)" (logandp -536870912 1) 0)))
+
+  (define (test-logior)
+    (allof "logior"
+      (test "(logior 3 5)" (logior 3 5) 7)
+      (test "(logior 536870911 1)" (logior 536870911 1) 536870911)
+      (test "(logior -536870912 1)" (logior -536870912 1) -536870911)
+
+      (test "(logiorp 3 5) 7)" (logiorp 3 5) 7)
+      (test "(logiorp 536870911 1)" (logiorp 536870911 1) 536870911)
+      (test "(logiorp -536870912 1)" (logiorp -536870912 1) -536870911)))
+
+  (define (test-logxor)
+    (allof "logxor"
+      (test "(logxor #x33 #x55)" (logxor #x33 #x55) #x66)
+      (test "(logxor 536870911 1)" (logxor 536870911 1) 536870910)
+      (test "(logxor -536870912 1)" (logxor -536870912 1) -536870911)
+
+      (test "(logxorp #x33 #x55)" (logxorp #x33 #x55) #x66)
+      (test "(logxorp 536870911 1)" (logxorp 536870911 1) 536870910)
+      (test "(logxorp -536870912 1)" (logxorp -536870912 1) -536870911)))
+
+  (define (test-lognot)
+    (allof "lognot" 
+      (test "(lognot 0)" (lognot 0) -1)
+      (test "(lognot -1)" (lognot -1) 0)
+      (test "(lognot 1)" (lognot 1) -2)
+      (test "(lognot 536870911)" (lognot 536870911) -536870912)
+      (test "(lognot -536870912)" (lognot -536870912) 536870911)
+
+      (test "(lognotp 0)" (lognotp 0) -1)
+      (test "(lognotp -1)" (lognotp -1) 0)
+      (test "(lognotp 1)" (lognotp 1) -2)
+      (test "(lognotp 536870911)" (lognotp 536870911) -536870912)
+      (test "(lognotp -536870912)" (lognotp -536870912) 536870911)))
+
+  ; FIXME: need to implement tests on lshp, etc.
+
+  (define (test-shift)
+    (allof "shift"
+     (test "(= (lsh #x44 2) #x110)" (= (lsh #x44 2) #x110) #t)
+     (test "(= (lsh #x44 4) #x440)" (= (lsh #x44 4) #x440) #t)
+     (test "(= (rshl #x44 2) #x11)" (= (rshl #x44 2) #x11) #t)
+     (test "(= (rshl #x44 7) 0)" (= (rshl #x44 7) 0) #t)
+     (test "(= (rsha -1 4) -1)" (= (rsha -1 4) -1) #t)
+     (test "(= (rshl #x-20000000 4) #x2000000)"
+	   (= (rshl #x-20000000 4) #x2000000)
+	   #t)))
+
+  (test-logand)
+  (test-logior)
+  (test-logxor)
+  (test-lognot)
+  (test-shift))
+
 
 (define (test-bignum-arithmetic)
   (let ((a 1234567890)
@@ -435,16 +468,13 @@
 	(mul (lambda (a b) (* a b)))
 	(div (lambda (a b) (quotient a b)))
 	(mod (lambda (a b) (remainder a b))))
-    (display "----------------------------------------") (newline)
-    (display "bignum arithmetic") (newline)
 
-    (allof
+    (allof "bignum arithmetic: conversion to string"
      (test "(string=? (number->string 1234567890 10) \"1234567890\")"
 	   (string=? (number->string 1234567890 10) "1234567890")
 	   #t)
      )
-    (display "add/sub") (newline)
-    (allof 
+    (allof "bignum arithmetic: add/subtract"
      (test "(bignum-add a b)" (add a b) 4376166655)
      (test "(bignum-add b a)" (add b a) 4376166655)
      (test "(bignum-subtract a b)" (sub a b) -1907030875)
@@ -454,8 +484,7 @@
     
      ; tests contagion: fixnum * bignum
 
-    (display "fix * big") (newline)
-    (allof
+    (allof "bignum arithmetic: bignum/fixnum contagion"
      (test "(* 42 a)" (mul 42 a) 51851851380)
      (test "(* a 42)" (mul a 42) 51851851380)
      (test "(* -42 a)" (mul -42 a) -51851851380)
@@ -464,16 +493,14 @@
 
      ; heavier stuff (already bignums)
 
-     (display "bignum multiply") (newline)
-     (allof
+     (allof "bignum arithmetic: multiply"
       (test "(bignum-multiply a a)" (mul a a) 1524157875019052100)
       (test "(bignum-multiply b b)" (mul b b) 9869642800249525225)
       (test "(bignum-multiply a b)" (mul a b) 3878516958532655850)
       (test "(bignum-multiply b a)" (mul b a) 3878516958532655850)
       )
 
-     (display "bignum division") (newline)
-     (allof
+     (allof "bignum arithmetic: division"
       (test "(bignum-quotient a b)" (div a b) 0)
       (test "(bignum-quotient b a)" (div b a) 2)
       (test "(bignum-quotient a a)" (div a a) 1)
@@ -489,9 +516,7 @@
   (define (etest n)
     (list (exact? n) (inexact? n)))
 
-  (display "----------------------------------------") (newline)
-  (display "Test exact?, inexact?") (newline)
-  (allof
+  (allof "exactness predicates"
    (test "(etest 1)" (etest 1) '(#t #f))
    (test "(etest -1)" (etest -1) '(#t #f))
    (test "(etest 1234567890)" (etest 1234567890) '(#t #f))
@@ -505,9 +530,7 @@
    ))
 
 (define (test-exactness-conversion)
-  (display "----------------------------------------") (newline)
-  (display "Testing exact->inexact, inexact->exact") (newline)
-  (allof
+  (allof "exactness conversion"
    (test "(eqv? 0.0 (exact->inexact 0))" (eqv? 0.0 (exact->inexact 0)) #t)
    (test "(eqv? 1.0 (exact->inexact 1))" (eqv? 1.0 (exact->inexact 1)) #t)
    (test "(eqv? 0 (inexact->exact 0.0))" (eqv? 0 (inexact->exact 0.0)) #t)
@@ -528,9 +551,7 @@
   (define (mkrat a b)
     (/ a b))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing rational operations.") (newline)
-  (allof
+  (allof "rational operations"
    (test "(numerator 37)" (numerator 37) 37)
    (test "(denominator 37)" (denominator 37) 1)
    (test "(numerator 1/2)" (numerator 1/2) 1)
@@ -545,9 +566,7 @@
   ; Complexes
   ; FIXME: should be more exhaustive here
   ; FIXME: should try some larger numbers
-  (display "----------------------------------------") (newline)
-  (display "Testing complex operations.") (newline)
-  (allof
+  (allof "complex numbers"
    (test "(p (make-rectangular 1 1))" (p (make-rectangular 1 1))
 	 '(#f #f #f #t))
    (test "(p (make-rectangular 1.0 1.0))" (p (make-rectangular 1.0 1.0))
@@ -559,8 +578,8 @@
    (test "(imag-part 1+3i)" (imag-part 1+3i) 3)
    (test "(real-part 5.0e3+7.5i)" (real-part 5.0e3+7.5i) 5000.0)
    (test "(imag-part 5.0e3+7.5i)" (imag-part 5.0e3+7.5i) 7.5)
-   (test "(magnitude 1@3)" (magnitude 1@3) 1.0)	; Always inexact
-   (test "(angle 1@3)" (angle 1@3) 3.0)	        ; Always inexact
+   (test "(magnitude 1@3)" (magnitude 1@3) 0.9999999999999999)
+   (test "(angle 1@3)" (angle 1@3) 3.0)
    )
   )
 
@@ -572,17 +591,14 @@
   (define (p a b)
     (list (= a b) (> a b) (>= a b) (< a b) (<= a b)))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing mixed-representation =,>,>=,<,<=") (newline)
-  (allof
+  (allof "mixed-representation =,>,>=,<,<= (NOT IMPLEMENTED)"
    #t
    ))
 
 (define (test-odd-even)
-  (display "----------------------------------------") (newline)
-  (display "Testing odd?, even?") (newline)
-  (allof
+;  (allof "odd? and even?"
    ; easy cases
+  (begin
    (test "(even? 0)" (even? 0) #t)
    (test "(even? 1)" (even? 1) #f)
    (test "(even? 2)" (even? 2) #t)
@@ -650,10 +666,7 @@
   (define (within-tolerance x ans t)
     (<= (abs (- x ans)) t))
 
-  (display "----------------------------------------") (newline)
-  (display "Testing max, min, modulo, abs, gcd, lcm, rationalize, sqrt, expt")
-  (newline)
-  (allof
+  (allof "max, min, modulo, abs, gcd, lcm, rationalize, sqrt, expt"
    (test "(max 1 2 3)" (max 1 2 3) 3)
    (test "(max 3 2 1)" (max 3 2 1) 3)
    (test "(max 1.0 3.0 2.0)" (max 1.0 3.0 2.0) 3.0)
@@ -674,12 +687,12 @@
    (test "(abs big)" (abs big) big)
    (test "(abs (- big))" (abs (- big)) big)
    (test "(abs 1.0)" (abs 1.0) 1.0)
-   (test "(abs -1.0)" (abs -1.0) -1.0)
+   (test "(abs -1.0)" (abs -1.0) 1.0)
    (test "(abs 79/80)" (abs 79/80) 79/80)
    (test "(abs -79/80)" (abs -79/80) 79/80)
 
    ; FIXME: square root of complexes -- hard to test, because we
-   ; loose some precision along the way.  Should test whether the answer
+   ; lose some precision along the way.  Should test whether the answer
    ; is within some tolerance, but how do we compute the tolerance?
 
    (test "(sqrt 4)" (sqrt 4) 2.0)	       ; Always inexact
@@ -704,18 +717,13 @@
 
 ; FIXME: implement
 (define (test-in-out-conversion)
-  (display "----------------------------------------") (newline)
-  (display "Testing number->string and string->number") (newline)
-  (allof 
+  (allof  "number->string, string->number"
    #t
    ))
 
 ; FIXME: implement
 (define (test-trancendental-functions)
-  (display "----------------------------------------") (newline)
-  (display "Testing exp, log, sin, cos, tan, asin, acos, atan, atan2") 
-  (newline)
-  (allof
+  (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2"
    #t
    ))
 

@@ -135,11 +135,16 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *to );
      its entirety.
      */
 
-void gclib_stopcopy_promote_into_np_young( gc_t *gc, semispace_t *tospace );
+void gclib_stopcopy_promote_into_np( gc_t *gc,
+				     semispace_t *old, semispace_t *young,
+				     int old_remaining, int young_remaining );
   /* Non-predictive promotion:  Promote all objects that are younger than
-     gen(tospace)-1 into tospace, making sure to update tospace's remembered
-     set if an object is copied into tospace that contains a pointer into 
-     the next younger generation (the one that is not touched).
+     gen(old) into old and young, filling old first and then young, making
+     sure to update the non-predictive extra remembered set if an object 
+     is copied into young that contains a pointer into old.
+
+     old_remaining is the amount of available data in the old area;
+     young_remaining ditto for the young area.
      */
 
 void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace );

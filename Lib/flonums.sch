@@ -1,17 +1,18 @@
-; *Way* low-level floating point stuff.
+; Lib/flonums.sch
+; Larceny -- low-level floating point code
 ;
 ; $Id: flonums.sch,v 1.4 1997/07/18 13:55:49 lth Exp $
 ;
-; The procedures in this file all operate on IEEE flonums.
-; Formats of flonums and bignums and operations used are all specific
-; to Larceny.
+; The procedures in this file all operate on IEEE flonums.  Formats of
+; flonums and bignums and operations used are all specific to Larceny.
 ;
 ; Some is based on code from MacScheme; so
 ;
 ;    Copyright Lightship Software.
 ;
 ; Larceny flonums are represented as a bytevector of 12 bytes, where the
-; first four are unused and the remaining eight is an IEEE flonum.
+; first four are unused and the remaining eight is an IEEE flonum.  The
+; first four may be garbage and should not be used in comparisons.
 ;
 ; Larceny bignums are represented as a bytevector, where the first two bytes
 ; have the sign (0 or 1, for positive or negative), the next two have the 
@@ -22,7 +23,6 @@
 
 ; exports
 
-(define compnum?)                ; eventually a primop
 (define float-significand)
 (define float-exponent)
 (define float-sign)
@@ -36,12 +36,12 @@
 
 (let ()
 
-  (define bits-per-bigit 16)         ; depends on bignums.scm also!
+  (define bits-per-bigit 16)		; depends on bignums.scm also!
 
-  (define e1 65536)                  ; 2^(bits-per-bigit)
-  (define e2 4294967296)             ; 2^(bits-per-bigit*2)
-  (define e3 281474976710656)        ; 2^(bits-per-bigit*3)
-  (define e4 18446744073709551616)   ; 2^(bits-per-bigit*4)
+  (define e1 65536)			; 2^(bits-per-bigit)
+  (define e2 4294967296)		; 2^(bits-per-bigit*2)
+  (define e3 281474976710656)		; 2^(bits-per-bigit*3)
+  (define e4 18446744073709551616)	; 2^(bits-per-bigit*4)
 
   (define two^52 4503599627370496)
   (define two^53 9007199254740992)
@@ -52,6 +52,20 @@
   (define flonum:minexponent-51 -1074)
   (define flonum:zero           0.0)
   
+  (define (flonum-infinity? x)
+    (or (= x +inf.0) (= x -inf.0)))
+
+  (define (flonum-nan? x)
+    (let ((y +nan.0))
+      (and (= (bytevector-like-ref x 4) (bytevector-like-ref y 4))
+	   (= (bytevector-like-ref x 5) (bytevector-like-ref y 5))
+	   (= (bytevector-like-ref x 6) (bytevector-like-ref y 6))
+	   (= (bytevector-like-ref x 7) (bytevector-like-ref y 7))
+	   (= (bytevector-like-ref x 8) (bytevector-like-ref y 8))
+	   (= (bytevector-like-ref x 9) (bytevector-like-ref y 9))
+	   (= (bytevector-like-ref x 10) (bytevector-like-ref y 10))
+	   (= (bytevector-like-ref x 11) (bytevector-like-ref y 11)))))
+
   ; Rip out the fraction and stuff it into a bignum.
   ; The fraction is always positive and exact.
 
@@ -253,6 +267,9 @@
 
   (define (%flonum->bignum f)
 ;    (sys$trace 'flonum->bignum)
+    (if (or (flonum-infinity? f)
+	    (flonum-nan? f))
+	(error "Can't convert " f " to an exact number."))
     (let ((q (->bignum
 	      (let* ((f (round f))
 		     (m (%float-significand f))
@@ -267,11 +284,6 @@
 		       ; 0 < e < 52
 		       (let* ((divisor (expt 2 (abs (- e 52))))
 			      (q       (quotient m divisor)))
-			 ;(display "%flonum->bignum case 4:") (newline)
-			 ;(display "  m=") (display m) (newline)
-			 ;(display "  e=") (display e) (newline)
-			 ;(display "  2^abs(e-52)=") (display divisor)(newline)
-			 ;(display "  q=") (display q) (newline)
 			 q)))))))
       (if (not (zero? (float-sign f)))
 	  (flip-sign! q))
@@ -281,13 +293,6 @@
 
   (define (%flonum->integer a)
     (big-normalize! (%flonum->bignum a)))
-
-  ; Test an object for compnum-ness.
-  ; FIXME: needs to be a primop.
-
-  (define (%compnum? obj)
-    (and (bytevector-like? obj)
-	 (= (typetag obj) sys$tag.compnum-typetag)))
 
   ; Given two flonums 'real' and 'imag' create a compnum from the two.
   ; FIXME: needs to be a primop, really (although an improvement would be
@@ -316,6 +321,9 @@
   ; anyway).
 
   (define (%flonum->ratnum f)
+    (if (or (flonum-infinity? f)
+	    (flonum-nan? f))
+	(error "Can't convert " f " to an exact number."))
     (let ((q (let* ((m (%float-significand f))
 		    (e (%float-raw-exponent f)))
 	       (cond ((>= e 52)
@@ -328,7 +336,6 @@
 
   ; install-flonum-stuff
 
-  (set! compnum? %compnum?)
   (set! float-significand %float-significand)
   (set! float-exponent %float-exponent)
   (set! float-sign %float-sign)

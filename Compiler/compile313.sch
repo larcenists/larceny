@@ -47,8 +47,9 @@
 	     (car rest)
 	     (rewrite-file-type infilename '(".lap" ".mal") (fasl-extension))))
 	(malfile?
-	 (and (> n 4)
-	      (string-ci=? ".mal" (substring file (- n 4) n))))
+	 (let ((n (string-length infilename)))
+	   (and (> n 4)
+		(string-ci=? ".mal" (substring infilename (- n 4) n)))))
 	(user (asm-user-structure)))
     (process-file infilename
 		  outfilename
@@ -59,6 +60,9 @@
 			(assemble item user))))
     (unspecified)))
 
+(define (compile-and-assemble-expression expr)
+  (assemble (compile ((twobit-auxiliary-expander) expr))
+	    (asm-user-structure)))
 
 ; Compile a scheme source file to a ".lap" file.
 
@@ -221,7 +225,7 @@
 (define (fast-unsafe-code)
   (integrate-usual-procedures #t)
   (benchmark-mode #t)
-  (inline-cons #t)
+  (inline-allocation #t)
   (inline-assignment #t)
   (catch-undefined-globals #f)
   (unsafe-code #t)
@@ -231,7 +235,7 @@
 (define (fast-safe-code)
   (integrate-usual-procedures #t)
   (benchmark-mode #t)
-  (inline-cons #t)
+  (inline-allocation #t)
   (inline-assignment #t)
   (catch-undefined-globals #t)
   (unsafe-code #f)

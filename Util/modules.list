@@ -70,7 +70,8 @@
 	"Asm/Common/asmutil.fasl"
 	"Asm/Common/asmutil32be.fasl"
 	"Asm/Common/asmutil32.fasl"
-	"Asm/Common/makefasl2.fasl")
+	"Asm/Common/makefasl2.fasl"
+	"Asm/Common/loadlop.fasl")
  (imports (asm-sparc assembly-table)
 	  (asm-sparc assembly-target)
 	  (asm-sparc assembly-start)
@@ -99,9 +100,7 @@
  (files "Util/make.fasl"
 	"Util/make-support.fasl"))
 
-(;(environment @toplevel@)
- ;(parent @interaction-environment@)
- (environment @interaction-environment@)
+((environment @interaction-environment@)
  (imports (auxiliary remq!)
 	  (auxiliary reduce-left)
 	  (auxiliary reduce-right)
@@ -113,6 +112,7 @@
 	  (compiler twobit-auxiliary-expander)
 	  (compiler compile-file)
 	  (compiler assemble-file)
+	  (compiler compile-and-assemble-expression)
 	  (compiler disassemble-file)
 	  (compiler disassemble)
 	  (compiler integrate-usual-procedures)
@@ -124,7 +124,6 @@
 	  (compiler include-variable-names)
 	  (compiler include-source-code)
 	  (compiler target-architecture)
-	  (asm-common assemble)
 	  (asm-sparc peephole-optimization)
 	  (asm-sparc catch-undefined-globals)
 	  (asm-sparc generate-global-symbols)

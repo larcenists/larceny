@@ -1,12 +1,20 @@
+; Testsuite/Lib/fib.sch
+; Fibonacci test
+;
+; $Id$
+;
+; Tests non-tail calls; fixnum comparison; fixnum arithmetic.
+
+(define (run-fib-tests)
+  (allof "fibonacci tests"
+	 (test "(fib 1)" (fib 1) 1)
+	 (test "(fib 10)" (fib 10) 55)
+	 (test "(fib 20)" (fib 20) 6765)
+	 (test "(fib 30)" (fib 30) 832040)))
+
 (define (fib n)
   (if (< n 2)
       n
       (+ (fib (- n 1)) (fib (- n 2)))))
 
-(define (fib-test)
-  (display "(fib 1) = ") (display (fib 1)) (newline)
-  (display "(fib 10) = ") (display (fib 10)) (newline)
-  (display "(fib 20) = ") (display (fib 20)) (newline)
-  (display "(fib 30) = ") (display (fib 30)) (newline)
-  #t)
-
+; eof

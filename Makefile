@@ -3,9 +3,7 @@
 # Larceny -- top-level Makefile
 #
 # $Id: Makefile,v 1.12 1997/09/17 15:42:37 lth Exp $
-#
-# This is the top-level makefile. The Makefile for building the runtime,
-# as well as configuration options, is Rts/Makefile.
+
 
 ###########################################################################
 #
@@ -64,8 +62,7 @@ MISCFILES=COPYRIGHTS README README-0.?? CHGLOG Makefile nbuild
 BUGSFILES=BUGS BUGS-FIXED BUGS-RETIRED
 ASMFILES=$(ASM)/Common/*.sch $(ASM)/Sparc-old/*.sch $(ASM)/Sparc/*.sch \
 	$(ASM)/MacScheme/*.sch
-LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch \
-	$(TEST)/Lib/*.sch
+LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
 LARCFILES=Larceny/*.sch
 COMPFILES=$(COMP)/*.sch $(COMP)/help-topics.txt
@@ -75,28 +72,29 @@ TESTFILES=$(TEST)/Lib/*.sch $(TEST)/Lib/*.mal $(TEST)/Lib/README \
 	$(TEST)/GC/*.sch $(TEST)/GC/README $(TEST)/*.sch
 HTMLFILES=$(HTML)/*.html
 FFIFILES=$(FFI)/*.sch $(FFI)/*.txt $(FFI)/README
+
 # Only a subset of experimental code is distributed.
 EXPERIMENTALFILES=$(EXPERIMENTAL)/record.sch $(EXPERIMENTAL)/record.doc \
-	$(EXPERIMENTAL)/debug.sch $(EXPERIMENTAL)/applyhook.sch \
-	$(EXPERIMENTAL)/applyhook0.mal
+	Debugger/*.sch $(EXPERIMENTAL)/applyhook.sch \
+	$(EXPERIMENTAL)/applyhook0.mal $(EXPERIMENTAL)/apropos.sch \
+	$(EXPERIMENTAL)/system-stuff.sch
 
 RTSFILES0=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Util/*.c \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
 	$(UTIL)/*.sch $(UTIL)/modules.list
 
-
 # Files for 'rtstar'
 RTSFILES=$(RTSFILES0) $(HDRFILES) $(BUILD)/*.s
-
 
 # Files for 'tar'
 ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
 	$(CHEZFILES) $(LARCFILES) $(COMPFILES)
 
-# Files for 'distribution'
+# Files for 'dist'
 DISTFILES=$(MISCFILES) $(BUGSFILES) $(RTSFILES0) $(ASMFILES) $(LIBFILES) \
 	$(AUXFILES) $(CHEZFILES) $(LARCFILES) $(COMPFILES) \
-	$(HDRFILES) $(BUILD)/table.s $(FFIFILES) $(EXPERIMENTALFILES)
+	$(HDRFILES) $(BUILD)/table.s $(FFIFILES) $(EXPERIMENTALFILES) \
+	$(TESTFILES)
 
 # Files for 'bigtar'
 MOREFILES=$(RTS)/larceny larceny.heap larceny.eheap \
@@ -194,17 +192,20 @@ rtsclean: clean
 	rm -f Chez/*.o
 	( cd $(RTS) ; $(MAKE) rtsclean )
 
-realclean: clean libclean tildeclean rejclean soclean
+realclean: clean libclean tildeclean rejclean soclean tcovclean
 	rm -f larceny Build hsplit bdwlarceny
 	rm -f Chez/*.o
+	rm -f $(TEST)/GC/bb.out*
 	( cd $(RTS) ; $(MAKE) realclean )
 
+tcovclean:
+	rm -f `find . -name '*\.tcov' -print`
 
 tildeclean:
 	rm -f `find . -name '*~' -print`
 
 rejclean:
-	rm -f `find . -name '*\.rej' -print'
+	rm -f `find . -name '*\.rej' -print`
 
 rtstar:
 	tar cf $(RTSTAR) $(RTSFILES)

@@ -35,36 +35,19 @@
 (define (emit-primop.4arg! as a1 a2 a3 a4)
   ((find-primop a1) as a2 a3 a4))
 
-;(define conv-list '((+ . +imm) (- . -imm)))
-;
-;(define (emit-primop2imm! as op imm)
-;  ((find-primop (cdr (assq op conv-list))) as imm))
-
-
 ;---------------------------------------------------------------------------
-; Hash table of primops (used to be assoc list).
-
-;(define primop-list '())
+; Hash table of primops
 
 (define primop-vector (make-vector 256 '()))
-
-;(define (define-primop name proc)
-;  (set! primop-list (cons (cons name proc) primop-list)))
 
 (define (define-primop name proc)
   (let ((h (logand (symbol-hash name) 255)))
     (vector-set! primop-vector h (cons (cons name proc)
 				       (vector-ref primop-vector h)))))
 
-;(define (find-primop name)
-;  (cdr (assq name primop-list)))
-
 (define (find-primop name)
   (let ((h (logand (symbol-hash name) 255)))
     (cdr (assq name (vector-ref primop-vector h)))))
-
-;(define (setup-primops)
-;  (set! primop-list (reverse! primop-list)))
 
 (define (setup-primops) #t)
 
@@ -289,6 +272,12 @@
     (emit-double-tagcheck->bool! as $tag.bytevector-tag
 				 (+ $imm.bytevector-header
 				    $tag.flonum-typetag))))
+
+(define-primop 'compnum?
+  (lambda (as)
+    (emit-double-tagcheck->bool! as $tag.bytevector-tag
+				 (+ $imm.bytevector-header
+				    $tag.compnum-typetag))))
 
 (define-primop 'symbol?
   (lambda (as)
@@ -880,7 +869,7 @@
 
     (if (not (and (hardware-mapped? src1) (hardware-mapped? dest)))
 	(asm-error "Assembler: internal:cons2reg: reg is not HW"))
-    (if (inline-cons)
+    (if (inline-allocation)
 	(let ((L1 (new-label))
 	      (L2 (new-label)))
 	  ; Fast path.
@@ -1056,8 +1045,10 @@
 	(L1  (new-label)))
     (sparc.label     as L0)
     (let ((tmp (force-hwreg! as rs $r.argreg2)))
-      (sparc.tsubrcc as $r.result tmp $r.g0)
-      (sparc.bvc.a   as L1)
+      ; Can't use tsubrcc here because the subtraction may really overflow.
+      (sparc.orr     as $r.result tmp $r.tmp0)
+      (sparc.btsti   as $r.tmp0 3)
+      (sparc.bz.a    as L1)
       (op            as $r.result tmp $r.result)
       (if (not (= tmp $r.argreg2))
 	  (sparc.move as tmp $r.argreg2))
@@ -1231,57 +1222,75 @@
     (sparc.nop     as)
     L3))
 
-; Emit code which performs a comparison operation on %result and another
-; register and which returns a boolean in %result.
-;
-; The extra cost of computing the boolean (rather than leaving it implicitly
-; in the status register) is 3 cycles.
 
-(define (emit-cmp-primop! as bcc.a generic r)
-  (let ((L1 (new-label))
-	(L2 (new-label))
-	(r  (force-hwreg! as r $r.tmp1)))
+; Arithmetic comparison with boolean result.
+
+(define (emit-cmp-primop! as branch_t.a generic r)
+  (let ((Ltagok (new-label))
+	(Lcont  (new-label))
+	(r      (force-hwreg! as r $r.argreg2)))
     (sparc.tsubrcc as $r.result r $r.g0)
-    (sparc.bvc.a   as L1)
+    (sparc.bvc.a   as Ltagok)
     (sparc.set     as $imm.false $r.result)
-    (sparc.move    as r $r.argreg2)
-    (millicode-call/ret as generic L2)
-    (sparc.label   as L1)
-    (bcc.a         as L2)
+    (if (not (= r $r.argreg2))
+	(sparc.move    as r $r.argreg2))
+    (millicode-call/ret as generic Lcont)
+    (sparc.label   as Ltagok)
+    (branch_t.a    as Lcont)
     (sparc.set     as $imm.true $r.result)
-    (sparc.label   as L2)))
+    (sparc.label   as Lcont)))
 
-; Possibly it would be better to unchain the branches and let slots be filled?
 
-(define (emit-bcmp-primop! as bcc.a src1 src2 L2 generic src2isreg)
-  (let ((L1  (new-label))
-	(op2 (if src2isreg
-		(force-hwreg! as src2 $r.tmp1)
-		(thefixnum src2)))
-	(sub (if src2isreg sparc.tsubrcc sparc.tsubicc))
-	(mov (if src2isreg sparc.move sparc.set)))
+; Arithmetic comparison and branch.
+;
+; This code does not use the chained branch trick (DCTI) that was documented
+; in the Sparc v8 manual and deprecated in the v9 manual.  This code executes
+; _much_ faster on the Ultra than the code using DCTI, even though it executes
+; the same instructions.
+;
+; Parameters and preconditions.
+;   Src1 is a general register, RESULT, ARGREG2, or ARGREG3.
+;   Src2 is a general register, RESULT, ARGREG2, ARGREG3, or an immediate.
+;   Src2 is an immediate iff src2isreg = #f.
+;   Branch_f.a is a branch on condition code that branches if the condition
+;     is not true.
+;   Generic is the millicode table offset of the generic procedure.
+
+(define (emit-bcmp-primop! as branch_f.a src1 src2 Lfalse generic src2isreg)
+  (let ((Ltagok (new-label))
+	(Ltrue  (new-label))
+	(op2    (if src2isreg
+		    (force-hwreg! as src2 $r.tmp1)
+		    (thefixnum src2)))
+	(sub   (if src2isreg sparc.tsubrcc sparc.tsubicc))
+	(mov   (if src2isreg sparc.move sparc.set)))
     (sub         as src1 op2 $r.g0)
-    (sparc.bvc.a as L1)
-    (bcc.a       as L2)
-    (sparc.nop   as)
+    (sparc.bvc.a as Ltagok)
+    (sparc.slot  as)
 
-    ; generic case
-    ; must move src1 -> result if src1 is not result
-    ; must move src2 -> argreg2 if src2 is not argreg2
+    ; Not both fixnums.
+    ; Must move src1 to result if src1 is not result.
+    ; Must move src2 to argreg2 if src2 is not argreg2.
 
-    (let ((n (+ (if (not (= src1 $r.result)) 1 0)
-		(if (or (not src2isreg) (not (= op2 $r.argreg2))) 1 0))))
-      (if (= n 2)
-	  (mov as op2 $r.argreg2))
+    (let ((move-res  (not (= src1 $r.result)))
+	  (move-arg2 (or (not src2isreg) (not (= op2 $r.argreg2)))))
+      (if (and move-arg2 move-res)
+	  (mov     as op2 $r.argreg2))
       (sparc.jmpli as $r.millicode generic $r.o7)
-      (cond ((= n 0) (sparc.nop  as))
-	    ((= n 1) (mov        as op2 $r.argreg2))
-	    (else    (sparc.move as src1 $r.result)))
-      ; now test result and branch as required
+      (cond (move-res   (sparc.move as src1 $r.result))
+	    (move-arg2  (mov        as op2 $r.argreg2))
+	    (else       (sparc.nop  as)))
       (sparc.cmpi  as $r.result $imm.false)
-      (sparc.be    as L2)
-      (sparc.label as L1)
-      (sparc.nop   as))))
+      (sparc.bne.a as Ltrue)
+      (sparc.slot  as)
+      (sparc.b     as Lfalse)
+      (sparc.slot  as))
+
+    (sparc.label as Ltagok)
+    (branch_f.a   as Lfalse)
+    (sparc.slot  as)
+    (sparc.label as Ltrue)))
+
 
 ; Generic arithmetic for + and -.
 ; Some rules:

@@ -25,7 +25,7 @@
 			(,$lexical 0 1)
 			(,$invoke 1))
 		       2
-		       #f)
+		       #(applyhook/1 #f 1 #f #f))
 	     (,$return))
 	    0
 	    #f)
@@ -40,7 +40,7 @@
 			(,$lexical 0 1)
 			(,$invoke 2))
 		       2
-		       #f)
+		       #(applyhook/2 #f 2 #f #f))
 	     (,$return))
 	    0
 	    #f)
@@ -55,7 +55,7 @@
 			(,$lexical 0 1)
 			(,$invoke 3))
 		       2
-		       #f)
+		       #(applyhook/3 #f 3 #f #f))
 	     (,$return))
 	    0
 	    #f)
@@ -70,7 +70,7 @@
 			(,$lexical 0 1)
 			(,$invoke 4))
 		       2
-		       #f)
+		       #(applyhook/4 #f 4 #f #f))
 	     (,$return))
 	    0
 	    #f)
@@ -85,7 +85,7 @@
 			(,$lexical 0 1)
 			(,$invoke 5))
 		       2
-		       #f)
+		       #(applyhook/5 #f 5 #f #f))
 	     (,$return))
 	    0
 	    #f)
@@ -103,7 +103,7 @@
 			(,$global apply)
 			(,$invoke 2))
 		       2
-		       #f)
+		       #(applyhook/n #f 0.0 #f #f))
 	     (,$return))
 	    0
 	    #f)

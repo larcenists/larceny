@@ -16,16 +16,7 @@
  *  memory contains live data at a point in time.
  *
  * Policy:
- *  Let L be the inverse load factor, D the live data in the copied heap
- *  following GC, S the allocated size of the static area, Q the live data
- *  in the large object space.  We wish to compute M: the new size of the
- *  total heap.  We have that M = L(D+S+Q).  Then F, the amount of data free,
- *  is F = M-D-(D+S+Q), since D space is needed for the tospace (in the
- *  steady state) and (D+S+Q) is already taken by data.  The mark/cons ratio
- *  is (D+Q)/F.  L need not be an integer.
- *
- *  In addition, D is limited from below by size/L, where size is the size
- *  requested for the area at startup time.
+ *  See the discussion at the head of gc_compute_dynamic_size() in memmgr.c.
  *
  * Implementation:
  *  While the mutator is running, only one semispace is allocated, and it's
@@ -73,6 +64,7 @@ typedef struct {
   int size_bytes;      /* Size requested at startup time */
   int target_size;     /* Size for this area computed following previous gc. */
   double load_factor;  /* That's the L from the formula above */
+  int upper_limit;     /* Bound on the heap size */
 
   /* Statistics */
   unsigned stacks_created;
@@ -121,10 +113,11 @@ create_sc_heap( int gen_no,
 
   data->load_factor = info->load_factor;
   data->size_bytes = info->size_bytes;
+  data->upper_limit = info->dynamic_max;
   data->target_size =
     compute_target_size( heap, (int)(info->size_bytes/data->load_factor), 0 );
 
-  annoyingmsg( "sc-heap: initial size = %d", data->target_size );
+  supremely_annoyingmsg( "sc-heap: initial size = %d", data->target_size );
 
   mode_ss_to_globals( heap );
 
@@ -183,17 +176,18 @@ static void collect( young_heap_t *heap, int request_bytes )
   stack = used_stack_space( heap );
   flush_stack( heap );
 
+  annoyingmsg( "Stop-and-copy heap: Garbage collection." );
+  annoyingmsg( "   Avail=%d,  Used=%d", free_space( heap ), used_space( heap ));
+  
   /* MODE: ss */
   mode_globals_to_ss( heap );
 
   ss_sync( data->current_space );
-  annoyingmsg( "sc-heap: garbage collection\n"
-	       "   avail=%d, ss used=%d, ss allocd=%d, stack=%d, los=%d",
-	       free_space( heap ),
-	       data->current_space->used,
-	       data->current_space->allocated,
-	       stack,
-	       los_bytes_used( heap->collector->los, 0 ) );
+  supremely_annoyingmsg( "ss used=%d, ss allocd=%d, stack=%d, los=%d",
+			 data->current_space->used,
+			 data->current_space->allocated,
+			 stack,
+			 los_bytes_used( heap->collector->los, 0 ) );
 
   other_space =
     create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
@@ -224,40 +218,31 @@ static void collect( young_heap_t *heap, int request_bytes )
 
   assert( free_current_chunk( heap ) >= request_bytes );
 
-  annoyingmsg( "sc-heap: garbage collection done\n"
-	       "   size=%d, ss used=%d, ss allocd=%d, los=%d, static=%d",
-	       data->target_size,
-	       data->current_space->used,
-	       data->current_space->allocated,
-	       los_bytes_used( heap->collector->los, 0 ),
-	       static_used( heap ) );
+  annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
+	       used_space( heap ) );
+
+  ss_sync( data->current_space );
+  supremely_annoyingmsg( 
+    "  size=%d, ss used=%d, ss allocd=%d, los=%d, static=%d",
+    data->target_size,
+    data->current_space->used,
+    data->current_space->allocated,
+    los_bytes_used( heap->collector->los, 0 ),
+    static_used( heap ) );
 }
 
-/* The size of the allocation area is computed based on live data.
-   The size is computed as the size to which current allocation can
-   grow before GC is necessary.  D = live small data, Q = live large 
-   data, S = live static data, L is the inverse load factor.
-
-   If we assume a steady state, then size = L*(D+S+Q) - D, since 
-   (D+S+Q) is live, and D is needed for the tospace during the next gc.
-
-   A refinement (maybe) is size = L*(D+S+Q) - kD where k is some
-   fudge factor to account for non-steady state; if k > 1, then growth
-   is assumed, if k < 1, contraction is assumed.  k > 1 seems more
-   useful.  I haven't tried this.
-
-   A different formula is size = L*(D+S+Q) - (D+S+Q); that formula is
-   independent of where data is located.  It's also more conservative,
-   and it underestimates size.  However, it makes the effects of changes
-   to L more predictable.
-   */
 static int compute_target_size( young_heap_t *heap, int D, int Q )
 {
-  double L = DATA(heap)->load_factor;
-  int S = static_used( heap );
-
-  D = max( D, (int)(DATA(heap)->size_bytes / L) );   /* Pin lower limit */
-  return roundup_page( (int)(L*(D+S+Q) - (D+S+Q)) );
+  int s;
+  s = gc_compute_dynamic_size( D,
+			       static_used( heap ),
+			       Q,
+			       DATA(heap)->load_factor,
+			       DATA(heap)->upper_limit );
+  /* gc_compute_dynamic_size() may return with no room for allocation */
+  if (s - D < 65536)
+    s += 65536;
+  return s;
 }
 
 static void before_collection( young_heap_t *heap )

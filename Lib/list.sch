@@ -373,11 +373,4 @@
 	(else (some? p (cdr l)))))
 
 
-; Support for macro-expanded code (quasiquote).
-; FIXME:  Really belongs somewhere else.
-
-(define %append append)
-(define %list list)
- 
-
 ; eof

@@ -23,7 +23,7 @@ static void dumpcodevec( void );
 static int getreg( char ** );
 static int getuint( char ** );
 
-void localdebugger()
+void localdebugger( void )
 {
 /*  printf( "[runtime system debugger; type '?' for help]\n" ); */
   while (1) {

@@ -57,8 +57,10 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
 static void before_collection( gc_t *gc );
 static void after_collection( gc_t *gc );
 static void compact_all_areas( gc_t *gc );
-static int dump_generational_system( gc_t *gc, const char *filename );
-static int dump_stopcopy_system( gc_t *gc, const char *filename );
+static int
+dump_generational_system( gc_t *gc, const char *filename, bool compact );
+static int
+dump_stopcopy_system( gc_t *gc, const char *filename, bool compact );
 
 gc_t *create_gc( gc_param_t *info, int *generations )
 {
@@ -78,6 +80,76 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   DATA(gc)->generations = *generations;
 
   return gc;
+}
+
+/* The size of the dynamic area is computed based on live data.
+
+   The size is computed as the size to which allocation can grow
+   before GC is necessary.  D = live copied data, Q = live large 
+   data, S = live static data, L is the inverse load factor, limit
+   is 0 or the upper limit on the dynamic area.
+
+   Let the total memory use be M = L*(D+S+Q).
+
+   Fundamentally, size = M - live_at_next_gc, that is, the amount of 
+   memory that can be used for currently live data and allocation, 
+   assuming some value for the amount of live data at the next GC that
+   must also be accomodated (since we have a copying GC).
+
+   The question is, how do we estimate what will be live at the next GC?
+   Ignoring 'limit' for the moment, we have at least three choices:
+
+   * The obvious choice is D, since D is all the data that will be copied.
+
+   * A refinement (maybe) is kD where k is some fudge factor to account
+     for non-steady state; if k > 1, then growth is assumed, if k < 1,
+     contraction is assumed.  k > 1 seems more useful.  I haven't tried this.
+
+   * A different approach is to use (D+S+Q); that quantity is independent
+     of where live data is located, which is nice because it makes the
+     effects of changes to L more predictable.  However, it underestimates
+     the size.  
+
+   I'm currently using the latter quantity.
+
+   Taking limit into account: first pin M as min( M, limit ).
+   If M - current_live - live_at_next_gc is negative, then there is
+   negative space available for allocation, which is absurd, hence the
+   limit may be exceeded.  However, whether it actually will be exceeded
+   depends on the actual amount of live data at next GC, so compute size 
+   to be exactly large enough to allow 0 allocation; that way, by the time
+   the next collection happens, enough data may have died to allow the 
+   collection to take place without exceeding the limit.  
+
+   This appears to work well in practice, although it does depend on
+   the program actually staying within the limit most of the time and
+   having spikes in live data that confuses the estimate.  That's OK,
+   because the limit is really for use with benchmarking where live sizes
+   can be estimated with some certainty.  Other programs should use the
+   load factor for control.
+   */
+int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit )
+{
+  int live = D+S+Q;
+  int M = (int)(L*live);
+  int est_live_next_gc = live;	/* Could also be D or kD */
+
+  if (limit > 0) {
+    int newM = min( M, limit );
+    int avail = (newM - live - est_live_next_gc);
+    if (avail < 0) {
+      hardconsolemsg("******************************************************");
+      hardconsolemsg("Dynamic area limit exceeded; expanding it temporarily.");
+      hardconsolemsg( "[M=%dK live=%dK old limit=%dK avail=%dK]",
+		      M/1024, live/1024, limit/1024, avail/1024 );
+      hardconsolemsg("******************************************************");
+      M = newM + roundup_page( abs( avail ) );	/* _Minimal_ amount */
+    }
+    else
+      M = newM;
+  }
+
+  return roundup_page( M - est_live_next_gc );
 }
 
 static int initialize( gc_t *gc )
@@ -169,9 +241,17 @@ static void collect( gc_t *gc, int gen, int bytes_needed )
     yh_collect( gc->young_area, bytes_needed );
 
   if (--data->in_gc == 0) {
+    word wheap, wremset, wrts, wmax_heap;
+
     /* Order is significant! */
     after_collection( gc );
     stats_after_gc();
+
+    gclib_stats( &wheap, &wremset, &wrts, &wmax_heap );
+    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d bytes",
+		 wheap*sizeof(word), wremset*sizeof(word), wrts*sizeof(word) );
+    annoyingmsg( "  Max heap usage: %d bytes", 
+		 wmax_heap*sizeof(word) );
   }
 }
 
@@ -352,15 +432,16 @@ static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim )
   }
 }
 
-static int dump_image( gc_t *gc, const char *filename )
+static int dump_image( gc_t *gc, const char *filename, bool compact )
 {
   if (DATA(gc)->is_generational_system) 
-    return dump_generational_system( gc, filename );
+    return dump_generational_system( gc, filename, compact );
   else
-    return dump_stopcopy_system( gc, filename );
+    return dump_stopcopy_system( gc, filename, compact );
 }
 
-static int dump_generational_system( gc_t *gc, const char *filename )
+static int
+dump_generational_system( gc_t *gc, const char *filename, bool compact )
 {
   hardconsolemsg( "Can't dump generational heaps (yet)." );
   return 0;
@@ -377,13 +458,14 @@ static int dump_semispace( heapio_t *heap, int type, semispace_t *ss )
   return 0;
 }
 
-static int dump_stopcopy_system( gc_t *gc, const char *filename )
+static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
 {
   int type, r, i;
   word *p;
   heapio_t *heap;
 
-  compact_all_areas( gc );
+  if (compact)
+    compact_all_areas( gc );
 
   type = (gc->static_area ? HEAP_SPLIT : HEAP_SINGLE);
   heap = create_heapio();
@@ -429,9 +511,7 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename )
 
 static void compact_all_areas( gc_t *gc )
 {
-  consolemsg( "Compacting...." );
   collect( gc, 0, 0 );  /* For now!  Compacts young heap only. */
-  consolemsg( "Compaction done." );
 }
 
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
@@ -529,6 +609,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->ssb_lim[0] = 0;
 
   /* FIXME: pass better parameters to create_remset() */
+  gc->remset[0] = (void*)0xDEADBEEF;
   for ( i = 1 ; i < gc->remset_count ; i++ )
     gc->remset[i] =
       create_remset( 0, 0, 0,

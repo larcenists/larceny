@@ -1,36 +1,11 @@
 /* Rts/Sys/cheney.c
- * Larceny run-time system -- copying garbage collector library.
+ * Larceny -- copying garbage collector library
  *
  * $Id: cheney.c,v 1.13 1997/09/17 15:17:26 lth Exp $
-
-Look, let's just face it: this module needs to be cleaned up eventually.
-Some procedures are no longer used; some functionality (like the split
-scanning) was never really used at all.  The static-heap reorg should be
-moved somewhere else and just use a dumb mark+copy routine; it's not
-performance critical and it clutters the code.  The abstraction level of
-the collector/heaps/remsets should be _lowered_ so that we don't have to
-simulate higher-order functions all over the place -- for example,
-remembered-set scanning could be done in a simple loop rather than with
-the callbacks and macros and the whole bit.  With the experience we
-currently have and the Hicks/Moore/Nettles paper in mind, we should
-decide on low-level mechanisms once and for all, and leave it at that.
-Massive improvements should come from higher-level algorithms.
-
-For the sake of expediency in reimplementing the promotion/expansion
-policies and the Large Object Space, however, I have not yet cleaned up
-this module, as it would take a lot of effort to do so properly.
-
  *
- *
- * Description.
- *
- * The code in this file is reentrant.
- *
- * Bugs/Discussion/FIXMEs.
- *
- * - finesse the use of the write barrier's SSBs -- is it OK the way it
- *   is now, or should we clean it up properly, and if so, how?
- *   (I don't understand this comment any more. --lars)
+ * Resist the temptation to shadow gclib_desc_g and gclib_pagebase
+ * in locals in the scanning loops -- the low-level memory manager
+ * may change them at any time!
  */
 
 #define GC_INTERNAL
@@ -45,270 +20,117 @@ this module, as it would take a lot of effort to do so properly.
 #include "gclib.h"
 #include "barrier.h"
 
-/* This bit pattern is an unused immediate and can be generated in a single
+
+/* Forwarding header (should be defined elsewhere?).
+
+   This bit pattern is an unused immediate and can be generated in a single
    cycle on most machines (it's -2).
    */
-#define FORWARD_PTR 0xFFFFFFFE     /* Should be defined somewhere else */
+#define FORWARD_HDR      0xFFFFFFFE
 
 
-/* The forw_oflo() macro forwards a pointer after checking for overflow
- * and obtaining enough memory in the semispace to perform the fowarding.
- * A generation ownership check on the page is used to check that the
- * pointer points into a heap area with generation number lower than that
- * of the parameter 'gno'.
- *
- * forw_oflo() assumes that all parameters except gno are variable names
- * (lvalues whose evaluation has no side effect); gno may be any expression.
- *
- * static void forw_oflo( word *p, unsigned gno, word *dest, word *lim,
- *                        semispace_t *semispace, los_t *los )
- */
+/* Copy loop implementation.
 
-#define forw_oflo( p, gno, dest, lim, semispace, los ) \
-  do { word TMP2 = *p; \
-       if (isptr( TMP2 ) && gclib_desc_g[pageof(TMP2)] < gno) { \
-          forw_core( TMP2, p, dest, check_space, lim, semispace, los ); \
+   FORW_BY_LOOP is biased in favor of smaller structures, which is probably
+   the right thing.  The other two have more startup overhead but will
+   probably run faster for larger structures.
+   */
+#define FORW_BY_LOOP     1	/* Double-word copy loop + memcpy */
+#define FORW_BY_DUFF     0	/* 1 iteration of Duff's device + memcpy */
+#define FORW_BY_MEMCPY   0	/* Memcpy only */
+
+
+/* Forwarding macros for normal copying collection and promotion.
+
+   Forw_oflo() forwards the contents of a location after obtaining
+   enough memory for the copy, if needed.
+
+   Forw_oflo_record() is like forw_oflo() but is used during remembered-set
+   scanning.  In addition to forwarding a location in a remembered object,
+   it remembers whether any locations in the object were changed.
+ 
+   Forw_core() implements the meat of the forwarding operation.
+
+   Check_space() checks whether the semispace has room for 'wanted' bytes,
+   and if not, it expands the semispace and updates the 'dest' and 'lim' 
+   variables.
+
+   Scan_core() implements the semispace scanning operation.  It is
+   parameterized by an expression that calls the appropriate forwarding macro.
+
+   Remset_scanner_core() scans a single remembered set entry.  It is
+   parameterized by an expression that calls the appropriate forwarding macro.
+   */
+
+/* Assumes that all parameters except forw_limit_gen are lvalues whose
+   evaluation has no side effect and whose value will not change in ways
+   not controlled by the macro.  Forw_limit_gen may be any expression.
+   */
+#define forw_oflo( loc, forw_limit_gen, dest, lim, e ) \
+  do { word T_obj = *loc; \
+       if (isptr(T_obj) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)){ \
+          forw_core( T_obj, loc, dest, lim, e ); \
        } \
   } while( 0 )
 
-
-/* forw_oflo2() works like forw_oflo() except that data is copied into
- * two semispaces: one for pointer-containing data (ss_data) and one
- * for non-pointer-containing data (ss_text).  This is way useful for
- * creating static areas, but it could perhaps be used to maintain
- * a BiBoP-ish heap too?
- */
-
-#define forw_oflo2( p, gno, dest, dest2, lim, lim2, ss_data, ss_text, los ) \
-  do { word TMP2 = *p; \
-       if (isptr( TMP2 ) && gclib_desc_g[pageof(TMP2)] < gno) { \
-          forw_core2( TMP2, p, dest, dest2, check_space, lim, lim2, ss_data, ss_text, los ); \
-       } \
-  } while( 0 )
-
-
-/* forw_oflo_record() is like forw_oflo() except that 'bit' is set to 1 if
- * the word being forwarded is a pointer into a younger generation than
- * the generation of the object it resides in; the latter generation is
- * passed in in the variable obj_gen.
- *
- * Used for remset scanning _only_.
- */
-#define forw_oflo_record( p, gno, dest, lim, semispace, bit, obj_gen, los ) \
-  do { word TMP2 = *p; \
-       if (isptr( TMP2 )) { \
-          unsigned T_genw = gclib_desc_g[pageof(TMP2)]; \
-          if (T_genw < gno) { \
-            forw_core( TMP2, p, dest, check_space, lim, semispace, los ); \
+/* Old_obj_gen is the generation of the object being scanned.
+   Note that if the object being scanned is in the generation being collected,
+   which happens during a promotion into that generation, then some objects
+   will be believed to have intergenerational pointers even though they
+   don't, because T_obj_gen is computed only once.  This is OK, because
+   the collectors always clear the required remembered sets after a promotion.
+   The alternative, to recompute T_obj_gen after forwarding, is more
+   expensive.  Since the remembered set should be cleaned anyway to 
+   reset pointers and so on, I forego the expense of fixing this macro.
+   Same goes for forw_np_record.
+   */
+#define forw_oflo_record( loc, forw_limit_gen, dest, lim, has_intergen_ptr, \
+			  old_obj_gen, e ) \
+  do { word T_obj = *loc; \
+       if (isptr( T_obj )) { \
+          unsigned T_obj_gen = gclib_desc_g[pageof(T_obj)]; \
+          if (T_obj_gen < (forw_limit_gen)) { \
+            forw_core( T_obj, loc, dest, lim, e ); \
           } \
-	  if (T_genw < obj_gen) bit=1; \
+	  if (T_obj_gen < old_obj_gen) has_intergen_ptr=1; \
        } \
   } while( 0 )
 
-
-/* The forw_oflo_partial() macro is used only by scan_core_partial,
- * when promoting from the ephemeral area into steps 1 through j of
- * a non-predictive heap.
- * The forw_oflo_partial() macro does everything that forw_oflo() does,
- * and also sets T_bit if the object being traced needs to be added to
- * the remembered set.
- *
- * forw_oflo_partial() assumes that all parameters except gno are
- * variable names (lvalues whose evaluation has no side effect);
- * gno may be any expression.
- *
- * static void forw_oflo( word *p, unsigned gno, word *dest, word *lim,
- *                        semispace_t *semispace, int T_obj_gen )
- */
-
-#define forw_oflo_partial( p, gno, dest, lim, semispace, T_obj_gen, T_bit, los ) \
-  do {  word TMP2 = *p; \
-        if ( isptr( TMP2 ) ) { \
-            int TMP3 = gclib_desc_g[pageof(TMP2)]; \
-            if ( TMP3 < gno ) { \
-                forw_core( TMP2, p, dest, check_space, lim, semispace, los ); \
-            } \
-            else if ( TMP3 < T_obj_gen ) \
-                T_bit = 1; \
-        } \
-  } while( 0 )
-
-
-/* The forw_core() macro implements most of the forwarding operation.
- * In the case of forw(), the checking code expands to a no-op; in the
- * case of forw_oflo, a check will take place.
- */
-
-#define forw_core( TMP2, p, dest, check, lim, semispace, los ) \
-  word *TMP_P = ptrof( TMP2 ); \
+#define forw_core( T_obj, loc, dest, lim, e ) \
+  word *TMP_P = ptrof( T_obj ); \
   word TMP_W = *TMP_P; \
-  if (TMP_W == FORWARD_PTR) \
-    *p = *(TMP_P+1); \
-  else if (tagof( TMP2 ) == PAIR_TAG) { \
-    check(dest,lim,8,semispace); \
+  if (TMP_W == FORWARD_HDR) \
+    *loc = *(TMP_P+1); \
+  else if (tagof( T_obj ) == PAIR_TAG) { \
+    check_space(dest,lim,8,e); \
     *dest = TMP_W; \
     *(dest+1) = *(TMP_P+1); \
-    *TMP_P = FORWARD_PTR; \
-    *(TMP_P+1) = *p = (word)tagptr(dest, PAIR_TAG); \
+    *TMP_P = FORWARD_HDR; \
+    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG); \
     dest += 2; \
   } \
   else { \
     word *TMPD; \
-    check(dest,lim,sizefield(TMP_W)+4,semispace); \
+    check_space(dest,lim,sizefield(TMP_W)+4,e); \
     TMPD = dest; \
-    *p = forward( TMP2, &TMPD, los ); dest = TMPD; \
+    *loc = forward( T_obj, &TMPD, e ); dest = TMPD; \
   }
 
-
-/* forw_core2() is just like forw_core() except that it copies objects
- * into two semispaces depending on type; see comments for forw_oflo2().
- */
-
-#define forw_core2( TMP2, p, dest, dest2, check, lim, lim2, ss_data, ss_text, los ) \
-  word *TMP_P = ptrof( TMP2 ); \
-  if (*TMP_P == FORWARD_PTR) \
-    *p = *(TMP_P+1); \
-  else if (tagof( TMP2 ) == PAIR_TAG) { \
-    check(dest,lim,8,ss_data); \
-    *dest = *TMP_P; \
-    *(dest+1) = *(TMP_P+1); \
-    *TMP_P = FORWARD_PTR; \
-    *(TMP_P+1) = *p = (word)tagptr(dest, PAIR_TAG); \
-    dest += 2; \
-  } \
-  else if (tagof( TMP2 ) == BVEC_TAG) { \
-    word *TMPD; \
-    check(dest2,lim2,sizefield(*TMP_P)+4,ss_text); \
-    TMPD = dest2; \
-    *p = forward( TMP2, &TMPD, los ); dest2 = TMPD; \
-  } \
-  else { \
-    word *TMPD; \
-    check(dest,lim,sizefield(*TMP_P)+4,ss_data); \
-    TMPD = dest; \
-    *p = forward( TMP2, &TMPD, los ); dest = TMPD; \
-  }
-
-
-/* The check_space() macro expands into code that checks whether the
- * semispace has room for 'wanted' bytes, and if not, it expands the
- * semispace and updates the 'dest' and 'lim' variables.  Local temporaries
- * are passed by reference to expand_semispace rather than the addresses
- * of 'dest' and 'lim' to prevent the compiler from getting confused about
- * possible aliasing of the latter variables.
- *
- * Large objects must be handled here so we don't allocate space to
- * handle them; by letting the check succeed for large objects, the
- * subsequent call to forward() will handle the object properly.
- */
-
-#define check_space( dest, lim, wanted, semispace ) \
+/* Large objects must be handled here so we don't allocate space to
+   handle them; by letting the check succeed for large objects, the
+   subsequent call to forward() will handle the object properly.
+   */
+#define check_space( dest, lim, wanted, e ) \
   if ((char*)lim-(char*)dest < (wanted) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
     word *CS_LIM=lim, *CS_DEST=dest; \
-    expand_semispace( semispace, &CS_LIM, &CS_DEST, (wanted) ); \
+    expand_semispace( e->tospace, &CS_LIM, &CS_DEST, (wanted) ); \
     dest = CS_DEST; lim = CS_LIM; \
   }
 
-
-/* The remset_scanner_core() macro implements most of the logic of scanning
- * a single remembered set entry.  It is parameterized by the forwarding
- * logic; the user of the macro must pass an expression that expands into
- * the correct forwarding call.
- */
-
-#define remset_scanner_core( ptr, p, FORW, count ) \
-  p = ptrof( ptr ); \
-  if (tagof( ptr ) == PAIR_TAG) { \
-    FORW; \
-    ++p; \
-    FORW; \
-    count += 2; \
-  } \
-  else { \
-    word words = sizefield( *p ) / 4; \
-    count += words; \
-    while (words--) { \
-      ++p; \
-      FORW; \
-    } \
-  }
-
-/*  The extra checking bit:
-
-  if *ptr is a pointer into an intermediate generation between
-    the current target generation and the oldest generation being
-    considered for forwarding (indeed, if *ptr still points to
-    any younger generation!) then we must remember the present
-    object.  We need remember an object only once, so set a bit
-    and check the bit afterwards.
-
-   NOTE!!! a tag VEC_TAG is used even when remembering procedures.
-
-*/
-
-#define scan_core_partial( ptr, dest, iflush, FORW, T_bit ) \
+#define scan_core( ptr, iflush, FORW ) \
   do { \
     word T_w = *ptr; \
-    assert( T_w != FORWARD_PTR); \
-    if (ishdr( T_w )) { \
-      word T_h = header( T_w ); \
-      if (T_h == BV_HDR) { \
-	/* bytevector: skip it, and flush the icache if code */ \
-	word *T_oldptr = ptr; \
-	word T_bytes = roundup4( sizefield( T_w ) ); \
-	ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
-	if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */ \
-	/* Only code vectors typically use a plain bytevector typetag, \
-	 * so almost any bytevector will be a code vector that must \
-         * be flushed. \
-	 */ \
-	if (iflush && typetag( T_w ) == BVEC_SUBTAG) \
-	  mem_icache_flush( T_oldptr, ptr ); \
-      } \
-      else { \
-	/* vector or procedure: scan in a tight loop */ \
-	word T_words = sizefield( T_w ) >> 2; \
-        word* T_obj = ptr; \
-        int T_bit = 0; \
-	ptr++; \
-	while (T_words--) { \
-	  FORW; \
-	  ptr++; \
-	} \
-        if (T_bit) remember_vec( tagptr( T_obj, VEC_TAG ) ); \
-	if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */ \
-      } \
-    } \
-    else { \
-      int T_bit = 0; \
-      FORW; \
-      ptr++; \
-      FORW; \
-      ptr++; \
-      if (T_bit) remember_pair( tagptr( ptr-2, PAIR_TAG ) ); \
-    } \
-  } while (0)
-
-
-#define remember_vec( w ) \
- do {  **ssbtop = w; *ssbtop = *ssbtop+1; \
-       if (*ssbtop == *ssblim) { \
-         gc_compact_np_ssb( gc ); \
-       } \
- } while(0)
-
-#define remember_pair( w ) remember_vec( w )
-
-
-
-/* The scan_core() macro implements the semispace scanning operation.
- * It is parameterized by the forwarding macro, which should be either
- * a call to forw() or a call to forw_oflo(), with the right parameters.
- */
-#define scan_core( ptr, dest, iflush, FORW ) \
-  do { \
-    word T_w = *ptr; \
-    assert( T_w != FORWARD_PTR); \
+    assert( T_w != FORWARD_HDR); \
     if (ishdr( T_w )) { \
       word T_h = header( T_w ); \
       if (T_h == BV_HDR) { \
@@ -340,33 +162,315 @@ this module, as it would take a lot of effort to do so properly.
     } \
   } while (0)
 
+/* 'p' is not local to the macro because it is also used by the expansion 
+   of FORW.
+   */
+#define remset_scanner_core( ptr, p, FORW, count ) \
+  p = ptrof( ptr ); \
+  if (tagof( ptr ) == PAIR_TAG) { \
+    FORW; \
+    ++p; \
+    FORW; \
+    count += 2; \
+  } \
+  else { \
+    word words = sizefield( *p ) / 4; \
+    count += words; \
+    while (words--) { \
+      ++p; \
+      FORW; \
+    } \
+  }
 
 
-/* Types used to emulate closures during scanning. */
+/* Additional forwarding macros for a splitting garbage collection.
 
-typedef struct fast_env fast_env_t;
-struct fast_env {
-  word *oldlo;
-  word *oldhi;
-  word *dest;
-  los_t *los;
-};
+   This is a hack and should go away, but it's still used to support
+   the Boehm collector by allowing the creation of a clean split heap.
 
-typedef struct oflo_env oflo_env_t;
-struct oflo_env {
-  unsigned gno;
-  word *dest;
-  word *dest2;
-  word *lim;
-  word *lim2;
-  semispace_t *tospace;
-  semispace_t *tospace2;
-  gc_t *gc;
-  word **ssbtop;
-  word **ssblim;
-  los_t *los;
-  caddr_t pagebase;
-  unsigned *desc_g;
+   A splitting gc uses two destination semispaces: one for pointer data
+   (ss_data) and one for non-pointer data (ss_text).
+
+   Forw_oflo2() is like forw_oflo(); forw_core2() is like forw_core().
+   The same scanning macros are used for this type of collection as
+   for a normal collection.
+
+   Check_space2() differs from check_space() in that large objects are
+   not handled specially -- during splitting gc, large objects are
+   copied the same way as other objects.
+   */
+
+#define forw_oflo2( loc, forw_limit_gen, dest, dest2, lim, lim2, e ) \
+  do { word T_obj = *loc; \
+       if (isptr( T_obj ) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)) { \
+          forw_core2( T_obj, loc, dest, dest2, lim, lim2, e ); \
+       } \
+  } while( 0 )
+
+#define forw_core2( T_obj, loc, dest, dest2, lim, lim2, e ) \
+  word *TMP_P = ptrof( T_obj ); \
+  if (*TMP_P == FORWARD_HDR) \
+    *loc = *(TMP_P+1); \
+  else if (tagof( T_obj ) == PAIR_TAG) { \
+    check_space2(dest,lim,8,e->tospace); /*data*/ \
+    *dest = *TMP_P; \
+    *(dest+1) = *(TMP_P+1); \
+    *TMP_P = FORWARD_HDR; \
+    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG); \
+    dest += 2; \
+  } \
+  else if (tagof( T_obj ) == BVEC_TAG) { \
+    word *TMPD; \
+    check_space2(dest2,lim2,sizefield(*TMP_P)+4,e->tospace2); /*text*/ \
+    TMPD = dest2; \
+    *loc = forward( T_obj, &TMPD, e ); dest2 = TMPD; \
+  } \
+  else { \
+    word *TMPD; \
+    check_space2(dest,lim,sizefield(*TMP_P)+4,e->tospace);/*data*/ \
+    TMPD = dest; \
+    *loc = forward( T_obj, &TMPD, e ); dest = TMPD; \
+  }
+
+#define check_space2( dest, lim, wanted, semispace ) \
+  if ((char*)lim-(char*)dest < (wanted)) { \
+    word *CS_LIM=lim, *CS_DEST=dest; \
+    expand_semispace( semispace, &CS_LIM, &CS_DEST, (wanted) ); \
+    dest = CS_DEST; lim = CS_LIM; \
+  }
+
+
+/* Additional forwarding macros for non-predictive promotion.
+
+   During non-predictive promotion, objects are moved first into the old
+   area until it fills up, then into the young area.  The counter
+   e.np.old_steps_remaining keeps track of available space in the old
+   area; when a chunk is full and this counter is found to be 0, then
+   the old area is full.
+
+   Forw_np() is like forw_oflo() but is only suitable for scanning the
+   'old' area after promotion.
+
+   Forw_np_record() is like forw_oflo_record().
+
+   Forw_np_partial() is like forw_np(), but suitable for scanning the
+   non-predictive 'young' area after promotion into it.  It records
+   whether an object needs to be added to the non-predictive extra
+   remembered set.
+
+   Forw_core_np() is like forw_core().
+
+   Check_space_np() is like check_space().
+
+   Scan_core_partial() is like scan_core(), but is useful only when
+   scanning the non-predictive 'young' area, and adds an object to the
+   non-predictive extra remembered set if forw_np_partial() indicates
+   that it must be done.
+   */
+
+#define forw_np( loc, forw_limit_gen, dest, lim, e ) \
+  do { word T_obj = *loc; \
+       if (isptr( T_obj ) && gclib_desc_g[pageof(T_obj)] < (forw_limit_gen)) { \
+          forw_core_np( T_obj, loc, dest, lim, e ); \
+       } \
+  } while( 0 )
+
+/* See comments for forw_oflo_record regarding this implementation. 
+   */
+#define forw_np_record( loc, forw_limit_gen, dest, lim, has_intergen_ptr, \
+		        old_obj_gen, e ) \
+  do { word T_obj = *loc; \
+       if (isptr( T_obj )) { \
+          unsigned T_obj_gen = gclib_desc_g[pageof(T_obj)]; \
+          if (T_obj_gen < (forw_limit_gen)) { \
+            forw_core_np( T_obj, loc, dest, lim, e ); \
+          } \
+	  if (T_obj_gen < (old_obj_gen)) has_intergen_ptr=1; \
+       } \
+  } while( 0 )
+
+/* In general, the generation lookup must be done twice because
+   it is possible for an object to be forwarded into the non-predictive
+   'old' space during a promotion to both 'old' and 'young'.
+   In particular, this happens if one object is forwarded into 'old',
+   then a second object, pointing to the first, is forwarded into 'young',
+   and then scanned.  The pointer in the second object will then
+   change from a pointer into the ephemeral area to a pointer into
+   'old'.  The second object must now be added to the non-predictive
+   remembered set.
+
+   In the old non-predictive collector, this did not happen, and the logic 
+   was less expensive.
+   */
+#define forw_np_partial( loc, forw_limit_gen, dest, lim, np_young_gen, \
+			 must_add_to_extra, e ) \
+  do { word T_obj = *loc; \
+       if ( isptr( T_obj ) ) { \
+           if (gclib_desc_g[ pageof(T_obj) ] < (forw_limit_gen)) { \
+             forw_core_np( T_obj, loc, dest, lim, e ); \
+           } \
+	   T_obj = *loc; \
+           if (gclib_desc_g[pageof(T_obj)] < (np_young_gen)) \
+             must_add_to_extra = 1; \
+       } \
+  } while( 0 )
+
+#define forw_core_np( T_obj, loc, dest, lim, e ) \
+  word *TMP_P = ptrof( T_obj ); \
+  word TMP_W = *TMP_P; \
+  if (TMP_W == FORWARD_HDR) \
+    *loc = *(TMP_P+1); \
+  else if (tagof( T_obj ) == PAIR_TAG) { \
+    check_space_np(dest,lim,8,e); \
+    *dest = TMP_W; \
+    *(dest+1) = *(TMP_P+1); \
+    *TMP_P = FORWARD_HDR; \
+    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG); \
+    dest += 2; \
+  } \
+  else { \
+    word *TMPD; \
+    check_space_np(dest,lim,sizefield(TMP_W)+4,e); \
+    TMPD = dest; \
+    *loc = forward( T_obj, &TMPD, e ); dest = TMPD; \
+  }
+
+#define check_space_np( dest, lim, wanted, e ) \
+  if ((char*)lim-(char*)dest < (wanted) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
+    word *CS_LIM=lim, *CS_DEST=dest; \
+    expand_semispace_np( &CS_LIM, &CS_DEST, (wanted), e ); \
+    dest = CS_DEST; lim = CS_LIM; \
+  }
+
+#define scan_core_partial( ptr, iflush, FORW, must_add_to_extra, e ) \
+  do { \
+    word T_w = *ptr; \
+    assert( T_w != FORWARD_HDR); \
+    if (ishdr( T_w )) { \
+      word T_h = header( T_w ); \
+      if (T_h == BV_HDR) { \
+	/* bytevector: skip it, and flush the icache if code */ \
+	word *T_oldptr = ptr; \
+	word T_bytes = roundup4( sizefield( T_w ) ); \
+	ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
+	if (!(T_bytes & 4)) *ptr++ = 0;            /* pad. */ \
+	/* Only code vectors typically use a plain bytevector typetag, \
+	 * so almost any bytevector will be a code vector that must \
+         * be flushed. \
+	 */ \
+	if (iflush && typetag( T_w ) == BVEC_SUBTAG) \
+	  mem_icache_flush( T_oldptr, ptr ); \
+      } \
+      else { \
+	/* vector or procedure: scan in a tight loop */ \
+	word T_words = sizefield( T_w ) >> 2; \
+        word* T_objp = ptr; \
+        int must_add_to_extra = 0; \
+	ptr++; \
+	while (T_words--) { \
+	  FORW; \
+	  ptr++; \
+	} \
+        if (must_add_to_extra) remember_vec( tagptr( T_objp, VEC_TAG ), e ); \
+	if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */ \
+      } \
+    } \
+    else { \
+      int must_add_to_extra = 0; \
+      FORW; \
+      ptr++; \
+      FORW; \
+      ptr++; \
+      if (must_add_to_extra) remember_pair( tagptr( ptr-2, PAIR_TAG ), e ); \
+    } \
+  } while (0)
+
+#define remember_vec( w, e ) \
+ do {  **e->np.ssbtop = w; *e->np.ssbtop = *e->np.ssbtop+1; \
+       if (*e->np.ssbtop == *e->np.ssblim) { \
+         gc_compact_np_ssb( e->gc ); \
+       } \
+ } while(0)
+
+#define remember_pair( w, e ) remember_vec( w, e )
+
+#define FORW_NP_ENV_BEGIN( e_, dest_, lim_ ) \
+  word *dest_ = (e_->np.has_switched ? e->dest2 : e->dest); \
+  word *lim_ = (e_->np.has_switched ? e->lim2 : e->lim);
+
+#define FORW_NP_ENV_END( e_, dest_, lim_ ) \
+  if (e_->np.has_switched) { e_->dest2 = dest_; e_->lim2 = lim_; } \
+  else { e_->dest = dest_; e->lim = lim_; }
+
+
+/* Parameter container data structure */
+
+typedef struct cheney_env cheney_env_t;
+struct cheney_env {
+  /* Controlling parameters */
+  int  effective_generation;
+    /* A generation number s.t. all (or some, see may_be_partial, below) 
+       objects from younger generations are copied into tospace.
+       */
+
+  bool enumerate_np_remset;
+    /* TRUE if the non-predictive 'extra' remembered set needs to be
+       enumerated.
+       */
+
+  bool scan_static;
+    /* TRUE if the static area needs to be scanned in its entirety.
+       */
+
+  bool np_promotion;
+    /* TRUE if this is a promotion into both the old and young non-predictive
+       areas.
+       */
+
+  bool splitting;
+    /* TRUE if this is a limited 'splitting' garbage collection, used to
+       reorganize the heap image into text and data areas.
+       */
+
+  bool iflush;
+    /* TRUE if the instruction cache must be flushed for the destination
+       address of codevectors.
+       */
+
+  void (*scanner)( cheney_env_t *e );
+    /* Scanner function to be run after roots forwarding.
+       */
+
+  gc_t *gc;			/* The garbage collector. */
+  los_t *los;			/* The collector's Large Object Space */
+
+  semispace_t *tospace;		/* The first tospace */
+  semispace_t *tospace2;	/* The second tospace, or 0 */
+  word *dest;			/* Copy pointer of tospace */
+  word *dest2;			/* Copy pointer of tospace2, or 0 */
+  word *lim;			/* Copy limit of tospace */
+  word *lim2;			/* Copy limit of tospace2, or 0 */
+  word *scan_ptr;		/* Initial scan pointer in tospace */
+  word *scan_ptr2;		/* Initial scan pointer in tospace2, or 0 */
+  word *scan_lim;		/* Initial scan limit in tospace */
+  word *scan_lim2;		/* Initial scan limit in tospace2, or 0 */
+  int  scan_idx;		/* Initially the index of the chunk in 
+				   tospace into which scan_ptr and scan_lim
+				   point; later, garbage. */
+  int  scan_idx2;		/* Ditto for tospace2, or 0 */
+
+  /* Non-predictive promotion */
+  struct {
+    bool has_switched;		/* 1 if we're now promoting into young */
+    int  old_steps_remaining;	/* Number of full steps remaining */
+    int  young_steps_remaining;	/* Ditto */
+    int  old_los_bytes;		/* Space used by newly promoted objects */
+    int  young_los_bytes;	/* Ditto young */
+    int  old_los_steps;		/* ceiling( old_los_bytes / stepsize ) */
+    int  young_los_steps;	/* Ditto young */
+    word **ssbtop;		/* For the NP 'extra' set */
+    word **ssblim;		/* Ditto */
+  } np;
 };
 
 
@@ -376,147 +480,186 @@ extern void mem_icache_flush( void *start, void *end );
 
 /* Private procedures */
 
-static void oldspace_copy( gc_t *gc, 
-			   semispace_t *tospace, semispace_t *tospace2, 
-			   int effective_generation,
-			   bool may_be_partial,
-			   bool scan_static,
-			   bool enumerate_np_remset 
-			  );
-static void scan_static_area( gc_t *gc, oflo_env_t *e );
+static void oldspace_copy( cheney_env_t *e );
+static void sweep_large_objects( gc_t *gc, int sweep_oldest, int g1, int g2 );
+static void init_env( cheney_env_t *e, gc_t *gc,
+		      semispace_t *tospace, semispace_t *tospace2,
+		      int  effective_generation,
+		      bool np_promotion,
+		      bool scan_static,
+		      bool enumerate_np_remset,
+		      bool splitting,
+		      void (*scanner)( cheney_env_t * ) );
+static void scan_roots( cheney_env_t *e );
+static void scan_static_area( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
-static int  remset_scanner_oflo( word obj, void *data, unsigned *count );
-static void scan_oflo(word *scanptr, word *scanlim,
-		      unsigned starti, oflo_env_t *e, int iflush,
-		      int may_be_partial );
-static word forward( word, word **, los_t * );
+static void root_scanner_np( word *ptr, void *data );
+static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
+static bool remset_scanner_np( word ptr, void *data, unsigned *count );
+static void scan_oflo_normal( cheney_env_t *e );
+static void scan_oflo_splitting( cheney_env_t *e );
+static void scan_oflo_np_promote( cheney_env_t *e );
+static word forward( word, word **, cheney_env_t *e );
 static void expand_semispace( semispace_t *, word **, word **, unsigned );
-static word forward_large_object( los_t *los, word *ptr, int tag );
-static void sweep_large_objects( gc_t *gc, int sweep_oldest, int dest );
+static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
+static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
 
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
-  oldspace_copy( gc, tospace, 0, tospace->gen_no, 0, 0, 0 );
-  sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no );
+  cheney_env_t e;
+
+  init_env( &e, gc, tospace, 0, tospace->gen_no, 0, 0, 0, 0,
+	    scan_oflo_normal );
+  oldspace_copy( &e );
+  sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
 }
 
 void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
 {
-  oldspace_copy( gc, tospace, 0, tospace->gen_no+1, 0, 0, 0 );
-  sweep_large_objects( gc, tospace->gen_no, tospace->gen_no );
+  cheney_env_t e;
+
+  init_env( &e, gc, tospace, 0, tospace->gen_no+1, 0, 0, 0, 0,
+	    scan_oflo_normal );
+  oldspace_copy( &e );
+  sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
 }
 
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
 {
-  oldspace_copy( gc, tospace, 0, tospace->gen_no+1, 0, 1, 0 );
-  sweep_large_objects( gc, tospace->gen_no, tospace->gen_no );
+  cheney_env_t e;
+
+  init_env( &e, gc, tospace, 0, tospace->gen_no+1, 0, 1, 0, 0,
+	    scan_oflo_normal );
+  oldspace_copy( &e );
+  sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
 }
 
-void gclib_stopcopy_promote_into_np_young( gc_t *gc, semispace_t *tospace )
+void gclib_stopcopy_promote_into_np( gc_t *gc,
+				     semispace_t *old, semispace_t *young,
+				     int old_remaining, int young_remaining )
 {
-  oldspace_copy( gc, tospace, 0, tospace->gen_no-1, 1, 0, 0 );
-  sweep_large_objects( gc, tospace->gen_no-2, tospace->gen_no );
+  cheney_env_t e;
+
+  init_env( &e, gc, old, young, old->gen_no, 1, 0, 0, 0, scan_oflo_np_promote );
+  e.np.old_steps_remaining = old_remaining / GC_CHUNK_SIZE;
+  e.np.young_steps_remaining = young_remaining / GC_CHUNK_SIZE;
+  gc_np_remset_ptrs( gc, &e.np.ssbtop, &e.np.ssblim );
+
+  oldspace_copy( &e );
+  gc_compact_np_ssb( gc );
+  sweep_large_objects( gc, old->gen_no-1, old->gen_no, young->gen_no );
 }
 
 void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
 {
-  oldspace_copy( gc, tospace, 0, tospace->gen_no, 0, 0, 1 );
-  sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no );
+  cheney_env_t e;
+
+  init_env( &e, gc, tospace, 0, tospace->gen_no, 0, 0, 1, 0, scan_oflo_normal );
+  oldspace_copy( &e );
+  sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
 }
 
-
-void
-gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text )
+void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text )
 {
-  oldspace_copy( gc, data, text, data->gen_no+1, 0, 0, 0 );
+  cheney_env_t e;
+
+  init_env( &e, gc, data, text, data->gen_no+1, 0, 0, 0, 1,
+	    scan_oflo_splitting );
+  oldspace_copy( &e );
+  /* Note: No LOS sweeping */
 }
 
-/* 'effective_generation' is a generation number s.t. all objects from
- * younger generations are copied into tospace.  When promoting, the
- * effective generation is the generation number of tospace, and when 
- * copying in an older generation, it is that generation's generation number,
- * plus 1.
- *
- * 'may_be_partial' is 1 if there are generations younger than tospace
- * from which objects may not be copied, i.e., if
- *     effective_generation < gen(tospace)
- */
-
-static void 
-oldspace_copy( gc_t *gc,
-	       semispace_t *tospace,             /* data or both */ 
- 	       semispace_t *tospace2,            /* text or 0 */
-	       int effective_generation,
-	       bool may_be_partial,
-	       bool scan_static,
-	       bool enumerate_np_remset 
-	      )
+static void
+sweep_large_objects( gc_t *gc, int sweep_oldest, int dest, int dest2 )
 {
-  word *scanptr;
-  unsigned scan_chunk_idx;
-  oflo_env_t e;
-  word *scanlim;
+  int i;
 
-  scan_chunk_idx = tospace->current;
-  scanptr = tospace->chunks[scan_chunk_idx].top;
-  e.dest = tospace->chunks[scan_chunk_idx].top;
-  e.dest2 = (tospace2 ? tospace2->chunks[tospace2->current].top : 0);
-  e.lim = tospace->chunks[scan_chunk_idx].lim;
-  e.lim2 = (tospace2 ? tospace2->chunks[tospace2->current].lim : 0);
-  e.tospace = tospace;
-  e.tospace2 = tospace2;
-  e.gc = gc;
-  e.los = gc->los;
-  e.pagebase = gclib_pagebase;
-  e.desc_g = gclib_desc_g;
-
-  /* assert( !scan_static || scan_static && !may_be_partial ); */ /* FIXME */
-  e.gno = effective_generation;
-  gc->np_remset_ptrs( gc, &e.ssbtop, &e.ssblim );
-
-  /* Forward the roots */
-  gc_enumerate_roots( gc, root_scanner_oflo, (void*)&e );
-  gc_enumerate_remsets_older_than( gc, 
-				   effective_generation-1,
-				   remset_scanner_oflo, 
-				   (void*)&e,
-				   enumerate_np_remset );
-  if (scan_static && gc->static_area) 
-    scan_static_area( gc, &e );
-
-  /* Scan */
-  scanlim = tospace->chunks[scan_chunk_idx].lim;
-  scan_oflo( scanptr, scanlim, scan_chunk_idx, &e, gc->iflush(gc,e.gno),
-	    may_be_partial
-	    );
-
-  tospace->chunks[tospace->current].top = e.dest;
-  if (tospace2)
-    tospace2->chunks[tospace2->current].top = e.dest2;
+  for ( i=0 ; i <= sweep_oldest ; i++ )
+    los_sweep( gc->los, i );
+  los_append_and_clear_list( gc->los, gc->los->mark1, dest );
+  if (dest2 >= 0) los_append_and_clear_list( gc->los, gc->los->mark2, dest2 );
 }
 
-static void scan_static_area( gc_t *gc, oflo_env_t *e )
+static void init_env( cheney_env_t *e, gc_t *gc,
+		      semispace_t *tospace, semispace_t *tospace2,
+		      int effective_generation,
+		      bool np_promotion,
+		      bool scan_static,
+		      bool enumerate_np_remset,
+		      bool splitting,
+		      void (*scanner)( cheney_env_t * ) )
 {
-  /* gclib_pagebase and gclib_desc_g shadow globals of same name */
-  caddr_t gclib_pagebase = e->pagebase;
-  unsigned *gclib_desc_g = e->desc_g;
-  word *dest = e->dest;
-  word *lim = e->lim;
-  int gno = e->gno;
-  semispace_t *tospace = e->tospace;
-  los_t *los = e->los;
-  semispace_t *s_data;
-  int i, iflush;
-  word *p, *limit;
+  assert( !(scan_static && (np_promotion || splitting)) );
 
-  iflush = gc_iflush( gc, gno );
-  s_data = gc->static_area->data_area;
+  memset( e, 0, sizeof( cheney_env_t ) );
+  e->gc = gc;
+  e->effective_generation = effective_generation;
+  e->scan_static = scan_static;
+  e->np_promotion = np_promotion;
+  e->enumerate_np_remset = enumerate_np_remset;
+  e->splitting = splitting;
+  e->iflush = gc_iflush( gc );
+  e->tospace = tospace;
+  e->tospace2 = tospace2;
+  e->dest = tospace->chunks[tospace->current].top;
+  e->dest2 = (tospace2 ? tospace2->chunks[tospace2->current].top : 0);
+  e->lim = tospace->chunks[tospace->current].lim;
+  e->lim2 = (tospace2 ? tospace2->chunks[tospace2->current].lim : 0);
+  e->los = (splitting ? 0 : gc->los);
+  e->scanner = scanner;
+}
+
+static void oldspace_copy( cheney_env_t *e )
+{
+  e->scan_idx = e->tospace->current;
+  e->scan_idx2 = (e->tospace2 ? e->tospace2->current : 0);
+  e->scan_ptr = e->tospace->chunks[e->scan_idx].top;
+  e->scan_ptr2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].top : 0);
+  e->scan_lim = e->tospace->chunks[e->scan_idx].lim;
+  e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
+
+  scan_roots( e );
+  e->scanner( e );
+
+  e->tospace->chunks[e->tospace->current].top = e->dest;
+  if (e->tospace2)
+    e->tospace2->chunks[e->tospace2->current].top = e->dest2;
+}
+
+static void scan_roots( cheney_env_t *e )
+{
+  void (*roots)( word *, void * );
+  bool (*remsets)( word, void *, unsigned * );
+
+  roots = (e->np_promotion ? root_scanner_np : root_scanner_oflo);
+  remsets = (e->np_promotion ? remset_scanner_np : remset_scanner_oflo);
+
+  gc_enumerate_roots( e->gc, roots, (void*)e );
+  gc_enumerate_remsets_older_than( e->gc, 
+				   e->effective_generation-1,
+				   remsets,
+				   (void*)e,
+				   e->enumerate_np_remset );
+
+  if (e->scan_static && e->gc->static_area) {
+    scan_static_area( e );
+  }
+}
+
+static void scan_static_area( cheney_env_t *e )
+{
+  int         forw_limit_gen = e->effective_generation;
+  semispace_t *s_data = e->gc->static_area->data_area;
+  word        *dest = e->dest;
+  word        *lim = e->lim;
+  word        *loc, *limit;
+  int         i;
 
   for ( i=0 ; i <= s_data->current ; i++ ) {
-    p = s_data->chunks[i].bot;
+    loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
-    while ( p < limit )
-      scan_core( p, dest, iflush, forw_oflo( p, gno, dest, lim, tospace, los));
+    while ( loc < limit )
+      scan_core( loc, e->iflush, forw_oflo( loc, forw_limit_gen, dest, lim, e));
   }
 
   e->dest = dest;
@@ -525,101 +668,89 @@ static void scan_static_area( gc_t *gc, oflo_env_t *e )
 
 static void root_scanner_oflo( word *ptr, void *data )
 {
-  oflo_env_t *e = (oflo_env_t*)data;
-  forw_oflo( ptr, e->gno, e->dest, e->lim, e->tospace, e->los );
+  cheney_env_t *e = (cheney_env_t*)data;
+  forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e );
 }
 
-static int remset_scanner_oflo( word ptr, void *data, unsigned *count )
+static void root_scanner_np( word *ptr, void *data )
 {
-  oflo_env_t *e = (oflo_env_t*)data;
-  word *dest = e->dest, *lim = e->lim;
-  unsigned gno = e->gno;
-  semispace_t *s = e->tospace;
-  word *p;
-  int bit=0;
-  unsigned obj_gen = gclib_desc_g[pageof(ptr)];
+  cheney_env_t *e = (cheney_env_t*)data;
+  FORW_NP_ENV_BEGIN( e, dest, lim )
 
-  remset_scanner_core( ptr, p, 
-		forw_oflo_record( p, gno, dest, lim, s, bit, obj_gen, e->los ),
-		*count );
+  forw_np( ptr, e->effective_generation, dest, lim, e );
+
+  FORW_NP_ENV_END( e, dest, lim )
+}
+
+static bool remset_scanner_oflo( word object, void *data, unsigned *count )
+{
+  cheney_env_t *e = (cheney_env_t*)data;
+  unsigned     forw_limit_gen = e->effective_generation;
+  unsigned     old_obj_gen = gclib_desc_g[pageof(object)];
+  bool         has_intergen_ptr = 0;
+  word         *dest = e->dest;
+  word         *lim = e->lim;
+  word         *loc;		/* Used as a temp by scanner and fwd macros */
+
+  remset_scanner_core( object, loc, 
+		       forw_oflo_record( loc, forw_limit_gen, dest, lim,
+					 has_intergen_ptr, old_obj_gen, e ),
+		       *count );
 
   e->dest = dest;
   e->lim = lim;
-  return bit;
+  return has_intergen_ptr;
 }
 
-/* The scan_oflo procedure has been split up into three procedures to get
-   better precision when doing profiling.
-   */
-
-static void 
-scan_oflo_normal( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-		  oflo_env_t *e, int iflush );
-static void 
-scan_oflo_splitting( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-		    oflo_env_t *e, int iflush );
-static void 
-scan_oflo_np_promote( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-		      oflo_env_t *e, int iflush );
-
-static void 
-scan_oflo( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-	   oflo_env_t *e, int iflush, int may_be_partial )
+static bool remset_scanner_np( word object, void *data, unsigned *count )
 {
-  if (may_be_partial)
-    /* NP promotion into 'young' */
-    scan_oflo_np_promote( scanptr, scanlim, scan_chunk_idx, e, iflush );
-  else if (e->dest2 != 0)
-    /* Splitting the heap */
-    scan_oflo_splitting( scanptr, scanlim, scan_chunk_idx, e, iflush );
-  else
-    /* No magic */
-    scan_oflo_normal( scanptr, scanlim, scan_chunk_idx, e, iflush );
+  cheney_env_t *e = (cheney_env_t*)data;
+  unsigned     forw_limit_gen = e->effective_generation;
+  unsigned     old_obj_gen = gclib_desc_g[pageof(object)];
+  bool         has_intergen_ptr = 0;
+  word         *loc;		/* Used as a temp by scanner and fwd macros */
+  FORW_NP_ENV_BEGIN( e, dest, lim )
+
+  remset_scanner_core( object, loc, 
+		       forw_np_record( loc, forw_limit_gen, dest, lim,
+				       has_intergen_ptr, old_obj_gen, e ),
+		       *count );
+
+  FORW_NP_ENV_END( e, dest, lim )
+  return has_intergen_ptr;
 }
 
-static void 
-scan_oflo_normal( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-		  oflo_env_t *e, int iflush )
+static void scan_oflo_normal( cheney_env_t *e )
 {
-  /* gclib_pagebase and gclib_desc_g shadow globals of same name */
-  caddr_t gclib_pagebase = e->pagebase;
-  unsigned *gclib_desc_g = e->desc_g;
-  unsigned gno = e->gno;
-  semispace_t *tospace = e->tospace;
-  word *dest = e->dest;
-  word *copylim = e->lim;
-  gc_t *gc = e->gc;
-  los_t *los = e->los;
-  word *los_p = 0, *los_next;
-  int morework;
+  unsigned gno = e->effective_generation;
+  word     *scanptr = e->scan_ptr;
+  word     *scanlim = e->scan_lim;
+  word     *dest = e->dest;
+  word     *copylim = e->lim;
+  word     *los_p = 0, *p;
+  int      morework;
 
   do {
     morework = 0;
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-	scan_core( scanptr, dest, iflush,
-		   forw_oflo( scanptr, gno, dest, copylim, tospace, los ));
+	scan_core( scanptr, e->iflush,
+		   forw_oflo( scanptr, gno, dest, copylim, e ));
       }
 
       if (scanptr != dest) {
-	scan_chunk_idx++;
-	scanptr = tospace->chunks[scan_chunk_idx].bot;
-	scanlim = tospace->chunks[scan_chunk_idx].lim;
+	e->scan_idx++;
+	scanptr = e->tospace->chunks[e->scan_idx].bot;
+	scanlim = e->tospace->chunks[e->scan_idx].lim;
       }
     }
 
-    los_next = los_walk_list( los->marked, los_p );
-    if (los_next != 0) {
+    while ((p = los_walk_list( e->los->mark1, los_p )) != 0) {
+      los_p = p;
       morework = 1;
-      do {
-	word *p = los_next;
-	assert( ishdr( *p ) );
-	scan_core( p, dest, iflush,
-		   forw_oflo( p, gno, dest, copylim, tospace, los ));
-	los_p = los_next;
-	los_next = los_walk_list( los->marked, los_p );
-      } while (los_next != 0);
+      assert( ishdr( *p ) );
+      scan_core( p, e->iflush, forw_oflo( p, gno, dest, copylim, e ));
     }
   } while (morework);
 
@@ -627,89 +758,146 @@ scan_oflo_normal( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
   e->lim = copylim;
 }
 
-static void 
-scan_oflo_np_promote( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-		      oflo_env_t *e, int iflush )
+static void scan_np_old( cheney_env_t *e );
+static void scan_np_young( cheney_env_t *e );
+static void scan_np_los_old( cheney_env_t *e, word **los_p_arg );
+static void scan_np_los_young( cheney_env_t *e, word **los_p_arg );
+
+static void scan_oflo_np_promote( cheney_env_t *e )
 {
-  unsigned gno = e->gno;
-  semispace_t *tospace = e->tospace;
-  word *dest = e->dest;
-  word *copylim = e->lim;
-  word **ssbtop = e->ssbtop;
-  word **ssblim = e->ssblim;
-  gc_t *gc = e->gc;
-  word *los_p = 0, *los_next;
-  unsigned T_obj_gen = gclib_desc_g[pageof(scanptr)];
-  int morework;
+  word *los_p_old = 0, *los_p_young = 0;
+  bool work;
 
   do {
-    morework = 0;
-
-    while (scanptr != dest) {
-      while (scanptr != dest && scanptr < scanlim) {
-	/* T_bit is just a name that is common to scan_core_partial() and
-	 * forw_oflo_partial(); scan_core_partial() uses it to declare some
-	 * variable.
-	 */
-	scan_core_partial( scanptr, dest, iflush,
-			  forw_oflo_partial( scanptr, gno, dest, copylim, 
-					    tospace, T_obj_gen, T_bit, e->los),
-			  T_bit );
-      }
-
-      if (scanptr != dest) {
-	scan_chunk_idx++;
-	scanptr = tospace->chunks[scan_chunk_idx].bot;
-	scanlim = tospace->chunks[scan_chunk_idx].lim;
-      }
+    if (e->scan_ptr == e->scan_lim && e->scan_idx < e->tospace->current) {
+      e->scan_idx++;
+      e->scan_ptr = e->tospace->chunks[ e->scan_idx ].bot;
+      e->scan_lim = e->tospace->chunks[ e->scan_idx ].lim;
+    }
+    if (e->scan_ptr2 == e->scan_lim2 && e->scan_idx2 < e->tospace2->current) {
+      e->scan_idx2++;
+      e->scan_ptr2 = e->tospace2->chunks[ e->scan_idx2 ].bot;
+      e->scan_lim2 = e->tospace2->chunks[ e->scan_idx2 ].lim;
     }
 
-    los_next = los_walk_list( e->los->marked, los_p );
-    if (los_next != 0) {
-      morework = 1;
-      do {
-	word *p = los_next;
-	assert( ishdr( *p ) );
-	scan_core_partial( p, dest, iflush,
-			  forw_oflo_partial( p, gno, dest, copylim, tospace, 
-					     T_obj_gen, T_bit, e->los ),
-			  T_bit );
-	los_p = los_next;
-	los_next = los_walk_list( e->los->marked, los_p );
-      } while (los_next != 0);
+    work = 0;
+    if (e->scan_ptr != e->scan_lim && e->scan_ptr != e->dest) {
+      scan_np_old( e );
+      work=1;
     }
-  } while (morework);
+    if (los_walk_list( e->los->mark1, los_p_old ) != 0) {
+      scan_np_los_old( e, &los_p_old );
+      work=1;
+    }
+    if (e->scan_ptr2 != e->scan_lim2 && e->scan_ptr2 != e->dest2) {
+      scan_np_young( e );
+      work=1;
+    }
+    if (los_walk_list( e->los->mark2, los_p_young ) != 0) {
+      scan_np_los_young( e, &los_p_young );
+      work=1;
+    }
+  } while( work );
 
-  e->dest = dest;
-  e->lim = copylim;
+  assert( e->scan_idx == e->tospace->current );
+  assert( e->scan_idx2 == e->tospace2->current );
 }
 
-static void 
-scan_oflo_splitting( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
-		     oflo_env_t *e, int iflush )
+static void scan_np_old( cheney_env_t *e )
 {
-  unsigned gno = e->gno;
-  semispace_t *tospace = e->tospace;
-  semispace_t *tospace2 = e->tospace2;
-  word *dest = e->dest;
-  word *dest2 = e->dest2;
-  word *copylim = e->lim;
-  word *copylim2 = e->lim2;
-  gc_t *gc = e->gc;
+  unsigned forw_limit_gen = e->tospace->gen_no;
+  word     *scanptr = e->scan_ptr;
+  word     *scanlim = e->scan_lim;
+  FORW_NP_ENV_BEGIN( e, dest, copylim )
+
+  while (scanptr != dest && scanptr < scanlim) {
+    scan_core( scanptr, e->iflush,
+	       forw_np( scanptr, forw_limit_gen, dest, copylim, e ) );
+  }
+
+  e->scan_ptr = scanptr;
+  e->scan_lim = scanlim;
+  FORW_NP_ENV_END( e, dest, copylim )
+}
+
+static void scan_np_young( cheney_env_t *e )
+{
+  unsigned forw_limit_gen = e->tospace->gen_no;	/* [sic] */
+  unsigned np_young_gen = e->tospace2->gen_no;
+  word     *scanptr = e->scan_ptr2;
+  word     *scanlim = e->scan_lim2;
+  FORW_NP_ENV_BEGIN( e, dest, copylim )
+
+  /* must_add_to_extra is a name used by the scanning and fwd macros as a temp*/
+  while (scanptr != dest && scanptr < scanlim) {
+    scan_core_partial( scanptr, e->iflush,
+		       forw_np_partial( scanptr, forw_limit_gen, dest, copylim, 
+					np_young_gen, must_add_to_extra, e ),
+		       must_add_to_extra, e );
+  }
+
+  e->scan_ptr2 = scanptr;
+  e->scan_lim2 = scanlim;
+  FORW_NP_ENV_END( e, dest, copylim )
+}
+
+static void scan_np_los_old( cheney_env_t *e, word **los_p )
+{
+  unsigned forw_limit_gen = e->tospace->gen_no;
+  FORW_NP_ENV_BEGIN( e, dest, copylim )
+  word     *p;
+
+  while ((p = los_walk_list( e->los->mark1, *los_p )) != 0) {
+    *los_p = p;
+    assert( ishdr( *p ) );
+    scan_core( p, e->iflush,
+	       forw_np( p, forw_limit_gen, dest, copylim, e ));
+  }
+
+  FORW_NP_ENV_END( e, dest, copylim )
+}
+
+static void scan_np_los_young( cheney_env_t *e, word **los_p )
+{
+  unsigned forw_limit_gen = e->tospace->gen_no;      /* [sic] */
+  unsigned np_young_gen = e->tospace2->gen_no;
+  FORW_NP_ENV_BEGIN( e, dest, copylim )
+  word     *p;
+
+  /* must_add_to_extra is a name used by the scanning and fwd macros as a temp*/
+  while ((p = los_walk_list( e->los->mark2, *los_p )) != 0) {
+    *los_p = p;
+    assert( ishdr( *p ) );
+    scan_core_partial( p, e->iflush,
+		       forw_np_partial( p, forw_limit_gen, dest, copylim, \
+				        np_young_gen, must_add_extra, e ),
+		       must_add_extra, e );
+  }
+
+  FORW_NP_ENV_END( e, dest, copylim )
+}
+
+static void scan_oflo_splitting( cheney_env_t *e )
+{
+  unsigned forw_limit_gen = e->effective_generation;
+  word     *scanptr = e->scan_ptr;
+  word     *scanlim = e->scan_lim;
+  word     *dest = e->dest;
+  word     *dest2 = e->dest2;
+  word     *copylim = e->lim;
+  word     *copylim2 = e->lim2;
 
   while (scanptr != dest) {
     while (scanptr != dest && scanptr < scanlim) {
-      scan_core( scanptr, dest, iflush,
-		 forw_oflo2( scanptr, gno,
-			     dest, dest2,
-			     copylim, copylim2,
-			     tospace, tospace2, 0 ));
+      scan_core( scanptr, e->iflush,
+		 forw_oflo2( scanptr, forw_limit_gen, dest, dest2,
+			     copylim, copylim2, e ));
     }
 
     if (scanptr != dest) {
-      scan_chunk_idx++;
-      scanptr = tospace->chunks[scan_chunk_idx].bot;
-      scanlim = tospace->chunks[scan_chunk_idx].lim;
+      e->scan_idx++;
+      scanptr = e->tospace->chunks[e->scan_idx].bot;
+      scanlim = e->tospace->chunks[e->scan_idx].lim;
     }
   }
 
@@ -729,7 +917,7 @@ scan_oflo_splitting( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
  * Most objects are smallish, so this code should be biased in favor
  * of small objects.
  */
-static word forward( word p, word **dest, los_t *los )
+static word forward( word p, word **dest, cheney_env_t *e )
 {
   word hdr, newptr, *p1, *p2, tag, *ptr;
 
@@ -744,9 +932,7 @@ static word forward( word p, word **dest, los_t *los )
   hdr = *ptr;
   assert( ishdr( hdr ) );
 
-#define FORW_BY_LOOP
-
-#ifdef FORW_BY_LOOP
+#if FORW_BY_LOOP
   { unsigned words;
 
     /* gcc gets this right, so no sense in being obscure.
@@ -764,8 +950,8 @@ static word forward( word p, word **dest, los_t *los )
 	words -= 2;
       }
     }
-    else if (words > GC_LARGE_OBJECT_LIMIT/4 && los) 
-      return forward_large_object( los, ptr, tag );
+    else if (words > GC_LARGE_OBJECT_LIMIT/4 && e->los) 
+      return forward_large_object( e, ptr, tag );
     else {
       memcpy( p1, p2, words*4 );
       p1 += words;
@@ -774,19 +960,13 @@ static word forward( word p, word **dest, los_t *los )
   }
 #endif
 
-#ifdef FORW_BY_DUFF
+#if FORW_BY_DUFF
   { unsigned bytes;
 
   bytes = roundup8( sizefield( hdr ) + 4 );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los) 
-    return forward_large_object( los, ptr, tag );
+    return forward_large_object( e, ptr, tag );
 
-  /* One might be tempted to think that the following can be speeded up by
-   * either using explicit indices (e.g. *(p1+5) = *(p2+5)), introducing
-   * temporaries to allow the compiler more room to schedule, by prefetching
-   * the destination to prevent cache stalls, and so on. On the Sparc, 
-   * however, this code is still faster.
-   */
   switch (bytes >> 3) {
     case 8  : *p1++ = *p2++;
               *p1++ = *p2++;
@@ -811,12 +991,12 @@ static word forward( word p, word **dest, los_t *los )
   }
 #endif
 
-#ifdef FORW_BY_MEMCPY
+#if FORW_BY_MEMCPY
   { unsigned bytes;
   /* This appears to be slowest */
   bytes = roundup8( sizefield( hdr ) + 4 );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los)
-    return forward_large_object( los, ptr, tag );
+    return forward_large_object( e, ptr, tag );
 
   memcpy( p1, p2, bytes );
   *dest = p1 + (bytes >> 2);
@@ -826,7 +1006,7 @@ static word forward( word p, word **dest, los_t *los )
   newptr = (word) tagptr( newptr, tag );
 
   /* leave forwarding pointer */
-  *ptr = FORWARD_PTR;
+  *ptr = FORWARD_HDR;
   *(ptr+1) = newptr;
 
   return newptr;
@@ -834,66 +1014,119 @@ static word forward( word p, word **dest, los_t *los )
 
 
 /* Expand the semispace by switching to a new chunk.  To make things
- * simple for the scanning code, a string header is put into the
- * heap at the current location (unless we're at the end of the chunk)
- * with a length field that covers the rest of the chunk.  The scanning
- * code will simply skip the data.
- *
- * A string header is used rather than a generic bytevector header since
- * the latter value would cause the scanner to flush the icache for the
- * garbage area.
- *
- * It would be nice to supply a better estimate to the expansion function,
- * especially to ask for a larger block if much data remains to be copied.
- */
-static void 
+   simple for the scanning code, a string header is put into the
+   heap at the current location (unless we're at the end of the chunk)
+   with a length field that covers the rest of the chunk.  The scanning
+   code will simply skip the data.  The string's first four bytes
+   are initialized with a recognizable but unlikely pattern, in the event
+   any code needs to grovel over the heap and count padding.
+
+   A string header is used rather than a generic bytevector header since
+   the latter value would cause the scanner to flush the icache for the
+   garbage area.
+   */
+static void seal_chunk( semispace_t *ss, word *lim, word *dest )
+{
+  if (dest < lim) {
+    word len = (lim - dest)*sizeof(word);
+    *dest = mkheader(len-sizeof(word),STR_HDR);
+    *(dest+1) = 0xABCDABCD;
+  }
+  ss->chunks[ ss->current ].top = dest;
+}
+
+static void
 expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
 {
-  if (*dest < *lim) {
-    word len = (*lim - *dest)*sizeof(word);
-    **dest = mkheader(len-sizeof(word),STR_HDR);
-  }
-
-  ss->chunks[ss->current].top = *dest;
-  ss_expand( ss, max( bytes, OLDSPACE_EXPAND_BYTES ) );
+  seal_chunk( ss, *lim, *dest );
+  ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );
   *lim = ss->chunks[ss->current].lim;
   *dest = ss->chunks[ss->current].top;
 }
 
-static word forward_large_object( los_t *los, word *ptr, int tag )
+static void
+expand_semispace_np( word **lim, word **dest, unsigned bytes, cheney_env_t *e )
 {
+  semispace_t *ss;
+
+ again:
+  if (e->np.has_switched) {
+    ss = e->tospace2;
+    e->np.young_steps_remaining--;
+  }
+  else if (e->np.old_steps_remaining - e->np.old_los_steps > 0) {
+    ss = e->tospace;
+    e->np.old_steps_remaining--;
+  }
+  else {
+    e->np.has_switched = 1;
+    e->dest = *dest;
+    e->lim = *lim;
+    seal_chunk( e->tospace, *lim, *dest );
+    ss = e->tospace2;
+    *dest = ss->chunks[ ss->current ].top; /* [sic] */
+    *lim = ss->chunks[ ss->current ].lim;
+    if ((char*)*lim - (char*)*dest < bytes) goto again; else return;
+  }
+  seal_chunk( ss, *lim, *dest );
+  ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );
+  *dest = ss->chunks[ ss->current ].bot;
+  *lim = ss->chunks[ ss->current ].lim;
+}
+
+static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
+{
+  los_t *los = e->los;
+  los_list_t *mark_list;
+  word hdr, ret;
+  int bytes, was_marked, sub1 = 0, sub2 = 0;
+
+  hdr = *ptr;
+  bytes = roundup8( sizefield( hdr ) + 4 );
+
+  mark_list = los->mark1;
+  sub1 = bytes;
+  if (e->np_promotion) {
+    int free1, free2;
+
+    free1 = e->np.old_steps_remaining*GC_CHUNK_SIZE - los_bytes_used( los, -1 );
+    free2 = e->np.young_steps_remaining*GC_CHUNK_SIZE - los_bytes_used(los, -2);
+
+    if (bytes > free1 && bytes <= free2) {
+      mark_list = los->mark2;
+      sub2 = sub1; sub1 = 0;
+    }
+  }
+
   if (gclib_desc_b[pageof(ptr)] & MB_LARGE_OBJECT) {
-    los_mark( los, ptr, gclib_desc_g[pageof(ptr)] );
-    return tagptr( ptr, tag );
+    was_marked = los_mark( los, mark_list, ptr, gclib_desc_g[ pageof(ptr) ] );
+    ret = tagptr( ptr, tag );
   }
   else {
     /* The large object was not allocated specially, so we must move it. */
     word *new;
-    word hdr;
-    int bytes;
 
     hdr = *ptr;
     bytes = roundup8( sizefield( hdr ) + 4 );
-    new = los_allocate( los, bytes, gclib_desc_g[pageof(ptr)] );
+    new = los_allocate( los, bytes, gclib_desc_g[ pageof( ptr ) ] );
     memcpy( new, ptr, bytes );
     
     /* Must mark it also! */
-    los_mark( los, new, gclib_desc_g[pageof(ptr)] );
+    was_marked = los_mark( los, mark_list, new, gclib_desc_g[ pageof( ptr ) ] );
     
     /* Leave a forwarding pointer */
-    *ptr = FORWARD_PTR;
+    *ptr = FORWARD_HDR;
     *(ptr+1) = tagptr( new, tag );
-    return *(ptr+1);
+    ret = *(ptr+1);
   }
-}
 
-static void sweep_large_objects( gc_t *gc, int sweep_oldest, int dest )
-{
-  int i;
-
-  for ( i=0 ; i <= sweep_oldest ; i++ )
-    los_sweep( gc->los, i );
-  los_append_and_clear_list( gc->los, gc->los->marked, dest );
+  if (e->np_promotion && !was_marked) {
+    e->np.old_los_bytes += sub1;
+    e->np.young_los_bytes += sub2;
+    e->np.old_los_steps = ceildiv( e->np.old_los_bytes, GC_CHUNK_SIZE );
+    e->np.young_los_steps = ceildiv( e->np.young_los_bytes, GC_CHUNK_SIZE );
+  }
+  return ret;
 }
 
 /* eof */

@@ -96,8 +96,8 @@
 
 EXTNAME(m_generic_add):
 	and	%RESULT, TAGMASK, %TMP0
-	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
+	and	%ARGREG2, TAGMASK, %TMP1
 	be,a	Ladd_bvec
 	cmp	%TMP1, BVEC_TAG
 	or	%RESULT, %ARGREG2, %TMP2
@@ -340,8 +340,8 @@ Lsub_fix:
 
 EXTNAME(m_generic_mul):
 	and	%RESULT, TAGMASK, %TMP0
-	and	%ARGREG2, TAGMASK, %TMP1
 	cmp	%TMP0, BVEC_TAG
+	and	%ARGREG2, TAGMASK, %TMP1
 	be,a	Lmul_bvec
 	cmp	%TMP1, BVEC_TAG
 	or	%RESULT, %ARGREG2, %TMP2

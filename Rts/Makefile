@@ -19,6 +19,7 @@ CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit
 AS=as
 
+
 ############################################################################
 #
 # Section 1: Target OS selection
@@ -31,6 +32,7 @@ EXTRALIBPATH=
 EXTRALIBS=
 LDXFLAGS=
 
+
 ###########################################################################
 #
 # Section 2: Feature configuration section.
@@ -41,11 +43,6 @@ LDXFLAGS=
 # are recorded at a slight (probably negligible) performance penalty.
 
 STACK_UNDERFLOW_COUNTING=1
-
-
-# Set this to 0 at your own risk.
-
-NP_EXTRA_REMSET=1
 
 
 # Instruction cache flushing.
@@ -73,15 +70,14 @@ NP_EXTRA_REMSET=1
 # Defining DEBUG adds some debugging output.
 # Defining DEBUG2 may or may not add a _lot_ of debugging output (old switch)
 
-CONFIG=\
-	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING) \
-	-DNP_EXTRA_REMSET=$(NP_EXTRA_REMSET)
+CONFIG=-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING)
 
-LIBS=-lm
+LIBS=-lm -ldl
 
 DEBUGINFO=-g
 DEBUGFLAGS=#-DDEBUG # -DGCLIB_DEBUG -DDEBUG2 
 PROFILE=#-p
+TCOV=#-a -g -DNDEBUG
 LDYFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
 OPTIMIZE=-DNDEBUG -O3
 ARCHINFO=-DENDIAN_BIG -DBITS_32
@@ -92,7 +88,7 @@ ARCHINFO=-DENDIAN_BIG -DBITS_32
 
 BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 
-CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(CONFIG) \
+CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(CONFIG) \
 	-ISys -IBuild -ICPetit $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) \
 	$(ARCHINFO) $(BDW_DEBUG) $(CCFLAGS)
 
@@ -201,24 +197,24 @@ setup:
 	-(cd Build; for i in ../*.cfg; do ln -s $$i ; done)
 
 larceny: $(LARCENY_OBJECTS) Util/ffi-dummy.o
-	$(CC) $(PROFILE) -o larceny $(LARCENY_OBJECTS) \
+	$(CC) $(PROFILE) $(TCOV) -o larceny $(LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
 
 bdwlarceny: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 	( cd bdw-gc ; make gc.a )
-	$(CC) $(PROFILE) -o bdwlarceny $(BDW_LARCENY_OBJECTS) \
+	$(CC) $(PROFILE) $(TCOV) -o bdwlarceny $(BDW_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \
 		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
 
 petit: $(PETIT_LARCENY_OBJECTS)
-	$(CC) $(PROFILE) -o petit-larceny $(PETIT_LARCENY_OBJECTS) \
+	$(CC) $(PROFILE) $(TCOV) -o petit-larceny $(PETIT_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o
 
 hsplit: Util/hsplit.o
-	$(CC) $(PROFILE) $(DEBUGINFO) $(LDXFLAGS) -o hsplit Util/hsplit.o
+	$(CC) $(PROFILE) $(TCOV) $(DEBUGINFO) $(LDXFLAGS) -o hsplit Util/hsplit.o
 
 Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
@@ -294,7 +290,8 @@ Sys/callback.o: $(LARCENY_H)
 Sys/cheney.o: $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \
 	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
 Sys/ffi.o: $(LARCENY_H)
-Sys/gc.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/static_heap_t.h
+Sys/gc.o: $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/semispace_t.h \
+	Sys/static_heap_t.h
 Sys/gc_t.o: $(LARCENY_H) Sys/gc_t.h
 Sys/heapio.o: $(LARCENY_H) Sys/heapio.h Sys/semispace_t.h Sys/gclib.h
 Sys/larceny.o: $(LARCENY_H) Sys/gc.h

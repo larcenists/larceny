@@ -33,6 +33,7 @@ struct nursery_info {		/* Generational gc nursery */
 struct sc_info {		/* Any two-space copying area */
   int size_bytes;		/* size of area in bytes, > 0 */
   double load_factor;		/* inverse load factor (dynamic generation) */
+  int dynamic_max;		/* Upper bound on dynamic area size */
 };
 
 struct np_info {		/* Non-predictive dynamic area */
@@ -40,6 +41,7 @@ struct np_info {		/* Non-predictive dynamic area */
   int stepsize;			/* size of a step in bytes, > 0 */
   int size_bytes;               /* total size */
   double load_factor;		/* inverse load factor */
+  int dynamic_max;		/* Upper bound on dynamic area size */
 };
 
 struct gc_param {		/* Parameter structure passed to create_gc() */
@@ -72,6 +74,7 @@ struct gc_param {		/* Parameter structure passed to create_gc() */
 
 /* In memmgr.c */
 gc_t *create_gc( gc_param_t *params, int *generations_created );
+int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit );
 
 
 /* In util.c */

@@ -23,7 +23,7 @@
 #include "remset_t.h"
 #include "static_heap_t.h"
 
-enum action { PROMOTE_TO_OLD, PROMOTE_TO_YOUNG, COLLECT };
+enum action { PROMOTE_TO_OLD, PROMOTE_TO_BOTH, PROMOTE_TO_YOUNG, COLLECT };
 
 typedef struct npsc_data npsc_data_t;
 
@@ -44,9 +44,9 @@ struct npsc_data {
   int j_percent;              /* -1 or percentage for calculating j */
   int j_pin;                  /* -1 or value at which to pin j */
   double load_factor;
-
-  semispace_t *old;           /* 'old' generation */
-  semispace_t *young;         /* 'young' generation */
+  int upper_limit;		/* Upper limit on heap size */
+  semispace_t *old;		/* 'old' generation */
+  semispace_t *young;		/* 'young' generation */
 
   int copied_last_gc_old;     /* bytes */
   int moved_last_gc_old;
@@ -58,12 +58,12 @@ struct npsc_data {
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc );
 static void perform_promote_to_old( old_heap_t *heap );
-static void perform_promote_to_young( old_heap_t *heap );
+static void perform_promote_to_both( old_heap_t *heap );
 static void perform_collect( old_heap_t *heap );
 static enum action decision( old_heap_t *heap );
 static int used_young( old_heap_t *heap );
 static int used_old( old_heap_t *heap );
-static int compute_target_size( old_heap_t *heap, int D, int Q );
+static int compute_dynamic_size( old_heap_t *heap, int D, int Q );
 static int cleanup_scanner( word obj, void *data, unsigned *ignored );
 
 old_heap_t *
@@ -83,6 +83,7 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->j_pin = -1;
   data->j_percent = 50;
   data->load_factor = info->load_factor;
+  data->upper_limit = info->dynamic_max;
 
   /* This is an OK initial j if the heap is empty.  If the heap is used
      to load the heap image into, then data_load_area(), below,
@@ -99,14 +100,49 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
 static void collect( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
+  gc_t *gc = heap->collector;
+  los_t *los = gc->los;
+  int old_before_gc, old_los_before_gc, young_before_gc, young_los_before_gc;
+  int type;
 
-  switch (decision( heap )) {
-  case PROMOTE_TO_OLD   : perform_promote_to_old( heap ); break;
-  case PROMOTE_TO_YOUNG : perform_promote_to_young( heap ); break;
-  case COLLECT          : perform_collect( heap );  break;
-  default :
-    panic_abort( "Impossible." );
+  annoyingmsg( "Non-predictive dynamic area: garbage collection. " );
+  annoyingmsg( "  Live old: %d   Live young: %d  k: %d  j: %d",
+	       used_old( heap ), used_young( heap ), data->k, data->j );
+
+  ss_sync( data->old );
+  ss_sync( data->young );
+  old_before_gc = data->old->used;
+  old_los_before_gc = los_bytes_used( gc->los, data->gen_no );
+  young_before_gc = data->young->used;
+  young_los_before_gc = los_bytes_used( los, data->gen_no+1 );
+
+  switch (type = decision( heap )) {
+    case PROMOTE_TO_OLD   : perform_promote_to_old( heap ); break;
+    case PROMOTE_TO_BOTH  : perform_promote_to_both( heap ); break;
+    case PROMOTE_TO_YOUNG : perform_promote_to_both( heap ); break;
+    case COLLECT          : perform_collect( heap );  break;
+    default               : panic_abort( "Impossible." );
   }
+
+  ss_sync( data->young );
+  ss_sync( data->old );
+  if (type == COLLECT) {
+    data->copied_last_gc_old = data->old->used - young_before_gc;
+    data->moved_last_gc_old =
+      los_bytes_used( los, data->old->gen_no ) - young_los_before_gc;
+    data->copied_last_gc_young = 0;
+    data->moved_last_gc_young = 0;
+  }
+  else {
+    data->copied_last_gc_young = data->young->used - young_before_gc;
+    data->moved_last_gc_young =
+      los_bytes_used( los, data->gen_no+1 ) - young_los_before_gc;
+    data->copied_last_gc_old = data->old->used - old_before_gc;
+    data->moved_last_gc_old = 
+      los_bytes_used( los, data->gen_no ) - old_los_before_gc;
+  }
+
+  annoyingmsg( "Non-predictive dynamic area: collection finished." );
 }
 
 /* Cautious strategy: 
@@ -115,9 +151,10 @@ static void collect( old_heap_t *heap )
      Let Ny be the amount of memory available in the 'young' generation.
      if X <= No then
        promote from ephemeral generations to 'old'
+     else if No is small then
+       promote from ephemeral generations to 'young'
      else if X <= No+Ny then
-       promote from ephemeral generations to 'young',
-         and shuffle steps from 'young' to 'old' afterwards to fill up 'old'
+       promote from ephemeral generations to 'old' and 'young'
      else
        collect
    */
@@ -138,8 +175,10 @@ static enum action decision( old_heap_t *heap )
 
   if (X <= No)
     return PROMOTE_TO_OLD;
+  else if (No < PAGESIZE)
+   return PROMOTE_TO_YOUNG;
   else if (X <= No + Ny)
-    return PROMOTE_TO_YOUNG;
+    return PROMOTE_TO_BOTH;
   else
     return COLLECT;
 }
@@ -147,163 +186,63 @@ static enum action decision( old_heap_t *heap )
 static void perform_promote_to_old( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int old_before_gc, los_before_gc;
 
-  ss_sync( data->old );
-  old_before_gc = data->old->used;
-  los_before_gc = los_bytes_used( heap->collector->los, data->gen_no );
-
-  annoyingmsg( "np-sc-heap: Promoting into 'old'.\n"
-	       "  live=%d", old_before_gc );
+  annoyingmsg( "  Promoting into old area." );
   stats_gc_type( data->gen_no, STATS_PROMOTE );
 
   gclib_stopcopy_promote_into( heap->collector, data->old );
-
-  ss_sync( data->old );
-  data->copied_last_gc_old = data->old->used - old_before_gc;
-  data->moved_last_gc_old =
-    los_bytes_used( heap->collector->los, data->gen_no ) - los_before_gc;
-
-  annoyingmsg( "np-sc-heap: Finished promoting.\n"
-	       "  live=%d", used_old( heap ) );
+  rs_clear( heap->collector->remset[ data->gen_no ] );
 }
 
-static void perform_promote_to_young( old_heap_t *heap )
+static void perform_promote_to_both( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int los_moved = 0, chunks_moved = 0;
-  bool cleared_chunks, cleared_los;
   los_t *los = heap->collector->los;
-  int young_before_gc, i, available, copied_young, copied_old;
-  semispace_t *old, *young;
-  los_list_t *l;
-  word *p;
+  int x, young_available, old_available;
 
-/* FIXME: stats */
-  young_before_gc = used_young( heap );
-  annoyingmsg( "np-sc-heap: Promoting into 'young'.\n"
-	       "  live old=%d, live young=%d.",
-	       used_old( heap ), young_before_gc );
+  annoyingmsg( "  Promoting to both old and young." );
   stats_gc_type( data->gen_no+1, STATS_PROMOTE );
 
-  gclib_stopcopy_promote_into_np_young( heap->collector, data->young );
-  copied_young = used_young( heap ) - young_before_gc;
-  copied_old = 0;
+  young_available = data->j*data->stepsize - used_young( heap );
+  old_available = (data->k-data->j)*data->stepsize - used_old( heap );
 
-  /* Move data from 'young' into 'old' to fill it up, using a simple greedy
-     algorithm.
-     */
-  old = data->old;
-  young = data->young;
-  available = (data->k-data->j)*data->stepsize - used_old( heap );
+  gclib_stopcopy_promote_into_np( heap->collector,
+				  data->old,
+				  data->young,
+				  old_available,
+				  young_available);
 
-  /* First move chunks, but never move the 'current' chunk. 
-     It's possible to move the current chunk, but the fragmentation costs
-     can be considerable, because that chunk is only partially filled.
-     Alternatively, we could move parts of chunks, but that requires a
-     more sophisticated low-level allocator.
-     */
-  i = 0;
-  while (i < young->current) {	/* Was: <=, but that moves 'current' */
-    int used = sizeof(word)*(young->chunks[i].top - young->chunks[i].bot);
-    if (used <= available) {
-      available -= used;
-      ss_move_block_to_semispace( young, i, old ); /* young->current-- */
-      copied_young -= used;
-      copied_old += used;
-      chunks_moved++;
-    }
-    else 
-      i++;
-  }
-  if (young->current == -1) {
-    ss_free( young );
-    data->young =
-      create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1 );
-    cleared_chunks = 1;
-  }
-  else
-    cleared_chunks = 0;
-
-  /* Then move large objects */
-  cleared_los = 1;
-  l = los->object_lists[data->gen_no+1];
-  p = los_walk_list( l, 0 );
-  while (p != 0) {
-    int used = sizefield( *ptrof( p ) );
-    word *the_obj = p;
-
-    p = los_walk_list( l, p );
-
-    if (used <= available) {
-      available -= used;
-      los_mark( los, the_obj, data->gen_no+1 );
-      copied_young -= used;
-      copied_old += used;
-      los_moved++;
-    }     
-    else
-      cleared_los = 0;
-  }
-  los_append_and_clear_list( los, los->marked, data->gen_no );
-
-  /* Manipulate the remembered set as necessary */
-  { gc_t *gc = heap->collector;
-    int genx = data->gen_no+1;
-
-    if (cleared_chunks && cleared_los)
-      rs_clear( gc->remset[ gc->np_remset ] );
-    else if (los_moved > 0 || chunks_moved > 0) {
-      rs_compact( gc->remset[ gc->np_remset ] );
-      rs_enumerate( gc->remset[ gc->np_remset ], cleanup_scanner, (void*)&genx);
-    }
-  }
-    
-  data->copied_last_gc_young = copied_young;
-  data->copied_last_gc_old = copied_old;
-
-  { int use, alloc;
-
-    ss_sync( data->old );
-    ss_sync( data->young );
-    use = data->old->used + data->young->used;
-    alloc = data->old->allocated + data->young->allocated;
-
-    annoyingmsg("np-sc-heap: finished promoting.\n"
-		"  live old=%d, live young=%d, use=%d, alloc=%d, frag=%f%%\n"
-		"  clr chunks=%d, clr los=%d, chunks moved=%d, los moved=%d",
-		used_old( heap ), used_young( heap ), 
- 		use, alloc, (double)(alloc - use)/(double)use*100.0,
-	 	cleared_chunks, cleared_los, chunks_moved, los_moved );
-  } 
-}
-
-/* Remove something from the remembered set if it doesn't point to an 
-   object in the 'young' space.  Data points to the generation number 
-   of the 'young' space.
-   */
-static int cleanup_scanner( word obj, void *data, unsigned *ignored )
-{
-  return gclib_desc_g[ pageof( obj ) ] == *(int*)data;
-}
+  rs_clear( heap->collector->remset[ data->gen_no ] );
+  rs_assimilate( heap->collector->remset[ heap->collector->np_remset ],
+		 heap->collector->remset[ data->gen_no+1 ] );
+  rs_clear( heap->collector->remset[ data->gen_no+1 ] );
   
+  /* This adjustment is only required when a large object has been promoted
+     into the 'old' space and overflowed it.
+     */
+  x = used_old( heap );
+  while ((data->k - data->j)*data->stepsize < x)
+    data->j--;
+  if (data->j < 0) {		/* Should never happen */
+    hardconsolemsg( "*** Something bad happened in the non-predictive gc." );
+    data->j = 0;
+  }
+}
+
 static void perform_collect( old_heap_t *heap )
 {
   npsc_data_t *d = DATA(heap);
   los_t *los = heap->collector->los;
   gc_t *gc = heap->collector;
-  int old_before_gc, young_before_gc, total_after_gc, free_steps, target_size;
+  int free_steps, target_size;
 
-/* FIXME: stats */
-  annoyingmsg( "np-sc-heap: garbage collection.\n"
-	       "  k=%d, j=%d.",
-	       d->k, d->j );
-
+  annoyingmsg( "  Full garbage collection." );
   stats_gc_type( d->gen_no, STATS_COLLECT );
 
-  young_before_gc = used_young( heap );
-  old_before_gc = used_old( heap );
   gclib_stopcopy_collect_np( gc, d->young );
+  rs_clear( gc->remset[ d->gen_no ] );
+  rs_clear( gc->remset[ d->gen_no+1 ] );
+  rs_clear( gc->remset[ gc->np_remset ] );
 
   /* Manipulate the semispaces: young becomes old, old is deallocated */
   ss_free( d->old );
@@ -315,26 +254,14 @@ static void perform_collect( old_heap_t *heap )
 
   d->young = create_semispace( GC_CHUNK_SIZE, d->gen_no, d->gen_no+1 );
 
-  total_after_gc = used_old( heap );
-  d->copied_last_gc_old = total_after_gc - young_before_gc;
-
-  annoyingmsg( "  old before: %d, young before: %d, total after: %d\n"
-	       "  copied or moved: %d",
-	       old_before_gc, young_before_gc, total_after_gc,
-	       d->copied_last_gc_old );
-			 
-  /* Clear remembered sets not cleared by the collector infrastructure. */
-  rs_clear( gc->remset[ d->gen_no+1 ] );
-  rs_clear( gc->remset[ gc->np_remset ] );
-
   /* Compute new k and j, and other policy parameters */
   ss_sync( d->old );
   target_size =
-    compute_target_size( heap,
-			 d->old->used,
-			 los_bytes_used( los, d->gen_no ) );
+    compute_dynamic_size( heap,
+			  d->old->used,
+			  los_bytes_used( los, d->gen_no ) );
   d->k = ceildiv( target_size, d->stepsize );
-  free_steps = (d->k * d->stepsize - total_after_gc) / d->stepsize;
+  free_steps = (d->k * d->stepsize - used_old( heap )) / d->stepsize;
   if (d->j_percent >= 0)
     d->j = (free_steps * d->j_percent) / 100;
   else if (free_steps >= d->j_pin)
@@ -344,12 +271,7 @@ static void perform_collect( old_heap_t *heap )
     supremely_annoyingmsg( "  Could not pin j at %d; chose %d instead",
 			   d->j_pin, d->j );
   }
-  annoyingmsg( "np-sc-heap: Finished collection.\n"
-	       "  chunk bytes=%d, los bytes=%d, target=%d, free steps=%d\n"
-	       "  k=%d, j=%d",
-	       d->old->used, los_bytes_used( los, d->gen_no ),
-	       target_size, free_steps,
-	       d->k, d->j );
+  assert( d->j > 0 );
 }
 
 static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
@@ -388,22 +310,28 @@ static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
 
 static void before_collection( old_heap_t *heap )
 {
-  npsc_data_t *data = DATA(heap);
-
-  ss_sync( data->young );
-  ss_sync( data->old );
-  heap->allocated = data->young->used + data->old->used;
-  heap->maximum = data->k * data->stepsize;
+  heap->allocated = used_old( heap ) + used_young( heap );
+  heap->maximum = DATA(heap)->stepsize * DATA(heap)->k;
 }
 
 static void after_collection( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  
-  heap->allocated = data->young->allocated + data->old->allocated 
-                  + los_bytes_used( heap->collector->los, data->gen_no )
-                  + los_bytes_used( heap->collector->los, data->gen_no+1 );
+  gc_t *gc = heap->collector;
+
+  heap->allocated = used_old( heap ) + used_young( heap );
   heap->maximum = data->stepsize * data->k;
+
+  annoyingmsg( "  Generation %d (non-predictive old):  Size=%d, Live=%d, "
+	       "Remset live=%d",
+	       data->stepsize * (data->k - data->j), used_old( heap ),
+	       gc->remset[ data->old->gen_no ]->live );
+  annoyingmsg( "  Generation %d (non-predictive young):  Size=%d, Live=%d, "
+	       "Remset live=%d",
+	       data->stepsize * data->j, used_young( heap ),
+	       gc->remset[ data->young->gen_no ]->live );
+  annoyingmsg( "  Non-predictive parameters: k=%d, j=%d, Remset live=%d",
+	       data->k, data->j, gc->remset[ gc->np_remset ]->live );
 }
 
 static void set_policy( old_heap_t *heap, int op, int value )
@@ -452,15 +380,14 @@ static int used_old( old_heap_t *heap )
    data->old->used + los_bytes_used( heap->collector->los, data->gen_no );
 }
 
-/* The target size is M - (S+Q+D) - D = L(D+S+Q) - (D+S+Q) - D */
-/* Slightly WRONG.  See compute_dynamic_size in old-heap.c */
-static int compute_target_size( old_heap_t *heap, int D, int Q )
+static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
 {
   static_heap_t *s = heap->collector->static_area;
-  double L = DATA(heap)->load_factor;
   int S = (s ? s->allocated : 0);
+  double L = DATA(heap)->load_factor;
+  int limit = DATA(heap)->upper_limit;
 
-  return roundup_page( (int)(L*(D+S+Q)-(D+S+Q)-D) );
+  return gc_compute_dynamic_size( D, S, Q, L, limit );
 }
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc )

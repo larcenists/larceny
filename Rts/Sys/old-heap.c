@@ -37,6 +37,7 @@ struct old_data {
 
   /* Strategy/Policy/Mechanism */
   int         size_bytes;         /* Initial size */
+  int         upper_limit;	  /* Dynamic area only: 0 or upper limit */
   int         target_size;        /* Current size */
   double      load_factor;        /* That's the L from the formula above */
   bool        must_clear_area;    /* Clear area after collection */
@@ -76,6 +77,7 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
 
   if (!ephemeral) {
     data->load_factor = info->load_factor;
+    data->upper_limit = info->dynamic_max;
     data->target_size =
       compute_dynamic_size( heap,
 			    data->size_bytes/data->load_factor,
@@ -92,64 +94,64 @@ static void collect_dynamic( old_heap_t *heap )
   old_data_t *data = DATA(heap);
   int alloc, i;
 
-  /* Compute live data in the ephemeral areas.  Note that ->allocated
-     included large objects.
+  annoyingmsg( "Dynamic area: garbage collection." );
+
+  /* Compute live data in the ephemeral areas.  ->allocated includes LOS.
      */
   alloc = gc->young_area->allocated;
   for ( i = 0 ; i < gc->ephemeral_area_count ; i++ )
     alloc += gc->ephemeral_area[i]->allocated;
 
-  annoyingmsg( "old-heap: DECISION for dynamic generation\n"
-	       "  alloc=%d target=%d used=%d",
-	       alloc, data->target_size, used_space( heap ) );
+  supremely_annoyingmsg( "  alloc=%d  size=%d  used=%d",
+			 alloc, data->target_size, used_space( heap ) );
 
+  data->must_clear_remset = 1;
   if (alloc <= data->target_size - used_space( heap ))
     perform_promote( heap );
   else {
-    data->must_clear_remset = 1;
     perform_collect( heap );
     ss_sync( data->current_space );
     data->target_size = 
       compute_dynamic_size( heap,
 			    data->current_space->used, 
 			    los_bytes_used( gc->los, data->gen_no ) );
-    annoyingmsg( "old-heap: recomputing size\n"
-		 "  size=%d, live dynamic=%d (%d%% full), live overall=%d", 
-		 data->target_size,
-		 data->current_space->used,
-		 data->current_space->used*100/data->target_size,
-		 used_space( heap ) );
   }
+
+  annoyingmsg( "Collection finished." );
 }
 
 static void collect_ephemeral( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
+  int collected = 0, type;
 
-  switch( decision( heap ) ) {
+  type = decision( heap );
+  if (type != PASS_THE_BUCK) {
+    collected = 1;
+    annoyingmsg( "Ephemeral area: garbage collection." );
+  }
+
+  data->must_clear_remset = 1;
+  switch( type ) {
   case PROMOTE_WITHOUT_COLLECTING :
     perform_promote( heap );
     break;
   case PROMOTE_WHILE_COLLECTING :
-    data->must_clear_remset = 1;
     perform_collect( heap );
-    annoyingmsg( "old-heap: garbage collection finished\n"
-		 "  Size=%d, live=%d (%d%% full)",
-		 data->target_size,
-		 used_space( heap ),
-		 used_space( heap )*100/data->target_size );
     break;
   case PROMOTE_WHOLESALE_THEN_PROMOTE :
     perform_promote_then_promote( heap );
     break;
   case PASS_THE_BUCK :
     data->must_clear_area = 1;
-    data->must_clear_remset = 1;
     gc_collect( heap->collector, data->gen_no+1, 0 );
     break;
   default :
     panic( "Impossible" );
   }
+
+  if (collected)
+    annoyingmsg( "Collection finished." );
 }
 
 static int decision( old_heap_t *heap )
@@ -183,11 +185,11 @@ static int decision( old_heap_t *heap )
   Z = data->promoted_last_gc;
   Xnext = (X+M) / 2;
 
-  annoyingmsg( "old-heap: DECISION for generation %d\n"
-	       "  M=%d, X=%d, Y=%d, Z=%d, Xnext=%d\n"
-	       "  alloc=%d, max=%d",
-	       data->gen_no, M, X, Y, Z, Xnext, 
-	       heap->allocated, heap->maximum );
+  supremely_annoyingmsg( "old-heap: DECISION for generation %d\n"
+			 "  M=%d, X=%d, Y=%d, Z=%d, Xnext=%d\n"
+			 "  alloc=%d, max=%d",
+			 data->gen_no, M, X, Y, Z, Xnext, 
+			 heap->allocated, heap->maximum );
 
   /* Case 1: data will fit in this area. */
   if (Y <= heap->maximum) {
@@ -220,7 +222,7 @@ static void perform_collect( old_heap_t *heap )
   semispace_t *from, *to;
   old_data_t *data = DATA(heap);
 
-  annoyingmsg( "old-heap: garbage collecting generation %d.", data->gen_no );
+  annoyingmsg( "  Collecting generation %d.", data->gen_no );
   stats_gc_type( data->gen_no, STATS_COLLECT );
 
   from = data->current_space;
@@ -241,7 +243,7 @@ static void perform_promote( old_heap_t *heap )
   old_data_t *data = DATA(heap);
   int used_before, tospace_before, los_before;
 
-  annoyingmsg( "old-heap: promoting into generation %d.", data->gen_no );
+  annoyingmsg( "  Promoting into generation %d.", data->gen_no );
   stats_gc_type( data->gen_no, STATS_PROMOTE );
 
   used_before = used_space( heap );
@@ -250,12 +252,6 @@ static void perform_promote( old_heap_t *heap )
   los_before = los_bytes_used( heap->collector->los, data->gen_no );
 
   gclib_stopcopy_promote_into( heap->collector, data->current_space );
-
-  annoyingmsg( "old-heap: promotion finished\n"
-	       "  Size=%d, used=%d (%d%% full)",
-	       data->target_size,
-	       used_space( heap ),
-	       used_space( heap )*100/data->target_size );
 
   data->promoted_last_gc = used_space( heap ) - used_before;
   data->copied_last_gc = data->current_space->used - tospace_before;
@@ -291,6 +287,10 @@ static void after_collection( old_heap_t *heap )
   }
   if (data->must_clear_remset) 
     rs_clear( heap->collector->remset[ data->gen_no ] );
+
+  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
+	       data->gen_no, data->target_size, used_space( heap ),
+	       heap->collector->remset[ data->gen_no ]->live );
 }
 
 static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
@@ -324,37 +324,16 @@ static word *data_load_area( old_heap_t *heap, int nbytes )
 
 /* Internal */
 
-/* The size of the dynamic area is computed based on live data.
-   The size is computed as the size to which current allocation can
-   grow before GC is necessary.  D = live small data, Q = live large 
-   data, S = live static data, L is the inverse load factor.
-
-   If we assume a steady state, then size = L*(D+S+Q) - D, since 
-   (D+S+Q) is live, and D is needed for the tospace during the next gc.
-
-   A refinement (maybe) is size = L*(D+S+Q) - kD where k is some
-   fudge factor to account for non-steady state; if k > 1, then growth
-   is assumed, if k < 1, contraction is assumed.  k > 1 seems more
-   useful.  I haven't tried this.
-
-   A different formula is size = L*(D+S+Q) - (D+S+Q); that formula is
-   independent of where data is located. It's also more conservative,
-   and it underestimates size.  However, it makes the effects of changes
-   to L more predictable.
-   */
-
 static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
 {
   static_heap_t *s = heap->collector->static_area;
-  double L = DATA(heap)->load_factor;
   int S = (s ? s->allocated : 0);
+  double L = DATA(heap)->load_factor;
+  int limit = DATA(heap)->upper_limit;
 
-  /* size = M - (S+Q+D) = L(D+S+Q) - (D+S+Q) */
-  return roundup_page( (int)(L*(D+S+Q) - (D+S+Q)) );
-
-  /* Dynamic size is M - copyspace = M - D = L(D+S+Q) - D */
-  /* return roundup_page( (int)(L*(D+S+Q) - D) ); */
+  return gc_compute_dynamic_size( D, S, Q, L, limit );
 }
+
 
 static int used_space( old_heap_t *heap )
 {

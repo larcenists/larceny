@@ -547,7 +547,7 @@
 		   (char->integer c)
 		   (logior 2 (bytevector-ref character-syntax-table 
 					     (char->integer c)))))
-            (list #\( #\) #\[ #\] #\{ #\} #\; #\\))
+		(list #\( #\) #\[ #\] #\{ #\} #\; #\\))
 
       (for-each (lambda (c)
               (bytevector-set!

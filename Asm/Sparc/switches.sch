@@ -13,8 +13,8 @@
 (define catch-undefined-globals
   (make-twobit-flag 'catch-undefined-globals))
 
-(define inline-cons
-  (make-twobit-flag 'inline-cons))
+(define inline-allocation
+  (make-twobit-flag 'inline-allocation))
   
 (define inline-assignment
   (make-twobit-flag 'inline-assignment))
@@ -39,7 +39,7 @@
 ; Initialization
 
 (short-effective-addresses #t)  ; Faster code (still safe).
-(inline-cons #f)                ; Allocation of pairs in-line.
+(inline-allocation #f)          ; Allocation of small, known size in-line.
 (inline-assignment #f)          ; Assignment generation check in-line.
 (write-barrier #t)              ; For generational garbage collection.
 (catch-undefined-globals #t)    ; #!undefined causes error.

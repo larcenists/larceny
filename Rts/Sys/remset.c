@@ -116,7 +116,6 @@ struct remset_data {
   unsigned word_count;    /* # of words of remembered objects scanned */
   unsigned removed_count; /* # of hash tbl entries removed from table */
   unsigned garbage;       /* # of known garbage items in table */
-  unsigned live;          /* # of known live items in table */
   word     *tbl_bot;      /* Hash table bottom */
   word     *tbl_lim;      /* Hash table limit */
   pool_t   *first_pool;   /* Pointer to first pool */
@@ -204,10 +203,11 @@ create_remset( unsigned tbl_entries,  /* size of hash table, 0 = default */
   data->removed_count = 0;
   data->word_count = 0;
   data->garbage = 0;
-  data->live = 0;
 
   data->first_pool = data->curr_pool = p;
   data->pool_size = pool_entries;
+
+  rs->live = 0;
 
   rs->clear = clear_remset;
   rs->compact = compact_ssb;
@@ -234,7 +234,7 @@ static void clear_remset( remset_t *rs )
   pool_t *ps;
   word *p;
 
-  debugmsg( "[debug] clearing remset @0x%x.", (word)rs );
+  supremely_annoyingmsg( "REMSET @0x%p: clear", (void*)rs );
 
   /* Clear SSB */
   *rs->ssb_top = *rs->ssb_bot;
@@ -253,7 +253,7 @@ static void clear_remset( remset_t *rs )
 
   /* Clear overflow bit */
   data->has_overflowed = 0;
-  data->live = 0;
+  rs->live = 0;
   data->garbage = 0;
 }
 
@@ -277,7 +277,7 @@ static int compact_ssb( remset_t *rs )
   unsigned recorded;
   remset_data_t *data = DATA(rs);
 
-/*  debugmsg( "   *** compact SSB for remset @0x%p", rs ); */
+  supremely_annoyingmsg( "REMSET @0x%p: compact", (void*)rs );
   data->ssb_recorded += *rs->ssb_top - *rs->ssb_bot;
 
   p = *rs->ssb_bot;
@@ -318,7 +318,7 @@ static int compact_ssb( remset_t *rs )
 	int need_new = 0;
 
 	data->hash_recorded += recorded;
-	data->live += recorded;
+	rs->live += recorded;
 	recorded = 0;
 	data->curr_pool->top = pooltop;
 
@@ -327,7 +327,7 @@ static int compact_ssb( remset_t *rs )
 	 * makes it _much_ easier to test the remset GC!  Just || with 1
 	 * in the test expression.)
 	 */
-	if (data->garbage > data->live / 2) {
+	if (data->garbage > rs->live / 2) {
 	  hash_table_gc( rs );
 	  need_new = data->curr_pool->top == data->curr_pool->lim;
 	}
@@ -352,14 +352,12 @@ static int compact_ssb( remset_t *rs )
   }
 
   data->hash_recorded += recorded;
-  data->live += recorded;
+  rs->live += recorded;
   data->curr_pool->top = pooltop;
   *rs->ssb_top = *rs->ssb_bot;
 
-#if 0
-  supremely_annoyingmsg( "Added %u elements to remembered set (total %u). %d",
-                         recorded, data->live, data->has_overflowed);
-#endif
+  supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
+                         (word)rs, recorded, rs->live, data->has_overflowed);
 
   return data->has_overflowed;
 }
@@ -381,7 +379,7 @@ enumerate_remset( remset_t *rs, int (*scanner)( word, void*, unsigned* ),
 
   assert( *rs->ssb_top == *rs->ssb_bot );
 
-  supremely_annoyingmsg( "REMSET @0x%p scan", (void *)rs );
+  supremely_annoyingmsg( "REMSET @0x%p: scan", (void*)rs );
 
   ps = DATA(rs)->first_pool;
   while (1) {
@@ -406,6 +404,9 @@ enumerate_remset( remset_t *rs, int (*scanner)( word, void*, unsigned* ),
   DATA(rs)->garbage += removed_count;
   DATA(rs)->word_count += word_count;
   DATA(rs)->removed_count += removed_count;
+  rs->live -= removed_count;
+  supremely_annoyingmsg( "REMSET @0x%x: removed %d elements.", (word)rs,
+			 removed_count );
 }
 
 
@@ -416,10 +417,10 @@ assimilate( remset_t *r1, remset_t *r2 )
   pool_t *ps;
   word *p, *q;
 
-  r2->compact( r2 );
+  rs_compact( r2 );
 
-  debugmsg( "[debug] Assimilating remset @0x%x into remset @0x%x.", 
-	    (word)r2, (word)r1 );
+  supremely_annoyingmsg( "REMSET @0x%x assimilate @0x%x.", 
+			 (word)r1, (word)r2 );
 
   ps = DATA(r2)->first_pool;
   while (1) {
@@ -430,13 +431,14 @@ assimilate( remset_t *r1, remset_t *r2 )
 	**r1->ssb_top = *p;
 	*r1->ssb_top = *r1->ssb_top + 1;
 	if (*r1->ssb_top == *r1->ssb_lim)
-	  r1->compact( r1 );
+	  rs_compact( r1 );
       }
       p += 2;
     }
     if (ps == DATA(r2)->curr_pool) break;
     ps = ps->next;
   }
+  rs_compact( r1 );
 }
 
 
@@ -484,8 +486,8 @@ hash_table_gc( remset_t *rs )
   free_pool_segments( DATA(rs)->first_pool, DATA(rs)->pool_size );
   DATA(rs)->first_pool = ps1;
   DATA(rs)->curr_pool= ps;
-  DATA(rs)->live = live;
   DATA(rs)->garbage = 0;
+  rs->live = live;
 }
 
 

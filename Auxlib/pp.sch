@@ -5,6 +5,7 @@
 ; File: "pp.scm"   (c) 1991, Marc Feeley
 ; [Snarfed from the Scheme repository at Indiana University, August 5, 1995.]
 ;
+; 23 April 1998 / lth
 ; TODO: Make sure that it handles all Larceny objects.
 ;
 ; 'generic-write' is a procedure that transforms a Scheme data value (or
@@ -74,14 +75,19 @@
 
     (cond ((pair? obj)        (wr-expr obj col))
           ((null? obj)        (wr-lst obj col))
-	  ((environment? obj) (out "#<environment " col)
-			      (out (environment-name obj) col)
-			      (out ">" col))
+	  ((environment? obj) (out ">"
+				   (out (environment-name obj)
+					(out "#<ENVIRONMENT " col))))
           ((vector? obj)      (wr-lst (vector->list obj) (out "#" col)))
           ((boolean? obj)     (out (if obj "#t" "#f") col))
           ((number? obj)      (out (number->string obj) col))
           ((symbol? obj)      (out (symbol->string obj) col))
-          ((procedure? obj)   (out "#<procedure>" col))
+          ((procedure? obj)   (let ((n (procedure-name obj)))
+				(if n
+				    (out ">"
+					 (out (symbol->string n)
+					      (out "#<PROCEDURE " col)))
+				    (out "#<PROCEDURE>" col))))
           ((string? obj)      (if display?
                                 (out obj col)
                                 (let loop ((i 0) (j 0) (col (out "\"" col)))
@@ -102,16 +108,22 @@
                                 (out (case obj
                                        ((#\space)   "space")
                                        ((#\newline) "newline")
+				       ((#\tab)     "tab")
                                        (else        (make-string 1 obj)))
                                      (out "#\\" col))))
-          ((input-port? obj)  (out "#<input-port>" col))
-          ((output-port? obj) (out "#<output-port>" col))
-          ((eof-object? obj)  (out "#<eof>" col))
+          ((input-port? obj)  (out ">"
+				   (out (port-name obj)
+					(out "#<INPUT PORT " col))))
+          ((output-port? obj) (out ">"
+				   (out (port-name obj)
+					(out "#<OUTPUT PORT " col))))
+	  ((port? obj)        (out "#<PORT>" col))
+          ((eof-object? obj)  (out "#<EOF>" col))
 	  ((eq? obj (unspecified)) (out "#!unspecified" col))
 	  ((eq? obj (undefined)) (out "#!undefined" col))
-	  ((structure? obj)   (out "#<structure>" col))
-	  ((bytevector? obj)  (out "#<bytevector>" col))
-          (else               (out "#[unknown]" col))))
+	  ((structure? obj)   (out "#<STRUCTURE>" col))
+	  ((bytevector? obj)  (out "#<BYTEVECTOR>" col))
+          (else               (out "#<WEIRD>" col))))
 
   (define (pp obj col)
 

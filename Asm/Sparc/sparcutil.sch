@@ -8,11 +8,6 @@
 (define (roundup8 n)
   (* (quotient (+ n 7) 8) 8))
 
-; Machine parameters
-
-(define maxregs   32)
-(define lastreg   (- maxregs 1))
-
 ; Given an integer code for a register, return its register label.
 ; This register label is the register number for a h.w. register and the
 ; offsets from GLOBALS[ r0 ] for a s.w. register.
@@ -42,8 +37,11 @@
 
 ; Used by peephole optimizer
 
-(define (hwreg? x) (<= 0 x 7))
-(define (immediate-int? x) (<= -1024 x 1023))
+(define (hwreg? x)
+  (<= 0 x 7))
+
+(define (immediate-int? x)
+  (<= -1024 x 1023))
 
 ; Given an exact integer, can it be represented as a fixnum?
 
@@ -62,8 +60,7 @@
 ; register. A memory-mapped register is represented by an integer which 
 ; is its offet, so just return the value.
 
-(define (offsetof r)
-  r)
+(define (swreg-global-offset r) r)
 
 ; Return a bit representation of a character constant.
 
@@ -77,7 +74,7 @@
 ; The offset of data slot 'n' within a procedure structure, not adjusting 
 ; for tag. The proc is a header followed by code, const, and then data.
 
-(define (slotoffset n)
+(define (procedure-slot-offset n)
   (+ 12 (* n 4)))
 
 ; Src is a register, hwreg is a hardware register. If src is a
@@ -128,7 +125,7 @@
   (let ((dest (if (not (hardware-mapped? r)) $r.tmp0 r)))
     (cond ((and (number? i) (immediate-literal? i))
 	   (sparc.set as i dest))
-	  ((and (number? i) (zero? (remainder (abs i) 512)))
+	  ((and (number? i) (zero? (remainder (abs i) 1024)))
 	   (sparc.sethi as `(hi ,i) dest))
 	  (else
 	   (sparc.sethi as `(hi ,i) dest)
@@ -156,13 +153,13 @@
 (define (emit-load-reg! as from to)
   (if (or (hardware-mapped? from) (not (hardware-mapped? to)))
       (asm-error "emit-load-reg: " from to)
-      (begin (sparc.ldi as $r.globals (offsetof from) to)
+      (begin (sparc.ldi as $r.globals (swreg-global-offset from) to)
 	     to)))
 
 (define (emit-store-reg! as from to)
   (if (or (not (hardware-mapped? from)) (hardware-mapped? to))
       (asm-error "emit-store-reg: " from to)
-      (begin (sparc.sti as from (offsetof to) $r.globals)
+      (begin (sparc.sti as from (swreg-global-offset to) $r.globals)
 	     to)))
 
 ; Generic move-reg-to-HW-reg

@@ -22,7 +22,6 @@
 ; * Should expand internal definitions of the form 
 ;       (begin (define x ...) ...) 
 ;   to the corresponding sequence of definitions.
-; * DELAY is not supported.
 ;
 ; MISFEATURES
 ; * Could use constants a lot more in quasiquotation rewrites.
@@ -148,7 +147,7 @@
 
 (define-eval-macro 'delay
   (lambda (l)
-    `(%make-promise (lambda () ,(cadr l)))))
+    `(.make-promise (lambda () ,(cadr l)))))
 
 (define-eval-macro 'and
   (lambda (expr)
@@ -326,13 +325,12 @@
 
 (define-eval-macro 'quasiquote
 
-  ;; "Safe" names of procedures we use. Needs improvement, but good 
-  ;; enough for now.
+  ;; "Safe" names.  ".cons" ought to be a primop.
 
-  (let ((hyg-list '%list)
-	(hyg-cons '%cons)
-	(hyg-append '%append)
-	(hyg-list->vector '%list->vector))
+  (let ((hyg-list '.list)
+	(hyg-cons '.cons)
+	(hyg-append '.append)
+	(hyg-list->vector '.list->vector))
     (lambda (expr)
 
       (define (r e l)

@@ -210,7 +210,7 @@
   
 (define (ceiling x)
   (cond ((or (flonum? x)
-	     (and (compnum? x) (= (imag-part x) 0.)))
+	     (and (compnum? x) (= (imag-part x) 0.0)))
 	 (if (< x 0.0)
 	     (truncate x)
 	     (let ((g (truncate x)))
@@ -233,7 +233,7 @@
   (cond ((fixnum? x)
 	 (= (logand x 1) 0))
 	((bignum? x)
-	 (= (logand (bignum-ref x 0) 1) 1))
+	 (= (logand (bignum-ref x 0) 1) 0))
 	(else
 	 (zero? (remainder x 2)))))
 

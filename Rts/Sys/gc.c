@@ -14,6 +14,7 @@
 #include "gc.h"
 #include "gc_t.h"
 #include "static_heap_t.h"
+#include "semispace_t.h"
 #include "heapio.h"
 
 static gc_t *gc;
@@ -108,7 +109,6 @@ void compact_ssb( void )
   if (gc_compact_all_ssbs( gc )) {
     /* At least one remembered set overflowed. */
     /* FIXME: this probably should be under direct memmgr control */
-    supremely_annoyingmsg( "Remembered-set overflow." );
     garbage_collect3( 1, 0 );
   }
 }
@@ -165,7 +165,7 @@ int dump_heap_image_to_file( const char *filename )
 {
   int r;
 
-  if ((r = gc_dump_heap( gc, filename )) < 0) {
+  if ((r = gc_dump_heap( gc, filename, 1 )) < 0) {
     hardconsolemsg( "Heap create failure: file %s, reason '%s'.", 
 		    filename, heapio_msg[ -r ] );
     return 0;
@@ -176,20 +176,30 @@ int dump_heap_image_to_file( const char *filename )
 int reorganize_and_dump_static_heap( const char *filename )
 {
 #if defined( BDW_GC )
-  panic( "reorganize_and_dump_static_heap: not in bdwlarceny!" );
+  /* Shouldn't happen -- the command line switch should be disabled. */
+  panic_abort( "Cannot reorganize the heap in bdwlarceny." );
   return 0;
 #else
   semispace_t *data, *text;
   heapio_t *heap;
   int r;
 
+  consolemsg( "Reorganizing." );
   if (gc->static_area == 0)
     panic( "reorganize_and_dump_static_heap: no static heap." );
   sh_reorganize( gc->static_area );
   data = gc->static_area->data_area;
   text = gc->static_area->text_area;
+  consolemsg( "Data: %d bytes, Text: %d bytes",
+	      data->allocated, text->allocated );
 
-  return dump_heap_image_to_file( filename );
+  consolemsg( "Dumping \"%s\".", filename );
+  if ((r = gc_dump_heap( gc, filename, 0 )) < 0) {
+    hardconsolemsg( "Heap create failure: file %s, reason '%s'.", 
+		    filename, heapio_msg[ -r ] );
+    return 0;
+  }
+  return 1;
 #endif
 }
 

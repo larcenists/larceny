@@ -27,7 +27,7 @@ gc_t
 	     void (*compact_np_ssb)( gc_t *gc ),
 	     void (*np_remset_ptrs)( gc_t *gc, word ***ssbtop, word ***ssblim),
 	     int  (*load_heap)( gc_t *gc, heapio_t *h ),
-	     int  (*dump_heap)( gc_t *gc, const char *filename ),
+	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
 	     void (*enumerate_remsets_older_than)
@@ -70,6 +70,7 @@ gc_t
   gc->stats = stats;
 
   gc->compact_all_ssbs = compact_all_ssbs;
+  gc->compact_np_ssb = compact_np_ssb;
 
   gc->np_remset_ptrs = np_remset_ptrs;
 

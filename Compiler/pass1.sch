@@ -313,8 +313,7 @@
          (make-call proc
                     (list e0))
          e1
-         e2
-         env))))
+         e2))))
 
 (define (m-set exp env)
   (if (and (pair? (cdr exp))

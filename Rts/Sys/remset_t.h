@@ -32,6 +32,12 @@ create_remset( unsigned tbl_ent, unsigned pool_ent, unsigned ssb_ent,
 	       word **ssb_bot_loc, word **ssb_top_loc, word **ssb_lim_loc );
 
 struct remset {
+  int live;
+    /* Number of live entries in the remembered set.  This is updated
+       by rs_clear(), rs_compact(), rs_enumerate(), and rs_assimilate(),
+       and is thus only imprecise when the SSB is non-empty.
+       */
+
   void (*clear)( remset_t *remset );
     /* Method that clears the set of its contents; this is needed after 
        data are promoted out of the generations the remembered set belongs to.
@@ -79,7 +85,7 @@ struct remset {
 #define rs_enumerate( r, s, d )  ((r)->enumerate( r, s, d ))
 #define rs_stats( r, s )         ((r)->stats( r, s ))
 #define rs_has_overflowed( r )   ((r)->has_overflowed( r ))
-#define rs_assimilate( r1, r2 )  ((r)->assimilate( r1, r2 ))
+#define rs_assimilate( r1, r2 )  ((r1)->assimilate( r1, r2 ))
 
 #endif /* INCLUDED_REMSET_T_H */
 

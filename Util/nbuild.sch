@@ -128,7 +128,6 @@
 (display "Loading drivers and utilities...") (newline)
 (loadfile compilerdir "compile313.sch")
 (loadfile compilerdir "printlap.sch")
-(loadfile compilerdir "utils.sch")
 (loadfile common-asmdir "makefasl2.sch")
 (loadfile utildir "init-comp.sch")
 
@@ -169,7 +168,7 @@
   (display-switch "Include-source-code" (include-source-code))
   (display-switch "Include-variable-names" (include-variable-names))
   (display-switch "Inline-assignment" (inline-assignment))
-  (display-switch "Inline-cons" (inline-cons)) 
+  (display-switch "Inline-allocation" (inline-allocation)) 
   (display-switch "Integrate-usual-procedures" (integrate-usual-procedures))
   (display-switch "Issue-warnings" (issue-warnings))
   (display-switch "Listify?" listify?)

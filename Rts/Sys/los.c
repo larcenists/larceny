@@ -53,16 +53,22 @@ los_t *create_los( int generations )
     (los_list_t**)must_malloc( generations*sizeof( los_list_t* ) );
   for ( i=0 ; i < generations ; i++ )
     los->object_lists[i] = make_los_list();
-  los->marked = make_los_list();
+  los->mark1 = make_los_list();
+  los->mark2 = make_los_list();
 
   return los;
 }
 
 int los_bytes_used( los_t *los, int gen_no )
 {
-  assert( 0 <= gen_no && gen_no < los->generations );
+  assert( -2 <= gen_no && gen_no < los->generations );
 
-  return los->object_lists[gen_no]->bytes;
+  if (gen_no == -2)
+    return los->mark2->bytes;
+  else if (gen_no == -1)
+    return los->mark1->bytes;
+  else
+    return los->object_lists[gen_no]->bytes;
 }
 
 word *los_allocate( los_t *los, int nbytes, int gen_no )
@@ -80,13 +86,13 @@ word *los_allocate( los_t *los, int nbytes, int gen_no )
   set_size( w, size );
   insert_at_end( w, los->object_lists[ gen_no ] );
 
-  annoyingmsg( "{LOS} Allocating large object %d bytes (size %d) at 0x%p", 
-	      nbytes, size, w );
+  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%p", 
+			 size, w );
 
   return w;
 }
 
-int los_mark( los_t *los, word *w, int gen_no )
+int los_mark( los_t *los, los_list_t *marked, word *w, int gen_no )
 {
   word *p = prev( w );
   word *n = next( w );
@@ -99,7 +105,8 @@ int los_mark( los_t *los, word *w, int gen_no )
   assert( ishdr( *w ) );
   remove( w );
   los->object_lists[ gen_no ]->bytes -= size( w );
-  insert_at_end( w, los->marked );
+  marked->bytes += size( w );
+  insert_at_end( w, marked );
   set_prev( w, 0 );
   return 0;
 }
@@ -118,16 +125,16 @@ void los_sweep( los_t *los, int gen_no )
     remove( p );
     nbytes = size( p );
     gclib_free( p - HEADER_WORDS, nbytes );
-    annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%p",
-		nbytes, (void*)p );
+    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%p",
+			   nbytes, (void*)p );
     p = n;
   }
   clear_list( los->object_lists[ gen_no ] );
 }
 
-/* Note that appending the marked list implies cleaning up the gc marks
+/* Note that appending a mark list implies cleaning up the gc marks
    (the prev() pointers), so we always do that.  It causes no harm if
-   the list is not the marked list.
+   the list is not a mark list.
    */
 void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen )
 {
@@ -231,7 +238,7 @@ static void append_and_clear( los_list_t *left, los_list_t *right )
 }
 
 /* Dump the list during a forward walk, and compute sizes forwards and
-   backwards.  WARNING: don't run this on the marked list during GC 
+   backwards.  WARNING: don't run this on a mark list during GC 
    because the prev() pointers are not right during GC.
    */
 static void dump_list( los_list_t *l, char *tag, int nbytes )

@@ -209,6 +209,7 @@
 	      (enable-interrupts (standard-timeslice))
 	      (reestablish-console-io)
 	      (display "Keyboard interrupt.")
+	      (newline)
 	      (let ((k (current-continuation-structure)))
 		(set! *saved-continuation* k)
 		(reset)))
