@@ -3,19 +3,28 @@
 ; Scheme 313 Compiler
 ; Code to dump a bootstrap heap image from un-encoded scheme object files.
 ;
-; $Id$
+; $Id: dumpheap.scm,v 1.1 91/08/16 02:33:04 lth Exp Locker: lth $
 ;
-; Each file consists of a pair, the car of which is a code vector and the
-; cdr of which is a constant vector. `Build-bootstrap-heap' loads its
-; file arguments into the heap, creates thunks from the vectors, and generates
-; an initialization procedure which calls each thunk in turn.
+; Each input file consists of a pair, the car of which is a code vector and the
+; cdr of which is a constant vector. The code vector is a regular vector,
+; although it is treated as a byte vector rather than a word vector. The
+; constant vector has all tagged entries (represented using lists), where the
+; tags are `data', `codevector', `constantvector', `global', or `bits'.
+;
+; `Dump-heap' loads its file arguments into the heap, creates thunks from the
+; code and constant vectors, and generates an initialization procedure which 
+; calls each thunk in turn by traversing the list of thunks. This procedure is
+; then installed in the SCHEME_ENTRY root pointer. The thunks are called in
+; the order they are loaded.
 ;
 ; The Scheme assembler must be co-resident, since it is used by this
 ; procedure to assemble the final startup code. This could be avoided
 ; by pre-assembling the code and patching it here, but the way it is now,
 ; this procedure is entirely portable -- no target dependencies.
+;
+; Usage: (dump-heap outputfile inputfile ... )
 
-(define build-bootstrap-heap
+(define dump-heap
 
   (let ()
 
@@ -43,7 +52,7 @@
     ; heap. `Top' is the address of the next byte in the heap.
 
     (define (make-new-heap)
-      (vector '() '() '()))
+      (vector '() '() 0))
 
     (define (heap.bytes h) (vector-ref h 0))
     (define (heap.globals h) (vector-ref h 1))
@@ -103,13 +112,15 @@
     (define (dump-item! h item)
       (case (car item)
 	((codevector)
-	 (dump-bytevector! h (cadr item) $tag.bytevector-hdrtag))
+	 (dump-bytevector! h (cadr item) $tag.bytevec-hdrtag))
 	((constantvector)
 	 (dump-constantvector! h (cadr item)))
 	((data)
 	 (dump-data! h (cadr item)))
 	((global)
 	 (dump-global! h (cadr item)))
+	((bits)
+	 (cadr item))
 	(else
 	 (error 'dump-item! "Unknown item ~a" item))))
 
@@ -120,23 +131,23 @@
 
     (define (dump-data! h datum)
       (cond ((fixnum? datum)
-	     (dump-fixnum! h datum))
+	     (make-fixnum datum))
 	    ((integer? datum)
 	     (dump-bignum! h datum))
 	    ((real? datum)
 	     (dump-flonum! h datum))
 	    ((char? datum)
-	     (dump-char! h datum))
+	     (make-char datum))
 	    ((null? datum)
-	     (heap.word! h $imm.null))
+	     $imm.null)
 	    ((eq? datum #t)
-	     (heap.word! h $imm.true))
+	     $imm.true)
 	    ((eq? datum #f)
-	     (heap.word! h $imm.false))
+	     $imm.false)
 	    ((vector? datum)
 	     (dump-vector! h datum $tag.vector-hdrtag))
 	    ((bytevector? datum)
-	     (dump-bytevector! h datum $tag.bytevector-hdrtag))
+	     (dump-bytevector! h datum $tag.bytevec-hdrtag))
 	    ((pair? datum)
 	     (dump-pair! h datum))
 	    ((string? datum)
@@ -147,12 +158,15 @@
 	     (error 'dump-data! "Unsupported type of datum ~a" datum))))
 
     (define (fixnum? x)
-      (and ((integer? x)
-	    (<= x largest-fixnum)
-	    (>= x smallest-fixnum))))
+      (and (integer? x)
+	   (<= x largest-fixnum)
+	   (>= x smallest-fixnum)))
 
-    (define (dump-fixnum! h f)
-      (heap.word! h (* 4 f)))
+    (define (make-fixnum f)
+      (* 4 f))
+
+    (define (make-char c)
+      (+ (* (char->integer c) twofiftysix^2) $imm.character))
 
     ; misc->bytevector must be provided externally.
 
@@ -165,9 +179,6 @@
     (define (dump-string! h s)
       (dump-bytevector! h (string->bytevector b) $tag.string-hdrtag))
 
-    (define (dump-char! h c)
-      (heap.word! h (+ (* (char->integer c) twofiftysix^2) $imm.character)))
-
     (define (dump-pair! h p)
       (let ((the-car (dump-data! h (car p)))
 	    (the-cdr (dump-data! h (cdr p))))
@@ -177,14 +188,14 @@
 	  (+ base $tag.pair))))
 
     (define (dump-bytevector! h bv variation)
-      ((let ((base (heap.top h))
-	     (l    (bytevector-length bv)))
-	(dump-header-word! h (+ $imm.bytevector-header variation) l))
+      (let ((base (heap.top h))
+	    (l    (bytevector-length bv)))
+	(dump-header-word! h (+ $imm.bytevector-header variation) l)
 	(let loop ((i 0))
 	  (if (< i l)
 	      (begin (heap.byte! h (bytevector-ref bv i))
 		     (loop (+ i 1)))
-	      (begin (heap.align! h)
+	      (begin (heap.adjust! h)
 		     (+ base $tag.bytevector))))))
 
     (define (dump-vector! h v variation)
@@ -196,15 +207,15 @@
 	(let loop ((i 0))
 	  (if (< i l)
 	      (begin (vector-set! v i (recur! h (vector-ref cv i)))
-		     (loop (+ i 1)))))
-	(let ((base (heap.top heap)))
-	  (dump-header-word! h (+ $imm.vector-header variation) (* l 4))
-	  (let loop ((i 0))
-	    (if (< i l)
-		(begin (heap.word! h (vector-ref v i))
-		       (loop (+ i 1)))
-		(begin (heap.adjust! h)
-		       (+ base $tag.vector)))))))
+		     (loop (+ i 1)))
+	      (let ((base (heap.top h)))
+		(dump-header-word! h (+ $imm.vector-header variation) (* l 4))
+		(let loop ((i 0))
+		  (if (< i l)
+		      (begin (heap.word! h (vector-ref v i))
+			     (loop (+ i 1)))
+		      (begin (heap.adjust! h)
+			     (+ base $tag.vector)))))))))
 
     ; Symbols and globals have an awful lot in common.
     ;
@@ -218,7 +229,8 @@
     (define (symbol-cell s)
       (let ((x (assq s symbol-table)))
 	(if (null? x)
-	    (let ((p (cons (list s '() '()) symbol-table)))
+	    (let ((p (list s '() '())))
+	      (set! symbol-table (cons p symbol-table))
 	      p)
 	    x)))
 
@@ -226,7 +238,7 @@
       (dump-bytevector! h (symbol->bytevector s) $tag.symbol-hdrtag))
 
     (define (create-cell! h)
-      (dump-pair! (cons '(() ()))))
+      (dump-pair! h (cons '() '())))
 
     (define (dump-symbol! h s)
       (let ((x (symbol-cell s)))
@@ -235,7 +247,7 @@
 	(cadr x)))
 
     (define (dump-global! h g)
-      (let ((x (symbol-cell s)))
+      (let ((x (symbol-cell g)))
 	(if (null? (caddr x))
 	    (set-car! (cddr x) (create-cell! h)))
 	(caddr x)))
@@ -243,8 +255,10 @@
     ; Given a pair of code vector and constant vector, dump a thunk.
 
     (define (dump-segment! h segment)
-      (let ((the-code   (dump-bytevector! h (car segment)))
-	    (the-consts (dump-constantvector! h (cdr segment))))
+      (let* ((the-code   (dump-bytevector! h
+					  (car segment)
+					  $tag.bytevec-hdrtag))
+	     (the-consts (dump-constantvector! h (cdr segment))))
 	(let ((base (heap.top h)))
 	  (dump-header-word! h $imm.procedure-header 8)
 	  (heap.word! h the-code)
@@ -257,6 +271,7 @@
     ; heap pointer to that thunk.
 
     (define (load-file-into-heap! h filename)
+      (display "Loading ") (display filename) (newline)
       (with-input-from-file filename
 	(lambda ()
 	  (let ((segment (read)))
@@ -271,31 +286,32 @@
 
       ; The initialization procedure.
 
-      (define (init-proc l)
+      (define (init-proc)
 	`((,$.proc)
 	  (,$args= 0)
-	  (,$const ,l)
+	  (,$const (1))
 	  (,$setreg 1)
 	  (,$.label 0)
-	  (,$getreg 1)
+	  (,$reg 1)
 	  (,$op1 null?)
-	  (,$bfalse 2)
+	  (,$branchf 2)
+	  (,$return)
+	  (,$.label 2)
 	  (,$save 3 1)
-	  (,$getreg 1)
+	  (,$reg 1)
 	  (,$op1 car)
 	  (,$invoke 0)
 	  (,$.label 3)
 	  (,$.cont)
 	  (,$restore 1)
 	  (,$pop 1)
-	  (,$getreg 1)
+	  (,$reg 1)
 	  (,$op1 cdr)
-	  (,$branch 0)
-	  (,$.label 2)
-	  (,$return)))
+	  (,$setreg 1)
+	  (,$branch 0)))
 
       ; The car's are all heap pointers, so they should not be messed with.
-      ; The cdrs must be dumped.
+      ; The cdr must be dumped, and then the pair.
 
       (define (dump-init-list! h inits)
 	(if (null? inits)
@@ -310,9 +326,13 @@
       ; Dump the list of init procs, then assemble the thunk which
       ; traverses the list and calls each in turn.
 
-      (let* ((l       (dump-init-list! h (reverse inits)))
-	     (segment (assemble (init-proc l))))
+      (display "Assembling final procedure") (newline)
+      (let ((l       (dump-init-list! h (reverse inits)))
+	    (segment (assemble (init-proc))))
+	(vector-set! (cdr segment) 0 `(bits ,l))     ; patch constant vector
 	(dump-segment! h segment)))
+
+    ; Write to the output file.
 
     (define (dump-heap-to-file! h filename)
 
@@ -330,9 +350,9 @@
 
       (define (write-global x globals)
 	(let ((q (assq x globals)))
-	  (if x
-	      (write-word (cdr x))
-	      (write-word 0))))
+	  (if q
+	      (write-word (cdr q))
+	      (write-word $imm.false))))
 
       (define (write-globals globals)
 	(for-each
@@ -345,13 +365,18 @@
 	    (display (integer->char x)))
 	  bytes))
 
+      (display "Dumping to file") (newline)
       (with-output-to-file filename
 	(lambda ()
 	  (write-version-number)
 	  (write-globals (heap.globals h))
+	  (write-word (quotient (length (heap.bytes h)) 4))
 	  (write-bytes (reverse (heap.bytes h))))))
 
+    ; Main loop.
+
     (define (build-bootstrap-heap outputfile . inputfiles)
+      (delete-file outputfile)
       (let ((heap (make-new-heap)))
 	(let loop ((files inputfiles) (inits '()))
 	  (if (not (null? files))
