@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 13 December 1998
+; 16 December 1998
 ;
 ; Compiler switches needed by Twobit.
 
@@ -27,15 +27,15 @@
 
     (let ((state #t))
       (lambda args
-	(cond ((null? args) state)
-	      ((and (null? (cdr args))
-		    (boolean? (car args)))
-	       (set! state (car args))
-	       state)
-	      ((and (null? (cdr args))
-		    (eq? (car args) 'display))
-	       (display-flag state))
-	      (else (twobit-warning)))))))
+        (cond ((null? args) state)
+              ((and (null? (cdr args))
+                    (boolean? (car args)))
+               (set! state (car args))
+               state)
+              ((and (null? (cdr args))
+                    (eq? (car args) 'display))
+               (display-flag state))
+              (else (twobit-warning)))))))
 
 (define (display-twobit-flag flag)
   (flag 'display))
@@ -99,7 +99,7 @@
      (lambda-optimizations #f)
      (parallel-assignment-optimization #f))
     ((default) 
-     (issue-warnings #f)
+     (issue-warnings #t)
      (include-source-code #f)
      (include-procedure-names #t)
      (include-variable-names #t)
