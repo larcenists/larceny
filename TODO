@@ -75,14 +75,46 @@ SPARC Assembler
   * Better delay slot filling.
   * Maybe instruction scheduling.
   * General cleanup and streamlining.
+  * The code for op2imm generates slow code for some primitives: it emits 
+    the constant into SECOND and then does a non-imm operation.  It gets
+    + and - right; it would be nice to get =, <, <=, >, >= also, although
+    the savings is one (static or dynamic) instruction, and the peephole
+    optimizer gets most of the cases -- it's only where the datum is in
+    RESULT and the result is being left in RESULT where this optimization
+    matters.  Payoffs are slightly better for char=?, etc, since it's 
+    costly to generate a character constant (2 instructions).  Still
+    I expect most operations to work on operands in register, so the
+    peephole optimizer will take care of it.
+  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
+    Remaining tasks:
+      - optimize fx+ and fx- when it's possible to undo.
+      - fxquotient, fxremainder
+  * Peephole optimizations
+    - Unimplemented peephole operations
+        bytevector operations
+          bytevector-length
+          bytevector-ref          (also op2imm)
+          bytevector-set!
+          bytevector-like-length
+          bytevector-like-ref     (also op2imm)
+          bytevector-like-set!
+        vector-like operations
+          vector-like-length
+          vector-like-ref         (also op2imm)
+          vector-like-set!
+        others
+          char->integer
+          integer->char
+          logand logior logxor lognot sll srl sra
+    - Implement const/setreg/skip peephole optimization for simple constants
+      and any target register -- allows the delay slot of the branch to be
+      filled.
 
 Interpreter
- ** Use .named-lambda on internal procedures too.
   * Debug support (via *evalhook* or some other mechanism), esp. environment
     display/change, and single-stepping of expressions.
 
 Debugging
- ** Show source code, if available (how to do local procedures?)
  ** Support for variable names and source file name, if available.
   * Support for source code location.
     This is how to do it: install a reader macro for #\(.  This macro
@@ -103,9 +135,6 @@ Debugging
 
 Library
  ** Top-level environments must also hold syntax definitions.
- ** R5RS compliance
-    - Multiple values, for sure.
-    - Check everything else.
  ** Move Experimental functionality to Auxlib
      - records (requires cleaning up and documenting records).
      - applyhooks
@@ -174,6 +203,7 @@ Testing
  ** GC test suite must be completed.
     - test coverage automation
     - additional tests to provide good coverage :-)
+  * Create Larceny Note about how to run tests.
 
 Performance and code generation
   * Speed
@@ -235,10 +265,9 @@ Auxiliary library (directory Auxlib)
   + Object pickler
 
 Development system & compiler
+  * Would be possible to just have one procedure 'make-larceny-heap' that
+    would build for the correct target.  This would be a real improvement.
   * Extend compile313 to record file name and possibly position.
-    (Position requires a custom parser or a read procedure that returns
-    two values -- expression and start position.  And that doesn't even
-    work for internal definitions.)
   * Change the syntax of MAL files so that _eval_ is not required; 
     hack assembler drivers correspondingly.
   * Generate only as long documentation structures as needed.
@@ -248,8 +277,12 @@ Development system & compiler
     but also coded in millicode (abs, positive?, negative?).
   * Performance
     - Cache global cells and symbols.
-  + R5RS macros [new compiler does this]
-  + Real implementation of multiple values [new compiler does this]
+  * Lib/makefile.sch:
+    - There are still unix-dependent path names; if you use the make 
+      facility with a non-Unix OS, there will be problems.  This can
+      be fixed w/o too much trouble.
+    - We need to use nbuild-files more extensively to set up file lists.
+  * Real implementation of multiple values
 
 Documentation
  ** Clean up the concept index.
@@ -261,8 +294,6 @@ Documentation
     - repl.html
 
 Miscellaneous
- ** Copyright notice on all files.
- ** Finish documenting all extensions.
   * We should perhaps define bytevector-set! so that it chops off 
     high bits; this makes code easier to write and is faster (but is 
     it slower on other kinds of architectures, e.g. Alpha?).
