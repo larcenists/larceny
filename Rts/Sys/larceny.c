@@ -321,7 +321,7 @@ parse_options( int argc, char **argv, opt_t *o )
 	o->size[loc-1] = val;
       else 
 	for ( i=1 ; i < o->maxheaps ; i++ )
-	  if (o->size[i-1] < 0) o->size[i-1] = val;
+	  if (o->size[i-1] == 0) o->size[i-1] = val;
     }
     else if (sizearg( "-max", &argc, &argv, &dynamic_max ))
       ;
