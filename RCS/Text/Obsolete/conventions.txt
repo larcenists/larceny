@@ -1,5 +1,5 @@
 ; -*- Text -*-
-; $Id: conventions.txt,v 1.5 91/06/25 21:33:27 lth Exp Locker: lth $
+; $Id: conventions.txt,v 1.6 91/06/26 12:20:20 lth Exp Locker: lth $
 
 		Calling Conventions and Register Usage
 				   
@@ -41,9 +41,17 @@ choice lets us tailor the Scheme calling conventions without having to
 worry about interrupts and related messes, which reqire a specific
 stack layout. The C stack follows these conventions. Since the C stack
 pointer must at all times be in register %o6, we cannot use
-this register for Scheme.
+this register for Scheme. 
 
-Hence we are left with 23 registers available to Scheme: %g1, %i0-%i7,
+Since the operating system window overflow trap handler uses the stack
+pointers of previous windows (i.e. the %i6 after a save), the %i6
+register cannot be used by Scheme, either.  
+
+Although %i7 holds the return address of the previous procedure in the
+C calling conventions, we can simply save it on the stack, so %i7 is
+available.
+
+Hence we are left with 22 registers available to Scheme: %g1, %i0-%i5, %i7,
 %l0-%l7, and %o0-%o5. We have the following virtual and work register
 classes to map onto those registers (their function is elaborated on
 later):
@@ -100,21 +108,21 @@ tweaks.
 
 Here is the current mapping:
 
-   REG0 ... REG7   -->  i0 ... i7
+   REG0 ... REG7   -->  l0 ... l7
    RESULT          -->  o3
    ARGREG2         -->  o4
    ARGREG3         -->  o5
    STKP            -->  o2
    E_TOP           -->  o0
    E_LIMIT         -->  o1
-   GLOBALS         -->  l7
-   MILLICODE       -->  l6
+   GLOBALS         -->  i7
+   MILLICODE       -->  i5
    TIMER           -->  l0
    TMP0            -->  g1
-   TMP1 ... TMP5   -->  l1 ... l5
+   TMP1 ... TMP4   -->  i1 ... i4
 
-Note that %g1 is a temporary, and %TMP2/%TMP3 (among others) is a
-temporary-register pair.
+Note that %g1 is a temporary, and %TMP2/%TMP3 is a temporary-register
+pair.
 
 
 2. Continuations
