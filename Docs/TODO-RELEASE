@@ -11,28 +11,23 @@ Working on:
      - other C compilers than mingw
      - that twobit.exe works as it should (it does, with mingw)
 
-
-Things That Must Be Done (tm) aka Significant Usability Bugs (r)
-
  * Bug: DLL loader code (in Lib/Standard-C/loadable.sch) does not
    properly adjust the code pointer.  One problem is that it is not
    known to that code whether the code pointer has to be adjusted or
    not!
 
- * Quality: Clean up HOWTO-WIN32.
 
- * Quality: wizard options help should be available with -wizardhelp
-   only
+Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
- * Quality: should accept -- as the options character
+ * BUG: -stats does not seem to do anything.
+
+ * Quality: Online help not quite right for Petit Larceny
 
  * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
 
  * Quality: Get rid of Auxlib/ altogether.  Stuff that must be available
    for twobit goes into Lib; the rest moves to the external library.
    Note, this affects std-heap.sch, especially.
-
- * Quality: Online help not quite right for Petit Larceny
 
  * For most people it is most reasonable that Twobit share the macro
    definitions between the interpreter and compiler, so that loading
@@ -60,14 +55,37 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
    and condition SRFIs.  It would be very nice to have these.
 
  * FFI: Test well on Win32 -- does it work according to the docs?
+   (Could look like copy-qword is broken, it does not update esi
+   the way copy-dword does?)
 
  * FFI: Test well on Linux -- does it work according to the docs?
 
- * FFI: Does the docs reflect how it works?
+ * FFI: Does the docs reflect how it works?  (I observe that the
+   README in the Ffi/ directory does not know about the 386
+   implementation.)
 
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
    of bogus, cf recent discussion on SRFI-0 list.  Should probably
    fix this both in SRFI code as well as in test code.
+
+ * Performance: It may be important for truly good code generation to
+   generate completely dense switches for dispatch in a procedure --
+   no gap between the start label 0 and normal label, and no dead
+   labels.)
+
+ * Win32: FIXMEs in the Win32 support code (osdep-win32); nothing important,
+   mostly version number / time measurement.
+
+ * Win32: Synchronous interrupts are disabled because longjmp out of
+   signal handler does not work on WinNT or Win2K; it would be nice to
+   fix this (or some blocking syscalls will not be interruptible).
+
+ * Win32: Make it work under the MinGW shell "MSYS", looks like there could
+   be an I/O flushing issue in the generic-io package that needs to be
+   fixed.
+
+ * Probably get rid of support for compiling Larceny from other Scheme
+   systems.
 
 
 Lower priority:
