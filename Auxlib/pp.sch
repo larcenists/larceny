@@ -1,4 +1,4 @@
-; Copyright (c) 1991, Marc Feeley.  -*- mode: scheme indent-tabs-mode: nil -*-
+; Copyright (c) 1991, Marc Feeley.            -*- indent-tabs-mode: nil -*-
 ; 
 ; Permission to copy this software, in whole or in part, to use this
 ; software for any lawful purpose, and to redistribute this software
