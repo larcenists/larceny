@@ -232,6 +232,7 @@
 	    (fx+                  2 fx+                  ,sparc-imm?)
 	    (fx-                  2 fx-                  ,sparc-imm?)
 	    (fx--                 1 fx--                 #f)
+	    (fx*                  2 fx*                  #f)
 	    (fx=                  2 fx=                  ,sparc-imm?)
 	    (fx<                  2 fx<                  ,sparc-imm?)
 	    (fx<=                 2 fx<=                 ,sparc-imm?)
