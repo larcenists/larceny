@@ -1,5 +1,4 @@
 ;;; i386 millicode entry points and millicode jump vector initialization.
-;;; 2003-09-09 / lth
 ;;;
 ;;; $Id$
 ;;;
@@ -38,6 +37,7 @@
 	extern	return_from_scheme
 	extern	dispatch_loop_return
 	extern	gclib_pagebase
+	extern	mc_exception
 	
 ;;; The return address of the bottommost frame in the stack cache points
 ;;; to i386_stack_underflow; all we do is call the C function that
@@ -105,22 +105,27 @@ EXTNAME(i386_scheme_jump):
 %1:
 %endmacro
 
-;;; Arguments: second? c-name callout-method
+;;; The unadjusted return address is in GLOBALS[-1]; adjust it and
+;;; save it in G_RETADDR.
+;;;
+;;; Destroys: EAX
 
-%macro MILLICODE_STUB 3
-	extern	EXTNAME(%2)
-	;; The code 'pop dword [GLOBALS+wordsize+G_RETADDR]' does not work,
-	;; it appears that esp is updated before the move, the reference
-	;; manual notwithstanding.  So use more complicated code here and
-	;; be sure to save eax first if it is live.
-	add	esp, 4		; Fixup GLOBALS
-%if %1
-	mov	[GLOBALS+G_SECOND], eax
-%endif
+%macro SAVE_RETURN_ADDRESS 0
 	mov	eax, dword [GLOBALS-4]          ; return address
 	add	eax, 3		                ;  rounded up
 	and	eax, 0xFFFFFFFC	                ;   to 4-byte boundary
 	mov	dword [GLOBALS+G_RETADDR], eax  ;    saved for later
+%endmacro
+	
+;;; Arguments: second? c-name callout-method
+
+%macro MILLICODE_STUB 3
+	extern	EXTNAME(%2)
+	add	esp, 4				; Fixup GLOBALS
+%if %1
+	mov	[GLOBALS+G_SECOND], eax
+%endif
+	SAVE_RETURN_ADDRESS
 	mov	eax, EXTNAME(%2)
 	jmp	%3
 %endmacro
@@ -456,11 +461,22 @@ PUBLIC i386_petit_patch_boot_code
 ;;;	RESULT has first value
 ;;;	globals[G_SECOND] has second value
 ;;;	globals[G_THIRD] has third value
-;;;	SECOND has exception code (fixnum)
+;;;	SECOND has fixnum exception code
 ;;;	globals[-1] has the unadjusted return address
 
 i386_signal_exception:
-	hlt			; FIXME
+	shr	SECOND, 2			; fixnum -> native
+	mov	[tmp_exception_code], SECOND    ; SECOND=eax
+	SAVE_RETURN_ADDRESS			; compute G_RETADDR
+	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
+	mov	ebx, GLOBALS
+	mov	esp, [ebx+G_SAVED_ESP]
+	push	dword [tmp_exception_code]	; exception code
+	push	ebx				; globals
+	call	mc_exception
+	add	esp, 8
+	RESTORE_STATE saved_globals_pointer
+	jmp	[GLOBALS + G_RETADDR]
 
 ;;; callout_to_C
 ;;;	Switch from Scheme to C mode and call a C function, then
@@ -488,7 +504,7 @@ callout_to_Ck:
 
 saved_globals_pointer:
 	dd	0
-
-	section .text
+tmp_exception_code:
+	dd	0
 
 ;;; eof
