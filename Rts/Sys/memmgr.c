@@ -322,34 +322,41 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   return sh_allocate( gc->static_area, nbytes );
 }
 
-static void rotate_areas_down( gc_t *gc, int lo_gen, int hi_gen, int places )
+/* Shuffle remembered sets
+   Shuffle SSB pointer table entries
+   Shuffle the pointers in the remsets to the ssb pointer tables
+   
+   The permutation encodes the destination: v[i] -> v[perm[i]]
+   */
+static void permute_remembered_sets( gc_t *gc, int permutation[] )
 {
+  struct {
+    remset_t *r;
+    word *ssb_bot;
+    word *ssb_top;
+    word *ssb_lim;
+  } tmp[ MAX_GENERATIONS ];
   int i, j;
-  word *tmp_ssb_bot, *tmp_ssb_top, *tmp_ssb_lim;
-  remset_t *tmp_remset;
-  old_heap_t *tmp_ephemeral;
+  remset_t *r;
   gc_data_t *data = DATA(gc);
 
-  assert( lo_gen >= 1 && hi_gen <= gc->ephemeral_area_count );
+  for ( i=1 ; i < gc->remset_count ; i++ ) {
+    tmp[i].r = gc->remset[i];
+    tmp[i].ssb_bot = data->ssb_bot[i];
+    tmp[i].ssb_top = data->ssb_top[i];
+    tmp[i].ssb_lim = data->ssb_lim[i];
+  }
 
-  for ( i=0 ; i < places ; i++ ) {
-    tmp_ssb_bot = data->ssb_bot[lo_gen];
-    tmp_ssb_top = data->ssb_top[lo_gen];
-    tmp_ssb_lim = data->ssb_lim[lo_gen];
-    tmp_remset  = gc->remset[lo_gen];
-    tmp_ephemeral = gc->ephemeral_area[lo_gen];
-    for ( j=lo_gen ; j < hi_gen ; i++ ) {
-      data->ssb_bot[j] = data->ssb_bot[j+1];
-      data->ssb_top[j] = data->ssb_top[j+1];
-      data->ssb_lim[j] = data->ssb_lim[j+1];
-      gc->remset[j] = gc->remset[j+1];
-      gc->ephemeral_area[j] = gc->ephemeral_area[j+1];
-    }
-    data->ssb_bot[hi_gen] = tmp_ssb_bot;
-    data->ssb_top[hi_gen] = tmp_ssb_top;
-    data->ssb_lim[hi_gen] = tmp_ssb_lim;
-    gc->remset[hi_gen] = tmp_remset;
-    gc->ephemeral_area[hi_gen] = tmp_ephemeral;
+  for ( i=1 ; i < gc->remset_count ; i++ ) {
+    j = permutation[i];
+    assert( j > 0 );
+    gc->remset[j] = r = tmp[i].r;       /* remset */
+    data->ssb_bot[j] = tmp[i].ssb_bot;  /* ssb pointers */
+    data->ssb_top[j] = tmp[i].ssb_top;
+    data->ssb_lim[j] = tmp[i].ssb_lim;
+    r->ssb_bot = data->ssb_bot + j;     /* ssb pointer locations */
+    r->ssb_top = data->ssb_top + j;
+    r->ssb_lim = data->ssb_lim + j;
   }
 }
 
@@ -863,8 +870,7 @@ static gc_t *alloc_gc_structure( word *globals )
 		 allocate,
 		 allocate_nonmoving,
 		 collect,
-		 0,
-		 rotate_areas_down,
+		 permute_remembered_sets,
 		 set_policy,
 		 data_load_area,
 		 text_load_area,
@@ -889,4 +895,3 @@ static gc_t *alloc_gc_structure( word *globals )
 }
 
 /* eof */
-
