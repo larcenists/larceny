@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 88, 111.
+HIGH PRIORITY BUGS: 88, 111, 135.
 
 
 005  (v0.27e)
@@ -738,6 +738,101 @@ HIGH PRIORITY BUGS: 88, 111.
     whereever possible.  Most reasonably, pool memory should be freed
     when a remset is cleared.
 
-NEXT ENTRY: 133
+133 v0.43 (990903 / lth)
+    Priority: low
+    Category: TWOBIT, probably / IEEE FP std compliance
+
+	> (+ 0.0 -0.0)
+	-0.0
+	> (+ -0.0 0.0)
+	0.0
+	> (define (x a) (+ a -0.0))
+	x
+	> (x 0.0)
+	0.0
+
+    This came up on comp.lang.functional.  David McClain clamed that
+    (+ 0.0 -0.0) => 0.0 and my *inference* was that the IEEE std mandates
+    this, in which case Twobit improperly constant-folds the first
+    expression above.
+
+    In any case the compiler and interpreter give different results for
+    the first expression.
+
+    It appears there's no way in larceny at present to distinguish -0.0
+    from 0.0 without looking at the actual bits.
+
+134 v0.45 and all earlier (990915 / lth)
+    Priority: medium
+    Category: RTS measurements / correctness
+
+    The number of words copied and moved are overreported by factors of four, 
+    because the stats module does not convert bytes to words when computing
+    these fields.
+
+    Not yet fixed because benchmarking is ongoing and there's no desire
+    to rock the boat until we're out of that phase.
+
+135 v0.45 and many earlier (990920 / lth)
+    Priority: high
+    Category: RTS / correctness
+
+    The millicode call $m.gc always triggers a garbage collection.  This
+    is wrong, because $m.gc is called from the inline allocator due to
+    storage exhaustion, but the correct remedy is not always to collect --
+    in the stop/copy collector, the correct remedy is to move to the
+    next chunk.  In the current system it always collects, leading to
+    excessively high collection times for the stop+copy system.
+
+    Has been fixed in the radioactive99 system; the fix (involving memory.s, 
+    cglue.c, gc.c, gc_t.h, gc_t.c, young_heap_t.h, young_heap_t.c, sc-heap.c,
+    nursery.c, bdw-collector.c) must be ported.
+
+136 v0.45
+    Priority: high
+    Category: TWOBIT / correctness
+
+    Interaction of toplevel BEGINs with DEFINEs.  The macro
+    
+    (define-syntax define-values
+      (syntax-rules ()
+        ((define-values (?v1 ?v2 ...) ?expr)
+         (begin
+           (define __super-secret-variable-name
+             (call-with-values 
+              (lambda () ?expr)
+              (lambda values values)))
+           (define-values #t (?v1 ?v2 ...) __super-secret-variable-name 0)))
+        ((define-values #t () ?v ?n)
+         (set! ?v #f))
+        ((define-values #t (?v1 ?v2 ...) ?v ?n)
+         (begin
+           (define ?v1 (list-ref ?v ?n))
+           (define-values #t (?v2 ...) ?v (+ ?n 1))))))
+    
+    run on the code
+    
+    (define-values (a) (values 1))
+    
+    expands as 
+    
+    ((lambda ()
+       (begin
+         (begin
+           (set! .__super-secret-variable-name|1
+             (call-with-values
+               (lambda () (values '1))
+               (lambda .values|1|3 .values|1|3)))
+           '.__super-secret-variable-name|1)
+         (begin
+           (set! a
+             (list-ref __super-secret-variable-name '0))
+           'a)
+         (set! __super-secret-variable-name '#f))))
+    
+    but the expansion incorrectly uses an alpha-converted name for
+    __super-secret-variable-name in the definition but not in later uses.
+    
+NEXT ENTRY: 137
 
 ; eof
