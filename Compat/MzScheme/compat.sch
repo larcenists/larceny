@@ -121,7 +121,7 @@
     (loop string (- n 1) n)))
 
 (define (an-arbitrary-number)
-  (current-milliseconds))
+  (abs (current-milliseconds)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
