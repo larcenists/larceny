@@ -1,139 +1,63 @@
 Information about Petit Larceny on Win32
-2 August 2004 / lth
+29 November 2004 / lth
 
 
 HOW TO BUILD
 
-See HOWTO-PETIT for information about how to build Petit Larceny in
-general.  The configuration script you use depends on the compiler:
+See HOWTO-BUILD and HOWTO-PETIT for information about how to build
+Petit Larceny in general.  The configuration script you use depends on
+the compiler:
 
-  - If you are using a native Win32 compiler, such as CodeWarrior,
-    Visual C/C++, or MinGW, then the configuration script is
-    Util/petit-win32.sch.  
+    Util/petit-win32.sch        MinGW, CodeWarrior, Visual C/C++, etc
+    Util/petit-unix-el.sch      gcc under Cygwin
 
-  - If you are using Cygwin, then the configuration script is
-    Util/petit-unix-el.sch, and in general everything behaves as
-    if you are running Larceny under Unix.
+BUILD-APPLICATION and BUILD-TWOBIT work, and it is possible to load
+the code-less .FASL files created by these commands and to dump the
+resulting heap images.
 
-For some compilers the BUILD-EXECUTABLE command can result in warnings
-during linking; it is safe to ignore them.
-
-The COMPILE-FILES command works on this platform.
+However, The COMPILE-FILES command and dynamic loading of compiled
+code (.FASL files that reference shared object files) does not yet
+work on this platform.  See section below for technical information on
+this problem.
 
 There is a working call-out Foreign-Function Interface (FFI) to C.
 It works even from the interpreter; no C compiler is required.
 
 
-STATUS (old/obsolete, to be replaced)
+COMPILER: MINGW (gcc on Windows)
 
-Currently compiles, loads and runs, and seems to work OK:
- - Larceny can load scheme source files and run them interpreted
- - Compiling FIB.SCH to a code-less FASL, linking the code statically
-   into the executable with BUILD-APPLICATION, loading the FASL, and 
-   running FIB works.
- - Compiling FIB.SCH to a code-less FASL + a DLL for the code, loading
-   the FASL, and running FIB works.
- - The FFI works
- - Passes Aubrey Jaffer's R4RS test suite
- - Self-hosting works: have rebuilt entire system from within the
-   interpreter.
- - Compilers on this platform:
-     - MetroWerks CodeWarrior works OK, though there are problems
-       at high optimization levels and the libraries are buggy
-       (see separate section for CW below).   Functions appear to be
-       aligned on 16-byte (?) boundaries.  This is the system I use 
-       for testing, and the debugger interface is painless, so
-       debugging is pretty easy.
-     - Microsoft Visual C/C++ 6.0 (Personal Edition) does not align
-       functions on at least 4-byte boundaries, so it cannot be used
-       for compiling the Twobit output with some jump disciplines.
-       I have not tried the Professional Edition.  Debugging -- getting 
-       the symbol files right -- is a major pain.
-     - I have had problems with lcc-win32 in the past because
-       it did not align functions on at least 4-byte boundaries.
-     - I have not tried gcc under cygwin.
+MinGW ("Minimal GNU for Windows") is a port of gcc to Windows.  It
+brings many useful GNU tools to Windows while allowing you to continue
+working in a Windows environment (unlike Cygwin, say).  It is
+available from http://www.mingw.org.
 
-I've tested both with the longjmp jump discipline (which doesn't work
-well, at least not with MSVC; see below) and the trampoline technique
-(which works fine).
+I have used a version of MinGW with gcc 3.2.3, and the Windows command
+shell.  Larceny does not yet run properly under the MinGW shell (MSYS).
+
+As long as you make sure to add the MinGW program directory to your
+path before starting the command shell, everything works smoothly.
 
 
-TODO.
+COMPILER: CODEWARRIOR
 
-FIXMEs in the Win32 support code (osdep-win32); nothing important,
-mostly version number / time measurement.
+I have used Metrowerks CodeWarrior 6.0 for Windows.  Generally it
+works OK, and it generates decent code.
 
-Synchronous interrupts are disabled because longjmp out of signal
-handler does not work on WinNT or Win2K; it would be nice to fix
-this (or some blocking syscalls will not be interruptible).
+The libraries are buggy, and there are some workarounds for CodeWarrior
+in the Larceny run-time system.
 
+There is a bug in CodeWarrior that causes it to hang when compiling
+certain large C files (notably Lib/Common/ehandler.c) at high
+optimization levels.  As a consequence, the default switches for
+CodeWarrior are "-opt on" rather than "-opt full".  CodeWarrior for
+the Macintosh has the same problem.
 
-Access to OS functions.
+CodeWarrior is not fast.  It can take a long time indeed to compile
+some of the generated files.
 
-There is a callout FFI implementation in Ffi/ffi-i386.sch --
-incorporated into the FFI system as well as into Auxlib/std-ffi.sch,
-with minimal adaptations needed -- which passes the std-ffi test suite
-in Testsuite/FFI, so Petit Larceny on this platform can actually load
-and use foreign functions!  (Note, libc is not loaded by default.)
-
-
-Performance (pretty raw notes at this point)
-
-Metrowerks CodeWarrior 6.0:
-
-  This compiler generates very decent code; the interpreter compiled
-  with this compiler has about double the performance of one compiled
-  with Microsoft Visual C/C++ (under jump disciplines that allow the
-  latter to be used).
-
-  Compiled fib(30) is about four times faster than Petite Chez Scheme;
-  not exactly impressive, but OK, maybe?
-
-Microsoft Visual C/C++ 6.0 Personal Edition (older results)
-
-  The generated code is not at all good in this compiler: it contains
-  many redundant loads, and stack slots are not reused, so stack
-  frames are huge.  At a guess there is no global optimization in this
-  compiler.  (I've tried /O2.  Optimization switches are not
-  documented in the compiler help message.)
-
-  With the interpreter compiled by MSVC, the interpreter performance
-  is generally iffy: interpreted fib(25) is a factor of 10 slower than
-  in Petite Chez Scheme.  In Petite Chez Scheme, compiling and
-  assembling the basic heap image takes a few minutes; in Petit
-  Larceny it takes 35 minutes.  The bulk of the time is spent running
-  Twobit; just assembling the LAP and compiling the C code and
-  building heap takes a few minutes.
-
-General
-
-  It may be important for truly good code generation to generate
-  completely dense switches for dispatch in a procedure -- no gap
-  between the start label 0 and normal label, and no dead labels.)
-
-  Peephole optimization in the Standard-C assembler may be important
-  for good performance, some is in place already.
-
-
-Metrowerks CodeWarrior issues.
-
-It's not possible to compile lib/common/ehandler.c (and possibly other
-files, eg reader.sch, memstats.sch, toplevel.sch) with '-opt full';
-the optimizer runs out of memory (about 300MB).  This is a problem
-also with CodeWarrior on the Mac.
-
-So, the default optimization level is '-opt on'.  The change in
-optimization switches may matter: the interpreter compiled with '-opt
-on' seems to be slower than when compiled with '-opt full' as measured
-by fib(25).
-
-(Just compiling with '-opt on' takes a looooong time on some files.)
-
-I might consider rewriting the Scheme code to accomodate the C
-compiler.  Then again, I might not :-)
-
-Running the codewarrior commandline tools requires you to put up with
-environment variable hell, here are my settings:
+The CodeWarrior command-line tools work fine, as long as you've
+configured your environment variables properly.  This is not easy.
+Here are my settings:
 
 	CWFolder=c:\program files\metrowerks\codewarrior
 	MWCIncludes=%CWFolder%\MSL\MSL_C\MSL_Common\Include;
@@ -148,37 +72,126 @@ environment variable hell, here are my settings:
 	MWLibraryFiles=ANSICX86.LIB;ansifp_x86.obj;mwcrtl.lib;user32.lib;kernel32.lib
 
 
-Jump discipline issues.
+COMPILER: MICROSOFT VISUAL C/C++
 
-The MSVC++ 6.0 Standard Edition compiler is not very good.  In
-particular it does does not reuse stack slots.  As a result, the
-generated code is not good, and the stack frames are enormous: in the
-reader procedure, admittedly an outlier, the stack frame is 3.5KB.
+I have used Microsoft Visual C/C++ 6.0 Personal Edition.  This
+compiler is inexpensive and generates poor code.  The resulting
+performance is poor.  This compiler is not a good choice for Larceny.
+(The Professional Edition generates much better code, but I have not
+used that to compile Larceny.)
 
-Therefore, a longjmp control discipline only works if there is a large
-amount of memory available for the stack, and I have not been able to
-specify a large enough stack for this to work reliably.  (The largest
-stack I've been able to set up is about 1MB; the OS requires a set
-stack size, apparently.)  In practice, this discipline is not a good
-choice with this compiler.
+One problem with this compiler is that it does not merge the locations
+of local variables with nonoverlapping lifetimes, so Scheme code that
+is compiled to large C functions tends to have large stack frames.
+For example, the reader procedure has a stack frame that is 3.5KB
+large.  As a result, the longjmp jump discipline will require a large
+stack or very frequent stack prunings.  I have not been able to
+specify a large enough stack for this to work reliably!  (I tried
+stacks as large as 1MB.)  This should not matter to most users, as
+this jump discipline is not the default.
+
+The command line tools are fine, but getting the symbols files right
+for debugging takes some work.  Here are some old notes about this:
+
+  It is painful to link with /Zi to get (rudimentary) debug information
+  for compiled scheme code.  The problem seems to be that the debug
+  info database is always called vc60.pdb and is co-located with the
+  library, *and* the library must be compiled with a lib-path that
+  indicates the location of the pdb (it seems).  For the time being, I
+  compile the compiled scheme code with /Zd and then delete the
+  resulting pdb before linking; this gives full debug info for the RTS
+  but very little for the compiled scheme code (enough for the moment).
+
+  To run under debugger, start MSVC and select 'File | Open workspace'
+  and then open petit.exe as the workspace; then run.  Breakpoints can
+  be set; variables in the RTS can be inspected (full debug info).
+
+For some compilers the BUILD-PETIT command can result in warnings
+during linking; it is safe to ignore them.
 
 
-Linking problems (MSVC).
+COMPILER: GCC UNDER CYGWIN
 
-It is painful to link with /Zi to get (rudimentary) debug information
-for compiled scheme code.  The problem seems to be that the debug info
-database is always called vc60.pdb and is co-located with the library,
-*and* the library must be compiled with a lib-path that indicates the
-location of the pdb (it seems).  For the time being, I compile the
-compiled scheme code with /Zd and then delete the resulting pdb before
-linking; this gives full debug info for the RTS but very little for
-the compiled scheme code (enough for the moment).
+Cygwin emulates Unix well enough that Petit Larceny can be compiled
+out-of-the box, as on a Unix system.
+
+The main problem with using Cygwin is that Larceny does not become a
+Windows program, and will not run under the DOS command shell, instead
+requiring a Cygwin shell.  But the Cygwin shell does not provide
+reasonable command line editing for Larceny, making it painful to use.
 
 
-Debugging in Visual Studio.
+FOREIGN FUNCTION INTERFACE
 
-To run under debugger, start MSVC and select 'File | Open workspace'
-and then open petit.exe as the workspace; then run.  Breakpoints can
-be set; variables in the RTS can be inspected (full debug info).
+If you wish to access operating system functionality: There is a
+callout-only FFI implementation in Ffi/ffi-i386.sch, it has been
+integrated into the FFI system via Ffi/ffi-load.sch.
 
-$Id$
+Note that libc is not loaded by default, so you will have to arrange
+for that if you use the Ffi.
+
+
+PROBLEMS WITH COMPILE-FILES AND DYNAMIC LOADING
+
+It is not currently possible to load code compiled with COMPILE-FILES
+and the Windows-native compilers (MinGW, CodeWarrior, Visual C/C++, etc).
+
+The technical reason is a combination of two inconvenient facts: these
+compilers do not align functions on four-byte boundaries, and shared
+objects are loaded at addresses that the loading program cannot
+control reliably.
+
+Larceny's data representations were designed to accomodate a native
+compiler for the SPARC platform.  Only one word was reserved in the
+representations for procedures and stack frames for a code pointer.
+The garbage collector requires this word to have a representation it
+can understand.  On the SPARC the code pointer is a bytevector or a
+literal code address (which looks like a fixnum); in Petit Larceny it
+is either an integer (represented as a fixnum) or a pointer to a
+function.  If all functions are aligned on at least four-byte
+boundaries then the function pointers look like fixnums, and there is
+no problem with the garbage collector.  Otherwise, the representation
+must be transformed.
+
+None of the Windows-native compilers align function pointers, for some
+reason, and do not provide switches to force the alignment, so a
+transformation must be implemented.
+
+The easiest way to transform the function pointer is to shift it two
+bits left when storing it and to shift it two bits right when using
+it, but this only works if the top two bits are zero.  One can refine
+this for any constant top two bits; for example, if all DLLs are
+loaded at address 0xC0000000 or higher, then the top two bits are 11,
+and so on.  On Windows, this works for the executable itself -- but
+not for dynamically loaded objects.  The loader will place the
+dynamically loaded code where it wishes and it cannot be predicted
+where that will be.
+
+One can try to work around that by storing the top two bits in the
+typetag field of the procedure header, but that only works for
+procedures, not for stack frames, where there are no available bits.
+(Even for procedures this would be a disgusting hack.)
+
+One can imagine several fixes.
+
+ - Change the representations to accomodate larger code pointers.
+   This has ramifications for code that manipulates the
+   representations (including the SPARC assembler and any Scheme code
+   that knows about procedure layouts, like the debugger) and is a
+   fair amount of work, but it is arguably The Right Thing.
+
+ - One can implement a custom loader that controls the placement of
+   the code.  This is probably straightforward for the kind of code
+   that is generated by Larceny; only a few fixes are needed (eg, all
+   millicode calls must be made via the globals vector, not to named
+   procedures that are linked into the dynamically loaded code).
+
+ - One can make the C compiler generate assembler code, then go over
+   that assembler code and insert alignment directives, and finally
+   compile the assembler code to object code.
+
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---
