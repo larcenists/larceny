@@ -5,17 +5,21 @@
  * Stand-in procedures for the dynamic linking library functions.
  */
 
-dlopen()
+int dlopen(void);
+int dlsym(void);
+int dlerror(void);
+
+int dlopen(void)
 {
   abort();
 }
 
-dlsym()
+int dlsym(void)
 {
   abort();
 }
 
-dlerror()
+int dlerror(void)
 {
   abort();
 }
