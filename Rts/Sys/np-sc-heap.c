@@ -56,6 +56,7 @@ struct npsc_data {
   int j_pin;                  /* -1 or value at which to pin j */
   double load_factor;
   double luck;		      /* 0.0 .. 1.0 */
+  int remset_limit;		/* 0 .. INT_MAX */
   int lower_limit;            /* 0 or lower limit on the non-predictive area */
   int upper_limit;	      /* 0 or upper limit on the non-predictive area */
   semispace_t *old;	      /* 'old' generation */
@@ -104,6 +105,7 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->load_factor = info->load_factor;
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
+  data->remset_limit = info->extra_remset_limit;
   data->luck = info->luck;
   data->phase_detection = info->phase_detection;
   
@@ -137,7 +139,7 @@ void np_gc_parameters( old_heap_t *heap, int *k, int *j )
   *j = DATA(heap)->j;
 }
 
-static void collect( old_heap_t *heap )
+static void collect( old_heap_t *heap, gc_type_t request )
 {
   npsc_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
@@ -157,7 +159,11 @@ static void collect( old_heap_t *heap )
   young_before_gc = data->young->used;
   young_los_before_gc = los_bytes_used( los, data->gen_no+1 );
 
-  switch (type = decision( heap )) {
+  type = decision(heap);
+  if (request == GCTYPE_COLLECT)
+    type = COLLECT;
+
+  switch (type) {
     case PROMOTE_TO_OLD   : perform_promote_to_old( heap ); break;
     case PROMOTE_TO_BOTH  : perform_promote_to_both( heap ); break;
     case PROMOTE_TO_YOUNG : perform_promote_to_both( heap ); break;
@@ -229,12 +235,12 @@ static enum action decision( old_heap_t *heap )
    size.  If the older window exhibits growth, and the younger window
    exhibits stability, then we adjust j.  
 */
-static void run_phase_detector( old_heap_t *heap )
+static int run_phase_detector( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int i, j, k, prev, young;
+  int i, j, k, prev, young, young_before;
 
-  if (data->phase_detection < 0.0) return;
+  if (data->phase_detection < 0.0) return 0;
 
   /* Determine if old window exhibits growth */
   /* Old window is window at phase_idx. */
@@ -243,10 +249,10 @@ static void run_phase_detector( old_heap_t *heap )
   do {
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
-      return;			/* shrank */
+      return 0;			/* shrank */
     k = data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
     if (data->phase_buf[j].remset_size <= k)
-      return;			/* grown too little */
+      return 0;			/* grown too little */
     prev = j;
     i = i+1;
   } while (i < PHASE_WINDOW);
@@ -257,72 +263,35 @@ static void run_phase_detector( old_heap_t *heap )
   young = (data->phase_idx+PHASE_WINDOW) % PHASE_BUFSIZ;
 
   if (data->phase_buf[j].remset_size > data->phase_buf[young].remset_size)
-    return;			/* shrank */
+    return 0;			/* shrank */
 
   prev = j = young;
   i = 1;
   do {
     j = (j+1) % PHASE_BUFSIZ;
     if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
-      return;			/* shrank */
+      return 0;			/* shrank */
     k = data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
     if (data->phase_buf[j].remset_size > k)
-      return;			/* grown too much */
+      return 0;			/* grown too much */
     prev = j;
     i = i+1;
   } while (i < PHASE_WINDOW);
 
-  if (data->phase_buf[young].j < data->j) {
-    los_t* los = heap->collector->los;
-    int young_before = used_young( heap );
+  if (data->phase_buf[young].j >= data->j) 
+    return 0;
 
-    annoyingmsg( "Phase detection decided to adjust j "
-		"(old k=%d, old j=%d, used_old=%d, used_young=%d).",
-		data->k, data->j, used_old(heap), young_before );
-    annoyingmsg( "Buffer contents (oldest first):" );
-    for ( i=0, j=data->phase_idx; i < PHASE_BUFSIZ ; i++, j=(j+1)%PHASE_BUFSIZ )
-      annoyingmsg( "  remset_size=%d   j=%d",
-		   data->phase_buf[j].remset_size,
-		   data->phase_buf[j].j );
+  young_before = used_young( heap );
 
-    /* Adjust data->j. */
-    /* Expensive solution:
-       Must shuffle some memory blocks and adjust attributes.
-       Must scan the NP remset and remove pointers not into the correct area.
-       Must scan the young remset and remove pointers not into the correct area.
-       */
-    /* Cheap solution: shuffle _all_ young into old.  This can be bad if
-       the size of young has increased a lot since remset stability, but
-       is otherwise a close approximation.
-       */
-
-    /* Cheap solution for now */
-
-    /* Move data */
-    /* The move changes current, so step _down_! */
-    for ( i=data->young->current ; i >= 0 ; i-- )
-      ss_move_block_to_semispace( data->young, i, data->old );
-    los_append_and_clear_list( los, 
-			       los->object_lists[ data->gen_no+1 ], 
-			       data->gen_no);
-
-    /* Nuke young space, recreate */
-    ss_free( data->young );
-    data->young = 
-      create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1 );
-
-    /* Clear or move remset contents */
-    rs_assimilate( heap->collector->remset[ data->gen_no ], 
-		   heap->collector->remset[ data->gen_no+1 ] );
-    rs_clear( heap->collector->remset[ heap->collector->np_remset ] );
-    rs_clear( heap->collector->remset[ data->gen_no+1 ] );
-
-    /* Adjust j */
-    data->j = (data->j*data->stepsize - young_before) / data->stepsize;
-    assert( j >= 0 );
-
-    annoyingmsg( "Phase-adjusted value of j=%d", data->j );
-  }
+  annoyingmsg( "Phase detection decided to adjust j "
+	       "(old k=%d, old j=%d, used_old=%d, used_young=%d).",
+	       data->k, data->j, used_old(heap), young_before );
+  annoyingmsg( "Buffer contents (oldest first):" );
+  for ( i=0, j=data->phase_idx; i < PHASE_BUFSIZ ; i++, j=(j+1)%PHASE_BUFSIZ )
+    annoyingmsg( "  remset_size=%d   j=%d",
+		 data->phase_buf[j].remset_size,
+		 data->phase_buf[j].j );
+  return 1;
 }
 
 static void update_phase_data( old_heap_t *heap )
@@ -338,12 +307,86 @@ static void update_phase_data( old_heap_t *heap )
   data->phase_idx = (data->phase_idx+1) % PHASE_BUFSIZ;
 }
 
+/* If the extra remset is fuller than allowed by the limit, then
+   adjust j and clear the remset.
+   */
+static int check_for_remset_overflow( old_heap_t *heap )
+{
+  npsc_data_t *data = DATA(heap);
+  double size, used, entries, occ;
+
+  size = data->j * data->stepsize;
+  used = used_young( heap );
+  entries = heap->collector->remset[ heap->collector->np_remset ]->live;
+
+  /* `occ' is the inverse of the heap occupancy.
+     If occ is large (heap nearly empty), then do not try to adjust.
+     */
+  occ = size/(used+1);
+  if (occ > 20.0)		/* < 5% full */
+    return 0;
+  else if (occ*entries > data->remset_limit) {
+    annoyingmsg( "NP remembered set overflow: j will be adjusted.\n"
+		 "  size=%g used=%g entries=%g occ=%g",
+		 size, used, entries, occ );
+    return 1;
+  }
+  else
+    return 0;
+}
+
+static void adjust_j( old_heap_t *heap )
+{
+  npsc_data_t *data = DATA(heap);
+  int i, young_before = used_young( heap ), old_j = data->j;
+  los_t* los = heap->collector->los;
+
+  /* Adjust data->j. */
+  /* Expensive solution:
+     Must shuffle some memory blocks and adjust attributes.
+     Must scan the NP remset and remove pointers not into the correct area.
+     Must scan the young remset and remove pointers not into the correct area.
+  */
+  /* Cheap solution: shuffle _all_ young into old.  This can be bad if
+     the size of young has increased a lot since remset stability, but
+     is otherwise a close approximation.
+  */
+
+  /* Cheap solution for now */
+
+  /* Move data */
+  /* The move changes current, so step _down_! */
+  for ( i=data->young->current ; i >= 0 ; i-- )
+    ss_move_block_to_semispace( data->young, i, data->old );
+  los_append_and_clear_list( los, 
+			     los->object_lists[ data->gen_no+1 ], 
+			     data->gen_no);
+
+  /* Nuke young space, recreate */
+  ss_free( data->young );
+  data->young = 
+    create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1 );
+
+  /* Clear or move remset contents */
+  rs_assimilate( heap->collector->remset[ data->gen_no ], 
+		 heap->collector->remset[ data->gen_no+1 ] );
+  rs_clear( heap->collector->remset[ heap->collector->np_remset ] );
+  rs_clear( heap->collector->remset[ data->gen_no+1 ] );
+
+  /* Adjust j */
+  data->j = (data->j*data->stepsize - young_before) / data->stepsize;
+  assert( data->j >= 0 );
+
+  annoyingmsg( "Phase-adjusted value of j=%d", data->j );
+}
+
+
 static void perform_promote_to_old( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
 
   annoyingmsg( "  Promoting into old area." );
-  stats_gc_type( data->gen_no, STATS_PROMOTE );
+  stats_gc_type( data->gen_no, GCTYPE_PROMOTE );
 
   gclib_stopcopy_promote_into( heap->collector, data->old );
   rs_clear( heap->collector->remset[ data->gen_no ] );
@@ -356,9 +399,10 @@ static void perform_promote_to_both( old_heap_t *heap )
   int x, young_available, old_available;
 
   annoyingmsg( "  Promoting to both old and young." );
-  stats_gc_type( data->gen_no+1, STATS_PROMOTE );
+  stats_gc_type( data->gen_no+1, GCTYPE_PROMOTE );
 
-  run_phase_detector( heap );
+  if (run_phase_detector( heap ))
+    adjust_j( heap );
 
   young_available = data->j*data->stepsize - used_young( heap );
   old_available = (data->k-data->j)*data->stepsize - used_old( heap );
@@ -393,6 +437,8 @@ static void perform_promote_to_both( old_heap_t *heap )
 		 data->k, data->j );
   }
 
+  if (check_for_remset_overflow( heap ))
+    adjust_j( heap );
   update_phase_data( heap );
 }
 
@@ -403,14 +449,15 @@ static void perform_collect( old_heap_t *heap )
   gc_t *gc = heap->collector;
   int free_steps, target_size, young_before, young_los_before, luck_steps;
 
-  run_phase_detector( heap );
+  if (run_phase_detector( heap ))
+    adjust_j( heap );
 
   ss_sync( data->young );
   young_before = data->young->used;
   young_los_before = los_bytes_used( los, data->gen_no+1 );
 
   annoyingmsg( "  Full garbage collection." );
-  stats_gc_type( data->gen_no, STATS_COLLECT );
+  stats_gc_type( data->gen_no, GCTYPE_COLLECT );
 
   gclib_stopcopy_collect_np( gc, data->young );
   rs_clear( gc->remset[ data->gen_no ] );
@@ -493,6 +540,7 @@ static void perform_collect( old_heap_t *heap )
   annoyingmsg( "  Adjusting parameters: k=%d j=%d, luck=%d", 
 	       data->k, data->j, luck_steps );
   assert( data->j >= 0 );
+  assert( data->k >= 0 );
 
   update_phase_data( heap );
 }
@@ -617,7 +665,8 @@ static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
   int upper_limit = DATA(heap)->upper_limit;
   int lower_limit = DATA(heap)->lower_limit;
 
-  return gc_compute_dynamic_size( D, S, Q, L, lower_limit, upper_limit );
+  return gc_compute_dynamic_size( heap->collector,
+				  D, S, Q, L, lower_limit, upper_limit );
 }
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
@@ -631,6 +680,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 			    HEAPCODE_OLD_2SPACE_NP,
 			    0,               /* initialize */
 			    collect,
+			    0,	/* collect_with_selective_fromspace */
 			    before_collection,
 			    after_collection,
 			    stats,
