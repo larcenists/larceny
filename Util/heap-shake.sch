@@ -24,7 +24,7 @@
 (define (make-prefix0 heap-name main-fn)
   (lambda (argv)
     (reset-handler (lambda () (display "RESET!") (newline) (exit 0)))
-    (collect 'full)
+    (collect)
     (dump-heap heap-name (make-prefix1 main-fn))
     (system (string-append "./larceny.bin -reorganize-and-dump " heap-name))
     (rename-file (string-append heap-name ".split") heap-name)
