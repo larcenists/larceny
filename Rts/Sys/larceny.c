@@ -298,6 +298,7 @@ parse_options( int argc, char **argv, opt_t *o )
 #if !defined( BDW_GC )
   double load_factor = DEFAULT_LOAD_FACTOR;
   double feeling_lucky = 0.0;
+  double phase_detection = -1.0;
 #else
   double load_factor = 1.25;	/* Compatible */
 #endif
@@ -352,6 +353,8 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (doublearg( "-load", &argc, &argv, &load_factor ))
       ;
     else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
+      ;
+    else if (doublearg( "-phase-detection", &argc, &argv, &phase_detection ))
       ;
     else if (sizearg( "-min", &argc, &argv, &dynamic_min ))
       ;
@@ -456,9 +459,14 @@ parse_options( int argc, char **argv, opt_t *o )
       if (dynamic_max) size = min( dynamic_max, size );
       compute_np_parameters( o, size );
       if (feeling_lucky < 0.0 || feeling_lucky > 1.0)
-	param_error( "NP luck parameter out of range." );
+	param_error( "NP luck parameter (-feeling-lucky) out of range." );
       else
 	o->gc_info.dynamic_np_info.luck = feeling_lucky;
+      if (phase_detection != -1.0 &&
+	  (phase_detection < 0.0 || phase_detection > 1.0))
+	param_error( "NP phase detection paramater out of range." );
+      else
+	o->gc_info.dynamic_np_info.phase_detection = phase_detection;
     }
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
@@ -747,6 +755,8 @@ static void help( void )
   consolemsg("\t                  or for stop-and-copy heap." );
   consolemsg("\t-feeling-lucky d  NP gc fudge factor 0.0..1.0.  Default=0.0");
   consolemsg("\t                  (Doesn't select anything else.)");
+  consolemsg("\t-phase-detection d  NP gc remset growth factor 0.0..1.0.");
+  consolemsg("\t                    Off by default.  Selects nothing else.");
 #ifdef BDW_GC
   consolemsg("\t-divisor  n     Allocation divisor s.t. live/n bytes are" );
   consolemsg("\t                 allocated before next GC." );
