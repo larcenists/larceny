@@ -4,6 +4,8 @@
 ;
 ; Non-I/O-aware multitasking for Larceny.
 
+(require 'define-record)
+
 ; Interface
 
 (define-syntax without-interrupts       ; Critical section
