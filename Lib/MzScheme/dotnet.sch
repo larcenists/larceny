@@ -587,6 +587,13 @@
   (or (clr-class/can-instantiate? runtime-type)
       (begin
         (dotnet-message 3 "Making class instantiable" runtime-type)
+        (let ((base-type (clr-type/base-type
+                          (clr-object/clr-handle runtime-type))))
+          (if (and base-type
+                   (not (null? base-type))
+                   (not (void? base-type))
+                   (not (foreign-null? base-type)))
+              (clr-class/ensure-instantiable! (clr-object->class base-type))))
         (if *auto-initialize*
             (initialize-instance-members! runtime-type)
             (set! *delayed-initialized*
@@ -595,7 +602,7 @@
 
 (define (enable-auto-initialization!)
   (set! *auto-initialize* #t)
-  (for-each initialize-instance-members! *delayed-initialized*)
+  (for-each clr-class/ensure-instantiable! *delayed-initialized*)
   (set! *delayed-initialized* '()))
 
 ;; A hash table mapping symbols to the Ripoff classes that
@@ -1009,14 +1016,24 @@
                 :arity 2
                 :qualifier :primary
                 :procedure ((lambda ()
-                              (define (allocate-instance call-next-method class initargs)
+                              (define (allocate-runtime-type call-next-method class initargs)
                                 (let ((instance (call-next-method))
                                       (StudlyName (or (getarg initargs :StudlyName #f)
                                                       (error "Required initarg :StudlyName omitted"))))
                                   (dotnet-message 0 "Register class" StudlyName)
                                   (register-dotnet-class! StudlyName instance)
+                                  (add-method allocate-instance
+                                    (make (*default-method-class*)
+                                      :arity 2
+                                      :specializers (list (singleton instance))
+                                      :qualifier :before
+                                      :procedure
+                                      ((lambda ()
+                                         (define (allocate call-next-method class initargs)
+                                           (clr-class/ensure-instantiable! class))
+                                         allocate))))
                                   instance))
-                              allocate-instance))))
+                              allocate-runtime-type))))
 
             ;; Reset the direct supers of the type class to be the correct object
             ;; and recompute the class precedence list and slots.  Once this is done,
@@ -1033,8 +1050,10 @@
                              <class>))
             (slot-set! System.RuntimeType 'cpl   (compute-cpl System.RuntimeType))
             (slot-set! System.RuntimeType 'slots (compute-slots System.RuntimeType))
+            (slot-set! System.RuntimeType 'can-instantiate? #f)
             (slot-set! System.RuntimeType 'argument-marshaler   clr-object/clr-handle)
             (slot-set! System.RuntimeType 'return-marshaler     clr-object->class)
+            (set! *delayed-initialized* (cons System.RuntimeType *delayed-initialized*))
 
             ;; Optimize the getter for the handle
             (add-method clr-object/clr-handle
@@ -2469,16 +2488,7 @@
                 :arity 2
                 :specializers (list System.RuntimeType)
                 :procedure (lambda (call-next-method class initargs)
-                             (initialize-static-members! class)
-                             (add-method allocate-instance
-                               (make (*default-method-class*)
-                                 :arity 2
-                                 :specializers (list (singleton class))
-                                 :qualifier :before
-                                 :procedure ((lambda ()
-                                               (define (allocate-instance call-next-method class initargs)
-                                                 (clr-class/ensure-instantiable! class))
-                                               allocate-instance)))))
+                             (initialize-static-members! class))
                 :qualifier :after))
 
   (enable-auto-initialization!)
