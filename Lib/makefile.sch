@@ -55,11 +55,6 @@
 
 (define *extended-files* '())
 
-(define (make-dumpheap-extended target files)
-  (display "Dumping ") (display target) (newline)
-  (delete-file target)
-  (build-extended-heap-image target files *extended-files*))
-
 (define (make-copy target src)
   (display "Copying ") (display target) (newline)
   (call-with-input-file (car src)
@@ -164,7 +159,7 @@
     "fileio"            ; file ports
     "conio"             ; console ports, i.e., terminal
     "stringio"          ; string ports
-    "transio"           ; transcript ports
+;    "transio"           ; transcript ports
     "stdio"             ; user-level procedures
     "print"             ; write/display
     "ioboot"            ; one-time initialization
@@ -581,6 +576,7 @@
   (compile-and-assemble313 (string-append (nbuild-parameter 'source)
                                           "makefile.sch")))
 
+'  ; Don't remember where this comes from.
 (define (make-twobit-application)
 
   (define (fix files)
