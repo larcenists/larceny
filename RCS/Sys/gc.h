@@ -1,7 +1,7 @@
 /*
  * User-defined parameters for garbage collector.
  *
- * $Id: gc.h,v 1.2 91/06/21 15:15:02 lth Exp Locker: lth $
+ * $Id: gc.h,v 1.3 91/06/26 16:51:41 lth Exp Locker: lth $
  * 
  * Whoever writes the program that interfaces to the collector must define
  * the desired defaults in this file for the garbage collector to use.
@@ -12,10 +12,6 @@
  *
  * Assumptions: 1 word = 4 bytes.
  */
-
-#include "offsets.h"
-#include "gcinterface.h"
-#include "main.h"
 
 /* 
  * The following limits are all in bytes and should be evenly 
