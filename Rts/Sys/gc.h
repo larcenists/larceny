@@ -34,7 +34,8 @@ struct nursery_info {		/* Generational gc nursery */
 struct sc_info {		/* Any two-space copying area */
   int size_bytes;		/* size of area in bytes, > 0 */
   double load_factor;		/* inverse load factor (dynamic generation) */
-  int dynamic_max;		/* Upper bound on dynamic area size */
+  int dynamic_min;              /* 0 or lower bound on expandable area */
+  int dynamic_max;		/* 0 or upper bound on expandable area */
 };
 
 struct np_info {		/* Non-predictive dynamic area */
@@ -42,7 +43,15 @@ struct np_info {		/* Non-predictive dynamic area */
   int stepsize;			/* size of a step in bytes, > 0 */
   int size_bytes;               /* total size */
   double load_factor;		/* inverse load factor */
-  int dynamic_max;		/* Upper bound on dynamic area size */
+  int dynamic_min;              /* 0 or lower bound on expandable area */
+  int dynamic_max;		/* 0 or upper bound on expandable area */
+};
+
+struct bdw_info {
+  int divisor;			/* Allocation divisor */
+  double load_factor;		/* inverse load factor */
+  int dynamic_min;		/* 0 or lower bound on collected area */
+  int dynamic_max;		/* 0 or upper bound on collected area */
 };
 
 struct gc_param {		/* Parameter structure passed to create_gc() */
@@ -67,6 +76,9 @@ struct gc_param {		/* Parameter structure passed to create_gc() */
   /* Stop-and-copy precise system */
   sc_info_t sc_info;
 
+  /* Conservative system */
+  bdw_info_t bdw_info;
+
   /* Remembered-set values (could be set-by-set; are global) */
   unsigned rhash;             /* # elements in each remset hash tbl */
   unsigned ssb;               /* # elements in each remset SSB */
@@ -75,7 +87,8 @@ struct gc_param {		/* Parameter structure passed to create_gc() */
 
 /* In memmgr.c */
 gc_t *create_gc( gc_param_t *params, int *generations_created );
-int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit );
+int gc_compute_dynamic_size( int D, int S, int Q, double L, 
+			     int lower_limit, int upper_limit );
 
 
 /* In util.c */
