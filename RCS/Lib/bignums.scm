@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Scheme code for bignum arithmetic.
 ;
-; $Id: bignums.scm,v 1.5 91/08/08 18:36:06 lth Exp Locker: lth $
+; $Id: bignums.scm,v 1.6 91/08/12 18:37:34 lth Exp Locker: lth $
 ;
 ; This file has four sections:
 ;
@@ -67,6 +67,8 @@
 ;         bignum-zero?
 ;         bignum-positive?
 ;         bignum-negative?
+;         bignum-even?
+;         bignum-odd?
 ;         bignum->fixnum
 ;         fixnum->bignum
 ;         bignum->flonum
@@ -205,13 +207,13 @@
 ; Assumes big-endian representation of IEEE double.
 ; Assumes knowledge of Scheme 313 bignum and flonum formats.
 ;
-; `s' is 0 or 1.
+; `s' is 0 or 1, a fixnum.
 ; `m', the mantissa (with the leading 1 present), is a bignum.
 ; `e', the exponent (unbiased), is a fixnum.
 ;
 ; The parameters represent the number -1^s * m.0 * 2^e.
 
-(define make-float
+(define make-flonum
 
   (let ((two^52 (expt 2 52))
 	(two^63 (expt 2 63)))
@@ -584,6 +586,14 @@
   (and (sign-positive? (bignum-sign b))
        (not (zero? (bignum-length b)))))
 
+(define (bignum-even? b)
+  (or (bignum-zero? b)
+      (even? (bignum-ref b 0))))
+
+(define (bignum-odd? b)
+  (and (not (bignum-zero? b))
+       (odd? (bignum-ref b 0))))
+
 ; Coercions
 
 ; Assumes the bignum fits in a fixnum.
@@ -614,16 +624,20 @@
 ; Knows about range of IEEE double precision, but oblivious of bignum
 ; representation.
 ;
-; Not tested, and not trusted.
-; Rounding is definitely fishy.
+; Not tested (and not trusted).
 
 (define bignum->flonum
-  (let ((two^53 (* 2 two^52))
-	(two^54 (* 2 two^53))
-	(e1     (expt 2 bits-per-bigit))
-	(e2     (* e1 e1))
-	(e3     (* e1 e2))
-	(e4     (* e4 e4)))
+  (let* ((two^53 (expt 2 53))
+	 (two^54 (* 2 two^53))
+	 (e1     (expt 2 bits-per-bigit))    ; 2^16 if bits-per-bigit = 16
+	 (e2     (* e1 e1))                  ; 2^32 ditto
+	 (e3     (* e1 e2))                  ; 2^48 ditto
+	 (e4     (* e4 e4)))                 ; 2^64 ditto
+
+    ; used for rounding
+
+    (define sticky #f)
+    (define non-zero-tail #f)
 
     ; Remove this one if the compiler knows about shifts of fixnums.
 
@@ -643,13 +657,18 @@
     (define (adjust m limit)
       (if (< m limit)
 	  m
-	  (adjust (bignum-quotient m 2) limit)))
+	  (begin (set! sticky (or sticky (bignum-odd? m)))
+		 (adjust (bignum-quotient m 2) limit))))
 
-    ; Rounds to nearest as expected; rounds toward infinity on ties.
+    ; Rounds to nearest, and to even on ties.
 
     (define (round m)
       (if (odd? m)
-	  (+ m 1)
+	  (if (or sticky non-zero-tail)
+	      (+ m 1)
+	      (if (>= (bignum-remainder m 4) 2)   ; ick.
+		  (+ m 1)
+		  m))
 	  m))
 
     ; main
@@ -666,16 +685,32 @@
 		 (e  (- (* l bits-per-bigit)
 			(leading-zeroes d4 0)))
 		 (m  (+ (* d4 e4) (* d3 e3) (* d2 e2) (* d1 e1) d0)))
+	    (set! sticky #f)
+	    (set! non-zero-tail #f)
+
+	    ; figure out if the tail of the bignum is nonzero
+
+	    (let loop ((i (- l 6)))
+	      (if (>= i 0)
+		  (begin (set! non-zero-tail
+			       (or non-zero-tail
+				   (not (zero? (bignum-ref b i)))))
+			 (loop (- i 1)))))
+
+	    ; shift, round, convert
+
 	    (let ((m (round (adjust m two^54))))
-	      (make-float (if (bignum-negative? b) 1 0)
-			  (adjust m two^53)
-			  e)))))))
+	      (make-flonum (if (bignum-negative? b) 1 0)
+			   (adjust m two^53)
+			   e)))))))
 
 ; Convert a flonum to a bignum. If the flonum is not representable as an
 ; integer, then the excess fraction is simply dropped.
 ;
 ; Knows about the representation of flonums as well as bignums.
 ; Flonums are IEEE double, boxed as a bytevector.
+;
+; Not tested.
 
 (define (flonum->bignum f)
 
@@ -764,8 +799,6 @@
 	     (lmin (min la lb))
 	     (c    (bignum-alloc (+ lmax 1)))) ; are you sure?
 
-	(printf "la=%d lb=%d lmax=%d lmin=%d%n" la lb lmax lmin)
-
 	; subtract common segments
 
 	(let loop ((i 0) (borrow 0))
@@ -814,7 +847,6 @@
   ; remainder is always a fixnum.
 
   (define (fast-divide a b)
-    (printf "fast!%n")
     (let ((q (bignum-alloc (bignum-length a))))
       (let loop ((rem 0) (i (- (bignum-length a) 1)))
 	(if (>= i 0)
@@ -827,7 +859,6 @@
   ; (length b) > 1. Produces a pair of bignums.
 
   (define (slow-divide a b)
-    (printf "slow!%n")
     (let* ((d  (quotient bignum-base
 			 (+ (bignum-ref b (- (bignum-length b) 1)) 1)))
 	   (u  (if (= 1 d)
@@ -841,11 +872,8 @@
       (let loop1 ((j (- lu 1)) (p (- lq 1)))
 	(if (>= p 0)
 	    (let ((~q (big~q u v j)))
-	      (printf "hah!%n")
 	      (let ((borrow (big*- u v j ~q)))
-		(printf "and again!%n")
 		(bignum-set! q p ~q)
-		(printf "and yet again!%n")
 		(if (not (zero? borrow))
 		    (begin (bignum-set! q p (- (bignum-ref q p) 1))
 			   (big-addback u v j)))
