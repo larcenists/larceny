@@ -21,6 +21,7 @@
 #include <signal.h>
 #include <poll.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "larceny.h"
 #include "signals.h"
@@ -281,7 +282,7 @@ void UNIX_exit( word code )
 #if defined(SUNOS4)
 void UNIX_block_signals( word code )
 {
-  static old_mask = 0;
+  static int old_mask = 0;
 
   if (code == fixnum(1))
     old_mask = sigsetmask( -1 );
