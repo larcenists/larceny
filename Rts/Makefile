@@ -4,11 +4,6 @@
 #
 # This is Rts/Makefile.
 
-# Other definitions you might add to CCFLAGS and ASXFLAGS:
-#   -DSIMULATE_NEW_BARRIER  for the simulated write barrier
-#   -DNO_ATOMIC_ALLOCATION  to not distinguish atomic and nonatomic object
-#                           allocation in the conservative collector.
-
 ###########################################################################
 #
 # Section 0: Programs
@@ -19,24 +14,31 @@
 # experience assembler errors, you most likely have the wrong assembler.
 # On SunOS systems, try /bin/as.  gcc -E might work.
 
+# Solaris (native): GNU C compiler
+
 CC=gcc
-CCFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
 
-# DEC Alpha C compiler on DEC OSF/1 (for Petit Larceny)
+# Solaris (native): Solaris assembler
+
+AS=as
+ASXFLAGS=
+
+# DEC Alpha OSF/1 (Petit Larceny): DEC C compiler
 #
 # CC=cc
-# CCFLAGS=-g3 -taso -xtaso_short -ieee
-# LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so -lm -lc -all
+# CCXFLAGS=-g3 -taso -xtaso_short -ieee
+# LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so \
+#	-lm -lc -all
 ## Needed because make leaves the -o off.
+# Why is this here?  See other .c.o rule below.
 #.c.o:
 #	$(CC) $(CFLAGS) -c $< -o $*.o
 
 #CC=lcc
-#CCFLAGS=-DSTDC_SOURCE
+#CCXFLAGS=-DSTDC_SOURCE
 
-AS=as
-ASXFLAGS=
 
 ############################################################################
 #
@@ -55,30 +57,7 @@ LDXFLAGS=
 #
 # Section 2: Feature configuration section.
 
-# Stack underflow statistics.
-#
-# By setting STACK_UNDERFLOW_COUNTING to 1, the number of stack underflows 
-# are recorded at a slight (probably negligible) performance penalty.
-
-STACK_UNDERFLOW_COUNTING=1
-
-
-# Instruction cache flushing.
-#
-# In general, Larceny detects automatically whether cache flushing needs
-# to be performed on the architecture Larceny is running on. You can,
-# however, override this behaviour by uncommenting one of the following
-# lines and recompiling Rts/Sparc/cache.c and relinking.
-
-#IFLUSH=-DFLUSH_ALWAYS
-#IFLUSH=-DFLUSH_NEVER
-
-
-# Division by zero handling.
-#
-# It should not be necessary to uncomment the following line.
-
-#DIVZ=-DCHECK_DIVISION_BY_ZERO
+# Do all your configuration selection by editing Sys/config.h.
 
 
 ############################################################################
@@ -87,8 +66,6 @@ STACK_UNDERFLOW_COUNTING=1
 #
 # Defining DEBUG adds some debugging output.
 # Defining DEBUG2 may or may not add a _lot_ of debugging output (old switch)
-
-CONFIG=-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING)
 
 LIBS=-lm -ldl
 
@@ -105,13 +82,11 @@ OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 
 BDW_DEBUG=-DBDW_DEBUG #-DBDW_CLEAR_STACK
 
-CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(CONFIG) \
-	-ISys -IBuild -IStandard-C $(DEBUGFLAGS) $(IFLUSH) $(DIVZ) \
-	$(BDW_DEBUG) $(CCFLAGS)
+CFLAGS=-c -ISys -IBuild -IStandard-C \
+	$(DEBUGINFO) $(OPTIMIZE) $(PROFILE) $(TCOV) $(DEBUGFLAGS) \
+	$(BDW_DEBUG) $(CCXFLAGS)
 
-SPARC_ASFLAGS= -P -ISparc -IBuild $(CONFIG) $(DEBUGFLAGS) \
-	$(IFLUSH) $(DIVZ) $(ASXFLAGS)
-
+ASFLAGS=-P -ISparc -IBuild $(DEBUGFLAGS) $(ASXFLAGS)
 
 ############################################################################
 #
@@ -208,9 +183,8 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh
 .mac.c:
 	../build -expand $<
 
-# Yow!
 .s.o:
-	/bin/sh -c "$(AS) $(SPARC_ASFLAGS) \`defs\` -o $*.o $<"
+	$(AS) $(ASFLAGS) -o $*.o $<
 
 # Really want %Y but SunOS 4 doesn't do that.
 .c.o:
