@@ -130,11 +130,7 @@
     (define (asciiz->string x name)
       (if (ffi/null-pointer? x) 
 	  #f
-	  (let* ((l (_strlen x))
-		 (s (make-bytevector l)))
-	    (sys$peek-bytes x s l)
-	    (typetag-set! s (typetag ""))
-	    s)))
+          (%peek-string x)))
 
     `((int      signed32   ,integer-check           ,id)
       (short    signed32   ,integer-check           ,id)
