@@ -1,8 +1,7 @@
 The index for ~larceny/Lib/Sparc
-$Id$
+$Id: Index,v 1.1 1992/06/12 21:39:26 remy Exp remy $
 
-Index
-  This file.
+This directory contains Sparc specific parts of the runtime library.
 
 debugger.sch
   Lowlevel debugging support for Larceny (Sparc Version).  
