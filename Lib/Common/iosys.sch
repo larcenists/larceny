@@ -9,7 +9,7 @@
 
 ($$trace "iosys")
 
-; Note that you can *not* change these values without also changing them
+; NOTE that you can *not* change these values without also changing them
 ; in io/read-char, below, where they have been in-lined.
 
 (define port.input?     0) ; boolean: an open input port
@@ -30,13 +30,22 @@
 (define port.wr-flush?  9) ; boolean: discretionary output flushing
 (define port.wr-ptr    10) ; nonnegative fixnum: next loc for output
 
-(define port.structure-size 11)      ; size of port structure
+; common data
+
+(define port.position  11) ; nonnegative fixnum: number of characters read
+                           ; or written, not counting what's in the current
+                           ; buffer.
+
+(define port.structure-size 12)      ; size of port structure
 (define port.buffer-size    1024)    ; length of default I/O buffer
 
 
 ;;; Private procedures
 
 (define (io/fill-buffer p)
+  (vector-like-set! p port.position 
+		    (+ (vector-like-ref p port.position)
+		       (vector-like-ref p port.rd-ptr)))
   (let ((r (((vector-like-ref p port.ioproc) 'read)
 	    (vector-like-ref p port.iodata)
 	    (vector-like-ref p port.buffer))))
@@ -56,21 +65,24 @@
 	   (error "io/fill-buffer: bad value " r " on " p)))))
 
 (define (io/flush-buffer p)
-  (if (> (vector-like-ref p port.wr-ptr) 0)
-      (let ((r (((vector-like-ref p port.ioproc) 'write)
-		(vector-like-ref p port.iodata)
-		(vector-like-ref p port.buffer)
-		(vector-like-ref p port.wr-ptr))))
-	(cond ((eq? r 'ok)
-	       (vector-like-set! p port.wr-ptr 0))
-	      ((eq? r 'error)
-	       (vector-like-set! p port.error? #t)
-	       (error "Write error on port " p)
-	       #t)
-	      (else
-	       (vector-like-set! p port.error? #t)
-	       (error "io/flush-buffer: bad value " r " on " p)
-	       #t)))))
+  (let ((wr-ptr (vector-like-ref p port.wr-ptr)))
+    (if (> wr-ptr 0)
+	(let ((r (((vector-like-ref p port.ioproc) 'write)
+		  (vector-like-ref p port.iodata)
+		  (vector-like-ref p port.buffer)
+		  wr-ptr)))
+	  (vector-like-set! p port.position
+			    (+ (vector-like-ref p port.position) wr-ptr))
+	  (cond ((eq? r 'ok)
+		 (vector-like-set! p port.wr-ptr 0))
+		((eq? r 'error)
+		 (vector-like-set! p port.error? #t)
+		 (error "Write error on port " p)
+		 #t)
+		(else
+		 (vector-like-set! p port.error? #t)
+		 (error "io/flush-buffer: bad value " r " on " p)
+		 #t))))))
 
 
 ;;; Public low-level interface
@@ -105,6 +117,7 @@
     (vector-set! v port.rd-lim 0)
     (vector-set! v port.rd-ptr 0)
     (vector-set! v port.wr-ptr 0)
+    (vector-set! v port.position 0)
     (typetag-set! v sys$tag.port-typetag)
     v))
 
@@ -271,5 +284,16 @@
 
 (define (io/port-at-eof? p)
   (vector-like-ref p port.rd-eof?))
+
+(define (io/port-position p)
+  (cond ((io/input-port? p)
+	 (+ (vector-like-ref p port.position)
+	    (vector-like-ref p port.rd-ptr)))
+	((io/output-port? p)
+	 (+ (vector-like-ref p port.position)
+	    (vector-like-ref p port.wr-ptr)))
+	(else
+	 (error "io/port-position: " p " is not an open port.")
+	 #t)))
 
 ; eof
