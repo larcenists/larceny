@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 5 April 1999.
+;  5 April 1999.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
