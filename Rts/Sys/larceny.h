@@ -9,6 +9,7 @@
 #define INCLUDED_LARCENY_H
 
 #include <limits.h>
+#include <stddef.h>
 #include "config.h"
 #include "larceny-types.h"
 #include "macros.h"
@@ -55,21 +56,9 @@ extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 /* In "Rts/Sys/gc.c" -- an old-looking front-end for the new collector */
 
 #if !defined( GC_INTERNAL )
-extern char *gctype( void );
-extern int  create_memory_manager( gc_param_t *params );
+extern int  create_memory_manager( gc_param_t *params, int *generations );
 extern word *alloc_from_heap( int nbytes );
-extern word *alloc_bv_from_heap( int nbytes );
 extern word allocate_nonmoving( int length, int tag );
-extern word standing_room_only( int p_tag, int h_tag, int limit );
-extern void garbage_collect3( int gen, int request_bytes );
-extern void compact_ssb( void );
-extern void init_stats( int show_stats );
-extern void policy_control( int heap, int rator, unsigned rand );
-extern word creg_get( void );
-extern void creg_set( word k );
-extern void stack_overflow( void );
-extern void stack_underflow( void );
-
 extern int  load_heap_image_from_file( const char *filename );
 extern int  dump_heap_image_to_file( const char *filename );
 extern int  reorganize_and_dump_static_heap( const char *filename );
@@ -95,49 +84,43 @@ extern void C_wb_compact( int generation );
 
 #endif /* not GC_INTERNAL */
 
-/* In "Rts/Sys/unix.c", called only as syscalls */
+
+/* In Rts/Sys/primitive.c, called only as syscalls */
 
 #ifndef GC_INTERNAL
-extern void UNIX_openfile( word, word, word );
-extern void UNIX_unlinkfile( word );
-extern void UNIX_closefile( word );
-extern void UNIX_readfile( word, word, word );
-extern void UNIX_writefile( word, word, word, word );
-extern void UNIX_getresourceusage( word );
-extern void UNIX_dumpheap( word, word );
-extern void UNIX_exit( word );
-extern void UNIX_mtime( word, word );
-extern void UNIX_access( word, word );
-extern void UNIX_rename( word, word );
-extern void UNIX_pollinput( word );
-extern void UNIX_getenv( word );
-extern void UNIX_garbage_collect( word, word );
-extern void UNIX_iflush( word );
-extern void UNIX_flonum_exp( word, word );
-extern void UNIX_flonum_log( word, word );
-extern void UNIX_flonum_sin( word, word );
-extern void UNIX_flonum_cos( word, word );
-extern void UNIX_flonum_tan( word, word );
-extern void UNIX_flonum_asin( word, word );
-extern void UNIX_flonum_acos( word, word );
-extern void UNIX_flonum_atan( word, word );
-extern void UNIX_flonum_sqrt( word, word );
-extern void UNIX_flonum_sinh( word, word );
-extern void UNIX_flonum_cosh( word, word );
-extern void UNIX_flonum_atan2( word, word, word );
-extern void UNIX_stats_dump_on( word );
-extern void UNIX_stats_dump_off( void );
-extern void UNIX_gcctl_np( word, word, word );
-extern void UNIX_block_signals( word );
-extern void UNIX_system( word );
-extern void UNIX_allocate_nonmoving( word, word );
-extern void UNIX_object_to_address( word );
-extern void UNIX_sysfeature( word v );
-extern void UNIX_sro( word ptrtag, word hdrtag, word limit );
+extern char *string2asciiz( word );
+extern void primitive_get_stats( word );
+extern void primitive_dumpheap( word, word );
+extern void primitive_getenv( word );
+extern void primitive_garbage_collect( word, word );
+extern void primitive_iflush( word );
+extern void primitive_flonum_exp( word, word );
+extern void primitive_flonum_log( word, word );
+extern void primitive_flonum_sin( word, word );
+extern void primitive_flonum_cos( word, word );
+extern void primitive_flonum_tan( word, word );
+extern void primitive_flonum_asin( word, word );
+extern void primitive_flonum_acos( word, word );
+extern void primitive_flonum_atan( word, word );
+extern void primitive_flonum_sqrt( word, word );
+extern void primitive_flonum_sinh( word, word );
+extern void primitive_flonum_cosh( word, word );
+extern void primitive_flonum_atan2( word, word, word );
+extern void primitive_stats_dump_on( word );
+extern void primitive_stats_dump_off( void );
+extern void primitive_gcctl_np( word, word, word );
+extern void primitive_block_signals( word );
+extern void primitive_allocate_nonmoving( word, word );
+extern void primitive_object_to_address( word );
+extern void primitive_sysfeature( word v );
+extern void primitive_sro( word ptrtag, word hdrtag, word limit );
+extern void primitive_exit( word );
 #endif
+
 
 /* In Rts/Sys/sro.c */
 extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
+
 
 /* In "Rts/Sys/ldebug.c" */
 
@@ -145,19 +128,28 @@ extern void localdebugger( void );
 
 /* In "Rts/Sys/stats.c" */
 
-typedef enum { STATS_PROMOTE, STATS_COLLECT, STATS_IGNORE } stats_gc_t;
-
 #ifndef GC_INTERNAL
 extern void stats_init( gc_t *gc, int generations, int show_heapstats );
-extern word stats_fillvector( word w_buf );
+extern word stats_fillvector( word w_buffer );
 extern int  stats_opendump( const char *filename );
 extern void stats_closedump( void );
 #endif
 extern void stats_before_gc( void );
-extern void stats_gc_type( int gen, stats_gc_t type );
+extern void stats_gc_type( int gen, gc_type_t type );
 extern void stats_after_gc( void );
-extern unsigned stats_rtclock( void );
 extern void stats_add_gctime( long s, long ms );
+#if defined(SIMULATE_NEW_BARRIER)
+extern void simulated_barrier_stats( word *total_assignments,
+				     word *array_assignments, 
+				     word *lhs_young_or_remembered,
+				     word *rhs_constant,
+				     word *cross_gen_check,
+				     word *transactions );
+#endif
+
+/* In Rts/Sys/osdep-*.c */
+
+#include "osdep.h"
 
 /* In "Rts/Sys/version.c" */
 
@@ -222,12 +214,39 @@ word box_int( int i );
 word box_uint( unsigned u );
 unsigned unbox_uint( word w );
 int unbox_int( word w );
+/* Some of the following may be supplied by the system libraries. */
+double rint( double f );
+double aint( double f );
+int strncasecmp( const char *s1, const char *s2, size_t n );
+char *strdup( const char * );
 
-/* In "Rts/$MACHINE/glue.s" */
+/* Target-specific */
+/* NOTE!  For the time being, the SPARC version uses a global
+   variable 'globals' and may ignore the globals arguments
+   to these functions.  Thus, use only one.
+   */
 
-#ifndef GC_INTERNAL
-extern void scheme_start( word *globals );
-#endif
+void scheme_init( word *globals );
+  /* Initialize the things that need to be initialized once.  May allocate
+     memory on the heap; should be called after the entire RTS has been
+     initialized, though the heap image need not have been loaded.
+     */
+
+void scheme_start( word *globals );
+  /* Scheme_start runs a Scheme procedure in the context of the
+     given globals vector.  The caller must allocate a stack frame and
+     must also place arguments in the register save area in globals, 
+     and must set up the argument count in globals[ G_RESULT ].  The
+     procedure slot (REG0) must hold a Scheme procedure.
+
+     Scheme_start will initialize the return address slot of the
+     frame, and call the procedure.  If the procedure returns, then 
+     scheme_start returns to its caller.
+
+     Input:  As explained above.
+     Output: Any values left in globals by the Scheme procedure.
+     */
+
 
 /* In "Rts/$MACHINE/cache.c" */
 
@@ -247,35 +266,6 @@ extern int memfail( int code, char *fmt, ... );
 #define MF_RTS      4     /* gclib_alloc_rts() failed */
 
 /* Defaults */
-
-/* GC policy defaults (not tuned) */
-#if 0
-/* Old policy */
-#define DEFAULT_EWATERMARK 50     /* espace > 50% full => tenure */
-#define DEFAULT_TOFLOWATERMARK 75 /* tspace > 75% full => promote */
-#define DEFAULT_THIWATERMARK 75   /* tspace > 75% full => expand */
-#define DEFAULT_TLOWATERMARK 50   /* tspace < 50% full => contract */
-#define DEFAULT_RWATERMARK 75     /* remset-pool > 75% full => tenure */
-#define DEFAULT_SC_HIWATERMARK 75  /* stop+copy high watermark */
-#define DEFAULT_SC_LOWATERMARK 30  /* stop+copy low watermark */
-#define DEFAULT_NP_HIWATERMARK    80    /* NP expansion watermark */
-#define DEFAULT_NP_LOWATERMARK    30    /* NP contraction watermark */
-#define DEFAULT_NP_OFLOWATERMARK  80    /* NP promotion watermark */
-#else
-/* New policy, tuned by Will, although the 0 entries must be fixed. */
-#define DEFAULT_EWATERMARK 25     /* espace > 25% full => tenure */
-#define DEFAULT_TOFLOWATERMARK 66 /* tspace > 66% full => promote */
-#define DEFAULT_THIWATERMARK 66   /* tspace > 66% full => expand */
-#define DEFAULT_TLOWATERMARK 0    /* tspace <  0% full => contract */
-#define DEFAULT_RWATERMARK 75     /* remset-pool > 75% full => tenure */
-#define DEFAULT_SC_HIWATERMARK 66  /* stop+copy high watermark */
-#define DEFAULT_SC_LOWATERMARK  0  /* stop+copy low watermark */
-#define DEFAULT_NP_HIWATERMARK    80    /* NP expansion watermark */
-#define DEFAULT_NP_LOWATERMARK     0    /* NP contraction watermark */
-#define DEFAULT_NP_OFLOWATERMARK  80    /* NP promotion watermark */
-#endif
-
-#define OLDSPACE_EXPAND_BYTES   (1024*256)  /* 256KB chunks */
 
 /* STACK_ROOM is the number of bytes to add onto memory requests during
  * GC to make sure there is also room for the stack after the collection.
@@ -323,14 +313,6 @@ extern int memfail( int code, char *fmt, ... );
 #define debug2msg  consolemsg
 #else
 #define debug2msg  1?(void)0:(void)
-#endif
-
-#ifndef PATH_MAX
-# ifdef _POSIX_PATH_MAX
-#  define PATH_MAX _POSIX_PATH_MAX
-# else
-#  define PATH_MAX 1024
-# endif
 #endif
 
 #endif /* if INCLUDED_LARCENY_H */
