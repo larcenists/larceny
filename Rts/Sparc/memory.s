@@ -32,7 +32,7 @@
 	.global EXTNAME(mem_alloci)			! allocate cooked RAM
 	.global	EXTNAME(mem_internal_alloc)		! allocate raw RAM
 	.global	EXTNAME(mem_internal_alloc_bv)		! allocate raw RAM
-	.global EXTNAME(mem_garbage_collect)		! do a GC
+	.global EXTNAME(mem_morecore)			! get more memory
 	.global EXTNAME(mem_stkoflow)			! handle stack oflow
 	.global	EXTNAME(mem_internal_stkoflow)		! handle stack oflow
 	.global EXTNAME(mem_stkuflow)			! handle stack uflow
@@ -193,10 +193,10 @@ heap_overflow:
 	mov	%RESULT, %TMP1
 
 
-! _mem_garbage_collect: perform a garbage collection.
+! _mem_morecore: obtain more memory.
 
-EXTNAME(mem_garbage_collect):
-	set	EXTNAME(C_garbage_collect), %TMP0
+EXTNAME(mem_morecore):
+	set	EXTNAME(C_morecore), %TMP0
 	b	callout_to_C
 	nop
 
