@@ -234,7 +234,7 @@
 			 "sets" "switches" "sparc.imp" "patch0"
 			 "printlap"))
 
-(define comp-asm-files '("makefasl" "makefasl2" "dumpheap"))
+(define comp-asm-files '("makefasl" "dumpheap"))
 (define comp-util-files '("make" "make-support" "init-comp"))
 
 
@@ -280,7 +280,7 @@
 (define sparcasm-project (make:new-project "sparcasm.date"))
 
 (define generic-asm-files
-  '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "asmutil32le" "link-lop"))
+  '("pass5p1" "asmutil" "asmutil32" "asmutil32be" "asmutil32el" "link-lop"))
 
 (define sparcasm-files
   '("pass5p2" "gen-msi" "sparcprim-part1" "sparcprim-part2" "sparcprim-part3"
