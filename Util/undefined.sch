@@ -6,7 +6,7 @@
 
 (define (undefined-vars env)
   (filter (lambda (v)
-            (not (environment-gettable? env v)))
+            (not (environment-variable? env v)))
           (environment-variables env)))
 
 ; eof
