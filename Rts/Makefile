@@ -61,21 +61,21 @@
 
 
 # Petit Larceny on Debian Linux: gcc
-O=o
-CC=gcc
-DEBUGINFO=-gstabs+
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-
-
-# Native Larceny on Debian Linux: gcc + nasm (still debugging)
 #O=o
 #CC=gcc
 #DEBUGINFO=-gstabs+
 #OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 #CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-#AS=nasm
-#ASFLAGS=-f elf -IIntel -IBuild -DLINUX
+
+
+# Native Larceny on Debian Linux: gcc + nasm (still debugging)
+O=o
+CC=gcc
+DEBUGINFO=-gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+AS=nasm
+ASFLAGS=-f elf -IIntel -IBuild -DLINUX
 
 # Petit Larceny on DEC Alpha OSF/1: DEC C compiler
 # Probably not up-to-date, has not been tested for some time!
@@ -321,7 +321,7 @@ Build/c-table.c: Build/globals.cfg
 # Dependencies for source files beyond this point.
 
 LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \
-	  Build/cdefs.h Sys/config.h
+	  Build/cdefs.h Build/config.h
 SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h
 PETIT_H=Standard-C/millicode.h Standard-C/petit-config.h \
 	Standard-C/petit-hacks.h
@@ -406,7 +406,7 @@ Sys/osdep-unix.$(O): $(LARCENY_H)
 Sys/osdep-win32.$(O): $(LARCENY_H)
 Sys/osdep-generic.$(O): $(LARCENY_H)
 Sys/util.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h
-Sys/version.$(O): Sys/config.h
+Sys/version.$(O): Build/config.h
 Sys/young_heap_t.$(O): $(LARCENY_H) Sys/young_heap_t.h
 
 # eof
