@@ -1397,6 +1397,18 @@ $Id$
     FIX: 
     Re-implemented bignum->flonum.
 
+085 v0.39 (981216 / lth)  Fixed 2000-09-xx by wdc/lth
+    Priority: medium
+    Category: LIB, INTERPRETER, TWOBIT / correctness
+    See also: 084, 099, 153
+
+    Environments should contain syntax environments, and both 
+    compile-expression (Compiler/compile313.sch) and macro-expand 
+    (Eval/macro-expand.sch) should allow any environment to be used.
+
+    [In any case the current setup is not the right thing.]
+
+
 086 v0.39 (981216 / lth) Fixed 990928 by lth
     Priority: low
     Category: RTS / correctness
@@ -1494,6 +1506,37 @@ $Id$
 
     FIX:
     Copied the procedure over from the Larceny compatibility library.
+
+103 v1.0a1 (990104 / lth)  Fixed 2000-09-xx by wdc/lth
+    Priority: medium.
+    Category: TWOBIT / quality-of-implementation
+    See also: 090, 091
+
+    Macro expander bug.
+
+    This should be easy to fix.  
+
+	Date: Fri, 18 Dec 1998 17:48:22 -0500
+	From: Lars Thomas Hansen <lth@ccs.neu.edu>
+
+	[This is with up-to-date sources except sparc.imp.sch]
+
+	As far as I'm concerned, this is a minor annoyance: it's not entirely
+	reasonable for Twobit to warn me with (integrate-usual-procedures #f).
+	I can imagine differing opinions on the matter.
+
+	> (integrate-usual-procedures #f)
+	#f
+	> (define + (lambda (a b) (cons a b)))
+	WARNING from macro expander:
+	Redefining 
+	+
+	+
+	> (+ 1 2)
+	(1 . 2)
+
+    Fixed as a result of more sophisticated handling of syntax
+    environments and inline procedures.
 
 104 v1.0a1 (990107 / wdc)
     Priority: medium
