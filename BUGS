@@ -590,6 +590,32 @@ HIGH PRIORITY BUGS: 088, 091, 096, 105.
 
     Twobit is generating very poor code for named LET.
 
+    Test case:
+
+	> (define (test1)
+	    (do ((i 0 (+ i 1))
+		 (j 0 (+ j 1)))
+		((= i 100000000) j)))
+	test1
+	> (define (test2)
+	    (let loop ((i 0) (j 0))
+	      (if (= i 100000000)
+		  j
+		  (loop (+ i 1) (+ j 1)))))
+	test2
+	> (time (test1))
+	Words allocated: 474
+	Words reclaimed: 0
+	Elapsed time...: 4280 ms (User: 4270 ms; System: 0 ms)
+	Elapsed GC time: 0 ms (in 0 collections.)
+	100000000
+	> (time (test2))
+	Words allocated: 482
+	Words reclaimed: 0
+	Elapsed time...: 15787 ms (User: 15650 ms; System: 0 ms)
+	Elapsed GC time: 0 ms (in 0 collections.)
+	100000000
+
 NEXT ENTRY: 106
 
 ; eof
