@@ -1372,3 +1372,30 @@ $Id$
 
     FIX: 
     Re-implemented bignum->flonum.
+
+096 v0.41 (981221 / lth) Fixed 990108 by lth
+    Priority: high.
+
+    RTS error.
+
+    Strings passed to the routines in Rts/Sys/unix.c are limited to
+    1023 characters because getstring() has an internal buffer of length 1KB.
+    For example,  (system very-long-command) fails.
+
+    FIX:
+    Implemented appropriate buffer alloction in getstring().
+
+097 v0.41 (981221 / lth)  Fixed 981221 by lth
+    Priority: low
+
+    Disassembler does not work properly in Chez Scheme; try
+
+	> (disassemble (assemble (compile '(lambda (x) (car x)))))
+	Segment # #f
+
+	Error: variable bytevector-word-ref is not bound.
+	Type (debug) to enter the debugger.
+
+    FIX:
+    Copied the procedure over from the Larceny compatibility library.
+
