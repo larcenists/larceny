@@ -18,6 +18,14 @@ large projects (see the file TODO-RAINYDAY).
 ----------------------------------------------------------------------
 
 Misc (not just related to Petit Larceny)
+ - Need a better configuration mechanism -- possibly, something based
+   on autoconf.  As it is, features are chosen on the basis of dubious
+   information.  Fundamentally, though, it may be better to specialize
+   "make setup"; don't know.  In any case the configuration depends on
+   the target system (petit, native, bytecode), not just the target 
+   platform.  Info about the target _system_ can be encoded in the 
+   individual make commands, but this is error-prone: better to set it
+   up once, then compile for a particular model until it is re-setup.
  - Need to create a heap comparison tool that only compares "significant"
    differences, or, a heap rectification tool that clears insignificant
    bits from a heap image, notably from bytevector structures.  This
