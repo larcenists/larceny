@@ -458,7 +458,6 @@
     (environment-set! larc 'collect collect)
     (environment-set! larc 'gcctl gcctl)
     (environment-set! larc 'sro sro)
-    (environment-set! larc 'memstats memstats)
     (environment-set! larc 'system-features system-features)
     (environment-set! larc 'stats-dump-on stats-dump-on)
     (environment-set! larc 'stats-dump-off stats-dump-off)
@@ -469,6 +468,96 @@
     (environment-set! larc 'peek-bytes peek-bytes)
     (environment-set! larc 'poke-bytes poke-bytes)
     (environment-set! larc 'gc-counter gc-counter)
+    (environment-set! larc 'memstats memstats)
+    (environment-set! larc 'memstats-allocated memstats-allocated)
+    (environment-set! larc 'memstats-gc-reclaimed memstats-gc-reclaimed)
+    (environment-set! larc 'memstats-gc-copied memstats-gc-copied)
+    (environment-set! larc 'memstats-gc-total-elapsed-time 
+                      memstats-gc-total-elapsed-time)
+    (environment-set! larc 'memstats-gc-promotion-elapsed-time 
+                      memstats-gc-promotion-elapsed-time)
+    (environment-set! larc 'memstats-heap-allocated-now 
+                      memstats-heap-allocated-now)
+    (environment-set! larc 'memstats-heap-allocated-max 
+                      memstats-heap-allocated-max)
+    (environment-set! larc 'memstats-heap-live-now memstats-heap-live-now)
+    (environment-set! larc 'memstats-remsets-allocated-now 
+                      memstats-remsets-allocated-now)
+    (environment-set! larc 'memstats-remsets-allocated-max 
+                      memstats-remsets-allocated-max)
+    (environment-set! larc 'memstats-rts-allocated-now 
+                      memstats-rts-allocated-now)
+    (environment-set! larc 'memstats-rts-allocated-max 
+                      memstats-rts-allocated-max)
+    (environment-set! larc 'memstats-heap-fragmentation-now 
+                      memstats-heap-fragmentation-now)
+    (environment-set! larc 'memstats-heap-fragmentation-max 
+                      memstats-heap-fragmentation-max)
+    (environment-set! larc 'memstats-generations memstats-generations)
+    (environment-set! larc 'memstats-remsets memstats-remsets)
+    (environment-set! larc 'memstats-frames-flushed memstats-frames-flushed)
+    (environment-set! larc 'memstats-words-flushed memstats-words-flushed)
+    (environment-set! larc 'memstats-stacks-created memstats-stacks-created)
+    (environment-set! larc 'memstats-frames-restored memstats-frames-restored)
+    (environment-set! larc 'memstats-swb-total-assignments 
+                      memstats-swb-total-assignments)
+    (environment-set! larc 'memstats-swb-vector-assignments 
+                      memstats-swb-vector-assignments)
+    (environment-set! larc 'memstats-swb-lhs-young-or-remembered 
+                      memstats-swb-lhs-young-or-remembered)
+    (environment-set! larc 'memstats-swb-rhs-immediate 
+                      memstats-swb-rhs-immediate)
+    (environment-set! larc 'memstats-swb-not-intergenerational 
+                      memstats-swb-not-intergenerational)
+    (environment-set! larc 'memstats-swb-transactions 
+                      memstats-swb-transactions)
+    (environment-set! larc 'memstats-elapsed-time memstats-elapsed-time)
+    (environment-set! larc 'memstats-system-time memstats-system-time)
+    (environment-set! larc 'memstats-user-time memstats-user-time)
+    (environment-set! larc 'memstats-minor-faults memstats-minor-faults)
+    (environment-set! larc 'memstats-major-faults memstats-major-faults)
+    (environment-set! larc 'memstats-fullgc-collections 
+                      memstats-fullgc-collections)
+    (environment-set! larc 'memstats-fullgc-elapsed-time 
+                      memstats-fullgc-elapsed-time)
+    (environment-set! larc 'memstats-fullgc-copied memstats-fullgc-copied)
+    (environment-set! larc 'memstats-fullgc-moved memstats-fullgc-moved)
+    (environment-set! larc 'memstats-fullgc-marked memstats-fullgc-marked)
+    (environment-set! larc 'memstats-fullgc-traced memstats-fullgc-traced)
+    (environment-set! larc 'memstats-gen-major-id memstats-gen-major-id)
+    (environment-set! larc 'memstats-gen-minor-id memstats-gen-minor-id)
+    (environment-set! larc 'memstats-gen-collections memstats-gen-collections)
+    (environment-set! larc 'memstats-gen-promotions memstats-gen-promotions)
+    (environment-set! larc 'memstats-gen-total-elapsed-time 
+                      memstats-gen-total-elapsed-time)
+    (environment-set! larc 'memstats-gen-promotion-elapsed-time 
+                      memstats-gen-promotion-elapsed-time)
+    (environment-set! larc 'memstats-gen-target-size-now 
+                      memstats-gen-target-size-now)
+    (environment-set! larc 'memstats-gen-allocated-now 
+                      memstats-gen-allocated-now)
+    (environment-set! larc 'memstats-gen-live-now memstats-gen-live-now)
+    (environment-set! larc 'memstats-remset-major-id memstats-remset-major-id)
+    (environment-set! larc 'memstats-remset-minor-id memstats-remset-minor-id)
+    (environment-set! larc 'memstats-remset-allocated-max 
+                      memstats-remset-allocated-max)
+    (environment-set! larc 'memstats-remset-allocated-now 
+                      memstats-remset-allocated-now)
+    (environment-set! larc 'memstats-remset-used-now memstats-remset-used-now)
+    (environment-set! larc 'memstats-remset-live-now memstats-remset-live-now)
+    (environment-set! larc 'memstats-remset-recorded memstats-remset-recorded)
+    (environment-set! larc 'memstats-remset-removed memstats-remset-removed)
+    (environment-set! larc 'memstats-remset-scanned memstats-remset-scanned)
+    (environment-set! larc 'memstats-remset-object-words-scanned 
+                      memstats-remset-object-words-scanned)
+    (environment-set! larc 'memstats-remset-transactions 
+                      memstats-remset-transactions)
+    (environment-set! larc 'memstats-remset-times-cleared 
+                      memstats-remset-times-cleared)
+    (environment-set! larc 'memstats-remset-times-scanned 
+                      memstats-remset-times-scanned)
+    (environment-set! larc 'memstats-remset-times-compacted 
+                      memstats-remset-times-compacted)
 
     ;; environment interface
 
