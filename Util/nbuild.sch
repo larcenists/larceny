@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 29 April 1999 / wdc
+;
 ; Host-independent loader for the development system.
 ;
 ; The only parameter to this module is a procedure "nbuild-parameter"
@@ -56,6 +58,7 @@
 
 ; Initialize Twobit and help system.
 
+(compiler-switches 'default)
 (compiler-switches 'fast-safe)
 (initialize-help (nbuild-parameter 'compiler))
 

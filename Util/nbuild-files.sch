@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 25 April 1999 / wdc
+;
 ; File lists for nbuild et al.  Don't rearrange the lists -- order matters.
 
 (define (nbuild-files path-ident files)
@@ -14,7 +16,7 @@
 
 (define *nbuild:twobit-files-1*
   (nbuild-files 'compiler
-    '("sets.sch" "hash.sch" "hashtable.sch"
+    '("sets.sch" "hash.sch" "hashtable.sch" "hashtree.sch"
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
       "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
       "expand.sch" "usual.sch" "copy.sch" "pass1.sch"
@@ -22,7 +24,7 @@
 
 (define *nbuild:sparc/twobit-files*
   (nbuild-files 'compiler
-		'("sparc.imp.sch")))
+		'("common.imp.sch" "sparc.imp.sch")))
 
 (define *nbuild:petit/twobit-files*
   (nbuild-files 'compiler
@@ -34,7 +36,8 @@
       "pass3callgraph.sch" "pass3inlining.sch" "pass3folding.sch"
       "pass3anormal.sch" "pass3anormal2.sch" "pass3commoning.sch"
       "pass3.sch"
-      "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4p3.sch"
+      "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4special.sch"
+      "pass4p3.sch"
       "compile313.sch" "printlap.sch")))
 
 (define *nbuild:common-asm-be*
@@ -54,8 +57,9 @@
   (nbuild-files 'sparc-asm
 		'("pass5p2.sch" "peepopt.sch" "sparcutil.sch" "sparcasm.sch"
 		  "gen-msi.sch" "sparcprim-part1.sch" "sparcprim-part2.sch"
-		  "sparcprim-part3.sch" "sparcprim-part4.sch" "switches.sch"
-		  "sparcdis.sch")))
+		  "sparcprim-part3a.sch" "sparcprim-part3b.sch"
+                  "sparcprim-part4.sch"
+                  "switches.sch" "sparcdis.sch")))
 
 (define *nbuild:petitasm-files*
   (nbuild-files 'standard-C-asm
@@ -76,6 +80,8 @@
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*
+          ; The target-specific tables may need these constants.
+          *nbuild:build-files*
 	  (case (nbuild-parameter 'target-machine)
 	    ((SPARC)      *nbuild:sparc/twobit-files*)
 	    ((Standard-C) *nbuild:petit/twobit-files*)
@@ -84,8 +90,10 @@
 
 (define (nbuild:common-asm-files)
   (case (nbuild-parameter 'endianness)
-    ((big)    (append *nbuild:common-asm-be* *nbuild:build-files*))
-    ((little) (append *nbuild:common-asm-el* *nbuild:build-files*))
+    ((big)    ;(append *nbuild:common-asm-be* *nbuild:build-files*)
+              *nbuild:common-asm-be*)
+    ((little) ;(append *nbuild:common-asm-el* *nbuild:build-files*)
+              *nbuild:common-asm-el*)
     (else (error "nbuild:common-asm-files: big endianness."))))
 
 (define (nbuild:machine-asm-files)
