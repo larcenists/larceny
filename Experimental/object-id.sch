@@ -41,7 +41,7 @@
   (define size-at-collection 0)         ; Number of elements at last table gc
   (define additions-since-collection 0) ; Number added since last table gc
   (define id-counter 0)                 ; Object IDs
-  (define debug #t)                     ; Set to #t for messages
+  (define debug #f)                     ; Set to #t for messages
 
   (define (message . rest)
     (if debug
