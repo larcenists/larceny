@@ -598,7 +598,7 @@ put_tagged_word( word w, FILE *fp,
 }
 #endif
 
-#if defined( ENDIAN_BIG ) && defined( BITS_32 )
+#if defined( BIG_ENDIAN ) && defined( BITS_32 )
 
 static void putword( word w, FILE *fp )
 {
@@ -620,8 +620,28 @@ static word getword( FILE *fp )
   return (a << 24) | (b << 16) | (c << 8) | d;
 }
 
+#elif defined( ENDIAN_LITTLE ) && defined( BITS_32 )
+
+static void putword( word w, FILE *fp )
+{
+  if (putc( w & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
+  if (putc( (w >> 8) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
+  if (putc( (w >> 16) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
+  if (putc( (w >> 24) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
+}
+
+static word getword( FILE *fp )
+{
+  word d = getc( fp );
+  word c = getc( fp );
+  word b = getc( fp );
+  word a = getc( fp );
+
+  return (a << 24) | (b << 16) | (c << 8) | d;
+}
+
 #else
 #  error "Must write new putword() and getword()."
-#endif  /* defined( ENDIAN_BIG ) && defined( BITS_32 ) */
+#endif  /* defined( BIG_ENDIAN ) && defined( BITS_32 ) */
 
 /* eof */
