@@ -212,7 +212,7 @@
       ((compiled-procedure)
        (format #t "compiled procedure ~a" (procedure-name proc)))
       (else
-       ???))
+       (error "debug/summarize-frame: Unknown class " class)))
     (newline)))
 
 (define (debug/backtrace count inspector)
