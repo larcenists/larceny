@@ -50,10 +50,12 @@ namespace Scheme.RT {
 
         // call
         public static void call(CodeVector code, int jumpIndex) {
+           if (Call.bounceCounter != null) Call.bounceCounter.Increment();
            throw new BounceException(code, jumpIndex);
         }
 
         public static void call(Procedure p, int argc) {
+           if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
            throw new SchemeCallException(p, argc);
         }
 
@@ -330,7 +332,6 @@ namespace Scheme.RT {
             this.jumpIndex = j;
         }
         public virtual void prepareForBounce() {
-            if (Call.bounceCounter != null) Call.bounceCounter.Increment();
         }
     }
 
@@ -348,17 +349,16 @@ namespace Scheme.RT {
      */
     public class SchemeCallException : BounceException {
         private readonly Procedure p;
-        private readonly int argc;
+        private readonly SObject argc;
         public SchemeCallException(Procedure p, int argc) :
             base(p.entrypoint, 0) {
             this.p = p;
-            this.argc = argc;
+            this.argc = Factory.makeFixnum (argc);
         }
         public override void prepareForBounce() {
-            if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
-            Reg.Second = Reg.getRegister(0);
-            Reg.setRegister(0, this.p);
-            Reg.Result = Factory.makeFixnum(this.argc);
+            Reg.Second = Reg.getRegister (0);
+            Reg.setRegister (0, this.p);
+            Reg.Result = this.argc;
         }
     }
 
