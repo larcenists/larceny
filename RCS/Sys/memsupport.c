@@ -2,7 +2,7 @@
  * Scheme 313 Run-Time System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.8 91/07/24 12:12:48 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.9 91/08/21 14:42:10 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -22,7 +22,7 @@
 #include "millicode.h"
 
 /* Heap format version */
-#define CURRENT_MAGIC_NUMBER 0
+#define CURRENT_MAGIC_NUMBER 1
 
 /* Calculate free bytes in ephemeral space. Can be negative! */
 #define free_e_space() ((long)globals[E_LIMIT_OFFSET] - (long)globals[E_TOP_OFFSET])
@@ -80,6 +80,7 @@ word n;
       local_collect( TENURING_COLLECTION );
 
       while (n_bytes > free_e_space()) {
+	printf( "attempting to allocate %lu bytes\n", n_bytes );
 	gc_trap( EPHEMERAL_TRAP );
 	setup_memory_limits();
       }
@@ -326,6 +327,8 @@ void restore_frame()
   word *sframe, *hframe;
   unsigned sframesize, hframesize;
 
+  printf( "Restoring stack frame.\n" );
+
   if (globals[ SP_OFFSET ] % 8 != 0)
     panic( "restore_frame: botched stack pointer!" );
 
@@ -352,7 +355,7 @@ void restore_frame()
      * Also note that since the offset in the heap frame is a bytevector
      * index (rather than an offset from the bytevector header), then
      * 4 have to be added.
-     * Observe the inverse code in flush-stack_cache(), below.
+     * Observe the inverse code in flush_stack_cache(), below.
      */
 
     { word *procptr, *codeptr;
@@ -393,6 +396,15 @@ void restore_frame()
 flush_stack_cache()
 {
   word *sp, *first_cont, *e_top, *prev_cont, *stk_start;
+#ifdef DEBUG
+  int framecount = 0;
+#endif
+
+#ifdef DEBUG
+  printf( "Flushing stack cache; base = %x, limit = %x, ptr = %x.\n",
+	  globals[ STK_START_OFFSET ], globals[ STK_LIMIT_OFFSET ],
+	  globals[ SP_OFFSET ]);
+#endif
 
   sp = (word *) globals[ SP_OFFSET ];
   stk_start = (word *) globals[ STK_START_OFFSET ];
@@ -455,6 +467,9 @@ flush_stack_cache()
     else
       first_cont = hframe;
     prev_cont = hframe;
+#ifdef DEBUG
+    framecount++;
+#endif
   }
 
   /* Get the last link, too */
@@ -468,6 +483,10 @@ flush_stack_cache()
   globals[ E_TOP_OFFSET ] = (word) e_top;
   if (first_cont != NULL)
     globals[ CONTINUATION_OFFSET ] = (word) tagptr( first_cont, VEC_TAG );
+
+#ifdef DEBUG
+  printf( "%d frames flushed.\n", framecount );
+#endif
 }
 
 
