@@ -943,6 +943,13 @@ HIGH PRIORITY BUGS: 136, 137, 147.
     of the system.
 
 
-NEXT ENTRY: 151
+151 v0.48 (2000-01-11 / lth)
+    Priority: medium
+    Category: TWOBIT / interface correctness
+
+    Twobit generates the primop $const/setreg, which is not in the core
+    instruction set.
+
+NEXT ENTRY: 152
 
 ; eof
