@@ -408,4 +408,108 @@
 	  (and (fx>= a b)
 	       (loop b rest))))))
 
+; Flonum primitives
+
+(define fl-- (lambda (x) (fl-- x)))
+
+(define fl+
+  (letrec ((loop (lambda (sum args)
+		   (if (null? args)
+		       sum
+		       (loop (fl+ sum (car args)) (cdr args))))))
+    (lambda args
+      (if (null? args)
+	  0
+	  (loop (car args) (cdr args))))))
+
+(define fl- 
+  (letrec ((loop (lambda (diff args)
+		   (if (null? args)
+		       diff
+		       (loop (fl- diff (car args)) (cdr args))))))
+    (lambda (arg . args)
+      (if (null? args)
+	  (fl-- arg)
+	  (loop arg args)))))
+
+(define fl*
+  (letrec ((loop (lambda (prod args)
+		   (if (null? args)
+		       prod
+		       (loop (fl* prod (car args)) (cdr args))))))
+    (lambda args
+      (if (null? args)
+	  1
+	  (loop (car args) (cdr args))))))
+
+(define fl= 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fl= first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fl= a b)
+	  (and (fl= a b)
+	       (loop b rest))))))
+
+(define fl< 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fl< first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fl< a b)
+	  (and (fl< a b)
+	       (loop b rest))))))
+
+(define fl<= 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fl<= first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fl<= a b)
+	  (and (fl<= a b)
+	       (loop b rest))))))
+
+(define fl> 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fl> first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fl> a b)
+	  (and (fl> a b)
+	       (loop b rest))))))
+
+(define fl>= 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fl>= first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fl>= a b)
+	  (and (fl>= a b)
+	       (loop b rest))))))
+
 ; eof
