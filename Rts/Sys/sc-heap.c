@@ -161,7 +161,8 @@ static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
   return p;
 }
 
-static void collect( young_heap_t *heap, int request_bytes )
+/* Request is ignored -- doesn't make sense in stop/copy heap. */
+static void collect( young_heap_t *heap, int request_bytes, int request )
 {
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
@@ -177,7 +178,7 @@ static void collect( young_heap_t *heap, int request_bytes )
   if (request_bytes <= GC_LARGE_OBJECT_LIMIT)
     total_bytes += request_bytes;
 
-  stats_gc_type( 0, STATS_COLLECT );
+  stats_gc_type( 0, GCTYPE_COLLECT );
 
   stack = used_stack_space( heap );
   flush_stack( heap );
@@ -240,7 +241,8 @@ static void collect( young_heap_t *heap, int request_bytes )
 static int compute_target_size( young_heap_t *heap, int D, int Q )
 {
   int s;
-  s = gc_compute_dynamic_size( D,
+  s = gc_compute_dynamic_size( heap->collector,
+			       D,
 			       static_used( heap ),
 			       Q,
 			       DATA(heap)->load_factor,
@@ -363,9 +365,9 @@ static int collect_if_no_room( young_heap_t *heap, int nbytes )
     supremely_annoyingmsg( "sc-heap: couldn't find room for %d bytes",
 			   nbytes );
     if (nbytes <= GC_LARGE_OBJECT_LIMIT)
-      gc_collect( heap->collector, 0, nbytes );
+      gc_collect( heap->collector, 0, nbytes, GCTYPE_COLLECT );
     else
-      gc_collect( heap->collector, 0, 0 );
+      gc_collect( heap->collector, 0, 0, GCTYPE_COLLECT );
     return 1;
   }
   else
