@@ -53,6 +53,7 @@ Remaining to-do items:
   * Top-level environments must hold syntax definitions, and the hacks
     used to work around it (in compile-expression, macro-expand-expression)
     must be removed.
+  * MAKE-PARAMETER
 
 [SRFI]
   * Definite: SRFI 0  (basic)
@@ -63,18 +64,13 @@ Remaining to-do items:
   * Possible: SRFI 7  (Program-based configuration language)
 
 [FFI]
-  * Add foreign-function-pointer, probably
-  * Change 'unsigned' to 'uint' in various places, for consistency.
   * Fix the RTLD_LOCAL / RTLD_GLOBAL bug in calls to dlopen
 
 [Debugging]
   * Print variable names where convenient.
+     - must have info from compiler first.
   * Add a command to enter a nested REPL.
   * Debugger bugs -- see FIXMEs in the files.
-  * BUG: when stopped in a breakpoint, it really should
-         set the current frame to the proc where the breakpt
-         occured, not past the system-continuation/enter-debugger
-         thing.
 
 [General clean-up]
   * Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
@@ -116,7 +112,7 @@ Remaining to-do items:
     of building the heaps.  Eg., Scripts/build-larceny-heap.
 
 [Documentation]
-  * Go thru toplevel.sch and make sure every non-R4RS procedure is
+  * Go thru toplevel.sch and make sure every non-R5RS procedure is
     documented in the User's Manual.
   * Fix reported documentation bugs (to be determined)
      - bugs: remove claim that all optional functionality is supported,
@@ -137,16 +133,16 @@ Remaining to-do items:
      - manual/fixnums.html:
         - flesh out, or cross-link to general definitions?
      - manual/ffi.html:
-        - add -uint versions (and deprecate -unsigned versions??)
-        - ditto type names
-        - document foreign-function-pointer, when it exists.
+        - add -uint versions (and perhaps deprecate -unsigned versions)
+        - ditto uint type name
+        - document FOREIGN-FUNCTION-POINTER
      - manual/parameters.html
         - add current-input-port, current-output-port
      - manual/io.html:
-       - changed meaning of current-input-port, current-output-port:
+       - changed meaning of CURRENT-INPUT-PORT, CURRENT-OUTPUT-PORT:
          they now return the new value (like all parameters)
-       - introduced console-input-port, console-output-port
-       - introduced print-length, print-level  [ Also parameters! ]
+       - introduced CONSOLE-INPUT-PORT, CONSOLE-OUTPUT-PORT
+       - introduced PRINT-LENGTH, PRINT-LEVEL  [ Also parameters! ]
        - introduced binary i/o procedures
      - manual/syscontrol.html:
        - memstats now accessed via accessor functions
