@@ -57,6 +57,22 @@
 (define some? ormap)
 (define every? andmap)
 
+(define (find this? list)
+  (cond ((null? list) #f)
+	((this? (car list)) (car list))
+	(else (find this? (cdr list)))))
+
+(define (remove-duplicates list same?)
+  (cond ((null? list) list)
+	((find (lambda (x)
+		 (same? x (car list)))
+	       (cdr list))
+	 (remove-duplicates (cdr list) same?))
+	(else
+	 (cons (car list)
+	       (remove-duplicates (cdr list) same?)))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; A well-defined sorting procedure
