@@ -56,7 +56,7 @@
 
 ; Initialize Twobit and help system.
 
-(fast-safe-code)
+(compiler-switches 'fast-safe)
 (initialize-help (nbuild-parameter 'compiler))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)

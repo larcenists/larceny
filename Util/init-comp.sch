@@ -4,9 +4,7 @@
 ;
 ; Code that initializes twobit after loading with load-environment.
 
-(fast-safe-code)                        ; (integrate-usual-procedures #t)
-(benchmark-mode #f)                     ; Avoids some surprises
-(include-source-code #t)                ; Useful for debugging
+(compiler-switches 'factory-settings)
 (initialize-help "Compiler/" 'brief)
 
 ; eof
