@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -10,8 +10,10 @@
  * GC or promotion, and shrunk by the heap under direction of policy.
  *
  * A semispace_t `s' has invariants:
- *   0 <= s.current < s.n
+ *   -1 <= s.current < s.n
+ *   s.allocated > 0 || s.current == -1
  *   s.chunks != NULL
+ *   s.chunks[-1].bytes == 0
  *   if 0 <= k <= s.current then s.chunks[ k ].bytes > 0
  *   if k > s.current and s.chunks[k].bytes > 0 then
  *     the memory pointed to by s.chunks[k].bot is free
@@ -38,7 +40,6 @@ struct ss_chunk {
 };
 
 struct semispace {
-  int        heap_no;    /* Heap identifier */
   int        gen_no;     /* Generation identifier */
   int        n;          /* Length of chunk array */
   int        current;    /* Index of current chunk (may be -1 briefly) */
@@ -47,10 +48,21 @@ struct semispace {
   int        used;       /* Total used bytes in semispace */
 };
 
-semispace_t *create_semispace( int bytes, int heap_no, int gen_no );
+semispace_t *create_semispace( int bytes, int gen_no );
   /* Create a semispace_t with a single chunk that can hold at least
-     `bytes' bytes, with the given heap and generation numbers, and
-     return a pointer to the semispace_t.
+     `bytes' bytes, with the given generation number.
+
+     bytes > 0
+     gen_no >= 0
+     */
+
+semispace_t *create_semispace_n( int chunk_bytes, int chunks, int gen_no );
+  /* Create a semispace_t with `chunks' chunks of `chunk_bytes' each,
+     with the given generation number.  `Chunks' can be 0.
+
+     chunks >= 0
+     chunk_bytes > 0 || chunks == 0
+     gen_no >= 0
      */
 
 void ss_free( semispace_t *ss );
@@ -59,33 +71,51 @@ void ss_free( semispace_t *ss );
 
 void ss_expand( semispace_t *ss, int bytes_needed );
   /* Expand the semispace by allocating a chunk large enough to hold
-     the request (reusing an unused chunk if possible), expanding the
-     chunk array if necessary.
-     Increments ss->current, and puts the new chunk at the new ss->current,
+     the request, reusing an unused chunk if possible.  Increments 
+     ss->current, and puts the new chunk at the new ss->current,
      with ss->chunks[ss->current].top == ss->chunks[ss->current].bot.
+
+     bytes_needed >= 0
      */
 
 int ss_allocate_and_insert_block( semispace_t *ss, int bytes );
   /* Allocate a chunk that will hold `bytes' bytes and insert it into
-     the semispace before the current chunk.  Return its chunk index.
+     the semispace before the current chunk, unless ss.current == -1
+     in which case ss.current will point to the new chunk.  May 
+     reuse an existing, unused chunk.  Return its chunk index.
+
+     bytes > 0
+     */
+
+int ss_allocate_block_unconditionally( semispace_t *ss, int bytes );
+  /* Allocate a chunk that will hold `bytes' bytes and insert it into the
+     semispace after the current chunk.  Will not reuse any existing but
+     unused chunk.  Will not change ss->current.  Returns the index of
+     the new chunk.
+
+     bytes > 0
      */
 
 int ss_move_block_to_semispace( semispace_t *from, int i, semispace_t *to );
   /* Move the memory associated with chunk `i' in semispace `from' to 
      semispace `to'.  Change the generation number on the pages in the
      block to correspond to its new home.  Return the new chunk index.
-     
-     This operation may violate the first semispace invariant: after this
-     operation, there may not be any chunks, so from->current may be -1.
-     Client code must check for this case and perform corrective action
-     before any other operations (except ss_free()) are performed on
-     `from'.
+
+     from->current remains unchanged unless that would leave it to point
+     past the last block with nonzero bytes, in which case it is decremented
+     to point to the last block, or to -1 if there are no such blocks.
+
+     The block is moved to the first free slot past to->current.  If 
+     to->current >= 0, then to->current remains unchanged, otherwise
+     to->current is set to 0.
+
+     0 <= i < from.n && from.chunks[i].bytes > 0
      */
 
 void ss_reset( semispace_t *ss );
   /* Reset the semispace:
        For each chunk c, set c.top = c.bot
-       Set ss->used = 0 and ss->current = 0.
+       Set ss->used = 0 and ss->current = 0 or -1 as appropriate.
      */
 
 void ss_prune( semispace_t *ss );
@@ -110,6 +140,8 @@ void ss_set_gen_no( semispace_t *ss, int gen_no );
   /* Set the generation number for all pages in the semispace `ss' 
      to `gen_no'.  This only changes the ss structure and the descriptor
      tables -- no heap memory is moved or otherwise changed.
+
+     gen_no >= 0
      */
 
 #endif  /* INCLUDED_SEMISPACE_T_H */
