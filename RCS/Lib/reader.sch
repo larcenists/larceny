@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id$
+; $Id: reader.sch,v 1.1 92/01/19 16:43:44 lth Exp Locker: lth $
 ;
 ; Scheme reader.                        17 April 1990
 ; Modified for the new system by lth.   16 January 1992
@@ -26,7 +26,7 @@
 ; such as is returned by the readtable-ref procedure, and changes the
 ; character's character class and dispatch procedures.
 
-(begin (display "$Id$")
+(begin (display "$Id: reader.sch,v 1.1 92/01/19 16:43:44 lth Exp Locker: lth $")
        (newline))
 
 ; Some rudimentary compatibility stuff (aka "patches")
@@ -194,8 +194,7 @@
         (lambda (c p l)
 ;          (optimize speed)
           (if (or (not (char? c)) (separator? c))
-              (let ((x (begin (display "at 2 ") (write l) (write (reverse l)) (newline)
-			      (parse-number (reverse l)))))
+              (let ((x (parse-number (reverse l))))
                 (if x
                     x
                     (let ((x (string->symbol
@@ -216,8 +215,7 @@
         (lambda (c p l)
 ;          (optimize space)
           (if (or (not (char? c)) (separator? c))
-              (let ((x (begin (display "at 1 ") (write l) (newline)
-			      (parse-number (reverse l)))))
+              (let ((x (parse-number (reverse l))))
                 (if (number? x)
                     x
                     (error "Illegal number syntax" (list->string (reverse l)))))
