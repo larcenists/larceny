@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 25 April 1999 / wdc
+; 11 June 1999 / wdc
 ;
 ; File lists for nbuild et al.  Don't rearrange the lists -- order matters.
 
@@ -20,11 +20,11 @@
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
       "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
       "expand.sch" "usual.sch" "copy.sch" "pass1.sch"
-      "pass3commoning.aux.sch")))
+      "pass3commoning.aux.sch" "pass3rep.aux.sch")))
 
 (define *nbuild:sparc/twobit-files*
   (nbuild-files 'compiler
-		'("common.imp.sch" "sparc.imp.sch")))
+		'("common.imp.sch" "sparc.imp.sch" "sparc.imp2.sch")))
 
 (define *nbuild:petit/twobit-files*
   (nbuild-files 'compiler
@@ -35,8 +35,9 @@
     '("pass2p1.sch" "pass2p2.sch" "pass2if.sch"
       "pass3callgraph.sch" "pass3inlining.sch" "pass3folding.sch"
       "pass3anormal.sch" "pass3anormal2.sch" "pass3commoning.sch"
-      "pass3.sch"
-      "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4special.sch"
+      "pass3rep.sch" "pass3.sch"
+      "pass4.aux.sch" "pass4p1.sch" "pass4p2.sch" "pass4let.sch"
+      "pass4special.sch"
       "pass4p3.sch"
       "compile313.sch" "printlap.sch")))
 
@@ -56,6 +57,7 @@
 (define *nbuild:sparcasm-files*
   (nbuild-files 'sparc-asm
 		'("pass5p2.sch" "peepopt.sch" "sparcutil.sch" "sparcasm.sch"
+                  "sparcasm2.sch"
 		  "gen-msi.sch" "sparcprim-part1.sch" "sparcprim-part2.sch"
 		  "sparcprim-part3a.sch" "sparcprim-part3b.sch"
                   "sparcprim-part4.sch"
