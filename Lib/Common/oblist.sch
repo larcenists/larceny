@@ -166,7 +166,12 @@
 					 *obvector*)))
 		  (set! *symbol-count* (+ *symbol-count* 1))
 		  (if (> *symbol-count* *oblist-watermark*)
-		      (oblist-set! (oblist) (* (vector-length *obvector*) 2)))
+                      (let ((v *obvector*))
+                        ; Install a new, larger obvector.
+                        (oblist-set! (oblist) (* (vector-length *obvector*) 2))
+                        ; Clear the old vector to avoid retaining it in the
+                        ; remembered set if it is in the static area.
+                        (vector-fill! v #f)))
 		  s)))))
       (begin
 	(display "WARNING: string->symbol: not interned: ")
