@@ -350,6 +350,12 @@
   (environment-set-macro! larc 'let-values (usual-syntax 'let-values))
   (environment-set-macro! larc 'let*-values (usual-syntax 'let*-values))
 
+  ;; JavaDot and case-sensitivity
+  (environment-set! larc 'case-sensitive? case-sensitive?)
+  (environment-set! larc
+                    'recognize-javadot-symbols?
+                    recognize-javadot-symbols?)
+  
   ;; pairs and lists
 
   (environment-set! larc 'list-copy list-copy)
