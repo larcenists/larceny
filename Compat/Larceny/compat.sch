@@ -4,6 +4,8 @@
 ;
 ; Larceny -- compatibility library for Twobit running under Larceny.
 
+(define ($$trace x) #t)
+
 (define host-system 'larceny)
 
 ; The compatibility library loads Auxlib if compat:initialize is called
@@ -14,7 +16,6 @@
       (let ((dir (nbuild-parameter 'compatibility)))
 	(compat:load (string-append dir "compat2.sch"))
 	(compat:load (string-append dir "../../Auxlib/list.sch"))
-	(compat:load (string-append dir "../../Auxlib/sort.sch"))
 	(compat:load (string-append dir "../../Auxlib/pp.sch")))))
 
 (define (with-optimization level thunk) 
