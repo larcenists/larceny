@@ -3,7 +3,7 @@
 ; Fifth pass of the Scheme 313 compiler:
 ;   assembly.
 ;
-; $Id: assembler.scm,v 1.5 91/08/21 14:43:26 lth Exp Locker: lth $
+; $Id: assembler.scm,v 1.6 91/08/21 19:39:16 lth Exp Locker: lth $
 ;
 ; Parts of this code is Copyright 1991 Lightship Software, Incorporated.
 ;
@@ -284,94 +284,17 @@
 
 (define listify? #t)
 
-; Arbitrary mnemonics for instructions and pseudo-instructions.
-
-(define $.linearize -1)
-(define $.label 63)
-(define $.proc 62)        ; entry point for procedure
-(define $.cont 61)        ; return point
-(define $.align 60)
-
-(define make-mnemonic
-  (let ((count 0))
-    (lambda (ignored)
-      (set! count (+ count 1))
-      count)))
-
-(define $op1 (make-mnemonic 'op1))               ; op      prim
-(define $op2 (make-mnemonic 'op2))               ; op2     prim,k
-(define $op3 (make-mnemonic 'op3))               ; op3     prim,k1,k2
-(define $opx (make-mnemonic 'opx))               ; opx     prim,x
-(define $const (make-mnemonic 'const))           ; const   x
-(define $global (make-mnemonic 'global))         ; global  x
-(define $setglbl (make-mnemonic 'setglbl))       ; setglbl x
-(define $lexical (make-mnemonic 'lexical))       ; lexical m,n
-(define $setlex (make-mnemonic 'setlex))         ; setlex  m,n
-(define $stack (make-mnemonic 'stack))           ; stack   n
-(define $setstk (make-mnemonic 'setstk))         ; setstk  n
-(define $load (make-mnemonic 'load))             ; load    n,k
-(define $store (make-mnemonic 'store))           ; store   k,n
-(define $reg (make-mnemonic 'reg))               ; reg     k
-(define $setreg (make-mnemonic 'setreg))         ; setreg  k
-(define $movereg (make-mnemonic 'movereg))       ; movereg k1,k2
-(define $lambda (make-mnemonic 'lambda))         ; lambda  x,n,doc
-(define $lexes (make-mnemonic 'lexes))           ; lexes   n,doc
-(define $args= (make-mnemonic 'args=))           ; args=   k
-(define $args>= (make-mnemonic 'args>=))         ; args>=  k
-(define $invoke (make-mnemonic 'invoke))         ; invoke  k
-(define $save (make-mnemonic 'save))             ; save    L,k
-(define $setrtn (make-mnemonic 'setrtn))         ; setrtn  L
-(define $restore (make-mnemonic 'restore))       ; restore n
-(define $pop (make-mnemonic 'pop))               ; pop     k
-(define $return (make-mnemonic 'return))         ; return
-(define $mvrtn (make-mnemonic 'mvrtn))           ; mvrtn
-(define $apply (make-mnemonic 'apply))           ; apply
-(define $nop (make-mnemonic 'nop))               ; nop
-(define $jump (make-mnemonic 'jump))             ; jump    m,o
-(define $skip (make-mnemonic 'skip))             ; skip    L    ;forward
-(define $branch (make-mnemonic 'branch))         ; branch  L
-(define $branchf (make-mnemonic 'branchf))       ; branchf L
-(define $optb2 (make-mnemonic 'optb2))           ; optb2   prim,L
-(define $optb3 (make-mnemonic 'optb3))           ; optb3   prim,x,L
-
-(define $cons 'cons)
-
-(define $usual-integrable-procedures$
-  `((zero? 1 zero? #f)
-    (= 2 = #t)
-    (< 2 < #t)
-    (> 2 > #t)
-    (<= 2 <= #t)
-    (>= 2 >= #t)
-    (+ 2 + #t)
-    (- 2 - #t)
-    (* 2 * #t)
-    (,(string->symbol "1+") 1 ,(string->symbol "1+") #f)        ; MacScheme
-    (,(string->symbol "1-") 1 ,(string->symbol "1-") #f)        ; MacScheme
-    (null? 1 null? #f)
-    (pair? 1 pair? #f)
-    (cons 2 cons #f)
-    (car 1 car #f)
-    (cdr 1 cdr #f)
-    (make-vector 2 make-vector #f)
-    (vector-length 1 vector-length #f)
-    (vector-ref 2 vector-ref #t)
-    (vector-set! 3 vector-set! #f)
-    (,(string->symbol "MAKE-CELL") 1 make-cell #f)
-    (,(string->symbol "CELL-REF") 1 cell-ref #f)
-    (,(string->symbol "CELL-SET!") 2 cell-set! #f)))
-
 ; Pseudo-instructions.
 
 (define-instruction $.label
   (lambda (instruction as)
     (list-label instruction)
-    (emit-label! as (make-label (operand1 instruction)))))
+    (emit-label! as (make-asm-label (operand1 instruction)))))
 
 ; Given a numeric label, prepend a Q and make it a symbol (the assembler is
 ; a little picky...)
 
-(define (make-label q)
+(define (make-asm-label q)
   (string->symbol (string-append
 		   "Q"
 		   (number->string q))))
@@ -409,9 +332,9 @@
 (define-instruction $op1
   (lambda (instruction as)
     (cond ((eq? (operand1 instruction) (string->symbol "1+"))
-	   (push-instruction as (list $opx '+ 1)))
+	   (push-instruction as (list $op2imm '+ 1)))
 	  ((eq? (operand1 instruction) (string->symbol "1-"))
-	   (push-instruction as (list $opx '- 1)))
+	   (push-instruction as (list $op2imm '- 1)))
 	  ((and (eq? (operand1 instruction) 'null?)
 		(eq? (operand0 (next-instruction as)) $branchf))
 	   (let ((i (next-instruction as)))
@@ -463,10 +386,10 @@
 		   (regname (operand2 instruction))
 		   (regname (operand3 instruction)))))
 
-; ($opx prim k x)
+; ($op2imm prim k x)
 ; Questionable use of argreg2?
 
-(define-instruction $opx
+(define-instruction $op2imm
   (lambda (instruction as)
     (list-instruction "opx" instruction)
     (emit-constant->register as (operand2 instruction) $r.argreg2)
@@ -641,7 +564,7 @@
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
-    (emit-jump! (operand1 instruction) (operand2 instruction))))
+    (emit-jump! as (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $skip
   (lambda (instruction as)
@@ -661,7 +584,6 @@
 ; Helpers
 
 (define **eof** (lambda (x) x))
-(define **unspecified** (lambda (y) y))
 
 (define (emit-constant->register as opd r)
 
@@ -675,6 +597,7 @@
 	     (emit-const->register! as (emit-constant as opd) r)))
 	((rational? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
+; actually (and (complex? x) (exact? x))
 ;	((rectangular? opd)
 ;	 (emit-const->register! as (emit-constant as opd) r))
 	((real? opd)
@@ -699,7 +622,7 @@
 	 (emit-const->register! as (emit-constant as opd) r))
 	((vector? opd)
 	 (emit-const->register! as (emit-constant as opd) r))
-	((eq? opd **unspecified**)
+	((eq? opd hash-bang-unspecified)
 	 (emit-immediate->register! as $imm.unspecified r))
 	((eq? opd **eof**)
 	 (emit-immediate->register! as $imm.eof r))
