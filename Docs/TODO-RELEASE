@@ -7,28 +7,7 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Test Win32 pointer transformation for other jump disciplines.
    Works for USE_GOTOS_LOCALLY+RETURN_WITH_VALUE.
  
- * CLEAN-ALL is too aggressive:
-    cvs update: warning: Experimental/socket-offset.c was lost
-    cvs update: warning: Experimental/socket-support.c was lost
-    cvs update: warning: Experimental/unix-support.c was lost
-    cvs update: warning: Testsuite/FFI/ffi-test-ff.c was lost
-    cvs update: warning: Testsuite/FFI/std-ffi-test-ff.c was lost
-
- * petit-r5rs-heap:
-
-    * Seems to work OK (only pretty-printer is added)
-
  * petit-std-heap:
-
-    * petit-std-heap.sch refers directly to osdep-unix.sch and
-      petit-unix-el.sch.  Bad!
-
-    * a crash was seen during heap dumping (in the x86 system) but
-      remains unexplained.
-
-    * Still does not work: Loading macros from a file into twobit will
-      make them visible to the interpreter, but they are not visible
-      to COMPILE-FILES.  See when.sch and gwen.sch.
 
     * There is much code that could be loaded that is not, right now.
 

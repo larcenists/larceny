@@ -8,7 +8,10 @@
 ; 1  Evaluate (BUILD-LARCENY-FILES) in the development environment
 ; 2  From the command line run
 ;        petit-larceny -stopcopy petit.heap
-; 3  Load this script.  It will create petit-larceny.heap.
+; 3  Load the development environment:
+;        Load Util/petit-whatever.sch 
+;        (LOAD-COMPILER 'RELEASE)
+; 4  Load this script.  It will create petit-larceny.heap.
 
 (define ($$trace x) #f)                 ; Some code uses this
 
@@ -19,57 +22,6 @@
 
 (let ()
     
-  (define basedir "")
-  (define verbose #t)
-
-  (define (file-newer? f1 f2)
-    (let ((t1 (file-modification-time f1))
-	  (t2 (file-modification-time f2)))
-      (let loop ((i 0))
-	(cond ((= i (vector-length t1)) #f)
-	      ((= (vector-ref t1 i) (vector-ref t2 i))
-	       (loop (+ i 1)))
-	      (else
-	       (> (vector-ref t1 i) (vector-ref t2 i)))))))
-
-  (define (rewrite-file-type fn)
-    (let* ((j   (string-length fn))
-	   (ext ".sch")
-	   (new ".fasl")
-	   (l   (string-length ext)))
-      (if (file-type=? fn ext)
-	  (string-append (substring fn 0 (- j l)) new)
-	  fn)))
-
-  (define (file-type=? file-name type-name)
-    (let ((fl (string-length file-name))
-	  (tl (string-length type-name)))
-      (and (>= fl tl)
-	   (string-ci=? type-name
-			(substring file-name (- fl tl) fl)))))
-
-  (define (prefer-fasl fn)
-    (let ((fasl (rewrite-file-type fn)))
-      (if (or (and (not (file-exists? fn))
-		   (file-exists? fasl))
-	      (and (file-exists? fn)
-		   (file-exists? fasl)
-		   (file-newer? fasl fn)))
-	  fasl
-	  fn)))
-
-  (define (loadf files)
-    (for-each (lambda (fn)
-		(let ((fn (prefer-fasl (string-append basedir fn))))
-		  (if verbose
-		      (begin (display fn)
-			     (newline)))
-		  (load fn)))
-	      files))
-
-  (load "Util/nasm-unix.sch")  ; FIXME!!!
-  (load-compiler 'release)
-
   ; Install twobit's macro expander as the interpreter's ditto
 
   (macro-expander (lambda args
@@ -111,7 +63,7 @@
       (install-procedures (interaction-environment)
                           '(; Compilation
 			    compile-files
-                            macro-expand-expression
+                            ;macro-expand-expression
                             ; On-line help
                             help
                             ; Compiler and assembler switches
@@ -167,6 +119,15 @@
                    (interaction-environment)
                    (car rest))))
       (macro-expand-expression expr env))))
+
+;;; Redefine COMPILE-FILES to pick up the syntactic environment
+;;; from the interaction environment
+
+(define compile-files
+  (let ((compile-files compile-files))
+    (lambda (inputs output)
+      (compile-files inputs output (environment-syntax-environment
+				    (interaction-environment))))))
 
 ;;; Helpful procedure for hiding irrelevant names
 
@@ -246,7 +207,7 @@
 
 ; Dump a unified heap as petit-std.heap
 
-(dump-interactive-heap "petit-std.heap")
+(dump-interactive-heap "petit-larceny.heap")
 
 ; Reorganize and redump the heap and give it the name "petit-std.heap"
 
@@ -256,12 +217,14 @@
 (if (string=? "Win32" (cdr (assq 'os-name (system-features))))
     (begin
       (set! mv-command "rename")
-      (set! petit-command ".\\petit-std.exe"))
+      (set! petit-command ".\\petit-larceny.exe"))
     (begin
       (set! mv-command "mv")
-      (set! petit-command "./petit-std")))
+      (set! petit-command "./petit-larceny")))
 
-(system (string-append petit-command " -reorganize-and-dump petit-std.heap"))
-(system (string-append mv-command " petit-std.heap.split petit-std.heap"))
+(system
+ (string-append petit-command " -reorganize-and-dump petit-larceny.heap"))
+(system
+ (string-append mv-command " petit-larceny.heap.split petit-larceny.heap"))
 
 ; eof

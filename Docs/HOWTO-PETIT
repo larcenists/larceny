@@ -105,8 +105,13 @@ Util/petit-larceny-heap.sch
 
     petit-larceny -stopcopy petit.heap
 
-  and then load Util/petit-larceny-heap.sch; this will create a new
-  heap image petit-larceny.heap that can be used with the
+  Then load the development environment in the normal manner, loading
+  first a file from Util/ and then evaluating:
+
+    (LOAD-COMPILER 'RELEASE)
+
+  Finally, load Util/petit-larceny-heap.sch.  This script will create
+  a new heap image petit-larceny.heap that can be used with the
   petit-larceny executable.
 
 

@@ -170,3 +170,9 @@
   (cleanup-files "*.fasl" *rtsdirs*)
   (unspecified))
 
+(define (clean-runtime)
+  (cleanup-files "*.o" *rtsdirs*)
+  (cleanup-files "*.obj" *rtsdirs*)
+  (cleanup-files "*.a" *rtsdirs*)
+  (cleanup-files "*.lib" *rtsdirs*))
+

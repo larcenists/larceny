@@ -343,7 +343,8 @@
           (objects (nbuild-parameter 'util)
                    file-type
                    '("make-support" "init-comp"
-                     "std-heap" "twobit-heap" "r5rs-heap")))))
+                     "larceny-heap" "twobit-heap" "r5rs-heap"
+		     "petit-larceny-heap" "petit-r5rs-heap")))))
     (make:project "compiler.date"
       `(rules
         (".lop" ".sch" ,make-compile-and-assemble)

@@ -90,7 +90,16 @@
   (if (file-exists? "Rts/larceny.bin")
       (system "cp Rts/larceny.bin .")))
 
+; Set up for loading Util/twobit-heap.sch
 (define (build-twobit)
+  (make-development-environment))
+
+; Set up for loading Util/r5rs-heap.sch
+(define (build-r5rs-files)
+  (compile-file "Auxlib/pp.sch"))
+
+; Set up for loading Util/larceny-heap.sch
+(define (build-larceny-files)
   (make-development-environment))
 
 (define (load-compiler . rest)
@@ -134,6 +143,8 @@
 (unix-initialize)
 
 (define (execute-in-directory dir cmd)
-  (system (string-append "( cd " dir "; " cmd " )" )))
+  (with-current-directory dir
+    (lambda ()
+      (system cmd))))
 
 ; eof
