@@ -53,7 +53,7 @@
     :arity 1
     :specializers (list <exact-integer>)
     :procedure (lambda (call-next-method number)
-                 (clr/%int32->foreign number))))
+                 (clr/%number->foreign-int32 number))))
 
 (add-method clr/default-marshal-out
   (make (*default-method-class*)
@@ -239,7 +239,7 @@
 (define *delayed-initialized* '())
 
 (define (initialize-instance-members! runtime-type)
-  (dotnet-message 3 "Initialize instance members" runtime-type)
+  (dotnet-message 2 "Initialize instance members of" runtime-type)
   (clr-class/for-selected-members
    process-public-member runtime-type
    (list
@@ -268,7 +268,7 @@
    #f #f))
 
 (define (initialize-static-members! runtime-type)
-  (dotnet-message 3 "Initialize static members" runtime-type)
+  (dotnet-message 2 "Initialize static members of" runtime-type)
   (clr-class/for-selected-members
    process-public-member runtime-type
    (list
@@ -572,7 +572,7 @@
          (list->vector (map-clr-array clr/default-marshal-in object)))
         ((%clr-enum? object) (clr/%foreign->int object))
         ((%clr-int32? object) (clr/%foreign->int object))
-        ((%clr-string? object) (clr/foreign->symbol object))
+        ((%clr-string? object) (clr/foreign->string object))
         ((clr/%null? object) '())
         ((clr/%eq? object clr/true) #t)
         ((clr/%eq? object clr/false) #f)
@@ -706,7 +706,7 @@
                                 (let ((instance (call-next-method))
                                       (StudlyName (or (getarg initargs :StudlyName #f)
                                                       (error "Required initarg :StudlyName omitted"))))
-                                  (dotnet-message 0 "Register class" StudlyName)
+                                  (dotnet-message 1 "Register class" StudlyName)
                                   (register-dotnet-class! StudlyName instance)
                                   (add-method allocate-instance
                                     (make (*default-method-class*)
@@ -782,7 +782,7 @@
             (list <char>
                   <boolean>
                   <exact-integer>
-                  <symbol>))
+                  <string>))
 
   (let ((int-class (clr-object->class clr-type-handle/system-int32)))
     (slot-set! int-class 'argument-marshaler clr/int->foreign)
@@ -793,8 +793,8 @@
     (slot-set! bool-class 'return-marshaler   clr/foreign->bool))
 
   (let ((string-class (clr-object->class clr-type-handle/system-string)))
-    (slot-set! string-class 'argument-marshaler clr/symbol->foreign)
-    (slot-set! string-class 'return-marshaler   clr/foreign->symbol))
+    (slot-set! string-class 'argument-marshaler clr/string->foreign)
+    (slot-set! string-class 'return-marshaler   clr/foreign->string))
 
   (let ((system-type-class (clr-object->class clr-type-handle/system-type)))
     (slot-set! system-type-class 'return-marshaler
@@ -944,6 +944,7 @@
   vector->clr-array)
 
 (define (marshal-array->vector array-class)
+  (dotnet-message 4 "Marshal-array->vector" array-class)
   (let ((element-marshaler (return-marshaler
                             (clr/find-class
                              (string->symbol
@@ -2165,13 +2166,16 @@
   (let ((handle      (clr-object/clr-handle clr-info)))
 
     (cond ((= member-type clr-member-type/constructor)
+           (dotnet-message 3 "Process constructor member" clr-info)
            ;; performed as initialization on constructor
            )
 
           ((= member-type clr-member-type/event)
+           (dotnet-message 3 "Process event member" clr-info)
            (process-event clr-info public?))
 
           ((= member-type clr-member-type/field)
+           (dotnet-message 3 "Process field member" clr-info)
            (if (clr-fieldinfo/is-static? handle)
                (if (clr-fieldinfo/is-literal? handle)
                    (process-static-literal handle public?)
@@ -2179,10 +2183,12 @@
                (process-field handle public?)))
 
           ((= member-type clr-member-type/method)
+           (dotnet-message 3 "Process type member" clr-info)
            ;; performed as initialization on method
            )
 
           ((= member-type clr-member-type/property)
+           (dotnet-message 3 "Process property member")
            (if (not public?)
                #f ;; there's a non-public property in the forms code that cause problems
                (if (clr-propertyinfo/can-read? handle)
@@ -2194,9 +2200,11 @@
            (error "process-member: type should not be a member of a type"))
 
           ((= member-type clr-member-type/custom)
+           (dotnet-message 3 "Process custom member")
            (process-custom handle public?))
 
           ((= member-type clr-member-type/nested-type)
+           (dotnet-message 3 "Process nested type")
            (process-nested-type clr-info public?))
 
           (else
@@ -2271,26 +2279,43 @@
 
   ;; (provide initialize!)
 (define (enable-dotnet!)
-  (if *dotnet-initialized*
-      #f
-      (begin
-        (newline)
-        (display "Initializing dotnet...")
-        ;; (flush-output)
-        ;; Enable profiling of the CLR so we can go in the back door.
-        ;; DONE IN BATCH FILE
-        ;; (putenv "Cor_Enable_Profiling" "1")
-        ;; (putenv "Cor_Profiler" "MysterX.DotnetProfiler")
+  (cond (*dotnet-initialized* #f)
+        ((= (car (clr/%clr-version)) 1)
+         (newline)
+         (display "Initializing dotnet...")
+         ;; (flush-output)
+         ;; Enable profiling of the CLR so we can go in the back door.
+         ;; DONE IN BATCH FILE
+         ;; (putenv "Cor_Enable_Profiling" "1")
+         ;; (putenv "Cor_Profiler" "MysterX.DotnetProfiler")
 
-        (let ((root-clr-object clr-type-handle/system-type))
-          ;; Bootstrap the classes needed to represent CLR objects.
-          ;; After this, we can use the marshaling routines.
-          (dotnet-message 1 "Bootstrap clr classes.")
-          (bootstrap-clr-classes! root-clr-object)
-          (dotnet-message 1 "Initialize clr generics.")
-          (initialize-clr-generics!)
-          (recognize-javadot-symbols? #t)
-          (display "done.")))))
+         (let ((root-clr-object clr-type-handle/system-type))
+           ;; Bootstrap the classes needed to represent CLR objects.
+           ;; After this, we can use the marshaling routines.
+           (dotnet-message 0 "Bootstrap clr classes.")
+           (bootstrap-clr-classes! root-clr-object)
+           (dotnet-message 0 "Initialize clr generics.")
+           (initialize-clr-generics!)
+           (recognize-javadot-symbols? #t)
+           (display "done.")))
+        ((= (car (clr/%clr-version)) 2)
+         (newline)
+         (display "Initializing dotnet 2...")
+         (let ((root-clr-object clr-type-handle/system-type))
+           ;; Bootstrap the classes needed to represent CLR objects.
+           ;; After this, we can use the marshaling routines.
+           (dotnet-message 0 "Bootstrap clr classes.")
+           (bootstrap-clr-classes! root-clr-object)
+           (dotnet-message 0 "Initialize clr generics.")
+           (initialize-clr-generics!)
+           (recognize-javadot-symbols? #t)
+           (display "done.")))
+
+        (else (error (string-append
+                      "Dotnet version "
+                      (number->string (car (clr/%clr-version)))
+                      (foldl (lambda (x y) (string-append x "." y)) "" (map number->string (cdr (clr/%clr-version))))
+                      " not yet supported.")))))
 
 ;;;; Utilities
 ;;;
