@@ -23,8 +23,6 @@
 (define cons (lambda (x y) (cons x y)))
 (define set-car! (lambda (x y) (set-car! x y)))
 (define set-cdr! (lambda (x y) (set-cdr! x y)))
-'(define sys$partial-list->vector
-  (lambda (x y) (sys$partial-list->vector x y)))
 
 ; Numbers
 
@@ -271,5 +269,104 @@
 (define enable-interrupts (lambda (n) (enable-interrupts n)))
 (define disable-interrupts (lambda () (disable-interrupts)))
 (define gc-counter (lambda () (gc-counter)))
+
+; Fixnum primitives
+
+(define most-negative-fixnum (lambda () (most-negative-fixnum)))
+(define most-positive-fixnum (lambda () (most-positive-fixnum)))
+(define fx-- (lambda (x) (fx-- x)))
+(define fxpositive? (lambda (x) (fxpositive? x)))
+(define fxnegative? (lambda (x) (fxnegative? x)))
+(define fxzero? (lambda (x) (fxzero? x)))
+
+(define fx+
+  (letrec ((loop (lambda (sum args)
+		   (if (null? args)
+		       sum
+		       (loop (fx+ sum (car args)) (cdr args))))))
+    (lambda args
+      (if (null? args)
+	  0
+	  (loop (car args) (cdr args))))))
+
+(define fx- 
+  (letrec ((loop (lambda (diff args)
+		   (if (null? args)
+		       diff
+		       (loop (fx- diff (car args)) (cdr args))))))
+    (lambda (arg . args)
+      (if (null? args)
+	  (fx-- arg)
+	  (loop arg args)))))
+
+(define fx= 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fx= first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fx= a b)
+	  (and (fx= a b)
+	       (loop b rest))))))
+
+(define fx< 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fx< first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fx< a b)
+	  (and (fx< a b)
+	       (loop b rest))))))
+
+(define fx<= 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fx<= first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fx<= a b)
+	  (and (fx<= a b)
+	       (loop b rest))))))
+
+(define fx> 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fx> first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fx> a b)
+	  (and (fx> a b)
+	       (loop b rest))))))
+
+(define fx>= 
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((fx>= first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (fx>= a b)
+	  (and (fx>= a b)
+	       (loop b rest))))))
 
 ; eof

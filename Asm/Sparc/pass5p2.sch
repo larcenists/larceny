@@ -125,8 +125,10 @@
 (define-instruction $op1
   (lambda (instruction as)
     (cond ((eq? (operand1 instruction) (string->symbol "1+"))
+	   (error "Obsolete op1 1+!")
 	   (push-instruction as (list $op2imm '+ 1)))
 	  ((eq? (operand1 instruction) (string->symbol "1-"))
+	   (error "Obsolete op1 1-!")
 	   (push-instruction as (list $op2imm '- 1)))
 	  (else
 	   (list-instruction "op1" instruction)
@@ -151,8 +153,15 @@
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
     (let ((op (case (operand1 instruction)
-		((+) 'internal:+/imm)
-		((-) 'internal:-/imm)
+		((+)    'internal:+/imm)
+		((-)    'internal:-/imm)
+		((fx+)  'internal:fx+/imm)
+		((fx-)  'internal:fx-/imm)
+		((fx=)  'internal:fx=/imm)
+		((fx<)  'internal:fx</imm)
+		((fx<=) 'internal:fx<=/imm)
+		((fx>)  'internal:fx>/imm)
+		((fx>=) 'internal:fx>=/imm)
 		(else #f))))
       (if op
 	  (emit-primop.4arg! as op $r.result (operand2 instruction) $r.result)
