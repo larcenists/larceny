@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 11 June 1999 / wdc
+; 2000-01-09 / lth
 ;
 ; File lists for nbuild et al.  Don't rearrange the lists -- order matters.
 
@@ -28,7 +28,7 @@
 
 (define *nbuild:petit/twobit-files*
   (nbuild-files 'compiler
-		'("standard-C.imp.sch")))
+		'("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
 
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler
@@ -65,7 +65,7 @@
 
 (define *nbuild:petitasm-files*
   (nbuild-files 'standard-C-asm
-		'("pass5p2.sch" "switches.sch" "dumpheap-extra.sch")))
+		'("pass5p2.sch" "asm-switches.sch" "dumpheap-extra.sch")))
 
 (define *nbuild:make-files*
   (append (nbuild-files 'util '("make.sch"))
