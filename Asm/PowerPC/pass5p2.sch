@@ -103,7 +103,11 @@
 ;    @( ... ) is an expression to be evaluated
 ;    @ident   is an identifier to be evaluated; ident is a-z A-Z 0-9 _
 ;    ~a
-;    .        following a newline is ignored, along with all characters preceding .
+;    .        following newline is ignored, as are all characters preceding it
+;
+; FIXME: would be better to use ~0 through ~9 so that we do not have
+; to repeat arguments!  Or bits could even take a list of named arguments
+; as the first parameter, and the macro would reference these.
 
 (define (bits s)
 
@@ -123,7 +127,8 @@
     (let loop ((slots 0) (templates '()))
       (let ((c (read-char in)))
 	(cond ((eof-object? c)
-	       (bits-template (reverse (cons (get-output-string out) templates))
+	       (bits-template (reverse (cons (get-output-string out) 
+					     templates))
 			      slots))
 	      ((char=? c #\@)
 	       (display (eval (if (eqv? (peek-char in) #\() 
@@ -262,9 +267,11 @@
 ; that index is loaded if a tagged vector pointer is dereferenced 
 ; with the value.
 
-(define (constant-vector-offset slot) (- (* 4 (+ slot 1)) VEC_TAG))
+(define (constant-vector-offset slot)
+  (+ (- VEC_TAG) (* 4 (+ slot 1))))
 
-(define (rib-offset slot) (- (+ PROC_REG0 (* 4 slot)) PROC_TAG))
+(define (rib-offset slot)
+  (+ (- PROC_TAG) PROC_REG0 (* 4 slot)))
 
 (define-instruction $const
   (let ((imm 
@@ -276,7 +283,8 @@
       (list-instruction "const" instruction)
       (if (immediate-constant? (operand1 instruction))
 	  (imm as (constant-value (operand1 instruction)))
-	  (cv  as (constant-vector-offset (emit-datum as (operand1 instruction))))))))
+	  (cv  as (constant-vector-offset 
+		   (emit-datum as (operand1 instruction))))))))
 
 (define-instruction $global
   (let ((bits1 
@@ -305,7 +313,9 @@
                .    bl     ~a")))
     (lambda (instruction as)
       (list-instruction "setglbl" instruction)
-      (bits1 as (constant-vector-offset (operand1 instruction)) (as-millicode-label as)))))
+      (bits1 as 
+	     (constant-vector-offset (operand1 instruction)) 
+	     (as-millicode-label as)))))
 
 (define-instruction $lexical
   (let ((rib0
@@ -351,20 +361,59 @@
 	       .    stw     @TEMPX, ~a(@GLOBALS)")))
     (lambda (instruction as)
       (list-instruction "reg" instruction)
-      ...)))
-
+      (if (hardware-register? (operand1 instruction))
+	  (let ((rS (register-name (operand1 instruction))))
+	    (if (hardware-register? (operand2 instruction))
+		(let ((rD (register-name (operand2 instruction))))
+		  (hwreg->hwreg as rD rS rS))
+		(let ((rD (register-offset (operand2 instruction))))
+		  (hwreg->swreg as rS rD))))
+	  (let ((rS (register-offset (operand1 instruction))))
+	    (if (hardware-register? (operand2 instruction))
+		(let ((rD (register-name (operand2 instruction))))
+		  (swreg->hwreg as rD rS))
+		(let ((rD (register-offset (operand2 instruction))))
+		  (swreg->swreg as rS rD))))))))
 
 (define-primitive 61  ; op2 +
   (let ((bits1
 	 (bits "    or      @TEMP, @RESULT, ~a
-	       .    andi.   @TEMP, @TEMP, 3
+	       .    andi.   @TEMPX, @TEMP, 3
 	       .    addo    @RESULT, @RESULT, ~a
 	       .    mcrxr   1
 	       .    crandc  2, 2, 5
 	       .    bc      13, 2, ~a
-	       .    halt
+	       .    FIXME
                .~a:")))
     (lambda (instruction as)
       (let ((r (register-name (operand2 instruction)))
 	    (L (make-label as)))
 	(bits1 as r r L L)))))
+
+(define-primitive 131 ; op2imm -
+  (let ((bits1
+	 (bits "    andi.   @TEMPX, @RESULT, 3
+	       .    addo    @RESULT, @RESULT, ~a
+	       .    mcrxr   1
+	       .    crandc  2, 2, 5
+	       .    bc      13, 2, ~a
+	       .    FIXME
+               .~a:")))
+    (lambda (instruction as)
+      (let ((L (make-label as)))
+	(bits1 as (- (native->fixnum (operand2 instruction))) L L)))))
+
+(define-primitive 136 ; op2imm <
+  (let ((bits1
+	 (bits "    andi.   @TEMPX, @RESULT, 3
+               .    bc      5, 2, ~a
+               .    FIXME
+               .~a: cmpi    @RESULT, @RESULT, ~a
+	       .    addi    @RESULT, r0, @TRUE_CONST
+	       .    bc      4, FIXME, ~a
+	       .    addi    @RESULT, r0, @FALSE_CONST
+               .~a:")))
+    (lambda (instruction as)
+      (let ((L1 (make-label as))
+	    (L2 (make-label as)))
+	(bits1 as L1 L1 (native->fixnum (operand2 instruction)) L2 L2)))))
