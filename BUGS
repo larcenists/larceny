@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 88, 111, 136.
+HIGH PRIORITY BUGS: 111, 136.
 
 
 005  (v0.27e)
@@ -286,7 +286,7 @@ HIGH PRIORITY BUGS: 88, 111, 136.
     [In any case the current setup is not the right thing.]
 
 088 v0.40 (981219 / lth)
-    Priority: high.
+    Priority: medium.
     Category: LIB / performance
 
     When running with (integrate-usual-procedures #f), arithmetic is quite
