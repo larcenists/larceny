@@ -9,6 +9,8 @@
 #
 # User configuration
 
+# This file name is relative to the Larceny home directory.
+
 BDW_DIST=bdw-gc-4.12.tar.gz
 BDW_UNZIP=gunzip
 CC=gcc
