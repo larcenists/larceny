@@ -123,6 +123,14 @@ void EXPORT mc_restore_continuation( word *globals );
      Output: nothing.
      */
 
+void EXPORT mc_compact_ssbs( word *globals );
+  /* Fold the SSB content into the remembered set.  Usually called
+     from the write barrier in response to a full SSB.
+
+     Input:  nothing
+     Output: nothing
+     */
+
 void EXPORT mc_full_barrier( word *globals );
   /* Implements the full write barrier: for each assignment that
      has a pointer-valued rhs, it calls mc_partial_barrier.
