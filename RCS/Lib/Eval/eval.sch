@@ -3,7 +3,7 @@
 ;; but rather compile them and load the compiled code. This works. But one
 ;; can also load interpretable code (raw scheme) and have it work.
 ;;
-;; $Id: eval.sch,v 1.2 1992/05/15 22:19:04 lth Exp lth $
+;; $Id: eval.sch,v 1.3 1992/05/18 05:11:14 lth Exp lth $
 ;;
 ;; 'Eval' takes an expression and evaluates the expression in the default
 ;; toplevel environment. It returns the result of the evaluation,
@@ -196,6 +196,16 @@
   ;; Characters
 
   (extend-toplevel-env! 'char? char?)
+  (extend-toplevel-env! 'char=? char=?)
+  (extend-toplevel-env! 'char<? char<?)
+  (extend-toplevel-env! 'char>? char>?)
+  (extend-toplevel-env! 'char<=? char<=?)
+  (extend-toplevel-env! 'char>=? char>=?)
+  (extend-toplevel-env! 'char-ci=? char-ci=?)
+  (extend-toplevel-env! 'char-ci<? char-ci<?)
+  (extend-toplevel-env! 'char-ci>? char-ci>?)
+  (extend-toplevel-env! 'char-ci<=? char-ci<=?)
+  (extend-toplevel-env! 'char-ci>=? char-ci>=?)
 
   ;; Support for rewriter
 
@@ -323,6 +333,16 @@
   (extend-toplevel-env! 'string-copy string-copy)
   (extend-toplevel-env! 'string->list string->list)
   (extend-toplevel-env! 'list->string list->string)
+  (extend-toplevel-env! 'string=? string=?)
+  (extend-toplevel-env! 'string<? string<?)
+  (extend-toplevel-env! 'string>? string>?)
+  (extend-toplevel-env! 'string<=? string<=?)
+  (extend-toplevel-env! 'string>=? string>=?)
+  (extend-toplevel-env! 'string-ci=? string-ci=?)
+  (extend-toplevel-env! 'string-ci<? string-ci<?)
+  (extend-toplevel-env! 'string-ci>? string-ci>?)
+  (extend-toplevel-env! 'string-ci<=? string-ci<=?)
+  (extend-toplevel-env! 'string-ci>=? string-ci>=?)
 
   ;; bytevectors
 
@@ -332,11 +352,13 @@
   (extend-toplevel-env! 'bytevector-set! bytevector-set!)
   (extend-toplevel-env! 'bytevector-length bytevector-length)
   (extend-toplevel-env! 'bytevector-fill! bytevector-fill!)
+  (extend-toplevel-env! 'bytevector-equal? bytevector-equal?)
 
   (extend-toplevel-env! 'bytevector-like? bytevector-like?)
   (extend-toplevel-env! 'bytevector-like-ref bytevector-like-ref)
   (extend-toplevel-env! 'bytevector-like-set! bytevector-like-set!)
   (extend-toplevel-env! 'bytevector-like-length bytevector-like-length)
+  (extend-toplevel-env! 'bytevector-like-equal? bytevector-like-equal?)
 
   ;; i/o
 
@@ -362,6 +384,8 @@
   (extend-toplevel-env! 'issue-warnings issue-warnings)
   (extend-toplevel-env! 'collect collect)
   (extend-toplevel-env! 'memstats memstats)
+  (extend-toplevel-env! 'typetag typetag)
+  (extend-toplevel-env! 'typetag-set! typetag-set!)
 
   #t)
 
