@@ -20,7 +20,7 @@
 (define-syntax-scope 'letrec*)
 
 (for-each (lambda (form)
-            (macro-expand form))
+            (macro-expand form usual-syntactic-environment))
           '(
 
 ; Named LET is defined later, after LETREC has been defined.
@@ -342,8 +342,3 @@
 
 (define-syntax-scope 'letrec)
 
-(define standard-syntactic-environment
-  (syntactic-copy global-syntactic-environment))
-
-(define (make-standard-syntactic-environment)
-  (syntactic-copy standard-syntactic-environment))
