@@ -42,9 +42,12 @@
 
 int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L, 
 			     int lower_limit, int upper_limit );
-void gc_start_gc( gc_t *gc );
-void gc_end_gc( gc_t *gc );
 
+void gc_signal_moving_collection( gc_t *gc );
+  /* Increment the moving gc counter (globals[G_GC_CNT]) to signal to
+     clients that rely on object addresses that they may have changed.
+     */
+    
 /* In nursery.c */
 
 young_heap_t *
@@ -70,6 +73,9 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info );
 
 void
 dof_gc_parameters( old_heap_t *heap, int *size );
+  /* Given a DOF area, return the generation size.  Assumes all 
+     generations are the same size, which is true for the time being.
+     */
 
 /* In old-heap.c */
 
