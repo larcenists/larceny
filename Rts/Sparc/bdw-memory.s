@@ -32,7 +32,7 @@
 	.global EXTNAME(mem_alloci)			! allocate cooked RAM
 	.global	EXTNAME(mem_internal_alloc)		! allocate raw RAM
 	.global	EXTNAME(mem_internal_alloc_bv)		! allocate raw RAM
-	.global EXTNAME(mem_garbage_collect)		! do a GC
+	.global EXTNAME(mem_morecore)			! do a GC
 	.global EXTNAME(mem_stkoflow)			! handle stack oflow
 	.global	EXTNAME(mem_internal_stkoflow)		! handle stack oflow
 	.global EXTNAME(mem_stkuflow)			! handle stack uflow
@@ -202,17 +202,20 @@ bdw_toobig:
 
 	.data
 toobig: .asciz "Object too large for allocation (limit is 16MB)."
-
 	.text
 
 
-! _mem_garbage_collect: perform a garbage collection.
+! _mem_morecore: not used by BDW.
 
-EXTNAME(mem_garbage_collect):
-	set	EXTNAME(C_garbage_collect), %TMP0
-	b	callout_to_C
+EXTNAME(mem_morecore):
+	set	no_morecore, %o0
+	call	EXTNAME(panic)
 	nop
 
+	.data
+no_morecore:
+	.asciz "MORECORE not valid on this system (inline allocation?)."
+	.text
 
 ! _mem_stkuflow: stack underflow handler.
 !
