@@ -293,7 +293,7 @@ gcc_exec ()
 
 # -----------------------------------------------------------------------------
 
-ALL_BENCHMARKS="succeed fail crash boyer browse conform cpstak ctak dderiv deriv destruc diviter divrec earley fft fib fibfp maze mazefun mbrot nucleic peval pnpoly puzzle ray scheme simplex slatex sum sumfp tak takl triangl trav1 trav2 smlboyer nboyer dynamic graphs lattice quicksort perm9"
+ALL_BENCHMARKS="boyer browse conform cpstak ctak dderiv deriv destruc diviter divrec earley fft fib fibfp maze mazefun mbrot nucleic peval pnpoly puzzle ray scheme simplex slatex sum sumfp tak takl triangl trav1 trav2 smlboyer nboyer dynamic graphs lattice quicksort perm9"
 
 
 ALL_INTERPRETERS='bigloo-int gambit-int scm stk'
