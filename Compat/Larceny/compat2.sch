@@ -19,65 +19,11 @@
 ; Input and output
 
 (define (write-lop item port)
-  (cond ((pair? item)
-	 (compat:write-list item port))
-	((vector? item) 
-	 (write-char #\# port)
-	 (compat:write-list (vector->list item) port))
-	((bytevector? item)
-	 (compat:write-bytevector item port))
-	(else
-	 (write item port))))
-
-(define (compat:write-list item port)
-  (write-char #\( port)
-  (let loop ((item item))
-    (cond ((null? item)
-	   (write-char #\) port))
-	  ((and (pair? item)
-		(or (null? (cdr item))
-		    (pair? (cdr item))))
-	   (write-lop (car item) port)
-	   (write-char #\space port)
-	   (loop (cdr item)))
-	  ((pair? item)
-	   (write-lop (car item) port)
-	   (display " . " port)
-	   (write-lop (cdr item) port)
-	   (write-char #\) port)))))
-	  
-; Compatible with Chez Scheme.
-
-(define (compat:write-bytevector-as-vector item port)
-  (let ((limit (bytevector-length item)))
-    (display "#(" port)
-    (do ((i 0 (+ i 1)))
-	((= i limit) (write-char #\) port))
-      (display (bytevector-ref item i) port)
-      (display " " port))))
-
-; Potentially much faster.
-
-(define (compat:write-bytevector-as-bytevector item port)
-  (let ((limit (bytevector-length item)))
-    (write-char #\# port)
-    (write-char (integer->char 2) port)
-    (write-char #\" port)
-    (do ((i 0 (+ i 1)))
-	((= i limit) (write-char #\" port))
-      (let ((c (integer->char (bytevector-ref item i))))
-	(cond ((eq? c #\") (write-char #\\ port))
-	      ((eq? c #\\) (write-char #\\ port)))
-	(write-char c port)))))
-
-; Default: fast
-
-(define compat:write-bytevector compat:write-bytevector-as-bytevector)
-
-; Uses magic syntax for flonums and compnums.
+  (lowlevel-write item port)
+  (newline port)
+  (newline port))
 
 (define write-fasl-datum lowlevel-write)
-;(define write-fasl-datum write)
 
 ; The power of self-hosting ;-)
 
@@ -87,6 +33,7 @@
     bv))
 
 (define string->bytevector misc->bytevector)
+
 (define bignum->bytevector misc->bytevector)
 
 (define (flonum->bytevector x)
