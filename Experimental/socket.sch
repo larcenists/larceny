@@ -3,12 +3,15 @@
 ; $Id$
 ;
 ; Interface to Unix socket system calls .
+;
 ; This works for SunOS 5, don't know (yet) about SunOS 4.
+;
+; Linux support believed to be complete (even byte order issues)
+; but not sure.  gethostbyname works, at least.
 
+(require 'ffi)
 (require 'experimental/unix)
-
-; FIXME: ignoring byte order because network byte order is big-endian,
-; like the SPARC.
+(require 'common-syntax)
 
 (define (server-socket port)
   (call-with-current-continuation
@@ -19,8 +22,8 @@
          (return #f))
        (let ((addr (make-sockaddr_in)))
          (sockaddr_in.sin_family-set! addr unix/AF_INET)
-         (sockaddr_in.sin_addr-set! addr (make-ip-addr 127 0 0 1))
-         (sockaddr_in.sin_port-set! addr port)
+         (sockaddr_in.sin_addr-set! addr (htonl (make-ip-addr 127 0 0 1)))
+         (sockaddr_in.sin_port-set! addr (htons port))
          (set-socket-option:reuseaddr s)
          (when (= -1 (unix/bind s addr (bytevector-length addr)))
            (unix/perror "bind")
@@ -68,8 +71,8 @@
 	       #f)
 	(let ((addr (make-sockaddr_in)))
 	  (sockaddr_in.sin_family-set! addr unix/AF_INET)
-	  (sockaddr_in.sin_addr-set! addr ip-number)
-	  (sockaddr_in.sin_port-set! addr port)
+	  (sockaddr_in.sin_addr-set! addr (htonl ip-number))
+	  (sockaddr_in.sin_port-set! addr (htons port))
 	  (let ((r (unix/connect s addr (bytevector-length addr))))
 	    (if (= r -1)
 		(begin (unix/perror "connect")
@@ -89,7 +92,7 @@
 	  (peek-bytes ptr buf (bytevector-length buf))
 	  (values (hostent.h_addrtype buf)
 		  (hostent.h_aliases buf)
-		  (hostent.h_addr_list buf))))))
+		  (map reverse (hostent.h_addr_list buf)))))))
 
 (define (get-service-by-name name . rest)
   (let ((ptr (unix/getservbyname name (if (null? rest) #f (car rest))))
@@ -103,7 +106,7 @@
 	  (values #f #f))
 	(begin
 	  (peek-bytes ptr buf (bytevector-length buf))
-	  (values (servent.s_port buf)
+	  (values (ntohs (servent.s_port buf))
 		  (servent.s_proto buf))))))
 
 (define (set-socket-option:reuseaddr socket)
@@ -116,6 +119,24 @@
 		 #f)
 	  #t))))
 
+(cond-expand
+ (little-endian
+  (define (htonl x) 
+    (+ (* 16777216 (remainder x 256))
+       (* 65536 (remainder (quotient x 256) 256))
+       (* 256 (remainder (quotient x 65536) 256))
+       (quotient x 16777216)))
+  (define (htons x) 
+    (+ (* 256 (remainder x 256))
+       (quotient x 256)))
+  (define (ntohl x) (htonl x))
+  (define (ntohs x) (htons x)) )
+
+ (big-endian
+  (define (htonl x) x)
+  (define (htons x) x)
+  (define (ntohl x) x)
+  (define (ntohs x) x) ))
 
 ;;; Libraries.
 
@@ -138,7 +159,7 @@
 (define inet.smtp/tcp 25)
 (define inet.finger/tcp 79)
 
-; From <sys/socket.h>
+; From <sys/socket.h> and <bits/socket.h> and <asm/socket.h>
 
 (define unix/AF_UNIX         1)
 (define unix/AF_INET         2)
@@ -146,20 +167,42 @@
 (define unix/PF_UNIX         1)		; Local
 (define unix/PF_INET         2)		; TCP and UDP
 
-(define unix/SOCK_DGRAM      1)		; Datagram socket
-(define unix/SOCK_STREAM     2)		; Stream socket
+(cond-expand
+ (linux
+  (define unix/SOCK_STREAM     1)
+  (define unix/SOCK_DGRAM      2)
 
-(define	unix/SO_DEBUG        #x0001)	; turn on debugging info recording
-(define	unix/SO_REUSEADDR    #x0004)	; keep connections alive
-(define	unix/SO_KEEPALIVE    #x0008)	; keep connections alive
-(define unix/SO_DONTROUTE    #x0010)	; just use interface addresses
-(define	unix/SO_BROADCAST    #x0020)	; permit sending of broadcast msgs
-(define	unix/SO_USELOOPBACK  #x0040)	; bypass hardware when possible
-(define	unix/SO_LINGER       #x0080)	; linger on close if data present
-(define	unix/SO_OOBINLINE    #x0100)	; leave received OOB data in line
-(define	unix/SO_DGRAM_ERRIND #x0200)	; Application wants delayed error
+  (define unix/SOL_SOCKET      1)
+  (define unix/SO_DEBUG        1)	; turn on debugging info recording
+  (define unix/SO_REUSEADDR    2)	; keep connections alive
+  (define unix/SO_TYPE         3)
+  (define unix/SO_ERROR        4)
+  (define unix/SO_DONTROUTE    5)
+  (define unix/SO_BROADCAST    6)
+  (define unix/SO_SNDBUF       7)
+  (define unix/SO_RCVBUF       8)
+  (define unix/SO_KEEPALIVE    9)
+  (define unix/OOBINLINE       10)
+  (define unix/SO_NO_CHECK     11)
+  (define unix/SO_PRIORITY     12)
+  (define unix/SO_LINGER       13)
+  (define unix/SO_BSDCOMPAT    14) )
 
-(define	unix/SOL_SOCKET	     #xffff)	; options for socket level
+ (solaris
+  (define unix/SOCK_DGRAM      1)	; Datagram socket
+  (define unix/SOCK_STREAM     2)	; Stream socket
+
+  (define unix/SO_DEBUG        #x0001)	; turn on debugging info recording
+  (define unix/SO_REUSEADDR    #x0004)	; keep connections alive
+  (define unix/SO_KEEPALIVE    #x0008)	; keep connections alive
+  (define unix/SO_DONTROUTE    #x0010)	; just use interface addresses
+  (define unix/SO_BROADCAST    #x0020)	; permit sending of broadcast msgs
+  (define unix/SO_USELOOPBACK  #x0040)	; bypass hardware when possible
+  (define unix/SO_LINGER       #x0080)	; linger on close if data present
+  (define unix/SO_OOBINLINE    #x0100)	; leave received OOB data in line
+  (define unix/SO_DGRAM_ERRIND #x0200)	; Application wants delayed error
+
+  (define unix/SOL_SOCKET      #xffff) )) ; options for socket level
 
 ; From <netinet/in.h>
 

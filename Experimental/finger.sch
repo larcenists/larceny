@@ -3,6 +3,9 @@
 ; 'user' is a string.
 ; 'host' is a string (hostname), list (IP number), or exact int (IP number)
 
+(require 'experimental/unix)
+(require 'experimental/socket)
+
 (define (finger user host)
   (let ((s (client-socket host inet.finger/tcp))
 	(nl "\n"))

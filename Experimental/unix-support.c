@@ -1,5 +1,8 @@
 /* Minimal support for Unix-style error codes */
 
+/* OBSOLETE, for the moment, since foreign-variable does the
+   job so much more easily.  */
+
 /* On SunOS5, compile with
    gcc -fPIC -shared unix-support.c -lsocket -lnsl -o unix-support.so
  */

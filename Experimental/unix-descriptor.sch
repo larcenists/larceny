@@ -9,6 +9,7 @@
 ; Nonblocking I/O requires use of the tasking system and the tasking system
 ; extensions that implement the scheduler compatible with nonblocking I/O.
 
+(require 'define-record)
 (require 'experimental/unix)
 (require 'experimental/poll)
 (require 'experimental/iosys)
