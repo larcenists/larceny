@@ -318,7 +318,8 @@
                     (string-append "field"
                                    (number->string field-index)))))
       (if (struct-accessor-procedure? ref-proc)
-          (make-struct-proc (lambda (obj) (ref-proc obj field-index)))
+          (make-struct-proc (lambda (obj) (ref-proc obj field-index))
+                            sys$tag.struct-accessor-procedure)
           (raise-type-error 'make-struct-field-accessor
                             "accessor procedure that requires a field index"
                             ref-proc))))
@@ -332,7 +333,8 @@
           (make-struct-proc (lambda (instance new-value)
                               (mutator-proc instance
                                             field-index
-                                            new-value)))
+                                            new-value))
+                            sys$tag.struct-mutator-procedure)
           (raise-type-error 'make-struct-field-mutator
                             "mutator procedure"
                             mutator-proc))))
@@ -404,10 +406,6 @@
   (set! struct-accessor-procedure? struct-accessor-procedure?*)
   (set! struct-predicate-procedure? struct-predicate-procedure?*)
   (set! struct-constructor-procedure? struct-constructor-procedure?*)
-
-  (set! $sys.struct-proc-spec sys:struct-proc-spec)
-  (set! $sys.struct-ref sys:struct-ref)
-
   )
   
 ;; Quick test cases from the MzScheme manual
@@ -438,8 +436,8 @@
 (define-values (struct:fish make-fish fish? fish-ref fish-set!) 
   (make-struct-type 'fish #f 2 0 #f '() #f 
                     (lambda (f n) (fish-set! f 0 (+ n (fish-ref f 0))))))
-(define (fish-weight f) (fish-ref f 0))
-(define (fish-color f) (fish-ref f 1))
+(define fish-weight (make-struct-field-accessor fish-ref 0))
+(define fish-color (make-struct-field-accessor fish-ref 1))
 (define wanda (make-fish 12 'red))
 (fish? wanda) ; => #t
 (procedure? wanda) ; => #t
