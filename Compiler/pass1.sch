@@ -66,18 +66,16 @@
 (define pass1-block-assignments '())
 (define pass1-block-inlines '())
 
-(define (pass1 def-or-exp . rest)
+; pass1 and pass1-block take a syntax environment.
+
+(define (pass1 def-or-exp syntaxenv)
   (set! source-file-name #f)
   (set! source-file-position #f)
   (set! pass1-block-compiling? #f)
   (set! pass1-block-assignments '())
   (set! pass1-block-inlines '())
-  (if (not (null? rest))
-      (begin (set! source-file-name (car rest))
-             (if (not (null? (cdr rest)))
-                 (set! source-file-position (cadr rest)))))
   (set! renaming-counter 0)
-  (macro-expand def-or-exp))
+  (macro-expand def-or-exp syntaxenv))
 
 ; Compiles a whole sequence of top-level forms on the assumption
 ; that no variable that is defined by a form in the sequence is
@@ -98,14 +96,14 @@
 
 ; FIXME: Need to turn off warning messages.
 
-(define (pass1-block forms . rest)
+(define (pass1-block forms syntaxenv)
   
   (define (part1)
     (set! pass1-block-compiling? #t)
     (set! pass1-block-assignments '())
     (set! pass1-block-inlines '())
     (set! renaming-counter 0)
-    (let ((env0 (syntactic-copy global-syntactic-environment))
+    (let ((env0 (syntactic-copy (global-syntactic-environment)))
           (bmode (benchmark-mode))
           (wmode (issue-warnings))
           (defined '()))
@@ -124,10 +122,10 @@
       (issue-warnings #f)
       (for-each (lambda (form)
                   (desugar-definitions form
-                                       global-syntactic-environment
+                                       (global-syntactic-environment)
                                        make-toplevel-definition))
                 forms)
-      (set! global-syntactic-environment env0)
+      (global-syntactic-environment env0)
       (benchmark-mode bmode)
       (issue-warnings wmode)
       (part2 (filter (lambda (id)
@@ -177,7 +175,7 @@
                        (m-error "Inconsistent macro expansion"
                                 (make-readable exp)))))
               (make-assignment id exp))))
-      (let ((env0 (syntactic-copy global-syntactic-environment))
+      (let ((env0 (syntactic-copy (global-syntactic-environment)))
             (bmode (benchmark-mode))
             (wmode (issue-warnings)))
         (issue-warnings #f)
@@ -191,7 +189,7 @@
                         (lambda (exp rename compare)
                           ; Deliberately non-hygienic!
                           (cons id1 (cdr exp)))
-                        global-syntactic-environment))
+                        (global-syntactic-environment)))
                       (set! pass1-block-inlines
                             (cons id0 pass1-block-inlines))))
                   alist)
@@ -202,13 +200,13 @@
                     (newforms '()
                               (cons (desugar-definitions
                                      (car forms)
-                                     global-syntactic-environment
+                                     (global-syntactic-environment)
                                      make-toplevel-definition)
                                     newforms)))
                    ((null? forms)
                     (reverse newforms)))))
           (benchmark-mode bmode)
-          (set! global-syntactic-environment env0)
+          (global-syntactic-environment env0)
           (part3 alist definitions0 definitions1 forms)))))
   
   (define (part3 alist definitions0 definitions1 forms)
@@ -264,10 +262,7 @@
            )))
         (map assignment.rhs definitions0)))))
   
+  (error "pass1-block must be modified to deal with the new regime for syntax environments.")
   (set! source-file-name #f)
   (set! source-file-position #f)
-  (if (not (null? rest))
-      (begin (set! source-file-name (car rest))
-             (if (not (null? (cdr rest)))
-                 (set! source-file-position (cadr rest)))))
   (part1))
