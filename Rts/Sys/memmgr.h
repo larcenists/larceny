@@ -39,7 +39,8 @@
 
 /* In memmgr.c */
 
-int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit );
+int gc_compute_dynamic_size( int D, int S, int Q, double L, 
+			     int lower_limit, int upper_limit );
 
 /* In nursery.c */
 
