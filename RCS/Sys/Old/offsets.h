@@ -1,102 +1,92 @@
-/*
+/* -*- Fundamental -*-
+ * Scheme Run-Time System.
+ *
  * Offsets into the "globals" table, with definitions for both C and
  * Assembly language. Define the symbol "ASSEMBLY" to get the assembly
  * language definitions.
  *
- * $Id: offsets.h,v 1.1 91/06/20 15:47:56 lth Exp Locker: lth $
+ * The roots must be contiguous and between FIRST_ROOT and LAST_ROOT,
+ * inclusive.
+ *
+ * $Id: offsets.h,v 1.2 91/06/21 15:16:00 lth Exp Locker: lth $
  */
 
-#ifndef ASSEMBLY
-
-/* For C language */
-
-/* To define/declare table somewhere */
-
-#define GLOBALS_TABLE_SIZE      LAST_GLOBAL
-
-/* These must reflect reality! */
-
-#define FIRST_ROOT		20
-#define LAST_ROOT		31
-
-#define T_BASE_OFFSET		0
-#define T_TOP_OFFSET		1
-#define T_TRANS_OFFSET		2
-#define T_MAX_OFFSET		3
-#define E_BASE_OFFSET		4
-#define E_TOP_OFFSET		5
-#define E_MARK_OFFSET		6
-#define E_LIMIT_OFFSET		7
-#define E_MAX_OFFSET		8
-#define S_BASE_OFFSET		9
-#define S_MAX_OFFSET		10
-#define STK_BASE_OFFSET		11
-#define STK_LIMIT_OFFSET	12
-#define STK_MAX_OFFSET		13
-#define ECOLLECTIONS_OFFSET	14
-#define TCOLLECTIONS_OFFSET	15
-#define WCOLLECTED_OFFSET	16
-#define WALLOCATED_OFFSET	17
-#define INITIAL_TIMER_OFFSET    18
-
-#define REG0_OFFSET		20
-#define REG1_OFFSET		21
-#define REG2_OFFSET		22
-#define REG3_OFFSET		23
-#define REG4_OFFSET		24
-#define REG5_OFFSET		25
-#define REG6_OFFSET		26
-#define REG7_OFFSET		27
-#define ARGREG2_OFFSET		28
-#define ARGREG3_OFFSET		29
-#define RESULT_OFFSET		30
-#define CONTINUATION_OFFSET	31
-
-#define LOMEM_OFFSET            50
-#define HIMEM_OFFSET            51
-
-/* Make sure you update this one! */
-
-#define LAST_GLOBAL             51
-
+#ifdef ASSEMBLY
+#define ADJUST		4
 #else
-
-/* For assembly language */
-
-#define T_BASE_OFFSET		0
-#define T_TOP_OFFSET		4
-#define T_TRANS_OFFSET		8
-#define T_MAX_OFFSET		12
-#define E_BASE_OFFSET		16
-#define E_TOP_OFFSET		20
-#define E_MARK_OFFSET		24
-#define E_LIMIT_OFFSET		28
-#define E_MAX_OFFSET		32
-#define S_BASE_OFFSET		36
-#define S_MAX_OFFSET		40
-#define STK_BASE_OFFSET		44
-#define STK_LIMIT_OFFSET	48
-#define STK_MAX_OFFSET		52
-#define ECOLLECTIONS_OFFSET	56
-#define TCOLLECTIONS_OFFSET	60
-#define WCOLLECTED_OFFSET	64
-#define WALLOCATED_OFFSET	68
-#define INITIAL_TIMER_OFFSET    72
-
-#define REG0_OFFSET		80
-#define REG1_OFFSET		84
-#define REG2_OFFSET		88
-#define REG3_OFFSET		92
-#define REG4_OFFSET		96
-#define REG5_OFFSET		100
-#define REG6_OFFSET		104
-#define REG7_OFFSET		108
-#define ARGREG2_OFFSET		112
-#define ARGREG3_OFFSET		116
-#define RESULT_OFFSET		120
-#define CONTINUATION_OFFSET	124
-
-#define LOMEM_OFFSET            200
-#define HIMEM_OFFSET            204
-
+#define ADJUST		1
 #endif
+
+/* Be careful with these! */
+#define FIRST_ROOT		20
+#define LAST_ROOT		55
+#define LAST_GLOBAL             71
+
+/* Table size */
+#define GLOBALS_TABLE_SIZE	(LAST_GLOBAL + 1)
+
+/* Offsets. No trailing comments, please! */
+
+/* Nonroots */
+#define T_BASE_OFFSET		(0*ADJUST)
+#define T_TOP_OFFSET		(1*ADJUST)
+#define T_TRANS_OFFSET		(2*ADJUST)
+#define T_MAX_OFFSET		(3*ADJUST)
+#define E_BASE_OFFSET		(4*ADJUST)
+#define E_TOP_OFFSET		(5*ADJUST)
+#define E_MARK_OFFSET		(6*ADJUST)
+#define E_LIMIT_OFFSET		(7*ADJUST)
+#define E_MAX_OFFSET		(8*ADJUST)
+#define S_BASE_OFFSET		(9*ADJUST)
+#define S_MAX_OFFSET		(10*ADJUST)
+#define STK_BASE_OFFSET		(11*ADJUST)
+#define STK_LIMIT_OFFSET	(12*ADJUST)
+#define STK_START_OFFSET        (13*ADJUST)
+#define STK_MAX_OFFSET		(14*ADJUST)
+#define ECOLLECTIONS_OFFSET	(15*ADJUST)
+#define TCOLLECTIONS_OFFSET	(16*ADJUST)
+#define WCOLLECTED_OFFSET	(17*ADJUST)
+#define WALLOCATED_OFFSET	(18*ADJUST)
+#define INITIAL_TIMER_OFFSET    (19*ADJUST)
+
+/* Roots */
+#define REG0_OFFSET		(20*ADJUST)
+#define REG1_OFFSET		(21*ADJUST)
+#define REG2_OFFSET		(22*ADJUST)
+#define REG3_OFFSET		(23*ADJUST)
+#define REG4_OFFSET		(24*ADJUST)
+#define REG5_OFFSET		(25*ADJUST)
+#define REG6_OFFSET		(26*ADJUST)
+#define REG7_OFFSET		(27*ADJUST)
+#define REG8_OFFSET		(28*ADJUST)
+#define REG9_OFFSET		(29*ADJUST)
+#define REG10_OFFSET		(30*ADJUST)
+#define REG11_OFFSET		(31*ADJUST)
+#define REG12_OFFSET		(32*ADJUST)
+#define REG13_OFFSET		(33*ADJUST)
+#define REG14_OFFSET		(34*ADJUST)
+#define REG15_OFFSET		(35*ADJUST)
+#define REG16_OFFSET		(36*ADJUST)
+#define REG17_OFFSET		(37*ADJUST)
+#define REG18_OFFSET		(38*ADJUST)
+#define REG19_OFFSET		(39*ADJUST)
+#define REG20_OFFSET		(40*ADJUST)
+#define REG21_OFFSET		(41*ADJUST)
+#define REG22_OFFSET		(42*ADJUST)
+#define REG23_OFFSET		(43*ADJUST)
+#define REG24_OFFSET		(44*ADJUST)
+#define REG25_OFFSET		(45*ADJUST)
+#define REG26_OFFSET		(46*ADJUST)
+#define REG27_OFFSET		(47*ADJUST)
+#define REG28_OFFSET		(48*ADJUST)
+#define REG29_OFFSET		(49*ADJUST)
+#define REG30_OFFSET		(40*ADJUST)
+#define REG31_OFFSET		(51*ADJUST)
+#define ARGREG2_OFFSET		(52*ADJUST)
+#define ARGREG3_OFFSET		(53*ADJUST)
+#define RESULT_OFFSET		(54*ADJUST)
+#define CONTINUATION_OFFSET	(55*ADJUST)
+
+/* More nonroots */
+#define LOMEM_OFFSET            (70*ADJUST)
+#define HIMEM_OFFSET            (71*ADJUST)
