@@ -414,8 +414,8 @@
     (environment-set! larc 'port-position port-position)
     (environment-set! larc 'readtable-ref readtable-ref)
     (environment-set! larc 'readtable-set! readtable-set!)
-    (environment-set! larc 'with-input-from-console with-input-from-console)
-    (environment-set! larc 'with-output-to-console with-output-to-console)
+    (environment-set! larc 'console-input-port console-input-port)
+    (environment-set! larc 'console-output-port console-output-port)
     (environment-set! larc 'print-length print-length)
     (environment-set! larc 'print-level print-level)
 
@@ -442,7 +442,6 @@
 
     ;; debugging.
 
-    (environment-set! larc 'error-continuation error-continuation)
     (environment-set! larc 'current-continuation-structure 
 		      current-continuation-structure)
     (environment-set! larc 'break break)
@@ -534,7 +533,6 @@
     (environment-set! larc 'repl-printer repl-printer)
     (environment-set! larc 'repl-evaluator repl-evaluator)
     (environment-set! larc 'repl-prompt repl-prompt)
-;    (environment-set! larc 'reestablish-console reestablish-console-io)
     (environment-set! larc 'herald herald)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)
