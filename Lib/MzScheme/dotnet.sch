@@ -1310,7 +1310,7 @@
 (define (make-dynamic-call arity clr-method)
   (nary->fixed-arity
    (lambda (call-next-method clr-object . args)
-     (dotnet-message "Dynamic call " clr-object clr-method args)
+     ;(dotnet-message "Dynamic call " clr-object clr-method args)
      (clr/marshal-in
       (ffi:%invoke (clr-object/clr-handle clr-method)
                    (clr-object/clr-handle clr-object)
