@@ -5,11 +5,13 @@ Release 2 todo and check lists
 
 Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
+ * For most people it is most reasonable that Twobit share the macro
+   definitions between the interpreter and compiler, so that loading
+   a file with macros in the interpreter is reflected when the compiler
+   is invoked.  This does not work now.  Fix it!
+
  * SRFI: The most important non-supported SRFIs are the exception
    and condition SRFIs.  It would be very nice to have these.
-
- * SRFI: Now that the FFI appears to work it is easy to support
-   the date/time and random SRFIs.
 
  * FFI: Test well on Win32 and Linux, make sure it works and that the
    documentation reflects how it works.
@@ -52,15 +54,14 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * The require system must play nice with heap dumping: the database
    must not be unconditionally reinitialized even if .larceny reloads
-   the REQUIRE package.
+   the REQUIRE package.  (Implemented, not yet tested.)
 
  * The make system seems broken: a lot of stuff that should never be
-   recompiled for make-petit-heap is anyway recompiled.  What gives?
+   recompiled for make-petit-heap is anyway recompiled.  Why?
 
- * For most people it is most reasonable that Twobit share the macro
-   definitions between the interpreter and compiler, so that loading
-   a file with macros in the interpreter is reflected when the compiler
-   is invoked.  This does not work now.  Fix it!
+ * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
+   of bogus, cf recent discussion on SRFI-0 list.  Should probably
+   fix this both in SRFI code as well as in test code.
 
  * Merge Util/petit-macosx.sch into Util/petit-unix-be.sch,
    ditto for any configuration stuff in Util/configurations.
