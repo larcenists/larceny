@@ -363,27 +363,63 @@
 	   (loop x (cdr x)))))
 
 
-; If all expressions are non-#f, then returns the value of the last
-; expression, otherwise returns #f.  If list is null, return #t.
+(define (every? p l . ls)
 
-(define (every? p l)
-
-  (define (loop l)
-    (cond ((null? (cdr l)) (p (car l)))
-	  ((p (car l)) (loop (cdr l)))
+  (define (every1 a)
+    (cond ((null? (cdr a)) (p (car a)))
+	  ((p (car a)) (every1 (cdr a)))
 	  (else #f)))
 
-  (if (null? l)
-      #t
-      (loop l)))
+  (define (every2 a b)
+    (cond ((null? (cdr a)) (p (car a) (car b)))
+	  ((p (car a) (car b)) (every2 (cdr a) (cdr b)))
+	  (else #f)))
+
+  (define (every3 a b c)
+    (cond ((null? (cdr a)) (p (car a) (car b) (car c)))
+	  ((p (car a) (car b) (car c)) (every3 (cdr a) (cdr b) (cdr c)))
+	  (else #f)))
+
+  (define (every-n ls)
+    (cond ((null? (cdar ls)) (apply p (map car ls)))
+          ((apply p (map car ls)) (every-n (map cdr ls)))
+          (else #f)))
+
+  (cond ((null? ls)
+         (or (null? l) (every1 l)))
+        ((null? (cdr ls))
+         (or (null? l) (every2 l (car ls))))
+        ((null? (cddr ls))
+         (or (null? l) (every3 l (car ls) (cadr ls))))
+        (else
+         (or (null? l) (every-n (cons l ls))))))
 
 
-; Returns the value of the first non-#f expression, or #f if all are #f.
+(define (some? p l . ls)
 
-(define (some? p l)
-  (cond ((null? l) #f)
-	((p (car l)))
-	(else (some? p (cdr l)))))
+  (define (some1 a)
+    (cond ((null? a) #f)
+          ((p (car a)))
+          (else (some1 (cdr a)))))
 
+  (define (some2 a b)
+    (cond ((null? a) #f)
+          ((p (car a) (car b)))
+          (else (some2 (cdr a) (cdr b)))))
+
+  (define (some3 a b c)
+    (cond ((null? a) #f)
+          ((p (car a) (car b) (car c)))
+          (else (some3 (cdr a) (cdr b) (cdr c)))))
+
+  (define (some-n ls)
+    (cond ((null? (car ls)) #f)
+          ((apply p (map car ls)))
+          (else (some-n (map cdr ls)))))
+
+  (cond ((null? ls) (some1 l))
+        ((null? (cdr ls)) (some2 l (car ls)))
+        ((null? (cddr ls)) (some3 l (car ls) (cadr ls)))
+        (else (some-n (cons l ls)))))
 
 ; eof
