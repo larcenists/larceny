@@ -44,7 +44,7 @@
 
 #define LARGEST_OBJECT    16777215          /* Max object size */
 
-#define CHECK_SIZE        1                 /* Check object size here */
+#define CHECK_SIZE        0                 /* Check object size here */
 
 #if defined( NO_ATOMIC_ALLOCATION )         /* Don't distinguish */
 #  define GC_malloc_atomic GC_malloc
@@ -126,16 +126,20 @@ EXTNAME(mem_alloci):
 
 	! %RESULT now has ptr, %ARGREG3 has count, %ARGREG2 has obj
 
-	sub	%RESULT, 8, %TMP1		! dest = RESULT - 8
+	! No unrolled loop because, though we're guaranteed object
+	! alignment on an 8-byte boundary, we're not guaranteed that
+	! the word following the object won't be used by someone else.
+	! Native version unrolls this loop once.
+
+	sub	%RESULT, 4, %TMP1		! dest = RESULT - 4
 	b	Lalloci2
 	tst	%ARGREG3
 Lalloci3:
 	st	%ARGREG2, [ %TMP1 ]		! init a word
-	st	%ARGREG2, [ %TMP1+4 ]		! and another
-	deccc	8, %ARGREG3			! n -= 8, test n
+	deccc	4, %ARGREG3			! n -= 4, test n
 Lalloci2:
 	bgt	Lalloci3
-	add	%TMP1, 8, %TMP1			! dest += 8
+	add	%TMP1, 4, %TMP1			! dest += 4
 
 	jmp	%o7+8
 	ld	[ %GLOBALS + G_ALLOCI_TMP ], %ARGREG3
