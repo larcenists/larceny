@@ -9,23 +9,27 @@
 #
 # Compiler/assembler selection.  Uncomment one of these or hack up a new one.
 
-# DEFAULT CONFIGURATION
-#
-# Petit Larceny on generic Unix with gcc
-#O=o
-#CC=gcc
-#DEBUGINFO=#-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
-# Petit Larceny on MacOS X with gcc, building libpetit.dylib
+### Petit Larceny definitions
+
+
+# Petit Larceny: Unix: gcc
+# Petit Larceny: Win32: gcc under cygwin or mingw
+# Petit Larceny: MacOS X: gcc (when not building a shared library)
 O=o
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 
-# Petit Larceny on Win32: Metrowerks CodeWarrior 6
+# Petit Larceny: MacOS X: gcc (when building a shared library; works otherwise, too)
+#O=o
+#CC=gcc
+#DEBUGINFO=#-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+
+# Petit Larceny: Win32: Metrowerks CodeWarrior 6
 #O=obj
 #CC=mwcc
 #OPT=-opt on
@@ -35,21 +39,14 @@ CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 #.c.obj:
 #	$(CC) -c $(CFLAGS) -o $*.obj $<
 
+# Petit Larceny: Win32: Microsoft Visual C/C++ with DOS shell
+# Probably not up-to-date, has not been tested for some time!
+#O=obj
+#CC=cl
+#.c.obj:
+# 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
 
-# Petit Larceny on MacOS X: gcc disguised as cc
-#O=o
-#CC=cc
-#DEBUG=-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
-#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUG) $(OPTIMIZE) $(CCXFLAGS)
-#LIBS=-lm
-#.c.o:
-#	$(CC) $(CFLAGS) -o $*.o $<
-
-
-# Petit Larceny on DEC Alpha OSF/1: DEC C compiler
+# Petit Larceny: DEC Alpha OSF/1: DEC C compiler
 # Probably not up-to-date, has not been tested for some time!
 #CC=cc
 #CCXFLAGS=-g3 -taso -xtaso_short -ieee
@@ -60,21 +57,10 @@ CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 #	$(CC) $(CFLAGS) -c $< -o $*.o
 
 
-# Microsoft Visual C/C++ with DOS shell on Win32
-# Probably not up-to-date, has not been tested for some time!
-#O=obj
-#CC=cl
-#.c.obj:
-# 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<
+### Native Larceny definitions
 
 
-# Native Larceny on Solaris/SPARC: gcc
-#
-# The assembler must be able to run the preprocessor; the Sun
-# assembler accepts -P to do this, but the GNU assembler does not.  If
-# you experience assembler errors, you most likely have the wrong
-# assembler.  On SunOS systems, try /bin/as.  Or look at 
-# ../Util/gasmask.sh, which runs the preprocessor for you.
+# Solaris: SPARC-native Larceny: gcc and GNU assembler
 
 #O=o
 #CC=gcc
@@ -89,14 +75,18 @@ CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 #CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
 #	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
 #AS=../Util/gasmask.sh
-##These flags for the native Solaris assembler only
-##ASFLAGS=-P -ISparc -IBuild
 #LIBS=-lm -ldl
 #.c.o:
 #	$(CC) $(CFLAGS) -DUSER=\"$$LOGNAME\" -DDATE="\"`date '+%Y-%m-%d %T'`\"" -o $*.o $<
 
+# Solaris: SPARC-native Larceny: Sun assembler
+#
+# Use the above definition with the following ones.  The Sun assembler
+# runs the preprocessor for us and the gasmask script is not required.
+#AS=as
+#ASFLAGS=-P -ISparc -IBuild
 
-# Native Larceny on Debian Linux: gcc + nasm (still debugging)
+# Linux: x86-native Larceny: gcc and NASM (still debugging)
 #O=o
 #CC=gcc
 #DEBUGINFO=-gstabs+
@@ -230,12 +220,13 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
 	/bin/rm -f Sys/version.o
 
-# Generic Unix static library
+# Unix: generic
+# Win32: cygwin
 libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a
 
-# Generic Unix shared library
+# Unix: generic gcc
 libpetit.so: $(PETIT_LARCENY_OBJECTS)
 	gcc -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS)
 
@@ -250,14 +241,19 @@ libpetit.so: $(PETIT_LARCENY_OBJECTS)
 libpetit.dylib: $(PETIT_LARCENY_OBJECTS)
 	$(CC) -undefined suppress -flat_namespace -dynamiclib -o libpetit.dylib $(PETIT_LARCENY_OBJECTS)
 
-# Intel x86 with the NASM back-end, on Unix
+# Unix: Intel x86 with the NASM back-end
 libx86.a: $(X86_NASM_LARCENY_OBJECTS)
 	ar -r libx86.a $(X86_NASM_LARCENY_OBJECTS)
 	ranlib libx86.a
 
-# Win32
-petit-rts.lib: $(PETIT_LARCENY_OBJECTS)
-	lib /libpath:Rts /name:petit-rts /out:petit-rts.lib \
+# Win32: mingw
+libpetit.a: $(PETIT_LARCENY_OBJECTS)
+	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
+	ranlib libpetit.a
+
+# Win32: other compilers
+libpetit.lib: $(PETIT_LARCENY_OBJECTS)
+	lib /libpath:Rts /name:libpetit /out:libpetit.lib \
 	   $(PETIT_LARCENY_OBJECTS)
 
 hsplit: Util/hsplit.o
@@ -271,7 +267,7 @@ clean:
 	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \
 	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \
 	   Sys/*.$(O) Util/*.$(O) \
-	   petit-rts.lib petit-lib.lib libpetit.so libpetit.dylib libpetit.a \
+	   libpetit.lib libheap.lib libpetit.so libpetit.dylib libpetit.a \
 	   Standard-C/arithmetic.c
 
 rtsclean: clean
