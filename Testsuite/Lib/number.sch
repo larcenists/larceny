@@ -25,6 +25,7 @@
 ; Order matters.
 
 (define (run-number-tests)
+  (display "Number") (newline)
   (test-number-representation-predicates)
   (test-number-type-predicates)
   (test-number-ordering-predicates/same-representation)
@@ -40,8 +41,7 @@
   (test-odd-even)
   (test-sundry-arithmetic)
   (test-in-out-conversion)
-  (test-trancendental-functions)
-  (test-past-error-cases))
+  (test-trancendental-functions))
 
 
 ; NOTE
@@ -622,14 +622,14 @@
    (test "(even? -1.0)" (even? -1.0) #f)
    (test "(even? -2.0)" (even? -2.0) #t)
    ; other -- invalid arguments
-   (shouldfail "(even? 3/4)" (lambda () (even? 3/4)))
-   (shouldfail "(odd? 3/4)" (lambda () (odd? 3/4)))
-   (shouldfail "(even? 1.1)" (lambda () (even? 1.1)))
-   (shouldfail "(odd? 1.1)" (lambda () (odd? 1.1)))
-   (shouldfail "(even? 1+3i)" (lambda () (even? 1+3i)))
-   (shouldfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
-   (shouldfail "(even? 'foo)" (lambda () (even? 'foo)))
-   (shouldfail "(odd? 'foo)" (lambda () (odd? 'foo)))
+   (mustfail "(even? 3/4)" (lambda () (even? 3/4)))
+   (mustfail "(odd? 3/4)" (lambda () (odd? 3/4)))
+   (mustfail "(even? 1.1)" (lambda () (even? 1.1)))
+   (mustfail "(odd? 1.1)" (lambda () (odd? 1.1)))
+   (mustfail "(even? 1+3i)" (lambda () (even? 1+3i)))
+   (mustfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
+   (mustfail "(even? 'foo)" (lambda () (even? 'foo)))
+   (mustfail "(odd? 'foo)" (lambda () (odd? 'foo)))
    ; easy cases
    (test "(odd? 0)" (odd? 0) #f)
    (test "(odd? 1)" (odd? 1) #t)
@@ -649,14 +649,14 @@
    (test "(odd? -1.0)" (odd? -1.0) #t)
    (test "(odd? -2.0)" (odd? -2.0) #f)
    ; other -- invalid arguments
-   (shouldfail "(odd? 3/4)" (lambda () (odd? 3/4)))
-   (shouldfail "(odd? 3/4)" (lambda () (odd? 3/4)))
-   (shouldfail "(odd? 1.1)" (lambda () (odd? 1.1)))
-   (shouldfail "(odd? 1.1)" (lambda () (odd? 1.1)))
-   (shouldfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
-   (shouldfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
-   (shouldfail "(odd? 'foo)" (lambda () (odd? 'foo)))
-   (shouldfail "(odd? 'foo)" (lambda () (odd? 'foo)))
+   (mustfail "(odd? 3/4)" (lambda () (odd? 3/4)))
+   (mustfail "(odd? 3/4)" (lambda () (odd? 3/4)))
+   (mustfail "(odd? 1.1)" (lambda () (odd? 1.1)))
+   (mustfail "(odd? 1.1)" (lambda () (odd? 1.1)))
+   (mustfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
+   (mustfail "(odd? 1+3i)" (lambda () (odd? 1+3i)))
+   (mustfail "(odd? 'foo)" (lambda () (odd? 'foo)))
+   (mustfail "(odd? 'foo)" (lambda () (odd? 'foo)))
    ))
 
 (define (test-sundry-arithmetic)
@@ -732,67 +732,6 @@
 (define (test-trancendental-functions)
   (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2"
    #t
-   ))
-
-(define (test-past-error-cases)
-  (allof
-   "past error cases"
-   (test "Error case #1"		; Bug 060
-	 (= (+ 1 (make-rectangular (expt 2 100) 1))
-	    (make-rectangular (expt 2.0 100) 1.0))
-	 #f)
-   (test "Error case #2"		; Bug 060
-	 (- (+ 1 (make-rectangular (expt 2 100) 1))
-	    (make-rectangular (expt 2.0 100) 1.0))
-	 1.0)
-   (test "Error case #3"		; Bug 073
-	 (let ((a (string->number
-		   (string-append "#b" (number->string (sqrt 2) 2))))
-	       (b (sqrt 2)))
-	   (= a b))
-	 #t)
-   (test "Error case #4"		; Bug 058
-	 (zero? (- (expt 2. 100) (+ (expt 2 100) 1)))
-	 #f)
-   (test "Error case #5"		; Bug 058
-	 (- (expt 2.0 100) (+ (expt 2 100) 1))
-	 -1.0)
-   (test "Error case #6"		; Bug 007
-	 (number->string -0.0)
-	 "-0.0")
-   (test "Error case #7"		; Bug 038
-	 (- (expt 2 29))
-	 -536870912)
-   (test "Error case #8"		; Bug 061
-	 (logand -536870912 1)
-	 0)
-   (test "Error case #9"		; Bug 066
-	 (exact->inexact 14285714285714285714285)
-	 1.4285714285714286e22)
-   (let ((z (make-rectangular +inf.0 +inf.0)))
-     (test "Error case #10"		; Bug 059
-	   (* 1.0 z)
-	   z))
-   (let ((z (make-rectangular +inf.0 +inf.0)))
-     (test "Error case #11"		; Bug 059
-	   (* z 1.0)
-	   z))
-   (let ((z (make-rectangular +inf.0 +inf.0)))
-     (test "Error case #12"		; Bug 059
-	   (* 1 z)
-	   z))
-   (let ((z (make-rectangular +inf.0 +inf.0)))
-     (test "Error case #13"		; Bug 059
-	   (* z 1)
-	   z))
-   (test "Error case #14"		; Bug 079
-	 (modulo 33333333333333333333 -3) 0)
-   (test "Error case #15"		; Bug 079
-	 (modulo 2177452800 -86400) 0)
-   (test "Error case #16"		; Bug 079
-	 (modulo -2177452800 -86400) 0)
-   (test "Error case #17"		; Bug 080
-	 (modulo 33333333333333333333.0 -3.0) 0.0)
    ))
 
 ; eof

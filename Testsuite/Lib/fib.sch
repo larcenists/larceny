@@ -6,6 +6,7 @@
 ; Tests non-tail calls; fixnum comparison; fixnum arithmetic.
 
 (define (run-fib-tests)
+  (display "Fib") (newline)
   (allof "fibonacci tests"
 	 (test "(fib 1)" (fib 1) 1)
 	 (test "(fib 10)" (fib 10) 55)

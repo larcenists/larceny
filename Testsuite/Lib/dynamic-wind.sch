@@ -6,12 +6,15 @@
 
 ; Straightforward test -- does it get nesting right?
 
-(define (test-dynamic-wind)
-  (if (equal? (run-test) test-result)
-      "OK"
-      "Not OK"))
+(define (run-dynamic-wind-tests)
+  (display "Dynamic-wind") (newline)
+  (allof "Dynamic-wind"
+   (test "dynamic-wind test"
+	 (test-dynamic-wind)
+	 dynamic-wind-test-result)
+   ))
 
-(define (run-test)
+(define (test-dynamic-wind)
   (define trace '())
   (define escape (lambda (n) (error "Escape.")))
   (define return (lambda (x) (loop x)))
@@ -48,7 +51,7 @@
     (return v))
   (reverse trace))
 
-(define test-result
+(define dynamic-wind-test-result
   '((before . 20)
     (after . 20)
     (before . 20)
@@ -121,3 +124,4 @@
     (after . 19)
     (after . 20)))
 
+; eof

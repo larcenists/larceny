@@ -5,6 +5,7 @@
 ; Test cases for fixnum-specific primitives.  
 
 (define (run-fixnum-tests . rest)
+  (display "Fixnums") (newline)
   (fixnum-test-functionality)
   (if (null? rest)
       (fixnum-test-error)

@@ -1,9 +1,24 @@
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
-; FIXME: need to test other number types!
+;
+; Predicates.
+; Number predicates are tested by number.sch, but we still need to test 
+; many other things in this file:
+;  - pair?
+;  - null?
+;  - boolean?
+;  - symbol?
+;  - structure?
+;  - port?, input-port?, output-port?
+;  - list?
+;  - vector?
+;  - char?
+;  - number?
+;  - procedure?
 
-(define (test-equality-primitives)
-  (display "----------------------------------------") (newline)
-  (display "Testing eq?, eqv?, and equal?") (newline)
+(define (run-predicate-tests)
+  (display "Predicate") (newline)
   (test-equality-primitives-helper 0 1 1 2 'a 'b))
 
 (define (test-equality-primitives-helper zero one xone two a b)
@@ -39,4 +54,4 @@
      (test "(e 'foo 'foo)" (e 'foo 'foo) '(#t #t))
      )))
 
-
+; eof

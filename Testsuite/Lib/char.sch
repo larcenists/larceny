@@ -3,6 +3,7 @@
 ; $Id$
 
 (define (run-char-tests)
+  (display "Char") (newline)
   (char-predicate-test)
   (char-test-eqv?)
   (char-simple-comparisons)

@@ -18,6 +18,7 @@
 
 
 (define (run-ctak-tests)
+  (display "Ctak") (newline)
   (allof "ctak tests"
 	 (test "(ctak 18 12 6)" (ctak 18 12 6) 7)
 	 (test "(ctak 18 12 6)" (ctak 18 12 6) 7)

@@ -10,13 +10,22 @@
 
 (define (test id ans correct)
   (if (not (equal? ans correct))
-      (begin (display "********** FAILURE *********") (newline)
-	     (display "  ") (display id) (display " did not pass test.")
-	     (newline)
-	     (display "  Returned value = ") (display ans) (newline)
-	     (display "  Correct value  = ") (display correct) (newline)
+      (begin (failure-message-failed id ans correct)
 	     #f)
       #t))
+
+(define (failure-message-failed id ans correct)
+  (display "********** FAILURE *********") (newline)
+  (display "  ") (display id) (display " did not pass test.")
+  (newline)
+  (display "  Returned value = ") (display ans) (newline)
+  (display "  Correct value  = ") (display correct) (newline))
+
+(define (failure-message-succeeded id)
+  (display "********** FAILURE *********") (newline)
+  (display "  ") (display id) (display " did not pass test.")
+  (newline)
+  (display "It should have failed but did not.") (newline))
 
 ; Another generic test procedure, but ans and correct are assumed to
 ; be lists and are the same if they have the same contents.
@@ -77,6 +86,22 @@
     (if (not (car l))
 	(set! errors (+ errors 1)))))
 
+(define (allof-map test-name p l)
+  (do ((l l (cdr l))
+       (errors 0))
+      ((null? l)
+       (if (not (zero? errors))
+	   (begin (newline)
+		  (display errors)
+		  (display " failure(s) detected in the group \"")
+		  (display test-name)
+		  (display "\".")
+		  (newline)
+		  (newline)))
+       errors)
+    (if (not (p (car l)))
+	(set! errors (+ errors 1)))))
+
 (define (safely thunk token)
   (call-with-current-continuation
    (lambda (k)
@@ -88,13 +113,31 @@
 ; Should really override the error handler (so that an error message
 ; is not printed).  FIXME.
 
-(define (shouldfail id thunk)
-  (let ((token (list 'token)))
-    (let ((result (safely thunk token)))
-      (if (not (eq? result token))
-	  (begin (display id) (display " did not pass test.") (newline)
-		 (display "It should have failed, but did not.") (newline)
-		 #f)
-	  #t))))
+;(define (mustfail id thunk)
+;  (let ((token (list 'token)))
+;    (let ((result (safely thunk token)))
+;      (if (not (eq? result token))
+;	  (begin (display id) (display " did not pass test.") (newline)
+;		 (display "It should have failed, but did not.") (newline)
+;		 #f)
+;	  #t))))
+
+(define (mustfail name p . args)
+  (let ((eh #f))
+    (if (call-with-current-continuation
+	 (lambda (return)
+	   (dynamic-wind
+	    (lambda () 
+	      (set! eh (error-handler))
+	      (error-handler (lambda args (return #f))))
+	    (lambda () 
+	      (apply p args)
+	      #t)
+	    (lambda () 
+	      (error-handler eh)))))
+	(begin
+	  (failure-message-succeeded name)
+	  #f)
+	#t)))
 
 ; eof

@@ -3,6 +3,7 @@
 ; $Id$
 
 (define (run-boolean-tests)
+  (display "Boolean") (newline)
   (test-not not)
   (test-boolean? boolean?))
 
