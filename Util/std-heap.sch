@@ -36,9 +36,9 @@
 ;;; Install pretty printer as default printer.
 
 (repl-printer
- (lambda (x)
+ (lambda (x port)
    (if (not (eq? x (unspecified)))
-       (pretty-print x))))
+       (pretty-print x port))))
 
 ;;; Load common syntactic abstractions
 
