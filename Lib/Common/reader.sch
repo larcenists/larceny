@@ -370,7 +370,9 @@
        (read-dispatch-extra-paren
          (lambda (c p)
            (newline)
-           (display "\; Extra right parenthesis found in input")
+           ;; used to be "\; ...",
+           ;; but Petite Chez yields a reader error on it
+           (display "; Extra right parenthesis found in input")
            (newline)
            (read-dispatch-whitespace c p)))
  

@@ -6,10 +6,10 @@
 # you are building on.
 
 ## Win32 (.NET SDK)
-CSC = csc
+#CSC = csc
 
 ## MacOS X (Rotor)
-#CSC = csc /d:USING_ROTOR /d:BIG_ENDIAN
+CSC = csc /d:USING_ROTOR /d:BIG_ENDIAN
 
 ## Linux (Mono)
 #CSC = mcs

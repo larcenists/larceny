@@ -268,7 +268,7 @@
                      (flonum-endian . ,(common-endian "flonums" ".manifest"))
                      (bignum-endian . ,(common-endian "bignums" ".manifest"))
                      (osdep . ,(common-relative osdep-file))
-                     (extra . #f))))
+                     (extra  . "Lib/IL/loadable.manifest"))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files)))
     

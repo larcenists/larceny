@@ -121,10 +121,10 @@
       (lambda ()
         (csharp-config 
          output-c#-file
-         `((,(make-filename rts-dir "layouts.cfg")  int)
-           (,(make-filename rts-dir "except.cfg")  uint)
-           (,(make-filename rts-dir "globals.cfg") uint)
-           (,(make-filename rts-dir "mprocs.cfg")  uint))))))
+         `((,(make-filename rts-dir "layouts.cfg") int)
+           (,(make-filename rts-dir "except.cfg")  int)
+           (,(make-filename rts-dir "globals.cfg") int)
+           (,(make-filename rts-dir "mprocs.cfg")  int))))))
       
   (define (catfiles input-files output-file)
     (with-output-to-file output-file
