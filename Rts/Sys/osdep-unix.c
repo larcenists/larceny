@@ -292,7 +292,7 @@ static void* alloc_block( int bytes )
     pagesize = getpagesize();
     zero = open( "/dev/zero", O_RDONLY );
     if (zero == -1) 
-      panic( "mmap: %s: failed to open /dev/zero.", strerror( errno ) );
+      panic_exit( "mmap: %s: failed to open /dev/zero.", strerror( errno ) );
   }
 
   fragmentation += roundup( bytes, pagesize ) - bytes;
