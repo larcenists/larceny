@@ -41,6 +41,21 @@
 #include "young_heap_t.h"
 #include "stats.h"
 
+/* The code controlled by PROFILE_FOR_FAST_REMSET is here for an
+   experiment having to do with Stefanovic's write barrier. 
+   */
+#define PROFILE_FOR_FAST_REMSET  0              /* Wizards only */
+#define BLOCKMASK                (~0xffff)      /* 64 KB */
+
+#if PROFILE_FOR_FAST_REMSET
+static struct {
+  word words_scanned;
+  word ptrs_scanned;
+  word ptr_same_block;
+  word fast_check_succeeds;
+} nursery;
+#endif
+
 typedef struct young_data young_data_t;
 
 struct young_data {
@@ -161,6 +176,21 @@ static void collect( young_heap_t *heap, int nbytes, int request )
 			 free_space( heap ), nbytes,
 			 (nbytes == 0 ? " [stack overflow]" : "" ) );
 
+#if PROFILE_FOR_FAST_REMSET
+  { word *p;
+    word *globals = data->globals;
+    for ( p=(word*)globals[G_EBOT]; p < (word*)globals[G_ETOP] ; p++ ) {
+      nursery.words_scanned++;
+      if ((((word)p ^ *p) & BLOCKMASK) == 0)
+	nursery.fast_check_succeeds++;
+      if (isptr(*p)) {
+	nursery.ptrs_scanned++;
+	if ((((word)p ^ *p) & BLOCKMASK) == 0)
+	  nursery.ptr_same_block++;
+      }
+    }
+  }
+#endif
   gc_collect( heap->collector, data->gen_no+1, 0, GCTYPE_PROMOTE );
   data->nbytes_wanted = nbytes;  /* For use in after_collection() */
 }
