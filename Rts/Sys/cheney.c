@@ -41,6 +41,22 @@
 #define FORW_BY_MEMCPY   0	/* Memcpy only */
 
 
+/* Checking code */
+
+#define CHECK_EVERY_WORD 0
+
+#if CHECK_EVERY_WORD
+# define check_memory( ptr, nwords ) \
+    check_memory_validity( ptr, nwords )
+# define check_address( ptr ) \
+    do { if (((word)(ptr) & 7) != 0) \
+           panic_abort( "Odd address for forw. ptr: 0x%08x!", (ptr) ); \
+    } while(0)
+#else
+# define check_memory( ptr, nwords ) (void)0
+# define check_address( ptr )  (void)0
+#endif
+
 /* Forwarding macros for normal copying collection and promotion.
 
    Forw_oflo() forwards the contents of a location after obtaining
@@ -106,8 +122,10 @@
     check_space(dest,lim,8,e); \
     *dest = TMP_W; \
     *(dest+1) = *(TMP_P+1); \
+    check_address( TMP_P ); \
     *TMP_P = FORWARD_HDR; \
     *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG); \
+    check_memory( dest, 2 ); \
     dest += 2; \
   } \
   else { \
@@ -216,8 +234,10 @@
     check_space2(dest,lim,8,e->tospace); /*data*/ \
     *dest = *TMP_P; \
     *(dest+1) = *(TMP_P+1); \
+    check_address( TMP_P ); \
     *TMP_P = FORWARD_HDR; \
     *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG); \
+    check_memory( dest, 2 ); \
     dest += 2; \
   } \
   else if (tagof( T_obj ) == BVEC_TAG) { \
@@ -325,8 +345,10 @@
     check_space_np(dest,lim,8,e); \
     *dest = TMP_W; \
     *(dest+1) = *(TMP_P+1); \
+    check_address( TMP_P ); \
     *TMP_P = FORWARD_HDR; \
     *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG); \
+    check_memory( dest, 2 ); \
     dest += 2; \
   } \
   else { \
@@ -504,6 +526,7 @@ static word forward( word, word **, cheney_env_t *e );
 static void expand_semispace( semispace_t *, word **, word **, unsigned );
 static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
+static void check_memory_validity( word *ptr, int nwords );
 
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
@@ -940,6 +963,12 @@ static word forward( word p, word **dest, cheney_env_t *e )
        words = (((hdr >> 8) + 11) >> 3) << 1; */
     words = roundup8( sizefield( hdr ) + 4 ) / 4;
 
+#if CHECK_EVERY_WORD
+    switch (tag) {
+    case VEC_TAG : case PROC_TAG :
+      check_memory_validity( p2, (sizefield( hdr ) + 4)/4 );
+    }
+#endif
     /* 32 is pretty arbitrary; chosen to match overhead of memcpy(). */
     /* gcc doesn't schedule real well. */
     if (words < 32) {
@@ -1007,6 +1036,7 @@ static word forward( word p, word **dest, cheney_env_t *e )
   newptr = (word) tagptr( newptr, tag );
 
   /* leave forwarding pointer */
+  check_address( ptr );
   *ptr = FORWARD_HDR;
   *(ptr+1) = newptr;
 
@@ -1085,6 +1115,13 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
   hdr = *ptr;
   bytes = roundup8( sizefield( hdr ) + 4 );
 
+#if CHECK_EVERY_WORD
+    switch (tag) {
+    case VEC_TAG : case PROC_TAG :
+      check_memory_validity( ptr, (sizefield(hdr)+4)/4 );
+      break;
+    }
+#endif
   mark_list = los->mark1;
   sub1 = bytes;
   if (e->np_promotion) {
@@ -1116,6 +1153,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
     was_marked = los_mark( los, mark_list, new, gclib_desc_g[ pageof( ptr ) ] );
     
     /* Leave a forwarding pointer */
+    check_address( ptr );
     *ptr = FORWARD_HDR;
     *(ptr+1) = tagptr( new, tag );
     ret = *(ptr+1);
@@ -1128,6 +1166,83 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
     e->np.young_los_steps = ceildiv( e->np.young_los_bytes, GC_CHUNK_SIZE );
   }
   return ret;
+}
+
+static void check_memory_validity( word *p, int n )
+{
+  int i;
+
+  for ( i=0 ; i < n ; i++ ) {
+    word x = p[i], y;
+
+    if (ishdr( x )) {
+      if (i != 0) {
+	hardconsolemsg( "Header 0x%08x found at offset %d in object 0x%08x!",
+		        x, i, (word)p );
+	conditional_abort();
+      }
+      else if (sizefield( x ) > 1000000) {
+	hardconsolemsg( "Implausible but valid size %u in header "
+		        "0x%08x in  object 0x%08x.", sizefield(x), x, (word)p);
+      }
+    }
+    else {
+      switch (tagof( x )) {
+      case 0 : case 4 :		/* fixnum */
+	break;
+      case 6 :			/* immediate */
+	if ((x & 0xFF) == IMM_CHAR
+	    || x == TRUE_CONST || x == FALSE_CONST || x == NIL_CONST 
+	    || x == UNSPECIFIED_CONST || x == UNDEFINED_CONST
+	    || x == EOF_CONST)
+	  ;
+	else {
+	  hardconsolemsg( "Invalid immediate 0x%08x found at offset %d"
+			 " in object 0x%08x!", x, i, (word)p );
+	  conditional_abort();
+	}
+	break;
+      case 1 :			/* pair */
+	y = *ptrof( x );
+	if (y != FORWARD_HDR && ishdr( y )) {
+	  hardconsolemsg( "Pair pointer 0x%08x at offset %d in object 0x%08x"
+			  " points to a header (0x%08x)!", x, i, (word)p, y );
+	  conditional_abort();
+	}
+	break;
+      case 3 :			/* vector */
+	y = *ptrof( x );
+	if (y != FORWARD_HDR && (!ishdr( y ) || header( y ) != VEC_HDR)) {
+	  hardconsolemsg( "Vector pointer 0x%08x at offset %d in object 0x%08x"
+			  " does not point to a vector header (0x%08x)!", 
+			  x, i, (word)p, y );
+	  conditional_abort();
+	}
+	break;
+      case 5 :			/* bytevector */
+	y = *ptrof( x );
+	if (y != FORWARD_HDR && (!ishdr( y ) || header( y ) != BV_HDR)) {
+	  hardconsolemsg( "Bytevector pointer 0x%08x at offset %d in object "
+			  "0x%08x does not point to a bytevector header "
+			  "(0x%08x)!",
+			  x, i, (word)p, y );
+	  conditional_abort();
+	}
+	break;
+      case 7 :			/* procedure */
+	y = *ptrof( x );
+	if (y != FORWARD_HDR && 
+	    (!ishdr( y ) || header(y) != header(PROC_HDR))) {
+	  hardconsolemsg( "Procedure pointer 0x%08x at offset %d in object "
+			  "0x%08x does not point to a procedure header "
+			  "(0x%08x)!", 
+			  x, i, (word)p, y );
+	  conditional_abort();
+	}
+	break;
+      }
+    }
+  }
 }
 
 /* eof */
