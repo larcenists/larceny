@@ -256,6 +256,41 @@ HIGH PRIORITY BUGS: 082.
     * some top-level names are reserved by the quasiquote macro:
       lambda, define, quote, begin, if, set!
 
-NEXT ENTRY: 084
+084 v0.39 (981216 / lth)
+    Priority: low
+
+    Minor interpreter bug: it gives bad error messages when using
+    primitive names in environments that don't have those primitives.
+
+	> (eval '(let ((a 1)) (foo a)) (null-environment 4))
+	Error: Reference to undefined global variable `foo'.
+	> (eval '(let ((a 1)) (car a)) (null-environment 4))
+	Error: Attempt to apply #!undefined, which is not a procedure.
+
+    The problem is that the interpreter has a fixed notion about what
+    constitutes a primitive.  Technically, there should be a primitive 
+    table that is relative to the environment.
+
+085 v0.39 (981216 / lth)
+    Priority: low
+
+    Environments should contain syntax environments, and both 
+    compile-expression (Compiler/compile313.sch) and macro-expand 
+    (Eval/macro-expand.sch) should allow any environment to be used.
+    This is a longer-term project.
+
+086 v0.39 (981216 / lth)
+    Priority: low
+
+    With -stats switch, Larceny does not print size of text/static area, 
+    if there's one; see print_heapstats() in Rts/Sys/stats.c.
+
+087 v0.39 (981216 / lth)
+    Priority: low
+
+    Memstats does not return information about the static area, if any.
+
+
+NEXT ENTRY: 088
 	
 ; eof
