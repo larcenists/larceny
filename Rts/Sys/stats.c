@@ -43,6 +43,8 @@
  * - record/report peak memory usage (allocated) per generation & remset
  *
  * FIXME: this is poorly integrated with the conservative collector.
+ *   Could split GC time into mark time and (lazy) sweep time.
+ *
  * FIXME: the logic is too tangled.
  */
 
@@ -345,130 +347,64 @@ stats_rtclock( void )
 }
 
 
-/* Create a nested Scheme vector and fill it in with the statistics
- * data.  
- *
- * This is pretty hairy because filling in Scheme data structures
- * from C is pretty hairy.
- *
- * The allocation code is wrong for the Boehm collector with 
- * ALL_INTERIOR_POINTERS off, as we create pointers into objects 
- * at unexpected locations.
- */
+/* Fill stats vector with the statistics. */
 
-#if defined(BDW_GC)
-/* Really, really gross hack: part the first */
-#define ANCHORS  64	/* This is not an arbitrary number */
-static int anchor_index = 0;
-static word memstats_anchors[ANCHORS];
-#endif
-
-word
-stats_fillvector( void )
+word 
+stats_fillvector( word w_buffer )
 {
   static heap_stats_t *hs = 0;
-
-  word allocated;
+  word allocated, genv, remv;
   sys_stat_t ms;
-  word *vp, *p, *genv, *gv, *remv, *rv, *gv_base, *rv_base;
-  int i;
-  unsigned gen_generations, rem_remsets, main_vec_elts, gen_vec_elts,
-           one_gen_elts, rem_vec_elts, one_rem_elts, size;
+  int i, gen_generations, rem_remsets;
 
   if (hs == 0) hs = make_heapstats( 0 );
   current_statistics( hs, &memstats );
 
-  /* Now work on a temporary structure! */
   ms = memstats;
   allocated = hs[0].live-heapstats_after_gc[0].live;
   add( &ms.wallocated_hi, &ms.wallocated_lo, fixnum(allocated/sizeof(word)));
 
+  gen_generations = generations;  /* # of generation vectors */
+  rem_remsets = generations;	  /* np remset is last elt. */
 
-  /* Allocate memory for the statistics vector
-   *
-   * The following variables hold the sizes (in words) of the structures 
-   * for the various vectors that will be filled in with stats.  
-   * The size includes the header and any padding.
-   */
-  gen_generations = generations;                 /* # of generation vectors */
-  rem_remsets = generations;                     /* np remset is last elt. */
-  main_vec_elts = roundup2( STAT_VSIZE+1 );      /* main vector */
-  gen_vec_elts = roundup2( gen_generations+1 );  /* generation meta-vector */
-  one_gen_elts = roundup2( STAT_G_SIZE+1 );      /* one generation vector */
-  rem_vec_elts = roundup2( rem_remsets+1 );      /* remset meta-vector */
-  one_rem_elts = roundup2( STAT_R_SIZE+1 );      /* one remset vector */
+  assert( vector_length( w_buffer ) == STAT_VSIZE*sizeof(word) );
+  assert( vector_length(vector_ref(w_buffer, STAT_GENERATIONS)) 
+	  == gen_generations*sizeof(word) );
+  assert( vector_length(vector_ref(w_buffer, STAT_REMSETS)) 
+	  == rem_remsets*sizeof(word) );
 
-  size = roundup8( sizeof( word ) * (main_vec_elts +
-				     gen_vec_elts +
-				     one_gen_elts*gen_generations +
-				     rem_vec_elts +
-				     one_rem_elts*rem_remsets
-				     ) );
-  p = alloc_from_heap( size );                   /* never fails */
-  memset( (void*)p, 0, size );                   /* 0-fill is safe */
+  fill_main_entries( ptrof(w_buffer)+1, &ms );
 
-
-  /* First initialize the main vector */
-
-  *p = mkheader( STAT_VSIZE*sizeof(word), VECTOR_HDR );
-  vp = p+1;
-
-  fill_main_entries( vp, &ms );
-
-
-  /* Now do generations */
-
+  /* Do generations */
   /* genv points to generation metavector */
-  genv = p + main_vec_elts; 
-  *genv = mkheader( gen_generations*sizeof(word), VECTOR_HDR );
-  vp[ STAT_GENERATIONS ] = tagptr( genv, VEC_TAG );
+  genv = vector_ref( w_buffer, STAT_GENERATIONS );
+  for ( i=0 ; i < gen_generations ; i++ ) {
+    word g = vector_ref(genv,i);
 
-  gv_base = genv + gen_vec_elts;
-  for ( i=0 ; i < generations ; i++ ) {
-    /* gv is the offset of generation vector #i */
-    gv = gv_base + i*one_gen_elts;
-    genv[ i+1 ] = tagptr( gv, VEC_TAG );
-    *gv = mkheader( STAT_G_SIZE*sizeof(word), VECTOR_HDR );
-    
-    fill_gen_vector( gv+1, &ms.gen_stat[i], hs[i].live );
+    assert( vector_length( g ) == STAT_G_SIZE*sizeof(word) );
+    fill_gen_vector( ptrof(g)+1, &ms.gen_stat[i], hs[i].live);
   }
 
-
-  /* Now do remembered sets */
-
+  /* Do remembered sets */
   /* remv points to remset metavector */
-  remv = p + main_vec_elts
-	   + gen_vec_elts
-           + one_gen_elts*generations;
-  *remv = mkheader( rem_remsets*sizeof(word), VECTOR_HDR );
-  vp[ STAT_REMSETS ] = tagptr( remv, VEC_TAG );
-
-  rv_base = remv + rem_vec_elts;
+  remv = vector_ref( w_buffer, STAT_REMSETS );
   for ( i = 1 ; i <= rem_remsets ; i++ ) {
     int np_remset = 0;
+    word r = vector_ref(remv,i-1);
 
-    /* rv is the offset of remembered set vector #i */
-    rv = rv_base + (i-1)*one_rem_elts;
-    remv[i] = tagptr( rv, VEC_TAG );
-    *rv = mkheader( STAT_R_SIZE*sizeof(word), VECTOR_HDR );
-
+    assert( vector_length(r) == STAT_R_SIZE*sizeof(word) );
     np_remset = i == rem_remsets;
     if (np_remset)
-      fill_remset_vector( rv+1, &ms.np_remset, 1 );
+      fill_remset_vector( ptrof(r)+1, &ms.np_remset, 1 );
     else
-      fill_remset_vector( rv+1, &ms.rem_stat[i], 0 );
+      fill_remset_vector( ptrof(r)+1, &ms.rem_stat[i], 0 );
   }
 
-  vp[ STAT_NPREMSET_P ] = TRUE_CONST;  /* Useful as a hint only */
+  /* Useful as a hint only */
+  vector_set( w_buffer, STAT_NPREMSET_P, TRUE_CONST );
 
-#if defined(BDW_GC)
-  /* Really, really gross hack: part the second */
-  memstats_anchors[ (anchor_index++ % ANCHORS) ] = tagptr( p, VEC_TAG );
-#endif
-
-  return tagptr( p, VEC_TAG );
+  return w_buffer;
 }
-
 
 static void
 fill_main_entries( word *vp, sys_stat_t *ms )
