@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 23 April 1999.
+; 21 May 1999.
 
 ; Procedure calls.
 
@@ -29,77 +29,6 @@
                                     exp
                                     target regs frame env tail?))
                     (else (error "Bug in cg-call" exp))))))))
-
-(define (cg-let output exp target regs frame env tail?)
-  (let* ((proc (call.proc exp))
-         (vars (lambda.args proc))
-         (n (length vars)))
-    (if (= n 1)
-        (cg-let1 output exp target regs frame env tail?)
-        (let* ((args (call.args exp))
-               (free (lambda.F proc))
-               (temps (newtemps n))
-               (alist (map cons temps vars)))
-          (for-each (lambda (arg t)
-                      (let ((r (choose-register regs frame)))
-                        (cg0 output arg r regs frame env #f)
-                        (cgreg-bind! regs r t)
-                        (gen-store! output frame r t)))
-                    args
-                    temps)
-          (cgreg-rename! regs alist)
-          (cgframe-rename! frame alist)
-          (cg-let-body output proc target regs frame env tail?)))))
-
-(define (cg-let1 output exp target regs frame env tail?)
-  (let* ((proc (call.proc exp))
-         (v (car (lambda.args proc)))
-         (arg (car (call.args exp))))
-    
-    (define (evaluate-into-register r)
-      (cg0 output arg r regs frame env #f)
-      (cgreg-bind! regs r v)
-      (gen-store! output frame r v))
-    
-    (define (evaluate-normally)
-      (evaluate-into-register (choose-register regs frame))
-      (cg-let-body output proc target regs frame env tail?))
-    
-    (cond ((assq v *regnames*)
-           (evaluate-into-register (cdr (assq v *regnames*)))
-           (cg-let-body output proc target regs frame env tail?))
-          
-          ((not (memq v (lambda.F proc)))
-           (cg0 output arg #f regs frame env #f)
-           (cg-let-body output proc target regs frame env tail?))
-          
-          (else
-           (evaluate-into-register (choose-register regs frame))
-           (cg-let-body output proc target regs frame env tail?)))))
-
-(define (cg-let-body output L target regs frame env tail?)
-  (let ((vars (lambda.args L))
-        (free (lambda.F L)))
-    ; FIXME:  The non-tail case is important also.
-    ; The tail case is easy because there are no live temporaries,
-    ; and there are no free variables in the context.
-    (if tail?
-        (let ((keepers (cons (cgreg-lookup-reg regs 0) free)))
-          (cgreg-release-except! regs keepers)
-          (cgframe-release-except! frame keepers)))
-    (let ((r (cg-body output L target regs frame env tail?)))
-      (for-each (lambda (v)
-                  (let ((entry (cgreg-lookup regs v)))
-                    (if entry
-                        (cgreg-release! regs (entry.regnum entry)))
-                    (cgframe-release! frame v)))
-                vars)
-      ; FIXME: generates suboptimal code for (let ((x (+ y 1))) x).
-      (if (and (not target)
-               (not (eq? r 'result))
-               (not (cgreg-lookup-reg regs r)))
-          (cg-move output frame regs r 'result)
-          r))))
 
 (define (cg-unknown-call output exp target regs frame env tail?)
   (let* ((proc (call.proc exp))
@@ -454,35 +383,6 @@
   (if (< (length args) *nregs*)
       (eval-loop (cdr args) '() '())
       (error "Bug detected by cg-primop-args" args)))
-
-; Special primitives are used to generate runtime safety checks,
-; efficient code for call-with-values, and other weird things.
-
-(define (cg-special output exp target regs frame env tail?)
-  (let ((name (variable.name (call.proc exp))))
-    (case name
-      ((.check!)   (cg-check output exp target regs frame env tail?))
-      (else
-       (error "Bug in cg-special" exp)))))
-
-(define (cg-check output exp target regs frame env tail?)
-  (let* ((args (call.args exp))
-         (nargs (length args)))
-    (if (and (<= 2 nargs 5)
-             (constant? (cadr args)))
-        (let ((exn (constant.value (cadr args)))
-              (regs (cg-primop-args output
-                                    (cons (car args) (cddr args))
-                                    regs frame env)))
-          (case nargs
-            ((2) (gen! output $check 0 0 0 exn))
-            ((3) (gen! output $check (car regs) 0 0 exn))
-            ((4) (gen! output $check (car regs) (cadr regs) 0 exn))
-            ((5) (gen! output $check (car regs)
-                                     (cadr regs)
-                                     (caddr regs)
-                                     exn))))
-        (error "Bug in runtime check" (make-readable exp)))))
 
 
 ; Parallel assignment.

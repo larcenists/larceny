@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 23 April 1999.
+; 7 June 1999.
 ;
 ; Fourth pass of the Twobit compiler:
 ;   code generation for the MacScheme machine.
@@ -52,6 +52,8 @@
 ;      inner lambda expression that escapes, and possibly a few that
 ;      don't.  (Assignment-elimination does not calculate G exactly.)
 ;   *  Variables named IGNORED are neither referenced nor assigned.
+;   *  Any lambda expression that is declared to be in A-normal form
+;      really is in A-normal form.
 ;
 ; 
 ; Stack frames are created by "save" instructions.
@@ -147,12 +149,7 @@
                            'result)
                     (cg-move output frame regs 'result target)))
     ((set!)     (cg0 output (assignment.rhs exp) 'result regs frame env #f)
-                (gen! output $setglbl (assignment.lhs exp))
-                (if tail?
-                    (begin (gen-pop! output frame)
-                           (gen! output $return)
-                           'result)
-                    (cg-move output frame regs 'result target)))
+                (cg-assignment-result output exp target regs frame env tail?))
     ((if)       (cg-if output exp target regs frame env tail?))
     ((begin)    (if (variable? exp)
                     (cg-variable output exp target regs frame env tail?)
@@ -298,6 +295,8 @@
          (regs (cgreg-initial))
          (frame (cgframe-initial))
          (t0 (newtemp)))
+    (if (member A-normal-form-declaration (lambda.decls exp))
+        (cgframe-livevars-set! frame '()))
     (cgreg-bind! regs 0 t0)
     (gen-save! output frame t0)
     (do ((r 1 (+ r 1))
@@ -443,6 +442,16 @@
                                env))
             defs))
 
+; The right hand side has already been evaluated into the result register.
+
+(define (cg-assignment-result output exp target regs frame env tail?)
+  (gen! output $setglbl (assignment.lhs exp))
+  (if tail?
+      (begin (gen-pop! output frame)
+             (gen! output $return)
+             'result)
+      (cg-move output frame regs 'result target)))
+
 (define (cg-if output exp target regs frame env tail?)
   ; The test can be a constant, because it is awkward
   ; to remove constant tests from an A-normal form.
@@ -452,40 +461,49 @@
                (if.then exp)
                (if.else exp))
            target regs frame env tail?)
-      (let ((L1 (make-label))
-            (L2 (make-label)))
-        (cg0 output (if.test exp) 'result regs frame env #f)
-        (gen! output $branchf L1 (cgreg-tos regs))
-        (let* ((regs2 (cgreg-copy regs))
-               (frame1 (if (and tail?
-                                (negative? (cgframe-size frame)))
-                           (cgframe-initial)
-                           frame))
-               (frame2 (if (eq? frame frame1)
-                           (cgframe-copy frame1)
-                           (cgframe-initial)))
-               (t0 (cgreg-lookup-reg regs 0)))
-          (if (not (eq? frame frame1))
-              (begin (gen-save! output frame1 t0)
-                     (cg-saveregs output regs frame1)))
-          (let ((r (cg0 output (if.then exp) target regs frame1 env tail?)))
-            (if (not tail?)
-                (gen! output $skip L2 (cgreg-live regs r)))
-            (gen! output $.label L1)
-            (if (not (eq? frame frame1))
-                (begin (gen-save! output frame2 t0)
-                       (cg-saveregs output regs2 frame2))
-                (cgframe-update-stale! frame2))
-            (cg0 output (if.else exp) r regs2 frame2 env tail?)
-            (if (not tail?)
-                (begin (gen! output $.label L2)
-                       (cgreg-join! regs regs2)
-                       (cgframe-join! frame1 frame2)))
-            (if (and (not target)
-                     (not (eq? r 'result))
-                     (not (cgreg-lookup-reg regs r)))
-                (cg-move output frame regs r 'result)
-                r))))))
+      (begin
+       (cg0 output (if.test exp) 'result regs frame env #f)
+       (cg-if-result output exp target regs frame env tail?))))
+
+; The test expression has already been evaluated into the result register.
+
+(define (cg-if-result output exp target regs frame env tail?)
+  (let ((L1 (make-label))
+        (L2 (make-label)))
+    (gen! output $branchf L1 (cgreg-tos regs))
+    (let* ((regs2 (cgreg-copy regs))
+           (frame1 (if (and tail?
+                            (negative? (cgframe-size frame)))
+                       (cgframe-initial)
+                       frame))
+           (frame2 (if (eq? frame frame1)
+                       (cgframe-copy frame1)
+                       (cgframe-initial)))
+           (t0 (cgreg-lookup-reg regs 0)))
+      (if (not (eq? frame frame1))
+          (let ((live (cgframe-livevars frame)))
+            (cgframe-livevars-set! frame1 live)
+            (cgframe-livevars-set! frame2 live)
+            (gen-save! output frame1 t0)
+            (cg-saveregs output regs frame1)))
+      (let ((r (cg0 output (if.then exp) target regs frame1 env tail?)))
+        (if (not tail?)
+            (gen! output $skip L2 (cgreg-live regs r)))
+        (gen! output $.label L1)
+        (if (not (eq? frame frame1))
+            (begin (gen-save! output frame2 t0)
+                   (cg-saveregs output regs2 frame2))
+            (cgframe-update-stale! frame2))
+        (cg0 output (if.else exp) r regs2 frame2 env tail?)
+        (if (not tail?)
+            (begin (gen! output $.label L2)
+                   (cgreg-join! regs regs2)
+                   (cgframe-join! frame1 frame2)))
+        (if (and (not target)
+                 (not (eq? r 'result))
+                 (not (cgreg-lookup-reg regs r)))
+            (cg-move output frame regs r 'result)
+            r)))))
 
 (define (cg-variable output exp target regs frame env tail?)
   (define (return id)

@@ -3,7 +3,7 @@
 ; Code for special primitives, used to generate runtime safety checks,
 ; efficient code for call-with-values, and other weird things.
 ;
-; 24 April 1999.
+; 4 June 1999.
 
 (define (cg-special output exp target regs frame env tail?)
   (let ((name (variable.name (call.proc exp))))
@@ -13,7 +13,19 @@
           (else
            (error "Compiler bug: cg-special" (make-readable exp))))))
 
+(define (cg-special-result output exp target regs frame env tail?)
+  (let ((name (variable.name (call.proc exp))))
+    (cond ((eq? name name:CHECK!)
+           (if (runtime-safety-checking)
+               (cg-check-result output exp target regs frame env tail?)))
+          (else
+           (error "Compiler bug: cg-special" (make-readable exp))))))
+
 (define (cg-check output exp target regs frame env tail?)
+  (cg0 output (car (call.args exp)) 'result regs frame env #f)
+  (cg-check-result output exp target regs frame env tail?))
+
+(define (cg-check-result output exp target regs frame env tail?)
   (let* ((args (call.args exp))
          (nargs (length args))
          (valexps (cddr args)))
@@ -25,9 +37,9 @@
                      valexps))
         (let* ((exn (constant.value (cadr args)))
                (vars (filter variable? valexps))
-               (rs (cg-check-args output
-                                  (cons (car args) vars)
-                                  regs frame env)))
+               (rs (cg-result-args output
+                                   (cons (car args) vars)
+                                   regs frame env)))
           
           ; Construct the trap situation:
           ; the exception number followed by an ordered list of
@@ -114,6 +126,8 @@
 ; the arguments that follow the first.
 ; The number of expressions must be less than the number of argument
 ; registers.
+
+; FIXME: No longer used.
 
 (define (cg-check-args output args regs frame env)
   

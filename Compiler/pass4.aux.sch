@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 29 April 1999
+; 4 June 1999
 
 ; Implements the following abstract data types.
 ;
@@ -192,34 +192,51 @@
 
 ; New representation of
 ; Register environments.
-; Represented as a pair whose car is one more than the highest
-; index of a live register, and whose cdr is a mutable vector
-; with *nregs* elements.
-; The elements of the mutable vector are of the form
-;    #f        (the register is dead)
-;    #t        (the register is live)
-;    v         (the register contains variable v)
-;    t         (the register contains temporary variable t)
+; Represented as a list of three items:
+;     an exact integer, one more than the highest index of a live register
+;     a mutable vector with *nregs* elements of the form
+;         #f        (the register is dead)
+;         #t        (the register is live)
+;         v         (the register contains variable v)
+;         t         (the register contains temporary variable t)
+;     a mutable vector of booleans: true if the register might be stale
 
-(define (cgreg-initial)
-  (let ((v (make-vector *nregs* #f)))
-    (cons 0 v)))
-
-(define (cgreg-copy regs)
-  (let* ((m (car regs))
-         (v0 (cdr regs))
-         (n (vector-length v0))
-         (v (make-vector n #f)))
-    (do ((i 0 (+ i 1)))
-        ((= i n)
-         (cons m v))
-        (vector-set! v i (vector-ref v0 i)))))
-
-(define (cgreg-tos regs)
-  (- (car regs) 1))
+(define (cgreg-makeregs n v1 v2) (list n v1 v2))
 
 (define (cgreg-liveregs regs)
   (car regs))
+
+(define (cgreg-contents regs)
+  (cadr regs))
+
+(define (cgreg-stale regs)
+  (caddr regs))
+
+(define (cgreg-liveregs-set! regs n)
+  (set-car! regs n)
+  regs)
+
+(define (cgreg-initial)
+  (let ((v1 (make-vector *nregs* #f))
+        (v2 (make-vector *nregs* #f)))
+    (cgreg-makeregs 0 v1 v2)))
+
+(define (cgreg-copy regs)
+  (let* ((newregs (cgreg-initial))
+         (v1a (cgreg-contents regs))
+         (v2a (cgreg-stale regs))
+         (v1 (cgreg-contents newregs))
+         (v2 (cgreg-stale newregs))
+         (n (vector-length v1a)))
+    (cgreg-liveregs-set! newregs (cgreg-liveregs regs))
+    (do ((i 0 (+ i 1)))
+        ((= i n)
+         newregs)
+        (vector-set! v1 i (vector-ref v1a i))
+        (vector-set! v2 i (vector-ref v2a i)))))
+
+(define (cgreg-tos regs)
+  (- (cgreg-liveregs regs) 1))
 
 (define (cgreg-live regs r)
   (if (eq? r 'result)
@@ -227,8 +244,8 @@
       (max r (cgreg-tos regs))))
 
 (define (cgreg-vars regs)
-  (let ((m (car regs))
-        (v (cdr regs)))
+  (let ((m (cgreg-liveregs regs))
+        (v (cgreg-contents regs)))
     (do ((i (- m 1) (- i 1))
          (vars '()
                (cons (vector-ref v i)
@@ -237,24 +254,24 @@
          vars))))
 
 (define (cgreg-bind! regs r t)
-  (let ((m (car regs))
-        (v (cdr regs)))
+  (let ((m (cgreg-liveregs regs))
+        (v (cgreg-contents regs)))
     (vector-set! v r t)
     (if (>= r m)
-        (set-car! regs (+ r 1)))))
+        (cgreg-liveregs-set! regs (+ r 1)))))
 
 (define (cgreg-bindregs! regs vars)
-  (do ((m (car regs) (+ m 1))
-       (v (cdr regs))
+  (do ((m (cgreg-liveregs regs) (+ m 1))
+       (v (cgreg-contents regs))
        (vars vars (cdr vars)))
       ((null? vars)
-       (set-car! regs m)
+       (cgreg-liveregs-set! regs m)
        regs)
       (vector-set! v m (car vars))))
 
 (define (cgreg-rename! regs alist)
-  (do ((i (- (car regs) 1) (- i 1))
-       (v (cdr regs)))
+  (do ((i (- (cgreg-liveregs regs) 1) (- i 1))
+       (v (cgreg-contents regs)))
       ((negative? i))
       (let ((var (vector-ref v i)))
         (if var
@@ -263,34 +280,37 @@
                   (vector-set! v i (cdr probe))))))))
 
 (define (cgreg-release! regs r)
-  (let ((m (car regs))
-        (v (cdr regs)))
+  (let ((m (cgreg-liveregs regs))
+        (v (cgreg-contents regs)))
     (vector-set! v r #f)
+    (vector-set! (cgreg-stale regs) r #t)
     (if (= r (- m 1))
         (do ((m r (- m 1)))
             ((or (negative? m)
                  (vector-ref v m))
-             (set-car! regs (+ m 1)))))))
+             (cgreg-liveregs-set! regs (+ m 1)))))))
 
 (define (cgreg-release-except! regs vars)
-  (do ((i (- (car regs) 1) (- i 1))
-       (v (cdr regs)))
+  (do ((i (- (cgreg-liveregs regs) 1) (- i 1))
+       (v (cgreg-contents regs)))
       ((negative? i))
       (let ((var (vector-ref v i)))
         (if (and var (not (memq var vars)))
             (cgreg-release! regs i)))))
 
 (define (cgreg-clear! regs)
-  (let ((m (car regs))
-        (v (cdr regs)))
+  (let ((m (cgreg-liveregs regs))
+        (v1 (cgreg-contents regs))
+        (v2 (cgreg-stale regs)))
     (do ((r 0 (+ r 1)))
         ((= r m)
-         (set-car! regs 0))
-        (vector-set! v r #f))))
+         (cgreg-liveregs-set! regs 0))
+        (vector-set! v1 r #f)
+        (vector-set! v2 r #t))))
 
 (define (cgreg-lookup regs var)
-  (let ((m (car regs))
-        (v (cdr regs)))
+  (let ((m (cgreg-liveregs regs))
+        (v (cgreg-contents regs)))
     (define (loop i)
       (cond ((< i 0)
              #f)
@@ -301,28 +321,31 @@
     (loop (- m 1))))
 
 (define (cgreg-lookup-reg regs r)
-  (let ((m (car regs))
-        (v (cdr regs)))
+  (let ((m (cgreg-liveregs regs))
+        (v (cgreg-contents regs)))
     (if (<= m r)
         #f
         (vector-ref v r))))
 
 (define (cgreg-join! regs1 regs2)
-  (let ((m1 (car regs1))
-        (m2 (car regs2))
-        (v1 (cdr regs1))
-        (v2 (cdr regs2)))
+  (let ((m1 (cgreg-liveregs regs1))
+        (m2 (cgreg-liveregs regs2))
+        (v1 (cgreg-contents regs1))
+        (v2 (cgreg-contents regs2))
+        (stale1 (cgreg-stale regs1)))
     (do ((i (- (max m1 m2) 1) (- i 1)))
         ((< i 0)
-         (set-car! regs1 (min m1 m2)))
+         (cgreg-liveregs-set! regs1 (min m1 m2)))
         (let ((x1 (vector-ref v1 i))
               (x2 (vector-ref v2 i)))
           (cond ((eq? x1 x2)
                  #t)
                 ((not x1)
-                 #t)
+                 (if x2
+                     (vector-set! stale1 i #t)))
                 (else
-                 (vector-set! v1 i #f)))))))
+                 (vector-set! v1 i #f)
+                 (vector-set! stale1 i #t)))))))
 
 ; New representation of
 ; Stack-frame environments.
@@ -345,16 +368,22 @@
 ;
 ; Its cadr is the list of currently stale slots.
 ;
-; Its caddr is the size of the stack frame, which can be
-; increased but not decreased.  The cdr of the stack frame
+; Its caddr is a list of variables that are free in the continuation,
+; or #f if that information is unknown.
+; This information allows a direct-style code generator to know when
+; a slot becomes stale.
+;
+; Its cadddr is the size of the stack frame, which can be
+; increased but not decreased.  The cdddr of the stack frame
 ; environment is shared with the save instruction that
-; created the frame.  What a glorious crock!
+; created the frame.  What a horrible crock!
 
 ; This stuff is private to the implementation of stack-frame
 ; environments.
 
 (define cgframe:slots car)
 (define cgframe:stale cadr)
+(define cgframe:livevars caddr)
 (define cgframe:slot.name car)
 (define cgframe:slot.offset cadr)
 (define cgframe:slot.instruction caddr)
@@ -363,6 +392,8 @@
 (define cgframe:slots-set! set-car!)
 (define (cgframe:stale-set! frame stale)
   (set-car! (cdr frame) stale))
+(define (cgframe:livevars-set! frame vars)
+  (set-car! (cddr frame) vars))
 
 (define cgframe:slot.name-set! set-car!)
 
@@ -413,10 +444,14 @@
 (define (cgframe-initial)
   (list '()
         (list (cons #t 0))
+        '#f
         -1))
 
+(define cgframe-livevars cgframe:livevars)
+(define cgframe-livevars-set! cgframe:livevars-set!)
+
 (define (cgframe-size-cell frame)
-  (cddr frame))
+  (cdddr frame))
 
 (define (cgframe-size frame)
   (car (cgframe-size-cell frame)))
@@ -428,9 +463,9 @@
 ; Called only by gen-store!, gen-setstk!
 
 (define (cgframe-bind! frame var instruction)
-  (set-car! frame
-            (cons (list var #f instruction (cgframe:stale frame))
-                  (cgframe:slots frame))))
+  (cgframe:slots-set! frame
+                      (cons (list var #f instruction (cgframe:stale frame))
+                            (cgframe:slots frame))))
 
 ; Called only by gen-load!, gen-stack!
 
@@ -526,7 +561,8 @@
 (define (cgframe-copy frame)
   (cons (car frame)
         (cons (cadr frame)
-              (cddr frame))))
+              (cons (caddr frame)
+                    (cdddr frame)))))
 
 (define (cgframe-update-stale! frame)
   (let* ((n (cgframe-size frame))
