@@ -1,67 +1,101 @@
 The index for ~larceny/Text
-$Id$
+$Id: Index,v 1.2 1992/06/12 19:26:23 remy Exp lth $
 
 This directory contains all (or nearly all) of the documentation on Larceny.
 
 Index 
-  This file
+  This file.
 
 0:contents.tex
-  Larceny note 0 - A Meta-Note
-
-14:whatif.tex
-  Larceny note 14 - Thoughts on Future Enhancements
-
-17:basicrepr.tex
-  Larceny note 17 - Basic Representations
-
-18:bootstrap.tex
-  Larceny note 18 - Bootstrapping, Startup, and Magic Variables
-
-3:memory.tex
-  Larceny note 3 - Memory Management Interface Definition
-
-4:numrepr.tex
-  Larceny note 4 - Number Representations
+  Larceny note 0 - A Meta-Note.
 
 666:glarceny.tex
-  Larceny note 666 - The Glarceny
+  Larceny note 666 - The Glarceny.
+  A rather frivolous piece of work which explains central terms in Larceny
+  and also offers a rather laid-back view of the process of hacking Larceny.
 
-6:fileformats.tex
-  Larceny note 6 - File Formats
-
-7:arithmetic.tex
-  Larceny note 7 - The Generic Arithemetic Implementation
-
-8:gc.tex
-  Larceny note 8 - Garbage Collector Interface Definition
-
-assembler.tex
-  Larceny note 9 - The Hitchhiker's Guide to the Assembler
-
-compmodel.tex
-  Larceny note 12 - The MacScheme Computational Model
-
-conventions.tex
+1:conventions.tex
   Larceny note 1 - Register Usage, Continuation Layout, and Calling Conventions
 
-exceptions.tex
+2:exceptions.tex
   Larceny note 2 - Exception Handling
+
+3:memory.tex
+  Larceny note 3 - Memory Management Interface Definition.
+
+4:numrepr.tex
+  Larceny note 4 - Number Representations.
+
+5:overview.tex
+  Larceny note 5 - An Overview of the System.
+
+6:fileformats.tex
+  Larceny note 6 - File Formats.
+
+7:arithmetic.tex
+  Larceny note 7 - The Generic Arithemetic Implementation.
+
+8:gc.tex
+  Larceny note 8 - Garbage Collector Interface Definition.
+
+9:assembler.tex
+  Larceny note 9 - The Hitchhiker's Guide to the Assembler.
+
+11:techreport.tex
+  Larceny note 11 - Larceny: Scheme on the Sun SPARCstation.
+  This was intended to be a comprehensive technical report on how
+  Larceny is structured and what went into its design, much like
+  the talk I gave at the Graduate student colloquium in the winter
+  of '92. Its current status is of a short introduction to Larceny.
+  NOT FINISHED.
+
+12:compmodel.tex
+  Larceny note 12 - The MacScheme computational model. 
+  This note to be supplied by Will.
+  NOT FINISHED.
+
+13:instrdef.tex
+  Larceny note 13 - The MacScheme Instruction Definitions.
+  This note to be supplied by Will.
+  NOT FINISHED.
+
+14:whatif.tex
+  Larceny note 14 - Thoughts on Future Enhancements.
+
+17:basicrepr.tex
+  Larceny note 17 - Basic Representations.
+
+18:bootstrap.tex
+  Larceny note 18 - Bootstrapping, Startup, and Magic Variables.
+
+15:calls.tex
+  Larceny note 15 - Calling C from Scheme and vice versa. 
+  NOT FINISHED.
+
+20:stack-cache.tex
+  Larceny note 20 - A scheme for fast and extendable stack caches.
+  NOT FINISHED.
+
+21:develop.tex
+  Larceny note 21 - The Larceny Development Environment.
+
+22:naming.tex
+  Larceny note 22 - Internal naming conventions.
+
+23:invariants.tex
+  Larceny note 23 - Global invariants.
+  IN PROGRESS.
+
+24:final.tex
+  Larceny note 24 - A retrospective on the bootstrapping and testing of 
+  Larceny.
 
 frontpage.tex
   Larceny note -1 - The cover page
 
-instrdef.tex
-  Larceny note 13 - Instruction Definitions
-
 larceny.sty
   The LaTeX style parameters for Larceny notes.  Included by all notes.
 
-larceny.tex
-  looks very familiar, but I have no idea where this fits in
+optimizations.txt
+  A list of possible and implemented peephole optimizations in Larceny.
 
-overview.tex
-  Larceny note 5 - An Overview of the System
-
-techreport.tex
-  Possibly Larceny note 11 - Larceny: Scheme on the Sun SPARCstation

@@ -2,7 +2,7 @@
  * Larceny Runtime System.
  * Garbage collector.
  *
- * $Id: gc.c,v 3.7 1992/05/15 22:18:37 lth Exp lth $
+ * $Id: gc.c,v 3.8 1992/06/10 09:05:59 lth Exp lth $
  *
  * THE COLLECTOR
  *   There are two kinds of spaces: the tenured space and the ephemeral space.
@@ -120,7 +120,7 @@ extern char *malloc();
 
 /* Useful macros compute sizes in WORDS */
 
-#define esize()         (e_max - e_base + 1)
+#define esize()         (e_top - e_base + 1)
 #define free_t_space()  (t_trans - t_top + 1)
 #define words_used      ((e_top-e_base) + (t_top-t_base) + (t_max-t_trans))
 
@@ -151,6 +151,9 @@ static word *e_new_base, *e_new_max;
 static word *t_base, *t_max, *t_top, *t_trans;
 static word *t_new_base, *t_new_max;
 
+#ifdef GNUC
+inline
+#endif
 static word forward();
 static ephemeral_collection(),
        tenuring_collection(),
@@ -274,7 +277,7 @@ unsigned int type;
   if (type == EPHEMERAL_TRAP)
     C_panic( "GC: Memory overflow in ephemeral area." );
   else if (type == TENURED_TRAP)
-    C_panic( "GC: Memory overflow in tenured area." );
+    C_panic( "GC: Memory overflow in tenured area.");
   else
     C_panic( "GC: Invalid trap." );
 }
@@ -419,8 +422,12 @@ word *top;
       }
     }
     else if (tag == PAIR_TAG) {
-      /* have done pair if either word is pointer into neswpace! */
-      if (!(pointsto( *ptr, base, top ) || pointsto( *(ptr+1), base, top ))) {
+      /* Have not done pair if either word is pointer into oldspace */
+      word *car = (word*) *ptr;
+      word *cdr = (word*) *(ptr + 1);
+
+      if (pointsto( car, my_e_base, my_e_max ) 
+       || pointsto( cdr, my_e_base, my_e_max )) {
 	forw( ptr, my_e_base, my_e_max, base, top, &dest );
 	forw( ptr+1, my_e_base, my_e_max, base, top, &dest );
 	*tail-- = *head;
@@ -540,11 +547,14 @@ static full_collection()
  * into newspace, then that pointer is recognized as a forwarding pointer
  * and is returned, and nothing is copied.
  */
+#ifdef GNUC
+inline
+#endif
 static word forward( ptr, tag, new_lo, new_hi, dest )
 word *ptr, tag, *new_lo, *new_hi, **dest;
 {
   word f, q;
-  word *ptr2, *newptr;
+  word *newptr;
   unsigned size;
   word *p1, *p2, *p3;
 
@@ -569,10 +579,8 @@ word *ptr, tag, *new_lo, *new_hi, **dest;
   p3 = (word *) ((word) *dest + size);
 
   /* unneeded during an ephemeral collection. */
-  if (p3 > new_hi) {
-    printf( "q=%lx, p3=%lx, new_hi=%lx\n", q, p3, new_hi );
+  if (p3 > new_hi)
     gc_trap( TENURED_TRAP );
-  }
 
   /* We can unroll the loop because everything is doubleword-aligned.
    * While this causes an unneeded store occasionally, it may help the 
@@ -594,3 +602,4 @@ word *ptr, tag, *new_lo, *new_hi, **dest;
   *ptr = f;                   /* leave forwarding pointer */
   return f;
 }
+

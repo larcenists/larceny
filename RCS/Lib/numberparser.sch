@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: numberparser.sch,v 1.3 92/02/23 16:56:13 lth Exp Locker: lth $
+; $Id: numberparser.sch,v 1.4 1992/02/24 17:24:51 lth Exp lth $
 ;
 ;                                      16 April 1990
 ;
@@ -88,13 +88,13 @@
       (let ((c (car input)))
         (cond ((decimal-digit? c)
                (parse-decimal (cdr input) (decimal-value c) 1))
-              ((char=? c (ascii "-"))
+              ((char=? c #\-)
                (parse-ureal (cdr input) #f 10 -1))
-              ((char=? c (ascii "+"))
+              ((char=? c #\+)
                (parse-ureal (cdr input) #f 10 1))
-              ((char=? c (ascii "."))
+              ((char=? c #\.)
                (parse-ureal input 'i 10 1))
-              ((char=? c (ascii "#"))
+              ((char=? c #\#)
                (parse-prefix input #f #f))
               (else #f))))
     
@@ -108,7 +108,7 @@
     (define (parse-prefix input exactness radix)
 ;      (optimize space)
       (cond ((null? input) #f)
-            ((char=? (car input) (ascii "#"))
+            ((char=? (car input) #\#)
              (cond ((null? (cdr input)) #f)
                    (else (let ((c (char-downcase (cadr input))))
                            (case c
@@ -138,9 +138,9 @@
     (define (parse-sign input e r)
 ;      (optimize space)
       (cond ((null? input) #f)
-            ((char=? (car input) (ascii "+"))
+            ((char=? (car input) #\+)
              (parse-ureal (cdr input) e r 1))
-            ((char=? (car input) (ascii "-"))
+            ((char=? (car input) #\-)
              (parse-ureal (cdr input) e r -1))
             (else (parse-ureal input e r 1))))
     
@@ -215,12 +215,12 @@
                    (parse-decimal (cdr input)
                                   (+ (* 10 m) (decimal-value c))
                                   s))
-                  ((char=? c (ascii "#"))
+                  ((char=? c #\#)
                    ; should call q2 here
                    (q1 (cdr input) 'i 10 s (* 10 m)))
-                  ((char=? c (ascii "/"))
+                  ((char=? c #\/)
                    (q7 (cdr input) #f 10 s m))
-                  ((char=? c (ascii "."))
+                  ((char=? c #\.)
                    (q3 (cdr input) 'i s m 0))
                   ((exponent-marker? (char-downcase c))
                    (q5 (cdr input) 'i s m 0))

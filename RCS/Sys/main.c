@@ -1,7 +1,7 @@
 /*
  * Larceny -- A run-time system for IEEE/R4RS Scheme on the Sun Sparcstation.
  *
- * $Id: main.c,v 1.10 1992/05/15 22:18:46 lth Exp lth $
+ * $Id: main.c,v 1.11 1992/06/10 09:06:05 lth Exp lth $
  *
  * LARCENY (1)
  *
@@ -28,6 +28,8 @@
  *    -d         Raise the level of diagnostic output by one.
  *    -B         stop at every breakpoint (not much use any more).
  *    -z         Turn on single-stepping (ditto).
+ *    -P         Print heap limits after initialization.
+ *    -v         Do a vadvise( VA_ANOM )
  *
  * AUTHORS
  *   Lars Thomas Hansen (runtime system and some libraries);
@@ -84,6 +86,9 @@ char **argv, **envp;
   FILE *heap;
   int singlestep = 0;
   int which_heap = 1; /* default tenured */
+  int has_user_elimit = 0;
+  int print_heap_limits = 0;
+  int vadv = 0;
   extern char *version, *user, *date;
 
   printf( "Larceny version %s (Compiled by %s on %s)\n", version, user, date );
@@ -94,6 +99,8 @@ char **argv, **envp;
         case 'e' :
 	  if (argc == 1 || sscanf( *(argv+1), "%lu", &esize ) != 1)
 	    invalid( "-e" );
+	  if (!has_user_elimit)
+	    elimit = esize / 2;
 	  ++argv; --argc;
 	  break;
 	case 't' :
@@ -104,6 +111,7 @@ char **argv, **envp;
 	case 'l' :
 	  if (argc == 1 || sscanf( *(argv+1), "%lu", &elimit ) != 1)
 	    invalid( "-l" );
+	  has_user_elimit = 1;
 	  ++argv; --argc;
 	  break;
 	case 's' :
@@ -128,6 +136,12 @@ char **argv, **envp;
 	case 'E' :
 	  which_heap = 0;
 	  break;
+	case 'P' :
+	  print_heap_limits = 1;
+	  break;
+	case 'v' :
+	  vadv = 1;
+	  break;
 	default :
 	  fprintf( stderr, "Invalid option '%s'\n", *argv );
 	  usage();
@@ -148,7 +162,7 @@ char **argv, **envp;
   init_millicode();
 
   /* Allocate memory and set up stack. */
-  if (C_init_mem( esize, tsize, Ssize, ssize , elimit ) == 0)
+  if (C_init_mem( esize, tsize, Ssize, ssize , elimit, vadv ) == 0)
     C_panic( "Unable to initialize memory!" );
 
   if (heapfile == NULL) {
@@ -163,6 +177,24 @@ char **argv, **envp;
     C_panic( "Error in loading heap file!" );
 
   fclose( heap );
+
+  C_setup_resource_usage();
+
+  if (print_heap_limits) {
+    printf( "Heap statistics:\n");
+    printf( "  Effective size of ephemeral area: %lu bytes\n",
+	    globals[ E_LIMIT_OFFSET ] - globals[ E_BASE_OFFSET ] + 4);
+    printf( "  Effective size of tenured area: %lu bytes\n",
+	    globals[ T_MAX_OFFSET ] - globals[ T_BASE_OFFSET ] + 4);
+    printf( "  Effective size of stack cache: %lu bytes\n",
+	    globals[ STK_START_OFFSET ] - globals[ STK_LIMIT_OFFSET ] + 4 );
+    printf( "  Live tenured data: %lu bytes\n",
+	    globals[ T_TOP_OFFSET ] - globals[ T_BASE_OFFSET ] );
+    printf( "  Live ephemeral data: %lu bytes\n",
+	    globals[ E_TOP_OFFSET ] - globals[ E_BASE_OFFSET ] );
+    printf( "  Tenuring limit at %ld bytes\n", globals[ E_MARK_OFFSET ] );
+    printf( "\n" );
+  }
 
   /* Catch whatever interesting interrupts there are */
   setup_interrupts();
@@ -250,9 +282,10 @@ static usage()
   printf( "\t-I nnnn   Initial timer interval value (decimal)\n" );
   printf( "\t-E        Load non-static part of heap image into ephemeral area.\n" );
   printf( "\t-d        Raise the level of diagnostic output by one\n" );
-  printf( "Mostly obsolete options:\n" );
   printf( "\t-B        Stop at all breakpoints\n" );
   printf( "\t-z        Turn on single-stepping\n" );
+  printf( "\t-P        Print memory statistics\n" );
+  printf( "\t-v        Do a vadvise( VA_ANOM )\n" );
 }
 
 /* eof */

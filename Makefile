@@ -1,6 +1,8 @@
-# Makefile for Larceny
+# Makefile for Larceny, with (extensive) support for thesis stuff.
+# Needs cleaning up when thesis work is over.
+# Needs cleaning up in general.
 #
-# $Id: Makefile,v 1.10 1992/06/10 09:04:45 lth Exp lth $
+# $Id: Makefile,v 1.11 1992/06/13 08:08:20 lth Exp lth $
 
 # Architecture-independent stuff
 SYS=Sys
@@ -10,9 +12,13 @@ MACH=Sparc
 
 # Where the Scheme libraries live
 LIB=Lib
+TLIB=Thesis/Lib-mg+sc
 
 # Where thesis variations live
 THESIS=Thesis
+
+# Where the experimental executables live
+EXEC=/home/systems/lth/Thesis/Exec
 
 CHDRS=	$(SYS)/larceny.h $(SYS)/offsets.h $(SYS)/macros.h $(SYS)/millicode.h \
 	$(SYS)/layouts.h $(SYS)/exceptions.h
@@ -23,7 +29,6 @@ OBJS=	$(SYS)/main.o \
 	$(SYS)/cglue.o \
 	$(SYS)/localdebugger.o \
 	$(SYS)/version.o \
-	$(MACH)/memory.o \
 	$(MACH)/tables.o \
 	$(MACH)/glue.o \
 	$(MACH)/generic.o
@@ -32,16 +37,21 @@ OBJS=	$(SYS)/main.o \
 # stop-and-copy, reference-remembered-set, card-marking.
 
 GSGC=	$(SYS)/gc
+GSMEM=	$(MACH)/memory
 MGGC=	$(THESIS)/Sys/mg-gc
+MGMEM=	$(THESIS)/Sys/mg-memory
 SCGC=	$(THESIS)/Sys/sc-gc
+SCMEM=	$(THESIS)/Sys/sc-memory
 RRGC=   $(THESIS)/Sys/rr-gc
+RRMEM=	$(THESIS)/Sys/rr-memory
 CMGC=   $(THESIS)/Sys/cm-gc
+CMMEM=	$(THESIS)/Sys/cm-memory
 
 # PROFILE=-pg
 # DEBUG=-g
 # DFLAG=-DDEBUG
-CC=cc
-OPTIMIZE=-O4
+CC=gcc
+OPTIMIZE=-O2 -funroll-loops # -DGNUC
 
 COMPILE=-c
 COUTPUT=$*.o
@@ -58,42 +68,46 @@ CFLAGS=	$(COMPILE) $(PREPROCESS) $(OPTIMIZE) $(PROFILE) $(DEBUG) -I$(SYS)\
 .c.o:
 	$(CC) $(CFLAGS) -DUSER=\"$$USER\" -DDATE="\"`date`\"" -o $(COUTPUT) $<
 
-larceny: $(OBJS) $(GSGC).o
-	rm -f $(MACH)/memory.o
-	make TRANS=REGULAR $(MACH)/memory.o
-	$(CC) $(PROFILE) -o larceny $(OBJS) $(GSGC).o
+# This is the default binary
+
+larceny: $(OBJS) $(GSGC).o $(GSMEM).o
+	$(CC) $(PROFILE) -o larceny $(OBJS) $(GSGC).o $(GSMEM).o
 	/bin/rm -f $(SYS)/version.o
 
-mg-larceny: $(OBJS) $(MGGC).o
-	rm -f $(MACH)/memory.o
-	make TRANS=NONE $(MACH)/memory.o
-	$(CC) $(PROFILE) -o Execs/mg-larceny $(OBJS) $(MGGC).o
+# The following five executables are for the Thesis work.
+
+gs-larceny: larceny
+	/bin/cp larceny $(EXEC)/gs-larceny
+
+mg-larceny: $(OBJS) $(MGGC).o $(MGMEM).o
+	$(CC) $(PROFILE) -o $(EXEC)/mg-larceny $(OBJS) $(MGGC).o $(MGMEM).o
 	/bin/rm -f $(SYS)/version.o
 
-sc-larceny: $(OBJS) $(SCGC).o
-	rm -f $(MACH)/memory.o
-	make TRANS=NONE $(MACH)/memory.o
-	$(CC) $(PROFILE) -o Execs/sc-larceny $(OBJS) $(SCGC).o
+sc-larceny: $(OBJS) $(SCGC).o $(SCMEM).o
+	$(CC) $(PROFILE) -o $(EXEC)/sc-larceny $(OBJS) $(SCGC).o $(SCMEM).o
 	/bin/rm -f $(SYS)/version.o
 
-rr-larceny: $(OBJS) $(RRGC).o
-	rm -f $(MACH)/memory.o
-	make TRANS=REFERENCE $(MACH)/memory.o
-	$(CC) $(PROFILE) -o Execs/rr-larceny $(OBJS) $(RRGC).o
+rr-larceny: $(OBJS) $(RRGC).o $(RRMEM).o
+	$(CC) $(PROFILE) -o $(EXEC)/rr-larceny $(OBJS) $(RRGC).o $(RRMEM).o
 	/bin/rm -f $(SYS)/version.o
 	
-cm-larceny: $(OBJS) $(CMGC).o
-	rm -f $(MACH)/memory.o
-	make TRANS=CARDMARKING $(MACH)/memory.o
-	$(CC) $(PROFILE) -o Execs/cm-larceny $(OBJS) $(CMGC).o
+cm-larceny: $(OBJS) $(CMGC).o $(CMMEM).o
+	$(CC) $(PROFILE) -o $(EXEC)/cm-larceny $(OBJS) $(CMGC).o $(CMMEM).o
 	/bin/rm -f $(SYS)/version.o
+
+# Housekeeping stuff
 
 clean:
 	rm -f larceny $(OBJS)
 
 libclean:
 	rm -f $(LIB)/*.lap $(LIB)/*.lop $(LIB)/Sparc/*.lap $(LIB)/Sparc/*.lop
-	rm -f Eval/*.lap Eval/*.lop
+	rm -f $(LIB)/Eval/*.lap $(LIB)/Eval/*.lop
+
+tlibclean:
+	rm -f $(TLIB)/*.lap $(TLIB)/*.lop $(TLIB)/Sparc/*.lap \
+		$(TLIB)/Sparc/*.lop
+	rm -f $(TLIB)/Eval/*.lap $(TLIB)/Eval/*.lop
 
 # Support stuff for Chez hosted system.
 
@@ -110,9 +124,8 @@ $(SYS)/memsupport.o:	$(SYS)/memsupport.c $(CHDRS) $(SYS)/memstats.h
 $(SYS)/localdebugger.o:	$(SYS)/localdebugger.c $(CHDRS)
 $(SYS)/version.o:	$(SYS)/version.c
 
-$(MACH)/memory.o:	$(MACH)/memory.s $(AHDRS)
-$(MACH)/tables.o:	$(MACH)/tables.s $(MACH)/memory.o $(MACH)/glue.o \
-			$(MACH)/generic.o
+# $(MACH)/memory.o:	$(MACH)/memory.s $(AHDRS)
+$(MACH)/tables.o:	$(MACH)/tables.s
 $(MACH)/glue.o:		$(MACH)/glue.s $(AHDRS) $(MACH)/milliprocs.s.h
 $(MACH)/generic.o:	$(MACH)/generic.s $(AHDRS) $(MACH)/milliprocs.s.h
 
@@ -120,6 +133,17 @@ $(MGGC).o:		$(MGGC).c $(CHDRS) $(SYS)/gc.h
 $(SCGC).o:		$(SCGC).c $(CHDRS) $(SYS)/gc.h
 $(RRGC).o:		$(RRGC).c $(CHDRS) $(SYS)/gc.h
 $(CMGC).o:		$(CMGC).c $(CHDRS) $(SYS)/gc.h
+
+$(GSMEM).o:		$(MACH)/memory.s $(AHDRS)
+	as -P $(DFLAG) -DASSEMBLY -DREGULAR -I$(MACH) -o $(GSMEM).o $(MACH)/memory.s
+$(MGMEM).o:		$(MACH)/memory.s $(AHDRS)
+	as -P $(DFLAG) -DASSEMBLY -DNONE -I$(MACH) -o $(MGMEM).o $(MACH)/memory.s
+$(SCMEM).o:		$(MACH)/memory.s $(AHDRS)
+	as -P $(DFLAG) -DASSEMBLY -DNONE -I$(MACH) -o $(SCMEM).o $(MACH)/memory.s
+$(RRMEM).o:		$(MACH)/memory.s $(AHDRS)
+	as -P $(DFLAG) -DASSEMBLY -DREFERENCE -I$(MACH) -o $(RRMEM).o $(MACH)/memory.s
+$(CMMEM).o:		$(MACH)/memory.s $(AHDRS)
+	as -P $(DFLAG) -DASSEMBLY -DCARDMARKING -I$(MACH) -o $(CMMEM).o $(MACH)/memory.s
 
 # headers to build from config files.
 

@@ -2,7 +2,7 @@
 !
 ! Larceny -- Millicode for Generic Arithmetic on SPARC.
 !
-! $Id: generic.s,v 1.13 1992/05/25 04:38:20 remy Exp remy $
+! $Id: generic.s,v 1.14 1992/06/13 03:52:41 remy Exp lth $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -867,7 +867,10 @@ Labs_rat:
 	mov	MS_RATNUM_ABS, %TMP2
 
 ! Test for zero.
-! The fixnum case is always handled in line.
+! The fixnum case is always handled in line, but since the ratnum case
+! is handled by doing (ZEROP (NUMERATOR x)), we handle fixnums here
+! as well.
+!
 ! In principle, there are no  bignums, rectnums, or ratnums which are zero.
 ! However, parts of the libraries temporarily invalidate this assumption,
 ! and it's convenient to support that here. Hence some extra complexity.

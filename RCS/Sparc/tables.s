@@ -1,7 +1,7 @@
 ! Scheme 313 runtime system
 ! Global table for millicode calls.
 !
-! $Id: tables.s,v 1.7 1992/05/15 22:18:34 lth Exp lth $
+! $Id: tables.s,v 1.8 1992/06/10 09:05:55 lth Exp lth $
 !
 ! Needs to be sorted into a more logical order, I think.
 
@@ -206,8 +206,8 @@ _millicode:
 	! #60: M_EQV
 	b	_m_eqv
 	nop
-	! #61: M_GETRUSAGE
-	b	_m_getrusage
+	! #61: M_RESOURCE_USAGE
+	b	_m_resource_usage
 	nop
 	! #62: M_RESTORE_FRAME
 	b	_mem_restore_frame
@@ -226,6 +226,9 @@ _millicode:
 	nop
 	! #67: M_DUMPHEAP
 	b	_m_dumpheap
+	nop
+	! #68: M_PARTIAL_LIST2VECTOR
+	b	_m_partial_list2vector
 	nop
 
 	! end of millicode table

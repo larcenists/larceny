@@ -1,11 +1,10 @@
 % -*- TeX -*-
-% $Id: conventions.tex,v 1.2 92/02/17 18:27:47 lth Exp Locker: lth $
+% $Id: 1:conventions.tex,v 1.3 1992/02/23 16:56:50 lth Exp lth $
 
 \input{larceny.sty}
 
 \title{Larceny Note \#1: \\
-       Register Usage, Continuation Layout, and Calling Conventions \\
-       {\tenrm (Draft. Comments welcome.)}}
+       Register Usage, Continuation Layout, and Calling Conventions}
 \author{Lars Thomas Hansen}
 
 \begin{document}
@@ -13,7 +12,7 @@
 
 \begin{abstract}
 This document discusses the mapping of virtual-to-physical registers, the
-use of the Scheme stack, the calling conventions for Scheme and millicode, ,
+use of the Scheme stack, the calling conventions for Scheme and millicode,
 and the layout of procedures and continuations.
 \end{abstract}
 
@@ -61,6 +60,7 @@ Hence we are left with 28 registers available to Scheme: \%g1-\%g7,
 to the value 0. We have the following virtual and work register classes to
 map onto those registers (their function is elaborated on later):
 
+\vfill
 \begin{description}
 
 \item {\bf REG0 ... REGn, for some n}
@@ -131,6 +131,7 @@ pair.
 \begin{table}[hbt]
 \begin{center}
 \begin{tabular}{|l|l|} \hline
+Logical & Physical \\ \hline\hline
    REG0 ... REG7 &  l0 ... l7  \\
    RESULT        &  o0 \\
    ARGREG2       &  o1 \\
@@ -448,7 +449,7 @@ Millicode procedures take 0, 1, 2, or 3 arguments. If there are
 arguments, they are passed in the registers \%RESULT, \%ARGREG2, and
 \%ARGREG3, in left-to-right order. All results are returned in the
 \%RESULT register.  If there are no results, as in the case of e.g.
-"setcar()", then \%RESULT is set to fixum( 0 ). \%ARGREG2 and \%ARGREG3 are
+"setcar()", then \%RESULT is set to fixnum(~0~). \%ARGREG2 and \%ARGREG3 are
 preserved across millicode calls and may hence be used as rootable
 temporaries. [This guarantee is here because the memory management
 millicode upholds it; if other millicode cannot, then we'll remove the

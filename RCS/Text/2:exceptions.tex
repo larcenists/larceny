@@ -1,5 +1,5 @@
 % -*- TeX -*-
-% $Id: exceptions.tex,v 1.1 92/01/23 11:57:58 lth Exp Locker: lth $
+% $Id: 2:exceptions.tex,v 1.2 1992/02/17 18:27:50 lth Exp lth $
 %
 % Conventions for exception handling in Larceny
 
@@ -39,14 +39,14 @@ Simply abort to the top level (or to the OS) on an error, typically with
 some error message. Chez Scheme version 3 and Turbo Pascal are systems
 using this strategy. Some are slightly more sophisticated, printing a
 backtrace of the stack before aborting; programming systems under VAX/VMS
-provides this.
+provide this.
 
 \item
 Abort to the top level but allow the user to inspect the state of the
 program at the time of the error (but do not let him start execution
 in the core image). Chez Scheme version 4 provides this service by
 capturing the continuation at the point of error and making its internals
-inspectable; source-level debuggers under UNIX lets the programmer look
+inspectable; source-level debuggers under UNIX let the programmer look
 at the core dump of the program after a failure.
 
 \item
@@ -54,7 +54,7 @@ Allow the programmer to restart the failed computation at the
 granularity of the procedure call. When the code being debugged has
 not been optimized, this granularity corresponds fairly well to the
 granularity of an expression in Scheme, and this is acceptable. In
-optimized\footnote{``Optimized'' meaning at least that calls have been
+optimized\footnote{``Optimized'' meaning at least that tail calls have been
 converted to branches and that a large number of primitives have been
 inlined.} code, however, this may be of very limited utility.
 
@@ -77,7 +77,9 @@ type can be very useful and should be facilitated.
 
 \section{Classes of Exceptions}
 
-In Larceny, we have the following types of exceptional conditions:
+We will be considering optimized code only, as system primitives in
+unoptimized code are implemented as calls to optimized scheme procedures.
+In Larceny, we have the following types of exceptional conditions
 
 \begin{itemize}
 

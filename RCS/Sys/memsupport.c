@@ -2,12 +2,14 @@
  * Larceny Runtime System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.16 1992/06/10 09:06:07 lth Exp lth $
+ * $Id: memsupport.c,v 1.17 1992/06/13 08:09:21 lth Exp lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
  * They are likely a bit dependent upon calling conventions etc, although
  * I've tried to keep most such nasties confined to the file "layouts.h".
+ *
+ * C sucks.
  */
 
 #include <sys/time.h>
@@ -19,9 +21,10 @@
 #include "layouts.h"
 #include "offsets.h"
 #include "macros.h"
-/* #include "main.h" */
+/* #include "main.h" */ /* obsolete */
 #include "millicode.h"
 #include "memstats.h"
+#include <sys/vadvise.h>
 
 #define GLOBALCELLREF( cp )  (*(word *) ((word)(cp) & ~TAG_MASK))
 #define VECTORREF( vp, i )   (*((word *)((word)(vp) & ~TAG_MASK)+(i)+1))
@@ -46,7 +49,7 @@ static unsigned long resourcenow();
  * Initialize memory management system. Allocate spaces, setup limits,
  * and initialize fake continuation in stack cache.
  */
-C_init_mem( e_size, t_size, s_size, stk_size, e_lim )
+C_init_mem( e_size, t_size, s_size, stk_size, e_lim, vadv )
 unsigned e_size, t_size, s_size, stk_size, e_lim;
 {
   if (init_collector( s_size, t_size, e_size, stk_size ) == 0)
@@ -57,6 +60,8 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
   globals[ E_MARK_OFFSET ] = roundup8( e_lim );
   setup_memory_limits();
   setup_stack();
+  if (vadv)
+    vadvise( VA_ANOM );       /* to reduce thrashing */
   return 1;
 }
 
@@ -185,7 +190,7 @@ int which_heap;
 
   if (which_heap == 0) {
     base = globals[ E_BASE_OFFSET ];
-    limit = globals[ E_MAX_OFFSET ];
+    limit = globals[ E_LIMIT_OFFSET ];
   }
   else {
     base = globals[ T_BASE_OFFSET ];
@@ -365,6 +370,7 @@ FILE *fp;
  * (if aligned on 4 or 8 byte boundary, which heap sizes and heaps are).
  *
  * For the sake of sanity it would perhaps be better to explicitly convert.
+ * Some already do (just to complete the confusion).
  */
 static local_collect( requested_type )
 int requested_type;
@@ -374,6 +380,7 @@ int requested_type;
   word collected, allocated_hi, allocated_lo, collected_hi, collected_lo;
   word copied_hi, copied_lo;
   word old_e_size, old_trans;
+  word transactions, survived_transactions;
 
   if (globals[ DEBUGLEVEL_OFFSET ]) {
     printf( "garbage collection commencing, requested type %d\n", 
@@ -383,9 +390,9 @@ int requested_type;
 
   must_tenure = memstat( MEMSTAT_MUST_TENURE ) == TRUE_CONST;
   old_e_size = memstat( MEMSTAT_ESIZE_AFTER_LAST );
-  old_trans = memstat( MEMSTAT_TRANSACTIONS_AFTER_LAST );
   tsize = globals[ T_TOP_OFFSET ] - globals[ T_BASE_OFFSET ];
   esize = globals[ E_TOP_OFFSET ] - globals[ E_BASE_OFFSET ];
+  transactions = (globals[ T_MAX_OFFSET ] - globals[ T_TRANS_OFFSET ]) / 4;
 
   if (requested_type == EPHEMERAL_COLLECTION && must_tenure)
     performed_type = collect( TENURING_COLLECTION );
@@ -402,6 +409,7 @@ int requested_type;
     copied = tsize2 - tsize;
   else
     copied = tsize2;
+  survived_transactions=(globals[ T_MAX_OFFSET ]-globals[ T_TRANS_OFFSET ])/4;
 
   if (globals[ DEBUGLEVEL_OFFSET ]) {
     printf( "garbage collection done, performed type %d\n", performed_type );
@@ -442,6 +450,15 @@ int requested_type;
   set_memstat( MEMSTAT_WORDS_COPIED_HI, copied_hi );
   set_memstat( MEMSTAT_WORDS_COPIED_LO, copied_lo );
   set_memstat( MEMSTAT_ESIZE_AFTER_LAST, esize2 );
+  set_memstat( MEMSTAT_TRANSACTIONS_SCANNED, 
+	       memstat( MEMSTAT_TRANSACTIONS_SCANNED ) 
+	       + fixnum( transactions ));
+  set_memstat( MEMSTAT_TRANSACTIONS_ENTERED,
+	       memstat( MEMSTAT_TRANSACTIONS_ENTERED ) 
+	       + fixnum( transactions )
+	       - memstat( MEMSTAT_TRANSACTIONS_AFTER_LAST ) );
+  set_memstat( MEMSTAT_TRANSACTIONS_AFTER_LAST, 
+	       fixnum( survived_transactions ));
 
   if (used_e_space() > globals[ E_MARK_OFFSET ])
     set_memstat( MEMSTAT_MUST_TENURE, TRUE_CONST );
@@ -664,9 +681,8 @@ void C_restore_frame()
 void C_flush_stack_cache()
 {
   word *sp, *first_cont, *e_top, *prev_cont, *stk_start;
-#ifdef DEBUG
-  int framecount = 0;
-#endif
+  word words_allocated;
+  word framecount;
 
 #ifdef DEBUG
   if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
@@ -684,6 +700,7 @@ void C_flush_stack_cache()
   stk_start = (word *) globals[ STK_START_OFFSET ];
   e_top = (word *) globals[ E_TOP_OFFSET ];
   first_cont = prev_cont = NULL;
+  words_allocated = framecount = 0;
 
   while (sp < stk_start) {
     word retaddr, *procptr, *sframe, *hframe, codeptr;
@@ -715,7 +732,11 @@ void C_flush_stack_cache()
 
     hframe = e_top;
     e_top += hframesize / 4;
-    if (hframesize % 8 != 0) e_top++;
+    words_allocated += hframesize / 4;
+    if (hframesize % 8 != 0) {
+      e_top++;
+      words_allocated++;
+    }
 
     /* Setup heap continuation header */
 
@@ -747,8 +768,8 @@ void C_flush_stack_cache()
     else
       first_cont = hframe;
     prev_cont = hframe;
-#ifdef DEBUG
     framecount++;
+#ifdef DEBUG
     if (globals[ E_TOP_OFFSET ] > globals[ E_MAX_OFFSET ]) 
       printf( "Major overflow in flush!\n" );
 #endif
@@ -765,6 +786,19 @@ void C_flush_stack_cache()
   globals[ E_TOP_OFFSET ] = (word) e_top;
   if (first_cont != NULL)
     globals[ CONTINUATION_OFFSET ] = (word) tagptr( first_cont, VEC_TAG );
+
+  /* Setup statistics */
+
+  set_memstat( MEMSTAT_STACK_FRAMES_FLUSHED,
+	       memstat( MEMSTAT_STACK_FRAMES_FLUSHED ) + fixnum( framecount ));
+  { word lo, hi;
+
+    lo = memstat( MEMSTAT_WORDS_ALLOCATED_TO_FRAMES_LO );
+    hi = memstat( MEMSTAT_WORDS_ALLOCATED_TO_FRAMES_HI );
+    add( &hi, &lo, fixnum( words_allocated ) );
+    set_memstat( MEMSTAT_WORDS_ALLOCATED_TO_FRAMES_LO, lo );
+    set_memstat( MEMSTAT_WORDS_ALLOCATED_TO_FRAMES_HI, hi );
+  }
 
 #ifdef DEBUG
   if (globals[ DEBUGLEVEL_OFFSET ] > 1) {
@@ -788,6 +822,22 @@ dumpchain()
   p = ptrof( globals[ CONTINUATION_OFFSET ] );
   for (i = 0 ; i < 5 ; i++ ) 
     printf( "%08x\n", *p++ );
+}
+
+limits()
+{
+  int i;
+
+  printf( "E_BASE: %u\n", globals[ E_BASE_OFFSET ] );
+  printf( "E_TOP: %u\n", globals[ E_TOP_OFFSET ] );
+  printf( "E_MAX: %u\n", globals[ E_MAX_OFFSET ] );
+  printf( "E_LIMI: %u\n", globals[ E_LIMIT_OFFSET ] );
+  printf( "T_BASE: %u\n", globals[ T_BASE_OFFSET ] );
+  printf( "T_TOP: %u\n", globals[ T_TOP_OFFSET ] );
+  printf( "T_TRANS: %u\n", globals[ T_TRANS_OFFSET ] );
+  printf( "T_MAX: %u\n", globals[ T_MAX_OFFSET ] );
+  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    printf( "ROOT[ %d ] = 0x%lx\n", i, globals[ i ] );
 }
 #endif
 

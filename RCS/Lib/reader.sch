@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: reader.sch,v 1.4 1992/05/15 22:18:16 lth Exp lth $
+; $Id: reader.sch,v 1.5 1992/06/10 09:05:35 lth Exp lth $
 ;
 ; Scheme reader.                        17 April 1990
 ; Modified for the new system by lth.   16 January 1992
@@ -30,7 +30,7 @@
 
 (define tyipeek peek-char)
 (define tyi read-char)
-(define (ascii s) (string-ref s 0))
+; (define (ascii s) (string-ref s 0))
 
 (define install-reader
   (lambda ()
@@ -139,20 +139,20 @@
                 (let ((tail (read-dispatch (tyi p) p)))
                   (flush-whitespace-until-rparen (tyi p) p)
                   tail)
-                (read-list-element (ascii ".") p)))))
- 
+                (read-list-element #\. p)))))
+
        (flush-whitespace-until-rparen
         (lambda (c p)
           (if (char? c)
-              (cond ((char=? c (ascii ")")) '())
+              (cond ((char=? c #\)) '())
                     ((whitespace? c) (flush-whitespace-until-rparen (tyi p) p))
-                    ((char=? c (ascii "*"))
+                    ((char=? c #\*)
                      (begin
                       (flush-comment p)
                       (flush-whitespace-until-rparen (tyi p) p)))
                     (else (dotted-pair-error p)))
               (dotted-pair-error p))))
-       
+
        (dotted-pair-error
         (lambda (p)
           (error "Malformed dotted pair in input" p)))
@@ -206,7 +206,7 @@
        (parse-prefixed-number
         (lambda (p prefix)
 ;          (optimize space)
-          (parse-number-loop (tyipeek p) p (list prefix (ascii "#")))))
+          (parse-number-loop (tyipeek p) p (list prefix #\#))))
        
        (parse-number-loop
         (lambda (c p l)
@@ -285,8 +285,8 @@
                              s
                              (let ((x (bytevector-like-ref s i)))
                                (cond
-                                ((> x (char->integer (ascii "Z"))) #f)
-                                ((< x (char->integer (ascii "A"))) #f)
+                                ((> x (char->integer #\Z)) #f)
+                                ((< x (char->integer #\A)) #f)
                                 (else (bytevector-like-set! s i (+ x 32))))
                                (loop s (- i 1)))))))
           (lambda (s)
@@ -296,16 +296,16 @@
        (char-downcase
          (lambda (c)
 ;           (optimize speed)
-           (cond ((char>? c (ascii "Z")) c)
-                 ((char<? c (ascii "A")) c)
+           (cond ((char>? c #\Z) c)
+                 ((char<? c #\A) c)
                  (else (integer->char (+ 32 (char->integer c)))))))
  
        (char-alphabetic?
         (lambda (c)
 ;          (optimize speed)
           (let ((c (char-downcase c)))
-            (cond ((char>? c (ascii "z")) #f)
-                  ((char<? c (ascii "a")) #f)
+            (cond ((char>? c #\z) #f)
+                  ((char<? c #\a) #f)
                   (else #t)))))
        
        (warn
@@ -384,15 +384,15 @@
                      (if (char? c)
                          (char-downcase c)
                          (read-unexpected-eof p)))))
-            (cond ((char=? c (ascii "t")) #t)
-                  ((char=? c (ascii "f")) (not #t))
-                  ((char=? c (ascii "\\ "))
+            (cond ((char=? c #\t) #t)
+                  ((char=? c #\f) (not #t))
+                  ((char=? c #\\)
                    (let ((c (tyipeek p)))
                      (cond ((not (char? c)) (read-unexpected-eof p))
                            ((char-alphabetic? c)
                             (let ((x (read-symbol c p '())))
                               (case x
-                                ((space) (ascii " "))
+                                ((space) (integer->char 32))
                                 ((newline) (integer->char **newline**))
                                 ((tab) (integer->char 9))
                                 ((return) (integer->char 13))
@@ -403,7 +403,7 @@
                                           c
                                           (error "Malformed #\\ syntax" x))))))
                            (else (begin (tyi p) c)))))
-                  ((char=? c (ascii "!"))
+                  ((char=? c #\!)
                    (let ((x (read-symbol (tyipeek p) p '())))
                      (case x
                        ((null) '())
@@ -412,7 +412,7 @@
                        ((unspecified) (unspecified))
                        ((fasl) **fasl**)
                        (else  (error "Malformed #! syntax" x)))))
-                  ((char=? c (ascii "("))
+                  ((char=? c #\()
                    (list->vector (read-list (tyi p) p)))
                   ; Control-B is used for bytevectors by compile-file.
 		  ; The syntax is #^B"..."
@@ -430,18 +430,18 @@
 		  ;; The syntax is #^Gsymbol
 		  ((char=? c (integer->char 7))
 		   (toplevel-cell (read-symbol (tyipeek p) p '())))
-                  ((char=? c (ascii "e"))
-                   (parse-prefixed-number p (ascii "e")))
-                  ((char=? c (ascii "i"))
-                   (parse-prefixed-number p (ascii "i")))
-                  ((char=? c (ascii "x"))
-                   (parse-prefixed-number p (ascii "x")))
-                  ((char=? c (ascii "d"))
-                   (parse-prefixed-number p (ascii "d")))
-                  ((char=? c (ascii "o"))
-                   (parse-prefixed-number p (ascii "o")))
-                  ((char=? c (ascii "b"))
-                   (parse-prefixed-number p (ascii "b")))
+                  ((char=? c #\e)
+                   (parse-prefixed-number p #\e))
+                  ((char=? c #\i)
+                   (parse-prefixed-number p #\i))
+                  ((char=? c #\x)
+                   (parse-prefixed-number p #\x))
+                  ((char=? c #\d)
+                   (parse-prefixed-number p #\d))
+                  ((char=? c #\o)
+                   (parse-prefixed-number p #\o))
+                  ((char=? c #\b)
+                   (parse-prefixed-number p #\b))
                   (else (error "Malformed # syntax"
                                c))))))
  
@@ -489,31 +489,14 @@
 		   (char->integer c)
 		   (logior 2 (bytevector-ref character-syntax-table 
 					     (char->integer c)))))
-            (list (ascii "(")
-                  (ascii ")")
-                  (ascii "[")
-                  (ascii "]")
-                  (ascii "{")
-                  (ascii "}")
-                  (ascii ";")
-                  (ascii "\"")
-	     ))
+            (list #\( #\) #\[ #\] #\{ #\} #\; #\\))
 
       (for-each (lambda (c)
               (bytevector-set!
                 character-syntax-table
                 (char->integer c)
                 (logior 4 (bytevector-ref character-syntax-table (char->integer c)))))
-            (list (ascii "0")
-                  (ascii "1")
-                  (ascii "2")
-                  (ascii "3")
-                  (ascii "4")
-                  (ascii "5")
-                  (ascii "6")
-                  (ascii "7")
-                  (ascii "8")
-                  (ascii "9")))
+            (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
 
       ;****************************************************************
  
@@ -541,53 +524,53 @@
           ((= c 255))
           (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
  
-      (do ((c (char->integer (ascii "a")) (+ 1 c)))
-          ((> c (char->integer (ascii "z"))))
+      (do ((c (char->integer #\a) (+ 1 c)))
+          ((> c (char->integer #\z)))
           (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
  
-      (do ((c (char->integer (ascii "A")) (+ 1 c)))
-          ((> c (char->integer (ascii "Z"))))
+      (do ((c (char->integer #\A) (+ 1 c)))
+          ((> c (char->integer #\Z)))
           (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
  
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec
                            (char->integer c)
                            read-dispatch-symbol-starter))
-            (list (ascii "!")
-                  (ascii "$")
-                  (ascii "%")
-                  (ascii "&")
-                  (ascii "*")
-                  (ascii "/")
-                  (ascii ":")
-                  (ascii "<")
-                  (ascii "=")
-                  (ascii ">")
-                  (ascii "?")
-                  (ascii "@")
-                  (ascii "\\")
-                  (ascii "^")
-                  (ascii "_")
-                  (ascii "|")
-                  (ascii "~")))
+            (list #\!
+                  #\$
+                  #\%
+                  #\&
+                  #\*
+                  #\/
+                  #\:
+                  #\<
+                  #\=
+                  #\>
+                  #\?
+                  #\@
+                  #\\
+                  #\^
+                  #\_
+                  #\|
+                  #\~))      
  
       ; Possible symbol starters that require further parsing.
  
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec (char->integer c) read-dispatch-parse))
-            (list (ascii "+")
-                  (ascii "-")
-                  (ascii ".")
-                  (ascii "0")
-                  (ascii "1")
-                  (ascii "2")
-                  (ascii "3")
-                  (ascii "4")
-                  (ascii "5")
-                  (ascii "6")
-                  (ascii "7")
-                  (ascii "8")
-                  (ascii "9")))
+            (list #\+
+                  #\-
+                  #\.
+                  #\0
+                  #\1
+                  #\2
+                  #\3
+                  #\4
+                  #\5
+                  #\6
+                  #\7
+                  #\8
+                  #\9))
  
       ; Special characters.
  
@@ -598,42 +581,42 @@
                      (read-string (tyi p) p '())))
  
       (vector-set! read-dispatch-vec                  ;sharp sign
-                   (char->integer (ascii "#"))
+                   (char->integer #\#)
                    read-sharp)
  
       (vector-set! read-dispatch-vec                  ;quote
-                   (char->integer (ascii "'"))
+                   (char->integer #\')
                    (lambda (c p)
 ;                     (optimize speed)
                      (list 'quote (read-dispatch (tyi p) p))))
 
       (vector-set! read-dispatch-vec                  ;left parenthesis
-                   (char->integer (ascii "("))
+                   (char->integer #\()
                    (lambda (c p)
 ;                     (optimize speed)
                      (read-list (tyi p) p)))
  
       (vector-set! read-dispatch-vec                  ;right parenthesis
-                   (char->integer (ascii ")"))
+                   (char->integer #\))
                    read-dispatch-extra-paren)
  
       (vector-set! read-dispatch-vec                  ;comma
-                   (char->integer (ascii ","))
+                   (char->integer #\,)
                    (lambda (c p)
 ;                     (optimize speed)
                      (let ((c (tyi p)))
-                       (if (and (char? c) (char=? c (ascii "@")))
+                       (if (and (char? c) (char=? c #\@))
                            (list 'unquote-splicing (read-dispatch (tyi p) p))
                            (list 'unquote (read-dispatch c p))))))
  
       (vector-set! read-dispatch-vec                  ;semicolon
-                   (char->integer (ascii ";"))
+                   (char->integer #\;)
                    (lambda (c p)
 ;                     (optimize speed)
                      (flush-comment-and-read p)))
 
       (vector-set! read-dispatch-vec                  ;backquote
-                   (char->integer (ascii "`"))
+                   (char->integer #\`)
                    (lambda (c p)
 ;                     (optimize speed)
                      (list 'quasiquote (read-dispatch (tyi p) p))))
@@ -642,10 +625,10 @@
  
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec (char->integer c) read-dispatch-reserved))
-            (list (ascii "[")
-                  (ascii "]")
-                  (ascii "{")
-                  (ascii "}")))
+            (list #\[
+                  #\]
+                  #\{
+                  #\}))
  
       ;*****************************************************
  
@@ -673,50 +656,50 @@
           ((= c 255))
           (vector-set! read-list-vec c read-list-element))
  
-      (do ((c (char->integer (ascii "a")) (+ 1 c)))
-          ((> c (char->integer (ascii "z"))))
+      (do ((c (char->integer #\a) (+ 1 c)))
+          ((> c (char->integer #\z)))
           (vector-set! read-list-vec c read-list-element))
  
-      (do ((c (char->integer (ascii "A")) (+ 1 c)))
-          ((> c (char->integer (ascii "Z"))))
+      (do ((c (char->integer #\A) (+ 1 c)))
+          ((> c (char->integer #\Z)))
           (vector-set! read-list-vec c read-list-element))
  
       (for-each (lambda (c)
               (vector-set! read-list-vec (char->integer c) read-list-element))
-            (list (ascii "!")
-                  (ascii "$")
-                  (ascii "%")
-                  (ascii "&")
-                  (ascii "*")
-                  (ascii "/")
-                  (ascii ":")
-                  (ascii "<")
-                  (ascii "=")
-                  (ascii ">")
-                  (ascii "?")
-                  (ascii "@")
-                  (ascii "\\")
-                  (ascii "^")
-                  (ascii "_")
-                  (ascii "|")
-                  (ascii "~")))
+            (list #\!
+                  #\$
+                  #\%
+                  #\&
+                  #\*
+                  #\/
+                  #\:
+                  #\<
+                  #\=
+                  #\>
+                  #\?
+                  #\@
+                  #\\
+                  #\^
+                  #\_
+                  #\|
+                  #\~))
  
       ; Possible symbol starters that require further parsing.
  
       (for-each (lambda (c)
               (vector-set! read-list-vec (char->integer c) read-list-element))
-            (list (ascii "+")
-                  (ascii "-")
-                  (ascii "0")
-                  (ascii "1")
-                  (ascii "2")
-                  (ascii "3")
-                  (ascii "4")
-                  (ascii "5")
-                  (ascii "6")
-                  (ascii "7")
-                  (ascii "8")
-                  (ascii "9")))
+            (list #\+
+                  #\-
+                  #\0
+                  #\1
+                  #\2
+                  #\3
+                  #\4
+                  #\5
+                  #\6
+                  #\7
+                  #\8
+                  #\9))
  
       ; Special characters.
  
@@ -725,47 +708,47 @@
                    read-list-element)
  
       (vector-set! read-list-vec                      ;sharp sign
-                   (char->integer (ascii "#"))
+                   (char->integer #\#)
                    read-list-element)
  
       (vector-set! read-list-vec                      ;quote
-                   (char->integer (ascii "'"))
+                   (char->integer #\')
                    read-list-element)
  
       (vector-set! read-list-vec                      ;left parenthesis
-                   (char->integer (ascii "("))
+                   (char->integer #\()
                    read-list-element)
  
       (vector-set! read-list-vec                      ;right parenthesis
-                   (char->integer (ascii ")"))
+                   (char->integer #\))
                    (lambda (c p) '()))
  
       (vector-set! read-list-vec                      ;comma
-                   (char->integer (ascii ","))
+                   (char->integer #\,)
                    read-list-element)
  
       (vector-set! read-list-vec                      ;dot
-                   (char->integer (ascii "."))
+                   (char->integer #\.)
                    read-list-dot)
  
       (vector-set! read-list-vec                      ;semicolon
-                   (char->integer (ascii ";"))
+                   (char->integer #\;)
                    (lambda (c p)
 ;                     (optimize speed)
                      (flush-comment-and-read-list p)))
  
       (vector-set! read-list-vec                      ;backquote
-                   (char->integer (ascii "`"))
+                   (char->integer #\`)
                    read-list-element)
  
       ; Reserved delimiters.
  
       (for-each (lambda (c)
               (vector-set! read-list-vec (char->integer c) read-list-reserved))
-            (list (ascii "[")
-                  (ascii "]")
-                  (ascii "{")
-                  (ascii "}")))
+            (list #\[
+                  #\]
+                  #\{
+                  #\}))
  
       ;*****************************************************
  

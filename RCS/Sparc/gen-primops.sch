@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id: gen-primops.sch,v 1.7 1992/06/10 09:05:49 lth Exp remy $
+; $Id: gen-primops.sch,v 1.8 1992/06/13 03:52:39 remy Exp lth $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -640,6 +640,13 @@
 
    ; Vector and procedure operations
 
+   (cons 'sys$partial-list->vector
+	 (lambda (as r)
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.partial-list->vector ,$r.o7))
+	   (if (hardware-mapped? r)
+	       (emit! as `(,$i.orr ,$r.g0 ,r ,$r.argreg2))
+	       (emit-load-reg! as r $r.argreg2))))
+
    (cons 'make-procedure
 	 (lambda (as)
 	   (emit-make-vector-like! as
@@ -819,11 +826,12 @@
 	       (emit! as `(,$i.ldi ,$r.globals ,(offsetof r2) ,$r.argreg3)))))
 
    ; This one is used to get resource data.
-   ; It returns a fixnum indicating system time used in milliseconds.
+   ; It takes a vector argument and fills in the slots of the vector with
+   ; the resource data.
 
-   (cons 'getrusage
+   (cons 'sys$resource-usage!
 	 (lambda (as)
-	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.getrusage ,$r.o7))
+	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.resource-usage ,$r.o7))
 	   (emit! as `(,$i.nop))))
 
    ))
@@ -1197,7 +1205,7 @@
     (emit! as `(,$i.ldi ,$r.result (- ,tag) ,$r.tmp2))
     (emit! as `(,$i.srai ,$r.tmp2 8 ,$r.tmp2))
     (emit! as `(,$i.subrcc ,$r.tmp2 ,r1 ,$r.g0))
-    (emit! as `(,$i.blu.a ,fault))
+    (emit! as `(,$i.bleu.a ,fault))
     (emit! as `(,$i.slot))
     (if register-transactions-for-side-effects
 	(begin
@@ -1211,7 +1219,7 @@
 		     y
 		     (emit-load-reg! as y $r.argreg3))))
 	  (emit! as `(,$i.addr ,$r.result ,r1 ,$r.tmp0))
-	  (emit! as `(,$i.sti ,y ,(- 4 $tag.vector-tag) ,$r.tmp0))))))
+	  (emit! as `(,$i.sti ,y ,(- 4 tag) ,$r.tmp0))))))
 
 ; We check the tags of both by xoring them and seeing if the low byte is 0.
 ; If so, then we can subtract one from the other (tag and all) and check the

@@ -1,11 +1,10 @@
 % -*- TeX -*-
-% $Id: memory.txt,v 1.8 91/07/24 17:09:45 lth Exp Locker: lth $
+% $Id: 3:memory.tex,v 1.2 1992/02/17 18:27:55 lth Exp lth $
 
 \input{larceny.sty}
 
 \title{Larceny Note \#3: \\
-       The Memory Management Millicode Interface \\
-       {\tenrm (draft)}}
+       The Memory Management Millicode Interface}
 \author{Lars Thomas Hansen}
 
 \begin{document}
@@ -23,10 +22,10 @@ SPARC implementation.
 
 \section{The application interface to the memory manager}
 
-Of all memory management procedures in the run-time system, the
-compiled Scheme code should call only the procedures exported from
-``Sparc/memory.s'', all of which are listed below, and which from now on will
-be collectively referred to as ``the memory management millicode
+Of all memory management procedures in the run-time system, the compiled
+Scheme code should call only the procedures exported from
+``Sparc/memory.s'', all of which are listed below, and which from now on
+will be collectively referred to as ``the memory management millicode
 procedures'', abbreviated ``the MMMPs''. All MMMPs except ``stkuflow()'',
 ``restore\_continuation()'', ``save\_scheme\_context()'', and
 ``restore\_scheme\_context()'' may invoke the garbage collector.
@@ -164,10 +163,10 @@ called is simply discarded.
 ! validly be written into as long as the values written into it can be
 ! forgotten. This condition is guaranteed (and should be documented).
 
-    st      %R1, [ %E_TOP ]
+    st      %REG1, [ %E_TOP ]
     add     %E_TOP, 8, %E_TOP                     ! allocate optimistically
     cmp     %E_TOP, %E_LIMIT                      ! overflow?
-    st      %R2, [ %E_TOP-4 ]
+    st      %REG2, [ %E_TOP-4 ]
     blt,a   L1                                    ! jump if not
     add     %E_TOP, PAIR_TAG-8, %RESULT
     jmpl    %MILLICODE + M_CONS, %o7
@@ -178,13 +177,13 @@ L1:
 
 \section{The SPARC Implementation}
 
-The SPARC implementation of the MMPS is unspectacular. The highlights
+The SPARC implementation of the MMMPs is unspectacular. The highlights
 are the (arguably sick, vile, and unnatural) internal calling
 conventions, and the internal subroutines for garbage collection and
 transaction management. In addition, some strategy decisions will be
 discussed.
 
-You will want to look at a source listing of ``memory.s'' before you
+You will want to look at a source listing of ``Sparc/memory.s'' before you
 read too much of the following.
 
 
@@ -208,20 +207,21 @@ whether this would be a problem for reentrancy; the MMMPs are never
 entered more than once, so this is not an issue here.
 
 Since some MMMPs (like \_stkoflow and \_stkuflow) may not change the
-\%RESULT register, and since at least the overflow procedure may
-trigger a garbage collection, and since gcstart changes \%RESULT, then
-these MMMPs must save \%RESULT for later restoring it. The place of
+{\sc \%RESULT} register, and since at least the overflow procedure may
+trigger a garbage collection, and since gcstart changes {\sc \%RESULT}, then
+these MMMPs must save {\sc \%RESULT} for later restoring it. The place of
 choice for this save is in \verb+globals[ SAVED_RESULT_OFFSET ]+, which is
-for this use. It is a rootable location. Currently, \_stkoflow,
-\_stkuflow, \_setcar, \_setcdr, and \_vectorset save \%RESULT across calls
+for this use. It is a rootable location. Currently, \_stkoflow(),
+\_stkuflow(), \_setcar(), \_setcdr(), and \_vectorset() save {\sc \%RESULT} 
+across calls
 to internal millicode procedures.
 
 
 \subsection{Internal Subroutines}
 
-There are two internal subroutines: gcstart (not to be confused with
-the publicly available \_gcstart), and addtrans. The former initiates a
-garbage collection and has the same semantics as \_gctrans (see above);
+There are two internal subroutines: gcstart() (not to be confused with
+the publicly available \_gcstart), and addtrans(). The former initiates a
+garbage collection and has the same semantics as \_gcstart() (see above);
 the latter adds a transaction to the transaction list if possible and
 triggers a collection (by calling gcstart) if not possible (due to tenured
 heap overflow).
@@ -231,26 +231,20 @@ heap overflow).
 
 The big question in this section is what kind of collections to
 trigger on various kinds of heap overflows. For some situations (e.g.
-if \_alloc overflows the heap) the answer is obvious; for others (e.g.
-if \_stkoflow overflows the heap), it is not. This section summarizes
+if \_alloc() overflows the heap) the answer is obvious; for others (e.g.
+if \_stkoflow() overflows the heap), it is not. This section summarizes
 the current decisions and comments on their appropriateness.
 
-If \_alloc or \_alloci find that memory cannot be allocated because the
+If \_alloc() or \_alloci() find that memory cannot be allocated because the
 ephemeral heap is full, they call gcstart with an argument corresponding
 to the number of words to allocate, forcing gcstart to trigger an
 ephemeral collection.
 
-If \_stkoflow fills up the ephemeral heap, it calls gcstart with an argument
-of fixnum( -1 ), which triggers a tenuring collection. The reason why
-it does not instead trigger an ephemeral collection is that heap overflow
-due to stack spills is most likely a sign of deep recursion, meaning
-in turn that a lot of data will be retained. If this is indeed the case,
-then the ephemeral collection will simply have to be followed by a tenuring
-collection. It is possible that we should investigate the options here
-somewhat better before committing to the current choice.
+If \_stkoflow() fills up the ephemeral heap, it calls on gcstart() to
+perform an ephemeral collection.
 
-If addtrans discovers that the tenured heap is full, it triggers a full
-collection. A more refined approach would be to try to compact the transaction
-list, and only when that fails, do a tenuring collection.
+If addtrans() discovers that the tenured heap is full, it triggers an
+ephemeral collection. Previously, a full collection was performed, but this
+can affect certain assignment-intensive programs very adversely.
 
 \end{document}

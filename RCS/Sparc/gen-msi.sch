@@ -3,7 +3,7 @@
 ; Scheme 313 compiler
 ; Machine-dependent code generation procedures.
 ;
-; $Id: gen-msi.sch,v 1.5 1992/05/15 22:18:24 lth Exp lth $
+; $Id: gen-msi.sch,v 1.6 1992/06/10 09:05:48 lth Exp lth $
 ;
 ; (used to be part of asm.sparc.scm).
 
@@ -299,7 +299,7 @@
 	 (l1        (new-label)))
     (emit! as `(,$i.ldi ,$r.globals ,$g.stk-start ,$r.tmp0))
     (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp))
-    (emit! as `(,$i.subrcc ,$r.stkp, $r.tmp0, $r.g0))
+    (emit! as `(,$i.subrcc ,$r.stkp ,$r.tmp0 ,$r.g0))
     (emit! as `(,$i.ble.a ,l1))
     (emit! as `(,$i.slot))
     (emit! as `(,$i.jmpli ,$r.millicode ,$m.restore-frame ,$r.o7))
@@ -378,7 +378,7 @@
 	(begin
 	  (emit! as `(,$i.sti ,$r.argreg3
 			      ,(- (slotoffset n) $tag.procedure-tag)
-			      ,$r.tmp0))))))
+			      ,$r.result))))))
 
 
 ; Follow static links.
@@ -489,7 +489,7 @@
 ; the rest of the data. The list is expected to have at least the minimal
 ; length.
 ;
-; The untagged pointer to the procedure is in $r.result.
+; The tagged pointer to the procedure is in $r.result.
 
 (define (emit-init-proc-slots! as n)
   (let ((limit (min (- maxregs 1) n)))

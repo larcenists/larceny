@@ -3,7 +3,7 @@
 ;; but rather compile them and load the compiled code. This works. But one
 ;; can also load interpretable code (raw scheme) and have it work.
 ;;
-;; $Id: eval.sch,v 1.5 1992/06/10 09:05:42 lth Exp remy $
+;; $Id: eval.sch,v 1.6 1992/06/13 03:52:34 remy Exp lth $
 ;;
 ;; 'Eval' takes an expression and evaluates the expression in the default
 ;; toplevel environment. It returns the result of the evaluation,
@@ -106,7 +106,7 @@
   (define (extend-env env names values)
     (cond ((and (null? names) (null? values))
 	   env)
-	  ((or (null? names) (null? values))
+	  ((null? names)
 	   (error "Wrong number of arguments to procedure;" n v))
 	  ((not (pair? names))
 	   (cons (cons names values) env))
@@ -400,9 +400,10 @@
   ;; misc
 
   (extend-toplevel-env! 'rewrite rewrite)
-  (extend-toplevel-env! 'run-with-stats run-with-stats)
-  (extend-toplevel-env! 'display-memstats display-memstats)
-  (extend-toplevel-env! 'getrusage getrusage)
+  (extend-toplevel-env! 'run-with-stats run-with-stats)     ; obsolete
+  (extend-toplevel-env! 'getrusage getrusage)               ; obsolete
+  (extend-toplevel-env! 'display-memstats display-memstats) ; mostly obsolete
+  (extend-toplevel-env! 'resource-usage resource-usage)
   (extend-toplevel-env! 'issue-warnings issue-warnings)
   (extend-toplevel-env! 'collect collect)
   (extend-toplevel-env! 'memstats memstats)
@@ -411,6 +412,9 @@
   (extend-toplevel-env! '**newline** **newline**)
   (extend-toplevel-env! 'dumpheap dumpheap)
   (extend-toplevel-env! 'rep-loop rep-loop)
+  (extend-toplevel-env! 'call-with-current-continuation call-with-current-continuation)
+  (extend-toplevel-env! 'call/cc call-with-current-continuation)
+  (extend-toplevel-env! 'eval eval)
 
   #t)
 
@@ -418,8 +422,7 @@
 ;; A helper for the loader, needs to move to some other spot.
 
 (define (list->procedure list)
-  (let* ((l (length list))
-	 (p (make-procedure l)))
+  (let ((p (make-procedure (length list))))
     (let loop ((l list) (i 0))
       (if (null? l)
 	  p
@@ -452,7 +455,7 @@
 
 (define (atom? x) (not (pair? x)))
 
-; This is a botch...
+; This is a hack. Nobody seems to want the responsibility.
 
 (define **newline** 13)
 

@@ -4,7 +4,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.24 1992/06/10 09:05:54 lth Exp lth $
+! $Id: memory.s,v 1.25 1992/06/13 08:09:12 lth Exp lth $
 !
 ! This file defines the following builtins:
 !
@@ -165,7 +165,7 @@ _mem_alloc:
 	save	%sp, -96, %sp
 	set	Lfoo, %o0
 	call	_printf
-	nop
+	mov	%SAVED_RESULT, %o1
 	restore
 #endif
 	b	_mem_gcstart			! deal with overflow
@@ -214,10 +214,10 @@ _mem_internal_alloc:
 #endif
 
 	sub	%E_TOP, %RESULT, %E_TOP		! restore heap ptr
-	st	%o7, [ %GLOBALS + MEM_TMP1_OFFSET ]
+	st	%o7, [ %GLOBALS + MEM_TMP1_OFFSET ]  ! Should be NRTMP1, works.
 	call	gcstart				! deal with overflow
 	nop
-	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %o7
+	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %o7  ! Ditto
 	jmp	%o7+8				! return to Scheme code
 	nop
 
@@ -505,10 +505,10 @@ _mem_stkuflow:
 
 _mem_stkoflow:
 	b	Lstkoflow
-	st	%g0, [ %GLOBALS + MEM_TMP1_OFFSET ]
+	st	%g0, [ %GLOBALS + MEM_TMP1_OFFSET ]    ! should be NRTMP1
 _mem_internal_stkoflow:
-	mov	1, %TMP0
-	st	%TMP0, [ %GLOBALS + MEM_TMP1_OFFSET ]
+	mov	4, %TMP0
+	st	%TMP0, [ %GLOBALS + MEM_TMP1_OFFSET ]  ! ditto
 Lstkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
@@ -538,7 +538,7 @@ Lstkoflow:
 	call	gcstart
 	set	fixnum( 0 ), %RESULT
 
-	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %TMP1
+	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %TMP1  ! ditto
 	tst	%TMP1
 	bne,a	.+8
 	ld	[ %RESULT + SAVED_RETADDR_OFFSET ], %TMP0
@@ -870,17 +870,35 @@ addtrans:
 
 	! Get tenured-space limits and check for overflow
 
+Laddtrans_restart:
 	ld	[ %GLOBALS+T_TRANS_OFFSET ], %TMP1
 	ld	[ %GLOBALS+T_TOP_OFFSET ], %TMP2
 	cmp	%TMP1, %TMP2
 	bgt	Laddtrans1
 	sub	%TMP1, 4, %TMP2
 
-	! We've lost. Go ahead and collect; never return to this procedure.
-	! (There's no need to add a transaction after a tenuring collection.)
+	! We've lost. Go ahead and collect. We need to return here, though,
+	! and so the return address must be saved somewhere.
+
+	st	%o7, [ %GLOBALS + MEM_TMP1_OFFSET ]  ! should be NRTMP1; works.
+	st	%RESULT, [ %GLOBALS + MEM_TMP2_OFFSET ]
+	call	gcstart
+	mov	fixnum( 0 ), %RESULT
+	ld	[ %GLOBALS + MEM_TMP1_OFFSET ], %o7     ! ditto
+	ld	[ %GLOBALS + MEM_TMP2_OFFSET ], %RESULT
+
+	! We're back. Repeat test, and if it fails again, punt.
+
+	ld	[ %GLOBALS+T_TRANS_OFFSET ], %TMP1
+	ld	[ %GLOBALS+T_TOP_OFFSET ], %TMP2
+	cmp	%TMP1, %TMP2
+	bgt	Laddtrans1
+	sub	%TMP1, 4, %TMP2
+
+	! Do a full collection; never return to here.
 
 	b	gcstart
-	set	fixnum( -2 ), %RESULT
+	mov	fixnum( -2 ), %RESULT
 
 Laddtrans1:
 	st	%RESULT, [ %TMP1 ]
@@ -895,7 +913,20 @@ Laddtrans1:
 
 	mov	%TMP1, %RESULT
 	ld	[ %GLOBALS + T_DIRTY_OFFSET ], %TMP1
-	
+	ld	[ %GLOBALS + T_BASE_OFFSET ], %TMP2
+	save	%sp, -96, %sp
+	sub	%SAVED_RESULT, %SAVED_TMP2, %l0
+	sra	%l0, 5, %l0
+	andn	%l0, 0x3, %l0
+	ld	[ %SAVED_TMP1 + %l0 ], %l1
+	sra	%l0, 2, %l2
+	mov	1, %l3
+	sll	%l3, %l2, %l3		! uses only lo 5 bits of %l2
+	or	%l3, %l1, %l1
+	st	%l1, [ %SAVED_TMP1 + %l0 ]
+	restore
+	jmp	%o7+8
+	mov	0, %RESULT	
 #else
 
 ! No transactions are to be recorded, ever.
@@ -981,7 +1012,7 @@ _diag1:
 _diag2:
 	.asciz	"Throw\n"
 Lfoo:
-	.asciz	"Failed alloc; collecting...\n"
+	.asciz	"Failed alloc (%d bytes); collecting...\n"
 Lfoo2:
 	.asciz	"Failed internal_alloc; collecting...\n"
 Lfoo3:

@@ -2,7 +2,7 @@
  * Scheme 313 run-time system.
  * Millicode in C.
  *
- * $Id: cglue.c,v 1.5 1992/03/31 12:31:38 lth Exp lth $
+ * $Id: cglue.c,v 1.6 1992/05/15 22:18:35 lth Exp lth $
  *
  * Millicode routines which are written in C and which do not warrant 
  * their own files go in here.
@@ -146,17 +146,43 @@ word s;
 }
 
 
+/* Resource stuff */
+
+static word basictime = 0;
+
+C_setup_resource_usage()
+{
+  struct timeval t;
+  struct timezone tz;
+
+  if (gettimeofday( &t, &tz ) == -1)
+    return -1;
+  basictime = fixnum( t.tv_sec * 1000 + t.tv_usec / 1000 );
+}
+
 /*
  * Get the system time field from the rusage structure and return it as
- * a number of milliseconds.
+ * a number of milliseconds. The elapsed time will wrap around (or behave
+ * oddly) after about 149 hours or so.
  */
-word C_getrusage()
+word C_resource_usage( vec )
+word vec;
 {
   struct rusage buf;
+  struct timeval t;
+  struct timezone tz;
+  word *vp = (word *)((vec & ~0x07) + 4);
 
   if (getrusage( RUSAGE_SELF, &buf ) == -1)
-    return -1;  /* sort of nonsensical, since "word" is unsigned. */
-  else
-    return buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000;
+    return -1;
+  if (gettimeofday( &t, &tz ) == -1)
+    return -1;
+
+  vp[ 0 ] = fixnum( buf.ru_utime.tv_sec * 1000 + buf.ru_utime.tv_usec / 1000);
+  vp[ 1 ] = fixnum( buf.ru_stime.tv_sec * 1000 + buf.ru_stime.tv_usec / 1000);
+  vp[ 2 ] = fixnum( t.tv_sec * 1000 + t.tv_usec / 1000 ) - basictime;
+  vp[ 3 ] = fixnum( buf.ru_minflt );
+  vp[ 4 ] = fixnum( buf.ru_majflt );
+  return 0;
 }
 

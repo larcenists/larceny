@@ -81,15 +81,17 @@
   (lambda l
     (list->vector l)))
 
+
+; List->vector is a partial primop in larceny for the purposes of the
+; thesis. The theory is that we can initialize the vector much more
+; efficiently if we don't have to check for intergenerational pointers
+; all the time, and we can do this when we know that the vector is in
+; the tenured area.
+
 (define list->vector
-  (letrec ((loop
-             (lambda (v i l)
-               (if (not (null? l))
-                   (begin (vector-set! v i (car l))
-                          (loop v (+ i 1) (cdr l)))
-                   v))))
-    (lambda (l)
-      (loop (make-vector (length l) '()) 0 l))))
+  (lambda (l)
+    (sys$partial-list->vector l (length l))))
+
 
 (define vector->list
   (letrec ((loop

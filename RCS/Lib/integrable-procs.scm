@@ -3,9 +3,9 @@
 ; Larceny run-time system
 ; Global procedure definitions for integrable procedures.
 ;
-; $Id: integrable-procs.scm,v 1.3 1992/05/15 22:18:04 lth Exp lth $
+; $Id: integrable-procs.scm,v 1.4 1992/06/10 09:05:24 lth Exp lth $
 
-(define getrusage (lambda () (getrusage)))
+(define sys$resource-usage! (lambda (x) (sys$resource-usage! x)))
 (define debugvsm (lambda () (debugvsm)))
 (define reset (lambda () (sys$reset)))
 ;; exit should also flush output buffers, etc, etc.
@@ -83,6 +83,7 @@
 (define char=? (lambda (x y) (char=? x y)))
 (define char>? (lambda (x y) (char>? x y)))
 (define char>=? (lambda (x y) (char>=? x y)))
+(define sys$partial-list->vector (lambda (x y) (sys$partial-list->vector x y)))
 (define vector-set! (lambda (x y z) (vector-set! x y z)))
 (define bytevector-set! (lambda (x y z) (bytevector-set! x y z)))
 (define procedure-set! (lambda (x y z) (procedure-set! x y z)))

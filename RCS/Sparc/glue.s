@@ -2,7 +2,7 @@
 !
 ! Larceny Run-time System (SPARC)
 !
-! $Id: glue.s,v 1.9 1992/05/15 22:18:30 lth Exp lth $
+! $Id: glue.s,v 1.10 1992/06/10 09:05:52 lth Exp lth $
 !
 ! This file contains miscellaneous glue procedures and many millicode
 ! procedures. The most important glue procedures are _scheme_start which
@@ -31,7 +31,7 @@
 	.global	_m_unlink_file
 	.global	_m_read_file
 	.global	_m_write_file
-	.global _m_getrusage
+	.global _m_resource_usage
 	.global _m_apply
 	.global _m_varargs
 	.global	_m_typetag
@@ -44,6 +44,7 @@
 	.global _m_dumpheap
 	.global _m_singlestep
 	.global _m_generic_exception
+	.global _m_partial_list2vector
 
 ! These need to appear eventually, I think.
 !
@@ -193,6 +194,11 @@ Lnonproc:
 ! This procedure then sets up the two stack frames and invokes the requested
 ! Scheme procedure, which returns through the helper procedure in the top
 ! stack frame. This procedure never returns to its caller.
+!
+! The "BUG!" entries below are not currently serious; however, the values 
+! stored are not tagged, and we store them in rootables. The reason the bugs
+! are not serious is that the values interpreted as pointers are outside
+! any space and hence not touched by the collector (better be right).
 
 _scheme_call:
 
@@ -447,17 +453,14 @@ _m_write_file:
 	jmp	%i7+8
 	restore
 
-! GETRUSAGE: there are no arguments. The result is the user time field from
-!            the rusage struct converted to milliseconds, as a fixnum.
+! RESOURCE_USAGE takes a vector argument and fills in the vector with
+!                resource data. It's all done in C.
 
-_m_getrusage:
+_m_resource_usage:
 	save	%sp, -96, %sp
 
-	call	_C_getrusage
-	nop
-	sll	%o0, 2, %SAVED_RESULT
-	set	0x7fffffff, %o0
-	and	%o0, %SAVED_RESULT, %SAVED_RESULT
+	call	_C_resource_usage
+	mov	%SAVED_RESULT, %o0
 
 	jmp	%i7+8
 	restore
@@ -651,6 +654,8 @@ Ltypetagset1:
 	andncc	%ARGREG2, 0x1C, %g0
 	bne	Ltypetagset0
 	nop
+	and	%TMP1, 0x1C, %TMP2
+	xor	%TMP1, %TMP2, %TMP1
 	or	%TMP1, %ARGREG2, %TMP1
 	jmp	%o7 + 8
 	st	%TMP1, [ %TMP0 ]
@@ -848,6 +853,45 @@ Ldump_err:
 Ldump_err2:
 	jmp	%MILLICODE + M_GENERIC_EXCEPTION
 	mov	EX_DUMPFAIL, %TMP0
+
+
+! list->vector is a partial primop because the Scheme implementation 
+! (make the vector, bang the elements) causes a lot of unneccesary side
+! effect checking in the generation-scavenging collector. It is not a full
+! primop because of the harrowing details of dealing with non-lists etc.
+! 
+! The list is passed in %RESULT, and its length is passed in %ARGREG2.
+! The vector is returned in %RESULT.
+!
+! The correctness of this code depends on the vector being allocated in
+! the ephemeral space.
+
+_m_partial_list2vector:
+	mov	%o7, %TMP0
+	mov	%RESULT, %ARGREG3		! save for later
+	call	_mem_internal_alloc
+	add	%ARGREG2, 4, %RESULT		! length of vector
+	mov	%TMP0, %o7
+	sll	%ARGREG2, 8, %TMP0
+	or	%TMP0, VEC_HDR, %TMP0
+	st	%TMP0, [ %RESULT ]		! vector header
+	add	%RESULT, 4, %TMP0		! destination pointer
+	mov	%ARGREG3, %TMP1			! list pointer
+	mov	%ARGREG2, %TMP2			! counter (fixnum)
+	b	Ll2v_1
+	tst	%TMP2
+Ll2v_2:	
+	st	%ARGREG3, [ %TMP0 ]		! store in vector
+	add	%TMP0, 4, %TMP0			! next element
+	ld	[ %TMP1 - PAIR_TAG + 4 ], %TMP1	! get cdr
+	subcc	%TMP2, 4, %TMP2			! one less
+Ll2v_1:
+	bne,a	Ll2v_2
+	ld	[ %TMP1 - PAIR_TAG ], %ARGREG3	! get car
+
+	jmp	%o7+8
+	or	%RESULT, VEC_TAG, %RESULT
+
 
 ! Breakpoints are expensive, as the machine state must be saved and restored;
 ! this is so that the break handler can inspect the state (if desired).

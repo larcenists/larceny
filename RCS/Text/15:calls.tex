@@ -1,11 +1,11 @@
 % -*- TeX -*-
-% $Id: conventions.tex,v 1.2 92/02/17 18:27:47 lth Exp $
+% $Id: 15:calls.tex,v 1.1 1992/06/13 08:17:29 lth Exp lth $
 
 \input{larceny.sty}
 
 \title{Larceny Note \#15: \\
        Calling Conventions for C/Scheme and Scheme/millicode/Scheme \\
-       {\tenrm (draft!)}}
+       {\tenrm (NOT FINISHED)}}
 \author{Lars Thomas Hansen}
 
 \begin{document}
@@ -20,7 +20,7 @@ be summarized thusly:
 \begin{enumerate}
 \item saving the current C context
 \item setting up a Scheme context
-\item setting up arguments for the Scheme code
+\item setting up arguments for the Scheme code, including stack frame.
 \item calling the Scheme code
 \item saving the new Scheme context
 \item setting up the C return value
@@ -47,7 +47,7 @@ specific stack layout on the C stack (pointed to by \%o6, also known as
 area for spilling register windows into (64 bytes), and one area for
 spilling and passing arguments in (typically 32 bytes). The stack
 pointer of the previous window (\%i6, also known as \%fp) always points
-to end of the highest-addressed word in this frame, and is used by
+to the end of the highest-addressed word in this frame, and is used by
 the trap handler to locate the memory in which to spill the previous
 window, if necessary. Hence figure \ref{c-args}.
 

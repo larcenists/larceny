@@ -102,10 +102,10 @@
                                      ,@(cddr exp)))))
          ((> (length exp) 3) (complain exp))
          (else exp))))
-     
-     (complain (lambda ()
+
+     (complain (lambda (exp)
                  (error "Malformed definition" exp))))
-    
+
     ; body of letrec
     
     (define-loop exp '() '())))

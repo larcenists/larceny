@@ -3,7 +3,7 @@
 ;; Makefile to build an initial heap from the library files.
 ;; WARNING: This file is a mess.
 ;;
-;; $Id: newmakefile.sch,v 1.1 1992/06/10 09:35:28 lth Exp lth $
+;; $Id: newmakefile.sch,v 1.2 1992/06/13 08:08:56 lth Exp lth $
 ;;
 ;; USAGE:
 ;;
@@ -56,15 +56,17 @@
 	     (string-append targetdir "Eval/eval.lop")
 	     (string-append targetdir "Eval/rewrite.lop")))
 
-(define (make-larceny-eheap)
+(define (make-larceny-eheap . options)
   (set! targetdir (string-append topleveldir "Thesis/Lib-mg+sc/"))
-  (make-heap (string-append topleveldir "larceny.eheap")
-	     'global-refs
-	     'global-symbols
-	     'no-transactions
-	     (string-append targetdir "Eval/reploop.lop")
-	     (string-append targetdir "Eval/eval.lop")
-	     (string-append targetdir "Eval/rewrite.lop")))
+  (apply make-heap 
+	 (append (list (string-append topleveldir "larceny.eheap")
+		       'global-refs
+		       'global-symbols
+		       'no-transactions
+		       (string-append targetdir "Eval/reploop.lop")
+		       (string-append targetdir "Eval/eval.lop")
+		       (string-append targetdir "Eval/rewrite.lop"))
+		 options)))
 
 (let ()
 
@@ -394,6 +396,7 @@
 	  (set! generate-global-symbols? #f)
 	  (set! emit-undef-check? #f)
 	  (set! register-transactions-for-side-effects #t)  ; sanity...
+	  (set! enable-singlestep? #f)
 
 	  (let loop ((switches switches) (others '()))
 	    (cond ((null? switches) 
@@ -402,6 +405,9 @@
 					      sdir 
 					      tdir
 					      cdir)))
+		  ((eq? (car switches) 'singlestep)
+		   (set! enable-singlestep? #t)
+		   (loop (cdr switches) others))
 		  ((eq? (car switches) 'listify)
 		   (set! listify? #t)
 		   (loop (cdr switches) others))

@@ -1,7 +1,7 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: pass1.imp.sch,v 1.4 1992/06/10 09:05:10 lth Exp remy $
+; $Id: pass1.imp.sch,v 1.5 1992/06/13 03:52:05 remy Exp lth $
 
 (define (byte? x)
   (and (fixnum? x)
@@ -46,7 +46,25 @@
 		 (else
 		  `(let (,(caadr l))
 		     (let* ,(cdadr l)
-		       ,@(cddr l)))))))))
+		       ,@(cddr l)))))))
+
+    (delay
+     ,(lambda (l)
+	(let ((hasval (gensym "T"))
+	      (val    (gensym "T"))
+	      (tmp    (gensym "T")))
+	  `(let ((,hasval #f) (,val #f))
+	     (lambda ()
+	       (if ,hasval
+		   ,val
+		   (let ((,tmp ,(cadr l)))
+		     (if ,hasval
+			 ,val
+			 (begin (set! ,hasval #t)
+				(set! ,val ,tmp)
+				,tmp)))))))))
+
+    ))
 
 ; What about these?
 ;
@@ -91,7 +109,7 @@
     (sys$dumpheap 2 sys$dumpheap #f 6) ; takes two args in larceny
     (creg 0 creg #f 7)
 ;    (undefined 0 undefined #f 8)
-    (getrusage 0 getrusage #f -1)
+    (sys$resource-usage! 1 sys$resource-usage! #f -1)
     (sys$gc 1 sys$gc #f 5)
     (unspecified 0 unspecified #f -1)
 
@@ -203,6 +221,7 @@
     (char>? 2 char>? ,char? #xe3)
     (char>=? 2 char>=? ,char? #xe4)
     
+    (sys$partial-list->vector 2 sys$partial-list->vector #f -1)
     (vector-set! 3 vector-set! #f #xf1)
     (bytevector-set! 3 bytevector-set! #f #xf2)
     (procedure-set! 3 procedure-set! #f #xf3)
