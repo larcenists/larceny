@@ -8,6 +8,9 @@
    "Asm\\Common\\"
    "Asm\\IL\\"
    "Auxlib\\"
+   "bin\\"
+   "bin\\Debug\\"
+   "bin\\Release\\"
    "CL\\"
    "CL\\VSNET\\"
    "CL\\VSNET\\Larceny\\"
@@ -81,6 +84,10 @@
    "Auxlib\\string.sch"
    "Auxlib\\unix-functions.sch"
    "Auxlib\\vector.sch"
+
+   "bin\\Debug\\Scheme.dll"
+   "bin\\Debug\\Scheme.pdb"
+   "bin\\Release\\Scheme.dll"
 
    "CL\\files.ss"
    "CL\\README"
@@ -278,6 +285,7 @@
    "Rts\\DotNet\\OpsSpecial.cs"
    "Rts\\DotNet\\Perf.cs"
    "Rts\\DotNet\\Reg.cs"
+   "Rts\\DotNet\\Scheme.csproj"
    "Rts\\DotNet\\SchemeObject.cs"
    "Rts\\DotNet\\SchemeObject.cs.cpp"
    "Rts\\DotNet\\Syscall-enum.cs"
