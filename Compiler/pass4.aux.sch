@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 24 August 1999
+; 12 September 2000
 
 ; Implements the following abstract data types.
 ;
@@ -48,8 +48,11 @@
 ;
 ; stack frame environments
 ;     (cgframe-initial)
+;     (cgframe-livevars frame)
+;     (cgframe-livevars-set! frame vars)
 ;     (cgframe-size-cell frame)
 ;     (cgframe-size frame)
+;     (cgframe-vars frame)
 ;     (cgframe-copy frame)
 ;     (cgframe-join! frame1 frame2)
 ;     (cgframe-update-stale! frame)
@@ -58,6 +61,7 @@
 ;     (cgframe-touch! frame v)
 ;     (cgframe-rename! frame alist)
 ;     (cgframe-release! frame v)
+;     (cgframe-release-except! frame vars)
 ;     (cgframe-lookup frame v)
 ;     (cgframe-spilled? frame v)
 ;
@@ -471,6 +475,9 @@
 
 (define (cgframe-size frame)
   (car (cgframe-size-cell frame)))
+
+(define (cgframe-vars frame)
+  (map car (cgframe:slots frame)))
 
 (define (cgframe-used! frame)
   (if (negative? (cgframe-size frame))
