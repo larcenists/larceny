@@ -1,55 +1,137 @@
 % -*-TeX -*-
-% $Id$
+% $Id: fileformats.tex,v 1.1 92/02/18 11:52:51 lth Exp Locker: lth $
 
 \input{larceny.sty}
 
-\title{Larceny Note \#6: \\
-       File Formats}
+\title{Larceny Note \#6: File Formats}
 \author{Lars Thomas Hansen}
 
 \begin{document}
 \maketitle
 
-\begin{abstract}
-This document describes the formats of ``.lap'', ``.mal'', ``.lop'' and
-``.heap'' files in detail.
-\end{abstract}
+\section{Introduction}
 
-\section{Segment Format}
+We operate with several kinds of files:
 
-A segment is a pair:
+\begin{itemize}
+\item 
+Scheme source code comes in text files with an extension of ``.sch'' or
+``.scm''; the latter is archaic and should be done away with. These files
+are input to the compiler and can be loaded interactively with the ``load''
+procedure when the interactive environment becomes operational.
+
+\item
+MacScheme assembly language code comes in two flavors: that which may be
+directly assembled (encoded format) and that which must be processed before
+being assembled (unencoded format). The former files have an extension ``.lap''
+(for ``List Assembly Program''). The latter have an extension ``.mal'' (for
+``MacScheme Assembly Language''). Both can be processed by the assembler,
+but the contents of ``.mal'' files are passed through ``eval'' before being
+assembled; see below for details.
+
+\item
+SPARC object code comes in two flavors: that which may be used to build an
+initial heap image and that which may be loaded interactively. The former
+files have a ``.lop'' (for ``Lisp Object Program'') extension; the latter
+have a ``.fasl'' extension (for ``Fastload'').
+
+\item
+Heap files all have a ``.heap'' extension and are distinguished by their
+internal organization. There are several kinds of heaps: those which are
+loaded into the tenured area; those which are loaded into the ephemeral
+area; and those which are loaded into several areas, including the static
+area. Not all heap images are useful in Larceny proper, but are used for
+research purposes.
+
+\end{itemize}
+
+The format of scheme source files is obvious; the following sections
+describe the other file formats in detail.
+
+\section{MacScheme Assembly Language Files}
+
+Files with MacScheme assembly language consists of lists of assembly language
+instructions. Each list is interpreted as the instruction list (code list)
+of a {\tt lambda} instruction at the top level; the environment field of the
+resulting procedure is void.
+
+Encoded (``.lap'') files are raw lists of instructions where the opcode is a
+small nonnegative integer corresponding to the real opcode. The exact value
+of the code for any particular opcode is defined in a table within the
+compiler; when this table changes, all ``.lap'' files have to be remade from
+sources.
+
+Unencoded (``.mal'') files are scheme expressions which evaluate to raw
+lists of instructions where the opcode is a small nonnegative integer
+corresponding to the real opcode. Typically this is accomplished with some
+quasiquoted list where the names of the opcoded are the unquoted names of
+the MacScheme instruction prefixed by ``\$'':
+
+\begin{minipage}{\linewidth}
+\begin{verbatim}
+    `((,$lambda ((,$.proc)
+                 (,$args= 2)
+                 (,$reg 1))
+                0
+                (#t))
+      (,$setglbl foo)
+      (,$return))
+\end{verbatim}
+\end{minipage}
+
+\section{SPARC Object Code Files}
+
+Fastload (``.fasl'') files contain executable Scheme expressions in source
+form; extra magic syntax is used to represent literal procedures, global
+variable references, and code vectors. {\em This format is temporary.} Using
+this format, the current top level can load binary files into the running
+system without having to use the compiler or assembler.
+
+A procedure is represented using the magic syntax \verb+#^P( ... )+ (where
+\verb+^P+ stands for the ASCII character Control-P); the items in the
+parentheses are the contents of the procedure's data slots.
+
+A code vector is a byte vector; it is represented using the magic syntax
+\verb+#^B" ... "+, where the items in the double quotes are extended (8-bit)
+ASCII characters; double quotes and backslashes are escaped as usual.
+
+A reference to a global variable is represented as \verb+#^G<symbol>+; the
+symbol names the global procedure. A real reference to the global value cell
+is inserted at the point where this reference appears.
+
+Raw object (``.lop'') files consists of segments. A segment is a pair:
 
 \begin{itemize}
 \item
-The car of the segment is a byte vector (externally represented as a
-vector in some host implementations) containing the raw bytes of the
-SPARC object code. This code is fully compiled and will not need to be
-further patched at load time. The bytes are laid out in order of increasing
-addresses for fast loading. The byte vector is exactly long enough.
+The car of the segment is a byte vector (externally represented as a vector
+in some host implementations) containing the raw bytes of the
+position-independent SPARC object code. This code is fully compiled and will
+not need to be further patched at load time. The bytes are laid out in order
+of increasing addresses for fast loading. The byte vector is exactly long
+enough to hold the object code; no padding is added.
 
 \item
 The cdr of the segment is a vector containing all non-inlined constants
 used by the procedure. Constants may share structure if the assembler
 determined that they could. Examples of constants include lists, flonums, 
 and code and constant vectors for nested procedures which are to be created
-at run time. Each entry in the constant vector is a pair. The car of the
-pair is the tag of the entry; the cdr is the actual data. There are five
+at run time. Each entry in the constant vector is a list. The car of the
+pair is the tag of the entry; the cadr is the actual data. There are five
 kinds of tags: ``data'', ``codevector'', ``constantvector'', ``global'',
 and ``bits''. 
-
 \end{itemize}
 
-The tags and their data are interpreted thusly:
+The tags and their data are interpreted this way:
 
 \begin{itemize}
 \item
 The ``data'' tag is used for raw data which is to be dumped
 into the heap as is, but with the correct tags added. For example,
-\verb+(data . 1234567890)+ is dumped as a bignum.
+\verb+(data 1234567890)+ is dumped as a bignum.
 
 \item
 The ``codevector'' tag means that the following vector will have to be dumped
-as a byte vector. This tag is necessary only because there in not a standard
+as a byte vector. This tag is necessary only because there is not a standard
 print syntax for byte vectors; if there were one, we could use the ``data''
 tag.
 
@@ -63,24 +145,52 @@ a symbol naming the global variable.
 
 \item
 If the tag is ``bits'', then the datum (an integer) is dumped as is without 
-any change of tags. This is useful internally in the heap dumper.
+any change of tags. This is useful internally in the heap dumper, but there is
+no reason why this tag could not exist in a ``.lop'' file as well.
 
 \end{itemize}
 
-\section{Heap Format}
+\section{Larceny Heap Files}
 
-This is the format for the current (version 1) heap, which is a single memory
-area heap -- there are no provisions for the static area (see the GC section,
-below).
+Heaps are distinguished by their major and minor version numbers. The major
+version number distinguishes heap types; the minor version number
+distinguishes variations within a major type.
 
-\begin{itemize}
-\item Heap proper is always padded to 8-byte boundary
-\item Version number (1 word)
-\item Roots (38 words in current version; number of roots and exact layout
-\item depends on the version. The roots and the order is typically the same
-as defined in ``offsets.h''.)
-\item Heap length in words (1 word)
-\item Heap itself (n words)
-\end{itemize}
+There are two major types, known as ``unified'' and ``split''. Type 0 is the
+unified heap. This heap type contains only one data area; it is loaded into
+the tenured or ephemeral area (based on a command line switch). Type 1 is
+the split heap. This heap type contains two data areas: one of is loaded
+into the static area, the other is loaded into the tenured or ephemeral area
+(again based on a command line switch).
+
+Heap data areas are always padded to 8 bytes, and words are stored
+big-endian.  The first word of the heap is the version number; the high 16
+bits have the major number and the low 16 bits have the minor number.
+Following the version number is the set of roots; these values will be the
+initial value of the system roots. The exact number of the roots and their
+ordering varies between minor versions, but it is the same for all major
+versions with the same minor version. The order of the roots is not
+described here. Following the roots is information which depends on the
+major version number.
+
+All addresses in the heap are given relative to a base address of 0; the heap
+loader adjusts the base addresses at load time to fit the actual address of
+the heap. This is easily done since all words in the heap are tagged (or if
+they are not, they are preceded by a header which identifies them as untagged).
+Also see below.
+
+For heap type 0, the roots are followed by a word which gives the heap
+size in words, and then the heap data itself.
+
+For heap type 1, the roots are followed by a word which gives the size of
+the static heap, then a word which gives the size of the tenured/ephemeral
+heap, then the data for the static heap, and finally the data for the
+tenured/ephemeral heap.  Both data areas are padded to 8 bytes. Since the
+tenured/ephemeral area may have references into the static area, these
+references must be recognized and resolved specially. The convention is that
+every pointer in the tenured/ephemeral heap image which points into the
+static are has the high bit set. This tells the heap loader to resolve the
+address relative to the base of the static area rather than relative to the
+base of the tenured/ephemeral area.
 
 \end{document}
