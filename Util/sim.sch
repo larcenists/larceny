@@ -1,3 +1,7 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
 ; Simulates the cost of the cache flush code with various unrolling 
 ; strategies.
 
@@ -7,7 +11,9 @@
 
 (define (simrange fn lo hi)
   (if (<= lo hi)
-      (let loop ((lo (+ lo 1)) (locycles (sim fn (unrolled-loop lo))) (lofactor lo))
+      (let loop ((lo (+ lo 1))
+		 (locycles (sim fn (unrolled-loop lo)))
+		 (lofactor lo))
 	(if (<= lo hi)
 	    (let ((c (sim fn (unrolled-loop lo))))
 	      (if (< c locycles)

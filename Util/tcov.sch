@@ -1,7 +1,8 @@
-; tcov.sch
-; tcov-like test coverage tool for gcc-compiled programs
+; Copyright 1998 Lars T Hansen.
 ;
-; 22 April 1998 / lth
+; $Id$
+;
+; tcov-like test coverage tool for gcc-compiled programs.
 ;
 ; If a C program is compiled with gcc with the -g -a options, and then run,
 ; then a file called "bb.out" is created in the working directory that was 

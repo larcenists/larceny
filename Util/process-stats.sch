@@ -1,7 +1,8 @@
-; Util/process-stats.sch
-; Accessor procedures for the statistics dump output format
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Accessor procedures for the statistics dump output format
 ;
 ; This file has two sections.
 ; 

@@ -1,3 +1,9 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Various experiments for determining reasonable time slices.
+
 (define (nothing)
   #t)
 

@@ -1,9 +1,10 @@
-; Util/twobit-heap.sch
-; Load script for building a heap image with all compiler names exposed.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Load script for building a heap image with all compiler names exposed.
 
-(load "Util/load-twobit.sch")
+(load "Util/load-twobit-sparc.sch")
 
 (load "Auxlib/io.fasl")
 (load "Experimental/apropos.fasl")
