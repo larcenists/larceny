@@ -85,17 +85,17 @@
 
 /* Macros for manipulating Scheme data types. */
 
-#define pair_car( ptr )        *ptrof( ptr )
-#define pair_cdr( ptr )        *(ptrof( ptr ) + 1)
+#define pair_car( ptr )        (*ptrof( ptr ))
+#define pair_cdr( ptr )        (*(ptrof( ptr )+1))
 
-#define string_length( x )     sizefield( *ptrof( x ) )
+#define string_length( x )     (sizefield(*ptrof( x )))
 #define string_data( x )       ((char*)ptrof( x )+4)
 
-#define vector_length( vp )    (sizefield(*ptrof(vp)))
+#define vector_length( vp )    (sizefield(*ptrof(vp)) >> 2)
 #define vector_ref( vp, i )    (ptrof( vp )[ VEC_HEADER_WORDS+(i) ])
 #define vector_set( vp, i, v ) (ptrof( vp )[ VEC_HEADER_WORDS+(i) ] = (v))
 
-#define procedure_length( pp ) (sizefield(*ptrof(pp)))
+#define procedure_length( pp ) (sizefield(*ptrof(pp)) >> 2)
 #define procedure_ref( pp, i ) (ptrof(pp)[ PROC_HEADER_WORDS+(i) ])
 #define procedure_set( pp, i, x )  (ptrof(pp)[ PROC_HEADER_WORDS+(i) ] = (x))
 
@@ -110,8 +110,8 @@
 #define real_part( x )         (*(double*)(ptrof(x)+2))
 #define imag_part( x )         (*((double*)(ptrof(x)+2)+1))
 
-#define global_cell_ref( cp )  pair_car( cp )
-#define global_cell_set( x, y ) pair_car( x ) = (y)
+#define global_cell_ref( cp )  (pair_car( cp ))
+#define global_cell_set( x, y ) (pair_car( x ) = (y))
 
 #endif
 
