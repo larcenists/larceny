@@ -131,9 +131,12 @@
            (cons candidate result)))))
 
   (let ((direct-superclasses (%class-direct-supers class)))
-    (merge-lists (append (map %class-cpl direct-superclasses)
-                         (list direct-superclasses))
-                 (list class))))
+    (merge-lists
+     ;; Huh?  This makes no sense at all!
+     ;; (append (map %class-cpl direct-superclasses)
+     ;;        (list direct-superclasses))
+     (map %class-cpl direct-superclasses)
+     (list class))))
 
 ;;>>... Generics in the instance initialization protocol
 ;;> The following generic functions are used as part of the protocol of
