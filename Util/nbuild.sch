@@ -67,13 +67,14 @@
 
 (writeln "Loading make utility, makefile, and help.")
 (nbuild-load-files (nbuild:utility-files))
-
+(compat:load (make-filename (nbuild-parameter 'rts) "make-templates.sch"))
 
 ; Initialize Twobit and help system.
 
 (compiler-switches 'default)
 (compiler-switches 'fast-safe)
 (initialize-help (nbuild-parameter 'compiler) 
+		 'full
 		 (if (eq? 'sparc (nbuild-parameter 'target-machine))
 		     'native
 		     'petit))
@@ -86,7 +87,8 @@
 
 ; And they're off!
 
-(newline)
-(writeln "Welcome. Type (help) for help.")
+(define (welcome)
+  (newline)
+  (writeln "Welcome. Type (help) for help."))
 
 ; eof

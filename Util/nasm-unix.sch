@@ -23,17 +23,18 @@
   (common-unix-initialize)
   (unspecified))
 
+(define (configure-system)
+  (select-compiler 'nasm+gcc)
+  (set! unix/petit-lib-library-platform 
+	(if (file-exists? "/usr/lib/libdl.a")  ; not for Cygwin, it doesn't
+	    '("-lm -ldl")
+	    '("-lm"))))
+
 (define (petit-application-name)
   "petit")
 
 (define (twobit-application-name)
   "twobit")
-
-(define (configure-system)
-  (set! unix/petit-lib-library-platform 
-	(if (file-exists? "/usr/lib/libdl.a")  ; not for Cygwin, it doesn't
-	    '("-lm -ldl")
-	    '("-lm"))))
 
 (unix-initialize)
 

@@ -24,6 +24,17 @@
   (common-unix-initialize)
   (unspecified))
 
+(define (configure-system)
+  (select-compiler 'gcc)
+  (let ((os-name (cdr (assq 'os-name (system-features)))))
+    (set! unix/petit-lib-library-platform 
+	  (cond ((is-macosx?) 
+		 (if (dlcompat-available?)
+		     '("-ldl")
+		     '()))
+		((is-sunos?)  '("-lm -ldl"))
+		(else         '("-lm -ldl"))))))
+
 (define (petit-application-name)
   "petit")
 
@@ -45,16 +56,6 @@
   (if (is-macosx?)
       "twobit.app"
       "twobit"))
-
-(define (configure-system)
-  (let ((os-name (cdr (assq 'os-name (system-features)))))
-    (set! unix/petit-lib-library-platform 
-	  (cond ((is-macosx?) 
-		 (if (dlcompat-available?)
-		     '("-ldl")
-		     '()))
-		((is-sunos?)  '("-lm -ldl"))
-		(else         '("-lm -ldl"))))))
 
 (unix-initialize)
 

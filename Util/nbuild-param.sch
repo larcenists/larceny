@@ -59,6 +59,7 @@
   (let ((dir (parameter-value 'root)))
     (apply-parameter-value 'compiler (pathname-append dir "Twobit"))
     (apply-parameter-value 'util     (pathname-append dir "Util"))
+    (apply-parameter-value 'rts      (pathname-append dir "Rts"))
     (apply-parameter-value 'build    (pathname-append dir "Rts" "Build"))
     (apply-parameter-value 'source   (pathname-append dir "Lib"))
     (apply-parameter-value 'common-source (pathname-append dir "Lib" "Common"))
@@ -81,6 +82,7 @@
   (map (lambda (n) (cons n 'unknown))
        '(compiler 
          util
+         rts
          build
          source
          common-source

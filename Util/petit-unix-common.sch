@@ -13,6 +13,7 @@
 (define (load-compiler)
   (load (make-filename "" "Util" "nbuild.sch"))
   (configure-system)
+  (welcome)
   (unspecified))
 
 (define (common-unix-initialize)
@@ -31,6 +32,12 @@
      (system "mkdir Rts/Build"))
     (else
      (error "Unknown host OS " (nbuild-parameter 'host-os)))))
+
+(define (build-makefile . rest)
+  (let ((c (if (null? rest)
+	       (default-makefile-configuration)
+	       (car rest))))
+    (generate-makefile "Rts/Makefile" c)))
 
 (define (build-config-files)
 
@@ -67,9 +74,11 @@
   (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
+  (if (not (file-exists? "Rts\\Makefile"))
+      (build-makefile))
   (if *requires-shared-runtime*
-      (execute-in-directory "Rts" "make libpetit.so")
-      (execute-in-directory "Rts" "make libpetit.a")))
+      (execute-in-directory "Rts" "make")
+      (execute-in-directory "Rts" "make")))
 
 (define (build-petit)
   (build-application (petit-application-name) '()))

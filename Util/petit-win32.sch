@@ -8,11 +8,6 @@
 
 (define nbuild-parameter #f)
 
-(define (make-command)
-  (if (eq? 'gcc-mingw (compiler-tag (current-compiler)))
-      "mingw32-make"
-      "nmake"))
-
 (define (win32-initialize)
   (load "Util\\sysdep-win32.sch")
   (load "Util\\nbuild-param.sch")
@@ -26,6 +21,24 @@
                                'target-machine 'standard-c
                                'target-os 'win32
                                'target-endianness 'little))
+  (load-initial-files)
+  (unspecified))
+
+(define (configure-system)
+  ; Compilers defined in Asm/Standard-C/dumpheap-win32.sch are:
+  ;   gcc-mingw   gcc (mingw) on Win32
+  ;   msvc        Microsoft Visual C/C++ 6.0 on Win32
+  ;   mwcc        Metrowerks CodeWarrior C/C++ 6.0 on Win32
+  (select-compiler 'gcc-mingw)
+  (set! win32/petit-rts-library (string-append "Rts\\libpetit" (lib-suffix)))
+  (set! win32/petit-lib-library (string-append "libheap" (lib-suffix))))
+
+(define (make-command)
+  (if (eq? 'gcc-mingw (compiler-tag (current-compiler)))
+      "mingw32-make"
+      "nmake"))
+
+(define (load-initial-files)
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")
@@ -33,8 +46,13 @@
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
-  (load (string-append (nbuild-parameter 'util) "config.sch"))
-  #t)
+  (load (string-append (nbuild-parameter 'util) "config.sch")))
+
+(define (build-makefile . rest)
+  (let ((c (if (null? rest)
+	       (default-makefile-configuration)
+	       (car rest))))
+    (generate-makefile "Rts\\Makefile" c)))
 
 (define (setup-directory-structure)
   (case (nbuild-parameter 'host-os)
@@ -82,9 +100,9 @@
   (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
-  (execute-in-directory 
-   "Rts" 
-   (string-append (make-command) " libpetit" (lib-suffix))))
+  (if (not (file-exists? "Rts\\Makefile"))
+      (build-makefile))
+  (execute-in-directory "Rts" (make-command)))
 
 (define build-runtime-system build-runtime) ; Old name
 
@@ -114,8 +132,8 @@
 
 (define (load-compiler)
   (load "Util\\nbuild.sch")
-  (set! win32/petit-rts-library (string-append "Rts\\libpetit" (lib-suffix)))
-  (set! win32/petit-lib-library (string-append "libheap" (lib-suffix)))
+  (configure-system)
+  (welcome)
   (unspecified))
 
 (define (lib-suffix)

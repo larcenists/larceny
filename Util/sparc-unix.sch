@@ -27,7 +27,7 @@
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "config.sch"))
-  #t)
+  (unspecified))
 
 (define (setup-directory-structure)
   (case (nbuild-parameter 'host-os)
@@ -35,6 +35,12 @@
      (system "mkdir Rts/Build"))
     (else
      (error "Unknown host OS " (nbuild-parameter 'host-os)))))
+
+(define (build-makefile . rest)
+  (let ((c (if (null? rest)
+	       'sparc-solaris-static-gcc
+	       (car rest))))
+    (generate-makefile "Rts/Makefile" c)))
 
 (define (build-config-files)
 
@@ -87,7 +93,9 @@
         (nbuild-parameter 'always-source? #f)
         (nbuild-parameter 'verbose-load? #f)
         (nbuild-parameter 'development? #f)))
-  (load (make-filename "" "Util" "nbuild.sch")))
+  (load (make-filename "" "Util" "nbuild.sch"))
+  (welcome)
+  (unspecified))
 
 (define (remove-runtime-objects)
   (system "rm -f Rts/Sys/*.o")
