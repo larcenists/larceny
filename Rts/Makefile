@@ -61,21 +61,21 @@
 
 
 # Petit Larceny on Debian Linux: gcc
-#O=o
-#CC=gcc
-#DEBUGINFO=-gstabs+
-#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-
-
-# Native Larceny on Debian Linux: gcc + nasm (still debugging)
 O=o
 CC=gcc
 DEBUGINFO=-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
-AS=nasm
-ASFLAGS=-f elf -IIntel -IBuild -DLINUX
+
+
+# Native Larceny on Debian Linux: gcc + nasm (still debugging)
+#O=o
+#CC=gcc
+#DEBUGINFO=-gstabs+
+#OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+#CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+#AS=nasm
+#ASFLAGS=-f elf -IIntel -IBuild -DLINUX
 
 # Petit Larceny on DEC Alpha OSF/1: DEC C compiler
 # Probably not up-to-date, has not been tested for some time!

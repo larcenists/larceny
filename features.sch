@@ -401,7 +401,7 @@
     "DEC_ALPHA_32BIT"
     "STACK_UNDERFLOW_COUNTING"))
 
-(define selected-feature-set features-x86-nasm-linux)
+(define selected-feature-set features-petit-linux)
 
 ; ------ END USER DEFINITION SECTION ------
 
