@@ -146,7 +146,7 @@
 (define (generate-globally-unique-id)
   (set! *unique-id-counter* (+ 1 *unique-id-counter*))
   (twobit-format #f "ns~sc~s" 
-                 0 ;(remainder (current-seconds) 10000)
+                 (an-arbitrary-number) ;; Defined by compat package
                  *unique-id-counter*))
 
 (define (as-il-namespace as)
