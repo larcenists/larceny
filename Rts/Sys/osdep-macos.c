@@ -26,6 +26,10 @@
 #include <unix.h>		/* CodeWarrior */
 #include <SIOUX.h>              /* CodeWarrior */
 #include "larceny.h"
+# include <console.h>
+
+long os_get_next_event( EventRecord *e );
+long os_handle_event( EventRecord *e );
 
 void gettimeofday ( struct timeval *t, struct timezone *huh );
 
@@ -42,6 +46,26 @@ void osdep_init( void )
   real_start.sec = 0;
   real_start.usec = 0;
   get_rtclock( &real_start );
+
+  /* Codewarrior */
+  SIOUXSettings.asktosaveonclose = 0;
+  SIOUXSettings.autocloseonquit = 1;
+  SIOUXSetTitle( "\pPetit Larceny Transcript" );
+}
+
+/* Is there a principled way to do this?
+   Loop for a while to process OpenDocument Apple Event to get the 
+   heap file, if any.
+   */
+void osdep_poll_startup_events( void )
+{
+  EventRecord event; 
+  int i;
+
+  for ( i=0 ; i < 10 ; i++ ) {
+    os_get_next_event( &event );
+    os_handle_event( &event );
+  }
 }
 
 void osdep_poll_events( word *globals )
