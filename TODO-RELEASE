@@ -9,6 +9,13 @@ release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
 
 ----------------------------------------------------------------------
 
+- must checkin the latest bug fixes.
+
+- should auto-compile Util/std-heap.sch, Util/compile-always.sch,
+Compiler/help.sch, and should load Build/schdefs.fasl if it exists.  The
+goal of this game is to attempt to have no compiled code in the system.
+
+
 ----------------------------------------------------------------------
 
 [General tasks]
@@ -17,32 +24,43 @@ release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
    * What to eat
    * What to play with
 
-[Bugs] (Not all of these deserve to be fixed)
+[Compiler bugs, not all of these deserve to be fixed]
   * Bignum->flonum bug.
-  * Integrate-usual-procedures and (+ x x x x).
+  * Compiler bug (with (fast-safe-code), I think this is new):
+      > (or (memq 'b '(a b c)) (+ 3 0))
+      #t
+    This should really have been (b c).  The bug is in the compiler macro
+    for memq (see separate mail message).
+  * Compiler bug (with (default-code), you know about this one):
+      > (+ 1 1 1 1)
+      Error: Wrong number of arguments to integrable procedure(+ '1 '1 '1 '1)
+      > (make-vector 5)
+      Error: Wrong number of arguments to integrable procedure(make-vector '5)
   * Procedure-names are not good enough.
   * Need inline procedures and constant folding for fixnum operations.
   * 'Case' really ought to do better when the constants are fixnums,
     currently it just expands to a call to memv.
+
+[Other]
+  * The command line switches in the scripts use '@' for the option
+    letter, even though the manual says to use '-' and when you run
+    larceny @help you learn that you should use '-'.  Unclear what
+    exactly is the right thing, but this situation is a mess.
+
+[Bugs fixed since 0.40]
   * Some sort of help facility (esp. for compiler switches and compilation
     commands) would be useful in larceny.heap.  The standard help file
     is not appropriate because many of the procedures it mentions are not
     available in larceny.heap.
-  * FFI procedures are not hidden in larceny.heap.  (Moot point since
-    FFI will not be included in 1.0a1.)
+
+    Fixed by implementing brief and full modes of the help system; it 
+    defaults to full mode but the code in Util/init-comp.sch sets it up
+    in brief mode.
+
   * (Issue-warnings #t) should be the default.
 
-[FFI]
-  * Sundry bugs must be fixed (see the TODO file).
-    - How to load e.g. the file socket-support.o that has unresolved
-      external references?
-    - Test (better) on SunOS 5.
-    - Test on SunOS 4.
-    - Write guidelines for compiling C code for use with FFI.
-    - Should exit if errors are discovered in the relinking phase.
-    - Document!
-    - larceny_call() must deal with stack overflow.
-  * Testing.
+    Fixed by changing the setting in Compiler/switches.sch.
+
 
 [User/reference documentation]
   * Compilation documentation
@@ -60,13 +78,33 @@ release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
     (and (unsafe-code) (not (write-barrier)))       ; fast, stop+copy
     (and (not (unsafe-code)) (not (write-barrier))) ; safe, stop+copy
 
+    With all four meta-switches: slow-code, default-code, ...
+
 [Release]
   * At release time: change home page.
   * Version number -> 1.0a1
   * Release procedure.
+    - remove ffi from std-heap.sch
     - make sure switch settings in Util/init-comp.sch are right.
     - decide what's needed in a release, create shell script to strip or
       extract.
     - make sure to do ( cd Rts; BUILD_HOST=chez make config ) before making 
       the archive.
 
+----------------------------------------------------------------------
+
+FFI will not be in 1.0a1.
+
+[FFI]
+  * FFI procedures are not hidden in larceny.heap.  (Moot point since
+    FFI will not be included in 1.0a1.)
+  * Sundry bugs must be fixed (see the TODO file).
+    - How to load e.g. the file socket-support.o that has unresolved
+      external references?
+    - Test (better) on SunOS 5.
+    - Test on SunOS 4.
+    - Write guidelines for compiling C code for use with FFI.
+    - Should exit if errors are discovered in the relinking phase.
+    - Document!
+    - larceny_call() must deal with stack overflow.
+  * Testing.
