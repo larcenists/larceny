@@ -1,19 +1,19 @@
-; Larceny auxiliary library -- sorting
+; Copyright ???
+;
 ; $Id$
 ;
-; Sort and Sort! will sort lists and vectors. The former returns a new
-; data structure; the latter sorts the data structure in-place. A mergesort
-; algorithm is used.
+; Sort and Sort! will sort lists and vectors.  The former returns a new
+; data structure; the latter sorts the data structure in-place.  A 
+; mergesort algorithm is used.
 ;
 ; Based on code written by Richard O'Keefe, available from the Internet
 ; Scheme Repository (ftp://ftp.cs.indiana.edu/pub/scheme-repository).
-; 
-; Modified by Lars Thomas Hansen and Will Clinger.
+; Modified by Lars Hansen and Will Clinger.
 ;
-; FIXME: It would be prudent to sort vectors in-place using a shell sort
-; or quicksort, as this can reduce the space consumption considerably.
-;
-; FIXME: Would be reasonable to allow strings and bytevectors to be sorted.
+; FIXME: 
+;  * It would be prudent to sort vectors in-place using a shell sort
+;    or quicksort, as this can reduce the space consumption considerably.
+;  * It would be reasonable to allow strings and bytevectors to be sorted.
 
 (define sort)
 (define sort!)

@@ -1,7 +1,8 @@
-; Auxlib/osdep-macos.sch
-; Operating-system-dependent functionality for Auxlib -- Macintosh
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Operating-system-dependent functionality for Macintosh.
 
 ; A "file name" is a string of length > 0.
 ; A "directory name" is a string of length > 0.

@@ -1,13 +1,14 @@
-; Auxlib/osdep-unix.sch
-; Operating-system-dependent functionality for Auxlib -- Unix
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Operating-system-dependent functionality for Unix.
 
 ; A "file name" is a string of length > 0.
 ; A "directory name" is a string of length > 0.
 
-(define *current-directory-designator* ".")
-(define *directory-separators* '(#\/))
+(define *current-directory-designator* ".")   ; a string
+(define *directory-separators* '(#\/))	      ; a list of characters
 
 (define (absolute-pathname? fn)
   (char=? #\/ (string-ref fn 0)))
@@ -23,7 +24,6 @@
   (if (char=? #\/ (string-ref dir (- (string-length dir) 1)))
       (string-append dir fn)
       (string-append dir "/" fn)))
-
 
 ; Experimental, but working, code.
 

@@ -1,7 +1,8 @@
-; Auxlib/macros.sch
-; A collection of useful and common macros.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; A collection of useful and common macros.
 
 (define-syntax when
   (syntax-rules ()

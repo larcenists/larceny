@@ -1,7 +1,8 @@
-; Auxlib/string.sch
-; Larceny auxiliary library -- string functions
-
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
+;
+; Useful string functions
 
 ; (substring-match s1 s2) => i iff 
 ;     (string=? s2 (substring s1 i (+ i (string-length s2))))

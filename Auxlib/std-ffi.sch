@@ -1,7 +1,8 @@
-; Auxlib/std-ffi.sch
-; Simple C callout interface to the FFI system.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Simple C callout interface to the FFI system.
 ;
 ; This file must be loaded from the Larceny build directory, typically
 ; as part of building the standard heap image.

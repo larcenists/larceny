@@ -1,7 +1,8 @@
-; Auxlib/misc.sch
-; Larceny auxiliary library -- miscellaneous functions and constants.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Miscellaneous functions and constants.
 
 ;;; System information procedures.
 

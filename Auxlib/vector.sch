@@ -1,7 +1,8 @@
-; Auxlib/vector.sch
-; Larceny auxiliary library -- vector functions.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Useful vector functions.
 
 (define (vector-copy v)
   (let ((v2 (make-vector (vector-length v) #f)))
