@@ -1,9 +1,13 @@
 #!/bin/sh
 #
 # This directory starts up the development environment with correct paths set.
+#
+# The advantage of having this script is that it can be cloned and specialized
+# for different object (or source) directories.
 
 rm -f tmp.build
 DIR="/research/owyhee/`whoami`/scheme313"
+echo "(define topleveldir \"$DIR/\")" >> tmp.build
 echo "(define sourcedir \"$DIR/Lib/\")" >> tmp.build
 echo "(define targetdir \"$DIR/Lib/\")" >> tmp.build
 echo "(define configdir \"$DIR/\")" >> tmp.build
@@ -11,5 +15,6 @@ echo "(define chezdir \"$DIR/Chez/\")" >> tmp.build
 echo "(define sparcdir \"$DIR/Sparc/\")" >> tmp.build
 echo "(define compilerdir \"$DIR/Compiler/\")" >> tmp.build
 echo "(load (string-append compilerdir \"build.sch\"))" >> tmp.build
+echo "(load (string-append sourcedir \"newmakefile.sch\"))" >>tmp.build
 scheme tmp.build
 rm tmp.build
