@@ -57,6 +57,10 @@
       (error "stats-dump-off: I/O error."))
   (unspecified))
 
+(define (stats-dump-stdout)
+  (syscall syscall:stats-dump-stdout)
+  (unspecified))
+
 (define (sys$dump-heap fn proc)
   (if (not (string? fn))
       (error "sys$dump-heap: bad file name " fn))

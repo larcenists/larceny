@@ -3,6 +3,8 @@
 ; $Id$
 ;
 ; The interpreter's top-level environment.
+;
+; FIXME: factor out commonalities between the platforms!
 
 ($$trace "toplevel")
 
@@ -511,6 +513,7 @@
     (environment-set! larc 'system-features system-features)
     (environment-set! larc 'stats-dump-on stats-dump-on)
     (environment-set! larc 'stats-dump-off stats-dump-off)
+    (environment-set! larc 'stats-dump-stdout stats-dump-stdout)
     (environment-set! larc 'system-function system-function)
     (environment-set! larc 'sys$C-ffi-apply sys$C-ffi-apply)
     (environment-set! larc 'sys$C-ffi-dlopen sys$C-ffi-dlopen)
