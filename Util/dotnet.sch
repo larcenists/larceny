@@ -3,9 +3,10 @@
 ;;
 ;; Loads appropriate system-dependent stuff
 
-;; TODO:  define setup-directory-structure and others in a system
-;; independent way
-;; TODO:  Use Dorai's scmxlate?
+;; TODO:  Umm... finish.  Also, fix nbuild.sch and nbuild-files.sch
+;;   Gotta separate the new compiler sources from the old Std. C
+;;   and add them to the larceny_src
+
 
 ;; FIXME:  figure out endian from host scheme system?
 (define (larceny-setup host option:os option:endian)

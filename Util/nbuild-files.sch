@@ -28,6 +28,10 @@
   (nbuild-files 'compiler
 		'("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
 
+;; FIXME:  This needs to be a list of files in the Twobit directory
+;;         that are dotNet specific.
+(define *nbuild:dotNet/twobit-files* '())
+
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler
     `("pass2p1.sch" "pass2p2.sch" "pass2if.sch"
@@ -91,6 +95,10 @@
 		 '("asm-switches.sch"
 		   "md5.sch"))))
 
+;; FIXME:  This needs to be a list of the Asm/IL files
+(define *nbuild:dotNetasm-files* '())
+
+  
 (define *nbuild:make-files*
   `(,@(nbuild-files 'util '("make.sch"))
     ,@(if (nbuild-parameter 'development?)
@@ -114,6 +122,7 @@
 	    ((SPARC)      *nbuild:sparc/twobit-files*)
 	    ((Standard-C) *nbuild:petit/twobit-files*)
 	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
+            ((dotNet)     *nbuild:dotNet/twobit-files*) ; FIXME
 	    (else (error "nbuild:twobit-files: bad architecture.")))
 	  *nbuild:twobit-files-2*))
 
@@ -130,6 +139,7 @@
     ((SPARC)      *nbuild:sparcasm-files*)
     ((Standard-C) *nbuild:petitasm-files*)
     ((x86-nasm)   *nbuild:x86-nasm-files*)
+    ((dotNet)     *nbuild:dotNetasm-files*) ; FIXME
     (else (error "nbuild:machine-asm-files: bad architecture."))))
 
 (define (nbuild:heap-dumper-files)
@@ -137,6 +147,7 @@
     ((SPARC)      *nbuild:sparc-heap-dumper-files*)
     ((standard-C) *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
+    ((dotNet)     *nbuild:dotNet-heap-dumper-files*) ; FIXME
     (else (error "nbuild:heap-dumper-files: bad architecture."))))
 
 (define (nbuild:utility-files)
