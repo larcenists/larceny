@@ -378,23 +378,7 @@
 (define (build-heap-image output-file input-files)
   (create-application output-file input-files))
 
-;(define (concatenate-files target sources)
-;  (with-output-to-file target
-;    (lambda ()
-;      (for-each display-file sources))))
-;
-;(define (display-file source)
-;  (with-input-from-file source
-;    (lambda ()
-;      (let loop ()
-;        (let [(next (read-char))]
-;          (if (eof-object? next)
-;              #t
-;              (begin
-;                (write-char next)
-;                (loop))))))))
-
-(define (ilasm exe-file il-files)
+(define (invoke-ilasm exe-file il-files)
   (system (twobit-format #f "ilasm /nologo /quiet /output:~a ~a" 
                          exe-file
                          (apply string-append
@@ -402,6 +386,31 @@
                                  values
                                  (lambda () " ")
                                  il-files)))))
+
+(define (ilasm exe-file il-files)
+  (if (member (nbuild-parameter 'host-system) '("Larceny"))
+      ;; Petit Larceny seems to fail with no explanation on long
+      ;; command strings.
+      (let ((big-il-file (rewrite-file-type exe-file ".exe" ".il")))
+        (concatenate-files big-il-file il-files)
+        (invoke-ilasm exe-file (list big-il-file)))
+      (invoke-ilasm exe-file il-files)))
+
+(define (concatenate-files target sources)
+  (with-output-to-file target
+    (lambda ()
+      (for-each display-file sources))))
+
+(define (display-file source)
+  (with-input-from-file source
+    (lambda ()
+      (let loop ()
+        (let ((next (read-char)))
+          (if (eof-object? next)
+              #t
+              (begin
+                (write-char next)
+                (loop))))))))
 
 ;; -----------------------------------------------
 
