@@ -65,7 +65,11 @@ and then build the heap image and the runtime system:
     > (make-dotnet-heap)
     > (build-runtime-system)
 
-Other useful commands are:
+Exit the Scheme system, copy Rts/DotNet/Scheme.dll into the current
+directory, and execute dotnet.heap.exe. You should have a working
+Larceny.NET interpreter running.
+
+Other useful commands in the build environment are:
 
     > (remove-dotnet-heap-objects)
     > (remove-rts-objects)
