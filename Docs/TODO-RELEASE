@@ -5,6 +5,8 @@ Release 2 todo and check lists
 
 Working on:
 
+ * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
+
 
 Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
@@ -56,14 +58,6 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * Quality: Clean up the Util/petit-win32.sch; the unix variants are
    much cleaner.
-
- * Quality: Instances of OPTIMIZEME in Rts/Standard-C/twobit.h.  
-
- * Perhaps twobit.h should be renamed petit-instr.h, to conform to
-   what is going on in Intel/ and PowerPC/.
-
- * Quality: dumpheap-extra.sch is a silly name, perhaps better
-   would be dumpheap-overrides.sch or dumpheap-target.sch
 
 
 Release candidate 1 -> Release candidate 2

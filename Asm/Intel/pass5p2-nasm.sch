@@ -3,6 +3,7 @@
 ; $Id$
 ;
 ; Intel x86 machine assembler, building on NASM.
+; Lars T Hansen.
 ;
 ; Code generation strategy:
 ;   Each MAL basic block is compiled to a separate ASM procedure, with

@@ -128,9 +128,10 @@
 %endmacro
 
 ;;; write_barrier r1 r2
-;;;	Move values from r1 and r2 to RESULT and SECOND and perform
-;;;	a write barrier.  r1 and r2 may be -1, in which case the
-;;;	value must already be in RESULT and SECOND.
+;;;	Move values from hardware registers r1 and r2 to RESULT 
+;;; 	and SECOND and perform a write barrier.  r1 and r2 may 
+;;; 	be -1, in which case the value must already be in RESULT 
+;;; 	and SECOND.
 ;;;
 ;;;     For INLINE_ASSIGNMENT, test the r2 value and skip the barrier
 ;;;     if the low bit is not 1.
