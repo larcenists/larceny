@@ -61,7 +61,7 @@ word *alloc_bv_from_heap( int bytes )
 
 word standing_room_only( int p_tag, int h_tag, int limit )
 {
-  return sro( gc, globals, p_tag, h_tag, limit );
+  return sro( gc, p_tag, h_tag, limit );
 }
 
 /* For vectors and pairs, the length is number of words.
