@@ -11,6 +11,8 @@
 
 #define GC_INTERNAL
 
+#include <stdlib.h>
+
 #include "larceny.h"
 #include "memmgr.h"
 #include "gc.h"
@@ -25,6 +27,14 @@
 #include "static_heap_t.h"
 
 enum action { PROMOTE_TO_OLD, PROMOTE_TO_BOTH, PROMOTE_TO_YOUNG, COLLECT };
+
+#define PHASE_WINDOW 3		/* how much do we take into account? */
+#define PHASE_BUFSIZ (2*PHASE_WINDOW) /* history, too */
+
+typedef struct {
+  int remset_size;		/* remset size */
+  int j;			/* value of j for that size */
+} phase_t;
 
 typedef struct npsc_data npsc_data_t;
 
@@ -50,6 +60,10 @@ struct npsc_data {
   int upper_limit;	      /* 0 or upper limit on the non-predictive area */
   semispace_t *old;	      /* 'old' generation */
   semispace_t *young;	      /* 'young' generation */
+
+  double phase_detection;     /* -1.0 or 0.0 .. 1.0 */
+  phase_t phase_buf[ PHASE_BUFSIZ ];  /* phase detection data */
+  int phase_idx;		/* next index in phase_buf */
 
   int copied_last_gc_old;     /* bytes */
   int moved_last_gc_old;
@@ -91,7 +105,8 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
   data->luck = info->luck;
-
+  data->phase_detection = info->phase_detection;
+  
   /* Assume size/L live (steady state) for initial k */
   target_size = 
     compute_dynamic_size( heap,
@@ -168,7 +183,8 @@ static void collect( old_heap_t *heap )
       los_bytes_used( los, data->gen_no ) - old_los_before_gc;
   }
 
-  annoyingmsg( "Non-predictive dynamic area: collection finished." );
+  annoyingmsg( "Non-predictive dynamic area: collection finished, k=%d j=%d",
+	      data->k, data->j );
 }
 
 /* Cautious strategy: 
@@ -209,6 +225,119 @@ static enum action decision( old_heap_t *heap )
     return COLLECT;
 }
 
+/* Rule: we have a window of PHASE_WINDOW, and a buffer of twice that
+   size.  If the older window exhibits growth, and the younger window
+   exhibits stability, then we adjust j.  
+*/
+static void run_phase_detector( old_heap_t *heap )
+{
+  npsc_data_t *data = DATA(heap);
+  int i, j, k, prev, young;
+
+  if (data->phase_detection < 0.0) return;
+
+  /* Determine if old window exhibits growth */
+  /* Old window is window at phase_idx. */
+  prev = j = data->phase_idx;
+  i = 1;
+  do {
+    j = (j+1) % PHASE_BUFSIZ;
+    if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
+      return;			/* shrank */
+    k = data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
+    if (data->phase_buf[j].remset_size <= k)
+      return;			/* grown too little */
+    prev = j;
+    i = i+1;
+  } while (i < PHASE_WINDOW);
+
+  /* Determine if young window exhibits stability. */
+  /* Young window is window at (phase_idx+PHASE_WINDOW)%PHASE_BUFSIZ. */
+     
+  young = (data->phase_idx+PHASE_WINDOW) % PHASE_BUFSIZ;
+
+  if (data->phase_buf[j].remset_size > data->phase_buf[young].remset_size)
+    return;			/* shrank */
+
+  prev = j = young;
+  i = 1;
+  do {
+    j = (j+1) % PHASE_BUFSIZ;
+    if (data->phase_buf[prev].remset_size > data->phase_buf[j].remset_size)
+      return;			/* shrank */
+    k = data->phase_buf[prev].remset_size * (1.0+data->phase_detection);
+    if (data->phase_buf[j].remset_size > k)
+      return;			/* grown too much */
+    prev = j;
+    i = i+1;
+  } while (i < PHASE_WINDOW);
+
+  if (data->phase_buf[young].j < data->j) {
+    los_t* los = heap->collector->los;
+    int young_before = used_young( heap );
+
+    annoyingmsg( "Phase detection decided to adjust j "
+		"(old k=%d, old j=%d, used_old=%d, used_young=%d).",
+		data->k, data->j, used_old(heap), young_before );
+    annoyingmsg( "Buffer contents (oldest first):" );
+    for ( i=0, j=data->phase_idx; i < PHASE_BUFSIZ ; i++, j=(j+1)%PHASE_BUFSIZ )
+      annoyingmsg( "  remset_size=%d   j=%d",
+		   data->phase_buf[j].remset_size,
+		   data->phase_buf[j].j );
+
+    /* Adjust data->j. */
+    /* Expensive solution:
+       Must shuffle some memory blocks and adjust attributes.
+       Must scan the NP remset and remove pointers not into the correct area.
+       Must scan the young remset and remove pointers not into the correct area.
+       */
+    /* Cheap solution: shuffle _all_ young into old.  This can be bad if
+       the size of young has increased a lot since remset stability, but
+       is otherwise a close approximation.
+       */
+
+    /* Cheap solution for now */
+
+    /* Move data */
+    /* The move changes current, so step _down_! */
+    for ( i=data->young->current ; i >= 0 ; i-- )
+      ss_move_block_to_semispace( data->young, i, data->old );
+    los_append_and_clear_list( los, 
+			       los->object_lists[ data->gen_no+1 ], 
+			       data->gen_no);
+
+    /* Nuke young space, recreate */
+    ss_free( data->young );
+    data->young = 
+      create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no+1 );
+
+    /* Clear or move remset contents */
+    rs_assimilate( heap->collector->remset[ data->gen_no ], 
+		   heap->collector->remset[ data->gen_no+1 ] );
+    rs_clear( heap->collector->remset[ heap->collector->np_remset ] );
+    rs_clear( heap->collector->remset[ data->gen_no+1 ] );
+
+    /* Adjust j */
+    data->j = (data->j*data->stepsize - young_before) / data->stepsize;
+    assert( j >= 0 );
+
+    annoyingmsg( "Phase-adjusted value of j=%d", data->j );
+  }
+}
+
+static void update_phase_data( old_heap_t *heap )
+{
+  npsc_data_t *data = DATA(heap);
+  int i;
+
+  i = data->phase_idx;
+  data->phase_buf[i].remset_size = 
+    heap->collector->remset[ heap->collector->np_remset ]->live;
+  data->phase_buf[i].j = 
+    (data->j*data->stepsize - used_young( heap )) / data->stepsize;
+  data->phase_idx = (data->phase_idx+1) % PHASE_BUFSIZ;
+}
+
 static void perform_promote_to_old( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
@@ -229,6 +358,8 @@ static void perform_promote_to_both( old_heap_t *heap )
   annoyingmsg( "  Promoting to both old and young." );
   stats_gc_type( data->gen_no+1, STATS_PROMOTE );
 
+  run_phase_detector( heap );
+
   young_available = data->j*data->stepsize - used_young( heap );
   old_available = (data->k-data->j)*data->stepsize - used_old( heap );
 
@@ -242,9 +373,13 @@ static void perform_promote_to_both( old_heap_t *heap )
   rs_assimilate( heap->collector->remset[ heap->collector->np_remset ],
 		 heap->collector->remset[ data->gen_no+1 ] );
   rs_clear( heap->collector->remset[ data->gen_no+1 ] );
-  
+
   /* This adjustment is only required when a large object has been promoted
      into the 'old' space and overflowed it.
+
+     Here it's ok to just adjust j without shuffling any data from one
+     area to the other, because we're just accomodating data that's in 
+     the old area in any case.
      */
   x = used_old( heap );
   while ((data->k - data->j)*data->stepsize < x)
@@ -257,6 +392,8 @@ static void perform_promote_to_both( old_heap_t *heap )
 		 "k=%d, j=%d.",
 		 data->k, data->j );
   }
+
+  update_phase_data( heap );
 }
 
 static void perform_collect( old_heap_t *heap )
@@ -265,6 +402,8 @@ static void perform_collect( old_heap_t *heap )
   los_t *los = heap->collector->los;
   gc_t *gc = heap->collector;
   int free_steps, target_size, young_before, young_los_before, luck_steps;
+
+  run_phase_detector( heap );
 
   ss_sync( data->young );
   young_before = data->young->used;
@@ -354,6 +493,8 @@ static void perform_collect( old_heap_t *heap )
   annoyingmsg( "  Adjusting parameters: k=%d j=%d, luck=%d", 
 	       data->k, data->j, luck_steps );
   assert( data->j >= 0 );
+
+  update_phase_data( heap );
 }
 
 static void stats( old_heap_t *heap, int generation, heap_stats_t *stats )
@@ -483,6 +624,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 {
   old_heap_t *heap;
   npsc_data_t *data;
+  int i;
 
   data = (npsc_data_t*)must_malloc( sizeof( npsc_data_t ) );
   heap = create_old_heap_t( "npsc/2/variable",
@@ -499,6 +641,12 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
 			    data
 			   );
   heap->collector = gc;
+
+  for ( i=0 ; i < PHASE_BUFSIZ ; i++ ) {
+    data->phase_buf[i].remset_size = 0;
+    data->phase_buf[i].j = 0;
+  }
+  data->phase_idx = 0;
 
   data->gen_no = gen_no;
   data->copied_last_gc_old = 0;
