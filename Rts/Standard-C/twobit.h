@@ -1415,26 +1415,30 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_500( y ) /* +:idx:idx */ \
   RESULT = (s_word)RESULT + (s_word)reg(y)
 
-#define twobit_op2_501( y ) /* +:fix:fix */ \
-  RESULT = (s_word)RESULT + (s_word)reg(y)
+/* OPTIMIZEME: tag checks not required, but overflow checks are */
+#define twobit_op2_501( y, kn, k ) /* +:fix:fix */ \
+  twobit_add( RESULT, reg(y), kn, k )
 
 #define twobit_op2_502( y ) /* -:idx:idx */ \
   RESULT = (s_word)RESULT - (s_word)reg(y)
 
-#define twobit_op2_503( y ) /* -:fix:fix */ \
-  RESULT = (s_word)RESULT - (s_word)reg(y)
+/* OPTIMIZEME: tag checks not required, but overflow checks are */
+#define twobit_op2_503( y, kn, k ) /* -:fix:fix */ \
+  twobit_subtract( RESULT, reg(y), kn, k )
 
 #define twobit_op2imm_520( k ) /* +:idx:idx */ \
   RESULT = (s_word)RESULT + k
 
-#define twobit_op2imm_521( k ) /* +:fix:fix */ \
-  RESULT = (s_word)RESULT + k
+/* OPTIMIZEME: tag checks not required, but overflow checks are */
+#define twobit_op2imm_521( y, kn, k ) /* +:fix:fix */ \
+  twobit_add( RESULT, y, kn, k )
 
 #define twobit_op2imm_522( k ) /* -:idx:idx */ \
   RESULT = (s_word)RESULT - k
 
-#define twobit_op2imm_523( k ) /* -:fix:fix */ \
-  RESULT = (s_word)RESULT - k
+/* OPTIMIZEME: tag checks not required, but overflow checks are */
+#define twobit_op2imm_523( y, kn, k ) /* -:fix:fix */ \
+  twobit_subtract( RESULT, y, kn, k )
 
 
 /* Introduced by peephole optimization */
