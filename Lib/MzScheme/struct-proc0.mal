@@ -1,0 +1,22 @@
+
+;; make-proc-struct : procedure object -> procedure
+;; If p = (make-proc-struct f x), then
+;; (p a1 a2 ...) results in a call to (f p a1 a2 ...)
+
+`((,$lambda ((,$args= 2)
+             (,$lambda ((,$args>= 0)    ;; Cons arg list into reg1
+                        (,$reg 0)       ;; Result = self
+                        (,$op2 cons 1)  ;; Result = arg list
+                        (,$setreg 2)    ;; reg2 = new arg list
+                        (,$lexical 0 1) ;; Result = *real* procedure
+                        (,$setreg 1)    ;; reg1 = *real* procedure
+                        (,$global apply)
+                        (,$invoke 2))   ;; Defer to apply
+                       2
+                       #f))
+            0
+            #f)
+  (,$setglbl make-proc-struct)
+  (,$const   make-proc-struct)
+  (,$return))
+ 
