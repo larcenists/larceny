@@ -2,7 +2,7 @@
  * Test program for garbage collector.
  * Version 3.
  *
- * $Id$
+ * $Id: gctest.c,v 1.2 91/06/20 22:15:13 lth Exp Locker: lth $
  *
  * Usage:
  *   gctest <inheap> <outheap>
@@ -206,13 +206,13 @@ char *s;
 t_collect()
 {
   fprintf( ofp, "; tenuring collection\n" );
-  collect( 1 );
+  collect( 2 );
 }
 
 e_collect()
 {
   fprintf( ofp, "; ephemeral collection\n" );
-  collect( 0 );
+  collect( 1 );
 }
 
 e_dump()
@@ -230,7 +230,7 @@ r_dump()
   int i;
 
   fprintf( ofp, "; roots\n" );
-  for (i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+  for (i = FIRST_ROOT ; i < FIRST_ROOT + rootcnt ; i++ )
     dumpword( globals[ i ] );
 }
 
