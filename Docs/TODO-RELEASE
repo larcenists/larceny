@@ -1,5 +1,51 @@
 $Id$
 
+Release 2 check list
+
+Release candidate 1 -> Release candidate 2
+
+  Building and running
+
+  - testbuild petit / win32 / CodeWarrior
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild petit / x86-linux / gcc
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild petit / MacOSX / gcc
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild petit / Solaris / gcc
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild native / Solaris / gcc 
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+
+  Web site documentation -- make sure it doesn't drool
+
+ 
+
+**********************************************************************
+
+Older stuff, not relevant now.
+
+
 Release 2
 ---------
 

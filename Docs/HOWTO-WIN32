@@ -1,39 +1,58 @@
 Information about Petit Larceny on Win32
-28 September 2002 / lth
-
-HOW TO BUILD.
-
-See HOWTO-PETIT for information about this.  COMPILE-FILES works.
-
-BUILD-EXECUTABLE usually results in linking warnings; it is safe to
-ignore them.
+28 July 2003 / lth
 
 
-STATUS.
+HOW TO BUILD
+
+See HOWTO-PETIT for information about how to build Petit Larceny for
+Win32.  The only compiler known to work well is Metrowerks
+Codewarrior; I've used version 6.0.  More information about using
+Codewarrior is included below.
+
+The BUILD-EXECUTABLE command usually results in warnings during
+linking; it is safe to ignore them.
+
+The COMPILE-FILES command works on this platform.
+
+There is a working call-out Foreign-Function Interface (FFI) to C.
+It works even from the interpreter; no C compiler is required.
+
+
+STATUS
 
 Currently compiles, loads and runs, and seems to work OK:
- - Can load scheme files and run them
+ - Larceny can load scheme source files and run them interpreted
  - Compiling FIB.SCH to a code-less FASL, linking the code statically
    into the executable with BUILD-APPLICATION, loading the FASL, and 
-   running FIB now works.
+   running FIB works.
  - Compiling FIB.SCH to a code-less FASL + a DLL for the code, loading
-   the FASL, and running FIB now works.
- - FFI works!!
+   the FASL, and running FIB works.
+ - The FFI works
  - Passes Aubrey Jaffer's R4RS test suite
  - Self-hosting works: have rebuilt entire system from within the
    interpreter.
- - Microsoft Visual C/C++ 6.0 (Personal Edition) has code pointer alignment
-   issues and cannot be used; MetroWerks CodeWarrior does not have any 
-   problems, as every procedure appears to be 16-byte (?) aligned.
-
+ - Compilers on this platform:
+     - MetroWerks CodeWarrior works OK, though there are problems
+       at high optimization levels and the libraries are buggy
+       (see separate section for CW below).   Functions appear to be
+       aligned on 16-byte (?) boundaries.  This is the system I use 
+       for testing, and the debugger interface is painless, so
+       debugging is pretty easy.
+     - Microsoft Visual C/C++ 6.0 (Personal Edition) does not align
+       functions on at least 4-byte boundaries, so it cannot be used
+       for compiling the Twobit output with some jump disciplines.
+       I have not tried the Professional Edition.  Debugging -- getting 
+       the symbol files right -- is a major pain.
+     - I have had problems with lcc-win32 in the past because
+       it did not align functions on at least 4-byte boundaries.
+     - I have not tried gcc under cygwin.
 
 I've tested both with the longjmp jump discipline (which doesn't work
-well, see below) and the trampoline technique (which works fine).
+well, at least not with MSVC; see below) and the trampoline technique
+(which works fine).
 
 
 TODO.
-
-Code pointer alignment under MSVC -- appears not to do any alignment.
 
 FIXMEs in the Win32 support code (osdep-win32); nothing important,
 mostly version number / time measurement.
@@ -52,50 +71,75 @@ in Testsuite/FFI, so Petit Larceny on this platform can actually load
 and use foreign functions!  (Note, libc is not loaded by default.)
 
 
-Performance.
+Performance (pretty raw notes at this point)
 
-The generated code is not at all good in the MSVC++ Standard Edition
-("cheap") compiler: the code contains many redundant loads, and stack
-slots are not reused, so stack frames are huge.  At a guess there is
-no global optimization in this compiler.  (I've tried /O2.
-Optimization switches are not documented in the compiler help
-message.)
+Metrowerks CodeWarrior 6.0:
 
-With MSVC compiled code, interpreter performance is generally iffy:
-interpreted fib(25) is a factor of 10 slower than in Petite Chez
-Scheme.  In Petite Chez Scheme, compiling and assembling the basic
-heap image takes a few minutes; in Petit Larceny it takes 35 minutes.
-The bulk of the time is spent running Twobit; just assembling the LAP
-and compiling the C code and building heap takes a few minutes.
+  This compiler generates very decent code; the interpreter compiled
+  with this compiler has about double the performance of one compiled
+  with Microsoft Visual C/C++ (under jump disciplines that allow the
+  latter to be used).
 
-Metrowerks CodeWarrior 6.0 generates *much* better code, and just
-recompiling Interpreter\interp.c and Interpreter\inter-prim.c with
-that compiler on full optimization cuts the running time of fib(25) in
-half.  It also cuts generated code size in half, on those two files.
+  Compiled fib(30) is about four times faster than Petite Chez Scheme;
+  not exactly impressive, but OK, maybe?
 
-(General performance hint: it may be important for truly good code
-generation to generate completely dense switches for dispatch in a
-procedure -- no gap between the start label 0 and normal label, and no
-dead labels.)
+Microsoft Visual C/C++ 6.0 Personal Edition (older results)
 
-Compiled fib(30) is about four times faster than Petite Chez Scheme;
-not exactly impressive, but OK, maybe?
+  The generated code is not at all good in this compiler: it contains
+  many redundant loads, and stack slots are not reused, so stack
+  frames are huge.  At a guess there is no global optimization in this
+  compiler.  (I've tried /O2.  Optimization switches are not
+  documented in the compiler help message.)
 
-Peephole optimization in the Standard-C assembler may be important for
-good performance.
+  With the interpreter compiled by MSVC, the interpreter performance
+  is generally iffy: interpreted fib(25) is a factor of 10 slower than
+  in Petite Chez Scheme.  In Petite Chez Scheme, compiling and
+  assembling the basic heap image takes a few minutes; in Petit
+  Larceny it takes 35 minutes.  The bulk of the time is spent running
+  Twobit; just assembling the LAP and compiling the C code and
+  building heap takes a few minutes.
+
+General
+
+  It may be important for truly good code generation to generate
+  completely dense switches for dispatch in a procedure -- no gap
+  between the start label 0 and normal label, and no dead labels.)
+
+  Peephole optimization in the Standard-C assembler may be important
+  for good performance, some is in place already.
 
 
-Codewarrior issues.
+Metrowerks CodeWarrior issues.
 
-Can't compile at least lib/common/ehandler.c with '-opt full'; the
-optimizer runs out of memory (about 300MB).  This is a problem also on
-the Mac.  Might consider rewriting the Scheme code to accomodate the C
-compiler.  Even so, some other files may cause problems (reader.sch,
-memstats.sch, toplevel.sch).  The change in optimization switches may
-matter: the interpreter compiled with '-opt on' seems to be slower
-than when compiled with '-opt full' as measured by fib(25).
+It's not possible to compile lib/common/ehandler.c (and possibly other
+files, eg reader.sch, memstats.sch, toplevel.sch) with '-opt full';
+the optimizer runs out of memory (about 300MB).  This is a problem
+also with CodeWarrior on the Mac.
 
-Just compiling with '-opt on' takes a looooong time on some files.
+So, the default optimization level is '-opt on'.  The change in
+optimization switches may matter: the interpreter compiled with '-opt
+on' seems to be slower than when compiled with '-opt full' as measured
+by fib(25).
+
+(Just compiling with '-opt on' takes a looooong time on some files.)
+
+I might consider rewriting the Scheme code to accomodate the C
+compiler.  Then again, I might not :-)
+
+Running the codewarrior commandline tools requires you to put up with
+environment variable hell, here are my settings:
+
+	CWFolder=c:\program files\metrowerks\codewarrior
+	MWCIncludes=%CWFolder%\MSL\MSL_C\MSL_Common\Include;
+		    %CWFolder%\MSL\MSL_C\MSL_Win32\Include;
+		    %CWFolder%\Win32-x86 Support\Headers\Win32 SDK;
+		    %CWFolder%\MSL\MSL_C\MSL_X86;
+		    %CWFolder%\Win32-x86 Support\Headers\Win32 SDK\sys
+	MWLibraries=%CWFolder%\MSL\MSL_C\MSL_Win32\Lib\x86;
+		    %CWFolder%\MSL\MSL_C\MSL_X86;
+		    %CWFolder%\Win32-x86 Support\Libraries\Runtime;
+		    %CWFolder%\Win32-x86 Support\Libraries\Win32 SDK
+	MWLibraryFiles=ANSICX86.LIB;ansifp_x86.obj;mwcrtl.lib;user32.lib;kernel32.lib
 
 
 Jump discipline issues.
@@ -105,14 +149,15 @@ particular it does does not reuse stack slots.  As a result, the
 generated code is not good, and the stack frames are enormous: in the
 reader procedure, admittedly an outlier, the stack frame is 3.5KB.
 
-Therefore, a longjmp control discipline only works if the stack is
-really huge, and I have not been able to specify a large enough stack
-for this to work reliably.  (The largest stack I've been able to set
-up is about 1MB; the OS requires a set stack size, apparently.)  In
-practice, this discipline is not a good choice with this compiler.
+Therefore, a longjmp control discipline only works if there is a large
+amount of memory available for the stack, and I have not been able to
+specify a large enough stack for this to work reliably.  (The largest
+stack I've been able to set up is about 1MB; the OS requires a set
+stack size, apparently.)  In practice, this discipline is not a good
+choice with this compiler.
 
 
-Linking problems.
+Linking problems (MSVC).
 
 It is painful to link with /Zi to get (rudimentary) debug information
 for compiled scheme code.  The problem seems to be that the debug info
@@ -129,3 +174,5 @@ Debugging in Visual Studio.
 To run under debugger, start MSVC and select 'File | Open workspace'
 and then open petit.exe as the workspace; then run.  Breakpoints can
 be set; variables in the RTS can be inspected (full debug info).
+
+$Id$
