@@ -8,6 +8,11 @@ namespace Scheme.RT {
     // Uses exception classes defined in Exn
 
     public class Call {
+        public static PerformanceCounter applySetupCounter;
+        public static PerformanceCounter bounceCounter;
+        public static PerformanceCounter schemeCallCounter;
+        public static PerformanceCounter millicodeSupportCallCounter;
+
         /* Utility Methods */
 
         /** apply_setup
@@ -18,6 +23,7 @@ namespace Scheme.RT {
          * Called by inlined IL of apply
          */
         public static int applySetup(int k1, int k2) {
+            if (applySetupCounter != null) applySetupCounter.Increment();
             int n = ((SFixnum)Reg.getRegister(k2)).value;
             if (n < Reg.NREGS-1) {
                 // Load registers 1 through n with elts of list in k1
@@ -44,10 +50,11 @@ namespace Scheme.RT {
 
         // call
         public static void call(CodeVector code, int jumpIndex) {
-            throw new BounceException(code, jumpIndex);
+           throw new BounceException(code, jumpIndex);
         }
+
         public static void call(Procedure p, int argc) {
-            throw new SchemeCallException(p, argc);
+           throw new SchemeCallException(p, argc);
         }
 
 	// callback
@@ -197,6 +204,7 @@ namespace Scheme.RT {
 
         public static void callMillicodeSupport3(int procIndex, SObject a,
                                                  SObject b, SObject c) {
+            if (millicodeSupportCallCounter != null) millicodeSupportCallCounter.Increment();
             saveContext(false);
             Reg.setRegister(1, a);
             Reg.setRegister(2, b);
@@ -206,6 +214,7 @@ namespace Scheme.RT {
 
         public static void callMillicodeSupport2(int procIndex, SObject a,
                                                  SObject b) {
+            if (millicodeSupportCallCounter != null) millicodeSupportCallCounter.Increment();
             saveContext(false);
             Reg.setRegister(1, a);
             Reg.setRegister(2, b);
@@ -213,6 +222,7 @@ namespace Scheme.RT {
         }
 
         public static void callMillicodeSupport1(int procIndex, SObject a) {
+            if (millicodeSupportCallCounter != null) millicodeSupportCallCounter.Increment();
             saveContext(false);
             Reg.setRegister(1, a);
             call(getSupportProcedure(procIndex), 1);
@@ -319,7 +329,9 @@ namespace Scheme.RT {
             this.code = cv;
             this.jumpIndex = j;
         }
-        public virtual void prepareForBounce() {}
+        public virtual void prepareForBounce() {
+            if (Call.bounceCounter != null) Call.bounceCounter.Increment();
+        }
     }
 
     /* CodeVectorCallException indicates that the given codevector
@@ -335,14 +347,15 @@ namespace Scheme.RT {
      * The arguments to the procedure should be in registers 1..argc
      */
     public class SchemeCallException : BounceException {
-        private Procedure p;
-        private int argc;
+        private readonly Procedure p;
+        private readonly int argc;
         public SchemeCallException(Procedure p, int argc) :
             base(p.entrypoint, 0) {
             this.p = p;
             this.argc = argc;
         }
         public override void prepareForBounce() {
+            if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
             Reg.Second = Reg.getRegister(0);
             Reg.setRegister(0, this.p);
             Reg.Result = Factory.makeFixnum(this.argc);
