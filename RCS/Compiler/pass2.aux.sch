@@ -91,6 +91,11 @@
         ((symbol? formals) (list formals))
         (else (cons (car formals)
                     (make-null-terminated (cdr formals))))))
+
+(define (list-head x n)
+  (cond ((zero? n) '())
+        (else (cons (car x) (list-head (cdr x) (- n 1))))))
+
 (define (remq x y)
   (cond ((null? y) '())
         ((eq? x (car y)) (remq x (cdr y)))

@@ -14,11 +14,11 @@
 ;
 ; L  -->  (lambda (I_1 ...)
 ;           (begin D ...)
-;           (quote <info>)
+;           (quote (R F <decls> <doc>)
 ;           E)
 ;      |  (lambda (I_1 ... . I_rest)
 ;           (begin D ...)
-;           (quote (R F))
+;           (quote (R F <decls> <doc>))
 ;           E)
 ; D  -->  (define I L)
 ; E  -->  (quote K)                        ; constants
@@ -226,7 +226,7 @@
 
 ; SIMPLIFY-LET performs these transformations:
 ;
-;    ((lambda () (begin) (quote R) E)) -> E
+;    ((lambda () (begin) (quote ...) E)) -> E
 ;
 ;    ((lambda (I_1 ... I_k . I_rest) ---) E1 ... Ek Ek+1 ...)
 ; -> ((lambda (I_1 ... I_k I_rest) ---) E1 ... Ek (CONS Ek+1 ...))
@@ -288,11 +288,11 @@
 ;
 ;    (lambda (... I ...)
 ;      (begin D ...)
-;      (quote ... (I <references> ((set! I L)) #t) ...)
+;      (quote (... (I <references> ((set! I L)) <calls>) ...) ...)
 ;      (begin (set! I L) E1 ...))
 ; -> (lambda (... IGNORED ...)
 ;      (begin (define I L) D ...)
-;      (quote ... (I <references> () #t) ...)
+;      (quote (... (I <references> () <calls>) ...) ...)
 ;      (begin E1 ...))
 ;
 ; For best results, pass 1 should sort internal definitions and LETRECs so
@@ -322,7 +322,31 @@
                            (assignments-set! R I '())
                            (begin.exprs-set! body (cdr (begin.exprs body)))
                            (lambda.body-set! L (post-simplify-begin body '()))
+                           (standardize-known-calls rhs
+                                                    (R-entry.calls (R-entry R I)))
                            (single-assignment-analysis L)))))))))
+
+(define (standardize-known-calls L calls)
+  (let ((formals (lambda.args L)))
+    (cond ((not (list? formals))
+           (let* ((newformals (make-null-terminated formals))
+                  (n (- (length newformals) 1)))
+             (lambda.args-set! L newformals)
+             (for-each (lambda (call)
+                         (if (>= (length (call.args call)) n)
+                             (call.args-set!
+                              call
+                              (append (list-head (call.args call) n)
+                                      (list
+                                       (make-call-to-LIST
+                                        (list-tail (call.args call) n)))))
+                             (pass2-error p2error:wna call)))
+                       calls)))
+          (else (let ((n (length formals)))
+                  (for-each (lambda (call)
+                              (if (not (= (length (call.args call)) n))
+                                  (pass2-error p2error:wna call)))
+                            calls))))))
 
 ; Assignment elimination replaces variables that appear on the left
 ; hand side of an assignment by data structures.  This is necessary
@@ -560,17 +584,17 @@
 ; Hey, it's a prototype.
 ;
 ; Reasonable heuristics to use eventually, on the assumption
-; that simple code generators will create a closure for any
-; lambda expression that contains internal definitions:
+; that simple code generators will create a closure upon entry
+; to any lambda expression that contains internal definitions:
 ;
 ;   Don't lift if it means adding too many arguments.
 ;   Don't lift large groups of definitions.
 ;   In questionable cases it is better to lift to an outer
 ;     lambda expression that already contains internal
 ;     definitions than to one that doesn't.
+;   It is better not to lift if the body contains a lambda
+;     expression that has to be closed anyway.  This is the
+;     only heuristic used below.
 
-(define (POLICY:LIFT? L2 L args-to-add) #t)
-
-; To do:
-;   *  Add number-of-argument checking and rest-list elimination
-;      to single-assignment-analysis.
+(define (POLICY:LIFT? L2 L args-to-add)
+  (not (lambda? (lambda.body L2))))

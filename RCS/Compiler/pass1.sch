@@ -88,12 +88,13 @@
           (list 'define (cadr exp) '(undefined)))
          ((and (pair? (cadr exp))
                (symbol? (car (cadr exp)))
-               (benchmark-mode))
+               (benchmark-mode)
+               (list? (cadr exp)))
           `(define ,(car (cadr exp))
                    (lambda ,(cdr (cadr exp))
                      (define ,(car (cadr exp))
                        (lambda ,(cdr (cadr exp))
-                         ,@(cddr exp)))   ; wrong for dotted arglist.
+                         ,@(cddr exp)))
                      ,(cadr exp))))
          ((pair? (cadr exp))
           (desugar-define `(define ,(car (cadr exp))
@@ -162,7 +163,7 @@
                   (not (number? exp))
                   (not (char? exp))
                   (not (string? exp))
-                  (not (eq? exp hash-bang-unspecified)))
+                  (not (equal? exp hash-bang-unspecified)))
              (static-warning 21 exp))
          (make-constant exp))
         ((memq exp **special-forms**)   ; Can't use keywords
@@ -207,7 +208,7 @@
      
      ; formals must be symbols
      
-     ((not (every symbol? bvl))
+     ((not (every? symbol? bvl))
       (static-error 4 original-exp))
      
      ; To simplify the run-time system, there's a limit on how many
@@ -350,16 +351,7 @@
                               (cdr exp))))))
 
 (define (m-integrable-application exp env integrable)
-  (let ((newexp ((cadr integrable) exp (make-bound? env))))
-    (cond ((eq? newexp exp)
-           (let ((prim (prim-entry (car exp))))
-             (if prim
-                 (m-prim-application exp env prim)
-                 (make-call (m-scan (car exp) env)
-                            (map (lambda (exp) (m-scan exp env))
-                                 (cdr exp))))))
-          (newexp (m-scan newexp env))
-          (else (static-error 9 exp)))))
+  ((cadr integrable) exp env))
           
 (define (m-prim-application exp env prim)
   (cond ((not (= (prim-arity prim) (length (cdr exp))))
@@ -544,234 +536,3 @@
     (20 . "Malformed definition")
     (21 . "Malformed constant -- should be quoted")
     ))
-
-
-; Macros for cross-compilation.
-
-(define @special-forms@
-  '(quote lambda if set! begin))
-
-(define @macros@ '())
-
-(define (install-macro keyword transformer)
-  (if (assq keyword @macros@)
-      (begin (set! @special-forms@ (remq! keyword @special-forms@))
-             (set! @macros@ (remq! (assq keyword @macros@) @macros@))
-             (install-macro keyword transformer))
-      (begin (set! @macros@ (cons (list keyword transformer) @macros@))
-             (set! @special-forms@ (cons keyword @special-forms@))
-             keyword)))
-
-; (for-each (lambda (x) (install-macro (car x) (cadr x)))
-;          **macros**)
-
-(extend-syntax (define-macro)
-  ((define-macro boing-keyword boing-transformer)
-   (install-macro (quote boing-keyword) boing-transformer)))
-
-; (macro define-macro
-;        (lambda (l)
-;          (let ((keyword (cadr l))
-;                (transformer (caddr l)))
-;            `(install-macro ',keyword ,transformer))))
-
-(define-macro undefined
-  (lambda (l) `',hash-bang-unspecified))
-
-(define-macro or
-  (lambda (l)
-    (cond ((null? (cdr l)) '#f)
-          ((null? (cddr l)) (cadr l))
-          (else (let ((temp (gensym "T")))
-                  `(let ((,temp ,(cadr l)))
-                        (if ,temp ,temp (or ,@(cddr l)))))))))
-
-(define-macro and
-  (lambda (l)
-    (cond ((null? (cdr l)) #t)
-	  ((null? (cddr l)) (cadr l))
-	  (else (let ((temp (gensym "T")))
-		  `(let ((,temp ,(cadr l)))
-		     (if ,temp (and ,@(cddr l)) #f)))))))
-
-(define-macro case
-  (lambda (l)
-    (error "Case not implemented.")))
-
-(define-macro let*
-  (lambda (l)
-    (error "let* not implemented.")))
-
-(define-macro cond
-  (lambda (l)
-    (if (null? (cdr l))
-        `',hash-bang-unspecified
-        (if (memq (car (car (cdr l))) '(#t else))
-            (cons 'begin (cdr (car (cdr l))))
-            (if (= (length (car (cdr l))) 1)
-                (list 'or
-                      (car (car (cdr l)))
-                      (cons 'cond (cdr (cdr l))))
-                (if (eq? (car (cdr (car (cdr l)))) '=>)
-                    (if (= (length (car (cdr l))) 3)
-                        (list '(lambda (test-result thunk2 thunk3)
-                                       (if test-result
-                                           ((thunk2) test-result)
-                                           (thunk3)))
-                              (car (car (cdr l)))
-                              (list 'lambda
-                                    '()
-                                    (car (cdr (cdr (car (cdr l))))))
-                              (list 'lambda
-                                    '()
-                                    (cons 'cond (cdr (cdr l)))))
-                        (error "Malformed cond clause" l))
-                    (list 'if
-                          (car (car (cdr l)))
-                          (cons 'begin (cdr (car (cdr l))))
-                          (cons 'cond (cdr (cdr l))))))))))
-
-; This generates pretty terrible code for named let.
-; Ought to fix it someday.
-
-(define-macro let
-  (lambda (l)
-    (if (and (atom? (cadr l))
-             (not (null? (cadr l))))
-        (cons (list 'letrec                  ; named let
-                    (list (list (cadr l)
-                                (cons 'lambda
-                                      (cons (map car (caddr l))
-                                            (cdddr l)))))
-                    (cadr l))
-              (map (lambda (x) (cadr x)) (caddr l)))
-        (cons (cons 'lambda               ; standard let
-                    (cons (map car (cadr l))
-                          (cddr l)))
-              (map (lambda (x) (cadr x)) (cadr l))))))
-
-(define-macro letrec
-  (lambda (l)
-    (let ((bindings (sort (cadr l)
-                          (lambda (x y)
-                            (and (pair? (cadr x))
-                                 (eq? (car (cadr x)) 'lambda)))))
-          (body (cddr l)))
-      (cons (list 'lambda
-                  (map car bindings)
-                  (cons 'begin
-                        (map (lambda (x) (cons 'set! x)) bindings))
-                  (cons 'let (cons '() body)))
-            (map (lambda (x) '(undefined)) bindings)))))
-
-(define-macro do
-  (let ((oops (lambda (l) 
-                (error "Malformed do expression" l))))
-    (lambda (l)
-      (if (not (proper-list? l)) (oops l))
-      (if (<? (length l) 3) (oops l))
-      (if (not (proper-list? (cadr l))) (oops l))
-      (if (not (and (proper-list? (caddr l)) (pair? (caddr l))))
-          (oops l))
-      (let
-        ((loop (gensym "DO"))
-         (bindings (map (lambda (x)
-                          (cond ((atom? x) (oops l))
-                                ((atom? (cdr x))
-                                 (list (car x) '() (car x)))
-                                ((atom? (cddr x))
-                                 (list (car x) (cadr x) (car x)))
-                                (else x)))
-                        (cadr l)))
-         (test (caddr l)))
-        (list 'letrec
-              (list (list loop
-                          (list 'lambda
-                                (map car bindings)
-                                (list 'if
-                                      (car test)
-                                      (cons 'begin (cdr test))
-                                      (list 'begin
-                                            (cons 'begin (cdddr l))
-                                            (cons loop (map caddr bindings)))))))
-              (cons loop (map cadr bindings)))))))
-
-; (define-macro caar (lambda (l) `(car (car ,(cadr l)))))
-; (define-macro cadr (lambda (l) `(car (cdr ,(cadr l)))))
-; (define-macro cdar (lambda (l) `(cdr (car ,(cadr l)))))
-; (define-macro cddr (lambda (l) `(cdr (cdr ,(cadr l)))))
-; (define-macro caaar (lambda (l) `(car (car (car ,(cadr l))))))
-; (define-macro caadr (lambda (l) `(car (car (cdr ,(cadr l))))))
-; (define-macro cadar (lambda (l) `(car (cdr (car ,(cadr l))))))
-; (define-macro caddr (lambda (l) `(car (cdr (cdr ,(cadr l))))))
-; (define-macro cdaar (lambda (l) `(cdr (car (car ,(cadr l))))))
-; (define-macro cdadr (lambda (l) `(cdr (car (cdr ,(cadr l))))))
-; (define-macro cddar (lambda (l) `(cdr (cdr (car ,(cadr l))))))
-; (define-macro cdddr (lambda (l) `(cdr (cdr (cdr ,(cadr l))))))
-; (define-macro caaaar (lambda (l) `(car (car (car (car ,(cadr l)))))))
-; (define-macro caaadr (lambda (l) `(car (car (car (cdr ,(cadr l)))))))
-; (define-macro caadar (lambda (l) `(car (car (cdr (car ,(cadr l)))))))
-; (define-macro caaddr (lambda (l) `(car (car (cdr (cdr ,(cadr l)))))))
-; (define-macro cadaar (lambda (l) `(car (cdr (car (car ,(cadr l)))))))
-; (define-macro cadadr (lambda (l) `(car (cdr (car (cdr ,(cadr l)))))))
-; (define-macro caddar (lambda (l) `(car (cdr (cdr (car ,(cadr l)))))))
-; (define-macro cadddr (lambda (l) `(car (cdr (cdr (cdr ,(cadr l)))))))
-; (define-macro cdaaar (lambda (l) `(cdr (car (car (car ,(cadr l)))))))
-; (define-macro cdaadr (lambda (l) `(cdr (car (car (cdr ,(cadr l)))))))
-; (define-macro cdadar (lambda (l) `(cdr (car (cdr (car ,(cadr l)))))))
-; (define-macro cdaddr (lambda (l) `(cdr (car (cdr (cdr ,(cadr l)))))))
-; (define-macro cddaar (lambda (l) `(cdr (cdr (car (car ,(cadr l)))))))
-; (define-macro cddadr (lambda (l) `(cdr (cdr (car (cdr ,(cadr l)))))))
-; (define-macro cdddar (lambda (l) `(cdr (cdr (cdr (car ,(cadr l)))))))
-; (define-macro cddddr (lambda (l) `(cdr (cdr (cdr (cdr ,(cadr l)))))))
-
-; For testing.
-
-; MAKE-READABLE strips the referencing information
-; and replaces (begin I) by I.
-
-(define (make-readable exp)
-  (case (car exp)
-    ((quote)    exp)
-    ((lambda)   `(lambda ,(lambda.args exp)
-                         ,@(map (lambda (def)
-                                  `(define ,(def.lhs def)
-                                           ,(make-readable (def.rhs def))))
-                                (lambda.defs exp))
-                           ,(make-readable (lambda.body exp))))
-    ((set!)     `(set! ,(assignment.lhs exp)
-                       ,(make-readable (assignment.rhs exp))))
-    ((if)       `(if ,(make-readable (if.test exp))
-                     ,(make-readable (if.then exp))
-                     ,(make-readable (if.else exp))))
-    ((begin)    (if (variable? exp)
-                    (variable.name exp)
-                    `(begin ,@(map make-readable (begin.exprs exp)))))
-    (else       `(,(make-readable (call.proc exp))
-                  ,@(map make-readable (call.args exp))))))
-
-; MAKE-UNREADABLE does the reverse.
-; It assumes there are no internal definitions.
-
-(define (make-unreadable exp)
-  (cond ((symbol? exp) (list 'begin exp))
-        ((pair? exp)
-         (case (car exp)
-           ((quote) exp)
-           ((lambda) (list 'lambda
-                           (cadr exp)
-                           '(begin)
-                           '(() ())
-                           (make-unreadable (cons 'begin (cddr exp)))))
-           ((set!) (list 'set! (cadr exp) (make-unreadable (caddr exp))))
-           ((if) (list 'if
-                       (make-unreadable (cadr exp))
-                       (make-unreadable (caddr exp))
-                       (if (= (length exp) 3)
-                           (list 'quote hash-bang-unspecified)
-                           (make-unreadable (cadddr exp)))))
-           ((begin) (if (= (length exp) 2)
-                        (make-unreadable (cadr exp))
-                        (cons 'begin (map make-unreadable (cdr exp)))))
-           (else (map make-unreadable exp))))
-        (else (list 'quote exp))))
