@@ -1,9 +1,9 @@
 ; -*- Scheme -*-
 ;
 ; Scheme 313 runtime system
-; Bignum Arithmetic (SPARC).
+; Scheme code for bignum arithmetic (on Sun Sparc).
 ;
-; $Id$
+; $Id: bignums.scm,v 1.1 91/08/04 19:06:16 lth Exp Locker: lth $
 ;
 ; The layout of a bignum is this (recall that the Sparc is big-endian):
 ;
@@ -19,7 +19,8 @@
 ;    ...
 ;
 ; where the digitcount is the number of 32-bit bignum digits, and the sign
-; is 0 for positive and 1 for negative.
+; is 0 for positive and 1 for negative. If the bignum is 0, then the
+; sign is immaterial; the `digitcount' field must be 0.
 ;
 ; The following code operates on 16-bit digits since these fit conveniently
 ; in a fixnum; a 32-bit digit is split into 16-bit digits as outlined above.
@@ -35,13 +36,45 @@
 ; can then go away.
 
 
+; Here's the list of what procedures which are conceptually exported from
+; this module. They do *not* check the types of their arguments!
+;
+; (export bignum-add 
+;         bignum-subtract
+;         bignum-multiply
+;         bignum-quotient
+;         bignum-remainder
+;         bignum-divide
+;         bignum-=
+;         bignum-<=
+;         bignum-<
+;         bignum->=
+;         bignum->
+;         bignum-zero?
+;         bignum-positive?
+;         bignum-negative?
+;         bignum->fixnum
+;         fixnum->bignum
+;         bignum->ratnum
+;         ratnum->bignum
+;         bignum->rectnum
+;         rectnum->bignum
+;         bignum->flonum
+;         flonum->bignum
+;         bignum->compnum
+;         compnum->bignum)
+
 ;-----------------------------------------------------------------------------
-; MACHINE-DEPENDENT STUFF WHICH GOES AWAY WHEN THE COMPILER IS GOOD ENOUGH.
+; MACHINE-DEPENDENT STUFF, SOME OF WHICH GOES AWAY WHEN THE COMPILER IS 
+; GOOD ENOUGH.
 
 (define byte-base 256)                         ; range of a byte
 (define bignum-base (* byte-base byte-base))   ; range of a bignum digit
 (define negative-sign 1)                       ; the sign of a negative bignum
 (define positive-sign 0)                       ; ditto of a positive one
+(define smallest-positive-bignum (expt 2 30))
+(define largest-negative-bignum (- (+ (expt 2 30) 1)))
+(define bignum-digits-in-a-fixnum 2)
 
 ; `Bignum-ref' does zero-based referencing of a bignum structure, returning
 ; a 16-bit digit (adjusted to be a fixnum) from the bignum. 
@@ -66,13 +99,20 @@
     (bignum-length-set! v (quotient l 4))
     v))
 
-; Return the number of 16-bit digits. The returned number is never odd.
+; Return the number of 16-bit digits. We check if the high 16-bit digit of
+; the high 32-bit digit is 0 (which it may validly be) and return length-1
+; if so. The need for this is a result of the way 16-bit digits are mapped
+; onto 32-bit digits (or vice versa...).
 
 (define (bignum-length b)
-  (* 2 (+ (* byte-base (bytevector-ref b 2))
-	(bytevector-ref b 3))))
+  (let ((l (* 2 (+ (* byte-base (bytevector-ref b 2))
+		   (bytevector-ref b 3)))))
+    (if (zero? (bignum-ref (- l 1)))
+	(- l 1)
+	l)))
 
-; Set the number of 16-bit digits. The number is converted to 32-bit digits.
+; Set the number of 16-bit digits. The number is converted to 32-bit digits,
+; which may involve adding a 0 digit at the high end; see comments above.
 
 (define (bignum-length-set! b l)
   (let ((l (quotient (roundup4 l) 4)))
@@ -121,6 +161,7 @@
 	  (bignum-set! c i r)
 	  0))))
 
+
 ;-----------------------------------------------------------------------------
 ; MACHINE-INDEPENDENT STUFF
 ;
@@ -128,19 +169,7 @@
 ; opportunity to fiddle the sign at will, knowing that what we're dealing
 ; with is a bignum.
 
-(define (sign-negative? sign)
-  (= sign negative-sign))
-
-(define (sign-positive? sign)
-  (= sign positive-sign))
-
-(define (flip-sign! b)
-  (if (sign-negative? (bignum-sign b))
-      (bignum-set-sign! b negative-sign)
-      (bignum-set-sign! b positive-sign)))
-
-
-; Add two bignums, producing an integer.
+; add two bignums, producing an integer.
 
 (define (bignum-add a b)
   (let ((sa (bignum-sign a))
@@ -155,7 +184,7 @@
 	   (bignum-subtract a b)))))
 
 
-; Subtract one bignum from another, producing an integer.
+; subtract one bignum from another, producing an integer.
 
 (define (bignum-subtract a b)
   (let ((sa (bignum-sign a))
@@ -168,7 +197,7 @@
       (bignum-normalize c))))
 
 
-; Multiply two bignums, producing an integer.
+; multiply two bignums, producing an integer.
 
 (define (bignum-multiply a b)
   (let ((sa (bignum-sign a))
@@ -179,7 +208,7 @@
       (bignum-normalize c))))
 
 
-; Divide two bignums, returning the quotient
+; divide two bignums, returning the quotient
 
 (define (bignum-quotient a b)
   (let ((sa (bignum-sign a))
@@ -190,7 +219,7 @@
       (bignum-normalize c))))
 
 
-; Divide two bignums, returning the remainder
+; divide two bignums, returning the remainder
 
 (define (bignum-remainder a b)
   (let ((sa (bignum-sign a))
@@ -201,7 +230,7 @@
       (bignum-normalize c))))
 
 
-; Divide two bignums, returning a bignum if the remainder is 1, and otherwise
+; divide two bignums, returning a bignum if the remainder is 1, and otherwise
 ; a ratnum.
 
 (define (bignum-divide a b)
@@ -210,10 +239,75 @@
     (let ((c (big-divide-digits a b)))
       (if (not (= sa sb))
 	  (bignum-sign-set! (car c) negative-sign))
-      (ratnum-reduce (bignum-normalize (car c)) (bignum-normalize (cdr c))))))
+      (make-rat (bignum-normalize (car c)) (bignum-normalize (cdr c))))))
 
 
-; Add the digits of two bignums, producing a third, positive, bignum.
+(define (bignum-= a b)
+  (zero? (big-compare a b)))
+
+(define (bignum-<= a b)
+  (<= (big-compare a b) 0))
+
+(define (bignum-< a b)
+  (< (big-compare a b) 0))
+
+(define (bignum->= a b)
+  (>= (big-compare a b) 0))
+
+(define (bignum-> a b)
+  (> (big-compare a b) 0))
+
+(define (bignum-zero? b)
+  (zero? (bignum-length b)))
+
+(define (bignum-negative? b)
+  (and (sign-negative? (bignum-sign b))
+       (not (zero? (bignum-length b)))))
+
+(define (bignum-positive? b)
+  (and (sign-positive? (bignum-sign b))
+       (not (zero? (bignum-length b)))))
+
+; Assumes the bignum fits in a fixnum...
+
+(define (bignum->fixnum b)
+  (let loop ((i (- (bignum-length b) 1)) (n 0))
+    (if (negative? i)
+	(if (sign-negative? (bignum-sign b))
+	    (- n)
+	    n)
+	(loop (- i 1) (+ (* bignum-base n) (bignum-ref b i))))))
+
+; can't use bignum-normalize because it'd convert it back to a fixnum...
+
+(define (fixnum->bignum b)
+  (let ((b (bignum-alloc bignum-digits-in-a-fixnum)))
+    (let loop ((i 0) (n (abs f)))
+      (if (zero? n)
+	  (begin (bignum-length-set! b i)
+		 (if (negative? f)
+		     (bignum-sign-set! b negative-sign))
+		 b)
+	  (begin (bignum-set! b i (remainder n bignum-base))
+		 (loop (+ i 1) (quotient n bignum-base)))))))
+
+  
+;-----------------------------------------------------------------------------
+; Helpers
+
+(define (sign-negative? sign)
+  (= sign negative-sign))
+
+(define (sign-positive? sign)
+  (= sign positive-sign))
+
+(define (flip-sign! b)
+  (if (sign-negative? (bignum-sign b))
+      (bignum-set-sign! b negative-sign)
+      (bignum-set-sign! b positive-sign)))
+
+
+; add the digits of two bignums, producing a third, positive, bignum.
 
 (define (big-add-digits a b)
   (let* ((la   (bignum-length a))
@@ -238,7 +332,7 @@
 			   c))))))))
 
 
-; Subtract the digits of bignum b from the digits of bignum a, producing 
+; subtract the digits of bignum b from the digits of bignum a, producing 
 ; a third, possibly negative, bignum c.
 
 (define (big-subtract-digits a b)
@@ -265,22 +359,33 @@
 			 c))))))))
 
 
-; Multiply the digits of two positive bignums, producing a third bignum.
+; multiply the digits of two positive bignums, producing a third bignum.
 
 (define (big-multiply-digits a b)
   '())
 
 
-; Divide two positive bignums, producing a pair, both elements of which are 
+; divide two positive bignums, producing a pair, both elements of which are 
 ; bignums, the car being the quotient and the cdr being the remainder.
-; (BTW, we're computing a / b here, not b / a, in case there was a doubt...)
+; (btw, we're computing a / b here, not b / a, in case there was a doubt...)
 
 (define (big-divide-digits a b)
   '())
 
 
-; Normalize a bignum -- this involves removing leading zeroes, and, if the
+; normalize a bignum -- this involves removing leading zeroes, and, if the
 ; number is small enough to fit in a fixnum, converting it to a fixum.
 
-(define (bignum-normalize b)
-  '())
+(define (bignum-normalize! b)
+  (let loop ((i (- (bignum-length b) 1)))
+    (cond ((negative? i)
+	   0)
+	  ((zero? (bignum-ref b i))
+	   (loop (- i 1)))
+	  (else
+	   (bignum-length-set! b (+ i 1))
+	   (if (and (bignum-> b largest-negative-fixnum)
+		    (bignum-< b smallest-positive-fixnum))
+	       (bignum->fixnum b)
+	       b)))))
+
