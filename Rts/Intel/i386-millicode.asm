@@ -12,6 +12,17 @@
 
 %define wordsize        4
 
+;;; It is generally helpful to enable OPTIMIZE_MILLICODE: it turns
+;;; on some assembler versions of millicode routines normally written
+;;; in C, and by avoiding taking a context switch to C we gain
+;;; some performance.
+;;;
+;;; Note, though, that only code outside this %define is necessary
+;;; for correct operation.  The amount of assembler in this file
+;;; is not an indication of the required porting effort.
+	
+%define OPTIMIZE_MILLICODE
+
 	section	.text
 	
 	global  EXTNAME(i386_scheme_jump)
@@ -133,6 +144,7 @@ EXTNAME(i386_scheme_jump):
 PUBLIC i386_alloc_bv
 	MCg	mc_alloc_bv
 PUBLIC i386_alloc
+%ifdef OPTIMIZE_MILLICODE
 	add	GLOBALS, 4
 	mov	TEMP, [GLOBALS+G_ETOP]
 	add	RESULT, 7
@@ -147,12 +159,15 @@ PUBLIC i386_alloc
 	ret
 L1:	sub	GLOBALS, 4
 	xor	TEMP, TEMP
+%endif ; OPTIMIZE_MILLICODE
 	MCg	mc_alloc
+	
 PUBLIC i386_alloci
+%ifdef OPTIMIZE_MILLICODE
 	add	GLOBALS, 4
 	mov	[GLOBALS+G_SECOND], SECOND
-	mov	[GLOBALS+G_REG1], REG1	; Free up ECX
-	mov	[GLOBALS+G_REG3], REG3	; Free up EDI
+	mov	[GLOBALS+G_REGALIAS_ECX], ecx
+	mov	[GLOBALS+G_REGALIAS_EDI], edi
 	add	RESULT, 7
 	and	RESULT, 0xfffffff8
 	mov	ecx, RESULT		; Byte count for initialization
@@ -173,21 +188,28 @@ PUBLIC i386_alloci
 	sub	GLOBALS, 4
 	ret
 L2:	mov	SECOND, [GLOBALS+G_SECOND]
-	mov	REG1, [GLOBALS+G_REG1]
-	mov	REG3, [GLOBALS+G_REG3]
+	mov	ecx, [GLOBALS+G_REGALIAS_ECX]
+	mov	edi, [GLOBALS+G_REGALIAS_EDI]
 	sub	GLOBALS, 4
+%endif ; OPTIMIZE_MILLICODE
 	MC2g	mc_alloci
+	
 PUBLIC i386_morecore
 	MCg	mc_morecore
+	
 PUBLIC i386_stack_overflow
 	MILLICODE_STUB 0, mc_stack_overflow, callout_to_C
+	
 PUBLIC i386_capture_continuation
 	MCg	mc_capture_continuation
+	
 PUBLIC i386_restore_continuation
 	MCg	mc_restore_continuation
+	
 PUBLIC i386_full_barrier
-	;; The implementation requires that GCLIB_LARGE_TABLE is
-	;; disabled, this is not hard to fix.
+%ifdef OPTIMIZE_MILLICODE
+	;; FIXME.  The implementation requires that GCLIB_LARGE_TABLE 
+	;; is disabled.  This is not hard to fix.
 	test	SECOND, 1			; If rhs is ptr
 	jnz	L3				;   enter the barrier
 	ret					; Otherwise return
@@ -231,109 +253,162 @@ L6:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	sub	GLOBALS, 4			;       handle
 	MCg	mc_compact_ssbs			;         overflow
+%else  ; OPTIMIZE_MILLICODE
+	MC2g	mc_full_barrier
+%endif ; OPTIMIZE_MILLICODE
+	
 PUBLIC i386_break
 	MCg	mc_break
+	
 PUBLIC i386_timer_exception
 	MCgk	mc_timer_exception
+	
 PUBLIC i386_enable_interrupts
 	MCgk	mc_enable_interrupts
+	
 PUBLIC i386_disable_interrupts
 	MCgk	mc_disable_interrupts
+	
 PUBLIC i386_exception
 	add	esp, 4				; Fixup GLOBALS
 	mov	[ GLOBALS+G_SECOND ], SECOND
 	mov	SECOND, [GLOBALS-4]
 	mov	ax, [SECOND]
 	and	eax, 0xFFFF
+	shl	eax, 2
 	jmp	i386_signal_exception
+	
 PUBLIC i386_apply
 	MC2g	mc_apply
+	
 PUBLIC i386_restargs
 	MC2g	mc_restargs
+	
 PUBLIC i386_syscall
 	MC2gk	mc_syscall
+	
 PUBLIC i386_typetag
 	MCg	mc_typetag
+	
 PUBLIC i386_typetag_set
 	MC2g	mc_typetag_set
+	
 PUBLIC i386_eqv
 	MC2gk	mc_eqv
+	
 PUBLIC i386_partial_list2vector
 	MC2g	mc_partial_list2vector
+	
 PUBLIC i386_bytevector_like_fill
 	MC2g	mc_bytevector_like_fill
+	
 PUBLIC i386_bytevector_like_compare
 	MC2g	mc_bytevector_like_compare
+	
 PUBLIC i386_add
 	MC2gk	mc_add
+	
 PUBLIC i386_sub
 	MC2gk	mc_sub
+	
 PUBLIC i386_mul
 	MC2gk	mc_mul
+	
 PUBLIC i386_div
 	MC2gk	mc_div
+	
 PUBLIC i386_quo
 	MC2gk	mc_quo
+	
 PUBLIC i386_rem
 	MC2gk	mc_rem
+	
 PUBLIC i386_neg
 	MCgk	mc_neg
+	
 PUBLIC i386_abs
 	MCgk	mc_abs
+	
 PUBLIC i386_equalp
 	MC2gk	mc_equalp
+	
 PUBLIC i386_lessp
 	MC2gk	mc_lessp
+	
 PUBLIC i386_less_or_equalp
 	MC2gk	mc_less_or_equalp
+	
 PUBLIC i386_greaterp
 	MC2gk	mc_greaterp
+	
 PUBLIC i386_greater_or_equalp
 	MC2gk	mc_greater_or_equalp
+	
 PUBLIC i386_exact2inexact
 	MCgk	mc_exact2inexact
+	
 PUBLIC i386_inexact2exact
 	MCgk	mc_inexact2exact
+	
 PUBLIC i386_real_part
 	MCg	mc_real_part
+	
 PUBLIC i386_imag_part
 	MCg	mc_imag_part
+	
 PUBLIC i386_round
 	MCgk	mc_round
+	
 PUBLIC i386_truncate
 	MCgk	mc_truncate
+	
 PUBLIC i386_zerop
 	MCg	mc_zerop
+	
 PUBLIC i386_complexp
 	MCg	mc_complexp
+	
 PUBLIC i386_rationalp
 	MCg	mc_rationalp
+	
 PUBLIC i386_integerp
 	MCg	mc_integerp
+	
 PUBLIC i386_exactp
 	MCg	mc_exactp
+	
 PUBLIC i386_inexactp
 	MCg	mc_inexactp
+	
 PUBLIC i386_global_exception
 	add	esp, 4				; Fixup GLOBALS
 	mov	[GLOBALS+G_SECOND],SECOND
 	mov	SECOND, EX_UNDEF_GLOBAL
 	jmp	i386_signal_exception
+	
+;;; FIXME: this must also handle undefined variables, see T_GLOBAL_INVOKE.
 PUBLIC i386_invoke_exception
 	add	esp, 4				; Fixup GLOBALS
-	mov	[GLOBALS+G_SECOND], SECOND
+	cmp	dword [GLOBALS+G_TIMER], 0
+	jnz	Linv1
+	sub	esp, 4
+	jmp	i386_timer_exception
+Linv1:	mov	[GLOBALS+G_SECOND], SECOND
 	mov	SECOND, EX_NONPROC
 	jmp	i386_signal_exception
-PUBLIC i386_global_invoke_exception
+	
+PUBLIC i386_global_invoke_exception		; Obsolete
 	add	esp, 4				; Fixup GLOBALS
 	mov	[GLOBALS+G_SECOND], SECOND
 	mov	SECOND, EX_GLOBAL_INVOKE
 	jmp	i386_signal_exception
+	
 PUBLIC i386_argc_exception
 	add	esp, 4				; Fixup GLOBALS
 	mov	[GLOBALS+G_SECOND], SECOND
 	mov	SECOND, EX_ARGC
 	jmp	i386_signal_exception
+	
 PUBLIC i386_petit_patch_boot_code
 	MCg	mc_petit_patch_boot_code
 
@@ -385,7 +460,7 @@ PUBLIC i386_petit_patch_boot_code
 ;;;	globals[-1] has the unadjusted return address
 
 i386_signal_exception:
-	hlt
+	hlt			; FIXME
 
 ;;; callout_to_C
 ;;;	Switch from Scheme to C mode and call a C function, then

@@ -65,17 +65,17 @@
 %define fixtag_mask	    3
 %define tag_mask            7
 %define hdr_shift           8
+%define char_shift	    16
 %define is_hwreg(n)         ((n) >= FIRST_HWREG && (n) <= LAST_HWREG)
 %define fixnum(n)           ((n)<<2)
-%define char(n)	            (((n)<<16)|IMM_CHAR)
+%define char(n)	            (((n)<<char_shift)|IMM_CHAR)
 %define roundup4(x)	    (((x)+3)&~3)
 %define roundup8(x)	    (((x)+7)&~7)
 %define words2bytes(n)      ((n)*4)
 %define stkslot(n)          (CONT+STK_REG0+words2bytes(n))
 %define framesize(n)        roundup8(wordsize+STK_OVERHEAD+words2bytes(n))
-%define recordedsize(n)     (framesize(n)-wordsize)
-%define t_label(L)          L
-%define backward_branch(l)  1	; FIXME -- how to test this?
+%define recordedsize(n)     (STK_OVERHEAD+words2bytes(n))
+%define t_label(l)          l
 			
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -137,7 +137,7 @@
 
 %macro timer_check 0
 	dec	dword [ GLOBALS+G_TIMER ]
-	jnz	%%L1
+	jnz short %%L1
 	mcall	M_TIMER_EXCEPTION
 %%L1:
 %endmacro
@@ -197,6 +197,7 @@ end_codevector_%1:
 %macro alloc 0
 %ifdef INLINE_ALLOC
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
+	... FIXME: roundup result to 8!
 	add	TEMP, RESULT
 	cmp	TEMP, CONT
 	jle	%%L2
@@ -209,6 +210,31 @@ end_codevector_%1:
 %endif
 %endmacro
 
+;;; const2reg hwreg const
+;;; Move a constant to a register *without changing the flags*
+
+%macro const2reg 2
+	mov	%1, %2		; 5 bytes
+%endmacro
+
+;;; const2regf hwreg const
+;;; Move a constant to a register, possibly killing the flags
+;;; Makes for smaller code size.
+
+%macro const2regf 2
+%if %2==0
+	xor	%1, %1		; 2 bytes
+%elif %2==1
+	xor	%1, %1		; 3 bytes
+	inc	%1
+%elif %2==-1
+	xor	%1, %1		; 3 bytes
+	dec	%1
+%else
+	mov	%1, %2		; 5 bytes
+%endif
+%endmacro
+		
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
 ;;; MacScheme machine instruction set
@@ -231,11 +257,7 @@ t_label(%1):
 ;;; constant vector index.
 	
 %macro T_CONST_IMM 1
-%if %1==0
-	xor	RESULT, RESULT
-%else
-	mov	RESULT, %1
-%endif
+	const2regf RESULT, %1
 %endmacro
 
 %macro T_CONST_CONSTVECTOR 1
@@ -260,14 +282,17 @@ t_label(%1):
 %endif
 %endmacro
 
+;;; OPTIMIZEME:	if #!undefined fit in a byte, then we could do a byte
+;;; compare here, at least.  (Why does it not fit in a byte?)
+
 %macro T_GLOBAL 1
 %%L0:	loadc	RESULT, %1
 	mov	RESULT, [RESULT-PAIR_TAG]
 %ifndef UNSAFE_CODE
 	cmp	RESULT, UNDEFINED_CONST
-	jne	%%L1
+	jne short %%L1
 	mcall	M_GLOBAL_EX
-	jmp	%%L0
+	jmp short %%L0
 %%L1:
 %endif
 %endmacro
@@ -280,7 +305,7 @@ t_label(%1):
 %endmacro
 
 %macro T_LEXICAL 2
-	loadr	TEMP, 0		; We "know" R0 is not a HWREG
+	loadr	TEMP, 0		; We know R0 is not a HWREG
 %assign ribno 0
 %rep 65536
   %if ribno == %1
@@ -293,7 +318,7 @@ t_label(%1):
 %endmacro
 
 %macro T_SETLEX 2
-	loadr	TEMP, 0		; We "know" R0 is not a HWREG
+	loadr	TEMP, 0		; We know R0 is not a HWREG
 %assign ribno 0
 %rep 65536
   %if ribno == %1
@@ -361,7 +386,7 @@ t_label(%1):
 	add	RESULT, wordsize
 	mov	CONT, [CONT-PAIR_TAG+wordsize]
 	cmp	CONT, NIL_CONST
-	jne	%%L1
+	jne short %%L1
 	mov	CONT, [GLOBALS+G_STKP]
 	mov	RESULT, [GLOBALS+G_RESULT]
   %assign regno LASTREG-1
@@ -385,7 +410,7 @@ t_label(%1):
 
 %macro T_LAMBDA 3
 	;; arguments are codevector name, constant vector offset, and n
-	mov	RESULT, fixnum(PROC_HEADER_WORDS+PROC_OVERHEAD_WORDS+%3+1)
+	const2regf RESULT, fixnum(PROC_HEADER_WORDS+PROC_OVERHEAD_WORDS+%3+1)
 	alloc
 	mov	dword [RESULT], (words2bytes(PROC_OVERHEAD_WORDS+%3+1) << 8) | PROC_HDR
 	;; Adjust only if code is in bytevectors!
@@ -398,7 +423,7 @@ t_label(%1):
 	
 %macro T_LEXES 2
 	;; argument is n
-	mov	RESULT, fixnum(PROC_HEADER_WORDS+PROC_OVERHEAD_WORDS+%1+1)
+	const2regf RESULT, fixnum(PROC_HEADER_WORDS+PROC_OVERHEAD_WORDS+%1+1)
 	alloc
 	mov	dword [RESULT], (words2bytes(PROC_OVERHEAD_WORDS+%1+1) << 8) | PROC_HDR
 	loadr	TEMP, 0
@@ -412,64 +437,114 @@ t_label(%1):
 
 %macro T_ARGSEQ 1
 %ifndef UNSAFE_CODE
-%%L0:	cmp	RESULT, fixnum(%1)
-	je	%%L1
+%%L0:	
+	cmp	RESULT, fixnum(%1)
+	je short %%L1
 	mcall	M_ARGC_EX
 	jmp	%%L0
 %%L1:
 %endif
 %endmacro
 
-;;; OPTIMIZEME: avoid checking if the minimum number of args is 0
 %macro T_ARGSGE 1
-	mov	SECOND, fixnum(%1)
+	const2regf SECOND, fixnum(%1)
 %ifndef UNSAFE_CODE
+ %if %1 > 0
 %%L0:	cmp	RESULT, SECOND
-	jge	%%L1
+	jge short %%L1
 	mcall	M_ARGC_EX
 	jmp	%%L0
 %%L1:
+ %endif
 %endif
 	mcall	M_VARARGS
 %endmacro
 
+;;; FIXME: the millicode call for M_INVOKE_EX is used to check for timer
+;;; exception as well, and must check the timer first.  It is also used
+;;; to check for undefined globals if peephole optimization is enabled
+;;; (see below).
+
 %macro T_INVOKE 1
-%%L0:	timer_check
-%ifndef UNSAFE_CODE
-	lea	TEMP, [RESULT+(8-PROC_TAG)]
-	test	TEMP_LOW, tag_mask
-	jz	%%L1
-	mcall	M_INVOKE_EX
-	jmp	%%L0
-%%L1:	
-%endif
+%ifdef UNSAFE_CODE
+	timer_check
 	storer	0, RESULT
-	mov	TEMP, [RESULT-PROC_TAG+PROC_CODEVECTOR_NATIVE]
-	mov	RESULT, fixnum(%1)
-	;; adjusting makes sense only when code is stored in bytevectors,
-	;; not when it is statically linked in the process
-	;sub	TEMP, BVEC_TAG-BVEC_HEADER_BYTES
-	jmp	TEMP
+	mov	TEMP, RESULT
+	const2regf RESULT, fixnum(%1)
+	jmp	[TEMP-PROC_TAG+PROC_CODEVECTOR_NATIVE]
+%else
+	dec	dword [GLOBALS+G_TIMER]
+	jnz short %%L1
+%%L0:	mcall	M_INVOKE_EX
+%%L1:	lea	TEMP, [RESULT+(8-PROC_TAG)]
+	test	TEMP_LOW, tag_mask
+	jnz short %%L0
+	;; Observe TEMP points to proc+8 here and that if we were
+	;; really perverse we would lay the procedure out so that
+	;; the codevector is stored at offset 4, reducing the size
+	;; of the JMP instruction below.
+	storer	0, RESULT
+	const2regf RESULT, fixnum(%1)
+	jmp	[TEMP-8+PROC_CODEVECTOR_NATIVE]
+%endif
 %endmacro
 
-%macro T_SAVE 1
+;;; Introduced by peephole optimization.
+;;; The trick here is that the tag check for procedure-ness will
+;;; catch undefined variables too.  So there is no need to see
+;;; if the global has an undefined value, just defer to T_INVOKE.
+;;; FIXME: note that M_INVOKE_EX now must check for #!undefined,
+;;; and will not have the data to print a reasonable error message
+;;; since the global cell is lost.
+
+%macro T_GLOBAL_INVOKE 2
+	loadc	RESULT, %1
+	mov	RESULT, [RESULT-PAIR_TAG]
+	T_INVOKE %2
+%endmacro
+	
+;;; Allocate the frame but initialize only the basic slots
+;;; and any pad words.  Leave RESULT clear at the end; this
+;;; fact is used by T_SAVE1 below.
+
+%macro T_SAVE0 1
 %%L0:	sub	CONT, framesize(%1)
 	cmp	CONT, [GLOBALS+G_ETOP]
-	jge	%%L1
+	jge short %%L1
 	add	CONT, framesize(%1)
 	mcall	M_STKOFLOW
 	jmp	%%L0
 %%L1:	mov	dword [CONT], recordedsize(%1)
-	loadr	TEMP, 0
-	mov	dword [CONT+STK_REG0], TEMP
-	xor	TEMP, TEMP
-	mov	dword [CONT+STK_RETADDR], TEMP
+	;; Not necessary to store reg0 here, this is handled
+	;; explicitly by the generated code.
+	xor	RESULT, RESULT
+	mov	dword [CONT+STK_RETADDR], RESULT
+%if (framesize(%1)-recordedsize(%1))==8
+	;; We have a pad word at the end -- clear it
+	mov	dword [stkslot(%1+1)], RESULT
+%endif
+%endmacro
+
+;;; Initialize the numbered slot to the value of RESULT.
+;;; Using RESULT is probably OK because it is almost certainly 0
+;;; after executing T_SAVE0 and only T_STORE instructions
+;;; after that.
+
+%macro T_SAVE1 1
+	mov	dword [stkslot(%1)], RESULT
+%endmacro
+
+;;; T_SAVE may still be emitted by the assembler when peephole 
+;;; optimization is disabled.
+
+%macro T_SAVE 1
+	T_SAVE0 %1
 %assign slotno 1
 %rep	65536
   %if slotno > %1
     %exitrep
   %endif
-	mov	dword [stkslot(slotno)], TEMP
+	T_SAVE1 slotno
   %assign slotno slotno+1
 %endrep
 %endmacro
@@ -528,7 +603,7 @@ t_label(%1):
 %macro T_JUMP 3
 	timer_check
 %if %1 > 0
-	loadr	TEMP, 0		; We "know" R0 is not a HWREG
+	loadr	TEMP, 0		; We know R0 is not a HWREG
 %assign ribno 0
 %rep 65536
   %if ribno == %1
@@ -542,29 +617,33 @@ t_label(%1):
 	jmp	%3
 %endmacro
 
+;;; The MAL assembler translates BRANCH and BRANCHF to SKIP and SKIPF
+;;; as appropriate to avoid timer checks.
+
 %macro T_SKIP 1	
 	jmp	t_label(%1)
 %endmacro
 
+%macro T_SKIPF 1	
+	cmp	RESULT_LOW, FALSE_CONST
+	je	t_label(%1)
+%endmacro
+
 %macro T_BRANCH 1	
-%if backward_branch(%1)
 	dec	dword [ GLOBALS+G_TIMER ]
 	jnz	t_label(%1)
 	mcall	M_TIMER_EXCEPTION
-%endif
 	jmp	t_label(%1)
 %endmacro
 
 %macro T_BRANCHF 1
-%if backward_branch(%1)
 	timer_check
-%endif
-	cmp	RESULT, FALSE_CONST
+	cmp	RESULT_LOW, FALSE_CONST
 	je	t_label(%1)
 %endmacro
 
 %macro T_CHECK 4
-	cmp	RESULT, FALSE_CONST
+	cmp	RESULT_LOW, FALSE_CONST
 	je	t_label(%4)
 %endmacro
 
@@ -579,6 +658,7 @@ t_label(%1):
 %endif
 %if %3 != 0
 	;; OPTIMIZEME: optimize for case when %3 is HW reg
+	;; (this will however have almost no impact)
 	loadr	TEMP, %3
 	mov	[GLOBALS+G_THIRD], TEMP
 %endif
@@ -592,27 +672,29 @@ t_label(%1):
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
 ;;; Helper macros for primitive operations
-	
-;;; seteq
-;;;	Set RESULT to #t if zero flag is set, otherwise to #f
 
-%macro seteq 0
-	mov	RESULT, TRUE_CONST
-	jz	%%L1
-	mov	RESULT, FALSE_CONST
-%%L1:
-%endmacro
-	
 ;;; setcc cc
-;;;	Set RESULT to true if jcc jumps
+;;;	Set RESULT to true if jcc jumps.
+;;; 
+;;;	It is probably the case that SECOND is available here,
+;;;	but I'm not using that fact yet.
 	
-%macro setcc 1
-	mov	RESULT, TRUE_CONST
-	j%1	%%L1
-	mov	RESULT, FALSE_CONST
-%%L1:
+;%macro setcc 1				; 11 bytes, no jump
+;	set%1	RESULT_LOW		; 2 bytes
+;	and	RESULT, 1		; 3 bytes
+;	shl	RESULT, 2		; 3 bytes
+;	or	RESULT_LOW, TRUE_CONST	; 3 bytes
+;%endmacro
+
+;;; TRUE=6
+;;; FALSE=2
+%macro setcc 1				; 10 bytes, jump
+	const2reg RESULT, TRUE_CONST	; 5 bytes
+	j%1 short %%L1			; 2 bytes
+	sub	RESULT_LOW, 4		; 3 bytes (would be 2 if RESULT=eax)
+%%L1:	
 %endmacro
-	
+
 ;;; double_tag_predicate ptrtag, hdr
 ;;;	Set RESULT to #t if RESULT has an object with tag ptrtag and
 ;;;     the object header has low byte == hdr, otherwise set RESULT
@@ -620,7 +702,7 @@ t_label(%1):
 
 %macro double_tag_predicate 2
 	double_tag_test %1, %2
-	seteq
+	setcc z
 %endmacro
 
 ;;; fixnum_test_temp_is_free reg
@@ -658,7 +740,7 @@ t_label(%1):
 %macro single_tag_test_ex 2
 %ifndef UNSAFE_CODE
 %%L0:	single_tag_test %1
-	jz	%%L1
+	jz short %%L1
 	exception_continuable %2, %%L0
 %%L1:
 %endif
@@ -671,7 +753,7 @@ t_label(%1):
 
 %macro double_tag_test 2
 	single_tag_test %1
-	jnz	%%L1
+	jnz short %%L1
 	mov	TEMP, [RESULT-%1]
 	cmp	TEMP_LOW, %2
 %%L1:	
@@ -684,10 +766,10 @@ t_label(%1):
 %%L0:	loadr	TEMP, %1
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
-	jnz	%%L1
+	jnz short %%L1
 	loadr	TEMP, %1
 	%2	RESULT, TEMP
-	jnc	%%L2
+	jno short %%L2
 	%3	RESULT, TEMP
 %%L1:	exception_continuable %4, %%L0	; second is tmp so 2nd arg is in place
 %%L2:
@@ -718,7 +800,7 @@ t_label(%1):
 %%L0:	loadr	TEMP, %1
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
-	jz	%%L1
+	jz short %%L1
 	loadr	SECOND, %1
 	exception_continuable %3, %%L0	; second is tmp so 2nd arg is in place
 %%L1:
@@ -742,22 +824,24 @@ t_label(%1):
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
 	loadr	SECOND, %1
-	jz	%%L2
+	jz short %%L2
 %%L1:	exception_continuable %3, %%L0
 %%L2:	cmp	TEMP, fixnum(32)	; SECOND is TEMP
-	jge	%%L1
+	jge short %%L1
 %else
 	loadr	TEMP, %1
 %endif
 	shr	TEMP, 2
-	mov	[GLOBALS+G_REG1], REG1	; I know R1 is ECX
-	mov	cl, al			; I know TEMP is EAX, too
+	mov	[GLOBALS+G_REGALIAS_ECX], ecx
+	mov	cl, al			; Code knows TEMP is EAX
  	%2	RESULT, cl
-	mov	REG1, [GLOBALS+G_REG1]	; ditto
+	mov	ecx, [GLOBALS+G_REGALIAS_ECX]
 %ifidn %2, shl
 	;; Nothing
 %else
 	;; Right shifts: mask out low bits
+	;; OPTIMIZEME: if RESULT were eax, masking RESULT_LOW with a byte
+	;; would save one byte here.
 	and	RESULT, ~fixtag_mask
 %endif
 %endmacro
@@ -769,9 +853,9 @@ t_label(%1):
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
 	loadr	TEMP, %1
-	jnz	%%L1
+	jnz short %%L1
 	%2	RESULT, TEMP
-	jno	%%L2
+	jno short %%L2
 	%3	RESULT, TEMP
 %%L1:	mcall	%4		; second is temp so 2nd arg is in place
 %%L2:
@@ -784,13 +868,11 @@ t_label(%1):
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
 	loadr	SECOND, %1
-	jz	%%L1
+	jz short %%L1
 	mcall	%3
-	jmp	%%L2	
+	jmp short %%L2	
 %%L1:	cmp	RESULT, SECOND
-	mov	RESULT, TRUE_CONST
-	j%2	%%L2
-	mov	RESULT, FALSE_CONST
+	setcc	%2
 %%L2:
 %endmacro
 
@@ -800,10 +882,10 @@ t_label(%1):
 %ifndef UNSAFE_CODE
 %%L0:	loadr	SECOND, %1
 	cmp	SECOND_LOW, IMM_CHAR
-	je	%%L2
+	jz	%%L2
 %%L1:	exception_continuable %3, %%L0
 %%L2:	cmp	RESULT_LOW, IMM_CHAR
-	jne	%%L1
+	jne short %%L1
 	cmp	RESULT, SECOND
 %else
  %if is_hwreg(%1)
@@ -819,14 +901,12 @@ t_label(%1):
 
 %macro generic_imm_compare 3
 	test	RESULT_LOW, fixtag_mask
-	jz	%%L1
-	mov	SECOND, %1
+	jz short %%L1
+	const2regf SECOND, %1
 	mcall	%3
-	jmp	%%L2
+	jmp short %%L2
 %%L1:	cmp	RESULT, %1
-	mov	RESULT, TRUE_CONST
-	j%2	%%L2
-	mov	RESULT, FALSE_CONST
+	setcc	%2
 %%L2:	
 %endmacro
 	
@@ -836,14 +916,11 @@ t_label(%1):
 %ifndef UNSAFE_CODE
 %%L0:	cmp	RESULT_LOW, IMM_CHAR
 	jz	%%L1
-	mov	SECOND, %1
+	const2regf SECOND, %1
 	exception_continuable %3, %%L0
 %endif
 %%L1:	cmp	RESULT, %1
-	mov	RESULT, TRUE_CONST
-	j%2	%%L2
-	mov	RESULT, FALSE_CONST
-%%L2:	
+	setcc	%2
 %endmacro
 
 ;;; indexed_structure_length ptrtag, hdrtag, ex, byte?
@@ -851,7 +928,7 @@ t_label(%1):
 %macro indexed_structure_length 4		; string-length or bytevector-length
 %ifndef UNSAFE_CODE
 %%L0:	double_tag_test %1, %2
-	jz	%%L1
+	jz short %%L1
 	exception_continuable %3, %%L0
 %%L1:	
 	mov	RESULT, TEMP
@@ -884,13 +961,13 @@ t_label(%1):
 %ifndef UNSAFE_CODE
 %%L0:
 	fixnum_test_temp_is_free %1
-	jnz	%%L1
+	jnz short %%L1
  %if %4
 	double_tag_test %3, %4
-	jz	%%L2
+	jz short %%L2
  %else
 	single_tag_test %3
-	jz	%%L3
+	jz short %%L3
  %endif
 %%L1:	loadr	SECOND, %1
 	exception_continuable %5, %%L0
@@ -906,7 +983,7 @@ t_label(%1):
  %else
 	cmp	TEMP, [GLOBALS+G_REG%1]
  %endif
-	jbe	%%L1
+	jbe short %%L1
 	%7	%2, %%L1
 %endif
 %endmacro
@@ -921,10 +998,10 @@ t_label(%1):
 %%L0:
  %if %3
 	double_tag_test %2, %3
-	jz	%%L2
+	jz short %%L2
  %else
 	single_tag_test %2
-	jz	%%L3
+	jz short %%L3
  %endif
 %%L1:	mov	SECOND, %1
 	exception_continuable %4, %%L0
@@ -936,7 +1013,7 @@ t_label(%1):
 	shl	TEMP, 2		; Length is now a fixnum
  %endif
 	cmp	TEMP, %1
-	jbe	%%L1
+	jbe short %%L1
 %endif
 %endmacro
 
@@ -1007,7 +1084,7 @@ t_label(%1):
 
 %macro check_fixnum 2
 	fixnum_test_temp_is_free %1
-	jnz	%2
+	jnz short %2
 %endmacro
 	
 ;;; check_char regno, label
@@ -1018,7 +1095,7 @@ t_label(%1):
 %macro check_char 2
 	loadr	TEMP, %1
 	cmp	TEMP_LOW, IMM_CHAR
-	jnz	%2
+	jnz short %2
 %endmacro
 
 ;;; indexed_structure_set_* reg_idx, reg_value, ptrtag, hdrtag, ex
@@ -1081,8 +1158,8 @@ t_label(%1):
 	
 %macro make_indexed_structure_word 4
 %ifndef UNSAFE_CODE
-%%L0:	test	RESULT, fixtag_mask|80000000h
-	jz	%%L1
+%%L0:	test	RESULT, fixtag_mask|0x80000000
+	jz short %%L1
 	exception_continuable %4, %%L0
 %%L1:
 %endif
@@ -1103,38 +1180,37 @@ t_label(%1):
 
 ;;; make_indexed_structure_byte regno ptrtag hdrtag ex
 ;;;	Allocate a byte structure with the length specified in RESULT
-;;;     (fixnum number of entries).  If %1 is not -1, then REG%1 must
+;;;     (fixnum number of bytes).  If %1 is not -1, then REG%1 must
 ;;;     hold a char value to be used for initialization.  If %1 is -1,
 ;;;     no initialization is performed.
-	
+;;;
+;;; FIXME: silly to pass in the ptrtag, it is always BVEC_TAG.
+;;; FIXME: check the type of the init value
+
 %macro make_indexed_structure_byte 4
 %ifndef UNSAFE_CODE
-%%L0:	test	RESULT, fixtag_mask|80000000h
-	jz	%%L1
+	;; OPTIMIZEME: Code size: unless allocation is inline,
+	;; this test can be moved into the millicode.
+ %%L0:	test	RESULT, fixtag_mask|0x80000000
+	jz short %%L1
 	exception_continuable %4, %%L0
 %%L1:
 %endif
 	mov	[GLOBALS+G_ALLOCTMP], RESULT
-	shr	RESULT, 2
-	add	RESULT, 3+wordsize
-	and	RESULT, ~3
+	add	RESULT, fixnum(wordsize)
+	mcall	M_ALLOC_BV
 %if %1 != -1
-	;; OPTIMIZEME: might be easier to use G_ALLOC followed by "rep stosb"
-	mov	[GLOBALS+G_STKP], CONT
-	loadr	CONT, %1
-	shr	CONT, 16
-	mov	SECOND, CONT
-	shl	SECOND, 8
-	or	SECOND, CONT
-	shl	SECOND, 8
-	or	SECOND, CONT
-	shl	SECOND, 8
-	or	SECOND, CONT
-	mov	CONT, [GLOBALS+G_STKP]
-	;; FIXME: should use mc_alloc_bv?
-	mcall	M_ALLOCI
-%else
-	alloc			; Uninitialized storage
+	loadr	eax, %1		; Code knows that eax is TEMP/SECOND
+	mov	[GLOBALS+G_REGALIAS_ECX], ecx
+	mov	[GLOBALS+G_REGALIAS_EDI], edi
+	shr	eax, char_shift	; byte value
+	mov	ecx, [GLOBALS+G_ALLOCTMP]
+	shr	ecx, 2		; byte count
+	lea	edi, [RESULT+4]	; destination ptr
+	cld
+	rep stosb		; byte fill
+	mov	ecx, [GLOBALS+G_REGALIAS_ECX]
+	mov	edi, [GLOBALS+G_REGALIAS_EDI]
 %endif
 	mov	TEMP, [GLOBALS+G_ALLOCTMP]
 	shl	TEMP, 6
@@ -1155,15 +1231,15 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_3 0		; unspecified
-	mov	RESULT, UNSPECIFIED_CONST
+	const2regf RESULT, UNSPECIFIED_CONST
 %endmacro
 
 %macro T_OP1_4 0		; undefined
-	mov	RESULT, UNDEFINED_CONST
+	const2regf RESULT, UNDEFINED_CONST
 %endmacro
 
 %macro T_OP1_5 0		; eof-object
-	mov	RESULT, EOF_CONST
+	const2regf RESULT, EOF_CONST
 %endmacro
 
 %macro T_OP1_6 0		; enable-interrupts
@@ -1179,23 +1255,23 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_9 0		; not
-	cmp	RESULT, FALSE_CONST
-	seteq
+	cmp	RESULT_LOW, FALSE_CONST
+	setcc	z
 %endmacro
 
 %macro T_OP1_10 0		; null?
-	cmp	RESULT, NIL_CONST
-	seteq
+	cmp	RESULT_LOW, NIL_CONST
+	setcc	z
 %endmacro
 
 %macro T_OP1_11 0		; pair?
 	single_tag_test PAIR_TAG
-	seteq
+	setcc	z
 %endmacro
 	
 %macro T_OP1_12 0		; eof-object?
 	cmp	RESULT, EOF_CONST
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP1_13 0		; port?
@@ -1236,14 +1312,14 @@ t_label(%1):
 	test	RESULT_LOW, fixtag_mask
 	je	%%L1
 	mcall	M_INTEGERP
-	jmp	%%L2
-%%L1:	mov	RESULT, TRUE_CONST
+	jmp short %%L2
+%%L1:	const2regf RESULT, TRUE_CONST
 %%L2:
 %endmacro
 
 %macro T_OP1_23 0		; fixnum?
 	test	RESULT_LOW, fixtag_mask
-	seteq
+	setcc	z
 %endmacro
 	
 %macro T_OP1_24 0		; flonum?
@@ -1276,13 +1352,11 @@ t_label(%1):
 
 %macro T_OP1_31 0		; zero?
 	test	RESULT_LOW, fixtag_mask
-	jz	%%L1
+	jz short %%L1
 	mcall	M_ZEROP
-	jmp	%%L2
-%%L1:	cmp	RESULT, 0
-	mov	RESULT, TRUE_CONST
-	je	%%L2
-	mov	RESULT, FALSE_CONST
+	jmp short %%L2
+%%L1:	and	RESULT, RESULT
+	setcc	z
 %%L2:
 %endmacro
 
@@ -1293,7 +1367,7 @@ t_label(%1):
 %macro T_OP1_33 0		; lognot
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
-	jz	%%L1
+	jz short %%L1
 	exception_continuable EX_LOGNOT, %%L0
 %%L1:	
 %endif
@@ -1311,7 +1385,7 @@ t_label(%1):
 
 %macro T_OP1_36 0		; char?
 	cmp	RESULT_LOW, IMM_CHAR
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP1_37 0		; char->integer
@@ -1327,13 +1401,13 @@ t_label(%1):
 %macro T_OP1_38 0		; integer->char
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
-	jz	%%L1
+	jz short %%L1
 	exception_continuable EX_INT2CHAR, %%L0
 %%L1:
 %endif
 	and	RESULT, 1023
 	shl	RESULT, 14
-	or	RESULT, IMM_CHAR
+	or	RESULT_LOW, IMM_CHAR
 %endmacro
 
 %macro T_OP1_39 0		; string?
@@ -1363,12 +1437,12 @@ t_label(%1):
 %macro T_OP2_45 1		; bytevector-fill!
 %ifndef UNSAFE_CODE
 %%L0:	single_tag_test BVEC_TAG
-	jz	%%L2
+	jz short %%L2
 %%L1:	exception_continuable EX_BVFILL, %%L0
 %%L2:
 	loadr	SECOND, %1
 	test	SECOND_LOW, fixtag_mask
-	jnz	%%L1
+	jnz short %%L1
 %else
 	loadr	SECOND, %1
 %endif
@@ -1381,7 +1455,7 @@ t_label(%1):
 
 %macro T_OP1_47 0		; procedure?
 	single_tag_test PROC_TAG
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP1_48 0		; procedure-length
@@ -1412,7 +1486,7 @@ t_label(%1):
 %else
 	cmp	RESULT, [GLOBALS+G_REG%1]
 %endif
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP2_57 1		; eqv?
@@ -1426,7 +1500,7 @@ t_label(%1):
 	cmp	TEMP, CONT
 	jle	%%L2
 	mcall	M_MORECORE
-	jmp	%%L1
+	jmp short %%L1
 %%L2:	mov	[GLOBALS+G_ETOP], TEMP
 	mov	[TEMP-8], RESULT
 	lea	RESULT, [TEMP-8+PAIR_TAG]
@@ -1511,7 +1585,7 @@ t_label(%1):
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
 	loadr	SECOND, %1
-	jz	%%L1
+	jz short %%L1
 	exception_continuable EX_LOGAND, %%L0
 %%L1:	
 	and	RESULT, SECOND
@@ -1529,7 +1603,7 @@ t_label(%1):
 %%L0:	loadr	TEMP, %1
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
-	jz	%%L1
+	jz short %%L1
 	loadr	SECOND, %1
 	exception_continuable EX_LOGIOR, %%L0
 %%L1:	
@@ -1549,7 +1623,7 @@ t_label(%1):
 	or	TEMP, RESULT
 	test	TEMP_LOW, fixtag_mask
 	loadr	SECOND, %1
-	jz	%%L1
+	jz short %%L1
 	exception_continuable EX_LOGXOR, %%L0
 %%L1:	
 	xor	RESULT, SECOND
@@ -1580,8 +1654,8 @@ t_label(%1):
 
 %macro T_OP2_78 1		; string-ref
 	indexed_structure_ref %1, BVEC_TAG, STR_HDR, EX_STRING_REF, 1
-	shl	RESULT, 16
-	or	RESULT, IMM_CHAR
+	shl	RESULT, char_shift
+	or	RESULT_LOW, IMM_CHAR
 %endmacro
 
 %macro T_OP3_79 2		; string-set!
@@ -1655,12 +1729,12 @@ t_label(%1):
 
 %macro T_OP1_94 0		; bytevector-like?
 	single_tag_test BVEC_TAG
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP1_95 0		; vector-like?
 	single_tag_test VEC_TAG
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP2_96 1		; bytevector-like-ref
@@ -1723,20 +1797,20 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2IMM_128 1		; typetag-set!
-	mov	SECOND, %1
+	const2regf SECOND, %1
 	mcall	M_TYPETAG_SET
 %endmacro
 
 %macro T_OP2IMM_129 1		; eq?
 	cmp	RESULT, %1
-	seteq
+	setcc	z
 %endmacro
 
 %macro T_OP2IMM_130 1		; +
 	test	RESULT_LOW, fixtag_mask
-	jnz	%%L1
+	jnz short %%L1
 	add	RESULT, %1
-	jnc	%%L2
+	jno short %%L2
 	sub	RESULT, %1
 %%L1:	mov	SECOND, %1
 	mcall	M_ADD
@@ -1745,9 +1819,9 @@ t_label(%1):
 
 %macro T_OP2IMM_131 1		; -
 	test	RESULT_LOW, fixtag_mask
-	jnz	%%L1
+	jnz short %%L1
 	sub	RESULT, %1
-	jnc	%%L2
+	jno short %%L2
 	add	RESULT, %1
 %%L1:	mov	SECOND, %1
 	mcall	M_SUBTRACT
@@ -1798,8 +1872,8 @@ t_label(%1):
 
 %macro T_OP2IMM_142 1		; string-ref
 	indexed_structure_ref_imm %1, BVEC_TAG, STR_HDR, EX_STRING_REF, 1
-	shl	RESULT, 16
-	or	RESULT, IMM_CHAR
+	shl	RESULT, char_shift
+	or	RESULT_LOW, IMM_CHAR
 %endmacro
 
 %macro T_OP2IMM_143 1		; vector-ref
@@ -1821,11 +1895,11 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_200 0		; most-positive-fixnum
-	mov	RESULT, 7FFFFFFCh
+	const2regf RESULT, 0x7FFFFFFC
 %endmacro
 
 %macro T_OP1_201 0		; most-negative-fixnum
-	mov	RESULT, 80000000h
+	const2regf RESULT, 0x80000000
 %endmacro
 
 %macro T_OP2_202 1		; fx+
@@ -1839,9 +1913,9 @@ t_label(%1):
 %macro T_OP2_204 1		; fx--
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
-	jnz	%%L1
+	jnz short %%L1
 	neg	RESULT
-	jno	%%L2
+	jno short %%L2
 	;; No need to undo: RESULT is unchanged
 %%L1:	exception_continuable EX_FXNEG, %%L0
 %%L2:	
@@ -1872,8 +1946,8 @@ t_label(%1):
 
 %macro T_OP2_211 0		; fxzero?
 %ifndef UNSAFE_CODE
-%%L0:	test	RESULT, fixtag_mask
-	jz	%%L1
+%%L0:	test	RESULT_LOW, fixtag_mask
+	jz short %%L1
 	exception_continuable EX_FXZERO, %%L0
 %%L1:
 %endif
@@ -1883,8 +1957,8 @@ t_label(%1):
 
 %macro T_OP2_212 0		; fxpositive?
 %ifndef UNSAFE_CODE
-%%L0:	test	RESULT, fixtag_mask
-	jz	%%L1
+%%L0:	test	RESULT_LOW, fixtag_mask
+	jz short %%L1
 	exception_continuable EX_FXPOSITIVE, %%L0
 %%L1:
 %endif
@@ -1894,8 +1968,8 @@ t_label(%1):
 
 %macro T_OP2_213 0		; fxnegative?
 %ifndef UNSAFE_CODE
-%%L0:	test	RESULT, fixtag_mask
-	jz	%%L1
+%%L0:	test	RESULT_LOW, fixtag_mask
+	jz short %%L1
 	exception_continuable EX_FXNEGATIVE, %%L0
 %%L1:
 %endif
@@ -1979,11 +2053,11 @@ t_label(%1):
 %macro T_OP1_612 1		; internal:branchf-zero?
 	timer_check
 	test	RESULT_LOW, fixtag_mask
-	jz	%%L1
+	jz short %%L1
 	mcall	M_ZEROP
-	cmp	RESULT, FALSE_CONST
+	cmp	RESULT_LOW, FALSE_CONST
 	je	t_label(%1)
-	jmp	%%L2
+	jmp short %%L2
 %%L1:	cmp	RESULT, 0
 	jne	t_label(%1)
 %%L2:
@@ -1991,12 +2065,12 @@ t_label(%1):
 
 %macro OP2IMM_BRANCHF_lessthan 2
 	test	RESULT_LOW, fixtag_mask
-	jz	%%L1
-	mov	SECOND, %1
+	jz short %%L1
+	const2regf SECOND, %1
 	mcall	M_NUMLT
-	cmp	RESULT, FALSE_CONST
+	cmp	RESULT_LOW, FALSE_CONST
 	je	t_label(%2)
-	jmp	%%L2
+	jmp short %%L2
 %%L1:	cmp	RESULT, %1
 	jge	t_label(%2)
 %%L2:	

@@ -18,6 +18,10 @@
 ; regs available and computation is probably more important than access
 ; to the procedure.  I don't have any data to back this up.
 ;
+; ECX and EDI must be mapped to VM registers to make it easy to write
+; code that uses the REP STOS instructions without knowing too much
+; about the register layout.
+;
 ; Using the low byte of registers when possible reduces code size.
 ; The instruction macros know that RESULT and TEMP have a low byte
 ; register, but otherwise rely on hwreg_has_low() to test the mapping.
@@ -25,15 +29,18 @@
 %ifndef I386_MACHINE_ASM
 %define I386_MACHINE_ASM
 
-%define TEMP    	eax   ; always same as SECOND
-%define SECOND  	eax   ; always same as TEMP
+%define TEMP    	eax	; always same as SECOND
+%define SECOND  	eax	; always same as TEMP
 %define RESULT  	ebx
-%define REG1    	ecx
+%define REG1    	ecx	; ecx must map to a VM register
 %define REG2    	edx
-%define REG3    	edi
+%define REG3    	edi	; edi must map to a VM register
 %define REG4    	esi
 %define GLOBALS 	esp
 %define CONT    	ebp
+
+%define G_REGALIAS_ECX	G_REG1	; used by rep stos constructions
+%define G_REGALIAS_EDI	G_REG3	; ditto
 
 %define FIRST_HWREG	1
 %define LAST_HWREG	4
@@ -76,6 +83,9 @@
 %define EX_STRING_REF		    EX_SREF
 %define EX_STRING_SET		    EX_SSET
 %define EX_MAKE_VECTOR		    EX_MKVL     ; FIXME
+%define EX_VECTOR_LENGTH	    EX_VLEN
+%define EX_VECTOR_REF		    EX_VREF
+%define EX_VECTOR_SET		    EX_VSET
 %define EX_VECTOR_LIKE_LENGTH	    EX_VLLEN
 %define EX_VECTOR_LIKE_REF	    EX_VLREF
 %define EX_VECTOR_LIKE_SET	    EX_VLSET
