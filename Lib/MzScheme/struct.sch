@@ -248,17 +248,10 @@
                 
                 (field-names
                  (map (lambda (n)
-                        (let ((super-init-offset
-                               (if super
-                                   (stype-init-field-k super)
-                                   0))
-                              (super-auto-offset
-                               (if super
-                                   (stype-auto-field-k super)
-                                   0)))
-                          (offset->name (+ n
-                                           super-init-offset
-                                           super-auto-offset))))
+                        (let ((offset (if super
+                                          (length (record-type-field-names super))
+                                          0)))
+                          (offset->name (+ n offset))))
                                          
                       (nats-to (+ init-field-k auto-field-k)))))
             
