@@ -20,24 +20,7 @@
                          (%class-getters-n-setters class))
                    (error "slot-ref: no slot `~e' in ~e " slot-name class))))))
 
-(define *dotnet-noise-level* #f)
 
-(define (dotnet-message message-level text . objects)
-  (if (and *dotnet-noise-level*
-           (number? *dotnet-noise-level*)
-           (>= *dotnet-noise-level* message-level))
-      (begin
-        (display "dotnet ")
-        (display message-level)
-        (display ": ")
-        (do ((i 0 (+ i 1)))
-            ((>= i message-level) (display text))
-          (display " "))
-        (for-each (lambda (object)
-                    (display " ")
-                    (display object))
-                  objects)
-        (newline))))
 
 (define (show name thing)
   (dotnet-message 0 name thing)
@@ -61,270 +44,7 @@
 
 ;;; End of miscellany
 
-
-;;; Bootstrapping types
-(define clr-type-handle/system-array                    (ffi:get-type "System.Array"))
-(define clr-type-handle/system-boolean                  (ffi:get-type "System.Boolean"))
-(define clr-type-handle/system-byte                     (ffi:get-type "System.Byte"))
-(define clr-type-handle/system-char                     (ffi:get-type "System.Char"))
-(define clr-type-handle/system-com-object               (ffi:get-type "System.__ComObject"))
-(define clr-type-handle/system-convert                  (ffi:get-type "System.Convert"))
-(define clr-type-handle/system-enum                     (ffi:get-type "System.Enum"))
-(define clr-type-handle/system-int16                    (ffi:get-type "System.Int16"))
-(define clr-type-handle/system-int32                    (ffi:get-type "System.Int32"))
-(define clr-type-handle/system-int64                    (ffi:get-type "System.Int64"))
-(define clr-type-handle/system-object                   (ffi:get-type "System.Object"))
-(define clr-type-handle/system-reflection-assembly      (ffi:get-type "System.Reflection.Assembly"))
-(define clr-type-handle/system-reflection-bindingflags  (ffi:get-type "System.Reflection.BindingFlags"))
-(define clr-type-handle/system-reflection-fieldinfo     (ffi:get-type "System.Reflection.FieldInfo"))
-(define clr-type-handle/system-reflection-memberinfo    (ffi:get-type "System.Reflection.MemberInfo"))
-(define clr-type-handle/system-reflection-methodbase    (ffi:get-type "System.Reflection.MethodBase"))
-(define clr-type-handle/system-reflection-methodinfo    (ffi:get-type "System.Reflection.MethodInfo"))
-(define clr-type-handle/system-reflection-parameterinfo (ffi:get-type "System.Reflection.ParameterInfo"))
-(define clr-type-handle/system-reflection-propertyinfo  (ffi:get-type "System.Reflection.PropertyInfo"))
-(define clr-type-handle/system-sbyte                    (ffi:get-type "System.SByte"))
-(define clr-type-handle/system-string                   (ffi:get-type "System.String"))
-(define clr-type-handle/system-type                     (ffi:get-type "System.Type"))
-(define clr-type-handle/system-uint16                   (ffi:get-type "System.UInt16"))
-(define clr-type-handle/system-uint32                   (ffi:get-type "System.UInt32"))
-(define clr-type-handle/system-uint64                   (ffi:get-type "System.UInt64"))
-(define clr-type-handle/system-void                     (ffi:get-type "System.Void"))
-
-(define-syntax define-ffi-predicate
-  (syntax-rules ()
-    ((define-ffi-predicate name handle)
-     (define-syntax name
-       (syntax-rules ()
-         ((name object) (ffi:%isa? object handle)))))))
-
-(define-ffi-predicate clr-array?      clr-type-handle/system-array)
-(define-ffi-predicate clr-com-object? clr-type-handle/system-com-object)
-(define-ffi-predicate clr-enum?       clr-type-handle/system-enum)
-(define-ffi-predicate clr-int32?      clr-type-handle/system-int32)
-(define-ffi-predicate clr-string?     clr-type-handle/system-string)
-
-;;; Bootstrapping methods
-
-;; For performance, this is a macro
-(define clr-method-handle/object.tostring  (ffi:get-method clr-type-handle/system-object "ToString" '()))
-(define-syntax clr-object/to-string
-  (syntax-rules ()
-    ((clr-object/to-string object)
-     (ffi:%foreign->string
-      (ffi:%invoke clr-method-handle/object.tostring object '#())))))
-
-;; as is this
-(define clr-method-handle/object.type      (ffi:get-method clr-type-handle/system-object "GetType" '()))
-(define-syntax clr-object/type
-  (syntax-rules ()
-    ((clr-object/type object)
-     (ffi:%invoke clr-method-handle/object.type object '#()))))
-
-;;; For zero-argument methods.
-(define-syntax define-ffi-method
-  (syntax-rules ()
-    ((define-ffi-method name type-handle method-name)
-     (define name
-       (let ((method (ffi:get-method type-handle method-name '())))
-         (lambda (object)
-           (dotnet-message 5 method-name)
-           (ffi:%invoke method object '#())))))
-
-    ((define-ffi-method name type-handle method-name marshal-in)
-     (define name
-       (let ((method (ffi:get-method type-handle method-name '())))
-         (lambda (object)
-           (dotnet-message 5 method-name)
-           (marshal-in
-            (ffi:%invoke method object '#()))))))))
-
-(define-ffi-method clr-methodbase/get-parameters
-  clr-type-handle/system-reflection-methodbase "GetParameters" parse-clr-parameters)
-(define-ffi-method clr-object/to-symbol clr-type-handle/system-object "ToString" ffi:foreign->symbol)
-
-(define clr-propertyinfo/get-get-method
-  (let ((method (ffi:get-method clr-type-handle/system-reflection-propertyinfo "GetGetMethod"
-                                (list clr-type-handle/system-boolean))))
-    (lambda (object)
-      (dotnet-message 5 "GetGetMethod")
-      (ffi:%invoke method object (vector foreign-true)))))
-
-(define-ffi-method clr-propertyinfo/get-index-parameters
-  clr-type-handle/system-reflection-propertyinfo "GetIndexParameters" parse-clr-parameters)
-(define-ffi-method clr-type/get-element-type clr-type-handle/system-type "GetElementType")
-
-(define clr-binding-flags/instance #x04)
-(define clr-binding-flags/static   #x08)
-(define clr-binding-flags/public   #x10)
-(define clr-binding-flags/private  #x20)
-
-(define clr-enum/to-object
-  (let ((method (ffi:get-method clr-type-handle/system-enum
-                                "ToObject"
-                                (list clr-type-handle/system-type clr-type-handle/system-int32))))
-    (lambda (class-handle number)
-      (dotnet-message 5 "Enum.ToObject")
-      (ffi:%invoke method #f (vector class-handle number)))))
-
-(define clr-type/get-members
-  (let ((method (ffi:get-method clr-type-handle/system-type "GetMembers"
-                                (list clr-type-handle/system-reflection-bindingflags))))
-    (lambda (type flags)
-      (dotnet-message 5 "Type.GetMembers")
-      (ffi:%invoke method type
-                   (vector
-                    (clr-enum/to-object clr-type-handle/system-reflection-bindingflags
-                                        (foldl logior 0 flags)))))))
-
-;;; These methods take at least one argument.
-(define clr-assembly/get-type
-  (let ((method (ffi:get-method clr-type-handle/system-reflection-assembly "GetType"
-                                (list clr-type-handle/system-string))))
-    (lambda (assembly typename)
-      (dotnet-message 5 "Assembly.Gettype")
-      (ffi:%invoke method assembly (vector typename)))))
-
-(define clr-convert/change-type
-  (let ((method (ffi:get-method clr-type-handle/system-convert "ChangeType"
-                                (list clr-type-handle/system-object
-                                      clr-type-handle/system-type))))
-    (lambda (object new-type)
-      (dotnet-message 5 "ChangeType")
-      (ffi:%invoke method #f (vector object new-type)))))
-
-(define clr-enum/get-names
-  (let ((method (ffi:get-method clr-type-handle/system-enum "GetNames" (list clr-type-handle/system-type))))
-    (lambda (object)
-      (dotnet-message 5 "Enum.GetNames")
-      (map-foreign-array ffi:foreign->string (ffi:%invoke method #f (vector object))))))
-
-(define clr-enum/get-values
-  (let ((method (ffi:get-method clr-type-handle/system-enum "GetValues" (list clr-type-handle/system-type))))
-    (lambda (object)
-      (dotnet-message 5 "Enum.GetValues")
-      (map-foreign-array ffi:foreign->int (ffi:%invoke method #f (vector object))))))
-
-
-(define clr-field-info/get-value
-  (let ((method (ffi:get-method clr-type-handle/system-reflection-fieldinfo "GetValue"
-                                (list clr-type-handle/system-object))))
-    (lambda (object)
-      (dotnet-message 5 "FieldInfo.GetValue")
-      (ffi:%invoke method object (vector foreign-null)))))
-
-(define clr-type/get-custom-attributes
-  (let ((method (ffi:get-method clr-type-handle/system-type
-                                "GetCustomAttributes" (list clr-type-handle/system-boolean)))
-        (args (vector foreign-true)))
-    (lambda (object)
-      (dotnet-message 5 "System.Type.GetCustomAttributes")
-      (map-foreign-array clr-object/to-symbol (ffi:%invoke method object args)))))
-
-;;; Bootstrapping fields
-
-;;; Bootstrapping properties
-(define-syntax define-ffi-property
-  (syntax-rules ()
-    ((define-ffi-property name type-handle property-name)
-     (define name
-       (let ((handle (ffi:%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (dotnet-message 5 "Get property" property-name)
-           (ffi:%property-get handle foreign-object '#())))))
-
-    ((define-ffi-property name type-handle property-name marshal-in)
-     (define name
-       (let ((handle (ffi:%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (dotnet-message 5 "Get property" property-name)
-           (marshal-in (ffi:%property-get handle foreign-object '#()))))))))
-
-(define-syntax define-boolean-ffi-property
-  (syntax-rules ()
-    ((define-ffi-property name type-handle property-name)
-     (define name
-       (let ((handle (ffi:%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (dotnet-message 5 "Get boolean property" property-name)
-           (ffi:%property-get-bool handle foreign-object '#())))))))
-
-(define-syntax define-int-ffi-property
-  (syntax-rules ()
-    ((define-ffi-property name type-handle property-name)
-     (define name
-       (let ((handle (ffi:%get-property type-handle property-name)))
-         (lambda (foreign-object)
-           (dotnet-message 5 "Get integer property" property-name)
-           (ffi:%property-get-int handle foreign-object '#())))))))
-
-(define-int-ffi-property clr-array/length clr-type-handle/system-array "Length")
-
-(define-boolean-ffi-property clr-fieldinfo/is-init-only?
-  clr-type-handle/system-reflection-fieldinfo "IsInitOnly")
-(define-boolean-ffi-property clr-fieldinfo/is-literal?
-  clr-type-handle/system-reflection-fieldinfo "IsLiteral")
-(define-boolean-ffi-property clr-fieldinfo/is-static?
-  clr-type-handle/system-reflection-fieldinfo "IsStatic")
-(define-ffi-property         clr-fieldinfo/field-type
-  clr-type-handle/system-reflection-fieldinfo "FieldType"
-  clr-object->class)
-
-(define-ffi-property     clr-memberinfo/declaring-type
-  clr-type-handle/system-reflection-memberinfo "DeclaringType" clr-object->class)
-(define-ffi-property     clr-memberinfo/name
-  clr-type-handle/system-reflection-memberinfo "Name" ffi:%foreign->string)
-(define-int-ffi-property clr-memberinfo/member-type
-  clr-type-handle/system-reflection-memberinfo "MemberType")
-(define-ffi-property     clr-memberinfo/reflected-type
-  clr-type-handle/system-reflection-memberinfo "ReflectedType"
-  clr-object->class)
-
-;;; System.Reflection.MemberTypes enumeration
-(define clr-member-type/constructor #x01)
-(define clr-member-type/event       #x02)
-(define clr-member-type/field       #x04)
-(define clr-member-type/method      #x08)
-(define clr-member-type/property    #x10)
-(define clr-member-type/type-info   #x20)
-(define clr-member-type/custom      #x40)
-(define clr-member-type/nested-type #x80)
-
-(define-boolean-ffi-property clr-methodbase/is-public?
-  clr-type-handle/system-reflection-methodbase "IsPublic")
-(define-boolean-ffi-property clr-methodbase/is-static?
-  clr-type-handle/system-reflection-methodbase "IsStatic")
-
-(define-ffi-property clr-methodinfo/return-type
-  clr-type-handle/system-reflection-methodinfo "ReturnType" clr-object->class)
-
-(define-ffi-property         clr-parameterinfo/default-value
-  clr-type-handle/system-reflection-parameterinfo "DefaultValue")
-(define-boolean-ffi-property clr-parameterinfo/is-optional?
-  clr-type-handle/system-reflection-parameterinfo "IsOptional")
-(define-ffi-property         clr-parameterinfo/parameter-type
-  clr-type-handle/system-reflection-parameterinfo "ParameterType"
-  clr-object->class)
-
-(define-boolean-ffi-property clr-propertyinfo/can-read?
-  clr-type-handle/system-reflection-propertyinfo "CanRead")
-(define-boolean-ffi-property clr-propertyinfo/can-write?
-  clr-type-handle/system-reflection-propertyinfo "CanWrite")
-(define-ffi-property         clr-propertyinfo/property-type
-  clr-type-handle/system-reflection-propertyinfo "PropertyType"
-  clr-object->class)
-
-(define-ffi-property         clr-type/attributes clr-type-handle/system-type "Attributes")
-(define-ffi-property         clr-type/assembly   clr-type-handle/system-type "Assembly")
-(define-ffi-property         clr-type/base-type  clr-type-handle/system-type "BaseType")
-(define-boolean-ffi-property clr-type/is-enum?   clr-type-handle/system-type "IsEnum")
-
 ;;; End of primitive accessors
-
-(define (find-clr-type clr-type-name)
-  (or (ffi:get-type  (cond ((string? clr-type-name) clr-type-name)
-                           ((symbol? clr-type-name) (symbol->string clr-type-name))
-                           (else (error "Cannot find clr type " clr-type-name))))
-      (error "Couldn't FIND-CLR-TYPE " clr-type-name)))
 
 (define clr/default-marshal-out (make (*default-generic-class*) :arity 1 :name 'clr/default-marshal-out))
 
@@ -333,14 +53,14 @@
     :arity 1
     :specializers (list <exact-integer>)
     :procedure (lambda (call-next-method number)
-                 (ffi:%int32->foreign number))))
+                 (clr/%int32->foreign number))))
 
 (add-method clr/default-marshal-out
   (make (*default-method-class*)
     :arity 1
     :specializers (list <string>)
     :procedure (lambda (call-next-method string)
-                 (ffi:%string->foreign string))))
+                 (clr/%string->foreign string))))
 
 ;;;; .NET Class hierarchy
 
@@ -525,7 +245,7 @@
     clr-member-type/type-info
     clr-member-type/custom
     clr-member-type/nested-type)
-   (list clr-binding-flags/instance clr-binding-flags/public))
+   #f #t)
   (clr-class/for-selected-members
    process-private-member runtime-type
    (list
@@ -538,7 +258,7 @@
     clr-member-type/type-info
     clr-member-type/custom
     clr-member-type/nested-type)
-   (list clr-binding-flags/instance clr-binding-flags/private)))
+   #f #f))
 
 (define (initialize-static-members! runtime-type)
   (dotnet-message 3 "Initialize static members" runtime-type)
@@ -553,7 +273,7 @@
     clr-member-type/type-info
     clr-member-type/custom
     clr-member-type/nested-type)
-   (list clr-binding-flags/static clr-binding-flags/public))
+   #t #t)
 
   (clr-class/for-selected-members
    process-private-member runtime-type
@@ -566,33 +286,31 @@
     clr-member-type/type-info
     clr-member-type/custom
     clr-member-type/nested-type)
-   (list clr-binding-flags/static clr-binding-flags/private))
+   #t #f)
 
   ;; Have to do constructors, which are instance methods?!
   (clr-class/for-selected-members
    (lambda (constructor member-type)
      (process-constructor constructor #t))
    runtime-type
-   (list clr-member-type/constructor)
-   (list clr-binding-flags/instance clr-binding-flags/public))
+   (list clr-member-type/constructor) #f #t)
 
   (clr-class/for-selected-members
    (lambda (constructor member-type)
      (process-constructor constructor #f))
    runtime-type
-   (list clr-member-type/constructor)
-   (list clr-binding-flags/instance clr-binding-flags/private)))
+   (list clr-member-type/constructor) #f #t))
 
 (define (clr-class/ensure-instantiable! runtime-type)
   (or (clr-class/can-instantiate? runtime-type)
       (begin
         (dotnet-message 3 "Making class instantiable" runtime-type)
-        (let ((base-type (clr-type/base-type
+        (let ((base-type (clr-type/%base-type
                           (clr-object/clr-handle runtime-type))))
           (if (and base-type
                    (not (null? base-type))
                    (not (void? base-type))
-                   (not (foreign-null? base-type)))
+                   (not (clr/%null? base-type)))
               (clr-class/ensure-instantiable! (clr-object->class base-type))))
         (if *auto-initialize*
             (initialize-instance-members! runtime-type)
@@ -829,18 +547,18 @@
 ;; table).  This bottoms out when we get to System.RuntimeType which
 ;; is manually created.
 (define (clr-object->class clr-type-descriptor)
-  (let* ((StudlyName    (clr-object/to-string clr-type-descriptor))
+  (let* ((StudlyName    (clr/%to-string clr-type-descriptor))
          (clr-type-name (StudlyName->key StudlyName)))
-    ;; (dotnet-message "CLR-OBJECT->CLASS: " StudlyName)
+    ;; (dotnet-message 4 "CLR-OBJECT->CLASS: " StudlyName)
     (hash-table-get
      *clr-type-table* clr-type-name
      (lambda ()
        ;; (dotnet-message "Instantiating class object of type"
-       ;;                 (clr-object/to-string (clr-object/type clr-type-descriptor))
+       ;;                 (clr/%to-string (clr/%object-type clr-type-descriptor))
        ;;                 "for" StudlyName)
        ;; Not found?  Create one.
        (letrec ((descriptor
-                 (make (clr-object->class (clr-object/type clr-type-descriptor))
+                 (make (clr-object->class (clr/%object-type clr-type-descriptor))
                    :name clr-type-name
                    :StudlyName StudlyName
                    :clr-handle clr-type-descriptor
@@ -848,17 +566,17 @@
                    ;; As it turns out, the "BaseType" property is *not* a reliable
                    ;; means to figure out the base type.  This COND special cases the
                    ;; known problems.
-                   (let ((bt-property (clr-type/base-type clr-type-descriptor)))
+                   (let ((bt-property (clr-type/%base-type clr-type-descriptor)))
                      (if (or (not bt-property)
                              (null? bt-property)
                              (void? bt-property)
-                             (foreign-null? bt-property))
+                             (clr/%null? bt-property))
                          (list System.Object)
                          (list (clr-object->class bt-property))))
                    :can-instantiate? #f
                    :argument-marshaler clr-object/clr-handle
                    :return-marshaler (lambda (instance)
-                                       (if (foreign-null? instance)
+                                       (if (clr/%null? instance)
                                            '()
                                            (wrap-clr-object descriptor instance))))))
 
@@ -882,14 +600,14 @@
 
 (define (clr/default-marshal-in object)
   (cond ((eq? object (unspecified)) object)
-        ((clr-array? object)
-         (list->vector (map-foreign-array clr/default-marshal-in object)))
-        ((clr-enum? object) (ffi:%foreign->int object))
-        ((clr-int32? object) (ffi:%foreign->int object))
-        ((clr-string? object) (ffi:foreign->symbol object))
-        ((foreign-null? object) '())
-        ((ffi:%eq? object foreign-true) #t)
-        ((ffi:%eq? object foreign-false) #f)
+        ((%clr-array? object)
+         (list->vector (map-clr-array clr/default-marshal-in object)))
+        ((%clr-enum? object) (clr/%foreign->int object))
+        ((%clr-int32? object) (clr/%foreign->int object))
+        ((%clr-string? object) (clr/foreign->symbol object))
+        ((clr/%null? object) '())
+        ((clr/%eq? object clr/true) #t)
+        ((clr/%eq? object clr/false) #f)
         (else (clr-object->clr-instance object))))
 
   ;; System.Object will be the root of the class hierarchy.
@@ -945,8 +663,8 @@
     :procedure ((lambda ()
                   (define (print-object call-next-method object port slashify)
                     (let* ((clr-object  (clr-object/clr-handle object))
-                           (type-name   (clr-object/to-string (clr-object/clr-handle (class-of object))))
-                           (printed-rep (clr-object/to-string clr-object)))
+                           (type-name   (clr/%to-string (clr-object/clr-handle (class-of object))))
+                           (printed-rep (clr/%to-string clr-object)))
 
                       (display "#<" port)
                       (display type-name port)
@@ -984,9 +702,9 @@
   ;; by finding the fixed point of GetType.
   (let loop ((this bootstrap-clr-object)
              (previous-name ""))
-    (let* ((this-type (clr-object/type this))
-           (this-name (clr-object/to-string this-type)))
-      ;; (dotnet-message "This name:  " this-name "Previous name:  " previous-name)
+    (let* ((this-type (clr/%object-type this))
+           (this-name (clr/%to-string this-type)))
+      (dotnet-message 5 "This name:  " this-name "Previous name:  " previous-name)
       (if (string=? this-name previous-name)
           ;; Got it.
           (let ((type-type this-type))
@@ -1042,11 +760,11 @@
             ;; Note that call to CLR-OBJECT->CLASS will cause other classes to be loaded.
             ;; This is ok because enough of System.RuntimeType is initialized to
             ;; make subsequent type creation work.
-            ;; (dotnet-message (clr-type/base-type this-type))
-            ;; (dotnet-message (clr-object->class (clr-type/base-type this-type)))
+            ;; (dotnet-message (clr-type/%base-type this-type))
+            ;; (dotnet-message (clr-object->class (clr-type/%base-type this-type)))
 
             (slot-set! System.RuntimeType 'direct-supers
-                       (list (clr-object->class (clr-type/base-type type-type))
+                       (list (clr-object->class (clr-type/%base-type type-type))
                              <class>))
             (slot-set! System.RuntimeType 'cpl   (compute-cpl System.RuntimeType))
             (slot-set! System.RuntimeType 'slots (compute-slots System.RuntimeType))
@@ -1069,13 +787,14 @@
 (define (setup-system-object)
   ;; Now we need to find the type object associated with System.Object.
   ;; This time we walk the type hierarchy in `BaseType' direction.
+  (dotnet-message 4 "Setup system object")
   (let loop ((this (slot-ref System.RuntimeType 'clr-handle)))
-    (let ((this-name (clr-object/to-symbol this)))
-      (if (eq? this-name '|System.Object|)
+    (let ((this-name (clr/%to-string this)))
+      (if (string=? this-name "System.Object")
           ;; Should only be true when bootstrapping.
           ;; The type will be in the hash table after that.
           (slot-set! System.Object 'clr-handle this)
-          (loop (clr-type/base-type this))))))
+          (loop (clr-type/%base-type this))))))
 
 ;; Handle certain reflected objects specially to integrate them into
 ;; the Scheme type system.
@@ -1096,32 +815,32 @@
                   <symbol>))
 
   (let ((int-class (clr-object->class clr-type-handle/system-int32)))
-    (slot-set! int-class 'argument-marshaler ffi:int->foreign)
-    (slot-set! int-class 'return-marshaler ffi:foreign->int))
+    (slot-set! int-class 'argument-marshaler clr/int->foreign)
+    (slot-set! int-class 'return-marshaler clr/foreign->int))
 
   (let ((bool-class (clr-object->class clr-type-handle/system-boolean)))
-    (slot-set! bool-class 'argument-marshaler ffi:bool->foreign)
-    (slot-set! bool-class 'return-marshaler   ffi:foreign->bool))
+    (slot-set! bool-class 'argument-marshaler clr/bool->foreign)
+    (slot-set! bool-class 'return-marshaler   clr/foreign->bool))
 
   (let ((string-class (clr-object->class clr-type-handle/system-string)))
-    (slot-set! string-class 'argument-marshaler ffi:symbol->foreign)
-    (slot-set! string-class 'return-marshaler   ffi:foreign->symbol))
+    (slot-set! string-class 'argument-marshaler clr/symbol->foreign)
+    (slot-set! string-class 'return-marshaler   clr/foreign->symbol))
 
   (let ((system-type-class (clr-object->class clr-type-handle/system-type)))
     (slot-set! system-type-class 'return-marshaler
                (lambda (instance)
-                 (if (foreign-null? instance)
+                 (if (clr/%null? instance)
                      '()
                      (begin
                        ;; Before wrapping, import the runtime type if necessary.
                        (hash-table-get
-                        *clr-type-table* (StudlyName->key (clr-object/to-string instance))
+                        *clr-type-table* (StudlyName->key (clr/%to-string instance))
                         (lambda ()
                           (clr-object->class
-                           (clr-assembly/get-type
-                            (clr-type/assembly instance)
-                            (ffi:%string->foreign
-                             (clr-object/to-string instance))))))
+                           (clr-assembly/%get-type
+                            (clr-type/%assembly instance)
+                            (clr/%string->foreign
+                             (clr/%to-string instance))))))
                        ;; wrap the object
                        (wrap-clr-object system-type-class instance))))))
 
@@ -1137,8 +856,8 @@
 
   (for-each (lambda (handle)
               (let ((class (clr-object->class handle)))
-                (slot-set! class 'argument-marshaler ffi:int->foreign)
-                (slot-set! class 'return-marshaler   ffi:foreign->int)))
+                (slot-set! class 'argument-marshaler clr/int->foreign)
+                (slot-set! class 'return-marshaler   clr/foreign->int)))
 
             (list clr-type-handle/system-byte
                   clr-type-handle/system-int16
@@ -1149,22 +868,22 @@
                   clr-type-handle/system-sbyte))
 
   (let ((array-class
-         (make (clr-object->class (clr-object/type clr-type-handle/system-array))
-           :name (StudlyName->key (clr-object/to-string clr-type-handle/system-array))
-           :StudlyName (clr-object/to-string clr-type-handle/system-array)
+         (make (clr-object->class (clr/%object-type clr-type-handle/system-array))
+           :name (StudlyName->key (clr/%to-string clr-type-handle/system-array))
+           :StudlyName (clr/%to-string clr-type-handle/system-array)
            :clr-handle clr-type-handle/system-array
-           :direct-supers (list (clr-object->class (clr-type/base-type clr-type-handle/system-array)))
+           :direct-supers (list (clr-object->class (clr-type/%base-type clr-type-handle/system-array)))
            :direct-slots '()
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle
            :return-marshaler clr-object->class))
 
         (enum-class
-         (make (clr-object->class (clr-object/type clr-type-handle/system-enum))
-           :name (StudlyName->key (clr-object/to-string clr-type-handle/system-enum))
-           :StudlyName (clr-object/to-string clr-type-handle/system-enum)
+         (make (clr-object->class (clr/%object-type clr-type-handle/system-enum))
+           :name (StudlyName->key (clr/%to-string clr-type-handle/system-enum))
+           :StudlyName (clr/%to-string clr-type-handle/system-enum)
            :clr-handle clr-type-handle/system-enum
-           :direct-supers (list (clr-object->class (clr-type/base-type clr-type-handle/system-enum)))
+           :direct-supers (list (clr-object->class (clr-type/%base-type clr-type-handle/system-enum)))
            :direct-slots (list (list 'StudlyName :initarg :StudlyName :reader 'clr/StudlyName)
                                (list 'enumerates :allocation :class :reader 'enum/enumerates)
                                (list 'value      :initarg :value :reader 'enum/value))
@@ -1173,13 +892,13 @@
            :return-marshaler clr-object->class))
 
         (methodbase-class
-         (make (clr-object->class (clr-object/type clr-type-handle/system-reflection-methodbase))
-           :name (StudlyName->key (clr-object/to-string clr-type-handle/system-reflection-methodbase))
-           :StudlyName (clr-object/to-string clr-type-handle/system-reflection-methodbase)
+         (make (clr-object->class (clr/%object-type clr-type-handle/system-reflection-methodbase))
+           :name (StudlyName->key (clr/%to-string clr-type-handle/system-reflection-methodbase))
+           :StudlyName (clr/%to-string clr-type-handle/system-reflection-methodbase)
            :clr-handle clr-type-handle/system-reflection-methodbase
            :direct-supers (list <method>
                                 (clr-object->class
-                                 (clr-type/base-type clr-type-handle/system-reflection-methodbase)))
+                                 (clr-type/%base-type clr-type-handle/system-reflection-methodbase)))
            :direct-slots  (list (list 'max-arity :initarg :max-arity :reader 'max-arity))
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle))
@@ -1187,7 +906,7 @@
         )
 
     (slot-set! methodbase-class 'return-marshaler (lambda (object)
-                                                    (if (foreign-null? object)
+                                                    (if (clr/%null? object)
                                                         '()
                                                         (wrap-clr-object methodbase-class object))))
 
@@ -1249,11 +968,12 @@
 (define (marshal-array->vector array-class)
   (let ((element-marshaler (return-marshaler
                             (clr/find-class
-                             (clr-object/to-symbol
-                              (clr-type/get-element-type
-                               (clr-object/clr-handle array-class)))))))
+                             (string->symbol
+                             (clr/%to-string
+                              (clr-type/%get-element-type
+                               (clr-object/clr-handle array-class))))))))
     (define (clr-array->vector array)
-      (if (foreign-null? array)
+      (if (clr/%null? array)
           '()
           (list->vector (map-foreign-array element-marshaler array))))
     clr-array->vector))
@@ -1268,7 +988,7 @@
 (define enum/value (make (*default-generic-class*) :name 'enum/value))
 
 (define (initialize-enum-class enum-class)
-  ;; (dotnet-message "Initialize enum class" enum-class)
+  (dotnet-message 3 "Initialize enum class" enum-class)
   (let* ((handle     (clr-object/clr-handle enum-class))
          (flag?      (memq '|System.FlagsAttribute| (clr-type/get-custom-attributes handle)))
          (names      (clr-enum/get-names handle))
@@ -1347,7 +1067,7 @@
           :procedure (let ((marshaler (return-marshaler enum-class)))
                        (lambda (call-next-method class object)
                          (marshaler
-                          (clr-convert/change-type object clr-type-handle/system-int32))))))
+                          (clr-convert/%change-type object clr-type-handle/system-int32))))))
       )))
 
 (define (bootstrap-clr-classes! bootstrap-clr-object)
@@ -1362,12 +1082,12 @@
 
 ;; Given a CLR class, iterate over all `members'
 ;; This is used by the method discovery code below.
-(define (clr-class/for-selected-members function clr-class member-types flags)
-  (let* ((members (clr-type/get-members (clr-object/clr-handle clr-class) flags))
+(define (clr-class/for-selected-members function clr-class member-types static? public?)
+  (let* ((members (clr-type/%get-members (clr-object/clr-handle clr-class) static? public?))
          (limit   (clr-array/length members)))
     (let loop ((idx 0))
       (if (< idx limit)
-          (let* ((item (ffi:%foreign-aref members idx))
+          (let* ((item (clr/%foreign-aref members idx))
                  (item-member-type (clr-memberinfo/member-type item)))
             (if (member item-member-type member-types)
                 (function (clr-object->clr-instance item) item-member-type))
@@ -1407,23 +1127,23 @@
   (let ((raw-object (clr-object/clr-handle clr-object))
         (potential-types '()))
     (map-dotnet-classes (lambda (class)
-                          (if (ffi:%isa? raw-object (clr-object/clr-handle class))
+                          (if (clr/%isa? raw-object (clr-object/clr-handle class))
                               (set! potential-types (cons class potential-types)))))
     potential-types))
 
 (define (clr-dynamic-cast new-class clr-object)
   (let ((raw-object (clr-object/clr-handle clr-object))
         (raw-type   (clr-object/clr-handle new-class)))
-    (if (ffi:%isa? raw-object raw-type)
+    (if (clr/%isa? raw-object raw-type)
         (wrap-clr-object new-class raw-object)
         (error "Cannot cast object to new type " clr-object new-class))))
 
 (define (clr-object->clr-instance clr-object)
-  (if (foreign-null? clr-object)
+  (if (clr/%null? clr-object)
       '()
       (wrap-clr-object
-       (hash-table-get *clr-type-table* (StudlyName->key (ffi:%type-as-string clr-object))
-                       (lambda () (clr-object->class (clr-object/type clr-object))))
+       (hash-table-get *clr-type-table* (StudlyName->key (clr/%type-as-string clr-object))
+                       (lambda () (clr-object->class (clr/%object-type clr-object))))
        clr-object)))
 
 (define (flags-enumerate->foreign class)
@@ -1438,6 +1158,22 @@
   (lambda (enumerate)
     (clr-enum/to-object (clr-object/clr-handle class) (enum/value enumerate))))
 
+(define (biglogand left right)
+  (if (and (odd? left) (odd? right))
+      (cond ((= left -1) right)
+            ((= right -1) left)
+            (else (+ (* (biglogand (quotient left 2) (quotient right 2)) 2) 1)))
+      (cond ((= left 0) 0)
+            ((= right 0) 0)
+            (else (* (biglogand (quotient left 2) (quotient right 2)) 2)))))
+
+(define (biglogxor left right)
+  (cond ((= left right) 0)
+        ((or (and (even? left) (even? right))
+             (and (odd? left) (odd? right)))
+         (* (biglogxor (quotient left 2) (quotient right 2)) 2))
+        (else (+ (* (biglogxor (quotient left 2) (quotient right 2)) 2) 1))))
+
 (define (foreign->flags-enumerate class)
   (define (is-flag? enum)
     (let loop ((probe 1)
@@ -1448,22 +1184,24 @@
 
   (let ((enumerates (filter is-flag? (enum/enumerates class))))
     (lambda (foreign)
-      (let loop ((value (ffi:foreign->int foreign))
+      (let loop ((value (clr/foreign->int foreign))
                  (scan  enumerates)
                  (result '()))
         (cond ((zero? value) (reverse! result))
               ((pair? scan) (let ((thisone (car scan)))
-                              (if (zero? (logand value (enum/value thisone)))
+                              (if (zero? (biglogand value (enum/value thisone)))
                                   (loop value (cdr scan) result)
-                                  (loop (logxor value (enum/value thisone))
+                                  (loop (biglogxor value (enum/value thisone))
                                         (cdr scan)
                                         (cons thisone result)))))
-              (else (error "Unrecognized flags " class (ffi:foreign->int foreign))))))))
+              (else (let ((value (clr/foreign->int foreign)))
+                      (or (find-if (lambda (e) (= (enum/value e) value)) enumerates)
+                          value))))))))
 
 (define (foreign->enumerate class)
   (let ((enumerates (enum/enumerates class)))
     (lambda (foreign)
-      (let ((value (ffi:foreign->int foreign)))
+      (let ((value (clr/foreign->int foreign)))
         (or (find-if (lambda (e) (= (enum/value e) value)) enumerates)
             ;;(error "No enum for value" class value)
             value)))))
@@ -1482,14 +1220,14 @@
                 default-values
                 (reverse! specializers)
                 (reverse! parameter-marshalers))
-        (let* ((raw-parameter  (ffi:%foreign-aref raw-parameters i))
-               (parameter-type (clr-parameterinfo/parameter-type raw-parameter)))
+        (let* ((raw-parameter  (clr/%foreign-aref raw-parameters i))
+               (parameter-type (clr-object->class (clr-parameterinfo/%parameter-type raw-parameter))))
           (if (clr-parameterinfo/is-optional? raw-parameter)
               (loop (+ i 1)
                     limit
                     required-parameter-count
                     (+ optional-parameter-count 1)
-                    (cons (wrap-clr-object parameter-type (clr-parameterinfo/default-value raw-parameter))
+                    (cons (wrap-clr-object parameter-type (clr-parameterinfo/%default-value raw-parameter))
                           default-values)
                     specializers
                     (cons (argument-marshaler parameter-type) parameter-marshalers))
@@ -1500,6 +1238,24 @@
                     default-values
                     (cons (argument-specializer parameter-type) specializers)
                     (cons (argument-marshaler parameter-type) parameter-marshalers)))))))
+
+(define (clr-fieldinfo/field-type info)
+  (clr-object->class (clr-fieldinfo/%field-type info)))
+
+(define (clr-memberinfo/declaring-type info)
+  (clr-object->class (clr-memberinfo/%declaring-type info)))
+
+(define (clr-methodbase/get-parameters info)
+  (parse-clr-parameters (clr-methodbase/%get-parameters info)))
+
+(define (clr-methodinfo/return-type info)
+  (clr-object->class (clr-methodinfo/%return-type info)))
+
+(define (clr-propertyinfo/get-index-parameters info)
+  (parse-clr-parameters (clr-propertyinfo/%get-index-parameters info)))
+
+(define (clr-propertyinfo/property-type info)
+  (clr-object->class (clr-propertyinfo/%property-type info)))
 
 (define (marshal-out max-arity marshalers arguments default-values)
   (let ((result (make-vector max-arity)))
@@ -1543,7 +1299,7 @@
                      (lambda (call-next-method . args)
                        (dotnet-message 4 "Invoking constructor" name)
                        (in-marshaler
-                        (ffi:%invoke-constructor info
+                        (clr/%invoke-constructor info
                                                  (marshal-out (+ optional-parameter-count
                                                                  required-parameter-count)
                                                               out-marshalers args default-values))))
@@ -1573,7 +1329,7 @@
                      (lambda (call-next-method . args)
                        (dotnet-message 4 "Invoking static method" name)
                        (in-marshaler
-                        (ffi:%invoke info
+                        (clr/%invoke info
                                      #f
                                      (marshal-out (+ optional-parameter-count required-parameter-count)
                                                   out-marshalers args default-values))))
@@ -1605,7 +1361,7 @@
                      (lambda (call-next-method instance . args)
                        (dotnet-message 4 "Invoking method" name)
                        (in-marshaler
-                        (ffi:%invoke info
+                        (clr/%invoke info
                                      (instance-marshaler instance)
                                      (marshal-out (+ optional-parameter-count required-parameter-count)
                                                   out-marshalers args default-values))))
@@ -1633,7 +1389,7 @@
       :procedure (lambda (call-next-method)
                    (dotnet-message 4 "Getting static field" name)
                    (in-marshaler
-                    (ffi:%field-get info foreign-null '#()))))))
+                    (clr/%field-ref info clr/null '#()))))))
 
 (define (clr-field-info->static-setter-method info class)
   (let ((name (clr-memberinfo/name info))
@@ -1646,7 +1402,7 @@
       :specializers (list (argument-specializer (clr-fieldinfo/field-type info)))
       :procedure (lambda (call-next-method new-value)
                    (dotnet-message 4 "Setting static field" name)
-                   (ffi:%field-set info foreign-null (new-value-marshaler new-value))))))
+                   (clr/%field-set! info clr/null (new-value-marshaler new-value))))))
 
 (define (clr-field-info->getter-method info class)
   (let* ((name (clr-memberinfo/name info))
@@ -1662,7 +1418,7 @@
       :procedure (lambda (call-next-method instance)
                    (dotnet-message 4 "Getting field" name)
                    (in-marshaler
-                    (ffi:%field-get info (instance-marshaler instance) '#()))))))
+                    (clr/%field-ref info (instance-marshaler instance) '#()))))))
 
 (define (clr-field-info->setter-method info class)
   (let* ((name (clr-memberinfo/name info))
@@ -1678,7 +1434,7 @@
                           (argument-specializer (clr-fieldinfo/field-type info)))
       :procedure (lambda (call-next-method instance new-value)
                    (dotnet-message 4 "Setting field" name)
-                   (ffi:%field-set info (instance-marshaler instance)
+                   (clr/%field-set! info (instance-marshaler instance)
                                    (new-value-marshaler new-value))))))
 
 (define (clr-property-info->getter-method info class)
@@ -1710,7 +1466,7 @@
                      (lambda (call-next-method instance . args)
                        (dotnet-message 4 "Getting property" name)
                        (in-marshaler
-                        (ffi:%property-get info
+                        (clr/%property-ref info
                                            (instance-marshaler instance)
                                            (marshal-out (+ optional-parameter-count
                                                            required-parameter-count)
@@ -1742,8 +1498,8 @@
                      (lambda (call-next-method . args)
                        (dotnet-message 4 "Getting static property" name)
                        (in-marshaler
-                        (ffi:%property-get info
-                                           foreign-null
+                        (clr/%property-ref info
+                                           clr/null
                                            (marshal-out (+ optional-parameter-count required-parameter-count)
                                                         out-marshalers args default-values))))
                      (arity-plus arity 1)))))))
@@ -1775,7 +1531,7 @@
          :procedure (nary->fixed-arity
                      (lambda (call-next-method instance new-value . args)
                        (dotnet-message 4 "Setting property" name)
-                       (ffi:%property-set info
+                       (clr/%property-set! info
                                           (instance-marshaler instance)
                                           (new-value-marshaler new-value)
                                           (marshal-out (+ optional-parameter-count
@@ -1809,8 +1565,8 @@
          :procedure (nary->fixed-arity
                      (lambda (call-next-method new-value . args)
                        (dotnet-message 4 "Setting static property" name)
-                       (ffi:%property-set info
-                                          foreign-null
+                       (clr/%property-set! info
+                                          clr/null
                                           (new-value-marshaler new-value)
                                           (marshal-out (+ optional-parameter-count
                                                           required-parameter-count)
@@ -1876,9 +1632,9 @@
     :procedure ((lambda ()
                   (define (print-object call-next-method object port slashify)
                     (let* ((clr-object  (clr-object/clr-handle object))
-                           (decl-type   (clr-object/to-string
+                           (decl-type   (clr/%to-string
                                          (clr-object/clr-handle (clr-memberinfo/declaring-type clr-object))))
-                           (printed-rep (clr-object/to-string clr-object)))
+                           (printed-rep (clr/%to-string clr-object)))
 
                       (display "#<CLR-FIELD-GETTER " port)
                       (display decl-type port)
@@ -1917,7 +1673,7 @@
     :procedure ((lambda ()
                   (define (print-object call-next-method object port slashify)
                     (let* ((clr-object  (clr-object/clr-handle object))
-                           (decl-type   (clr-object/to-string
+                           (decl-type   (clr/%to-string
                                          (clr-object/clr-handle (clr-memberinfo/declaring-type clr-object))))
                            (printed-rep (clr-memberinfo/name clr-object)))
 
@@ -1958,7 +1714,7 @@
     :procedure ((lambda ()
                   (define (print-object call-next-method object port slashify)
                     (let* ((clr-object  (clr-object/clr-handle object))
-                           (decl-type   (clr-object/to-string
+                           (decl-type   (clr/%to-string
                                          (clr-object/clr-handle (clr-memberinfo/declaring-type clr-object))))
                            (printed-rep (clr-memberinfo/name clr-object)))
 
@@ -1999,7 +1755,7 @@
     :procedure ((lambda ()
                   (define (print-object call-next-method object port slashify)
                     (let* ((clr-object  (clr-object/clr-handle object))
-                           (decl-type   (clr-object/to-string
+                           (decl-type   (clr/%to-string
                                          (clr-object/clr-handle (clr-memberinfo/declaring-type clr-object))))
                            (printed-rep (clr-memberinfo/name clr-object)))
 
@@ -2261,7 +2017,7 @@
 (define (process-static-literal handle clr-field-info public?)
   (dotnet-message 3 "Process static literal" clr-field-info)
   (let* ((marshaler (return-marshaler (clr-fieldinfo/field-type handle)))
-         (literal-value (marshaler (clr-field-info/get-value handle)))
+         (literal-value (marshaler (clr-field-info/%get-value handle)))
          (key (StudlyName->key (make-static-name clr-field-info)))
          (thunk (lambda () literal-value)))
       (hash-table-put! *clr-static-field-getters* key thunk)
@@ -2431,10 +2187,12 @@
            )
 
           ((= member-type clr-member-type/property)
+           (if (not public?)
+               #f
            (if (clr-propertyinfo/can-read? handle)
-               (if (clr-methodbase/is-static? (clr-propertyinfo/get-get-method handle))
+               (if (clr-methodbase/is-static? (clr-propertyinfo/%get-get-method handle (not public?)))
                    (process-static-property handle clr-info public?)
-                   (process-property handle public?))))
+                   (process-property handle public?)))))
 
           ((= member-type clr-member-type/type-info)
            (error "process-member: type should not be a member of a type"))

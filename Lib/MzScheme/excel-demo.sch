@@ -35,6 +35,30 @@
               (.DefineDynamicModule (scheme-dynamic-assembly) '|SchemeModule.dll| '|SchemeModule.dll|))
         *scheme-dynamic-module*)))
 
+(define *system-drawing-assembly* #f)
+(define *system-windows-forms-assembly* #f)
+
+(define (system-drawing-assembly)
+  (or *system-drawing-assembly*
+      (begin (set! *system-drawing-assembly*
+                   (System.Reflection.Assembly.LoadWithPartialName 'System.Drawing))
+             *system-drawing-assembly*)))
+
+(define (system-windows-forms-assembly)
+  (or *system-windows-forms-assembly*
+      (begin (system-drawing-assembly)
+             (set! *system-windows-forms-assembly*
+                   (System.Reflection.Assembly.LoadWithPartialName 'System.Windows.Forms))
+             *system-windows-forms-assembly*)))
+
+(define (window-demo)
+  (system-windows-forms-assembly)
+  (System.Windows.Forms.Application.Run
+   (System.Windows.Forms.ApplicationContext.
+    (System.Windows.Forms.form.))))
+
+
+
 ;;; End of temp code
 
 (define *the-excel-assembly* #f)
