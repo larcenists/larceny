@@ -546,6 +546,10 @@
                       memstats-heap-fragmentation-now)
     (environment-set! larc 'memstats-heap-fragmentation-max 
                       memstats-heap-fragmentation-max)
+    (environment-set! larc 'memstats-mem-allocated-now 
+                      memstats-mem-allocated-now)
+    (environment-set! larc 'memstats-mem-allocated-max
+                      memstats-mem-allocated-max)
     (environment-set! larc 'memstats-generations memstats-generations)
     (environment-set! larc 'memstats-remsets memstats-remsets)
     (environment-set! larc 'memstats-frames-flushed memstats-frames-flushed)
