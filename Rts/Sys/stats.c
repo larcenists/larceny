@@ -32,6 +32,8 @@ struct gclib_memstat {
   word rts_allocated_max;	/* max words allocated to rts */
   word heap_fragmentation;	/* words of external heap framgentation */
   word heap_fragmentation_max;	/* max words of external heap fragmentation */
+  word mem_allocated;		/* total words of allocation */
+  word mem_allocated_max;	/* max total words of allocation */
 };
 
 struct gc_memstat {
@@ -217,6 +219,8 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   s->rts_allocated_max = fixnum( stats->rts_allocated );
   s->heap_fragmentation = fixnum( stats->heap_fragmentation );
   s->heap_fragmentation_max = fixnum( stats->heap_fragmentation_max );
+  s->mem_allocated = fixnum( stats->mem_allocated );
+  s->mem_allocated_max = fixnum( stats->mem_allocated_max );
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
@@ -382,7 +386,9 @@ static void fill_main_entries( word *vp )
   vp[ STAT_RTS_MAX ]       = gclib->rts_allocated_max;
   vp[ STAT_WORDS_WASTAGE ] = gclib->heap_fragmentation;
   vp[ STAT_WASTAGE_MAX ]   = gclib->heap_fragmentation_max;
-
+  vp[ STAT_WORDS_MEM ]     = gclib->mem_allocated;
+  vp[ STAT_WORDS_MEM_MAX ] = gclib->mem_allocated_max;
+  
   /* gc */
   vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;
   vp[ STAT_WALLOCATED_LO ] = gc->allocated_lo;
@@ -581,7 +587,7 @@ void stats_dumpstate( void )
     gclib_memstat_t *s2 = &stats_state.gclib_stats;
 
     fprintf( f, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu "
-	        "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu ",
+	        "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu ",
 	     nativeuint( s2->heap_allocated ),
 	     nativeuint( s2->remset_allocated ),
 	     nativeuint( s2->rts_allocated ),
@@ -601,7 +607,10 @@ void stats_dumpstate( void )
 	     nativeuint( s1->full_objects_marked_hi ),
 	     nativeuint( s1->full_objects_marked_lo ),
 	     nativeuint( s1->full_pointers_traced_hi ),
-	     nativeuint( s1->full_pointers_traced_lo ) );
+	     nativeuint( s1->full_pointers_traced_lo ),
+	     nativeuint( s2->mem_allocated ),
+	     nativeuint( s2->mem_allocated_max )
+	     );
   }
 
 #if defined(SIMULATE_NEW_BARRIER)
@@ -702,6 +711,7 @@ static const char *dump_banner =
 ";   np-k np-j dof-resets dof-repeats full-collections time-full-collections\n"
 ";   full-objects-marked-hi full-objects-marked-lo\n"
 ";   full-pointers-traced-hi full-objects-traced-lo\n"
+";   mem-allocated mem-allocated-max\n"
 ";\n"
 "; The tail of the list is an association list, where the entries that\n"
 "; are dumped depend on how the system was compiled.  Each entry is a list\n"
