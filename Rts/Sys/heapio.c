@@ -269,7 +269,7 @@ int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
   assert( type == TEXT_SEGMENT || type == DATA_SEGMENT );
   assert(    (word)bot % PAGESIZE == 0
 	  || (gclib_desc_b[ pageof( bot ) ] & MB_LARGE_OBJECT) );
-  assert( top > bot );
+  assert( top >= bot );
 
   tbl = (type == TEXT_SEGMENT ? h->text_segments : h->data_segments);
 
