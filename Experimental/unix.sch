@@ -33,6 +33,12 @@
 (define unix/connect (foreign-procedure "connect" '(int boxed int) 'int))
 
 
+; dup2(3C)
+; int dup2( int fildes, inf fildes2 )
+
+(define unix/dup2 (foreign-procedure "dup2" '(int int) 'int))
+
+
 ; execl(2)
 ;
 ; execl( char *path, char *arg0, ..., char *argn, char * /* NULL */ )
@@ -58,6 +64,12 @@
 			 (foreign-procedure
 			  "execl" (make-list (+ l 2) 'string) 'int)))
 	(apply (vector-ref cache l) path (append! args '(#f)))))))
+
+
+; fork(2)
+; pid_t fork( void )
+
+(define unix/fork (foreign-procedure "fork" '() 'int))
 
 
 ; listen(3XN)
@@ -92,6 +104,19 @@
 ; void perror( const char * )
 
 (define unix/perror (foreign-procedure "perror" '(string) 'void))
+
+
+; pipe(2)
+; int pipe( int fildes[2] )
+
+(define unix/pipe 
+  (let ((pipe (foreign-procedure "pipe" '(boxed) 'int)))
+    (lambda ()
+      (let ((array (make-bytevector (* sizeof:int 2))))
+        (let ((r (pipe array)))
+          (if (= r -1)
+              (values -1 -1 -1)
+              (values r (%get-int array 0) (%get-int array sizeof:int))))))))
 
 
 ; poll(2)
@@ -130,12 +155,94 @@
 (define unix/socket (foreign-procedure "socket" '(int int int) 'int))
 
 
+; stat(2)
+; int stat( const char *path, struct stat *buf );
+
+(define unix/stat (foreign-procedure "stat" '(string boxed) 'int))
+
+
+; Symbolic constants from sys/stat.h on Solaris 2.6.
+
+(define unix/S_IFIFO #x1000)            ; fifo
+(define unix/S_IFCHR #x2000)            ; character special
+(define unix/S_IFDIR #x4000)            ; directory
+(define unix/S_IFBLK #x6000)            ; block special
+(define unix/S_IFREG #x8000)            ; regular
+
+
 ; strerror(3c)
 ; char *strerror( int )
 
 (define unix/strerror (foreign-procedure "strerror" '(int) 'string))
 
 
+; wait(2)
+; pid_t wait( int *stat_loc )
+;
+; Returns { return value, *stat_loc }
+
+(define unix/wait
+  (let ((wait (foreign-procedure "wait" '(boxed) 'int)))
+    (lambda ()
+      (let ((buffer (make-bytevector sizeof:int)))
+        (let ((r (wait buffer)))
+          (values r (%get-int buffer 0)))))))
+
+
+; waitpid(2)
+; pid_t waitpid(pid_t pid, int *stat_loc, int options)
+;
+; Options defaults to 0.
+; Returns { return value, *stat_loc }
+
+(define unix/waitpid
+  (let ((waitpid (foreign-procedure "waitpid" '(int boxed int) 'int)))
+    (lambda (pid . rest)
+      (let ((options (if (null? rest) 0 (car rest))))
+        (let ((buffer (make-bytevector sizeof:int)))
+          (let ((r (waitpid pid buffer options)))
+            (values r (%get-int buffer 0))))))))
+
+
+; Flags to pass as options to waitpid()
+; Hand-translated from <sys/wait.h> on Solaris 2.6.
+
+(define unix/WCONTINUED #o010)
+(define unix/WNOHANG    #o100)
+(define unix/WNOWAIT    #o200)
+(define unix/WUNTRACED  #o004)
+
+
+; Macros to process the exit status of wait, waitpid
+; Hand-translated from <sys/wait.h> on Solaris 2.6.
+
+(define (unix/WIFEXITED stat) 
+  (zero? (logand stat #xFF)))
+
+(define (unix/WEXITSTATUS stat) 
+  (logand (rsha stat 8) #xFF))
+
+(define (unix/WIFSIGNALED stat) 
+  (and (positive? (logand stat #xFF)) 
+       (zero? (logand stat #xFF00))))
+
+(define (unix/WTERMSIG stat) 
+  (not (zero? (logand stat #x07F))))
+
+(define (unix/WIFSTOPPED stat) 
+  (and (= (logand stat #xFF) #o177)
+       (not (zero? (logand stat #xFF00)))))
+
+(define (unix/WSTOPSIG stat) 
+  (logand (rsha stat 8) #xFF))
+
+(define (unix/WIFCONTINUED stat) 
+  (= (logand stat #o177777) #o177777))
+
+(define (unix/WCOREDUMP stat) 
+  (not (zero? (logand stat #o200))))
+
+  
 ; write(2)
 ; int write( int fd, void *buf, int n )
 
