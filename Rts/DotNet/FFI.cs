@@ -1,5 +1,5 @@
-#line 1 "FFI.cs.cpp"
-#line 1 "c:\\home\\jrm\\plt\\collects\\larceny.net\\larceny_src\\rts\\dotnet\\Macros.h"
+#line 1 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\FFI.cs.cpp"
+#line 1 "c:\\home\\jrm\\commonlarceny\\rts\\dotnet\\Macros.h"
 
 
 
@@ -7,7 +7,7 @@
 
 
 
-#line 2 "FFI.cs.cpp"
+#line 2 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\FFI.cs.cpp"
 
 using System;
 using System.Reflection;
@@ -17,9 +17,9 @@ using System.Windows.Forms;
 
 namespace Scheme.RT {
 
-  // Why is this here?  Can't think of a better place.
-  // This wrapper is for the callback from the Windows message pump
-  // which for some reason is not a delegate like every other callback.
+  
+  
+  
 
     public class FFI_message_filter : IMessageFilter
     {
@@ -38,7 +38,7 @@ namespace Scheme.RT {
 
     public class FFI {
 
-        // Public Constants
+        
         public const bool TRUE = true;
         public const bool FALSE = false;
         public const object NULL = null;
@@ -54,17 +54,17 @@ namespace Scheme.RT {
 
         private static void ffi_syscall_main (int code) {
 
-          // SObject arg1 = Reg.register3;
-           // SObject arg2 = Reg.register4;
-           // SObject arg3 = Reg.register5;
-           // SObject arg4 = Reg.register6;
+          
+           
+           
+           
           switch (code) {
 
-            case 0:  // clr-version
-              // Return a list of integers indicating the version of the CLR runtime.
+            case 0:  
+              
             {
                 Version v = Environment.Version;
-                // return a list of 2, 3, or 4 elements
+                
                 Reg.Result =
                     Factory.makePair
                     (Factory.makeNumber (v.Major),
@@ -80,28 +80,28 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 1: // ffi version
-              // Return a list of integers indicating the version of this FFI.
+            case 1: 
+              
             {
-                // Should actually do real versioning here.
+                
                 Reg.Result =
                     Factory.makePair (Factory.makeNumber (0),
                                       Factory.makePair (Factory.makeNumber (0), Factory.Null));
                 return;
             }
 
-            case 2: // foreign?
-              // Return True iff argument is a ForeignBox wrapper.
+            case 2: 
+              
             {
-                // SObject arg1 = Reg.register3;
-                // SObject arg2 = Reg.register4;
-                // SObject arg3 = Reg.register5;
-                // SObject arg4 = Reg.register6;
+                
+                
+                
+                
                 Reg.Result = (Reg.register3 is ForeignBox) ? Factory.True : Factory.False;
                 return;
             }
 
-            case 3: // to-string
+            case 3: 
             {
                 SObject arg1 = Reg.register3;
                 object val = ((ForeignBox) arg1).value;
@@ -109,14 +109,14 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 4: // object-type
+            case 4: 
             {
                 SObject arg1 = Reg.register3;
                 Reg.Result = Factory.makeForeignBox (((ForeignBox) arg1).value.GetType());
                 return;
             }
 
-            case 5: // isa?
+            case 5: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -126,20 +126,34 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 6: // foreign-eq?
+            case 6: 
             {
+                
+
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
-                // SObject arg3 = Reg.register5;
-                // SObject arg4 = Reg.register6;
+                
+                
                 if (arg1 == arg2) {
                     Reg.Result = Factory.True;
                     }
                 else if (arg1 is ForeignBox) {
                     if (arg2 is ForeignBox) {
-                        Reg.Result = ((((ForeignBox)arg1).value) == (((ForeignBox)arg2).value))
-                            ? Factory.True
-                            : Factory.False;
+                        
+                        
+                        if (((ForeignBox)arg1).value == null) {
+                            Reg.Result = (((ForeignBox)arg2).value == null)
+                                ? Factory.True
+                                : Factory.False;
+                            }
+                        else if (((ForeignBox)arg2).value == null) {
+                            Reg.Result = Factory.False;
+                            }
+                        else {
+                            Reg.Result = ((((ForeignBox)arg1).value).Equals (((ForeignBox)arg2).value))
+                                ? Factory.True
+                                : Factory.False;
+                            }
                         }
                     else if (arg2 is SFixnum) {
                         Reg.Result = Factory.False;
@@ -184,20 +198,20 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 7: // get type
+            case 7: 
             {
-                // SObject arg1 = Reg.register3;
-                // string name = ((SByteVL)arg1).asString();
-                // case insensitive lookup
+                
+                
+                
                 Type ft = Type.GetType (((SByteVL)(Reg.register3)).asString(), false, true);
-                // Return #F if not found.
+                
                 Reg.Result = (ft == null) ? Factory.False : Factory.makeForeignBox (ft);
                 return;
             }
 
-            // return the reflected field-info object associated with a named field.
-            // #F if not found
-            case 8: // get field
+            
+            
+            case 8: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -205,9 +219,9 @@ namespace Scheme.RT {
                 Reg.Result = (fi == null) ? Factory.False : Factory.makeForeignBox (fi);
                 return;
             }
-            // return the reflected constructor
-            // #F if not found
-            case 9: // get-constructor
+            
+            
+            case 9: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -221,7 +235,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 10: // get method
+            case 10: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -236,7 +250,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 11: // get property
+            case 11: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -251,7 +265,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 12: // field-ref
+            case 12: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -265,7 +279,7 @@ namespace Scheme.RT {
                 }
             }
 
-            case 13: // field-set!
+            case 13: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -281,7 +295,7 @@ namespace Scheme.RT {
                 }
             }
 
-            case 14: // invoke constructor
+            case 14: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -300,7 +314,7 @@ namespace Scheme.RT {
                 }
             }
 
-            case 15: // invoke method
+            case 15: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -311,10 +325,10 @@ namespace Scheme.RT {
                 for (int i = 0; i < args.Length; i++)
                     args [i] = ((ForeignBox)(sargv[i])).value;
 
-// I wonder if this version is better?
-//                int i = 0;
-//                foreach (SObject sarg in sargv)
-//                  args [i++] = ((ForeignBox) sarg).value;
+
+
+
+
                 object result;
                 try {
                     result = mi.Invoke (mi.IsStatic ? null : ((ForeignBox)arg2).value, args);
@@ -328,7 +342,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 16: // property-ref
+            case 16: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -349,7 +363,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 17: // property-set
+            case 17: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -370,7 +384,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 18: // array ref
+            case 18: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -379,7 +393,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 19: // datum2foreign
+            case 19: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -387,7 +401,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 20: // foreign2datum
+            case 20: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -395,7 +409,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 21: // get-property-value-boolean
+            case 21: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -415,7 +429,7 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeBoolean ((bool)result != false);
                 return;
             }
-            case 22: // get-property-value-int
+            case 22: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -435,7 +449,7 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeNumber((int)result);
                 return;
             }
-            case 23: // get-property-value-native-window
+            case 23: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -455,7 +469,7 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeForeignBox (System.Windows.Forms.NativeWindow.FromHandle ((IntPtr)result));
                 return;
             }
-            case 24: // get-property-value-intptr
+            case 24: 
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -498,24 +512,24 @@ namespace Scheme.RT {
         }
 
         private static SObject datum2foreign(int conversion, SObject obj) {
-            // datum->foreign : conversion value -> F
+            
 
-            // Always returns a foreign box.  Contents of the box is controlled
-            // by the conversion switch.
+            
+            
             switch (conversion) {
-                // No conversion.  Scheme object is placed in the box.
+                
                 case 0:
                 {
                     return Factory.makeForeignBox (obj);
                 }
 
-                // String.
+                
                 case 1:
                 {
                     return Factory.makeForeignBox (((SByteVL)obj).asString());
                 }
 
-                // various integer forms
+                
                 case 2:
                 {
                     return Factory.makeForeignBox ((Byte) ((SFixnum)obj).value);
@@ -546,7 +560,7 @@ namespace Scheme.RT {
                     return Factory.makeForeignBox ((Int32) ((SFixnum)obj).value);
                 }
 
-                case 8: // message filter
+                case 8: 
                 {
                     return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
                 }
@@ -637,14 +651,14 @@ namespace Scheme.RT {
 
 
 
-#line 632 "FFI.cs.cpp"
+#line 646 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\FFI.cs.cpp"
 
             }
             Exn.error("datum->foreign: unknown conversion");
             return Factory.Impossible;
         }
         private static SObject foreign2datum(int conversion, SObject obj) {
-            // foreign->datum : conversion F -> value
+            
             object value;
             if (obj is ForeignBox) {
                 value = ((ForeignBox)obj).value;
@@ -656,10 +670,10 @@ namespace Scheme.RT {
             }
 
             switch (conversion) {
-                case 0: { // object
+                case 0: { 
                     return obj;
                 }
-                case 1: { // schemeobject
+                case 1: { 
                     if (value is SObject) {
                         return (SObject)value;
                     } else {
@@ -667,7 +681,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 2: { // string
+                case 2: { 
                     if (value is string) {
                         return Factory.makeString ((string)value);
                     } else {
@@ -675,11 +689,11 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 3: { // symbol
+                case 3: { 
                     Exn.error("foreign->datum (symbol): not handled by runtime");
                     return Factory.Impossible;
                 }
-                case 4: { // bytes
+                case 4: { 
                     if (value is byte[]) {
                         return Factory.makeString((byte[])value);
                     } else {
@@ -687,7 +701,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 5: { // int
+                case 5: { 
                     if (value is Enum) {
                        Type enum_type = value.GetType ();
                        Type underlying_type = Enum.GetUnderlyingType (enum_type);
@@ -716,7 +730,7 @@ namespace Scheme.RT {
                     Exn.error("foreign->datum (int): not an integer");
                     return Factory.Impossible;
                 }
-                case 6: { // float
+                case 6: { 
                     if (value is float) {
                         return Factory.makeFlonum((float)value);
                     } else {
@@ -724,7 +738,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 7: { // double
+                case 7: { 
                     if (value is double) {
                         return Factory.makeFlonum((double)value);
                     } else {
@@ -732,7 +746,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 8: { // void
+                case 8: { 
                     return Factory.Unspecified;
                 }
             }
