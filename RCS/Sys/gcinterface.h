@@ -1,11 +1,27 @@
-/*
- * This file to be included by the mutator.
+/* -*- Fundamental -*-
  *
- * $Id$
+ * Scheme Run-time System
+ *
+ * Definitions and types for the garbage collection system;
+ * procedures exported by the collector.
+ *
+ * $Id: gcinterface.h,v 1.2 91/06/21 15:18:16 lth Exp Locker: lth $
  */
 
 #ifndef GCINTERFACE
 #define GCINTERFACE
+
+/* Collection types */
+
+#define EPHEMERAL_COLLECTION	1
+#define TENURING_COLLECTION	2
+
+/* Memory trap types */
+
+#define EPHEMERAL_TRAP		1
+#define TENURED_TRAP		2
+#define STATIC_TRAP		3
+#define STACK_TRAP		4
 
 /* Fundamental data type */
 typedef unsigned long word;
