@@ -86,6 +86,7 @@
    (nbuild-load 'sparc-asm "sparcprim-part1.sch")
    (nbuild-load 'sparc-asm "sparcprim-part2.sch")
    (nbuild-load 'sparc-asm "sparcprim-part3.sch")
+   (nbuild-load 'sparc-asm "sparcprim-part4.sch")
    (nbuild-load 'sparc-asm "switches.sch"))
   ((Standard-C)
    (writeln "Loading the standard-C assembler.")
