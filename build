@@ -86,7 +86,7 @@ run_development_environment() {
       L_HOSTDIR="Chez"
       L_HOSTNAME="Chez Scheme"
       ;;
-    larceny | larceny.bin)
+    larceny | larceny.bin | bdwlarceny.bin)
       L_HOSTDIR=Larceny
       L_HOSTNAME="Larceny"
       ;;
@@ -147,6 +147,7 @@ run_scheme() {
     chez)    run_chez ;;
     larceny) run_larceny ;;
     larceny.bin) run_larceny_bin ;;
+    bdwlarceny.bin) run_bdwlarceny_bin ;;
     *)       echo "Unknown host tag $BUILD_HOST"; exit 1 ;;
   esac
 }
@@ -161,6 +162,12 @@ run_larceny_bin() {
   $EXEC $HEAP $LARCENY_EXTRA -args $TMPFILE $ARGS
 }
 
+run_bdwlarceny_bin() {
+  EXEC=${LARCENY}/bdwlarceny.bin
+  HEAP=${LARCENY}/sparc.heap
+  $EXEC $HEAP $LARCENY_EXTRA -args $TMPFILE $ARGS
+}
+
 run_larceny() {
   larceny $LARCENY_EXTRA $TMPFILE $ARGS
 }
@@ -169,6 +176,9 @@ run_larceny() {
 
 while [ "$1" != "" ]; do 
   case $1 in
+    -bdw)
+      BUILD_HOST=bdwlarceny.bin; shift 
+      ;;
     -build)
       ACTION=build; shift
       ;;
