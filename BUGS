@@ -646,6 +646,68 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     and the operating system pages in the library directly from the
     file.
 
-NEXT ENTRY: 126
+126 v0.43 (990629 / lth)
+    Priority: medium
+    Category: LIB / correctness
+
+    The enable-interrupts primitive does double duty: it enables 
+    interrupts, and it sets the timer value.  At the time I thought 
+    this was very clever...  However, we get into problems in 
+    call-without-interrupts:
+
+	(define (call-without-interrupts thunk)
+	  (let ((old #f))
+	    (dynamic-wind 
+	     (lambda () (set! old (disable-interrupts)))
+	     thunk
+	     (lambda () (if old (enable-interrupts old))))))
+    
+    As you can see, any time spent in the critical region is not deducted
+    from the budget of the thread.  This seems fairly innocent.  However,
+    consider this straightforward implementation:
+
+	(define (block t)
+	  (if (not *tasking-on*) (error "Tasking is not on."))
+	  (if (not (task? t)) (error "BLOCK: " t " is not a task."))
+	  (let ((critical? (tasks/in-critical-section?)))
+	    (call-without-interrupts
+	      (lambda ()
+	        (cond ((tasks/runnable? t)
+		       (run-queue.remove! *run-queue* t))
+	              ((eq? t (tasks/current-task))
+	               (tasks/switch #f critical?)))))))
+
+    The task will be blocked, but when it is restarted by the scheduler
+    with the full quantum, the call to call-without-interrupts will
+    re-enable interrupts with the saved value (which can be anything).
+
+    It's possible to code around that problem, but we shouldn't have to.
+    So enable-interrupts should be split into two primitives:
+    enable-interrupts, which takes no arguments, and timer-set!, which
+    takes a new timer value.  disable-interrupts should return a boolean,
+    and not #f or the current timer value.  If it turns out that we
+    need to be able to read the timer, we can introduce a timer-get
+    procedure later.
+
+128 v0.43 (990701 / lth)
+    Priority: medium
+    Category: RTS / correctness
+
+    When we use the conservative collector with ALL_INTERIOR_POINTERS=0,
+    then some tricky code in the RTS that allocates a single chunk of 
+    memory and splits it into multiple objects won't work.  The places
+    where this occurs are _at_least_ the following (I have not scanned
+    the sources completely):
+
+       Rts/Sys/stats.c, for memstats structure    [ this has been fixed ]
+       Rts/Sparc/cglue.c, for rest args           [ this has been fixed ]
+       Rts/Sys/argv.c, for arg vector and strings
+       Rts/Standard-C/millicode.c, for rest args 
+       Rts/Sys/ffi.c, for args to Scheme callbacks
+
+    Impact: current fixes are enough to allow benchmarking, but the
+    others must be fixed.
+    
+NEXT ENTRY: 129
 
 ; eof
