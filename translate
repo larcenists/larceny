@@ -1,8 +1,0 @@
-#!/bin/sh
-rm -f tmp.translate
-echo "(load \"Compiler/translate.sch\")" >> tmp.translate
-echo "(main)" >> tmp.translate
-echo "(exit)" >> tmp.translate
-scheme tmp.translate
-rm tmp.translate
-
