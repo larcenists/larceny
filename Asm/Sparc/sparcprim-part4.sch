@@ -2,10 +2,10 @@
 ;
 ; $Id$
 ;
-; 9 May 1999 / wdc
+; 25 September 2000 / wdc
 ;
-; SPARC code generation macros for primitives, part 3:
-;   fixnum-specific operations.
+; SPARC code generation macros for primitives, part 4:
+;   index- and fixnum-specific operations.
 ;
 ; Constraints for all the primops.
 ;
@@ -17,7 +17,6 @@
 ; FIXME
 ;   Missing fxquotient, fxremainder
 ;   When new pass1 in place:
-;     Must add code to pass1 to allow n-ary calls to be rewritten as binary
 ;     Must add compiler macro for fxabs.
 
 
@@ -31,6 +30,33 @@
   (lambda (as)
     (emit-immediate->register! as (asm:signed #x7FFFFFFC) $r.result)))
 
+; index-specific operations: no checks at all
+
+(define-primop '+:idx:idx
+  (lambda (as rs2)
+    (emit-index-arithmetic as sparc.addr $r.result rs2 $r.result)))
+
+(define-primop 'internal:+:idx:idx
+  (lambda (as rs1 rs2 rd)
+    (emit-index-arithmetic as sparc.addr rs1 rs2 rd)))
+
+(define-primop '-:idx:idx
+  (lambda (as rs2)
+    (emit-index-arithmetic as sparc.subr $r.result rs2 $r.result)))
+
+(define-primop 'internal:-:idx:idx
+  (lambda (as rs1 rs2 rd)
+    (emit-index-arithmetic as sparc.subr rs1 rs2 rd)))
+
+; index-specific with immediate operand.
+
+(define-primop 'internal:+:idx:idx/imm
+  (lambda (as rs imm rd)
+    (emit-index-arithmetic/imm as sparc.addi rs imm rd)))
+
+(define-primop 'internal:-:idx:idx/imm
+  (lambda (as rs imm rd)
+    (emit-index-arithmetic/imm as sparc.subi rs imm rd)))
 
 ; fx+, fx- w/o immediates
 
@@ -61,27 +87,6 @@
   (lambda (as rs rd)
     (emit-fixnum-arithmetic as sparc.tsubrcc sparc.subr $r.g0 rs rd $ex.fx--)))
 
-(define (emit-fixnum-arithmetic as op-check op-nocheck rs1 rs2 rd exn)
-  (if (unsafe-code)
-      (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
-	(op-nocheck as rs1 rs2 rd))
-      (let ((rs2 (force-hwreg! as rs2 $r.argreg2))
-	    (L0  (new-label))
-	    (L1  (new-label)))
-	(sparc.label  as L0)
-	(op-check     as rs1 rs2 $r.tmp0)
-	(sparc.bvc.a  as L1)
-	(sparc.move   as $r.tmp0 rd)
-        (if (not (= exn $ex.fx--))
-            (begin
-              (if (not (= rs1 $r.result)) (sparc.move as rs1 $r.result))
-              (if (not (= rs2 $r.argreg2)) (sparc.move as rs2 $r.argreg2)))
-            (begin
-              (if (not (= rs2 $r.result)) (sparc.move as rs2 $r.result))))
-	(sparc.set    as (thefixnum exn) $r.tmp0)
-	(millicode-call/ret as $m.exception L0)
-	(sparc.label  as L1))))
-
 ; fx* w/o immediate
 
 (define-primop 'fx*
@@ -99,22 +104,6 @@
   (lambda (as rs imm rd)
     (emit-fixnum-arithmetic/imm as sparc.tsubicc sparc.subi
 				rs imm rd $ex.fx-)))
-
-(define (emit-fixnum-arithmetic/imm as op-check op-nocheck rs imm rd exn)
-  (if (unsafe-code)
-      (op-nocheck as rs (thefixnum imm) rd)
-      (let ((L0  (new-label))
-	    (L1  (new-label)))
-	(sparc.label  as L0)
-	(op-check     as rs (thefixnum imm) $r.tmp0)
-	(sparc.bvc.a  as L1)
-	(sparc.move   as $r.tmp0 rd)
-	(if (not (= rs $r.result)) (sparc.move as rs $r.result))
-	(sparc.set    as (thefixnum imm) $r.argreg2)
-	(sparc.set    as (thefixnum exn) $r.tmp0)
-	(millicode-call/ret as $m.exception L0)
-	(sparc.label  as L1))))
-
 
 ; fx=, fx<, fx<=, fx>, fx>=, fxpositive?, fxnegative?, fxzero? w/o immediates
 
@@ -437,6 +426,51 @@
   (lambda (as src1 imm L1 liveregs)
     (emit-fixnum-compare/imm-check
      as src1 imm sparc.bl L1 liveregs)))
+
+; Emitters.
+
+(define (emit-index-arithmetic as op rs1 rs2 rd)
+  (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
+    (op as rs1 rs2 rd)))
+
+(define (emit-fixnum-arithmetic as op-check op-nocheck rs1 rs2 rd exn)
+  (if (unsafe-code)
+      (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
+	(op-nocheck as rs1 rs2 rd))
+      (let ((rs2 (force-hwreg! as rs2 $r.argreg2))
+	    (L0  (new-label))
+	    (L1  (new-label)))
+	(sparc.label  as L0)
+	(op-check     as rs1 rs2 $r.tmp0)
+	(sparc.bvc.a  as L1)
+	(sparc.move   as $r.tmp0 rd)
+        (if (not (= exn $ex.fx--))
+            (begin
+              (if (not (= rs1 $r.result)) (sparc.move as rs1 $r.result))
+              (if (not (= rs2 $r.argreg2)) (sparc.move as rs2 $r.argreg2)))
+            (begin
+              (if (not (= rs2 $r.result)) (sparc.move as rs2 $r.result))))
+	(sparc.set    as (thefixnum exn) $r.tmp0)
+	(millicode-call/ret as $m.exception L0)
+	(sparc.label  as L1))))
+
+(define (emit-index-arithmetic/imm as op rs1 imm rd)
+  (op as rs1 (thefixnum imm) rd))
+
+(define (emit-fixnum-arithmetic/imm as op-check op-nocheck rs imm rd exn)
+  (if (unsafe-code)
+      (op-nocheck as rs (thefixnum imm) rd)
+      (let ((L0  (new-label))
+	    (L1  (new-label)))
+	(sparc.label  as L0)
+	(op-check     as rs (thefixnum imm) $r.tmp0)
+	(sparc.bvc.a  as L1)
+	(sparc.move   as $r.tmp0 rd)
+	(if (not (= rs $r.result)) (sparc.move as rs $r.result))
+	(sparc.set    as (thefixnum imm) $r.argreg2)
+	(sparc.set    as (thefixnum exn) $r.tmp0)
+	(millicode-call/ret as $m.exception L0)
+	(sparc.label  as L1))))
 
 ; Below, 'target' is a label or #f.  If #f, RD must be a general hardware
 ; register or RESULT, and a boolean result is generated in RD.

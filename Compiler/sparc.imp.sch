@@ -109,6 +109,9 @@
     ((larceny) $usual-integrable-procedures$)
     (else ???)))
 
+; This table consists of primitives that are introduced by Twobit's
+; source code transformations.
+
 (define $minimal-integrable-procedures$
   (let ((:globals  available:killer:globals)
         (:car      available:killer:car)
@@ -134,6 +137,14 @@
     (,name:CELL-SET!  2 cell-set!        #f          #xdf ,:dead     ,:cell)
     (,name:CONS       2 cons             #f          #xa8 ,:dead     ,:none)
 
+    (.unspecified     0 unspecified      #f            -1 ,:dead     ,:none)
+    (.undefined       0 undefined        #f             8 ,:dead     ,:none)
+    (.fixnum?         1 fixnum?          #f          #x23 ,:immortal ,:none)
+    (.symbol?         1 symbol?          #f          #x1f ,:immortal ,:none)
+    (.char?           1 char?            #f          #x40 ,:immortal ,:none)
+    (.char->integer   1 char->integer    #f          #x41 ,:immortal ,:none)
+    (.--              1 --               #f          #x2d ,:immortal ,:none)
+
     ; These should not be here with these names but are introduced by
     ; the compiler, macro expander, or standard macros.
 
@@ -144,26 +155,44 @@
     ; Added for CSE, representation analysis.
 
     (,name:CHECK!    -1 check!           #f            -1 ,:dead     ,:none)
-    (vector-length:vec 1 vector-length:vec #f          -1 ,:immortal ,:none)
-    (vector-ref:trusted 2 vector-ref:trusted ,sparc-imm? -1 ,:vector   ,:none)
-    (vector-set!:trusted 3 vector-set!:trusted #f      -1 ,:dead     ,:vector)
-    (car:pair         1 car:pair         #f            -1 ,:car      ,:none)
-    (cdr:pair         1 cdr:pair         #f            -1 ,:cdr      ,:none)
-    (=:fix:fix        2 =:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
-    (<:fix:fix        2 <:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
-    (<=:fix:fix       2 <=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
-    (>=:fix:fix       2 >=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
-    (>:fix:fix        2 >:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
+    (.vector-length:vec 1 vector-length:vec #f          -1 ,:immortal ,:none)
+    (.vector-ref:trusted 2 vector-ref:trusted ,sparc-imm? -1 ,:vector ,:none)
+    (.vector-set!:trusted 3 vector-set!:trusted #f     -1 ,:dead     ,:vector)
+    (.car:pair        1 car:pair         #f            -1 ,:car      ,:none)
+    (.cdr:pair        1 cdr:pair         #f            -1 ,:cdr      ,:none)
+
+    (.+:fix:fix       2 +                #f            -1 ,:immortal ,:none)
+    (.-:fix:fix       2 -                #f            -1 ,:immortal ,:none)
+
+    (.=:fix:fix       2 =:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
+    (.<:fix:fix       2 <:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
+    (.<=:fix:fix      2 <=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
+    (.>=:fix:fix      2 >=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
+    (.>:fix:fix       2 >:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
     
     ; Not yet implemented.
 
-    (+:idx:idx        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (+:fix:fix        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (+:exi:exi        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (+:flo:flo        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (=:flo:flo        2 =:flo:flo        #f            -1 ,:immortal ,:none)
-    (=:obj:flo        2 =:obj:flo        #f            -1 ,:immortal ,:none)
-    (=:flo:obj        2 =:flo:obj        #f            -1 ,:immortal ,:none))))
+    (.vector-set!:trusted:imm 3 vector-set!:trusted:imm #f -1 ,:dead ,:vector)
+
+    (.string-length:str 1 string-length:str #f          -1 ,:immortal ,:none)
+    (.string-ref:trusted 2 string-ref:trusted #f       -1 ,:string   ,:none)
+    (.string-set!:trusted 3 string-set!:trusted #f     -1 ,:dead     ,:string)
+
+    (.+:idx:idx       2 +:idx:idx        ,sparc-imm?   -1 ,:immortal ,:none)
+    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
+    (.-:idx:idx       2 -:idx:idx        ,sparc-imm?   -1 ,:immortal ,:none)
+    (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
+    (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
+    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
+
+    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
+   ;(.=:obj:flo       2 =:obj:flo        #f            -1 ,:immortal ,:none)
+   ;(.=:flo:obj       2 =:flo:obj        #f            -1 ,:immortal ,:none)
+    (.<:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (.<=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (.>:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (.>=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    )))
 
 (define $r4rs-integrable-procedures$
   (let ((:globals  available:killer:globals)

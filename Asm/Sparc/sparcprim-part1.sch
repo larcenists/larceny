@@ -600,13 +600,25 @@
   (lambda (as)
     (emit-primop.3arg! as 'internal:string-length $r.result $r.result)))
 
+(define-primop 'string-length:str
+  (lambda (as)
+    (emit-get-length-trusted! as $tag.string-tag $r.result $r.result)))
+
 (define-primop 'string-ref
   (lambda (as r)
     (emit-primop.4arg! as 'internal:string-ref $r.result r $r.result)))
 
+(define-primop 'string-ref:trusted
+  (lambda (as rs2)
+    (emit-bytevector-like-ref-trusted! as $r.result rs2 $r.result #t)))
+
 (define-primop 'string-set!
   (lambda (as r1 r2)
     (emit-string-set! as $r.result r1 r2)))
+
+(define-primop 'string-set!:trusted
+  (lambda (as rs2 rs3)
+    (emit-string-set-trusted! as $r.result rs2 rs3)))
 
 (define-primop 'sys$partial-list->vector
   (lambda (as r)
@@ -720,6 +732,11 @@
 (define-primop 'vector-set!:trusted
   (lambda (as rs2 rs3)
     (emit-vector-like-set-trusted! as $r.result rs2 rs3 $tag.vector-tag)))
+
+(define-primop 'vector-set!:trusted:imm
+  (lambda (as rs2 rs3)
+    (emit-vector-like-set-trusted-no-barrier!
+         as $r.result rs2 rs3 $tag.vector-tag)))
 
 (define-primop 'procedure-set!
   (lambda (as r1 r2)

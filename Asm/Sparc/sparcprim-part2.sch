@@ -165,6 +165,11 @@
 		      rs
 		      rd)))
 
+(define-primop 'internal:string-length:str
+  (lambda (as rs rd)
+    (internal-primop-invariant2 'internal:string-length:str rs rd)
+    (emit-get-length-trusted! as $tag.bytevector-tag rs rd)))
+
 (define-primop 'internal:string-ref
   (lambda (as rs1 rs2 rd)
     (internal-primop-invariant2 'internal:string-ref rs1 rd)
@@ -177,6 +182,11 @@
 		      rs2
 		      $ex.sref))))
       (emit-bytevector-like-ref! as rs1 rs2 rd fault #t #t))))
+
+(define-primop 'internal:string-ref:trusted
+  (lambda (as rs1 rs2 rd)
+    (internal-primop-invariant2 'internal:string-ref:trusted rs1 rd)
+    (emit-bytevector-like-ref-trusted! as rs1 rs2 rd #t)))
 
 (define-primop 'internal:string-ref/imm
   (lambda (as rs1 imm rd)
@@ -437,6 +447,31 @@
     (sparc.bne     as L1)
     (apply sparc.slot2 as liveregs)
     (sparc.srli    as $r.tmp0 8 dst)))
+
+(define-primop 'internal:check-string?
+  (lambda (as src L1 liveregs)
+    (sparc.andi    as src $tag.tagmask $r.tmp0)
+    (sparc.cmpi    as $r.tmp0 $tag.bytevector-tag)
+    (sparc.bne     as L1)
+    (sparc.nop     as)
+    (sparc.ldi     as src (- $tag.bytevector-tag) $r.tmp0)
+    (sparc.andi    as $r.tmp0 255 $r.tmp1)
+    (sparc.cmpi    as $r.tmp1 (+ $imm.bytevector-header $tag.string-typetag))
+    (emit-checkcc! as sparc.bne L1 liveregs)))
+
+(define-primop 'internal:check-string?/string-length:str
+  (lambda (as src dst L1 liveregs)
+    (sparc.andi    as src     $tag.tagmask        $r.tmp0)
+    (sparc.cmpi    as $r.tmp0 $tag.bytevector-tag)
+    (sparc.bne     as L1)
+    (sparc.nop     as)
+    (sparc.ldi     as src     (- $tag.bytevector-tag) $r.tmp0)
+    (sparc.andi    as $r.tmp0 255                 $r.tmp1)
+    (sparc.cmpi    as $r.tmp1 (+ $imm.bytevector-header $tag.string-typetag))
+    (sparc.bne     as L1)
+    (apply sparc.slot2 as liveregs)
+    (sparc.srli    as $r.tmp0 8 $r.tmp0)
+    (sparc.slli    as $r.tmp0 2 dst)))
 
 (define (internal-primop-invariant2 name a b)
     (if (not (and (hardware-mapped? a) (hardware-mapped? b)))

@@ -2,7 +2,7 @@
 ;
 ; Relatively target-independent information for Twobit's backend.
 ;
-; 14 September 2000 / wdc
+; 25 September 2000 / wdc
 ;
 ; Most of the definitions in this file can be extended or overridden by
 ; target-specific definitions.
@@ -23,14 +23,14 @@
 ; Others may be used directly by a DEFINE-INLINE.
 
 (define name:CHECK!  '.check!)
-(define name:CONS '.cons)
 (define name:LIST '.list)
+(define name:CONS '.cons)
+(define name:CAR '.car)
+(define name:CDR '.cdr)
 (define name:MAKE-CELL '.make-cell)
 (define name:CELL-REF '.cell-ref)
 (define name:CELL-SET! '.cell-set!)
 (define name:IGNORED (string->symbol "IGNORED"))
-(define name:CAR '.car)
-(define name:CDR '.cdr)
 
 ;(begin (eval `(define ,name:CONS cons))
 ;       (eval `(define ,name:LIST list))
@@ -38,14 +38,14 @@
 ;       (eval `(define ,name:CELL-REF car))
 ;       (eval `(define ,name:CELL-SET! set-car!)))
 
-; If (INTEGRATE-USUAL-PROCEDURES) is true, then control optimization
+; If (INTEGRATE-PROCEDURES) is anything but null, then control optimization
 ; recognizes calls to these procedures.
 
 (define name:NOT 'not)
 (define name:MEMQ 'memq)
 (define name:MEMV 'memv)
 
-; If (INTEGRATE-USUAL-PROCEDURES) is true, then control optimization
+; If (INTEGRATE-PROCEDURES) is anything but null, then control optimization
 ; recognizes calls to these procedures and also creates calls to them.
 
 (define name:EQ? 'eq?)
@@ -54,13 +54,13 @@
 ; Control optimization creates calls to these procedures,
 ; which do not need to check their arguments.
 
-(define name:FIXNUM?       'fixnum?)
-(define name:CHAR?         'char?)
-(define name:SYMBOL?       'symbol?)
-(define name:FX<           '<:fix:fix)
-(define name:FX-           'fx-)                   ; non-checking version
-(define name:CHAR->INTEGER 'char->integer)         ; non-checking version
-(define name:VECTOR-REF    'vector-ref:trusted)
+(define name:FIXNUM?       '.fixnum?)
+(define name:CHAR?         '.char?)
+(define name:SYMBOL?       '.symbol?)
+(define name:FX<           '.<:fix:fix)
+(define name:FX-           '.-:idx:idx)
+(define name:CHAR->INTEGER '.char->integer:chr)
+(define name:VECTOR-REF    '.vector-ref:trusted)
 
 
 ; Constant folding.
@@ -74,63 +74,64 @@
 (define constant-folding-predicates cadr)
 (define constant-folding-folder caddr)
 
+; FIXME: add more of these.
+
 (define $minimal-constant-folding-procedures$
   (let ((smallint? (lambda (n) (smallint? n))))
     `(
       ; This makes some assumptions about the host system.
       
-      (=:fix:fix  (,smallint? ,smallint?) ,=)
-      (<:fix:fix  (,smallint? ,smallint?) ,<)
-      (<=:fix:fix (,smallint? ,smallint?) ,<=)
-      (>:fix:fix  (,smallint? ,smallint?) ,>)
-      (>=:fix:fix (,smallint? ,smallint?) ,>=)
+      (.=:fix:fix  (,smallint? ,smallint?) ,=)
+      (.<:fix:fix  (,smallint? ,smallint?) ,<)
+      (.<=:fix:fix (,smallint? ,smallint?) ,<=)
+      (.>:fix:fix  (,smallint? ,smallint?) ,>)
+      (.>=:fix:fix (,smallint? ,smallint?) ,>=)
+
+      (.-- (,ratnum?) ,(lambda (x) (- 0 x)))
+      (.fixnum? (,smallint?) ,smallint?)
       )))
 
 (define $usual-constant-folding-procedures$
-  (let ((always? (lambda (x) #t))
-        (charcode? (lambda (n)
+  (append $minimal-constant-folding-procedures$
+    (let ((always? (lambda (x) #t))
+          (charcode? (lambda (n)
+                       (and (number? n)
+                            (exact? n)
+                            (<= 0 n)
+                            (< n 128))))
+          (ratnum? (lambda (n)
                      (and (number? n)
                           (exact? n)
-                          (<= 0 n)
-                          (< n 128))))
-        (ratnum? (lambda (n)
-                   (and (number? n)
-                        (exact? n)
-                        (rational? n))))
-        ; smallint? is defined later.
-        (smallint? (lambda (n) (smallint? n))))
-    `(
-      ; This makes some assumptions about the host system.
-      
-      (integer->char (,charcode?) ,integer->char)
-      (char->integer (,char?) ,char->integer)
-      (zero? (,ratnum?) ,zero?)
-      (< (,ratnum? ,ratnum?) ,<)
-      (<= (,ratnum? ,ratnum?) ,<=)
-      (= (,ratnum? ,ratnum?) ,=)
-      (>= (,ratnum? ,ratnum?) ,>=)
-      (> (,ratnum? ,ratnum?) ,>)
-      (+ (,ratnum? ,ratnum?) ,+)
-      (- (,ratnum? ,ratnum?) ,-)
-      (* (,ratnum? ,ratnum?) ,*)
-      (-- (,ratnum?) ,(lambda (x) (- 0 x)))
-      (eq? (,always? ,always?) ,eq?)
-      (eqv? (,always? ,always?) ,eqv?)
-      (equal? (,always? ,always?) ,equal?)
-      (memq (,always? ,list?) ,memq)
-      (memv (,always? ,list?) ,memv)
-      (member (,always? ,list?) ,member)
-      (assq (,always? ,list?) ,assq)
-      (assv (,always? ,list?) ,assv)
-      (assoc (,always? ,list?) ,assoc)
-      (length (,list?) ,length)
-      (fixnum? (,smallint?) ,smallint?)
-      (=:fix:fix  (,smallint? ,smallint?) ,=)
-      (<:fix:fix  (,smallint? ,smallint?) ,<)
-      (<=:fix:fix (,smallint? ,smallint?) ,<=)
-      (>:fix:fix  (,smallint? ,smallint?) ,>)
-      (>=:fix:fix (,smallint? ,smallint?) ,>=)
-      )))
+                          (rational? n))))
+          ; smallint? is defined later.
+          (smallint? (lambda (n) (smallint? n))))
+      `(
+        ; This makes some assumptions about the host system.
+        
+        (integer->char (,charcode?) ,integer->char)
+        (char->integer (,char?) ,char->integer)
+        (zero? (,ratnum?) ,zero?)
+        (< (,ratnum? ,ratnum?) ,<)
+        (<= (,ratnum? ,ratnum?) ,<=)
+        (= (,ratnum? ,ratnum?) ,=)
+        (>= (,ratnum? ,ratnum?) ,>=)
+        (> (,ratnum? ,ratnum?) ,>)
+        (+ (,ratnum? ,ratnum?) ,+)
+        (- (,ratnum? ,ratnum?) ,-)
+        (* (,ratnum? ,ratnum?) ,*)
+        (eq? (,always? ,always?) ,eq?)
+        (eqv? (,always? ,always?) ,eqv?)
+        (equal? (,always? ,always?) ,equal?)
+        (memq (,always? ,list?) ,memq)
+        (memv (,always? ,list?) ,memv)
+        (member (,always? ,list?) ,member)
+        (assq (,always? ,list?) ,assq)
+        (assv (,always? ,list?) ,assv)
+        (assoc (,always? ,list?) ,assoc)
+        (length (,list?) ,length)
+        (-- (,ratnum?) ,(lambda (x) (- 0 x)))   ; FIXME: Larceny-specific
+        (fixnum? (,smallint?) ,smallint?)       ; FIXME: Larceny-specific
+        ))))
 
 (begin '
        (define (.check! flag exn . args)
@@ -145,6 +146,10 @@
 
 ; For now there's only one inline environment, though there might be
 ; others later.
+;
+; Consequences:  A compiler macro can assume that all inlined R4RS
+; procedures have their usual values, but cannot assume that non-R4RS
+; procedures are intact.
 
 (define inline-syntactic-environment
   (syntactic-copy usual-syntactic-environment))
@@ -169,32 +174,32 @@
    ((car x0)
     (let ((x x0))
       (.check! (pair? x) ,$ex.car x)
-      (car:pair x)))))
+      (.car:pair x)))))
    
 (define-inline cdr
   (syntax-rules ()
    ((car x0)
     (let ((x x0))
       (.check! (pair? x) ,$ex.cdr x)
-      (cdr:pair x)))))
+      (.cdr:pair x)))))
 
 (define-inline vector-length
   (syntax-rules ()
    ((vector-length v0)
     (let ((v v0))
       (.check! (vector? v) ,$ex.vlen v)
-      (vector-length:vec v)))))
+      (.vector-length:vec v)))))
    
 (define-inline vector-ref
   (syntax-rules ()
    ((vector-ref v0 i0)
     (let ((v v0)
           (i i0))
-      (.check! (fixnum? i) ,$ex.vref v i)
+      (.check! (.fixnum? i) ,$ex.vref v i)
       (.check! (vector? v) ,$ex.vref v i)
-      (.check! (<:fix:fix i (vector-length:vec v)) ,$ex.vref v i)
-      (.check! (>=:fix:fix i 0) ,$ex.vref  v i)
-      (vector-ref:trusted v i)))))
+      (.check! (.<:fix:fix i (.vector-length:vec v)) ,$ex.vref v i)
+      (.check! (.>=:fix:fix i 0) ,$ex.vref  v i)
+      (.vector-ref:trusted v i)))))
    
 (define-inline vector-set!
   (syntax-rules ()
@@ -202,11 +207,41 @@
     (let ((v v0)
           (i i0)
           (x x0))
-      (.check! (fixnum? i) ,$ex.vset v i x)
+      (.check! (.fixnum? i) ,$ex.vset v i x)
       (.check! (vector? v) ,$ex.vset v i x)
-      (.check! (<:fix:fix i (vector-length:vec v)) ,$ex.vset v i x)
-      (.check! (>=:fix:fix i 0) ,$ex.vset v i x)
-      (vector-set!:trusted v i x)))))
+      (.check! (.<:fix:fix i (.vector-length:vec v)) ,$ex.vset v i x)
+      (.check! (.>=:fix:fix i 0) ,$ex.vset v i x)
+      (.vector-set!:trusted v i x)))))
+   
+(define-inline string-length
+  (syntax-rules ()
+   ((string-length v0)
+    (let ((v v0))
+      (.check! (string? v) ,$ex.slen v)
+      (.string-length:str v)))))
+   
+(define-inline string-ref
+  (syntax-rules ()
+   ((string-ref v0 i0)
+    (let ((v v0)
+          (i i0))
+      (.check! (.fixnum? i) ,$ex.sref v i)
+      (.check! (string? v) ,$ex.sref v i)
+      (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sref v i)
+      (.check! (.>=:fix:fix i 0) ,$ex.sref  v i)
+      (.string-ref:trusted v i)))))
+   
+(define-inline string-set!
+  (syntax-rules ()
+   ((string-set! v0 i0 x0)
+    (let ((v v0)
+          (i i0)
+          (x x0))
+      (.check! (.fixnum? i) ,$ex.sset v i x)
+      (.check! (string? v) ,$ex.sset v i x)
+      (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sset v i x)
+      (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
+      (.string-set!:trusted v i x)))))
    
 ; This transformation must make sure the entire list is freshly
 ; allocated when an argument to LIST returns more than once.
@@ -222,7 +257,7 @@
            (t2 (list ?e2 ...)))
       (cons t1 t2)))))
 
-; This transformation must make sure the entire list is freshly
+; This transformation must make sure the entire vector is freshly
 ; allocated when an argument to VECTOR returns more than once.
 
 (define-inline vector
@@ -250,7 +285,7 @@
                       (?t2 ?exp2)
                       ...
                       (v (make-vector ?n ?t1)))
-                 (vector-set! v ?n2 ?t2)
+                 (.vector-set!:trusted v ?n2 ?t2)
                  ...
                  v))))))
       (vector-aux1 (?e1 ?e2 ...) 0 () () ())))))
@@ -345,7 +380,7 @@
    ((+)
     0)
    ((+ ?e)
-    ?e)
+    (+ ?e 0))
    ((+ ?e1 ?e2 ?e3 ?e4 ...)
     (+ (+ ?e1 ?e2) ?e3 ?e4 ...))))
 
@@ -354,7 +389,7 @@
    ((*)
     1)
    ((* ?e)
-    ?e)
+    (+ ?e 0))
    ((* ?e1 ?e2 ?e3 ?e4 ...)
     (* (* ?e1 ?e2) ?e3 ?e4 ...))))
 
@@ -377,7 +412,7 @@
    ((abs ?z)
     (let ((temp ?z))
       (if (< temp 0)
-          (-- temp)
+          (.-- temp)
           temp)))))
 
 (define-inline negative?

@@ -207,6 +207,7 @@
               ((vector-length)     'internal:vector-length)
               ((vector-length:vec) 'internal:vector-length:vec)
               ((string-length)     'internal:string-length)
+              ((string-length:str) 'internal:string-length:str)
               ((--)                'internal:--)
               ((fx--)              'internal:fx--)
               ((fxpositive?)       'internal:fxpositive?)
@@ -255,7 +256,9 @@
               ((cons)               'internal:cons)
               ((vector-ref)         'internal:vector-ref)
               ((vector-ref:trusted) 'internal:vector-ref:trusted)
+              ((vector-ref:trusted:imm) 'internal:vector-ref:trusted:imm)
               ((string-ref)         'internal:string-ref)
+              ((string-ref:trusted) 'internal:string-ref:trusted)
               ((set-car!)           'internal:set-car!)
               ((set-cdr!)           'internal:set-cdr!)
               ((cell-set!)          'internal:cell-set!)
@@ -291,6 +294,8 @@
   (let ((op (case op
               ((+)          'internal:+/imm)
               ((-)          'internal:-/imm)
+              ((+:idx:idx)  'internal:+:idx:idx/imm)
+              ((-:idx:idx)  'internal:-:idx:idx/imm)
               ((fx+)        'internal:fx+/imm)
               ((fx-)        'internal:fx-/imm)
               ((fx=)        'internal:fx=/imm)
@@ -439,6 +444,7 @@
               ((fixnum?)      'internal:check-fixnum?)
               ((pair?)        'internal:check-pair?)
               ((vector?)      'internal:check-vector?)
+              ((string?)      'internal:check-string?)
               (else #f))))
     (if op
         (as-source! as
@@ -537,6 +543,19 @@
         (as-source! as
                     (cons (list $reg/op2/check
                                 'internal:check-vector?/vector-length:vec
+                                r1
+                                r3
+                                (operand3 i:ro1check)
+                                (operand4 i:ro1check))
+                          tail)))
+    (if (and (eq? o1 'internal:check-string?)
+             (eq? r1 r2)
+             (eq? o2 'string-length:str)
+             (hwreg? r1)
+             (hwreg? r3))
+        (as-source! as
+                    (cons (list $reg/op2/check
+                                'internal:check-string?/string-length:str
                                 r1
                                 r3
                                 (operand3 i:ro1check)
