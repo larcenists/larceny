@@ -24,7 +24,6 @@ old_heap_t *create_old_heap_t(
   word code,
   int  (*initialize)( old_heap_t *heap ),
   void (*collect)( old_heap_t *heap, gc_type_t request ),
-  void (*collect_with_selective_fromspace)( old_heap_t *heap, int *fromspaces ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
   void (*stats)( old_heap_t *heap, int generation, heap_stats_t *stats ),
@@ -50,9 +49,6 @@ old_heap_t *create_old_heap_t(
 
   heap->initialize = (initialize ? initialize : default_initialize);
   heap->collect = collect;
-  heap->collect_with_selective_fromspace = 
-    (collect_with_selective_fromspace ? collect_with_selective_fromspace
-    				      : default_collect_with_selective_fromspace);
   heap->before_collection = before_collection;
   heap->after_collection = after_collection;
   heap->stats = stats;
