@@ -215,16 +215,16 @@ Common RTS
     places that do this are:
       - argv.c          args vector-of-strings -- not fixed
       - ffi.c           ffi callback arguments -- not fixed
-      - stats.c         stats vector -- not fixed; hacked around
+      - stats.c         stats vector -- fixed
       - cglue.c         rest args -- fixed
     The correct way to implement this is to implement a _simple_ handle
     system:
        typedef word *w_handle;
        w_handle gc_make_handle( gc_t gc, word tagged_pointer );
-       w_handle gc_copy_handle( gc_t gc, w_handle handle );
        void gc_destroy_handle( gc_t gc, w_handle handle );
     and to use this to avoid premature collection of objects referred to
-    from C code only.
+    from C code only.  (The handle system has been implemented.  Must
+    use it to fix remaining trouble spots.  See BUGS, #128.)
 
 SPARC RTS
   * dzero should be in globals[].
