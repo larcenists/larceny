@@ -52,7 +52,8 @@
   (catfiles '("Rts/Build/globals.sh" 
 	      "Rts/Build/except.sh" 
 	      "Rts/Build/layouts.sh")
-	    "Rts/Build/schdefs.h"))
+	    "Rts/Build/schdefs.h")
+  (load "features.sch"))
 
 (define (build-runtime-system)
   (execute-in-directory "Rts" "make libx86.a"))
