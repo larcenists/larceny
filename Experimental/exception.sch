@@ -4,17 +4,15 @@
 ;
 ; Simple exception system -- prototype.
 ;
-; Here's the current interface, which is too simple but a good start:
-;
 ; There are three kinds of exceptions:
-;  - System exceptions are signalled by system primitives.
-;  - Errors are signalled by the ERROR procedure.
+;  - System exceptions are signalled by system primitives and are
+;    noncontinuable.
+;  - Errors are signalled by the ERROR procedure and are noncontinuable.
 ;  - User exceptions are created with the MAKE-EXCEPTION procedure and
-;    signalled by the SIGNAL-EXCEPTION procedure.
+;    signalled by the SIGNAL-EXCEPTION procedure.  They are continuable
+;    or not.
 ;
-; Currently, all errors are abortive and noncontinuable.
-;
-; (make-exception type values context) => exn
+; (make-exception type values context continuable?) => exn
 ;   TYPE is a symbol: "system", "error", or "user".  If "user", then
 ;   values can be any list of values, and context should for the time
 ;   being be #f.
@@ -31,21 +29,34 @@
 ; (exception-context exn) => object
 ;   Returns the context object of the exception object EXN.
 ;
+; (exception-continuable? exn) => boolean
+;   EXN must be an exception object.  Returns #t if one can return from the
+;   exception handler and expect something reasonable to happen.
+;
 ; (exception-message exn) => string
 ;   EXN must be an exception object.  A human-readable string explaining the
 ;   exception is returned.
 ;
-; (call-with-exception-handler handler thunk) => object
+; (call-with-handler handler thunk) => values
+;   Calls THUNK with no arguments.  If THUNK signals an exception exn
+;   then HANDLER is invoked on exn in the dynamic context of the exception.
+;
+; (call-with-exception-handler handler thunk) => values
 ;   Calls THUNK with no arguments.  If THUNK signals an exception exn
 ;   then HANDLER is invoked on exn in the dynamic context of the caller
-;   of CALL-WITH-EXCEPTION-HANDLER.
+;   of CALL-WITH-EXCEPTION-HANDLER.  (Note: a poorly chosen name, not
+;   yet corrected because Doug uses this package.)
 ;
 ; (error object ...)
-;   Signal an error exception where "object ..." are the exception values.
+;   Signal a noncontinuable error exception where "object ..." are the
+;   exception values.
 ;
-; (signal-exception exn) => never returns
+; (signal-exception exn) => values
 ;   EXN must be an exception object.  The exception is signalled, and any
-;   the closest handler in the dynamic scope is invoked.
+;   the closest handler in the dynamic scope is invoked.  If the exception
+;   is continuable, and the handler returns, then the values returned by
+;   the handler are those returned by signal-exception.  If the exception
+;   is noncontinuable, then signal-exception does not return.
 ;
 ;
 ; For example, here's a nested handler and re-raise:
@@ -65,65 +76,72 @@
 '(require 'record)                      ; Record system (used by DEFINE-RECORD)
 '(require 'define-record)               ; DEFINE-RECORD syntax
 
-(define-record exception (type values context))
+(define exception/token (vector 'exception))
+
+(define-record exception (type values context continuable?))
 
 (define (exception-message exn)
   (case (exception-type exn)
     ((system)
-     (apply decode-system-exception (exception-values exn)))
+     (apply exception/decode-system-exception (exception-values exn)))
     ((error)
-     (decode-error-exception (exception-values exn)))
+     (exception/decode-error-exception (exception-values exn)))
     ((user)
-     (decode-error-exception (list "User exception: " 
-                                   (exception-values exn))))
-    (else 
-     (error "Exception-message: " exn " has invalid type."))))
+     (exception/decode-error-exception 
+      (list "User exception: " (exception-values exn))))
+    (else ???)))
+
+(define (call-with-handler handler thunk)
+  (parameterize 
+      ((error-handler
+        (lambda (who . args)
+          (call-with-current-continuation
+           (lambda (context)
+             (let ((exn
+                    (cond ((eq? who exception/token)
+                           (car args))
+                          ((number? who)
+                           (make-exception 'system (cons who args) context #f))
+                          ((null? who)
+                           (make-exception 'error args context #f))
+                          (else
+                           (make-exception 'error (cons who (cons ": " args)) 
+                                           context
+                                           #f)))))
+               (if (not (exception-continuable? exn))
+                   (begin
+                     (handler exn)
+                     (error "Handler for non-continuable exception returned."))
+                   (handler exn))))))))
+    (thunk)))
 
 (define (call-with-exception-handler handler thunk)
   (let* ((exn #f)
          (r (call-with-current-continuation
              (lambda (escape)
-               (parameterize 
-                   ((error-handler
-                     (lambda (who . args)
-                       (call-with-current-continuation
-                        (lambda (context)
-                          (cond ((equal? who '#(exception))
-                                 (set! exn (car args)))
-                                ((number? who)
-                                 (set! exn (make-exception
-                                            'system
-                                            (cons who args)
-                                            context)))
-                                ((null? who)
-                                 (set! exn (make-exception 
-                                            'error
-                                            args
-                                            context)))
-                                (else
-                                 (set! exn (make-exception 
-                                            'error
-                                            (cons who (cons ": " args))
-                                            context))))
-                          (escape #f))))))
-                 (thunk))))))
+               (call-with-handler
+                (lambda (e)
+                  (set! exn e)
+                  (escape #f))
+                thunk)))))
     (if exn
         (handler exn)
         r)))
 
 (define (signal-exception exn)
-  ((error-handler) '#(exception) exn))
+  ((error-handler) exception/token exn))
+
 
 ; Internal
 
-(define (decode-error-exception values)
+(define (exception/decode-error-exception values)
   (let ((s (open-output-string)))
     (for-each (lambda (x) (display x s)) values)
     (get-output-string s)))
 
 ; Stolen from Lib/Common/ehandler.sch and Lib/Common/ecodes.sch and modified.
 
-(define decode-system-exception
+(define exception/decode-system-exception
   (let ()
 
     (define $ex.car 0)
@@ -218,7 +236,7 @@
     (define print-object? #t)
 
     (define (error . args)
-      (decode-error-exception args))
+      (exception/decode-error-exception args))
 
     (define (not-a-pair name obj)
       (if print-object?
