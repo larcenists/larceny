@@ -107,6 +107,11 @@ struct remset_data {
 
 
 /* Internal */
+
+static int identity = 0;
+  /* Counter for assigning identity to remembered sets.
+     */
+
 static int    log2( unsigned n );
 static pool_t *allocate_pool_segment( unsigned entries );
 static void   free_pool_segments( pool_t *first, unsigned entries );
@@ -127,7 +132,7 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
   remset_data_t *data;
   pool_t *p;
 
-  assert( tbl_entries >= 0 && (tbl_entries == 0 || log2( tbl_entries ) != -1 ));
+  assert( tbl_entries >= 0 && (tbl_entries == 0 || log2( tbl_entries ) != -1));
   assert( pool_entries >= 0 );
   assert( ssb_entries >= 0 );
 
@@ -173,18 +178,18 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
   rs->live = 0;
   rs->has_overflowed = FALSE;
   rs->data = data;
+  rs->identity = ++identity;
 
   rs_clear( rs );
 
   return rs;
 }
 
-/* FIXME: should release all pool segments but one. */
 void rs_clear( remset_t *rs )
 {
   remset_data_t *data = DATA(rs);
-  pool_t *ps;
   word *p;
+  int i;
 
   supremely_annoyingmsg( "REMSET @0x%p: clear", (void*)rs );
 
@@ -192,19 +197,19 @@ void rs_clear( remset_t *rs )
   *rs->ssb_top = *rs->ssb_bot;
 
   /* Clear hash table */
-  for ( p = data->tbl_bot ; p < data->tbl_lim ; p++ )
+  for ( p=data->tbl_bot, i=data->tbl_lim-data->tbl_bot ; i > 0 ; p++, i-- )
     *p = (word)(word*)0;
 
   /* Clear pools */
-  ps = data->first_pool;
-  while (ps != 0) {
-    ps->top = ps->bot;
-    ps = ps->next;
-  }
+  data->first_pool->top = data->first_pool->bot;
   data->curr_pool = data->first_pool;
+  free_pool_segments( data->first_pool->next, data->pool_entries );
+  data->first_pool->next = 0;
 
   rs->has_overflowed = FALSE;
   rs->live = 0;
+  data->numpools = 1;
+  data->stats.cleared++;
 }
 
 bool rs_compact( remset_t *rs )
@@ -281,6 +286,7 @@ bool rs_compact( remset_t *rs )
   rs->live += recorded;
   data->curr_pool->top = pooltop;
   *rs->ssb_top = *rs->ssb_bot;
+  data->stats.compacted++;
 
   supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
                          (word)rs, recorded, rs->live, rs->has_overflowed);
@@ -357,6 +363,7 @@ bool rs_compact_nocheck( remset_t *rs )
   rs->live += recorded;
   data->curr_pool->top = pooltop;
   *rs->ssb_top = *rs->ssb_bot;
+  data->stats.compacted++;
 
   return rs->has_overflowed;
 }
@@ -370,6 +377,8 @@ void rs_enumerate( remset_t *rs,
   word *p, *q;
   unsigned word_count = 0;
   unsigned removed_count=0;
+  unsigned scanned = 0;
+  unsigned scanned_all = 0;
 
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
@@ -382,7 +391,7 @@ void rs_enumerate( remset_t *rs,
   while (1) {
     p = ps->bot;
     q = ps->top;
-    DATA(rs)->stats.hash_scanned += (q-p)/2;
+    scanned_all += (q-p)/2;	/* Zero entries also */
     while (p < q) {
       if (*p != 0) {
 	assert2( (gclib_desc_b[pageof(*p)] & (MB_ALLOCATED|MB_HEAP_MEMORY)) ==
@@ -392,17 +401,21 @@ void rs_enumerate( remset_t *rs,
 	  *p = (word)(word*)0;
 	  removed_count++;
 	}
+	scanned++;		/* Only nonzero entries */
       }
       p += 2;
     }
     if (ps == DATA(rs)->curr_pool) break;
     ps = ps->next;
   }
+  DATA(rs)->stats.hash_scanned += scanned;
   DATA(rs)->stats.words_scanned += word_count;
   DATA(rs)->stats.hash_removed += removed_count;
   rs->live -= removed_count;
-  supremely_annoyingmsg( "REMSET @0x%x: removed %d elements.", (word)rs,
-			 removed_count );
+  DATA(rs)->stats.scanned++;
+  supremely_annoyingmsg( "REMSET @0x%x: removed %d elements (total %d).", 
+			 (word)rs, removed_count, 
+			 DATA(rs)->stats.hash_removed );
 }
 
 /* FIXME: Worth optimizing?  The inner loop looks gratuitously slow. */
@@ -437,8 +450,23 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
 
 void rs_stats( remset_t *rs, remset_stats_t *stats )
 {
-  *stats = DATA(rs)->stats;
-  memset( &DATA(rs)->stats, 0, sizeof( DATA(rs)->stats ) );
+  remset_data_t *data = DATA(rs);
+
+  data->stats.identity = rs->identity;
+
+  data->stats.hash_allocated = data->tbl_lim - data->tbl_bot;
+
+  data->stats.pool_used =
+    data->pool_entries*(data->numpools-1)*WORDS_PER_POOL_ENTRY +
+    (data->curr_pool->top - data->curr_pool->bot);
+
+  data->stats.pool_live = rs->live;
+
+  data->stats.pool_allocated = 
+    data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY;
+
+  *stats = data->stats;
+  memset( &data->stats, 0, sizeof( data->stats ) );
 }
 
 bool rs_isremembered( remset_t *rs, word w )
@@ -581,8 +609,8 @@ static int log2( unsigned n )
     n /= 2; p++;
     return (n == 0 ? p : -1);
   }
-  else
-    return -1;
+
+  return -1;
 }
 
 #if defined(REMSET_PROFILE)
