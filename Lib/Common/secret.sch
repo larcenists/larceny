@@ -8,9 +8,9 @@
 ;
 ; - in Compiler/*.imp.sch, in the definition of the primop table and
 ;                          in the definition of name:LIST
-; - in Eval/macro-expand.sch, in the definition of quasiquote
-; - in Compiler/pass1.aux.sch, in the definition of quasiquote
-; - in Eval/toplevel.sch, in the definition of the top-level environments
+; - in Eval/macro-expand.sch, at the end.
+; - in Compiler/usual.sch, in the definition of quasiquote
+; - in Lib/<sys>/toplevel.sch, in the definition of the top-level environments
 ; - in this file.
 ; 
 ; Very bad things happen if the names are not synchronized.
@@ -26,5 +26,7 @@
 (define .list list)			; In Lib/list.sch
 (define .list->vector list->vector)	; In Lib/vector.sch
 (define .cons cons)			; In Lib/primops.sch
+(define .car car)                       ; In Lib/primops.sch
+(define .cdr cdr)                       ; In Lib/primops.sch
 
 ; eof
