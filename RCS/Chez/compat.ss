@@ -2,6 +2,8 @@
 ;
 ; Chez will barf on a lot of these if optimization is turned on.
 
+(define (unspecified) '***unspecified***)
+
 (define **special-forms** '())
 
 (define some? ormap)
