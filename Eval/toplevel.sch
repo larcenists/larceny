@@ -285,7 +285,7 @@
     (environment-set! larc 'call-without-interrupts call-without-interrupts)
     (environment-set! larc 'standard-timeslice standard-timeslice)
     (environment-set! larc 'procedure-arity procedure-arity)
-    (environment-set! larc 'procedure-formals procedure-formals)
+    (environment-set! larc 'procedure-documentation procedure-documentation)
     (environment-set! larc 'procedure-documentation-string 
 		      procedure-documentation-string)
     (environment-set! larc 'procedure-name procedure-name)
