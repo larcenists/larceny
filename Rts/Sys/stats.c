@@ -438,7 +438,9 @@ stats_fillvector( void )
 static void
 fill_main_entries( word *vp, sys_stat_t *ms )
 {
+#if !defined(STDC_SOURCE)
   struct rusage buf;
+#endif
   unsigned usertime, systime, minflt, majflt;
 
 #ifndef BDW_GC
@@ -485,6 +487,7 @@ fill_main_entries( word *vp, sys_stat_t *ms )
   vp[ STAT_SWB_TRANS ] = ms->swb.transactions;
 #endif
 
+#if !defined(STDC_SOURCE)
   getrusage( RUSAGE_SELF, &buf );
 
 #if defined(SUNOS4) || defined(SUNOS5)  /* 4.x, 5.5, 5.6 */
@@ -499,6 +502,9 @@ fill_main_entries( word *vp, sys_stat_t *ms )
 
   majflt = fixnum( buf.ru_majflt );
   minflt = fixnum( buf.ru_minflt );
+#else
+  systime = usertime = minflt = majflt = 0;
+#endif
 
   vp[ STAT_RTIME ]         = fixnum( stats_rtclock() );
   vp[ STAT_STIME ]         = systime;
