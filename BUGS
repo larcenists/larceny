@@ -494,15 +494,6 @@ HIGH PRIORITY BUGS: 088, 091, 096, 105.
     built, Larceny can be used as a host system.  Still, this is somewhat
     counter-intuitive.
 
-096 v0.41 (981221 / lth)
-    Priority: high.
-
-    RTS error.
-
-    Strings passed to the routines in Rts/Sys/unix.c are limited to
-    1023 characters because getstring() has an internal buffer of length 1KB.
-    For example,  (system very-long-command) fails.
-
 098 v1.0a1 (981221 / wdc)
     Priority: medium.
 
