@@ -2,7 +2,7 @@
  * Scheme Run-Time System.
  * Memory management system workhorses.
  *
- * $Id: memsupport.c,v 1.3 91/06/26 16:43:45 lth Exp Locker: lth $
+ * $Id: memsupport.c,v 1.4 91/06/30 00:03:30 lth Exp Locker: lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -14,6 +14,8 @@
  * if necessary.
  */
 
+#include <sys/time.h>
+#include <sys/resource.h>
 #include "machine.h"
 #include "gcinterface.h"
 #include "layouts.h"
@@ -38,6 +40,7 @@ unsigned e_size, t_size, s_size, stk_size, e_lim;
     return 0;
 
   globals[ CONTINUATION_OFFSET ] = FALSE_CONST;
+  globals[ T_TRANS_OFFSET ] = globals[ T_MAX_OFFSET ];
   setup_memory_limits();
   setup_stack();
 }
@@ -61,6 +64,10 @@ gcstart2( n )
 word n;
 {
   int n_bytes = nativeint( n ) * 4;
+  unsigned int milliseconds;
+  struct rusage r1, r2;
+
+  getrusage( RUSAGE_SELF, &r1 );
 
   flush_stack_cache();
 
@@ -83,24 +90,29 @@ word n;
   }
 
   flush_icache();
+
+  getrusage( RUSAGE_SELF, &r2 );
+  milliseconds = ((r2.ru_utime.tv_sec - r1.ru_utime.tv_sec)*1000
+		  + (r2.ru_utime.tv_usec - r1.ru_utime.tv_usec)/1000);
+#ifdef DEBUG
+  printf( "Time spent collecting: %u milliseconds.\n", milliseconds );
+#endif
 }
 
 
 /*
  * Given that the spaces have been set up and that pointers are in the
- * "globals" array, we calculate the ephemeral heap limit and the stack
- * cache limit and store these into the array.
+ * "globals" array, we calculate the ephemeral heap limit.
  */
 setup_memory_limits()
 {
-  /* Since all stack frames are doubleword aligned and a stack frame
-   * takes as much space as the heap frame, we need to reserve no more
-   * heap space than there is stack space.
+  /*
+   * currently we reserve twice the stack space for the overflow area.
+   * This is allmost certainly too much (but that is not harmful).
    */
 
-  globals[ E_LIMIT_OFFSET ] = globals[ E_MAX_OFFSET ] - 
-             (globals[ STK_MAX_OFFSET ] - globals[ STK_BASE_OFFSET ] + 1)*4;
-  globals[ T_TRANS_OFFSET ] = globals[ T_MAX_OFFSET ];
+  globals[ E_LIMIT_OFFSET ] = globals[ E_MAX_OFFSET ]+4 - 
+    roundup8( (globals[ STK_MAX_OFFSET ] - globals[ STK_BASE_OFFSET ] + 1)*2 );
 }
 
 
@@ -182,6 +194,12 @@ void restore_frame()
     if (sframesize % 8 != 0) sframesize += 4;
     sframe = (word *) globals[ SP_OFFSET ] - sframesize / 4;
     globals[ SP_OFFSET ] = (word) sframe;
+
+#if 0
+#ifdef DEBUG
+  printf( "restoring frame. hsz=%u, ssz=%u, hfr=0x%lx, sfr=0x%lx\n", hframesize, sframesize, (word) hframe, (word) sframe );
+#endif
+#endif
 
     /* Follow continuation chain. */
 
