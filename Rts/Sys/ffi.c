@@ -337,13 +337,16 @@ void
 larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
 			        word *adesc, int rdesc, int argc )
 {
-  word argv[32], *x, scheme_result, *ptr, u_val, *q;
+  word argv[32], *x, scheme_result, u_val, *q;
   s_word s_val;
-  int bytes, i;
+  int i;
   byte *argp;
 
+#if !defined(BDW_GC)
+  word *allocptr;
+  int bytes;
+  
   bytes = 0;
-  ptr = 0;
 
   /* Make a pass over the arguments and find out if we need to do any
    * allocation.  This can't be predetermined, although the upper limit
@@ -371,8 +374,17 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
 
   /* Allocate. */
   if (bytes > 0)
-    ptr = alloc_from_heap( bytes );
-
+    allocptr = alloc_from_heap( bytes );
+  else
+    allocptr = 0;
+  
+# define alloc_storage( var, bytes ) \
+    ( var=allocptr, allocptr+=(bytes/sizeof(word)) )
+#else /* BDW_GC */
+  /* FIXME: this should be atomic allocation */
+# define alloc_storage( var, bytes ) var=alloc_from_heap( bytes )
+#endif
+  
   /* Convert. */
   for ( argp=(byte*)(ptrof(adesc)+1), i=0 ; i < argc ; i++ ) {
     x = args[i];
@@ -380,8 +392,7 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
     case 0 : /* signed32 */
       s_val = (s_word)*x;
       if (s_val < MOST_NEGATIVE_FIXNUM || s_val >= MOST_POSITIVE_FIXNUM){
-	q = ptr;
-	ptr += 16;
+	alloc_storage( q, 16 );
 	*q = mkheader( 8, BIGNUM_HDR );
 	if (s_val < 0) {
 	  *(q+1) = mkbignum_header( 1, 1 );
@@ -400,8 +411,7 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
     case 4 : /* pointer */
       u_val = *x;
       if (u_val >= MOST_NEGATIVE_FIXNUM) {
-	q = ptr;
-	ptr += 16;
+	alloc_storage( q, 16 );
 	*q = mkheader( 8, BIGNUM_HDR );
 	*(q+1) = mkbignum_header( 0, 1 );
 	*(q+2) = u_val;
@@ -412,8 +422,7 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
       break;
     case 2 : /* ieee32 */
     case 3 : /* ieee64 */
-      q = ptr;
-      ptr += 16;
+      alloc_storage( q, 16 );
       *q = mkheader( 12, FLONUM_HDR );
       if (*argp == 2)
 	*(double*)(q+2) = (double)*(float*)x;
