@@ -44,6 +44,10 @@
 (load "Experimental/record.sch")        ; Record package
 (load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 
+;;; Load exception system
+
+(load "Experimental/exception.sch")
+
 ;;; Load foreign-function interface
 
 (load "Auxlib/std-ffi.sch")
@@ -57,6 +61,15 @@
       (sort (apropos x) 
 	    (lambda (a b)
 	      (string<? (symbol->string a) (symbol->string b)))))))
+
+(define (procedure-documentation-string p)
+  (let ((e (procedure-expression p)))
+    (if (and (list? e)
+             (> (length e) 2)
+             (string? (caddr e))
+             (not (null? (cdddr e))))
+        (caddr e)
+        #f)))
 
 ;;; Dump the heap
 
