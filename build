@@ -28,7 +28,7 @@
 # Initialized values Don't remove tags -- used by `make setup'.
 
 LARCENY=/proj/will/lth/larceny/src #@LARCENY_DEF@
-DEFAULT_BUILD_HOST=chez #@BUILD_HOST_DEF@
+DEFAULT_BUILD_HOST=larceny #@BUILD_HOST_DEF@
 export LARCENY
 export DEFAULT_BUILD_HOST
 
