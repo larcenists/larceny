@@ -52,6 +52,7 @@
 	  (cons 'os-minor-version       (sys$system-feature 'os-minor))
 	  (cons 'fixnum-bits            (- wordsize 2))
 	  (cons 'fixnum-representation  'twos-complement)
+	  (cons 'codevector-representation (sys$system-feature 'codevec))
 	  (cons 'char-bits              char-bits)
 	  (cons 'char-representation    char-repr)
 	  (cons 'flonum-bits            64)
