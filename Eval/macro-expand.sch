@@ -1,7 +1,7 @@
 ; Eval/macro-expand.sch
 ; Larceny -- interpreter's macro expander
 ;
-; $Id: macro-expand.sch,v 1.1 1997/03/20 16:44:25 lth Exp $
+; $Id: macro-expand.sch,v 1.2 1997/07/07 20:43:13 lth Exp lth $
 ;
 ; USAGE
 ;   (macro-expand <expr>)
@@ -299,7 +299,7 @@
 ;                                      (LIST (LIST (QUOTE UNQS) 
 ;                                            (r (QQ x) (- n 1)))
 ;                                      (r (QQ y) n)))
-;   (r (QQ (QUOTE x)) m) => (LIST (QUOTE QUOTE) (QUOTE x))
+;;   (r (QQ (QUOTE x)) m) => (LIST (QUOTE QUOTE) (QUOTE x))
 ;   (r (QQ (x . y) m)) => (CONS (r (QQ x) m) (r (QQ y) m))
 ;   (r (QQ x) m) => (QUOTE x)
 ;
@@ -358,8 +358,8 @@
 					      '(QUOTE UNQUOTE-SPLICING)
 					      (r (list 'QUASIQUOTE x) (- l 1)))
 					(r (list 'QUASIQUOTE y) l))))))
-		     ((eq? (car (cadr e)) 'QUOTE)
-		      (list hyg-list '(QUOTE QUOTE) (cadr e)))
+;		     ((eq? (car (cadr e)) 'QUOTE)
+;		      (list hyg-list '(QUOTE QUOTE) (cadr e)))
 		     (else
 		      (let ((x (car (cadr e)))
 			    (y (cdr (cadr e))))

@@ -1,8 +1,12 @@
 ; -*- text -*-
 ; ./BUGS-FIXED
-; $Id: BUGS-FIXED,v 1.1 1997/05/15 00:40:15 lth Exp $
+; $Id: BUGS-FIXED,v 1.2 1997/07/07 20:28:23 lth Exp lth $
 
-	       Known bugs in Larceny that have been fixed
+	       Known bugs in Larceny that have been fixed.
+
+	 Bugs are listed in the order recorded, with fix dates and
+				the fix.
+
 
 001  (v0.25) 
 
@@ -14,6 +18,52 @@
      for complexes where the real part is 0.0, e.g. (i->e 0.0+1.0i).
 
      FIX: became fixed when 006 was fixed.
+
+002  (v0.26)  Fixed 970624 by lth
+
+     The exit status from larceny is some random number.
+
+     FIX:
+     Wrote the required code to make this work :-)
+
+004  (v0.27e)  Fixed 970701 by lth
+
+     The following expression loops forever:
+
+       (rationalize (inexact->exact 0.1) 1/10000000000000000000000000000)
+
+     It hangs for more 0s as well.  According to Chez, the result should be
+     1801439850915747/18014398509157469.
+
+     Furthermore, when the source from Larceny is plugged into Chez, then
+     it gives the same answer as the Chez built-in rationalize.
+
+     This appears to be a bug in ratnum<?, which in turn is a bug in 
+     ratnum-sub, which in turn is a bug in ratnum-add-or-sub 
+     (all in Lib/ratnums.sch).  Consider:
+
+  (ratnum-add-or-sub 
+    134217728000000007450580597058045853/1342177280000000000000000000000000000 
+    134217728000000007450580596789610397/1342177280000000000000000000000000000 
+    -)
+
+     and
+
+  (ratnum-add-or-sub 
+    134217728000000007450580596789610397/1342177280000000000000000000000000000
+    134217728000000007450580597058045853/1342177280000000000000000000000000000 
+    -)
+
+     which both evaluate to 1/5000000000000000000000000000, but in the latter
+     case the sign is wrong (although the magnitude is right): it should
+     be negative.
+
+     This in turn turns out to be a bug in bignum subtraction: the numerator
+     of the smaller minus the numerator of the larger is positive!
+
+     FIX:
+     In the last instance: this was a bug in bignum->fixnum, which did not
+     preserve the sign of a negative bignum.
 
 006  (v0.27e)
 
@@ -149,4 +199,132 @@
       were wrong.
     * Third, a typo in after_promote_all made out-of-bounds array references
       to prom-bits possible (although not in the current case).
+
+017  (v0.28)  970507  Fixed 970625 by lth
+
+     Must restore console i/o on error.  Consider:
+
+        (with-output-to-file "/dev/null" (lambda () (error)))
+
+     After this, the repl accepts and executes commands (try (exit)),
+     but output is still to /dev/null.
+
+     FIX:
+     Wrote the necessary code in the Repl and its error handlers to do this.
+
+020  (v0.28b) 970527  Fixed 970624 by lth
+
+     Transcript:
+
+	everest(8) % larceny ../larceny.heap
+	Larceny v0.28b/precise (SunOS;split) (lth/Tue May 27 20:03:53 EDT 1997)
+
+	> (load "dynamic.sch")
+	> (dynamic-benchmark 10)
+
+	--------------------------------------------------------
+	dynamic
+	Error: dynamic-parse-expressionsIllegal expression list: ~srest
+
+     Apparently a bug in the interpreter.
+
+     FIX:
+     Turned out to be an error in the rewriting of certain quasiquotations,
+     which caused the macro expander to generate erroneous code for CASE
+     expressions.  This error did not show up in compiled code because the
+     compiler uses a different macro expander for CASE.  However, the
+     compiler uses a copy of the same quasiquotation rewriter, so that had 
+     to be fixed too.
+
+
+023  (v0.28d) 970701  Fixed 970701 by lth
+
+     'Magnitude' is broken:
+
+     > (magnitude 3+2i)
+     Error: Attempt to apply 2, which is not a procedure.
+
+     FIX:
+     Simple typo in the implementation.
+
+
+024  (v0.28d) 970701  Fixed 970101 by lth
+
+     Make-polar is broken:
+
+     > (make-polar 3.605551275463989 0.5880026035475675)
+     -0.5258437067537658-0.2631263153813724i
+
+     But the correct answer is approx. 3+2i.  The code is very wrong --
+     it's not even _close_ to correct.
+
+     FIX (970701) / lth:
+     Rewritten.
+
+
+025  (v0.28d) 970701  Fixed 970701 by lth
+
+     Flonum/compnum multiplication is broken:
+
+      > (* 1.0 0.8320502943378437+0.554700196225229i)
+      0.0
+
+     FIX: was typo in compnum/compnum multiplication in generic.s.
+
+
+028  (v0.28c) 970611  Fixed 970702 by lth
+
+     Message-ID: <339EF37B.5361@ccs.neu.edu>
+     Date: Wed, 11 Jun 1997 13:51:04 -0500
+     From: William D Clinger <will@ccs.neu.edu>
+     To: lth@ccs.neu.edu
+     Subject: Minor bug report (segmentation fault)
+     
+     This bug is so minor that I'm not going to fix it right now.
+     I'll just let you add it to the list of things to fix later.
+     
+     You seem to get a segmentation fault if you call gcctl on the
+     young part of the non-predictive heap.
+     
+     Will
+     
+     ----
+     
+     [Benchmarks]% larc2 -calibrate
+     Calibration run using non-predictive collector
+     Larceny v0.28c/precise (SunOS;split) (will/Wed Jun 11 13:36:01 EDT 1997)
+     Non-predictive hi_mark=80, lo_mark=0, oflo_mark=80.
+     GC type: sc/fixed+2*sc/variable+static
+     
+     Heap statistics:
+     Generation 0
+       Size of semispace 1: 262144 bytes
+       Size of semispace 2: 262144 bytes
+       Live data: 0 bytes
+       Live stack: 0 bytes
+     Generation 1
+       Size of semispace 1: 524288 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 0 bytes
+     Generation 2
+       Size of semispace 1: 2097152 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 0 bytes
+     Generation 3
+       Size of semispace 1: 0 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 0 bytes
+     Generation 4
+       Size of semispace 1: 825344 bytes
+       Size of semispace 2: 0 bytes
+       Live data: 825344 bytes
+     
+     > (gcctl 4 'j-fixed 0) ; should be (gcctl 3 'j-fixed 0)
+     Segmentation fault
+     
+     FIX:
+     The code for set_policy in memmgr.c did perform a range check on
+     the heap number, but it compared it against the maximum generation 
+     number.  The code was fixed to compare agains the index of the
+     oldest old heap.
 

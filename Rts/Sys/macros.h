@@ -1,7 +1,7 @@
 /* Rts/Sys/macros.h
  * Larceny run-time system -- macros
  *
- * $Id: macros.h,v 1.2 1997/02/06 20:01:41 lth Exp $
+ * $Id: macros.h,v 1.3 1997/07/07 20:13:53 lth Exp lth $
  *
  * Machine and representation dependent (and independent) macros,
  * including tag definitions and tag masks, and interesting constants.
@@ -28,7 +28,7 @@
 #define tagof( w )          ((word)(w) & TAG_MASK)
 
 /* Given tagged pointer, return pointer */
-#define ptrof( w )          (word *) ((word)(w) & ~TAG_MASK)
+#define ptrof( w )          ((word *)((word)(w) & ~TAG_MASK))
 
 /* May be faster on some architectures, and should never be slower (?) */
 #define striptag( w, t )   ((word*)((w) ^ t))
@@ -91,8 +91,8 @@
 #define string_data( x )       ((char*)ptrof( x )+4)
 
 #define gcell_ref( cp )        pair_car( cp )
-#define vector_ref( vp, i )    (*(ptrof( vp )+1+(i)))
-#define vector_set( vp, i, v ) (*(ptrof( vp )+1+(i)) = (v))
+#define vector_ref( vp, i )    (*(ptrof( vp )+VEC_HEADER_WORDS+(i)))
+#define vector_set( vp, i, v ) (*(ptrof( vp )+VEC_HEADER_WORDS+(i)) = (v))
 
 #define MEGABYTE  (1024*1024)
 

@@ -57,7 +57,7 @@
   (,$return))
 
 
-; sys$continuation-data-structure
+; sys$continuation-data-structure  (Obsolete?)
 ;
 ; This procedure knows about the layout of the procedure created by
 ; call-with-current-continuation (above), and given such a procedure

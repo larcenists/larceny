@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: toplevel.sch,v 1.3 1997/05/31 01:51:48 lth Exp lth $
+; $Id: toplevel.sch,v 1.4 1997/07/07 20:43:13 lth Exp lth $
 ;
 ; Larceny run-time system: The top-level environment.
 
@@ -123,8 +123,8 @@
   ;; not in R4RS:
   (extend-toplevel-env! 'symbol-hash symbol-hash)
   (extend-toplevel-env! 'gensym gensym)
-  (extend-toplevel-env! 'namespace namespace)           ; temporary
-  (extend-toplevel-env! 'namespace-set! namespace-set!) ; temporary
+  (extend-toplevel-env! 'oblist oblist)
+  (extend-toplevel-env! 'oblist-set! oblist-set!)
 
   ;; R5RS environments
 
@@ -288,10 +288,11 @@
   (extend-toplevel-env! 'procedure-ref procedure-ref)
   (extend-toplevel-env! 'procedure-set! procedure-set!)
   (extend-toplevel-env! 'make-procedure make-procedure)
-  (extend-toplevel-env! 'list->procedure list->procedure)
+;  (extend-toplevel-env! 'list->procedure list->procedure)
   (extend-toplevel-env! 'enable-interrupts enable-interrupts)
   (extend-toplevel-env! 'disable-interrupts disable-interrupts)
   (extend-toplevel-env! 'interrupt-handler interrupt-handler)
+  (extend-toplevel-env! 'call-without-interrupts call-without-interrupts)
 
   ;; i/o
 
@@ -317,6 +318,7 @@
   (extend-toplevel-env! 'newline newline)
   (extend-toplevel-env! 'write-char write-char)
   ;; not in R4RS:
+  (extend-toplevel-env! 'format format)
   (extend-toplevel-env! 'port? port?)
   (extend-toplevel-env! 'flush-output-port flush-output-port)
   (extend-toplevel-env! 'eof-object eof-object)
@@ -340,18 +342,15 @@
   (extend-toplevel-env! 'reset reset)
   (extend-toplevel-env! 'reset-handler reset-handler)
   (extend-toplevel-env! 'exit exit)
+  (extend-toplevel-env! 'add-exit-procedure! add-exit-procedure!)
+  (extend-toplevel-env! 'add-init-procedure! add-init-procedure!)
   (extend-toplevel-env! 'eval eval)
 
-  ;; mainly for debugging 
+  ;; debugging.
 
   (extend-toplevel-env! 'error-continuation error-continuation)
-
-  ;; continuations
-  ;; Code obsolete (see Lib/control.sch)
-
-;  (extend-toplevel-env! 'continuation->vector continuation->vector)
-;  (extend-toplevel-env! 'continuation? continuation?)
-
+  (extend-toplevel-env! 'current-continuation-structure 
+			current-continuation-structure)
   ;; property lists
 
   (extend-toplevel-env! 'getprop getprop)
@@ -415,6 +414,7 @@
 
 ;  (extend-toplevel-env! 'rep-loop rep-loop)
 ;  (extend-toplevel-env! 'rep-loop-startup rep-loop-startup)
+  (extend-toplevel-env! 'repl-display-procedure repl-display-procedure)
   (extend-toplevel-env! 'load-noisily load-noisily)
   (extend-toplevel-env! 'load-quietly load-quietly)
   (extend-toplevel-env! 'typetag typetag)

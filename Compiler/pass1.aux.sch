@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 10 May 1995
+; 24 June 1995 / lth
 ;
 ; A naive implementation of macros and procedure-specific source code
 ; transformations.  Most of this should be replaced by R4RS hygienic
@@ -304,7 +304,7 @@
 ;;                                      (LIST (LIST (QUOTE UNQS) 
 ;;                                                  (r (QQ x) (- n 1)))
 ;;                                                  (r (QQ y) n)))
-;;   (r (QQ (QUOTE x)) m) => (LIST (QUOTE QUOTE) (QUOTE x))
+;;;   (r (QQ (QUOTE x)) m) => (LIST (QUOTE QUOTE) (QUOTE x))
 ;;   (r (QQ (x . y) m)) => (CONS (r (QQ x) m) (r (QQ y) m))
 ;;   (r (QQ x) m) => (QUOTE x)
 ;;
@@ -362,8 +362,8 @@
                                             '(QUOTE UNQUOTE-SPLICING)
                                             (r (list 'QUASIQUOTE x) (- l 1)))
                                       (r (list 'QUASIQUOTE y) l))))))
-                   ((eq? (car (cadr e)) 'QUOTE)
-                    (list hyg-list '(QUOTE QUOTE) (cadr e)))
+;                   ((eq? (car (cadr e)) 'QUOTE)
+;                    (list hyg-list '(QUOTE QUOTE) (cadr e)))
                    (else
                     (let ((x (car (cadr e)))
                           (y (cdr (cadr e))))

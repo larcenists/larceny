@@ -1,7 +1,7 @@
 /* Rts/Sys/gc-interface.h
  * Larceny run-time system -- garbage collector interface (internal).
  * 
- * $Id: memmgr.h,v 1.10 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: memmgr.h,v 1.10 1997/05/31 01:38:14 lth Exp $
  *
  * A garbage collector is an ADT of type gc_t; see the file Rts/Sys/gc.h.
  * 

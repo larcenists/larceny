@@ -1,7 +1,7 @@
 /* Rts/Sys/young-heap.c
  * Larceny run-time system -- youngest heap.
  *
- * $Id: young-heap.c,v 1.12 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: young-heap.c,v 1.13 1997/07/07 20:13:53 lth Exp lth $
  *
  * Contract
  *
@@ -139,6 +139,8 @@ create_young_heap( int *gen_no,
   if (ewatermark <= 0 || ewatermark > 100)
     ewatermark = DEFAULT_EWATERMARK;
 
+  annoyingmsg("Youngest oflo_mark=%u.", ewatermark);
+
  again2:
   heapptr = 
     (word*)gclib_alloc_heap( size_bytes*2, data->heap_no, data->gen_no );
@@ -155,7 +157,7 @@ create_young_heap( int *gen_no,
   heapptr += size_bytes / sizeof( word );
   data->espace2_lim = heapptr;
 
-  data->watermark = (size_bytes/100)*50;
+  data->watermark = (size_bytes/100)*ewatermark;
   data->globals = globals;
   data->heapsize = size_bytes;
   data->must_promote = 0;
@@ -191,9 +193,19 @@ initialize( young_heap_t *heap )
 
 
 static void
-set_policy( young_heap_t *heap, int rator, unsigned rand )
+set_policy( young_heap_t *heap, int op, unsigned value )
 {
-  /* Nothing yet */
+  young_data_t *data = DATA(heap);
+
+  switch (op) {
+  case 8 : /* oflomark */
+    if ( value > 100 )
+        value = 100;
+    if ( value <= 0 )
+        data->promote_always = 1;
+    else data->watermark = (data->heapsize/100)*value;
+    break;
+  }
 }
 
 static word *
@@ -203,8 +215,11 @@ allocate( young_heap_t *heap, unsigned nbytes )
   word *globals = DATA(heap)->globals;
 
   nbytes = roundup8( nbytes );
-  if (globals[ G_ETOP ] + nbytes > globals[ G_STKP ])
+  if (globals[ G_ETOP ] + nbytes > globals[ G_STKP ]) {
+    supremely_annoyingmsg( "Allocation exception in youngest heap: %u > %u.",
+                           nbytes, globals[ G_ETOP ] - globals [ G_STKP ]);
     heap->collector->collect( heap->collector, 0, GC_COLLECT, nbytes );
+  }
 
   assert( globals[ G_ETOP ] + nbytes <= globals[ G_STKP ] );
 
@@ -221,9 +236,11 @@ collect( young_heap_t *heap, unsigned request_bytes )
   word *globals = data->globals;
   word *oldlo, *oldhi;
 
+  supremely_annoyingmsg("Collecting youngest generation.");
   flush_stack( heap );
 
-  if (data->must_promote || data->promote_always) goto promote;
+  if (data->must_promote || data->promote_always) 
+    goto promote;
 
   debugmsg( "[debug] young heap: collecting." );
   stats_gc_type( 0, STATS_COLLECT );
@@ -237,7 +254,7 @@ collect( young_heap_t *heap, unsigned request_bytes )
 			       (word*)globals[ G_ETOP ] );
   globals[ G_STKP ] = globals[ G_ELIM ];
 
-  data->must_promote = (free_space(heap) < data->watermark);
+  data->must_promote = (data->heapsize - free_space(heap) > data->watermark);
   data->just_promoted = 0;
   data->copied_last_gc = globals[G_ETOP]-globals[G_EBOT];
   data->dont_clear_copy_number = 1;
@@ -251,7 +268,8 @@ collect( young_heap_t *heap, unsigned request_bytes )
     goto promote;
   }
 
-  if (free_space( heap ) < request_bytes) goto promote;
+  if (free_space( heap ) < request_bytes) 
+    goto promote;
 
   data->dont_clear_copy_number = 0;
   debugmsg( "[debug] young heap: finished collecting." );
@@ -259,6 +277,7 @@ collect( young_heap_t *heap, unsigned request_bytes )
 
  promote:
   debugmsg( "[debug] young heap: promoting." );
+  supremely_annoyingmsg("Promoting out of youngest generation.");
   /* the old generation gets to call stats_gc_type(); */
   data->must_promote = 0;
   heap->collector->promote_out_of( heap->collector, data->gen_no );
@@ -268,9 +287,12 @@ static void
 assert_free_space( young_heap_t *heap, unsigned request_bytes )
 {
   if (request_bytes > free_space( heap )) {
-    if (!DATA(heap)->just_promoted)
+    if (!DATA(heap)->just_promoted) {
+      supremely_annoyingmsg("Promoting because %u > %u.",
+                             request_bytes, free_space( heap ));
       heap->collector->promote_out_of( heap->collector, 0 );
-    
+    }
+
     if (request_bytes > free_space( heap ))
       panic( "Cannot allocate object of size %u bytes "
 	    "(object is too large for heap).", request_bytes );
@@ -286,6 +308,10 @@ stack_overflow( young_heap_t *heap )
    *   must re-check when the overflow logic returns.  But it is large
    *   enough to minimize the chance of a second overflow.
    */
+  word *globals = DATA(heap)->globals;
+
+  supremely_annoyingmsg( "Stack overflow exception: %u.",
+			globals[ G_ETOP ] - globals [ G_STKP ]);
   heap->collector
     ->collect( heap->collector, DATA(heap)->gen_no, GC_COLLECT, 1024 );
 }

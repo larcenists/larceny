@@ -1,7 +1,7 @@
 /* Rts/Sys/unix-alloc.c 
  * Larceny Run-Time System  --  low-level memory allocator (Unix).
  *
- * $Id: unix-alloc.c,v 1.9 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: unix-alloc.c,v 1.10 1997/07/07 20:13:53 lth Exp lth $
  *
  * This allocator handles memory allocation for Larceny and manages the
  * memory descriptor tables that are used by the collector and the write
@@ -65,6 +65,7 @@ static unsigned   rts_bytes;         /* bytes allocated to RTS "other" */
 static unsigned   max_rts_bytes;     /* max ditto */
 static unsigned   free_bytes;        /* bytes on free list */
 static unsigned   max_free_bytes;    /* max ditto */
+static unsigned   bytes_allocated_by_sbrk;
 
 static void *gclib_alloc( unsigned bytes );
 static void dump_freelist( void );
@@ -221,6 +222,10 @@ static void *gclib_alloc( unsigned bytes )
   ptr = sbrk( bytes );
   if ((int)ptr == -1) return 0;
   top = ptr+bytes;
+
+  bytes_allocated_by_sbrk += bytes;
+  supremely_annoyingmsg( "Allocating %u bytes with sbrk; total = %u bytes",
+                         bytes, bytes_allocated_by_sbrk);
 
  again:
   if (pageof( top ) - pageof( gclib_pagebase ) > descriptor_slots) {

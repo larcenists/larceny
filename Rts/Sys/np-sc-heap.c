@@ -1,7 +1,7 @@
 /* Rts/Sys/np-sc-heap.c
  * Larceny run-time system -- non-predictive copying collector.
  *
- * $Id: np-sc-heap.c,v 1.10 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: np-sc-heap.c,v 1.11 1997/07/07 20:13:53 lth Exp lth $
  *
  * The collector divides the heap into two generations.  Each generation
  * is represented by one semispace_t data type: one for the old generation,
@@ -110,6 +110,9 @@ create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
   if (oflo_mark == 0 || oflo_mark > 100)
     oflo_mark = DEFAULT_NP_OFLOWATERMARK;
 
+  annoyingmsg("Non-predictive hi_mark=%u, lo_mark=%u, oflo_mark=%u.",
+              hi_mark, lo_mark, oflo_mark);
+
   /* Allocation */
 
   heap = allocate_heap( *gen_no, heap_no );
@@ -166,7 +169,7 @@ create_old_np_sc_heap( int *gen_no,          /* add at least 1 to this */
   data->j_percent = 50;
   data->expansion_fixed = 0;
   data->expand_fixed = 1;
-  data->expand_percent = 20;
+  data->expand_percent = 50;
 
   data->old = create_semispace( size_bytes, data->heap_no, data->gen_no);
   data->young = 0;
@@ -350,7 +353,7 @@ internal_promote( old_heap_t *heap, int force_collection )
 
     gclib_np_copy_younger_into( heap->collector, data->young, ROOTS_AND_SCAN );
     ss_sync( data->young );
-    data->copied_last_gc_young = data->old->used - used_before;
+    data->copied_last_gc_young = data->young->used - used_before;
 
     if (data->young->used > data->j*data->stepsize)
       annoyingmsg( "Non-predictive 'young' area overflowed by %u bytes.",
@@ -385,7 +388,7 @@ static void
 internal_collect( old_heap_t *heap )
 {
   npsc_data_t *d = DATA(heap);
-  unsigned old_before, young_before, young_after;
+  unsigned old_before, young_before, old_after;
 
   annoyingmsg( "GC in the non-predictive heap: k=%d, j=%d.", d->k, d->j );
   debugmsg( "[debug] NPSC: collecting. k=%d, j=%d", d->k, d->j );
@@ -404,15 +407,15 @@ internal_collect( old_heap_t *heap )
   /* Manipulate the semispaces: young becomes old, old is deallocated */
   gclib_set_gen_no( d->young, d->gen_no );
   ss_sync( d->young );
-  young_after = d->young->used;
+  old_after = d->young->used;
   ss_free( d->old );
   d->old = d->young;
   d->young = 0;
-  d->copied_last_gc_old = young_after - young_before;
+  d->copied_last_gc_old = old_after - young_before;
 
-  supremely_annoyingmsg( "  old before: %u, young before: %u, young after: %d"
+  supremely_annoyingmsg( "  old before: %u, young before: %u, old after: %d"
 			 "\n  copied: %u",
-			 old_before, young_before, young_after,
+			 old_before, young_before, old_after,
 			 d->copied_last_gc_old );
 			 
   /* Clear remembered sets not cleared by the collector infrastructure. */
@@ -487,6 +490,7 @@ static void np_expansion_policy( old_heap_t *heap )
   }
 
   /* Contraction code */
+#if 0
   if (!expanded) {
     unsigned lo_target = (d->k * d->stepsize)/100*d->lo_mark;
 
@@ -507,6 +511,7 @@ static void np_expansion_policy( old_heap_t *heap )
       }
     }
   }
+#endif
 
   assert( d->k >= live_steps );
 

@@ -2,7 +2,7 @@
 #
 # Larceny -- top-level Makefile
 #
-# $Id: Makefile,v 1.8 1997/05/31 01:54:38 lth Exp lth $
+# $Id: Makefile,v 1.9 1997/07/07 20:28:23 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.

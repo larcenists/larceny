@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id: syshooks.sch,v 1.2 1997/05/31 01:50:28 lth Exp lth $
+; $Id: syshooks.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; Larceny run-time system -- interface to system functions
 ;
@@ -23,6 +23,7 @@
     ((sys$tracectl) sys$tracectl)
     ((sys$trace) sys$trace)
     ((sys$gcctl) sys$gcctl)
+    ((sys$get-pending-asynch-signal) sys$get-pending-asynch-signal)
     (else ???)))
 
 ; eof

@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: num2str.sch,v 1.3 1997/05/15 00:42:10 lth Exp $
+; $Id: num2str.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
 ;
 ;                                       16 April 1990
 ;
@@ -25,7 +25,7 @@
                              (exact? radix)
                              (integer? radix))
                         (number2string x radix)
-                        (error "Bad radix" radix))))))
+                        (begin (error "Bad radix" radix) #t))))))
     
     (define (number2string x radix)
       (cond ((fixnum? x)
@@ -41,7 +41,8 @@
 	    ((rectnum? x)
 	     (rectnum->string x radix))
 	    (else
-	     (error "number->string: not a number: " x))))
+	     (error "number->string: not a number: " x)
+	     #t)))
 
     (define (compnum->string x radix)
       (let ((r (real-part x))
@@ -51,7 +52,8 @@
 	      ; FIXME: could convert to rectnum, then do #i.
 	      ((not (= radix 10))
 	       (error "number->string: can't do complexes in non-10 radix: " 
-		      x))
+		      x)
+	       #t)
 	      (else
 	       ; A little mysterious, to deal with +/-inf.0, +nan.0
 	       (let ((rr (flonum->string r 10))

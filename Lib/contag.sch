@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id: contag.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: contag.sch,v 1.3 1997/07/07 20:45:06 lth Exp $
 ;
 ; Larceny runtime system.
 ; Scheme code for various contagion procedures and numeric coercion.
@@ -68,7 +68,8 @@
 
   (define (oops a b retry)
     (error "INTERNAL ERROR in contagion: same-representation arithmetic: "
-	   "ops = "a ", " b "; code=" (contagion-error-code retry)))
+	   "ops = "a ", " b "; code=" (contagion-error-code retry))
+    #t)
 
   (define (fun f1 f2)
     (lambda (a b retry)
@@ -150,7 +151,8 @@
       (if (not code)
 	  (error "INTERNAL ERROR in Lib/contag.sch:contagion-error, arguments "
 		 (list a b retry-idx))
-	  ((error-handler) code a b (unspecified)))))
+	  ((error-handler) code a b (unspecified)))
+      #t))
 
   (define (do-contagion matrix a b retry)
     (let ((fixtype  0)

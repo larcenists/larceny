@@ -1,7 +1,7 @@
 /* Rts/Sys/stats.c.
  * Larceny run-time system -- run-time statistics.
  *
- * $Id: stats.c,v 1.14 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: stats.c,v 1.15 1997/07/07 20:13:53 lth Exp lth $
  *
  * The stats module maintains run-time statistics.  Mainly, these are
  * statistics on memory use (bytes allocated and collected, amount of 
@@ -159,6 +159,7 @@ static sys_stat_t   memstats;             /* statistics */
 static unsigned     rtstart;              /* time at startup (base time) */
 static int          generations;          /* number of generations in gc */
 
+static unsigned     allocated;            /* words alloc'd since last gc */
 static unsigned     time_before_gc;       /* timestamp when starting gc */
 static unsigned     live_before_gc;       /* live when starting a gc */
 static heap_stats_t *heapstats_before_gc; /* stats before gc */
@@ -225,8 +226,6 @@ stats_init( gc_t *collector, int gen, int show_heapstats )
 void
 stats_before_gc( void )
 {
-  word allocated;
-
   if (!initialized) return;
 
   time_before_gc = stats_rtclock();
@@ -235,8 +234,6 @@ stats_before_gc( void )
   live_before_gc = nativeint( memstats.wlive );
 
   allocated = heapstats_before_gc[0].live-heapstats_after_gc[0].live;
-  add( &memstats.wallocated_hi, &memstats.wallocated_lo,
-      fixnum( allocated / sizeof(word) ) );
 }
 
 
@@ -272,7 +269,11 @@ stats_after_gc( void )
   unsigned gen;
   unsigned time;
 
-  if (!initialized) return;
+  if (!initialized || memstats.lastcollection_type == fixnum(STATS_IGNORE))
+    return;
+
+  add( &memstats.wallocated_hi, &memstats.wallocated_lo,
+      fixnum( allocated / sizeof(word) ) );
 
   if (memstats.lastcollection_type == fixnum(STATS_COLLECT))
     memstats.gen_stat[nativeint(memstats.lastcollection_gen)].collections

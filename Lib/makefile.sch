@@ -1,7 +1,7 @@
 ; Lib/makefile.sch
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
-; $Id: makefile.sch,v 1.7 1997/05/31 01:50:28 lth Exp lth $
+; $Id: makefile.sch,v 1.8 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; Procedures to call:
 ;  make-larceny-heap
@@ -47,12 +47,11 @@
       (delete-file target)
       (call-with-output-file target
 	(lambda (outp)
-	  (let loop ((item (read inp)))
+	  (let loop ((item (read-char inp)))
 	    (if (eof-object? item)
 		#t
-		(begin (write item outp)
-		       (newline outp)
-		       (loop (read inp))))))))))
+		(begin (write-char item outp)
+		       (loop (read-char inp))))))))))
 
 (define objects
   (lambda (path ext files)
@@ -69,14 +68,15 @@
   '(
     ; Fundamental
 
-    "malcode"           ; real basic things
+    "malcode"           ; really basic things
     "typetags"          ; type tags
-    "unix"              ; OS primitives for Unix
+    "unix"              ; OS primitives for Unix; $$trace procedure.
     "error0"            ; Boot-time 'error' procedure.
     "primops"           ; primop procedures
 
-    ; general library
+    ; General library
 
+    "argv"              ; command line arguments
     "list"              ; list procedures
     "vector"            ; vector procedures
     "string"            ; string and bytevector procs
@@ -87,24 +87,28 @@
     "memstats"          ; runtime stats
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
-    "error"             ; error system
+    "error"             ; error/reset system
+    "timer"             ; timer interrupts
+    "exit"              ; exit procedure; exit/init hooks
+    "dump"              ; dump-heap procedure
 
     ; Old I/O subsystem
 
 ;    "schemeio"          ; I/O system
 ;    "print"             ; write/display
 
-    ; New I/O subsystem -- not yet properly tested
+    ; New I/O subsystem
 
-    "iosys"
-    "fileio"
-    "conio"
-    "stdio"
+    "iosys"             ; basic system
+    "fileio"            ; files
+    "conio"             ; console, i.e., terminal
+    "stdio"             ; user-level procedures
     "print"             ; write/display
-    "ioboot"
+    "ioboot"            ; one-time initialization
 
+    "format"            ; `format' procedure.
     "number"            ; arithmetic
-    "globals"           ; 'global' offsets (for gc)
+    "globals"           ; `global' offsets (for memstats)
 
     ; It's important for bellerophon to be loaded as late as possible
     ; because it depends on much of the rest of the system.
@@ -146,9 +150,6 @@
 
 (define heap-project (make:new-project "larceny.heap"))
 (define eheap-project (make:new-project "larceny.eheap"))
-
-; FIXME: the rule for ecodes.sch appears not to work.
-; Ditto for globals.
 
 (make:rule heap-project ".lop" ".mal" make-assemble)
 (make:rule heap-project ".lop" ".lap" make-assemble)

@@ -1,7 +1,7 @@
 ; Lib/reader.sch
 ; Larceny -- Scheme reader
 ;
-; $Id: reader.sch,v 1.6 1997/05/15 00:42:10 lth Exp $
+; $Id: reader.sch,v 1.7 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; Original code Copyright Lightship Software.
 ; Extensive modifications by Lars T. Hansen.
@@ -92,7 +92,8 @@
                   c p))
                 ((eof-object? c) (read-eof p))
                 (else
-                 (error "Error on input" p)))))
+                 (error "read: Error on input port " p)
+		 #t))))
  
        ; Reads rest of list.
        ; c has already been consumed from the input file.
@@ -104,7 +105,8 @@
                 ((eof-object? c)
                  (read-unexpected-eof p))
                 (else
-                 (error "Error on input" p)))))
+                 (error "read: Error on input port " p)
+		 #t))))
  
        ; Read a list element and then read the rest of the list.
        ; c, the first character of the list element, has been consumed.
@@ -139,7 +141,8 @@
 
        (dotted-pair-error
         (lambda (p)
-          (error "Malformed dotted pair in input" p)))
+          (error "Malformed dotted pair on input port " p)
+	  #t))
  
        ; Opening double quote has been consumed.
        ; When first called, c is the first character of the string and has been
@@ -150,11 +153,23 @@
 
        (read-string
          (lambda (c p l)
-           (cond ((not (char? c)) (read-unexpected-eof p))
-                 ((char=? c #\")  (list->string (reverse l)))
-                 ((char=? c #\\)  (let ((c (tyi p)))
-				    (read-string (tyi p) p (cons c l))))
-                 (else            (read-string (tyi p) p (cons c l))))))
+           (cond ((not (char? c))
+		  (read-unexpected-eof p))
+                 ((char=? c #\")
+		  (list->string (reverse l)))
+                 ((char=? c #\\)
+		  (let ((c (tyi p)))
+		    (cond ((eq? c #\n) 
+			   (read-string (tyi p) p (cons #\newline l)))
+			  ((eq? c #\t)
+			   (read-string (tyi p) p (cons #\tab l)))
+			  ((char? c)
+			   (read-string (tyi p) p (cons c l)))
+			  (else
+			   (error "Unexpected end-of-file.")
+			   #t))))
+                 (else
+		  (read-string (tyi p) p (cons c l))))))
  
        ; Reads a symbol.  This skips the attempt to parse a symbol as a number.
        ; Collects characters tail-recursively, and then reverses and interns.
@@ -227,8 +242,9 @@
               (let ((x (parse-number (reverse l))))
                 (if (number? x)
                     x
-                    (error "Illegal number syntax "
-			   (list->string (reverse l)))))
+                    (begin (error "Illegal number syntax "
+				  (list->string (reverse l)))
+			   #t)))
 	      (parse-number-loop (tyinext p) p (cons c l)))))
  
        (peculiar-identifier?
@@ -294,7 +310,8 @@
  
        (read-unexpected-eof
          (lambda (p)
-           (error "Unexpected end of file encountered during read")))
+           (error "Unexpected end of file encountered during read on port " p)
+	   #t))
  
        ; Miscellaneous help functions.
  
@@ -341,7 +358,8 @@
        (read-illegal
          (lambda (c p)
            (error "Illegal character in input to read"
-                  c)))
+                  c)
+	   #t))
  
        ; The eq? test here is supposed to make a fast read-blanks look
        ; that does not interfere with the read-table logic.  In v0.27
@@ -378,7 +396,8 @@
        (read-dispatch-reserved
          (lambda (c p)
            (error "Reserved delimiter found in input"
-                  c)))
+                  c)
+	   #t))
  
        ; See comments preceding read-dispatch-whitespace (above).
 
@@ -419,10 +438,11 @@
                                 ((linefeed) (integer->char 10))
                                 ((page) (integer->char 12))
                                 ((backspace) (integer->char 8))
-                                (else (if (= (string-length (symbol->string x))
-					     1)
-                                          c
-                                          (error "Malformed #\\ syntax" x))))))
+                                ((= (string-length (symbol->string x)) 1)
+				 c)
+				(else
+				 (error "Malformed #\\ syntax" x)
+				 #t))))
                            (else (begin (tyi p) c)))))
                   ((char=? c #\!)
                    (let ((x (read-symbol (tyipeek p) p '())))
@@ -433,7 +453,9 @@
                        ((unspecified) (unspecified))
 		       ((undefined) (undefined))
                        ; ((fasl) **fasl**)
-                       (else  (error "Malformed #! syntax" x)))))
+                       (else  
+			(error "Malformed #! syntax" x)
+			#t))))
                   ((char=? c #\()
                    (list->vector (read-list (tyi p) p)))
                   ;; Control-B is used for bytevectors by compile-file.
@@ -466,8 +488,9 @@
                    (parse-prefixed-number p #\o))
                   ((char=? c #\b)
                    (parse-prefixed-number p #\b))
-                  (else (error "Malformed # syntax"
-                               c))))))
+                  (else 
+		   (error "Malformed # syntax" c)
+		   #t)))))
  
        (read-list-reserved read-dispatch-reserved)
  

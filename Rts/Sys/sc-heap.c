@@ -1,7 +1,7 @@
 /* Rts/Sys/sc-heap.c
  * Larceny run-time system -- varsized stop-and-copy young heap.
  *
- * $Id: sc-heap.c,v 1.3 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: sc-heap.c,v 1.4 1997/07/07 20:13:53 lth Exp lth $
  *
  * Contract:
  *  - The stack cache lives in the heap; the stack pointer is the
@@ -61,7 +61,7 @@ typedef struct {
 #define DATA(heap)  ((sc_data_t*)((heap)->data))
 
 static young_heap_t *allocate_sc_heap( int gen_no, int heap_no );
-static void new_stack( young_heap_t *heap );
+static int new_stack( young_heap_t *heap );
 static int create_stack( young_heap_t *heap );
 static void clear_stack( young_heap_t *heap );
 static void flush_stack( young_heap_t *heap );
@@ -228,12 +228,13 @@ collect( young_heap_t *heap, unsigned request_bytes )
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
 
-  /* I don't think this belongs here any longer. */
-#if 0
-  /* This is imperfect; see comments in memmgr.c:collect() */
-
-  if (move_to_next_chunk( heap, STACK_ROOM )) return;
-#endif
+  /* The heap is chunked, so this line moves to the next chunk
+   * if there's one, rather than collecting.
+   */
+  if (move_to_next_chunk( heap, request_bytes+STACK_ROOM )) {
+    stats_gc_type( 0, STATS_IGNORE );
+    return;
+  }
 
   debugmsg( "sc-heap: collecting; free space is %u", free_space( heap ) );
   mode_globals_to_ss( heap );
@@ -262,7 +263,12 @@ collect( young_heap_t *heap, unsigned request_bytes )
   data->copied_last_gc = data->current_space->used;
 
   post_gc_policy( heap, request_bytes );
-  new_stack( heap );
+  if (!new_stack( heap )) {  
+    supremely_annoyingmsg( "Failed to create stack after gc." );
+    expand_heap( heap, STACK_ROOM );
+    if (!move_to_next_chunk( heap, STACK_ROOM ))
+      panic_abort( "Double-faulting stack creation." );
+  }
 
   debugmsg( "  post-gc memory free: %u", free_space( heap ) );
   debugmsg( "  semispace=%p, allocated=%u", data->current_space,
@@ -286,7 +292,7 @@ assert_free_space( young_heap_t *heap, unsigned nbytes )
 {
   /* FIXME: this is too simple, but works for now. */
 
-  if (nbytes > free_current_chunk( heap )) {
+  if (nbytes+STACK_ROOM > free_current_chunk( heap )) {
     supremely_annoyingmsg( "Failed free space assertion." );
     if (!move_to_next_chunk( heap, nbytes+STACK_ROOM )) {
       expand_heap( heap, nbytes+STACK_ROOM );
@@ -413,22 +419,22 @@ stack_overflow( young_heap_t *heap )
 /* Internal */
 
 /* This expands the heap if the stack cannot be created */
-static void new_stack( young_heap_t *heap )
+static int new_stack( young_heap_t *heap )
 {
   sc_data_t *data = DATA(heap);
 
- again:
   if (!create_stack( heap )) {
     debugmsg( "[debug] young heap: Failed create-stack." );
     expand_heap( heap, STACK_ROOM );
-    goto again;
+    return 0;
   }
 
   if (!restore_frame( heap )) {
     debugmsg( "[debug] young heap: Failed restore-frame." );
     expand_heap( heap, STACK_ROOM );
-    goto again;
+    return 0;
   }
+  return 1;
 }
 
 static int create_stack( young_heap_t *heap )
@@ -473,10 +479,12 @@ move_to_next_chunk( young_heap_t *heap, unsigned nbytes )
 
   if (free > 0) {
     flush_stack( heap );
+  again:
     mode_globals_to_ss( heap );
     ss_expand( s, max( OLDSPACE_EXPAND_BYTES, nbytes ) );
     mode_ss_to_globals( heap );
-    new_stack( heap );
+    if (!new_stack( heap ))
+      goto again;
     assert( free_current_chunk( heap ) >= nbytes );
     return 1;
   }
@@ -540,7 +548,7 @@ post_gc_policy( young_heap_t *heap, unsigned nbytes )
   unsigned used;
 
   used = data->size_bytes-free_space( heap );
-  if (used > data->size_bytes/100*data->himark)
+  if (used >= data->size_bytes/100*data->himark)
     expand_heap( heap, nbytes+STACK_ROOM );
   else if (used < data->size_bytes/100*data->lomark)
     contract_heap( heap, nbytes+STACK_ROOM );
@@ -557,7 +565,7 @@ expand_heap( young_heap_t *heap, unsigned bytes )
 
   used = used_space( heap )+free_current_chunk( heap );
   size = DATA(heap)->size_bytes;
-  expand_min = size/5;
+  expand_min = size/2;
   if (used > size)
     incr = roundup_page( max( used-size+bytes, expand_min ) );
   else
@@ -572,6 +580,7 @@ static void
 contract_heap( young_heap_t *heap, unsigned bytes )
 {
   unsigned decr = roundup_page( bytes );
+  return;  /* FIXME */
   DATA(heap)->size_bytes -= decr;
   annoyingmsg( "sc-heap: Contracting heap by %u bytes, new size %u.", 
 	       decr, DATA(heap)->size_bytes );

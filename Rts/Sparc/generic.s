@@ -414,7 +414,7 @@ Lmul_comp2:
 	fmuld	%f8, %f12, %f16
 	fsubd	%f14, %f16, %f2
 	fmuld	%f8, %f10, %f18
-	fmuld	%f16, %f12, %f20
+	fmuld	%f6, %f12, %f20
 	faddd	%f18, %f20, %f4
 	b	_box_compnum
 	nop

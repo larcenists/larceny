@@ -1,7 +1,7 @@
 /* Rts/Sys/cglue.c
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
- * $Id: cglue.c,v 1.10 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: cglue.c,v 1.11 1997/07/07 20:09:30 lth Exp $
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are
@@ -19,6 +19,7 @@
 /* C_garbage_collect: perform a garbage collection */
 void C_garbage_collect( word type, word request_words )
 {
+  supremely_annoyingmsg( "Allocation exception in millicode." );
   garbage_collect3( 0, 0, nativeint( request_words )*sizeof( word ) );
 }
 
@@ -26,6 +27,7 @@ void C_garbage_collect( word type, word request_words )
 void C_stack_overflow( void )
 {
   debugmsg( "[debug] Stack overflow." );
+  supremely_annoyingmsg( "Stack overflow exception in millicode." );
   stack_overflow();
 }
 
@@ -33,6 +35,7 @@ void C_stack_overflow( void )
 void C_creg_get( void )
 {
   debugmsg( "[debug] capturing continuation." );
+  supremely_annoyingmsg( "Call/cc exception in millicode." );
   globals[ G_RESULT ] = creg_get();
 }
 
@@ -40,6 +43,7 @@ void C_creg_get( void )
 void C_creg_set( void )
 {
   debugmsg( "[debug] reinstating continuation." );
+  supremely_annoyingmsg( "Throw exception in millicode." );
   creg_set( globals[ G_RESULT ] );
 }
 
@@ -47,6 +51,7 @@ void C_creg_set( void )
 void C_restore_frame( void )
 {
   debugmsg( "[debug] Stack underflow." );
+  supremely_annoyingmsg( "Stack underflow exception in millicode." );
   stack_underflow();
 }
 
@@ -54,11 +59,16 @@ void C_restore_frame( void )
 /* FIXME: this is a stopgap implementation */
 /* FIXME: when the generation is no longer ignored, watch out for the
    magic generation resulting from the magic barrier */
+
 void C_wb_compact( int generation )
-{
+{ 
   debugmsg( "[debug] wb_compact." );
-  if (!compact_ssb())
+  supremely_annoyingmsg( "SSB exception in millicode." );
+  if (compact_ssb()) {
+    /* at least one remembered set overflowed */
+    supremely_annoyingmsg( "Remembered-set overflow." );
     garbage_collect3( 1, 1, 0 );
+  }
 }
 
 /* C_panic: print a message and die. */
@@ -199,34 +209,38 @@ void C_syscall( void )
   static struct {
     fptr proc;
     int  nargs;
-  } syscall_table[] = { { (fptr)UNIX_openfile, 3 },
-			{ (fptr)UNIX_unlinkfile, 1 },
-			{ (fptr)UNIX_closefile, 1 },
-			{ (fptr)UNIX_readfile, 3 },
-			{ (fptr)UNIX_writefile, 4 },
-			{ (fptr)UNIX_getresourceusage, 0 },
-			{ (fptr)UNIX_dumpheap, 2 },
-			{ (fptr)exit, 0 },
-			{ (fptr)UNIX_mtime, 2 },
-			{ (fptr)UNIX_access, 2 },
-			{ (fptr)UNIX_rename, 2 },
-			{ (fptr)UNIX_pollinput, 1 },
-			{ (fptr)UNIX_getenv, 1 },
-			{ (fptr)UNIX_garbage_collect, 2 },
-			{ (fptr)UNIX_flonum_log, 2 },
-		        { (fptr)UNIX_flonum_exp, 2 },
-			{ (fptr)UNIX_flonum_sin, 2 },
-			{ (fptr)UNIX_flonum_cos, 2 },
-			{ (fptr)UNIX_flonum_tan, 2 },
-			{ (fptr)UNIX_flonum_asin, 2 },
-			{ (fptr)UNIX_flonum_acos, 2 },
-			{ (fptr)UNIX_flonum_atan, 2 },
-			{ (fptr)UNIX_flonum_atan2, 3 },
-			{ (fptr)UNIX_flonum_sqrt, 2 },
-			{ (fptr)UNIX_stats_dump_on, 1 },
-			{ (fptr)UNIX_stats_dump_off, 0 },
-			{ (fptr)UNIX_iflush, 1 },
-			{ (fptr)UNIX_gcctl_np, 3 },
+    int  interruptible;
+  } syscall_table[] = { { (fptr)UNIX_openfile, 3, 1 },
+			{ (fptr)UNIX_unlinkfile, 1, 1 },
+			{ (fptr)UNIX_closefile, 1, 1  },
+			{ (fptr)UNIX_readfile, 3, 1 },
+			{ (fptr)UNIX_writefile, 4, 1 },
+			{ (fptr)UNIX_getresourceusage, 0, 1 },
+			{ (fptr)UNIX_dumpheap, 2, 1 },
+			{ (fptr)UNIX_exit, 1, 0 },
+			{ (fptr)UNIX_mtime, 2, 1 },
+			{ (fptr)UNIX_access, 2, 1 },
+			{ (fptr)UNIX_rename, 2, 1 },
+			{ (fptr)UNIX_pollinput, 1, 1 },
+			{ (fptr)UNIX_getenv, 1, 1 },
+			{ (fptr)UNIX_garbage_collect, 2, 0 },
+			{ (fptr)UNIX_flonum_log, 2, 0 },
+		        { (fptr)UNIX_flonum_exp, 2, 0 },
+			{ (fptr)UNIX_flonum_sin, 2, 0 },
+			{ (fptr)UNIX_flonum_cos, 2, 0 },
+			{ (fptr)UNIX_flonum_tan, 2, 0 },
+			{ (fptr)UNIX_flonum_asin, 2, 0 },
+			{ (fptr)UNIX_flonum_acos, 2, 0 },
+			{ (fptr)UNIX_flonum_atan, 2, 0 },
+			{ (fptr)UNIX_flonum_atan2, 3, 0 },
+			{ (fptr)UNIX_flonum_sqrt, 2, 0 },
+			{ (fptr)UNIX_stats_dump_on, 1, 1 },
+			{ (fptr)UNIX_stats_dump_off, 0, 1 },
+			{ (fptr)UNIX_iflush, 1, 0 },
+			{ (fptr)UNIX_gcctl_np, 3, 0 },
+			{ (fptr)UNIX_block_signals, 1, 0 },
+			{ (fptr)UNIX_flonum_sinh, 2, 0 },
+			{ (fptr)UNIX_flonum_cosh, 2, 0 },
 		      };
   fptr proc;
   int nargs, nproc;

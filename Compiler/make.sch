@@ -1,9 +1,82 @@
-; -*- Scheme -*-
-; $Id: make.sch,v 1.2 1997/02/11 20:21:58 lth Exp $
-;
+; Compiler/make.sch
 ; Larceny compilation system -- `make' facility.
 ;
-; Lars Thomas Hansen / August 25, 1995
+; $Id: make.sch,v 1.3 1997/07/07 20:41:40 lth Exp lth $
+;
+; DESCRIPTION
+; A project is created with make:new-project.  It consists of rules, 
+; dependencies, and targets. 
+;
+; A _rule_ is an association of two file extensions (target and source) and
+; a command.  Given a target file name with an extension that matches the
+; target extension, a rule is used to search for a source file name, and
+; serves to specify the command that generates the target file from the
+; source file.  A command is a procedure of two arguments: the target
+; file name and the list of source file names on which the target depends.
+; When called, the command must create the target file.
+;
+; A _dependency_ is an association of two file name lists: target files and
+; source files.  It states that each target file depends on all of the
+; source files.  Therefore, if any of the source files have a modification
+; time newer than the target file, or if the target file does not exist,
+; then the target file must be remade from the source files.
+; 
+; A _target_ associates a list of file names with a command.  The command
+; is a procedure of two arguments: the target name and the list of the
+; files on which the target depends (computed from the dependencies).
+; When called, the command must create the target file.
+;
+; When make:make is called with a target name, a check is made that the
+; target is newer than all the files on which it transitively depends, and
+; if this is not the case, then the target is rebuilt.  The transitive
+; check may cause files on which the target depends to be rebuilt, and
+; so on.
+; 
+; A command specified as part of a _target_ takes precedence of a command
+; specified as part of a _rule_.
+;
+;
+; Make works by computing, for each target, the files on which a target
+; depends, and the command that is to be used to rebuild the target once
+; those files have been rebuilt.  There four cases, which are applied
+; in the following order:
+;
+; (1) If a target is in the list of targets, then the command is part of
+;     the target specification, and the dependees are necessarily part
+;     of the dependencies list.
+;
+; If a target is not in the list of targets, then we must use a rule
+; to compute the command.  There are two cases:
+;
+; (2a) Assume that there is a dependency of the form 'abc.xyz: def.uvw',
+;      i.e., abc.xyz depends only on def.uvw.  Then, if there is a rule of
+;      the form (.xyz .uvw cmd) and it is possible to make def.uvw, then
+;      we can use cmd to create abc.xyz.  The only dependency for abc.xyz
+;      is def.uvw.
+;
+; (2b) Assume that the name of the target is 'abc.xyz'.  Then we must
+;      look for rules of the form (.xyz .uvw cmd) where '.uvw' is another
+;      extension.  If it is possible to make abc.uvw, then we can use cmd
+;      to create abc.xyz.  The dependencies for abc.xyz are any explicit
+;      dependencies plus abc.uvw.
+;
+; Otherwise,
+;
+; (3)  If the target is not one of the listed targets, and there are no
+;      rules that apply to the target, then the target is considered
+;      successfully built if and only if it exists.
+;
+; INTERFACE
+;   (make:new-project name)                 => project
+;   (make:project? obj)                     => bool
+;   (make:rule project ext1 ext2 cmd)       => unspecified
+;   (make:deps project files1 files2)       => unspecified
+;   (make:targets project targets command)  => unspecified
+;   (make:pretend)                          => bool
+;   (make:pretend bool)                     => bool
+;   (make:debug)                            => bool
+;   (make:debug bool)                       => bool
+;   (make:make project target)              => unspecified
 ;
 ; A makefile is set up by creating a project and then adding 
 ; dependencies, rules, and targets to that project, and then running
@@ -29,9 +102,6 @@
 ;     called abort.
 ;
 ; BUGS
-;   - Needs to disambiguate direct rules based on modification time; see
-;     FIXME in code.
-;   - Could use hash tables many places for faster lookup in large projects.
 ;   - Make:pretend is global (not project-specific); should this change?
 ;   - Must remove primary dependency from occurring subsequently in the
 ;     dependency list.
@@ -41,8 +111,6 @@
 ;   - In general, existence status and modification times could be cached.
 ;   - There could be a notion of rule precedence to allow A->C to be chosen
 ;     over A->B and B->C.
-
-; Select your host system
 
 (define (make:new-project name) 
   (vector 'project name '() '() '()))
@@ -78,8 +146,13 @@
 	       (display ext2)
 	       (newline)
 	       (set-cdr! probe command))
-	(make-project.rules! proj (cons (cons (cons ext1 ext2) command)
+	(make-project.rules! proj (cons (make-rule ext1 ext2 command)
 					rules)))))
+
+(define (make-rule ext1 ext2 cmd) (cons (cons ext1 ext2) cmd))
+(define (make-rule.ext1 r) (caar r))
+(define (make-rule.ext2 r) (cdar r))
+(define (make-rule.cmd r)  (cdr r))
 
 ; Files named in 'files1' depend on files in 'files2'.
 ;
@@ -126,7 +199,7 @@
 	    targets))
 
 ; Manage a flag which makes the MAKE execute the commands or just pretend
-; to. For debugging makefiles.
+; to.  For debugging makefiles.
 
 (define make:pretend 
   (let ((state #f))
@@ -140,13 +213,27 @@
 	     (display "Make:pretend: strange: " args)
 	     state)))))
 
+
+; Turn debugging output on/off.
+
+(define make:debug
+  (let ((state #f))
+    (lambda args
+      (cond ((null? args) state)
+	    ((and (null? (cdr args))
+		  (boolean? (car args)))
+	     (set! state (car args))
+	     state)
+	    (else
+	     (display "Make:debug: strange: " args)
+	     state)))))
+
 ; Create 'target', unless all its dependencies exist and are older,
 ; recursively.
 
 (define (make:make proj target)
 
   (define have-made '())
-  (define soft-rules '())
 
   (define (errhandler target)
     (lambda ()
@@ -155,7 +242,8 @@
       (display "Deleting target file: ")
       (display target)
       (newline)
-      (delete-file target)))
+      (if (not (make:pretend))
+	  (delete-file target))))
 
   (define (extension fn)
     (let ((len (string-length fn)))
@@ -186,128 +274,57 @@
 	  (else
 	   (make:error 'newer-than? "Internal error: " ta tb))))
 
-  ; l is either a list of file names or a list of pairs whose car is
-  ; a file name and cdr is arbitrary. Return the item whose file is 
-  ; newer than the others.
-
-  (define (newest l)
-    (cdr (select-least (map (lambda (x)
-			      (cons (if (string? x)
-					(file-modification-time x)
-					(file-modification-time (car x)))
-				    x))
-			    l)
-		       (lambda (a b)
-			 (timestamp-less? (car a) (car b))))))
-
-  ; This is generally useful; shuffle to a library and provide
-  ; compatibility libraries for systems that don't have it.
-
-  (define (select-least l less?)
-    (cond ((null? l) #f)
-	  ((null? (cdr l)) (car l))
-	  (else
-	   (let loop ((least (car l)) (l (cdr l)))
-	     (cond ((null? l) least)
-		   ((less? (car l) least)
-		    (loop (car l) (cdr l)))
-		   (else
-		    (loop least (cdr l))))))))
-
-  ; Return a rule which will create the target from some source files
-  ; that currently exist. 
-  ;
-  ; If there is no rule which matches based on
-  ; a source which exists, we must look at all rules that match purely
-  ; on extension, and then attempt to find rules which can be applied
-  ; to create a source. Process repeats. We should end up with a set
-  ; of rule chains and should pick the one which has the newest source
-  ; file. We then cache the rule chains for later use. A rule which
-  ; represents the rule chain can be created by simple composition.
-  ;
-  ; FIXME: if several direct rules apply, should pick the one where
-  ; the source is the newest.
+  ; Given a target name, find a rule such that if the source extension of 
+  ; the rule is substituted into the target name to get a source name,
+  ; then the source can be made.
 
   (define (find-rule target)
     (let ((r   (make-project.rules proj))
 	  (ext (extension target)))
       (let loop ((r r) (matches '()))
 	(cond ((null? r)
-	       (find-soft-rule target ext matches))
-	      ((and (string=? ext (caaar r))
-		    (file-exists? (replace-extension
-				   target
-				   ext
-				   (cdaar r))))
+	       #f)
+	      ((and (string=? ext (make-rule.ext1 (car r)))
+		    (can-make? (replace-extension
+				target
+				ext
+				(make-rule.ext2 (car r)))))
 	       (car r))
 	      (else
-	       (loop (cdr r) (if (string=? ext (caaar r))
-				 (cons (car r) matches)
-				 matches)))))))
+	       (loop (cdr r)
+		     (if (string=? ext (make-rule.ext1 (car r)))
+			 (cons (car r) matches)
+			 matches)))))))
 
-  ; Look for or create a soft rule for the given target. Ext is the
-  ; extension of the target.
 
-  (define (find-soft-rule target ext matches)
-    (or (soft-rule-match target ext)
-	(let ((rules (let loop ((matches matches) (c '()))
-		       (if (null? matches)
-			   c
-			   (let* ((m (car matches))
-				  (try (find-rule (replace-extension
-						   target
-						   (caar m)
-						   (cdar m)))))
-			     (loop (cdr matches)
-				   (if try
-				       (cons (make-soft-rule m try) c)
-				       c)))))))
-	  (set! soft-rules (append rules soft-rules))
-	  (if (null? rules)
-	      #f
-	      (cdr (newest (map (lambda (r)
-				  (cons (replace-extension
-					 target
-					 (caar r)
-					 (cdar r))
-					r))
-				rules)))))))
-
-  ; Create a soft rule: it must make the dependent, then execute the
-  ; command for the final link.
+  ; If 'dep' is of the type (a b) [meaning: a depends on b] and there
+  ; is an extension rule that matches the extension of a and the extension
+  ; of b, then return the command for that rule.
   ;
-  ; FIXME: should this look at make:pretend?
+  ; If 'dep' is not of the proper form or there is no such rule, return #f.
 
-  (define (make-soft-rule r1 r2)
-    (cons (cons (caar r1) (cdar r2))
-	  (lambda (t d)
-	    (do-make (replace-extension t (extension t) (caar r2)))
-	    (call-with-error-control
-	     (lambda ()
-	       ((cdr r1) t (cons (replace-extension (car d)
-						    (extension (car d))
-						    (cdar r1))
-				 (cdr d))))
-	     (errhandler t)))))
+  (define (rule-controlled-dependency dep)
+    (cond ((not dep) #f)
+	  ((not (= (length dep) 2))
+	   #f)
+	  (else
+	   (let ((e1 (extension (car dep)))
+		 (e2 (extension (cadr dep))))
+	     (define (loop r)
+	       (cond ((null? r) #f)
+		     ((and (string=? e1 (make-rule.ext1 (car r)))
+			   (string=? e2 (make-rule.ext2 (car r))))
+		      (make-rule.cmd (car r)))
+		     (else
+		      (loop (cdr r)))))
+	     (loop (make-project.rules proj))))))
 
-  ; Look for a soft rule and return the rule that matches best.
 
-  (define (soft-rule-match target ext)
-    (let loop ((r soft-rules) (c '()))
-      (cond ((null? r)
-	     (if (null? c)
-		 #f
-		 (cdr (newest c))))
-	    ((string=? ext (caaar r))
-	     (let ((name (replace-extension target ext (cdaar r))))
-	       (if (file-exists? name)
-		   (loop (cdr r) (cons (cons name (car r)) c))
-		   (loop (cdr r) c))))
-	    (else
-	     (loop (cdr r) c)))))
+  ; Given a target, a command to build it, and its list of dependencies,
+  ; build all the dependencies and then the target.
 
-  (define (make target cmd deps)
-    (for-each do-make deps)
+  (define (make-target target cmd deps)  
+    (for-each make deps)
     (if (or (not (file-exists? target))
 	    (some? (lambda (d) (newer-than? d target)) deps))
 	(call-with-error-control
@@ -320,36 +337,54 @@
 			(cmd target deps)))
 	 (errhandler target))))
 
-  ; Look for target in the target list, then in a rule, and finally
-  ; see if the file simply exists.
 
-  (define (do-make target)
-    (if (member target have-made)
-	#t
+  ; Return #t iff the target can be made (but don't make it).
+
+  (define (can-make? target)
+    (or (member target have-made)
+	(assoc target (make-project.targets proj))
+	(rule-controlled-dependency (assoc target (make-project.deps proj)))
+	(find-rule target)
+	(file-exists? target)))
+
+
+  ; Given a target, compute the command and dependencies and then build it.
+
+  (define (make target)
+    (if (not (member target have-made))
 	(let* ((targets (make-project.targets proj))
 	       (deps    (make-project.deps    proj))
 	       (probe   (assoc target targets))
 	       (dprobe  (assoc target deps)))
-	  (if probe
-	      (make target (cdr probe) (if dprobe (cdr dprobe) '()))
-	      (let ((r (find-rule target)))
-		(cond (r (make target
-			       (cdr r)
-			       (cons (replace-extension 
-				      target
-				      (caar r)
-				      (cdar r))
-				     (if dprobe
-					 (cdr dprobe) '()))))
-		      ((file-exists? target))
-		      (else
-		       (make:error 'make:make "Don't know how to make "
-				   target)))))
+	  (cond (probe
+		 (make:debugmsg target ": #1")
+		 (make-target target (cdr probe) (if dprobe (cdr dprobe) '())))
+		((rule-controlled-dependency dprobe)
+		 =>
+		 (lambda (cmd)
+		   (make:debugmsg target ": #2")
+		   (make-target (car dprobe) cmd (cdr dprobe))))
+		((find-rule target)
+		 =>
+		 (lambda (r)
+		   (make:debugmsg target ": #3")
+		   (make-target target
+				(make-rule.cmd r)
+				(cons (replace-extension 
+				       target
+				       (make-rule.ext1 r)
+				       (make-rule.ext2 r))
+				      (if dprobe (cdr dprobe) '())))))
+		((file-exists? target)
+		 (make:debugmsg target ": #4")
+		 #t)
+		(else
+		 (make:error 'make:make "Don't know how to make "
+			     target)))
 	  (set! have-made (cons target have-made)))))
 
   (set! have-made '())
-  (set! soft-rules '())
-  (do-make target)
+  (make target)
   #t)
 
 ; Our own error handler for portability's sake.
@@ -363,6 +398,10 @@
   (newline)
   (reset))
 
+(define (make:debugmsg . msgs)
+  (if (make:debug)
+      (begin (for-each display msgs)
+	     (newline))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -62,7 +62,10 @@ stk_create( word *globals )
 
   stktop = (word*)globals[ G_STKP ];
   stktop -= 4;
-  if (stktop < (word*)globals[ G_ETOP ]) return 0;
+  if (stktop < (word*)globals[ G_ETOP ]) {
+    supremely_annoyingmsg( "Failed to create stack.");
+    return 0;
+  }
   
   *(stktop+0) = fixnum(3);                      /* header/size field */
   *(stktop+1) = (word)mem_stkuflow;             /* retaddr: uflow handler */
@@ -162,8 +165,10 @@ stk_restore_frame( word *globals )
   stktop = (word*)globals[ G_STKP ];
 
   stktop -= size / 4;
-  if (stktop < (word*)globals[ G_ETOP ])
+  if (stktop < (word*)globals[ G_ETOP ]) {
+    supremely_annoyingmsg( "Failed to create stack." );
     return 0;
+  }
   globals[ G_STKP ] = (word)stktop;
 
 #if STACK_UNDERFLOW_COUNTING

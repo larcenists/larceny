@@ -1,7 +1,7 @@
 /* Rts/Sys/bdw-collector.c
  * Larceny run-time system -- support for Boehm-Demers-Weiser conservative gc.
  *
- * $Id: bdw-collector.c,v 1.2 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: bdw-collector.c,v 1.3 1997/07/07 20:07:05 lth Exp $
  *
  *
  * Allocation.
@@ -282,8 +282,10 @@ static void init_stack( gc_t *gc )
   static void *anchor = 0;
   word *globals = DATA(gc)->globals;
 
-  if (anchor == 0)
+  if (anchor == 0) {
     anchor = GC_malloc_ignore_off_page( STACK_CACHE_SIZE );
+    memset( (void*)anchor, 0, STACK_CACHE_SIZE );
+  }
   if (anchor == 0)
     panic( "init_stack" );
 

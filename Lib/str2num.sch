@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: str2num.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: str2num.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
 ;
 ;                                      16 April 1990 / lightship
 ;
@@ -145,7 +145,7 @@
 			     (if (not (pair? v))
 				 #f
 				 (stage3 real (car v) (cdr v))))))))
-		(else (error "INTERNAL:PARSE-COMPLEX")))))
+		(else (error "INTERNAL:PARSE-COMPLEX") #t))))
 
       (define (stage3 real imag input)
 	(cond ((null? input)
@@ -473,9 +473,13 @@
                     ((null? (cdr rest))
 		     (if (memv (car rest) '(2 8 10 16))
 			 (parse-prefix input #f (car rest))
-			 (error "string->number: Invalid radix: " (car rest))))
+			 (begin (error "string->number: Invalid radix: "
+				       (car rest))
+				#t)))
                     (else 
-		     (error "string->number: Too many arguments: " rest))))))
+		     (begin (error "string->number: Too many arguments: "
+				   rest)
+			    #t))))))
     
     parse-number))
 

@@ -1,6 +1,134 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.7 1997/05/31 01:54:38 lth Exp lth $
+; $Id: CHGLOG,v 1.8 1997/07/07 20:28:23 lth Exp lth $
+
+
+----------------------------------------------------------------------
+v0.28d released 970707 by lth
+
+***NOTE***   
+Internal tables have changed.  All .lop and .fasl files must be regenerated,
+and all heaps must be rebuilt!  
+
+
+STATUS
+* Timer interrupts have been tested and seem to be working correctly.
+* Interpreter runs non-trivial programs.
+
+
+MINOR FEATURES
+
+[Lib/unix.sch; Lib/exit.sch]
+  The `exit' procedure now takes an optional exit status argument (a fixnum).
+  `Exit' has been moved into Lib/exit.sch, and additional functionality in
+  the form of exit procedures has been added.
+
+[Lib/exit.sch]
+  It is now possible to register init procedures, which are run when a dumped
+  heap image is loaded.
+
+[Lib/dump.sch]
+  The heap dumper startup procedure now calls run-init-procedures before
+  calling the user-supplied startup procedure.
+
+[Lib/format.sch; Eval/toplevel.sch]
+  Added a simple `format' procedure.
+
+[Lib/control.sch]
+  Improved the implementation of call-without-interrupts -- it now does
+  what it's supposed to do (was previously a no-op).
+
+[Lib/reader.sch]
+  String escape characters \n and \t have been implemented.
+
+[Repl/reploop.sch]
+  Printer for repl is now installable through 'repl-display-procedure'.
+
+[Util/memstats.sch]
+  Added this file, which contains accessors for the structure returned from
+  the memstats procedure.
+
+
+CLEANUP
+
+[Lib/*.sch]
+  All calls to error are now in a non-tail-recursive position.
+
+[Lib/timer.sch; Lib/error.sch]
+  Moved timer interrupt code from error.sch to timer.sch (a new file).
+
+[Lib/unix.sch; Lib/dump.sch]
+  Moved heap dumping code from unix.sch to dump.sch (a new file).
+
+[Repl/reploop.sch]
+  Cleaned up the code considerably.
+
+[Lib/oblist.sch; Lib/string.sch; Lib/go.sch]
+  Cleaned up oblist and symbol management code (considerably).
+  Symbol table now performs rehashing when the table becomes too large.
+  Moved string-hash to string.sch.
+
+[Eval/toplevel.sch]
+  Added call-without-interrupts to the default initial environment.
+
+
+BUGS FIXED
+
+[Lib/unix.sch; Rts/Sys/unix.c; Rts/Sys/cglue.c]
+  [002] The exit status now defaults to 0, but can also be passed
+  explicitly to `exit'.
+
+[Lib/bignums.sch]
+  [004] Bignum->fixnum did not preserve the sign for negative bignums,
+  causing bignum-subtract to fail for some numbers.
+
+[Repl/reploop.sch]
+  [017] Added code to reestablish the console i/o ports after errors and 
+  after evaluations.
+
+[Lib/macro-expand.sch; Compiler/pass1.aux.sch]  
+  [020] Fixed a bug in the rewriting of quasiquotations where rewriting was
+  erroneously not performed in (QUOTE x).  This caused bad code to be
+  generated for CASE in the interpreter (although not in the compiler,
+  which rewrites CASE in a different way).
+
+[Lib/number.sch]
+  [023] Fixed bug in 'magnitude'.
+  [024] Fixed bug in 'make-polar'.
+
+[Rts/Sparc/generic.s]
+  [025] Fixed bug in compnum/compnum multiplication.
+
+[Eval/eval.sch]
+  Fixed an error in the interpreter where rest arguments were incorrectly
+  handled.
+
+[Eval/eval.sch]
+  Commented out code in the interpreter which incorrectly interpreted letrec;
+  this code should eventually be repaired.
+
+[Compiler/make.sch]
+  Fixed long-standing make bug where files were not correctly copied from
+  the Build directory after changes to the configuration files.
+
+
+----------------------------------------------------------------------
+v0.28c released piecemeal by lth during benchmarking for PLDI '97 paper
+
+* MINOR FEATURES
+  [bdw-collector.c] Now clears the stack cache before use, to make sure
+  it's 0-initialized (defensive coding).
+ 
+* BUGS FIXED
+  [Lib/string.sch] make-string now requires only one argument (used to
+    be two), making the second argument optional.
+  [young-heap.c] Bugs involving the use of the watermark were fixed.
+  [sc-heap.c] Fixed several bugs that caused an infinite loop if stack 
+    failed to be allocated.
+  [sc-heap.c] Fixed bug whereby not enough room were requested after GC,
+    causing infinite GC loop.
+  [np-sc-heap.c] Fixed bug that incorrectly calculated the number of words
+    copied when promoting into the young generation.
 
 
 ----------------------------------------------------------------------

@@ -1,7 +1,7 @@
 /* Rts/Sys/gclib.h
  * Larceny run-time system -- garbage collector library
  *
- * $Id: gclib.h,v 1.9 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: gclib.h,v 1.9 1997/05/31 01:38:14 lth Exp $
  *
  * This header defines the interface to the gc library, which provides 
  * the following services:

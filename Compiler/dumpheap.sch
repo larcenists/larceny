@@ -5,7 +5,7 @@
 ;
 ; Second major version, for Chez Scheme.
 ;
-; $Id: dumpheap.sch,v 1.2 1997/02/11 20:21:58 lth Exp $
+; $Id: dumpheap.sch,v 1.3 1997/07/07 20:41:40 lth Exp lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular
@@ -53,14 +53,16 @@
     (define largest-fixnum (- (expt 2 29) 1))
     (define smallest-fixnum (- (expt 2 29)))
 
-    (define heap-version 9)  ; larceny v0.20
+;    (define heap-version 10)  ; larceny v0.28d
+    (define heap-version 9)  ; @@REVERT
 
     (define roots
       '(result argreg2 argreg3 
 	reg0 reg1 reg2 reg3 reg3 reg5 reg6 reg7 reg8 reg9 reg10 reg11 reg12
 	reg13 reg14 reg15 reg16 reg17 reg18 reg19 reg20 reg21 reg22 reg23
 	reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 
-	cont startup callouts schcall-arg4 alloci-tmp))
+	cont startup callouts ; signals   @@REVERT
+	schcall-arg4 alloci-tmp))
     
     ; A heap is represented internally as a vector of three elements,
     ; denoted the `bytes', `globals', and `top'. `Bytes' is a list
@@ -571,6 +573,10 @@
 		     (heap.global! heap
 				   'callouts
 				   (dump-global! heap 'millicode-support))
+;@@REVERT
+;		     (heap.global! heap
+;				   'signals
+;				   (dump-global! heap 'pending-signals))
 		     (dump-heap-to-file! heap outputfile)
 		     (close-output-port (heap.datafile heap))
 		     (cond ((eq? host-system 'chez)

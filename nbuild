@@ -3,7 +3,7 @@
 # ./nbuild
 # nbuild -- development system load script
 #
-# $Id: nbuild,v 1.3 1997/02/11 21:48:03 lth Exp lth $
+# $Id: nbuild,v 1.3 1997/02/11 21:48:03 lth Exp $
 #
 # The advantage of having this script is that it can be cloned and 
 # specialized for different object (or source) directories.

@@ -1,7 +1,7 @@
 ; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.7 1997/05/31 01:50:28 lth Exp lth $
+; $Id: unix.sch,v 1.8 1997/07/07 20:52:12 lth Exp lth $
 
 ; Various UNIX I/O parameters. The values are taken from header files
 ; for SunOS 4.1.1; at some point we need to find a scheme for generating
@@ -75,6 +75,9 @@
 (define syscall:stats-dump-off 25)
 (define syscall:iflush 26)
 (define syscall:gcctl 27)
+(define syscall:block-signals 28)
+(define syscall:flonum-sinh 29)
+(define syscall:flonum-cosh 30)
 
 ; Wrappers
 
@@ -93,8 +96,8 @@
 (define (unix:unlink filename)
   (syscall syscall:unlink filename))
 
-(define (unix:exit)
-  (syscall syscall:exit))
+(define (unix:exit code)
+  (syscall syscall:exit code))
 
 ; Get resource usage data into given vector
 
@@ -192,6 +195,12 @@
 (define (unix:flonum-sqrt x)
   (syscall syscall:flonum-sqrt x (make-raw-flonum)))
 
+(define (unix:flonum-sinh x)
+  (syscall syscall:flonum-sinh x (make-raw-flonum)))
+
+(define (unix:flonum-cosh x)
+  (syscall syscall:flonum-cosh x (make-raw-flonum)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -268,24 +277,8 @@
       (error "stats-dump-off: I/O error."))
   (unspecified))
 
-; Dump a heap.
-
-(define (dump-heap filename proc)
-  (cond ((not (string? filename))
-	 (error "Bad filename argument to dumpheap: " filename))
-	((not (procedure? proc))
-	 (error "Bad procedure argument to dumpheap: " proc))
-	(else
-	 (display "; Dumping heap...") (newline)
-	 (unix:dump-heap filename proc)
-	 (display "; Done.")
-	 (newline))))
-
-; Clean up and exit.
-
-(define (exit)
-  (close-open-files)
-  (unix:exit))
+(define sys$dump-heap unix:dump-heap)
+(define sys$exit unix:exit)
 
 ; Get the value of an environment variable.
 
@@ -295,7 +288,8 @@
 	((string? name)
 	 (unix:getenv name))
 	(else
-	 (error "getenv: not a valid name: " name))))
+	 (error "getenv: not a valid name: " name)
+	 #t)))
 
 ; Numbers
 
@@ -316,11 +310,57 @@
 
 
 ; RTS debugging utility function
+;
+; FIXME -- we're modifying a string constant.  The problem is that:
+;  - can't use make-string, since it's written in Scheme and not
+;    initialized yet.
+;  - can't have a newline in a string constant, since we don't have
+;    any syntax for that yet.
 
 (define ($$trace msg)
-  (let ((nl (make-string 1)))
+  (let ((nl " "))
     (string-set! nl 0 (integer->char **newline**))
     (sys$write-file4 1 msg (string-length msg) 0)
     (sys$write-file4 1 nl 1 0)))
+
+
+; Unix signal handling  --  prototype!
+;
+; We have a vector called pending-signals that counts the number of 
+; signals of a particular type that has been received.  When 
+; sys$get-pending-asynch-signal is called, it returns #f if no signals
+; are pending or a pair (signum . count), where signum is the signal number
+; and count is the number of signals received for that signal number.
+;
+; A signal handler written in C increments the counters.  The counters
+; are fixnums.
+
+(define pending-signals (make-vector 32 0))   ; counters
+
+(define sys$get-pending-asynch-signal
+  (let ((saved-i 0))    ; Round-robin search prevents starvation.
+
+    (define (next i)
+      (remainder (+ i 1) 32))
+
+    (define (check i)
+      (let ((v (vector-ref pending-signals i)))
+	(if (> v 0)
+	    (begin (vector-set! pending-signals i 0)
+		   (cons i v))
+	    #f)))
+
+    (define (search k i)
+      (cond ((= k 0) #f)
+	    ((check i))
+	    (else (search (- k 1) (next i)))))
+
+    (lambda ()
+      (syscall syscall:block-signals 1)
+      (let ((r (search 32 saved-i)))
+	(if r (set! saved-i (next (car r))))
+	(syscall syscall:block-signals 0)
+	r))))
+
 
 ; eof

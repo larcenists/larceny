@@ -1,7 +1,7 @@
 ; Lib/stdio.sch
 ; Larceny -- standard Scheme I/O library
 ;
-; $Id: stdio.sch,v 1.3 1997/05/15 00:42:10 lth Exp $
+; $Id: stdio.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; Procedures we could add:
 ;   file-port?
@@ -60,7 +60,11 @@
   (current-input-port (open-input-console))
   (current-output-port (open-output-console))
   (unspecified))
-  
+
+(define (shutdown-io-system)
+  (close-open-files)
+  (unspecified))
+
 (define (read-char . rest)
   (cond ((null? rest)
 	 (io/read-char (current-input-port)))

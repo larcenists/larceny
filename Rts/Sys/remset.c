@@ -1,7 +1,7 @@
 /* Rts/Sys/remset.c.
  * Larceny run-time system -- remembered set implementation.
  *
- * $Id: remset.c,v 1.7 1997/04/30 16:01:41 lth Exp $
+ * $Id: remset.c,v 1.8 1997/07/07 20:13:53 lth Exp lth $
  *
  *
  * The remembered set is an ADT with a public interface as described
@@ -340,6 +340,11 @@ static int compact_ssb( remset_t *rs )
   data->live += recorded;
   data->curr_pool->top = pooltop;
   *rs->ssb_top = *rs->ssb_bot;
+
+#if 0
+  supremely_annoyingmsg( "Added %u elements to remembered set (total %u). %d",
+                         recorded, data->live, data->has_overflowed);
+#endif
 
   return data->has_overflowed;
 }

@@ -3,7 +3,7 @@
 ; Scheme 313 runtime system
 ; Procedures for rectnum arithmetic
 ;
-; $Id: rectnums.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
+; $Id: rectnums.sch,v 1.2 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; A rectnum is a pair of two exact real numbers (the "real" and "imaginary"
 ; parts) where the imaginary part is nonzero.
@@ -69,7 +69,7 @@
 
 (define (make-rectnum a b)
   (if (or (inexact? a) (inexact? b))
-      (error "Inexact argument(s) to make-rectnum.")
+      (begin (error "Inexact argument(s) to make-rectnum.") #t)
       (let ((v (vector a b)))
 	(typetag-set! v sys$tag.rectnum-typetag)
 	v)))
@@ -81,12 +81,12 @@
 (define (rectnum-real-part r)
   (if (rectnum? r)
       (vector-like-ref r 0)
-      (error "Not a rectnum.")))
+      (begin (error "Not a rectnum.") #t)))
 
 (define (rectnum-imag-part r)
   (if (rectnum? r)
       (vector-like-ref r 1)
-      (error "Not a rectnum.")))
+      (begin (error "Not a rectnum.") #t)))
 
 (define (rectnum->string r radix)
   (if (negative? (rectnum-imag-part r))
@@ -164,3 +164,4 @@
   (and (= (rectnum-real-part x) (rectnum-real-part y))
        (= (rectnum-imag-part x) (rectnum-imag-part y))))
 
+; eof

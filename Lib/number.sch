@@ -1,9 +1,14 @@
-; Copyright Lightship Software.
+; Lib/number.sch
+; Larceny library -- arithmetic functions.
 ;
-; Arithmetic functions for MacScheme.
-; Augmented and changed for Larceny, which has a different set of primops.
-;
-; $Id: number.sch,v 1.3 1997/03/05 19:28:51 lth Exp $
+; $Id: number.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
+; 
+; Parts of this file is Copyright Lightship Software.
+; Additional code and modifications by Lars Hansen.
+
+; FIXME: this is a poor approximation indeed.
+
+(define *pi* 3.14159)
 
 (define positive? (lambda (x) (> x 0)))
  
@@ -111,9 +116,6 @@
               (+ r y)
               r)))))
 
-; Takes only exact integer powers for now. The full gory version should
-; go here, as a bootstrap version is loaded early.
-
 (define (expt x y)
 
   (define (e x y)
@@ -125,14 +127,15 @@
 	   (let ((v (e x (quotient y 2))))
 	     (* v v)))))
 
-  (cond ((and (exact? x) (zero? x))
+  (cond ((zero? x)
 	 1)
 	((and (exact? y) (integer? y))
 	 (if (negative? y)
 	     (/ (expt x (abs y)))
 	     (e x y)))
 	(else
-	 (error "expt: don't yet know how to deal with" x y))))
+	 (exp (* y (log x))))))
+
 
 ; From MacScheme.
 ;
@@ -163,7 +166,7 @@
            ;; I don't know of anything implementation independent we can do.
            (cond ((rational? x) x)
                  ((rational? y) y)
-                 (else (error "What should we do in this case? " x y))))
+                 (else (error "What should we do in this case? " x " " y) #t)))
           ((positive? x) 
            ;; 0 < X < Y which is what SIMPLEST-RATIONAL-INTERNAL expects:
            (simplest-rational-internal x y))
@@ -179,7 +182,6 @@
 ;---------------------------------------------------------------------------
 
 ; The following are not present in the MacScheme version of this library.
-; Some used to be in flonums.sch, which ceased to exist.
 
 ; Floor of x.
 ; A little contorted to avoid generic arithmetic in flonum case.
@@ -241,15 +243,22 @@
 ; Polar numbers
 
 (define (make-polar a b)
-  (make-rectangular (* b (cos a)) (* b (sin a))))
+  (if (not (and (real? a) (real? b)))
+      (begin (error "make-polar: invalid arguments: " a " " b)
+	     #t)
+      (* a (exp (* +1.0i b)))))
 
 (define (angle c)
   (atan (imag-part c) (real-part c)))
 
+; NOTE: CLtL2 notes that this implementation may not be ideal for very
+;       large or very small numbers.
+
 (define (magnitude c)
   (let ((r (real-part c))
 	(i (imag-part c)))
-    (sqrt (+ (* r r) (i i)))))
+    (sqrt (+ (* r r) (* i i)))))
+
 
 ; The procedures flonum:{sin,cos,tan,asin,acos,atan,exp,log,sqrt} have
 ; system-specific implementations; if they are not primops they may
@@ -257,22 +266,33 @@
 ; flonum file (Lib/flonums.sch).
 
 ; Square root
+; Formula for complex square root from CLtL2, p310.
 
 (define (sqrt z)
   (cond ((flonum? z)
 	 (flonum:sqrt z))
 	((not (real? z))
-	 (error "SQRT not implemented for complexes yet."))
+	 (exp (/ (log z) 2)))
+	((< z 0)
+	 (make-rectangular 0 (sqrt (- z))))
 	(else
 	 (flonum:sqrt (exact->inexact z)))))
 
-; Trancendentals
+; Trancendentals.
+; Complex algorithms for SIN, COS, TAN from Abramowitz & Stegun (1972), p74.
+; Complex algorithms for ASIN, ACOS, ATAN from the R4.95RS.
+;
+; NOTE: CLtL2 notes that the formulae for ASIN, ACOS, and ATAN may not be
+;       ideal ("may be terrible") when using floating-point computation.
 
 (define (sin z)
   (cond ((flonum? z)
 	 (flonum:sin z))
 	((not (real? z))
-	 (error "SIN not implemented for complexes yet."))
+	 (let ((x (exact->inexact (real-part z)))
+	       (y (exact->inexact (imag-part z))))
+	   (+ (* (flonum:sin x) (flonum:cosh y))
+	      (* +1.0i (flonum:cos x) (flonum:sinh y)))))
 	(else
 	 (flonum:sin (exact->inexact z)))))
 
@@ -280,7 +300,10 @@
   (cond ((flonum? z)
 	 (flonum:cos z))
 	((not (real? z))
-	 (error "COS not implemented for complexes yet."))
+	 (let ((x (exact->inexact (real-part z)))
+	       (y (exact->inexact (imag-part z))))
+	   (+ (* (flonum:cos x) (flonum:cosh y))
+	      (* +1.0i (flonum:sin x) (flonum:sinh y)))))
 	(else
 	 (flonum:cos (exact->inexact z)))))
 
@@ -288,7 +311,10 @@
   (cond ((flonum? z)
 	 (flonum:tan z))
 	((not (real? z))
-	 (error "TAN not implemented for complexes yet."))
+	 (let ((x (* 2.0 (exact->inexact (real-part z))))
+	       (y (* 2.0 (exact->inexact (imag-part z)))))
+	   (/ (+ (flonum:sin x) (* +1.0i (flonum:sinh y)))
+	      (+ (flonum:cos x) (flonum:cosh y)))))
 	(else
 	 (flonum:tan (exact->inexact z)))))
 
@@ -296,7 +322,7 @@
   (cond ((flonum? z)
 	 (flonum:asin z))
 	((not (real? z))
-	 (error "ASIN not implemented for complexes yet."))
+	 (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))
 	(else
 	 (flonum:asin (exact->inexact z)))))
 
@@ -304,7 +330,7 @@
   (cond ((flonum? z)
 	 (flonum:acos z))
 	((not (real? z))
-	 (error "ACOS not implemented for complexes yet."))
+	 (- (/ *pi* 2) (asin z)))
 	(else
 	 (flonum:acos (exact->inexact z)))))
 
@@ -313,7 +339,8 @@
       (cond ((flonum? z)
 	     (flonum:atan z))
 	    ((not (real? z))
-	     (error "ATAN not implemented for complexes yet."))
+	     (/ (- (log (+ 1.0 (* +1.0i z))) (log (- 1.0 (* +1.0i z))))
+		+2.0i))
 	    (else
 	     (flonum:atan (exact->inexact z))))
       (let ((x z)
@@ -321,25 +348,33 @@
 	(cond ((and (flonum? x) (flonum? y))
 	       (flonum:atan2 x y))
 	      ((not (and (real? x) (real? y)))
-	       (error "ATAN: domain error: " x " " y))
+	       (error "ATAN: domain error: " x " " y)
+	       #t)
 	      (else
 	       (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
+
+; Complex/negative case from the R^4.95RS, p25.
 
 (define (log z)
   (cond ((flonum? z)
 	 (flonum:log z))
-	((not (real? z))
-	 (error "log: can't handle complexes yet."))
-	((<= z 0)
-	 (error "log: Domain error: " z))
+	((or (not (real? z)) (< z 0))
+	 (+ (log (magnitude z)) (* +1.0i (angle z))))
+	((zero? z)
+	 (error "log: Domain error: " z)
+	 #t)
 	(else
 	 (flonum:log (exact->inexact z)))))
+
+; Complex case from Abramowitz&Stegun (1972), p74.
 
 (define (exp z)
   (cond ((flonum? z)
 	 (flonum:exp z))
 	((not (real? z))
-	 (error "EXP not implemented for complexes yet."))
+	 (let ((i (imag-part z)))
+	   (* (exp (real-part z))
+	      (+ (cos i) (* +1.0i (sin i))))))
 	(else
 	 (flonum:exp (exact->inexact z)))))
 

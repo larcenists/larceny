@@ -1,7 +1,7 @@
 /* Rts/Sys/old-heap.c
  * Larceny run-time system -- stop-and-copy varsized old heap.
  *
- * $Id: old-heap.c,v 1.11 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: old-heap.c,v 1.12 1997/07/07 20:13:53 lth Exp lth $
  *
  * An old heap is a heap that receives new objects by promotion from
  * younger heaps, not by direct allocation.  Promotion from younger heaps
@@ -96,6 +96,9 @@ create_old_heap( int *gen_no,             /* add at least 1 to this */
   if (toflowatermark == 0 || toflowatermark > 100)
     toflowatermark = DEFAULT_TOFLOWATERMARK;
 
+  annoyingmsg("Heap %d hi_mark=%u, lo_mark=%u, oflo_mark=%u.",
+              *gen_no, thiwatermark, tlowatermark, toflowatermark);
+
   heap = allocate_old_sc_heap( *gen_no, heap_no );
   data = DATA(heap);
 
@@ -110,7 +113,7 @@ create_old_heap( int *gen_no,             /* add at least 1 to this */
   data->oflowatermark = toflowatermark;
   data->expansion_fixed = 0;
   data->expand_fixed = OLDSPACE_EXPAND_BYTES/1024;
-  data->expand_percent = 20;
+  data->expand_percent = 50;
 
   data->size_bytes = size_bytes;
 
@@ -195,6 +198,14 @@ static void promote( old_heap_t *heap )
   semispace_t *s;
   unsigned used_before;
 
+  if (data->must_promote) {
+    if (!heap->oldest) {
+      heap->collector->promote_out_of( heap->collector, data->heap_no );
+      return;
+    }
+    else data->must_collect = 1;
+  }
+
   if (data->must_collect) {
     heap->collect( heap );
     return;
@@ -225,6 +236,8 @@ static void promote( old_heap_t *heap )
   gclib_copy_younger_into( heap->collector, s );
   ss_sync( s );
 
+  supremely_annoyingmsg("  Size after promotion: %u.", s->used);
+
   data->copied_last_gc = s->used - used_before;
 
   post_promote_policy( heap );
@@ -248,7 +261,7 @@ static void collect( old_heap_t *heap )
     return;
   }
 
-  annoyingmsg( "Garbage collecting generation %d.", data->gen_no );
+  supremely_annoyingmsg( "Garbage collecting generation %d.", data->gen_no );
   debugmsg( "[debug] old heap (%d,%d): collection.", data->heap_no,
 	    data->gen_no );
   stats_gc_type( data->gen_no, STATS_COLLECT );
@@ -274,17 +287,24 @@ post_promote_policy( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   semispace_t *s = data->current_space;
+  unsigned oflosize;
 
   ss_sync( s );
-
+  oflosize = (data->size_bytes/100) * data->oflowatermark;
   data->must_collect = 0;
 
   /* If heap overflowed during promotion, schedule a collection */
-  if (s->used > data->size_bytes) {
-    data->must_collect = 1;
-    if (data->must_collect)
+  if (s->used > oflosize) {
+    if (data->copied_last_gc > oflosize) {
+      data->must_promote = 1;
+      supremely_annoyingmsg( "Generation %d decided to promote next time "
+                             "(used=%d).", data->gen_no, s->used );
+    }
+    else {
+      data->must_collect = 1;
       supremely_annoyingmsg( "Generation %d decided to collect next time "
 			    "(used=%d).", data->gen_no, s->used );
+    }
   }
 }
 
@@ -337,12 +357,12 @@ post_gc_policy( old_heap_t *heap )
       annoyingmsg( "Expanding generation %d by %u bytes; size=%u.", 
 		   data->gen_no, expanded, data->size_bytes );
 
-    /* If live is gc is under low watermark, contract by 20%.  */
+    /* If live is gc is under low watermark, contract by 33%.  */
     /* FIXME: should be under user control too. */
 
     if (!expanded && to->used < data->size_bytes/100*data->lowatermark) {
       if (heap->oldest) {
-	unsigned n = roundup_page( data->size_bytes/5 );
+	unsigned n = roundup_page( data->size_bytes/3 );
 	data->size_bytes -= n;
 	annoyingmsg( "Contracting generation %d by %u bytes; size=%u.",
 		    data->gen_no, n, data->size_bytes );

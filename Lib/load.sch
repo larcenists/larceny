@@ -1,7 +1,7 @@
 ; Lib/load.sch
 ; Larceny -- the 'load' procedure.
 ;
-; $Id: load.sch,v 1.2 1997/02/11 19:50:57 lth Exp $
+; $Id: load.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; Not entirely robust, but ok for now.
 ;
@@ -17,7 +17,8 @@
 			  (environment? (car rest)))
 		     (car rest))
 		    (else
-		     (error "load: too many extra arguments: " rest))))
+		     (error "load: too many arguments")
+		     #t)))
 	  (old-resolver (global-name-resolver))
 	  (new-resolver (lambda (sym)
 			  (environment-lookup-binding env sym))))

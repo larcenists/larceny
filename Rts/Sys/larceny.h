@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.h
  * Larceny run-time system -- main header file
  *
- * $Id: larceny.h,v 1.16 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: larceny.h,v 1.17 1997/07/07 20:13:53 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
@@ -114,6 +114,7 @@ extern void UNIX_readfile();
 extern void UNIX_writefile();
 extern void UNIX_getresourceusage();
 extern void UNIX_dumpheap();
+extern void UNIX_exit();
 extern void UNIX_mtime();
 extern void UNIX_access();
 extern void UNIX_rename();
@@ -134,6 +135,9 @@ extern void UNIX_flonum_sqrt();
 extern void UNIX_stats_dump_on();
 extern void UNIX_stats_dump_off();
 extern void UNIX_gcctl_np();
+extern void UNIX_block_signals();
+extern void UNIX_flonum_sinh();
+extern void UNIX_flonum_cosh();
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -144,7 +148,7 @@ extern void localdebugger();
 
 /* In "Rts/Sys/stats.c" */
 
-typedef enum { STATS_PROMOTE, STATS_COLLECT } stats_gc_t;
+typedef enum { STATS_PROMOTE, STATS_COLLECT, STATS_IGNORE } stats_gc_t;
 
 #ifndef GC_INTERNAL
 extern void stats_init( gc_t *gc, int generations, int show_heapstats );
@@ -212,6 +216,8 @@ extern int memfail( int code, char *fmt, ... );
 #define DEFAULT_NP_SIZE (DEFAULT_STEPS*DEFAULT_STEPSIZE)
 
 /* GC policy defaults (not tuned) */
+#if 0
+/* Old policy */
 #define DEFAULT_EWATERMARK 50     /* espace > 50% full => tenure */
 #define DEFAULT_TOFLOWATERMARK 75 /* tspace > 75% full => promote */
 #define DEFAULT_THIWATERMARK 75   /* tspace > 75% full => expand */
@@ -222,6 +228,19 @@ extern int memfail( int code, char *fmt, ... );
 #define DEFAULT_NP_HIWATERMARK    80    /* NP expansion watermark */
 #define DEFAULT_NP_LOWATERMARK    30    /* NP contraction watermark */
 #define DEFAULT_NP_OFLOWATERMARK  80    /* NP promotion watermark */
+#else
+/* New policy, tuned by Will, although the 0 entries must be fixed. */
+#define DEFAULT_EWATERMARK 25     /* espace > 25% full => tenure */
+#define DEFAULT_TOFLOWATERMARK 66 /* tspace > 66% full => promote */
+#define DEFAULT_THIWATERMARK 66   /* tspace > 66% full => expand */
+#define DEFAULT_TLOWATERMARK 0    /* tspace <  0% full => contract */
+#define DEFAULT_RWATERMARK 75     /* remset-pool > 75% full => tenure */
+#define DEFAULT_SC_HIWATERMARK 66  /* stop+copy high watermark */
+#define DEFAULT_SC_LOWATERMARK  0  /* stop+copy low watermark */
+#define DEFAULT_NP_HIWATERMARK    80    /* NP expansion watermark */
+#define DEFAULT_NP_LOWATERMARK     0    /* NP contraction watermark */
+#define DEFAULT_NP_OFLOWATERMARK  80    /* NP promotion watermark */
+#endif
 
 #define OLDSPACE_EXPAND_BYTES   (1024*256)  /* 256KB chunks */
 

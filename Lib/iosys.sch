@@ -1,7 +1,7 @@
 ; Lib/iosys.sch
 ; Larceny -- New I/O system
 ;
-; *$Id: iosys.sch,v 1.3 1997/05/15 00:42:10 lth Exp $
+; *$Id: iosys.sch,v 1.4 1997/07/07 20:52:12 lth Exp lth $
 ;
 ; Design: the system is designed so that in the common case, very few
 ; procedure calls are executed.
@@ -107,6 +107,9 @@
 
 (define (io/output-port? p)
   (and (port? p) (vector-like-ref p port.output?)))
+
+(define (io/open-port? p)
+  (or (io/input-port? p) (io/output-port? p)))
 
 ; Note: I've inlined port? to avoid a procedure call.
 

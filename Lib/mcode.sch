@@ -4,7 +4,7 @@
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
 ;
-; $Id: mcode.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: mcode.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
@@ -47,7 +47,8 @@
 	 (make-rectangular (exact->inexact (real-part a))
 			   (exact->inexact (imag-part a))))
 	(else 
-	 (error "exact->inexact: " a " is not a number."))))
+	 (error "exact->inexact: " a " is not a number.")
+	 #t)))
 
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
@@ -64,7 +65,8 @@
 	 (make-rectangular (inexact->exact (real-part a))
 			   (inexact->exact (imag-part a))))
 	(else
-	 (error "generic-inexact->exact: internal error: " a))))
+	 (error "generic-inexact->exact: internal error: " a)
+	 #t)))
 
 (define (heavy-quotient a b)
   (cond ((and (bignum? a) (bignum? b))
@@ -77,7 +79,8 @@
 	       (else
 		(contagion a b quotient))))
 	(else
-	 (error "quotient: arguments must be integers: " a " " b))))
+	 (error "quotient: arguments must be integers: " a " " b)
+	 #t)))
 
 (define (heavy-remainder a b)
   (cond ((and (bignum? a) (bignum? b))
@@ -85,7 +88,8 @@
 	((and (integer? a) (integer? b))
 	 (- a (* (quotient a b) b)))
 	(else
-	 (error "remainder: arguments must be integers: " a " " b))))
+	 (error "remainder: arguments must be integers: " a " " b)
+	 #t)))
 
 
 ; When calling fixnum2ratnum-div by saying '(/ 2 4):
@@ -94,7 +98,7 @@
 ;
 ;   -r'm
 (define (fixnum2ratnum-div a b)
-  (cond ((= b 0) (error "fixnum2ratnum-div: division by zero"))
+  (cond ((= b 0) (error "fixnum2ratnum-div: division by zero") #t)
 	((< b 0) (make-reduced-ratnum (- a) (- b)))
 	(else    (make-reduced-ratnum a b))))
 

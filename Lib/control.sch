@@ -1,13 +1,14 @@
 ; Lib/control.sch
 ; Larceny library -- various control procedures
 ;
-; $Id: control.sch,v 1.4 1997/05/15 00:42:10 lth Exp $
+; $Id: control.sch,v 1.5 1997/07/07 20:45:06 lth Exp $
 ;
 ; Copyright 1991 Lightship Software
 ;
 ; 'Member', 'assq', and so on may be found in Lib/list.sch.
 ; 'Call-with-current-continuation' is in Lib/malcode.mal.
 ; 'Exit' is OS-specific (see e.g. Lib/unix.sch)
+; 'Call-without-interrupts' is in Lib/timer.sch.
 
 
 ; APPLY
@@ -37,17 +38,12 @@
             ((null? (cddr l)) (f (car l) (cadr l)))
             ((null? (cdddr l)) (f (car l) (cadr l) (caddr l)))
             ((null? (cddddr l)) (f (car l) (cadr l) (caddr l) (cadddr l)))
-            ((not (list? l)) (error "apply: not a list: " l))
+            ((not (list? l)) 
+	     (error "apply: not a list: " l)
+	     #t)
             (else (raw-apply f l (length l)))))
 
     apply))
-
-
-; No doubt this needs to be refined.
-
-(define call-without-interrupts
-  (lambda (thunk)
-    (thunk)))
 
 
 ; Used by 'delay'.
@@ -84,7 +80,8 @@
     (error "collect: bad arguments "
 	   args
 	   #\newline
-	   "Use: (collect [generation [{promote,collect}]])"))
+	   "Use: (collect [generation [{promote,collect}]])")
+    #t)
 
   (if (null? args)
       (sys$gc 0 0)
@@ -103,37 +100,16 @@
   (unspecified))
 
 
-; Given a continuation (which is a procedure), return the internal 
-; linked list of frames (represented as vectors).  This is useful for 
-; debuggers.
-;
-; See malcode.mal for sys$continuation-data-structure.
-;
-; NOTE that this procedure is pretty much useless for programs that
-; wrap continuations in other procedures; for an example of code that
-; does this, see the definition of dynamic-wind below.  We can work 
-; around this in the specific case of dynamic-wind by some malcode
-; hackery but I have not done so, as the solution is nowhere general.
+; Returns the current continuation structure (as chain of vectors).
 
-(define (continuation->vector obj)
-  (if (continuation? obj)
-      (sys$continuation-data-structure obj)
-      (error "continuation->vector: not a continuation: " obj)))
-
-
-; For now continuations are "plain" procedures and this primitive does
-; not perform the necessary tests; see malcode.mal.
-
-(define continuation? procedure?)
+(define (current-continuation-structure)
+  (creg))
 
 
 ; dynamic-wind
 ;
 ; Snarfed from Lisp Pointers, V(4), October-December 1992, p45.
 ; Written by Jonathan Rees.
-;
-; NOTE: this messes up the continuation->vector procedure, above,
-; making the latter useless.
 ;
 ; NOTE: this code is not thread-aware.
 
@@ -181,7 +157,8 @@
 
 (define global-name-resolver
   (let ((p (lambda (sym)
-	     (error "global-name-resolver: not installed."))))
+	     (error "global-name-resolver: not installed.")
+	     #t)))
     (lambda rest
       (cond ((null? rest) p)
 	    ((and (null? (cdr rest))
@@ -191,7 +168,8 @@
 	       old))
 	    (else
 	     (error "global-name-resolver: Wrong number of arguments: "
-		    rest))))))
+		    rest)
+	     #t)))))
 
 
 ; eof

@@ -1,70 +1,36 @@
 ; Repl/reploop.sch
 ; Larceny -- read-eval-print loop and error handler.
 ;
-; $Id: reploop.sch,v 1.1 1997/05/15 00:53:10 lth Exp lth $
+; $Id: reploop.sch,v 1.2 1997/07/07 21:01:13 lth Exp lth $
 
-(define *reset-continuation* #f)    ; to jump to for error or reset
-(define *saved-continuation* #f)    ; saved on error
+(define *init-file-name* ".larceny")  ; Unix-ism.
+(define *file-arguments* #f)          ; #t if file arguments were loaded
+(define *reset-continuation* #f)      ; current longjump point
+(define *saved-continuation* #f)      ; last saved error continuation
 
-(define *argv*)
 
-(define (command-line-arguments)
-  *argv*)
+;;; Entry point in a bootstrap heap.
 
 (define (main argv)
-;  (display "; Evaluator version ")
-;  (display eval-version)
-;  (newline)
-  (reset-handler new-reset-handler)
-  (error-handler (new-error-handler))
   (init-toplevel-environment)
-  (rep-loop0 argv))
+  (setup-error-handlers)
+  (rep-loop-bootstrap argv))
 
-(define (rep-loop0 argv)
-  (set! *argv* argv)
-  ; FIXME: Should reinitialize I/O system!!!!
-  ; Try to load init file; on error signal error and abandon load.
-  (if (not (call-with-current-continuation
-	    (lambda (k)
-	      (set! *reset-continuation* k)
-	      (load-init-file)
-	      #t)))
-      (begin (display "Init file load failed.")
-	     (newline)))
-  (if (and (> (vector-length (command-line-arguments)) 0)
-	   (file-exists? (vector-ref (command-line-arguments) 0)))
-      (if (not (call-with-current-continuation
-		(lambda (k)
-		  (set! *reset-continuation* k)
-		  (load (vector-ref (command-line-arguments) 0))
-		  #t)))
-	  (begin (display "Failed to load ")
-		 (display (vector-ref (command-line-arguments) 0))
-		 (newline))))
+
+;;; Entry point in a saved interactive heap.
+
+(define (rep-loop-bootstrap argv)
+  (command-line-arguments argv)
+  (record-current-console-io)
+  (failsafe-load-init-file)
+  (failsafe-load-file-arguments)
+  (setup-interrupts)
   (rep-loop))
 
-(define (load-init-file)
-  (let ((home (getenv "HOME")))
-    (cond ((file-exists? ".larceny")
-	   (display "; Loading .larceny")
-	   (newline)
-	   (load ".larceny"))
-	  (home
-	   (let ((fn (string-append home "/.larceny")))
-	     (if (file-exists? fn)
-		 (begin (display "; Loading ~/.larceny")
-			(newline)
-			(load fn))))))))
+
+;;; Read-eval-print loop.
 
 (define (rep-loop)
-
-  ; This loop should check that the current output port is still writable,
-  ; and should exit without any fuss if it is not.  If it does not
-  ; discover that the output is not writable, then it may try to write the
-  ; final newline to it, resulting in an error, resulting in an error ...
-  ; and so on, until kingdom come.  This may be the source of some looping
-  ; seen on EOF (race condition), and the 300MB runaway process on everest.
-  ; In general, we need to catch SIGHUP too.
 
   (define (loop)
     (display "> ")
@@ -72,9 +38,8 @@
     (let ((expr   (read)))
       (if (not (eof-object? expr))
 	  (let ((result (eval expr)))
-	    (if (not (eq? result (unspecified)))
-		(begin (display result)
-		       (newline)))
+	    (reestablish-console-io)
+	    (repl-display result)
 	    (loop))
 	  (begin (newline)
 		 (exit)))))
@@ -87,29 +52,149 @@
   (newline)
   (loop))
 
+;;; Read-eval-print loop printer.  The print procedure defaults to a simple
+;;; wrapper around 'display', but the procedure is installable, so that
+;;; higher-level code can install e.g. a pretty-printer as the default
+;;; print procedure.
+
+; Default
+
+(define default-repl-display-proc
+  (lambda (result)
+    (if (not (eq? result (unspecified)))
+	(begin (display result)
+	       (newline)))))
+
+; Install hook
+
+(define repl-display-procedure
+  (let ((proc default-repl-display-proc))
+    (lambda rest
+      (cond ((null? rest) proc)
+	    ((null? (cdr rest))
+	     (let ((old proc))
+	       (if (not (car rest))
+		   (set! proc default-repl-display-proc)
+		   (set! proc (car rest)))
+	       old))
+	    (else
+	     (error "repl-display-proc: too many arguments.")
+	     #t)))))
+
+; Called by repl.
+
+(define (repl-display result)
+  (call-with-error-handler
+   (lambda (who . args)
+     (reestablish-console-io)
+     (format #t "Error: Bogus display procedure; reverting to default.")
+     (repl-display-procedure default-repl-display-proc)
+     (reset))
+   (lambda ()
+     ((repl-display-procedure) result))))
+
+
+;;; Console i/o handling -- after an error, console i/o must be reset.
+
+(define *conin* #f)                   ; console input
+(define *conout* #f)                  ; console output
+
+(define (record-current-console-io)
+  (set! *conin* (current-input-port))
+  (set! *conout* (current-output-port)))
+
+(define (reestablish-console-io)
+  (if (not (io/open-port? *conin*))
+      (set! *conin* (console-io/open-input-console)))
+  (if (not (io/open-port? *conout*))
+      (set! *conout* (console-io/open-output-console)))
+  (current-input-port *conin*)
+  (current-output-port *conout*))
+
+
+;;; Error handling.
+;;;
+;;; We set up customized error and reset handlers so that we can
+;;; capture errors and save a debugging continuation for a backtrace.
+;;;
+;;; The new error handler captures the current continuation _structure_,
+;;; saves it in the global *saved-continuation*, and then invokes the
+;;; previously defined (default) error handler, which in normal cases will
+;;; print an error message and then do a (reset).
+;;;
+;;; The new reset handler does a longjump to the currently saved
+;;; reset continuation, which will be set up by the read-eval-print loop.
+
+(define (setup-error-handlers)
+  (reset-handler new-reset-handler)
+  (error-handler (new-error-handler)))
+
 (define (new-error-handler)
   (let ((old (error-handler)))
     (lambda args
-      (call-with-current-continuation 
-       (lambda (k) 
+      (reestablish-console-io)          ; So that we can print the message.
+      (let ((k (current-continuation-structure)))
 	 (set! *saved-continuation* k)
-	 (apply old args))))))
-
-(define (error-continuation)
-  *saved-continuation*)
-
-(define (backtrace)
-  (print-continuation (error-continuation)))
+	 (apply old args)))))
 
 (define (new-reset-handler)
   (if *reset-continuation*
       (*reset-continuation* #f)
-      (begin (display "No reset continuation! Exiting.")
-	     (newline)
-	     (exit))))
+      (exit)))
+
+
+;;; Timer interrupt handling.
+;;; Default behavior for timer interrupts: reset the timer to max.
+;;; FIXME: other interrupts must be handled, too.
+
+(define *max-ticks* 536870911)            ; (- (expt 2 29) 1)
+
+(define (setup-interrupts)
+  (let ((old-handler (interrupt-handler)))
+    (interrupt-handler (lambda (type)
+			 (if (eq? type 'timer)
+			     (enable-interrupts *max-ticks*)
+			     (old-handler type)))))
+  (enable-interrupts *max-ticks*))
+
+
+;;; User-available procedures.
+
+(define (error-continuation)
+  *saved-continuation*)
 
 (define (dump-interactive-heap filename)
-  (dump-heap filename rep-loop0))
+  (dump-heap filename rep-loop-bootstrap))
 
+
+;;; Init file loading.
+
+(define (failsafe-load-init-file)
+  (cond ((file-exists? *init-file-name*)
+	 (failsafe-load-file *init-file-name*))
+	((getenv "HOME") 
+	 => 
+	 (lambda (home)
+	   (let ((fn (string-append home "/" *init-file-name*)))
+	     (if (file-exists? fn)
+		 (failsafe-load-file fn)))))))
+
+(define (failsafe-load-file-arguments)
+  (let ((argv (command-line-arguments)))
+    (do ((i 0 (+ i 1)))
+	((= i (vector-length argv)))
+      (if (file-exists? (vector-ref argv i))
+	  (begin (set! *file-arguments* #t)
+		 (failsafe-load-file (vector-ref argv i)))))))
+
+(define (failsafe-load-file filename)
+  (call-with-current-continuation
+   (lambda (k)
+     (call-with-reset-handler
+      (lambda ()
+	(format #t "Error while loading ~a.~%" filename)
+	(k #f))
+      (lambda ()
+	(load filename))))))
 
 ; eof

@@ -1,9 +1,7 @@
 ; -*- scheme -*-
+; Larceny library -- error system
 ;
-; Larceny -- error system
-;
-; lth@cs.uoregon.edu / August 30, 1995
-; $Id: error.sch,v 1.1 1997/02/03 20:07:13 lth Exp $
+; $Id: error.sch,v 1.2 1997/07/07 20:45:06 lth Exp $
 ;
 ; Documented behavior:
 ;  The default error handler prints all its arguments and then calls reset.
@@ -16,19 +14,42 @@
 ;  An installed error handler may not return. 
 ;
 ;  An installed reset handler takes no arguments. It may not return.
-;
-;  Error messages from system primitives come fully laid out with spaces,
-;  so the error handler does not need to add any.
 
 (define (error . args)
   (apply (error-handler) '() args))
 
-; The error handler is a procedure which takes a keyword as the first
-; argument and then some additional arguments. If the keyword is a number,
+(define (call-with-error-handler handler thunk)
+  (let ((old-handler (error-handler)))
+    (dynamic-wind 
+     (lambda () (error-handler handler))
+     thunk
+     (lambda () (error-handler old-handler)))))
+
+(define (call-without-errors thunk . rest)
+  (let ((fail (if (null? rest) #f (car rest))))
+    (call-with-current-continuation
+     (lambda (k)
+       (call-with-error-handler (lambda (who . args) (k fail)) thunk)))))
+
+(define (reset)
+  ((reset-handler)))
+
+(define (call-with-reset-handler handler thunk)
+  (let ((old-handler (reset-handler)))
+    (dynamic-wind 
+     (lambda () (reset-handler handler))
+     thunk
+     (lambda () (reset-handler old-handler)))))
+
+; The error handler is a procedure that takes a keyword as the first
+; argument and then some additional arguments.  If the keyword is a number,
 ; then the error occured in compiled code or in a system subroutine.
-; If the keyword is null, it is ignored. Otherwise it is printed with the
-; rest of the arguments. Installed error handlers should obey this logic
+; If the keyword is null, it is ignored.  Otherwise it is printed with the
+; rest of the arguments.  Installed error handlers should obey this logic
 ; as far as reasonable.
+;
+; Error messages from system primitives come fully laid out with spaces,
+; so the error handler does not need to add any.
 
 (define *error-handler*
   (lambda (who . args)
@@ -59,50 +80,24 @@
 	 (display args)
 	 (newline))))
 
-(define reset
+(define *reset-handler*
   (lambda ()
     (exit)))
 
 (define (reset-handler . args)
   (cond ((null? args)
-	 reset)
+	 *reset-handler*)
 	((and (null? (cdr args))
 	      (procedure? (car args)))
-	 (let ((old reset))
-	   (set! reset (lambda ()
-			 ((car args))
-			 (display "FATAL: Reset handler returned.")
-			 (newline)
-			 (exit)))
+	 (let ((old *reset-handler*))
+	   (set! *reset-handler*
+		 (lambda ()
+		   ((car args))
+		   (display "FATAL: Reset handler returned.")
+		   (newline)
+		   (exit)))
 	   old))
 	(else
 	 (display "Error: Reset-handler: Invalid argument: " args))))
-
-; The interrupt handler is a procedure of one argument which handles 
-; various types of interrupts.
-
-(define *interrupt-handler*
-  (lambda (kind)
-    (cond ((eq? kind 'timer)
-	   (display "UNHANDLED TIMER INTERRUPT -- EXITING.")
-	   (newline)
-	   (exit))
-	  (else
-	   (display "UNKNOWN INTERRUPT TYPE: ")
-	   (display kind)
-	   (display ". EXITING.")
-	   (newline)
-	   (exit)))))
-
-(define (interrupt-handler . args)
-  (cond ((null? args)
-	 *interrupt-handler*)
-	((and (null? (cdr args))
-	      (procedure? (car args)))
-	 (let ((old *interrupt-handler*))
-	   (set! *interrupt-handler* (car args))
-	   old))
-	(else
-	 (error "Interrupt-handler: Invalid argument: " args))))
 
 ; eof

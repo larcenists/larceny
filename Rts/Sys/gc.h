@@ -1,7 +1,7 @@
 /* Rts/Sys/gc.h
  * Larceny run-time system -- garbage collector interface (public)
  *
- * $Id: gc.h,v 1.13 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: gc.h,v 1.13 1997/05/31 01:38:14 lth Exp $
  *
  * The procedure create_gc() returns a new garbage collector that manages
  * some number of heap areas.  It is implemented in "memmgr.c".

@@ -1,6 +1,6 @@
 ; *Way* low-level floating point stuff.
 ;
-; $Id: flonums.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: flonums.sch,v 1.3 1997/07/07 20:45:06 lth Exp $
 ;
 ; The procedures in this file all operate on IEEE flonums.
 ; Formats of flonums and bignums and operations used are all specific
@@ -300,7 +300,9 @@
 		 (cp from (+ i 1) to (+ j 1) (- c 1)))))
 
     (if (not (and (flonum? real) (flonum? imag)))
-	(error "make-compnum: not a flonum: " (if (flonum? real) imag real))
+	(begin
+	  (error "make-compnum: not a flonum: " (if (flonum? real) imag real))
+	  #t)
 	(let ((b (make-bytevector 20)))
 	  (cp real 4 b 4 8)
 	  (cp imag 4 b 12 8)

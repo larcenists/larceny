@@ -1,7 +1,7 @@
 /* Rts/Sys/larceny.c.
  * Larceny run-time system (Unix) -- main file.
  *
- * $Id: larceny.c,v 1.14 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: larceny.c,v 1.15 1997/07/07 20:09:30 lth Exp $
  *
  * On-line manual available at http://www.ccs.neu.edu/home/lth/larceny.
  */
@@ -265,7 +265,8 @@ void hardconsolemsg( const char *fmt, ... )
  */
 static void handle_signals( int ifreq )
 {
-  static void inthandler(), fpehandler();
+  static void inthandler();
+  static void fpehandler();
 
   signal( SIGINT, inthandler );
   signal( SIGQUIT, inthandler );
@@ -273,8 +274,17 @@ static void handle_signals( int ifreq )
 }
 
 
-static void inthandler()
+static void inthandler( int sig, int code, struct sigcontext *scp, char *addr )
 {
+  /* The commented-out code works, but the world is not quite ready for it */
+#if 0
+  word g;
+
+  g = globals[ G_SIGNALS ];
+  if (g != FALSE_CONST)		/* make sure it's installed */
+    vector_set(gcell_ref(g), sig, vector_ref(gcell_ref(g), sig)+fixnum( 1 ));
+#endif
+
   /* Eventually this should do something intelligent to clear the timer... */
   hardconsolemsg( "Caught signal -- exiting.\n" );
   /* can't go to localdebugger because the registers are not saved */

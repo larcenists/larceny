@@ -1,7 +1,7 @@
 /* Rts/Sys/new-policy.c.
  * Larceny run-time system -- memory manager.
  *
- * $Id: memmgr.c,v 1.22 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: memmgr.c,v 1.23 1997/07/07 20:13:53 lth Exp lth $
  *
  * This file contains procedures for memory allocatation and garbage 
  * collection policy.
@@ -464,7 +464,7 @@ set_policy( gc_t *gc, int heap, int op, unsigned value )
 {
   gc_data_t *data = DATA(gc);
 
-  if (heap < 0 || heap > data->oldest_collectable_generation) return;
+  if (heap < 0 || heap > data->number_of_old_heaps) return;
 
   if (heap == 0)
     data->young_heap->set_policy( data->young_heap, op, value );

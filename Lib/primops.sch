@@ -1,15 +1,7 @@
-; -*- Scheme -*-
+; Lib/primops.sch
+; Larceny library -- global procedure definitions for integrable procedures.
 ;
-; Larceny run-time system
-; Global procedure definitions for integrable procedures.
-;
-; $Id: primops.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
-
-; The following are defined elsewhere:
-;
-;  (symbol? x)         in oblist.sch
-;  (exit)              in unix.sch
-;  (dumpheap fn proc)  in unix.sch
+; $Id: primops.sch,v 1.3 1997/07/07 20:52:12 lth Exp lth $
 
 ; General predicates
 
@@ -222,12 +214,14 @@
 (define bytevector-like-ref (lambda (x y) (bytevector-like-ref x y)))
 (define bytevector-like-set! (lambda (x y z) (bytevector-like-set! x y z)))
 (define bytevector-like-length (lambda (x) (bytevector-like-length x)))
+
 (define bytevector-like-compare
   (lambda (x y)
     (if (and (bytevector-like? x)
 	     (bytevector-like? y))
 	(sys$bvlcmp x y)
-	(error "bytevector-like-compare: bad args: " x y))))
+	(begin (error "bytevector-like-compare: bad arguments: " x " " y)
+	       #t))))
 
 ; Structures and typetags
 
@@ -252,6 +246,7 @@
 
 ; Miscellaneous
 
+(define symbol? (lambda (x) (symbol? x)))
 (define break (lambda () (break)))
 (define creg (lambda () (creg)))
 (define creg-set! (lambda (x) (creg-set! x)))
@@ -260,12 +255,5 @@
 (define enable-interrupts (lambda (n) (enable-interrupts n)))
 (define disable-interrupts (lambda () (disable-interrupts)))
 (define eof-object (lambda () (eof-object)))
-
-; obsolete
-
-;(define debugvsm (lambda () (debugvsm)))
-;(define reset (lambda () (sys$reset)))
-;(define modulo (lambda (x y) (modulo x y)))
-;(define gc (lambda (x) (error "The procedure gc is not supported!")))
 
 ; eof

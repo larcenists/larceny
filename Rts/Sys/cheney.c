@@ -1,7 +1,7 @@
 /* Rts/Sys/cheney.c
  * Larceny run-time system -- copying garbage collector library.
  *
- * $Id: cheney.c,v 1.11 1997/05/23 13:42:46 lth Exp $
+ * $Id: cheney.c,v 1.12 1997/07/07 20:09:30 lth Exp $
  *
  *
  * Description.
@@ -45,10 +45,6 @@
  *
  *
  * Bugs/Discussion/FIXMEs.
- *
- * - get rid of scan_core_partial by creating a forw_oflo_partial and
- *   using this in scan().  This should also get rid of the recomputation
- *   of T_obj_gen in scan_core_partial.
  *
  * - finesse the use of the write barrier's SSBs -- is it OK the way it
  *   is now, or should we clean it up properly, and if so, how?
@@ -160,6 +156,33 @@
   } while( 0 )
 
 
+/* The forw_oflo_partial() macro is used only by scan_core_partial,
+ * when promoting from the ephemeral area into steps 1 through j of
+ * a non-predictive heap.
+ * The forw_oflo_partial() macro does everything that forw_oflo() does,
+ * and also sets T_bit if the object being traced needs to be added to
+ * the remembered set.
+ *
+ * forw_oflo_partial() assumes that all parameters except gno are
+ * variable names (lvalues whose evaluation has no side effect);
+ * gno may be any expression.
+ *
+ * static void forw_oflo( word *p, unsigned gno, word *dest, word *lim,
+ *                        semispace_t *semispace, int T_obj_gen )
+ */
+
+#define forw_oflo_partial( p, gno, dest, lim, semispace, T_obj_gen, T_bit ) \
+  do {  word TMP2 = *p; \
+        if ( isptr( TMP2 ) ) { \
+            int TMP3 = gclib_desc_g[pageof(TMP2)]; \
+            if ( TMP3 < gno ) { \
+                forw_core( TMP2, p, dest, check_space, lim, semispace ); \
+            } \
+            else if ( TMP3 < T_obj_gen ) \
+                T_bit = 1; \
+        } \
+  } while( 0 )
+
 
 /* The forw_core() macro implements most of the forwarding operation.
  * In the case of forw(), the checking code expands to a no-op; in the
@@ -260,10 +283,7 @@
     } \
   }
 
-/* FIXME: this can be joined with scan_core by suitable use of 
-   forward macros in the one place where this is used.
-
-  The extra checking bit:
+/*  The extra checking bit:
 
   if *ptr is a pointer into an intermediate generation between
     the current target generation and the oldest generation being
@@ -276,7 +296,7 @@
 
 */
 
-#define scan_core_partial( ptr, dest, iflush, FORW, T_obj_gen ) \
+#define scan_core_partial( ptr, dest, iflush, FORW, T_bit ) \
   do { \
     word T_w = *ptr; \
     assert( T_w != FORWARD_PTR); \
@@ -303,7 +323,6 @@
 	ptr++; \
 	while (T_words--) { \
 	  FORW; \
-          if (isptr(*ptr) && gclib_desc_g[pageof(*ptr)] < T_obj_gen) T_bit=1; \
 	  ptr++; \
 	} \
         if (T_bit) remember_vec( tagptr( T_obj, VEC_TAG ) ); \
@@ -313,10 +332,8 @@
     else { \
       int T_bit = 0; \
       FORW; \
-      if (isptr(*ptr) && gclib_desc_g[pageof(*ptr)] < T_obj_gen) T_bit=1; \
       ptr++; \
       FORW; \
-      if (isptr(*ptr) && gclib_desc_g[pageof(*ptr)] < T_obj_gen) T_bit=1; \
       ptr++; \
       if (T_bit) remember_pair( tagptr( ptr-2, PAIR_TAG ) ); \
     } \
@@ -748,9 +765,14 @@ scan_oflo_np_promote( word *scanptr, word *scanlim, unsigned scan_chunk_idx,
 
   while (scanptr != dest) {
     while (scanptr != dest && scanptr < scanlim) {
+      /* T_bit is just a name that is common to scan_core_partial() and
+       * forw_oflo_partial(); scan_core_partial() uses it to declare some
+       * variable.
+       */
       scan_core_partial( scanptr, dest, iflush,
-			forw_oflo( scanptr, gno, dest, copylim, tospace ),
-			T_obj_gen );
+	forw_oflo_partial( scanptr, gno, dest, copylim, tospace,
+			   T_obj_gen, T_bit ),
+		        T_bit );
     }
 
     if (scanptr != dest) {

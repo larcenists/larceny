@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id: bignums.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
+; $Id: bignums.sch,v 1.3 1997/07/07 20:45:06 lth Exp $
 ;
 ; Larceny runtime system.
 ; Scheme code for bignum arithmetic.
@@ -282,7 +282,8 @@
   (define (%bignum-alloc digits)
     (let ((l (roundup4 (+ digits digits)))) ; to get bytes
       (if (> l max-bignum-bytes)
-	  (error "Bignum too large: " digits " bigits.")
+	  (begin (error "Bignum too large: " digits " bigits.")
+		 #t)
 	  (let ((v (make-bytevector (+ l 4))))
 	    (bytevector-fill! v 0)
 	    (typetag-set! v sys$tag.bignum-typetag)
@@ -550,8 +551,11 @@
 ;    (loop (- (bignum-length b) 1) 0)))
 
 (define (bignum->fixnum b)
-  (logior (lsh (bignum-ref b 1) bigit-shift)
-	  (bignum-ref b 0)))
+  (let ((c (logior (lsh (bignum-ref b 1) bigit-shift)
+		   (bignum-ref b 0))))
+    (if (sign-negative? (bignum-sign b))
+	(- c)
+	c)))
 
 ; Can't use `big-normalize!' because it'd convert it back to a fixnum.
 ; (Could use big-limited-normalize, though.)
@@ -905,7 +909,7 @@
 	  (big-limited-normalize! q)
 	  (cons q (if (fixnum? rem)
 		      (fixnum->bignum rem)
-		      (error "fast-divide: impossible: " rem)))))))
+		      (begin (error "fast-divide: impossible: " rem) #t)))))))
 
   ; `a' and `b' are both bignums, with (length a) >= (length b) and
   ; (length b) > 1. Produces a pair of bignums.
@@ -953,7 +957,8 @@
   ; Maintain some invariants and catch the easy cases.
 
   (cond ((bignum-zero? b)
-	 (error 'generic-arithmetic "Bignum division by zero"))
+	 (error 'generic-arithmetic "Bignum division by zero")
+	 #t)
 	((bignum-zero? a)
 	 (cons (fixnum->bignum 0) (fixnum->bignum 0)))
 	(else

@@ -1,9 +1,9 @@
-; Copyright Lars Thomas Hansen.
-;
+; Lib/ratnums.sch
 ; Larceny library  -  Scheme code for ratnum arithmetic.
-; Originally written by Remy Evard; extensively modified by Lars Hansen.
 ;
-; $Id: ratnums.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
+; $Id: ratnums.sch,v 1.2 1997/07/07 20:52:12 lth Exp lth $
+;
+; (Originally written by Remy Evard; extensively modified by Lars Hansen.)
 ;
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.
@@ -73,7 +73,8 @@
 		  (zero? (imag-part ratnum))))
 	 (exact->inexact (numerator (inexact->exact ratnum))))
 	(else
-	 (error "numerator: not a rational" ratnum))))
+	 (error "numerator: not a rational" ratnum)
+	 #t)))
 
 (define (denominator ratnum)
   (cond ((ratnum? ratnum)
@@ -87,7 +88,8 @@
 		  (zero? (imag-part ratnum))))
 	 (exact->inexact (denominator (inexact->exact ratnum))))
 	(else
-	 (error "denominator: not a rational" ratnum))))
+	 (error "denominator: not a rational" ratnum)
+	 #t)))
 
 (define (ratnum->string r radix)
   (string-append
@@ -143,7 +145,8 @@
 			 (- (* (/ (denominator a) gcd2) 
 			       (/ (numerator b) gcd1)))))
 	   ((= (numerator b) 0)
-	    (error "ratnum-div - division by 0"))
+	    (error "ratnum-div - division by 0")
+	    #t)
 	   (else
 	    (make-ratnum (* (/ (numerator a) gcd1) (/ (denominator b) gcd2))
 			 (* (/ (denominator a) gcd2) 

@@ -1,6 +1,6 @@
 ; Larceny auxiliary library -- pretty printer
 ; 
-; $Id: pp.sch,v 1.1 1997/02/27 16:48:16 lth Exp lth $
+; $Id: pp.sch,v 1.2 1997/07/07 20:40:20 lth Exp lth $
 ;
 ; File: "pp.scm"   (c) 1991, Marc Feeley
 ; [Snarfed from the Scheme repository at Indiana University, August 5, 1995.]
@@ -78,7 +78,7 @@
           ((boolean? obj)     (out (if obj "#t" "#f") col))
           ((number? obj)      (out (number->string obj) col))
           ((symbol? obj)      (out (symbol->string obj) col))
-          ((procedure? obj)   (out "#[procedure]" col))
+          ((procedure? obj)   (out "#<procedure>" col))
           ((string? obj)      (if display?
                                 (out obj col)
                                 (let loop ((i 0) (j 0) (col (out "\"" col)))
@@ -101,9 +101,10 @@
                                        ((#\newline) "newline")
                                        (else        (make-string 1 obj)))
                                      (out "#\\" col))))
-          ((input-port? obj)  (out "#[input-port]" col))
-          ((output-port? obj) (out "#[output-port]" col))
-          ((eof-object? obj)  (out "#[eof-object]" col))
+          ((input-port? obj)  (out "#<input-port>" col))
+          ((output-port? obj) (out "#<output-port>" col))
+          ((eof-object? obj)  (out "#<eof>" col))
+	  ((eq? obj (unspecified)) (out "#!unspecified" col))
           (else               (out "#[unknown]" col))))
 
   (define (pp obj col)

@@ -3,7 +3,7 @@
 # Rts/Makefile
 # Larceny -- the main Makefile
 #
-# $Id: Makefile,v 1.10 1997/05/31 01:48:56 lth Exp lth $
+# $Id: Makefile,v 1.10 1997/05/31 01:48:56 lth Exp $
 
 
 ############################################################################

@@ -1,6 +1,6 @@
 ; Larceny library -- profiling support.
 ;
-; $Id: profile.sch,v 1.1 1997/02/03 20:07:13 lth Exp $
+; $Id: profile.sch,v 1.2 1997/07/07 20:52:12 lth Exp lth $
 
 ; Simple, slow trace facility for primitive profiling.
 ; You can control the state of tracing with sys$tracectl.
@@ -20,7 +20,8 @@
 	((eq? type 'clear)
 	 (set! sys$traces '()))
 	(else
-	 (error "sys$tracectl: unknown: " type))))
+	 (error "sys$tracectl: unknown: " type)
+	 #t)))
 
 (define (sys$trace item)
   (if sys$enabled

@@ -1,7 +1,7 @@
 ; Eval/eval.sch
 ; Larceny -- fast interpreter.
 ;
-; $Id: eval.sch,v 1.3 1997/05/15 00:50:19 lth Exp $
+; $Id: eval.sch,v 1.4 1997/07/07 20:43:13 lth Exp lth $
 ;
 ; Description
 ;   `Eval' takes an expression and optionally an R5RS environment and
@@ -73,8 +73,6 @@
 ;   at preprocessing time and generate code for setglbl that signals
 ;   an error if executed (and perhaps a warning during preprocessing).
 
-(define eval-version "0.3.1")
-
 (define eval
   (let ()
 
@@ -95,7 +93,8 @@
 			     (environment? (car rest)))
 			(car rest))
 		       (else
-			(error "Eval: bad args: " rest))))
+			(error "Eval: bad arguments: " rest)
+			#t)))
 	    (expr (macro-expand expr)))
 	((toplevel-preprocess expr env) '())))
 
@@ -118,7 +117,8 @@
 			   (eval/setglbl (cadr expr) rhs find-global))))
 	   ((lambda) (eval/make-proc expr env find-global))
 	   ((begin)  (if (null? (cdr expr))
-			 (error "EVAL: empty BEGIN")
+			 (begin (error "EVAL: empty BEGIN")
+				#t)
 			 (eval/sequence
 			  (map (lambda (x)
 				 (eval/preprocess x env find-global))
@@ -137,7 +137,8 @@
 	((eval/self-evaluating? expr)
 	 (eval/const expr))
 	(else
-	 (error "EVAL: preprocess: unknown expression: " expr))))
+	 (error "EVAL: preprocess: unknown expression: " expr)
+	 #t)))
 
 (define (eval/self-evaluating? expr)
   (or (procedure? expr) 
@@ -160,6 +161,11 @@
 	  ((pair? x) (cons (car x) (listify (cdr x))))
 	  (else (list x))))
 
+  (define (fixed-args x n)
+    (if (pair? x)
+	(fixed-args (cdr x) (+ n 1))
+	n))
+
   (let* ((args  (cadr expr))
 	 (body  (cddr expr))
 	 (nenv  (eval/extend-env env (listify args)))
@@ -172,7 +178,7 @@
 	  ((3) (eval/lambda3 exprs))
 	  ((4) (eval/lambda4 exprs))
 	  (else (eval/lambda-n (length args) exprs)))
-	(eval/lambda-dot (length (listify args)) exprs))))
+	(eval/lambda-dot (fixed-args args 0) exprs))))
 
 ; Procedure call.  Special cases handled:
 ;  - letrec:  ((lambda (a b ...) ...) #!unspecified ...)
@@ -202,10 +208,10 @@
 	 (proc  (car pexps))
 	 (args  (cdr pexps))
 	 (n     (length args)))
-    (cond ((letrec? (car expr) n (cdr expr))
-	   (eval/invoke-letrec 
-	    (eval/preprocess (cons 'begin (cddr expr)) env find-global)
-	    (length args)))
+    (cond ;((letrec? (car expr) n (cdr expr))
+	  ; (eval/invoke-letrec 
+	  ; (eval/preprocess (cons 'begin (cddar expr)) env find-global)
+	  ; (length args)))
 	  ((<= n 4)
 	   (eval/invoke-short proc args (car expr) n env find-global))
 	  (else
@@ -426,16 +432,18 @@
     (lambda args
       (body (cons (list->vector args) env)))))
 
+; `n' is the number of fixed arguments.
+
 (define (eval/lambda-dot n body)
   (lambda (env)
     (lambda args
       (let ((l (length args))
-	    (v (make-vector n (unspecified))))
+	    (v (make-vector (+ n 1) (unspecified))))
 	(if (< l n)
 	    (error "Too few arguments to procedure."))
 	(do ((args args (cdr args))
 	     (i 0 (+ i 1)))
-	    ((= i (- n 1))
+	    ((= i n)
 	     (vector-set! v i args)
 	     (body (cons v env)))
 	  (vector-set! v i (car args)))))))

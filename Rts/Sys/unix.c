@@ -1,13 +1,14 @@
 /* Rts/Sys/unix.c.
  * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.7 1997/05/31 01:38:14 lth Exp lth $
+ * $Id: unix.c,v 1.8 1997/07/07 20:13:53 lth Exp lth $
  *
  * RTS call-outs, for Unix.
  */
 
 static char *getfilename();
 
+/* Welcome to Unix */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -17,6 +18,8 @@ static char *getfilename();
 #include <stdlib.h>
 #include <math.h>
 #include <sys/fcntlcom.h>
+#include <signal.h>
+
 #include "larceny.h"
 #include "macros.h"
 #include "cdefs.h"
@@ -223,6 +226,8 @@ numeric_onearg( UNIX_flonum_tan, tan )
 numeric_onearg( UNIX_flonum_asin, asin )
 numeric_onearg( UNIX_flonum_acos, acos )
 numeric_onearg( UNIX_flonum_atan, atan )
+numeric_onearg( UNIX_flonum_sinh, sinh )
+numeric_onearg( UNIX_flonum_cosh, cosh )
 
 void UNIX_flonum_atan2( w_flonum1, w_flonum2, w_result )
 word w_flonum1, w_flonum2, w_result;
@@ -253,6 +258,20 @@ void UNIX_gcctl_np( word heap, word rator, word rand )
   gc_policy_control( nativeint( heap )-1,
 		     nativeint( rator ), 
 		     (unsigned)nativeint( rand ) );
+}
+
+void UNIX_exit( word code )
+{
+  exit( nativeint( code ) );
+}
+
+void UNIX_block_signals( word code )
+{
+  static old_mask = 0;
+  if (code == fixnum(1))
+    old_mask = sigsetmask( -1 );
+  else if (code == fixnum(0))
+    sigsetmask( old_mask );
 }
 
 /* eof */

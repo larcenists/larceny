@@ -1,7 +1,7 @@
 ; Util/process-stats.sch
 ; Accessor procedures for the statistics dump output format
 ;
-; $Id: process-stats.sch,v 1.3 1997/05/15 00:56:19 lth Exp lth $
+; $Id: process-stats.sch,v 1.3 1997/05/15 00:56:19 lth Exp $
 ;
 ; This file has two sections.
 ; 
