@@ -125,6 +125,7 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
+extern void debugvsm( void );
 
 /* In "Rts/Sys/stats.c" */
 
