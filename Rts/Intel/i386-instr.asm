@@ -469,10 +469,8 @@ t_label(%1):
 	mcall	M_VARARGS
 %endmacro
 
-;;; FIXME: the millicode call for M_INVOKE_EX is used to check for timer
-;;; exception as well, and must check the timer first.  It is also used
-;;; to check for undefined globals if peephole optimization is enabled
-;;; (see below).
+;;; Note the millicode for M_INVOKE_EX is used to check for timer
+;;; exception as well, and must check the timer first.
 
 %macro T_INVOKE 1
 %ifdef UNSAFE_CODE
@@ -499,12 +497,14 @@ t_label(%1):
 %endmacro
 
 ;;; Introduced by peephole optimization.
+;;; 
 ;;; The trick here is that the tag check for procedure-ness will
 ;;; catch undefined variables too.  So there is no need to see
 ;;; if the global has an undefined value, just defer to T_INVOKE.
-;;; FIXME: note that M_INVOKE_EX now must check for #!undefined,
-;;; and will not have the data to print a reasonable error message
-;;; since the global cell is lost.
+;;;
+;;; The problem with this hack is that the information about the
+;;; global variable is lost, since the global cell ptr is no longer
+;;; in RESULT.
 
 %macro T_GLOBAL_INVOKE 2
 	loadc	RESULT, %1
@@ -1187,23 +1187,32 @@ t_label(%1):
 	add	RESULT, %2
 %endmacro
 
-;;; make_indexed_structure_byte regno ptrtag hdrtag ex
+;;; make_indexed_structure_byte regno hdrtag ex
 ;;;	Allocate a byte structure with the length specified in RESULT
 ;;;     (fixnum number of bytes).  If %1 is not -1, then REG%1 must
-;;;     hold a char value to be used for initialization.  If %1 is -1,
-;;;     no initialization is performed.
-;;;
-;;; FIXME: silly to pass in the ptrtag, it is always BVEC_TAG.
-;;; FIXME: check the type of the init value
+;;;     hold a char value to be used for initialization (a check is
+;;;     performed that is a char).  If %1 is -1, no initialization 
+;;; 	is performed.
 
-%macro make_indexed_structure_byte 4
+%macro make_indexed_structure_byte 3
 %ifndef UNSAFE_CODE
-	;; OPTIMIZEME: Code size: unless allocation is inline,
-	;; this test can be moved into the millicode.
- %%L0:	test	RESULT, fixtag_mask|0x80000000
-	jz short %%L1
-	exception_continuable %4, %%L0
-%%L1:
+	;; OPTIMIZEME (size): Unless allocation is inline,
+	;; the fixnum test can be moved into the millicode.
+	;; (As can the char test, I guess -- in fact, this whole
+	;; instruction is probably best moved into millicode)
+	;; OPTIMIZEME (speed): Both branches are mispredicted here.
+%%L0:
+%if %1 != -1
+	loadr	SECOND, %1
+%endif
+	test	RESULT, fixtag_mask|0x80000000
+	jz short %%L2
+%%L1:	exception_continuable %3, %%L0
+%%L2:
+%if %1 != -1
+	cmp	SECOND_LOW, IMM_CHAR
+	jne	%%L1
+%endif
 %endif
 	mov	[GLOBALS+G_ALLOCTMP], RESULT
 	add	RESULT, fixnum(wordsize)
@@ -1223,9 +1232,9 @@ t_label(%1):
 %endif
 	mov	TEMP, [GLOBALS+G_ALLOCTMP]
 	shl	TEMP, 6
-	or	TEMP, %3
+	or	TEMP, %2
 	mov	[RESULT], TEMP
-	add	RESULT, %2
+	add	RESULT, BVEC_TAG
 %endmacro
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1459,7 +1468,7 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_46 0		; make-bytevector
-	make_indexed_structure_byte -1, BVEC_TAG, BYTEVECTOR_HDR, EX_MAKE_BYTEVECTOR
+	make_indexed_structure_byte -1, BYTEVECTOR_HDR, EX_MAKE_BYTEVECTOR
 %endmacro
 
 %macro T_OP1_47 0		; procedure?
@@ -1503,7 +1512,8 @@ t_label(%1):
 	mcall	M_EQV
 %endmacro
 				
-%macro T_OP2_58 1		; cons -- FIXME, should not always be inline
+%macro T_OP2_58 1
+%ifdef INLINE_ALLOCATION
 %%L1:	mov	TEMP, [GLOBALS+G_ETOP]
 	add	TEMP, 8
 	cmp	TEMP, CONT
@@ -1519,6 +1529,20 @@ t_label(%1):
 	loadr	TEMP, %1
 	mov	[RESULT-PAIR_TAG+4], TEMP
 %endif
+%else ; not INLINE_ALLOCATION
+	mov	[GLOBALS+G_ALLOCTMP], RESULT
+	mov	RESULT, 8
+	mcall	M_ALLOC
+	mov	TEMP, [GLOBALS+G_ALLOCTMP]
+	mov	[RESULT], TEMP
+%if is_hwreg(%1)
+	mov	[RESULT+4], REG%1
+%else
+	loadr	TEMP, %1
+	mov	[RESULT+4], TEMP
+%endif
+	add	RESULT, PAIR_TAG
+%endif ; INLINE_ALLOCATION
 %endmacro
 	
 %macro T_OP2_59 1		; set-car!
@@ -1802,7 +1826,7 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_109 1		; make-string
-	make_indexed_structure_byte %1, BVEC_TAG, STR_HDR, EX_MAKE_STRING
+	make_indexed_structure_byte %1, STR_HDR, EX_MAKE_STRING
 %endmacro
 
 %macro T_OP2IMM_128 1		; typetag-set!
