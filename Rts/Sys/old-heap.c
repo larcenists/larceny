@@ -95,7 +95,7 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
   return heap;
 }
 
-static void collect_dynamic( old_heap_t *heap )
+static void collect_dynamic( old_heap_t *heap, gc_type_t request )
 {
   gc_t *gc = heap->collector;
   old_data_t *data = DATA(heap);
@@ -113,7 +113,8 @@ static void collect_dynamic( old_heap_t *heap )
 			 alloc, data->target_size, used_space( heap ) );
 
   data->must_clear_remset = 1;
-  if (alloc <= data->target_size - used_space( heap ))
+  if (request == GCTYPE_PROMOTE && 
+      alloc <= data->target_size - used_space( heap ))
     perform_promote( heap );
   else {
     perform_collect( heap );
@@ -127,7 +128,7 @@ static void collect_dynamic( old_heap_t *heap )
   annoyingmsg( "Collection finished." );
 }
 
-static void collect_ephemeral( old_heap_t *heap )
+static void collect_ephemeral( old_heap_t *heap, gc_type_t request )
 {
   old_data_t *data = DATA(heap);
   int collected = 0, type;
@@ -136,6 +137,8 @@ static void collect_ephemeral( old_heap_t *heap )
   if (type != PASS_THE_BUCK) {
     collected = 1;
     annoyingmsg( "Ephemeral area: garbage collection." );
+    if (request == GCTYPE_COLLECT)
+      type = PROMOTE_WHILE_COLLECTING;
   }
 
   data->must_clear_remset = 1;
@@ -151,7 +154,7 @@ static void collect_ephemeral( old_heap_t *heap )
     break;
   case PASS_THE_BUCK :
     data->must_clear_area = 1;
-    gc_collect( heap->collector, data->gen_no+1, 0 );
+    gc_collect( heap->collector, data->gen_no+1, 0, request );
     break;
   default :
     panic( "Impossible" );
@@ -230,7 +233,7 @@ static void perform_collect( old_heap_t *heap )
   old_data_t *data = DATA(heap);
 
   annoyingmsg( "  Collecting generation %d.", data->gen_no );
-  stats_gc_type( data->gen_no, STATS_COLLECT );
+  stats_gc_type( data->gen_no, GCTYPE_COLLECT );
 
   from = data->current_space;
   to = create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
@@ -251,7 +254,7 @@ static void perform_promote( old_heap_t *heap )
   int used_before, tospace_before, los_before;
 
   annoyingmsg( "  Promoting into generation %d.", data->gen_no );
-  stats_gc_type( data->gen_no, STATS_PROMOTE );
+  stats_gc_type( data->gen_no, GCTYPE_PROMOTE );
 
   used_before = used_space( heap );
   ss_sync( data->current_space );
@@ -270,6 +273,88 @@ static void perform_promote_then_promote( old_heap_t *heap )
 {
   panic( "perform_promote_then_promote not implemented." );
   /* FIXME */
+}
+
+static void perform_collect_selective( old_heap_t *heap, int *fromspaces );
+static void perform_promote_selective( old_heap_t *heap, int *fromspaces );
+
+/* Either promote in from the fromspaces, or collect the dynamic area
+   while promoting in.  This is very similar to collect_dynamic, except
+   that the low-level methods for collection are different, and the
+   calculation of what is live is different. 
+   */
+static void collect_with_selective_fromspace( old_heap_t *heap, int *fromspaces )
+{
+  gc_t *gc = heap->collector;
+  old_data_t *data = DATA(heap);
+  int alloc, i;
+
+  annoyingmsg( "Dynamic area: selective garbage collection." );
+
+  /* Compute live data in the ephemeral areas.  ->allocated includes LOS.
+     */
+  alloc = 0;
+  for ( i = 0 ; fromspaces[i] != 0 ; i++ )
+    alloc += gc->ephemeral_area[fromspaces[i]]->allocated;
+
+  supremely_annoyingmsg( "  alloc=%d  size=%d  used=%d",
+			 alloc, data->target_size, used_space( heap ) );
+
+  if (alloc <= data->target_size - used_space( heap ))
+    perform_promote_selective( heap, fromspaces );
+  else {
+    perform_collect_selective( heap, fromspaces );
+    ss_sync( data->current_space );
+    data->target_size = 
+      compute_dynamic_size( heap,
+			    data->current_space->used, 
+			    los_bytes_used( gc->los, data->gen_no ) );
+  }
+
+  annoyingmsg( "Collection finished." );
+}
+
+static void perform_collect_selective( old_heap_t *heap, int *fromspaces )
+{
+  semispace_t *from, *to;
+  old_data_t *data = DATA(heap);
+
+  annoyingmsg( "  Collecting generation %d.", data->gen_no );
+  stats_gc_type( data->gen_no, GCTYPE_COLLECT );
+
+  from = data->current_space;
+  to = create_semispace( GC_CHUNK_SIZE, data->gen_no, data->gen_no );
+  
+  gclib_stopcopy_collect_selective( heap->collector, to, fromspaces );
+
+  data->current_space = to;
+  ss_free( from );
+  ss_sync( to );
+
+  data->copied_last_gc = to->used;
+  data->moved_last_gc = los_bytes_used( heap->collector->los, data->gen_no );
+}
+
+static void perform_promote_selective( old_heap_t *heap, int *fromspaces )
+{
+  old_data_t *data = DATA(heap);
+  int used_before, tospace_before, los_before;
+
+  annoyingmsg( "  Promoting into generation %d.", data->gen_no );
+  stats_gc_type( data->gen_no, GCTYPE_PROMOTE );
+
+  used_before = used_space( heap );
+  ss_sync( data->current_space );
+  tospace_before = data->current_space->used;
+  los_before = los_bytes_used( heap->collector->los, data->gen_no );
+
+  rs_clear( heap->collector->remset[ data->gen_no ] );
+  gclib_stopcopy_promote_into_selective( heap->collector, data->current_space, fromspaces );
+
+  data->promoted_last_gc = used_space( heap ) - used_before;
+  data->copied_last_gc = data->current_space->used - tospace_before;
+  data->moved_last_gc =
+    los_bytes_used( heap->collector->los, data->gen_no ) - los_before;
 }
 
 static void before_collection( old_heap_t *heap )
@@ -339,7 +424,8 @@ static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
   int upper_limit = DATA(heap)->upper_limit;
   int lower_limit = DATA(heap)->lower_limit;
 
-  return gc_compute_dynamic_size( D, S, Q, L, lower_limit, upper_limit );
+  return gc_compute_dynamic_size( heap->collector,
+				  D, S, Q, L, lower_limit, upper_limit );
 }
 
 
@@ -362,6 +448,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
 			    HEAPCODE_OLD_2SPACE,
 			    0,                    /* initialize */
 			    (ephem ? collect_ephemeral : collect_dynamic),
+			    (ephem ? 0 : collect_with_selective_fromspace),
 			    before_collection,
 			    after_collection,
 			    stats,
