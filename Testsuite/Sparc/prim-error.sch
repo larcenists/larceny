@@ -5,7 +5,9 @@
 ; Testsuite/Sparc/prim-error.sch -- test that all primitives signal the 
 ; correct errors.
 
-; Note: must load the error code file first.
+; Requires Lib/Common/ecodes.sch.
+
+; FIXME: can probably use scaffolding's `mustfail' procedure.
 
 (define (prim-error-tests)
   (let ((old-error-handler (error-handler))
@@ -40,10 +42,10 @@
 		 (list arg (unspecified) (unspecified) $ex.cdr)))
     (set-car! ,set-car!
 	      ,(lambda (a1 a2)
-		   (list a1 a2 (unspecified) $ex.setcar)))
+                 (list a1 a2 (unspecified) $ex.setcar)))
     (set-cdr! ,set-cdr!
 	      ,(lambda (a1 a2)
-		   (list a1 a2 (unspecified) $ex.setcdr)))))
+                 (list a1 a2 (unspecified) $ex.setcdr)))
     ...))
 
 (define test-inputs
