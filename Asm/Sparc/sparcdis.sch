@@ -676,7 +676,7 @@
 
   (millicode-name $m.alloc "alloc")
   (millicode-name $m.alloci "alloci")
-  (millicode-name $m.gc "gc")
+  (millicode-name $m.morecore "morecore")
   (millicode-name $m.addtrans "addtrans")
   (millicode-name $m.stkoflow "stkoflow")
   (millicode-name $m.stkuflow "stkuflow")

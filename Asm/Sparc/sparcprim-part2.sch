@@ -65,7 +65,7 @@
 	  (sparc.cmpr    as $r.e-top $r.e-limit)
 	  (sparc.ble.a   as ENOUGH-MEMORY)
 	  (sparc.sti     as rs1 -8 $r.e-top)
-	  (millicode-call/ret as $m.gc START)
+	  (millicode-call/ret as $m.morecore START)
 	  (sparc.label   as ENOUGH-MEMORY)
 	  (sparc.sti     as (force-hwreg! as rs2 $r.tmp0) -4 $r.e-top)
 	  (sparc.subi    as $r.e-top (- 8 $tag.pair-tag) rd))
