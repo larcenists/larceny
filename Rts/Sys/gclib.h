@@ -119,6 +119,10 @@ void gclib_add_attribute( void *address, int nbytes, unsigned attr );
 
 void gclib_stats( word *wheap, word *wremset, word *wrts, word *wmax_heap );
   /* Returns some statistics about the memory manager.
+         *wheap     = words currently allocated to heap areas
+	 *wremset   = words allocated to remembered sets
+	 *wrts      = words allocated to run-time systems
+	 *wmax_heap = max of *wheap over time
      */
 
 
