@@ -1,0 +1,23 @@
+Larceny version 1.0a1
+?? December 1998
+
+
+Release Notes
+
+
+1 Compiler settings
+
+The default compiler settings in larceny.heap are (fast-safe-code),
+(benchmark-mode #f).  Thus, the programmer promises not to redefine
+primitive procedures; effectively, any procedure listed in the Report or
+in the IEEE Standard is off-limits.  The exact list of reserved names
+is defined in the file Compiler/sparc.imp.sch.
+
+The programmer can allow primitives to be redefined by calling
+(standard-code); usually this results in a loss of performance.
+
+
+2 Bugs
+
+Most known bugs are listed in the file BUGS.  Please report bugs to
+larceny@ccs.neu.edu.
