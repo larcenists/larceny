@@ -269,7 +269,7 @@
         
         (if (and (not (list? formals))
                  (> (length alist) @maxargs-with-rest-arg@))
-            (let ((TEMP (car (rename-vars '(temp)))))
+            (let ((TEMP (cdar (rename-vars '(temp)))))
               (m-lambda
                `(,lambda0 ,TEMP
                            ((,lambda0 ,(map car alist)
