@@ -8,6 +8,6 @@
 #include "larceny.h"
 
 char *larceny_system_name = "Larceny";
-char *larceny_heap_name = "larceny.heap";
+char *larceny_heap_name = "sparc.heap";
 
 /* eof */
