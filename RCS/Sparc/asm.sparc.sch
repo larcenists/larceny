@@ -4,7 +4,7 @@
 ; Machine-dependent part of the assembler, for Sparc.
 ; Machine-dependent code generation procedures.
 ;
-; $Id: asm.sparc.scm,v 1.2 91/08/14 02:16:43 lth Exp Locker: lth $
+; $Id: asm.sparc.scm,v 1.3 91/08/15 02:31:10 lth Exp Locker: lth $
 ;
 ; There are a lot of tables here that have values which must correspond to
 ; those in header files used by C and assembly. We should find a better way
@@ -23,11 +23,11 @@
 (define $i.ldhi      3)
 (define $i.ldbi      4)
 (define $i.lddfi     5)
-(define $i.stddi     6)
+(define $i.stdi      6)
 (define $i.sti       7)
 (define $i.sthi      8)
 (define $i.stbi      9)
-(define $i.stfi      10)
+(define $i.stdfi     10)
 (define $i.sethi     11)
 (define $i.andr	     12)
 (define $i.andrcc    13)
@@ -106,11 +106,11 @@
 (define $i.ldhr      102)
 (define $i.ldbr      103)
 (define $i.lddfr     104)
-(define $i.stddr     105)
+(define $i.stdr      105)
 (define $i.str       106)
 (define $i.sthr      107)
 (define $i.stbr      108)
-(define $i.stfr      109)
+(define $i.stdfr      109)
 
 ; Register definitions. These are fixed!
 
@@ -236,6 +236,7 @@
 (define $tag.procedure         #b111)
 (define $tag.vector            #b011)
 (define $tag.bytevector        #b101)
+(define $tag.tagmask           #b111)
 
 ; Millicode indices, as defined in "millicode.h". These are byte offsets from
 ; the start of the table.
@@ -258,9 +259,10 @@
 (define $m.subtract            52)    ; generic -
 (define $m.type-exception      124)   ; generic type exception (bletch)
 
-; Various offsets into various structures.
+; Various byte offsets into globals[]
 
-(define $o.reg0        120)     ; byte offset of REG0 in globals[] table
+(define $g.reg0        120)
+(define $g.stk-limit   48)
 
 ; these are adjusted for a procedure tag.
 
@@ -268,6 +270,7 @@
 (define $p.constvector (- 8 $tag.procedure)) ; offs of const vec in proc struct
 (define $p.linkoffset  (- 12 $tag.procedure))
 (define $p.reg0        $p.linkoffset)
+(define $p.codeoffset  (- 4 $tag.bytevector))
 
 ; Given an integer code for a register, return its register label.
 
@@ -295,7 +298,7 @@
 ; Return the offset in the %GLOBALS table of the given memory-mapped register.
 
 (define (offsetof r)
-  (+ $o.reg0 r))
+  (+ $g.reg0 r))
 
 
 (define (slotoffset n)
@@ -339,33 +342,26 @@
     ; Constant expression evaluation.
 
     (define (eval-expr e)
-      (cond ((number? e)
-	     e)
-	    ((eq? e '$)                          ; current pc
-	     fptr)
-	    ((symbol? e)
-	     (symtab.lookup e))
-	    ((eq? '+ (car e))
-	     (apply + (map eval-expr (cdr e))))
-	    ((eq? '- (car e))
-	     (apply - (map eval-expr (cdr e))))
-	    ((eq? 'hi (car e))
-	     (hibits (eval-expr (cadr e)) 22))
-	    ((eq? 'lo (car e))
-	     (lobits (eval-expr (cadr e)) 10))
-	    (else
-	     (error 'eval-expr "Illegal expression"))))
-
-    ; Figure out the *relative* location of a label to the location of this
-    ; instruction. If the label is not a label (but rather an expression)
-    ; then evaluate the expression and return its value (typically the
-    ; expression is a simple number, denoting a known relative offset).
-
-    (define (resolve-label l)
-      (if (symbol? l)
-	  (- (symtab.lookup l) fptr)
-	  (eval-expr l)))
-
+      (let ((q (cond ((number? e)
+		      e)
+		     ((eq? e '$)	; current pc
+		      fptr)
+		     ((symbol? e)
+		      (symtab.lookup e))
+		     ((eq? '+ (car e))
+		      (apply + (map eval-expr (cdr e))))
+		     ((eq? '- (car e))
+		      (apply - (map eval-expr (cdr e))))
+		     ((eq? 'hi (car e))
+		      (hibits (eval-expr (cadr e)) 22))
+		     ((eq? 'lo (car e))
+		      (lobits (eval-expr (cadr e)) 10))
+		     (else
+		      (error 'eval-expr "Illegal expression")))))
+;	(display "result: ")
+;	(display q)
+;	(newline)
+	q))
 
     ; Current pc during assembly (relative to start of code vector). It needs 
     ; to be global since it is shared between 
@@ -398,31 +394,44 @@
 	    (set! symtab (cons (cons label fptr) symtab)))))
 
     (define (symtab.lookup l)
-      (let ((x (assq label symtab)))
+      (let ((x (assq l symtab)))
 	(if x
 	    (cdr x)
 	    0)))
 
     ; Bit Operations are not necessarily very pleasant in Scheme...
     
-    ; exponent table
+    ; exponent table holds 2^0 .. 2^32 in slots 0 .. 32.
 
     (define etable 
-      (let ((v (make-vector 32 0)))
+      (let ((v (make-vector 33 0)))
 	(let loop ((i 0) (j 1))
-	  (if (< i 32)
+	  (if (< i 33)
 	      (begin (vector-set! v i j)
 		     (loop (+ i 1) (* j 2)))
 	      v))))
 
-    (define (shl m places)
-      (* m (vector-ref etable places)))
+    ; Shift an integer m left n places.
 
-    (define (lobits m bits)
-      (remainder m (vector-ref etable bits))) ; maybe iffy if m < 0?
+    (define (shl m n)
+      (* m (vector-ref etable n)))
 
-    (define (hibits m bits)
-      (quotient m (vector-ref etable (- 32 bits))))
+    ; Extract the n lowest bits of the 32-bit integer m as a positive integer.
+
+    (define (lobits m n)
+      (if (negative? m)
+	  (remainder (- (vector-ref etable 32) (abs m)) (vector-ref etable n))
+	  (remainder m (vector-ref etable n))))
+
+    ; Extract the n highest bits of the 32-bit integer m as a positive
+    ; integer; the bits are shifted all the way to the right in the 
+    ; result.
+
+    (define (hibits m n)
+      (if (negative? m)
+	  (quotient (- (vector-ref etable 32) (abs m))
+		    (vector-ref etable (- 32 n)))
+	  (quotient m (vector-ref etable (- 32 n)))))
 
       
     ; The instruction table.
@@ -431,14 +440,17 @@
 
       (let ()
 
+	(define ibit (expt 2 13))
+	(define abit (expt 2 29))
+
 	; sethi, etc.
 
 	(define (class-sethi i)
-	  (let ((i (shl i 21)))
+	  (let ((i (shl i 22)))
 	    (lambda (x)
-	      (let ((n (instruction.arg1 x))
-		    (rd (instruction.arg2 x)))
-		(+ (shl rd 24) i n )))))
+	      (let ((n  (lobits (eval-expr (operand1 x)) 22))
+		    (rd (shl (operand2 x) 25)))
+		(+ rd i n)))))
 
 	; nop is a peculiar sethi
 
@@ -450,69 +462,78 @@
 	; un-annulled branches
 
 	(define (class00b i)
-	  (let ((i (shl i 24)))
+	  (let ((i    (shl i 25))
+		(code (shl #b010 22)))
 	    (lambda (x)
-	      (let ((offset (resolve-label (instruction.arg1 x))))
-		(+ i (shl #b010 21) (lobits offset 22))))))
+	      (let ((offset (lobits (eval-expr `(- ,(operand1 x) $)) 22)))
+		(+ i code offset)))))
       
 	; annuled branches
 
 	(define (class00a i)
-	  (let ((i (shl i 24)))
+	  (let ((i    (shl i 25))
+		(code (shl #b010 22)))
 	    (lambda (x)
-	      (let ((offset (resolve-label (instruction.arg1 x))))
-		(+ (shl #b1 28) i (shl #b010 21) (lobits offset 22))))))
+	      (let ((offset (lobits (eval-expr `(- ,(operand1 x) $)) 22)))
+		(+ abit i code offset)))))
   
 	; alu stuff and some others
 
 	(define (class10r i)
-	  (let ((i (shl i 18)))
+	  (let ((i    (shl i 19))
+		(code (shl #b10 30)))
 	    (lambda (x)
-	      (let ((rs1 (instruction.arg1 x))
-		    (rs2 (instruction.arg2 x))
-		    (rd  (instruction.arg3 x)))
-		(+ #x80000000 (shl rd 24) i (shl rs1 13) rs2)))))
+	      (let ((rs1 (shl (operand1 x) 14))
+		    (rs2 (operand2 x))
+		    (rd  (shl (operand3 x) 25)))
+		(+ code rd i rs1 rs2)))))
 
 	; ditto
 
 	(define (class10i i)
-	  (let ((i (shl i 18)))
+	  (let ((i    (shl i 19))
+		(code (shl #b10 30)))
 	    (lambda (x)
-	      (let ((rs1 (instruction.arg1 x))
-		    (imm (instruction.arg2 x))
-		    (rd  (instruction.arg3 x)))
-		(+ #x80000000 (shl rd 24) i (shl rs1 13) #x2000 imm)))))
+	      (let ((rs1 (shl (operand1 x) 14))
+		    (imm (lobits (eval-expr (operand2 x)) 13))
+		    (rd  (shl (operand3 x) 25)))
+		(+ code rd i rs1 ibit imm)))))
 
 	; memory stuff
 
 	(define (class11r i)
-	  (let ((i (shl i 18)))
+	  (let ((i    (shl i 19))
+		(code (shl #b11 30)))
 	    (lambda (x)
-	      (let ((rs1 (instruction.arg1 x))
-		    (rs2 (instruction.arg2 x))
-		    (rd  (instruction.arg3 x)))
-		(+ #xC0000000 (shl rd 24) i (shl rs1 13) rs2)))))
+	      (let ((rs1 (shl (operand1 x) 14))
+		    (rs2 (operand2 x))
+		    (rd  (shl (operand3 x) 25)))
+		(+ code rd i rs1 rs2)))))
 
 	; ditto
 
 	(define (class11i i)
-	  (let ((i (shl i 18)))
+	  (let ((i    (shl i 19))
+		(code (shl #b11 30)))
 	    (lambda (x)
-	      (let ((rs1 (instruction.arg1 x))
-		    (imm (instruction.arg2 x))
-		    (rd  (instruction.arg3 x)))
-		(+ #xC0000000 (shl rd 24) i (shl rs1 13) #x2000 imm)))))
+	      (let ((rs1 (shl (operand1 x) 14))
+		    (imm (lobits (eval-expr (operand2 x)) 13))
+		    (rd  (shl (operand3 x) 25)))
+		(+ code rd i rs1 ibit imm)))))
+
 
 	; call is a class all by itself
 
 	(define (class-call)
-	  (lambda (x)
-	    (let ((offset (instruction.arg1 x)))
-	      (+ #x40000000 offset))))
+	  (let ((code (shl #b01 30)))
+	    (lambda (x)
+	      (let ((offset (lobits (eval-expr `(- ,(operand1 x) $)) 30)))
+		(+ code offset)))))
 
 	(define (class-label)
 	  (lambda (x)
-	    (symtab.define-label! (instruction.arg1 x))))
+	    (symtab.define-label! (operand1 x))
+	    '()))
 
 	; Multiplication and division are weird, since we want to call 
 	; library  routines on all current implementations of the 
@@ -531,24 +552,24 @@
 	(let ((v (make-vector opcode-table-size)))
 	  (vector-set! v $i.lddi    (class11i #b000011))
 	  (vector-set! v $i.lddr    (class11r #b000011))
-	  (vector-set! v $i.ldi    (class11i #b000000))
-	  (vector-set! v $i.ldr    (class11r #b000000))
+	  (vector-set! v $i.ldi     (class11i #b000000))
+	  (vector-set! v $i.ldr     (class11r #b000000))
 	  (vector-set! v $i.ldhi    (class11i #b000010))
 	  (vector-set! v $i.ldhr    (class11r #b000010))
 	  (vector-set! v $i.ldbi    (class11i #b000001))
 	  (vector-set! v $i.ldbr    (class11r #b000001))
 	  (vector-set! v $i.lddfi   (class11i #b100001))
 	  (vector-set! v $i.lddfr   (class11r #b100001))
-	  (vector-set! v $i.stddi   (class11i #b000111))
-	  (vector-set! v $i.stddr   (class11r #b000111))
-	  (vector-set! v $i.sti   (class11i #b000100))
-	  (vector-set! v $i.str   (class11r #b000100))
-	  (vector-set! v $i.sthi   (class11i #b000110))
-	  (vector-set! v $i.sthr   (class11r #b000110))
-	  (vector-set! v $i.stbi   (class11i #b000101))
-	  (vector-set! v $i.stbr   (class11r #b000101))
-	  (vector-set! v $i.stfi   (class11i #b100111))
-	  (vector-set! v $i.stfr   (class11r #b100111))
+	  (vector-set! v $i.stdi   (class11i #b000111))
+	  (vector-set! v $i.stdr   (class11r #b000111))
+	  (vector-set! v $i.sti     (class11i #b000100))
+	  (vector-set! v $i.str     (class11r #b000100))
+	  (vector-set! v $i.sthi    (class11i #b000110))
+	  (vector-set! v $i.sthr    (class11r #b000110))
+	  (vector-set! v $i.stbi    (class11i #b000101))
+	  (vector-set! v $i.stbr    (class11r #b000101))
+	  (vector-set! v $i.stdfi   (class11i #b100111))
+	  (vector-set! v $i.stdfr   (class11r #b100111))
 	  (vector-set! v $i.sethi   (class-sethi #b100))
 	  (vector-set! v $i.andr    (class10r #b000001))
 	  (vector-set! v $i.andrcc  (class10r #b010001))
@@ -639,20 +660,23 @@
       (define f '())
 
       (define (emit! store? i)
-	(let ((i1 (quotient i #x1000000))
-	      (i2 (remainder (quotient i #x10000) #x10000))
-	      (i3 (remainder (quotient i #x100) #x100))
-	      (i4 (remainder i #x100)))
-	  (if store?
-	      (begin (bytevector-set! f fptr i1)
-		     (bytevector-set! f (+ fptr 1) i2)
-		     (bytevector-set! f (+ fptr 2) i3)
-		     (bytevector-set! f (+ fptr 3) i4)))
-	  (set! fptr (+ fptr 4))))
+	(if (not (null? i))
+	    (let ((i1 (quotient i (expt 256 3)))
+		  (i2 (remainder (quotient i (expt 256 2)) 256))
+		  (i3 (remainder (quotient i 256) 256))
+		  (i4 (remainder i 256)))
+	      (if store?
+		  (begin (bytevector-set! f fptr i1)
+			 (bytevector-set! f (+ fptr 1) i2)
+			 (bytevector-set! f (+ fptr 2) i3)
+			 (bytevector-set! f (+ fptr 3) i4)))
+	      (set! fptr (+ fptr 4)))))
 
       (define (assemble-instruction pass i)
 	(emit! (= pass 2) ((vector-ref itable (car i)) i)))
 
+      (if listify?
+	  (print-ilist codelist))
       (symtab.set! symtab)
       (set! fptr 0)
       (let loop ((il codelist))
@@ -668,139 +692,6 @@
 			 (cons f (symtab.get))))))))
 
     assemble-codevector))
-
-
-;-----------------------------------------------------------------------------
-; Print an unassembled list of instructions (for debugging purposes)
-
-(define (print-ilist ilist)
-
-  (define itable
-    '#((lddi      0)
-       (ldi       1)
-       (addi	  2) ; shit happens
-       (ldhi      3)
-       (ldbi      4)
-       (lddfi     5)
-       (stddi     6)
-       (sti       7)
-       (sthi      8)
-       (stbi      9)
-       (stfi      10)
-       (sethi     11)
-       (andr	  12)
-       (andrcc    13)
-       (andi	  14)
-       (andicc    15)
-       (orr	  16)
-       (orrcc     17)
-       (ori	  18)
-       (oricc     19)
-       (xorr	  20)
-       (xorrcc    21)
-       (xori	  22)
-       (xoricc    23)
-       (sllr	     24)
-       (slli	     25)
-       (srlr	     26)
-       (srli	     27)
-       (srar	     28)
-       (srai	     29)
-       (addr	     30)
-       (addrcc    31)
-       (addicc    32)
-       (taddrcc   33)
-       (taddicc   34)
-       (subr	     35)
-       (subrcc    36)
-       (subi	     37)
-       (subicc    38)
-       (tsubrcc   39)
-       (tsubicc   40)
-       (smulr     41)
-       (smulrcc   42)
-       (smuli     43)
-       (smulicc   44)
-       (sdivr     45)
-       (sdivrcc   46)
-       (sdivi     47)
-       (sdivicc   48)
-       (b	     49)
-       (b.a	     50)
-       (bne	     51)
-       (bne.a     52)
-       (be	     53)
-       (be.a	     54)
-       (bg	     55)
-       (bg.a	     56)
-       (ble	     57)
-       (ble.a     58)
-       (bge	     59)
-       (bge.a     60)
-       (bl	     61)
-       (bl.a	     62)
-       (bgu	     63)
-       (bgu.a     64)
-       (bleu	     65)
-       (bleu.a    66)
-       (bcc	     67)
-       (bcc.a     68)
-       (bcs	     69)
-       (bcs.a     70)
-       (bpos	     71)
-       (bpos.a    72)
-       (bneg	     73)
-       (bneg.a    74)
-       (bvc	     75)
-       (bvc.a     76)
-       (bvs	     77)
-       (bvs.a     78)
-       (call	     79)
-       (jmplr     80)
-       (jmpli     81)
-       (label     82)
-       (nop       83)
-       (0 84)
-       (0 85)
-       (0 86)
-       (0 87)
-       (0 88)
-       (0 89)
-       (0 90)
-       (0 91)
-       (0 92)
-       (0 93)
-       (0 94)
-       (0 95)
-       (0 96)
-       (0 97)
-       (0 98)
-       (0 99)
-       (lddr      100)
-       (ldr      101)
-       (ldhr      102)
-       (ldbr      103)
-       (lddfr     104)
-       (stddr     105)
-       (str     106)
-       (sthr     107)
-       (stbr     108)
-       (stfr     109)))
-
-  (define (print-i i)
-    (if (= (car i) $i.label)
-	(begin (display (cadr i))
-	       (display ":"))
-	(begin (display "        ")
-	       (display (car (vector-ref itable (car i))))
-	       (map (lambda (x) (display " ") (display x)) (cdr i))))
-    (newline))
-
-  (if (null? ilist)
-      '()
-      (begin (print-i (car ilist))
-	     (print-ilist (cdr ilist)))))
-
 
 ;-----------------------------------------------------------------------------
 ; Implementation-specific data conversion.
@@ -827,12 +718,12 @@
 (define (emit-immediate->register! as i r)
   (let ((dest (if (not (hardware-mapped? r)) $r.tmp0 r)))
     (cond ((and (<= i 4095) (>= i -4096))
-	   (emit! as `(,$i.addi ,$r.g0 (lo ,i) ,dest)))
+	   (emit! as `(,$i.ori ,$r.g0 ,i ,dest)))
 	  ((zero? (remainder (abs i) 512))
-	   (emit! as `(,$i.sethi (hi ,i) ,dest)))
+	   (emit! as `(,$i.sethi ,i ,dest)))
 	  (else
 	   (emit! as `(,$i.sethi (hi ,i) ,dest))
-	   (emit! as `(,$i.addi  ,dest (lo ,i) ,dest))))
+	   (emit! as `(,$i.ori  ,dest (lo ,i) ,dest))))
     (if (not (hardware-mapped? r))
 	(emit! as `(,$i.sti ,dest ,(offsetof r) ,$r.globals)))))
 
@@ -868,7 +759,7 @@
 
 (define (emit-register->register! as from to)
   (cond ((and (hardware-mapped? from) (hardware-mapped? to))
-	 (emit! as `(,$i.addr ,from ,$r.g0 ,to)))
+	 (emit! as `(,$i.orr ,from ,$r.g0 ,to)))
 	((hardware-mapped? from)
 	 (emit! as `(,$i.sti ,from ,(offsetof to) ,$r.globals)))
 	((hardware-mapped? to)
@@ -905,47 +796,47 @@
 (define (emit-invoke! as n)
   (let ((l (new-label))
 	(m (new-label)))
-    (emit! as `(,$i.subicc ,$r.timer ,$r.timer ,$r.g0))
+    (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
     (emit! as `(,$i.bne.a ,l))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.timer-exception ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-    (emit! as `(,$i.label l))
+    (emit! as `(,$i.label ,l))
     (emit! as `(,$i.subicc ,$r.tmp0 ,$tag.procedure ,$r.g0))
     (emit! as `(,$i.be ,m))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.proc-exception ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
     (emit! as `(,$i.subi ,$r.o7 24 ,$r.o7))
-    (emit! as `(,$i.label m))
-    (emit! as `(,$i.subi ,$r.timer 1 ,$r.timer))
-    (emit! as `(,$i.addr ,$r.reg0 ,$r.g0 ,$r.argreg2))
-    (emit! as `(,$i.addr ,$r.result ,$r.g0 ,$r.reg0))
-    (emit! as `(,$i.addi ,$r.g0 ,(* n 4) ,$r.result))
+    (emit! as `(,$i.label ,m))
+    (emit! as `(,$i.orr ,$r.reg0 ,$r.g0 ,$r.argreg2))
+    (emit! as `(,$i.orr ,$r.result ,$r.g0 ,$r.reg0))
     (emit! as `(,$i.ldi ,$r.reg0 ,$p.codevector ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 ,$p.codeoffset ,$r.g0))
-    (emit! as `(,$i.nop))))
+    (emit! as `(,$i.ori ,$r.g0 ,(* n 4) ,$r.result))))
 
 
 ; Create stack frame, then save
 
 (define (emit-save! as label n)
-  (let ((l (new-label)))
-    (emit! as `(,$i.ldi ,$r.globals ,$o.stk-limit ,$r.tmp0))
+  (let* ((l         (new-label))
+	 (framesize (+ 8 (* (+ n 1) 4)))
+	 (realsize  (* 8 (quotient (+ framesize 7) 8))))
+    (emit! as `(,$i.ldi ,$r.globals ,$g.stk-limit ,$r.tmp0))
     (emit! as `(,$i.subrcc ,$r.tmp0 ,$r.stkp ,$r.g0))
-    (emit! as `(,$i.ble ,l))
-    (emit! as `(,$i.sub ,$r.stkp ,(+ 8 (* (+ n 1) 4)) ,$r.stkp))
+    (emit! as `(,$i.ble.a ,l))
+    (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.stkoflow ,$r.tmp0))
     (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
     (emit! as `(,$i.nop))
-    (emit! as `(,$i.sub ,$r.stkp ,(+ 8 (* (+ n 1) 4)) ,$r.stkp))
-    (emit! as `(,$i.label l))
+    (emit! as `(,$i.subi ,$r.stkp ,realsize ,$r.stkp))
+    (emit! as `(,$i.label ,l))
     (emit! as `(,$i.call (+ $ 8)))
-    (emit! as `(,$i.sub ,$r.o7 (- label (- $ 4)) ,$r.o7))
+    (emit! as `(,$i.subi ,$r.o7 (- ,(make-label label) (- $ 4) 8) ,$r.o7))
     (emit! as `(,$i.sti ,$r.o7 0 ,$r.stkp))
-    (emit! as `(,$i.addi ,$r.g0 ,(* (+ 8 (* (+ n 1) 4)) 4) ,$r.tmp0))
+    (emit! as `(,$i.ori ,$r.g0 ,(quotient framesize 4) ,$r.tmp0))
     (emit! as `(,$i.sti ,$r.tmp0 4 ,$r.stkp))
     (let loop ((i 0) (offset 8))
       (if (<= i n)
@@ -971,13 +862,15 @@
 ; Pop frame
 
 (define (emit-pop! as n)
-  (emit! as `(,$i.addi ,$r.stkp ,(+ 8 (* (+ n 1) 4)) ,$r.stkp)))
+  (let* ((framesize (+ 8 (* (+ n 1) 4)))
+	 (realsize  (* 8 (quotient (+ framesize 7) 8))))
+    (emit! as `(,$i.addi ,$r.stkp ,realsize ,$r.stkp))))
 
 ; Chenge the return address in the stack frame.
 
 (define (emit-setrtn as label)
   (emit! as `(,$i.call (+ $ 8)))
-  (emit! as `(,$i.sub ,$r.o7 (- ,label (- $ 4)) ,$r.o7))
+  (emit! as `(,$i.subi ,$r.o7 (- ,label (- $ 4) 8) ,$r.o7))
   (emit! as `(,$i.sti ,$r.o7 0 ,$r.stkp)))
 
 ; `apply' falls into millicode
@@ -1067,7 +960,7 @@
 (define (emit-alloc-proc! as n)
   (emit! as `(,$i.ldi ,$r.millicode ,$m.alloc ,$r.tmp0))
   (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
-  (emit! as `(,$i.addi ,$r.g0 ,(* (+ n 4) 4) ,$r.result))
+  (emit! as `(,$i.ori ,$r.g0 ,(* (+ n 4) 4) ,$r.result))
   (emit! as `(,$i.addi ,$r.g0
 		       ,(+ (* (* (+ n 3) 4) 256) $imm.procedure-header)
 		       ,$r.tmp0))
@@ -1094,7 +987,7 @@
 (define (emit-branch! as check-timer? label)
   (let ((label (make-label label)))
     (if check-timer?
-	(begin (emit! as `(,$i.subrcc ,$r.timer ,$r.g0 ,$r.g0))
+	(begin (emit! as `(,$i.subicc ,$r.timer 1 ,$r.timer))
 	       (emit! as `(,$i.bne ,label))
 	       (emit! as `(,$i.nop))
 	       (emit! as `(,$i.ldi ,$r.millicode ,$m.timer-exception ,$r.tmp0))
@@ -1105,7 +998,7 @@
 
 (define (emit-branchf! as label)
   (let ((label (make-label label)))
-    (emit! as `(,$i.subrcc ,$r.result ,$imm.false ,$r.g0))
+    (emit! as `(,$i.subicc ,$r.result ,$imm.false ,$r.g0))
     (emit! as `(,$i.bne ,label))
     (emit! as `(,$i.nop))))
 
@@ -1161,13 +1054,18 @@
 	      (lambda (as r)
 		(error '() "No multiplication (yet).")))
 	(cons 'null?
-	      (lambda (as r)
-		(emit-cmp-primop! as $i.subicc $i.beq.a $imm.null)))
+	      (lambda (as)
+		(let ((l (new-label)))
+		  (emit! as `(,$i.xoricc ,$r.result ,$imm.null ,$r.g0))
+		  (emit! as `(,$i.addi ,$r.g0 ,$imm.true ,$r.result))
+		  (emit! as `(,$i.bne.a ,l))
+		  (emit! as `(,$i.addi ,$r.g0 ,$imm.false ,$r.result))
+		  (emit! as `(,$i.label ,l)))))
 	(cons 'pair?
 	      (lambda (as)
 		(let ((l (new-label)))
 		  (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-		  (emit! as `(,$i.cmpi ,$r.tmp0 ,$tag.pair))
+		  (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
 		  (emit! as `(,$i.addi ,$r.g0 ,$imm.true ,$r.result))
 		  (emit! as `(,$i.bne.a ,l))
 		  (emit! as `(,$i.addi ,$r.g0 ,$imm.false ,$r.result))
@@ -1221,7 +1119,7 @@
 (define (emit-cmp-primop! as cmp test generic r)
   (let ((l1 (new-label))
 	(l2 (new-label)))
-    (emit! as `(,i ,$r.result ,r ,$r.g0))
+    (emit! as `(,cmp ,$r.result ,r ,$r.g0))
     (emit! as `(,$i.bvc.a ,l1))
     (emit! as `(,$i.addi ,$r.g0 ,$imm.false ,$r.result))
     (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
@@ -1241,14 +1139,14 @@
     (emit! as `(,$i.addr ,$r.tmp0 ,$r.g0 ,$r.result))
     (emit! as `(,$i.ldi ,$r.millicode ,generic ,$r.tmp0))
     (emit! as `(,$i.addr ,r ,$r.g0 ,$r.argreg2))
-    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$o7))
+    (emit! as `(,$i.jmpli ,$r.tmp0 0 ,$r.o7))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.label ,l1))))
 
 (define (emit-pair-op! as offset)
   (let ((l (new-label)))
     (emit! as `(,$i.andi ,$r.result ,$tag.tagmask ,$r.tmp0))
-    (emit! as `(,$i.cmpi ,$r.tmp0 ,$tag.pair))
+    (emit! as `(,$i.xoricc ,$r.tmp0 ,$tag.pair ,$r.g0))
     (emit! as `(,$i.be ,l))
     (emit! as `(,$i.nop))
     (emit! as `(,$i.ldi ,$r.millicode ,$m.type-exception ,$r.tmp0))
