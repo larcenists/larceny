@@ -370,7 +370,8 @@
 ; %get-* and %set-*: get and set values in bytevectors in C language terms.
 
 (define %get-int %get32)
-(define %get-unsigned %get32u)
+(define %get-unsigned %get32u)          ; inconsistent name -- avoid
+(define %get-uint %get32u)
 (define %get-short %get16)
 (define %get-ushort %get16u)
 (define %get-long %get32)
@@ -378,7 +379,8 @@
 (define %get-pointer %get32u)
 
 (define %set-int %set32)
-(define %set-unsigned %set32u)
+(define %set-unsigned %set32u)          ; inconsistent name -- avoid
+(define %set-uint %set32u)
 (define %set-short %set16)
 (define %set-ushort %set16u)
 (define %set-pointer %set32u)
