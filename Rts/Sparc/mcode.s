@@ -1,7 +1,8 @@
-! Rts/Sparc/mcode.s.
-! Larceny run-time system (SPARC) -- miscellaneous primitives.
+! Copyright 1998 Lars T Hansen.
 !
 ! $Id$
+!
+! SPARC -- miscellaneous primitives.
 
 #include "asmdefs.h"
 #include "asmmacro.h"

@@ -1,7 +1,8 @@
-/* Rts/Sparc/bdw-memory.s
- * Larceny run-time system -- wrapper for memory.s, with Boehm collector.
- *
+/* Copyright 1998 Lars T Hansen.
+ * 
  * $Id$
+ *
+ * Larceny run-time system -- wrapper for memory.s, with Boehm collector.
  */
 
 #define BDW_GC

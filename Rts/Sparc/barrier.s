@@ -1,7 +1,8 @@
-! Rts/Sparc/barrier.s
-! Write barrier code to support new GC with the old remembered sets.
+! Copyright 1998 Lars T Hansen.
 !
 ! $Id$
+!
+! Write barrier code to support new GC with the old remembered sets.
 !
 ! Write barrier.
 !

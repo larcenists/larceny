@@ -1,7 +1,8 @@
-! Rts/Sparc/memory.s
-! Larceny run-time system (SPARC)  --  memory management primitives.
+! Copyright 1998 Lars T Hansen.                 -*- fundamental -*-
 !
 ! $Id$
+!
+! SPARC memory management primitives.
 !
 ! Naming conventions:
 !   All publicly available procedures are named _mem_something.

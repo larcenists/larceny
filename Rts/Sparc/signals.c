@@ -1,12 +1,13 @@
-/* Rts/Sparc/signals.c
- * Larceny run-time system -- SPARC low-level signal-handling code.
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
  *
- * jump_to_millicode_exception_handler() sets the return address in the
- * exception structure to point to the millicode exception handler,
- * then returns (and counts on the handler to return to the OS signal 
- * code for the jump to the exception handler).
+ * SPARC low-level signal-handling code.
+ *
+ * execute_sigfpe_magic() sets the return address in the exception
+ * structure to point to the millicode exception handler, then returns
+ * (and counts on the handler to return to the OS signal code for the
+ * jump to the exception handler).
  */
 
 #include "config.h"

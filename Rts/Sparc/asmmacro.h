@@ -1,8 +1,8 @@
-/*
- * Some macros for portability.
+/* Copyright 1998 Lars T Hansen.
  *
- * lth / December 5, 1994
- *  Created.
+ * $Id$
+ *
+ * Some macros for portability.
  */
 
 /* The macro EXTNAME(x) produces an identifier which is a valid external

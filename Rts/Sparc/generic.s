@@ -1,7 +1,8 @@
-! Sparc/generic.s.
-! Larceny run-time system (Sparc) -- Millicode for Generic Arithmetic.
+! Copyright 1998 Lars T Hansen.
 !
 ! $Id$
+!
+! SPARC millicode for Generic Arithmetic.
 !
 ! Generic arithmetic operations are implemented as decision trees on 
 ! the representation, the goal being fast same-representation arithmetic

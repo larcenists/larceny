@@ -1,7 +1,8 @@
-/* Larceny RTS -- cache management for the SPARC
+/* Copyright 1998 Lars T Hansen.
  *
- * lth@cs.uoregon.edu / August 24, 1995
  * $Id$
+ *
+ * Cache management for the SPARC
  */
 
 #include "larceny.h"

@@ -1,7 +1,8 @@
-/* Rts/Sparc/cglue.c
- * Larceny run-time system (Unix) -- millicode-to-C interface
+/* Copyright 1998 Lars T Hansen.
  *
  * $Id$
+ *
+ * Millicode-to-C interface (SPARC).
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are

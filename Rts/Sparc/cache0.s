@@ -1,9 +1,9 @@
-! -*- fundamental -*-
+! Copyright 1998 Lars T Hansen.              -*- fundamental -*-
 !
-! Larceny RTS -- cache flush test code.
-!
-! lth@cs.uoregon.edu / August 24, 1995 (Death to Windows 95!)
 ! $Id$
+!
+! Cache flush test code.
+! [lth@cs.uoregon.edu / August 24, 1995 (Death to Windows 95!)]
 
 #include "asmdefs.h"
 #include "asmmacro.h"
