@@ -43,28 +43,33 @@
 
 /* Public globals */
 
-unsigned *gclib_desc_g;		/* generation owner */
-unsigned *gclib_desc_b;		/* attribute bits */
+gclib_desc_t *gclib_desc_g;	/* generation owner */
+#if !GCLIB_LARGE_TABLE
+gclib_desc_t *gclib_desc_b;	/* attribute bits */
 caddr_t  gclib_pagebase;	/* page address of lowest known word */
+#endif
 
 /* Private globals */
 
 static struct {
-  caddr_t    memtop;		/* address of highest known word */
-  int        descriptor_slots;  /* number of allocated slots */
-  int        heap_bytes_limit;	/* Maximum allowed heap allocation */
-  int        heap_bytes;        /* bytes allocated to heap */
-  int        max_heap_bytes;    /* max ditto */
-  int        remset_bytes;      /* bytes allocated to remset */
-  int        max_remset_bytes;  /* max ditto */
-  int        rts_bytes;         /* bytes allocated to RTS "other" */
-  int        max_rts_bytes;     /* max ditto */
-  int        wastage_bytes;	/* amount of wasted space */
-  int        max_wastage_bytes;	/* max ditto */
+  caddr_t membot;		/* address of lowest known word */
+  caddr_t memtop;		/* address of highest known word */
+  int     descriptor_slots;	/* number of allocated slots */
+  int     heap_bytes_limit;	/* Maximum allowed heap allocation */
+  int     heap_bytes;		/* bytes allocated to heap */
+  int     max_heap_bytes;	/* max ditto */
+  int     remset_bytes;		/* bytes allocated to remset */
+  int     max_remset_bytes;	/* max ditto */
+  int     rts_bytes;		/* bytes allocated to RTS "other" */
+  int     max_rts_bytes;	/* max ditto */
+  int     wastage_bytes;	/* amount of wasted space */
+  int     max_wastage_bytes;	/* max ditto */
 } data;
 
 static byte *gclib_alloc( unsigned bytes );
+#if !GCLIB_LARGE_TABLE
 static void grow_table( byte *new_bot, byte *new_top );
+#endif
 static byte *alloc_aligned( unsigned bytes );
 static void register_pointer( byte *derived, byte *original );
 static byte *find_and_free_pointer( byte *x );
@@ -78,31 +83,49 @@ gclib_init( void )
 {
   int i;
 
+#if GCLIB_LARGE_TABLE
+  data.descriptor_slots = 4096*(1024*1024 / PAGESIZE);/* Slots to handle 4GB */
+#else
   data.descriptor_slots = 32*1024*1024 / PAGESIZE;   /* Slots to handle 32MB */
-
+#endif
+  
   gclib_desc_g =
-    (unsigned*)must_malloc( sizeof( unsigned ) * data.descriptor_slots );
+    (gclib_desc_t*)must_malloc( sizeof(gclib_desc_t) * data.descriptor_slots );
+#if !GCLIB_LARGE_TABLE
   gclib_desc_b =
-    (unsigned*)must_malloc( sizeof( unsigned ) * data.descriptor_slots );
-
-  for ( i = 0 ; i < data.descriptor_slots ; i++ )
-    gclib_desc_g[i] = gclib_desc_b[i] = 0;
+    (gclib_desc_t*)must_malloc( sizeof(gclib_desc_t) * data.descriptor_slots );
+#endif
+  
+  for ( i = 0 ; i < data.descriptor_slots ; i++ ) {
+    gclib_desc_g[i] = 0;
+#if !GCLIB_LARGE_TABLE
+    gclib_desc_b[i] = 0;
+#endif
+  }
 
   /* Assume all allocation will happen following these allocations.
    * That doesn't have to be true; gclib_alloc() will later slide the
    * address ranges as necessary.
    */
+#if !GCLIB_LARGE_TABLE
   if ((long)gclib_desc_b > (long)gclib_desc_g)
-    gclib_pagebase = data.memtop = 
+    data.membot = data.memtop = 
       (caddr_t)roundup_page((byte*)(gclib_desc_b + data.descriptor_slots));
   else
-    gclib_pagebase = data.memtop =
+#endif
+    data.membot = data.memtop =
       (caddr_t)roundup_page((byte*)(gclib_desc_g + data.descriptor_slots));
+#if !GCLIB_LARGE_TABLE
+  gclib_pagebase = data.memtop;
+#endif
 }
 
+/* This needs to be somewhat accurate -- returning the entire address
+   space would be bad.
+   */
 void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
 {
-  *lowest = gclib_pagebase;
+  *lowest = data.membot;
   *highest = data.memtop;
 }
 
@@ -128,8 +151,12 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   ptr = gclib_alloc( bytes );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
+#if GCLIB_LARGE_TABLE
+    gclib_desc_g[i] = gen_no;
+#else
     gclib_desc_g[i] = gen_no;
     gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY;
+#endif
   }
   data.heap_bytes += bytes;
   data.max_heap_bytes = max( data.max_heap_bytes, data.heap_bytes );
@@ -150,13 +177,18 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
     gclib_desc_g[i] = RTS_OWNED_PAGE;
+#if !GCLIB_LARGE_TABLE
     gclib_desc_b[i] = MB_ALLOCATED | MB_RTS_MEMORY | attribute;
+#endif
   }
+#if !GCLIB_LARGE_TABLE
   if (attribute & MB_REMSET) {
     data.remset_bytes += bytes;
     data.max_remset_bytes = max( data.max_remset_bytes, data.remset_bytes );
   }
-  else {
+  else 
+#endif
+  {
     data.rts_bytes += bytes;
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
@@ -179,6 +211,10 @@ static byte *gclib_alloc( unsigned bytes )
   ptr = alloc_aligned( bytes );
   top = ptr+bytes;
 
+#if GCLIB_LARGE_TABLE
+  if ((caddr_t)ptr < data.membot) data.membot = (caddr_t)ptr;
+  if ((caddr_t)top > data.memtop) data.memtop = (caddr_t)top;
+#else
   if ((caddr_t)ptr < gclib_pagebase) {   /* new allocation below pagebase */
     old_pagebase = gclib_pagebase;
 
@@ -223,10 +259,12 @@ static byte *gclib_alloc( unsigned bytes )
       gclib_desc_b[i] = MB_FOREIGN;
     }
   }
-
+#endif
+  
   return ptr;
 }
 
+#if !GCLIB_LARGE_TABLE
 static void grow_table( byte *new_bot, byte *new_top )
 {
   unsigned *desc_g, *desc_b;
@@ -263,6 +301,7 @@ static void grow_table( byte *new_bot, byte *new_top )
   gclib_pagebase = (caddr_t)new_bot;
   data.memtop = (caddr_t)new_top;
 }
+#endif
 
 static byte *alloc_aligned( unsigned bytes )
 {
@@ -297,19 +336,28 @@ void gclib_free( void *addr, int bytes )
    * That is a reasonable assumption.
    */
   if (pages > 0) {
+#if GCLIB_LARGE_TABLE
+    if (gclib_desc_g[pageno] == RTS_OWNED_PAGE)
+      data.rts_bytes -= bytes;
+    else
+      data.heap_bytes -= bytes;
+#else
     if (gclib_desc_b[pageno] & MB_HEAP_MEMORY)
       data.heap_bytes -= bytes;
     else if (gclib_desc_b[pageno] & MB_REMSET)
       data.remset_bytes -= bytes;
     else
       data.rts_bytes -= bytes;
+#endif
   }
 
   while (pages > 0) {
+#if !GCLIB_LARGE_TABLE
     assert( (gclib_desc_b[pageno] & MB_ALLOCATED ) &&
 	    !(gclib_desc_b[pageno] & MB_FOREIGN ) );
-    gclib_desc_g[pageno] = UNALLOCATED_PAGE;
     gclib_desc_b[pageno] = MB_FOREIGN;
+#endif
+    gclib_desc_g[pageno] = UNALLOCATED_PAGE;
     pageno++;
     pages--;
   }
@@ -326,16 +374,30 @@ void gclib_set_generation( void *address, int nbytes, int generation )
 {
   int p;
 
-  for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ )
+  for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ ) {
+#if GCLIB_LARGE_TABLE
+    gclib_desc_g[p] = (gclib_desc_g[p] & MB_LARGE_OBJECT) | generation;
+#else
     gclib_desc_g[p] = generation;
+#endif
+  }
 }
 
 void gclib_add_attribute( void *address, int nbytes, unsigned attr )
 {
   int p;
 
-  for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ )
+#if GCLIB_LARGE_TABLE
+  attr = attr & MB_LARGE_OBJECT;
+#endif
+  
+  for ( p = pageof( address ) ; nbytes > 0 ; nbytes -= PAGESIZE, p++ ) {
+#if GCLIB_LARGE_TABLE
+    gclib_desc_g[p] |= attr;
+#else
     gclib_desc_b[p] |= attr;
+#endif
+  }
 }
 
 void gclib_stats( gclib_stats_t *stats )
