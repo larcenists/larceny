@@ -125,7 +125,7 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
   remset_data_t *data;
   pool_t *p;
 
-  assert( tbl_entries >= 0 && log2( tbl_entries ) != -1 );
+  assert( tbl_entries >= 0 && (tbl_entries == 0 || log2( tbl_entries ) != -1 ));
   assert( pool_entries >= 0 );
   assert( ssb_entries >= 0 );
 
