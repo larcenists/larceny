@@ -2,10 +2,35 @@
  * Scheme 313 Runtime System.
  * Garbage collector.
  *
- * Full internals documentation is in the files "gc.txt" and 
- * "gcinterface.txt".
+ * $Id: gc.c,v 3.1 91/07/15 13:54:56 lth Exp Locker: lth $
  *
- * $Id: gc.c,v 2.7 91/07/12 03:16:19 lth Exp Locker: lth $
+ * There are two kinds of spaces: the tenured space and the ephemeral space.
+ * All objects are created in the ephemeral space. There are three kinds
+ * of collections: ephemeral, tenuring, and full.
+ *
+ * Ephemeral collection
+ * --------------------
+ * When the ephemeral area fills up with new objects, all reachable objects
+ * are copied into the dual ephemeral space. If, after the copy, the new
+ * ephemeral space is fuller than what is specified by the watermark E_MARK,
+ * then the switch MUST_TENURE is set, and the next collection will be a
+ * tenuring collection.
+ *
+ * Tenuring collection
+ * -------------------
+ * A tenuring collection is like an ephemeral collection except that objects
+ * are copied from the ephemeral space into the tenured space (starting at
+ * the current top of the tenured space) rather than into an ephemeral
+ * newspace. If, at the start of a tenuring collection, there is less space
+ * left in the current tenured area than the size of the ephemeral area,
+ * then a full collection is performed instead.
+ *
+ * Full collection
+ * ---------------
+ * During a full collection both the tenured area and the ephemeral area are
+ * copied into the tenured newspace. [This requires a considerable amount of
+ * extra memory and should be changed.]
+ *
  *
  * IMPLEMENTATION
  *   We use "old" C; this has the virtue of letting us use 'lint' on the code
@@ -24,21 +49,9 @@
  * - UNIX-style malloc() must be provided.
  *
  * BUGS
- * - Does not detect overflow of tenured space during collection; detects it
- *   after the fact if no segmentation fault occured.
+ * - Does not detect overflow of tenured space during collection.
  * - Does not remove transactions with no pointers into the ephemeral space
  *   from the transaction list.
- * - Retains local state (copyspace pointers, statistics variables) which
- *   should be moved entirely into the globals[] table. LOMEM and HIMEM should
- *   go away altogether.
- * - Some of the diagnostic messages should be controlled by some value in the
- *   globals[] table, not by the DEBUG switch, since they can be generally
- *   useful.
- * - In fact, the diagnostic messages should not be printed by colect(),
- *   but by collect()'s caller, depending on the return value from collect()
- *   and the statistics variables.
- * - collect() should return a value indicating the kind of collection that
- *   was performed, for diagnostic purposes.
  * - init_collector() should take an additional argument specifying alignment
  *   of the spaces, and align spaces accordingly. This way, we can force e.g.
  *   page alignment, which can be useful for advising the VM system.
@@ -63,40 +76,41 @@
  *   the ephemeral areas are never reallocated (they must remain below the
  *   tenured areas!), there are no problems with allocating tenured areas
  *   separately (except VM overflow).
- * - We should have two different kinds of tenuring collections: If there is
- *   at least as much space left in the tenured area as the size of the
- *   ephemeral area at the time the tenuring collection is invoked, then
- *   we should merely tenure all objects in the ephemeral space. If, on the
- *   other hand, there is less space left in the tenured area than the size
- *   of the ephemeral area, then we should perform an actual tenuring
- *   collection and copy all objects into the new tenured space. This is
- *   and *easy* modification, and excluding paging behavior, it should
- *   always be a win.
+ * - A different tenuring strategy: initially, there is ony the two e-spaces.
+ *   When it becomes time to tenure, simply rename the current e-space and
+ *   call it a t-space (some trickery here to keep the space relationship
+ *   right?). Do this a few times until we have "enough" t-spaces. Then do
+ *   a full collection of the t-spaces on a space-basis. A simple variation
+ *   is to do the tenuring collection like before but into a small t-space
+ *   which is grown in chunks which can be allocated and maintained 
+ *   "separately", as this reduces memory waste quite a bit.
  */
 
-#ifdef __STDC__
-  #include <stdlib.h>                  /* for malloc() */
-#else
-  extern char *malloc();
-#endif
 #include "gcinterface.h"
 #include "main.h"
 #include "gc.h"
 #include "macros.h"
 #include "offsets.h"
 
+extern char *malloc();
+
 /* this is the usual one */
 #define NULL                0
 
-/* Private globals */
-static unsigned long ecollections, tcollections;
-static unsigned long words_collected, words_allocated;
-static word *e_base, *e_max, *e_top, *e_mark;
-static word *e_new_base, *e_new_max, *e_new_mark;
+/* Useful macros compute sizes in WORDS */
+#define e_size()        (e_max - e_base + 1)
+#define free_t_space()  (t_trans - t_top + 1)
+#define words_used      ((e_top-e_base) + (t_top-t_base) + (t_max-t_trans))
+
+/* 
+ * Private globals used during collections. These are not used for keeping
+ * local state between collections; all such local state is kept in the
+ * globals[] array.
+ */
+static word *e_base, *e_max, *e_top;
+static word *e_new_base, *e_new_max;
 static word *t_base, *t_max, *t_top, *t_trans;
 static word *t_new_base, *t_new_max;
-static word *s_base, *s_max;
-static word *stk_base, *stk_max;
 
 #ifdef DEBUG
 static unsigned pairs_copied;
@@ -104,9 +118,10 @@ static unsigned vectors_copied;
 #endif
 
 static word forward();
-static unsigned words_used();
 static ephemeral_collection(),
-       tenuring_collection();
+       tenuring_collection(),
+       full_collection(),
+       fast_collection();
 
 /*
  * Procedure to intialize garbage collector.
@@ -119,23 +134,23 @@ static ephemeral_collection(),
  * - 's_size' is the requested size of the static area, in bytes.
  * - 't_size' is the requested size of the tenured area, in bytes.
  * - 'e_size' is the requested size of the ephemeral area, in bytes.
- * - 'e_lim' is the requested watermark of the ephemeral area, measured
- *   in bytes from the bottom of the area.
  * - 'stk_size' is the requested size of the stack cache area, in bytes.
  *
- * First, all sizes and marks are adjusted for proper alignment and for
- * compliance with the constraints set forth in "gc.h".
+ * First, all sizes are adjusted for proper alignment and for compliance with
+ * the constraints set forth in "gc.h".
  * Then, space is allocated and partitioned up. 
  * Finally, the global pointers are set up.
  *
  * If the initialization succeeded, a nonzero value is returned. Otherwise,
  * 0 is returned.
  */
-init_collector( s_size, t_size, e_size, e_lim, stack_size )
-unsigned int s_size, t_size, e_size, e_lim, stack_size;
+int init_collector( s_size, t_size, e_size, stack_size )
+unsigned int s_size, t_size, e_size, stack_size;
 {
   word *p;
   word lomem, himem;
+  word *s_base, *s_max;
+  word *stk_base, *stk_max;
 
   /* 
    * The size of a space must be divisible by the size of a doubleword,
@@ -145,13 +160,6 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
   t_size = max( MIN_T_SIZE, roundup8( t_size ) );
   e_size = max( MIN_E_SIZE, roundup8( e_size ) );
   stack_size = max( MIN_STK_SIZE, roundup8( stack_size ) );
-
-  /*
-   * There are no limits on the ephemeral watermark, as a bad limit will
-   * simply cause poor memory behavior. Makes no sense to have it bigger
-   * than the ephemeral area, though.
-   */
-  e_lim = min( roundup8( e_lim ), e_size );
 
   /* 
    * Allocate memory for all the spaces.
@@ -176,12 +184,10 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
   /* The epehemral areas are the lowest of the heap spaces */
   e_base = e_top = p;
   e_max = p + e_size / 4 - 1;
-  e_mark = e_base + e_lim / 4 - 1;
   p += e_size / 4;
 
   e_new_base = p;
   e_new_max = p + e_size / 4 - 1;
-  e_new_mark = e_new_base + e_lim / 4 - 1;
   p += e_size / 4;
 
   /* The static area goes in the middle */
@@ -203,22 +209,22 @@ unsigned int s_size, t_size, e_size, e_lim, stack_size;
 
   globals[ E_BASE_OFFSET ] = (word) e_base;
   globals[ E_TOP_OFFSET ] = (word) e_top;
-  globals[ E_MARK_OFFSET ] = (word) e_mark;
   globals[ E_MAX_OFFSET ] = (word) e_max;
+  globals[ E_NEW_BASE_OFFSET ] = (word) e_new_base;
+  globals[ E_NEW_MAX_OFFSET ] = (word) e_new_max;
 
   globals[ T_BASE_OFFSET ] = (word) t_base;
   globals[ T_TOP_OFFSET ] = (word) t_top;
   globals[ T_MAX_OFFSET ] = (word) t_max;
   globals[ T_TRANS_OFFSET ] = (word) t_trans;
+  globals[ T_NEW_BASE_OFFSET ] = (word) t_new_base;
+  globals[ T_NEW_MAX_OFFSET ] = (word) t_new_max;
 
   globals[ S_BASE_OFFSET ] = (word) s_base;
   globals[ S_MAX_OFFSET ] = (word) s_max;
 
   globals[ STK_BASE_OFFSET ] = (word) stk_base;
   globals[ STK_MAX_OFFSET ] = (word) stk_max;
-
-  globals[ LOMEM_OFFSET ] = lomem;
-  globals[ HIMEM_OFFSET ] = himem;
 
   return 1;
 }
@@ -246,88 +252,125 @@ unsigned int type;
  * The internal state overrides the parameter.
  */
 int collect( type )
-unsigned int type;
+int type;
 {
-  static unsigned must_tenure = 0;         /* 1 if we need to do a major gc */
-  static unsigned words2 = 0;              /* # words in use after last gc */
-  unsigned words1;                         /* # words in use before this gc */
-  unsigned words_copied, collection_type;
+  word must_tenure;
+  word words_copied, collection_type;
+  word words_collected, words_allocated;
 
+  e_base = (word *) globals[ E_BASE_OFFSET ];
   e_top = (word *) globals[ E_TOP_OFFSET ];
-  t_top = (word *) globals[ T_TOP_OFFSET ];     /* enables heap loading */
-  t_trans = (word *) globals[ T_TRANS_OFFSET ];
+  e_max = (word *) globals[ E_MAX_OFFSET ];
+  e_new_base = (word *) globals[ E_NEW_BASE_OFFSET ];
+  e_new_max = (word *) globals[ E_NEW_MAX_OFFSET ];
 
-  words1 = words_used();
-  words_allocated += words1 - words2;
+  t_base = (word *) globals[ T_BASE_OFFSET ];
+  t_top = (word *) globals[ T_TOP_OFFSET ];
+  t_trans = (word *) globals[ T_TRANS_OFFSET ];
+  t_max = (word *) globals[ T_MAX_OFFSET ];
+  t_new_base = (word *) globals[ T_NEW_BASE ];
+  t_new_max = (word *) globals[ T_NEW_MAX ];
 
 #ifdef DEBUG
   pairs_copied = vectors_copied = 0;
 #endif
 
-  if (must_tenure || type != EPHEMERAL_COLLECTION) {
-    tenuring_collection();
-    tcollections++;
+  must_tenure = globals[ MUST_TENURE_OFFSET ] || type == TENURING_COLLECTION;
+
+  if (type == FULL_COLLECTION || 
+      must_tenure && free_t_space() < e_size()) {
+    full_collection();
+    globals[ F_COLLECTIONS_OFFSET ]++;
     must_tenure = 0;
     words_copied = (word) t_top - (word) t_base;
-    collection_type = TENURED_COLLECTION;
+    collection_type = FULL_COLLECTION;
   }
-  else {
+  else if (must_tenure) {
+    word old_t_top = (word) t_top;
+
+    tenuring_collection();
+    globals[ T_COLLECTIONS_OFFSET ]++;
+    must_tenure = 0;
+    words_copied = (word) t_top - old_t_top;
+    collection_type = TENURING_COLLECTION;
+  }
+  else if (type == EPHEMERAL_COLLECTION) {
     ephemeral_collection();
-    ecollections++;
-    must_tenure = e_top > e_mark;
+    globals[ E_COLLECTIONS_OFFSET ]++;
+    must_tenure = e_top > e_base + globals[ E_MARK_OFFSET ];
     words_copied = (word) e_top - (word) e_base;
     collection_type = EPHEMERAL_COLLECTION;
   }
+  else {
+    panic( "collect(): Invalid collection type." );
+  }
 
-  words2 = words_used();
-  words_collected += words1 - words2;
+  globals[ MUST_TENURE_OFFSET ] = must_tenure;
 
   globals[ E_BASE_OFFSET ] = (word) e_base;
   globals[ E_TOP_OFFSET ] = (word) e_top;
-  globals[ E_MARK_OFFSET ] = (word) e_mark;
   globals[ E_MAX_OFFSET ] = (word) e_max;
+  globals[ E_NEW_BASE_OFFSET ] = (word) e_new_base;
+  globals[ E_NEW_MAX_OFFSET ] = (word) e_new_max;
 
   globals[ T_BASE_OFFSET ] = (word) t_base;
   globals[ T_TOP_OFFSET ] = (word) t_top;
   globals[ T_MAX_OFFSET ] = (word) t_max;
   globals[ T_TRANS_OFFSET ] = (word) t_trans;
+  globals[ T_NEW_BASE_OFFSET ] = (word) t_new_base;
+  globals[ T_NEW_MAX_OFFSET ] = (word) t_new_max;
 
-  globals[ WCOLLECTED_OFFSET ] = words_collected;
-  globals[ WALLOCATED_OFFSET ] = words_allocated;
-  globals[ TCOLLECTIONS_OFFSET ] = tcollections;
-  globals[ ECOLLECTIONS_OFFSET ] = ecollections;
+  globals[ WCOPIED_OFFSET ]    += words_copied;
+  globals[ WCOLLECTED_OFFSET ] += words_collected;
+  globals[ WALLOCATED_OFFSET ] += words_allocated;
 
   return collection_type;
 }
 
 
 /*
- * Calculate how much memory we're using in the tenured and ephemeral areas.
- * Is there any reason why/why not the static area should be included?
+ * An ephemeral collection copies the reachable ephemeral objects into the
+ * new ephemeral space and then flips the spaces.
  */
-static unsigned words_used()
+static ephemeral_collection()
 {
-  return (e_top - e_base) + (t_top - t_base) + (t_max - t_trans);
+  word *tmp;
+
+  e_top = fast_collection( e_new_base );
+  tmp = e_base; e_base = e_new_base; e_new_base = tmp;
+  tmp = e_max; e_max = e_new_max; e_new_max = tmp;
 }
 
 
 /*
- * The ephemeral collection copies all reachable objects in the ephemeral 
- * area into the new ephemeral area. An object is reachable if
+ * A tenuring collection copies the reachable ephemeral objects to the end
+ * of the tenured space, and then readjusts the e-space pointer.
+ */
+static tenuring_collection()
+{
+  t_top = fast_collection( t_top );
+  e_top = e_base;
+  t_trans = t_max;
+}
+
+
+/*
+ * The fast collection copies all reachable objects in the ephemeral 
+ * area into the area given by the parameter 'base', which is either 
+ * the new ephemeral area or the end of the tenured area.
+ *
+ * An object is reachable if
  *  - it is reachable from the set of root pointers in `roots', or
  *  - it is reachable from the transaction list, or
  *  - it is reacable from a reachable object.
  */
-static ephemeral_collection()
+static fast_collection( base )
+word *base;
 {
-  word *dest, *tmp, *ptr, *head, *tail;
+  word *dest, *ptr, *head, *tail;
   unsigned int i, tag, size;
 
-  /* 
-   * 'dest' is the pointer into newspace at which location the next copied
-   * object will go.
-   */
-  dest = e_new_base;
+  dest = base;
 
   /*
    * Do roots. All roots are in the globals array, between FIRST_ROOT
@@ -354,9 +397,11 @@ static ephemeral_collection()
     }
     else if (tag == PAIR_TAG) {
       /* have done pair if either word is pointer into neswpace! */
-      if (pointsto( *ptr, e_new_base, e_new_max )
-       || pointsto( *(ptr+1), e_new_base, e_new_max ))
-	;
+      if (isptr( *ptr ) && ptrof( *ptr ) <= e_max
+	  ||
+	  isptr( *(ptr+1) ) && ptrof( *(ptr+1) ) <= e_max) {
+	/* nothing */
+      }
       else {
 	*ptr = forward( *ptr, e_base, e_max, &dest );
 	*(ptr+1) = forward( *(ptr+1), e_base, e_max, &dest );
@@ -364,7 +409,7 @@ static ephemeral_collection()
       }
     }
     else
-      panic( "Failed invariant in ephemeral_collection().\n" );
+      panic( "Failed invariant in fast_collection().\n" );
   }
   t_trans = tail;
 
@@ -385,7 +430,7 @@ static ephemeral_collection()
   { word *my_e_base = e_base;
     word *my_e_max = e_max;
 
-    ptr = e_new_base;
+    ptr = base;
     while (ptr < dest) {
       if (ishdr( *ptr ) && header( *ptr ) == BV_HDR) {
 	size = roundup4( sizefield( *ptr ) );
@@ -399,22 +444,14 @@ static ephemeral_collection()
 	ptr++;
     }
   }
-
-  /* 
-   * Flip the spaces.
-   */
-  tmp = e_base; e_base = e_new_base; e_new_base = tmp;
-  tmp = e_max; e_max = e_new_max; e_new_max = tmp;
-  tmp = e_mark; e_mark = e_new_mark; e_new_mark = tmp;
-  e_top = dest;
 }
 
 
 /*
- * A tenuring collection copies all reachable objects into the tenured area
+ * A full collection copies all reachable objects into the new tenured area
  * and leaves the ephemeral area empty.
  */
-static tenuring_collection()
+static full_collection()
 {
   word *dest, *tmp;
   unsigned int i;
@@ -444,6 +481,7 @@ static tenuring_collection()
     word *my_t_base = t_base;
     word *my_t_max = t_max;
     word *p =  t_new_base;
+    word *my_t_new_max = t_new_max;
     unsigned size;
 
     while (p < dest) {
@@ -463,12 +501,8 @@ static tenuring_collection()
     }
   }
 
-  if (dest > t_new_max)
-    panic( "Tenured-area overflow." );
+  /* Flip tenured spaces; adjust e-space pointer. */
 
-  /*
-   * Flip.
-   */
   tmp = t_base; t_base = t_new_base; t_new_base = tmp;
   tmp = t_max; t_max = t_new_max; t_new_max = tmp;
   t_top = dest;
