@@ -70,8 +70,19 @@ static void reorganize( static_heap_t *heap )
 
 static void stats( static_heap_t *heap, heap_stats_t *s )
 {
-  s->target = s->semispace1 = s->live = heap->allocated;
-  s->semispace2 = 0;
+  s->target = s->live = heap->allocated;
+  if (heap->text_area) {
+    ss_sync( heap->text_area );
+    s->semispace1 = heap->text_area->used;
+  }
+  else 
+    s->semispace1 = 0;
+  if (heap->data_area) {
+    ss_sync( heap->data_area );
+    s->semispace2 = heap->data_area->used;
+  }
+  else
+    s->semispace2 = 0;
 }
 
 static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
