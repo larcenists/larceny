@@ -363,6 +363,8 @@
     (environment-set! larc 'port-position port-position)
     (environment-set! larc 'readtable-ref readtable-ref)
     (environment-set! larc 'readtable-set! readtable-set!)
+    (environment-set! larc 'print-length print-length)
+    (environment-set! larc 'print-level print-level)
 
     ;; general
 
