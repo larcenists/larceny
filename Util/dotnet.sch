@@ -28,13 +28,16 @@
 (define system-big-endian?
   (lambda x (display "!! system-big-endian not set yet")(newline)))
 
+(define copy-file
+  (lambda x (display "!! copy-file not set yet") (newline)))
+
 ;; FIXME:  figure out endian from host scheme system?
 (define (larceny-setup host os option:endian)
   (set! option:os os)
 
   (case option:endian
-    ((big be) (set! system-big-endian? (lambda () #t)))
-    ((little el) (set! system-big-endian? (lambda () #f))))
+    ((big) (set! system-big-endian? (lambda () #t)))
+    ((little) (set! system-big-endian? (lambda () #f))))
   
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
@@ -105,8 +108,9 @@
   )
 
 (define (setup-directory-structure)
-  (make-directory* (build-path *root-directory* "Rts" "Build")))
-
+  (case option:os
+    ((unix macosx) (system "mkdir Rts/Build"))
+    ((win32) (system "mkdir Rts\\Build"))))
 
 (define (build-config-files)
   ;; Generate the C# code for the constant definitions.
@@ -135,41 +139,57 @@
                      (write-char next)
                      (loop)))))))
          input-files))))
-  
-  ;; FIXME:  not portable.
-  (parameterize [(current-directory (make-filename *root-directory* "Rts"))]
-    (for-each
-     (lambda (cfgfile) 
-       (unless (file-exists? (build-path "Build" cfgfile))
-         (copy-file (build-path cfgfile) 
-                    (build-path "Build" cfgfile))))
-     (filter (lambda (file) (regexp-match "\\.cfg$" file))
-             (directory-list)))
-    
-    ;; we don't care about C.
+
+  (define cfg-names '("except" "globals" "layouts" "mprocs"))
+
+  (display " -- Copying config files to Build directory")(newline)
+  (for-each
+   (lambda (cfgfile)
+     (let ((src-file (make-filename *larceny-root* "Rts" cfgfile))
+           (target-file
+            (make-filename *larceny-root* "Rts" "Build" cfgfile)))
+       (unless (file-exists? target-file)
+         (catfiles (list src-file) target-file))))
+   (map (lambda (f) (make-filename (string-append f ".cfg")))
+        cfg-names))
+     
+       
+    ;; we don't need the C code
     ;;(expand-file (build-path "Standard-C" "arithmetic.mac")
     ;;             (build-path "Standard-C" "arithmetic.c"))
 
-    (parameterize [(current-directory *root-directory*)]
-      (for-each config
-                (map (lambda (f) (make-filename *root-directory* "Rts" f))
-                     '("except.cfg" "globals.cfg" "layouts.cfg" "mprocs.cfg")))
-      (catfiles '("globals.ch"
-                  "except.ch"
-                  "layouts.ch"
-                  "mprocs.ch")
-                (build-path "Rts" "Build" "cdefs.h"))
-      (catfiles '("globals.sh" 
-                  "except.sh" 
-                  "layouts.sh")
-                (build-path "Rts" "Build" "schdefs.h")))
-    (run-csharp-config)))
+    ;(parameterize [(current-directory *root-directory*)]
+  (display " -- Running config ...")(newline)
+  (for-each config
+            (map (lambda (f) (make-filename *larceny-root*
+                                       "Rts"
+                                       (string-append f ".cfg")))
+                 cfg-names))
+  
+  (catfiles
+   (map (lambda (f) (make-filename *larceny-root*
+                              "Rts"
+                              "Build"
+                              (string-append f ".ch")))
+        cfg-names)
+   (make-filename *larceny-root* "Rts" "Build" "cdefs.h"))
+
+  (catfiles
+   (map (lambda (f) (make-filename *larceny-root*
+                              "Rts"
+                              "Build"
+                              (string-append f ".sh")))
+        (remove "mprocs" cfg-names))
+   (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))
+  (display " -- Running C# config...")(newline)
+  (run-csharp-config))
 
 
 ;; Load the compiler
 (define (load-twobit)
   (load (make-filename *larceny-root* "Util" "nbuild.sch")))
 
+;; FIXME:  PLT dependent.
 (define (ensure-build-environment)
   (unless (directory-exists? (build-path *root-directory* "Rts" "Build"))
     (printf "Setting up directories~n")
@@ -210,15 +230,15 @@
     "syntaxenv" "syntaxrules" "lowlevel" "expand" "usual"
     "macro-expand"))
 
-(define (create-application app src-manifests)
-  (define app-exe (string-append app ".exe"))
-  (define app-il (string-append app ".il"))
-  (define ordered-il-files
-    (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
-         src-manifests))
-  (define assembly-il 
-    (create-assembly app-exe src-manifests))
-  (concatenate-files app-il (cons assembly-il ordered-il-files)))
+;(define (create-application app src-manifests)
+;  (define app-exe (string-append app ".exe"))
+;  (define app-il (string-append app ".il"))
+;  (define ordered-il-files
+;    (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
+;         src-manifests))
+;  (define assembly-il 
+;    (create-assembly app-exe src-manifests))
+;  (concatenate-files app-il (cons assembly-il ordered-il-files)))
 
 ;(define (create-standard-library)
 ;  (parameterize [(current-directory
