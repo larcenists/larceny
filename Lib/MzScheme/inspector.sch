@@ -5,8 +5,6 @@
 ;;        print as #<inspector> instead of #<structure>.
 ;;
 
-
-
 ;; This interface is provided by the inspector "module"
 (define make-inspector (undefined))
 (define inspector? (undefined))
@@ -15,29 +13,33 @@
 ;; it to get the default opacity.
 (define sys$.inspector->superior (undefined))
 
+;; release_2 of larceny uses the MzScheme-like let-values syntax.
+;; The one installed in /proj/will/Larceny requires one less pair of parens
+;; (see SRFI 11)
 (let-values
-    ((construct predicate current ->superior)
-     (let ((inspector-type (make-record-type 'inspector '(depth superior))))
-       (let ((make-inspector (record-constructor inspector-type))
-             (inspector-depth (record-accessor inspector-type 'depth))
-             (predicate (record-predicate inspector-type))
-             (->superior (record-accessor inspector-type 'superior)))
-
-         ;; FIXME: This is a Larceny parameter.  It wants to be a MzScheme
-         ;; parameter, once we have them.  Shouldn't matter until we
-         ;; want Mz. threads.
-         (let ((current (make-parameter
-                         'current-inspector
-                         (make-inspector 1 (make-inspector 0 (undefined)))
-                         predicate)))
-           (letrec ((construct
-                     (case-lambda
-                       (() (construct (current)))
-                       ((superior) (make-inspector
-                                    (+ 1 (inspector-depth superior))
-                                    superior)))))
-             (values construct predicate current ->superior))))))
-
+    (((construct predicate current ->superior)
+      (let ((inspector-type (make-record-type 'inspector '(depth superior))))
+        (let ((make-inspector (record-constructor inspector-type))
+              (inspector-depth (record-accessor inspector-type 'depth))
+              (predicate (record-predicate inspector-type))
+              (->superior (record-accessor inspector-type 'superior)))
+          
+          ;; FIXME: This is a Larceny parameter.  It wants to be a MzScheme
+          ;; parameter, once we have them.  Shouldn't matter until we
+          ;; want Mz. threads.
+          (let ((current (make-parameter
+                          'current-inspector
+                          (make-inspector 1 (make-inspector 0 (unspecified)))
+                          predicate)))
+            (letrec ((construct
+                      ;; case-lambda is in Auxlib/macros.sch
+                      (case-lambda
+                        (() (construct (current)))
+                        ((superior) (make-inspector
+                                     (+ 1 (inspector-depth superior))
+                                     superior)))))
+              (values construct predicate current ->superior)))))))
+  
   ;; Hook up the interface to the implementation.
   (set! make-inspector construct)
   (set! inspector? predicate)
