@@ -1,0 +1,2 @@
+Compiler and assembler regression tests.  See comments in files for how
+to run; normally you want a working twobit.heap or similar.

@@ -4,6 +4,15 @@
 ;
 ; Test cases for the standard FFI.
 ;
+; How to run this:
+;  - fix the setup of *testsuite-dir* and *foreign-file*, if necessary
+;  - go to the toplevel development directory
+;  - start Larceny (with any heap)
+;  - load Auxlib/std-ffi.sch
+;  - load this file
+;  - evaluate (RUN-STD-FFI-TESTS)
+; If no errors are printed, you're OK.
+
 ; The test of the basic FFI tests whether the fundamental parameter types
 ; can be passed in various locations and so on, so this file tests whether
 ; the std-ffi type names work, whether foreign-procedure and foreign-file
@@ -17,7 +26,7 @@
 	 (set! *testsuite-dir* "/Source/Larceny/src/Testsuite/")
 	 (set! *foreign-file* "std-ffi-test-ff.dll"))
 	(else
-	 (set! *testsuite-dir* "/home/lth/net/larceny/Testsuite/")
+	 (set! *testsuite-dir* "/home/lth/net/lth/larceny/Testsuite/")
 	 (set! *foreign-file* "std-ffi-test-ff.so"))))
 
 (load (string-append *testsuite-dir* "Lib/test.sch"))

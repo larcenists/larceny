@@ -185,7 +185,7 @@ larceny_comp ()
 
 larceny_exec ()
 {
-  echo "(load \"$1.fasl\")" | time ../../larceny ../../larceny.heap
+  echo "(load \"$1.fasl\")" | time ../../larceny ../../r5rs.heap
 }
 
 # -----------------------------------------------------------------------------

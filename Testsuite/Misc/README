@@ -1,0 +1,11 @@
+Random tests that do not fit elsewhere.
+
+env-tests.sch: tests how syntactic environments and compiler macros
+are used in a production heap (produced by Util/std-heap.sch).
+
+nucleic2.sch: just a stress test, as far as I can tell.  Could probably
+go into ../Stress/scm/, but there is already a nucleic.scm there.  The
+two versions appear to be different, but I have not looked closely at
+what the differences are.  
+
+See comments in files for how to run.
