@@ -117,6 +117,7 @@
     "fileio"            ; file ports
     "conio"             ; console ports, i.e., terminal
     "stringio"          ; string ports
+    "transio"		; transcript ports
     "stdio"             ; user-level procedures
     "print"             ; write/display
     "ioboot"            ; one-time initialization
