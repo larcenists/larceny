@@ -184,16 +184,26 @@
       r)))
 
 (define (with-input-from-port port thunk)
-  (let ((old (current-input-port port)))
-    (let ((r (thunk)))
-      (current-input-port old)
-      r)))
+  (let ((outside #f))
+    (dynamic-wind
+     (lambda ()
+       (set! outside (current-input-port))
+       (current-input-port port))
+     thunk
+     (lambda ()
+       (set! port (current-input-port))
+       (current-input-port outside)))))
 
 (define (with-output-to-port port thunk)
-  (let ((old (current-output-port port)))
-    (let ((r (thunk)))
-      (current-output-port old)
-      r)))
+  (let ((outside #f))
+    (dynamic-wind
+     (lambda ()
+       (set! outside (current-output-port))
+       (current-output-port port))
+     thunk
+     (lambda ()
+       (set! port (current-output-port))
+       (current-output-port outside)))))
 
 (define (with-input-from-file fn thunk)
   (call-with-input-file fn
