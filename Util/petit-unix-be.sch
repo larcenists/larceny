@@ -17,20 +17,39 @@
 (define (petit-application-name)
   "petit")
 
+; A hack.
+
+(define is-macosx?
+  (let ((isit 'dontknow))
+    (lambda ()
+      (if (eq? isit 'dontknow)
+	  (set! isit (and (string=? "BSD Unix" (cdr (assq 'os-name (system-features))))
+			  (file-exists? "/Desktop"))))
+      isit)))
+
+(define (dlcompat-available?)
+  (file-exists? "/usr/local/include/dlfcn.h"))
+
+(define (is-sunos?)
+  (string=? "SunOS" (cdr (assq 'os-name (system-features)))))
+
 ;; Twobit.app on MacOS X because MacOS X can't distinguish "Twobit"
 ;; (the directory) and "twobit" (the program).  Unix?  I think not.
 
 (define (twobit-application-name)
-  (if (string=? "MacOS X" (cdr (assq 'os-name (system-features))))
+  (if (is-macosx?)
       "twobit.app"
       "twobit"))
 
 (define (configure-system)
   (let ((os-name (cdr (assq 'os-name (system-features)))))
     (set! unix/petit-lib-library-platform 
-	  (cond ((string=? os-name "MacOS X") '())
-		((string=? os-name "SunOS")   '("-lm -ldl"))
-		(else                         '("-lm -ldl"))))))
+	  (cond ((is-macosx?) 
+		 (if (dlcompat-available?)
+		     '("-ldl")
+		     '()))
+		((is-sunos?)  '("-lm -ldl"))
+		(else         '("-lm -ldl"))))))
 
 (unix-initialize)
 
