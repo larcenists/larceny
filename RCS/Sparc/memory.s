@@ -1,7 +1,9 @@
-! Assembly-language millicode routines for allocation and mutation.
+! Scheme 313 Run-time System.
+!
+! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.10 91/07/01 17:51:06 lth Exp Locker: lth $
+! $Id: memory.s,v 1.11 91/07/02 12:27:11 lth Exp Locker: lth $
 !
 ! This file defines the following builtins:
 !
@@ -16,7 +18,9 @@
 !			  returning a pointer to those words. If n is the
 !			  fixnum -1, then no memory is allocated; rather,
 !			  a tenuring collection is invoked. (The default is
-!			  to do an ephemeral collection.)
+!			  to do an ephemeral collection.) IT IS LEGAL FOR THE
+!			  VALUE OF "E_TOP" TO BE INVALID UPON ENTRY TO THIS
+!			  PROCEDURE.
 !   _stkuflow()		  Procedure to be called on a stack cache underflow.
 !			  It will restore a single continuation frame from
 !			  the heap-based continuations, if there are any.
@@ -29,6 +33,10 @@
 !			  in the "globals" table.
 !   _restore_scheme_context  Restores all machine-mapped virtual machine
 !			  registers from the "globals" table.
+!   _capture_continuation Capture the current continuation and return a pointer
+!                         to the continuation structure.
+!   _restore_continuation Reinstate the given continuation, discarding the
+!			  current one.
 !
 ! '_gcstart' is made public for use by open-coded 'cons' calls and can also
 ! be used to implement a user-level procedure which invokes the collector;
@@ -36,6 +44,9 @@
 !
 ! '_save_scheme_context' and '_restore_scheme_context' are useful in
 ! inter-language calls.
+!
+! '_capture_continuation' and '_restore_continuation' can be used to implement
+! the Scheme procedure 'call-with-current-continuation'.
 !
 ! Arguments are always passed in registers RESULT, ARGREG2, and ARGREG3, all
 ! of which are rootable. The result, if any, is returned in register RESULT.
@@ -46,10 +57,28 @@
 ! and %REG0 must contain the pointer to the calling procedure. See the
 ! file "conventions.txt" for calling convention details.
 !
-! Internal calling conventions are strange: on entry to 'addtrans'
-! or 'gcstart', the "external" (Scheme) return address must be saved in %TMP0,
-! where the internal procedures will expect to find it, in case it must be 
-! adjusted due to a collection.
+! --
+!
+! The user program may enter '_gcstart' with a value in E_TOP which
+! is invalid in the sense that it is greater than or equal to E_LIMIT.
+! '_gcstart' must correct this behavior, if necessary, since user code may
+! under no circumstances allocate space above E_LIMIT. However, millicode may
+! violate this requirement (that is what the overflow area between E_LIMIT and
+! E_MAX is for). It follows that millicode which interfaces with user code
+! must check (and possibly adjust) E_TOP before proceeding.
+!
+! --
+!
+! Internal calling conventions: on entry to internal procedures (procedures
+! which do not have underscores prefixing their names), the external
+! (Scheme) return address must be saved in %TMP0, where the internal
+! procedure will expect to find it, in case it must be adjusted due to a
+! collection.
+!
+! One could argue that this calling convention is a gross hack. You won't
+! get much debate from me.
+!
+! --
 !
 ! Assemble with 'as -P'.
 
@@ -65,6 +94,7 @@
 	.global _alloc, _alloci, _setcar, _setcdr, _vectorset, _gcstart
 	.global _stkoflow, _stkuflow
 	.global _save_scheme_context, _restore_scheme_context
+	.global _capture_continuation, _restore_continuation
 
 	.seg "text"
 
@@ -255,10 +285,25 @@ Lvectorset1:
 	jmp	%TMP0+8
 	mov	0, %RESULT
 
+
 !-----------------------------------------------------------------------------
-! '_gcstart' merely calls 'gcstart', with a bit of protocol.
+! '_gcstart' merely calls 'gcstart', with a bit of protocol. We *must* make
+! sure that E_TOP, as passed to 'gcstart', has a sensible value, something it
+! may not have, coming from user code.
+!
+! _gcstart( n )
+! {
+!   E_TOP = min( E_TOP, E_LIMIT );
+!   gcstart( n );
+! }
 
 _gcstart:
+	cmp	%E_TOP, %E_LIMIT
+	ble	L_gcstart1
+	nop
+	mov	%E_LIMIT, %E_TOP
+
+L_gcstart1:
 	mov	%o7, %TMP0
 	call	gcstart
 	nop
@@ -280,7 +325,7 @@ _gcstart:
 _stkuflow:
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
-	save	%sp, -64, %sp
+	save	%sp, -96, %sp
 	call	_restore_frame
 	nop
 	restore
@@ -304,7 +349,7 @@ _stkoflow:
 	st	%E_TOP, [ %GLOBALS+E_TOP_OFFSET ]
 	st	%STKP, [ %GLOBALS+SP_OFFSET ]
 
-	save	%sp, -64, %sp
+	save	%sp, -96, %sp
 	call	_flush_stack_cache
 	nop
 	restore
@@ -325,7 +370,7 @@ _stkoflow:
 	st	%RESULT, [ %GLOBALS + SAVED_RESULT_OFFSET ]
 
 	mov	%o7, %TMP0
-	set	fixnum( -1 ), %RESULT
+	set	fixnum( 0 ), %RESULT
 	call	gcstart
 	nop
 
@@ -347,7 +392,7 @@ Lstkoflow1:
 	! restore frame
 
 	st	%STKP, [ %GLOBALS + SP_OFFSET ]
-	save	%sp, -64, %sp
+	save	%sp, -96, %sp
 	call	_restore_frame
 	nop
 	restore
@@ -387,6 +432,26 @@ _save_scheme_context:
 
 
 !-----------------------------------------------------------------------------
+! '_capture_continuation' flushes the stack, performs a collection if 
+! necessary, and returns a pointer to the continuation which was current
+! at the time of the call to this procedure.
+
+_capture_continuation:
+	retl
+	nop
+
+
+!-----------------------------------------------------------------------------
+! '_restore_continuation' throws away the current continuation (by bumping
+! the stack pointer and resetting the value of globals[ CONTINUATION_OFFSET ])
+! and reinstates the continuation which is an argument to this procedure.
+
+_restore_continuation:
+	retl
+	nop
+
+
+!-----------------------------------------------------------------------------
 ! 'gcstart'
 !
 ! On entry, %TMP0 has return address pointing to Scheme code, and %REG0 is
@@ -421,7 +486,7 @@ gcstart:
 	st	%TMP0, [ %STKP+0 ]	! return address
 	mov	16, %TMP0
 	st	%TMP0, [ %STKP+4 ]	! size
- 	st	%R0, [ %STKP+8 ]	! procedure
+ 	st	%REG0, [ %STKP+8 ]	! procedure
 	st	%g0, [ %STKP+12 ]	! dummy
 	
 	mov	%o7, %TMP0
@@ -433,7 +498,7 @@ gcstart:
 	! C-language call
 
 	mov	%RESULT, %g1		! %RESULT not valid after save...
-	save	%sp, -72, %sp
+	save	%sp, -96, %sp
 	call	_gcstart2		! This *will* flush the stack!
 	mov	%g1, %o0
 	call	_restore_frame		! Restore our frame
@@ -485,7 +550,7 @@ Lgcstart1:
 	! Fetch a frame
 
 	st	%STKP, [ %GLOBALS + SP_OFFSET ]
-	save	%sp, -64, %sp				! get a frame
+	save	%sp, -96, %sp				! get a frame
 	call	_restore_frame
 	nop
 	restore
