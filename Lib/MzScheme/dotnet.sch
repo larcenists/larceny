@@ -220,7 +220,7 @@
                ':direct-slots
                (list
                 (list 'can-instantiate? ':initarg ':can-instantiate? ':reader 'clr-class/can-instantiate?)
-                (list 'StudlyName ':initarg ':StudlyName 'reader 'clr/StudlyName)
+                (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName)
                 (list 'argument-marshaler ':initarg ':argument-marshaler ':reader 'argument-marshaler)
                 (list 'return-marshaler ':initarg ':return-marshaler ':reader 'return-marshaler))
 
