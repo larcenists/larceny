@@ -6,15 +6,104 @@ The version of the first release will be 1.0-alpha1.
 The following items are _important_ to fix or include for the first
 release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
 
+----------------------------------------------------------------------
+
 
 ----------------------------------------------------------------------
 
-- must checkin the latest bug fixes.
+- Need to test (write-barrier #f) on applicable systems, with all other
+  parameter settings varied.
+  [currently testing with larceny_c_5 with fast-safe-code; worked fine.]
 
-- should auto-compile Util/std-heap.sch, Util/compile-always.sch,
-Compiler/help.sch, and should load Build/schdefs.fasl if it exists.  The
-goal of this game is to attempt to have no compiled code in the system.
+- Need to test (slow-code) everywhere.
 
+- Really need to run at least one test run with a split heap on each
+  system!  (Although dumped heaps are split, so this is known to work on
+  non-conservative systems.)
+
+- PERFORMANCE TESTING???
+
+----------------------------------------------------------------------
+
+Testing status
+ SunOS 4.1.4, precise
+   - built larceny.bin
+   - built sparc.heap using installed Chez 5.0a
+   - built development environment using installed Chez 5.0a
+   - built sparc.heap using newly compiled larceny/twobit [gen.gc];
+     heap is bitwise identical to that produced on SunOS 5.6
+   - built development environment using newly compiled twobit/larceny [gen.gc]
+   - re-built sparc.heap and development environment using the re-compiled
+     versions.  Heap image is bitwise identical to the previous.
+   - GC test:  7 failures.  [fast-safe-code w/o variation]
+   - After fixing Rts/Sparc/memory.s, passes all tests.
+   - Passes autorun-tests with fast-unsafe-code.
+
+ SunOS 5.6, precise
+   - built larceny.bin
+   - built sparc.heap using installed Larceny 0.40+
+   - built development environment using installed Larceny 0.40+
+   - built sparc.heap using newly compiled larceny/twobit [gen.gc];
+     heap is bitwise identical to that produced on SunOS 4.1.4
+   - built development environment using newly compiled twobit/larceny [gen.gc]
+   - re-built sparc.heap and development environment using the re-compiled
+     versions.  Heap image is bitwise identical to the previous.
+   - GC test:  7 failures.  [fast-safe-code w/o variation]
+   - After fixing Rts/Sparc/memory.s, passes all tests.
+   - Passes autorun-tests with fast-unsafe-code.
+   - Passes autorun-tests with default-code.
+
+  SunOS 4.1.4, conservative:
+   - built bdwlarceny.bin
+   - built sparc.heap using installed Chez Scheme, with default switches
+     except for (inline-allocation #f).
+   - built development environment, ditto.
+   - rebuilt heap and development environment with newly-built program,
+     ditto.
+   - re-rebuilt heap and development environment with newly-rebuilt program,
+     ditto.  Heap images are bitwise identical.
+   - GC test: passes all [fast-safe-code with (inline-allocation #f)]
+   - Passes autorun-tests with fast-unsafe-code, (inline-allocation #f).
+
+  SunOS 5.6, conservative:
+   - built bdwlarceny.bin
+   - built sparc.heap using installed Larceny 0.40+, with default switches
+     except for (inline-allocation #f).
+   - built development environment, ditto.
+   - rebuilt heap and development environment with newly-built program,
+     ditto.
+   - re-rebuilt heap and development environment with newly-rebuilt program,
+     ditto.  Heap images are bitwise identical.
+   - GC test: passes all [fast-safe-code with (inline-allocation #f)]
+   - Passes autorun-tests with fast-unsafe-code, (inline-allocation #f).
+   - Passes autorun-tests with default-code, (inline-allocation #f).
+   - Passes autorun-tests with fast-safe-code, (inline-allocation #f),
+     (write-barrier #f).
+
+FIXES
+To build larceny.bin on SunOS 4.1.4:
+ - needed to include <stdio.h> in Rts/Sys/unix.c to avoid a warning
+ - needed to insert an `int' in Rts/Sys/unix.c to avoid a warning
+ - needed to wrap EXTNAME( . ) around m_exception four places in
+   Rts/Sparc/mcode.s.
+ - needed to fix a buggy type cast in Rts/Sparc/signals.c.
+
+To build bdwlarceny.bin on SunOS 4.1.4:
+ - change call to wb_disable_barrier() in Sys/bdw-collector.c [ arch. indep. ]
+ - change instance of SPARC to Sparc in Rts/Makefile [ arch. indep. ]
+
+To build heap images for conservative collectors:
+ - disable inline-allocation
+
+To compile gc tests:
+ - disable warnings or be annoyed!  (see bug note above)
+
+To run GC tests with conservative collectors:
+ - needed to fix run-gc-tests -- it didn't work with conservative GC.
+
+To fix core dumps and other errors:
+ - needed to change mem_garbage_collect so it calls callout_to_C rather
+   than internal_callout_to_C.
 
 ----------------------------------------------------------------------
 
@@ -25,29 +114,85 @@ goal of this game is to attempt to have no compiled code in the system.
    * What to play with
 
 [Compiler bugs, not all of these deserve to be fixed]
-  * Bignum->flonum bug.
-  * Compiler bug (with (fast-safe-code), I think this is new):
+  * MEMQ bug: 
+    Compiler bug (with (fast-safe-code), I think this is new):
       > (or (memq 'b '(a b c)) (+ 3 0))
       #t
     This should really have been (b c).  The bug is in the compiler macro
     for memq (see separate mail message).
-  * Compiler bug (with (default-code), you know about this one):
-      > (+ 1 1 1 1)
-      Error: Wrong number of arguments to integrable procedure(+ '1 '1 '1 '1)
-      > (make-vector 5)
-      Error: Wrong number of arguments to integrable procedure(make-vector '5)
-  * Procedure-names are not good enough.
-  * Need inline procedures and constant folding for fixnum operations.
-  * 'Case' really ought to do better when the constants are fixnums,
+    I have commented out the offending macro.
+  * MEMV bug:
+    'Case' really ought to do better when the constants are fixnums,
     currently it just expands to a call to memv.
+  * Macro expander bug: define-syntax that expands into a define-syntax
+    (from nucleic2.sch).
+  * Block compiler and primitive definitions.
+  * With (integrate-usual-primitives #f), calls to the primitives 
+    .make-cell, .cell-ref, and .cell-set! are compiled as normal 
+    procedure calls.  This runs correctly -- I've added the correct
+    names to the environment -- but code that uses assignments takes
+    a performance hit.
+  * Need inline procedures and constant folding for fixnum operations.
 
-[Other]
+[Standard heap]
+  * Benchmark-block-mode is not visible in larceny.heap, must add to
+    namespace.  Other switches??
+
+[Libraries]
+  * Arguably the intepreter's wacky notion of legal environment arguments
+    should not be the default.  This should be a switch that's called by
+    std-heap.sch and otherwise undocumented. Could call it 
+       (interpreter/allow-illegal-use-of-environments)
+    Do we really want to add stuff to the namespace at this point?
+
+[User/reference documentation]
+  * Compilation documentation
+      compiling.html
+      starting.html
+      repl.html
+      developing.html
+      bdw.html
+
+[Release]
+  * Branch source tree
+  * Move version number to 1.0a1.
+  * At release time: change home page.
+  * Release procedure.
+    - remove ffi from std-heap.sch
+    - make sure switch settings in Util/init-comp.sch are right.
+    - decide what's needed in a release, create shell script to strip or
+      extract.
+    - make sure to do ( cd Rts; BUILD_HOST=chez make config ) before making 
+      the archive.
+
+[Bugs fixed since 0.40]
+  * Bignum->flonum bug.
+
+  * Remove bignum->flonum from toplevel namespace; it was there for
+    debugging only and no-one is using it.
+
   * The command line switches in the scripts use '@' for the option
     letter, even though the manual says to use '-' and when you run
     larceny @help you learn that you should use '-'.  Unclear what
-    exactly is the right thing, but this situation is a mess.
+    exactly is the right thing, but this situation is a mess. 
 
-[Bugs fixed since 0.40]
+    This is fixed by switching back to - everywhere.
+
+  * Procedure-names are not good enough.
+    Fixed by change in expand.sch.
+
+  * Integrate-usual-procedures and (+ x x x x) bug.
+    Fixed by change in pass4.aux.sch.
+
+  * Debugger buglet: breakpoints placed in EVAL were a source of confusion.
+    Added a debugger feature: RESET command in debugger.
+
+  * Several bugs that prevented the system from compiling on SunOS 4 and/or
+    with the conservative garbage collector.
+
+  * A run-time system bug that resulted in occasional core dumps, usually
+    with the stop-and-copy collector.
+
   * Some sort of help facility (esp. for compiler switches and compilation
     commands) would be useful in larceny.heap.  The standard help file
     is not appropriate because many of the procedures it mentions are not
@@ -62,36 +207,44 @@ goal of this game is to attempt to have no compiled code in the system.
     Fixed by changing the setting in Compiler/switches.sch.
 
 
-[User/reference documentation]
-  * Compilation documentation
-      compiling.html                 [cleaned up, not proofread]
-      starting.html
-      repl.html
-      developing.html
-      bdw.html
-
-[Testing]
-  * Decide on test procedure for release builds.
-  * Test cases:
-    (and (unsafe-code) (write-barrier))             ; fast, generational
-    (and (not (unsafe-code)) (write-barrier))       ; safe, generational
-    (and (unsafe-code) (not (write-barrier)))       ; fast, stop+copy
-    (and (not (unsafe-code)) (not (write-barrier))) ; safe, stop+copy
-
-    With all four meta-switches: slow-code, default-code, ...
-
-[Release]
-  * At release time: change home page.
-  * Version number -> 1.0a1
-  * Release procedure.
-    - remove ffi from std-heap.sch
-    - make sure switch settings in Util/init-comp.sch are right.
-    - decide what's needed in a release, create shell script to strip or
-      extract.
-    - make sure to do ( cd Rts; BUILD_HOST=chez make config ) before making 
-      the archive.
-
 ----------------------------------------------------------------------
+
+(define (make-touch target files)
+  (call-with-output-file target
+    (lambda (p)
+      #t)))
+
+; The call to system doesn't work -- it may be a bug in the RTS that
+; limits the length of the string!
+
+(define (make-megalop target files)
+  (display "Dumping ") (display target) (newline)
+  (delete-file target)
+  (system (string-append "cat"
+                         (apply string-append (map (lambda (x)
+                                                     (string-append " " x))
+                                                   files))
+                         " > " target)))
+
+(define megalop-project
+  (let ((sparc-heap-files 
+	 (objects "Lib/Common/" ".sch" common-heap-files
+		  '((primops . "Lib/Sparc/primops.sch")
+		    (toplevel . "Lib/Sparc/toplevel.sch"))))
+	(sparc-eval-files
+	 (objects "" ".sch" eval-files)))
+    (make:project "megalop.sch"
+      `(rules
+        (".sch" ".mal" ,make-touch)
+	(".sch" ".sh"  ,make-copy))
+      `(targets 
+	("megalop.sch" ,make-megalop))
+      `(dependencies			; Order matters.
+	("megalop.sch" ,sparc-heap-files)
+	("megalop.sch" ,sparc-eval-files)
+	("Lib/Common/ecodes.sch" ("Rts/Build/except.sh"))
+	("Lib/Common/globals.sch" ("Rts/Build/globals.sh"))))))
+        
 
 FFI will not be in 1.0a1.
 
@@ -108,3 +261,24 @@ FFI will not be in 1.0a1.
     - Document!
     - larceny_call() must deal with stack overflow.
   * Testing.
+
+[Misc]
+  * Debugger: breakpt could be called `break-entry' to be compatible
+    with MacScheme. 
+  * need to replace Testsuite/GC/nucleic2.sch by its original because
+    (a) the original exercises the macro system also, and
+    (b) the original probably has quoted constants.  As it is we get
+        an interminable slew of warnings.  [Actually, the original is just
+        as broken, and in addition Twobit has problems with some of its
+        macros.]
+
+
+
+    (define (exact->inexact-internal x)
+      (cond ((fixnum? x)
+	     (exact->inexact x))
+	    ((bignum? x)
+	     (bignum->flonum x))
+	    (else
+	     (error "Impossible case in exact->inexact:rational"))))
+
