@@ -115,7 +115,7 @@
   
 (define (environment-get env name)
   (check-environment env 'environment-get)
-  (if (environment-variable? env name)
+  (if (not (environment-macro? env name))
       (let ((probe (environment-get-cell env name)))
         (if (not (eq? (global-cell-ref probe) (undefined)))
             (global-cell-ref probe)
@@ -179,8 +179,7 @@
 
 (define (environment-set-macro! env id macro)
   (check-environment env 'environment-set-macro!)
-  (if (environment-variable? env id)
-      (hashtable-remove! (env.hashtable env) id))
+  (hashtable-remove! (env.hashtable env) id)
   (syntactic-environment-set! (environment-syntax-environment env) id macro))
 
 (define (environment-macro? env id)
