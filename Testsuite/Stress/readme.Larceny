@@ -1,13 +1,28 @@
+Setup
+-----
 The bench shell script must be run from this directory.  When it is run,
 there must be a link in the directory to an executable 'larceny' and
 links to two heap images: 'larceny.heap' should be the basic heap image,
-and 'twobit.heap' should be the twobit heap image.
+and 'twobit.heap' should be the twobit heap image.   [The names predate 1.0;
+should be fixed.]
 
-Say:
+Running
+-------
+To run, say:
 	./bench larceny all
 
 If the purpose of the run is to test performance, then
  - larceny.heap should have been initialized, re-dumped and treated 
    with -reorganize-and-dump
- - all files should resize on a local file system
+ - all files should reside on a local file system
+
+
+Summarizing
+-----------
+To summarize results, load summarize.sch into a Scheme system and then
+run
+
+	((summarize larceny-results) "results.Larceny")
+
+Note that successive runs of bench append the output to results.Larceny.
 
