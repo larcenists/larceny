@@ -4,8 +4,29 @@
 ;
 ; Completely fundamental pathname manipulation.
 
-; This takes zero or more directory components and a file name and
-; constructs a filename relative to the current directory.
+; Takes zero or more directories and a filename and appends them, inserting
+; the necessary pathname separators.  The first directory in the list, if
+; present, has special meaning.  If "" or #f, it denotes the current 
+; directory.  Otherwise it is taken literally and should already have a
+; format that is meaningful on the system.
+
+(define (make-filename first . components)
+  (cond ((null? components)
+	 first)
+	((not first) 
+	 (apply make-relative-filename components))
+	((string=? first "") 
+	 (apply make-relative-filename components))
+	(else
+	 (let ((rest (apply make-relative-filename components)))
+	   (if (char=? #\/ (string-ref first (- (string-length first) 1)))
+	       (string-append first rest)
+	       (string-append first "/" rest))))))
+
+
+; This takes zero or more directory components without directory
+; separators and a file name and constructs a filename relative to the
+; current directory.
 
 (define (make-relative-filename . components)
 
