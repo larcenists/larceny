@@ -102,17 +102,24 @@
                      (cons (lcm (car args) (cadr args))
                            (cddr args))))))
 
+; Doing the computation in exact arithmetic avoids needless loss 
+; of precision.
+
 (define (modulo x y)
-  (let* ((q (quotient x y))
-	 (r (- x (* q y))))
-    (cond ((negative? r)
-	   (if (negative? y)
-	       r
-	       (+ r y)))
-	  ((negative? y)
-	   (+ r y))
-	  (else
-	    r))))
+  (if (or (inexact? x) (inexact? y))
+      (exact->inexact (modulo (inexact->exact x) (inexact->exact y)))
+      (let* ((q (quotient x y))
+	     (r (- x (* q y))))
+	(cond ((zero? r)
+	       r)
+	      ((negative? r)
+	       (if (negative? y)
+		   r
+		   (+ r y)))
+	      ((negative? y)
+	       (+ r y))
+	      (else
+	       r)))))
 
 (define (expt x y)
 
