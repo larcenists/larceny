@@ -24,7 +24,7 @@
  *
  * The algorithm executes a full trace of the heap, accumulating objects
  * and reference counts in an external table.  When the trace is done,
- * the table is sweeped and objects are selected based on reference
+ * the table is swept and objects are selected based on reference
  * counts and type tags.  A second sweep of the table copies object pointers
  * into the result vector.
  *
@@ -36,24 +36,10 @@
 
 #include <string.h>
 #include "larceny.h"
+#include "gc.h"
 #include "gc_t.h"
 #include "gclib.h"
-
-/* Using smaller pages may increase performance (or not). */
-#define SMALLER_PAGES   1
-
-#if SMALLER_PAGES
-
-/* Override definitions from gclib.h; PAGEMASK, pageof(), and roundup_page()
- * will use these values.
- */
-# undef PAGESIZE
-# define PAGESIZE           512
-
-# undef PAGESHIFT
-# define PAGESHIFT          9
-
-#endif  /* SMALLER_PAGES */
+#include "memmgr.h"		/* For large object limit */
 
 typedef struct sro_w_t sro_w_t;	/* A workspace node */
 typedef struct sro_t sro_t;	/* The top-level table structure */
@@ -67,7 +53,10 @@ struct sro_w_t {
 
 struct sro_t {
   sro_w_t *workspace;		/* List of workspace nodes */
-  word **buckets;		/* Single array of buckets */
+  word **buckets;		/* Single array of buckets, one bucket
+				   for each heap page.  The bucket holds
+				   either 0 or a pointer to the shadow
+				   page. */
   char *freep;			/* A pointer into a workspace block */
   int free;		        /* Free bytes in that block */
   sro_stack_t *stack;           /* Current stack segment */
@@ -105,6 +94,10 @@ word sro( gc_t *gc, int p_tag, int h_tag, int limit )
   int i, j, cnt, pages;
   word *p, *x;
   caddr_t lowest, highest;
+
+  /* Perform a minor collection to guarantee space also for 
+     small result vectors. */
+  gc_collect( gc, 0, GC_LARGE_OBJECT_LIMIT, GCTYPE_PROMOTE );
 
   if (h_tag != -1) h_tag = h_tag << 2;  /* Matches value of typetag() */
 
@@ -169,21 +162,21 @@ static void sro_traverse( sro_t *tbl )
   while (sro_pop( tbl, &w )) {
     if (sro_mark( tbl, w ) > 1) continue;  /* marked previously */
 
-  switch (tagof( w )) {
-  case PAIR_TAG :
+    switch (tagof( w )) {
+    case PAIR_TAG :
       sro_push( tbl, pair_cdr( w ) );
       sro_push( tbl, pair_car( w ) );
       break;
-  case VEC_TAG :
-  case PROC_TAG :
-    n = sizefield( *ptrof(w) ) / sizeof(word);
-    for ( i=0 ; i < n ; i++ )
+    case VEC_TAG :
+    case PROC_TAG :
+      n = sizefield( *ptrof(w) ) / sizeof(word);
+      for ( i=0 ; i < n ; i++ )
         sro_push( tbl, vector_ref( w, i ) );
-    break;
-  case BVEC_TAG :
-    break;
+      break;
+    case BVEC_TAG :
+      break;
+    }
   }
-}
 }
 
 static void sro_push( sro_t *tbl, word w )
