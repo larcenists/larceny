@@ -55,7 +55,7 @@
 ;    the effects of this primop that kill available expressions
 
 (define (prim-entry name)
-  (assq name $usual-integrable-procedures$))
+  (assq name (twobit-integrable-procedures)))
 
 (define prim-arity cadr)
 (define prim-opcodename caddr)
@@ -101,6 +101,152 @@
 (define (prim-kills entry)
   (list-ref entry 6))
 
+(define (twobit-integrable-procedures)
+  (case (integrate-procedures)
+    ((none)    $minimal-integrable-procedures$)
+    ((r4rs)    $r4rs-integrable-procedures$)
+    ((r5rs)    $r5rs-integrable-procedures$)
+    ((larceny) $usual-integrable-procedures$)
+    (else ???)))
+
+(define $minimal-integrable-procedures$
+  (let ((:globals  available:killer:globals)
+        (:car      available:killer:car)
+        (:cdr      available:killer:cdr)
+        (:string   available:killer:string)
+        (:vector   available:killer:vector)
+        (:cell     available:killer:cell)
+        (:io       available:killer:io)
+        (:none     available:killer:none)     ; none of the above
+        (:all      available:killer:all)      ; all of the above
+        (:immortal available:killer:immortal) ; never killed
+        (:dead     available:killer:dead)     ; never available
+        )
+
+;    external     arity  internal    immediate    ignored  killed     kills
+;    name                name        predicate             by what
+;                                                          kind of
+;                                                          effect
+  `((,name:CAR        1 car              #f          #x1b ,:car      ,:none)
+    (,name:CDR        1 cdr              #f          #x1c ,:cdr      ,:none)
+    (,name:MAKE-CELL  1 make-cell        #f          #x7e ,:dead     ,:none)
+    (,name:CELL-REF   1 cell-ref         #f          #x7f ,:cell     ,:none)
+    (,name:CELL-SET!  2 cell-set!        #f          #xdf ,:dead     ,:cell)
+    (,name:CONS       2 cons             #f          #xa8 ,:dead     ,:none)
+
+    ; These should not be here with these names but are introduced by
+    ; the compiler, macro expander, or standard macros.
+
+    (unspecified      0 unspecified      #f            -1 ,:dead     ,:none)
+    (undefined        0 undefined        #f             8 ,:dead     ,:none)
+    (--               1 --               #f          #x2d ,:immortal ,:none)
+
+    ; Added for CSE, representation analysis.
+
+    (,name:CHECK!    -1 check!           #f            -1 ,:dead     ,:none)
+    (vector-length:vec 1 vector-length:vec #f          -1 ,:immortal ,:none)
+    (vector-ref:trusted 2 vector-ref:trusted ,sparc-imm? -1 ,:vector   ,:none)
+    (vector-set!:trusted 3 vector-set!:trusted #f      -1 ,:dead     ,:vector)
+    (car:pair         1 car:pair         #f            -1 ,:car      ,:none)
+    (cdr:pair         1 cdr:pair         #f            -1 ,:cdr      ,:none)
+    (=:fix:fix        2 =:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
+    (<:fix:fix        2 <:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
+    (<=:fix:fix       2 <=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
+    (>=:fix:fix       2 >=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
+    (>:fix:fix        2 >:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
+    
+    ; Not yet implemented.
+
+    (+:idx:idx        2 +:idx:idx        #f            -1 ,:immortal ,:none)
+    (+:fix:fix        2 +:idx:idx        #f            -1 ,:immortal ,:none)
+    (+:exi:exi        2 +:idx:idx        #f            -1 ,:immortal ,:none)
+    (+:flo:flo        2 +:idx:idx        #f            -1 ,:immortal ,:none)
+    (=:flo:flo        2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (=:obj:flo        2 =:obj:flo        #f            -1 ,:immortal ,:none)
+    (=:flo:obj        2 =:flo:obj        #f            -1 ,:immortal ,:none))))
+
+(define $r4rs-integrable-procedures$
+  (let ((:globals  available:killer:globals)
+        (:car      available:killer:car)
+        (:cdr      available:killer:cdr)
+        (:string   available:killer:string)
+        (:vector   available:killer:vector)
+        (:cell     available:killer:cell)
+        (:io       available:killer:io)
+        (:none     available:killer:none)     ; none of the above
+        (:all      available:killer:all)      ; all of the above
+        (:immortal available:killer:immortal) ; never killed
+        (:dead     available:killer:dead)     ; never available
+        )
+
+;    external     arity  internal    immediate    ignored  killed     kills
+;    name                name        predicate             by what
+;                                                          kind of
+;                                                          effect
+ (append
+  `((eof-object       0 eof-object       #f            -1 ,:dead     ,:none)
+    (not              1 not              #f          #x18 ,:immortal ,:none)
+    (null?            1 null?            #f          #x19 ,:immortal ,:none)
+    (pair?            1 pair?            #f          #x1a ,:immortal ,:none)
+    (eof-object?      1 eof-object?      #f            -1 ,:immortal ,:none)
+    (port?            1 port?            #f            -1 ,:dead     ,:none)
+    (car              1 car              #f          #x1b ,:car      ,:none)
+    (cdr              1 cdr              #f          #x1c ,:cdr      ,:none)
+    (symbol?          1 symbol?          #f          #x1f ,:immortal ,:none)
+    (number?          1 complex?         #f          #x20 ,:immortal ,:none)
+    (complex?         1 complex?         #f          #x20 ,:immortal ,:none)
+    (real?            1 rational?        #f          #x21 ,:immortal ,:none)
+    (rational?        1 rational?        #f          #x21 ,:immortal ,:none)
+    (integer?         1 integer?         #f          #x22 ,:immortal ,:none)
+    (exact?           1 exact?           #f          #x24 ,:immortal ,:none)
+    (inexact?         1 inexact?         #f          #x25 ,:immortal ,:none)
+    (exact->inexact   1 exact->inexact   #f          #x26 ,:immortal ,:none)
+    (inexact->exact   1 inexact->exact   #f          #x27 ,:immortal ,:none)
+    (round            1 round            #f          #x28 ,:immortal ,:none)
+    (truncate         1 truncate         #f          #x29 ,:immortal ,:none)
+    (zero?            1 zero?            #f          #x2c ,:immortal ,:none)
+    (real-part        1 real-part        #f          #x3e ,:immortal ,:none)
+    (imag-part        1 imag-part        #f          #x3f ,:immortal ,:none)
+    (char?            1 char?            #f          #x40 ,:immortal ,:none)
+    (char->integer    1 char->integer    #f          #x41 ,:immortal ,:none)
+    (integer->char    1 integer->char    #f          #x42 ,:immortal ,:none)
+    (string?          1 string?          #f          #x50 ,:immortal ,:none)
+    (string-length    1 string-length    #f          #x51 ,:immortal ,:none)
+    (vector?          1 vector?          #f          #x52 ,:immortal ,:none)
+    (vector-length    1 vector-length    #f          #x53 ,:immortal ,:none)
+    (procedure?       1 procedure?       #f          #x58 ,:immortal ,:none)
+    (eq?              2 eq?           ,sparc-eq-imm? #xa1 ,:immortal ,:none)
+    (eqv?             2 eqv?             #f          #xa2 ,:immortal ,:none)
+    (cons             2 cons             #f          #xa8 ,:dead     ,:none)
+    (set-car!         2 set-car!         #f          #xa9 ,:dead     ,:car)
+    (set-cdr!         2 set-cdr!         #f          #xaa ,:dead     ,:cdr)
+    (+                2 +                ,sparc-imm? #xb0 ,:immortal ,:none)
+    (-                2 -                ,sparc-imm? #xb1 ,:immortal ,:none)
+    (*                2 *                ,sparc-imm? #xb2 ,:immortal ,:none)
+    (/                2 /                #f          #xb3 ,:immortal ,:none)
+    (quotient         2 quotient         #f          #xb4 ,:immortal ,:none)
+    (<                2 <                ,sparc-imm? #xb5 ,:immortal ,:none)
+    (<=               2 <=               ,sparc-imm? #xb6 ,:immortal ,:none)
+    (=                2 =                ,sparc-imm? #xb7 ,:immortal ,:none)
+    (>                2 >                ,sparc-imm? #xb8 ,:immortal ,:none)
+    (>=               2 >=               ,sparc-imm? #xb9 ,:immortal ,:none)
+    (make-string      2 make-string      #f            -1 ,:dead     ,:none)
+    (string-ref       2 string-ref       ,sparc-imm? #xd1 ,:string   ,:none)
+    (string-set!      3 string-set!      ,sparc-imm?   -1 ,:dead     ,:string)
+    (make-vector      2 make-vector      #f          #xd2 ,:dead     ,:none)
+    (vector-ref       2 vector-ref       ,sparc-imm? #xd3 ,:vector   ,:none)
+    (char<?           2 char<?           ,char?      #xe0 ,:immortal ,:none)
+    (char<=?          2 char<=?          ,char?      #xe1 ,:immortal ,:none)
+    (char=?           2 char=?           ,char?      #xe2 ,:immortal ,:none)
+    (char>?           2 char>?           ,char?      #xe3 ,:immortal ,:none)
+    (char>=?          2 char>=?          ,char?      #xe4 ,:immortal ,:none)
+    (vector-set!      3 vector-set!      #f          #xf1 ,:dead     ,:vector)
+    (remainder        2 remainder        #f            -1 ,:immortal ,:none))
+  $minimal-integrable-procedures$)))
+
+(define $r5rs-integrable-procedures$
+  $r4rs-integrable-procedures$)
+
 (define $usual-integrable-procedures$
   (let ((:globals  available:killer:globals)
         (:car      available:killer:car)
@@ -120,80 +266,26 @@
 ;                                                          kind of
 ;                                                          effect
 
+ (append
   `((break            0 break            #f             3 ,:dead     ,:all)
     (creg             0 creg             #f             7 ,:dead     ,:all)
-    (unspecified      0 unspecified      #f            -1 ,:dead     ,:none)
-    (undefined        0 undefined        #f             8 ,:dead     ,:none)
-    (eof-object       0 eof-object       #f            -1 ,:dead     ,:none)
     (enable-interrupts 1 enable-interrupts #f          -1 ,:dead     ,:all)
     (disable-interrupts 0 disable-interrupts #f        -1 ,:dead     ,:all)
 
     (typetag          1 typetag          #f          #x11 ,:dead     ,:none)
-    (not              1 not              #f          #x18 ,:immortal ,:none)
-    (null?            1 null?            #f          #x19 ,:immortal ,:none)
-    (pair?            1 pair?            #f          #x1a ,:immortal ,:none)
-    (eof-object?      1 eof-object?      #f            -1 ,:immortal ,:none)
-    (port?            1 port?            #f            -1 ,:dead     ,:none)
     (structure?       1 structure?       #f            -1 ,:dead     ,:none)
-    (car              1 car              #f          #x1b ,:car      ,:none)
-    (,name:CAR        1 car              #f          #x1b ,:car      ,:none)
-    (cdr              1 cdr              #f          #x1c ,:cdr      ,:none)
-    (,name:CDR        1 cdr              #f          #x1c ,:cdr      ,:none)
-    (symbol?          1 symbol?          #f          #x1f ,:immortal ,:none)
-    (number?          1 complex?         #f          #x20 ,:immortal ,:none)
-    (complex?         1 complex?         #f          #x20 ,:immortal ,:none)
-    (real?            1 rational?        #f          #x21 ,:immortal ,:none)
-    (rational?        1 rational?        #f          #x21 ,:immortal ,:none)
-    (integer?         1 integer?         #f          #x22 ,:immortal ,:none)
     (fixnum?          1 fixnum?          #f          #x23 ,:immortal ,:none)
     (flonum?          1 flonum?          #f            -1 ,:immortal ,:none)
     (compnum?         1 compnum?         #f            -1 ,:immortal ,:none)
-    (exact?           1 exact?           #f          #x24 ,:immortal ,:none)
-    (inexact?         1 inexact?         #f          #x25 ,:immortal ,:none)
-    (exact->inexact   1 exact->inexact   #f          #x26 ,:immortal ,:none)
-    (inexact->exact   1 inexact->exact   #f          #x27 ,:immortal ,:none)
-    (round            1 round            #f          #x28 ,:immortal ,:none)
-    (truncate         1 truncate         #f          #x29 ,:immortal ,:none)
-    (zero?            1 zero?            #f          #x2c ,:immortal ,:none)
-    (--               1 --               #f          #x2d ,:immortal ,:none)
     (lognot           1 lognot           #f          #x2f ,:immortal ,:none)
-    (real-part        1 real-part        #f          #x3e ,:immortal ,:none)
-    (imag-part        1 imag-part        #f          #x3f ,:immortal ,:none)
-    (char?            1 char?            #f          #x40 ,:immortal ,:none)
-    (char->integer    1 char->integer    #f          #x41 ,:immortal ,:none)
-    (integer->char    1 integer->char    #f          #x42 ,:immortal ,:none)
-    (string?          1 string?          #f          #x50 ,:immortal ,:none)
-    (string-length    1 string-length    #f          #x51 ,:immortal ,:none)
-    (vector?          1 vector?          #f          #x52 ,:immortal ,:none)
-    (vector-length    1 vector-length    #f          #x53 ,:immortal ,:none)
     (bytevector?      1 bytevector?      #f          #x54 ,:immortal ,:none)
     (bytevector-length 1 bytevector-length #f        #x55 ,:immortal ,:none)
     (bytevector-fill! 2 bytevector-fill! #f            -1 ,:dead     ,:string)
     (make-bytevector  1 make-bytevector  #f          #x56 ,:dead     ,:none)
-    (procedure?       1 procedure?       #f          #x58 ,:immortal ,:none)
     (procedure-length 1 procedure-length #f          #x59 ,:dead     ,:none)
     (make-procedure   1 make-procedure   #f          #x5a ,:dead     ,:none)
     (creg-set!        1 creg-set!        #f          #x71 ,:dead     ,:none)
-    (,name:MAKE-CELL  1 make-cell        #f          #x7e ,:dead     ,:none)
-    (,name:CELL-REF   1 cell-ref         #f          #x7f ,:cell     ,:none)
-    (,name:CELL-SET!  2 cell-set!        #f          #xdf ,:dead     ,:cell)
     (typetag-set!     2 typetag-set! ,valid-typetag? #xa0 ,:dead     ,:all)
-    (eq?              2 eq?           ,sparc-eq-imm? #xa1 ,:immortal ,:none)
-    (eqv?             2 eqv?             #f          #xa2 ,:immortal ,:none)
-    (cons             2 cons             #f          #xa8 ,:dead     ,:none)
-    (,name:CONS       2 cons             #f          #xa8 ,:dead     ,:none)
-    (set-car!         2 set-car!         #f          #xa9 ,:dead     ,:car)
-    (set-cdr!         2 set-cdr!         #f          #xaa ,:dead     ,:cdr)
-    (+                2 +                ,sparc-imm? #xb0 ,:immortal ,:none)
-    (-                2 -                ,sparc-imm? #xb1 ,:immortal ,:none)
-    (*                2 *                ,sparc-imm? #xb2 ,:immortal ,:none)
-    (/                2 /                #f          #xb3 ,:immortal ,:none)
-    (quotient         2 quotient         #f          #xb4 ,:immortal ,:none)
-    (<                2 <                ,sparc-imm? #xb5 ,:immortal ,:none)
-    (<=               2 <=               ,sparc-imm? #xb6 ,:immortal ,:none)
-    (=                2 =                ,sparc-imm? #xb7 ,:immortal ,:none)
-    (>                2 >                ,sparc-imm? #xb8 ,:immortal ,:none)
-    (>=               2 >=               ,sparc-imm? #xb9 ,:immortal ,:none)
     (logand           2 logand           #f          #xc0 ,:immortal ,:none)
     (logior           2 logior           #f          #xc1 ,:immortal ,:none)
     (logxor           2 logxor           #f          #xc2 ,:immortal ,:none)
@@ -201,21 +293,10 @@
     (rsha             2 rsha             #f            -1 ,:immortal ,:none)
     (rshl             2 rshl             #f            -1 ,:immortal ,:none)
     (rot              2 rot              #f          #xc4 ,:immortal ,:none)
-    (make-string      2 make-string      #f            -1 ,:dead     ,:none)
-    (string-ref       2 string-ref       ,sparc-imm? #xd1 ,:string   ,:none)
-    (string-set!      3 string-set!      ,sparc-imm?   -1 ,:dead     ,:string)
-    (make-vector      2 make-vector      #f          #xd2 ,:dead     ,:none)
-    (vector-ref       2 vector-ref       ,sparc-imm? #xd3 ,:vector   ,:none)
     (bytevector-ref   2 bytevector-ref   ,sparc-imm? #xd5 ,:string   ,:none)
     (procedure-ref    2 procedure-ref    #f          #xd7 ,:dead     ,:none)
-    (char<?           2 char<?           ,char?      #xe0 ,:immortal ,:none)
-    (char<=?          2 char<=?          ,char?      #xe1 ,:immortal ,:none)
-    (char=?           2 char=?           ,char?      #xe2 ,:immortal ,:none)
-    (char>?           2 char>?           ,char?      #xe3 ,:immortal ,:none)
-    (char>=?          2 char>=?          ,char?      #xe4 ,:immortal ,:none)
     
     (sys$partial-list->vector 2 sys$partial-list->vector #f -1 ,:dead ,:all)
-    (vector-set!      3 vector-set!      #f          #xf1 ,:dead     ,:vector)
     (bytevector-set!  3 bytevector-set!  #f          #xf2 ,:dead     ,:string)
     (procedure-set!   3 procedure-set!   #f          #xf3 ,:dead     ,:all)
     (bytevector-like? 1 bytevector-like? #f            -1 ,:immortal ,:none)
@@ -227,7 +308,6 @@
     (vector-like-set! 3 vector-like-set! #f            -1 ,:dead     ,:vector)
     (vector-like-length 1 vector-like-length #f        -1 ,:immortal ,:none)
     (bytevector-like-length 1 bytevector-like-length #f -1 ,:immortal ,:none)
-    (remainder        2 remainder        #f            -1 ,:immortal ,:none)
     (sys$read-char    1 sys$read-char    #f            -1 ,:dead     ,:io)
     (gc-counter       0 gc-counter       #f            -1 ,:dead     ,:none)
     ,@(if (fixnum-primitives)
@@ -262,30 +342,8 @@
 	    (fl>=         2 >=           #f            -1 ,:immortal ,:none))
           '())
 
-    ; Added for CSE, representation analysis.
-
-    (,name:CHECK!    -1 check!           #f            -1 ,:dead     ,:none)
-    (vector-length:vec 1 vector-length:vec #f          -1 ,:immortal ,:none)
-    (vector-ref:trusted 2 vector-ref:trusted ,sparc-imm? -1 ,:vector   ,:none)
-    (vector-set!:trusted 3 vector-set!:trusted #f      -1 ,:dead     ,:vector)
-    (car:pair         1 car:pair         #f            -1 ,:car      ,:none)
-    (cdr:pair         1 cdr:pair         #f            -1 ,:cdr      ,:none)
-    (=:fix:fix        2 =:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
-    (<:fix:fix        2 <:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
-    (<=:fix:fix       2 <=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
-    (>=:fix:fix       2 >=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
-    (>:fix:fix        2 >:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
-    
-    ; Not yet implemented.
-
-    (+:idx:idx        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (+:fix:fix        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (+:exi:exi        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (+:flo:flo        2 +:idx:idx        #f            -1 ,:immortal ,:none)
-    (=:flo:flo        2 =:flo:flo        #f            -1 ,:immortal ,:none)
-    (=:obj:flo        2 =:obj:flo        #f            -1 ,:immortal ,:none)
-    (=:flo:obj        2 =:flo:obj        #f            -1 ,:immortal ,:none)
-    )))
+    )
+  $r5rs-integrable-procedures$)))
 
 ; Not used by the Sparc assembler; for information only.
 
