@@ -213,7 +213,7 @@ int main( int argc, char **os_argv )
 
   setup_signal_handlers();
   osdep_init();
-  stats_init( the_gc(globals), generations, o.show_heapstats );
+  stats_init( the_gc(globals) );
   scheme_init( globals );
 
   /* Allocate vector of command line arguments and pass it as an
