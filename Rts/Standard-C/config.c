@@ -9,5 +9,6 @@
 
 char *larceny_system_name = "Petit Larceny";
 char *larceny_heap_name = "petit.heap";
+char *larceny_architecture = "Standard-C";
 
 /* eof */
