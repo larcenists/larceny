@@ -6,7 +6,26 @@ using Scheme.RT;
 using Scheme.Rep;
 
 namespace Scheme.RT {
+    public class FFI_message_filter : IMessageFilter {
+        Procedure scheme_filter;
+
+        public FFI_message_filter (Procedure _scheme_filter)
+        {
+            this.scheme_filter = _scheme_filter;
+        }
+
+        public bool PreFilterMessage (ref Message m)
+        {
+            return Call.callback (scheme_filter, Factory.makeForeign (m)) != Factory.False;
+        }
+    }
+
     public class FFI {
+
+        // Public Constants
+        public const bool TRUE = true;
+        public const bool FALSE = false;
+        public const object NULL = null;
 
         public static void ffi_syscall() {
             try {
@@ -102,7 +121,7 @@ namespace Scheme.RT {
             {
                 object obj = ((Foreign)arg1).value;
                 Type type = (Type) ((Foreign)arg2).value;
-                Reg.Result = Factory.wrap(type.IsInstanceOfType(obj));
+                Reg.Result = type.IsInstanceOfType(obj) ? Factory.True : Factory.False;
                 return;
             }
             case 8: // field-get
@@ -139,7 +158,7 @@ namespace Scheme.RT {
             }
             case 10: // foreign?
             {
-                Reg.Result = Factory.wrap(arg1 is Foreign);
+                Reg.Result = (arg1 is Foreign) ? Factory.True : Factory.False;
                 return;
             }
             case 11: // get-constructor
@@ -174,11 +193,11 @@ namespace Scheme.RT {
                 object a = unwrapF(arg1);
                 object b = unwrapF(arg2);
                 if (a == null) {
-                    Reg.Result = Factory.wrap(b == null);
+                    Reg.Result = (b == null) ? Factory.True : Factory.False;
                 } else if (b == null) {
-                    Reg.Result = Factory.wrap(a == null);
+                    Reg.Result = (a == null) ? Factory.True : Factory.False;
                 } else {
-                    Reg.Result = Factory.wrap(a.Equals(b));
+                    Reg.Result = (a.Equals(b)) ? Factory.True : Factory.False;
                 }
                 return;
             }
@@ -222,7 +241,7 @@ namespace Scheme.RT {
             }
             case 16: // to-string
             {
-                Reg.Result = Factory.wrap (unwrapF (arg1).ToString());
+                Reg.Result = Factory.makeString (unwrapF (arg1).ToString());
                 return;
             }
             case 17: // get-property-value-boolean
@@ -260,7 +279,7 @@ namespace Scheme.RT {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
                     return;
                    }
-                Reg.Result = Factory.wrap((int)result);
+                Reg.Result = Factory.makeNumber((int)result);
                 return;
             }
             case 19: // array ref
@@ -282,7 +301,7 @@ namespace Scheme.RT {
 
         private static SObject wrapF(object o) {
             if (o is Int32 && SFixnum.inFixnumRange((int)o)) {
-                return Factory.wrap((int)o);
+                return Factory.makeFixnum ((int)o);
             } else {
                 return Factory.makeForeign(o);
             }
@@ -376,6 +395,16 @@ namespace Scheme.RT {
                     Exn.error("datum->foreign (void) not allowed");
                     return Factory.Impossible;
                 }
+                case 9: // message filter
+                {
+                    if (obj is Procedure)
+                        return Factory.makeForeign (new FFI_message_filter ((Procedure) obj));
+                    else {
+                        Exn.error("datum->foreign (message filter) expected procedure");
+                        return Factory.Impossible;
+                        }
+                }
+
             }
             Exn.error("datum->foreign: unknown conversion");
             return Factory.Impossible;
@@ -406,7 +435,7 @@ namespace Scheme.RT {
                 }
                 case 2: { // string
                     if (value is string) {
-                        return Factory.wrap((string)value);
+                        return Factory.makeString ((string)value);
                     } else {
                         Exn.error("foreign->datum (string): not a string");
                         return Factory.Impossible;
@@ -426,13 +455,13 @@ namespace Scheme.RT {
                 }
                 case 5: { // int
                     if (value is Enum)   return Factory.makeNumber ((int)    value);
-                    if (value is Byte)   return Factory.makeNumber ((byte)   value);
-                    if (value is SByte)  return Factory.makeNumber ((sbyte)  value);
-                    if (value is char)   return Factory.makeNumber ((char)   value);
-                    if (value is short)  return Factory.makeNumber ((short)  value);
+                    if (value is Byte)   return Factory.makeFixnum ((byte)   value);
+                    if (value is SByte)  return Factory.makeFixnum ((sbyte)  value);
+                    if (value is char)   return Factory.makeFixnum ((char)   value);
+                    if (value is short)  return Factory.makeFixnum ((short)  value);
                     if (value is int)    return Factory.makeNumber ((int)    value);
                     if (value is long)   return Factory.makeNumber ((long)   value);
-                    if (value is ushort) return Factory.makeNumber ((ushort) value);
+                    if (value is ushort) return Factory.makeFixnum ((ushort) value);
                     if (value is uint)   return Factory.makeNumber ((uint)   value);
                     if (value is ulong)  return Factory.makeNumber ((ulong)  value);
 
@@ -441,7 +470,7 @@ namespace Scheme.RT {
                 }
                 case 6: { // float
                     if (value is float) {
-                        return Factory.wrap((float)value);
+                        return Factory.makeFlonum((float)value);
                     } else {
                         Exn.error("foreign->datum (float): not a float");
                         return Factory.Impossible;
@@ -449,7 +478,7 @@ namespace Scheme.RT {
                 }
                 case 7: { // double
                     if (value is double) {
-                        return Factory.wrap((double)value);
+                        return Factory.makeFlonum((double)value);
                     } else {
                         Exn.error("foreign->datum (double): not a double");
                         return Factory.Impossible;
@@ -464,32 +493,15 @@ namespace Scheme.RT {
         }
 
         public static SObject getMethod(Type type, string name, Type[] formals) {
-            MethodInfo m = type.GetMethod(name, formals);
-            return Factory.makeForeignF(m);
+            return Factory.makeForeignF (type.GetMethod(name, formals));
         }
 
         public static SObject getField(Type type, string name) {
-            FieldInfo f = type.GetField(name);
-            return Factory.makeForeignF(f);
+            return Factory.makeForeignF (type.GetField(name));
         }
 
         public static SObject getProperty(Type type, string name) {
-            PropertyInfo p = type.GetProperty(name);
-            if (p == null) {
-                Exn.internalError("no such property");
-                return null;
-            }
-            MethodInfo pget = p.GetGetMethod(false);
-            MethodInfo pset = p.GetSetMethod(false);
-            return Factory.makePair
-                (Factory.makeForeignF(pget),
-                 Factory.makeForeignF(pset));
+            return Factory.makeForeignF (type.GetProperty (name));
         }
-
-        // Public Constants
-        public static readonly bool TRUE = true;
-        public static readonly bool FALSE = false;
-        public static readonly object NULL = null;
-
     }
 }
