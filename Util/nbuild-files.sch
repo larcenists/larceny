@@ -32,6 +32,8 @@
   (append 
    (nbuild-files 'compiler
                  '("common.imp.sch"))
+   ;;; FIXME:  Compiler is going to need to know about
+   ;;;         Lib/Common/javadot-syntax.sch to implement .javadot macro
    (nbuild-files 'dotnet-asm
                  '("il.imp.sch" "il.imp2.sch"))))
 
