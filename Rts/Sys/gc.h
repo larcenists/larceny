@@ -96,7 +96,7 @@ extern word copy_object( gc_t *gc, word obj );
 
 
 /* In sro.c */
-extern word sro( gc_t *gc, word *globals, int p_tag, int h_tag, int limit );
+extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 
 #endif
 
