@@ -134,7 +134,8 @@ static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
   return p;
 }
 
-static void collect( young_heap_t *heap, int nbytes )
+/* Request is ignored -- doesn't make sense in nursery. */
+static void collect( young_heap_t *heap, int nbytes, int request )
 {
   young_data_t *data = DATA(heap);
 
@@ -142,7 +143,7 @@ static void collect( young_heap_t *heap, int nbytes )
 			 free_space( heap ), nbytes,
 			 (nbytes == 0 ? " [stack overflow]" : "" ) );
 
-  gc_collect( heap->collector, data->gen_no+1, 0 );
+  gc_collect( heap->collector, data->gen_no+1, 0, GCTYPE_PROMOTE );
   data->nbytes_wanted = nbytes;  /* For use in after_collection() */
 }
 
@@ -239,7 +240,7 @@ static void flush_stack( young_heap_t *heap )
    */
 static void stack_overflow( young_heap_t *heap )
 {
-  collect( heap, 0 );
+  collect( heap, 0, GCTYPE_PROMOTE );
 }
 
 static void stack_underflow( young_heap_t *heap )
@@ -279,7 +280,7 @@ static void collect_if_no_room( young_heap_t *heap, int room )
 {
   room = roundup_balign( room );
   if (free_space( heap ) < room)
-    collect( heap, room );
+    collect( heap, room, GCTYPE_PROMOTE );
 }
 
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
