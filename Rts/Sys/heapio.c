@@ -401,7 +401,9 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
       data_count--;
     }
   }
-  while (data_count) {
+  /* data_count may go negative if a.top is not 8-byte aligned,
+     this may occur when dumping large objects.  */
+  while (data_count > 0) {
     w = *p++; 
     put_tagged_word( w, lowest, pagetbl, fp );
     data_count--;
