@@ -2,7 +2,7 @@
  * Ephemeral garbage collector (for Scheme).
  * Documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 1.7 91/07/03 20:53:27 lth Exp Locker: lth $
+ * $Id: gc.c,v 2.1 91/07/09 16:23:30 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  * We use "old" C; this has the virtue of letting us use 'lint' on the code.
@@ -437,10 +437,10 @@ static tenuring_collection()
 
 
 /*
- * "Forward" takes a word "w", the limits "base" and "max" of oldspace,
- * and a pointer to a pointer into newspace, "dest". It returns the forwarding
- * value of w, which is:
- *  - w if w is a literal (header or fixnum)
+ * "forward()" takes a word "w", the limits "base" and "max" of oldspace,
+ * and a pointer to a pointer into newspace, "dest".
+ * "forward()" returns the forwarding value of w, which is:
+ *  - w if w is not a pointer
  *  - w if w is a pointer not into oldspace
  *  - a pointer into newspace at which location the object that the old w
  *    pointed to (in oldspace).
@@ -455,7 +455,6 @@ word w, *base, *limit, **dest;
 {
   word tag, q, forw;
   word *ptr, *ptr2, *newptr;
-  unsigned size;
 
   if (!isptr( w )) return w;
 
@@ -484,32 +483,23 @@ word w, *base, *limit, **dest;
 #endif
   }
   else {    /* vector-like (bytevector, vector, procedure) */
-    unsigned size2;
+    unsigned size2, size;
+    word *p1, *p3;
 
     size = roundup4( sizefield( q ) ) + 4;
     size2 = roundup8( size );
 
-    {
-      /* The use of 'double' here is a hack that makes sense only if compiled
-       * with the '-dalign' switch on Sun's C compiler; it allows cc to use
-       * ldd and std instructions. We haven't substantiated that this is
-       * in fact a win. Ugh. And is it portable?
-       */
-      double *p1, *p2, *p3;
-
-      p1 = (double *) *dest;
-      p2 = (double *) ptr;
-      p3 = (double *)((word) *dest + size2);
-      while (p1 < p3)
-	*p1++ = *p2++;
-    }
+    p1 = *dest;
+    p3 = (word *) ((word) *dest + size2);
+    while (p1 < p3)
+      *p1++ = *ptr++;
 
     *dest += size2 / 4;
 
     /* Might need to zero out a padding word */
 
     if (size % 8 != 0)         /* need to pad out to doubleword? */
-      *(*dest-1) = (word) 0;
+      *p1 = (word) 0;
 
 #ifdef DEBUG
     vectors_copied++;
