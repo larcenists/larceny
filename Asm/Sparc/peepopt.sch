@@ -245,6 +245,8 @@
   (let ((op (case op
               ((+)                  'internal:+)
               ((-)                  'internal:-)
+              ((+:idx:idx)          'internal:+:idx:idx)
+              ((-:idx:idx)          'internal:-:idx:idx)
               ((fx+)                'internal:fx+)
               ((fx-)                'internal:fx-)
               ((fx=)                'internal:fx=)
@@ -256,12 +258,12 @@
               ((cons)               'internal:cons)
               ((vector-ref)         'internal:vector-ref)
               ((vector-ref:trusted) 'internal:vector-ref:trusted)
-              ((vector-ref:trusted:imm) 'internal:vector-ref:trusted:imm)
               ((string-ref)         'internal:string-ref)
               ((string-ref:trusted) 'internal:string-ref:trusted)
               ((set-car!)           'internal:set-car!)
               ((set-cdr!)           'internal:set-cdr!)
               ((cell-set!)          'internal:cell-set!)
+              ((cell-set!:nwb)      'internal:cell-set!:nwb)
               (else #f))))
     (if op
         (as-source! as (cons (list $reg/op2/setreg op rs1 rs2 rd) tail)))))
@@ -305,6 +307,7 @@
               ((fx>=)       'internal:fx>=/imm)
               ((eq?)        'internal:eq?/imm)
               ((vector-ref) 'internal:vector-ref/imm)
+             ;((vector-ref:trusted) 'internal:vector-ref:trusted/imm)
               ((string-ref) 'internal:string-ref/imm)
               (else #f))))
     (if op

@@ -391,6 +391,10 @@
   (lambda (as r)
     (emit-setcar/setcdr! as $r.result r 0)))
 
+(define-primop 'cell-set!:nwb
+  (lambda (as r)
+    (emit-setcar/setcdr-no-barrier! as $r.result r 0)))
+
 (define-primop 'syscall
   (lambda (as)
     (millicode-call/0arg as $m.syscall)))
@@ -733,7 +737,7 @@
   (lambda (as rs2 rs3)
     (emit-vector-like-set-trusted! as $r.result rs2 rs3 $tag.vector-tag)))
 
-(define-primop 'vector-set!:trusted:imm
+(define-primop 'vector-set!:trusted:nwb
   (lambda (as rs2 rs3)
     (emit-vector-like-set-trusted-no-barrier!
          as $r.result rs2 rs3 $tag.vector-tag)))

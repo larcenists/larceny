@@ -47,6 +47,11 @@
     (internal-primop-invariant2 'internal:cell-set! rs1 dest-ignored)
     (emit-setcar/setcdr! as rs1 rs2 0)))
 
+(define-primop 'internal:cell-set!:nwb
+  (lambda (as rs1 rs2 dest-ignored)
+    (internal-primop-invariant2 'internal:cell-set!:nwb rs1 dest-ignored)
+    (emit-setcar/setcdr-no-barrier! as rs1 rs2 0)))
+
 ; CONS
 ;
 ; One instruction reduced here translates into about 2.5KB reduction in the

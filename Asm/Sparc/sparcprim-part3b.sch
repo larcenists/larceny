@@ -26,13 +26,15 @@
          (emit-move2hwreg! as rs2 $r.argreg2)
          (sparc.sti as $r.argreg2 (- offs $tag.pair-tag) rs1)
          (millicode-call/1arg-in-result as $m.addtrans rs1))
-        ((hardware-mapped? rs2)
+        (else
+         (emit-setcar/setcdr-no-barrier! as rs1 rs2 offs))))
+
+(define (emit-setcar/setcdr-no-barrier! as rs1 rs2 offs)
+  (cond ((hardware-mapped? rs2)
          (sparc.sti as rs2 (- offs $tag.pair-tag) rs1))
         (else
          (emit-move2hwreg! as rs2 $r.argreg2)
          (sparc.sti as $r.argreg2 (- offs $tag.pair-tag) rs1))))
-
-
 
 
 ; Representation predicate.
