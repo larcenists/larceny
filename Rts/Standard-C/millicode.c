@@ -675,9 +675,7 @@ void mem_icache_flush( void *lo, void *limit )
    */
 void execute_sigfpe_magic( void *context )
 {
-#if defined(SUNOS5)
-  unblock_all_signals();	/* Before longjmp */
-#endif
+  unblock_all_signals();	/* Reset signal mask, really. */
   longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
 }
 
