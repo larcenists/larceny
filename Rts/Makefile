@@ -115,7 +115,7 @@ BOEHM_GC_OBJECTS=\
 	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o
 
 BOEHM_GC_SPARC_OBJECTS=\
-	Sparc/bdw-memory.o SPARC/bdw-generic.o
+	Sparc/bdw-memory.o Sparc/bdw-generic.o
 
 BOEHM_GC_LIBRARIES=\
 	bdw-gc/gc.a
