@@ -1253,6 +1253,17 @@ $Id$
     FIX: Implemented the necessary logic in Lib/print.sch, Lib/reader.sch,
     and Lib/unix.sch (character codes).
 
+072 v0.34 (981113 / lth)  Fixed 990929 by lth
+    Priority: medium.
+    Category: LIB, TWOBIT / user-friendliness
+
+    The (break) procedure always invokes the RTS debugger.  It would be
+    more useful if it would invoke the user-installable breakpoint handler,
+    if that has been installed.  The current behavior should be renamed
+    as 'debugvsm'.
+
+    Fix: made BREAK invoke the value of a new BREAK-HANDLER parameter.
+
 073 v0.36 (981203 / lth) Fixed 981203 by lth
     Priority: low
 

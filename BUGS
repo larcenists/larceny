@@ -196,18 +196,6 @@ HIGH PRIORITY BUGS: 136.
     will be fixed when we go to a FASL format that allows separate 
     loading and linking, because that format will retain the tags.
 
-072 v0.34 (981113 / lth)
-    Priority: medium.
-    Category: LIB, TWOBIT / user-friendliness
-
-    The (break) procedure always invokes the RTS debugger.  It would be
-    more useful if it would invoke the user-installable breakpoint handler,
-    if that has been installed.  The current behavior should be renamed
-    as 'debugvsm'.
-
-    Chez Scheme uses a parameter 'break-handler'; we should too.
-    (The break-handler is now in the debugger; we're part-way there...)
-
 074 v0.36 (981207 / dougo)
     Priority: medium.
     Category: AUXLIB / correctness
