@@ -60,10 +60,16 @@ struct dof_info {               /* Deferred-oldest-first intermediate area */
   int    generations;           /* Number of generations, > 0 */
   int    area_size;             /* Size of area in bytes, > 0 */
   int    full_frequency;        /* Frequency of full collections, >= 0 */
-  double load_factor;           /* Inverse load factor */
-  double growth_divisor;        /* Divisor for growth speed, > 0.0 */
   int    dynamic_min;           /* 0 or lower bound on collected area */
   int    dynamic_max;           /* 0 or upper bound on collected area */
+  double load_factor;           /* Inverse load factor */
+  double growth_divisor;        /* Divisor for growth speed, > 0.0 */
+  double free_before_promotion; /* Feeling lucky?  0.0 < d <= 1.0 */
+  double free_before_collection;/* Feeling lucky?  0.0 < d <= 1.0 */
+  double free_after_collection; /* d > 0.0 */
+  bool   no_shadow_remsets;     /* Disable shadow sets */
+  bool   fullgc_generational;   /* Use generational full GC */
+  bool   fullgc_on_collection;  /* Count collections, not resets */
 };
 
 struct gc_param {               /* Parameter structure passed to create_gc() */
