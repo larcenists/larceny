@@ -83,12 +83,33 @@
       (error "ffi:get-method: expected string, got: " name))
   (ffi:%get-method type name (list->vector argtypes)))
 
-(define (ffi:bool->foreign obj)   (if obj foreign-true foreign-false))
+(define (ffi:bool->foreign   obj) (if obj foreign-true foreign-false))
+(define (ffi:double->foreign obj) (ffi:%double->foreign obj))
+(define (ffi:int->foreign    obj) (ffi:%int32->foreign obj))
 (define (ffi:symbol->foreign obj) (ffi:%string->foreign (symbol->string obj)))
 (define (ffi:foreign->bool   obj) (not (ffi:%eq? obj foreign-false)))
+(define (ffi:foreign->char   obj) (integer->char (ffi:%foreign->int obj)))
 (define (ffi:foreign->double obj) (ffi:%foreign->double obj))
+(define (ffi:foreign->float  obj) (ffi:%foreign->flonum obj))
 (define (ffi:foreign->int    obj) (ffi:%foreign->int obj))
+(define (ffi:foreign->string obj) (ffi:%foreign->string obj))
 (define (ffi:foreign->symbol obj) (string->symbol (ffi:%foreign->string obj)))
+
+(define (ffi:default-in-marshaler class-name)
+  (cond
+        ((string=? class-name "System.Byte")   ffi:foreign->int)
+        ((string=? class-name "System.Char")   ffi:foreign->int)
+        ((string=? class-name "System.Double") ffi:foreign->double)
+        ((string=? class-name "System.Int16")  ffi:foreign->int)
+        ((string=? class-name "System.Int32")  ffi:foreign->int)
+        ((string=? class-name "System.Int64")  ffi:foreign->int)
+        ((string=? class-name "System.SByte")  ffi:foreign->int)
+        ((string=? class-name "System.Single") ffi:foreign->float)
+        ((string=? class-name "System.String") ffi:foreign->symbol)
+        ((string=? class-name "System.UInt16") ffi:foreign->int)
+        ((string=? class-name "System.UInt32") ffi:foreign->int)
+        ((string=? class-name "System.UInt64") ffi:foreign->int)
+        (else #f)))
 
 (define (ffi:datum->foreign conversion obj)
   (case conversion
@@ -152,6 +173,23 @@
          t)
         (else
          (error client " expected type, got: " t))))
+
+(define ffi:foreign-array-length
+  (let ((property (ffi:%get-property array% "Length")))
+    (lambda (foreign-array)
+      (ffi:%property-get-int property foreign-array '#()))))
+
+(define (map-foreign-array proc handle)
+  (if (ffi:%isa? handle array%)
+      (let loop ((result '())
+                 (idx     0)
+                 (limit  (ffi:foreign-array-length handle)))
+        (if (>= idx limit)
+            (reverse! result)
+            (loop (cons (proc (ffi:%foreign-aref handle idx)) result)
+                  (+ idx 1)
+                  limit)))
+      (error "map-foreign-array: not a foreign array" handle)))
 
 ;; ----
 
