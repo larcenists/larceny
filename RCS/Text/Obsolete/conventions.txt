@@ -1,97 +1,111 @@
-; -*- Text -*-
-; $Id: conventions.txt,v 1.9 91/07/22 15:21:59 lth Exp Locker: lth $
+% -*- LaTeX -*-
+% $Id: conventions.txt,v 1.10 91/08/12 12:33:03 lth Exp Locker: lth $
 
-	    Calling Conventions and Register Usage (SPARC)
+\title{Calling Conventions and Register Usage (SPARC)}
+\author{Lars Thomas Hansen}
 				   
-			    --------------
+\section{Scope of this Document}
 
-
-0. Scope of this Document
--------------------------
-This document discusses the mapping of virtual-to physical registers
+This document discusses the mapping of virtual-to-physical registers
 on the Sparc, the use of non-mapped Sparc registers, the use of stacks
 for Scheme and C, the calling conventions for Scheme and C procedures
-on the Sparc, the layout of continuations (both in the stack and on the
-heap), and the layout of procedures (closures). Finally, we discuss the
-calling conventions for millicode procedures and the calling conventions
-for inter-language (C to Scheme and Scheme to C) calls.
+on the Sparc, the layout of continuations (both in the stack and on
+the heap), and the layout of procedures (closures). There is also a
+discussion of the calling conventions for millicode procedures and the
+calling conventions for inter-language (C to Scheme, Scheme to C, and
+Scheme to Scheme via millicode) calls.
 
+\section{Register Usage}
 
-1. Register usage and mapping
---------------------------
 The mapping of virtual to physical registers is defined in the header
-file "registers.s.h", and is also summarized below. The following
-discussion highlights some of the trade-offs.
+file \verb+"registers.s.h+, and is also summarized below. That file
+also define symbolic names for registers for use by assembly language
+procedures.  The following discussion highlights some of the
+trade-offs.
 
-The Sparc manual is unclear about which of the global registers
-%g1-%g7 we can use. %g1 is clearly available.  If we don't care about
-Sparc ABI compliance, we can use all.  Franz Allegro Common Lisp uses
-all the global registers. Currently, we use only %g1, and there is no
-immediate need for using any of the others, although at some level of
-optimization, more registers will clearly be beneficial.
+The Sparc version 8 manual states that in order to maintain Sparc ABI
+compliance, only the global registers \%g1-\%g4 are available, while
+\%g5-\%g7 are reserved for systems use. It is unclear what constitutes
+``systems use'', and it appears that if we don't care about Sparc ABI
+compliance, we can use all the global registers. Since our register
+model already violates the Sparc ABI spec, there is little point in
+staying away from the global registers.
 
-The "call" instruction uses %o7 to store the return address; we cannot
-in general use this instruction for calling out-of-line library
-procedures, but it is convenient to simulate a "call" using the "jmpl"
-instruction, because calling the millicode becomes cheaper that way
-(this is discussed in some detail below).  Therefore, we should
-reserve %o7 for this use.
+The ``call'' instruction uses \%o7 to store the return address; we
+cannot in general use the ``call'' instruction for calling out-of-line
+library procedures, but it is convenient to simulate a ``call'' using
+the ``jmpl'' instruction, because calling the millicode becomes
+cheaper that way (this is discussed in some detail below).  Therefore,
+we should reserve \%o7 for miscellaneous operations involving a return
+address.
 
 Likewise, we will want two stacks: one for C and one for Scheme. This
 choice lets us tailor the Scheme calling conventions without having to
-worry about interrupts and related messes, which reqire a specific
+worry about interrupts and related problems, which reqire a specific
 stack layout. The C stack follows the conventions necessary to deal
 with asynchronous events. Since the C stack pointer must at all times
-be in register %o6, we cannot use this register for Scheme.
+be in register \%o6, we cannot use this register for Scheme.
 
 Since the operating system window overflow trap handler uses the stack
-pointers of previous windows (i.e. the %i6 after a save), the %i6
-register cannot be used by Scheme, either.  
+pointers of previous windows (i.e. \%i6 after a save), the \%i6
+register cannot be used by Scheme, either.
 
-Although %i7 holds the return address of the previous procedure in the
+Although \%i7 holds the return address of the previous procedure in the
 C calling conventions, we can simply save it somewhere (typically on
-the C stack), so %i7 is available.
+the C stack), so \%i7 is available.
 
-Hence we are left with 22 registers available to Scheme: %g1, %i0-%i5, %i7,
-%l0-%l7, and %o0-%o5. We have the following virtual and work register
-classes to map onto those registers (their function is elaborated on
-later):
+Hence we are left with 28 registers available to Scheme: \%g1-\%g7,
+\%i0-\%i5, \%i7, \%l0-\%l7, and \%o0-\%o5. We have the following virtual 
+and work register classes to map onto those registers (their function
+is elaborated on later):
 
-REG0 ... REGn, for some n. 
-  These are the general-purpose virtual registers. A subset must be
-  mapped to physical registers, and the rest will be in memory.
-  Rootable.
+\gebin{description}
 
-RESULT
-  The register in which we return a value and pass argument counts. Also used
-  to pass the first argument to millicode procedures. Rootable.
+\item[REG0 ... REGn, for some n]
 
-ARGREG2
-  Second argument to a millicode procedure. Rootable.
+These are the general-purpose virtual registers. A subset must be
+mapped to physical registers, and the rest will be in memory.
+Rootable.
 
-ARGREG3
-  Third argument to a millicode procedure. Also suggested as the register in
-  which to pass a procedure return address. Rootable (the return address 
-  always looks like a fixnum on a SPARC).
+\item[RESULT]
 
-STKP
-  Scheme stack pointer. Nonrootable.
+The register in which we return a value and pass argument counts. Also used
+to pass the first argument to millicode procedures. Rootable.
 
-E_TOP, E_LIMIT, and others (perhaps STK_LIMIT)
-  Heap pointers. Nonrootable.
+\item[ARGREG2]
 
-GLOBALS
-  A register pointing to an array of global variables. Nonrootable.
+Second argument to a millicode procedure. Rootable.
 
-MILLICODE
-  A register pointing to a vector of pointers to millicode procedures. 
-  Nonrootable.
+\item[ARGREG3]
 
-TIMER
-  The countdown timer register. Nonrootable.
+Third argument to a millicode procedure. Rootable.
 
-TMP0 ... TMPm, for some m
-  Temporary registers. Nonrootable.
+\item[STKP]
+
+Scheme stack pointer. Nonrootable.
+
+\item[E_TOP, E_LIMIT, and others (perhaps STK_LIMIT)]
+
+Heap pointers. Nonrootable.
+
+\item[GLOBALS]
+
+A register pointing to an array of global variables. Nonrootable.
+
+\item[MILLICODE]
+
+A register pointing to a vector of pointers to millicode procedures. 
+Nonrootable. This register could be the same register as GLOBALS; in the
+current implementation they are different registers.
+
+\item[TIMER]
+
+The countdown timer register. Nonrootable.
+
+\item[TMP0 ... TMPm, for some m]
+
+Temporary registers. Nonrootable.
+\end{description}
 
 It is convenient for the purposes of code generation to have
 even-numbered general-purpose registers mapped to even-numbered
@@ -107,32 +121,40 @@ register. Also, some two of the temporaries should be allocated so
 that they can be used as a register pair, since this allows certain
 tweaks.
 
-Here is the current mapping:
+The current register mapping is shown in table \ref{mappings}.
 
-   REG0 ... REG7   -->  l0 ... l7
-   RESULT          -->  o0
-   ARGREG2         -->  o1
-   ARGREG3         -->  o2
-   STKP            -->  o3
-   E_TOP           -->  o4
-   E_LIMIT         -->  o5
-   GLOBALS         -->  i7
-   MILLICODE       -->  i5
-   TIMER           -->  i4
-   TMP0            -->  g1
-   TMP1            -->  i0
-   TMP2            -->  i1
+\begin{table}[hbt]
+\begin{center}
+\begin{tabular}{|l|l|} \hline
+   REG0 ... REG7 &  l0 ... l7  \\
+   RESULT        &  o0 \\
+   ARGREG2       &  o1 \\
+   ARGREG3       &  o2 \\
+   STKP          &  o3 \\
+   E_TOP         &  o4 \\
+   E_LIMIT       &  o5 \\
+   GLOBALS       &  i7 \\
+   MILLICODE     &  i5 \\
+   TIMER         &  i4 \\
+   TMP0          &  g1 \\
+   TMP1          &  i0 \\
+   TMP2          &  i1 \\ \hline
+\end{tabular]
+\end{center}
+\caption{Virtual-to-physical register mapping}
+\label{mapping}
+\end{table}
 
-Note that %g1 is a temporary, and %TMP1/%TMP2 is a temporary-register
+Note that \%g1 is a temporary, and that \%TMP1/\%TMP2 is a temporary-register
 pair.
 
-The names SAVED_RESULT, SAVED_ARGREG2, SAVED_ARGREG3, and SAVED_STKP
-can be used to access the RESULT, ARGREG2, ARGREG3, and STKP registers
-after a "save" instruction has been executed.
+The symbolic names SAVED_RESULT, SAVED_ARGREG2, SAVED_ARGREG3, and
+SAVED_STKP can be used to access the RESULT, ARGREG2, ARGREG3, and
+STKP registers after a ``save'' instruction has been executed.
 
 
-2. Continuations
-----------------
+\section{Continuations}
+
 There are two continuation layouts: in the stack and on the heap. Heap
 continuations are never manipulated directly by compiled Scheme code;
 instead, they are created on stack overflow or on the capture of a
@@ -142,23 +164,24 @@ reinstatement of a continuation.
 Stack frames have the following layout (memory addresses increasing
 going down the figure):
 
+\begin{verbatim}
 %STKP --> pppp pppp pppp pppp pppp pppp pppp pp00   return address slot
-          ssss ssss ssss ssss ssss ssss ssss ss00   continuation size (bytes)
+          ssss ssss ssss ssss ssss ssss ssss ss00   frame size (bytes)
           pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   argument  (saved REG1)
           ....
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   temporary (initially 0)
           ....
+\end{verbatim}
 
-The frame size is the number of bytes used by the frame,
-including the return address and size fields.  A frame
-should always be an even number of words, but the size field should
-indicate the number of actually used words, i.e. less any padding
-words. This doubleword alignment of the stack lets us save some
-instructions as outlined below. The unused word of the frame
-should always be the highest word in the frame, and it may remain
-uninitialized, if desired: the stack flushing routine deals with it in
-a coherent way.
+The frame size is the number of bytes used by the frame, including the
+return address and size fields.  A frame should always be an even
+number of words, but the size field should indicate the number of
+actually used words, i.e. less any padding words. This doubleword
+alignment of the stack lets us save some instructions as outlined
+below. The unused word of the frame should always be the highest word
+in the frame, and it may remain uninitialized, if desired: the stack
+flushing routine deals with it in a coherent way.
 
 As a special case the procedure word may be all 0's, in which case the
 return address will not be adjusted when the stack frame is flushed to
@@ -168,7 +191,8 @@ nonrelocatable code.
 When the stack cache is flushed into the heap, each frame is made into
 a vector structure with the following layout:
 
-      --> 0sss ssss ssss ssss ssss ss00 101x xx10   vector header word
+\begin{verbatim}
+      --> 0sss ssss ssss ssss ssss ss00 101t tt10   vector header word
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   dynamic link or #f
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xx00   return offset
           pppp pppp pppp pppp pppp pppp pppp p111   procedure (saved REG0)
@@ -176,75 +200,73 @@ a vector structure with the following layout:
           ....
           xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx   temporary (initially 0)
           ....
+\end{verbatim}
 
 The return offset is the offset into the code vector of the saved
 procedure to which point the return address pointed before the frame
 was flushed to the heap. The code vector is a byte vector; the offset
-is from the start of the first byte of the bytevector, i.e. it is a
-bytevector index.  Note that all words in the heap continuation frame
-must be valid scheme objects; hence, if there is a chance that a frame
-is flushed before all temporaries are used, then the temporaries must
-be initialized by the procedure entry code.
+is from the start of the first data byte of the bytevector, i.e. it is
+a valid bytevector index.  Note that all words in the heap
+continuation frame must be valid scheme objects; hence, if there is a
+chance that a frame is flushed before all temporaries are used, then
+the temporaries must have been initialized.
 
-The tags of the headers which distinguish continuations from other
-vector types are defined in the file "datatypes.txt".
+The tag of a continuation frame is an ordinary vector tag.
 
+\section{Procedure layout}
 
-3. Procedures (Preliminary, not very interesting, and probably wrong)
----------------------------------------------------------------------
 A procedure looks much like a vector (although it has a distinguished
-header):
+header and is pointed to by a distinguished pointer):
 
+\begin{verbatim}
      --> 0sss ssss ssss ssss ssss ssss 1111 1110    header
          pppp pppp pppp pppp pppp pppp pppp p101    bytevector ptr (to code)
+         vvvv vvvv vvvv vvvv vvvv vvvv vvvv v011    vector ptr (to constants)
+         llll llll llll llll llll llll llll llll    static link
          xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx    data slot
          ....
+\end{verbatim}
 
-It is up to the compiler to deal with the contents of the data slots.
+The data slots contain the contents of variables which were closed
+over at run time, and the static link points to another procedure
+structure. Top-level procedures do not have static links nor data slots.
 
 
-4. Calling conventions -- some prelimiaries
--------------------------------------------
+\section{Calling conventions}
+
 The discussion of procedure calls separates into several parts:
 Procedure entry; setting up for a call; doing a tail call; doing a
 non-tail call; and returning from a procedure. Each has several
 variations.
 
-One operation which is used quite a bit is the equivalent of the "lea"
+One operation which is used quite a bit is the equivalent of the ``lea''
 (load effective address) instruction on the mc68000. It calculates the
 effective address of some location based on the current PC.  However,
-the Sparc has no "lea" instruction, nor is the PC available to other
-instructions than the "call" instruction. On the other hand, since the
-"call" instruction is PC-relative, we can use it to extract the PC and
+the Sparc has no ``lea'' instruction, nor is the PC available to other
+instructions than the ``call'' instruction. On the other hand, since the
+``call'' instruction is PC-relative, we can use it to extract the PC and
 calculate an effective address from there. So assume we want to say
 
-	lea	L2, %TMP0		! compute effective address into %TMP0
+\begin{verbatim}
+        lea     L2, %TMP0               ! compute effective address into %TMP0
+\end{verbatim}
 
 then we really say
 
-	call	.+8			! "." means "current pc"
-	add	%o7, (L2-(.-4)), %TMP0
+\begin{verbatim}
+        call    .+8                     ! "." means "current pc"
+        add     %o7, (L2-(.-4)), %TMP0
+\end{verbatim}
 
-This setup is reasonable as long as %o7 is not used in compiled Scheme
-code, which it isn't. (One of the reasons why %o7 should not be used
+This setup is reasonable as long as \%o7 is not used in compiled Scheme
+code, which it isn't. (One of the reasons why \%o7 should not be used
 for the return address is because it is needed as a work register for
-"lea".)  The above construct is also fast -- a call completes in 1
+``lea''.)  The above construct is also fast -- a call completes in 1
 cycle, so the entire operation takes only 2 cycles and 2 instructions.
 Furthermore, by manipulating the branch address of the call, we can do
-a branch and "lea" all-in-one.
+a branch and ``lea'' all-in-one.
 
-It is worth noting that all exceptions cause a millicode procedure to be
-called. The millicode calling conventions are discussed in a subsequent
-section; for now, assume that calling a millicode routine consists
-of loading the return address into register %o7, getting the millicode
-address from the millicode table, and branching to that code. This simple
-protocol suffices for exception handling within the procedure prologue
-and the call. (This is the second reason why %o7 should not be used for
-return addresses -- it is used for the millicode return address.)
-
-
-5. Procedure entry
------------------- 
+\section{Procedure entry}
 
 The code for procedure entry (the "prologue") must in general save the
 passed stack pointer, allocate a stack frame (flushing the stack if it
