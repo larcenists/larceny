@@ -34,7 +34,7 @@
             (auxlib (nbuild-parameter 'auxiliary)))
 	(compat:load (string-append dir "compat2.sch"))
 	(compat:load (string-append auxlib "list.sch"))
-	;(compat:load (string-append auxlib "pp.sch"))
+	(compat:load (string-append auxlib "pp.sch"))
         )))
 
 (define (with-optimization level thunk) 
