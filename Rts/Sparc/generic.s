@@ -459,12 +459,11 @@ Lmul_rect2:
 	mov	MS_RECTNUM_MUL, %TMP2
 Lmul_fix:
 	! Have to shift both operands to avoid disasters with signs.
+	! FOREIGN SECTION
 	save	%sp, -104, %sp
-	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
 	call	.mul
 	sra	%SAVED_ARGREG2, 2, %o1
-	!ld	[ %fp-4 ], %STKLIM
 
 	! Check to see if it will fit in a fixnum (tentatively)
 	cmp	%o1, 0
@@ -520,6 +519,7 @@ Lmul_fix4:
 Lmul_fix2:
 	jmp	%i7+8
 	restore
+	! END FOREIGN SECTION
 
 ! Division.
 ! Fixnum case may or may not be handled in line (depending on the availability
@@ -696,6 +696,7 @@ Ldiv_fix:
 	set	EX_DIV, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
 
+	! FOREIGN SECTION
 	save	%sp, -104, %sp
 	sra	%SAVED_RESULT, 2, %o0
 	call	.rem
@@ -703,14 +704,16 @@ Ldiv_fix:
 	cmp	%o0, 0
 	bne,a	Ldiv_fix2
 	restore
-
+	
 	sra	%SAVED_RESULT, 2, %o0
 	call	.div
 	sra	%SAVED_ARGREG2, 2, %o1
 	sll	%o0, 2, %SAVED_RESULT
-	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
-	jmp	%i7+8
 	restore
+	! END FOREIGN SECTION
+
+	jmp	%o7+8
+	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 
 Ldiv_fix2:
 	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
@@ -751,14 +754,16 @@ EXTNAME(m_generic_quo):
 #endif
 	set	EX_QUOTIENT, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
+
+	! FOREIGN SECTION
 	save	%sp, -104, %sp
-	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
 	call	.div
 	sra	%SAVED_ARGREG2, 2, %o1
-	!ld	[ %fp-4 ], %STKLIM
 	sll	%o0, 2, %SAVED_RESULT
 	restore
+	! END FOREIGN SECTION
+
 	jmp	%o7+8
 	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 Lquotient1:
@@ -796,10 +801,9 @@ Lquotrem:
 	! Finally -- RESULT is a 32-bit bignum, ARGREG2 is a fixnum.
 	! Both are nonnegative.
 
+	! FOREIGN SECTION
 	save	%sp, -104, %sp
-	!st	%STKLIM, [ %fp-4 ]
 	ld	[ %SAVED_RESULT - BVEC_TAG + 8], %o0
-
 	cmp 	%SAVED_ARGREG3, TRUE_CONST
 	bne	1f
 	nop
@@ -809,10 +813,7 @@ Lquotrem:
 	nop
 1:	call	.urem,2
 	sra	%SAVED_ARGREG2, 2, %o1
-2:
-	!ld	[ %fp-4 ], %STKLIM
-
-	! Will it fit in a fixnum?
+2:	! Will it fit in a fixnum?
 	sll	%o0, 2, %o2
 	sra	%o2, 2, %o2
 	cmp	%o0, %o2
@@ -827,6 +828,7 @@ Lquotrem3:
 	mov	0, %SAVED_TMP2
 	b	_box_single_positive_bignum
 	restore
+	! END FOREIGN SECTION
 
 ! Other types.
 
@@ -860,14 +862,14 @@ EXTNAME(m_generic_rem):
 	! Both fixnums
 	set	EX_REMAINDER, %TMP0
 	st	%TMP0, [ %GLOBALS + G_IDIV_CODE ]
+	! FOREIGN SECTION
 	save	%sp, -104, %sp
-	!st	%STKLIM, [ %fp-4 ]
 	sra	%SAVED_RESULT, 2, %o0
 	call	.rem
 	sra	%SAVED_ARGREG2, 2, %o1
-	!ld	[ %fp-4 ], %STKLIM
 	sll	%o0, 2, %SAVED_RESULT
 	restore
+	! END FOREIGN SECTION
 	jmp	%o7+8
 	st	%g0, [ %GLOBALS + G_IDIV_CODE ]
 
@@ -1836,6 +1838,7 @@ Lintegerp_flo:
 	!
 	! The algorithm used needs to special case 0.0 and -0.0
 
+	! FOREIGN SECTION
 	save	%sp, -96, %sp
 	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
 
@@ -1896,6 +1899,7 @@ Lintegerp_hi:
 Lintegerp_exit2:
 	jmp	%i7+8
 	restore
+	! END FOREIGN SECTION
 
 Lintegerp_fix:
 	andcc	%RESULT, 3, %g0
@@ -2219,10 +2223,11 @@ Lround:
 	fabsd	%f2, %f2
 	fcmpd	%f6, %f0
 	faddd	%f2, %f4, %f2
-	.empty				! shit...
+	.empty
 	fbl,a	.+8
 	fnegd	%f2, %f2
 	std	%f2, [ %TMP0 + 8 ]
+	! FOREIGN SECTION
 	save	%sp, -96, %sp
 	b	Ltrunc2
 	ldd	[ %SAVED_TMP0 + 8 ], %l0
@@ -2231,6 +2236,7 @@ Ltrunc:
 	! flonum is pointed to by %RESULT. Trunc it, box it, and return.
 
 	set	Ldhalf, %TMP0 
+	! FOREIGN SECTION
 	save	%sp, -96, %sp
 	ldd	[ %SAVED_RESULT - BVEC_TAG + 8 ], %l0
 Ltrunc2:
@@ -2272,6 +2278,7 @@ Ltrunc_moveback:
 	ldd	[ %SAVED_TMP0 + 8 ], %f2
 	b	_box_flonum
 	restore
+	! END FOREIGN SECTION
 
 ! Generic code for rounding and truncation. Address of final procedure 
 ! is in %TMP1, exception code for specific operation is in %TMP2.

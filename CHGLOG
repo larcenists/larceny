@@ -4,6 +4,12 @@
 
 
 ----------------------------------------------------------------------
+v0.29a released 970917 by lth
+
+[Rts/Sparc/generic.s]
+  Fixed a bug in m_generic_div introduced by fp exception handling.
+
+----------------------------------------------------------------------
 v0.29 released 970917 by lth
 
 MAJOR FEATURES:
