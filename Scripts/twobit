@@ -1,0 +1,50 @@
+#!/bin/sh
+# Copyright 1998 Lars T Hansen.
+#
+# $Id$
+#
+# Shell script to run twobit.
+#
+# Usage: twobit [larceny-options ...] [program-options ...]
+# where larceny-options are valid options for larceny _except_ that
+# they use @ for the option character rather than -, and program-
+# options are everything else.
+
+# EDIT THIS PATH TO SUIT YOUR SYSTEM.
+LARCENY_PATH=/usr/local/lib/larceny
+unset LARGS
+unset PARGS
+while [ "$1" != "" ]; do 
+  case $1 in
+    @stopcopy) LARGS="$LARGS -stopcopy"; shift ;;
+    @areas) LARGS="$LARGS -areas $2"; shift; shift ;;
+    @gen) LARGS="$LARGS -gen"; shift ;;
+    @nostatic) LARGS="$LARGS -nostatic"; shift ;;
+    @size*) LARGS="$LARGS `echo $1 | sed s/@/-/` $2"; shift; shift ;;
+    @load) LARGS="$LARGS -load $2"; shift; shift ;;
+    @np) LARGS="$LARGS -np"; shift ;;
+    @steps) LARGS="$LARGS -steps $2"; shift; shift ;;
+    @stepsize) LARGS="$LARGS -stepsize $2"; shift; shift ;;
+    @max) LARGS="$LARGS -max $2"; shift; shift ;;
+    @stats) LARGS="$LARGS -stats"; shift ;;
+    @quiet) LARGS="$LARGS -quiet"; shift ;;
+    @annoy-user) LARGS="$LARGS -annoy-user"; shift ;;
+    @annoy-user-greatly) LARGS="$LARGS -annoy-user-greatly"; shift ;;
+    @help) LARGS="$LARGS -help"; shift ;;
+    @rhash) LARGS="$LARGS -rhash $2"; shift; shift ;;
+    @ssb) LARGS="$LARGS -ssb $2"; shift; shift ;;
+    @ticks) LARGS="$LARGS -ticks $2"; shift; shift ;;
+    @nobreak) LARGS="$LARGS -nobreak"; shift ;;
+    @step) LARGS="$LARGS -step"; shift ;;
+    @reorganize-and-dump) LARGS="$LARGS -reorganize-and-dump"; shift ;;
+    *) PARGS="-args $@"; break ;;
+  esac
+done
+exec $LARCENY_PATH/larceny.bin $LARGS $LARCENY_PATH/twobit.heap $PARGS
+
+#!/bin/sh
+LARCENY_PATH=/home/lth/net/lth/lib/sparc-sunos5/larceny
+if [ $# -gt 0 ]; then
+  ARGS="-args"
+fi
+exec $LARCENY_PATH/larceny.bin $LARCENY_PATH/twobit.heap $ARGS $@
