@@ -708,6 +708,19 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     Impact: current fixes are enough to allow benchmarking, but the
     others must be fixed.
     
-NEXT ENTRY: 129
+129 v0.43 (990709 / lth)
+    Priority: low
+    Category: TWOBIT / correctness
+
+    The macro expander incorrectly gives a warning about empty top-level 
+    BEGIN forms:
+
+	> (begin)
+	WARNING from macro expander:
+	Non-standard begin expression
+	(begin)
+
+
+NEXT ENTRY: 130
 
 ; eof
