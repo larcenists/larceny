@@ -714,9 +714,7 @@
                        (cons (cadr x)
                              (cons m (cddr x)))))
                 ((integrable)
-                 (if (integrate-usual-procedures)
-                     x
-                     (loop '() m)))
+                 x)
                 (else ???))
               (loop (cdr ribs) (+ m 1))))))
   (loop env 0))
@@ -745,19 +743,43 @@
 
 ; Compositions.
 
+; Compile and compile-block take an optional syntactic environment.
+
 (define compile
-  (lambda (x)
-    (pass4 (pass3 (pass2 (pass1 x))) $usual-integrable-procedures$)))
+  (lambda (x . rest)
+    (let ((syntaxenv (let ((inlines (compiler-macros)))
+                       (syntactic-extend
+                        (if (null? rest)
+                            usual-syntactic-environment
+                            (car rest))
+                        (map car inlines)
+                        (map cdr inlines)))))
+      (pass4 (pass3 (pass2 (pass1 x syntaxenv)))
+             (twobit-integrable-procedures)))))
+
+(define expand
+  (lambda (x . rest)
+    (let ((syntaxenv (let ((inlines (compiler-macros)))
+                       (syntactic-extend
+                        (if (null? rest)
+                            usual-syntactic-environment
+                            (car rest))
+                        (map car inlines)
+                        (map cdr inlines)))))
+      (pass1 x syntaxenv))))
 
 (define compile-block
-  (lambda (x)
-    (pass4 (pass3 (pass2 (pass1-block x))) $usual-integrable-procedures$)))
+  (lambda (x . rest)
+    (let ((syntaxenv (let ((inlines (compiler-macros)))
+                       (syntactic-extend
+                        (if (null? rest)
+                            usual-syntactic-environment
+                            (car rest))
+                        (map car inlines)
+                        (map cdr inlines)))))
+      (pass4 (pass3 (pass2 (pass1-block x syntaxenv)))
+             (twobit-integrable-procedures)))))
 
-; For testing.
-
-(define foo
-  (lambda (x)
-    (pretty-print (compile x))))
 
 ; Find the smallest number of registers such that
 ; adding more registers does not affect the code
