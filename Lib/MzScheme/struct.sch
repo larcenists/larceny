@@ -33,7 +33,8 @@
 ;; code for structure-procedures needs it.
 ;; Consumes either a struct instance or a struct-type.
 ;; Produces a procedure if there is one, or (undefined)
-(define $sys.struct->procedure (undefined))
+(define $sys.struct-proc-spec (undefined))
+(define $sys.struct-ref)
 
 ;; define-record is nowhere to be found.
 (let* ((*rtd-type* (record-type-descriptor (make-record-type "" '())))
@@ -50,6 +51,7 @@
          'struct-type-descriptor
          '(auto-v prop-values inspector proc immutable-k-list)
          *rtd-type*))
+       (*struct-field-offset* 1)
        
        (make-stype (record-constructor *std-type*))
         
@@ -174,7 +176,7 @@
   ;; struct? is wrong.  see 4.8.
   (define struct?* record?)
   (define struct-type?*
-    (lambda (t) (struct-type-descriptor? t)))
+    (lambda (t) (stype? t)))
   
   (define struct-type-property?*  (undefined))
   
@@ -187,11 +189,20 @@
   (define struct-predicate-procedure?*  (undefined))
   (define struct-constructor-procedure?* (undefined))
 
-  ;; consumes either a structure instance or a structure-type
-  ;; returns a procedure if one is available, '#!undefined otherwise
-  (define ->procedure (unspecified))
+  ;; this isn't exported... different from struct?
+  (define (struct-instance? obj)
+    (and (record? obj)
+         (struct-type? (record-type-descriptor obj))))
 
-  
+  ;; given an instance, return its type's proc-spec
+  (define sys:struct-proc-spec
+    (lambda (instance)
+      (let ((type (record-type-descriptor instance)))
+        (stype-proc-spec type))))
+
+  (define sys:struct-ref
+    (lambda (instance index)
+      (vector-like-ref instance (+ index *struct-field-offset*))))
   
   ;; Hook up the implementation with the interface.
   (set! make-struct-type make-struct-type*)
@@ -216,7 +227,8 @@
   (set! struct-predicate-procedure? struct-predicate-procedure?*)
   (set! struct-constructor-procedure? struct-constructor-procedure?*)
 
-  (set! $sys.struct->procedure ->procedure)
+  (set! $sys.struct-proc-spec sys:struct-proc-spec)
+  (set! $sys.struct-ref sys:struct-ref)
   )
   
 ;; Quick and dirty test case
