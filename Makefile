@@ -20,41 +20,43 @@ CC=gcc
 default:
 	@echo "Make what?"
 	@echo "Your options are:"
-	@echo "  setup      - initialize system"
-	@echo "  bdw_setup  - unpack Boehm-Demers-Weiser collector"
-	@echo "  larceny    - build standard generational system"
-	@echo "  bdwlarceny - build conservative collector system"
-	@echo "  hsplit     - build heap splitter"
-	@echo "  clean      - remove executables and objects"
-	@echo "  lopclean   - remove all .LOP files"
-	@echo "  libclean   - remove all .LAP and .LOP files"
-	@echo "  soclean    - remove all .so files"
-	@echo "  tildeclean - remove all *~ files"
-	@echo "  faslclean  - remove all .FASL files"
-	@echo "  realclean  - remove everything, included generated headers"
+	@echo "  setup          - initialize system"
+	@echo "  bdw_setup      - unpack Boehm-Demers-Weiser collector"
+	@echo "  larceny.bin    - build standard generational system"
+	@echo "  bdwlarceny.bin - build conservative collector system"
+	@echo "  hsplit         - build heap splitter"
+	@echo "  clean          - remove executables and objects"
+	@echo "  lopclean       - remove all .LOP files"
+	@echo "  libclean       - remove all .LAP and .LOP files"
+	@echo "  soclean        - remove all .so files"
+	@echo "  tildeclean     - remove all *~ files"
+	@echo "  faslclean      - remove all .FASL files"
+	@echo "  realclean      - remove all generated and backup files"
 
 setup:
-	rm -f bdwlarceny hsplit larceny Build
-	ln -s Rts/larceny
-	ln -s Rts/bdwlarceny
+	rm -f bdwlarceny.bin hsplit larceny.bin Build
+	ln -s Rts/larceny.bin
+	ln -s Rts/bdwlarceny.bin
 	ln -s Rts/hsplit
 	ln -s Rts/Build
 	mv nbuild nbuild.safe
 	sed "s|^LARCENY=.* #@LARCENY_DEF@.*\$$|LARCENY=`pwd` #@LARCENY_DEF@|" < nbuild.safe > nbuild || \
 	   ( echo "nbuild hack failed!"; mv nbuild.safe nbuild; exit 1 )
+	rm nbuild.safe
+	chmod a+x nbuild
 	(cd Rts ; $(MAKE) setup)
 	$(MAKE) chezstuff
 
 bdw_setup:
 	( cd Rts ; $(BDW_UNZIP) < ../$(BDW_DIST) | tar xvf - ; mv gc bdw-gc );
 
-larceny: target_larceny
+larceny.bin: target_larceny
 target_larceny:
-	( cd Rts ; $(MAKE) larceny )
+	( cd Rts ; $(MAKE) larceny.bin )
 
-bdwlarceny: target_bdwlarceny
+bdwlarceny.bin: target_bdwlarceny
 target_bdwlarceny:
-	( cd Rts ; $(MAKE) bdwlarceny )
+	( cd Rts ; $(MAKE) bdwlarceny.bin )
 
 hsplit: target_hsplit
 target_hsplit:
@@ -106,7 +108,7 @@ rtsclean:
 	( cd Rts ; $(MAKE) rtsclean )
 
 realclean: clean libclean tildeclean rejclean soclean tcovclean faslclean
-	rm -f larceny Build hsplit bdwlarceny larceny.heap
+	rm -f larceny.bin Build hsplit bdwlarceny.bin *.heap 
 	rm -f Compat/Chez/*.o
 	rm -f Testsuite/GC/bb.out*
 	( cd Rts ; $(MAKE) realclean )
