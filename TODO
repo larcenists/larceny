@@ -17,18 +17,8 @@ large projects (see the file TODO-RAINYDAY).
 
 ----------------------------------------------------------------------
 
-For compatibility with the conservative collector and no-interior-pointers:
-must fix all code that allocates a single block of memory and parititons
-it up into multiple objects.  So far found four places:
-
-  - argv.c          args vector-of-strings -- not fixed
-  - ffi.c           ffi callback arguments -- not fixed
-  - stats.c         stats vector -- not fixed; hacked around
-  - cglue.c         rest args -- fixed
-
-----------------------------------------------------------------------
-
-Misc (not just related to Petit Larceny)
+Miscellaneous
+ - larceny mailing list archive
  - must write a HOWTO-CVS note to go into this directory.
  - Need a better configuration mechanism -- possibly, something based
    on autoconf.  As it is, features are chosen on the basis of dubious
@@ -72,15 +62,28 @@ it simply uses it to convert a transformer expression to a procedure.
 
 ----------------------------------------------------------------------
 
+Twobit
+  * Need inline procedures and constant folding for fixnum operations.
+  * Need inline procedures and constant folding for flonum operations.
+  * Should rename `define-inline' as `define-compiler-macro', because
+    `define-inline' is much more useful as a proper inline-procedure
+    definer.  The current define-inline has the wrong semantics for
+    everyday use (it can be made to evaluate its arguments more
+    than once, or not at all).
+  * Need a way to restrict primitive tables to a given set.
+
 FFI
  ** Standard-FFI high priority
     - How to load e.g. the file socket-support.o that has unresolved
       external references?
+        - looks like linking it with the appropriate libraries is OK.
     - Test (better) on SunOS 5.
     - Test on SunOS 4.
     - Write guidelines for compiling C code for use with FFI.
     - Should exit if errors are discovered in the relinking phase.
     - Document!
+    - larceny_call() must deal with stack overflow.
+    - sample code.
  ** larceny_call() must deal with stack overflow.
   * Problem with dynamic loader on SunOS 4 -- exits if the file is not found!
   * Callbacks
@@ -108,6 +111,22 @@ Common RTS
   * Factor out larceny_init() from main().
   * Will's new write barrier.
   * Clean up pointer registry in posix-alloc.c (after profiling it).
+  * For compatibility with the conservative collector and 
+    no-interior-pointers, we must fix all code that allocates a single
+    block of memory and parititons it up into multiple objects.  The
+    places that do this are:
+      - argv.c          args vector-of-strings -- not fixed
+      - ffi.c           ffi callback arguments -- not fixed
+      - stats.c         stats vector -- not fixed; hacked around
+      - cglue.c         rest args -- fixed
+    The correct way to implement this is to implement a _simple_ handle
+    system:
+       typedef word *w_handle;
+       w_handle gc_make_handle( gc_t gc, word tagged_pointer );
+       w_handle gc_copy_handle( gc_t gc, w_handle handle );
+       void gc_destroy_handle( gc_t gc, w_handle handle );
+    and to use this to avoid premature collection of objects referred to
+    from C code only.
 
 SPARC RTS
   * dzero should be in globals[].
@@ -146,7 +165,40 @@ SPARC Assembler
     Remaining tasks:
       - optimize fx+ and fx- when it's possible to undo.
       - fxquotient, fxremainder
-  * Peephole optimizations
+  * Peephole optimization (from in-line expansion of fast path of READ-CHAR):
+    - make-cell: with source register and target register
+    - vector-like? for control
+    - bytevector-like? for control
+    - Generally: more primitives for control:
+       vector?, string?, bytevector?, flonum?, compnum?, bignum?
+    - const + skip -- if the const is an immediate, the setup can go in
+      the delay slot.  AND uses this construction.  
+    - Generally: we can peephole
+           any instruction
+           ba target
+           nop
+      as long as <any instruction> is not in a delay slot.  We can also
+      peephole any non-branch instruction from the target of a BA into
+      its slot.
+    - Generally: Ditto jmpl, call.  This will take care of RETURN.
+    - Consider the following code (unsafe expansion of vector-like-ref
+      with constant index):
+	136	or	%g0, 16, %r5	! 0x10
+	140	or	%g0, %r7, %result
+	144	add	%result, 1, %tmp0
+	148	ld	[ %tmp0+%r5 ], %result
+	152	or	%g0, %result, %r5
+      The move at #140 is clearly not necessary; #144 could add from r7 
+      into tmp0.  Similarly, the move at #152 is not necessary, as the load
+      at #148 could load directly into r5.  Finally, the setup of the
+      constant at #136 is not necessary, as it could be used directly
+      at #148.  The best instruction sequence is a single instruction (!):
+	136	ld	[ %r7+17 ], %r5
+      The instruction at #136 is due to the bad op2imm implementation;
+      the instructions at #140 and at #152 are due to not having implemented
+      vector-like-ref with source-register and destination-register.  Both
+      are easy to fix.
+  * More peephole optimizations
     - Unimplemented peephole operations
         bytevector operations
           bytevector-length
@@ -166,6 +218,10 @@ SPARC Assembler
     - Implement const/setreg/skip peephole optimization for simple constants
       and any target register -- allows the delay slot of the branch to be
       filled.
+  * Support flonum-specific operations.
+  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
+    - optimize fx+ and fx- when it's possible to undo.
+  * In-line _typetag_ in unsafe mode.
 
 Interpreter
   * Debug support (via *evalhook* or some other mechanism), esp. environment
@@ -195,6 +251,20 @@ Library
  ** Move Experimental functionality to Auxlib
      - records (requires cleaning up and documenting records).
      - applyhooks
+  * Remove `format' from the standard library and put it in Auxlib.
+    Make sure it supports a proper subset of SLIBs `format' so that 
+    Larceny code (eg debugger) that uses format can live with the
+    substitute.
+  * Performance: use define-inline judiciously to see if we can wring
+    more speed out of the bignum code, and possibly other code (reader).
+  * Arguably the intepreter's wacky notion of legal environment arguments
+    should not be the default.  This should be a switch that's called by
+    std-heap.sch and otherwise undocumented. Could call it 
+
+       (interpreter/allow-illegal-use-of-environments)
+
+    Better to fix this properly by integrating environments and syntax
+    environments the way it "should" be done.
   * I/O system high priority
     - Extensible I/O system (see Larceny Note).
     - Performance [see fast-read-char.txt for details]
@@ -275,7 +345,7 @@ Library
   * Would be nice to print bit pattern when printing WEIRD OBJECT.
 
 Testing
- ** Regression test suite must be completed (massive undertaking).
+ ** Regression test suite must be completed.
  ** GC test suite must be completed.
     - test coverage automation
     - additional tests to provide good coverage :-)
@@ -437,11 +507,5 @@ Assembler performance.
   account for only 0.15-0.08s of the CPU time.  It's now _really_ in the tail,
   but on the other hand, 0.1s is 25% (!) of assembly time.
 
-----------------------------------------------------------------------
-
-Sundry (don't know if this is still an issue).
-
-Must look at:
-
-* np-sc-heap.c:  contraction code (currently disabled).
-* sc-heap.c: contraction code (currently disabled).
+  This problem does however slow down the assembler significantly during
+  large (block) compiles -- so we must fix it.
