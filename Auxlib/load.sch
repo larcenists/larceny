@@ -1,7 +1,8 @@
-; Auxlib/load.sch
-; Larceny auxiliary library -- a smart-but-not-intelligent 'load' procedure.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; A smart-but-not-intelligent 'load' procedure.
 ;
 ; Exported procedures:
 ;   (load filename)
@@ -26,45 +27,41 @@
 ;     modified most recently is chosen.  The default extensions are .sch,
 ;     .scm, and .fasl.
 ;
-;   * If the variable *load-prefer-requested?* is #f, then the extension
+;   * If the variable *load-prefer-requested* is #f, then the extension
 ;     search is done without searching for the requested name first.  The
 ;     default is #t.
 ;
-;   * If the variable *load-print-filename?* is #t, then the name of the
+;   * If the variable *load-print-filename* is #t, then the name of the
 ;     file loaded is printed.  The default is #t.
 ;
 ; The code relies on os-dependent code for most file name manipulations.
-; See the files Auxlib/osdep-*.sch.
-;
-; BUGS
-;   The file name manipulation code is not particularly general but should
-;   work for Unix, MS-DOS, and MacOS.
+; See the files Auxlib/osdep-*.sch.  The file name manipulation code is
+; not particularly general but should work for Unix, MS-DOS, and MacOS.
+
+; Requires
+;  osdep-???.sch      [for pathname manipulation]
+;  list.sch           [for `filter' and `least']
+;  io.sch             [for `file-newer?']
 
 ; Load parameters
 
-(define *load-print-filename?* #t)
-(define *load-prefer-requested?* #t)
+(define *load-print-filename* #t)
+(define *load-prefer-requested* #t)
 (define *load-path* (list *current-directory-designator*))
 (define *load-extensions* '("sch" "scm" "fasl"))
 
-; Private parameters
+(define load-noisily)
+(define load-quietly)
 
-(define *load-noise-level* #f)
+(let ((original-load load))
 
-(define (%%new-load load-file fn)
+  (define *load-noise-level* #f)
 
   (define (string-search-reverse s chars)
     (let loop ((i (- (string-length s) 1)))
       (cond ((< i 0) #f)
 	    ((memq (string-ref s i) chars) i)
 	    (else (loop (- i 1))))))
-
-  (define (load-file filename)
-    (if *load-print-filename?*
-	(begin (display "; Loading ")
-	       (display filename)
-	       (newline)))
-    (load-file filename))
 
   (define (append-directory dir fn)
     (cond ((string=? dir "") fn)
@@ -98,77 +95,78 @@
 	  ((preference (append-directory (car dirs) fn) extensions))
 	  (else (relative-preference fn extensions (cdr dirs)))))
 
-  (define (find-relative-file)
-    (or (and *load-prefer-requested?*
-	     (relative-preference fn '() *load-path*))
+  (define (find-relative-file fn)
+    (if *load-prefer-requested*
+	(or (relative-preference fn '() *load-path*)
+	    (relative-preference fn *load-extensions* *load-path*))
 	(relative-preference fn *load-extensions* *load-path*)))
 
-  (define (find-absolute-file)
-    (or (and *load-prefer-requested?*
-	     (preference fn '()))
+  (define (find-absolute-file fn)
+    (if *load-prefer-requested*
+	(or (preference fn '())
+	    (preference fn *load-extensions*))
 	(preference fn *load-extensions*)))
   
-  (cond ((if (relative-pathname? fn)
-	     (find-relative-file)
-	     (find-absolute-file))
-	 =>
-	 (lambda (fn)
-	   (load-file fn)))
-	(else
-	 (error "load: Could not find file " fn)))
-  (unspecified))
+  (define (find-file fn)
+    (if (relative-pathname? fn)
+	(find-relative-file fn)
+	(find-absolute-file fn)))
 
-(define load
-  (let ((load       load)		; Original load procedure
-	(%%new-load %%new-load))	; New load procedure
-    (lambda (fn . load-args)
-      (let* ((evaluator
-	      (load-evaluator))
-	     (new-ev
-	      (lambda (expr env)
-		(call-with-values
-		 (lambda ()
-		   (evaluator expr env))
-		 (lambda results
-		   (if *load-noise-level*
-		       (cond ((null? results)
-			      (display "; No values.") (newline))
-			     ((null? (cdr results))
-			      ((repl-printer) (car results)))
-			     (else
-			      (display "; ")
-			      (display (length results))
-			      (display " values") (newline)
-			      (do ((results results (cdr results)))
-				  ((null? results))
-				((repl-printer) (car results)))))))))))
-	(dynamic-wind
-	 (lambda ()
-	   (load-evaluator new-ev))
-	 (lambda ()
-	   (%%new-load (lambda (fn)
-			 (apply load fn load-args))
-		       fn))
-	 (lambda ()
-	   (let ((e (load-evaluator)))
-	     (if (eq? e new-ev)
-		 (load-evaluator evaluator)))))))))
+  (define (load-the-file fn args)
+    (cond ((find-file fn) 
+	   =>
+	   (lambda (fn)
+	     (if *load-print-filename*
+		 (begin (display "; Loading ")
+			(display fn)
+			(newline)))
+	     (apply original-load fn args)))
+	  (else (error "load: Could not find file " fn)))
+    (unspecified))
 
-(define load-noisily)
-(define load-quietly)
+  (define (internal:load fn . load-args)
+    (let* ((evaluator
+	    (load-evaluator))
+	   (new-ev
+	    (lambda (expr env)
+	      (call-with-values
+	       (lambda ()
+		 (evaluator expr env))
+	       (lambda results
+		 (if *load-noise-level*
+		     (cond ((null? results)
+			    (display "; No values.") (newline))
+			   ((null? (cdr results))
+			    ((repl-printer) (car results)))
+			   (else
+			    (display "; ")
+			    (display (length results))
+			    (display " values") (newline)
+			    (do ((results results (cdr results)))
+				((null? results))
+			      ((repl-printer) (car results)))))))))))
+      (dynamic-wind
+       (lambda ()
+	 (load-evaluator new-ev))
+       (lambda ()
+	 (load-the-file fn load-args))
+       (lambda ()
+	 (let ((e (load-evaluator)))
+	   (if (eq? e new-ev)
+	       (load-evaluator evaluator)))))))
 
-(let ((load-with-noise 
-       (lambda (new-noise)
-	 (lambda args
-	   (if (null? args)
-	       (set! *load-noise-level* new-noise)
-	       (let ((noise *load-noise-level*))
-		 (dynamic-wind
-		  (lambda () (set! *load-noise-level* new-noise))
-		  (lambda () (apply load args))
-		  (lambda () (set! *load-noise-level* noise)))))
-	   (unspecified)))))
+  (define (load-with-noise new-noise)
+    (lambda args
+      (if (null? args)
+	  (set! *load-noise-level* new-noise)
+	  (let ((noise *load-noise-level*))
+	    (dynamic-wind
+	     (lambda () (set! *load-noise-level* new-noise))
+	     (lambda () (apply internal:load args))
+	     (lambda () (set! *load-noise-level* noise)))))
+      (unspecified)))
        
+  (set! load internal:load)
   (set! load-noisily (load-with-noise #t))
   (set! load-quietly (load-with-noise #f)))
 
