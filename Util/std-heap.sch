@@ -12,6 +12,9 @@
 ; BUGS:
 ; - The FFI internals are not hidden.
 
+(define ($$trace x) #t)			; Called by some files.
+
+(load "Util/sysdep-unix.sch")
 (load "Util/nbuild-param-sparc.sch")	         ; Parameters for nbuild-files.
 (load "Util/nbuild-files.sch")		         ; Development system files.
 (load "Util/load-env.sch")		         ; Used to load modules.list.
