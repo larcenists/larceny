@@ -94,8 +94,8 @@
 	   ; Compilation
 	   (compiler compile-file)
 	   (compiler assemble-file)
-	   (compiler compile-and-assemble-expression)
-	   (compiler identifier?)
+	   (compiler compile-expression)
+	   (compiler macro-expand-expression)
 	   ; Disassembler
 	   (compiler disassemble-codevector)
 	   (compiler print-instructions)
