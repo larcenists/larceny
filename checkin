@@ -23,6 +23,7 @@ dirs=" 	${top}
 	${top}/Sparc
 	${top}/Sys
 	${top}/Text
+	${top}/Eval
 	"
 
 if [ "$#" -ge 1 ]; then
