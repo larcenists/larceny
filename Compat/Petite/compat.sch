@@ -265,6 +265,18 @@
 	    *file-list*))
 
 
+;;;;;;;;;;;;;;;;
+; JavaDot is now part of the larceny toplevel, and the compiler
+; expects these to be defined.  (Despite that they're useless unless
+; Twobit is running on top of Larceny... b/c the reader needs to know
+; about these too for them to be useful).
+
+(define recognize-javadot-symbols? (make-parameter #f boolean?))
+(define case-sensitive? (make-parameter #f boolean?))
+(define javadot-symbol? (lambda (x) #f))
+(define (javadot-symbol->symbol x) x)
+(define (symbol->javadot-symbol x) x)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Misc
