@@ -777,7 +777,7 @@ static void ga_box_compnum( word *globals, double r, double i )
   globals[ G_RESULT ] = fixnum(6*sizeof(word));
   mc_alloc_bv( globals );
   p = (word*)globals[ G_RESULT ];
-  *p = mkheader( 5*sizeof(word), FLONUM_HDR );
+  *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
   *(double*)(p+2) = r;
   *(double*)(p+4) = i;
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
