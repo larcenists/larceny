@@ -44,10 +44,10 @@ ASXFLAGS=
 
 # MacOS X with gcc disguised as 'cc'
 
-O=o
-CC=cc
-CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
-	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
+#O=o
+#CC=cc
+#CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \
+#	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
 
 ############################################################################
 #
@@ -241,7 +241,7 @@ bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 # MacOS X
 LIBS=-lm
 libpetit.so: $(PETIT_LARCENY_OBJECTS)
-	cc -r -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS) \
+	$(CC) -r -shared -o libpetit.so $(PETIT_LARCENY_OBJECTS) \
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) -L/usr/lib -lc -lm
 	/bin/rm -f Sys/version.o
 
