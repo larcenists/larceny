@@ -23,6 +23,9 @@ supported by CCS much longer.  I have an alias in my startup file:
 all CCS systems at present, and which gives me the latest stable version
 everywhere, currently 19.34 on SPARC systems and 19.29 on Alphas.
 
+(In fact, as of 990707, 19.34.1 is available everywhere and is the
+version that you get when you type "emacs" anywhere.)
+
 
 Reading the CVS Info pages.
 
@@ -65,7 +68,8 @@ The following is a list of the CVS modules is Larceny's repository:
 
   larceny_src: Larceny's source code.
   larceny_doc: Larceny's documentation.
-  larceny_bench: A growing benchmark suite (NOT YET CREATED).
+  benchmarks: A growing benchmark suite.
+  radioactive99: Repository for 1999 revision of 1997 PLDI paper.
 
 
 Quick reference.
