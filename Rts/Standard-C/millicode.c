@@ -590,7 +590,7 @@ void mc_typetag_set( word *globals )
   
   if (t == BVEC_TAG || t == VEC_TAG || t == PROC_TAG) {
     /* checks if typetag is fixnum in range */
-    if ((tag & (TYPETAG_MASK | FIXTAGMASK)) == tag) {
+    if ((tag & (TYPETAG_MASK | 3)) == tag) {
       p = ptrof( obj );
       *p = striptypetag(*p) | tag;
       return;
