@@ -23,15 +23,15 @@
 (for-each set-codegen-option!
           (list $const
                 $reg $setreg
-                $movereg $nop 
+                $movereg $nop
                 $invoke
                 $lexical $setlex
                 $global $setglbl
-                $args= 
+                $args=
                 $trap
                 ; $save $pop
                 $stack $setstk
-                $load $store 
+                $load $store
                 $setrtn
                 $return
 
@@ -47,17 +47,17 @@
 (set-codegen-option! 'ilasm-debug)
 
 ;; 'new-operations
-;;   if set, uses visitor-like operations built into 
+;;   if set, uses visitor-like operations built into
 ;;   SObject. Otherwise, uses ops implemented in Ops, OpsSpecial.
 (set-codegen-option! 'new-operations)
 
 ;; 'insert-use-fuel
-;;   if set, decrements and checks the timer on every backwards branch 
+;;   if set, decrements and checks the timer on every backwards branch
 ;;   and procedure invocation
 (set-codegen-option! 'insert-use-fuel)
 
 ;; 'direct-tail-calls
-;;   if set, uses tail calls for scheme-to-scheme calls; otherwise, 
+;;   if set, uses tail calls for scheme-to-scheme calls; otherwise,
 ;;   uses Call.call for trampoline bounce
 (set-codegen-option! 'direct-tail-calls)
 
@@ -101,7 +101,7 @@
 ;; THIS-ARG: 'this' is argument 0 in instance methods
 (define THIS-ARG 0)
 
-;; FIRST-LOCAL (possibly mutated below): 
+;; FIRST-LOCAL (possibly mutated below):
 ;;   first local variable index allocated by allocate-local
 (define FIRST-LOCAL 0)
 
@@ -112,14 +112,14 @@
 (define CONTINUATION-FRAME-SLOTS 8)
 
 ;; -----------------------------
-;; The following depend on the implementation of SchemeObjects. These 
+;; The following depend on the implementation of SchemeObjects. These
 ;; constants should be adjusted whenever the corresponding constants change.
 
 ;; FIXNUM-POOL-MAX == SchemeFixnum.maxPreAlloc
-(define FIXNUM-POOL-MAX 16000)
+(define FIXNUM-POOL-MAX 65536)
 
-;; FIXNUM-POOL-MIN == (- SchemeFixnum.maxPreAlloc)
-(define FIXNUM-POOL-MIN -16000)
+;; FIXNUM-POOL-MIN == SchemeFixnum.minPreAlloc
+(define FIXNUM-POOL-MIN -32768)
 
 ;; CHAR-POOL-MIN
 (define CHAR-POOL-MIN 0)

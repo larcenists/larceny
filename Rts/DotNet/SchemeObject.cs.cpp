@@ -96,19 +96,20 @@ namespace Scheme.Rep {
     public sealed class SFixnum : SObject {
         public readonly int value;
         public static readonly SFixnum[] pool;
-      // NOTE THE COMPILER KNOWS ABOUT THIS CONSTANT
-        public const int maxPreAlloc = 16000;
+      // NOTE THE COMPILER KNOWS ABOUT THESE CONSTANTS
+        public const int minPreAlloc = -32768;
+        public const int maxPreAlloc = 65536;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
 
-        // Stores numbers -maxPreAlloc to +maxPreAlloc
-        //          0 -> maxPreAlloc
-        // -maxPreAlloc -> 0
+        // Stores numbers minPreAlloc to maxPreAlloc
+        //          0 -> (maxPreAlloc - minPreAlloc + 1)
+        // minPreAlloc -> maxPreAlloc
         static SFixnum() {
-            pool = new SFixnum[2 * maxPreAlloc + 1];
-            for (int i = -maxPreAlloc; i <= maxPreAlloc; i++)
-                pool[i + maxPreAlloc] = new SFixnum(i);
+	    pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
+            for (int i = 0; i < pool.Length ; i++)
+                pool[i] = new SFixnum(i + minPreAlloc);
         }
         private SFixnum(int value) {
             this.value = value;
@@ -138,8 +139,8 @@ namespace Scheme.Rep {
             return n <= ((ulong)MAX);
         }
         public static SFixnum makeFixnum(int val) {
-            if (val >= -maxPreAlloc && val <= maxPreAlloc)
-                return pool[val + maxPreAlloc];
+            if (val >= minPreAlloc && val <= maxPreAlloc)
+                return pool[val - minPreAlloc];
             else
                 return new SFixnum(val);
         }
