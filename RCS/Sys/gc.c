@@ -4,7 +4,7 @@
  *
  * Full internals documentation is in the files "gc.txt" and "gcinterface.txt".
  *
- * $Id: gc.c,v 2.5 91/07/11 00:44:55 lth Exp Locker: lth $
+ * $Id: gc.c,v 2.6 91/07/11 19:11:07 lth Exp Locker: lth $
  *
  * IMPLEMENTATION
  *   We use "old" C; this has the virtue of letting us use 'lint' on the code
@@ -75,11 +75,11 @@
 #else
   extern char *malloc();
 #endif
-#include "offsets.h"
 #include "gcinterface.h"
+#include "main.h"
 #include "gc.h"
 #include "macros.h"
-#include "main.h"
+#include "offsets.h"
 
 /* this is the usual one */
 #define NULL                0
