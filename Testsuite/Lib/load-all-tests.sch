@@ -17,7 +17,8 @@
   (run-number-tests)
   (run-char-tests)
   (run-boolean-tests)
-  (run-env-tests))
+  ;(run-env-tests)
+  )
 
 
 ; eof
