@@ -1201,6 +1201,22 @@ expand_semispace_np( word **lim, word **dest, unsigned bytes, cheney_env_t *e )
   *lim = ss->chunks[ ss->current ].lim;
 }
 
+/* FIXME: Note a problem with the following code.  When a large object is
+   forwarded, its generation bits are not changed until after scanning
+   is over.  That means that any code that checks the generation bits
+   of a large object, eg like a GC write barrier might during scanning,
+   will get the wrong generation: the number will be too low.
+   That can be fixed here by using los_mark_and_set_generation()
+   rather than just los_mark(), and allocating the object with the
+   correct generation instead of that of the existing generation.
+   I don't want to fix that now.  See similar, but fixed, code in
+   the DOF collector.
+
+   Note that the code that is sensitive to it, forw_np_partial,
+   uses the test in such a way that the bug does not trigger incorrect
+   behavior, though a large object might be added to the remembered
+   set when it should not have been.
+*/
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
 {
   los_t *los = e->los;
