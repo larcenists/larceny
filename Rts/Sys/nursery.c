@@ -246,7 +246,7 @@ static void flush_stack( young_heap_t *heap )
    */
 static void stack_overflow( young_heap_t *heap )
 {
-  collect( heap, 0, GCTYPE_PROMOTE );
+  gc_collect( heap->collector, 0, 0, GCTYPE_PROMOTE );
 }
 
 static void stack_underflow( young_heap_t *heap )
@@ -286,7 +286,7 @@ static void collect_if_no_room( young_heap_t *heap, int room )
 {
   room = roundup_balign( room );
   if (free_space( heap ) < room)
-    collect( heap, room, GCTYPE_PROMOTE );
+    gc_collect( heap->collector, 0, room, GCTYPE_PROMOTE );
 }
 
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
