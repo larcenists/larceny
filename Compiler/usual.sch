@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 5 April 1999.
+; 14 September 2000.
 
 ($$trace "usual")
 
@@ -164,8 +164,8 @@
                      (begin ?body ?body2 ...)
                      (case-aux ?temp ?c1 ?c2 ...)))
                 ; a popular extension
-                ((case-aux ?temp (?z ?body ...) ?c1 ...)
-                 (case-aux ?temp ((?z) ?body ...) ?c1 ...))))))
+                ((case-aux ?temp (?z ?body ?body2 ...) ?c1 ...)
+                 (case-aux ?temp ((?z) ?body ?body2 ...) ?c1 ...))))))
        (let ((temp ?e1))
          (case-aux temp ?clause1 ?clause2 ?clause3 ...))))))
 
