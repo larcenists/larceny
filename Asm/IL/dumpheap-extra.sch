@@ -371,25 +371,24 @@
                src-manifests))
          (assembly-il 
           (create-assembly app-exe src-manifests)))
-    (ilasm app-exe (cons assembly-il ordered-il-files))))
-    ;(concatenate-files app-il (cons assembly-il ordered-il-files))
-    ;(ilasm app-exe (list app-il))))
+    (ilasm app-exe (cons assembly-il ordered-il-files))
+    app-exe))
 
-(define (concatenate-files target sources)
-  (with-output-to-file target
-    (lambda ()
-      (for-each display-file sources))))
-
-(define (display-file source)
-  (with-input-from-file source
-    (lambda ()
-      (let loop ()
-        (let [(next (read-char))]
-          (if (eof-object? next)
-              #t
-              (begin
-                (write-char next)
-                (loop))))))))
+;(define (concatenate-files target sources)
+;  (with-output-to-file target
+;    (lambda ()
+;      (for-each display-file sources))))
+;
+;(define (display-file source)
+;  (with-input-from-file source
+;    (lambda ()
+;      (let loop ()
+;        (let [(next (read-char))]
+;          (if (eof-object? next)
+;              #t
+;              (begin
+;                (write-char next)
+;                (loop))))))))
 
 (define (ilasm exe-file il-files)
   (system (twobit-format #f "ilasm /nologo /quiet /output:~a ~a" 
@@ -405,10 +404,11 @@
 (define (scheme->app file)
   (let ((base (rewrite-file-type file '(".sch" ".scm" ".mal") "")))
     (scheme->il file)
-    (create-application base (list (string-append base ".manifest")))
-    (twobit-format (current-output-port)
-                   "  application IL file -> ~s~%"
-                   (string-append base ".il"))))
+    (let ((app (create-application 
+                base
+                (list (string-append base ".manifest")))))
+      (twobit-format (current-output-port)
+                     "  application file -> ~s~%" app))))
 
 (define (scheme->il filename)
   (twobit-format (current-output-port) "Source file: ~s~%" filename)
