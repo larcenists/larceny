@@ -27,6 +27,10 @@
 #include "petit-hacks.h"
 #include "assert.h"
 
+#if USE_RETURN_WITHOUT_VALUE || USE_LONGJUMP
+extern cont_t twobit_cont_label;
+#endif
+
 #define SECOND   globals[ G_SECOND ]
 #define THIRD    globals[ G_THIRD ]
 #define TIMER    globals[ G_TIMER ]
@@ -37,16 +41,16 @@
   /* Cache the value of RESULT */
 # if MC_DEBUG_CACHED
    /* Keep a state of cached or not and check on every save and restore */
-   extern int cached_state;
+   extern int twobit_cache_state;
 #  define twobit_prologue()       word RESULT_; RESTORE_STATE()
 #  define RESULT                  RESULT_
 #  define SAVE_STATE() \
-    do { assert( cached_state ); globals[ G_RESULT ]=RESULT_; \
-         cached_state=0; \
+    do { assert( twobit_cache_state ); globals[ G_RESULT ]=RESULT_; \
+         twobit_cache_state=0; \
     } while(0)
 #  define RESTORE_STATE() \
-    do { assert( !cached_state ); RESULT_ = globals[ G_RESULT ]; \
-         cached_state=1; \
+    do { assert( !twobit_cache_state ); RESULT_ = globals[ G_RESULT ]; \
+         twobit_cache_state=1; \
     } while(0)
 # else
    /* Fast, non-checking code */
@@ -320,32 +324,7 @@
        integrity_check( "setrtn" ); \
   } while(0)
 
-#if USE_LONGJUMP
-# define twobit_return() \
-  do { cont_t retL = (cont_t) stack( STK_RETURN ); \
-       integrity_check( "return" ); \
-       if (--TIMER == 0) { \
-         c_label = retL; \
-         WITH_SAVED_STATE( mc_timer_exception( globals, retL ) ); \
-       } \
-       else { SAVE_STATE(); retL( CONT_ACTUALS ); } \
-  } while(0)
-#elif USE_RETURN_WITH_VALUE
-# define twobit_return() \
-  do { word r; \
-       integrity_check( "return" ); \
-       r = stack( STK_RETURN ); \
-       SAVE_STATE(); \
-       return (cont_t) r; \
-  } while(0)
-#elif USE_RETURN_WITHOUT_VALUE
-# define twobit_return() \
-  do { c_label = (cont_t) stack( STK_RETURN ); \
-       integrity_check( "return" ); \
-       SAVE_STATE(); \
-       return;
-  } while(0)
-#endif
+#define twobit_return()  twobit_skip( ((cont_t)stack( STK_RETURN )) )
 
 #define twobit_invoke( n ) \
   do { cont_t invL; word a=RESULT; \
@@ -375,32 +354,25 @@
        twobit_branch( L ); \
   } while(0)
 
+/* Pure control transfer */
 #if USE_LONGJUMP
 # define twobit_skip( L ) \
-  do { c_label = (cont_t)L; SAVE_STATE(); L( CONT_ACTUALS ); } while(0)
+  do { if (--TIMER == 0) { \
+         WITH_SAVED_STATE( mc_timer_exception( globals, L ) ); \
+       } \
+       else { SAVE_STATE(); L( CONT_ACTUALS ); } \
+  } while (0)
 #elif USE_RETURN_WITH_VALUE
 # define twobit_skip( L ) \
   do { SAVE_STATE(); return (cont_t)L; } while(0)
 #elif USE_RETURN_WITHOUT_VALUE 
 # define twobit_skip( L ) \
-  do { c_label = (cont_t)L; SAVE_STATE(); return; } while(0)
+  do { twobit_cont_label = (cont_t)L; SAVE_STATE(); return; } while(0)
 #endif
 
 #if USE_LONGJUMP
-# define twobit_branch( L ) \
-  do { if (--TIMER == 0) \
-         WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
-       integrity_check( "branch" ); \
-       twobit_skip( L ); \
-  } while(0)
-#elif USE_RETURN_WITH_VALUE
-# define twobit_branch( L ) \
-  do { if (--TIMER == 0) \
-         WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
-       integrity_check( "branch" ); \
-       twobit_skip( L ); \
-  } while(0)
-#elif USE_RETURN_WITHOUT_VALUE
+# define twobit_branch( L )  twobit_skip( L )
+#else
 # define twobit_branch( L ) \
   do { if (--TIMER == 0) \
          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
