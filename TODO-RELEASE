@@ -1,90 +1,54 @@
 $Id$
 
-We will release the SPARC back-end only for the first release.
-The version of the first release will be 1.0-alpha1.
+For Version 1.0a2 [tentatively]
+-------------------------------
 
-----------------------------------------------------------------------
+[Portability]
+  * Find a way to compile with lcc:
+    - Can't currently compile with lcc because the Sys/config.h trick 
+      to determine the platform does not work with lcc.  A reasonable 
+      fix is to make `make setup' determine the platform and record it 
+      in Sys/config.h; the current trick is in any case very brittle.
+    - It hasn't a prayer compiling Sys/signals.c
+    - It picks up LCC header files rather than system header files,
+      which is wrong.
 
-Currently testing
-  - GC benchmark suite with block compilation mode and (fast-safe-code), 
-    on Vega.  Nucleic2 is not included.
-  - GC benchmark suite with conservative system and split heap, on Mintaka.
-
-TOP PRIORITY
-
-- Really need to test (write-barrier #f) on applicable systems, with all 
-  other parameter settings varied.
-  - worked fine on conservative system with fast-safe-code.
-
-- Really need to run at least one test run with a split heap on 
-  the conservative system.
-  - currently running autobuild w/reorganize, (fast-safe-code), on mintaka.
-
-
-----------------------------------------------------------------------
-
-[Release]
-  * Source freeze (in this order):
-    - Move version number to 0.41
-    - Branch source tree as branch-1-0-a1
-  * Source archive
-    - move version number on branch to 1.0a1
-    - iterate until it works:
-      - cvs export on branch-1-0-a1
-      - run Scripts/release-1.0a1
-      - run ( cd Rts; BUILD_HOST=chez make config ) 
-      - make source archive
-      - install, rebuild, run some simple tests.
-  * Archives:
-    - Get binary distributions from the source archive builds
-    - Archive names and contents
-      larceny-1.0a1-src.tar.gz               pruned src tree
-      larceny-1.0a1-sunos4-bin.tar.gz        binary, heaps, Scripts/*
-      larceny-1.0a1-sunos5-bin.tar.gz        binary, heaps, Scripts/*
-      larceny-1.0a-doc.tar.gz                (pruned?) doc tree
-  * Finish release notes
-  * Put release date on download page.
-  * Add archive sizes on download page.
-  * Move archives and files to FTP directory
-  * Test that FTP works the way it's supposed to.
-
-[Release party]
-  * Where & when         [ Tentative: Tue 29 Dec, evening, Franklin ]
-  * What to eat          [ Pizza, ice cream, brownies ]
-  * What to play with    [ Mac 512K + MacScheme
-                           Sage + ExperLisp
-                           ??? + Larceny
-                           PC + PC Scheme ]
-
-----------------------------------------------------------------------
-
-Things that should be renamed:
-
-  Util/std-heap.sch    ->   Util/larceny-heap.sch
-  Util/init-comp.sch   ->   Util/larceny-heap-init.sch
-  Eval                 ->   Interpreter
-  Eval/eval.sch        ->   Interpreter/interp.sch
-  Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
-
-----------------------------------------------------------------------
+[Bug fixes]
+  * All `high' priority bugs in BUGS.
+  * Other bugs as specified below.
 
 [FFI]
   * FFI procedures are not hidden in larceny.heap.
   * Sundry bugs must be fixed (see the TODO file).
     - How to load e.g. the file socket-support.o that has unresolved
       external references?
+        - looks like linking it with the appropriate libraries is OK.
     - Test (better) on SunOS 5.
     - Test on SunOS 4.
     - Write guidelines for compiling C code for use with FFI.
     - Should exit if errors are discovered in the relinking phase.
     - Document!
     - larceny_call() must deal with stack overflow.
+    - sample code.
   * Testing.
+  * FFIGEN back-end.
+
+[RTS]
+  * Heap dumping in the generational system(s).
 
 [Standard heap]
-  * Should the debugger be in r5rs.heap?  Yes!
+  * The debugger needs to be part of interpreter.heap (r5rs.heap).
+  * Should create scripts that setup correct compiler switches before
+    compiling all files for standard heaps; automate the entire process
+    of building the heaps.  Eg., Scripts/build-larceny-heap, etc.
 
 [Libraries]
+  * Remove `format' from the standard library and put it in Auxlib.
+    Make sure it supports a proper subset of SLIBs `format' so that 
+    Larceny code (eg debugger) that uses format can live with the
+    substitute.
+  * Performance: use define-inline judiciously to see if we can wring
+    more speed out of the bignum code, and possibly other code (reader).
   * Arguably the intepreter's wacky notion of legal environment arguments
     should not be the default.  This should be a switch that's called by
     std-heap.sch and otherwise undocumented. Could call it 
@@ -95,30 +59,159 @@ Things that should be renamed:
     environments the way it "should" be done.
 
 [Misc]
-  * Debugger: breakpt could be called `break-entry' to be compatible
-    with MacScheme, would anyway be a better name.
+  * Get rid of reliance on Unix pathname syntax
+    - nbuild-files
+    - Lib/makefile.sch
+    - others?
+  * Rename:
+      Util/std-heap.sch    ->   Util/larceny-heap.sch
+      Util/init-comp.sch   ->   Util/larceny-heap-init.sch
+      Eval                 ->   Interpreter
+      Eval/eval.sch        ->   Interpreter/interp.sch
+      Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
+  * From Will:
+	>Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
+	>constants, accessors, and setters for the documentation slot.
+	>This information should exist in only one place, and it has to
+	>be part of the development environment.
 
-[Assembler bugs]
-  * A MacScheme NOP instruction shouldn't result in a NOP being
-    generated in the SPARC assembly (I think).
+[Assembler]
+  * Assemble-file is only so-so useful in larceny.heap because it can't do
+    MAL files -- the MAL names are not bound, and EVAL is used.  We can
+    either:
+      - bind the MAL names -- gratuitous namespace pollution.
+      - change the MAL syntax to be all-symbolic -- attractive.
+      - remove the binding of assemble-file -- it really only belongs
+        in the development environment anyway.
+      - elaborately hack assemble-file to create an environment that
+        contains the MAL names and use this for EVAL -- way too elaborate.
+  * Support flonum-specific operations.
+  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
+    - optimize fx+ and fx- when it's possible to undo.
+  * In-line _typetag_ in unsafe mode.
+  * Peephole optimization (from in-line expansion of fast path of READ-CHAR):
+    - vector-like? for control
+    - bytevector-like? for control
+    - Generally: more primitives for control:
+       vector?, string?, bytevector?, flonum?, compnum?, bignum?
+    - const + skip -- if the const is an immediate, the setup can go in
+      the delay slot.  AND uses this construction.  
+    - Generally: we can peephole
+           any instruction
+           ba target
+           nop
+      as long as <any instruction> is not in a delay slot.  We can also
+      peephole any non-branch instruction from the target of a BA into
+      its slot.
+    - Generally: Ditto jmpl, call.  This will take care of RETURN.
+    - Consider the following code (unsafe expansion of vector-like-ref
+      with constant index):
+	136	or	%g0, 16, %r5	! 0x10
+	140	or	%g0, %r7, %result
+	144	add	%result, 1, %tmp0
+	148	ld	[ %tmp0+%r5 ], %result
+	152	or	%g0, %result, %r5
+      The move at #140 is clearly not necessary; #144 could add from r7 
+      into tmp0.  Similarly, the move at #152 is not necessary, as the load
+      at #148 could load directly into r5.  Finally, the setup of the
+      constant at #136 is not necessary, as it could be used directly
+      at #148.  The best instruction sequence is a single instruction (!):
+	136	ld	[ %r7+17 ], %r5
+      The instruction at #136 is due to the bad op2imm implementation;
+      the instructions at #140 and at #152 are due to not having implemented
+      vector-like-ref with source-register and destination-register.  Both
+      are easy to fix.
 
-[Compiler bugs]
-  * Want switches called
-      standard-mode        (what's now called standard-code)
-      r4rs-mode
-      r5rs-mode
-      ieee-mode
+[Compiler]
+  * Need inline procedures and constant folding for fixnum operations.
 
+  * Need inline procedures and constant folding for flonum operations.
+
+  * Should rename `define-inline' as `define-compiler-macro', because
+    `define-inline' is much more useful as a proper inline-procedure
+    definer.  The current define-inline has the wrong semantics for
+    everyday use (it can be made to evaluate its arguments more
+    than once, or not at all).
+
+  * Need a way to restrict primitive tables to a given set.
+
+[Debugging]
+  * Trace procedures rather than names.
+  * Fix `break', reinstate `debugvsm' for what `break' does now.
+  * `breakpt' -> `break-entry'.
+  * Variable names if at all possible -- at least trace-entry, 
+    break-entry can print variable names and values if variable names
+    or source code are present.
+  * General improvements.
+
+[Discussion items]
+  * `r5rs.heap' -> `interpreter.heap' (since it's more than R5RS), 
+    possibly make `r5rs.heap' be _only_ r5rs.
+
+----------------------------------------------------------------------
+
+Finished:
+
+[Compiler]
   * Want to print a warning if compile-file is used with "slow"
     switch settings (non-semantics-changing optimizations or
     integrate-usual-procedures off).
 
-  * 'Case' really ought to do better when the constants are fixnums, 
-     currently it just expands to a call to memv.
+[Assembler]
+  * A MacScheme NOP instruction shouldn't result in a NOP being
+    generated in the SPARC assembly (I think).
 
-  * Block compiler and primitive definitions, e.g., 
-       (define car (lambda (x) (car x)))
-    [Did the block compiler fix fix this?]
+----------------------------------------------------------------------
 
-  * Need inline procedures and constant folding for fixnum operations.
+Bug to watch out for:  The binary archives have a symbolic link to the 
+  binary, rather than the binary, due to the directory structure's use
+  of links.
+
+[Release]
+  * Source freeze (in this order):                                
+    - Branch source tree as branch-1-0-a1                         
+      cvs rtag -b branch-1-0-a1 larceny_src                       
+      cvs rtag -b branch-1-0-a1 larceny_doc                       
+  * Source archive                                                
+    - move version number on branch to 1.0a1                      
+    - iterate until it works:
+      - cvs export on branch-1-0-a1                               
+      - run Scripts/release-1.0a1                                 
+        *** It was necessary to fix the script to
+            use rm -rf rather than rm -f on directories.
+      - run ( cd Rts; BUILD_HOST=chez make config )               
+        *** It was necessary to run `make setup' first to
+            create directories, setup links, edit `build'.
+            Then it was necessary to remove .o files in 
+            Compat/Chez.
+      - make source archive  larceny-1.0a1-src.tar.gz             
+        *** It was necessary to manually remove RELEASE-NOTES,
+            which doesn't go in the archive (wasn't finished,
+            either).
+      - install, rebuild, run some simple tests.                  
+        *** `make setup' gives harmless error messages because
+            the cfg files are already in the Build directory
+            when linking happens; we should check before linking.
+  * Doc archive                                                   
+    - create archive
+  * Archives:
+    - Get binary distributions from the source archive builds     
+    - Archive names and contents
+      larceny-1.0a1-src.tar.gz                                    
+        pruned src tree
+      larceny-1.0a1-sunos4-bin.tar.gz                             
+        binary, heaps, Scripts/*, COPYRIGHT
+      larceny-1.0a1-sunos5-bin.tar.gz                             
+        binary, heaps, Scripts/*, COPYRIGHT
+      larceny-1.0a-doc.tar.gz                                     
+        (pruned?) doc tree
+  * Finish release notes (do not go in ARCHIVE).                  
+  * Put release date on download page.                            
+  * Add archive sizes on download page.                           
+  * Move archives and files to FTP directory
+  * Test that FTP works the way it's supposed to.
+  * Install documentation somewhere useful; put a permanent 
+    link to it on the home page.
+  * Backup archives onto MO-disk.                                 
+  * Install Larceny in /proj/will/Apps/larceny!                   
 
