@@ -378,6 +378,8 @@ Debugging
   * Single-stepping, especially in interpreted code.
 
 Library / primitives
+  * FILE-MODIFICATION-TIME should signal an error if the file does
+    not exist, like the (unexported) version in Auxlib/io.sch. 
   * make enable-interrupts, disable-interrupts sane.
   * I/O system is not thread safe.
   * Top-level environments must also hold syntax definitions.
