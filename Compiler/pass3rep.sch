@@ -9,7 +9,7 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 12 June 1999.
+; 16 June 1999.
 ;
 ; Intraprocedural representation inference.
 
@@ -42,7 +42,9 @@
     
     (define (schedule! job)
       (if (not (memq job schedule))
-          (set! schedule (cons job schedule))))
+          (begin (set! schedule (cons job schedule))
+                 (if (not (symbol? job))
+                     (callgraphnode.info! (lookup-node job) #t)))))
     
     ; Schedules a known local procedure.
     
@@ -55,8 +57,9 @@
     
     (define (schedule-callers! name)
       (for-each (lambda (node)
-                  (if (or (memq name (callgraphnode.tailcalls node))
-                          (memq name (callgraphnode.nontailcalls node)))
+                  (if (and (callgraphnode.info node)
+                           (or (memq name (callgraphnode.tailcalls node))
+                               (memq name (callgraphnode.nontailcalls node))))
                       (let ((caller (callgraphnode.name node)))
                         (if caller
                             (schedule! caller)
@@ -100,8 +103,22 @@
                               (newline)))
                    #t))))
     
+    ; GIven the name of a known local procedure, returns its code.
+    
     (define (lookup-code name)
       (callgraphnode.code (assq name g)))
+    
+    ; Given a lambda expression, either escaping or the code for
+    ; a known local procedure, returns its node in the call graph.
+    
+    (define (lookup-node L)
+      (let loop ((g g))
+        (cond ((null? g)
+               (error "Unknown lambda expression" (make-readable L #t)))
+              ((eq? L (callgraphnode.code (car g)))
+               (car g))
+              (else
+               (loop (cdr g))))))
     
     ; Given: a type variable, expression, and a set of constraints.
     ; Side effects:
