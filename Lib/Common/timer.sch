@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; Larceny library -- timer interrupts.
+; Larceny library -- timer interrupts (and other cruft, right now).
 
 ($$trace "timer")
 
@@ -15,26 +15,23 @@
      thunk
      (lambda () (if old (enable-interrupts old))))))
 
-; The system interrupt handler is a procedure of one argument that handles 
-; various types of interrupts.
-;
-; Timer interrupts are signalled with timer interrupts turned off; all
-; other interrupts with the timer interrupt state unchanged.
+; The timer interrupt handler is called with timer interrupts off.
 
-(define interrupt-handler
-  (system-parameter "interrupt-handler" 
-		    (lambda (kind)
-		      (disable-interrupts)
-		      (cond ((eq? kind 'timer)
-			     ($$debugmsg "Unhandled timer interrupt.")
-			     (exit))
-			    ((eq? kind 'keyboard)
-			     ($$debugmsg "Unhandled keyboard interrupt.")
-			     (exit))
-			    (else
-			     ($$debugmsg "Unhandled unknown interrupt.")
-			     (exit))))
-		    procedure?))
+(define timer-interrupt-handler
+  (system-parameter "timer-interrupt-handler"
+                    (lambda ()
+                      ($$debugmsg "Unhandled timer interrupt."))
+                    procedure?))
+
+; The keyboard interrupt handler is called with timer interrupts in
+; the state they were when the interrupt was delivered.
+
+(define keyboard-interrupt-handler
+  (system-parameter "keyboard-interrupt-handler"
+                    (lambda ()
+                      ($$debugmsg "Unhandled keyboad interrupt.")
+                      (exit))
+                    procedure?))
 
 ; A timeslice of 50,000 is a compromise between overhead and response time.
 ; On atlas.ccs.neu.edu (a SPARC 10 (?)), 50,000 is really too much for
