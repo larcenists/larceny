@@ -2,7 +2,7 @@
 !
 ! Larceny -- Millicode for Generic Arithmetic on SPARC.
 !
-! $Id: generic.s,v 1.12 1992/05/25 01:55:50 remy Exp remy $
+! $Id: generic.s,v 1.13 1992/05/25 04:38:20 remy Exp remy $
 !
 ! Generic arithmetic operations are daisy-chained so as to speed up operations
 ! of same-representation arithmetic. If representations are not the same, then
@@ -882,8 +882,15 @@ _m_generic_zerop:
 	cmp	%TMP0, VEC_TAG
 	be,a	Lzero_vec
 	ldub	[ %RESULT + 3 - VEC_TAG ], %TMP0
-	b	Lnumeric_error
+	andcc	%RESULT, 3, %g0
+	bne,a	Lnumeric_error
 	mov	EX_ZEROP, %TMP0
+	cmp	%RESULT, 0
+	mov	TRUE_CONST, %RESULT
+	bne,a	.+8
+	mov	FALSE_CONST, %RESULT
+	jmp	%o7+8
+	nop
 Lzero_bvec:
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Lzero_flo

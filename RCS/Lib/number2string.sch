@@ -1,6 +1,6 @@
 ; Copyright Lightship Software.
 ;
-; $Id: number2string.sch,v 1.4 1992/03/31 12:31:12 lth Exp remy $
+; $Id: number2string.sch,v 1.5 1992/05/25 04:38:02 remy Exp remy $
 ;
 ;                                       16 April 1990
 ;
@@ -37,7 +37,7 @@
 	    ((ratnum? x)
 	     (ratnum->string x radix))
 	    ((rectnum? x)
-	     (error "number->string, rectnums not implemented yet"))
+	     (rectnum->string x radix))
 	    ((compnum? x)
 	     (error "number->string, compnums not implemented yet"))
             ((= (float-exponent x) flonum:maxexponent)

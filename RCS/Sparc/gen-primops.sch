@@ -3,7 +3,7 @@
 ; Scheme 313 compiler.
 ; Emitting code for integrables.
 ;
-; $Id: gen-primops.sch,v 1.6 1992/05/15 22:18:26 lth Exp lth $
+; $Id: gen-primops.sch,v 1.7 1992/06/10 09:05:49 lth Exp remy $
 ;
 ; Temp-register allocation here is completely out of hand. We have to come
 ; up with a coherent strategy for allocating temporary registers, e.g. a
@@ -530,7 +530,9 @@
    (cons 'make-rectangular
 	 (lambda (as x)
 	   (emit! as `(,$i.jmpli ,$r.millicode ,$m.make-rectangular ,$r.o7))
-	   (emit! as `(,$i.nop))))
+	   (if (hardware-mapped? x)
+	       (emit! as `(,$i.orr ,x ,$r.g0 ,$r.argreg2))
+	       (emit-load-reg! as x $r.argreg2))))
 
    (cons 'not
 	 (lambda (as)

@@ -3,7 +3,7 @@
 ;; but rather compile them and load the compiled code. This works. But one
 ;; can also load interpretable code (raw scheme) and have it work.
 ;;
-;; $Id: eval.sch,v 1.4 1992/05/25 05:21:16 lth Exp lth $
+;; $Id: eval.sch,v 1.5 1992/06/10 09:05:42 lth Exp remy $
 ;;
 ;; 'Eval' takes an expression and evaluates the expression in the default
 ;; toplevel environment. It returns the result of the evaluation,
@@ -330,6 +330,7 @@
   (extend-toplevel-env! 'random random)
   (extend-toplevel-env! 'max max)
   (extend-toplevel-env! 'min min)
+  (extend-toplevel-env! 'make-rectangular make-rectangular)
 
   ;; strings
 

@@ -1,7 +1,7 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: pass1.imp.sch,v 1.3 1992/05/15 22:17:49 lth Exp lth $
+; $Id: pass1.imp.sch,v 1.4 1992/06/10 09:05:10 lth Exp remy $
 
 (define (byte? x)
   (and (fixnum? x)
@@ -118,7 +118,7 @@
     (zero? 1 zero? #f #x2c)
     (-- 1 -- #f #x2d)
     (lognot 1 lognot #f #x2f)
-    (sqrt 1 sqrt #f #x38)
+;    (sqrt 1 sqrt #f #x38)
     (real-part 1 real-part #f #x3e)
     (imag-part 1 imag-part #f #x3f)
     (char? 1 char? #f #x40)
