@@ -2,13 +2,36 @@ $Id$
 
 Release 2 todo and check lists
 
-
 Working on:
 
- * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
+ * Implement pointer transformation for non-aligning compilers.
+   Works for USE_GOTOS_LOCALLY+RETURN_WITH_VALUE, not otherwise tested.
+   Need to test:
+     - other jump disciplines
+     - other C compilers than mingw
+     - that twobit.exe works as it should (it does, with mingw)
 
 
 Things That Must Be Done (tm) aka Significant Usability Bugs (r)
+
+ * Bug: DLL loader code (in Lib/Standard-C/loadable.sch) does not
+   properly adjust the code pointer.  One problem is that it is not
+   known to that code whether the code pointer has to be adjusted or
+   not!
+
+ * Quality: wizard options help should be available with -wizardhelp
+   only
+
+ * Quality: should accept -- as the options character
+
+ * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
+
+ * Quality: Get rid of Auxlib/ altogether.  Stuff that must be available
+   for twobit goes into Lib; the rest moves to the external library.
+
+ * Quality: Implement and document REMOVE-TWOBIT-OBJECTS.
+
+ * Quality: BUILD-EXECUTABLE should perhaps be called BUILD-PETIT
 
  * For most people it is most reasonable that Twobit share the macro
    definitions between the interpreter and compiler, so that loading
@@ -41,11 +64,6 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * FFI: Does the docs reflect how it works?
 
- * Make Petit Larceny build under Win32 with Cygwin or MinGW.
-
- * Implement pointer transformation for non-aligning compilers,
-   to work properly under Win32 with Codewarrior and MSVC.
-
  * Update all documentation to reflect the actual state of the system
 
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
@@ -55,9 +73,6 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Worry about situations where a build configuration escapes to the
    'net with the source? flag set to #t, this will confuse people that
    read the instructions for compiling Twobit.
-
- * Quality: Clean up the Util/petit-win32.sch; the unix variants are
-   much cleaner.
 
 
 Release candidate 1 -> Release candidate 2
