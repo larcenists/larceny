@@ -66,10 +66,49 @@
 (define unix/listen (foreign-procedure "listen" '(int int) 'int))
 
 
+; open(2)
+; int open( const char *path, int oflag )
+; int open( const char *path, int oflag, mode_t mode )
+
+(define unix/open
+  (let ((open (foreign-procedure "open" '(string int int) 'int)))
+    (lambda (path oflag . rest)
+      (if (null? rest)
+          (open path oflag #o644)
+          (open path oflag (car rest))))))
+
+; Flags for oflag parameter.
+; Values from /usr/include/sys/fcntl.h on Solaris 2.6; portability unknown.
+
+(define unix/O_RDONLY  0)      ; Use only
+(define unix/O_WRONLY  1)      ;   one of
+(define unix/O_RDWR    2)      ;      these three
+(define unix/O_APPEND  8)      ; Use any combination
+(define unix/O_CREAT   #x100)  ;    of these
+(define unix/O_TRUNC   #x400)  ;       three
+
+
 ; perror(3c)
 ; void perror( const char * )
 
 (define unix/perror (foreign-procedure "perror" '(string) 'void))
+
+
+; poll(2)
+; int poll( struct pollfd fds[], unsigned long nfds, int timeout )
+
+(define unix/poll (foreign-procedure "poll" '(boxed ulong int) 'int))
+
+(define unix/POLLIN     #x0001)
+(define unix/POLLPRI    #x0002)
+(define unix/POLLOUT    #x0004)
+(define unix/POLLRDNORM #x0040)
+(define unix/POLLWRNORM unix/POLLOUT)
+(define unix/POLLRDBAND #x0080)
+(define unix/POLLWRBAND #x0100)
+(define unix/POLLERR    #x0008)
+(define unix/POLLHUP    #x0010)
+(define unix/POLLNVAL   #x0020)
 
 
 ; read(2)
