@@ -35,7 +35,7 @@ where
    - <host-scheme> is a string corresponding to your Scheme system; it
      must match one of the subdirectories of Compat, eg "Petite",
     "MzScheme", "Larceny"
-   - <os> is a symbol, one of 'win32, 'unix
+   - <os> is a symbol, one of 'win32, 'unix, 'macosx
    - <endianness> is a symbol, one of 'little, 'big
 
 The following build programs sometimes invoke external programs and
