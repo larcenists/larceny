@@ -7,7 +7,7 @@ $Id$
 
 
 These are bugs that are or may be visible to the Scheme programmer.
-Outright compiler bugs are generally only known to Will.
+Outright compiler bugs are sometimes only known to Will.
 
 Bugs are listed in the order recorded.  Fixed bugs have been moved to
 the file BUGS-FIXED.  Each entry consists of an entry number, the
@@ -15,7 +15,8 @@ version of Larceny in which the bug was discovered, the date it was
 recorded and who found it, a description of the problem, and any
 supporting documentation, information, test cases, and so on.
 
-HIGH PRIORITY BUGS: None.
+HIGH PRIORITY BUGS: 072, 074, 083, 088, 089, 090, 091, 092, 093, 094, 096, 
+  098, 099, 103.
 
 
 005  (v0.27e)
@@ -65,7 +66,7 @@ HIGH PRIORITY BUGS: None.
 053  v0.32 (971107 / lth)
      Priority: low.
 
-     Reader bugs
+     Reader bugs.
 
    * The reader accepts \ as an initial character in symbols, but not
      as a subsequent, and when it is an initial character, it is not
@@ -179,7 +180,7 @@ HIGH PRIORITY BUGS: None.
     loading and linking, because that format will retain the tags.
 
 072 v0.34 (981113 / lth)
-    Priority: low
+    Priority: high.
 
     The (break) procedure always invokes the RTS debugger.  It would be
     more useful if it would invoke the user-installable breakpoint handler,
@@ -187,7 +188,7 @@ HIGH PRIORITY BUGS: None.
     Chez Scheme uses a parameter 'break-handler'; we should too.
 
 074 v0.36 (981207 / dougo)
-    Priority: low
+    Priority: high.
 
     Records (defined with make-record-type et al in Experimental/record.sch)
     are no longer displayed with the record type printer; it just displays
@@ -224,7 +225,7 @@ HIGH PRIORITY BUGS: None.
     similar "bugs" in the number parser, see comments in the code.)
 
 083 v0.38 (981215 / lth)
-    Priority: low
+    Priority: high.
 
     Bugs w.r.t. R4RS, R5RS, or the IEEE standard:
 
@@ -256,6 +257,8 @@ HIGH PRIORITY BUGS: None.
     compile-expression (Compiler/compile313.sch) and macro-expand 
     (Eval/macro-expand.sch) should allow any environment to be used.
 
+    [In any case the current setup is not the right thing.]
+
 086 v0.39 (981216 / lth)
     Priority: low
 
@@ -268,9 +271,10 @@ HIGH PRIORITY BUGS: None.
     Memstats does not return information about the static area, if any.
 
 088 v0.40 (981219 / lth)
-    Priority: low
+    Priority: high.
 
-    [Performance bug]
+    Performance bug / library.
+
     When running with (integrate-usual-procedures #f), arithmetic is quite
     slow, because the definitions of '+' etc are coded in Scheme using
     rest args.  Much better would be if they were written in MAL in 
@@ -304,14 +308,86 @@ HIGH PRIORITY BUGS: None.
 	Elapsed GC time: 85 ms (in 41 collections.)
 	832040
 
+    This would be better:
+
+	(define +
+	  (case-lambda
+	   (() 0)
+	   ((x) x)
+	   ((x y) (+ x y))
+	   ((x y z) (+ (+ x y) z))
+	   ((w x y z) (+ (+ (+ w x) y) z))
+	   ((x . rest) (let loop ((x x) (rest rest))
+	                 (if (null? rest)
+	                     x
+	                     (loop (+ x (car rest)) (cdr rest)))))))
+
+    By hacking together MAL code that does the above for + and -,
+    we find that:
+
+	> (fib-benchmark)   ; That's fib(30)
+
+	--------------------------------------------------------
+	Standard fib
+	Words allocated: 474
+	Words reclaimed: 0
+	Elapsed time...: 2533 ms (User: 2520 ms; System: 0 ms)
+	Elapsed GC time: 0 ms (in 0 collections.)
+
+    (`<' of 2 arguments does not cons anything, nor does it go out-of-line,
+     because it takes 2 or more arguments and the no-extra-arguments case
+     is in-lined and only stores () in a register.)
+
+    That isn't as good as Chez Scheme -- 1660 ms -- but it's a lot 
+    better than it was!  
+
+    The time improves to 2300 ms with slightly smarter code, and to 2150 ms
+    if we can avoid the stack frame creation, which may be possible
+    with fundamental MAL support (so we don't have to free up a register
+    temporarily).
+
+    We can do better by improving the speed of global procedure calls: 
+    using a function cell, caching global cells.   These in themselves do 
+    not appear to be enough, though --  experiments with caching and 
+    unsafe-code does not reduce the time much from the above (only by 
+    about 100ms).  
+
+    Fact: the following (illegal) code for + and - results in a run time
+    of 2300 ms:
+
+	(define + (lambda (a b . rest) (if (null? rest) (+ a b) ...)))
+	(define - (lambda (a b . rest) (if (null? rest) (- a b) ...)))
+
+    Possible MAL support: 
+
+      (args-switch ((2 1002) (0 1000) (1 1001) (3 1003) (* 1004)))
+
+    which says go to 1002 if 2 args, 1000 if 0, ..., and to 1004 if none of
+    the above.  Does not destroy RESULT.  Ordering can be used as an 
+    optimization hint but has no semantic meaning.  It would be reasonable 
+    to limit the argument count in the non-* case to some fairly small number.
+
+    [Numbers to be taken with a grain of salt.]
+
+    A caching strategy for 'known' globals, like that used by the interpreter,
+    helps.  Of course, it bloats the code somewhat, but it appears that the 
+    code size increase is linear if one is careful about lifting common 
+    expressions.  Chez Scheme gets good performance apparently w/o doing this,
+    because code that uses 'plus' for '+' runs as fast as code that uses '+',
+    at optimize-level 1.
+
 089 v0.40 (981219 / lth)
-    Priority: low
+    Priority: high.
+
+    RTS error.
 
     Should catch SIGSEGV, SIGBUS because broken unsafe code can otherwise 
     cause a core dump.
 
 090 v0.40 (981219 / lth )
-    Priority: low
+    Priority: high.
+
+    Compiler error.
 
     With (integrate-usual-primitives #f), calls to the primitives 
     .make-cell, .cell-ref, and .cell-set! are compiled as normal 
@@ -319,8 +395,14 @@ HIGH PRIORITY BUGS: None.
     names to the environment -- but code that uses assignments takes
     a performance hit.
 
+    The way to fix this may be to make (integrate-usual-primitives #f) not
+    change the way the compiler operates but instead just reduce the
+    primitive table to contain the name:* primitives.
+
 091 v0.40 (981219 / lth )
-    Priority: low
+    Priority: high.
+
+    Macro expander error.
 
     The macro expander generates calls to procedures (unspecified) and 
     (undefined).  With (integrate-usual-primitives #f), this is incorrect 
@@ -328,7 +410,7 @@ HIGH PRIORITY BUGS: None.
     in which case see Bug 090, or they should be the correct constants.
 
 092 v0.40 (981219 / lth)
-    Priority: low
+    Priority: high.
 
     SPARC Assembler error.
 
@@ -342,7 +424,159 @@ HIGH PRIORITY BUGS: None.
     emit-const->register! is called.  If that is not the case, then
     we must implement another crock like `short-effective-addresses'.
 
+093 v0.41 (981221 / lth)
+    Priority: high.
 
-NEXT ENTRY: 093
-	
+    Macro expander error.
+
+    'Case' really ought to do better when the constants are fixnums, 
+     currently it just expands to a call to memv.
+
+     Consider, for example, this, which is pretty slow:
+
+	(define (fibonacci n)
+	  (case n
+	    ((0)  0)
+	    ((1)  1)
+	    (else (+ (fibonacci (- n 2)) (fibonacci (- n 1))))))
+
+     This is a problem with an interaction between the LETREC* scope
+     of the usual macros and the order of definition of the macro for
+     CASE and the inline for MEMV.
+
+	> (macro-expand '(case x ((0 1) 'a) ((2 3) 'b) (else 'c)))
+	((lambda ()
+	   ((lambda (.temp|1|4)
+	      (if (memv .temp|1|4 '(0 1))
+	        'a
+	        (if (memv .temp|1|4 '(2 3)) 'b 'c)))
+	    x)))
+
+	> (macro-expand '(memv x '(0 1 2)))
+	((lambda ()
+	   ((lambda (.t0|2|3|6 .t1|2|3|6)
+	      (if (eq? .t0|2|3|6 '0)
+	        .t1|2|3|6
+	        ((lambda (.t1|2|3|10)
+	           (if (eq? .t0|2|3|6 '1)
+	             .t1|2|3|10
+	             ((lambda (.t1|2|3|14)
+	                (if (eq? .t0|2|3|6 '2)
+	                  .t1|2|3|14
+	                  ((lambda (.t1|2|3|18) '#f) (cdr .t1|2|3|14))))
+	              (cdr .t1|2|3|10))))
+	         (cdr .t1|2|3|6))))
+	    x
+	    '(0 1 2))))
+
+
+094 v0.41 (981221 / lth)
+    Priority: high.
+
+    Compiler error.
+
+    Block compiler and primitive definitions interact poorly.  The following
+    hangs:
+
+       (define car (lambda (x) (car x)))
+
+095 v1.0a1 (981221 / lth)
+    Priority: low
+
+    Build system error.
+
+    `make realclean' removes files that were in the distribution archive.
+    That's not a real problem, because the files it removes are only there
+    to allow an executable to be built without a host system; once it's 
+    built, Larceny can be used as a host system.  Still, this is somewhat
+    counter-intuitive.
+
+096 v0.41 (981221 / lth)
+    Priority: high.
+
+    RTS error.
+
+    Strings passed to the routines in Rts/Sys/unix.c are limited to
+    1023 characters because getstring() has an internal buffer of length 1KB.
+    For example,  (system very-long-command) fails.
+
+098 v1.0a1 (981221 / wdc)
+    Priority: high.
+
+    Define-inline works in larceny.heap but not in r5rs.heap.
+
+099 v1.0a1 (990104 / lth)
+    Priority: high.
+
+    define-inline is available in scheme-report-environment and 
+    null-environment but should not be:
+
+	> (eval '(define-inline foo (syntax-rules () ((foo x) x))) 
+                (scheme-report-environment 5))
+
+100 v1.0a1 (990104 / lth)
+    Priority: low.
+
+    The routines m-warn and m-error used by the macro expander should
+    signal their conditions using machinery that ensures that output 
+    ports are still open (in the same way the REPL does this).  Perhaps
+    this should wait until we have some exception machinery.
+
+101 v1.0a1 (990104 / lth)
+    Priority: low.
+
+    Macro expander (?) bug.
+
+    From: will
+    >A larger problem is that warnings and error messages ought to be
+    >expressed in terms of the original source code, or as original as
+    >macro-expanded source can be.  Thus the (.begin|18|21) form should
+    >have been reported as (begin).  I doubt whether this will be fixed
+    >anytime soon, though.
+
+102 v1.0a1 (990104 / lth)
+    Priority: low
+
+    Loader bug.
+
+    The loader (really: the reader) produces a strange error when
+    confronted with a file that is neither a Scheme source file nor a 
+    FASL file, e.g. when given a heap image as in the popular error
+
+	larceny sparc.heap
+
+    (which tells larceny to load sparc.heap as a Scheme file).
+
+    To fix this, the loader should set up an exception handler and
+    catch (some) errors signalled by READ.
+
+103 v1.0a1 (990104 / lth)
+    Priority: high.
+
+    Macro expander bug.
+
+    This should be easy to fix.  See also Bug 090, Bug 091.
+
+	Date: Fri, 18 Dec 1998 17:48:22 -0500
+	From: Lars Thomas Hansen <lth@ccs.neu.edu>
+
+	[This is with up-to-date sources except sparc.imp.sch]
+
+	As far as I'm concerned, this is a minor annoyance: it's not entirely
+	reasonable for Twobit to warn me with (integrate-usual-procedures #f).
+	I can imagine differing opinions on the matter.
+
+	> (integrate-usual-procedures #f)
+	#f
+	> (define + (lambda (a b) (cons a b)))
+	WARNING from macro expander:
+	Redefining 
+	+
+	+
+	> (+ 1 2)
+	(1 . 2)
+
+
+NEXT ENTRY: 104
+
 ; eof
