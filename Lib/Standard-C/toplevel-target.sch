@@ -20,6 +20,11 @@
   (environment-set! larc 'peek-bytes peek-bytes)
   (environment-set! larc 'poke-bytes poke-bytes)
 
+  ;; environment interface
+
+  (environment-set! larc 'dump-heap dump-heap)
+  (environment-set! larc 'dump-interactive-heap dump-interactive-heap)
+
   ;; Support for loading compiled files as code-less FASL files with
   ;; the code vectors already linked into the executable or present
   ;; in dynamically loaded object files.

@@ -577,10 +577,6 @@
   (environment-set! larc 'structure-printer structure-printer)
   (environment-set! larc 'structure-comparator structure-comparator)
 
-  ;; Support for or hooks into the interpreter.
-
-  (environment-set! larc 'macro-expand toplevel-macro-expand)
-
   ;; system performance and interface
 
   (environment-set! larc 'collect collect)
@@ -771,6 +767,8 @@
   (environment-set! larc 'repl-level repl-level)
   (environment-set! larc 'herald herald)
   (environment-set! larc 'load-evaluator load-evaluator)
+  (environment-set! larc 'macro-expand toplevel-macro-expand)
+  (environment-set! larc 'macro-expander macro-expander)
   (environment-set! larc 'typetag typetag)
   (environment-set! larc 'typetag-set! typetag-set!)
   (environment-set! larc 'unspecified unspecified)
