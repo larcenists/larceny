@@ -24,6 +24,11 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Quality: the HOWTO documentation needs to be HTML, it is becoming
    increasingly cross-referenced.
 
+ * Quality: Implement and document REMOVE-TWOBIT-OBJECTS.
+
+ * Update all documentation to reflect the actual state of the system.
+   In general, HOWTO-WIN32 has a lot of old cruft.
+
  * Quality: wizard options help should be available with -wizardhelp
    only
 
@@ -34,10 +39,7 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
  * Quality: Get rid of Auxlib/ altogether.  Stuff that must be available
    for twobit goes into Lib; the rest moves to the external library.
 
- * Quality: Implement and document REMOVE-TWOBIT-OBJECTS.
-
- * Quality: BUILD-EXECUTABLE should perhaps be called BUILD-PETIT,
-   esp since it is not needed for the native system.
+ * Quality: Online help not quite right for Petit Larceny
 
  * For most people it is most reasonable that Twobit share the macro
    definitions between the interpreter and compiler, so that loading
@@ -70,16 +72,9 @@ Things That Must Be Done (tm) aka Significant Usability Bugs (r)
 
  * FFI: Does the docs reflect how it works?
 
- * Update all documentation to reflect the actual state of the system.
-   In general, HOWTO-WIN32 has a lot of old cruft.
-
  * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
    of bogus, cf recent discussion on SRFI-0 list.  Should probably
    fix this both in SRFI code as well as in test code.
-
- * Worry about situations where a build configuration escapes to the
-   'net with the source? flag set to #t, this will confuse people that
-   read the instructions for compiling Twobit.
 
 
 Release candidate 1 -> Release candidate 2

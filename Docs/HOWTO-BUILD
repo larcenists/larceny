@@ -61,11 +61,11 @@ executable:
 
     > (build-heap)
     > (build-runtime)
-    > (build-executable)        ; not necessary for SPARC-native Larceny
+    > (build-petit)             ; only for Petit Larceny
 
 Other useful commands are:
 
-    > (remove-heap-objects)     ; removes generated files (LAP, LOP, C, OBJ, FASL)
+    > (remove-heap-objects)     ; removes generated files (LAP/LOP/C/OBJ/FASL)
     > (remove-runtime-objects)  ; removes OBJ files in the Rts/ tree
 
 
