@@ -170,19 +170,24 @@
 
 (define (append . args)
 
-  (define (append2 x y)
-    (if (null? x)
-	y
-	(cons (car x) (append2 (cdr x) y))))
-
-  (define (append-loop args)
-    (if (null? (cdr args))
-	(car args)
-	(append2 (car args) (append-loop (cdr args)))))
+  (define (loop rest tail)
+    (cond ((null? rest)
+	   tail)
+	  ((null? (car rest))
+	   (loop (cdr rest) tail))
+	  (else
+	   (loop (cdr rest)
+                 (call-with-values 
+                  (lambda () 
+                    (list-copy2 (car rest)))
+                  (lambda (new-head new-tail)
+                    (set-cdr! new-tail tail)
+                    new-head))))))
 
   (if (null? args)
-      args
-      (append-loop args)))
+      '()
+      (let ((a (reverse! args)))
+	(loop (cdr a) (car a)))))
 
 
 (define (append! . args)
@@ -241,6 +246,22 @@
       (let ((first (cons (car l) '())))
 	(loop (cdr l) first)
 	first)))
+
+
+; Returns both the first and last pairs of the argument, or (),() if the
+; argument is ().
+
+(define (list-copy2 l)
+  (define (loop l prev)
+    (if (null? l)
+	prev
+	(let ((q (cons (car l) '())))
+	  (set-cdr! prev q)
+	  (loop (cdr l) q))))
+  (if (null? l)
+      (values l l)
+      (let ((first (cons (car l) '())))
+	(values first (loop (cdr l) first)))))
 
 
 (define member
