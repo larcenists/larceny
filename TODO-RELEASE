@@ -7,61 +7,24 @@ release.  The complete to-do list (file ${LARCENY}/TODO) is much longer.
 
 ----------------------------------------------------------------------
 
-New bugs:
- - still unix-dependent path names in Lib/makefile.sch
-
-... but the last two uses of STRING->SYMBOL in
-Compiler/prefs.sch are buggy.  This bug will show up for lambda
-expressions that have at least 29 required arguments and also have a
-rest argument.  The fix is to move the definitions of name:CAR and
-name:CDR from Compiler/prefs.sch to Compiler/sparc.imp.sch, and to
-change those definitions to use the correct system names for CAR and
-CDR.  It appears that there are no existing system names for CAR and
-CDR, which means we'll have to invent some (probably .car and .cdr)
-and also add those names to $usual-integrable-procedures$.
-
-FIXED.
-
+----------------------------------------------------------------------
 
 [General tasks]
- - procedure names are still not nearly good enough, consider something as
-   simple as `remv'.
- - Copyright on pretty printer   [Followup II sent to Marc around 12/2.]
- - Investigate stop+copy collector: larceny -stats and display-memstats
-   only report one heap area, even with a split heap.  There should be
-   two!  Either this is a bug in the reporting code or there's an RTS bug.
- - moved sort.sch from Auxlib into Lib/Common to support new macro
-   expander.
-    - add to documentation
-    - copyright issues?  [File has no copyright notice, only attribution.]
- - added remq!, remv!, remove! to standard library.
-    - add to documentation
- - consolemsg should perhaps go to stdout, not stderr.
+ - Release party plans!
+   * Where & when
+   * What to eat
+   * What to play with
 
-[New version of Twobit]
-  * Hygienic macros.
-    - In compiler.            [done]
-    - In interpreter.
-      - Use macro expander    [done]
-      - Grab source code from macro expanded expression to use for
-        debug info.
-    - In environments, somehow.
-  * I don't understand why load-environment complains about every1? 
-    being unavailable -- it's available in COMPILER and should not be
-    needed anywhere else.  Why does the name appear in the interaction
-    environment?  Who places it there?  It just seems to appear after
-    COMPILER has been loaded (see 'check' in load-env.sch).
-
-[Debugger]
-  * Interpreted procedures have two pieces of code: the procedure and
-    the expression.  Exploit this fact (the debugger handles this
-    currently, if the interpreter sets things up right).
-
-[SPARC assembler]
-  * Fixnum-only arithmetic
-    - optimize fx+ and fx- when it's possible to undo.
-    - macro expander modifications (multi-argument, constant folding)
-    - more testing, but looks OK.
+[Bugs] (Not all of these deserve to be fixed)
+  * Bignum->flonum bug.
+  * Integrate-usual-procedures and (+ x x x x).
+  * Procedure-names are not good enough.
+  * Need inline procedures and constant folding for fixnum operations.
+  * 'Case' really ought to do better when the constants are fixnums,
+    currently it just expands to a call to memv.
+  * Some sort of help facility (esp. for compiler switches and compilation
+    commands) would be useful in std-heap.sch.
+  * FFI procedures are not hidden in larceny.heap.
 
 [FFI]
   * Sundry bugs must be fixed (see the TODO file).
@@ -84,80 +47,57 @@ FIXED.
       bdw.html
 
 [Testing]
+  * Decide on test procedure for release builds.
   * Test cases:
     (and (unsafe-code) (write-barrier))             ; fast, generational
     (and (not (unsafe-code)) (write-barrier))       ; safe, generational
     (and (unsafe-code) (not (write-barrier)))       ; fast, stop+copy
     (and (not (unsafe-code)) (not (write-barrier))) ; safe, stop+copy
 
-[Bugs]
-  * Fix all BUGS with medium or high priority.
-
-[Misc]
-  * Further use of nbuild-files in Lib/makefile.sch.
+[Release]
   * At release time: change home page.
+  * Version number -> 1.0a1
   * Release procedure.
+    - make sure switch settings in Util/init-comp.sch are right.
     - decide what's needed in a release, create shell script to strip or
       extract.
-    - decide on test procedures.
     - make sure to do ( cd Rts; BUILD_HOST=chez make config ) before making 
       the archive.
 
+[Bugs fixed]
+  * Hierarchical environments cause a storage leak -- the interpreter is
+    not garbage collected when the compiler is installed.  The reason is
+    that initially, (larceny-environment) is installed as the interaction
+    environment, but (larceny-environment) returns a child environment --
+    so the leak has already happened, and it's hard for code outside 
+    the innermost namespace to fix this.  Also, larceny-environment
+    references the parent environment's cell.
 
-If time permits (it won't)
---------------------------
+  * I don't understand why load-environment complains about every1? 
+    being unavailable -- it's available in COMPILER and should not be
+    needed anywhere else.  Why does the name appear in the interaction
+    environment?  Who places it there?  It appears as soon as sparc.imp.fasl
+    has been loaded, and it's used there, but it is defined in pass1.aux
+    and used several times in the macro expander, which is loaded before
+    sparc.imp.sch.
 
-[To-do]
- - A graph printer is highly desirable for including source code in compiled
-   files -- the unpreprocessed source code as emitted to the heap image
-   takes over twice the space of the fully-commented, fully-indented source 
-   files.  That's not adequate.
+    The problem seems to be with the use of TRANSFORMER.  When TRANSFORMER
+    is used, the macro expander (in expand.sch) calls EVAL on the
+    transformer expression.  EVAL is only passed one argument (this is a 
+    buglet) and the environment then defaults to the interaction environment.
 
-[Testing]
-  * Clean up test suite in general -- include programs from the
-    test directory, and clean them up.
-  * Create Larceny Note about how to run tests.
+    The bug is really in LOAD: it should set the interaction environment
+    to the environment it is given so that any use of EVAL in a loaded file
+    uses the correct environment.
 
-[Run-time system]  [Lars]
-  * Support heap dumping with generational GC.
+  * Fixed bug in compile313 procedure where names 'infilename' and 
+    'outfilename' were free (block compilation case).
 
-[SPARC assembler]
-  * The code for op2imm generates slow code for some primitives: it emits 
-    the constant into SECOND and then does a non-imm operation.  It gets
-    + and - right; it would be nice to get =, <, <=, >, >= also, although
-    the savings is one (static or dynamic) instruction, and the peephole
-    optimizer gets most of the cases -- it's only where the datum is in
-    RESULT and the result is being left in RESULT where this optimization
-    matters.  Payoffs are slightly better for char=?, etc, since it's 
-    costly to generate a character constant (2 instructions).  Still
-    I expect most operations to work on operands in register, so the
-    peephole optimizer will take care of it.
-  * Fixnum-only arithmetic -- see Asm/Sparc/sparcprim-part4.sch.
-    Remaining tasks:
-      - fxquotient, fxremainder
+  * Fixed bug in compile313 procedure where it tried to write fasl code
+    rather than LAP (block compilation case).
 
-  * Peephole optimizations
-      Unimplemented peephole operations
-        bytevector operations
-          bytevector-length
-          bytevector-ref          (also op2imm)
-          bytevector-set!
-          bytevector-like-length
-          bytevector-like-ref     (also op2imm)
-          bytevector-like-set!
-        vector-like operations
-          vector-like-length
-          vector-like-ref         (also op2imm)
-          vector-like-set!
-        others
-          char->integer
-          integer->char
-          logand logior logxor lognot sll srl sra
+  * Fixed all other undefined-variable errors from std-heap.sch, except
+    for one use of ??? in the compiler.
 
-   - Implement const/setreg/skip peephole optimization for simple constants
-     and any target register -- allows the delay slot of the branch to be
-     filled.
-
-[Dev. env]
-  * Would be possible to just have one procedure 'make-larceny-heap' that
-    would build for the correct target.  This would be a real improvement.
+  * I have also moved a number of minor bugs to the general TODO or BUGS 
+    files, to be fixed at a later date.
