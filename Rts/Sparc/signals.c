@@ -35,6 +35,18 @@ void execute_sigfpe_magic( void *p )
 }
 #endif
 
+#if defined(DEBIAN_SPARC)
+void execute_sigfpe_magic( void *p )
+{
+  struct sigcontext *scp = (struct sigcontext *)p;
+
+  scp->sigc_pc = (int)m_fpe_handler;
+  scp->sigc_npc = (int)m_fpe_handler + 4;
+
+  return;
+}
+#endif
+
 #if defined(SUNOS5)
 void execute_sigfpe_magic( void *p )
 {

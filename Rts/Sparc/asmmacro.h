@@ -9,7 +9,7 @@
  * (i.e., C-type) name for the OS in question. 
  */
 
-#ifdef SUNOS5
+#if defined(SUNOS5) || defined(DEBIAN_SPARC)
 /* On solaris external names are not prefixed by _, for some
  * reason. Seems to me this breaks all the assembly code in
  * existence, but who am I to argue...
