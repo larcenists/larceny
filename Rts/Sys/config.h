@@ -2,11 +2,11 @@
  *
  * $Id$
  *
- * You must define the attributes for the system you're compiling in 
- * the section for user definitions, below.
+ * You must define the attributes for the system you're compiling in the
+ * section for user definitions, below.
  *
  * Don't panic!  Useful sets of attributes for many systems are defined
- * below.
+ * below, just pick the one for your system.
  *
  * Refer to the installation notes for more elaborate instructions, or
  * read the comments in this file carefully.
@@ -19,7 +19,7 @@
  *
  *  ANSI/ISO C Standard (FIXME)
  *
- *  Donald Lewine, POSIX programmer's guide.  O'Reilly.
+ *  Donald Lewine, POSIX programmer's guide.  O'Reilly.  
  */
 
 #if !defined(INCLUDED_CONFIG_H)
@@ -37,12 +37,11 @@
 /* Architecture attributes. */
 #undef BITS_32			/* 32-bit words */
 #undef BITS_64			/* 64-bit words */
-#undef ENDIAN_LITTLE		/* least significant byte at lowest address */
-#undef BIG_ENDIAN		/* most significant byte at lowest address */
+#undef ENDIAN_LITTLE		/* Least significant byte at lowest address */
+#undef BIG_ENDIAN		/* Most significant byte at lowest address */
 #undef EXPLICIT_DIVZ_CHECK      /* Explicit check for integer division by zero.
 				   Some systems, like the PPC, do not trap
-				   integer division by zero.
-				   */
+				   integer division by zero. */
 #undef FLUSH_ALWAYS             /* Set to 1 to force icache flushing */
 #undef FLUSH_NEVER              /* Set to 1 to disable icache flushing */
 
@@ -78,9 +77,8 @@
    bug workarounds, or other weirdness.
    */
 #undef CODEWARRIOR              /* Metrowerks Codewarrior extensions */
-#undef DEC_ALPHA_32BIT		/* DEC Alpha, in 32-bit mode.  Needed to
-				   cope with some mixed-word-length weirdness.
-				*/
+#undef DEC_ALPHA_32BIT		/* DEC Alpha, in 32-bit mode.  Needed to cope
+				   with some mixed-word-length weirdness. */
 #undef NO_ATOMIC_ALLOCATION     /* BDW collector: do not allocate bytevectors
 				   specially (not recommended in general) */
 #undef GCLIB_LARGE_TABLE        /* Wizards only */
@@ -104,7 +102,7 @@
 /* Define those symbols from the above set that correspond to the 
    system you're building.  You can define the type of signal handling 
    facilities here, but if you don't, then the condition nest below will
-   guess based on the operating system you've selected.  
+   make a guess based on the operating system you've selected.  
 
    For Petit Larceny, selecting the precise operating system is not
    crucial; for example, POSIX_UNIX or BSD_UNIX will work OK on
@@ -115,7 +113,7 @@
 
 /* Here are some sets of settings that work for me. */
 
-/* Sparc Solaris (2.5 and better, at least); native. */
+/* Sun/SPARC Solaris (2.5 and better, at least); native. */
 #define SPARC                     1
 #define SUNOS5                    1
 #define BITS_32                   1
@@ -138,7 +136,7 @@
 #define STACK_UNDERFLOW_COUNTING  1
 */
 
-/* Dec OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
+/* DEC OSF/1 4.0 on DEC Alpha, at least (Petit Larceny);
    running in 32-bit mode on 64-bit platform.
 #define PETIT_LARCENY             1
 #define BITS_32                   1
@@ -205,12 +203,12 @@
 #  error "You need to select an endian-ness"
 #endif
 
-#if !defined(DATE)
+#if !defined(DATE)		/* Defined by Makefile on some systems */
 #  define DATE "now"
 #endif
 
-#if !defined(USER)
-#  define USER "superuser"
+#if !defined(USER)		/* Defined by Makefile on some systems */
+#  define USER "user"
 #endif
 
 #endif  /* INCLUDED_CONFIG_H */
