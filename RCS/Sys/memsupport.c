@@ -2,7 +2,7 @@
  * Larceny Runtime System.
  * Memory management system support code.
  *
- * $Id: memsupport.c,v 1.15 1992/05/18 05:11:30 lth Exp lth $
+ * $Id: memsupport.c,v 1.16 1992/06/10 09:06:07 lth Exp lth $
  *
  * The procedures in here initialize the memory system, perform tasks 
  * associated with garbage collection, and manipulate the stack cache.
@@ -137,6 +137,8 @@ word n;
   set_memstat( MEMSTAT_TIME_SPENT_COLLECTING, 
 	       memstat( MEMSTAT_TIME_SPENT_COLLECTING ) 
 	     + fixnum( after - before ) );
+  set_memstat( MEMSTAT_TIME_LAST_COLLECTION,
+	      fixnum( after - before ) );
 }
 
 
@@ -371,7 +373,7 @@ int requested_type;
   word before, after, tsize, esize, tsize2, esize2, copied, allocated;
   word collected, allocated_hi, allocated_lo, collected_hi, collected_lo;
   word copied_hi, copied_lo;
-  word old_e_size;
+  word old_e_size, old_trans;
 
   if (globals[ DEBUGLEVEL_OFFSET ]) {
     printf( "garbage collection commencing, requested type %d\n", 
@@ -381,6 +383,7 @@ int requested_type;
 
   must_tenure = memstat( MEMSTAT_MUST_TENURE ) == TRUE_CONST;
   old_e_size = memstat( MEMSTAT_ESIZE_AFTER_LAST );
+  old_trans = memstat( MEMSTAT_TRANSACTIONS_AFTER_LAST );
   tsize = globals[ T_TOP_OFFSET ] - globals[ T_BASE_OFFSET ];
   esize = globals[ E_TOP_OFFSET ] - globals[ E_BASE_OFFSET ];
 

@@ -1,7 +1,7 @@
 ; Larceny runtime library.
 ; Memory management support stuff in Scheme.
 ;
-; $Id$
+; $Id: memstats.sch,v 1.1 1992/05/15 22:29:53 lth Exp lth $
 ;
 ; Memory statistics is maintained by the parts of the system written in C,
 ; but the storage for the statistics is all in the Scheme heap. In order to
@@ -28,12 +28,16 @@
 ;  9: time-spent-collecting-in-milliseconds (fixnum)
 ; 10: the number of used words in the ephemeral area after last collection (fn)
 ; 11: a boolean: must we tenure during the next ephemeral collection?
+; 12: time-spent-in-last-collection-in-milliseconds (fixnum)
+; 13: total-transactions-scanned (fixnum)
+; 14: total-transactions-entered (fixnum) (#13 >= #14)
+; 15: transactions-left-after-last (fixnum)
 ;
 ; Some entries have a high and a low part so that the low levels of the system
 ; do not have to use bignums to keep the counts.
 
 (define (install-memstats-vector)
-  (set! memstats-vector (make-vector 12 0)))
+  (set! memstats-vector (make-vector 16 0)))
 
 ; This procedure is the only reasonable way to access the memstats vector. 
 ; It coalesces the split values in the vector and returns a vector with
@@ -51,7 +55,10 @@
 		 (vector-ref memstats-vector 6))
 	      (+ (* (vector-ref memstats-vector 7) two^29)
 		 (vector-ref memstats-vector 8))
-	      (vector-ref memstats-vector 9)))))
+	      (vector-ref memstats-vector 9)
+	      (vector-ref memstats-vector 12)
+	      (vector-ref memstats-vector 13)
+	      (vector-ref memstats-vector 14)))))
 
 ; Takes a vector as returned from memstats and displays it with useful
 ; labels.
@@ -64,7 +71,12 @@
   (display "Words allocated: ") (display (vector-ref v 4)) (newline)
   (display "Words copied: ") (display (vector-ref v 5)) (newline)
   (display "Time spent in collector: ") (display (vector-ref v 6)) 
-  (display " ms") (newline))
+  (display " ms") (newline)
+  (display "Time spent in last collection: ") (display (vector-ref v 7))
+  (display " ms") (newline)
+  (display "Transactions scanned: ") (display (Vector-ref v 8)) (newline)
+  (display "Transactions registered: ") (display (vector-ref v 9)) (newline)
+  #t)
 
 ; Run a thunk and print out stats afterwards about how long it took and
 ; how much memory was used. This is accurate only if a collection is performed
@@ -83,7 +95,10 @@
 	    (- (vector-ref s2 3) (vector-ref s1 3))
 	    (- (vector-ref s2 4) (vector-ref s1 4))
 	    (- (vector-ref s2 5) (vector-ref s1 5))
-	    (- (vector-ref s2 6) (vector-ref s1 6))))
+	    (- (vector-ref s2 6) (vector-ref s1 6))
+	    (- (vector-ref s2 7) (vector-ref s1 7))
+	    (- (vector-ref s2 8) (vector-ref s1 8))
+	    (- (vector-ref s2 9) (vector-ref s1 9))))
   
   (let* ((s1 (memstats))   ; should be (begin (collect 'ephemeral) (memstats))
 	 (t1 (getrusage))
@@ -93,15 +108,5 @@
     (display "Time: ") (display (- t2 t1)) (display " ms") (newline)
     (display-memstats (munge-stats s1 s2))
     r))
-
-; Invokes the collector. Sys$collect is a primop which hooks directly into the
-; collector.
-
-(define (collect type)
-  (case type
-    ((ephemeral) (sys$collect 0))
-    ((tenuring)  (sys$collect -1))
-    ((full)      (sys$collect -2))
-    (else (error "collect: bad argument" type))))
 
 ; eof

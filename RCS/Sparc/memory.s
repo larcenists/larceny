@@ -4,7 +4,7 @@
 ! Assembly-language millicode routines for memory management.
 ! Sparc version.
 !
-! $Id: memory.s,v 1.23 1992/05/18 05:11:21 lth Exp lth $
+! $Id: memory.s,v 1.24 1992/06/10 09:05:54 lth Exp lth $
 !
 ! This file defines the following builtins:
 !

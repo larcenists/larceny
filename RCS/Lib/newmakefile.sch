@@ -3,7 +3,7 @@
 ;; Makefile to build an initial heap from the library files.
 ;; WARNING: This file is a mess.
 ;;
-;; $Id: makefile.sch,v 1.7 1992/05/18 05:07:23 lth Exp lth $
+;; $Id: newmakefile.sch,v 1.1 1992/06/10 09:35:28 lth Exp lth $
 ;;
 ;; USAGE:
 ;;
@@ -412,7 +412,7 @@
 		   (set! emit-undef-check? #t)
 		   (loop (cdr switches) others))
 		  ((eq? (car switches) 'no-transactions)
-		   (set! register-transactions-for-side-effect #f)
+		   (set! register-transactions-for-side-effects #f)
 		   (loop (cdr switches) others))
 		  ((string? (car switches))
 		   (loop (cdr switches) (cons (car switches) others)))

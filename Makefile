@@ -1,6 +1,6 @@
 # Makefile for Larceny
 #
-# $Id: Makefile,v 1.9 1992/05/18 05:10:31 lth Exp lth $
+# $Id: Makefile,v 1.10 1992/06/10 09:04:45 lth Exp lth $
 
 # Architecture-independent stuff
 SYS=Sys
