@@ -18,14 +18,29 @@
 #include "larceny-types.h"
 
 struct remset_stats {
-  unsigned ssb_recorded;     /* SSB entries recorded */
-  unsigned hash_recorded;    /* Hash table entries recorded */
-  unsigned hash_scanned;     /* Hash table entries scanned */
-  unsigned words_scanned;    /* Words of objects scanned for pointers */
-  unsigned hash_removed;     /* Hash table entries removed */
+  int      identity;            /* Identity of the remembered set */
+
+  /* Snapshot entries */
+  unsigned hash_allocated;	/* Hash table entries allocated */
+  unsigned pool_allocated;	/* Pool words allocated */
+  unsigned pool_used;		/* Pool words in use */
+  unsigned pool_live;		/* Nonzero pool words in use */
+  /* "Since last call" entries */
+  unsigned ssb_recorded;	/* SSB entries recorded */
+  unsigned hash_recorded;	/* Hash table entries recorded */
+  unsigned hash_scanned;	/* Hash table entries scanned */
+  unsigned words_scanned;	/* Words of objects scanned for pointers */
+  unsigned hash_removed;	/* Hash table entries removed */
+  unsigned cleared;		/* Number of times cleared */
+  unsigned scanned;		/* Number of times scanned */
+  unsigned compacted;		/* Number of times compacted */
 };
 
 struct remset {
+  int identity;
+    /* A positive integer that identifies this set uniquely.
+       */
+
   int live;
     /* Number of live entries in the set.  This is imprecise only
        when the SSB is non-empty.
