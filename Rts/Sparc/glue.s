@@ -33,6 +33,7 @@
 	.global	internal_retaddr2fixnum		! make retaddr relocatable
 	.global internal_fixnum2retaddr		! make retaddr absolute
 	.global internal_check_signals		! check Unix signals
+	.global dzero				! address of (double)0.0
 
 ! _scheme_start: Scheme VM entry point.
 !
