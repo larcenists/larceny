@@ -16,6 +16,7 @@
 	.global	EXTNAME(m_typetag_set)
 	.global	EXTNAME(m_eqv)
 	.global EXTNAME(m_partial_list2vector)
+	.global	EXTNAME(m_debugvsm)
 	.global	EXTNAME(m_break)
 	.global EXTNAME(m_singlestep)
 	.global	EXTNAME(m_timer_exception)
@@ -405,24 +406,46 @@ EXTNAME(m_bvlcmp):
 	ld	[ %GLOBALS+G_REG1 ], %REG1
 
 
-! _m_break: breakpoint handler.
+! _m_debugvsm: enter RTS debugger
 !
 ! Call from: Scheme
 ! Input:     Nothing
 ! Output:    Nothing
 ! Destroys:  Temporaries
 
-EXTNAME(m_break):
+EXTNAME(m_debugvsm):
 	ld	[ %GLOBALS + G_BREAKPT_ENABLE ], %TMP0
 	cmp	%TMP0, TRUE_CONST
-	be,a	Lbreak1
+	be,a	Ldebugvsm1
 	nop
 	jmp	%o7+8
 	nop
-Lbreak1:
-	set	EXTNAME(C_break), %TMP0
+Ldebugvsm1:
+	set	EXTNAME(C_debugvsm), %TMP0
 	b	callout_to_C
 	nop
+
+! _m_break: Signal a breakpoint from compiled Scheme code.
+!
+! Call from: Scheme
+! Input:     Nothing
+! Output:    Nothing
+! Destroys:  RESULT, ARGREG2, ARGREG3, temporaries
+!
+! Passes two arguments: the procedure and the byte offset in the code vector
+! that the handler will return to.
+
+EXTNAME(m_break):
+	st	%o7, [ %GLOBALS + G_RETADDR ]	! save Scheme return address
+	mov	%o7, %TMP0			! convert Scheme return
+	call	internal_retaddr2fixnum		!   address
+	nop					!      to fixnum
+	mov	%TMP0, %ARGREG2			! pass address to handler
+	sll	%ARGREG2, 2, %ARGREG2		!   converting words to bytes
+	ld	[ %GLOBALS + G_RETADDR ], %o7	! restore Scheme return address
+	mov	%REG0, %RESULT			! pass procedure to handler
+	b	EXTNAME(m_exception)		! signal the
+	set	EX_BREAKPOINT, %TMP0		!   breakpoint
 
 
 ! _m_singlestep: singlestep handler.
