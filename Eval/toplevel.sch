@@ -1,7 +1,8 @@
-; -*- scheme -*-
+; Copyright 1998 Lars T Hansen.
+;
 ; $Id$
 ;
-; Larceny run-time system: The top-level environment.
+; The interpreter's top-level environment.
 
 ($$trace "toplevel")
 

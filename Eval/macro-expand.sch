@@ -1,7 +1,8 @@
-; Eval/macro-expand.sch
-; Larceny -- interpreter's macro expander
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Simple macro expander for the interpreter.
 ;
 ; USAGE
 ;   (macro-expand <expr>)

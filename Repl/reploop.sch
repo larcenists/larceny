@@ -1,7 +1,8 @@
-; Repl/reploop.sch
-; Larceny -- read-eval-print loop and error handler.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Read-eval-print loop and error handler.
 
 ; User-accessible parameter procedures:
 ;

@@ -1,7 +1,8 @@
-; Eval/eval.sch
-; Larceny -- fast interpreter.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny's interpreter.
 ;
 ; Description
 ;   `Eval' takes an expression and optionally an R5RS environment and

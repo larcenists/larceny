@@ -1,3 +1,9 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Larceny's interpreter: primitives.
+
 ; Invoking primitives that take 1 argument.  The primitive procedures
 ; could usefully be defined using a macro.
 
