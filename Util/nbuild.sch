@@ -2,8 +2,8 @@
 ;
 ; $Id$
 ;
-; 29 April 1999 / wdc
-;
+; 23 August 1999 / lth
+; 
 ; Host-independent loader for the development system.
 ;
 ; The only parameter to this module is a procedure "nbuild-parameter"
@@ -31,7 +31,8 @@
 ;
 ; There might be other keys used by the compatibility packages.
 
-(load (make-relative-filename "Util" "nbuild-files.sch")) 
+(load (make-filename (nbuild-parameter 'util) "nbuild-files.sch"))
+
 ; File lists and procedures
 
 (define (writeln . x)
