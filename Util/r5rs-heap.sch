@@ -6,9 +6,9 @@
 
 (load "Auxlib/pp.fasl")
 (repl-printer
- (lambda (x)
+ (lambda (x port)
    (if (not (eq? x (unspecified)))
-       (pretty-print x))))
+       (pretty-print x port))))
 
 (dump-interactive-heap "r5rs.heap")
 (system "./larceny.bin -reorganize-and-dump r5rs.heap")
