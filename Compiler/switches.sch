@@ -65,8 +65,29 @@
 
 ; Major optimizations.
 
-(define integrate-usual-procedures
-  (make-twobit-flag 'integrate-usual-procedures))
+(define integrate-procedures
+  (let ((state 'larceny))
+
+    (define (twobit-warning)
+      (display "Error: incorrect arguments to integrate-procedures")
+      (newline)
+      (reset))
+
+    (lambda args
+      (cond ((null? args) state)
+            ((null? (cdr args))
+             (case (car args)
+               ((#t larceny) (set! state 'larceny) state)
+               ((#f none)    (set! state 'none) state)
+               ((r4rs r5rs)  (set! state (car args)) state)
+               ((display)    (display "  = integrate-procedures is \"")
+                             (display state)
+                             (display "\"")
+                             (newline))
+               (else
+                (twobit-warning))))
+            (else
+             (twobit-warning))))))
 
 (define control-optimization
   (make-twobit-flag 'control-optimization))
@@ -111,12 +132,71 @@
 (define lambda-optimizations lambda-optimization)
 (define local-optimizations local-optimization)
 
+; meta-switches
+
+(define (twobit-global-optimization-flags)
+  (let ((g.o   (global-optimization))
+        (i.i   (interprocedural-inlining))
+        (i.c.p (interprocedural-constant-propagation))
+        (c.s.e (common-subexpression-elimination))
+        (r.i   (representation-inference)))
+    (lambda ()
+      (global-optimization g.o)
+      (interprocedural-inlining i.i)
+      (interprocedural-constant-propagation i.c.p)
+      (common-subexpression-elimination c.s.e)
+      (representation-inference r.i))))
+
+(define (twobit-runtime-safety-flags)
+  (lambda ()
+    #t))
+
+(define (twobit-all-flags)
+  (let ((i.w   (issue-warnings))
+        (i.s.c (include-source-code))
+        (i.v.n (include-variable-names))
+        (i.p.n (include-procedure-names))
+        (a.s.l (avoid-space-leaks))
+        (i.p   (integrate-procedures))
+        (c.o   (control-optimization))
+        (p.a.o (parallel-assignment-optimization))
+        (la.o   (lambda-optimization))
+        (b.m   (benchmark-mode))
+        (b.b.m (benchmark-block-mode))
+        (g.o   (global-optimization))
+        (i.i   (interprocedural-inlining))
+        (i.c.p (interprocedural-constant-propagation))
+        (c.s.e (common-subexpression-elimination))
+        (r.i   (representation-inference))
+        (lo.o   (local-optimization)))
+    (lambda ()
+      (issue-warnings i.w)
+      (include-source-code i.s.c)
+      (include-variable-names i.v.n)
+      (include-procedure-names i.p.n)
+      (avoid-space-leaks a.s.l)
+      (integrate-procedures i.p)
+      (control-optimization c.o)
+      (parallel-assignment-optimization p.a.o)
+      (lambda-optimization la.o)
+      (benchmark-mode b.m)
+      (benchmark-block-mode b.b.m)
+      (global-optimization g.o)
+      (interprocedural-inlining i.i)
+      (interprocedural-constant-propagation i.c.p)
+      (common-subexpression-elimination c.s.e)
+      (representation-inference r.i)
+      (local-optimization lo.o))))
+
+
+; Control
+
 (define (set-compiler-flags! how)
   (case how
     ((no-optimization)
      (set-compiler-flags! 'standard)
      (avoid-space-leaks #t)
-     (integrate-usual-procedures #f)
+     (integrate-procedures 'none)
      (control-optimization #f)
      (parallel-assignment-optimization #f)
      (lambda-optimization #f)
@@ -135,7 +215,7 @@
      (include-variable-names #t)
      (avoid-space-leaks #f)
      (runtime-safety-checking #t)
-     (integrate-usual-procedures #f)
+     (integrate-procedures 'none)
      (control-optimization #t)
      (parallel-assignment-optimization #t)
      (lambda-optimization #t)
@@ -150,7 +230,7 @@
     ((fast-safe)
      (let ((bbmode (benchmark-block-mode)))
        (set-compiler-flags! 'standard)
-       (integrate-usual-procedures #t)
+       (integrate-procedures 'larceny)
        (benchmark-mode #t)
        (benchmark-block-mode bbmode)))
     ((fast-unsafe) 
@@ -169,7 +249,7 @@
     ((safety)
      (display-twobit-flag avoid-space-leaks))
     ((optimization)
-     (display-twobit-flag integrate-usual-procedures)
+     (display-twobit-flag integrate-procedures)
      (display-twobit-flag control-optimization)
      (display-twobit-flag parallel-assignment-optimization)
      (display-twobit-flag lambda-optimization)
