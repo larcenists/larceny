@@ -193,4 +193,14 @@ char *strdup( const char *s )
 }
 #endif /* !defined(HAVE_STRDUP) */
 
+#if !defined(HAVE_HRTIME_T)
+/* The resolution of gethrtime() is nanoseconds.
+   Constraint: If x = gethrtime(); y = gethrtime() then x <= y _always_.
+   */
+hrtime_t gethrtime( void )
+{
+  return 0;			/* Hey, it's portable! */
+}
+#endif
+
 /* eof */
