@@ -29,8 +29,8 @@ namespace Scheme.RT {
             case 0: // get type
             {
                 string name = ((SByteVL)arg1).asString();
-                Type t = Type.GetType(name);
-                Reg.Result = Factory.makeForeignF(t);
+	        // case insensitive
+                Reg.Result = Factory.makeForeignF (Type.GetType (name, false, true));
                 return;
             }
             case 1: // get method
@@ -330,14 +330,11 @@ namespace Scheme.RT {
                     }
                 }
                 case 5: { // int
-                    if (value is int) {
-                        return Factory.makeNumber((int)value);
-                    } else if (value is long) {
-                        return Factory.makeNumber((long) value);
-                    } else {
-                        Exn.error("foreign->datum (int): not an integer");
-                        return Factory.Impossible;
-                    }
+                    if (value is Enum) return Factory.makeNumber ((int) value);
+                    if (value is int) return Factory.makeNumber ((int) value);
+                    if (value is long) return Factory.makeNumber ((long) value);
+                    Exn.error("foreign->datum (int): not an integer");
+                    return Factory.Impossible;
                 }
                 case 6: { // float
                     if (value is float) {
