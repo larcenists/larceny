@@ -6,7 +6,6 @@
 ;
 ; compile313 -- compilation parameters and driver procedures.
 
-
 ; File types -- these may differ between operating systems.
 
 (define *scheme-file-types* '(".sch" ".scm"))
@@ -28,25 +27,30 @@
                                   *fasl-file-type*)))
           (user
            (assembly-user-data)))
-      (if (and (not (integrate-usual-procedures))
+      (if (and (eq? (integrate-procedures) 'none)
                (issue-warnings))
           (begin 
             (display "WARNING from compiler: ")
-            (display "integrate-usual-procedures is turned off")
+            (display "integrate-procedures = none")
             (newline)
             (display "Performance is likely to be poor.")
             (newline)))
-      (if (benchmark-block-mode)
-          (process-file-block infilename
-                              outfilename
-                              dump-fasl-segment-to-port
-                              (lambda (forms)
-                                (assemble (compile-block forms) user)))
-          (process-file infilename
-                        outfilename
-                        dump-fasl-segment-to-port
-                        (lambda (expr)
-                          (assemble (compile expr) user))))
+      (let ((syntaxenv
+             (syntactic-copy
+              (environment-syntax-environment
+               (interaction-environment)))))
+        (if (benchmark-block-mode)
+            (process-file-block infilename
+                                outfilename
+                                dump-fasl-segment-to-port
+                                (lambda (forms)
+                                  (assemble (compile-block forms syntaxenv) 
+                                            user)))
+            (process-file infilename
+                          outfilename
+                          dump-fasl-segment-to-port
+                          (lambda (expr)
+                            (assemble (compile expr syntaxenv) user)))))
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
@@ -81,52 +85,13 @@
 
 ; Compile and assemble a single expression; return the LOP segment.
 
-(define compile-expression
-  (let ()
-    
-    (define (compile-expression expr env)
-      (let ((syntax-env
-             (case (environment-tag env)
-               ((0 1) (make-standard-syntactic-environment))
-               ((2)   global-syntactic-environment)
-               (else  
-                (error "Invalid environment for compile-expression: " env)
-                #t))))
-        (let ((current-env global-syntactic-environment))
-          (dynamic-wind
-           (lambda ()
-             (set! global-syntactic-environment syntax-env))
-           (lambda ()
-             (assemble (compile expr)))
-           (lambda ()
-             (set! global-syntactic-environment current-env))))))
-    
-    compile-expression))
+(define (compile-expression expr env)
+  (assemble 
+   (compile expr (environment-syntax-environment env))))
 
-
-(define macro-expand-expression
-  (let ()
-    
-    (define (macro-expand-expression expr env)
-      (let ((syntax-env
-             (case (environment-tag env)
-               ((0 1) (make-standard-syntactic-environment))
-               ((2)   global-syntactic-environment)
-               (else  
-                (error "Invalid environment for compile-expression: " env)
-                #t))))
-        (let ((current-env global-syntactic-environment))
-          (dynamic-wind
-           (lambda ()
-             (set! global-syntactic-environment syntax-env))
-           (lambda ()
-             (make-readable
-              (macro-expand expr)))
-           (lambda ()
-             (set! global-syntactic-environment current-env))))))
-    
-    macro-expand-expression))
-
+(define (macro-expand-expression expr env)
+  (make-readable 
+   (macro-expand expr (environment-syntax-environment env))))
 
 ; Compile a scheme source file to a LAP file.
 
@@ -142,9 +107,17 @@
            (write item port)
            (newline port)
            (newline port))))
-    (if (benchmark-block-mode)
-        (process-file-block infilename outfilename write-lap compile-block)
-        (process-file infilename outfilename write-lap compile))
+    (let ((syntaxenv
+           (syntactic-copy
+            (environment-syntax-environment
+             (interaction-environment)))))
+      (if (benchmark-block-mode)
+          (process-file-block infilename outfilename write-lap 
+                              (lambda (x)
+                                (compile-block x syntaxenv)))
+          (process-file infilename outfilename write-lap 
+                        (lambda (x)
+                          (compile x syntaxenv)))))
     (unspecified)))
 
 
@@ -179,15 +152,20 @@
                                 *lop-file-type*)))
         (user
          (assembly-user-data)))
-    (if (benchmark-block-mode)
-        (process-file-block input-file
-                            output-file
-                            write-lop
-                            (lambda (x) (assemble (compile-block x) user)))
-        (process-file input-file
-                      output-file
-                      write-lop
-                      (lambda (x) (assemble (compile x) user))))
+    (let ((syntaxenv
+           (syntactic-copy
+            (environment-syntax-environment
+             (interaction-environment)))))
+      (if (benchmark-block-mode)
+          (process-file-block input-file
+                              output-file
+                              write-lop
+                              (lambda (x) (assemble (compile-block x syntaxenv)
+                                                    user)))
+          (process-file input-file
+                        output-file
+                        write-lop
+                        (lambda (x) (assemble (compile x syntaxenv) user)))))
     (unspecified)))
 
 
@@ -350,31 +328,72 @@
         (else
          (error "Too many arguments to compiler-switches."))))
 
+; Meta-switches
+; Accept a previously returned value as well as the symbol IGNORE, which 
+; is ignored and facilitates use with PARAMETERIZE.
+
+(define (global-optimization-flags . args)
+  (cond ((null? args)
+         (let ((t.g.o (twobit-global-optimization-flags))
+               (a.g.o (assembler-global-optimization-flags)))
+           (lambda ()
+             (t.g.o)
+             (a.g.o))))
+        ((null? (cdr args))
+         (if (not (eq? (car args) 'ignore))
+             ((car args)))
+         (car args))
+        (else
+         (display "Error: incorrect arguments to global-optimization-flags")
+         (newline)
+         (reset))))
+
+(define (runtime-safety-flags . args)
+  (cond ((null? args)
+         (let ((t.r.s (twobit-runtime-safety-flags))
+               (a.r.s (assembler-runtime-safety-flags)))
+           (lambda ()
+             (t.r.s)
+             (a.r.s))))
+        ((null? (cdr args))
+         (if (not (eq? (car args) 'ignore))
+             ((car args)))
+         (car args))
+        (else
+         (display "Error: incorrect arguments to runtime-safety-flags")
+         (newline)
+         (reset))))
+                 
+(define (compiler-flags . args)
+  (cond ((null? args)
+         (let ((t.a.f (twobit-all-flags))
+               (a.a.f (assembler-all-flags)))
+           (lambda ()
+             (t.a.f)
+             (a.a.f))))
+        ((null? (cdr args))
+         (if (not (eq? (car args) 'ignore))
+             ((car args)))
+         (car args))
+        (else
+         (display "Error: incorrect arguments to compiler-flags")
+         (newline)
+         (reset))))
+
+
 ; Read and process one file, producing another.
-; Preserves the global syntactic environment.
 
 (define (process-file infilename outfilename writer processer)
-  (define (doit)
-    (delete-file outfilename)
-    (call-with-output-file
-     outfilename
-     (lambda (outport)
-       (call-with-input-file
-        infilename
+  (delete-file outfilename)
+  (call-with-output-file outfilename
+    (lambda (outport)
+      (call-with-input-file infilename
         (lambda (inport)
           (let loop ((x (read inport)))
             (if (eof-object? x)
                 #t
                 (begin (writer (processer x) outport)
                        (loop (read inport))))))))))
-  (let ((current-syntactic-environment
-         (syntactic-copy global-syntactic-environment)))
-    (dynamic-wind
-     (lambda () #t)
-     (lambda () (doit))
-     (lambda ()
-       (set! global-syntactic-environment
-             current-syntactic-environment)))))
 
 ; Same as above, but passes a list of the entire file's contents
 ; to the processer.
@@ -382,27 +401,15 @@
 ; Shouldn't it be left alone if the input file can't be opened?
 
 (define (process-file-block infilename outfilename writer processer)
-  (define (doit)
-    (delete-file outfilename)
-    (call-with-output-file
-     outfilename
-     (lambda (outport)
-       (call-with-input-file
-        infilename
+  (delete-file outfilename)
+  (call-with-output-file outfilename
+    (lambda (outport)
+      (call-with-input-file infilename
         (lambda (inport)
           (do ((x (read inport) (read inport))
                (forms '() (cons x forms)))
               ((eof-object? x)
                (writer (processer (reverse forms)) outport))))))))
-  (let ((current-syntactic-environment
-         (syntactic-copy global-syntactic-environment)))
-    (dynamic-wind
-     (lambda () #t)
-     (lambda () (doit))
-     (lambda ()
-       (set! global-syntactic-environment
-             current-syntactic-environment)))))
-
 
 ; Given a file name with some type, produce another with some other type.
 
