@@ -13,11 +13,16 @@
 
 (define arity-at-least-value cdr)
 
+(define (arity-plus arity n)
+  (cond ((number? arity) (+ arity n))
+        ((arity-at-least? arity) (make-arity-at-least (+ (arity-at-least-value arity) n)))
+        (else (error "arity-plus: not an arity" arity))))
+
 ; taken from slib/comlist.scm
 ; modified to check only up to the
 ; length of the shortest list.
-
-(define (every pred l . rest)
+; The -ct suffix means `co-truncate'
+(define (every-ct pred l . rest)
 
   (define (every-n cars cdrs lists)
     (cond ((pair? lists) (cond ((pair? (car lists)) (every-n (cons (caar lists) cars)
@@ -76,12 +81,6 @@
   (and (symbol? thing)
        (colon-prefix? thing)))
 
-(define (last l)
-  (car (last-pair l)))
-
-(define (set-last! l x)
-  (set-car! (last-pair l) x))
-
 (define (mapadd f l last)
   (define (helper l)
     (cond ((pair? l) (cons (f (car l)) (helper (cdr l))))
@@ -89,24 +88,4 @@
           (else (error "MAPADD:  Improper list:  " l))))
   (helper l))
 
-(define (mappend f . ls)
-  (apply append (apply map f ls)))
 
-(define (mappend! f . ls)
-  (apply append! (apply map f ls)))
-
-(define (some pred l . rest)
-
-  (define (some-n cars cdrs lists)
-    (cond ((pair? lists) (cond ((pair? (car lists)) (some-n (cons (caar list) cars)
-                                                            (cons (cdar list) cdrs)
-                                                            (cdr list)))
-                               ((null? (car lists)) #f)
-                               (else (error "SOME:  Improper list" (car lists)))))
-          ((null? lists) (or (apply pred (reverse! cars))
-                             (some-n '() '() (reverse! cdrs))))
-          (else (error "SOME:  Improper list" lists))))
-
-  (if (pair? rest)
-      (some-n '() '() (cons l rest))
-      (some? pred l)))
