@@ -65,8 +65,12 @@
 	    "Rts/Build/schdefs.h")
   (load "features.sch"))
 
-(define (build-runtime-system)
+(define build-heap make-petit-heap)
+
+(define (build-runtime)
   (execute-in-directory "Rts" "make libpetit.a"))
+
+(define build-runtime-system build-runtime)  ; Old name
 
 (define (build-executable)
   (build-application "petit" '()))
@@ -94,12 +98,14 @@
 		((string=? os-name "SunOS")   '("-lm -ldl"))
 		(else                         '("-lm -ldl"))))))
 
-(define (remove-rts-objects)
+(define (remove-runtime-objects)
   (system "rm -f Rts/libpetit.a")
   (system "rm -f Rts/Sys/*.o")
   (system "rm -f Rts/Standard-C/*.o")
   (system "rm -f Rts/Build/*.o")
   #t)
+
+(define remove-rts-objects remove-runtime-objects)  ; Old name
 
 (define (remove-heap-objects . extensions)
   (let ((ext   '("o" "c" "lap" "lop"))

@@ -78,8 +78,12 @@
 			(write-char c out)))))
 		input-files))))
 
-(define (build-runtime-system)
+(define build-heap make-petit-heap)
+
+(define (build-runtime)
   (execute-in-directory "Rts" "nmake petit-rts.lib"))
+
+(define build-runtime-system build-runtime) ; Old name
 
 (define (build-executable)
   (build-application "petit.exe" '()))
@@ -110,13 +114,15 @@
       (load "Util\\Configurations\\load-twobit-C-el-win32-larceny.sch")
       (load "Util\\Configurations\\load-twobit-C-el-win32-petite.sch")))
 
-(define (remove-rts-objects)
+(define (remove-runtime-objects)
   (system "del Rts\\petit-rts.lib")
   (system "del Rts\\vc60.pdb")
   (system "del Rts\\Sys\\*.obj")
   (system "del Rts\\Standard-C\\*.obj")
   (system "del Rts\\Build\\*.obj")
   #t)
+
+(define remove-rts-objects remove-runtime-objects) ; Old name
 
 (define (remove-heap-objects . extensions)
   (let ((ext   '("obj" "c" "lap" "lop"))

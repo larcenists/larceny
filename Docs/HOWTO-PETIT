@@ -56,14 +56,14 @@ which is why it is a separate step):
 and then build the heap image, the runtime system, and finally the
 executable:
 
-    > (make-petit-heap)
-    > (build-runtime-system)
+    > (build-heap)
+    > (build-runtime)
     > (build-executable)
 
 Other useful commands are:
 
-    > (remove-heap-objects)   ; removes generated files (LAP, LOP, C, OBJ)
-    > (remove-rts-objects)    ; removes OBJ files in the Rts tree
+    > (remove-heap-objects)     ; removes generated files (LAP, LOP, C, OBJ)
+    > (remove-runtime-objects)  ; removes OBJ files in the Rts/ tree
 
 It is also possible to create an application that contains more
 compiled code than the standard heap image.  In this case, the object

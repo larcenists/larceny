@@ -59,8 +59,12 @@
 	    "Rts/Build/schdefs.h")
   (load "features.sch"))
 
-(define (build-runtime-system)
+(define build-heap make-petit-heap)	     ; Defined in Lib/makefile.sch
+
+(define (build-runtime)
   (execute-in-directory "Rts" "make libpetit.a"))
+
+(define build-runtime-system build-runtime)  ; Old name
 
 (define (build-executable)
   (build-application "petit" '()))
@@ -76,12 +80,14 @@
 	'("/usr/lib/libm.a" "/usr/lib/libdl.a"))
   (unspecified))
 
-(define (remove-rts-objects)
+(define (remove-runtime-objects)
   (system "rm -f Rts/libpetit.a")
   (system "rm -f Rts/Sys/*.o")
   (system "rm -f Rts/Standard-C/*.o")
   (system "rm -f Rts/Build/*.o")
   #t)
+
+(define remove-rts-objects remove-runtime-objects)  ; old name
 
 (define (remove-heap-objects . extensions)
   (let ((ext   '("o" "c" "lap" "lop"))
