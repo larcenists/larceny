@@ -7,12 +7,15 @@
 
 ## Win32 (.NET SDK)
 CSC = csc
+DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS
 
 ## MacOS X (Rotor)
-#CSC = csc /d:USING_ROTOR /d:BIG_ENDIAN
+#CSC = csc
+#DEFINES = /d:USING_ROTOR /d:BIG_ENDIAN
 
 ## Solaris & MacOS X (Mono)
-#CSC = mcs /d:BIG_ENDIAN
+#CSC = mcs
+#DEFINES = /d:BIG_ENDIAN
 
 ## Linux (Mono)
 #CSC = mcs
@@ -40,7 +43,7 @@ SRCS =	Call.cs \
 	Load.cs \
 	FFI.cs
 
-DEBUG_OPT = /warn:4 /debug:full /d:DEBUG
+DEBUG_OPT = /checked+ /warn:4 /debug:full /d:DEBUG
 #DEBUG_OPT =
 
 OUTFILE = Scheme.dll
@@ -51,13 +54,10 @@ clean :
 	rm Scheme.dll DynLoad.exe
 
 Scheme.dll : $(SRCS)
-	$(CSC) $(INLINE_OPT) $(DEBUG_OPT) /target:library /out:Scheme.dll $(SRCS) $(ISH_SRC)
+	$(CSC) $(INLINE_OPT) $(DEBUG_OPT) $(DEFINES) /target:library /out:Scheme.dll $(SRCS) $(ISH_SRC)
 
 DynLoad.exe : DynLoad.cs
-	$(CSC) /target:winexe $(INLINE_OPT) $(DEBUG_OPT) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs
+	$(CSC) /target:winexe $(INLINE_OPT) $(DEBUG_OPT) $(DEFINES) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs
 
 SchemeObject.cs : SchemeObject.cs.cpp Ops.h Ops_SObject.inc Ops_SImmediate.inc Ops_SFixnum.inc Ops_SChar.inc Ops_SVL.inc Ops_SByteVL.inc Ops_SPair.inc Ops_Procedure.inc
 	cpp -P -C -nostdinc SchemeObject.cs.cpp -o SchemeObject.cs
-
-FFI.cs : FFI.cs.cpp Macros.h
-	cpp -P -C -nostdinc FFI.cs.cpp -o FFI.cs
