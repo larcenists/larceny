@@ -8,13 +8,11 @@
 ;   <tag> ::= <symbol>
 ;   <descriptor> ::= <string>
 ;   <text> ::= ((<selector> ...) <string>)
-;   <selector> ::= brief | full
-;
-; 12 April 1999
+;   <selector> ::= brief | full | native | petit
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
-((brief full)
+((brief full native)
 "(compile-file <schemefile>)
 (compile-file <schemefile> <outputfile>)
   Compile the Scheme source file and produce a .fasl file.
@@ -23,14 +21,23 @@
 (assemble-file <asm-file> <outputfile>)
   Assemble the .lap or .mal source file and produce a .fasl file.
 ")
-((full)
+((brief full petit)
+"(compile-files (<schemefile> ...) <outputfile>)
+  Compile the Scheme source files and produce a .fasl file referencing
+  a native shared object; when the .fasl file is loaded, the shared
+  object is dynamically linked into Larceny.
+")
+((full native petit)
 "
 (compile313 <schemefile> &opt <outputfile>)
   Compile the Scheme source file and produce a .lap file.
 
 (assemble313 <lapfile> &opt <outputfile>)
   Assemble a .lap or .mal source file and produce a .lop file.
+")
 
+((full native)
+"
 (make-fasl <lopfile> &opt <outputfile>)
   Create a fast-load file (.fasl) from the object file.
 "))
@@ -80,7 +87,7 @@ Speed:
 Internal (development) switches:
   listify?                   Produce listing of MAL code.  (NOTE: a variable)
 ")
-((brief full)
+((brief full petit native)
 "
 The command (compiler-switches <flag>) sets groups of switches depending
 on the value of the symbol <flag>.  The flags are:
@@ -101,7 +108,7 @@ passing an argument as in (benchmark-mode #f).
 
 (disassembling
 "  disassembling      Disassembling compiled code."
-((brief full)
+((brief full native)
 "(disassemble <procedure>)
   Disassemble the code vector of the procedure, printing the instructions
   to the current output port.
@@ -111,11 +118,15 @@ passing an argument as in (benchmark-mode #f).
   Disassemble all code and constant vectors of the <inputfile>, which
   must be a .fasl or .lop format file, and print the disassembly listing
   on the current output port or to the given <outputfile>.
+")
+((brief full petit)
+"There are no disassembly operations in Petit Larceny.
 "))
+
   
 (general
 "  general            General information about file types etc."
-((brief full)
+((brief full petit native)
 "Scheme source files have extension .sch or .scm; these extensions
 are treated specially by the compiler. You may compile source files
 with extensions other than these, but the compiler will not replace
@@ -123,8 +134,7 @@ them with an object file extension, only append the object file
 extension to the file name.
 
 Compiled files in tokenized form have extension .lap, for \"Lisp
-Assembly Program\". Again, you can use others at the risk of having
-to type a lot.
+Assembly Program\".
 
 MacScheme assembly language files in symbolic form have extension
 .mal (for \"MacScheme Assembly Language\").
@@ -132,17 +142,18 @@ MacScheme assembly language files in symbolic form have extension
 Assembled files containing machine code segments have extension
 .lop (for \"Lisp Object Program\").
 
-Fast-load files containing machine code have extension .fasl, for
-\"Fast-Load\". These files contains special syntax which allow
-them to be read by Larceny's reader like any other file; there is
-no magic about the extension.
+Fast-load files containing machine code (or references to machine
+code in external object files or inside the executable) have
+extension .fasl, for \"Fast-Load\". These files contains special
+syntax which allow them to be read by Larceny's reader like any
+other file; there is nothing magic about the extension.
 
 Heap files usually have the extension .heap.
 "))
 
 (heaps
 "  heaps              Dumping heap images."
-((full)
+((full native)
 "A bootstrap heap image is created with the dump-heap procedure:
 
   (build-heap-image <heapname> <object-file-list>)
@@ -157,12 +168,28 @@ is typically more convenient:
 
 Beware that neither of these commands cleans up .lop files compiled
 for a different collector type; you should first 'make lopclean' from
-the Unix shell if you are building a heap of a kind different from
-the one you built last.  And if you have changed compiler switches,
-you should 'make libclean' from the Unix shell to remove both LAP and
-LOP files.
+the Unix shell if you are building a heap of a kind different from the
+one you built last.  And if you have changed compiler switches, you
+should 'make libclean' from the Unix shell to remove both LAP and LOP
+files.
 
 For details, see the file Lib/makefile.sch.
-"))
+")
+((full petit)
+"A bootstrap heap image is created with the BUILD-HEAP procedure:
+
+  (build-heap)
+
+This creates \"libpetit.a\" (or a similar library) in the current
+directory as well as the heap file, called \"petit.heap\".  The
+library must then be linked into an application using the
+BUILD-RUNTIME and BUILD-PETIT procedures:
+
+  (build-runtime)
+  (build-petit)
+
+resulting in an executable file called \"petit\" which is able to run
+the heap image in petit.heap.
+" ))
 
 ; eof

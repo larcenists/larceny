@@ -8,6 +8,7 @@
 
 (define *help-topics* #f)
 (define *help-mode* 'full)
+(define *system-mode* 'native)
 
 (define help.keyword car)
 (define help.description cadr)
@@ -23,7 +24,8 @@
   (define (select-texts topic)
     (let ((texts (help.texts topic)))
       (filter (lambda (text)
-		(memq *help-mode* (help.text.modes text)))
+		(and (memq *help-mode* (help.text.modes text))
+		     (memq *system-mode* (help.text.modes text))))
 	      texts)))
 
   (define (display-help-for keyword)
@@ -50,11 +52,9 @@
 	     (writeln "For help on any topic, type (help '<topic>)"))
       (display-help-for (car rest))))
 
-(define (initialize-help dir . rest)
-  (if (not (null? rest))
-      (if (memq (car rest) '(brief full))
-	  (set! *help-mode* (car rest))
-	  (error "Invalid help mode " (car rest))))
+(define (initialize-help dir help-mode system-mode)
+  (set! *help-mode* help-mode)
+  (set! *system-mode* system-mode)
   (set! *help-topics*
 	(call-with-input-file (string-append dir "help-topics.txt")
 	  (lambda (p)
