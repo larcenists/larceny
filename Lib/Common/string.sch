@@ -58,13 +58,13 @@
     (bytevector-set! tbl i 4))
 
   (let ((f (lambda (x)
-	     (let ((i (char->integer x)))
-	       (bytevector-set! tbl i 8)))))
-    (f #\space)				;
-    (f #\newline)			; Unix: LF  (code 10)
-    (f (integer->char 13))		; CR
-    (f (integer->char 9))		; TAB
-    (f (integer->char 12))		; Form feed
+             (let ((i (char->integer x)))
+               (bytevector-set! tbl i 8)))))
+    (f #\space)                         ;
+    (f #\newline)                       ; Unix: LF  (code 10)
+    (f (integer->char 13))              ; CR
+    (f (integer->char 9))               ; TAB
+    (f (integer->char 12))              ; Form feed
     )
 
   tbl)
@@ -119,7 +119,7 @@
   (lambda (x)
     (if (char-lower-case? x)
         (integer->char (- (char->integer x) 32))
-	x)))
+        x)))
 
 (define char-downcase
   (lambda (x)
@@ -131,9 +131,9 @@
 
   (define (loop i)
     (cond ((< i 0))
-	  ((char-ci=? (string-ref s1 i) (string-ref s2 i))
-	   (loop (- i 1)))
-	  (else #f)))
+          ((char-ci=? (string-ref s1 i) (string-ref s2 i))
+           (loop (- i 1)))
+          (else #f)))
 
   (if (= (string-length s1) (string-length s2))
       (loop (- (string-length s1) 1))
@@ -143,13 +143,13 @@
 
   (define (loop i limit)
     (cond ((= i limit)
-	   (< (string-length s1) (string-length s2)))
-	  ((char-ci<? (string-ref s1 i) (string-ref s2 i))
-	   #t)
-	  ((char-ci>? (string-ref s1 i) (string-ref s2 i))
-	   #f)
-	  (else
-	   (loop (+ i 1) limit))))
+           (< (string-length s1) (string-length s2)))
+          ((char-ci<? (string-ref s1 i) (string-ref s2 i))
+           #t)
+          ((char-ci>? (string-ref s1 i) (string-ref s2 i))
+           #f)
+          (else
+           (loop (+ i 1) limit))))
 
   (loop 0 (min (string-length s1) (string-length s2))))
 
@@ -198,17 +198,17 @@
   (concatenate-strings args)
 ;  (define (lengths args n)
 ;    (if (null? args)
-;	n
-;	(lengths (cdr args) (+ n (string-length (car args))))))
+;       n
+;       (lengths (cdr args) (+ n (string-length (car args))))))
 
 ;  (let* ((n (lengths args 0))
-;	 (s (make-bytevector n)))
+;        (s (make-bytevector n)))
 ;    (typetag-set! s sys$tag.string-typetag)
 ;    (do ((l args (cdr l))
-;	 (i 0    (+ i (string-length (car l)))))
-;	((null? l) s)
+;        (i 0    (+ i (string-length (car l)))))
+;       ((null? l) s)
 ;      (bytevector-like-copy-into! (car l) 0 (string-length (car l))
-;				  s i)))
+;                                 s i)))
   )
 
 (define (substring s m n)
@@ -220,9 +220,9 @@
 (define string-fill!
   (lambda (s c)
     (if (and (string? s) (char? c))
-	(bytevector-fill! s (char->integer c))
-	(begin (error "string-fill!: bad operands: " s " " c)
-	       #t))))
+        (bytevector-fill! s (char->integer c))
+        (begin (error "string-fill!: bad operands: " s " " c)
+               #t))))
 
 (define substring-fill!
   (lambda (s start end c)
@@ -234,7 +234,7 @@
 
 ;(define (make-string n . rest)
 ;  (let ((init (char->integer (if (null? rest) #\space (car rest))))
-;	(s    (make-bytevector n)))
+;       (s    (make-bytevector n)))
 ;    (bytevector-fill! s init)
 ;    (typetag-set! s sys$tag.string-typetag)
 ;    s))
@@ -273,15 +273,6 @@
 ;;;                                 (shift-right hash_n 2)
 ;;;                                 (string-ref string index)))
 ;;;
-;;; But the speed limiting factor (under dotnet) is not memory access,
-;;; but number of primitive operations per step.  Thus we precompute
-;;;  (+ (shift-left hash 5) (shift-right hash 2)) for the possible
-;;; hash codes and just fetch them from a table.
-;;;
-;;; Additionally, we want the hash code to be in the range [0 2^16).
-;;; To avoid a masking step, we limit the table entries to
-;;; [0 (2^16 - 256)) so that adding in a byte from the string always
-;;; leaves us with at most 16 bits.
 
 ;;; The end result is a > 25% speedup in hashing, and a better
 ;;; distribution of hash values.  (Hashing a set of words from a
@@ -290,7 +281,39 @@
 
 ; Returns a value in the range 0 .. 2^16-1 (a fixnum in Larceny).
 
-(define string-hash
+(define (string-hash string)
+
+  (define (string-hash-step code byte)
+    (logxor code
+            (logand #xFFFF
+                    (+ (lsh (logand code #x07FF) 5)
+                       (rshl code 2)
+                       byte))))
+
+  (define (string-hash-loop string limit i code)
+    (if (= i limit)
+        code
+        (string-hash-loop
+         string limit (+ i 1)
+         (string-hash-step code (bytevector-like-ref string i)))))
+
+  (let ((n (string-length string)))
+    (string-hash-loop string n 0 (logxor n #x5aa5))))
+
+;;; This version (commented out) trades space for speed.  The problem
+;;; is that fixnums take 16 bytes *each*, so keeping a shift table may
+;;; be too expensive space-wise.
+;;;
+;;; The speed limiting factor (under dotnet) is not memory access,
+;;; but number of primitive operations per step.  Thus we precompute
+;;;  (+ (shift-left hash 5) (shift-right hash 2)) for the possible
+;;; hash codes and just fetch them from a table.
+;;;
+;;; Additionally, we want the hash code to be in the range [0 2^16).
+;;; To avoid a masking step, we limit the table entries to
+;;; [0 (2^16 - 256)) so that adding in a byte from the string always
+;;; leaves us with at most 16 bits.
+'(define string-hash
   (let ((shift-table (make-vector 65536 0)))
 
     (define (string-hash-loop string limit i code)
@@ -307,6 +330,8 @@
         (string-hash-loop string n 0 (logxor n #x5aa5))))
 
     ;; C is zero every fourth time
+    ;; This computation is funky to avoid straying into bignum land,
+    ;; even briefly.
     (do ((c    0 (if (= c 3) 0 (+ c 1)))
          (sti  0 (+ sti 1))
          (stip 0 (if (= c 3)
@@ -324,10 +349,10 @@
 ;(define (string-hash string)
 ;  (define (loop s i h)
 ;    (if (< i 0)
-;	h
-;	(loop s
-;	      (- i 1)
-;	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+;       h
+;       (loop s
+;             (- i 1)
+;             (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
 ;  (let ((n (string-length string)))
 ;    (loop string (- n 1) n)))
 
@@ -400,7 +425,7 @@
 (define (string-compare name a b)
   (if (not (and (string? a) (string? b)))
       (begin (error name ": Operands must be strings: " a " " b)
-	     #t)
+             #t)
       (bytevector-like-compare a b)))
 
 
