@@ -107,11 +107,13 @@
 
 (define console-input-port-factory
   (system-parameter "console-input-port-factory" 
-                    console-io/console-input-port))
+                    console-io/console-input-port
+                    procedure?))
 
 (define console-output-port-factory
   (system-parameter "console-output-port-factory"
-                    console-io/console-output-port))
+                    console-io/console-output-port
+                    procedure?))
 
 (define (open-input-string s)
   (string-io/open-input-string s))
