@@ -4,7 +4,7 @@
 ; These support routines run under Chez Scheme and other implementations
 ; without native support for byte vectors.
 ;
-; $Id$
+; $Id: misc2bytevector.ss,v 1.1 92/01/31 16:47:04 lth Exp Locker: lth $
 
 ; Generic.
 
@@ -25,7 +25,7 @@
 ; SPARC specific.
 ;
 ; Bignums are bytevector-like with the sign in the first two bytes
-; (#x0000 for 0 or positive, #xFFFF for negative), followed by a digit
+; (0 for 0 or positive, 1 for negative), followed by a digit
 ; count (two bytes) and then base-2^32 digits in the next words.
 ; with the least significant word first.
 ;
@@ -53,7 +53,7 @@
 	(divide (quotient b two^32)
 		(cons (split-int (remainder b two^32)) l))))
 
-  (let* ((sign   (if (negative? b) '(#xFF #xFF) '(0 0)))
+  (let* ((sign   (if (negative? b) '(0 1) '(0 0)))
 	 (b      (abs b))
 	 (digits (divide b '()))
 	 (len    (quotient (length digits) 4))
