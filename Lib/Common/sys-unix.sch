@@ -171,6 +171,19 @@
       (error "osdep/system: " cmd " is not a string."))
   (syscall syscall:system cmd))
 
+(define (osdep/find-init-file)
+  (let ((init-file-name ".larceny"))
+    (cond ((file-exists? init-file-name)
+           init-file-name)
+          ((getenv "HOME")
+           => 
+           (lambda (home)
+             (let ((fn (string-append home "/" init-file-name)))
+               (if (file-exists? fn)
+                   fn
+                   #f))))
+          (else
+           #f))))
 
 ; RTS debugging utility function
 
