@@ -1174,7 +1174,14 @@
             (cond ((not generic-arity)
                    (%set-generic-arity! generic method-arity))
                   ;; note: equal? works on arity-at-least structs
-                  ((not (equal? generic-arity method-arity))
+                  ((equal? generic-arity method-arity) #t)
+                  ;; Ok if generic guarantees at least as much as method wants.
+                  ((and (arity-at-least? method-arity)
+                        (>= (if (arity-at-least? generic-arity)
+                                (arity-at-least-value generic-arity)
+                                generic-arity)
+                            (arity-at-least-value method-arity))) #t)
+                  (else
                    (error "ADD-METHOD: wrong arity for `~e', expects ~a; given a method with ~a "
                           (%generic-name generic)
                           (if (and (integer? generic-arity) (exact? generic-arity))
@@ -1202,9 +1209,7 @@
 
           ;; set the arity if none (when attached to generic)
           (let ((arity (%method-arity method)))
-            (if (or (not arity)
-                    (and (arity-at-least? arity)
-                         (zero? (arity-at-least-value arity))))
+            (if (not arity)
                 (%set-method-arity! method (%generic-arity generic))))
 
           ;; Add the method
