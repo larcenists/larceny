@@ -2,51 +2,34 @@
 ;
 ; $Id$
 ;
-; Interface to Unix socket system calls 
+; Interface to Unix socket system calls .
 ; This works for SunOS 5, don't know (yet) about SunOS 4.
-;
-; You must first load Experimental/unix.sch (for the system calls).
 
-;;; Some sample code that uses the socket stuff.
-
-; 'user' is a string.
-; 'host' is a string (hostname), list (IP number), or exact int (IP number)
-
-(define (finger user host)
-  (let ((s (client-socket host inet.finger/tcp))
-	(nl "\n"))
-    (unix/write s user (string-length user))
-    (unix/write s nl (string-length nl))
-    (let ((buf (make-bytevector 1024)))
-      (do ((n (unix/read s buf 1024) (unix/read s buf 1024)))
-	  ((<= n 0))
-	(do ((i 0 (+ i 1)))
-	    ((= i n))
-	  (write-char (integer->char (bytevector-ref buf i))))))
-    (unix/close s)))
+'(begin (load "Experimental/unix.sch")  ; system calls and helpers
+        (load "Auxlib/macros.sch"))     ; syntax
 
 ; FIXME: ignoring byte order because network byte order is big-endian,
 ; like the SPARC.
 
 (define (server-socket port)
-  (let ((s (unix/socket unix/PF_INET unix/SOCK_STREAM unix/IPPROTO_TCP)))
-    (if (= s -1)
-	(begin (unix/perror "socket")
-	       #f)
-	(let ((addr (make-sockaddr_in)))
-	  (sockaddr_in.sin_family-set! addr unix/AF_INET)
-	  (sockaddr_in.sin_addr-set! addr (make-ip-addr 127 0 0 1))
-	  (sockaddr_in.sin_port-set! addr port)
-	  (set-socket-option:reuseaddr s)
-	  (let ((r (unix/bind s addr (bytevector-length addr))))
-	    (if (= r -1)
-		(begin (unix/perror "bind")
-		       #f)
-		(let ((r (unix/listen s 5)))
-		  (if (= r -1)
-		      (begin (unix/perror "listen")
-			     #f)
-		      s))))))))
+  (call-with-current-continuation
+   (lambda (return)
+     (let ((s (unix/socket unix/PF_INET unix/SOCK_STREAM unix/IPPROTO_TCP)))
+       (when (= s -1)
+         (unix/perror "socket")
+         (return #f))
+       (let ((addr (make-sockaddr_in)))
+         (sockaddr_in.sin_family-set! addr unix/AF_INET)
+         (sockaddr_in.sin_addr-set! addr (make-ip-addr 127 0 0 1))
+         (sockaddr_in.sin_port-set! addr port)
+         (set-socket-option:reuseaddr s)
+         (when (= -1 (unix/bind s addr (bytevector-length addr)))
+           (unix/perror "bind")
+           (return #f))
+         (when (= -1 (unix/listen s 5))
+           (unix/perror "listen")
+           (return #f))
+         s)))))
 
 (define (wait-for-connection-on-server-socket s)
   (let ((addr    (make-sockaddr_in))
@@ -90,10 +73,10 @@
   (let ((ptr (unix/gethostbyname hostname))
 	(buf (make-hostent)))
     (if (ffi/null-pointer? ptr)
-	(begin
-	  ; The error code is in h_errno, which means perror won't do.
-	  ; Will need to fetch h_errno and call strerror.  FIXME.
-	  (display "gethostbyname failed.") (newline)
+        (let ((h_errno (get-h-errno)))
+	  (display "gethostbyname: ")
+          (display (strerror h_errno))
+          (newline)
 	  (values #f #f #f))
 	(begin
 	  (peek-bytes ptr buf (bytevector-length buf))
@@ -129,14 +112,12 @@
 
 ;;; Libraries.
 
-; I haven't figured out how to make this work (yet).
-;(foreign-file "./Experimental/socket-support.so")
-
 ; struct hostent *gethostbyname( const char *host )
 ; struct servent *getservbyname( const char *service, const char *proto )
 
 (define unix/gethostbyname
   (foreign-procedure "gethostbyname" '(string) 'unsigned))
+
 (define unix/getservbyname
   (foreign-procedure "getservbyname" '(string string) 'unsigned))
 
