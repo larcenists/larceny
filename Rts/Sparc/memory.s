@@ -297,11 +297,11 @@ heap_overflow:
 #endif
 
 
-! OBSOLETE -- retained for backwards compatibility (globals[] table)
-! _mem_garbage_collect: perform a garbage collection
+! _mem_garbage_collect: perform a garbage collection.
 
 EXTNAME(mem_garbage_collect):
-	call	EXTNAME(abort)
+	set	EXTNAME(C_garbage_collect), %TMP0
+	b	internal_callout_to_C
 	nop
 
 
