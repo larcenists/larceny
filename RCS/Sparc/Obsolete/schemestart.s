@@ -2,19 +2,25 @@
 ! Sparc version.
 ! Scheme initialization file.
 !
-! $Id: schemestart.s,v 1.4 91/06/24 01:56:29 lth Exp Locker: lth $
+! $Id: schemestart.s,v 1.5 91/07/12 03:14:26 lth Exp Locker: lth $
 !
 ! The procedure _schemestart is called from the C-language initialization
 ! code. _schemestart sets up the virtual machine and then calls the
-! application specific startup procedure 'S_ENTRY'. If 'S_ENTRY' returns,
-! then _schemestart returns to its caller.
+! application specific startup procedure in the globals slot 'SCHEME_ENTRY'.
+! If that procedure returns, then _schemestart returns to its caller.
 ! 
-! If the C startup wishes to pass arguments to S_ENTRY, it should intialize
-! the appropriate register save areas in globals[].
+! If the C startup wishes to pass arguments to SCHEME_ENTRY, it should 
+! intialize the appropriate register save areas in globals[], as we avoid
+! touching the registers here. (If there are no arguments, the startup
+! must set %RESULT to 0, at least).
 !
 ! Assemble with '-P' flag
 
+#define ASSEMBLY
 #include "registers.s.h"
+#include "layouts.s.h"
+#include "offsets.h"
+#include "millicode.h"
 
 	.global	_schemestart
 
@@ -22,7 +28,7 @@
 
 _schemestart:
 	save	%sp, -96, %sp			! Standard stack frame
-	st	%i7, [ %fp + 0x44 ]
+	st	%i7, [ %sp + 0x44 ]
 
 	call	_restore_scheme_context
 	nop
@@ -37,15 +43,17 @@ _schemestart:
 	mov	12, %TMP1
 	st	%TMP1, [ %STKP+4 ]	! size
 	st	%g0, [ %STKP+8 ]	! procedure (dummy!)
-
-! Do the call. We simply jump to an application-specific entry procedure
-! S_ENTRY which must be present in one of the files of the Scheme application.
-! The procedure S_ENTRY must setup the global variables and call the
-! entry point of the application; both tasks are application specific
-! to some degree.
-
-	set	S_ENTRY, %TMP0
-	jmp	%TMP0
+L2:
+	ld	[ %GLOBALS + SCHEME_ENTRY_OFFSET ], %REG0
+	and	%REG0, TAGMASK, %TMP0
+	cmp	%TMP0, PROC_TAG
+	beq	L0
+	nop
+	jmpl	%MILLICODE + M_PROC_EXCEPTION, %o7
+	add	%o7, (L2-(.-4))-8, %o7
+L0:
+	ld	[ %REG0 + A_CODEVECTOR ], %TMP0
+	jmp	%TMP0 + A_CODEOFFSET
 	nop
 
 	! Return to C code
@@ -53,7 +61,7 @@ L1:
 	call	_save_scheme_context
 	nop
 
-	ld	[ %fp + 0x44 ], %i7
+	ld	[ %sp + 0x44 ], %i7
 	ret
 	restore
 
