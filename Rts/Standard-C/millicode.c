@@ -84,7 +84,7 @@ static word *make_system_procedure( gc_t *gc, codeptr_t f )
   p = alloc_from_heap( sizeof(word)*(PROC_HEADER_WORDS+3) );
   p[0] = mkheader( sizeof(word)*3, PROC_HDR );
   p[PROC_HEADER_WORDS+IDX_PROC_CODE] = (word)f;
-  p[PROC_HEADER_WORDS+IDX_PROC_CONST] = 0;
+  p[PROC_HEADER_WORDS+IDX_PROC_CONST] = FALSE_CONST;
   p[PROC_HEADER_WORDS+IDX_PROC_REG0] = 0;
 
   return gc_make_handle( gc, tagptr( p, PROC_TAG ) );

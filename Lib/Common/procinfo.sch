@@ -29,10 +29,14 @@
 ; Otherwise, the list is sorted in ascending order on the car of the 
 ; pairs, which represent starting code vector addresses for internal
 ; procedures; each cdr is the documentation for one internal procedure.
+;
+; Not well-documented: the entire constant vector may sometimes be
+; missing, in some system thunks.  So be careful.
 
 (define (procedure-documentation p . rest)
-  (let ((pc (if (null? rest) 0 (car rest)))
-        (ds (vector-ref (procedure-ref p 1) 0)))
+  (let* ((pc (if (null? rest) 0 (car rest)))
+	 (cv (procedure-ref p 1))
+	 (ds (if (vector? cv) (vector-ref cv 0) #f)))
     (if (pair? ds)
 	(let loop ((dsl ds) (this (car ds)))
 	  (if (null? (cdr dsl))
