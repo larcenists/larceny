@@ -1,4 +1,4 @@
-; 22 September 2002
+; 9 November 2002
 ;
 ; Routines for dumping a Petit Larceny heap image using
 ; some standard C compiler under Unix or MacOS X.
@@ -6,6 +6,7 @@
 (define unix/petit-rts-library "Rts/libpetit.a")
 (define unix/petit-lib-library "libheap.a")
 (define unix/petit-exe-name    "petit")
+(define unix/petit-lib-library-platform '()) ; Set by platform code
 
 (define (build-petit-larceny heap output-file-name input-file-names)
   (build-petit-lib-library input-file-names))
@@ -32,8 +33,9 @@
                              (map (lambda (x)
                                     (rewrite-file-type x ".lop" ".o"))
                                   lop-files))
-                       (list unix/petit-rts-library
-			     unix/petit-lib-library))
+                       `(,unix/petit-rts-library
+                         ,unix/petit-lib-library
+                         ,@unix/petit-lib-library-platform))
     executable-name))
 
 (define (create-indirect-file filename object-files)
