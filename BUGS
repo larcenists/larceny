@@ -19,11 +19,13 @@ Priority high: "Must be fixed ASAP"
 Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
+
 HIGH PRIORITY BUGS: 88, 93, 111.
 
 
 005  (v0.27e)
      Priority: low.
+     Category: RTS / correctness
 
      While the system can now grow the heap to any size (by growing the
      descriptor tables), an attempt to start the system with more than 32MB
@@ -41,6 +43,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 012  (v0.28)  970507
      Priority: low.
+     Category: RTS / correctness
 
      Remembered-set size information from the command line is disregarded
      when creating the remembered sets in the garbage collector.
@@ -49,6 +52,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 034  v0.28f (970723 / lth)
      Priority: very low.
+     Category: SPARCASM / correctness
 
      The number of arguments in a procedure call expression is limited to 
      1023.  This is due to the way the argument count is set up during 
@@ -68,6 +72,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 036  v0.28f (970826 / lth -- old bug)
 053  v0.32 (971107 / lth)
      Priority: low.
+     Category: LIB / quality-of-implementation
 
      Reader bugs.
 
@@ -91,6 +96,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 042 v0.31 (971024 / lth)
     Priority: should not be fixed.
+    Category: LIB / correctness
 
     > (+ 'a)
     a
@@ -102,6 +108,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 056 v0.32 (980126 / lth); v0.40 (981217 / lth)
     Priority: low
+    Category: BUILD / correctness
 
     The development environment (both Chez Scheme and Larceny hosts):
 
@@ -126,6 +133,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 057 v0.32 (980403 / lth)
     Priority: low
+    Category: LIB / correctness
 
     display-memstats:
     * Does not distinguish information about the static area as being
@@ -133,15 +141,18 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     * Displays information about the non-predictive remembered set even
       though it is not in use.
 
+    See also bugs 86, 87.
+
 062 v0.33 (980430 / wdc)
     Priority: low
+    Category: LIB / performance
 
-    [Performance bug]
     Floating point output is very, very slow.  The Dragon4 algorithm, which
     uses (slow) bignums, should be replaced by Dybvig's algorithm.
 
 067 v0.34 (980603 / lth)
     Priority: low
+    Category: LIB / correctness
 
     This is wrong:
 
@@ -160,6 +171,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 069 v0.34 (980611 / lth)
     Priority: low
+    Category: LIB / correctness
 
     Writer: this is weird but mostly benign because "read" discards the
     backslashes properly:
@@ -173,6 +185,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 071 v0.34 (981016 / wdc)
     Priority: low
+    Category: BUILD / quality-of-implementation
 
     DISASSEMBLE-FILE does not work on .fasl files.
 
@@ -184,14 +197,18 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 072 v0.34 (981113 / lth)
     Priority: medium.
+    Category: LIB, TWOBIT / user-friendliness
 
     The (break) procedure always invokes the RTS debugger.  It would be
     more useful if it would invoke the user-installable breakpoint handler,
-    if that has been installed.
+    if that has been installed.  The current behavior should be renamed
+    as 'debugvsm'.
+
     Chez Scheme uses a parameter 'break-handler'; we should too.
 
 074 v0.36 (981207 / dougo)
     Priority: medium.
+    Category: AUXLIB / correctness
 
     Records (defined with make-record-type et al in Experimental/record.sch)
     are no longer displayed with the record type printer; it just displays
@@ -207,6 +224,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 077 v0.36 (981207 / lth)
     Priority: low.
+    Category: LIB / correctness
 
     Jaffer's test suite:
 
@@ -229,6 +247,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 083 v0.38 (981215 / lth)
     Priority: medium.
+    Category: TWOBIT / correctness
 
     Bugs w.r.t. R4RS, R5RS, or the IEEE standard:
 
@@ -242,6 +261,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 084 v0.39 (981216 / lth)
     Priority: low
+    Category: INTERPRETER / correctness
 
     Minor interpreter bug: it gives bad error messages when using
     primitive names in environments that don't have those primitives.
@@ -256,7 +276,8 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     table that is relative to the environment.
 
 085 v0.39 (981216 / lth)
-    Priority: low
+    Priority: medium
+    Category: LIB, INTERPRETER, TWOBIT / correctness
 
     Environments should contain syntax environments, and both 
     compile-expression (Compiler/compile313.sch) and macro-expand 
@@ -266,19 +287,24 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 086 v0.39 (981216 / lth)
     Priority: low
+    Category: RTS / correctness
 
     With -stats switch, Larceny does not print size of text/static area, 
     if there's one; see print_heapstats() in Rts/Sys/stats.c.
 
+    See also bug 57.
+
 087 v0.39 (981216 / lth)
     Priority: low
+    Category: LIB / correctness
 
     Memstats does not return information about the static area, if any.
 
+    See also bug 57.
+
 088 v0.40 (981219 / lth)
     Priority: high.
-
-    Performance bug / library.
+    Category: LIB / performance
 
     When running with (integrate-usual-procedures #f), arithmetic is quite
     slow, because the definitions of '+' etc are coded in Scheme using
@@ -383,8 +409,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 089 v0.40 (981219 / lth)
     Priority: medium.
-
-    RTS error.
+    Category: RTS / quality-of-implementation
 
     Should catch SIGSEGV, SIGBUS because broken unsafe code can otherwise 
     cause a core dump.
@@ -395,8 +420,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 090 v0.40 (981219 / lth )
     Priority: medium.
-
-    Compiler error.
+    Category: TWOBIT / performance
 
     With (integrate-usual-primitives #f), calls to the primitives 
     .make-cell, .cell-ref, and .cell-set! are compiled as normal 
@@ -410,8 +434,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 091 v0.40 (981219 / lth )
     Priority: medium.
-
-    Macro expander error.
+    Category: TWOBIT / correctness
 
     The macro expander generates calls to procedures (unspecified) and 
     (undefined).  With (integrate-usual-primitives #f), this is incorrect 
@@ -420,8 +443,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 092 v0.40 (981219 / lth)
     Priority: medium.
-
-    SPARC Assembler error.
+    Category: SPARCASM / correctness
 
     When compiling Testsuite/GC/nucleic2.sch with benchmark-block-mode,
     the assembler signals an error in sparutil.sch:emit-const->register!
@@ -435,8 +457,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 093 v0.41 (981221 / lth)
     Priority: high.
-
-    Macro expander error.
+    Category: TWOBIT / performance
 
     'Case' really ought to do better when the constants are fixnums,
     symbols, characters; currently it just expands to a call to memv.
@@ -482,8 +503,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 094 v0.41 (981221 / lth)
     Priority: medium.
-
-    Compiler error.
+    Category: TWOBIT / correctness
 
     Block compiler and primitive definitions interact poorly.  The following
     hangs:
@@ -492,8 +512,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 095 v1.0a1 (981221 / lth)
     Priority: low
-
-    Build system error.
+    Category: BUILD / correctness
 
     `make realclean' removes files that were in the distribution archive.
     That's not a real problem, because the files it removes are only there
@@ -503,11 +522,13 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 098 v1.0a1 (981221 / wdc)
     Priority: medium.
+    Category: INTERPRETER / correctness
 
     Define-inline works in larceny.heap but not in r5rs.heap.
 
 099 v1.0a1 (990104 / lth)
     Priority: medium.
+    Category: INTERPRETER / correctness
 
     define-inline is available in scheme-report-environment and 
     null-environment but should not be:
@@ -517,6 +538,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 100 v1.0a1 (990104 / lth)
     Priority: low.
+    Category: TWOBIT / quality-of-implementation
 
     The routines m-warn and m-error used by the macro expander should
     signal their conditions using machinery that ensures that output 
@@ -525,8 +547,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 101 v1.0a1 (990104 / lth)
     Priority: low.
-
-    Macro expander (?) bug.
+    Category: TWOBIT / quality-of-implementation
 
     From: will
     >A larger problem is that warnings and error messages ought to be
@@ -537,6 +558,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 102 v1.0a1 (990104 / lth)
     Priority: low
+    Category: LIB / quality-of-implementation
 
     Loader bug.
 
@@ -553,6 +575,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 103 v1.0a1 (990104 / lth)
     Priority: medium.
+    Category: TWOBIT / quality-of-implementation
 
     Macro expander bug.
 
@@ -579,6 +602,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 106 v1.0a1 (990108 / lth)
     Priority: medium.
+    Category: LIB / quality-of-implementation
 
     This is silly:
 
@@ -590,6 +614,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 108 v1.0a1 (990208 / lth)
     Priority: medium.
+    Category: RTS / correctness
 
     Very large fixnums that result in address wrap-around make some 
     allocation primitives crash the system:
@@ -604,6 +629,7 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 111 v1.0a1 (990317 / lth)
     Priority: high
+    Category: TWOBIT / correctness
 
     [This may have been fixed when bug 109 was fixed, but I haven't
     yet checked. - wdc]
@@ -625,30 +651,34 @@ HIGH PRIORITY BUGS: 88, 93, 111.
 
 112 v0.34 (981016 / wdc)
     Priority: medium
+    Category: TWOBIT / quality-of-implementation
 
     Space leaks can result from stale registers and stack slots.
 
 113 v0.34 (981016 / wdc)
     Priority: medium
+    Category: TWOBIT / quality-of-implementation
 
     Space leaks can result from dead variables in registers or in
     the stack.
 
 114 v0.34 (981016 / wdc)
     Priority: low
+    Category: TWOBIT / quality-of-implementation
 
     Space leaks can result from dead variables in closures.
 
 120 v1.0a1 (990324 / wdc)
     Priority: low
+    Category: TWOBIT / performance
 
-    [Performance bug]
     LET expressions allocate registers even when the value of a
     LET-bound variable comes from an existing register variable.
     Pass 3 should fix this.
 
 123 v1.0a1 (990421 / lth)
     Priority: low
+    Category: TWOBIT / performance
 
     [May have been fixed since]
 
@@ -659,7 +689,8 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     needless operations.
 
 124 v1.0a1 (990421 / lth)
-    Priority: medium.
+    Priority: medium
+    Category: LIB / correctness
 
     WITH-INPUT-FROM-PORT and WITH-OUTPUT-TO-PORT (which are also used by
     WITH-INPUT-FROM-FILE and WITH-OUTPUT-TO-FILE) are not behaving 
@@ -669,6 +700,28 @@ HIGH PRIORITY BUGS: 88, 93, 111.
     outside the procedure is visible inside the procedure after the jump
     back in.  Ditto for output-ports.  Easy to fix with dynamic-wind.
 
-NEXT ENTRY: 125
+125 v1.0a1 (990429 / lth)
+    Priority: low
+    Category: FFI / correctness
+
+    Sometimes Larceny dumps core on exit after the FFI has been used to
+    load a file and link to functions in it repeatedly (as when errors
+    have occurred).  Here's a backtrace:
+
+	(gdb) where
+	#0  0xef660cac in __do_global_dtors_aux ()
+	#1  0xef660c84 in _fini ()
+	#2  0xef7ca07c in ?? ()
+	#3  0xef698d28 in _exithandle ()
+	#4  0xef7080ac in exit ()
+	#5  0x1a400 in UNIX_exit (code=0) at Sys/unix.c:279
+	#6  0x19f7c in larceny_syscall (nargs=1, nproc=7, args=0x3d2a4)
+	    at Sys/syscall.c:80
+	#7  0x1b150 in C_syscall () at Sparc/cglue.c:201
+	#8  0x1b380 in callout_to_C ()
+	#9  0x3d298 in globals ()
+	#10 0x15768 in main (argc=2, argv=0xeffff104) at Sys/larceny.c:159
+
+NEXT ENTRY: 126
 
 ; eof
