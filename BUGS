@@ -684,6 +684,30 @@ HIGH PRIORITY BUGS: 088, 109, 111.
     interested.  (It could be an assembler error as well as a compiler
     error.)
 
-NEXT ENTRY: 112
+112 v0.34 (981016 / wdc)
+    Priority: medium
+
+    Space leaks can result from stale registers and stack slots.
+
+113 v0.34 (981016 / wdc)
+    Priority: medium
+
+    Space leaks can result from dead variables in registers or in
+    the stack.
+
+114 v0.34 (981016 / wdc)
+    Priority: low
+
+    Space leaks can result from dead variables in closures.
+
+120 v1.0a1 (990324 / wdc)
+    Priority: low
+
+    [Performance bug]
+    LET expressions allocate registers even when the value of a
+    LET-bound variable comes from an existing register variable.
+    Pass 3 should fix this.
+
+NEXT ENTRY: 121
 
 ; eof
