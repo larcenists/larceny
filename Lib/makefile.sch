@@ -190,7 +190,8 @@
     "eval"              ; Eval procedure
     "syshooks"          ; System functions
     "gcctl"             ; Garbage collector policy control
-    toplevel            ; top-level environment (to be substituted!)
+    "toplevel"          ; Common top-level environment
+    toplevel-target     ; Target-specific top-level environment extensions (to be substituted!)
     extra               ; any private libraries (to be substituted!)
     "go"                ; Driver
 
@@ -218,7 +219,7 @@
                   ".lop"
                   common-heap-files
                   '((primops . "Lib/Sparc/primops.lop")
-                    (toplevel . "Lib/Sparc/toplevel.lop")
+                    (toplevel-target . "Lib/Sparc/toplevel-target.lop")
                     (flonum-endian . "Lib/Common/flonums-be.lop")
                     (bignum-endian . "Lib/Common/bignums-be.lop")
                     (osdep . "Lib/Common/sys-unix.lop")
@@ -259,7 +260,7 @@
 		   ".lop" 
 		   common-heap-files
 		   `((primops  . ,(machine-relative "primops.lop"))
-		     (toplevel . ,(machine-relative "toplevel.lop"))
+		     (toplevel-target . ,(machine-relative "toplevel-target.lop"))
 		     (flonum-endian . ,(common-endian "flonums"))
 		     (bignum-endian . ,(common-endian "bignums"))
 		     (osdep    . ,(common-relative target))
@@ -271,13 +272,14 @@
   (case target
     ((unix) (select "sys-unix.lop"))
     ((macos) (select "sys-macos.lop"))
+    ((win32) (select "sys-win32.lop"))
     ((help) 
-     (display "Targets are unix, macos.")
+     (display "Targets are unix, macos, win32.")
      (newline))
     (else 
      (error "Unsupported target "
 	    target 
-	    "; try one of unix, macos."))))
+	    "; try one of unix, macos, win32."))))
  
 (define (make-petit-heap-project heap-dumper)
   (make:project "petit.heap"
@@ -334,7 +336,7 @@
          (append 
           (objects (nbuild-parameter 'machine-source)
                    file-type
-                   '("toplevel"))
+                   '("toplevel-target"))
           (objects (nbuild-parameter 'util)
                    file-type
                    '("make-support" "init-comp"
