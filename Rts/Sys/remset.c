@@ -82,6 +82,9 @@
 
 #define WORDS_PER_POOL_ENTRY     2
 
+#if GCLIB_LARGE_TABLE
+# define MB_REMSET 0		/* Otherwise undefined */
+#endif
 
 typedef struct pool pool_t;
 typedef struct remset_data remset_data_t;
@@ -396,8 +399,10 @@ void rs_enumerate( remset_t *rs,
     scanned_all += (q-p)/2;	/* Zero entries also */
     while (p < q) {
       if (*p != 0) {
-	assert2( (gclib_desc_b[pageof(*p)] & (MB_ALLOCATED|MB_HEAP_MEMORY)) ==
+#if !GCLIB_LARGE_TABLE		/* These attributes not defined then */
+	assert2( (attr_of(*p) & (MB_ALLOCATED|MB_HEAP_MEMORY)) ==
 		 (MB_ALLOCATED|MB_HEAP_MEMORY) );
+#endif
 	if (!scanner( *p, data, &word_count )) {
 	  /* Clear the slot by setting the pointer to 0. */
 	  *p = (word)(word*)0;
@@ -527,18 +532,21 @@ void rs_consistency_check( remset_t *rs, int gen_no )
 	}
 	obj = *p;
 	if (gen_no >= 0) {
-	  if (gclib_desc_g[ pageof(obj) ] != gen_no) {
+	  if (gen_of(obj) != gen_no) {
 	    consolemsg( "Remset contains ptr to wrong gen: "
 			"0x%08x, gen=%d, want=%d",
-			obj, gclib_desc_g[ pageof( obj ) ], gen_no );
+			obj, gen_of( obj ), gen_no );
 	    conditional_abort();
 	  }
-	  if ((gclib_desc_b[ pageof(obj) ] & 3) != 3) {
+#if !GCLIB_LARGE_TABLE
+	  if ((attr_of(obj) & (MB_ALLOCATED|MB_HEAP_MEMORY)) !=
+	      (MB_ALLOCATED|MB_HEAP_MEMORY)) {
 	    consolemsg( "Remset entry points to page with bogus attributes: "
 			"0x%08x, 0x%08x",
-			obj, gclib_desc_b[ pageof(obj) ] );
+			obj, attr_of(obj) );
 	    conditional_abort();
 	  }
+#endif
 	}
 	gclib_check_object( obj );
       }
@@ -630,15 +638,15 @@ static bool remset_crossing_fn( word w, void *data, unsigned *ignored )
   if (tag == PAIR_TAG) {
     word car = *ptrof(w);
     word cdr = *(ptrof(w)+1);
-    if (isptr(car)) genv[gclib_desc_g[pageof(car)]]++;
-    if (isptr(cdr)) genv[gclib_desc_g[pageof(cdr)]]++;
+    if (isptr(car)) genv[gen_of(car)]++;
+    if (isptr(cdr)) genv[gen_of(cdr)]++;
   }
   else if (tag == VEC_TAG || tag == PROC_TAG) {
     unsigned size = sizefield(*ptrof(w))/4;
     word *p = ptrof(w)+1;
     while (size-- > 0) {
       word k = *p++;
-      if (isptr(k)) genv[gclib_desc_g[pageof(k)]]++;
+      if (isptr(k)) genv[gen_of(k)]++;
     }
   }
   else 
