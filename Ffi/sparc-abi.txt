@@ -1,5 +1,12 @@
-SPARC calling conventions for C, based on observations of code emitted
-by gcc 2.7.2, and the SPARC v8 manual.
+Copyright 1998 Lars T Hansen.
+
+$Id$
+
+		    SPARC calling conventions for C
+
+	   Based on observations of code emitted by gcc 2.7.2
+				  and
+			  the SPARC v8 manual.
 
 
 Argument passing

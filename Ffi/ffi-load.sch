@@ -1,7 +1,8 @@
-; Ffi/ffi-load.sch
-; Larceny FFI -- simple load script
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny FFI -- simple load script.
 
 (define (load-ffi path)
 

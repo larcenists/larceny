@@ -1,7 +1,8 @@
-; Ffi/ffi.sch
-; Larceny library -- low-level FFI; SunOS 4 and 5.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- low-level FFI.
 ;
 ; Note that the caller of dlsym must have canonicalized the name for
 ; the particular OS (SunOS 4 prepends _ to names for C; SunOS 5 does not),

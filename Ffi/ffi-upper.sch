@@ -1,8 +1,8 @@
-; Ffi/ffi-upper.sch
-; Larceny FFI -- upper level of generic C ffi.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
+; Larceny FFI -- upper level of generic C ffi.
 ; FIXME: *ffi/linked-procedures* needs to hold the procedures weakly.
 
 (define *ffi/libraries* '())		; list of names

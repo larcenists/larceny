@@ -1,7 +1,8 @@
-; Ffi/ffi-sunos5.sch
-; Larceny FFI -- ABI objects for sun4-sunos5
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny FFI -- ABI objects for sun4-sunos5
 
 (define ffi/SPARC-sunos5-C-callout-stdabi
   (let ((parent ffi/SPARC-C-callout-stdabi))

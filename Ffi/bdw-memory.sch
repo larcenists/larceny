@@ -1,8 +1,9 @@
-; Ffi/bdw-memory.sch
-; Larceny Foreign function interface -- memory management details,
-;  for the Boehm-Demers-Weiser conservative collector.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny FFI -- memory management details, for the Boehm-Demers-Weiser 
+;   conservative collector.
 
 (define make-nonrelocatable-bytevector make-bytevector)
 (define cons-nonrelocatable cons)

@@ -1,7 +1,8 @@
-; Ffi/ffi.sch
-; Larceny library -- FFI utility functions
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny library -- FFI utility functions
 
 (define (ffi/string->asciiz str)
   (let ((b (make-bytevector (+ (string-length str) 1))))

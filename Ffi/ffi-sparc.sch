@@ -1,7 +1,8 @@
-; Ffi/ffi-sparc.sch
-; Larceny FFI -- SPARC ABI implementations
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny FFI -- SPARC ABI implementations
 ;
 ; See the file sparc-abi.txt for information about calling conventions
 ; on the SPARC.

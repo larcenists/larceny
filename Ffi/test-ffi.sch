@@ -1,7 +1,8 @@
-; Ffi/test-ffi.sch
-; Simple FFI test code.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Simple FFI test code.
 
 (load "Ffi/ffi-load.sch")
 

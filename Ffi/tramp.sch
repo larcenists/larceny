@@ -1,7 +1,8 @@
-; Ffi/tramp.sch
-; Larceny -- FFI trampoline construction (Common code)
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
+;
+; Larceny -- FFI trampoline construction (Common code)
 
 ; Trampoline for callout
 ;

@@ -1,11 +1,11 @@
-; Ffi/memory.sch
-; Larceny Foreign function interface -- memory management details,
-;  for the non-conservative collectors.
+; Copyright 1998 Lars T Hansen.
 ;
 ; $Id$
 ;
+; Larceny FFI -- memory management details, for the non-conservative 
+;   collectors.
+;
 ; PROTOTYPE CODE!!
-
 
 ; Some syscall numbers, which must be defined here (and not in Lib/unix.sch)
 ; because we're outside the Scheme kernel.
