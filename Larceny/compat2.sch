@@ -5,6 +5,7 @@
 ;
 ; This file ought to be compiled.
 
+(define host-system 'larceny)		; Don't remove this!
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -85,6 +86,11 @@
 
 (define compat:write-bytevector compat:write-bytevector-as-bytevector)
 
+; Uses magic syntax for flonums and compnums.
+
+(define write-fasl-datum lowlevel-write)
+;(define write-fasl-datum write)
+
 ; The power of self-hosting ;-)
 
 (define (misc->bytevector x)
@@ -135,7 +141,6 @@
 ;
 ; Miscellaneous
 
-(define (roundup8 n)
-  (* (quotient (+ n 7) 8) 8))
+(define cerror error)
 
 ; eof

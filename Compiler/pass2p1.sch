@@ -130,6 +130,9 @@
     (single-assignment-analysis exp newnotepad)
     (single-assignment-elimination exp notepad))
   (assignment-elimination exp)
+  (if (not (notepad.parent notepad))
+      ; This is an outermost lambda expression.
+      (lambda-lifting exp exp))
   exp)
 
 ; SIMPLIFY-ASSIGNMENT performs this transformation:

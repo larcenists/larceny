@@ -30,7 +30,7 @@
 	((ieee32)
 	 ((abi 'arg-ieee32) tr))
 	(else
-	 ???)))
+	 (error "make-callout: " (car a) " is not a valid argument type."))))
     (case ret-descriptor
       ((signed32 unsigned32)
        ((abi 'ret-word) tr))
@@ -41,7 +41,7 @@
       ((void)
        ((abi 'ret-void) tr))
       (else
-       ???))
+       (error "make-callout: " ret-descriptor " is not a valid return type.")))
     ((abi 'done) tr)
     (tr-pasteup tr)
     ((abi 'done-pasteup) tr))
@@ -49,6 +49,18 @@
   (let ((tr ((abi 'alloc))))
     (create-trampoline tr)
     tr))
+
+; Use this to relink after heap restoring.
+;
+; This recomputes the code vector in the trampoline.  The foreign function
+; stub may not keep that code vector independently of the trampoline.
+
+(define (ffi/set-callout-address! abi tramp new-addr)
+  (set-tr-fptr! tramp new-addr)
+  ((abi 'change-fptr) tramp)
+  (tr-pasteup tramp)
+  ((abi 'done-pasteup) tramp)
+  tramp)
 
 
 ; Common operations.

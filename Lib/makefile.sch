@@ -30,6 +30,10 @@
   (display "Making ") (display target) (newline)
   (compile-file (car deps)))
 
+(define (make-assemble-file target deps)
+  (display "Making ") (display target) (newline)
+  (assemble-file (car deps)))
+
 (define (make-dumpheap target files)
   (display "Dumping ") (display target) (newline)
   (delete-file target)
@@ -98,8 +102,9 @@
     ; New I/O subsystem
 
     "iosys"             ; basic system
-    "fileio"            ; files
-    "conio"             ; console, i.e., terminal
+    "fileio"            ; file ports
+    "conio"             ; console ports, i.e., terminal
+    "stringio"          ; string ports
     "stdio"             ; user-level procedures
     "print"             ; write/display
     "ioboot"            ; one-time initialization
@@ -292,11 +297,20 @@
 ; Project for building the Auxiliary libraries.
 
 (define auxlib-project (make:new-project "Auxlib"))
-(define auxlib-files '("misc" "sort" "pp"))
+(define auxlib-files '("misc" "sort" "pp" "io"))
+(define experimental-files '("applyhook" "apropos" "system-stuff"))
+(define debugger-files '("debug" "countcalls" "trace"))
 
 (make:rule auxlib-project ".fasl" ".sch" make-compile-file)
+(make:rule auxlib-project ".fasl" ".mal" make-assemble-file)
 (make:deps auxlib-project '("auxlib.date")
 	   (objects "Auxlib/" ".fasl" auxlib-files))
+(make:deps auxlib-project '("auxlib.date")
+	   (objects "Experimental/" ".fasl" experimental-files))
+(make:deps auxlib-project '("auxlib.date")
+	   '("Experimental/applyhook0.fasl"))
+(make:deps auxlib-project '("auxlib.date")
+	   (objects "Debugger/" ".fasl" debugger-files))
 (make:targets auxlib-project '("auxlib.date") (lambda args #t))
 
 (define (make-auxlib . rest)

@@ -1,25 +1,36 @@
 ; Compiler/compile313.sch
-; Larceny run-time environment -- compiler drivers
+; Some compilation parameters and compiler driver procedures.
 ;
 ; $Id: compile313.sch,v 1.5 1997/09/23 20:06:36 lth Exp lth $
-;
-; The meanings of the various file types are explained in the on-line
-; documentation (http://www.ccs.neu.edu/home/larceny/manual.html).
 
-; Auxiliary installable macro-expander (for Doug, mainly).
-; Can go away when we have the new compiler.
+;;; Parameters
 
-(define *custom-expander* (lambda (x) x))
+; An auxiliary installable macro-expander (for Doug, mainly).
 
-(define (twobit-auxiliary-expander . rest)
-  (cond ((null? rest)
-	 *custom-expander*)
-	((null? (cdr rest))
-	 (set! *custom-expander* (car rest))
-	 *custom-expander*)
-	(else
-	 (error "twobit-auxiliary-expander: too many arguments."))))
+(define twobit-auxiliary-expander
+  (let ((expander (lambda (x) x)))
+    (lambda rest
+      (cond ((null? rest)
+	     expander)
+	    ((null? (cdr rest))
+	     (set! expander (car rest))
+	     expander)
+	    (else
+	     (error "twobit-auxiliary-expander: too many arguments."))))))
 
+; The architecture we're compiling for.
+; It's initialized to a real value by the program that loads this file.
+
+(define twobit-target-architecture
+  (let ((arch 'unknown))
+    (lambda rest
+      (cond ((null? rest) arch)
+	    ((null? (cdr rest)) (set! arch (car rest)) arch)
+	    (else
+	     (error "Wrong number of arguments to twobit-target-architecture"
+		    ))))))
+
+;;; Driver procedurs
 
 ; Compile and assemble a scheme source file and produce a fastload file.
 
@@ -103,7 +114,7 @@
 ; Additional data structure used during assembly by some assemblers.
 
 (define (asm-user-structure)
-  (case (assembly-target)
+  (case (twobit-target-architecture)
     ((standard-C) (list 0 0))
     (else #f)))
 
@@ -203,25 +214,8 @@
   (unspecified))
 
 
-; Meta-switches
-
-(define target-architecture
-  (let ((arch 'sun4-sunos)
-	(arch-list '(sun4-sunos sun4-solaris unknown)))
-    (lambda rest
-      (cond ((null? rest)
-	     arch)
-	    ((and (null? (cdr rest))
-		  (memq (car rest) arch-list))
-	     (set! arch (car rest))
-	     arch)
-	    ((and (null? (cdr rest))
-		  (eq? (car rest) 'query))
-	     arch-list)
-	    (else
-	     (error "Wrong arguments to target-architecture: " rest))))))
-
 ; FIXME: sparc specific
+
 (define (fast-unsafe-code)
   (integrate-usual-procedures #t)
   (benchmark-mode #t)
@@ -232,6 +226,7 @@
   (single-stepping #f))
 
 ; FIXME: sparc specific
+
 (define (fast-safe-code)
   (integrate-usual-procedures #t)
   (benchmark-mode #t)
@@ -241,16 +236,52 @@
   (unsafe-code #f)
   (single-stepping #f))
 
+; FIXME: sparc specific
+
+(define (compiler-switches)
+
+  (define (display-switch caption value)
+    (display #\tab)
+    (display caption)
+    (display " is ")
+    (display (if value "on" "off"))
+    (newline))
+
+  (display "Summary of compiler switches:" ) (newline)
+
+  (display-switch "Benchmark-mode" (benchmark-mode))
+  (display-switch "Catch-undefined-globals" (catch-undefined-globals))
+  (display-switch "Empty-list-is-true" (empty-list-is-true))
+  (if (eq? 'SPARC (twobit-target-architecture))
+      (display-switch "Fill-delay-slots" (fill-delay-slots)))
+  (display-switch "Generate-global-symbols" (generate-global-symbols))
+  (display-switch "Include-procedure-names" (include-procedure-names))
+  (display-switch "Include-source-code" (include-source-code))
+  (display-switch "Include-variable-names" (include-variable-names))
+  (display-switch "Inline-assignment" (inline-assignment))
+  (display-switch "Inline-allocation" (inline-allocation)) 
+  (display-switch "Integrate-usual-procedures" (integrate-usual-procedures))
+  (display-switch "Issue-warnings" (issue-warnings))
+  (display-switch "Listify?" listify?)
+  (display-switch "Local-optimizations" (local-optimizations))
+  (display-switch "Peephole-optimization" (peephole-optimization))
+  (if (eq? 'SPARC (twobit-target-architecture))
+      (display-switch "Single-stepping" (single-stepping)))
+  (display-switch "Unsafe-code" (unsafe-code))
+  (if (eq? 'SPARC (twobit-target-architecture))
+      (display-switch "Write-barrier" (write-barrier)))
+  (unspecified))
+
 ; This needs to be replaced by a better mechanism.
 
 (define (lop-extension)
-  (if (and (eq? (assembly-target) 'SPARC)
+  (if (and (eq? (twobit-target-architecture) 'SPARC)
 	   (not (write-barrier)))
       ".elop"
       ".lop"))
 
 (define (fasl-extension)
-  (if (and (eq? (assembly-target) 'SPARC)
+  (if (and (eq? (twobit-target-architecture) 'SPARC)
 	   (not (write-barrier)))
       ".efasl"
       ".fasl"))

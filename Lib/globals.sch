@@ -93,6 +93,7 @@
 (define $r.reg30 132)
 (define $r.reg31 136)
 (define $g.stkbot 180)
+(define $g.gccnt 420)
 (define $m.alloc 1024)
 (define $m.alloci 1032)
 (define $m.gc 1040)

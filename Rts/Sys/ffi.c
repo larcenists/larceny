@@ -28,7 +28,7 @@
  *         1   unsigned32       positive fixnum; 0 <= bignum < 2^32
  *         2   ieee32           flonum; compnum with 0 imag part
  *         3   ieee64           flonum; compnum with 0 imag part
- *         4   pointer          bytevector-like; vector-like; pair
+ *         4   pointer          bytevector-like; vector-like; pair; 0
  *
  * The values for the return_descriptor are the following:
  *     value   type             C return type assumed
@@ -176,18 +176,22 @@ larceny_C_ffi_apply( word trampoline_bytevector,
       break;
     case 4 :
       /* pointer */
-      switch (tagof( arg )) {
-      case PAIR_TAG :
-	args[i].pointer = (byte*)ptrof(arg);
-	break;
-      case VEC_TAG :
-      case BVEC_TAG :
-	args[i].pointer = (byte*)(ptrof(arg)+1);
-	break;
-      default :
-	hardconsolemsg( "FFICALL failed: bad arg to pointer, val=0x%08x",
-		        arg );
-        goto failed;
+      if (arg == 0)
+	args[i].pointer = (byte*)0;
+      else {
+	switch (tagof( arg )) {
+	case PAIR_TAG :
+	  args[i].pointer = (byte*)ptrof(arg);
+	  break;
+	case VEC_TAG :
+	case BVEC_TAG :
+	  args[i].pointer = (byte*)(ptrof(arg)+1);
+	  break;
+	default :
+	  hardconsolemsg( "FFICALL failed: bad arg to pointer, val=0x%08x",
+			 arg );
+	  goto failed;
+	}
       }
       break;
     default :
@@ -436,5 +440,26 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
   }
 }
 
+
+/* This is a syscall */
+void larceny_peek_bytes( word w_addr, word w_bytevector, word w_count )
+{
+  int n = nativeint( w_count );
+  void *dest = ptrof( w_bytevector ) + 1;
+  void *src  = (void*)(unbox_uint( w_addr ));
+
+  memcpy( dest, src, n );
+}
+
+
+/* This is a syscall */
+void larceny_poke_bytes( word w_addr, word w_bytevector, word w_count )
+{
+  int n = nativeint( w_count );
+  void *src  = ptrof( w_bytevector ) + 1;
+  void *dest = (void*)(unbox_uint( w_addr ));
+
+  memcpy( dest, src, n );
+}
 
 /* eof */

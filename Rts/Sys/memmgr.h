@@ -1,5 +1,5 @@
 /* Rts/Sys/memmgr.h
- * Larceny run-time system -- garbage collector interface (internal).
+ * Larceny run-time system -- internal interfaces for precise GC.
  * 
  * $Id: memmgr.h,v 1.11 1997/09/17 15:17:26 lth Exp $
  */
@@ -36,6 +36,10 @@
 #define GCCTL_OFLOMARK           8
 #define GCCTL_GROW               9
 
+/* In memmgr.c */
+
+int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit );
+
 /* In nursery.c */
 
 young_heap_t *
@@ -64,6 +68,9 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral );
 old_heap_t *
 create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc,
 		       np_info_t *info );
+
+void
+np_gc_parameters( old_heap_t *heap, int *k, int *j );
 
 /* In static-heap.c */
 

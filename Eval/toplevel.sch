@@ -242,6 +242,10 @@
     ;; not in R4RS:
     (environment-set! larc 'string-hash string-hash)
     (environment-set! larc 'substring-fill! substring-fill!)
+    (environment-set! larc 'string-downcase! string-downcase!)
+    (environment-set! larc 'string-upcase! string-upcase!)
+    (environment-set! larc 'string-downcase string-downcase)
+    (environment-set! larc 'string-upcase string-upcase)
 
     ;; vectors
 
@@ -314,6 +318,9 @@
     (environment-set! r4rs 'newline newline)
     (environment-set! r4rs 'write-char write-char)
     ;; not in R4RS:
+    (environment-set! larc 'open-input-string open-input-string)
+    (environment-set! larc 'open-output-string open-output-string)
+    (environment-set! larc 'get-output-string get-output-string)
     (environment-set! larc 'format format)
     (environment-set! larc 'port? port?)
     (environment-set! larc 'port-name port-name)
@@ -327,6 +334,7 @@
     (environment-set! larc 'with-input-from-port with-input-from-port)
     (environment-set! larc 'with-output-to-port with-output-to-port)
     (environment-set! larc 'write-bytevector-like write-bytevector-like)
+    (environment-set! larc 'lowlevel-write lowlevel-write)
 
     ;; general
 
@@ -409,12 +417,16 @@
     (environment-set! larc 'gcctl gcctl)
     (environment-set! larc 'sro sro)
     (environment-set! larc 'memstats memstats)
+    (environment-set! larc 'system-features system-features)
     (environment-set! larc 'stats-dump-on stats-dump-on)
     (environment-set! larc 'stats-dump-off stats-dump-off)
     (environment-set! larc 'system-function system-function)
     (environment-set! larc 'sys$C-ffi-apply sys$C-ffi-apply)
     (environment-set! larc 'sys$C-ffi-dlopen sys$C-ffi-dlopen)
     (environment-set! larc 'sys$C-ffi-dlsym sys$C-ffi-dlsym)
+    (environment-set! larc 'peek-bytes peek-bytes)
+    (environment-set! larc 'poke-bytes poke-bytes)
+    (environment-set! larc 'gc-counter gc-counter)
 
     ;; environment interface
 
@@ -430,6 +442,7 @@
     (environment-set! larc 'repl-printer repl-printer)
     (environment-set! larc 'repl-evaluator repl-evaluator)
     (environment-set! larc 'repl-prompt repl-prompt)
+    (environment-set! larc 'herald herald)
     (environment-set! larc 'eval-macro-expander eval-macro-expander)
     (environment-set! larc 'load-evaluator load-evaluator)
     (environment-set! larc 'typetag typetag)

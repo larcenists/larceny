@@ -343,6 +343,8 @@
 ; to decide whether to lift a group of internal definitions are isolated
 ; within the POLICY:LIFT? procedure.
 
+; L2 can be the same as L, so the order of side effects is critical.
+
 (define (lambda-lifting L2 L)
   
   ; The call to sort is optional.  It gets the added arguments into
@@ -375,10 +377,13 @@
                           (call.args-set! call
                                           (append newargs (call.args call)))))
                       calls)
+            (lambda.R-set! L2 (remq entry (lambda.R L2)))
             (lambda.R-set! L (cons entry (lambda.R L)))
-            (lambda.R-set! L2 (remq entry (lambda.R L2)))))
-      (lambda.defs-set! L (append (lambda.defs L2) (lambda.defs L)))
-      (lambda.defs-set! L2 '())))
+            ))
+      (if (not (eq? L2 L))
+          (begin
+           (lambda.defs-set! L (append (lambda.defs L2) (lambda.defs L)))
+           (lambda.defs-set! L2 '())))))
   
   (if L
       (if (not (null? (lambda.defs L2)))

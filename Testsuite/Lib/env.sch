@@ -1,61 +1,46 @@
+; Testing the environments.
+
 (define (run-env-tests)
-  (newline)
-  (display "****************************************") (newline)
-  (display "Environments") (newline)
-  (newline)
-  (and (environment-variables-test)))
+  (allof "environments"
+;   (test-make-environment)
+   (test-environment-variables)))
 
+(define (test-make-environment)
+  ...)
 
-(define (environment-variables-test)
-  (all-same? (environment-variables (scheme-report-environment 5))
-	     *r5rs-names*))
-
-(define (all-same? l1 l2)
-  (let ((ok #t))
-    (do ((l l1 (cdr l)))
-	((null? l))
-      (if (not (memq (car l) l2))
-	  (begin (display "Unmatched ")
-		 (display (car l))
-		 (display " in arg1")
-		 (newline)
-		 (set! ok #f))))
-    (do ((l l2 (cdr l)))
-	((null? l))
-      (if (not (memq (car l) l1))
-	  (begin (display "Unmatched ")
-		 (display (car l))
-		 (display " in arg2")
-		 (newline)
-		 (set! ok #f))))
-    ok))
+(define (test-environment-variables)
+  (test-all-same? "(environment-variables (scheme-report-environment 5))"
+		  (environment-variables (scheme-report-environment 5))
+		  *r5rs-names*))
 
 (define *r5rs-names*
-  '(string->number eq? magnitude current-output-port char<? round member eqv?
-    quotient load number->string caaar floor atan length string<=? cdaar
-    force read-char gcd number? char<=? vector-set! vector->list memv
-    vector-ref * modulo + inexact? caaadr cadar - / list cdaadr cddar string=?
-    display string->list < set-car! = expt > make-rectangular char-upcase
-    string-copy cadadr caar caaaar sqrt real-part char-whitespace? char-ready?
-    cddadr cdar cdaaar make-string substring string-ci=? open-output-file
-    string-fill! asin call-with-input-file list->string odd? char=? ceiling
-    log string-append cadaar cadr caadr rationalize char-ci<=? list? cddaar
-    cddr cdadr %append string-ci<? lcm vector? string->symbol even?
-    call-with-current-continuation input-port? assv newline tan caddr caaddr
-    string-set! boolean? negative? string>=? string-ci>? null? cdddr cdaddr
-    string<? string-ci<=? string-ref map char-downcase equal? complex? min
-    exact? char-ci<? make-polar car char? sin vector char-lower-case? caadar
-    cadddr cdr abs string-ci>=? char-ci>=? write cdadar cddddr angle
-    call-with-output-file %list->vector write-char append output-port? %list
-    denominator vector-length char-ci=? char>? memq procedure?
-    with-output-to-file char-upper-case? caddar inexact->exact rational?
-    cdddar char>=? cos symbol->string list-tail exp char-ci>? numerator
-    assoc list-ref symbol? max %make-promise string? pair? char->integer
-    not positive? char-alphabetic? imag-part acos zero? eof-object?
-    integer->char close-input-port close-output-port exact->inexact string>?
-    list->vector string make-vector char-numeric? set-cdr! apply peek-char
-    %cons truncate open-input-file current-input-port reverse
-    with-input-from-file cons <= assq >= integer? real? vector-fill! read
-    for-each remainder string-length dynamic-wind values call-with-values
-    scheme-report-environment null-environment interaction-environment eval))
+  '(* + - .append .cons .list .list->vector .make-promise / < <= = > >= abs
+    acos angle append apply asin assoc assq assv atan boolean? caaaar caaadr
+    caaar caadar caaddr caadr caar cadaar cadadr cadar caddar cadddr caddr
+    cadr call-with-current-continuation call-with-input-file
+    call-with-output-file call-with-values car cdaaar cdaadr cdaar cdadar
+    cdaddr cdadr cdar cddaar cddadr cddar cdddar cddddr cdddr cddr cdr
+    ceiling char->integer char-alphabetic? char-ci<=? char-ci<? char-ci=?
+    char-ci>=? char-ci>? char-downcase char-lower-case? char-numeric?
+    char-ready? char-upcase char-upper-case? char-whitespace? char<=? char<?
+    char=? char>=? char>? char? close-input-port close-output-port complex?
+    cons cos current-input-port current-output-port denominator display
+    dynamic-wind eof-object? eq? equal? eqv? eval even? exact->inexact
+    exact? exp expt floor for-each force gcd imag-part inexact->exact
+    inexact? input-port? integer->char integer? interaction-environment lcm
+    length list list->string list->vector list-ref list-tail list? load log
+    magnitude make-polar make-rectangular make-string make-vector map max
+    member memq memv min modulo negative? newline not null-environment null?
+    number->string number? numerator odd? open-input-file open-output-file
+    output-port? pair? peek-char positive? procedure? quotient rational?
+    rationalize read read-char real-part real? remainder reverse round
+    scheme-report-environment set-car! set-cdr! sin sqrt string string->list
+    string->number string->symbol string-append string-ci<=? string-ci<?
+    string-ci=? string-ci>=? string-ci>? string-copy string-fill!
+    string-length string-ref string-set! string<=? string<? string=?
+    string>=? string>? string? substring symbol->string symbol? tan truncate
+    values vector vector->list vector-fill! vector-length vector-ref
+    vector-set! vector? with-input-from-file with-output-to-file write
+    write-char zero?))
 
+; eof

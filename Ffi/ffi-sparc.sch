@@ -18,6 +18,7 @@
 ;   return-encoding base+4  an integer -- the encoding of the return type (cb)
 ;   proc-addr       base+5  an integer -- a procedure handle
 ;   arg-types       base+6  an integer -- a byte* handle
+;   invoke-loc      base+7  an integer -- address of invoke instructions (co)
 
 (define ffi/SPARC-C-callout-stdabi)
 (define ffi/SPARC-C-callback-stdabi)
@@ -25,7 +26,7 @@
 (let ()
     
   (define base *trampoline-basis-size*)
-  (define field-count (+ *trampoline-basis-size* 7))
+  (define field-count (+ *trampoline-basis-size* 8))
 
   (define (next-argreg tr) (vector-ref tr base))
   (define (next-slot tr) (vector-ref tr (+ base 1)))
@@ -34,6 +35,7 @@
   (define (return-encoding tr) (vector-ref tr (+ base 4)))
   (define (proc-addr tr) (vector-ref tr (+ base 5)))
   (define (arg-types tr) (vector-ref tr (+ base 6)))
+  (define (invoke-loc tr) (vector-ref tr (+ base 7)))
 
   (define (set-next-argreg! tr val) (vector-set! tr base val))
   (define (set-next-slot! tr val) (vector-set! tr (+ base 1) val))
@@ -42,6 +44,7 @@
   (define (set-return-encoding! tr val) (vector-set! tr (+ base 4) val))
   (define (set-proc-addr! tr val) (vector-set! tr (+ base 5) val))
   (define (set-arg-types! tr val) (vector-set! tr (+ base 6) val))
+  (define (set-invoke-loc! tr val) (vector-set! tr (+ base 7) val))
 
   (define (alloc-trampoline)
     (let ((tr (make-vector field-count)))
@@ -134,7 +137,7 @@
     (at-end tr (ori reg (lobits val) reg)))
 
   (define (invoke tr fptr)
-    (set-reg tr (%o 7) fptr)
+    (set-reg tr (%o 7) fptr)		; Must come first
     (at-end tr (jmpli (%o 7) 0 (%o 7)))
     (at-end tr (nop)))
 
@@ -195,8 +198,10 @@
 	(align-stack tr)
 	(at-beginning tr (save (- (* 4 (next-slot tr)))))
 
-	(invoke tr (tr-fptr tr))
+	(set-invoke-loc! tr (length (tr-ilist tr)))
 
+	(invoke tr (tr-fptr tr))
+	
 	(case (return-type tr)
 	  ((word)   (at-end tr (sti (%o 0) 0 (%i 1))))
 	  ((ieee64) (at-end tr (stdfi (%f 0) 0 (%i 1))))
@@ -205,6 +210,12 @@
 	  (else ???))
 
 	(return+restore tr))
+
+      (define (change-fptr tr)
+	(let ((val (tr-fptr tr))
+	      (ilist (list-tail (tr-ilist tr) (invoke-loc tr))))
+	  (set-car! ilist       (bv4 (sethi (hibits val) (%o 7))))
+	  (set-car! (cdr ilist) (bv4 (ori (%o 7) (lobits val) (%o 7))))))
 
       (lambda (selector)
 	(case selector
@@ -215,6 +226,7 @@
 	  ((ret-ieee64)          (lambda (tr) (set-return-type! tr 'ieee64)))
 	  ((ret-ieee32)          (lambda (tr) (set-return-type! tr 'ieee32)))
 	  ((ret-void)            (lambda (tr) (set-return-type! tr 'void)))
+	  ((change-fptr)         change-fptr)
 	  ((done)                callout-done)
 	  ((done-pasteup)        (lambda (tr) (iflush (tr-code tr))))
 	  (else 

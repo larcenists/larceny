@@ -1,10 +1,10 @@
 ; Auxlib/load.sch
-; Larceny auxiliary library -- a more intelligent 'load' procedure.
+; Larceny auxiliary library -- a smart-but-not-intelligent 'load' procedure.
 ;
 ; $Id: load.sch,v 1.1 1997/02/27 16:48:16 lth Exp $
 ;
 ; This version of 'load' extends the normal 'load' in several ways.
-;   * There is a load path.  If the file's path name is not absolute, then
+;   * There is a load path.  If the filename to load is not absolute, then
 ;     directories in the load path are prepended to the given file name,
 ;     and the resulting files are tried, in order.  Generally, you'd want
 ;     to have `.' in the load path.
@@ -108,18 +108,6 @@
 	     (string-append (substring fn 0 (+ x 1)) ext))
 	    (else
 	     (string-append fn "." ext)))))
-
-  (define (file-newer? a b)
-    (let* ((ta    (file-modification-time a))
-	   (tb    (file-modification-time b))
-	   (limit (vector-length ta)))
-      (let loop ((i 0))
-	(cond ((= i limit)
-	       #f)
-	      ((= (vector-ref ta i) (vector-ref tb i))
-	       (loop (+ i 1)))
-	      (else
-	       (> (vector-ref ta i) (vector-ref tb i)))))))
 
   (define (preference fn extensions)
     (let ((candidates

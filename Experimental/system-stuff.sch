@@ -28,5 +28,27 @@
 	       (set-car! (cdar c) (+ (cadar c) 1))))))
       (map (lambda (x) (list (caddr x) (cadr x))) classes)))
 
+; Garbage Collect Truly Worthless Atoms.
+
+(define (gctwa)
+
+  (define (symbol.proplist s)
+    (vector-like-ref s 2))
+
+  (define (symbol<? a b)
+    (string<? (symbol->string a) (symbol->string b)))
+
+  (let ((symbols (sro 3 (typetag 'gctwa) 1)))
+    (do ((i 0 (+ i 1))
+	 (dead '()
+	       (let ((s (vector-ref symbols i)))
+		 (if (null? (symbol.proplist s))
+		     (cons s dead)
+		     dead))))
+	((= i (vector-length symbols))
+	 (oblist-set! (select (lambda (x)
+				(not (memq x dead)))
+			      (oblist)))))))
+
 ; eof
 

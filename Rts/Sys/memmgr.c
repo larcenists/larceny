@@ -76,8 +76,11 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   else
     *generations = allocate_stopcopy_system( gc, info );
 
-  gc->los = create_los( *generations );
   DATA(gc)->generations = *generations;
+  if (!info->is_generational_system && gc->static_area)
+    DATA(gc)->generations += 1;
+
+  gc->los = create_los( *generations );
 
   return gc;
 }
@@ -150,6 +153,79 @@ int gc_compute_dynamic_size( int D, int S, int Q, double L, int limit )
   }
 
   return roundup_page( M - est_live_next_gc );
+}
+
+void gc_parameters( gc_t *gc, int op, int *ans )
+{
+  gc_data_t *data = DATA(gc);
+
+  assert( op >= 0 && op <= data->generations );
+
+  if (op == 0) {
+    ans[0] = data->is_generational_system;
+    ans[1] = data->generations;
+  }
+  else {
+    /* info about generation op-1
+       ans[0] = type: 0=nurs, 1=two-space, 2=np-old, 3=np-young, 4=static
+       ans[1] = size in bytes [the 'maximum' field]
+       ans[2] = parameter if appropriate for type
+                   if np, then k
+                   otherwise, 0=fixed, 1=expandable
+       ans[3] = parameter if appropriate for type
+                   if np, then j
+       */
+    op--;
+    if (op == 0) {
+      ans[1] = gc->young_area->maximum;
+      if (data->is_generational_system) {
+	/* Nursery */
+	ans[0] = 0;
+	ans[2] = 0;
+      }
+      else {
+	/* Stopcopy area */
+	ans[0] = 1;
+	ans[2] = 1;
+      }
+    }
+    else if (op-1 < gc->ephemeral_area_count) {
+      ans[0] = 1;
+      ans[1] = gc->ephemeral_area[op-1]->maximum;
+      ans[2] = 0;
+    }
+    else if (op-1 <= gc->ephemeral_area_count+1 &&
+	     gc->dynamic_area &&
+	     data->uses_np_collector) {
+      int k, j;
+
+      /* Non-predictive dynamic area */
+      np_gc_parameters( gc->dynamic_area, &k, &j );
+      ans[2] = k;
+      ans[3] = j;
+      if (op-1 == gc->ephemeral_area_count) {
+	/* NP old */
+	ans[0] = 2;
+	ans[1] = (gc->dynamic_area->maximum / k) * (k - j);
+      }
+      else {
+	ans[0] = 3;
+	ans[1] = (gc->dynamic_area->maximum / k) * j;
+      }
+    }
+    else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
+      /* Dynamic area */
+      ans[0] = 1;
+      ans[1] = gc->dynamic_area->maximum;
+      ans[2] = 1;
+    }
+    else if (gc->static_area) {
+      /* Static area */
+      ans[0] = 4;
+      ans[1] = gc->static_area->allocated; /* [sic] */
+      ans[2] = 1;
+    }
+  }
 }
 
 static int initialize( gc_t *gc )
@@ -226,6 +302,10 @@ static void collect( gc_t *gc, int gen, int bytes_needed )
   assert( gen > 0 || bytes_needed >= 0 );
 
   if (data->in_gc++ == 0) {
+    DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
+    if (DATA(gc)->globals[ G_GC_CNT ] == 0)
+      hardconsolemsg( "Congratulations! "
+		      "You have survived 1,073,741,824 garbage collections!" );
     /* Order is significant! */
     stats_before_gc();
     before_collection( gc );
@@ -306,6 +386,8 @@ enumerate_remsets_older_than( gc_t *gc,
 {
   int i, limit;
 
+  if (!DATA(gc)->is_generational_system) return;
+
   for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
     rs_compact( gc->remset[i] );
     rs_enumerate( gc->remset[i], f, fdata );
@@ -368,6 +450,8 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
   
   if (generation == 0)
     yh_stats( gc->young_area, stats );
+  else if (!data->is_generational_system)
+    return;			/* Stopcopy static area */
   else if (gc->static_area && generation == data->generations-1) {
     remset_stats_t rs_stats;
 
@@ -385,7 +469,7 @@ stats( gc_t *gc, int generation, heap_stats_t *stats )
 
     if (generation <= gc->ephemeral_area_count)
       heap = gc->ephemeral_area[ generation-1 ];
-    else
+    else 
       heap = gc->dynamic_area;
     heap->stats( heap, generation, stats );
     gc->remset[generation]->stats( gc->remset[generation], &rs_stats );

@@ -9,7 +9,6 @@
 ;   closed-port?
 ;
 ; Features we could add:
-;   string ports
 ;   transcript ports
 
 ($$trace "stdio")
@@ -134,6 +133,15 @@
 
 (define (open-output-console)
   (console-io/open-output-console))
+
+(define (open-input-string s)
+  (string-io/open-input-string s))
+
+(define (open-output-string)
+  (string-io/open-output-string))
+
+(define (get-output-string port)
+  (string-io/get-output-string port))
 
 (define (close-input-port p) 
   (if (input-port? p)

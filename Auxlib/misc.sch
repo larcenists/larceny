@@ -1,19 +1,28 @@
+; Auxlib/misc.sch
 ; Larceny auxiliary library -- miscellaneous
+;
 ; $Id: misc.sch,v 1.2 1997/08/22 20:58:12 lth Exp $
 
-(define *pi* 3.14159265358979323846)           ; from <math.h>
+;;; System information
 
-; Names used by older code.
+; Name proposed by Marc Feeley.
 
-(define some some?)
-(define every every?)
+(define (scheme-system) 
+  (let ((x   (open-output-string))
+	(inf (system-features)))
+    (display "Larceny Version ")
+    (display (cdr (assq 'larceny-major-version inf)) x)
+    (display "." x)
+    (display (cdr (assq 'larceny-minor-version inf)) x)
+    (get-output-string x)))
 
-; Names used in Chez Scheme
+;;; Constants
 
-(define andmap every?)
-(define ormap some?)
+(define *pi* 3.14159265358979323846)
 
-; Not as efficient as it could be!
+;;; Lists
+
+; These work on any lists.
 
 (define (remq! key list)
   (cond ((null? list) list)
@@ -22,47 +31,103 @@
 	(else
 	 (set-cdr! list (remq! key (cdr list))))))
 
-; MIT Scheme has this.
+(define (remv! key list)
+  (cond ((null? list) list)
+	((eqv? key (car list))
+	 (remv! key (cdr list)))
+	(else
+	 (set-cdr! list (remv! key (cdr list))))))
 
-(define (make-list nelem val)
-  (if (zero? nelem)
-      '()
-      (cons val (make-list (- nelem 1) val))))
+(define (remove! key list)
+  (cond ((null? list) list)
+	((equal? key (car list))
+	 (remove! key (cdr list)))
+	(else
+	 (set-cdr! list (remove! key (cdr list))))))
 
-; Reductions.
-; The procedures optionally take an identity element.  If the
-; identity is present, lists of length 0 are allowed.  If not,
-; the list must have at least one element.
-;
-; FIXME: These need to be compatible with MIT Scheme; check the docs.
+; These work on assoc lists.
 
-(define (reduce-left proc l . rest)
+(define (aremq! key list)
+  (cond ((null? list) list)
+	((eq? key (caar list))
+	 (aremq! key (cdr list)))
+	(else
+	 (set-cdr! list (aremq! key (cdr list))))))
+
+(define (aremv! key list)
+  (cond ((null? list) list)
+	((eqv? key (caar list))
+	 (aremv! key (cdr list)))
+	(else
+	 (set-cdr! list (aremv! key (cdr list))))))
+
+(define (aremove! key list)
+  (cond ((null? list) list)
+	((equal? key (caar list))
+	 (aremove! key (cdr list)))
+	(else
+	 (set-cdr! list (aremove! key (cdr list))))))
+
+; Generalized selector
+
+(define (filter select? list)
+  (cond ((null? list) list)
+	((select? (car list))
+	 (cons (car list) (filter select? (cdr list))))
+	(else
+	 (filter select? (cdr list)))))
+
+; Generalized searcher
+
+(define (find selected? list)
+  (cond ((null? list) #f)
+	((selected? (car list)) (car list))
+	(else (find selected? (cdr list)))))
+
+; Make-list, reduce, reduce-right, fold-right, fold-left are compatible
+; with MIT Scheme.  Make-list is also compatible with Chez Scheme.
+
+(define (make-list nelem . rest)
+  (let ((val (if (null? rest) #f (car rest))))
+    (define (loop n l)
+      (if (zero? n)
+	  l
+	  (loop (- n 1) (cons val l))))
+    (loop nelem '())))
+
+(define (reduce proc initial l)
 
   (define (loop val l)
     (if (null? l)
         val
         (loop (proc val (car l)) (cdr l))))
 
-  (if (and (null? rest) (null? l))
-      (error "reduce-left: not enough arguments."))
-  (if (null? rest)
-      (loop (car l) (cdr l))
-      (loop (car rest) l)))
+  (cond ((null? l) initial)
+	((null? (cdr l)) (car l))
+	(else (loop (car l) (cdr l)))))
 
-(define (reduce-right proc l . rest)
+(define (reduce-right proc initial l)
 
-  (define (loop val l)
-    (if (null? l)
-	(if (null? rest)
-	    val
-	    (proc val (car rest)))
-	(proc val (loop (car l) (cdr l)))))
-	
-  (if (and (null? rest) (null? l))
-      (error "reduce-right: not enough arguments."))
+  (define (loop l)
+    (if (null? (cdr l))
+	(proc (car l) (cadr l))
+	(proc (car l) (loop (cdr l)))))
+
+  (cond ((null? l) initial)
+	((null? (cdr l)) (car l))
+	(else (loop l))))
+
+(define (fold-left proc initial l)
   (if (null? l)
-      (car rest)
-      (loop (car l) (cdr l))))
+      initial
+      (fold-left proc (proc initial (car l)) (cdr l))))
+
+(define (fold-right proc initial l)
+  (if (null? l)
+      initial
+      (proc (car l) (fold-right proc initial (cdr l)))))
+
+;;; Vectors
 
 ; Should be in the basis library?
 

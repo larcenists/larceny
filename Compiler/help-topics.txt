@@ -39,13 +39,8 @@ settings. The switches are:
 Compilation switches:
   integrate-usual-procedures Generate in-line code for primitives.
   local-optimizations        Suppress redundant instructions.
-  benchmark-mode             Compile
-                               (define (f a b c) ...)
-                             as
-                               (define f
-                                 (letrec ((f (lambda (a b c) ...)))
-                                   f))
-                             since this is faster if `f' is self-recursive.
+  benchmark-mode             Compile certain self-recursive calls as
+                             assuming the procedure won't be redefined.
   empty-list-is-true         () counts as a true value.
   issue-warnings             Print warning messages.
 
@@ -63,7 +58,7 @@ Assembler switches:
   peephole-optimization      Perform peephole optimization.
   catch-undefined-globals    Check references to global variables.
   generate-global-symbols    Let each global cell contain its name.
-  inline-cons                Allocate pairs in-line.
+  inline-allocation          Generate in-line code for some allocation.
   write-barrier              Generate code for generational GC.
   inline-assignment          Generate in-line write barrier code.
   fast-write-barrier         Generate fast in-line write barrier code.

@@ -103,6 +103,9 @@ create_nursery( int gen_no,
 
   must_create_stack( heap );
 
+  heap->maximum = DATA(heap)->heapsize;
+  heap->allocated = 0;
+
   return heap;
 }
 

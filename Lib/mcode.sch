@@ -11,34 +11,6 @@
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
-; FIXME
-; The scheme procedure 'make-rectangular' is implemented in Scheme for now.
-; Perhaps it always should be; anyway, calling make-rectangular is expensive
-; because we fall straight thru millicode into _schemecall and then into
-; this procedure.
-
-(define (generic-make-rectangular a b) 
-  (error "Call to generic-make-rectangular.")
-  (cond ((exact? a)
-	 (if (exact? b)
-	     (if (= b 0)
-		 a
-		 (make-rectnum a b))
-	     (if (= b 0.0)
-		 (exact->inexact a)
-		 (make-compnum (exact->inexact a) b))))
-	((exact? b)
-	 (if (= b 0)
-	     a
-	     (make-compnum a (exact->inexact b))))
-	(else
-	 (if (= b 0.0)
-	     a
-	     (make-compnum a b)))))
-
-
-; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
-;
 ; 'a' is known to be a non-fixnum exact number, or not a number at all.
 ; FIXME: should ratnum case be handled by Algorithm Bellerophon?
 
@@ -54,6 +26,84 @@
 	 (error "exact->inexact: " a " is not a number.")
 	 #t)))
 
+; Currently not used, but should be -- the above ratnum case is not right.
+;
+; WARNING: there are unbound global variables in this code [make-float
+; comes to mind].  Inspect very carefully.
+;
+; Date: Mon, 18 May 1998 13:41:40 -0400
+; From: William D Clinger <will@ccs.neu.edu>
+;
+; What EXACT->INEXACT should do when given an exact rational.
+;
+; Assumes inexact reals are represented using IEEE double precision
+; floating point.  IEEE single and extended precision can be handled
+; by changing n and flonum:minexponent.
+;
+; Test case: (exact->inexact 14285714285714285714285) should be
+; 1.4285714285714286e22, not 1.4285714285714284e22.
+
+'(define exact->inexact:rational
+  (let* ((n         53)
+         (two^n-1   4503599627370496)     ; (expt 2 (- n 1))
+         (two^n     9007199254740992)     ; (expt 2 n)
+         (flonum:minexponent -1023)
+         (log:2     0.6931471805599453))  ; (log 2)
+    
+    ; x is an inexact approximation to p/q
+    
+    (define (hard-case p q x)
+      (let* ((k (- (inexact->exact (ceiling (log2 x)))
+                   n)))
+        (if (> k 0)
+            (loop p (* q (expt 2 k)) k)
+            (loop (* p (expt 2 (- k))) q k))))
+    
+    (define (log2 x)
+      (/ (log x) log:2))
+    
+    ; r = u/v * 2^k
+    
+    (define (loop u v k)
+      (let ((x (quotient u v)))
+        (cond ((and (<= two^n-1 x) (< x two^n))
+               (ratio->float u v k))
+              ((< x two^n-1)
+               (loop (* 2 u) v (- k 1)))
+              ((<= two^n x)
+               (loop u (* 2 v) (+ k 1))))))
+    
+    ; Given exact positive integers p and q with
+    ; 2^(n-1) <= u/v < 2^n, and exact integer k,
+    ; returns the float closest to u/v * 2^k.
+    
+    (define (ratio->float u v k)
+      (let* ((q (quotient u v))
+             (r (- u (* q v)))
+             (v-r (- v r)))
+        (cond ((< r v-r)               (make-float q k))
+              ((> r v-r)               (make-float (+ q 1) k))
+              ((zero? (remainder q 2)) (make-float q k))
+              (else                    (make-float (+ q 1) k)))))
+    
+    ; Primitive operations on flonums.
+    
+    (define (make-float m q)
+      (if (< q flonum:minexponent)
+          (make-float (* .5 m) (+ q 1))
+          (* (+ m 0.0) (expt 2.0 q))))
+    
+    (lambda (r)
+      (if (negative? r)
+          (- (exact->inexact:rational (- r)))
+          (let* ((p (numerator r))
+                 (q (denominator r))
+                 (x (/ (exact->inexact p)
+                       (exact->inexact q))))
+            (if (and (<= p two^n)
+                     (<= q two^n))
+                x
+                (hard-case p q x)))))))
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;
@@ -105,6 +155,28 @@
   (cond ((= b 0) (error "fixnum2ratnum-div: division by zero") #t)
 	((< b 0) (make-reduced-ratnum (- a) (- b)))
 	(else    (make-reduced-ratnum a b))))
+
+
+; Obsolete
+
+(define (generic-make-rectangular a b) 
+  (error "Call to obsolete generic-make-rectangular.")
+  (cond ((exact? a)
+	 (if (exact? b)
+	     (if (= b 0)
+		 a
+		 (make-rectnum a b))
+	     (if (= b 0.0)
+		 (exact->inexact a)
+		 (make-compnum (exact->inexact a) b))))
+	((exact? b)
+	 (if (= b 0)
+	     a
+	     (make-compnum a (exact->inexact b))))
+	(else
+	 (if (= b 0.0)
+	     a
+	     (make-compnum a b)))))
 
 
 ; "install-millicode-support" makes a vector of *all* scheme procedures

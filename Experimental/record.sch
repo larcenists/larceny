@@ -171,10 +171,29 @@
       (error "set-record-type-printer!: " rtd
 	     " is not a record-type-descriptor.")))
 
-; #t iff r1 extends r2
+; Does r1 extend r2?
+;
+; Uses (n^2)/2+O(1) bits globally if there are n record types, but
+; runs in constant time.  The inheritance bit vector for r1 has 1 
+; in the position for r2 if r1 extends r2.
 
 (define (record-type-extends? r1 r2)
-  #f)
+  (let* ((v (rtd/inheritance-bitvector r1))
+	 (l (bitvector-length v))
+	 (k (rtd/type-identifier r2)))
+    (and (< k l)
+	 (= 1 (bitvector-ref v k)))))
+
+(define (bitvector-length v)
+  (* 8 (bytevector-length v)))
+
+(define (bitvector-ref v k)
+  (logand (rshl (bytevector-ref v (quotient k 8))
+		(remainder k 8))
+	  1))
+
+(define (bitvector-set! v k x)
+  ...)
 
 ; Install a printing procedure for records.
 

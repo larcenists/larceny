@@ -1,14 +1,12 @@
 README file for the Larceny FFI implementation
-November 20, 1997
+May 21, 1997
 
 
 Status
 ------
 
-The SunOS5 (Solaris) FFI does not seem to be working.  
-
 Callbacks are not fully implemented -- the integration with call/cc is
-not finished.
+not finished.  Don't use callbacks yet.
 
 
 Introduction
@@ -16,14 +14,12 @@ Introduction
 
 To use the ffi, it's easiest to load Ffi/loadffi.sch and then evaluate
 
-	(load-ffi <path> <architecture-os>)
+	(load-ffi <path>)
 
 where <path> is the name of the Ffi directory, with a trailing directory
-separator, and where <architecture> is one of the symbols sun4-sunos4 or
-sun4-sunos5.  Load-ffi loads all the FFI files and takes a stab at
-setting up the right libraries for your system.  You should check the 
-library definitions at the head of loadffi.sch to be sure that they are
-right for your system.
+separator.  Load-ffi loads all the FFI files and loads the appropriate
+libc.  It returns three values: an architecture identifier, a callout-abi
+structure, and a callback-abi structure.
 
 If you take a look in Ffi/examples.sch, you'll see an example of this.
 The code in that file should in any case be very instructive.
@@ -51,13 +47,18 @@ In addition, there are the ABI objects, defined by ffi-sunos4.sch and
 ffi-sunos5.sch
 
 	ffi/SPARC-sunos4-C-callout-stdabi
+	ffi/SPARC-sunos4-C-callback-stdabi
 	ffi/SPARC-sunos5-C-callout-stdabi
+	ffi/SPARC-sunos5-C-callback-stdabi
+
+and also two utility procedures that return the name of libc on the
+particular system:
+
+	ffi/sun4-sunos4-libc
+	ffi/sun4-sunos5-libc
 
 It is easiest to work on the higher level, or to define abstractions on
-top of the high level.  For example, in ffi-test.sch there is code that
-maps C data types onto the FFI data types, and hides other parts of the
-protocol as well, giving rise to a very succinct foreign function
-definition interface.
+top of the high level.  Auxlib/std-ffi.sch is one such abstraction.
 
 
 Files
@@ -339,6 +340,12 @@ ffi-sunos4.sch
   These ABI objects implement standard name mangling for C on SunOS 4,
   namely, prepending "_" to the name.
 
+  Also, it defines a procedure
+	ffi/sun4-sunos4-libc : () -> string
+	  Returns the correct file name for libc.so on the system.  On
+	  SunOS 4, this may involve a minor search because the libc
+	  has a version number in its name.
+
 ffi-sunos5.sch
 
   This file defines two full ABI objects:
@@ -346,3 +353,7 @@ ffi-sunos5.sch
 	ffi/SPARC-sunos5-C-callback-stdabi
   These ABI objects implement standard name mangling for C on SunOS 4,
   namely, there is no name mangling.
+
+  Also, it defines a procedure
+	ffi/sun4-sunos5-libc : () -> string
+	  Returns the correct file name for libc.so on the system.

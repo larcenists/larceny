@@ -243,6 +243,7 @@
     (bytevector-like-length 1 bytevector-like-length #f -1)
     (remainder 2 remainder #f -1)
     (sys$read-char 1 sys$read-char #f -1)
+    (gc-counter 0 gc-counter #f -1)
     ))
 
 (define $immediate-primops$
@@ -325,20 +326,32 @@
                             (make-constant '()))))
           (else (m-scan `((lambda x x) ,@(cdr exp)) env)))))
 
-; @@Lars
-; Precomputes (length (quote (x ...)))
+; This transformation must make sure the entire list is freshly
+; allocated when an argument to VECTOR returns more than once.
 
-;(define-inline 'length
-;  (lambda (exp env)
-;    (cond ((not (= 2 (length exp)))
-;	   (inline-error exp))
-;	  ((and (pair? (cadr exp))
-;		(eq? (car (cadr exp)) 'quote)
-;		(list? (cadr (cadr exp))))
-;	   (make-constant (length (cadr (cadr exp)))))
-;	  (else
-;	   (make-call (make-variable 'length)
-;		      (list (m-scan (cadr exp) env)))))))
+(define-inline 'vector
+  (lambda (exp env)
+    (cond ((null? (cdr exp)) (make-constant '#()))
+          ((null? (cddr exp))
+           (make-call (make-variable 'make-vector)
+                      (list (make-constant 1)
+                            (m-scan (cadr exp) env))))
+          (else
+           (let ((vars (map (lambda (x) (gensym "T"))
+                            (cdr exp)))
+                 (vec (gensym "V"))
+                 (n (length (cdr exp))))
+             (m-scan `(let ,(map list vars (cdr exp))
+                        (let ((,vec (make-vector ,(length vars)
+                                                 ,(car vars))))
+                          ,@(do ((vars (cdr vars) (cdr vars))
+                                 (assignments '()
+                                   (cons `(vector-set! ,vec ,i ,(car vars))
+                                         assignments))
+                                 (i 1 (+ i 1)))
+                                ((= i n) (reverse assignments)))
+                          ,vec))
+                     env))))))
 
 (define-inline 'cadddr
   (lambda (exp env)

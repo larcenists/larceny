@@ -67,8 +67,8 @@
 ;      to by R.
 ;   *  F and G are garbage.
 
-(define source-file-name)                                     ; @@ Lars
-(define source-file-position)                                 ; @@ Lars
+(define source-file-name #f)                                  ; @@ Lars
+(define source-file-position #f)                              ; @@ Lars
 
 (define (pass1 def-or-exp . rest)                             ; @@ Lars
   (set! source-file-name #f)                                  ; @@ Lars

@@ -131,6 +131,7 @@ extern void UNIX_block_signals( word );
 extern void UNIX_system( word );
 extern void UNIX_allocate_nonmoving( word, word );
 extern void UNIX_object_to_address( word );
+extern void UNIX_sysfeature( word v );
 #endif
 
 /* In "Rts/Sys/ldebug.c" */
@@ -155,7 +156,8 @@ extern unsigned stats_rtclock( void );
 /* In "Rts/Sys/version.c" */
 
 #ifndef GC_INTERNAL
-extern char *version;
+extern int  larceny_major_version;
+extern int  larceny_minor_version;
 extern char *user;
 extern char *date;
 extern char *osname;
@@ -187,6 +189,8 @@ void larceny_C_ffi_dlsym( word w_handle, word w_sym );
 void larceny_C_ffi_getaddr( word w_key );
 void larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
 				    word *adesc, int rdesc, int argc );
+void larceny_peek_bytes( word w_addr, word w_bytevector, word w_count );
+void larceny_poke_bytes( word w_addr, word w_bytevector, word w_count );
 
 /* In Rts/Sys/syscall.c */
 

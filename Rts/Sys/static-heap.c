@@ -26,17 +26,19 @@ struct static_data {
 static word *allocate( static_heap_t *heap, int nbytes )
 {
   word *p;
+  int nwords;
   static_data_t *data = DATA(heap);
   semispace_t *ss;
 
+  nbytes = roundup_balign( nbytes );
+  nwords = nbytes / sizeof( word );
   if (!heap->data_area)
     heap->data_area = create_semispace( nbytes, data->gen_no, data->gen_no );
   ss = heap->data_area;
-  nbytes = roundup_balign( nbytes );
-  if (ss->chunks[ ss->current ].top + nbytes >= ss->chunks[ ss->current ].lim)
-    ss_expand( ss, max( nbytes, OLDSPACE_EXPAND_BYTES ) );   /* FIXME: wrong constant */
+  if (ss->chunks[ ss->current ].top + nwords >= ss->chunks[ ss->current ].lim)
+    ss_expand( ss, max( nbytes, GC_CHUNK_SIZE ) );
   p = ss->chunks[ ss->current ].top;
-  ss->chunks[ ss->current ].top += nbytes;
+  ss->chunks[ ss->current ].top += nwords;
   return p;
 }
 

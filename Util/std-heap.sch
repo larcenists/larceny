@@ -1,33 +1,22 @@
-(define *files* 
-  '("Auxlib/misc"
-    "Auxlib/sort"
-    "Auxlib/pp"
-    "Experimental/apropos"
-    "Experimental/system-stuff"
-    "Experimental/applyhook"
-    "Debugger/debug"
-    "Debugger/countcalls"))
+;;; Util/std-heap.sch
+;;; Load script for building the full heap image
+;;;
+;;; BUGS:
+;;; - Most compiler names are hidden.  It would be nice to be able to
+;;;   expose them in such a way that changes to them would take effect
+;;;   (so that this heap could be used for development)
+;;; - The FFI internals (loaded from common-heap.sch) are not hidden.
 
-(define *mal-files*
-  '("Experimental/applyhook0"))
+(load "Util/load-env.sch")
+(load-environment "Util/modules.list" 'verbose)
 
-(define (munge files ext)
-  (map (lambda (f) (string-append f ext)) files))
+(load "Util/common-heap.sch")
 
-(define (compile-files)
-  (for-each compile-file (munge *files* ".sch"))
-  (for-each assemble-file (munge *mal-files* ".mal")))
+(herald (string-append "Heap dumped on "
+		       (unix:current-timestamp)
+		       ".  Always compiling."))
+(dump-interactive-heap "std.heap")
+(system "larceny -reorganize-and-dump std.heap")
+(system "mv std.heap.split std.heap")
 
-(define (load-files)
-  (for-each load (munge (append *mal-files* *files*) ".fasl")))
-
-(define (dump-std-heap)
-  (set! *files* (undefined))
-  (set! *mal-files* (undefined))
-  (set! munge (undefined))
-  (set! compile-files (undefined))
-  (set! dump-std-heap (undefined))
-  (set! load-files (undefined))
-  (set! pp pretty-print)
-  (dump-interactive-heap "std.heap"))
-
+; eof

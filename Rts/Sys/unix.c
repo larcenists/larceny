@@ -9,6 +9,7 @@
 /* Welcome to Unix */
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
 #include <limits.h>
@@ -22,6 +23,7 @@
 
 #include "larceny.h"
 #include "signals.h"
+#include "gc_t.h"
 
 /* Why these aren't in the system's header files I don't know */
 #if defined(SUNOS4)
@@ -320,6 +322,46 @@ void UNIX_object_to_address( word w_obj )
     globals[ G_RESULT ] = box_uint( (word)ptrof( w_obj ) );
   else
     globals[ G_RESULT ] = w_obj;
+}
+
+void UNIX_sysfeature( word v /* a vector of sufficient length */ )
+{
+  struct utsname name;
+  int major, minor, ans[4];
+
+  switch (nativeint(vector_ref( v, 0 ))) {
+  case 0  : /* larceny-major */
+    vector_set( v, 0, fixnum( larceny_major_version ) );
+    break;
+  case 1  : /* larceny-minor */
+    vector_set( v, 0, fixnum( larceny_minor_version ) );
+    break;
+  case 2  : /* os-major */
+    uname( &name );
+    sscanf( name.release, "%d.%d", &major, &minor );
+    vector_set( v, 0, fixnum( major ) );
+    break;
+  case 3  : /* os-minor */
+    uname( &name );
+    sscanf( name.release, "%d.%d", &major, &minor );
+    vector_set( v, 0, fixnum( minor ) );
+    break;
+  case 4  : /* gc-info */
+    gc_parameters( the_gc( globals ), 0, ans );
+    vector_set( v, 0, fixnum(ans[0]) );	/* technology */
+    vector_set( v, 1, fixnum(ans[1]) );	/* generations */
+    break;
+  case 5  : /* gen-info, generations numbered 1..n */
+    ans[0] = 0; ans[1] = 0; ans[2] = 0; ans[3] = 0;
+    gc_parameters( the_gc( globals ), nativeint(vector_ref( v, 1 )), ans );
+    vector_set( v, 0, fixnum(ans[0]) ); /* type */
+    vector_set( v, 1, fixnum(ans[1]) ); /* size */
+    vector_set( v, 2, fixnum(ans[2]) ); /* parameter (maybe) */
+    vector_set( v, 3, fixnum(ans[3]) ); /* parameter (maybe) */
+    break;
+  default : panic( "Unknown code %d passed to UNIX_sysfeature",
+		   nativeint( vector_ref( v, 0 ) ) );
+  }
 }
 
 /* eof */

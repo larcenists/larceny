@@ -85,6 +85,10 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
   }
   else
     data->target_size = data->size_bytes;
+
+  heap->maximum = data->target_size;
+  heap->allocated = 0;
+
   return heap;
 }
 

@@ -4,14 +4,13 @@
 ;
 ; $Id$
 
-; FIXME: This only works if loaded into an nbuild-built system 
-; (because compile-and-assemble-expression is not visible otherwise).
+(if (file-exists? "Asm/Common/link-lop.fasl")
+    (load "Asm/Common/link-lop.fasl")
+    (load "Asm/Common/link-lop.sch"))
 
-; FIXME: The next expression should load the fasl file if it exists.
-
-(load "Asm/Common/link-lop.sch")
-
-(let ()
+(let ((interaction-environment interaction-environment)
+      (link-lop-segment link-lop-segment)
+      (compile-and-assemble-expression compile-and-assemble-expression))
 
   ; The repl evaluator always takes two arguments, but eval takes one or two.
 

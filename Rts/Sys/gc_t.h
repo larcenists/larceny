@@ -202,6 +202,8 @@ gc_t
 		  bool enumerate_np_remset )
 	     );
 
+void gc_parameters( gc_t *gc, int op, int *ans );
+
 #endif   /* INCLUDED_GC_T_H */
 
 /* eof */

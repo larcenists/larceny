@@ -5,13 +5,15 @@
 
 (define host-system 'larceny)
 
-(define (compat:initialize)
-  #t)
+; The compatibility library loads Auxlib if compat:initialize is called
+; without arguments.  Compat:load will load fasl files when appropriate.
 
-(define (compat:initialize2)
-;  (peephole-optimization #f)
-  #t
-  )
+(define (compat:initialize . rest)
+  (if (null? rest)
+      (begin (compat:load "Larceny/compat2.sch")
+	     (compat:load "Auxlib/misc.sch")
+	     (compat:load "Auxlib/sort.sch")
+	     (compat:load "Auxlib/pp.sch"))))
 
 (define (with-optimization level thunk) 
   (thunk))
@@ -39,10 +41,10 @@
 
 (define (compat:load filename)
   (define (loadit fn)
-    (if *verbose-load*
+    (if (nbuild-parameter 'verbose-load?)
 	(format #t "~a~%" fn))
     (load fn))
-  (if *always-load-scheme-code*
+  (if (nbuild-parameter 'always-source?)
       (loadit filename)
       (let ((fn (larc-new-extension filename "fasl")))
 	(if (and (file-exists? fn)
@@ -61,17 +63,5 @@
 	     (loop (+ i 1)))
 	    (else
 	     (> (vector-ref ta i) (vector-ref tb i)))))))
-
-; Twobit uses cerror a few places.
-
-(define cerror error)
-
-; I have split the file here so that the second part can be compiled; 
-; compat:load will load the fasl file when appropriate.
-
-(compat:load "Larceny/compat2.sch")
-(compat:load "Auxlib/misc.sch")
-(compat:load "Auxlib/sort.sch")
-(compat:load "Auxlib/pp.sch")
 
 ; eof

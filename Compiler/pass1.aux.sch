@@ -428,7 +428,7 @@
                        (make-unreadable (cadr exp))
                        (make-unreadable (caddr exp))
                        (if (= (length exp) 3)
-                           *unspecified-expression*
+                           '(unspecified)
                            (make-unreadable (cadddr exp)))))
            ((begin) (if (= (length exp) 2)
                         (make-unreadable (cadr exp))

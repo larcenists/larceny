@@ -54,6 +54,9 @@ static struct {
 		      { (fptr)UNIX_object_to_address, 1, 0 },
 		      { (fptr)larceny_C_ffi_getaddr, 1, 0 },
  		      { (fptr)C_SRO, 3, 0 },
+		      { (fptr)UNIX_sysfeature, 1, 0 },
+		      { (fptr)larceny_peek_bytes, 3, 0 },
+		      { (fptr)larceny_poke_bytes, 3, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

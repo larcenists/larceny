@@ -124,6 +124,9 @@ create_sc_heap( int gen_no,
   globals[ G_STKUFLOW ] = 0;
   must_create_stack( heap );
 
+  heap->maximum = data->target_size;
+  heap->allocated = 0;
+
   return heap;
 }
 

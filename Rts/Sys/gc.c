@@ -28,6 +28,8 @@ int create_memory_manager( gc_param_t *params )
   gc = create_bdw_gc( params, &generations );
 #endif /* BDW_GC */
   gc_initialize( gc );
+  globals[ G_GC ] = (word)gc;
+  globals[ G_GC_CNT ] = fixnum(0);
   return 1;
 }
 
@@ -61,31 +63,37 @@ word standing_room_only( int p_tag, int h_tag, int limit )
   return sro( gc, globals, p_tag, h_tag, limit );
 }
 
+/* For vectors and pairs, the length is number of words.
+   For bytevectors, the length is number of bytes.
+   The length is the number of data fields in the structure and does
+   not include header or padding.
+   */
 word allocate_nonmoving( int length, int tag )
 {
-  int i;
+  int i, bytes;
   word *obj;
 
   switch( tag ) {
   case PAIR_TAG :
   case VEC_TAG :
-    length = sizeof(word)*length;
+    bytes = sizeof(word)*length + 1; /* header */
     break;
   case BVEC_TAG :
+    bytes = length + sizeof(word);   /* header */
     break;
   default :
     panic( "Bad case in UNIX_allocate_nonmoving: %d", tag );
   }
 
-  obj = gc_allocate_nonmoving( gc, length, tag == BVEC_TAG );
+  obj = gc_allocate_nonmoving( gc, bytes, tag == BVEC_TAG );
   switch (tag) {
   case PAIR_TAG :
     obj[0] = FALSE_CONST;
     obj[1] = FALSE_CONST;
     return tagptr( obj, PAIR_TAG );
   case VEC_TAG :
-    obj[0] = mkheader( length, VECTOR_HDR );
-    for ( i=1 ; i < length/sizeof(word) ; i++ )
+    obj[0] = mkheader( length*sizeof(word), VECTOR_HDR );
+    for ( i=1 ; i < length ; i++ )
       obj[i] = FALSE_CONST;
     return tagptr( obj, VEC_TAG );
   case BVEC_TAG :
@@ -123,8 +131,8 @@ static char *heapio_msg[] =
 int load_heap_image_from_file( const char *filename )
 {
   heapio_t *heap;
-  int text_size, data_size, r;
-  word *sbase, *tbase;
+  int text_size, data_size, r, i;
+  word *sbase, *tbase, tmp1, tmp2;
 
   heap = create_heapio();
   if ((r = hio_open( heap, filename )) < 0)
@@ -148,6 +156,14 @@ int load_heap_image_from_file( const char *filename )
 
   if ((r = hio_close( heap )) < 0)
     goto fail;
+
+  /* Clear the globals as necessary */
+  tmp1 = globals[ G_STARTUP ];
+  tmp2 = globals[ G_CALLOUTS ];
+  for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ )
+    globals[ i ] = FALSE_CONST;
+  globals[ G_STARTUP ] = tmp1;
+  globals[ G_CALLOUTS ] = tmp2;
 
   return 1;
 

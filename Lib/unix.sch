@@ -70,6 +70,8 @@
 (define syscall:ffi-getaddr 37)
 (define syscall:sro 38)
 (define syscall:sys-feature 39)
+(define syscall:peek-bytes 40)
+(define syscall:poke-bytes 41)
 
 ; Syscall wrappers.
 
@@ -378,20 +380,79 @@
 	(else
 	 (unix:exit code))))
 
+(define feature-vector-length 5)
+(define feature$larceny-major 0)
+(define feature$larceny-minor 1)
+(define feature$os-major      2)
+(define feature$os-minor      3)
+(define feature$gc-info       4)
+(define feature$gen-info      5)
+
 (define (sys$system-feature name)
-  (case name
-    ((architecture) 'sparc)		      ; 0
-    ((architecture-version) #f)               ; 1
-    ((operating-system) 'sunos)		      ; 2
-    ((os-major-version) (unix:sysfeature 3))
-    ((os-minor-version) (unix:sysfeature 4))
-    ((gc-technology)
-     (case (unix:sysfeature 5)
-       ((0) 'stop-and-copy)
-       ((1) 'generational)
-       ((2) 'conservative)
-       (else 'unknown)))
-    (else ???)))
+
+  (define (sysfeature v)
+    (syscall syscall:sys-feature v))
+
+  (let ((v (make-vector feature-vector-length 0)))
+    (case name
+      ((larceny-major)
+       (vector-set! v 0 feature$larceny-major)
+       (sysfeature v)
+       (vector-ref v 0))
+      ((larceny-minor) 
+       (vector-set! v 0 feature$larceny-minor)
+       (sysfeature v)
+       (vector-ref v 0))
+      ((arch-name) "SPARC")
+      ((endian) 'big)
+      ((os-name)   "SunOS")
+      ((os-major)
+       (vector-set! v 0 feature$os-major)
+       (sysfeature v)
+       (vector-ref v 0))
+      ((os-minor)
+       (vector-set! v 0 feature$os-minor)
+       (sysfeature v)
+       (vector-ref v 0))
+      ((gc-tech)
+       (vector-set! v 0 feature$gc-info)
+       (sysfeature v)
+       (let* ((gc-type (vector-ref v 0))
+	      (gc-gens (vector-ref v 1))
+	      (g       (make-vector gc-gens #f)))
+	 (do ((i 0 (+ i 1)))
+	     ((= i gc-gens))
+	   (vector-set! v 0 feature$gen-info)
+	   (vector-set! v 1 (+ i 1))
+	   (sysfeature v) 
+	   (let* ((type (case (vector-ref v 0)
+			  ((0) 'nursery)
+			  ((1) 'two-space)
+			  ((2) 'two-space-np-old)
+			  ((3) 'two-space-np-young)
+			  ((4) 'static)
+			  ((5) 'conservative-mark-sweep)
+			  (else 'unknown)))
+		  (size (vector-ref v 1))
+		  (params (case type
+			    ((two-space-np-old two-space-np-young)
+			     (list (cons 'k (vector-ref v 2))
+				   (cons 'j (vector-ref v 3))))
+			    ((two-space nursery static)
+			     (if (zero? (vector-ref v 2))
+				 'fixed
+				 'expandable))
+			    (else
+			     #f))))
+	     (vector-set! g i (vector i type size params))))
+	 (cons (case gc-type
+		 ((0) 'stop+copy)
+		 ((1) 'generational)
+		 ((2) 'conservative)
+		 (else 'unknown))
+	       g)))
+      (else 
+       (error "sys$system-feature: " name " is not a system feature name")))))
 
 ; Get the value of an environment variable.
 
@@ -512,5 +573,25 @@
 	 (error "sys$C-ffi-dlsym: bad symbol " sym) #t)
 	(else
 	 (syscall syscall:C-ffi-dlsym handle sym))))
+
+(define (peek-bytes addr bv count)
+  (if (and (bytevector? bv)
+	   (fixnum? count)
+	   (<= count (bytevector-length bv))
+	   (or (fixnum? addr)
+	       (and (bignum? addr)
+		    (<= 0 addr 4294967295))))
+      (syscall syscall:peek-bytes addr bv count)
+      (error "peek-bytes: invalid arguments " addr ", " bv ", " count)))
+
+(define (poke-bytes addr bv count)
+  (if (and (bytevector? bv)
+	   (fixnum? count)
+	   (<= count (bytevector-length bv))
+	   (or (fixnum? addr)
+	       (and (bignum? addr)
+		    (<= 0 addr 4294967295))))
+      (syscall syscall:poke-bytes addr bv count))
+      (error "poke-bytes: invalid arguments " addr ", " bv ", " count))
 
 ; eof

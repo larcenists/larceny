@@ -32,4 +32,7 @@
 	((callback-addr)  callback-addr)
 	(else (parent selector))))))
 
+(define (ffi/sun4-sunos5-libc)
+  "/lib/libc.so")
+
 ; eof

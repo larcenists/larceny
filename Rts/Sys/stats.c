@@ -566,7 +566,7 @@ print_heapstats( heap_stats_t *stats )
  * Format: see the banner string below.
  */
 static char *dump_banner =
-"; RTS statistics, dumped by Larceny version %s\n;\n"
+"; RTS statistics, dumped by Larceny version %d.%d\n;\n"
 "; The output is an s-expression, one following each GC.  When some entry\n"
 "; is advertised as xxx-hi and xxx-lo, then the -hi is the high 29 bits\n"
 "; and the -lo is the low 29 bits of a 58-bit unsigned integer.\n"
@@ -638,7 +638,8 @@ stats_opendump( const char *filename )
   dumpfile = fopen( filename, "w" );
 
   if (dumpfile)
-    fprintf( dumpfile, dump_banner, version );
+    fprintf( dumpfile, dump_banner,
+	     larceny_major_version, larceny_minor_version );
   return dumpfile != 0;
 }
 

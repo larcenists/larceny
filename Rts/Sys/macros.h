@@ -89,6 +89,9 @@
 #define reset_bit( w )      ((w) &= ~BIT_MASK)
 */
 
+#define the_gc( globals )      (gc_t*)globals[ G_GC ]
+
+
 /* macros for manipulating Scheme data types */
 #define pair_car( ptr )        *ptrof( ptr )
 #define pair_cdr( ptr )        *(ptrof( ptr ) + 1)
@@ -100,15 +103,15 @@
 #define vector_ref( vp, i )    (*(ptrof( vp )+VEC_HEADER_WORDS+(i)))
 #define vector_set( vp, i, v ) (*(ptrof( vp )+VEC_HEADER_WORDS+(i)) = (v))
 
-#define bytevector_length(x) (sizefield(*ptrof(x)))
-#define bytevector_ref(x,i)  (*((byte*)(ptrof(x)+1)+i))
+#define bytevector_length(x)   (sizefield(*ptrof(x)))
+#define bytevector_ref(x,i)    (*((byte*)(ptrof(x)+1)+i))
 
 #define mkbignum_header( sign, length )  (((sign) << 16) | length)
-#define bignum_length( x )   (*(ptrof(x)+1) & 0x0000FFFF)
-#define bignum_sign( x )     (*(ptrof(x)+1) >> 16)
-#define bignum_ref32( x, i ) (*(ptrof(x)+2+i))
+#define bignum_length( x )     (*(ptrof(x)+1) & 0x0000FFFF)
+#define bignum_sign( x )       (*(ptrof(x)+1) >> 16)
+#define bignum_ref32( x, i )   (*(ptrof(x)+2+i))
 
-#define real_part( x )       (*(double*)(ptrof(x)+2))
-#define imag_part( x )       (*((double*)(ptrof(x)+2)+1))
+#define real_part( x )         (*(double*)(ptrof(x)+2))
+#define imag_part( x )         (*((double*)(ptrof(x)+2)+1))
 
 /* eof */

@@ -94,7 +94,16 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->old = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no );
   data->young = create_semispace( GC_CHUNK_SIZE, gen_no, gen_no+1 );
 
+  heap->maximum = data->stepsize * data->k;
+  heap->allocated = 0;
+
   return heap;
+}
+
+void np_gc_parameters( old_heap_t *heap, int *k, int *j )
+{
+  *k = DATA(heap)->k;
+  *j = DATA(heap)->j;
 }
 
 static void collect( old_heap_t *heap )

@@ -1,43 +1,44 @@
-$Id: README,v 1.1 1997/03/25 16:28:31 lth Exp lth $
+Testsuite/Lib/README
+5 May 1998
 
-Larceny Test Directory
+Larceny Test Suite
 
-The files in this directory test various aspects of Larceny.  Some of
-the code is currently somewhat old and assumes a not-entirely-bright
-compiler; in particular, a compiler that performs global constant
-propagation and compile-time evaluation of primitives with constant
-arguments will skew the tests.  This needs to be fixed.  (Constant
-folding and interprocedural constant propagation makes things even
-worse.)
+Overview
+--------
+The files in this directory implement a test suite for Larceny.  The
+files and their contents are enumerated below.
 
-The files are listed in the most reasonable order of testing; generally,
-later tests assume that earlier tests have run to completion correctly.
+To load the test suite, compile it first (using make-regression-test in
+the development environment) and then load "load-all-tests.sch" into a
+clean system.  Then evaluate (run-all-tests) to run the tests.
 
-The file `test.sch' contains two procedures, `test' and `allof', which
-are used by the test procedures and should be loaded before other tests
-are run.
+The test suite is not even nearly comprehensive; I'm working on this.
+Also, some parts were not written very carefully and may be "defeated"
+by compiler optimizations; I'm working on fixing this also.
 
+Using it
+--------
 Some assumptions are made about a correctly working run-time system, in
-particular, the code assumes that `car', `cdr', `display', `equal?',
-`newline', `not', and `null?' (all of which are used by `test.sch')
-work.  This is not usually a problem; the typical use of this test suite
-is to check out new versions of the compiler and assembler after a
-working system has already been created and is stable.  In the
-bootstrapping phase you should rely on other tests to get the RTS up.
+particular, the code assumes that CAR, CDR, DISPLAY, EQUAL?, NEWLINE,
+NOT, and NULL? (all of which are used by `test.sch') work.  This should
+not be a problem; the typical use of this test suite is to check out new
+versions of the compiler and assembler after a working system has
+already been created and is stable.  (In the bootstrapping phase you
+should rely on other techniques to get the RTS up to a point where it
+can run the test suite.)  
+
 At a minimum, I would suggest compiling `test.sch' with an already
 working compiler and assembler and only compile the test program with
-the compiler being tested.
+the compiler being tested.  In any event, the heap image used as a basis
+for testing should have been compiled with a stable compiler.
 
-Each file X.sch defines a procedure of no arguments called `X-test'
-(e.g., fib-test, fact-test) which is the procedure to call interactively
-to run the test after the compiled code has been loaded.  Other toplevel
-procedures will be defined as well, depending on the test.
-
-fib.sch		procedure calling and fixnum +,-,<
-fact.sch	procedure calling and fixnum *,<,-
-print.sch	output procedures
-reverse.sch	list operations
-char.sch	all character operations including char->integer, integer->char
-arith.sch	generic arithmetic (not yet comprehensive)
-ctak.sch	call-with-current-continuation, closure creation
-
+The files
+---------
+load-all-tests.sch	Driver code
+test.sch		Scaffolding code
+fib.sch			Fibonacci program
+ctak.sch		Tak program
+number.sch		Numeric operations 
+char.sch		Character operations
+bool.sch		Booleans; equality
+env.sch			Top-level environments

@@ -991,3 +991,14 @@
     overflow from the subtraction!
 
     FIX: Implemented the correct tag checking code.
+
+063 v0.34 (980511 / lth)  Fixed 980511 by lth
+
+    The definition of 'vector' in sparc.imp.sch is either buggy (not likely)
+    or provokes a bug, e.g. in the call to vector in mcode.sch (more likely).
+    In any event, if enabled then Larceny fails during startup during the 
+    first call to environment-set! with the error 
+
+	Error: Wrong number of arguments to procedure #<PROCEDURE>
+
+    FIX: This was an off-by-one bug in emit-init-proc-slots! in gen-msi.sch.

@@ -159,25 +159,19 @@
 
 (define (debug)
   (format #t "Entering debugger; ? for help.~%")
+  (let ((e (error-continuation)))
+    (if (not e)
+	(begin (display "No error continuation!")
+	       (newline))
+	(debug-continuation-structure e))))
+
+(define (debug-continuation-structure c)
   (call-with-current-continuation
    (lambda (k)
      (set! *debug-exit* k)
-     (let ((e (error-continuation)))
-       (if (not e)
-	   (begin (display "No error continuation!")
-		  (newline))
-	   (inspect-continuation e)))))
+     (inspect-continuation c)))
   (set! *debug-exit* #f)
   (unspecified))
-
-; From Lib/error.sch, where it was not public.
-
-(define (call-with-reset-handler handler thunk)
-  (let ((old-handler (reset-handler)))
-    (dynamic-wind 
-     (lambda () (reset-handler handler))
-     thunk
-     (lambda () (reset-handler old-handler)))))
 
 (define *debug-print-length* 7)
 
@@ -301,6 +295,16 @@
     (frame-summary frame)
     (loop frame prev #f))
 
+  (define (cmd:code frame prev)
+    (let ((p (vector-ref frame frame:procedure)))
+      (if (procedure? p)
+	  (let ((code (procedure-expression p)))
+	    (if code
+		(pretty-print code)
+		(format #t "No code.~%")))
+	  (format #t "No code.~%")))
+    (loop frame prev #f))
+
   (define (cmd:evaluate frame prev)
     (let* ((n    (get-token))
 	   (expr (get-token)))
@@ -352,6 +356,7 @@
 	      ((eq? cmd 'u)  (cmd:up count frame prev))
 	      ((eq? cmd 'x)  (cmd:examine frame prev))
 	      ((eq? cmd 'q)  'done)
+	      ((eq? cmd 'c)  (cmd:code frame prev))
 	      ((eq? cmd 'b)  (cmd:backtrace (if (number? x) count #f)
 					    frame prev))
 	      ((eq? cmd 's)  (cmd:summarize frame prev))
@@ -375,13 +380,15 @@
   (unspecified))
 
 (define inspector-help "
-u           Up a frame.
-d           Down a frame.
 b           Print backtrace of frames.
-s           Summarize the current frame.
-x           Examine the current frame contents.
+c           Show source code (if available).
+d           Down a frame.
 i n         Inspect the procedure in slot n of the current frame.
 i @         Inspect the procedure in the current continuation frame.
+q           Quit the debugger.
+s           Summarize the current frame.
+u           Up a frame.
+x           Examine the current frame contents.
 => n expr   Expr is evaluated in the current interaction environment and
             must evaluate to a procedure.   It is passed the contents of
             slot n from the current frame, and the result, if not unspecified,
@@ -482,7 +489,7 @@ d and u is 1.
 	   (begin
 	     (display (procedure-documentation proc))
 	     (display "   ")
-	     (display (continuation-return-adress frame))
+	     (display (continuation-return-address frame))
 	     (newline)))
        #t))))
 

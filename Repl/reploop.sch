@@ -28,6 +28,7 @@
 ; Entry point in a bootstrap heap.
 
 (define (main argv)
+  ($$trace "In main")
   (init-toplevel-environment)
   (interaction-environment (larceny-environment))
   (setup-error-handlers)
@@ -38,6 +39,7 @@
 ; Entry point in a saved interactive heap.
 
 (define (rep-loop-bootstrap argv)
+  ($$trace "In rep-loop-bootstrap")
   (set! *file-arguments* #f)
   (set! *reset-continuation* #f)
   (set! *repl-level* 0)
@@ -47,6 +49,9 @@
   (setup-interrupts)
   (failsafe-load-init-file)
   (failsafe-load-file-arguments)
+  (if (herald)
+      (begin (display (herald))
+	     (newline)))
   (newline)
   (repl)
   (exit 0))
@@ -77,14 +82,15 @@
 			    values))))
 	    (reestablish-console-io)
 	    (cond ((null? results)
-		   (repl-display "; No values"))
+		   (display "; No values") (newline))
 		  ((null? (cdr results))
 		   (repl-display (car results)))
 		  (else
-		   (repl-display (string-append
-				  "; "
-				  (number->string (length results))
-				  " values"))
+		   (display (string-append
+			     "; "
+			     (number->string (length results))
+			     " values"))
+		   (newline)
 		   (for-each (lambda (x)
 			       (repl-display x))
 			     results)))
@@ -98,6 +104,7 @@
   ; Setup the error continuation.  We wrap it in a dynamic-wind to allow
   ; REPLs to be nested.
 
+  ($$trace "In repl (toplevel)")
   (let ((x *reset-continuation*))
     (let ((k #f))
       (call-with-current-continuation
@@ -114,12 +121,12 @@
 	     (set! *reset-continuation* x))))))
   (unspecified))
 
-; The default printer uses "display" and does not print unspecified values.
+; The default printer uses "write" and does not print unspecified values.
 
 (define default-repl-printer
   (lambda (result)
     (if (not (eq? result (unspecified)))
-	(begin (display result)
+	(begin (write result)
 	       (newline)))))
 
 (define repl-prompt
@@ -135,6 +142,9 @@
 
 (define repl-printer
   (system-parameter "repl-printer" default-repl-printer))
+
+(define herald
+  (system-parameter "herald" #f))
 
 ; User-available procedures.
 

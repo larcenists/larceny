@@ -17,6 +17,45 @@
 	     #f)
       #t))
 
+; Another generic test procedure, but ans and correct are assumed to
+; be lists and are the same if they have the same contents.
+
+(define (test-all-same id ans correct)
+
+  (define *with-display* #f)
+
+  (define (all-same? l1 l2)
+    (let ((ok #t))
+      (do ((l l1 (cdr l)))
+	  ((null? l))
+	(if (not (memq (car l) l2))
+	    (begin (if *with-display*
+		       (begin (display "Unmatched ")
+			      (display (car l))
+			      (display " in arg1")
+			      (newline)))
+		   (set! ok #f))))
+      (do ((l l2 (cdr l)))
+	  ((null? l))
+	(if (not (memq (car l) l1))
+	    (begin (if *with-display*
+		       (begin (display "Unmatched ")
+			      (display (car l))
+			      (display " in arg2")
+			      (newline)))
+		   (set! ok #f))))
+      ok))
+
+  (if (not (all-same? ans correct))
+      (begin (display "********** FAILURE *********") (newline)
+	     (display "  ") (display id) (display " did not pass test.")
+	     (newline)
+	     (set! *with-display* #t)
+	     (all-same? ans correct)
+	     #f)
+      #t))
+
+
 ; This really ought to be a macro that evaluates the tests in order and
 ; stops when a threshold of errors is reached.  It should also protect
 ; each executed test from aborting the test suite.

@@ -1,11 +1,9 @@
 ; Util/load-env.sch
-; Larceny compilation environment -- compilation system loader file
+; Compilation system loader file.
 ;
 ; $Id: load-env.sch,v 1.2 1997/09/23 20:07:36 lth Exp lth $
 ;
 ; Usage: (load-environment module-file &opt 'verbose &opt basedir)
-;
-; Usage: (standard-installations)
 
 ; See the file modules.list for an example of the input.
 
@@ -120,11 +118,19 @@
   (let ((probe (assq '@toplevel@ envs)))
     (if probe
 	(interaction-environment (cadr probe))))
-  (unspecified))
 
-(define (standard-installations)
-  (repl-display-procedure pretty-print)
-  ; FIXME: Install compile+link as evaluator.
+  ; Check for undefined variables
+
+  (for-each (lambda (e)
+	      (let ((name (car e))
+		    (env  (cadr e)))
+		(for-each (lambda (v)
+			    (if (not (environment-gettable? env v))
+				(format #t "Undefined variable ~a in ~a~%"
+					v name)))
+			  (environment-variables env))))
+	    envs)
+
   (unspecified))
 
 ; eof

@@ -2,16 +2,19 @@
 ; Larceny FFI -- upper level of generic C ffi.
 ;
 ; $Id$
+;
+; FIXME: *ffi/linked-procedures* needs to hold the procedures weakly.
 
 (define *ffi/libraries* '())		; list of names
-(define *ffi/loaded-libraries* '())	; assoc list of ( name . handle )
+(define *ffi/loaded-libraries* '())	; list of ( name . handle )
+(define *ffi/linked-procedures* '())    ; list of ( name abi trampoline libs )
 
 (define (ffi/libraries . rest)
   (cond ((null? rest)
-	 *ffi/libraries*)
+	 (list-copy *ffi/libraries*))
 	((null? (cdr rest))
-	 (set! *ffi/libraries* (car rest))
-	 *ffi/libraries*)
+	 (set! *ffi/libraries* (list-copy (car rest)))
+	 (unspecified))
 	(else
 	 (error "ffi/libraries: Too many arguments."))))
 
@@ -56,6 +59,8 @@
 	 (tramp (ffi/make-callout abi addr args ret))
 	 (args  (ffi/convert-arg-descriptor abi args))
 	 (ret   (ffi/convert-ret-descriptor abi ret)))
+    (set! *ffi/linked-procedures*
+	  (cons (list name abi tramp *ffi/libraries*) *ffi/linked-procedures*))
     (lambda actuals
       (call-with-values
        (lambda ()
@@ -63,8 +68,31 @@
        (lambda (error? value)
 	 (if error?
 	     (if (eq? value 'conversion-error)
-		 (error "Data conversion error in callout to `" name "'.")
-		 (error "Error signalled in callout to `" name "'."))
+		 (error "Data conversion error in callout to \"" name "\".")
+		 (error "Error signalled in callout to \"" name "\"."))
 	     value))))))
+
+(define (ffi/initialize-after-load-world)
+;  (display "; Reloading foreign functions")
+;  (newline)
+  (set! *ffi/loaded-libraries* '())	; Force files to be re-loaded
+  (ffi/relink-all-procedures))		; Update procedures with new addresses
+
+(define (ffi/relink-all-procedures)
+  (call-without-interrupts
+    (lambda ()
+      (for-each (lambda (x)
+		  (let ((name  (car x))
+			(abi   (cadr x))
+			(tramp (caddr x))
+			(libs  (cadddr x))
+			(old-libs (ffi/libraries)))
+		    (ffi/libraries libs)
+		    (let ((new-addr (ffi/link-procedure abi name)))
+		      (ffi/libraries old-libs)
+		      (ffi/set-callout-address! abi tramp new-addr))))
+		*ffi/linked-procedures*))))
+
+(add-init-procedure! ffi/initialize-after-load-world)
 
 ; eof

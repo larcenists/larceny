@@ -402,22 +402,30 @@
 ; The tagged pointer to the procedure is in $r.result.
 
 (define (emit-init-proc-slots! as n)
-  (let ((limit (min (- *nregs* 1) n)))
-    (let loop ((i 0) (offset $p.reg0))
-      (cond ((<= i limit)
-	     (let ((r (force-hwreg! as (regname i) $r.tmp0)))
-	       (sparc.sti as r offset $r.result)
-	       (loop (+ i 1) (+ offset 4))))
-	    ((<= i n)
-	     (emit-load-reg! as $r.reg31 $r.tmp0)
-	     (let loop ((i i) (offset offset))
-	       (sparc.ldi as $r.tmp0 (- $tag.pair-tag) $r.tmp1)
-	       (sparc.sti as $r.tmp1 offset $r.result)
-	       (if (< i n)
-		   (begin 
-		     (sparc.ldi as $r.tmp0 (+ (- $tag.pair-tag) 4) $r.tmp0)
-		     (loop (+ i 1) (+ offset 4))))))))))
 
+  (define (save-registers lo hi offset)
+    (do ((lo     lo     (+ lo 1))
+	 (offset offset (+ offset 4)))
+	((> lo hi))
+      (let ((r (force-hwreg! as (regname lo) $r.tmp0)))
+	(sparc.sti as r offset $r.result))))
+
+  (define (save-list lo hi offset)
+    (emit-load-reg! as $r.reg31 $r.tmp0)
+    (do ((lo     lo      (+ lo 1))
+	 (offset offset (+ offset 4)))
+	((> lo hi))
+      (sparc.ldi as $r.tmp0 (- $tag.pair-tag) $r.tmp1)
+      (sparc.sti as $r.tmp1 offset $r.result)
+      (if (< lo hi)
+	  (begin 
+	    (sparc.ldi as $r.tmp0 (+ (- $tag.pair-tag) 4) $r.tmp0)))))
+      
+  (cond ((< n *lastreg*)
+	 (save-registers 0 n $p.reg0))
+	(else
+	 (save-registers 0 (- *lastreg* 1) $p.reg0)
+	 (save-list      *lastreg* n (+ $p.reg0 (* *lastreg* 4))))))
 
 ; BRANCH
 

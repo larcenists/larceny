@@ -35,6 +35,7 @@
 	     (,$op1     creg)
 	     (,$setreg  2)
 	     (,$lambda  ((,$.proc)
+			 (,$args=   1)
 			 (,$lexical 0 2)
 			 (,$op1     creg-set!)
 			 (,$reg     1)

@@ -6,7 +6,9 @@
 
 #include "config.h"
 
-char *version = "0.33";
+int larceny_major_version = 0;
+int larceny_minor_version = 34;
+
 char *date = DATE;
 char *user = USER;
 

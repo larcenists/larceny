@@ -60,7 +60,7 @@
        (character-syntax-table (make-bytevector 256))
  
        ; Equivalent procedures for what are macros in the MacScheme version.
-       ; These come from "reader0.sch", but a procedures, they have to
+       ; These come from "reader0.sch", but as procedures, they have to
        ; be defined inside this letrec.
 
        (whitespace?
@@ -180,7 +180,7 @@
 ;       (read-symbol
 ;         (lambda (c p l)
 ;           (if (or (not (char? c)) (separator? c))
-;               (string->symbol (string-downcase (list->string (reverse l))))
+;               (string->symbol (string-downcase! (list->string (reverse l))))
 ;               (begin (tyi p)
 ;                      (read-symbol (tyipeek p) p (cons c l))))))
 
@@ -226,7 +226,7 @@
                 (if x
                     x
                     (let ((x (string->symbol
-			      (string-downcase (list->string r)))))
+			      (string-downcase! (list->string r)))))
                       (if (not (peculiar-identifier? x))
                           (warn peculiar-id-message x))
                       x)))
@@ -317,31 +317,20 @@
  
        ; Miscellaneous help functions.
  
-       (string-downcase
-        (letrec ((loop (lambda (s i)
-                         (if (< i 0)
-                             s
-                             (let ((x (bytevector-like-ref s i)))
-                               (cond
-                                ((> x (char->integer #\Z)) #f)
-                                ((< x (char->integer #\A)) #f)
-                                (else (bytevector-like-set! s i (+ x 32))))
-                               (loop s (- i 1)))))))
-          (lambda (s)
-            (loop s (- (string-length s) 1)))))
+; Commented out because it doesn't handle the ISO character set
+;       (char-downcase
+;         (lambda (c)
+;           (cond ((char>? c #\Z) c)
+;                 ((char<? c #\A) c)
+;                 (else (integer->char (+ 32 (char->integer c)))))))
  
-       (char-downcase
-         (lambda (c)
-           (cond ((char>? c #\Z) c)
-                 ((char<? c #\A) c)
-                 (else (integer->char (+ 32 (char->integer c)))))))
- 
-       (char-alphabetic?
-        (lambda (c)
-          (let ((c (char-downcase c)))
-            (cond ((char>? c #\z) #f)
-                  ((char<? c #\a) #f)
-                  (else #t)))))
+; Commented out because it doesn't handle the ISO character set
+;       (char-alphabetic?
+;        (lambda (c)
+;          (let ((c (char-downcase c)))
+;            (cond ((char>? c #\z) #f)
+;                  ((char<? c #\a) #f)
+;                  (else #t)))))
        
        (warn
         (lambda (msg . args)
@@ -477,6 +466,26 @@
 		     (typetag-set! s sys$tag.bytevector-typetag)
 		     (sys$codevector-iflush s)
 		     s))
+		  ;; Control-C is used for compnum constants by compile-file.
+		  ;; The syntax is #^Cxxxxxxxxxxxxxxxx where each x is a byte 
+		  ;; value. The native byte ordering is used.
+		  ((char=? c (integer->char 3))
+		   (let ((f (make-bytevector 20)))
+		     (do ((i 4 (+ i 1)))
+			 ((= i 20)
+			  (typetag-set! f sys$tag.compnum-typetag)
+			  f)
+		       (bytevector-set! f i (char->integer (tyi p))))))
+		  ;; Control-F is used for flonum constants by compile-file.
+		  ;; The syntax is #^Fxxxxxxxx where each x is a byte value.
+		  ;; The native byte ordering is used.
+		  ((char=? c (integer->char 6))
+		   (let ((f (make-bytevector 12)))
+		     (do ((i 4 (+ i 1)))
+			 ((= i 12)
+			  (typetag-set! f sys$tag.flonum-typetag)
+			  f)
+		       (bytevector-set! f i (char->integer (tyi p))))))
 		  ;; Control-P is used for procedures by compile-file.
 		  ;; The syntax is #^P(...)
 		  ((char=? c (integer->char 16))
@@ -580,16 +589,13 @@
       ; Symbol starters.
       
       (do ((c 128 (+ 1 c)))
-          ((= c 255))
-          (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
+          ((= c 256))
+	(vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
  
-      (do ((c (char->integer #\a) (+ 1 c)))
-          ((> c (char->integer #\z)))
-          (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
- 
-      (do ((c (char->integer #\A) (+ 1 c)))
-          ((> c (char->integer #\Z)))
-          (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
+      (do ((i 0 (+ i 1)))
+	  ((= i 256))
+	(if (char-alphabetic? (integer->char i))
+	    (vector-set! read-dispatch-vec i read-dispatch-symbol-starter)))
  
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec
@@ -692,7 +698,7 @@
  
       (do ((i 255 (- i 1)))
           ((< i 0) '())
-          (vector-set! read-list-vec i read-illegal))
+	(vector-set! read-list-vec i read-illegal))
  
       ; Whitespace handlers.
  
@@ -709,16 +715,13 @@
       
       (do ((c 128 (+ 1 c)))
           ((= c 255))
-          (vector-set! read-list-vec c read-list-element))
+	(vector-set! read-list-vec c read-list-element))
  
-      (do ((c (char->integer #\a) (+ 1 c)))
-          ((> c (char->integer #\z)))
-          (vector-set! read-list-vec c read-list-element))
- 
-      (do ((c (char->integer #\A) (+ 1 c)))
-          ((> c (char->integer #\Z)))
-          (vector-set! read-list-vec c read-list-element))
- 
+      (do ((i 0 (+ i 1)))
+	  ((= i 256))
+	(if (char-alphabetic? (integer->char i))
+	    (vector-set! read-list-vec i read-list-element)))
+
       (for-each (lambda (c)
 		  (vector-set! read-list-vec (char->integer c)
 			       read-list-element))

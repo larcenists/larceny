@@ -209,7 +209,7 @@
 	      (,(mnemonic 'sll)   ,(mnemonic 'sll 'i))
 	      (,(mnemonic 'srl)   ,(mnemonic 'srl 'i))
 	      (,(mnemonic 'sra)   ,(mnemonic 'sra 'i))
-	      (0          0)                               ; 40
+	      (,(mnemonic 'rd)   0)                       ; 40
 	      (0          0)
 	      (0          0)
 	      (0          0)
@@ -217,7 +217,7 @@
 	      (0          0)
 	      (0          0)
 	      (0          0)
-	      (0          0)
+	      (,(mnemonic 'wr)  ,(mnemonic 'wr 'i))
 	      (0          0)
 	      (0          0)                               ; 50
 	      (0          0)
@@ -527,6 +527,17 @@
   (define (call instr addr)
     (string-append "#" (number->string (+ (op1 instr) addr))))
 
+  (define (rd instr)
+    (string-append "%y, " (srcreg instr op3)))
+
+  (define (wr instr imm?)
+    (if imm?
+	(string-append (larceny-register-name (op1 instr)) ", "
+		       (number->string (op2 instr)) ", %y"
+		       (larceny-register-name (op3 instr)))
+	(string-append (larceny-register-name (op1 instr)) ", "
+		       (larceny-register-name (op2 instr)) ", %y")))
+
   ;; If we want to handle instruction aliases (clr, mov, etc) then
   ;; the structure of this procedure must change, because as it is,
   ;; the printing of the name is independent of the operand values.
@@ -549,6 +560,8 @@
 			   ((mnemonic=? m 'jmpl)
 			    (if (mnemonic:immediate? m) (jmpli i) (jmplr i)))
 			   ((mnemonic=? m 'call) (call i a))
+			   ((mnemonic=? m 'rd) (rd i))
+			   ((mnemonic=? m 'wr) (wr i (mnemonic:immediate? m)))
 			   ((mnemonic:immediate? m) (rir i))
 			   (else (rrr i))))))
 

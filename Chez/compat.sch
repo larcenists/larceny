@@ -14,9 +14,10 @@
 
 ; Foreign functions (for OS functionality).
 
-(let ((bitpattern (string-append hostdir "bitpattern.o"))
-      (mtime      (string-append hostdir "mtime.o"))
-      (libc       "/lib/libc.so"))
+(let* ((hostdir (nbuild-parameter 'compatibility))
+       (bitpattern (string-append hostdir "bitpattern.o"))
+       (mtime      (string-append hostdir "mtime.o"))
+       (libc       "/lib/libc.so"))
   (case (machine-type)
     ((sun4)  ; SunOS 4
      (load-foreign bitpattern)
@@ -28,21 +29,19 @@
     (else ???)))
 
 (define (compat:initialize)
-  (load (string-append hostdir "bytevec.ss"))
-  (load (string-append hostdir "misc2bytevector.ss"))
-  (load (string-append hostdir "logops.ss"))
-  (if (not (bound? 'values))
-      (load (string-append hostdir "values.ss")))
-  (print-vector-length #f)
-  (print-gensym #f)
-  #t)
-
-(define (compat:initialize2)
-  #t)
+  (let ((hostdir (nbuild-parameter 'compatibility)))
+    (load (string-append hostdir "bytevec.ss"))
+    (load (string-append hostdir "misc2bytevector.ss"))
+    (load (string-append hostdir "logops.ss"))
+    (if (not (bound? 'values))
+	(load (string-append hostdir "values.ss")))
+    (print-vector-length #f)
+    (print-gensym #f)
+    #t))
 
 (define (compat:load filename)
   (define (loadit fn)
-    (if *verbose-load*
+    (if (nbuild-parameter 'verbose-load?)
 	(begin (display fn)
 	       (newline)))
     (load fn))
@@ -158,6 +157,11 @@
   (newline p)
   (newline p))
 
+; Does not use magic syntax for flonums and compnums, but produces 
+; valid data anyway.
+
+(define write-fasl-datum write)
+
 (define twobit-format format)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -201,5 +205,15 @@
 				    (chez-new-extension (car fn) "so")))))
 	    *file-list*))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Misc
+
+(define (cerror . irritants)
+  (display "Error: ")
+  (for-each display irritants)
+  (newline)
+  (reset))
 
 ; eof

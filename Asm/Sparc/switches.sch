@@ -31,9 +31,6 @@
 (define fill-delay-slots
   (make-twobit-flag 'fill-delay-slots))
 
-;(define (fast-write-barrier)
-;  (eq? (target-architecture) 'sun4-sunos))
-
 (define (fast-write-barrier) #f)
 
 ; Initialization

@@ -217,14 +217,14 @@
 
 (define (env/enumerate-bindings env proc)
   (env/enumerate-cells env (lambda (name cell)
-                             (proc name (cell-ref cell)))))
+                             (proc name (global-cell-ref cell)))))
 
 (define (env/enumerate-bindings* env proc)
   (if env
       (begin 
 	(env/enumerate-cells env 
 			     (lambda (name cell)
-			       (proc name (cell-ref cell))))
+			       (proc name (global-cell-ref cell))))
 	(env/enumerate-bindings* (env.parent env) proc))))
 
 (define (env/enumerate-cells env proc)

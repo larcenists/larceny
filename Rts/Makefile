@@ -115,17 +115,17 @@ BOEHM_GC_OBJECTS=\
 	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o
 
 BOEHM_GC_SPARC_OBJECTS=\
-	Sparc/bdw-memory.o 
+	Sparc/bdw-memory.o SPARC/bdw-generic.o
 
 BOEHM_GC_LIBRARIES=\
 	bdw-gc/gc.a
 
 COMMON_SPARC_OBJECTS=\
 	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o Sparc/cglue.o \
-	Sparc/generic.o Sparc/glue.o Sparc/mcode.o Build/table.o
+	Sparc/glue.o Sparc/mcode.o Build/table.o
 
 SPARC_PRECISE_GC_OBJECTS=\
-	Sparc/memory.o
+	Sparc/memory.o Sparc/generic.o
 
 PETIT_OBJECTS=\
 	CPetit/arithmetic.o CPetit/millicode.o CPetit/multiply.o

@@ -208,6 +208,23 @@
 (define (cg-body output exp defs target regs frame env tail?)
   (cond ((or (null? defs) (constant? exp) (variable? exp))
          (cg0 output exp target regs frame env tail?))
+        ((let ((regvars (cgreg-vars regs)))
+           (every? (lambda (def)
+                     (null? (intersection
+                             regvars
+                             (let ((Ldef (def.rhs def)))
+                               (difference (lambda.F Ldef)
+                                           (make-null-terminated
+                                            (lambda.args Ldef)))))))
+                   defs))
+         (let* ((newenv (cgenv-bindprocs env (map def.lhs defs)))
+                (L (make-label))
+                (r (cg0 output exp target regs frame newenv tail?)))
+           (if (not tail?)
+               (gen! output $skip L (cgreg-live regs r)))
+           (cg-defs output defs newenv)
+           (if (not tail?)
+               (gen! output $.label L))))
         ((lambda? exp)
          (let* ((newenv1 (cgenv-extend env
                                        (cgreg-vars regs)
@@ -226,8 +243,8 @@
                  (assembly-stream-code newoutput)
                  (cgreg-tos regs)
                  ;(cgreg-vars regs)
-		 (lambda.doc exp) ; @@ Lars
-		 )
+                 (lambda.doc exp) ; @@ Lars
+                 )
            (if tail?
                (begin (gen-pop! output frame)
                       (gen! output $return)

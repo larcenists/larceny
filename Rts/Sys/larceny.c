@@ -76,8 +76,9 @@ char **argv;
 #endif
 
   cache_setup();
-  consolemsg( "Larceny v%s (%s:%s:%s) (%s %s)",
-	      version, 
+  consolemsg( "Larceny v%d.%d (%s:%s:%s) (%s %s)",
+	      larceny_major_version, 
+	      larceny_minor_version,
 	      larceny_gc_technology,
 	      osname, 
 	      (globals[ G_CACHE_FLUSH ] ? "split" : "unified"),

@@ -103,6 +103,19 @@ create_bdw_gc( gc_param_t *params, int *generations )
   return gc;
 }
 
+void gc_parameters( gc_t *gc, int op, int *ans )
+{
+  if (op == 0) {
+    ans[0] = 2;			/* Conservative */
+    ans[1] = 1;			/* One generation */
+  }
+  else {
+    ans[0] = 5;			/* Conservative mark/sweep */
+    ans[1] = 0;			/* Don't know */
+    ans[2] = 1;			/* Expandable */
+  }
+}
+
 /* Hook run before gc (if gc has been set up to do it). */
 
 void bdw_before_gc( void )
@@ -112,6 +125,9 @@ void bdw_before_gc( void )
   int n, s;
 
   if (!bdw_globals) return;
+
+  /* Don't increment the count because it's a nonmoving collector! */
+  /* globals[ G_GC_CNT ] += fixnum(1); */
 
   /* Stack sanity check */
   if (bdw_globals[G_ETOP] != bdw_globals[G_EBOT])

@@ -1,191 +1,147 @@
 ; Util/nbuild.sch
-; Loader for Larceny development system; portable!
+; Host-indepentent loader for Larceny development system.
 ;
 ; $Id: nbuild.sch,v 1.6 1997/09/23 20:07:36 lth Exp lth $
 ;
-; All directory names *must* end with "/" (or whatever is appropriate for
-; the current operating system), and they should all be absolute (ditto).
+; The only parameter to this module is a procedure "nbuild-parameter"
+; that accepts a key and returns a value for the key.
 ;
-; This file assumes that the following variables are defined:
+; The keys used by nbuild directly are
+;   source          the directory that contains makefile.sch
+;   compiler        the directory for Twobit and the help system
+;   common-asm      the directory for the target-independent assembler
+;   sparc-asm       the directory the new SPARC assembler
+;   sparc-old       the directory for the old SPARC assembler [UNSUPPORTED]
+;   standard-C-asm  the directory for the standard-C assembler
+;   util            the directory for utilities and the make system
+;   build           the directory that contains schdefs.h
+;   compatibility   the directory for the compatibility code
+;   host-system     the name of the host system
+;   target-machine  a symbol that specifies the target architecture
+;   new-assembler?  if target-machine = SPARC: use the new assembler (or not)
 ;
-; * `compilerdir' is the name of the directory that has the compiler files.
-;
-; * `sparc-olddir' is the name of the directory that has all the
-;   files (target-independent and -dependent, both) for the old SPARC 
-;   assembler.
-;
-; * `common-asmdir' is the name of the directory that has all the 
-;   target-independent files for the new assembler.
-;
-; * `sparc-asmdir' is the name of the directory that has all the 
-;   SPARC-specific files for the new SPARC assembler.
-;
-; * `sourcedir' is the name of the directory that has the
-;   Larceny makefile.
-;
-; * `utildir' is the name of the directory that has some utilities, like
-;   the make system.
-;
-; Note: the compatibility package has already been loaded by the build script.
+; There might be other keys used by the compatibility packages.
 
-(compat:initialize)
+(define (writeln . x)
+  (for-each display x) (newline))
 
-(define (loadfile path file)
-  (let ((fn (string-append path file)))
+; Compatibility library has been loaded and initialized.
+
+(define (nbuild-load path-ident file)
+  (let* ((path (nbuild-parameter path-ident))
+	 (fn   (string-append path file)))
     (compat:load fn)))
 
-(display "Loading make utility...") (newline)
-(loadfile utildir "make.sch")
+(writeln "Loading the make utility.")
+(nbuild-load 'util "make.sch")
 
-(display "Loading compiler proper...") (newline)
-(loadfile compilerdir "sets.sch")
-(loadfile compilerdir "switches.sch")
-(loadfile compilerdir "pass1.aux.sch")
-(cond ((eq? nbuild:target-machine 'sparc)
-       (loadfile compilerdir "sparc.imp.sch"))
-      ((eq? nbuild:target-machine 'standard-C)
-       (loadfile compilerdir "standard-C.imp.sch"))
-      (else
-       ???))
-(loadfile compilerdir "pass1.sch")
-(loadfile compilerdir "pass2.aux.sch")
-(loadfile compilerdir "pass2p1.sch")
-(loadfile compilerdir "pass2p2.sch")
-(loadfile compilerdir "pass4.aux.sch")
-(loadfile compilerdir "pass4p1.sch")
-(loadfile compilerdir "pass4p2.sch")
-(loadfile compilerdir "pass4p3.sch")
-(loadfile compilerdir "pass4patch.sch")  ; @@ Lars
+(writeln "Loading Twobit.")
+(nbuild-load 'compiler "sets.sch")
+(nbuild-load 'compiler "switches.sch")
+(nbuild-load 'compiler "pass1.aux.sch")
+(case (nbuild-parameter 'target-machine)
+  ((sparc)      (nbuild-load 'compiler "sparc.imp.sch"))
+  ((standard-C) (nbuild-load 'compiler "standard-C.imp.sch"))
+  (else ???))
 
-(if (not new-assembler?)
+(nbuild-load 'compiler "pass1.sch")
+(nbuild-load 'compiler "pass2.aux.sch")
+(nbuild-load 'compiler "pass2p1.sch")
+(nbuild-load 'compiler "pass2p2.sch")
+(nbuild-load 'compiler "pass4.aux.sch")
+(nbuild-load 'compiler "pass4p1.sch")
+(nbuild-load 'compiler "pass4p2.sch")
+(nbuild-load 'compiler "pass4p3.sch")
+(nbuild-load 'compiler "pass4patch.sch")
+
+(if (not (nbuild-parameter 'new-assembler?))
     (begin 
-      (display "Loading old generic assembler...")
-      (newline)
+      (writeln "Loading the old generic assembler.")
       (with-optimization 2
         (lambda ()
-	  (loadfile sparc-olddir "assembler.sch")
-	  (loadfile sparc-olddir "peepopt.sch"))))
+	  (nbuild-load 'sparc-old "assembler.sch")
+	  (nbuild-load 'sparc-old "peepopt.sch"))))
     (begin
-      (display "Loading new generic assembler...") (newline)
-      (loadfile common-asmdir "pass5p1.sch")
-      (loadfile common-asmdir "asmutil.sch")
-      (loadfile common-asmdir "asmutil32be.sch")  ; For now
-      (loadfile common-asmdir "asmutil32.sch")))
+      (writeln "Loading the common assembler.")
+      (nbuild-load 'common-asm "pass5p1.sch")
+      (nbuild-load 'common-asm "asmutil.sch")
+      (nbuild-load 'common-asm "asmutil32be.sch")  ; For now
+      (nbuild-load 'common-asm "asmutil32.sch")))
 
-(display "Loading back-end header files...") (newline)
-(cond ((eq? nbuild:target-machine 'SPARC)
-       (loadfile builddir "schdefs.h"))
-      ((eq? nbuild:target-machine 'standard-C)
-       #t)
-      (else
-       ???))
+(writeln "Loading the back-end header files.")
+(case (nbuild-parameter 'target-machine)
+  ((sparc)      (nbuild-load 'build "schdefs.h"))
+  ((standard-C) #t)
+  (else ???))
 
-(cond ((not new-assembler?)
-       (if (not (eq? nbuild:target-machine 'SPARC))
+(cond ((not (nbuild-parameter 'new-assembler?))
+       (if (not (eq? 'SPARC (nbuild-parameter 'target-machine)))
 	   (error "Old assembler can only do SPARC output."))
-       (display "Loading old SPARC assembler and code generator...") (newline)
+       (writeln "Loading the old SPARC assembler and code generator.")
        (with-optimization 2
 	 (lambda ()
-	   (loadfile sparc-olddir "sparcasm.sch")))
-       (loadfile sparc-olddir "gen-msi.sch")
-       (loadfile sparc-olddir "gen-prim.sch")
-       (loadfile sparc-olddir "asmutil.sch")
-       (loadfile sparc-olddir "switches.sch"))
-      ((eq? nbuild:target-machine 'SPARC)
-       (display "Loading new SPARC assembler and code generator...") (newline)
-       (loadfile sparc-asmdir "pass5p2.sch")
-       (loadfile sparc-asmdir "peepopt.sch")
-       (loadfile sparc-asmdir "sparcutil.sch")
-       (loadfile sparc-asmdir "sparcasm.sch")
-       (loadfile sparc-asmdir "gen-msi.sch")
-       (loadfile sparc-asmdir "gen-prim.sch")
-       (loadfile sparc-asmdir "switches.sch"))
-      ((eq? nbuild:target-machine 'standard-C)
-       (display "Loading standard-C assembler...") (newline)
-       (loadfile standard-C-asmdir "pass5p2.sch")
-       (loadfile standard-C-asmdir "switches.sch"))
+	   (nbuild-load 'sparc-old "sparcasm.sch")))
+       (nbuild-load 'sparc-old "gen-msi.sch")
+       (nbuild-load 'sparc-old "gen-prim.sch")
+       (nbuild-load 'sparc-old "asmutil.sch")
+       (nbuild-load 'sparc-old "switches.sch"))
+      ((eq? 'SPARC (nbuild-parameter 'target-machine))
+       (writeln "Loading the new SPARC assembler and code generator.")
+       (nbuild-load 'sparc-asm "pass5p2.sch")
+       (nbuild-load 'sparc-asm "peepopt.sch")
+       (nbuild-load 'sparc-asm "sparcutil.sch")
+       (nbuild-load 'sparc-asm "sparcasm.sch")
+       (nbuild-load 'sparc-asm "gen-msi.sch")
+       (nbuild-load 'sparc-asm "gen-prim.sch")
+       (nbuild-load 'sparc-asm "switches.sch"))
+      ((eq? 'standard-C (nbuild-parameter 'target-machine))
+       (writeln "Loading the standard-C assembler.")
+       (nbuild-load 'standard-C-asm "pass5p2.sch")
+       (nbuild-load 'standard-C-asm "switches.sch"))
       (else
        ???))
 
-(cond ((eq? nbuild:target-machine 'SPARC)
-       (if (not new-assembler?)
-	   (begin 
-	     (display "Loading old SPARC disassembler...") (newline)
-	     (loadfile sparc-olddir "sparcdis.sch"))
-	   (begin
-	     (display "Loading new SPARC disassembler...") (newline)
-	     (loadfile sparc-asmdir "sparcdis.sch"))))
-      ((eq? nbuild:target-machine 'standard-C)
-       (display "(No disassembler for standard-C)") (newline))
-      (else
-       ???))
+(case (nbuild-parameter 'target-machine)
+  ((SPARC)
+   (if (not (nbuild-parameter 'new-assembler?))
+       (begin 
+	 (writeln "Loading old SPARC disassembler.")
+	 (nbuild-load 'sparc-old "sparcdis.sch"))
+       (begin
+	 (writeln "Loading new SPARC disassembler.")
+	 (nbuild-load 'sparc-asm "sparcdis.sch"))))
+  ((standard-C)
+   (writeln "(No disassembler for standard-C)"))
+  (else ???))
 
-(display "Loading bootstrap heap dumper...") (newline)
+(writeln "Loading bootstrap heap dumper.")
 (with-optimization 3
   (lambda ()
-    (loadfile common-asmdir "dumpheap.sch")))
+    (nbuild-load 'common-asm "dumpheap.sch")))
 
-(display "Loading drivers and utilities...") (newline)
-(loadfile compilerdir "compile313.sch")
-(loadfile compilerdir "printlap.sch")
-(loadfile common-asmdir "makefasl2.sch")
-(loadfile utildir "init-comp.sch")
+(writeln "Loading drivers and utilities.")
+(nbuild-load 'compiler "compile313.sch")
+(nbuild-load 'compiler "printlap.sch")
+(nbuild-load 'common-asm "makefasl2.sch")
 
-(display "Loading makefile...") (newline)
-(loadfile sourcedir "makefile.sch")
+(writeln "Loading makefile.")
+(nbuild-load 'source "makefile.sch")
 
-(display "Loading help...") (newline)
-(loadfile compilerdir "help.sch")
+(writeln "Loading help.")
+(nbuild-load 'compiler "help.sch")
+(initialize-help (nbuild-parameter 'compiler))
 
-; The switches can be found in Compiler/switches.sch and 
-; Asm/{Sparc,C}/switches.sch.
-;
-; FIXME: each of the mentioned files should contain a procedure which
-; prints its own switches, so this procedure won't have to know.
+;;; Initialize Twobit
 
-(issue-warnings #f)
-(include-source-code #f)
-(include-variable-names #f)
+(twobit-target-architecture (nbuild-parameter 'target-machine))
+(issue-warnings #f)			; Annoying
+(include-source-code #f)		; Conserve space
+(include-variable-names #t)		; Debugging
+(include-procedure-names #t)		; Debugging
+(fast-safe-code)			; Performance
 
-(define (compiler-switches)
+;;; And they're off!
 
-  (define (display-switch caption value)
-    (display #\tab)
-    (display caption)
-    (display " is ")
-    (display (if value "on" "off"))
-    (newline))
-
-  (display "Summary of compiler switches:" ) (newline)
-
-  (display-switch "Benchmark-mode" (benchmark-mode))
-  (display-switch "Catch-undefined-globals" (catch-undefined-globals))
-  (display-switch "Empty-list-is-true" (empty-list-is-true))
-  (if (eq? nbuild:target-machine 'SPARC)
-      (display-switch "Fill-delay-slots" (fill-delay-slots)))
-  (display-switch "Generate-global-symbols" (generate-global-symbols))
-  (display-switch "Include-procedure-names" (include-procedure-names))
-  (display-switch "Include-source-code" (include-source-code))
-  (display-switch "Include-variable-names" (include-variable-names))
-  (display-switch "Inline-assignment" (inline-assignment))
-  (display-switch "Inline-allocation" (inline-allocation)) 
-  (display-switch "Integrate-usual-procedures" (integrate-usual-procedures))
-  (display-switch "Issue-warnings" (issue-warnings))
-  (display-switch "Listify?" listify?)
-  (display-switch "Local-optimizations" (local-optimizations))
-  (display-switch "Peephole-optimization" (peephole-optimization))
-  (if (eq? nbuild:target-machine 'SPARC)
-      (display-switch "Single-stepping" (single-stepping)))
-  (display-switch "Unsafe-code" (unsafe-code))
-  (if (eq? nbuild:target-machine 'SPARC)
-      (display-switch "Write-barrier" (write-barrier)))
-
-  )
-
-(compat:initialize2)
-
-(display "Welcome. Type (help) for help.")
-(newline)
+(writeln "Welcome. Type (help) for help.")
 
 ; eof
-

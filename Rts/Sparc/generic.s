@@ -1,57 +1,29 @@
-! -*- Fundamental -*-
-! This is the file Sparc/generic.s.
-!
+! Sparc/generic.s.
 ! Larceny run-time system (Sparc) -- Millicode for Generic Arithmetic.
 !
-! History
-!   January 20, 1996 / lth (v0.25)
-!     Calling conventions for contagion changed; now takes index rather
-!     than procedure.
+! $Id$
 !
-!   April/May 1995 / lth (v0.24)
-!     Cases added to quotient and remainder to handle division of nonnegative
-!     32-bit bignum by nonnegative fixnum; this vastly simplifies the
-!     portable bignum implementation.
+! Generic arithmetic operations are implemented as decision trees on 
+! the representation, the goal being fast same-representation arithmetic
+! for a few classes of representation.  If representations are not the 
+! same, then a contagion routine is invoked to coerce operands as necessary,
+! and the operation is retried.
 !
-!   December 6, 1994 / lth (v0.23)
-!     Solaris port.
-!
-!   July 1, 1994 / lth (v0.20)
-!     Slightly altered for the new run-time system
-!
-! Generic arithmetic operations are daisy-chained so as to speed up operations
-! of same-representation arithmetic. If representations are not the same, then
-! a contagion routine is invoked to coerce operands as necessary, and the
-! operation is retried. A compnum with a 0 imaginary part is treated as a
-! flonum.
-!
-! Chain order: flonum, compnum, (fixnum,) bignum, ratnum, rectnum.
-!
-! For the non-fixnum case, the chain splits: we distinguish between 
-! vector-like (rectnum, ratnum) and bytevector-like (flonum, compnum, bignum)
-! structures.
-!
-! Arithmetic for bignums, ratnums, and rectnums are done externally,
-! while fixnums, flonums, and compnums are handled in-line in this file.
+! We care about fixnum+fixnum, flonum+flonum, and compnum+compnum speed.
+! A compnum with a 0 imaginary part is treated as a flonum.
 !
 ! When a generic arithmetic routine is called, the operands must be in the
 ! millicode argument registers, and the Scheme return address must be in %o7.
 !
-! ACKNOWLEDGMENTS
-! - Compnum algorithms were taken from Press et al: "Numerical Recipes in C", 
-!   Cambridge University Press, 1988.
+! Compnum algorithms were taken from Press et al: "Numerical Recipes in C", 
+! Cambridge University Press, 1988.
 !
 ! BUGS
 ! - Way big. Should have used M4.
 !
-! - Some of this code depends on TMP0 being a global register (which 
+! - Some of this code depends on TMP0 being a 'global' register (which 
 !   is currently the case). Fixed in most places by referring to SAVED_TMP0;
 !   the entire file should be checked and the rest fixed.
-!
-! - Division code (and quotient, remainder, modulus) do not check for 
-!   a zero divisor.
-!
-! - A big win would be to do mixed flonum/fixnum in-line.
 
 #include "asmdefs.h"
 #include "asmmacro.h"
@@ -96,8 +68,8 @@
 
 EXTNAME(m_generic_add):
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%TMP0, BVEC_TAG
 	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
 	be,a	Ladd_bvec
 	cmp	%TMP1, BVEC_TAG
 	or	%RESULT, %ARGREG2, %TMP2
@@ -340,8 +312,8 @@ Lsub_fix:
 
 EXTNAME(m_generic_mul):
 	and	%RESULT, TAGMASK, %TMP0
-	cmp	%TMP0, BVEC_TAG
 	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
 	be,a	Lmul_bvec
 	cmp	%TMP1, BVEC_TAG
 	or	%RESULT, %ARGREG2, %TMP2
@@ -458,68 +430,44 @@ Lmul_rect2:
 	b	internal_scheme_call
 	mov	MS_RECTNUM_MUL, %TMP2
 Lmul_fix:
-	! Have to shift both operands to avoid disasters with signs.
-	! FOREIGN SECTION
-	save	%sp, -104, %sp
-	sra	%SAVED_RESULT, 2, %o0
-	call	.mul
-	sra	%SAVED_ARGREG2, 2, %o1
+	sra	%RESULT, 2, %TMP0
+	smul	%TMP0, %ARGREG2, %TMP0		! tmp0 is low part of result
+	rd	%y, %TMP1			! tmp1 is high part of result
 
-	! Check to see if it will fit in a fixnum (tentatively)
-	cmp	%o1, 0
-	be	Lmul_fix1
+	! Test the result: is the high part redundant?
+	sra	%TMP0, 31, %TMP2		! tmp2 [sign] is 0 or -1
+	cmp	%TMP1, %TMP2			! if hi == sign, then done
+	bne	1f
 	nop
-	cmp	%o1, -1
-	be	Lmul_fix4
+	retl
+	mov	%TMP0, %RESULT
+
+	! Result won't fit in a fixnum
+	! Shift 64 bits arithmetic right by 2.  [%tmp1 | %tmp0] 
+1:	srl	%TMP0, 2, %TMP0
+	and	%TMP1, 3, %TMP2
+	sll	%TMP2, 30, %TMP2
+	or	%TMP0, %TMP2, %TMP0
+	sra	%TMP1, 2, %TMP1
+
+	! Now test again: is the high part redundant?
+	!
+	! The test is more complicated than above because bignums are 
+	! not stored in two's complement: therefore, we compute the 
+	! representation and see if the high part is 0.
+	cmp	%TMP1, 0
+	bge,a	1f
+	mov	0, %TMP2			! sign
+	not	%TMP0, %TMP0
+	not	%TMP1, %TMP1
+	addcc	%TMP0, 1, %TMP0
+	addx	%TMP1, 0, %TMP1
+	mov	1, %TMP2
+1:	cmp	%TMP1, 0
+	be	_box_single_positive_bignum
 	nop
-
-Lmul_fixy:
-	! Won't fit in a fixnum
-	cmp	%o1, 0
-	bge	Lmul_fixx
-	mov	0, %SAVED_TMP2
-	not	%o0, %o0
-	not	%o1, %o1
-	addcc	%o0, 1, %o0
-	addx	%o1, 0, %o1
-	mov	1, %SAVED_TMP2
-Lmul_fixx:
-	cmp	%o1, 0				! fit in a one-word bignum?
-	bne	Lmul_fix3			! yes
-	nop
-
-	! Fits in one-word bignum. Mush together and box.
-	mov	%o0, %SAVED_TMP0
-	b	_box_single_positive_bignum
-	restore
-
-Lmul_fix3:
-	! Fits in two-word bignum. Mush together and box.
-	mov	%o1, %SAVED_TMP1
-	mov	%o0, %SAVED_TMP0
 	b	_box_double_positive_bignum
-	restore
-
-Lmul_fix1:
-	! Might fit in a fixnum.
-	set	0xE0000000, %o2
-	andcc	%o0, %o2, %o3
-	be,a	Lmul_fix2			! fits in a fixnum.
-	sll	%o0, 2, %SAVED_RESULT
-	b	Lmul_fixy
 	nop
-Lmul_fix4:
-	set	0xE0000000, %o2
-	andcc	%o0, %o2, %o3
-	cmp	%o3, %o2
-	be,a	Lmul_fix2			! ditto (negative)
-	sll	%o0, 2, %SAVED_RESULT
-	b	Lmul_fixy			! must box
-	nop
-Lmul_fix2:
-	jmp	%i7+8
-	restore
-	! END FOREIGN SECTION
 
 ! Division.
 ! Fixnum case may or may not be handled in line (depending on the availability
@@ -2420,12 +2368,21 @@ Lnumeric_error:
 !-----------------------------------------------------------------------------
 ! Box various numbers.
 
-! Box the double in %f2/f3 as a flonum. Return tagged pointer in RESULT.
-! Scheme return address in %o7.
+! Box the double in %f2/f3 as a flonum. 
+! Return tagged pointer in RESULT.
+! Scheme return address is in %o7.
 
 _box_flonum:
+#if !defined( BDW_GC )
+	add	%E_TOP, 16, %E_TOP
+	cmp	%E_TOP, %E_LIMIT
+	blt,a	1f
+	sub     %E_TOP, 16-BVEC_TAG, %RESULT
+	! expensive case: make a callout
+	sub	%E_TOP, 16, %E_TOP
+#endif
+	! Save state in case we GC.
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	! Save in case we gc.  This could be done smarter!
 	st	%f2, [ %GLOBALS + G_GENERIC_NRTMP1 ]
 	st	%f3, [ %GLOBALS + G_GENERIC_NRTMP2 ]
 	call	EXTNAME(mem_internal_alloc_bv)
@@ -2433,20 +2390,29 @@ _box_flonum:
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %f2
 	ld	[ %GLOBALS + G_GENERIC_NRTMP2 ], %f3
 	ld	[ %GLOBALS + G_RETADDR ], %o7
-	std	%f2, [ %RESULT + 8 ]
-	set	(12 << 8) | FLONUM_HDR, %TMP1
-	st	%TMP1, [ %RESULT ]
-	jmp	%o7 + 8
 	add	%RESULT, BVEC_TAG, %RESULT
 
+1:	! RESULT has object+BVEC_TAG
+	std	%f2, [ %RESULT + 8 - BVEC_TAG ]
+	set	(12 << 8) | FLONUM_HDR, %TMP1
+	jmp	%o7 + 8
+	st	%TMP1, [ %RESULT - BVEC_TAG ]
 
 ! Box the two doubles in %f2/%f3 and %f4/%f5 as a compnum.
 ! Return tagged pointer in RESULT.
-! Scheme return address in %o7.
+! Scheme return address is in %o7.
 
 _box_compnum:
+#if !defined( BDW_GC )
+	add	%E_TOP, 24, %E_TOP
+	cmp	%E_TOP, %E_LIMIT
+	blt,a	1f
+	sub	%E_TOP, 24-BVEC_TAG, %RESULT
+	! Expensive case
+	sub	%E_TOP, 24, %E_TOP
+#endif
+	! Save in case we gc.
 	st	%o7, [ %GLOBALS + G_RETADDR ]
-	! Save in case we gc.  This could be done smarter!
 	st	%f2, [ %GLOBALS + G_GENERIC_NRTMP1 ]
 	st	%f3, [ %GLOBALS + G_GENERIC_NRTMP2 ]
 	st	%f4, [ %GLOBALS + G_GENERIC_NRTMP3 ]
@@ -2458,12 +2424,13 @@ _box_compnum:
 	ld	[ %GLOBALS + G_GENERIC_NRTMP3 ], %f4
 	ld	[ %GLOBALS + G_GENERIC_NRTMP4 ], %f5
 	ld	[ %GLOBALS + G_RETADDR ], %o7
-	std	%f2, [ %RESULT + 8 ]
-	std	%f4, [ %RESULT + 16 ]
-	set	(20 << 8) | COMPNUM_HDR, %TMP0
-	st	%TMP0, [ %RESULT ]
-	jmp	%o7+8
 	add	%RESULT, BVEC_TAG, %RESULT
+1:
+	std	%f2, [ %RESULT + 8 - BVEC_TAG ]
+	std	%f4, [ %RESULT + 16 - BVEC_TAG ]
+	set	(20 << 8) | COMPNUM_HDR, %TMP0
+	jmp	%o7+8
+	st	%TMP0, [ %RESULT - BVEC_TAG ]
 
 ! Box an integer in a bignum with one digit. The integer is passed in %TMP0.
 ! %o7 has the Scheme return address.
@@ -2500,7 +2467,19 @@ _box_single_positive_bignum:
 ! bit set, then we have to complement the whole thing and make the sign
 ! negative before boxing.
 ! %o7 has the Scheme return address.
-! Sign bit is the low bit of %TMP2.
+
+_box_double_bignum:
+	cmp	%TMP1, 0
+	bge,a	_box_double_positive_bignum
+	mov	0, %TMP2
+	! negate 64 bits [%tmp1 | %tmp0]
+	mov	1, %TMP2
+	not	%TMP0
+	not	%TMP1
+	addcc	%TMP0, 1, %TMP0
+	addx	%TMP1, 0, %TMP1
+
+! As above, but the number is positive and the sign bit is the low bit of %TMP2.
 
 _box_double_positive_bignum:
 	st	%TMP0, [ %GLOBALS + G_GENERIC_NRTMP1 ]

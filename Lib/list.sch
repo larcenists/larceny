@@ -6,21 +6,6 @@
 ; Copyright 1991 Lightship Software
 ;
 ; Procedures of the form x->list and list->x can be found in the file for x.
-;
-; FIXME
-;   In general we need to substantiate that the code generated for
-;     (define (p a1 ...)
-;        ...
-;        (p e1 ...))
-;   is as good as that generated for
-;     (define (p a1 ...)
-;        (define (p a1 ...)
-;          ...
-;          (p e1 ...))
-;        (p a1 ...))
-;   when benchmark-mode is turned on, and then rewrite all the procedures
-;   in here that use the latter form into the former form, because they
-;   look nicer.
 
 ($$trace "list")
 
@@ -182,21 +167,21 @@
       (loop0 '() l (cdr l))))
 
 
-; FIXME: the use of apply makes this slow in the n-ary case.
+(define (append . args)
 
-(define append
-  (letrec ((append2
-	    (lambda (x y)
-	      (if (null? x)
-		  y
-		  (cons (car x) (append2 (cdr x) y)))))
-           (append
-	    (lambda args
-	      (cond ((null? args) '())
-		    ((null? (cdr args)) (car args))
-		    ((null? (cddr args)) (append2 (car args) (cadr args)))
-		    (else (append2 (car args) (apply append (cdr args))))))))
-    append))
+  (define (append2 x y)
+    (if (null? x)
+	y
+	(cons (car x) (append2 (cdr x) y))))
+
+  (define (append-loop args)
+    (if (null? (cdr args))
+	(car args)
+	(append2 (car args) (append-loop (cdr args)))))
+
+  (if (null? args)
+      args
+      (append-loop args)))
 
 
 (define (append! . args)

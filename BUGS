@@ -204,7 +204,108 @@ supporting documentation, information, test cases, and so on.
     Floating point output is very, very slow.  The Dragon4 algorithm, which
     uses (slow) bignums, should be replaced by Dybvig's algorithm.
 
+064 v0.34 (980514 / lth)
 
-NEXT ENTRY: 063
+    From: comp.lang.scheme
+      1) STk way
+         (call-with-current-continuation (lambda (exit) (exit (values 1 2))))
+         ==>                                            ^^^^^^^^
+           1
+           2
+
+     2) SCSH way
+        (call-with-current-continuation (lambda (exit) (exit 1 2)))
+         ==>
+           ; 2 values
+           1
+           2
+
+    As far as I understand r5rs, it says nothing about the issue, but
+    my gut feeling is that the SCSH way is more elegant.
+
+    BTW, SCSH's `values' also checks its arguments for not being 
+    multiple-valued.
+
+    In Larceny 0.34, we have:
+      >(call-with-values 
+         (lambda () 
+           (call-with-current-continuation (lambda (k) (values 1 2 3)))) 
+         (lambda (a b c) 
+           (list a b c)))
+     (1 2 3)
+     > (call-with-values 
+         (lambda () 
+           (call-with-current-continuation 
+             (lambda (k) (k 1 2 3)))) 
+           (lambda (a b c) 
+             (list a b c)))
+     Error: Wrong number of arguments to procedure #<PROCEDURE>
+
+   And it appears the last one is probably wrong: k should take 3
+   arguments, but apparently receives only one, which can be seen
+   from:
+
+    > (call-with-values 
+        (lambda ()
+          (call-with-current-continuation 
+            (lambda (k) (k 1 2 3)))) 
+        (lambda a a))
+    (1)
+
+   (Arguably, there's a bug in Lib/malcode.mal because the closure
+   passed as k does not check the number of arguments it receives!)
+
+065 v0.34 (980518 / lth)
+
+    This applies to Larceny.  See code from Will in Lib/mcode.sch,
+    and see item 066.
+
+    From: jlrubin@no_meat_byproducts.bway.net (Josh Rubin)
+    Subject: exact->inexact implementation question
+    Newsgroups: comp.lang.scheme
+    Date: Mon, 18 May 1998 11:27:38 GMT
+    Organization: ISPNews http://ispnews.com
+    
+    The Scheme standard requires that exact->inexact applied to a rational
+    number return the nearest representable inexact number. Assuming
+    inexact numbers are IEEE doubles, how does one do this
+    conversion?  The code I have seen for this conversion
+    ( the Gnu bignum package Rational.as_double() ) is buggy.
+    
+    Converting the numerator and denominator to double and then dividing
+    rounds  three times and doesn't always produce the closest result.
+    
+    The only way I can think of is to do a multi-precision integer
+    division to get (1 + mantissa length) bits of accuracy in the quotient
+    and then building a double "by hand". 
+    
+    Josh Rubin
+    jlrubin@no_meat_byproducts.bway.net    Remove spam blocker to reply.
+
+066 v0.34 (980518 / will)
+
+    Test case: (exact->inexact 14285714285714285714285) should be
+    1.4285714285714286e22, not 1.4285714285714284e22.
+
+    [See also item 065.]
+
+067 v0.34 (980603 / lth)
+
+    I think this is wrong:
+
+	> (char-upcase #\ÿ)
+	#\ß
+	> (char-downcase #\ß)
+	#\ÿ
+
+    because it's not intuitive to me that these letters are upper/lower
+    case variants of each other.  It presents a slight problem for
+    existing character processing code if an alphabetical is both upper
+    and lower case, but character processing code is character set
+    dependent anyway, so it must be fixed.
+
+    [Must fix this both in the reader and in Lib/string.sch.]
+
+NEXT ENTRY: 068
 	
 ; eof

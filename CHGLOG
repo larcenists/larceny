@@ -4,6 +4,98 @@
 
 
 ----------------------------------------------------------------------
+v0.34
+
+FEATURES
+  * RTS improvements (performance/correctness/maintainability)
+    - Generic "*" now handles fixnums in-line, using the multiply instruction.
+    - Flonum and compnum boxing [in millicode] now perform in-line allocation
+      except when running with the Boehm-Weiser collector.
+    - Millicode fixnum multiplication code has been cleaned up.
+    - Branch-to-next-instruction MAL peephole implemented.
+    - Compiler patch that avoids a JUMP integrated.
+
+  * Implemented a procedure gc-counter : () -> fixnum that returns
+    the number of garbage collections.  (This procedure is a primitive
+    and compiles to a single load instruction.  It can be on the critical
+    path of a hash table implementation, for example.)
+
+  * Implemented magic syntax for flonum and compnum constants in fasl
+    files, and changed the printer to print these values when appropriate,
+    and the reader to read them.
+
+  * In Util/load-env.sch, the procedure load-environment now checks for
+    undefined global varables after loading all files.
+
+  * String I/O ports.  Interface: open-input-string, open-output-string,
+    get-output-string.  See the manual (section Input and Output) for
+    details.
+
+  * Standard Foreign-Function Interface for C callouts.  See the v0.34 
+    manual for details.
+
+  * New 'system-features' procedure that returns an association list of
+    system features.
+
+  * Changed character and string routines to correctly deal with
+    the 8-bit ISO-latin-1 character set; changed character predicates
+    to be table driven.  Of course, this must all change again when 
+    we go to Unicode, but it's now possible to write Scheme programs
+    that use national character sets and expect them to work:
+
+      (define (flasker-øl-på-hylla øl)
+        (cond ((= øl 0)
+               (display "Ingen flere flasker øl på hylla.") (newline))
+              ((= øl 1)
+               (display "Én flaske øl på hylla.") (newline)
+               (flasker-øl-på-hylla (- øl 1)))
+              (else
+               (display øl)
+               (display " flasker øl på hylla.") (newline)
+               (flasker-øl-på-hylla (- øl 1)))))
+
+  * Added a compiler macro for "vector".
+
+  * Many small changes.
+
+BUGS FIXED
+  * Changed the implementation of append: append was quadratic in
+    time and _live_ storage in its number of arguments.  Normally 
+    this isn't noticeable but it matters a lot in cases where you do
+    things like (apply append rather-long-list). (Doug found this one :-)
+  * Fixed a bug in Lib/print.sch where lowlevel-write would barf on a
+    bytevector (silly bug).
+  * Fixed an off-by-one bug in emit-init-proc-slots! in 
+    Asm/Sparc/gen-msi.sch, where the wrong value was used for slot
+    (- *nregs* 1).  The bug affected uses of LEXES and LAMBDA for
+    a sufficiently large number of values saved (>= *lastregs*).
+  * When a dumped heap was loaded, the roots were not cleared (notably
+    G_CONT).  This wasn't really a problem, but would be confusing at
+    times, esp. since G_CONT is visible from the debugger.  Also, it
+    is technically a storage leak.
+  * In Compiler/pass2.aux.sch, there was a reference to the undefined
+    procedure 'cerror'.  Cerror has been added to the compatibility
+    libraries.
+  * In Asm/Sparc/sparcasm.sch, dep-call-offset! referred to 'imm' rather
+    than 'offs' in its last case.
+  * In Lib/env.sch, two references to cell-ref should be to global-cell-ref;
+    this prevents at least environment-variables from working.  (This probably
+    worked in 0.32 and 0.33 prerelease because cell-ref was a user-visible
+    primop (!) until about 24 hrs before release.)  This problem impacts
+    at least Experimental/apropos.sch and Debugger/countcalls.sch.
+  * In Util/modules.list, there were many unresolved cross-module
+    name references.  The file has been restructured.
+  * In Compiler/help-topics.txt, 'inline-allocation' was still named 
+    'inline-cons'.
+  * In Util/modules.list, the reference to 'inline-cons' should have
+    been to 'inline-allocation'.
+  * The FFI substrate now accepts fixnum(0) for 'pointer', meaning 
+    'null pointer'.
+  * Fixed bugs in Sys/gc.c:allocate_nonmoving and Sys/static-heap.c:allocate
+    that caused segmentation faults during heap dumping with foreign
+    functions loaded.
+
+----------------------------------------------------------------------
 v0.33 released 980430 by lth
 
 NOTEWORTHY
@@ -15,17 +107,8 @@ FEATURES and CHANGES
   * The -reorganize-and-dump command line switch works again.
   * The FFI call-outs now works on SunOS 5.
   * Dynamic heap upper limit can be specified with the -max switch.
-    This is really just a strong suggestion to the collector, and 
-    using e.g. -max 24M doesn't guarantee that memory usage won't ever
-    go over 24M + memory occupied by other areas, but it does prevent
-    the dynamic heaps from ever calculating a new size following
-    GC exceeding the specified maximum unless absolutely necessary.
-  * It's now possible to use Twobit as the evaluator in the read-eval-print
-    loop.  After loading the system with nbuild, just load 
-    Util/compile-always.sch.  This functionality needs to be elaborated
-    and cleaned up, but it does work.
-  * There's new peephole optimization of nontail calls; see PERFORMANCE 
-    section.
+  * It's now possible to use Twobit as the evaluator in the REPL.
+  * Several code generation improvements have been implemented.
   * The inline-cons switch has been renamed inline-allocation.
 
 BUG FIXES

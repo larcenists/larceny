@@ -6,10 +6,73 @@
 ; Parts of this code Copyright Lightship Software.
 ;
 ; FIXME: 
-;  - many character procedures should be table driven.
 ;  - see FIXMEs in the code for other issues.
 
 ($$trace "string")
+
+; The character set, collating order, and so on can be redefined by
+; changing this table.
+;
+; The table has a byte for each character, with the following value
+; assignments:
+; - Uppercase alphabetic: value 1
+; - Lowercase alphabetic: value 2
+; - Numeric:              value 4
+; - Whitespace:           value 8
+
+(define *char-table* '#())
+
+
+; ISO latin 1 character set.
+
+(define (make-iso-latin-1-table)
+
+  (define tbl (make-bytevector 256))
+
+  (bytevector-fill! tbl 0)
+
+  (do ((i (char->integer #\A) (+ i 1)))
+      ((> i (char->integer #\Z)))
+    (bytevector-set! tbl i 1))
+
+  (do ((i (char->integer #\a) (+ i 1)))
+      ((> i (char->integer #\z)))
+    (bytevector-set! tbl i 2))
+
+  (do ((i (char->integer #\À) (+ i 1)))
+      ((> i (char->integer #\Ö)))
+    (bytevector-set! tbl i 1))
+
+  (do ((i (char->integer #\Ø) (+ i 1)))
+      ((> i (char->integer #\ß)))
+    (bytevector-set! tbl i 1))
+
+  (do ((i (char->integer #\à) (+ i 1)))
+      ((> i (char->integer #\ö)))
+    (bytevector-set! tbl i 2))
+
+  (do ((i (char->integer #\ø) (+ i 1)))
+      ((> i (char->integer #\ÿ)))
+    (bytevector-set! tbl i 2))
+
+  (do ((i (char->integer #\0) (+ i 1)))
+      ((> i (char->integer #\9)))
+    (bytevector-set! tbl i 4))
+
+  (let ((f (lambda (x)
+	     (let ((i (char->integer x)))
+	       (bytevector-set! tbl i 8)))))
+    (f #\space)				;
+    (f #\newline)			; Unix: LF  (code 10)
+    (f (integer->char 13))		; CR
+    (f (integer->char 9))		; TAB
+    (f (integer->char 12))		; Form feed
+    )
+
+  tbl)
+
+(set! *char-table* (make-iso-latin-1-table))
+
 
 ; Upper- and lower-case predicates and conversions
 ; for both characters and strings.
@@ -36,91 +99,61 @@
 
 (define char-alphabetic?
   (lambda (x)
-    (or (and (char<=? #\a x)
-             (char<=? x #\z))
-        (and (char<=? #\A x)
-             (char<=? x #\Z)))))
-
-(define char-numeric?
-  (lambda (x)
-    (and (char<=? #\0 x)
-         (char<=? x #\9))))
-
-(define char-whitespace?
-  (lambda (x)
-    (or (char=? x #\space)                 ; space
-        (char=? x #\newline)               ; UNIX: a line feed
-        (char=? x (integer->char 13))      ; return
-        (char=? x (integer->char 9))       ; tab
-        (char=? x (integer->char 12)))))   ; form feed
+    (not (eq? 0 (logand 3 (bytevector-ref *char-table* (char->integer x)))))))
 
 (define char-upper-case?
   (lambda (x)
-    (and (char<=? #\A x)
-         (char<=? x #\Z))))
+    (eq? 1 (bytevector-ref *char-table* (char->integer x)))))
 
 (define char-lower-case?
   (lambda (x)
-    (and (char<=? #\a x)
-         (char<=? x #\z))))
+    (eq? 2 (bytevector-ref *char-table* (char->integer x)))))
+
+(define char-numeric?
+  (lambda (x)
+    (eq? 4 (bytevector-ref *char-table* (char->integer x)))))
+
+(define char-whitespace?
+  (lambda (x)
+    (eq? 8 (bytevector-ref *char-table* (char->integer x)))))
 
 (define char-upcase
   (lambda (x)
     (if (char-lower-case? x)
-        (integer->char (+ (char->integer x)
-                          (- (char->integer #\A)
-                             (char->integer #\a))))
-        x)))
+        (integer->char (- (char->integer x) 32))
+	x)))
 
 (define char-downcase
   (lambda (x)
     (if (char-upper-case? x)
-        (integer->char (+ (char->integer x)
-                          (- (char->integer #\a)
-                             (char->integer #\A))))
+        (integer->char (+ (char->integer x) 32))
         x)))
 
-; Ugly, but contains no procedure calls.
+(define (string-ci=? s1 s2)
 
-(define string-ci=?
-  (letrec ((loop
-             (lambda (s1 s2 i)
-               (cond ((< i 0) #t)
-                     ((char=? (let ((c (string-ref s1 i)))
-                                (if (and (char<=? #\A c)
-                                         (char<=? c #\Z))
-                                    (integer->char (+ (char->integer c)
-                                                      (- (char->integer #\a)
-                                                         (char->integer #\A))))
-                                    c))
-                              (let ((c (string-ref s2 i)))
-                                (if (and (char<=? #\A c)
-                                         (char<=? c #\Z))
-                                    (integer->char (+ (char->integer c)
-                                                      (- (char->integer #\a)
-                                                         (char->integer #\A))))
-                                    c)))
-                      (loop s1 s2 (- i 1)))
-                     (else #f)))))
-    (lambda (s1 s2)
-      (if (= (string-length s1) (string-length s2))
-          (loop s1 s2 (- (string-length s1) 1))
-          #f))))
+  (define (loop i)
+    (cond ((< i 0))
+	  ((char-ci=? (string-ref s1 i) (string-ref s2 i))
+	   (loop (- i 1)))
+	  (else #f)))
 
-(define string-ci<?
-  (letrec ((loop
-             (lambda (s1 s2 i n)
-               (cond ((= i n)
-                      (< (string-length s1) (string-length s2)))
-                     ((char<? (char-downcase (string-ref s1 i))
-                              (char-downcase (string-ref s2 i)))
-                      #t)
-                     ((char>? (char-downcase (string-ref s1 i))
-                              (char-downcase (string-ref s2 i)))
-                      #f)
-                     (else (loop s1 s2 (+ i 1) n))))))
-    (lambda (s1 s2)
-      (loop s1 s2 0 (min (string-length s1) (string-length s2))))))
+  (if (= (string-length s1) (string-length s2))
+      (loop (- (string-length s1) 1))
+      #f))
+
+(define (string-ci<? s1 s2)
+
+  (define (loop i limit)
+    (cond ((= i limit)
+	   (< (string-length s1) (string-length s2)))
+	  ((char-ci<? (string-ref s1 i) (string-ref s2 i))
+	   #t)
+	  ((char-ci>? (string-ref s1 i) (string-ref s2 i))
+	   #f)
+	  (else
+	   (loop (+ i 1) limit))))
+
+  (loop 0 (min (string-length s1) (string-length s2))))
 
 (define string-ci>?
   (lambda (x y)
@@ -141,14 +174,6 @@
 (define string
   (lambda chars
     (list->string chars)))
-
-;(define string-append
-;  (lambda args
-;    (list->string (apply append (map string->list args)))))
-
-; This reduces storage allocation relative to the above definition
-; considerably, but has about the same performance when the copyer
-; is implemented in Scheme and not cleverly optimized.
 
 (define (string-append . args)
 
@@ -228,6 +253,26 @@
 	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
   (let ((n (string-length string)))
     (loop string (- n 1) n)))
+
+(define (string-downcase! s)
+  (do ((i (- (string-length s) 1) (- i 1)))
+      ((< i 0) s)
+    (let ((x (bytevector-like-ref s i)))
+      (if (= 1 (bytevector-ref *char-table* x))
+	  (bytevector-like-set! s i (+ x 32))))))
+
+(define (string-upcase! s)
+  (do ((i (- (string-length s) 1) (- i 1)))
+      ((< i 0) s)
+    (let ((x (bytevector-like-ref s i)))
+      (if (= 2 (bytevector-ref *char-table* x))
+	  (bytevector-like-set! s i (- x 32))))))
+
+(define (string-downcase s)
+  (string-downcase! (string-copy s)))
+
+(define (string-upcase s)
+  (string-upcase (string-copy s)))
 
 (define list->bytevector
   (letrec ((loop

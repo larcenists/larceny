@@ -28,8 +28,8 @@
 ;
 ; The table and target can be changed by redefining the following procedures.
 
-(define (assembly-table) $undefined-assembly-table$)
-(define (assembly-target) $undefined-assembly-target$)
+(define (assembly-table) (error "No assembly table defined."))
+(define (assembly-target) (error "No assembly target defined."))
 (define (assembly-start as) #t)
 (define (assembly-end as segment) segment)
 

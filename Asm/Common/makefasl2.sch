@@ -70,7 +70,7 @@
 
     (define (putd d)
       (flush)
-      (write d outp))
+      (write-fasl-datum d outp))
 
     (define (dump-codevec bv)
       (putc #\#)

@@ -33,8 +33,6 @@
 ;  (or (char? x)
 ;      (immediate-int? x)))
 
-(define *peep-nontail-call* #t)	; Works OK.
-
 (define (peep-immediate? x) 
   (and (number? x) (immediate-int? x)))
 
@@ -249,8 +247,7 @@
 	      ;    (.label Lx)
 	      ; => (branch-with-return Ly k)
 	      ;    (.label Lx)
-	      ((and *peep-nontail-call*
-		    (= (car i1) $setrtn)
+	      ((and (= (car i1) $setrtn)
 		    (= (car i2) $branch)
 		    (= (car i3) $.align) ;Ignored on SPARC
 		    (= (car i4) $.label)
@@ -264,7 +261,6 @@
 	      ; test machine (an Ultrasparc).  Might work better if
 	      ; the return address were to be kept in a register always.
 	      ((and #f  ; DISABLED
-		    *peep-nontail-call*
 		    (= (car i1) $setrtn)
 		    (= (car i2) $invoke)
 		    (= (car i3) $.align) ;Ignored on SPARC
@@ -272,6 +268,19 @@
 		    (= (cadr i1) (cadr i4)))
 	       (as-source! as (cons `(,$invoke-with-setrtn ,@(cdr i2))
 				    t3)))
+
+	      ; Gets rid of spurious branch-to-next-instruction
+	      ;    (branch Lx k)
+	      ;    (.align y)
+	      ;    (.label Lx)
+	      ; => (.align y)
+	      ;    (.label Lx)
+	      ((and (= (car i1) $branch)
+		    (= (car i2) $.align)
+		    (= (car i3) $.label)
+		    (= (cadr i1) (cadr i3)))
+	       (as-source! as t1))
+
 	      (else
 	       #f))))))
 

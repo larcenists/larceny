@@ -223,7 +223,7 @@
 					     (logand (bytevector-ref offs 0)
 						     63)))))
 	  (else
-	   (dep-call-offset! bits k (asm:int->bv imm)))))
+	   (dep-call-offset! bits k (asm:int->bv offs)))))
 
   ; Add 1 to an instruction (to bump a branch offset by 4).
   ; FIXME: should check for field overflow.
@@ -380,57 +380,68 @@
 	    (emit-fixup-proc! as (lambda (b l) (fixup b l))))
 	(nop-instr as))))
 
-  ; ALU stuff, register operand. Also: jump.
-  ; If 'extra' is non-null, it's a jump.
+  ; ALU stuff, register operand, rdy, wryr. Also: jump.
 
   (define (class10r bits . extra)
-    (let ((bits  (asm:logior (asm:lsh #b10 30) (asm:lsh bits 19)))
-	  (jump? (not (null? extra))))
-      (lambda (as rs1 rs2 rd)
-	(if jump?
-	    (not-a-delay-slot-instruction as))
-	(let ((bits (copy bits)))
-	  (dep-rs1! bits 0 rs1)
-	  (dep-rs2! bits 0 rs2)
-	  (dep-rd! bits 0 rd)
-	  (emit! as bits)))))
+    (cond ((and (not (null? extra)) (eq? (car extra) 'rdy))
+	   (let ((op (class10r bits)))
+	     (lambda (as rd)
+	       (op as 0 0 rd))))
+	  ((and (not (null? extra)) (eq? (car extra) 'wry))
+	   (let ((op (class10r bits)))
+	     (lambda (as rs)
+	       (op as rs 0 0))))
+	  (else
+	   (let ((bits  (asm:logior (asm:lsh #b10 30) (asm:lsh bits 19)))
+		 (jump? (and (not (null? extra)) (eq? (car extra) 'jump))))
+	     (lambda (as rs1 rs2 rd)
+	       (if jump?
+		   (not-a-delay-slot-instruction as))
+	       (let ((bits (copy bits)))
+		 (dep-rs1! bits 0 rs1)
+		 (dep-rs2! bits 0 rs2)
+		 (dep-rd! bits 0 rd)
+		 (emit! as bits)))))))
 
 
-  ; ALU stuff, immediate operand. Also: jump.
-  ; If 'extra' is non-null, it's a jump.
+  ; ALU stuff, immediate operand, wryi. Also: jump.
 
   (define (class10i bits  . extra)
-    (let ((bits  (asm:logior (asm:lsh #b10 30) (asm:lsh bits 19) ibit))
-	  (jump? (not (null? extra))))
-      (lambda (as rs1 e rd)
+    (if (and (not (null? extra)) (eq? (car extra) 'wry))
+	(let ((op (class10i bits)))
+	  (lambda (as src)
+	    (op as 0 src 0)))
+	(let ((bits  (asm:logior (asm:lsh #b10 30) (asm:lsh bits 19) ibit))
+	      (jump? (and (not (null? extra)) (eq? (car extra) 'jump))))
+	  (lambda (as rs1 e rd)
 
-	(define (expr)
-	  (let ((imm (eval-expr as e)))
-	    (cond ((not imm)
-		   imm)
-		  ((asm:fits? imm 13)
-		   imm)
-		  (jump?
-		   (asm-value-too-large as "`jmpli'" e imm))
-		  (else
-		   (asm-value-too-large as "ALU instruction" e imm)))))
+	    (define (expr)
+	      (let ((imm (eval-expr as e)))
+		(cond ((not imm)
+		       imm)
+		      ((asm:fits? imm 13)
+		       imm)
+		      (jump?
+		       (asm-value-too-large as "`jmpli'" e imm))
+		      (else
+		       (asm-value-too-large as "ALU instruction" e imm)))))
 
-	(define (fixup bv loc)
-	  (let ((e (expr)))
-	    (if e
-		(dep-imm! bv loc e)
-		(signal-error 'fixup "ALU instruction" e))))
+	    (define (fixup bv loc)
+	      (let ((e (expr)))
+		(if e
+		    (dep-imm! bv loc e)
+		    (signal-error 'fixup "ALU instruction" e))))
 
-	(if jump?
-	    (not-a-delay-slot-instruction as))
-	(let ((bits (copy bits))
-	      (e    (expr)))
-	  (if e
-	      (dep-imm! bits 0 e)
-	      (emit-fixup-proc! as (lambda (b l) (fixup b l))))
-	  (dep-rs1! bits 0 rs1)
-	  (dep-rd! bits 0 rd)
-	  (emit! as bits)))))
+	    (if jump?
+		(not-a-delay-slot-instruction as))
+	    (let ((bits (copy bits))
+		  (e    (expr)))
+	      (if e
+		  (dep-imm! bits 0 e)
+		  (emit-fixup-proc! as (lambda (b l) (fixup b l))))
+	      (dep-rs1! bits 0 rs1)
+	      (dep-rd! bits 0 rd)
+	      (emit! as bits))))))
 
   ; Memory stuff, register operand.
 
@@ -511,14 +522,6 @@
     (lambda (as label)
       (emit-label! as label)))
 
-  (define (class-smul adj ccs)
-    (lambda (x cl)
-      (asm-error "class-smul unimplemented -- call millicode instead.")))
-
-  (define (class-sdiv adj ccs)
-    (lambda (x cl)
-      (asm-error "class-sdiv unimplemented -- call millicode instead.")))
-
   (set! sparc-instruction
 	(lambda (kwd . ops)
 	  (case kwd
@@ -529,8 +532,6 @@
 	    ((sethi) (apply class-sethi ops))
 	    ((r10)   (apply class10r ops))
 	    ((i10)   (apply class10i ops))
-	    ((smul)  (apply class-smul ops))
-	    ((sdiv)  (apply class-sdiv ops))
 	    ((b00)   (apply class00b ops))
 	    ((a00)   (apply class00a ops))
 	    ((call)  (apply class-call ops))
@@ -594,14 +595,14 @@
 (define sparc.subicc  (sparc-instruction 'i10 #b010100))
 (define sparc.tsubrcc (sparc-instruction 'r10 #b100001))
 (define sparc.tsubicc (sparc-instruction 'i10 #b100001))
-(define sparc.smulr   (sparc-instruction 'smul 'r 'nocc))
-(define sparc.smulrcc (sparc-instruction 'smul 'r 'cc))
-(define sparc.smuli   (sparc-instruction 'smul 'i 'nocc))
-(define sparc.smulicc (sparc-instruction 'smul 'i 'cc))
-(define sparc.sdivr   (sparc-instruction 'sdiv 'r 'nocc))
-(define sparc.sdivrcc (sparc-instruction 'sdiv 'r 'cc))
-(define sparc.sdivi   (sparc-instruction 'sdiv 'i 'nocc))
-(define sparc.sdivicc (sparc-instruction 'sdiv 'i 'cc))
+(define sparc.smulr   (sparc-instruction 'r10 #b001011))
+(define sparc.smulrcc (sparc-instruction 'r10 #b011011))
+(define sparc.smuli   (sparc-instruction 'i10 #b001011))
+(define sparc.smulicc (sparc-instruction 'i10 #b011011))
+(define sparc.sdivr   (sparc-instruction 'r10 #b001111))
+(define sparc.sdivrcc (sparc-instruction 'r10 #b011111))
+(define sparc.sdivi   (sparc-instruction 'i10 #b001111))
+(define sparc.sdivicc (sparc-instruction 'i10 #b011111))
 (define sparc.b       (sparc-instruction 'b00 #b1000))
 (define sparc.b.a     (sparc-instruction 'a00 #b1000))
 (define sparc.bne     (sparc-instruction 'b00 #b1001))
@@ -644,6 +645,9 @@
 (define sparc.andnr   (sparc-instruction 'r10 #b000101))
 (define sparc.andnicc (sparc-instruction 'i10 #b010101))
 (define sparc.andnrcc (sparc-instruction 'r10 #b010101))
+(define sparc.rdy     (sparc-instruction 'r10 #b101000 'rdy))
+(define sparc.wryr    (sparc-instruction 'r10 #b110000 'wry))
+(define sparc.wryi    (sparc-instruction 'i10 #b110000 'wry))
 
 ; Strange instructions.
 

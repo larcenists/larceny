@@ -74,6 +74,10 @@
   (lambda (as)
     (millicode-call/0arg as $m.disable-interrupts)))
 
+(define-primop 'gc-counter
+  (lambda (as)
+    (sparc.ldi as $r.globals $g.gccnt $r.result)))
+
 ; Number predicates
 
 (define-primop 'zero?
@@ -143,7 +147,27 @@
 
 (define-primop '*
   (lambda (as r)
-    (millicode-call/1arg as $m.multiply r)))
+    (let ((rs2    (force-hwreg! as r $r.argreg2))
+	  (Ltagok (new-label))
+	  (Loflo  (new-label))
+	  (Ldone  (new-label)))
+      (sparc.orr     as $r.result rs2 $r.tmp0)
+      (sparc.btsti   as $r.tmp0 3)
+      (sparc.be.a    as Ltagok)
+      (sparc.srai    as $r.result 2 $r.tmp0)
+      (sparc.label   as Loflo)
+      (if (not (= rs2 $r.argreg2))
+	  (sparc.move as rs2 $r.argreg2))
+      (millicode-call/ret as $m.multiply Ldone)
+      (sparc.label   as Ltagok)
+      (sparc.smulr   as $r.tmp0 rs2 $r.tmp0)
+      (sparc.rdy     as $r.tmp1)
+      (sparc.srai    as $r.tmp0 31 $r.tmp2)
+      (sparc.cmpr    as $r.tmp1 $r.tmp2)
+      (sparc.bne.a   as Loflo)
+      (sparc.slot    as)
+      (sparc.move    as $r.tmp0 $r.result)
+      (sparc.label   as Ldone))))
 
 (define-primop '/
   (lambda (as r)

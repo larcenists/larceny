@@ -1,30 +1,30 @@
-; Ffi/ffi-test.sch
+; Ffi/test-ffi.sch
+; Simple FFI test code.
+;
+; $Id$
 
-(load "Ffi/loadffi.sch")
-(load-ffi "Ffi/" 'sun4-sunos4)
+(load "Ffi/ffi-load.sch")
 
-; (define puts
-;   (let ((puts (ffi/foreign-procedure ffi/SPARC-sunos4-C-callout-stdabi
-; 				     "puts" '(pointer) 'signed32)))
-;     (lambda (s)
-;       (puts (ffi/string->asciiz s)))))
-; 
-; (define cbtest
-;   (let ((cbtest (ffi/foreign-procedure ffi/SPARC-sunos4-C-callout-stdabi
-; 				       "cbtest" '(pointer) 'void)))
-;     (lambda ()
-;       (cbtest (tr-code the-callback)))))
-; 
-; (define the-callback
-;   (ffi/make-callback ffi/SPARC-sunos4-C-callback-stdabi
-; 		     (lambda ()
-; 		       (display "Hello, Scheme world!")
-; 		       (newline))
-; 		     '()
-; 		     'void))
+(define architecture)
+(define callout-abi)
+(define callback-abi)
 
-(ffi/libraries (cons "/proj/will/lth/larceny/Ffi/ffi-test.so"
-		     (ffi/libraries)))
+(call-with-values
+ (lambda ()
+   (load-ffi "Ffi/"))
+ (lambda (arch callout callback)
+   (set! architecture arch)
+   (set! callout-abi callout)
+   (set! callback-abi callback)))
+
+(case architecture
+  ((sun4-sunos4)
+   (ffi/libraries (cons "/proj/will/lth/larceny/Ffi/test-ffi.so"
+			(ffi/libraries))))
+  ((sun4-sunos5)
+   (ffi/libraries (cons "/proj/will/lth/larceny/Ffi/test-ffi.o"
+			(ffi/libraries))))
+  (else ???))
 
 (define (fp name param ret)
 
@@ -40,7 +40,7 @@
 		   (void . void)
 		   (pointer . pointer)))))
 			  
-  (ffi/foreign-procedure ffi/SPARC-sunos4-C-callout-stdabi name 
+  (ffi/foreign-procedure callout-abi name 
 			 (map rename param)
 			 (rename ret)))
 
@@ -75,8 +75,7 @@
 (define fficb3 (fp "fficb3" '(int pointer) 'int))
 
 (define (make-callback proc args ret)
-  (tr-code (ffi/make-callback ffi/SPARC-sunos4-C-callback-stdabi
-			      proc args ret)))
+  (tr-code (ffi/make-callback callback-abi proc args ret)))
 
 (define cb:void->void
   (make-callback (lambda ()
