@@ -26,7 +26,7 @@
   (syntax-rules (and or not else 
                  srfi-0                 ; Feature-based conditional expansion
                  srfi-6                 ; Basic string ports
-                 srfi-7                 ; Feature-based configuration language
+                 srfi-11                ; LET-VALUES
                  )
     ((cond-expand) 
      (error "Unfulfilled cond-expand"))              ; FIXME
