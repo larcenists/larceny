@@ -134,7 +134,8 @@
 
 #undef USE_GENERIC_ALLOCATOR
   /* When set, use a generic malloc-based low-level memory allocator
-     rather than any OS-specific allocator.
+     rather than any OS-specific allocator.  The functions selected are
+     osdep_alloc_aligned, osdep_free_aligned, and osdep_fragmentation.
 
      The generic allocator is selected automatically if the operating
      system is GENERIC_OS.
@@ -148,17 +149,32 @@
 
 #undef USE_GENERIC_IO
   /* When set, use a generic stdio-based low-level I/O system rather
-     than any OS-specific I/O system.
+     than any OS-specific I/O system.  The functions selected are
+     osdep_openfile, osdep_closefile, osdep_readfile, osdep_writefile,
+     and osdep_pollinput.
      
      The generic I/O system is selected automatically if the operating
      system is GENERIC_OS.
      
-     (The generic I/O system is in osdep-generic.c, and that file must
-     be included in the compilation along with the osdep-* file for
-     the appropriate operating system, unless the system is being
-     compiled for a generic OS.  Normally there is no reason to worry
-     about this as the Makefiles do the right thing.)
+     Also see comments for USE_GENERIC_ALLOCATOR.
      */
+
+#undef USE_GENERIC_FILESYSTEM
+  /* When set, use generic low-level file-system support rather
+     than any OS-specific file-system support.  The functions selected
+     are osdep_unlinkfile, osdep_mtime, osdep_access, and osdep_rename.
+     
+     The generic I/O system is selected automatically if the operating
+     system is GENERIC_OS.
+
+     Also see comments for USE_GENERIC_ALLOCATOR.
+     */
+
+#undef USE_STDIO
+  /* Console input is by default through stdin, and console output is 
+     by default through stdout.  Used by generic I/O subsystem.
+     */
+
 
 /* 
  * Special system attributes -- for use of non-portable extensions or 
@@ -177,6 +193,14 @@
 #undef NO_ATOMIC_ALLOCATION
   /* Boehm/Demers/Weiser conservative collector: do not allocate 
      bytevectors specially (not recommended in general).
+     */
+
+#undef NO_SYNCHRONOUS_SIGNALS
+  /* Disable the use of longjump out of signal handlers.  This may
+     result in the loss of interruptibility in some cases and
+     performance reduction in others, but for now it is required
+     to deal with signals on those platforms (WinNT and Win2k) that
+     run signal handlers in a separate thread.
      */
 
 #undef SIMULATE_NEW_BARRIER     
@@ -258,6 +282,20 @@
 #define STACK_UNDERFLOW_COUNTING  1
 */
 
+/* Windows 2000 on x86 (Petit Larceny),
+   Microsoft Visual C/C++ 6.0 command line 
+#define PETIT_LARCENY             1
+#define BITS_32                   1
+#define WIN32                     1
+#define ENDIAN_LITTLE             1
+#define STACK_UNDERFLOW_COUNTING  1
+#define USE_GENERIC_ALLOCATOR     1
+#define USE_GENERIC_IO            1
+#define USE_STDIO                 1
+#define USE_GENERIC_FILESYSTEM    1
+#define NO_SYNCHRONOUS_SIGNALS    1
+*/
+
 /* RedHat Linux 5.1; gcc; GNU libc (Petit Larceny).
 #define PETIT_LARCENY             1
 #define BITS_32                   1
@@ -273,6 +311,10 @@
 /* ------ END USER DEFINITION SECTION ------ */
 
 /* Synthesize some attributes */
+
+#if defined(NO_SYNCHRONOUS_SIGNALS)
+#  define EXPLICIT_DIVZ_CHECK 1
+#endif
 
 #if defined(SUNOS4) || defined(SUNOS5)
 #  define SUNOS
