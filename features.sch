@@ -10,18 +10,21 @@
 ; the instructions at the head of that section carefully.
 
 
-; Just define the available features.
+; TO DO
+; - could also generate Rts/Makefile
+
+
+; List of available features, with explanations.
 
 (define features '(
 
- ; Architectures -- we could destinguish on models, but don't need to yet.
- ; Select PETIT_LARCENY if that's what you're building.
+ ; Architectures.  You need one of these.
 
  "SPARC" 			; Native: SPARC v8 or later
- "X86_NASM"                     ; Native: Intel 386 using NASM assembler
+ "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
 
- ; Architecture attributes. 
+ ; Architecture attributes.  You need bits and endianness at least.
 
  "BITS_32"			; 32-bit words
  "BITS_64"			; 64-bit words
@@ -39,7 +42,7 @@
  "SPARCV9"                      ; Use SPARC v9 instructions
  "PENTIUM"                      ; Use Pentium instructions
 
- ; Operating systems. 
+ ; Operating systems.  You need one of these.
 
  "SUNOS4"			; SunOS 4.x
  "SUNOS5"			; SunOS 5.x aka Solaris 2.x
@@ -51,12 +54,12 @@
  "MACOS"			; Generic Macintosh OS 9.x or earlier
  "GENERIC_OS"		        ; Anything else
 
- ; Synthesized OS names.
+ ; Synthesized OS names, don't define these yourself
 
  "SUNOS"			; Synthesized
  "UNIX"			        ; Synthesized
 
- ; Operating system attributes.
+ ; Signal handling.  If you don't choose one, the script will guess.
 
  "BSD_SIGNALS"		        ; sigvec, as described by Leffler et al
  "STDC_SIGNALS"		        ; signal, as in ANSI/ISO C (weak)
@@ -68,22 +71,22 @@
  ; Other configuration options.
 
  "DOF_COLLECTOR"
-    ; When set, makes the deferred-older-first collector to be compiled
-    ; into the system.  For specially interested only.
+    ; When set, includes the deferred-older-first collector when
+    ; compiling the system.  For specially interested only.
     ;
-    ; Recommended setting is off
+    ; Recommended setting is off.
 
  "ROF_COLLECTOR"
-    ; When set, makes the renewal-older-first collector to be compiled
-    ; into the system.  For specially interested only.
+    ; When set, includes the renewal-older-first collector when
+    ; compiling the system.  For specially interested only.
     ; 
-    ; Recommended setting is off
+    ; Recommended setting is off.
 
  "STACK_UNDERFLOW_COUNTING"
     ; When set, enables stack underflow accounting.  The performance
     ; impact is negligible.
     ; 
-    ; Recommended setting is on
+    ; Recommended setting is on.
 
  "GCLIB_LARGE_TABLE"
     ; When set, preallocates a page table for the entire 4GB address
@@ -93,8 +96,7 @@
     ; mutator and in the garbage collector, and reduce the register
     ; pressure in the inner loops of the collector.
     ; 
-    ; Recommended setting: probably off, as it needs further
-    ; evaluation.
+    ; Recommended setting: off, as it needs further evaluation.
 
  "RETURN_MEMORY_TO_OS"
     ; When set, the lowlevel memory manager eagerly returns memory
@@ -164,12 +166,41 @@
     ; Console input is by default through stdin, and console output is 
     ; by default through stdout.  Used by generic I/O subsystem.
 
+ ; Petit Larceny options.  You do not need to select any of these if
+ ; you don't have special needs.  The defaults (set in
+ ; Rts/Standard-C/petit-config.h) are USE_RETURN_WITH_VALUE and
+ ; USE_GOTOS_LOCALLY.  The defaults are OK for both portability and
+ ; performance.
+
+ "USE_LONGJUMP"
+    ; Jump, invoke and return are implemented as calls; when the timer
+    ; expires, a longjump is performed to prune the stack.  The jump 
+    ; address is passed in a global variable.
+
+ "USE_RETURN_WITHOUT_VALUE"
+    ; Jump, invoke, and return are implemented as returns to a dispatch 
+    ; loop, with the jump address passed in a global variable.
+
+ "USE_RETURN_WITH_VALUE"
+    ; Jump, invoke, and return are implemented as returns to a dispatch
+    ; loop, with the jump address passed as a return value to the loop.
+
+ "USE_GOTOS_LOCALLY"
+    ; If set, distinguish between local control transfers (BRANCH, 
+    ; BRANCHF, and SKIP) and nonlocal control transfers (INVOKE, RETURN, 
+    ; APPLY, and JUMP).  The nonlocal transfers uses the discipline 
+    ; selected above; the local transfers use GOTO.
+    ;
+    ; This local control transfer discipline improves performance, reduces
+    ; code size, makes register caching worthwhile, and reduces the number 
+    ; of function pointers (which makes life easier on MacOS, at least).
+
  ; Special system attributes -- for use of non-portable extensions or 
  ; bug workarounds, or other weirdness.
 
  "CODEWARRIOR"
     ; Metrowerks Codewarrior extensions.  Currently this is required
-    ; for Petit Larceny on the Mac.
+    ; for Petit Larceny on the Mac (MacOS 9 and earlier).
 
  "DEC_ALPHA_32BIT"
     ; DEC Alpha, in 32-bit mode.  This is needed to cope with some mixed
@@ -423,6 +454,9 @@
     (lambda (out)
       (display features-boilerplate-start out)
       (for-each (lambda (f)
+		  (twobit-format out "#undef ~a~%" f))
+		features)
+      (for-each (lambda (f)
 		  (twobit-format out "#define ~a 1~%" f))
 		fs)
       (display features-boilerplate-end out)))
@@ -522,6 +556,30 @@
 	    (display "Redefined feature set!")
 	    (newline)
 	    (write-feature-set new))))))
+
+(define (read-line . rest)
+
+  (define (finish l k)
+    (let ((s (make-string k)))
+      (do ((i (- k 1) (- i 1))
+	   (l l (cdr l)))
+	  ((< i 0) s)
+	(string-set! s i (car l)))))
+
+  (define (loop p l k)
+    (let ((c (read-char p)))
+      (cond ((eof-object? c)
+	     (if (null? l)
+		 c
+		 (finish l k)))
+	    ((char=? c #\newline)
+	     (finish l k))
+	    (else
+	     (loop p (cons c l) (+ k 1))))))
+
+  (if (null? rest)
+      (loop (current-input-port) '() 0)
+      (loop (car rest) '() 0)))
 
 ; Do it
 
