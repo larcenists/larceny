@@ -11,8 +11,6 @@
  *
  *   Convert two uses of assert() to assert2() when starting to benchmark;
  *   search for assert2() and look for FIXMEs.
- *
- *   Must report more statistics!
  */
 
 #include <math.h>
@@ -30,7 +28,7 @@
 #include "young_heap_t.h"
 #include "old_heap_t.h"
 #include "semispace_t.h"
-#include "heap_stats_t.h"
+#include "stats.h"
 #include "remset_t.h"
 #include "static_heap_t.h"
 #include "msgc-core.h"
@@ -56,24 +54,22 @@ struct dof_pool {
 };
 
 struct dof_remset {
-  int entries_scanned;
-  int words_scanned;
-  int removed;
-  int curr_pools;
-  int max_pools;
-  dof_pool_t *first;
-  dof_pool_t *curr;
+  stats_id_t     self;          /* Remset identity */
+  dof_pool_t     *first;        /* First pool */
+  dof_pool_t     *curr;         /* Current pool */
+  int            curr_pools;    /* Number of pools now */
+  int            max_pools;     /* Larges number of pools ever */
+  remset_stats_t stats;         /* Accumulators */
 };
 
 struct gen {
-  int         id;               /* Generation ID */
+  stats_id_t  self;             /* Generation identity */
+  int         id;               /* Generation ID (internal) */
   int         size;             /* Size in bytes */
   int         claim;            /* Bytes of memory allotted */
   int         order;            /* Generation number (for barrier/remset) */
   semispace_t *live;            /* The data */
-
-  int         bytes_copied;     /* Since last GC, including promotion */
-  int         bytes_moved;      /* Since last GC */
+  gen_stats_t stats;            /* Counters */
 #if USE_DOF_REMSET
   dof_remset_t *dof_remset;     /* For GC barrier */
 #endif
@@ -103,13 +99,12 @@ struct dof_data {
   int    rp;                    /* Reserve pointer (index into gen) */
 
   /* Statistics */
-  int    consing;               /* Amount of consing since reset */
-  int    copying;               /* Amount of copying since reset */
-  double total_consing;         /* Total amount of consing */
-  double total_copying;         /* Total amount of copying */
-  int    max_size;              /* Maximum area size */
-
-  dof_stats_t stats;            /* Collector's exportable stats */
+  int        consing;           /* Amount of consing since reset */
+  int        copying;           /* Amount of copying since reset */
+  double     total_consing;     /* Total amount of consing */
+  double     total_copying;     /* Total amount of copying */
+  int        max_size;          /* Maximum area size */
+  gc_stats_t stats;             /* Collector's exportable stats */
 };
 
 #define DATA(h) ((dof_data_t*)(h->data))
@@ -182,23 +177,22 @@ static dof_pool_t *make_dof_pool( void )
   dof_pool_t *p = must_malloc( sizeof( dof_pool_t ) );
 
   /*  p->bot = must_malloc( sizeof( word )*DOF_REMSET_SIZE ); */
-  p->bot = gclib_alloc_rts( sizeof(word)*DOF_REMSET_SIZE, MB_RTS_MEMORY );
+  p->bot = gclib_alloc_rts( words2bytes(DOF_REMSET_SIZE), MB_REMSET );
   p->top = p->bot;
   p->lim = p->bot + DOF_REMSET_SIZE;
   p->next = 0;
   return p;
 }
 
-static dof_remset_t *make_dof_remset( void )
+static dof_remset_t *make_dof_remset( int major_id, int minor_id )
 {
   dof_remset_t *r = must_malloc( sizeof(dof_remset_t) );
 
+  r->self = stats_new_remembered_set( major_id, minor_id );
   r->first = r->curr = make_dof_pool();
   r->max_pools = 1;
   r->curr_pools = 1;
-  r->entries_scanned = 0;
-  r->words_scanned = 0;
-  r->removed = 0;
+  memset( &r->stats, 0, sizeof( remset_stats_t ) );
   return r;
 }
 
@@ -207,7 +201,7 @@ static void free_dof_pools( dof_pool_t *p )
   if (p != 0) {
     free_dof_pools( p->next );
     /* free( p->bot ); */
-    gclib_free( p->bot, sizeof(word)*DOF_REMSET_SIZE );
+    gclib_free( p->bot, words2bytes(DOF_REMSET_SIZE) );
     free( p );
   }
 }
@@ -230,6 +224,7 @@ static void clear_dof_remset( old_heap_t *heap, int order )
   r->first->next = 0;
   r->curr = r->first;
   r->first->top = r->first->bot;
+  r->stats.cleared++;
 }
 
 static void advance_dof_remset( dof_remset_t *r )
@@ -758,8 +753,8 @@ sweep_dof_remembered_sets( old_heap_t *heap, msgc_context_t *context )
         }
       }
     }
-    r->entries_scanned += scanned;
-    r->removed += removed;
+    r->stats.objs_scanned += scanned;
+    r->stats.removed += removed;
     removed_total += removed;
     scanned = 0;
     removed = 0;
@@ -787,9 +782,13 @@ static void full_collection( old_heap_t *heap )
 {
   msgc_context_t *context;
   int marked, traced, removed;
+  stats_id_t timer;
 
   /* DEBUG -- replace with annoyingmsg at some point */
   consolemsg( " Full collection starts." );
+
+  gc_start_gc( heap->collector );
+  timer = stats_start_timer();
 
   context = msgc_begin( heap->collector );
   msgc_mark_objects_from_roots( context, &marked, &traced );
@@ -798,22 +797,24 @@ static void full_collection( old_heap_t *heap )
 #endif
   removed += sweep_remembered_sets( heap, context );
   msgc_end( context );
-  /* DEBUG -- ditto */
 
+  gc_end_gc( heap->collector );
+
+  DATA(heap)->stats.full_ms_collection += stats_stop_timer( timer );
+  DATA(heap)->stats.full_collections++;
+  DATA(heap)->stats.full_objects_marked += marked;
+  DATA(heap)->stats.full_pointers_traced += traced;
+
+  /* DEBUG -- ditto */
   consolemsg( " Full collection ends.  Marked=%d traced=%d removed=%d",
               marked, traced, removed );
-
-  DATA(heap)->stats.full_collections++;
-  DATA(heap)->stats.objects_marked += marked;
-  DATA(heap)->stats.pointers_traced += traced;
-  DATA(heap)->stats.remset_entries_removed += removed;
 }
 
 static void do_promote_in( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int i, j;
   gen_t *targets[ MAX_GENERATIONS+1 ];
+  int i, j;
 
   for ( i=data->ap, j=0 ; i >= 0 ; i--, j++ )
     targets[j] = data->gen[i];
@@ -838,29 +839,38 @@ static void do_promote_in( old_heap_t *heap )
 static void promote_in( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int live_before, live_after, ap_before, i, los_before;
+  stats_id_t timer;
+  int live_before, live_after, ap_before, i, los_before, los_after;
 
   annoyingmsg( " DOF promotion begins" );
-  data->stats.promotions++;
-  live_before = gen_used( data->gen[data->ap] );
-  los_before = los_bytes_used( heap->collector->los, 
-                               data->gen[data->ap]->order+data->first_gen_no );
+
+  gc_start_gc( heap->collector );
+  timer = stats_start_timer();
+
   ap_before = data->ap;
+  live_before = gen_used( data->gen[ap_before] );
+  los_before = los_bytes_used( heap->collector->los, 
+                               data->gen[ap_before]->order+data->first_gen_no);
 
   do_promote_in( heap );
 
   live_after = 0;
+  los_after = 0;
   for ( i=ap_before ; i >= data->ap ; i-- ) {
-    int used = gen_used( data->gen[i] );
-    int los_used = los_bytes_used( heap->collector->los,
-                                   data->gen[i]->order + data->first_gen_no );
-    live_after += used + los_used;
-    data->gen[i]->bytes_copied += (i == ap_before ? used - live_before : used);
-    data->gen[i]->bytes_moved += 
-      (i == ap_before ? los_used - los_before : los_used );
+    live_after += gen_used( data->gen[i] );
+    los_after += los_bytes_used( heap->collector->los,
+                                 data->gen[i]->order + data->first_gen_no );
   }
   data->consing += live_after - live_before;
-  data->stats.bytes_promoted_in += live_after - live_before;
+
+  gc_end_gc( heap->collector );
+
+  /* See comments in perform_collection(). */
+  data->stats.words_copied += bytes2words( live_after - live_before );
+  data->stats.words_moved += bytes2words( los_after - los_before );
+  data->gen[ap_before]->stats.ms_promotion += stats_stop_timer( timer );
+  data->gen[ap_before]->stats.promotions++;
+
   annoyingmsg( " DOF promotion ends: AP=%d CP=%d RP=%d promoted=%d",
                data->ap, data->cp, data->rp, live_after-live_before );
 }
@@ -1079,10 +1089,13 @@ static void do_perform_collection( old_heap_t *heap )
 static void perform_collection( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int i, live_after, rp_before, live_before, los_before;
+  int i, live_after, rp_before, live_before, los_before, los_after;
+  stats_id_t timer;
 
-  data->stats.collections++;
   annoyingmsg("  Collecting: AP=%d CP=%d RP=%d", data->ap, data->cp, data->rp);
+
+  gc_start_gc( heap->collector );
+  timer = stats_start_timer();
 
   rp_before = data->rp;
   live_before = gen_used( data->gen[rp_before] );
@@ -1092,51 +1105,55 @@ static void perform_collection( old_heap_t *heap )
   do_perform_collection( heap );
 
   live_after = 0;
+  los_after = 0;
   for ( i=rp_before ; i >= data->rp ; i-- ) {
-    int used = gen_used( data->gen[i] );
-    int los_used = los_bytes_used( heap->collector->los,
-                                   data->gen[i]->order + data->first_gen_no );
-
     live_after += gen_used( data->gen[i] );
-    data->gen[i]->bytes_copied += (i == rp_before ? used - live_before : used);
-    data->gen[i]->bytes_moved += 
-      (i == rp_before ? los_used - los_before : los_used);
+    los_after += los_bytes_used( heap->collector->los,
+                                 data->gen[i]->order + data->first_gen_no );
   }  
   data->copying += live_after - live_before;
 
+  gc_end_gc( heap->collector );
+
+  /* For simplicity's sake the time and the collection counter increment 
+     is given to the area in which RP was before the collection, even 
+     though the collection may have copied data into two generations.
+     */
+  data->stats.words_copied += bytes2words( live_after - live_before );
+  data->stats.words_moved += bytes2words( los_after - los_before );
+  data->gen[rp_before]->stats.collections++;
+  data->gen[rp_before]->stats.ms_collection += stats_stop_timer( timer );
+
+  /* Note, following stmt may affect _meaning_ of rp_before, so be careful 
+     if you move it above the preceding accounting code. */
   post_collection_policy( heap );
 }
 
 static void maybe_collect( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  int repeating = 0;
+  bool repeating = FALSE;
   double copying_before;
 
   while (free_in_allocation_area(data) < space_needed_for_promotion(data)) {
     annoyingmsg( " DOF collection begins" );
     if (repeating) 
       data->stats.repeats++;
+
     if (data->full_frequency && ++data->gc_counter == data->full_frequency) {
-      gc_start_gc( heap->collector );
-      stats_gc_type( data->first_gen_no, GCTYPE_FULL );
       full_collection( heap );
-      gc_end_gc( heap->collector ); 
       check_invariants( heap, FALSE );
       data->gc_counter = 0;
     }
     copying_before = data->copying + data->total_copying;
 
-    gc_start_gc( heap->collector );
-    stats_gc_type( data->first_gen_no, GCTYPE_COLLECT );
     perform_collection( heap );
-    gc_end_gc( heap->collector );
-
     check_invariants( heap, FALSE );
+
     annoyingmsg( " DOF collection ends: AP=%d CP=%d RP=%d survivors=%.0f",
                  data->ap, data->cp, data->rp, 
                  data->copying + data->total_copying - copying_before );
-    repeating = 1;
+    repeating = TRUE;
   }
 }
 
@@ -1168,18 +1185,15 @@ static void collect( old_heap_t *heap, gc_type_t request )
 
   annoyingmsg( "DOF collection cycle begins: AP=%d CP=%d RP=%d",
                data->ap, data->cp, data->rp );
+
   check_invariants( heap, FALSE );
 
-  gc_start_gc( heap->collector );
-  stats_gc_type( data->first_gen_no, GCTYPE_PROMOTE );
   promote_in( heap );
-  gc_end_gc( heap->collector );
-
   check_invariants( heap, FALSE );
 
   maybe_collect( heap );
-
   check_invariants( heap, TRUE );
+
   annoyingmsg( "DOF collection cycle ends",
                data->ap, data->cp, data->rp );
 }
@@ -1201,27 +1215,44 @@ static void after_collection( old_heap_t *heap )
 {
 }
 
-static void stats( old_heap_t *heap, int gen, heap_stats_t *stats )
+static void stats( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
-  gen_t *g;
   int i;
 
-  for ( i=0 ; i < data->n ; i++ )
-    if (data->gen[i]->order + data->first_gen_no == gen) {
-      g = data->gen[i];
-      stats->live = gen_used( g ) +
-        los_bytes_used( heap->collector->los->object_lists[gen] );
-      stats->copied_last_gc = g->bytes_copied;
-      stats->moved_last_gc = g->bytes_moved;
-      stats->semispace1 = g->claim;
-      stats->target = g->size;
-      g->bytes_copied = 0;
-      g->bytes_moved = 0;
-      break;
-    }
-  stats->dof_generation = TRUE;
-  stats->dof = data->stats;
+  for ( i=0 ; i < data->n ; i++ ) {
+    gen_t *g = data->gen[i];
+    dof_remset_t *r = g->dof_remset;
+    int gen = data->first_gen_no + g->order;
+    int los_words = bytes2words( los_bytes_used( heap->collector->los, gen ) );
+
+    /* generation */
+    ss_sync( g->live );
+    g->stats.target = bytes2words(g->size);
+    g->stats.allocated = bytes2words(g->claim) + los_words;
+    g->stats.used = bytes2words(g->live->used) + los_words;
+    stats_add_gen_stats( g->self, &g->stats );
+    memset( &g->stats, 0, sizeof( gen_stats_t ) );
+
+    /* remset */
+    rs_stats( heap->collector->remset[ gen ] );
+
+#if USE_DOF_REMSET
+    /* extra remset */
+    /* The 'live' field is not accurately computed because a little
+       bit of machinery is required to track it during GC.  Easy to fix.
+       When fixed, can't use memset() to clear the fields.
+       */
+    r->stats.allocated = r->curr_pools * DOF_REMSET_SIZE;
+    r->stats.used = r->stats.allocated - (r->curr->lim - r->curr->top);
+    r->stats.live = r->stats.used;                    /* FIXME */
+    stats_add_remset_stats( r->self, &r->stats );
+    memset( &r->stats, 0, sizeof( remset_stats_t ) );
+#endif
+  }
+
+  /* overall */
+  stats_add_gc_stats( &data->stats );
   memset( &data->stats, 0, sizeof( data->stats ) );
 }
 
@@ -1272,6 +1303,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
     gen_t *g;
 
     data->gen[i] = g = (gen_t*)must_malloc( sizeof(gen_t) );
+    g->self = stats_new_generation( gen_no + i, 0 );
     g->id = i;
     g->size = data->s;
     g->claim = (i == 0 ? 0 : data->s);
@@ -1284,7 +1316,7 @@ create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info )
                             (data->s / BLOCK_SIZE), 
                             gen_no+g->order );
 #if USE_DOF_REMSET
-    g->dof_remset = make_dof_remset();
+    g->dof_remset = make_dof_remset( gen_no + i, 1 );
 #endif
 #if INVARIANT_CHECKING
     g->remset = 0;
@@ -1397,15 +1429,25 @@ void dof_gc_parameters( old_heap_t *heap, int *size )
        }                                                                  \
   } while( 0 )
 
+/* This is slow -- gclib_desc_g is a global variable that can't
+   be cached locally because its value may change due to memory 
+   allocation.  
+
+   Tuned extra for the case when an object does not need to be
+   forwarded, as an experiment.
+*/
 #define forw_np_partial( loc, forw_limit_gen, dest, lim, np_young_gen,  \
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           if (gclib_desc_g[ pageof(T_obj) ] < (forw_limit_gen)) {      \
+           word T_g = gclib_desc_g[ pageof(T_obj) ];                    \
+           if (T_g < (forw_limit_gen)) {                                \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
+             T_obj = *loc;                                              \
+             if (gclib_desc_g[pageof(T_obj)] < (np_young_gen))          \
+               must_add_to_extra = 1;                                   \
            }                                                            \
-           T_obj = *loc;                                                \
-           if (gclib_desc_g[pageof(T_obj)] < (np_young_gen))            \
+           else if (T_g < (np_young_gen))                               \
              must_add_to_extra = 1;                                     \
        }                                                                \
   } while( 0 )
@@ -1746,8 +1788,9 @@ static void scan_from_dof_remset( dof_env_t *e, dof_remset_t *r )
       }
     }
   }
-  r->words_scanned += scanned;
-  r->entries_scanned += objects;
+  r->stats.scanned += 1;
+  r->stats.words_scanned += scanned;
+  r->stats.objs_scanned += objects;
   TAKEDOWN_COPY_PTRS( e, dest, lim );
 }
 #endif
@@ -1949,7 +1992,7 @@ static word forward_large_object( dof_env_t *e, word *ptr, int tag )
 static void seal_chunk( semispace_t *ss, word *lim, word *dest )
 {
   if (dest < lim) {
-    word len = (lim - dest)*sizeof(word);
+    word len = words2bytes(lim - dest);
     *dest = mkheader(len-sizeof(word),STR_HDR);
     *(dest+1) = 0xABCDABCD;
   }
