@@ -1003,26 +1003,6 @@ HIGH PRIORITY BUGS: 136, 137, 159, 162.
     in how MSIE renders <DL>...</DL> or it could be a bug in how
     the Larceny pages uses the HTML.
 
-156 v0.48 (2000-06-03 / lth)
-    Priority: medium
-    Category: SPARC DISASSEMBLER
-
-    > (define (foo) (let loop () (loop)))
-    foo
-    > (disassemble foo)
-
-    Error: Can't disassemble 32c00000 at ip=24 with op2=3
-
-157 v0.48 (2000-05-17 / lth)
-    Priority: medium
-    Category: LIBRARY
-
-    STRING-UPCASE is broken.  Use the following patch instead until the fix 
-    makes it into a release.  --lars
-
-	(define (string-upcase s)
-	  (string-upcase! (string-copy s)))
-
 158 v0.48 (2000-05-17 / lth)
     Priority: medium
     Category: TWOBIT / user-friendliness
@@ -1038,9 +1018,6 @@ HIGH PRIORITY BUGS: 136, 137, 159, 162.
 
         (case x
           ((foo)))
-
-    I'll add this to BUGS.
-
 
 159 v0.49 (2000-07-10 / lth)
     Priority: high
@@ -1094,54 +1071,6 @@ HIGH PRIORITY BUGS: 136, 137, 159, 162.
 		 (.cell-ref .CELL:.results|2)))))
 	   (.make-cell .results|2)))
 	(unspecified))))
-
-160 v0.49 (2000-07-17 / lth)
-    Priority: medium
-    Category: LIBRARY / performance
-
-    An obscure bug: if the symbol table is in the static area, and it is
-    grown so much that it must be rehashed, then the new table is
-    allocated in the collected heap.  However, the old table remains 
-    in the static area, and since it is already in the remembered set
-    because it contains pointers to new symbols in the collected
-    heap, it will _remain_ in the remembered set and will continue to
-    be scanned on all subsequent collections, even minor collections.
-
-    In the default heap image with Twobit, the table contains some 10,000
-    elements on startup, so this is not a trivial cost.
-
-    The easiest fix is to clear the symbol table after rehashing, to
-    ensure that any table in non-collected memory will not cause 
-    unnecessary remembered set scanning.  As far as I can tell, this will
-    make a real difference on some of the really weird results that
-    are seen on the Twobit benchmark. (cf my dissertation)
-
-
-161 v0.49 (2000-08-29 / lth)
-    Priority: medium
-    Category: LIBRARY / performance
-
-    The random number generator will almost always go into bignums if the 
-    modulus is larger than 16383, resulting in poor performance and
-    increased allocation.  It does not need to do this; only if the
-    modulus is 28 bits or larger does it have to do that.  The reason is
-    that it does one iteration too many, growing an intermediate result
-    too large.  Rather than:
-
-    (lambda (n)
-      (if (and (fixnum? n) (< n 16384))
-          (random14 n)
-          (loop n (random14 16384) n)))))
-
-    we should have
-
-    (lambda (n)
-      (if (and (fixnum? n) (< n 16384))
-          (random14 n)
-          (loop (quotient n 16384) (random14 16384) n)))))
-
-    Fix has not been added to sources due to need for stability.
-
 
 162 v0.48 (2000-08-29 / lth)
     Priority: high
