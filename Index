@@ -1,0 +1,64 @@
+The index for ~larceny
+$Id$
+
+This is the top-level directory for the larceny development enviroment.
+
+BUGLIST
+  The official bug list (also the wish list).  This list really contains
+  bugs that are known of but haven't been fixed for various reasons. 
+  Also contains suggested improvements.
+
+Index
+  This file.
+
+Makefile
+  The Makefile for the larceny executable.  Invoke by saying "make", 
+  "make larceny".  See inside for other flavors.
+
+build
+  A script that starts up the development environment.  
+
+checkin
+  A script that will do an RCS check in of all files that you currently
+  have checked out and locked.  
+
+checkout
+  A script that will do an RCS check out of all files that are more
+  recent than the version you have.  May have some problems do to
+  an update of RCS.
+
+config
+  A script that runs each of the .cfg files through Chez.  
+  It's called from the Makefile while building larceny.
+
+exceptions.cfg
+  Defines general exception codes and primop-specific exception codes.
+
+larceny.1
+  The larceny manual page.  
+
+layouts.cfg
+  Defines data structure layouts, tags, and other bit-level things.
+
+memstats.cfg
+  Defines memory statistic constants.
+
+millicode.cfg
+  Defines millicode table offsets.
+
+milliprocs.cfg
+  Defines millicode support procedure offsets into the global
+  vector "millicode-support".
+
+offsets.cfg
+  Defines offsets into the globals table.
+
+registers.cfg
+  Defines register aliases.
+
+rewrite
+  A script that loads Lars' rewrite program and then rewrites the 
+  scheme file specfied on the command line as file.rew.
+
+translate
+  Runs Compiler/translate.sch.  What does that do?
