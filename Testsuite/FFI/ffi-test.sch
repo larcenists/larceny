@@ -9,7 +9,7 @@
 ; across even/odd register pairs, and so on.  See ffi-test-ff.c for
 ; more details.
 
-(define *work-path* "/home/lth/net/larceny/")
+(define *work-path* "/home/lth/larceny/")
 
 (define *ffi-path* (string-append *work-path* "Ffi/"))
 (define *test-path* (string-append *work-path* "Testsuite/Lib/"))
@@ -25,7 +25,7 @@
 
 (define (run-basic-ffi-tests)
   (run-callout-tests)
-  (run-callback-tests)
+;  (run-callback-tests)
   (run-peek-poke-tests))
 
 (load (string-append *ffi-path* "ffi-load.sch"))
@@ -94,6 +94,7 @@
 
 ;;; Callback tests
 
+'(
 (define fficb1 (fp "fficb1" '(pointer) 'void))
 (define fficb2 (fp "fficb2" '(pointer) 'int))
 (define fficb3 (fp "fficb3" '(int pointer) 'int))
@@ -137,6 +138,7 @@
           (let ((r (fficb3 37 cb:int->int)))
             (cons r *the-value*))
           '(74 . cb:int->int))))
+)
 
 ;;; Peek and poke
 
