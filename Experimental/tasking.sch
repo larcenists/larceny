@@ -38,45 +38,42 @@
 
 (define *tasking-on* #f)
 (define *saved-interrupt-handler* #f)
-(define *saved-reset-handler* #f)
 
 (define (begin-tasking)
-
-  (define tasking-reset-handler
-    (lambda ()
-      (without-interrupts
-       (if (eq? (tasks/current-task) (tasks/repl-task))
-           (*saved-reset-handler*)
-           (begin
-             (display "Killing task ")
-             (display (task-id (tasks/current-task)))
-             (newline)
-             (kill (tasks/current-task)))))))
-
   (if *tasking-on* (error "Tasking is already on."))
+  (disable-interrupts)
   (set! *tasking-on* #t)
-  (set! *saved-reset-handler* (reset-handler))
-  (reset-handler tasking-reset-handler)
   (set! *saved-interrupt-handler* (timer-interrupt-handler))
   (timer-interrupt-handler 
    (lambda ()
      (tasks/switch #t #f)))
-  (tasks/initialize-scheduler))
+  (tasks/initialize-scheduler)
+  (enable-interrupts *timeslice*))
 
 (define (end-tasking)
   (if (not *tasking-on*) (error "Tasking is not on."))
-  (tasks/without-interrupts
-   (set! *tasking-on* #f)
-   (timer-interrupt-handler *saved-interrupt-handler*)
-   (reset-handler *saved-reset-handler*)
-   (enable-interrupts (standard-timeslice))
-   ; Kill whatever thread we're running and reenter the REPL.
-   (reset)))
+  (disable-interrupts)
+  (set! *tasking-on* #f)
+  (timer-interrupt-handler *saved-interrupt-handler*)
+  (enable-interrupts (standard-timeslice))
+  ; Kill whatever thread we're running and reenter the REPL.
+  (reset))
 
 (define (spawn thunk)
+
+  (define tasking-reset-handler
+    (lambda ()
+      (display "Killing task ")
+      (display (task-id (tasks/current-task)))
+      (newline)
+      (kill (tasks/current-task))))
+
   (if (not *tasking-on*) (error "Tasking is not on."))
   (tasks/without-interrupts
-   (tasks/schedule (make-task thunk))))
+   (tasks/schedule (make-task 
+                    (lambda ()
+                      (parameterize ((reset-handler tasking-reset-handler))
+                        (thunk)))))))
 
 (define (kill t)
   (if (not *tasking-on*) (error "Tasking is not on."))
