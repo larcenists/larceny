@@ -267,9 +267,12 @@ int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
   hio_range *a;
 
   assert( type == TEXT_SEGMENT || type == DATA_SEGMENT );
-  assert(    (word)bot % PAGESIZE == 0
-	  || (gclib_desc_b[ pageof( bot ) ] & MB_LARGE_OBJECT) );
   assert( top >= bot );
+#if !defined(BDW_GC)
+  /* page table doesn't exist in conservative system */
+  assert( (word)bot % PAGESIZE == 0 || 
+          (gclib_desc_b[ pageof( bot ) ] & MB_LARGE_OBJECT) );
+#endif
 
   tbl = (type == TEXT_SEGMENT ? h->text_segments : h->data_segments);
 
