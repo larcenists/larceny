@@ -13,32 +13,18 @@ using System;
 using System.Reflection;
 using Scheme.RT;
 using Scheme.Rep;
-using System.Windows.Forms;
+// using System.Windows.Forms;
 
 namespace Scheme.RT {
 
-  
-  
-  
 
-    public class FFI_message_filter : IMessageFilter
-    {
-        Procedure scheme_filter;
 
-        public FFI_message_filter (Procedure _scheme_filter)
-        {
-            this.scheme_filter = _scheme_filter;
-        }
 
-        public bool PreFilterMessage (ref Message m)
-        {
-            return Call.callback (scheme_filter, Factory.makeForeignBox (m)) != Factory.False;
-        }
-    }
+
 
     public class FFI {
 
-        
+
         public const bool TRUE = true;
         public const bool FALSE = false;
         public const object NULL = null;
@@ -54,17 +40,17 @@ namespace Scheme.RT {
 
         private static void ffi_syscall_main (int code) {
 
-          
-           
-           
-           
+
+
+
+
           switch (code) {
 
-            case 0:  
-              
+            case 0:
+
             {
                 Version v = Environment.Version;
-                
+
                 Reg.Result =
                     Factory.makePair
                     (Factory.makeNumber (v.Major),
@@ -80,28 +66,28 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 1: 
-              
+            case 1:
+
             {
-                
+
                 Reg.Result =
                     Factory.makePair (Factory.makeNumber (0),
                                       Factory.makePair (Factory.makeNumber (0), Factory.Null));
                 return;
             }
 
-            case 2: 
-              
+            case 2:
+
             {
-                
-                
-                
-                
+
+
+
+
                 Reg.Result = (Reg.register3 is ForeignBox) ? Factory.True : Factory.False;
                 return;
             }
 
-            case 3: 
+            case 3:
             {
                 SObject arg1 = Reg.register3;
                 object val = ((ForeignBox) arg1).value;
@@ -109,14 +95,14 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 4: 
+            case 4:
             {
                 SObject arg1 = Reg.register3;
                 Reg.Result = Factory.makeForeignBox (((ForeignBox) arg1).value.GetType());
                 return;
             }
 
-            case 5: 
+            case 5:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -126,21 +112,21 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 6: 
+            case 6:
             {
-                
+
 
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
-                
-                
+
+
                 if (arg1 == arg2) {
                     Reg.Result = Factory.True;
                     }
                 else if (arg1 is ForeignBox) {
                     if (arg2 is ForeignBox) {
-                        
-                        
+
+
                         if (((ForeignBox)arg1).value == null) {
                             Reg.Result = (((ForeignBox)arg2).value == null)
                                 ? Factory.True
@@ -198,20 +184,20 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 7: 
+            case 7:
             {
-                
-                
-                
+
+
+
                 Type ft = Type.GetType (((SByteVL)(Reg.register3)).asString(), false, true);
-                
+
                 Reg.Result = (ft == null) ? Factory.False : Factory.makeForeignBox (ft);
                 return;
             }
 
-            
-            
-            case 8: 
+
+
+            case 8:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -219,9 +205,9 @@ namespace Scheme.RT {
                 Reg.Result = (fi == null) ? Factory.False : Factory.makeForeignBox (fi);
                 return;
             }
-            
-            
-            case 9: 
+
+
+            case 9:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -235,7 +221,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 10: 
+            case 10:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -250,7 +236,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 11: 
+            case 11:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -265,7 +251,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 12: 
+            case 12:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -279,7 +265,7 @@ namespace Scheme.RT {
                 }
             }
 
-            case 13: 
+            case 13:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -295,7 +281,7 @@ namespace Scheme.RT {
                 }
             }
 
-            case 14: 
+            case 14:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -314,7 +300,7 @@ namespace Scheme.RT {
                 }
             }
 
-            case 15: 
+            case 15:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -342,7 +328,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 16: 
+            case 16:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -363,7 +349,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 17: 
+            case 17:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -384,7 +370,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 18: 
+            case 18:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -393,7 +379,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 19: 
+            case 19:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -401,7 +387,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 20: 
+            case 20:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -409,7 +395,7 @@ namespace Scheme.RT {
                 return;
             }
 
-            case 21: 
+            case 21:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -429,7 +415,7 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeBoolean ((bool)result != false);
                 return;
             }
-            case 22: 
+            case 22:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -449,7 +435,7 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeNumber((int)result);
                 return;
             }
-            case 23: 
+            case 23:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -466,10 +452,10 @@ namespace Scheme.RT {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
                     return;
                    }
-                Reg.Result = Factory.makeForeignBox (System.Windows.Forms.NativeWindow.FromHandle ((IntPtr)result));
+		//                Reg.Result = Factory.makeForeignBox (System.Windows.Forms.NativeWindow.FromHandle ((IntPtr)result));
                 return;
             }
-            case 24: 
+            case 24:
             {
                 SObject arg1 = Reg.register3;
                 SObject arg2 = Reg.register4;
@@ -512,24 +498,24 @@ namespace Scheme.RT {
         }
 
         private static SObject datum2foreign(int conversion, SObject obj) {
-            
 
-            
-            
+
+
+
             switch (conversion) {
-                
+
                 case 0:
                 {
                     return Factory.makeForeignBox (obj);
                 }
 
-                
+
                 case 1:
                 {
                     return Factory.makeForeignBox (((SByteVL)obj).asString());
                 }
 
-                
+
                 case 2:
                 {
                     return Factory.makeForeignBox ((Byte) ((SFixnum)obj).value);
@@ -558,11 +544,6 @@ namespace Scheme.RT {
                 case 7:
                 {
                     return Factory.makeForeignBox ((Int32) ((SFixnum)obj).value);
-                }
-
-                case 8: 
-                {
-                    return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
                 }
 
 
@@ -658,7 +639,7 @@ namespace Scheme.RT {
             return Factory.Impossible;
         }
         private static SObject foreign2datum(int conversion, SObject obj) {
-            
+
             object value;
             if (obj is ForeignBox) {
                 value = ((ForeignBox)obj).value;
@@ -670,10 +651,10 @@ namespace Scheme.RT {
             }
 
             switch (conversion) {
-                case 0: { 
+                case 0: {
                     return obj;
                 }
-                case 1: { 
+                case 1: {
                     if (value is SObject) {
                         return (SObject)value;
                     } else {
@@ -681,7 +662,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 2: { 
+                case 2: {
                     if (value is string) {
                         return Factory.makeString ((string)value);
                     } else {
@@ -689,11 +670,11 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 3: { 
+                case 3: {
                     Exn.error("foreign->datum (symbol): not handled by runtime");
                     return Factory.Impossible;
                 }
-                case 4: { 
+                case 4: {
                     if (value is byte[]) {
                         return Factory.makeString((byte[])value);
                     } else {
@@ -701,7 +682,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 5: { 
+                case 5: {
                     if (value is Enum) {
                        Type enum_type = value.GetType ();
                        Type underlying_type = Enum.GetUnderlyingType (enum_type);
@@ -730,7 +711,7 @@ namespace Scheme.RT {
                     Exn.error("foreign->datum (int): not an integer");
                     return Factory.Impossible;
                 }
-                case 6: { 
+                case 6: {
                     if (value is float) {
                         return Factory.makeFlonum((float)value);
                     } else {
@@ -738,7 +719,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 7: { 
+                case 7: {
                     if (value is double) {
                         return Factory.makeFlonum((double)value);
                     } else {
@@ -746,7 +727,7 @@ namespace Scheme.RT {
                         return Factory.Impossible;
                     }
                 }
-                case 8: { 
+                case 8: {
                     return Factory.Unspecified;
                 }
             }
