@@ -12,9 +12,9 @@
   (if (null? rest)
       (let ((dir (nbuild-parameter 'compatibility)))
 	(compat:load (string-append dir "compat2.sch"))
-	(compat:load (string-append dir "../Auxlib/list.sch"))
-	(compat:load (string-append dir "../Auxlib/sort.sch"))
-	(compat:load (string-append dir "../Auxlib/pp.sch")))))
+	(compat:load (string-append dir "../../Auxlib/list.sch"))
+	(compat:load (string-append dir "../../Auxlib/sort.sch"))
+	(compat:load (string-append dir "../../Auxlib/pp.sch")))))
 
 (define (with-optimization level thunk) 
   (thunk))
