@@ -124,7 +124,7 @@
 
 (define (flonum-bits x)
   (map char->integer
-       (string->list (real->floating-point-byte-string x 8) #t)))
+       (string->list (real->floating-point-byte-string x 8))))
 
 ; utility
 
