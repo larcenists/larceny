@@ -157,6 +157,10 @@
 
 ; Console i/o handling -- after an error, console i/o must be reset.
 
+; FIXME: this support belongs in the console I/O package, but I haven't
+; moved it because I want to first integrate changes to that package
+; from the Petit Larceny development trees.
+
 ; Observe that _by design_, the use of (current-input-port x) and
 ; (current-output-port x) does not affect the REPL's I/O.  However,
 ; there are some issues that remain to be solved: transcript-on/off
