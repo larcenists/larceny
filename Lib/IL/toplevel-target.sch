@@ -21,15 +21,15 @@
   (environment-set! larc '.common-patch-procedure .common-patch-procedure)
 
   ;; Load extensions
-  (for-each (lambda (p) (environment-set! larc (car p) (cdr p)))
+  (for-each (lambda (p) (p larc))
             *larceny-environment-extensions*)
   (set! *larceny-environment-extensions* (undefined))
   
   larc)
 
-;; *larceny-environment-extensions* : (listof (cons symbol value))
-;; An alist of symbols and values to be added to the standard larceny
-;; environment (done by new 
+;; *larceny-environment-extensions* : (listof (environment -> void))
+;; A list of procedures which accept an environment. The procedures are 
+;; expected to extend the environment with new bindings.
 (define *larceny-environment-extensions* '())
 
 ;; *interactive-eval-list* : (listof s-expr)

@@ -39,8 +39,8 @@
   (syntax-rules ()
     ((_ name ...)
      (set! *larceny-environment-extensions*
-           (append (list (cons 'name name) ...)
-                   *larceny-environment-extensions*)))))
+           (cons (lambda (env) (environment-set! env 'name name) ...)
+                 *larceny-environment-extensions*)))))
 
 (define (export-syntax . macro-defs)
   (set! *interactive-eval-list*
