@@ -2,14 +2,11 @@
 ;
 ; $Id$
 ;
-; BUG: server does not close server socket when it is stopped.  For the
-; other threads, this  program simulates orderly shutdown, but poorly -- 
-; effectively a cooperative SIGHUP.  A better solution must be found to 
-; signal threads.  (See Thread.AlertWait() in Modula-3.)
-;
-; BUG: killing waiting threads causes the threads system to crash; this
-; is a known bug in that system (see tasking-unix.sch).  Thus stop-server
-; should not be called.
+; This uses a quasi-cooperative KILL to stop the threads, which is really
+; the wrong thing.  A better solution would be like Thread.AltertWait() 
+; and Thread.Alert() in Modula-3 -- that way the thread can close its own 
+; resources, like the server socket.  Here, the server socket is closed by 
+; stop-server.
 
 ; You must call begin-tasking before calling start-server.
 
@@ -17,15 +14,18 @@
 (require 'experimental/iosys)
 (require 'experimental/tasking-unix)
 (require 'experimental/socket)
+(require 'experimental/unix)
 
 (define server #f)                      ; The server or #f
 (define server-threads '())             ; List of (thread . stop-thunk)
+(define the-server-socket #f)           ; Must close on shutdown
 
 (define (start-server)
   (if (not server)
       (begin (set! server-threads '())
-             (set! server (spawn (make-server 12345)))))
-  server)
+             (set! the-server-socket #f)
+             (set! server (spawn (make-server 2345)))))
+  (unspecified))
 
 (define (stop-server)
   (call-without-interrupts
@@ -37,11 +37,24 @@
       (if server
           (let ((s server))
             (set! server #f)
-            (kill s))))))
+            (kill s)))
+      (unix/close the-server-socket)
+      (unspecified))))
+
+(define (stats)
+  (do ((t server-threads (cdr t))
+       (i 1 (+ i 1)))
+      ((null? t))
+    (format #t "Client ~a: ~a~%"
+            i
+            (if (tasks/runnable? (caar t)) 
+                'runnable
+                'waiting))))
 
 (define (make-server port)
   (lambda ()
     (let ((s (server-socket port)))
+      (set! the-server-socket s)
       (let accept-loop ()
         (let-values ((ns addr)
                      (wait-for-connection-on-server-socket s 'nonblocking))
@@ -57,10 +70,10 @@
     (values (lambda ()
               (set! self (current-task))
               (parameterize ((console-input-port-factory (lambda () in))
-                             (console-output-port-factory (lambda () out)))
-                  (parameterize ((repl-level 0))
-                    (repl)))
-              (stop-server-thread self))
+                             (console-output-port-factory (lambda () out))
+                             (repl-level 0))
+                (repl)
+                (stop-server-thread self)))
             (lambda ()
               (close-input-port in)
               (close-output-port out)
@@ -85,17 +98,5 @@
                (assq (current-task) server-threads))
           (stop-server-thread (current-task))
           (apply exit args)))))
-
-; A patch -- remove when REPL exports REPL-LEVEL.
-
-(define repl-level
-  (let ((level 0))
-    (lambda args
-      (cond ((null? args) level)
-            ((null? (cdr args))
-             (set! level (car args))
-             level)
-            (else
-             (error "Wrong args to REPL-LEVEL."))))))
 
 ; eof
