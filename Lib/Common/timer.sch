@@ -1,8 +1,8 @@
-; Copyright 1998 Lars T Hansen.
+; Copyright 1998 Lars T Hansen.               -*- indent-tabs-mode: nil -*-
 ;
 ; $Id$
 ;
-; Larceny library -- timer interrupts (and other cruft, right now).
+; Larceny library -- timer interrupts.
 
 ($$trace "timer")
 
@@ -14,24 +14,6 @@
      (lambda () (set! old (disable-interrupts)))
      thunk
      (lambda () (if old (enable-interrupts old))))))
-
-; The timer interrupt handler is called with timer interrupts off.
-
-(define timer-interrupt-handler
-  (system-parameter "timer-interrupt-handler"
-                    (lambda ()
-                      ($$debugmsg "Unhandled timer interrupt."))
-                    procedure?))
-
-; The keyboard interrupt handler is called with timer interrupts in
-; the state they were when the interrupt was delivered.
-
-(define keyboard-interrupt-handler
-  (system-parameter "keyboard-interrupt-handler"
-                    (lambda ()
-                      ($$debugmsg "Unhandled keyboad interrupt.")
-                      (exit))
-                    procedure?))
 
 ; A timeslice of 50,000 is a compromise between overhead and response time.
 ; On atlas.ccs.neu.edu (a SPARC 10 (?)), 50,000 is really too much for
@@ -53,14 +35,12 @@
 ; decrements a quick trip is made into millicode to check for interrupts
 ; and get the next timer chunk.)
 
-(define *max-ticks* 536870911)            ; (- (expt 2 29) 1)
-
 (define *standard-timeslice* 50000)       ; Empirical.
 
 (define standard-timeslice
   (system-parameter "standard-timeslice"
-		    *standard-timeslice* 
-		    (lambda (x)
-		      (and (fixnum? x) (> x 0)))))
+                    *standard-timeslice* 
+                    (lambda (x)
+                      (and (fixnum? x) (> x 0)))))
 
 ; eof
