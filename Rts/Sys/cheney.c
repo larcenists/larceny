@@ -336,11 +336,11 @@
                          must_add_to_extra, e )                         \
   do { word T_obj = *loc;                                               \
        if ( isptr( T_obj ) ) {                                          \
-           if (gen_of(T_obj) < (forw_limit_gen)) {      \
+           if (gen_of(T_obj) < (forw_limit_gen)) {                      \
              forw_core_np( T_obj, loc, dest, lim, e );                  \
+             T_obj = *loc;                                              \
            }                                                            \
-           T_obj = *loc;                                                \
-           if (gen_of(T_obj) < (np_young_gen))            \
+           if (gen_of(T_obj) < (np_young_gen))                          \
              must_add_to_extra = 1;                                     \
        }                                                                \
   } while( 0 )
@@ -417,11 +417,12 @@
     }                                                                         \
   } while (0)
 
-#define remember_vec( w, e )                                    \
- do {  **e->np.ssbtop = w; *e->np.ssbtop = *e->np.ssbtop+1;     \
-       if (*e->np.ssbtop == *e->np.ssblim) {                    \
-         gc_compact_np_ssb( e->gc );                            \
-       }                                                        \
+#define remember_vec( w, e )                    \
+ do {  word *X = *e->np.ssbtop;                 \
+       *X = w; X += 1; *e->np.ssbtop = X;       \
+       if (X == *e->np.ssblim) {                \
+         gc_compact_np_ssb( e->gc );            \
+       }                                        \
  } while(0)
 
 #define remember_pair( w, e ) remember_vec( w, e )
@@ -1237,6 +1238,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
   mark_list = los->mark1;
   sub1 = bytes;
   if (e->np_promotion) {
+#if 0                           /* Obsolete */
     int free1, free2;
 
     free1 = e->np.old_steps_remaining*GC_CHUNK_SIZE - 
@@ -1248,6 +1250,10 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
       mark_list = los->mark2;
       sub2 = sub1; sub1 = 0;
     }
+#else
+    if (e->np.has_switched)
+      mark_list = los->mark2;
+#endif
   }
 
   if (attr_of(ptr) & MB_LARGE_OBJECT) {
@@ -1376,7 +1382,7 @@ void gclib_check_object( word obj )
                       obj, firstword );
       conditional_abort();
     }
-    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + 4)/4 );
+    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + 4)/4);
     break;
   case PROC_TAG :
     firstword = *ptrof( obj );
@@ -1386,7 +1392,7 @@ void gclib_check_object( word obj )
                       obj, firstword );
       conditional_abort();
     }
-    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + 4)/4 );
+    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + 4)/4);
     break;
   case BVEC_TAG :
     firstword = *ptrof( obj );
