@@ -105,17 +105,17 @@ SPARC_ASFLAGS= -P -ISparc -IBuild $(CONFIG) $(DEBUGFLAGS) \
 
 COMMON_RTS_OBJECTS=\
 	Sys/argv.o Sys/barrier.o Sys/callback.o Sys/ffi.o Sys/gc_t.o \
-	Sys/heapio.o Sys/ldebug.o Sys/malloc.o Sys/signals.o Sys/sro.o \
+	Sys/ldebug.o Sys/malloc.o Sys/signals.o Sys/sro.o \
 	Sys/stack.o Sys/syscall.o Sys/unix.o Sys/util.o Sys/version.o
 
 PRECISE_GC_OBJECTS=\
-	Sys/alloc.o Sys/cheney.o Sys/gc.o Sys/los.o \
+	Sys/alloc.o Sys/cheney.o Sys/gc.o Sys/heapio.o Sys/los.o \
 	Sys/memmgr.o Sys/np-sc-heap.o Sys/nursery.o Sys/old_heap_t.o \
 	Sys/old-heap.o Sys/remset.o Sys/sc-heap.o Sys/semispace.o \
 	Sys/static-heap.o Sys/stats.o Sys/young_heap_t.o
 
 BOEHM_GC_OBJECTS=\
-	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o
+	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o Sys/bdw-heapio.o 
 
 BOEHM_GC_SPARC_OBJECTS=\
 	Sparc/bdw-memory.o Sparc/bdw-generic.o Sparc/bdw-cglue.o
