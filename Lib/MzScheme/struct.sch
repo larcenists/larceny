@@ -52,7 +52,13 @@
        ;; record-type-descriptor type.  (Say that five times fast!)
        (*std-type* (make-record-type
                     "struct-type-descriptor"
-                    '(auto-v prop-values inspector proc immutable-k-list)
+                    '(init-field-k
+                      auto-field-k
+                      auto-v
+                      prop-values
+                      inspector
+                      proc
+                      immutable-k-list)
                     *rtd-type*))
        (*stype-prop-type* (make-record-type
                            "struct-type-property-descriptor"
@@ -84,14 +90,104 @@
                                           'guard-proc))
   (define stype-prop? (record-predicate *stype-prop-type*))
   
+  ;; Tags for the struct-procs created by make-struct-type
+  (define sys$tag.struct-constructor-procedure 'struct-constructor-procedure)
+  (define sys$tag.struct-predicate-procedure 'struct-predicate-procedure)
+  (define sys$tag.struct-accessor-procedure 'struct-accessor-procedure)
+  (define sys$tag.struct-mutator-procedure 'struct-mutator-procedure)
 
-  ;; These four bindings are temporary.  They'll be set to procedures
-  ;; that produce structure-procedures below.
-  (define struct-constructor record-constructor)
-  (define struct-predicate record-predicate)
-  (define struct-indexer record-indexer)
-  (define struct-mutator record-mutator)
+  ;; : struct-type -> struct-constructor-procedure
+  (define (struct-constructor stype)
+    (let ((make/rec (record-constructor stype))
+          (proc-spec (stype-proc stype))
+          ;; FIXME: gonna have to handle auto-fields too
+          )
+      (let ((constructor
+             (cond ((procedure? proc-spec)
+                    (lambda field-vals
+                      (make-struct-method proc-spec
+                                          (apply make/rec field-vals))))
+                   ;; The number will have been range-checked by
+                   ;; make-struct-type
+                   ((number? proc-spec)
+                    (lambda field-vals
+                      (let ((proc (list-ref field-vals proc-spec)))
+                        ;; Technically this goes against the MzScheme manual.
+                        ;; It says that, when (procedure? proc) is #f,
+                        ;; the resulting instance should behave as a
+                        ;; procedure that cannot be applied.
+                        ;; It's more useful to signal an error in the
+                        ;; constructor.
+                        (if (procedure? proc)
+                            (make-struct-proc proc
+                                              (apply make/rec field-vals))
+                            (raise-type-error (string->symbol
+                                               (string-append
+                                                "make-"
+                                                (record-type-name stype)))
+                                              "procedure"
+                                              proc-spec
+                                              field-vals)))))
+                            
+                   (else make/rec))))))
+                   
+        (make-struct-proc constructor
+                          sys$tag.struct-constructor-procedure))))
+      
+  (define (struct-constructor-procedure?* obj)
+    (and (struct-proc? obj)
+         (eq? (struct-proc-extra obj)
+              sys$tag.struct-constructor-procedure)))
 
+  ;; struct-type -> struct-predicate-procedure
+  (define (struct-predicate stype)
+    (let ((instance-of-stype? (record-predicate stype))
+          (proc-spec (stype-proc stype)))
+      ;; FIXME:  Is this right?
+      (let ((predicate
+             (if (or (procedure? proc-spec)
+                     (number? proc-spec))
+                 (lambda (struct-proc)
+                   (instance-of-stype? (struct-proc-extra struct-proc)))
+                 instance-of-stype?)))
+        (make-struct-proc predicate
+                          sys$tag.struct-predicate-procedure))))
+  
+  (define (struct-predicate-procedure?* obj)
+    (and (struct-proc? obj)
+         (eq? (struct-proc-extra obj)
+              sys$tag.struct-predicate-procedure)))
+
+  ;; struct-type -> struct-accessor-procedure
+  (define (struct-accessor stype)
+    (let ((rec-index (record-indexer stype))
+          (proc-spec (stype-proc stype)))
+      (let ((accessor
+             (if (or (procedure? proc-spec)
+                     (number? proc-spec))
+                 (lambda (struct-proc index)
+                   (rec-index (struct-proc-extra struct-proc)
+                              index))
+                 rec-index)))
+      (make-struct-proc 
+       (lambda (obj index)
+         (
+       sys$tag.struct-accessor-procedure))
+  
+  (define (struct-accessor-procedure?* obj)
+    (and (struct-proc? obj)
+         (eq? (struct-proc-extra obj)
+              sys$tag.struct-accessor-procedure)))
+
+  ;; struct-type -> struct-mutator-procedure
+  (define (struct-mutator stype)
+    (make-struct-proc (record-mutator stype)
+                      sys$tag.struct-mutator-procedure))
+  (define (struct-mutator-procedure?* obj)
+    (and (struct-proc? obj)
+         (eq? (struct-proc-extra obj)
+              sys$tag.struct-mutator-procedure)))
+  
   (define make-struct-type*
     (let ((offset->name
            (lambda (n) (string->symbol
@@ -150,7 +246,7 @@
                         (predicate
                          (struct-predicate st))
                         (accessor
-                         (struct-indexer st))
+                         (struct-accessor st))
                         (mutator
                          (struct-mutator st)))
                 
@@ -190,8 +286,30 @@
          (values prop:p p? p-ref)
          ))))
   
-  (define make-struct-field-accessor* (undefined))
-  (define make-struct-field-mutator* (undefined))
+  (define (make-struct-field-accessor* ref-proc field-index . rest)
+    (let ((name (if (pair? rest)
+                    (car rest)
+                    (string-append "field"
+                                   (number->string field-index)))))
+      (if (struct-accessor-procedure? ref-proc)
+          (make-struct-proc (lambda (obj) (ref-proc obj field-index)))
+          (raise-type-error 'make-struct-field-accessor
+                            "accessor procedure that requires a field index"
+                            ref-proc)))
+  
+  (define (make-struct-field-mutator* mutator-proc field-index . rest)
+    (let ((name (if (pair? rest)
+                    (car rest)
+                    (string-append "field"
+                                   (number->string field-index)))))
+      (if (struct-mutator-procedure? mutator-proc)
+          (make-struct-proc (lambda (instance new-value)
+                              (mutator-proc instance
+                                            field-index
+                                            new-value)))
+          (raise-type-error 'make-struct-field-mutator
+                            "mutator procedure"
+                            mutator-proc))))
   
   (define make-wrapped-waitable* (undefined))
   (define make-nack-guard-waitable* (undefined))
@@ -200,7 +318,9 @@
   ;; FIXME:  This isn't right.  struct? only yields true when
   ;; struct->vector would produce a vector with some field values exposed.
   ;; Weird.  See MzScheme manual 4.8.
-  (define struct?* struct-instance?)
+  (define (struct?* obj)
+    (or (struct-instance? obj)
+        (struct-proc? obj)))
 
   ;; this is internal
   (define struct-instance?
@@ -216,12 +336,7 @@
   (define struct-type-info* (undefined))
   (define struct->vector* (undefined))
   
-  (define struct-mutator-procedure?* (undefined))
-  (define struct-accessor-procedure?*
-    (lambda (obj) (acc-proc? obj)))
-  (define struct-predicate-procedure?* (undefined))
-  (define struct-constructor-procedure?* (undefined))
-
+ 
   ;; Random utilities that don't belong above.
   ;; drop the first n elements of lst
   (define (drop n lst)
@@ -238,6 +353,9 @@
           (loop (- c 1)
                 (cons c l)))))
 
+  (define (false? v)
+    (eq? v #f))
+
   ;; given an instance, return its type's proc-spec
   (define sys:struct-proc-spec
     (lambda (instance)
@@ -252,21 +370,6 @@
       (lambda (instance index)
         (vector-like-ref instance (+ index struct-field-offset)))))
 
-  ;;; Begin voodoo to get the procedures returned by
-  ;;; make-struct-type to be structure procedures
-  (define-values (struct:acc-proc make-acc-proc acc-proc? acc-proc-ref _)
-    (make-struct-type* 'struct-accessor-procedure
-                      #f  ;no super
-                      2   ;2 init fields
-                      0   ;0 auto fields
-                      #f  ;auto-value
-                      '() ; prop values
-                      (make-inspector)
-                      0   ; proc-spec
-                      '()))
-  (set! struct-indexer
-        (lambda (stype) (make-acc-proc (record-indexer stype) 'indexer))) 
-  
   
   ;; Hook up the implementation with the interface.
   (set! make-struct-type make-struct-type*)

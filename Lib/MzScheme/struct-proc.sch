@@ -1,7 +1,19 @@
+
+
 (define sys$tag.struct-proc-typetag 0)
 
 (define *struct-proc-proc-offset* 3)
 (define *struct-proc-obj-offset* 4)
+
+(define (make-struct-method proc struct-instance)
+  (let ((sp (make-struct-method/raw proc struct-instance)))
+    (typetag-set! sp sys$tag.struct-proc-typetag)
+    sp))
+
+(define (make-struct-proc proc struct-instance)
+  (let ((sp (make-struct-proc/raw proc struct-instance)))
+    (typetag-set! sp sys$tag.struct-proc-typetag)
+    sp))
 
 (define (struct-proc? obj)
   (and (procedure? obj)
