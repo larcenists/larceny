@@ -2047,6 +2047,49 @@ t_label(%1):
 	setcc	ge
 %endmacro
 
+;;; Introduced by representation inference.  Trusted.
+
+%macro T_OP2_500 1		; +:idx:idx
+%if is_hwreg(%1)
+	add	RESULT, REG%1
+%else
+	add	RESULT, [GLOBALS+G_REG%1]
+%endif
+%endmacro
+
+%macro T_OP2_501 1		; +:fix:fix
+	T_OP2_500 %1
+%endmacro
+	
+%macro T_OP2_502 1		; -:idx:idx
+%if is_hwreg(%1)
+	sub	RESULT, REG%1
+%else
+	sub	RESULT, [GLOBALS+G_REG%1]
+%endif
+%endmacro
+
+%macro T_OP2_503 1		; -:fix:fix
+	T_OP2_502 %1
+%endmacro
+
+%macro T_OP2IMM_520 1		; +:idx:idx
+	add	RESULT, %1
+%endmacro
+
+%macro T_OP2IMM_521 1		; +:fix:fix
+	add	RESULT, %1
+%endmacro
+
+%macro T_OP2IMM_522 1		; -:idx:idx
+	sub	RESULT, %1
+%endmacro
+
+%macro T_OP2IMM_523 1		; -:fix:fix
+	sub	RESULT, %1
+%endmacro
+
+
 ;;; Experimental stuff below this line, we need more than this to support
 ;;; peephole optimization well.
 

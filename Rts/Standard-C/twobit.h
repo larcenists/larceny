@@ -1379,6 +1379,32 @@ extern cont_t twobit_cont_label;
 #define twobit_op2imm_455( k ) /* >=:fix:fix */ \
   setcc((s_word)RESULT >= k)
 
+/* Introduced by representation inference.  These are trusted. */
+#define twobit_op2_500( y ) /* +:idx:idx */ \
+  RESULT = (s_word)RESULT + (s_word)reg(y)
+
+#define twobit_op2_501( y ) /* +:fix:fix */ \
+  RESULT = (s_word)RESULT + (s_word)reg(y)
+
+#define twobit_op2_502( y ) /* -:idx:idx */ \
+  RESULT = (s_word)RESULT - (s_word)reg(y)
+
+#define twobit_op2_503( y ) /* -:fix:fix */ \
+  RESULT = (s_word)RESULT - (s_word)reg(y)
+
+#define twobit_op2imm_520( k ) /* +:idx:idx */ \
+  RESULT = (s_word)RESULT + k
+
+#define twobit_op2imm_521( k ) /* +:fix:fix */ \
+  RESULT = (s_word)RESULT + k
+
+#define twobit_op2imm_522( k ) /* -:idx:idx */ \
+  RESULT = (s_word)RESULT - k
+
+#define twobit_op2imm_523( k ) /* -:fix:fix */ \
+  RESULT = (s_word)RESULT - k
+
+
 /* Introduced by peephole optimization */
 
 #define twobit_alloc_known_vector( k )		\
@@ -1734,17 +1760,17 @@ extern cont_t twobit_cont_label;
   if ((y1) >= (y2)) twobit_skip( L_numeric, L_symbolic )
 
 #define twobit_reg_op2_check_662( y1, y2, L_numeric, L_symbolic ) /* check-vector?/vector-length:vec */	\
-  do { word x1 = (y1);											\
-       if (tagof(x1) != VEC_TAG || typetag(*ptrof(x1)) != VEC_SUBTAG)					\
-         twobit_skip( L_numeric, L_symbolic );								\
-       y2 = fixnum(vector_length(x1));									\
+  do { word x1 = (y1);							\
+       if (tagof(x1) != VEC_TAG || typetag(*ptrof(x1)) != VEC_SUBTAG)	\
+         twobit_skip( L_numeric, L_symbolic );				\
+       y2 = fixnum(vector_length(x1));					\
   } while(0)
 
 #define twobit_reg_op2_check_663( y1, y2, L_numeric, L_symbolic ) /* check-string?/string-length:str */	\
-  do { word x1 = (y1);											\
-       if (tagof(x1) != BVEC_TAG || typetag(*ptrof(x1)) != STR_SUBTAG)					\
-         twobit_skip( L_numeric, L_symbolic );								\
-       y2 = fixnum(string_length(x1));									\
+  do { word x1 = (y1);							\
+       if (tagof(x1) != BVEC_TAG || typetag(*ptrof(x1)) != STR_SUBTAG)	\
+         twobit_skip( L_numeric, L_symbolic );				\
+       y2 = fixnum(string_length(x1));					\
   } while(0)
 
 #endif /* TWOBIT_H */
