@@ -751,8 +751,8 @@
 	 (let ((la (bignum-length a))
 	       (lb (bignum-length b)))
 	   (cond ((> lb la)
-		  (let ((r (bignum-copy b)))
-		    (bignum-sign-set! r positive-sign) ; b may be signed
+		  (let ((r (bignum-copy a)))
+		    (bignum-sign-set! r positive-sign) ; a may be signed
 		    (cons (fixnum->bignum 0) r)))
 		 ((= lb 1)
 		  (fast-divide a (bignum-ref b 0)))
