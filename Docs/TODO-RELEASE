@@ -3,8 +3,9 @@ $Id$
 Release 2
 ---------
 
-This is the second release of the SPARC version, and a "beta" release
-of Petit Larceny on some platforms.
+This is the second release of the SPARC version, and a "beta" release of
+Petit Larceny on some platforms.  In order to ever finish this release,
+I have pruned this list brutally.
 
 Major features of this release
   * Compiler improvements (pass 3, bug fixes, performance)
@@ -13,46 +14,25 @@ Major features of this release
   * FFI
   * Record package
   * SRFIs
-  * Support for other operating systems in Sparc version
   * Petit Larceny on some platforms
+  * CVS access to source
 
 Platforms:
-	* Sparc Larceny on
-	      - Solaris
-	      - Debian Linux
-	      - OpenBSD
-	* Petit Larceny on
-	      - Unix/BSD/Linux/MacOS X with GCC or native C compiler
-	      - Win32 with MetroWerks
-	      - Win32 with Cygwin
+  * Sparc Larceny on
+      - Solaris
+  * Petit Larceny on
+      - Unix/BSD/Linux/MacOS X with GCC or native C compiler
+      - Win32 with MetroWerks
 
 Known bugs that should be fixed:
-	091 (macro expander buglet)
+	(None remaining)
 
-Known bugs it would be nice to fix:
-	074/139 (pretty printer is unreasonable; I've written a new one
-		 but it needs testing)
-
-Issues that must be addressed:
-	--- Representation-specific primitives in compiler tables
-	--- SRFI system -- must work with new environments
-	--- Update build documentation
-	--- Update documentation generally (see $LARCENY/TODO-RELEASE)
-	--- Update help text as necessary (switch values and names?)
-	--- Write more test code
-	--- What's the story with Petit Larceny?
-        --- Should ENVIRONMENT-SYNTAX-ENVIRONMENT really be called
-            ENVIRONMENT-SYNTACTIC-ENVIRONMENT?  (Can fix this later,
-            it's not for general consumption.)
-        --- Bug: UNSPECIFIED and UNDEFINED should not be in the null 
-            environment, but in the Larceny environment (sparc.imp.sch). 
-            So they need to move.
-
-If there's time:
-	126 (broken timer interrupt mechanism)
-	148 (the I/O system is not thread safe)
-	--- Support SRFI 12 (Exceptions; not an official SRFI)
-	--- Better documentation information (source pos + filename)
+Issues that must be addressed
+  * Clean up the build setups in Util for Petit Larceny
+  * Update build documentation
+  * Update documentation generally
+  * Update help text as necessary (switch values and names?)
+  * SRFI system -- really ought work with new environments
 
 
 ******** Move things above this line to include them in the release ********
