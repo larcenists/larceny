@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #endif
 #include <assert.h>
+#include <string.h>
 
 /* larceny_C_ffi_apply()
  * This is a syscall, so the value is returned in RESULT.

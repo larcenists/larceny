@@ -10,6 +10,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include "larceny.h"
 
 /* Return a vector of length argc containing strings which represent
