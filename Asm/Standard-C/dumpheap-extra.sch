@@ -115,8 +115,7 @@
                               (map (lambda (x)
                                      (rewrite-file-type x ".lop" ".o"))
                                    *additional-files*))
-                      string=?)
-		     '("Rts/libpetit.so"))) ; FIXME!
+                      string=?)))
 
 ; Returns a seed and an indication of whether the seed is new.
 
@@ -257,7 +256,8 @@
            (i 0 (+ i 1)))
           ((null? l))
         (emit-c-code "  twobit_load_table~a,~%" i))
-      (emit-c-code "};~%")))
+      (emit-c-code 
+       "  0  /* The table may be empty; some compilers complain */~%};~%")))
 
   (let ((r #f))
     (call-with-output-file *temp-file*
@@ -320,77 +320,64 @@
 
 ; C compiler interface
 ;
-; Presumably this could be put in a compatibility library, exporting 
-; only a switch optimize-c-code (#t or #f) and the c-compile-file and
-; c-link-executable procedures?
+; We shold move the definitions of *c-linker* and *c-compiler* to
+; a compatibility library, and *petit-libraries* also.
 
-(define c-optimize
-  (let ((x "-O3 -DNDEBUG"))
-    (lambda rest
-      (if (not (null? rest))
-	  (set! x (car rest)))
-      x)))
-
-(begin (display "  ")
-       (display "C Optimization flags: ")
-       (display (c-optimize))
-       (newline))
-
-(define (c-compile-file c-name o-name)
-  (let ((c-compiler "gcc")
-	(optimize   (c-optimize))
-	(c-flags    "-c -g -IRts/Sys -IRts/Standard-C -IRts/Build")
-	(gcc-flags  "-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit"))
-    (let ((cmd (string-append c-compiler
-			      " "
-			      c-flags
-			      " "
-			      optimize
-			      " "
-			      gcc-flags
-			      " "
-			      c-name
-			      " -o "
-			      o-name)))
-      (display cmd)
-      (newline)
-      (system cmd))))
-
-(define (c-link-executable output-name object-files libraries)
-
-  (define (insert-space l)
-    (cond ((null? l) l)
-	  ((null? (cdr l)) l)
-	  (else (cons (car l)
-		      (cons " "
-			    (insert-space (cdr l)))))))
-
-  (let ((cmd (string-append "gcc -g -o " output-name
-			    " "
-			    (apply string-append (insert-space object-files))
-			    " "
-			    (apply string-append (insert-space libraries)))))
-    (display cmd)
-    (newline)
-    (system cmd)))
-
-; Experimental; not in use
+(define *petit-libraries* '("Rts/libpetit.so"))  ; List of file names
+(define *c-compiler* #f)                         ; Assigned below
+(define *c-linker* #f)                           ; Assigned below
 
 (define optimize-c-code
   (make-twobit-flag "optimize-c-code"))
 
+(define (c-compile-file c-name o-name)
+  (*c-compiler* c-name o-name))
+
+(define (c-link-executable output-name object-files)
+  (*c-linker* output-name object-files))
+
+(define (insert-space l)
+  (cond ((null? l) l)
+        ((null? (cdr l)) l)
+        (else (cons (car l) (cons " " (insert-space (cdr l)))))))
+
+(define (execute cmd)
+  (display cmd)
+  (newline)
+  (if (not (= (system cmd) 0))
+      (error "COMMAND FAILED.")))
+  
 (define (c-compiler:gcc-unix c-name o-name)
   (let ((cmd (twobit-format "gcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
                             (if (optimize-c-code) "-O3 -DNDEBUG" "")
                             o-name
                             c-name)))
-    (display cmd)
-    (newline)
-    (system cmd)))
+    (execute cmd)))
+
+(define (c-linker:gcc-unix output-name object-files)
+  (let ((cmd (twobit-format "gcc -g -o ~a ~a ~a"
+                            output-name
+			    (apply string-append (insert-space object-files))
+			    (apply string-append 
+                                   (insert-space *petit-libraries*)))))
+    (execute cmd)))
+
+(define (c-compiler:lcc-unix c-name o-name)
+  (let ((cmd (twobit-format "lcc -c -g -IRts/Sys -IRts/Standard-C -IRts/Build -DSTDC_SOURCE ~a -o ~a ~a"
+                            (if (optimize-c-code) "-DNDEBUG" "")
+                            o-name
+                            c-name)))
+    (execute cmd)))
+
+(define (c-linker:lcc-unix output-name object-files)
+  (let ((cmd (twobit-format "lcc -g -o ~a ~a ~a"
+                            output-name
+			    (apply string-append (insert-space object-files))
+			    (apply string-append 
+                                   (insert-space *petit-libraries*)))))
+    (execute cmd)))
 
 (define *c-compiler* c-compiler:gcc-unix)
-
-(define (@@@c-compile-file c-name o-name)
-  (*c-compiler* c-name o-name))
+(define *c-linker* c-linker:gcc-unix)
 
 ; eof
