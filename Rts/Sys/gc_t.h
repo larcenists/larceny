@@ -116,7 +116,7 @@ struct gc {
   void (*stack_underflow)( gc_t *gc );
 
   /* Statistics */
-  void (*stats)( gc_t *gc, int generation, heap_stats_t *stats );
+  void (*stats)( gc_t *gc );	/* OBSOLETE */
 
   /* Remembered sets */
   int  (*compact_all_ssbs)( gc_t *gc );
@@ -182,7 +182,7 @@ struct gc {
 #define gc_creg_set( gc,k )           ((gc)->creg_set( gc, k ))
 #define gc_stack_overflow( gc )       ((gc)->stack_overflow( gc ))
 #define gc_stack_underflow( gc )      ((gc)->stack_underflow( gc ))
-#define gc_stats( gc,g,s )            ((gc)->stats( (gc), (g), (s) ))
+#define gc_stats( gc )                ((gc)->stats( (gc) ))
 #define gc_compact_all_ssbs( gc )     ((gc)->compact_all_ssbs( gc ))
 #if defined(SIMULATE_NEW_BARRIER)
 #define gc_isremembered( gc, w )      ((gc)->isremembered( gc, w ))
@@ -215,7 +215,7 @@ gc_t
 	     void (*creg_set)( gc_t *gc, word k ),
 	     void (*stack_overflow)( gc_t *gc ),
 	     void (*stack_underflow)( gc_t *gc ),
-	     void (*stats)( gc_t *gc, int generation, heap_stats_t *stats ),
+	     void (*stats)( gc_t *gc ),	/* OBSOLETE */
 	     int  (*compact_all_ssbs)( gc_t *gc ),
 #if defined(SIMULATE_NEW_BARRIER)
 	     int  (*isremembered)( gc_t *gc, word w ),
