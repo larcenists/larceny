@@ -84,7 +84,7 @@
 (load "/home/systems/lth/lib/rewrite.sch")  ; HACK! FIXME!
 
 (display "Loading makefile...") (newline)
-(loadfile sourcedir "makefile.sch")
+(loadfile sourcedir "newmakefile.sch")
 
 (set! listify? #f)
 (display "Listing is off") (newline)

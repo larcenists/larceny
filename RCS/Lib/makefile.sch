@@ -1,8 +1,11 @@
 ; -*- Scheme -*-
 ;
+; THIS FILE IS OBSOLETE. DO NOT EDIT! 
+; THE DEVELOPMENT ENVIRONMENT NOW USES "Lib/newmakefile.sch".
+;
 ; Makefile to build some arbitary initial heap from the library files.
 ;
-; $Id: makefile.sch,v 1.7 1992/05/18 05:07:23 lth Exp lth $
+; $Id: makefile.sch,v 1.8 1992/06/10 09:05:26 lth Exp lth $
 ;
 ; USAGE:
 ;
@@ -72,12 +75,10 @@
   (define (compile x)
     (compile313 (car x)))
 
-  ;; This does not work right since the paths in the config script get all
-  ;; confused; they depend on being run in the previous directory. But
-  ;; we can't just cd .. either, since the path in the target gets confused.
+  ;; This works only when the build script is used!
 
   (define (config x)
-    (system (string-append "../config " (car x))))
+    (system (string-append topleveldir "config " (car x))))
 
   ; *All* simple file dependencies go here.
   ; Some shorthands would be lovely.

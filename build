@@ -15,6 +15,5 @@ echo "(define chezdir \"$DIR/Chez/\")" >> tmp.build
 echo "(define sparcdir \"$DIR/Sparc/\")" >> tmp.build
 echo "(define compilerdir \"$DIR/Compiler/\")" >> tmp.build
 echo "(load (string-append compilerdir \"build.sch\"))" >> tmp.build
-echo "(load (string-append sourcedir \"newmakefile.sch\"))" >>tmp.build
 scheme tmp.build
 rm tmp.build
