@@ -22,11 +22,6 @@ Known bugs that should be fixed:
 Issues that must be addressed:
 	--- Representation-specific primitives in compiler tables
 	--- SRFI system -- must work with new environments
-	--- SRFI 11: LET-VALUES and LET*-VALUES.
-		We have a simplified form of this, and it must be updated.
- 		The reference implementation can be used.  IMPORTANT:
-		all sources must be scoured and the new form of LET-VALUES
-                must be used where the old form is used now.
 	--- Update build documentation
 	--- Update documentation generally (see $LARCENY/TODO-RELEASE)
 	--- Write more test code
