@@ -5,10 +5,12 @@
 ; More compatibility code for Gambit-C  --  this code will be compiled
 ; by compile-gambit-files.
 
-(define (twobit-format fmt . rest)
-  (call-with-output-string 
-   (lambda (out)
-     (apply format out fmt rest))))
+(define (twobit-format port fmt . rest)
+  (if (not port)
+      (call-with-output-string 
+       (lambda (out)
+         (apply format out fmt rest)))
+      (apply format port fmt rest)))
 
 (define (write-lop x p)
   (write x p)
