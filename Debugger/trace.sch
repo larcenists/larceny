@@ -78,7 +78,8 @@
 			  (lambda r
 			    (apply debug/trace-exit toplevel-name r)
 			    (apply values r)))))
-		      (else ???))))
+		      (else 
+		       (error "trace-name: unknown method " how)))))
 	     (environment-set! e toplevel-name t)
 	     (set! *traced* (cons (list t x toplevel-name) *traced*))
 	     (unspecified))))))
