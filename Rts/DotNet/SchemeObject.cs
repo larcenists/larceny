@@ -46,6 +46,10 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
+
+// Operations for SObject
+// Mostly, just declares virtual methods that fault with the right excode.
+
         // Predicates
         public virtual SObject op_numberp() { return Factory.False; } public virtual bool isNumber() { return false; }
         public virtual SObject op_fixnump() { return Factory.False; } public virtual bool isFixnum() { return false; }
@@ -294,7 +298,9 @@ namespace Scheme.Rep {
             w.Write(rep);
         }
 
-        // ------------------
+
+// Ops for SImmediate
+
         public override SObject op_immediatep() { return Factory.True; } public override bool isImmediate() { return true; }
     }
 
@@ -328,7 +334,9 @@ namespace Scheme.Rep {
             w.Write(val);
         }
 
-        // ------------------
+
+// Ops for SChar
+
         public override SObject op_charp() { return Factory.True; } public override bool isChar() { return true; }
 
         public override SObject op_char_lt(SObject arg2) { return arg2.op_reversed_char_lt(this); }
@@ -421,7 +429,9 @@ namespace Scheme.Rep {
             } else
                 return new SFixnum(val);
         }
-        // ----------------
+
+
+// Ops for SFixnum
 
         public override SObject op_numberp() { return Factory.True; } public override bool isNumber() { return true; }
         public override SObject op_fixnump() { return Factory.True; } public override bool isFixnum() { return true; }
@@ -963,7 +973,10 @@ namespace Scheme.Rep {
         public void check_typetag(int tag, SObject arg2, SObject arg3, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2, arg3);
         }
-        // ----
+
+
+// Ops for STagged (ops common to SVL, SByteVL)
+
         public override SObject op_typetag() { return Factory.wrap(this.tag); }
         public override SObject op_typetag_set(SObject arg2) { return arg2.op_reversed_typetag_set(this); }
 
@@ -1017,7 +1030,8 @@ namespace Scheme.Rep {
             }
         }
 
-        // -------------------
+
+// Ops for SVL
 
         public override SObject op_numberp() { return Factory.makeBoolean(this.isRatnum() || this.isRectnum()); } public override bool isNumber() { return (this.isRatnum() || this.isRectnum()); }
         public override SObject op_ratnump() { return Factory.makeBoolean(this.tag == Tags.RatnumTag); } public override bool isRatnum() { return (this.tag == Tags.RatnumTag); }
@@ -1162,26 +1176,18 @@ namespace Scheme.Rep {
         public static System.Text.Encoding stringEncoding
             = new System.Text.ASCIIEncoding();
 
+        public SByteVL(int tag, byte[] vec) {
+            this.tag = tag;
+            this.elements = vec;
+        }
         public SByteVL(int tag, int size, byte fill) {
             this.tag = tag;
             this.elements = new byte[size];
             for (int i = 0; i < size; ++i) {elements[i] = fill;}
         }
-        public SByteVL(int tag, byte[] vec) {
-            this.tag = tag;
-            this.elements = vec;
-        }
 
         public int length() {
             return elements.Length;
-        }
-
-        public SFixnum elementAt(int index) {
-            return SFixnum.makeFixnum(elements[index]);
-        }
-
-        public void setElementAt(int index, int element) {
-            elements[index] = (byte)element;
         }
 
         public byte getByte(int index) {
@@ -1245,15 +1251,13 @@ namespace Scheme.Rep {
             return System.BitConverter.ToDouble(elements, 4 + steps * 8);
               // steps * sizeof(double)) + offset
         }
-        public void unsafeSetDouble(double d) {
+        public void unsafeSetDouble(int steps, double d) {
             byte[] b = System.BitConverter.GetBytes(d);
             for (int i = 0; i < 8; ++i) {
-                elements[i+4] = b[i];
+                elements[i+4 + steps * 8] = b[i];
             }
         }
 
-
-        // -----
         private bool isIntegralFlonum() {
             double v = this.unsafeAsDouble(0);
             bool b = (Math.Ceiling(v) == Math.Floor(v));
@@ -1288,7 +1292,8 @@ namespace Scheme.Rep {
             return stringEncoding.GetString(elements);
         }
 
-        // ----------------------
+
+// Ops for SByteVL
 
         public override SObject op_numberp() { return Factory.makeBoolean(this.isBignum() || this.isFlonum() || this.isCompnum()); } public override bool isNumber() { return (this.isBignum() || this.isFlonum() || this.isCompnum()); }
 
@@ -1599,7 +1604,9 @@ namespace Scheme.Rep {
             this.rest = rest;
         }
 
-        // ------------------
+
+// Ops for SPair
+
         public override SObject op_pairp() { return Factory.True; } public override bool isPair() { return true; }
         public override SObject op_cell_ref() { return this.first; }
         public override SObject op_cell_set(SObject arg2) {
@@ -1615,7 +1622,6 @@ namespace Scheme.Rep {
         public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
-
     }
 
     // -------------------------------------------
@@ -1704,7 +1710,9 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
-        // ----
+
+// Ops for Procedure
+
         public override SObject op_procedurep() { return Factory.True; } public override bool isProcedure() { return true; }
         public override SObject op_procedure_length() {
             return Factory.wrap(this.rib.Length + 2);

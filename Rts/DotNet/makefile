@@ -17,9 +17,6 @@ CSC = csc
 ## Linux (Mono)
 #CSC = mcs
 
-## Solaris (Mono)
-#CSC = mcs /d:BIG_ENDIAN
-
 ##########################################
 ## END USER-CONFIGURABLE SECTION
 ##########################################
@@ -59,5 +56,8 @@ Scheme.dll : $(SRCS)
 DynLoad.exe : DynLoad.cs
 	$(CSC) /target:winexe $(INLINE_OPT) $(DEBUG_OPT) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs 
 
-SchemeObject.cs : SchemeObject.cs.cpp macros.cpp
+SchemeObject.cs : SchemeObject.cs.cpp Ops.h Ops_SObject.inc Ops_SImmediate.inc Ops_SFixnum.inc Ops_SChar.inc Ops_SVL.inc Ops_SByteVL.inc Ops_SPair.inc Ops_Procedure.inc
 	cpp -P -C -nostdinc SchemeObject.cs.cpp -o SchemeObject.cs
+
+FFI.cs : FFI.cs.cpp Macros.h
+	cpp -P -C -nostdinc FFI.cs.cpp -o FFI.cs
