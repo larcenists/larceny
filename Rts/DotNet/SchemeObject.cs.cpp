@@ -47,7 +47,7 @@ namespace Scheme.Rep {
     // SChar
     // -------------------------------------------
     public sealed class SChar : SObject {
-        public static readonly int CHAR_COUNT = 256;
+        public const int CHAR_COUNT = 256;
         public static readonly SChar[] characters =
             new SChar[CHAR_COUNT];
 
@@ -61,12 +61,13 @@ namespace Scheme.Rep {
             }
         }
         public static SChar makeChar(int c) {
-            if (c >= 0 && c < CHAR_COUNT) {
-                return characters[c];
-            } else {
-                Exn.internalError("not a valid char");
-                return new SChar((char)c);
-            }
+          try {
+              return characters[c];
+              }
+          catch (Exception) {
+              Exn.internalError("not a valid char");
+              return new SChar((char)c);
+              }
         }
         public override void write(TextWriter w) {
             w.Write("#\\");
@@ -95,10 +96,11 @@ namespace Scheme.Rep {
     public sealed class SFixnum : SObject {
         public readonly int value;
         public static readonly SFixnum[] pool;
-        public static readonly int maxPreAlloc = 16000;
-        public static readonly int MAX = (1 << 29) - 1;
-        public static readonly int MIN = -(1 << 29);
-        public static readonly int BITS = 30;
+      // NOTE THE COMPILER KNOWS ABOUT THIS CONSTANT
+        public const int maxPreAlloc = 16000;
+        public const int MAX = (1 << 29) - 1;
+        public const int MIN = -(1 << 29);
+        public const int BITS = 30;
 
         // Stores numbers -maxPreAlloc to +maxPreAlloc
         //          0 -> maxPreAlloc
@@ -118,10 +120,10 @@ namespace Scheme.Rep {
             return value;
         }
         public static bool inFixnumRange(short n) {
-            return (n <= MAX) && (n >= MIN);
+          return true; // (n <= MAX) && (n >= MIN);
         }
         public static bool inFixnumRange(ushort n) {
-            return n <= MAX;
+          return true;  //n <= MAX
         }
         public static bool inFixnumRange(int n) {
             return (n <= MAX) && (n >= MIN);
@@ -136,9 +138,9 @@ namespace Scheme.Rep {
             return n <= ((ulong)MAX);
         }
         public static SFixnum makeFixnum(int val) {
-            if (val >= -maxPreAlloc && val <= maxPreAlloc) {
+            if (val >= -maxPreAlloc && val <= maxPreAlloc)
                 return pool[val + maxPreAlloc];
-            } else
+            else
                 return new SFixnum(val);
         }
 
@@ -234,14 +236,14 @@ namespace Scheme.Rep {
         }
 
         public int length() {
-            return elements.Length;
+           return elements.Length;
         }
 
         public byte getByte(int index) {
-            return elements[index];
+           return elements[index];
         }
         public void setByte(int index, int b) {
-            elements[index] = (byte)b;
+           elements [index] = (byte)b;
         }
 
         public void fill(byte b) {
