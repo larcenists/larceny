@@ -1858,6 +1858,11 @@ static void post_collection_policy( old_heap_t *heap )
     reset_after_collection( heap );
 #if DYNAMIC_ALLOCATION
   start( &dof.free_unused );
+  /* FIXME: this should be added to the cost of GC, but it is generally
+     not terribly large (200ms or so on our benchmarks) and it's unclear
+     whether the ms timer has a fine enough resolution to give an accurate
+     picture of it.
+     */
   free_unused_memory( heap );
   stop();
 #endif
@@ -1968,21 +1973,9 @@ static void perform_collection( old_heap_t *heap )
 
   remset_trace( heap, "collect", cp_before, rp_before, data->rp );
 
-  /* Note, following stmt may affect _meaning_ of rp_before, so be careful 
-     if you move it above the preceding accounting code.  
-     
-     For the sake of including the running time of
-     post_collection_policy in the GC accounting, I always add it to the
-     oldest NP generation, which is not correct but somewhat harmless.
-     FIXME.  
-     */
-  timer1 = stats_start_timer( TIMER_ELAPSED );
-  timer2 = stats_start_timer( TIMER_CPU );
-
+  /* post_collection_policy changes the meaning of rp_before! */
+  
   post_collection_policy( heap );
-
-  data->gen[data->n-1]->stats.ms_collection += stats_stop_timer( timer1 );
-  data->gen[data->n-1]->stats.ms_collection_cpu += stats_stop_timer( timer2 );
 }
 
 static void maybe_collect( old_heap_t *heap, double factor )
