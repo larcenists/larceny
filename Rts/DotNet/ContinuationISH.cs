@@ -21,7 +21,7 @@ namespace Scheme.RT {
      *  2: slot 0 = Register0 = Procedure, Has codevector of return address
      *  3: slot 1
      *  ...]
-     * 
+     *
      * The initial continuation will have a parent continuation of #f when a heap frame.
      */
 
@@ -29,27 +29,31 @@ namespace Scheme.RT {
         // How many individual slot fields before we use
         // the overflow array
         // named slot0, slot1, ..., slot{NUM_SLOT_FIELDS-1}
-        public static readonly int NUM_SLOT_FIELDS = 8;
+
+        // If you change this, you must also change the definition of
+        // the ContinuationFrame class, the toVector method, the getSlot method,
+        // the setSlot method, and the saveRegisters method. (all in this file)
+        public const int NUM_SLOT_FIELDS = 8;
 
         // How many frames to keep in the cache.
-        public static readonly int NUM_CACHE_FRAMES = 100; //40; // 10;
+        public const int NUM_CACHE_FRAMES = 100; //40; // 10;
 
         // How many frames to restore on fillCache (max)
-        public static readonly int MAX_RESTORE_FRAMES = 25;             
+        public const int MAX_RESTORE_FRAMES = 25;
 
         // Heap frames : described later in file
         public static SObject heap = Factory.False;
 
         // Offsets within HEAP FRAME of return address, dynamic link, return procedure, and first slot (same)
         // Adjusted down by one from C version.
-        public static readonly int HC_RETOFFSET = Constants.HC_RETOFFSET - 1;
-        public static readonly int HC_DYNLINK = Constants.HC_DYNLINK - 1;
-        public static readonly int HC_PROC = Constants.HC_PROC - 1;
-        public static readonly int HC_OVERHEAD = Constants.HC_OVERHEAD - 1;
+        public const int HC_RETOFFSET = Constants.HC_RETOFFSET - 1;
+        public const int HC_DYNLINK = Constants.HC_DYNLINK - 1;
+        public const int HC_PROC = Constants.HC_PROC - 1;
+        public const int HC_OVERHEAD = Constants.HC_OVERHEAD - 1;
 
-        public static readonly int HC_CONTEXT_REG0 = Cont.HC_PROC + 1;
-        public static readonly int HC_CONTEXT_RESULT = Cont.HC_CONTEXT_REG0 + Reg.NREGS;
-        public static readonly int HC_CONTEXT_RESTORE_RESULT = Cont.HC_CONTEXT_RESULT + 1;
+        public const int HC_CONTEXT_REG0 = Cont.HC_PROC + 1;
+        public const int HC_CONTEXT_RESULT = Cont.HC_CONTEXT_REG0 + Reg.NREGS;
+        public const int HC_CONTEXT_RESTORE_RESULT = Cont.HC_CONTEXT_RESULT + 1;
 
         // Reference to current top of stack.
         public static StackCacheFrame cont;
@@ -165,7 +169,7 @@ namespace Scheme.RT {
 //            ROOT = SENTINEL.after;
 //            LIMIT = SENTINEL.before;
 //            // cont now points to the last of a set of valid frames
-//            // by invariant and fact that fillCache should never be called 
+//            // by invariant and fact that fillCache should never be called
 //            // when heap = #f
 //        }
 
@@ -184,7 +188,7 @@ namespace Scheme.RT {
             fillCache();
         }
     }
-    
+
     public class ContinuationFrame {
         // If you modify the number of slot fields, remember
         // to change the constant NUM_SLOT_FIELDS above.
@@ -199,13 +203,14 @@ namespace Scheme.RT {
         public SObject[] overflowSlots;
 
         public int returnIndex;
-        
+
         public int lastslot;
+        // indicates that the overflowSlots may contain data beyond the lastslot.
         public bool dirty;
 
         public ContinuationFrame() {
             this.lastslot = -1;
-            this.dirty = true;
+            this.dirty = false;
             this.overflowSlots = new SObject[] {};
             this.clear();
         }
@@ -214,19 +219,95 @@ namespace Scheme.RT {
             return Cont.NUM_SLOT_FIELDS + this.overflowSlots.Length;
         }
 
-        public SObject toVector(SObject parent) {
+        // this is called frequently enough to warrant special treatment
+        // we unroll the fill loop in the small cases, and set things up to
+        // use the built-in array copy in the big cases.
+
+        public SObject toVector(SObject parent)
+        {
             SObject[] elements = new SObject[this.lastslot + Cont.HC_OVERHEAD + 1];
-            elements[Cont.HC_RETOFFSET] = Factory.wrap(this.returnIndex);
+            elements[Cont.HC_RETOFFSET] = Factory.makeNumber (this.returnIndex);
             elements[Cont.HC_DYNLINK] = parent;
-            for (int si = 0; si <= this.lastslot; ++si) {
-                elements[si + Cont.HC_OVERHEAD] = this.getSlot(si);
-            }
+            switch (this.lastslot) {
+              case 0:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                break;
+
+              case 1:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                break;
+
+              case 2:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                break;
+
+              case 3:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                elements [Cont.HC_OVERHEAD + 3] = slot3;
+                break;
+
+              case 4:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                elements [Cont.HC_OVERHEAD + 3] = slot3;
+                elements [Cont.HC_OVERHEAD + 4] = slot4;
+                break;
+
+              case 5:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                elements [Cont.HC_OVERHEAD + 3] = slot3;
+                elements [Cont.HC_OVERHEAD + 4] = slot4;
+                elements [Cont.HC_OVERHEAD + 5] = slot5;
+                break;
+
+              case 6:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                elements [Cont.HC_OVERHEAD + 3] = slot3;
+                elements [Cont.HC_OVERHEAD + 4] = slot4;
+                elements [Cont.HC_OVERHEAD + 5] = slot5;
+                elements [Cont.HC_OVERHEAD + 6] = slot6;
+                break;
+
+              case 7:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                elements [Cont.HC_OVERHEAD + 3] = slot3;
+                elements [Cont.HC_OVERHEAD + 4] = slot4;
+                elements [Cont.HC_OVERHEAD + 5] = slot5;
+                elements [Cont.HC_OVERHEAD + 6] = slot6;
+                elements [Cont.HC_OVERHEAD + 7] = slot7;
+                break;
+
+              default:
+                elements [Cont.HC_OVERHEAD + 0] = slot0;
+                elements [Cont.HC_OVERHEAD + 1] = slot1;
+                elements [Cont.HC_OVERHEAD + 2] = slot2;
+                elements [Cont.HC_OVERHEAD + 3] = slot3;
+                elements [Cont.HC_OVERHEAD + 4] = slot4;
+                elements [Cont.HC_OVERHEAD + 5] = slot5;
+                elements [Cont.HC_OVERHEAD + 6] = slot6;
+                elements [Cont.HC_OVERHEAD + 7] = slot7;
+                // Copy the overflow slots
+                System.Array.Copy (overflowSlots, 0, elements, Cont.HC_OVERHEAD + 8, this.lastslot - 7);
+                break;
+               }
             return Factory.makeVector(elements);
         }
 
         public void fillFromVector(SVL hframe) {
             SObject[] elements = hframe.elements;
-            
+
             this.prepare(elements.Length - Cont.HC_OVERHEAD - 1);
             this.returnIndex = ((SFixnum)elements[Cont.HC_RETOFFSET]).value;
             for (int si = 0; si <= this.lastslot; ++si) {
@@ -258,31 +339,91 @@ namespace Scheme.RT {
             case 5: slot5 = value; return;
             case 6: slot6 = value; return;
             case 7: slot7 = value; return;
-            default: 
-                overflowSlots[slot - Cont.NUM_SLOT_FIELDS] = value; 
+            default:
+                overflowSlots[slot - Cont.NUM_SLOT_FIELDS] = value;
                 return;
             }
         }
 
+        // Saving all the registers into the frame is done when we save the
+        // context.  This is done so frequently that we can get a substantial
+        // improvement by unrolling the entire thing.
+        // Unfortunately, this crosses the abstraction barrier around the registers.
+
+        public void saveRegisters (Procedure restore, bool full) {
+            slot0 = restore;
+            returnIndex = Reg.implicitContinuation;
+            slot1 = Reg.register0;
+            slot2 = Reg.register1;
+            slot3 = Reg.register2;
+            slot4 = Reg.register3;
+            slot5 = Reg.register4;
+            slot6 = Reg.register5;
+            slot7 = Reg.register6;
+            overflowSlots  [0] = Reg.register7;
+            overflowSlots  [1] = Reg.register8;
+            overflowSlots  [2] = Reg.register9;
+            overflowSlots  [3] = Reg.register10;
+            overflowSlots  [4] = Reg.register11;
+            overflowSlots  [5] = Reg.register12;
+            overflowSlots  [6] = Reg.register13;
+            overflowSlots  [7] = Reg.register14;
+            overflowSlots  [8] = Reg.register15;
+            overflowSlots  [9] = Reg.register16;
+            overflowSlots [10] = Reg.register17;
+            overflowSlots [11] = Reg.register18;
+            overflowSlots [12] = Reg.register19;
+            overflowSlots [13] = Reg.register20;
+            overflowSlots [14] = Reg.register21;
+            overflowSlots [15] = Reg.register22;
+            overflowSlots [16] = Reg.register23;
+            overflowSlots [17] = Reg.register24;
+            overflowSlots [18] = Reg.register25;
+            overflowSlots [19] = Reg.register26;
+            overflowSlots [20] = Reg.register27;
+            overflowSlots [21] = Reg.register28;
+            overflowSlots [22] = Reg.register29;
+            overflowSlots [23] = Reg.register30;
+            overflowSlots [24] = Reg.register31;
+            overflowSlots [25] = Reg.Result;
+            overflowSlots [26] = full ? Factory.True : Factory.False;
+            }
+
         public void prepare(int lastslot) {
-            if (this.capacity() <= lastslot) {
+          // Prepare the frame for a new set of slots.
+          // The `lastslot' variable tells us the new capacity, which may
+          // be bigger, smaller or the same as before.
+
+          // If we aren't changing the lastslot, nothing need be done.
+          if (this.lastslot == lastslot) return;
+
+          // If we don't have enough slots, grow and initialize the overflow vector.
+          // Since the grown vector begins clear, we clear the dirty flag, too.
+          if (this.capacity() <= lastslot) {
                 this.overflowSlots = new SObject[1 + lastslot - Cont.NUM_SLOT_FIELDS];
                 for (int oi = 0; oi < overflowSlots.Length; ++oi) {
                     this.overflowSlots[oi] = Factory.False;
                 }
+                this.dirty = false;
+            } else {
+              // Otherwise, the number of slots shrunk and we must set
+              // the dirty flag.
+              this.dirty = true;
             }
             this.lastslot = lastslot;
-            this.dirty = true;
         }
 
+      // If we shrink the overflowSlots, we clear them to aid the GC.
         public void clear() {
-            if (! this.dirty) return;
-            for (int i = this.lastslot + 1; i < this.capacity(); ++i) {
-                this.setSlot(i, Factory.False);
-            }
-            this.dirty = false;
+          if (this.dirty) {
+              int limit = this.capacity();
+              for (int i = this.lastslot + 1; i < limit; ++i) {
+                  this.setSlot(i, Factory.False);
+                  }
+              this.dirty = false;
+              }
         }
-        
+
         public void checkPop(int lastslot, SObject reg0) {
             if (this.lastslot != lastslot) {
                 Exn.internalError("pop: wrong number of slots");
@@ -292,7 +433,7 @@ namespace Scheme.RT {
             }
         }
     }
-    
+
     public class StackCacheFrame : ContinuationFrame {
         public StackCacheFrame before;
         public StackCacheFrame after;
