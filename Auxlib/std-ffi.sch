@@ -16,20 +16,27 @@
 ;   param-types    a list of symbols: the formal parameter types
 ;   ret-type       a symbol: the return type
 ;
+; (foreign-null-pointer)  =>  integer
+;   Returns a foreign null pointer.
 ;
-; FIXME: the definitions of ffi/rename-type, ffi/null-pointer?, and
-; ffi/null-pointer are compiler specific and should be cleaned up.
+; (foreign-null-pointer? integer)  =>  boolean
+;   Tests whether the argument is a foreign null pointer.
+;
+; FIXME: the definitions of ffi/rename-type, foreign-null-pointer?, and
+; foreign-null-pointer are compiler specific and should be cleaned up.
 
 ;;; Initialization
 
-(load "Ffi/ffi-load.sch")
+(define *ffi-path* "Ffi/")
+
+(load (string-append *ffi-path* "ffi-load.sch"))
 
 (define *ffi-architecture*)
 (define *ffi-callout-abi*)
 
 (call-with-values
  (lambda ()
-   (load-ffi "Ffi/"))
+   (load-ffi *ffi-path*))
  (lambda (architecture callout-abi callback-abi)
    (set! *ffi-architecture* architecture)
    (set! *ffi-callout-abi* callout-abi)
@@ -91,7 +98,7 @@
 		 (procedure? x))
 	     x)
 	    ((eq? x #f)
-	     (ffi/null-pointer))
+	     (foreign-null-pointer))
 	    (else
 	     (error "Foreign-proceduer " name ": " x
 		    "is not a valid value for a boxed-object type."))))
@@ -106,7 +113,7 @@
 
     (define (string->asciiz x name)
       (cond ((eq? x #f)
-	     (ffi/null-pointer))
+	     (foreign-null-pointer))
 	    ((string? x)
 	     (ffi/string->asciiz x))
 	    (else
@@ -128,7 +135,7 @@
 		 " is not a valid return value for a character.")))
 
     (define (asciiz->string x name)
-      (if (ffi/null-pointer? x) 
+      (if (foreign-null-pointer? x) 
 	  #f
           (%peek-string x)))
 
@@ -144,7 +151,7 @@
       (double   ieee64     ,flonum-check            ,id)
       (bool     signed32   ,object->bool            ,int->boolean)
       (void     void       ,#f                      ,id)
-      (boxed    pointer    ,boxed->pointer         ,#f)
+      (boxed    pointer    ,boxed->pointer          ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
 
 (define (ffi/rename-arg-type t)
@@ -163,13 +170,6 @@
 
 (define (ffi/ret-converter t)
   (cadddr (assq t *ffi-attributes*)))
-
-(define (ffi/null-pointer? x)
-  (eq? x 0))
-
-(define (ffi/null-pointer)
-  0)
-
 
 ;;; Interface
 
@@ -231,6 +231,13 @@
 	  (ffi/foreign-procedure *ffi-callout-abi* name
 				 (map ffi/rename-arg-type param-types)
 				 (ffi/rename-ret-type ret-type))))))
+
+(define (foreign-null-pointer? x)
+  (eq? x 0))
+
+(define (foreign-null-pointer)
+  0)
+
 
 ;;; Memory access utility functions.
 
@@ -392,7 +399,7 @@
 
 (define (%peek-pointer-array ptr getter)
   (let ((p (%peek-pointer ptr)))
-    (if (ffi/null-pointer? p)
+    (if (foreign-null-pointer? p)
 	'()
 	(cons (getter p) (%peek-pointer-array (+ ptr 4) getter)))))
 
