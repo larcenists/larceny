@@ -247,13 +247,14 @@
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny))
     (make:make sparc-heap-project "sparc.heap")))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Project for building the dotNet-larceny heap image
 
 ;; set within def. of dotnet-heap-project because that's where
 ;; the filenames are available with the least effort.
-(define (make-dotnet-heap/clean) #f)
+(define remove-dotnet-heap-objects #f)
 
 (define dotnet-heap-project
   (let* ((osdep-file (case (nbuild-parameter 'target-os)
@@ -273,7 +274,7 @@
           (objects "" ".manifest" eval-files)))
     
     ;; a handy procedure to delete all the intermediate files
-    (set! make-dotnet-heap/clean
+    (set! remove-dotnet-heap-objects
           (lambda ()
             (let* ((manifest-files (append dotnet-heap-files
                                            dotnet-eval-files))
