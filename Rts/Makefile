@@ -118,18 +118,18 @@ BOEHM_GC_OBJECTS=\
 	Sys/bdw-gc.o Sys/bdw-stats.o Sys/bdw-collector.o
 
 BOEHM_GC_SPARC_OBJECTS=\
-	Sparc/bdw-memory.o Sparc/bdw-generic.o
+	Sparc/bdw-memory.o Sparc/bdw-generic.o Sparc/bdw-cglue.o
 
 BOEHM_GC_LIBRARIES=\
 	bdw-gc/gc.a
 
 COMMON_SPARC_OBJECTS=\
-	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o Sparc/cglue.o \
+	Sparc/barrier.o Sparc/cache.o Sparc/cache0.o \
 	Sparc/glue.o Sparc/mcode.o Sparc/signals.o Sparc/syscall.o \
 	Build/sparc-table.o 
 
 SPARC_PRECISE_GC_OBJECTS=\
-	Sparc/memory.o Sparc/generic.o
+	Sparc/memory.o Sparc/generic.o Sparc/cglue.o
 
 PETIT_OBJECTS=\
 	Standard-C/arithmetic.o Standard-C/millicode.o Standard-C/multiply.o \
@@ -300,7 +300,9 @@ Sparc/bdw-memory.o: Sparc/memory.s $(SPARC_ASM_H)
 Sparc/cache.o: $(LARCENY_H)
 Sparc/cache0.o: $(SPARC_ASM_H)
 Sparc/cglue.o: $(LARCENY_H) Sys/signals.h
+Sparc/bdw-cglue.o: Sparc/cglue.c $(LARCENY_H) Sys/signals.h
 Sparc/generic.o: $(SPARC_ASM_H)
+Sparc/bdw-generic.o: Sparc/generic.s $(SPARC_ASM_H)
 Sparc/glue.o: $(SPARC_ASM_H)
 Sparc/mcode.o: $(SPARC_ASM_H)
 Sparc/memory.o: $(SPARC_ASM_H)
