@@ -223,7 +223,7 @@
   (nbuild-files 'mzscheme-source
                 '("init" "wcm0" "wcm" "hash-compat"
                   "record" "inspector"
-                  "struct-proc0" "struct-proc" "struct")))
+                  "struct-proc0" "struct-proc" "struct" "struct-macros")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
