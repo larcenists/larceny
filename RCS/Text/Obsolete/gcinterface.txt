@@ -1,8 +1,11 @@
-; $Id: gcinterface.txt,v 1.3 91/06/24 01:54:10 lth Exp Locker: lth $
+; -*- Text -*-
+; $Id: gcinterface.txt,v 1.4 91/07/01 12:49:10 lth Exp Locker: lth $
 
-                  Garbage Collector Interface Definition 
+		  Garbage Collector Interface Definition
 
-                          --------------------
+		       (Garbage collector version 3)
+
+			   --------------------
 
 
 0. Scope of this Document
@@ -92,7 +95,7 @@ The structure layouts are these:
     by tagged pointers in all locations of the vector. The vector pointer
     points to the header word.
 
-  - A bytevector-like structure has the header word in the low poition,
+  - A bytevector-like structure has the header word in the low position,
     followed by untagged bytes in all locations of the vector. The bytevector
     pointer points to the header word.
 
@@ -112,7 +115,7 @@ The structure layouts are these:
 There are four areas of memory, denoted the Static, Ephemeral, Tenured, and
 Stack areas. There is also a set of Root Pointers.
 
-- The Static area has no out pointers and will not be used for roots
+- The Static area has no out-pointers and will not be used for roots
   during a collection, nor will pointers into the Static area be traversed
   during a collection. The collector allocates this area as requested
   but never references it.
@@ -121,14 +124,14 @@ Stack areas. There is also a set of Root Pointers.
   allocation is performed in the ephemeral area.
 
 - The Tenured area is used for keeping data structures that are assumed
-  to have an extended life. No memory is ever allocated directly from
+  to have an extended life. No memory is ever allocated directly in
   the Tenured area; data structures are created here only when they are
   moved from the Ephemeral area. The Tenured area also holds the 
   "transaction list", which is a set of pointers to data structures in 
   the Tenured area which might have pointers to data structures in the
   Ephemeral area.
 
-- The Stack area has no in pointers and is used only by the mutator; the
+- The Stack area has no in-pointers and is used only by the mutator; the
   collector allocates this area but never references it. If there are
   out pointers from the Stack area into the Tenured or Ephemeral areas,
   these pointers must also exist in data structures in those areas or
@@ -137,7 +140,7 @@ Stack areas. There is also a set of Root Pointers.
 - The root pointers are those elements of the global table "globals"
   (which is not defined by the collector module) between the indices
   FIRST_ROOT and LAST_ROOT, both of which are constants which must be
-  defined in the file "gc.h". The "globals" table must be an array
+  defined in the file "offsets.h". The "globals" table must be an array
   of the data type "word", which is defined in the file "gcinterface.h".
 
 The collector defines the following variables in the "globals" table
@@ -148,12 +151,17 @@ E_BASE_OFFSET   A pointer pointing to the first word of the current
                 Ephemeral space.
 E_TOP_OFFSET    A pointer pointing to the first unallocated word of the
                 current Ephemeral space.
-E_MARK_OFFSET   A pointer into the current Ephemeral area. If, after a
-                collection of the ephemeral area, the data in the Ephemeral
-                area goes past this mark, then the next collection
-                will be a tenuring collection.
 E_MAX_OFFSET    A pointer to the last word of the current Ephemeral 
                 space.
+E_NEW_BASE_OFFSET
+E_NEW_MAX_OFFSET
+		Ditto for the ephemeral newspace. The mutator should *never*
+		use these values.
+E_MARK_OFFSET   A byte offset from the bottom of the Ephemeral area. If, after
+		a collection of the ephemeral area, the data in the Ephemeral
+                area goes past this mark, then the next collection will be a
+		tenuring collection. The mutator may change the value of this
+		variable at will.
 
 T_BASE_OFFSET   A pointer to the first word of the current Tenured
                 space.
@@ -165,6 +173,9 @@ T_TRANS_OFFSET  A pointer to the last word of the current Tenured space
 T_MAX_OFFSET    A pointer to the last word of the current Tenured area.
                 The words between T_MAX_OFFSET (inclusive) and 
                 T_TRANS_OFFSET (exclusive) make up the transaction list.
+T_NEW_BASE_OFFSET
+T_NEW_MAX_OFFSET
+		Ditto for the tenured newspace.
 
 S_BASE_OFFSET   A pointer to the first word of the Static space.
 S_MAX_OFFSET    A pointer to the last word of the Static space.
@@ -172,49 +183,37 @@ S_MAX_OFFSET    A pointer to the last word of the Static space.
 STK_BASE_OFFSET A pointer to the first word of the Stack space.
 STK_MAX_OFFSET  A pointer to the last word of the Stack space.
 
-LOMEM_OFFSET    A pointer to the first word used by the collector.
-HIMEM_OFFSET    A pointer to the last word used by the collector.
+LOMEM_OFFSET    A pointer to the first word used by the collector. Obsolete.
+HIMEM_OFFSET    A pointer to the last word used by the collector. Obsolete.
 
-The mutator may only change T_TRANS_OFFSET, T_TOP_OFFSET, and
-E_TOP_OFFSET; all other values are to be considered read-only to the
-mutator. All Tenured and Ephemeral pointers are subject to change
-after a collection. [T_TOP_OFFSET is not normally changed, but if we
-load a heap into the tenured area, it will have to be.]
+The mutator may only change T_TRANS_OFFSET, T_TOP_OFFSET, E_MARK_OFFSET,
+and E_TOP_OFFSET; all other values are to be considered read-only to the
+mutator. All Tenured and Ephemeral pointers are subject to change after a
+collection. [T_TOP_OFFSET is not normally changed, but if we load a heap
+into the tenured area, it will have to be. Also, if we want to be able to
+allocate an object larger than the Ephemeral area, it will have to be
+allocated directly in the Tenured area, and in that case T_TOP_OFFSET must
+change.]
 
-All pointers into all spaces are comparable. The Ephemeral area
-pointers always compare less than the Static area pointers, which in
-turn compare less than the Tenured area pointers.  Stack area pointers
-compare less than Ephemeral area pointers.
-
-The LOMEM and HIMEM values are made available for use by a
-system-dependent initialization procedure which needs to give advise
-to the virtual memory system about the usage patterns of the
-newly-allocated memory; if this is not done, there will be some
-initial thrashing until the system stabilizes.  However, the use of
-LOMEM and HIMEM implicitly assumes that all memory allocated is in one
-chunk, which, while true at the moment, may not be the case in the
-future. Hence a better solution should be looked for. (Since the
-spaces are each in one chunk, we could use the space limits as
-indicators, but this does not deal with the "new" spaces, since they
-are internal to the collector module.) [See also section 12.]
+All pointers into all spaces are comparable. The Ephemeral area pointers
+always compare less than the Tenured area pointers. The relations of and to
+the other areas is implementation-defined, and may indeed change at run-time.
 
 
 4. Initializing the collector
 -----------------------------
 The collector is initialized with a call to 'init_collector()':
 
-  init_collector( s_size, t_size, e_size, e_mark, stack_size );
+  init_collector( s_size, t_size, e_size, stack_size );
 
 where 's_size', 't_size', and 'e_size', and 'stack_size' are the sizes (in
-bytes) of the Static, Tenured, Ephemeral, and Stack areas, respectively,
-and 'e_mark' is the watermark offet (in bytes) from the bottom of the
-Ephemeral area.
+bytes) of the Static, Tenured, Ephemeral, and Stack areas, respectively.
 
-Upon initialization, the collector will honor the given sizes and marks
-insofar as they do not violate the constraints set forth in the header file
-"gc.h". The collector will change unreasonable values into reasonable ones.
+Upon initialization, the collector will honor the given sizes insofar as
+they do not violate the constraints set forth in the header file "gc.h".
+The collector will change unreasonable values into reasonable ones.
 
-The file "gc.h" and its contents are described in section X.
+The file "gc.h" and its contents are described in section 10.
 
 
 5. Memory Allocation
@@ -248,7 +247,7 @@ To allocate 'n' words from the ephemeral area, the procedure would be this:
    }
 
 where the 'gc()' procedure performs a collection, allocates 'n' words, and
-returns a pointer to the newly-allocated space; an possible implementation
+returns a pointer to the newly-allocated space; a possible implementation
 is shown below.
 
 The first two statements allocate memory (notice that we must allocate an
@@ -259,7 +258,7 @@ invoked.  Otherwise, a pointer to the structure is returned.
 Note that in the case of a collection, the 'gc()' procedure is made to
 allocate the requested space. This is so that we can conveniently have
 out-of-line checks for whether 'E_TOP_OFFSET' >= 'E_LIMIT_OFFSET' 
-after the allocation; this may in fact happen if 'n' is large enough.
+after the allocation; this may in fact happen.
 
 
 6. The Transaction List
@@ -269,15 +268,17 @@ structures in the Tenured space which contain pointers into the Ephemeral
 space -- is allocated in the Tenured area.
 
 Whenever the mutator side-effects a data structure in the tenured area
-(using 'set-car!', 'set-cdr!', or 'vector-set!') with a value that is a
-tagged pointer into the Ephemeral area, then a transaction should be added
-to the transaction list. The transaction should be a tagged pointer not to
-the new object but to the header of the data structure in the Tenured area
-that was changed.
+(using e.g. 'set-car!', 'set-cdr!', or 'vector-set!') with a value that is
+a tagged pointer into the Ephemeral area, then a transaction should be
+added to the transaction list. The transaction should be a tagged pointer
+not to the new object but to the header of the data structure in the
+Tenured area that was changed.
 
-The value stored into the Tenured-area data structure does not
-strictly speaking have to be a pointer into the Ephemeral area, but it
-is neccesary to store a transaction on the transaction list when it is.
+The value stored into the Tenured-area data structure does not strictly
+speaking have to be a pointer into the Ephemeral area, but it is necessary
+to store a transaction on the transaction list when the stored value is
+such a pointer.  The collector deals with entries on the transaction list
+which are not pointers into the tenured area in a reasonable way.
 
 To allocate a transaction on the tranaction list, put the transaction in
 the location pointed to by the pointer T_TRANS_OFFSET, and then decrement
@@ -307,11 +308,10 @@ We provide some example code for 'set-car!':
 7. Calling the Garbage Collector
 --------------------------------
 The garbage collector traces all objects reachable from the set of root
-objects, as outlined in section 3.
-It is the duty of
-the storage allocating procedures (like 'alloc()' above) to store all root
-objects in the 'globals' table before the collector is invoked. In the case
-of 'alloc()' it calls the procedure 'gc()', which could look something like
+objects, as outlined in section 3.  It is the duty of the storage
+allocating procedures (like 'alloc()' above) to store all root objects in
+the 'globals' table before the collector is invoked. In the case of
+'alloc()' it calls the procedure 'gc()', which could look something like
 this:
 
    gc( int n )
@@ -362,12 +362,13 @@ equivalent to flush newspace (after the collection); and don't forget that
 we must flush the icache after a 'define' (I think...).
 
 The collector is then called. The entry point of the collector is the
-'collect()' procedure; the constants "EPHEMERAL_COLLECTION" and
-"TENURING_COLLECTION" are defined in the file "gcinterface.h")
+'collect()' procedure; the constants EPHEMERAL_COLLECTION,
+TENURING_COLLECTION, and FULL_COLLECTION are defined in the file
+"gcinterface.h"
 
 Finally, when the collector has finished, each element of the 'globals'
-array is copied out to where they came from (they may all have changed).
-A new E_LIMIT_OFFSET is computed, and space is allocated. (If we fail again,
+array is copied out to where they came from (they may all have changed).  A
+new E_LIMIT_OFFSET is computed, and space is allocated. (If we fail again,
 there is one more hope: to do a tenuring collection. The code for this has
 not been shown.)
 
@@ -378,10 +379,12 @@ The garbage collector keeps track of how much space is allocated and
 collected from the heap. These statistics are available in variables
 in the 'globals' array with the following names/offsets:
 
-ECOLLECTIONS_OFFSET     The number of ephemeral garbage collections.
-TCOLLECTIONS_OFFSET     The number of tenuring garbage collections.
+E_COLLECTIONS_OFFSET    The number of ephemeral garbage collections.
+T_COLLECTIONS_OFFSET    The number of tenuring garbage collections.
+F_COLLECTIONS_OFFSET    The number of full garbage collections.
 WCOLLECTED_OFFSET       The number of words collected (total).
 WALLOCATED_OFFSET       The number of words allocated (total).
+WCOPIED_OFFSET          The number of words copied (total).
 
 The number of words allocated is derived from the difference in the
 values of E_TOP_OFFSET just after a collection and just before the next
@@ -397,7 +400,6 @@ The garbage collector requires the availability of the following
 procedures:
 
    malloc()  Standard C library memory allocation procedure
-   memcpy()  Standard C library memory copying procedure
    panic()   Must be provided by the mutator. It takes one
              argument (a string), and displays this string
              before terminating the program. Panic() will
@@ -426,14 +428,14 @@ adequately explain the restrictions.
 
 11. Interface
 -------------
-The collector module exports three names: 'collect', 'init_collector',
-and 'gc_trap', all of which are procedures. 
+The collector module exports three names: 'collect()', 'init_collector()',
+and 'gc_trap()', all of which are procedures. 
 
-'collect()' takes a single argument, which must be an integer. The
-values "EPHEMERAL_COLLECTION" and "TENURING_COLLECTION" are defined in
-"gcinterface.h". Other valued cause undefined behavior.
+'collect()' takes a single argument, which must be an integer. The values
+EPHEMERAL_COLLECTION, TENURING_COLLECTION, and FULL_COLLECTION are defined
+in "gcinterface.h". Other valued cause a panic().
 
-'init_collector()' takes five arguments, all unsigned integers, as outlined
+'init_collector()' takes four arguments, all unsigned integers, as outlined
 above.
 
 'gc_trap()' takes one argument, an integer. 
@@ -460,10 +462,9 @@ The symbolic arguments to "gc_trap()" are defined in "gcinterface.h".
 
 12. Notes
 ---------
-- The HIMEM and LOMEM offsets will go away; instead, the "globals" table will
-  hold min and max pointers to all spaces, including unused (old) spaces.
+- HIMEM and LOMEM are obsolete.
 
-- The initialization routine will take an additional argument which is the
-  alignment to use in allocating memory for the spaces. On many systems, the 
-  alignment will be on a page boundary; this is interesting because we have
-  to set access privileges on some of the spaces.
+- The initialization routine will eventually take an additional argument
+  which is the alignment to use in allocating memory for the spaces. On many
+  systems, the alignment will be on a page boundary; this is interesting
+  because we have to set access privileges on some of the spaces.
