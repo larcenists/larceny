@@ -66,6 +66,7 @@
                 (repl-source    . ,(pathname-append dir "Repl"))
                 (interp-source  . ,(pathname-append dir "Interpreter"))
                 (machine-source . ,(pathname-append dir "Lib" "IL"))
+                (mzscheme-source . ,(pathname-append dir "Lib" "MzScheme"))
                 (common-asm     . ,(pathname-append dir "Asm" "Common"))
                 (dotnet-asm     . ,(pathname-append dir "Asm" "IL"))
                 (always-source? . ,option:source?)
