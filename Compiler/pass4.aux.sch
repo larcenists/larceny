@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 9 November 1998
+; 13 December 1998
 
 ; Implements the following abstract data types.
 ;
@@ -642,16 +642,21 @@
       (cgframe-lookup frame var)
       (cgenv-lookup env var)))
 
-; For testing.
-
-(define foo
-  (lambda (x)
-    (pretty-print
-     (pass4 (pass2 (pass1 x)) $usual-integrable-procedures$))))
+; Compositions.
 
 (define compile
   (lambda (x)
     (pass4 (pass2 (pass1 x)) $usual-integrable-procedures$)))
+
+(define compile-block
+  (lambda (x)
+    (pass4 (pass2 (pass1-block x)) $usual-integrable-procedures$)))
+
+; For testing.
+
+(define foo
+  (lambda (x)
+    (pretty-print (compile x))))
 
 ; Find the smallest number of registers such that
 ; adding more registers does not affect the code

@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 10 December 1998
+; 13 December 1998
 
 ($$trace "usual")
 
@@ -116,7 +116,7 @@
                  (letrec ((loop (lambda (?name ...)
                                   (cond ?clause
                                         (else
-                                         (begin ?body ...)
+                                         (begin #t ?body ...)
                                          (loop ?step ...))))))
                    (loop ?init ...)))
                 ((do-aux ((?name ?init ?step) ?todo ...)
@@ -176,48 +176,48 @@
 
 (begin
  
- (define-syntax finalize-quasiquote letrec
+ (define-syntax .finalize-quasiquote letrec
    (syntax-rules (quote unquote unquote-splicing)
-    ((finalize-quasiquote quote ?arg ?return)
-     (interpret-continuation ?return (quote ?arg)))
-    ((finalize-quasiquote unquote ?arg ?return)
-     (interpret-continuation ?return ?arg))
-    ((finalize-quasiquote unquote-splicing ?arg ?return)
+    ((.finalize-quasiquote quote ?arg ?return)
+     (.interpret-continuation ?return (quote ?arg)))
+    ((.finalize-quasiquote unquote ?arg ?return)
+     (.interpret-continuation ?return ?arg))
+    ((.finalize-quasiquote unquote-splicing ?arg ?return)
      (syntax-error ",@ in illegal context" ?arg))
-    ((finalize-quasiquote ?mode ?arg ?return)
-     (interpret-continuation ?return (?mode . ?arg)))))
+    ((.finalize-quasiquote ?mode ?arg ?return)
+     (.interpret-continuation ?return (?mode . ?arg)))))
  
- ; The first two "arguments" to descend-quasiquote and to
- ; descend-quasiquote-pair are always identical.
+ ; The first two "arguments" to .descend-quasiquote and to
+ ; .descend-quasiquote-pair are always identical.
  
- (define-syntax descend-quasiquote letrec
+ (define-syntax .descend-quasiquote letrec
    (syntax-rules (quasiquote unquote unquote-splicing)
-    ((descend-quasiquote `?y ?x ?level ?return)
-     (descend-quasiquote-pair ?x ?x (?level) ?return))
-    ((descend-quasiquote ,?y ?x () ?return)
-     (interpret-continuation ?return unquote ?y))
-    ((descend-quasiquote ,?y ?x (?level) ?return)
-     (descend-quasiquote-pair ?x ?x ?level ?return))
-    ((descend-quasiquote ,@?y ?x () ?return)
-     (interpret-continuation ?return unquote-splicing ?y))
-    ((descend-quasiquote ,@?y ?x (?level) ?return)
-     (descend-quasiquote-pair ?x ?x ?level ?return))
-    ((descend-quasiquote (?y . ?z) ?x ?level ?return)
-     (descend-quasiquote-pair ?x ?x ?level ?return))
-    ((descend-quasiquote #(?y ...) ?x ?level ?return)
-     (descend-quasiquote-vector ?x ?x ?level ?return))
-    ((descend-quasiquote ?y ?x ?level ?return)
-     (interpret-continuation ?return quote ?x))))
+    ((.descend-quasiquote `?y ?x ?level ?return)
+     (.descend-quasiquote-pair ?x ?x (?level) ?return))
+    ((.descend-quasiquote ,?y ?x () ?return)
+     (.interpret-continuation ?return unquote ?y))
+    ((.descend-quasiquote ,?y ?x (?level) ?return)
+     (.descend-quasiquote-pair ?x ?x ?level ?return))
+    ((.descend-quasiquote ,@?y ?x () ?return)
+     (.interpret-continuation ?return unquote-splicing ?y))
+    ((.descend-quasiquote ,@?y ?x (?level) ?return)
+     (.descend-quasiquote-pair ?x ?x ?level ?return))
+    ((.descend-quasiquote (?y . ?z) ?x ?level ?return)
+     (.descend-quasiquote-pair ?x ?x ?level ?return))
+    ((.descend-quasiquote #(?y ...) ?x ?level ?return)
+     (.descend-quasiquote-vector ?x ?x ?level ?return))
+    ((.descend-quasiquote ?y ?x ?level ?return)
+     (.interpret-continuation ?return quote ?x))))
  
- (define-syntax descend-quasiquote-pair letrec
+ (define-syntax .descend-quasiquote-pair letrec
    (syntax-rules (quote unquote unquote-splicing)
-    ((descend-quasiquote-pair (?carx . ?cdrx) ?x ?level ?return)
-     (descend-quasiquote ?carx ?carx ?level (1 ?cdrx ?x ?level ?return)))))
+    ((.descend-quasiquote-pair (?carx . ?cdrx) ?x ?level ?return)
+     (.descend-quasiquote ?carx ?carx ?level (1 ?cdrx ?x ?level ?return)))))
  
- (define-syntax descend-quasiquote-vector letrec
+ (define-syntax .descend-quasiquote-vector letrec
    (syntax-rules (quote)
-    ((descend-quasiquote-vector #(?y ...) ?x ?level ?return)
-     (descend-quasiquote (?y ...) (?y ...) ?level (6 ?x ?return)))))
+    ((.descend-quasiquote-vector #(?y ...) ?x ?level ?return)
+     (.descend-quasiquote (?y ...) (?y ...) ?level (6 ?x ?return)))))
  
  ; Representations for continuations used here.
  ; Continuation types 0, 1, 2, and 6 take a mode and an expression.
@@ -226,72 +226,65 @@
  ; (-1)
  ;     means no continuation
  ; (0)
- ;     means to call finalize-quasiquote with no further continuation
+ ;     means to call .finalize-quasiquote with no further continuation
  ; (1 ?cdrx ?x ?level ?return)
- ;     means a return from the call to descend-quasiquote from
- ;     descend-quasiquote-pair
+ ;     means a return from the call to .descend-quasiquote from
+ ;     .descend-quasiquote-pair
  ; (2 ?car-mode ?car-arg ?x ?return)
- ;     means a return from the second call to descend-quasiquote in
- ;     in Jonathan's code for descend-quasiquote-pair
+ ;     means a return from the second call to .descend-quasiquote in
+ ;     in Jonathan's code for .descend-quasiquote-pair
  ; (3 ?car-arg ?return)
  ;     means take the result and return an append of ?car-arg with it
  ; (4 ?cdr-mode ?cdr-arg ?return)
- ;     means take the result and call finalize-quasiquote on ?cdr-mode
+ ;     means take the result and call .finalize-quasiquote on ?cdr-mode
  ;     and ?cdr-arg with a continuation of type 5
  ; (5 ?car-result ?return)
  ;     means take the result and return a cons of ?car-result onto it
  ; (6 ?x ?return)
- ;     means a return from the call to descend-quasiquote from
- ;     descend-quasiquote-vector
+ ;     means a return from the call to .descend-quasiquote from
+ ;     .descend-quasiquote-vector
  ; (7 ?return)
  ;     means take the result and return a call of list->vector on it
  
- (define-syntax interpret-continuation letrec
+ (define-syntax .interpret-continuation letrec
    (syntax-rules (quote unquote unquote-splicing)
-    ((interpret-continuation (-1) ?e) ?e)
-    ((interpret-continuation (0) ?mode ?arg)
-     (finalize-quasiquote ?mode ?arg (-1)))    
-    ((interpret-continuation (1 ?cdrx ?x ?level ?return) ?car-mode ?car-arg)
-     (descend-quasiquote ?cdrx
-                         ?cdrx
-                         ?level
-                         (2 ?car-mode ?car-arg ?x ?return)))    
-    ((interpret-continuation (2 quote ?car-arg ?x ?return) quote ?cdr-arg)
-     (interpret-continuation ?return quote ?x))    
-    ((interpret-continuation (2 unquote-splicing ?car-arg ?x ?return) quote ())
-     (interpret-continuation ?return unquote ?car-arg))
-    ((interpret-continuation (2 unquote-splicing ?car-arg ?x ?return)
-                             ?cdr-mode ?cdr-arg)
-     (finalize-quasiquote ?cdr-mode ?cdr-arg (3 ?car-arg ?return)))  
-    ((interpret-continuation (2 ?car-mode ?car-arg ?x ?return)
-                             ?cdr-mode ?cdr-arg)
-     (finalize-quasiquote ?car-mode ?car-arg (4 ?cdr-mode ?cdr-arg ?return)))
+    ((.interpret-continuation (-1) ?e) ?e)
+    ((.interpret-continuation (0) ?mode ?arg)
+     (.finalize-quasiquote ?mode ?arg (-1)))    
+    ((.interpret-continuation (1 ?cdrx ?x ?level ?return) ?car-mode ?car-arg)
+     (.descend-quasiquote ?cdrx
+                          ?cdrx
+                          ?level
+                          (2 ?car-mode ?car-arg ?x ?return)))    
+    ((.interpret-continuation (2 quote ?car-arg ?x ?return) quote ?cdr-arg)
+     (.interpret-continuation ?return quote ?x))    
+    ((.interpret-continuation (2 unquote-splicing ?car-arg ?x ?return) quote ())
+     (.interpret-continuation ?return unquote ?car-arg))
+    ((.interpret-continuation (2 unquote-splicing ?car-arg ?x ?return)
+                              ?cdr-mode ?cdr-arg)
+     (.finalize-quasiquote ?cdr-mode ?cdr-arg (3 ?car-arg ?return)))  
+    ((.interpret-continuation (2 ?car-mode ?car-arg ?x ?return)
+                              ?cdr-mode ?cdr-arg)
+     (.finalize-quasiquote ?car-mode ?car-arg (4 ?cdr-mode ?cdr-arg ?return)))
       
-    ((interpret-continuation (3 ?car-arg ?return) ?e)
-     (interpret-continuation ?return append (?car-arg ?e)))
-    ((interpret-continuation (4 ?cdr-mode ?cdr-arg ?return) ?e1)
-     (finalize-quasiquote ?cdr-mode ?cdr-arg (5 ?e1 ?return)))
-    ((interpret-continuation (5 ?e1 ?return) ?e2)
-     (interpret-continuation ?return cons (?e1 ?e2)))
-    ((interpret-continuation (6 ?x ?return) quote ?arg)
-     (interpret-continuation ?return quote ?x))
-    ((interpret-continuation (6 ?x ?return) ?mode ?arg)
-     (finalize-quasiquote ?mode ?arg (7 ?return)))
-    ((interpret-continuation (7 ?return) ?e)
-     (interpret-continuation ?return list->vector (?e)))))
+    ((.interpret-continuation (3 ?car-arg ?return) ?e)
+     (.interpret-continuation ?return append (?car-arg ?e)))
+    ((.interpret-continuation (4 ?cdr-mode ?cdr-arg ?return) ?e1)
+     (.finalize-quasiquote ?cdr-mode ?cdr-arg (5 ?e1 ?return)))
+    ((.interpret-continuation (5 ?e1 ?return) ?e2)
+     (.interpret-continuation ?return cons (?e1 ?e2)))
+    ((.interpret-continuation (6 ?x ?return) quote ?arg)
+     (.interpret-continuation ?return quote ?x))
+    ((.interpret-continuation (6 ?x ?return) ?mode ?arg)
+     (.finalize-quasiquote ?mode ?arg (7 ?return)))
+    ((.interpret-continuation (7 ?return) ?e)
+     (.interpret-continuation ?return list->vector (?e)))))
  
  (define-syntax quasiquote letrec
    (syntax-rules ()
     ((quasiquote ?x)
-     (descend-quasiquote ?x ?x () (0)))))
+     (.descend-quasiquote ?x ?x () (0)))))
  )
-
-'
-(begin (define finalize-quasiquote)
-       (define descend-quasiquote)
-       (define descend-quasiquote-pair)
-       (define descend-quasiquote-vector)
-       (define interpret-continuation))
 
 (define-syntax let*-syntax
   (syntax-rules ()

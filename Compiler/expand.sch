@@ -2,9 +2,9 @@
 ;
 ; $Id$
 ;
-; 6 December 1998
+; 13 December 1998
 
-($$trace "expand.sch")
+($$trace "expand")
 
 ; This procedure sets the default scope of global macro definitions.
 
@@ -39,10 +39,11 @@
                    '() ; declarations
                    #f  ; documentation
                    (desugar-definitions def-or-exp
-                                        global-syntactic-environment))
+                                        global-syntactic-environment
+                                        make-toplevel-definition))
       '()))))
 
-(define (desugar-definitions exp env)
+(define (desugar-definitions exp env make-toplevel-definition)
   (letrec
     
     ((define-loop 
@@ -94,8 +95,11 @@
          ; (define foo) syntax is transformed into (define foo (undefined)).
          ((null? (cddr exp))
           (let ((id (cadr exp)))
-            (redefinition id)
-            (syntactic-bind-globally! id (make-identifier-denotation id))
+            (if (or (null? pass1-block-inlines)
+                    (not (memq id pass1-block-inlines)))
+                (begin
+                 (redefinition id)
+                 (syntactic-bind-globally! id (make-identifier-denotation id))))
             (make-toplevel-definition id (make-undefined))))
          ((pair? (cadr exp))              
           (desugar-define
@@ -116,8 +120,11 @@
            env))
          ((> (length exp) 3) (m-error "Malformed definition" exp))
          (else (let ((id (cadr exp)))
-                 (redefinition id)
-                 (syntactic-bind-globally! id (make-identifier-denotation id))
+                 (if (or (null? pass1-block-inlines)
+                         (not (memq id pass1-block-inlines)))
+                     (begin
+                      (redefinition id)
+                      (syntactic-bind-globally! id (make-identifier-denotation id))))
                  (make-toplevel-definition id (m-expand (caddr exp) env)))))))
      
      (define-syntax-loop 
@@ -181,8 +188,10 @@
                ((eq? keyword denotation-of-if)            (m-if exp env))
                ((eq? keyword denotation-of-set!)          (m-set exp env))
                ((eq? keyword denotation-of-begin)         (m-begin exp env))
-               ((eq? keyword denotation-of-let-syntax)    (m-let-syntax exp env))
-               ((eq? keyword denotation-of-letrec-syntax) (m-letrec-syntax exp env))
+               ((eq? keyword denotation-of-let-syntax)
+		(m-let-syntax exp env))
+               ((eq? keyword denotation-of-letrec-syntax)
+		(m-letrec-syntax exp env))
                ((or (eq? keyword denotation-of-define)
                     (eq? keyword denotation-of-define-syntax)
                     (eq? keyword denotation-of-define-inline))
@@ -197,13 +206,15 @@
   (cond ((not (symbol? exp))
          ; Here exp ought to be a boolean, number, character, or string.
          ; I'll warn about other things but treat them as if quoted.
-	 ; @@LARS: added procedure, port, #!unspecified.
+	 ;
+	 ; I'm turning off some of the warnings because notably procedures
+	 ; and #!unspecified can occur in loaded files and it's a major
+	 ; pain if a warning is printed for each. --lars
          (if (and (not (boolean? exp))
                   (not (number? exp))
                   (not (char? exp))
                   (not (string? exp))
 		  (not (procedure? exp))
-		  (not (port? exp))
 		  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))
          (make-constant exp))
@@ -266,16 +277,18 @@
                          '() ; F
                          '() ; G
                          '() ; decls
-                         ;   ; doc slot can be altered by m-set
-                         (vector #f
-                                 (if (include-source-code)
-                                     exp
-                                     #f)
-                                 (if (list? formals)
-                                     (length alist)
-                                     (exact->inexact (- (length alist) 1)))
-                                 #f
-                                 #f)
+                         (make-doc #f
+                                   (if (list? formals)
+                                       (length alist)
+                                       (exact->inexact (- (length alist) 1)))
+                                   (if (include-variable-names)
+                                       formals
+                                       #f)
+                                   (if (include-source-code)
+                                       exp
+                                       #f)
+                                   source-file-name
+                                   source-file-position)
                          (m-body body env))))
       
       (m-error "Malformed lambda expression" exp)))
@@ -396,7 +409,10 @@
               (if (and (lambda? rhs)
                        (include-procedure-names))
                   (let ((doc (lambda.doc rhs)))
-                    (vector-set! doc 0 x)))
+                    (doc.name-set! doc x)))
+              (if pass1-block-compiling?
+                  (set! pass1-block-assignments
+                        (cons x pass1-block-assignments)))
               assignment)
             (m-error "Malformed assignment" exp)))
       (m-error "Malformed assignment" exp)))

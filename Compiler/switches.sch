@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 20 November 1998
+; 13 December 1998
 ;
 ; Compiler switches needed by Twobit.
 
@@ -54,12 +54,6 @@
 (define include-procedure-names
   (make-twobit-flag 'include-procedure-names))
 
-; Semantics.
-; Is this still supported?  If so, then why?
-
-(define empty-list-is-true
-  (make-twobit-flag 'empty-list-is-true))
-
 ; Space efficiency.
 ; This switch isn't fully implemented yet.  If it is false, then
 ; Twobit will generate flat closures and will go to some trouble
@@ -76,6 +70,9 @@
 
 (define benchmark-mode
   (make-twobit-flag 'benchmark-mode))
+
+(define benchmark-block-mode
+  (make-twobit-flag 'benchmark-block-mode))
 
 (define local-optimizations
   (make-twobit-flag 'local-optimizations))
@@ -106,8 +103,10 @@
      (include-source-code #f)
      (include-procedure-names #t)
      (include-variable-names #t)
+     (ignore-space-leaks #t)
      (integrate-usual-procedures #f)
      (benchmark-mode #f)
+     (benchmark-block-mode #f)
      (local-optimizations #t)
      (global-optimizations #t)
      (representation-optimizations #t)
@@ -128,10 +127,10 @@
   (display-twobit-flag include-procedure-names)
   (display-twobit-flag include-source-code)
   (display-twobit-flag include-variable-names)
-  (display-twobit-flag empty-list-is-true)
   (display-twobit-flag ignore-space-leaks)
   (display-twobit-flag integrate-usual-procedures)
   (display-twobit-flag benchmark-mode)
+  (display-twobit-flag benchmark-block-mode)
   (display-twobit-flag local-optimizations)
   (display-twobit-flag global-optimizations)
   (display-twobit-flag representation-optimizations)

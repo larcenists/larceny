@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 21 November 1998 / wdc
+; 12 December 1998 / wdc
 
 ($$trace "pass1.aux")
 
@@ -31,12 +31,14 @@
 ; Miscellaneous routines.
 
 (define (m-warn msg . more)
-  (display "WARNING from macro expander:")
-  (newline)
-  (display msg)
-  (newline)
-  (for-each (lambda (x) (write x) (newline))
-            more))
+  (if (issue-warnings)
+      (begin
+       (display "WARNING from macro expander:")
+       (newline)
+       (display msg)
+       (newline)
+       (for-each (lambda (x) (write x) (newline))
+                 more))))
 
 (define (m-error msg . more)
   (display "ERROR detected during macro expansion:")

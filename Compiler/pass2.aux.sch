@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 16 May 1995
+; 13 December 1998
 ;
 ; Procedures for fetching and clobbering parts of expressions.
 
@@ -76,6 +76,24 @@
 (define (if.then-set! exp exp0) (set-car! (cddr exp) exp0))
 (define (if.else-set! exp exp0) (set-car! (cdddr exp) exp0))
 (define (begin.exprs-set! exp exprs) (set-cdr! exp exprs))
+
+; FIXME:  This duplicates information in Lib/procinfo.sch.
+
+(define (make-doc name arity formals source-code filename filepos)
+  (vector name source-code arity filename filepos formals))
+(define (doc.name d)    (vector-ref d 0))
+(define (doc.code d)    (vector-ref d 1))
+(define (doc.arity d)   (vector-ref d 2))
+(define (doc.file d)    (vector-ref d 3))
+(define (doc.filepos d) (vector-ref d 4))
+(define (doc.formals d) (vector-ref d 5))
+(define (doc.name-set! d x)    (if d (vector-set! d 0 x)))
+(define (doc.code-set! d x)    (if d (vector-set! d 1 x)))
+(define (doc.arity-set! d x)   (if d (vector-set! d 2 x)))
+(define (doc.file-set! d x)    (if d (vector-set! d 3 x)))
+(define (doc.filepos-set! d x) (if d (vector-set! d 4 x)))
+(define (doc.formals-set! d x) (if d (vector-set! d 5 x)))
+(define (doc-copy d) (list->vector (vector->list d)))
 
 (define (ignored? name) (eq? name name:IGNORED))
 

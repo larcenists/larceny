@@ -4,7 +4,7 @@
 ;
 ; Larceny -- target-specific information for Twobit's SPARC backend.
 ;
-; 10 December 1998 / wdc
+; 13 December 1998 / wdc
 
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
@@ -582,7 +582,68 @@
            (cons (rename 'assq) (cdr exp))
            exp)))))
 
-; FIXME: map, for-each
+(define-inline map
+  (syntax-rules (lambda)
+   ((map ?proc ?exp1 ?exp2 ...)
+    (letrec-syntax
+      ((loop
+        (... (syntax-rules (lambda)
+              ((loop 1 () (?y1 ?y2 ...) ?f ?exprs)
+               (loop 2 (?y1 ?y2 ...) ?f ?exprs))
+              ((loop 1 (?a1 ?a2 ...) (?y2 ...) ?f ?exprs)
+               (loop 1 (?a2 ...) (y1 ?y2 ...) ?f ?exprs))
+              
+              ((loop 2 ?ys (lambda ?formals ?body) ?exprs)
+               (loop 3 ?ys (lambda ?formals ?body) ?exprs))
+              ((loop 2 ?ys (?f1 . ?f2) ?exprs)
+               (let ((f (?f1 . ?f2)))
+                 (loop 3 ?ys f ?exprs)))
+              ; ?f must be a constant or variable.
+              ((loop 2 ?ys ?f ?exprs)
+               (loop 3 ?ys ?f ?exprs))
+              
+              ((loop 3 (?y1 ?y2 ...) ?f (?e1 ?e2 ...))
+               (do ((?y1 ?e1 (cdr ?y1))
+                    (?y2 ?e2 (cdr ?y2))
+                    ...
+                    (results '() (cons (?f (car ?y1) (car ?y2) ...)
+                                       results)))
+                   ((or (null? ?y1) (null? ?y2) ...)
+                    (reverse results))))))))
+      
+      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
+
+(define-inline for-each
+  (syntax-rules (lambda)
+   ((for-each ?proc ?exp1 ?exp2 ...)
+    (letrec-syntax
+      ((loop
+        (... (syntax-rules (lambda)
+              ((loop 1 () (?y1 ?y2 ...) ?f ?exprs)
+               (loop 2 (?y1 ?y2 ...) ?f ?exprs))
+              ((loop 1 (?a1 ?a2 ...) (?y2 ...) ?f ?exprs)
+               (loop 1 (?a2 ...) (y1 ?y2 ...) ?f ?exprs))
+              
+              ((loop 2 ?ys (lambda ?formals ?body) ?exprs)
+               (loop 3 ?ys (lambda ?formals ?body) ?exprs))
+              ((loop 2 ?ys (?f1 . ?f2) ?exprs)
+               (let ((f (?f1 . ?f2)))
+                 (loop 3 ?ys f ?exprs)))
+              ; ?f must be a constant or variable.
+              ((loop 2 ?ys ?f ?exprs)
+               (loop 3 ?ys ?f ?exprs))
+              
+              ((loop 3 (?y1 ?y2 ...) ?f (?e1 ?e2 ...))
+               (do ((?y1 ?e1 (cdr ?y1))
+                    (?y2 ?e2 (cdr ?y2))
+                    ...)
+                   ((or (null? ?y1) (null? ?y2) ...)
+                    (if #f #f))
+                   (?f (car ?y1) (car ?y2) ...)))))))
+      
+      (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))))
+
+
 
 ))
 

@@ -2,6 +2,8 @@
 ;
 ; $Id$
 ;
+; 13 December 1998
+;
 ; Given an expression in the subset of Scheme used as an intermediate language
 ; by Twobit, returns a newly allocated copy of the expression in which the
 ; local variables have been renamed and the referencing information has been
@@ -13,14 +15,11 @@
   
   (define renaming-counter 0)
   
-  (define (rename vars)
-    (set! renaming-counter (+ renaming-counter 1))
-    (let ((s (string-append "_" (number->string renaming-counter))))
+  (define (rename-vars vars)
+    (let ((rename (make-rename-procedure)))
       (map (lambda (var)
              (if (memq var original-names)
-                 (string->symbol
-                  (string-append renaming-prefix
-                                 (symbol->string var) s))
+                 (rename var)
                  (begin (set! original-names (cons var original-names))
                         var)))
            vars)))
@@ -36,9 +35,9 @@
     (cond ((constant? exp) exp)
           ((lambda? exp)
            (let* ((bvl (make-null-terminated (lambda.args exp)))
-                  (newnames (rename bvl))
+                  (newnames (rename-vars bvl))
                   (procnames (map def.lhs (lambda.defs exp)))
-                  (newprocnames (rename procnames))
+                  (newprocnames (rename-vars procnames))
                   (refinfo (map (lambda (var)
                                   (make-R-entry var '() '() '()))
                                 (append newnames newprocnames)))

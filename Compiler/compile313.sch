@@ -2,7 +2,10 @@
 ; 
 ; $Id$
 ;
+; 13 December 1998
+;
 ; compile313 -- compilation parameters and driver procedures.
+
 
 ; File types -- these may differ between operating systems.
 
@@ -25,11 +28,17 @@
                                 *fasl-file-type*)))
         (user
          (assembly-user-data)))
-    (process-file infilename
-                  outfilename
-                  dump-fasl-segment-to-port
-                  (lambda (expr)
-                    (assemble (compile expr) user)))
+    (if (benchmark-block-mode)
+        (process-file-block infilename
+                            outfilename
+                            dump-fasl-segment-to-port
+                            (lambda (forms)
+                              (assemble (compile-block forms) user)))
+        (process-file infilename
+                      outfilename
+                      dump-fasl-segment-to-port
+                      (lambda (expr)
+                        (assemble (compile expr) user))))
     (unspecified)))
 
 
@@ -68,14 +77,20 @@
              (rewrite-file-type file
                                 *scheme-file-types* 
                                 *lap-file-type*))))
-    (process-file file
-                  outputfile
-                  (lambda (item port)
-                    (write item port)
-                    (newline port)
-                    (newline port))
-                  (lambda (x)
-                    (compile x)))
+    (if (benchmark-block-mode)
+        (process-file-block infilename
+                            outfilename
+                            dump-fasl-segment-to-port
+                            (lambda (x)
+                              (compile-block x)))
+        (process-file file
+                      outputfile
+                      (lambda (item port)
+                        (write item port)
+                        (newline port)
+                        (newline port))
+                      (lambda (x)
+                        (compile x))))
     (unspecified)))
 
 
@@ -242,6 +257,35 @@
                 #t
                 (begin (writer (processer x) outport)
                        (loop (read inport))))))))))
+  (let ((current-syntactic-environment
+         global-syntactic-environment))
+    (dynamic-wind
+     (lambda ()
+       (set! global-syntactic-environment
+             (make-extended-syntactic-environment)))
+     (lambda () (doit))
+     (lambda ()
+       (set! global-syntactic-environment
+             current-syntactic-environment)))))
+
+; Same as above, but passes a list of the entire file's contents
+; to the processer.
+; FIXME:  Both versions of PROCESS-FILE always delete the output file.
+; Shouldn't it be left alone if the input file can't be opened?
+
+(define (process-file-block infilename outfilename writer processer)
+  (define (doit)
+    (delete-file outfilename)
+    (call-with-output-file
+     outfilename
+     (lambda (outport)
+       (call-with-input-file
+        infilename
+        (lambda (inport)
+          (do ((x (read inport) (read inport))
+               (forms '() (cons x forms)))
+              ((eof-object? x)
+               (writer (processer (reverse forms)) outport))))))))
   (let ((current-syntactic-environment
          global-syntactic-environment))
     (dynamic-wind

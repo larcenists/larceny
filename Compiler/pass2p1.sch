@@ -1,8 +1,15 @@
 ; Copyright 1991 William D Clinger.
 ;
-; $Id$
+; Permission to copy this software, in whole or in part, to use this
+; software for any lawful noncommercial purpose, and to redistribute
+; this software is granted subject to the restriction that all copies
+; made of this software must include this copyright notice in full.
+; 
+; I also request that you send me a copy of any improvements that you
+; make to this software so that they may be incorporated within it to
+; the benefit of the Scheme community.
 ;
-; 6 November 1998.
+; 13 December 1998.
 ;
 ; Second pass of the Twobit compiler:
 ;   single assignment analysis, local source transformations,
@@ -171,6 +178,10 @@
 ; (if (if B0 'K1 'K2) E1 E2)    (begin B0 E1)               K1, K2 != #f
 ; (if (begin ... B0) E1 E2)     (begin ... (if B0 E1 E2))
 ; (if (not E0) E1 E2)           (if E0 E2 E1)               not is integrable
+;
+; FIXME:  Transformations needed:
+;    to simplify the output of the OR macro
+;    to simplify the output of the CASE macro
 
 (define (simplify-conditional exp notepad)
   (let loop ((test (simplify (if.test exp) notepad)))
@@ -190,7 +201,7 @@
                                      (simplify (if.then exp) notepad)))
                    notepad))
                  ((and (not (constant.value (if.then test)))
-                       (not (constant.value (if.then test))))
+                       (not (constant.value (if.else test))))
                   (post-simplify-begin
                    (make-begin (list (if.test test)
                                      (simplify (if.else exp) notepad)))
@@ -199,7 +210,8 @@
                            (let ((temp (if.then exp)))
                              (if.then-set! exp (if.else exp))
                              (if.else-set! exp temp)))
-                       (loop (if.test test)))))
+                       (if.test-set! exp (if.test test))
+                       (loop (if.test exp)))))
           ((begin? test)
            (let ((exprs (reverse (begin.exprs test))))
              (if.test-set! exp (car exprs))
@@ -271,40 +283,73 @@
 (define (simplify-call exp notepad)
   (define (loop args newargs exprs)
     (cond ((null? args)
-           (call.args-set! exp (reverse newargs))
-           (let ((newexp
-                  (if (lambda? (call.proc exp))
-                      (simplify-let exp notepad)
-                      exp)))
-             (if (null? exprs)
-                 newexp
-                 (post-simplify-begin
-                  (make-begin (reverse (cons newexp exprs)))
-                  notepad))))
+           (finish newargs exprs))
           ((begin? (car args))
            (let ((newexprs (reverse (begin.exprs (car args)))))
              (loop (cdr args)
                    (cons (car newexprs) newargs)
                    (append (cdr newexprs) exprs))))
           (else (loop (cdr args) (cons (car args) newargs) exprs))))
-  (call.proc-set! exp (simplify (call.proc exp) notepad))
+  (define (finish newargs exprs)
+    (call.args-set! exp (reverse newargs))
+    (let* ((newexp
+            (if (lambda? (call.proc exp))
+                (simplify-let exp notepad)
+                (begin
+                 (call.proc-set! exp
+                                 (simplify (call.proc exp) notepad))
+                 exp)))
+           (newexp
+            (if (and (call? newexp)
+                     (variable? (call.proc newexp)))
+                (let* ((procname (variable.name (call.proc newexp)))
+                       (args (call.args newexp))
+                       (entry
+                        (and (not (null? args))
+                             (constant? (car args))
+                             (integrate-usual-procedures)
+                             (every? constant? args)
+                             (let ((entry (constant-folding-entry procname)))
+                               (and entry
+                                    (let ((predicates
+                                           (constant-folding-predicates entry)))
+                                      (= (length args)
+                                         (length predicates))
+                                      (let loop ((args args)
+                                                 (predicates predicates))
+                                        (cond ((null? args) entry)
+                                              (((car predicates)
+                                                (constant.value (car args)))
+                                               (loop (cdr args) (cdr predicates)))
+                                              (else #f)))))))))
+                  (if entry
+                      (make-constant (apply (constant-folding-folder entry)
+                                            (map constant.value args)))
+                      newexp))
+                newexp)))
+      (cond ((and (call? newexp)
+                  (begin? (call.proc newexp)))
+             (let ((exprs0 (reverse (begin.exprs (call.proc newexp)))))
+               (call.proc-set! newexp (car exprs0))
+               (post-simplify-begin
+                (make-begin (reverse
+                             (cons newexp
+                                   (append (cdr exprs0) exprs))))
+                notepad)))
+            ((null? exprs)
+             newexp)
+            (else
+             (post-simplify-begin
+              (make-begin (reverse (cons newexp exprs)))
+              notepad)))))
   (call.args-set! exp (map (lambda (arg) (simplify arg notepad))
                            (call.args exp)))
-  (if (begin? (call.proc exp))
-      (let ((exprs (reverse (begin.exprs (call.proc exp)))))
-        (call.proc-set! exp (car exprs))
-        (loop (call.args exp) '() (cdr exprs)))
-      (loop (call.args exp) '() '())))
+  (loop (call.args exp) '() '()))
 
 ; SIMPLIFY-LET performs these transformations:
 ;
-;    ((lambda () (begin) (quote ...) E)) -> E
-;
 ;    ((lambda (I_1 ... I_k . I_rest) ---) E1 ... Ek Ek+1 ...)
 ; -> ((lambda (I_1 ... I_k I_rest) ---) E1 ... Ek (LIST Ek+1 ...))
-;
-;    ((lambda (IGNORED I2 ...) ---) E1 E2 ...)
-; -> (begin E1 ((lambda (I2 ...) ---) E2 ...))
 ;
 ;    ((lambda (I1 I2 ...) (begin D ...) (quote ...) E) L ...)
 ; -> ((lambda (I2 ...) (begin (define I1 L) D ...) (quote ...) E) ...)
@@ -324,8 +369,13 @@
 ;
 ; where D' ... and E' ... are obtained from D ... and E ...
 ; by replacing all references to I1 by K.  This transformation
-; applies if K is a constant or a non-global variable following
-; assignment elimination.
+; applies if K is a constant that can be duplicated without changing
+; its EQV? behavior.
+;
+;    ((lambda () (begin) (quote ...) E)) -> E
+;
+;    ((lambda (IGNORED I2 ...) ---) E1 E2 ...)
+; -> (begin E1 ((lambda (I2 ...) ---) E2 ...))
 ;
 ; (Single assignment analysis, performed by the simplifier for lambda
 ; expressions, detects unused arguments and replaces them in the argument
@@ -333,30 +383,21 @@
 
 (define (simplify-let exp notepad)
   (define proc (call.proc exp))
-  (define (loop formals actuals processed-formals processed-actuals for-effect)
+  
+  ; Loop1 operates before simplification of the lambda body.
+  
+  (define (loop1 formals actuals processed-formals processed-actuals)
     (cond ((null? formals)
            (if (not (null? actuals))
                (pass2-error p2error:wna exp))
-           (return processed-formals processed-actuals for-effect))
+           (return1 processed-formals processed-actuals))
           ((symbol? formals)
-           (if (ignored? formals)
-               (return processed-formals
-                       processed-actuals
-                       (append actuals for-effect))
-               (return (cons formals processed-formals)
-                       (cons (make-call-to-LIST actuals) processed-actuals)
-                       for-effect)))
+           (return1 (cons formals processed-formals)
+                    (cons (make-call-to-LIST actuals) processed-actuals)))
           ((null? actuals)
            (pass2-error p2error:wna exp)
-           (return processed-formals
-                   processed-actuals
-                   (append actuals for-effect)))
-          ((ignored? (car formals))
-           (loop (cdr formals)
-                 (cdr actuals)
-                 processed-formals
-                 processed-actuals
-                 (cons (car actuals) for-effect)))
+           (return1 processed-formals
+                    processed-actuals))
           ((and (lambda? (car actuals))
                 (let ((Rinfo (R-lookup (lambda.R proc) (car formals))))
                   (and (null? (R-entry.assignments Rinfo))
@@ -374,67 +415,104 @@
              (lambda.F-set! proc (union (lambda.F proc)
                                         (free-variables L)))
              (lambda.G-set! proc (union (lambda.G proc) (lambda.G L))))
-           (loop (cdr formals)
-                 (cdr actuals)
-                 processed-formals
-                 processed-actuals
-                 for-effect))
-          ((and (constant? (car actuals)))
+           (loop1 (cdr formals)
+                  (cdr actuals)
+                  processed-formals
+                  processed-actuals))
+          ((and (constant? (car actuals))
+                (let ((x (constant.value (car actuals))))
+                  (or (boolean? x)
+                      (number? x)
+                      (symbol? x)
+                      (char? x))))
            (let* ((I (car formals))
                   (Rinfo (R-lookup (lambda.R proc) I)))
-             (for-each (lambda (ref)
-                         (variable-set! ref (car actuals)))
-                       (R-entry.references Rinfo))
-             (lambda.R-set! proc (remq Rinfo (lambda.R proc)))
-             (lambda.F-set! proc (remq I (lambda.F proc)))
-             (lambda.G-set! proc (remq I (lambda.G proc)))
-             (loop (cdr formals)
-                   (cdr actuals)
-                   processed-formals
-                   processed-actuals
-                   for-effect)))
+             (if (null? (R-entry.assignments Rinfo))
+                 (begin
+                  (for-each (lambda (ref)
+                              (variable-set! ref (car actuals)))
+                            (R-entry.references Rinfo))
+                  (lambda.R-set! proc (remq Rinfo (lambda.R proc)))
+                  (lambda.F-set! proc (remq I (lambda.F proc)))
+                  (lambda.G-set! proc (remq I (lambda.G proc)))
+                  (loop1 (cdr formals)
+                         (cdr actuals)
+                         processed-formals
+                         processed-actuals))
+                 (loop1 (cdr formals)
+                        (cdr actuals)
+                        (cons (car formals) processed-formals)
+                        (cons (car actuals) processed-actuals)))))
           (else (if (null? actuals)
                     (pass2-error p2error:wna exp))
-                (loop (cdr formals)
-                      (cdr actuals)
-                      (cons (car formals) processed-formals)
-                      (cons (car actuals) processed-actuals)
-                      for-effect))))
-  (define (return formals actuals for-effect)
-    (lambda.args-set! proc (reverse formals))
-    (call.args-set! exp (reverse actuals))
-    (let ((exp (if (and (null? actuals)
-                        (or (null? (lambda.defs proc))
-                            (and (notepad.parent notepad)
-                                 (POLICY:LIFT? proc
-                                               (notepad.parent notepad)
-                                               (map (lambda (def) '())
-                                                    (lambda.defs proc))))))
-                   (begin (for-each (lambda (I)
-                                      (notepad-var-add! notepad I))
-                                    (lambda.F proc))
-                          (if (not (null? (lambda.defs proc)))
-                              (let ((parent (notepad.parent notepad))
-                                    (defs (lambda.defs proc))
-                                    (R (lambda.R proc)))
-                                (lambda.defs-set!
-                                  parent
-                                  (append defs (lambda.defs parent)))
-                                (lambda.defs-set! proc '())
-                                (lambda.R-set!
-                                  parent
-                                  (append (map (lambda (def)
-                                                 (R-lookup R (def.lhs def)))
-                                               defs)
-                                          (lambda.R parent)))))
-                          (lambda.body proc))
-                   exp)))
-      (if (null? for-effect)
-          exp
-          (post-simplify-begin (make-begin (append for-effect (list exp)))
-                               notepad))))
+                (loop1 (cdr formals)
+                       (cdr actuals)
+                       (cons (car formals) processed-formals)
+                       (cons (car actuals) processed-actuals)))))
+  
+  (define (return1 rev-formals rev-actuals)
+    (let ((formals (reverse rev-formals))
+          (actuals (reverse rev-actuals)))
+      (lambda.args-set! proc formals)
+      (simplify-lambda proc notepad)
+      (loop2 formals actuals '() '() '())))
+  
+  ; Loop2 operates after simplification of the lambda body.
+  
+  (define (loop2 formals actuals processed-formals processed-actuals for-effect)
+    (cond ((null? formals)
+           (return2 processed-formals processed-actuals for-effect))
+          ((ignored? (car formals))
+           (loop2 (cdr formals)
+                  (cdr actuals)
+                  processed-formals
+                  processed-actuals
+                  (cons (car actuals) for-effect)))
+          (else (loop2 (cdr formals)
+                       (cdr actuals)
+                       (cons (car formals) processed-formals)
+                       (cons (car actuals) processed-actuals)
+                       for-effect))))
+  
+  (define (return2 rev-formals rev-actuals rev-for-effect)
+    (let ((formals (reverse rev-formals))
+          (actuals (reverse rev-actuals))
+          (for-effect (reverse rev-for-effect)))
+      (lambda.args-set! proc formals)
+      (call.args-set! exp actuals)
+      (let ((exp (if (and (null? actuals)
+                          (or (null? (lambda.defs proc))
+                              (and (notepad.parent notepad)
+                                   (POLICY:LIFT? proc
+                                                 (notepad.parent notepad)
+                                                 (map (lambda (def) '())
+                                                      (lambda.defs proc))))))
+                     (begin (for-each (lambda (I)
+                                        (notepad-var-add! notepad I))
+                                      (lambda.F proc))
+                            (if (not (null? (lambda.defs proc)))
+                                (let ((parent (notepad.parent notepad))
+                                      (defs (lambda.defs proc))
+                                      (R (lambda.R proc)))
+                                  (lambda.defs-set!
+                                    parent
+                                    (append defs (lambda.defs parent)))
+                                  (lambda.defs-set! proc '())
+                                  (lambda.R-set!
+                                    parent
+                                    (append (map (lambda (def)
+                                                   (R-lookup R (def.lhs def)))
+                                                 defs)
+                                            (lambda.R parent)))))
+                            (lambda.body proc))
+                     exp)))
+        (if (null? for-effect)
+            exp
+            (post-simplify-begin (make-begin (append for-effect (list exp)))
+                                 notepad)))))
+  
   (notepad-nonescaping-add! notepad proc)
-  (loop (lambda.args proc) (call.args exp) '() '() '()))
+  (loop1 (lambda.args proc) (call.args exp) '() '()))
 
 ; Single assignment analysis performs the transformation
 ;

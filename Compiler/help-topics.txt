@@ -4,14 +4,14 @@
 ; $Id$
 ;
 ; Entry format: (<tag> <descriptor string> <text>)
+;
+; 13 December 1998
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
 "(compile-file <schemefile>)
 (compile-file <schemefile> <outputfile>)
   Compile the Scheme source file and produce a .fasl file.
-  This command is context-sensitive: if (write-barrier) is #f,
-  then the output file has extension .efasl by default.
 
 (assemble-file <asm-file>)
 (assemble-file <asm-file> <outputfile>)
@@ -39,9 +39,12 @@ settings. The switches are:
 Compilation switches:
   integrate-usual-procedures Generate in-line code for primitives.
   local-optimizations        Suppress redundant instructions.
-  benchmark-mode             Compile certain self-recursive calls as
-                             assuming the procedure won't be redefined.
-  empty-list-is-true         () counts as a true value.
+  lambda-optimizations       Suppress closures for known local procedures.
+  parallel-assignment-optimization    Choose a good order of evaluation.
+  benchmark-mode             Assume that self-recursive global procedures
+                             will not be redefined.
+  benchmark-block-mode       Assume variables will not be assigned outside
+                             of the file in which they are defined.
   issue-warnings             Print warning messages.
 
 Compilation meta-switches:
@@ -129,16 +132,12 @@ Heap files usually have the extension .heap.
   (dump-heap <heapname> <object-file> ...)
 
 This creates a bootstrap heap image containing all the given objects.
-However, it is not usually called directly; the following two procedures
-are typically more convenient:
+However, it is not usually called directly; the following procedure
+is typically more convenient:
 
-  (make-larceny-heap)
+  (make-sparc-heap)
     Create a bootstrap heap image for generational collectors,
-    using the default makefile. The heap is named \"larceny.heap\".
-
-  (make-larceny-eheap)
-    Create a bootstrap heap image for non-generational collectors,
-    using the default makefile. The heap is names \"larceny.eheap\".
+    using the default makefile. The heap is named \"sparc.heap\".
 
 Beware that neither of these commands cleans up .lop files compiled
 for a different collector type; you should first 'make lopclean' from

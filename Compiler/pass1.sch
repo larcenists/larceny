@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 20 November 1998
+; 13 December 1998
 ;
 ; First pass of the Twobit compiler:
 ;   macro expansion, syntax checking, alpha conversion,
@@ -57,15 +57,215 @@
 ;      to by R.
 ;   *  F and G are garbage.
 
+($$trace "pass1")
+
 (define source-file-name #f)
 (define source-file-position #f)
+
+(define pass1-block-compiling? #f)
+(define pass1-block-assignments '())
+(define pass1-block-inlines '())
 
 (define (pass1 def-or-exp . rest)
   (set! source-file-name #f)
   (set! source-file-position #f)
+  (set! pass1-block-compiling? #f)
+  (set! pass1-block-assignments '())
+  (set! pass1-block-inlines '())
   (if (not (null? rest))
       (begin (set! source-file-name (car rest))
              (if (not (null? (cdr rest)))
                  (set! source-file-position (cadr rest)))))
   (set! renaming-counter 0)
   (macro-expand def-or-exp))
+
+; Compiles a whole sequence of top-level forms on the assumption
+; that no variable that is defined by a form in the sequence is
+; ever defined or assigned outside of the sequence.
+;
+; This is a crock in three parts:
+;
+;    1.  Macro-expand each form and record assignments.
+;    2.  Find the top-level variables that are defined but not
+;        assigned, give them local names, generate a DEFINE-INLINE
+;        for each of the top-level procedures, and macro-expand
+;        each form again.
+;    3.  Wrap the whole mess in an appropriate LET and recompute
+;        the referencing information by copying it.
+;
+; Note that macros get expanded twice, and that all DEFINE-SYNTAX
+; macros are considered local to the forms.
+
+; FIXME: Need to turn off warning messages.
+
+(define (pass1-block forms . rest)
+  
+  (define (part1)
+    (set! pass1-block-compiling? #t)
+    (set! pass1-block-assignments '())
+    (set! pass1-block-inlines '())
+    (set! renaming-counter 0)
+    (let ((env0 (syntactic-copy global-syntactic-environment))
+          (bmode (benchmark-mode))
+          (wmode (issue-warnings))
+          (defined '()))
+      (define (make-toplevel-definition id exp)
+        (cond ((memq id defined)
+               (set! pass1-block-assignments
+                     (cons id pass1-block-assignments)))
+              ((or (constant? exp)
+                   (and (lambda? exp)
+                        (list? (lambda.args exp))))
+               (set! defined (cons id defined))))
+        (make-begin
+         (list (make-assignment id exp)
+               (make-constant id))))
+      (benchmark-mode #f)
+      (issue-warnings #f)
+      (for-each (lambda (form)
+                  (desugar-definitions form
+                                       global-syntactic-environment
+                                       make-toplevel-definition))
+                forms)
+      (set! global-syntactic-environment env0)
+      (benchmark-mode bmode)
+      (issue-warnings wmode)
+      (part2 (filter (lambda (id)
+                       (not (memq id pass1-block-assignments)))
+                     (reverse defined)))))
+  
+  (define (part2 defined)
+    (set! pass1-block-compiling? #f)
+    (set! pass1-block-assignments '())
+    (set! pass1-block-inlines '())
+    (set! renaming-counter 0)
+    (let* ((rename (make-rename-procedure))
+           (alist (map (lambda (id)
+                         (cons id (rename id)))
+                       defined))
+           (definitions0 '())    ; for constants
+           (definitions1 '()))   ; for lambda expressions
+      (define (make-toplevel-definition id exp)
+        (if (lambda? exp)
+            (doc.name-set! (lambda.doc exp) id))
+        (let ((probe (assq id alist)))
+          (if probe
+              (let ((id1 (cdr probe)))
+                (cond ((constant? exp)
+                       (set! definitions0
+                             (cons (make-assignment id exp)
+                                   definitions0))
+                       (make-constant id))
+                      ((lambda? exp)
+                       (set! definitions1
+                             (cons (make-assignment id1 exp)
+                                   definitions1))
+                       (make-assignment
+                        id
+                        (make-lambda (lambda.args exp)
+                                     '() ; no definitions
+                                     '() ; R
+                                     '() ; F
+                                     '() ; G
+                                     '() ; decls
+                                     (lambda.doc exp)
+                                     (make-call
+                                      (make-variable id1)
+                                      (map make-variable
+                                           (lambda.args exp))))))
+                      (else
+                       (m-error "Inconsistent macro expansion"
+                                (make-readable exp)))))
+              (make-assignment id exp))))
+      (let ((bmode (benchmark-mode))
+            (wmode (issue-warnings)))
+        (issue-warnings #f)
+        (for-each (lambda (pair)
+                    (let ((id0 (car pair))
+                          (id1 (cdr pair)))
+                      (m-define-inline
+                       `
+                       (define-inline ,id0
+                         (transformer
+                          (lambda (exp rename compare)
+                            ; Deliberately non-hygienic!
+                            (cons ',id1 (cdr exp)))))
+                       global-syntactic-environment)
+                      (set! pass1-block-inlines
+                            (cons id0 pass1-block-inlines))))
+                  alist)
+        (benchmark-mode #f)
+        (issue-warnings wmode)
+        (let ((forms
+               (do ((forms forms (cdr forms))
+                    (newforms '()
+                              (cons (desugar-definitions
+                                     (car forms)
+                                     global-syntactic-environment
+                                     make-toplevel-definition)
+                                    newforms)))
+                   ((null? forms)
+                    (reverse newforms)))))
+          (benchmark-mode bmode)
+          (part3 alist definitions0 definitions1 forms)))))
+  
+  (define (part3 alist definitions0 definitions1 forms)
+    (set! pass1-block-compiling? #f)
+    (set! pass1-block-assignments '())
+    (set! pass1-block-inlines '())
+    (let* ((constnames0 (map assignment.lhs definitions0))
+           (constnames1 (map (lambda (id0)
+                               (cdr (assq id0 alist)))
+                             constnames0))
+           (procnames1 (map assignment.lhs definitions1)))
+      (copy-exp
+       (make-call
+        (make-lambda
+         constnames1
+         '() ; no definitions
+         '() ; R
+         '() ; F
+         '() ; G
+         '() ; decls
+         #f  ; doc
+         (make-begin
+          (list
+           (make-begin
+            (cons (make-constant #f)
+                  (reverse
+                   (map (lambda (id)
+                          (make-assignment id (make-variable (cdr (assq id alist)))))
+                        constnames0))))
+           (make-call
+            (make-lambda
+             constnames0
+             '() ; no definitions
+             '() ; R
+             '() ; F
+             '() ; G
+             '() ; decls
+             #f  ; doc
+             (make-call
+              (make-lambda
+               (map assignment.lhs definitions1)
+               '() ; no definitions
+               '() ; R
+               '() ; F
+               '() ; G
+               '() ; decls
+               #f  ; doc
+               (make-begin (cons (make-constant #f)
+                                 (append definitions1 forms))))
+              (map (lambda (ignored) (make-unspecified))
+                   definitions1)))
+            (map make-variable constnames1))
+           )))
+        (map assignment.rhs definitions0)))))
+  
+  (set! source-file-name #f)
+  (set! source-file-position #f)
+  (if (not (null? rest))
+      (begin (set! source-file-name (car rest))
+             (if (not (null? (cdr rest)))
+                 (set! source-file-position (cadr rest)))))
+  (part1))

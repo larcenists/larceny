@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 9 December 1998
+; 13 December 1998
 ; Implementation-dependent parameters and preferences that determine
 ; how identifiers are represented in the output of the macro expander.
 ;
@@ -48,6 +48,8 @@
 ; Patches for Twobit.  Here temporarily.
 
 (define (make-toplevel-definition id exp)
+  (if (lambda? exp)
+      (doc.name-set! (lambda.doc exp) id))
   (make-begin
    (list (make-assignment id exp)
          (make-constant id))))
@@ -57,6 +59,3 @@
 
 (define (make-unspecified)
   (make-constant 'unspecified))
-
-(define name:CAR (string->symbol "CAR"))
-(define name:CDR (string->symbol "CDR"))
