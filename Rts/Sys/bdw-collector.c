@@ -331,11 +331,6 @@ static int iflush( gc_t *gc, int generation )
   return (int)(bdw_state.globals[G_CACHE_FLUSH]);
 }
 
-static void stats( gc_t *gc )
-{
-  panic( "Stats no longer in use." );
-}
-
 /* The following functions are available:
    GC_word GC_no_gc                 -- # of collections
    size_t GC_get_heap_size()        -- bytes; heap memory (not overhead)
@@ -480,7 +475,6 @@ static gc_t *allocate_area( word *globals )
 		     creg_set,
 		     stack_overflow,
 		     stack_underflow,
-		     stats,
 		     (int (*)())no_op_warn,  /* compact_all_ssbs */
 		     no_op_warn,             /* compact_np_ssb */
 		     no_op_warn,             /* np_remset_ptrs */
