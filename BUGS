@@ -20,7 +20,7 @@ Priority medium: "Should be fixed ASAP"
 Priority low: "Fix whenever."
 
 
-HIGH PRIORITY BUGS: 88, 111, 135.
+HIGH PRIORITY BUGS: 88, 111, 135, 136.
 
 
 005  (v0.27e)
@@ -40,15 +40,6 @@ HIGH PRIORITY BUGS: 88, 111, 135.
      This is generally no longer a problem, since heaps are allocated
      lazily.  It will become a problem when someone tries to load a heap
      image of about 32MB or more.
-
-012  (v0.28)  970507
-     Priority: low.
-     Category: RTS / correctness
-
-     Remembered-set size information from the command line is disregarded
-     when creating the remembered sets in the garbage collector.
-
-     See file Rts/Sys/memmgr.c
 
 034  v0.28f (970723 / lth)
      Priority: very low.
@@ -772,21 +763,6 @@ HIGH PRIORITY BUGS: 88, 111, 135.
 
     Not yet fixed because benchmarking is ongoing and there's no desire
     to rock the boat until we're out of that phase.
-
-135 v0.45 and many earlier (990920 / lth)
-    Priority: high
-    Category: RTS / correctness
-
-    The millicode call $m.gc always triggers a garbage collection.  This
-    is wrong, because $m.gc is called from the inline allocator due to
-    storage exhaustion, but the correct remedy is not always to collect --
-    in the stop/copy collector, the correct remedy is to move to the
-    next chunk.  In the current system it always collects, leading to
-    excessively high collection times for the stop+copy system.
-
-    Has been fixed in the radioactive99 system; the fix (involving memory.s, 
-    cglue.c, gc.c, gc_t.h, gc_t.c, young_heap_t.h, young_heap_t.c, sc-heap.c,
-    nursery.c, bdw-collector.c) must be ported.
 
 136 v0.45
     Priority: high
