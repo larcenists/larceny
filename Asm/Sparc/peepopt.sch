@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 23 April 1999.
+; 9 May 1999.
 ;
 ; Asm/Sparc/peepopt.sch -- MAL peephole optimizer, for the SPARC assembler.
 ;
@@ -414,13 +414,27 @@
   (let ((rs (operand1 i:reg))
         (op (operand1 i:op1)))
     (if (hwreg? rs)
-        (peep-reg/op1/check as op rs (operand4 i:check) tail))))
+        (peep-reg/op1/check as
+                            op
+                            rs
+                            (operand4 i:check)
+                            (list (operand1 i:check)
+                                  (operand2 i:check)
+                                  (operand3 i:check))
+                            tail))))
 
 (define (op1-check as i:op1 i:check tail)
   (let ((op (operand1 i:op1)))
-    (peep-reg/op1/check as op 'RESULT (operand4 i:check) tail)))
+    (peep-reg/op1/check as
+                        op
+                        'RESULT
+                        (operand4 i:check)
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
 
-(define (peep-reg/op1/check as op rs L1 tail)
+(define (peep-reg/op1/check as op rs L1 liveregs tail)
   (let ((op (case op
               ((fixnum?)      'internal:check-fixnum?)
               ((pair?)        'internal:check-pair?)
@@ -428,7 +442,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op1/check op rs L1)
+                    (cons (list $reg/op1/check op rs L1 liveregs)
                           tail)))))
 
 (define (reg-op2-check as i:reg i:op2 i:check tail)
@@ -436,14 +450,30 @@
         (rs2 (operand2 i:op2))
         (op (operand1 i:op2)))
     (if (hwreg? rs1)
-        (peep-reg/op2/check as op rs1 rs2 (operand4 i:check) tail))))
+        (peep-reg/op2/check as
+                            op
+                            rs1
+                            rs2
+                            (operand4 i:check)
+                            (list (operand1 i:check)
+                                  (operand2 i:check)
+                                  (operand3 i:check))
+                            tail))))
 
 (define (op2-check as i:op2 i:check tail)
   (let ((rs2 (operand2 i:op2))
         (op (operand1 i:op2)))
-    (peep-reg/op2/check as op 'RESULT rs2 (operand4 i:check) tail)))
+    (peep-reg/op2/check as
+                        op
+                        'RESULT
+                        rs2
+                        (operand4 i:check)
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
 
-(define (peep-reg/op2/check as op rs1 rs2 L1 tail)
+(define (peep-reg/op2/check as op rs1 rs2 L1 liveregs tail)
   (let ((op (case op
               ((<:fix:fix)   'internal:check-<:fix:fix)
               ((<=:fix:fix)  'internal:check-<=:fix:fix)
@@ -451,7 +481,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2/check op rs1 rs2 L1)
+                    (cons (list $reg/op2/check op rs1 rs2 L1 liveregs)
                           tail)))))
 
 (define (reg-op2imm-check as i:reg i:op2imm i:check tail)
@@ -459,14 +489,30 @@
         (op (operand1 i:op2imm))
         (imm (operand2 i:op2imm)))
     (if (hwreg? rs1)
-        (peep-reg/op2imm/check as op rs1 imm (operand4 i:check) tail))))
+        (peep-reg/op2imm/check as
+                               op
+                               rs1
+                               imm
+                               (operand4 i:check)
+                               (list (operand1 i:check)
+                                     (operand2 i:check)
+                                     (operand3 i:check))
+                               tail))))
 
 (define (op2imm-check as i:op2imm i:check tail)
   (let ((op (operand1 i:op2imm))
         (imm (operand2 i:op2imm)))
-    (peep-reg/op2imm/check as op 'RESULT imm (operand4 i:check) tail)))
+    (peep-reg/op2imm/check as
+                           op
+                           'RESULT
+                           imm
+                           (operand4 i:check)
+                           (list (operand1 i:check)
+                                 (operand2 i:check)
+                                 (operand3 i:check))
+                           tail)))
 
-(define (peep-reg/op2imm/check as op rs1 imm L1 tail)
+(define (peep-reg/op2imm/check as op rs1 imm L1 liveregs tail)
   (let ((op (case op
               ((<:fix:fix)   'internal:check-<:fix:fix/imm)
               ((<=:fix:fix)  'internal:check-<=:fix:fix/imm)
@@ -474,7 +520,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2imm/check op rs1 imm L1)
+                    (cons (list $reg/op2imm/check op rs1 imm L1 liveregs)
                           tail)))))
 
 (define (reg/op1/check-reg-op1-setreg as i:ro1check i:reg i:op1 i:setreg tail)
@@ -493,7 +539,8 @@
                                 'internal:check-vector?/vector-length:vec
                                 r1
                                 r3
-                                (operand3 i:ro1check))
+                                (operand3 i:ro1check)
+                                (operand4 i:ro1check))
                           tail)))))
 
 ; Range checks of the form 0 <= i < n can be performed by a single check.
@@ -511,6 +558,7 @@
         (rs1  (operand2 i:ro2check))
         (rs2  (operand3 i:ro2check))
         (L1   (operand4 i:ro2check))
+        (live (operand5 i:ro2check))
         (rs3  (operand1 i:reg))
         (o2   (operand1 i:op2imm))
         (x    (operand2 i:op2imm))
@@ -522,7 +570,7 @@
              (eq? L1 L2))
         (as-source! as
                     (cons (list $reg/op2/check 'internal:check-range
-                                                rs1 rs2 L1)
+                                                rs1 rs2 L1 live)
                           tail)))))
 
 ; End of check optimization.

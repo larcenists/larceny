@@ -5,7 +5,7 @@
 ; Asm/Sparc/gen-msi.sch -- SPARC assembler code emitters for 
 ;    core MacScheme instructions
 ;
-; 15 April 1999 / wdc
+; 9 May 1999 / wdc
 
 
 ; SETGLBL
@@ -143,36 +143,36 @@
 
 (define (emit-invoke as n setrtn? mc-exception)
   (let ((START    (new-label))
-	(TIMER-OK (new-label))
-	(PROC-OK  (new-label)))
+        (TIMER-OK (new-label))
+        (PROC-OK  (new-label)))
     (cond ((not (unsafe-code))
-	   (sparc.label        as START)
-	   (sparc.subicc       as $r.timer 1 $r.timer)
-	   (sparc.bne          as TIMER-OK)
-	   (sparc.andi         as $r.result $tag.tagmask $r.tmp0)
-	   (millicode-call/ret as $m.timer-exception START)
-	   (sparc.label        as TIMER-OK)
-	   (sparc.cmpi         as $r.tmp0 $tag.procedure-tag)
-	   (sparc.be.a         as PROC-OK)
-	   (sparc.ldi          as $r.result $p.codevector $r.tmp0)
-	   (millicode-call/ret as mc-exception START)
-	   (sparc.label        as PROC-OK))
-	  (else
-	   (sparc.label        as START)
-	   (sparc.subicc       as $r.timer 1 $r.timer)
-	   (sparc.bne.a        as TIMER-OK)
-	   (sparc.ldi          as $r.result $p.codevector $r.tmp0)
-	   (millicode-call/ret as $m.timer-exception START)
-	   (sparc.label        as TIMER-OK)))
+           (sparc.label        as START)
+           (sparc.subicc       as $r.timer 1 $r.timer)
+           (sparc.bne          as TIMER-OK)
+           (sparc.andi         as $r.result $tag.tagmask $r.tmp0)
+           (millicode-call/ret as $m.timer-exception START)
+           (sparc.label        as TIMER-OK)
+           (sparc.cmpi         as $r.tmp0 $tag.procedure-tag)
+           (sparc.be.a         as PROC-OK)
+           (sparc.ldi          as $r.result $p.codevector $r.tmp0)
+           (millicode-call/ret as mc-exception START)
+           (sparc.label        as PROC-OK))
+          (else
+           (sparc.label        as START)
+           (sparc.subicc       as $r.timer 1 $r.timer)
+           (sparc.bne.a        as TIMER-OK)
+           (sparc.ldi          as $r.result $p.codevector $r.tmp0)
+           (millicode-call/ret as $m.timer-exception START)
+           (sparc.label        as TIMER-OK)))
     (sparc.move                as $r.result $r.reg0)
     ;; FIXME: limit 1023 args
     (cond (setrtn?
-	   (sparc.set          as (thefixnum n) $r.result)
-	   (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.o7)
-	   (sparc.sti          as $r.o7 4 $r.stkp))
-	  (else
-	   (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.g0)
-	   (sparc.set          as (thefixnum n) $r.result)))))
+           (sparc.set          as (thefixnum n) $r.result)
+           (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.o7)
+           (sparc.sti          as $r.o7 4 $r.stkp))
+          (else
+           (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.g0)
+           (sparc.set          as (thefixnum n) $r.result)))))
 
 ; SAVE -- for new compiler
 ;
@@ -265,10 +265,10 @@
 
 (define (emit-apply! as r1 r2)
   (let ((L0 (new-label)))
-    (check-timer as L0 L0)
-    (sparc.label as L0)
-    (emit-move2hwreg! as r1 $r.argreg2)
-    (emit-move2hwreg! as r2 $r.argreg3)
+    (check-timer0        as)
+    (sparc.label         as L0)
+    (emit-move2hwreg!    as r1 $r.argreg2)
+    (emit-move2hwreg!    as r2 $r.argreg3)
     (millicode-call/0arg as $m.apply)))
 
 
@@ -437,18 +437,12 @@
 	 (save-list      *lastreg* n (+ $p.reg0 (* *lastreg* 4))))))
 
 ; BRANCH
-; 
-; The 'nop' can be changed to a 'slot' but it has no effect because of
-; an assembler peculiarity.  (Namely, sparc.slot is effective only in the
-; slot of an annulled branch, and sparc.b is not annulled.  Also, sparc.b.a
-; does not mean what you think, so don't try.  This should all be fixed
-; when the assembler gets smart about delay slot filling.)
 
 (define (emit-branch! as check-timer? label)
   (if check-timer?
       (check-timer as label label)
-      (begin (sparc.b   as label)
-	     (sparc.nop as))))
+      (begin (sparc.b    as label)
+             (sparc.slot as))))
 
 
 ; BRANCHF
@@ -468,11 +462,9 @@
 ; BRANCH-WITH-SETRTN -- introduced by peephole optimization
 
 (define (emit-branch-with-setrtn! as label)
-  (let ((L0 (new-label)))
-    (check-timer as L0 L0)
-    (sparc.label as L0)
-    (sparc.call as label)
-    (sparc.sti as $r.o7 4 $r.stkp)))
+  (check-timer0 as)
+  (sparc.call   as label)
+  (sparc.sti    as $r.o7 4 $r.stkp))
 
 ; JUMP
 ;

@@ -2,7 +2,7 @@
 ; 
 ; $Id$
 ;
-; 23 April 1999 / wdc
+; 9 May 1999 / wdc
 ;
 ; SPARC code generation macros for primitives, part 2:
 ;   primitives introduced by peephole optimization.
@@ -404,18 +404,18 @@
 ; Unary predicates followed by a check.
 
 (define-primop 'internal:check-fixnum?
-  (lambda (as src L1)
+  (lambda (as src L1 liveregs)
     (sparc.btsti   as src 3)
-    (emit-checkcc! as sparc.bne L1)))
+    (emit-checkcc! as sparc.bne L1 liveregs)))
 
 (define-primop 'internal:check-pair?
-  (lambda (as src L1)
+  (lambda (as src L1 liveregs)
     (sparc.andi    as src $tag.tagmask $r.tmp0)
     (sparc.cmpi    as $r.tmp0 $tag.pair-tag)
-    (emit-checkcc! as sparc.bne L1)))
+    (emit-checkcc! as sparc.bne L1 liveregs)))
 
 (define-primop 'internal:check-vector?
-  (lambda (as src L1)
+  (lambda (as src L1 liveregs)
     (sparc.andi    as src $tag.tagmask $r.tmp0)
     (sparc.cmpi    as $r.tmp0 $tag.vector-tag)
     (sparc.bne     as L1)
@@ -423,10 +423,10 @@
     (sparc.ldi     as src (- $tag.vector-tag) $r.tmp0)
     (sparc.andi    as $r.tmp0 255 $r.tmp1)
     (sparc.cmpi    as $r.tmp1 $imm.vector-header)
-    (emit-checkcc! as sparc.bne L1)))
+    (emit-checkcc! as sparc.bne L1 liveregs)))
 
 (define-primop 'internal:check-vector?/vector-length:vec
-  (lambda (as src dst L1)
+  (lambda (as src dst L1 liveregs)
     (sparc.andi    as src     $tag.tagmask        $r.tmp0)
     (sparc.cmpi    as $r.tmp0 $tag.vector-tag)
     (sparc.bne     as L1)
@@ -435,7 +435,7 @@
     (sparc.andi    as $r.tmp0 255                 $r.tmp1)
     (sparc.cmpi    as $r.tmp1 $imm.vector-header)
     (sparc.bne     as L1)
-    (sparc.nop     as)
+    (apply sparc.slot2 as liveregs)
     (sparc.srli    as $r.tmp0 8 dst)))
 
 (define (internal-primop-invariant2 name a b)

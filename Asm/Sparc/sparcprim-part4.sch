@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 23 April 1999 / wdc
+; 9 May 1999 / wdc
 ;
 ; SPARC code generation macros for primitives, part 3:
 ;   fixnum-specific operations.
@@ -377,62 +377,62 @@
 ; Range check:  0 <= src1 < src2
 
 (define-primop 'internal:check-range
-  (lambda (as src1 src2 L1)
+  (lambda (as src1 src2 L1 livregs)
     (let ((src2 (force-hwreg! as src2 $r.argreg2)))
       (emit-fixnum-compare-check
-       as src2 src1 sparc.bleu L1))))
+       as src2 src1 sparc.bleu L1 livregs))))
 
 ; Trusted fixnum comparisons followed by a check.
 
 (define-primop 'internal:check-=:fix:fix
-  (lambda (as src1 src2 L1)
+  (lambda (as src1 src2 L1 liveregs)
     (emit-fixnum-compare-check
-     as src1 src2 sparc.bne L1)))
+     as src1 src2 sparc.bne L1 liveregs)))
 
 (define-primop 'internal:check-<:fix:fix
-  (lambda (as src1 src2 L1)
+  (lambda (as src1 src2 L1 liveregs)
     (emit-fixnum-compare-check
-     as src1 src2 sparc.bge L1)))
+     as src1 src2 sparc.bge L1 liveregs)))
 
 (define-primop 'internal:check-<=:fix:fix
-  (lambda (as src1 src2 L1)
+  (lambda (as src1 src2 L1 liveregs)
     (emit-fixnum-compare-check
-     as src1 src2 sparc.bg L1)))
+     as src1 src2 sparc.bg L1 liveregs)))
 
 (define-primop 'internal:check->:fix:fix
-  (lambda (as src1 src2 L1)
+  (lambda (as src1 src2 L1 liveregs)
     (emit-fixnum-compare-check
-     as src1 src2 sparc.ble L1)))
+     as src1 src2 sparc.ble L1 liveregs)))
 
 (define-primop 'internal:check->=:fix:fix
-  (lambda (as src1 src2 L1)
+  (lambda (as src1 src2 L1 liveregs)
     (emit-fixnum-compare-check
-     as src1 src2 sparc.bl L1)))
+     as src1 src2 sparc.bl L1 liveregs)))
 
 (define-primop 'internal:check-=:fix:fix/imm
-  (lambda (as src1 imm L1)
+  (lambda (as src1 imm L1 liveregs)
     (emit-fixnum-compare/imm-check
-     as src1 imm sparc.bne L1)))
+     as src1 imm sparc.bne L1 liveregs)))
 
 (define-primop 'internal:check-<:fix:fix/imm
-  (lambda (as src1 imm L1)
+  (lambda (as src1 imm L1 liveregs)
     (emit-fixnum-compare/imm-check
-     as src1 imm sparc.bge L1)))
+     as src1 imm sparc.bge L1 liveregs)))
 
 (define-primop 'internal:check-<=:fix:fix/imm
-  (lambda (as src1 imm L1)
+  (lambda (as src1 imm L1 liveregs)
     (emit-fixnum-compare/imm-check
-     as src1 imm sparc.bg L1)))
+     as src1 imm sparc.bg L1 liveregs)))
 
 (define-primop 'internal:check->:fix:fix/imm
-  (lambda (as src1 imm L1)
+  (lambda (as src1 imm L1 liveregs)
     (emit-fixnum-compare/imm-check
-     as src1 imm sparc.ble L1)))
+     as src1 imm sparc.ble L1 liveregs)))
 
 (define-primop 'internal:check->=:fix:fix/imm
-  (lambda (as src1 imm L1)
+  (lambda (as src1 imm L1 liveregs)
     (emit-fixnum-compare/imm-check
-     as src1 imm sparc.bl L1)))
+     as src1 imm sparc.bl L1 liveregs)))
 
 ; Below, 'target' is a label or #f.  If #f, RD must be a general hardware
 ; register or RESULT, and a boolean result is generated in RD.
@@ -490,16 +490,16 @@
 ; Range checks.
 
 (define (emit-fixnum-compare-check
-         as src1 src2 branch-bad L1)
+         as src1 src2 branch-bad L1 liveregs)
   (internal-primop-invariant1 'emit-fixnum-compare-check src1)
   (let ((src2 (force-hwreg! as src2 $r.argreg2)))
     (sparc.cmpr    as src1 src2)
-    (emit-checkcc! as branch-bad L1)))
+    (emit-checkcc! as branch-bad L1 liveregs)))
 
 (define (emit-fixnum-compare/imm-check
-         as src1 imm branch-bad L1)
+         as src1 imm branch-bad L1 liveregs)
   (internal-primop-invariant1 'emit-fixnum-compare/imm-check src1)
   (sparc.cmpi    as src1 imm)
-  (emit-checkcc! as branch-bad L1))
+  (emit-checkcc! as branch-bad L1 liveregs))
 
 ; eof

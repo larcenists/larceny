@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; 23 April 1999 / wdc
+; 11 June 1999 / wdc
 ;
 ; Asm/Sparc/pass5p2.sch -- Sparc machine assembler, top level
 
@@ -99,57 +99,48 @@
 (define-instruction $.singlestep
   (lambda (instruction as)
     (let ((instr (car (as-source as))))
-
+      
       (define (special?)
-	(let ((op (operand0 instr)))
-	  (or (= op $.label)
-	      (= op $.proc)
-	      (= op $.cont)
-	      (= op $.align)
-	      (and (= op $load) (= 0 (operand1 instr))))))
-
+        (let ((op (operand0 instr)))
+          (or (= op $.label)
+              (= op $.proc)
+              (= op $.cont)
+              (= op $.align)
+              (and (= op $load) (= 0 (operand1 instr))))))
+      
       (define (readify-instr)
-	(if (= (operand0 instr) $lambda)
-	    (list 'lambda '(...) (caddr instr) (cadddr instr))
-	    (car (readify-lap (list instr)))))
-
+        (if (= (operand0 instr) $lambda)
+            (list 'lambda '(...) (caddr instr) (cadddr instr))
+            (car (readify-lap (list instr)))))
+      
       (if (not (special?))
-	  (let ((repr   (format-object (readify-instr)))
-		(funky? (= (operand0 instr) $restore)))
-	    (let ((o (emit-datum as repr)))
-	      (emit-singlestep-instr! as funky? 0 o)))))))
+          (let ((repr   (format-object (readify-instr)))
+                (funky? (= (operand0 instr) $restore)))
+            (let ((o (emit-datum as repr)))
+              (emit-singlestep-instr! as funky? 0 o)))))))
 
 
 ; Instructions.
 
-; A hack to deal with the MacScheme macro expander's treatment of 1+ and 1-.
-
 (define-instruction $op1
   (lambda (instruction as)
-    (cond ((eq? (operand1 instruction) (string->symbol "1+"))
-	   (error "Obsolete op1 1+!")
-	   (push-instruction as (list $op2imm '+ 1)))
-	  ((eq? (operand1 instruction) (string->symbol "1-"))
-	   (error "Obsolete op1 1-!")
-	   (push-instruction as (list $op2imm '- 1)))
-	  (else
-	   (list-instruction "op1" instruction)
-	   (emit-primop.1arg! as (operand1 instruction))))))
+    (list-instruction "op1" instruction)
+    (emit-primop.1arg! as (operand1 instruction))))
 
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
     (emit-primop.2arg! as
-		       (operand1 instruction)
-		       (regname (operand2 instruction)))))
+                       (operand1 instruction)
+                       (regname (operand2 instruction)))))
 
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
     (emit-primop.3arg! as
-		       (operand1 instruction)
-		       (regname (operand2 instruction))
-		       (regname (operand3 instruction)))))
+                       (operand1 instruction)
+                       (regname (operand2 instruction))
+                       (regname (operand3 instruction)))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
@@ -164,11 +155,11 @@
                 ((fx<=) 'internal:fx<=/imm)
                 ((fx>)  'internal:fx>/imm)
                 ((fx>=) 'internal:fx>=/imm)
-                ((=:fix:fix)  'internal:=:fix:fix)
-                ((<:fix:fix)  'internal:<:fix:fix)
-                ((<=:fix:fix) 'internal:<=:fix:fix)
-                ((>:fix:fix)  'internal:>:fix:fix)
-                ((>=:fix:fix) 'internal:>=:fix:fix)
+                ((=:fix:fix)  'internal:=:fix:fix/imm)
+                ((<:fix:fix)  'internal:<:fix:fix/imm)
+                ((<=:fix:fix) 'internal:<=:fix:fix/imm)
+                ((>:fix:fix)  'internal:>:fix:fix/imm)
+                ((>=:fix:fix) 'internal:>=:fix:fix/imm)
                 (else #f))))
       (if op
           (emit-primop.4arg! as op $r.result (operand2 instruction) $r.result)
@@ -385,7 +376,10 @@
     (list-instruction "check" instruction)
     (if (not (unsafe-code))
         (emit-check! as $r.result
-                        (make-asm-label as (operand4 instruction))))))
+                        (make-asm-label as (operand4 instruction))
+                        (list (regname (operand1 instruction))
+                              (regname (operand2 instruction))
+                              (regname (operand3 instruction)))))))
 
 (define-instruction $trap
   (lambda (instruction as)
@@ -395,6 +389,16 @@
                 (regname (operand2 instruction))
                 (regname (operand3 instruction))
                 (operand4 instruction))))
+
+(define-instruction $const/setreg
+  (lambda (instruction as)
+    (list-instruction "const/setreg" instruction)
+    (let ((x (operand1 instruction))
+          (r (operand2 instruction)))
+      (if (hwreg? r)
+          (emit-constant->register as x (regname r))
+          (begin (emit-constant->register as x $r.tmp0)
+                 (emit-register->register! as $r.tmp0 (regname r)))))))
 
 ; Operations introduced by the peephole optimizer.
 
@@ -433,28 +437,31 @@
 (define-instruction $reg/op1/check
   (lambda (instruction as)
     (list-instruction "reg/op1/check" instruction)
-    (emit-primop.3arg! as
+    (emit-primop.4arg! as
 		       (operand1 instruction)
 		       (peep-regname (operand2 instruction))
-		       (make-asm-label as (operand3 instruction)))))
+		       (make-asm-label as (operand3 instruction))
+         (map peep-regname (operand4 instruction)))))
 
 (define-instruction $reg/op2/check
   (lambda (instruction as)
     (list-instruction "reg/op2/check" instruction)
-    (emit-primop.4arg! as
+    (emit-primop.5arg! as
 		       (operand1 instruction)
 		       (peep-regname (operand2 instruction))
 		       (peep-regname (operand3 instruction))
-		       (make-asm-label as (operand4 instruction)))))
+		       (make-asm-label as (operand4 instruction))
+         (map peep-regname (operand5 instruction)))))
 
 (define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
-    (emit-primop.4arg! as
+    (emit-primop.5arg! as
 		       (operand1 instruction)
 		       (peep-regname (operand2 instruction))
 		       (operand3 instruction)
-		       (make-asm-label as (operand4 instruction)))))
+		       (make-asm-label as (operand4 instruction))
+         (map peep-regname (operand5 instruction)))))
 
 ;
 
@@ -492,13 +499,6 @@
 		       (peep-regname (operand2 instruction))
 		       (peep-regname (operand3 instruction))
 		       (peep-regname (operand4 instruction)))))
-
-(define-instruction $const/setreg
-  (lambda (instruction as)
-    (list-instruction "const/setreg" instruction)
-    (emit-constant->register as
-			     (operand1 instruction)
-			     (regname (operand2 instruction)))))
 
 (define-instruction $reg/branchf
   (lambda (instruction as)

@@ -4,7 +4,7 @@
 ;
 ; SPARC assembler machine parameters & utility procedures.
 ;
-; 29 April 1999 / wdc
+; 13 May 1999 / wdc
 
 ; Round up to nearest 8.
 
@@ -207,9 +207,9 @@
 
 ; Code for runtime safety checking.
 
-(define (emit-check! as rs0 L1)
+(define (emit-check! as rs0 L1 liveregs)
   (sparc.cmpi as rs0 $imm.false)
-  (emit-checkcc! as sparc.be L1))
+  (emit-checkcc! as sparc.be L1 liveregs))
 
 ; FIXME:  This should call the exception handler for non-continuable exceptions.
 
@@ -278,9 +278,9 @@
 #f
 )
 
-(define (emit-checkcc! as branch-bad L1)
+(define (emit-checkcc! as branch-bad L1 liveregs)
   (branch-bad as L1)
-  (sparc.nop  as))
+  (apply sparc.slot2 as liveregs))
 
 ; Generation of millicode calls for non-continuable exceptions.
 
@@ -379,5 +379,15 @@
   (sparc.bne.a  as DESTINATION)
   (sparc.slot   as)
   (millicode-call/ret as $m.timer-exception RETRY))
+
+; When the destination and retry labels are the same, and follow the
+; timer check immediately, then this code saves two static instructions.
+
+(define (check-timer0 as)
+  (sparc.subicc as $r.timer 1 $r.timer)
+  (sparc.bne.a  as (+ (here as) 16))
+  (sparc.slot   as)
+  (sparc.jmpli as $r.millicode $m.timer-exception $r.o7)
+  (sparc.nop as))
 
 ; eof
