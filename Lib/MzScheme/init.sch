@@ -18,7 +18,7 @@
         current-continuation-marks
         continuation-marks
         continuation-marks/structure
-        continuation-mark-set->list)))
+        continuation-mark-set->list)
 
 ;; structs
 (export)
