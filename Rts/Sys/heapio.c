@@ -161,8 +161,8 @@ heapio_t *create_heapio( void )
 
 int hio_open( heapio_t *h, const char *filename )
 {
-  unsigned vno, metadata_size;
-  int i, j, r;
+  unsigned vno;
+  int i, j;
   FILE *fp;
 
   assert( h->fp == 0 );
@@ -262,7 +262,7 @@ int hio_dump_initiate( heapio_t *h, word *globals )
 
 int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
 {
-  int newsize, i, j;
+  int newsize, i;
   hio_tbl *tbl;
   hio_range *a;
 

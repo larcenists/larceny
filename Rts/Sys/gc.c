@@ -49,7 +49,7 @@ word *alloc_from_heap( int bytes )
    */
 word allocate_nonmoving( int length, int tag )
 {
-  int i, bytes;
+  int i, bytes = 0;
   word *obj;
 
   switch( tag ) {

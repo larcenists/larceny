@@ -169,7 +169,7 @@ static int decision( old_heap_t *heap )
   old_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
   int X, Y, Z, M, Xnext;
-  int *live_est, i, n, j;
+  int i, n, j;
 
   /* n: number of ephemeral areas (including young_area) */
   /* i: _index_ in ephemeral_area[] of this heap */

@@ -102,7 +102,6 @@ create_sc_heap( int gen_no,
 {
   young_heap_t *heap;
   sc_data_t *data;
-  int r;
 
   assert( info->size_bytes >= PAGESIZE );
 
@@ -367,8 +366,6 @@ static void creg_set( young_heap_t *heap, word k )
 
 static int collect_if_no_room( young_heap_t *heap, int nbytes )
 {
-  sc_data_t *data = DATA(heap);
-
   if (free_space( heap ) < nbytes) {
     supremely_annoyingmsg( "sc-heap: couldn't find room for %d bytes",
 			   nbytes );
@@ -413,13 +410,15 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
 
 static void must_create_stack( young_heap_t *heap )
 {
-  stk_create( DATA(heap)->globals ) || panic_abort( "INVARIANT" );
+  if (!stk_create( DATA(heap)->globals ))
+    panic_abort( "INVARIANT" );
   DATA(heap)->stacks_created++;
 }
 
 static void must_restore_frame( young_heap_t *heap )
 {
-  stk_restore_frame( DATA(heap)->globals ) || panic_abort( "INVARIANT" );
+  if (!stk_restore_frame( DATA(heap)->globals ))
+    panic_abort( "INVARIANT" );
 }
 
 static void flush_stack( young_heap_t *heap )

@@ -14,11 +14,6 @@
 static int default_initialize( old_heap_t *h ) { return 1; }
 static void default_set_policy( old_heap_t *h, int x, int y ) { }
 
-static void default_collect_with_selective_fromspace( old_heap_t *h, int *f )
-{
-  panic( "collect_with_selective_fromspace not available." );
-}
-
 old_heap_t *create_old_heap_t(
   char *id,
   word code,

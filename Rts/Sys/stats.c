@@ -198,8 +198,6 @@ static int initialized = 0;
 void
 stats_init( gc_t *collector, int gens, int show_heapstats )
 {
-  int i;
-
   gc = collector;
   generations = gens;
 

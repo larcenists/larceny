@@ -31,8 +31,6 @@ void localdebugger( void )
 /*  printf( "[runtime system debugger; type '?' for help]\n" ); */
   while (1) {
     char cmd[ 80 ], cmdl[ 80 ];
-    word val;
-    int regno;
 
     printf( "[rtsdebug] " ); fflush( stdout );
     if (fgets( cmd, 80, stdin ) == NULL) {
@@ -216,7 +214,7 @@ static void help( void )
 static void examine( char *cmdl )
 {
   word loc;
-  unsigned count;
+  unsigned count = 0;
   char type;
   int regno;
 

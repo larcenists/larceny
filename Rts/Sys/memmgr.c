@@ -454,7 +454,7 @@ enumerate_remsets_older_than( gc_t *gc,
 			      void *fdata,
 			      bool enumerate_np_young )
 {
-  int i, limit;
+  int i;
 
   if (!DATA(gc)->is_generational_system) return;
 
@@ -618,7 +618,7 @@ static int dump_semispace( heapio_t *heap, int type, semispace_t *ss )
 
 static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
 {
-  int type, r, i;
+  int type, r;
   word *p;
   heapio_t *heap;
 

@@ -70,7 +70,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 
   ffi_arg args[ 32 ];
   int i, limit, argc;
-  word w_result, w;
+  word w_result;
   double d_result;
   float f_result;
 
@@ -339,6 +339,7 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
   byte *argp;
 
   bytes = 0;
+  ptr = 0;
 
   /* Make a pass over the arguments and find out if we need to do any
    * allocation.  This can't be predetermined, although the upper limit

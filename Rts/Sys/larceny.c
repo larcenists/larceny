@@ -356,7 +356,7 @@ static void init_generational( opt_t *o, int areas, char *name )
 static void
 parse_options( int argc, char **argv, opt_t *o )
 {
-  int i, loc, heaps, prev_size, areas = DEFAULT_AREAS;
+  int i, loc, prev_size, areas = DEFAULT_AREAS;
 #if defined( BDW_GC )
   double load_factor = 0.0;	              /* Ignore it. */
 #else

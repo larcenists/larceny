@@ -82,7 +82,6 @@ static enum action decision( old_heap_t *heap );
 static int used_young( old_heap_t *heap );
 static int used_old( old_heap_t *heap );
 static int compute_dynamic_size( old_heap_t *heap, int D, int Q );
-static int cleanup_scanner( word obj, void *data, unsigned *ignored );
 
 old_heap_t *
 create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
@@ -338,7 +337,7 @@ static int check_for_remset_overflow( old_heap_t *heap )
 static void adjust_j( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int i, young_before = used_young( heap ), old_j = data->j;
+  int i, young_before = used_young( heap );
   los_t* los = heap->collector->los;
 
   /* Adjust data->j. */
@@ -395,7 +394,6 @@ static void perform_promote_to_old( old_heap_t *heap )
 static void perform_promote_to_both( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  los_t *los = heap->collector->los;
   int x, young_available, old_available;
 
   annoyingmsg( "  Promoting to both old and young." );

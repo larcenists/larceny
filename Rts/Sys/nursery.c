@@ -114,7 +114,6 @@ create_nursery( int gen_no,
 
 static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
 {
-  young_data_t *data = DATA(heap);
   word *globals = DATA(heap)->globals;
   word *p;
 
@@ -221,13 +220,15 @@ static word *data_load_area( young_heap_t *heap, int nbytes )
 
 static void must_create_stack( young_heap_t *heap )
 {
-  stk_create( DATA(heap)->globals ) || panic( "nursery: create_stack" );
+  if (!stk_create( DATA(heap)->globals ))
+    panic( "nursery: create_stack" );
   DATA(heap)->stacks_created += 1;
 }
 
 static void must_restore_frame( young_heap_t *heap )
 {
-  stk_restore_frame( DATA(heap)->globals ) || panic( "nursery: restore_frame");
+  if (!stk_restore_frame( DATA(heap)->globals ))
+    panic( "nursery: restore_frame");
 }
 
 static void flush_stack( young_heap_t *heap )

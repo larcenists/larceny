@@ -585,7 +585,7 @@ static void reset_after_collection( old_heap_t *heap )
 {
   dof_data_t *data = DATA(heap);
   double mark_cons = (double)(data->marking)/(double)(data->consing);
-  int free, old_rp, new_size, permutation[ MAX_GENERATIONS ], i;
+  int free = 0, old_rp, new_size, permutation[ MAX_GENERATIONS ], i;
 
   if (data->marking == 0 && data->consing == 0)
     panic_abort( "DOF GC bug: mark/cons ratio is NaN." );
