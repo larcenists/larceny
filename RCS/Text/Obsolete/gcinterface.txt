@@ -1,43 +1,40 @@
+; $Id$
 
                   Garbage Collector Interface Definition 
-
-                          (draft May 22, 1991)
-
-[As of May 22, this document and the collector are not entirely in sync, as the
- new semantics for e_limit have not been implemented. Also, section 8 of this
- document is not current.]
 
                           --------------------
 
 
-0. Purpose of this Document
----------------------------
+0. Scope of this Document
+-------------------------
 This document describes the conventions that must be followed by an
-application using the garbage collector (henceforth called 'the
-mutator'). There are specifications for collector initialization,
-space allocation, data formats, and invariants that must be upheld by
-the mutator.
+application using the garbage collector (henceforth called 'the mutator').
+There are specifications for collector initialization, space allocation,
+data formats, and invariants that must be upheld by the mutator.
 
 This document does not describe the internal workings of the garbage 
 collector.
 
+Other relevant documents are "memory.txt", which describes the higher-level
+interface to the memory management system, and "gc.txt", which describes
+the implementation of the garbage collector.
+
 
 1. General Conventions
 ----------------------
-A number of global variables are used by the collector and described
-in the following. The variables are defined by the collector and must
-have their correct values when the 'collect()' procedure is called.
-However, the mutator may keep these variables in registers between
-calls to the collector.
+All global variables defined by the collector are kept in the "globals"
+table. They must have their correct values when the 'collect()' procedure
+is called.  However, the mutator may keep these variables in registers
+between calls to the collector.
 
-Algorithms are described in C but will in practice be coded in
-assembly language if the mutator runs compiled code that uses
-processor registers for virtual machine registers.
+Algorithms for allocation are described in C but will in practice be coded
+in assembly language if the mutator runs compiled code that uses processor
+registers for virtual machine registers.
 
 
 2. Data Formats
 ---------------
-A pointer has a 3 bit type tag in the low order bits. Structures on
+A pointer has a 2 or 3 bit type tag in the low order bits. Structures on
 the heap (except pairs) have a type tag in the first word. All heap
 structures must be aligned on an 8-byte boundary.
 
@@ -63,21 +60,22 @@ The following are the immediate formats.
   0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
 
 The 'xxx' bits in the low byte of a header can be used by the mutator to
-distinguish between different subtypes of structures.
+distinguish between different subtypes of structures; they are neither
+used nor examined by the collector.
 
 The 's' bits must contain the size of the data structure in bytes, not
-including the header word. The collector will correctly round
-"bytevector" and "reserved" lengths up to a word boundary. Hence, for
-these structures, the 's' bits gives the correct length of the datum,
-like the length of a string. For vectors and procedures the s field must
-be evenly divisible by 4 (low two bits are 0).
+including the header word, and not including padding (see below). The
+collector will correctly round "bytevector" and "reserved" lengths up to a
+word boundary. Hence, for these structures, the 's' bits gives the correct
+length of the datum, like the length of a string. For vectors and
+procedures the s field must be evenly divisible by 4 (low two bits are 0).
 
-Since all pointers are doubleword-aligned, some vectors, bytevectors,
-and procedures will have to be padded out to an even number of words.
-The mutator must allocate the extra word but may choose to leave it
-uninitialized; the collector will take the size of the vector into
-account and skip the padding. If the word is initialized, it may or
-may not be copied along with the structure during a collection.
+Since all pointers are doubleword-aligned, some vectors, bytevectors, and
+procedures will have to be padded out to an even number of words.  The
+mutator must allocate the extra word but may choose to leave it
+uninitialized; the collector will take the size of the vector into account
+and skip the padding. If the word is initialized, it may or may not be
+copied along with the structure during a collection.
 
 The structure layout is this.
 
@@ -103,271 +101,314 @@ The structure layout is this.
     collector does not know about the "reserved" header.
 
 
+3. The Collector's World View
+-----------------------------
+There are four areas of memory, denoted the Static, Ephemeral, Tenured, and
+Stack areas. There is also a set of Root Pointers.
 
-3. Initializing the collector
+- The Static area has no out pointers and will not be used for roots
+  during a collection, nor will pointers into the Static area be traversed
+  during a collection. The collector allocates this area as requested
+  but never references it.
+
+- The Ephemeral area is used for data structure creation; all memory 
+  allocation is performed in the ephemeral area.
+
+- The Tenured area is used for keeping data structures that are assumed
+  to have an extended life. No memory is ever allocated directly from
+  the Tenured area; data structures are created here only when they are
+  moved from the Ephemeral area. The Tenured area also holds the 
+  "transaction list", which is a set of pointers to data structures in 
+  the Tenured area which might have pointers to data structures in the
+  Ephemeral area.
+
+- The Stack area has no in pointers and is used only by the mutator; the
+  collector allocates this area but never references it. If there are
+  out pointers from the Stack area into the Tenured or Ephemeral areas,
+  these pointers must also exist in data structures in those areas or
+  in the root pointer set.
+
+- The root pointers are those elements of the global table "globals"
+  (which is not defined by the collector module) between the indices
+  FIRST_ROOT and LAST_ROOT, both of which are constants which must be
+  defined in the file "gc.h". The "globals" table must be an array
+  of the data type "word", which is defined in the file "gcinterface.h".
+
+The collector defines the following variables in the "globals" table
+(the names used are the symbolic names of the offsets into the table,
+as defined in the file "offsets.h"):
+
+E_BASE_OFFSET	A pointer pointing to the first word of the current
+		Ephemeral space.
+E_TOP_OFFSET	A pointer pointing to the first unallocated word of the
+		current Ephemeral space.
+E_MARK_OFFSET	A pointer into the current Ephemeral area. If, after a
+		collection of the ephemeral area, the data in the Ephemeral
+		area goes past this mark, then the next collection
+		will be a tenuring collection.
+E_MAX_OFFSET	A pointer to the last word of the current Ephemeral 
+		space.
+		
+T_BASE_OFFSET	A pointer to the first word of the current Tenured
+		space.
+T_TOP_OFFSET	A pointer to the first unallocated word of the current
+		Tenured space.
+T_TRANS_OFFSET	A pointer to the last word of the current Tenured space
+		before the transaction area; the transactions are allocated
+		towards low memory.
+T_MAX_OFFSET	A pointer to the last word of the current Tenured area.
+		The words between T_MAX_OFFSET (inclusive) and 
+		T_TRANS_OFFSET (exclusive) make up the transaction list.
+
+S_BASE_OFFSET	A pointer to the first word of the Static space.
+S_MAX_OFFSET	A pointer to the last word of the Static space.
+
+STK_BASE_OFFSET	A pointer to the first word of the Stack space.
+STK_MAX_OFFSET	A pointer to the last word of the Stack space.
+
+The mutator may only change T_TRANS_OFFSET; all other values are to be
+considered read-only to the mutator. All Tenured and Ephemeral pointers
+are subject to change after a collection.
+
+All pointers into all spaces are comparable. The Ephemeral area pointers
+always compare less than the Static area pointers, which in turn compare
+less than the Tenured area pointers.  Stack area pointers compare less than
+Ephemeral area pointers.
+
+
+4. Initializing the collector
 -----------------------------
 The collector is initialized with a call to 'init_collector()':
 
-  init_collector( s_size, t_size, e_size, e_mark, stack_size, stack_mark );
+  init_collector( s_size, t_size, e_size, e_mark, stack_size );
 
-where 's_size', 't_size', and 'e_size', and 'stack_size' are the sizes
-(in bytes) of the static, tenured, ephemeral, and stack cache areas,
-respectively, and 'e_mark' and 'stack_mark' are the watermark offets
-(in bytes) from the bottom of each area. The collector does not interpret
-the watermarks to mean anything in particular; it just uses them to set
-up the pointers for the memory spaces (see section 4).
+where 's_size', 't_size', and 'e_size', and 'stack_size' are the sizes (in
+bytes) of the Static, Tenured, Ephemeral, and Stack areas, respectively,
+and 'e_mark' is the watermark offet (in bytes) from the bottom of the
+Ephemeral area.
 
-Upon initialization, the collector will honor the given sizes and
-marks insofar as they do not violate the constraints set forth in the
-header file "gc.h".  The collector goes to great lengths to make sure that
-values used by the collector are reasonable.
+Upon initialization, the collector will honor the given sizes and marks
+insofar as they do not violate the constraints set forth in the header file
+"gc.h". The collector will change unreasonable values into reasonable ones.
 
-The file "gc.h" and its contents are described in section XYZZY.
-
-
-4. Memory Layout
-----------------
-The ephemeral area is at the bottom, the static area is in the middle,
-and the tenured area is at the top of memory. The position of the stack
-area relative to the other areas is left undefined. Any pointer into
-either area is comparable with any other pointer into either area.
-Hence, we can determine whether any pointer points into a specific
-area by at most two comparisons, and only one will usually be
-necessary.
-
-The areas are delimited by the following global pointer variables:
-
-  'e_base', 'e_limit' : lower and upper bound of current ephemeral area
-  't_base', 't_limit' : ditto for tenured area
-  's_base', 's_limit' : ditto for static area
-  'stack_base', 
-  'stack_limit'       : ditto for stack area
-
-In addition, the stack and ephemeral areas have watermark pointers:
-'e_mark' and 'stk_mark', respectively.
-
-For all these variables, the relations
-
-	'base' < 'limit'
-	'base' <= 'mark' <= 'limit'.
-
-hold.
+The file "gc.h" and its contents are described in section X.
 
 
 5. Memory Allocation
 --------------------
-There are variables 'e_top', 't_top', 's_top', and 'stack_top' which
-point to the first free word in each area.
+For the purposes of the following discussions, we will assume that there
+is a variable E_LIMIT_OFFSET which the mutator will use as the allocation
+limit for the Ephemeral area. One cannot use E_MAX_OFFSET for this, for the
+following reason: When the Ephemeral area is full, and the collector
+must be invoked, the Stack will need to be copied into the Ephemeral area.
+Hence we must guarantee that there is room between E_LIMIT_OFFSET and
+E_MAX_OFFSET to spill the stack in. E_LIMIT_OFFSET is not used by the
+collector, and it is the responisbility of the mutator to calculate
+its value based on E_MAX_OFFSET after a collection.
 
-Memory is allocated in the ephemeral area, starting with 'e_top' at
-'e_base' and growing up. When 'e_top' is greater than 'e_limit', the
-garbage collector should be invoked by the allocation procedure. For
-example, to allocate 'n' words from the ephemeral area, the procedure
-would be this:
+To allocate 'n' words from the ephemeral area, the procedure would be this:
 
-   word *alloc_words( int n )
+   word *alloc( int n )
    {
      word *p;
-     extern word *e_top, *e_mark;
 
-     p = e_top;
-     e_top += n + (n & 0x01);   /* rounds up if necessary */
-     if (e_top > e_limit) 
-       p = gc( n );             /* collect & allocate */
+     p = globals[ E_TOP_OFFSET ];
+
+     /* Allocate the requested memory; round number of words to even */
+     globals[ E_TOP_OFFSET ] += n + (n & 0x01);
+
+     /* Check for ephemeral area overflow */
+     if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ]) 
+       p = gc( n );
+
      return p;
    }
 	
-(where the `gc' procedure is defined below).  The first two statements
-allocate memory (notice that we must allocate an even number of words always,
-even if an odd number was requested). If the allocation moves 'e_top' beyond
-'e_limit', the collector is invoked.  Otherwise, a pointer to the structure is
-returned.
+where the 'gc()' procedure performs a collection, allocates 'n' words, and
+returns a pointer to the newly-allocated space; an possible implementation
+is shown below.
+
+The first two statements allocate memory (notice that we must allocate an
+even number of words always, even if an odd number was requested). If the
+allocation moves 'E_TOP_OFFSET' beyond 'E_LIMIT_OFFSET', the collector is
+invoked.  Otherwise, a pointer to the structure is returned.
 
 Note that in the case of a collection, the 'gc()' procedure is made to
 allocate the requested space. This is so that we can conveniently have
-out-of-line checks for whether 'e_top' > 'e_limit' after the allocation; this
-may in fact happen if 'n' is large enough.
-
-The interplay of the pointers into the ephemeral area is this. No allocation
-may allocate space beyond 'e_limit'; the procedure 'gc()' must maintain this
-invariant. Notice that although the procedure above increments the pointer
-beyond 'e_limit', no pointer to the new area is saved, so the space is not
-allocated.  If, when the collector is done, the allocated space in the
-ephemeral area exceeds 'e_mark', then the next collection triggered will be a
-tenuring collection.
+out-of-line checks for whether 'E_TOP_OFFSET' >= 'E_LIMIT_OFFSET' 
+after the allocation; this may in fact happen if 'n' is large enough.
 
 
-6. The entry list
------------------
-Memory for the 'entry list' -- the list of pointers to data structures
-in the tenured space which contain pointers into the ephemeral space --
-is allocated in the tenured area. 
+6. The Transaction List
+-----------------------
+Memory for the 'transaction list' -- the list of pointers to data
+structures in the Tenured space which contain pointers into the Ephemeral
+space -- is allocated in the Tenured area.
 
 Whenever the mutator side-effects a data structure in the tenured area
-(using 'set-car!', 'set-cdr!', 'vector-set!', or 'cell-set!') with a
-value that is a tagged pointer into the ephemeral area, then an entry
-should be added to the entry list. The entry should be a tagged
-pointer not to the new object but to the header of the data structure
-in the tenured area that was changed.
+(using 'set-car!', 'set-cdr!', or 'vector-set!') with a value that is a
+tagged pointer into the Ephemeral area, then a transaction should be added
+to the transaction list. The transaction should be a tagged pointer not to
+the new object but to the header of the data structure in the Tenured area
+that was changed.
 
-The value stored into the tenured-area data structure does not
-strictly speaking have to be a pointer into the ephemeral area, but it
-is neccesary to store an entry in the entry list when it is.
+The value stored into the Tenured-area data structure does not
+strictly speaking have to be a pointer into the Ephemeral area, but it
+is neccesary to store a transaction on the transaction list when it is.
 
-To allocate an entry on the entry list, put the entry in the location pointed
-to by the pointer 't_entries', and then decrement this pointer. Then
-change the value in the data structure in the tenured space.
-Entries are allocated from the top of the tenured area with the initial
-value of 't_entries' being 't_limit'. 
+To allocate a transaction on the tranaction list, put the transaction in
+the location pointed to by the pointer T_TRANS_OFFSET, and then decrement
+this pointer. Then change the value in the data structure in the Tenured
+space.  Entries are allocated from the top of the tenured area with the
+initial value of T_TRANS_OFFSET being T_LIMIT_OFFSET.
 
-If, before allocating space for the entry, 't_entries' <= 't_top', then the
-tenured area has overflowed. The mutator must check this.
+If, before allocating space for the entry, T_TRANS_OFFSET < T_TOP_OFFSET,
+then the tenured area has overflowed, and must be collected. The mutator
+must check this.
 
-We provide the code for 'set-car!':
+We provide some example code for 'set-car!':
 
-   set_car( word objp, word val )
+   void set_car( word objp, word val )
    {
-     extern word *t_top, *t_entries;
-
-     if (ptrof( objp ) >= t_base) {   /* storing into tenured? */
-       if (t_entries < t_top) {
-	 /* at this point either do a tenuring collection or
-	    attempt to compact the entry list */
+     /* Check if we're storing into a Tenured object */
+     if (ptrof( objp ) >= globals[ T_BASE_OFFSET ]) {
+       if (globals[ T_TRANS_OFFSET ] < globals[ T_TOP_OFFSET ]) {
+	 /* at this point do a tenuring collection */
        }
-       *t_entries-- = objp;
+       *globals[ T_TRANS_OFFSET ]-- = objp;
      }
      *ptrof( objp ) = val;
    }
 
 
-7. Calling the garbage collector
+7. Calling the Garbage Collector
 --------------------------------
-The garbage collector traces all objects reachable from a set of root objects
-that it expects to find in some global table pointed to by the pointer
-'roots'. Furthermore, the global variable 'rootcnt' tells the collector how
-many of the entries in that table are used. It is the duty of the storage
-allocating procedures (like 'alloc()' above) to store all root objects in the
-'roots' table before the collector is invoked. In the case of 'alloc()' it
-calls the procedure 'gc()', which looks something like this:
+The garbage collector traces all objects reachable from the set of root
+objects, as outlined in section 3.
+It is the duty of
+the storage allocating procedures (like 'alloc()' above) to store all root
+objects in the 'globals' table before the collector is invoked. In the case
+of 'alloc()' it calls the procedure 'gc()', which could look something like
+this:
 
 	gc( int n )
 	{
 	  word *p;
 
-	  *roots = R0;
-	  *(roots + 1) = R1;
+	  globals[ RO_OFFSET ] = R0;
+	  globals[ R1_OFFSET ] = R1;
 	    :
-	  *(roots + n) = Rn;
+	  globals[ Rn_OFFSET ] = Rn;
 
 	  flush_stack_cache();
 	  flush_instruction_cache();
 
-	  *(roots + n + 1) = CREG;
-	  *(roots + n + 2) = GREG;
-	  rootcnt = n + 3;           /* in this case */
 	  collect( 1 );
-	  R0 = *roots;
-	  R1 = *(roots + 1);
-	    :
-	  Rn = *(roots + n);
-	  CREG = *(roots + n + 1);
-	  GREG = *(roots + n + 2);
 
-	  p = e_top;
-	  e_top += n;
-	  if (e_top > e_limit) {
+	  R0 = globals[ R0_OFFSET ];
+	  R1 = globals[ R1_OFFSET ];
+	    :
+	  Rn = globals[ Rn_OFFSET ];
+
+	  calculate_e_limit();
+
+	  p = globals[ E_TOP_OFFSET ];
+	  globals[ E_TOP_OFFSET ] += n + (n & 0x01);
+	  if (globals[ E_TOP_OFFSET ] >= globals[ E_LIMIT_OFFSET ]) {
 	    /* at this point either do major GC or just give up. */
           }
 	  return p;
 	}
 
-[This code assumes we have two stacks: one for Scheme, and one for C.]
+[This code assumes that we have two stacks: one for Scheme, and one for C.
+ If that is not the case, we will need to implement stack switching here
+ as well.]
 
-First all rootable registers (R0 through Rn) are stored. Then the stack cache
-is flushed, and the continuation register is stored.  Finally, the global
-variables register (assumed to point to a vector-like structure, the elements
-of which are the global variables) is stored. There might be other registers
-as well, depending on the implementation. (And the global variables may not be
-accessible through such a vector, in which case the collector must somehow be
-informed about how to access the globals so that they can be traced.)
+First all rootable registers (R0 through Rn) are stored.  There might be
+other registers as well, depending on the implementation.  
 
-Then, the collector is called. The entry point of the collector is the
+Then the stack cache is flushed. This code is not shown here, as it depends
+on the details of the stack layout, which in turn is irrelevant in the
+context of this document.
+
+Flushing the instruction cache is a system-dependent procedure; some
+systems will not need it. A selective flush is probably best; I think (but
+haven't decided yet) that it is always best to selectively flush oldspace,
+which is why the icache flush comes before the collection. It is probably
+equivalent to flush newspace (after the collection); and don't forget that
+we must flush the icache after a 'define' (I think...).
+
+The collector is then called. The entry point of the collector is the
 'collect()' procedure; the argument '1' means "do a minor collection".
+(To do a major collection, pass the argument '2'.)
 
-Finally, when the collector has finished, each element of 'roots' is
-copied out to where they came from (they will all have changed).
-
-Flushing the instruction cache is a system-dependent procedure; some systems
-will not need it. A selective flush is probably best; I think (but haven't
-decided yet) that it is always best to selectively flush oldspace, which
-is why the icache flush comes before the collection. It is probably equivalent
-to flush newspace (after the collection); and don't forget that we must
-flush the icache after a 'define' (I think...).
+Finally, when the collector has finished, each element of the 'globals'
+array is copied out to where they came from (they may all have changed).
+A new E_LIMIT_OFFSET is computed, and space is allocated. (If we fail again,
+there is one more hope: to do a tenuring collection. The code for this has
+not been shown.)
 
 
-8. Flushing the Stack Cache [NOT CURRENT]
------------------------------------------
-The application must flush the stack cache to the heap before calling the
-collector; the collector operates on heap-based continuation frames only.
-However, this means that there must be room on the heap for flushing a
-possibly full stack cache. The collector guarantees that such space will be
-available above the `e_limit' mark.
+8. Memory statistics
+--------------------
+The garbage collector keeps track of how much space is allocated and
+collected from the heap. These statistics are available in variables
+in the 'globals' array with the following names/offsets:
 
-In order to flush the stack cache, we would do something like the following:
+ECOLLECTIONS_OFFSET	The number of ephemeral garbage collections.
+TCOLLECTIONS_OFFSET	The number of tenuring garbage collections.
+WCOLLECTED_OFFSET	The number of words collected (total).
+WALLOCATED_OFFSET	The number of words allocated (total).
 
-	flush_stack_cache()
-	{
-	  word *p = SP;
-	  word *prev = NULL;
-	  word retaddr;
-	  word size;
-	  word proc;
-	  word *top = CREG;
-
-	  while (p < stack_base) {    /* stack grows *up* */
-	    retaddr = *p--;
-	    size = *p--;
-	    proc = *p--;
-
-	    q = e_top;
-	    e_top += size + (size & 0x01);
-	    *q = <make vector header saying this is a continuation>;
-	    *(q+1) = CONST_FALSE;
-	    *(q+2) = <calculate offset from proc and retaddr>;
-	    *(q+3) = proc;
-	    for (i = 0 ; i < size - 3 ; i++ )
-	      *q(4+i) = *p--;
-	    if (prev != NULL)
-	      *(prev+1) = q;
-	    else
-	      top = q;
-	    prev = q;
-	  }
-	  if (prev != NULL)
-	    *(prev+1) = CREG;
-	}
-
-(We're assuming that stack_cache_limit is the address of the topmost word in
-the stack cache.)
+The number of words allocated is derived from the difference in the
+values of E_TOP_OFFSET just after a collection and just before the next
+one. Hence, if E_TOP_OFFSET has an invalid value (as it may legally have
+when the collector is called), then this statistic may be thrown off.
+(If 'alloc()' and 'gc()' are implemented like it was suggested earlier,
+a quick fix is for 'gc()' to subtract its argument from E_TOP_OFFSET.)
 
 
-9. Miscellaneous notes
+9. Requirements
+---------------
+The garbage collector requires the availability of the following 
+procedures:
+
+	malloc()	Standard C library memory allocation procedure
+	memcpy()	Standard C library memory copying procedure
+	panic()		Must be provided by the mutator. It takes one
+			argument (a string), and displays this string
+			before terminating the program. Panic() will
+			be called in the case of an unrecoverable error,
+			and should not return to its caller.
+
+It also requires the following variable:
+
+	extern word globals[]
+
+which is the 'globals' table that has been mentioned above.
+The procedures and the variable should all be declared in "gc.h".
+
+Furthermore, "gc.h" must define all the offsets into the 'globals' table.
+
+
+10. Setting the Limits
 ----------------------
-There's no reason why a cell cannot be implemented as a pair (hence we get 
-away with fewer mutators). Current thought is as a vector-like thing.
+The file "gc.h" contains a number of #definitions of limits on the various
+memory area. The collector use these definitions as sanity checks on the
+arguments to 'init_collector()'. The utility of this facility is to remove
+the chore of sanity checking from the mutator.  However, the programmer
+needs to come up with values to use. The comments in the header file should
+adequately explain the restrictions.
 
 
-10. Summary
------------
-The file "gcinterface.h" is to be included by the mutator; it defines all
-names exported from the collector.
+11. Interface
+-------------
+The collector module exports only two names: 'collect' and 'init_collector',
+both of which are procedures. 
 
-The collector requires the mutator to define (or libraries to supply) the
-procedures malloc() and panic(). The former is the standard C 'malloc()';
-the latter is a procedure of one string argument which prints its argument on
-some suitable output device and then terminates the program.
+'collect()' takes a single argument, which must be an integer. The value
+'1' means "do an ephemeral collection", the value '2' means "do a tenuring
+collection". Other values cause undefined behavior.
 
-
-11. How to define things in "gc.h"
-----------------------------------
-(Not here yet)
+'init_collector()' takes five arguments, all unsigned integers, as outlined
+above.
