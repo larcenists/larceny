@@ -4,20 +4,18 @@ SPARC Larceny version 1.0a2, tentative release date 1 June 1999.
 
 
 Immediate to-do list:
+  - bug: FIXMEs in conio.
+  - Document a bunch of changes:
+     - changed repl-printer, repl-prompt: now take a port
+     - introduced console-input-port, console-output-port
+     - introduced print-length, print-level
+     - removed error-continuation from basic heap
   - make Petit Larceny work again (fix compiler interface...)
   - rebuild and rerelease.
-  - call the remaining system 0.45, and _tag_ it as such.
-  - bug to fix: new debugger code should save error continuation
-    so (debug) can work too.
-
-Have done, not checked in:
- - Fix make setup_X so that it configures the default build host as X also.
- - Created some makefiles in subdirectories and started to migrate
-   code there from the toplevel makefile, notably, actions for config,
-   clean, and realclean targets
+  - call the remaining system 0.46, and _tag_ it as such.
 
 General tasks from PETIT-STATUS (merge into TODO):
- - Debug printer must support records (too many printers...)
+ - Debug printer must support records (too many printers...  merge them)
  - Heap images are dumped in native byte order, but the
    first word should always be big-endian and should
    encode the endianness and architecture of the heap.
@@ -56,21 +54,26 @@ Remaining to-do items:
 [Twobit]
   * Macro expander performance?
   * Compiler performance?
+  * Add PARAMETERIZE, LET-VALUES, and FLUID-LET to the usual macros.
 
 [Run-time system]
   * Must deal with more signals on Unix systems.  See TODO for details.
 
 [Library]
+  * EXIT must work differently: EXIT should leave the current REPL,
+    and there should be a procedure ABORT to leave the system entirely.
+    There should be EXIT-HANDLER and ABORT-HANDLER parameters.
   * Top-level environments must hold syntax definitions, and the hacks
     used to work around it (in compile-expression, macro-expand-expression)
     must be removed.
 
 [SPARC Assembler]
   * Performance: get rid of branch target association list and replace
-    it by a bit vector.  See TODO for details.
+    it by a bit vector or hash table.  See TODO for details.
 
 [Debugging]
   See TODO for details.  The following are important for 1.0a2:
+  * Add a command to enter a nested REPL.
   * Document the debugger.
   * Print variable names where convenient.
   * Reasonable support for debugging interpreted code.
@@ -107,9 +110,6 @@ Remaining to-do items:
     the sake of Petit Larceny):
      Util/std-heap.sch    ->   Util/larceny-heap.sch
      Util/init-comp.sch   ->   Util/larceny-heap-init.sch
-     Eval                 ->   Interpreter
-     Eval/eval.sch        ->   Interpreter/interp.sch
-     Eval/evalprim.sch    ->   Interpreter/interp-prim.sch
   * From Will:
      >Compiler/pass2.aux.sch and Lib/procinfo.sch both contain magic
      >constants, accessors, and setters for the documentation slot.
