@@ -12,6 +12,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "config.h"
 #include "larceny.h"
 #include "gc.h"
 
@@ -718,6 +719,10 @@ int memfail( int code, char *fmt, ... )
   /* Never returns; return type is `int' to facilitate an idiom. */
   return 0;
 }
+
+#if defined(SUNOS4)
+int strncasecmp( char*, char*, int ); /* should be in string.h but isn't */
+#endif
 
 void conditional_abort( void )
 {
