@@ -15,6 +15,43 @@ large projects (see the file TODO-RAINYDAY).
  + = Ultra-low priority.
 
 
+----------------------------------------------------------------------
+
+Misc (not just related to Petit Larceny)
+ - Need to create a heap comparison tool that only compares "significant"
+   differences, or, a heap rectification tool that clears insignificant
+   bits from a heap image, notably from bytevector structures.  This
+   will make heap comparison much easier.
+ - Make-development-environment does not compile the .imp.sch file
+   for other targets than the current.
+ - FASL format: both Petit Larceny and SPARC larceny FASL files have
+   type .fasl, but they are of different types.  One way of coping 
+   with this (to reduce errors) is to have an initial expression
+   in each FASL file:
+	(.fasl-type 'sparc)
+   or
+	(.fasl-type 'standard-c)
+   where the definition of .fasl-type could be
+	(define (.fasl-type x)
+	  (eq? x (cdr (assq 'architecture-name (system-features)))))
+   if system-features is fixed to return not a string but a symbol
+   for the architecture name.
+ - Heap images should contain information about binary format in
+   addition to version, eg, PETIT-BE, PETIT-EL, SPARC-NATIVE, ..., and
+   should also encode the control transfer method used for Petit Larceny
+   -- libpetit.so needs to be built with the appropriate #define.
+
+----------------------------------------------------------------------
+
+Possibly subtle bug: if the standard library uses EVAL internally,
+then it must be careful about which macro environment and variable
+environment it picks up.
+
+Currently the only internal use of EVAL is in the macro expander and
+it simply uses it to convert a transformer expression to a procedure.
+
+----------------------------------------------------------------------
+
 FFI
  ** Standard-FFI high priority
     - How to load e.g. the file socket-support.o that has unresolved
@@ -197,6 +234,25 @@ Library
   * The millicode support vector (aka 'callouts') should be initialized
     element-by-element using defined constants, not in a huge call to
     'vector' like it is now. (Lib/millicode-support.sch.)
+  * `Sort' order of arguments is different from Chez and MacScheme, which
+    violates the Prime Directive.  On the other hand, it's compatible with
+    most other systems!  Here's a survey:
+       Chez Scheme 5.0:	predicate, list
+       MacScheme 3.0 Student Edition: predicate, list
+       Scheme48 0.36: list, predicate
+       SLIB 2c4: list, predicate
+       Larceny 1.0a1: list, predicate (also vector, predicate)
+       MIT Scheme 7.3: list, predicate
+       PC Scheme 3.3: list, predicate, where predicate is optional; if 
+         predicate is not given, sorts by object type and then by the 
+         "obvious" ordering within each type
+       MzScheme 53 (?) `quicksort': list, predicate 
+       MzScheme 53 (?) `sort': predicate, list
+       STk 3.99.3: list, predicate (also vector, predicate)
+       Bigloo 1.9: no sort built-in
+       Gambit-C 3.0: no sort built-in
+       RScheme 0.7.?: manual lists no sort procedure, but manual is incomplete
+  * Would be nice to print bit pattern when printing WEIRD OBJECT.
 
 Testing
  ** Regression test suite must be completed (massive undertaking).
@@ -305,6 +361,41 @@ Bootstrap heap dumper (extremely low priority)
 
 ----------------------------------------
 
+Bytecoded system:.
+
+The Sparc assembler in v0.41 calls 72152 procedures in the assembler
+table.  This includes pseudo-ops and duplicate calls for the
+long-address reassemblies, but peephole optimization is enabled and not
+all of those optimizations are reasonable in a bytecoded system.
+
+Without pseudo-ops, the count is 53572 (including reassemblies).
+
+With peephole optimization turned off, the count is 93946 (including
+pseudo-ops).  Since pseudo-ops are rarely affected by peephole
+optimization, we can estimate that the number of operations is
+93946-(72152-53572) = 75366 instructions (including reassemblies).
+
+So say that maybe 55000 words of object code will be emitted for the
+standard library; that's 220KB of code, down from 917KB in the SPARC
+image (undumped), a reduction by a factor of more than 4.  Still, in
+the SPARC image there's 411KB of data, so a bytecoded image would
+still be almost 650KB in size!
+
+Turning off include-variable-names saves only about 40KB.  Shortening
+all the documentation vectors where possible would save more space.
+Rearranging the vectors (to put arity before source code) would help
+some more.  Not including any documentation would help most: it saves
+100KB of data.  Turning off generate-global-names saves very little 
+more.
+
+Observe that dumping the heap _adds_ 100KB of data -- does this come
+from the macro expander's data structures?  Sigh.
+
+In any case, in a bytecode heap, it's data size that's currently the
+issue, not code size.
+
+----------------------------------------
+
 Assembler performance.
 
 * Label lookup can be hashed (pass5p1)
@@ -325,6 +416,10 @@ Assembler performance.
   Further tests show that delay slot filling (after other optimizations)
   account for only 0.15-0.08s of the CPU time.  It's now _really_ in the tail,
   but on the other hand, 0.1s is 25% (!) of assembly time.
+
+----------------------------------------------------------------------
+
+Sundry (don't know if this is still an issue).
 
 Must look at:
 
