@@ -9,7 +9,13 @@
     (load "Asm/Common/link-lop.fasl")
     (load "Asm/Common/link-lop.sch"))
 
-(let ()
+; MUST bind the names here so later updates don't clobber them.
+
+(let ((interaction-environment interaction-environment)
+      (compile-expression compile-expression)
+      (link-lop-segment link-lop-segment)
+      (evaluator evaluator)
+      (macro-expand-expression macro-expand-expression))
 
   (define twobit-eval
     (lambda (expr . rest)
