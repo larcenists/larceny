@@ -1,3 +1,5 @@
+$Id$
+
 		    Larceny  --  Official Bug List
 			   (and wish list)
                     ------------------------------
@@ -11,8 +13,13 @@
 
 Front end
 ---------
-1. The large 'let' in schemeio.scm generates a (save L 50) instruction; the
-   register number is really constrained to be <= 31, so this is a bug.
+*1. The large 'let' in schemeio.scm generates a (save L 50) instruction; the
+    register number is really constrained to be <= 31, so this is a bug.
+    [This has been resolved for now; the large SAVE is to allocate a frame 
+    rather than to save the registers per se. What we really want is a
+    MacScheme instruction to allocate an empty frame for these situations.
+    For now, the code generator (gen-msi) has been patched to pad out a frame
+    appropriately.]
 
 Disassembler
 ------------
@@ -29,9 +36,16 @@ Disassembler
 
 Assembler/basic code generator
 ------------------------------
-1. 'srli' is (apparently) assembled as 'slli'; at least, that's what adb
-   says. [See also disassembler bug #2.]
-   May just be confusion due to disassembler; appears correct now.
+*1. 'srli' is (apparently) assembled as 'slli'; at least, that's what adb
+    says. [See also disassembler bug #2.]
+    May just be confusion due to disassembler; appears correct now.
+
+2. A couple of instructions need to call setcar but don't; look for FIXMEs.
+
+3. When a NOT is for control, its argument is also for control. This may be
+   used to improve code quality. [e.g. (not (char? x))]
+
+4. Sparc assembler is too slow. It could also stand a little cleaning up.
 
 Primops
 -------
@@ -41,16 +55,23 @@ Primops
 2. Check that (byte)vector-{ref,set!} are using correct range checking;
    should it be bleu rather than blu?
 
+3. Get rid of the branch chain idiom in the arithmetic comparisons.
 
 Performance
 -----------
 1. Need to keep return address in a register; this makes SAVE more expensive
-   but is reasonable in leaves; in general a win.
+   but is reasonable in leaves; in general a win. This means that context 
+   switch must take pains to save this register on a GC.
 
 2. Need to implement function cell hack for global variables.
 
 3. Any way to make the itimer tell us when to trap? [timer reg and arg count
    reg becomes same.]
+
+4. The varargs millicode should do the checks for no extra args so that we
+   can avoid falling into C in this (fairly ocmmon, I think) case.
+
+5. Schedule the instructions in the compnum floating point code in "generic.s".
 
 Misc
 ----
@@ -61,3 +82,16 @@ Misc
    the fact that Scheme may be called here.]
 
 3. Redesign the internal calling stuff in millicode. It's a mess.
+
+4. "exit" must flush all output streams before actually exiting.
+
+5. Generate millicode call for large SAVE/RESTORE pairs. This saves code
+   space.
+
+6. Generate millicode call for large LEXES/LAMBDA instructions.
+   This saves code space.
+
+Libraries
+---------
+Need to add error checking to float-significand and float-exponent to make
+sure operand is flonum.
