@@ -66,4 +66,7 @@ typedef struct dof_stats dof_stats_t;
 /* los_t.h */
 typedef struct los los_t;
 
+/* gclib.h */
+typedef struct gclib_stats gclib_stats_t;
+
 #endif /* INCLUDED_LARCENY_TYPES */
