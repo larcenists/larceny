@@ -388,7 +388,9 @@
 ; Regression tests.
 
 (define regression-test-project
-  (let ((regression-test-files '("test" "fib" "ctak" "number" "char" "bool")))
+  (let ((regression-test-files 
+	 '("test" "bool" "char" "ctak" "dynamic-wind" "fact" "fib" "fixnums" 
+	   "number" "pred" "regression")))
     (make:project "Regression tests"
       `(rules
 	(".fasl" ".sch" ,make-compile-file)
