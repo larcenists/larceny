@@ -6,11 +6,24 @@
 ;
 ; Usage: when an error has occurred in the program, type (backtrace)
 ; or (debug) at the prompt.
+;
+; FIXME: When using nested debuggers, and using the Q command to pop out
+; of one level to the next level, the mysterious message "Procedure call
+; caused a reset." is printed, hardly what the user would expect.
+;
+; FIXME: when using nested debuggers, there is a difference between
+; popping out one level and popping out all the way to the top level;
+; currently the latter is not possible.
+;
+; FIXME: debug/print-object must be able to deal with structures; right now
+; it only prints #<WEIRD>, which is useless.
 
 '(require 'pretty-print)
 '(require 'inspect-cont)
 
-(define *debug-exit* #f)
+(define debug/return #f)                ; Thunk that returns
+(define debug/reset #f)                 ; Thunk that resets
+
 (define *debug-print-length* 10)
 (define *debug-level* 0)
 
@@ -31,10 +44,11 @@
   (debug/backtrace 0 (make-continuation-inspector (error-continuation))))
 
 (define (debug-continuation-structure continuable? c . rest)
-  (let ((c (make-continuation-inspector c))
+  (let ((inspector (make-continuation-inspector c))
 	(display? (and (not (null? rest)) (car rest))))
 
     (define (user-input)
+      (reestablish-console)
       (display "debug")
       (display (make-string *debug-level* #\>))
       (display " ")
@@ -44,59 +58,60 @@
 	     (cmd   (if (number? x) (debug/get-token) x)))
 	(values count (debug-command cmd))))
 
-    (define (loop inspector display-frame?)
+    (define (loop display-frame?)
       (let ((current (inspector 'get)))
 	(if display-frame?
 	    (debug/summarize-frame 0 inspector))
 	(call-with-values
 	 user-input
 	 (lambda (count cmd)
-	   (cond ((eq? cmd 'done)
-		  'done)
-                 ((eq? cmd 'reset)
-                  'reset)
+	   (cond ((eq? cmd 'done)  'done)
+                 ((eq? cmd 'reset) 'reset)
 		 (cmd
 		  (cmd count inspector)
-		  (loop inspector (not (current 'same? (inspector 'get)))))
+		  (loop (not (current 'same? (inspector 'get)))))
 		 (else
 		  (display "Bad command.  ? for help.")
 		  (newline)
-		  (loop inspector #f)))))))
+		  (loop #f)))))))
 
-    (define (inspect-continuation c)
-      (let ((reset-token (list 'reset-token)))
-	(let outer ((display-frame? display?))
-	  (let ((res (debug/safely 
-		      (lambda ()
-			(loop c display-frame?))
-		      reset-token)))
-	    (cond ((eq? res reset-token)
-                   (newline)
-                   (outer #f))
-                  ((eq? res 'reset)
-                   (display "Reset")
-                   (newline)
-                   (reset))
-                  ((not continuable?)
-                   (display "Computation is not continuable.")
-                   (newline)
-                   (outer #f)))))))
+    (define (command-loop display-frame?)
+      (let* ((reset-token (list 'reset-token))
+             (result (debug/safely 
+                      (lambda () (loop display-frame?))
+                      reset-token)))
+        (if (eq? reset-token result)
+            (begin (newline)
+                   (command-loop #f))
+            result)))
+
+    (define (inspect-continuation display-frame?)
+      (let ((result (command-loop display-frame?)))
+        (cond ((eq? result 'reset) 'reset)
+              (continuable?        'return)
+              (else
+               (display "Computation is not continuable.")
+               (newline)
+               (inspect-continuation #f)))))
 
     (dynamic-wind
      (lambda () (set! *debug-level* (+ *debug-level* 1)))
      (lambda ()
-       (call-with-current-continuation
-        (lambda (k)
-          (set! *debug-exit* k)
-          (inspect-continuation c)))
-       (set! *debug-exit* #f)
-       (unspecified))
+       (case (call-with-current-continuation
+              (lambda (k)
+                (set! debug/return (lambda () (k 'return)))
+                (set! debug/reset  (lambda () (k 'reset)))
+                (inspect-continuation display?)))
+         ((return) #t)
+         ((reset) (reset))
+         (else ???)))
      (lambda () (set! *debug-level* (- *debug-level* 1))))))
 
 
 ; Safe evaluation
 ;
 ; Catch a reset, but don't save the new error continuation.
+; It would also be possible to treat resets like a kind of exception.
 
 (define (debug/safely thunk reset-token)
   (call-with-current-continuation
@@ -108,14 +123,15 @@
 
 
 ; Debugger user interface
-;
-; Return the next token from the input source, or escape if EOF.
+; Return the next token from the input source, or reset if EOF.
 
 (define (debug/get-token)
   (let ((t (read)))
     (if (eof-object? t)
-	(begin (display t) (newline)
-	       (*debug-exit* #f))
+	(begin (display t)
+               (newline)
+               (reestablish-console)
+               (debug/reset))
 	t)))
 
 ; Safely prints a potentially circular object.
