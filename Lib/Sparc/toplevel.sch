@@ -45,6 +45,10 @@
   (environment-set-macro! null 'quasiquote (usual-syntax 'quasiquote))
   (environment-set-macro! null 'syntax-rules (usual-syntax 'syntax-rules))
 
+  ;; for macro expansion
+
+  (environment-set-macro! null name:CALL (usual-syntax name:CALL))
+
   ;; support procedures for compiled code and macro expansion
 
   ; FIXME: most of these do not belong here; they are primitives

@@ -338,6 +338,13 @@
 	e0)
       (lambda formals e1 e2 ...)))))
 
+; For the macro-expander; will be redefined later.
+
+(define-syntax .call
+  (syntax-rules ()
+    ((.call ?inlines ?op ?exp)
+     ?exp)))
+
             ))
 
 (define-syntax-scope 'letrec)
