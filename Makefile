@@ -48,9 +48,9 @@ default:
 
 setup:
 	@echo "'setup' is no longer a target.  Try one of:"
-	@echo "   setup_chez     setup for chez scheme host system"
-	@echo "   setup_gambit   setup for gambit-c host system"
-	@echo "   setup_larceny  setup for larceny host system"
+	@echo "  setup_larceny  - setup build system for larceny host"
+	@echo "  setup_chez     - setup build system for chez scheme host"
+	@echo "  setup_gambit   - setup build system for gambit-c host"
 
 setup_larceny:
 	( SETUP_HOST_NAME=larceny; \
