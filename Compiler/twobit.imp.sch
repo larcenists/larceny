@@ -94,7 +94,7 @@
 ; MacScheme v4 compiler; Larceny version
 ; Implementation-defined stuff for pass 1.
 ;
-; $Id: twobit.imp.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
+; $Id: twobit.imp.sch,v 1.2 1997/02/11 20:21:58 lth Exp lth $
 ;
 ; Changed by lth on 950627: added sys$bvlcmp, removed several others.
 
@@ -669,7 +669,7 @@
 
 ; Opcode table.
 ;
-; $Id: twobit.imp.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
+; $Id: twobit.imp.sch,v 1.2 1997/02/11 20:21:58 lth Exp lth $
 
 (define $.linearize -1)
 (define $.label 63)

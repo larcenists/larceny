@@ -3,7 +3,7 @@
 ; Larceny -- error system
 ;
 ; lth@cs.uoregon.edu / August 30, 1995
-; $Id$
+; $Id: error.sch,v 1.1 1997/02/03 20:07:13 lth Exp $
 ;
 ; Documented behavior:
 ;  The default error handler prints all its arguments and then calls reset.

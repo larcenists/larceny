@@ -2,7 +2,7 @@
 ;
 ; Larceny library -- list procedures
 ;
-; $Id: list.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: list.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; Procedures of the form x->list and list->x can be found in the file for x.
 

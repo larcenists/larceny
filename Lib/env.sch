@@ -1,5 +1,5 @@
 ; Environments, as adopted for R5RS.
-; $Id$
+; $Id: env.sch,v 1.1 1997/02/03 20:07:13 lth Exp $
 ;
 ; Lars Thomas Hansen / March 26, 1996
 ;

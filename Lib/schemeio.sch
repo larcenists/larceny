@@ -1,7 +1,7 @@
 ; -*- Scheme -*-
 ; Larceny run-time system -- generic I/O system.
 ;
-; $Id: schemeio.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: schemeio.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; Ports are represented using vectors. A port can be either for input or for
 ; output, and it can be in one of three states: open, closed, or at 

@@ -3,7 +3,7 @@
 ; Symbol table management for Larceny, based on same from MacScheme.
 ; Parts of this code is copyright 1991 lightship software
 ;
-; $Id: oblist.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: oblist.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; symbol?
 ; symbol->string

@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id: make.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
+; $Id: make.sch,v 1.2 1997/02/11 20:21:58 lth Exp lth $
 ;
 ; Larceny compilation system -- `make' facility.
 ;

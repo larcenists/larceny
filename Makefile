@@ -1,7 +1,8 @@
-# Emacs: just stick to -*- fundamental -*- mode, will you?
+# -*- fundamental -*- 
 #
-# Makefile for Larceny
-# $Id: Makefile,v 1.2 1995/08/01 04:36:02 lth Exp lth $
+# Larceny -- top-level Makefile
+#
+# $Id: Makefile,v 1.5 1997/02/11 20:38:34 lth Exp lth $
 #
 # This is the top-level makefile. The Makefile for building the runtime,
 # as well as configuration options, is Rts/Makefile.
@@ -11,6 +12,7 @@ RTS=Rts
 SYS=$(RTS)/Sys
 MACH=$(RTS)/Sparc
 BUILD=$(RTS)/Build
+UTIL=Util
 ASM=Sparcasm
 LIB=Lib
 EVAL=Eval
@@ -39,8 +41,8 @@ SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 HDRFILES=$(CCFG) $(ACFG) $(SCFG)
 
 # These exist only in this file
-MISCFILES=COPYRIGHTS CHGLOG BUGS BUGS-0.25 PROBLEMS Makefile nbuild larceny.1 \
-	bootcomp.sch rewrite README
+MISCFILES=COPYRIGHTS Makefile nbuild larceny.1 README CHGLOG
+MISC2FILES=BUGS BUGS-0.25 PROBLEMS 
 ASMFILES=$(ASM)/*.sch
 LIBFILES=$(LIB)/*.sch $(LIB)/*.mal $(EVAL)/*.sch $(REPL)/*.sch $(TEST)/*.sch
 CHEZFILES=Chez/*.c Chez/*.ss Chez/*.h Chez/*.sch
@@ -52,14 +54,15 @@ TESTFILES=$(TEST)/*.sch $(TEST)/*.mal $(TEST)/README
 # Files for 'rtstar'
 RTSFILES=$(RTS)/Makefile $(RTS)/config $(RTS)/*.cfg $(RTS)/Makefile \
 	$(SYS)/*.c $(SYS)/*.h $(MACH)/*.s $(MACH)/*.h $(MACH)/*.c \
-	$(HDRFILES) $(BUILD)/*.s
+	$(HDRFILES) $(BUILD)/*.s $(UTIL)/*.sch
 
 # Files for 'tar'
 ALLFILES=$(MISCFILES) $(RTSFILES) $(ASMFILES) $(LIBFILES) $(AUXFILES) \
-	$(CHEZFILES) $(COMPFILES) $(TEXTFILES) $(TESTFILES)
+	$(CHEZFILES) $(COMPFILES)
 
 # Files for 'bigtar'
-MOREFILES=$(RTS)/larceny larceny.heap $(RTS)/sclarceny larceny.eheap
+MOREFILES=$(RTS)/larceny larceny.heap $(RTS)/sclarceny larceny.eheap \
+	$(TEXTFILES) $(TESTFILES) $(MISC2FILES)
 
 # Tar file names; can be overridden when running make.
 RTSTAR=larceny-rts.tar
@@ -117,14 +120,23 @@ clean:
 	rm -f *.map
 
 lopclean:
-	rm -f $(LIB)/*.lop $(EVAL)/*.lop
+	rm -f   $(LIB)/*.*lop \
+		$(EVAL)/*.*lop \
+		$(REPL)/*.*lop \
+		$(AUXLIB)/*.*lop \
+		$(TEST)/*.*lop
 
-libclean:
-	rm -f $(LIB)/*.lap $(LIB)/*.lop 
-	rm -f $(EVAL)/*.lap $(EVAL)/*.lop
-	rm -f $(REPL)/*.lap $(REPL)/*.lop
-	rm -f $(AUXLIB)/*.lap $(AUXLIB)/*.lop
-	rm -f $(TEST)/*.lap $(TEST)/*.lop
+libclean: lopclean
+	rm -f   $(LIB)/*.lap \
+		$(EVAL)/*.lap \
+		$(REPL)/*.lap \
+		$(AUXLIB)/*.lap \
+		$(TEST)/*.lap
+
+rtsclean: clean
+	rm -f larceny sclarceny exlarceny Build hsplit
+	rm -f Chez/*.o
+	( cd $(RTS) ; $(MAKE) realclean )
 
 realclean: clean libclean
 	rm -f larceny sclarceny exlarceny Build hsplit
@@ -132,24 +144,24 @@ realclean: clean libclean
 	( cd $(RTS) ; $(MAKE) realclean )
 
 rtstar:
-	tar cvf $(RTSTAR) $(RTSFILES)
+	tar cf $(RTSTAR) $(RTSFILES)
 	if [ ! -b $(RTSTAR) -a ! -c $(RTSTAR) ]; then \
 		$(COMPRESS) $(RTSTAR); fi
 
 tar:
-	tar cvf $(TARFILE) $(ALLFILES)
+	tar cf $(TARFILE) $(ALLFILES)
 	if [ ! -b $(TARFILE) -a ! -c $(TARFILE) ]; then \
 		$(COMPRESS) $(TARFILE); fi
 
 bigtar:
-	tar cvf $(ALLTAR) $(ALLFILES) $(MOREFILES)
+	tar cf $(ALLTAR) $(ALLFILES) $(MOREFILES)
 	if [ ! -b $(ALLTAR) -a ! -c $(ALLTAR) ]; then \
 		$(COMPRESS) $(ALLTAR); fi
 
 hugetar:
 	if [ ! -b $(HUGETAR) -a ! -c $(HUGETAR) ]; then \
 		rm -f $(HUGETAR) $(HUGETAR).$(Z) ; fi
-	tar cvf $(HUGETAR) .
+	tar cf $(HUGETAR) .
 	if [ ! -b $(HUGETAR) -a ! -c $(HUGETAR) ]; then \
 		$(COMPRESS) $(HUGETAR); fi
 

@@ -1,28 +1,7 @@
-! -*- Fundamental -*-
-! This is the file Sparc/memory.s.
-! $Id$
-!
+! Rts/Sparc/memory.s
 ! Larceny run-time system (SPARC)  --  memory management primitives.
 !
-! History:
-!   December 12, 1994 - Jan 19, 1995 / lth (v0.23)
-!     Implemented cache flush code.
-!
-!   December 4, 1994 / lth (v0.23)
-!     Changes to accomodate Solaris naming conventions.
-!
-!   June 24 - July 1, 1994 / lth (v0.20)
-!     _Major_ rewrite and clean-up. Internal conventions were cleaned
-!     up, a number of entry points were removed, and the rest were
-!     made comprehensible. Old lies were refuted and new truths were
-!     postulated. Massive improvement in documentation and calling
-!     conventions.
-!
-!   Sometime in August 1992 / lth
-!     Part of version 0.14.
-!
-!   Sometime during spring of 1991 / lth
-!     Created.
+! $Id: memory.s,v 1.3 1997/02/04 16:43:36 lth Exp $
 !
 ! Naming conventions:
 !   All publicly available procedures are named _mem_something.
@@ -48,8 +27,6 @@
 	.global EXTNAME(mem_alloci)			! allocate cooked RAM
 	.global	EXTNAME(mem_internal_alloc)		! allocate raw RAM
 	.global EXTNAME(mem_garbage_collect)		! do a GC
-	.global EXTNAME(mem_internal_collect)		! do a GC
-	.global EXTNAME(mem_addtrans)			! remember object
 	.global EXTNAME(mem_stkoflow)			! handle stack oflow
 	.global	EXTNAME(mem_internal_stkoflow)		! handle stack oflow
 	.global EXTNAME(mem_stkuflow)			! handle stack uflow
@@ -171,105 +148,18 @@ Lialloc1:
 ! Destroys : Temporaries
 
 heap_overflow:
-	set	EPHEMERAL_COLLECTION, %TMP1	! type of collection
+	set	EPHEMERAL_COLLECTION, %TMP1	! type of collection (ignored)
 	mov	%RESULT, %TMP2			! words requested
 	set	EXTNAME(C_garbage_collect), %TMP0
 	b	internal_callout_to_C
 	nop
 
 
-! OBSOLETE
+! OBSOLETE -- retained for backwards compatibility (globals[] table)
 ! _mem_garbage_collect: perform a garbage collection
-!
-! Call from: Scheme
-! Input    : RESULT = fixnum: type of collection.
-! Output   : Nothing
-! Destroys : Temporaries
 
 EXTNAME(mem_garbage_collect):
-	st	%o7, [ %GLOBALS + G_RETADDR ]
-	call	EXTNAME(mem_internal_collect)
-	nop
-	ld	[ %GLOBALS + G_RETADDR ], %o7
-	jmp	%o7+8
-	nop
-
-
-! _mem_internal_collect: perform a garbage collection, using internal
-! calling conventions.
-!
-! Call from: millicode only
-! Input    : RESULT = fixnum: collection type
-! Output   : nothing
-! Destroys : Temporaries
-
-EXTNAME(mem_internal_collect):
-	mov	%RESULT, %TMP1			! gc type
-	set	0, %TMP2			! words requested
-	set	EXTNAME(C_garbage_collect), %TMP0
-	b	internal_callout_to_C
-	nop
-	
-
-! _mem_addtrans: create transaction if necessary
-!
-! Call from: Scheme
-! Input:     RESULT = object: object which was assigned to.
-!            ARGREG2 = object: object which was assigned.
-! Output:    Nothing
-! Destroys:  Temporaries
-!
-! [NOTE: The following does not explain the experimental collector.]
-!
-! To check that the assigned-to object is indeed ephemeral we must
-! compare to the real upper limit of the ephemeral space, not to E_TOP
-! or E_LIM. The reason for this is that the latter provide only a
-! conservative approximation; if the continuation is captured by a
-! program and then manipulated destructively (e.g. with a debugger) before
-! a GC, then the assignment to an ephemeral object will be seen here
-! as an assignment to a tenured object if the conservative limit is used.
-! 
-! In-line code may validly use the conservative limits.
-
-EXTNAME(mem_addtrans):
-#if 0
-	! This code is for the experimental collector (exgc).
-	ld	[ %GLOBALS + G_TBRK ], %TMP0	! limit of espace
-	cmp	%RESULT, %TMP0			! ephemeral RHS?
-	bge	Laddtrans_exit			! exit if so
-	nop
-#endif
-	ld	[ %GLOBALS + G_ELIM ], %TMP0	! limit of cspace
-	cmp	%RESULT, %TMP0			! ephemeral LHS?
-	blt	Laddtrans_exit			! exit if so
-	nop
-	andcc	%ARGREG2, 0x01, %g0		! constant RHS?
-	be	Laddtrans_exit			! exit if so
-	nop
-	cmp	%ARGREG2, %TMP0			! ephemeral RHS?
-	bge	Laddtrans_exit			! exit if not
-	nop
-
-	! At this point we must add a transaction to the SSB.
-
-	ld	[ %GLOBALS + G_SSBTOP ], %TMP0	! get top
-	st	%RESULT, [ %TMP0 ]		! store trans
-	inc	4, %TMP0			! bump top
-	ld	[ %GLOBALS+G_SSBLIM ], %TMP1	! get highest
-	st	%TMP0, [ %GLOBALS + G_SSBTOP ]	! store top
-	cmp	%TMP0, %TMP1			! at end?
-	bne	Laddtrans_exit			! done if not
-	nop
-
-	! Filled the SSB; deal with it on a higher level, return to Scheme.
-
-	set	EXTNAME(C_compact_ssb), %TMP0
-	b	callout_to_C
-	nop
-	! never returns
-
-Laddtrans_exit:
-	jmp	%o7+8
+	call	EXTNAME(abort)
 	nop
 
 
@@ -351,6 +241,11 @@ EXTNAME(mem_stkuflow):
 	ld	[ %STKP+4 ], %TMP0		! return offset
 	call	internal_fixnum2retaddr
 	ld	[ %STKP+12 ], %REG0		! procedure
+#if STACK_UNDERFLOW_COUNTING
+	ld	[ %GLOBALS+G_STKUFLOW ], %TMP1
+	add	%TMP1, 1, %TMP1
+	st	%TMP1, [ %GLOBALS + G_STKUFLOW ]
+#endif
 	jmp	%TMP0+8
 	st	%TMP0, [ %STKP+4 ]		! to be on the safe side
 

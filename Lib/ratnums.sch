@@ -3,7 +3,7 @@
 ; Larceny library  -  Scheme code for ratnum arithmetic.
 ; Originally written by Remy Evard; extensively modified by Lars Hansen.
 ;
-; $Id: ratnums.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: ratnums.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
 ;
 ; We have to be careful about the sign here. The numerator is signed; the
 ; denominator is always positive.

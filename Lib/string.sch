@@ -1,7 +1,7 @@
 ; Larceny library: characters, strings, and bytevectors.
 ; Parts of this code Copyright Lightship Software.
 ;
-; $Id: string.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: string.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; FIXME: 
 ;  - many character procedures should be table driven.

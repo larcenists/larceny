@@ -1,10 +1,10 @@
-/*
- * This is the file Sys/version.c.
- *
+/* Rts/Sys/version.c.
  * Larceny run-time system -- the version number :-)
+ *
+ * $Id: version.c,v 1.2 1997/02/11 14:30:55 lth Exp $
  */
 
-char *version = "0.25";
+char *version = "0.26";
 char *date = DATE;
 char *user = USER;
 #ifdef SOLARIS

@@ -1,5 +1,5 @@
 /* hsplit.c -- program that shuffles code into the static area
- * $Id$
+ * $Id: hsplit.c,v 1.1 1997/01/21 20:04:22 lth Exp $
  *
  * Lars Thomas Hansen [lth@cs.uoregon.edu]
  * May 28, 1996

@@ -1,9 +1,8 @@
 ; Copyright Lightship Software.
 ;
-; $Id: reader.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; Larceny -- Scheme reader.                        17 April 1990
 ;
-; Scheme reader.                        17 April 1990
-; Modified for the new system by lth.   16 January 1992
+; $Id: reader.sch,v 1.3 1997/02/11 19:50:57 lth Exp lth $
 ;
 ; install-reader takes no arguments
 ;
@@ -30,7 +29,6 @@
 
 (define tyipeek peek-char)
 (define tyi read-char)
-; (define (ascii s) (string-ref s 0))
 
 (define install-reader
   (lambda ()
@@ -418,6 +416,7 @@
                    (tyi p) ; consume double quote
 		   (let ((s (read-string (tyi p) p '())))
 		     (typetag-set! s sys$tag.bytevector-typetag)
+		     (sys$codevector-iflush s)
 		     s))
 		  ;; Control-P is used for procedures by compile-file.
 		  ;; The syntax is #^P(...)
@@ -574,7 +573,7 @@
       ; Special characters.
  
       (vector-set! read-dispatch-vec                  ;double quote
-                   34
+                   (char->integer #\")
                    (lambda (c p)
 ;                     (optimize speed)
                      (read-string (tyi p) p '())))
@@ -782,14 +781,4 @@
 
     )))
 
-; These are defined in reader0.sch
-
-;(define whitespace?)
- 
-;(define separator?)
- 
-;(define digit?)
- 
-;(define double-quote?)
- 
-;(define backslash?)
+; eof

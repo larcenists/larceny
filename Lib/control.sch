@@ -3,7 +3,7 @@
 ;
 ; Larceny library -- various control procedures
 ;
-; $Id: control.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: control.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; Member, assq, and so on may be found in list.sch.
 ; Call-with-current-continuation is in malcode.mal.
@@ -71,20 +71,34 @@
 
 
 ; Garbage collection.
+; Arguments are from the following groups:
+;   {'ephemeral 'tenuring 'full} are largely compatible with pre-v0.26
+;   a generation number by itself means collect in that generation
+;   a generation number followed by 'collect or 'promote means either
+;   collect in that generation or promote into that generation.
 
 (define (collect . args)
-  (let ((type $gc.ephemeral))
-    (if (not (null? args))
+
+  (define (err)
+    (error "collect: bad arguments "
+	   args
+	   #\newline
+	   "Use: (collect [generation [{promote,collect}]])"))
+
+  (if (null? args)
+	(sys$gc 0 0)
 	(let ((a (car args)))
-	  (cond ((eq? a 'ephemeral) (set! type $gc.ephemeral))
-		((eq? a 'tenuring)  (set! type $gc.tenuring))
-		((eq? a 'full)      (set! type $gc.full))
-		(else
-		 (error "collect: bad argument "
-			(car args)
-			#\newline
-			"use one of 'ephemeral, 'tenuring, 'full.")))))
-    (sys$gc type)))
+	  (cond ((eq? a 'ephemeral) (sys$gc 0 0))
+		((eq? a 'tenuring)  (sys$gc 1 1))
+		((eq? a 'full)      (sys$gc 1 0))
+		((and (fixnum? a) (positive? a))
+		 (if (null? (cdr args))
+		     (sys$gc a 0)
+		     (let ((b (cadr args)))
+		       (cond ((eq? b 'collect) (sys$gc a 0))
+			     ((eq? b 'promote) (sys$gc a 1))
+			     (else (err))))))
+		(else (err))))))
 
 
 ; Given a continuation (which is a procedure), return the internal 

@@ -1,13 +1,9 @@
-; Print procedures for Larceny, based on same for MacScheme.
+; Lib/print.sch
+; Larceny -- Print procedures 
+;
+; $Id: print.sch,v 1.3 1997/02/11 19:50:57 lth Exp lth $
+;
 ; Copyright 1991 Lightship Software
-;
-; $Id: print.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
-;
-; Differences from MacScheme version: 
-;  * printslashed now accepts both bytevectors and strings; bytevector 
-;    elements are just cast to characters before use.
-;  * printbytevector does not cast its argument to a string before passing 
-;    it to printslashed.
 
 (define (print x p slashify)
   
@@ -179,11 +175,7 @@
 
 (define **lowlevel** (list 0))   ; any unforgeable value
 
-; This one is a problem due to circularity in the initialization.
-;
-; (define **nonprinting-value** (string->symbol ""))
-
-(define **nonprinting-value** '())
+(define **nonprinting-value** (unspecified))
   
 (define write
   (lambda (x . rest)
@@ -213,25 +205,4 @@
       (if (eq? p (current-output-port)) (flush-output-port p))
       **nonprinting-value**)))
 
-; This is defined as "flush-output-port" in "schemeio.scm"; all references to
-; "flush-output" have been removed from the printer.
-;
-; (define flush-output
-;   (lambda (p)
-;     (write-char #\page p)))
-;  
-
-; number->string is separate so it can be redefined when bignums and flonums
-; are added later.
-; The optional radix argument is ignored for now.
-;
-; (define number->string
-;  (lambda (n . format)
-;    (letrec ((loop (lambda (n)                ; nonnegative n only
-;                     (if (< n 10)
-;                         (list (integer->char (+ (char->integer #\0) n)))
-;                         (cons (integer->char (+ (char->integer #\0) (remainder n 10)))
-;                               (loop (quotient n 10)))))))
-;      (if (negative? n)
-;          (list->string (cons #\- (reverse (loop (-- n)))))
-;          (list->string (reverse (loop n)))))))
+; eof

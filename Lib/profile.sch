@@ -1,6 +1,6 @@
 ; Larceny library -- profiling support.
 ;
-; $Id: debug.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: profile.sch,v 1.1 1997/02/03 20:07:13 lth Exp $
 
 ; Simple, slow trace facility for primitive profiling.
 ; You can control the state of tracing with sys$tracectl.

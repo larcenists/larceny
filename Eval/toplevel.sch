@@ -388,6 +388,8 @@
   (extend-toplevel-env! 'memstats memstats)
   (extend-toplevel-env! 'sys$tracectl sys$tracectl)
   (extend-toplevel-env! 'sys$trace sys$trace)
+  (extend-toplevel-env! 'stats-dump-on stats-dump-on)
+  (extend-toplevel-env! 'stats-dump-off stats-dump-off)
 
   ;; environment interface
 

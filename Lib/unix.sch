@@ -1,16 +1,7 @@
+; Lib/unix.sch
 ; Larceny library -- Some Unix primitives
 ;
-; $Id: unix.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
-;
-; History
-;   July 15, 1995 / lth
-;     Added some more syscalls: mtime, access, rename, pollinput.
-;
-;   June 27-July 1, 1995 / lth
-;     Cleaned up and put into service.
-;
-;   July 19, 1994 / lth
-;     Created
+; $Id: unix.sch,v 1.4 1997/02/11 19:50:57 lth Exp lth $
 
 ; Various UNIX I/O parameters. The values are taken from header files
 ; for SunOS 4.1.1; at some point we need to find a scheme for generating
@@ -80,6 +71,9 @@
 (define syscall:flonum-atan 21)
 (define syscall:flonum-atan2 22)
 (define syscall:flonum-sqrt 23)
+(define syscall:stats-dump-on 24)
+(define syscall:stats-dump-off 25)
+(define syscall:iflush 26)
 
 ; Wrappers
 
@@ -103,8 +97,17 @@
 
 ; Get resource usage data into given vector
 
-(define (unix:get-resource-usage vec)
-  (syscall syscall:get-resource-usage vec))
+(define (unix:get-resource-usage)
+  (syscall syscall:get-resource-usage))
+
+; Turn on and off GC statistics dumping to a file
+
+(define (unix:stats-dump-on filename)
+  (if (string? filename)
+      (syscall syscall:stats-dump-on filename)))
+
+(define (unix:stats-dump-off)
+  (syscall syscall:stats-dump-off))
 
 ; Dump image to given filename, and with given startup proc.
 
@@ -141,10 +144,18 @@
 (define (unix:getenv str)
   (syscall syscall:getenv str))
 
-; Garbage collection. Type is a numeric code defined in globals.cfg.
+; Garbage collection. 
+; 'Gen' is the generation.
+; 'Type' is 0 (collect) or 1 (promote).
 
-(define (unix:gc type)
-  (syscall syscall:gc type))
+(define (unix:gc gen type)
+  (syscall syscall:gc gen type))
+
+; Instruction cache flushing
+; Argument is a byte vector
+
+(define (unix:iflush bv)
+  (syscall syscall:iflush bv))
 
 ; Transcendentals and square root are supported by callouts to C,
 ; for now.
@@ -212,6 +223,7 @@
 	(else
 	 ???open-file)))
 
+(define sys$get-resource-usage unix:get-resource-usage)
 (define sys$close-file unix:close)
 (define sys$delete-file unix:unlink)
 (define sys$read-file unix:read)
@@ -223,6 +235,12 @@
 (define sys$char-ready? unix:pollinput)
 
 (define sys$gc unix:gc)
+(define sys$codevector-iflush unix:iflush)
+
+; GC statistics dumping
+
+(define stats-dump-on unix:stats-dump-on)
+(define stats-dump-off unix:stats-dump-off)
 
 ; Dump a heap.
 

@@ -2,7 +2,7 @@
 ;
 ; Larceny library -- general predicates
 ;
-; $Id: preds.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: preds.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; Modified 950802 / lth:
 ;    Moved string-equal? to strings.sch

@@ -4,7 +4,7 @@
 ; the Scheme-level support for millicode, like the vector of millicode-
 ; callable scheme procedures.
 ;
-; $Id: mcode.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: mcode.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 
 ; THIS PROCEDURE TO BE CALLED ONLY FROM MILLICODE.
 ;

@@ -1,6 +1,7 @@
-; -*- scheme -*-
+; Lib/load.sch
+; Larceny -- the 'load' procedure.
 ;
-; Larceny -- the loader.
+; $Id: load.sch,v 1.2 1997/02/11 19:50:57 lth Exp lth $
 ;
 ; Not entirely robust, but ok for now.
 ;
@@ -8,9 +9,6 @@
 ; the reader would not need to be aware of these extensions.
 
 (define *load-noise-level* #f)
-
-; The garbage collection causes the icache to be flushed if appropriate;
-; alternatively this could be done when the bytevector is loaded.
 
 (define (load filename . rest)
   (let* ((env (cond ((null? rest)
@@ -28,16 +26,14 @@
        (global-name-resolver new-resolver))
      (lambda ()
        (let ((p (open-input-file filename)))
-	 (let loop ((expr (read p)))
-	   (if (eof-object? expr)
-	       (begin (close-input-port p)
-		      (collect 'ephemeral)
-		      #t)
-	       (let ((result (eval expr env)))
-		 (if *load-noise-level*
-		     (begin (display result)
-			    (newline)))
-		 (loop (read p)))))))
+	 (do ((expr (read p) (read p)))
+	     ((eof-object? expr)
+	      (close-input-port p)
+	      (unspecified))
+	   (let ((result (eval expr env)))
+	     (if *load-noise-level*
+		 (begin (display result)
+			(newline)))))))
      (lambda ()
        (global-name-resolver old-resolver)))))
 
@@ -54,6 +50,8 @@
     (if (not (null? args))
 	(begin (load (car args))
 	       (set! *load-noise-level* noise-level)))))
+
+; list->procedure is used by the reader to deal with #^P.
 
 (define (list->procedure list)
   (let ((p (make-procedure (length list))))

@@ -1,7 +1,7 @@
 ! -*- Fundamental -*-
 ! This is the file Sparc/mcode.s.
 !
-! $Id: mcode.s,v 1.2 1995/08/01 04:39:26 lth Exp lth $
+! $Id: mcode.s,v 1.1 1997/01/21 20:03:54 lth Exp $
 !
 ! Larceny run-time system (SPARC) -- miscellaneous primitives.
 !

@@ -1,105 +1,104 @@
-/*
- * This is the file Sys/larceny.h
+/* Rts/Sys/larceny.h
+ * Larceny run-time system -- main header file
  *
- * Larceny run-time system (Unix) -- main header file.
- *
- * History
- *   July 1 - 14, 1994 / lth (v0.20)
- *     Major changes for the new version.
+ * $Id: larceny.h,v 1.10 1997/02/11 19:48:21 lth Exp lth $
  */
 
 #ifndef INCLUDED_LARCENY_H
 #define INCLUDED_LARCENY_H
 
-/* basic data type */
+#ifdef GC_INTERNAL
+#define NOGLOBALS      /* globals[] array is not declared in this file */
+#endif
+
+/* Fundamental data type. */
 
 typedef unsigned word;
 
+#ifndef GC_INTERNAL
+#include "gc.h"
+#endif
+
 /* In "Build/table.s" */
 
+#ifndef NOGLOBALS
 extern word globals[];
+#endif
 
-/* In "Sys/larceny.c" */
+/* In "Rts/Sys/larceny.c" */
 
-extern int  panic( /* char *fmt, ... */ );
-extern void consolemsg( /* char *fmt, ... */ );
-extern void hardconsolemsg( /* char *fmt, ... */ );
+extern int  panic( char *fmt, ... );
+extern int  panic_abort( char *fmt, ... );
+extern void consolemsg( char *fmt, ... );
+extern void hardconsolemsg( char *fmt, ... );
 
-/* In "Sys/policy.c" */
+/* In "Rts/Sys/heapio.c" */
 
-extern char *gctype;
-extern int  allocate_heap( /* uint esize, 
-			      uint tsize, 
-			      uint ssize, 
-			      uint emark, 
-			      uint thimark, 
-			      uint tlomark */ );
-extern int  free_espace();
-extern int  size_espace();
-extern int  used_espace();
-extern int  free_tspace();
-extern int  size_tspace();
-extern int  used_tspace();
-extern int  size_sspace();
-extern word *getheaplimit( /* int which */ );
-extern void setheaplimit( /* int which, word *p */ );
-extern word *alloc_from_heap( /* int nbytes */ );
-extern void garbage_collect( /* int type, int request */ );
-extern void enumerate_roots( /* void (*f)() */);
+#ifndef GC_INTERNAL
+extern void openheap( char *filename );
+extern unsigned heap_ssize( void );
+extern unsigned heap_tsize( void );
+extern void closeheap( void );
+extern void load_heap_image( word *sbase, word *tbase, word *globals );
+extern int dump_heap_image( char *filename );
+#endif
 
-/* In "Sys/gc.c" */
+/* In "Rts/Sys/gc.c" -- an old-looking front-end for the new collector */
 
-extern word *minor_collection( /* word *oldlo, word *oldhi, word *newlo */ );
-extern word *major_collection( /* word *oldlo, word *oldhi, word *newlo */ );
+#ifndef GC_INTERNAL
+extern int  allocate_heap( unsigned esize, unsigned emark, 
+			   unsigned ssize, 
+			   unsigned rhash, unsigned ssb,
+			   unsigned oldgen,
+			   old_param_t *info
+			  );
+extern word *alloc_from_heap( unsigned );
+extern void garbage_collect( int, unsigned );
+extern void garbage_collect3( unsigned, unsigned, unsigned );
+extern int  compact_ssb( void );
+extern void load_heap( void );
+extern int  dump_heap( char *filename );
+extern void init_stats( int show_stats );
+extern word creg_get( void );
+extern void creg_set( word k );
+extern void stack_overflow( void );
+extern void stack_underflow( void );
+#endif
 
-/* In "Sys/remset.c" */
+/* In "Rts/Sys/cglue.c", called only from millicode */
 
-extern int create_remset( /* uint tblsize, uint poolsize, uint ssbsize */ );
-extern void clear_remset();
-extern int compact_ssb();
-extern void enumerate_remset( /* void(*f)() */ );
-extern void remset_update_memstats();
+#ifndef GC_INTERNAL
+extern void C_garbage_collect( word type, word request );
+extern void C_compact_ssb( void );
+extern void C_stack_overflow( void );
+extern void C_creg_get( void );
+extern void C_creg_set( void );
+extern void C_restore_frame( void );
+extern void C_panic( char *fmt, ... );
+extern void C_varargs( void );
+extern void C_exception( word code, word pc );
+extern void C_break( void );
+extern void C_singlestep( word s );
+extern void C_syscall( void );
+extern void C_wb_compact( int generation );
 
-/* In "Sys/heapio.c" */
+#if SIMULATE_NEW_BARRIER
+typedef struct {
+  unsigned array_assignments;
+  unsigned lhs_young_or_remembered;
+  unsigned rhs_constant;
+  unsigned cross_gen_check;
+  unsigned transactions;
+} simulated_barrier_stats_t;
+extern void C_simulate_new_barrier( void );
+extern void simulated_barrier_stats( simulated_barrier_stats_t * );
+#endif
 
-extern void openheap( /* char *filename */ );
-extern unsigned heap_ssize();
-extern unsigned heap_tsize();
-extern void load_heap();
-extern void closeheap();
-extern int dump_heap( /* char *filename */ );
+#endif
 
-/* In "Sys/stack.c" */
+/* In "Rts/Sys/unix.c", called only as syscalls */
 
-extern int create_stack();
-extern void clear_stack();
-extern void flush_stack();
-extern int restore_frame();
-
-/* In "Sys/malloc.c" */
-
-extern char *malloc( /* size_t request */ );
-extern char *realloc( /* char *obj, size_t newsize */ );
-extern char *calloc( /* size_t size, size_t count */ );
-extern void free( /* char *obj */ );
-
-/* In "Sys/cglue.c", called only from millicode */
-
-extern void C_garbage_collect( /* fixnum type, fixnum request */ );
-extern void C_compact_ssb();
-extern void C_stack_overflow();
-extern void C_creg_get();
-extern void C_creg_set();
-extern void C_restore_frame();
-extern void C_panic( /* char *fmt, ... */ );
-extern void C_varargs();
-extern void C_exception( /* fixnum code */ );
-extern void C_break();
-extern void C_singlestep( /* word s */ );
-extern void C_syscall();
-
-/* In "Sys/unix.c", called only as syscalls */
-
+#ifndef GC_INTERNAL
 extern void UNIX_openfile();
 extern void UNIX_unlinkfile();
 extern void UNIX_closefile();
@@ -113,6 +112,7 @@ extern void UNIX_rename();
 extern void UNIX_pollinput();
 extern void UNIX_getenv();
 extern void UNIX_garbage_collect();
+extern void UNIX_iflush();
 extern void UNIX_flonum_exp();
 extern void UNIX_flonum_log();
 extern void UNIX_flonum_sin();
@@ -123,40 +123,67 @@ extern void UNIX_flonum_acos();
 extern void UNIX_flonum_atan();
 extern void UNIX_flonum_atan2();
 extern void UNIX_flonum_sqrt();
+extern void UNIX_stats_dump_on();
+extern void UNIX_stats_dump_off();
+#endif
 
-/* In "Sys/ldebug.c" */
+/* In "Rts/Sys/ldebug.c" */
 
+#ifndef GC_INTERNAL
 extern void localdebugger();
+#endif
 
-/* In "Sys/memstats.c" */
+/* In "Rts/Sys/stats.c" */
 
-extern void memstat_init( /* int show_heapstats */ );
-extern void memstat_before_gc( /* int type */ );
-extern void memstat_after_gc();
-extern void memstat_framesflushed( /* unsigned n */ );
-extern void memstat_transactions_allocated( /* unsigned n */ );
-extern void memstat_transactions_scanned( /* unsigned n */ );
-extern unsigned memstat_rtclock();
-extern void memstat_fillvector( /* word *vp */ );
+typedef enum { STATS_PROMOTE, STATS_COLLECT } stats_gc_t;
 
-/* In "Sys/version.c" */
+#ifndef GC_INTERNAL
+extern void stats_init( gc_t *gc, int generations, int show_heapstats );
+extern word stats_fillvector( void );
+extern int  stats_opendump( const char *filename );
+extern void stats_closedump( void );
+#endif
+extern void stats_before_gc( void );
+extern void stats_gc_type( int gen, stats_gc_t type );
+extern void stats_after_gc( void );
+extern unsigned stats_rtclock( void );
 
+/* In "Rts/Sys/version.c" */
+
+#ifndef GC_INTERNAL
 extern char *version;
 extern char *user;
 extern char *date;
 extern char *osname;
+#endif
 
-/* In "$MACHINE/glue.s" */
+/* In "Rts/Sys/argv.c" */
 
-extern void scheme_start();
+#ifndef GC_INTERNAL
+extern word allocate_argument_vector( int argc, char **argv );
+#endif
 
-/* In "$MACHINE/cache.c" */
+/* In "Rts/$MACHINE/glue.s" */
 
-extern void cache_setup();
+#ifndef GC_INTERNAL
+extern void scheme_start( void );
+#endif
 
-/* In "Sys/argv.c" */
+/* In "Rts/$MACHINE/cache.c" */
 
-extern word allocate_argument_vector(/* int argc, char **argv */);
+#ifndef GC_INTERNAL
+extern void cache_setup( void );
+#endif
+
+/* Out-of-memory exception handling */
+
+extern int memfail( int code, char *fmt, ... );
+
+#define MF_MALLOC   0     /* malloc() failed */
+#define MF_HEAP     1     /* gclib_alloc_heap() failed */
+#define MF_REALLOC  2     /* realloc() failed */
+#define MF_CALLOC   3     /* calloc() failed */
+#define MF_RTS      4     /* gclib_alloc_rts() failed */
 
 /* Defaults */
 
@@ -171,8 +198,10 @@ extern word allocate_argument_vector(/* int argc, char **argv */);
 #define DEFAULT_TLOWATERMARK 50   /* tspace < 50% full => contract */
 #define DEFAULT_RWATERMARK 75     /* remset-pool > 75% full => tenure */
 
+#define OLDSPACE_EXPAND_BYTES   (1024*256)  /* 256KB chunks */
+
 /* Remembered set defaults (not tuned) */
-#define DEFAULT_REMSET_POOLSIZE   8192     /* 8K elements = 64KB */
+#define DEFAULT_REMSET_POOLSIZE   8192     /*  8K elements = 64KB */
 #define DEFAULT_REMSET_TBLSIZE   16384     /* 16K elements = 64KB */
 #define DEFAULT_SSB_SIZE         16384     /* 16K elements = 64KB */
 
@@ -182,6 +211,22 @@ extern word allocate_argument_vector(/* int argc, char **argv */);
 #define HL_TLIM 2
 #define HL_SBOT 3
 #define HL_STOP 4
+
+/* debugmsg( char *fmt, ... ); */
+
+#ifdef DEBUG
+#define debugmsg   consolemsg
+#else
+#define debugmsg   1?(void)0:(void)
+#endif
+
+/* debug2msg( char *fmt, ... ); */
+
+#ifdef DEBUG2
+#define debug2msg  consolemsg
+#else
+#define debug2msg  1?(void)0:(void)
+#endif
 
 #endif /* if INCLUDED_LARCENY_H */
 

@@ -1,113 +1,72 @@
-/*
- * This is the file Sys/cglue.c
- *
+/* Rts/Sys/cglue.c
  * Larceny run-time system (Unix) -- millicode-to-C interface
  *
- * History
- *   January 19, 1995 / lth (v0.23)
- *     Added C_syscall and the syscall table.
- *
- *   June 29 - July 13, 1994 / lth (v0.20)
- *     Cleaned up.
+ * $Id: cglue.c,v 1.7 1997/02/11 19:48:21 lth Exp lth $
  *
  * All callouts from millicode to the run-time system are to C procedure
  * with names starting with C_ or UNIX_; all procedures named C_* are
  * in this file.
  */
 
-#include <varargs.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "larceny.h"
 #include "macros.h"
 #include "cdefs.h"
 
-/* In general, note that a garbage collection sets up a stack and restores
- * a frame, so after a garbage collection nothing usually needs to be done.
- */
-
-
-static void do_restore_frame();
 
 /* C_garbage_collect: perform a garbage collection */
-void C_garbage_collect( type, request )
-word type;      /* fixnum: type requestes */
-word request;   /* fixnum: words needed */
+void C_garbage_collect( word type, word request_bytes )
 {
-  garbage_collect( nativeint( type ), nativeint( request ) );
+  garbage_collect3( 0, 0, nativeint( request_bytes ) );
 }
 
-
-/* C_compact_ssb: compact SSB, garbage collect if full. */
-void C_compact_ssb()
+/* C_stack_overflow: overflow handling depends on stack */
+void C_stack_overflow( void )
 {
-#ifdef DEBUG
-  consolemsg( "[debug] Compacting SSB." );
-#endif
-  if (!compact_ssb())
-    garbage_collect( TENURING_COLLECTION, 0 );
-}
-
-/* C_stack_overflow: causes a garbage collection since stkoflo => heapoflo */
-void C_stack_overflow()
-{
-#ifdef DEBUG
-  consolemsg( "[debug] Stack overflow." );
-#endif
-  garbage_collect( EPHEMERAL_COLLECTION, 0 );
+  debugmsg( "[debug] Stack overflow." );
+  stack_overflow();
 }
 
 /* C_creg_get: capture the current continuation. */
-void C_creg_get()
+void C_creg_get( void )
 {
-#ifdef DEBUG
-  consolemsg( "[debug] capturing continuation." );
-#endif
-  flush_stack();
-  globals[ G_RESULT ] = globals[ G_CONT ];
-  if (!create_stack())
-    garbage_collect( EPHEMERAL_COLLECTION, 0 );
-  else
-    do_restore_frame();
+  debugmsg( "[debug] capturing continuation." );
+  globals[ G_RESULT ] = creg_get();
 }
 
 /* C_creg_set: reinstate a continuation */
-void C_creg_set()
+void C_creg_set( void )
 {
-#ifdef DEBUG
-  consolemsg( "[debug] reinstating continuation." );
-#endif
-  clear_stack();
-  globals[ G_CONT ] = globals[ G_RESULT ];
-  do_restore_frame();
+  debugmsg( "[debug] reinstating continuation." );
+  creg_set( globals[ G_RESULT ] );
 }
 
 /* C_restore_frame: stack underflowed, restore a frame */
-void C_restore_frame()
+void C_restore_frame( void )
 {
-#ifdef DEBUG
-  consolemsg( "[debug] stack cache underflow." );
-#endif
-  do_restore_frame();
+  debugmsg( "[debug] Stack underflow." );
+  stack_underflow();
 }
 
-static void do_restore_frame()
+/* C_wb_compact: some SSB filled up, and must be compacted. */
+/* FIXME: this is a stopgap implementation */
+void C_wb_compact( int generation )
 {
-  if (!restore_frame())
-    garbage_collect( EPHEMERAL_COLLECTION, 0 );
+  debugmsg( "[debug] wb_compact." );
+  if (!compact_ssb())
+    garbage_collect3( 1, 1, 0 );
 }
 
 /* C_panic: print a message and die. */
-void C_panic( va_alist )
-va_dcl
+void C_panic( char *fmt, ... )
 {
   va_list args;
   char buf[ 128 ];
-  char *msg;
 
-  va_start( args );
-  msg = va_arg( args, char * );
-  vsprintf( buf, msg, args );
+  va_start( args, fmt );
+  vsprintf( buf, fmt, args );
   va_end( args );
   panic( "%s", buf );
 }
@@ -135,7 +94,7 @@ va_dcl
  *   (set! REGn+1 (append! (list REGn+1 ... REGr-1) (copylist REGr)))
  */
 
-void C_varargs()
+void C_varargs( void )
 {
   word j = nativeint( globals[ G_RESULT ] );
   word n = nativeint( globals[ G_ARGREG2 ] );
@@ -146,7 +105,7 @@ void C_varargs()
   word bytes;
 
 #ifdef DEBUG2
-  consolemsg( "[debug] varargs given=%d, wanted=%d." j, n );
+  debugmsg( "[debug] varargs given=%d, wanted=%d." j, n );
 #endif
   bytes = 4*(2*(j-n));
 
@@ -186,36 +145,27 @@ void C_varargs()
   globals[ G_REG0 + n + 1 ] = (word) q + PAIR_TAG;
 }
 
-
-/*
- * C-language exception handler (called from exception.s)
+/* C-language exception handler (called from exception.s)
  * This code is called *only* when a Scheme exception handler is not present.
  */
-void C_exception( i, pc )
-long pc;
-int i;
+void C_exception( word i, word pc )
 {
   hardconsolemsg( "Larceny exception at PC=0x%08x: %d.", pc, nativeint(i) );
   localdebugger();
 }
 
-
-/*
- * This is for debugging the run-time system; should be replaced by a
+/* This is for debugging the run-time system; should be replaced by a
  * more general facility which hooks into Scheme.
  */
-void C_break()
+void C_break( void )
 {
   localdebugger();
 }
 
-
-/* 
- * Single stepping. Takes a fixnum argument which is the constant vector
+/* Single stepping. Takes a fixnum argument which is the constant vector
  * index (1-based!) at which to find a string. G_REG0 must be valid.
  */
-void C_singlestep( cidx )
-word cidx;
+void C_singlestep( word cidx )
 {
   char buf[ 300 ];
   int l;
@@ -233,14 +183,13 @@ word cidx;
   localdebugger();
 }
 
-/*
- * Syscall primitive.
+/* Syscall primitive.
  *
  * RESULT has number of arguments.
  * R1 has index of primitive to call.
  * Arguments are in R2 .. R31.
  */
-void C_syscall()
+void C_syscall( void )
 {
   typedef void (*fptr)();
 
@@ -253,7 +202,7 @@ void C_syscall()
 			{ (fptr)UNIX_closefile, 1 },
 			{ (fptr)UNIX_readfile, 3 },
 			{ (fptr)UNIX_writefile, 4 },
-			{ (fptr)UNIX_getresourceusage, 1 },
+			{ (fptr)UNIX_getresourceusage, 0 },
 			{ (fptr)UNIX_dumpheap, 2 },
 			{ (fptr)exit, 0 },
 			{ (fptr)UNIX_mtime, 2 },
@@ -261,7 +210,7 @@ void C_syscall()
 			{ (fptr)UNIX_rename, 2 },
 			{ (fptr)UNIX_pollinput, 1 },
 			{ (fptr)UNIX_getenv, 1 },
-			{ (fptr)UNIX_garbage_collect, 1 },
+			{ (fptr)UNIX_garbage_collect, 2 },
 			{ (fptr)UNIX_flonum_log, 2 },
 		        { (fptr)UNIX_flonum_exp, 2 },
 			{ (fptr)UNIX_flonum_sin, 2 },
@@ -272,6 +221,9 @@ void C_syscall()
 			{ (fptr)UNIX_flonum_atan, 2 },
 			{ (fptr)UNIX_flonum_atan2, 3 },
 			{ (fptr)UNIX_flonum_sqrt, 2 },
+			{ (fptr)UNIX_stats_dump_on, 1 },
+			{ (fptr)UNIX_stats_dump_off, 0 },
+			{ (fptr)UNIX_iflush, 1 },
 		      };
   fptr proc;
   int nargs, nproc;
@@ -297,5 +249,86 @@ void C_syscall()
     default: panic( "syscall: Too many arguments." ); break;
   }
 }
+
+#if SIMULATE_NEW_BARRIER
+
+#include "gclib.h"
+
+static unsigned wb_array_assignments = 0;
+static unsigned wb_lhs_young_or_remembered = 0;
+static unsigned wb_rhs_constant = 0;
+static unsigned wb_third_check = 0;
+static unsigned wb_trans_recorded = 0;
+
+void simulated_barrier_stats( simulated_barrier_stats_t *stats )
+{
+  stats->array_assignments = wb_array_assignments;
+  stats->lhs_young_or_remembered = wb_lhs_young_or_remembered;
+  stats->rhs_constant = wb_rhs_constant;
+  stats->cross_gen_check = wb_third_check;
+  stats->transactions = wb_trans_recorded;
+  wb_array_assignments = 0;
+  wb_lhs_young_or_remembered = 0;
+  wb_rhs_constant = 0;
+  wb_third_check = 0;
+  wb_trans_recorded = 0;
+}
+
+/* Simulation of new write barrier */
+void C_simulate_new_barrier( void )
+{
+  word *genv = (word*)globals[G_GENV];
+  word lhs = globals[G_RESULT];
+  word rhs = globals[G_ARGREG2];
+  unsigned gl, gr;
+  word **ssbtopv, **ssblimv;
+
+  if (tagof(lhs) == VEC_TAG) {
+    wb_array_assignments++;
+    if (genv[pageof(lhs)] == 0)
+      wb_lhs_young_or_remembered++;
+    else if (isremembered( lhs ))
+      wb_lhs_young_or_remembered++;
+    else if (!isptr( rhs ))
+      wb_rhs_constant++;
+    else 
+      goto record_trans;
+  }
+  else {
+    if (genv[pageof(lhs)] == 0)
+      ;
+    else if (!isptr(rhs))
+      ;
+    else
+      goto record_trans;
+  }
+  return;
+ record_trans:
+  gl = genv[pageof(lhs)];
+  gr = genv[pageof(rhs)];
+  if (gl <= gr) {
+    if (tagof(lhs) == VEC_TAG) wb_third_check++;
+    return;
+  }
+  if (tagof(lhs) == VEC_TAG)
+    wb_trans_recorded++;
+  ssbtopv = (word**)globals[G_SSBTOPV];
+  ssblimv = (word**)globals[G_SSBLIMV];
+  *ssbtopv[gl] = lhs;
+  ssbtopv[gl] += 1;
+  if (ssbtopv[gl] == ssblimv[gl]) C_wb_compact( gl );
+}
+
+#endif  /* if SIMULATE_NEW_BARRIER */
+
+/* OBSOLETE PROCEDURES */
+
+/* C_compact_ssb: compact SSB, garbage collect if full. */
+void C_compact_ssb( void )
+{
+  debugmsg( "[debug] Warning: call to obsolete C_compact_ssb" );
+  return;
+}
+
 
 /* eof */

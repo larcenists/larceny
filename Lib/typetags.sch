@@ -1,7 +1,7 @@
 ; Larceny library
 ; Type tags.
 ;
-; $Id: typetags.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: typetags.sch,v 1.1 1995/08/03 00:18:21 lth Exp $
 ;
 ; The type tags really should be gotten from the auto-generated stuff.
 

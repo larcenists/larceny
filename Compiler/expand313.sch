@@ -1,6 +1,6 @@
 ;; Program which expands all macros in the input file.
 ;;
-;; $Id: expand313.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
+;; $Id: expand313.sch,v 1.1 1995/08/01 04:42:39 lth Exp $
 ;;
 ;; We use this to get rid of quasiquotations to help the current version of
 ;; twobit. To be used in emergencies only. :-)

@@ -1,7 +1,10 @@
 # Emacs: Please stick to -*- fundamental -*- mode.
 #
-# Makefile for Larceny: all the real stuff is here.
-# $Id: Makefile,v 1.2 1995/08/01 04:37:01 lth Exp lth $
+# Rts/Makefile
+# Larceny -- the main Makefile
+#
+# $Id: Makefile,v 1.4 1997/02/11 14:33:56 lth Exp lth $
+
 
 ############################################################################
 #
@@ -17,16 +20,43 @@ EXTRALIBPATH=
 #EXTRALIBS=-lucb
 #EXTRALIBPATH=-L/usr/ucblib
 
+
+###########################################################################
+#
+# Feature configuration section.
+
+# Remembered set computation.
+#
+# By setting SIMULATE_NEW_BARRIER to 1, then doing a make clean ; make larceny,
+# and making sure that all Scheme code was in fact compiled with no in-line
+# write barrier checking, Larceny will switch to a (very slow) write barrier
+# that simulates and gathers accurate statistics for the planned write
+# barrier.
+
+SIMULATE_NEW_BARRIER=1
+
+
+# Stack underflow statistics.
+#
+# By setting STACK_UNDERFLOW_COUNTING to 1, the number of stack underflows 
+# are recorded at a slight (probably negligible) performance penalty.
+
+STACK_UNDERFLOW_COUNTING=1
+
+
 # Instruction cache flushing.
+#
 # In general, Larceny detects automatically whether cache flushing needs
 # to be performed on the architecture Larceny is running on. You can,
 # however, override this behaviour by uncommenting one of the following
 # lines and recompiling Rts/$(MACH)/cache.c and relinking.
-#
-# IFLUSH=-DFLUSH_ALWAYS
-# IFLUSH=-DFLUSH_NEVER
+
+#IFLUSH=-DFLUSH_ALWAYS
+#IFLUSH=-DFLUSH_NEVER
+
 
 # Division by zero handling.
+#
 # Currently all checking is explicit, so don't undefine this.
 
 DIVZ=-DCHECK_DIVISION_BY_ZERO
@@ -53,16 +83,21 @@ BUILD=Build
 # Defining DEBUG adds some debugging output.
 # Defining DEBUG2 may or may not add a _lot_ of debugging output (old switch)
 
+CONFIG=-DSIMULATE_NEW_BARRIER=$(SIMULATE_NEW_BARRIER) \
+	-DSTACK_UNDERFLOW_COUNTING=$(STACK_UNDERFLOW_COUNTING)
+
 #PROFILE=-pg
-DEBUG=-g
-#DFLAGS=-DDEBUG # -DDEBUG2
-OPTIMIZE=-O2 -traditional
+DEBUGINFO=-g
+DEBUGFLAGS=#-DDEBUG # -DDEBUG2
+OPTIMIZE=-DNDEBUG -O2
 CC=gcc
 AS=as
 
-CFLAGS=	-c $(DEBUG) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) -I$(SYS) -I$(BUILD) $(DFLAGS) $(IFLUSH) $(DIVZ)
+CFLAGS=	-c $(DEBUGINFO) $(OPTIMIZE) $(PROFILE) -D$(TARGETOS) $(CONFIG) \
+	-I$(SYS) -I$(BUILD) $(DEBUGFLAGS) $(IFLUSH) $(DIVZ)
 
-ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(DFLAGS) $(IFLUSH) $(DIVZ)
+ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(CONFIG) $(DEBUGFLAGS) \
+	$(IFLUSH) $(DIVZ)
 
 
 ############################################################################
@@ -74,23 +109,32 @@ ASFLAGS= -P -I$(MACH) -I$(BUILD) -D$(TARGETOS) $(DFLAGS) $(IFLUSH) $(DIVZ)
 # EXGC_OBJS are the object files to link for the experimental collector.
 
 COBJS=$(SYS)/larceny.o $(SYS)/remset.o $(SYS)/stack.o\
-	$(SYS)/cglue.o $(SYS)/heapio.o $(SYS)/malloc.o \
-	$(SYS)/memstats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
+	$(SYS)/cglue.o $(SYS)/heapio.o \
+	$(SYS)/stats.o $(SYS)/version.o $(SYS)/ldebug.o $(SYS)/unix.o\
 	$(SYS)/argv.o\
 	$(MACH)/cache.o
 
+GSGC=$(SYS)/gc.o $(SYS)/memmgr.o \
+	$(SYS)/young-heap.o $(SYS)/old-heap.o \
+	$(SYS)/unix-alloc.o $(SYS)/semispace.o $(SYS)/cheney.o \
+	$(SYS)/barrier.o $(SYS)/gcdebug.o
+
 ASMOBJS=$(MACH)/mcode.o $(MACH)/memory.o $(MACH)/glue.o $(BUILD)/table.o \
-	$(MACH)/generic.o $(MACH)/cache0.o
+	$(MACH)/generic.o $(MACH)/cache0.o $(MACH)/barrier.o
 
-GSGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/policy.o $(SYS)/gc.o
+# Standard generational collector: multiple copying generations
 
-SCGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/scpolicy.o $(SYS)/gc.o
+GSGC_OBJS=$(COBJS) $(ASMOBJS) $(GSGC)
 
-EXGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/expolicy.o
+#SCGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/scpolicy.o $(SYS)/gc.o
+#EXGC_OBJS=$(COBJS) $(ASMOBJS) $(SYS)/expolicy.o
+
+# Header files.
+#
+# ACFG, CCFG, SCFG, and HDRFILES also exists in ../Makefile. Watch it!
 
 CCFG=$(BUILD)/globals.ch $(BUILD)/except.ch $(BUILD)/layouts.ch
 
-# ACFG, CCFG, SCFG, and HDRFILES also exists in ../Makefile. Watch it!
 ACFG=$(BUILD)/globals.ah $(BUILD)/regs.ah $(BUILD)/except.ah \
 	$(BUILD)/layouts.ah $(BUILD)/mprocs.ah
 
@@ -98,6 +142,10 @@ SCFG=$(BUILD)/globals.sh $(BUILD)/regs.sh $(BUILD)/except.sh \
 	$(BUILD)/layouts.sh 
 
 HDRFILES=$(CCFG) $(ACFG) $(SCFG)
+
+HDRS=$(SYS)/larceny.h $(SYS)/macros.h $(SYS)/gc.h $(BUILD)/cdefs.h
+
+GCHDRS=$(SYS)/memmgr.h $(SYS)/barrier.h $(SYS)/gclib.h
 
 
 ############################################################################
@@ -141,7 +189,7 @@ exlarceny: $(EXGC_OBJS)
 	/bin/rm -f $(SYS)/version.o
 
 hsplit: $(SYS)/hsplit.o
-	$(CC) $(PROFILE) $(DEBUG) -o hsplit $(SYS)/hsplit.o
+	$(CC) $(PROFILE) $(DEBUGINFO) -o hsplit $(SYS)/hsplit.o
 $(SYS)/hsplit.o: $(SYS)/hsplit.c
 	$(CC) -g -o $(SYS)/hsplit.o -I$(BUILD) -I$(SYS) -c $(SYS)/hsplit.c
 clean:
@@ -149,7 +197,8 @@ clean:
 	rm -f $(GSGC_OBJS) $(SCGC_OBJS) $(EXGC_OBJS)
 
 realclean:
-	rm -f $(BUILD)/*
+	rm -f $(BUILD)/*.s $(BUILD)/*.*h
+
 
 ###########################################################################
 #
@@ -164,7 +213,8 @@ $(BUILD)/asmdefs.h:	$(ACFG)
 $(BUILD)/schdefs.h:	$(SCFG)
 	cat $(SCFG) > $(BUILD)/schdefs.h
 
-$(COBJS): $(SYS)/larceny.h $(SYS)/macros.h $(BUILD)/cdefs.h
+$(COBJS): $(HDRS)
+$(GSGC): $(HDRS) $(GCHDRS)
 
 $(ASMOBJS): $(BUILD)/asmdefs.h
 

@@ -3,7 +3,7 @@
 ; Larceny run-time library -- system exception handler.
 ;
 ; lth@cs.uoregon.edu / Sometime in 1992 
-; $Id: ehandler.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: ehandler.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; The procedure "exception-handler" takes the contents of RESULT, 
 ; ARGREG2, and ARGREG3, and an exception code as arguments. It 

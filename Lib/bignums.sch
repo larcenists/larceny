@@ -1,5 +1,5 @@
 ; -*- Scheme -*-
-; $Id$
+; $Id: bignums.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; Larceny runtime system.
 ; Scheme code for bignum arithmetic.

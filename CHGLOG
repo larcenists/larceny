@@ -1,9 +1,46 @@
 ; List of changes to Larceny.
 ;
-; $Id: CHGLOG,v 1.2 1995/08/01 04:36:02 lth Exp lth $
+; $Id: CHGLOG,v 1.3 1997/02/11 20:37:45 lth Exp lth $
+
 
 ----------------------------------------------------------------------
-v0.25 as of yet unreleased
+v0.26  Created February 11, 1997 by lth
+
+Noteworthy
+* This version contains major changes from previous versions.
+* Most compiled code continues to work, although old heap images do 
+  not work, due to changes in the basic library.  Also, old code that
+  relies on the interface to the 'collect' procedure or on the return
+  value of the 'memstats' procedure will no longer work.
+* Heap dumping is currently _not_ possible.
+
+Major changes
+* [RTS] Entirely new memory management subsystem.
+* [RTS] Entirely new heap statistics code.
+* [RTS] Full use of ANSI C prototypes throughout; system no longer compiles
+  with the SunOS bundled C compiler ('cc').
+
+Minor changes
+* New GC and statistics interface from Scheme; see manual.
+* New command line switches; see manual.
+* [Lib/memstats.sch] Completely rewritten.
+* [Lib/load.sch] No longer performs a GC after loading.
+* [Lib/reader.sch] Flushes the icache when loading code vectors.
+* [Lib/print.sch] The unprintable object is now #!unspecified.
+* [Repl/reploop.sch] The REPL does not print #!unspecified.
+* Text subdirectory is no longer part of the standard distribution
+
+... and lots of others, I'm sure -- I lost track of them all.
+
+----------------------------------------------------------------------
+v0.25b Created October 16, 1996 by lth
+
+Bugs
+- [Makefile] README was not included in the tar file
+- [Makefile] Chez/compat.sch was not included in the tar file
+
+----------------------------------------------------------------------
+v0.25a Created September 1996 by lth
 
 General reorganization, cleanup, and so on.
 - [Compiler/dumpheap.sch] Now much faster, requires much less memory, but

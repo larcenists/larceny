@@ -1,4 +1,4 @@
-; $Id$
+; $Id: compload.sch,v 1.1 1997/02/11 20:21:58 lth Exp lth $
 ;
 ; For Larceny:
 ; Load the compiler and generic assembler, with everything needed.

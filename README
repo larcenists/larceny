@@ -1,8 +1,9 @@
-% -*- text -*- $Id$
+% -*- text -*- 
+% $Id: README,v 1.1 1997/02/11 20:37:35 lth Exp lth $
 
 
 		  RELEASE NOTES and RUDIMENTARY MANUAL
-			 Larceny version 0.25.
+			 Larceny version 0.26
 
 
 
@@ -11,10 +12,10 @@ INSTALLING AND BUILDING LARCENY
 
 1. Create a directory for larceny to live in, below it's called 'LARCENY'.
 
-2. Move larceny-0.25.tar.Z into LARCENY
+2. Move larceny-0.26.tar.Z into LARCENY
 
 3. Uncompress the distribution:
-	zcat larceny-0.25.tar.Z | tar xvf -
+	zcat larceny-0.26.tar.Z | tar xvf -
 
 4. Initialize the build directory. In LARCENY, execute
 	make setup
@@ -37,13 +38,16 @@ INSTALLING AND BUILDING LARCENY
 7. To run larceny,
 	larceny larceny.heap
 
-8. To create the stop-and-copy system, say 'make sclarceny', 
+8. (NOT AVAILABLE IN 0.26)
+   To create the stop-and-copy system, say 'make sclarceny', 
    and (make-larceny-eheap).  The executable is called sclarceny and
    the heap image is called 'larceny.eheap'.
    (By convention, Sparc object files that do not use write barrier
    checks at assignments have extension .elop, and the heap images
    have extension .eheap.  These conventions are assumed by the
    compilation system.)
+
+9. Also see the online manual at http://www.ccs.neu.edu/home/lth/larceny.
 
 
 CACHE FLUSH ISSUES
@@ -86,7 +90,7 @@ load fails, the repl will still be run.
 AUXILIARY LIBRARIES
 -------------------
 
-Larceny 0.25 comes with many auxiliary functions which are not part of
+Larceny 0.26 comes with many auxiliary functions which are not part of
 the basic heap image. These are located in the Auxlib subdirectory. You
 can load them all into a running system by compiling to fasl all the
 Scheme files in the Auxlib library (sorry, no automation yet) and

@@ -78,8 +78,8 @@
 
 ;; The next two do magic things for the top level compilation.
 
-(loadfile compilerdir "expand313.sch")
-(loadfile compilerdir "rewrite.sch")  ; HACK! FIXME!
+;(loadfile compilerdir "expand313.sch")
+;(loadfile compilerdir "rewrite.sch")  ; HACK! FIXME!
 
 (display "Loading makefile...") (newline)
 (loadfile sourcedir "makefile.sch")

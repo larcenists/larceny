@@ -5,7 +5,7 @@
 ;
 ; Second major version, for Chez Scheme.
 ;
-; $Id: dumpheap.sch,v 1.1 1995/08/01 04:42:39 lth Exp lth $
+; $Id: dumpheap.sch,v 1.2 1997/02/11 20:21:58 lth Exp lth $
 ;
 ; Each input file consists of pairs. The car of a pair is a code vector
 ; and the cdr of the pair is a constant vector. The code vector is a regular

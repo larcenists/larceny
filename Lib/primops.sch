@@ -3,7 +3,7 @@
 ; Larceny run-time system
 ; Global procedure definitions for integrable procedures.
 ;
-; $Id: primops.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: primops.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 
 ; The following are defined elsewhere:
 ;

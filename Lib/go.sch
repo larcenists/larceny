@@ -1,7 +1,7 @@
 ; Larceny library.
 ; The `go' procedure -- where uninitialized heaps start.
 ;
-; $Id: go.sch,v 1.1 1995/08/03 00:18:21 lth Exp lth $
+; $Id: go.sch,v 1.2 1997/02/03 20:07:13 lth Exp $
 ;
 ; Initializes the system and calls "main". This procedure is only called
 ; when we are loading an unitialized heap; initialized heaps will have "main"

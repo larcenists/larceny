@@ -1,9 +1,7 @@
-/*
- * This is the file Rts/Sys/argv.c
- *
- * $Id$
- *
+/* Rts/Sys/argv.c
  * Larceny run-time system (Unix) -- argument vector handling.
+ *
+ * $Id: argv.c,v 1.2 1997/02/06 20:01:41 lth Exp $
  */
 
 #include <stdlib.h>

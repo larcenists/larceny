@@ -1,12 +1,12 @@
-/* -*- Fundamental -*-
+/* Rts/Sys/macros.h
+ * Larceny run-time system -- macros
  *
- * Scheme Run-Time System
+ * $Id: macros.h,v 1.2 1997/02/06 20:01:41 lth Exp $
+ *
  * Machine and representation dependent (and independent) macros,
  * including tag definitions and tag masks, and interesting constants.
  *
  * For C-language routines.
- *
- * $Id: macros.h,v 1.1 1995/06/15 19:30:36 lth Exp lth $
  */
 
 /* Various masks. Change BIT_MASK if your word is not 32 bits long. */
@@ -34,7 +34,7 @@
 #define striptag( w, t )   ((word*)((w) ^ t))
 
 /* Given pointer and tag, return tagged pointer */
-#define tagptr( w, tag )    (word *)((word)(w) | (tag))
+#define tagptr( w, tag )    ((word)(w) | (tag))
 
 /* extract header tag (i.e. sans typetag) from a header word */
 #define header( w )         ((word)(w) & HDR_MASK)

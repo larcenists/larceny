@@ -1,15 +1,9 @@
-/* This is the file Sys/unix.c.
- * Larceny Runtime System (Unix) -- Unix and related services.
+/* Rts/Sys/unix.c.
+ * Larceny Runtime System -- operating system specific services: Unix.
  *
- * $Id: unix.c,v 1.2 1995/08/01 04:37:33 lth Exp lth $
+ * $Id: unix.c,v 1.6 1997/02/11 19:48:21 lth Exp lth $
  *
- * History
- *   June 27, 1995 / lth
- *     Rewritten to be used with the new syscall, getting rid of some
- *     assembly code.
- *
- *   June 26, 1994 / lth
- *     Created, along with unix.s.
+ * RTS call-outs, for Unix.
  */
 
 static char *getfilename();
@@ -81,11 +75,10 @@ word w_fd, w_buf, w_cnt, w_offset;
 				     nativeint( w_cnt ) ) );
 }
 
-void UNIX_getresourceusage( w_vec )
-word w_vec;
+void UNIX_getresourceusage( void )
 {
-  /* call on the procedure defined in memstats.c */
-  memstat_fillvector( ptrof( w_vec )+1 );
+  /* call on the procedure defined in Rts/Sys/stats.c */
+  globals[ G_RESULT ] = stats_fillvector();
 }
 
 void UNIX_dumpheap( w_fn, w_proc )
@@ -95,8 +88,6 @@ word w_fn, w_proc;
 
   fn = getfilename( w_fn );                      /* heap file name */
   globals[ G_STARTUP ] = w_proc;                 /* startup procedure */
-
-  garbage_collect( FULL_COLLECTION, 0 );
 
   if (fn == 0 || dump_heap( fn ) == -1)
     globals[ G_RESULT ] = FALSE_CONST;
@@ -182,10 +173,18 @@ word w_envvar;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
-void UNIX_garbage_collect( w_type )
+void UNIX_garbage_collect( w_gen, w_type )
+word w_gen;
 word w_type;      /* fixnum: type requested */
 {
-  garbage_collect( nativeint( w_type ), 0 );
+  garbage_collect3( nativeint( w_gen ), nativeint( w_type ), 0 );
+}
+
+void UNIX_iflush( w_bv )
+word w_bv;
+{
+  mem_icache_flush( ptrof( w_bv )+1, 
+		    ptrof( w_bv )+roundup4(sizefield(*ptrof(w_bv)))/4 );
 }
 
 /* Copy a file name from a Scheme string to a C string. */
@@ -233,5 +232,19 @@ word w_flonum1, w_flonum2, w_result;
 }
 
 numeric_onearg( UNIX_flonum_sqrt, sqrt )
+
+/* Statistics dump interface */
+
+void UNIX_stats_dump_on( w_fn )
+word w_fn;
+{
+  char *fn = getfilename( w_fn );
+  globals[ G_RESULT ] = fixnum( stats_opendump( fn ) );
+}
+
+void UNIX_stats_dump_off()
+{
+  stats_closedump();
+}
 
 /* eof */

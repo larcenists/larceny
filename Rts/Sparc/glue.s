@@ -1,6 +1,6 @@
 ! -*- Fundamental -*-
 ! This is the file Sparc/glue.s.
-! $Id$
+! $Id: glue.s,v 1.1 1997/01/21 20:03:54 lth Exp $
 !
 ! Larceny Run-time System (SPARC) -- glue procedures.
 !

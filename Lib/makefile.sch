@@ -1,5 +1,5 @@
 ; -*- scheme -*-
-; $Id$
+; $Id: makefile.sch,v 1.3 1997/02/06 20:04:44 lth Exp $
 ;
 ; Larceny development system -- makefile for compiling Scheme files.
 ;
@@ -139,6 +139,7 @@
 (define eheap-project (make:new-project "larceny.eheap"))
 
 ; FIXME: the rule for ecodes.sch appears not to work.
+; Ditto for globals.
 
 (make:rule heap-project ".lop" ".mal" make-assemble)
 (make:rule heap-project ".lop" ".lap" make-assemble)
