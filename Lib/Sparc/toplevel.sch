@@ -192,6 +192,8 @@
     (environment-set! larc 'rsha rsha)
     (environment-set! larc 'rshl rshl)
     (environment-set! larc 'lsh lsh)
+    (environment-set! larc 'most-positive-fixnum most-positive-fixnum)
+    (environment-set! larc 'most-negative-fixnum most-negative-fixnum)
     (environment-set! larc 'fx+ fx+)
     (environment-set! larc 'fx- fx-)
     (environment-set! larc 'fx-- fx--)
@@ -469,12 +471,6 @@
     ;; Backwards compatibility
     (environment-set! larc 'repl-eval-procedure repl-evaluator)
     (environment-set! larc 'repl-display-procedure repl-printer)
-
-    ;; bignum debugging
-
-    (environment-set! larc 'bigdump bigdump)
-    (environment-set! larc 'bigdump* bigdump*)
-    (environment-set! larc 'big-divide-digits big-divide-digits)
 
     ;; flonum debugging
 
