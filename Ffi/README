@@ -247,10 +247,12 @@ ffi-lower.sch
 	  bytevector that encodes these types in a format more suitable
 	  for decoding by low-level code (i.e., the FFI procedures in 
 	  the C run-time).
+          A better name would have been ffi/encode-argument-types.
 
 	ffi/convert-ret-descriptor : ABI * ret-descriptor -> ret-encoding
 	  Given a return value representation type, returns an integer
 	  that encodes that type.
+          A better name would have been ffi/encode-return-type.
 
 	ffi/apply : trampoline * arg-encoding * ret-encoding * actuals 
 		-> ( boolean, value )
@@ -304,6 +306,8 @@ ffi-util.sch
 	ffi/asciiz-length : bytevector -> integer
 	ffi/asciiz->string : bytevector -> string
 
+
+OS dependencies.
 
   A full ABI object extends the definition given above by adding the
   operators listed below.  These operators implement operating-system and
