@@ -1,5 +1,5 @@
 Information about native Larceny on Intel 386-class systems
-15 December 2003 / lth
+2 July 2004 / lth
 
 
 HOW TO BUILD AND USE.
@@ -33,6 +33,8 @@ TODO.
 
  - a few FIXMEs in Rts/Intel/i386-instr.asm (unproblematic)
  - a few OPTIMIZEMEs ditto (ditto)
+ - a crash during GC was seen some time following a ^C, which 
+   could indicate that kbd interrupts are not handled properly
  - performance (see next section)
  - code size (see section after that)
  - test, test, test
@@ -44,9 +46,10 @@ Programs that do a lot of traps to millicode will likely be slower
 than they used to be, because there is more state to save and a more
 costly call protocol (one indirect and one direct jump, rather than
 just one direct jump).  The operations most likely to suffer adversely
-are allocation, the write barrier, and generic arithmetic.  (Of these,
+are allocation, the write barrier, and generic arithmetic.  Of these,
 the interpreter heavily relies on allocation and assignment; these
-have been fixed and it helps a little, see below.)
+have been fixed by creating fast paths in the assembler millicode, and
+it helps a little, see below.
 
 The next step would be to (a) compile with profiling, to see if much
 time is being spent in the RTS/millicode, and if so where, and (b)
