@@ -2,35 +2,45 @@
  * Scheme 313 Runtime System.
  * Garbage collector.
  *
- * $Id: gc.c,v 3.1 91/07/15 13:54:56 lth Exp Locker: lth $
+ * $Id: gc.c,v 3.2 91/07/16 13:25:47 lth Exp Locker: lth $
  *
- * There are two kinds of spaces: the tenured space and the ephemeral space.
- * All objects are created in the ephemeral space. There are three kinds
- * of collections: ephemeral, tenuring, and full.
+ * THE COLLECTOR
+ *   There are two kinds of spaces: the tenured space and the ephemeral space.
+ *   All objects are created in the ephemeral space. When the ephemeral area
+ *   fills up (see below), live objects are copied into the tenured area.
  *
- * Ephemeral collection
- * --------------------
- * When the ephemeral area fills up with new objects, all reachable objects
- * are copied into the dual ephemeral space. If, after the copy, the new
- * ephemeral space is fuller than what is specified by the watermark E_MARK,
- * then the switch MUST_TENURE is set, and the next collection will be a
- * tenuring collection.
+ *   There are three kinds of collections: ephemeral, tenuring, and full.
  *
- * Tenuring collection
- * -------------------
- * A tenuring collection is like an ephemeral collection except that objects
- * are copied from the ephemeral space into the tenured space (starting at
- * the current top of the tenured space) rather than into an ephemeral
- * newspace. If, at the start of a tenuring collection, there is less space
- * left in the current tenured area than the size of the ephemeral area,
- * then a full collection is performed instead.
+ *   Ephemeral collection
+ *   --------------------
+ *   When the ephemeral area fills up with new objects, all reachable objects
+ *   are copied into the new ephemeral space. If, after the copy, the new
+ *   ephemeral space is fuller than what is specified by the watermark E_MARK,
+ *   then the switch MUST_TENURE is set, and the next collection will be a
+ *   tenuring collection.
  *
- * Full collection
- * ---------------
- * During a full collection both the tenured area and the ephemeral area are
- * copied into the tenured newspace. [This requires a considerable amount of
- * extra memory and should be changed.]
+ *   Tenuring collection
+ *   -------------------
+ *   A tenuring collection is like an ephemeral collection except that objects
+ *   are copied from the ephemeral space into the tenured space (starting at
+ *   the current top of the tenured space) rather than into an ephemeral
+ *   newspace. If, at the start of a tenuring collection, there is less space
+ *   left in the current tenured area than the size of the ephemeral area,
+ *   then a full collection is performed instead.
  *
+ *   Full collection
+ *   ---------------
+ *   During a full collection both the tenured area and the ephemeral area are
+ *   copied into the tenured newspace. [This requires a considerable amount of
+ *   extra memory and should be changed.]
+ *
+ *   The transaction list
+ *   --------------------
+ *   The mutator must keep a list of tagged pointers to those objects in the 
+ *   tenured area which have pointers into the ephemeral area. This list is
+ *   maintained at the high end of the tenured area, and is known as the
+ *   transaction list. All entries in the transaction list *must* be tagged
+ *   pointers into the tenured area. There may be duplicates.
  *
  * IMPLEMENTATION
  *   We use "old" C; this has the virtue of letting us use 'lint' on the code
@@ -83,7 +93,12 @@
  *   a full collection of the t-spaces on a space-basis. A simple variation
  *   is to do the tenuring collection like before but into a small t-space
  *   which is grown in chunks which can be allocated and maintained 
- *   "separately", as this reduces memory waste quite a bit.
+ *   "separately", as this reduces memory waste quite a bit. However, it
+ *   requires that we keep cross-generation entry lists to quite some degree!
+ *   This may be a hassle.
+ * - It is possible that a certain flexibility with the entries in the
+ *   transaction list is desirable, since it could simplify (speed up) the
+ *   mutators.
  */
 
 #include "gcinterface.h"
@@ -274,6 +289,8 @@ int type;
 #ifdef DEBUG
   pairs_copied = vectors_copied = 0;
 #endif
+  words_collected = words_allocated = 0;
+
 
   must_tenure = globals[ MUST_TENURE_OFFSET ] || type == TENURING_COLLECTION;
 
@@ -336,7 +353,7 @@ static ephemeral_collection()
 {
   word *tmp;
 
-  e_top = fast_collection( e_new_base );
+  e_top = fast_collection( e_new_base, e_new_max );
   tmp = e_base; e_base = e_new_base; e_new_base = tmp;
   tmp = e_max; e_max = e_new_max; e_new_max = tmp;
 }
@@ -348,7 +365,7 @@ static ephemeral_collection()
  */
 static tenuring_collection()
 {
-  t_top = fast_collection( t_top );
+  t_top = fast_collection( t_top, t_trans );
   e_top = e_base;
   t_trans = t_max;
 }
@@ -364,8 +381,9 @@ static tenuring_collection()
  *  - it is reachable from the transaction list, or
  *  - it is reacable from a reachable object.
  */
-static fast_collection( base )
+static fast_collection( base, max )
 word *base;
+word *max;
 {
   word *dest, *ptr, *head, *tail;
   unsigned int i, tag, size;
@@ -383,35 +401,41 @@ word *base;
    * Do entry list. The entry list is in the tenured area between t_max
    * and t_trans (including the former but not the latter.)
    */
-  for ( tail = head = t_max ; head > t_trans ; head-- ) {
-    tag = tagof( *head );
-    ptr = ptrof( *head );
-    if (tag == VEC_TAG || tag == PROC_TAG) {
-      if (get_bit( *ptr ) == 0) {        /* haven't done this structure yet */
-	set_bit( *ptr );
-	size = sizefield( *ptr ) >> 2;
-	for (i = 0, ++ptr ; i < size ; i++, ptr++ )
-	  *ptr = forward( *ptr, e_base, e_max, &dest );
-	*tail-- = *head;
+  { word *my_e_base = e_base;
+    word *my_e_max = e_max;
+
+    for ( tail = head = t_max ; head > t_trans ; head-- ) {
+      tag = tagof( *head );
+      ptr = ptrof( *head );
+      if (tag == VEC_TAG || tag == PROC_TAG) {
+	if (get_bit( *ptr ) == 0) {
+	  /* haven't done this structure yet */
+	  size = sizefield( *ptr ) / 4;
+	  set_bit( *ptr );
+	  for (i = 0, ++ptr ; i < size ; i++, ptr++ )
+	    *ptr = forward( *ptr, my_e_base, my_e_max, &dest );
+	  *tail-- = *head;
+	}
       }
-    }
-    else if (tag == PAIR_TAG) {
-      /* have done pair if either word is pointer into neswpace! */
-      if (isptr( *ptr ) && ptrof( *ptr ) <= e_max
-	  ||
-	  isptr( *(ptr+1) ) && ptrof( *(ptr+1) ) <= e_max) {
-	/* nothing */
+      else if (tag == PAIR_TAG) {
+	/* have done pair if either word is pointer into neswpace! */
+	if (pointsto( *ptr, base, max ) || pointsto( *(ptr+1), base, max )) {
+	  /* nothing */
+	}
+	else {
+	  *ptr = forward( *ptr, my_e_base, my_e_max, &dest );
+	  *(ptr+1) = forward( *(ptr+1), my_e_base, my_e_max, &dest );
+	  *tail-- = *head;
+	}
       }
       else {
-	*ptr = forward( *ptr, e_base, e_max, &dest );
-	*(ptr+1) = forward( *(ptr+1), e_base, e_max, &dest );
-	*tail-- = *head;
+	/* it's possible that we should just ignore the entry here,
+	   rather than panicking. */
+	panic( "Failed invariant in fast_collection().\n" );
       }
     }
-    else
-      panic( "Failed invariant in fast_collection().\n" );
+    t_trans = tail;
   }
-  t_trans = tail;
 
   /*
    * Clear the header bits in the tenured area.
