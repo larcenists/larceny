@@ -2,7 +2,7 @@
 !
 ! Larceny Run-time System (SPARC)
 !
-! $Id: glue.s,v 1.10 1992/06/10 09:05:52 lth Exp lth $
+! $Id: glue.s,v 1.11 1992/08/04 18:27:53 lth Exp lth $
 !
 ! This file contains miscellaneous glue procedures and many millicode
 ! procedures. The most important glue procedures are _scheme_start which
@@ -1070,13 +1070,15 @@ _undef_exception:
 
 Lgeneric_exception:
 	st	%o7, [ %GLOBALS + SAVED_RETADDR_OFFSET ]
+	st	%TMP0, [ %GLOBALS + GLUE_TMP1_OFFSET ]
 	call	_mem_save_scheme_context
 	nop
+	ld	[ %GLOBALS + GLUE_TMP1_OFFSET ], %TMP0
 	mov	%TMP1, %g1
 
 	save	%sp, -96, %sp
 	call	_C_exception
-	mov	%g1, %o0
+	mov	%SAVED_TMP0, %o0
 	restore
 
 	call	_mem_restore_scheme_context
