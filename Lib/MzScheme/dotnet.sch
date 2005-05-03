@@ -95,10 +95,6 @@
             (class-slots (class-of instance)))
   (dotnet-message 0 "End description"))
 
-(define (void)
-  (if #f #f))
-
-(define (void? thing) (eq? thing (void)))
 (define (flush-output) #f)
 
 ;;; End of miscellany
@@ -1205,7 +1201,7 @@
   (lambda (flag-list)
     (clr-enum/to-object
      (clr-object/clr-handle class)
-     (foldl (lambda (accum enumerate)
+     (foldl (lambda (enumerate accum)
               (logior accum (enum/value enumerate)))
             0 flag-list))))
 
@@ -2399,7 +2395,7 @@
         (else (error (string-append
                       "Dotnet version "
                       (number->string (car (clr/%clr-version)))
-                      (foldl (lambda (x y) (string-append x "." y)) "" (map number->string (cdr (clr/%clr-version))))
+                      (foldl (lambda (y x) (string-append x "." y)) "" (map number->string (cdr (clr/%clr-version))))
                       " not yet supported.")))))
 
 ;;;; Utilities
