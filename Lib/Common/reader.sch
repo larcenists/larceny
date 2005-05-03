@@ -29,6 +29,7 @@
 
 (define recognize-javadot-symbols? (make-parameter "recognize-javadot-symbols?" #f boolean?))
 (define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
+(define read-square-bracket-as-paren (make-parameter "read-square-bracket-as-paren" #f boolean?))
 
 (define install-reader
   (lambda ()
@@ -102,9 +103,9 @@
        ; c has already been consumed from the input file.
 
        (read-list
-        (lambda (c p)
+        (lambda (match c p)
           (cond ((char? c)
-                 ((vector-ref read-list-vec (char->integer c)) c p))
+                 ((vector-ref read-list-vec (char->integer c)) match c p))
                 ((eof-object? c)
                  (read-unexpected-eof p))
                 (else
@@ -115,30 +116,30 @@
        ; c, the first character of the list element, has been consumed.
 
        (read-list-element
-         (lambda (c p)
+         (lambda (match c p)
            (let ((first (read-dispatch c p)))
-             (cons first (read-list (tyi p) p)))))
+             (cons first (read-list match (tyi p) p)))))
 
        ; The dot has been consumed.
 
        (read-dotted-pair-tail
-        (lambda (p)
+        (lambda (match p)
           (let ((c (tyipeek p)))
             (if (and (char? c) (whitespace? c))
                 (let ((tail (read-dispatch (tyi p) p)))
-                  (flush-whitespace-until-rparen (tyi p) p)
+                  (flush-whitespace-until-rparen match (tyi p) p)
                   tail)
-                (read-list-element #\. p)))))
+                (read-list-element match #\. p)))))
 
        (flush-whitespace-until-rparen
-        (lambda (c p)
+        (lambda (match c p)
           (if (char? c)
-              (cond ((char=? c #\)) '())
-                    ((whitespace? c) (flush-whitespace-until-rparen (tyi p) p))
+              (cond ((char=? c match) '())
+                    ((whitespace? c) (flush-whitespace-until-rparen match (tyi p) p))
                     ((char=? c #\*)
                      (begin
                       (flush-comment p)
-                      (flush-whitespace-until-rparen (tyi p) p)))
+                      (flush-whitespace-until-rparen match (tyi p) p)))
                     (else (dotted-pair-error p)))
               (dotted-pair-error p))))
 
@@ -334,10 +335,10 @@
                         (else (flush-comment-and-read p))))))))
 
        (flush-comment-and-read-list
-         (lambda (p)
+         (lambda (match p)
 
            (define (cont)
-             (read-list (tyi p) p))
+             (read-list match (tyi p) p))
 
            (let ((c (tyi p)))
             (if (not (char? c))                             ; EOF
@@ -345,7 +346,7 @@
                 (let ((c (char->integer c)))
                   (cond ((eq? c 13) (cont))                 ; CR
                         ((eq? c 10) (cont))                 ; LF
-                        (else (flush-comment-and-read-list p))))))))
+                        (else (flush-comment-and-read-list match p))))))))
 
        ; Handles end of file.
 
@@ -397,6 +398,12 @@
                   c)
            #t))
 
+       (read-list-illegal
+         (lambda (match c p)
+           (error "Illegal character in input to read"
+                  c)
+           #t))
+
        ; The eq? test here is supposed to make a fast read-blanks look
        ; that does not interfere with the read-table logic.  In v0.27
        ; it slows the reader down, presumably because the compiler does
@@ -419,7 +426,8 @@
            (newline)
            ;; used to be "\; ...",
            ;; but Petite Chez yields a reader error on it
-           (display "; Extra right parenthesis found in input")
+           (display "; Extra closing delimiter found in input: ")
+           (write c)
            (newline)
            (read-dispatch-whitespace c p)))
 
@@ -444,27 +452,27 @@
        ; See comments preceding read-dispatch-whitespace (above).
 
        (read-list-whitespace
-        (lambda (x p)
+        (lambda (match x p)
           (let ((c (tyi p)))
             (cond ((eq? x c)
-                   (read-list-whitespace x p))
+                   (read-list-whitespace match x p))
                   ((char? c)
-                   ((vector-ref read-list-vec (char->integer c)) c p))
+                   ((vector-ref read-list-vec (char->integer c)) match c p))
                   ((eof-object? c)
                    (read-unexpected-eof p))
                   (else
-                   (read-list c p))))))       ; let read-list handle the error
+                   (read-list match c p))))))       ; let read-list handle the error
 
        (read-list-dot
-         (lambda (c p)
-           (read-dotted-pair-tail p)))
+         (lambda (match c p)
+           (read-dotted-pair-tail match p)))
 
        (read-long-comment
         (lambda (c p)
           (define (read-long-comment-loop depth c-1)
             (let ((c (tyi p)))
               (cond ((eof-object? c)   (read-unexpected-eof p))
-                    ((not (char? c))   (read-list c p))
+                    ((not (char? c))   (read-list #\) c p))
                     ((not (char? c-1)) (read-long-comment-loop depth c))
                     ((and (char=? c-1 #\|)
                           (char=? c #\#))
@@ -535,7 +543,7 @@
                         (error "Malformed #! syntax" x)
                         #t))))
                   ((char=? c #\()
-                   (list->vector (read-list (tyi p) p)))
+                   (list->vector (read-list #\) (tyi p) p)))
                   ;; Control-B is used for bytevectors by compile-file.
                   ;; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
@@ -568,7 +576,7 @@
                   ;; The syntax is #^P(...)
                   ((char=? c (integer->char 16))
                    (tyi p) ; consume left paren
-                   (list->procedure (read-list (tyi p) p)))
+                   (list->procedure (read-list #\) (tyi p) p)))
                   ;; Control-G is used for global references by compile-file.
                   ;; The syntax is #^Gsymbol; it evaluates to a value which
                   ;; is a global cell.
@@ -740,7 +748,7 @@
       (vector-set! read-dispatch-vec                  ;left parenthesis
                    (char->integer #\()
                    (lambda (c p)
-                     (read-list (tyi p) p)))
+                     (read-list #\) (tyi p) p)))
 
       (vector-set! read-dispatch-vec                  ;right parenthesis
                    (char->integer #\))
@@ -764,14 +772,27 @@
                    (lambda (c p)
                      (list 'quasiquote (read-dispatch (tyi p) p))))
 
+      ; For MzScheme
+      (vector-set! read-dispatch-vec
+                   (char->integer #\[)
+                   (lambda (c p)
+                     (if (read-square-bracket-as-paren)
+                         (read-list #\] (tyi p) p)
+                         (read-dispatch-reserved c p))))
+
+      (vector-set! read-dispatch-vec
+                   (char->integer #\])
+                   (lambda (c p)
+                     (if (read-square-bracket-as-paren)
+                         (read-dispatch-extra-paren c p)
+                         (read-dispatch-reserved c p))))
+
       ; Reserved delimiters.
 
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec (char->integer c)
                            read-dispatch-reserved))
-            (list #\[
-                  #\]
-                  #\{
+            (list #\{
                   #\}))
 
       ;*****************************************************
@@ -781,7 +802,7 @@
 
       (do ((i 255 (- i 1)))
           ((< i 0) '())
-        (vector-set! read-list-vec i read-illegal))
+        (vector-set! read-list-vec i read-list-illegal))
 
       ; Whitespace handlers.
 
@@ -866,9 +887,26 @@
                    (char->integer #\()
                    read-list-element)
 
+      (vector-set! read-list-vec        ;left square bracket
+                   (char->integer #\[)
+                   (lambda (match c p)
+                     (if (read-square-bracket-as-paren)
+                         (read-list-element match c p)
+                         (read-list-reserved c p))))
+
       (vector-set! read-list-vec                      ;right parenthesis
                    (char->integer #\))
-                   (lambda (c p) '()))
+                   (lambda (match c p)
+                     (if (char=? match c)
+                         '()
+                         (error "Wrong closing delimiter." c))))
+
+      (vector-set! read-list-vec                      ;right bracket
+                   (char->integer #\])
+                   (lambda (match c p)
+                     (if (char=? match c)
+                         '()
+                         (error "Wrong closing delimiter." c))))
 
       (vector-set! read-list-vec                      ;comma
                    (char->integer #\,)
@@ -880,8 +918,8 @@
 
       (vector-set! read-list-vec                      ;semicolon
                    (char->integer #\;)
-                   (lambda (c p)
-                     (flush-comment-and-read-list p)))
+                   (lambda (match c p)
+                     (flush-comment-and-read-list match p)))
 
       (vector-set! read-list-vec                      ;backquote
                    (char->integer #\`)
@@ -892,8 +930,8 @@
       (for-each (lambda (c)
                   (vector-set! read-list-vec (char->integer c)
                                read-list-reserved))
-            (list #\[
-                  #\]
+            (list
+
                   #\{
                   #\}))
 
