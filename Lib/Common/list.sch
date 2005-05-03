@@ -51,84 +51,95 @@
         this-element))
   (loop first-element rest-elements))
 
-(define (length l)
+(define (length list)
 
   (define (loop l len)
     (cond ((pair? l) (loop (cdr l) (+ len 1)))
           ((null? l) len)
-          (else (error "length: Improper list" l))))
+          (else (error "length: Improper list " list))))
 
-  (cond ((pair? l) (loop (cdr l) 1))
-        ((null? l) 0)
-        (else (error "length: not a list" l))))
+  (cond ((pair? list) (loop (cdr list) 1))
+        ((null? list) 0)
+        (else (error "length: not a list " list))))
+
+(define (improper-length list)
+
+  (define (loop l len)
+    (cond ((pair? l) (loop (cdr l) (+ len 1)))
+          ((null? l) len)
+          (else (+ len 1))))
+
+  (cond ((pair? list) (loop (cdr list) 1))
+        ((null? list) 0)
+        (else 1)))
 
 ;; #t if L is a proper list of the correct length
 (define (length=? l n)
   (cond ((> n 0) (cond ((pair? l) (length=? (cdr l) (- n 1)))
                        ((null? l) #f)
-                       (else (error "length=?: Improper list" l))))
+                       (else (error "length=?: Improper list " l))))
         ((zero? n) (cond ((pair? l) #f)
                          ((null? l) #t)
-                         (else (error "length=?: Improper list" l))))
-        (else (error "length=?: negative n" n))))
+                         (else (error "length=?: Improper list " l))))
+        (else (error "length=?: negative n " n))))
 
 ;; #t if L is a list longer than N elements
 (define (length>? l n)
   (cond ((> n 0) (cond ((pair? l) (length>? (cdr l) (- n 1)))
                        ((null? l) #f)
-                       (else (error "length>?: Improper list" l))))
+                       (else (error "length>?: Improper list " l))))
         ((zero? n) (cond ((pair? l) #t)
                          ((null? l) #f)
-                         (else (error "length>?: Improper list" l))))
-        (else (error "length>?: negative n" n))))
+                         (else (error "length>?: Improper list " l))))
+        (else (error "length>?: negative n " n))))
 
 ;; #t if L is a list N or more elements long
 (define (length>=? l n)
   (cond ((> n 0) (cond ((pair? l) (length>=? (cdr l) (- n 1)))
                        ((null? l) #f)
-                       (else (error "length>?: Improper list" l))))
+                       (else (error "length>?: Improper list " l))))
         ((zero? n) (cond ((pair? l) #t)
                          ((null? l) #t)
-                         (else (error "length>?: Improper list" l))))
+                         (else (error "length>?: Improper list " l))))
         (else (error "length>=?: negative n" n))))
 
 ;; #t if L is a list shorter than N elements
 (define (length<? l n)
   (cond ((> n 0) (cond ((pair? l) (length<? (cdr l) (- n 1)))
                        ((null? l) #t)
-                       (else (error "length<?: Improper list" l))))
+                       (else (error "length<?: Improper list " l))))
         ((zero? n) #f)
-        (else (error "length<?: negative n" n))))
+        (else (error "length<?: negative n " n))))
 
 ;; #t if L is a list no longer than N elements
 (define (length<=? l n)
   (cond ((> n 0) (cond ((pair? l) (length<=? (cdr l) (- n 1)))
                        ((null? l) #t)
-                       (else (error "length<=?: Improper list" l))))
+                       (else (error "length<=?: Improper list " l))))
         ((zero? n) (cond ((pair? l) #f)
                          ((null? l) #t)
-                         (else (error "length<=?: Improper list" l))))
-        (else (error "length<=?: negative n" n))))
+                         (else (error "length<=?: Improper list " l))))
+        (else (error "length<=?: negative n " n))))
 
 ;; #t if left is a shorter list than right
 (define (shorter? left right)
   (cond ((pair? left) (cond ((pair? right) (shorter? (cdr left) (cdr right)))
                             ((null? right) #f)
-                            (else (error "shorter?: Improper list" right))))
+                            (else (error "shorter?: Improper list " right))))
         ((null? left) (cond ((pair? right) #t)
                             ((null? right) #f)
-                            (else (error "shorter?: Improper list" right))))
-        (else (error "shorter?:  Improper list" left))))
+                            (else (error "shorter?: Improper list " right))))
+        (else (error "shorter?:  Improper list " left))))
 
 ;; #t if left is a longer list than right
 (define (longer? left right)
   (cond ((pair? left) (cond ((pair? right) (longer? (cdr left) (cdr right)))
                             ((null? right) #t)
-                            (else (error "longer?: Improper list" right))))
+                            (else (error "longer?: Improper list " right))))
         ((null? left) (cond ((pair? right) #f)
                             ((null? right) #f)
-                            (else (error "longer?: Improper list" right))))
-        (else (error "longer?: Improper list" left))))
+                            (else (error "longer?: Improper list " right))))
+        (else (error "longer?: Improper list " left))))
 
 (define (map f x . rest)
 
@@ -296,7 +307,7 @@
 (define (revappend left right)          ; non-destructive version
   (cond ((pair? left) (revappend (cdr left) (cons (car left) right)))
         ((null? left) right)
-        (else (error "revappend: improper list" left))))
+        (else (error "revappend: improper list " left))))
 
 (define (reverse list)
   (revappend list '()))
@@ -332,21 +343,21 @@
                                   (cons (car scan) accepted)
                                   accepted)))
           ((null? scan) (reverse! accepted))
-          (else (error "filter: Improper list" list))))
+          (else (error "filter: Improper list " list))))
   (loop list '()))
 
 (define (foldl f init l)
   (define (fold-one accum tail)
-    (cond ((pair? tail) (fold-one (f accum (car tail)) (cdr tail)))
+    (cond ((pair? tail) (fold-one (f (car tail) accum) (cdr tail)))
           ((null? tail) accum)
-          (else (error "foldl: Improper list" l))))
+          (else (error "foldl: Improper list " l))))
   (fold-one init l))
 
 (define (foldr f init l)
   (define (fold-one accum tail)
     (cond ((pair? tail) (f (car tail) (fold-one accum (cdr tail))))
           ((null? tail) accum)
-          (else (error "foldr: Improper list" l))))
+          (else (error "foldr: Improper list " l))))
   (fold-one init l))
 
 (define (append . args)
@@ -393,7 +404,7 @@
   (define (loop segment i tail)
     (cond ((>= i n) (reverse! segment))
           ((pair? tail) (loop (cons (car tail) segment) (+ i 1) (cdr tail)))
-          (else (error "list-head: improper list" tail))))
+          (else (error "list-head: improper list " tail))))
   (loop '() 0 elements))
 
 (define (list-tail x k)
@@ -471,7 +482,7 @@
                                       list
                                       (member item (cdr list))))
                     ((null? list) #f)
-                    (else (error "member: Improper list" list))))))
+                    (else (error "member: Improper list " list))))))
     (lambda (item list)
       (cond ((symbol? item) (memq item list))
             ((number? item) (memv item list))
@@ -483,7 +494,7 @@
                             list
                             (memv item (cdr list))))
           ((null? list) #f)
-          (else (error "memv: Improper list" list))))
+          (else (error "memv: Improper list " list))))
   (if (symbol? item)
       (memq item list)
       (memv item list)))
@@ -493,21 +504,21 @@
                           list
                           (memq item (cdr list))))
         ((null? list) #f)
-        (else (error "memq: Improper list" list))))
+        (else (error "memq: Improper list " list))))
 
 (define (memf pred list)
   (cond ((pair? list) (if (pred (car list))
                           list
                           (memf pred (cdr list))))
         ((null? list) #f)
-        (else (error "memf: Improper list" list))))
+        (else (error "memf: Improper list " list))))
 
 (define (memf-not pred list)
   (cond ((pair? list) (if (pred (car list))
                           (memf pred (cdr list))
                           list))
         ((null? list) #f)
-        (else (error "memf-not: Improper list" list))))
+        (else (error "memf-not: Improper list " list))))
 
 (define (find-if pred list)
   (let ((tail (memf pred list)))
@@ -532,7 +543,7 @@
     (lambda (key list)
       (if (string? key)
           (assoc key list)
-          (error "assoc-string: not a string" key)))))
+          (error "assoc-string: not a string " key)))))
 
 (define assoc-string-ci
   (letrec ((assoc
@@ -545,7 +556,7 @@
     (lambda (key list)
       (if (string? key)
           (assoc key list)
-          (error "assoc-string-ci: not a string" key)))))
+          (error "assoc-string-ci: not a string " key)))))
 
 (define assoc
   (letrec ((assoc
@@ -554,7 +565,7 @@
                                       (car list)
                                       (assoc key (cdr list))))
                     ((null? list) #f)
-                    (else (error "assoc: Improper alist" list))))))
+                    (else (error "assoc: Improper alist " list))))))
     (lambda (key list)
       (cond ((symbol? key) (assq key list))
             ((number? key) (assv key list))
