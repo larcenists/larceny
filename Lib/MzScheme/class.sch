@@ -362,6 +362,25 @@
 
 (define singleton-value cadr)
 
+;;; Record classes
+(define record-to-class-table (make-hash-table))
+
+(define (record-type->class record-type)
+  (if record-type
+      (hash-table-get
+       record-to-class-table record-type
+       (lambda ()
+         (let* ((super (record-type->class (record-type-parent record-type)))
+                (this (parameterize ((*default-object-class* #f))
+                        (make <primitive-class>
+                          ':name (record-type-name record-type)
+                          ':direct-slots '()
+                          ':direct-supers (list super)
+                          ':direct-default-initargs '()))))
+           (hash-table-put! record-to-class-table record-type this)
+           this)))
+      <record>))
+
 ;;; Struct classes
 
 (define struct-to-class-table (make-hash-table))
@@ -389,29 +408,29 @@
   (if (%singleton? c1)
       (if (%singleton? c2)
           (eq? (singleton-value c1) (singleton-value c2))
-          (let ((cc2 (if (struct-type? c2)
-                         (struct-type->class c2)
-                         c2)))
+          (let ((cc2 (cond ((record-type-descriptor? c2) (record-type->class c2))
+                           ((struct-type? c2) (struct-type->class c2))
+                           (else c2))))
             (instance-of? (singleton-value c1) cc2)))
-      (let ((cc1 (if (struct-type? c1)
-                     (struct-type->class c1)
-                     c1))
-            (cc2 (if (struct-type? c2)
-                     (struct-type->class c2)
-                     c2)))
+      (let ((cc1 (cond ((record-type-descriptor? c1) (record-type->class c1))
+                       ((struct-type? c1) (struct-type->class c1))
+                       (else c1)))
+            (cc2 (cond ((record-type-descriptor? c2) (record-type->class c2))
+                       ((struct-type? c2) (struct-type->class c2))
+                       (else c2))))
         (memq c2 (%class-cpl c1)))))
 
 (define (instance-of? x c)
   (or (eq? c <top>)
       (if (%singleton? c)
           (eq? (singleton-value c) x)
-          (let ((cc (if (struct-type? c)
-                        (struct-type->class c)
-                        c))
+          (let ((cc (cond ((record-type-descriptor? c) (record-type->class c))
+                          ((struct-type? c) (struct-type->class c))
+                          (else c)))
                 (cx (class-of x)))
-            (memq cc (%class-cpl (if (struct-type? cx)
-                                     (struct-type->class cx)
-                                     cx)))))))
+            (memq cc (%class-cpl (cond ((record-type-descriptor? cx) (record-type->class cx))
+                                       ((struct-type? cx) (struct-type->class cx))
+                                       (else cx))))))))
 
 ;;; Return #t if each item is an instance of the corresponding class.
 ;;; Stops at the shortest of the two lists.
@@ -771,31 +790,6 @@
     ':direct-supers (list <top>)
     ':direct-slots  '()
     ':name          '<builtin>))
-
-;;>> <struct>
-;;>> <opaque-struct>
-;;>   These are also classes for built-in objects, but they are classes for
-;;>   MzScheme structs -- which can be used like Ripoff classes since they
-;;>   will get converted to appropriate Ripoff subclasses of `<struct>'.
-(define <struct>
-  (make <primitive-class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <builtin>)
-    ':direct-slots  '()
-    ':name '<struct>))
-
-;;>   `<opaque-struct>' is a class of structs that are hidden -- see the
-;;>   documentation for `struct-info' and the `skipped?' result.  Note that
-;;>   structs can be used as long as they can be inspected -- otherwise, we
-;;>   can't even know that they are structs with `struct?' (this means that
-;;>   <opaque-struct> can only appear in the cpl of a struct class that
-;;>   inherits from a struct which is not under the current inspector).
-(define <opaque-struct>
-  (make <primitive-class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <struct>)
-    ':direct-slots  '()
-    ':name '<opaque-struct>))
 
 ;;>   Predicates for instances of <builtin>, <function>, <generic>, and
 ;;>   <method>.
