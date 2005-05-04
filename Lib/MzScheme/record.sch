@@ -4,16 +4,18 @@
 ;
 ; Record Package.
 ;
-; This is a record package as proposed by RRRS authors but never 
-; made part of the report.  This implementation is based on a 
-; proposal posted to rrrs-authors on 1 Sep 89 by Pavel Curtis, 
+; This is a record package as proposed by RRRS authors but never
+; made part of the report.  This implementation is based on a
+; proposal posted to rrrs-authors on 1 Sep 89 by Pavel Curtis,
 ; reposted to comp.lang.scheme by Norman Adams on 5 Feb, 1992.
 ;
 ; This implementation extends the proposal in the following ways:
 ;   * Single inheritance (type extensions)
 ;   * Record-type-descriptors are records
 ;   * There are installable record printers
+($$trace "record")
 
+(define *record-type-type*)
 (define make-record-type)
 (define record-type-descriptor?)
 (define record-type-field-names)
@@ -34,17 +36,17 @@
 
 (let ((interface
 
-       ; Records of length n are represented as structures where element 0 
+       ; Records of length n are represented as structures where element 0
        ; contains the record type descriptor, and the other elements hold
        ; the field values.
        ;
-       ; A record type descriptor is a record.  Every record type descriptor 
-       ; is of type *rtd-type*, which is internal to this module.
+       ; A record type descriptor is a record.  Every record type descriptor
+       ; is of type *record-type-type*.
 
        (let ((record-overhead 1))       ; Number of overhead slots.
 
          ; Records
-         
+
          ; RECORD-WITH-TYPE? assumes rtd is in fact an rtd.
 
          (define (record-with-type? obj rtd)
@@ -151,17 +153,17 @@
                                  new-val))))
 
          ; Record types
-  
-         ; (define *rtd-type* 
+
+         ; (define *rtd-type*
          ;   (make-record-type "record-type-descriptor-type"
-         ;     '(name                string
+         ;     '(name                symbol
          ;       slot-offsets        assoc list of (field-name . offset)
          ;       printer             procedure takes obj, output-port
          ;       record-size         fixnum
          ;       hierarchy-vector    vector of rtds
          ;       hierarchy-depth     fixnum
          ;       )))
-         
+
          ; Magic definiton of *rtd-type*, predicate, and accessors because
          ; of circularity problems.
 
@@ -173,10 +175,9 @@
                      (record-size . ,(+ record-overhead 3))
                      (hierarchy-vector . ,(+ record-overhead 4))
                      (hierarchy-depth . ,(+ record-overhead 5))))
-                  (x 
+                  (x
                    (make-structure (+ record-overhead (length slot-offsets))))
-                  (name
-                   "record-type-descriptor-type"))
+                  (name 'record-type))
              (vector-like-set! x 0 x)
              (vector-like-set! x 1 name)
              (vector-like-set! x 2 slot-offsets)
@@ -197,7 +198,7 @@
                 (> (vector-like-length obj) 0)
                 (let ((slot0 (vector-like-ref obj 0)))
                   (and (structure? obj)
-                       (and (>= (vector-like-length slot0) 
+                       (and (>= (vector-like-length slot0)
                                 (vector-like-length *rtd-type*))
                             (vector? (rtd-hierarchy-vector slot0))
                             (rtd-extends? slot0 *rtd-type*))))))
@@ -219,14 +220,14 @@
 
          (define (rtd-field-offset rtd name)
            (cdr (assq name (rtd-slot-offsets rtd))))
-  
+
          (define (rtd-field-names rtd)
            (map car (rtd-slot-offsets rtd)))
 
          ; End magic
 
-         ; r1 extends r2 
-         ;    iff 
+         ; r1 extends r2
+         ;    iff
          ; r1.type-hierarchy-vector[ r2.type-hierarchy.depth ] = r2
 
          (define (rtd-extends? r1 r2)
@@ -302,13 +303,13 @@
 
          (define (assert-record-of-type obj rtd)
            (if (not (record-with-type? obj rtd))
-               (error "Object is not record of type: " (rtd-name rtd) 
+               (error "Object is not record of type: " (rtd-name rtd)
                       ": " obj)))
 
-         (list 
-          (lambda (name field-names . rest) 
-            (make-record-type name field-names (if (null? rest) 
-                                                   #f 
+         (list
+          (lambda (name field-names . rest)
+            (make-record-type name field-names (if (null? rest)
+                                                   #f
                                                    (car rest))))
           (lambda (x) (record-type-descriptor? x))
           (lambda (rtd) (record-type-field-names rtd))
@@ -316,7 +317,7 @@
           (lambda (rtd1 rtd2) (record-type-extends? rtd1 rtd2))
           (lambda (rtd) (record-type-parent rtd))
           (lambda (x) (record? x))
-          (lambda (rtd . rest) 
+          (lambda (rtd . rest)
             (record-constructor rtd (if (null? rest)
                                         #f
                                         (car rest))))
@@ -325,7 +326,8 @@
           (lambda (rtd field-name) (record-updater rtd field-name))
           (lambda (x) (record-type-descriptor x))
           (lambda (rtd) (record-indexer rtd))
-          (lambda (rtd) (record-mutator rtd))))))
+          (lambda (rtd) (record-mutator rtd))
+          *rtd-type*))))
 
   (set! make-record-type (list-ref interface 0))
   (set! record-type-descriptor? (list-ref interface 1))
@@ -341,19 +343,15 @@
   (set! record-type-descriptor (list-ref interface 11))
   (set! record-indexer (list-ref interface 12))
   (set! record-mutator (list-ref interface 13))
-  'records)
+  (set! *record-type-type* (list-ref interface 14))
 
+  ;; Install printers.
 
-; Install printers.
-
-(let ((rtdtd (record-type-descriptor (make-record-type "" '()))))
-
-  ; Record-type descriptor printer.
-
-  ((record-updater rtdtd 'printer)
-   rtdtd
+  ;; Record-type descriptor printer.
+  ((record-updater *record-type-type* 'printer)
+   *record-type-type*
    (lambda (obj port)
-     (display "#<record-type-descriptor " port)
+     (display "#<record-type " port)
      (display (record-type-name obj) port)
      (display ">" port)))
 
@@ -361,7 +359,7 @@
   ; print #<record name>.
 
   (let ((previous-printer (structure-printer))
-        (get-printer (record-accessor rtdtd 'printer)))
+        (get-printer (record-accessor *record-type-type* 'printer)))
     (structure-printer
      (lambda (obj port quote?)
        (cond ((record? obj)
@@ -375,7 +373,7 @@
                            (display ">" port)))))
              (else
               (previous-printer obj port quote?))))))
-  'records-printers)
+
+  'records)
 
 ; eof
-
