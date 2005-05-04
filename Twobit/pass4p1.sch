@@ -55,10 +55,10 @@
 ;   *  Any lambda expression that is declared to be in A-normal form
 ;      really is in A-normal form.
 ;
-; 
+;
 ; Stack frames are created by "save" instructions.
 ; A save instruction is generated
-; 
+;
 ;     *  at the beginning of each lambda body
 ;     *  at the beginning of the code for each arm of a conditional,
 ;        provided:
@@ -70,14 +70,14 @@
 ;
 ; The operand of a save instruction, and of its matching pop instructions,
 ; increases automatically as frame slots are allocated.
-; 
+;
 ; The code generated to return from a procedure is
-; 
+;
 ;         pop     n
 ;         return
-; 
+;
 ; The code generated for a tail call is
-; 
+;
 ;         pop     n
 ;         invoke  ...
 ;
@@ -135,26 +135,27 @@
 ;    writes instructions to the assembly stream
 
 (define (cg0 output exp target regs frame env tail?)
-  (case (car exp)
-    ((quote)    (gen! output $const (constant.value exp))
+  (cond
+    ((constant? exp)    (gen! output $const (constant.value exp))
                 (if tail?
                     (begin (gen-pop! output frame)
                            (gen! output $return)
                            'result)
                     (cg-move output frame regs 'result target)))
-    ((lambda)   (cg-lambda output exp regs frame env)
+    ((lambda? exp)   (cg-lambda output exp regs frame env)
                 (if tail?
                     (begin (gen-pop! output frame)
                            (gen! output $return)
                            'result)
                     (cg-move output frame regs 'result target)))
-    ((set!)     (cg0 output (assignment.rhs exp) 'result regs frame env #f)
+    ((assignment? exp)     (cg0 output (assignment.rhs exp) 'result regs frame env #f)
                 (cg-assignment-result output exp target regs frame env tail?))
-    ((if)       (cg-if output exp target regs frame env tail?))
-    ((begin)    (if (variable? exp)
-                    (cg-variable output exp target regs frame env tail?)
-                    (cg-sequential output exp target regs frame env tail?)))
-    (else       (cg-call output exp target regs frame env tail?))))
+    ((conditional? exp)       (cg-if output exp target regs frame env tail?))
+    ((variable? exp) (cg-variable output exp target regs frame env tail?))
+    ((begin? exp) (cg-sequential output exp target regs frame env tail?))
+    ((call? exp) (cg-call output exp target regs frame env tail?))
+    (else (error "Unrecognized expression." exp))))
+
 
 ; Lambda expressions that evaluate to closures.
 ; This is hard because the MacScheme machine's lambda instruction
@@ -655,7 +656,7 @@
   (car (choose-registers regs frame 1)))
 
 (define (choose-registers regs frame n)
-  
+
   ; Find unused hardware registers.
   (define (loop1 i n good)
     (cond ((zero? n)
@@ -670,7 +671,7 @@
                (loop1 (- i 1)
                       (- n 1)
                       (cons i good))))))
-  
+
   ; Find already spilled hardware registers.
   (define (loop2 i n good)
     (cond ((zero? n)
@@ -684,11 +685,11 @@
                         (- n 1)
                         (cons i good))
                  (loop2 (- i 1) n good))))))
-  
+
   ; This is ridiculous.
   ; Fortunately the correctness of the compiler is independent
   ; of the predicate used for this sort.
-  
+
   (define (hardcase)
     (let* ((frame-exists? (not (negative? (cgframe-size frame))))
            (stufftosort
@@ -742,7 +743,7 @@
            (n n (- n 1)))
           ((zero? n)
            (reverse rs)))))
-  
+
   (if (< n *nregs*)
       (loop1 (- *nhwregs* 1) n '())
       (error (string-append "Compiler bug: can't allocate "

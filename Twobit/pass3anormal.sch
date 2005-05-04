@@ -4,7 +4,7 @@
 ; software for any lawful noncommercial purpose, and to redistribute
 ; this software is granted subject to the restriction that all copies
 ; made of this software must include this copyright notice in full.
-; 
+;
 ; I also request that you send me a copy of any improvements that you
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
@@ -134,68 +134,68 @@
 (define A-normal-form-declaration (list 'anf))
 
 (define (A-normal-form E . rest)
-  
+
   (define (A-normal-form E)
     (anf-make-let* (anf E '() '())))
-  
+
   ; New temporaries.
-  
+
   (define temp-counter 0)
-  
+
   (define temp-prefix
     (if (or (null? rest)
             (not (string? (car rest))))
         (string-append renaming-prefix "T")
         (car rest)))
-  
+
   (define (newtemp)
     (set! temp-counter (+ temp-counter 1))
     (string->symbol
      (string-append temp-prefix
                     (number->string temp-counter))))
-  
+
   ; Given an expression E as output by pass 2,
   ; a list of surrounding LET* bindings,
   ; and an ordered list of likely register variables,
   ; return a non-empty list of LET* bindings
   ; whose first binding associates a dummy variable
   ; with an A-expression giving the value for E.
-  
+
   (define (anf E bindings regvars)
-    (case (car E)
-      ((quote)    (anf-bind-dummy E bindings))
-      ((begin)    (if (variable? E)
-                      (anf-bind-dummy E bindings)
-                      (anf-sequential E bindings regvars)))
-      ((lambda)   (anf-lambda E bindings regvars))
-      ((set!)     (anf-assignment E bindings regvars))
-      ((if)       (anf-conditional E bindings regvars))
-      (else       (anf-call E bindings regvars))))
-  
+    (cond
+     ((constant? E)    (anf-bind-dummy E bindings))
+     ((variable? E)    (anf-bind-dummy E bindings))
+     ((begin? E)       (anf-sequential E bindings regvars))
+     ((lambda? E)      (anf-lambda E bindings regvars))
+     ((assignment? E)  (anf-assignment E bindings regvars))
+     ((conditional? E) (anf-conditional E bindings regvars))
+     ((call? E)        (anf-call E bindings regvars))
+     (else (error "Unrecognized expression" E))))
+
   (define anf:dummy (string->symbol "RESULT"))
-  
+
   (define (anf-bind-dummy E bindings)
     (cons (list anf:dummy E)
           bindings))
-  
+
   ; Unlike anf-bind-dummy, anf-bind-name and anf-bind convert
   ; their expression argument to A-normal form.
   ; Don't change anf-bind to call anf-bind-name, because that
   ; would name the temporaries in an aesthetically bad order.
-  
+
   (define (anf-bind-name name E bindings regvars)
     (let ((bindings (anf E bindings regvars)))
       (cons (list name (cadr (car bindings)))
             (cdr bindings))))
-  
+
   (define (anf-bind E bindings regvars)
     (let ((bindings (anf E bindings regvars)))
       (cons (list (newtemp) (cadr (car bindings)))
             (cdr bindings))))
-  
+
   (define (anf-result bindings)
     (make-variable (car (car bindings))))
-  
+
   (define (anf-make-let* bindings)
     (define (loop bindings body)
       (if (null? bindings)
@@ -213,8 +213,8 @@
                                           body)
                              (list E1))))))
     (loop (cdr bindings)
-          (cadr (car bindings))))                                  
-  
+          (cadr (car bindings))))
+
   (define (anf-sequential E bindings regvars)
     (do ((bindings bindings
                    (anf-bind (car exprs) bindings regvars))
@@ -222,10 +222,10 @@
                 (cdr exprs)))
         ((null? (cdr exprs))
          (anf (car exprs) bindings regvars))))
-  
+
   ; Heuristic: the formal parameters of an escaping lambda or
   ; known local procedure are kept in REG1, REG2, et cetera.
-  
+
   (define (anf-lambda L bindings regvars)
     (anf-bind-dummy
      (make-lambda (lambda.args L)
@@ -245,7 +245,7 @@
                         '()
                         (make-null-terminated (lambda.args L)))))
      bindings))
-  
+
   (define (anf-assignment E bindings regvars)
     (let ((I (assignment.lhs E))
           (E1 (assignment.rhs E)))
@@ -254,7 +254,7 @@
           (let* ((bindings (anf-bind E1 bindings regvars))
                  (T1 (anf-result bindings)))
             (anf-bind-dummy (make-assignment I T1) bindings)))))
-  
+
   (define (anf-conditional E bindings regvars)
     (let ((E0 (if.test E))
           (E1 (if.then E))
@@ -271,16 +271,16 @@
             (anf-bind-dummy
              (make-conditional (anf-result bindings) E1 E2)
              bindings)))))
-  
+
   (define (anf-call E bindings regvars)
     (let* ((proc (call.proc E))
            (args (call.args E)))
-      
+
       ; Evaluates the exprs and returns both a list of bindings and
       ; a list of the temporaries that name the results of the exprs.
       ; If rename-always? is true, then temporaries are generated even
       ; for constants and temporaries.
-      
+
       (define (loop exprs bindings names rename-always?)
         (if (null? exprs)
             (values bindings (reverse names))
@@ -298,14 +298,14 @@
                         bindings
                         (cons E names)
                         rename-always?)))))
-      
+
       ; Evaluates the exprs, binding them to the vars, and returns
       ; a list of bindings.
       ;
       ; Although LET variables are likely to be kept in registers,
       ; trying to guess which register will be allocated is likely
       ; to do more harm than good.
-      
+
       (define (let-loop exprs bindings regvars vars)
         (if (null? exprs)
             (if (null? (lambda.defs proc))
@@ -335,7 +335,7 @@
                              regvars)
               regvars
               (cdr vars))))
-      
+
       (cond ((lambda? proc)
              (let ((formals (lambda.args proc)))
                (if (list? formals)
@@ -344,7 +344,7 @@
                           (names (permute (lambda.args proc) pi)))
                      (let-loop (reverse exprs) bindings regvars (reverse names)))
                    (anf-call (normalize-let E) bindings regvars))))
-            
+
             ((not (variable? proc))
              (let ((pi (anf-order-of-evaluation args regvars #f)))
                (call-with-values
@@ -355,7 +355,7 @@
                      (make-call (anf-result bindings)
                                 (unpermute names pi))
                      bindings))))))
-            
+
             ((prim-entry (variable.name proc))
              (let ((pi (anf-order-of-evaluation args regvars #t)))
                (call-with-values
@@ -364,7 +364,7 @@
                   (anf-bind-dummy
                    (make-call proc (unpermute names pi))
                    bindings)))))
-            
+
             ((memq (variable.name proc) regvars)
              (let* ((exprs (cons proc args))
                     (pi (anf-order-of-evaluation
@@ -378,7 +378,7 @@
                     (anf-bind-dummy
                      (make-call (car names) (cdr names))
                      bindings))))))
-            
+
             (else
              (let ((pi (anf-order-of-evaluation args regvars #f)))
                (call-with-values
@@ -387,7 +387,7 @@
                   (anf-bind-dummy
                    (make-call proc (unpermute names pi))
                    bindings))))))))
-  
+
   ; Given a list of expressions, a list of likely register contents,
   ; and a switch telling whether these are arguments for a primop
   ; or something else (such as the arguments for a real call),
@@ -408,7 +408,7 @@
   ;     expressions that are neither a constant, variable, or a call
   ;     calls to non-primops
   ;     constants and variables
-  
+
   (define (anf-order-of-evaluation exprs regvars for-primop?)
     (define (ordering targets exprs alist)
       (let ((para
@@ -462,12 +462,12 @@
                                     exprs
                                     (pairup regvars targets))))))))
         (iota (length exprs))))
-  
+
   (define (permute things pi)
     (let ((v (list->vector things)))
       (map (lambda (i) (vector-ref v i))
            pi)))
-  
+
   (define (unpermute things pi)
     (let* ((v0 (list->vector things))
            (v1 (make-vector (vector-length v0))))
@@ -476,10 +476,10 @@
           ((null? pi)
            (vector->list v1))
           (vector-set! v1 (car pi) (vector-ref v0 k)))))
-  
+
   ; Given a call whose procedure is a lambda expression that has
   ; a rest argument, return a genuine let expression.
-  
+
   (define (normalize-let-error exp)
     (if (issue-warnings)
         (begin (display "WARNING from compiler: ")
@@ -488,7 +488,7 @@
                (newline)
                (pretty-print (make-readable exp) #t)
                (newline))))
-  
+
   (define (normalize-let exp)
     (let* ((L (call.proc exp)))
       (let loop ((formals (lambda.args L))
@@ -521,12 +521,12 @@
                      (list (make-call-to-list args))
                      newformals
                      newargs))))))
-  
+
   ; For heuristic use only.
   ; An expression is complicated unless it can probably be evaluated
   ; without saving and restoring any registers, even if it occurs in
   ; a non-tail position.
-  
+
   (define (complicated? exp)
     ; Let's not spend all day on this.
     (let ((budget 10))
@@ -534,23 +534,23 @@
         (set! budget (- budget 1))
         (if (zero? budget)
             #t
-            (case (car exp)
-              ((quote)    #f)
-              ((lambda)   #f)
-              ((set!)     (complicated? (assignment.rhs exp)))
-              ((if)       (or (complicated? (if.test exp))
+            (cond
+              ((constant? exp)    #f)
+              ((lambda? exp)   #f)
+              ((assignment? exp)     (complicated? (assignment.rhs exp)))
+              ((conditional? exp)       (or (complicated? (if.test exp))
                               (complicated? (if.then exp))
                               (complicated? (if.else exp))))
-              ((begin)    (if (variable? exp)
-                              #f
-                              (some? complicated?
-                                     (begin.exprs exp))))
-              (else       (let ((proc (call.proc exp)))
-                            (if (and (variable? proc)
-                                     (prim-entry (variable.name proc)))
-                                (some? complicated?
-                                       (call.args exp))
-                                #t))))))
+              ((variable? exp) #f)
+              ((begin? exp) (some? complicated?
+                                     (begin.exprs exp)))
+              ((call? exp) (let ((proc (call.proc exp)))
+                             (if (and (variable? proc)
+                                      (prim-entry (variable.name proc)))
+                                 (some? complicated?
+                                        (call.args exp))
+                                 #t)))
+              (else (error "Unrecognized expression" exp)))))
       (complicated? exp)))
-  
+
   (A-normal-form E))

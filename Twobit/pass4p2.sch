@@ -316,13 +316,13 @@
 ; registers.
 
 (define (cg-primop-args output args regs frame env)
-  
+
   ; Given a list of expressions to evaluate, a list of variables
   ; and temporary names for arguments that have already been
   ; evaluated, in reverse order, and a mask of booleans that
   ; indicate which temporaries should be released before returning,
   ; returns the correct result.
-  
+
   (define (eval-loop args temps mask)
     (if (null? args)
         (eval-first-into-result temps mask)
@@ -339,20 +339,20 @@
               (eval-loop (cdr args)
                          (cons (cgreg-lookup-reg regs reg) temps)
                          (cons #f mask))))))
-  
+
   (define (eval-first-into-result temps mask)
     (cg0 output (car args) 'result regs frame env #f)
     (finish-loop (choose-registers regs frame (length temps))
                  temps
                  mask
                  '()))
-  
+
   ; Given a sufficient number of disjoint registers, a list of
   ; variable and temporary names that may need to be loaded into
   ; registers, a mask of booleans that indicates which temporaries
   ; should be released, and a list of registers in forward order,
   ; returns the correct result.
-  
+
   (define (finish-loop disjoint temps mask registers)
     (if (null? temps)
         registers
@@ -379,7 +379,7 @@
                                         (cdr temps)
                                         (cdr mask)
                                         (cons r registers)))))))))
-  
+
   (if (< (length args) *nregs*)
       (eval-loop (cdr args) '() '())
       (error "Bug detected by cg-primop-args" args)))
@@ -398,11 +398,11 @@
 ; 3.  Load spilled arguments from stack.
 
 (define (cg-arguments output targets args regs frame env)
-  
+
   ; Sorts the args and their targets into complicated and
   ; uncomplicated args and targets.
   ; Then it calls evalargs.
-  
+
   (define (sortargs targets args targets1 args1 targets2 args2)
     (if (null? args)
         (evalargs targets1 args1 targets2 args2)
@@ -423,11 +423,11 @@
                         args1
                         (cons target targets2)
                         (cons arg args2))))))
-  
+
   ; Given the complicated args1 and their targets1,
   ; and the uncomplicated args2 and their targets2,
   ; evaluates all the arguments into their target registers.
-  
+
   (define (evalargs targets1 args1 targets2 args2)
     (let* ((temps1 (newtemps (length targets1)))
            (temps2 (newtemps (length targets2))))
@@ -455,7 +455,7 @@
                     (cgframe-release! frame t)))
                 (append targets1 targets2)
                 (append temps1 temps2))))
-  
+
   (define (evalargs0 targets args temps)
     (if (not (null? targets))
         (let ((para (let* ((regvars (map (lambda (reg)
@@ -483,7 +483,7 @@
                 (evalargs0 (cdr targets)
                            (cdr args)
                            (cdr temps)))))))
-  
+
   (if (parallel-assignment-optimization)
       (sortargs (reverse targets) (reverse args) '() '() '() '())
       (cg-evalargs output targets args regs frame env)))
@@ -514,27 +514,27 @@
 ; a non-tail position.
 
 (define (complicated? exp env)
-  (case (car exp)
-    ((quote)    #f)
-    ((lambda)   #t)
-    ((set!)     (complicated? (assignment.rhs exp) env))
-    ((if)       (or (complicated? (if.test exp) env)
-                    (complicated? (if.then exp) env)
-                    (complicated? (if.else exp) env)))
-    ((begin)    (if (variable? exp)
-                    #f
-                    (some? (lambda (exp)
-                             (complicated? exp env))
-                           (begin.exprs exp))))
-    (else       (let ((proc (call.proc exp)))
-                  (if (and (variable? proc)
-                           (let ((entry
-                                  (cgenv-lookup env (variable.name proc))))
-                             (eq? (entry.kind entry) 'integrable)))
-                      (some? (lambda (exp)
-                               (complicated? exp env))
-                             (call.args exp))
-                      #t)))))
+  (cond
+   ((constant? exp)    #f)
+   ((lambda? exp)   #f)
+   ((assignment? exp)     (complicated? (assignment.rhs exp) env))
+   ((conditional? exp)       (or (complicated? (if.test exp) env)
+                                 (complicated? (if.then exp) env)
+                                 (complicated? (if.else exp) env)))
+   ((variable? exp) #f)
+   ((begin? exp) (some? (lambda (exp)
+                          (complicated? exp env))
+                        (begin.exprs exp)))
+   ((call? exp)       (let ((proc (call.proc exp)))
+                        (if (and (variable? proc)
+                                 (let ((entry
+                                        (cgenv-lookup env (variable.name proc))))
+                                   (eq? (entry.kind entry) 'integrable)))
+                            (some? (lambda (exp)
+                                     (complicated? exp env))
+                                   (call.args exp))
+                            #t)))
+   (else (error "Unrecognized expression" exp))))
 
 ; Returns a permutation of the src list, permuted the same way the
 ; key list was permuted to obtain newkey.
@@ -622,21 +622,32 @@
   (cond ((symbol? exp)
          (if (memq exp env) '() (list exp)))
         ((not (pair? exp)) '())
-        (else (let ((keyword (car exp)))
-                (cond ((eq? keyword 'quote) '())
-                      ((eq? keyword 'lambda)
-                       ; Once upon a time this had to be computed.
-                       ;(let ((env (append (make-null-terminated (cadr exp))
-                       ;                   env)))
-                       ;  (apply-union
-                       ;   (map (lambda (x) (freevars2 x env))
-                       ;        (cddr exp)))))
-                       (difference (lambda.F exp)
-                                   (make-null-terminated (lambda.args exp))))
-                      ((memq keyword '(if set! begin))
-                       (apply-union
-                        (map (lambda (x) (freevars2 x env))
-                             (cdr exp))))
-                      (else (apply-union
-                             (map (lambda (x) (freevars2 x env))
-                                  exp))))))))
+        ((constant? exp) '())
+        ((lambda? exp)
+                                        ; Once upon a time this had to be computed.
+                                        ;(let ((env (append (make-null-terminated (cadr exp))
+                                        ;                   env)))
+                                        ;  (apply-union
+                                        ;   (map (lambda (x) (freevars2 x env))
+                                        ;        (cddr exp)))))
+         (difference (lambda.F exp)
+                     (make-null-terminated (lambda.args exp))))
+
+        ((conditional? exp) (apply-union
+                             (list (freevars2 (if.test exp) env)
+                                   (freevars2 (if.then exp) env)
+                                   (freevars2 (if.else exp) env))))
+        ((assignment? exp) (apply-union
+                            (list (freevars2 (assignment.lhs exp) env)
+                                  (freevars2 (assignment.rhs exp) env))))
+        ((variable? exp) (list (variable.name exp)))
+        ((begin? exp) (apply-union
+                       (map (lambda (subexp)
+                              (freevars2 subexp env))
+                            (begin.exprs exp))))
+        ((call? exp) (apply-union
+                      (cons (freevars2 (call.proc exp) env)
+                            (map (lambda (arg)
+                                   (freevar2 arg env))
+                                 (call.args exp)))))
+        (else (error "Unrecognized expression" exp))))

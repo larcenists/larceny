@@ -109,40 +109,39 @@
          (budget (quotient (* (- *multiplier* 100) size0) 100))
          (tail-threshold *tail-threshold*)
          (nontail-threshold *nontail-threshold*))
-    
+
     ; Given an expression,
     ; a boolean indicating whether the expression is in a tail context,
     ; a list of procedures that should not be inlined,
     ; and a size budget,
     ; performs inlining by side effect and returns the unused budget.
-    
+
     (define (inline exp tail? budget)
         (if (positive? budget)
-            
-            (case (car exp)
-              
-              ((quote lambda)
-               budget)
-              
-              ((set!)
+
+            (cond
+             ((constant? exp) budget)
+             ((lambda? exp) budget)
+
+              ((assignment? exp)
                (inline (assignment.rhs exp) #f budget))
-              
-              ((if)
+
+              ((conditional? exp)
                (let* ((budget (inline (if.test exp) #f budget))
                       (budget (inline (if.then exp) tail? budget))
                       (budget (inline (if.else exp) tail? budget)))
                  budget))
-              
-              ((begin)
-               (if (variable? exp)
-                   budget
-                   (do ((exprs (begin.exprs exp) (cdr exprs))
-                        (budget budget
-                                (inline (car exprs) #f budget)))
-                       ((null? (cdr exprs))
-                        (inline (car exprs) tail? budget)))))
-              
-              (else
+
+              ((variable? exp) budget)
+
+              ((begin? exp)
+               (do ((exprs (begin.exprs exp) (cdr exprs))
+                    (budget budget
+                            (inline (car exprs) #f budget)))
+                   ((null? (cdr exprs))
+                    (inline (car exprs) tail? budget))))
+
+              ((call? exp)
                (let ((budget (do ((exprs (call.args exp) (cdr exprs))
                                   (budget budget
                                           (inline (car exprs) #f budget)))
@@ -186,15 +185,16 @@
                          ((lambda? proc)
                           (inline (lambda.body proc) tail? budget))
                          (else
-                          (inline proc #f budget)))))))
+                          (inline proc #f budget))))))
+              (else (error "Unrecognized expression" exp)))
             -1))
-    
+
     (if (and #f debugging?)
         (begin
          (display "Processing ")
          (write name)
          (newline)))
-    
+
     (let ((budget (inline (if (lambda? exp)
                               (lambda.body exp)
                               exp)

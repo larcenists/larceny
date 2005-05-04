@@ -53,75 +53,117 @@
 (define (callgraphnode.info! x v) (set-car! (cddr (cddddr x)) v) #f)
 
 (define (callgraph exp)
-  
+
   ; Returns (union (list x) z).
-  
+
   (define (adjoin x z)
     (if (memq x z)
         z
         (cons x z)))
-  
+
   (let ((result '()))
-    
+
     ; Given a <name> as described above, a lambda expression, a list
     ; of variables that are in scope, and a list of names of known
     ; local procedure that are in scope, computes an entry for L and
     ; entries for any nested known procedures or escaping lambda
     ; expressions, and adds them to the result.
-    
+
     (define (add-vertex! name L vars known)
-      
+
       (let ((tailcalls '())
             (nontailcalls '())
             (size 0))
-        
+
         ; Given an expression, a list of variables that are in scope,
         ; a list of names of known local procedures that are in scope,
         ; and a boolean indicating whether the expression occurs in a
         ; tail context, adds any tail or non-tail calls to known
         ; procedures that occur within the expression to the list
         ; variables declared above.
-        
+
         (define (graph! exp vars known tail?)
           (set! size (+ size 1))
-          (case (car exp)
-            
-            ((quote)    #f)
-            
-            ((lambda)   (add-vertex! #f exp vars known)
-                        (set! size
-                              (+ size
-                                 (callgraphnode.size (car result)))))
-            
-            ((set!)     (graph! (assignment.rhs exp) vars known #f))
-            
-            ((if)       (graph! (if.test exp) vars known #f)
-                        (graph! (if.then exp) vars known tail?)
-                        (graph! (if.else exp) vars known tail?))
-            
-            ((begin)    (if (not (variable? exp))
-                            (do ((exprs (begin.exprs exp) (cdr exprs)))
-                                ((null? (cdr exprs))
-                                 (graph! (car exprs) vars known tail?))
-                                (graph! (car exprs) vars known #f))))
-            
-            (else       (let ((proc (call.proc exp)))
-                          (cond ((variable? proc)
-                                 (let ((name (variable.name proc)))
-                                   (if (memq name known)
-                                       (if tail?
-                                           (set! tailcalls
-                                                 (adjoin name tailcalls))
-                                           (set! nontailcalls
-                                                 (adjoin name nontailcalls))))))
-                                 ((lambda? proc)
-                                  (graph-lambda! proc vars known tail?))
-                                 (else
-                                  (graph! proc vars known #f)))
-                          (for-each (lambda (exp)
-                                      (graph! exp vars known #f))
-                                    (call.args exp))))))
-        
+          (cond ((constant? exp)    #f)
+
+                ((lambda? exp)   (add-vertex! #f exp vars known)
+                 (set! size
+                       (+ size
+                          (callgraphnode.size (car result)))))
+
+                ((assignment? exp)     (graph! (assignment.rhs exp) vars known #f))
+
+                ((conditional? exp)       (graph! (if.test exp) vars known #f)
+                 (graph! (if.then exp) vars known tail?)
+                 (graph! (if.else exp) vars known tail?))
+
+                ((variable? exp) #f)
+
+                ((begin? exp)
+                 (do ((exprs (begin.exprs exp) (cdr exprs)))
+                     ((null? (cdr exprs))
+                      (graph! (car exprs) vars known tail?))
+                   (graph! (car exprs) vars known #f)))
+
+                ((call? exp)       (let ((proc (call.proc exp)))
+                                     (cond ((variable? proc)
+                                            (let ((name (variable.name proc)))
+                                              (if (memq name known)
+                                                  (if tail?
+                                                      (set! tailcalls
+                                                            (adjoin name tailcalls))
+                                                      (set! nontailcalls
+                                                            (adjoin name nontailcalls))))))
+                                           ((lambda? proc)
+                                            (graph-lambda! proc vars known tail?))
+                                           (else
+                                            (graph! proc vars known #f)))
+                                     (for-each (lambda (exp)
+                                                 (graph! exp vars known #f))
+                                               (call.args exp))))
+                (else
+                 (error "Unrecognized expression" exp))))
+
+;        (define (graph! exp vars known tail?)
+;          (set! size (+ size 1))
+;          (case (car exp)
+
+;            ((quote)    #f)
+
+;            ((lambda)   (add-vertex! #f exp vars known)
+;                        (set! size
+;                              (+ size
+;                                 (callgraphnode.size (car result)))))
+
+;            ((set!)     (graph! (assignment.rhs exp) vars known #f))
+
+;            ((if)       (graph! (if.test exp) vars known #f)
+;                        (graph! (if.then exp) vars known tail?)
+;                        (graph! (if.else exp) vars known tail?))
+
+;            ((begin)    (if (not (variable? exp))
+;                            (do ((exprs (begin.exprs exp) (cdr exprs)))
+;                                ((null? (cdr exprs))
+;                                 (graph! (car exprs) vars known tail?))
+;                                (graph! (car exprs) vars known #f))))
+
+;            (else       (let ((proc (call.proc exp)))
+;                          (cond ((variable? proc)
+;                                 (let ((name (variable.name proc)))
+;                                   (if (memq name known)
+;                                       (if tail?
+;                                           (set! tailcalls
+;                                                 (adjoin name tailcalls))
+;                                           (set! nontailcalls
+;                                                 (adjoin name nontailcalls))))))
+;                                 ((lambda? proc)
+;                                  (graph-lambda! proc vars known tail?))
+;                                 (else
+;                                  (graph! proc vars known #f)))
+;                          (for-each (lambda (exp)
+;                                      (graph! exp vars known #f))
+;                                    (call.args exp))))))
+
         (define (graph-lambda! L vars known tail?)
           (let* ((defs (lambda.defs L))
                  (newknown (map def.lhs defs))
@@ -140,13 +182,13 @@
                                  (callgraphnode.size (car result)))))
                       defs)
             (graph! (lambda.body L) vars known tail?)))
-        
+
         (graph-lambda! L vars known #t)
-        
+
         (set! result
               (cons (list name L vars tailcalls nontailcalls size #f)
                     result))))
-    
+
     (add-vertex! #t
                  (make-lambda '() '() '() '() '() '() '() exp)
                  '()

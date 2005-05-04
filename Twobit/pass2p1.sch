@@ -4,7 +4,7 @@
 ; software for any lawful noncommercial purpose, and to redistribute
 ; this software is granted subject to the restriction that all copies
 ; made of this software must include this copyright notice in full.
-; 
+;
 ; I also request that you send me a copy of any improvements that you
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
@@ -104,16 +104,26 @@
 ; noted in the notepad.
 
 (define (simplify exp notepad)
-  (case (car exp)
-    ((quote)    exp)
-    ((lambda)   (simplify-lambda exp notepad))
-    ((set!)     (simplify-assignment exp notepad))
-    ((if)       (simplify-conditional exp notepad))
-    ((begin)    (if (variable? exp)
-                    (begin (notepad-var-add! notepad (variable.name exp))
-                           exp)
-                    (simplify-sequential exp notepad)))
-    (else       (simplify-call exp notepad))))
+  (cond ((constant? exp) exp)
+        ((lambda? exp) (simplify-lambda exp notepad))
+        ((assignment? exp) (simplify-assignment exp notepad))
+        ((conditional? exp) (simplify-conditional exp notepad))
+        ((variable? exp) (notepad-var-add! notepad (variable.name exp)) exp)
+        ((begin? exp) (simplify-sequential exp notepad))
+        ((call? exp) (simplify-call exp notepad))
+        (else (error "Unrecognized expression" exp))))
+
+;(define (simplify exp notepad)
+;  (case (car exp)
+;    ((quote)    exp)
+;    ((lambda)   (simplify-lambda exp notepad))
+;    ((set!)     (simplify-assignment exp notepad))
+;    ((if)       (simplify-conditional exp notepad))
+;    ((begin)    (if (variable? exp)
+;                    (begin (notepad-var-add! notepad (variable.name exp))
+;                           exp)
+;                    (simplify-sequential exp notepad)))
+;    (else       (simplify-call exp notepad))))
 
 ; Most optimization occurs here.
 ; The  right hand sides of internal definitions are simplified,
@@ -341,9 +351,9 @@
 
 (define (simplify-let exp notepad)
   (define proc (call.proc exp))
-  
+
   ; Loop1 operates before simplification of the lambda body.
-  
+
   (define (loop1 formals actuals processed-formals processed-actuals)
     (cond ((null? formals)
            (if (not (null? actuals))
@@ -407,7 +417,7 @@
                        (cdr actuals)
                        (cons (car formals) processed-formals)
                        (cons (car actuals) processed-actuals)))))
-  
+
   (define (return1 rev-formals rev-actuals)
     (let ((formals (reverse rev-formals))
           (actuals (reverse rev-actuals)))
@@ -433,13 +443,13 @@
                   (else
                    (return1-finish formals actuals))))
           (return1-finish formals actuals))))
-  
+
   (define (return1-finish formals actuals)
     (simplify-lambda proc notepad)
     (loop2 formals actuals '() '() '()))
-  
+
   ; Loop2 operates after simplification of the lambda body.
-  
+
   (define (loop2 formals actuals processed-formals processed-actuals for-effect)
     (cond ((null? formals)
            (return2 processed-formals processed-actuals for-effect))
@@ -454,7 +464,7 @@
                        (cons (car formals) processed-formals)
                        (cons (car actuals) processed-actuals)
                        for-effect))))
-  
+
   (define (return2 rev-formals rev-actuals rev-for-effect)
     (let ((formals (reverse rev-formals))
           (actuals (reverse rev-actuals))
@@ -491,7 +501,7 @@
             exp
             (post-simplify-begin (make-begin (append for-effect (list exp)))
                                  notepad)))))
-  
+
   (notepad-nonescaping-add! notepad proc)
   (loop1 (lambda.args proc) (call.args exp) '() '()))
 

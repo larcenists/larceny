@@ -158,23 +158,23 @@
   (let ((fancy? (and (not (null? rest))
                      (car rest))))
     (define (make-readable exp)
-      (case (car exp)
-        ((quote)    (make-readable-quote exp))
-        ((lambda)   `(lambda ,(lambda.args exp)
-                             ,@(map (lambda (def)
-                                      `(define ,(def.lhs def)
-                                               ,(make-readable (def.rhs def))))
-                                    (lambda.defs exp))
-                               ,(make-readable (lambda.body exp))))
-        ((set!)     `(set! ,(assignment.lhs exp)
-                           ,(make-readable (assignment.rhs exp))))
-        ((if)       `(if ,(make-readable (if.test exp))
-                         ,(make-readable (if.then exp))
-                         ,(make-readable (if.else exp))))
-        ((begin)    (if (variable? exp)
-                        (variable.name exp)
-                        `(begin ,@(map make-readable (begin.exprs exp)))))
-        (else       (make-readable-call exp))))
+      (cond ((constant? exp) (make-readable-quote exp))
+            ((lambda? exp)   `(lambda ,(lambda.args exp)
+                                ,@(map (lambda (def)
+                                         `(define ,(def.lhs def)
+                                            ,(make-readable (def.rhs def))))
+                                       (lambda.defs exp))
+                                ,(make-readable (lambda.body exp))))
+            ((assignment? exp)     `(set! ,(assignment.lhs exp)
+                                          ,(make-readable (assignment.rhs exp))))
+            ((conditional? exp)       `(if ,(make-readable (if.test exp))
+                                           ,(make-readable (if.then exp))
+                                           ,(make-readable (if.else exp))))
+            ((variable? exp) (variable.name exp))
+            ((begin? exp) `(begin ,@(map make-readable (begin.exprs exp))))
+            ((call? exp)       (make-readable-call exp))
+            (else (error "Unrecognized expression." exp))))
+
     (define (make-readable-quote exp)
       (let ((x (constant.value exp)))
         (if (and fancy?
@@ -183,7 +183,8 @@
                      (char? x)
                      (string? x)))
             x
-            exp)))
+            `(quote ,x))))
+
     (define (make-readable-call exp)
       (let ((proc (call.proc exp)))
         (if (and fancy?
@@ -193,6 +194,7 @@
             (make-readable-let exp)
             `(,(make-readable (call.proc exp))
               ,@(map make-readable (call.args exp))))))
+
     (define (make-readable-let exp)
       (let* ((L (call.proc exp))
              (formals (lambda.args L))
@@ -215,6 +217,7 @@
                                     ,(make-readable (def.rhs def))))
                          (lambda.defs L))
                     ,body))))
+
     (define (make-readable-let* exp vars inits defs)
       (if (and (null? defs)
                (call? exp)
@@ -259,6 +262,7 @@
                           ,(make-readable (lambda.body proc)))))
                 (else
                  (make-readable exp)))))
+
     (make-readable exp)))
 
 ; For testing.
@@ -267,24 +271,26 @@
 ; It assumes there are no internal definitions.
 
 (define (make-unreadable exp)
-  (cond ((symbol? exp) (list 'begin exp))
+  (cond ((symbol? exp) (make-variable exp))
         ((pair? exp)
          (case (car exp)
-           ((quote) exp)
-           ((lambda) (list 'lambda
+           ((quote) (make-constant (cadr exp)))
+           ((lambda) (make-lambda
                            (cadr exp)
                            '(begin)
                            (list '() '() '() '())
                            (make-unreadable (cons 'begin (cddr exp)))))
-           ((set!) (list 'set! (cadr exp) (make-unreadable (caddr exp))))
-           ((if) (list 'if
+           ((set!) (make-assignment (cadr exp) (make-unreadable (caddr exp))))
+           ((if) (make-conditional
                        (make-unreadable (cadr exp))
                        (make-unreadable (caddr exp))
                        (if (= (length exp) 3)
-                           '(unspecified)
+                           (make-unreadable '(unspecified))
                            (make-unreadable (cadddr exp)))))
            ((begin) (if (= (length exp) 2)
                         (make-unreadable (cadr exp))
-                        (cons 'begin (map make-unreadable (cdr exp)))))
-           (else (map make-unreadable exp))))
-        (else (list 'quote exp))))
+                        (make-begin (map make-unreadable (cdr exp)))))
+           (else (make-call
+                  (make-unreadable (car exp))
+                  (map make-unreadable (cdr exp))))))
+        (else (make-constant exp))))

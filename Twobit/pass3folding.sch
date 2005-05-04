@@ -95,9 +95,9 @@
         (known (make-hashtable))
         (variables (make-hashtable))
         (counter 0))
-    
+
     ; Computes joins of abstract values.
-    
+
     (define (join x y)
       (cond ((boolean? x)
              (if x #t y))
@@ -106,10 +106,10 @@
             ((equal? x y)
              x)
             (else #t)))
-    
+
     ; Given a <symbolic> and a vector of abstract values,
     ; evaluates the <symbolic> and returns its abstract value.
-    
+
     (define (aeval rep env)
       (cond ((eq? rep #t)
              #t)
@@ -120,150 +120,153 @@
             (else
              (join (aeval1 (car rep) env)
                    (aeval (cdr rep) env)))))
-    
+
     (define (aeval1 exp env)
-      
-      (case (car exp)
-        
-        ((quote)
-         exp)
-        
-        ((lambda)
-         #t)
-        
-        ((set!)
-         #f)
-        
-        ((begin)
-         (if (variable? exp)
-             (let* ((name (variable.name exp))
-                    (i (hashtable-get variables name)))
-               (if i
-                   (vector-ref env i)
-                   #t))
-             (aeval1-error)))
-        
-        ((if)
-         (let* ((val0 (aeval1 (if.test exp) env))
-                (val1 (aeval1 (if.then exp) env))
-                (val2 (aeval1 (if.else exp) env)))
-           (cond ((eq? val0 #t)
-                  (join val1 val2))
-                 ((pair? val0)
-                  (if (constant.value val0)
-                      val1
-                      val2))
-                 (else
-                  #f))))
-        
-        (else
-         (do ((exprs (reverse (call.args exp)) (cdr exprs))
-              (vals '() (cons (aeval1 (car exprs) env) vals)))
-             ((null? exprs)
-              (let ((proc (call.proc exp)))
-                (cond ((variable? proc)
-                       (let* ((procname (variable.name proc))
-                              (procnode (hashtable-get known procname))
-                              (entry (if folding?
-                                         (constant-folding-entry procname)
-                                         #f)))
-                         (cond (procnode
-                                (vector-ref env
-                                            (hashtable-get variables
-                                                           procname)))
-                               (entry
-                                ; FIXME: No constant folding
-                                #t)
-                               (else (aeval1-error)))))
-                      (else
-                       (aeval1-error)))))))))
-    
+
+      (cond
+
+       ((constant? exp)
+        exp)
+
+       ((lambda? exp)
+        #t)
+
+       ((assignment? exp)
+        #f)
+
+       ((variable? exp) (let* ((name (variable.name exp))
+                               (i (hashtable-get variables name)))
+                          (if i
+                              (vector-ref env i)
+                              #t)))
+
+       ((begin? exp) (aeval1-error))
+
+       ((conditional? exp)
+        (let* ((val0 (aeval1 (if.test exp) env))
+               (val1 (aeval1 (if.then exp) env))
+               (val2 (aeval1 (if.else exp) env)))
+          (cond ((eq? val0 #t)
+                 (join val1 val2))
+                ((pair? val0)
+                 (if (constant.value val0)
+                     val1
+                     val2))
+                (else
+                 #f))))
+
+       ((call? exp)
+
+        (do ((exprs (reverse (call.args exp)) (cdr exprs))
+             (vals '() (cons (aeval1 (car exprs) env) vals)))
+            ((null? exprs)
+             (let ((proc (call.proc exp)))
+               (cond ((variable? proc)
+                      (let* ((procname (variable.name proc))
+                             (procnode (hashtable-get known procname))
+                             (entry (if folding?
+                                        (constant-folding-entry procname)
+                                        #f)))
+                        (cond (procnode
+                               (vector-ref env
+                                           (hashtable-get variables
+                                                          procname)))
+                              (entry
+                                        ; FIXME: No constant folding
+                               #t)
+                              (else (aeval1-error)))))
+                     (else
+                      (aeval1-error)))))))
+       (else (error "Unrecognized expression." exp))))
+
     (define (aeval1-error)
       (error "Compiler bug: constant propagation (aeval1)"))
-    
+
     ; Combines two <symbolic>s.
-    
+
     (define (combine-symbolic rep1 rep2)
       (cond ((eq? rep1 #t) #t)
             ((eq? rep2 #t) #t)
             (else
              (append rep1 rep2))))
-    
+
     ; Given an expression, returns a <symbolic> that represents
     ; a list of expressions whose abstract values can be joined
     ; to obtain the abstract value of the given expression.
     ; As a side effect, enters local variables into variables.
-    
+
     (define (collect! exp)
-      
-      (case (car exp)
-        
-        ((quote)
-         (list exp))
-        
-        ((lambda)
-         #t)
-        
-        ((set!)
-         (collect! (assignment.rhs exp))
-         '())
-        
-        ((begin)
-         (if (variable? exp)
-             (list exp)
-             (do ((exprs (begin.exprs exp) (cdr exprs)))
-                 ((null? (cdr exprs))
-                  (collect! (car exprs)))
-                 (collect! (car exprs)))))
-        
-        ((if)
-         (collect! (if.test exp))
-         (collect! (if.then exp))
-         (collect! (if.else exp))
-         #t)
-        
-        (else
-         (do ((exprs (reverse (call.args exp)) (cdr exprs))
-              (reps '() (cons (collect! (car exprs)) reps)))
-             ((null? exprs)
-              (let ((proc (call.proc exp)))
-                (define (put-args! args reps)
-                  (cond ((pair? args)
-                         (let ((v (car args))
-                               (rep (car reps)))
-                           (hashtable-put! variables v rep)
-                           (put-args! (cdr args) (cdr reps))))
-                        ((symbol? args)
-                         (hashtable-put! variables args #t))
-                        (else #f)))
-                (cond ((variable? proc)
-                       (let* ((procname (variable.name proc))
-                              (procnode (hashtable-get known procname))
-                              (entry (if folding?
-                                         (constant-folding-entry procname)
-                                         #f)))
-                         (cond (procnode
-                                (for-each (lambda (v rep)
-                                            (hashtable-put!
-                                             variables
-                                             v
-                                             (combine-symbolic
-                                              rep (hashtable-get variables v))))
-                                          (lambda.args
-                                            (callgraphnode.code procnode))
-                                          reps)
-                                (list (make-variable procname)))
-                               (entry
-                                ; FIXME: No constant folding
-                                #t)
-                               (else #t))))
-                      ((lambda? proc)
-                       (put-args! (lambda.args proc) reps)
-                       (collect! (lambda.body proc)))
-                      (else
-                       (collect! proc)
-                       #t))))))))
-    
+
+      (cond
+
+       ((constant? exp)
+        (list exp))
+
+       ((lambda? exp)
+        #t)
+
+       ((assignment? exp)
+        (collect! (assignment.rhs exp))
+        '())
+
+       ((variable? exp) (list exp))
+
+       ((begin? exp)
+        (do ((exprs (begin.exprs exp) (cdr exprs)))
+            ((null? (cdr exprs))
+             (collect! (car exprs)))
+          (collect! (car exprs))))
+
+       ((conditional? exp)
+        (collect! (if.test exp))
+        (collect! (if.then exp))
+        (collect! (if.else exp))
+        #t)
+
+       ((call? exp)
+        (do ((exprs (reverse (call.args exp)) (cdr exprs))
+             (reps '() (cons (collect! (car exprs)) reps)))
+            ((null? exprs)
+             (let ((proc (call.proc exp)))
+               (define (put-args! args reps)
+                 (cond ((pair? args)
+                        (let ((v (car args))
+                              (rep (car reps)))
+                          (hashtable-put! variables v rep)
+                          (put-args! (cdr args) (cdr reps))))
+                       ((symbol? args)
+                        (hashtable-put! variables args #t))
+                       (else #f)))
+               (cond ((variable? proc)
+                      (let* ((procname (variable.name proc))
+                             (procnode (hashtable-get known procname))
+                             (entry (if folding?
+                                        (constant-folding-entry procname)
+                                        #f)))
+                        (cond (procnode
+                               (for-each (lambda (v rep)
+                                           (hashtable-put!
+                                            variables
+                                            v
+                                            (combine-symbolic
+                                             rep (hashtable-get variables v))))
+                                         (lambda.args
+                                          (callgraphnode.code procnode))
+                                         reps)
+                               (list (make-variable procname)))
+                              (entry
+                                        ; FIXME: No constant folding
+                               #t)
+                              (else #t))))
+                     ((lambda? proc)
+                      (put-args! (lambda.args proc) reps)
+                      (collect! (lambda.body proc)))
+                     (else
+                      (collect! proc)
+                      #t))))))
+       (else
+        (error "Unrecognized expression" exp))))
+
     (for-each (lambda (node)
                 (let* ((name (callgraphnode.name node))
                        (code (callgraphnode.code node))
@@ -276,7 +279,7 @@
                                   (hashtable-put! variables var rep))
                                 (make-null-terminated (lambda.args code))))))
               g)
-    
+
     (for-each (lambda (node)
                 (let ((name (callgraphnode.name node))
                       (code (callgraphnode.code node)))
@@ -287,7 +290,7 @@
                         (else
                          (collect! (lambda.body code))))))
               g)
-    
+
     (if (and #f debugging?)
         (begin
          (hashtable-for-each (lambda (v rep)
@@ -296,12 +299,12 @@
                                (write rep)
                                (newline))
                              variables)
-         
+
          (display "----------------------------------------")
          (newline)))
-    
+
     ;(trace aeval aeval1)
-    
+
     (let* ((n (hashtable-size variables))
            (vars (hashtable-map (lambda (v rep) v) variables))
            (reps (map (lambda (v) (hashtable-get variables v)) vars))
@@ -344,11 +347,11 @@
         (msg3 " ==> ")
         (folding? #t)
         (changed? #f))
-    
+
     ; Given a known lambda expression L, its original formal parameters,
     ; and a list of all calls to L, deletes arguments that are now
     ; ignored because of constant propagation.
-    
+
     (define (delete-ignored-args! L formals0 calls)
       (let ((formals1 (lambda.args L)))
         (for-each (lambda (call)
@@ -379,168 +382,169 @@
                            (cons (car formals1) formals2))))
             ((null? formals0)
              (lambda.args-set! L (reverse formals2))))))
-    
+
     (define (fold! exp)
-      
-      (case (car exp)
-        
-        ((quote) exp)
-        
-        ((lambda)
-         (let ((Rinfo (lambda.R exp))
-               (known (map def.lhs (lambda.defs exp))))
-           (for-each (lambda (entry)
-                       (let* ((v (R-entry.name entry))
-                              (aval (hashtable-fetch variables v #t)))
-                         (if (and (pair? aval)
-                                  (not (memq v known)))
-                             (let ((x (constant.value aval)))
-                               (if (or (boolean? x)
-                                       (null? x)
-                                       (symbol? x)
-                                       (number? x)
-                                       (char? x)
-                                       (and (vector? x)
-                                            (zero? (vector-length x))))
-                                   (let ((refs (R-entry.references entry)))
-                                     (for-each (lambda (ref)
-                                                 (variable-set! ref aval))
-                                               refs)
-                                     ; Do not try to use Rinfo in place of
-                                     ; (lambda.R exp) below!
-                                     (lambda.R-set!
-                                       exp
-                                       (remq entry (lambda.R exp)))
-                                     (flag-as-ignored v exp)
-                                     (if debugging?
-                                         (begin (display msg1)
-                                                (write v)
-                                                (display ": ")
-                                                (write aval)
-                                                (newline)))))))))
-                     Rinfo)
-           (for-each (lambda (def)
-                       (let* ((name (def.lhs def))
-                              (rhs (def.rhs def))
-                              (entry (R-lookup Rinfo name))
-                              (calls (R-entry.calls entry)))
-                         (if (null? calls)
-                             (begin (lambda.defs-set!
-                                      exp
-                                      (remq def (lambda.defs exp)))
-                                    ; Do not try to use Rinfo in place of
-                                    ; (lambda.R exp) below!
+
+      (cond
+
+       ((constant? exp) exp)
+
+       ((lambda? exp)
+        (let ((Rinfo (lambda.R exp))
+              (known (map def.lhs (lambda.defs exp))))
+          (for-each (lambda (entry)
+                      (let* ((v (R-entry.name entry))
+                             (aval (hashtable-fetch variables v #t)))
+                        (if (and (pair? aval)
+                                 (not (memq v known)))
+                            (let ((x (constant.value aval)))
+                              (if (or (boolean? x)
+                                      (null? x)
+                                      (symbol? x)
+                                      (number? x)
+                                      (char? x)
+                                      (and (vector? x)
+                                           (zero? (vector-length x))))
+                                  (let ((refs (R-entry.references entry)))
+                                    (for-each (lambda (ref)
+                                                (variable-set! ref aval))
+                                              refs)
+                                        ; Do not try to use Rinfo in place of
+                                        ; (lambda.R exp) below!
                                     (lambda.R-set!
-                                      exp
-                                      (remq entry (lambda.R exp))))
-                             (let* ((formals0 (append (lambda.args rhs) '()))
-                                    (L (fold! rhs))
-                                    (formals1 (lambda.args L)))
-                               (if (not (equal? formals0 formals1))
-                                   (delete-ignored-args! L formals0 calls))))))
-                     (lambda.defs exp))
-           (lambda.body-set!
-             exp
-             (fold! (lambda.body exp)))
-           exp))
-        
-        ((set!)
-         (assignment.rhs-set! exp (fold! (assignment.rhs exp)))
-         exp)
-        
-        ((begin)
-         (if (variable? exp)
-             exp
-             (post-simplify-begin (make-begin (map fold! (begin.exprs exp)))
-                                  (make-notepad #f))))
-        
-        ((if)
-         (let ((exp0 (fold! (if.test exp)))
-               (exp1 (fold! (if.then exp)))
-               (exp2 (fold! (if.else exp))))
-           (if (constant? exp0)
-               (let ((newexp (if (constant.value exp0)
-                                 exp1
-                                 exp2)))
-                 (if debugging?
-                     (begin (display msg2)
-                            (write (make-readable exp))
-                            (display msg3)
-                            (write (make-readable newexp))
-                            (newline)))
+                                     exp
+                                     (remq entry (lambda.R exp)))
+                                    (flag-as-ignored v exp)
+                                    (if debugging?
+                                        (begin (display msg1)
+                                               (write v)
+                                               (display ": ")
+                                               (write aval)
+                                               (newline)))))))))
+                    Rinfo)
+          (for-each (lambda (def)
+                      (let* ((name (def.lhs def))
+                             (rhs (def.rhs def))
+                             (entry (R-lookup Rinfo name))
+                             (calls (R-entry.calls entry)))
+                        (if (null? calls)
+                            (begin (lambda.defs-set!
+                                    exp
+                                    (remq def (lambda.defs exp)))
+                                        ; Do not try to use Rinfo in place of
+                                        ; (lambda.R exp) below!
+                                   (lambda.R-set!
+                                    exp
+                                    (remq entry (lambda.R exp))))
+                            (let* ((formals0 (append (lambda.args rhs) '()))
+                                   (L (fold! rhs))
+                                   (formals1 (lambda.args L)))
+                              (if (not (equal? formals0 formals1))
+                                  (delete-ignored-args! L formals0 calls))))))
+                    (lambda.defs exp))
+          (lambda.body-set!
+           exp
+           (fold! (lambda.body exp)))
+          exp))
+
+       ((assignment? exp)
+        (assignment.rhs-set! exp (fold! (assignment.rhs exp)))
+        exp)
+
+       ((variable? exp) exp)
+
+       ((begin? exp)
+        (post-simplify-begin (make-begin (map fold! (begin.exprs exp)))
+                             (make-notepad #f)))
+
+       ((conditional? exp)
+        (let ((exp0 (fold! (if.test exp)))
+              (exp1 (fold! (if.then exp)))
+              (exp2 (fold! (if.else exp))))
+          (if (constant? exp0)
+              (let ((newexp (if (constant.value exp0)
+                                exp1
+                                exp2)))
+                (if debugging?
+                    (begin (display msg2)
+                           (write (make-readable exp))
+                           (display msg3)
+                           (write (make-readable newexp))
+                           (newline)))
+                (set! changed? #t)
+                newexp)
+              (make-conditional exp0 exp1 exp2))))
+
+       ((call? exp)
+        (let ((args (map fold! (call.args exp)))
+              (proc (fold! (call.proc exp))))
+          (cond ((and folding?
+                      (variable? proc)
+                      (every? constant? args)
+                      (let ((entry
+                             (constant-folding-entry (variable.name proc))))
+                        (and entry
+                             (let ((preds
+                                    (constant-folding-predicates entry)))
+                               (and (= (length args) (length preds))
+                                    (every?
+                                     (lambda (x) x)
+                                     (map (lambda (f v) (f v))
+                                          (constant-folding-predicates entry)
+                                          (map constant.value args))))))))
                  (set! changed? #t)
-                 newexp)
-               (make-conditional exp0 exp1 exp2))))
-        
-        (else
-         (let ((args (map fold! (call.args exp)))
-               (proc (fold! (call.proc exp))))
-           (cond ((and folding?
-                       (variable? proc)
-                       (every? constant? args)
-                       (let ((entry
-                              (constant-folding-entry (variable.name proc))))
-                         (and entry
-                              (let ((preds
-                                     (constant-folding-predicates entry)))
-                                (and (= (length args) (length preds))
-                                     (every?
-                                      (lambda (x) x)
-                                      (map (lambda (f v) (f v))
-                                           (constant-folding-predicates entry)
-                                           (map constant.value args))))))))
-                  (set! changed? #t)
-                  (let ((result
-                         (make-constant
-                          (apply (constant-folding-folder
-                                  (constant-folding-entry
-                                   (variable.name proc)))
-                                 (map constant.value args)))))
-                    (if debugging?
-                        (begin (display msg2)
-                               (write (make-readable (make-call proc args)))
-                               (display msg3)
-                               (write result)
-                               (newline)))
-                    result))
-                 ((and (lambda? proc)
-                       (list? (lambda.args proc)))
-                  ; FIXME: Folding should be done even if there is
-                  ; a rest argument.
-                  (let loop ((formals (reverse (lambda.args proc)))
-                             (actuals (reverse args))
-                             (processed-formals '())
-                             (processed-actuals '())
-                             (for-effect '()))
-                    (cond ((null? formals)
-                           (lambda.args-set! proc processed-formals)
-                           (call.args-set! exp processed-actuals)
-                           (let ((call (if (and (null? processed-formals)
-                                                (null? (lambda.defs proc)))
-                                           (lambda.body proc)
-                                           exp)))
-                             (if (null? for-effect)
-                                 call
-                                 (post-simplify-begin
-                                  (make-begin
-                                   (reverse (cons call for-effect)))
-                                  (make-notepad #f)))))
-                          ((ignored? (car formals))
-                           (loop (cdr formals)
-                                 (cdr actuals)
-                                 processed-formals
-                                 processed-actuals
-                                 (cons (car actuals) for-effect)))
-                          (else
-                           (loop (cdr formals)
-                                 (cdr actuals)
-                                 (cons (car formals) processed-formals)
-                                 (cons (car actuals) processed-actuals)
-                                 for-effect)))))
-                 (else
-                  (call.proc-set! exp proc)
-                  (call.args-set! exp args)
-                  exp))))))
-    
+                 (let ((result
+                        (make-constant
+                         (apply (constant-folding-folder
+                                 (constant-folding-entry
+                                  (variable.name proc)))
+                                (map constant.value args)))))
+                   (if debugging?
+                       (begin (display msg2)
+                              (write (make-readable (make-call proc args)))
+                              (display msg3)
+                              (write result)
+                              (newline)))
+                   result))
+                ((and (lambda? proc)
+                      (list? (lambda.args proc)))
+                                        ; FIXME: Folding should be done even if there is
+                                        ; a rest argument.
+                 (let loop ((formals (reverse (lambda.args proc)))
+                            (actuals (reverse args))
+                            (processed-formals '())
+                            (processed-actuals '())
+                            (for-effect '()))
+                   (cond ((null? formals)
+                          (lambda.args-set! proc processed-formals)
+                          (call.args-set! exp processed-actuals)
+                          (let ((call (if (and (null? processed-formals)
+                                               (null? (lambda.defs proc)))
+                                          (lambda.body proc)
+                                          exp)))
+                            (if (null? for-effect)
+                                call
+                                (post-simplify-begin
+                                 (make-begin
+                                  (reverse (cons call for-effect)))
+                                 (make-notepad #f)))))
+                         ((ignored? (car formals))
+                          (loop (cdr formals)
+                                (cdr actuals)
+                                processed-formals
+                                processed-actuals
+                                (cons (car actuals) for-effect)))
+                         (else
+                          (loop (cdr formals)
+                                (cdr actuals)
+                                (cons (car formals) processed-formals)
+                                (cons (car actuals) processed-actuals)
+                                for-effect)))))
+                (else
+                 (call.proc-set! exp proc)
+                 (call.args-set! exp args)
+                 exp))))
+        (else (error "Unrecognized expression" exp))))
+
     (fold! L)
     changed?))

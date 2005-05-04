@@ -22,39 +22,39 @@
          (schedule (list (callgraphnode.code (car g))))
          (changed? #f)
          (mutate? #f))
-    
+
     ; known is a hashtable that maps the name of a known local procedure
     ; to a list of the form (tv1 ... tvN), where tv1, ..., tvN
     ; are type variables that stand for the representation types of its
     ; arguments.  The type variable that stands for the representation
     ; type of the result of the procedure has the same name as the
     ; procedure itself.
-    
+
     ; types is a hashtable that maps local variables and the names
     ; of known local procedures to an approximation of their
     ; representation type.
     ; For a known local procedure, the representation type is for the
     ; result of the procedure, not the procedure itself.
-    
+
     ; schedule is a stack of work that needs to be done.
     ; Each entry in the stack is either an escaping lambda expression
     ; or the name of a known local procedure.
-    
+
     (define (schedule! job)
       (if (not (memq job schedule))
           (begin (set! schedule (cons job schedule))
                  (if (not (symbol? job))
                      (callgraphnode.info! (lookup-node job) #t)))))
-    
+
     ; Schedules a known local procedure.
-    
+
     (define (schedule-known-procedure! name)
       ; Mark every known procedure that can actually be called.
       (callgraphnode.info! (assq name g) #t)
       (schedule! name))
-    
+
     ; Schedule all code that calls the given known local procedure.
-    
+
     (define (schedule-callers! name)
       (for-each (lambda (node)
                   (if (and (callgraphnode.info node)
@@ -65,24 +65,24 @@
                             (schedule! caller)
                             (schedule! (callgraphnode.code node))))))
                 g))
-    
+
     ; Schedules local procedures of a lambda expression.
-    
+
     (define (schedule-local-procedures! L)
       (for-each (lambda (def)
                   (let ((name (def.lhs def)))
                     (if (known-procedure-is-callable? name)
                         (schedule! name))))
                 (lambda.defs L)))
-    
+
     ; Returns true iff the given known procedure is known to be callable.
-    
+
     (define (known-procedure-is-callable? name)
       (callgraphnode.info (assq name g)))
-    
+
     ; Sets CHANGED? to #t and returns #t if the type variable's
     ; approximation has changed; otherwise returns #f.
-    
+
     (define (update-typevar! tv type)
       (let* ((type0 (hashtable-get types tv))
              (type0 (or type0
@@ -103,15 +103,15 @@
                               (newline)
                               (display-all-types)))
                    #t))))
-    
+
     ; Given the name of a known local procedure, returns its code.
-    
+
     (define (lookup-code name)
       (callgraphnode.code (assq name g)))
-    
+
     ; Given a lambda expression, either escaping or the code for
     ; a known local procedure, returns its node in the call graph.
-    
+
     (define (lookup-node L)
       (let loop ((g g))
         (cond ((null? g)
@@ -120,7 +120,7 @@
                (car g))
               (else
                (loop (cdr g))))))
-    
+
     ; Given: a type variable, expression, and a set of constraints.
     ; Side effects:
     ;     Update the representation types of all variables that are
@@ -136,34 +136,37 @@
     ;         on the representation types that have been inferred.
     ; Return: type of the expression under the current assumptions
     ;     and constraints.
-    
+
     (define (analyze exp constraints)
-      
+
       (if (and #f debugging?)
           (begin (display "Analyzing: ")
                  (newline)
                  (pretty-print (make-readable exp #t))
                  (newline)))
-      
-      (case (car exp)
-        
-        ((quote)
+
+      (cond
+
+        ((constant? exp)
          (representation-of-value (constant.value exp)))
-        
-        ((begin)
+
+        ((variable? exp)
          (let* ((name (variable.name exp)))
            (representation-typeof name types constraints)))
-        
-        ((lambda)
+
+        ((begin? exp)
+         (error "I didn't expect to see a begin here."))
+
+        ((lambda? exp)
          (schedule! exp)
          rep:procedure)
-        
-        ((set!)
+
+        ((assignment? exp)
          (analyze (assignment.rhs exp) constraints)
          (constraints-kill! constraints available:killer:globals)
          rep:object)
-        
-        ((if)
+
+        ((conditional? exp)
          (let* ((E0 (if.test exp))
                 (E1 (if.then exp))
                 (E2 (if.else exp))
@@ -199,8 +202,8 @@
                       type)))
                  (else
                   (representation-error "Bad ANF" (make-readable exp #t))))))
-        
-        (else
+
+        ((call? exp)
          (let ((proc (call.proc exp))
                (args (call.args exp)))
            (cond ((lambda? proc)
@@ -224,15 +227,16 @@
                           (else
                            (analyze-unknown-call exp constraints)))))
                  (else
-                  (analyze-unknown-call exp constraints)))))))
-    
+                  (analyze-unknown-call exp constraints)))))
+        (else (error "Unrecognized expression" exp))))
+
     (define (analyze-let0 exp constraints)
       (let ((proc (call.proc exp)))
         (schedule-local-procedures! proc)
         (if (null? (lambda.args proc))
             (analyze (lambda.body exp) constraints)
             (analyze-unknown-call exp constraints))))
-    
+
     (define (analyze-let1 exp constraints)
       (let* ((proc (call.proc exp))
              (vars (lambda.args proc)))
@@ -262,7 +266,7 @@
               (update-typevar! T1 (analyze E1 constraints))
               (analyze (lambda.body proc) constraints))
             (analyze-unknown-call exp constraints))))
-    
+
     (define (analyze-primop-call exp constraints entry)
       (let* ((op (prim-opcodename entry))
              (args (call.args exp))
@@ -294,7 +298,7 @@
                             (newline)))
                  (call.proc-set! exp (make-variable newop)))))
         (or type rep:object)))
-    
+
     (define (analyze-known-call exp constraints vars)
       (let* ((procname (variable.name (call.proc exp)))
              (args (call.args exp))
@@ -310,14 +314,14 @@
         ; FIXME: We aren't analyzing the effects of known local procedures.
         (constraints-kill! constraints available:killer:all)
         (hashtable-get types procname)))
-    
+
     (define (analyze-unknown-call exp constraints)
       (analyze (call.proc exp) constraints)
       (for-each (lambda (arg) (analyze arg constraints))
                 (call.args exp))
       (constraints-kill! constraints available:killer:all)
       rep:object)
-    
+
     (define (analyze-known-local-procedure name)
       (if debugging?
           (begin (display "Analyzing ")
@@ -330,7 +334,7 @@
           (if (update-typevar! name type)
               (schedule-callers! name))
           type)))
-    
+
     (define (analyze-unknown-lambda L)
       (if debugging?
           (begin (display "Analyzing escaping lambda expression")
@@ -342,9 +346,9 @@
                   vars)
         (analyze (lambda.body L)
                  (make-constraints-table))))
-    
+
     ; For debugging.
-    
+
     (define (display-types)
       (hashtable-for-each (lambda (f vars)
                             (write f)
@@ -360,7 +364,7 @@
                                         (newline))
                                       vars))
                           known))
-    
+
     (define (display-all-types)
       (let* ((vars (hashtable-map (lambda (x type) x) types))
              (vars (twobit-sort (lambda (var1 var2)
@@ -380,7 +384,7 @@
                (newline)))
     (if debugging?
         (view-callgraph g))
-    
+
     (for-each (lambda (node)
                 (let* ((name (callgraphnode.name node))
                        (code (callgraphnode.code node))
@@ -395,7 +399,7 @@
                               (hashtable-put! types var rep))
                             vars)))
               g)
-    
+
     (let loop ()
       (cond ((not (null? schedule))
              (let ((job (car schedule)))
@@ -410,14 +414,14 @@
              (if debugging?
                  (begin (display-all-types) (newline)))
              (loop))))
-    
+
     (if debugging?
         (display-types))
-    
+
     (set! mutate? #t)
-    
+
     ; We don't want to analyze known procedures that are never called.
-    
+
     (set! schedule
           (cons (callgraphnode.code (car g))
                 (map callgraphnode.name
@@ -437,11 +441,11 @@
                 (analyze-known-local-procedure job)
                 (analyze-unknown-lambda job))
             (loop))))
-    
+
     (if changed?
         (error "Compiler bug in representation inference"))
-    
+
     (if debugging?
         (pretty-print (make-readable (callgraphnode.code (car g)) #t)))
-    
+
     exp))
