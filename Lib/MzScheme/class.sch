@@ -61,8 +61,8 @@
     '(
       (cpl)                             ; (class ...)
       (default-initargs)
-      (direct-default-initargs :initarg :direct-default-initargs) ; ((name form thunk) ...)
-      (direct-slots :initarg :direct-slots)                    ; ((name . options) ...)
+      (direct-default-initargs :initarg :direct-default-initargs :initvalue ()) ; ((name form thunk) ...)
+      (direct-slots :initarg :direct-slots :initvalue ())                    ; ((name . options) ...)
       (direct-supers :initarg :direct-supers)                   ; (class ...)
       (field-initializers)              ; (proc ...)
       (getters-n-setters)               ; ((slot-name getter setter) ...)
@@ -95,10 +95,10 @@
                  (eq? class <entity-class>))
              (let* ((new      (%make-instance class
                                               (make-vector class-slot-count (undefined))))
-                    (dinitargs (getarg initargs ':direct-default-initargs '()))
-                    (dslots    (getarg initargs ':direct-slots '()))
-                    (dsupers   (getarg initargs ':direct-supers '()))
-                    (name      (getarg initargs ':name '-anonymous-))
+                    (dinitargs (getarg initargs :direct-default-initargs '()))
+                    (dslots    (getarg initargs :direct-slots '()))
+                    (dsupers   (getarg initargs :direct-supers '()))
+                    (name      (getarg initargs :name '-anonymous-))
                     (cpl     (let loop ((sups dsupers) (so-far (list new)))
                                (if (pair? sups)
                                    (loop (append (cdr sups)
@@ -139,7 +139,7 @@
                (%set-class-serial-number!      new (get-serial-number))
                (%set-class-initializers!       new '()) ; no class inits now
                (%set-class-valid-initargs!     new (append-map
-                                                    (lambda (slot) (getargs (cdr slot) ':initarg))
+                                                    (lambda (slot) (getargs (cdr slot) :initarg))
                                                     (%class-slots new)))
                new))
             ((eq? class <generic>)
@@ -147,19 +147,19 @@
                                         uninitialized-entity-procedure
                                         (make-vector (length (%class-slots class)) (undefined)))))
                (%set-generic-methods!     new '())
-               (%set-generic-arity!       new (getarg initargs ':arity #f))
-               (%set-generic-name!        new (getarg initargs ':name '-anonymous-generic-))
-               (%set-generic-combination! new (getarg initargs ':combination #f))
+               (%set-generic-arity!       new (getarg initargs :arity #f))
+               (%set-generic-name!        new (getarg initargs :name '-anonymous-generic-))
+               (%set-generic-combination! new (getarg initargs :combination #f))
                new))
             ((eq? class <method>)
              (let ((new (%make-entity class
                                       uninitialized-entity-procedure
                                       (make-vector (length (%class-slots class)) (undefined)))))
-               (%set-method-specializers! new (getarg initargs ':specializers '()))
-               (%set-method-procedure!    new (getarg initargs ':procedure #f))
-               (%set-method-qualifier!    new (getarg initargs ':qualifier ':primary))
-               (%set-method-name!         new (getarg initargs ':name '-anonymous-method-))
-               (%set-method-arity!        new (getarg initargs ':arity
+               (%set-method-specializers! new (getarg initargs :specializers '()))
+               (%set-method-procedure!    new (getarg initargs :procedure #f))
+               (%set-method-qualifier!    new (getarg initargs :qualifier :primary))
+               (%set-method-name!         new (getarg initargs :name '-anonymous-method-))
+               (%set-method-arity!        new (getarg initargs :arity
                                                       (make-arity-at-least 0)))
                (%set-instance/procedure!  new (method:compute-apply-method #f new))
                new))))))
@@ -373,10 +373,8 @@
          (let* ((super (record-type->class (record-type-parent record-type)))
                 (this (parameterize ((*default-object-class* #f))
                         (make <primitive-class>
-                          ':name (record-type-name record-type)
-                          ':direct-slots '()
-                          ':direct-supers (list super)
-                          ':direct-default-initargs '()))))
+                          :name (record-type-name record-type)
+                          :direct-supers (list super)))))
            (hash-table-put! record-to-class-table record-type this)
            this)))
       <record>))
@@ -398,9 +396,8 @@
                             (else <struct>)))
                (this (parameterize ((*default-object-class* #f))
                        (make <primitive-class>
-                         ':name name
-                         ':direct-supers (list super)
-                         ':direct-default-initargs '()))))
+                         :name name
+                         :direct-supers (list super)))))
           (hash-table-put! struct-to-class-table stype this)
           this))))))
 
@@ -496,26 +493,21 @@
 ;;>   `<top>' (including standard Scheme values).
 (define <top>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers '()
-    ':direct-slots  '()
-    ':name          '<top>))
+    :direct-supers '()
+    :name          '<top>))
 
 ;;>> <object>
 ;;>   This is the "mother of all objects": every Ripoff object is an
 ;;>   instance of `<object>'.
 (define <object>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <top>)
-    ':direct-slots  '()
-    ':name          '<object>))
+    :direct-supers (list <top>)
+    :name          '<object>))
 
 ;;; This cluster, together with the first cluster above that defines <class>
 ;;; and sets its class, have the effect of:
 ;;;   (define <class>
-;;;     (make <class> 'direct-default-initargs '()
-;;;                   'direct-supers (list <object>)
+;;;     (make <class> 'direct-supers (list <object>)
 ;;;                   'direct-slots  '(direct-supers ...)
 ;;;                   'name          '<class>))
 ;;; BOOTSTRAP STEP - fill in the <class> class
@@ -526,7 +518,7 @@
 (%set-class-direct-supers!      <class> (list <object>))
 (%set-class-direct-slots!       <class> the-slots-of-a-class)
 (%set-class-field-initializers! <class> (map (lambda (s)
-                                               (let ((initvalue (getarg (cdr s) ':initvalue (undefined))))
+                                               (let ((initvalue (getarg (cdr s) :initvalue (undefined))))
                                                  (lambda args initvalue)))
                                              the-slots-of-a-class))
 (%set-class-initializers!       <class> '())
@@ -535,10 +527,17 @@
 (%set-class-serial-number!      <class> (get-serial-number))
 (%set-class-slots!              <class> the-slots-of-a-class)
 (%set-class-valid-initargs!     <class> (append-map
-                                         (lambda (slot) (getargs (cdr slot) ':initarg))
+                                         (lambda (slot) (getargs (cdr slot) :initarg))
                                          the-slots-of-a-class))
 
 ;;; At this point <top>, <class>, and <object> have been created and initialized.
+
+;; an automatic superclass for all classes -- turned off for the builtins below
+;;>> *default-object-class*
+;;>   This parameter contains a value which is automatically made a
+;;>   superclass for all classes.  Defaults to `<object>'.
+(define *default-object-class*
+  (make-parameter "*default-object-class*" <object> (lambda (x) (or (not x) (class? x)))))
 
 ;;>> <procedure-class>
 ;;>   The class of all procedures classes, both standard Scheme procedures
@@ -546,10 +545,8 @@
 ;;>   this is a class of *classes*).
 (define <procedure-class>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <class>)
-    ':direct-slots  '()
-    ':name          '<procedure-class>))
+    :direct-supers (list <class>)
+    :name          '<procedure-class>))
 
 ;;>> <entity-class>
 ;;>   The class of entity classes -- generic functions and methods.  An
@@ -558,20 +555,16 @@
 ;;>   class of entity *classes* not of entities themselves.
 (define <entity-class>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <procedure-class>)
-    ':direct-slots  '()
-    ':name          '<entity-class>))
+    :direct-supers (list <procedure-class>)
+    :name          '<entity-class>))
 
 ;;>> <function>
 ;;>   The class of all applicable values: methods, generic functions, and
 ;;>   standard closures.
 (define <function>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <top>)
-    ':direct-slots  '()
-    ':name          '<function>))
+    :direct-supers (list <top>)
+    :name          '<function>))
 
 ;;; The two extra slots below (app-cache and singletons-list) are used to
 ;;; optimize generic invocations: app-cache holds an 'equal hash-table that
@@ -604,9 +597,8 @@
 ;;>                  `make-generic-combination' below for details
 (define <generic>
   (make <entity-class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <object> <function>)
-    ':direct-slots  '((methods)
+    :direct-supers (list <object> <function>)
+    :direct-slots  '((methods)
                       (arity :initarg :arity
                              :initvalue #f)
                       (name  :initarg :name
@@ -615,7 +607,7 @@
                                    :initvalue #f)
                       (app-cache)
                       (singletons-list))
-    ':name          '<generic>))
+    :name          '<generic>))
 
 ;;>> <method>
 ;;>   The class of methods: objects that are similar to Scheme closures,
@@ -630,16 +622,15 @@
 ;;>   * arity:        arity
 (define <method>
   (make <entity-class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <object> <function>)
-    ':direct-slots  '((specializers :initarg :specializers)
+    :direct-supers (list <object> <function>)
+    :direct-slots  '((specializers :initarg :specializers)
                       (procedure    :initarg :procedure)
                       (qualifier    :initarg :qualifier
                                     :initvalue :primary)
                       (name         :initarg :name
                                     :initvalue -anonymous-method-)
                       (arity        :initarg :arity))
-    ':name          '<method>))
+    :name          '<method>))
 
 ;; Do this since compute-apply-method relies on them not changing, as well as a
 ;; zillion other places.  A method should be very similar to a lambda.
@@ -670,13 +661,6 @@
              (or (null? left-specs)
                  (error "Bad specializer list" (method-specializers left-method)))))))
 
-;; an automatic superclass for all classes -- turned off for the builtins below
-;;>> *default-object-class*
-;;>   This parameter contains a value which is automatically made a
-;;>   superclass for all classes.  Defaults to `<object>'.
-(define *default-object-class*
-  (make-parameter "*default-object-class*" #f (lambda (x) (or (not x) (class? x)))))
-
 (define (check-initargs class initargs)
   ;; sanity check - verify sensible keywords given
   (let ((valid-initargs (%class-valid-initargs class)))
@@ -703,8 +687,8 @@
 ;;>   only difference is that in Ripoff methods can be applied directly,
 ;;>   and if `call-next-method' is used, then `no-next-method' gets `#f' for
 ;;>   the generic argument.
-(define no-applicable-method (make <generic> ':name 'no-applicable-method))
-(define no-next-method       (make <generic> ':name 'no-next-method))
+(define no-applicable-method (make <generic> :name 'no-applicable-method))
+(define no-next-method       (make <generic> :name 'no-next-method))
 
 (define (method:wrong-type-argument method bad-argument expected-type)
   (error
@@ -777,19 +761,15 @@
 ;; allocate-instance to prevent that from happening.
 (define <primitive-class>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <class>)
-    ':direct-slots  '()
-    ':name          '<primitive-class>))
+    :direct-supers (list <class>)
+    :name          '<primitive-class>))
 
 ;;>> <builtin>
 ;;>   The superclass of all built-in classes.
 (define <builtin>
   (make <class>
-    ':direct-default-initargs '()
-    ':direct-supers (list <top>)
-    ':direct-slots  '()
-    ':name          '<builtin>))
+    :direct-supers (list <top>)
+    :name          '<builtin>))
 
 ;;>   Predicates for instances of <builtin>, <function>, <generic>, and
 ;;>   <method>.
