@@ -38,14 +38,14 @@
  (mac il-load         "Load")
  (mac il-instructions "Instructions")
 
- (so il-schemefactory                    "Factory")
- (so il-schemeobject iltype-schemeobject "SObject")
- (so il-codevector   iltype-codevector   "CodeVector")
- (so il-fixnum       iltype-fixnum       "SFixnum")
- (so il-immediate    iltype-immediate    "SImmediate")
- (so il-schemechar   iltype-schemechar   "SChar")
- (so il-procedure    iltype-procedure    "Procedure")
- (so il-schemepair   iltype-schemepair   "SPair")
+ (so il-schemefactory                      "Factory")
+ (so il-schemeobject  iltype-schemeobject  "SObject")
+ (so il-codevector    iltype-codevector    "CodeVector")
+ (so il-fixnum        iltype-fixnum        "SFixnum")
+ (so il-immediate     iltype-immediate     "SImmediate")
+ (so il-schemechar    iltype-schemechar    "SChar")
+ (so il-procedure     iltype-procedure     "Procedure")
+ (so il-schemepair    iltype-schemepair    "SPair")
 
  (so il-svl               iltype-svl               "SVL")
  (so il-sbytevl           iltype-sbytevl           "SByteVL")
@@ -179,7 +179,7 @@
 (define (rep:load-static-link up)
   (list
    (il:load-register ENV-REGISTER)
-   (il 'castclass iltype-procedure)
+   ;(il 'castclass iltype-procedure)
    (let loop ((count up))
      (cond ((zero? count) '())
            (else (list (rep:procedure-rib)
@@ -232,7 +232,9 @@
 (define (rep:load-frame-slot slot)
   (if (< slot CONTINUATION-FRAME-SLOTS)
       (list
-       (il:ldfld iltype-schemeobject il-continuation-frame
+       (il:ldfld (if (zero? slot)
+                     iltype-procedure
+                     iltype-schemeobject) il-continuation-frame
                  (twobit-format #f "slot~s" slot)))
       (list
        (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
@@ -243,7 +245,7 @@
   (if (< slot CONTINUATION-FRAME-SLOTS)
       (list
        ilpackage
-       (il:stfld iltype-schemeobject il-continuation-frame
+       (il:stfld (if (zero? slot) iltype-procedure iltype-schemeobject) il-continuation-frame
                  (twobit-format #f "slot~s" slot)))
       (list
        (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
