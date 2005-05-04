@@ -184,7 +184,8 @@
           (global-index (emit-global as (operand1 instruction))))
       (emit as
             (il:load-global-cell global-index)
-            (rep:pair-car)
+            ;; (rep:pair-car)
+            (il:call '(instance virtual) iltype-schemeobject il-schemeobject "op_cell_ref" '())
             (il 'dup)
             (il:load-constant (undefined))
             (il:branch-s 'bne.un defined-label)
@@ -204,6 +205,7 @@
     (list-instruction/line "setglbl" instruction as)
     (emit as
           (il:load-global-cell (emit-global as (operand1 instruction)))
+          (il 'castclass iltype-schemepair)
           (il:load-register 'result)
           (rep:set-pair-car!)))
   (lambda (instruction as)
@@ -394,7 +396,7 @@
              (rep:load-frame-slot 0)
              (il 'dup)
              (il:set-register/pop ENV-REGISTER)
-             (il 'castclass iltype-procedure)
+             ;(il 'castclass iltype-procedure)
              (rep:procedure-entrypoint)
              (il 'ldloc contframe)
              (rep:frame-return-index)
@@ -483,7 +485,7 @@
             (rep:load-static-link (operand1 instruction))))
 
           (il:load-register ENV-REGISTER)
-          (il 'castclass iltype-procedure)
+          ;(il 'castclass iltype-procedure)
           (rep:procedure-entrypoint)
           ;; Load the jump index (delayed, will be forced
           ;; in patch-up, when all info is available)
