@@ -77,7 +77,7 @@
           (cons a (collect-arguments (car l) (cdr l)))
           a))
 
-    ;; Apply is rarely called with more than 4 arguments.
+    ;; Apply is rarely called with more than 5 arguments.
 
     (define (apply f a0 . rest)
       (cond ((not (procedure? f))
@@ -92,7 +92,24 @@
                (cond ((pair? at1)
                       (let ((a2  (car at1))
                             (at2 (cdr at1)))
-                        (cond ((pair? at2) (xapply3 f a0 a1 a2 (collect-arguments (car at2) (cdr at2))))
+                        (cond ((pair? at2)
+                               (let ((a3 (car at2))
+                                     (at3 (cdr at2)))
+                                 (cond ((pair? at3)
+                                        (let ((a4 (car at3))
+                                              (at4 (cdr at3)))
+                                          (cond ((pair? at4)
+                                                 (let ((a5 (car at4))
+                                                       (at5 (cdr at4)))
+                                                   (cond ((pair? at5)
+                                                          (xapply6 f a0 a1 a2 a3 a4 a5
+                                                                   (collect-arguments (car at5) (cdr at5))))
+                                                         ((null? at5) (xapply5 f a0 a1 a2 a3 a4 a5))
+                                                         (else (improper-list at5)))))
+                                                ((null? at4) (xapply4 f a0 a1 a2 a3 a4))
+                                                (else (improper-list at4)))))
+                                       ((null? at3) (xapply3 f a0 a1 a2 a3))
+                                       (else (improper-list at3)))))
                               ((null? at2) (xapply2 f a0 a1 a2))
                               (else        (improper-list at2)))))
                      ((null? at1) (xapply1 f a0 a1))
