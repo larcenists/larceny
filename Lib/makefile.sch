@@ -225,7 +225,7 @@
                   "misc"
                   "record" "inspector"
                   "struct-proc0" "struct-proc" "struct" "struct-macros"
-                  "instance0" "instance" "class" "generic" ; Ripoff
+                  "instance0" "instance" "class" "generic" "gprint" ; Ripoff
                   )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
