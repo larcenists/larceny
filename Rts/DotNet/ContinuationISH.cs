@@ -122,7 +122,7 @@ namespace Scheme.RT {
         /* pop
          */
         public static void pop() {
-            cont.lastslot = -1;
+            cont.lastslot = 0;
             cont = cont.before;
             if (cont == SENTINEL) {
                 fillCache();
@@ -150,10 +150,11 @@ namespace Scheme.RT {
             if (stackReloadCounter != null) stackReloadCounter.Increment();
 #endif
             cont = ROOT;
-            if (!(heap is SVL)) {
+            SVL h = heap as SVL;
+
+            if (h == null) {
                 Exn.internalError("fillCache: Cont.heap is not a vector");
             } else {
-                SVL h = (SVL) heap;
                 heap = h.elements[Cont.HC_DYNLINK];
                 cont.fillFromVector(h);
             }
@@ -203,7 +204,7 @@ namespace Scheme.RT {
     public class ContinuationFrame {
         // If you modify the number of slot fields, remember
         // to change the constant NUM_SLOT_FIELDS above.
-        public SObject slot0;
+        public Procedure slot0;
         public SObject slot1;
         public SObject slot2;
         public SObject slot3;
@@ -220,7 +221,7 @@ namespace Scheme.RT {
         public bool dirty;
 
         public ContinuationFrame() {
-            this.lastslot = -1;
+            this.lastslot = 0;
             this.dirty = false;
             this.overflowSlots = new SObject[] {};
             this.clear();
@@ -342,7 +343,7 @@ namespace Scheme.RT {
 
         public void setSlot(int slot, SObject value) {
             switch (slot) {
-            case 0: slot0 = value; return;
+            case 0: slot0 = (Procedure) value; return;
             case 1: slot1 = value; return;
             case 2: slot2 = value; return;
             case 3: slot3 = value; return;
@@ -435,7 +436,7 @@ namespace Scheme.RT {
               }
         }
 
-        public void checkPop(int lastslot, SObject reg0) {
+        public void checkPop(int lastslot, Procedure reg0) {
             if (this.lastslot != lastslot) {
                 Exn.internalError("pop: wrong number of slots");
             }
