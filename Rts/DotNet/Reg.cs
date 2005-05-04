@@ -13,7 +13,7 @@ public class Reg {
     public const int LASTREG = NREGS - 1;
 
     // General-Purpose Registers
-    public static SObject register0;
+    public static Procedure register0;
     public static SObject register1;
     public static SObject register2;
     public static SObject register3;
@@ -94,7 +94,7 @@ public class Reg {
 
     public static SPair globalCell (string identifier)
     {
-        SPair cell = (SPair) globals[identifier];
+        SPair cell = globals[identifier] as SPair;
         if (cell == null) {
             cell = new SPair(Factory.Undefined,
                              Factory.internSymbol(identifier));
@@ -152,7 +152,7 @@ public class Reg {
     public static void setRegister (int index, SObject value)
     {
         switch (index) {
-          case 0: Reg.register0 = value; break;
+	  case 0: Reg.register0 = (Procedure) value; break;
           case 1: Reg.register1 = value; break;
           case 2: Reg.register2 = value; break;
           case 3: Reg.register3 = value; break;
@@ -202,7 +202,7 @@ public class Reg {
         // Fetch the list of arguments into pp.
         SPair pp;
         switch (listreg) {
-            case 0: pp = (SPair) Reg.register0; break;
+            // case 0: pp = (SPair) Reg.register0; break;
             case 1: pp = (SPair) Reg.register1; break;
             case 2: pp = (SPair) Reg.register2; break;
             case 3: pp = (SPair) Reg.register3; break;
@@ -1311,7 +1311,8 @@ public class Reg {
         Reg.Result = Factory.Undefined;
         Reg.Second = Factory.Undefined;
         Reg.Third = Factory.Undefined;
-        for (int i = 0; i < Reg.NREGS; ++i) {
+	// We don't clear register0, but that always holds the current procedure.
+        for (int i = 1; i < Reg.NREGS; ++i) {
             Reg.setRegister(i, Factory.Undefined);
         }
     }
