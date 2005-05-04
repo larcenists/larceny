@@ -116,10 +116,10 @@
 ;; constants should be adjusted whenever the corresponding constants change.
 
 ;; FIXNUM-POOL-MAX == SchemeFixnum.maxPreAlloc
-(define FIXNUM-POOL-MAX 255)
+(define FIXNUM-POOL-MAX 32767)
 
 ;; FIXNUM-POOL-MIN == SchemeFixnum.minPreAlloc
-(define FIXNUM-POOL-MIN -128)
+(define FIXNUM-POOL-MIN -16384)
 
 ;; CHAR-POOL-MIN
 (define CHAR-POOL-MIN 0)
