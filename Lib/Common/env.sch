@@ -22,32 +22,32 @@
 
 (define (interaction-environment . rest)
   (cond ((null? rest)
-	 *interaction-environment*)
-	((and (null? (cdr rest)))
-	 (if (and (environment? (car rest))
-		  (env.mutable (car rest)))
-	     (set! *interaction-environment* (car rest))
-	     (error "interaction-environment: " (car rest) 
-		    " is not a mutable environment."))
-	 (unspecified))
-	(else
-	 (error "interaction-environment: too many arguments.")
-	 #t)))
+         *interaction-environment*)
+        ((and (null? (cdr rest)))
+         (if (and (environment? (car rest))
+                  (env.mutable (car rest)))
+             (set! *interaction-environment* (car rest))
+             (error "interaction-environment: " (car rest)
+                    " is not a mutable environment."))
+         (unspecified))
+        (else
+         (error "interaction-environment: too many arguments.")
+         #t)))
 
 (define (scheme-report-environment version)
   (case version
     ((4)  *r4rs-environment*)
     ((5)  *r5rs-environment*)
     (else (error "scheme-report-environment: " version
-		 " is not an accepted version number.")
-	  #t)))
+                 " is not an accepted version number.")
+          #t)))
 
 (define (null-environment version)
   (case version
     ((4 5) *null-environment*)
-    (else  (error "null-environment: " version 
-		  " is not an accepted version number.")
-	   #t)))
+    (else  (error "null-environment: " version
+                  " is not an accepted version number.")
+           #t)))
 
 
 ; Global cells are represented as pairs, for now.  The compiler
@@ -71,20 +71,30 @@
 (define *environment-key* (vector 'environment))
 
 (define (make-environment name)
-  (let ((env (make-structure 5)))
+  (let ((env (make-structure 6)))
     (vector-like-set! env 0 *environment-key*)
     (vector-like-set! env 1 (make-hashtable symbol-hash assq))
     (vector-like-set! env 2 #t)
     (vector-like-set! env 3 name)
     (vector-like-set! env 4 (make-minimal-syntactic-environment))
+    ;; The next slot is used by the syntax-case macro and the module
+    ;; system.  Although standard larceny doesn't use the slot, it
+    ;; needs to carry it around so the loader, repl, debugger,
+    ;; etc. will be able to interact with modules without major
+    ;; headaches.
+
+    ;; Auxiliary info
+    (vector-like-set! env 5 #f)
     env))
 
-(define (env.hashtable env) (vector-like-ref env 1))
-(define (env.mutable env) (vector-like-ref env 2))
-(define (env.name env) (vector-like-ref env 3))
-(define (env.syntaxenv env) (vector-like-ref env 4))
+(define (env.hashtable env)      (vector-like-ref env 1))
+(define (env.mutable env)        (vector-like-ref env 2))
+(define (env.name env)           (vector-like-ref env 3))
+(define (env.syntaxenv env)      (vector-like-ref env 4))
+(define (env.auxiliary-info env) (vector-like-ref env 5))
 
 (define (env.mutable! env flag) (vector-like-set! env 2 flag))
+(define (env.set-auxiliary-info! env new-value) (vector-like-set! env 5 new-value))
 
 (define (environment? obj)
   (and (structure? obj)
@@ -99,7 +109,7 @@
   (check-environment env 'environment-variables)
   (let ((macros (environment-macros env))
         (variables '()))
-    (hashtable-for-each (lambda (id cell) 
+    (hashtable-for-each (lambda (id cell)
                           (if (not (memq id macros))
                               (set! variables (cons id variables))))
                         (env.hashtable env))
@@ -112,7 +122,7 @@
     (and (not probe2)
          probe1
          (not (eq? (global-cell-ref probe1) (undefined))))))
-  
+
 (define (environment-get env name)
   (check-environment env 'environment-get)
   (if (not (environment-macro? env name))
@@ -131,7 +141,7 @@
           (let ((cell (make-global-cell (undefined) name)))
             (hashtable-put! (env.hashtable env) name cell)
             cell))
-      (begin 
+      (begin
         (error "environment-get-cell: denotes a macro: " name)
         #t)))
 
@@ -150,9 +160,40 @@
            (global-cell-set! cell value)
            (unspecified)))))
 
+(define (environment-link-variables! target-env target-name source-env source-name)
+  ;; Define a new binding for TARGET-NAME in TARGET-ENV, which shares its
+  ;; value cell with the binding for SOURCE-NAME in SOURCE-ENV.
+  (check-environment source-env 'environment-link-variables!)
+  (check-environment target-env 'environment-link-variables!)
+  (cond ((not (env.mutable source-env))
+         (error "environment-link-variables!:  source environment is not mutable: "
+                (env.name source-env))
+         #t)
+        ((not (env.mutable target-env))
+         (error "environment-link-variables!:  target environment is not mutable: "
+                (env.name target-env))
+         #t)
+        ((environment-macro? target-env target-name)
+         (syntactic-environment-remove! (environment-syntax-environment target-env)
+                                        name)
+         (environment-link-variables! target-env target-name source-env source-name))
+
+        (else
+         (let ((cell (environment-get-cell source-env source-name)))
+           (hashtable-put! (env.hashtable target-env) target-name cell)
+           (unspecified)))))
+
 (define (environment-syntax-environment env)
   (check-environment env 'environment-syntax-environment)
   (env.syntaxenv env))
+
+(define (environment-auxiliary-info env)
+  (check-environment env 'environment-auxiliary-info)
+  (env.auxiliary-info env))
+
+(define (environment-set-auxiliary-info! env new-value)
+  (check-environment env 'environment-set-auxiliary-info!)
+  (env.set-auxiliary-info! env new-value))
 
 (define (environment-copy env . rest)
   (check-environment env 'environment-copy)
@@ -166,7 +207,7 @@
           (environment-set! new (car vs) (environment-get env (car vs)))))
     (do ((ms macros (cdr ms)))
         ((null? ms))
-      (environment-set-macro! new (car ms) 
+      (environment-set-macro! new (car ms)
                               (environment-get-macro env (car ms))))
     new))
 
@@ -185,7 +226,7 @@
 
 (define (environment-macro? env id)
   (check-environment env 'environment-macro?)
-  (not (not (syntactic-environment-get (environment-syntax-environment env) 
+  (not (not (syntactic-environment-get (environment-syntax-environment env)
                                        id))))
 
 (define (check-environment env tag)
@@ -200,8 +241,8 @@
 
 (define global-name-resolver
   (make-parameter "global-name-resolver"
-		  (lambda (sym)
-		    (error "GLOBAL-NAME-RESOLVER: not installed."))
-		  procedure?))
-     
+                  (lambda (sym)
+                    (error "GLOBAL-NAME-RESOLVER: not installed."))
+                  procedure?))
+
 ; eof
