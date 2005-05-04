@@ -164,40 +164,28 @@
 ;    (com-object 'initarg 'com-object))
 
 (define <class-with-clr-object-scaffold>
-  (begin
-    (if (*make-safely*)
-        (check-initargs
-         (*default-class-class*)
-         (list ':direct-default-initargs #f
-               ':direct-supers (list <class>)
-               ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle))
-               ':name '<class-with-clr-object-scaffold>)))
-    (let ((<class-with-clr-object-scaffold>
-           (rec-allocate-instance
-            (*default-class-class*)
-            (list ':direct-default-initargs #f
-                  ':direct-supers (list <class>)
-                  ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle))
-                  ':name '<class-with-clr-object-scaffold>))))
-      (rec-initialize <class-with-clr-object-scaffold>
-                      (list ':direct-default-initargs #f
-                            ':direct-supers (list <class>)
-                            ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle))
-                            ':name '<class-with-clr-object-scaffold>))
-      <class-with-clr-object-scaffold>)))
+  (let ((initargs (list :direct-supers (list <class>)
+                        :direct-slots (list (list 'clr-handle :initarg :clr-handle))
+                        :name '<class-with-clr-object-scaffold>)))
+    (parameterize ((*default-object-class* #f))
+      (if (*make-safely*)
+          (check-initargs (*default-class-class*) initargs))
+      (let ((<class-with-clr-object-scaffold>
+             (rec-allocate-instance (*default-class-class*) initargs)))
+        (rec-initialize <class-with-clr-object-scaffold> initargs)
+        <class-with-clr-object-scaffold>))))
 
 (add-method allocate-instance
   (make <method>
-    ':arity 2
-    ':specializers (list (singleton <class-with-clr-object-scaffold>))
-    ':qualifier ':primary
-    ':procedure ((lambda ()
-                   (define (method:allocate-instance call-next-method class initargs)
-                     (%make-instance class
-                                     (make-vector (+ (length (%class-field-initializers class))
-                                                     (length (getarg initargs ':direct-slots '())))
-                                                  (undefined))))
-                   method:allocate-instance))))
+    :arity 2
+    :specializers (list (singleton <class-with-clr-object-scaffold>))
+    :procedure ((lambda ()
+                  (define (method:allocate-instance call-next-method class initargs)
+                    (%make-instance class
+                                    (make-vector (+ (length (%class-field-initializers class))
+                                                    (length (getarg initargs :direct-slots '())))
+                                                 (undefined))))
+                  method:allocate-instance))))
 
   ;; System.RuntimeType will be one root of the metaclass hierarchy.
   ;; Every .NET type object will inherit from this class, including
@@ -207,12 +195,8 @@
 ;    'metaclass <class-with-clr-object-scaffold>)
 
 (define System.RuntimeType
-  (begin
-    (if (*make-safely*)
-        (check-initargs
-         <class-with-clr-object-scaffold>
-         (list ':direct-default-initargs #f
-               ':direct-supers (list <class-with-clr-object-scaffold>)
+  (let ((initargs
+         (list ':direct-supers (list <class-with-clr-object-scaffold>)
                ':direct-slots
                (list
                 (list 'can-instantiate? ':initarg ':can-instantiate? ':reader 'clr-class/can-instantiate?)
@@ -221,51 +205,26 @@
                 (list 'return-marshaler ':initarg ':return-marshaler ':reader 'return-marshaler))
 
                ':name 'System.RuntimeType)))
-    (let ((System.RuntimeType
-           (rec-allocate-instance
-            <class-with-clr-object-scaffold>
-            (list ':direct-default-initargs #f
-                  ':direct-supers (list <class-with-clr-object-scaffold>)
-                  ':direct-slots
-                  (list
-                   (list 'can-instantiate? ':initarg ':can-instantiate? ':reader 'clr-class/can-instantiate?)
-                   (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName)
-                   (list 'argument-marshaler ':initarg ':argument-marshaler ':reader 'argument-marshaler)
-                   (list 'return-marshaler ':initarg ':return-marshaler ':reader 'return-marshaler))
-                  ':name 'System.RuntimeType))))
-      (rec-initialize
-       System.RuntimeType
-       (list ':direct-default-initargs #f
-             ':direct-supers (list <class-with-clr-object-scaffold>)
-             ':direct-slots
-             (list
-              (list 'can-instantiate? ':initarg ':can-instantiate? ':reader 'clr-class/can-instantiate?)
-              (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName)
-              (list 'argument-marshaler ':initarg ':argument-marshaler ':reader 'argument-marshaler)
-              (list 'return-marshaler ':initarg ':return-marshaler ':reader 'return-marshaler))
-             ':name 'System.RuntimeType))
-      System.RuntimeType)))
+    (parameterize ((*default-object-class* #f))
+      (if (*make-safely*)
+          (check-initargs <class-with-clr-object-scaffold> initargs))
+      (let ((System.RuntimeType
+             (rec-allocate-instance
+              <class-with-clr-object-scaffold> initargs)))
+        (rec-initialize System.RuntimeType initargs)
+        System.RuntimeType))))
 
-(define clr/StudlyName (make (*default-generic-class*) ':name 'clr/StudlyName))
+(define clr/StudlyName (generic-getter 'clr/StudlyName))
 
-(add-method clr/StudlyName
-  (make (*default-method-class*)
-    ':arity 1
-    ':specializers (list System.RuntimeType)
-    ':procedure (lambda (call-next-method x) (slot-ref x 'StudlyName))))
+(add-method clr/StudlyName (getter-method System.RuntimeType 'StudlyName))
 
 ;; (argument-marshaler type) =>   procedure from instance to ffi object
-(define argument-marshaler (make (*default-generic-class*) ':name 'argument-marshaler))
+(define argument-marshaler (generic-getter 'argument-marshaler))
 
-(add-method argument-marshaler
-  (make (*default-method-class*)
-    ':arity 1
-    ':specializers (list System.RuntimeType)
-    ':procedure (lambda (call-next-method type)
-                  (slot-ref type 'argument-marshaler))))
+(add-method argument-marshaler (getter-method System.RuntimeType 'argument-marshaler))
 
 ;; (argument-specializer type) => class
-(define argument-specializer (make (*default-generic-class*) ':name 'argument-specializer))
+(define argument-specializer (generic-getter 'argument-specializer))
 
 ;; Temporary definition.
 (add-method argument-specializer
@@ -274,15 +233,10 @@
     ':specializers (list System.RuntimeType)
     ':procedure (lambda (call-next-method type) type)))
 
-(define return-marshaler (make (*default-generic-class*) ':name 'return-marshaler))
+(define return-marshaler (generic-getter 'return-marshaler))
 
 ;; (return-marshaler type) => procedure from ffi object to instance
-(add-method return-marshaler
-  (make (*default-method-class*)
-    ':arity 1
-    ':specializers (list System.RuntimeType)
-    ':procedure (lambda (call-next-method type)
-                  (slot-ref type 'return-marshaler))))
+(add-method return-marshaler (getter-method System.RuntimeType 'return-marshaler))
 
 (define (clr-class/can-instantiate? runtime-type)
   (slot-ref runtime-type 'can-instantiate?))
@@ -416,47 +370,30 @@
 ;          instance)
 ;        (call-next-method)))
 
-(define max-arity (make (*default-generic-class*) ':name 'max-arity))
-
+(define max-arity (generic-getter 'max-arity))
 
 ;; (clr-object/clr-handle instance) => handle
-(define clr-object/clr-handle (make (*default-generic-class*) ':name 'clr-object/clr-handle))
+(define clr-object/clr-handle (generic-getter 'clr-object/clr-handle))
 
 (define <clr-generic>
-  (begin
-    (if (*make-safely*)
-        (check-initargs
-         (*default-entityclass-class*)
-         (list
-          ':direct-default-initargs #f
-          ':direct-supers (list <generic>)
-          ':direct-slots (list
-                          (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName))
-          ':name '<clr-generic>)))
-    (let ((<clr-generic>
-           (rec-allocate-instance
-            (*default-entityclass-class*)
-            (list
-             ':direct-default-initargs #f
-             ':direct-supers (list <generic>)
-             ':direct-slots (list
-                             (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName))
-             ':name '<clr-generic>))))
-      (rec-initialize
-       <clr-generic>
-       (list
-        ':direct-default-initargs #f
-        ':direct-supers (list <generic>)
-        ':direct-slots (list
-                        (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName))
-        ':name '<clr-generic>))
-      <clr-generic>)))
+  (let ((initargs (list
+                   ':direct-supers (list <generic>)
+                   ':direct-slots (list
+                                   (list 'StudlyName ':initarg ':StudlyName ':reader 'clr/StudlyName))
+                   ':name '<clr-generic>)))
+    (parameterize ((*default-object-class* #f))
+      (begin
+        (if (*make-safely*)
+            (check-initargs
+             (*default-entityclass-class*) initargs))
+        (let ((<clr-generic>
+               (rec-allocate-instance
+                (*default-entityclass-class*) initargs)))
+          (rec-initialize
+           <clr-generic> initargs)
+          <clr-generic>)))))
 
-(add-method clr/StudlyName
-  (make (*default-method-class*)
-    ':specializers (list <clr-generic>)
-    ':arity 1
-    ':procedure (lambda (call-next-method x) (slot-ref x 'StudlyName))))
+(add-method clr/StudlyName (getter-method <clr-generic> 'StudlyName))
 
 (add-method print-object
   (make (*default-method-class*)
@@ -472,32 +409,23 @@
                    print-object))))
 
 (define <clr-arity-overload>
-  (begin
-    (if (*make-safely*)
-        (check-initargs
-         (*default-entityclass-class*)
-         (list
-          ':direct-default-initargs '();; (list 'arity (make-arity-at-least 1))
-          ':direct-supers (list <clr-generic>)
-          ':direct-slots (list (list 'arity-vector ':initarg ':arity-vector))
-          ':name '<clr-arity-overload>)))
+  (let ((initargs (list
+                   ':direct-default-initargs '();; (list 'arity (make-arity-at-least 1))
+                   ':direct-supers (list <clr-generic>)
+                   ':direct-slots (list (list 'arity-vector ':initarg ':arity-vector))
+                   ':name '<clr-arity-overload>)))
+    (parameterize ((*default-object-class* #f))
 
-    (let ((<clr-arity-overload>
-           (rec-allocate-instance
-            (*default-entityclass-class*)
-            (list
-             ':direct-default-initargs '();; (list 'arity (make-arity-at-least 1))
-             ':direct-supers (list <clr-generic>)
-             ':direct-slots (list (list 'arity-vector ':initarg ':arity-vector))
-             ':name '<clr-arity-overload>))))
-      (rec-initialize
-       <clr-arity-overload>
-       (list
-        ':direct-default-initargs '();; (list 'arity (make-arity-at-least 1))
-        ':direct-supers (list <clr-generic>)
-        ':direct-slots (list (list 'arity-vector ':initarg ':arity-vector))
-        ':name '<clr-arity-overload>))
-      <clr-arity-overload>)))
+      (if (*make-safely*)
+          (check-initargs
+           (*default-entityclass-class*) initargs))
+
+      (let ((<clr-arity-overload>
+             (rec-allocate-instance
+              (*default-entityclass-class*) initargs )))
+        (rec-initialize
+         <clr-arity-overload> initargs)
+        <clr-arity-overload>))))
 
 (define get-arity-vector
   (lookup-slot-info <clr-arity-overload> 'arity-vector cadr))
@@ -639,44 +567,23 @@
   ;;   -- the voice of experience)
 
 (define System.Object
-  (begin
-    (if (*make-safely*)
-        (check-initargs
-         System.RuntimeType
+  (let ((initargs
          (list ':StudlyName "System.Object"
                ':clr-handle clr-type-handle/system-object
                ':direct-default-initargs #f
                ':direct-supers (list <object>)
                ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle))
+               ':can-instantiate? #f
+               ':argument-marshaler clr/default-marshal-out
+               ':return-marshaler clr/default-marshal-in
                ':name 'system.object)))
-    (let ((System.Object
-           (rec-allocate-instance
-            System.RuntimeType
-            (list ':StudlyName "System.Object"
-                  ':clr-handle clr-type-handle/system-object
-                  ':direct-default-initargs #f
-                  ':direct-supers (list <object>)
-                  ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle))
-                  ':name 'system.object))))
-      (rec-initialize
-       System.Object
-       (list ':StudlyName "System.Object"
-             ':clr-handle clr-type-handle/system-object
-             ':direct-default-initargs #f
-             ':direct-supers (list <object>)
-             ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle))
-             ':can-instantiate? #f
-             ':argument-marshaler clr/default-marshal-out
-             ':return-marshaler clr/default-marshal-in
-             ':name 'system.object))
+    (if (*make-safely*)
+        (check-initargs System.RuntimeType initargs))
+    (let ((System.Object (rec-allocate-instance System.RuntimeType initargs)))
+      (rec-initialize System.Object initargs)
       System.Object)))
 
-(add-method clr-object/clr-handle
-  (make (*default-method-class*)
-    ':arity 1
-    ':specializers (list System.Object)
-    ':procedure (lambda (call-next-method instance)
-                  (slot-ref instance 'clr-handle))))
+(add-method clr-object/clr-handle (getter-method System.Object 'clr-handle))
 
 (add-method print-object
   (make (*default-method-class*)
@@ -754,7 +661,6 @@
               (make (*default-method-class*)
                 ':specializers (list (singleton System.RuntimeType))
                 ':arity 2
-                ':qualifier ':primary
                 ':procedure ((lambda ()
                                (define (allocate-runtime-type call-next-method class initargs)
                                  (let ((instance (call-next-method))
@@ -964,12 +870,7 @@
                              <list>)
                             (else type)))))
 
-    (add-method max-arity
-      (make (*default-method-class*)
-        ':arity 1
-        ':specializers (list methodbase-class)
-        ':procedure (lambda (call-next-method x)
-                      (slot-ref x 'max-arity))))
+    (add-method max-arity (getter-method methodbase-class 'max-arity))
 
     (add-method initialize-instance
       (make (*default-method-class*)
@@ -1031,9 +932,9 @@
   (slot-set! array-class 'argument-marshaler (marshal-vector->array array-class))
   (slot-set! array-class 'return-marshaler (marshal-array->vector array-class)))
 
-(define enum/has-flags-attribute? (make (*default-generic-class*) ':name 'enum/has-flags-attribute?))
-(define enum/enumerates (make (*default-generic-class*) ':name 'enum/enumerates))
-(define enum/value (make (*default-generic-class*) ':name 'enum/value))
+(define enum/has-flags-attribute? (generic-getter 'enum/has-flags-attribute?))
+(define enum/enumerates (generic-getter 'enum/enumerates))
+(define enum/value (generic-getter 'enum/value))
 
 (define (initialize-enum-class enum-class)
   (dotnet-message 3 "Initialize enum class" enum-class)
@@ -1062,19 +963,9 @@
                          (display ">" port))
                        print-object))))
 
-    (add-method clr/StudlyName
-      (make (*default-method-class*)
-        ':arity 1
-        ':specializers (list enum-class)
-        ':procedure (lambda (call-next-method instance)
-                      (slot-ref instance 'StudlyName))))
+    (add-method clr/StudlyName (getter-method enum-class 'StudlyName))
 
-    (add-method enum/value
-      (make (*default-method-class*)
-        ':arity 1
-        ':specializers (list enum-class)
-        ':procedure (lambda (call-next-method instance)
-                      (slot-ref instance 'value))))
+    (add-method enum/value (getter-method enum-class 'value))
 
     (let ((enumerates (map (lambda (name value)
                              (let* ((StudlyName (string-append (clr/StudlyName enum-class)
@@ -1464,70 +1355,39 @@
 ;;;      after instantiating the type.
 
 (define <clr-method>
-  (let ((<clr-method>
-         (rec-allocate-instance
-          (*default-entityclass-class*)
-          (list
-           ':direct-default-initargs #f
-           ':direct-supers (list <method>)
-           ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle)
-                                (list 'max-arity ':initarg ':max-arity ':reader 'max-arity))
-           ':name '<clr-method>))))
-    (if (*make-safely*)
-        (check-initargs
-         (*default-entityclass-class*)
-         (list
-          ':direct-default-initargs #f
-          ':direct-supers (list <method>)
-          ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle)
-                               (list 'max-arity ':initarg ':max-arity ':reader 'max-arity))
-          ':name '<clr-method>)))
-    (rec-initialize
-     <clr-method>
-     (list
-      ':direct-default-initargs #f
-      ':direct-supers (list <method>)
-      ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle)
-                           (list 'max-arity ':initarg ':max-arity ':reader 'max-arity))
-      ':name '<clr-method>))
-    <clr-method>))
+  (let ((initargs (list
+                   ':direct-supers (list <method>)
+                   ':direct-slots (list (list 'clr-handle ':initarg ':clr-handle ':reader 'clr-object/clr-handle)
+                                        (list 'max-arity ':initarg ':max-arity ':reader 'max-arity))
+                   ':name '<clr-method>)))
 
-(add-method max-arity
-  (make (*default-method-class*)
-    ':arity 1
-    ':specializers (list <clr-method>)
-    ':procedure (lambda (call-next-method x)
-                  (slot-ref x 'max-arity))))
+    (let ((<clr-method>
+           (rec-allocate-instance
+            (*default-entityclass-class*) initargs)))
+      (if (*make-safely*)
+          (check-initargs
+           (*default-entityclass-class*) initargs))
+      (rec-initialize
+       <clr-method> initargs)
+      <clr-method>)))
 
-(add-method clr-object/clr-handle
-  (make (*default-method-class*)
-    ':arity 1
-    ':specializers (list <clr-method>)
-    ':procedure (lambda (call-next-method instance)
-                  (slot-ref instance 'clr-handle))))
+(add-method max-arity (getter-method <clr-method> 'max-arity))
+
+(add-method clr-object/clr-handle (getter-method <clr-method> 'clr-handle))
 
 (define <clr-instance-field-getter>
-  (let ((<clr-instance-field-getter>
-         (rec-allocate-instance
-          (*default-entityclass-class*)
-          (list ':direct-default-initargs #f
-                ':direct-supers (list <clr-method>)
-                ':direct-slots '()
-                ':name '<clr-instance-field-getter>))))
-    (if (*make-safely*)
-        (check-initargs
-         (*default-entityclass-class*)
-         (list ':direct-default-initargs #f
-               ':direct-supers (list <clr-method>)
-               ':direct-slots '()
-               ':name '<clr-instance-field-getter>)))
-    (rec-initialize
-     <clr-instance-field-getter>
-     (list ':direct-default-initargs #f
-           ':direct-supers (list <clr-method>)
-           ':direct-slots '()
-           ':name '<clr-instance-field-getter>))
-    <clr-instance-field-getter>))
+  (let ((initargs (list ':direct-supers (list <clr-method>)
+                        ':direct-slots '()
+                        ':name '<clr-instance-field-getter>)))
+    (let ((<clr-instance-field-getter>
+           (rec-allocate-instance
+            (*default-entityclass-class*) initargs)))
+      (if (*make-safely*)
+          (check-initargs
+           (*default-entityclass-class*) initargs))
+      (rec-initialize
+       <clr-instance-field-getter> initargs)
+      <clr-instance-field-getter>)))
 
 (add-method print-object
   (make (*default-method-class*)
@@ -1608,27 +1468,19 @@
                       (arity-plus arity 1)))))))
 
 (define <clr-static-field-getter>
-  (let ((<clr-static-field-getter>
-         (rec-allocate-instance
-          (*default-entityclass-class*)
-          (list ':direct-default-initargs #f
-                ':direct-supers (list <clr-method>)
-                ':direct-slots '()
-                ':name '<clr-static-field-getter>))))
-    (if (*make-safely*)
-        (check-initargs
-         (*default-entityclass-class*)
-         (list ':direct-default-initargs #f
-               ':direct-supers (list <clr-method>)
-               ':direct-slots '()
-               ':name '<clr-static-field-getter>)))
-    (rec-initialize
-     <clr-static-field-getter>
-     (list ':direct-default-initargs #f
-           ':direct-supers (list <clr-method>)
-           ':direct-slots '()
-           ':name '<clr-static-field-getter>))
-    <clr-static-field-getter>))
+  (let ((initargs (list
+                   ':direct-supers (list <clr-method>)
+                   ':name '<clr-static-field-getter>)))
+    (let ((<clr-static-field-getter>
+           (rec-allocate-instance
+            (*default-entityclass-class*) initargs
+            )))
+      (if (*make-safely*)
+          (check-initargs
+           (*default-entityclass-class*) initargs))
+      (rec-initialize
+       <clr-static-field-getter> initargs)
+      <clr-static-field-getter>)))
 
 (add-method print-object
   (make (*default-method-class*)
@@ -1694,27 +1546,18 @@
                       (arity-plus arity 1)))))))
 
 (define <clr-static-field-setter>
-  (let ((<clr-static-field-setter>
-         (rec-allocate-instance
-          (*default-entityclass-class*)
-          (list ':direct-default-initargs #f
-                ':direct-supers (list <clr-method>)
-                ':direct-slots '()
-                ':name '<clr-static-field-setter>))))
-    (if (*make-safely*)
-        (check-initargs
-         (*default-entityclass-class*)
-         (list ':direct-default-initargs #f
-               ':direct-supers (list <clr-method>)
-               ':direct-slots '()
-               ':name '<clr-static-field-setter>)))
-    (rec-initialize
-     <clr-static-field-setter>
-     (list ':direct-default-initargs #f
-           ':direct-supers (list <clr-method>)
-           ':direct-slots '()
-           ':name '<clr-static-field-setter>))
-    <clr-static-field-setter>))
+  (let ((initargs (list
+                   ':direct-supers (list <clr-method>)
+                   ':name '<clr-static-field-setter>)))
+    (let ((<clr-static-field-setter>
+           (rec-allocate-instance
+            (*default-entityclass-class*) initargs)))
+      (if (*make-safely*)
+          (check-initargs
+           (*default-entityclass-class*) initargs))
+      (rec-initialize
+       <clr-static-field-setter> initargs)
+      <clr-static-field-setter>)))
 
 (add-method print-object
   (make (*default-method-class*)
