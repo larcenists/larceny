@@ -54,7 +54,7 @@ namespace Scheme.RT {
          * A compromise for now.
          */
         public static void fault(int excode, string message) {
-            Procedure p = (Procedure) Reg.register0;
+            Procedure p = Reg.register0;
             msg.WriteLine("** exn {0}: {1}", excode, message);
             if (excode == -1) {
                 throw new Exception("exn at " + p);
@@ -78,12 +78,12 @@ namespace Scheme.RT {
                 return;
             } else {
                 Reg.timer = Reg.SMALL_TIME_SLICE;
-                Procedure p = (Procedure)Reg.getRegister(0);
+                Procedure p = Reg.register0;
                 throw new CodeVectorCallException(p.entrypoint, j);
             }
         }
         public static void faultGlobal(int global) {
-            Reg.Result = ((Procedure)Reg.register0).constants[global];
+            Reg.Result = Reg.register0.constants[global];
             fault(Constants.EX_UNDEF_GLOBAL);
         }
         public static void faultArgCount(int expectedc) {
@@ -137,7 +137,7 @@ namespace Scheme.RT {
             msg.WriteLine("Second  = {0}", Reg.Second);
             msg.WriteLine("Third   = {0}", Reg.Third);
             if (includeReg0) {
-                msg.WriteLine("register 0 = {0}", Reg.getRegister(0));
+                msg.WriteLine("register 0 = {0}", Reg.register0);
             }
         }
         public static void dumpGeneralRegisters() {
@@ -147,7 +147,7 @@ namespace Scheme.RT {
         }
         public static void dumpEnvironment() {
             msg.WriteLine("Static link/Environment:");
-            Procedure p = (Procedure)Reg.getRegister(0);
+            Procedure p = Reg.register0;
             if (p.rib != null) {
                 for (int i = 0; i < p.rib.Length; ++i) {
                     msg.WriteLine("  lexical(0,{0}) = {1}", i, p.rib[i]);
