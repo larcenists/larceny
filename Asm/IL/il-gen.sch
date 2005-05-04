@@ -180,7 +180,7 @@
             (il 'ldc.i4 index)
             (il 'ldelem.ref))
       (list (il:load-register ENV-REGISTER)
-            (il 'castclass iltype-procedure)
+            ;; (il 'castclass iltype-procedure)
             (il:ldfld iltype-schemeobject-array il-procedure "constants")
             (il 'ldc.i4 index)
             (il 'ldelem.ref))))
@@ -421,7 +421,7 @@
          (lambda (regpair)
            (il:ldsfld iltype-schemeobject il-reg (cadr regpair))))
         ((number? register)
-         (il:ldsfld iltype-schemeobject
+         (il:ldsfld (if (zero? register) iltype-procedure iltype-schemeobject)
                     il-reg
                     (twobit-format #f "register~a" register)))
         (error "il:load-register: cannot emit IL to load register: "
@@ -445,7 +445,7 @@
         ((number? register)
          (list ilpackage
                (il:stsfld
-                iltype-schemeobject
+                (if (zero? register) iltype-procedure iltype-schemeobject)
                 il-reg
                 (twobit-format #f "register~a" register))))
         (else
@@ -486,7 +486,7 @@
   (if (codegen-option 'cache-constant-vector)
       (list
        (il:load-register ENV-REGISTER)
-       (il 'castclass iltype-procedure)
+       ;; (il 'castclass iltype-procedure)
        (rep:procedure-constants)
        (il 'stloc LOCAL-CONSTANT-VECTOR))
       '()))
@@ -495,7 +495,10 @@
 ;; Loads a global cell (not its contents)
 (define (il:load-global-cell index)
   (list (il:load-constant/vector index)
-        (il 'castclass iltype-schemepair)))
+        ;; Avoid this cast, it is known that elements in the constant vector
+        ;; are of type SObject, so use the virtual call.
+        ;; (il 'castclass iltype-schemepair)
+        ))
 
 ;; =========================================================
 ;; EXCEPTIONS AND INTERRUPTS
