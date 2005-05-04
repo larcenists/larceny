@@ -354,15 +354,16 @@
   (environment-set-macro! larc 'case-lambda (usual-syntax 'case-lambda))
 
   ;; JavaDot and case-sensitivity
-  ;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
+  ;;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
 
   (environment-set! larc 'case-sensitive? case-sensitive?)
+  (environment-set! larc 'read-square-bracket-as-paren read-square-bracket-as-paren)
   (environment-set! larc
                     'recognize-javadot-symbols?
                     recognize-javadot-symbols?)
   (environment-set! larc 'javadot-type-suffix javadot-type-suffix)
   (environment-set! larc 'javadot-generic-suffix javadot-generic-suffix)
-  ;(environment-set! larc 'recognize-keywords? recognize-keywords?)
+  ;;(environment-set! larc 'recognize-keywords? recognize-keywords?)
   (environment-set! larc 'javadot-symbol? javadot-symbol?)
   (environment-set! larc 'javadot-symbol->symbol javadot-symbol->symbol)
   (environment-set! larc 'symbol->javadot-symbol symbol->javadot-symbol)
@@ -384,6 +385,7 @@
   (environment-set! larc 'find-if-not find-if-not)
   (environment-set! larc 'foldl foldl)
   (environment-set! larc 'foldr foldr)
+  (environment-set! larc 'improper-length improper-length)
   (environment-set! larc 'last last)
   (environment-set! larc 'last-pair last-pair)
   (environment-set! larc 'length<=? length<=?)
@@ -445,8 +447,11 @@
   (environment-set! larc 'environment-get environment-get)
   (environment-set! larc 'environment-get-cell environment-get-cell)
   (environment-set! larc 'environment-set! environment-set!)
+  (environment-set! larc 'environment-link-variables! environment-link-variables!)
   (environment-set! larc 'environment-syntax-environment
                     environment-syntax-environment)
+  (environment-set! larc 'environment-auxiliary-info environment-auxiliary-info)
+  (environment-set! larc 'environment-set-auxiliary-info! environment-set-auxiliary-info!)
   (environment-set! larc 'environment-copy environment-copy)
   (environment-set! larc 'environment-macros environment-macros)
   (environment-set! larc 'environment-get-macro environment-get-macro)
@@ -514,53 +519,47 @@
                     procedure-source-position)
   (environment-set! larc 'procedure-expression procedure-expression)
   (environment-set! larc 'procedure-environment procedure-environment)
-  (environment-set! larc 'interpreted-procedure? interpreted-procedure?)
-  (environment-set! larc 'interpreted-expression? interpreted-expression?)
-  (environment-set! larc 'interpreted-primitive? interpreted-primitive?)
-  (environment-set! larc 'interpreted-expression-source
-                    interpreted-expression-source)
+
 
   ;; io
 
-  (environment-set! larc 'open-binary-input-file open-binary-input-file)
-  (environment-set! larc 'open-binary-output-file open-binary-output-file)
-  (environment-set! larc 'call-with-binary-input-file
-                    call-with-binary-input-file)
-  (environment-set! larc 'call-with-binary-output-file
-                    call-with-binary-output-file)
-  (environment-set! larc 'with-input-from-binary-file
-                    with-input-from-binary-file)
-  (environment-set! larc 'with-output-to-binary-file
-                    with-output-to-binary-file)
-  (environment-set! larc 'open-input-string open-input-string)
-  (environment-set! larc 'open-output-string open-output-string)
-  (environment-set! larc 'get-output-string get-output-string)
-  (environment-set! larc 'reset-output-string reset-output-string)
-  (environment-set! larc 'format format)
-  (environment-set! larc 'port? port?)
-  (environment-set! larc 'port-name port-name)
-  (environment-set! larc 'flush-output-port flush-output-port)
-  (environment-set! larc 'eof-object eof-object)
+  (environment-set! larc 'call-with-binary-input-file call-with-binary-input-file)
+  (environment-set! larc 'call-with-binary-output-file call-with-binary-output-file)
+  (environment-set! larc 'close-open-files close-open-files)
+  (environment-set! larc 'console-input-port console-input-port)
+  (environment-set! larc 'console-input-port-factory console-input-port-factory)
+  (environment-set! larc 'console-output-port console-output-port)
+  (environment-set! larc 'console-output-port-factory console-output-port-factory)
   (environment-set! larc 'delete-file delete-file)
-  (environment-set! larc 'rename-file rename-file)
+  (environment-set! larc 'environment-printer environment-printer)
+  (environment-set! larc 'eof-object eof-object)
   (environment-set! larc 'file-exists? file-exists?)
   (environment-set! larc 'file-modification-time file-modification-time)
-  (environment-set! larc 'close-open-files close-open-files)
-  (environment-set! larc 'with-input-from-port with-input-from-port)
-  (environment-set! larc 'with-output-to-port with-output-to-port)
-  (environment-set! larc 'write-bytevector-like write-bytevector-like)
+  (environment-set! larc 'flush-output-port flush-output-port)
+  (environment-set! larc 'format format)
+  (environment-set! larc 'get-output-string get-output-string)
   (environment-set! larc 'lowlevel-write lowlevel-write)
+  (environment-set! larc 'open-binary-input-file open-binary-input-file)
+  (environment-set! larc 'open-binary-output-file open-binary-output-file)
+  (environment-set! larc 'open-input-string open-input-string)
+  (environment-set! larc 'open-output-string open-output-string)
+  (environment-set! larc 'port-name port-name)
   (environment-set! larc 'port-position port-position)
-  (environment-set! larc 'readtable-ref readtable-ref)
-  (environment-set! larc 'readtable-set! readtable-set!)
-  (environment-set! larc 'console-input-port console-input-port)
-  (environment-set! larc 'console-output-port console-output-port)
-  (environment-set! larc 'console-input-port-factory
-                    console-input-port-factory)
-  (environment-set! larc 'console-output-port-factory
-                    console-output-port-factory)
+  (environment-set! larc 'port? port?)
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
+  (environment-set! larc 'procedure-printer procedure-printer)
+  (environment-set! larc 'readtable-ref readtable-ref)
+  (environment-set! larc 'readtable-set! readtable-set!)
+  (environment-set! larc 'rename-file rename-file)
+  (environment-set! larc 'reset-output-string reset-output-string)
+  (environment-set! larc 'weird-printer weird-printer)
+  (environment-set! larc 'with-input-from-binary-file with-input-from-binary-file)
+  (environment-set! larc 'with-input-from-port with-input-from-port)
+  (environment-set! larc 'with-output-to-binary-file with-output-to-binary-file)
+  (environment-set! larc 'with-output-to-port with-output-to-port)
+  (environment-set! larc 'write-bytevector-like write-bytevector-like)
+  (environment-set! larc 'write-string write-string)
 
   ;; common and less common extensions to R4RS
 
@@ -806,6 +805,73 @@
   (environment-set! larc 'system system)
   (environment-set! larc 'current-directory current-directory)
 
+  ;; Low-level API to the interpreter
+
+  ;; Code objects used by the interpreter.
+  (environment-set! larc 'code-object?     code-object?)
+
+  (environment-set! larc 'make-assignment  make-assignment)
+  (environment-set! larc 'assignment?      assignment?)
+  (environment-set! larc 'assignment.lhs   assignment.lhs)
+  (environment-set! larc 'assignment.rhs   assignment.rhs)
+
+  (environment-set! larc 'make-begin       make-begin)
+  (environment-set! larc 'begin?           begin?)
+  (environment-set! larc 'begin.exprs      begin.exprs)
+
+  (environment-set! larc 'make-call        make-call)
+  (environment-set! larc 'call?            call?)
+  (environment-set! larc 'call.proc        call.proc)
+  (environment-set! larc 'call.args        call.args)
+
+  (environment-set! larc 'make-conditional make-conditional)
+  (environment-set! larc 'conditional?     conditional?)
+  (environment-set! larc 'if.test          if.test)
+  (environment-set! larc 'if.then          if.then)
+  (environment-set! larc 'if.else          if.else)
+
+  (environment-set! larc 'make-constant    make-constant)
+  (environment-set! larc 'constant?        constant?)
+  (environment-set! larc 'constant.value   constant.value)
+
+  (environment-set! larc 'lambda?      lambda?)
+  (environment-set! larc 'make-lambda  make-lambda)
+  (environment-set! larc 'lambda.args  lambda.args)
+  (environment-set! larc 'lambda.defs  lambda.defs)
+  (environment-set! larc 'lambda.R     lambda.R)
+  (environment-set! larc 'lambda.F     lambda.F)
+  (environment-set! larc 'lambda.G     lambda.G)
+  (environment-set! larc 'lambda.decls lambda.decls)
+  (environment-set! larc 'lambda.doc   lambda.doc)
+  (environment-set! larc 'lambda.body  lambda.body)
+
+  (environment-set! larc 'variable?     variable?)
+  (environment-set! larc 'make-variable make-variable)
+  (environment-set! larc 'variable.name variable.name)
+
+  (environment-set! larc 'make-doc make-doc)
+  (environment-set! larc 'doc.name doc.name)
+  (environment-set! larc 'doc.code doc.code)
+  (environment-set! larc 'doc.arity doc.arity)
+  (environment-set! larc 'doc.file doc.file)
+  (environment-set! larc 'doc.filepos doc.filepos)
+  (environment-set! larc 'doc.formals doc.formals)
+  (environment-set! larc 'doc.name-set! doc.name-set!)
+  (environment-set! larc 'doc.code-set! doc.code-set!)
+  (environment-set! larc 'doc.arity-set! doc.arity-set!)
+  (environment-set! larc 'doc.file-set! doc.file-set!)
+  (environment-set! larc 'doc.filepos-set! doc.filepos-set!)
+  (environment-set! larc 'doc.formals-set! doc.formals-set!)
+
+  (environment-set! larc 'make-readable make-readable)
+
+  (environment-set! larc 'interpret interpret)
+  (environment-set! larc 'interpret-code-object interpret-code-object)
+  (environment-set! larc 'interpreted-procedure?  interpreted-procedure?)
+  (environment-set! larc 'interpreted-expression? interpreted-expression?)
+  (environment-set! larc 'interpreted-primitive?  interpreted-primitive?)
+  (environment-set! larc 'interpreted-expression-source interpreted-expression-source)
+
   ;; miscellaneous extensions and hacks
 
   (environment-set! larc 'repl repl)
@@ -821,6 +887,7 @@
   (environment-set! larc 'typetag-set! typetag-set!)
   (environment-set! larc 'unspecified unspecified)
   (environment-set! larc 'undefined undefined)
+
 
   ;; INSTALL-ENVIRONMENTS! is used by Util/std-heap.sch, at least.
 
