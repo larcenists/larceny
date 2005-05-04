@@ -11,10 +11,10 @@
 
 ($$trace "stdio")
 
-(define current-input-port 
+(define current-input-port
   (make-parameter "current-input-port" #f (lambda (x) (input-port? x))))
 
-(define current-output-port 
+(define current-output-port
   (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
 
 (define (initialize-io-system)
@@ -70,13 +70,21 @@
 ;        #t)))
 
 (define (write-bytevector-like bvl . rest)
-  (cond ((null? rest)
-         (io/write-bytevector-like bvl (current-output-port)))
-        ((null? (cdr rest))
-         (io/write-bytevector-like bvl (car rest)))
-        (else
-         (error "write-bytevector-like: too many arguments.")
-         #t)))
+  (if (pair? rest)
+      (if (null? (cdr rest))
+          (io/write-bytevector-like string (car rest))
+          (begin (error "write-bytevector-like: too many arguments.")
+                 #t))
+      (io/write-bytevector-like string (current-output-port))))
+
+;; Simply emits the characters in string to the port.
+(define (write-string string . rest)
+  (if (pair? rest)
+      (if (null? (cdr rest))
+          (io/write-bytevector-like string (car rest))
+          (begin (error "write-string: too many arguments.")
+                 #t))
+      (io/write-bytevector-like string (current-output-port))))
 
 (define (input-port? p)
   (io/input-port? p))
@@ -106,7 +114,7 @@
   ((console-output-port-factory)))
 
 (define console-input-port-factory
-  (make-parameter "console-input-port-factory" 
+  (make-parameter "console-input-port-factory"
                   console-io/console-input-port
                   procedure?))
 
@@ -127,7 +135,7 @@
 (define (reset-output-string port)
   (string-io/reset-output-string port))
 
-(define (close-input-port p) 
+(define (close-input-port p)
   (cond ((input-port? p)
          (io/close-port p))
         ((not (output-port? p)) ; HACK: port is closed
