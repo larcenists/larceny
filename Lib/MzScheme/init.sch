@@ -13,7 +13,7 @@
   (oblist-set! symlist)
   ($$trace "  installing reader")
   (install-reader)
-  ($$trace "  initalizing MzScheme subsystems")
+  ($$trace "  initializing MzScheme subsystems")
   (for-each (lambda (p) (p)) *mzscheme-subsystem-init-procedures*)
   (set! scheme-entry #f)
   ($$trace "  jumping to 'main'")
@@ -51,14 +51,21 @@
 (export weird-printer)
 
 ;; Miscellaneous
-(export arity-at-least?
+(export arg-check
+        arity-at-least?
         arity-at-least-value
         arity-plus
+        constantly
+        generate-id
         getarg
         getarg*
         getargs
         get-serial-number
         identity
+        vmap
+        vfor-each
+        void
+        void?
         make-arity-at-least
         %nary->fixed-arity)
 
@@ -133,10 +140,8 @@
         <generic>
         <method>
         <object>
-        <opaque-struct>
         <primitive-class>
         <procedure-class>
-        <struct>
         <top>
         builtin?
         check-initargs
@@ -149,6 +154,7 @@
         class-getters-n-setters
         class-initializers
         class-name
+        class-name-no-angles
         class-nfields
         class-of
         class-slots
@@ -173,6 +179,7 @@
         no-applicable-method
         no-next-method
         object?
+        record-type->class
         same-method-signature?
         singleton
         singleton-value
@@ -195,77 +202,98 @@
         *default-generic-class*
         *default-method-class*
         *make-safely*
+        <assignment>
+        <begin>
+        <bignum>
         <boolean>
-        <box>
-        <break-exn>
+;        <box>
+;        <break-exn>
+        <bytevector>
+        <bytevector-like>
+        <call>
         <char>
-        <compiled-expression>
+;        <compiled-expression>
+        <code-object>
         <complex>
-        <custodian>
+        <conditional>
+        <constant>
+;        <custodian>
         <end-of-file>
         <exact-complex>
         <exact-integer>
         <exact-rational>
         <exact-real>
         <exact>
-        <exn>
-        <foreign-array>
-        <foreign-boolean>
-        <foreign-enum>
-        <foreign-int32>
-        <foreign-null>
-        <foreign-object>
-        <foreign-string>
+;        <exn>
+        <fixnum>
+        <flonum>
+;        <foreign-array>
+;        <foreign-boolean>
+;        <foreign-enum>
+;        <foreign-int32>
+;        <foreign-null>
+;        <foreign-object>
+;        <foreign-string>
         <hash-table>
-        <identifier-syntax>
-        <immutable-nonempty-list>
-        <immutable-pair>
-        <immutable-string>
-        <immutable>
-        <improper-list>
+;        <identifier-syntax>
+;        <immutable-nonempty-list>
+;        <immutable-pair>
+;        <immutable-string>
+;        <immutable>
+;        <improper-list>
         <inexact-complex>
         <inexact-integer>
         <inexact-rational>
         <inexact-real>
         <inexact>
         <input-port>
-        <input-stream-port>
-        <inspector>
+;        <input-stream-port>
+;        <inspector>
         <integer>
+        <interpreted-expression>
+        <interpreted-primitive>
+        <interpreted-procedure>
+        <lambda>
         <list>
         <namespace>
-        <non-break-exn>
+;        <non-break-exn>
         <nonempty-list>
         <null>
         <number>
         <output-port>
-        <output-stream-port>
+;        <output-stream-port>
         <pair>
-        <parameter>
+;        <parameter>
         <port>
-        <primitive-procedure>
+;        <primitive-procedure>
+        <primitive-structure>
         <procedure>
-        <promise>
-        <pseudo-random-generator>
+;        <promise>
+;        <pseudo-random-generator>
         <rational>
+        <ratnum>
         <real>
-        <regexp>
-        <security-guard>
-        <semaphore>
+        <rectnum>
+        <record>
+;        <regexp>
+;        <security-guard>
+;        <semaphore>
         <sequence>
-        <stream-port>
+;        <stream-port>
         <string>
         <struct-type>
-        <subprocess>
+;        <subprocess>
         <symbol>
-        <syntax>
-        <tcp-listener>
-        <thread>
+;        <syntax>
+;        <tcp-listener>
+;        <thread>
         <unknown-primitive>
+        <variable>
         <vector>
+        <vector-like>
         <void>
-        <weak-box>
-        <will-executor>
+;        <weak-box>
+;        <will-executor>
         add-method
         allocate-instance
         compute-apply-generic
@@ -284,16 +312,28 @@
         generic-begin-combination
         generic-combination-cons
         generic-combination-control
+        generic-getter
         generic-list-combination
         generic-max-combination
         generic-min-combination
         generic-or-combination
+        generic-setter
+        getter-method
         initialize-instance
+        initialize-generic-accessors
+        make-class
+        make-method
         make-generic-combination
         more-specific?
-        print-object
         rec-allocate-instance
         rec-initialize
+        setter-method
+        )
+
+;; gprint
+(export named-object-printer-method
+        print-object
+        print-unreadable-object
         )
 
 ;; continuation marks
@@ -316,6 +356,25 @@
 (export make-inspector
         inspector?
         current-inspector)
+
+;; records
+(export *record-type-type*
+        make-record-type
+        record-type-descriptor?
+        record-type-field-names
+        record-type-name
+        record-type-extends?
+        record-type-parent
+
+        record?
+        record-constructor
+        record-predicate
+        record-accessor
+        record-updater
+        record-type-descriptor
+
+        record-indexer
+        record-mutator)
 
 ;; structs
 (export make-struct-type
