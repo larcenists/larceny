@@ -6,6 +6,27 @@
 
 ($$trace "print")
 
+;;; Parameterized hooks to customize the printer.
+(define code-object-printer
+  (make-parameter
+   "code-object-printer"
+   (lambda (co port slashify)
+     (print (string-append "#<"
+                           (car (vector-ref co 0))
+                           ">")
+            port
+            #f))))
+
+(define environment-printer
+  (make-parameter
+   "environment-printer"
+   (lambda (environment port slashify)
+     (print (string-append "#<ENVIRONMENT "
+                           (environment-name environment)
+                           ">")
+            port
+            #f))))
+
 ;; Make this a parameter so that callable structures and instances can
 ;; hook in.
 (define procedure-printer
@@ -126,11 +147,8 @@
 		      (print-slashed-string x p)
 		      (write-char #\" p))
 	       (printstr x p)))
-	  ((environment? x)
-	   (printstr (string-append "#<ENVIRONMENT "
-				    (environment-name x)
-				    ">")
-		     p))
+	  ((environment? x) (printenvironment x p slashify))
+          ((code-object? x) (printcodeobject x p slashify))
 	  ((vector? x)
 	   (begin (write-char #\# p)
 		  (print (vector->list x) p slashify level)))
@@ -174,6 +192,12 @@
 	    ((= k **form-feed**) (printstr "page" p))
 	    ((= k **backspace**) (printstr "backspace" p))
 	    (else (write-char c p)))))
+
+  (define (printcodeobject x p slashify)
+    ((code-object-printer) x p slashify))
+
+  (define (printenvironment x p slashify)
+    ((environment-printer) x p slashify))
 
   (define (printprocedure x p slashify)
     ((procedure-printer) x p slashify))
