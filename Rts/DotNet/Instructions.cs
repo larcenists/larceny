@@ -19,17 +19,30 @@ public class Instructions {
      * Procedure's global array. Uses given string name to report error.
      */
     public static void global(int index, string name) {
-        Procedure thisProc = (Procedure) Reg.register0;
-        SPair cell = (SPair)thisProc.constants[index];
+        Procedure thisProc = Reg.register0;
+	// This way of doing it does dynamic casting, which is very slow.
+	//
+	//        SPair cell = (SPair)thisProc.constants[index];
+	//
+	//        if (cell.first == Factory.Undefined) {
+	//            Exn.fault(Constants.EX_UNDEF_GLOBAL,
+	//                      "reference to unbound global: " + name,
+	//                      cell);
+	//            return;
+	//        } else {
+	//            Reg.Result = cell.first;
+	//        }
 
-        if (cell.first == Factory.Undefined) {
-            Exn.fault(Constants.EX_UNDEF_GLOBAL,
-                      "reference to unbound global: " + name,
-                      cell);
-            return;
-        } else {
-            Reg.Result = cell.first;
-        }
+	SObject value = thisProc.constants[index].op_cell_ref();
+	if (value == Factory.Undefined) {
+	    Exn.fault (Constants.EX_UNDEF_GLOBAL,
+	                      "reference to unbound global: " + name,
+	                      thisProc.constants[index]);
+	    return;
+	    }
+	else {
+	    Reg.Result = value;
+	    }
     }
 
     /** setglbl
@@ -37,16 +50,14 @@ public class Instructions {
      * array.
      */
     public static void setglbl(int index) {
-        Procedure thisProc = (Procedure) Reg.register0;
-        ((SPair)thisProc.constants[index]).first = Reg.Result;
-        return;
+      Reg.register0.constants[index].op_cell_set (Reg.Result);
+      return;
     }
 
     /** constant
      */
     public static void constant(int constIndex) {
-        Procedure p = (Procedure) Reg.getRegister(0);
-        Reg.Result = p.constants[constIndex];
+        Reg.Result = Reg.register0.constants[constIndex];
     }
 
     /** imm_constant
@@ -93,15 +104,13 @@ public class Instructions {
      * Result doesn't contain Procedure; uses trampoline
      */
     public static void invoke(int argc) {
-        if (!(Reg.Result is Procedure)) {
+        Procedure proc = Reg.Result as Procedure;
+        if (proc != null)
+            Call.call (proc, argc);
+        else
             Exn.fault(Constants.EX_NONPROC,
                       "invoke: not a procedure",
                       Reg.Result);
-            return;
-        }
-        Procedure p = (Procedure) Reg.Result;
-        // FIXME: use fuel
-        Call.call(p, argc);
     }
 
     /** apply
@@ -110,14 +119,13 @@ public class Instructions {
      * list in register k1
      */
     public static void apply(int k1, int k2) {
-        if (!(Reg.Result is Procedure)) {
+        Procedure proc = Reg.Result as Procedure;
+        if (proc != null)
+            Call.call (proc, Call.applySetup (k1, k2));
+        else
+
             Exn.fault(Constants.EX_NONPROC, "apply: not a procedure", Reg.Result);
-        }
-        Procedure p = (Procedure) Reg.Result;
-        int argc = Call.applySetup(k1, k2);
-        // FIXME: use fuel
-        Call.call(p, argc);
-    }
+     }
 
     /* ===================================================== */
     /*   Closures                                            */
@@ -130,7 +138,7 @@ public class Instructions {
      */
     public static void lambda(CodeVector codevector,
                               int constIndex, int numRegs) {
-        Procedure thisProc = (Procedure)Reg.getRegister(0);
+        Procedure thisProc = Reg.register0;
 
         if (numRegs < Reg.LASTREG) {
             Reg.Result = new Procedure (codevector, thisProc.constants[constIndex], Reg.Close(numRegs));
@@ -153,7 +161,7 @@ public class Instructions {
      * Like lambda, but takes CodeVector and Constants from current Procedure
      */
     public static void lexes(int numRegs) {
-        Procedure thisProc = (Procedure) Reg.getRegister(0);
+        Procedure thisProc = Reg.register0;
 
         if (numRegs < Reg.LASTREG) {
            Reg.Result = new Procedure (thisProc.entrypoint, thisProc.constantvector, Reg.Close (numRegs));
@@ -179,7 +187,7 @@ public class Instructions {
      * Inlined by IL version
      */
     public static void lexical(int rib, int slot) {
-        Reg.Result = ((Procedure)Reg.getRegister(0)).lookup(rib, slot);
+        Reg.Result = Reg.register0.lookup(rib, slot);
     }
 
     /** setlex
@@ -188,7 +196,7 @@ public class Instructions {
      * contrary to the warning in the MAL docs.
      */
     public static void setlex(int rib, int slot) {
-        ((Procedure)Reg.getRegister(0)).update(rib, slot, Reg.Result);
+        Reg.register0.update(rib, slot, Reg.Result);
     }
 
     /** argseq
@@ -257,11 +265,11 @@ public class Instructions {
     }
 
     public static void rtn() {
-        Call.call(((Procedure)Cont.cont.slot0).entrypoint, Cont.cont.returnIndex);
+        Call.call(Cont.cont.slot0.entrypoint, Cont.cont.returnIndex);
     }
 
     public static void setrtn(CodeVector code, int index) {
-        if (code != ((Procedure)Cont.cont.slot0).entrypoint) {
+        if (code != Cont.cont.slot0.entrypoint) {
             Exn.internalError("setrtn: different codevector from slot0");
         }
         Cont.cont.returnIndex = index;
