@@ -4,6 +4,7 @@
 ;; TODO:  Play with the structure printers to make inspectors
 ;;        print as #<inspector> instead of #<structure>.
 ;;
+($$trace "inspector")
 
 ;; This interface is provided by the inspector "module"
 (define make-inspector (undefined))
@@ -22,7 +23,7 @@
                (inspector-depth (record-accessor inspector-type 'depth))
                (predicate (record-predicate inspector-type))
                (->superior (record-accessor inspector-type 'superior)))
-           
+
            ;; FIXME: This is a Larceny parameter.  It wants to be a MzScheme
            ;; parameter, once we have them.  Shouldn't matter until we
            ;; want Mz. threads.
@@ -38,7 +39,7 @@
                                       (+ 1 (inspector-depth superior))
                                       superior)))))
                (vector construct predicate current ->superior)))))))
-  
+
   ;; Hook up the interface to the implementation.
   (set! make-inspector (vector-ref interface-procs 0))
   (set! inspector? (vector-ref interface-procs 1))
