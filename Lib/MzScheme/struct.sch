@@ -36,12 +36,12 @@
 (define struct-constructor-procedure?)
 
 ;; define-record is nowhere to be found.
-(let* ((*rtd-type* (record-type-descriptor (make-record-type "" '())))
+(let* (
 
        ;; The struct-type-descriptor type is a subtype of the
        ;; record-type-descriptor type.  (Say that five times fast!)
        (*std-type* (make-record-type
-                    "struct-type-descriptor"
+                    'struct-type
                     '(init-field-k
                       auto-field-k
                       auto-v
@@ -49,18 +49,18 @@
                       inspector
                       proc
                       immutable-k-list)
-                    *rtd-type*))
+                    *record-type-type*))
        (*stype-prop-type* (make-record-type
-                           "struct-type-property-descriptor"
+                           'struct-type-property
                            '(name guard-proc))))
 
   ;; Accessors for record type descriptors
-  (define get-hier-depth  (record-accessor *rtd-type* 'hierarchy-depth))
-  (define get-hier-vector (record-accessor *rtd-type* 'hierarchy-vector))
-  (define get-name        (record-accessor *rtd-type* 'name))
-  (define get-printer     (record-accessor *rtd-type* 'printer))
-  (define get-record-size (record-accessor *rtd-type* 'record-size))
-  (define get-slots       (record-accessor *rtd-type* 'slot-offsets))
+  (define get-hier-depth  (record-accessor *record-type-type* 'hierarchy-depth))
+  (define get-hier-vector (record-accessor *record-type-type* 'hierarchy-vector))
+  (define get-name        (record-accessor *record-type-type* 'name))
+  (define get-printer     (record-accessor *record-type-type* 'printer))
+  (define get-record-size (record-accessor *record-type-type* 'record-size))
+  (define get-slots       (record-accessor *record-type-type* 'slot-offsets))
 
   ;; Constructors / Accessors / Predicate for struct type descriptors
   (define make-stype (record-constructor *std-type*))
@@ -258,7 +258,7 @@
 
             ;; Make a record-type, and then use accessors to transfer
             ;; the data into a struct-type
-            (let ((rtd (make-record-type (symbol->string name)
+            (let ((rtd (make-record-type name
                                          field-names
                                          super)))
               (let ((hierarchy-vec (get-hier-vector rtd))
@@ -302,7 +302,7 @@
     (case-lambda
       ((name) (make-struct-type-property* name #f))
       ((name guard-proc)
-       (let ((prop:p (make-record-type (symbol->string name)
+       (let ((prop:p (make-record-type name
                                        '()
                                        *stype-prop-type*)))
          (define (p? x)
