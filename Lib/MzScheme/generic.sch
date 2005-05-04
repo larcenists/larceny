@@ -694,6 +694,72 @@
                               (%class-field-initializers class))))
                    method:initialize-instance))))
 
+(define (getter-method class slot)
+
+  (define (method:slot-reader call-next-method instance)
+    (slot-ref instance slot))
+
+  (make <method>
+    :arity 1
+    :specializers (list class)
+    :procedure method:slot-reader))
+
+(define (setter-method class slot)
+
+  (define (method:slot-writer call-next-method instance new-value)
+    (slot-set! instance slot new-value))
+
+  (make <method>
+    :arity 2
+    :specializers (list class)
+    :procedure method:slot-writer))
+
+(define (initialize-generic-accessors class)
+  (for-each
+   (lambda (slot)
+     (let ((slot-name (car slot))
+           (reader-names (getargs (cdr slot) :reader))
+           (writer-names (getargs (cdr slot) :writer)))
+
+       (if (pair? reader-names)
+           (let ((method (getter-method class slot-name)))
+             (for-each
+              (lambda (reader-name)
+
+                (cond ((not (symbol? reader-name))
+                       (error "slot :reader option is not a symbol " reader-name))
+                      ((not (environment-variable? (interaction-environment) reader-name))
+                       (error "slot :reader is not bound " reader-name))
+                      (else
+                       (let ((generic (environment-get (interaction-environment) reader-name)))
+                         (cond ((not (instance-of? generic <generic>))
+                                (error "slot :reader is not bound to a generic function " reader-name))
+                               ((not (= (%generic-arity generic) 1))
+                                (error "slot :reader is not bound to a generic function of the correct arity "
+                                       reader-name))
+                               (else
+                                (add-method generic method)))))))
+              reader-names)))
+
+       (if (pair? writer-names)
+           (let ((method (setter-method class slot-name)))
+             (for-each
+              (lambda (writer-name)
+                (cond ((not (symbol? writer-name)) (error "slot :writer option is not a symbol " writer-name))
+                      ((not (environment-variable? (interaction-environment) writer-name))
+                       (error "slot :writer is not bound " writer-name))
+                      (else
+                       (let ((generic (environment-get (interaction-environment) writer-name)))
+                         (cond ((not (instance-of? generic <generic>))
+                                (error "slot :writer is not bound to a generic function " writer-name))
+                               ((not (= (%generic-arity generic) 2))
+                                (error "slot :writer is not bound to a generic function of the correct arity "
+                                       writer-name))
+                               (else
+                                (add-method generic method)))))))
+              writer-names)))))
+   (%class-direct-slots class)))
+
 (add-method initialize-instance
   (make <method>
     :arity 2
@@ -768,7 +834,10 @@
                      (%set-class-valid-initargs! ; for sanity checks
                       class (append-map
                              (lambda (slot) (getargs (cdr slot) :initarg))
-                             (%class-slots class))))
+                             (%class-slots class)))
+
+                     ;; Install the reader and writer methods.
+                     (initialize-generic-accessors class))
                    method:initialize-instance))))
 
 (add-method initialize-instance
@@ -1561,36 +1630,6 @@
 
 (define (generic-setter name)
   (make (*default-generic-class*) :name name :arity 2))
-
-(define (getter-method class slot)
-  (define (method:slot-reader call-next-method instance)
-    (slot-ref instance slot))
-  (make (*default-method-class*)
-    :arity 1
-    :specializers (list class)
-    :procedure method:slot-reader))
-
-(define (setter-method class slot)
-  (define (method:slot-writer call-next-method instance new-value)
-    (slot-set! instance slot new-value))
-  (make (*default-method-class*)
-    :arity 2
-    :specializers (list class)
-    :procedure method:slot-writer))
-
-(define (initialize-generic-accessors class specs)
-  (for-each
-   (lambda (spec)
-     (let ((slot-name (car spec))
-           (getter (cadr spec))
-           (setter (if (pair? (cddr spec))
-                       (caddr spec)
-                       #f)))
-
-       (add-method getter (getter-method class slot-name))
-       (if setter
-           (add-method setter (setter-method class slot-name)))))
-   specs))
 
 ;;; Print methods for objects, classes and instances.
 ;;; Moved to gprint.sch
