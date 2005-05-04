@@ -48,13 +48,23 @@
 
 ($$trace "interpret")
 
+;;; This entry point interprets full R4RS Scheme represented as list
+;;; structure.  The macro expander is used to convert this to the core
+;;; Scheme ADT as defined in Twobit/pass2.aux.sch.  The resulting core
+;;; Scheme code is then preprocessed and executed.
+
 (define (interpret expr env)
-  ((interpret/preprocess
-    ((macro-expander) expr (environment-syntax-environment env))
-    '()
-    (lambda (sym)
-      (environment-get-cell env sym))
-    #f)
+  (let ((expanded-form ((macro-expander) expr env)))
+    (interpret-code-object expanded-form env)))
+
+;;; This entry point interprets core Scheme code as specified in
+;;; Twobit/pass2.aux.sch
+(define (interpret-code-object code-object env)
+  ((interpret/preprocess code-object
+                         '()
+                         (lambda (sym)
+                           (environment-get-cell env sym))
+                         #f)
    '()))
 
 (define (interpret/preprocess expr env find-global proc-doc)
@@ -65,7 +75,7 @@
                (interpret/global (variable.name expr) find-global
                                  expr proc-doc))))
         ((constant? expr)
-         (interpret/const (constant.value expr)))
+         (interpret/const (constant.value expr) expr proc-doc))
         ((assignment? expr)
          (let* ((lhs (assignment.lhs expr))
                 (address (interpret/var-address lhs env))
@@ -149,17 +159,11 @@
 ;  - short: 0..4 arguments
 
 (define (interpret/make-call expr env find-global src doc)
-  (let* ((pexps (map (lambda (x)
-                       (interpret/preprocess x env find-global doc))
-                     expr))
-         (proc  (car pexps))
-         (args  (cdr pexps))
-         (n     (length args)))
+  (let ((n (length (call.args expr))))
     (cond ((<= n 4)
-           (interpret/invoke-short proc args
-                                   (call.proc expr) n env find-global src doc))
+           (interpret/invoke-short (call.proc expr) (call.args expr) n env find-global src doc))
           (else
-           (interpret/invoke-n proc args src doc)))))
+           (interpret/invoke-n (call.proc expr) (call.args expr) env find-global src doc)))))
 
 (define (interpret/extend-env env names)
   (cons names env))
@@ -253,9 +257,11 @@
           (vector-set! (car env) offset (expr env0))
           (loop (- rib 1) (cdr env))))))
 
-(define (interpret/const c)
-  (lambda (env)
-    c))
+(define (interpret/const c src doc)
+  (interpreted-expression
+   (lambda (env)
+     c)
+   (cons src doc)))
 
 (define (interpret/if test consequent alternate src proc-doc)
   (interpreted-expression
@@ -314,156 +320,230 @@
 
 ; Calls that take 0..4 arguments.
 
-(define (interpret/invoke-short proc args op n env find-global src proc-doc)
+(define (interpret/invoke-short rator rands n env find-global src proc-doc)
+  (let ((proc (interpret/preprocess rator env find-global proc-doc))
+        (args (map (lambda (rand)
+                     (interpret/preprocess rand env find-global proc-doc))
+                   rands)))
 
-  (define (prim? op)
-    (and (symbol? op)
-         (not (interpret/var-address op env)) ; No longer necessary, I think
-         (interpret/primitive? op n)))
+    (define (prim? op)
+      (and (symbol? op)
+           (not (interpret/var-address op env)) ; No longer necessary, I think
+           (interpret/primitive? op n)))
 
-  (let ((op (if (variable? op)
-                (variable.name op)
-                op))
-        (doc (cons src proc-doc)))
-    (case n
-      ((0) (interpret/invoke0 proc doc))
-      ((1) (if (prim? op)
-               (interpret/invoke-prim1 op (car args) find-global)
-               (interpret/invoke1 proc (car args) doc)))
-      ((2) (if (prim? op)
-               (interpret/invoke-prim2 op (car args) (cadr args) find-global)
-               (interpret/invoke2 proc (car args) (cadr args) doc)))
-      ((3) (interpret/invoke3 proc (car args) (cadr args) (caddr args) doc))
-      ((4) (interpret/invoke4 proc (car args) (cadr args) (caddr args)
-                              (cadddr args) doc))
-      (else
-       (error "impossible case in interpret/invoke-short: " n op)))))
+    (let ((op (if (variable? rator)
+                  (variable.name rator)
+                  rator))
+          (doc (cons src proc-doc)))
+      (case n
+        ((0) (interpret/invoke0 proc doc))
+        ((1) (if (prim? op)
+                 (interpret/invoke-prim1 op (car args) find-global)
+                 (interpret/invoke1 proc (car args) doc)))
+        ((2) (if (prim? op)
+                 (interpret/invoke-prim2 op (car args) (cadr args) find-global)
+                 (interpret/invoke2 proc (car args) (cadr args) doc)))
+        ((3) (interpret/invoke3 proc (car args) (cadr args) (caddr args) doc))
+        ((4) (interpret/invoke4 proc (car args) (cadr args) (caddr args)
+                                (cadddr args) doc))
+        (else
+         (error "impossible case in interpret/invoke-short: " n op))))))
+
 
 (define (interpret/invoke0 proc doc)
   (interpreted-expression
    (lambda (env)
-     ((proc env)))
+     (let ((proc (proc env)))
+       (proc)))
    doc))
 
 (define (interpret/invoke1 proc a doc)
   (interpreted-expression
    (lambda (env)
-     ((proc env) (a env)))
+     (let ((proc (proc env))
+           (arg0 (a env)))
+       (proc arg0)))
    doc))
 
 (define (interpret/invoke2 proc a b doc)
   (interpreted-expression
    (lambda (env)
-     ((proc env) (a env) (b env)))
+     (let ((proc (proc env))
+           (arg0 (a env))
+           (arg1 (b env)))
+       (proc arg0 arg1)))
    doc))
 
 (define (interpret/invoke3 proc a b c doc)
   (interpreted-expression
    (lambda (env)
-     ((proc env) (a env) (b env) (c env)))
+     (let ((proc (proc env))
+           (arg0 (a env))
+           (arg1 (b env))
+           (arg2 (c env)))
+       (proc arg0 arg1 arg2)))
    doc))
 
 (define (interpret/invoke4 proc a b c d doc)
   (interpreted-expression
    (lambda (env)
-     ((proc env) (a env) (b env) (c env) (d env)))
+     (let ((proc (proc env))
+           (arg0 (a env))
+           (arg1 (b env))
+           (arg2 (c env))
+           (arg3 (d env)))
+       (proc arg0 arg1 arg2 arg3)))
    doc))
 
-(define (interpret/invoke-n proc args src doc)
-  (interpreted-expression
-   (lambda (env)
-     (let ((proc (proc env))
-           (args (map (lambda (p) (p env)) args)))
-       (apply proc args)))
-   (cons src doc)))
+(define (interpret/invoke-n rator rands env find-global src doc)
+  (let ((proc (interpret/preprocess rator env find-global doc))
+        (args (map (lambda (rand)
+                     (interpret/preprocess rand env find-global doc))
+                   rands)))
+
+    (interpreted-expression
+     (lambda (env)
+       (let ((proc (proc env))
+             (args (map (lambda (p) (p env)) args)))
+         (apply proc args)))
+     (cons src doc))))
 
 ; Closure creation.
 
 (define (interpret/lambda0 body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self (interpreted-procedure
-                     doc
-                     (lambda ()
-                       (body (cons (vector self) env))))))
-       self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           0
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self (interpreted-procedure
+                       doc
+                       (lambda ()
+                         (body (cons (vector self) env))))))
+         self))
+     src)))
 
 (define (interpret/lambda1 body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self (interpreted-procedure
-                     doc
-                     (lambda (a)
-                       (body (cons (vector self a) env))))))
-       self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           1
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self (interpreted-procedure
+                       doc
+                       (lambda (a)
+                         (body (cons (vector self a) env))))))
+         self))
+     src)))
 
 (define (interpret/lambda2 body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self (interpreted-procedure
-                     doc
-                     (lambda (a b)
-                       (body (cons (vector self a b) env))))))
-       self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           2
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self (interpreted-procedure
+                       doc
+                       (lambda (a b)
+                         (body (cons (vector self a b) env))))))
+         self))
+     src)))
 
 (define (interpret/lambda3 body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self (interpreted-procedure
-                     doc
-                     (lambda (a b c)
-                       (body (cons (vector self a b c) env))))))
-        self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           3
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self (interpreted-procedure
+                       doc
+                       (lambda (a b c)
+                         (body (cons (vector self a b c) env))))))
+         self))
+     src)))
 
 (define (interpret/lambda4 body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self (interpreted-procedure
-                     doc
-                     (lambda (a b c d)
-                       (body (cons (vector self a b c d) env))))))
-        self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           4
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self (interpreted-procedure
+                       doc
+                       (lambda (a b c d)
+                         (body (cons (vector self a b c d) env))))))
+         self))
+     src)))
 
 (define (interpret/lambda-n n body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self (interpreted-procedure
-                     doc
-                     (lambda args
-                       (if (length<? args n)
-                           (interpret/too-few self n (length args) 'exact)
-                           (body (cons (list->vector (cons self args)) env)))))))
-        self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           n
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self (interpreted-procedure
+                       doc
+                       (lambda args
+                         (if (length<? args n)
+                             (interpret/too-few self n (length args) 'exact)
+                             (body (cons (list->vector (cons self args)) env)))))))
+         self))
+     src)))
 
 ; `n' is the number of fixed arguments.
 
 (define (interpret/lambda-dot n body doc src)
-  (interpreted-expression
-   (lambda (env)
-     (letrec ((self
-               (interpreted-procedure
-                doc
-                (lambda args
-                  (let ((v (make-vector (+ n 2) (unspecified)))
-                        (limit (+ n 1)))
-                    (vector-set! v 0 self)
-                    (let loop ((argnum  1)
-                               (argtail args))
-                      (cond ((= argnum limit)
-                             (vector-set! v argnum argtail)
-                             (body (cons v env)))
-                            ((pair? argtail)
-                             (vector-set! v argnum (car argtail))
-                             (loop (+ argnum 1) (cdr argtail)))
-                            (else (interpret/too-few self n (length args) 'inexact)))))))))
-       self))
-   src))
+  (let ((doc (or doc
+                 (make-doc #f
+                           (exact->inexact n)
+                           #f
+                           src
+                           #f
+                           #f))))
+    (interpreted-expression
+     (lambda (env)
+       (letrec ((self
+                 (interpreted-procedure
+                  doc
+                  (lambda args
+                    (let ((v (make-vector (+ n 2) (unspecified)))
+                          (limit (+ n 1)))
+                      (vector-set! v 0 self)
+                      (let loop ((argnum  1)
+                                 (argtail args))
+                        (cond ((= argnum limit)
+                               (vector-set! v argnum argtail)
+                               (body (cons v env)))
+                              ((pair? argtail)
+                               (vector-set! v argnum (car argtail))
+                               (loop (+ argnum 1) (cdr argtail)))
+                              (else (interpret/too-few self n (length args) 'inexact)))))))))
+         self))
+     src)))
 
 (define (interpret/too-few proc required got exact?)
   (error "Too few arguments to procedure "
