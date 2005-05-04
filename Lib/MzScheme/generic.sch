@@ -148,7 +148,7 @@
 ;;>   This generic function is called to allocate an instance of a class.
 ;;>   It is applied on the class object, and is expected to return the new
 ;;>   instance object of that class.
-(define allocate-instance             (make <generic> ':name 'allocate-instance ':arity 2))
+(define allocate-instance             (make <generic> :name 'allocate-instance :arity 2))
 
 ;;>> (initialize-instance instance initargs)
 ;;>   This generic is called to initialize an instance.  It is applied on
@@ -157,7 +157,7 @@
 ;;>   instance to initialize it.  When overriding this for a some class, it
 ;;>   is not a good idea to skip `call-next-method' since it is responsible
 ;;>   for initializing slot values.
-(define initialize-instance                    (make <generic> ':name 'initialize-instance ':arity 2))
+(define initialize-instance                    (make <generic> :name 'initialize-instance :arity 2))
 
 ;;>> (compute-getter-and-setter class slot allocator)
 ;;>   This generic is used to get a getter and setter functions for a given
@@ -166,7 +166,7 @@
 ;;>   a function that gets an initializer function and returns an index
 ;;>   position for the new slot.  The return value should be a list of two
 ;;>   elements -- a getter and a setter functions.
-(define compute-getter-and-setter     (make <generic> ':name 'compute-getter-and-setter ':arity 3))
+(define compute-getter-and-setter     (make <generic> :name 'compute-getter-and-setter :arity 3))
 
 ;;; The class initialization protocol.
 ;;>> (compute-cpl class)
@@ -174,30 +174,30 @@
 ;;>   object.  The standard <class> object uses the `compute-std-cpl' (see
 ;;>   in the code) which flattens the class ancestors using a topological
 ;;>   sort that resolve ambiguities left-to-right.
-(define compute-cpl                   (make <generic> ':name 'compute-cpl ':arity 1))
+(define compute-cpl                   (make <generic> :name 'compute-cpl :arity 1))
 
 ;;>> (compute-slots class)
 ;;>   This generic is used to compute all slot information for a given
 ;;>   class, after its precedence list has been computed.  The standard
 ;;>   <class> collects information from all preceding classes.
-(define compute-slots                 (make <generic> ':name 'compute-slots ':arity 1))
+(define compute-slots                 (make <generic> :name 'compute-slots :arity 1))
 
 ;;>> (compute-default-initargs class)
 ;;>   This generic is used to compute the default initargs for a given
 ;;>   class.
-(define compute-default-initargs      (make <generic> ':name 'compute-default-initargs ':arity 1))
+(define compute-default-initargs      (make <generic> :name 'compute-default-initargs :arity 1))
 
 ;;>> (compute-apply-method method)
 ;;>   This generic is used to compute the procedure that will get executed
 ;;>   when a method is applied directly.
-(define compute-apply-method          (make <generic> ':name 'compute-apply-method ':arity 1))
+(define compute-apply-method          (make <generic> :name 'compute-apply-method :arity 1))
 
 ;;>> ((compute-apply-generic generic) args ...)
 ;;>   This generic is used to compute the object (a closure) that is
 ;;>   actually applied to execute the generic call.  The standard version
 ;;>   uses `compute-method' and `compute-apply-methods' below, and caches
 ;;>   the result.
-(define compute-apply-generic         (make <generic> ':name 'compute-apply-generic ':arity 1))
+(define compute-apply-generic         (make <generic> :name 'compute-apply-generic :arity 1))
 
 ;;>> (compute-methods generic args)
 ;;>   Computes the methods that should be applied for this generic
@@ -205,14 +205,14 @@
 ;;>   and sorts them according to their specificness.  The return value is
 ;;>   expected to depend only on the types of the arguments (and values if
 ;;>   there are singleton specializers).
-(define compute-methods               (make <generic> ':name 'compute-methods ':arity 2))
+(define compute-methods               (make <generic> :name 'compute-methods :arity 2))
 
 ;;>> ((compute-method-more-specific? generic) mthd1 mthd2 args)
 ;;>   Get a generic and return a function that gets two methods and a list
 ;;>   of arguments and decide which of the two methods is more specific.
 ;;>   This decision should only be based on the argument types, or values
 ;;>   only in case of singletons.
-(define compute-method-more-specific? (make <generic> ':name 'compute-method-more-specific? ':arity 1))
+(define compute-method-more-specific? (make <generic> :name 'compute-method-more-specific? :arity 1))
 
 ;;>> ((compute-apply-methods generic methods) args ...)
 ;;>   Gets a generic and returns a function that gets the given arguments
@@ -233,7 +233,7 @@
 ;;>   is generally more control with method combinations, but in Ripoff
 ;;>   `compute-apply-methods' should be overridden for this.  See
 ;;>   `make-generic-combination' for details about method combinations.
-(define compute-apply-methods         (make <generic> ':name 'compute-apply-methods ':arity 2))
+(define compute-apply-methods         (make <generic> :name 'compute-apply-methods :arity 2))
 
 (define generic-invocation-generics
   (list compute-apply-generic compute-methods
@@ -313,10 +313,9 @@
 
 (add-method compute-apply-generic
   (make <method>
-    ':arity 1
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 1
+    :specializers (list <generic>)
+    :procedure ((lambda ()
 
                    ;; This function converts the list of arguments to a list of keys to look
                    ;; for in the cache - use the argument's class except when there is a
@@ -388,10 +387,9 @@
 
 (add-method compute-methods
   (make <method>
-    ':arity 2
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <generic>)
+    :procedure ((lambda ()
                    (define (sort-predicate compare arguments)
                      (lambda (left-method right-method)
                        (compare left-method right-method arguments)))
@@ -407,10 +405,9 @@
 
 (add-method compute-method-more-specific?
   (make <method>
-    ':arity 1
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 1
+    :specializers (list <generic>)
+    :procedure ((lambda ()
                    (define (method:compute-method-more-specific? call-next-method generic)
                      (lambda (left right args)
                        (let loop ((specls-left (%method-specializers left))
@@ -446,10 +443,9 @@
 
 (add-method compute-apply-methods
   (make <method>
-    ':arity 2
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <generic>)
+    :procedure ((lambda ()
                    (define (method:compute-apply-methods call-next-method generic methods)
                      (let ((primaries '()) (arounds '()) (befores '()) (afters '())
                            (combination (%generic-combination generic)))
@@ -507,13 +503,13 @@
                          (cond ((pair? ms)
                                 (let* ((cms (car ms))
                                        (q (%method-qualifier cms)))
-                                  (cond ((eq? q ':primary)
+                                  (cond ((eq? q :primary)
                                          (set! primaries (cons (cons cms (%method-procedure cms)) primaries)))
-                                        ((eq? q ':around)
+                                        ((eq? q :around)
                                          (set! arounds (cons (cons cms (%method-procedure cms)) arounds)))
-                                        ((eq? q ':before)
+                                        ((eq? q :before)
                                          (set! befores (cons (cons cms (%method-procedure cms)) befores)))
-                                        ((eq? q ':after)
+                                        ((eq? q :after)
                                          (set! afters (cons (cons cms (%method-procedure cms)) afters)))
                                         (else (error "COMPUTE-APPLY-METHODS:  a method ~e has an unexpected qualifier "
                                                      (car methods) (%method-qualifier (car methods)))))
@@ -654,11 +650,14 @@
 (define (specializer? x)
   (or (class? x)
       (%singleton? x)
-      (struct-type? x)))
+      (struct-type? x)
+      (record-type-descriptor? x)))
 
 (define-syntax %struct->class
   (syntax-rules ()
-    ((%struct->class c) (if (struct-type? c) (struct-type->class c) c))))
+    ((%struct->class c) (cond ((record-type-descriptor? c) (record-type->class c))
+                              ((struct-type? c) (struct-type->class c))
+                              (else c)))))
 
 ;;>> (more-specific? class1 class2 x)
 ;;>   Is `class1' more specific than `class2' for the given value?
@@ -671,10 +670,9 @@
 ;;; Install the class initializers for the standard classes.
 (add-method initialize-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <top>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <top>)
+    :procedure ((lambda ()
                    (define (method:initialize-instance call-next-method object initargs)
                      (error "INITIALIZE-INSTANCE: can't initialize an instance of "
                             (%class-name (class-of object))))
@@ -682,15 +680,14 @@
 
 (add-method initialize-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <object>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <object>)
+    :procedure ((lambda ()
                    (define (method:initialize-instance call-next-method object initargs)
                      (let ((class (class-of object)))
                        (for-each (lambda (init) (apply init initargs))
                                  (%class-initializers class))
-                       (foldl (lambda (index initializer)
+                       (foldl (lambda (initializer index)
                                 (%instance/set! object index (apply initializer initargs))
                                 (+ index 1))
                               0
@@ -699,24 +696,23 @@
 
 (add-method initialize-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <class>)
+    :procedure ((lambda ()
                    (define (method:initialize-instance call-next-method class initargs)
                      (call-next-method)
                      ;; No checking on this.
                      (%set-class-direct-default-initargs!
                       class
-                      (getarg initargs ':direct-default-initargs '()))
+                      (getarg initargs :direct-default-initargs #f))
                      (%set-class-direct-supers!
                       class
                       (let ((default (*default-object-class*))
-                            (supers (getarg initargs ':direct-supers #f)))
+                            (supers (getarg initargs :direct-supers #f)))
                         ;; check valid supers, and always have an object class
                         (cond
                          ((not default) supers) ; check disabled
-                         ((or (not supers) (null? supers)) (list (*default-object-class*)))
+                         ((or (not supers) (null? supers)) (list default))
                          ((not (list? supers)) (error "INITIALIZE-INSTANCE bad superclasses " supers))
                          (else (let ((c (find-if
                                          (lambda (c)
@@ -728,23 +724,23 @@
                                      supers))))))
                      (%set-class-direct-slots!
                       class
-                      (let ((autoinitargs (getarg initargs ':autoinitargs #f)))
+                      (let ((autoinitargs (getarg initargs :autoinitargs #f)))
                         (map (lambda (s)
                                (if (pair? s)
                                    (if (or (not autoinitargs)
-                                           (getarg (cdr s) ':initarg #f)
+                                           (getarg (cdr s) :initarg #f)
                                            (not (symbol? (car s))))
                                        s
-                                       (list* (car s) ':initarg (string->symbol
+                                       (list* (car s) :initarg (string->symbol
                                                                  (string-append ":"
                                                                                 (symbol->string (car s))))
                                               (cdr s)))
                                    (list s)))
-                             (getarg initargs ':direct-slots '()))))
+                             (getarg initargs :direct-slots '()))))
                      (%set-class-cpl!   class (compute-cpl   class))
                      (%set-class-slots! class (compute-slots class))
                      (%set-class-default-initargs! class (compute-default-initargs class))
-                     (%set-class-name!  class (getarg initargs ':name '-anonymous-))
+                     (%set-class-name!  class (getarg initargs :name '-anonymous-))
                      (%set-class-serial-number! class (get-serial-number))
                      (let* ((nfields 0)
                             (field-initializers '())
@@ -771,22 +767,22 @@
                               (cdr (%class-cpl class)))))
                      (%set-class-valid-initargs! ; for sanity checks
                       class (append-map
-                             (lambda (slot) (getargs (cdr slot) ':initarg))
+                             (lambda (slot) (getargs (cdr slot) :initarg))
                              (%class-slots class))))
                    method:initialize-instance))))
 
 (add-method initialize-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <generic>)
+    :procedure ((lambda ()
                    (define (method:initialize-instance call-next-method generic initargs)
                      (call-next-method)
                      (%set-generic-methods!     generic '())
-                     (%set-generic-arity!       generic (getarg initargs ':arity #f))
-                     (%set-generic-name!        generic (getarg initargs ':name '-anonymous-generic-))
-                     (%set-generic-combination! generic (getarg initargs ':combination #f))
+                     ;; Should these be necessary?!
+                     (%set-generic-arity!       generic (getarg initargs :arity #f))
+                     (%set-generic-name!        generic (getarg initargs :name '-anonymous-generic-))
+                     (%set-generic-combination! generic (getarg initargs :combination #f))
                      (%set-instance/procedure!  generic
                                                 (lambda (generic args)
                                                   (error "APPLY:  generic function has no methods "
@@ -795,10 +791,9 @@
 
 (add-method initialize-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <method>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <method>)
+    :procedure ((lambda ()
                    (define (method:initialize-instance call-next-method method initargs)
                      (call-next-method)
                      (%set-instance/procedure!        method (compute-apply-method method)))
@@ -806,10 +801,9 @@
 
 (add-method allocate-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <class>)
+    :procedure ((lambda ()
                    (define (method:allocate-instance call-next-method class initargs)
                      (%make-instance class
                                      (make-vector (length (%class-field-initializers class))
@@ -818,10 +812,9 @@
 
 (add-method allocate-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <entity-class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <entity-class>)
+    :procedure ((lambda ()
                    (define (method:allocate-instance call-next-method class initargs)
                      (%make-entity class
                                    uninitialized-entity-procedure
@@ -832,10 +825,9 @@
 ;; Normally, can't allocate these.
 (add-method allocate-instance
   (make <method>
-    ':arity 2
-    ':specializers (list <primitive-class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 2
+    :specializers (list <primitive-class>)
+    :procedure ((lambda ()
                    (define (method:allocate-instance call-next-method class initargs)
                      (error "ALLOCATE-INSTANCE: can't instantiate a primitive class ~e "
                             class))
@@ -843,20 +835,18 @@
 
 (add-method compute-cpl
   (make <method>
-    ':arity 1
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 1
+    :specializers (list <class>)
+    :procedure ((lambda ()
                    (define (method:compute-cpl call-next-method class)
                      (compute-class-linearization class))
                    method:compute-cpl))))
 
 (add-method compute-slots
   (make <method>
-    ':arity 1
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 1
+    :specializers (list <class>)
+    :procedure ((lambda ()
                    (define (method:compute-slots call-next-method class)
                      (let ((all-slots   (map %class-direct-slots (%class-cpl class))))
 
@@ -893,11 +883,10 @@
 
 (add-method compute-default-initargs
   (make <method>
-    ':arity 1
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
-                   (define (method:compute-slots call-next-method class)
+    :arity 1
+    :specializers (list <class>)
+    :procedure ((lambda ()
+                   (define (method:compute-default-initargs call-next-method class)
                      (reverse!
                       ;; Remove the duplicates from the less specific classes
                       (foldl
@@ -916,28 +905,27 @@
                               '()
                               ;; Get all the initargs
                               (map %class-direct-default-initargs (%class-cpl class))))))
-                   method:compute-slots))))
+                   method:compute-default-initargs))))
 
 (add-method compute-getter-and-setter
   (make <method>
-    ':arity 3
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
+    :arity 3
+    :specializers (list <class>)
+    :procedure ((lambda ()
                    (define (method:compute-getter-and-setter call-next-method class slot allocator)
-                     (let ((initargs    (getargs (cdr slot) ':initarg))
-                           (initializer (getarg (cdr slot) ':initializer #f))
-                           (initvalue   (getarg (cdr slot) ':initvalue (undefined)))
-                           (type        (getarg (cdr slot) ':type #f))
-                           (allocation  (getarg (cdr slot) ':allocation ':instance))
-                           (lock        (getarg (cdr slot) ':lock #f))
+                     (let ((initargs    (getargs (cdr slot) :initarg))
+                           (initializer (getarg (cdr slot) :initializer #f))
+                           (initvalue   (getarg (cdr slot) :initvalue (undefined)))
+                           (type        (getarg (cdr slot) :type #f))
+                           (allocation  (getarg (cdr slot) :allocation :instance))
+                           (lock        (getarg (cdr slot) :lock #f))
                            (nothing     (cons #f #f)))
 
                        (cond ((and type
                                    (not (specializer? type)))
                               (error "MAKE:  bad type specifier " (car slot) type))
 
-                             ((eq? allocation ':instance)
+                             ((eq? allocation :instance)
                               (let* ((f (allocator
                                          (lambda args
                                            (let* ((result (getarg* args initargs nothing))
@@ -969,7 +957,7 @@
                                                                   (car slot) (%class-name class)))))
                                 g-s))
 
-                             ((eq? allocation ':class)
+                             ((eq? allocation :class)
                               (if (not (null? initargs))
                                   (let ((setter #f))
                                     (%set-class-initializers!
@@ -989,7 +977,7 @@
                               (if (and (assq (car slot) (%class-direct-slots class))
                                        (getarg (cdr (assq (car slot)
                                                           (%class-direct-slots class)))
-                                               ':allocation #f))
+                                               :allocation #f))
                                   ;; the slot was declared as 'class here
                                   (let* ((cell (if (not initializer)
                                                    initvalue
@@ -1019,10 +1007,9 @@
 ;;; Use the previous function when populating this generic.
 (add-method compute-apply-method
   (make <method>
-    ':arity 1
-    ':specializers (list <method>)
-    ':qualifier ':primary
-    ':procedure method:compute-apply-method))
+    :arity 1
+    :specializers (list <method>)
+    :procedure method:compute-apply-method))
 
 ;;; BOOTSTRAP STEP  fixup the initalizers for <method> so subclassing methods works
 (let* ((class <method>)
@@ -1045,28 +1032,25 @@
 
 (add-method no-next-method
   (make <method>
-    ':arity (make-arity-at-least 2)
-    ':specializers (list <generic> <method>)
-    ':qualifier ':primary
-    ':procedure (lambda (call-next-method generic method . args)
+    :arity (make-arity-at-least 2)
+    :specializers (list <generic> <method>)
+    :procedure (lambda (call-next-method generic method . args)
                   (error "APPLY:  no applicable next method to call " (%method-qualifier method)
                          (%generic-name generic) generic))))
 
 (add-method no-next-method
   (make <method>
-    ':arity (make-arity-at-least 2)
-    ':specializers (list (singleton #f) <method>)
-    ':qualifier ':primary
-    ':procedure (lambda (call-next-method generic method . args)
+    :arity (make-arity-at-least 2)
+    :specializers (list (singleton #f) <method>)
+    :procedure (lambda (call-next-method generic method . args)
                   (error "APPLY:  no applicable next method when calling a method directly "
                          (%method-name method) method))))
 
 (add-method no-applicable-method
   (make <method>
-    ':arity (make-arity-at-least 1)
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure (lambda (call-next-method generic . args)
+    :arity (make-arity-at-least 1)
+    :specializers (list <generic>)
+    :procedure (lambda (call-next-method generic . args)
                   (error "APPLY:  no applicable primary methods for argument types ~e "
                          (%generic-name generic) (map class-of args) generic))))
 
@@ -1107,10 +1091,9 @@
 ;;; Turn MAKE into a generic function.
 
 (let ((m (make <method>
-           ':arity (make-arity-at-least 1)
-           ':specializers (list <class>)
-           ':qualifier ':primary
-           ':procedure ((lambda ()
+           :arity (make-arity-at-least 1)
+           :specializers (list <class>)
+           :procedure ((lambda ()
                           (define (method:make call-next-method class . given-initargs)
                             (let* ((initargs (extend-initargs given-initargs (class-default-initargs class)))
                                    (instance (allocate-instance class initargs)))
@@ -1118,7 +1101,7 @@
                               (initialize-instance instance initargs)
                               instance))
                           method:make))))
-      (g (make <generic> ':name 'make)))
+      (g (make <generic> :name 'make :arity (make-arity-at-least 1))))
   (add-method g m)
   (set! make g))
 
@@ -1150,14 +1133,13 @@
 ;;; Turn `add-method' into a generic function
 
 (let ((old-add-method add-method))
-  (set! add-method (make <generic> ':name 'add-method ':arity 2))
+  (set! add-method (make <generic> :name 'add-method :arity 2))
   (old-add-method
    add-method
    (make <method>
-     ':arity 2
-     ':specializers (list <generic> <method>)
-     ':qualifier ':primary
-     ':procedure
+     :arity 2
+     :specializers (list <generic> <method>)
+     :procedure
      ((lambda ()
 
         (define (compute-method-name specs generic-name)
@@ -1230,23 +1212,21 @@
 
 ;;; BOOTSTRAP STEP
 ;;; Turn slot-unbound and slot-missing into generic-functions
-(set! slot-missing (make <generic> ':name 'slot-missing ':arity (make-arity-at-least 4)))
+(set! slot-missing (make <generic> :name 'slot-missing :arity (make-arity-at-least 4)))
 (add-method slot-missing
   (make <method>
-    ':arity (make-arity-at-least 4)
-    ':specializers (list <top>)
-    ':qualifier ':primary
-    ':procedure (lambda (call-next-method class instance slot-name operation . new-value)
+    :arity (make-arity-at-least 4)
+    :specializers (list <top>)
+    :procedure (lambda (call-next-method class instance slot-name operation . new-value)
                   (error (string-append "slot-missing: '"(symbol->string slot-name)
                                         "' is not a slot in ") class))))
 
-(set! slot-unbound (make <generic> ':name 'slot-unbound ':arity 3))
+(set! slot-unbound (make <generic> :name 'slot-unbound :arity 3))
 (add-method slot-unbound
   (make <method>
-    ':arity 3
-    ':specializers (list <top>)
-    ':qualifier ':primary
-    ':procedure (lambda (call-next-method class instance slot-name)
+    :arity 3
+    :specializers (list <top>)
+    :procedure (lambda (call-next-method class instance slot-name)
                   (error (string-append "slot-unbound: '"(symbol->string slot-name)
                                         "' is not bound in ") instance))))
 
@@ -1341,37 +1321,74 @@
     ((defprimclass primclass supers ...)
      (define primclass
        (parameterize ((*default-object-class* #f))
+         ;; Quote these keywords.
          (make <primitive-class>
            ':name          'primclass
-           ':direct-default-initargs '()
-           ':direct-supers (list supers ...)
-           ':direct-slots  '()))))))
+           ':direct-supers (list supers ...)))))))
 
-(defprimclass <immutable>)
+;;; Concrete base types
 (defprimclass <boolean>)
-(defprimclass <box>)
-(defprimclass <weak-box> <box>)
+(defprimclass <bytevector-like>)
 (defprimclass <char>)
-(defprimclass <compiled-expression>)
-(defprimclass <custodian>)
 (defprimclass <end-of-file>)
-(defprimclass <exn>)
-(defprimclass <break-exn> <exn>)
-(defprimclass <non-break-exn> <exn>)
+(defprimclass <vector-like>)
+(defprimclass <void>)
 
-(defprimclass <foreign-object>)
-(defprimclass <foreign-array>   <foreign-object>)
-(defprimclass <foreign-boolean> <foreign-object>)
-(defprimclass <foreign-enum>    <foreign-object>)
-(defprimclass <foreign-int32>   <foreign-object>)
-(defprimclass <foreign-null>    <foreign-object>)
-(defprimclass <foreign-string>  <foreign-object>)
-
-(defprimclass <hash-table>)
-(defprimclass <inspector>)
-(defprimclass <namespace>)
-
+;;; Abstract base types
 (defprimclass <number>)
+(defprimclass <sequence>)
+(defprimclass <unknown-primitive>)
+
+;; Larceny has a vector-like object that claims to be a `structure'.
+;; It may be untagged, so you can't get much info about it.
+(defprimclass <primitive-structure> <vector-like>)
+
+(defprimclass <namespace> <primitive-structure>)
+(defprimclass <record> <primitive-structure>)
+
+;;;>> <struct>
+;;;>> <opaque-struct>
+;;;>   These are also classes for built-in objects, but they are classes for
+;;;>   MzScheme structs -- which can be used like Ripoff classes since they
+;;;>   will get converted to appropriate Ripoff subclasses of `<struct>'.
+;(define <struct>
+;  (make <primitive-class>
+;    ':direct-supers (list <primitive-structure>)
+;    ':name '<struct>))
+
+;;;>   `<opaque-struct>' is a class of structs that are hidden -- see the
+;;;>   documentation for `struct-info' and the `skipped?' result.  Note that
+;;;>   structs can be used as long as they can be inspected -- otherwise, we
+;;;>   can't even know that they are structs with `struct?' (this means that
+;;;>   <opaque-struct> can only appear in the cpl of a struct class that
+;;;>   inherits from a struct which is not under the current inspector).
+;(define <opaque-struct>
+;  (make <primitive-class>
+;    ':direct-supers (list <struct>)
+;    ':name '<opaque-struct>))
+
+
+;(defprimclass <immutable>)
+
+;(defprimclass <box>)
+;(defprimclass <weak-box> <box>)
+
+;(defprimclass <compiled-expression>)
+;(defprimclass <custodian>)
+;(defprimclass <exn>)
+;(defprimclass <break-exn> <exn>)
+;(defprimclass <non-break-exn> <exn>)
+
+;(defprimclass <foreign-object>)
+;(defprimclass <foreign-array>   <foreign-object>)
+;(defprimclass <foreign-boolean> <foreign-object>)
+;(defprimclass <foreign-enum>    <foreign-object>)
+;(defprimclass <foreign-int32>   <foreign-object>)
+;(defprimclass <foreign-null>    <foreign-object>)
+;(defprimclass <foreign-string>  <foreign-object>)
+
+;(defprimclass <inspector>)
+
 (defprimclass <exact> <number>)
 (defprimclass <inexact> <number>)
 (defprimclass <complex> <number>)
@@ -1387,138 +1404,193 @@
 (defprimclass <exact-integer> <integer> <exact-rational>)
 (defprimclass <inexact-integer> <integer> <inexact-rational>)
 
-(defprimclass <parameter>)
+(defprimclass <bytevector> <bytevector-like>)
 
-(defprimclass <port>)
+(defprimclass <bignum> <exact-integer> <bytevector-like>)
+(defprimclass <fixnum> <exact-integer>)
+(defprimclass <flonum> <inexact-real> <bytevector-like>)
+(defprimclass <ratnum> <exact-rational> <vector-like>)
+(defprimclass <rectnum> <exact-complex> <vector-like>)
+
+;(defprimclass <parameter>)
+
+(defprimclass <port> <vector-like>)
 (defprimclass <input-port> <port>)
 (defprimclass <output-port> <port>)
-(defprimclass <stream-port> <port>)
-(defprimclass <input-stream-port> <input-port> <stream-port>)
-(defprimclass <output-stream-port> <output-port> <stream-port>)
+;(defprimclass <stream-port> <port>)
+;(defprimclass <input-stream-port> <input-port> <stream-port>)
+;(defprimclass <output-stream-port> <output-port> <stream-port>)
 
-(defprimclass <promise>)
-(defprimclass <pseudo-random-generator>)
-(defprimclass <regexp>)
-(defprimclass <security-guard>)
-(defprimclass <semaphore>)
+;(defprimclass <promise>)
+;(defprimclass <pseudo-random-generator>)
+;(defprimclass <regexp>)
+;(defprimclass <security-guard>)
+;(defprimclass <semaphore>)
 
-(defprimclass <sequence>)
-(defprimclass <improper-list> <sequence>)
-(defprimclass <pair> <improper-list>)
-(defprimclass <immutable-pair> <pair> <immutable>)
-(defprimclass <list> <improper-list>)
+;; It is expensive to run down a list every time you want to
+;; pass one to a generic function, so we don't distinguish
+;; proper from improper lists.
+;(defprimclass <improper-list> <sequence>)
+(defprimclass <pair> <sequence>)
+;(defprimclass <immutable-pair> <pair> <immutable>)
+(defprimclass <list> <sequence>)
 (defprimclass <nonempty-list> <pair> <list>)
-(defprimclass <immutable-nonempty-list> <nonempty-list> <immutable>)
+;(defprimclass <immutable-nonempty-list> <nonempty-list> <immutable>)
 (defprimclass <null> <list>)
-(defprimclass <string> <sequence>)
-(defprimclass <immutable-string> <string> <immutable>)
-(defprimclass <vector> <sequence>)
+
+(defprimclass <string> <sequence> <bytevector-like>)
+;(defprimclass <immutable-string> <string> <immutable>)
+(defprimclass <vector> <sequence> <vector-like>)
+
+(defprimclass <code-object> <vector>)
+(defprimclass <assignment> <code-object>)
+(defprimclass <begin> <code-object>)
+(defprimclass <call> <code-object>)
+(defprimclass <conditional> <code-object>)
+(defprimclass <constant> <code-object>)
+(defprimclass <definition> <code-object>)
+(defprimclass <lambda> <code-object>)
+(defprimclass <variable> <code-object>)
+
+(defprimclass <hash-table> <vector>)
 
 (defprimclass <struct-type>)
-(defprimclass <subprocess>)
-(defprimclass <syntax>)
-(defprimclass <identifier-syntax> <syntax>)
-(defprimclass <symbol>)
-(defprimclass <tcp-listener>)
-(defprimclass <thread>)
-(defprimclass <unknown-primitive>)
-(defprimclass <void>)
-(defprimclass <will-executor>)
+;(defprimclass <subprocess>)
+;(defprimclass <syntax>)
+;(defprimclass <identifier-syntax> <syntax>)
+(defprimclass <symbol> <vector-like>)
+;(defprimclass <tcp-listener>)
+;(defprimclass <thread>)
+
+;(defprimclass <will-executor>)
 
 (define <procedure>
-  (make <procedure-class>
-    ':name          '<procedure>
-    ':direct-default-initargs '()
-    ':direct-supers (list <builtin> <function>)
-    ':direct-slots  '()))
+  (parameterize ((*default-object-class* #f))
+    (make <procedure-class>
+      :name          '<procedure>
+      :direct-supers (list <builtin> <function>))))
 
-(define <primitive-procedure>
-  (make <procedure-class>
-    ':name          '<primitive-procedure>
-    ':direct-default-initargs '()
-    ':direct-supers (list <procedure>)
-    ':direct-slots  '()))
+(define <interpreted-expression>
+  (parameterize ((*default-object-class* #f))
+    (make <procedure-class>
+      :name          '<interpreted-expression>
+      :direct-supers (list <procedure>))))
+
+(define <interpreted-primitive>
+  (parameterize ((*default-object-class* #f))
+    (make <procedure-class>
+      :name          '<interpreted-primitive>
+      :direct-supers (list <procedure>))))
+
+(define <interpreted-procedure>
+  (parameterize ((*default-object-class* #f))
+    (make <procedure-class>
+      :name          '<interpreted-procedure>
+      :direct-supers (list <procedure>))))
 
 ;;; BOOTSTRAP STEP
 ;;; replace class-of with something more intelligent
-(set! class-of
-      (lambda (object)
-        (cond ((instance? object) (%instance/class object))
-              ((procedure? object) <procedure>)
-              ((string?   object) <string>)
-              ((pair?     object) (if (list? object)
-                                      <nonempty-list>
-                                      <pair>))
-              ((null?     object) <null>)
-              ((char?     object) <char>)
-              ((symbol?   object) <symbol>)
-              ((number?   object) (if (exact? object)
-                                      (cond ((integer?  object) <exact-integer>)
-                                            ((rational? object) <exact-rational>)
-                                            ((real?     object) <exact-real>)
-                                            ((complex?  object) <exact-complex>)
-                                            (else <exact>)) ; should not happen
-                                      (cond ((integer?  object) <inexact-integer>)
-                                            ((rational? object) <inexact-rational>)
-                                            ((real?     object) <inexact-real>)
-                                            ((complex?  object) <inexact-complex>)
-                                            (else <inexact>)))) ; should not happen
-              ((boolean?     object) <boolean>)
-              ((vector?      object) <vector>)
-              ((eof-object?  object) <end-of-file>)
-              ((input-port?  object) <input-port>)
-              ((output-port? object) <output-port>)
-              ((struct-type? object) <struct-type>)
-              ((hash-table?  object) <hash-table>)
-              (else <unknown-primitive>))))
+(let ((hashtable-tag-object (vector-ref (make-hashtable) 0)))
+
+  (set! class-of
+        (lambda (object)
+          (cond ((procedure? object) (cond ((instance? object) (%instance/class object))
+                                           ((interpreted-expression? object) <interpreted-expression>)
+                                           ((interpreted-primitive? object) <interpreted-primitive>)
+                                           ((interpreted-procedure? object) <interpreted-procedure>)
+                                           (else <procedure>)))
+
+                ((vector-like? object)
+                 (cond ((ratnum? object) <ratnum>)
+                       ((rectnum? object) <rectnum>)
+                       ((symbol? object) <symbol>)
+                       ((port? object) (cond ((input-port? object) <input-port>)
+                                             ((output-port? object) <output-port>)
+                                             (else <port>)))
+                       ((structure? object) (cond ((environment? object) <namespace>)
+                                        ;((struct? object) (struct-type->class object))
+                                                  ((record? object)
+                                                   (record-type->class (record-type-descriptor object)))
+                                                  (else <primitive-structure>)))
+                       ((vector? object)
+                        (cond ((= (vector-length object) 0) <vector>)
+                              ((eq? (vector-ref object 0) hashtable-tag-object) <hash-table>)
+                              ((code-object? object)
+                               (cond ((assignment? object) <assignment>)
+                                     ((begin? object) <begin>)
+                                     ((call? object) <call>)
+                                     ((conditional? object) <conditional>)
+                                     ((constant? object) <constant>)
+                                     ((lambda? object) <lambda>)
+                                     ((variable? object) <variable>)
+                                     (else <code-object>)))
+                              (else <vector>)))
+                       (else <vector-like>)))
+
+                ((bytevector-like? object)
+                 (cond ((bignum? object) <bignum>)
+                       ((bytevector? object) <bytevector>)
+                       ((flonum? object) <flonum>)
+                       ((string? object) <string>)
+                       (else <bytevector-like>)))
+
+                ((boolean? object) <boolean>)
+                ((char? object)   <char>)
+                ((eof-object? object) <end-of-file>)
+                ((fixnum? object) <fixnum>)
+                ((null? object) <null>)
+                ((pair? object) <nonempty-list>)
+                ((eq? object (void)) <void>)
+                (else <unknown-primitive>)))))
+
+;;; Miscellany
+
+(define (make-class name . args)
+  (apply make (getarg args :metaclass (*default-class-class*))
+         :name name
+         args))
+
+(define (make-method . args)
+  (apply make (*default-method-class*) args))
+
+;;; A object that simply behaves like an aggregate will want
+;;; to use these functions.
+
+(define (generic-getter name)
+  (make (*default-generic-class*) :name name :arity 1))
+
+(define (generic-setter name)
+  (make (*default-generic-class*) :name name :arity 2))
+
+(define (getter-method class slot)
+  (define (method:slot-reader call-next-method instance)
+    (slot-ref instance slot))
+  (make (*default-method-class*)
+    :arity 1
+    :specializers (list class)
+    :procedure method:slot-reader))
+
+(define (setter-method class slot)
+  (define (method:slot-writer call-next-method instance new-value)
+    (slot-set! instance slot new-value))
+  (make (*default-method-class*)
+    :arity 2
+    :specializers (list class)
+    :procedure method:slot-writer))
+
+(define (initialize-generic-accessors class specs)
+  (for-each
+   (lambda (spec)
+     (let ((slot-name (car spec))
+           (getter (cadr spec))
+           (setter (if (pair? (cddr spec))
+                       (caddr spec)
+                       #f)))
+
+       (add-method getter (getter-method class slot-name))
+       (if setter
+           (add-method setter (setter-method class slot-name)))))
+   specs))
 
 ;;; Print methods for objects, classes and instances.
-
-(define print-object (make <generic> ':name 'print-object ':arity 3))
-
-(add-method print-object
-  (make <method>
-    ':arity 3
-    ':specializers (list <object>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
-                   (define (print-object call-next-method object port slashify)
-                     (display "#<INSTANCE of " port)
-                     (display (class-name-no-angles (class-of object)) port)
-                     (display ">" port))
-                   print-object))))
-
-(add-method print-object
-  (make <method>
-    ':arity 3
-    ':specializers (list <class>)
-    ':qualifier ':primary
-    ':procedure ((lambda ()
-                   (define (print-object call-next-method object port slashify)
-                     (display "#<CLASS " port)
-                     (display (%class-serial-number object) port)
-                     (display " " port)
-                     (display (class-name-no-angles object) port)
-                     (display ">" port))
-                   print-object))))
-
-(add-method print-object
-  (make <method>
-    ':arity 3
-    ':specializers (list <generic>)
-    ':qualifier ':primary
-    ':procedure
-    ((lambda ()
-       (define (print-object call-next-method object port slashify)
-         (display "#<GENERIC-FUNCTION " port)
-         (display (generic-name object) port)
-         (display ">" port))
-       print-object))))
-
-;;; BOOTSTRAP STEP
-(let ((old-hook (procedure-printer)))
-  (procedure-printer
-   (lambda (procedure port slashify)
-     (if (instance? procedure)
-         (print-object procedure port slashify)
-         (old-hook procedure port slashify)))))
+;;; Moved to gprint.sch
