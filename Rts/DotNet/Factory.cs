@@ -65,18 +65,18 @@ namespace Scheme.Rep {
         // ===================
         //   Numbers
         // ===================
-	public static SFixnum makeFixnum (sbyte num) {
-	  return SFixnum.makeFixnum (num);
-	}
-	public static SFixnum makeFixnum (byte num) {
-	  return SFixnum.makeFixnum (num);
-	}
-	public static SFixnum makeFixnum (short num) {
-	  return SFixnum.makeFixnum (num);
-	}
-	public static SFixnum makeFixnum (ushort num) {
-	  return SFixnum.makeFixnum (num);
-	}
+        public static SFixnum makeFixnum (sbyte num) {
+          return SFixnum.makeFixnum (num);
+        }
+        public static SFixnum makeFixnum (byte num) {
+          return SFixnum.makeFixnum (num);
+        }
+        public static SFixnum makeFixnum (short num) {
+          return SFixnum.makeFixnum (num);
+        }
+        public static SFixnum makeFixnum (ushort num) {
+          return SFixnum.makeFixnum (num);
+        }
 
         public static SFixnum makeFixnum(int num) {
             return SFixnum.makeFixnum(num);
@@ -302,21 +302,23 @@ namespace Scheme.Rep {
         //   Lists
         // ============
         public static SObject copyList(SObject list) {
-            if (list == Factory.Null) {
-                return list;
-            } else {
-                SPair copyhead = new SPair(null, null);
-                SPair copyIntoCdr = copyhead;
-                while (list is SPair) {
-                    SPair p = (SPair) list;
-                    SPair newpair = new SPair(p.first, null);
-                    copyIntoCdr.rest = newpair;
-                    copyIntoCdr = newpair;
-                    list = p.rest;
-                }
-                copyIntoCdr.rest = list;
-                return copyhead.rest;
-            }
+	  if (list == Factory.Null) {
+	      return list;
+	      }
+	  else {
+	      SPair copyhead = new SPair(null, null);
+	      SPair copyIntoCdr = copyhead;
+	      SPair listPair = list as SPair;
+	      while (listPair != null) {
+		  SPair newpair = new SPair(listPair.first, null);
+		  copyIntoCdr.rest = newpair;
+		  copyIntoCdr = newpair;
+		  list = listPair.rest;
+		  listPair = list as SPair;
+		  }
+	      copyIntoCdr.rest = list;
+	      return copyhead.rest;
+	      }
         }
 
         public static SObject arrayToList(SObject[] array, int start) {
