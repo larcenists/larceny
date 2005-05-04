@@ -7,22 +7,25 @@
 
 ($$trace "macro-expand")
 
-; The procedure stored in MACRO-EXPANDER takes an expression and a
-; syntax environment and returns the expanded expression.  Normally
+; The procedure stored in MACRO-EXPANDER takes an expression and an
+; environment and returns the expanded expression.  Normally
 ; user code does not install a macro expander; the expander must
 ; produce the same output as Larceny's normal expander.
 
 (define macro-expander
-  (make-parameter "macro-expander" macro-expand procedure?))
+  (make-parameter "macro-expander"
+                  (lambda (form environment)
+                    (macro-expand form (environment-syntax-environment environment)))
+                  procedure?))
 
 ; Exported to the user environment.
 
 (define (toplevel-macro-expand expr . rest)
-  (let ((env (if (null? rest) 
-                 (interaction-environment) 
+  (let ((env (if (null? rest)
+                 (interaction-environment)
                  (car rest))))
     (make-readable
-     ((macro-expander) expr (environment-syntax-environment env)))))
+     ((macro-expander) expr env))))
 
 ; TWOBIT-SORT is used by Twobit's macro expander.
 
@@ -34,6 +37,6 @@
 (define name:CAR '.car)
 (define name:CDR '.cdr)
 (define name:CALL '.call)
-  
+
 ; eof
 
