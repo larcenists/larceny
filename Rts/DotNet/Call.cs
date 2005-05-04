@@ -150,7 +150,7 @@ namespace Scheme.RT {
         }
 
         public static void trampoline(Procedure p, int argc) {
-            Reg.setRegister(0,p);
+            Reg.register0 = p;
             Reg.Result = Factory.makeFixnum(argc);
 
             CodeVector cv = p.entrypoint;
@@ -248,9 +248,9 @@ namespace Scheme.RT {
             SObject support = Reg.globalValue("millicode-support");
             if (support is SVL) {
                 SVL procedures = (SVL) support;
-                SObject p = procedures.elementAt((int) index);
-                if (p is Procedure) {
-                    return (Procedure)p;
+                Procedure p = procedures.elementAt(index) as Procedure;
+                if (p != null) {
+                    return p;
                 } else {
                     Exn.internalError("millicode support " + index + " not a procedure");
                     return null;
@@ -325,7 +325,7 @@ namespace Scheme.RT {
             if (frame.getSlot(Reg.LASTREG + 3) == Factory.True) {
                 Reg.Result = frame.getSlot(Reg.LASTREG + 2);
             }
-            Procedure p0 = (Procedure) Reg.getRegister(0);
+            Procedure p0 = Reg.register0;
             Cont.cont.checkPop(Reg.NREGS + 2, singletonProcedure);
             Cont.pop();
             Call.call(p0.entrypoint, jumpIndex);
@@ -370,8 +370,8 @@ namespace Scheme.RT {
             this.argc = Factory.makeFixnum (argc);
         }
         public override void prepareForBounce() {
-            Reg.Second = Reg.getRegister (0);
-            Reg.setRegister (0, this.p);
+            Reg.Second = Reg.register0;
+            Reg.register0 = this.p;
             Reg.Result = this.argc;
         }
     }
