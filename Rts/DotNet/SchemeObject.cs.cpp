@@ -97,8 +97,8 @@ namespace Scheme.Rep {
         public readonly int value;
         public static readonly SFixnum[] pool;
       // NOTE THE COMPILER KNOWS ABOUT THESE CONSTANTS
-        public const int minPreAlloc = -128;
-        public const int maxPreAlloc = 255;
+        public const int minPreAlloc = -16384;
+        public const int maxPreAlloc = 32767;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
@@ -429,20 +429,19 @@ namespace Scheme.Rep {
             : this(entrypoint, Factory.makeVector(1, Factory.False), new SObject[0]) {}
 
         public void setCode(SObject code) {
-            if (code is CodeVector) {
-                this.entrypoint = (CodeVector) code;
+          CodeVector cv = code as CodeVector;
+            if (cv != null) {
+                this.entrypoint = cv;
             } else if (code == Factory.False) {
                 this.entrypoint = CodeVector.NoCode;
             } else {
                 Exn.internalError("procedure-set! 0 called, not a codevector: " + code);
             }
         }
+
         public SObject getCode() {
-            if (this.entrypoint is DataCodeVector) {
-                return ((DataCodeVector)this.entrypoint).datum;
-            } else {
-                return this.entrypoint;
-            }
+          DataCodeVector dcv = this.entrypoint as DataCodeVector;
+          return (dcv == null) ? this.entrypoint : dcv.datum;
         }
 
         public void setConstants(SVL constantvector) {
@@ -477,10 +476,10 @@ namespace Scheme.Rep {
         private string getName() {
             if (this.constants.Length >= 1) {
                 SObject d = this.constants[0];
-                if (d is SVL) {
-                    SVL dd = (SVL) d;
-                    if (dd.elements != null && dd.elements.Length >= 1) {
-                        return dd.elements[0].ToString();
+                SVL dsvl = d as SVL;
+                if (dsvl != null) {
+                    if (dsvl.elements != null && dsvl.elements.Length >= 1) {
+                        return dsvl.elements[0].ToString();
                     }
                 }
             }
