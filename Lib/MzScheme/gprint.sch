@@ -13,21 +13,18 @@
 (define (print-level-exceeded port)
   (write-char #\# port))
 
-(add-method print-object
-  (make <method>
-    :arity 3
-    :specializers (list <top>)
-    :qualifier :around
-    :procedure ((lambda ()
-                   (define (before-method:print-object call-next-method object port slashify)
-                     (let ((level (print-level)))
-                       (if (number? level)
-                           (if (> level 0)
-                               (parameterize ((print-level (- level 1)))
-                                 (call-next-method))
-                               (print-level-exceeded port))
-                           (call-next-method))))
-                   before-method:print-object))))
+(extend-generic print-object
+  :qualifier :around
+  :procedure ((lambda ()
+                (define (around-method:print-object call-next-method object port slashify)
+                  (let ((level (print-level)))
+                    (if (number? level)
+                        (if (> level 0)
+                            (parameterize ((print-level (- level 1)))
+                              (call-next-method))
+                            (print-level-exceeded port))
+                        (call-next-method))))
+                around-method:print-object)))
 
 (define (print-unreadable-prefix tag port)
   (write-string "#<" port)
@@ -39,11 +36,11 @@
 ;; Wrap a #<tag > around the call to the thunk.  If there is no thunk,
 ;; just print #<tag>.
 
-(define (print-unreadable-object tag port . thunk)
-  (let ((tag (cond ((string? tag) tag)
-                   ((symbol? tag) (symbol->string tag))
-                   ((number? tag) (number->string tag))
-                   (else (error "print-unreadable-object: tag must be a string, symbol, or number " tag)))))
+(define (print-unreadable-object object port . thunk)
+  (let ((tag (cond ((string? object) object)
+                   ((symbol? object) (symbol->string object))
+                   ((number? object) (number->string object))
+                   (else (class-name-no-angles (class-of object))))))
     (if (pair? thunk)
         (if (null? (cdr thunk))
             (dynamic-wind (lambda ()
@@ -57,6 +54,9 @@
           (print-unreadable-prefix tag port)
           (print-unreadable-suffix port)))))
 
+(define (method:print-unreadable-object call-next-method object port slashify)
+  (print-unreadable-object object port))
+
 (define (print-name name port)
   (cond ((string? name) (write-string name port))
         ((symbol? name) (write-string (symbol->string name) port))
@@ -66,7 +66,7 @@
 (define (named-object-printer-method get-name)
   (define (method:print-object call-next-method object port slashify)
     (print-unreadable-object
-     (class-name-no-angles (class-of object)) port
+     object port
      (lambda () (print-name (get-name object) port))))
   method:print-object)
 
@@ -98,21 +98,39 @@
 
   (write-string ")" port))
 
+(define (print-vector object port slashify)
+  (write-string "#(" port)
+  (let ((length (print-length))
+        (vlen (vector-length object)))
+
+    (define (print-tail count)
+      (cond ((>= count vlen))
+            ((and (number? length)
+                  (>= count length))
+             (write-string " ..." port))
+            (else
+             (write-string " " port)
+             (print-object (vector-ref object count) port slashify)
+             (print-tail (+ count 1)))))
+
+    (if (number? length)
+        (if (= length 0)
+            (write-string "..." port)
+            (print-object (vector-ref object 0) port slashify))
+        (print-object (vector-ref object 0) port slashify))
+    (print-tail 1))
+
+  (write-string ")" port))
+
 (for-each
  (lambda (spec)
    (let ((class (car spec))
          (procedure (cadr spec)))
-     (add-method print-object
-       (make <method>
-         :arity 3
-         :specializers (list class)
-         ;:qualifier :primary
-         :procedure procedure))))
+     (extend-generic print-object
+       :specializers (list class)
+       :procedure procedure)))
  (list
-  (list <builtin> ((lambda ()
-                     (define (method:print-object call-next-method object port slashify)
-                       (print-unreadable-object (class-name-no-angles (class-of object)) port))
-                     method:print-object)))
+  (list <builtin> method:print-unreadable-object)
 
   (list <boolean> ((lambda ()
                      (define (method:print-object call-next-method object port slashify)
@@ -122,16 +140,27 @@
                      method:print-object)))
 
   (list <class> ((lambda ()
-                   (define (print-object call-next-method object port slashify)
+                   (define (method:print-object call-next-method object port slashify)
                      (print-unreadable-object
-                      "class" port
+                      object port
                       (lambda ()
                         (write-string (number->string (class-serial-number object)) port)
                         (write-string " " port)
                         (write-string (class-name-no-angles object) port))))
-                   print-object)))
+                   method:print-object)))
+
+  (list <code-object> method:print-unreadable-object)
 
   (list <generic>   (named-object-printer-method generic-name))
+
+  (list <hash-table> method:print-unreadable-object)
+
+  (list <interned-symbol> ((lambda ()
+                             (define (method:print-object call-next-method object port slashify)
+                               ;; BUG:  should escape the string!
+                               (write-string (symbol->string object) port))
+                             method:print-object)))
+
   (list <method>    (named-object-printer-method method-name))
   (list <namespace> (named-object-printer-method environment-name))
 
@@ -145,10 +174,7 @@
                       (write-string (number->string object) port))
                     method:print-object)))
 
-  (list <object> ((lambda ()
-                    (define (method:print-object call-next-method object port slashify)
-                      (print-unreadable-object (class-name-no-angles (class-of object)) port))
-                    method:print-object)))
+  (list <object> method:print-unreadable-object)
 
   (list <pair> ((lambda ()
                   (define (method:print-object call-next-method object port slashify)
@@ -157,16 +183,15 @@
 
   (list <procedure> ((lambda ()
                        (define (method:print-object call-next-method object port slashify)
-                         (let ((class (class-name-no-angles (class-of object)))
-                               (name (procedure-name object)))
+                         (let ((name (procedure-name object)))
                            (if name
                                (print-unreadable-object
-                                class port
+                                object port
                                 (lambda () (print-name name port)))
                                (let ((arity (procedure-arity object)))
                                  (if arity
                                      (print-unreadable-object
-                                      class port
+                                      object port
                                       (lambda ()
                                         (write-string "of " port)
                                         (if (exact? arity)
@@ -176,7 +201,7 @@
                                                        (write-string "s" port)))
                                             (begin (write-string (number->string (inexact->exact arity)) port)
                                                    (write-string " or more arguments" port)))))
-                                     (print-unreadable-object class port))))))
+                                     (print-unreadable-object object port))))))
                        method:print-object)))
 
   (list <record> (let ((get-printer (record-accessor *record-type-type* 'printer)))
@@ -188,16 +213,22 @@
                            (print-unreadable-object (record-type-name descriptor) port))))
                    method:print-object))
 
-  (list <symbol> ((lambda ()
-                    (define (method:print-object call-next-method object port slashify)
-                      ;; BUG:  should escape the string!
-                      (write-string (symbol->string object) port))
-                    method:print-object)))
+  (list <uninterned-symbol> ((lambda ()
+                               (define (method:print-object call-next-method object port slashify)
+                                 ;; BUG:  should escape the string!
+                                 (write-string "#:" port)
+                                 (write-string (symbol->string object) port))
+                               method:print-object)))
 
+  (list <vector> ((lambda ()
+                    (define (method:print-object call-next-method object port slashify)
+                      (print-vector object port slashify))
+                    method:print-object)))
   ))
 
 ;;; BOOTSTRAP STEP
-(procedure-printer print-object)
 (environment-printer print-object)
-(structure-printer print-object)
+(hashtable-printer   print-object)
+(procedure-printer   print-object)
+(structure-printer   print-object)
 (code-object-printer print-object)
