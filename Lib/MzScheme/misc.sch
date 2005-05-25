@@ -4,8 +4,12 @@
 ;;;
 ($$trace "misc")
 
+(define (add1 x)
+  (+ x 1))
+
 ;;; A bunch of miscellaneous functions that I can't figure out where
 ;;; else to put.
+
 (define (arg-check pred? x who)
   (if (not (pred? x)) (error who ": invalid argument " x)))
 
@@ -33,6 +37,9 @@
 ;; returns the supplied value.  Great for thunks.
 (define (constantly value)
   (lambda args value))
+
+;; Special case that is very frequently used.
+(define (false . arguments) #f)
 
 ;;; generate-id ideally produces globally unique symbols, i.e., symbols
 ;;; unique across system runs, to support separate compilation/expansion.
@@ -112,6 +119,9 @@
 
 ;; A function that returns its argument.  Amazing how useful this is!
 (define (identity x) x)
+
+(define (sub1 x)
+  (- x 1))
 
 (define (vmap fn v)
   (do ((i (- (vector-length v) 1) (- i 1))
