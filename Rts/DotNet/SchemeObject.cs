@@ -802,6 +802,8 @@ namespace Scheme.Rep {
                 b = b - 2;
                 if (b < p.rib.Length) {
                     p.rib[b] = arg3;
+		    if (b == 0)
+			p.parent = (Procedure) arg3;
                     return Factory.Unspecified;
                 }
             }
@@ -1186,6 +1188,10 @@ namespace Scheme.Rep {
     public class STagged : SObject {
         public int tag;
 
+        public STagged (int tag) {
+          this.tag = tag;
+	}
+
         public void check_typetag(int tag, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this);
         }
@@ -1202,7 +1208,7 @@ namespace Scheme.Rep {
         public override SObject op_typetag() { return Factory.makeFixnum (this.tag); }
         public override SObject op_typetag_set(SObject arg2) { return arg2.op_reversed_typetag_set(this); }
 
-#line 168 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 172 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1211,13 +1217,12 @@ namespace Scheme.Rep {
     public sealed class SVL : STagged {
         public readonly SObject[] elements;
 
-        public SVL(int tag, int size, SObject fill) {
-            this.tag = tag;
+        public SVL (int tag, int size, SObject fill) : base (tag) {
             this.elements = new SObject[size];
             for (int i = 0; i < size; ++i) {elements[i] = fill;};
         }
-        public SVL(int tag, SObject[] vec) {
-            this.tag = tag;
+
+        public SVL (int tag, SObject[] vec) : base (tag) {
             this.elements = vec;
         }
 
@@ -1389,7 +1394,7 @@ namespace Scheme.Rep {
                 base.op_truncate();
             }
         }
-#line 219 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 222 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1400,12 +1405,10 @@ namespace Scheme.Rep {
         public static System.Text.Encoding stringEncoding
             = new System.Text.ASCIIEncoding();
 
-        public SByteVL(int tag, byte[] vec) {
-            this.tag = tag;
+        public SByteVL(int tag, byte[] vec) : base (tag) {
             this.elements = vec;
         }
-        public SByteVL(int tag, int size, byte fill) {
-            this.tag = tag;
+        public SByteVL(int tag, int size, byte fill) : base (tag) {
             this.elements = new byte[size];
             if (fill == 0)
                 Array.Clear (this.elements, 0, size);
@@ -1778,7 +1781,7 @@ namespace Scheme.Rep {
                 base.op_inexact2exact();
             }
         }
-#line 352 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 353 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1849,7 +1852,7 @@ namespace Scheme.Rep {
         public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
-#line 405 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 406 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1857,24 +1860,43 @@ namespace Scheme.Rep {
     
     public sealed class Procedure : STagged {
         public CodeVector entrypoint;
+        public Procedure parent;
         public SObject[] rib;
         public SVL constantvector;
         public SObject[] constants;
 
+        public Procedure (CodeVector entrypoint,
+			  SVL constantvector,
+                          Procedure parent,
+                          SObject [] rib) : base (Constants.PROC_TAG)
+        {
+	  this.entrypoint = entrypoint;
+	  this.constantvector = constantvector;
+	  this.constants = constantvector.elements;
+	  this.parent = parent;
+	  this.rib = rib;
+	}
+
         public Procedure(CodeVector entrypoint,
                          SObject constantvector,
-                         SObject[] rib) {
+                         SObject[] rib) : base (Constants.PROC_TAG) {
             this.tag = Constants.PROC_TAG;
             this.entrypoint = entrypoint;
             this.constantvector = (SVL) constantvector;
             this.constants = this.constantvector.elements;
+            if ((rib != null) && (rib.Length > 0))
+                this.parent = rib [0] as Procedure;
             this.rib = rib;
         }
 
+        public Procedure(CodeVector entrypoint, SVL constantvector)
+            : this(entrypoint, constantvector, null, null) {}
+
         public Procedure(CodeVector entrypoint, SObject constantvector)
-            : this(entrypoint, constantvector, new SObject[]{}) {}
+            : this(entrypoint, (SVL) constantvector, null, null) {}
+
         public Procedure(CodeVector entrypoint)
-            : this(entrypoint, Factory.makeVector(1, Factory.False), new SObject[0]) {}
+            : this(entrypoint, Factory.makeVector(1, Factory.False), null, null) {}
 
         public void setCode(SObject code) {
           CodeVector cv = code as CodeVector;
@@ -1901,24 +1923,26 @@ namespace Scheme.Rep {
 
 
         public SObject lookup(int ri, int slot) {
-            SObject[] rib = this.rib;
-            while (ri > 0) {
-                rib = ((Procedure)rib[0]).rib;
-                ri --;
-            }
-            return rib[slot];
+	  Procedure proc;
+
+	  for (proc = this; ri > 0; ri--)
+	      proc = proc.parent;
+
+	  return proc.rib [slot];
         }
 
         
 
 
         public void update(int ri, int slot, SObject newValue) {
-            SObject[] rib = this.rib;
-            while (ri > 0) {
-                rib = ((Procedure)rib[0]).rib;
-                ri --;
-            }
-            rib[slot] = newValue;
+	  Procedure proc = this;
+
+	  for (proc = this; ri > 0; ri--)
+	      proc = proc.parent;
+
+	  proc.rib [slot] = newValue;
+	  if (slot == 0)
+	      proc.parent = (Procedure) newValue;
         }
 
         private string getName() {
@@ -2359,7 +2383,7 @@ namespace Scheme.Rep {
 
 
 
-#line 915 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 937 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
 
 #line 1 "c:\\home\\jrm\\commonlarceny\\rts\\dotnet\\Ops_Procedure.inc"
 
@@ -2370,7 +2394,7 @@ namespace Scheme.Rep {
         }
         public override SObject op_procedure_ref(SObject arg2) { return arg2.op_reversed_procedure_ref(this); }
         public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_reversed_procedure_set(this, arg3); }
-#line 917 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 939 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
