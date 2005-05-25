@@ -195,6 +195,8 @@
   (check-environment env 'environment-set-auxiliary-info!)
   (env.set-auxiliary-info! env new-value))
 
+;; Note:  environment-copy does *not* do anything with the
+;; auxiliary-info field.
 (define (environment-copy env . rest)
   (check-environment env 'environment-copy)
   (let* ((name      (if (null? rest) (environment-name env) (car rest)))
