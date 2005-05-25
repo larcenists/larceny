@@ -154,6 +154,10 @@ namespace Scheme.Rep {
     public class STagged : SObject {
         public int tag;
 
+        public STagged (int tag) {
+          this.tag = tag;
+	}
+
         public void check_typetag(int tag, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this);
         }
@@ -173,13 +177,12 @@ namespace Scheme.Rep {
     public sealed class SVL : STagged {
         public readonly SObject[] elements;
 
-        public SVL(int tag, int size, SObject fill) {
-            this.tag = tag;
+        public SVL (int tag, int size, SObject fill) : base (tag) {
             this.elements = new SObject[size];
             for (int i = 0; i < size; ++i) {elements[i] = fill;};
         }
-        public SVL(int tag, SObject[] vec) {
-            this.tag = tag;
+
+        public SVL (int tag, SObject[] vec) : base (tag) {
             this.elements = vec;
         }
 
@@ -226,12 +229,10 @@ namespace Scheme.Rep {
         public static System.Text.Encoding stringEncoding
             = new System.Text.ASCIIEncoding();
 
-        public SByteVL(int tag, byte[] vec) {
-            this.tag = tag;
+        public SByteVL(int tag, byte[] vec) : base (tag) {
             this.elements = vec;
         }
-        public SByteVL(int tag, int size, byte fill) {
-            this.tag = tag;
+        public SByteVL(int tag, int size, byte fill) : base (tag) {
             this.elements = new byte[size];
             if (fill == 0)
                 Array.Clear (this.elements, 0, size);
@@ -409,24 +410,43 @@ namespace Scheme.Rep {
     // -------------------------------------------
     public sealed class Procedure : STagged {
         public CodeVector entrypoint;
+        public Procedure parent;
         public SObject[] rib;
         public SVL constantvector;
         public SObject[] constants;
 
+        public Procedure (CodeVector entrypoint,
+			  SVL constantvector,
+                          Procedure parent,
+                          SObject [] rib) : base (Constants.PROC_TAG)
+        {
+	  this.entrypoint = entrypoint;
+	  this.constantvector = constantvector;
+	  this.constants = constantvector.elements;
+	  this.parent = parent;
+	  this.rib = rib;
+	}
+
         public Procedure(CodeVector entrypoint,
                          SObject constantvector,
-                         SObject[] rib) {
+                         SObject[] rib) : base (Constants.PROC_TAG) {
             this.tag = Constants.PROC_TAG;
             this.entrypoint = entrypoint;
             this.constantvector = (SVL) constantvector;
             this.constants = this.constantvector.elements;
+            if ((rib != null) && (rib.Length > 0))
+                this.parent = rib [0] as Procedure;
             this.rib = rib;
         }
 
+        public Procedure(CodeVector entrypoint, SVL constantvector)
+            : this(entrypoint, constantvector, null, null) {}
+
         public Procedure(CodeVector entrypoint, SObject constantvector)
-            : this(entrypoint, constantvector, new SObject[]{}) {}
+            : this(entrypoint, (SVL) constantvector, null, null) {}
+
         public Procedure(CodeVector entrypoint)
-            : this(entrypoint, Factory.makeVector(1, Factory.False), new SObject[0]) {}
+            : this(entrypoint, Factory.makeVector(1, Factory.False), null, null) {}
 
         public void setCode(SObject code) {
           CodeVector cv = code as CodeVector;
@@ -453,24 +473,26 @@ namespace Scheme.Rep {
          * Look up (rib, slot) in lexical environment
          */
         public SObject lookup(int ri, int slot) {
-            SObject[] rib = this.rib;
-            while (ri > 0) {
-                rib = ((Procedure)rib[0]).rib;
-                ri --;
-            }
-            return rib[slot];
+	  Procedure proc;
+
+	  for (proc = this; ri > 0; ri--)
+	      proc = proc.parent;
+
+	  return proc.rib [slot];
         }
 
         /** update
          * Mutate a lexically bound variable at (rib, slot) to new_value
          */
         public void update(int ri, int slot, SObject newValue) {
-            SObject[] rib = this.rib;
-            while (ri > 0) {
-                rib = ((Procedure)rib[0]).rib;
-                ri --;
-            }
-            rib[slot] = newValue;
+	  Procedure proc = this;
+
+	  for (proc = this; ri > 0; ri--)
+	      proc = proc.parent;
+
+	  proc.rib [slot] = newValue;
+	  if (slot == 0)
+	      proc.parent = (Procedure) newValue;
         }
 
         private string getName() {
