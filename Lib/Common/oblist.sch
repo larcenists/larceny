@@ -47,7 +47,7 @@
 	    l
 	    (loop (- i 1) (append (vector-ref *obvector* i) l))))
       (loop (- (vector-length *obvector*) 1) '()))))
-      
+
 (define (oblist-set! symbols . rest)
   (let ((tablesize
 	 (cond ((null? rest) (* (+ *oblist-ratio* 1) (length symbols)))
@@ -79,6 +79,12 @@
 	  (set! n (+ n 1))
 	  (make-uninterned-symbol (string-append x (number->string n))))))))
 
+(define (uninterned-symbol? s)
+  (if (symbol? s)
+      (not (eq? s (interned? (symbol.printname s))))
+      (begin (error "uninterned-symbol?: " s " is not a symbol.")
+             #t)))
+
 (define (putprop sym name value)
   (if (not (symbol? sym))
       (begin (error "putprop: " sym " is not a symbol.")
@@ -99,8 +105,8 @@
 	(lambda ()
 	  (let ((plist (symbol.proplist sym)))
 	    (let ((probe (assq name plist)))
-	      (if probe 
-		  (cdr probe) 
+	      (if probe
+		  (cdr probe)
 		  #f)))))))
 
 (define (remprop sym name)
@@ -137,55 +143,74 @@
 ; Given a string, interns it in the current obvector, updating the
 ; count of symbols in the vector.  Returns the symbol.
 ;
-; Note: symbols are _NOT_ interned if the obvector has not been 
-; initialized.  This allows string->symbol to be used during 
-; initialization in cases where it doesn't matter if the symbols are 
+; Note: symbols are _NOT_ interned if the obvector has not been
+; initialized.  This allows string->symbol to be used during
+; initialization in cases where it doesn't matter if the symbols are
 ; interned.
 
 (define (intern s)
 
   (define (search-bucket bucket)
-    (if (null? bucket)
-	#f
-	(let ((symbol (car bucket)))
-	  (if (string=? s (symbol.printname symbol))
-	      symbol
-	      (search-bucket (cdr bucket))))))
+    (cond ((pair? bucket) (let ((symbol (car bucket)))
+                            (if (string=? s (symbol.printname symbol))
+                                symbol
+                                (search-bucket (cdr bucket)))))
+          ((null? bucket) #f)
+          (else (error "Illegal bucket found in obvector."))))
 
   (if *obvector*
       (call-without-interrupts
-	(lambda ()
-	  (let* ((h     (string-hash s))
-		 (probe (search-bucket
-			 (vector-ref *obvector*
-				     (remainder h
-						(vector-length *obvector*))))))
-	    (if probe
-		probe
-		(let ((s (install-symbol (make-symbol (string-copy s) h '())
-					 *obvector*)))
-		  (set! *symbol-count* (+ *symbol-count* 1))
-		  (if (> *symbol-count* *oblist-watermark*)
-                      (let ((v *obvector*))
-                        ; Install a new, larger obvector.
-                        (oblist-set! (oblist) (* (vector-length *obvector*) 2))
-                        ; Clear the old vector to avoid retaining it in the
-                        ; remembered set if it is in the static area.
-                        (vector-fill! v #f)))
-		  s)))))
+       (lambda ()
+         (let* ((h     (string-hash s))
+                (probe (search-bucket
+                        (vector-ref *obvector*
+                                    (remainder h
+                                               (vector-length *obvector*))))))
+           (if probe
+               probe
+               (let ((s (install-symbol (make-symbol (string-copy s) h '())
+                                        *obvector*)))
+                 (set! *symbol-count* (+ *symbol-count* 1))
+                 (if (> *symbol-count* *oblist-watermark*)
+                     (let ((v *obvector*))
+                       ;; Install a new, larger obvector.
+                       (oblist-set! (oblist) (* (vector-length *obvector*) 2))
+                       ;; Clear the old vector to avoid retaining it in the
+                       ;; remembered set if it is in the static area.
+                       (vector-fill! v #f)))
+                 s)))))
       (begin
-	; Annoying in Petit Larceny, where the heap is never dumped.
-	; (display "WARNING: string->symbol: not interned: ")
-	; (display s)
-	; (newline)
+        ;; Annoying in Petit Larceny, where the heap is never dumped.
+        ;; (display "WARNING: string->symbol: not interned: ")
+        ;; (display s)
+        ;; (newline)
 	(make-symbol (string-copy s) 0 '()))))
 
+; Given a string, checks to see if an interned symbol with that name exists.
+; If so, the symbol is returned, but if not, no new symbol is created.
+(define (interned? s)
 
-; Given a symbol, adds it to the given obvector, whether a symbol with the 
+  (define (search-bucket bucket)
+    (cond ((pair? bucket) (let ((symbol (car bucket)))
+                            (if (string=? s (symbol.printname symbol))
+                                symbol
+                                (search-bucket (cdr bucket)))))
+          ((null? bucket) #f)
+          (else (error "Illegal bucket in found obvector."))))
+
+  (and *obvector*
+       (call-without-interrupts
+        (lambda ()
+          (search-bucket
+           (vector-ref *obvector*
+                       (remainder (string-hash s)
+                                  (vector-length *obvector*))))))))
+
+; Given a symbol, adds it to the given obvector, whether a symbol with the
 ; same pname (or even the same symbol) is already there or not.
 ;
 ; Must run in critical section!
-         
+
 (define (install-symbol s obvector)
   (let ((i (remainder (symbol.hashname s) (vector-length obvector))))
     (vector-set! obvector i (cons s (vector-ref obvector i)))
