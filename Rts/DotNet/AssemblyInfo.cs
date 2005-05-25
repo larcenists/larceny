@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Permissions;
 
 //
 // General Information about an assembly is controlled through the following
@@ -53,6 +54,27 @@ using System.Runtime.CompilerServices;
 //   (*) Delay Signing is an advanced option - see the Microsoft .NET Framework
 //       documentation for more information on this.
 //
-[assembly: AssemblyDelaySign(false)]
-[assembly: AssemblyKeyFile("")]
-[assembly: AssemblyKeyName("")]
+// [assembly: AssemblyDelaySign(false)]
+//[assembly: AssemblyKeyFile("..\\..\\mykey.snk")]
+// [assembly: AssemblyKeyName("")]
+
+// Permissions
+// These all indicate that we do not *require* any particular permission
+// but that we may use any permission that happens to be granted.
+// That is, Scheme will not refuse to run if you don't allow it to do file IO,
+// but we do not guarantee that we won't ask.
+
+// Since CommonLarceny is a language system, there doesn't seem to be any option other
+// than this.
+//[assembly: EnvironmentPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: FileDialogPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: FileIOPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: IsolatedStorageFilePermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: ReflectionPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: RegistryPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: SecurityPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: SiteIdentityPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: StrongNameIdentityPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: UIPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: UrlIdentityPermission (SecurityAction.RequestOptional, Unrestricted = true)]
+//[assembly: ZoneIdentityPermission (SecurityAction.RequestOptional, Unrestricted = true)]
