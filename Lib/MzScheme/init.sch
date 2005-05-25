@@ -47,27 +47,30 @@
         (append macro-defs *interactive-eval-list*)))
 
 ;; Exports
-
 (export weird-printer)
 
 ;; Miscellaneous
-(export arg-check
+(export add1
+        arg-check
         arity-at-least?
         arity-at-least-value
         arity-plus
         constantly
+        false
         generate-id
         getarg
         getarg*
         getargs
         get-serial-number
         identity
+        sub1
         vmap
         vfor-each
         void
         void?
         make-arity-at-least
-        %nary->fixed-arity)
+        %nary->fixed-arity
+        )
 
 (export %instance)
 
@@ -77,6 +80,7 @@
         instance/procedure
         instance/ref
         instance/set!
+        instance/update!
         instance/replace!
         %make-instance
         %make-instance*
@@ -91,13 +95,14 @@
         %class-direct-default-initargs
         %class-direct-slots
         %class-direct-supers
+        %class-direct-additional-initargs
         %class-field-initializers
         %class-getters-n-setters
         %class-initializers
         %class-name
         %class-nfields
         %class-slots
-        %class-valid-initargs
+        %class-effective-valid-initargs
         %generic-app-cache
         %generic-arity
         %generic-combination
@@ -111,6 +116,7 @@
         %method-specializers
         %set-class-cpl!
         %set-class-default-initargs!
+        %set-class-direct-additional-initargs!
         %set-class-direct-default-initargs!
         %set-class-direct-slots!
         %set-class-direct-supers!
@@ -120,7 +126,7 @@
         %set-class-name!
         %set-class-nfields!
         %set-class-slots!
-        %set-class-valid-initargs!
+        %set-class-effective-valid-initargs!
         %set-generic-app-cache!
         %set-generic-arity!
         %set-generic-combination!
@@ -132,6 +138,7 @@
         %set-method-procedure!
         %set-method-qualifier!
         %set-method-specializers!
+        %update-class-effective-valid-initargs!
         *default-object-class*
         <builtin>
         <class>
@@ -150,6 +157,7 @@
         class-direct-default-initargs
         class-direct-slots
         class-direct-supers
+        class-direct-additional-initargs
         class-field-initializers
         class-getters-n-setters
         class-initializers
@@ -157,10 +165,10 @@
         class-name-no-angles
         class-nfields
         class-of
+        class-predicate
         class-slots
-        class-valid-initargs
+        class-effective-valid-initargs
         class?
-        function?
         generic-arity
         generic-combination
         generic-methods
@@ -191,7 +199,9 @@
         slot-ref
         slot-set!
         slot-unbound
+        slot-update!
         slot-value
+        slot-value-if-bound
         struct-type->class
         subclass?
         )
@@ -250,6 +260,7 @@
 ;        <input-stream-port>
 ;        <inspector>
         <integer>
+        <interned-symbol>
         <interpreted-expression>
         <interpreted-primitive>
         <interpreted-procedure>
@@ -287,6 +298,7 @@
 ;        <syntax>
 ;        <tcp-listener>
 ;        <thread>
+        <uninterned-symbol>
         <unknown-primitive>
         <variable>
         <vector>
@@ -305,6 +317,7 @@
         compute-method-more-specific?
         compute-methods
         compute-slots
+        extend-generic
         generic-+-combination
         generic-and-combination
         generic-append!-combination
@@ -318,16 +331,20 @@
         generic-min-combination
         generic-or-combination
         generic-setter
+        generic-updater
         getter-method
         initialize-instance
         initialize-generic-accessors
         make-class
+        make-generic
         make-method
         make-generic-combination
         more-specific?
         rec-allocate-instance
         rec-initialize
+        require-initarg
         setter-method
+        updater-method
         )
 
 ;; gprint
@@ -346,11 +363,178 @@
 ;; mzscheme-style hashtables
 (export hash-table?
         make-hash-table
+        hash-table-count
         hash-table-get
         hash-table-put!
         hash-table-remove!
         hash-table-map
         hash-table-for-each)
+
+;; upcoming mzscheme objects
+;(export <box>
+;        <bucket-table-with-home>
+;        <bucket-table>
+;        <bucket-with-flags>
+;        <bucket-with-home>
+;        <bucket>
+;        <scheme-small-object>
+;        bucket-table/for-each
+;        bucket-table/size
+;        bucket/flags
+;        bucket/home
+;        bucket/id
+;        bucket/key
+;        bucket/val
+;        box/val
+;        box?
+;        get-bucket
+;        make-default-bucket
+;        ptr-val
+;        scheme-add-to-table!
+;        scheme-bucket-from-table
+;        scheme-bucket-or-null-from-table
+;        scheme-lookup-in-table
+;        set-bucket/flags!
+;        set-bucket/home!
+;        set-bucket/id!
+;        set-bucket/val!
+;        set-box/val!
+;        set-ptr-val!
+;        update-bucket/flags!
+
+;        module-renames/plus-kernel?
+;        set-module-renames/plus-kernel?!
+;        module-renames/phase
+;        module-renames/plus-kernel-nominal-source
+;        set-module-renames/plus-kernel-nominal-source!
+;        module-renames/ht
+;        module-renames/marked-names
+;        set-module-renames/marked-names!
+;        <module-renames>
+;        module-renames?
+;        <normal-module-renames>
+;        normal-module-renames?
+;        <marked-module-renames>
+;        marked-module-renames?
+;        <toplevel-module-renames>
+;        toplevel-module-renames?
+;        module-renames/put!
+;        module-renames/get
+
+;        <stx-srcloc>
+;        stx/key
+;        stx/val
+
+;        set-stx/val!
+;        stx/srcloc
+;        stx/wraps
+;        set-stx/wraps!
+;        stx/certs
+;        set-stx/certs!
+;        stx/props
+;        set-stx/props!
+;        stx/modinfo-cache
+;        set-stx/modinfo-cache!
+;        stx/lazy-prefix
+;        set-stx/lazy-prefix!
+;        <stx>
+;        stx?
+;        scheme-stx-null?
+;        scheme-stx-pair?
+;        scheme-stx-symbol?
+;        scheme-stx-sym
+
+;        modidx/path
+;        set-modidx/path!
+;        modidx/base
+;        set-modidx/base!
+;        modidx/resolved
+;        set-modidx/resolved!
+;        modidx/shift-cache
+;        set-modidx/shift-cache!
+;        modidx/cache-next
+;        set-modidx/cache-next!
+;        <modidx>
+;        modidx?
+
+;        module-variable/modidx
+;        set-module-variable/modidx!
+;        module-variable/sym
+;        set-module-variable/sym!
+;        module-variable/insp
+;        set-module-variable/insp!
+;        module-variable/pos
+;        set-module-variable/pos!
+;        module-variable/mod-phase
+;        set-module-variable/mod-phase!
+
+;        <module-variable>
+;        module-variable?
+
+;        prefix/num-toplevels
+;        set-prefix/num-toplevels!
+;        prefix/num-stxes
+;        set-prefix/num-stxes!
+;        prefix/toplevels
+;        set-prefix/toplevels!
+;        prefix/stxes
+;        set-prefix/stxes!
+;        <comp-prefix>
+;        <resolve-prefix>
+
+;        <local>
+;        local/position
+;        toplevel/depth
+;        toplevel/position
+;        <toplevel>
+;        <compiled-toplevel>
+
+;        compile-expand-info/certs
+;        set-compile-expand-info/certs!
+;        compile-expand-info/value-name
+;        set-compile-expand-info/value-name!
+;        <compile-expand-info>
+;        compile-info/dont-mark-local-use
+;        set-compile-info/dont-mark-local-use!
+;        compile-info/max-let-depth
+;        set-compile-info/max-let-depth!
+;        compile-info/resolve-module-ids
+;        set-compile-info/resolve-module-ids!
+;        <compile-info>
+;        compile-info?
+;        expand-info/depth
+;        set-expand-info/depth!
+;        <expand-info>
+;        expand-info?
+
+;        )
+
+;; wrap-pos
+;(export <wrap-chunk>
+;        <wrap-pos>
+;        do-wrap-pos-inc!
+;        set-wrap-chunk/a!
+;        set-wrap-chunk/len!
+;        set-wrap-pos-end!
+;        wrap-chunk/a
+;        wrap-chunk/len
+;        wrap-chunk?
+;        wrap-pos/a
+;        wrap-pos/copy
+;        wrap-pos/end?
+;        wraps->wrap-pos
+
+;        do-wrap-pos-revinit
+;        )
+
+;; graph and placeholder resolution
+;(export <placeholder>
+;        placeholder/value
+;        placeholder?
+;        resolve-placeholders
+;        set-placeholder/value!
+;        setup-datum-graph
+;        )
 
 ;; inspectors
 (export make-inspector
