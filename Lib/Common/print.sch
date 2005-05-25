@@ -27,8 +27,12 @@
             port
             #f))))
 
-;; Make this a parameter so that callable structures and instances can
-;; hook in.
+(define hashtable-printer
+  (make-parameter
+   "hashtable-printer"
+   (lambda (hashtable port slashify)
+     (print "#<HASHTABLE>" port #f))))
+
 (define procedure-printer
   (make-parameter
    "procedure-printer"
@@ -42,7 +46,6 @@
             port
             #f))))
 
-;; Hook this, too.  CLR objects have print methods we can invoke.
 (define weird-printer
   (make-parameter
    "weird-printer"
@@ -89,14 +92,14 @@
            (write-char (string-ref ")" 0) p))
           ((zero? length)
            (printstr " ...)" p))
-          ((not (pair? x))
+          ((pair? x)
+           (write-char #\space p)
+           (print (car x) p slashify level)
+           (print-cdr (cdr x) p slashify level (- length 1)))
+          (else
 	   (printstr " . " p)
            (patom x p slashify level)
-           (write-char (string-ref ")" 0) p))
-          (else
-	   (write-char #\space p)
-           (print (car x) p slashify level)
-           (print-cdr (cdr x) p slashify level (- length 1)))))
+           (write-char (string-ref ")" 0) p))))
 
   (define (printstr s p)
 
@@ -147,11 +150,13 @@
 		      (print-slashed-string x p)
 		      (write-char #\" p))
 	       (printstr x p)))
-	  ((environment? x) (printenvironment x p slashify))
-          ((code-object? x) (printcodeobject x p slashify))
-	  ((vector? x)
-	   (begin (write-char #\# p)
-		  (print (vector->list x) p slashify level)))
+
+	  ((vector? x) (cond ((environment? x) (printenvironment x p slashify))
+                             ((code-object? x) (printcodeobject x p slashify))
+                             ((hashtable? x)   (printhashtable x p slashify))
+                             (else (write-char #\# p)
+                                   (print (vector->list x) p slashify level))))
+
 	  ((procedure? x)           (printprocedure x p slashify))
 	  ((bytevector? x)          (printbytevector x p slashify))
 	  ((eof-object? x)          (printeof x p slashify))
@@ -198,6 +203,9 @@
 
   (define (printenvironment x p slashify)
     ((environment-printer) x p slashify))
+
+  (define (printhashtable x p slashify)
+    ((hashtable-printer) x p slashify))
 
   (define (printprocedure x p slashify)
     ((procedure-printer) x p slashify))
