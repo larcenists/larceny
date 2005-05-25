@@ -710,4 +710,14 @@
         ((null? (cddr ls)) (some3 l (car ls) (cadr ls)))
         (else (some-n (cons l ls)))))
 
+;; Lists as sets
+
+(define (adjoin element list)
+  (if (memq element list)
+      list
+      (cons element list)))
+
+(define (union left right)
+  (foldl adjoin right left))
+
 ; eof
