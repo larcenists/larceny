@@ -55,6 +55,13 @@
     ((%instance/set! instance offset value)
      (vector-set! (%instance/slots instance) offset value))))
 
+(define-syntax %instance/update!
+  (syntax-rules ()
+    ((%instance/set! instance offset proc)
+     (let ((slots (%instance/slots instance))
+           (index offset))
+       (vector-set! slots index (proc (vector-ref slots index)))))))
+
 ;;; end of temporarily here
 
 (define the-slots-of-a-class
@@ -65,17 +72,29 @@
       (direct-slots :initarg :direct-slots :initvalue ())                    ; ((name . options) ...)
       (direct-supers :initarg :direct-supers)                   ; (class ...)
       (field-initializers)              ; (proc ...)
-      (getters-n-setters)               ; ((slot-name getter setter) ...)
+      (getters-n-setters)               ; ((slot-name getter setter updater) ...)
       (initializers)                    ; (proc ...)
       (name :initarg :name :initvalue -anonymous-)             ; a symbol
       (nfields)                         ; an integer
       (serial-number)                   ; a unique integer
       (slots)                           ; ((name . options) ...)
-      (valid-initargs)
-      ))                ; (initarg ...) or #f
+      (direct-additional-initargs :initarg :direct-additional-initargs :initvalue ())
+      (effective-valid-initargs)         ; (initarg ...) or #f
+      ))
+
+;; Make this an interned symbol so that we can dump instances in a
+;; binary file.  Ideally, it would be a non-forgeable object, and
+;; originally it was the value returned by (undefined), but we want
+;; to be able to put the (undefined) object into a slot without
+;; making the slot appear to be unbound.  Making a fresh object on
+;; each start of the system, however, would make it hard to dump
+;; unbound slots.
+
+(define *unbound-slot-value*
+  (intern "[unbound slot value]"))
 
 (define unspecified-initializer
-  (lambda args (undefined)))
+  (lambda args *unbound-slot-value*))
 
 (define object? instance?)
 
@@ -87,6 +106,15 @@
         (%instance/class instance)
         <top>)))
 
+(define (trim-method-specializers list)
+  (define (trimloop tail)
+    (cond ((pair? tail) (if (eq? (car tail) <top>)
+                            (trimloop (cdr tail))
+                            (reverse! tail)))
+          ((null? tail) '())
+          (else (error "Illegal method specializer list." list))))
+  (trimloop (reverse list)))
+
 (define make
   ;; Bootstrap version of make.
   (let ((class-slot-count (length the-slots-of-a-class)))
@@ -94,8 +122,9 @@
       (cond ((or (eq? class <class>)
                  (eq? class <entity-class>))
              (let* ((new      (%make-instance class
-                                              (make-vector class-slot-count (undefined))))
+                                              (make-vector class-slot-count *unbound-slot-value*)))
                     (dinitargs (getarg initargs :direct-default-initargs '()))
+                    (daddinitargs (getarg initargs :direct-additional-initargs '()))
                     (dslots    (getarg initargs :direct-slots '()))
                     (dsupers   (getarg initargs :direct-supers '()))
                     (name      (getarg initargs :name '-anonymous-))
@@ -120,8 +149,9 @@
                        (let ((f nfields))
                          (set! nfields (+ nfields 1))
                          (set! field-initializers (cons init field-initializers))
-                         (list (lambda (o)   (%instance/ref  o f))
-                               (lambda (o n) (%instance/set! o f n))))))
+                         (list (lambda (o)      (%instance/ref  o f))
+                               (lambda (o n)    (%instance/set! o f n))
+                               (lambda (o proc) (%instance/update! o f proc))))))
                     (getters-n-setters
                      (map (lambda (s)
                             (cons (car s) (allocator unspecified-initializer)))
@@ -138,29 +168,35 @@
                (%set-class-name!               new name)
                (%set-class-serial-number!      new (get-serial-number))
                (%set-class-initializers!       new '()) ; no class inits now
-               (%set-class-valid-initargs!     new (append-map
-                                                    (lambda (slot) (getargs (cdr slot) :initarg))
-                                                    (%class-slots new)))
+               (%set-class-direct-additional-initargs! new daddinitargs)
+               (%set-class-effective-valid-initargs! new (append daddinitargs
+                                                                 (append-map %class-direct-additional-initargs
+                                                                             (cdr cpl))
+                                                                 (append-map
+                                                                  (lambda (slot) (getargs (cdr slot) :initarg))
+                                                                  (%class-slots new))))
                new))
             ((eq? class <generic>)
              (let ((new   (%make-entity class
                                         uninitialized-entity-procedure
-                                        (make-vector (length (%class-slots class)) (undefined)))))
+                                        (make-vector (length (%class-slots class)) *unbound-slot-value*))))
                (%set-generic-methods!     new '())
-               (%set-generic-arity!       new (getarg initargs :arity #f))
+               (let ((arity (getarg initargs :arity #f)))
+                 (if arity
+                     (%set-generic-arity! new arity)
+                     (error "Required initarg :arity omitted when constructing a generic function.")))
                (%set-generic-name!        new (getarg initargs :name '-anonymous-generic-))
                (%set-generic-combination! new (getarg initargs :combination #f))
                new))
             ((eq? class <method>)
              (let ((new (%make-entity class
                                       uninitialized-entity-procedure
-                                      (make-vector (length (%class-slots class)) (undefined)))))
-               (%set-method-specializers! new (getarg initargs :specializers '()))
+                                      (make-vector (length (%class-slots class)) *unbound-slot-value*))))
+               (%set-method-specializers! new (trim-method-specializers (getarg initargs :specializers '())))
                (%set-method-procedure!    new (getarg initargs :procedure #f))
                (%set-method-qualifier!    new (getarg initargs :qualifier :primary))
                (%set-method-name!         new (getarg initargs :name '-anonymous-method-))
-               (%set-method-arity!        new (getarg initargs :arity
-                                                      (make-arity-at-least 0)))
+               (%set-method-arity!        new (getarg initargs :arity *unbound-slot-value*))
                (%set-instance/procedure!  new (method:compute-apply-method #f new))
                new))))))
 
@@ -174,7 +210,7 @@
                          ;;   getters-n-setters-for-class
                          ;;   (%class-getters-n-setters class))
                          (%class-getters-n-setters class))
-                   (error "slot-ref: no slot `~e' in ~e" slot-name class))))))
+                   (error "slot-ref: no slot " slot-name " among " (%class-getters-n-setters class)))))))
 
 (define (slot-exists? instance slot-name)
   (assq slot-name (%class-getters-n-setters (class-of instance))))
@@ -193,7 +229,7 @@
          (slot (assq slot-name (%class-getters-n-setters class))))
     (if (not slot)
         (slot-missing class instance slot-name 'slot-bound?)
-        (not (eq? ((cadr slot) instance) (undefined))))))
+        (not (eq? ((cadr slot) instance) *unbound-slot-value*)))))
 
 (define (slot-value instance slot-name)
   (let* ((class (class-of instance))
@@ -201,11 +237,23 @@
     (if (not slot)
         (slot-missing class instance slot-name 'slot-value)
         (let ((value ((cadr slot) instance)))
-          (if (eq? value (undefined))
+          (if (eq? value *unbound-slot-value*)
               (slot-unbound class instance slot-name)
               value)))))
 
 (define slot-ref slot-value)
+
+;; Returns the value in the slot, if the slot is bound.
+;; Returns the default value otherwise.
+(define (slot-value-if-bound instance slot-name default-value)
+  (let* ((class (class-of instance))
+         (slot  (assq slot-name (%class-getters-n-setters class))))
+    (if (not slot)
+        (slot-missing class instance slot-name 'slot-value)
+        (let ((value ((cadr slot) instance)))
+          (if (eq? value *unbound-slot-value*)
+              default-value
+              value)))))
 
 (define (slot-set! instance slot-name new-value)
   (let* ((class (class-of instance))
@@ -214,12 +262,23 @@
         (slot-missing class instance slot-name 'setf new-value)
         ((caddr slot) instance new-value))))
 
+(define (slot-update! instance slot-name proc)
+  (let* ((class (class-of instance))
+         (slot  (assq slot-name (%class-getters-n-setters class))))
+    (if (not slot)
+        (slot-missing class instance slot-name 'update proc)
+        ((cadddr slot) instance
+         (lambda (value)
+           (if (eq? value *unbound-slot-value*)
+               (slot-unbound class instance slot-name)
+               (proc value)))))))
+
 (define (slot-makunbound instance slot-name)
   (let* ((class (class-of instance))
          (slot  (assq slot-name (%class-getters-n-setters class))))
     (if (not slot)
         (slot-missing class instance slot-name 'slot-makunbound)
-        ((caddr slot) instance (undefined)))))
+        ((caddr slot) instance *unbound-slot-value*))))
 
 (define-syntax %slot-ref
   (syntax-rules ()
@@ -231,48 +290,66 @@
     ((%slot-set! object slot-name new-value)
      ((lookup-slot-info (class-of object) slot-name caddr) object new-value))))
 
+(define-syntax %slot-update!
+  (syntax-rules ()
+    ((%slot-update! object slot-name proc)
+     ((lookup-slot-info (class-of object) slot-name cadddr) object proc))))
+
 (define (make-setter-locked! g+s key error)
-  (let ((setter (cadr g+s)))
+  (let ((setter (cadr g+s))
+        (updater (caddr g+s)))
     (set-car! (cdr g+s)
-               (if (eq? key #t)
-                   (lambda (o n)
-                     (if (eq? (undefined) ((car g+s) o))
-                         (setter o n)
-                         (else (error))))
-                   (lambda (o n)
-                     (cond ((and (pair? n) (eq? key (car n)))
-                            (setter o (cdr n)))
-                           ((eq? (undefined) ((car g+s) o)) (setter o n))
-                           (else (error))))))))
+              (if (eq? key #t)
+                  (lambda (o n)
+                    (if (eq? ((car g+s) o) *unbound-slot-value*)
+                        (setter o n)
+                        (else (error))))
+                  (lambda (o n)
+                    (cond ((and (pair? n) (eq? key (car n)))
+                           (setter o (cdr n)))
+                          ((eq? ((car g+s) o) *unbound-slot-value*) (setter o n))
+                          (else (error))))))
+    (set-car! (cddr g+s)
+              (if (eq? key #t)
+                  updater
+                  (lambda (o p)
+                    (cond ((and (pair? p) (eq? key (car p)))
+                           (updater o (cdr p)))
+                          (else (error))))))))
 
 ;;; The core accessors and mutators.
-(define (class-cpl                c) (%slot-ref c 'cpl))
-(define (class-default-initargs   c) (%slot-ref c 'default-initargs))
-(define (class-direct-default-initargs c) (%slot-ref c 'direct-default-initargs))
-(define (class-direct-slots       c) (%slot-ref c 'direct-slots))
-(define (class-direct-supers      c) (%slot-ref c 'direct-supers))
-(define (class-field-initializers c) (%slot-ref c 'field-initializers))
-(define (class-getters-n-setters  c) (%slot-ref c 'getters-n-setters))
-(define (class-initializers       c) (%slot-ref c 'initializers))
-(define (class-name               c) (%slot-ref c 'name))
-(define (class-nfields            c) (%slot-ref c 'nfields))
-(define (class-serial-number      c) (%slot-ref c 'serial-number))
-(define (class-slots              c) (%slot-ref c 'slots))
-(define (class-valid-initargs     c) (%slot-ref c 'valid-initargs))
+(define (class-cpl                          c) (%slot-ref c 'cpl))
+(define (class-default-initargs             c) (%slot-ref c 'default-initargs))
+(define (class-direct-default-initargs      c) (%slot-ref c 'direct-default-initargs))
+(define (class-direct-slots                 c) (%slot-ref c 'direct-slots))
+(define (class-direct-supers                c) (%slot-ref c 'direct-supers))
+(define (class-field-initializers           c) (%slot-ref c 'field-initializers))
+(define (class-getters-n-setters            c) (%slot-ref c 'getters-n-setters))
+(define (class-initializers                 c) (%slot-ref c 'initializers))
+(define (class-name                         c) (%slot-ref c 'name))
+(define (class-nfields                      c) (%slot-ref c 'nfields))
+(define (class-serial-number                c) (%slot-ref c 'serial-number))
+(define (class-slots                        c) (%slot-ref c 'slots))
+(define (class-direct-additional-initargs   c) (%slot-ref c 'direct-additional-initargs))
+(define (class-effective-valid-initargs     c) (%slot-ref c 'effective-valid-initargs))
 
-(define (%set-class-cpl!                     c x) (%slot-set! c 'cpl            x))
-(define (%set-class-default-initargs!        c x) (%slot-set! c 'default-initargs x))
-(define (%set-class-direct-default-initargs! c x) (%slot-set! c 'direct-default-initargs x))
-(define (%set-class-direct-slots!            c x) (%slot-set! c 'direct-slots   x))
-(define (%set-class-direct-supers!           c x) (%slot-set! c 'direct-supers  x))
-(define (%set-class-field-initializers!      c x) (%slot-set! c 'field-initializers x))
-(define (%set-class-getters-n-setters!       c x) (%slot-set! c 'getters-n-setters x))
-(define (%set-class-initializers!            c x) (%slot-set! c 'initializers   x))
-(define (%set-class-name!                    c x) (%slot-set! c 'name           x))
-(define (%set-class-nfields!                 c x) (%slot-set! c 'nfields        x))
-(define (%set-class-serial-number!           c x) (%slot-set! c 'serial-number  x))
-(define (%set-class-slots!                   c x) (%slot-set! c 'slots          x))
-(define (%set-class-valid-initargs!          c x) (%slot-set! c 'valid-initargs x))
+(define (%set-class-cpl!                        c x) (%slot-set! c 'cpl            x))
+(define (%set-class-default-initargs!           c x) (%slot-set! c 'default-initargs x))
+(define (%set-class-direct-default-initargs!    c x) (%slot-set! c 'direct-default-initargs x))
+(define (%set-class-direct-slots!               c x) (%slot-set! c 'direct-slots   x))
+(define (%set-class-direct-supers!              c x) (%slot-set! c 'direct-supers  x))
+(define (%set-class-field-initializers!         c x) (%slot-set! c 'field-initializers x))
+(define (%set-class-getters-n-setters!          c x) (%slot-set! c 'getters-n-setters x))
+(define (%set-class-initializers!               c x) (%slot-set! c 'initializers   x))
+(define (%set-class-name!                       c x) (%slot-set! c 'name           x))
+(define (%set-class-nfields!                    c x) (%slot-set! c 'nfields        x))
+(define (%set-class-serial-number!              c x) (%slot-set! c 'serial-number  x))
+(define (%set-class-slots!                      c x) (%slot-set! c 'slots          x))
+(define (%set-class-direct-additional-initargs! c x) (%slot-set! c 'direct-additional-initargs x))
+(define (%set-class-effective-valid-initargs!   c x) (%slot-set! c 'effective-valid-initargs x))
+
+(define (%update-class-initializers! c x)   (%slot-update! c 'initializers x))
+(define (%update-class-effective-valid-initargs! c x) (%slot-update! c 'effective-valid-initargs x))
 
 (define (generic-arity            g) (%slot-ref g 'arity))
 (define (generic-combination      g) (%slot-ref g 'combination))
@@ -288,6 +365,8 @@
 (define (%set-generic-name!            g x) (%slot-set! g 'name            x))
 (define (%set-generic-singletons-list! g x) (%slot-set! g 'singletons-list x))
 
+(define (%update-generic-methods! g p) (%slot-update! g 'methods p))
+
 (define (method-arity             m) (%slot-ref m 'arity))
 (define (method-name              m) (%slot-ref m 'name))
 (define (method-procedure         m) (%slot-ref m 'procedure))
@@ -298,7 +377,7 @@
 (define (%set-method-name!          m x) (%slot-set! m 'name           x))
 (define (%set-method-procedure!     m x) (%slot-set! m 'procedure      x))
 (define (%set-method-qualifier!     m x) (%slot-set! m 'qualifier      x))
-(define (%set-method-specializers!  m x) (%slot-set! m 'specializers   x))
+(define (%set-method-specializers!  m x) (%slot-set! m 'specializers   (trim-method-specializers x)))
 
 ;;; These versions will be replaced with optimized versions later.
 (define %class-cpl                class-cpl)
@@ -313,7 +392,8 @@
 (define %class-serial-number      class-serial-number)
 (define %class-nfields            class-nfields)
 (define %class-slots              class-slots)
-(define %class-valid-initargs     class-valid-initargs)
+(define %class-direct-additional-initargs     class-direct-additional-initargs)
+(define %class-effective-valid-initargs     class-effective-valid-initargs)
 
 (define %generic-arity            generic-arity)
 (define %generic-combination      generic-combination)
@@ -421,13 +501,39 @@
   (or (eq? c <top>)
       (if (%singleton? c)
           (eq? (singleton-value c) x)
-          (let ((cc (cond ((record-type-descriptor? c) (record-type->class c))
-                          ((struct-type? c) (struct-type->class c))
-                          (else c)))
-                (cx (class-of x)))
-            (memq cc (%class-cpl (cond ((record-type-descriptor? cx) (record-type->class cx))
-                                       ((struct-type? cx) (struct-type->class cx))
-                                       (else cx))))))))
+          (let ((cx (class-of x)))
+            (or (eq? cx c)
+                (let ((cc (cond ((record-type-descriptor? c) (record-type->class c))
+                                ((struct-type? c) (struct-type->class c))
+                                (else c))))
+                  (memq cc (%class-cpl (cond ;; ((record-type-descriptor? cx) (record-type->class cx))
+                                             ((struct-type? cx) (struct-type->class cx))
+                                             (else cx))))))))))
+
+;; Given a class, singleton, record-type-descriptor, or struct-type,
+;; return a predicate that tests if instances belong.
+;; This is generally a much quicker test than the equivalent instance-of?
+
+(define (class-predicate c)
+  (cond ((eq? c <top>)  (lambda (object) #t))
+        ((singleton? c) (let ((value (singleton-value c)))
+                          (lambda (object) (eq? object value))))
+        ((record-type-descriptor? c) (class-predicate (record-type->class c)))
+        ((struct-type? c) (class-predicate (struct-type->class c)))
+
+        ((subclass? c <object>)
+         ;; If the class is an object class, then non-instances cannot
+         ;; be members.
+         (lambda (object)
+           (and (instance? object)
+                (let ((object-class (%instance/class object)))
+                  (or (eq? c object-class);; a common case
+                      (memq c (%class-cpl object-class)))))))
+
+        (else (lambda (object)
+                (let ((object-class (class-of object)))
+                  (or (eq? c object-class);; a common case
+                      (memq c (%class-cpl object-class))))))))
 
 ;;; Return #t if each item is an instance of the corresponding class.
 ;;; Stops at the shortest of the two lists.
@@ -450,13 +556,14 @@
 ;;>   Slots:
 ;;>   * default-initargs: initargs
 ;;>   * direct-default-initargs: direct initargs
+;;>   * direct-additional-initargs: more initargs that don't initialize slots, but are allowed
 ;;>   * direct-supers:  direct superclasses
 ;;>   * direct-slots:   direct slots, each a list of a name and options
 ;;>   * cpl:            class precedence list (classes list this to <top>)
 ;;>   * slots:          all slots (like direct slots)
 ;;>   * nfields:        number of fields
 ;;>   * field-initializers: a list of functions to initialize slots
-;;>   * getters-n-setters:  an alist of slot-names, getters, and setters
+;;>   * getters-n-setters:  an alist of slot-names, getters, setters, and updaters
 ;;>   * name:           class name (usually the defined identifier)
 ;;>   * serial-number:  a unique integer used for dispatching on the class
 ;;>   * initializers:   procedure list that perform additional initializing
@@ -464,7 +571,7 @@
 ;;>   arguments and their effect.
 
 (define <class>
-  (let ((instance (%make-instance #f (make-vector (length the-slots-of-a-class) (undefined)))))
+  (let ((instance (%make-instance #f (make-vector (length the-slots-of-a-class) *unbound-slot-value*))))
     ;; BOOTSTRAP STEP
     ;; Set class of class to itself
     (set-instance-class-to-self! instance)
@@ -475,7 +582,8 @@
          (let ((f (position-of (car s) (map car the-slots-of-a-class))))
            (list (car s)
                  (lambda (o)   (%instance/ref  o f))
-                 (lambda (o n) (%instance/set! o f n)))))
+                 (lambda (o n) (%instance/set! o f n))
+                 (lambda (o p) (%instance/update! o f p)))))
        the-slots-of-a-class))
 
 ;; BOOTSTRAP STEP
@@ -518,7 +626,7 @@
 (%set-class-direct-supers!      <class> (list <object>))
 (%set-class-direct-slots!       <class> the-slots-of-a-class)
 (%set-class-field-initializers! <class> (map (lambda (s)
-                                               (let ((initvalue (getarg (cdr s) :initvalue (undefined))))
+                                               (let ((initvalue (getarg (cdr s) :initvalue *unbound-slot-value*)))
                                                  (lambda args initvalue)))
                                              the-slots-of-a-class))
 (%set-class-initializers!       <class> '())
@@ -526,9 +634,10 @@
 (%set-class-nfields!            <class> (length the-slots-of-a-class))
 (%set-class-serial-number!      <class> (get-serial-number))
 (%set-class-slots!              <class> the-slots-of-a-class)
-(%set-class-valid-initargs!     <class> (append-map
-                                         (lambda (slot) (getargs (cdr slot) :initarg))
-                                         the-slots-of-a-class))
+(%set-class-direct-additional-initargs! <class> '())
+(%set-class-effective-valid-initargs!   <class> (append-map
+                                                 (lambda (slot) (getargs (cdr slot) :initarg))
+                                                 the-slots-of-a-class))
 
 ;;; At this point <top>, <class>, and <object> have been created and initialized.
 
@@ -597,10 +706,10 @@
 ;;>                  `make-generic-combination' below for details
 (define <generic>
   (make <entity-class>
+    :direct-additional-initargs '(:method)
     :direct-supers (list <object> <function>)
     :direct-slots  '((methods)
-                      (arity :initarg :arity
-                             :initvalue #f)
+                      (arity :initarg :arity) ;; required initarg
                       (name  :initarg :name
                              :initvalue -anonymous-generic-)
                       (combination :initarg :combination
@@ -623,13 +732,14 @@
 (define <method>
   (make <entity-class>
     :direct-supers (list <object> <function>)
-    :direct-slots  '((specializers :initarg :specializers)
-                      (procedure    :initarg :procedure)
-                      (qualifier    :initarg :qualifier
-                                    :initvalue :primary)
-                      (name         :initarg :name
-                                    :initvalue -anonymous-method-)
-                      (arity        :initarg :arity))
+    :direct-slots  '((specializers :initarg :specializers
+                                   :initvalue ())
+                     (procedure    :initarg :procedure)
+                     (qualifier    :initarg :qualifier
+                                   :initvalue :primary)
+                     (name         :initarg :name
+                                   :initvalue -anonymous-method-)
+                     (arity        :initarg :arity))
     :name          '<method>))
 
 ;; Do this since compute-apply-method relies on them not changing, as well as a
@@ -639,7 +749,7 @@
  (lambda (slot)
    (make-setter-locked!
     (lookup-slot-info <method> slot cdr) #t
-    (lambda () (error "SLOT-SET!:  slot is locked" slot))))
+    (lambda () (error "SLOT-SET!:  slot is locked " slot))))
  '(specializers
    procedure
    qualifier))
@@ -647,36 +757,41 @@
 ;;; True if left-method has the same qualifier as and compatible
 ;;; specializers with right-method.
 
+;;; Used to remove methods that are redefined.
 (define (same-method-signature? left-method right-method)
   (and (eq? (method-qualifier left-method)
             (method-qualifier right-method))
        (let loop ((left-specs  (method-specializers left-method))
                   (right-specs (method-specializers right-method)))
-         (if (pair? left-specs)
-             (if (pair? right-specs)
-                 (and (eq? (car left-specs) (car right-specs))
-                      (loop (cdr left-specs) (cdr right-specs)))
-                 (or (null? right-specs)
-                     (error "Bad specializer list" (method-specializers right-method))))
-             (or (null? left-specs)
-                 (error "Bad specializer list" (method-specializers left-method)))))))
+         (cond ((pair? left-specs) (cond ((pair? right-specs) (and (eq? (car left-specs) (car right-specs))
+                                                                   (loop (cdr left-specs) (cdr right-specs))))
+                                         ((null? right-specs) #f)
+                                         (else (error "Bad specializer list" (method-specializers right-method)))))
+               ((null? left-specs) (cond ((pair? right-specs) #f)
+                                         ((null? right-specs) #t)
+                                         (else (error "Bad specializer list" (method-specializers right-method)))))
+               (else (error "Bad specializer list" (method-specializers left-method)))))))
 
 (define (check-initargs class initargs)
   ;; sanity check - verify sensible keywords given
-  (let ((valid-initargs (%class-valid-initargs class)))
-    (let loop ((args initargs))
-      (cond ((or (null? args) (not valid-initargs))
-             #t)
-            ((not (and (pair? args) (pair? (cdr args))))
-             (error "MAKE: error in initargs; arg list not balanced"
-                    class))
-            ((not (symbol? (car args)))
-             (error "MAKE: error in initargs; initarg is not a keyword"
-                    class (car args)))
-            ((not (memq (car args) valid-initargs))
-             (error "MAKE: error in initargs for; unknown keyword"
-                    class (car args)))
-            (else (loop (cddr args)))))))
+  (let ((valid-initargs (%class-effective-valid-initargs class)))
+    (or (not valid-initargs)
+        (let scan ((args initargs))
+          (cond ((pair? args) (let ((key (car args)))
+                                (cond ((memq key valid-initargs)
+                                       (let ((tail (cdr args)))
+                                         (if (pair? tail)
+                                             (scan (cdr tail))
+                                             (error "MAKE: error in initargs; arg list not balanced"
+                                                    class initargs))))
+                                      ((symbol? key)
+                                       (error "MAKE: error in initargs for; unknown keyword"
+                                              class (car args)))
+                                      (else
+                                       (error "MAKE: error in initargs; initarg is not a keyword"
+                                              class (car args))))))
+                ((null? args) #t)
+                (else (error "MAKE: error in initargs; improper arg list." class initargs)))))))
 
 ;;>> (no-next-method generic method [args ...])
 ;;>> (no-applicable-method generic [args ...])
@@ -687,8 +802,8 @@
 ;;>   only difference is that in Ripoff methods can be applied directly,
 ;;>   and if `call-next-method' is used, then `no-next-method' gets `#f' for
 ;;>   the generic argument.
-(define no-applicable-method (make <generic> :name 'no-applicable-method))
-(define no-next-method       (make <generic> :name 'no-next-method))
+(define no-applicable-method (make <generic> :name 'no-applicable-method :arity (make-arity-at-least 1)))
+(define no-next-method       (make <generic> :name 'no-next-method :arity (make-arity-at-least 2)))
 
 (define (method:wrong-type-argument method bad-argument expected-type)
   (error
@@ -712,14 +827,17 @@
 ;;; instance-proc of methods, which is activated when you apply the object (in
 ;;; the original, methods could not be applied).  This is defined using this
 ;;; name and arguments because it is later used directly by the generic
-;;; function (cannot use the generic in the inital make since methods need to
+;;; function (cannot use the generic in the initial make since methods need to
 ;;; be created when the generics are constructed).
 
 ;;; NOTE:  This is NOT the code run when the method is invoked as part
 ;;; of a generic function.
 (define (method:compute-apply-method call-next-method method)
   (let* ((specializers (%method-specializers method))
-         (arity    (method-arity method))
+         (arity    (let ((raw-arity (%method-arity method)))
+                     (if (eq? raw-arity *unbound-slot-value*)
+                         (make-arity-at-least (length specializers))
+                         raw-arity)))
          (exact?   (and (integer? arity) (exact? arity)))
          (required ((if exact? identity arity-at-least-value) arity)))
 
@@ -764,17 +882,8 @@
     :direct-supers (list <class>)
     :name          '<primitive-class>))
 
-;;>> <builtin>
-;;>   The superclass of all built-in classes.
-(define <builtin>
-  (make <class>
-    :direct-supers (list <top>)
-    :name          '<builtin>))
-
-;;>   Predicates for instances of <builtin>, <function>, <generic>, and
+;;>   Predicates for instances of <function>, <generic>, and
 ;;>   <method>.
-(define (builtin?  x) (instance-of? x <builtin>))
-(define (class?    x) (instance-of? x <class>))
-(define (function? x) (instance-of? x <function>))
-(define (generic?  x) (instance-of? x <generic>))
-(define (method?   x) (instance-of? x <method>))
+(define class?    (class-predicate <class>))
+(define generic?  (class-predicate <generic>))
+(define method?   (class-predicate <method>))
