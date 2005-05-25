@@ -124,6 +124,8 @@
                 b = b - 2;
                 if (b < p.rib.Length) {
                     p.rib[b] = arg3;
+		    if (b == 0)
+			p.parent = (Procedure) arg3;
                     return Factory.Unspecified;
                 }
             }
