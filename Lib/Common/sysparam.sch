@@ -16,17 +16,17 @@
 ;; No need to protect this!
 ;      (call-without-interrupts
 ;        (lambda ()
-          (cond ((null? args)
-                 value)
-                ((null? (cdr args))
-                 (if (ok? (car args))
-                     (begin (set! value (car args))
-                            value)
-                     (begin (error name ": Invalid value " (car args))
-                            #t)))
-                (else
-                 (error name ": too many arguments.")
-                 #t))
+          (if (pair? args)
+              (if (null? (cdr args))
+                  (let ((new-value (car args)))
+                    (if (ok? new-value)
+                        (begin (set! value new-value)
+                               value)
+                        (begin (error name ": Invalid value " (car args))
+                               #t)))
+                  (begin (error name ": too many arguments.")
+                         #t))
+              value)
 ;             ))
           )))
 
