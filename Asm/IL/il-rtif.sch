@@ -182,10 +182,11 @@
    ;(il 'castclass iltype-procedure)
    (let loop ((count up))
      (cond ((zero? count) '())
-           (else (list (rep:procedure-rib)
-                       (il 'ldc.i4 0)
-                       (il 'ldelem.ref)
-                       (il 'castclass iltype-procedure)
+           (else (list ;(rep:procedure-rib)
+                       ;(il 'ldc.i4 0)
+                       ;(il 'ldelem.ref)
+                       ;(il 'castclass iltype-procedure)
+                       (rep:procedure-parent)
                        (loop (- count 1))))))))
 
 ;; rep:load-rib : number -> ilpackage
@@ -194,6 +195,11 @@
 (define (rep:load-rib up)
   (list (rep:load-static-link up)
         (rep:procedure-rib)))
+
+;; rep:procedure-parent : -> ilpackage
+;; Pops procedure, loads procedure's parent
+(define (rep:procedure-parent)
+  (il:ldfld iltype-procedure il-procedure "parent"))
 
 ;; rep:procedure-rib : -> ilpackage
 ;; Pops procedure, loads procedure's env rib
