@@ -72,7 +72,7 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme -Gqfmv $(InputPath)&#x0D;&#x0A;"
 					Outputs="..\..\..\..\dotnet.heap.exe"
 				/>
 			</FileConfiguration>
@@ -81,7 +81,7 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme -Gqfmv $(InputPath)&#x0D;&#x0A;"
 					Outputs="..\..\..\..\dotnet.heap.exe"
 				/>
 			</FileConfiguration>

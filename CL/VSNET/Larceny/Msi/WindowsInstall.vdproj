@@ -213,6 +213,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_214EE888048B47F5B14BCC84CC847268"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\PREPROCESS\\PREPROCESS.VCPROJ"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_21B17C3763A944B58D307725685B5D80"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\ASM\\IL\\IL.IMP2.SCH"
@@ -393,6 +399,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_3EC03E643E924739AC28063597549CD7"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\BUNDLE\\BUNDLEZIP.SS"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_3EDAC3FC01DD49A19785FEF072485FD8"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\COMMON\\JAVADOT-SYNTAX.SCH"
@@ -429,9 +441,21 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_41A948DBA57843709CE91E675518973F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\MSI\\WINDOWSINSTALL.VDPROJ"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_4270EE73FA3C4C4791D8D6BF5F881A3D"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\MAKEFILE"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_43537C1CA83247E8B29254D5AF203153"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\BUNDLE\\BUNDLE.VCPROJ"
         }
         "Entry"
         {
@@ -543,6 +567,18 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_58A20B9C541A452C97E609CDA4F35551"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\CONFIGURE\\CONFIGURE.SS"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_58E9B278E47B42A8A5DD2147F4ACEB04"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\HEAP\\HEAP.VCPROJ"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_593B192CC99C41FA894E03A1CAFF6BBE"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VSNET\\LARCENY\\LARCENY.SLN"
@@ -567,6 +603,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_5E5F60F39BC848FFA126FA2ED9043DDD"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\BUNDLE\\BUNDLEPLT.SS"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_5EA793019E174C38905BBF35CAD145AE"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\RTS\\DOTNET\\CLASSICOPSSPECIAL.CS"
@@ -585,9 +627,9 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_61569D0991E34C88A669074D3A892C87"
+        "MsmKey" = "8:_60AD12E8221747CAA9DA9AE14DF895B3"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\MZSCHEME\\NAMESPACE.SCH"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\LARCENY.SLN"
         }
         "Entry"
         {
@@ -747,6 +789,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_7BFE827E014445B7AF9A422A55F71BFA"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\HEAP\\REBUILD.SS"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_7C670A3A26BD422EA1742E42F0ABA569"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\COMMON\\EHANDLER.SCH"
@@ -873,6 +921,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_8CBEAEAA8ED1486BA90EB54C134C8CC2"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\RTS\\DOTNET\\SCHEME.CSPROJ8"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_8CD883312932496C827BD5F17C24CCA7"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\UTIL\\DOTNET.SCH"
@@ -882,6 +936,12 @@
         "MsmKey" = "8:_8D5D232A3EFB4DE78CD6251A4833C59E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\PASS3FOLDING.SCH"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_8E79E2C610D84DB4A35B41E894F018AD"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\CONFIGURE\\CONFIGURE.VCPROJ"
         }
         "Entry"
         {
@@ -1116,6 +1176,12 @@
         "MsmKey" = "8:_A8536D79C06B443FA0872BEEC1452CCB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\ASM\\COMMON\\ASMUTIL32.SCH"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_A87DB565181F4BF69B6D66D36AA7AE64"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\MZSCHEME\\GPRINT.SCH"
         }
         "Entry"
         {
@@ -1611,18 +1677,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_F0909BC4558C48E789B004EF6E786005"
-        "OwnerKey" = "8:_63CC8CBCF2E74879857609C1AEB4CD7F"
-        "MsmSig" = "8:mondo.E4183BB4_18A8_11D5_A549_0090278A1BB8"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F0909BC4558C48E789B004EF6E786005"
-        "OwnerKey" = "8:_CE6748F6E1BA40E8ADA6CE5E920CAB62"
-        "MsmSig" = "8:mondo.E4183BB4_18A8_11D5_A549_0090278A1BB8"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_F0D5B1065F0B44FDB9256C1260ECC224"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\SYNTAXENV.SCH"
@@ -1632,6 +1686,12 @@
         "MsmKey" = "8:_F1A983D2CF1C40D8B2C61068DD1D855A"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\INTERPRETER\\MACRO-EXPAND.SCH"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_F212B90655DD47CAAA1C584E558E863C"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\RTS\\DOTNET\\ASSEMBLYINFO.CS"
         }
         "Entry"
         {
@@ -1680,6 +1740,12 @@
         "MsmKey" = "8:_F98F11ADA6584C8AAEED7A248E632421"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\RTS\\DOTNET\\MACROS.H"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_FA7E702F8F3845199E25E63A246EC778"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\BUNDLE\\BUNDLETAR.SS"
         }
         "Entry"
         {
@@ -2417,6 +2483,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_214EE888048B47F5B14BCC84CC847268"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Preprocess\\Preprocess.vcproj"
+            "TargetName" = "8:Preprocess.vcproj"
+            "Tag" = "8:"
+            "Folder" = "8:_3C364FA8795A4A97A331D7DC04DB58AF"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_21B17C3763A944B58D307725685B5D80"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Asm\\IL\\il.imp2.sch"
@@ -3017,6 +3103,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_3EC03E643E924739AC28063597549CD7"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Bundle\\bundlezip.ss"
+            "TargetName" = "8:bundlezip.ss"
+            "Tag" = "8:"
+            "Folder" = "8:_3EFD622A758A4193A9EAC2CC16A8946C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_3EDAC3FC01DD49A19785FEF072485FD8"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Lib\\Common\\javadot-syntax.sch"
@@ -3137,12 +3243,52 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_41A948DBA57843709CE91E675518973F"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Msi\\WindowsInstall.vdproj"
+            "TargetName" = "8:WindowsInstall.vdproj"
+            "Tag" = "8:"
+            "Folder" = "8:_6DDEEC440BC8410BB0AFBE1AFF7024FA"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_4270EE73FA3C4C4791D8D6BF5F881A3D"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\Makefile"
             "TargetName" = "8:Makefile"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_43537C1CA83247E8B29254D5AF203153"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Bundle\\Bundle.vcproj"
+            "TargetName" = "8:Bundle.vcproj"
+            "Tag" = "8:"
+            "Folder" = "8:_3EFD622A758A4193A9EAC2CC16A8946C"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -3517,6 +3663,46 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_58A20B9C541A452C97E609CDA4F35551"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Configure\\Configure.ss"
+            "TargetName" = "8:Configure.ss"
+            "Tag" = "8:"
+            "Folder" = "8:_D23050D5FDA045D2B57EAD7A4B1DE870"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_58E9B278E47B42A8A5DD2147F4ACEB04"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Heap\\Heap.vcproj"
+            "TargetName" = "8:Heap.vcproj"
+            "Tag" = "8:"
+            "Folder" = "8:_93C32AFD7AC54824AC572A284E869C54"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_593B192CC99C41FA894E03A1CAFF6BBE"
             {
             "SourcePath" = "8:..\\Larceny.sln"
@@ -3597,6 +3783,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_5E5F60F39BC848FFA126FA2ED9043DDD"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Bundle\\bundleplt.ss"
+            "TargetName" = "8:bundleplt.ss"
+            "Tag" = "8:"
+            "Folder" = "8:_3EFD622A758A4193A9EAC2CC16A8946C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_5EA793019E174C38905BBF35CAD145AE"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Rts\\DotNet\\ClassicOpsSpecial.cs"
@@ -3657,12 +3863,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_61569D0991E34C88A669074D3A892C87"
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_60AD12E8221747CAA9DA9AE14DF895B3"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Lib\\MzScheme\\namespace.sch"
-            "TargetName" = "8:namespace.sch"
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Larceny.sln"
+            "TargetName" = "8:Larceny.sln"
             "Tag" = "8:"
-            "Folder" = "8:_1F4C602FB98A4CE59E470D3D85518411"
+            "Folder" = "8:_CBB1CB63A0244CC29F0C79DB46925982"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -4208,6 +4414,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_7BFE827E014445B7AF9A422A55F71BFA"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Heap\\Rebuild.ss"
+            "TargetName" = "8:Rebuild.ss"
+            "Tag" = "8:"
+            "Folder" = "8:_93C32AFD7AC54824AC572A284E869C54"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_7C670A3A26BD422EA1742E42F0ABA569"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Lib\\Common\\ehandler.sch"
@@ -4628,6 +4854,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_8CBEAEAA8ED1486BA90EB54C134C8CC2"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\Rts\\DotNet\\Scheme.csproj8"
+            "TargetName" = "8:Scheme.csproj8"
+            "Tag" = "8:"
+            "Folder" = "8:_6DD22B1832444E7987E2815FCE57CC7B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_8CD883312932496C827BD5F17C24CCA7"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Util\\dotnet.sch"
@@ -4654,6 +4900,26 @@
             "TargetName" = "8:pass3folding.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_8E79E2C610D84DB4A35B41E894F018AD"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Configure\\Configure.vcproj"
+            "TargetName" = "8:Configure.vcproj"
+            "Tag" = "8:"
+            "Folder" = "8:_D23050D5FDA045D2B57EAD7A4B1DE870"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -5445,6 +5711,26 @@
             "TargetName" = "8:asmutil32.sch"
             "Tag" = "8:"
             "Folder" = "8:_92594605A190409C98C80BFE9AE9C4AB"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_A87DB565181F4BF69B6D66D36AA7AE64"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\Lib\\MzScheme\\gprint.sch"
+            "TargetName" = "8:gprint.sch"
+            "Tag" = "8:"
+            "Folder" = "8:_1F4C602FB98A4CE59E470D3D85518411"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -7161,6 +7447,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F212B90655DD47CAAA1C584E558E863C"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\Rts\\DotNet\\AssemblyInfo.cs"
+            "TargetName" = "8:AssemblyInfo.cs"
+            "Tag" = "8:"
+            "Folder" = "8:_6DD22B1832444E7987E2815FCE57CC7B"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F4806272BDD546E9B91C51C3AC3CBBA4"
             {
             "SourcePath" = "8:..\\Heap\\Heap.vcproj"
@@ -7321,6 +7627,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_FA7E702F8F3845199E25E63A246EC778"
+            {
+            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Bundle\\bundletar.ss"
+            "TargetName" = "8:bundletar.ss"
+            "Tag" = "8:"
+            "Folder" = "8:_3EFD622A758A4193A9EAC2CC16A8946C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_FCADED205BF249DF96B147006412EDCA"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\standard-C.imp.sch"
@@ -7459,6 +7785,83 @@
                     "Property" = "8:_F92A0C246F814E0C8E8EEA346A930312"
                         "Folders"
                         {
+                            "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_0AB6601E3DC74330AF6B991BB041A1B6"
+                            {
+                            "Name" = "8:VS8"
+                            "AlwaysCreate" = "11:FALSE"
+                            "Condition" = "8:"
+                            "Transitive" = "11:FALSE"
+                            "Property" = "8:_301A90CD13704A5FBDF85B23B082E7F6"
+                                "Folders"
+                                {
+                                    "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_CBB1CB63A0244CC29F0C79DB46925982"
+                                    {
+                                    "Name" = "8:Larceny"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "Property" = "8:_48963853693745B88F9EC68DFAB3B2F7"
+                                        "Folders"
+                                        {
+                                            "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_3C364FA8795A4A97A331D7DC04DB58AF"
+                                            {
+                                            "Name" = "8:Preprocess"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "Property" = "8:_48877EF11C4B42D9B29D0DD58DF7A0C0"
+                                                "Folders"
+                                                {
+                                                }
+                                            }
+                                            "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_3EFD622A758A4193A9EAC2CC16A8946C"
+                                            {
+                                            "Name" = "8:Bundle"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "Property" = "8:_6EFBBFB09BA54834BF8E90BD58686DBF"
+                                                "Folders"
+                                                {
+                                                }
+                                            }
+                                            "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_6DDEEC440BC8410BB0AFBE1AFF7024FA"
+                                            {
+                                            "Name" = "8:Msi"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "Property" = "8:_B620FBB610F142C18AC71CCDBF61F4C6"
+                                                "Folders"
+                                                {
+                                                }
+                                            }
+                                            "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_93C32AFD7AC54824AC572A284E869C54"
+                                            {
+                                            "Name" = "8:Heap"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "Property" = "8:_B3FE6A3371E74844994CA052DC54C735"
+                                                "Folders"
+                                                {
+                                                }
+                                            }
+                                            "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_D23050D5FDA045D2B57EAD7A4B1DE870"
+                                            {
+                                            "Name" = "8:Configure"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "Property" = "8:_7DA2A0CECA054547BF39B777E5EF9256"
+                                                "Folders"
+                                                {
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             "{461E96AF-1495-11D3-8D6C-00A0C9CFCEE6}:_83970AA49D37444294EEBC11DA2443D4"
                             {
                             "Name" = "8:VSNET"
@@ -7949,21 +8352,6 @@
         }
         "MergeModule"
         {
-            "{AC8774A4-3E09-11D3-8E14-00C04F6837D0}:_F0909BC4558C48E789B004EF6E786005"
-            {
-            "UseDynamicProperties" = "11:TRUE"
-            "IsDependency" = "11:TRUE"
-            "SourcePath" = "8:dotnetfxredist_x86_enu.msm"
-            "ModuleSignature" = "8:mondo.E4183BB4_18A8_11D5_A549_0090278A1BB8"
-                "Properties"
-                {
-                }
-            "LanguageId" = "3:1033"
-            "Exclude" = "11:TRUE"
-            "Folder" = "8:"
-            "Feature" = "8:"
-            "IsolateTo" = "8:"
-            }
         }
         "UserInterface"
         {

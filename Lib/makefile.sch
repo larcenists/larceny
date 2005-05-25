@@ -226,6 +226,8 @@
                   "record" "inspector"
                   "struct-proc0" "struct-proc" "struct" "struct-macros"
                   "instance0" "instance" "class" "generic" "gprint" ; Ripoff
+                  ;; mzscheme module support, under development
+                  ;; "mzobj" "wrap-pos" "graph"
                   )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
