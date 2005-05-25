@@ -141,7 +141,7 @@ public class Instructions {
         Procedure thisProc = Reg.register0;
 
         if (numRegs < Reg.LASTREG) {
-            Reg.Result = new Procedure (codevector, thisProc.constants[constIndex], Reg.Close(numRegs));
+            Reg.Result = new Procedure (codevector, (SVL) thisProc.constants[constIndex], thisProc, Reg.Close(numRegs));
         } else {
             SObject[] environment = new SObject[numRegs+1];
             for (int i = 0; i <= Reg.LASTREG -1; ++i) {
@@ -153,7 +153,7 @@ public class Instructions {
                 environment[i] = restpair.first;
                 restlist = restpair.rest;
             }
-        Reg.Result = new Procedure(codevector, thisProc.constants[constIndex], environment);
+	    Reg.Result = new Procedure(codevector, (SVL) thisProc.constants[constIndex], thisProc, environment);
         }
     }
 
@@ -164,7 +164,7 @@ public class Instructions {
         Procedure thisProc = Reg.register0;
 
         if (numRegs < Reg.LASTREG) {
-           Reg.Result = new Procedure (thisProc.entrypoint, thisProc.constantvector, Reg.Close (numRegs));
+	    Reg.Result = new Procedure (thisProc.entrypoint, (SVL) thisProc.constantvector, thisProc, Reg.Close (numRegs));
         } else {
             SObject[] environment = new SObject[numRegs+1];
             for (int i = 0; i <= Reg.LASTREG -1; ++i) {
@@ -177,7 +177,8 @@ public class Instructions {
                 restlist = restpair.rest;
             }
         Reg.Result = new Procedure(thisProc.entrypoint,
-                                   thisProc.constantvector,
+                                   (SVL) thisProc.constantvector,
+				   thisProc,
                                    environment);
         }
     }
