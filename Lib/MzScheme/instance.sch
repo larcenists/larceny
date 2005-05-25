@@ -95,6 +95,13 @@
 ;;; <instance> must be an instance, <index> must be an exact positive integer
 ;;; smaller than the length of the <instance>'s state vector.  Mutates the
 ;;; <index>th field of <instance> to contain <new-value>.
+;;;
+;;; (instance/update! <instance> <index> <procedure>)                  Procedure
+;;;
+;;; <instance> must be an instance, <index> must be an exact positive integer
+;;; smaller than the length of the <instance>'s state vector.  Reads the <index>th
+;;; field of <instance>, applies <procedure> to that value, and stores the
+;;; value computed by <procedure> back into the field.
 
 ;;; Performance API
 ;;;
@@ -110,6 +117,8 @@
 ;;; (%instance/ref <instance> <index>)                                    Syntax
 ;;;
 ;;; (%instance/set! <instance> <index> <new-value>)                       Syntax
+;;;
+;;; (%instance/update! <instance> <index> <procedure>)                    Syntax
 
 ;;; Special API
 ;;;
@@ -228,12 +237,22 @@
     ((%instance/set! instance offset value)
      (vector-set! (%instance/slots instance) offset value))))
 
+(define-syntax %instance/update!
+  (syntax-rules ()
+    ((%instance/set! instance offset proc)
+     (let ((slots (%instance/slots instance))
+           (index offset))
+       (vector-set! slots index (proc (vector-ref slots index)))))))
+
 (define (instance/class instance)      (%instance/class instance))
 (define (instance/procedure instance)  (%instance/procedure instance))
 (define (instance/ref instance offset) (%instance/ref instance offset))
 
 (define (instance/set! instance offset new-value)
   (%instance/set! instance offset new-value))
+
+(define (instance/update! instance offset proc)
+  (%instance/update! instance offset proc))
 
 ;; This is used to dynamically change the class of an instance.
 (define (instance/replace! old-instance new-instance)
