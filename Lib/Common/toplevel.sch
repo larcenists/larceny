@@ -358,9 +358,7 @@
 
   (environment-set! larc 'case-sensitive? case-sensitive?)
   (environment-set! larc 'read-square-bracket-as-paren read-square-bracket-as-paren)
-  (environment-set! larc
-                    'recognize-javadot-symbols?
-                    recognize-javadot-symbols?)
+  (environment-set! larc 'recognize-javadot-symbols? recognize-javadot-symbols?)
   (environment-set! larc 'javadot-type-suffix javadot-type-suffix)
   (environment-set! larc 'javadot-generic-suffix javadot-generic-suffix)
   ;;(environment-set! larc 'recognize-keywords? recognize-keywords?)
@@ -371,6 +369,7 @@
 
   ;; pairs and lists
 
+  (environment-set! larc 'adjoin adjoin)
   (environment-set! larc 'append! append!)
   (environment-set! larc 'append-map append-map)
   (environment-set! larc 'append-map! append-map!)
@@ -413,12 +412,14 @@
   (environment-set! larc 'set-last! set-last!)
   (environment-set! larc 'shorter? shorter?)
   (environment-set! larc 'some? some?)
+  (environment-set! larc 'union union)
 
   ;; hash functions and hashtables
 
   (environment-set! larc 'object-hash object-hash)
   (environment-set! larc 'equal-hash equal-hash)
   (environment-set! larc 'make-hashtable make-hashtable)
+  (environment-set! larc 'hashtable? hashtable?)
   (environment-set! larc 'hashtable-contains? hashtable-contains?)
   (environment-set! larc 'hashtable-fetch hashtable-fetch)
   (environment-set! larc 'hashtable-get hashtable-get)
@@ -434,6 +435,7 @@
 
   (environment-set! larc 'symbol-hash symbol-hash)
   (environment-set! larc 'gensym gensym)
+  (environment-set! larc 'uninterned-symbol? uninterned-symbol?)
   (environment-set! larc 'oblist oblist)
   (environment-set! larc 'oblist-set! oblist-set!)
 
@@ -538,6 +540,7 @@
   (environment-set! larc 'flush-output-port flush-output-port)
   (environment-set! larc 'format format)
   (environment-set! larc 'get-output-string get-output-string)
+  (environment-set! larc 'hashtable-printer hashtable-printer)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-binary-input-file open-binary-input-file)
   (environment-set! larc 'open-binary-output-file open-binary-output-file)
