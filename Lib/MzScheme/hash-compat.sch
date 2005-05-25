@@ -1,6 +1,4 @@
-
-(define hashtable-tag-object
-  (vector-ref (make-hashtable) 0))
+($$trace "hash-compat")
 
 (define (make-hash-table . flags)
   (if (pair? flags)
@@ -33,13 +31,15 @@
 
 (define (hash-table-remove! h k)
   (hashtable-remove! h k))
+
 (define (hash-table? v)
-  (and (vector? v)
-       (= 5 (vector-length v))
-       (eq? hashtable-tag-object
-            (vector-ref v 0))))
+  (hashtable? v))
 
 (define (hash-table-map h f)
   (hashtable-map f h))
+
 (define (hash-table-for-each h f)
   (hashtable-for-each f h))
+
+(define (hash-table-count h)
+  (hashtable-size h))
