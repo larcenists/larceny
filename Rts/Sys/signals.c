@@ -95,7 +95,7 @@ int sigsetmask( int );		/* Should be in <signal.h> but isn't */
 #if defined(WIN32_SIGNALS)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-static __stdcall int win32_inthandler(unsigned long sig);
+static int __stdcall win32_inthandler(unsigned long sig);
 #endif
 
 signal_set_t syscall_blocked_signals;
@@ -190,7 +190,7 @@ static void inthandler( int sig )
 }
 
 #if defined(WIN32_SIGNALS)
-static __stdcall int win32_inthandler(unsigned long sig)
+static int __stdcall win32_inthandler(unsigned long sig)
 {
   if (sig != CTRL_C_EVENT && sig != CTRL_BREAK_EVENT)
     return 0;
