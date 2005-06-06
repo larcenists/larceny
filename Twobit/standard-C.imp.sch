@@ -69,10 +69,10 @@
 ;     exception.
 
 (define (prim-entry name)
-  (assq name $usual-integrable-procedures$))
+  (assq name (twobit-integrable-procedures)))
 
 (define (prim-entry-by-opcodename name)
-  (let loop ((x $usual-integrable-procedures$))
+  (let loop ((x (twobit-integrable-procedures)))
     (cond ((null? x) #f)
           ((eq? (prim-opcodename (car x)) name)
            (car x))
@@ -174,7 +174,7 @@
     (,name:MAKE-CELL  1 make-cell        #f            52 ,:dead     ,:none #f)
     (,name:CELL-REF   1 cell-ref         #f            54 ,:cell     ,:none #f)
     (,name:CELL-SET!  2 cell-set!        #f            84 ,:dead     ,:cell #f)
-    (.cell-set!:nwb   2 cell-set!:nwb    #f            -1 ,:dead     ,:cell #f)  ; FIXME
+    (.cell-set!:nwb   2 cell-set!:nwb    #f            84 ,:dead     ,:cell #f)  ; FIXME
     (,name:CONS       2 cons             #f            58 ,:dead     ,:none #f)
 
     (.unspecified     0 unspecified      #f             3 ,:dead     ,:none #f)
@@ -199,7 +199,7 @@
     (.vector-length:vec 1 vector-length:vec     #f        401 ,:immortal ,:none #f)
     (.vector-ref:trusted 2 vector-ref:trusted ,stdc-imm?  402 ,:vector   ,:none #f)
     (.vector-set!:trusted 3 vector-set!:trusted #f        403 ,:dead     ,:vector #f)
-    (.vector-set!:trusted:nwb 3 vector-set!:trusted:nwb #f -1 ,:dead     ,:vector #f)   ; FIXME
+    (.vector-set!:trusted:nwb 3 vector-set!:trusted:nwb #f 403 ,:dead     ,:vector #f)   ; FIXME
     (.string-length:str 1 string-length:str     #f         40 ,:immortal ,:none #f)
     (.string-ref:trusted 2 string-ref:trusted   #f         78 ,:string   ,:none #f)
     (.string-set!:trusted 3 string-set!:trusted ,stdc-imm? 79 ,:dead     ,:string #f)
