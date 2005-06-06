@@ -141,24 +141,49 @@
       (set! stcov-results (read in))
       #t)))
 
+
+
+;; Use this in tandem with the output of stcov-summarize-coverage
+;; so that control point sequences are merged together.  This lowered
+;; our estimate of ~1600 points (to investigate unreachable code)
+;; down to ~500, which is still unreasonable, but it is LESS unreasonable.
+;; Sample usage:
+;; (apply + (map cadr (map (lambda (x) (list (car x) (length (collapse-ranges (cdr x))))) data)))
+;; where data is suitably massaged output from stcov-summarize-coverage
+(define (collapse-ranges lon)
+
+  (define (find-range start-at l)
+    (if (null? l) (list start-at '())
+        (if (> (car l) (+ 1 start-at))
+            (list start-at l)
+            (find-range (car l) (cdr l)))))
+
+  (if (null? lon) '()
+      (let ((result (find-range (car lon) (cdr lon))))
+        (cons (list (car lon) (car result))
+              (collapse-ranges (cadr result))))))
+
 (define (stcov-summarize-coverage)
+  (display "(")
   (let loop ((i 0) (ids (cons (list "" -1 -1) stcov-ids)))
-    (cond ((= i (vector-length stcov-results)))
+    (cond ((= i (vector-length stcov-results)) (display ")"))
 	  ((zero? (vector-ref stcov-results i))
 	   (if (not (<= (cadar ids) i (caddar ids)))
 	       (let loop2 ((ids (cdr ids)))
 		 (if (not (<= (cadar ids) i (caddar ids)))
 		     (loop2 (cdr ids))
 		     (begin
+                       (display ")")
 		       (newline)
-		       (display (caar ids)) (display ": ")
+                       (display "(")
+		       (display (caar ids)) (display "  ")
 		       (display i)
-		       (display ",")
+		       (display " ")
 		       (loop (+ i 1) ids))))
 	       (begin
 		 (display " ")
 		 (display i)
-		 (display ",")
+		 (display " ")
 		 (loop (+ i 1) ids))))
 	  (else
 	   (loop (+ i 1) ids)))))
