@@ -52,7 +52,12 @@
 		  (display target out)
 		  (newline out)
 		  (newline out)
-		  (display make-template-rts-dependencies out)
+                  ;; hack to work around bug in heap dumping 
+                  ;; (can't have strings with length > 4092)
+		  (display (string-append
+                            make-template-rts-dependencies-1
+                            make-template-rts-dependencies-2)
+                            out)
 		  (newline out)
 		  (newline out)
 		  (display make-template-standard-targets out)
@@ -120,7 +125,7 @@ DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 AS=nasm
-ASFLAGS=-f elf -IIntel -IBuild -DLINUX")
+ASFLAGS=-f elf -IIntel/ -IBuild/ -DLINUX")
 
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
@@ -349,6 +354,8 @@ SCFG=Build/globals.sh Build/regs.sh Build/except.sh Build/layouts.sh")
 
 (define make-template-rule-sets
 ".SUFFIXES:	.asm
+.c.o:
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 .s.o:
 	$(AS) $(ASFLAGS) -o $*.o $<
 .asm.o:
@@ -376,7 +383,7 @@ realclean: clean
 	if [ -d bdw-gc ]; then ( cd bdw-gc ; make clean ); fi
 	rm -rf Build")
 
-(define make-template-rts-dependencies
+(define make-template-rts-dependencies-1
 "LARCENY_H=Sys/larceny.h Sys/larceny-types.h Sys/macros.h Sys/assert.h \\
 	  Build/cdefs.h Build/config.h
 SPARC_ASM_H=Build/asmdefs.h Sparc/asmmacro.h
@@ -388,6 +395,7 @@ Standard-C/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \\
 	Sys/stack.h
 Standard-C/multiply.$(O): $(LARCENY_H) $(PETIT_H)
 Standard-C/syscall2.$(O): $(LARCENY_H) $(PETIT_H)
+Standard-C/config.$(O): $(LARCENY_H) $(PETIT_H)
 
 Sparc/barrier.$(O): $(SPARC_ASM_H)
 Sparc/bdw-memory.$(O): Sparc/memory.s $(SPARC_ASM_H)
@@ -401,7 +409,9 @@ Sparc/glue.$(O): $(SPARC_ASM_H)
 Sparc/mcode.$(O): $(SPARC_ASM_H)
 Sparc/memory.$(O): $(SPARC_ASM_H)
 Sparc/signals.$(O): $(LARCENY_H)
-Sparc/syscall2.$(O): $(LARCENY_H)
+Sparc/syscall2.$(O): $(LARCENY_H)")
+
+(define make-template-rts-dependencies-2 "
 
 Sys/alloc.$(O): $(LARCENY_H) Sys/barrier.h Sys/gclib.h Sys/semispace_t.h
 Sys/argv.$(O): $(LARCENY_H)
