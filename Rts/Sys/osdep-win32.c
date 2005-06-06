@@ -32,7 +32,6 @@
 #include <time.h>
 #include <io.h>
 #include <ctype.h>
-#include <unistd.h>
 #include <stdarg.h>
 
 #include "larceny.h"
