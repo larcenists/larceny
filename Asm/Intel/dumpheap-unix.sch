@@ -59,7 +59,7 @@
   (execute
    (twobit-format 
     #f
-    "nasm -O1 -f elf -IRts/Intel -IRts/Build -o ~a ~a"
+    "nasm -O1 -f elf -IRts/Intel/ -IRts/Build/ -o ~a ~a"
     o-name
     asm-name)))
 
