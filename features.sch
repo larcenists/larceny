@@ -57,6 +57,7 @@
  "SUNOS4"			; SunOS 4.x
  "SUNOS5"			; SunOS 5.x aka Solaris 2.x
  "LINUX"			; Generic GNU/Linux
+ "MACOS_X"			; MacOS X *only* (~BSD (4.3ish) Unix)
  "BSD_UNIX"			; Generic BSD (4.3ish) Unix, also MacOS X
  "POSIX_UNIX"		        ; Generic POSIX-standard Unix
  "XOPEN_UNIX"		        ; Generic XOPEN-standard Unix
@@ -336,6 +337,7 @@
     "HAVE_HRTIME_T"
     "HAVE_POLL"
     "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     "GC_HIRES_TIMERS"
     ))
@@ -361,12 +363,13 @@
   '("PETIT_LARCENY"
     "BITS_32"
     "BIG_ENDIAN"
+    "MACOS_X"
     "BSD_UNIX"
     "HAVE_RINT"
     "HAVE_STRDUP"
     "HAVE_STRNCASECMP"
     "HAVE_SELECT"
-    ;"HAVE_DLFCN"                        ; only if you have installed the dlcompat package
+    "HAVE_DLFCN"                        ; only if you have installed the dlcompat package
     "DYNAMIC_LOADING"                   ; only makes a difference if HAVE_DLFCN is defined
     "STACK_UNDERFLOW_COUNTING"
     "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
@@ -387,8 +390,8 @@
     "USE_STDIO"
     "NO_SYNCHRONOUS_SIGNALS"
     "HAVE_STAT"
-    "HAVE_RINT"
-    "HAVE_STRNCASECMP"
+;    "HAVE_RINT"
+;    "HAVE_STRNCASECMP"
     "USE_CACHED_STATE"
     "CODEPTR_SHIFT2"
     ))
@@ -491,7 +494,7 @@
     "DEC_ALPHA_32BIT"
     "STACK_UNDERFLOW_COUNTING"))
 
-(define selected-feature-set features-petit-linux)
+(define selected-feature-set features-x86-nasm-linux)
 
 ; ------ END USER DEFINITION SECTION ------
 
@@ -647,6 +650,8 @@
 	  (begin
 	    (display "Redefined feature set!")
 	    (newline)
+            (if (file-exists? "Rts/Makefile")
+                (delete-file "Rts/Makefile"))
 	    (write-feature-set new))))))
 
 (define (read-line . rest)
