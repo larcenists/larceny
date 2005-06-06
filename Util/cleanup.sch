@@ -13,10 +13,10 @@
 
 (define *cleanup-verbose* #f)		; set to #t to print dirs and commands
 
-(define rm-command)
-(define rmdir-command)
-(define pathsep)
-(define exe-suffix)
+(define rm-command #f)
+(define rmdir-command #f)
+(define pathsep #f)
+(define exe-suffix #f)
 
 (let ((os (cdr (assq 'os-name (system-features)))))
   (cond ((equal? os "Win32")
