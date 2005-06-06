@@ -211,6 +211,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum(2) );
 #elif defined(WIN32)
     vector_set( v, 0, fixnum(3) );
+#elif defined(MACOS_X) // must come before BSD_UNIX; both features are set on MacOS X
+    vector_set( v, 0, fixnum(8) );
 #elif defined(BSD_UNIX)
     vector_set( v, 0, fixnum(7) );
 #elif defined(UNIX)  // Generic unix, this case should come after other Unix variants
