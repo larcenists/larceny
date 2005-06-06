@@ -4,6 +4,7 @@
 ; under Larceny on Unix.
 
 (define nbuild-parameter #f)
+(define *code-coverage* #f)
 
 (define (unix-initialize)
   (load "Util/sysdep-unix.sch")
