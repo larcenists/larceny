@@ -6,7 +6,7 @@
 ; Hook for a list of libraries for your platform.  This is normally
 ; set by code in the petit-*-*.sch file, after this file is loaded.
 
-(define unix/petit-lib-library-platform '())
+(define unix/petit-lib-library-platform '("-lm"))
 
 ; Hook for a set of switches that tells the compiler where to look for
 ; standard include files.  If twobit is not used for compiler
@@ -57,7 +57,9 @@
 ; SYSTEM-FEATURES currently provides.  A hack, really.
 
 (define (classify-unix-system)
-  (cond ((and (string=? "BSD Unix" (cdr (assq 'os-name (system-features))))
+  (cond ((string=? "MacOS X" (cdr (assq 'os-name (system-features))))
+         'macosx)
+        ((and (string=? "BSD Unix" (cdr (assq 'os-name (system-features))))
 	      (file-exists? "/Desktop"))
 	 'macosx)
 	((string=? "SunOS" (cdr (assq 'os-name (system-features))))
@@ -82,12 +84,14 @@
 
 (define (c-library-linker:gcc-unix output-name object-files libs)
   (execute 
-   (twobit-format 
-    #f
-    "ar -r ~a ~a; ranlib ~a"
-    output-name
-    (apply string-append (insert-space object-files))
-    output-name)))
+   (twobit-format #f
+		  "ar -r ~a ~a"
+		  output-name (apply string-append 
+				     (insert-space object-files))))
+  (execute
+   (twobit-format #f
+		  "ranlib ~a"
+		  output-name)))
 
 (define (c-linker:gcc-linux output-name object-files libs)
   (execute
@@ -99,7 +103,7 @@
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
 
-(define (c-linker:gcc-unix output-name object-files libs)
+(define (c-linker:gcc-macosx output-name object-files libs)
   (execute
    (twobit-format 
     #f
@@ -109,7 +113,27 @@
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
 
+(define (c-linker:gcc-unix output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "gcc ~a -Wl,-export-dynamic -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
+
 (define (c-so-linker:gcc-unix output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "gcc ~a -shared -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
+
+(define (c-so-linker:gcc-linux output-name object-files libs)
   (execute
    (twobit-format 
     #f
@@ -139,13 +163,14 @@
     `((compile            . ,c-compiler:gcc-unix)
       (link-library       . ,c-library-linker:gcc-unix)
       (link-executable    . ,(case host-os
+			       ((macosx) c-linker:gcc-macosx)
 			       ((linux) c-linker:gcc-linux)
 			       (else    c-linker:gcc-unix)))
       (link-shared-object . ,(case host-os
 			       ((macosx) c-so-linker:gcc-macosx)
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix)
-      (make-configuration . petit-unix-static-gcc))))
+      (make-configuration . PETIT-UNIX-STATIC-GCC))))
 
 ; eof
 
