@@ -153,12 +153,28 @@
 ;
 ; Symbol generation
 ; Chez Scheme's gensym is incompatible with the use of gensym in Twobit.
+(define old-gensym-of-chez-scheme 
+  (if (top-level-bound? 'old-gensym-of-chez-scheme) ;; idempotency
+      old-gensym-of-chez-scheme
+      gensym))
 
 (define gensym
   (let ((n 0))
     (lambda (x)
       (set! n (+ n 1))
       (string->uninterned-symbol (format "~a~a" x n)))))
+
+; string->uninterned-symbol was removed in Chez Scheme 6.9c, replaced
+; by overloading gensym and dispatching based on argument number.  I'm
+; not certain what the old spec was, but I'm guessing this will do the
+; trick (with the hope that top-level-bound? is defined in older
+; versions of Chez).  It could very well be that in Chez 6.9c, we no
+; longer need to redefine gensym to get behavior compatible with
+; Larceny.  But I will not speculate further.
+(define string->uninterned-symbol
+  (if (top-level-bound? 'string->uninterned-symbol)
+      string->uninterned-symbol
+      (lambda (str) (old-gensym-of-chez-scheme str))))
 
 (define (symbol-hash sym)
   (string-hash (symbol->string sym)))
@@ -189,6 +205,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Input and output
+
+;; pnkfelix is hoping that Chez does something compatible with what
+;; MzScheme does in this cases, because I can't figure out how to open
+;; files in "binary mode" from its documentation.
+(define open-binary-output-file open-output-file)
+(define open-binary-input-file open-input-file)
+
+(define call-with-binary-output-file call-with-output-file)
+(define call-with-binary-input-file call-with-input-file)
+(define with-binary-output-to-file with-output-to-file)
+(define with-binary-input-from-file with-input-from-file)
 
 (define (write-lop x p)
   (write x p)
@@ -238,7 +265,7 @@
 
 (define (rename-file old new)
   (case (nbuild-parameter 'host-os)
-    ((win32)
+    ((win32 cygwin)
      (system (string-append "del " new))
      (system (string-append "rename " old " " new)))
     ((unix)
@@ -281,4 +308,60 @@
 	   value)
 	  (else
 	   (error "Too many params to make-parameter.")))))
+
+;; Petite at some point decided it has to have a system-features defined
+;; so that it can define a compiler directly (see file dumpheap-unix.sch)
+;; pnkfelix is hacking it so that this will work when we're using
+;; petit-setup.sch; I don't know what to do otherwise...
+(define (system-features)
+  (define (read-line source)
+    ;; Pre-condition:  source designates a file open for reading
+    ;; Post-conditions:  returns the next line of the file
+    ;;                   or an eof-object if the end of the file is encountered
+    (let loop ((ch-list '()) (ch (read-char source)))
+      (cond ((eof-object? ch) ch)
+            ((char=? ch #\newline) (list->string (reverse ch-list)))
+            (else (loop (cons ch ch-list) (read-char source))))))
+
+  (if (not (top-level-bound? '*host:os*))
+      (error 'system-features "Need to extend system-features in Petit/compat.sch")
+      (list (cons 'os-name (case *host:os*
+                             ((macosx) "MacOS X")
+                             ((windows) "Win32")
+                             ((solaris unix)
+                              (let ((l (process "uname")))
+                                (read-line (car l)))))))))
+
+;;; let-values
+
+; SRFI 11, "Syntax for receiving multiple values"
+; For convenience here is Lars Hansen's sample implementaion.
+
+(define-syntax let-values
+  (syntax-rules ()
+    ((let-values (?binding ...) ?body0 ?body1 ...)
+     (let-values "bind" (?binding ...) () (begin ?body0 ?body1 ...)))
+    
+    ((let-values "bind" () ?tmps ?body)
+     (let ?tmps ?body))
+    
+    ((let-values "bind" ((?b0 ?e0) ?binding ...) ?tmps ?body)
+     (let-values "mktmp" ?b0 ?e0 () (?binding ...) ?tmps ?body))
+    
+    ((let-values "mktmp" () ?e0 ?args ?bindings ?tmps ?body)
+     (call-with-values 
+       (lambda () ?e0)
+       (lambda ?args
+         (let-values "bind" ?bindings ?tmps ?body))))
+    
+    ((let-values "mktmp" (?a . ?b) ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
+     (let-values "mktmp" ?b ?e0 (?arg ... x) ?bindings (?tmp ... (?a x)) ?body))
+    
+    ((let-values "mktmp" ?a ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
+     (call-with-values
+       (lambda () ?e0)
+       (lambda (?arg ... . x)
+         (let-values "bind" ?bindings (?tmp ... (?a x)) ?body))))))
+
+
 ; eof
