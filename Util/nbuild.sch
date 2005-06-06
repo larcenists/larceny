@@ -63,18 +63,36 @@
 (define (writeln . x)
   (for-each display x) (newline))
 
+(define (code-cov-files) (append (nbuild:twobit-files)
+                               (nbuild:common-asm-files)
+                               (nbuild:machine-asm-files)))
+
+(define (new-files) (map (lambda (x) (string-append x ".stcov")) (code-cov-files)))
+
 (define (nbuild-load-files files)
   (for-each compat:load files))
 
 (writeln "Loading Twobit.")
-(nbuild-load-files (nbuild:twobit-files))
+(if *code-coverage*
+    (begin
+      (if *rebuild-code-coverage*
+          (begin
+            (load "Util/Misc/stcov.sch")
+            (writeln "Preprocessing for code coverage")
+            (stcov-files (code-cov-files))))
+      (writeln "Loading code-coverage mangled files")
+      (load "stcov-util.sch")
+      (nbuild-load-files (new-files)))
 
-(writeln "Loading the common assembler.")
-(nbuild-load-files (nbuild:common-asm-files))
-
-(writeln "Loading " (nbuild-parameter 'target-machine) " machine assembler.")
-(nbuild-load-files (nbuild:machine-asm-files))
-
+    (begin
+      (nbuild-load-files (nbuild:twobit-files))
+      
+      (writeln "Loading the common assembler.")
+      (nbuild-load-files (nbuild:common-asm-files))
+      
+      (writeln "Loading " (nbuild-parameter 'target-machine) " machine assembler.")
+      (nbuild-load-files (nbuild:machine-asm-files))))
+    
 (writeln "Loading bootstrap heap dumper.")
 (nbuild-load-files (nbuild:heap-dumper-files))
 
