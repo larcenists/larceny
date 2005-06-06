@@ -6,6 +6,7 @@
 ; systems, under Larceny.
 
 (define nbuild-parameter #f)
+(define *code-coverage* #f)
 
 (define (unix-initialize)
   (load "Util/sysdep-unix.sch")
@@ -86,6 +87,8 @@
 
 (define (build-runtime)
   (delete-file "larceny.bin")
+  (if (not (file-exists? "Rts/Makefile"))
+      (build-makefile))
   (execute-in-directory "Rts" "make larceny.bin")
   (if (file-exists? "Rts/larceny.bin")
       (system "cp Rts/larceny.bin .")))

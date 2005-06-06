@@ -7,6 +7,7 @@
 ; See Docs/HOWTO-BUILD and Docs/HOWTO-PETIT for more information.
 
 (define nbuild-parameter #f)
+(define *code-coverage* #f)
 
 (define (win32-initialize)
   (load "Util\\sysdep-win32.sch")
