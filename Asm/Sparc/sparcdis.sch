@@ -34,7 +34,7 @@
 		    ilist))))
   (loop (- (bytevector-length cv) 4) '()))
 
-(define disassemble-instruction)	    ; Defined below.
+(define disassemble-instruction #f)	    ; Defined below.
 
 ; Mnemonics
 
@@ -480,7 +480,7 @@
   
   (print-ilist ilist 0))
 
-(define format-instruction)		    ; Defined below
+(define format-instruction #f)		    ; Defined below
 
 (define *format-instructions-pretty* #t)
 
