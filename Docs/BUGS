@@ -807,6 +807,9 @@ HIGH PRIORITY BUGS: none.
     make-templates.sch).  But I should try to track down why this is
     happening (is it a heap-dumping bug, or a broken heap invariant?).
 
+    NOTE: this bug may have been fixed with a change by Lars to
+    Rts/Sys/heapio.c on Dec 13 2004; our repositories got out of sync.
+
 NEXT ENTRY: 169
 
 ; eof
