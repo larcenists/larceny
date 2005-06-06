@@ -267,7 +267,7 @@
 	     (file-exists? filename)
 	     (compat:file-newer? c-name filename))
 	(set! *c-output* #f)
-	(let ((c-file (open-output-file c-name)))
+	(let ((c-file (begin (delete-file c-name) (open-output-file c-name))))
 	  (set! *c-output* c-file)
 	  (emit-c-code "/* Generated from ~a */~%" filename)
 	  (for-each (lambda (d) (emit-c-code "~a~%" d))
