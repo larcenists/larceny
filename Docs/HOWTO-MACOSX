@@ -1,6 +1,11 @@
 Information about Petit Larceny on MacOS X
 25 November 2004 / lth
 
+NOTE FOR Mac OS X 10.4 (Tiger) USERS:
+The version of GCC distributed with Tiger eats up memory
+on particular C programs.  If you see similar behavior,
+run the command "% /usr/sbin/gcc_select 3.3" to switch
+to GCC 3.3.
 
 HOW TO BUILD AND USE.
 
