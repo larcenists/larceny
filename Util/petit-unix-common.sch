@@ -9,6 +9,7 @@
 
 (define nbuild-parameter #f)
 (define *requires-shared-runtime* #f)
+(define *code-coverage* #f)
 
 (define (load-compiler . how)
   (if (not (null? how))
