@@ -4,6 +4,48 @@
 ;
 ; Completely fundamental pathname manipulation.
 
+; TODO doc
+(define (make-directory . components)
+  (system (string-append "mkdir " (apply make-filename components))))
+
+; TODO doc
+(define (catfiles input-files output-file)
+  (delete-file output-file)
+  (call-with-output-file output-file
+    (lambda (out)
+      (for-each (lambda (f)
+		  (call-with-input-file f
+		    (lambda (in)
+		      (do ((c (read-char in) (read-char in)))
+			  ((eof-object? c))
+			(write-char c out)))))
+		input-files))))
+
+; TODO doc
+(define (copy-file/regexp source-path pat target-path)
+  (system (string-append "copy " (make-filename source-path pat)
+			 "     " target-path)))
+
+; TODO doc
+(define (delete-file/regexp target-path pat)
+  (system (string-append "del " (make-filename target-path pat))))
+
+(define (execute-in-directory dir cmd)
+  (with-current-directory dir
+    (lambda ()
+      (system cmd))))
+
+(define (with-current-directory dir thunk)
+  (let ((cdir #f))
+    (dynamic-wind
+	(lambda ()
+	  (set! cdir (current-directory))
+	  (current-directory dir))
+	thunk
+	(lambda ()
+	  (set! dir (current-directory))
+	  (current-directory cdir)))))
+
 ; Takes zero or more directories and a filename and appends them, inserting
 ; the necessary pathname separators.  The first directory in the list, if
 ; present, has special meaning.  If "" or #f, it denotes the current 
