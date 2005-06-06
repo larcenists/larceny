@@ -92,7 +92,7 @@
          common-asm
          sparc-asm
          x86-nasm-asm
-         standard-c-asm
+         standard-C-asm
          always-source?
          verbose-load?
          development?
