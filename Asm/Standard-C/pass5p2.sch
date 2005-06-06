@@ -345,8 +345,8 @@
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
-    (if (not (unsafe-code))
-	(emit-text as "twobit_argsge( ~a );" (operand1 instruction)))))
+    ;; note that args>= isn't just assertion; builds rest lists a la (x y . z)
+    (emit-text as "twobit_argsge( ~a );" (operand1 instruction))))
 
 (define-instruction $invoke
   (lambda (instruction as)
