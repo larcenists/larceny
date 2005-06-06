@@ -71,7 +71,7 @@
 ; implementation of this uses a buffer that must be cleared when a label
 ; is emitted or when the current offset is obtained.
 
-(define sparc-instruction)
+(define sparc-instruction #f)
 
 (let ((original-emit-label! emit-label!)
       (original-here here))
