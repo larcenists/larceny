@@ -86,9 +86,9 @@
                        "petit-init-proc.sch"
                        "md5.sch"
                        ,@(case (nbuild-parameter 'host-os)
-                           ((macosx unix) '("dumpheap-unix.sch"))
+                           ((macosx unix cygwin solaris linux-el) '("dumpheap-unix.sch"))
                            ((win32)       '("dumpheap-win32.sch"))
-                           (else          '())))))
+                           (else          (error '*nbuild:petitasm-files* "Unknown value for nbuild-parameter 'host-os"))))))
       '()))
 
 (define *nbuild:x86-nasm-files*
@@ -101,7 +101,7 @@
                        "peepopt.sch"
                        "dumpheap-overrides.sch" 
                        ,@(case (nbuild-parameter 'host-os)
-                           ((unix)  '("dumpheap-unix.sch"))
+                           ((unix cygwin)  '("dumpheap-unix.sch"))
                            ((win32) '("dumpheap-win32.sch"))
                            (else    '()))))
        (nbuild-files 'standard-C-asm
@@ -156,7 +156,7 @@
 (define (nbuild:heap-dumper-files)
   (case (nbuild-parameter 'target-machine)
     ((SPARC)      *nbuild:sparc-heap-dumper-files*)
-    ((standard-C) *nbuild:petit-heap-dumper-files*)
+    ((Standard-C) *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
     (else (error "nbuild:heap-dumper-files: bad architecture."))))
 
