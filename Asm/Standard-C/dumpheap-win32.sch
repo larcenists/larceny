@@ -22,6 +22,8 @@
   )
 
 (define (build-petit-lib-library input-file-names)
+  (if (not win32/petit-lib-library)
+      (error "win32/petit-lib-library never got set; configuration failure!"))
   (c-link-library win32/petit-lib-library
 		  (remove-duplicates
 		   (append (map (lambda (x)
@@ -61,11 +63,23 @@
 
 ; Microsoft Visual C/C++ 6.0
 
-(define (c-compiler:msvc-win32 c-name o-name)
+(define (c-compiler:msvc-win32:6.0 c-name o-name)
   (execute
    (twobit-format 
     #f
     "cl /nologo /c /Zp4 /Zd ~a /IRts\\Sys /IRts\\Standard-C /IRts\\Build /DSTDC_SOURCE ~a /Fo~a ~a"
+    (if (optimize-c-code) "/O2" "")
+    (if (optimize-c-code) "/DNDEBUG" "")
+    o-name
+    c-name)))
+
+; Microsoft Visual C/C++ 8.0
+
+(define (c-compiler:msvc-win32 c-name o-name)
+  (execute
+   (twobit-format 
+    #f
+    "cl /nologo /c /Zp4 ~a /IRts\\Sys /IRts\\Standard-C /IRts\\Build /DSTDC_SOURCE ~a /Fo~a ~a"
     (if (optimize-c-code) "/O2" "")
     (if (optimize-c-code) "/DNDEBUG" "")
     o-name
@@ -173,7 +187,7 @@
 ;;;
 
 (define-compiler 
-  "Microsoft Visual C/C++ 6.0 on Win32" 
+  "Microsoft Visual C/C++ 8.0 on Win32" 
   'msvc
   ".obj"
   `((compile            . ,c-compiler:msvc-win32)
