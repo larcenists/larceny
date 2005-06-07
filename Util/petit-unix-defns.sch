@@ -196,6 +196,17 @@
       (build-application *twobit-executable-name*
                          (petit-development-environment-lop-files))))
 
+; Set up for loading Util/petit-r5rs-heap.sch
+(define (build-r5rs-files)
+  (compile-and-assemble313 "Auxlib/pp.sch")
+  (build-application "petit-r5rs" '("Auxlib/pp.lop")))
+
+; Set up for loading Util/petit-larceny-heap.sch
+(define (build-larceny-files)
+  (make-petit-development-environment)
+  (build-application "petit-larceny"
+		     (petit-development-environment-lop-files)))
+
 (define (is-macosx?)
   (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
 
