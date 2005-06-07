@@ -198,14 +198,25 @@
 
 ; Set up for loading Util/petit-r5rs-heap.sch
 (define (build-r5rs-files)
-  (compile-and-assemble313 "Auxlib/pp.sch")
-  (build-application "petit-r5rs" '("Auxlib/pp.lop")))
+  (case *heap-type*
+    ((petit) 
+     (compile-and-assemble313 "Auxlib/pp.sch")
+     (build-application "petit-r5rs" '("Auxlib/pp.lop")))
+    ((sparc-native)
+     (compile-file "Auxlib/pp.sch"))
+    (else (error 'build-r5rs-files "Unknown heap type"))))
 
 ; Set up for loading Util/petit-larceny-heap.sch
 (define (build-larceny-files)
-  (make-petit-development-environment)
-  (build-application "petit-larceny"
-		     (petit-development-environment-lop-files)))
+  (case *heap-type*
+    ((petit)
+     (make-petit-development-environment)
+     (build-application "petit-larceny"
+                        (petit-development-environment-lop-files)))
+    ((sparc-native)
+     (make-development-environment))
+    (else (error 'build-larceny-files "Unknown heap type"))))
+     
 
 (define (is-macosx?)
   (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
