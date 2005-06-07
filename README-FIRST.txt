@@ -3,7 +3,9 @@ in various states of completeness.
 
 The simplest way to dive into Larceny is to run it; your distribution
 should come with a binary for your architecture, here in the root of
-this source tree.  [[TODO: give the name(s) for the binary]]
+this source tree.  The binary name is archicture dependent; look for
+either "larceny.bin", "petit", or "twobit", (potentially with an .exe
+or .app suffix).
 
 If you want to build your own copy of Petit Larceny, the easiest way
 to get your feet wet is to read Docs/HOWTO-SETUP.  There you'll find
