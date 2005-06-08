@@ -221,7 +221,15 @@
 (define (is-macosx?)
   (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
 
-(define (load-compiler)
+(define (load-compiler . how)
+  (if (not (null? how))
+      (case (car how)
+        ((release) ;; matching code in sparc-unix.sch
+         (nbuild-parameter 'always-source? #f)
+         (nbuild-parameter 'verbose-load? #f)
+         (nbuild-parameter 'development? #f))
+        ((development) ;; matching code in petit-unix-common.sch
+         (nbuild-parameter 'development? #t))))
   (load (make-filename *root-directory* "Util" "nbuild.sch"))
   (if (eq? 'petit *heap-type*)
       (configure-system))
@@ -328,9 +336,11 @@
 ; I think this works, but dynamic loading does not work on MacOS X 10.1.5,
 ; so I've been unable to test.
 
-(define (compile-files infilenames outfilename)
+(define (compile-files infilenames outfilename . rest)
   (let ((user      (assembly-user-data))
-	(syntaxenv (syntactic-copy (the-usual-syntactic-environment)))
+	(syntaxenv (if (null? rest)
+                       (syntactic-copy (the-usual-syntactic-environment))
+                       (car rest)))
 	; Doesn't work in Petit Larceny (yet, anyway)
 	;(syntaxenv (syntactic-copy (environment-syntax-environment
 	;			    (interaction-environment))))
