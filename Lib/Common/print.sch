@@ -69,16 +69,23 @@
   (define ctrl-C (integer->char 3))
   (define ctrl-F (integer->char 6))
 
+  ;; Don't print ellipsis when slashifying (that is, when
+  ;; using WRITE rather than DISPLAY) because result is
+  ;; being printed with intent to read it back in.
   (define (print x p slashify level)
-    (cond ((zero? level) (printstr "..." p))
+    (cond ((and (not slashify)
+                (zero? level))
+           (printstr "..." p))
           ((not (pair? x)) (patom x p slashify level))
 	  ((and (memq (car x) quoters)
 		(pair? (cdr x))
 		(null? (cddr x)))
 	   (print-quoted x p slashify level))
-          ((zero? (- level 1))
+          ((and (not slashify)
+                (zero? (- level 1)))
            (printstr "(...)" p))
-          ((eqv? 0 (print-length))
+          ((and (not slashify)
+                (eqv? 0 (print-length)))
            (printstr "(...)" p))
 	  (else
            (write-char (string-ref "(" 0) p)
@@ -90,7 +97,8 @@
   (define (print-cdr x p slashify level length)
     (cond ((null? x)
            (write-char (string-ref ")" 0) p))
-          ((zero? length)
+          ((and (not slashify)
+                (zero? length))
            (printstr " ...)" p))
           ((pair? x)
            (write-char #\space p)
