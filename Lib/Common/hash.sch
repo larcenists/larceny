@@ -11,6 +11,10 @@
 (define object-hash (lambda (x) 0))    ; hash on EQ?, EQV?
 (define equal-hash (lambda (x) 0))     ; hash on EQUAL?
 
+;; Hook for instances
+(define procedure-hasher
+  (make-parameter "procedure-hasher" (lambda (procedure) 2321001)))
+
 (let ((n 16777216)
       (n-1 16777215)
       (adj:fixnum   9000000)
@@ -25,15 +29,14 @@
       (adj:vector   4003330)
       (adj:misc     3000444)
       (adj:pair     2555000)
-      (adj:proc     2321001)
       (adj:iport    2321002)
       (adj:oport    2321003)
       (adj:weird    2321004)
       (budget0      32))
-  
+
   (define (combine hash adjustment)
     (modulo (+ hash hash hash adjustment) 16777216))
-  
+
   (define (hash-on-equal x budget)
     (if (> budget 0)
         (cond ((string? x)
@@ -55,7 +58,7 @@
               (else
                (object-hash x)))
         adj:weird))
-  
+
   (set! object-hash
         (lambda (x)
           (cond ((symbol? x)
@@ -113,14 +116,14 @@
                 ((pair? x)
                  adj:pair)
                 ((procedure? x)
-                 adj:proc)
+                 ((procedure-hasher) x))
                 ((input-port? x)
                  adj:iport)
                 ((output-port? x)
                  adj:oport)
                 (else
                  adj:weird))))
-  
+
   (set! equal-hash
         (lambda (x)
           (hash-on-equal x budget0))))
