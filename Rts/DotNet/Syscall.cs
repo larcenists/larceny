@@ -117,7 +117,7 @@ namespace Scheme.RT {
                         s = System.Console.OpenStandardOutput();
                     }
                 } else {
-                    s = File.Open(file, fm, fa);
+                    s = File.Open(file, fm, fa, (fa == FileAccess.Read) ? FileShare.Read : FileShare.None);
                 }
                 int fd = next_descriptor(file);
                 open_files[fd] = s;
@@ -232,7 +232,7 @@ namespace Scheme.RT {
             case Sys.cwd : cwd() ; break;
 
             case Sys.sysglobal:
-                SObject g = (SObject)Reg.globals[((SByteVL)Reg.register2).asString()];
+                SObject g = (SObject) Reg.globals[((SByteVL)Reg.Register2).asString()];
                 if (g == null) {
                     Reg.Result = Factory.Undefined;
                 } else {
@@ -246,9 +246,9 @@ namespace Scheme.RT {
 
         // Magic numbers are defined in <larceny_src>/Lib/Common/sys-unix.sch
         private static void open() {
-            string file_name = ((SByteVL)Reg.register2).asString();
-            int flags = ((SFixnum)Reg.register3).intValue();
-            int mode  = ((SFixnum)Reg.register4).intValue();
+            string file_name = ((SByteVL)Reg.Register2).asString();
+            int flags = ((SFixnum)Reg.Register3).intValue();
+            int mode  = ((SFixnum)Reg.Register4).intValue();
 
             FileAccess fa = 0;
             if ((flags & 0x01) != 0) fa |= FileAccess.Read;
@@ -281,51 +281,51 @@ namespace Scheme.RT {
 
         private static void unlink() {
             Reg.Result = Factory.makeFixnum(
-                                Unix.Unlink(((SByteVL)Reg.register2).asString()));
+                                Unix.Unlink(((SByteVL)Reg.Register2).asString()));
         }
 
         private static void close() {
             Reg.Result = Factory.makeFixnum(
-                                Unix.Close(((SFixnum)Reg.register2).intValue()));
+                                Unix.Close(((SFixnum)Reg.Register2).intValue()));
         }
 
         private static void read() {
-            int fd = ((SFixnum)Reg.register2).intValue();
-            byte[] bytes = ((SByteVL)Reg.register3).elements;
-            int count = ((SFixnum)Reg.register4).intValue();
+            int fd = ((SFixnum)Reg.Register2).intValue();
+            byte[] bytes = ((SByteVL)Reg.Register3).elements;
+            int count = ((SFixnum)Reg.Register4).intValue();
 
             Reg.Result = Factory.makeFixnum(Unix.Read(fd, ref bytes, count));
         }
 
         private static void write() {
-            int fd = ((SFixnum)Reg.register2).intValue();
-            byte[] bytes = ((SByteVL)Reg.register3).elements;
-            int count = ((SFixnum)Reg.register4).intValue();
+            int fd = ((SFixnum)Reg.Register2).intValue();
+            byte[] bytes = ((SByteVL)Reg.Register3).elements;
+            int count = ((SFixnum)Reg.Register4).intValue();
 
             Reg.Result = Factory.makeFixnum(Unix.Write(fd, bytes, count));
         }
 
         private static void get_resource_usage() {
             SObject zero = Factory.makeFixnum (0);
-            SObject[] stats = ((SVL)Reg.register2).elements;
+            SObject[] stats = ((SVL)Reg.Register2).elements;
 
             int ticks = unchecked (Environment.TickCount - system_boot_tick);
             stats[28 /*RTIME*/] = Factory.makeNumber (ticks);
             //stats[29 /*STIME*/] = Factory.makeNumber (ticks);
             stats[30 /*UTIME*/] = Factory.makeNumber (ticks);
 
-            Reg.Result = Reg.register2;
+            Reg.Result = Reg.Register2;
         }
 
         private static void exit() {
-            int retval = ((SFixnum)Reg.register2).intValue();
+            int retval = ((SFixnum)Reg.Register2).intValue();
             Call.exit(retval);
         }
 
         // file modification time
         private static void mtime() {
-            string file = ((SByteVL)Reg.register2).asString();
-            SVL v = (SVL)Reg.register3;
+            string file = ((SByteVL)Reg.Register2).asString();
+            SVL v = (SVL)Reg.Register3;
 
             try {
                 DateTime time = File.GetLastWriteTime(file);
@@ -346,8 +346,8 @@ namespace Scheme.RT {
 
         // file exists?
         private static void access() {
-            string file = ((SByteVL)Reg.register2).asString();
-            int operation = ((SFixnum)Reg.register3).value;
+            string file = ((SByteVL)Reg.Register2).asString();
+            int operation = ((SFixnum)Reg.Register3).value;
             int result = 2; // WHY?
             if (operation == 0x01) { // FILE EXISTS?
                 if (File.Exists(file) || Directory.Exists(file)) {
@@ -364,8 +364,8 @@ namespace Scheme.RT {
 
         // rename file
         private static void rename() {
-            string from = ((SByteVL)Reg.register2).asString();
-            string to = ((SByteVL)Reg.register3).asString();
+            string from = ((SByteVL)Reg.Register2).asString();
+            string to = ((SByteVL)Reg.Register3).asString();
             try {
                 File.Move(from, to);
                 Reg.Result = Factory.makeFixnum(0);
@@ -380,7 +380,7 @@ namespace Scheme.RT {
 
         private static void getenv() {
             // FIXME: #f seems to be right answer... but maybe not
-            string result = Environment.GetEnvironmentVariable (((SByteVL)Reg.register2).asString());
+            string result = Environment.GetEnvironmentVariable (((SByteVL)Reg.Register2).asString());
 
             Reg.Result = (result == null)
               ? (SObject) Factory.False
@@ -389,104 +389,104 @@ namespace Scheme.RT {
 
         private static void flonum_acos()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Acos (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_asin()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Asin (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_atan()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Atan (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_atan2()
         {
-          double arg1 = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          double arg2 = ((SByteVL) Reg.register3).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register4;
+          double arg1 = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          double arg2 = ((SByteVL) Reg.Register3).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register4;
           dst.unsafeSetDouble (0, Math.Atan2 (arg1, arg2));
           Reg.Result = dst;
         }
 
         private static void flonum_cos()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Cos (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_cosh()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Cosh (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_exp()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Exp (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_log()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Log (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_sin()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Sin (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_sinh()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Sinh (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_sqrt()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Sqrt (arg));
           Reg.Result = dst;
         }
 
         private static void flonum_tan()
         {
-          double arg = ((SByteVL) Reg.register2).unsafeAsDouble (0);
-          SByteVL dst = (SByteVL) Reg.register3;
+          double arg = ((SByteVL) Reg.Register2).unsafeAsDouble (0);
+          SByteVL dst = (SByteVL) Reg.Register3;
           dst.unsafeSetDouble (0, Math.Tan (arg));
           Reg.Result = dst;
         }
 
         private static void system()
         {
-          string command = ((SByteVL) Reg.register2).asString();
+          string command = ((SByteVL) Reg.Register2).asString();
           ProcessStartInfo pi = new ProcessStartInfo();
           pi.FileName = "cmd";
           pi.Arguments = "/c " + command;
@@ -506,7 +506,7 @@ namespace Scheme.RT {
 
         private static void sys_feature()
         {
-          SObject[] v = ((SVL) Reg.register2).elements;
+          SObject[] v = ((SVL) Reg.Register2).elements;
           int request = ((SFixnum)v[0]).value;
           switch (request) {
           case 0: // larceny-major
@@ -563,17 +563,17 @@ namespace Scheme.RT {
         private static void segment_code_address()
         {
           // file, ns, id, number
-          string file = ((SByteVL) Reg.register2).asString();
-          string ns = ((SByteVL) Reg.register3).asString();
-          int id = ((SFixnum)Reg.register4).value;
-          int number = ((SFixnum)Reg.register5).value;
+          string file = ((SByteVL) Reg.Register2).asString();
+          string ns = ((SByteVL) Reg.Register3).asString();
+          int id = ((SFixnum)Reg.Register4).value;
+          int number = ((SFixnum)Reg.Register5).value;
 
           Reg.Result = Load.findCode(file, ns, id, number);
         }
 
       private static void chdir()
       {
-        string dir = ((SByteVL) Reg.register2).asString();
+        string dir = ((SByteVL) Reg.Register2).asString();
         try {
             Directory.SetCurrentDirectory(dir);
             Reg.Result = Factory.makeFixnum (0);
