@@ -53,18 +53,99 @@ namespace Scheme.RT {
         }
 
         // call
-        public static void call(CodeVector code, int jumpIndex) {
-#if HAS_PERFORMANCE_COUNTERS
-           if (Call.bounceCounter != null) Call.bounceCounter.Increment();
-#endif
-           throw new BounceException(code, jumpIndex);
-        }
-
-        public static void call(Procedure p, int argc) {
+      public static CodeAddress call1 (Procedure p, int argc)
+        {
 #if HAS_PERFORMANCE_COUNTERS
            if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
 #endif
-           throw new SchemeCallException(p, argc);
+           throw new SchemeCallException (p, argc);
+        }
+
+        public static CodeAddress call (CodeVector code, int jumpIndex)
+        {
+#if HAS_PERFORMANCE_COUNTERS
+           if (Call.bounceCounter != null) Call.bounceCounter.Increment();
+#endif
+#if ALWAYS_THROW_TO_TRAMPOLINE
+           throw new CodeVectorCallException (code, jumpIndex);
+#else
+           return code.Address (jumpIndex);
+#endif
+        }
+
+        public static CodeAddress call0 (Procedure p)
+        {
+#if HAS_PERFORMANCE_COUNTERS
+           if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
+#endif
+#if ALWAYS_THROW_TO_TRAMPOLINE
+           throw new SchemeCallException (p, 0);
+#else
+           Reg.Second = Reg.Register0;
+           Reg.Register0 = p;
+           Reg.Result = SFixnum.zero;
+           return p.InitialCodeAddress;
+#endif
+        }
+
+        public static CodeAddress call1 (Procedure p)
+        {
+#if HAS_PERFORMANCE_COUNTERS
+           if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
+#endif
+#if ALWAYS_THROW_TO_TRAMPOLINE
+           throw new SchemeCallException (p, 1);
+#else
+           Reg.Second = Reg.Register0;
+           Reg.Register0 = p;
+           Reg.Result = SFixnum.one;
+           return p.InitialCodeAddress;
+#endif
+        }
+
+        public static CodeAddress call2 (Procedure p)
+        {
+#if HAS_PERFORMANCE_COUNTERS
+           if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
+#endif
+#if ALWAYS_THROW_TO_TRAMPOLINE
+           throw new SchemeCallException (p, 2);
+#else
+           Reg.Second = Reg.Register0;
+           Reg.Register0 = p;
+           Reg.Result = SFixnum.two;
+           return p.InitialCodeAddress;
+#endif
+        }
+
+        public static CodeAddress call3 (Procedure p)
+        {
+#if HAS_PERFORMANCE_COUNTERS
+           if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
+#endif
+#if ALWAYS_THROW_TO_TRAMPOLINE
+           throw new SchemeCallException (p, argc);
+#else
+           Reg.Second = Reg.Register0;
+           Reg.Register0 = p;
+           Reg.Result = SFixnum.three;
+           return p.InitialCodeAddress;
+#endif
+        }
+
+        public static CodeAddress call (Procedure p, int argc)
+        {
+#if HAS_PERFORMANCE_COUNTERS
+           if (Call.schemeCallCounter != null) Call.schemeCallCounter.Increment();
+#endif
+#if ALWAYS_THROW_TO_TRAMPOLINE
+           throw new SchemeCallException (p, argc);
+#else
+           Reg.Second = Reg.Register0;
+           Reg.Register0 = p;
+           Reg.Result = Factory.makeFixnum (argc);
+           return p.InitialCodeAddress;
+#endif
         }
 
         // callback
@@ -149,26 +230,28 @@ namespace Scheme.RT {
             return result;
         }
 
-        public static void trampoline(Procedure p, int argc) {
-            Reg.register0 = p;
-            Reg.Result = Factory.makeFixnum(argc);
+      public static void trampoline (Procedure p, int argc)
+      {
+        Reg.Register0 = p;
+        Reg.Result = Factory.makeFixnum (argc);
 
-            CodeVector cv = p.entrypoint;
-            int jumpIndex = 0;
-            bool pending = true;
+        CodeAddress pc = p.InitialCodeAddress;
+        bool pending = true;
 
-            while (pending) {
-                pending = false;
-                try {
-                    cv.call(jumpIndex);
-                } catch (BounceException bcve) {
-                    bcve.prepareForBounce();
-                    cv = bcve.code;
-                    jumpIndex = bcve.jumpIndex;
-                    pending = true;
+        while (pending) {
+            pending = false;
+            try {
+                do {
+                    pc = pc.code.call (pc.label);
+                    } while (pc != null);
+                }
+            catch (BounceException bcve) {
+                bcve.prepareForBounce();
+                pc = bcve.target;
+                pending = true;
                 }
             }
-        }
+      }
 
         public static void contagion(SObject a, SObject b, SObject retry) {
             callMillicodeSupport3(Constants.MS_CONTAGION, a, b, retry);
@@ -179,37 +262,44 @@ namespace Scheme.RT {
         public static void econtagion(SObject a, SObject b, SObject retry) {
             callMillicodeSupport3(Constants.MS_ECONTAGION, a, b, retry);
         }
-        public static void callExceptionHandler(SObject result, SObject second,
-                                                SObject third, int excode) {
-            saveContext(false);
-            Reg.setRegister(1, result);
-            Reg.setRegister(2, second);
-            Reg.setRegister(3, third);
-            Reg.setRegister(4, Factory.makeNumber (excode));
-            call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
-        }
-        public static void callExceptionHandler(SObject[] values) {
-            saveContext(false);
 
-            if (values.Length > Reg.LASTREG) {
-                for (int ri = 1; ri < Reg.LASTREG; ++ri) {
-                    Reg.setRegister(ri, values[ri-1]);
-                }
-                Reg.setRegister(Reg.LASTREG, Factory.arrayToList(values, Reg.LASTREG - 1));
-            } else {
-                for (int ri = 1; ri < values.Length + 1; ++ri) {
-                    Reg.setRegister(ri, values[ri-1]);
-                }
-            }
-            call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), values.Length);
+        public static CodeAddress callExceptionHandler (SObject result, SObject second,
+                                                   SObject third, int excode)
+        {
+            saveContext (false);
+            Reg.setRegister (1, result);
+            Reg.setRegister (2, second);
+            Reg.setRegister (3, third);
+            Reg.setRegister (4, Factory.makeNumber (excode));
+            return call1 (getSupportProcedure (Constants.MS_EXCEPTION_HANDLER), 4);
         }
-        public static void callInterruptHandler(int excode) {
+
+        public static CodeAddress callExceptionHandler (SObject[] values)
+        {
+          saveContext(false);
+
+          if (values.Length > Reg.LASTREG) {
+              for (int ri = 1; ri < Reg.LASTREG; ++ri) {
+                  Reg.setRegister (ri, values[ri-1]);
+                  }
+              Reg.setRegister (Reg.LASTREG, Factory.arrayToList (values, Reg.LASTREG - 1));
+              }
+          else {
+              for (int ri = 1; ri < values.Length + 1; ++ri) {
+                  Reg.setRegister (ri, values[ri-1]);
+                  }
+              }
+          return call1 (getSupportProcedure (Constants.MS_EXCEPTION_HANDLER), values.Length);
+        }
+
+        public static void callInterruptHandler(int excode)
+        {
             saveContext(true);
             Reg.setRegister(1, Factory.False);
             Reg.setRegister(2, Factory.False);
             Reg.setRegister(3, Factory.False);
             Reg.setRegister(4, Factory.makeNumber (excode));
-            call(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
+            call1(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
         }
 
         public static void callMillicodeSupport3(int procIndex, SObject a,
@@ -221,7 +311,7 @@ namespace Scheme.RT {
             Reg.setRegister(1, a);
             Reg.setRegister(2, b);
             Reg.setRegister(3, c);
-            call(getSupportProcedure(procIndex), 3);
+            call1(getSupportProcedure(procIndex), 3);
         }
 
         public static void callMillicodeSupport2(int procIndex, SObject a,
@@ -232,7 +322,7 @@ namespace Scheme.RT {
             saveContext(false);
             Reg.setRegister(1, a);
             Reg.setRegister(2, b);
-            call(getSupportProcedure(procIndex), 2);
+            call1(getSupportProcedure(procIndex), 2);
         }
 
         public static void callMillicodeSupport1(int procIndex, SObject a) {
@@ -241,7 +331,7 @@ namespace Scheme.RT {
 #endif
             saveContext(false);
             Reg.setRegister(1, a);
-            call(getSupportProcedure(procIndex), 1);
+            call1(getSupportProcedure(procIndex), 1);
         }
 
         public static Procedure getSupportProcedure(int index) {
@@ -265,7 +355,7 @@ namespace Scheme.RT {
         }
 
         // saveContext: saves numbered registers and Reg.implicitContinuation to frame
-        //   will restore registers and return to Reg.implicitContinuation of Reg.register0
+        //   will restore registers and return to Reg.implicitContinuation of Reg.Register0
         //   clears Reg.implicitContinuation
         //   Also saves Result and flag whether to restore Result
         public static void saveContext(bool full) {
@@ -298,10 +388,11 @@ namespace Scheme.RT {
         public static readonly InitialContinuation singleton = new InitialContinuation();
         public static readonly Procedure singletonProcedure =
             new Procedure(InitialContinuation.singleton);
-        private InitialContinuation() {}
+        private InitialContinuation() : base (1) {}
 
-        public override void call(int jump_index) {
-            return;
+        public override CodeAddress call (int jump_index)
+        {
+            return null;
         }
     }
 
@@ -315,20 +406,22 @@ namespace Scheme.RT {
         public static RestoreContextCode singleton = new RestoreContextCode();
         public static readonly Procedure singletonProcedure =
             new Procedure(RestoreContextCode.singleton);
-        private RestoreContextCode() {}
 
-        public override void call(int jumpIndex) {
-            ContinuationFrame frame = Cont.cont;
-            for (int i = 0; i < Reg.NREGS; ++i) {
-                Reg.setRegister(i, frame.getSlot(i+1));
-            }
-            if (frame.getSlot(Reg.LASTREG + 3) == Factory.True) {
-                Reg.Result = frame.getSlot(Reg.LASTREG + 2);
-            }
-            Procedure p0 = Reg.register0;
-            Cont.cont.checkPop(Reg.NREGS + 2, singletonProcedure);
-            Cont.pop();
-            Call.call(p0.entrypoint, jumpIndex);
+        private RestoreContextCode() : base (CONTROL_POINT_LIMIT) {}
+
+        public override CodeAddress call (int jumpIndex)
+        {
+          ContinuationFrame frame = Cont.cont;
+          for (int i = 0; i < Reg.NREGS; ++i) {
+              Reg.setRegister (i, frame.getSlot (i+1));
+              }
+          if (frame.getSlot (Reg.LASTREG + 3) == Factory.True) {
+              Reg.Result = frame.getSlot (Reg.LASTREG + 2);
+              }
+          Procedure p0 = Reg.Register0;
+          Cont.cont.checkPop (Reg.NREGS + 2, singletonProcedure);
+          Cont.pop();
+          return Call.call (p0.entrypoint, jumpIndex);
         }
     }
 
@@ -338,22 +431,28 @@ namespace Scheme.RT {
      * as a way of signaling the trampoline to continue execution.
      * It is used in a very specific way by Scheme.RT.Call.trampoline.
      */
-    public class BounceException : Exception {
-        public readonly CodeVector code;
-        public readonly int jumpIndex;
-        public BounceException(CodeVector cv, int j) {
-            this.code = cv;
-            this.jumpIndex = j;
-        }
-        public virtual void prepareForBounce() {
-        }
+    public class BounceException : Exception
+    {
+      public readonly CodeAddress target;
+
+      public BounceException (CodeAddress pc)
+      {
+        this.target = pc;
+      }
+
+      public virtual void prepareForBounce()
+      {
+      }
     }
 
     /* CodeVectorCallException indicates that the given codevector
      * should be called with the given jump index.
      */
-    public class CodeVectorCallException : BounceException {
-        public CodeVectorCallException(CodeVector rtn, int j) : base(rtn, j) {}
+    public class CodeVectorCallException : BounceException
+    {
+      public CodeVectorCallException (CodeVector rtn, int j)
+          : base (rtn.Address (j))
+      {}
     }
 
     /* SchemeCallException is used to invoke a millicode support
@@ -361,18 +460,20 @@ namespace Scheme.RT {
      * but also does the invocation setup (sets reg0, sets Result=argc).
      * The arguments to the procedure should be in registers 1..argc
      */
-    public class SchemeCallException : BounceException {
+    public class SchemeCallException : BounceException
+    {
         private readonly Procedure p;
-        private readonly SObject argc;
-        public SchemeCallException(Procedure p, int argc) :
-            base(p.entrypoint, 0) {
+        private readonly SFixnum argc;
+        public SchemeCallException (Procedure p, int argc) :
+            base (p.InitialCodeAddress)
+        {
             this.p = p;
             this.argc = Factory.makeFixnum (argc);
         }
         public override void prepareForBounce() {
-            Reg.Second = Reg.register0;
-            Reg.register0 = this.p;
-            Reg.Result = this.argc;
+            Reg.Second = Reg.Register0;
+            Reg.Register0 = this.p;
+            Reg.Result = argc;
         }
     }
 
