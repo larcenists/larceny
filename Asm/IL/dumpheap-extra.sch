@@ -44,20 +44,12 @@
          (il-namespace (cvclass-il-namespace codevector))
          (instrs (cvclass-instrs codevector))
          (constants (cvclass-constants codevector))
+         (label-count (cvclass-label-count codevector))
          (name (codevector-name id))
          (fullname (il-class #f il-namespace name)))
     (class-start name il-namespace il-codevector
                  '(private auto ansi beforefieldinit))
     (field-add "instance" iltype-codevector '(public static initonly))
-
-    (method-start ".ctor" iltype-void '()
-                  '(private hidebysig specialname
-                            rtspecialname instance cil managed))
-    (emit ilc
-          (il 'ldarg 0)
-          (il:call '(instance) iltype-void il-codevector ".ctor" '())
-          (il 'ret))
-    (method-finish)
 
     (method-start "id" iltype-int32 '()
                   '(public hidebysig virtual instance cil managed))
@@ -67,9 +59,19 @@
           (il 'ret))
     (method-finish)
 
-    (method-add "call" iltype-void (list iltype-int32)
+    (method-add "call" iltype-code-address (list iltype-int32)
                 '(public hidebysig virtual instance cil managed)
                 instrs)
+
+    (method-start ".ctor" iltype-void '()
+                  '(private hidebysig specialname
+                            rtspecialname instance cil managed))
+    (emit ilc
+          (il 'ldarg 0)
+          (il 'ldc.i4 label-count)
+          (il:call '(instance) iltype-void il-codevector ".ctor" (list iltype-int32))
+          (il 'ret))
+    (method-finish)
 
     (method-start ".cctor" iltype-void '()
                   '(private hidebysig specialname
@@ -190,6 +192,7 @@
       (for-each (lambda (manifest)
                   (dump-fasl/manifest base manifest))
                 manifests))))
+
 (define (dump-fasl/manifest base manifest)
   (with-input-from-file manifest
     (lambda ()
@@ -423,19 +426,39 @@
   (create-application output-file input-files #f))
 
 (define (invoke-ilasm exe-file il-files)
-  (let ((options
-         (if (codegen-option 'ilasm-debug)
-             "/nologo /quiet /debug"
-             "/nologo /quiet")))
-    (system (twobit-format #f "~a ~a /output:~a ~a"
+  (let* ((options (cond ((codegen-option 'clr-1.1)
+                         (cond ((codegen-option 'ilasm-debug) "/debug")
+                               (else "")))
+
+                        ((codegen-option 'clr-2.0)
+                         (cond ((codegen-option 'ilasm-debug)
+                                (if (codegen-option 'ilasm-opt)
+                                    "/debug=opt"
+                                    "/debug"))
+
+                               ((codegen-option 'ilasm-opt)
+                                "/optimize /fold")
+
+                               (else "")))
+
+                        (else (error "No valid CLR version set in codegen options."))))
+
+
+         (command-line (twobit-format #f "~a ~a ~a /output:~a ~a"
                            ilasm-executable
+                           "/nologo /quiet /alignment=4096 /clock"
                            options
                            exe-file
                            (apply string-append
                                   (map/separated
                                    values
                                    (lambda () " ")
-                                   il-files))))))
+                                   il-files)))))
+    (newline)
+    (display command-line)
+    (newline)
+    (flush-output-port)
+    (system command-line)))
 
 (define (ilasm exe-file il-files)
   (if (member (nbuild-parameter 'host-system) '("Larceny"))
@@ -510,7 +533,8 @@
 (define (sch->il filename)
   (let ((lap-name (rewrite-file-type filename *scheme-file-types* *lap-file-type*)))
     (compile313 filename)
-    (twobit-format (current-output-port) "  compiled -> ~s~%" lap-name)
+    (twobit-format (current-output-port) "  compiled  -> ~s~%" lap-name)
+    (flush-output-port (current-output-port))
     (mal->il lap-name)))
 
 ;; For cheesy, but effective debugging
@@ -544,8 +568,12 @@
         (begin (close-output-port listify-oport)
                (listify-reset)
                (twobit-format (current-output-port)
-                              "  listing -> ~s~%" listing-name)))
+                              "  listing -> ~s~%" listing-name)
+               (flush-output-port (current-output-port))
+               ))
     (twobit-format (current-output-port) "  assembled -> ~s~%" lop-name)
-
+    (flush-output-port (current-output-port))
     (create-loadable-file lop-name)
-    (twobit-format (current-output-port) "  IL dumped -> ~s~%" il-name)))
+    (twobit-format (current-output-port) "  IL dumped -> ~s~%" il-name)
+    (flush-output-port (current-output-port))
+    ))

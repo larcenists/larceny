@@ -45,15 +45,15 @@
 ;; dump-top-level : -> void
 (define (dump-top-level)
   (for-each (lambda (tli)
-              (cond ((class? tli) (dump-class tli))
-                    ((method? tli) (dump-member tli))
+              (cond ((clr-class? tli) (dump-class tli))
+                    ((clr-method? tli) (dump-member tli))
                     ((field? tli) (dump-member tli))
                     (else (dump-il tli))))
             (reverse *il-top-level*)))
 
 ;; dump-class : class -> void
 (define (dump-class class)
-  (let ((il-namespace (class-il-namespace class)))
+  (let ((il-namespace (clr-class-il-namespace class)))
     (if il-namespace
         (begin (dump-source ".namespace ~a" il-namespace)
                (dump-as-nested-block
@@ -63,10 +63,10 @@
 
 ;; dump-naked-class : class -> void
 (define (dump-naked-class class)
-  (let ((name (class-name class))
-        (super (class-super class))
-        (options (class-options class))
-        (members (class-members class)))
+  (let ((name (clr-class-name class))
+        (super (clr-class-super class))
+        (options (clr-class-options class))
+        (members (clr-class-members class)))
     (dump-source ".class")
     (for-each dump-source options)
     (dump-source name)
@@ -79,7 +79,7 @@
 (define (dump-member member)
   (cond ((field? member)
          (dump-field member))
-        ((method? member)
+        ((clr-method? member)
          (dump-method member))))
 
 ;; dump-field : field -> void
@@ -95,11 +95,11 @@
 
 ;; dump-method : method -> void
 (define (dump-method method)
-  (let ((name (method-name method))
-        (type (method-type method))
-        (argtypes (method-argtypes method))
-        (options (method-options method))
-        (instrs (method-instrs method)))
+  (let ((name (clr-method-name method))
+        (type (clr-method-type method))
+        (argtypes (clr-method-argtypes method))
+        (options (clr-method-options method))
+        (instrs (clr-method-instrs method)))
     (dump-source ".method")
     (for-each dump-source (filter-intersect options before-options))
     (dump-source type)

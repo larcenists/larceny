@@ -37,7 +37,8 @@
              (cons (make-cvclass (cvclass-il-namespace code)
                                  (cvclass-id code)
                                  (reverse processed-instrs)
-                                 (cvclass-constants code))
+                                 (cvclass-constants code)
+                                 (cvclass-label-count code))
                    (list->vector (as-constants as))))
             ((string? (car instrs))
              (loop (cdr instrs) (cons (car instrs) processed-instrs)))
@@ -45,7 +46,7 @@
              (loop (cdr instrs) (cons (car instrs) processed-instrs)))
             ((il-delay? (car instrs))
              (let ((forced (il-delay-force (car instrs))))
-               (loop (cdr instrs) (cons forced processed-instrs))))
+               (loop (append forced (cdr instrs)) processed-instrs)))
             (else (error 'something-else-in-assembler-code))))))
 
 ;; assemble-finalize! : assembler -> void
@@ -191,7 +192,8 @@
                (cvclass-il-namespace cvclass-il-namespace!)
                (cvclass-id cvclass-id!)
                (cvclass-instrs cvclass-instrs!)
-               (cvclass-constants cvclass-constants!))
+               (cvclass-constants cvclass-constants!)
+               (cvclass-label-count cvclass-label-count!))
 
 ;; /Code Emission --
 
@@ -235,7 +237,7 @@
     (as-code! as '())
     (emit as
           (il:delay
-           (il:directive 'local (map car (as:local-variables as))))
+           (list (il:directive 'local (map car (as:local-variables as)))))
           ;; WARNING: Keep same order as LOCAL-RESULT, LOCAL-CONSTANT-VECTOR above
           (if (codegen-option 'cache-result)
               (begin
@@ -253,10 +255,29 @@
                              LOCAL-CONSTANT-VECTOR)
                  (il:recache-constant-vector)))
               '())
-          (il:comment "Switch on jump index")
-          (il 'ldarg 1)
           (il:delay
-           (il 'switch (map label-name (as:collect-local-labels as id))))
+           (let ((labels (as:collect-local-labels as id)))
+             (cond ((null? (cdr labels))
+                    (list (il:comment "Jump index ignored.")))
+                   ((= (length labels) 2)
+                    (list
+                     (il:comment "Branch on jump index")
+                     (il 'ldarg 1)
+                     (il:branch 'brtrue (cadr labels))))
+                   ((= (length labels) 3)
+                    (list
+                     (il:comment "Branch on jump index")
+                     (il 'ldarg 1)
+                     (il:branch-s 'brfalse (car labels))
+                     (il 'ldarg 1)
+                     (il 'ldc.i4 1)
+                     (il:branch 'beq (cadr labels))
+                     (il:branch 'br (caddr labels))))
+                   (else
+                    (list
+                     (il:comment "Switch on jump index")
+                     (il 'ldarg 1)
+                     (il 'switch (map label-name labels)))))))
           (il:comment "First (default) target")
           (intern-label as id)
           (il:label/header id))))
@@ -266,14 +287,16 @@
 (define (end-codevector-class as)
   (if (as:current-codevector as)
       (let* ((user (as-user as))
-             (current-codevector (as:current-codevector as)))
-        (as-code!
-         as
-         (make-cvclass (user-data.il-namespace user)
+             (current-codevector (as:current-codevector as))
+             (cvclass (make-cvclass
+                       (user-data.il-namespace user)
                        current-codevector
                        (reverse (as-code as))
-                       '()))
-        (as:basic-block-closed! as #t))))
+                       '()
+                       0)))
+        (as-code! as cvclass)
+        (as:basic-block-closed! as #t)
+        (cvclass-label-count! cvclass (length (as:collect-local-labels as current-codevector))))))
 
 ;; codevector-id : assembler number -> codevector-id == (cons num num)
 (define (codevector-id as label)

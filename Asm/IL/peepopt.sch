@@ -10,7 +10,7 @@
 ; instruction is assembled.  It may replace the prefix of the instruction
 ; stream by some other instruction sequence.
 ;
-; Invariant: if the peephole optimizer doesn't change anything, then 
+; Invariant: if the peephole optimizer doesn't change anything, then
 ;
 ;  (let ((x (as-source as)))
 ;    (peep as)
@@ -76,7 +76,9 @@
 (define-peephole $const
   (lambda (as i1 i2 i3 t1 t2 t3)
     (cond ((= (car i2) $op2)
-           (const-op2 as i1 i2 t2)))))
+           (const-op2 as i1 i2 t2))
+          ((= (car i2) $setreg)
+           (const-setreg as i1 i2 t2)))))
 
 (define-peephole $branch
   (lambda (as i1 i2 i3 t1 t2 t3)
@@ -355,7 +357,7 @@
 
 ; End of check optimization.
 
-; Reg-setreg is not restricted to hardware registers, as $movereg is 
+; Reg-setreg is not restricted to hardware registers, as $movereg is
 ; a standard instruction.
 
 (define (reg-setreg as i:reg i:setreg tail)
@@ -364,6 +366,11 @@
     (if (= rs rd)
         (as-source! as tail)
         (as-source! as (cons (list $movereg rs rd) tail)))))
+
+(define (const-setreg as i:const i:setreg tail)
+  (let ((cs (operand1 i:const))
+        (rd (operand1 i:setreg)))
+    (as-source! as (cons (list $const/setreg cs rd) tail))))
 
 ; Make-vector on vectors of known short length.
 

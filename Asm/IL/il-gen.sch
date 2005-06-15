@@ -86,7 +86,17 @@
 (define (il:load-constant datum)
   (cond ((immediate-fixnum? datum)
          ;; Fixnum in preallocated fixnum pool
-         (rep:fixnum-from-pool datum))
+         (cond ((zero? datum)
+                (il:ldsfld iltype-fixnum il-fixnum "zero"))
+               ((= datum 1)
+                (il:ldsfld iltype-fixnum il-fixnum "one"))
+               ((= datum 2)
+                (il:ldsfld iltype-fixnum il-fixnum "two"))
+               ((= datum 3)
+                (il:ldsfld iltype-fixnum il-fixnum "three"))
+               ((= datum 4)
+                (il:ldsfld iltype-fixnum il-fixnum "four"))
+               (else (rep:fixnum-from-pool datum))))
         ((fixnum? datum)
          ;; General case: not in preallocated fixnum pool
          (list (il 'ldc.i4 datum)
@@ -271,13 +281,13 @@
   (list (il:flush-result-cache)
         (if (codegen-option 'direct-tail-calls)
             (il:call '(virtual instance tail)
-                     iltype-void
+                     iltype-code-address
                      il-codevector
                      "call"
                      (list iltype-int32))
             (list
              (il:call '()
-                      iltype-void
+                      iltype-code-address
                       il-call
                       "call"
                       (list iltype-codevector iltype-int32))
@@ -421,9 +431,16 @@
          (lambda (regpair)
            (il:ldsfld iltype-schemeobject il-reg (cadr regpair))))
         ((number? register)
-         (il:ldsfld (if (zero? register) iltype-procedure iltype-schemeobject)
-                    il-reg
-                    (twobit-format #f "register~a" register)))
+         (if (codegen-option 'special-reg-instructions)
+             (il:call '()
+                      (if (zero? register) iltype-procedure iltype-schemeobject)
+                      il-reg
+                      (string-append "get_Register" (number->string register))
+                      '())
+
+             (il:ldsfld (if (zero? register) iltype-procedure iltype-schemeobject)
+                        il-reg
+                        (twobit-format #f "r~a" register))))
         (error "il:load-register: cannot emit IL to load register: "
                register)))
 
@@ -443,11 +460,18 @@
            (list ilpackage
                  (il:stsfld iltype-schemeobject il-reg (cadr regpair)))))
         ((number? register)
-         (list ilpackage
-               (il:stsfld
-                (if (zero? register) iltype-procedure iltype-schemeobject)
-                il-reg
-                (twobit-format #f "register~a" register))))
+         (if (codegen-option 'special-setreg-instructions)
+             (list ilpackage
+                   (il:call '()
+                            iltype-void
+                            il-reg
+                            (string-append "set_Register" (number->string register))
+                            (list (if (zero? register) iltype-procedure iltype-schemeobject))))
+             (list ilpackage
+                   (il:stsfld
+                    (if (zero? register) iltype-procedure iltype-schemeobject)
+                    il-reg
+                    (twobit-format #f "r~a" register)))))
         (else
          (error 'unimplemented " cannot emit IL to set register: "
                 register))))
@@ -514,7 +538,7 @@
        (il:ldstr message)
        ;; We don't want to make this a tail call; we
        ;; want to keep it on the stack.
-       (il:call '() iltype-void il-exn "fault"
+       (il:call '() iltype-code-address il-exn "fault"
                 (list iltype-int32 iltype-string))
        (il 'ret))
       (il:fault excode)))
@@ -524,7 +548,7 @@
    (il:flush-result-cache)
    (il 'ldc.i4 excode)
    ;; No tail call! See above.
-   (il:call '() iltype-void il-exn "fault" (list iltype-int32))
+   (il:call '() iltype-code-address il-exn "fault" (list iltype-int32))
    (il 'ret)))
 
 ;; Specific Faults
@@ -539,29 +563,29 @@
 
 (define (il:fault/invoke-nonproc argc)
   (list (il 'ldc.i4 argc)
-        (il:call '() iltype-void il-exn "faultInvokeNonProc" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultInvokeNonProc" (list iltype-int32))
         (il 'ret)))
 
 (define (il:fault/apply-nonproc k1 k2)
   (list (il 'ldc.i4 k1)
         (il 'ldc.i4 k2)
-        (il:call '() iltype-void il-exn "faultApplyNonProc"
+        (il:call '() iltype-code-address il-exn "faultApplyNonProc"
                  (list iltype-int32 iltype-int32))
         (il 'ret)))
 
 (define (il:fault/undef-global index)
   (list (il 'ldc.i4 index)
-        (il:call '() iltype-void il-exn "faultGlobal" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultGlobal" (list iltype-int32))
         (il 'ret)))
 
 (define (il:fault/argc expectedc)
   (list (il 'ldc.i4 expectedc)
-        (il:call '() iltype-void il-exn "faultArgCount" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultArgCount" (list iltype-int32))
         (il 'ret)))
 
 (define (il:fault/vargc expectedc)
   (list (il 'ldc.i4 expectedc)
-        (il:call '() iltype-void il-exn "faultVarArgCount" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultVarArgCount" (list iltype-int32))
         (il 'ret)))
 
 ;; =========================================================
@@ -740,4 +764,3 @@
                (loop (+ 1 index) (cdr items))))))))
 
 (define il:fill-ref-array (il:fill-X-array (il 'stelem.ref)))
-

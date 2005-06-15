@@ -52,6 +52,7 @@
  (so il-continuation      iltype-continuation      "Continuation")
 
  (so il-loader-thunk iltype-loader-thunk "Twobit_Loader_Thunk")
+ (mac il-code-address       iltype-code-address       "CodeAddress")
  (mac il-cache-link         iltype-cache-link         "CacheLink")
  (mac il-cache-frame        iltype-cache-frame        "StackCacheFrame")
  (mac il-continuation-frame iltype-continuation-frame "ContinuationFrame"))
@@ -241,7 +242,7 @@
        (il:ldfld (if (zero? slot)
                      iltype-procedure
                      iltype-schemeobject) il-continuation-frame
-                 (twobit-format #f "slot~s" slot)))
+                 (twobit-format #f "s~s" slot)))
       (list
        (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
        (il 'ldc.i4 (- slot CONTINUATION-FRAME-SLOTS))
@@ -252,7 +253,7 @@
       (list
        ilpackage
        (il:stfld (if (zero? slot) iltype-procedure iltype-schemeobject) il-continuation-frame
-                 (twobit-format #f "slot~s" slot)))
+                 (twobit-format #f "s~s" slot)))
       (list
        (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
        (il 'ldc.i4 (- slot CONTINUATION-FRAME-SLOTS))

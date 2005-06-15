@@ -1,4 +1,4 @@
-;; Functions and Variables for dumping classes to an IL file.
+;; Functions and Variables for dumping clr-classes to an IL file.
 
 ; Variables
 (define *c-output* #f)
@@ -10,23 +10,23 @@
 (define *loadables* '())
 
 (define *il-top-level* '())
-(define *current-class* #f)
-(define *current-method* #f)
+(define *current-clr-class* #f)
+(define *current-clr-method* #f)
 (define *current-il-stream* '())
 
-(vector-struct $$class make-class class? 
-               (class-name class-name!) 
-               (class-il-namespace class-il-namespace!)
-               (class-super class-super!)
-               (class-options class-options!)
-               (class-members class-members!))
+(vector-struct $$clr-class make-clr-class clr-class?
+               (clr-class-name clr-class-name!)
+               (clr-class-il-namespace clr-class-il-namespace!)
+               (clr-class-super clr-class-super!)
+               (clr-class-options clr-class-options!)
+               (clr-class-members clr-class-members!))
 
-(vector-struct $$method make-method method?
-               (method-name method-name!)
-               (method-type method-type!)
-               (method-argtypes method-argtypes!)
-               (method-options method-options!)
-               (method-instrs method-instrs!))
+(vector-struct $$clr-method make-clr-method clr-method?
+               (clr-method-name clr-method-name!)
+               (clr-method-type clr-method-type!)
+               (clr-method-argtypes clr-method-argtypes!)
+               (clr-method-options clr-method-options!)
+               (clr-method-instrs clr-method-instrs!))
 
 (vector-struct $$field make-field field?
                (field-name field-name!)
@@ -35,46 +35,46 @@
 
 ;; class-start : string string string (listof option) -> void
 (define (class-start name il-namespace super options)
-  (set! *current-class* 
-        (make-class name il-namespace super options '())))
+  (set! *current-clr-class*
+        (make-clr-class name il-namespace super options '())))
 ;; class-finish : -> void
 (define (class-finish)
-  (class-add *current-class*)
-  (set! *current-class* #f))
+  (class-add *current-clr-class*)
+  (set! *current-clr-class* #f))
 ;; class-add : string string (listof option) (listof instr) -> void
 (define (class-add class)
   (set! *il-top-level* (cons class *il-top-level*)))
 
 ;; method-start : string string (listof string) (listof string) -> void
 (define (method-start name type argtypes options)
-  (set! *current-method* (make-method name type argtypes options '())))
+  (set! *current-clr-method* (make-clr-method name type argtypes options '())))
 ;; method-finish : -> void
 (define (method-finish)
-  (method-instrs! *current-method* (reverse *current-il-stream*))
-  (class-members! *current-class* 
-                  (cons *current-method*
-                        (class-members *current-class*)))
+  (clr-method-instrs! *current-clr-method* (reverse *current-il-stream*))
+  (clr-class-members! *current-clr-class*
+                  (cons *current-clr-method*
+                        (clr-class-members *current-clr-class*)))
   (set! *current-il-stream* '())
-  (set! *current-method* #f))
+  (set! *current-clr-method* #f))
 
-;; method-add : 
+;; method-add :
 ;;   string string (listof string) (listof string) (listof instr) -> void
 (define (method-add name type argtypes options instrs)
-  (class-members! *current-class*
-                  (cons (make-method name type argtypes options instrs)
-                        (class-members *current-class*))))
+  (clr-class-members! *current-clr-class*
+                  (cons (make-clr-method name type argtypes options instrs)
+                        (clr-class-members *current-clr-class*))))
 
-;; global-method-add : 
+;; global-method-add :
 ;;   string string (listof string) (listof string) (listof instr) -> void
 (define (global-method-add name type argtypes options instrs)
-  (set! *il-top-level* (cons (make-method name type argtypes options instrs)
+  (set! *il-top-level* (cons (make-clr-method name type argtypes options instrs)
                              *il-top-level*)))
 
 ;; field-add : string string (listof string) -> void
 (define (field-add name type options)
-  (class-members! *current-class*
+  (clr-class-members! *current-clr-class*
                   (cons (make-field name type options)
-                        (class-members *current-class*))))
+                        (clr-class-members *current-clr-class*))))
 
 ;; ilc (il-consumer) : value -> void
 (define (ilc il)
@@ -94,10 +94,10 @@
   (set! *entrypoints* '())
   (set! *loadables* '())
   (set! *already-compiled* '())
-  
+
   (set! *il-top-level* '())
-  (set! *current-class* #f)
-  (set! *current-method* #f)
+  (set! *current-clr-class* #f)
+  (set! *current-clr-method* #f)
   (set! *current-il-stream* '()))
 
 ;; =========================================================

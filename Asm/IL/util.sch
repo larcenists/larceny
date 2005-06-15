@@ -1,8 +1,8 @@
 
-;; vector-struct defines a set of functions for dealing with struct-like 
+;; vector-struct defines a set of functions for dealing with struct-like
 ;; vectors. A symbolic tag distinguishes different struct types (and aids
 ;; readability). Getters and setters are defined with the given names;
-;; setters may be #f, in which case none is defined, but getters must be 
+;; setters may be #f, in which case none is defined, but getters must be
 ;; identifiers.
 
 (define-syntax vector-struct
@@ -21,7 +21,7 @@
         ((getter setter index) ...) ())
      (begin
        (define (make getter ...) (vector tag getter ...))
-       (define (pred obj) (and (vector? obj) 
+       (define (pred obj) (and (vector? obj)
                                (> (vector-length obj) 0)
                                (eq? tag (vector-ref obj 0))))
        (define (getter obj)
@@ -32,11 +32,11 @@
        (vector-struct/define-setter setter (obj val)
          (if (pred obj)
              (vector-set! obj index val)
-             (error "vector-struct (" 'setter "): expected " tag ", given " obj))) 
+             (error "vector-struct (" 'setter "): expected " tag ", given " obj)))
        ...))))
 
 (define-syntax vector-struct/define-setter
-  (syntax-rules () 
+  (syntax-rules ()
     ((_ #f args body)
      (begin))
     ((_ setter args body)
@@ -45,18 +45,18 @@
 ;;(vector-struct '$$foo make-foo foo? (foo.a foo.a!) (foo.b foo.b!))
 
 (define (map/separated item-proc separator-proc items)
-  (if (null? items) 
+  (if (null? items)
       '()
       (cons (item-proc (car items))
             (let loop ((args (cdr items)))
-              (if (null? args) 
+              (if (null? args)
                   '()
                   (cons (separator-proc)
                         (cons (item-proc (car args))
                               (loop (cdr args)))))))))
 
 (define (for-each/separated item-proc separator-proc items)
-  (if (pair? items) 
+  (if (pair? items)
       (begin
         (item-proc (car items))
         (let loop ((args (cdr items)))
@@ -97,7 +97,7 @@
     (let loop ((target-size (vector-length elements)))
       (if (< target-size size)
           (loop (* 2 target-size))
-          (growable-vector.elements! 
+          (growable-vector.elements!
            gv
            (vector-copy-from-to elements
                                 (make-vector target-size (growable-vector.default gv))
