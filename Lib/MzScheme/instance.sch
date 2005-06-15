@@ -244,9 +244,15 @@
            (index offset))
        (vector-set! slots index (proc (vector-ref slots index)))))))
 
+(define (allocate-instance-state-vector size initial-value)
+  (let ((state-vector (make-vector (+ size 1) initial-value)))
+    (vector-set! state-vector 0 (get-serial-number))
+    state-vector))
+
 (define (instance/class instance)      (%instance/class instance))
 (define (instance/procedure instance)  (%instance/procedure instance))
 (define (instance/ref instance offset) (%instance/ref instance offset))
+(define (instance/serial-number instance) (%instance/ref instance 0))
 
 (define (instance/set! instance offset new-value)
   (%instance/set! instance offset new-value))
@@ -258,10 +264,22 @@
 (define (instance/replace! old-instance new-instance)
   (call-without-interrupts
    (lambda ()
-     (%set-instance/class!      old-instance (%instance/class new-instance))
-     (%set-instance/procedure!  old-instance (%instance/procedure new-instance))
-     (%set-instance/slots!      old-instance (%instance/slots new-instance)))))
+     ;; Preserve the serial number so that the instance doesn't
+     ;; disappear from hash tables!
+     (let ((old-serial-number (%instance/ref old-instance 0)))
+       (%set-instance/class!      old-instance (%instance/class new-instance))
+       (%set-instance/procedure!  old-instance (%instance/procedure new-instance))
+       (%set-instance/slots!      old-instance (%instance/slots new-instance))
+       (%instance/set! old-instance 0 old-serial-number)))))
 
 ;; This is used to make the class system meta-circular.
 (define (set-instance-class-to-self! instance)
   (%set-instance/class! instance instance))
+
+(define (hash-procedure-or-instance pori)
+  (if (instance? pori)
+      (modulo (%instance/ref pori 0) 16777216)
+      2321001))
+
+;; Make instances hash.
+(procedure-hasher hash-procedure-or-instance)
