@@ -72,10 +72,10 @@
 (define (write-bytevector-like bvl . rest)
   (if (pair? rest)
       (if (null? (cdr rest))
-          (io/write-bytevector-like string (car rest))
+          (io/write-bytevector-like bvl (car rest))
           (begin (error "write-bytevector-like: too many arguments.")
                  #t))
-      (io/write-bytevector-like string (current-output-port))))
+      (io/write-bytevector-like bvl (current-output-port))))
 
 ;; Simply emits the characters in string to the port.
 (define (write-string string . rest)
