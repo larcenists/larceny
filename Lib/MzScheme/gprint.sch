@@ -19,7 +19,7 @@
                 (define (around-method:print-object call-next-method object port slashify)
                   (let ((level (print-level)))
                     (if (number? level)
-                        (if (> level 0)
+                        (if (or (> level 0) slashify)
                             (parameterize ((print-level (- level 1)))
                               (call-next-method))
                             (print-level-exceeded port))
@@ -79,7 +79,8 @@
     (define (print-tail tail count)
       (cond ((null? tail))
             ((and (number? length)
-                  (>= count length))
+                  (>= count length)
+                  (not slashify))
              (write-string " ..." port))
             ((pair? tail)
              (write-string " " port)
@@ -90,7 +91,7 @@
              (print-object tail port slashify))))
 
     (if (number? length)
-        (if (= length 0)
+        (if (and (= length 0) (not slashify))
             (write-string "..." port)
             (print-object (car object) port slashify))
         (print-object (car object) port slashify))
@@ -106,7 +107,8 @@
     (define (print-tail count)
       (cond ((>= count vlen))
             ((and (number? length)
-                  (>= count length))
+                  (>= count length)
+                  (not slashify))
              (write-string " ..." port))
             (else
              (write-string " " port)
@@ -114,7 +116,7 @@
              (print-tail (+ count 1)))))
 
     (if (number? length)
-        (if (= length 0)
+        (if (and (= length 0) (not slashify))
             (write-string "..." port)
             (print-object (vector-ref object 0) port slashify))
         (print-object (vector-ref object 0) port slashify))
@@ -144,7 +146,7 @@
                      (print-unreadable-object
                       object port
                       (lambda ()
-                        (write-string (number->string (class-serial-number object)) port)
+                        (write-string (number->string (instance/serial-number object)) port)
                         (write-string " " port)
                         (write-string (class-name-no-angles object) port))))
                    method:print-object)))
@@ -153,7 +155,15 @@
 
   (list <generic>   (named-object-printer-method generic-name))
 
-  (list <hash-table> method:print-unreadable-object)
+  (list <hash-table> ((lambda ()
+                        (define (method:print-object call-next-method object port esc?)
+                          (print-unreadable-object
+                           object port
+                           (lambda ()
+                             (write-string (number->string (hash-table-count object)) port)
+                             (write-string "/" port)
+                             (write-string (number->string (vector-length (vector-ref object 4))) port))))
+                        method:print-object)))
 
   (list <interned-symbol> ((lambda ()
                              (define (method:print-object call-next-method object port slashify)
@@ -174,7 +184,13 @@
                       (write-string (number->string object) port))
                     method:print-object)))
 
-  (list <object> method:print-unreadable-object)
+  (list <object> ((lambda ()
+                    (define (method:print-object call-next-method object port slashify)
+                      (print-unreadable-object
+                       object port
+                       (lambda ()
+                         (write-string (number->string (instance/serial-number object)) port))))
+                    method:print-object)))
 
   (list <pair> ((lambda ()
                   (define (method:print-object call-next-method object port slashify)
