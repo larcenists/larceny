@@ -147,6 +147,8 @@
         (else
          (apply format fmt args))))
 
+(define flush-output-port flush-output)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; UNIX interface to support 'make'.
