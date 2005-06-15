@@ -55,7 +55,8 @@ namespace Scheme.Rep {
         private SChar(char c) {
             this.val = c;
         }
-        static SChar() {
+        public static void Initialize ()
+        {
             for (int i = 0; i < CHAR_COUNT; ++i) {
                 characters[i] = new SChar((char)i);
             }
@@ -95,21 +96,34 @@ namespace Scheme.Rep {
     // -------------------------------------------
     public sealed class SFixnum : SObject {
         public readonly int value;
-        public static readonly SFixnum[] pool;
+        public static SFixnum[] pool;
       // NOTE THE COMPILER KNOWS ABOUT THESE CONSTANTS
-        public const int minPreAlloc = -16384;
-        public const int maxPreAlloc = 32767;
+      // See Asm/IL/config.sch
+        public const int minPreAlloc = -32768;
+        public const int maxPreAlloc = 65535;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
 
+        public static SFixnum zero;
+        public static SFixnum one;
+        public static SFixnum two;
+        public static SFixnum three;
+        public static SFixnum four;
+
         // Stores numbers minPreAlloc to maxPreAlloc
         //          0 -> (maxPreAlloc - minPreAlloc + 1)
         // minPreAlloc -> maxPreAlloc
-        static SFixnum() {
+        public static void Initialize()
+        {
             pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
             for (int i = 0; i < pool.Length ; i++)
                 pool[i] = new SFixnum(i + minPreAlloc);
+            zero = makeFixnum (0);
+            one = makeFixnum (1);
+            two = makeFixnum (2);
+            three = makeFixnum (3);
+            four = makeFixnum (4);
         }
         private SFixnum(int value) {
             this.value = value;
@@ -469,6 +483,13 @@ namespace Scheme.Rep {
             this.constants = constantvector.elements;
         }
 
+       public CodeAddress InitialCodeAddress
+       {
+	 get {
+	     return this.entrypoint.InitialCodeAddress;
+             }
+       }
+
         /** lookup
          * Look up (rib, slot) in lexical environment
          */
@@ -484,7 +505,8 @@ namespace Scheme.Rep {
         /** update
          * Mutate a lexically bound variable at (rib, slot) to new_value
          */
-        public void update(int ri, int slot, SObject newValue) {
+        public void update (int ri, int slot, SObject newValue)
+        {
 	  Procedure proc = this;
 
 	  for (proc = this; ri > 0; ri--)
@@ -492,7 +514,7 @@ namespace Scheme.Rep {
 
 	  proc.rib [slot] = newValue;
 	  if (slot == 0)
-	      proc.parent = (Procedure) newValue;
+	      proc.parent = newValue as Procedure;
         }
 
         private string getName() {
@@ -944,8 +966,24 @@ namespace Scheme.Rep {
 
     // This should be abstract, but it causes Scheme to be an order of magnitude
     // slower when starting.
-    public /* abstract */ class CodeVector : SObject {
-        public static readonly CodeVector NoCode = new DataCodeVector(Factory.False);
+    public /* abstract */ class CodeVector : SObject
+    {
+      // Maximum number of labels to which jump index may refer.
+      public const int CONTROL_POINT_LIMIT = 512;
+
+      public static readonly CodeVector NoCode = new DataCodeVector (Factory.False);
+
+      public readonly CodeAddress [] controlPoints;
+
+      public CodeVector (int controlPointCount)
+      {
+	if (controlPointCount > CONTROL_POINT_LIMIT)
+	    throw new Exception ("Maximum number of control points exceeded.");
+
+        this.controlPoints = new CodeAddress [controlPointCount];
+        for (int i = 0; i < controlPointCount; ++i)
+            this.controlPoints [i] = new CodeAddress (this, i);
+      }
 
         /** call
          * Given a jump index (0 for entry point, NOT the same as label number),
@@ -953,9 +991,22 @@ namespace Scheme.Rep {
          */
         // This should be abstract, but see above.
         // public abstract void call(int jump_index);
-        public virtual void call (int jump_index) {
-          throw new Exception ("Subclass of CodeVector did not override call method.");
-          }
+      public virtual CodeAddress call (int jump_index)
+      {
+	throw new Exception ("Subclass of CodeVector did not override call method.");
+      }
+
+      public virtual CodeAddress InitialCodeAddress
+      {
+        get {
+	    return this.controlPoints [0];
+	    }
+      }
+
+      public CodeAddress Address (int i)
+      {
+	return this.controlPoints [i];
+      }
 
         public virtual int id() { return 0; }
         public string name() {
@@ -975,15 +1026,17 @@ namespace Scheme.Rep {
         }
     }
 
-    public class DataCodeVector : CodeVector {
+    public class DataCodeVector : CodeVector
+    {
         public SObject datum;
 
-        public DataCodeVector(SObject datum) {
+        public DataCodeVector(SObject datum) : base (0) {
             this.datum = datum;
         }
 
-        public override void call(int ignored) {
-            throw new Exception("not a real codevector");
+        public override CodeAddress call (int ignored)
+        {
+           throw new Exception ("not a real codevector");
         }
     }
 
