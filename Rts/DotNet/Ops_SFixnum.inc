@@ -125,7 +125,7 @@
                 if (b < p.rib.Length) {
                     p.rib[b] = arg3;
 		    if (b == 0)
-			p.parent = (Procedure) arg3;
+			p.parent = arg3 as Procedure;
                     return Factory.Unspecified;
                 }
             }
@@ -377,7 +377,7 @@
             // subtract one 'cuz the first arg is just the value
             // to which we want to dispatch.
             int num_args = this.value - 1;
-            Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
+            Sys num_syscall = (Sys) ((SFixnum)Reg.Register1).intValue();
             Syscall.dispatch(num_args, num_syscall);
         }
         SPECIALOP1_OVERRIDE(zerop) {
