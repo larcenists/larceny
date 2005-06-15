@@ -81,6 +81,9 @@
     <Compile Include="Call.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="CodeAddress.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Constants.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -124,6 +127,9 @@
       <SubType>Code</SubType>
     </Compile>
     <AppDesigner Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
   <PropertyGroup>
