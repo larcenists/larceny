@@ -31,7 +31,6 @@
                     FileAlignment = "4096"
                     IncrementalBuild = "false"
                     Optimize = "false"
-                    OutputPath = "..\..\bin\Debug"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
                     TreatWarningsAsErrors = "false"
@@ -49,7 +48,6 @@
                     FileAlignment = "4096"
                     IncrementalBuild = "false"
                     Optimize = "true"
-                    OutputPath = "..\..\bin\Release"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
                     TreatWarningsAsErrors = "false"
@@ -88,6 +86,11 @@
                 />
                 <File
                     RelPath = "Call.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "CodeAddress.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
