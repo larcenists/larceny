@@ -208,7 +208,7 @@
      ;; Twobit.app on MacOS X because MacOS X can't distinguish "Twobit"
      ;; (the directory) and "twobit" (the program).  Unix?  I think not.
      (set! *twobit-executable-name* "twobit.app"))
-    ((cygwin)
+    ((cygwin win32)
      (set! *twobit-executable-name* "twobit.exe"))
     )
 
