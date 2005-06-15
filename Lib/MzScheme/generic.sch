@@ -52,6 +52,11 @@
     ((%instance/ref instance offset)
      (vector-ref (%instance/slots instance) offset))))
 
+(define-syntax %instance/serial-number
+  (syntax-rules ()
+    ((%instance/serial-number instance)
+     (%instance/ref instance 0))))
+
 (define-syntax %instance/set!
   (syntax-rules ()
     ((%instance/set! instance offset value)
@@ -63,6 +68,10 @@
      (let ((slots (%instance/slots instance))
            (index offset))
        (vector-set! slots index (proc (vector-ref slots index)))))))
+
+(define-syntax %instance-overhead
+  (syntax-rules ()
+    ((%instance-overhead) 1)))
 
 (define-syntax lookup-slot-info
   (syntax-rules ()
@@ -388,7 +397,7 @@
                                       (if (and this-table
                                                (hash-table-get this-table this-arg false))
                                           this-arg
-                                          (class-serial-number (class-of this-arg))))
+                                          (%instance/serial-number (class-of this-arg))))
                                     ks))
                         (reverse! ks))))
 
@@ -737,7 +746,7 @@
                     (foldl (lambda (initializer index)
                              (%instance/set! object index (apply initializer initargs))
                              (+ index 1))
-                           0
+                           (%instance-overhead)
                            (%class-field-initializers class))))
                 method:initialize-instance)))
 
@@ -897,8 +906,7 @@
                   (%set-class-slots! class (compute-slots class))
                   (%set-class-default-initargs! class (compute-default-initargs class))
                   (%set-class-name!  class (getarg initargs :name '-anonymous-))
-                  (%set-class-serial-number! class (get-serial-number))
-                  (let* ((nfields 0)
+                  (let* ((nfields (%instance-overhead))
                          (field-initializers '())
                          ;; allocator: give me an initializer function, get a slot number
                          (allocator (lambda (init)
@@ -912,7 +920,7 @@
                                                          (compute-getter-and-setter
                                                           class slot allocator)))
                                                  (%class-slots class))))
-                    (%set-class-nfields! class nfields)
+                    (%set-class-nfields! class (- nfields (%instance-overhead)))
                     (%set-class-field-initializers! class (reverse! field-initializers))
                     (%set-class-getters-n-setters! class getters-n-setters))
                   (%set-class-initializers!
@@ -970,9 +978,9 @@
   :specializers (list <class>)
   :procedure ((lambda ()
                 (define (method:allocate-instance call-next-method class initargs)
-                  (%make-instance class
-                                  (make-vector (length (%class-field-initializers class))
-                                               *unbound-slot-value*)))
+                  (%make-instance class (allocate-instance-state-vector
+                                         (length (%class-field-initializers class))
+                                         *unbound-slot-value*)))
                 method:allocate-instance)))
 
 (extend-generic allocate-instance
@@ -981,8 +989,8 @@
                 (define (method:allocate-instance call-next-method class initargs)
                   (%make-entity class
                                 uninitialized-entity-procedure
-                                (make-vector (length (%class-field-initializers class))
-                                             *unbound-slot-value*)))
+                                (allocate-instance-state-vector (length (%class-field-initializers class))
+                                                                *unbound-slot-value*)))
                 method:allocate-instance)))
 
 (extend-generic compute-cpl
@@ -995,22 +1003,24 @@
 (extend-generic compute-slots
   :specializers (list <class>)
   :procedure ((lambda ()
+
                 (define (method:compute-slots call-next-method class)
                   (let ((all-slots   (map %class-direct-slots (%class-cpl class))))
 
                     (let collect1 ((to-process (apply append all-slots))
                                    (final-slots '()))
-                      (cond ((pair? to-process) (let* ((name   (caar to-process))
-                                                       (others '())
-                                                       (remaining-to-process
-                                                        (filter (lambda (o)
-                                                                  (if (eq? (car o) name)
-                                                                      (begin (set! others (cons (cdr o) others)) #f)
-                                                                      #t))
-                                                                to-process)))
-                                                  (collect1 remaining-to-process
-                                                            (cons (cons name (apply append (reverse! others)))
-                                                                  final-slots))))
+                      (cond ((pair? to-process)
+                             (let* ((name   (caar to-process))
+                                    (others '())
+                                    (remaining-to-process
+                                     (filter (lambda (o)
+                                               (if (eq? (car o) name)
+                                                   (begin (set! others (cons (cdr o) others)) #f)
+                                                   #t))
+                                             to-process)))
+                               (collect1 remaining-to-process
+                                         (cons (cons name (apply append (reverse! others)))
+                                               final-slots))))
                             ((null? to-process)
 
                              ;; Sort the slots by order of appearance in cpl, makes them stay in the
@@ -1179,7 +1189,7 @@
 
 ;;; BOOTSTRAP STEP  fixup the initalizers for <method> so subclassing methods works
 (let* ((class <method>)
-       (nfields 0)
+       (nfields (%instance-overhead))
        (field-initializers '())
        ;; allocator: give me an initializer function, get a slot number
        (allocator (lambda (init)
@@ -1380,7 +1390,6 @@
   (set! %class-initializers        (%slot-getter <class>   'initializers))
   (set! %class-name                (%slot-getter <class>   'name))
   (set! %class-nfields             (%slot-getter <class>   'nfields))
-  (set! %class-serial-number       (%slot-getter <class>   'serial-number))
   (set! %class-slots               (%slot-getter <class>   'slots))
   (set! %class-direct-additional-initargs    (%slot-getter <class> 'direct-additional-initargs))
   (set! %class-effective-valid-initargs      (%slot-getter <class> 'effective-valid-initargs))
@@ -1395,7 +1404,6 @@
   (set! %set-class-initializers!   (%slot-setter <class>   'initializers))
   (set! %set-class-name!           (%slot-setter <class>   'name))
   (set! %set-class-nfields!        (%slot-setter <class>   'nfields))
-  (set! %set-class-serial-number!  (%slot-setter <class>   'serial-number))
   (set! %set-class-slots!          (%slot-setter <class>   'slots))
   (set! %set-class-direct-additional-initargs! (%slot-setter <class> 'direct-additional-initargs))
   (set! %set-class-effective-valid-initargs! (%slot-setter <class>   'effective-valid-initargs))
@@ -1658,60 +1666,59 @@
 
 ;;; BOOTSTRAP STEP
 ;;; replace class-of with something more intelligent
-(let ((hashtable-tag-object (vector-ref (make-hashtable) 0)))
 
-  (set! class-of
-        (lambda (object)
-          (cond ((procedure? object) (cond ((instance? object) (%instance/class object))
-                                           ((interpreted-expression? object) <interpreted-expression>)
-                                           ((interpreted-primitive? object) <interpreted-primitive>)
-                                           ((interpreted-procedure? object) <interpreted-procedure>)
-                                           (else <procedure>)))
+(set! class-of
+      (lambda (object)
+        (cond ((procedure? object) (cond ((instance? object) (%instance/class object))
+                                         ((interpreted-expression? object) <interpreted-expression>)
+                                         ((interpreted-primitive? object) <interpreted-primitive>)
+                                         ((interpreted-procedure? object) <interpreted-procedure>)
+                                         (else <procedure>)))
 
-                ((vector-like? object)
-                 (cond ((ratnum? object) <ratnum>)
-                       ((rectnum? object) <rectnum>)
-                       ((symbol? object) (if (uninterned-symbol? object)
-                                             <uninterned-symbol>
-                                             <interned-symbol>))
-                       ((port? object) (cond ((input-port? object) <input-port>)
-                                             ((output-port? object) <output-port>)
-                                             (else <port>)))
-                       ((structure? object) (cond ((environment? object) <namespace>)
+              ((vector-like? object)
+               (cond ((ratnum? object) <ratnum>)
+                     ((rectnum? object) <rectnum>)
+                     ((symbol? object) (if (uninterned-symbol? object)
+                                           <uninterned-symbol>
+                                           <interned-symbol>))
+                     ((port? object) (cond ((input-port? object) <input-port>)
+                                           ((output-port? object) <output-port>)
+                                           (else <port>)))
+                     ((structure? object) (cond ((environment? object) <namespace>)
                                         ;((struct? object) (struct-type->class object))
-                                                  ((record? object)
-                                                   (record-type->class (record-type-descriptor object)))
-                                                  (else <primitive-structure>)))
-                       ((vector? object)
-                        (cond ((= (vector-length object) 0) <vector>)
-                              ((hashtable? object) <hash-table>)
-                              ((code-object? object)
-                               (cond ((assignment? object) <assignment>)
-                                     ((begin? object) <begin>)
-                                     ((call? object) <call>)
-                                     ((conditional? object) <conditional>)
-                                     ((constant? object) <constant>)
-                                     ((lambda? object) <lambda>)
-                                     ((variable? object) <variable>)
-                                     (else <code-object>)))
-                              (else <vector>)))
-                       (else <vector-like>)))
+                                                ((record? object)
+                                                 (record-type->class (record-type-descriptor object)))
+                                                (else <primitive-structure>)))
+                     ((vector? object)
+                      (cond ((= (vector-length object) 0) <vector>)
+                            ((hashtable? object) <hash-table>)
+                            ((code-object? object)
+                             (cond ((assignment? object) <assignment>)
+                                   ((begin? object) <begin>)
+                                   ((call? object) <call>)
+                                   ((conditional? object) <conditional>)
+                                   ((constant? object) <constant>)
+                                   ((lambda? object) <lambda>)
+                                   ((variable? object) <variable>)
+                                   (else <code-object>)))
+                            (else <vector>)))
+                     (else <vector-like>)))
 
-                ((bytevector-like? object)
-                 (cond ((bignum? object) <bignum>)
-                       ((bytevector? object) <bytevector>)
-                       ((flonum? object) <flonum>)
-                       ((string? object) <string>)
-                       (else <bytevector-like>)))
+              ((bytevector-like? object)
+               (cond ((bignum? object) <bignum>)
+                     ((bytevector? object) <bytevector>)
+                     ((flonum? object) <flonum>)
+                     ((string? object) <string>)
+                     (else <bytevector-like>)))
 
-                ((boolean? object) <boolean>)
-                ((char? object)   <char>)
-                ((eof-object? object) <end-of-file>)
-                ((fixnum? object) <fixnum>)
-                ((null? object) <null>)
-                ((pair? object) <nonempty-list>)
-                ((eq? object (void)) <void>)
-                (else <unknown-primitive>)))))
+              ((boolean? object) <boolean>)
+              ((char? object)   <char>)
+              ((eof-object? object) <end-of-file>)
+              ((fixnum? object) <fixnum>)
+              ((null? object) <null>)
+              ((pair? object) <nonempty-list>)
+              ((eq? object (void)) <void>)
+              (else <unknown-primitive>))))
 
 ;;; Miscellany
 

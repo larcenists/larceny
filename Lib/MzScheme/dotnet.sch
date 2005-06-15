@@ -177,9 +177,10 @@
   :procedure ((lambda ()
                 (define (method:allocate-instance call-next-method class initargs)
                   (%make-instance class
-                                  (make-vector (+ (length (%class-field-initializers class))
-                                                  (length (getarg initargs :direct-slots '())))
-                                               (undefined))))
+                                  (allocate-instance-state-vector
+                                   (+ (length (%class-field-initializers class))
+                                      (length (getarg initargs :direct-slots '())))
+                                   (undefined))))
                 method:allocate-instance)))
 
 (define clr/StudlyName (generic-getter 'clr/StudlyName))
@@ -1696,7 +1697,9 @@
 
                   ;; Make an uninitialized instance to hold the guts of
                   ;; the table entry.
-                  (duplicate-of-original (%make-instance #f #f))
+                  (duplicate-of-original
+                   (%make-instance #f
+                                   (allocate-instance-state-vector 0 #f)))
 
                   ;; And a new generic which will be the result of this
                   ;; call.
