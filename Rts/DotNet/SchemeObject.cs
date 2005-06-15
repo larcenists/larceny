@@ -258,11 +258,11 @@ using Scheme.Rep;
 
 namespace Scheme.Rep {
 
-    
-    
-    
+
+
+
     public abstract class SObject {
-        
+
         public override string ToString() {
             System.IO.StringWriter sw = new System.IO.StringWriter();
             this.write(sw);
@@ -278,7 +278,7 @@ namespace Scheme.Rep {
 
 
 
-        
+
         public virtual SObject op_numberp() { return Factory.False; } public virtual bool isNumber() { return false; }
         public virtual SObject op_fixnump() { return Factory.False; } public virtual bool isFixnum() { return false; }
         public virtual SObject op_flonump() { return Factory.False; } public virtual bool isFlonum() { return false; }
@@ -311,9 +311,9 @@ namespace Scheme.Rep {
         public virtual SObject op_bytevectorp() { return Factory.False; } public virtual bool isByteVector() { return false; }
         public virtual SObject op_stringp() { return Factory.False; } public virtual bool isString() { return false; }
 
-        
-        
-        
+
+
+
 
         public SObject op_eqp(SObject arg2) { return (this == arg2) ? Factory.True : Factory.False; }
         public SObject op_not() { return (this == Factory.False) ? Factory.True : Factory.False; }
@@ -322,7 +322,7 @@ namespace Scheme.Rep {
         public SObject op_unspecifiedp() { return (this == Factory.Unspecified) ? Factory.True : Factory.False; }
         public SObject op_undefinedp() { return (this == Factory.Undefined) ? Factory.True : Factory.False; }
 
-        
+
         public SObject op_creg() { return Cont.getCC(); }
         public SObject op_creg_set() {
             Cont.setCC(this);
@@ -331,12 +331,12 @@ namespace Scheme.Rep {
         public virtual SObject op_break() { Exn.fault(Constants.EX_BREAKPOINT, null, this); return Factory.Impossible; }
         public virtual SObject op_gc_counter() { Exn.fault(Constants.EX_UNSUPPORTED, null, this); return Factory.Impossible; }
 
-        
+
         public SObject op_unspecified() { return Factory.Unspecified; }
         public SObject op_undefined() { return Factory.Undefined; }
         public SObject op_eof_object() { return Factory.Eof; }
 
-        
+
         public virtual SObject op_char_lt(SObject arg2) { Exn.fault(Constants.EX_CHARLT, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_char_lt(SChar arg1) { Exn.fault(Constants.EX_CHARLT, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_char_le(SObject arg2) { Exn.fault(Constants.EX_CHARLE, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_char_le(SChar arg1) { Exn.fault(Constants.EX_CHARLE, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_char_ge(SObject arg2) { Exn.fault(Constants.EX_CHARGE, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_char_ge(SChar arg1) { Exn.fault(Constants.EX_CHARGE, null, arg1, this); return Factory.Impossible; }
@@ -346,12 +346,12 @@ namespace Scheme.Rep {
         public virtual SObject op_char2integer() { Exn.fault(Constants.EX_CHAR2INT, null, this); return Factory.Impossible; }
         public virtual SObject op_integer2char() { Exn.fault(Constants.EX_INT2CHAR, null, this); return Factory.Impossible; }
 
-        
+
         public SObject op_make_cell() { return Factory.makePair(this, Factory.False); }
         public virtual SObject op_cell_ref() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
         public virtual SObject op_cell_set(SObject arg2) { Exn.fault(Constants.EX_SETCAR, null, this, arg2); return Factory.Impossible; }
 
-        
+
         public SObject op_cons(SObject arg2) { return Factory.makePair(this, arg2); }
         public virtual SObject op_car() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
         public virtual SObject op_car_pair() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
@@ -363,16 +363,16 @@ namespace Scheme.Rep {
         public virtual SObject op_set_cdr(SObject arg2) { Exn.fault(Constants.EX_SETCDR, null, this, arg2); return Factory.Impossible; }
         public virtual SObject op_set_cdr_pair(SObject arg2) { Exn.fault(Constants.EX_SETCDR, null, this, arg2); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_typetag() { Exn.fault(Constants.EX_TYPETAG, null, this); return Factory.Impossible; }
         public virtual SObject op_typetag_set(SObject arg2) { Exn.fault(Constants.EX_TYPETAGSET, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_typetag_set(STagged arg1) { Exn.fault(Constants.EX_TYPETAGSET, null, arg1, this); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_vector_like_length() { Exn.fault(Constants.EX_VLLEN, null, this); return Factory.Impossible; }
         public virtual SObject op_vector_like_ref(SObject arg2) { Exn.fault(Constants.EX_VLREF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_vector_like_ref(SVL arg1) { Exn.fault(Constants.EX_VLREF, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_vector_like_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VLSET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_like_set(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VLSET, null, arg1, this, arg3); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_make_vector(SObject arg2) { Exn.fault(Constants.EX_MKVL, null, this, arg2); return Factory.Impossible; }
         public virtual SObject op_vector_length() { Exn.fault(Constants.EX_VECTOR_LENGTH, null, this); return Factory.Impossible; }
         public virtual SObject op_vector_length_vec() { Exn.fault(Constants.EX_VECTOR_LENGTH, null, this); return Factory.Impossible; }
@@ -381,13 +381,13 @@ namespace Scheme.Rep {
         public virtual SObject op_vector_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
         public virtual SObject op_vector_set_trusted(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set_trusted(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_procedure_length() { Exn.fault(Constants.EX_PROCEDURE_LENGTH, null, this); return Factory.Impossible; }
         public virtual SObject op_make_procedure() { Exn.fault(Constants.EX_MKVL, null, this); return Factory.Impossible; }
         public virtual SObject op_procedure_ref(SObject arg2) { Exn.fault(Constants.EX_PROCEDURE_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_procedure_ref(Procedure arg1) { Exn.fault(Constants.EX_PROCEDURE_REF, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_procedure_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_PROCEDURE_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_procedure_set(Procedure arg1, SObject arg3) { Exn.fault(Constants.EX_PROCEDURE_SET, null, arg1, this, arg3); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_make_string(SObject arg2) { Exn.fault(Constants.EX_MKBVL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_make_string(SFixnum arg1) { Exn.fault(Constants.EX_MKBVL, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_string_length() { Exn.fault(Constants.EX_STRING_LENGTH, null, this); return Factory.Impossible; }
         public virtual SObject op_string_length_str() { Exn.fault(Constants.EX_STRING_LENGTH, null, this); return Factory.Impossible; }
@@ -396,7 +396,7 @@ namespace Scheme.Rep {
         public virtual SObject op_string_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_string_set(SByteVL arg1, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, arg1, this, arg3); return Factory.Impossible; }
         public virtual SObject op_string_set_trusted(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_string_set_trusted(SByteVL arg1, SObject arg3) { Exn.fault(Constants.EX_STRING_SET, null, arg1, this, arg3); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_make_bytevector() { Exn.fault(Constants.EX_MKBVL, null, this); return Factory.Impossible; }
         public virtual SObject op_bytevector_length() { Exn.fault(Constants.EX_BYTEVECTOR_LENGTH, null, this); return Factory.Impossible; }
         public virtual SObject op_bytevector_ref(SObject arg2) { Exn.fault(Constants.EX_BYTEVECTOR_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_bytevector_ref(SByteVL arg1) { Exn.fault(Constants.EX_BYTEVECTOR_REF, null, arg1, this); return Factory.Impossible; }
@@ -404,13 +404,13 @@ namespace Scheme.Rep {
         public virtual SObject op_bytevector_equal(SObject arg2) { Exn.fault(Constants.EX_UNSUPPORTED, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_bytevector_equal(SByteVL arg1) { Exn.fault(Constants.EX_UNSUPPORTED, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_bytevector_fill(SObject arg2) { Exn.fault(Constants.EX_BVFILL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_bytevector_fill(SByteVL arg1) { Exn.fault(Constants.EX_BVFILL, null, arg1, this); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_bytevector_like_length() { Exn.fault(Constants.EX_BVLLEN, null, this); return Factory.Impossible; }
         public virtual SObject op_bytevector_like_ref(SObject arg2) { Exn.fault(Constants.EX_BVLREF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_bytevector_like_ref(SByteVL arg1) { Exn.fault(Constants.EX_BVLREF, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_bytevector_like_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_BVLSET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_bytevector_like_set(SByteVL arg1, SObject arg3) { Exn.fault(Constants.EX_BVLSET, null, arg1, this, arg3); return Factory.Impossible; }
         public virtual SObject op_sys_bvlcmp(SObject arg2) { Exn.fault(Constants.EX_UNSUPPORTED, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_sys_bvlcmp(SByteVL arg1) { Exn.fault(Constants.EX_UNSUPPORTED, null, arg1, this); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_fxzerop() { Exn.fault(Constants.EX_UNSUPPORTED, null, this); return Factory.Impossible; }
         public virtual SObject op_fxpositivep() { Exn.fault(Constants.EX_FXPOSITIVE, null, this); return Factory.Impossible; }
         public virtual SObject op_fxnegativep() { Exn.fault(Constants.EX_FXNEGATIVE, null, this); return Factory.Impossible; }
@@ -427,7 +427,7 @@ namespace Scheme.Rep {
         public SObject op_most_positive_fixnum() { return Factory.makeFixnum(SFixnum.MAX); }
         public SObject op_most_negative_fixnum() { return Factory.makeFixnum(SFixnum.MIN); }
 
-        
+
         public virtual SObject op_lognot() { Exn.fault(Constants.EX_LOGNOT, null, this); return Factory.Impossible; }
         public virtual SObject op_logand(SObject arg2) { Exn.fault(Constants.EX_LOGAND, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_logand(SFixnum arg1) { Exn.fault(Constants.EX_LOGAND, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_logior(SObject arg2) { Exn.fault(Constants.EX_LOGIOR, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_logior(SFixnum arg1) { Exn.fault(Constants.EX_LOGIOR, null, arg1, this); return Factory.Impossible; }
@@ -437,7 +437,7 @@ namespace Scheme.Rep {
         public virtual SObject op_rsha(SObject arg2) { Exn.fault(Constants.EX_RSHA, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_rsha(SFixnum arg1) { Exn.fault(Constants.EX_RSHA, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_rshl(SObject arg2) { Exn.fault(Constants.EX_RSHL, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_rshl(SFixnum arg1) { Exn.fault(Constants.EX_RSHL, null, arg1, this); return Factory.Impossible; }
 
-        
+
         public virtual SObject op_real_part() { Exn.fault(Constants.EX_REALPART, null, this); return Factory.Impossible; }
         public virtual SObject op_imag_part() { Exn.fault(Constants.EX_IMAGPART, null, this); return Factory.Impossible; }
 
@@ -449,7 +449,7 @@ namespace Scheme.Rep {
         public virtual SObject op_greater_fix_fix(SObject arg2) { Exn.fault(Constants.EX_GREATERP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_greater_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_GREATERP, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_greaterequal_fix_fix(SObject arg2) { Exn.fault(Constants.EX_GREATEREQP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_greaterequal_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_GREATEREQP, null, arg1, this); return Factory.Impossible; }
 
-        
+
         public SObject op_sys_partial_list__vector(SObject arg2) {
             SObject arg1 = this;
             int n = ((SFixnum)arg2).value;
@@ -461,9 +461,9 @@ namespace Scheme.Rep {
             return Factory.makeVector(items);
         }
 
-        
-        
-        
+
+
+
 
         public virtual void op_enable_interrupts() { Exn.fault(Constants.EX_EINTR, null, this); }
         public void op_disable_interrupts() {
@@ -516,9 +516,9 @@ namespace Scheme.Rep {
 #line 29 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public sealed class SImmediate : SObject {
         public readonly string rep;
         public SImmediate(String rep) {
@@ -535,9 +535,9 @@ namespace Scheme.Rep {
 #line 44 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public sealed class SChar : SObject {
         public const int CHAR_COUNT = 256;
         public static readonly SChar[] characters =
@@ -547,7 +547,8 @@ namespace Scheme.Rep {
         private SChar(char c) {
             this.val = c;
         }
-        static SChar() {
+        public static void Initialize ()
+        {
             for (int i = 0; i < CHAR_COUNT; ++i) {
                 characters[i] = new SChar((char)i);
             }
@@ -600,17 +601,13 @@ namespace Scheme.Rep {
             return Factory.makeString(arg1.value, this.val);
         }
 
-        
+
         public override void op_reversed_char_eqvp_not_eq(SChar arg1) {
             Reg.Result = (arg1.val == this.val) ? Factory.True : Factory.False;
         }
-#line 78 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 79 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
-    
 
 
 
@@ -620,26 +617,41 @@ namespace Scheme.Rep {
 
 
 
-    
-    
-    
+
+
+
+
+
+
+
     public sealed class SFixnum : SObject {
         public readonly int value;
-        public static readonly SFixnum[] pool;
-      
+        public static SFixnum[] pool;
+
+
         public const int minPreAlloc = -16384;
         public const int maxPreAlloc = 32767;
         public const int MAX = (1 << 29) - 1;
         public const int MIN = -(1 << 29);
         public const int BITS = 30;
 
-        
-        
-        
-        static SFixnum() {
+        public static SFixnum zero;
+        public static SFixnum one;
+        public static SFixnum two;
+        public static SFixnum three;
+        public static SFixnum four;
+
+
+        public static void Initialize()
+        {
             pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
             for (int i = 0; i < pool.Length ; i++)
                 pool[i] = new SFixnum(i + minPreAlloc);
+            zero = makeFixnum (0);
+            one = makeFixnum (1);
+            two = makeFixnum (2);
+            three = makeFixnum (3);
+            four = makeFixnum (4);
         }
         private SFixnum(int value) {
             this.value = value;
@@ -651,10 +663,10 @@ namespace Scheme.Rep {
             return value;
         }
         public static bool inFixnumRange(short n) {
-          return true; 
+          return true;
         }
         public static bool inFixnumRange(ushort n) {
-          return true;  
+          return true;
         }
         public static bool inFixnumRange(int n) {
             return (n <= MAX) && (n >= MIN);
@@ -754,7 +766,7 @@ namespace Scheme.Rep {
                 SObject[] env = new SObject[a];
                 env[0] = Factory.False;
                 for (int i = 1; i < a; ++i) {
-                    env[i] = Factory.Null; 
+                    env[i] = Factory.Null;
                 }
                 return new Procedure(CodeVector.NoCode,
                                      Factory.makeVector(0, Factory.False),
@@ -768,10 +780,10 @@ namespace Scheme.Rep {
             Procedure p = arg1;
             int b = this.value;
             if (b == 0) {
-                
+
                 return p.getCode();
             } else if (b == 1) {
-                
+
                 return p.constantvector;
             } else if (b > 1) {
                 b = b - 2;
@@ -786,11 +798,11 @@ namespace Scheme.Rep {
             Procedure p = arg1;
             int b = this.value;
             if (b == 0) {
-                
+
                 p.setCode(arg3);
                 return Factory.Unspecified;
             } else if (b == 1) {
-                
+
                 if (arg3.isVector()) {
                     p.setConstants((SVL)arg3);
                     return Factory.Unspecified;
@@ -803,7 +815,7 @@ namespace Scheme.Rep {
                 if (b < p.rib.Length) {
                     p.rib[b] = arg3;
 		    if (b == 0)
-			p.parent = (Procedure) arg3;
+			p.parent = arg3 as Procedure;
                     return Factory.Unspecified;
                 }
             }
@@ -981,17 +993,17 @@ namespace Scheme.Rep {
         }
         public override SObject op_reversed_lsh(SFixnum arg1) {
             int r = arg1.value << this.value;
-            r = (r << 2) >> 2; 
+            r = (r << 2) >> 2;
             return makeFixnum (r);
         }
         public override SObject op_reversed_rsh(SFixnum arg1) {
             int r = arg1.value >> this.value;
-            
+
             return makeFixnum (r);
         }
         public override SObject op_reversed_rsha(SFixnum arg1) {
             int r = arg1.value >> this.value;
-            
+
             return makeFixnum (r);
         }
         public override SObject op_reversed_rshl(SFixnum arg1) {
@@ -1038,7 +1050,7 @@ namespace Scheme.Rep {
             return (arg1.value >= this.value) ? Factory.True : Factory.False;
         }
 
-        
+
 
         public override void op_enable_interrupts() {
             int time = this.value;
@@ -1052,10 +1064,10 @@ namespace Scheme.Rep {
             Exn.checkSignals();
         }
         public override void op_syscall() {
-            
-            
+
+
             int num_args = this.value - 1;
-            Sys num_syscall = (Sys) ((SFixnum)Reg.register1).intValue();
+            Sys num_syscall = (Sys) ((SFixnum)Reg.Register1).intValue();
             Syscall.dispatch(num_args, num_syscall);
         }
         public override void op_zerop() {
@@ -1125,8 +1137,8 @@ namespace Scheme.Rep {
             Reg.Result = Factory.makeNumber (a / b);
         }
         public override void op_reversed_bignum_quotient(SByteVL arg1) {
-            
-            
+
+
             int bv = this.value;
             if (bv == 0) {
                 Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
@@ -1136,7 +1148,7 @@ namespace Scheme.Rep {
                        Number.getBignumSign(arg1)) {
                 uint av = arg1.getUInt32(1);
                 uint result = av / (uint)bv;
-                
+
                 Reg.Result = Factory.makeNumber(result);
                 return;
             }
@@ -1151,7 +1163,7 @@ namespace Scheme.Rep {
             Reg.Result = Factory.makeNumber (a % b);
         }
         public override void op_reversed_bignum_remainder(SByteVL arg1) {
-            
+
             int bv = this.value;
             if (bv > 0 &&
                 Number.getBignumLength(arg1) == 1 &&
@@ -1179,12 +1191,12 @@ namespace Scheme.Rep {
         public override void op_inexact2exact() {
             Reg.Result = this;
         }
-#line 149 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 152 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public class STagged : SObject {
         public int tag;
 
@@ -1208,12 +1220,12 @@ namespace Scheme.Rep {
         public override SObject op_typetag() { return Factory.makeFixnum (this.tag); }
         public override SObject op_typetag_set(SObject arg2) { return arg2.op_reversed_typetag_set(this); }
 
-#line 172 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 175 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public sealed class SVL : STagged {
         public readonly SObject[] elements;
 
@@ -1267,7 +1279,7 @@ namespace Scheme.Rep {
         public override SObject op_complexp() { return (this.isRatnum() || this.isRectnum()) ? Factory.True : Factory.False; } public override bool isComplex() { return (this.isRatnum() || this.isRectnum()); }
         public override SObject op_realp() { return (this.isRatnum()) ? Factory.True : Factory.False; } public override bool isReal() { return (this.isRatnum()); }
 
-        
+
         public override bool isExact() { return (this.isRatnum() || this.isRectnum()); }
         public override bool isInexact() { return false; }
         public override SObject op_exactp() {
@@ -1293,7 +1305,7 @@ namespace Scheme.Rep {
         public override SObject op_structurep() { return (this.tag == Tags.StructureTag) ? Factory.True : Factory.False; } public override bool isStructure() { return (this.tag == Tags.StructureTag); }
         public override SObject op_symbolp() { return (this.tag == Tags.SymbolTag) ? Factory.True : Factory.False; } public override bool isSymbol() { return (this.tag == Tags.SymbolTag); }
 
-        
+
         public override SObject op_vector_like_length() {
             return Factory.makeNumber (elements.Length);
         }
@@ -1313,7 +1325,7 @@ namespace Scheme.Rep {
         public override SObject op_vector_set(SObject arg2, SObject arg3) { check_typetag(Tags.VectorTag, arg2, arg3, Constants.EX_VECTOR_SET); return arg2.op_reversed_vector_set(this, arg3); }
         public override SObject op_vector_set_trusted(SObject arg2, SObject arg3) { return arg2.op_reversed_vector_set_trusted(this, arg3); }
 
-        
+
 
         public override void op_zerop() {
             if (this.tag == Tags.RectnumTag) {
@@ -1339,7 +1351,7 @@ namespace Scheme.Rep {
         public override void op_quotient(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_quotient(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_quotient(this); } else { base.op_quotient(this); } }
         public override void op_remainder(SObject arg2) { if (this.tag == Tags.RatnumTag) { arg2.op_reversed_ratnum_remainder(this); } else if (this.tag == Tags.RectnumTag) { arg2.op_reversed_rectnum_remainder(this); } else { base.op_remainder(this); } }
 
-        
+
         public override void op_reversed_ratnum_eqvp_not_eq(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_EQUAL, arg1, this); } else { base.op_reversed_ratnum_eqvp_not_eq(arg1); } }
         public override void op_reversed_ratnum_numeric_equals(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_EQUAL, arg1, this); } else { base.op_reversed_ratnum_numeric_equals(arg1); } }
         public override void op_reversed_ratnum_less_than(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_LESS, arg1, this); } else { base.op_reversed_ratnum_less_than(arg1); } }
@@ -1353,7 +1365,7 @@ namespace Scheme.Rep {
         public override void op_reversed_ratnum_multiply(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_MUL, arg1, this); } else { base.op_reversed_ratnum_multiply(arg1); } }
         public override void op_reversed_ratnum_divide(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_DIV, arg1, this); } else { base.op_reversed_ratnum_divide(arg1); } }
 
-        
+
         public override void op_reversed_rectnum_eqvp_not_eq(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_eqvp_not_eq(arg1); } }
         public override void op_reversed_rectnum_numeric_equals(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_numeric_equals(arg1); } }
 
@@ -1394,12 +1406,12 @@ namespace Scheme.Rep {
                 base.op_truncate();
             }
         }
-#line 222 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 225 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public sealed class SByteVL : STagged {
         public readonly byte[] elements;
         public static System.Text.Encoding stringEncoding
@@ -1478,11 +1490,11 @@ namespace Scheme.Rep {
             elements[i+3] = bytes[3];
         }
 
-        
-        
+
+
         public double unsafeAsDouble(int steps) {
             return System.BitConverter.ToDouble(elements, 4 + steps * 8);
-              
+
         }
         public void unsafeSetDouble(int steps, double d) {
             byte[] b = System.BitConverter.GetBytes(d);
@@ -1519,8 +1531,8 @@ namespace Scheme.Rep {
             }
         }
 
-        
-        
+
+
         public string asString() {
             return stringEncoding.GetString(elements);
         }
@@ -1557,14 +1569,14 @@ namespace Scheme.Rep {
         public override SObject op_bytevector_likep() { return Factory.True; } public override bool isByteVectorLike() { return true; }
         public override SObject op_bytevectorp() { return (this.tag == Tags.ByteVectorTag) ? Factory.True : Factory.False; } public override bool isByteVector() { return (this.tag == Tags.ByteVectorTag); }
         public override SObject op_stringp() { return (this.tag == Tags.StringTag) ? Factory.True : Factory.False; } public override bool isString() { return (this.tag == Tags.StringTag); }
-        
+
 
         public override SObject op_string_length() {
             check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
             return Factory.makeNumber (this.elements.Length);
         }
         public override SObject op_string_length_str() {
-            
+
             return Factory.makeNumber (this.elements.Length);
         }
 
@@ -1602,7 +1614,7 @@ namespace Scheme.Rep {
             return Factory.makeFixnum(a.Length - b.Length);
         }
 
-        
+
 
         public override void op_zerop() {
             if (this.tag == Tags.BignumTag) {
@@ -1631,7 +1643,7 @@ namespace Scheme.Rep {
         public override void op_quotient(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_quotient(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_quotient(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_quotient(this); } else { base.op_quotient(this); } }
         public override void op_remainder(SObject arg2) { if (this.tag == Tags.BignumTag) { arg2.op_reversed_bignum_remainder(this); } else if (this.tag == Tags.FlonumTag) { arg2.op_reversed_flonum_remainder(this); } else if (this.tag == Tags.CompnumTag) { arg2.op_reversed_compnum_remainder(this); } else { base.op_remainder(this); } }
 
-        
+
         public override void op_reversed_bignum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_eqvp_not_eq(arg1); } }
 #line 113 "c:\\home\\jrm\\commonlarceny\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_numeric_equals(arg1); } }
@@ -1650,7 +1662,7 @@ namespace Scheme.Rep {
         public override void op_reversed_bignum_multiply(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_MUL, arg1, this); } else { base.op_reversed_bignum_multiply(arg1); } }
         public override void op_reversed_bignum_divide(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_DIV, arg1, this); } else { base.op_reversed_bignum_divide(arg1); } }
 
-        
+
         public override void op_reversed_flonum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_eqvp_not_eq(arg1); } else { base.op_reversed_flonum_eqvp_not_eq(arg1); } } private void op_reversed_flonum_FlonumTag_eqvp_not_eq(SByteVL arg1) {
           Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
         }
@@ -1683,7 +1695,7 @@ namespace Scheme.Rep {
             Reg.Result = Factory.makeFlonum (arg1.unsafeAsDouble(0) / this.unsafeAsDouble(0));
         }
 
-        
+
         public override void op_reversed_compnum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.CompnumTag) { this.op_reversed_compnum_CompnumTag_eqvp_not_eq(arg1); } else { base.op_reversed_compnum_eqvp_not_eq(arg1); } } private void op_reversed_compnum_CompnumTag_eqvp_not_eq(SByteVL arg1) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
                           &&
@@ -1781,12 +1793,12 @@ namespace Scheme.Rep {
                 base.op_inexact2exact();
             }
         }
-#line 353 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 356 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public sealed class SPair : SObject {
         public SObject first;
         public SObject rest;
@@ -1852,12 +1864,12 @@ namespace Scheme.Rep {
         public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
-#line 406 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 409 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
+
+
+
     public sealed class Procedure : STagged {
         public CodeVector entrypoint;
         public Procedure parent;
@@ -1919,7 +1931,14 @@ namespace Scheme.Rep {
             this.constants = constantvector.elements;
         }
 
-        
+       public CodeAddress InitialCodeAddress
+       {
+	 get {
+	     return this.entrypoint.InitialCodeAddress;
+             }
+       }
+
+
 
 
         public SObject lookup(int ri, int slot) {
@@ -1931,10 +1950,11 @@ namespace Scheme.Rep {
 	  return proc.rib [slot];
         }
 
-        
 
 
-        public void update(int ri, int slot, SObject newValue) {
+
+        public void update (int ri, int slot, SObject newValue)
+        {
 	  Procedure proc = this;
 
 	  for (proc = this; ri > 0; ri--)
@@ -1942,7 +1962,7 @@ namespace Scheme.Rep {
 
 	  proc.rib [slot] = newValue;
 	  if (slot == 0)
-	      proc.parent = (Procedure) newValue;
+	      proc.parent = newValue as Procedure;
         }
 
         private string getName() {
@@ -1970,12 +1990,12 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
-      
-      
-      
-      
-      
-      
+
+
+
+
+
+
 
         public void event_callback (Object sender, EventArgs e) {
             Call.callback (this, Factory.makeForeignBox (sender), Factory.makeForeignBox (e));
@@ -2383,7 +2403,7 @@ namespace Scheme.Rep {
 
 
 
-#line 937 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 948 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
 
 #line 1 "c:\\home\\jrm\\commonlarceny\\rts\\dotnet\\Ops_Procedure.inc"
 
@@ -2394,27 +2414,56 @@ namespace Scheme.Rep {
         }
         public override SObject op_procedure_ref(SObject arg2) { return arg2.op_reversed_procedure_ref(this); }
         public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_reversed_procedure_set(this, arg3); }
-#line 939 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 950 "c:\\Home\\Jrm\\CommonLarceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
-    
-    
-    
-
-    
-    
-    public  class CodeVector : SObject {
-        public static readonly CodeVector NoCode = new DataCodeVector(Factory.False);
-
-        
 
 
 
-        
-        
-        public virtual void call (int jump_index) {
-          throw new Exception ("Subclass of CodeVector did not override call method.");
-          }
+
+
+
+    public  class CodeVector : SObject
+    {
+
+      public const int CONTROL_POINT_LIMIT = 512;
+
+      public static readonly CodeVector NoCode = new DataCodeVector (Factory.False);
+
+      public readonly CodeAddress [] controlPoints;
+
+      public CodeVector (int controlPointCount)
+      {
+	if (controlPointCount > CONTROL_POINT_LIMIT)
+	    throw new Exception ("Maximum number of control points exceeded.");
+
+        this.controlPoints = new CodeAddress [controlPointCount];
+        for (int i = 0; i < controlPointCount; ++i)
+            this.controlPoints [i] = new CodeAddress (this, i);
+      }
+
+
+
+
+
+
+
+      public virtual CodeAddress call (int jump_index)
+      {
+	throw new Exception ("Subclass of CodeVector did not override call method.");
+      }
+
+      public virtual CodeAddress InitialCodeAddress
+      {
+        get {
+	    return this.controlPoints [0];
+	    }
+      }
+
+      public CodeAddress Address (int i)
+      {
+	return this.controlPoints [i];
+      }
 
         public virtual int id() { return 0; }
         public string name() {
@@ -2434,19 +2483,21 @@ namespace Scheme.Rep {
         }
     }
 
-    public class DataCodeVector : CodeVector {
+    public class DataCodeVector : CodeVector
+    {
         public SObject datum;
 
-        public DataCodeVector(SObject datum) {
+        public DataCodeVector(SObject datum) : base (0) {
             this.datum = datum;
         }
 
-        public override void call(int ignored) {
-            throw new Exception("not a real codevector");
+        public override CodeAddress call (int ignored)
+        {
+           throw new Exception ("not a real codevector");
         }
     }
 
-    
+
 
 
     public class ForeignBox : SObject {
