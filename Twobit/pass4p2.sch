@@ -648,6 +648,6 @@
         ((call? exp) (apply-union
                       (cons (freevars2 (call.proc exp) env)
                             (map (lambda (arg)
-                                   (freevar2 arg env))
+                                   (freevars2 arg env))
                                  (call.args exp)))))
         (else (error "Unrecognized expression" exp))))
