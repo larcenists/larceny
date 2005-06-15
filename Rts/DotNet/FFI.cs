@@ -39,7 +39,7 @@ namespace Scheme.RT {
 
         public static void ffi_syscall() {
             try {
-                SObject scode = Reg.register2;
+                SObject scode = Reg.Register2;
                 ffi_syscall_main(((SFixnum)scode).value);
             } catch (Exception e) {
                 Exn.error("exception in ffi: " + e.ToString());
@@ -48,10 +48,10 @@ namespace Scheme.RT {
 
         private static void ffi_syscall_main (int code) {
 
-          // SObject arg1 = Reg.register3;
-           // SObject arg2 = Reg.register4;
-           // SObject arg3 = Reg.register5;
-           // SObject arg4 = Reg.register6;
+          // SObject arg1 = Reg.Register3;
+           // SObject arg2 = Reg.Register4;
+           // SObject arg3 = Reg.Register5;
+           // SObject arg4 = Reg.Register6;
           switch (code) {
 
             case 0:  // clr-version
@@ -87,17 +87,17 @@ namespace Scheme.RT {
             case 2: // foreign?
               // Return True iff argument is a ForeignBox wrapper.
             {
-                // SObject arg1 = Reg.register3;
-                // SObject arg2 = Reg.register4;
-                // SObject arg3 = Reg.register5;
-                // SObject arg4 = Reg.register6;
-                Reg.Result = (Reg.register3 is ForeignBox) ? Factory.True : Factory.False;
+                // SObject arg1 = Reg.Register3;
+                // SObject arg2 = Reg.Register4;
+                // SObject arg3 = Reg.Register5;
+                // SObject arg4 = Reg.Register6;
+                Reg.Result = (Reg.Register3 is ForeignBox) ? Factory.True : Factory.False;
                 return;
             }
 
             case 3: // to-string
             {
-                SObject arg1 = Reg.register3;
+                SObject arg1 = Reg.Register3;
                 object val = ((ForeignBox) arg1).value;
                 Reg.Result = Factory.makeString ((val == null) ? "null" : val.ToString());
                 return;
@@ -105,15 +105,15 @@ namespace Scheme.RT {
 
             case 4: // object-type
             {
-                SObject arg1 = Reg.register3;
+                SObject arg1 = Reg.Register3;
                 Reg.Result = Factory.makeForeignBox (((ForeignBox) arg1).value.GetType());
                 return;
             }
 
             case 5: // isa?
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 object obj = ((ForeignBox)arg1).value;
                 Type type = (Type) ((ForeignBox)arg2).value;
                 Reg.Result = type.IsInstanceOfType(obj) ? Factory.True : Factory.False;
@@ -124,10 +124,10 @@ namespace Scheme.RT {
             {
                 // this is a mess and should be rewritten!  ~jrm
 
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                // SObject arg3 = Reg.register5;
-                // SObject arg4 = Reg.register6;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                // SObject arg3 = Reg.Register5;
+                // SObject arg4 = Reg.Register6;
                 if (arg1 == arg2) {
                     Reg.Result = Factory.True;
                     }
@@ -194,10 +194,10 @@ namespace Scheme.RT {
 
             case 7: // get type
             {
-                // SObject arg1 = Reg.register3;
+                // SObject arg1 = Reg.Register3;
                 // string name = ((SByteVL)arg1).asString();
                 // case insensitive lookup
-                Type ft = Type.GetType (((SByteVL)(Reg.register3)).asString(), false, true);
+                Type ft = Type.GetType (((SByteVL)(Reg.Register3)).asString(), false, true);
                 // Return #F if not found.
                 Reg.Result = (ft == null) ? Factory.False : Factory.makeForeignBox (ft);
                 return;
@@ -207,8 +207,8 @@ namespace Scheme.RT {
             // #F if not found
             case 8: // get field
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 FieldInfo fi = ((Type) ((ForeignBox)arg1).value).GetField (((SByteVL)arg2).asString());
                 Reg.Result = (fi == null) ? Factory.False : Factory.makeForeignBox (fi);
                 return;
@@ -217,8 +217,8 @@ namespace Scheme.RT {
             // #F if not found
             case 9: // get-constructor
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 SObject[] typev = ((SVL)arg2).elements;
                 Type[] types = new Type[typev.Length];
                 for (int i = 0; i < types.Length; ++i) {
@@ -231,9 +231,9 @@ namespace Scheme.RT {
 
             case 10: // get method
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] typev = ((SVL)arg3).elements;
                 Type[] types = new Type[typev.Length];
                 for (int i = 0; i < types.Length; ++i) {
@@ -246,9 +246,9 @@ namespace Scheme.RT {
 
             case 11: // get property
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] typev = ((SVL)arg3).elements;
                 Type[] types = new Type[typev.Length];
                 for (int i = 0; i < types.Length; ++i) {
@@ -261,8 +261,8 @@ namespace Scheme.RT {
 
             case 12: // field-ref
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 FieldInfo fi = (FieldInfo) ((ForeignBox)arg1).value;
                 try {
                     Reg.Result = Factory.makeForeignBox (fi.GetValue (fi.IsStatic ? null : ((ForeignBox) arg2).value));
@@ -275,9 +275,9 @@ namespace Scheme.RT {
 
             case 13: // field-set!
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 FieldInfo fi = (FieldInfo) ((ForeignBox)arg1).value;
                 try {
                     fi.SetValue (fi.IsStatic ? null : ((ForeignBox)arg2).value, ((ForeignBox) arg3).value);
@@ -291,8 +291,8 @@ namespace Scheme.RT {
 
             case 14: // invoke constructor
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 ConstructorInfo ci = (ConstructorInfo) ((ForeignBox)arg1).value;
                 SObject[] sargv = ((SVL)arg2).elements;
                 object[] args = new object[sargv.Length];
@@ -310,9 +310,9 @@ namespace Scheme.RT {
 
             case 15: // invoke method
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 MethodInfo mi = (MethodInfo) ((ForeignBox)arg1).value;
                 SObject[] sargv = ((SVL)arg3).elements;
                 object[] args = new object[sargv.Length];
@@ -338,9 +338,9 @@ namespace Scheme.RT {
 
             case 16: // property-ref
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
@@ -359,10 +359,10 @@ namespace Scheme.RT {
 
             case 17: // property-set
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
-                SObject arg4 = Reg.register6;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
+                SObject arg4 = Reg.Register6;
                 SObject[] sargv = ((SVL) arg4).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
@@ -380,8 +380,8 @@ namespace Scheme.RT {
 
             case 18: // array ref
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 Reg.Result =
                     Factory.makeForeignBox (((Array)((ForeignBox) arg1).value).GetValue (((SFixnum) arg2).value));
                 return;
@@ -389,25 +389,25 @@ namespace Scheme.RT {
 
             case 19: // datum2foreign
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 Reg.Result = datum2foreign (((SFixnum)arg1).value, arg2);
                 return;
             }
 
             case 20: // foreign2datum
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
                 Reg.Result = foreign2datum (((SFixnum)arg1).value, arg2);
                 return;
             }
 
             case 21: // get-property-value-boolean
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
@@ -425,9 +425,9 @@ namespace Scheme.RT {
             }
             case 22: // get-property-value-int
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
@@ -446,9 +446,9 @@ namespace Scheme.RT {
 #if HAS_WINDOWS_FORMS
             case 23: // get-property-value-native-window
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
@@ -473,9 +473,9 @@ namespace Scheme.RT {
 #endif
             case 24: // get-property-value-intptr
             {
-                SObject arg1 = Reg.register3;
-                SObject arg2 = Reg.register4;
-                SObject arg3 = Reg.register5;
+                SObject arg1 = Reg.Register3;
+                SObject arg2 = Reg.Register4;
+                SObject arg3 = Reg.Register5;
                 SObject[] sargv = ((SVL) arg3).elements;
                 object[] args = new object [sargv.Length];
                 for (int i = 0; i < args.Length; ++i)
