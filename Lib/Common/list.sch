@@ -362,25 +362,34 @@
 
 (define (append . args)
 
+  (define (list-copy2 l receiver)
+    (define (loop l prev)
+      (if (pair? l)
+          (let ((q (cons (car l) '())))
+            (set-cdr! prev q)
+            (loop (cdr l) q))
+          prev))
+    (if (pair? l)
+        (let ((first (cons (car l) '())))
+          (receiver first (loop (cdr l) first)))
+        (receiver l l)))
+
   (define (loop rest tail)
-    (cond ((null? rest)
-	   tail)
-	  ((null? (car rest))
-	   (loop (cdr rest) tail))
-	  (else
-	   (loop (cdr rest)
-                 (call-with-values
-                  (lambda ()
-                    (list-copy2 (car rest)))
-                  (lambda (new-head new-tail)
-                    (set-cdr! new-tail tail)
-                    new-head))))))
+    (if (pair? rest)
+        (loop (cdr rest)
+              (if (pair? (car rest))
+                  (list-copy2
+                   (car rest)
+                   (lambda (new-head new-tail)
+                     (set-cdr! new-tail tail)
+                     new-head))
+                  tail))
+        tail))
 
   (if (pair? args)
       (let ((a (reverse! args)))
 	(loop (cdr a) (car a)))
       '()))
-
 
 (define (append! . args)
 
