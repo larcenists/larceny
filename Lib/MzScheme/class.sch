@@ -62,8 +62,13 @@
            (index offset))
        (vector-set! slots index (proc (vector-ref slots index)))))))
 
+(define-syntax %instance-overhead
+  (syntax-rules ()
+    ((%instance-overhead) 1)))
+
 ;;; end of temporarily here
 
+;;; Direct slots of a class
 (define the-slots-of-a-class
     '(
       (cpl)                             ; (class ...)
@@ -76,7 +81,6 @@
       (initializers)                    ; (proc ...)
       (name :initarg :name :initvalue -anonymous-)             ; a symbol
       (nfields)                         ; an integer
-      (serial-number)                   ; a unique integer
       (slots)                           ; ((name . options) ...)
       (direct-additional-initargs :initarg :direct-additional-initargs :initvalue ())
       (effective-valid-initargs)         ; (initarg ...) or #f
@@ -118,11 +122,18 @@
 (define make
   ;; Bootstrap version of make.
   (let ((class-slot-count (length the-slots-of-a-class)))
+
+    (define (bootstrap-allocate-instance class)
+      (%make-instance class (allocate-instance-state-vector class-slot-count *unbound-slot-value*)))
+
+    (define (bootstrap-allocate-entity class)
+      (%make-entity class uninitialized-entity-procedure
+                    (allocate-instance-state-vector (length (%class-slots class)) *unbound-slot-value*)))
+
     (lambda (class . initargs)
       (cond ((or (eq? class <class>)
                  (eq? class <entity-class>))
-             (let* ((new      (%make-instance class
-                                              (make-vector class-slot-count *unbound-slot-value*)))
+             (let* ((new       (bootstrap-allocate-instance class))
                     (dinitargs (getarg initargs :direct-default-initargs '()))
                     (daddinitargs (getarg initargs :direct-additional-initargs '()))
                     (dslots    (getarg initargs :direct-slots '()))
@@ -140,7 +151,7 @@
                      (append dslots (append-map %class-direct-slots (cdr cpl))))
                                         ;(all-default-initargs
                                         ; (apply append dinitargs (map %class-direct-default-initargs (cdr cpl))))
-                    (nfields 0)
+                    (nfields (%instance-overhead))
                     (field-initializers '())
                     ;; this is a temporary allocator version, kept as the original
                     ;; one in tiny-clos.  the permanent version below is modified.
@@ -154,19 +165,19 @@
                                (lambda (o proc) (%instance/update! o f proc))))))
                     (getters-n-setters
                      (map (lambda (s)
-                            (cons (car s) (allocator unspecified-initializer)))
+                            (cons (car s) (allocator (getarg (cdr s) :initializer unspecified-initializer))))
                           slots)))
+
                (%set-class-default-initargs!   new '()) ; no default initargs now
                (%set-class-direct-default-initargs! new dinitargs)
                (%set-class-direct-supers!      new dsupers)
                (%set-class-direct-slots!       new dslots)
                (%set-class-cpl!                new cpl)
                (%set-class-slots!              new slots)
-               (%set-class-nfields!            new nfields)
+               (%set-class-nfields!            new (- nfields (%instance-overhead)))
                (%set-class-field-initializers! new (reverse! field-initializers))
                (%set-class-getters-n-setters!  new getters-n-setters)
                (%set-class-name!               new name)
-               (%set-class-serial-number!      new (get-serial-number))
                (%set-class-initializers!       new '()) ; no class inits now
                (%set-class-direct-additional-initargs! new daddinitargs)
                (%set-class-effective-valid-initargs! new (append daddinitargs
@@ -177,9 +188,7 @@
                                                                   (%class-slots new))))
                new))
             ((eq? class <generic>)
-             (let ((new   (%make-entity class
-                                        uninitialized-entity-procedure
-                                        (make-vector (length (%class-slots class)) *unbound-slot-value*))))
+             (let ((new   (bootstrap-allocate-entity class)))
                (%set-generic-methods!     new '())
                (let ((arity (getarg initargs :arity #f)))
                  (if arity
@@ -189,9 +198,7 @@
                (%set-generic-combination! new (getarg initargs :combination #f))
                new))
             ((eq? class <method>)
-             (let ((new (%make-entity class
-                                      uninitialized-entity-procedure
-                                      (make-vector (length (%class-slots class)) *unbound-slot-value*))))
+             (let ((new (bootstrap-allocate-entity class)))
                (%set-method-specializers! new (trim-method-specializers (getarg initargs :specializers '())))
                (%set-method-procedure!    new (getarg initargs :procedure #f))
                (%set-method-qualifier!    new (getarg initargs :qualifier :primary))
@@ -328,7 +335,6 @@
 (define (class-initializers                 c) (%slot-ref c 'initializers))
 (define (class-name                         c) (%slot-ref c 'name))
 (define (class-nfields                      c) (%slot-ref c 'nfields))
-(define (class-serial-number                c) (%slot-ref c 'serial-number))
 (define (class-slots                        c) (%slot-ref c 'slots))
 (define (class-direct-additional-initargs   c) (%slot-ref c 'direct-additional-initargs))
 (define (class-effective-valid-initargs     c) (%slot-ref c 'effective-valid-initargs))
@@ -343,7 +349,6 @@
 (define (%set-class-initializers!               c x) (%slot-set! c 'initializers   x))
 (define (%set-class-name!                       c x) (%slot-set! c 'name           x))
 (define (%set-class-nfields!                    c x) (%slot-set! c 'nfields        x))
-(define (%set-class-serial-number!              c x) (%slot-set! c 'serial-number  x))
 (define (%set-class-slots!                      c x) (%slot-set! c 'slots          x))
 (define (%set-class-direct-additional-initargs! c x) (%slot-set! c 'direct-additional-initargs x))
 (define (%set-class-effective-valid-initargs!   c x) (%slot-set! c 'effective-valid-initargs x))
@@ -389,7 +394,6 @@
 (define %class-getters-n-setters  class-getters-n-setters)
 (define %class-initializers       class-initializers)
 (define %class-name               class-name)
-(define %class-serial-number      class-serial-number)
 (define %class-nfields            class-nfields)
 (define %class-slots              class-slots)
 (define %class-direct-additional-initargs     class-direct-additional-initargs)
@@ -565,36 +569,36 @@
 ;;>   * field-initializers: a list of functions to initialize slots
 ;;>   * getters-n-setters:  an alist of slot-names, getters, setters, and updaters
 ;;>   * name:           class name (usually the defined identifier)
-;;>   * serial-number:  a unique integer used for dispatching on the class
 ;;>   * initializers:   procedure list that perform additional initializing
 ;;>   See the `clos' documentation for available class and slot keyword
 ;;>   arguments and their effect.
 
 (define <class>
-  (let ((instance (%make-instance #f (make-vector (length the-slots-of-a-class) *unbound-slot-value*))))
+  (let ((instance (%make-instance #f (allocate-instance-state-vector (length the-slots-of-a-class)
+                                                  *unbound-slot-value*))))
     ;; BOOTSTRAP STEP
     ;; Set class of class to itself
     (set-instance-class-to-self! instance)
     instance))
 
-(define getters-n-setters-for-class     ; see lookup-slot-info
-  (map (lambda (s)
-         (let ((f (position-of (car s) (map car the-slots-of-a-class))))
-           (list (car s)
-                 (lambda (o)   (%instance/ref  o f))
-                 (lambda (o n) (%instance/set! o f n))
-                 (lambda (o p) (%instance/update! o f p)))))
-       the-slots-of-a-class))
+(let ((getters-n-setters-for-class      ; see lookup-slot-info
+       (map (lambda (s)
+              (let ((f (+ (position-of (car s) (map car the-slots-of-a-class)) (%instance-overhead))))
+                (list (car s)
+                      (lambda (o)   (%instance/ref  o f))
+                      (lambda (o n) (%instance/set! o f n))
+                      (lambda (o p) (%instance/update! o f p)))))
+            the-slots-of-a-class)))
 
-;; BOOTSTRAP STEP
-;; Init the getters and setters
-((caddr (assq 'getters-n-setters getters-n-setters-for-class)) <class> getters-n-setters-for-class)
+  ;; BOOTSTRAP STEP
+  ;; Init the getters and setters
+  ((caddr (assq 'getters-n-setters getters-n-setters-for-class)) <class> getters-n-setters-for-class)
 
-;; BOOTSTRAP STEP
-;; Put the real accessor in place
-(set! %class-getters-n-setters
-      ;; and (lookup-slot-info <class> 'getters-n-setters caddr) translates to:
-      (cadr (assq 'getters-n-setters getters-n-setters-for-class)))
+  ;; BOOTSTRAP STEP
+  ;; Put the real accessor in place
+  (set! %class-getters-n-setters
+        ;; and (lookup-slot-info <class> 'getters-n-setters caddr) translates to:
+        (cadr (assq 'getters-n-setters getters-n-setters-for-class))))
 
 ;;>> <top>
 ;;>   This is the "mother of all values": every value is an instance of
@@ -610,6 +614,7 @@
 (define <object>
   (make <class>
     :direct-supers (list <top>)
+    :direct-slots  '()
     :name          '<object>))
 
 ;;; This cluster, together with the first cluster above that defines <class>
@@ -626,18 +631,18 @@
 (%set-class-direct-supers!      <class> (list <object>))
 (%set-class-direct-slots!       <class> the-slots-of-a-class)
 (%set-class-field-initializers! <class> (map (lambda (s)
-                                               (let ((initvalue (getarg (cdr s) :initvalue *unbound-slot-value*)))
+                                               (let ((initvalue
+                                                      (getarg (cdr s) :initvalue *unbound-slot-value*)))
                                                  (lambda args initvalue)))
                                              the-slots-of-a-class))
 (%set-class-initializers!       <class> '())
 (%set-class-name!               <class> '<class>)
 (%set-class-nfields!            <class> (length the-slots-of-a-class))
-(%set-class-serial-number!      <class> (get-serial-number))
-(%set-class-slots!              <class> the-slots-of-a-class)
+(%set-class-slots!              <class>  the-slots-of-a-class)
 (%set-class-direct-additional-initargs! <class> '())
 (%set-class-effective-valid-initargs!   <class> (append-map
                                                  (lambda (slot) (getargs (cdr slot) :initarg))
-                                                 the-slots-of-a-class))
+                                                  the-slots-of-a-class))
 
 ;;; At this point <top>, <class>, and <object> have been created and initialized.
 
