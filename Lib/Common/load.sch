@@ -6,19 +6,19 @@
 ;
 ; FIXME:
 ;  - Not entirely robust, but ok for now.
-;  - Loader should install reader macros for #^G, #^B, #^P so that 
+;  - Loader should install reader macros for #^G, #^B, #^P so that
 ;    the reader would not need to be aware of these extensions.
 
 ($$trace "load")
 
-; It's necessary to set the interaction environment so that any uses of 
+; It's necessary to set the interaction environment so that any uses of
 ; EVAL in the loaded file will reference the correct environment.
 
 (define load-evaluator
   (make-parameter "load-evaluator"
                   (lambda (expr env)
                     (let ((old-env (interaction-environment)))
-                      (dynamic-wind 
+                      (dynamic-wind
                        (lambda ()
                          (interaction-environment env))
                        (lambda ()
@@ -29,6 +29,15 @@
                        (lambda ()
                          (if (eq? (interaction-environment) env)
                              (interaction-environment old-env))))))))
+
+(define load-print
+  ;; If not #f, print the return value(s) of each form as it is
+  ;; loaded.
+  (make-parameter "load-print" #f))
+
+(define load-verbose
+  ;; If not #f, print the file name before loading.
+  (make-parameter "load-verbose" #f))
 
 (define (load filename . rest)
 
@@ -48,9 +57,24 @@
 
   (define (load-file)
     (let ((p (open-input-file filename)))
+      (if (load-verbose)
+          (begin
+            (newline (current-output-port))
+            (write-string "; Loading " (current-output-port))
+            (display filename (current-output-port))
+            (flush-output-port (current-output-port))))
       (do ((expr (read p) (read p)))
           ((eof-object? expr))
-        ((load-evaluator) expr (get-environment)))
+        (call-with-values
+         (lambda () ((load-evaluator) expr (get-environment)))
+         (lambda values
+           (if (load-print)
+               (for-each (lambda (value)
+                           (newline (current-output-port))
+                           (write-string ";    " (current-output-port))
+                           (write value (current-output-port))
+                           (flush-output-port (current-output-port)))
+                         values)))))
       (close-input-port p)
       (unspecified)))
 
@@ -63,7 +87,7 @@
   (let ((old-resolver (global-name-resolver))
         (new-resolver (lambda (sym)
                         (environment-get-cell (get-environment) sym))))
-    (dynamic-wind 
+    (dynamic-wind
      (lambda () (global-name-resolver new-resolver))
      (lambda () (load-file))
      (lambda () (global-name-resolver old-resolver)))))
