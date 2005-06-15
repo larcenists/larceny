@@ -75,11 +75,13 @@
 (export %instance)
 
 ;; instance
-(export instance?
+(export allocate-instance-state-vector
+        instance?
         instance/class
         instance/procedure
         instance/ref
         instance/set!
+        instance/serial-number
         instance/update!
         instance/replace!
         %make-instance
@@ -422,7 +424,7 @@
 ;        module-renames/get
 
 ;        <stx-srcloc>
-;        stx/key
+;        stx/flags
 ;        stx/val
 
 ;        set-stx/val!
