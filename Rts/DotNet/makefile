@@ -27,7 +27,8 @@ DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS
 # Creates Scheme.dll (Scheme runtime) in the current directory
 # Creates DynLoad.exe (loader) in the current directory
 
-SRCS =	Call.cs \
+SRCS =	CodeAddress.cs \
+	Call.cs \
 	Exn.cs \
 	Reg.cs \
 	ContinuationISH.cs \
