@@ -22,7 +22,7 @@
 ; Old code: clients should use PARAMETERIZE instead.
 (define (call-with-error-handler handler thunk)
   (let ((old-handler (error-handler)))
-    (dynamic-wind 
+    (dynamic-wind
      (lambda () (error-handler handler))
      thunk
      (lambda () (error-handler old-handler)))))
@@ -30,13 +30,13 @@
 ; Old code: clients should use PARAMETERIZE instead.
 (define (call-with-reset-handler handler thunk)
   (let ((old-handler (reset-handler)))
-    (dynamic-wind 
+    (dynamic-wind
      (lambda () (reset-handler handler))
      thunk
      (lambda () (reset-handler old-handler)))))
 
 ; DECODE-ERROR takes an error and optionally a port to print on (defaults
-; to the current output port) and prints a human-readable error message 
+; to the current output port) and prints a human-readable error message
 ; to the port based on the information in the error.
 ;
 ; The error is a list.  The first element is a key, the rest depend on the
@@ -54,17 +54,19 @@
   (let ((who (car the-error))
         (port (if (null? rest) (current-output-port) (car rest))))
     (if (number? who)
-        (decode-system-error who 
-                             (cadr the-error) 
+        (decode-system-error who
+                             (cadr the-error)
                              (caddr the-error)
                              (cadddr the-error)
                              port)
         (begin
+          (newline port)
           (display "Error: " port)
           (if (not (null? who))
               (begin (display who port)
                      (display ": " port)))
           (for-each (lambda (x) (display x port)) (cdr the-error))
-          (newline port)))))
+          (newline port)
+          (flush-output-port port)))))
 
 ; eof
