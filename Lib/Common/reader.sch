@@ -515,21 +515,45 @@
                                      (integer->char **backspace**))
                                     ((= (string-length (symbol->string x)) 1)
                                      c)
+                                    ;; MzScheme convention:  #\uXX is unicode char where XX is hex code point.
+                                    ((and (>= (string-length (symbol->string x)) 1)
+                                          (char=? (string-ref (symbol->string x) 0) #\u))
+                                     (let ((string (symbol->string x)))
+                                       (integer->char (string->number (substring string 1 (string-length string)) 16))))
                                     (else
                                      (error "Malformed #\\ syntax: " x)
                                      #t))))
                            (else
                             (begin (tyi p) c)))))
+                  ;; MzScheme randomness
                   ((char=? c #\%)
                    (read-symbol (tyipeek p) p (cons #\# (cons c '()))))
                   ((char=? c #\')
                    (list 'syntax (read-dispatch (tyi p) p)))
+                  ((char=? c #\")
+                   (list 'ansi-string (read-string (tyi p) p '())))
                   ((char=? c #\`)
                    (list 'quasisyntax (read-dispatch (tyi p) p)))
                   ((char=? c #\,)
                    (list 'unsyntax (read-dispatch (tyi p) p)))
                   ((char=? c #\|)
                    (read-long-comment c p))
+                  ((char=? c #\r)
+                   (let ((c (tyipeek p)))
+                     (cond ((not (char? c))
+                            (read-unexpected-eof p))
+                           ((char=? c #\x)
+                            (tyi p);; discard the x
+                            (let ((c (tyipeek p)))
+                              (cond ((not (char? c))
+                                     (read-unexpected-eof p))
+                                    ((char=? c #\")
+                                     (tyi p) ;; discard the "
+                                     (list 'string->regexp (read-string (tyi p) p '())))
+                                    (else (error "Malformed #rx syntax: " c)))))
+                           (else
+                            (error "Malformed #r syntax: " c)))))
+
                   ((char=? c #\!)
                    (let ((x (read-symbol (tyipeek p) p '())))
                      (case x
@@ -595,7 +619,7 @@
                   ((char=? c #\b)
                    (parse-prefixed-number p #\b))
                   (else
-                   (error "Malformed # syntax" c)
+                   (error "Malformed # syntax " c)
                    #t)))))
 
        (read-list-reserved read-dispatch-reserved)
