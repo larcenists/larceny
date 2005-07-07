@@ -14,7 +14,7 @@
 ; EXCEPTION-HANDLER does not manipulate the state of the interrupt flag,
 ; leaving that to the handlers themselves.
 
-; NOTE. Keyboard interrupt handling in this procedure will eventually be 
+; NOTE. Keyboard interrupt handling in this procedure will eventually be
 ; handled by generalized signal handling.
 
 (define (exception-handler arg1 arg2 arg3 code)
@@ -40,16 +40,16 @@
 ;  - otherwise: The arguments are to be interpreted as a user-level error:
 ;               objects to be printed.
 ; By design, this is the same kind of parameter list accepted by DECODE-ERROR,
-; in ERROR.SCH.  
+; in ERROR.SCH.
 ;
 ; Documented behavior: the default error handler prints all its
-; arguments safely and then calls reset. The error handler may not 
-; return to noncontinuable errors.  Currently all errors are 
+; arguments safely and then calls reset. The error handler may not
+; return to noncontinuable errors.  Currently all errors are
 ; noncontinuable.
 
 (define error-handler
-  (make-parameter "error-handler" 
-                  (lambda args 
+  (make-parameter "error-handler"
+                  (lambda args
                     (parameterize ((print-length 7)
                                    (print-level 7))
                       (decode-error args))
@@ -61,7 +61,7 @@
 ; system.  The reset handler may not return.
 
 (define reset-handler
-  (make-parameter "reset-handler" 
+  (make-parameter "reset-handler"
                   (lambda ignored
                     (exit))))
 
@@ -117,15 +117,16 @@
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and
-; prints a human-readable error message on the port, explaining the error.  
+; prints a human-readable error message on the port, explaining the error.
 ; The output will be terminated by a newline.
 
 (define (decode-system-error code arg1 arg2 arg3 port)
 
   (define (error . args)
+    (newline port) ;; Ensure error message is easily visible.
     (display "Error: " port)
     (do ((args args (cdr args)))
-        ((null? args) (newline port))
+        ((null? args) (newline port) (flush-output-port port))
       (display (car args) port)))
 
   (define (not-a-pair name obj)
@@ -203,7 +204,7 @@
             (else
              (if (bignum? arg1)
                  (begin (display "BIG: ") (bigdump* arg1) (newline)))
-             (error "decode-system-error: confused about " 
+             (error "decode-system-error: confused about "
                     name " " arg1 " " arg2)))))
 
   (define (charpred name arg1 arg2)
@@ -235,7 +236,7 @@
         (not-a-pair "set-cdr!" arg1))
 
        ;; Numbers
-       
+
        ((= code $ex.add)
         (num-binop "+" arg1 arg2))
        ((= code $ex.sub)
@@ -336,7 +337,7 @@
           ((fltsub) (error "Floating point subscript out of range."))
           ((fltopr) (error "Floating point operand error."))
           (else (error "Arithmetic exception (code " arg3 ")."))))
-              
+
        ;; Vectors
 
        ((or (= code $ex.vref) (= code $ex.vset))
@@ -355,7 +356,7 @@
        ;; Vector-like
 
        ((= code $ex.mkvl)
-        (error "make-vector-like: " arg1 
+        (error "make-vector-like: " arg1
                " is not an exact nonnegative integer."))
 
        ((or (= code $ex.vlref) (= code $ex.vlset))
@@ -380,7 +381,7 @@
                  arg1 arg2 byte? arg3))
        ((= code $ex.bvlen)
         (error "bytevector-length: " arg1 " is not a bytevector."))
-      
+
        ((= code $ex.bvfill)
         (if (not (bytevector? arg1))
             (error "bytevector-fill!: " arg1 " is not a bytevector.")
@@ -393,7 +394,7 @@
                arg1 " is not an exact nonnegative integer."))
 
        ((or (= code $ex.bvlref) (= code $ex.bvlset))
-        (dstruct code $ex.bvlref "bytevector-like" bytevector-like? 
+        (dstruct code $ex.bvlref "bytevector-like" bytevector-like?
                  bytevector-like-length
                  arg1 arg2 byte? arg3))
 
@@ -436,7 +437,7 @@
 
        ((= code $ex.argc)
         (error "Wrong number of arguments to procedure " arg3))
-       
+
        ((= code $ex.vargc)
         (error "Wrong number of arguments to procedure " arg3))
 
