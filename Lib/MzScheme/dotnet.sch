@@ -4,9 +4,13 @@
 ;;; between Scheme and the dotnet class library.  To use this code, you
 ;;; must follow these steps:
 ;;;
-;;;  1.  Load  dotnet-ffi.sch
-;;;  2.  Load  dotnet.sch (this file)
-;;;  3.  (enable-dotnet!)
+;;;  It is no longer necessary to load dotnet-ffi.sch, it is built in
+;;;  to the Common Larceny system.
+;;;
+;;;  It is no longer necessary to load this file, it is built in to
+;;;  the Common Larceny system.
+;;;
+;;;  1.  (enable-dotnet!)
 ;;;
 ;;;  enable-dotnet! will take several seconds to complete.
 ;;;
@@ -62,7 +66,11 @@
 ;;;  See the files excel-demo.sch and windows.sch for examples of
 ;;;  using JavaDot notation.
 
-;;; Snarf these two macros to facilitate bootstrapping.
+;;; Snarf these three macros to facilitate bootstrapping.
+(define-syntax %set-instance/class!
+  (syntax-rules ()
+    ((%set-instance/class! instance class) (procedure-set! instance 4 class))))
+
 (define-syntax %set-instance/procedure!
   (syntax-rules ()
     ((%set-instance/procedure! instance proc) (procedure-set! instance 3 proc))))
@@ -78,6 +86,188 @@
                          ;;   (%class-getters-n-setters class))
                          (%class-getters-n-setters class))
                    (error "slot-ref: no slot `~e' in ~e " slot-name class))))))
+
+;;; More macros snarfed from dotnet-ffi.sch
+(define-syntax define-syscall
+  (syntax-rules ()
+    ((define-syscall name code ...)
+     (begin
+     (define-syntax name
+;       ;; Very slow, thoroughly traced version.
+;       (syntax-rules ()
+;         ((name)
+;          (begin
+;            (dotnet-message 5 "Syscall" 'name)
+;            (syscall code ...)))
+
+;         ((name arg1)
+;          (let ((value1 arg1))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1)))
+
+;         ((name arg1 arg2)
+;          (let ((value1 arg1)
+;                (value2 arg2))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2)))
+
+;         ((name arg1 arg2 arg3)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3)))
+
+;         ((name arg1 arg2 arg3 arg4)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4)))
+
+;         ((name arg1 arg2 arg3 arg4 arg5)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4)
+;                (value5 arg5))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4 value5)))
+;         )
+
+       ;; Regular version.
+       (syntax-rules ()
+         ((name . args)
+          (syscall code ... . args)))
+       )
+     (macro-expand
+      '(define-syntax name
+;       ;; Very slow, thoroughly traced version.
+;       (syntax-rules ()
+;         ((name)
+;          (begin
+;            (dotnet-message 5 "Syscall" 'name)
+;            (syscall code ...)))
+
+;         ((name arg1)
+;          (let ((value1 arg1))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1)))
+
+;         ((name arg1 arg2)
+;          (let ((value1 arg1)
+;                (value2 arg2))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2)))
+
+;         ((name arg1 arg2 arg3)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3)))
+
+;         ((name arg1 arg2 arg3 arg4)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4)))
+
+;         ((name arg1 arg2 arg3 arg4 arg5)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4)
+;                (value5 arg5))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4 value5)))
+;         )
+
+       ;; Regular version.
+       (syntax-rules ()
+         ((name . args)
+          (syscall code ... . args)))
+       )
+      usual-syntactic-environment)))))
+
+(define-syscall clr/%clr-version        34  0)
+(define-syscall clr/%ffi-version        34  1)
+(define-syscall %foreign?               34  2)
+(define-syscall clr/%to-string          34  3)
+(define-syscall clr/%object-type        34  4)
+(define-syscall clr/%isa?               34  5)
+(define-syscall clr/%eq?                34  6)
+
+(define-syscall clr/%get-type           34  7)
+(define-syscall clr/%get-field          34  8)
+(define-syscall clr/%get-constructor    34  9)
+(define-syscall clr/%get-method         34 10)
+(define-syscall clr/%get-property       34 11)
+
+(define-syscall clr/%field-ref          34 12)
+(define-syscall clr/%field-set!         34 13)
+(define-syscall clr/%invoke-constructor 34 14)
+(define-syscall clr/%invoke             34 15)
+(define-syscall clr/%property-ref       34 16)
+(define-syscall clr/%property-set!      34 17)
+(define-syscall clr/%foreign-aref       34 18)
+
+(define-syscall clr/%foreign-box            34 19 0)
+(define-syscall clr/%string->foreign        34 19 1)
+(define-syscall clr/%number->foreign-byte   34 19 2)
+(define-syscall clr/%number->foreign-uint16 34 19 3)
+(define-syscall clr/%number->foreign-uint32 34 19 4)
+(define-syscall clr/%number->foreign-sbyte  34 19 5)
+(define-syscall clr/%number->foreign-int16  34 19 6)
+(define-syscall clr/%number->foreign-int32  34 19 7)
+(define-syscall clr/%procedure->message-filter 34 19 8)
+;(define-syscall clr/%void->foreign         34 19 9)
+
+(define-syscall clr/%foreign->object       34 20 0)
+(define-syscall clr/%foreign->schemeobject 34 20 1)
+(define-syscall clr/%foreign->string       34 20 2)
+;(define-syscall clr/%foreign->symbol      34 20 3)
+(define-syscall clr/%foreign->bytes        34 20 4)
+(define-syscall clr/%foreign->int          34 20 5)
+(define-syscall clr/%foreign->flonum       34 20 6)
+(define-syscall clr/%foreign->double       34 20 7)
+(define-syscall clr/%foreign->void         34 20 8)
+
+;; special for performance
+(define-syscall clr/%property-ref-bool     34 21)
+(define-syscall clr/%property-ref-int      34 22)
+(define-syscall clr/%property-ref-window   34 23)
+(define-syscall clr/%property-ref-intptr-int 34 24)
+
+(define-syntax clr/%null?
+  (syntax-rules ()
+    ((clr/%null? form)
+     (clr/%eq? form clr/null))))
+
+(define-syntax define-ffi-predicate
+  (syntax-rules ()
+    ((define-ffi-predicate name type-handle)
+     (begin
+       (define-syntax name
+         (syntax-rules ()
+           ((name object) (clr/%isa? object type-handle))))
+       (macro-expand
+         '(define-syntax name
+            (syntax-rules ()
+              ((name object) (clr/%isa? object type-handle))))
+         usual-syntactic-environment)))))
+
+(define-ffi-predicate %clr-array?      clr-type-handle/system-array)
+(define-ffi-predicate %clr-enum?       clr-type-handle/system-enum)
+(define-ffi-predicate %clr-int32?      clr-type-handle/system-int32)
+(define-ffi-predicate %clr-string?     clr-type-handle/system-string)
+(define-ffi-predicate %clr-type?       clr-type-handle/system-type)
+
+
+;;; End of dotnet-ffi macros.
 
 
 
@@ -97,6 +287,7 @@
 
 (define (flush-output) #f)
 
+($$trace "dotnet")
 ;;; End of miscellany
 
 ;;; End of primitive accessors
@@ -144,7 +335,7 @@
 ;; instance of itself* (so much for the single inheritance myth).
 
   ;; Don't think I need to export these names.
-  ;; (provide System.RuntimeType System.Object)
+  ;; (provide System.Type System.Object)
 
   ;; Given a StudlyName string, return an appropriate key for the
   ;; various hash tables.
@@ -191,14 +382,14 @@
 ;; (return-marshaler type) => procedure from ffi object to instance
 (define return-marshaler (generic-getter 'return-marshaler))
 
-  ;; System.RuntimeType will be one root of the metaclass hierarchy.
+  ;; System.Type will be one root of the metaclass hierarchy.
   ;; Every .NET type object will inherit from this class, including
   ;; the instance that represents this class!
-;  (defclass System.RuntimeType (<class-with-clr-object-scaffold>)
+;  (defclass System.Type (<class-with-clr-object-scaffold>)
 ;    (StudlyName 'initarg 'StudlyName 'reader clr/StudlyName)
 ;    'metaclass <class-with-clr-object-scaffold>)
 
-(define System.RuntimeType
+(define System.Type
   (let ((initargs
          (list :direct-supers (list <class-with-clr-object-scaffold>)
                :direct-slots
@@ -207,24 +398,36 @@
                 (list 'StudlyName :initarg :StudlyName :reader clr/StudlyName)
                 (list 'argument-marshaler :initarg :argument-marshaler :reader argument-marshaler)
                 (list 'return-marshaler :initarg :return-marshaler :reader return-marshaler))
-
-               :name 'System.RuntimeType)))
+               :name 'System.Type)))
     (parameterize ((*default-object-class* #f))
       (if (*make-safely*)
           (check-initargs <class-with-clr-object-scaffold> initargs))
-      (let ((System.RuntimeType
+      (let ((System.Type
              (rec-allocate-instance
               <class-with-clr-object-scaffold> initargs)))
+        (rec-initialize System.Type initargs)
+        System.Type))))
+
+;; RuntimeType is the root of the reflected type system.
+(define System.RuntimeType
+  (let ((initargs
+         (list :direct-supers (list System.Type)
+               :name 'System.RuntimeType)))
+    (parameterize ((*default-object-class* #f))
+      (if (*make-safely*)
+          (check-initargs System.Type initargs))
+      (let ((System.RuntimeType
+             (rec-allocate-instance
+              System.Type initargs)))
         (rec-initialize System.RuntimeType initargs)
         System.RuntimeType))))
-
 
 ;; (argument-specializer type) => class
 (define argument-specializer (generic-getter 'argument-specializer))
 
 ;; Temporary definition.
 (extend-generic argument-specializer
-  :specializers (list System.RuntimeType)
+  :specializers (list System.Type)
   :procedure (lambda (call-next-method type) type))
 
 (define (clr-class/can-instantiate? runtime-type)
@@ -351,7 +554,7 @@
 
 ;  (defmethod 'around (allocate-instance class initargs)
 ;    ;; Bug in Swindle prevents use of singleton class.
-;    (if (eq? class System.RuntimeType)
+;    (if (eq? class System.Type)
 ;        (let ((instance (call-next-method))
 ;              (StudlyName (getarg initargs 'StudlyName)))
 ;          ;; (dotnet-message "Class" StudlyName)
@@ -521,7 +724,7 @@
 
 ;; For the most part, we can simply instantiate the wrapper.
 (extend-generic wrap-clr-object
-  :specializers (list System.RuntimeType)
+  :specializers (list System.Type)
   :procedure (lambda (call-next-method class object)
                (make class :clr-handle object)))
 
@@ -607,23 +810,29 @@
       (dotnet-message 5 "This name:  " this-name "Previous name:  " previous-name)
       (if (string=? this-name previous-name)
           ;; Got it.
-          (let ((type-type this-type))
+          ;; Ugh.  The runtime type isn't really the type type.
+          (let* ((runtime-type this-type)
+                 (type-type (clr-type/%base-type this-type))
+                 (type-type-name (clr/%to-string type-type)))
 
             ;; Set up the System.RuntimeType to be an instance
             ;; of itself (using some magic).  This *must* be done first
             ;; so that any clases created on demand while we initialize
             ;; will have the correct inheritance chain.
-            ;; (dotnet-message "set-instance-class-to-self!")
+            (dotnet-message  5 "set-instance-class-to-self!")
             (set-instance-class-to-self! System.RuntimeType)
+            (%set-instance/class! System.Type System.RuntimeType)
 
             ;; Set the clr-object slot and put this class in the
             ;; type table.
-            ;; (dotnet-message "slot-set System.RuntimeType 'clr-handle")
-            (slot-set! System.RuntimeType 'clr-handle type-type)
-            ;; (dotnet-message "slot-set System.RuntimeType 'studlyname")
-            (slot-set! System.RuntimeType 'StudlyName this-name)
-            ;; (dotnet-message "register dotnet class")
+            (dotnet-message 5 "slot-set!" System.Type 'clr-handle type-type)
+            (slot-set! System.Type 'clr-handle type-type)
+            (dotnet-message 5 "slot-set!" System.RuntimeType 'clr-handle runtime-type)
+            (slot-set! System.RuntimeType 'clr-handle runtime-type)
+
+            (dotnet-message 5 "register dotnet class")
             (register-dotnet-class! "System.Object" System.Object)
+            (register-dotnet-class! type-type-name System.Type)
             (register-dotnet-class! this-name System.RuntimeType)
 
             ;; Arrange for class instances to registered prior to
@@ -658,17 +867,30 @@
             ;; (dotnet-message (clr-type/%base-type this-type))
             ;; (dotnet-message (clr-object->class (clr-type/%base-type this-type)))
 
-            (slot-set! System.RuntimeType 'direct-supers
+            (slot-set! System.Type 'direct-supers
                        (append (cons (clr-object->class (clr-type/%base-type type-type))
                                      (map-clr-array clr-object->class
                                                     (clr-type/%get-interfaces type-type)))
                                (list <class>)))
+
+            (slot-set! System.RuntimeType 'direct-supers
+                       (append (cons (clr-object->class (clr-type/%base-type runtime-type))
+                                     (map-clr-array clr-object->class
+                                                    (clr-type/%get-interfaces runtime-type)))))
+
+            (slot-set! System.Type 'cpl   (compute-cpl System.Type))
+            (slot-set! System.Type 'slots (compute-slots System.Type))
+
             (slot-set! System.RuntimeType 'cpl   (compute-cpl System.RuntimeType))
             (slot-set! System.RuntimeType 'slots (compute-slots System.RuntimeType))
             (slot-set! System.RuntimeType 'can-instantiate? #f)
             (slot-set! System.RuntimeType 'argument-marshaler   clr-object/clr-handle)
             (slot-set! System.RuntimeType 'return-marshaler     clr-object->class)
-            (set! *delayed-initialized* (cons System.RuntimeType *delayed-initialized*))
+
+            (slot-set! System.Type 'StudlyName type-type-name)
+            (slot-set! System.RuntimeType 'StudlyName this-name)
+
+            (set! *delayed-initialized* (list* System.Type System.RuntimeType *delayed-initialized*))
 
             ;; Optimize the getter for the handle
             (extend-generic clr-object/clr-handle
@@ -803,7 +1025,7 @@
            :name (StudlyName->key (clr/%to-string clr-type-handle/system-reflection-methodbase))
            :StudlyName (clr/%to-string clr-type-handle/system-reflection-methodbase)
            :clr-handle clr-type-handle/system-reflection-methodbase
-           :direct-supers (list* <method>
+           :direct-supers (list* <clr-method>
                                   (clr-object->class
                                    (clr-type/%base-type clr-type-handle/system-reflection-methodbase))
                                   (map-clr-array clr-object->class
@@ -831,10 +1053,14 @@
 
     (add-method max-arity (getter-method methodbase-class 'max-arity))
 
+    ;; This method is called at the meta-level when we create new type
+    ;; objects that subclass the methodbase class.
     (extend-generic initialize-instance
       :specializers (list System.RuntimeType)
       :procedure (lambda (call-next-method instance initargs)
                    (call-next-method)
+                   ;; Classes that inherit from methodbase should be
+                   ;; method classes.
                    (if (subclass? instance methodbase-class)
                        (extend-generic wrap-clr-object
                          :specializers (list (singleton instance))
@@ -845,6 +1071,23 @@
                    (if (subclass? instance array-class)
                        (initialize-array-class instance))
                    ))
+
+    ;; But we need special exceptions just for constructorbuilder and
+    ;; methodbuilder.
+    (extend-generic wrap-clr-object
+                    :specializers (list (singleton
+                                         (clr-object->class
+                                          clr-type-handle/system-reflection-emit-constructorbuilder)))
+                    :procedure (lambda (call-next-method class object)
+                                 (make class :clr-handle object)))
+
+    (extend-generic wrap-clr-object
+                    :specializers (list (singleton
+                                         (clr-object->class
+                                          clr-type-handle/system-reflection-emit-methodbuilder)))
+                    :procedure (lambda (call-next-method class object)
+                                 (make class :clr-handle object)))
+
 
     (extend-generic initialize-instance
       :specializers (list methodbase-class)
@@ -859,7 +1102,19 @@
 
 (define (marshal-vector->array array-class)
   (define (vector->clr-array vector)
-    (error "marshal-vector->array" array-class vector))
+    (let ((foreign-array (allocate-clr-array
+                          (clr-type/%get-element-type
+                           (clr-object/clr-handle array-class))
+                          (vector-length vector)))
+          (marshal-out (argument-marshaler
+                        (clr/find-class
+                         (string->symbol
+                          (clr/%to-string
+                           (clr-type/%get-element-type
+                            (clr-object/clr-handle array-class))))))))
+      (do ((idx 0 (+ idx 1)))
+          ((>= idx (vector-length vector)) foreign-array)
+        (clr/%foreign-aset foreign-array idx (marshal-out (vector-ref vector idx))))))
   vector->clr-array)
 
 (define (marshal-array->vector array-class)
@@ -1251,7 +1506,7 @@
          :specializers (cons (argument-specializer declaring-type) specializers)
          :procedure (nary->fixed-arity
                       (lambda (call-next-method instance . args)
-                        (dotnet-message 4 "Invoking method" name)
+                        (dotnet-message 4 "Invoking method" name in-marshaler info instance-marshaler out-marshalers)
                         (in-marshaler
                          (clr/%invoke info
                                       (instance-marshaler instance)
@@ -1260,6 +1515,7 @@
                       (arity-plus arity 1)))))))
 
 (define (clr-object->method class object)
+  (dotnet-message 4 "clr-object->method" class object)
   (let ((member-type (clr-memberinfo/member-type object)))
     (cond ((= member-type clr-member-type/constructor)
            (clr-constructor-info->method class object))
@@ -1761,6 +2017,7 @@
               arguments)))))
 
 (define (install-instance-method name method public?)
+  (dotnet-message 4 "install-instance-method: " name method public?)
   (install-method method
                   (if public?
                       (list *clr-generics* *clr-public-generics*)
@@ -1791,6 +2048,7 @@
              (else (loop as-string (- scan 1))))))))
 
 (define (install-static-method name method public?)
+  (dotnet-message 4 "install-static-method: " name method public?)
   (install-method method
                   (if public?
                       (list *clr-static-methods*
@@ -1815,6 +2073,7 @@
            (error "CLR-CONSTRUCTOR not found (class not found): " name))))))
 
 (define (install-constructor constructor public?)
+  (dotnet-message 4 "INSTALL-CONSTRUCTOR: " constructor public?)
   (install-method constructor
                   (if public?
                       (list *clr-constructors*
@@ -1993,6 +2252,7 @@
        public?)))
 
 (define (process-method-or-constructor clr-info public?)
+  (dotnet-message 4 "PROCESS-METHOD-OR-CONSTRUCTOR: " clr-info public?)
   (let* ((handle      (clr-object/clr-handle clr-info))
          (member-type (clr-memberinfo/member-type handle)))
     (cond ((= member-type clr-member-type/constructor)
