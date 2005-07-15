@@ -4,11 +4,12 @@
 ;;;
 ;;; To use this code, follow these steps:
 ;;;
-;;; 1.  Load  dotnet-ffi.sch
-;;; 2.  Load  dotnet.sch
-;;; 3.  (enable-dotnet!)
-;;; 4.  Load  windows.sch  (this file)
-;;; 5.  (window-demo)
+;;;  You should no longer load  dotnet-ffi.sch, it is built into the image.
+;;;  You should no longer load      dotnet.sch, it is built into the image.
+;;;
+;;; 1.  (enable-dotnet!)
+;;; 2.  Load  windows.sch  (this file)
+;;; 3.  (window-demo)
 
 ;;; Note that when you load this file, and when you first call
 ;;; (window-demo), that Scheme must do a lot of work to build a model
@@ -388,8 +389,6 @@
          (add-method generic
            (make <method>
              ':arity 1
-             ':specializers (list <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1) decoder)
@@ -402,8 +401,6 @@
          (add-method generic
            (make <method>
              ':arity 2
-             ':specializers (list <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2) decoder)
@@ -416,8 +413,6 @@
          (add-method generic
            (make <method>
              ':arity 3
-             ':specializers (list <top> <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1 arg2) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3) decoder)
@@ -430,8 +425,6 @@
          (add-method generic
            (make <method>
              ':arity 4
-             ':specializers (list <top> <top> <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4) decoder)
@@ -444,8 +437,6 @@
          (add-method generic
            (make <method>
              ':arity 5
-             ':specializers (list <top> <top> <top> <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4 arg5) decoder)
@@ -458,8 +449,6 @@
          (add-method generic
            (make <method>
              ':arity 6
-             ':specializers (list <top> <top> <top> <top> <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4 arg5 arg6) decoder)
@@ -472,8 +461,6 @@
          (add-method generic
            (make <method>
              ':arity 7
-             ':specializers (list <top> <top> <top> <top> <top> <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5 arg6) #f)))
          generic)))
     ((define-windows-message msg-name code (arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7) decoder)
@@ -486,8 +473,6 @@
          (add-method generic
            (make <method>
              ':arity 8
-             ':specializers (list <top> <top> <top> <top> <top> <top> <top> <top>)
-             ':qualifier ':primary
              ':procedure (lambda (call-next-method arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7) #f)))
          generic)))))
 
@@ -922,10 +907,8 @@
 
 (let ((method
        (make <method>
-         ':arity 1
-         ':specializers (list <top>)
-         ':qualifier ':primary
-         ':procedure (lambda (call-next-method hwnd)
+         :arity 1
+         :procedure (lambda (call-next-method hwnd)
                        (newline)
                        (display "Elvis has left the building. ")
                        (display *exit-count*)
