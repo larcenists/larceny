@@ -2,15 +2,18 @@
 
 ;;; A demo of using dotnet to talk to Excel.
 ;;;
-;;; To use this code, you must have Microsoft Excel installed.
+;;; To use this code, you must have Microsoft Excel installed, and you
+;;; must have the Microsoft Office Primary Interop Assemblies
+;;; installed.  See the Microsoft .NET web site for these.
 ;;;
 ;;; Follow these steps:
 ;;;
-;;; 1.  Load  dotnet-ffi.sch
-;;; 2.  Load  dotnet.sch
-;;; 3.  (enable-dotnet!)
-;;; 4.  Load  excel-demo.sch  (this file)
-;;; 5.  (whizbang-excel-demo)
+;;;  You should no longer load  dotnet-ffi.sch, it is built into the image.
+;;;  You should no longer load  dotnet.sch, it is built into the image.
+;;;
+;;; 1.  (enable-dotnet!)
+;;; 2.  Load  excel-demo.sch  (this file)
+;;; 3.  (whizbang-excel-demo)
 
 ;;; Note that the first time you call whizbang-excel-demo it will take
 ;;; quite some time (about a minute on a fast machine) to bootstrap
