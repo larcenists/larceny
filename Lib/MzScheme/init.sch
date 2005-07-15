@@ -35,11 +35,18 @@
 ;; Lists exported names. Make sure you also put the files in
 ;; Lib/makefile.scm in the dotnet-mzscheme-files list.
 
+(define (export-name name to-environment get-value)
+  (let ((probe (syntactic-environment-get usual-syntactic-environment name)))
+    (if probe
+        (environment-set-macro! to-environment name (usual-syntax name))
+        (environment-set! to-environment name (get-value)))))
+
 (define-syntax export
   (syntax-rules ()
     ((_ name ...)
      (set! *larceny-environment-extensions*
-           (cons (lambda (env) (environment-set! env 'name name) ...)
+           (cons (lambda (env)
+                   (export-name 'name env (lambda () name)) ...)
                  *larceny-environment-extensions*)))))
 
 (define (export-syntax . macro-defs)
@@ -355,6 +362,213 @@
         print-unreadable-object
         )
 
+;; dotnet-ffi
+(export %clr-array?
+        %clr-enum?
+        %clr-int32?
+        %clr-string?
+        %clr-type?
+        %foreign?
+        *dotnet-noise-level*
+        allocate-clr-array
+        clr-app-domain/%current-domain
+        clr-app-domain/%get-assemblies
+        clr-array->list
+        clr-array/length
+        clr-assembly/%get-type
+        clr-binding-flags/instance
+        clr-binding-flags/non-public
+        clr-binding-flags/public
+        clr-binding-flags/static
+        clr-convert/%change-type
+        clr-enum/%get-names
+        clr-enum/%get-values
+        clr-enum/get-names
+        clr-enum/get-values
+        clr-enum/to-object
+        clr-field-info/%get-value
+        clr-fieldinfo/%field-type
+        clr-fieldinfo/is-init-only?
+        clr-fieldinfo/is-literal?
+        clr-fieldinfo/is-static?
+        clr-guid/%new-guid
+        clr-member-type/constructor
+        clr-member-type/custom
+        clr-member-type/event
+        clr-member-type/field
+        clr-member-type/method
+        clr-member-type/nested-type
+        clr-member-type/property
+        clr-member-type/type-info
+        clr-memberinfo/%declaring-type
+        clr-memberinfo/%name
+        clr-memberinfo/%reflected-type
+        clr-memberinfo/member-type
+        clr-memberinfo/name
+        clr-methodbase/%get-parameters
+        clr-methodbase/is-public?
+        clr-methodbase/is-static?
+        clr-methodinfo/%return-type
+        clr-methodinfo/contains-generic-parameters?
+        clr-parameterinfo/%default-value
+        clr-parameterinfo/%parameter-type
+        clr-parameterinfo/is-optional?
+        clr-propertyinfo/%get-get-method
+        clr-propertyinfo/%get-index-parameters
+        clr-propertyinfo/%property-type
+        clr-propertyinfo/can-read?
+        clr-propertyinfo/can-write?
+        clr-type-handle/scheme-rt-ffi
+        clr-type-handle/system-appdomain
+        clr-type-handle/system-array
+        clr-type-handle/system-boolean
+        clr-type-handle/system-byte
+        clr-type-handle/system-char
+        clr-type-handle/system-convert
+        clr-type-handle/system-enum
+        clr-type-handle/system-guid
+        clr-type-handle/system-int16
+        clr-type-handle/system-int32
+        clr-type-handle/system-int64
+        clr-type-handle/system-object
+        clr-type-handle/system-reflection-assembly
+        clr-type-handle/system-reflection-bindingflags
+        clr-type-handle/system-reflection-constructorinfo
+        clr-type-handle/system-reflection-emit-constructorbuilder
+        clr-type-handle/system-reflection-emit-methodbuilder
+        clr-type-handle/system-reflection-fieldinfo
+        clr-type-handle/system-reflection-memberinfo
+        clr-type-handle/system-reflection-membertypes
+        clr-type-handle/system-reflection-methodbase
+        clr-type-handle/system-reflection-methodinfo
+        clr-type-handle/system-reflection-parameterinfo
+        clr-type-handle/system-reflection-propertyinfo
+        clr-type-handle/system-sbyte
+        clr-type-handle/system-string
+        clr-type-handle/system-type
+        clr-type-handle/system-uint16
+        clr-type-handle/system-uint32
+        clr-type-handle/system-uint64
+        clr-type-handle/system-void
+        clr-type/%assembly
+        clr-type/%assembly-qualified-name
+        clr-type/%attributes
+        clr-type/%base-type
+        clr-type/%full-name
+        clr-type/%get-custom-attributes
+        clr-type/%get-element-type
+        clr-type/%get-interfaces
+        clr-type/%get-members
+        clr-type/contains-generic-parameters?
+        clr-type/get-custom-attributes
+        clr-type/is-enum?
+        clr-type/is-generic?
+        clr-type/is-special-name?
+        clr/%clr-version
+        clr/%eq?
+        clr/%ffi-version
+        clr/%field-ref
+        clr/%field-set!
+        clr/%foreign->bytes
+        clr/%foreign->double
+        clr/%foreign->flonum
+        clr/%foreign->int
+        clr/%foreign->object
+        clr/%foreign->schemeobject
+        clr/%foreign->string
+        clr/%foreign->void
+        clr/%foreign-aref
+        clr/%foreign-aset
+        clr/%foreign-box
+        clr/%get-constructor
+        clr/%get-field
+        clr/%get-method
+        clr/%get-property
+        clr/%get-type
+        clr/%invoke
+        clr/%invoke-constructor
+        clr/%isa?
+        clr/%null?
+        clr/%number->foreign-byte
+        clr/%number->foreign-int16
+        clr/%number->foreign-int32
+        clr/%number->foreign-sbyte
+        clr/%number->foreign-uint16
+        clr/%number->foreign-uint32
+        clr/%object-type
+        clr/%procedure->message-filter
+        clr/%property-ref
+        clr/%property-ref-bool
+        clr/%property-ref-int
+        clr/%property-ref-intptr-int
+        clr/%property-ref-window
+        clr/%property-set!
+        clr/%string->foreign
+        clr/%to-string
+        clr/%type-as-string
+        clr/bool->foreign
+        clr/double->foreign
+        clr/false
+        clr/foreign->bool
+        clr/foreign->char
+        clr/foreign->double
+        clr/foreign->float
+        clr/foreign->int
+        clr/foreign->string
+        clr/foreign->symbol
+        clr/int->foreign
+        clr/null
+        clr/null?
+        clr/parse-enum
+        clr/string->foreign
+        clr/symbol->foreign
+        clr/true
+        clr/type-not-found
+        dotnet-message
+        find-clr-type
+        map-clr-array
+        )
+
+;; dotnet
+(export
+        <clr-arity-overload>
+        <clr-generic>
+        <clr-instance-field-getter>
+        <clr-instance-field-setter>
+        <clr-method>
+        <clr-static-field-getter>
+        <clr-static-field-setter>
+        System.Object
+        System.RuntimeType
+        System.Type
+        argument-marshaler
+        argument-specializer
+        clr-arity-overload?
+        clr-dynamic-cast
+        clr-object->clr-instance
+        clr-object/clr-handle
+        clr-object/potential-types
+        clr/StudlyName
+        clr/default-marshal-in
+        clr/default-marshal-out
+        clr/find-class
+        clr/find-constructor
+        clr/find-generic
+        clr/find-instance-field-getter
+        clr/find-instance-field-setter
+        clr/find-static-field-getter
+        clr/find-static-field-setter
+        clr/find-static-method
+        enable-dotnet!
+        enum/enumerates
+        enum/has-flags-attribute?
+        enum/value
+        get-arity-vector
+        list-clr-classes
+        return-marshaler
+        wrap-clr-object
+        )
+
 ;; continuation marks
 (export call-with-continuation-mark
         current-continuation-marks
@@ -372,171 +586,73 @@
         hash-table-map
         hash-table-for-each)
 
-;; upcoming mzscheme objects
-;(export <box>
-;        <bucket-table-with-home>
-;        <bucket-table>
-;        <bucket-with-flags>
-;        <bucket-with-home>
-;        <bucket>
-;        <scheme-small-object>
-;        bucket-table/for-each
-;        bucket-table/size
-;        bucket/flags
-;        bucket/home
-;        bucket/id
-;        bucket/key
-;        bucket/val
-;        box/val
-;        box?
-;        get-bucket
-;        make-default-bucket
-;        ptr-val
-;        scheme-add-to-table!
-;        scheme-bucket-from-table
-;        scheme-bucket-or-null-from-table
-;        scheme-lookup-in-table
-;        set-bucket/flags!
-;        set-bucket/home!
-;        set-bucket/id!
-;        set-bucket/val!
-;        set-box/val!
-;        set-ptr-val!
-;        update-bucket/flags!
-
-;        module-renames/plus-kernel?
-;        set-module-renames/plus-kernel?!
-;        module-renames/phase
-;        module-renames/plus-kernel-nominal-source
-;        set-module-renames/plus-kernel-nominal-source!
-;        module-renames/ht
-;        module-renames/marked-names
-;        set-module-renames/marked-names!
-;        <module-renames>
-;        module-renames?
-;        <normal-module-renames>
-;        normal-module-renames?
-;        <marked-module-renames>
-;        marked-module-renames?
-;        <toplevel-module-renames>
-;        toplevel-module-renames?
-;        module-renames/put!
-;        module-renames/get
-
-;        <stx-srcloc>
-;        stx/flags
-;        stx/val
-
-;        set-stx/val!
-;        stx/srcloc
-;        stx/wraps
-;        set-stx/wraps!
-;        stx/certs
-;        set-stx/certs!
-;        stx/props
-;        set-stx/props!
-;        stx/modinfo-cache
-;        set-stx/modinfo-cache!
-;        stx/lazy-prefix
-;        set-stx/lazy-prefix!
-;        <stx>
-;        stx?
-;        scheme-stx-null?
-;        scheme-stx-pair?
-;        scheme-stx-symbol?
-;        scheme-stx-sym
-
-;        modidx/path
-;        set-modidx/path!
-;        modidx/base
-;        set-modidx/base!
-;        modidx/resolved
-;        set-modidx/resolved!
-;        modidx/shift-cache
-;        set-modidx/shift-cache!
-;        modidx/cache-next
-;        set-modidx/cache-next!
-;        <modidx>
-;        modidx?
-
-;        module-variable/modidx
-;        set-module-variable/modidx!
-;        module-variable/sym
-;        set-module-variable/sym!
-;        module-variable/insp
-;        set-module-variable/insp!
-;        module-variable/pos
-;        set-module-variable/pos!
-;        module-variable/mod-phase
-;        set-module-variable/mod-phase!
-
-;        <module-variable>
-;        module-variable?
-
-;        prefix/num-toplevels
-;        set-prefix/num-toplevels!
-;        prefix/num-stxes
-;        set-prefix/num-stxes!
-;        prefix/toplevels
-;        set-prefix/toplevels!
-;        prefix/stxes
-;        set-prefix/stxes!
-;        <comp-prefix>
-;        <resolve-prefix>
-
-;        <local>
-;        local/position
-;        toplevel/depth
-;        toplevel/position
-;        <toplevel>
-;        <compiled-toplevel>
-
-;        compile-expand-info/certs
-;        set-compile-expand-info/certs!
-;        compile-expand-info/value-name
-;        set-compile-expand-info/value-name!
-;        <compile-expand-info>
-;        compile-info/dont-mark-local-use
-;        set-compile-info/dont-mark-local-use!
-;        compile-info/max-let-depth
-;        set-compile-info/max-let-depth!
-;        compile-info/resolve-module-ids
-;        set-compile-info/resolve-module-ids!
-;        <compile-info>
-;        compile-info?
-;        expand-info/depth
-;        set-expand-info/depth!
-;        <expand-info>
-;        expand-info?
-
+;;; Envaux
+;(export *current-namespace*
+;        *kernel-namespace*
+;        <environment-auxinfo>
+;        current-module-name
+;        env/extend-reflected!
+;        env/extend-syntax!
+;        env/lookup-syntax
+;        env/module-environment
+;        env/reflect!
+;        env/reflected-environments
+;        env/reify
+;        env/syntax-environment
+;        env/syntax-quote-environment
+;        make-namespace
+;        set-env/module-environment!
+;        set-env/reflected-environments!
+;        set-env/syntax-environment!
+;        set-env/syntax-quote-environment!
 ;        )
 
-;; wrap-pos
-;(export <wrap-chunk>
-;        <wrap-pos>
-;        do-wrap-pos-inc!
-;        set-wrap-chunk/a!
-;        set-wrap-chunk/len!
-;        set-wrap-pos-end!
-;        wrap-chunk/a
-;        wrap-chunk/len
-;        wrap-chunk?
-;        wrap-pos/a
-;        wrap-pos/copy
-;        wrap-pos/end?
-;        wraps->wrap-pos
-
-;        do-wrap-pos-revinit
+;;; Identifier
+;(export *current-meta-rename*
+;        *no-color*
+;        *source-color*
+;        *source-stack*
+;        *syntax-noise-level*
+;        <identifier>
+;        alist-cons
+;        alist-ref
+;        append-colors
+;        bind!
+;        bind-lexical!
+;        bind-toplevel!
+;        binding-name
+;        bound-identifier=?
+;        close-environment
+;        color
+;        const?
+;        datum->syntax
+;        datum->syntax0
+;        free-identifier=?
+;        formals?
+;        generate-color
+;        identifier?
+;        import!
+;        lexically-bound?
+;        literal-identifier=?
+;        macro-apply
+;        make-capturing-identifier
+;        make-meta-renaming-procedure
+;        make-renaming-procedure
+;        map-in-order
+;        paint-name
+;        quasi
+;        scan-let
+;        symbolic-name
+;        syntax->datum
+;        syntax-debug
+;        syntax-trace
+;        syntax-error
+;        unbind!
 ;        )
 
-;; graph and placeholder resolution
-;(export <placeholder>
-;        placeholder/value
-;        placeholder?
-;        resolve-placeholders
-;        set-placeholder/value!
-;        setup-datum-graph
-;        )
+;;; Compress
+;(export compress-envs
+;        uncompress-envs)
 
 ;; inspectors
 (export make-inspector
@@ -585,6 +701,14 @@
         struct-predicate-procedure?
         struct-constructor-procedure?
         )
+
+(define (begin-exports env)
+  (newline)
+  (display "; Exporting environment extensions."))
+
+(set! *larceny-environment-extensions*
+      (cons begin-exports *larceny-environment-extensions*))
+
 
 (export-syntax
  '(define-syntax .javadot
