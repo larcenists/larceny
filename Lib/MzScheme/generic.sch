@@ -1313,7 +1313,7 @@
                 (generic-arity (%generic-arity generic)))
             ;; If the method arity was not specified, set it to the generic arity.
             (if (eq? method-arity *unbound-slot-value*)
-                (%set-method-arity method generic-arity))
+                (%set-method-arity! method generic-arity))
             (cond
                   ;; note: equal? works on arity-at-least structs
                   ((or (eq? method-arity *unbound-slot-value*)
