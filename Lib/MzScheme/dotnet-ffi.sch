@@ -6,9 +6,12 @@
 ;;; low-level window example code (in windows.sch) makes use of it
 ;;; to achieve better performance.
 
+;;; We also use the NewGuid call to generate unique names for
+;;; separately compiled macros.
+
 ;;; See the notes at the beginning of dotnet.sch
 
-;($$trace "dotnet-ffi")
+($$trace "dotnet-ffi")
 
 ;; Set this variable to an integer from 0 through 5 to trace execution
 ;; of the dotnet code.  0 is least verbose, 5 is very detailed.
@@ -18,6 +21,7 @@
   (if (and (number? *dotnet-noise-level*)
            (>= *dotnet-noise-level* message-level))
       (begin
+        (newline)
         (display "dotnet ")
         (display message-level)
         (display ": ")
@@ -28,24 +32,114 @@
                     (display " ")
                     (display object))
                   objects)
-        (newline))))
+        (force-output-port))))
 
 ;;; The syscalls that make this work.
 
 (define-syntax define-syscall
   (syntax-rules ()
     ((define-syscall name code ...)
+     (begin
      (define-syntax name
 ;       ;; Very slow, thoroughly traced version.
 ;       (syntax-rules ()
-;         ((name . args)
-;          (begin (dotnet-message 5 "Syscall" 'name)
-;                 (syscall code ... . args))))
+;         ((name)
+;          (begin
+;            (dotnet-message 5 "Syscall" 'name)
+;            (syscall code ...)))
+
+;         ((name arg1)
+;          (let ((value1 arg1))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1)))
+
+;         ((name arg1 arg2)
+;          (let ((value1 arg1)
+;                (value2 arg2))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2)))
+
+;         ((name arg1 arg2 arg3)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3)))
+
+;         ((name arg1 arg2 arg3 arg4)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4)))
+
+;         ((name arg1 arg2 arg3 arg4 arg5)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4)
+;                (value5 arg5))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4 value5)))
+;         )
+
        ;; Regular version.
        (syntax-rules ()
          ((name . args)
           (syscall code ... . args)))
-       ))))
+       )
+     (macro-expand
+      '(define-syntax name
+;       ;; Very slow, thoroughly traced version.
+;       (syntax-rules ()
+;         ((name)
+;          (begin
+;            (dotnet-message 5 "Syscall" 'name)
+;            (syscall code ...)))
+
+;         ((name arg1)
+;          (let ((value1 arg1))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1)))
+
+;         ((name arg1 arg2)
+;          (let ((value1 arg1)
+;                (value2 arg2))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2)))
+
+;         ((name arg1 arg2 arg3)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3)))
+
+;         ((name arg1 arg2 arg3 arg4)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4)))
+
+;         ((name arg1 arg2 arg3 arg4 arg5)
+;          (let ((value1 arg1)
+;                (value2 arg2)
+;                (value3 arg3)
+;                (value4 arg4)
+;                (value5 arg5))
+;            (dotnet-message 5 "Syscall" 'name value1)
+;            (syscall code ... value1 value2 value3 value4 value5)))
+;         )
+
+       ;; Regular version.
+       (syntax-rules ()
+         ((name . args)
+          (syscall code ... . args)))
+       )
+      usual-syntactic-environment)))))
 
 (define-syscall clr/%clr-version        34  0)
 (define-syscall clr/%ffi-version        34  1)
@@ -121,12 +215,19 @@
 (define clr-type-handle/system-char                     (clr/%get-type "System.Char"))
 (define clr-type-handle/system-convert                  (clr/%get-type "System.Convert"))
 (define clr-type-handle/system-enum                     (clr/%get-type "System.Enum"))
+(define clr-type-handle/system-guid                     (clr/%get-type "System.Guid"))
 (define clr-type-handle/system-int16                    (clr/%get-type "System.Int16"))
 (define clr-type-handle/system-int32                    (clr/%get-type "System.Int32"))
 (define clr-type-handle/system-int64                    (clr/%get-type "System.Int64"))
 (define clr-type-handle/system-object                   (clr/%get-type "System.Object"))
 (define clr-type-handle/system-reflection-assembly      (clr/%get-type "System.Reflection.Assembly"))
 (define clr-type-handle/system-reflection-bindingflags  (clr/%get-type "System.Reflection.BindingFlags"))
+(define clr-type-handle/system-reflection-constructorinfo
+  (clr/%get-type "System.Reflection.ConstructorInfo"))
+(define clr-type-handle/system-reflection-emit-constructorbuilder
+  (clr/%get-type "System.Reflection.Emit.ConstructorBuilder"))
+(define clr-type-handle/system-reflection-emit-methodbuilder
+  (clr/%get-type "System.Reflection.Emit.MethodBuilder"))
 (define clr-type-handle/system-reflection-fieldinfo     (clr/%get-type "System.Reflection.FieldInfo"))
 (define clr-type-handle/system-reflection-memberinfo    (clr/%get-type "System.Reflection.MemberInfo"))
 (define clr-type-handle/system-reflection-membertypes   (clr/%get-type "System.Reflection.MemberTypes"))
@@ -154,6 +255,13 @@
     ((clr/%null? form)
      (clr/%eq? form clr/null))))
 
+(macro-expand
+ '(define-syntax clr/%null?
+    (syntax-rules ()
+      ((clr/%null? form)
+       (clr/%eq? form clr/null))))
+ usual-syntactic-environment)
+
 (define (clr/null? object) (clr/%null? object))
 
 (define (clr/bool->foreign   obj) (if obj clr/true clr/false))
@@ -176,9 +284,15 @@
 (define-syntax define-ffi-predicate
   (syntax-rules ()
     ((define-ffi-predicate name type-handle)
-     (define-syntax name
-       (syntax-rules ()
-         ((name object) (clr/%isa? object type-handle)))))))
+     (begin
+       (define-syntax name
+         (syntax-rules ()
+           ((name object) (clr/%isa? object type-handle))))
+       (macro-expand
+         '(define-syntax name
+            (syntax-rules ()
+              ((name object) (clr/%isa? object type-handle))))
+         usual-syntactic-environment)))))
 
 (define-ffi-predicate %clr-array?      clr-type-handle/system-array)
 (define-ffi-predicate %clr-enum?       clr-type-handle/system-enum)
@@ -327,6 +441,20 @@
                   limit)))
       (error "map-clr-array: not a foreign array" handle)))
 
+(define clr/%foreign-aset
+  (let ((method-handle (clr/%get-method clr-type-handle/system-array "SetValue"
+                                        (vector clr-type-handle/system-object
+                                                clr-type-handle/system-int32))))
+    (lambda (array idx value)
+      (clr/%invoke method-handle array (vector value (clr/int->foreign idx))))))
+
+(define allocate-clr-array
+  (let* ((method-handle (clr/%get-method clr-type-handle/system-array "CreateInstance"
+                                         (vector clr-type-handle/system-type
+                                                 clr-type-handle/system-int32))))
+    (lambda (type-handle length)
+      (clr/%invoke method-handle #f (vector type-handle (clr/int->foreign length))))))
+
 ;;; Some bootstrap Enums
 (define clr/parse-enum
   (let* ((method-handle (clr/%get-method clr-type-handle/system-enum "Parse"
@@ -376,12 +504,15 @@
        (let ((method-handle (clr/%get-method type-handle method-name '#())))
          (if method-handle
              (lambda (object)
-               ;; (dotnet-message 5 "Invoke method" method-name)
+               (dotnet-message 5 "Invoke method" method-name)
                (clr/%invoke method-handle object '#()))
              (error (string-append "Method "method-name" not found."))))))))
 
 (define-clr-method (clr-app-domain/%get-assemblies)
   clr-type-handle/system-appdomain "GetAssemblies")
+
+(define-clr-method (clr-guid/%new-guid)
+  clr-type-handle/system-guid "NewGuid")
 
 (define-clr-method (clr-methodbase/%get-parameters)
   clr-type-handle/system-reflection-methodbase "GetParameters")
@@ -440,7 +571,7 @@
                                         (vector clr-type-handle/system-type
                                                 clr-type-handle/system-int32))))
     (lambda (class-handle number)
-      ;; (dotnet-message 5 "clr-enum/to-object")
+      (dotnet-message 5 "clr-enum/to-object")
       (clr/%invoke method-handle #f (vector class-handle (clr/%number->foreign-int32 number))))))
 
 (define clr-field-info/%get-value
@@ -534,3 +665,6 @@
                       (if (%clr-type? probe)
                           probe
                           (loop (+ idx 1) limit))))))))))
+
+(define (clr/new-guid)
+  (clr/%to-string (clr-guid/%new-guid #f)))
